@@ -1,0 +1,36 @@
+[submodule "deps/GSL"]
+	path = deps/GSL
+	url = https://github.com/Microsoft/GSL.git
+[submodule "deps/asmjit"]
+	path = deps/asmjit
+	url = https://github.com/asmjit/asmjit.git
+[submodule "deps/udis86"]
+	path = deps/udis86
+	url = https://github.com/vmt/udis86.git
+[submodule "deps/minhook"]
+	path = deps/minhook
+	url = https://github.com/TsudaKageyu/minhook.git
+[submodule "deps/libtommath"]
+	path = deps/libtommath
+	url = https://github.com/libtom/libtommath.git
+	branch = develop
+[submodule "deps/libtomcrypt"]
+	path = deps/libtomcrypt
+	url = https://github.com/libtom/libtomcrypt.git
+	branch = develop
+[submodule "deps/zlib"]
+	path = deps/zlib
+	url = https://github.com/madler/zlib.git
+	branch = develop
+[submodule "deps/zstd"]
+	path = deps/zstd
+	url = https://github.com/facebook/zstd.git
+[submodule "deps/lz4"]
+	path = deps/lz4
+	url = https://github.com/lz4/lz4
+[submodule "deps/DirectXTex"]
+	path = deps/DirectXTex
+	url = https://github.com/microsoft/DirectXTex
+[submodule "deps/gsc-tool"]
+	path = deps/gsc-tool
+	url = https://github.com/xensik/gsc-tool.git
