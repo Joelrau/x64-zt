@@ -190,7 +190,7 @@ namespace zonetool::h1
 					DUMP_ASSET(ASSET_TYPE_DOMAINSHADER, IDomainShader, MaterialDomainShader);
 					DUMP_ASSET(ASSET_TYPE_HULLSHADER, IHullShader, MaterialHullShader);
 					DUMP_ASSET(ASSET_TYPE_PIXELSHADER, IPixelShader, MaterialPixelShader);
-					DUMP_ASSET(ASSET_TYPE_VERTEXDECL, IVertexDecl, MaterialVertexDeclaration);
+					//DUMP_ASSET(ASSET_TYPE_VERTEXDECL, IVertexDecl, MaterialVertexDeclaration);
 					DUMP_ASSET(ASSET_TYPE_VERTEXSHADER, IVertexShader, MaterialVertexShader);
 
 					DUMP_ASSET(ASSET_TYPE_MENU, IMenuDef, menuDef_t);

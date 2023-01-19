@@ -451,7 +451,7 @@ namespace zonetool::h1
 				if (data->skies[i].skyStartSurfs)
 				{
 					buf->align(3);
-					buf->write_p(data->skies[i].skyStartSurfs, data->skies[i].skySurfCount);
+					buf->write(data->skies[i].skyStartSurfs, data->skies[i].skySurfCount);
 					ZoneBuffer::clear_pointer(&destskies[i].skyStartSurfs);
 				}
 
@@ -473,7 +473,7 @@ namespace zonetool::h1
 		if (data->dpvsPlanes.nodes)
 		{
 			buf->align(1);
-			buf->write_p(data->dpvsPlanes.nodes, data->nodeCount);
+			buf->write(data->dpvsPlanes.nodes, data->nodeCount);
 			ZoneBuffer::clear_pointer(&dest->dpvsPlanes.nodes);
 		}
 
@@ -489,21 +489,21 @@ namespace zonetool::h1
 		if (data->aabbTreeCounts)
 		{
 			buf->align(3);
-			buf->write_p(data->aabbTreeCounts, data->dpvsPlanes.cellCount);
+			buf->write(data->aabbTreeCounts, data->dpvsPlanes.cellCount);
 			ZoneBuffer::clear_pointer(&dest->aabbTreeCounts);
 		}
 
 		if (data->aabbTrees)
 		{
 			buf->align(127);
-			auto cell_tree = buf->write_p(data->aabbTrees, data->dpvsPlanes.cellCount);
+			auto cell_tree = buf->write(data->aabbTrees, data->dpvsPlanes.cellCount);
 
 			for (int i = 0; i < data->dpvsPlanes.cellCount; i++)
 			{
 				if (data->aabbTrees[i].aabbTree)
 				{
 					buf->align(3);
-					auto gfx_aabb_tree = buf->write_p(data->aabbTrees[i].aabbTree,
+					auto gfx_aabb_tree = buf->write(data->aabbTrees[i].aabbTree,
 						data->aabbTreeCounts[i].aabbTreeCount);
 
 					for (int i2 = 0; i2 < data->aabbTreeCounts[i].aabbTreeCount; i2++)
@@ -691,7 +691,7 @@ namespace zonetool::h1
 		if (data->draw.lightmapPrimaryTextures)
 		{
 			buf->align(3);
-			buf->write_p(data->draw.lightmapPrimaryTextures, data->draw.lightmapCount);
+			buf->write(data->draw.lightmapPrimaryTextures, data->draw.lightmapCount);
 			ZoneBuffer::clear_pointer(&dest->draw.lightmapPrimaryTextures);
 		}
 		buf->pop_stream();
@@ -700,7 +700,7 @@ namespace zonetool::h1
 		if (data->draw.lightmapSecondaryTextures)
 		{
 			buf->align(3);
-			buf->write_p(data->draw.lightmapSecondaryTextures, data->draw.lightmapCount);
+			buf->write(data->draw.lightmapSecondaryTextures, data->draw.lightmapCount);
 			ZoneBuffer::clear_pointer(&dest->draw.lightmapSecondaryTextures);
 		}
 		buf->pop_stream();
@@ -720,21 +720,21 @@ namespace zonetool::h1
 		if (data->draw.vd.vertices)
 		{
 			buf->align(3);
-			buf->write_p(data->draw.vd.vertices, data->draw.vertexCount);
+			buf->write(data->draw.vd.vertices, data->draw.vertexCount);
 			ZoneBuffer::clear_pointer(&dest->draw.vd.vertices);
 		}
 
 		if (data->draw.vld.data)
 		{
 			buf->align(3);
-			buf->write_p(data->draw.vld.data, data->draw.vertexLayerDataSize);
+			buf->write(data->draw.vld.data, data->draw.vertexLayerDataSize);
 			ZoneBuffer::clear_pointer(&dest->draw.vld.data);
 		}
 
 		if (data->draw.indices)
 		{
 			buf->align(3);
-			buf->write_p(data->draw.indices, data->draw.indexCount);
+			buf->write(data->draw.indices, data->draw.indexCount);
 			ZoneBuffer::clear_pointer(&dest->draw.indices);
 		}
 
@@ -744,7 +744,7 @@ namespace zonetool::h1
 		if (data->draw.displacementParms)
 		{
 			buf->align(63);
-			buf->write_p(data->draw.displacementParms, data->draw.displacementParmsCount);
+			buf->write(data->draw.displacementParms, data->draw.displacementParmsCount);
 			ZoneBuffer::clear_pointer(&dest->draw.displacementParms);
 		}
 
@@ -754,7 +754,7 @@ namespace zonetool::h1
 		if (data->lightGrid.rowDataStart)
 		{
 			buf->align(1);
-			buf->write_p(data->lightGrid.rowDataStart,
+			buf->write(data->lightGrid.rowDataStart,
 				data->lightGrid.maxs[data->lightGrid.rowAxis] - data->lightGrid.mins[data->lightGrid.rowAxis] + 1);
 			ZoneBuffer::clear_pointer(&dest->lightGrid.rowDataStart);
 		}
@@ -762,7 +762,7 @@ namespace zonetool::h1
 		if (data->lightGrid.rawRowData)
 		{
 			buf->align(0);
-			buf->write_p(data->lightGrid.rawRowData, data->lightGrid.rawRowDataSize);
+			buf->write(data->lightGrid.rawRowData, data->lightGrid.rawRowDataSize);
 			ZoneBuffer::clear_pointer(&dest->lightGrid.rawRowData);
 		}
 
@@ -931,13 +931,13 @@ namespace zonetool::h1
 				if (data->shadowGeom[i].sortedSurfIndex)
 				{
 					buf->align(3);
-					buf->write_p(data->shadowGeom[i].sortedSurfIndex, data->shadowGeom[i].surfaceCount);
+					buf->write(data->shadowGeom[i].sortedSurfIndex, data->shadowGeom[i].surfaceCount);
 					ZoneBuffer::clear_pointer(&shadow_geometry[i].sortedSurfIndex);
 				}
 				if (data->shadowGeom[i].smodelIndex)
 				{
 					buf->align(1);
-					buf->write_p(data->shadowGeom[i].smodelIndex, data->shadowGeom[i].smodelCount);
+					buf->write(data->shadowGeom[i].smodelIndex, data->shadowGeom[i].smodelCount);
 					ZoneBuffer::clear_pointer(&shadow_geometry[i].smodelIndex);
 				}
 			}
@@ -954,13 +954,13 @@ namespace zonetool::h1
 				if (data->shadowGeomOptimized[i].sortedSurfIndex)
 				{
 					buf->align(3);
-					buf->write_p(data->shadowGeomOptimized[i].sortedSurfIndex, data->shadowGeomOptimized[i].surfaceCount);
+					buf->write(data->shadowGeomOptimized[i].sortedSurfIndex, data->shadowGeomOptimized[i].surfaceCount);
 					ZoneBuffer::clear_pointer(&shadow_geometry[i].sortedSurfIndex);
 				}
 				if (data->shadowGeomOptimized[i].smodelIndex)
 				{
 					buf->align(1);
-					buf->write_p(data->shadowGeomOptimized[i].smodelIndex, data->shadowGeomOptimized[i].smodelCount);
+					buf->write(data->shadowGeomOptimized[i].smodelIndex, data->shadowGeomOptimized[i].smodelCount);
 					ZoneBuffer::clear_pointer(&shadow_geometry[i].smodelIndex);
 				}
 			}
@@ -1524,7 +1524,7 @@ namespace zonetool::h1
 		if (data->dpvs.sortedSurfIndex)
 		{
 			buf->align(3);
-			buf->write_p(data->dpvs.sortedSurfIndex, data->dpvs.staticSurfaceCount);
+			buf->write(data->dpvs.sortedSurfIndex, data->dpvs.staticSurfaceCount);
 			ZoneBuffer::clear_pointer(&dest->dpvs.sortedSurfIndex);
 		}
 

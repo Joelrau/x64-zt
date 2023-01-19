@@ -341,36 +341,6 @@ namespace zonetool::h1
 		weapon->__field__ = nullptr; \
 	}
 
-	void parse_turret_hydraulic_settings(TurretHydraulicSettings* settings, json& data, ZoneMemory* mem)
-	{
-		settings->minVelocity = data["minVelocity"].is_number() ? data["minVelocity"].get<float>() : 0.0f;
-		settings->maxVelocity = data["maxVelocity"].is_number() ? data["maxVelocity"].get<float>() : 0.0f;
-
-		if (!data["verticalSound"].is_null())
-		{
-			settings->verticalSound = mem->Alloc<snd_alias_list_t>();
-			settings->verticalSound->name = data["verticalSound"].is_string() ? mem->StrDup(data["verticalSound"].get<std::string>()) : nullptr;
-		}
-
-		if (!data["verticalStopSound"].is_null())
-		{
-			settings->verticalStopSound = mem->Alloc<snd_alias_list_t>();
-			settings->verticalStopSound->name = data["verticalStopSound"].is_string() ? mem->StrDup(data["verticalStopSound"].get<std::string>()) : nullptr;
-		}
-
-		if (!data["horizontalSound"].is_null())
-		{
-			settings->horizontalSound = mem->Alloc<snd_alias_list_t>();
-			settings->horizontalSound->name = data["horizontalSound"].is_string() ? mem->StrDup(data["horizontalSound"].get<std::string>()) : nullptr;
-		}
-
-		if (!data["horizontalStopSound"].is_null())
-		{
-			settings->horizontalStopSound = mem->Alloc<snd_alias_list_t>();
-			settings->horizontalStopSound->name = data["horizontalStopSound"].is_string() ? mem->StrDup(data["horizontalStopSound"].get<std::string>()) : nullptr;
-		}
-	}
-
 	void parse_overlay(ADSOverlay* weapon, json& data)
 	{
 		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, shader);
@@ -382,6 +352,52 @@ namespace zonetool::h1
 		WEAPON_READ_FIELD(float, height);
 		WEAPON_READ_FIELD(float, widthSplitscreen);
 		WEAPON_READ_FIELD(float, heightSplitscreen);
+	}
+
+	void parse_turret_hydraulic_settings(TurretHydraulicSettings* settings, json& data, ZoneMemory* mem)
+	{
+		settings->minVelocity = data["minVelocity"].is_number() ? data["minVelocity"].get<float>() : 0.0f;
+		settings->maxVelocity = data["maxVelocity"].is_number() ? data["maxVelocity"].get<float>() : 0.0f;
+
+		if (!data["verticalSound"].is_null())
+		{
+			auto string = data["verticalSound"].get<std::string>();
+			if (!string.empty())
+			{
+				settings->verticalSound = mem->Alloc<snd_alias_list_t>();
+				settings->verticalSound->name = mem->StrDup(string);
+			}
+		}
+
+		if (!data["verticalStopSound"].is_null())
+		{
+			auto string = data["verticalStopSound"].get<std::string>();
+			if (!string.empty())
+			{
+				settings->verticalStopSound = mem->Alloc<snd_alias_list_t>();
+				settings->verticalStopSound->name = mem->StrDup(string);
+			}
+		}
+
+		if (!data["horizontalSound"].is_null())
+		{
+			auto string = data["horizontalSound"].get<std::string>();
+			if (!string.empty())
+			{
+				settings->horizontalSound = mem->Alloc<snd_alias_list_t>();
+				settings->horizontalSound->name = mem->StrDup(string);
+			}
+		}
+
+		if (!data["horizontalStopSound"].is_null())
+		{
+			auto string = data["horizontalStopSound"].get<std::string>();
+			if (!string.empty())
+			{
+				settings->horizontalStopSound = mem->Alloc<snd_alias_list_t>();
+				settings->horizontalStopSound->name = mem->StrDup(string);
+			}
+		}
 	}
 
 	void parse_accuracy_graph(WeaponDef* def, json& data, ZoneMemory* mem)
@@ -2384,10 +2400,10 @@ namespace zonetool::h1
 
 		data["minVelocity"] = settings->minVelocity;
 		data["maxVelocity"] = settings->maxVelocity;
-		data["verticalSound"] = settings->verticalSound->name;
-		data["verticalStopSound"] = settings->verticalStopSound->name;
-		data["horizontalSound"] = settings->horizontalSound->name;
-		data["horizontalStopSound"] = settings->horizontalStopSound->name;
+		data["verticalSound"] = settings->verticalSound ? settings->verticalSound->name : "";
+		data["verticalStopSound"] = settings->verticalStopSound ? settings->verticalStopSound->name : "";
+		data["horizontalSound"] = settings->horizontalSound ? settings->horizontalSound->name : "";
+		data["horizontalStopSound"] = settings->horizontalStopSound ? settings->horizontalStopSound->name : "";
 
 		return data;
 	}
