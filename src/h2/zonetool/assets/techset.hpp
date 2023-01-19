@@ -1,8 +1,6 @@
 #pragma once
 #include "../zonetool.hpp"
 
-#define TECHNIQUES_COUNT 252u
-
 namespace zonetool::h2
 {
 	class ITechset : public IAsset

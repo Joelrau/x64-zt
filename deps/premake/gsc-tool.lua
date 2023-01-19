@@ -3,7 +3,7 @@ gsc_tool = {
 }
 
 function gsc_tool.import()
-    links {"xsk-gsc-h1", "xsk-gsc-h2", "xsk-gsc-utils"}
+    links {"xsk-gsc-s1", "xsk-gsc-h1", "xsk-gsc-h2", "xsk-gsc-utils"}
     gsc_tool.includes()
 end
 
@@ -35,6 +35,31 @@ function gsc_tool.project()
     }
 
     zlib.includes()
+	
+	project "xsk-gsc-s1"
+    kind "StaticLib"
+    language "C++"
+
+    pchheader "stdafx.hpp"
+    pchsource(path.join(gsc_tool.source, "s1/stdafx.cpp"))
+
+    files {
+        path.join(gsc_tool.source, "s1/**.h"),
+        path.join(gsc_tool.source, "s1/**.hpp"),
+        path.join(gsc_tool.source, "s1/**.cpp"),
+        path.join(dependencies.basePath, "extra/gsc-tool/s1/interface.cpp")
+    }
+
+    includedirs {
+        path.join(gsc_tool.source, "s1"),
+        gsc_tool.source,
+        path.join(dependencies.basePath, "extra/gsc-tool/s1")
+    }
+	
+	filter "action:vs*"
+    buildoptions "/bigobj"
+    buildoptions "/Zc:__cplusplus"
+    filter {}
 
     project "xsk-gsc-h1"
     kind "StaticLib"

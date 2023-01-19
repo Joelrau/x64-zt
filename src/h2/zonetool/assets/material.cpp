@@ -160,7 +160,7 @@ namespace zonetool::h2
 		}
 
 		auto max_state_index = 0;
-		for (auto i = 0; i < TECHNIQUES_COUNT; i++)
+		for (auto i = 0; i < MaterialTechniqueType::TECHNIQUE_COUNT; i++)
 		{
 			if (mat->stateBitsEntry[i] == 255)
 			{

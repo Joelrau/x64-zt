@@ -69,6 +69,12 @@ function dependencies.projects()
 end
 
 newoption {
+	trigger = "s1-copy-to",
+	description = "Optional, copy the EXE to a custom folder after build, define the path here if wanted.",
+	value = "PATH"
+}
+
+newoption {
 	trigger = "h1-copy-to",
 	description = "Optional, copy the EXE to a custom folder after build, define the path here if wanted.",
 	value = "PATH"
@@ -273,12 +279,14 @@ filter "configurations:Debug"
 	defines {"DEBUG", "_DEBUG"}
 filter {}
 
+include "src/s1.lua"
 include "src/h1.lua"
 include "src/h2.lua"
 include "src/shared.lua"
 include "src/tlsdll.lua"
 
 shared:project()
+s1:project()
 h1:project()
 h2:project()
 tlsdll:project()

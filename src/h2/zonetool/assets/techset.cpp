@@ -113,7 +113,7 @@ namespace zonetool::h2
 		const auto asset = reader.read_single<MaterialTechniqueSet>();
 		asset->name = reader.read_string();
 
-		for (auto i = 0u; i < TECHNIQUES_COUNT; i++)
+		for (auto i = 0u; i < MaterialTechniqueType::TECHNIQUE_COUNT; i++)
 		{
 			if (asset->techniques[i])
 			{
@@ -140,7 +140,7 @@ namespace zonetool::h2
 
 		if (fp)
 		{
-			fread(indexes, TECHNIQUES_COUNT, 1, fp);
+			fread(indexes, MaterialTechniqueType::TECHNIQUE_COUNT, 1, fp);
 			file.close();
 			return;
 		}
@@ -230,7 +230,7 @@ namespace zonetool::h2
 
 		if (fp)
 		{
-			fread(statebits, TECHNIQUES_COUNT, 1, fp);
+			fread(statebits, MaterialTechniqueType::TECHNIQUE_COUNT, 1, fp);
 			file.close();
 			return;
 		}
@@ -318,7 +318,7 @@ namespace zonetool::h2
 	void ITechset::prepare(ZoneBuffer* buf, ZoneMemory* mem)
 	{
 		auto data = this->asset_;
-		for (auto technique = 0u; technique < TECHNIQUES_COUNT; technique++)
+		for (auto technique = 0u; technique < MaterialTechniqueType::TECHNIQUE_COUNT; technique++)
 		{
 			if (data->techniques[technique])
 			{
@@ -346,7 +346,7 @@ namespace zonetool::h2
 	{
 		auto data = this->asset_;
 
-		for (auto technique = 0u; technique < TECHNIQUES_COUNT; technique++)
+		for (auto technique = 0u; technique < MaterialTechniqueType::TECHNIQUE_COUNT; technique++)
 		{
 			if (data->techniques[technique])
 			{
@@ -402,7 +402,7 @@ namespace zonetool::h2
 
 		dest->name = buf->write_str(this->name());
 
-		for (auto technique = 0; technique < TECHNIQUES_COUNT; technique++)
+		for (auto technique = 0; technique < MaterialTechniqueType::TECHNIQUE_COUNT; technique++)
 		{
 			if (!data->techniques[technique])
 			{
@@ -523,7 +523,7 @@ namespace zonetool::h2
 
 		if (fp)
 		{
-			fwrite(cbi, TECHNIQUES_COUNT, 1, fp);
+			fwrite(cbi, MaterialTechniqueType::TECHNIQUE_COUNT, 1, fp);
 			file.close();
 		}
 	}
@@ -606,7 +606,7 @@ namespace zonetool::h2
 
 		if (fp)
 		{
-			fwrite(statebits, TECHNIQUES_COUNT, 1, fp);
+			fwrite(statebits, MaterialTechniqueType::TECHNIQUE_COUNT, 1, fp);
 			file.close();
 		}
 	}
@@ -719,7 +719,7 @@ namespace zonetool::h2
 		file.open("wb");
 		auto fp = file.get_fp();
 
-		for (auto i = 0u; i < TECHNIQUES_COUNT; i++)
+		for (auto i = 0u; i < MaterialTechniqueType::TECHNIQUE_COUNT; i++)
 		{
 			if (asset->techniques[i])
 			{
@@ -749,7 +749,7 @@ namespace zonetool::h2
 		dumper.dump_single(asset);
 		dumper.dump_string(asset->name);
 
-		for (auto i = 0u; i < TECHNIQUES_COUNT; i++)
+		for (auto i = 0u; i < MaterialTechniqueType::TECHNIQUE_COUNT; i++)
 		{
 			if (asset->techniques[i])
 			{

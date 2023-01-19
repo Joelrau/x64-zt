@@ -238,6 +238,11 @@ namespace zonetool::h2
 		Packed128 packed;
 	};
 
+	enum MaterialTechniqueType : std::int32_t
+	{
+		TECHNIQUE_COUNT = 252,
+	};
+
 	struct GfxComputeShaderLoadDef
 	{
 		unsigned char* program;

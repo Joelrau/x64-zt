@@ -76,7 +76,7 @@ BEGIN
             VALUE "InternalName", "H1-ZoneTool"
             VALUE "LegalCopyright", "Copyright (C) 2022 X Labs Project. All rights reserved."
             VALUE "Licence", "GPLv3"
-            VALUE "Info", "https://github.com/Joelrau/h1-zonetool/"
+            VALUE "Info", "https://github.com/Joelrau/x64-zt/"
             VALUE "OriginalFilename", "h1-zonetool.exe"
             VALUE "ProductName", "h1-zonetool"
             VALUE "ProductVersion", VERSION_PRODUCT
