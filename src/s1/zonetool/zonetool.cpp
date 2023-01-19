@@ -174,8 +174,8 @@ namespace zonetool::s1
 					DUMP_ASSET(ASSET_TYPE_TECHNIQUE_SET, ITechset, MaterialTechniqueSet);
 					DUMP_ASSET(ASSET_TYPE_TRACER, ITracerDef, TracerDef);
 					DUMP_ASSET(ASSET_TYPE_FONT, IFontDef, Font_s);
-					//DUMP_ASSET(ASSET_TYPE_ATTACHMENT, IWeaponAttachment, WeaponAttachment);
-					//DUMP_ASSET(ASSET_TYPE_WEAPON, IWeaponDef, WeaponDef);
+					DUMP_ASSET(ASSET_TYPE_ATTACHMENT, IWeaponAttachment, WeaponAttachment);
+					DUMP_ASSET(ASSET_TYPE_WEAPON, IWeaponDef, WeaponDef);
 					DUMP_ASSET(ASSET_TYPE_XANIMPARTS, IXAnimParts, XAnimParts);
 					DUMP_ASSET(ASSET_TYPE_XMODEL, IXModel, XModel);
 					DUMP_ASSET(ASSET_TYPE_XMODELSURFS, IXSurface, XModelSurfs);
@@ -190,7 +190,7 @@ namespace zonetool::s1
 					DUMP_ASSET(ASSET_TYPE_DOMAINSHADER, IDomainShader, MaterialDomainShader);
 					DUMP_ASSET(ASSET_TYPE_HULLSHADER, IHullShader, MaterialHullShader);
 					DUMP_ASSET(ASSET_TYPE_PIXELSHADER, IPixelShader, MaterialPixelShader);
-					DUMP_ASSET(ASSET_TYPE_VERTEXDECL, IVertexDecl, MaterialVertexDeclaration);
+					//DUMP_ASSET(ASSET_TYPE_VERTEXDECL, IVertexDecl, MaterialVertexDeclaration);
 					DUMP_ASSET(ASSET_TYPE_VERTEXSHADER, IVertexShader, MaterialVertexShader);
 
 					//DUMP_ASSET(ASSET_TYPE_MENU, zonetool::h1::IMenuDef, zonetool::h1::menuDef_t);
@@ -839,7 +839,7 @@ namespace zonetool::s1
 		DB_FinishLoadXFile2_hook.create(0x1402426D0, &DB_FinishLoadXFile);
 
 		// store xGfxGlobals pointers
-		Load_XGfxGlobals_hook.create(0x1402A8EA0, &Load_XGfxGlobals);
+		Load_XGfxGlobals_hook.create(0x14025C500, &Load_XGfxGlobals);
 
 		doexit_hook.create(0x1406FEA30, doexit);
 		atexit(on_exit);

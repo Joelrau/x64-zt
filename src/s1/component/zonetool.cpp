@@ -105,11 +105,13 @@ namespace zonetool::s1
 
 		//utils::hook::nop(0x1404CC482, 5); // Disable sound pak file loading
 		//utils::hook::nop(0x1404CC471, 2); // ^
-		//utils::hook::set<uint8_t>(0x140279B80, 0xC3); // Disable image pak file loading
+		utils::hook::set<uint8_t>(0x140279B80, 0xC3); // Disable image pak file loading
 
 		utils::hook::set<uint8_t>(0x14027A200, 0xC3); // disable load/read of alwaysloaded assets ( streamed images )
 		utils::hook::set<uint8_t>(0x14027A590, 0xC3); // ^
 		utils::hook::set<uint8_t>(0x140279E70, 0xC3); // DB_EnterStreamingTabulate
+
+		utils::hook::set<uint8_t>(0x14027A7C0, 0xC3); // DB_ReadPackedLoadedSounds
 
 		// Reduce min required memory
 		utils::hook::set<uint64_t>(0x1404D140D, 0x80000000);

@@ -157,12 +157,13 @@ namespace zonetool::s1
 
 					const auto key = xsk::gsc::s1::resolver::token_name(
 						static_cast<std::uint16_t>(id));
-					out_buffer.append(utils::string::va("\"%s\" \"%s\"", key.data(), value.data()));
+					if (!key.starts_with("_id_"))
+					{
+						out_buffer.append(utils::string::va("\"%s\" \"%s\"", key.data(), value.data()));
+						continue;
+					}
 				}
-				else
-				{
-					out_buffer.append(line);
-				}
+				out_buffer.append(line);
 			}
 
 			return out_buffer;
@@ -714,9 +715,12 @@ namespace zonetool::s1
 		file.open("wb");
 		if (file.get_fp())
 		{
-			const auto str = convert_mapents_ids(
-				std::string{ entityString, static_cast<size_t>(numEntityChars) });
-			file.write(str.data(), str.size(), 1);
+			// no support for this yet on s1x
+			//const auto str = convert_mapents_ids(
+			//	std::string{ entityString, static_cast<size_t>(numEntityChars) });
+			//file.write(str.data(), str.size(), 1);
+
+			file.write(entityString, numEntityChars, 1);
 			file.close();
 		}
 	}
