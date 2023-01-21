@@ -253,13 +253,10 @@ namespace zonetool::h2
 				{
 					zone->add_asset_of_type(ASSET_TYPE_PHYSPRESET, data->bonePhysics[i].physPreset->name);
 				}
-
 				if (data->bonePhysics[i].physContraint)
 				{
 					zone->add_asset_of_type(ASSET_TYPE_PHYSCONSTRAINT, data->bonePhysics[i].physContraint->name);
 				}
-
-
 				if (data->bonePhysics[i].physCollmap)
 				{
 					zone->add_asset_of_type(ASSET_TYPE_PHYSCOLLMAP, data->bonePhysics[i].physCollmap->name);
@@ -398,9 +395,6 @@ namespace zonetool::h2
 			buf->write(data->weightNames, data->numberOfWeights);
 			ZoneBuffer::clear_pointer(&dest->weightNames);
 		}
-		//dest->weightNames = nullptr;
-		//dest->numberOfWeights = 0;
-		//dest->targetCount = 0;
 
 		if (data->blendShapeWeightMap)
 		{
@@ -408,8 +402,6 @@ namespace zonetool::h2
 			buf->write(data->blendShapeWeightMap, data->numberOfWeightMaps);
 			ZoneBuffer::clear_pointer(&dest->blendShapeWeightMap);
 		}
-		//dest->blendShapeWeightMap = nullptr;
-		//dest->numberOfWeightMaps = 0;
 
 		if (data->physPreset)
 		{
@@ -434,8 +426,6 @@ namespace zonetool::h2
 			}
 			ZoneBuffer::clear_pointer(&dest->mdaoVolumes);
 		}
-		//dest->mdaoVolumes = nullptr;
-		//dest->mdaoVolumeCount = 0;
 
 		if (data->compositeModels)
 		{
@@ -448,15 +438,12 @@ namespace zonetool::h2
 			}
 			ZoneBuffer::clear_pointer(&dest->compositeModels);
 		}
-		//dest->compositeModels = nullptr;
-		//dest->numCompositeModels = 0;
 
 		if (data->skeletonScript)
 		{
 			dest->skeletonScript = reinterpret_cast<SkeletonScript*>(zone->get_asset_pointer(
 				ASSET_TYPE_SKELETONSCRIPT, data->skeletonScript->name));
 		}
-		//dest->skeletonScript = nullptr;
 
 		if (data->bonePhysics)
 		{
@@ -469,13 +456,11 @@ namespace zonetool::h2
 					dest_bonePhysics[i].physPreset = reinterpret_cast<PhysPreset*>(zone->get_asset_pointer(
 						ASSET_TYPE_PHYSPRESET, data->bonePhysics[i].physPreset->name));
 				}
-
 				if (data->bonePhysics[i].physContraint)
 				{
 					dest_bonePhysics[i].physContraint = reinterpret_cast<PhysConstraint*>(zone->get_asset_pointer(
 						ASSET_TYPE_PHYSCONSTRAINT, data->bonePhysics[i].physContraint->name));
 				}
-
 				if (data->bonePhysics[i].physCollmap)
 				{
 					dest_bonePhysics[i].physCollmap = reinterpret_cast<PhysCollmap*>(zone->get_asset_pointer(
@@ -484,8 +469,6 @@ namespace zonetool::h2
 			}
 			ZoneBuffer::clear_pointer(&dest->bonePhysics);
 		}
-		//dest->bonePhysics = nullptr;
-		//dest->numBonePhysics = 0;
 
 		buf->pop_stream();
 	}
