@@ -329,7 +329,7 @@ namespace zonetool::h1
 
 		if (data->textureTable)
 		{
-			//buf->inc_stream(5, 2 * (2 * data->textureCount));
+			buf->inc_stream(5, 2 * (2 * data->textureCount));
 
 			buf->align(3);
 			auto destmaps = buf->write(data->textureTable, data->textureCount);
