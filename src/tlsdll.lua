@@ -16,7 +16,7 @@ function tlsdll:project()
 			"%{prj.location}/src"
 		}
 
-		links {"shared"}
+		links {"common"}
 
 		resincludedirs {"$(ProjectDir)src"}
 end

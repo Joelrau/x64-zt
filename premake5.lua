@@ -235,7 +235,7 @@ newaction {
 dependencies.load()
 
 workspace "x64-zt"
-startproject ( _OPTIONS["target-project"] or "h1" )
+startproject "zonetool"
 location "./build"
 objdir "%{wks.location}/obj"
 targetdir "%{wks.location}/bin/%{cfg.platform}/%{cfg.buildcfg}"
@@ -279,16 +279,12 @@ filter "configurations:Debug"
 	defines {"DEBUG", "_DEBUG"}
 filter {}
 
-include "src/s1.lua"
-include "src/h1.lua"
-include "src/h2.lua"
-include "src/shared.lua"
+include "src/zonetool.lua"
+include "src/common.lua"
 include "src/tlsdll.lua"
 
-shared:project()
-s1:project()
-h1:project()
-h2:project()
+common:project()
+zonetool:project()
 tlsdll:project()
 
 group "Dependencies"
