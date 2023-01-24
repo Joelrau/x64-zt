@@ -35,6 +35,6 @@ public:
 		return true;
 	}
 
-	game::game_mode target_mode;
+	game::game_mode target_mode{game::game_mode::none};
 	std::string component_name;
 };

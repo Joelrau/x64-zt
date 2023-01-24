@@ -78,6 +78,15 @@ namespace zonetool::h2
 		return false;
 	}
 
+	void wait_for_database()
+	{
+		// wait for database to be ready
+		while (!WaitForSingleObject(*reinterpret_cast<HANDLE*>(0x14B11DEB8), 0) == 0)
+		{
+			Sleep(5);
+		}
+	}
+
 	XAssetHeader DB_FindXAssetHeader_Safe(XAssetType type, const std::string& name)
 	{
 		const auto asset_entry = DB_FindXAssetEntry(type, name.data());
@@ -332,11 +341,7 @@ namespace zonetool::h2
 			return false;
 		}
 
-		// wait for database to be ready
-		while (!WaitForSingleObject(*reinterpret_cast<HANDLE*>(0x14B11DEB8), 0) == 0)
-		{
-			Sleep(5);
-		}
+		wait_for_database();
 
 		if (!dump && !verify)
 		{
@@ -380,11 +385,7 @@ namespace zonetool::h2
 			return;
 		}
 
-		// wait for database to be ready
-		while (!WaitForSingleObject(*reinterpret_cast<HANDLE*>(0x14B11DEB8), 0) == 0)
-		{
-			Sleep(5);
-		}
+		wait_for_database();
 
 		ZONETOOL_INFO("Dumping zone \"%s\"...", name.data());
 
@@ -409,11 +410,7 @@ namespace zonetool::h2
 			return;
 		}
 
-		// wait for database to be ready
-		while (!WaitForSingleObject(*reinterpret_cast<HANDLE*>(0x14B11DEB8), 0) == 0)
-		{
-			Sleep(5);
-		}
+		wait_for_database();
 
 		verify = true;
 		if (!load_zone(name, DB_LOAD_ASYNC, true))
