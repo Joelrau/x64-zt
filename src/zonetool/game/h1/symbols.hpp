@@ -49,6 +49,9 @@ namespace h1
 
 		WEAK symbol<int(const char* fname)> generateHashValue{ 0x1401B1010 };
 
+		WEAK symbol<char*(const size_t size, 
+			const size_t alignment)> Hunk_AllocAlignInternal{0x1404F5220};
+
 		WEAK symbol<char* (char* string)> I_CleanStr{ 0x140503D00 };
 
 		WEAK symbol<const char* (int, int, int)> Key_KeynumToString{ 0x14024FE10 };

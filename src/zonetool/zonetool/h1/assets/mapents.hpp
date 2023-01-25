@@ -28,6 +28,9 @@ namespace zonetool::h1
 		void parse_entityStrings(ZoneMemory* mem, std::string name, char** entityStrings, int* numEntityChars);
 
 	public:
+		static void add_entity_string(const std::string& line);
+		static void clear_entity_strings();
+
 		MapEnts* parse(std::string name, ZoneMemory* mem);
 
 		void init(const std::string& name, ZoneMemory* mem) override;

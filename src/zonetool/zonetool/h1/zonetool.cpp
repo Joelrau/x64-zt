@@ -642,6 +642,7 @@ namespace zonetool::h1
 
 		// clear asset shit
 		ITechset::vertexdecl_pointers.clear();
+		IMapEnts::clear_entity_strings();
 	}
 
 	void register_commands()

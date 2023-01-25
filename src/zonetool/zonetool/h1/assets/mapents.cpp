@@ -135,6 +135,8 @@ namespace zonetool::h1
 
 		std::string convert_mapents_ids(const std::string& source)
 		{
+			return source;
+
 			std::string out_buffer;
 
 			const auto lines = utils::string::split(source, '\n');
@@ -191,6 +193,18 @@ namespace zonetool::h1
 			}
 		}
 		return nullptr;
+	}
+
+	std::string extra_entity_strings;
+
+	void IMapEnts::add_entity_string(const std::string& line)
+	{
+		extra_entity_strings.append(line);
+	}
+
+	void IMapEnts::clear_entity_strings()
+	{
+		extra_entity_strings.clear();
 	}
 
 	void IMapEnts::parse_splineList(ZoneMemory* mem, std::string name, SplineRecordList* splineList)
@@ -336,6 +350,16 @@ namespace zonetool::h1
 
 		fread(*entityStrings, *numEntityChars, 1, file.get_fp());
 		(*entityStrings)[*numEntityChars] = '\0';
+
+		std::string entity_string = *entityStrings;
+		if (!entity_string.ends_with("\n"))
+		{
+			entity_string.append("\n");
+		}
+
+		entity_string.append(extra_entity_strings);
+		*entityStrings = mem->StrDup(entity_string);
+		*numEntityChars = static_cast<int>(entity_string.size());
 
 		file.close();
 	}
@@ -722,9 +746,9 @@ namespace zonetool::h1
 		file.open("wb");
 		if (file.get_fp())
 		{
-			const auto str = convert_mapents_ids(
-				std::string{ entityString, static_cast<size_t>(numEntityChars) });
-			file.write(str.data(), str.size(), 1);
+			//const auto str = convert_mapents_ids(
+				//std::string{ entityString, static_cast<size_t>(numEntityChars) });
+			file.write(entityString, numEntityChars, 1);
 			file.close();
 		}
 	}

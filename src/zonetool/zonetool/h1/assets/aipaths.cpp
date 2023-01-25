@@ -116,6 +116,245 @@ namespace zonetool::h1
 			buf->write_scriptstring(this->get_script_string(&data->nodes[i].constant.__field__))); \
 	} \
 
+
+	std::unordered_map<std::string, unsigned short> waypoint_types =
+	{
+		{"stand", 13},
+		{"crouch", 14},
+		{"prone", 15},
+	};
+
+	float distance(float* a, float* b)
+	{
+		return std::sqrtf((a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]));
+	}
+
+	pathnode_tree_t* allocate_tree(PathData* asset, ZoneMemory* mem)
+	{
+		++asset->nodeTreeCount;
+		return reinterpret_cast<pathnode_tree_t*>(
+			::h1::game::Hunk_AllocAlignInternal(sizeof(pathnode_tree_t), 4));
+	}
+
+	pathnode_tree_t* build_node_tree(PathData* asset, ZoneMemory* mem, 
+		unsigned short* node_indexes, unsigned int num_nodes)
+	{
+		if (num_nodes < 4)
+		{
+			const auto result = allocate_tree(asset, mem);
+			result->axis = -1;
+			result->u.s.nodeCount = num_nodes;
+			result->u.s.nodes = node_indexes;
+			return result;
+		}
+
+		vec2_t maxs{};
+		vec2_t mins{};
+
+		const auto start_node = &asset->nodes[*node_indexes];
+		maxs[0] = start_node->constant.vLocalOrigin[0];
+		mins[0] = maxs[0];
+		maxs[1] = start_node->constant.vLocalOrigin[1];
+		mins[1] = maxs[1];
+
+		for (auto i = 1u; i < num_nodes; i++)
+		{
+			for (auto axis = 0; axis < 2; axis++)
+			{
+				const auto node = &asset->nodes[node_indexes[i]];
+				const auto value = node->constant.vLocalOrigin[axis];
+				if (mins[axis] <= value)
+				{
+					if (value > maxs[axis])
+					{
+						maxs[axis] = value;
+					}
+				}
+				else
+				{
+					mins[axis] = value;
+				}
+			}
+		}
+
+		const auto axis = (maxs[1] - mins[1]) > (maxs[0] - mins[0]);
+		if ((maxs[axis] - mins[axis]) > 192.f)
+		{
+			const auto dist = (maxs[axis] + mins[axis]) * 0.5f;
+			auto left = 0u;
+
+			for (auto right = num_nodes - 1; ; --right)
+			{
+				while (dist > asset->nodes[node_indexes[left]].constant.vLocalOrigin[axis])
+				{
+					++left;
+				}
+
+				while (asset->nodes[node_indexes[right]].constant.vLocalOrigin[axis] > dist)
+				{
+					--right;
+				}
+
+				if (left >= right)
+				{
+					break;
+				}
+
+				const auto swap_node = node_indexes[left];
+				node_indexes[left] = node_indexes[right];
+				node_indexes[right] = swap_node;
+				++left;
+			}
+
+			while (2 * left < num_nodes &&
+				asset->nodes[node_indexes[left]].constant.vLocalOrigin[axis] == dist)
+			{
+				++left;
+			}
+
+			while (2 * left < num_nodes &&
+				asset->nodes[node_indexes[left - 1]].constant.vLocalOrigin[axis] == dist)
+			{
+				--left;
+			}
+
+			pathnode_tree_t* child[2]{};
+			child[0] = build_node_tree(asset, mem, node_indexes, left);
+			child[1] = build_node_tree(asset, mem, &node_indexes[left], num_nodes - left);
+			const auto result = allocate_tree(asset, mem);
+			result->axis = axis;
+			result->dist = dist;
+			result->u.child[0] = child[0];
+			result->u.child[1] = child[1];
+			return result;
+		}
+		else
+		{
+			const auto result = allocate_tree(asset, mem);
+			result->axis = -1;
+			result->u.s.nodeCount = num_nodes;
+			result->u.s.nodes = node_indexes;
+			return result;
+		}
+	}
+
+
+	PathData* parse_from_botwarfare(const std::string& path, 
+		const std::string& name, ZoneMemory* mem)
+	{
+		auto file = filesystem::file(path);
+		file.open("rb");
+
+		if (!file.get_fp())
+		{
+			return nullptr;
+		}
+
+		ZONETOOL_INFO("Parsing botwarfare waypoints \"%s\"...", path.data());
+
+		auto table = csv::parser(filesystem::get_file_path(path) + path);
+		const auto asset = mem->Alloc<PathData>();
+		asset->name = mem->StrDup(name);
+
+		if (table.get_num_rows() <= 0)
+		{
+			ZONETOOL_FATAL("No rows in csv");
+		}
+
+		const auto rows = table.get_rows();
+		asset->nodeCount = std::atoi(rows[0]->fields[0]);
+		asset->nodes = mem->Alloc<pathnode_t>(asset->nodeCount);
+
+		if (table.get_num_rows() < static_cast<int>(asset->nodeCount))
+		{
+			ZONETOOL_FATAL("Less than asset->nodeCount + 1 (%i) rows", asset->nodeCount);
+		}
+
+		for (auto i = 0u; i < asset->nodeCount; i++)
+		{
+			const auto row = rows[i + 1];
+			const auto node = &asset->nodes[i];
+			node->constant.type = 1;
+
+			if (row->num_fields < 4)
+			{
+				ZONETOOL_FATAL("Not enough fields for node num %i (must be origin,links,type,angles,...)", i);
+			}
+
+			const auto origin_str = utils::string::split(row->fields[0], ' ');
+			if (origin_str.size() == 3)
+			{
+				node->constant.vLocalOrigin[0] = static_cast<float>(std::atof(origin_str[0].data()));
+				node->constant.vLocalOrigin[1] = static_cast<float>(std::atof(origin_str[1].data()));
+				node->constant.vLocalOrigin[2] = static_cast<float>(std::atof(origin_str[2].data()));
+			}
+
+			if (waypoint_types.contains(row->fields[2]))
+			{
+				node->constant.type = waypoint_types[row->fields[2]];
+			}
+
+			const auto angles_str = utils::string::split(row->fields[3], ' ');
+			if (angles_str.size() == 3)
+			{
+				node->constant.___u9.angles[0] = static_cast<float>(std::atof(angles_str[1].data()));
+				node->constant.___u9.angles[1] = static_cast<float>(std::atof(angles_str[0].data()));
+				node->constant.___u9.angles[2] = static_cast<float>(std::atof(angles_str[2].data()));
+			}
+
+			IMapEnts::add_entity_string("{\n");
+			IMapEnts::add_entity_string("\"classname\" \"node_pathnode\"\n");
+			IMapEnts::add_entity_string(utils::string::va("\"origin\" \"%f %f %f\"\n",
+				node->constant.vLocalOrigin[0],
+				node->constant.vLocalOrigin[1],
+				node->constant.vLocalOrigin[2]
+			));
+			IMapEnts::add_entity_string(utils::string::va("\"angles\" \"%f %f %f\"\n", 
+				node->constant.___u9.angles[0],
+				node->constant.___u9.angles[1],
+				node->constant.___u9.angles[2]
+			));
+			IMapEnts::add_entity_string("}\n");
+
+			const auto links_str = utils::string::split(row->fields[1], ' ');
+			node->constant.totalLinkCount = static_cast<unsigned short>(links_str.size());
+			node->constant.Links = mem->Alloc<pathlink_s>(links_str.size());
+			for (auto o = 0; o < node->constant.totalLinkCount; o++)
+			{
+				const auto num = std::atoi(links_str[o].data());
+				node->constant.Links[o].nodeNum = static_cast<unsigned short>(num);
+			}
+		}
+
+		for (auto i = 0u; i < asset->nodeCount; i++)
+		{
+			const auto node = &asset->nodes[i];
+			for (auto o = 0; o < node->constant.totalLinkCount; o++)
+			{
+				const auto linked_num = node->constant.Links[o].nodeNum;
+				if (linked_num >= asset->nodeCount)
+				{
+					ZONETOOL_FATAL("Node link num out of bounds");
+				}
+
+				const auto linked = &asset->nodes[linked_num];
+				node->constant.Links[o].negotiationLink = 1;
+				node->constant.Links[o].fDist = 
+					distance(node->constant.vLocalOrigin, linked->constant.vLocalOrigin);
+			}
+		}
+
+		const auto node_indexes = mem->Alloc<unsigned short>(asset->nodeCount);
+		for (auto i = 0u; i < asset->nodeCount; i++)
+		{
+			node_indexes[i] = static_cast<unsigned short>(i);
+		}
+
+		asset->nodeTree = build_node_tree(asset, mem, node_indexes, asset->nodeCount);
+
+		return asset;
+	}
+
 	PathData* IAIPaths::parse(const std::string& name, ZoneMemory* mem)
 	{
 		assetmanager::reader read(mem);
@@ -179,6 +418,12 @@ namespace zonetool::h1
 	void IAIPaths::init(const std::string& name, ZoneMemory* mem)
 	{
 		this->name_ = "maps/"s + (filesystem::get_fastfile().substr(0, 3) == "mp_" ? "mp/" : "") + filesystem::get_fastfile() + ".d3dbsp"; // name;
+		this->asset_ = parse_from_botwarfare(name, this->name_, mem);
+		if (this->asset_)
+		{
+			return;
+		}
+
 		this->asset_ = this->parse(name, mem);
 
 		if (!this->asset_)
