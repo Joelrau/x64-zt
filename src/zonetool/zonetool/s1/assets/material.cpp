@@ -149,10 +149,10 @@ namespace zonetool::s1
 			{
 				strcat(constant_def[i].name, constantTable[i]["name"].get<std::string>().data());
 				constant_def[i].nameHash = constantTable[i]["nameHash"].get<unsigned int>();
-				constant_def[i].literal[0] = constantTable[i]["literal"][0].get<float>();
-				constant_def[i].literal[1] = constantTable[i]["literal"][1].get<float>();
-				constant_def[i].literal[2] = constantTable[i]["literal"][2].get<float>();
-				constant_def[i].literal[3] = constantTable[i]["literal"][3].get<float>();
+				constant_def[i].literal[0] = constantTable[i]["literal"][0].is_null() ? std::numeric_limits<float>::quiet_NaN() : constantTable[i]["literal"][0].get<float>();
+				constant_def[i].literal[1] = constantTable[i]["literal"][1].is_null() ? std::numeric_limits<float>::quiet_NaN() : constantTable[i]["literal"][1].get<float>();
+				constant_def[i].literal[2] = constantTable[i]["literal"][2].is_null() ? std::numeric_limits<float>::quiet_NaN() : constantTable[i]["literal"][2].get<float>();
+				constant_def[i].literal[3] = constantTable[i]["literal"][3].is_null() ? std::numeric_limits<float>::quiet_NaN() : constantTable[i]["literal"][3].get<float>();
 			}
 			mat->constantTable = constant_def;
 		}
