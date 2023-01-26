@@ -2012,6 +2012,17 @@ namespace zonetool::h1
 		IMG_CATEGORY_TEMP = 0x7,
 	};
 
+	enum IMAGE_FLAG : std::uint8_t
+	{
+		IMAGE_FLAG_USE_SRGB_READS = 0x1,
+		IMAGE_FLAG_NOPICMIP = 0x2,
+		IMAGE_FLAG_DELAY_LOAD_PIXELS = 0x4,
+		IMAGE_FLAG_PARABOLOID = 0x8,
+		IMAGE_FLAG_HEATMAP = 0x10,
+		IMAGE_FLAG_STAGING = 0x20,
+		IMAGE_FLAG_TRANSIENT = 0x40,
+	};
+
 	struct GfxImage
 	{
 		GfxTexture texture;
@@ -2784,10 +2795,41 @@ namespace zonetool::h1
 
 	enum NetConstStringType
 	{
+		NETCONSTSTRINGTYPE_XMODEL = 0, // mdl
+		NETCONSTSTRINGTYPE_MATERIAL = 1, // mat
+		NETCONSTSTRINGTYPE_RUMBLE = 2, // rmb
+		NETCONSTSTRINGTYPE_VEHICLES = 3, // veh
+		NETCONSTSTRINGTYPE_FX = 4, // vfx
+		NETCONSTSTRINGTYPE_LOCSTRING = 5, // loc
+		NETCONSTSTRINGTYPE_SOUNDALIAS = 6, // snd
+		NETCONSTSTRINGTYPE_SUBMIX = 7, // sbx
+		NETCONSTSTRINGTYPE_SOUNDALIAS_LOOPING = 8, // snl
+		NETCONSTSTRINGTYPE_SHOCK = 9, // shk
+		NETCONSTSTRINGTYPE_SCRIPTMENU = 10, // mnu
+		NETCONSTSTRINGTYPE_CLIENT_TAGS = 11, // tag
+		NETCONSTSTRINGTYPE_HEADICON = 12, // hic
+		NETCONSTSTRINGTYPE_NAMEPLATE = 13, // nps
+		NETCONSTSTRINGTYPE_MINIMAPICON = 14, // mic
+		NETCONSTSTRINGTYPE_LOCSELMAT = 15, // sel
+		NETCONSTSTRINGTYPE_WEAPON = 16, // wep
+		NETCONSTSTRINGTYPE_ATTACHMENT = 17, // att
+		NETCONSTSTRINGTYPE_HINTSTRING = 18, // hnt
+		NETCONSTSTRINGTYPE_ANIM = 19, // anm
+		NETCONSTSTRINGTYPE_TAGS = 20, // fxt
+		NETCONSTSTRINGTYPE_ANIMCLASS = 21, // acl
+		NETCONSTSTRINGTYPE_LUI = 22, // lui
+		NETCONSTSTRINGTYPE_LASER = 23, // lsr
+		NETCONSTSTRINGTYPE_COUNT = 24,
+		NETCONSTSTRINGTYPE_NONE = 24,
 	};
 
 	enum NetConstStringSource
 	{
+		NETCONSTSTRINGSOURCE_MAP = 0x0,
+		NETCONSTSTRINGSOURCE_PRE_MAP = 0x1,
+		NETCONSTSTRINGSOURCE_COMMON = 0x2,
+		NETCONSTSTRINGSOURCE_COUNT = 0x3,
+		NETCONSTSTRINGSOURCE_NONE = 0x3,
 	};
 
 	struct NetConstStrings
@@ -7722,8 +7764,8 @@ namespace zonetool::h1
 		$3936EE84564F75EDA6DCBAC77A545FC8 ___u9;
 		PathNodeParentUnion parent;
 		$5F11B9753862CE791E23553F99FA1738 ___u11;
-		short wOverlapNode[2];
 		char __pad0[4];
+		short wOverlapNode[2];
 		unsigned short totalLinkCount;
 		pathlink_s* Links;
 		scr_string_t unk;
@@ -7775,7 +7817,10 @@ namespace zonetool::h1
 		pathnode_constant_t constant;
 		pathnode_dynamic_t dynamic;
 		pathnode_transient_t transient;
-	};
+	}; assert_sizeof(pathnode_t, 192);
+	assert_sizeof(pathnode_constant_t, 96);
+	assert_sizeof(pathnode_dynamic_t, 44);
+	assert_sizeof(pathnode_transient_t, 48);
 
 	struct pathnode_tree_nodes_t
 	{
@@ -7827,6 +7872,10 @@ namespace zonetool::h1
 		int dynStatesBytes;
 		unsigned char* pathDynStates;
 	}; assert_sizeof(PathData, 0x88);
+	assert_offsetof(PathData, nodes, 16);
+	assert_offsetof(PathData, pathExposure, 80);
+	assert_offsetof(PathData, pathNoPeekVis, 96);
+	assert_offsetof(PathData, pathZones, 112);
 
 	union XAssetHeader
 	{
