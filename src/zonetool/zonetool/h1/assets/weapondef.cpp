@@ -2528,7 +2528,7 @@ namespace zonetool::h1
 		return data;
 	}
 
-	void IWeaponDef::dump(WeaponDef* asset)
+	void IWeaponDef::dump(WeaponDef* asset, const std::function<const char* (scr_string_t)>& convertToString)
 	{
 		const auto path = "weapons\\"s + asset->name + ".json"s;
 
@@ -2560,7 +2560,7 @@ namespace zonetool::h1
 		{
 			if (asset->hideTags && asset->hideTags[i])
 			{
-				data["hideTags"][i] = SL_ConvertToString(asset->hideTags[i]);
+				data["hideTags"][i] = convertToString(asset->hideTags[i]);
 			}
 			else
 			{
@@ -2626,11 +2626,11 @@ namespace zonetool::h1
 			for (auto j = 0u; j < 36; j++)
 			{
 				data["notetrackOverrides"][i]["notetrackSoundMapKeys"][j] = (asset->notetrackOverrides[i].notetrackSoundMapKeys[j])
-					? SL_ConvertToString(asset->notetrackOverrides[i].notetrackSoundMapKeys[j])
+					? convertToString(asset->notetrackOverrides[i].notetrackSoundMapKeys[j])
 					: "";
 
 				data["notetrackOverrides"][i]["notetrackSoundMapValues"][j] = (asset->notetrackOverrides[i].notetrackSoundMapValues[j])
-					? SL_ConvertToString(asset->notetrackOverrides[i].notetrackSoundMapValues[j])
+					? convertToString(asset->notetrackOverrides[i].notetrackSoundMapValues[j])
 					: "";
 			}
 		}
@@ -2639,7 +2639,7 @@ namespace zonetool::h1
 		{
 			if (asset->notetrackSoundMapKeys && asset->notetrackSoundMapKeys[i])
 			{
-				data["notetrackSoundMapKeys"][i] = SL_ConvertToString(asset->notetrackSoundMapKeys[i]);
+				data["notetrackSoundMapKeys"][i] = convertToString(asset->notetrackSoundMapKeys[i]);
 			}
 			else
 			{
@@ -2648,7 +2648,7 @@ namespace zonetool::h1
 
 			if (asset->notetrackSoundMapValues && asset->notetrackSoundMapValues[i])
 			{
-				data["notetrackSoundMapValues"][i] = SL_ConvertToString(asset->notetrackSoundMapValues[i]);
+				data["notetrackSoundMapValues"][i] = convertToString(asset->notetrackSoundMapValues[i]);
 			}
 			else
 			{
@@ -2660,7 +2660,7 @@ namespace zonetool::h1
 		{
 			if (asset->notetrackRumbleMapKeys && asset->notetrackRumbleMapKeys[i])
 			{
-				data["notetrackRumbleMapKeys"][i] = SL_ConvertToString(asset->notetrackRumbleMapKeys[i]);
+				data["notetrackRumbleMapKeys"][i] = convertToString(asset->notetrackRumbleMapKeys[i]);
 			}
 			else
 			{
@@ -2669,7 +2669,7 @@ namespace zonetool::h1
 
 			if (asset->notetrackRumbleMapValues && asset->notetrackRumbleMapValues[i])
 			{
-				data["notetrackRumbleMapValues"][i] = SL_ConvertToString(asset->notetrackRumbleMapValues[i]);
+				data["notetrackRumbleMapValues"][i] = convertToString(asset->notetrackRumbleMapValues[i]);
 			}
 			else
 			{
@@ -2681,7 +2681,7 @@ namespace zonetool::h1
 		{
 			if (asset->notetrackFXMapKeys && asset->notetrackFXMapKeys[i])
 			{
-				data["notetrackFXMapKeys"][i] = SL_ConvertToString(asset->notetrackFXMapKeys[i]);
+				data["notetrackFXMapKeys"][i] = convertToString(asset->notetrackFXMapKeys[i]);
 			}
 			else
 			{
@@ -2699,7 +2699,7 @@ namespace zonetool::h1
 
 			if (asset->notetrackFXMapTagValues && asset->notetrackFXMapTagValues[i])
 			{
-				data["notetrackFXMapTagValues"][i] = SL_ConvertToString(asset->notetrackFXMapTagValues[i]);
+				data["notetrackFXMapTagValues"][i] = convertToString(asset->notetrackFXMapTagValues[i]);
 			}
 			else
 			{
@@ -2711,7 +2711,7 @@ namespace zonetool::h1
 		{
 			if (asset->notetrackUnknownKeys && asset->notetrackUnknownKeys[i])
 			{
-				data["notetrackUnknownKeys"][i] = SL_ConvertToString(asset->notetrackUnknownKeys[i]);
+				data["notetrackUnknownKeys"][i] = convertToString(asset->notetrackUnknownKeys[i]);
 			}
 			else
 			{
@@ -2729,7 +2729,7 @@ namespace zonetool::h1
 
 			if (asset->notetrackUnknownValues && asset->notetrackUnknownValues[i])
 			{
-				data["notetrackUnknownValues"][i] = SL_ConvertToString(asset->notetrackUnknownValues[i]);
+				data["notetrackUnknownValues"][i] = convertToString(asset->notetrackUnknownValues[i]);
 			}
 			else
 			{
@@ -2909,7 +2909,7 @@ namespace zonetool::h1
 
 		data["accuracy_graph"] = dump_accuracy_graph(asset);
 
-		data["stowTag"] = SL_ConvertToString(asset->stowTag) ? SL_ConvertToString(asset->stowTag) : "";
+		data["stowTag"] = convertToString(asset->stowTag) ? convertToString(asset->stowTag) : "";
 
 		WEAPON_DUMP_FIELD(altWeapon);
 		WEAPON_DUMP_FIELD(playerAnimType);

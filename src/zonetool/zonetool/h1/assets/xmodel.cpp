@@ -470,7 +470,7 @@ namespace zonetool::h1
 		buf->pop_stream();
 	}
 
-	void IXModel::dump(XModel* asset)
+	void IXModel::dump(XModel* asset, const std::function<const char* (scr_string_t)>& convertToString)
 	{
 		const auto path = "xmodel\\"s + asset->name + ".xmodel_export";
 
@@ -488,7 +488,7 @@ namespace zonetool::h1
 		dump.dump_array(asset->boneNames, asset->numBones);
 		for (unsigned char i = 0; i < asset->numBones; i++)
 		{
-			dump.dump_string(SL_ConvertToString(asset->boneNames[i]));
+			dump.dump_string(convertToString(asset->boneNames[i]));
 		}
 
 		// basic info
@@ -524,7 +524,7 @@ namespace zonetool::h1
 		dump.dump_array(asset->weightNames, asset->numberOfWeights);
 		for (unsigned short i = 0; i < asset->numberOfWeights; i++)
 		{
-			dump.dump_string(SL_ConvertToString(asset->weightNames[i]));
+			dump.dump_string(convertToString(asset->weightNames[i]));
 		}
 
 		// blendshapeweights

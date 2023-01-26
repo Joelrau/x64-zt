@@ -913,7 +913,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IClipMap::dump(clipMap_t* asset)
+	void IClipMap::dump(clipMap_t* asset, const std::function<const char* (scr_string_t)>& convertToString)
 	{
 		const auto path = asset->name + ".colmap"s;
 
@@ -991,7 +991,7 @@ namespace zonetool::h1
 
 		for (unsigned int i = 0; i < asset->dynEntAnchorCount; i++)
 		{
-			write.dump_string(SL_ConvertToString(asset->dynEntAnchorNames[i]));
+			write.dump_string(convertToString(asset->dynEntAnchorNames[i]));
 		}
 
 		write.dump_array(asset->scriptableMapEnts.instances, asset->scriptableMapEnts.instanceCount);
@@ -1013,7 +1013,7 @@ namespace zonetool::h1
 					write.dump_array(asset->scriptableMapEnts.instances[i].targetData,
 						asset->scriptableMapEnts.instances[i].targetDataCount);
 				}
-				auto str = SL_ConvertToString(asset->scriptableMapEnts.instances[i].targetname);
+				auto str = convertToString(asset->scriptableMapEnts.instances[i].targetname);
 				write.dump_string(str ? str : "");
 				if (asset->scriptableMapEnts.instances[i].currentModel)
 				{

@@ -17,7 +17,7 @@ namespace zonetool::h1
 		void prepare_scriptable_event_def(ScriptableEventDef* event, ZoneBuffer* buf, ZoneMemory* mem);
 		void load_depending_scriptable_event_def(IZone* zone, ScriptableEventDef* event);
 		void write_scriptable_event_def(IZone* zone, ZoneBuffer* buf, ScriptableEventDef* data, ScriptableEventDef* dest);
-		static void dump_scriptable_event_def(ScriptableEventDef* event, assetmanager::dumper& dump);
+		static void dump_scriptable_event_def(ScriptableEventDef* event, assetmanager::dumper& dump, const std::function<const char* (scr_string_t)>& convertToString);
 
 	public:
 		ScriptableDef* parse(std::string name, ZoneMemory* mem);
@@ -33,6 +33,6 @@ namespace zonetool::h1
 
 		void write(IZone* zone, ZoneBuffer* buf) override;
 
-		static void dump(ScriptableDef* asset);
+		static void dump(ScriptableDef* asset, const std::function<const char* (scr_string_t)>& convertToString = SL_ConvertToString.get());
 	};
 }

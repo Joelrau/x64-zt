@@ -469,7 +469,7 @@ namespace zonetool::h1
 		data[#__field__] = nullptr; \
 	}
 
-	void IWeaponAttachment::dump(WeaponAttachment* asset)
+	void IWeaponAttachment::dump(WeaponAttachment* asset, const std::function<const char* (scr_string_t)>& convertToString)
 	{
 		const auto path = "attachments\\"s + asset->name + ".json"s;
 
@@ -495,7 +495,7 @@ namespace zonetool::h1
 		{
 			if (asset->stringArray1 && asset->stringArray1[i])
 			{
-				data["stringArray1"][i] = SL_ConvertToString(asset->stringArray1[i]);
+				data["stringArray1"][i] = convertToString(asset->stringArray1[i]);
 			}
 			else
 			{
@@ -507,7 +507,7 @@ namespace zonetool::h1
 		{
 			if (asset->stringArray2 && asset->stringArray2[i])
 			{
-				data["stringArray2"][i] = SL_ConvertToString(asset->stringArray2[i]);
+				data["stringArray2"][i] = convertToString(asset->stringArray2[i]);
 			}
 			else
 			{

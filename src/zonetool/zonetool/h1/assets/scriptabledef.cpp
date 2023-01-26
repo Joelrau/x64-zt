@@ -469,7 +469,7 @@ namespace zonetool::h1
 		buf->pop_stream();
 	}
 
-	void IScriptableDef::dump_scriptable_event_def(ScriptableEventDef* event, assetmanager::dumper& dump)
+	void IScriptableDef::dump_scriptable_event_def(ScriptableEventDef* event, assetmanager::dumper& dump, const std::function<const char* (scr_string_t)>& convertToString)
 	{
 		switch (event->type)
 		{
@@ -478,11 +478,11 @@ namespace zonetool::h1
 			break;
 		case SCRIPTABLE_EVENT_FX:
 			dump.dump_asset(event->data.playFx.handle);
-			dump.dump_string(SL_ConvertToString(event->data.playFx.tagName));
+			dump.dump_string(convertToString(event->data.playFx.tagName));
 			break;
 		case SCRIPTABLE_EVENT_STOP_FX:
 			dump.dump_asset(event->data.stopFx.handle);
-			dump.dump_string(SL_ConvertToString(event->data.stopFx.tagName));
+			dump.dump_string(convertToString(event->data.stopFx.tagName));
 			break;
 		case SCRIPTABLE_EVENT_SOUND:
 			dump.dump_asset(event->data.playSound.alias);
@@ -518,7 +518,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IScriptableDef::dump(ScriptableDef* asset)
+	void IScriptableDef::dump(ScriptableDef* asset, const std::function<const char* (scr_string_t)>& convertToString)
 	{
 		const auto path = "scriptable\\"s + asset->name;
 
@@ -541,26 +541,26 @@ namespace zonetool::h1
 			dump.dump_array(asset->parts[i].states, asset->parts[i].stateCount);
 			for (unsigned char j = 0; j < asset->parts[i].stateCount; j++)
 			{
-				dump.dump_string(SL_ConvertToString(asset->parts[i].states[j].name));
-				dump.dump_string(SL_ConvertToString(asset->parts[i].states[j].tagName));
+				dump.dump_string(convertToString(asset->parts[i].states[j].name));
+				dump.dump_string(convertToString(asset->parts[i].states[j].tagName));
 				dump.dump_array(asset->parts[i].states[j].onEnterEvents,
 					asset->parts[i].states[j].onEnterEventCount);
 				for (unsigned char k = 0; k < asset->parts[i].states[j].onEnterEventCount; k++)
 				{
-					dump_scriptable_event_def(&asset->parts[i].states[j].onEnterEvents[k], dump);
+					dump_scriptable_event_def(&asset->parts[i].states[j].onEnterEvents[k], dump, convertToString);
 				}
 			}
-			dump.dump_string(SL_ConvertToString(asset->parts[i].name));
+			dump.dump_string(convertToString(asset->parts[i].name));
 		}
 
 		dump.dump_array(asset->notetracks, asset->notetrackCount);
 		for (unsigned char i = 0; i < asset->notetrackCount; i++)
 		{
-			dump.dump_string(SL_ConvertToString(asset->notetracks[i].name));
+			dump.dump_string(convertToString(asset->notetracks[i].name));
 			if (asset->notetracks[i].type == SCRIPTABLE_NT_FX)
 			{
 				dump.dump_asset(asset->notetracks[i].data.playFx.handle);
-				dump.dump_string(SL_ConvertToString(asset->notetracks[i].data.playFx.tagName));
+				dump.dump_string(convertToString(asset->notetracks[i].data.playFx.tagName));
 			}
 			else if (asset->notetracks[i].type == SCRIPTABLE_NT_SOUND)
 			{

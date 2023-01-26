@@ -24,6 +24,6 @@ namespace zonetool::h1
 		std::int32_t type() override;
 		void write(IZone* zone, ZoneBuffer* buffer) override;
 
-		static void dump(SkeletonScript* asset);
+		static void dump(SkeletonScript* asset, const std::function<const char* (scr_string_t)>& convertToString = SL_ConvertToString.get());
 	};
 }

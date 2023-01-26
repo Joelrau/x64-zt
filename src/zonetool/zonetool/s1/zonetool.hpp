@@ -17,8 +17,13 @@
 #include "interfaces/zone.hpp"
 #include "interfaces/asset.hpp"
 
-#include "zonetool/h1/assets/menudef.hpp"
-#include "zonetool/h1/assets/menulist.hpp"
+#include "zonetool/h1/zonetool.hpp"
+#include "zonetool/s1/assets/converter/h1/converter.hpp"
+#include "zonetool/s1/assets/converter/h1/material.hpp"
+#include "zonetool/s1/assets/converter/h1/techset.hpp"
+#include "zonetool/s1/assets/converter/h1/gfximage.hpp"
+#include "zonetool/s1/assets/converter/h1/mapents.hpp"
+#include "zonetool/s1/assets/converter/h1/aipaths.hpp"
 
 #include "assets/clut.hpp"
 #include "assets/dopplerpreset.hpp"
