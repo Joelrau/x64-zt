@@ -234,6 +234,8 @@ namespace zonetool::s1
 							memory = std::make_shared<ZoneMemory>((1024 * 1024 * 1024) * 1); // 1gb
 						}
 
+						converter::h1::converted_techset_assets.clear();
+
 						DUMP_ASSET(ASSET_TYPE_CLUT, IClut, Clut);
 						DUMP_ASSET(ASSET_TYPE_DOPPLER_PRESET, IDopplerPreset, DopplerPreset);
 						DUMP_ASSET_RAW(ASSET_TYPE_FX, zonetool::h1::IFxEffectDef, zonetool::h1::FxEffectDef,
@@ -287,7 +289,6 @@ namespace zonetool::s1
 						DUMP_ASSET(ASSET_TYPE_MENU, zonetool::h1::IMenuDef, zonetool::h1::menuDef_t);
 						DUMP_ASSET(ASSET_TYPE_MENULIST, zonetool::h1::IMenuList, zonetool::h1::MenuList);
 
-						//DUMP_ASSET(ASSET_TYPE_PATHDATA, IAIPaths, PathData); // convert
 						DUMP_ASSET(ASSET_TYPE_CLIPMAP, IClipMap, clipMap_t);
 						DUMP_ASSET(ASSET_TYPE_COMWORLD, IComWorld, ComWorld);
 						DUMP_ASSET(ASSET_TYPE_FXWORLD, IFxWorld, FxWorld);

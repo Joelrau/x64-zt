@@ -344,7 +344,7 @@ namespace zonetool::s1
 			COPY_VALUE_CAST(info.surfaceTypeBits); // todo?
 			new_asset->info.hashIndex = asset->info.hashIndex;
 
-			std::memset(new_asset->stateBitsEntry, 0xFF, MaterialTechniqueType::TECHNIQUE_COUNT);
+			std::memset(new_asset->stateBitsEntry, 0xFF, zonetool::h1::MaterialTechniqueType::TECHNIQUE_COUNT);
 			std::memcpy(new_asset->stateBitsEntry, asset->stateBitsEntry, MaterialTechniqueType::TECHNIQUE_COUNT);
 
 			new_asset->textureCount = asset->textureCount;
@@ -361,7 +361,7 @@ namespace zonetool::s1
 			REINTERPRET_CAST_SAFE(constantTable);
 			REINTERPRET_CAST_SAFE(stateBitsTable);
 
-			std::memset(new_asset->constantBufferIndex, 0xFF, MaterialTechniqueType::TECHNIQUE_COUNT);
+			std::memset(new_asset->constantBufferIndex, 0xFF, zonetool::h1::MaterialTechniqueType::TECHNIQUE_COUNT);
 			std::memcpy(new_asset->constantBufferIndex, asset->constantBufferIndex, MaterialTechniqueType::TECHNIQUE_COUNT);
 
 			REINTERPRET_CAST_SAFE(constantBufferTable);
@@ -958,8 +958,14 @@ namespace zonetool::s1
 			//{zonetool::s1::TEXTURE_SRC_CODE_FONT_CACHE, zonetool::h1::TEXTURE_SRC_CODE_FONT_CACHE},
 		};
 
+		std::unordered_map<std::string, zonetool::h1::MaterialTechniqueSet*> converted_techset_assets;
 		zonetool::h1::MaterialTechniqueSet* convert_techset(MaterialTechniqueSet* asset, ZoneMemory* mem)
 		{
+			if (converted_techset_assets.contains(asset->name + "_s1"s))
+			{
+				return converted_techset_assets[asset->name];
+			}
+
 			auto* new_asset = mem->Alloc<zonetool::h1::MaterialTechniqueSet>();
 
 			new_asset->name = mem->StrDup(asset->name + "_s1"s);
@@ -967,89 +973,104 @@ namespace zonetool::s1
 			new_asset->worldVertFormat = asset->worldVertFormat; // convert?
 			new_asset->preDisplacementOnlyCount = asset->preDisplacementOnlyCount;
 
+			std::unordered_map<std::uintptr_t, zonetool::h1::MaterialTechnique*> converted_asset_techniques;
 			for (std::int32_t i = 0; i < MaterialTechniqueType::TECHNIQUE_COUNT; i++)
 			{
 				if (asset->techniques[i])
 				{
-					new_asset->techniques[i] = mem->Alloc<zonetool::h1::MaterialTechnique>(); // no need to change index, it's the same
-					auto* technique = asset->techniques[i];
-					auto* new_technique = new_asset->techniques[i];
-
-					const auto size = sizeof(MaterialTechniqueHeader) + sizeof(MaterialPass) * technique->hdr.passCount;
-					std::memcpy(new_technique, technique, size); // same struct
-
-					new_technique->hdr.name = mem->StrDup(technique->hdr.name + "_s1"s);
-
-					for (unsigned short pass_index = 0; pass_index < technique->hdr.passCount; pass_index++)
+					if (converted_asset_techniques.contains(reinterpret_cast<std::uintptr_t>(asset->techniques[i])))
 					{
-						auto* pass = &technique->passArray[pass_index];
-						auto* new_pass = &new_technique->passArray[pass_index];
+						new_asset->techniques[i] = converted_asset_techniques[reinterpret_cast<std::uintptr_t>(asset->techniques[i])];
+					}
+					else
+					{
+						const auto size = sizeof(MaterialTechniqueHeader) + sizeof(MaterialPass) * asset->techniques[i]->hdr.passCount;
+						new_asset->techniques[i] = mem->ManualAlloc<zonetool::h1::MaterialTechnique>(size); // no need to change index, it's the same
 
-						if (pass->vertexShader)
-						{
-							new_pass->vertexShader = convert_vertexshader(pass->vertexShader, mem);
-						}
-						if (pass->vertexDecl)
-						{
-							new_pass->vertexDecl = convert_vertexdecl(pass->vertexDecl, mem);
-						}
-						if (pass->hullShader)
-						{
-							new_pass->hullShader = convert_hullshader(pass->hullShader, mem);
-						}
-						if (pass->domainShader)
-						{
-							new_pass->domainShader = convert_domainshader(pass->domainShader, mem);
-						}
-						if (pass->pixelShader)
-						{
-							new_pass->pixelShader = convert_pixelshader(pass->pixelShader, mem);
-						}
+						auto* technique = asset->techniques[i];
+						auto* new_technique = new_asset->techniques[i];
+						
+						std::memcpy(new_technique, technique, size); // same struct
 
-						new_pass->stableArgSize += 16;
+						new_technique->hdr.name = mem->StrDup(technique->hdr.name + "_s1"s);
 
-						if (pass->args)
+						for (unsigned short pass_index = 0; pass_index < technique->hdr.passCount; pass_index++)
 						{
-							const auto arg_count = pass->perObjArgCount + pass->perPrimArgCount + pass->stableArgCount;
-							new_pass->args = mem->Alloc<zonetool::h1::MaterialShaderArgument>(arg_count);
-							std::memcpy(new_pass->args, pass->args, sizeof(MaterialShaderArgument) * arg_count); // same struct
-							for (auto arg_index = 0; arg_index < arg_count; arg_index++)
+							auto* pass = &technique->passArray[pass_index];
+							auto* new_pass = &new_technique->passArray[pass_index];
+
+							if (pass->vertexShader)
 							{
-								auto* arg = &pass->args[arg_index];
-								auto* new_arg = &new_pass->args[arg_index];
+								new_pass->vertexShader = convert_vertexshader(pass->vertexShader, mem);
+							}
+							if (pass->vertexDecl)
+							{
+								new_pass->vertexDecl = convert_vertexdecl(pass->vertexDecl, mem);
+							}
+							if (pass->hullShader)
+							{
+								new_pass->hullShader = convert_hullshader(pass->hullShader, mem);
+							}
+							if (pass->domainShader)
+							{
+								new_pass->domainShader = convert_domainshader(pass->domainShader, mem);
+							}
+							if (pass->pixelShader)
+							{
+								new_pass->pixelShader = convert_pixelshader(pass->pixelShader, mem);
+							}
 
-								if (arg->type == MTL_ARG_CODE_CONST)
+							new_pass->stableArgSize += 16;
+
+							if (pass->args)
+							{
+								const auto arg_count = pass->perObjArgCount + pass->perPrimArgCount + pass->stableArgCount;
+								new_pass->args = mem->Alloc<zonetool::h1::MaterialShaderArgument>(arg_count);
+								std::memcpy(new_pass->args, pass->args, sizeof(MaterialShaderArgument) * arg_count); // same struct
+								for (auto arg_index = 0; arg_index < arg_count; arg_index++)
 								{
-									if (const_src_code_map.contains(arg->u.codeConst.index))
-									{
-										auto new_index = const_src_code_map.at(arg->u.codeConst.index);
-										new_arg->u.codeConst.index = new_index;
+									auto* arg = &pass->args[arg_index];
+									auto* new_arg = &new_pass->args[arg_index];
 
-										assert(new_arg->u.codeConst.index < zonetool::h1::CONST_SRC_TOTAL_COUNT);
-									}
-									else
+									if (arg->type == MTL_ARG_CODE_CONST)
 									{
-										//auto native_const = static_cast<MaterialArgumentCodeConst>(arg->u.codeConst.index);
-										//ZONETOOL_ERROR("Unable to map code constant %d for technique '%s'!\n", arg->u.codeConst.index, asset->name);
-										new_arg->u.codeConst.index = zonetool::h1::CONST_SRC_NONE;
-									}
-								}
-								else if (arg->type == MTL_ARG_CODE_TEXTURE)
-								{
-									if (texture_src_code_map.contains(arg->u.codeConst.index))
-									{
-										auto new_index = texture_src_code_map.at(arg->u.codeConst.index);
-										new_arg->u.codeConst.index = new_index;
+										if (const_src_code_map.contains(arg->u.codeConst.index))
+										{
+											auto new_index = const_src_code_map.at(arg->u.codeConst.index);
+											new_arg->u.codeConst.index = new_index;
 
-										assert(new_arg->u.codeConst.index < zonetool::h1::TEXTURE_SRC_CODE_COUNT);
+											assert(new_arg->u.codeConst.index < zonetool::h1::CONST_SRC_TOTAL_COUNT);
+										}
+										else
+										{
+											ZONETOOL_ERROR("Unable to map code constant %d for technique '%s'!\n", arg->u.codeConst.index, asset->name);
+											new_arg->u.codeConst.index = zonetool::h1::CONST_SRC_NONE;
+										}
+									}
+									else if (arg->type == MTL_ARG_CODE_TEXTURE)
+									{
+										if (texture_src_code_map.contains(arg->u.codeConst.index))
+										{
+											auto new_index = texture_src_code_map.at(arg->u.codeConst.index);
+											new_arg->u.codeConst.index = new_index;
+
+											assert(new_arg->u.codeConst.index < zonetool::h1::TEXTURE_SRC_CODE_COUNT);
+										}
+										else
+										{
+											ZONETOOL_ERROR("Unable to map code sampler %d for technique '%s'!\n", arg->u.codeSampler, asset->name);
+											new_arg->u.codeConst.index = zonetool::h1::TEXTURE_SRC_CODE_BLACK;
+										}
 									}
 								}
 							}
 						}
+						converted_asset_techniques[reinterpret_cast<std::uintptr_t>(asset->techniques[i])] = new_technique;
 					}
 				}
 			}
 
+			converted_techset_assets[asset->name] = new_asset;
 			return new_asset;
 		}
 
@@ -1107,7 +1128,7 @@ namespace zonetool::s1
 				new_asset->routing.data[i].dest = asset->routing.data[i].dest;
 				new_asset->routing.data[i].mask = asset->routing.data[i].mask;
 
-				if (asset->routing.data[i].source > 5)
+				if (asset->routing.data[i].source > 7)
 				{
 					new_asset->routing.data[i].source += 2;
 				}

@@ -28,6 +28,8 @@ namespace zonetool::s1
 				{1395, "_color"},
 				{22364, "target"},
 				{22710, "ltindices"},
+				{31014, "script_accel"},
+				{31021, "script_airspeed"},
 				{31068, "script_bombmode_original"},
 			};
 

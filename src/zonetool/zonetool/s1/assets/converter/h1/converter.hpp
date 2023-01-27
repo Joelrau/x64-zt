@@ -15,6 +15,8 @@ namespace zonetool::s1
 		zonetool::h1::MapEnts* convert_map_ents(MapEnts* asset, ZoneMemory* mem);
 		zonetool::h1::Material* convert_material(Material* asset, ZoneMemory* mem);
 		zonetool::h1::snd_alias_list_t* convert_sound(snd_alias_list_t* asset, ZoneMemory* mem);
+
+		extern std::unordered_map<std::string, zonetool::h1::MaterialTechniqueSet*> converted_techset_assets;
 		zonetool::h1::MaterialTechniqueSet* convert_techset(MaterialTechniqueSet* asset, ZoneMemory* mem);
 
 		zonetool::h1::ComputeShader* convert_computeshader(ComputeShader* asset, ZoneMemory* mem);
