@@ -1049,6 +1049,30 @@ namespace zonetool::s1
 		TEXTURE_SRC_CODE_COUNT,
 	};
 
+	enum MaterialWorldVertexFormat : std::int32_t
+	{
+		
+	};
+
+	enum MaterialVertexDeclType : std::int32_t
+	{
+		VERTDECL_GENERIC = 0,
+		VERTDECL_PACKED = 1,
+		VERTDECL_PACKED_VERTLIT = 4,
+		VERTDECL_PACKED_MLMAP = 5,
+		VERTDECL_COUNT = 30,
+	};
+
+	enum MaterialStreamRoutingSource : std::int32_t
+	{
+		
+	};
+
+	enum MaterialStreamRoutingDestination : std::int32_t
+	{
+		
+	};
+
 	struct GfxComputeShaderLoadDef
 	{
 		unsigned char* program;

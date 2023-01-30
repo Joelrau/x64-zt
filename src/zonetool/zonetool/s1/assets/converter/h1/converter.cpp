@@ -958,6 +958,25 @@ namespace zonetool::s1
 			//{zonetool::s1::TEXTURE_SRC_CODE_FONT_CACHE, zonetool::h1::TEXTURE_SRC_CODE_FONT_CACHE},
 		};
 
+		const std::unordered_map <std::uint8_t, std::uint8_t> worldvertexformat_map =
+		{
+			{0, 0},
+			{1, 1},
+			{2, 4},
+			{3, 7},
+			{4, 11},
+			{5, 15},
+			{6, 19},
+			{7, 24},
+			{8, 29},
+			{9, 34},
+			{10, 39},
+			{11, 45},
+			{12, 51},
+			{13, 57},
+			{14, 63},
+		};
+
 		std::unordered_map<std::string, zonetool::h1::MaterialTechniqueSet*> converted_techset_assets;
 		zonetool::h1::MaterialTechniqueSet* convert_techset(MaterialTechniqueSet* asset, ZoneMemory* mem)
 		{
@@ -970,7 +989,17 @@ namespace zonetool::s1
 
 			new_asset->name = mem->StrDup(asset->name + "_s1"s);
 			new_asset->flags = asset->flags; // convert?
-			new_asset->worldVertFormat = asset->worldVertFormat; // convert?
+
+			if (worldvertexformat_map.contains(asset->worldVertFormat))
+			{
+				new_asset->worldVertFormat = worldvertexformat_map.at(asset->worldVertFormat);
+			}
+			else
+			{
+				ZONETOOL_ERROR("Unable to map worldVertFormat %d for technique '%s'!\n", asset->worldVertFormat, asset->name);
+				new_asset->worldVertFormat = 0;
+			}
+
 			new_asset->preDisplacementOnlyCount = asset->preDisplacementOnlyCount;
 
 			std::unordered_map<std::uintptr_t, zonetool::h1::MaterialTechnique*> converted_asset_techniques;

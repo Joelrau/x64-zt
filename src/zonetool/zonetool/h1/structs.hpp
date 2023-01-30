@@ -1359,6 +1359,15 @@ namespace zonetool::h1
 		MTL_WORLDVERT_COUNT = 0xEA,
 	};
 
+	enum MaterialVertexDeclType : std::int32_t
+	{
+		VERTDECL_GENERIC = 0,
+		VERTDECL_PACKED = 1,
+		VERTDECL_PACKED_VERTLIT = 4,
+		VERTDECL_PACKED_MLMAP = 5,
+		VERTDECL_COUNT = 250,
+	};
+
 	enum MaterialStreamRoutingSource : std::int32_t
 	{
 		STREAM_SRC_POSITION = 0x0,
