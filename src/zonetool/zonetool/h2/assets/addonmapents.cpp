@@ -60,7 +60,6 @@ namespace zonetool::h2
 		ents->name = mem->StrDup(name);
 
 		parse_entityStrings(mem, name, &ents->entityString, &ents->numEntityChars);
-		IMapEnts::convert_ents(reinterpret_cast<MapEnts*>(ents), mem);
 
 		parse_triggers(mem, name, &ents->trigger);
 

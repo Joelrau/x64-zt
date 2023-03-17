@@ -3,11 +3,8 @@
 
 #include "zonetool/s1/zonetool.hpp"
 
-#include <utils/xsk/gsc/types.hpp>
-#include <utils/xsk/gsc/interfaces/compiler.hpp>
-#include <utils/xsk/gsc/interfaces/assembler.hpp>
-#include <s1/xsk/resolver.hpp>
-#include <s1/interface.hpp>
+#include <xsk/gsc/engine/s1_pc.hpp>
+std::unique_ptr<xsk::gsc::s1_pc::context> s1_gsc_ctx = std::make_unique<xsk::gsc::s1_pc::context>();
 
 namespace zonetool::s1
 {
@@ -15,24 +12,6 @@ namespace zonetool::s1
 	{
 		namespace
 		{
-			std::unordered_map<std::uint32_t, std::string> mapped_ids = 
-			{
-				{58, "ambient"},
-				{70, "animation"},
-				{71, "animscript"}, // maybe
-				{294, "dmg"},
-				{987, "spawnflags"},
-				{1047, "suncolor"},
-				{1048, "sundirection"},
-				{1049, "sunlight"}, // maybe
-				{1395, "_color"},
-				{22364, "target"},
-				{22710, "ltindices"},
-				{31014, "script_accel"},
-				{31021, "script_airspeed"},
-				{31068, "script_bombmode_original"},
-			};
-
 			std::string convert_mapents(const std::string& source)
 			{
 				std::string out_buffer{};
@@ -142,7 +121,7 @@ namespace zonetool::s1
 					}
 
 					const auto key_ = key.substr(1, key.size() - 2);
-					const auto id = xsk::gsc::s1::resolver::token_id(key_);
+					const auto id = s1_gsc_ctx->token_id(key_);
 					if (id == 0)
 					{
 						ZONETOOL_WARNING("Key '%s' not found, on line %i (%s)", key_.data(), i, line.data());
@@ -177,15 +156,8 @@ namespace zonetool::s1
 						const auto id = std::atoi(match[1].str().data());
 						const auto value = match[2].str();
 
-						std::string key = xsk::gsc::s1::resolver::token_name(
+						std::string key = s1_gsc_ctx->token_name(
 							static_cast<std::uint16_t>(id));
-						if (key.starts_with("_id_"))
-						{
-							if (mapped_ids.contains(id))
-							{
-								key = mapped_ids[id];
-							}
-						}
 						if (!key.starts_with("_id_"))
 						{
 							out_buffer.append(utils::string::va("\"%s\" \"%s\"", key.data(), value.data()));

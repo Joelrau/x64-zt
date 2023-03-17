@@ -1,147 +1,8 @@
 #include <std_include.hpp>
 #include "mapents.hpp"
 
-#include <utils/xsk/gsc/types.hpp>
-#include <utils/xsk/gsc/interfaces/compiler.hpp>
-#include <utils/xsk/gsc/interfaces/assembler.hpp>
-#include <h2/xsk/resolver.hpp>
-#include <h2/interface.hpp>
-
 namespace zonetool::h2
 {
-	namespace
-	{
-		std::string convert_mapents(const std::string& source)
-		{
-			std::string out_buffer{};
-
-			const auto lines = utils::string::split(source, '\n');
-			auto in_map_ent = false;
-			auto empty = false;
-			auto in_comment = false;
-
-			for (auto i = 0; i < lines.size(); i++)
-			{
-				auto line = lines[i];
-				if (line.ends_with('\r'))
-				{
-					line.pop_back();
-				}
-
-				if (line.starts_with("/*") || line.ends_with("/*"))
-				{
-					in_comment = true;
-					continue;
-				}
-
-				if (line.starts_with("*/") || line.ends_with("*/"))
-				{
-					in_comment = false;
-					continue;
-				}
-
-				if (in_comment || line.starts_with("//") || line.empty())
-				{
-					continue;
-				}
-
-				if (line[0] == '{' && !in_map_ent)
-				{
-					in_map_ent = true;
-					out_buffer.append("{\n");
-					continue;
-				}
-
-				if (line[0] == '{' && in_map_ent)
-				{
-					ZONETOOL_FATAL("Unexpected '{' on line %i", i);
-				}
-
-				if (line[0] == '}' && in_map_ent)
-				{
-					if (empty)
-					{
-						out_buffer.append("\n}\n");
-					}
-					else if (i < static_cast<int>(lines.size()) - 1)
-					{
-						out_buffer.append("}\n");
-					}
-					else
-					{
-						out_buffer.append("}\0");
-					}
-
-					in_map_ent = false;
-					continue;
-				}
-
-				if (line[0] == '}' && !in_map_ent)
-				{
-					ZONETOOL_FATAL("Unexpected '}' on line %i", i);
-				}
-
-				if (line.starts_with("0 \""))
-				{
-					out_buffer.append(line);
-					out_buffer.append("\n");
-					continue;
-				}
-
-				std::regex expr(R"~((.+) "(.*)")~");
-				std::smatch match{};
-				if (!std::regex_search(line, match, expr))
-				{
-					ZONETOOL_WARNING("Failed to parse line %i (%s)", i, line.data());
-					continue;
-				}
-
-				auto key = utils::string::to_lower(match[1].str());
-				const auto value = match[2].str();
-
-				if (key.size() <= 0)
-				{
-					ZONETOOL_WARNING("Invalid key ('%s') on line %i (%s)", key.data(), i, line.data());
-					continue;
-				}
-
-				if (value.size() <= 0)
-				{
-					continue;
-				}
-
-				empty = false;
-
-				if (utils::string::is_numeric(key) || key.size() < 3 || !key.starts_with("\"") || !key.ends_with("\""))
-				{
-					out_buffer.append(line);
-					out_buffer.append("\n");
-					continue;
-				}
-
-				const auto key_ = key.substr(1, key.size() - 2);
-				const auto id = xsk::gsc::h2::resolver::token_id(key_);
-				if (id == 0)
-				{
-					ZONETOOL_WARNING("Key '%s' not found, on line %i (%s)", key_.data(), i, line.data());
-					continue;
-				}
-
-				out_buffer.append(utils::string::va("%i \"%s\"\n", id, value.data()));
-			}
-
-			return {out_buffer};
-		}
-
-	}
-
-	void IMapEnts::convert_ents(MapEnts* ents, ZoneMemory* mem)
-	{
-		const auto str = convert_mapents(ents->entityString);
-		ents->entityString = mem->StrDup(str);
-		ents->numEntityChars = static_cast<int>(str.size());
-	}
-
 	void IMapEnts::add_script_string(scr_string_t* ptr, const char* str)
 	{
 		for (std::uint32_t i = 0; i < this->script_strings.size(); i++)
@@ -327,7 +188,6 @@ namespace zonetool::h2
 		ents->name = mem->StrDup(name);
 
 		parse_entityStrings(mem, name, &ents->entityString, &ents->numEntityChars);
-		convert_ents(ents, mem);
 
 		parse_triggers(mem, name, &ents->trigger);
 		parse_clientTriggers(mem, name, &ents->clientTrigger);

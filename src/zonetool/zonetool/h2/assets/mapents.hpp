@@ -30,8 +30,6 @@ namespace zonetool::h2
 	public:
 		MapEnts* parse(std::string name, ZoneMemory* mem);
 
-		static void convert_ents(MapEnts* ents, ZoneMemory* mem);
-
 		void init(const std::string& name, ZoneMemory* mem) override;
 		void prepare(ZoneBuffer* buf, ZoneMemory* mem) override;
 		void load_depending(IZone* zone) override;
