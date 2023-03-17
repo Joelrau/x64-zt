@@ -5,24 +5,20 @@
 
 #include <utils/io.hpp>
 
-#define FF_VERSION 66
-
-#define COMPRESS_TYPE_ZLIB DB_CompressorType::DB_COMPRESSOR_ZLIB
-
-#define COMPRESS_TYPE COMPRESS_TYPE_ZLIB
+#define FF_VERSION 565
 
 namespace zonetool::iw6
 {
 	namespace
 	{
-		/*void write_stream_files(std::vector<IGfxImage*> images, ZoneMemory* mem)
+		void write_stream_files(std::vector<IGfxImage*> images, ZoneMemory* mem)
 		{
 			if (images.size() == 0)
 			{
 				return;
 			}
 
-			std::uint16_t current_index = 96; // unused imagefile index for h1
+			std::uint16_t current_index = 69; // unused imagefile index for iw6
 			std::string image_file_buffer;
 
 			const auto init_image_file = [&]
@@ -30,7 +26,7 @@ namespace zonetool::iw6
 				image_file_buffer.clear();
 
 				XPakHeader header{};
-				std::strcat(header.header, "S1ffu100");
+				memcpy(header.header, "IWffu100", 8);
 				header.version = FF_VERSION;
 
 				image_file_buffer.append(reinterpret_cast<char*>(&header), sizeof(XPakHeader));
@@ -76,7 +72,7 @@ namespace zonetool::iw6
 			}
 
 			write_image_file();
-		}*/
+		}
 	}
 
 	IAsset* Zone::find_asset(std::int32_t type, const std::string& name)
@@ -154,7 +150,7 @@ namespace zonetool::iw6
 		{
 			// declare asset interfaces
 			//ADD_ASSET_PTR(ASSET_TYPE_MENU, IMenuDef);
-			//ADD_ASSET_PTR(ASSET_TYPE_LOCALIZE_ENTRY, ILocalize);
+			ADD_ASSET_PTR(ASSET_TYPE_LOCALIZE_ENTRY, ILocalize);
 		}
 		catch (std::exception& ex)
 		{
@@ -193,59 +189,53 @@ namespace zonetool::iw6
 		try
 		{
 			// declare asset interfaces
-			//ADD_ASSET(ASSET_TYPE_CLUT, IClut);
-			//ADD_ASSET(ASSET_TYPE_DOPPLER_PRESET, IDopplerPreset);
-			//ADD_ASSET(ASSET_TYPE_FX, IFxEffectDef);
-			//ADD_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, IFxParticleSimAnimation);
-			//ADD_ASSET(ASSET_TYPE_IMAGE, IGfxImage);
-			//ADD_ASSET(ASSET_TYPE_LIGHT_DEF, IGfxLightDef);
-			//ADD_ASSET(ASSET_TYPE_LOADED_SOUND, ILoadedSound);
+			ADD_ASSET(ASSET_TYPE_DOPPLER_PRESET, IDopplerPreset);
+			ADD_ASSET(ASSET_TYPE_FX, IFxEffectDef);
+			ADD_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, IFxParticleSimAnimation);
+			ADD_ASSET(ASSET_TYPE_IMAGE, IGfxImage);
+			ADD_ASSET(ASSET_TYPE_LIGHT_DEF, IGfxLightDef);
+			ADD_ASSET(ASSET_TYPE_LOADED_SOUND, ILoadedSound);
 			ADD_ASSET(ASSET_TYPE_LOCALIZE_ENTRY, ILocalize);
-			//ADD_ASSET(ASSET_TYPE_LPF_CURVE, ILpfCurve);
+			ADD_ASSET(ASSET_TYPE_LPF_CURVE, ILpfCurve);
 			ADD_ASSET(ASSET_TYPE_LUA_FILE, ILuaFile);
-			//ADD_ASSET(ASSET_TYPE_MAP_ENTS, IMapEnts);
-			//ADD_ASSET(ASSET_TYPE_MATERIAL, IMaterial);
+			ADD_ASSET(ASSET_TYPE_MAP_ENTS, IMapEnts);
+			ADD_ASSET(ASSET_TYPE_MATERIAL, IMaterial);
 			ADD_ASSET(ASSET_TYPE_NET_CONST_STRINGS, INetConstStrings);
 			ADD_ASSET(ASSET_TYPE_RAWFILE, IRawFile);
-			//ADD_ASSET(ASSET_TYPE_REVERB_CURVE, IReverbCurve);
-			//ADD_ASSET(ASSET_TYPE_SCRIPTABLE, IScriptableDef);
+			ADD_ASSET(ASSET_TYPE_REVERB_CURVE, IReverbCurve);
+			ADD_ASSET(ASSET_TYPE_SCRIPTABLE, IScriptableDef);
 			ADD_ASSET(ASSET_TYPE_SCRIPTFILE, IScriptFile);
-			//ADD_ASSET(ASSET_TYPE_SKELETONSCRIPT, ISkeletonScript);
-			//ADD_ASSET(ASSET_TYPE_SOUND, ISound);
-			//ADD_ASSET(ASSET_TYPE_SOUND_CONTEXT, ISoundContext);
-			//ADD_ASSET(ASSET_TYPE_SOUND_CURVE, ISoundCurve);
+			ADD_ASSET(ASSET_TYPE_SOUND, ISound);
+			ADD_ASSET(ASSET_TYPE_SOUND_CURVE, ISoundCurve);
 			ADD_ASSET(ASSET_TYPE_STRINGTABLE, IStringTable);
-			//ADD_ASSET(ASSET_TYPE_TECHNIQUE_SET, ITechset);
-			//ADD_ASSET(ASSET_TYPE_TRACER, ITracerDef);
-			//ADD_ASSET(ASSET_TYPE_TTF, IFont);
-			//ADD_ASSET(ASSET_TYPE_ATTACHMENT, IWeaponAttachment);
-			//ADD_ASSET(ASSET_TYPE_WEAPON, IWeaponDef);
-			//ADD_ASSET(ASSET_TYPE_XANIM, IXAnimParts);
-			//ADD_ASSET(ASSET_TYPE_XMODEL, IXModel);
-			//ADD_ASSET(ASSET_TYPE_XMODEL_SURFS, IXSurface);
+			ADD_ASSET(ASSET_TYPE_TECHNIQUE_SET, ITechset);
+			ADD_ASSET(ASSET_TYPE_TRACER, ITracerDef);
+			ADD_ASSET(ASSET_TYPE_FONT, IFontDef);
+			ADD_ASSET(ASSET_TYPE_ATTACHMENT, IWeaponAttachment);
+			ADD_ASSET(ASSET_TYPE_WEAPON, IWeaponDef);
+			ADD_ASSET(ASSET_TYPE_XANIMPARTS, IXAnimParts);
+			ADD_ASSET(ASSET_TYPE_XMODEL, IXModel);
+			ADD_ASSET(ASSET_TYPE_XMODEL_SURFS, IXSurface);
 
-			//ADD_ASSET(ASSET_TYPE_PHYSCOLLMAP, IPhysCollmap);
-			//ADD_ASSET(ASSET_TYPE_PHYSCONSTRAINT, IPhysConstraint);
-			//ADD_ASSET(ASSET_TYPE_PHYSPRESET, IPhysPreset);
-			//ADD_ASSET(ASSET_TYPE_PHYSWATERPRESET, IPhysWaterPreset);
-			//ADD_ASSET(ASSET_TYPE_PHYSWORLDMAP, IPhysWorld);
+			ADD_ASSET(ASSET_TYPE_PHYSCOLLMAP, IPhysCollmap);
+			ADD_ASSET(ASSET_TYPE_PHYSPRESET, IPhysPreset);
 
-			//ADD_ASSET(ASSET_TYPE_COMPUTESHADER, IComputeShader);
-			//ADD_ASSET(ASSET_TYPE_DOMAINSHADER, IDomainShader);
-			//ADD_ASSET(ASSET_TYPE_HULLSHADER, IHullShader);
-			//ADD_ASSET(ASSET_TYPE_PIXELSHADER, IPixelShader);
-			////ADD_ASSET(ASSET_TYPE_VERTEXDECL, IVertexDecl);
-			//ADD_ASSET(ASSET_TYPE_VERTEXSHADER, IVertexShader);
+			ADD_ASSET(ASSET_TYPE_COMPUTESHADER, IComputeShader);
+			ADD_ASSET(ASSET_TYPE_DOMAINSHADER, IDomainShader);
+			ADD_ASSET(ASSET_TYPE_HULLSHADER, IHullShader);
+			ADD_ASSET(ASSET_TYPE_PIXELSHADER, IPixelShader);
+			//ADD_ASSET(ASSET_TYPE_VERTEXDECL, IVertexDecl);
+			ADD_ASSET(ASSET_TYPE_VERTEXSHADER, IVertexShader);
 
 			//ADD_ASSET(ASSET_TYPE_MENU, IMenuDef);
 			//ADD_ASSET(ASSET_TYPE_MENULIST, IMenuList);
 
-			//ADD_ASSET(ASSET_TYPE_AIPATHS, IAIPaths);
-			//ADD_ASSET(ASSET_TYPE_COL_MAP_MP, IClipMap);
-			//ADD_ASSET(ASSET_TYPE_COM_MAP, IComWorld);
-			//ADD_ASSET(ASSET_TYPE_FX_MAP, IFxWorld);
-			//ADD_ASSET(ASSET_TYPE_GFX_MAP, IGfxWorld);
-			//ADD_ASSET(ASSET_TYPE_GLASS_MAP, IGlassWorld);
+			//ADD_ASSET(ASSET_TYPE_PATHDATA, IAIPaths);
+			ADD_ASSET(ASSET_TYPE_CLIPMAP, IClipMap);
+			ADD_ASSET(ASSET_TYPE_COMWORLD, IComWorld);
+			ADD_ASSET(ASSET_TYPE_FXWORLD, IFxWorld);
+			ADD_ASSET(ASSET_TYPE_GFXWORLD, IGfxWorld);
+			ADD_ASSET(ASSET_TYPE_GLASSWORLD, IGlassWorld);
 		}
 		catch (std::exception& ex)
 		{
@@ -281,7 +271,7 @@ namespace zonetool::iw6
 
 		auto zone = buf->at<XZoneMemory<num_streams>>();
 
-		/*{
+		{
 			// write imagefile
 			std::vector<IGfxImage*> images;
 			for (std::size_t i = 0; i < m_assets.size(); i++)
@@ -297,7 +287,7 @@ namespace zonetool::iw6
 			}
 
 			write_stream_files(images, this->m_zonemem.get());
-		}*/
+		}
 
 		// write zone header
 		buf->write(&mem);
@@ -380,7 +370,7 @@ namespace zonetool::iw6
 
 			for (unsigned int i = 0; i < globals->blendStateCount; i++)
 			{
-				for (auto j = 0; j < 3; j++)
+				for (auto j = 0; j < 1; j++)
 				{
 					globals->blendStateBits[i][j] = buf->get_blendstatebits(i)[j];
 				}
@@ -601,7 +591,7 @@ namespace zonetool::iw6
 
 		// Generate FF header
 		XFileHeader header{0};
-		strcat(header.header, "S1ffu100");
+		memcpy(header.header, "IWffu100", 8);
 		header.version = FF_VERSION;
 		header.compress = 1;
 		header.compressType = DB_COMPRESSOR_ZLIB;

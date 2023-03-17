@@ -25,8 +25,8 @@ namespace iw6
 				const auto original = a.newLabel();
 
 				a.pushad64();
-				a.cmp(ebp, 0x80); // allocFlags
-				a.je(skip);
+				a.test(ebp, 0x80); // allocFlags
+				a.jnz(skip);
 
 				a.bind(original);
 				a.popad64();
@@ -58,7 +58,7 @@ namespace iw6
 				utils::hook::nop(0x1402FC445, 2); // DB_AuthLoad_InflateInit
 
 				// Don't load extra zones with loadzone
-				utils::hook::nop(0x1403217B1, 15);
+				utils::hook::nop(0x1403217B1, 12);
 				utils::hook::jump(0x1403217B1, utils::hook::assemble(skip_extra_zones_stub), true);
 			}
 		};

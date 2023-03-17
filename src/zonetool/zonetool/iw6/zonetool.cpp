@@ -151,60 +151,54 @@ namespace zonetool::iw6
 				try
 				{
 					// dump assets
-					//DUMP_ASSET(ASSET_TYPE_CLUT, IClut, Clut);
-					//DUMP_ASSET(ASSET_TYPE_DOPPLER_PRESET, IDopplerPreset, DopplerPreset);
-					//DUMP_ASSET(ASSET_TYPE_FX, IFxEffectDef, FxEffectDef);
-					//DUMP_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, IFxParticleSimAnimation, FxParticleSimAnimation);
-					//DUMP_ASSET(ASSET_TYPE_IMAGE, IGfxImage, GfxImage);
-					//DUMP_ASSET(ASSET_TYPE_LIGHT_DEF, IGfxLightDef, GfxLightDef);
-					//DUMP_ASSET(ASSET_TYPE_LOADED_SOUND, ILoadedSound, LoadedSound);
+					DUMP_ASSET(ASSET_TYPE_DOPPLER_PRESET, IDopplerPreset, DopplerPreset);
+					DUMP_ASSET(ASSET_TYPE_FX, IFxEffectDef, FxEffectDef);
+					DUMP_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, IFxParticleSimAnimation, FxParticleSimAnimation);
+					DUMP_ASSET(ASSET_TYPE_IMAGE, IGfxImage, GfxImage);
+					DUMP_ASSET(ASSET_TYPE_LIGHT_DEF, IGfxLightDef, GfxLightDef);
+					DUMP_ASSET(ASSET_TYPE_LOADED_SOUND, ILoadedSound, LoadedSound);
 					DUMP_ASSET(ASSET_TYPE_LOCALIZE_ENTRY, ILocalize, LocalizeEntry);
-					//DUMP_ASSET(ASSET_TYPE_LPF_CURVE, ILpfCurve, SndCurve);
+					DUMP_ASSET(ASSET_TYPE_LPF_CURVE, ILpfCurve, SndCurve);
 					DUMP_ASSET(ASSET_TYPE_LUA_FILE, ILuaFile, LuaFile);
-					//DUMP_ASSET(ASSET_TYPE_MATERIAL, IMaterial, Material);
-					//DUMP_ASSET(ASSET_TYPE_MAP_ENTS, IMapEnts, MapEnts);
+					DUMP_ASSET(ASSET_TYPE_MATERIAL, IMaterial, Material);
+					DUMP_ASSET(ASSET_TYPE_MAP_ENTS, IMapEnts, MapEnts);
 					DUMP_ASSET(ASSET_TYPE_NET_CONST_STRINGS, INetConstStrings, NetConstStrings);
 					DUMP_ASSET(ASSET_TYPE_RAWFILE, IRawFile, RawFile);
-					//DUMP_ASSET(ASSET_TYPE_REVERB_CURVE, IReverbCurve, SndCurve);
-					//DUMP_ASSET(ASSET_TYPE_SCRIPTABLE, IScriptableDef, ScriptableDef);
+					DUMP_ASSET(ASSET_TYPE_REVERB_CURVE, IReverbCurve, SndCurve);
+					DUMP_ASSET(ASSET_TYPE_SCRIPTABLE, IScriptableDef, ScriptableDef);
 					DUMP_ASSET(ASSET_TYPE_SCRIPTFILE, IScriptFile, ScriptFile);
-					//DUMP_ASSET(ASSET_TYPE_SKELETONSCRIPT, ISkeletonScript, SkeletonScript);
-					//DUMP_ASSET(ASSET_TYPE_SOUND, ISound, snd_alias_list_t);
-					//DUMP_ASSET(ASSET_TYPE_SOUND_CONTEXT, ISoundContext, SndContext);
-					//DUMP_ASSET(ASSET_TYPE_SOUND_CURVE, ISoundCurve, SndCurve);
+					DUMP_ASSET(ASSET_TYPE_SOUND, ISound, snd_alias_list_t);
+					DUMP_ASSET(ASSET_TYPE_SOUND_CURVE, ISoundCurve, SndCurve);
 					DUMP_ASSET(ASSET_TYPE_STRINGTABLE, IStringTable, StringTable);
-					//DUMP_ASSET(ASSET_TYPE_STRUCTUREDDATADEF, IStructuredDataDefSet, StructuredDataDefSet);
-					//DUMP_ASSET(ASSET_TYPE_TECHNIQUE_SET, ITechset, MaterialTechniqueSet);
-					//DUMP_ASSET(ASSET_TYPE_TRACER, ITracerDef, TracerDef);
-					//DUMP_ASSET(ASSET_TYPE_TTF, IFont, TTFDef);
-					//DUMP_ASSET(ASSET_TYPE_ATTACHMENT, IWeaponAttachment, WeaponAttachment);
-					//DUMP_ASSET(ASSET_TYPE_WEAPON, IWeaponDef, WeaponDef);
-					//DUMP_ASSET(ASSET_TYPE_XANIM, IXAnimParts, XAnimParts);
-					//DUMP_ASSET(ASSET_TYPE_XMODEL, IXModel, XModel);
-					//DUMP_ASSET(ASSET_TYPE_XMODEL_SURFS, IXSurface, XModelSurfs);
+					DUMP_ASSET(ASSET_TYPE_STRUCTURED_DATA_DEF, IStructuredDataDefSet, StructuredDataDefSet);
+					DUMP_ASSET(ASSET_TYPE_TECHNIQUE_SET, ITechset, MaterialTechniqueSet);
+					DUMP_ASSET(ASSET_TYPE_TRACER, ITracerDef, TracerDef);
+					DUMP_ASSET(ASSET_TYPE_FONT, IFontDef, Font_s);
+					DUMP_ASSET(ASSET_TYPE_ATTACHMENT, IWeaponAttachment, WeaponAttachment);
+					DUMP_ASSET(ASSET_TYPE_WEAPON, IWeaponDef, WeaponCompleteDef);
+					DUMP_ASSET(ASSET_TYPE_XANIMPARTS, IXAnimParts, XAnimParts);
+					DUMP_ASSET(ASSET_TYPE_XMODEL, IXModel, XModel);
+					DUMP_ASSET(ASSET_TYPE_XMODEL_SURFS, IXSurface, XModelSurfs);
 
-					//DUMP_ASSET(ASSET_TYPE_PHYSCOLLMAP, IPhysCollmap, PhysCollmap);
-					//DUMP_ASSET(ASSET_TYPE_PHYSCONSTRAINT, IPhysConstraint, PhysConstraint);
-					//DUMP_ASSET(ASSET_TYPE_PHYSPRESET, IPhysPreset, PhysPreset);
-					//DUMP_ASSET(ASSET_TYPE_PHYSWATERPRESET, IPhysWaterPreset, PhysWaterPreset);
-					//DUMP_ASSET(ASSET_TYPE_PHYSWORLDMAP, IPhysWorld, PhysWorld);
+					DUMP_ASSET(ASSET_TYPE_PHYSCOLLMAP, IPhysCollmap, PhysCollmap);
+					DUMP_ASSET(ASSET_TYPE_PHYSPRESET, IPhysPreset, PhysPreset);
 
-					//DUMP_ASSET(ASSET_TYPE_COMPUTESHADER, IComputeShader, ComputeShader);
-					//DUMP_ASSET(ASSET_TYPE_DOMAINSHADER, IDomainShader, MaterialDomainShader);
-					//DUMP_ASSET(ASSET_TYPE_HULLSHADER, IHullShader, MaterialHullShader);
-					//DUMP_ASSET(ASSET_TYPE_PIXELSHADER, IPixelShader, MaterialPixelShader);
-					////DUMP_ASSET(ASSET_TYPE_VERTEXDECL, IVertexDecl, MaterialVertexDeclaration);
-					//DUMP_ASSET(ASSET_TYPE_VERTEXSHADER, IVertexShader, MaterialVertexShader);
+					DUMP_ASSET(ASSET_TYPE_COMPUTESHADER, IComputeShader, ComputeShader);
+					DUMP_ASSET(ASSET_TYPE_DOMAINSHADER, IDomainShader, MaterialDomainShader);
+					DUMP_ASSET(ASSET_TYPE_HULLSHADER, IHullShader, MaterialHullShader);
+					DUMP_ASSET(ASSET_TYPE_PIXELSHADER, IPixelShader, MaterialPixelShader);
+					//DUMP_ASSET(ASSET_TYPE_VERTEXDECL, IVertexDecl, MaterialVertexDeclaration);
+					DUMP_ASSET(ASSET_TYPE_VERTEXSHADER, IVertexShader, MaterialVertexShader);
 
 					//DUMP_ASSET(ASSET_TYPE_MENU, IMenuDef, menuDef_t);
 					//DUMP_ASSET(ASSET_TYPE_MENULIST, IMenuList, MenuList);
 
-					//DUMP_ASSET(ASSET_TYPE_AIPATHS, IAIPaths, PathData);
-					//DUMP_ASSET(ASSET_TYPE_COL_MAP_MP, IClipMap, clipMap_t);
-					//DUMP_ASSET(ASSET_TYPE_COM_MAP, IComWorld, ComWorld);
-					//DUMP_ASSET(ASSET_TYPE_FX_MAP, IFxWorld, FxWorld);
-					//DUMP_ASSET(ASSET_TYPE_GFX_MAP, IGfxWorld, GfxWorld);
-					//DUMP_ASSET(ASSET_TYPE_GLASS_MAP, IGlassWorld, GlassWorld);
+					//DUMP_ASSET(ASSET_TYPE_PATHDATA, IAIPaths, PathData);
+					DUMP_ASSET(ASSET_TYPE_CLIPMAP, IClipMap, clipMap_t);
+					DUMP_ASSET(ASSET_TYPE_COMWORLD, IComWorld, ComWorld);
+					DUMP_ASSET(ASSET_TYPE_FXWORLD, IFxWorld, FxWorld);
+					DUMP_ASSET(ASSET_TYPE_GFXWORLD, IGfxWorld, GfxWorld);
+					DUMP_ASSET(ASSET_TYPE_GLASSWORLD, IGlassWorld, GlassWorld);
 				}
 				catch (std::exception& ex)
 				{
@@ -644,8 +638,7 @@ namespace zonetool::iw6
 		zone->build(buffer.get());
 
 		// clear asset shit
-		//ITechset::vertexdecl_pointers.clear();
-		//IMapEnts::clear_entity_strings();
+		ITechset::vertexdecl_pointers.clear();
 	}
 
 	void register_commands()
