@@ -36,6 +36,7 @@ namespace nlohmann
 }
 
 #define MAX_ZONE_SIZE (1024ull * 1024ull * 1024ull) * 2ull
+#define MAX_MEM_SIZE (1024ull * 1024ull * 1024ull) * 2ull
 
 #define ZONETOOL_INFO(__FMT__,...) \
 	printf("[ INFO ][ " __FUNCTION__ " ]: " __FMT__ "\n", __VA_ARGS__)

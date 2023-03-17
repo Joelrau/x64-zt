@@ -195,6 +195,7 @@ namespace zonetool::h1
 
 		std::uint8_t* buffer();
 		std::size_t size();
+		void clear();
 
 		void align(std::uint64_t alignment);
 		void inc_stream(const std::uint8_t stream, const std::size_t size);

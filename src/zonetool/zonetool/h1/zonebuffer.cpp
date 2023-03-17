@@ -27,7 +27,6 @@ namespace zonetool::h1
 		this->m_sas.clear();
 		this->m_streamfiles.clear();
 
-		// 2gb, should be enough?
 		this->m_buf.resize(this->m_len);
 	}
 
@@ -58,7 +57,7 @@ namespace zonetool::h1
 		this->m_streamfiles.clear();
 
 		// clear zone buffer
-		this->m_buf.clear();
+		this->clear();
 	}
 
 	ZoneBuffer::ZoneBuffer(std::vector<std::uint8_t> data)
@@ -184,6 +183,12 @@ namespace zonetool::h1
 	std::size_t ZoneBuffer::size()
 	{
 		return m_pos;
+	}
+
+	void ZoneBuffer::clear()
+	{
+		m_buf.clear();
+		m_buf.shrink_to_fit();
 	}
 
 	void ZoneBuffer::align(std::uint64_t alignment)
