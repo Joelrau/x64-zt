@@ -1,10 +1,9 @@
 #include <std_include.hpp>
 #include "sound.hpp"
 
-namespace s1::snd
+namespace zonetool::s1
 {
-#define SND_MAX_VOLUME_GROUPS 179
-	std::array<const char*, SND_MAX_VOLUME_GROUPS> volume_mod_groups =
+	std::array<const char*, SND_VOLMOD_COUNT> volume_mod_groups =
 	{
 		"default",
 		// User interface
@@ -203,8 +202,7 @@ namespace s1::snd
 		"mw3_wpn_vehicle_plr",
 	};
 
-#define SND_MAX_DSP_BUSES 30
-	std::array<const char*, SND_MAX_DSP_BUSES> dsp_buses =
+	std::array<const char*, SND_DSPBUS_COUNT> dsp_buses =
 	{
 		"default",
 		"weapons",
@@ -238,7 +236,7 @@ namespace s1::snd
 		"whizbys",
 	};
 
-	const char* get_vol_nod_name(short index)
+	const char* get_vol_mod_name(short index)
 	{
 		return volume_mod_groups[index];
 	}
@@ -273,11 +271,7 @@ namespace s1::snd
 		}
 		return -1;
 	}
-}
-using namespace s1::snd;
 
-namespace zonetool::s1
-{
 #define SOUND_DUMP_SUBASSET(entry) \
 	if (asset->entry) sound[#entry] = asset->entry->name;	\
 	else sound[#entry] = nullptr;
@@ -814,7 +808,7 @@ namespace zonetool::s1
 		SOUND_DUMP_INT(flags);
 		SOUND_DUMP_CHAR(priority);
 		sound["dspBus"] = get_dsp_bus_name(asset->dspBusIndex); //SOUND_DUMP_CHAR(dspBusIndex);
-		sound["volMod"] = get_vol_nod_name(asset->volModIndex); //SOUND_DUMP_SHORT(volModIndex);
+		sound["volMod"] = get_vol_mod_name(asset->volModIndex); //SOUND_DUMP_SHORT(volModIndex);
 		SOUND_DUMP_FLOAT(volMin);
 		SOUND_DUMP_FLOAT(volMax);
 		SOUND_DUMP_FLOAT(pitchMin);

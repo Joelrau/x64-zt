@@ -38,7 +38,6 @@
 #include "assets/luafile.hpp"
 #include "assets/mapents.hpp"
 #include "assets/material.hpp"
-#include "assets/rawfile.hpp"
 #include "assets/netconststrings.hpp"
 #include "assets/physcollmap.hpp"
 #include "assets/physconstraint.hpp"

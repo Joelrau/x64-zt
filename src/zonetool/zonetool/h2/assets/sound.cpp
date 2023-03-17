@@ -1,7 +1,7 @@
 #include <std_include.hpp>
 #include "sound.hpp"
 
-namespace h2::snd
+namespace zonetool::h2
 {
 #define SND_MAX_VOLUME_GROUPS 126
 	std::array<const char*, SND_MAX_VOLUME_GROUPS> volume_mod_groups =
@@ -187,7 +187,7 @@ namespace h2::snd
 		"whizbys",
 	};
 
-	const char* get_vol_nod_name(short index)
+	const char* get_vol_mod_name(short index)
 	{
 		return volume_mod_groups[index];
 	}
@@ -222,11 +222,7 @@ namespace h2::snd
 		}
 		return -1;
 	}
-}
-using namespace h2::snd;
 
-namespace zonetool::h2
-{
 #define SOUND_DUMP_SUBASSET(entry) \
 	if (asset->entry) sound[#entry] = asset->entry->name;	\
 	else sound[#entry] = nullptr;
@@ -778,7 +774,7 @@ namespace zonetool::h2
 		SOUND_DUMP_INT(flags);
 		SOUND_DUMP_CHAR(priority);
 		sound["dspBus"] = get_dsp_bus_name(asset->dspBusIndex); //SOUND_DUMP_CHAR(dspBusIndex);
-		sound["volMod"] = get_vol_nod_name(asset->volModIndex); //SOUND_DUMP_SHORT(volModIndex);
+		sound["volMod"] = get_vol_mod_name(asset->volModIndex); //SOUND_DUMP_SHORT(volModIndex);
 		SOUND_DUMP_FLOAT(volMin);
 		SOUND_DUMP_FLOAT(volMax);
 		SOUND_DUMP_FLOAT(pitchMin);

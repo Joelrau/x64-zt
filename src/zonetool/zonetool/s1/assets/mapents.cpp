@@ -548,11 +548,6 @@ namespace zonetool::s1
 		file.open("wb");
 		if (file.get_fp())
 		{
-			// no support for this yet on s1x
-			//const auto str = convert_mapents_ids(
-			//	std::string{ entityString, static_cast<size_t>(numEntityChars) });
-			//file.write(str.data(), str.size(), 1);
-
 			file.write(entityString, numEntityChars, 1);
 			file.close();
 		}
