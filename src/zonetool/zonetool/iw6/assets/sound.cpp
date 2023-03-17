@@ -699,6 +699,41 @@ namespace zonetool::iw6
 				}
 			};
 
+			auto insert_primed = [&]()
+			{
+				sound["soundfile"]["isLocalized"] = asset->soundFile->u.primedSnd.filename.isLocalized;
+				sound["soundfile"]["fileIndex"] = asset->soundFile->u.primedSnd.filename.fileIndex;
+
+				sound["soundfile"]["packed"]["offset"] = 0;
+				sound["soundfile"]["packed"]["length"] = 0;
+				sound["soundfile"]["raw"]["dir"] = "";
+				sound["soundfile"]["raw"]["name"] = "";
+
+				if (asset->soundFile->u.primedSnd.filename.fileIndex)
+				{
+					sound["soundfile"]["packed"]["offset"] = asset->soundFile->u.primedSnd.filename.info.packed.offset;
+					sound["soundfile"]["packed"]["length"] = asset->soundFile->u.primedSnd.filename.info.packed.length;
+				}
+				else
+				{
+					sound["soundfile"]["raw"]["dir"] = asset->soundFile->u.primedSnd.filename.info.raw.dir
+						? asset->soundFile->u.primedSnd.filename.info.raw.dir
+						: "";
+					sound["soundfile"]["raw"]["name"] = asset->soundFile->u.primedSnd.filename.info.raw.name
+						? asset->soundFile->u.primedSnd.filename.info.raw.name
+						: "";
+				}
+
+				if (asset->soundFile->u.primedSnd.loadedPart)
+				{
+					sound["soundfile"]["name"] = asset->soundFile->u.primedSnd.loadedPart->name ? asset->soundFile->u.primedSnd.loadedPart->name : "";
+				}
+
+				sound["soundfile"]["dataOffset"] = asset->soundFile->u.primedSnd.dataOffset;
+				sound["soundfile"]["totalSize"] = asset->soundFile->u.primedSnd.totalSize;
+				sound["soundfile"]["primedCrc"] = asset->soundFile->u.primedSnd.primedCrc;
+			};
+
 			if (asset->soundFile->type == SAT_LOADED)
 			{
 				insert_loaded();
@@ -709,9 +744,7 @@ namespace zonetool::iw6
 			}
 			else if (asset->soundFile->type == SAT_PRIMED)
 			{
-				insert_loaded();
-				insert_streamed();
-				//ZONETOOL_FATAL("SAT_PRIMED dumping is not supported yet.");
+				insert_primed();
 			}
 		}
 
