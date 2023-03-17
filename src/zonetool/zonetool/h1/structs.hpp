@@ -137,7 +137,8 @@ namespace zonetool::h1
 		float friction;
 		float bulletForceScale;
 		float explosiveForceScale;
-		char __pad0[8]; // something added before name and sndAlias
+		int unk1; // 0
+		int unk2; // 42001553
 		const char* sndAliasPrefix;
 		float piecesSpreadFraction;
 		float piecesUpwardVelocity;
@@ -160,11 +161,16 @@ namespace zonetool::h1
 		{
 			struct _
 			{
-				int pad[4];
+				short pad[8];
 			} a;
 			char __pad0[16];
 		};
 	}; assert_sizeof(dmMeshNode_array_t, 16);
+
+	struct dmFloat4_array_t
+	{
+		float array[4];
+	}; assert_sizeof(dmFloat4_array_t, 16);
 
 	struct dmMeshTriangle
 	{
@@ -180,16 +186,16 @@ namespace zonetool::h1
 
 	struct dmMeshData
 	{
-		dmMeshNode_array_t* meshNodes;
-		vec4_t* vec4_array0;
-		dmMeshTriangle* meshTriangles;
-		Bounds bounds;
-		float unk0[3];
-		unsigned int meshNodeCount;
+		dmMeshNode_array_t* meshNodes; // no clue
+		dmFloat4_array_t* vec4_array0; // (?, ?, ?, 0)
+		dmMeshTriangle* meshTriangles; // 8 indexes to vec4_array0?
+		Bounds bounds; // seems correct
+		float unk0[3]; // no clue
+		unsigned int meshNodeCount; // m_nodeCount
 		unsigned int vec4_array0_count;
 		unsigned int meshTriangleCount; // m_triangleCount
-		int unk1;
-		int contents;
+		int unk1; // doesn't matter?
+		int contents; // seems correct
 	}; assert_sizeof(dmMeshData, 0x50);
 
 	struct dmSubEdge
@@ -201,23 +207,10 @@ namespace zonetool::h1
 		} a;
 	}; assert_sizeof(dmSubEdge, 4);
 
-	struct dmFloat4
-	{
-		union
-		{
-			struct _
-			{
-				float normal[3];
-				float dist;
-			} a;
-			char __pad0[16];
-		};
-	}; assert_sizeof(dmFloat4, 16);
-
 	struct dmPolytopeData
 	{
-		vec4_t* __ptr64 vec4_array0; // (array,count0)
-		vec4_t* __ptr64 vec4_array1; // (array,count1)
+		dmFloat4_array_t* __ptr64 vec4_array0; // (array,count0)
+		dmFloat4_array_t* __ptr64 vec4_array1; // (array,count1)
 		unsigned short* __ptr64 uint16_array0; // surfaceType? (array,count0)
 		unsigned short* __ptr64 uint16_array1; // m_vertexMaterials (array,count1)
 		dmSubEdge* __ptr64 edges; // (array,count2)
@@ -273,7 +266,8 @@ namespace zonetool::h1
 		PhysWaterPreset* physWaterPreset;
 		char __pad0[12];
 		scr_string_t string;
-		char __pad1[8];
+		short brushModelIndex;
+		char __pad1[6];
 	}; assert_sizeof(PhysWaterVolumeDef, 0x20);
 	assert_offsetof(PhysWaterVolumeDef, string, 20);
 
@@ -1697,11 +1691,11 @@ namespace zonetool::h1
 	enum MaterialGameFlags : std::uint8_t
 	{
 		MTL_GAMEFLAG_NONE = 0x0,
-		MTL_GAMEFLAG_CASTS_SHADOW_UNK1 = 0x1, // decal
+		MTL_GAMEFLAG_CASTS_SHADOW_UNK1 = 0x1,
 		MTL_GAMEFLAG_CASTS_SHADOW_UNK2 = 0x2,
 		MTL_GAMEFLAG_CASTS_SHADOW_UNK3 = 0x3,
 		MTL_GAMEFLAG_CASTS_SHADOW_UNK4 = 0x4,
-		MTL_GAMEFLAG_CASTS_SHADOW_UNK5 = 0x5, // foliage
+		MTL_GAMEFLAG_CASTS_SHADOW_UNK5 = 0x5,
 		MTL_GAMEFLAG_CASTS_SHADOW_SHIFT = 0x6,
 		MTL_GAMEFLAG_CASTS_SHADOW_MASK = 0x1F,
 		MTL_GAMEFLAG_NO_MARK = 0x20,
@@ -3429,11 +3423,13 @@ namespace zonetool::h1
 	union PackedUnitVec
 	{
 		unsigned int packed;
+		unsigned char array[4];
 	};
 
 	union PackedTexCoords
 	{
 		unsigned int packed;
+		unsigned char array[4];
 	};
 
 	union GfxColor

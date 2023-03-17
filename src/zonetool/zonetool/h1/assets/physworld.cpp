@@ -46,8 +46,8 @@ namespace zonetool::h1
 		asset->polytopeDatas = read.read_array<dmPolytopeData>();
 		for (unsigned int i = 0; i < asset->polytopeDatasCount; i++)
 		{
-			asset->polytopeDatas[i].vec4_array0 = read.read_array<vec4_t>();
-			asset->polytopeDatas[i].vec4_array1 = read.read_array<vec4_t>();
+			asset->polytopeDatas[i].vec4_array0 = read.read_array<dmFloat4_array_t>();
+			asset->polytopeDatas[i].vec4_array1 = read.read_array<dmFloat4_array_t>();
 			asset->polytopeDatas[i].uint16_array0 = read.read_array<unsigned short>();
 			asset->polytopeDatas[i].uint16_array1 = read.read_array<unsigned short>();
 			asset->polytopeDatas[i].edges = read.read_array<dmSubEdge>();
@@ -57,7 +57,7 @@ namespace zonetool::h1
 		for (unsigned int i = 0; i < asset->meshDatasCount; i++)
 		{
 			asset->meshDatas[i].meshNodes = read.read_array<dmMeshNode_array_t>();
-			asset->meshDatas[i].vec4_array0 = read.read_array<vec4_t>();
+			asset->meshDatas[i].vec4_array0 = read.read_array<dmFloat4_array_t>();
 			asset->meshDatas[i].meshTriangles = read.read_array<dmMeshTriangle>();
 		}
 		asset->waterVolumes = read.read_array<PhysWaterVolumeDef>();
