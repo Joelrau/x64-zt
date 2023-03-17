@@ -5,6 +5,12 @@
 
 namespace zonetool::s1
 {
+#ifdef DEBUG
+	constexpr auto IS_DEBUG = true;
+#else
+	constexpr auto IS_DEBUG = false;
+#endif
+
 	void dump_asset(XAsset* asset);
 	void stop_dumping();
 
@@ -148,18 +154,21 @@ namespace zonetool::s1
 #define DUMP_ASSET(__type__,__interface__,__struct__) \
 				if (asset->type == __type__) \
 				{ \
+					if(IS_DEBUG) ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
 					auto asset_ptr = reinterpret_cast<__struct__*>(asset->header.data); \
 					__interface__::dump(asset_ptr); \
 				}
 #define DUMP_ASSET_RAW(__type__,__interface__,__struct__,__data__) \
 				if (asset->type == __type__) \
 				{ \
+					if(IS_DEBUG) ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
 					auto asset_ptr = reinterpret_cast<__struct__*>(__data__); \
 					__interface__::dump(asset_ptr); \
 				}
 #define DUMP_ASSET_CONVERTER(__type__,__struct__,__namespace__) \
 				if (asset->type == __type__) \
 				{ \
+					if(IS_DEBUG) ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
 					auto asset_ptr = reinterpret_cast<__struct__*>(asset->header.data); \
 					__namespace__::dump(asset_ptr, memory.get()); \
 				}
@@ -192,7 +201,6 @@ namespace zonetool::s1
 						DUMP_ASSET(ASSET_TYPE_SOUND_CONTEXT, ISoundContext, SndContext);
 						DUMP_ASSET(ASSET_TYPE_SOUND_CURVE, ISoundCurve, SndCurve);
 						DUMP_ASSET(ASSET_TYPE_STRINGTABLE, IStringTable, StringTable);
-						DUMP_ASSET(ASSET_TYPE_RAWFILE, IRawFile, RawFile);
 						DUMP_ASSET(ASSET_TYPE_STRUCTURED_DATA_DEF, IStructuredDataDefSet, StructuredDataDefSet);
 						DUMP_ASSET(ASSET_TYPE_TECHNIQUE_SET, ITechset, MaterialTechniqueSet);
 						DUMP_ASSET(ASSET_TYPE_TRACER, ITracerDef, TracerDef);
@@ -257,7 +265,6 @@ namespace zonetool::s1
 						DUMP_ASSET(ASSET_TYPE_SOUND_CONTEXT, ISoundContext, SndContext);
 						DUMP_ASSET(ASSET_TYPE_SOUND_CURVE, ISoundCurve, SndCurve);
 						DUMP_ASSET(ASSET_TYPE_STRINGTABLE, IStringTable, StringTable);
-						DUMP_ASSET(ASSET_TYPE_RAWFILE, IRawFile, RawFile);
 						DUMP_ASSET(ASSET_TYPE_STRUCTURED_DATA_DEF, IStructuredDataDefSet, StructuredDataDefSet);
 						DUMP_ASSET(ASSET_TYPE_TRACER, ITracerDef, TracerDef);
 						//DUMP_ASSET(ASSET_TYPE_FONT, IFontDef, Font_s);

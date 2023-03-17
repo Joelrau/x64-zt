@@ -41,6 +41,7 @@ function zonetool:project()
 			"if \"%COMPUTERNAME%\" == \"PC-JOEL\" ( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"E:\\Steam\\steamapps\\common\\Call of Duty Modern Warfare Remastered\\$(TargetName)$(TargetExt)\" )",
 			"if \"%COMPUTERNAME%\" == \"PC-JOEL\" ( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"E:\\Blizzard\\Call of Duty Modern Warfare 2 Campaign Remastered\\$(TargetName)$(TargetExt)\" )",
 			"if \"%COMPUTERNAME%\" == \"PC-JOEL\" ( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"D:\\Steam\\steamapps\\common\\Call of Duty Advanced Warfare\\$(TargetName)$(TargetExt)\" )",
+			"if \"%COMPUTERNAME%\" == \"PC-JOEL\" ( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"D:\\Steam\\steamapps\\common\\Call of Duty Ghosts\\$(TargetName)$(TargetExt)\" )",
 		}
 
 		if _OPTIONS["copy-to"] then

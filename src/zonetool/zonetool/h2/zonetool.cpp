@@ -177,7 +177,6 @@ namespace zonetool::h2
 				DUMP_ASSET(ASSET_TYPE_SOUND_CONTEXT, ISoundContext, SndContext);
 				DUMP_ASSET(ASSET_TYPE_SOUND_CURVE, ISoundCurve, SndCurve);
 				DUMP_ASSET(ASSET_TYPE_STRINGTABLE, IStringTable, StringTable);
-				DUMP_ASSET(ASSET_TYPE_RAWFILE, IRawFile, RawFile);
 				DUMP_ASSET(ASSET_TYPE_STRUCTUREDDATADEF, IStructuredDataDefSet, StructuredDataDefSet);
 				DUMP_ASSET(ASSET_TYPE_TECHNIQUE_SET, ITechset, MaterialTechniqueSet);
 				DUMP_ASSET(ASSET_TYPE_TRACER, ITracerDef, TracerDef);

@@ -7,7 +7,8 @@ namespace game
 		none = -1,
 		h1 = 0,
 		h2 = 1,
-		s1 = 2
+		s1 = 2,
+		iw6 = 3,
 	};
 
 	std::string get_mode_as_string();

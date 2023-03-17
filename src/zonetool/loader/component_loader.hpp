@@ -84,3 +84,9 @@ namespace \
 { \
 	static component_loader::installer<name> __component = component_loader::installer<name>(game::game_mode::s1, #name); \
 }
+
+#define REGISTER_COMPONENT_IW6(name) \
+namespace \
+{ \
+	static component_loader::installer<name> __component = component_loader::installer<name>(game::game_mode::iw6, #name); \
+}

@@ -17,6 +17,8 @@ namespace game
 			return "h2";
 		case s1:
 			return "s1";
+		case iw6:
+			return "iw6";
 		}
 		return {};
 	}

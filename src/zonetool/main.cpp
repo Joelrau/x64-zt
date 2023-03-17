@@ -8,6 +8,12 @@
 
 #include "game/mode.hpp"
 
+#define H1_BINARY "h1_mp64_ship.exe"
+#define H2_BINARY0 "MW2CR.exe"
+#define H2_BINARY1 "h2_sp64_bnet_ship.exe"
+#define S1_BINARY "s1_mp64_ship.exe"
+#define IW6_BINARY "iw6mp64_ship.exe"
+
 namespace h1
 {
 	DECLSPEC_NORETURN void WINAPI exit_hook(const int code)
@@ -67,7 +73,7 @@ namespace h1
 			return component_loader::load_import(library, function);
 		});
 
-		std::string binary = "h1_mp64_ship.exe";
+		std::string binary = H1_BINARY;
 
 		std::string data;
 		if (!utils::io::read_file(binary, &data))
@@ -223,10 +229,10 @@ namespace h2
 			return component_loader::load_import(library, function);
 		});
 
-		std::string binary = "MW2CR.exe";
+		std::string binary = H2_BINARY0;
 		if (!utils::io::file_exists(binary))
 		{
-			binary = "h2_sp64_bnet_ship.exe";
+			binary = H2_BINARY1;
 		}
 
 		std::string data;
@@ -342,7 +348,7 @@ namespace s1
 			return component_loader::load_import(library, function);
 		});
 
-		std::string binary = "s1_mp64_ship.exe";
+		std::string binary = S1_BINARY;
 
 		std::string data;
 		if (!utils::io::read_file(binary, &data))
@@ -405,23 +411,133 @@ namespace s1
 	}
 }
 
+namespace iw6
+{
+	DECLSPEC_NORETURN void WINAPI exit_hook(const int code)
+	{
+		component_loader::pre_destroy();
+		exit(code);
+	}
+
+	BOOL WINAPI system_parameters_info_a(const UINT uiAction, const UINT uiParam, const PVOID pvParam, const UINT fWinIni)
+	{
+		component_loader::post_unpack();
+		return SystemParametersInfoA(uiAction, uiParam, pvParam, fWinIni);
+	}
+
+	FARPROC load_binary()
+	{
+		loader loader;
+		utils::nt::library self;
+
+		loader.set_import_resolver([self](const std::string& library, const std::string& function) -> void*
+		{
+			if (library == "steam_api64.dll")
+			{
+				return self.get_proc<FARPROC>(function);
+			}
+			else if (function == "ExitProcess")
+			{
+				return exit_hook;
+			}
+			else if (function == "SystemParametersInfoA")
+			{
+				return system_parameters_info_a;
+			}
+
+		return component_loader::load_import(library, function);
+		});
+
+		std::string binary = IW6_BINARY;
+		std::string data;
+		if (!utils::io::read_file(binary, &data))
+		{
+			throw std::runtime_error(utils::string::va("Failed to read game binary! (%s)", binary.data()));
+		}
+
+		return loader.load_library(binary);
+	}
+
+	void remove_crash_file()
+	{
+		utils::io::remove_file("__iw6mp64_ship");
+	}
+
+	void verify_ghost_version()
+	{
+		const auto value = *reinterpret_cast<DWORD*>(0x140001337);
+		if (value != 0xDB0A33E7)
+		{
+			throw std::runtime_error("Unsupported Call of Duty: Ghosts version");
+		}
+	}
+
+	int main()
+	{
+		FARPROC entry_point;
+
+		srand(uint32_t(time(nullptr)));
+		remove_crash_file();
+
+		{
+			auto premature_shutdown = true;
+			const auto _ = gsl::finally([&premature_shutdown]()
+			{
+				if (premature_shutdown)
+				{
+					component_loader::pre_destroy();
+				}
+			});
+
+			try
+			{
+				if (!component_loader::post_start()) return 0;
+
+				entry_point = load_binary();
+				if (!entry_point)
+				{
+					throw std::runtime_error("Unable to load binary into memory");
+				}
+
+				verify_ghost_version();
+
+				if (!component_loader::post_load()) return 0;
+
+				premature_shutdown = false;
+			}
+			catch (std::exception& e)
+			{
+				MessageBoxA(nullptr, e.what(), "ERROR", MB_ICONERROR);
+				return 1;
+			}
+		}
+
+		return static_cast<int>(entry_point());
+	}
+}
+
 int main()
 {
 	int result = 1;
-	if (utils::io::file_exists("h1_mp64_ship.exe"))
+	if (utils::io::file_exists(H1_BINARY))
 	{
 		game::set_mode(game::game_mode::h1);
 		result = h1::main();
 	}
-	else if (utils::io::file_exists("MW2CR.exe") || utils::io::file_exists("h2_sp64_bnet_ship.exe"))
+	else if (utils::io::file_exists(H2_BINARY0) || utils::io::file_exists(H2_BINARY1))
 	{
 		game::set_mode(game::game_mode::h2);
 		result = h2::main();
 	}
-	else if (utils::io::file_exists("s1_mp64_ship.exe"))
+	else if (utils::io::file_exists(S1_BINARY))
 	{
 		game::set_mode(game::game_mode::s1);
 		result = s1::main();
+	}
+	else if (utils::io::file_exists(IW6_BINARY))
+	{
+		game::set_mode(game::game_mode::iw6);
+		result = iw6::main();
 	}
 	else
 	{
