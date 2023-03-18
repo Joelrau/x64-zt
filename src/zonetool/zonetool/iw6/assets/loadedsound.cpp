@@ -441,21 +441,49 @@ namespace zonetool::iw6
 		file.close();
 	}
 
+	const char* format_extension[SND_FORMAT_COUNT] =
+	{
+		"", 
+		".wav",
+		".xma2",
+		".ADPCM",
+		".xwma",
+		".mp3",
+		".bwav",
+		".flac",
+	};
+
 	void ILoadedSound::dump(LoadedSound* asset)
 	{
 		if (asset)
 		{
 			if (asset->sound.loadedSize > 4)
 			{
-				if (!strncmp(asset->sound.data, "fLaC", 4))
+				if (asset->sound.format.format == SND_FORMAT_MP3)
 				{
-					// dump flac data from zone
-					dump_data(asset, asset->sound.data, asset->sound.loadedSize, ".flac");
+					MessageBoxA(0, asset->name, "SND_FORMAT_MP3", 0); // no matches yet
+
+					auto format_ext = format_extension[asset->sound.format.format];
+					const bool has_ext = strstr(asset->name, format_ext);
+
+					// dump mp3 data from zone
+					dump_data(asset, asset->sound.data, asset->sound.loadedSize, has_ext ? "" : format_ext);
 				}
-				else
+				else if (asset->sound.format.format == SND_FORMAT_FLAC) // flac data is actually mp3?
 				{
+					auto format_ext = format_extension[asset->sound.format.format];
+					const bool has_ext = strstr(asset->name, format_ext);
+
+					// dump flac data from zone
+					dump_data(asset, asset->sound.data, asset->sound.loadedSize, has_ext ? "" : format_ext);
+				}
+				else if (asset->sound.format.format == SND_FORMAT_PCM)
+				{
+					auto format_ext = format_extension[asset->sound.format.format];
+					const bool has_ext = strstr(asset->name, format_ext);
+
 					// dump wav data from zone
-					auto file = filesystem::file(utils::string::va("loaded_sound\\%s.wav", asset->name));
+					auto file = filesystem::file(utils::string::va("loaded_sound\\%s%s", asset->name, has_ext ? "" : format_ext));
 
 					file.open("wb");
 
@@ -516,6 +544,11 @@ namespace zonetool::iw6
 					file.write(asset->sound.data, asset->sound.format.dataByteCount, 1);
 
 					file.close();
+				}
+				else
+				{
+					MessageBoxA(0, asset->name, "UNKNOWN SND_FORMAT", 0);
+					dump_data(asset, asset->sound.data, asset->sound.loadedSize, "");
 				}
 			}
 			else

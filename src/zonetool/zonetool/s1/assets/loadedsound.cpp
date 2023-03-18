@@ -444,7 +444,7 @@ namespace zonetool::s1
 
 	void ILoadedSound::dump(LoadedSound* asset)
 	{
-		// H1 loaded sound is a hybrid between loaded and streamed sound.
+		// S1 loaded sound is a hybrid between loaded and streamed sound.
 		if (asset)
 		{
 			// dump data from soundfile
