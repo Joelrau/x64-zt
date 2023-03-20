@@ -3,6 +3,10 @@
 
 #include <utils/io.hpp>
 
+#include "zonetool/h1/zonetool.hpp"
+
+#include "converter/converter.hpp"
+
 namespace zonetool::iw6
 {
 #ifdef DEBUG
@@ -10,6 +14,12 @@ namespace zonetool::iw6
 #else
 	constexpr auto IS_DEBUG = false;
 #endif
+
+	enum dump_mode : std::int32_t
+	{
+		iw6,
+		h1,
+	} dumping_mode{ iw6 };
 
 	void dump_asset(XAsset* asset);
 	void stop_dumping();
@@ -106,6 +116,165 @@ namespace zonetool::iw6
 		}), &callback, includeOverride);
 	}
 
+	void dump_asset_internal_h1(XAsset* asset)
+	{
+#define DUMP_ASSET_REGULAR(__type__,__interface__,__struct__) \
+				if (asset->type == __type__) \
+				{ \
+					if(IS_DEBUG) ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
+					auto asset_ptr = reinterpret_cast<__struct__*>(asset->header.data); \
+					__interface__::dump(asset_ptr); \
+				}
+
+#define DUMP_ASSET_NO_CONVERT(__type__,__interface__,__struct__) \
+				if (asset->type == __type__) \
+				{ \
+					if(IS_DEBUG) ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
+					auto asset_ptr = reinterpret_cast<zonetool::h1::__struct__*>(asset->header.data); \
+					zonetool::h1::__interface__::dump(asset_ptr); \
+				}
+
+#define DUMP_ASSET_CONVERT(__type__,__namespace__,__struct__) \
+				if (asset->type == __type__) \
+				{ \
+					if(IS_DEBUG) ZONETOOL_INFO("Converting and dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
+					auto asset_ptr = reinterpret_cast<__struct__*>(asset->header.data); \
+					converter::h1::__namespace__::dump(asset_ptr, memory.get()); \
+				}
+		try
+		{
+			static std::shared_ptr<ZoneMemory> memory;
+			if (!memory)
+			{
+				// todo: free memory after dump
+				memory = std::make_shared<ZoneMemory>((1024u * 1024u * 1024u) * 2u); // 2gb
+			}
+
+			converter::h1::techset::converted_techset_assets.clear();
+
+			// dump assets
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_DOPPLER_PRESET, IDopplerPreset, DopplerPreset);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_FX, fxeffectdef, FxEffectDef);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_PARTICLE_SIM_ANIMATION, IFxParticleSimAnimation, FxParticleSimAnimation);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_IMAGE, gfximage, GfxImage);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_LIGHT_DEF, IGfxLightDef, GfxLightDef);
+			DUMP_ASSET_REGULAR(ASSET_TYPE_LOADED_SOUND, ILoadedSound, LoadedSound);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_LOCALIZE_ENTRY, ILocalize, LocalizeEntry);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_LPF_CURVE, ILpfCurve, SndCurve);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_LUA_FILE, ILuaFile, LuaFile);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_MATERIAL, material, Material);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_MAP_ENTS, mapents, MapEnts);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_NET_CONST_STRINGS, INetConstStrings, NetConstStrings);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_RAWFILE, IRawFile, RawFile);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_REVERB_CURVE, IReverbCurve, SndCurve);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_SCRIPTABLE, scriptabledef, ScriptableDef);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SCRIPTFILE, IScriptFile, ScriptFile);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_SOUND, sound, snd_alias_list_t);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SOUND_CURVE, ISoundCurve, SndCurve);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_STRINGTABLE, IStringTable, StringTable);
+			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_STRUCTURED_DATA_DEF, IStructuredDataDefSet, StructuredDataDefSet); // crashes
+			DUMP_ASSET_CONVERT(ASSET_TYPE_TECHNIQUE_SET, techset, MaterialTechniqueSet);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_TRACER, ITracerDef, TracerDef);
+			//DUMP_ASSET(ASSET_TYPE_FONT, IFontDef, Font_s);
+			//DUMP_ASSET(ASSET_TYPE_ATTACHMENT, IWeaponAttachment, WeaponAttachment);
+			//DUMP_ASSET(ASSET_TYPE_WEAPON, IWeaponDef, WeaponCompleteDef);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_XANIMPARTS, xanim, XAnimParts);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_XMODEL, xmodel, XModel);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
+
+			//DUMP_ASSET_CONVERT(ASSET_TYPE_PHYSCOLLMAP, physcollmap, PhysCollmap);
+			//DUMP_ASSET_CONVERT(ASSET_TYPE_PHYSPRESET, physpreset, PhysPreset);
+
+			DUMP_ASSET_CONVERT(ASSET_TYPE_COMPUTESHADER, computeshader, ComputeShader);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_DOMAINSHADER, domainshader, MaterialDomainShader);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_HULLSHADER, hullshader, MaterialHullShader);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_PIXELSHADER, pixelshader, MaterialPixelShader);
+			//DUMP_ASSET_CONVERT(ASSET_TYPE_VERTEXDECL, vertexdecl, MaterialVertexDeclaration);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_VERTEXSHADER, vertexshader, MaterialVertexShader);
+
+			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENU, IMenuDef, menuDef_t);
+			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENULIST, IMenuList, MenuList);
+
+			//DUMP_ASSET_CONVERT(ASSET_TYPE_PATHDATA, pathdata, PathData);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_CLIPMAP, clipmap, clipMap_t);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_COMWORLD, comworld, ComWorld);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_FXWORLD, fxworld, FxWorld);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_GFXWORLD, gfxworld, GfxWorld);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_GLASSWORLD, IGlassWorld, GlassWorld);
+		}
+		catch (std::exception& ex)
+		{
+			ZONETOOL_FATAL("A fatal exception occured while dumping zone \"%s\", exception was: \n%s", filesystem::get_fastfile().data(), ex.what());
+		}
+	}
+
+	void dump_asset_internal(XAsset* asset)
+	{
+#define DUMP_ASSET(__type__,__interface__,__struct__) \
+				if (asset->type == __type__) \
+				{ \
+					if(IS_DEBUG) ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
+					auto asset_ptr = reinterpret_cast<__struct__*>(asset->header.data); \
+					__interface__::dump(asset_ptr); \
+				}
+		try
+		{
+			// dump assets
+			DUMP_ASSET(ASSET_TYPE_DOPPLER_PRESET, IDopplerPreset, DopplerPreset);
+			DUMP_ASSET(ASSET_TYPE_FX, IFxEffectDef, FxEffectDef);
+			DUMP_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, IFxParticleSimAnimation, FxParticleSimAnimation);
+			DUMP_ASSET(ASSET_TYPE_IMAGE, IGfxImage, GfxImage);
+			DUMP_ASSET(ASSET_TYPE_LIGHT_DEF, IGfxLightDef, GfxLightDef);
+			DUMP_ASSET(ASSET_TYPE_LOADED_SOUND, ILoadedSound, LoadedSound);
+			DUMP_ASSET(ASSET_TYPE_LOCALIZE_ENTRY, ILocalize, LocalizeEntry);
+			DUMP_ASSET(ASSET_TYPE_LPF_CURVE, ILpfCurve, SndCurve);
+			DUMP_ASSET(ASSET_TYPE_LUA_FILE, ILuaFile, LuaFile);
+			DUMP_ASSET(ASSET_TYPE_MATERIAL, IMaterial, Material);
+			DUMP_ASSET(ASSET_TYPE_MAP_ENTS, IMapEnts, MapEnts);
+			DUMP_ASSET(ASSET_TYPE_NET_CONST_STRINGS, INetConstStrings, NetConstStrings);
+			DUMP_ASSET(ASSET_TYPE_RAWFILE, IRawFile, RawFile);
+			DUMP_ASSET(ASSET_TYPE_REVERB_CURVE, IReverbCurve, SndCurve);
+			DUMP_ASSET(ASSET_TYPE_SCRIPTABLE, IScriptableDef, ScriptableDef);
+			DUMP_ASSET(ASSET_TYPE_SCRIPTFILE, IScriptFile, ScriptFile);
+			DUMP_ASSET(ASSET_TYPE_SOUND, ISound, snd_alias_list_t);
+			DUMP_ASSET(ASSET_TYPE_SOUND_CURVE, ISoundCurve, SndCurve);
+			DUMP_ASSET(ASSET_TYPE_STRINGTABLE, IStringTable, StringTable);
+			DUMP_ASSET(ASSET_TYPE_STRUCTURED_DATA_DEF, IStructuredDataDefSet, StructuredDataDefSet);
+			DUMP_ASSET(ASSET_TYPE_TECHNIQUE_SET, ITechset, MaterialTechniqueSet);
+			DUMP_ASSET(ASSET_TYPE_TRACER, ITracerDef, TracerDef);
+			DUMP_ASSET(ASSET_TYPE_FONT, IFontDef, Font_s);
+			DUMP_ASSET(ASSET_TYPE_ATTACHMENT, IWeaponAttachment, WeaponAttachment);
+			DUMP_ASSET(ASSET_TYPE_WEAPON, IWeaponDef, WeaponCompleteDef);
+			DUMP_ASSET(ASSET_TYPE_XANIMPARTS, IXAnimParts, XAnimParts);
+			DUMP_ASSET(ASSET_TYPE_XMODEL, IXModel, XModel);
+			DUMP_ASSET(ASSET_TYPE_XMODEL_SURFS, IXSurface, XModelSurfs);
+
+			DUMP_ASSET(ASSET_TYPE_PHYSCOLLMAP, IPhysCollmap, PhysCollmap);
+			DUMP_ASSET(ASSET_TYPE_PHYSPRESET, IPhysPreset, PhysPreset);
+
+			DUMP_ASSET(ASSET_TYPE_COMPUTESHADER, IComputeShader, ComputeShader);
+			DUMP_ASSET(ASSET_TYPE_DOMAINSHADER, IDomainShader, MaterialDomainShader);
+			DUMP_ASSET(ASSET_TYPE_HULLSHADER, IHullShader, MaterialHullShader);
+			DUMP_ASSET(ASSET_TYPE_PIXELSHADER, IPixelShader, MaterialPixelShader);
+			//DUMP_ASSET(ASSET_TYPE_VERTEXDECL, IVertexDecl, MaterialVertexDeclaration);
+			DUMP_ASSET(ASSET_TYPE_VERTEXSHADER, IVertexShader, MaterialVertexShader);
+
+			//DUMP_ASSET(ASSET_TYPE_MENU, IMenuDef, menuDef_t);
+			//DUMP_ASSET(ASSET_TYPE_MENULIST, IMenuList, MenuList);
+
+			//DUMP_ASSET(ASSET_TYPE_PATHDATA, IAIPaths, PathData);
+			DUMP_ASSET(ASSET_TYPE_CLIPMAP, IClipMap, clipMap_t);
+			DUMP_ASSET(ASSET_TYPE_COMWORLD, IComWorld, ComWorld);
+			DUMP_ASSET(ASSET_TYPE_FXWORLD, IFxWorld, FxWorld);
+			DUMP_ASSET(ASSET_TYPE_GFXWORLD, IGfxWorld, GfxWorld);
+			DUMP_ASSET(ASSET_TYPE_GLASSWORLD, IGlassWorld, GlassWorld);
+		}
+		catch (std::exception& ex)
+		{
+			ZONETOOL_FATAL("A fatal exception occured while dumping zone \"%s\", exception was: \n%s", filesystem::get_fastfile().data(), ex.what());
+		}
+	}
+
 	void dump_asset(XAsset* asset)
 	{
 		if (verify)
@@ -141,68 +310,14 @@ namespace zonetool::iw6
 			}
 			else
 			{
-#define DUMP_ASSET(__type__,__interface__,__struct__) \
-				if (asset->type == __type__) \
-				{ \
-					if(IS_DEBUG) ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
-					auto asset_ptr = reinterpret_cast<__struct__*>(asset->header.data); \
-					__interface__::dump(asset_ptr); \
-				}
-				try
+				switch (dumping_mode)
 				{
-					// dump assets
-					DUMP_ASSET(ASSET_TYPE_DOPPLER_PRESET, IDopplerPreset, DopplerPreset);
-					DUMP_ASSET(ASSET_TYPE_FX, IFxEffectDef, FxEffectDef);
-					DUMP_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, IFxParticleSimAnimation, FxParticleSimAnimation);
-					DUMP_ASSET(ASSET_TYPE_IMAGE, IGfxImage, GfxImage);
-					DUMP_ASSET(ASSET_TYPE_LIGHT_DEF, IGfxLightDef, GfxLightDef);
-					DUMP_ASSET(ASSET_TYPE_LOADED_SOUND, ILoadedSound, LoadedSound);
-					DUMP_ASSET(ASSET_TYPE_LOCALIZE_ENTRY, ILocalize, LocalizeEntry);
-					DUMP_ASSET(ASSET_TYPE_LPF_CURVE, ILpfCurve, SndCurve);
-					DUMP_ASSET(ASSET_TYPE_LUA_FILE, ILuaFile, LuaFile);
-					DUMP_ASSET(ASSET_TYPE_MATERIAL, IMaterial, Material);
-					DUMP_ASSET(ASSET_TYPE_MAP_ENTS, IMapEnts, MapEnts);
-					DUMP_ASSET(ASSET_TYPE_NET_CONST_STRINGS, INetConstStrings, NetConstStrings);
-					DUMP_ASSET(ASSET_TYPE_RAWFILE, IRawFile, RawFile);
-					DUMP_ASSET(ASSET_TYPE_REVERB_CURVE, IReverbCurve, SndCurve);
-					DUMP_ASSET(ASSET_TYPE_SCRIPTABLE, IScriptableDef, ScriptableDef);
-					DUMP_ASSET(ASSET_TYPE_SCRIPTFILE, IScriptFile, ScriptFile);
-					DUMP_ASSET(ASSET_TYPE_SOUND, ISound, snd_alias_list_t);
-					DUMP_ASSET(ASSET_TYPE_SOUND_CURVE, ISoundCurve, SndCurve);
-					DUMP_ASSET(ASSET_TYPE_STRINGTABLE, IStringTable, StringTable);
-					DUMP_ASSET(ASSET_TYPE_STRUCTURED_DATA_DEF, IStructuredDataDefSet, StructuredDataDefSet);
-					DUMP_ASSET(ASSET_TYPE_TECHNIQUE_SET, ITechset, MaterialTechniqueSet);
-					DUMP_ASSET(ASSET_TYPE_TRACER, ITracerDef, TracerDef);
-					DUMP_ASSET(ASSET_TYPE_FONT, IFontDef, Font_s);
-					DUMP_ASSET(ASSET_TYPE_ATTACHMENT, IWeaponAttachment, WeaponAttachment);
-					DUMP_ASSET(ASSET_TYPE_WEAPON, IWeaponDef, WeaponCompleteDef);
-					DUMP_ASSET(ASSET_TYPE_XANIMPARTS, IXAnimParts, XAnimParts);
-					DUMP_ASSET(ASSET_TYPE_XMODEL, IXModel, XModel);
-					DUMP_ASSET(ASSET_TYPE_XMODEL_SURFS, IXSurface, XModelSurfs);
-
-					DUMP_ASSET(ASSET_TYPE_PHYSCOLLMAP, IPhysCollmap, PhysCollmap);
-					DUMP_ASSET(ASSET_TYPE_PHYSPRESET, IPhysPreset, PhysPreset);
-
-					DUMP_ASSET(ASSET_TYPE_COMPUTESHADER, IComputeShader, ComputeShader);
-					DUMP_ASSET(ASSET_TYPE_DOMAINSHADER, IDomainShader, MaterialDomainShader);
-					DUMP_ASSET(ASSET_TYPE_HULLSHADER, IHullShader, MaterialHullShader);
-					DUMP_ASSET(ASSET_TYPE_PIXELSHADER, IPixelShader, MaterialPixelShader);
-					//DUMP_ASSET(ASSET_TYPE_VERTEXDECL, IVertexDecl, MaterialVertexDeclaration);
-					DUMP_ASSET(ASSET_TYPE_VERTEXSHADER, IVertexShader, MaterialVertexShader);
-
-					//DUMP_ASSET(ASSET_TYPE_MENU, IMenuDef, menuDef_t);
-					//DUMP_ASSET(ASSET_TYPE_MENULIST, IMenuList, MenuList);
-
-					//DUMP_ASSET(ASSET_TYPE_PATHDATA, IAIPaths, PathData);
-					DUMP_ASSET(ASSET_TYPE_CLIPMAP, IClipMap, clipMap_t);
-					DUMP_ASSET(ASSET_TYPE_COMWORLD, IComWorld, ComWorld);
-					DUMP_ASSET(ASSET_TYPE_FXWORLD, IFxWorld, FxWorld);
-					DUMP_ASSET(ASSET_TYPE_GFXWORLD, IGfxWorld, GfxWorld);
-					DUMP_ASSET(ASSET_TYPE_GLASSWORLD, IGlassWorld, GlassWorld);
-				}
-				catch (std::exception& ex)
-				{
-					ZONETOOL_FATAL("A fatal exception occured while dumping zone \"%s\", exception was: \n%s", filesystem::get_fastfile().data(), ex.what());
+				case dump_mode::iw6:
+					dump_asset_internal(asset);
+					break;
+				case dump_mode::h1:
+					dump_asset_internal_h1(asset);
+					break;
 				}
 			}
 		}
@@ -253,7 +368,7 @@ namespace zonetool::iw6
 					asset_header
 				};
 
-				dump_asset(&referenced_asset);
+				dump_asset_internal(&referenced_asset);
 			}
 
 			ZONETOOL_INFO("Zone \"%s\" dumped.", filesystem::get_fastfile().data());
@@ -680,10 +795,23 @@ namespace zonetool::iw6
 		::iw6::command::add("dumpzone", [](const ::iw6::command::params& params)
 		{
 			// Check if enough arguments have been passed to the command
-			if (params.size() != 2)
+			if (params.size() != 2 && params.size() != 3)
 			{
-				ZONETOOL_ERROR("usage: dumpzone <zone>");
+				ZONETOOL_ERROR("usage: dumpzone <zone> <mode>");
 				return;
+			}
+
+			if (params.size() == 3)
+			{
+				auto dump_mode_str = params.get(2);
+				if (!_stricmp(dump_mode_str, "h1"))
+				{
+					dumping_mode = dump_mode::h1;
+				}
+			}
+			else
+			{
+				dumping_mode = dump_mode::iw6;
 			}
 
 			dump_zone(params.get(1));
@@ -819,12 +947,17 @@ namespace zonetool::iw6
 		reallocate_asset_pool_multiplier(ASSET_TYPE_ATTACHMENT, 2);
 		reallocate_asset_pool_multiplier(ASSET_TYPE_FONT, 2);
 		reallocate_asset_pool_multiplier(ASSET_TYPE_EQUIPMENT_SND_TABLE, 4);
+		reallocate_asset_pool_multiplier(ASSET_TYPE_SNDDRIVER_GLOBALS, 4);
 		reallocate_asset_pool_multiplier(ASSET_TYPE_SOUND, 2);
 		reallocate_asset_pool_multiplier(ASSET_TYPE_LOADED_SOUND, 2);
 		reallocate_asset_pool_multiplier(ASSET_TYPE_LEADERBOARD, 2);
 		reallocate_asset_pool_multiplier(ASSET_TYPE_VERTEXDECL, 6);
 		reallocate_asset_pool_multiplier(ASSET_TYPE_COMPUTESHADER, 4);
 		reallocate_asset_pool_multiplier(ASSET_TYPE_REVERB_PRESET, 2);
+
+		// allow overriding assets
+		utils::hook::jump(0x1403206C4, 0x14032070D); // DB_LinkXAssetEntry0
+		utils::hook::jump(0x140320A7F, 0x140320ACA); // DB_LinkXAssetEntry1
 
 		// enable dumping
 		DB_LinkXAssetEntry1_hook.create(0x1403208E0, &DB_LinkXAssetEntry1);

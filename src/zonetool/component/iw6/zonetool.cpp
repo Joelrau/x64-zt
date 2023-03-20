@@ -144,7 +144,7 @@ namespace zonetool::iw6
 			// disable demonware
 			utils::hook::set<uint8_t>(0x140558E20, 0xC3); // dwNetStart
 
-			zonetool::iw6::start();
+			zonetool::iw6::initialize();
 		}
 	};
 }

@@ -1,5 +1,7 @@
 #pragma once
 
+#define WEAK __declspec(selectany)
+
 namespace zonetool::iw6
 {
 	WEAK::iw6::game::symbol<const char*> g_assetNames{ 0x1409E40C0 };
