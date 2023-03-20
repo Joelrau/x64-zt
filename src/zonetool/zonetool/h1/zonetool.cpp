@@ -141,9 +141,6 @@ namespace zonetool::h1
 			}
 			else
 			{
-#ifdef DEBUG
-				ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type));
-#endif
 #define DUMP_ASSET(__type__,__interface__,__struct__) \
 				if (asset->type == __type__) \
 				{ \
