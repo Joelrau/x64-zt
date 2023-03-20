@@ -1655,6 +1655,16 @@ namespace zonetool::h1
 		float literal[4];
 	}; assert_sizeof(MaterialConstantDef, 0x20);
 
+	enum GfxStateBitRawBitsIndex : std::uint32_t
+	{
+		GFXS_RAWBITS_UNK0_INDEX = 0,
+		GFXS_RAWBITS_DEPTH_STENCIL_INDEX = 1,
+		GFXS_RAWBITS_UNK2_INDEX = 2,
+		GFXS_RAWBITS_BLEND_INDEX = 3,
+		GFXS_RAWBITS_UNK4_INDEX = 4,
+		GFXS_RAWBITS_UNK5_INDEX = 5,
+	};
+
 	struct GfxStateBits
 	{
 		unsigned int loadBits[6]; // loadbits[3], blendstatebits[3]
@@ -1662,6 +1672,7 @@ namespace zonetool::h1
 		unsigned char depthStencilState[10];
 		unsigned char blendState;
 		unsigned char rasterizerState;
+		char __pad0[2];
 	}; assert_sizeof(GfxStateBits, 0x28);
 
 	struct MaterialConstantBufferDef
@@ -6231,7 +6242,7 @@ namespace zonetool::h1
 		DynEntityLinkToDef* linkTo;
 		PhysMass mass;
 		int contents;
-		float __pad0[2]; //char __pad0[8];
+		float unk[2]; //char __pad0[8];
 	}; assert_sizeof(DynEntityDef, 136);
 
 	struct DynEntityPose

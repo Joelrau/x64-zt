@@ -7,6 +7,8 @@
 
 #include "csv.hpp"
 
+#include "shader.hpp"
+
 #define JSON_DIAGNOSTICS 1
 #include "json.hpp"
 using json = nlohmann::json;
