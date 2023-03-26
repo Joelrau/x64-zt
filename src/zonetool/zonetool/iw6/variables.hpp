@@ -1,6 +1,6 @@
 #pragma once
 
-#define WEAK __declspec(selectany)
+#include "game/iw6/game.hpp"
 
 namespace zonetool::iw6
 {

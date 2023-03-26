@@ -32,6 +32,9 @@ namespace zonetool::iw6
 	// referenced assets
 	std::vector<std::pair<XAssetType, std::string>> referenced_assets;
 
+	// common assets
+	std::vector<std::pair<XAssetType, std::string>> common_assets;
+
 	std::unordered_map<std::uint32_t, XGfxGlobals*> xGfxGlobals_map;
 
 	const char* get_asset_name(XAssetType type, void* pointer)
@@ -116,31 +119,40 @@ namespace zonetool::iw6
 		}), &callback, includeOverride);
 	}
 
-	void dump_asset_internal_h1(XAsset* asset)
+	void dump_h1(XAsset* asset)
 	{
 #define DUMP_ASSET_REGULAR(__type__,__interface__,__struct__) \
-				if (asset->type == __type__) \
-				{ \
-					if(IS_DEBUG) ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
-					auto asset_ptr = reinterpret_cast<__struct__*>(asset->header.data); \
-					__interface__::dump(asset_ptr); \
-				}
+		if (asset->type == __type__) \
+		{ \
+			if(IS_DEBUG) ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
+			auto asset_ptr = reinterpret_cast<__struct__*>(asset->header.data); \
+			__interface__::dump(asset_ptr); \
+		}
 
 #define DUMP_ASSET_NO_CONVERT(__type__,__interface__,__struct__) \
-				if (asset->type == __type__) \
-				{ \
-					if(IS_DEBUG) ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
-					auto asset_ptr = reinterpret_cast<zonetool::h1::__struct__*>(asset->header.data); \
-					zonetool::h1::__interface__::dump(asset_ptr); \
-				}
+		if (asset->type == __type__) \
+		{ \
+			if(IS_DEBUG) ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
+			auto asset_ptr = reinterpret_cast<zonetool::h1::__struct__*>(asset->header.data); \
+			zonetool::h1::__interface__::dump(asset_ptr); \
+		}
+
+#define DUMP_ASSET_NO_CONVERT_SCRSTRING(__type__,__interface__,__struct__) \
+		if (asset->type == __type__) \
+		{ \
+			if(IS_DEBUG) ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
+			auto asset_ptr = reinterpret_cast<zonetool::h1::__struct__*>(asset->header.data); \
+			zonetool::h1::__interface__::dump(asset_ptr, reinterpret_cast<decltype(zonetool::h1::SL_ConvertToString.get())>(zonetool::iw6::SL_ConvertToString.get())); \
+		}
 
 #define DUMP_ASSET_CONVERT(__type__,__namespace__,__struct__) \
-				if (asset->type == __type__) \
-				{ \
-					if(IS_DEBUG) ZONETOOL_INFO("Converting and dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
-					auto asset_ptr = reinterpret_cast<__struct__*>(asset->header.data); \
-					converter::h1::__namespace__::dump(asset_ptr, memory.get()); \
-				}
+		if (asset->type == __type__) \
+		{ \
+			if(IS_DEBUG) ZONETOOL_INFO("Converting and dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
+			auto asset_ptr = reinterpret_cast<__struct__*>(asset->header.data); \
+			converter::h1::__namespace__::dump(asset_ptr, memory.get()); \
+		}
+
 		try
 		{
 			static std::shared_ptr<ZoneMemory> memory;
@@ -150,9 +162,6 @@ namespace zonetool::iw6
 				memory = std::make_shared<ZoneMemory>((1024u * 1024u * 1024u) * 2u); // 2gb
 			}
 
-			converter::h1::techset::converted_techset_assets.clear();
-
-			// dump assets
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_DOPPLER_PRESET, IDopplerPreset, DopplerPreset);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_FX, fxeffectdef, FxEffectDef);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_PARTICLE_SIM_ANIMATION, IFxParticleSimAnimation, FxParticleSimAnimation);
@@ -161,18 +170,18 @@ namespace zonetool::iw6
 			DUMP_ASSET_REGULAR(ASSET_TYPE_LOADED_SOUND, ILoadedSound, LoadedSound);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_LOCALIZE_ENTRY, ILocalize, LocalizeEntry);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_LPF_CURVE, ILpfCurve, SndCurve);
-			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_LUA_FILE, ILuaFile, LuaFile);
+			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_LUA_FILE, ILuaFile, LuaFile);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_MATERIAL, material, Material);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_MAP_ENTS, mapents, MapEnts);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_NET_CONST_STRINGS, INetConstStrings, NetConstStrings);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_RAWFILE, IRawFile, RawFile);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_REVERB_CURVE, IReverbCurve, SndCurve);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_SCRIPTABLE, scriptabledef, ScriptableDef);
-			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SCRIPTFILE, IScriptFile, ScriptFile);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_SCRIPTFILE, scriptfile, ScriptFile);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_SOUND, sound, snd_alias_list_t);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SOUND_CURVE, ISoundCurve, SndCurve);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_STRINGTABLE, IStringTable, StringTable);
-			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_STRUCTURED_DATA_DEF, IStructuredDataDefSet, StructuredDataDefSet); // crashes
+			DUMP_ASSET_NO_CONVERT_SCRSTRING(ASSET_TYPE_STRUCTURED_DATA_DEF, IStructuredDataDefSet, StructuredDataDefSet);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_TECHNIQUE_SET, techset, MaterialTechniqueSet);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_TRACER, ITracerDef, TracerDef);
 			//DUMP_ASSET(ASSET_TYPE_FONT, IFontDef, Font_s);
@@ -208,18 +217,18 @@ namespace zonetool::iw6
 		}
 	}
 
-	void dump_asset_internal(XAsset* asset)
+	void dump_iw6(XAsset* asset)
 	{
 #define DUMP_ASSET(__type__,__interface__,__struct__) \
-				if (asset->type == __type__) \
-				{ \
-					if(IS_DEBUG) ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
-					auto asset_ptr = reinterpret_cast<__struct__*>(asset->header.data); \
-					__interface__::dump(asset_ptr); \
-				}
+		if (asset->type == __type__) \
+		{ \
+			if(IS_DEBUG) ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
+			auto asset_ptr = reinterpret_cast<__struct__*>(asset->header.data); \
+			__interface__::dump(asset_ptr); \
+		}
+
 		try
 		{
-			// dump assets
 			DUMP_ASSET(ASSET_TYPE_DOPPLER_PRESET, IDopplerPreset, DopplerPreset);
 			DUMP_ASSET(ASSET_TYPE_FX, IFxEffectDef, FxEffectDef);
 			DUMP_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, IFxParticleSimAnimation, FxParticleSimAnimation);
@@ -282,10 +291,16 @@ namespace zonetool::iw6
 			ZONETOOL_INFO("Loading asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type));
 		}
 
+		std::string fastfile = static_cast<std::string>(
+			reinterpret_cast<const char*>(*reinterpret_cast<std::uintptr_t*>(0x141EEFBA0) + 24));
+
+		if (fastfile.find("common") != std::string::npos)
+		{
+			common_assets.push_back({ asset->type, get_asset_name(asset) });
+		}
+
 		// dump all
 		//dump = true;
-		//std::string fastfile = static_cast<std::string>(
-		//	reinterpret_cast<const char*>(*reinterpret_cast<std::uintptr_t*>(0x141EEFBA0) + 24));
 		//filesystem::set_fastfile(fastfile);
 
 		if (dump)
@@ -310,13 +325,14 @@ namespace zonetool::iw6
 			}
 			else
 			{
+				// dump assets
 				switch (dumping_mode)
 				{
 				case dump_mode::iw6:
-					dump_asset_internal(asset);
+					dump_iw6(asset);
 					break;
 				case dump_mode::h1:
-					dump_asset_internal_h1(asset);
+					dump_h1(asset);
 					break;
 				}
 			}
@@ -368,10 +384,13 @@ namespace zonetool::iw6
 					asset_header
 				};
 
-				dump_asset_internal(&referenced_asset);
+				dump_asset(&referenced_asset);
 			}
 
 			ZONETOOL_INFO("Zone \"%s\" dumped.", filesystem::get_fastfile().data());
+
+			// converter
+			converter::h1::techset::converted_techset_assets.clear();
 
 			referenced_assets.clear();
 

@@ -1,11 +1,10 @@
 #include <std_include.hpp>
-#include "zonetool/iw6/converter/include.hpp"
 #include "zonetool/iw6/converter/h1/include.hpp"
 #include "techset.hpp"
 
 //#include "zonetool/h1/assets/techset.hpp"
 
-#include "zonetool/iw6/zonetool.hpp"
+#include "zonetool/iw6/functions.hpp"
 
 #include "domainshader.hpp"
 #include "hullshader.hpp"
@@ -14,8 +13,6 @@
 #include "vertexshader.hpp"
 
 #include "zonetool/h1/assets/vertexdecl.hpp"
-
-#define TECHSET_PREFIX "_iw6"s
 
 namespace zonetool::iw6
 {
@@ -131,23 +128,73 @@ namespace zonetool::iw6
 					{
 						XGfxGlobals* varXGfxGlobals = zonetool::iw6::GetXGfxGlobalsForZone(map[i].zone);
 						ordered_json entry;
-						entry["loadBits"][0] = map[i].loadBits[0]; // convert?
-						entry["loadBits"][1] = map[i].loadBits[1]; // convert?
+
+						//convert_blend_bits
+						const auto cbb = [](std::uint32_t bits) -> std::uint32_t
+						{
+							std::bitset<32> new_bits(bits);
+							std::bitset<32> original_bits(bits);
+
+							/*if (original_bits[5] == 1)
+							{
+								new_bits[0] = 1;
+								new_bits[1] = 0;
+								new_bits[2] = 1;
+								new_bits[3] = 0;
+
+								new_bits[6] = 1;
+							}
+
+							new_bits[27] = new_bits[26];*/
+
+							return new_bits.to_ulong();
+						};
+
+						//convert_load_bits
+						const auto clb1 = [](std::uint32_t bits) -> std::uint32_t
+						{
+							std::bitset<32> new_bits(bits);
+							std::bitset<32> original_bits(bits);
+
+							new_bits[0] = original_bits[0];
+							new_bits[1] = original_bits[2];
+							new_bits[2] = original_bits[3];
+							new_bits[3] = original_bits[1];
+
+							return new_bits.to_ulong();
+						};
+
+						entry["loadBits"][0] = (map[i].loadBits[0]);
+						entry["loadBits"][1] = clb1(map[i].loadBits[1]);
 						entry["loadBits"][2] = 0xFFFF;
-						entry["loadBits"][3] = map[i].loadBits[2]; // convert?
+						entry["loadBits"][3] = cbb(map[i].loadBits[2]);
 						entry["loadBits"][4] = 0;
 						entry["loadBits"][5] = 0;
 						
-						entry["depthStencilStateBits"][0] = varXGfxGlobals ? varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[0]] : 0;
-						entry["depthStencilStateBits"][1] = varXGfxGlobals ? varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[1]] : 0;
-						entry["depthStencilStateBits"][2] = varXGfxGlobals ? varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[3]] : 0;
-						entry["depthStencilStateBits"][3] = varXGfxGlobals ? varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[4]] : 0;
-						entry["depthStencilStateBits"][4] = varXGfxGlobals ? varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[2]] : 0;
-						entry["depthStencilStateBits"][5] = varXGfxGlobals ? varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[5]] : 0;
-						entry["depthStencilStateBits"][6] = varXGfxGlobals ? varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[6]] : 0;
-						entry["depthStencilStateBits"][7] = varXGfxGlobals ? varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[8]] : 0;
-						entry["depthStencilStateBits"][8] = varXGfxGlobals ? varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[9]] : 0;
-						entry["depthStencilStateBits"][9] = varXGfxGlobals ? varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[10]] : 0;
+						//convert_depth_stencil_state_bits
+						const auto cdssb = [](std::uint64_t bits) -> std::uint64_t
+						{
+							std::bitset<64> new_bits(bits);
+							std::bitset<64> original_bits(bits);
+
+							new_bits[0] = original_bits[0];
+							new_bits[1] = original_bits[2];
+							new_bits[2] = original_bits[3];
+							new_bits[3] = original_bits[1];
+
+							return new_bits.to_ullong();
+						};
+
+						entry["depthStencilStateBits"][0] = varXGfxGlobals ? cdssb(varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[0]]) : 0;
+						entry["depthStencilStateBits"][1] = varXGfxGlobals ? cdssb(varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[1]]) : 0;
+						entry["depthStencilStateBits"][2] = varXGfxGlobals ? cdssb(varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[3]]) : 0;
+						entry["depthStencilStateBits"][3] = varXGfxGlobals ? cdssb(varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[4]]) : 0;
+						entry["depthStencilStateBits"][4] = varXGfxGlobals ? cdssb(varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[2]]) : 0;
+						entry["depthStencilStateBits"][5] = varXGfxGlobals ? cdssb(varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[5]]) : 0;
+						entry["depthStencilStateBits"][6] = varXGfxGlobals ? cdssb(varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[6]]) : 0;
+						entry["depthStencilStateBits"][7] = varXGfxGlobals ? cdssb(varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[8]]) : 0;
+						entry["depthStencilStateBits"][8] = varXGfxGlobals ? cdssb(varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[9]]) : 0;
+						entry["depthStencilStateBits"][9] = varXGfxGlobals ? cdssb(varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[10]]) : 0;
 						// 0 -> 0
 						// 1 -> 1/2/6/7
 						// 2 -> 3
@@ -161,7 +208,7 @@ namespace zonetool::iw6
 						// 
 						//
 
-						entry["blendStateBits"][0] = varXGfxGlobals ? varXGfxGlobals->blendStateBits[map[i].blendState][0] : 0;
+						entry["blendStateBits"][0] = varXGfxGlobals ? cbb(varXGfxGlobals->blendStateBits[map[i].blendState][0]) : 0;
 						entry["blendStateBits"][1] = 0;
 						entry["blendStateBits"][2] = 0;
 
@@ -1154,6 +1201,303 @@ namespace zonetool::iw6
 				{zonetool::iw6::TECHNIQUE_NO_DISPLACEMENT_DEBUG_BUMPMAP, zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_DEBUG_BUMPMAP},
 			};
 
+			// hacker men
+			//zonetool::iw6::MaterialConstSource;
+			vec4_t consts[] =
+			{
+				{0.329057f, -0.739074f, 0.587785f, 0.000000f}, //0
+				{0.198000f, 0.369000f, 0.600000f, 1.000000f}, //1
+				{1.783980f, 3.324690f, 5.406000f, 1.000000f}, //2
+				{-0.333333f, 0.666667f, -0.666667f, 1.000000f}, //3
+				{3.190461f, -1.829973f, 4.000000f, 0.000000f}, //4
+				{0.031250f, 0.000000f, 0.000977f, 0.000000f}, //5
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //6
+				{-1077.100098f, -2679.500000f, 401.601746f, 0.003333f}, //7
+				{0.620772f, 0.797261f, 1.000000f, 1.000000f}, //8
+				{13.515000f, 3.461577f, 0.108309f, 1.000000f}, //9
+				{0.395033f, 0.677199f, -0.620766f, 1.000000f}, //10
+				{16.967077f, -11.997535f, 1.000000f, 0.000000f}, //11
+				{0.031250f, 0.000000f, 0.000977f, 0.000000f}, //12
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //13
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //14
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //15
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //16
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //17
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //18
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //19
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //20
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //21
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //22
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //23
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //24
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //25
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //26
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //27
+				{1.000000f, 0.000000f, -0.000000f, 0.000000f}, //28
+				{-197.500000f, 11.000000f, 101.000000f, 0.002000f}, //29
+				{-154.500000f, -75.000000f, 104.000000f, 0.005000f}, //30
+				{-111.500000f, -70.000000f, 96.000000f, 0.002000f}, //31
+				{0.000000f, 0.000000f, 0.000000f, 1.000000f}, //32
+				{0.000774f, 0.000774f, 0.000774f, 1.000000f}, //33
+				{0.000774f, 0.000774f, 0.000774f, 1.000000f}, //34
+				{2.500000f, 2.455627f, 2.411717f, 1.000000f}, //35
+				{0.000000f, 0.000000f, 0.000000f, 1.000000f}, //36
+				{0.007353f, 0.007353f, 0.007353f, 1.000000f}, //37
+				{0.007353f, 0.007353f, 0.007353f, 1.000000f}, //38
+				{23.750000f, 23.328459f, 22.911316f, 1.000000f}, //39
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //40
+				{-0.521307f, 0.448720f, 0.725871f, 1.000000f}, //41
+				{0.020998f, -0.713915f, 0.699917f, 1.000000f}, //42
+				{0.550286f, -0.568629f, 0.611429f, 1.000000f}, //43
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //44
+				{6.292529f, -4.449490f, 1.000000f, 0.000000f}, //45
+				{6.292529f, -4.449490f, 1.000000f, 0.000000f}, //46
+				{6.292529f, -4.449490f, 1.000000f, 0.000000f}, //47
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //48
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //49
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //50
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //51
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //52
+				{0.031250f, 0.000000f, 0.000977f, 0.000000f}, //53
+				{0.031250f, 0.000000f, 0.000977f, 0.000000f}, //54
+				{0.031250f, 0.000000f, 0.000977f, 0.000000f}, //55
+				{4.000000f, 0.000000f, 0.000000f, 0.000000f}, //56
+				{1.000000f, 2.000000f, 2.000000f, 2.000000f}, //57
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //58
+				{1.146447f, 0.983708f, 0.443000f, 1.000000f}, //59
+				{0.000000f, 1.000000f, 0.000000f, 0.000000f}, //60
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //61
+				{0.000000f, 0.000000f, 0.000000f, 1.000000f}, //62
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //63
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //64
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //65
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //66
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //67
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //68
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //69
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //70
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //71
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //72
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //73
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //74
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //75
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //76
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //77
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //78
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //79
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //80
+				{0.001378f, 0.000000f, 0.005149f, 0.000000f}, //81
+				{0.009268f, 0.000000f, 0.013388f, 0.000000f}, //82
+				{0.017508f, 0.000000f, 0.021629f, 0.000000f}, //83
+				{0.025752f, 0.000000f, 0.000000f, 0.000000f}, //84
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //85
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //86
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //87
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //88
+				{0.126089f, 0.147343f, 0.107345f, 0.065257f}, //89
+				{0.033103f, 0.014011f, 0.004948f, 0.000000f}, //90
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //91
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //92
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //93
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //94
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //95
+				{1920.000000f, 1080.000000f, 0.000521f, 0.000926f}, //96
+				{1920.000000f, 1080.000000f, 0.000521f, 0.000926f}, //97
+				{0.000000f, 0.240000f, 0.000000f, 0.000000f}, //98
+				{2.500000f, 2.500000f, 1.000000f, 2.000000f}, //99
+				{0.016667f, 0.030303f, 0.892857f, 0.000000f}, //100
+				{0.142857f, 0.333333f, 0.523810f, 0.000000f}, //101
+				{0.666667f, 2.571429f, 4.545455f, 0.000000f}, //102
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //103
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //104
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //105
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //106
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //107
+				{0.250000f, 0.250000f, 0.000000f, 0.505679f}, //108
+				{1.219000f, 50.000000f, 0.001042f, 0.000000f}, //109
+				{1.913600f, 3.756800f, 0.729600f, 6.400000f}, //110
+				{-4.000000f, 0.002500f, 0.100000f, 0.000030f}, //111
+				{240.000000f, 135.000000f, 2500.000000f, 0.000000f}, //112
+				{0.028125f, 0.028125f, -0.050000f, 0.050000f}, //113
+				{0.000521f, 0.000926f, 0.000000f, 0.000400f}, //114
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //115
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //116
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //117
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //118
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //119
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //120
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //121
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //122
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //123
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //124
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //125
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //126
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //127
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //128
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //129
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //130
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //131
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //132
+				{-0.922650f, 0.000000f, 0.000000f, -0.087134f}, //133
+				{0.080701f, 0.000000f, 0.000000f, -0.996197f}, //134
+				{0.000000f, 1.646529f, 0.000000f, 0.000000f}, //135
+				{0.000000f, 0.000000f, 4.000000f, 0.000000f}, //136
+				{0.000000f, 0.000000f, 0.000000f, 0.500000f}, //137
+				{1.000000f, 0.000000f, 0.000000f, 0.000000f}, //138
+				{0.500000f, -0.500000f, 0.500000f, 0.500000f}, //139
+				{1.000521f, 1.000927f, -0.000000f, -0.000000f}, //140
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //141
+				{0.000260f, 0.000463f, 0.999740f, 0.999537f}, //142
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //143
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //144
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //145
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //146
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //147
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //148
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //149
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //150
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //151
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //152
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //153
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //154
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //155
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //156
+				{0.567017f, 0.567078f, 1.000000f, 0.250000f}, //157
+				{16.000000f, 32.000000f, -8.000000f, -24.000000f}, //158
+				{3.937500f, 0.000000f, 0.000000f, 0.000000f}, //159
+				{0.002930f, 0.005859f, 0.375000f, 0.000000f}, //160
+				{1.079712f, 0.000000f, 0.607338f, -0.000000f}, //161
+				{0.785985f, 0.581625f, -0.209619f, 1.000000f}, //162
+				{2.435458f, 1.282799f, 1.282799f, 36.500000f}, //163
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //164
+				{2.319484f, 1.221713f, 1.221713f, 0.000000f}, //165
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //166
+				{1.000000f, 1.000000f, 1.000000f, 1.000000f}, //167
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //168
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //169
+				{0.000000f, 0.500000f, -0.000338f, 0.000000f}, //170
+				{0.044502f, 0.066076f, 0.102853f, 1.000000f}, //171
+				{0.207843f, 0.254902f, 0.317647f, 1.000000f}, //172
+				{-0.000030f, 0.438371f, 1.811933f, -0.000338f}, //173
+				{0.442964f, 0.119221f, 0.066492f, 1.000000f}, //174
+				{0.792157f, 0.435294f, 0.329412f, 1.000000f}, //175
+				{-0.895476f, 0.273757f, 0.350970f, 0.000000f}, //176
+				{0.523599f, 1.548535f, 0.500000f, 0.000000f}, //177
+				{0.000000f, 1.000000f, 0.000000f, 0.000000f}, //178
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //179
+				{-0.100000f, 0.000000f, 0.000000f, 0.000000f}, //180
+				{0.000000f, 0.000000f, 0.000000f, 0.150000f}, //181
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //182
+				{0.050000f, 0.050000f, 0.050000f, 4095.000000f}, //183
+				{0.761000f, 0.957000f, 1.145000f, 0.200000f}, //184
+				{1.600000f, 1.270000f, 0.926000f, -0.200000f}, //185
+				{-0.494000f, -0.360000f, -0.204000f, 0.000000f}, //186
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //187
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //188
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //189
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //190
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //191
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //192
+				{1.000000f, 1.000000f, 1.000000f, 0.300000f}, //193
+				{0.262745f, 0.325490f, 0.396078f, 0.000000f}, //194
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //195
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //196
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //197
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //198
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //199
+				{1.000000f, 1.000000f, 1.000000f, 0.300000f}, //200
+				{0.262745f, 0.325490f, 0.396078f, 0.000000f}, //201
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //202
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //203
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //204
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //205
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //206
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //207
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //208
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //209
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //210
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //211
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //212
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //213
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //214
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //215
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //216
+				{0.070000f, 0.070000f, 0.070000f, 0.000000f}, //217
+				{0.315000f, 0.315000f, 0.315000f, 0.000000f}, //218
+				{0.222222f, 0.222222f, 0.222222f, 0.000000f}, //219
+				{0.060000f, 0.060000f, 0.060000f, 0.000000f}, //220
+				{2.500000f, 2.500000f, 2.500000f, 0.000000f}, //221
+				{6.000000f, 6.000000f, 6.000000f, 0.000000f}, //222
+				{1.284956f, 1.284956f, 1.284956f, 3.000000f}, //223
+				{0.250000f, 0.000000f, 0.000000f, 0.000000f}, //224
+				{1.000000f, 2.000000f, 0.013000f, 0.250000f}, //225
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //226
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //227
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //228
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //229
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //230
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //231
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //232
+				{8.000000f, 8.000000f, 8.000000f, 8.000000f}, //233
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //234
+				{0.000122f, 0.000122f, 0.000244f, -0.000061f}, //235
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //236
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //237
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //238
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //239
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //240
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //241
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //242
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //243
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //244
+				{0.320000f, 0.320000f, 0.400000f, 0.000000f}, //245
+				{0.000000f, 0.000000f, 1.000000f, 1.000000f}, //246
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //247
+				{0.000000f, 1.250000f, 1.000000f, 0.000000f}, //248
+				{0.000000f, 0.001667f, -0.666667f, 0.000000f}, //249
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //250
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //251
+				{60.000000f, 1.000000f, -0.003906f, 1.000000f}, //252
+				{3.000000f, 0.000000f, 0.000000f, 0.062500f}, //253
+				{0.000000f, 1.000000f, 0.000000f, 0.000000f}, //254
+				{0.402344f, 0.757812f, 0.500000f, 1.000000f}, //255
+				{0.130849f, 0.147484f, 0.185582f, 0.587785f}, //256
+				{-0.348633f, -3.984787f, 0.000000f, 0.000000f}, //257
+				{-8.604842f, 0.752640f, 0.000000f, 0.000000f}, //258
+				{-0.000000f, -0.000000f, -4.858704f, 0.000000f}, //259
+				{0.500000f, -0.500000f, 0.000000f, 1.000000f}, //260
+				{0.500000f, 0.500000f, 0.000000f, 0.000000f}, //261
+				{0.569015f, 0.000000f, 0.000000f, 0.569015f}, //262
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //263
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //264
+				{1.146447f, 0.983708f, 0.443000f, 1.000000f}, //265
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //266
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //267
+				{-0.151000f, 0.349000f, 0.000000f, 0.000000f}, //268
+				{0.000000f, 0.000000f, -1.000000f, 248.016678f}, //269
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //270
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //271
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //272
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //273
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //274
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //275
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //276
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //277
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //278
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //279
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //280
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //281
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //282
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //283
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //284
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //285
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //286
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //287
+				{0.000000f, 0.000000f, 0.000000f, 0.000000f}, //288
+				{0.539169f, 0.837914f, -0.084579f, 283.566437f}, //289
+				{-112.810379f, -242.356049f, 232.554977f, 1.000000f}, //290
+			};
+
 			std::unordered_map<std::string, zonetool::h1::MaterialTechniqueSet*> converted_techset_assets;
 
 			zonetool::h1::MaterialTechniqueSet* convert(MaterialTechniqueSet* asset, ZoneMemory* mem)
@@ -1233,7 +1577,7 @@ namespace zonetool::iw6
 									new_pass->pixelShader = converter::h1::pixelshader::convert(pass->pixelShader, mem);
 								}
 
-								new_pass->stableArgSize += 128;
+								//new_pass->stableArgSize += 128;
 
 								if (pass->args)
 								{
@@ -1242,10 +1586,36 @@ namespace zonetool::iw6
 									std::memcpy(new_pass->args, pass->args, sizeof(MaterialShaderArgument) * arg_count); // same struct
 
 									auto new_arg_index = 0;
+
+									std::vector<zonetool::h1::MaterialShaderArgument> literalized_args{};
+									const auto add_literalized_args = [&]()
+									{
+										for(auto& literal_arg : literalized_args)
+										{
+											auto* new_arg = &new_pass->args[new_arg_index];
+											std::memcpy(new_arg, &literal_arg, sizeof(MaterialShaderArgument));
+
+											new_arg_index++;
+										}
+										literalized_args.clear();
+									};
+									
 									for (auto arg_index = 0; arg_index < arg_count; arg_index++)
 									{
 										auto* arg = &pass->args[arg_index];
 										auto* new_arg = &new_pass->args[new_arg_index];
+
+										[[maybe_unused]] const auto is_per_prim_arg = arg_index < pass->perPrimArgCount;
+										[[maybe_unused]] const auto is_per_obj_arg = !is_per_prim_arg && arg_index < (pass->perObjArgCount + pass->perPrimArgCount);
+										[[maybe_unused]] const auto is_stable_arg = !is_per_prim_arg && !is_per_obj_arg;
+
+										if (arg->type >= MTL_ARG_LITERAL_CONST)
+										{
+											add_literalized_args();
+											new_arg = &new_pass->args[new_arg_index];
+										}
+
+										std::memcpy(new_arg, arg, sizeof(MaterialShaderArgument));
 
 										if (arg->type == MTL_ARG_CODE_CONST)
 										{
@@ -1258,8 +1628,19 @@ namespace zonetool::iw6
 											}
 											else
 											{
-												ZONETOOL_ERROR("Unable to map code constant %d for technique '%s'!", arg->u.codeConst.index, asset->name);
-												new_arg->u.codeConst.index = zonetool::h1::CONST_SRC_NONE;
+												//ZONETOOL_ERROR("Unable to map code constant %d for technique '%s'!", arg->u.codeConst.index, asset->name);
+												//new_arg->u.codeConst.index = 0;
+												//new_arg->u.codeConst.firstRow = 0;
+												//new_arg->u.codeConst.rowCount = 0;
+
+												new_arg->type = zonetool::h1::MTL_ARG_LITERAL_CONST;
+												new_arg->u.literalConst = mem->Alloc<float>(4);
+												std::memcpy(new_arg->u.literalConst, consts[arg->u.codeConst.index], sizeof(float[4]));
+
+												// add literalized arg to the list
+												literalized_args.push_back(std::move(*new_arg));
+
+												new_arg_index--;
 											}
 										}
 										else if (arg->type == MTL_ARG_CODE_TEXTURE)
@@ -1280,12 +1661,38 @@ namespace zonetool::iw6
 
 										new_arg_index++;
 									}
+									add_literalized_args();
 								}
 							}
 							converted_asset_techniques[reinterpret_cast<std::uintptr_t>(asset->techniques[i])] = new_technique;
 						}
 					}
 				}
+
+				new_asset->techniques[zonetool::h1::TECHNIQUE_ZPREPASS_HIDIR] = new_asset->techniques[zonetool::h1::TECHNIQUE_ZPREPASS];
+				new_asset->techniques[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS_HIDIR] = new_asset->techniques[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS];
+				new_asset->techniques[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS_HIDIR] = new_asset->techniques[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS];
+				new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS_HIDIR] = new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS];
+
+				new_asset->techniques[zonetool::h1::TECHNIQUE_LIGHT_SPOT_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_LIGHT_SPOT];
+				new_asset->techniques[zonetool::h1::TECHNIQUE_LIGHT_OMNI_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_LIGHT_OMNI];
+				new_asset->techniques[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW];
+				new_asset->techniques[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS];
+
+				new_asset->techniques[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT];
+				new_asset->techniques[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_OMNI_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_OMNI];
+				new_asset->techniques[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW];
+				new_asset->techniques[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW_CUCOLORIS];
+
+				new_asset->techniques[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT];
+				new_asset->techniques[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_OMNI_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_OMNI];
+				new_asset->techniques[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW];
+				new_asset->techniques[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW_CUCOLORIS];
+
+				new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT];
+				new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_OMNI_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_OMNI];
+				new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW];
+				new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_CUCOLORIS];
 
 				converted_techset_assets[asset->name] = new_asset;
 				return new_asset;

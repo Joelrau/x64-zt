@@ -11,6 +11,6 @@ namespace zonetool::h1
 
 	public:
 
-		static void dump(StructuredDataDefSet* asset);
+		static void dump(StructuredDataDefSet* asset, const std::function<const char* (scr_string_t)>& convertToString = SL_ConvertToString.get());
 	};
 }

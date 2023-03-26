@@ -1,5 +1,4 @@
 #include <std_include.hpp>
-#include "zonetool/iw6/converter/include.hpp"
 #include "zonetool/iw6/converter/h1/include.hpp"
 #include "sound.hpp"
 

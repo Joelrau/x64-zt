@@ -1,11 +1,10 @@
 #include <std_include.hpp>
-#include "zonetool/iw6/converter/include.hpp"
 #include "zonetool/iw6/converter/h1/include.hpp"
 #include "xanim.hpp"
 
 #include "zonetool/h1/assets/xanim.hpp"
 
-#include "zonetool/iw6/zonetool.hpp"
+#include "zonetool/iw6/functions.hpp"
 
 namespace zonetool::iw6
 {

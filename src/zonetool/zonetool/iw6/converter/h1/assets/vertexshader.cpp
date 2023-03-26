@@ -1,11 +1,8 @@
 #include <std_include.hpp>
-#include "zonetool/iw6/converter/include.hpp"
 #include "zonetool/iw6/converter/h1/include.hpp"
 #include "vertexshader.hpp"
 
 #include "zonetool/h1/assets/vertexshader.hpp"
-
-#define TECHSET_PREFIX "_iw6"s
 
 namespace zonetool::iw6
 {

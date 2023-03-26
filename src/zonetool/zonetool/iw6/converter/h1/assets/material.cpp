@@ -1,11 +1,12 @@
 #include <std_include.hpp>
-#include "zonetool/iw6/converter/include.hpp"
 #include "zonetool/iw6/converter/h1/include.hpp"
 #include "material.hpp"
 
 //#include "zonetool/h1/assets/material.hpp"
 
 #include "techset.hpp"
+
+#include <utils/string.hpp>
 
 namespace zonetool::iw6
 {
@@ -121,45 +122,8 @@ matdata[#entry] = carr##entry;
 							ordered_json image;
 							if (asset->textureTable[i].semantic == 11)
 							{
-								// Haven't tested water yet.
+								// unsupported
 								MessageBoxA(nullptr, asset->textureTable[i].u.water->image->name, "water", 0);
-
-								zonetool::h1::water_t* waterData = asset->textureTable[i].u.water;
-
-								image["image"] = waterData->image->name;
-
-								ordered_json waterdata;
-								waterdata["floatTime"] = waterData->writable.floatTime;
-								waterdata["M"] = waterData->M;
-								waterdata["N"] = waterData->N;
-								waterdata["Lx"] = waterData->Lx;
-								waterdata["Lz"] = waterData->Lz;
-								waterdata["gravity"] = waterData->gravity;
-								waterdata["windvel"] = waterData->windvel;
-								waterdata["winddir"][0] = waterData->winddir[0];
-								waterdata["winddir"][1] = waterData->winddir[1];
-								waterdata["amplitude"] = waterData->amplitude;
-
-								ordered_json waterComplexData;
-								ordered_json wTerm;
-
-								for (int a = 0; a < waterData->M * waterData->N; a++)
-								{
-									ordered_json complexdata;
-									ordered_json curWTerm;
-
-									complexdata["real"] = waterData->H0X[a];
-									complexdata["imag"] = waterData->H0Y[a];
-
-									curWTerm[a] = waterData->wTerm[a];
-
-									waterComplexData[a] = complexdata;
-								}
-
-								waterdata["complex"] = waterComplexData;
-								waterdata["wTerm"] = wTerm;
-
-								image["waterinfo"] = waterdata;
 							}
 							else
 							{
@@ -195,6 +159,93 @@ matdata[#entry] = carr##entry;
 				}
 			}
 
+			std::unordered_map<std::uint8_t, std::uint8_t> mapped_sortkeys =
+			{
+				{1, 2},		// 
+				{2, 3},		// Sky
+			};
+
+			std::uint8_t convert_sortkey(std::uint8_t sortkey, std::string matname)
+			{
+				if (mapped_sortkeys.contains(sortkey))
+				{
+					return mapped_sortkeys[sortkey];
+				}
+
+				//ZONETOOL_ERROR("Could not find mapped sortkey: %d (material: %s)", sortkey, matname.data());
+
+				return sortkey;
+			}
+
+			std::unordered_map<std::uint8_t, std::uint8_t> mapped_camera_regions =
+			{
+				{zonetool::iw6::CAMERA_REGION_LIT_OPAQUE, zonetool::h1::CAMERA_REGION_LIT_OPAQUE},
+				{zonetool::iw6::CAMERA_REGION_LIT_DECAL, zonetool::h1::CAMERA_REGION_LIT_DECAL},
+				{zonetool::iw6::CAMERA_REGION_LIT_TRANS, zonetool::h1::CAMERA_REGION_LIT_TRANS},
+				{zonetool::iw6::CAMERA_REGION_EMISSIVE, zonetool::h1::CAMERA_REGION_EMISSIVE},
+				{zonetool::iw6::CAMERA_REGION_DEPTH_HACK, zonetool::h1::CAMERA_REGION_DEPTH_HACK},
+				{zonetool::iw6::CAMERA_REGION_LIGHT_MAP_OPAQUE, zonetool::h1::CAMERA_REGION_LIT_OPAQUE},
+				{zonetool::iw6::CAMERA_REGION_HUD_OUTLINE, 0},
+				{zonetool::iw6::CAMERA_REGION_MOTIONBLUR, 0},
+				{zonetool::iw6::CAMERA_REGION_NONE, zonetool::h1::CAMERA_REGION_NONE},
+			};
+
+			std::uint8_t convert_camera_region(std::uint8_t camera_region, std::string matname)
+			{
+				if (mapped_camera_regions.contains(camera_region))
+				{
+					return mapped_camera_regions[camera_region];
+				}
+
+				ZONETOOL_ERROR("Could not find mapped camera region: %d (material: %s)", camera_region, matname.data());
+
+				return camera_region;
+			}
+
+			std::unordered_map<std::uint8_t, std::uint8_t> mapped_material_type =
+			{
+				{zonetool::iw6::MTL_TYPE_DEFAULT, zonetool::h1::MTL_TYPE_DEFAULT},
+				{zonetool::iw6::MTL_TYPE_MODEL, zonetool::h1::MTL_TYPE_MODEL},
+				{zonetool::iw6::MTL_TYPE_MODEL_VERTCOL, zonetool::h1::MTL_TYPE_MODEL_VERTCOL},
+				{zonetool::iw6::MTL_TYPE_MODEL_VERTCOL_GREY, zonetool::h1::MTL_TYPE_MODEL_VERTCOL_GREY},
+				//{zonetool::iw6::MTL_TYPE_MODEL_QUANTIZED, zonetool::h1::MTL_TYPE_MODEL_QUANTIZED},
+				//{zonetool::iw6::MTL_TYPE_MODEL_QUANTIZED_VERTCOL, zonetool::h1::MTL_TYPE_MODEL_QUANTIZED_VERTCOL},
+				//{zonetool::iw6::MTL_TYPE_MODEL_QUANTIZED_VERTCOL_GREY, zonetool::h1::MTL_TYPE_MODEL_QUANTIZED_VERTCOL_GREY},
+				{zonetool::iw6::MTL_TYPE_MODEL_VERTLIT, zonetool::h1::MTL_TYPE_MODEL_VERTLIT},
+				{zonetool::iw6::MTL_TYPE_MODEL_VERTLIT_VERTCOL, zonetool::h1::MTL_TYPE_MODEL_VERTLIT_VERTCOL},
+				//{zonetool::iw6::MTL_TYPE_MODEL_VERTLIT_VERTCOL_GREY, zonetool::h1::MTL_TYPE_MODEL_VERTLIT_VERTCOL_GREY},
+				//{zonetool::iw6::MTL_TYPE_MODEL_VERTLIT_QUANTIZED, zonetool::h1::MTL_TYPE_MODEL_VERTLIT_QUANTIZED},
+				//{zonetool::iw6::MTL_TYPE_MODEL_VERTLIT_QUANTIZED_VERTCOL, zonetool::h1::MTL_TYPE_MODEL_VERTLIT_QUANTIZED_VERTCOL},
+				//{zonetool::iw6::MTL_TYPE_MODEL_VERTLIT_QUANTIZED_VERTCOL_GREY, zonetool::h1::MTL_TYPE_MODEL_VERTLIT_QUANTIZED_VERTCOL_GREY},
+				{zonetool::iw6::MTL_TYPE_MODEL_LMAP, zonetool::h1::MTL_TYPE_MODEL_LMAP},
+				{zonetool::iw6::MTL_TYPE_MODEL_LMAP_VERTCOL, zonetool::h1::MTL_TYPE_MODEL_LMAP_VERTCOL},
+				//{zonetool::iw6::MTL_TYPE_MODEL_LMAP_VERTCOL_GREY, zonetool::h1::MTL_TYPE_MODEL_LMAP_VERTCOL_GREY},
+				//{zonetool::iw6::MTL_TYPE_MODEL_LMAP_QUANTIZED, zonetool::h1::MTL_TYPE_MODEL_LMAP_QUANTIZED},
+				//{zonetool::iw6::MTL_TYPE_MODEL_LMAP_QUANTIZED_VERTCOL, zonetool::h1::MTL_TYPE_MODEL_LMAP_QUANTIZED_VERTCOL},
+				//{zonetool::iw6::MTL_TYPE_MODEL_LMAP_QUANTIZED_VERTCOL_GREY, zonetool::h1::MTL_TYPE_MODEL_LMAP_QUANTIZED_VERTCOL_GREY},
+				{zonetool::iw6::MTL_TYPE_MODEL_SUBDIV, zonetool::h1::MTL_TYPE_MODEL_SUBDIV},
+				{zonetool::iw6::MTL_TYPE_MODEL_SUBDIV_VERTCOL, zonetool::h1::MTL_TYPE_MODEL_SUBDIV_VERTCOL},
+				//{zonetool::iw6::MTL_TYPE_MODEL_SUBDIV_TENSION, zonetool::h1::MTL_TYPE_MODEL_SUBDIV_TENSION},
+				//{zonetool::iw6::MTL_TYPE_MODEL_SUBDIV_VERTLIT, zonetool::h1::MTL_TYPE_MODEL_SUBDIV_VERTLIT},
+				//{zonetool::iw6::MTL_TYPE_MODEL_SUBDIV_VERTLIT_VERTCOL, zonetool::h1::MTL_TYPE_MODEL_SUBDIV_VERTLIT_VERTCOL},
+				//{zonetool::iw6::MTL_TYPE_MODEL_SUBDIV_LMAP, zonetool::h1::MTL_TYPE_MODEL_SUBDIV_LMAP},
+				//{zonetool::iw6::MTL_TYPE_MODEL_SUBDIV_LMAP_VERTCOL, zonetool::h1::MTL_TYPE_MODEL_SUBDIV_LMAP_VERTCOL},
+				{zonetool::iw6::MTL_TYPE_WORLD, zonetool::h1::MTL_TYPE_WORLD},
+				{zonetool::iw6::MTL_TYPE_WORLD_VERTCOL, zonetool::h1::MTL_TYPE_WORLD_VERTCOL},
+			};
+
+			std::uint8_t convert_material_type(std::uint8_t material_type, std::string matname)
+			{
+				if (mapped_material_type.contains(material_type))
+				{
+					return mapped_material_type[material_type];
+				}
+
+				ZONETOOL_FATAL("Could not find mapped material type: %d (material: %s)", material_type, matname.data());
+
+				//return material_type;
+			}
+
 			zonetool::h1::Material* convert(Material* asset, ZoneMemory* mem)
 			{
 				auto* new_asset = mem->Alloc<zonetool::h1::Material>();
@@ -202,7 +253,7 @@ matdata[#entry] = carr##entry;
 				REINTERPRET_CAST_SAFE(name);
 
 				new_asset->info.gameFlags = asset->info.gameFlags; // convert?
-				new_asset->info.sortKey = asset->info.sortKey; // convert...
+				new_asset->info.sortKey = convert_sortkey(asset->info.sortKey, asset->name);
 				new_asset->info.textureAtlasRowCount = asset->info.textureAtlasRowCount;
 				new_asset->info.textureAtlasColumnCount = asset->info.textureAtlasColumnCount;
 				new_asset->info.textureAtlasFrameBlend = asset->info.textureAtlasFrameBlend;
@@ -220,17 +271,41 @@ matdata[#entry] = carr##entry;
 						if (converter::h1::techset::technique_index_map.contains(i))
 						{
 							const auto new_index = converter::h1::techset::technique_index_map.at(i);
-							new_asset->stateBitsEntry[new_index] = asset->stateBitsEntry[i]; // check
+							new_asset->stateBitsEntry[new_index] = asset->stateBitsEntry[i];
 						}
 					}
 				}
+				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_ZPREPASS];
+				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS];
+				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS];
+				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS];
+
+				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_SPOT_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_SPOT];
+				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_OMNI_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_OMNI];
+				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW];
+				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS];
+
+				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT];
+				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_OMNI_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_OMNI];
+				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW];
+				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW_CUCOLORIS];
+
+				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT];
+				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_OMNI_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_OMNI];
+				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW];
+				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW_CUCOLORIS];
+
+				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT];
+				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_OMNI_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_OMNI];
+				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW];
+				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_CUCOLORIS];
 
 				new_asset->textureCount = asset->textureCount;
 				new_asset->constantCount = asset->constantCount;
 				new_asset->stateBitsCount = asset->stateBitsCount;
 				new_asset->stateFlags = asset->stateFlags; // convert?
-				new_asset->cameraRegion = asset->cameraRegion; // convert?
-				new_asset->materialType = asset->materialType; // convert...
+				new_asset->cameraRegion = convert_camera_region(asset->cameraRegion, asset->name);
+				new_asset->materialType = convert_material_type(asset->materialType, asset->name);
 				new_asset->layerCount = asset->layerCount;
 				new_asset->assetFlags = asset->assetFlags; // convert?
 
@@ -249,10 +324,34 @@ matdata[#entry] = carr##entry;
 						if (converter::h1::techset::technique_index_map.contains(i))
 						{
 							const auto new_index = converter::h1::techset::technique_index_map.at(i);
-							new_asset->constantBufferIndex[new_index] = asset->constantBufferIndex[i]; // check
+							new_asset->constantBufferIndex[new_index] = asset->constantBufferIndex[i];
 						}
 					}
 				}
+				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_ZPREPASS];
+				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS];
+				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS];
+				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS];
+
+				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_SPOT_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_SPOT];
+				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_OMNI_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_OMNI];
+				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW];
+				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS];
+
+				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT];
+				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_OMNI_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_OMNI];
+				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW];
+				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW_CUCOLORIS];
+
+				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT];
+				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_OMNI_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_OMNI];
+				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW];
+				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW_CUCOLORIS];
+
+				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT];
+				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_OMNI_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_OMNI];
+				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW];
+				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_CUCOLORIS];
 
 				REINTERPRET_CAST_SAFE(constantBufferTable);
 				new_asset->constantBufferCount = asset->constantBufferCount;

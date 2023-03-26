@@ -1,5 +1,7 @@
 #pragma once
 
+#include "game/s1/game.hpp"
+
 namespace zonetool::s1
 {
 	WEAK::s1::game::symbol<const char*> g_assetNames{ 0x1409B3180 };

@@ -1,5 +1,4 @@
 #include <std_include.hpp>
-#include "zonetool/iw6/converter/include.hpp"
 #include "zonetool/iw6/converter/h1/include.hpp"
 #include "comworld.hpp"
 
@@ -19,9 +18,8 @@ namespace zonetool::iw6
 
 				COPY_VALUE(isInUse);
 				COPY_VALUE(primaryLightCount);
-				COPY_VALUE(primaryLightEnvCount);
 
-				new_asset->primaryLights = mem->Alloc<zonetool::h1::ComPrimaryLight>(new_asset->primaryLightCount);
+				new_asset->primaryLights = mem->Alloc<zonetool::h1::ComPrimaryLight>(asset->primaryLightCount);
 				for (unsigned int i = 0; i < asset->primaryLightCount; i++)
 				{
 					//auto* light = &asset->primaryLights[i];
@@ -53,6 +51,7 @@ namespace zonetool::iw6
 					REINTERPRET_CAST_SAFE(primaryLights[i].defName);
 				}
 
+				COPY_VALUE(primaryLightEnvCount);
 				REINTERPRET_CAST_SAFE(primaryLightEnvs);
 
 				return new_asset;

@@ -1483,7 +1483,7 @@ namespace zonetool::h1
 
 	union MaterialArgumentDef
 	{
-		const float* literalConst;
+		float* literalConst;
 		MaterialArgumentCodeConst codeConst;
 		unsigned int codeSampler;
 		unsigned int nameHash;
@@ -1974,11 +1974,17 @@ namespace zonetool::h1
 		unsigned char platform[2];
 	};
 
+	struct GfxImageStreamLevelCountAndSize
+	{
+		int pixelSize : 26;
+		int levelCount : 6;
+	};
+
 	struct GfxImageStreamData
 	{
 		unsigned short width;
 		unsigned short height;
-		unsigned int pixelSize;
+		GfxImageStreamLevelCountAndSize levelCountAndSize;
 	};
 
 	enum MapType : std::uint8_t
@@ -7174,7 +7180,9 @@ namespace zonetool::h1
 
 	struct GfxLightGridTree
 	{
+		unsigned char index;
 		unsigned char maxDepth;
+		char unused[2];
 		int nodeCount;
 		int leafCount;
 		int coordMinGridSpace[3];
@@ -7449,20 +7457,22 @@ namespace zonetool::h1
 		float offset[2];
 		float scale[2];
 		unsigned int lightmapIndex;
-	};
+		char __pad0[4];
+	}; assert_sizeof(GfxStaticModelLightmapInfo, 24);
 
 	struct GfxStaticModelGroundLightingInfo
 	{
 		unsigned short groundLighting[4]; // float16
-	};
+		char __pad0[16];
+	}; assert_sizeof(GfxStaticModelGroundLightingInfo, 24);
 
 	struct GfxStaticModelLightGridLightingInfo
 	{
-		unsigned short colorFloat16[4];
-		int a;
-		float b;
-		char __pad1[8];
-	};
+		unsigned short lighting[4]; // float16
+		int colorsIndex;
+		float unk3;
+		char __pad0[8];
+	}; assert_sizeof(GfxStaticModelLightGridLightingInfo, 24);
 
 	union GfxStaticModelLighting
 	{
@@ -7470,6 +7480,7 @@ namespace zonetool::h1
 		GfxStaticModelLightmapInfo modelLightmapInfo;
 		GfxStaticModelGroundLightingInfo modelGroundLightingInfo;
 		GfxStaticModelLightGridLightingInfo modelLightGridLightingInfo;
+		char pad[24];
 	}; assert_sizeof(GfxStaticModelLighting, 24);
 
 	struct GfxSubdivVertexLightingInfo

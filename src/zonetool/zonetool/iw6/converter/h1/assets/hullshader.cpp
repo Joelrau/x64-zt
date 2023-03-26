@@ -1,11 +1,8 @@
 #include <std_include.hpp>
-#include "zonetool/iw6/converter/include.hpp"
 #include "zonetool/iw6/converter/h1/include.hpp"
 #include "hullshader.hpp"
 
 #include "zonetool/h1/assets/hullshader.hpp"
-
-#define TECHSET_PREFIX "_iw6"s
 
 namespace zonetool::iw6
 {

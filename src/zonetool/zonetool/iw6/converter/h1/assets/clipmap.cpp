@@ -1,12 +1,11 @@
 #include <std_include.hpp>
-#include "zonetool/iw6/converter/include.hpp"
 #include "zonetool/iw6/converter/h1/include.hpp"
 #include "clipmap.hpp"
 
 #include "zonetool/h1/assets/clipmap.hpp"
 #include "zonetool/h1/assets/physworld.hpp"
 
-#include "zonetool/iw6/zonetool.hpp"
+#include "zonetool/iw6/functions.hpp"
 
 namespace zonetool::iw6
 {
@@ -107,7 +106,7 @@ namespace zonetool::iw6
 				for (unsigned int i = 0; i < info->numMaterials; i++)
 				{
 					info->materials[i].name = asset->info.materials[i].name;
-					info->materials[i].surfaceFlags = asset->info.materials[i].surfaceFlags; //convert_surf_flags(asset->info.materials[i].surfaceFlags);
+					info->materials[i].surfaceFlags = asset->info.materials[i].surfaceFlags; // todo://convert_surf_flags(asset->info.materials[i].surfaceFlags);
 					info->materials[i].contents = asset->info.materials[i].contents;
 				}
 

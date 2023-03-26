@@ -626,7 +626,7 @@ namespace zonetool::h1
 			entry["loadBits"][3] = map[i].loadBits[3];
 			entry["loadBits"][4] = map[i].loadBits[4];
 			entry["loadBits"][5] = map[i].loadBits[5];
-			for (int j = 0; j < 11; j++)
+			for (int j = 0; j < 10; j++)
 			{
 				entry["depthStencilStateBits"][j] = varXGfxGlobals ? varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[j]] : 0;
 			}

@@ -1,5 +1,4 @@
 #include <std_include.hpp>
-#include "zonetool/iw6/converter/include.hpp"
 #include "zonetool/iw6/converter/h1/include.hpp"
 #include "gfxworld.hpp"
 
@@ -46,8 +45,6 @@ namespace zonetool::iw6
 					}
 				}
 
-
-				new_asset->portalGroupCount = 0;
 				COPY_VALUE(lastSunPrimaryLightIndex);
 				COPY_VALUE(primaryLightCount);
 				COPY_VALUE(primaryLightEnvCount);
@@ -103,14 +100,28 @@ namespace zonetool::iw6
 					new_asset->cells[i].reflectionProbeReferences = asset->cells[i].reflectionProbeReferences;
 				}
 
+				new_asset->portalGroupCount = 0;
 				new_asset->portalGroup = nullptr;
 
 				new_asset->unk_vec4_count_0 = 0;
 				new_asset->unk_vec4_0 = nullptr;
 
 				COPY_VALUE(draw.reflectionProbeCount);
+
 				REINTERPRET_CAST_SAFE(draw.reflectionProbes);
-				REINTERPRET_CAST_SAFE(draw.reflectionProbeOrigins);
+
+				//REINTERPRET_CAST_SAFE(draw.reflectionProbeOrigins);
+				new_asset->draw.reflectionProbeOrigins = mem->Alloc<zonetool::h1::GfxReflectionProbe>(asset->draw.reflectionProbeCount);
+				for (unsigned int i = 0; i < asset->draw.reflectionProbeCount; i++)
+				{
+					memcpy(new_asset->draw.reflectionProbeOrigins[i].origin, 
+						asset->draw.reflectionProbeOrigins[i].origin,
+						sizeof(float[4]));
+
+					new_asset->draw.reflectionProbeOrigins[i].probeVolumeCount = 0;
+					new_asset->draw.reflectionProbeOrigins[i].probeVolumes = nullptr;
+				}
+				
 				new_asset->draw.reflectionProbeTextures = mem->Alloc<zonetool::h1::GfxRawTexture>(asset->draw.reflectionProbeCount); // todo?
 				COPY_VALUE(draw.reflectionProbeReferenceCount);
 				REINTERPRET_CAST_SAFE(draw.reflectionProbeReferenceOrigins);
@@ -154,91 +165,38 @@ namespace zonetool::iw6
 				}
 				memset(new_asset->lightGrid.__pad0, 0, sizeof(new_asset->lightGrid.__pad0)); // unknown data
 
-				// --experimental--
-
-				new_asset->lightGrid.tableVersion = 1;
-				new_asset->lightGrid.paletteVersion = 1;
-				new_asset->lightGrid.paletteEntryCount = asset->lightGrid.entryCount;
-				new_asset->lightGrid.paletteEntryAddress = mem->Alloc<int>(new_asset->lightGrid.paletteEntryCount);
-				for (unsigned int i = 0; i < new_asset->lightGrid.paletteEntryCount; i++)
-				{
-					new_asset->lightGrid.paletteEntryAddress[i] = 30; // 0, 30, 86, 116 //asset->lightGrid.entries[i].colorsIndex;
-				}
-
-				// mp_character_room palettebitstream
-				std::uint8_t paletteBitStream[] =
-				{
-				8, 33, 195, 128, 128, 124, 128, 128, 128, 129, 128, 199, 128, 128, 124, 128, 128, 128, 129, 128, 216, 128, 128, 124, 128, 128, 128, 129, 128, 0, 8, 33, 187, 128, 128, 130, 128, 128, 128, 128, 128, 191, 128, 128, 130, 128, 128, 128, 128, 128, 209, 128, 128, 130, 128, 128, 128, 128, 128, 0, 0, 0, 82, 80, 18, 64, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 214, 106, 18, 64, 1, 0, 0, 0, 8, 33, 195, 128, 128, 124, 128, 128, 128, 129, 128, 199, 128, 128, 124, 128, 128, 128, 129, 128, 216, 128, 128, 124, 128, 128, 128, 129, 128, 0, 198, 24, 241, 248, 8, 128, 128, 128, 128, 90, 128, 241, 8, 128, 248, 128, 128, 128, 147, 184, 241, 128, 248, 8, 128, 128, 128, 147, 72, 0,
-				};
-
-				new_asset->lightGrid.paletteBitstreamSize = sizeof(paletteBitStream);
-				new_asset->lightGrid.paletteBitstream = mem->Alloc<unsigned char>(new_asset->lightGrid.paletteBitstreamSize);
-				memcpy(new_asset->lightGrid.paletteBitstream, paletteBitStream, sizeof(paletteBitStream));
-
-				new_asset->lightGrid.missingGridColorIndex = new_asset->lightGrid.paletteEntryCount - 1;
-
-				new_asset->lightGrid.rangeExponent8BitsEncoding = 0;
-				new_asset->lightGrid.rangeExponent12BitsEncoding = 4;
-				new_asset->lightGrid.rangeExponent16BitsEncoding = 23;
-
-				new_asset->lightGrid.stageCount = 1;
-				new_asset->lightGrid.stageLightingContrastGain = mem->Alloc<float>(1);
-				new_asset->lightGrid.stageLightingContrastGain[0] = 0.3f;
-
-				for (char i = 0; i < 3; i++)
-				{
-					new_asset->lightGrid.tree[i].maxDepth = i;
-				}
-
-				// ----
-
-				/*COPY_VALUE(lightGrid.missingGridColorIndex);
+				COPY_VALUE(lightGrid.missingGridColorIndex);
 				COPY_VALUE(lightGrid.tableVersion);
 				COPY_VALUE(lightGrid.paletteVersion);
 				COPY_VALUE(lightGrid.rangeExponent8BitsEncoding);
 				COPY_VALUE(lightGrid.rangeExponent12BitsEncoding);
 				COPY_VALUE(lightGrid.rangeExponent16BitsEncoding);
+
 				COPY_VALUE(lightGrid.stageCount);
-
-				GfxLightGrid;
-				static_assert(offsetof(zonetool::h1::GfxLightGrid, paletteVersion) == 116);
-
 				REINTERPRET_CAST_SAFE(lightGrid.stageLightingContrastGain);
+
 				COPY_VALUE(lightGrid.paletteEntryCount);
 				REINTERPRET_CAST_SAFE(lightGrid.paletteEntryAddress);
 				COPY_VALUE(lightGrid.paletteBitstreamSize);
-				REINTERPRET_CAST_SAFE(lightGrid.paletteBitstream);*/
-				/*for (auto i = 0; i < 56; i++)
+				REINTERPRET_CAST_SAFE(lightGrid.paletteBitstream);
+
+				std::uint8_t defaultLightGridColors_bytes[] =
 				{
-					for (auto j = 0; j < 6; j++) // 56[3] -> 56[6] (float->char)
-					{
-						new_asset->lightGrid.skyLightGridColors.colorVec6[i][j] = asset->lightGrid.skyLightGridColors.colorVec3[i][j];
-						if (j > 2)
-						{
-							new_asset->lightGrid.skyLightGridColors.colorVec6[i][j] = 0;
-						}
-					}
-				}
-				for (auto i = 0; i < 56; i++)
+				116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64,
+				};
+				std::memcpy(&new_asset->lightGrid.defaultLightGridColors, &asset->lightGrid.defaultLightGridColors, sizeof(defaultLightGridColors_bytes));
+				std::uint8_t skyLightGridColors_bytes[] =
 				{
-					for (auto j = 0; j < 6; j++) // 56[3] -> 56[6] (float->char)
-					{
-						new_asset->lightGrid.defaultLightGridColors.colorVec6[i][j] = asset->lightGrid.defaultLightGridColors.colorVec3[i][j];
-						if (j > 2)
-						{
-							new_asset->lightGrid.defaultLightGridColors.colorVec6[i][j] = 0;
-						}
-					}
-				}*/
-				for (char i = 0; i < 3; i++)
+				116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64,
+				};
+				std::memcpy(&new_asset->lightGrid.skyLightGridColors, &asset->lightGrid.skyLightGridColors, sizeof(skyLightGridColors_bytes));
+
+				for (auto i = 0; i < 3; i++)
 				{
-					if (i != 0)
+					new_asset->lightGrid.tree[i].index = static_cast<unsigned char>(i);
+					if (i == 0)
 					{
-						new_asset->lightGrid.tree[i].maxDepth = i;
-					}
-					else
-					{
-						/*new_asset->lightGrid.tree[i].maxDepth = asset->lightGrid.tree.maxDepth;
+						new_asset->lightGrid.tree[i].maxDepth = asset->lightGrid.tree.maxDepth;
 						new_asset->lightGrid.tree[i].nodeCount = asset->lightGrid.tree.nodeCount;
 						new_asset->lightGrid.tree[i].leafCount = asset->lightGrid.tree.leafCount;
 						memcpy(new_asset->lightGrid.tree[i].coordMinGridSpace, asset->lightGrid.tree.coordMinGridSpace, sizeof(int[3]));
@@ -248,7 +206,19 @@ namespace zonetool::iw6
 						new_asset->lightGrid.tree[i].defaultLightIndexBitCount = asset->lightGrid.tree.defaultLightIndexBitCount;
 						new_asset->lightGrid.tree[i].p_nodeTable = asset->lightGrid.tree.p_nodeTable;
 						new_asset->lightGrid.tree[i].leafTableSize = asset->lightGrid.tree.leafTableSize;
-						new_asset->lightGrid.tree[i].p_leafTable = asset->lightGrid.tree.p_leafTable;*/
+						new_asset->lightGrid.tree[i].p_leafTable = asset->lightGrid.tree.p_leafTable;
+
+						enum leaf_table_version : std::int8_t
+						{
+							h2 = 0i8,
+							h1 = 0i8,
+							s1 = 0i8,
+							iw6 = 1i8,
+						};
+
+						// with this indicator, we know the leafTable is in iw6 format.
+						// this will allow us to create a patch for iw6 maps, so it will be able to read them.
+						new_asset->lightGrid.tree[i].unused[0] = leaf_table_version::iw6;
 					}
 				}
 
@@ -257,14 +227,15 @@ namespace zonetool::iw6
 				for (int i = 0; i < asset->modelCount; i++)
 				{
 					memset(&new_asset->models[i].writable, 0, sizeof(zonetool::h1::GfxBrushModelWritable));
-					memcpy(&new_asset->models[i].bounds, &asset->models[i].bounds, sizeof(zonetool::h1::Bounds));
+					memcpy(&new_asset->models[i].bounds, &asset->models[i].bounds, sizeof(Bounds));
+					new_asset->models[i].radius = asset->models[i].radius;
 					new_asset->models[i].startSurfIndex = asset->models[i].startSurfIndex;
 					new_asset->models[i].surfaceCount = asset->models[i].surfaceCount;
 					new_asset->models[i].mdaoVolumeIndex = -1;
 				}
 
-				memcpy(&new_asset->unkBounds, &asset->bounds, sizeof(zonetool::h1::Bounds));
-				memcpy(&new_asset->shadowBounds, &asset->bounds, sizeof(zonetool::h1::Bounds));
+				memcpy(&new_asset->unkBounds, &asset->bounds, sizeof(Bounds));
+				memcpy(&new_asset->shadowBounds, &asset->bounds, sizeof(Bounds));
 
 				COPY_VALUE(checksum);
 				COPY_VALUE(materialMemoryCount);
@@ -356,13 +327,16 @@ namespace zonetool::iw6
 						COPY_VALUE(dpvs.surfaces[i].tris.triCount);
 						COPY_VALUE(dpvs.surfaces[i].tris.baseIndex);
 						new_asset->dpvs.surfaces[i].material = reinterpret_cast<zonetool::h1::Material*>(asset->dpvs.surfaces[i].material);
-						COPY_ARR(dpvs.surfaces[i].laf);
+						COPY_VALUE(dpvs.surfaces[i].laf.fields.lightmapIndex);
+						COPY_VALUE(dpvs.surfaces[i].laf.fields.reflectionProbeIndex);
+						COPY_VALUE(dpvs.surfaces[i].laf.fields.primaryLightEnvIndex);
+						COPY_VALUE(dpvs.surfaces[i].laf.fields.flags); // convert?
 					}
 
 					new_asset->dpvs.surfacesBounds = mem->Alloc<zonetool::h1::GfxSurfaceBounds>(asset->surfaceCount);
 					for (unsigned int i = 0; i < asset->surfaceCount; i++)
 					{
-						COPY_ARR(dpvs.surfacesBounds[i].bounds);
+						memcpy(&new_asset->dpvs.surfacesBounds[i].bounds, &asset->dpvs.surfacesBounds[i].bounds, sizeof(Bounds));
 						// unk data
 					}
 
@@ -388,6 +362,19 @@ namespace zonetool::iw6
 					new_asset->dpvs.smodelLighting = mem->Alloc<zonetool::h1::GfxStaticModelLighting>(asset->dpvs.smodelCount);
 					for (unsigned int i = 0; i < asset->dpvs.smodelCount; i++)
 					{
+						const auto pack_float = [](float value)
+						{
+							if (value == 0.f)
+							{
+								value = 0.0001f;
+							}
+
+							auto int_value = *reinterpret_cast<uint32_t*>(&value);
+							auto short_value = ((int_value >> 16) & 0x8000) |
+								((((int_value & 0x7F800000) - 0x38000000) >> 13) & 0x7C00) | ((int_value >> 13) & 0x03FF);
+							return static_cast<uint16_t>(short_value);
+						};
+
 						if ((new_asset->dpvs.smodelDrawInsts[i].flags & STATIC_MODEL_FLAG_VERTEXLIT_LIGHTING) != 0)
 						{
 							new_asset->dpvs.smodelLighting[i].vertexLightingInfo.numLightingValues =
@@ -397,9 +384,14 @@ namespace zonetool::iw6
 						}
 						else if ((new_asset->dpvs.smodelDrawInsts[i].flags & STATIC_MODEL_FLAG_GROUND_LIGHTING) != 0)
 						{
-							// check
-							memcpy(&new_asset->dpvs.smodelLighting[i].modelGroundLightingInfo.groundLighting,
-								&asset->dpvs.smodelDrawInsts[i].groundLighting, sizeof(float[4]));
+							new_asset->dpvs.smodelLighting[i].modelGroundLightingInfo.groundLighting[0] = 
+								pack_float(asset->dpvs.smodelDrawInsts[i].groundLighting[0]);
+							new_asset->dpvs.smodelLighting[i].modelGroundLightingInfo.groundLighting[1] = 
+								pack_float(asset->dpvs.smodelDrawInsts[i].groundLighting[1]);
+							new_asset->dpvs.smodelLighting[i].modelGroundLightingInfo.groundLighting[2] = 
+								pack_float(asset->dpvs.smodelDrawInsts[i].groundLighting[2]);
+							new_asset->dpvs.smodelLighting[i].modelGroundLightingInfo.groundLighting[3] = 
+								pack_float(asset->dpvs.smodelDrawInsts[i].groundLighting[3]);
 						}
 						else if ((new_asset->dpvs.smodelDrawInsts[i].flags & STATIC_MODEL_FLAG_LIGHTMAP_LIGHTING) != 0)
 						{
@@ -408,11 +400,39 @@ namespace zonetool::iw6
 						}
 						else if ((new_asset->dpvs.smodelDrawInsts[i].flags & STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING) != 0)
 						{
-							ZONETOOL_WARNING("Houston, we have a problem");
+							new_asset->dpvs.smodelLighting[i].modelLightGridLightingInfo.lighting[0] =
+								pack_float(asset->dpvs.smodelDrawInsts[i].groundLighting[0]);
+							new_asset->dpvs.smodelLighting[i].modelLightGridLightingInfo.lighting[1] =
+								pack_float(asset->dpvs.smodelDrawInsts[i].groundLighting[1]);
+							new_asset->dpvs.smodelLighting[i].modelLightGridLightingInfo.lighting[2] =
+								pack_float(asset->dpvs.smodelDrawInsts[i].groundLighting[2]);
+							new_asset->dpvs.smodelLighting[i].modelLightGridLightingInfo.lighting[3] =
+								pack_float(asset->dpvs.smodelDrawInsts[i].groundLighting[3]);
+
+							//// lightGrid.paletteBitstream[lightGrid.->paletteEntryAddress[colorsIndex]]
+							//new_asset->dpvs.smodelLighting[i].modelLightGridLightingInfo.colorsIndex = new_asset->lightGrid.missingGridColorIndex;
+							//new_asset->dpvs.smodelLighting[i].modelLightGridLightingInfo.unk3 = 1.0f;
 						}
 					}
 					
-					REINTERPRET_CAST_SAFE(dpvs.surfaceMaterials); // convert?
+					new_asset->dpvs.surfaceMaterials = mem->Alloc<zonetool::h1::GfxDrawSurf>(asset->surfaceCount);
+					for (unsigned int i = 0; i < asset->surfaceCount; i++) // could be wrong
+					{
+						new_asset->dpvs.surfaceMaterials[i].fields.objectId = asset->dpvs.surfaceMaterials[i].fields.objectId;
+						new_asset->dpvs.surfaceMaterials[i].fields.reflectionProbeIndex = asset->dpvs.surfaceMaterials[i].fields.reflectionProbeIndex;
+						new_asset->dpvs.surfaceMaterials[i].fields.hasGfxEntIndex = asset->dpvs.surfaceMaterials[i].fields.hasGfxEntIndex;
+						new_asset->dpvs.surfaceMaterials[i].fields.customIndex = asset->dpvs.surfaceMaterials[i].fields.customIndex;
+						new_asset->dpvs.surfaceMaterials[i].fields.materialSortedIndex = asset->dpvs.surfaceMaterials[i].fields.materialSortedIndex;
+						new_asset->dpvs.surfaceMaterials[i].fields.tessellation = asset->dpvs.surfaceMaterials[i].fields.tessellation;
+						new_asset->dpvs.surfaceMaterials[i].fields.prepass = asset->dpvs.surfaceMaterials[i].fields.prepass;
+						new_asset->dpvs.surfaceMaterials[i].fields.useHeroLighting = asset->dpvs.surfaceMaterials[i].fields.useHeroLighting;
+						new_asset->dpvs.surfaceMaterials[i].fields.sceneLightEnvIndex = asset->dpvs.surfaceMaterials[i].fields.sceneLightEnvIndex;
+						new_asset->dpvs.surfaceMaterials[i].fields.viewModelRender = asset->dpvs.surfaceMaterials[i].fields.viewModelRender;
+						new_asset->dpvs.surfaceMaterials[i].fields.surfType = asset->dpvs.surfaceMaterials[i].fields.surfType;
+						new_asset->dpvs.surfaceMaterials[i].fields.primarySortKey = asset->dpvs.surfaceMaterials[i].fields.primarySortKey;
+						new_asset->dpvs.surfaceMaterials[i].fields.unused = asset->dpvs.surfaceMaterials[i].fields.unused;
+					}
+
 					REINTERPRET_CAST_SAFE(dpvs.surfaceCastsSunShadow);
 					COPY_VALUE(dpvs.sunShadowOptCount);
 					COPY_VALUE(dpvs.sunSurfVisDataCount);
@@ -442,9 +462,9 @@ namespace zonetool::iw6
 				COPY_VALUE(heroOnlyLightCount);
 				REINTERPRET_CAST_SAFE(heroOnlyLights);
 				COPY_VALUE(fogTypesAllowed);
-				COPY_VALUE(umbraTomeSize);
-				REINTERPRET_CAST_SAFE(umbraTomeData);
-				COPY_VALUE_CAST(umbraTomePtr);
+				new_asset->umbraTomeSize = 0; //COPY_VALUE(umbraTomeSize);
+				new_asset->umbraTomeData = nullptr; //REINTERPRET_CAST_SAFE(umbraTomeData);
+				new_asset->umbraTomePtr = nullptr; //COPY_VALUE_CAST(umbraTomePtr);
 				new_asset->mdaoVolumesCount = 0;
 				new_asset->mdaoVolumes = nullptr;
 

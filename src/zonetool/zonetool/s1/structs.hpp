@@ -1549,11 +1549,17 @@ namespace zonetool::s1
 		unsigned char platform[2];
 	};
 
+	struct GfxImageStreamLevelCountAndSize
+	{
+		int pixelSize : 26;
+		int levelCount : 6;
+	};
+
 	struct GfxImageStreamData
 	{
 		unsigned short width;
 		unsigned short height;
-		unsigned int pixelSize;
+		GfxImageStreamLevelCountAndSize levelCountAndSize;
 	};
 
 	enum MapType : std::uint8_t
@@ -6727,7 +6733,9 @@ namespace zonetool::s1
 
 	struct GfxLightGridTree
 	{
+		unsigned char index;
 		unsigned char maxDepth;
+		unsigned char pad[2];
 		int nodeCount;
 		int leafCount;
 		int coordMinGridSpace[3];

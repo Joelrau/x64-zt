@@ -1,7 +1,5 @@
 #pragma once
 
-#include "include.hpp"
-
 #include "assets/clipmap.hpp"
 #include "assets/comworld.hpp"
 #include "assets/fxeffectdef.hpp"
@@ -11,6 +9,7 @@
 #include "assets/mapents.hpp"
 #include "assets/material.hpp"
 #include "assets/scriptabledef.hpp"
+#include "assets/scriptfile.hpp"
 #include "assets/sound.hpp"
 #include "assets/xanim.hpp"
 #include "assets/xmodel.hpp"

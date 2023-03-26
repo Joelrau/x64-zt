@@ -1,5 +1,11 @@
 #pragma once
 
+#include "zonetool/iw6/structs.hpp"
+
+#include "zonetool/utils/utils.hpp"
+
+#define TECHSET_PREFIX "_iw6"s
+
 #define COPY_VALUE(name) \
 		static_assert(sizeof(new_asset->name) == sizeof(asset->name)); \
 		new_asset->name = asset->name;

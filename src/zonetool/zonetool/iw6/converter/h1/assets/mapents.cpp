@@ -1,14 +1,12 @@
 #include <std_include.hpp>
-#include "zonetool/iw6/converter/include.hpp"
 #include "zonetool/iw6/converter/h1/include.hpp"
 #include "mapents.hpp"
 
 #include "zonetool/h1/assets/mapents.hpp"
 
-#include "zonetool/iw6/zonetool.hpp"
+#include "zonetool/iw6/functions.hpp"
 
-#include <xsk/gsc/engine/iw6_pc.hpp>
-std::unique_ptr<xsk::gsc::iw6_pc::context> iw6_gsc_ctx = std::make_unique<xsk::gsc::iw6_pc::context>();
+#include "zonetool/utils/gsc.hpp"
 
 namespace zonetool::iw6
 {
@@ -125,7 +123,7 @@ namespace zonetool::iw6
 					}
 
 					const auto key_ = key.substr(1, key.size() - 2);
-					const auto id = iw6_gsc_ctx->token_id(key_);
+					const auto id = gsc::iw6::gsc_ctx->token_id(key_);
 					if (id == 0)
 					{
 						ZONETOOL_WARNING("Key '%s' not found, on line %i (%s)", key_.data(), i, line.data());
@@ -160,7 +158,7 @@ namespace zonetool::iw6
 						const auto id = std::atoi(match[1].str().data());
 						const auto value = match[2].str();
 
-						std::string key = iw6_gsc_ctx->token_name(
+						std::string key = gsc::iw6::gsc_ctx->token_name(
 							static_cast<std::uint16_t>(id));
 						if (!key.starts_with("_id_"))
 						{

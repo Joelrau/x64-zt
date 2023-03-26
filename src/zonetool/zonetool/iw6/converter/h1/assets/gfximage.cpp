@@ -1,5 +1,4 @@
 #include <std_include.hpp>
-#include "zonetool/iw6/converter/include.hpp"
 #include "zonetool/iw6/converter/h1/include.hpp"
 #include "gfximage.hpp"
 
@@ -45,7 +44,6 @@ namespace zonetool::iw6
 				const auto stream_file_index = *reinterpret_cast<unsigned int*>(0x141E5BF14);
 				const auto stream_files = reinterpret_cast<XStreamFile*>(0x141E5BF40);
 
-				int streami = 4;
 				for (auto i = 0u; i < 4; i++)
 				{
 					const auto stream_file = &stream_files[stream_file_index + i];
@@ -67,10 +65,16 @@ namespace zonetool::iw6
 
 					try
 					{
-						int pixel_size = image->dataLen2 / streami;
-						streami--;
+						const auto get_pixel_size_for_stream = [](GfxImage* image, int stream) -> int
+						{
+							if (stream > 0)
+							{
+								return image->streams[stream].levelCountAndSize.pixelSize - image->streams[stream - 1].levelCountAndSize.pixelSize;
+							}
 
-						int pixel_size2 = image->streams[i].pixelSizeAndLevelCount.pixelSize;
+							return image->streams[stream].levelCountAndSize.pixelSize;
+						};
+						const auto pixel_size = get_pixel_size_for_stream(image, i);
 
 						std::string pixel_data;
 						pixel_data.resize(pixel_size);
@@ -79,7 +83,7 @@ namespace zonetool::iw6
 
 						const auto name = clean_name(image->name);
 
-						auto dump_pixels = true;
+						const auto dump_pixels = true;
 						if (dump_pixels)
 						{
 							std::string parent_path = filesystem::get_dump_path() + "streamed_images\\";
@@ -87,7 +91,7 @@ namespace zonetool::iw6
 							utils::io::write_file(raw_path, pixel_data, false);
 						}
 
-						auto dump_dds = false;
+						const auto dump_dds = false;
 						if (dump_dds)
 						{
 							DirectX::Image img = {};

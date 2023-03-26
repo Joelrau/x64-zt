@@ -1545,7 +1545,7 @@ namespace zonetool::iw6
 		unsigned char platform[2];
 	};
 
-	struct GfxImageStreamDataPixelSizeAndLevelCount
+	struct GfxImageStreamLevelCountAndSize
 	{
 		int pixelSize : 26;
 		int levelCount : 6;
@@ -1555,7 +1555,7 @@ namespace zonetool::iw6
 	{
 		unsigned short width;
 		unsigned short height;
-		GfxImageStreamDataPixelSizeAndLevelCount pixelSizeAndLevelCount;
+		GfxImageStreamLevelCountAndSize levelCountAndSize;
 	};
 
 	enum MapType : std::uint8_t
@@ -1690,6 +1690,73 @@ namespace zonetool::iw6
 		ID3D11Buffer* hsConstantBuffer;
 		ID3D11Buffer* dsConstantBuffer;
 		ID3D11Buffer* psConstantBuffer;
+	};
+
+	enum MaterialStateFlags : std::uint8_t
+	{
+		STATE_FLAG_CULL_BACK = 0x1,
+		STATE_FLAG_DECAL = 0x4,
+		STATE_FLAG_WRITES_DEPTH = 0x8,
+		STATE_FLAG_USES_DEPTH_BUFFER = 0x10,
+		STATE_FLAG_USES_STENCIL_BUFFER = 0x20,
+	};
+
+	enum GfxCameraRegionType : std::uint8_t
+	{
+		CAMERA_REGION_LIT_OPAQUE = 0x0,
+		CAMERA_REGION_LIT_DECAL = 0x1,
+		CAMERA_REGION_LIT_TRANS = 0x2,
+		CAMERA_REGION_EMISSIVE = 0x3,
+		CAMERA_REGION_DEPTH_HACK = 0x4,
+		CAMERA_REGION_LIGHT_MAP_OPAQUE = 0x5,
+		CAMERA_REGION_HUD_OUTLINE = 0x6,
+		CAMERA_REGION_MOTIONBLUR = 0x7,
+		CAMERA_REGION_COUNT = 0x8,
+		CAMERA_REGION_NONE = 0x8,
+	};
+
+	enum MaterialType : std::uint8_t
+	{
+		MTL_TYPE_DEFAULT = 0x0,
+		MTL_TYPE_MODEL_FIRST = 0x1,
+		MTL_TYPE_MODEL = 0x1,
+		MTL_TYPE_MODEL_VERTCOL = 0x2,
+		MTL_TYPE_MODEL_VERTCOL_GREY = 0x3,
+		MTL_TYPE_MODEL_QUANTIZED = 0x4,
+		MTL_TYPE_MODEL_QUANTIZED_VERTCOL = 0x5,
+		MTL_TYPE_MODEL_QUANTIZED_VERTCOL_GREY = 0x6,
+		MTL_TYPE_MODEL_VERTLIT = 0x7,
+		MTL_TYPE_MODEL_VERTLIT_VERTCOL = 0x8,
+		MTL_TYPE_MODEL_VERTLIT_VERTCOL_GREY = 0x9,
+		MTL_TYPE_MODEL_VERTLIT_QUANTIZED = 0xA,
+		MTL_TYPE_MODEL_VERTLIT_QUANTIZED_VERTCOL = 0xB,
+		MTL_TYPE_MODEL_VERTLIT_QUANTIZED_VERTCOL_GREY = 0xC,
+		MTL_TYPE_MODEL_LMAP = 0xD,
+		MTL_TYPE_MODEL_LMAP_VERTCOL = 0xE,
+		MTL_TYPE_MODEL_LMAP_VERTCOL_GREY = 0xF,
+		MTL_TYPE_MODEL_LMAP_QUANTIZED = 0x10,
+		MTL_TYPE_MODEL_LMAP_QUANTIZED_VERTCOL = 0x11,
+		MTL_TYPE_MODEL_LMAP_QUANTIZED_VERTCOL_GREY = 0x12,
+		MTL_TYPE_MODEL_LAST = 0x12,
+		MTL_TYPE_MODEL_SUBDIV_FIRST = 0x13,
+		MTL_TYPE_MODEL_SUBDIV = 0x13,
+		MTL_TYPE_MODEL_SUBDIV_VERTCOL = 0x14,
+		MTL_TYPE_MODEL_SUBDIV_TENSION = 0x15,
+		MTL_TYPE_MODEL_SUBDIV_VERTLIT = 0x16,
+		MTL_TYPE_MODEL_SUBDIV_VERTLIT_VERTCOL = 0x17,
+		MTL_TYPE_MODEL_SUBDIV_LMAP = 0x18,
+		MTL_TYPE_MODEL_SUBDIV_LMAP_VERTCOL = 0x19,
+		MTL_TYPE_MODEL_SUBDIV_LAST = 0x19,
+		MTL_TYPE_WORLD_FIRST = 0x1A,
+		MTL_TYPE_WORLD = 0x1A,
+		MTL_TYPE_WORLD_VERTCOL = 0x1B,
+		MTL_TYPE_WORLD_LAST = 0x1B,
+		MTL_TYPE_COUNT = 0x1C,
+	};
+
+	enum MaterialAssetFlags : std::uint8_t
+	{
+		MTL_ASSETFLAG_NONE = 0x0,
 	};
 
 	struct Material
@@ -3409,7 +3476,7 @@ namespace zonetool::iw6
 	{
 		float offset[2];
 		float scale[2];
-		unsigned int lightmapIndex;
+		int lightmapIndex;
 	};
 
 	enum StaticModelFlag : std::int32_t
