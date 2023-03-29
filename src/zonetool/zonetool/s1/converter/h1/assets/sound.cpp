@@ -4,6 +4,8 @@
 
 #include "zonetool/h1/assets/sound.hpp"
 
+#include "game/s1/game.hpp"
+
 namespace zonetool::s1
 {
 	namespace converter::h1
@@ -73,16 +75,106 @@ namespace zonetool::s1
 					new_head->dopplerPreset = reinterpret_cast<zonetool::h1::DopplerPreset*>(head->dopplerPreset);
 					new_head->u2 = head->u2;
 
-					// TODO:
+					const auto convert_and_dump_streamed = [&]() -> bool
+					{
+						const auto alias_name = head->aliasName ? head->aliasName : "null";
+
+						// dump soundfile
+						if (!head->soundFile->exists)
+						{
+							ZONETOOL_ERROR("streamed file doesn't exist for sound %s", alias_name);
+							return false;
+						}
+
+						const auto soundfile_index = head->soundFile->u.streamSnd.filename.fileIndex;
+						if (!soundfile_index)
+						{
+							ZONETOOL_ERROR("Could not convert streamed data for sound %s", alias_name);
+							return false;
+						}
+
+						std::string soundfile_path = utils::string::va("soundfile%d.pak", soundfile_index);
+						if (head->soundFile->u.streamSnd.filename.isLocalized)
+						{
+							soundfile_path = utils::string::va("%s/%s_%s", 
+								::s1::game::SEH_GetCurrentLanguageName(),
+								::s1::game::SEH_GetCurrentLanguageCode(), 
+								soundfile_path.data());
+						}
+
+						auto soundfile = filesystem::file(soundfile_path);
+						soundfile.open("rb", false, true);
+
+						auto* fp = soundfile.get_fp();
+						if (!fp)
+						{
+							ZONETOOL_FATAL("could not open %s for read.", soundfile_path.data());
+							return false;
+						}
+
+						const auto offset = head->soundFile->u.streamSnd.filename.info.packed.offset;
+						const auto length = head->soundFile->u.streamSnd.filename.info.packed.length;
+
+						std::vector<std::uint8_t> snd_data;
+						snd_data.resize(length);
+
+						// get data from offset
+						fseek(fp, static_cast<long>(offset), SEEK_SET);
+						fread(snd_data.data(), length, 1, fp);
+
+						if (strncmp(reinterpret_cast<char*>(snd_data.data()), "fLaC", 4))
+						{
+							ZONETOOL_FATAL("streamed sound data for sound %s is not in fLaC format!", alias_name);
+							return false;
+						}
+
+						std::string loaded_name = utils::string::va("%s_%d", alias_name, i);
+						if (head->soundFile->u.streamSnd.filename.isLocalized)
+						{
+							loaded_name = utils::string::va("%s/%s_%s_%d", 
+								::s1::game::SEH_GetCurrentLanguageName(), 
+								::s1::game::SEH_GetCurrentLanguageCode(), 
+								alias_name, 
+								i);
+						}
+						loaded_name = utils::string::va("streamed/%s", loaded_name.data());
+
+						auto path = utils::string::va("loaded_sound/%s%s", loaded_name.data(), ".flac");
+						auto file = filesystem::file(path);
+						file.open("wb");
+
+						file.write(snd_data.data(), snd_data.size(), 1);
+
+						file.close();
+
+						// convert sound
+						std::memset(&new_head->soundFile->u.streamSnd, 0, sizeof(new_head->soundFile->u.streamSnd));
+						new_head->soundFile->type = zonetool::h1::SAT_LOADED;
+
+						SoundAliasFlags flags{0};
+						flags.intValue = new_head->flags;
+						flags.packed.type = zonetool::h1::SAT_LOADED;
+						new_head->flags = flags.intValue;
+
+						new_head->soundFile->u.loadSnd = mem->Alloc<zonetool::h1::LoadedSound>();
+						auto* new_loaded = new_head->soundFile->u.loadSnd;
+						new_loaded->name = mem->StrDup(loaded_name);
+
+						return true;
+					};
+
 					if (head->soundFile)
 					{
 						if (head->soundFile->type == SAT_STREAMED)
 						{
-							new_head->soundFile = mem->Alloc<zonetool::h1::SoundFile>();
-							new_head->soundFile->exists = false;
-							new_head->soundFile->type = zonetool::h1::SAT_STREAMED;
-							new_head->soundFile->u.streamSnd.filename.info.raw.dir = "";
-							new_head->soundFile->u.streamSnd.filename.info.raw.name = "";
+							if (!convert_and_dump_streamed())
+							{
+								new_head->soundFile = mem->Alloc<zonetool::h1::SoundFile>();
+								new_head->soundFile->exists = false;
+								new_head->soundFile->type = zonetool::h1::SAT_STREAMED;
+								new_head->soundFile->u.streamSnd.filename.info.raw.dir = "";
+								new_head->soundFile->u.streamSnd.filename.info.raw.name = "";
+							}
 						}
 					}
 				}
