@@ -23,7 +23,7 @@ namespace csv
 	class parser_raw
 	{
 	private:
-		parser_info_raw raw_info{ 0 };
+		parser_info_raw raw_info{};
 
 	public:
 		parser_raw(const char* data, int data_len, char delimeter = ',');
@@ -52,7 +52,7 @@ namespace csv
 	{
 	private:
 		char path_buffer[0x100]{ 0 };
-		parser_info info{ 0 };
+		parser_info info{};
 		parser_raw* raw;
 
 	public:

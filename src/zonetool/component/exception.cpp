@@ -1,8 +1,6 @@
 #include <std_include.hpp>
 #include "loader/component_loader.hpp"
 
-#include "game/h2/game.hpp"
-
 #include "game/mode.hpp"
 
 #include <utils/hook.hpp>

@@ -7492,7 +7492,9 @@ namespace zonetool::h1
 
 	struct GfxDepthAndSurf
 	{
-		char __pad0[8];
+		short depthSort;
+		short pad;
+		int surfIndex;
 	}; assert_sizeof(GfxDepthAndSurf, 8);
 
 	typedef char* GfxWorldDpvsVoid;
