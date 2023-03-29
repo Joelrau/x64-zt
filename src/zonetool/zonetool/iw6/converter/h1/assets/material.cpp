@@ -161,8 +161,61 @@ matdata[#entry] = carr##entry;
 
 			std::unordered_map<std::uint8_t, std::uint8_t> mapped_sortkeys =
 			{
-				{1, 2},		// 
+				{0, 1},		// Opaque ambient
+				{1, 2},		// Opaque
 				{2, 3},		// Sky
+				{3, 4},		// Skybox sun/moon
+				{4, 5},		// Clouds  NOT SURE
+				{5, 6},		// Horizon NOT SURE
+				{6, 7},		// Decal bottom 1
+				{7, 8},		// Decal bottom 2
+				{8, 9},		// Decal bottom 3
+				{9, 10},	// Decal static
+				{10, 11},	// Decal mid 1
+				{11, 12},	// Decal mid 2
+				{12, 13},	// Decal mid 3
+				{13, 14},	// Weapon Impact
+				{14, 15},	// Decal top 1
+				{15, 16},	// Decal top 2
+				{16, 17},	// Decal top 3
+				{17, 19},	// Shadow
+				//{18, },	// ?
+				//{19, },	// ?
+				//{20, },	// ?
+				//{21, },	// ?
+				//{22, },	// ?
+				//{23, },	// ?
+				{24, 26},	// Window inside
+				{25, 27},	// Window outside
+				{26, 28},	// Cloud 1
+				{27, 29},	// Cloud 2
+				{28, 30},	// Cloud 3
+				{29, 31},	// Blend 1
+				{30, 32},	// Blend 2
+				{31, 33},	// Blend 3
+				//{32, },	// ?
+				//{33, },	// ?
+				{34, 38},	// Cloud dust?
+				//{35, 35},	// Opaque
+				//{36, },	// ?
+				//{37, },	// ?
+				//{38, },	// ?
+				//{39, },	// ?
+				//{40, },	// ?
+				//{41, },	// ?
+				//{42, },	// ?
+				{43, 48},	// Distortion
+				{44, 49},	// Distortion heavy
+				{45, 50},	// ?
+				{46, 51},	// ?
+				{47, 52},	// Effect 1
+				{48, 53},	// Effect 2
+				{49, 54},	// Effect 3
+				{50, 55},	// ?
+				{51, 56},	// ?
+				//{52, 57},	// ?
+				{53, 36},	// Viewmodel Effect
+				{54, 60},	// 2D
 			};
 
 			std::uint8_t convert_sortkey(std::uint8_t sortkey, std::string matname)
@@ -172,7 +225,7 @@ matdata[#entry] = carr##entry;
 					return mapped_sortkeys[sortkey];
 				}
 
-				//ZONETOOL_ERROR("Could not find mapped sortkey: %d (material: %s)", sortkey, matname.data());
+				ZONETOOL_ERROR("Could not find mapped sortkey: %d (material: %s)", sortkey, matname.data());
 
 				return sortkey;
 			}
@@ -275,10 +328,10 @@ matdata[#entry] = carr##entry;
 						}
 					}
 				}
-				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_ZPREPASS];
-				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS];
-				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS];
-				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS];
+				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_ZPREPASS];
+				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS];
+				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS];
+				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS];
 
 				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_SPOT_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_SPOT];
 				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_OMNI_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_OMNI];
@@ -328,10 +381,10 @@ matdata[#entry] = carr##entry;
 						}
 					}
 				}
-				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_ZPREPASS];
-				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS];
-				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS];
-				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS];
+				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_ZPREPASS];
+				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS];
+				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS];
+				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS];
 
 				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_SPOT_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_SPOT];
 				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_OMNI_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_OMNI];
