@@ -54,12 +54,13 @@ namespace zonetool::h2
 			return nullptr;
 		}
 
-		ZONETOOL_INFO("Parsing mapents \"%s\"...", name.data());
+		ZONETOOL_INFO("Parsing addonmapents \"%s\"...", name.data());
 
 		AddonMapEnts* ents = mem->Alloc<AddonMapEnts>();
 		ents->name = mem->StrDup(name);
 
 		parse_entityStrings(mem, name, &ents->entityString, &ents->numEntityChars);
+		IMapEnts::convert_ents(reinterpret_cast<MapEnts*>(ents), mem);
 
 		parse_triggers(mem, name, &ents->trigger);
 
