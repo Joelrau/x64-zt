@@ -450,7 +450,14 @@ namespace zonetool::h1
 			// dump data from soundfile
 			if (asset->filename.fileIndex)
 			{
-				auto soundfile_path = utils::string::va("soundfile%d.pak", asset->filename.fileIndex);
+				std::string soundfile_path = utils::string::va("soundfile%d.pak", asset->filename.fileIndex);
+				if (asset->filename.isLocalized)
+				{
+					soundfile_path = utils::string::va("%s/%s_%s",
+						::h1::game::SEH_GetCurrentLanguageName(),
+						::h1::game::SEH_GetCurrentLanguageCode(),
+						soundfile_path.data());
+				}
 				auto soundfile = filesystem::file(soundfile_path);
 				soundfile.open("rb", false, true);
 
@@ -493,7 +500,7 @@ namespace zonetool::h1
 						if (strncmp(reinterpret_cast<char*>(snd_data.data()), "RIFF", 4))
 						{
 							ZONETOOL_FATAL("%s: failed to get wave header from soundfile: %s, offset: %llu",
-								asset->name, soundfile_path, asset->filename.info.packed.offset);
+								asset->name, soundfile_path.data(), asset->filename.info.packed.offset);
 						}
 					}
 
@@ -502,7 +509,7 @@ namespace zonetool::h1
 				}
 				else
 				{
-					ZONETOOL_FATAL("%s: failed to open soundfile: %s", asset->name, soundfile_path);
+					ZONETOOL_FATAL("%s: failed to open soundfile: %s", asset->name, soundfile_path.data());
 				}
 			}
 			else

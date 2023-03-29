@@ -88,6 +88,7 @@ namespace s1
 		WEAK symbol<bool()> Sys_IsMainThread{ 0x1403E1880 };
 
 		WEAK symbol<const char* ()> SEH_GetCurrentLanguageName{ 0x1404745C0 };
+		WEAK symbol<const char* ()> SEH_GetCurrentLanguageCode{ 0x140474560 };
 
 		WEAK symbol<void* (unsigned int size, unsigned int alignment, unsigned int type, int source)> PMem_AllocFromSource_NoDebug{ 0x1404C7BA0 };
 		WEAK symbol<void* (unsigned int size)> Hunk_AllocateTempMemoryHighInternal{ 0x1404B68B0 };
