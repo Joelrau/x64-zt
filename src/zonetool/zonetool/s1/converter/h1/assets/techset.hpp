@@ -17,7 +17,6 @@ namespace zonetool::s1
 				void dump(MaterialTechniqueSet* asset, ZoneMemory* mem);
 			}
 
-			extern std::unordered_map <std::int32_t, std::int32_t> technique_index_map;
 			extern std::unordered_map<std::string, zonetool::h1::MaterialTechniqueSet*> converted_techset_assets;
 
 			zonetool::h1::MaterialTechniqueSet* convert(MaterialTechniqueSet* asset, ZoneMemory* mem);
