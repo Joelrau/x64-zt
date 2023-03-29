@@ -2,79 +2,17 @@
 #include "zonetool.hpp"
 #include "zone.hpp"
 #include "zonetool/utils/utils.hpp"
+#include "zonetool/utils/imagefile.hpp"
 
 #include <utils/io.hpp>
 
 #define FF_VERSION 565
+#define FF_HEADER "IWffu100"
+
+#define CUSTOM_IMAGEFILE_INDEX 69
 
 namespace zonetool::iw6
 {
-	namespace
-	{
-		void write_stream_files(std::vector<IGfxImage*> images, ZoneMemory* mem)
-		{
-			if (images.size() == 0)
-			{
-				return;
-			}
-
-			std::uint16_t current_index = 69; // unused imagefile index for iw6
-			std::string image_file_buffer;
-
-			const auto init_image_file = [&]
-			{
-				image_file_buffer.clear();
-
-				XPakHeader header{};
-				memcpy(header.header, "IWffu100", 8);
-				header.version = FF_VERSION;
-
-				image_file_buffer.append(reinterpret_cast<char*>(&header), sizeof(XPakHeader));
-			};
-
-			const auto write_image_file = [&]
-			{
-				const auto& fastfile = filesystem::get_fastfile();
-				const auto save_path = utils::io::directory_exists("zone") ? "zone/" : "";
-				const auto name = utils::string::va("%s%s.pak", save_path, fastfile.data(), current_index);
-				utils::io::write_file(name, image_file_buffer);
-				init_image_file();
-			};
-
-			init_image_file();
-
-			for (const auto& image : images)
-			{
-				for (auto i = 0; i < 4; i++)
-				{
-					if (image->image_stream_files[i])
-					{
-						continue;
-					}
-
-					image->image_stream_files[i] = mem->Alloc<XStreamFile>();
-
-					if (!image->image_stream_blocks[i].has_value())
-					{
-						continue;
-					}
-
-					const auto& data = image->image_stream_blocks[i].value();
-					const auto offset = image_file_buffer.size();
-					image_file_buffer.append(reinterpret_cast<const char*>(data.data()), data.size());
-					const auto offset_end = image_file_buffer.size();
-					image->image_stream_blocks[i].reset();
-
-					image->image_stream_files[i]->fileIndex = current_index;
-					image->image_stream_files[i]->offset = offset;
-					image->image_stream_files[i]->offsetEnd = offset_end;
-				}
-			}
-
-			write_image_file();
-		}
-	}
-
 	IAsset* Zone::find_asset(std::int32_t type, const std::string& name)
 	{
 		if (name.empty())
@@ -286,7 +224,12 @@ namespace zonetool::iw6
 				}
 			}
 
-			write_stream_files(images, this->m_zonemem.get());
+			if (images.size() > 0)
+			{
+				ZONETOOL_INFO("Writing imagefile...");
+				imagefile::generate(filesystem::get_fastfile(),
+					CUSTOM_IMAGEFILE_INDEX, FF_VERSION, FF_HEADER, images, this->m_zonemem.get());
+			}
 		}
 
 		// write zone header

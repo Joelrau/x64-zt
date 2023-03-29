@@ -2,10 +2,14 @@
 #include "zonetool.hpp"
 #include "zone.hpp"
 #include "zonetool/utils/utils.hpp"
+#include "zonetool/utils/imagefile.hpp"
 
 #include <utils/io.hpp>
 
 #define FF_VERSION 1838
+#define FF_HEADER "S1ffu100"
+
+#define CUSTOM_IMAGEFILE_INDEX 96
 
 #define COMPRESS_TYPE_LZ4 4
 #define COMPRESS_TYPE_ZLIB 1
@@ -15,72 +19,6 @@ static_assert(COMPRESS_TYPE == COMPRESS_TYPE_LZ4 || COMPRESS_TYPE == COMPRESS_TY
 
 namespace zonetool::s1
 {
-	namespace
-	{
-		void write_stream_files(std::vector<IGfxImage*> images, ZoneMemory* mem)
-		{
-			if (images.size() == 0)
-			{
-				return;
-			}
-
-			std::uint16_t current_index = 96; // unused imagefile index for s1
-			std::string image_file_buffer;
-
-			const auto init_image_file = [&]
-			{
-				image_file_buffer.clear();
-
-				XPakHeader header{};
-				std::strcat(header.header, "S1ffu100");
-				header.version = FF_VERSION;
-
-				image_file_buffer.append(reinterpret_cast<char*>(&header), sizeof(XPakHeader));
-			};
-
-			const auto write_image_file = [&]
-			{
-				const auto& fastfile = filesystem::get_fastfile();
-				const auto save_path = utils::io::directory_exists("zone") ? "zone/" : "";
-				const auto name = utils::string::va("%s%s.pak", save_path, fastfile.data(), current_index);
-				utils::io::write_file(name, image_file_buffer);
-				init_image_file();
-			};
-
-			init_image_file();
-
-			for (const auto& image : images)
-			{
-				for (auto i = 0; i < 4; i++)
-				{
-					if (image->image_stream_files[i])
-					{
-						continue;
-					}
-
-					image->image_stream_files[i] = mem->Alloc<XStreamFile>();
-
-					if (!image->image_stream_blocks[i].has_value())
-					{
-						continue;
-					}
-
-					const auto& data = image->image_stream_blocks[i].value();
-					const auto offset = image_file_buffer.size();
-					image_file_buffer.append(reinterpret_cast<const char*>(data.data()), data.size());
-					const auto offset_end = image_file_buffer.size();
-					image->image_stream_blocks[i].reset();
-
-					image->image_stream_files[i]->fileIndex = current_index;
-					image->image_stream_files[i]->offset = offset;
-					image->image_stream_files[i]->offsetEnd = offset_end;
-				}
-			}
-
-			write_image_file();
-		}
-	}
-
 	IAsset* Zone::find_asset(std::int32_t type, const std::string& name)
 	{
 		if (name.empty())
@@ -284,7 +222,6 @@ namespace zonetool::s1
 		auto zone = buf->at<XZoneMemory<num_streams>>();
 
 		{
-			// write imagefile
 			std::vector<IGfxImage*> images;
 			for (std::size_t i = 0; i < m_assets.size(); i++)
 			{
@@ -298,7 +235,12 @@ namespace zonetool::s1
 				}
 			}
 
-			write_stream_files(images, this->m_zonemem.get());
+			if (images.size() > 0)
+			{
+				ZONETOOL_INFO("Writing imagefile...");
+				imagefile::generate(filesystem::get_fastfile(),
+					CUSTOM_IMAGEFILE_INDEX, FF_VERSION, FF_HEADER, images, this->m_zonemem.get());
+			}
 		}
 
 		// write zone header
@@ -599,7 +541,7 @@ namespace zonetool::s1
 
 		// Generate FF header
 		auto header = this->m_zonemem->Alloc<XFileHeader>();
-		strcat(header->header, "S1ffu100");
+		strcat(header->header, FF_HEADER);
 		header->version = FF_VERSION;
 		header->compress = 1;
 		header->compressType = COMPRESS_TYPE; // 0 == INVALID, 1 == ZLIB, 3 == PASSTHROUGH, 4 == LZ4
