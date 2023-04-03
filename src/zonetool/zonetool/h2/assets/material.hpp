@@ -27,6 +27,7 @@ namespace zonetool::h2
 		std::int32_t type() override;
 		void write(IZone* zone, ZoneBuffer* buffer) override;
 
-		static void dump(Material* asset);
+		static void dump(Material* asset, 
+			const std::function<void*(int)>& get_gfx_globals_for_zone = GetXGfxGlobalsForZone);
 	};
 }

@@ -406,7 +406,7 @@ namespace zonetool::h2
 		buf->pop_stream();
 	}
 
-	void IMaterial::dump(Material* asset)
+	void IMaterial::dump(Material* asset, const std::function<void*(int)>& get_gfx_globals_for_zone)
 	{
 		// TODO: maybe add subMaterials?
 
@@ -422,7 +422,8 @@ namespace zonetool::h2
 			{
 				ITechset::dump_stateinfo(asset->techniqueSet->name, asset);
 				ITechset::dump_statebits(asset->techniqueSet->name, asset->stateBitsEntry);
-				ITechset::dump_statebits_map(asset->techniqueSet->name, asset->stateBitsTable, asset->stateBitsCount);
+				ITechset::dump_statebits_map(asset->techniqueSet->name, asset->stateBitsTable, asset->stateBitsCount,
+					get_gfx_globals_for_zone);
 
 				ITechset::dump_constant_buffer_indexes(asset->techniqueSet->name, asset->constantBufferIndex);
 				ITechset::dump_constant_buffer_def_array(asset->techniqueSet->name, asset->constantBufferCount, asset->constantBufferTable);

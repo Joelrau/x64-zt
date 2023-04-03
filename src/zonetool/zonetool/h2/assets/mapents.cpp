@@ -254,18 +254,18 @@ namespace zonetool::h2
 			clientTrigger->triggerStringLength = reader.read_int();
 			clientTrigger->triggerString = reader.read_array<char>();
 
-			clientTrigger->unk0 = reader.read_array<short>();
+			clientTrigger->visionSetTriggers = reader.read_array<short>();
+			clientTrigger->blendLookup = reader.read_array<short>();
 			clientTrigger->unk1 = reader.read_array<short>();
-			clientTrigger->unk2 = reader.read_array<short>();
 			clientTrigger->triggerType = reader.read_array<short>();
 			clientTrigger->origins = reader.read_array<vec3_t>();
 			clientTrigger->scriptDelay = reader.read_array<float>();
+			clientTrigger->audioTriggers = reader.read_array<short>();
+			clientTrigger->unk2 = reader.read_array<short>();
 			clientTrigger->unk3 = reader.read_array<short>();
 			clientTrigger->unk4 = reader.read_array<short>();
 			clientTrigger->unk5 = reader.read_array<short>();
 			clientTrigger->unk6 = reader.read_array<short>();
-			clientTrigger->unk7 = reader.read_array<short>();
-			//clientTrigger->unk8 = reader.read_array<short>();
 
 			reader.close();
 		}
@@ -434,84 +434,97 @@ namespace zonetool::h2
 			buf->write(data->clientTrigger.clientTriggerAabbTree, data->clientTrigger.numClientTriggerNodes);
 			ZoneBuffer::clear_pointer(&dest->clientTrigger.clientTriggerAabbTree);
 		}
+
 		if (data->clientTrigger.triggerString)
 		{
 			buf->align(0);
 			buf->write(data->clientTrigger.triggerString, data->clientTrigger.triggerStringLength);
 			ZoneBuffer::clear_pointer(&dest->clientTrigger.triggerString);
 		}
-		if (data->clientTrigger.unk0)
+
+		if (data->clientTrigger.visionSetTriggers)
 		{
 			buf->align(1);
-			buf->write(data->clientTrigger.unk0, data->clientTrigger.trigger.count);
-			ZoneBuffer::clear_pointer(&dest->clientTrigger.unk0);
+			buf->write(data->clientTrigger.visionSetTriggers, data->clientTrigger.trigger.count);
+			ZoneBuffer::clear_pointer(&dest->clientTrigger.visionSetTriggers);
 		}
+
+		if (data->clientTrigger.blendLookup)
+		{
+			buf->align(1);
+			buf->write(data->clientTrigger.blendLookup, data->clientTrigger.trigger.count);
+			ZoneBuffer::clear_pointer(&dest->clientTrigger.blendLookup);
+		}
+
 		if (data->clientTrigger.unk1)
 		{
 			buf->align(1);
 			buf->write(data->clientTrigger.unk1, data->clientTrigger.trigger.count);
 			ZoneBuffer::clear_pointer(&dest->clientTrigger.unk1);
 		}
-		if (data->clientTrigger.unk2)
-		{
-			buf->align(1);
-			buf->write(data->clientTrigger.unk2, data->clientTrigger.trigger.count);
-			ZoneBuffer::clear_pointer(&dest->clientTrigger.unk2);
-		}
+
 		if (data->clientTrigger.triggerType)
 		{
 			buf->align(1);
 			buf->write(data->clientTrigger.triggerType, data->clientTrigger.trigger.count);
 			ZoneBuffer::clear_pointer(&dest->clientTrigger.triggerType);
 		}
+
 		if (data->clientTrigger.origins)
 		{
 			buf->align(3);
 			buf->write(data->clientTrigger.origins, data->clientTrigger.trigger.count);
 			ZoneBuffer::clear_pointer(&dest->clientTrigger.origins);
 		}
+
 		if (data->clientTrigger.scriptDelay)
 		{
 			buf->align(3);
 			buf->write(data->clientTrigger.scriptDelay, data->clientTrigger.trigger.count);
 			ZoneBuffer::clear_pointer(&dest->clientTrigger.scriptDelay);
 		}
+
+		if (data->clientTrigger.audioTriggers)
+		{
+			buf->align(1);
+			buf->write(data->clientTrigger.audioTriggers, data->clientTrigger.trigger.count);
+			ZoneBuffer::clear_pointer(&dest->clientTrigger.audioTriggers);
+		}
+
+		if (data->clientTrigger.unk2)
+		{
+			buf->align(1);
+			buf->write(data->clientTrigger.unk2, data->clientTrigger.trigger.count);
+			ZoneBuffer::clear_pointer(&dest->clientTrigger.unk2);
+		}
+
 		if (data->clientTrigger.unk3)
 		{
 			buf->align(1);
 			buf->write(data->clientTrigger.unk3, data->clientTrigger.trigger.count);
 			ZoneBuffer::clear_pointer(&dest->clientTrigger.unk3);
 		}
+
 		if (data->clientTrigger.unk4)
 		{
 			buf->align(1);
 			buf->write(data->clientTrigger.unk4, data->clientTrigger.trigger.count);
 			ZoneBuffer::clear_pointer(&dest->clientTrigger.unk4);
 		}
+
 		if (data->clientTrigger.unk5)
 		{
 			buf->align(1);
 			buf->write(data->clientTrigger.unk5, data->clientTrigger.trigger.count);
 			ZoneBuffer::clear_pointer(&dest->clientTrigger.unk5);
 		}
+
 		if (data->clientTrigger.unk6)
 		{
 			buf->align(1);
 			buf->write(data->clientTrigger.unk6, data->clientTrigger.trigger.count);
 			ZoneBuffer::clear_pointer(&dest->clientTrigger.unk6);
 		}
-		if (data->clientTrigger.unk7)
-		{
-			buf->align(1);
-			buf->write(data->clientTrigger.unk7, data->clientTrigger.trigger.count);
-			ZoneBuffer::clear_pointer(&dest->clientTrigger.unk7);
-		}
-		/*if (data->clientTrigger.unk8)
-		{
-			buf->align(1);
-			buf->write(data->clientTrigger.unk8, data->clientTrigger.trigger.count);
-			ZoneBuffer::clear_pointer(&dest->clientTrigger.unk8);
-		}*/
 
 		if (data->clientTriggerBlend.blendNodes)
 		{
@@ -589,7 +602,8 @@ namespace zonetool::h2
 		}
 	}
 
-	void IMapEnts::dump_spawnList(const std::string& name, SpawnPointRecordList* spawnList)
+	void IMapEnts::dump_spawnList(const std::string& name, SpawnPointRecordList* spawnList, 
+		const std::function<const char*(unsigned int)>& convert_to_string)
 	{
 		const auto path = name + ".ents.spawnList"s;
 		auto file = filesystem::file(path);
@@ -604,10 +618,10 @@ namespace zonetool::h2
 
 		for (unsigned short i = 0; i < spawnList->spawnsCount; i++)
 		{
-			data[i]["name"] = SL_ConvertToString(spawnList->spawns[i].name);
-			data[i]["target"] = SL_ConvertToString(spawnList->spawns[i].target);
-			data[i]["script_noteworthy"] = SL_ConvertToString(spawnList->spawns[i].script_noteworthy);
-			data[i]["unknown"] = SL_ConvertToString(spawnList->spawns[i].unknown);
+			data[i]["name"] = convert_to_string(spawnList->spawns[i].name);
+			data[i]["target"] = convert_to_string(spawnList->spawns[i].target);
+			data[i]["script_noteworthy"] = convert_to_string(spawnList->spawns[i].script_noteworthy);
+			data[i]["unknown"] = convert_to_string(spawnList->spawns[i].unknown);
 			for (auto j = 0; j < 3; j++)
 			{
 				data[i]["origin"][j] = spawnList->spawns[i].origin[j];
@@ -652,18 +666,18 @@ namespace zonetool::h2
 			dumper.dump_int(clientTrigger->triggerStringLength);
 			dumper.dump_array(clientTrigger->triggerString, clientTrigger->triggerStringLength);
 
-			dumper.dump_array(clientTrigger->unk0, clientTrigger->trigger.count);
+			dumper.dump_array(clientTrigger->visionSetTriggers, clientTrigger->trigger.count);
+			dumper.dump_array(clientTrigger->blendLookup, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->unk1, clientTrigger->trigger.count);
-			dumper.dump_array(clientTrigger->unk2, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->triggerType, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->origins, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->scriptDelay, clientTrigger->trigger.count);
+			dumper.dump_array(clientTrigger->audioTriggers, clientTrigger->trigger.count);
+			dumper.dump_array(clientTrigger->unk2, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->unk3, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->unk4, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->unk5, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->unk6, clientTrigger->trigger.count);
-			dumper.dump_array(clientTrigger->unk7, clientTrigger->trigger.count);
-			//dumper.dump_array(clientTrigger->unk8, clientTrigger->trigger.count);
 
 			dumper.close();
 		}
@@ -700,13 +714,13 @@ namespace zonetool::h2
 		}
 	}
 
-	void IMapEnts::dump(MapEnts* asset)
+	void IMapEnts::dump(MapEnts* asset, const std::function<const char* (unsigned int)>& convert_to_string)
 	{
 		dump_entityStrings(asset->name, asset->entityString, asset->numEntityChars);
 		dump_triggers(asset->name, &asset->trigger);
 		dump_clientTriggers(asset->name, &asset->clientTrigger);
 		dump_clientBlendTriggers(asset->name, &asset->clientTriggerBlend);
-		dump_spawnList(asset->name, &asset->spawnList);
+		dump_spawnList(asset->name, &asset->spawnList, convert_to_string);
 		dump_splineList(asset->name, &asset->splineList);
 	}
 }

@@ -1,26 +1,79 @@
 #include <std_include.hpp>
 #include "mode.hpp"
 
+#include <utils/string.hpp>
+
 namespace game
 {
+	namespace
+	{
+		std::unordered_map<game_mode, std::string> game_mode_map =
+		{
+			{none, "none"},
+			{iw6, "iw6"},
+			{s1, "s1"},
+			{h1, "h1"},
+			{h2, "h2"},
+		};
+
+		std::string format_postfix(const std::string& name)
+		{
+			return "_" + name;
+		}
+	}
+
 	game_mode mode_{none};
 
 	std::string get_mode_as_string(game_mode mode)
 	{
-		switch (mode)
+		const auto iter = game_mode_map.find(mode);
+		if (iter != game_mode_map.end())
 		{
-		case none:
-			return "none";
-		case h1:
-			return "h1";
-		case h2:
-			return "h2";
-		case s1:
-			return "s1";
-		case iw6:
-			return "iw6";
+			return iter->second;
 		}
-		return {};
+
+		return "none";
+	}
+
+	game_mode get_mode_from_string(const std::string& name)
+	{
+		const auto lower = utils::string::to_lower(name);
+		for (const auto& [mode, game_name] : game_mode_map)
+		{
+			if (game_name == lower)
+			{
+				return mode;
+			}
+		}
+
+		return none;
+	}
+
+	game_mode get_source(const std::string& string)
+	{
+		for (const auto& [mode, name] : game_mode_map)
+		{
+			const auto postfix = format_postfix(name);
+			if (string.ends_with(postfix))
+			{
+				return mode;
+			}
+		}
+
+		return none;
+	}
+
+	std::string add_source_postfix(const std::string& string, const game_mode source)
+	{
+		const auto current = get_source(string);
+		if (current != none)
+		{
+			return string;
+		}
+
+		const auto game = get_mode_as_string(source);
+		const auto postfix = format_postfix(game);
+		return string + postfix;
 	}
 
 	std::string get_mode_as_string()

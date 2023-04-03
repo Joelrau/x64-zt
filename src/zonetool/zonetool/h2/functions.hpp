@@ -26,5 +26,5 @@ namespace zonetool::h2
 	WEAK::h2::game::symbol<bool(const char* zone, int source)> DB_FileExists{0x140412B50};
 	WEAK::h2::game::symbol<size_t(XAssetType type)> DB_GetXAssetTypeSize{0x1403E40D0};
 
-	WEAK::h2::game::symbol<char* (scr_string_t stringValue)> SL_ConvertToString{0x1405BFBB0};
+	WEAK::h2::game::symbol<char* (unsigned int stringValue)> SL_ConvertToString{0x1405BFBB0};
 }

@@ -8,6 +8,9 @@
 #include "csv.hpp"
 
 #include "shader.hpp"
+#include "game/mode.hpp"
+
+#include <utils/memory.hpp>
 
 #define JSON_DIAGNOSTICS 1
 #include "json.hpp"

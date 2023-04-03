@@ -13,6 +13,12 @@ namespace game
 
 	std::string get_mode_as_string();
 	std::string get_mode_as_string(game_mode mode);
+
+	game_mode get_mode_from_string(const std::string& name);
 	game_mode get_mode();
+
 	void set_mode(game_mode mode);
+
+	game_mode get_source(const std::string& string);
+	std::string add_source_postfix(const std::string& string, const game_mode source);
 }

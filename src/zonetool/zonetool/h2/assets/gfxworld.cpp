@@ -27,7 +27,7 @@ namespace zonetool::h2
 		}
 
 		asset->dpvsPlanes.planes = read.read_array<cplane_s>();
-		asset->dpvsPlanes.nodes = read.read_array<unsigned int>();
+		asset->dpvsPlanes.nodes = read.read_array<mnode_t>();
 		asset->dpvsPlanes.sceneEntCellBits = read.read_array<unsigned int>();
 
 		asset->aabbTreeCounts = read.read_array<GfxCellTreeCount>();
