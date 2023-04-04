@@ -35,7 +35,7 @@ jobs:
         uses: ammaraskar/msvc-problem-matcher@master
 
       - name: Build ${{matrix.configuration}} binaries
-        run: msbuild /m /v:minimal /p:Configuration=${{matrix.configuration}} /p:Platform=x64 build/zonetool.sln
+        run: msbuild /m /v:minimal /p:Configuration=${{matrix.configuration}} /p:Platform=x64 build/x64-zt.sln
 
       - name: Upload ${{matrix.configuration}} binaries
         uses: actions/upload-artifact@v3.1.0
