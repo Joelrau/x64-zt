@@ -3,7 +3,7 @@
 
 namespace zonetool::h1
 {
-	class IStructuredDataDefSet
+	class structured_data_def_set
 	{
 	private:
 		std::string name_;

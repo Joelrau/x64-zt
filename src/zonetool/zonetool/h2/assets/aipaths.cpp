@@ -60,17 +60,17 @@ namespace zonetool::h2
 		}
 	}
 
-	void write_node_tree_children(ZoneBuffer* buf, pathnode_tree_t* data, pathnode_tree_t** dest)
+	void write_node_tree_children(zone_buffer* buf, pathnode_tree_t* data, pathnode_tree_t** dest)
 	{
 		buf->align(3);
 		const auto tree = buf->write(data);
-		ZoneBuffer::clear_pointer(dest);
+		zone_buffer::clear_pointer(dest);
 
 		if (data->axis < 0)
 		{
 			buf->align(1);
 			buf->write(data->u.s.nodes, data->u.s.nodeCount);
-			ZoneBuffer::clear_pointer(&tree->u.s.nodes);
+			zone_buffer::clear_pointer(&tree->u.s.nodes);
 		}
 		else
 		{
@@ -84,13 +84,13 @@ namespace zonetool::h2
 		}
 	}
 
-	void write_node_tree(ZoneBuffer* buf, pathnode_tree_t* data, pathnode_tree_t* dest)
+	void write_node_tree(zone_buffer* buf, pathnode_tree_t* data, pathnode_tree_t* dest)
 	{
 		if (data->axis < 0)
 		{
 			buf->align(1);
 			buf->write(data->u.s.nodes, data->u.s.nodeCount);
-			ZoneBuffer::clear_pointer(&data->u.s.nodes);
+			zone_buffer::clear_pointer(&data->u.s.nodes);
 		}
 		else
 		{
@@ -119,7 +119,7 @@ namespace zonetool::h2
 			buf->write_scriptstring(this->get_script_string(&data->nodes[i].constant.__field__))); \
 	} \
 
-	PathData* IAIPaths::parse(const std::string& name, ZoneMemory* mem)
+	PathData* IAIPaths::parse(const std::string& name, zone_memory* mem)
 	{
 		assetmanager::reader read(mem);
 
@@ -179,25 +179,25 @@ namespace zonetool::h2
 		return asset;
 	}
 
-	void IAIPaths::init(const std::string& name, ZoneMemory* mem)
+	void IAIPaths::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
 		this->asset_ = parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name_.data()).aipaths;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name_.data()).aipaths;
 		}
 	}
 
-	void IAIPaths::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void IAIPaths::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 		auto* data = this->asset_;
 
@@ -218,7 +218,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void IAIPaths::load_depending(IZone* zone)
+	void IAIPaths::load_depending(zone_base* zone)
 	{
 	}
 
@@ -232,7 +232,7 @@ namespace zonetool::h2
 		return ASSET_TYPE_AIPATHS;
 	}
 
-	void IAIPaths::write(IZone* zone, ZoneBuffer* buf)
+	void IAIPaths::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		
@@ -251,17 +251,17 @@ namespace zonetool::h2
 			{
 				buf->align(3);
 				buf->write(data->nodes[i].constant.Links, data->nodes[i].constant.totalLinkCount);
-				ZoneBuffer::clear_pointer(&dest->nodes[i].constant.Links);
+				zone_buffer::clear_pointer(&dest->nodes[i].constant.Links);
 			}
 
-			ZoneBuffer::clear_pointer(&dest->nodes);
+			zone_buffer::clear_pointer(&dest->nodes);
 		}
 
 		if (data->pathVis)
 		{
 			buf->align(0);
 			buf->write(data->pathVis, data->visBytes);
-			ZoneBuffer::clear_pointer(&dest->pathVis);
+			zone_buffer::clear_pointer(&dest->pathVis);
 		}
 
 		if (data->nodeTree)
@@ -274,7 +274,7 @@ namespace zonetool::h2
 				write_node_tree(buf, &data->nodeTree[i], &dest_trees[i]);
 			}
 
-			ZoneBuffer::clear_pointer(&dest->nodeTree);
+			zone_buffer::clear_pointer(&dest->nodeTree);
 		}
 
 		if (data->dynamicNodeGroups)
@@ -293,39 +293,39 @@ namespace zonetool::h2
 					{
 						write_node_tree(buf, &data->dynamicNodeGroups[i].nodeTree[o], &dest_trees[o]);
 					}
-					ZoneBuffer::clear_pointer(dest->dynamicNodeGroups[i].nodeTree);
+					zone_buffer::clear_pointer(dest->dynamicNodeGroups[i].nodeTree);
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->dynamicNodeGroups);
+			zone_buffer::clear_pointer(&dest->dynamicNodeGroups);
 		}
 
 		if (data->pathExposure)
 		{
 			buf->align(0);
 			buf->write(data->pathExposure, data->exposureBytes);
-			ZoneBuffer::clear_pointer(dest->pathExposure);
+			zone_buffer::clear_pointer(dest->pathExposure);
 		}
 
 		if (data->pathNoPeekVis)
 		{
 			buf->align(0);
 			buf->write(data->pathNoPeekVis, data->noPeekVisBytes);
-			ZoneBuffer::clear_pointer(dest->pathNoPeekVis);
+			zone_buffer::clear_pointer(dest->pathNoPeekVis);
 		}
 
 		if (data->pathZones)
 		{
 			buf->align(0);
 			buf->write(data->pathZones, data->zonesBytes);
-			ZoneBuffer::clear_pointer(dest->pathZones);
+			zone_buffer::clear_pointer(dest->pathZones);
 		}
 
 		if (data->pathDynStates)
 		{
 			buf->align(0);
 			buf->write(data->pathDynStates, data->dynStatesBytes);
-			ZoneBuffer::clear_pointer(dest->pathDynStates);
+			zone_buffer::clear_pointer(dest->pathDynStates);
 		}
 
 		buf->pop_stream();

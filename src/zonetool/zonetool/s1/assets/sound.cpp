@@ -289,11 +289,11 @@ namespace zonetool::s1
 
 #define SOUND_SUBASSET(entry, __type__) \
 	if (!snddata[#entry].is_null()) { \
-		asset->entry = mem->Alloc<__type__>(); \
-		asset->entry->name = mem->StrDup(snddata[#entry].get<std::string>().data()); }
+		asset->entry = mem->allocate<__type__>(); \
+		asset->entry->name = mem->duplicate_string(snddata[#entry].get<std::string>().data()); }
 #define SOUND_STRING(entry) \
 	if (!snddata[#entry].is_null()) { \
-		asset->entry = mem->StrDup(snddata[#entry].get<std::string>().data()); \
+		asset->entry = mem->duplicate_string(snddata[#entry].get<std::string>().data()); \
 	} else { asset->entry = nullptr; }
 #define SOUND_CHAR(entry) \
 	asset->entry = snddata[#entry].get<char>()
@@ -304,7 +304,7 @@ namespace zonetool::s1
 #define SOUND_FLOAT(entry) \
 	asset->entry = snddata[#entry].get<float>()
 
-	void ISound::json_parse_snd_alias(snd_alias_t* asset, nlohmann::json snddata, ZoneMemory* mem)
+	void sound::json_parse_snd_alias(snd_alias_t* asset, nlohmann::json snddata, zone_memory* mem)
 	{
 		SOUND_STRING(aliasName);
 		SOUND_STRING(secondaryAliasName);
@@ -312,14 +312,14 @@ namespace zonetool::s1
 		SOUND_STRING(subtitle);
 		SOUND_STRING(mixerGroup);
 
-		asset->soundFile = mem->Alloc<SoundFile>();
+		asset->soundFile = mem->allocate<SoundFile>();
 		asset->soundFile->type = snddata["soundfile"]["type"].get<snd_alias_type_t>();
 		asset->soundFile->exists = snddata["soundfile"]["exists"].get<bool>();
 
 		if (asset->soundFile->type == SAT_LOADED)
 		{
-			asset->soundFile->u.loadSnd = mem->Alloc<LoadedSound>();
-			asset->soundFile->u.loadSnd->name = mem->StrDup(snddata["soundfile"]["name"].get<std::string>().data());
+			asset->soundFile->u.loadSnd = mem->allocate<LoadedSound>();
+			asset->soundFile->u.loadSnd->name = mem->duplicate_string(snddata["soundfile"]["name"].get<std::string>().data());
 		}
 		else if (asset->soundFile->type == SAT_STREAMED)
 		{
@@ -334,8 +334,8 @@ namespace zonetool::s1
 			}
 			else
 			{
-				asset->soundFile->u.streamSnd.filename.info.raw.dir = mem->StrDup(snddata["soundfile"]["raw"]["dir"].get<std::string>().data());
-				asset->soundFile->u.streamSnd.filename.info.raw.name = mem->StrDup(snddata["soundfile"]["raw"]["name"].get<std::string>().data());
+				asset->soundFile->u.streamSnd.filename.info.raw.dir = mem->duplicate_string(snddata["soundfile"]["raw"]["dir"].get<std::string>().data());
+				asset->soundFile->u.streamSnd.filename.info.raw.name = mem->duplicate_string(snddata["soundfile"]["raw"]["name"].get<std::string>().data());
 			}
 		}
 		else if (asset->soundFile->type == SAT_PRIMED)
@@ -390,10 +390,10 @@ namespace zonetool::s1
 
 		if (!snddata["speakerMap"].is_null())
 		{
-			asset->speakerMap = mem->Alloc<SpeakerMap>();
+			asset->speakerMap = mem->allocate<SpeakerMap>();
 			json speakerMap = snddata["speakerMap"];
 
-			asset->speakerMap->name = mem->StrDup(speakerMap["name"].get<std::string>().data());
+			asset->speakerMap->name = mem->duplicate_string(speakerMap["name"].get<std::string>().data());
 			asset->speakerMap->isDefault = speakerMap["isDefault"].get<bool>();
 
 			if (!speakerMap["channelMaps"].is_null())
@@ -449,7 +449,7 @@ namespace zonetool::s1
 		}
 	}
 
-	snd_alias_list_t* ISound::json_parse(const std::string& name, ZoneMemory* mem)
+	snd_alias_list_t* sound::json_parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = "sounds\\"s + name + ".json"s;
 		auto file = filesystem::file(path);
@@ -465,12 +465,12 @@ namespace zonetool::s1
 
 			json snddata = json::parse(bytes);
 
-			snd_alias_list_t* asset = mem->Alloc<snd_alias_list_t>();
+			snd_alias_list_t* asset = mem->allocate<snd_alias_list_t>();
 
 			SOUND_STRING(aliasName);
 			SOUND_CHAR(count);
 
-			asset->head = mem->Alloc<snd_alias_t>(asset->count);
+			asset->head = mem->allocate<snd_alias_t>(asset->count);
 
 			json heads = snddata["head"];
 			for (unsigned char i = 0; i < asset->count; i++)
@@ -482,7 +482,7 @@ namespace zonetool::s1
 			if (context_list.is_array())
 			{
 				asset->contextListCount = static_cast<unsigned char>(context_list.size());
-				asset->contextList = mem->Alloc<snd_alias_context_list>(asset->contextListCount);
+				asset->contextList = mem->allocate<snd_alias_context_list>(asset->contextListCount);
 
 				for (unsigned char i = 0; i < asset->contextListCount; i++)
 				{
@@ -496,33 +496,33 @@ namespace zonetool::s1
 		return nullptr;
 	}
 
-	snd_alias_list_t* ISound::parse(const std::string& name, ZoneMemory* mem)
+	snd_alias_list_t* sound::parse(const std::string& name, zone_memory* mem)
 	{
 		return json_parse(name, mem);
 	}
 
-	void ISound::init(const std::string& name, ZoneMemory* mem)
+	void sound::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
 		this->asset_ = this->parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name().data()).sound;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).sound;
 		}
 	}
 
-	void ISound::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void sound::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void ISound::load_depending(IZone* zone)
+	void sound::load_depending(zone_base* zone)
 	{
 		auto* data = this->asset_;
 
@@ -570,17 +570,17 @@ namespace zonetool::s1
 		}
 	}
 
-	std::string ISound::name()
+	std::string sound::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t ISound::type()
+	std::int32_t sound::type()
 	{
 		return ASSET_TYPE_SOUND;
 	}
 
-	void ISound::write_soundfile(IZone* zone, ZoneBuffer* buf, SoundFile* data)
+	void sound::write_soundfile(zone_base* zone, zone_buffer* buf, SoundFile* data)
 	{
 		auto* dest = buf->write(data);
 
@@ -630,7 +630,7 @@ namespace zonetool::s1
 		}
 	}
 
-	void ISound::write_head(IZone* zone, ZoneBuffer* buf, snd_alias_t* dest)
+	void sound::write_head(zone_base* zone, zone_buffer* buf, snd_alias_t* dest)
 	{
 		auto* data = dest;
 
@@ -663,7 +663,7 @@ namespace zonetool::s1
 		{
 			buf->align(3);
 			write_soundfile(zone, buf, data->soundFile);
-			ZoneBuffer::clear_pointer(&dest->soundFile);
+			zone_buffer::clear_pointer(&dest->soundFile);
 		}
 
 		if (data->sndContext)
@@ -700,7 +700,7 @@ namespace zonetool::s1
 				speaker_map->name = buf->write_str(speaker_map->name);
 			}
 
-			ZoneBuffer::clear_pointer(&dest->speakerMap);
+			zone_buffer::clear_pointer(&dest->speakerMap);
 		}
 
 		if (data->dopplerPreset)
@@ -710,7 +710,7 @@ namespace zonetool::s1
 		}
 	}
 
-	void ISound::write(IZone* zone, ZoneBuffer* buf)
+	void sound::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
@@ -729,20 +729,20 @@ namespace zonetool::s1
 				write_head(zone, buf, &dest_sound[i]);
 			}
 
-			ZoneBuffer::clear_pointer(&dest->head);
+			zone_buffer::clear_pointer(&dest->head);
 		}
 
 		if (data->contextList)
 		{
 			buf->align(1);
 			buf->write(data->contextList, data->contextListCount);
-			ZoneBuffer::clear_pointer(&dest->contextList);
+			zone_buffer::clear_pointer(&dest->contextList);
 		}
 
 		buf->pop_stream();
 	}
 
-	void ISound::json_dump_snd_alias(ordered_json& sound, snd_alias_t* asset)
+	void sound::json_dump_snd_alias(ordered_json& sound, snd_alias_t* asset)
 	{
 		SOUND_DUMP_STRING(aliasName);
 		SOUND_DUMP_STRING(secondaryAliasName);
@@ -936,7 +936,7 @@ namespace zonetool::s1
 		sound["unknown"]["u2"] = asset->u2;
 	}
 
-	void ISound::json_dump(snd_alias_list_t* asset)
+	void sound::json_dump(snd_alias_list_t* asset)
 	{
 		const auto path = "sounds\\"s + asset->name + ".json"s;
 
@@ -967,7 +967,7 @@ namespace zonetool::s1
 		file.close();
 	}
 
-	void ISound::dump(snd_alias_list_t* asset)
+	void sound::dump(snd_alias_list_t* asset)
 	{
 		json_dump(asset);
 	}

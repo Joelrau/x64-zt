@@ -10,20 +10,20 @@ namespace zonetool::s1
 	{
 		namespace hullshader
 		{
-			zonetool::h1::MaterialHullShader* convert(MaterialHullShader* asset, ZoneMemory* mem)
+			zonetool::h1::MaterialHullShader* convert(MaterialHullShader* asset, zone_memory* mem)
 			{
-				auto* new_asset = mem->Alloc<zonetool::h1::MaterialHullShader>();
+				auto* new_asset = mem->allocate<zonetool::h1::MaterialHullShader>();
 
 				std::memcpy(new_asset, asset, sizeof(MaterialHullShader));
-				new_asset->name = mem->StrDup(asset->name + TECHSET_PREFIX);
+				new_asset->name = mem->duplicate_string(asset->name + TECHSET_PREFIX);
 
 				return new_asset;
 			}
 
-			void dump(MaterialHullShader* asset, ZoneMemory* mem)
+			void dump(MaterialHullShader* asset, zone_memory* mem)
 			{
 				auto* converted_asset = convert(asset, mem);
-				zonetool::h1::IHullShader::dump(converted_asset);
+				zonetool::h1::hull_shader::dump(converted_asset);
 			}
 		}
 	}

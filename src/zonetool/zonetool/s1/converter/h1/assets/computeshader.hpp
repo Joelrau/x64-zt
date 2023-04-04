@@ -6,8 +6,8 @@ namespace zonetool::s1
 	{
 		namespace computeshader
 		{
-			zonetool::h1::ComputeShader* convert(ComputeShader* asset, ZoneMemory* mem);
-			void dump(ComputeShader* asset, ZoneMemory* mem);
+			zonetool::h1::ComputeShader* convert(ComputeShader* asset, zone_memory* mem);
+			void dump(ComputeShader* asset, zone_memory* mem);
 		}
 	}
 }

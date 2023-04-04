@@ -3,7 +3,7 @@
 
 namespace zonetool::iw6
 {
-	MaterialVertexDeclaration* IVertexDecl::parse(const std::string& name, ZoneMemory* mem)
+	MaterialVertexDeclaration* vertex_decl::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = "techsets\\" + name + ".vertexdecl";
 
@@ -22,21 +22,21 @@ namespace zonetool::iw6
 		return asset;
 	}
 
-	void IVertexDecl::init(const std::string& name, ZoneMemory* mem)
+	void vertex_decl::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
 		this->asset_ = this->parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name().data()).vertexDecl;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).vertexDecl;
 
 			if (DB_IsXAssetDefault(XAssetType(this->type()), this->name().data()))
 			{
@@ -45,25 +45,25 @@ namespace zonetool::iw6
 		}
 	}
 
-	void IVertexDecl::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void vertex_decl::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IVertexDecl::load_depending(IZone* zone)
+	void vertex_decl::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string IVertexDecl::name()
+	std::string vertex_decl::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IVertexDecl::type()
+	std::int32_t vertex_decl::type()
 	{
 		return ASSET_TYPE_VERTEXDECL;
 	}
 
-	void IVertexDecl::write(IZone* zone, ZoneBuffer* buf)
+	void vertex_decl::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		auto dest = buf->write(data);
@@ -75,7 +75,7 @@ namespace zonetool::iw6
 		buf->pop_stream();
 	}
 
-	void IVertexDecl::dump(MaterialVertexDeclaration* asset)
+	void vertex_decl::dump(MaterialVertexDeclaration* asset)
 	{
 		const auto path = "techsets\\"s + asset->name + ".vertexdecl"s;
 

@@ -5,7 +5,7 @@ namespace zonetool::h1
 {
 	namespace
 	{
-		MaterialHullShader* parse_legacy(const std::string& name, ZoneMemory* mem)
+		MaterialHullShader* parse_legacy(const std::string& name, zone_memory* mem)
 		{
 			const auto path = "techsets\\" + name + ".hullshader";
 
@@ -26,7 +26,7 @@ namespace zonetool::h1
 		}
 	}
 
-	MaterialHullShader* IHullShader::parse(const std::string& name, ZoneMemory* mem)
+	MaterialHullShader* hull_shader::parse(const std::string& name, zone_memory* mem)
 	{
 		auto* legacy_parsed = parse_legacy(name, mem);
 		if (legacy_parsed) return legacy_parsed;
@@ -45,10 +45,10 @@ namespace zonetool::h1
 		const auto buffer_size = file.size();
 		const auto buffer = file.read_bytes(buffer_size);
 
-		auto* asset = mem->Alloc<MaterialHullShader>();
-		asset->name = mem->StrDup(name);
+		auto* asset = mem->allocate<MaterialHullShader>();
+		asset->name = mem->duplicate_string(name);
 		asset->prog.loadDef.programSize = static_cast<unsigned int>(buffer_size);
-		asset->prog.loadDef.program = mem->Alloc<unsigned char>(buffer_size);
+		asset->prog.loadDef.program = mem->allocate<unsigned char>(buffer_size);
 		memcpy(asset->prog.loadDef.program, buffer.data(), buffer_size);
 		asset->prog.loadDef.__pad;
 
@@ -57,21 +57,21 @@ namespace zonetool::h1
 		return asset;
 	}
 
-	void IHullShader::init(const std::string& name, ZoneMemory* mem)
+	void hull_shader::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
 		this->asset_ = this->parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name().data()).hullShader;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).hullShader;
 
 			if (DB_IsXAssetDefault(XAssetType(this->type()), this->name().data()))
 			{
@@ -80,25 +80,25 @@ namespace zonetool::h1
 		}
 	}
 
-	void IHullShader::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void hull_shader::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IHullShader::load_depending(IZone* zone)
+	void hull_shader::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string IHullShader::name()
+	std::string hull_shader::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IHullShader::type()
+	std::int32_t hull_shader::type()
 	{
 		return ASSET_TYPE_HULLSHADER;
 	}
 
-	void IHullShader::write(IZone* zone, ZoneBuffer* buf)
+	void hull_shader::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		auto dest = buf->write(data);
@@ -116,7 +116,7 @@ namespace zonetool::h1
 		buf->pop_stream();
 	}
 
-	void IHullShader::dump(MaterialHullShader* asset)
+	void hull_shader::dump(MaterialHullShader* asset)
 	{
 		const auto path = "techsets\\hs\\"s + asset->name + ".cso"s;
 

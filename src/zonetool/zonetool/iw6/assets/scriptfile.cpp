@@ -4,7 +4,7 @@
 
 namespace zonetool::iw6
 {
-	ScriptFile* IScriptFile::parse(const std::string& name, ZoneMemory* mem)
+	ScriptFile* scriptfile::parse(const std::string& name, zone_memory* mem)
 	{
 		auto file = filesystem::file(utils::string::va("%s.gscbin", name.data()));
 		file.open("rb");
@@ -12,18 +12,18 @@ namespace zonetool::iw6
 
 		if (fp)
 		{
-			auto* asset = mem->Alloc<ScriptFile>();
+			auto* asset = mem->allocate<ScriptFile>();
 
 			std::string m_name;
 			file.read_string(&m_name);
-			asset->name = mem->StrDup(m_name);
+			asset->name = mem->duplicate_string(m_name);
 
 			file.read(&asset->compressedLen);
 			file.read(&asset->len);
 			file.read(&asset->bytecodeLen);
 
-			asset->buffer = mem->Alloc<char>(asset->compressedLen);
-			asset->bytecode = mem->Alloc<char>(asset->bytecodeLen);
+			asset->buffer = mem->allocate<char>(asset->compressedLen);
+			asset->bytecode = mem->allocate<char>(asset->bytecodeLen);
 			file.read(asset->buffer, asset->compressedLen);
 			file.read(asset->bytecode, asset->bytecodeLen);
 
@@ -33,14 +33,14 @@ namespace zonetool::iw6
 		return nullptr;
 	}
 
-	void IScriptFile::init(const std::string& name, ZoneMemory* mem)
+	void scriptfile::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
@@ -51,25 +51,25 @@ namespace zonetool::iw6
 		}
 	}
 
-	void IScriptFile::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void scriptfile::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IScriptFile::load_depending(IZone* zone)
+	void scriptfile::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string IScriptFile::name()
+	std::string scriptfile::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IScriptFile::type()
+	std::int32_t scriptfile::type()
 	{
 		return ASSET_TYPE_SCRIPTFILE;
 	}
 
-	void IScriptFile::write(IZone* zone, ZoneBuffer* buf)
+	void scriptfile::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write<ScriptFile>(data);
@@ -83,13 +83,13 @@ namespace zonetool::iw6
 		if (data->buffer)
 		{
 			buf->write(data->buffer, data->compressedLen);
-			ZoneBuffer::clear_pointer(&dest->buffer);
+			zone_buffer::clear_pointer(&dest->buffer);
 		}
 
 		if (data->bytecode)
 		{
 			buf->write(data->bytecode, data->bytecodeLen);
-			ZoneBuffer::clear_pointer(&dest->bytecode);
+			zone_buffer::clear_pointer(&dest->bytecode);
 		}
 
 		buf->pop_stream();
@@ -97,7 +97,7 @@ namespace zonetool::iw6
 		buf->pop_stream();
 	}
 
-	void IScriptFile::dump(ScriptFile* asset)
+	void scriptfile::dump(ScriptFile* asset)
 	{
 		auto file = filesystem::file(utils::string::va("%s.gscbin", asset->name));
 		file.open("wb");

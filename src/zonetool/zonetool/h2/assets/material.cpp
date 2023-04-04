@@ -53,9 +53,9 @@ namespace zonetool::h2
 		}
 	}
 
-	MaterialTextureDef* IMaterial::prase_texture_table(json& matdata, ZoneMemory* mem)
+	MaterialTextureDef* material::prase_texture_table(json& matdata, zone_memory* mem)
 	{
-		auto mat = mem->Alloc<MaterialTextureDef>(matdata.size());
+		auto mat = mem->allocate<MaterialTextureDef>(matdata.size());
 
 		for (std::size_t i = 0; i < matdata.size(); i++)
 		{
@@ -72,7 +72,7 @@ namespace zonetool::h2
 		return mat;
 	}
 
-	Material* IMaterial::parse(std::string name, ZoneMemory* mem)
+	Material* material::parse(std::string name, zone_memory* mem)
 	{
 		auto c_name = clean_name(name);
 
@@ -92,8 +92,8 @@ namespace zonetool::h2
 
 		json matdata = json::parse(bytes);
 
-		auto mat = mem->Alloc<Material>();
-		mat->name = mem->StrDup(name);
+		auto mat = mem->allocate<Material>();
+		mat->name = mem->duplicate_string(name);
 
 		mat->info.gameFlags = matdata["gameFlags"].get<unsigned char>();
 		mat->info.sortKey = matdata["sortKey"].get<unsigned char>();
@@ -128,7 +128,7 @@ namespace zonetool::h2
 		json constantTable = matdata["constantTable"];
 		if (constantTable.size() > 0)
 		{
-			auto constant_def = mem->Alloc<MaterialConstantDef>(constantTable.size());
+			auto constant_def = mem->allocate<MaterialConstantDef>(constantTable.size());
 			for (int i = 0; i < constantTable.size(); i++)
 			{
 				strcat(constant_def[i].name, constantTable[i]["name"].get<std::string>().data());
@@ -148,15 +148,15 @@ namespace zonetool::h2
 
 		if (mat->techniqueSet)
 		{
-			ITechset::parse_stateinfo(mat->techniqueSet->name, mat, mem);
-			ITechset::parse_statebits(mat->techniqueSet->name, mat->stateBitsEntry, mem);
-			ITechset::parse_statebitsmap(mat->techniqueSet->name, &mat->stateBitsTable, &mat->stateBitsCount,
+			techset::parse_stateinfo(mat->techniqueSet->name, mat, mem);
+			techset::parse_statebits(mat->techniqueSet->name, mat->stateBitsEntry, mem);
+			techset::parse_statebitsmap(mat->techniqueSet->name, &mat->stateBitsTable, &mat->stateBitsCount,
 				&this->depth_stenchil_state_bits,
 				&this->blend_state_bits,
 				mem);
 
-			ITechset::parse_constant_buffer_indexes(mat->techniqueSet->name, mat->constantBufferIndex, mem);
-			ITechset::parse_constant_buffer_def_array(mat->techniqueSet->name, &mat->constantBufferTable, &mat->constantBufferCount, mem);
+			techset::parse_constant_buffer_indexes(mat->techniqueSet->name, mat->constantBufferIndex, mem);
+			techset::parse_constant_buffer_def_array(mat->techniqueSet->name, &mat->constantBufferTable, &mat->constantBufferCount, mem);
 		}
 
 		auto max_state_index = 0;
@@ -203,21 +203,21 @@ namespace zonetool::h2
 		return mat;
 	}
 
-	void IMaterial::init(const std::string& name, ZoneMemory* mem)
+	void material::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
 		this->asset_ = this->parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name_.data()).material;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name_.data()).material;
 
 			if (DB_IsXAssetDefault(XAssetType(this->type()), this->name_.data()))
 			{
@@ -246,7 +246,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void IMaterial::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void material::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 		auto material = this->asset_;
 
@@ -260,7 +260,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void IMaterial::load_depending(IZone* zone)
+	void material::load_depending(zone_base* zone)
 	{
 		auto data = this->asset_;
 
@@ -278,17 +278,17 @@ namespace zonetool::h2
 		}
 	}
 
-	std::string IMaterial::name()
+	std::string material::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IMaterial::type()
+	std::int32_t material::type()
 	{
 		return ASSET_TYPE_MATERIAL;
 	}
 
-	void IMaterial::write(IZone* zone, ZoneBuffer* buf)
+	void material::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		auto dest = buf->write(data);
@@ -327,14 +327,14 @@ namespace zonetool::h2
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->textureTable);
+			zone_buffer::clear_pointer(&dest->textureTable);
 		}
 
 		if (data->constantTable)
 		{
 			/*buf->align(15);
 			dest->constantTable = buf->write(data->constantTable, data->constantCount);
-			ZoneBuffer::clear_pointer(&dest->constantTable);*/
+			zone_buffer::clear_pointer(&dest->constantTable);*/
 			dest->constantTable = buf->write_s(15, data->constantTable, data->constantCount);
 		}
 
@@ -342,7 +342,7 @@ namespace zonetool::h2
 		{
 			/*buf->align(3);
 			dest->stateMap = buf->write(data->stateMap, data->stateBitsCount);
-			ZoneBuffer::clear_pointer(&dest->stateMap);*/
+			zone_buffer::clear_pointer(&dest->stateMap);*/
 			dest->stateBitsTable = buf->write_s(3, data->stateBitsTable, data->stateBitsCount);
 		}
 
@@ -389,7 +389,7 @@ namespace zonetool::h2
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->constantBufferTable);
+			zone_buffer::clear_pointer(&dest->constantBufferTable);
 		}
 
 		if (data->subMaterials)
@@ -400,13 +400,13 @@ namespace zonetool::h2
 			{
 				dest->subMaterials[i] = buf->write_str(data->subMaterials[i]);
 			}
-			ZoneBuffer::clear_pointer(&dest->subMaterials);
+			zone_buffer::clear_pointer(&dest->subMaterials);
 		}
 
 		buf->pop_stream();
 	}
 
-	void IMaterial::dump(Material* asset)
+	void material::dump(Material* asset)
 	{
 		// TODO: maybe add subMaterials?
 
@@ -420,12 +420,12 @@ namespace zonetool::h2
 
 			if (asset && asset->techniqueSet)
 			{
-				ITechset::dump_stateinfo(asset->techniqueSet->name, asset);
-				ITechset::dump_statebits(asset->techniqueSet->name, asset->stateBitsEntry);
-				ITechset::dump_statebits_map(asset->techniqueSet->name, asset->stateBitsTable, asset->stateBitsCount);
+				techset::dump_stateinfo(asset->techniqueSet->name, asset);
+				techset::dump_statebits(asset->techniqueSet->name, asset->stateBitsEntry);
+				techset::dump_statebits_map(asset->techniqueSet->name, asset->stateBitsTable, asset->stateBitsCount);
 
-				ITechset::dump_constant_buffer_indexes(asset->techniqueSet->name, asset->constantBufferIndex);
-				ITechset::dump_constant_buffer_def_array(asset->techniqueSet->name, asset->constantBufferCount, asset->constantBufferTable);
+				techset::dump_constant_buffer_indexes(asset->techniqueSet->name, asset->constantBufferIndex);
+				techset::dump_constant_buffer_def_array(asset->techniqueSet->name, asset->constantBufferCount, asset->constantBufferTable);
 			}
 
 			ordered_json matdata;

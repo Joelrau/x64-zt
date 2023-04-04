@@ -3,7 +3,7 @@
 
 namespace zonetool::s1
 {
-	MaterialPixelShader* IPixelShader::parse(const std::string& name, ZoneMemory* mem)
+	MaterialPixelShader* pixel_shader::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = "techsets\\" + name + ".pixelshader";
 
@@ -23,21 +23,21 @@ namespace zonetool::s1
 		return asset;
 	}
 
-	void IPixelShader::init(const std::string& name, ZoneMemory* mem)
+	void pixel_shader::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
 		this->asset_ = this->parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name().data()).pixelShader;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).pixelShader;
 
 			if (DB_IsXAssetDefault(XAssetType(this->type()), this->name().data()))
 			{
@@ -46,25 +46,25 @@ namespace zonetool::s1
 		}
 	}
 
-	void IPixelShader::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void pixel_shader::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IPixelShader::load_depending(IZone* zone)
+	void pixel_shader::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string IPixelShader::name()
+	std::string pixel_shader::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IPixelShader::type()
+	std::int32_t pixel_shader::type()
 	{
 		return ASSET_TYPE_PIXELSHADER;
 	}
 
-	void IPixelShader::write(IZone* zone, ZoneBuffer* buf)
+	void pixel_shader::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		auto dest = buf->write(data);
@@ -82,7 +82,7 @@ namespace zonetool::s1
 		buf->pop_stream();
 	}
 
-	void IPixelShader::dump(MaterialPixelShader* asset)
+	void pixel_shader::dump(MaterialPixelShader* asset)
 	{
 		const auto path = "techsets\\"s + asset->name + ".pixelshader"s;
 

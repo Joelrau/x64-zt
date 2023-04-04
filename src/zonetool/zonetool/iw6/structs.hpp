@@ -6237,7 +6237,7 @@ namespace zonetool::iw6
 		unsigned __int64 size;
 	};
 
-	struct XZoneMemory_
+	struct Xzone_memory_
 	{
 		XBlock blocks[7];
 	};

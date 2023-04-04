@@ -140,7 +140,7 @@ namespace zonetool::h1
 			{
 				utils::memory::allocator allocator;
 				const auto converted_asset = convert(asset, allocator);
-				zonetool::h2::IFxEffectDef::dump(converted_asset);
+				zonetool::h2::fx_effect_def::dump(converted_asset);
 			}
 		}
 	}

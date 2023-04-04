@@ -10,9 +10,9 @@ namespace zonetool::iw6
 	{
 		namespace fxworld
 		{
-			zonetool::h1::FxWorld* convert(FxWorld* asset, ZoneMemory* mem)
+			zonetool::h1::FxWorld* convert(FxWorld* asset, zone_memory* mem)
 			{
-				auto* new_asset = mem->Alloc<zonetool::h1::FxWorld>();
+				auto* new_asset = mem->allocate<zonetool::h1::FxWorld>();
 
 				REINTERPRET_CAST_SAFE(name);
 
@@ -50,10 +50,10 @@ namespace zonetool::iw6
 				return new_asset;
 			}
 
-			void dump(FxWorld* asset, ZoneMemory* mem)
+			void dump(FxWorld* asset, zone_memory* mem)
 			{
 				auto* converted_asset = convert(asset, mem);
-				zonetool::h1::IFxWorld::dump(converted_asset);
+				zonetool::h1::fx_world::dump(converted_asset);
 			}
 		}
 	}

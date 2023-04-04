@@ -3,25 +3,25 @@
 
 namespace zonetool::h2
 {
-	void IPhysWaterPreset::init(const std::string& name, ZoneMemory* mem)
+	void phys_water_preset::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
-		this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name().data()).physWaterPreset;
+		this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).physWaterPreset;
 	}
 
-	void IPhysWaterPreset::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void phys_water_preset::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IPhysWaterPreset::load_depending(IZone* zone)
+	void phys_water_preset::load_depending(zone_base* zone)
 	{
 		auto* data = this->asset_;
 
@@ -55,17 +55,17 @@ namespace zonetool::h2
 		}
 	}
 
-	std::string IPhysWaterPreset::name()
+	std::string phys_water_preset::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IPhysWaterPreset::type()
+	std::int32_t phys_water_preset::type()
 	{
 		return ASSET_TYPE_PHYSWATERPRESET;
 	}
 
-	void IPhysWaterPreset::write(IZone* zone, ZoneBuffer* buf)
+	void phys_water_preset::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		auto dest = buf->write(data);
@@ -106,7 +106,7 @@ namespace zonetool::h2
 		buf->pop_stream();
 	}
 
-	void IPhysWaterPreset::dump(PhysWaterPreset* asset)
+	void phys_water_preset::dump(PhysWaterPreset* asset)
 	{
 	}
 }

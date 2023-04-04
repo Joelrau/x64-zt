@@ -2,19 +2,19 @@
 
 namespace zonetool::iw6
 {
-	class Zone : public IZone
+	class zone_interface : public zone_base
 	{
 	private:
 		std::uintptr_t m_assetbase;
 		std::string name_;
-		std::vector<std::shared_ptr<IAsset>> m_assets;
-		std::shared_ptr<ZoneMemory> m_zonemem;
+		std::vector<std::shared_ptr<asset_interface>> m_assets;
+		std::shared_ptr<zone_memory> m_zonemem;
 
 	public:
-		Zone(std::string name);
-		~Zone();
+		zone_interface(std::string name);
+		~zone_interface();
 
-		IAsset* find_asset(std::int32_t type, const std::string& name) override;
+		asset_interface* find_asset(std::int32_t type, const std::string& name) override;
 
 		void* get_asset_pointer(std::int32_t type, const std::string& name) override;
 
@@ -24,6 +24,6 @@ namespace zonetool::iw6
 		void add_asset_of_type(const std::string& type, const std::string& name) override;
 		std::int32_t get_type_by_name(const std::string& type) override;
 
-		void build(ZoneBuffer* buf) override;
+		void build(zone_buffer* buf) override;
 	};
 }

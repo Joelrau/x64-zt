@@ -3,7 +3,7 @@
 
 namespace zonetool::iw6
 {
-	void IMapEnts::add_script_string(scr_string_t* ptr, const char* str)
+	void map_ents::add_script_string(scr_string_t* ptr, const char* str)
 	{
 		for (std::uint32_t i = 0; i < this->script_strings.size(); i++)
 		{
@@ -15,7 +15,7 @@ namespace zonetool::iw6
 		this->script_strings.push_back(std::pair<scr_string_t*, const char*>(ptr, str));
 	}
 
-	const char* IMapEnts::get_script_string(scr_string_t* ptr)
+	const char* map_ents::get_script_string(scr_string_t* ptr)
 	{
 		for (std::uint32_t i = 0; i < this->script_strings.size(); i++)
 		{
@@ -27,7 +27,7 @@ namespace zonetool::iw6
 		return nullptr;
 	}
 
-	void IMapEnts::parse_splineList(ZoneMemory* mem, std::string name, SplineRecordList* splineList)
+	void map_ents::parse_spline_list(zone_memory* mem, std::string name, SplineRecordList* splineList)
 	{
 		assetmanager::reader reader(mem);
 		const auto path = name + ".ents.splineList"s;
@@ -50,7 +50,7 @@ namespace zonetool::iw6
 		}
 	}
 
-	void IMapEnts::parse_spawnList(ZoneMemory* mem, std::string name, SpawnPointRecordList* spawnList)
+	void map_ents::parse_spawn_list(zone_memory* mem, std::string name, SpawnPointRecordList* spawnList)
 	{
 		const auto path = name + ".ents.spawnList"s;
 		filesystem::file file(path);
@@ -67,14 +67,14 @@ namespace zonetool::iw6
 		auto data = json::parse(bytes);
 
 		spawnList->spawnsCount = static_cast<unsigned short>(data.size());
-		spawnList->spawns = mem->Alloc<SpawnPointEntityRecord>(spawnList->spawnsCount);
+		spawnList->spawns = mem->allocate<SpawnPointEntityRecord>(spawnList->spawnsCount);
 
 		for (unsigned short i = 0; i < spawnList->spawnsCount; i++)
 		{
 			spawnList->spawns[i].index = i;
-			add_script_string(&spawnList->spawns[i].name, mem->StrDup(data[i]["name"].get<std::string>()));
-			add_script_string(&spawnList->spawns[i].target, mem->StrDup(data[i]["target"].get<std::string>()));
-			add_script_string(&spawnList->spawns[i].script_noteworthy, mem->StrDup(data[i]["script_noteworthy"].get<std::string>()));
+			add_script_string(&spawnList->spawns[i].name, mem->duplicate_string(data[i]["name"].get<std::string>()));
+			add_script_string(&spawnList->spawns[i].target, mem->duplicate_string(data[i]["target"].get<std::string>()));
+			add_script_string(&spawnList->spawns[i].script_noteworthy, mem->duplicate_string(data[i]["script_noteworthy"].get<std::string>()));
 			for (auto j = 0; j < 3; j++)
 			{
 				spawnList->spawns[i].origin[j] = data[i]["origin"][j].get<float>();
@@ -83,7 +83,7 @@ namespace zonetool::iw6
 		}
 	}
 
-	void IMapEnts::parse_clientBlendTriggers(ZoneMemory* mem, std::string name, ClientTriggerBlend* clientTriggerBlend)
+	void map_ents::parse_client_blend_triggers(zone_memory* mem, std::string name, ClientTriggerBlend* clientTriggerBlend)
 	{
 		assetmanager::reader reader(mem);
 		const auto path = name + ".ents.clientBlendTriggers"s;
@@ -96,7 +96,7 @@ namespace zonetool::iw6
 		}
 	}
 
-	void IMapEnts::parse_clientTriggers(ZoneMemory* mem, std::string name, ClientTriggers* clientTrigger)
+	void map_ents::parse_client_triggers(zone_memory* mem, std::string name, ClientTriggers* clientTrigger)
 	{
 		assetmanager::reader reader(mem);
 		const auto path = name + ".ents.clientTriggers";
@@ -128,7 +128,7 @@ namespace zonetool::iw6
 		}
 	}
 
-	void IMapEnts::parse_triggers(ZoneMemory* mem, std::string name, MapTriggers* trigger)
+	void map_ents::parse_triggers(zone_memory* mem, std::string name, MapTriggers* trigger)
 	{
 		assetmanager::reader reader(mem);
 		const auto path = name + ".ents.triggers"s;
@@ -147,7 +147,7 @@ namespace zonetool::iw6
 		}
 	}
 
-	void IMapEnts::parse_entityStrings(ZoneMemory* mem, std::string name, char** entityStrings, int* numEntityChars)
+	void map_ents::parse_entity_strings(zone_memory* mem, std::string name, char** entityStrings, int* numEntityChars)
 	{
 		const auto path = name + ".ents"s;
 		auto file = filesystem::file(path);
@@ -159,7 +159,7 @@ namespace zonetool::iw6
 
 		*numEntityChars = static_cast<int>(file.size());
 
-		*entityStrings = mem->Alloc<char>(static_cast<size_t>(*numEntityChars + 1));
+		*entityStrings = mem->allocate<char>(static_cast<size_t>(*numEntityChars + 1));
 		memset(*entityStrings, 0, *numEntityChars);
 
 		fread(*entityStrings, *numEntityChars, 1, file.get_fp());
@@ -168,7 +168,7 @@ namespace zonetool::iw6
 		file.close();
 	}
 
-	MapEnts* IMapEnts::parse(std::string name, ZoneMemory* mem)
+	MapEnts* map_ents::parse(std::string name, zone_memory* mem)
 	{
 		const auto path = name + ".ents"s;
 		if (!filesystem::file(path).exists())
@@ -178,27 +178,27 @@ namespace zonetool::iw6
 
 		ZONETOOL_INFO("Parsing mapents \"%s\"...", name.data());
 
-		MapEnts* ents = mem->Alloc<MapEnts>();
-		ents->name = mem->StrDup(name);
+		MapEnts* ents = mem->allocate<MapEnts>();
+		ents->name = mem->duplicate_string(name);
 
-		parse_entityStrings(mem, name, &ents->entityString, &ents->numEntityChars);
+		parse_entity_strings(mem, name, &ents->entityString, &ents->numEntityChars);
 		parse_triggers(mem, name, &ents->trigger);
-		parse_clientTriggers(mem, name, &ents->clientTrigger);
-		parse_clientBlendTriggers(mem, name, &ents->clientTriggerBlend);
-		parse_spawnList(mem, name, &ents->spawnList);
-		parse_splineList(mem, name, &ents->splineList);
+		parse_client_triggers(mem, name, &ents->clientTrigger);
+		parse_client_blend_triggers(mem, name, &ents->clientTriggerBlend);
+		parse_spawn_list(mem, name, &ents->spawnList);
+		parse_spline_list(mem, name, &ents->splineList);
 
 		return ents;
 	}
 
-	void IMapEnts::init(const std::string& name, ZoneMemory* mem)
+	void map_ents::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = "maps/"s + (filesystem::get_fastfile().substr(0, 3) == "mp_" ? "mp/" : "") + filesystem::get_fastfile() + ".d3dbsp"; // name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
@@ -209,7 +209,7 @@ namespace zonetool::iw6
 		}
 	}
 
-	void IMapEnts::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void map_ents::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 		auto* data = this->asset_;
 
@@ -229,21 +229,21 @@ namespace zonetool::iw6
 		}
 	}
 
-	void IMapEnts::load_depending(IZone* zone)
+	void map_ents::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string IMapEnts::name()
+	std::string map_ents::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IMapEnts::type()
+	std::int32_t map_ents::type()
 	{
 		return ASSET_TYPE_MAP_ENTS;
 	}
 
-	void IMapEnts::write_triggers(ZoneBuffer* buf, MapTriggers* dest)
+	void map_ents::write_triggers(zone_buffer* buf, MapTriggers* dest)
 	{
 		if (dest->models)
 		{
@@ -261,7 +261,7 @@ namespace zonetool::iw6
 		}
 	}
 
-	void IMapEnts::write(IZone* zone, ZoneBuffer* buf)
+	void map_ents::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
@@ -274,7 +274,7 @@ namespace zonetool::iw6
 		{
 			buf->align(0);
 			buf->write(data->entityString, data->numEntityChars);
-			ZoneBuffer::clear_pointer(&dest->entityString);
+			zone_buffer::clear_pointer(&dest->entityString);
 		}
 
 		write_triggers(buf, &dest->trigger);
@@ -284,69 +284,69 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			buf->write(data->clientTrigger.clientTriggerAabbTree, data->clientTrigger.numClientTriggerNodes);
-			ZoneBuffer::clear_pointer(&dest->clientTrigger.clientTriggerAabbTree);
+			zone_buffer::clear_pointer(&dest->clientTrigger.clientTriggerAabbTree);
 		}
 		if (data->clientTrigger.triggerString)
 		{
 			buf->align(0);
 			buf->write(data->clientTrigger.triggerString, data->clientTrigger.triggerStringLength);
-			ZoneBuffer::clear_pointer(&dest->clientTrigger.triggerString);
+			zone_buffer::clear_pointer(&dest->clientTrigger.triggerString);
 		}
 		if (data->clientTrigger.visionSetTriggers)
 		{
 			buf->align(1);
 			buf->write(data->clientTrigger.visionSetTriggers, data->clientTrigger.trigger.count);
-			ZoneBuffer::clear_pointer(&dest->clientTrigger.visionSetTriggers);
+			zone_buffer::clear_pointer(&dest->clientTrigger.visionSetTriggers);
 		}
 		if (data->clientTrigger.triggerType)
 		{
 			buf->align(0);
 			buf->write(data->clientTrigger.triggerType, data->clientTrigger.trigger.count);
-			ZoneBuffer::clear_pointer(&dest->clientTrigger.triggerType);
+			zone_buffer::clear_pointer(&dest->clientTrigger.triggerType);
 		}
 		if (data->clientTrigger.origins)
 		{
 			buf->align(3);
 			buf->write(data->clientTrigger.origins, data->clientTrigger.trigger.count);
-			ZoneBuffer::clear_pointer(&dest->clientTrigger.origins);
+			zone_buffer::clear_pointer(&dest->clientTrigger.origins);
 		}
 		if (data->clientTrigger.scriptDelay)
 		{
 			buf->align(3);
 			buf->write(data->clientTrigger.scriptDelay, data->clientTrigger.trigger.count);
-			ZoneBuffer::clear_pointer(&dest->clientTrigger.scriptDelay);
+			zone_buffer::clear_pointer(&dest->clientTrigger.scriptDelay);
 		}
 		if (data->clientTrigger.audioTriggers)
 		{
 			buf->align(1);
 			buf->write(data->clientTrigger.audioTriggers, data->clientTrigger.trigger.count);
-			ZoneBuffer::clear_pointer(&dest->clientTrigger.audioTriggers);
+			zone_buffer::clear_pointer(&dest->clientTrigger.audioTriggers);
 		}
 		if (data->clientTrigger.blendLookup)
 		{
 			buf->align(1);
 			buf->write(data->clientTrigger.blendLookup, data->clientTrigger.trigger.count);
-			ZoneBuffer::clear_pointer(&dest->clientTrigger.blendLookup);
+			zone_buffer::clear_pointer(&dest->clientTrigger.blendLookup);
 		}
 		if (data->clientTrigger.npcTriggers)
 		{
 			buf->align(1);
 			buf->write(data->clientTrigger.npcTriggers, data->clientTrigger.trigger.count);
-			ZoneBuffer::clear_pointer(&dest->clientTrigger.npcTriggers);
+			zone_buffer::clear_pointer(&dest->clientTrigger.npcTriggers);
 		}
 
 		if (data->clientTriggerBlend.blendNodes)
 		{
 			buf->align(3);
 			buf->write(data->clientTriggerBlend.blendNodes, data->clientTriggerBlend.numClientTriggerBlendNodes);
-			ZoneBuffer::clear_pointer(&dest->clientTriggerBlend.blendNodes);
+			zone_buffer::clear_pointer(&dest->clientTriggerBlend.blendNodes);
 		}
 
 		if (data->spawnList.spawns)
 		{
 			buf->align(3);
 			buf->write(data->spawnList.spawns, data->spawnList.spawnsCount);
-			ZoneBuffer::clear_pointer(&dest->spawnList.spawns);
+			zone_buffer::clear_pointer(&dest->spawnList.spawns);
 		}
 
 		if (data->splineList.splines)
@@ -366,31 +366,31 @@ namespace zonetool::iw6
 						{
 							buf->align(0);
 							buf->write(data->splineList.splines[i].splinePoints[j].splineNodeLabel, 64);
-							ZoneBuffer::clear_pointer(destsplinepoints[j].splineNodeLabel);
+							zone_buffer::clear_pointer(destsplinepoints[j].splineNodeLabel);
 						}
 						if (data->splineList.splines[i].splinePoints[j].positionCubic)
 						{
 							buf->align(3);
 							buf->write(data->splineList.splines[i].splinePoints[j].positionCubic, 4);
-							ZoneBuffer::clear_pointer(&destsplinepoints[j].positionCubic);
+							zone_buffer::clear_pointer(&destsplinepoints[j].positionCubic);
 						}
 						if (data->splineList.splines[i].splinePoints[j].tangentQuadratic)
 						{
 							buf->align(3);
 							buf->write(data->splineList.splines[i].splinePoints[j].tangentQuadratic, 3);
-							ZoneBuffer::clear_pointer(&destsplinepoints[j].tangentQuadratic);
+							zone_buffer::clear_pointer(&destsplinepoints[j].tangentQuadratic);
 						}
 					}
-					ZoneBuffer::clear_pointer(&destsplines->splinePoints);
+					zone_buffer::clear_pointer(&destsplines->splinePoints);
 				}
 			}
-			ZoneBuffer::clear_pointer(&dest->splineList.splines);
+			zone_buffer::clear_pointer(&dest->splineList.splines);
 		}
 
 		buf->pop_stream();
 	}
 
-	void IMapEnts::dump_splineList(const std::string& name, SplineRecordList* splineList)
+	void map_ents::dump_spline_list(const std::string& name, SplineRecordList* splineList)
 	{
 		assetmanager::dumper dumper;
 		const auto path = name + ".ents.splineList"s;
@@ -411,7 +411,7 @@ namespace zonetool::iw6
 		}
 	}
 
-	void IMapEnts::dump_spawnList(const std::string& name, SpawnPointRecordList* spawnList)
+	void map_ents::dump_spawn_list(const std::string& name, SpawnPointRecordList* spawnList)
 	{
 		const auto path = name + ".ents.spawnList"s;
 		auto file = filesystem::file(path);
@@ -442,7 +442,7 @@ namespace zonetool::iw6
 		file.close();
 	}
 
-	void IMapEnts::dump_clientBlendTriggers(const std::string& name, ClientTriggerBlend* clientTriggerBlend)
+	void map_ents::dump_client_blend_triggers(const std::string& name, ClientTriggerBlend* clientTriggerBlend)
 	{
 		assetmanager::dumper dumper;
 		const auto path = name + ".ents.clientBlendTriggers"s;
@@ -453,7 +453,7 @@ namespace zonetool::iw6
 		}
 	}
 
-	void IMapEnts::dump_clientTriggers(const std::string& name, ClientTriggers* clientTrigger)
+	void map_ents::dump_client_triggers(const std::string& name, ClientTriggers* clientTrigger)
 	{
 		assetmanager::dumper dumper;
 		const auto path = name + ".ents.clientTriggers";
@@ -485,7 +485,7 @@ namespace zonetool::iw6
 		}
 	}
 
-	void IMapEnts::dump_triggers(const std::string& name, MapTriggers* trigger)
+	void map_ents::dump_triggers(const std::string& name, MapTriggers* trigger)
 	{
 		assetmanager::dumper dumper;
 		const auto path = name + ".ents.triggers"s;
@@ -504,7 +504,7 @@ namespace zonetool::iw6
 		}
 	}
 
-	void IMapEnts::dump_entityStrings(const std::string& name, char* entityString, int numEntityChars)
+	void map_ents::dump_entity_strings(const std::string& name, char* entityString, int numEntityChars)
 	{
 		const auto path = name + ".ents"s;
 		auto file = filesystem::file(path);
@@ -516,13 +516,13 @@ namespace zonetool::iw6
 		}
 	}
 
-	void IMapEnts::dump(MapEnts* asset)
+	void map_ents::dump(MapEnts* asset)
 	{
-		dump_entityStrings(asset->name, asset->entityString, asset->numEntityChars);
+		dump_entity_strings(asset->name, asset->entityString, asset->numEntityChars);
 		dump_triggers(asset->name, &asset->trigger);
-		dump_clientTriggers(asset->name, &asset->clientTrigger);
-		dump_clientBlendTriggers(asset->name, &asset->clientTriggerBlend);
-		dump_spawnList(asset->name, &asset->spawnList);
-		dump_splineList(asset->name, &asset->splineList);
+		dump_client_triggers(asset->name, &asset->clientTrigger);
+		dump_client_blend_triggers(asset->name, &asset->clientTriggerBlend);
+		dump_spawn_list(asset->name, &asset->spawnList);
+		dump_spline_list(asset->name, &asset->splineList);
 	}
 }

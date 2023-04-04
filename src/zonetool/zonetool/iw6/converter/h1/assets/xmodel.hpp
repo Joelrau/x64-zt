@@ -6,8 +6,8 @@ namespace zonetool::iw6
 	{
 		namespace xmodel
 		{
-			zonetool::h1::XModel* convert(XModel* asset, ZoneMemory* mem);
-			void dump(XModel* asset, ZoneMemory* mem);
+			zonetool::h1::XModel* convert(XModel* asset, zone_memory* mem);
+			void dump(XModel* asset, zone_memory* mem);
 		}
 	}
 }

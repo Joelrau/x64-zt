@@ -6,8 +6,8 @@ namespace zonetool::s1
 	{
 		namespace vertexshader
 		{
-			zonetool::h1::MaterialVertexShader* convert(MaterialVertexShader* asset, ZoneMemory* mem);
-			void dump(MaterialVertexShader* asset, ZoneMemory* mem);
+			zonetool::h1::MaterialVertexShader* convert(MaterialVertexShader* asset, zone_memory* mem);
+			void dump(MaterialVertexShader* asset, zone_memory* mem);
 		}
 	}
 }

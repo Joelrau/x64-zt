@@ -3,7 +3,7 @@
 
 namespace zonetool::h1
 {
-	FxWorld* IFxWorld::parse(const std::string& name, ZoneMemory* mem)
+	FxWorld* fx_world::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = name + ".fxmap";
 
@@ -53,7 +53,7 @@ namespace zonetool::h1
 		return asset;
 	}
 
-	void IFxWorld::init(const std::string& name, ZoneMemory* mem)
+	void fx_world::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = "maps/"s + (filesystem::get_fastfile().substr(0, 3) == "mp_" ? "mp/" : "") + filesystem::get_fastfile() + ".d3dbsp"; // name;
 		this->asset_ = this->parse(name, mem);
@@ -64,11 +64,11 @@ namespace zonetool::h1
 		}
 	}
 
-	void IFxWorld::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void fx_world::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IFxWorld::load_depending(IZone* zone)
+	void fx_world::load_depending(zone_base* zone)
 	{
 		auto* data = this->asset_;
 		if (data->glassSys.defs)
@@ -122,17 +122,17 @@ namespace zonetool::h1
 		}
 	}
 
-	std::string IFxWorld::name()
+	std::string fx_world::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IFxWorld::type()
+	std::int32_t fx_world::type()
 	{
 		return ASSET_TYPE_FX_MAP;
 	}
 
-	void IFxWorld::write(IZone* zone, ZoneBuffer* buf)
+	void fx_world::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
@@ -192,7 +192,7 @@ namespace zonetool::h1
 					buf->write(&ptr);
 					buf->align(7);
 					buf->write_str(data->glassSys.defs[i].damagedSound->name);
-					ZoneBuffer::clear_pointer(&glass_def[i].damagedSound);
+					zone_buffer::clear_pointer(&glass_def[i].damagedSound);
 				}
 				if (data->glassSys.defs[i].destroyedSound)
 				{
@@ -200,7 +200,7 @@ namespace zonetool::h1
 					buf->write(&ptr);
 					buf->align(7);
 					buf->write_str(data->glassSys.defs[i].destroyedSound->name);
-					ZoneBuffer::clear_pointer(&glass_def[i].destroyedSound);
+					zone_buffer::clear_pointer(&glass_def[i].destroyedSound);
 				}
 				if (data->glassSys.defs[i].destroyedQuietSound)
 				{
@@ -208,11 +208,11 @@ namespace zonetool::h1
 					buf->write(&ptr);
 					buf->align(7);
 					buf->write_str(data->glassSys.defs[i].destroyedQuietSound->name);
-					ZoneBuffer::clear_pointer(&glass_def[i].destroyedQuietSound);
+					zone_buffer::clear_pointer(&glass_def[i].destroyedQuietSound);
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->glassSys.defs);
+			zone_buffer::clear_pointer(&dest->glassSys.defs);
 		}
 
 		buf->push_stream(2);
@@ -220,63 +220,63 @@ namespace zonetool::h1
 		{
 			buf->align(3);
 			buf->write(data->glassSys.piecePlaces, data->glassSys.pieceLimit);
-			ZoneBuffer::clear_pointer(&dest->glassSys.piecePlaces);
+			zone_buffer::clear_pointer(&dest->glassSys.piecePlaces);
 		}
 
 		if (data->glassSys.pieceStates)
 		{
 			buf->align(3);
 			buf->write(data->glassSys.pieceStates, data->glassSys.pieceLimit);
-			ZoneBuffer::clear_pointer(&dest->glassSys.pieceStates);
+			zone_buffer::clear_pointer(&dest->glassSys.pieceStates);
 		}
 
 		if (data->glassSys.pieceDynamics)
 		{
 			buf->align(3);
 			buf->write(data->glassSys.pieceDynamics, data->glassSys.pieceLimit);
-			ZoneBuffer::clear_pointer(&dest->glassSys.pieceDynamics);
+			zone_buffer::clear_pointer(&dest->glassSys.pieceDynamics);
 		}
 
 		if (data->glassSys.geoData)
 		{
 			buf->align(3);
 			buf->write(data->glassSys.geoData, data->glassSys.geoDataLimit);
-			ZoneBuffer::clear_pointer(&dest->glassSys.geoData);
+			zone_buffer::clear_pointer(&dest->glassSys.geoData);
 		}
 
 		if (data->glassSys.isInUse)
 		{
 			buf->align(3);
 			buf->write(data->glassSys.isInUse, data->glassSys.pieceWordCount);
-			ZoneBuffer::clear_pointer(&dest->glassSys.isInUse);
+			zone_buffer::clear_pointer(&dest->glassSys.isInUse);
 		}
 
 		if (data->glassSys.cellBits)
 		{
 			buf->align(3);
 			buf->write(data->glassSys.cellBits, data->glassSys.pieceWordCount * data->glassSys.cellCount);
-			ZoneBuffer::clear_pointer(&dest->glassSys.cellBits);
+			zone_buffer::clear_pointer(&dest->glassSys.cellBits);
 		}
 
 		if (data->glassSys.visData)
 		{
 			buf->align(15);
 			buf->write(data->glassSys.visData, (data->glassSys.pieceLimit + 15) & 0xFFFFFFF0);
-			ZoneBuffer::clear_pointer(&dest->glassSys.visData);
+			zone_buffer::clear_pointer(&dest->glassSys.visData);
 		}
 
 		if (data->glassSys.linkOrg)
 		{
 			buf->align(3);
 			buf->write(data->glassSys.linkOrg, data->glassSys.pieceLimit);
-			ZoneBuffer::clear_pointer(&dest->glassSys.linkOrg);
+			zone_buffer::clear_pointer(&dest->glassSys.linkOrg);
 		}
 
 		if (data->glassSys.halfThickness)
 		{
 			buf->align(15);
 			buf->write(data->glassSys.halfThickness, (data->glassSys.pieceLimit + 3) & 0xFFFFFFFC);
-			ZoneBuffer::clear_pointer(&dest->glassSys.halfThickness);
+			zone_buffer::clear_pointer(&dest->glassSys.halfThickness);
 		}
 		buf->pop_stream();
 
@@ -284,27 +284,27 @@ namespace zonetool::h1
 		{
 			buf->align(1);
 			buf->write(data->glassSys.lightingHandles, data->glassSys.initPieceCount);
-			ZoneBuffer::clear_pointer(&dest->glassSys.lightingHandles);
+			zone_buffer::clear_pointer(&dest->glassSys.lightingHandles);
 		}
 
 		if (data->glassSys.initGeoData)
 		{
 			buf->align(3);
 			buf->write(data->glassSys.initGeoData, data->glassSys.initGeoDataCount);
-			ZoneBuffer::clear_pointer(&dest->glassSys.initGeoData);
+			zone_buffer::clear_pointer(&dest->glassSys.initGeoData);
 		}
 
 		if (data->glassSys.initPieceStates)
 		{
 			buf->align(3);
 			buf->write(data->glassSys.initPieceStates, data->glassSys.initPieceCount);
-			ZoneBuffer::clear_pointer(&dest->glassSys.initPieceStates);
+			zone_buffer::clear_pointer(&dest->glassSys.initPieceStates);
 		}
 
 		buf->pop_stream();
 	}
 
-	void IFxWorld::dump(FxWorld* asset)
+	void fx_world::dump(FxWorld* asset)
 	{
 		const auto path = asset->name + ".fxmap"s;
 

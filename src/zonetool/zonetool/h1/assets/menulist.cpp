@@ -879,14 +879,14 @@ namespace zonetool::h1
 
 	MenuList* menuList;
 
-	class MenuMem
+	class menu_memory
 	{
 	private:
 		std::vector<std::uint8_t> buffer_;
 		std::size_t mem_pos_;
 		std::recursive_mutex mutex_;
 
-		void AllocMemory(std::size_t size)
+		void allocate_memory(std::size_t size)
 		{
 			try
 			{
@@ -899,43 +899,43 @@ namespace zonetool::h1
 		}
 
 	public:
-		MenuMem(std::size_t size)
+		menu_memory(std::size_t size)
 		{
-			AllocMemory(size);
-			mem_pos_ = 0;
-			buffer_.clear();
+			this->allocate_memory(size);
+			this->mem_pos_ = 0;
+			this->buffer_.clear();
 		}
 
-		MenuMem()
+		menu_memory()
 		{
 			// 64 MB should be more than enough
-			AllocMemory(1024 * 1024 * 64);
-			mem_pos_ = 0;
-			buffer_.clear();
+			this->allocate_memory(1024 * 1024 * 64);
+			this->mem_pos_ = 0;
+			this->buffer_.clear();
 		}
 
-		~MenuMem()
+		~menu_memory()
 		{
-			buffer_.clear();
-			buffer_.shrink_to_fit();
+			this->buffer_.clear();
+			this->buffer_.shrink_to_fit();
 		}
 
 		template <typename T>
-		T* Alloc(std::size_t count)
-		{
-			std::lock_guard<std::recursive_mutex> g(this->mutex_);
-			return this->ManualAlloc<T>(sizeof(T), count);
-		}
-
-		template <typename T>
-		T* Alloc()
+		T* allocate(std::size_t count)
 		{
 			std::lock_guard<std::recursive_mutex> g(this->mutex_);
-			return this->Alloc<T>(1);
+			return this->manual_allocate<T>(sizeof(T), count);
 		}
 
 		template <typename T>
-		T* ManualAlloc(std::size_t size, std::size_t count = 1)
+		T* allocate()
+		{
+			std::lock_guard<std::recursive_mutex> g(this->mutex_);
+			return this->allocate<T>(1);
+		}
+
+		template <typename T>
+		T* manual_allocate(std::size_t size, std::size_t count = 1)
 		{
 			std::lock_guard<std::recursive_mutex> g(this->mutex_);
 
@@ -954,8 +954,8 @@ namespace zonetool::h1
 			return reinterpret_cast<T*>(pointer);
 		}
 	};
-	MenuMem* mmem;
-	ZoneMemory* zmem;
+	menu_memory* mmem;
+	zone_memory* zmem;
 
 	//read a token from the source
 	int PC_ReadToken(source_s* source, token_s* token);
@@ -1609,7 +1609,7 @@ namespace zonetool::h1
 	{
 		indent_s* indent;
 
-		indent = mmem->Alloc<indent_s>();
+		indent = mmem->allocate<indent_s>();
 		indent->type = type;
 		indent->script = source->scriptstack;
 		indent->skip = skip;
@@ -1667,7 +1667,7 @@ namespace zonetool::h1
 	{
 		token_s* copy;
 
-		copy = mmem->Alloc<token_s>();
+		copy = mmem->allocate<token_s>();
 		if (copy)
 		{
 			memcpy(copy, token, sizeof(token_s));
@@ -2924,7 +2924,7 @@ namespace zonetool::h1
 		define_s* newdefine;
 		token_s* token, * newtoken, * lasttoken;
 
-		newdefine = mmem->ManualAlloc<define_s>(strlen(define->name) + sizeof(define_s) + 1);
+		newdefine = mmem->manual_allocate<define_s>(strlen(define->name) + sizeof(define_s) + 1);
 		//copy the define name
 		newdefine->name = (char*)newdefine + sizeof(define_s);
 		strcpy(newdefine->name, define->name);
@@ -3046,7 +3046,7 @@ namespace zonetool::h1
 		punctuation_s* p;
 
 		if (!script->punctuationtable)
-			script->punctuationtable = mmem->Alloc<punctuation_s*>(256);
+			script->punctuationtable = mmem->allocate<punctuation_s*>(256);
 		//memset((unsigned __int8*)script->punctuationtable, 0, 0x400u);
 		for (i = 0; punctuations[i].p; ++i)
 		{
@@ -3097,7 +3097,7 @@ namespace zonetool::h1
 		fp = file.get_fp();
 		length = file.size();
 		if (!fp) return 0;
-		script = mmem->ManualAlloc<script_s>(length + sizeof(script_s) + 1);
+		script = mmem->manual_allocate<script_s>(length + sizeof(script_s) + 1);
 		strcpy(script->filename, filename);
 		script->buffer = (char*)script + sizeof(script_s);
 		script->buffer[length] = 0;
@@ -3123,7 +3123,7 @@ namespace zonetool::h1
 		script = LoadScriptFile(filename);
 		if (!script) return 0;
 		script->next = 0;
-		source = mmem->Alloc<source_s>();
+		source = mmem->allocate<source_s>();
 		//memset(source, 0, sizeof(source_s));
 		strncpy(source->filename, filename, 0x40u);
 		source->scriptstack = script;
@@ -3131,7 +3131,7 @@ namespace zonetool::h1
 		source->defines = 0;
 		source->indentstack = 0;
 		source->skip = 0;
-		source->definehash = mmem->Alloc<define_s*>(1024);
+		source->definehash = mmem->allocate<define_s*>(1024);
 		PC_AddGlobalDefinesToSource(source);
 		return source;
 	}
@@ -3140,7 +3140,7 @@ namespace zonetool::h1
 	{
 		script_s* script;
 
-		script = mmem->ManualAlloc<script_s>(length + sizeof(script_s) + 1);
+		script = mmem->manual_allocate<script_s>(length + sizeof(script_s) + 1);
 		strcpy(script->filename, name);
 		script->buffer = (char*)script + sizeof(script_s);
 		script->buffer[length] = 0;
@@ -3537,7 +3537,7 @@ namespace zonetool::h1
 				return 0;
 			PC_FindHashedDefine(source->definehash, token.string);
 		}
-		definea = mmem->ManualAlloc<define_s>(strlen(token.string) + 1 + sizeof(define_s)); //(define_s*)GetMemory(&token.string[strlen(token.string) + 1] - &token.string[1] + 33);
+		definea = mmem->manual_allocate<define_s>(strlen(token.string) + 1 + sizeof(define_s)); //(define_s*)GetMemory(&token.string[strlen(token.string) + 1] - &token.string[1] + 33);
 		definea->name = 0;
 		definea->flags = 0;
 		definea->builtin = 0;
@@ -3734,7 +3734,7 @@ namespace zonetool::h1
 		memset((unsigned __int8*)&src, 0, sizeof(src));
 		strncpy(src.filename, "*extern", 0x40u);
 		src.scriptstack = script;
-		src.definehash = mmem->Alloc<define_s*>(1024);//(define_s**)GetClearedMemory(0x1000u);
+		src.definehash = mmem->allocate<define_s*>(1024);//(define_s**)GetClearedMemory(0x1000u);
 		res = PC_Directive_define(&src);
 		for (t = src.tokens; t; t = src.tokens)
 		{
@@ -4006,7 +4006,7 @@ namespace zonetool::h1
 				case TT_NAME:
 					newExpression->type = 1;
 					newExpression->data.operand.dataType = VAL_STRING;
-					newExpression->data.operand.internals.stringVal.string = zmem->StrDup(token.string);
+					newExpression->data.operand.internals.stringVal.string = zmem->duplicate_string(token.string);
 
 				LABEL_39:
 					lastType = 1;
@@ -4068,8 +4068,8 @@ namespace zonetool::h1
 	{
 		int maxTokens = MAX_TOKENS_PER_STATEMENT;
 
-		*statement = zmem->Alloc<Statement_s>();
-		(*statement)->entries = zmem->Alloc<expressionEntry>(maxTokens);
+		*statement = zmem->allocate<Statement_s>();
+		(*statement)->entries = zmem->allocate<expressionEntry>(maxTokens);
 
 		if (!Expression_Parse(/*handle,*/ *statement, maxTokens))
 			return 0;
@@ -4082,7 +4082,7 @@ namespace zonetool::h1
 
 		if (!PC_ReadTokenHandle(/*handle,*/ &token))
 			return 0;
-		*out = zmem->StrDup(token.string);
+		*out = zmem->duplicate_string(token.string);
 		return 1;
 	}
 
@@ -5329,7 +5329,7 @@ namespace zonetool::h1
 				return 0;
 			if (!_stricmp(pc_token.string, "}"))
 			{
-				*out = zmem->StrDup(dst);
+				*out = zmem->duplicate_string(dst);
 				return 1;
 			}
 			if (strlen(pc_token.string) + &dst[strlen(dst) + 1] - &dst[1] > sizeof(dst))
@@ -5360,8 +5360,8 @@ namespace zonetool::h1
 		EventType eventType;
 		char dst[0x1000] = { 0 };
 
-		*eventHandlerSet = zmem->Alloc<MenuEventHandlerSet>();
-		(*eventHandlerSet)->eventHandlers = zmem->Alloc<MenuEventHandler*>(MAX_EVENT_HANDLERS_PER_EVENT);
+		*eventHandlerSet = zmem->allocate<MenuEventHandlerSet>();
+		(*eventHandlerSet)->eventHandlers = zmem->allocate<MenuEventHandler*>(MAX_EVENT_HANDLERS_PER_EVENT);
 
 		if (!PC_ReadTokenHandle(/*handle,*/ &token))
 			return 0;
@@ -5405,9 +5405,9 @@ namespace zonetool::h1
 
 			if (eventType == EVENT_IF)
 			{
-				eventHandler = zmem->Alloc<MenuEventHandler>();
+				eventHandler = zmem->allocate<MenuEventHandler>();
 				eventHandler->eventType = eventType;
-				eventHandler->eventData.conditionalScript = zmem->Alloc<ConditionalScript>();
+				eventHandler->eventData.conditionalScript = zmem->allocate<ConditionalScript>();
 				if (!Expression_Read(/*handle,*/ &eventHandler->eventData.conditionalScript->eventExpression))
 				{
 					PC_SourceError(/*handle,*/ "Could not read expression.");
@@ -5429,7 +5429,7 @@ namespace zonetool::h1
 					PC_SourceError(/*handle,*/ "Misplaced 'else'.");
 					return 0;
 				}
-				eventHandler = zmem->Alloc<MenuEventHandler>();
+				eventHandler = zmem->allocate<MenuEventHandler>();
 				eventHandler->eventType = eventType;
 				if (!PC_EventScript_Parse(/*handle,*/ &eventHandler->eventData.elseScript))
 				{
@@ -5449,10 +5449,10 @@ namespace zonetool::h1
 					PC_SourceError(/*handle,*/ "Expected local var name.");
 					return 0;
 				}
-				eventHandler = zmem->Alloc<MenuEventHandler>();
+				eventHandler = zmem->allocate<MenuEventHandler>();
 				eventHandler->eventType = eventType;
-				eventHandler->eventData.setLocalVarData = zmem->Alloc<SetLocalVarData>();
-				eventHandler->eventData.setLocalVarData->localVarName = zmem->StrDup(token.string);
+				eventHandler->eventData.setLocalVarData = zmem->allocate<SetLocalVarData>();
+				eventHandler->eventData.setLocalVarData->localVarName = zmem->duplicate_string(token.string);
 				if (!Expression_Read(/*handle,*/ &eventHandler->eventData.setLocalVarData->expression))
 				{
 					PC_SourceError(/*handle,*/ "Could not read expression.");
@@ -5500,9 +5500,9 @@ namespace zonetool::h1
 					snprintf(dst + strlen(dst), sizeof(dst), "\"%s\" ", token.string);
 				} while (strlen(dst) + 1 < sizeof(dst));
 
-				eventHandler = zmem->Alloc<MenuEventHandler>();
+				eventHandler = zmem->allocate<MenuEventHandler>();
 				eventHandler->eventType = eventType;
-				eventHandler->eventData.unconditionalScript = zmem->StrDup(dst);
+				eventHandler->eventData.unconditionalScript = zmem->duplicate_string(dst);
 
 				(*eventHandlerSet)->eventHandlers[(*eventHandlerSet)->eventHandlerCount++] = eventHandler;
 				continue;
@@ -5593,7 +5593,7 @@ namespace zonetool::h1
 			switch (item->type)
 			{
 			case 6:
-				item->typeData.listBox = zmem->Alloc<listBoxDef_s>();
+				item->typeData.listBox = zmem->allocate<listBoxDef_s>();
 				break;
 			case 4:
 			case 9:
@@ -5606,7 +5606,7 @@ namespace zonetool::h1
 			case 17:
 			case 22:
 			case 23:
-				item->typeData.editField = zmem->Alloc<editFieldDef_s>();
+				item->typeData.editField = zmem->allocate<editFieldDef_s>();
 				if (item->type == 4
 					|| item->type == 16
 					|| item->type == 9
@@ -5621,13 +5621,13 @@ namespace zonetool::h1
 				}
 				break;
 			case 12:
-				item->typeData.multi = zmem->Alloc<multiDef_s>();
+				item->typeData.multi = zmem->allocate<multiDef_s>();
 				break;
 			case 20:
-				item->typeData.ticker = zmem->Alloc<newsTickerDef_s>();
+				item->typeData.ticker = zmem->allocate<newsTickerDef_s>();
 				break;
 			case 21:
-				item->typeData.scroll = zmem->Alloc<textScrollDef_s>();
+				item->typeData.scroll = zmem->allocate<textScrollDef_s>();
 				break;
 			}
 		}
@@ -5835,7 +5835,7 @@ namespace zonetool::h1
 
 		if (!PC_String_Parse(/*handle,*/ &name))
 			return 0;
-		menu->window.background = zmem->ManualAlloc<Material>(sizeof(char*));
+		menu->window.background = zmem->manual_allocate<Material>(sizeof(char*));
 		menu->window.background->name = name;
 		_strlwr((char*)menu->window.background->name);
 		return 1;
@@ -5970,7 +5970,7 @@ namespace zonetool::h1
 			return 0;
 		if (!PC_EventScript_Parse(/*handle,*/ &action))
 			return 0;
-		handler = zmem->Alloc<ItemKeyHandler>();
+		handler = zmem->allocate<ItemKeyHandler>();
 		handler->key = key;
 		handler->next = menu->data->onKey;
 		handler->action = action;
@@ -5988,7 +5988,7 @@ namespace zonetool::h1
 			return 0;
 		if (!PC_EventScript_Parse(/*handle,*/ &action))
 			return 0;
-		handler = zmem->Alloc<ItemKeyHandler>();
+		handler = zmem->allocate<ItemKeyHandler>();
 		handler->key = key;
 		handler->next = menu->data->onKey;
 		handler->action = action;
@@ -6126,7 +6126,7 @@ namespace zonetool::h1
 		text = UI_FileText(token.string);
 		if (!text)
 			return 0;
-		item->text = zmem->StrDup(text);
+		item->text = zmem->duplicate_string(text);
 		return 1;
 	}
 
@@ -6440,7 +6440,7 @@ namespace zonetool::h1
 
 		if (!PC_String_Parse(/*handle,*/ &name))
 			return 0;
-		item->window.background = zmem->ManualAlloc<Material>(sizeof(char*));
+		item->window.background = zmem->manual_allocate<Material>(sizeof(char*));
 		item->window.background->name = name;
 		_strlwr((char*)item->window.background->name);
 		return 1;
@@ -6580,7 +6580,7 @@ namespace zonetool::h1
 
 		if (!PC_String_Parse(/*handle,*/ &name))
 			return 0;
-		item->focusSound = zmem->ManualAlloc<snd_alias_list_t>(sizeof(char*));
+		item->focusSound = zmem->manual_allocate<snd_alias_list_t>(sizeof(char*));
 		item->focusSound->name = name;
 		return 1;
 	}
@@ -6636,10 +6636,10 @@ namespace zonetool::h1
 				} while (token.string[0] == ',' || token.string[0] == ';');
 				if (pass)
 					break;
-				multiPtr->dvarList[multiPtr->count] = zmem->StrDup(token.string);
+				multiPtr->dvarList[multiPtr->count] = zmem->duplicate_string(token.string);
 				pass = 1;
 			}
-			multiPtr->dvarStr[multiPtr->count] = zmem->StrDup(token.string);
+			multiPtr->dvarStr[multiPtr->count] = zmem->duplicate_string(token.string);
 			pass = 0;
 			++multiPtr->count;
 		} while (multiPtr->count < 32);
@@ -6675,7 +6675,7 @@ namespace zonetool::h1
 				if (token.string[0] == '}')
 					return 1;
 			} while (token.string[0] == ',' || token.string[0] == ';');
-			multiPtr->dvarList[multiPtr->count] = zmem->StrDup(token.string);
+			multiPtr->dvarList[multiPtr->count] = zmem->duplicate_string(token.string);
 			if (!PC_Float_Parse(/*handle,*/ &multiPtr->dvarValue[multiPtr->count]))
 				return 0;
 			++multiPtr->count;
@@ -6775,7 +6775,7 @@ namespace zonetool::h1
 			return 0;
 		if (!PC_EventScript_Parse(/*handle,*/ &action))
 			return 0;
-		handler = zmem->Alloc<ItemKeyHandler>();
+		handler = zmem->allocate<ItemKeyHandler>();
 		handler->key = key;
 		handler->next = item->onKey;
 		handler->action = action;
@@ -6793,7 +6793,7 @@ namespace zonetool::h1
 			return 0;
 		if (!PC_EventScript_Parse(/*handle,*/ &action))
 			return 0;
-		handler = zmem->Alloc<ItemKeyHandler>();
+		handler = zmem->allocate<ItemKeyHandler>();
 		handler->key = key;
 		handler->next = item->onKey;
 		handler->action = action;
@@ -6879,7 +6879,7 @@ namespace zonetool::h1
 			// allocate that i guess
 			if (!item->floatExpressions)
 			{
-				item->floatExpressions = zmem->Alloc<ItemFloatExpression>(ITEM_FLOATEXP_TGT__COUNT);
+				item->floatExpressions = zmem->allocate<ItemFloatExpression>(ITEM_FLOATEXP_TGT__COUNT);
 			}
 			for (int i = 0; i < item->floatExpressionCount; i++)
 			{
@@ -6960,7 +6960,7 @@ namespace zonetool::h1
 		if (!PC_String_Parse(/*handle,*/ &name))
 			return 0;
 
-		listPtr->selectIcon = zmem->ManualAlloc<Material>(sizeof(char*));
+		listPtr->selectIcon = zmem->manual_allocate<Material>(sizeof(char*));
 		listPtr->selectIcon->name = name;
 		_strlwr((char*)listPtr->selectIcon->name);
 		return 1;
@@ -7171,7 +7171,7 @@ namespace zonetool::h1
 		}
 		else
 		{
-			item = zmem->Alloc<itemDef_t>();
+			item = zmem->allocate<itemDef_t>();
 			Item_Init(item);
 			if (!Item_Parse(/*handle,*/ item))
 			{
@@ -7283,8 +7283,8 @@ namespace zonetool::h1
 
 	void Menu_Init(menuDef_t* menu)
 	{
-		menu->items = zmem->Alloc<itemDef_t*>(MAX_ITEMDEFS_PER_MENUDEF);
-		menu->data = zmem->Alloc<menuData_t>();
+		menu->items = zmem->allocate<itemDef_t*>(MAX_ITEMDEFS_PER_MENUDEF);
+		menu->data = zmem->allocate<menuData_t>();
 		Window_Init(&menu->window);
 	}
 
@@ -7293,7 +7293,7 @@ namespace zonetool::h1
 		bool result;
 		menuDef_t* menu;
 
-		menu = zmem->Alloc<menuDef_t>();
+		menu = zmem->allocate<menuDef_t>();
 
 		Menu_Init(menu);
 		if (Menu_Parse(/*handle,*/ menu))
@@ -7378,14 +7378,14 @@ namespace zonetool::h1
 		return result;
 	}
 
-	MenuList* IMenuList::parse(const std::string& name, ZoneMemory* mem)
+	MenuList* IMenuList::parse(const std::string& name, zone_memory* mem)
 	{
 		MenuList* asset = nullptr;
-		MenuMem menu_memory;
+		menu_memory menu_memory;
 
-		menuList = mem->Alloc<MenuList>();
-		menuList->name = mem->StrDup(name.data());
-		menuList->menus = mem->Alloc<menuDef_t*>(MAX_MENUDEFS_PER_MENULIST);
+		menuList = mem->allocate<MenuList>();
+		menuList->name = mem->duplicate_string(name.data());
+		menuList->menus = mem->allocate<menuDef_t*>(MAX_MENUDEFS_PER_MENULIST);
 
 		zmem = mem;
 		mmem = &menu_memory;
@@ -7399,22 +7399,22 @@ namespace zonetool::h1
 		return asset;
 	}
 
-	void IMenuList::init(const std::string& name, ZoneMemory* mem)
+	void IMenuList::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 		this->asset_ = parse(name, mem);
 
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name().data()).menuList;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).menuList;
 		}
 	}
 
-	void IMenuList::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void IMenuList::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IMenuList::load_depending(IZone* zone)
+	void IMenuList::load_depending(zone_base* zone)
 	{
 		auto* data = this->asset_;
 		if (data->menus)
@@ -7436,7 +7436,7 @@ namespace zonetool::h1
 		return ASSET_TYPE_MENULIST;
 	}
 
-	void IMenuList::write(IZone* zone, ZoneBuffer* buf)
+	void IMenuList::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		auto dest = buf->write(data);

@@ -3,7 +3,7 @@
 
 namespace zonetool::h1
 {
-	void parseLightImage(GfxLightImage* image, json& data, ZoneMemory* mem)
+	void parseLightImage(GfxLightImage* image, json& data, zone_memory* mem)
 	{
 		if (data["image"].is_string())
 		{
@@ -11,15 +11,15 @@ namespace zonetool::h1
 
 			if (image_name.size())
 			{
-				image->image = mem->Alloc<GfxImage>();
-				image->image->name = mem->StrDup(image_name);
+				image->image = mem->allocate<GfxImage>();
+				image->image->name = mem->duplicate_string(image_name);
 			}
 		}
 
 		image->samplerState = data["samplerState"].get<char>();
 	}
 
-	GfxLightDef* IGfxLightDef::parse(const std::string& name, ZoneMemory* mem)
+	GfxLightDef* gfx_light_def::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = "lights\\"s + name + ".json"s;
 		filesystem::file file(path);
@@ -27,7 +27,7 @@ namespace zonetool::h1
 		{
 			ZONETOOL_INFO("Parsing lightdef \"%s\"...", name.data());
 
-			auto asset = mem->Alloc<GfxLightDef>();
+			auto asset = mem->allocate<GfxLightDef>();
 
 			file.open("rb");
 			const auto size = file.size();
@@ -36,7 +36,7 @@ namespace zonetool::h1
 
 			auto data = json::parse(bytes);
 
-			asset->name = mem->StrDup(data["name"].get<std::string>());
+			asset->name = mem->duplicate_string(data["name"].get<std::string>());
 
 			// parse light images
 			parseLightImage(&asset->attenuation, data["attenuation"], mem);
@@ -50,29 +50,29 @@ namespace zonetool::h1
 		return nullptr;
 	}
 
-	void IGfxLightDef::init(const std::string& name, ZoneMemory* mem)
+	void gfx_light_def::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
 		this->asset_ = this->parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name().data()).lightDef;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).lightDef;
 		}
 	}
 
-	void IGfxLightDef::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void gfx_light_def::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IGfxLightDef::load_depending(IZone* zone)
+	void gfx_light_def::load_depending(zone_base* zone)
 	{
 		auto* asset = this->asset_;
 
@@ -86,17 +86,17 @@ namespace zonetool::h1
 		}
 	}
 
-	std::string IGfxLightDef::name()
+	std::string gfx_light_def::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IGfxLightDef::type()
+	std::int32_t gfx_light_def::type()
 	{
 		return ASSET_TYPE_LIGHT_DEF;
 	}
 
-	void IGfxLightDef::write(IZone* zone, ZoneBuffer* buf)
+	void gfx_light_def::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
@@ -119,7 +119,7 @@ namespace zonetool::h1
 		buf->pop_stream();
 	}
 
-	void IGfxLightDef::dump(GfxLightDef* asset)
+	void gfx_light_def::dump(GfxLightDef* asset)
 	{
 		const auto path = "lights\\"s + asset->name + ".json"s;
 		auto file = filesystem::file(path);

@@ -12,12 +12,12 @@ namespace zonetool::s1
 	{
 		namespace sound
 		{
-			zonetool::h1::snd_alias_list_t* convert(snd_alias_list_t* asset, ZoneMemory* mem)
+			zonetool::h1::snd_alias_list_t* convert(snd_alias_list_t* asset, zone_memory* mem)
 			{
-				auto* new_asset = mem->Alloc<zonetool::h1::snd_alias_list_t>();
+				auto* new_asset = mem->allocate<zonetool::h1::snd_alias_list_t>();
 
 				std::memcpy(new_asset, asset, sizeof(snd_alias_list_t));
-				new_asset->head = mem->Alloc<zonetool::h1::snd_alias_t>(asset->count);
+				new_asset->head = mem->allocate<zonetool::h1::snd_alias_t>(asset->count);
 				for (unsigned char i = 0; i < asset->count; i++)
 				{
 					auto* head = &asset->head[i];
@@ -156,9 +156,9 @@ namespace zonetool::s1
 						flags.packed.type = zonetool::h1::SAT_LOADED;
 						new_head->flags = flags.intValue;
 
-						new_head->soundFile->u.loadSnd = mem->Alloc<zonetool::h1::LoadedSound>();
+						new_head->soundFile->u.loadSnd = mem->allocate<zonetool::h1::LoadedSound>();
 						auto* new_loaded = new_head->soundFile->u.loadSnd;
-						new_loaded->name = mem->StrDup(loaded_name);
+						new_loaded->name = mem->duplicate_string(loaded_name);
 
 						return true;
 					};
@@ -169,7 +169,7 @@ namespace zonetool::s1
 						{
 							if (!convert_and_dump_streamed())
 							{
-								new_head->soundFile = mem->Alloc<zonetool::h1::SoundFile>();
+								new_head->soundFile = mem->allocate<zonetool::h1::SoundFile>();
 								new_head->soundFile->exists = false;
 								new_head->soundFile->type = zonetool::h1::SAT_STREAMED;
 								new_head->soundFile->u.streamSnd.filename.info.raw.dir = "";
@@ -182,10 +182,10 @@ namespace zonetool::s1
 				return new_asset;
 			}
 
-			void dump(snd_alias_list_t* asset, ZoneMemory* mem)
+			void dump(snd_alias_list_t* asset, zone_memory* mem)
 			{
 				auto* converted_asset = convert(asset, mem);
-				zonetool::h1::ISound::dump(converted_asset);
+				zonetool::h1::sound::dump(converted_asset);
 			}
 		}
 	}

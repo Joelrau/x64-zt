@@ -2,12 +2,12 @@
 
 namespace zonetool::s1
 {
-	class IAsset;
+	class asset_interface;
 
-	class IZone
+	class zone_base
 	{
 	public:
-		virtual IAsset* find_asset(std::int32_t type, const std::string& name)
+		virtual asset_interface* find_asset(std::int32_t type, const std::string& name)
 		{
 			return nullptr;
 		}
@@ -20,6 +20,6 @@ namespace zonetool::s1
 		virtual void add_asset_of_type(std::int32_t type, const std::string& name) = 0;
 		virtual std::int32_t get_type_by_name(const std::string& type) = 0;
 
-		virtual void build(ZoneBuffer* buf) = 0;
+		virtual void build(zone_buffer* buf) = 0;
 	};
 }

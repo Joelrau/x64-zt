@@ -3,7 +3,7 @@
 
 namespace zonetool::h2
 {
-	Clut* IClut::parse(const std::string& name, ZoneMemory* mem)
+	Clut* clut::parse(const std::string& name, zone_memory* mem)
 	{
 		assetmanager::reader read(mem);
 
@@ -22,43 +22,43 @@ namespace zonetool::h2
 		return asset;
 	}
 
-	void IClut::init(const std::string& name, ZoneMemory* mem)
+	void clut::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
 		this->asset_ = parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name_.data()).clut;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name_.data()).clut;
 		}
 	}
 
-	void IClut::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void clut::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IClut::load_depending(IZone* zone)
+	void clut::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string IClut::name()
+	std::string clut::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IClut::type()
+	std::int32_t clut::type()
 	{
 		return ASSET_TYPE_CLUT;
 	}
 
-	void IClut::write(IZone* zone, ZoneBuffer* buf)
+	void clut::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		auto dest = buf->write(data);
@@ -69,7 +69,7 @@ namespace zonetool::h2
 		{
 			buf->align(0);
 			buf->write(data->unk, 4 * data->count0 * data->count1 * data->count2);
-			ZoneBuffer::clear_pointer(&dest->unk);
+			zone_buffer::clear_pointer(&dest->unk);
 		}
 
 		dest->name = buf->write_str(this->name());
@@ -77,7 +77,7 @@ namespace zonetool::h2
 		buf->pop_stream();
 	}
 
-	void IClut::dump(Clut* asset)
+	void clut::dump(Clut* asset)
 	{
 		const auto path = "clut\\"s + asset->name + ".clut";
 

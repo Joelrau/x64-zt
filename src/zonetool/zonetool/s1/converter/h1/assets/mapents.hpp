@@ -6,8 +6,8 @@ namespace zonetool::s1
 	{
 		namespace mapents
 		{
-			zonetool::h1::MapEnts* convert(MapEnts* asset, ZoneMemory* mem);
-			void dump(MapEnts* asset, ZoneMemory* mem);
+			zonetool::h1::MapEnts* convert(MapEnts* asset, zone_memory* mem);
+			void dump(MapEnts* asset, zone_memory* mem);
 		}
 	}
 }

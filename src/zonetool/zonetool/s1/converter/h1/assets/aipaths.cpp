@@ -12,14 +12,14 @@ namespace zonetool::s1
 	{
 		namespace aipaths
 		{
-			zonetool::h1::PathData* convert(PathData* asset, ZoneMemory* mem)
+			zonetool::h1::PathData* convert(PathData* asset, zone_memory* mem)
 			{
-				auto* new_asset = mem->Alloc<zonetool::h1::PathData>();
+				auto* new_asset = mem->allocate<zonetool::h1::PathData>();
 
 				REINTERPRET_CAST_SAFE(name);
 
 				new_asset->nodeCount = asset->nodeCount;
-				new_asset->nodes = mem->Alloc<zonetool::h1::pathnode_t>(asset->nodeCount);
+				new_asset->nodes = mem->allocate<zonetool::h1::pathnode_t>(asset->nodeCount);
 				for (unsigned int i = 0; i < asset->nodeCount; i++)
 				{
 					// something is wrong in these structs
@@ -66,7 +66,7 @@ namespace zonetool::s1
 				return new_asset;
 			}
 
-			void dump(PathData* asset, ZoneMemory* mem)
+			void dump(PathData* asset, zone_memory* mem)
 			{
 				auto* converted_asset = convert(asset, mem);
 				zonetool::h1::IAIPaths::dump(converted_asset);

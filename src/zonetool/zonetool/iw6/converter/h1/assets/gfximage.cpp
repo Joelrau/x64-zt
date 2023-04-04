@@ -145,7 +145,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			void dump(GfxImage* asset, ZoneMemory* mem)
+			void dump(GfxImage* asset, zone_memory* mem)
 			{
 				if (asset->streamed)
 				{

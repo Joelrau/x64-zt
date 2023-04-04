@@ -3,7 +3,7 @@
 
 namespace zonetool::iw6
 {
-	class IWeaponDef : public IAsset
+	class weapon_def : public asset_interface
 	{
 	private:
 		std::string name_;
@@ -14,20 +14,20 @@ namespace zonetool::iw6
 		const char* get_script_string(scr_string_t* ptr);
 
 	public:
-		WeaponCompleteDef* parse(const std::string& name, ZoneMemory* mem);
-		WeaponDef* parse_weapondef(json& data, WeaponCompleteDef* baseAsset, ZoneMemory* mem);
+		WeaponCompleteDef* parse(const std::string& name, zone_memory* mem);
+		WeaponDef* parse_weapondef(json& data, WeaponCompleteDef* baseAsset, zone_memory* mem);
 
-		void init(const std::string& name, ZoneMemory* mem) override;
-		void prepare(ZoneBuffer* buf, ZoneMemory* mem) override;
-		void load_depending(IZone* zone) override;
-		void load_depending_weapondef(IZone* zone, WeaponDef* data);
+		void init(const std::string& name, zone_memory* mem) override;
+		void prepare(zone_buffer* buf, zone_memory* mem) override;
+		void load_depending(zone_base* zone) override;
+		void load_depending_weapondef(zone_base* zone, WeaponDef* data);
 
 		void* pointer() override { return asset_; }
 		bool referenced() override { return name_.starts_with(","); }
 		std::string name() override;
 		std::int32_t type() override;
-		void write(IZone* zone, ZoneBuffer* buffer) override;
-		void write_weapondef(IZone* zone, ZoneBuffer* buf, WeaponCompleteDef* complete, WeaponDef* data);
+		void write(zone_base* zone, zone_buffer* buffer) override;
+		void write_weapondef(zone_base* zone, zone_buffer* buf, WeaponCompleteDef* complete, WeaponDef* data);
 
 		static void dump(WeaponCompleteDef* asset);
 		static json dump_complete(WeaponCompleteDef* asset);

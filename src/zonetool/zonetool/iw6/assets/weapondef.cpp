@@ -156,7 +156,7 @@ namespace zonetool::iw6
 		//return WEAP_ANIM_INVALID;
 	}
 
-	void IWeaponDef::add_script_string(scr_string_t* ptr, const char* str)
+	void weapon_def::add_script_string(scr_string_t* ptr, const char* str)
 	{
 		for (std::uint32_t i = 0; i < this->script_strings.size(); i++)
 		{
@@ -168,7 +168,7 @@ namespace zonetool::iw6
 		this->script_strings.push_back(std::pair<scr_string_t*, const char*>(ptr, str));
 	}
 
-	const char* IWeaponDef::get_script_string(scr_string_t* ptr)
+	const char* weapon_def::get_script_string(scr_string_t* ptr)
 	{
 		for (std::uint32_t i = 0; i < this->script_strings.size(); i++)
 		{
@@ -193,7 +193,7 @@ namespace zonetool::iw6
 	}
 
 #define WEAPON_READ_STRING(__field__) \
-	if (!data[#__field__].is_null()) weapon->__field__ = mem->StrDup(data[#__field__].get<std::string>())
+	if (!data[#__field__].is_null()) weapon->__field__ = mem->duplicate_string(data[#__field__].get<std::string>())
 
 #define WEAPON_READ_ASSET(__type__, __datafield__, __field__) \
 	if (!data[#__field__].is_null() && data[#__field__].is_string()) \
@@ -216,7 +216,7 @@ namespace zonetool::iw6
 #define WEAPON_READ_ASSET_ARR(__type__, __datafield__, __field__, __struct__, __size__) \
 	if (!data[#__field__].is_null()) \
 	{ \
-		weapon->__field__ = mem->Alloc<__struct__*>(__size__); \
+		weapon->__field__ = mem->allocate<__struct__*>(__size__); \
 		for (auto idx##__field__ = 0; idx##__field__ < __size__; idx##__field__++) \
 		{ \
 			auto asset##__field__ = data[#__field__][idx##__field__].get<std::string>(); \
@@ -238,7 +238,7 @@ namespace zonetool::iw6
 #define WEAPON_READ_ANIM_ARR(__field__, __size__) \
 	if (!data[#__field__].is_null()) \
 	{ \
-		weapon->__field__ = mem->Alloc<XAnimParts*>(__size__); \
+		weapon->__field__ = mem->allocate<XAnimParts*>(__size__); \
 		for (auto idx##__field__ = 0; idx##__field__ < __size__; idx##__field__++) \
 		{ \
 			auto asset##__field__ = data[#__field__][get_anim_name_from_index(idx##__field__)].get<std::string>(); \
@@ -288,7 +288,7 @@ namespace zonetool::iw6
 		WEAPON_READ_FIELD(float, heightSplitscreen);
 	}
 
-	void parse_accuracy_graph(WeaponDef* def, json& data, ZoneMemory* mem)
+	void parse_accuracy_graph(WeaponDef* def, json& data, zone_memory* mem)
 	{
 		
 	}
@@ -347,9 +347,9 @@ namespace zonetool::iw6
 		WEAPON_READ_FIELD(int, slideOutTime);
 	}
 
-	WeaponDef* IWeaponDef::parse_weapondef(json& data, WeaponCompleteDef* baseAsset, ZoneMemory* mem)
+	WeaponDef* weapon_def::parse_weapondef(json& data, WeaponCompleteDef* baseAsset, zone_memory* mem)
 	{
-		auto weapon = mem->Alloc<WeaponDef>();
+		auto weapon = mem->allocate<WeaponDef>();
 
 		if (baseAsset)
 		{
@@ -658,7 +658,7 @@ namespace zonetool::iw6
 		if (!data["knifeAttachTagOverride"].is_null())
 		{
 			auto knifeAttachTagOverride = data["knifeAttachTagOverride"].get<std::string>();
-			this->add_script_string(&weapon->knifeAttachTagOverride, mem->StrDup(knifeAttachTagOverride));
+			this->add_script_string(&weapon->knifeAttachTagOverride, mem->duplicate_string(knifeAttachTagOverride));
 		}
 
 		WEAPON_READ_FIELD(bool, knifeAlwaysAttached);
@@ -740,7 +740,7 @@ namespace zonetool::iw6
 		if (!data["stowTag"].is_null())
 		{
 			auto stowTag = data["stowTag"].get<std::string>();
-			this->add_script_string(&weapon->stowTag, mem->StrDup(stowTag));
+			this->add_script_string(&weapon->stowTag, mem->duplicate_string(stowTag));
 		}
 
 		weapon->accuracyGraphName[0] = nullptr;
@@ -758,45 +758,45 @@ namespace zonetool::iw6
 		WEAPON_READ_ANIM_ARR(szXAnimsRightHanded, 124);
 		WEAPON_READ_ANIM_ARR(szXAnimsLeftHanded, 124);
 
-		weapon->notetrackSoundMapKeys = mem->Alloc<scr_string_t>(24);
-		weapon->notetrackSoundMapValues = mem->Alloc<scr_string_t>(24);
+		weapon->notetrackSoundMapKeys = mem->allocate<scr_string_t>(24);
+		weapon->notetrackSoundMapValues = mem->allocate<scr_string_t>(24);
 		for (auto i = 0u; i < 24; i++)
 		{
 			auto notetrack = data["notetrackSoundMapKeys"][i].get<std::string>();
-			this->add_script_string(&weapon->notetrackSoundMapKeys[i], mem->StrDup(notetrack));
+			this->add_script_string(&weapon->notetrackSoundMapKeys[i], mem->duplicate_string(notetrack));
 		}
 		for (auto i = 0u; i < 24; i++)
 		{
 			auto notetrack = data["notetrackSoundMapValues"][i].get<std::string>();
-			this->add_script_string(&weapon->notetrackSoundMapValues[i], mem->StrDup(notetrack));
+			this->add_script_string(&weapon->notetrackSoundMapValues[i], mem->duplicate_string(notetrack));
 		}
 
-		weapon->notetrackRumbleMapKeys = mem->Alloc<scr_string_t>(16);
-		weapon->notetrackRumbleMapValues = mem->Alloc<scr_string_t>(16);
-		weapon->notetrackFXMapKeys = mem->Alloc<scr_string_t>(16);
-		weapon->notetrackFXMapTagValues = mem->Alloc<scr_string_t>(16);
+		weapon->notetrackRumbleMapKeys = mem->allocate<scr_string_t>(16);
+		weapon->notetrackRumbleMapValues = mem->allocate<scr_string_t>(16);
+		weapon->notetrackFXMapKeys = mem->allocate<scr_string_t>(16);
+		weapon->notetrackFXMapTagValues = mem->allocate<scr_string_t>(16);
 		for (auto i = 0u; i < 16; i++)
 		{
 			auto notetrack = data["notetrackRumbleMapKeys"][i].get<std::string>();
-			this->add_script_string(&weapon->notetrackRumbleMapKeys[i], mem->StrDup(notetrack));
+			this->add_script_string(&weapon->notetrackRumbleMapKeys[i], mem->duplicate_string(notetrack));
 		}
 		for (auto i = 0u; i < 16; i++)
 		{
 			auto notetrack = data["notetrackRumbleMapValues"][i].get<std::string>();
-			this->add_script_string(&weapon->notetrackRumbleMapValues[i], mem->StrDup(notetrack));
+			this->add_script_string(&weapon->notetrackRumbleMapValues[i], mem->duplicate_string(notetrack));
 		}
 		for (auto i = 0u; i < 16; i++)
 		{
 			auto notetrack = data["notetrackFXMapKeys"][i].get<std::string>();
-			this->add_script_string(&weapon->notetrackFXMapKeys[i], mem->StrDup(notetrack));
+			this->add_script_string(&weapon->notetrackFXMapKeys[i], mem->duplicate_string(notetrack));
 		}
 		for (auto i = 0u; i < 16; i++)
 		{
 			auto notetrack = data["notetrackFXMapTagValues"][i].get<std::string>();
-			this->add_script_string(&weapon->notetrackFXMapTagValues[i], mem->StrDup(notetrack));
+			this->add_script_string(&weapon->notetrackFXMapTagValues[i], mem->duplicate_string(notetrack));
 		}
 
-		weapon->notetrackFXMapValues = mem->Alloc<FxEffectDef*>(16);
+		weapon->notetrackFXMapValues = mem->allocate<FxEffectDef*>(16);
 		for (auto i = 0u; i < 16; i++)
 		{
 			auto notetrack = data["notetrackFXMapValues"][i].get<std::string>();
@@ -875,7 +875,7 @@ namespace zonetool::iw6
 		return weapon;
 	}
 
-	WeaponCompleteDef* IWeaponDef::parse(const std::string& name, ZoneMemory* mem)
+	WeaponCompleteDef* weapon_def::parse(const std::string& name, zone_memory* mem)
 	{
 		auto path = "weapons\\" + name + ".json"s;
 
@@ -887,7 +887,7 @@ namespace zonetool::iw6
 
 		ZONETOOL_INFO("Parsing weapon \"%s\"...", name.data());
 
-		auto weapon = mem->Alloc<WeaponCompleteDef>();
+		auto weapon = mem->allocate<WeaponCompleteDef>();
 
 		// parse json file
 		file.open("rb");
@@ -950,11 +950,11 @@ namespace zonetool::iw6
 		// parse weapondef
 		weapon->weapDef = parse_weapondef(data["weapDef"], baseAsset, mem);
 
-		weapon->hideTags = mem->Alloc<scr_string_t>(32);
+		weapon->hideTags = mem->allocate<scr_string_t>(32);
 		for (auto i = 0u; i < 32; i++)
 		{
 			auto script_str = data["hideTags"][i].get<std::string>();
-			this->add_script_string(&weapon->hideTags[i], mem->StrDup(script_str));
+			this->add_script_string(&weapon->hideTags[i], mem->duplicate_string(script_str));
 		}
 
 		WEAPON_READ_ASSET_ARR(ASSET_TYPE_ATTACHMENT, attachment, scopes, WeaponAttachment, 6);
@@ -965,7 +965,7 @@ namespace zonetool::iw6
 
 		if (weapon->numAnimOverrides)
 		{
-			weapon->animOverrides = mem->Alloc<AnimOverrideEntry>(weapon->numAnimOverrides);
+			weapon->animOverrides = mem->allocate<AnimOverrideEntry>(weapon->numAnimOverrides);
 			for (auto i = 0u; i < weapon->numAnimOverrides; i++)
 			{
 				auto altmodeAnim = data["animOverrides"][i]["altmodeAnim"].get<std::string>();
@@ -988,7 +988,7 @@ namespace zonetool::iw6
 
 		if (weapon->numSoundOverrides)
 		{
-			weapon->soundOverrides = mem->Alloc<SoundOverrideEntry>(weapon->numSoundOverrides);
+			weapon->soundOverrides = mem->allocate<SoundOverrideEntry>(weapon->numSoundOverrides);
 			for (auto i = 0u; i < weapon->numSoundOverrides; i++)
 			{
 				auto altmodeSound = data["soundOverrides"][i]["altmodeSound"].get<std::string>();
@@ -1009,7 +1009,7 @@ namespace zonetool::iw6
 
 		if (weapon->numFXOverrides)
 		{
-			weapon->fxOverrides = mem->Alloc<FXOverrideEntry>(weapon->numFXOverrides);
+			weapon->fxOverrides = mem->allocate<FXOverrideEntry>(weapon->numFXOverrides);
 			for (auto i = 0u; i < weapon->numFXOverrides; i++)
 			{
 				auto altmodeFX = data["fxOverrides"][i]["altmodeFX"].get<std::string>();
@@ -1030,7 +1030,7 @@ namespace zonetool::iw6
 
 		if (weapon->numReloadStateTimerOverrides)
 		{
-			weapon->reloadOverrides = mem->Alloc<ReloadStateTimerEntry>(weapon->numReloadStateTimerOverrides);
+			weapon->reloadOverrides = mem->allocate<ReloadStateTimerEntry>(weapon->numReloadStateTimerOverrides);
 			for (auto i = 0u; i < weapon->numReloadStateTimerOverrides; i++)
 			{
 				weapon->reloadOverrides[i].attachment = data["reloadOverrides"][i]["attachment"].get<int>();
@@ -1042,7 +1042,7 @@ namespace zonetool::iw6
 
 		if (weapon->numNotetrackOverrides)
 		{
-			weapon->notetrackOverrides = mem->Alloc<NoteTrackToSoundEntry>(weapon->numNotetrackOverrides);
+			weapon->notetrackOverrides = mem->allocate<NoteTrackToSoundEntry>(weapon->numNotetrackOverrides);
 			for (auto i = 0u; i < weapon->numNotetrackOverrides; i++)
 			{
 				weapon->notetrackOverrides[i].attachment = data["notetrackOverrides"][i]["attachment"].get<int>();
@@ -1051,12 +1051,12 @@ namespace zonetool::iw6
 					auto notetrackSoundMapKey = data["notetrackOverrides"][i]["notetrackSoundMapKeys"][j].get<std::string>();
 					if (!notetrackSoundMapKey.empty())
 					{
-						this->add_script_string(&weapon->notetrackOverrides[i].notetrackSoundMapKeys[j], mem->StrDup(notetrackSoundMapKey));
+						this->add_script_string(&weapon->notetrackOverrides[i].notetrackSoundMapKeys[j], mem->duplicate_string(notetrackSoundMapKey));
 					}
 					auto notetrackSoundMapValue = data["notetrackOverrides"][i]["notetrackSoundMapValues"][j].get<std::string>();
 					if (!notetrackSoundMapValue.empty())
 					{
-						this->add_script_string(&weapon->notetrackOverrides[i].notetrackSoundMapValues[j], mem->StrDup(notetrackSoundMapValue));
+						this->add_script_string(&weapon->notetrackOverrides[i].notetrackSoundMapValues[j], mem->duplicate_string(notetrackSoundMapValue));
 					}
 				}
 			}
@@ -1065,14 +1065,14 @@ namespace zonetool::iw6
 		return weapon;
 	}
 
-	void IWeaponDef::init(const std::string& name, ZoneMemory* mem)
+	void weapon_def::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
@@ -1092,7 +1092,7 @@ namespace zonetool::iw6
 			} \
 		}
 
-	void IWeaponDef::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void weapon_def::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 		auto* weapon = this->asset_;
 
@@ -1134,7 +1134,7 @@ namespace zonetool::iw6
 			zone->add_asset_of_type(__type__, data->__field__->name); \
 		}
 
-	void IWeaponDef::load_depending_weapondef(IZone* zone, WeaponDef* data)
+	void weapon_def::load_depending_weapondef(zone_base* zone, WeaponDef* data)
 	{
 		for (auto i = 0u; i < 64; i++)
 		{
@@ -1342,7 +1342,7 @@ namespace zonetool::iw6
 		WEAPON_SUBASSET_DEPENDING(stowOffsetModel, ASSET_TYPE_XMODEL, XModel);
 	}
 
-	void IWeaponDef::load_depending(IZone* zone)
+	void weapon_def::load_depending(zone_base* zone)
 	{
 		auto data = this->asset_;
 
@@ -1451,12 +1451,12 @@ namespace zonetool::iw6
 		load_depending_weapondef(zone, data->weapDef);
 	}
 
-	std::string IWeaponDef::name()
+	std::string weapon_def::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IWeaponDef::type()
+	std::int32_t weapon_def::type()
 	{
 		return ASSET_TYPE_WEAPON;
 	}
@@ -1468,7 +1468,7 @@ namespace zonetool::iw6
 			buf->align(7); \
 			buf->write(&ptr); \
 			buf->write_str(data->__field__->name); \
-			ZoneBuffer::clear_pointer(&dest->__field__); \
+			zone_buffer::clear_pointer(&dest->__field__); \
 		}
 
 #define WEAPON_SUBASSET(__field__,__type__,__struct__) \
@@ -1482,7 +1482,7 @@ namespace zonetool::iw6
 		{ \
 			buf->align(3); \
 			buf->write(data->__field__,__count__); \
-			ZoneBuffer::clear_pointer(&dest->__field__); \
+			zone_buffer::clear_pointer(&dest->__field__); \
 		}
 
 #define WEAPON_ATTACHMENT(__field__,__max__) \
@@ -1501,10 +1501,10 @@ namespace zonetool::iw6
 				} \
 			} \
 			 \
-			ZoneBuffer::clear_pointer(&dest->__field__); \
+			zone_buffer::clear_pointer(&dest->__field__); \
 		}
 
-	void IWeaponDef::write_weapondef(IZone* zone, ZoneBuffer* buf, WeaponCompleteDef* complete, WeaponDef* data)
+	void weapon_def::write_weapondef(zone_base* zone, zone_buffer* buf, WeaponCompleteDef* complete, WeaponDef* data)
 	{
 		auto dest = buf->write(data);
 
@@ -1528,7 +1528,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->gunXModel);
+			zone_buffer::clear_pointer(&dest->gunXModel);
 		}
 
 		if (data->handXModel)
@@ -1581,7 +1581,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->camoMaterialTarget);
+			zone_buffer::clear_pointer(&dest->camoMaterialTarget);
 		}
 
 		if (data->szXAnimsRightHanded)
@@ -1599,7 +1599,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->szXAnimsRightHanded);
+			zone_buffer::clear_pointer(&dest->szXAnimsRightHanded);
 		}
 
 		if (data->szXAnimsLeftHanded)
@@ -1617,7 +1617,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->szXAnimsLeftHanded);
+			zone_buffer::clear_pointer(&dest->szXAnimsLeftHanded);
 		}
 
 		if (data->szModeName)
@@ -1646,7 +1646,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->notetrackFXMapValues);
+			zone_buffer::clear_pointer(&dest->notetrackFXMapValues);
 		}
 
 		WEAPON_SCRIPTSTRING_ARRAY(notetrackFXMapTagValues, 16);
@@ -1714,7 +1714,7 @@ namespace zonetool::iw6
 				WEAPON_SOUND_CUSTOM(bounceSound[i]);
 			}
 
-			ZoneBuffer::clear_pointer(&dest->bounceSound);
+			zone_buffer::clear_pointer(&dest->bounceSound);
 		}
 
 		if (data->rollingSound)
@@ -1727,7 +1727,7 @@ namespace zonetool::iw6
 				WEAPON_SOUND_CUSTOM(rollingSound[i]);
 			}
 
-			ZoneBuffer::clear_pointer(&dest->rollingSound);
+			zone_buffer::clear_pointer(&dest->rollingSound);
 		}
 
 		WEAPON_SUBASSET(viewShellEjectEffect, ASSET_TYPE_FX, FxEffectDef);
@@ -1753,7 +1753,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->worldModel);
+			zone_buffer::clear_pointer(&dest->worldModel);
 		}
 
 		WEAPON_SUBASSET(worldClipModel, ASSET_TYPE_XMODEL, XModel);
@@ -1860,7 +1860,7 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			buf->write(data->locationDamageMultipliers, 22);
-			ZoneBuffer::clear_pointer(&dest->locationDamageMultipliers);
+			zone_buffer::clear_pointer(&dest->locationDamageMultipliers);
 		}
 
 		if (data->fireRumble)
@@ -1897,7 +1897,7 @@ namespace zonetool::iw6
 		WEAPON_SUBASSET(stowOffsetModel, ASSET_TYPE_XMODEL, XModel);
 	}
 
-	void IWeaponDef::write(IZone* zone, ZoneBuffer* buf)
+	void weapon_def::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
@@ -1910,7 +1910,7 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			write_weapondef(zone, buf, data, data->weapDef);
-			ZoneBuffer::clear_pointer(&dest->weapDef);
+			zone_buffer::clear_pointer(&dest->weapDef);
 		}
 
 		if (data->szDisplayName)
@@ -1922,7 +1922,7 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			buf->write(data->hideTags, 32);
-			ZoneBuffer::clear_pointer(&dest->hideTags);
+			zone_buffer::clear_pointer(&dest->hideTags);
 		}
 
 		WEAPON_ATTACHMENT(scopes, 6);
@@ -1944,7 +1944,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->szXAnims);
+			zone_buffer::clear_pointer(&dest->szXAnims);
 		}
 
 		if (data->animOverrides)
@@ -1969,7 +1969,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->animOverrides);
+			zone_buffer::clear_pointer(&dest->animOverrides);
 		}
 
 		if (data->soundOverrides)
@@ -1990,7 +1990,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->soundOverrides);
+			zone_buffer::clear_pointer(&dest->soundOverrides);
 		}
 
 		if (data->fxOverrides)
@@ -2015,14 +2015,14 @@ namespace zonetool::iw6
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->fxOverrides);
+			zone_buffer::clear_pointer(&dest->fxOverrides);
 		}
 
 		if (data->reloadOverrides)
 		{
 			buf->align(3);
 			buf->write(data->reloadOverrides, data->numReloadStateTimerOverrides);
-			ZoneBuffer::clear_pointer(&dest->reloadOverrides);
+			zone_buffer::clear_pointer(&dest->reloadOverrides);
 		}
 
 		if (data->notetrackOverrides)
@@ -2036,18 +2036,18 @@ namespace zonetool::iw6
 				{
 					buf->align(3);
 					buf->write(data->notetrackOverrides[i].notetrackSoundMapKeys, 24);
-					ZoneBuffer::clear_pointer(&destNoteTrackOverrides[i].notetrackSoundMapKeys);
+					zone_buffer::clear_pointer(&destNoteTrackOverrides[i].notetrackSoundMapKeys);
 				}
 
 				if (destNoteTrackOverrides[i].notetrackSoundMapValues)
 				{
 					buf->align(3);
 					buf->write(data->notetrackOverrides[i].notetrackSoundMapValues, 24);
-					ZoneBuffer::clear_pointer(&destNoteTrackOverrides[i].notetrackSoundMapValues);
+					zone_buffer::clear_pointer(&destNoteTrackOverrides[i].notetrackSoundMapValues);
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->notetrackOverrides);
+			zone_buffer::clear_pointer(&dest->notetrackOverrides);
 		}
 
 		if (data->szAltWeaponName)
@@ -2073,14 +2073,14 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			buf->write(data->accuracyGraphKnots[0], data->accuracyGraphKnotCount[0]);
-			ZoneBuffer::clear_pointer(&dest->accuracyGraphKnots[0]);
+			zone_buffer::clear_pointer(&dest->accuracyGraphKnots[0]);
 		}
 
 		if (data->accuracyGraphKnots[1])
 		{
 			buf->align(3);
 			buf->write(data->accuracyGraphKnots[1], data->accuracyGraphKnotCount[1]);
-			ZoneBuffer::clear_pointer(&dest->accuracyGraphKnots[1]);
+			zone_buffer::clear_pointer(&dest->accuracyGraphKnots[1]);
 		}
 
 		if (data->szAdsrBaseSetting)
@@ -2256,7 +2256,7 @@ namespace zonetool::iw6
 		return data;
 	}
 
-	json IWeaponDef::dump_weapondef(WeaponDef* asset)
+	json weapon_def::dump_weapondef(WeaponDef* asset)
 	{
 		assert(sizeof(WeaponDef) == 2712);
 
@@ -2791,7 +2791,7 @@ namespace zonetool::iw6
 		return data;
 	}
 
-	json IWeaponDef::dump_complete(WeaponCompleteDef* asset)
+	json weapon_def::dump_complete(WeaponCompleteDef* asset)
 	{
 		assert(sizeof(WeaponCompleteDef) == 296);
 
@@ -2923,7 +2923,7 @@ namespace zonetool::iw6
 		return data;
 	}
 
-	void IWeaponDef::dump(WeaponCompleteDef* asset)
+	void weapon_def::dump(WeaponCompleteDef* asset)
 	{
 		const auto path = "weapons\\"s + asset->name + ".json"s;
 		std::string json = dump_complete(asset).dump(4);

@@ -6,8 +6,8 @@ namespace zonetool::iw6
 	{
 		namespace comworld
 		{
-			zonetool::h1::ComWorld* convert(ComWorld* asset, ZoneMemory* mem);
-			void dump(ComWorld* asset, ZoneMemory* mem);
+			zonetool::h1::ComWorld* convert(ComWorld* asset, zone_memory* mem);
+			void dump(ComWorld* asset, zone_memory* mem);
 		}
 	}
 }

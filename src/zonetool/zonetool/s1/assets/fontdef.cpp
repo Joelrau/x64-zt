@@ -3,7 +3,7 @@
 
 namespace zonetool::s1
 {
-	Font_s* IFontDef::parse(const std::string& name, ZoneMemory* mem)
+	Font_s* font_def::parse(const std::string& name, zone_memory* mem)
 	{
 		auto path = name;
 		auto file = filesystem::file(path);
@@ -21,17 +21,17 @@ namespace zonetool::s1
 
 		nlohmann::json fontdata = nlohmann::json::parse(bytes);
 
-		auto font = mem->Alloc<Font_s>();
+		auto font = mem->allocate<Font_s>();
 		font->name = _strdup(fontdata["fontName"].get<std::string>().data());
 		font->glyphCount = fontdata["glyphCount"].get<int>();
 		font->pixelHeight = fontdata["pixelHeight"].get<int>();
 
-		font->material = mem->Alloc<Material>();
+		font->material = mem->allocate<Material>();
 		font->material->name = _strdup(fontdata["material"].get<std::string>().data());
-		font->glowMaterial = mem->Alloc<Material>();
+		font->glowMaterial = mem->allocate<Material>();
 		font->glowMaterial->name = _strdup(fontdata["glowMaterial"].get<std::string>().data());
 
-		font->glyphs = mem->Alloc<Glyph>(font->glyphCount);
+		font->glyphs = mem->allocate<Glyph>(font->glyphCount);
 
 		for (int i = 0; i < font->glyphCount; i++)
 		{
@@ -50,22 +50,22 @@ namespace zonetool::s1
 		return font;
 	}
 
-	void IFontDef::init(const std::string& name, ZoneMemory* mem)
+	void font_def::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 		this->asset_ = this->parse(name, mem);
 
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name_.data()).font;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name_.data()).font;
 		}
 	}
 
-	void IFontDef::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void font_def::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IFontDef::load_depending(IZone* zone)
+	void font_def::load_depending(zone_base* zone)
 	{
 		auto* data = this->asset_;
 
@@ -80,17 +80,17 @@ namespace zonetool::s1
 		}
 	}
 
-	std::string IFontDef::name()
+	std::string font_def::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IFontDef::type()
+	std::int32_t font_def::type()
 	{
 		return ASSET_TYPE_FONT;
 	}
 
-	void IFontDef::write(IZone* zone, ZoneBuffer* buf)
+	void font_def::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
@@ -117,13 +117,13 @@ namespace zonetool::s1
 		{
 			buf->align(3);
 			buf->write(data->glyphs, data->glyphCount);
-			ZoneBuffer::clear_pointer(&dest->glyphs);
+			zone_buffer::clear_pointer(&dest->glyphs);
 		}
 
 		buf->pop_stream();
 	}
 
-	void IFontDef::dump(Font_s* asset)
+	void font_def::dump(Font_s* asset)
 	{
 		auto f = filesystem::file(asset->fontName);
 		f.open("wb");

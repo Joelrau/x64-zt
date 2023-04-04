@@ -10,23 +10,23 @@ namespace zonetool::iw6
 	{
 		namespace pixelshader
 		{
-			zonetool::h1::MaterialPixelShader* convert(MaterialPixelShader* asset, ZoneMemory* mem)
+			zonetool::h1::MaterialPixelShader* convert(MaterialPixelShader* asset, zone_memory* mem)
 			{
-				auto* new_asset = mem->Alloc<zonetool::h1::MaterialPixelShader>();
+				auto* new_asset = mem->allocate<zonetool::h1::MaterialPixelShader>();
 
 				new_asset->prog.loadDef.program = asset->prog.loadDef.program;
 				new_asset->prog.loadDef.programSize = asset->prog.loadDef.programSize;
 				new_asset->prog.loadDef.microCodeCrc = shader::calc_crc32(new_asset->prog.loadDef.program, new_asset->prog.loadDef.programSize);
 
-				new_asset->name = mem->StrDup(asset->name + TECHSET_PREFIX);
+				new_asset->name = mem->duplicate_string(asset->name + TECHSET_PREFIX);
 
 				return new_asset;
 			}
 
-			void dump(MaterialPixelShader* asset, ZoneMemory* mem)
+			void dump(MaterialPixelShader* asset, zone_memory* mem)
 			{
 				auto* converted_asset = convert(asset, mem);
-				zonetool::h1::IPixelShader::dump(converted_asset);
+				zonetool::h1::pixel_shader::dump(converted_asset);
 			}
 		}
 	}

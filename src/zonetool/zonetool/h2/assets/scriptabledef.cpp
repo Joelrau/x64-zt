@@ -3,7 +3,7 @@
 
 namespace zonetool::h2
 {
-	void IScriptableDef::add_script_string(scr_string_t* ptr, const char* str)
+	void scriptable_def::add_script_string(scr_string_t* ptr, const char* str)
 	{
 		for (std::uint32_t i = 0; i < this->script_strings.size(); i++)
 		{
@@ -15,7 +15,7 @@ namespace zonetool::h2
 		this->script_strings.push_back(std::pair<scr_string_t*, const char*>(ptr, str));
 	}
 
-	const char* IScriptableDef::get_script_string(scr_string_t* ptr)
+	const char* scriptable_def::get_script_string(scr_string_t* ptr)
 	{
 		for (std::uint32_t i = 0; i < this->script_strings.size(); i++)
 		{
@@ -27,7 +27,7 @@ namespace zonetool::h2
 		return nullptr;
 	}
 
-	void IScriptableDef::parse_scriptable_event_def(ScriptableEventDef* event, assetmanager::reader& read, ZoneMemory* mem)
+	void scriptable_def::parse_scriptable_event_def(ScriptableEventDef* event, assetmanager::reader& read, zone_memory* mem)
 	{
 		switch (event->type)
 		{
@@ -76,7 +76,7 @@ namespace zonetool::h2
 		}
 	}
 
-	ScriptableDef* IScriptableDef::parse(std::string name, ZoneMemory* mem)
+	ScriptableDef* scriptable_def::parse(std::string name, zone_memory* mem)
 	{
 		const auto path = "scriptable\\"s + name;
 
@@ -130,15 +130,15 @@ namespace zonetool::h2
 		return asset;
 	}
 
-	void IScriptableDef::init(const std::string& name, ZoneMemory* mem)
+	void scriptable_def::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 		this->asset_ = this->parse(name, mem);
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
@@ -148,7 +148,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void IScriptableDef::prepare_scriptable_event_def(ScriptableEventDef* event, ZoneBuffer* buf, ZoneMemory* mem)
+	void scriptable_def::prepare_scriptable_event_def(ScriptableEventDef* event, zone_buffer* buf, zone_memory* mem)
 	{
 		switch (event->type)
 		{
@@ -165,7 +165,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void IScriptableDef::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void scriptable_def::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 		auto* data = this->asset_;
 
@@ -199,7 +199,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void IScriptableDef::load_depending_scriptable_event_def(IZone* zone, ScriptableEventDef* event)
+	void scriptable_def::load_depending_scriptable_event_def(zone_base* zone, ScriptableEventDef* event)
 	{
 		switch (event->type)
 		{
@@ -242,7 +242,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void IScriptableDef::load_depending(IZone* zone)
+	void scriptable_def::load_depending(zone_base* zone)
 	{
 		auto* data = this->asset_;
 
@@ -287,17 +287,17 @@ namespace zonetool::h2
 		}
 	}
 
-	std::string IScriptableDef::name()
+	std::string scriptable_def::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IScriptableDef::type()
+	std::int32_t scriptable_def::type()
 	{
 		return ASSET_TYPE_SCRIPTABLE;
 	}
 
-	void IScriptableDef::write_scriptable_event_def(IZone* zone, ZoneBuffer* buf, ScriptableEventDef* data, ScriptableEventDef* dest)
+	void scriptable_def::write_scriptable_event_def(zone_base* zone, zone_buffer* buf, ScriptableEventDef* data, ScriptableEventDef* dest)
 	{
 		switch (data->type)
 		{
@@ -329,7 +329,7 @@ namespace zonetool::h2
 				buf->align(7);
 				buf->write(&ptr);
 				buf->write_str(data->data.playSound.alias->name);
-				ZoneBuffer::clear_pointer(&dest->data.playSound.alias);
+				zone_buffer::clear_pointer(&dest->data.playSound.alias);
 			}
 			break;
 		case SCRIPTABLE_EVENT_ANIMATION:
@@ -382,7 +382,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void IScriptableDef::write(IZone* zone, ZoneBuffer* buf)
+	void scriptable_def::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
@@ -428,13 +428,13 @@ namespace zonetool::h2
 								write_scriptable_event_def(zone, buf, &data->parts[i].states[j].onEnterEvents[k],
 									&destevents[k]);
 							}
-							ZoneBuffer::clear_pointer(&deststates[j].onEnterEvents);
+							zone_buffer::clear_pointer(&deststates[j].onEnterEvents);
 						}
 					}
-					ZoneBuffer::clear_pointer(&destparts[i].states);
+					zone_buffer::clear_pointer(&destparts[i].states);
 				}
 			}
-			ZoneBuffer::clear_pointer(&dest->parts);
+			zone_buffer::clear_pointer(&dest->parts);
 		}
 
 		if (data->notetracks)
@@ -453,7 +453,7 @@ namespace zonetool::h2
 							buf->align(7);
 							buf->write(&ptr);
 							buf->write_str(data->notetracks[i].data.playSound.alias->name);
-							ZoneBuffer::clear_pointer(&destnotetracks[i].data.playSound.alias);
+							zone_buffer::clear_pointer(&destnotetracks[i].data.playSound.alias);
 						}
 					}
 				}
@@ -466,13 +466,13 @@ namespace zonetool::h2
 					}
 				}
 			}
-			ZoneBuffer::clear_pointer(&dest->notetracks);
+			zone_buffer::clear_pointer(&dest->notetracks);
 		}
 
 		buf->pop_stream();
 	}
 
-	void IScriptableDef::dump_scriptable_event_def(ScriptableEventDef* event, assetmanager::dumper& dump)
+	void scriptable_def::dump_scriptable_event_def(ScriptableEventDef* event, assetmanager::dumper& dump)
 	{
 		switch (event->type)
 		{
@@ -521,7 +521,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void IScriptableDef::dump(ScriptableDef* asset)
+	void scriptable_def::dump(ScriptableDef* asset)
 	{
 		const auto path = "scriptable\\"s + asset->name;
 

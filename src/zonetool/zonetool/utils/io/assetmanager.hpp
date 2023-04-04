@@ -349,7 +349,7 @@ namespace zonetool
 		private:
 			filesystem::file file;
 			std::vector<dump_entry> read_entries;
-			ZoneMemory* memory;
+			zone_memory* memory;
 
 			template <typename T>
 			std::uintptr_t get_entry_read(dump_info info)
@@ -450,13 +450,13 @@ namespace zonetool
 			}
 
 		public:
-			reader(const std::string& name, ZoneMemory* mem)
+			reader(const std::string& name, zone_memory* mem)
 			{
 				memory = mem;
 				initialize(name);
 			}
 
-			reader(ZoneMemory* mem)
+			reader(zone_memory* mem)
 			{
 				memory = mem;
 			}
@@ -556,7 +556,7 @@ namespace zonetool
 					std::string str;
 					read_string_internal(&str);
 
-					char* ret_str = memory->Alloc<char>(str.size() + 1);
+					char* ret_str = memory->allocate<char>(str.size() + 1);
 					strcpy(ret_str, str.c_str());
 
 					dump_entry entry{ 0 };
@@ -603,10 +603,10 @@ namespace zonetool
 					std::string str;
 					read_string_internal(&str);
 
-					char* name = memory->Alloc<char>(str.size() + 1);
+					char* name = memory->allocate<char>(str.size() + 1);
 					strcpy(name, str.c_str());
 
-					T* asset = memory->Alloc<T>();
+					T* asset = memory->allocate<T>();
 					memset(asset, 0, sizeof(T));
 					asset->name = const_cast<char*>(name);
 
@@ -659,7 +659,7 @@ namespace zonetool
 						return nullptr;
 					}
 
-					T* array_ = memory->Alloc<T>(array_size);
+					T* array_ = memory->allocate<T>(array_size);
 					read_array_internal(array_, array_size);
 
 					dump_entry entry{ 0 };
@@ -717,7 +717,7 @@ namespace zonetool
 						return nullptr;
 					}
 
-					T* data = memory->Alloc<T>(size);
+					T* data = memory->allocate<T>(size);
 					read_internal(data, size, 1);
 
 					dump_entry entry{ 0 };

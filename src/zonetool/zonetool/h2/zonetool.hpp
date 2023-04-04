@@ -75,12 +75,12 @@
 namespace zonetool::h2
 {
 	template <typename T>
-	XAssetHeader DB_FindXAssetHeader_Copy(XAssetType type, const std::string& name, ZoneMemory* mem)
+	XAssetHeader db_find_x_asset_header_copy(XAssetType type, const std::string& name, zone_memory* mem)
 	{
-		auto header = DB_FindXAssetHeader_Safe(type, name);
+		auto header = db_find_x_asset_header_safe(type, name);
 		if (header.data)
 		{
-			T* newData = mem->Alloc<T>();
+			T* newData = mem->allocate<T>();
 			memcpy(newData, header.data, sizeof(T));
 			header.data = reinterpret_cast<void*>(newData);
 		}

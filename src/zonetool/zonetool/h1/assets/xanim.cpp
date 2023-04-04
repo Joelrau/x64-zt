@@ -3,7 +3,7 @@
 
 namespace zonetool::h1
 {
-	void IXAnimParts::add_script_string(scr_string_t* ptr, const char* str)
+	void xanim_parts::add_script_string(scr_string_t* ptr, const char* str)
 	{
 		for (std::uint32_t i = 0; i < this->script_strings.size(); i++)
 		{
@@ -15,7 +15,7 @@ namespace zonetool::h1
 		this->script_strings.push_back(std::pair<scr_string_t*, const char*>(ptr, str));
 	}
 
-	const char* IXAnimParts::get_script_string(scr_string_t* ptr)
+	const char* xanim_parts::get_script_string(scr_string_t* ptr)
 	{
 		for (std::uint32_t i = 0; i < this->script_strings.size(); i++)
 		{
@@ -51,7 +51,7 @@ namespace zonetool::h1
 		return result;
 	}
 
-	XAnimParts* IXAnimParts::parse(const std::string& name, ZoneMemory* mem)
+	XAnimParts* xanim_parts::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = "xanim\\"s + name + ".xanim_export";
 
@@ -68,7 +68,7 @@ namespace zonetool::h1
 
 		if (asset->names)
 		{
-			asset->names = mem->Alloc<scr_string_t>(asset->boneCount[9]);
+			asset->names = mem->allocate<scr_string_t>(asset->boneCount[9]);
 			for (unsigned char bone = 0; bone < asset->boneCount[9]; bone++)
 			{
 				this->add_script_string(&asset->names[bone], reader.read_string());
@@ -172,7 +172,7 @@ namespace zonetool::h1
 
 		if (asset->blendShapeWeightNames)
 		{
-			asset->blendShapeWeightNames = mem->Alloc<scr_string_t>(asset->blendShapeWeightCount);
+			asset->blendShapeWeightNames = mem->allocate<scr_string_t>(asset->blendShapeWeightCount);
 			for (auto i = 0; i < asset->blendShapeWeightCount; i++)
 			{
 				this->add_script_string(&asset->blendShapeWeightNames[i], reader.read_string());
@@ -214,33 +214,33 @@ namespace zonetool::h1
 		return asset;
 	}
 
-	void IXAnimParts::init(const std::string& name, ZoneMemory* mem)
+	void xanim_parts::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
-		this->asset_ = IXAnimParts::parse(name, mem);
+		this->asset_ = xanim_parts::parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Copy<XAnimParts>(XAssetType(this->type()), this->name().data(), mem).parts;
+			this->asset_ = db_find_x_asset_header_copy<XAnimParts>(XAssetType(this->type()), this->name().data(), mem).parts;
 
 			auto* asset = this->asset_;
 
 			auto* original_names = asset->names;
-			asset->names = mem->Alloc<scr_string_t>(asset->boneCount[9]);
+			asset->names = mem->allocate<scr_string_t>(asset->boneCount[9]);
 			for (auto bone = 0; bone < asset->boneCount[9]; bone++)
 			{
 				this->add_script_string(&asset->names[bone], SL_ConvertToString(original_names[bone]));
 			}
 
 			auto* original_notifies = asset->notify;
-			asset->notify = mem->Alloc<XAnimNotifyInfo>(asset->notifyCount);
+			asset->notify = mem->allocate<XAnimNotifyInfo>(asset->notifyCount);
 			if (asset->notify)
 			{
 				for (auto i = 0; i < asset->notifyCount; i++)
@@ -251,7 +251,7 @@ namespace zonetool::h1
 			}
 
 			auto* original_blends = asset->blendShapeWeightNames;
-			asset->blendShapeWeightNames = mem->Alloc<scr_string_t>(asset->blendShapeWeightCount);
+			asset->blendShapeWeightNames = mem->allocate<scr_string_t>(asset->blendShapeWeightCount);
 			if (asset->blendShapeWeightNames)
 			{
 				for (auto i = 0; i < asset->blendShapeWeightCount; i++)
@@ -262,7 +262,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IXAnimParts::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void xanim_parts::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 		// fixup scriptstrings
 		auto* xanim = this->asset_;
@@ -295,21 +295,21 @@ namespace zonetool::h1
 		}
 	}
 
-	void IXAnimParts::load_depending(IZone* zone)
+	void xanim_parts::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string IXAnimParts::name()
+	std::string xanim_parts::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IXAnimParts::type()
+	std::int32_t xanim_parts::type()
 	{
 		return ASSET_TYPE_XANIM;
 	}
 
-	void IXAnimParts::write(IZone* zone, ZoneBuffer* buf)
+	void xanim_parts::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
@@ -322,13 +322,13 @@ namespace zonetool::h1
 		{
 			buf->align(3);
 			buf->write(data->names, data->boneCount[9]);
-			ZoneBuffer::clear_pointer(&dest->names);
+			zone_buffer::clear_pointer(&dest->names);
 		}
 		if (data->notify) // notetracks
 		{
 			buf->align(3);
 			buf->write(data->notify, data->notifyCount);
-			ZoneBuffer::clear_pointer(&dest->notify);
+			zone_buffer::clear_pointer(&dest->notify);
 		}
 
 		if (data->deltaPart) // XAnimDeltaParts
@@ -371,7 +371,7 @@ namespace zonetool::h1
 				{
 					buf->write_stream(partdata->trans->u.frame0, sizeof(float), 3);
 				}
-				ZoneBuffer::clear_pointer(&partdest->trans);
+				zone_buffer::clear_pointer(&partdest->trans);
 			}
 
 			if (partdata->quat2)
@@ -401,7 +401,7 @@ namespace zonetool::h1
 				{
 					buf->write_stream(partdata->quat2->u.frame0, sizeof(short) * 2, 1);
 				}
-				ZoneBuffer::clear_pointer(&partdest->quat2);
+				zone_buffer::clear_pointer(&partdest->quat2);
 			}
 
 			if (partdata->quat)
@@ -432,7 +432,7 @@ namespace zonetool::h1
 				{
 					buf->write_stream(partdata->quat->u.frame0, sizeof(short) * 4, 1);
 				}
-				ZoneBuffer::clear_pointer(&partdest->quat);
+				zone_buffer::clear_pointer(&partdest->quat);
 			}
 		}
 
@@ -493,28 +493,28 @@ namespace zonetool::h1
 		{
 			buf->align(3);
 			buf->write(data->blendShapeWeightNames, data->blendShapeWeightCount);
-			ZoneBuffer::clear_pointer(&dest->blendShapeWeightNames);
+			zone_buffer::clear_pointer(&dest->blendShapeWeightNames);
 		}
 
 		if (data->blendShapeWeightUnknown1)
 		{
 			buf->align(0);
 			buf->write_stream(data->blendShapeWeightUnknown1, sizeof(*data->blendShapeWeightUnknown1)* data->blendShapeWeightCount);
-			ZoneBuffer::clear_pointer(&dest->blendShapeWeightUnknown1);
+			zone_buffer::clear_pointer(&dest->blendShapeWeightUnknown1);
 		}
 
 		if (data->blendShapeWeightUnknown2)
 		{
 			buf->align(1);
 			buf->write_stream(data->blendShapeWeightUnknown2, sizeof(*data->blendShapeWeightUnknown2) * data->blendShapeWeightCount);
-			ZoneBuffer::clear_pointer(&dest->blendShapeWeightUnknown2);
+			zone_buffer::clear_pointer(&dest->blendShapeWeightUnknown2);
 		}
 
 		if (data->blendShapeWeightUnknown3)
 		{
 			buf->align(1);
 			buf->write_stream(data->blendShapeWeightUnknown3, sizeof(*data->blendShapeWeightUnknown3)* GetTotalNumberOfBlendShapeKeys(data));
-			ZoneBuffer::clear_pointer(&dest->blendShapeWeightUnknown3);
+			zone_buffer::clear_pointer(&dest->blendShapeWeightUnknown3);
 		}
 
 		if (data->blendShapeWeightUnknown4)
@@ -522,27 +522,27 @@ namespace zonetool::h1
 			buf->align(1);
 			buf->write_stream(data->blendShapeWeightUnknown4, 
 				sizeof(*data->blendShapeWeightUnknown4)* (GetTotalNumberOfBlendShapeKeys(data) + 2 * data->blendShapeWeightCount));
-			ZoneBuffer::clear_pointer(&dest->blendShapeWeightUnknown4);
+			zone_buffer::clear_pointer(&dest->blendShapeWeightUnknown4);
 		}
 
 		if (data->blendShapeWeights)
 		{
 			buf->align(3);
 			buf->write_stream(data->blendShapeWeights, sizeof(*data->blendShapeWeights)* (data->numframes + 1));
-			ZoneBuffer::clear_pointer(&dest->blendShapeWeights);
+			zone_buffer::clear_pointer(&dest->blendShapeWeights);
 		}
 
 		if (data->scriptedViewmodelAnimData)
 		{
 			buf->align(3);
 			buf->write_stream(data->scriptedViewmodelAnimData, 8);
-			ZoneBuffer::clear_pointer(&dest->scriptedViewmodelAnimData);
+			zone_buffer::clear_pointer(&dest->scriptedViewmodelAnimData);
 		}
 
 		buf->pop_stream();
 	}
 
-	void IXAnimParts::dump(XAnimParts* asset)
+	void xanim_parts::dump(XAnimParts* asset)
 	{
 		const auto path = "xanim\\"s + asset->name + ".xanim_export";
 

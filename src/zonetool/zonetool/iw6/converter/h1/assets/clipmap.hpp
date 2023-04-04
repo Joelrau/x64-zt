@@ -6,8 +6,8 @@ namespace zonetool::iw6
 	{
 		namespace clipmap
 		{
-			zonetool::h1::clipMap_t* convert(clipMap_t* asset, ZoneMemory* mem);
-			void dump(clipMap_t* asset, ZoneMemory* mem);
+			zonetool::h1::clipMap_t* convert(clipMap_t* asset, zone_memory* mem);
+			void dump(clipMap_t* asset, zone_memory* mem);
 		}
 	}
 }

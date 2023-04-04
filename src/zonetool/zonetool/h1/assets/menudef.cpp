@@ -3,44 +3,44 @@
 
 namespace zonetool::h1
 {
-	menuDef_t* IMenuDef::parse(std::string name, ZoneMemory* mem)
+	menuDef_t* IMenuDef::parse(std::string name, zone_memory* mem)
 	{
 		return nullptr;
 	}
 
-	void IMenuDef::init(const std::string& name, ZoneMemory* mem)
+	void IMenuDef::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->window.name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->window.name = mem->duplicate_string(name);
 			return;
 		}
 
 		this->asset_ = parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name_.data()).menu;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name_.data()).menu;
 		}
 	}
 
-	void IMenuDef::init(void* ptr, ZoneMemory* mem)
+	void IMenuDef::init(void* ptr, zone_memory* mem)
 	{
 		this->asset_ = reinterpret_cast<menuDef_t*>(ptr);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name().data()).menu;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).menu;
 		}
 		this->name_ = this->asset_->window.name;
 	}
 
-	void IMenuDef::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void IMenuDef::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IMenuDef::load_depending(IZone* zone)
+	void IMenuDef::load_depending(zone_base* zone)
 	{
 		auto* data = this->asset_;
 		if (data->window.background)
@@ -84,7 +84,7 @@ namespace zonetool::h1
 		return ASSET_TYPE_MENU;
 	}
 
-	void IMenuDef::write_menu_supporting_data(IZone* zone, ZoneBuffer* buf, ExpressionSupportingData* data)
+	void IMenuDef::write_menu_supporting_data(zone_base* zone, zone_buffer* buf, ExpressionSupportingData* data)
 	{
 		auto* destSupData = buf->write(data);
 		if (data->uifunctions.functions)
@@ -99,10 +99,10 @@ namespace zonetool::h1
 				{
 					buf->align(3);
 					write_menu_statement(zone, buf, dataFuncs[i]);
-					ZoneBuffer::clear_pointer(&destFuncs[i]);
+					zone_buffer::clear_pointer(&destFuncs[i]);
 				}
 			}
-			ZoneBuffer::clear_pointer(&destSupData->uifunctions.functions);
+			zone_buffer::clear_pointer(&destSupData->uifunctions.functions);
 		}
 		if (data->staticDvarList.staticDvars)
 		{
@@ -120,10 +120,10 @@ namespace zonetool::h1
 					{
 						destVar->dvarName = buf->write_str(dataStaticDvars[i]->dvarName);
 					}
-					ZoneBuffer::clear_pointer(&destStaticDvars[i]);
+					zone_buffer::clear_pointer(&destStaticDvars[i]);
 				}
 			}
-			ZoneBuffer::clear_pointer(&destSupData->staticDvarList.staticDvars);
+			zone_buffer::clear_pointer(&destSupData->staticDvarList.staticDvars);
 		}
 		if (data->uiStrings.strings)
 		{
@@ -137,11 +137,11 @@ namespace zonetool::h1
 					destStrings[i] = buf->write_str(data->uiStrings.strings[i]);
 				}
 			}
-			ZoneBuffer::clear_pointer(&destSupData->uiStrings.strings);
+			zone_buffer::clear_pointer(&destSupData->uiStrings.strings);
 		}
 	}
 
-	void IMenuDef::write_menu_statement(IZone* zone, ZoneBuffer* buf, Statement_s* data)
+	void IMenuDef::write_menu_statement(zone_base* zone, zone_buffer* buf, Statement_s* data)
 	{
 		auto* dest = buf->write(data);
 		if (data->entries)
@@ -162,21 +162,21 @@ namespace zonetool::h1
 					{
 						buf->align(3);
 						write_menu_statement(zone, buf, operand->internals.function);
-						ZoneBuffer::clear_pointer(&destEntries[i].data.operand.internals.function);
+						zone_buffer::clear_pointer(&destEntries[i].data.operand.internals.function);
 					}
 				}
 			}
-			ZoneBuffer::clear_pointer(&dest->entries);
+			zone_buffer::clear_pointer(&dest->entries);
 		}
 		if (data->supportingData)
 		{
 			buf->align(3);
 			write_menu_supporting_data(zone, buf, data->supportingData);
-			ZoneBuffer::clear_pointer(&dest->supportingData);
+			zone_buffer::clear_pointer(&dest->supportingData);
 		}
 	}
 
-	void IMenuDef::write_menu_eventhandlerset(IZone* zone, ZoneBuffer* buf, MenuEventHandlerSet* data)
+	void IMenuDef::write_menu_eventhandlerset(zone_base* zone, zone_buffer* buf, MenuEventHandlerSet* data)
 	{
 		auto* dest = buf->write(data);
 		if (data->eventHandlers)
@@ -204,15 +204,15 @@ namespace zonetool::h1
 							{
 								buf->align(3);
 								write_menu_statement(zone, buf, dataHandler->eventData.conditionalScript->eventExpression);
-								ZoneBuffer::clear_pointer(&destScript->eventExpression);
+								zone_buffer::clear_pointer(&destScript->eventExpression);
 							}
 							if (dataHandler->eventData.conditionalScript->eventHandlerSet)
 							{
 								buf->align(3);
 								write_menu_eventhandlerset(zone, buf, dataHandler->eventData.conditionalScript->eventHandlerSet);
-								ZoneBuffer::clear_pointer(&destScript->eventHandlerSet);
+								zone_buffer::clear_pointer(&destScript->eventHandlerSet);
 							}
-							ZoneBuffer::clear_pointer(&destHandler->eventData.conditionalScript);
+							zone_buffer::clear_pointer(&destHandler->eventData.conditionalScript);
 						}
 						break;
 					case EVENT_ELSE:
@@ -220,7 +220,7 @@ namespace zonetool::h1
 						{
 							buf->align(3);
 							write_menu_eventhandlerset(zone, buf, dataHandler->eventData.elseScript);
-							ZoneBuffer::clear_pointer(&destHandler->eventData.elseScript);
+							zone_buffer::clear_pointer(&destHandler->eventData.elseScript);
 						}
 						break;
 					case EVENT_SET_LOCAL_VAR_BOOL:
@@ -239,86 +239,86 @@ namespace zonetool::h1
 							{
 								buf->align(3);
 								write_menu_statement(zone, buf, dataHandler->eventData.setLocalVarData->expression);
-								ZoneBuffer::clear_pointer(&destLVD->expression);
+								zone_buffer::clear_pointer(&destLVD->expression);
 							}
 
-							ZoneBuffer::clear_pointer(&destHandler->eventData.setLocalVarData);
+							zone_buffer::clear_pointer(&destHandler->eventData.setLocalVarData);
 						}
 						break;
 					}
-					ZoneBuffer::clear_pointer(&destHandlers[i]);
+					zone_buffer::clear_pointer(&destHandlers[i]);
 				}
 			}
-			ZoneBuffer::clear_pointer(&dest->eventHandlers);
+			zone_buffer::clear_pointer(&dest->eventHandlers);
 		}
 	}
 
-	void IMenuDef::write_menu_itemkeyhandler(IZone* zone, ZoneBuffer* buf, ItemKeyHandler* data)
+	void IMenuDef::write_menu_itemkeyhandler(zone_base* zone, zone_buffer* buf, ItemKeyHandler* data)
 	{
 		auto* dest = buf->write(data);
 		if (data->action)
 		{
 			buf->align(3);
 			write_menu_eventhandlerset(zone, buf, data->action);
-			ZoneBuffer::clear_pointer(&dest->action);
+			zone_buffer::clear_pointer(&dest->action);
 		}
 		if (!data->next)
 			return;
 		buf->align(3);
 		write_menu_itemkeyhandler(zone, buf, data->next);
-		ZoneBuffer::clear_pointer(&dest->next);
+		zone_buffer::clear_pointer(&dest->next);
 	}
 
-	void IMenuDef::write_menu_data(IZone* zone, ZoneBuffer* buf, menuData_t* data)
+	void IMenuDef::write_menu_data(zone_base* zone, zone_buffer* buf, menuData_t* data)
 	{
 		auto* dest = buf->write(data);
 		if (data->expressionData)
 		{
 			buf->align(3);
 			write_menu_supporting_data(zone, buf, data->expressionData);
-			ZoneBuffer::clear_pointer(&dest->expressionData);
+			zone_buffer::clear_pointer(&dest->expressionData);
 		}
 		if (data->onOpen)
 		{
 			buf->align(3);
 			write_menu_eventhandlerset(zone, buf, data->onOpen);
-			ZoneBuffer::clear_pointer(&dest->onOpen);
+			zone_buffer::clear_pointer(&dest->onOpen);
 		}
 		if (data->onClose)
 		{
 			buf->align(3);
 			write_menu_eventhandlerset(zone, buf, data->onClose);
-			ZoneBuffer::clear_pointer(&dest->onClose);
+			zone_buffer::clear_pointer(&dest->onClose);
 		}
 		if (data->onCloseRequest)
 		{
 			buf->align(3);
 			write_menu_eventhandlerset(zone, buf, data->onCloseRequest);
-			ZoneBuffer::clear_pointer(&dest->onCloseRequest);
+			zone_buffer::clear_pointer(&dest->onCloseRequest);
 		}
 		if (data->onESC)
 		{
 			buf->align(3);
 			write_menu_eventhandlerset(zone, buf, data->onESC);
-			ZoneBuffer::clear_pointer(&dest->onESC);
+			zone_buffer::clear_pointer(&dest->onESC);
 		}
 		if (data->onFocusDueToClose)
 		{
 			buf->align(3);
 			write_menu_eventhandlerset(zone, buf, data->onFocusDueToClose);
-			ZoneBuffer::clear_pointer(&dest->onFocusDueToClose);
+			zone_buffer::clear_pointer(&dest->onFocusDueToClose);
 		}
 		if (data->onKey)
 		{
 			buf->align(3);
 			write_menu_itemkeyhandler(zone, buf, data->onKey);
-			ZoneBuffer::clear_pointer(&dest->onKey);
+			zone_buffer::clear_pointer(&dest->onKey);
 		}
 		if (data->visibleExp)
 		{
 			buf->align(3);
 			write_menu_statement(zone, buf, data->visibleExp);
-			ZoneBuffer::clear_pointer(&dest->visibleExp);
+			zone_buffer::clear_pointer(&dest->visibleExp);
 		}
 		if (data->allowedBinding)
 		{
@@ -332,47 +332,47 @@ namespace zonetool::h1
 		{
 			buf->align(3);
 			write_menu_statement(zone, buf, data->rectXExp);
-			ZoneBuffer::clear_pointer(&dest->rectXExp);
+			zone_buffer::clear_pointer(&dest->rectXExp);
 		}
 		if (data->rectYExp)
 		{
 			buf->align(3);
 			write_menu_statement(zone, buf, data->rectYExp);
-			ZoneBuffer::clear_pointer(&dest->rectYExp);
+			zone_buffer::clear_pointer(&dest->rectYExp);
 		}
 		if (data->rectWExp)
 		{
 			buf->align(3);
 			write_menu_statement(zone, buf, data->rectWExp);
-			ZoneBuffer::clear_pointer(&dest->rectWExp);
+			zone_buffer::clear_pointer(&dest->rectWExp);
 		}
 		if (data->rectHExp)
 		{
 			buf->align(3);
 			write_menu_statement(zone, buf, data->rectHExp);
-			ZoneBuffer::clear_pointer(&dest->rectHExp);
+			zone_buffer::clear_pointer(&dest->rectHExp);
 		}
 		if (data->openSoundExp)
 		{
 			buf->align(3);
 			write_menu_statement(zone, buf, data->openSoundExp);
-			ZoneBuffer::clear_pointer(&dest->openSoundExp);
+			zone_buffer::clear_pointer(&dest->openSoundExp);
 		}
 		if (data->closeSoundExp)
 		{
 			buf->align(3);
 			write_menu_statement(zone, buf, data->closeSoundExp);
-			ZoneBuffer::clear_pointer(&dest->closeSoundExp);
+			zone_buffer::clear_pointer(&dest->closeSoundExp);
 		}
 		if (data->soundLoopExp)
 		{
 			buf->align(3);
 			write_menu_statement(zone, buf, data->soundLoopExp);
-			ZoneBuffer::clear_pointer(&dest->soundLoopExp);
+			zone_buffer::clear_pointer(&dest->soundLoopExp);
 		}
 	}
 
-	void IMenuDef::write_menu_window(IZone* zone, ZoneBuffer* buf, windowDef_t* data, windowDef_t* dest)
+	void IMenuDef::write_menu_window(zone_base* zone, zone_buffer* buf, windowDef_t* data, windowDef_t* dest)
 	{
 		if (data->name)
 		{
@@ -388,7 +388,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMenuDef::write_menu_item_defdata(IZone* zone, ZoneBuffer* buf, itemDefData_t* data, int type)
+	void IMenuDef::write_menu_item_defdata(zone_base* zone, zone_buffer* buf, itemDefData_t* data, int type)
 	{
 		switch (type)
 		{
@@ -400,7 +400,7 @@ namespace zonetool::h1
 				{
 					buf->align(3);
 					write_menu_eventhandlerset(zone, buf, data->listBox->onDoubleClick);
-					ZoneBuffer::clear_pointer(&dest_listBox->onDoubleClick);
+					zone_buffer::clear_pointer(&dest_listBox->onDoubleClick);
 				}
 				if (data->listBox->selectIcon)
 				{
@@ -411,7 +411,7 @@ namespace zonetool::h1
 				{
 					buf->align(3);
 					write_menu_statement(zone, buf, data->listBox->elementHeightExp);
-					ZoneBuffer::clear_pointer(&dest_listBox->elementHeightExp);
+					zone_buffer::clear_pointer(&dest_listBox->elementHeightExp);
 				}
 			}
 			break;
@@ -430,7 +430,7 @@ namespace zonetool::h1
 			{
 				buf->align(3);
 				/*auto* dest_editField = */buf->write(data->editField);
-				//ZoneBuffer::clear_pointer(&dest->editField);
+				//zone_buffer::clear_pointer(&dest->editField);
 			}
 			break;
 		case 12:
@@ -452,7 +452,7 @@ namespace zonetool::h1
 						dest_multi->dvarStr[i] = buf->write_str(data->multi->dvarStr[i]);
 					}
 				}
-				//ZoneBuffer::clear_pointer(&dest->multi);
+				//zone_buffer::clear_pointer(&dest->multi);
 			}
 			break;
 		case 13:
@@ -466,7 +466,7 @@ namespace zonetool::h1
 			{
 				buf->align(3);
 				/*auto* dest_ticker = */buf->write(data->ticker);
-				//ZoneBuffer::clear_pointer(&dest->ticker);
+				//zone_buffer::clear_pointer(&dest->ticker);
 			}
 			break;
 		case 21:
@@ -474,13 +474,13 @@ namespace zonetool::h1
 			{
 				buf->align(3);
 				/*auto* dest_scroll = */buf->write(data->scroll);
-				//ZoneBuffer::clear_pointer(&dest->scroll);
+				//zone_buffer::clear_pointer(&dest->scroll);
 			}
 			break;
 		}
 	}
 
-	void IMenuDef::write_menu_item_floatexpressions(IZone* zone, ZoneBuffer* buf, ItemFloatExpression* data, int count)
+	void IMenuDef::write_menu_item_floatexpressions(zone_base* zone, zone_buffer* buf, ItemFloatExpression* data, int count)
 	{
 		auto* dest = buf->write(data, count);
 		for (int i = 0; i < count; i++)
@@ -489,12 +489,12 @@ namespace zonetool::h1
 			{
 				buf->align(3);
 				write_menu_statement(zone, buf, data[i].expression);
-				ZoneBuffer::clear_pointer(&dest[i].expression);
+				zone_buffer::clear_pointer(&dest[i].expression);
 			}
 		}
 	}
 
-	void IMenuDef::write_menu_item(IZone* zone, ZoneBuffer* buf, itemDef_t* data)
+	void IMenuDef::write_menu_item(zone_base* zone, zone_buffer* buf, itemDef_t* data)
 	{
 		auto* dest = buf->write(data);
 		write_menu_window(zone, buf, &data->window, &dest->window);
@@ -506,55 +506,55 @@ namespace zonetool::h1
 		{
 			buf->align(3);
 			write_menu_eventhandlerset(zone, buf, data->mouseEnterText);
-			ZoneBuffer::clear_pointer(&dest->mouseEnterText);
+			zone_buffer::clear_pointer(&dest->mouseEnterText);
 		}
 		if (data->mouseExitText)
 		{
 			buf->align(3);
 			write_menu_eventhandlerset(zone, buf, data->mouseExitText);
-			ZoneBuffer::clear_pointer(&dest->mouseExitText);
+			zone_buffer::clear_pointer(&dest->mouseExitText);
 		}
 		if (data->mouseEnter)
 		{
 			buf->align(3);
 			write_menu_eventhandlerset(zone, buf, data->mouseEnter);
-			ZoneBuffer::clear_pointer(&dest->mouseEnter);
+			zone_buffer::clear_pointer(&dest->mouseEnter);
 		}
 		if (data->mouseExit)
 		{
 			buf->align(3);
 			write_menu_eventhandlerset(zone, buf, data->mouseExit);
-			ZoneBuffer::clear_pointer(&dest->mouseExit);
+			zone_buffer::clear_pointer(&dest->mouseExit);
 		}
 		if (data->action)
 		{
 			buf->align(3);
 			write_menu_eventhandlerset(zone, buf, data->action);
-			ZoneBuffer::clear_pointer(&dest->action);
+			zone_buffer::clear_pointer(&dest->action);
 		}
 		if (data->accept)
 		{
 			buf->align(3);
 			write_menu_eventhandlerset(zone, buf, data->accept);
-			ZoneBuffer::clear_pointer(&dest->accept);
+			zone_buffer::clear_pointer(&dest->accept);
 		}
 		if (data->onFocus)
 		{
 			buf->align(3);
 			write_menu_eventhandlerset(zone, buf, data->onFocus);
-			ZoneBuffer::clear_pointer(&dest->onFocus);
+			zone_buffer::clear_pointer(&dest->onFocus);
 		}
 		if (data->hasFocus)
 		{
 			buf->align(3);
 			write_menu_eventhandlerset(zone, buf, data->hasFocus);
-			ZoneBuffer::clear_pointer(&dest->hasFocus);
+			zone_buffer::clear_pointer(&dest->hasFocus);
 		}
 		if (data->leaveFocus)
 		{
 			buf->align(3);
 			write_menu_eventhandlerset(zone, buf, data->leaveFocus);
-			ZoneBuffer::clear_pointer(&dest->leaveFocus);
+			zone_buffer::clear_pointer(&dest->leaveFocus);
 		}
 		if (data->dvar)
 		{
@@ -568,7 +568,7 @@ namespace zonetool::h1
 		{
 			buf->align(3);
 			write_menu_itemkeyhandler(zone, buf, data->onKey);
-			ZoneBuffer::clear_pointer(&dest->onKey);
+			zone_buffer::clear_pointer(&dest->onKey);
 		}
 		if (data->enableDvar)
 		{
@@ -586,47 +586,47 @@ namespace zonetool::h1
 		{
 			buf->align(3);
 			write_menu_item_defdata(zone, buf, &data->typeData, data->type);
-			ZoneBuffer::clear_pointer(&dest->typeData.data);
+			zone_buffer::clear_pointer(&dest->typeData.data);
 		}
 		if (data->floatExpressions)
 		{
 			buf->align(3);
 			write_menu_item_floatexpressions(zone, buf, data->floatExpressions, data->floatExpressionCount);
-			ZoneBuffer::clear_pointer(&dest->floatExpressions);
+			zone_buffer::clear_pointer(&dest->floatExpressions);
 		}
 		if (data->visibleExp)
 		{
 			buf->align(3);
 			write_menu_statement(zone, buf, data->visibleExp);
-			ZoneBuffer::clear_pointer(&dest->visibleExp);
+			zone_buffer::clear_pointer(&dest->visibleExp);
 		}
 		if (data->disabledExp)
 		{
 			buf->align(3);
 			write_menu_statement(zone, buf, data->disabledExp);
-			ZoneBuffer::clear_pointer(&dest->disabledExp);
+			zone_buffer::clear_pointer(&dest->disabledExp);
 		}
 		if (data->textExp)
 		{
 			buf->align(3);
 			write_menu_statement(zone, buf, data->textExp);
-			ZoneBuffer::clear_pointer(&dest->textExp);
+			zone_buffer::clear_pointer(&dest->textExp);
 		}
 		if (data->materialExp)
 		{
 			buf->align(3);
 			write_menu_statement(zone, buf, data->materialExp);
-			ZoneBuffer::clear_pointer(&dest->materialExp);
+			zone_buffer::clear_pointer(&dest->materialExp);
 		}
 		if (data->textAlignYExp)
 		{
 			buf->align(3);
 			write_menu_statement(zone, buf, data->textAlignYExp);
-			ZoneBuffer::clear_pointer(&dest->textAlignYExp);
+			zone_buffer::clear_pointer(&dest->textAlignYExp);
 		}
 	}
 
-	void IMenuDef::write(IZone* zone, ZoneBuffer* buf)
+	void IMenuDef::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
@@ -638,7 +638,7 @@ namespace zonetool::h1
 		{
 			buf->align(3);
 			write_menu_data(zone, buf, data->data);
-			ZoneBuffer::clear_pointer(&dest->data);
+			zone_buffer::clear_pointer(&dest->data);
 		}
 
 		write_menu_window(zone, buf, &data->window, &dest->window);
@@ -654,10 +654,10 @@ namespace zonetool::h1
 				{
 					buf->align(3);
 					write_menu_item(zone, buf, data->items[i]);
-					ZoneBuffer::clear_pointer(&destItems[i]);
+					zone_buffer::clear_pointer(&destItems[i]);
 				}
 			}
-			ZoneBuffer::clear_pointer(&dest->items);
+			zone_buffer::clear_pointer(&dest->items);
 		}
 
 		buf->pop_stream();

@@ -11,7 +11,7 @@
 
 namespace zonetool
 {
-	class ZoneMemory
+	class zone_memory
 	{
 	private:
 		LPVOID memory_pool_;
@@ -20,18 +20,20 @@ namespace zonetool
 		std::recursive_mutex mutex_;
 
 	public:
-		ZoneMemory(const ZoneMemory& mem) : memory_pool_(mem.memory_pool_), memory_size_(mem.memory_size_),
-		                                    mem_pos_(mem.mem_pos_)
+		zone_memory(const zone_memory& mem) 
+			: memory_pool_(mem.memory_pool_)
+			  , memory_size_(mem.memory_size_)
+			  , mem_pos_(mem.mem_pos_)
 		{
 		}
 
-		ZoneMemory(const std::size_t& size)
+		zone_memory(const std::size_t& size)
 		{
-			mem_pos_ = 0;
-			memory_size_ = size;
-			memory_pool_ = VirtualAlloc(nullptr, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+			this->mem_pos_ = 0;
+			this->memory_size_ = size;
+			this->memory_pool_ = VirtualAlloc(nullptr, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
-			if (!memory_pool_)
+			if (!this->memory_pool_)
 			{
 				char buffer[256];
 				_snprintf_s(buffer, sizeof buffer,
@@ -43,52 +45,52 @@ namespace zonetool
 			}
 		}
 
-		void Free()
+		void free()
 		{
 			std::lock_guard<std::recursive_mutex> g(this->mutex_);
-			VirtualFree(memory_pool_, 0, MEM_RELEASE);
+			VirtualFree(this->memory_pool_, 0, MEM_RELEASE);
 
-			printf("ZoneTool memory statistics: used %ub of ram (%fmb).\n", static_cast<unsigned int>(mem_pos_),
-				static_cast<float>(mem_pos_) / 1024 / 1024);
+			printf("ZoneTool memory statistics: used %ub of ram (%fmb).\n", static_cast<unsigned int>(this->mem_pos_),
+				static_cast<float>(this->mem_pos_) / 1024 / 1024);
 
-			memory_pool_ = nullptr;
-			memory_size_ = 0;
-			mem_pos_ = 0;
+			this->memory_pool_ = nullptr;
+			this->memory_size_ = 0;
+			this->mem_pos_ = 0;
 		}
 		
-		~ZoneMemory()
+		~zone_memory()
 		{
-			this->Free();
+			this->free();
 		}
 
-		char* StrDup(const char* name)
+		char* duplicate_string(const char* name)
 		{
 			std::lock_guard<std::recursive_mutex> g(this->mutex_);
 
 			// get string length
 			auto len = strlen(name) + 1;
-			auto pointer = this->ManualAlloc<char>(len);
+			auto pointer = this->manual_allocate<char>(len);
 			memcpy(pointer, name, len);
 
 			// return pointer
 			return pointer;
 		}
 
-		char* StrDup(const std::string& name)
+		char* duplicate_string(const std::string& name)
 		{
 			std::lock_guard<std::recursive_mutex> g(this->mutex_);
-			return this->StrDup(name.data());
+			return this->duplicate_string(name.data());
 		}
 
 		template <typename T>
-		T* Alloc(std::size_t count = 1)
+		T* allocate(std::size_t count = 1)
 		{
 			std::lock_guard<std::recursive_mutex> g(this->mutex_);
-			return this->ManualAlloc<T>(sizeof(T), count);
+			return this->manual_allocate<T>(sizeof(T), count);
 		}
 
 		template <typename T>
-		T* ManualAlloc(std::size_t size, std::size_t count = 1)
+		T* manual_allocate(std::size_t size, std::size_t count = 1)
 		{
 			std::lock_guard<std::recursive_mutex> g(this->mutex_);
 
@@ -97,21 +99,21 @@ namespace zonetool
 				return nullptr;
 			}
 
-			if (mem_pos_ + (size * count) > memory_size_)
+			if (this->mem_pos_ + (size * count) > this->memory_size_)
 			{
 				char buffer[256];
 				_snprintf_s(buffer, sizeof buffer,
 					"ZoneTool just went out of memory, and has to be closed (%llu/%llu).",
-					mem_pos_ + (size * count), memory_size_);
+					this->mem_pos_ + (size * count), this->memory_size_);
 
 				MessageBoxA(nullptr, buffer, "ZoneTool: Out of Memory", NULL);
 				std::exit(0);
 			}
 
 			// alloc pointer and zero it out
-			auto pointer = reinterpret_cast<char*>(memory_pool_) + mem_pos_;
+			auto pointer = reinterpret_cast<char*>(this->memory_pool_) + this->mem_pos_;
 			memset(pointer, 0, size * count);
-			mem_pos_ += size * count;
+			this->mem_pos_ += size * count;
 
 			// return pointer
 			return reinterpret_cast<T*>(pointer);

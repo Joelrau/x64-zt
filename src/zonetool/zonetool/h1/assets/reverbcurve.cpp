@@ -3,48 +3,48 @@
 
 namespace zonetool::h1
 {
-	SndCurve* IReverbCurve::parse(const std::string& name, ZoneMemory* mem)
+	SndCurve* reverb_curve::parse(const std::string& name, zone_memory* mem)
 	{
-		return ISoundCurve::parse(name, "reverbsendcurve", mem);
+		return sound_curve::parse(name, "reverbsendcurve", mem);
 	}
 
-	void IReverbCurve::init(const std::string& name, ZoneMemory* mem)
+	void reverb_curve::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
 		this->asset_ = parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name().data()).reverbCurve;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).reverbCurve;
 		}
 	}
 
-	void IReverbCurve::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void reverb_curve::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IReverbCurve::load_depending(IZone* zone)
+	void reverb_curve::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string IReverbCurve::name()
+	std::string reverb_curve::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IReverbCurve::type()
+	std::int32_t reverb_curve::type()
 	{
 		return ASSET_TYPE_REVERB_CURVE;
 	}
 
-	void IReverbCurve::write(IZone* zone, ZoneBuffer* buf)
+	void reverb_curve::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		auto dest = buf->write(data);
@@ -56,8 +56,8 @@ namespace zonetool::h1
 		buf->pop_stream();
 	}
 
-	void IReverbCurve::dump(SndCurve* asset)
+	void reverb_curve::dump(SndCurve* asset)
 	{
-		ISoundCurve::dump(asset, "reverbsendcurve");
+		sound_curve::dump(asset, "reverbsendcurve");
 	}
 }

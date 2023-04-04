@@ -3,7 +3,7 @@
 
 namespace zonetool::h1
 {
-	void IXModel::add_script_string(scr_string_t* ptr, const char* str)
+	void xmodel::add_script_string(scr_string_t* ptr, const char* str)
 	{
 		for (std::uint32_t i = 0; i < this->script_strings.size(); i++)
 		{
@@ -15,7 +15,7 @@ namespace zonetool::h1
 		this->script_strings.push_back(std::pair<scr_string_t*, const char*>(ptr, str));
 	}
 
-	const char* IXModel::get_script_string(scr_string_t* ptr)
+	const char* xmodel::get_script_string(scr_string_t* ptr)
 	{
 		for (std::uint32_t i = 0; i < this->script_strings.size(); i++)
 		{
@@ -27,7 +27,7 @@ namespace zonetool::h1
 		return nullptr;
 	}
 
-	XModel* IXModel::parse(std::string name, ZoneMemory* mem)
+	XModel* xmodel::parse(std::string name, zone_memory* mem)
 	{
 		const auto path = "xmodel\\"s + name + ".xmodel_export";
 
@@ -120,33 +120,33 @@ namespace zonetool::h1
 		return asset;
 	}
 
-	void IXModel::init(const std::string& name, ZoneMemory* mem)
+	void xmodel::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
 		this->asset_ = this->parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Copy<XModel>(XAssetType(this->type()), this->name_.data(), mem).model;
+			this->asset_ = db_find_x_asset_header_copy<XModel>(XAssetType(this->type()), this->name_.data(), mem).model;
 
 			auto* asset = this->asset_;
 
 			auto* original_scriptstrings = asset->boneNames;
-			asset->boneNames = mem->Alloc<scr_string_t>(asset->numBones);
+			asset->boneNames = mem->allocate<scr_string_t>(asset->numBones);
 			for (unsigned char i = 0; i < asset->numBones; i++)
 			{
 				this->add_script_string(&asset->boneNames[i], SL_ConvertToString(original_scriptstrings[i]));
 			}
 
 			auto* original_weights = asset->weightNames;
-			asset->weightNames = mem->Alloc<scr_string_t>(asset->numberOfWeights);
+			asset->weightNames = mem->allocate<scr_string_t>(asset->numberOfWeights);
 			for (unsigned char i = 0; i < asset->numberOfWeights; i++)
 			{
 				this->add_script_string(&asset->weightNames[i], SL_ConvertToString(original_weights[i]));
@@ -154,7 +154,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IXModel::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void xmodel::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 		// fixup scriptstrings
 		auto* xmodel = this->asset_;
@@ -180,7 +180,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IXModel::load_depending(IZone* zone)
+	void xmodel::load_depending(zone_base* zone)
 	{
 		auto* data = this->asset_;
 
@@ -259,17 +259,17 @@ namespace zonetool::h1
 		}
 	}
 
-	std::string IXModel::name()
+	std::string xmodel::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IXModel::type()
+	std::int32_t xmodel::type()
 	{
 		return ASSET_TYPE_XMODEL;
 	}
 
-	void IXModel::write(IZone* zone, ZoneBuffer* buf)
+	void xmodel::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		auto dest = buf->write(data);
@@ -282,56 +282,56 @@ namespace zonetool::h1
 		{
 			buf->align(3);
 			buf->write(data->boneNames, data->numBones);
-			ZoneBuffer::clear_pointer(&dest->boneNames);
+			zone_buffer::clear_pointer(&dest->boneNames);
 		}
 
 		if (data->parentList)
 		{
 			buf->align(0);
 			buf->write(data->parentList, (data->numBones - data->numRootBones));
-			ZoneBuffer::clear_pointer(&dest->parentList);
+			zone_buffer::clear_pointer(&dest->parentList);
 		}
 
 		if (data->tagAngles)
 		{
 			buf->align(1);
 			buf->write(data->tagAngles, (data->numBones - data->numRootBones));
-			ZoneBuffer::clear_pointer(&dest->tagAngles);
+			zone_buffer::clear_pointer(&dest->tagAngles);
 		}
 
 		if (data->tagPositions)
 		{
 			buf->align(3);
 			buf->write(data->tagPositions, (data->numBones - data->numRootBones));
-			ZoneBuffer::clear_pointer(&dest->tagPositions);
+			zone_buffer::clear_pointer(&dest->tagPositions);
 		}
 
 		if (data->partClassification)
 		{
 			buf->align(0);
 			buf->write(data->partClassification, data->numBones);
-			ZoneBuffer::clear_pointer(&dest->partClassification);
+			zone_buffer::clear_pointer(&dest->partClassification);
 		}
 
 		if (data->baseMat)
 		{
 			buf->align(3);
 			buf->write(data->baseMat, data->numBones);
-			ZoneBuffer::clear_pointer(&dest->baseMat);
+			zone_buffer::clear_pointer(&dest->baseMat);
 		}
 
 		if (data->reactiveMotionParts)
 		{
 			buf->align(15);
 			buf->write(data->reactiveMotionParts, data->numReactiveMotionParts);
-			ZoneBuffer::clear_pointer(&dest->reactiveMotionParts);
+			zone_buffer::clear_pointer(&dest->reactiveMotionParts);
 		}
 
 		if (data->reactiveMotionTweaks)
 		{
 			buf->align(15);
 			buf->write(data->reactiveMotionTweaks);
-			ZoneBuffer::clear_pointer(&dest->reactiveMotionTweaks);
+			zone_buffer::clear_pointer(&dest->reactiveMotionTweaks);
 		}
 
 		buf->inc_stream(5, 4 * data->numsurfs);
@@ -357,28 +357,28 @@ namespace zonetool::h1
 		{
 			buf->align(3);
 			buf->write(data->collSurfs, data->numCollSurfs);
-			ZoneBuffer::clear_pointer(&dest->collSurfs);
+			zone_buffer::clear_pointer(&dest->collSurfs);
 		}
 
 		if (data->boneInfo)
 		{
 			buf->align(3);
 			buf->write(data->boneInfo, data->numBones);
-			ZoneBuffer::clear_pointer(&dest->boneInfo);
+			zone_buffer::clear_pointer(&dest->boneInfo);
 		}
 
 		if (data->invHighMipRadius)
 		{
 			buf->align(1);
 			buf->write(data->invHighMipRadius, data->numsurfs);
-			ZoneBuffer::clear_pointer(&dest->invHighMipRadius);
+			zone_buffer::clear_pointer(&dest->invHighMipRadius);
 		}
 
 		if (data->weightNames)
 		{
 			buf->align(3);
 			buf->write(data->weightNames, data->numberOfWeights);
-			ZoneBuffer::clear_pointer(&dest->weightNames);
+			zone_buffer::clear_pointer(&dest->weightNames);
 		}
 		//dest->weightNames = nullptr;
 		//dest->numberOfWeights = 0;
@@ -388,7 +388,7 @@ namespace zonetool::h1
 		{
 			buf->align(3);
 			buf->write(data->blendShapeWeightMap, data->numberOfWeightMaps);
-			ZoneBuffer::clear_pointer(&dest->blendShapeWeightMap);
+			zone_buffer::clear_pointer(&dest->blendShapeWeightMap);
 		}
 		//dest->blendShapeWeightMap = nullptr;
 		//dest->numberOfWeightMaps = 0;
@@ -414,7 +414,7 @@ namespace zonetool::h1
 				dest_mdaoVolumes[i].volumeData = reinterpret_cast<GfxImage*>(zone->get_asset_pointer(
 					ASSET_TYPE_IMAGE, data->mdaoVolumes[i].volumeData->name));
 			}
-			ZoneBuffer::clear_pointer(&dest->mdaoVolumes);
+			zone_buffer::clear_pointer(&dest->mdaoVolumes);
 		}
 		//dest->mdaoVolumes = nullptr;
 		//dest->mdaoVolumeCount = 0;
@@ -428,7 +428,7 @@ namespace zonetool::h1
 				dest_compositeModels[i] = reinterpret_cast<XModel*>(zone->get_asset_pointer(
 					ASSET_TYPE_XMODEL, data->compositeModels[i]->name));
 			}
-			ZoneBuffer::clear_pointer(&dest->compositeModels);
+			zone_buffer::clear_pointer(&dest->compositeModels);
 		}
 		//dest->compositeModels = nullptr;
 		//dest->numCompositeModels = 0;
@@ -462,7 +462,7 @@ namespace zonetool::h1
 						ASSET_TYPE_PHYSCOLLMAP, data->bonePhysics[i].physCollmap->name));
 				}
 			}
-			ZoneBuffer::clear_pointer(&dest->bonePhysics);
+			zone_buffer::clear_pointer(&dest->bonePhysics);
 		}
 		//dest->bonePhysics = nullptr;
 		//dest->numBonePhysics = 0;
@@ -470,7 +470,7 @@ namespace zonetool::h1
 		buf->pop_stream();
 	}
 
-	void IXModel::dump(XModel* asset)
+	void xmodel::dump(XModel* asset)
 	{
 		const auto path = "xmodel\\"s + asset->name + ".xmodel_export";
 

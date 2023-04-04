@@ -36,7 +36,7 @@ namespace zonetool::h2
 		}
 	}
 
-	FxEffectDef* IFxEffectDef::parse(const std::string& name, ZoneMemory* mem)
+	FxEffectDef* fx_effect_def::parse(const std::string& name, zone_memory* mem)
 	{
 		assetmanager::reader read(mem);
 
@@ -168,29 +168,29 @@ namespace zonetool::h2
 		return asset;
 	}
 
-	void IFxEffectDef::init(const std::string& name, ZoneMemory* mem)
+	void fx_effect_def::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
 		this->asset_ = this->parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name().data()).fx;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).fx;
 		}
 	}
 
-	void IFxEffectDef::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void fx_effect_def::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IFxEffectDef::load_depending(IZone* zone)
+	void fx_effect_def::load_depending(zone_base* zone)
 	{
 		auto data = this->asset_;
 
@@ -280,17 +280,17 @@ namespace zonetool::h2
 		}
 	}
 
-	std::string IFxEffectDef::name()
+	std::string fx_effect_def::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IFxEffectDef::type()
+	std::int32_t fx_effect_def::type()
 	{
 		return ASSET_TYPE_FX;
 	}
 
-	void write_fx_elem_visuals(IZone* zone, ZoneBuffer* buf, FxElemDef* def, FxElemVisuals* dest)
+	void write_fx_elem_visuals(zone_base* zone, zone_buffer* buf, FxElemDef* def, FxElemVisuals* dest)
 	{
 		auto data = dest;
 
@@ -330,7 +330,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void write_fx_elem_def_visuals(IZone* zone, ZoneBuffer* buf, FxElemDef* def, FxElemDefVisuals* dest)
+	void write_fx_elem_def_visuals(zone_base* zone, zone_buffer* buf, FxElemDef* def, FxElemDefVisuals* dest)
 	{
 		auto data = dest;
 
@@ -372,7 +372,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void write_fx_elem_def(IZone* zone, ZoneBuffer* buf, FxElemDef* dest)
+	void write_fx_elem_def(zone_base* zone, zone_buffer* buf, FxElemDef* dest)
 	{
 		auto data = dest;
 
@@ -380,14 +380,14 @@ namespace zonetool::h2
 		{
 			buf->align(3);
 			buf->write(data->velSamples, data->velIntervalCount + 1);
-			ZoneBuffer::clear_pointer(&dest->velSamples);
+			zone_buffer::clear_pointer(&dest->velSamples);
 		}
 
 		if (data->visSamples)
 		{
 			buf->align(3);
 			buf->write(data->visSamples, data->visStateIntervalCount + 1);
-			ZoneBuffer::clear_pointer(&dest->velSamples);
+			zone_buffer::clear_pointer(&dest->velSamples);
 		}
 
 		write_fx_elem_def_visuals(zone, buf, data, &dest->visuals);
@@ -395,19 +395,19 @@ namespace zonetool::h2
 		if (data->effectOnImpact.handle)
 		{
 			buf->write_str(data->effectOnImpact.handle->name);
-			ZoneBuffer::clear_pointer(&dest->effectOnImpact);
+			zone_buffer::clear_pointer(&dest->effectOnImpact);
 		}
 
 		if (data->effectOnDeath.handle)
 		{
 			buf->write_str(data->effectOnDeath.handle->name);
-			ZoneBuffer::clear_pointer(&dest->effectOnDeath);
+			zone_buffer::clear_pointer(&dest->effectOnDeath);
 		}
 
 		if (data->effectEmitted.handle)
 		{
 			buf->write_str(data->effectEmitted.handle->name);
-			ZoneBuffer::clear_pointer(&dest->effectEmitted);
+			zone_buffer::clear_pointer(&dest->effectEmitted);
 		}
 
 		if (data->extended.trailDef)
@@ -431,7 +431,7 @@ namespace zonetool::h2
 						buf->write(data->extended.trailDef->inds, data->extended.trailDef->indCount);
 					}
 
-					ZoneBuffer::clear_pointer(&dest->extended.trailDef);
+					zone_buffer::clear_pointer(&dest->extended.trailDef);
 				}
 			}
 			else if (data->elemType == FX_ELEM_TYPE_SPARK_FOUNTAIN)
@@ -440,7 +440,7 @@ namespace zonetool::h2
 				{
 					buf->align(3);
 					buf->write(data->extended.sparkFountainDef);
-					ZoneBuffer::clear_pointer(&dest->extended.sparkFountainDef);
+					zone_buffer::clear_pointer(&dest->extended.sparkFountainDef);
 				}
 			}
 			else if (data->elemType == FX_ELEM_TYPE_SPOT_LIGHT)
@@ -449,7 +449,7 @@ namespace zonetool::h2
 				{
 					buf->align(3);
 					buf->write(data->extended.spotLightDef);
-					ZoneBuffer::clear_pointer(&dest->extended.spotLightDef);
+					zone_buffer::clear_pointer(&dest->extended.spotLightDef);
 				}
 			}
 			else if (data->elemType == FX_ELEM_TYPE_OMNI_LIGHT)
@@ -458,7 +458,7 @@ namespace zonetool::h2
 				{
 					buf->align(3);
 					buf->write(data->extended.omniLightDef);
-					ZoneBuffer::clear_pointer(&dest->extended.omniLightDef);
+					zone_buffer::clear_pointer(&dest->extended.omniLightDef);
 				}
 			}
 			else if (data->elemType == FX_ELEM_TYPE_FLARE)
@@ -486,24 +486,24 @@ namespace zonetool::h2
 					buf->write(data->extended.flareDef->srcCosScale, data->extended.flareDef->srcCosScaleIntervalCount + 1);
 				}
 
-				ZoneBuffer::clear_pointer(&dest->extended.flareDef);
+				zone_buffer::clear_pointer(&dest->extended.flareDef);
 			}
 			else if (data->elemType == FX_ELEM_TYPE_DECAL)
 			{
 				buf->align(0);
 				buf->write_stream(data->extended.decalDef, 3);
-				ZoneBuffer::clear_pointer(&dest->extended.decalDef);
+				zone_buffer::clear_pointer(&dest->extended.decalDef);
 			}
 			else
 			{
 				buf->align(0);
 				buf->write_stream(data->extended.unknownDef, 1);
-				ZoneBuffer::clear_pointer(&dest->extended.unknownDef);
+				zone_buffer::clear_pointer(&dest->extended.unknownDef);
 			}
 		}
 	}
 
-	void IFxEffectDef::write(IZone* zone, ZoneBuffer* buf)
+	void fx_effect_def::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		auto dest = buf->write(data);
@@ -523,7 +523,7 @@ namespace zonetool::h2
 				write_fx_elem_def(zone, buf, &destdef[i]);
 			}
 
-			ZoneBuffer::clear_pointer(&dest->elemDefs);
+			zone_buffer::clear_pointer(&dest->elemDefs);
 		}
 
 		buf->pop_stream();
@@ -562,7 +562,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void IFxEffectDef::dump(FxEffectDef* asset)
+	void fx_effect_def::dump(FxEffectDef* asset)
 	{
 		assetmanager::dumper dump;
 

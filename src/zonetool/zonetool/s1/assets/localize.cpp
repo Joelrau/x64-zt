@@ -3,7 +3,7 @@
 
 namespace zonetool::s1
 {
-	bool ILocalize::parse_localizedstrings_json(IZone* zone, const std::string& file_name)
+	bool localize::parse_localizedstrings_json(zone_base* zone, const std::string& file_name)
 	{
 		const auto path = "localizedstrings\\"s + file_name + ".json";
 		auto file = filesystem::file(path);
@@ -54,7 +54,7 @@ namespace zonetool::s1
 		return true;
 	}
 
-	bool ILocalize::parse_localizedstrings_file(IZone* zone, const std::string& file_name)
+	bool localize::parse_localizedstrings_file(zone_base* zone, const std::string& file_name)
 	{
 		const auto path = "localizedstrings\\"s + file_name + ".str";
 		auto file = filesystem::file(path);
@@ -218,7 +218,7 @@ namespace zonetool::s1
 		return false;
 	}
 
-	LocalizeEntry* ILocalize::parse(const std::string& name, ZoneMemory* mem)
+	LocalizeEntry* localize::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = "localizedstrings\\"s + name;
 		auto file = filesystem::file(path);
@@ -228,12 +228,12 @@ namespace zonetool::s1
 		{
 			ZONETOOL_INFO("Parsing localizedstring \"%s\"...", name.data());
 
-			auto* localized = mem->Alloc<LocalizeEntry>();
-			localized->name = mem->StrDup(name);
+			auto* localized = mem->allocate<LocalizeEntry>();
+			localized->name = mem->duplicate_string(name);
 
 			const auto size = file.size();
 			auto data = file.read_bytes(size);
-			localized->value = mem->StrDup(std::string(data.begin(), data.end()));
+			localized->value = mem->duplicate_string(std::string(data.begin(), data.end()));
 
 			file.close();
 
@@ -243,61 +243,61 @@ namespace zonetool::s1
 		return nullptr;
 	}
 
-	void ILocalize::init(void* asset, ZoneMemory* mem)
+	void localize::init(void* asset, zone_memory* mem)
 	{
 		if (asset)
 		{
 			auto* m_asset = reinterpret_cast<LocalizeEntry*>(asset);
 
 			// allocate asset in zone memory
-			this->asset_ = mem->Alloc<LocalizeEntry>();
-			this->asset_->name = mem->StrDup(m_asset->name);
-			this->asset_->value = mem->StrDup(m_asset->value);
+			this->asset_ = mem->allocate<LocalizeEntry>();
+			this->asset_->name = mem->duplicate_string(m_asset->name);
+			this->asset_->value = mem->duplicate_string(m_asset->value);
 		}
 		else
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name_.data()).localize;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name_.data()).localize;
 		}
 		this->name_ = this->asset_->name;
 	}
 
-	void ILocalize::init(const std::string& name, ZoneMemory* mem)
+	void localize::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
 		this->asset_ = parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name_.data()).localize;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name_.data()).localize;
 		}
 	}
 
-	void ILocalize::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void localize::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void ILocalize::load_depending(IZone* zone)
+	void localize::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string ILocalize::name()
+	std::string localize::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t ILocalize::type()
+	std::int32_t localize::type()
 	{
 		return ASSET_TYPE_LOCALIZE_ENTRY;
 	}
 
-	void ILocalize::write(IZone* zone, ZoneBuffer* buf)
+	void localize::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write<LocalizeEntry>(data);
@@ -310,7 +310,7 @@ namespace zonetool::s1
 		buf->pop_stream();
 	}
 
-	void ILocalize::dump(LocalizeEntry* asset)
+	void localize::dump(LocalizeEntry* asset)
 	{
 		if (asset)
 		{

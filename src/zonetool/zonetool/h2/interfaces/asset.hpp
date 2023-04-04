@@ -2,18 +2,18 @@
 
 namespace zonetool::h2
 {
-	class IAsset
+	class asset_interface
 	{
 	public:
-		virtual void init(const std::string& name, ZoneMemory* mem)
+		virtual void init(const std::string& name, zone_memory* mem)
 		{
 		}
 
-		virtual void init(void* asset, ZoneMemory* mem)
+		virtual void init(void* asset, zone_memory* mem)
 		{
 		}
 
-		virtual void prepare(ZoneBuffer* buf, ZoneMemory* mem)
+		virtual void prepare(zone_buffer* buf, zone_memory* mem)
 		{
 		}
 
@@ -22,11 +22,11 @@ namespace zonetool::h2
 		virtual std::string name() { return ""; }
 		virtual std::int32_t type() { return -1; }
 
-		virtual void write(IZone* zone, ZoneBuffer* buffer)
+		virtual void write(zone_base* zone, zone_buffer* buffer)
 		{
 		}
 
-		virtual void load_depending(IZone* zone)
+		virtual void load_depending(zone_base* zone)
 		{
 		}
 	};

@@ -314,31 +314,31 @@ namespace zonetool::iw6
 						if (asset->passArray[i].vertexShader)
 						{
 							dumper.dump_asset(asset->passArray[i].vertexShader);
-							//zonetool::h1::IVertexShader::dump(asset->passArray[i].vertexShader);
+							//zonetool::h1::vertex_shader::dump(asset->passArray[i].vertexShader);
 						}
 
 						if (asset->passArray[i].vertexDecl)
 						{
 							dumper.dump_asset(asset->passArray[i].vertexDecl);
-							zonetool::h1::IVertexDecl::dump(asset->passArray[i].vertexDecl);
+							zonetool::h1::vertex_decl::dump(asset->passArray[i].vertexDecl);
 						}
 
 						if (asset->passArray[i].hullShader)
 						{
 							dumper.dump_asset(asset->passArray[i].hullShader);
-							//zonetool::h1::IHullShader::dump(asset->passArray[i].hullShader);
+							//zonetool::h1::hull_shader::dump(asset->passArray[i].hullShader);
 						}
 
 						if (asset->passArray[i].domainShader)
 						{
 							dumper.dump_asset(asset->passArray[i].domainShader);
-							//zonetool::h1::IDomainShader::dump(asset->passArray[i].domainShader);
+							//zonetool::h1::domain_shader::dump(asset->passArray[i].domainShader);
 						}
 
 						if (asset->passArray[i].pixelShader)
 						{
 							dumper.dump_asset(asset->passArray[i].pixelShader);
-							//zonetool::h1::IPixelShader::dump(asset->passArray[i].pixelShader);
+							//zonetool::h1::pixel_shader::dump(asset->passArray[i].pixelShader);
 						}
 
 						if (asset->passArray[i].args)
@@ -380,7 +380,7 @@ namespace zonetool::iw6
 					file.close();
 				}
 
-				void dump(MaterialTechniqueSet* iw6_asset, ZoneMemory* mem)
+				void dump(MaterialTechniqueSet* iw6_asset, zone_memory* mem)
 				{
 					auto* asset = converter::h1::techset::convert(iw6_asset, mem);
 
@@ -1567,16 +1567,16 @@ namespace zonetool::iw6
 
 			std::unordered_map<std::string, zonetool::h1::MaterialTechniqueSet*> converted_techset_assets;
 
-			zonetool::h1::MaterialTechniqueSet* convert(MaterialTechniqueSet* asset, ZoneMemory* mem)
+			zonetool::h1::MaterialTechniqueSet* convert(MaterialTechniqueSet* asset, zone_memory* mem)
 			{
 				if (converted_techset_assets.contains(asset->name + TECHSET_PREFIX))
 				{
 					return converted_techset_assets[asset->name];
 				}
 
-				auto* new_asset = mem->Alloc<zonetool::h1::MaterialTechniqueSet>();
+				auto* new_asset = mem->allocate<zonetool::h1::MaterialTechniqueSet>();
 
-				new_asset->name = mem->StrDup(asset->name + TECHSET_PREFIX);
+				new_asset->name = mem->duplicate_string(asset->name + TECHSET_PREFIX);
 				new_asset->flags = asset->flags; // convert?
 
 				if (worldvertexformat_map.contains(asset->worldVertFormat))
@@ -1609,14 +1609,14 @@ namespace zonetool::iw6
 						else
 						{
 							const auto size = sizeof(MaterialTechniqueHeader) + sizeof(MaterialPass) * asset->techniques[i]->hdr.passCount;
-							new_asset->techniques[new_tech_index] = mem->ManualAlloc<zonetool::h1::MaterialTechnique>(size);
+							new_asset->techniques[new_tech_index] = mem->manual_allocate<zonetool::h1::MaterialTechnique>(size);
 
 							auto* technique = asset->techniques[i];
 							auto* new_technique = new_asset->techniques[new_tech_index];
 
 							std::memcpy(new_technique, technique, size); // same struct
 
-							new_technique->hdr.name = mem->StrDup(technique->hdr.name + TECHSET_PREFIX);
+							new_technique->hdr.name = mem->duplicate_string(technique->hdr.name + TECHSET_PREFIX);
 
 							for (unsigned short pass_index = 0; pass_index < technique->hdr.passCount; pass_index++)
 							{
@@ -1649,7 +1649,7 @@ namespace zonetool::iw6
 								if (pass->args)
 								{
 									auto arg_count = pass->perObjArgCount + pass->perPrimArgCount + pass->stableArgCount;
-									new_pass->args = mem->Alloc<zonetool::h1::MaterialShaderArgument>(arg_count);
+									new_pass->args = mem->allocate<zonetool::h1::MaterialShaderArgument>(arg_count);
 									std::memcpy(new_pass->args, pass->args, sizeof(MaterialShaderArgument) * arg_count); // same struct
 
 									auto new_arg_index = 0;
@@ -1701,7 +1701,7 @@ namespace zonetool::iw6
 												//new_arg->u.codeConst.rowCount = 0;
 
 												new_arg->type = zonetool::h1::MTL_ARG_LITERAL_CONST;
-												new_arg->u.literalConst = mem->Alloc<float>(4);
+												new_arg->u.literalConst = mem->allocate<float>(4);
 												std::memcpy(new_arg->u.literalConst, consts[arg->u.codeConst.index], sizeof(float[4]));
 
 												// add literalized arg to the list
@@ -1765,7 +1765,7 @@ namespace zonetool::iw6
 				return new_asset;
 			}
 
-			void dump(MaterialTechniqueSet* asset, ZoneMemory* mem)
+			void dump(MaterialTechniqueSet* asset, zone_memory* mem)
 			{
 				ree::dump(asset, mem);
 			}

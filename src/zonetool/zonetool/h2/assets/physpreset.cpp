@@ -3,39 +3,39 @@
 
 namespace zonetool::h2
 {
-	void IPhysPreset::init(const std::string& name, ZoneMemory* mem)
+	void phys_preset::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
-		this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name().data()).physPreset;
+		this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).physPreset;
 	}
 
-	void IPhysPreset::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void phys_preset::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IPhysPreset::load_depending(IZone* zone)
+	void phys_preset::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string IPhysPreset::name()
+	std::string phys_preset::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IPhysPreset::type()
+	std::int32_t phys_preset::type()
 	{
 		return ASSET_TYPE_PHYSPRESET;
 	}
 
-	void IPhysPreset::write(IZone* zone, ZoneBuffer* buf)
+	void phys_preset::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		auto dest = buf->write(data);
@@ -52,7 +52,7 @@ namespace zonetool::h2
 		buf->pop_stream();
 	}
 
-	void IPhysPreset::dump(PhysPreset* asset)
+	void phys_preset::dump(PhysPreset* asset)
 	{
 	}
 }

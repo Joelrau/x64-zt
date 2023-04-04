@@ -13,7 +13,7 @@
 
 namespace zonetool::iw6
 {
-	IAsset* Zone::find_asset(std::int32_t type, const std::string& name)
+	asset_interface* zone_interface::find_asset(std::int32_t type, const std::string& name)
 	{
 		if (name.empty())
 		{
@@ -31,7 +31,7 @@ namespace zonetool::iw6
 		return nullptr;
 	}
 
-	void* Zone::get_asset_pointer(std::int32_t type, const std::string& name)
+	void* zone_interface::get_asset_pointer(std::int32_t type, const std::string& name)
 	{
 		if (name.empty())
 		{
@@ -57,7 +57,7 @@ namespace zonetool::iw6
 		return nullptr;
 	}
 
-	void Zone::add_asset_of_type_by_pointer(std::int32_t type, void* pointer)
+	void zone_interface::add_asset_of_type_by_pointer(std::int32_t type, void* pointer)
 	{
 		if (!pointer)
 		{
@@ -75,10 +75,10 @@ namespace zonetool::iw6
 			}
 		}
 
-#define ADD_ASSET_PTR(__type__, __interface__) \
+#define ADD_ASSET_PTR(__type__, ___) \
 		if (type == __type__) \
 		{ \
-			auto asset = std::make_shared < __interface__ >(); \
+			auto asset = std::make_shared < ___ >(); \
 			asset->init(pointer, this->m_zonemem.get()); \
 			asset->load_depending(this); \
 			m_assets.push_back(asset); \
@@ -88,7 +88,7 @@ namespace zonetool::iw6
 		{
 			// declare asset interfaces
 			//ADD_ASSET_PTR(ASSET_TYPE_MENU, IMenuDef);
-			ADD_ASSET_PTR(ASSET_TYPE_LOCALIZE_ENTRY, ILocalize);
+			ADD_ASSET_PTR(ASSET_TYPE_LOCALIZE_ENTRY, localize);
 		}
 		catch (std::exception& ex)
 		{
@@ -97,7 +97,7 @@ namespace zonetool::iw6
 		}
 	}
 
-	void Zone::add_asset_of_type(std::int32_t type, const std::string& name)
+	void zone_interface::add_asset_of_type(std::int32_t type, const std::string& name)
 	{
 		if (name.empty())
 		{
@@ -115,10 +115,10 @@ namespace zonetool::iw6
 
 		}
 
-#define ADD_ASSET(__type__, __interface__) \
+#define ADD_ASSET(__type__, ___) \
 		if (type == __type__) \
 		{ \
-			auto asset = std::make_shared < __interface__ >(); \
+			auto asset = std::make_shared < ___ >(); \
 			asset->init(name, this->m_zonemem.get()); \
 			asset->load_depending(this); \
 			m_assets.push_back(asset); \
@@ -127,53 +127,53 @@ namespace zonetool::iw6
 		try
 		{
 			// declare asset interfaces
-			ADD_ASSET(ASSET_TYPE_DOPPLER_PRESET, IDopplerPreset);
-			ADD_ASSET(ASSET_TYPE_FX, IFxEffectDef);
-			ADD_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, IFxParticleSimAnimation);
-			ADD_ASSET(ASSET_TYPE_IMAGE, IGfxImage);
-			ADD_ASSET(ASSET_TYPE_LIGHT_DEF, IGfxLightDef);
-			ADD_ASSET(ASSET_TYPE_LOADED_SOUND, ILoadedSound);
-			ADD_ASSET(ASSET_TYPE_LOCALIZE_ENTRY, ILocalize);
-			ADD_ASSET(ASSET_TYPE_LPF_CURVE, ILpfCurve);
-			ADD_ASSET(ASSET_TYPE_LUA_FILE, ILuaFile);
-			ADD_ASSET(ASSET_TYPE_MAP_ENTS, IMapEnts);
-			ADD_ASSET(ASSET_TYPE_MATERIAL, IMaterial);
-			ADD_ASSET(ASSET_TYPE_NET_CONST_STRINGS, INetConstStrings);
-			ADD_ASSET(ASSET_TYPE_RAWFILE, IRawFile);
-			ADD_ASSET(ASSET_TYPE_REVERB_CURVE, IReverbCurve);
-			ADD_ASSET(ASSET_TYPE_SCRIPTABLE, IScriptableDef);
-			ADD_ASSET(ASSET_TYPE_SCRIPTFILE, IScriptFile);
-			ADD_ASSET(ASSET_TYPE_SOUND, ISound);
-			ADD_ASSET(ASSET_TYPE_SOUND_CURVE, ISoundCurve);
-			ADD_ASSET(ASSET_TYPE_STRINGTABLE, IStringTable);
-			ADD_ASSET(ASSET_TYPE_TECHNIQUE_SET, ITechset);
-			ADD_ASSET(ASSET_TYPE_TRACER, ITracerDef);
-			ADD_ASSET(ASSET_TYPE_FONT, IFontDef);
-			ADD_ASSET(ASSET_TYPE_ATTACHMENT, IWeaponAttachment);
-			ADD_ASSET(ASSET_TYPE_WEAPON, IWeaponDef);
-			ADD_ASSET(ASSET_TYPE_XANIMPARTS, IXAnimParts);
-			ADD_ASSET(ASSET_TYPE_XMODEL, IXModel);
-			ADD_ASSET(ASSET_TYPE_XMODEL_SURFS, IXSurface);
+			ADD_ASSET(ASSET_TYPE_DOPPLER_PRESET, doppler_preset);
+			ADD_ASSET(ASSET_TYPE_FX, fx_effect_def);
+			ADD_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, fx_particle_sim_animation);
+			ADD_ASSET(ASSET_TYPE_IMAGE, gfx_image);
+			ADD_ASSET(ASSET_TYPE_LIGHT_DEF, gfx_light_def);
+			ADD_ASSET(ASSET_TYPE_LOADED_SOUND, loaded_sound);
+			ADD_ASSET(ASSET_TYPE_LOCALIZE_ENTRY, localize);
+			ADD_ASSET(ASSET_TYPE_LPF_CURVE, lpf_curve);
+			ADD_ASSET(ASSET_TYPE_LUA_FILE, lua_file);
+			ADD_ASSET(ASSET_TYPE_MAP_ENTS, map_ents);
+			ADD_ASSET(ASSET_TYPE_MATERIAL, material);
+			ADD_ASSET(ASSET_TYPE_NET_CONST_STRINGS, net_const_strings);
+			ADD_ASSET(ASSET_TYPE_RAWFILE, rawfile);
+			ADD_ASSET(ASSET_TYPE_REVERB_CURVE, reverb_curve);
+			ADD_ASSET(ASSET_TYPE_SCRIPTABLE, scriptable_def);
+			ADD_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile);
+			ADD_ASSET(ASSET_TYPE_SOUND, sound);
+			ADD_ASSET(ASSET_TYPE_SOUND_CURVE, sound_curve);
+			ADD_ASSET(ASSET_TYPE_STRINGTABLE, string_table);
+			ADD_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset);
+			ADD_ASSET(ASSET_TYPE_TRACER, tracer_def);
+			ADD_ASSET(ASSET_TYPE_FONT, font_def);
+			ADD_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment);
+			ADD_ASSET(ASSET_TYPE_WEAPON, weapon_def);
+			ADD_ASSET(ASSET_TYPE_XANIMPARTS, xanim_parts);
+			ADD_ASSET(ASSET_TYPE_XMODEL, xmodel);
+			ADD_ASSET(ASSET_TYPE_XMODEL_SURFS, xsurface);
 
-			ADD_ASSET(ASSET_TYPE_PHYSCOLLMAP, IPhysCollmap);
-			ADD_ASSET(ASSET_TYPE_PHYSPRESET, IPhysPreset);
+			ADD_ASSET(ASSET_TYPE_PHYSCOLLMAP, phys_collmap);
+			ADD_ASSET(ASSET_TYPE_PHYSPRESET, phys_preset);
 
-			ADD_ASSET(ASSET_TYPE_COMPUTESHADER, IComputeShader);
-			ADD_ASSET(ASSET_TYPE_DOMAINSHADER, IDomainShader);
-			ADD_ASSET(ASSET_TYPE_HULLSHADER, IHullShader);
-			ADD_ASSET(ASSET_TYPE_PIXELSHADER, IPixelShader);
-			//ADD_ASSET(ASSET_TYPE_VERTEXDECL, IVertexDecl);
-			ADD_ASSET(ASSET_TYPE_VERTEXSHADER, IVertexShader);
+			ADD_ASSET(ASSET_TYPE_COMPUTESHADER, compute_shader);
+			ADD_ASSET(ASSET_TYPE_DOMAINSHADER, domain_shader);
+			ADD_ASSET(ASSET_TYPE_HULLSHADER, hull_shader);
+			ADD_ASSET(ASSET_TYPE_PIXELSHADER, pixel_shader);
+			//ADD_ASSET(ASSET_TYPE_VERTEXDECL, vertex_decl);
+			ADD_ASSET(ASSET_TYPE_VERTEXSHADER, vertex_shader);
 
 			//ADD_ASSET(ASSET_TYPE_MENU, IMenuDef);
 			//ADD_ASSET(ASSET_TYPE_MENULIST, IMenuList);
 
 			//ADD_ASSET(ASSET_TYPE_PATHDATA, IAIPaths);
-			ADD_ASSET(ASSET_TYPE_CLIPMAP, IClipMap);
-			ADD_ASSET(ASSET_TYPE_COMWORLD, IComWorld);
-			ADD_ASSET(ASSET_TYPE_FXWORLD, IFxWorld);
-			ADD_ASSET(ASSET_TYPE_GFXWORLD, IGfxWorld);
-			ADD_ASSET(ASSET_TYPE_GLASSWORLD, IGlassWorld);
+			ADD_ASSET(ASSET_TYPE_CLIPMAP, clip_map);
+			ADD_ASSET(ASSET_TYPE_COMWORLD, com_world);
+			ADD_ASSET(ASSET_TYPE_FXWORLD, fx_world);
+			ADD_ASSET(ASSET_TYPE_GFXWORLD, gfx_world);
+			ADD_ASSET(ASSET_TYPE_GLASSWORLD, glass_world);
 		}
 		catch (std::exception& ex)
 		{
@@ -182,18 +182,18 @@ namespace zonetool::iw6
 		}
 	}
 
-	std::int32_t Zone::get_type_by_name(const std::string& type)
+	std::int32_t zone_interface::get_type_by_name(const std::string& type)
 	{
 		return type_to_int(type);
 	}
 
-	void Zone::add_asset_of_type(const std::string& type, const std::string& name)
+	void zone_interface::add_asset_of_type(const std::string& type, const std::string& name)
 	{
 		std::int32_t itype = type_to_int(type);
 		this->add_asset_of_type(itype, name);
 	}
 
-	void Zone::build(ZoneBuffer* buf)
+	void zone_interface::build(zone_buffer* buf)
 	{
 		buf->init_streams(7);
 
@@ -202,21 +202,21 @@ namespace zonetool::iw6
 		ZONETOOL_INFO("Compiling fastfile \"%s\"...", this->name_.data());
 
 		constexpr std::size_t num_streams = 7;
-		XZoneMemory<num_streams> mem;
+		Xzone_memory<num_streams> mem;
 
-		std::size_t headersize = sizeof(XZoneMemory<num_streams>);
+		std::size_t headersize = sizeof(Xzone_memory<num_streams>);
 		memset(&mem, 0, headersize);
 
-		auto zone = buf->at<XZoneMemory<num_streams>>();
+		auto zone = buf->at<Xzone_memory<num_streams>>();
 
 		{
 			// write imagefile
-			std::vector<IGfxImage*> images;
+			std::vector<gfx_image*> images;
 			for (std::size_t i = 0; i < m_assets.size(); i++)
 			{
 				if (m_assets[i]->type() == ASSET_TYPE_IMAGE)
 				{
-					const auto image = static_cast<IGfxImage*>(m_assets[i].get());
+					const auto image = static_cast<gfx_image*>(m_assets[i].get());
 					if (image->custom_streamed_image)
 					{
 						images.emplace_back(image);
@@ -296,11 +296,11 @@ namespace zonetool::iw6
 
 			// parse gfxglobals
 			auto mem_ = this->m_zonemem.get();
-			auto globals = mem_->Alloc<XGfxGlobals>();
+			auto globals = mem_->allocate<XGfxGlobals>();
 
 			globals->depthStencilStateCount = static_cast<unsigned int>(buf->depthstencilstatebit_count());
-			globals->depthStencilStateBits = mem_->Alloc<std::uint64_t>(globals->depthStencilStateCount);
-			globals->depthStencilStates = mem_->Alloc<GfxZoneTableEntry>(globals->depthStencilStateCount);
+			globals->depthStencilStateBits = mem_->allocate<std::uint64_t>(globals->depthStencilStateCount);
+			globals->depthStencilStates = mem_->allocate<GfxZoneTableEntry>(globals->depthStencilStateCount);
 
 			for (unsigned int i = 0; i < globals->depthStencilStateCount; i++)
 			{
@@ -308,8 +308,8 @@ namespace zonetool::iw6
 			}
 
 			globals->blendStateCount = static_cast<unsigned int>(buf->blendstatebits_count());
-			globals->blendStateBits = mem_->Alloc<GfxBlendStateBits>(globals->blendStateCount);
-			globals->blendStates = mem_->Alloc<GfxZoneTableEntry>(globals->blendStateCount);
+			globals->blendStateBits = mem_->allocate<GfxBlendStateBits>(globals->blendStateCount);
+			globals->blendStates = mem_->allocate<GfxZoneTableEntry>(globals->blendStateCount);
 
 			for (unsigned int i = 0; i < globals->blendStateCount; i++)
 			{
@@ -320,8 +320,8 @@ namespace zonetool::iw6
 			}
 			
 			globals->perPrimConstantBufferCount = static_cast<unsigned int>(buf->ppas_count());
-			globals->perPrimConstantBufferSizes = mem_->Alloc<unsigned int>(globals->perPrimConstantBufferCount);
-			globals->perPrimConstantBuffers = mem_->Alloc<GfxZoneTableEntry>(globals->perPrimConstantBufferCount);
+			globals->perPrimConstantBufferSizes = mem_->allocate<unsigned int>(globals->perPrimConstantBufferCount);
+			globals->perPrimConstantBuffers = mem_->allocate<GfxZoneTableEntry>(globals->perPrimConstantBufferCount);
 
 			for (unsigned int i = 0; i < globals->perPrimConstantBufferCount; i++)
 			{
@@ -329,8 +329,8 @@ namespace zonetool::iw6
 			}
 
 			globals->perObjConstantBufferCount = static_cast<unsigned int>(buf->poas_count());
-			globals->perObjConstantBufferSizes = mem_->Alloc<unsigned int>(globals->perObjConstantBufferCount);
-			globals->perObjConstantBuffers = mem_->Alloc<GfxZoneTableEntry>(globals->perObjConstantBufferCount);
+			globals->perObjConstantBufferSizes = mem_->allocate<unsigned int>(globals->perObjConstantBufferCount);
+			globals->perObjConstantBuffers = mem_->allocate<GfxZoneTableEntry>(globals->perObjConstantBufferCount);
 
 			for (unsigned int i = 0; i < globals->perObjConstantBufferCount; i++)
 			{
@@ -338,8 +338,8 @@ namespace zonetool::iw6
 			}
 
 			globals->stableConstantBufferCount = static_cast<unsigned int>(buf->sas_count());
-			globals->stableConstantBufferSizes = mem_->Alloc<unsigned int>(globals->stableConstantBufferCount);
-			globals->stableConstantBuffers = mem_->Alloc<GfxZoneTableEntry>(globals->stableConstantBufferCount);
+			globals->stableConstantBufferSizes = mem_->allocate<unsigned int>(globals->stableConstantBufferCount);
+			globals->stableConstantBuffers = mem_->allocate<GfxZoneTableEntry>(globals->stableConstantBufferCount);
 
 			for (unsigned int i = 0; i < globals->stableConstantBufferCount; i++)
 			{
@@ -352,13 +352,13 @@ namespace zonetool::iw6
 			{
 				buf->align(3);
 				buf->write(globals->depthStencilStateBits, globals->depthStencilStateCount);
-				ZoneBuffer::clear_pointer(&dest->depthStencilStateBits);
+				zone_buffer::clear_pointer(&dest->depthStencilStateBits);
 			}
 			if (globals->blendStateBits)
 			{
 				buf->align(3);
 				buf->write(globals->blendStateBits, globals->blendStateCount);
-				ZoneBuffer::clear_pointer(&dest->blendStateBits);
+				zone_buffer::clear_pointer(&dest->blendStateBits);
 			}
 			buf->push_stream(2);
 			if (globals->depthStencilStates)
@@ -371,10 +371,10 @@ namespace zonetool::iw6
 					{
 						buf->align(0);
 						buf->write(globals->depthStencilStates[i].dataPtr, 1);
-						ZoneBuffer::clear_pointer(&dest_0->dataPtr);
+						zone_buffer::clear_pointer(&dest_0->dataPtr);
 					}
 				}
-				ZoneBuffer::clear_pointer(&dest->depthStencilStates);
+				zone_buffer::clear_pointer(&dest->depthStencilStates);
 			}
 			buf->pop_stream();
 			buf->push_stream(2);
@@ -388,29 +388,29 @@ namespace zonetool::iw6
 					{
 						buf->align(0);
 						buf->write(globals->blendStates[i].dataPtr, 1);
-						ZoneBuffer::clear_pointer(&dest_0->dataPtr);
+						zone_buffer::clear_pointer(&dest_0->dataPtr);
 					}
 				}
-				ZoneBuffer::clear_pointer(&dest->blendStates);
+				zone_buffer::clear_pointer(&dest->blendStates);
 			}
 			buf->pop_stream();
 			if (globals->perPrimConstantBufferSizes)
 			{
 				buf->align(3);
 				buf->write(globals->perPrimConstantBufferSizes, globals->perPrimConstantBufferCount);
-				ZoneBuffer::clear_pointer(&dest->perPrimConstantBufferSizes);
+				zone_buffer::clear_pointer(&dest->perPrimConstantBufferSizes);
 			}
 			if (globals->perObjConstantBufferSizes)
 			{
 				buf->align(3);
 				buf->write(globals->perObjConstantBufferSizes, globals->perObjConstantBufferCount);
-				ZoneBuffer::clear_pointer(&dest->perObjConstantBufferSizes);
+				zone_buffer::clear_pointer(&dest->perObjConstantBufferSizes);
 			}
 			if (globals->stableConstantBufferSizes)
 			{
 				buf->align(3);
 				buf->write(globals->stableConstantBufferSizes, globals->stableConstantBufferCount);
-				ZoneBuffer::clear_pointer(&dest->stableConstantBufferSizes);
+				zone_buffer::clear_pointer(&dest->stableConstantBufferSizes);
 			}
 			buf->push_stream(2);
 			if (globals->perPrimConstantBuffers)
@@ -423,10 +423,10 @@ namespace zonetool::iw6
 					{
 						buf->align(0);
 						buf->write(globals->perPrimConstantBuffers[i].dataPtr, 1);
-						ZoneBuffer::clear_pointer(&dest_0->dataPtr);
+						zone_buffer::clear_pointer(&dest_0->dataPtr);
 					}
 				}
-				ZoneBuffer::clear_pointer(&dest->perPrimConstantBuffers);
+				zone_buffer::clear_pointer(&dest->perPrimConstantBuffers);
 			}
 			buf->pop_stream();
 			buf->push_stream(2);
@@ -440,10 +440,10 @@ namespace zonetool::iw6
 					{
 						buf->align(0);
 						buf->write(globals->perObjConstantBuffers[i].dataPtr, 1);
-						ZoneBuffer::clear_pointer(&dest_0->dataPtr);
+						zone_buffer::clear_pointer(&dest_0->dataPtr);
 					}
 				}
-				ZoneBuffer::clear_pointer(&dest->perObjConstantBuffers);
+				zone_buffer::clear_pointer(&dest->perObjConstantBuffers);
 			}
 			buf->pop_stream();
 			buf->push_stream(2);
@@ -457,10 +457,10 @@ namespace zonetool::iw6
 					{
 						buf->align(0);
 						buf->write(globals->stableConstantBuffers[i].dataPtr, 1);
-						ZoneBuffer::clear_pointer(&dest_0->dataPtr);
+						zone_buffer::clear_pointer(&dest_0->dataPtr);
 					}
 				}
-				ZoneBuffer::clear_pointer(&dest->stableConstantBuffers);
+				zone_buffer::clear_pointer(&dest->stableConstantBuffers);
 			}
 			buf->pop_stream();
 		}
@@ -547,7 +547,7 @@ namespace zonetool::iw6
 		header.totalFileLen = header.baseFileLen;
 
 		// alloc fastfile buffer
-		ZoneBuffer fastfile(header.baseFileLen);
+		zone_buffer fastfile(header.baseFileLen);
 
 		// Do streamfile stuff
 		if (streamfiles_count > 0)
@@ -595,16 +595,16 @@ namespace zonetool::iw6
 		ZONETOOL_INFO("Compiling took %llu msec.", (GetTickCount64() - startTime));
 	}
 
-	Zone::Zone(std::string name)
+	zone_interface::zone_interface(std::string name)
 	{
 		this->name_ = name;
 
 		this->m_assetbase = 0;
 
-		this->m_zonemem = std::make_shared<ZoneMemory>(MAX_MEM_SIZE);
+		this->m_zonemem = std::make_shared<zone_memory>(MAX_MEM_SIZE);
 	}
 
-	Zone::~Zone()
+	zone_interface::~zone_interface()
 	{
 		// wipe all assets
 		m_assets.clear();

@@ -3,7 +3,7 @@
 
 namespace zonetool::h1
 {
-	ComWorld* IComWorld::parse(const std::string& name, ZoneMemory* mem)
+	ComWorld* com_world::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = name + ".commap";
 
@@ -30,7 +30,7 @@ namespace zonetool::h1
 		return asset;
 	}
 
-	void IComWorld::init(const std::string& name, ZoneMemory* mem)
+	void com_world::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = "maps/"s + (filesystem::get_fastfile().substr(0, 3) == "mp_" ? "mp/" : "") + filesystem::get_fastfile() + ".d3dbsp"; // name;
 		this->asset_ = this->parse(name, mem);
@@ -41,11 +41,11 @@ namespace zonetool::h1
 		}
 	}
 
-	void IComWorld::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void com_world::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IComWorld::load_depending(IZone* zone)
+	void com_world::load_depending(zone_base* zone)
 	{
 		auto asset = this->asset_;
 
@@ -58,17 +58,17 @@ namespace zonetool::h1
 		}
 	}
 
-	std::string IComWorld::name()
+	std::string com_world::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IComWorld::type()
+	std::int32_t com_world::type()
 	{
 		return ASSET_TYPE_COM_MAP;
 	}
 
-	void IComWorld::write(IZone* zone, ZoneBuffer* buf)
+	void com_world::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
@@ -90,20 +90,20 @@ namespace zonetool::h1
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->primaryLights);
+			zone_buffer::clear_pointer(&dest->primaryLights);
 		}
 
 		if (data->primaryLightEnvs)
 		{
 			buf->align(3);
 			buf->write(data->primaryLightEnvs, data->primaryLightEnvCount);
-			ZoneBuffer::clear_pointer(&dest->primaryLightEnvs);
+			zone_buffer::clear_pointer(&dest->primaryLightEnvs);
 		}
 
 		buf->pop_stream();
 	}
 
-	void IComWorld::dump(ComWorld* asset)
+	void com_world::dump(ComWorld* asset)
 	{
 		const auto path = asset->name + ".commap"s;
 

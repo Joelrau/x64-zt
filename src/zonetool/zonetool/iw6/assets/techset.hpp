@@ -3,7 +3,7 @@
 
 namespace zonetool::iw6
 {
-	class ITechset : public IAsset
+	class techset : public asset_interface
 	{
 	private:
 		std::string name_;
@@ -15,25 +15,25 @@ namespace zonetool::iw6
 	public:
 		static std::unordered_map<std::string, std::uintptr_t> vertexdecl_pointers;
 
-		MaterialTechniqueSet* parse(const std::string& name, ZoneMemory* mem);
-		static void parse_stateinfo(const std::string& techset, Material* mat, ZoneMemory* mem);
-		static void parse_statebits(const std::string& techset, unsigned char* statebits, ZoneMemory* mem);
+		MaterialTechniqueSet* parse(const std::string& name, zone_memory* mem);
+		static void parse_stateinfo(const std::string& techset, Material* mat, zone_memory* mem);
+		static void parse_statebits(const std::string& techset, unsigned char* statebits, zone_memory* mem);
 		static void parse_statebitsmap(const std::string& techset, GfxStateBits** map, unsigned char* count,
 			std::vector<std::array<std::uint64_t, 11>>*,
 			std::vector<std::array<std::uint32_t, 3>>*,
-			ZoneMemory* mem);
-		static void parse_constant_buffer_indexes(const std::string& techset, unsigned char* indexes, ZoneMemory* mem);
-		static void parse_constant_buffer_def_array(const std::string& techset, MaterialConstantBufferDef** def_ptr, unsigned char* count, ZoneMemory* mem);
+			zone_memory* mem);
+		static void parse_constant_buffer_indexes(const std::string& techset, unsigned char* indexes, zone_memory* mem);
+		static void parse_constant_buffer_def_array(const std::string& techset, MaterialConstantBufferDef** def_ptr, unsigned char* count, zone_memory* mem);
 
-		void init(const std::string& name, ZoneMemory* mem) override;
-		void prepare(ZoneBuffer* buf, ZoneMemory* mem) override;
-		void load_depending(IZone* zone) override;
+		void init(const std::string& name, zone_memory* mem) override;
+		void prepare(zone_buffer* buf, zone_memory* mem) override;
+		void load_depending(zone_base* zone) override;
 
 		void* pointer() override { return asset_; }
 		bool referenced() override { return name_.starts_with(","); }
 		std::string name() override;
 		std::int32_t type() override;
-		void write(IZone* zone, ZoneBuffer* buffer) override;
+		void write(zone_base* zone, zone_buffer* buffer) override;
 
 		static void dump_stateinfo(const std::string& techset, Material* mat);
 		static void dump_statebits(const std::string& techset, unsigned char* statebits);

@@ -12,9 +12,9 @@ namespace zonetool::iw6
 	{
 		namespace xanim
 		{
-			zonetool::h1::XAnimParts* convert(XAnimParts* asset, ZoneMemory* mem)
+			zonetool::h1::XAnimParts* convert(XAnimParts* asset, zone_memory* mem)
 			{
-				auto* new_asset = mem->Alloc<zonetool::h1::XAnimParts>();
+				auto* new_asset = mem->allocate<zonetool::h1::XAnimParts>();
 
 				REINTERPRET_CAST_SAFE(name);
 
@@ -62,10 +62,10 @@ namespace zonetool::iw6
 				return new_asset;
 			}
 
-			void dump(XAnimParts* asset, ZoneMemory* mem)
+			void dump(XAnimParts* asset, zone_memory* mem)
 			{
 				auto* converted_asset = convert(asset, mem);
-				zonetool::h1::IXAnimParts::dump(converted_asset);
+				zonetool::h1::xanim_parts::dump(converted_asset);
 			}
 		}
 	}

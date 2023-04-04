@@ -9,7 +9,7 @@
 
 namespace zonetool::h1
 {
-	ZoneBuffer::ZoneBuffer()
+	zone_buffer::zone_buffer()
 	{
 		this->m_stream = 0;
 		this->m_shiftsize = 0;
@@ -30,7 +30,7 @@ namespace zonetool::h1
 		this->m_buf.resize(this->m_len);
 	}
 
-	ZoneBuffer::~ZoneBuffer()
+	zone_buffer::~zone_buffer()
 	{
 		// clear zone pointers
 		this->m_zonepointers.clear();
@@ -60,7 +60,7 @@ namespace zonetool::h1
 		this->clear();
 	}
 
-	ZoneBuffer::ZoneBuffer(std::vector<std::uint8_t> data)
+	zone_buffer::zone_buffer(std::vector<std::uint8_t> data)
 	{
 		this->m_stream = 0;
 		this->m_shiftsize = 0;
@@ -80,7 +80,7 @@ namespace zonetool::h1
 		this->m_streamfiles.clear();
 	}
 
-	ZoneBuffer::ZoneBuffer(std::size_t size)
+	zone_buffer::zone_buffer(std::size_t size)
 	{
 		this->m_stream = 0;
 		this->m_shiftsize = 0;
@@ -100,7 +100,7 @@ namespace zonetool::h1
 		this->m_streamfiles.clear();
 	}
 
-	void ZoneBuffer::init_streams(std::size_t streams)
+	void zone_buffer::init_streams(std::size_t streams)
 	{
 		this->m_numstreams = streams;
 		this->m_zonestreams.resize(streams);
@@ -117,7 +117,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void ZoneBuffer::write_data(const void* _data, std::size_t size, std::size_t count)
+	void zone_buffer::write_data(const void* _data, std::size_t size, std::size_t count)
 	{
 		// Check if we should realloc the buffer
 		if ((size * count) + m_pos > m_len)
@@ -131,12 +131,12 @@ namespace zonetool::h1
 		m_pos += size * count;
 	}
 
-	void ZoneBuffer::write_data(const void* _data, std::size_t size)
+	void zone_buffer::write_data(const void* _data, std::size_t size)
 	{
 		write_data(_data, size, 1);
 	}
 
-	void ZoneBuffer::write_stream(const void* _data, std::size_t size, std::size_t count)
+	void zone_buffer::write_stream(const void* _data, std::size_t size, std::size_t count)
 	{
 		// If we're writing to stream 2...
 		if (m_stream == 2) // ZONESTREAM_RUNTIME. Meaning that this data is generated when the game runs.
@@ -159,39 +159,39 @@ namespace zonetool::h1
 		}
 	}
 
-	void ZoneBuffer::write_stream(const void* _data, std::size_t size)
+	void zone_buffer::write_stream(const void* _data, std::size_t size)
 	{
 		return write_stream(_data, size, 1);
 	}
 
-	char* ZoneBuffer::write_str(const std::string& _str)
+	char* zone_buffer::write_str(const std::string& _str)
 	{
 		write_stream(_str.data(), _str.size() + 1);
 		return reinterpret_cast<char*>(0xFDFDFDFFFFFFFFFF);
 	}
 
-	void ZoneBuffer::write_str_raw(const std::string& _str)
+	void zone_buffer::write_str_raw(const std::string& _str)
 	{
 		return write_stream(_str.data(), _str.size() + 1);
 	}
 
-	std::uint8_t* ZoneBuffer::buffer()
+	std::uint8_t* zone_buffer::buffer()
 	{
 		return m_buf.data();
 	}
 
-	std::size_t ZoneBuffer::size()
+	std::size_t zone_buffer::size()
 	{
 		return m_pos;
 	}
 
-	void ZoneBuffer::clear()
+	void zone_buffer::clear()
 	{
 		m_buf.clear();
 		m_buf.shrink_to_fit();
 	}
 
-	void ZoneBuffer::align(std::uint64_t alignment)
+	void zone_buffer::align(std::uint64_t alignment)
 	{
 		// if (m_numstreams > 0)
 		{
@@ -199,39 +199,39 @@ namespace zonetool::h1
 		}
 	}
 
-	void ZoneBuffer::inc_stream(const std::uint8_t stream, const std::size_t size)
+	void zone_buffer::inc_stream(const std::uint8_t stream, const std::size_t size)
 	{
 		m_zonestreams[stream] += size;
 	}
 
-	void ZoneBuffer::push_stream(std::uint8_t stream)
+	void zone_buffer::push_stream(std::uint8_t stream)
 	{
 		m_streamstack.push(m_stream);
 		m_stream = stream;
 	}
 
-	void ZoneBuffer::pop_stream()
+	void zone_buffer::pop_stream()
 	{
 		m_stream = m_streamstack.top();
 		m_streamstack.pop();
 	}
 
-	std::uint8_t ZoneBuffer::current_stream()
+	std::uint8_t zone_buffer::current_stream()
 	{
 		return m_stream;
 	}
 
-	std::uint32_t ZoneBuffer::current_stream_offset()
+	std::uint32_t zone_buffer::current_stream_offset()
 	{
 		return static_cast<std::uint32_t>(m_zonestreams[m_stream]);
 	}
 
-	std::uint32_t ZoneBuffer::stream_offset(std::uint8_t stream)
+	std::uint32_t zone_buffer::stream_offset(std::uint8_t stream)
 	{
 		return static_cast<std::uint32_t>(m_zonestreams[stream]);
 	}
 
-	std::uint32_t ZoneBuffer::write_scriptstring(const char* str)
+	std::uint32_t zone_buffer::write_scriptstring(const char* str)
 	{
 		for (std::uint32_t i = 0; i < this->m_scriptstrings.size(); i++)
 		{
@@ -245,17 +245,17 @@ namespace zonetool::h1
 		return static_cast<std::uint32_t>(this->m_scriptstrings.size() - 1);
 	}
 
-	const char* ZoneBuffer::get_scriptstring(std::size_t idx)
+	const char* zone_buffer::get_scriptstring(std::size_t idx)
 	{
 		return this->m_scriptstrings[idx];
 	}
 
-	std::size_t ZoneBuffer::scriptstring_count()
+	std::size_t zone_buffer::scriptstring_count()
 	{
 		return this->m_scriptstrings.size();
 	}
 
-	std::uint8_t ZoneBuffer::write_depthstencilstatebit(std::uint64_t bits)
+	std::uint8_t zone_buffer::write_depthstencilstatebit(std::uint64_t bits)
 	{
 		for (std::uint8_t i = 0; i < this->m_depthstencilstatebits.size(); i++)
 		{
@@ -268,17 +268,17 @@ namespace zonetool::h1
 		return static_cast<std::uint8_t>(this->m_depthstencilstatebits.size() - 1);
 	}
 
-	std::uint64_t ZoneBuffer::get_depthstencilstatebit(std::size_t idx)
+	std::uint64_t zone_buffer::get_depthstencilstatebit(std::size_t idx)
 	{
 		return this->m_depthstencilstatebits[idx];
 	}
 
-	std::size_t ZoneBuffer::depthstencilstatebit_count()
+	std::size_t zone_buffer::depthstencilstatebit_count()
 	{
 		return this->m_depthstencilstatebits.size();
 	}
 
-	std::uint8_t ZoneBuffer::write_blendstatebits(std::array<std::uint32_t, 3> bits)
+	std::uint8_t zone_buffer::write_blendstatebits(std::array<std::uint32_t, 3> bits)
 	{
 		for (std::uint8_t i = 0; i < this->m_blendstatebits.size(); i++)
 		{
@@ -300,17 +300,17 @@ namespace zonetool::h1
 		return static_cast<std::uint8_t>(this->m_blendstatebits.size() - 1);
 	}
 
-	std::array<std::uint32_t, 3> ZoneBuffer::get_blendstatebits(std::size_t idx)
+	std::array<std::uint32_t, 3> zone_buffer::get_blendstatebits(std::size_t idx)
 	{
 		return this->m_blendstatebits[idx];
 	}
 
-	std::size_t ZoneBuffer::blendstatebits_count()
+	std::size_t zone_buffer::blendstatebits_count()
 	{
 		return this->m_blendstatebits.size();
 	}
 
-	std::uint8_t ZoneBuffer::write_ppas(std::uint32_t sz)
+	std::uint8_t zone_buffer::write_ppas(std::uint32_t sz)
 	{
 		for (std::uint8_t i = 0; i < this->m_ppas.size(); i++)
 		{
@@ -323,17 +323,17 @@ namespace zonetool::h1
 		return static_cast<std::uint8_t>(this->m_ppas.size() - 1);
 	}
 
-	std::uint32_t ZoneBuffer::get_ppas(std::size_t idx)
+	std::uint32_t zone_buffer::get_ppas(std::size_t idx)
 	{
 		return this->m_ppas[idx];
 	}
 
-	std::size_t ZoneBuffer::ppas_count()
+	std::size_t zone_buffer::ppas_count()
 	{
 		return this->m_ppas.size();
 	}
 
-	std::uint8_t ZoneBuffer::write_poas(std::uint32_t sz)
+	std::uint8_t zone_buffer::write_poas(std::uint32_t sz)
 	{
 		for (std::uint8_t i = 0; i < this->m_poas.size(); i++)
 		{
@@ -346,17 +346,17 @@ namespace zonetool::h1
 		return static_cast<std::uint8_t>(this->m_poas.size() - 1);
 	}
 
-	std::uint32_t ZoneBuffer::get_poas(std::size_t idx)
+	std::uint32_t zone_buffer::get_poas(std::size_t idx)
 	{
 		return this->m_poas[idx];
 	}
 
-	std::size_t ZoneBuffer::poas_count()
+	std::size_t zone_buffer::poas_count()
 	{
 		return this->m_poas.size();
 	}
 
-	std::uint8_t ZoneBuffer::write_sas(std::uint32_t sz)
+	std::uint8_t zone_buffer::write_sas(std::uint32_t sz)
 	{
 		for (std::uint8_t i = 0; i < this->m_sas.size(); i++)
 		{
@@ -369,32 +369,32 @@ namespace zonetool::h1
 		return static_cast<std::uint8_t>(this->m_sas.size() - 1);
 	}
 
-	std::uint32_t ZoneBuffer::get_sas(std::size_t idx)
+	std::uint32_t zone_buffer::get_sas(std::size_t idx)
 	{
 		return this->m_sas[idx];
 	}
 
-	std::size_t ZoneBuffer::sas_count()
+	std::size_t zone_buffer::sas_count()
 	{
 		return this->m_sas.size();
 	}
 
-	void ZoneBuffer::write_streamfile(std::uintptr_t stream)
+	void zone_buffer::write_streamfile(std::uintptr_t stream)
 	{
 		this->m_streamfiles.push_back(stream);
 	}
 
-	std::uintptr_t ZoneBuffer::get_streamfile(std::size_t idx)
+	std::uintptr_t zone_buffer::get_streamfile(std::size_t idx)
 	{
 		return this->m_streamfiles[idx];
 	}
 
-	std::size_t ZoneBuffer::streamfile_count()
+	std::size_t zone_buffer::streamfile_count()
 	{
 		return this->m_streamfiles.size();
 	}
 
-	void ZoneBuffer::save(const std::string& filename, bool use_zone_path)
+	void zone_buffer::save(const std::string& filename, bool use_zone_path)
 	{
 		auto file = filesystem::file(filename);
 		file.create_path();
@@ -403,22 +403,22 @@ namespace zonetool::h1
 		file.close();
 	}
 
-	std::vector<std::uint8_t> ZoneBuffer::compress_zlib(bool compress_blocks)
+	std::vector<std::uint8_t> zone_buffer::compress_zlib(bool compress_blocks)
 	{
 		return compression::compress_zlib(this->m_buf.data(), this->m_pos, compress_blocks);
 	}
 
-	std::vector<std::uint8_t> ZoneBuffer::compress_zstd()
+	std::vector<std::uint8_t> zone_buffer::compress_zstd()
 	{
 		return compression::compress_zstd(this->m_buf.data(), this->m_pos);
 	}
 
-	std::vector<std::uint8_t> ZoneBuffer::compress_lz4()
+	std::vector<std::uint8_t> zone_buffer::compress_lz4()
 	{
 		return compression::compress_lz4(this->m_buf.data(), this->m_pos);
 	}
 
-	void ZoneBuffer::init_script_strings()
+	void zone_buffer::init_script_strings()
 	{
 		this->m_scriptstrings.clear();
 	}

@@ -10,14 +10,14 @@ namespace zonetool::s1
 	{
 		namespace fxeffectdef
 		{
-			zonetool::h1::FxEffectDef* convert(FxEffectDef* asset, ZoneMemory* mem)
+			zonetool::h1::FxEffectDef* convert(FxEffectDef* asset, zone_memory* mem)
 			{
-				auto* new_asset = mem->Alloc<zonetool::h1::FxEffectDef>();
+				auto* new_asset = mem->allocate<zonetool::h1::FxEffectDef>();
 
 				memcpy(new_asset, asset, sizeof(zonetool::h1::FxEffectDef));
 
 				auto count = asset->elemDefCountLooping + asset->elemDefCountOneShot + asset->elemDefCountEmission;
-				new_asset->elemDefs = mem->Alloc<zonetool::h1::FxElemDef>(count);
+				new_asset->elemDefs = mem->allocate<zonetool::h1::FxElemDef>(count);
 				for (auto i = 0; i < count; i++)
 				{
 					auto* elem = &asset->elemDefs[i];
@@ -29,7 +29,7 @@ namespace zonetool::s1
 					{
 						if (elem->visuals.markArray)
 						{
-							new_elem->visuals.markArray = mem->Alloc<zonetool::h1::FxElemMarkVisuals>(elem->visualCount);
+							new_elem->visuals.markArray = mem->allocate<zonetool::h1::FxElemMarkVisuals>(elem->visualCount);
 
 							for (unsigned char j = 0; j < elem->visualCount; j++)
 							{
@@ -44,10 +44,10 @@ namespace zonetool::s1
 				return new_asset;
 			}
 
-			void dump(FxEffectDef* asset, ZoneMemory* mem)
+			void dump(FxEffectDef* asset, zone_memory* mem)
 			{
 				auto* converted_asset = convert(asset, mem);
-				zonetool::h1::IFxEffectDef::dump(converted_asset);
+				zonetool::h1::fx_effect_def::dump(converted_asset);
 			}
 		}
 	}

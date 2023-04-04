@@ -3,7 +3,7 @@
 
 namespace zonetool::h2
 {
-	MaterialHullShader* IHullShader::parse(const std::string& name, ZoneMemory* mem)
+	MaterialHullShader* hull_shader::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = "techsets\\" + name + ".hullshader";
 
@@ -23,21 +23,21 @@ namespace zonetool::h2
 		return asset;
 	}
 
-	void IHullShader::init(const std::string& name, ZoneMemory* mem)
+	void hull_shader::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
 		this->asset_ = this->parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name().data()).hullShader;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).hullShader;
 
 			if (DB_IsXAssetDefault(XAssetType(this->type()), this->name().data()))
 			{
@@ -46,25 +46,25 @@ namespace zonetool::h2
 		}
 	}
 
-	void IHullShader::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void hull_shader::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IHullShader::load_depending(IZone* zone)
+	void hull_shader::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string IHullShader::name()
+	std::string hull_shader::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IHullShader::type()
+	std::int32_t hull_shader::type()
 	{
 		return ASSET_TYPE_HULLSHADER;
 	}
 
-	void IHullShader::write(IZone* zone, ZoneBuffer* buf)
+	void hull_shader::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		auto dest = buf->write(data);
@@ -82,7 +82,7 @@ namespace zonetool::h2
 		buf->pop_stream();
 	}
 
-	void IHullShader::dump(MaterialHullShader* asset)
+	void hull_shader::dump(MaterialHullShader* asset)
 	{
 		const auto path = "techsets\\"s + asset->name + ".hullshader"s;
 

@@ -3,7 +3,7 @@
 
 namespace zonetool::s1
 {
-	FxParticleSimAnimation* IFxParticleSimAnimation::parse(const std::string& name, ZoneMemory* mem)
+	FxParticleSimAnimation* fx_particle_sim_animation::parse(const std::string& name, zone_memory* mem)
 	{
 		assetmanager::reader read(mem);
 
@@ -40,29 +40,29 @@ namespace zonetool::s1
 		return asset;
 	}
 
-	void IFxParticleSimAnimation::init(const std::string& name, ZoneMemory* mem)
+	void fx_particle_sim_animation::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
 		this->asset_ = this->parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name().data()).particleSimAnimation;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).particleSimAnimation;
 		}
 	}
 
-	void IFxParticleSimAnimation::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void fx_particle_sim_animation::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IFxParticleSimAnimation::load_depending(IZone* zone)
+	void fx_particle_sim_animation::load_depending(zone_base* zone)
 	{
 		if (this->asset_->material)
 		{
@@ -70,17 +70,17 @@ namespace zonetool::s1
 		}
 	}
 
-	std::string IFxParticleSimAnimation::name()
+	std::string fx_particle_sim_animation::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IFxParticleSimAnimation::type()
+	std::int32_t fx_particle_sim_animation::type()
 	{
 		return ASSET_TYPE_PARTICLE_SIM_ANIMATION;
 	}
 
-	void IFxParticleSimAnimation::write(IZone* zone, ZoneBuffer* buf)
+	void fx_particle_sim_animation::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		auto dest = buf->write(data);
@@ -97,25 +97,25 @@ namespace zonetool::s1
 		{
 			buf->align(31);
 			buf->write(data->particleData, data->header.particleDataCount);
-			ZoneBuffer::clear_pointer(&dest->particleData);
+			zone_buffer::clear_pointer(&dest->particleData);
 		}
 		if (data->frames)
 		{
 			buf->align(3);
 			buf->write(data->frames, data->header.frameCount);
-			ZoneBuffer::clear_pointer(&dest->frames);
+			zone_buffer::clear_pointer(&dest->frames);
 		}
 		if (data->colorTable)
 		{
 			buf->align(3);
 			buf->write(data->colorTable, data->header.colorTableSize);
-			ZoneBuffer::clear_pointer(&dest->colorTable);
+			zone_buffer::clear_pointer(&dest->colorTable);
 		}
 
 		buf->pop_stream();
 	}
 
-	void IFxParticleSimAnimation::dump(FxParticleSimAnimation* asset)
+	void fx_particle_sim_animation::dump(FxParticleSimAnimation* asset)
 	{
 		assetmanager::dumper dump;
 

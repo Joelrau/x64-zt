@@ -3,7 +3,7 @@
 
 namespace zonetool::h2
 {
-	void IWeaponAttachment::add_script_string(scr_string_t* ptr, const char* str)
+	void weapon_attachment::add_script_string(scr_string_t* ptr, const char* str)
 	{
 		for (std::uint32_t i = 0; i < this->script_strings.size(); i++)
 		{
@@ -15,7 +15,7 @@ namespace zonetool::h2
 		this->script_strings.push_back(std::pair<scr_string_t*, const char*>(ptr, str));
 	}
 
-	const char* IWeaponAttachment::get_script_string(scr_string_t* ptr)
+	const char* weapon_attachment::get_script_string(scr_string_t* ptr)
 	{
 		for (std::uint32_t i = 0; i < this->script_strings.size(); i++)
 		{
@@ -30,7 +30,7 @@ namespace zonetool::h2
 #define ATTACHMENT_READ_ASSET_ARR(__type__, __datafield__, __field__, __struct__, __size__) \
 	if (!data[#__field__].is_null()) \
 	{ \
-		attachment->__field__ = mem->Alloc<__struct__*>(__size__); \
+		attachment->__field__ = mem->allocate<__struct__*>(__size__); \
 		for (auto idx##__field__ = 0; idx##__field__ < __size__; idx##__field__++) \
 		{ \
 			auto asset##__field__ = data[#__field__][idx##__field__].get<std::string>(); \
@@ -49,7 +49,7 @@ namespace zonetool::h2
 		attachment->__field__ = nullptr; \
 	}
 
-	WeaponAttachment* IWeaponAttachment::parse(const std::string& name, ZoneMemory* mem)
+	WeaponAttachment* weapon_attachment::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = "attachments\\"s + name + ".json"s;
 
@@ -68,7 +68,7 @@ namespace zonetool::h2
 		file.close();
 		json data = json::parse(bytes);
 
-		auto* attachment = mem->Alloc<WeaponAttachment>();
+		auto* attachment = mem->allocate<WeaponAttachment>();
 
 		// base asset
 		auto base = data["baseAsset"].get<std::string>();
@@ -89,12 +89,12 @@ namespace zonetool::h2
 
 		if (!data["internalName"].is_null())
 		{
-			attachment->szInternalName = mem->StrDup(data["internalName"].get<std::string>());
+			attachment->szInternalName = mem->duplicate_string(data["internalName"].get<std::string>());
 		}
 
 		if (!data["displayName"].is_null())
 		{
-			attachment->szDisplayName = mem->StrDup(data["displayName"].get<std::string>());
+			attachment->szDisplayName = mem->duplicate_string(data["displayName"].get<std::string>());
 		}
 
 		if (!data["type"].is_null())
@@ -119,23 +119,23 @@ namespace zonetool::h2
 		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_SOUND, sound, bounceSounds, snd_alias_list_t, 53);
 		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_SOUND, sound, rollingSounds, snd_alias_list_t, 53);
 
-		attachment->stringArray1 = mem->Alloc<scr_string_t>(4);
+		attachment->stringArray1 = mem->allocate<scr_string_t>(4);
 		for (auto i = 0; i < 4; i++)
 		{
-			this->add_script_string(&attachment->stringArray1[i], mem->StrDup(data["stringArray1"][i].get<std::string>()));
+			this->add_script_string(&attachment->stringArray1[i], mem->duplicate_string(data["stringArray1"][i].get<std::string>()));
 		}
 
-		attachment->stringArray2 = mem->Alloc<scr_string_t>(4);
+		attachment->stringArray2 = mem->allocate<scr_string_t>(4);
 		for (auto i = 0; i < 4; i++)
 		{
-			this->add_script_string(&attachment->stringArray2[i], mem->StrDup(data["stringArray2"][i].get<std::string>()));
+			this->add_script_string(&attachment->stringArray2[i], mem->duplicate_string(data["stringArray2"][i].get<std::string>()));
 		}
 
 		if (!data["waFields"].is_null())
 		{
 			attachment->waFieldsCount = static_cast<unsigned int>(data["waFields"].size());
-			attachment->waFieldOffsets = mem->Alloc<unsigned short>(attachment->waFieldsCount);
-			attachment->waFields = mem->Alloc<WAField>(attachment->waFieldsCount);
+			attachment->waFieldOffsets = mem->allocate<unsigned short>(attachment->waFieldsCount);
+			attachment->waFields = mem->allocate<WAField>(attachment->waFieldsCount);
 			for (unsigned int i = 0; i < attachment->waFieldsCount; i++)
 			{
 				attachment->waFieldOffsets[i] = data["waFields"][i]["offset"].get<unsigned short>();
@@ -154,7 +154,7 @@ namespace zonetool::h2
 					type == WAFIELD_TYPE_SOUND ||
 					type == WAFIELD_TYPE_TRACER)
 				{
-					attachment->waFields[i].parm.string = mem->StrDup(data["waFields"][i]["value"].get<std::string>());
+					attachment->waFields[i].parm.string = mem->duplicate_string(data["waFields"][i]["value"].get<std::string>());
 				}
 				else if (type == WAFIELD_TYPE_INT)
 				{
@@ -188,26 +188,26 @@ namespace zonetool::h2
 		return attachment;
 	}
 
-	void IWeaponAttachment::init(const std::string& name, ZoneMemory* mem)
+	void weapon_attachment::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 		}
 
 		this->asset_ = this->parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Copy<WeaponAttachment>(XAssetType(this->type()), this->name().data(), mem).attachment;
+			this->asset_ = db_find_x_asset_header_copy<WeaponAttachment>(XAssetType(this->type()), this->name().data(), mem).attachment;
 
 			auto* attachment = this->asset_;
 			if (attachment->stringArray1)
 			{
 				auto* original_strings1 = attachment->stringArray1;
-				attachment->stringArray1 = mem->Alloc<scr_string_t>(4);
+				attachment->stringArray1 = mem->allocate<scr_string_t>(4);
 				for (auto i = 0; i < 4; i++)
 				{
 					this->add_script_string(&attachment->stringArray1[i], SL_ConvertToString(original_strings1[i]));
@@ -216,7 +216,7 @@ namespace zonetool::h2
 			if (attachment->stringArray2)
 			{
 				auto* original_strings1 = attachment->stringArray2;
-				attachment->stringArray2 = mem->Alloc<scr_string_t>(4);
+				attachment->stringArray2 = mem->allocate<scr_string_t>(4);
 				for (auto i = 0; i < 4; i++)
 				{
 					this->add_script_string(&attachment->stringArray2[i], SL_ConvertToString(original_strings1[i]));
@@ -234,7 +234,7 @@ namespace zonetool::h2
 			} \
 		}
 
-	void IWeaponAttachment::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void weapon_attachment::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 		auto* data = this->asset_;
 		ATTACHMENT_SCRIPTSTRING_ARRAY_PREPARE(stringArray1, 4);
@@ -247,7 +247,7 @@ namespace zonetool::h2
 			zone->add_asset_of_type(__type__, data->__field__->name); \
 		}
 
-	void IWeaponAttachment::load_depending(IZone* zone)
+	void weapon_attachment::load_depending(zone_base* zone)
 	{
 		auto* data = this->asset_;
 
@@ -292,12 +292,12 @@ namespace zonetool::h2
 		}
 	}
 
-	std::string IWeaponAttachment::name()
+	std::string weapon_attachment::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IWeaponAttachment::type()
+	std::int32_t weapon_attachment::type()
 	{
 		return ASSET_TYPE_ATTACHMENT;
 	}
@@ -313,9 +313,9 @@ namespace zonetool::h2
 				buf->align(7); \
 				buf->write(&ptr); \
 				buf->write_str(data->__field__[i]->name); \
-				ZoneBuffer::clear_pointer(&dest_sounds[i]); \
+				zone_buffer::clear_pointer(&dest_sounds[i]); \
 			} \
-			ZoneBuffer::clear_pointer(&dest->__field__); \
+			zone_buffer::clear_pointer(&dest->__field__); \
 		}
 
 #define ATTACHMENT_SCRIPTSTRING_ARRAY(__field__,__count__) \
@@ -323,10 +323,10 @@ namespace zonetool::h2
 		{ \
 			buf->align(3); \
 			buf->write(data->__field__,__count__); \
-			ZoneBuffer::clear_pointer(&dest->__field__); \
+			zone_buffer::clear_pointer(&dest->__field__); \
 		}
 
-	void IWeaponAttachment::write(IZone* zone, ZoneBuffer* buf)
+	void weapon_attachment::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		auto dest = buf->write(data);
@@ -355,7 +355,7 @@ namespace zonetool::h2
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->worldModels);
+			zone_buffer::clear_pointer(&dest->worldModels);
 		}
 
 		if (data->viewModels)
@@ -373,7 +373,7 @@ namespace zonetool::h2
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->viewModels);
+			zone_buffer::clear_pointer(&dest->viewModels);
 		}
 
 		if (data->reticleViewModels)
@@ -391,7 +391,7 @@ namespace zonetool::h2
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->reticleViewModels);
+			zone_buffer::clear_pointer(&dest->reticleViewModels);
 		}
 
 		ATTACHMENT_SOUND_CUSTOM_ARRAY(bounceSounds, 53);
@@ -401,14 +401,14 @@ namespace zonetool::h2
 		{
 			buf->align(3);
 			buf->write(data->chargeInfo);
-			ZoneBuffer::clear_pointer(&dest->chargeInfo);
+			zone_buffer::clear_pointer(&dest->chargeInfo);
 		}
 
 		if (data->hybridSettings)
 		{
 			buf->align(3);
 			buf->write(data->hybridSettings);
-			ZoneBuffer::clear_pointer(&dest->hybridSettings);
+			zone_buffer::clear_pointer(&dest->hybridSettings);
 		}
 
 		ATTACHMENT_SCRIPTSTRING_ARRAY(stringArray1, 4);
@@ -418,7 +418,7 @@ namespace zonetool::h2
 		{
 			buf->align(1);
 			buf->write(data->waFieldOffsets, data->waFieldsCount);
-			ZoneBuffer::clear_pointer(&dest->waFieldOffsets);
+			zone_buffer::clear_pointer(&dest->waFieldOffsets);
 		}
 
 		if (data->waFields)
@@ -443,7 +443,7 @@ namespace zonetool::h2
 					}
 				}
 			}
-			ZoneBuffer::clear_pointer(&dest->waFields);
+			zone_buffer::clear_pointer(&dest->waFields);
 		}
 
 		buf->pop_stream();
@@ -469,7 +469,7 @@ namespace zonetool::h2
 		data[#__field__] = nullptr; \
 	}
 
-	void IWeaponAttachment::dump(WeaponAttachment* asset)
+	void weapon_attachment::dump(WeaponAttachment* asset)
 	{
 		const auto path = "attachments\\"s + asset->name + ".json"s;
 

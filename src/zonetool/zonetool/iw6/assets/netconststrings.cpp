@@ -3,7 +3,7 @@
 
 namespace zonetool::iw6
 {
-	NetConstStrings* INetConstStrings::parse(std::string name, ZoneMemory* mem)
+	NetConstStrings* net_const_strings::parse(std::string name, zone_memory* mem)
 	{
 		const auto path = "netconststrings\\"s + name + ".json"s;
 		filesystem::file file(path);
@@ -13,7 +13,7 @@ namespace zonetool::iw6
 		{
 			ZONETOOL_INFO("Parsing netconststrings \"%s\"...", name.data());
 
-			auto asset = mem->Alloc<NetConstStrings>();
+			auto asset = mem->allocate<NetConstStrings>();
 			
 			const auto size = file.size();
 			auto bytes = file.read_bytes(size);
@@ -21,16 +21,16 @@ namespace zonetool::iw6
 
 			auto data = json::parse(bytes);
 
-			asset->name = mem->StrDup(data["name"].get<std::string>());
+			asset->name = mem->duplicate_string(data["name"].get<std::string>());
 			asset->stringType = data["stringType"].get<NetConstStringType>();
 			asset->sourceType = data["sourceType"].get<NetConstStringSource>();
 			asset->entryCount = static_cast<unsigned int>(data["stringList"].size());
 			if (asset->entryCount)
 			{
-				asset->stringList = mem->Alloc<const char*>(asset->entryCount);
+				asset->stringList = mem->allocate<const char*>(asset->entryCount);
 				for (unsigned int i = 0; i < asset->entryCount; i++)
 				{
-					asset->stringList[i] = mem->StrDup(data["stringList"][i].get<std::string>());
+					asset->stringList[i] = mem->duplicate_string(data["stringList"][i].get<std::string>());
 				}
 			}
 			
@@ -40,43 +40,43 @@ namespace zonetool::iw6
 		return nullptr;
 	}
 
-	void INetConstStrings::init(const std::string& name, ZoneMemory* mem)
+	void net_const_strings::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
 		this->asset_ = this->parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name().data()).netConstStrings;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).netConstStrings;
 		}
 	}
 
-	void INetConstStrings::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void net_const_strings::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void INetConstStrings::load_depending(IZone* zone)
+	void net_const_strings::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string INetConstStrings::name()
+	std::string net_const_strings::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t INetConstStrings::type()
+	std::int32_t net_const_strings::type()
 	{
 		return ASSET_TYPE_NET_CONST_STRINGS;
 	}
 
-	void INetConstStrings::write(IZone* zone, ZoneBuffer* buf)
+	void net_const_strings::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
@@ -96,13 +96,13 @@ namespace zonetool::iw6
 					strings[i] = buf->write_str(data->stringList[i]);
 				}
 			}
-			ZoneBuffer::clear_pointer(&dest->stringList);
+			zone_buffer::clear_pointer(&dest->stringList);
 		}
 
 		buf->pop_stream();
 	}
 
-	void INetConstStrings::dump(NetConstStrings* asset)
+	void net_const_strings::dump(NetConstStrings* asset)
 	{
 		const auto path = "netconststrings\\"s + asset->name + ".json"s;
 		auto file = filesystem::file(path);

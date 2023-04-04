@@ -17,7 +17,7 @@ namespace zonetool::h2
 	}
 
 #define VEHICLE_READ_STRING(__field__) \
-	if (!data[#__field__].is_null()) vehicle->__field__ = mem->StrDup(data[#__field__].get<std::string>())
+	if (!data[#__field__].is_null()) vehicle->__field__ = mem->duplicate_string(data[#__field__].get<std::string>())
 
 #define VEHICLE_READ_ASSET(__type__, __datafield__, __field__) \
 	if (!data[#__field__].is_null() && data[#__field__].is_string()) \
@@ -92,7 +92,7 @@ namespace zonetool::h2
 			"ugv",
 		};
 
-		void parse_veh_phys_def(VehiclePhysDef* vehicle, json& data, ZoneMemory* mem)
+		void parse_veh_phys_def(VehiclePhysDef* vehicle, json& data, zone_memory* mem)
 		{
 			VEHICLE_READ_FIELD(int, physicsEnabled);
 			VEHICLE_READ_STRING(physPresetName);
@@ -131,7 +131,7 @@ namespace zonetool::h2
 		return nullptr;
 	}
 
-	VehicleDef* IVehicleDef::parse(const std::string& name, ZoneMemory* mem)
+	VehicleDef* IVehicleDef::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = "vehicles\\"s + name + ".json"s;
 
@@ -150,7 +150,7 @@ namespace zonetool::h2
 		file.close();
 		json data = json::parse(bytes);
 
-		auto* vehicle = mem->Alloc<VehicleDef>();
+		auto* vehicle = mem->allocate<VehicleDef>();
 
 		// base asset
 		auto base = data["baseAsset"].get<std::string>();
@@ -231,7 +231,7 @@ namespace zonetool::h2
 		{
 			if (!data["trophyTags"][i].empty())
 			{
-				this->add_script_string(&vehicle->trophyTags[i], mem->StrDup(data["trophyTags"][i].get<std::string>()));
+				this->add_script_string(&vehicle->trophyTags[i], mem->duplicate_string(data["trophyTags"][i].get<std::string>()));
 			}
 		}
 
@@ -255,7 +255,7 @@ namespace zonetool::h2
 		VEHICLE_READ_FIELD(float, engineSndSpeed);
 		if (!data["audioOriginTag"].empty())
 		{
-			this->add_script_string(&vehicle->audioOriginTag, mem->StrDup(data["audioOriginTag"].get<std::string>()));
+			this->add_script_string(&vehicle->audioOriginTag, mem->duplicate_string(data["audioOriginTag"].get<std::string>()));
 		}
 
 		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, idleLowSndAlt);
@@ -266,7 +266,7 @@ namespace zonetool::h2
 		VEHICLE_READ_FIELD(float, engineSndSpeedAlt);
 		if (!data["audioOriginTagAlt"].empty())
 		{
-			this->add_script_string(&vehicle->audioOriginTagAlt, mem->StrDup(data["audioOriginTagAlt"].get<std::string>()));
+			this->add_script_string(&vehicle->audioOriginTagAlt, mem->duplicate_string(data["audioOriginTagAlt"].get<std::string>()));
 		}
 
 		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, turretSpinSndAlt);
@@ -317,14 +317,14 @@ namespace zonetool::h2
 		return vehicle;
 	}
 
-	void IVehicleDef::init(const std::string& name, ZoneMemory* mem)
+	void IVehicleDef::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->internalName = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->internalName = mem->duplicate_string(name);
 			return;
 		}
 
@@ -335,7 +335,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void IVehicleDef::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void IVehicleDef::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 		auto* vehicle = this->asset_;
 
@@ -352,7 +352,7 @@ namespace zonetool::h2
 			this->get_script_string(&vehicle->audioOriginTagAlt)));
 	}
 
-	void IVehicleDef::load_depending(IZone* zone)
+	void IVehicleDef::load_depending(zone_base* zone)
 	{
 		auto vehicle = this->asset_;
 #define VEHICLE_SUBASSET_DEPENDING(__field__,__type__/*,__struct__*/) \
@@ -425,7 +425,7 @@ namespace zonetool::h2
 		return ASSET_TYPE_VEHICLE;
 	}
 
-	void IVehicleDef::write(IZone* zone, ZoneBuffer* buf)
+	void IVehicleDef::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
@@ -449,7 +449,7 @@ namespace zonetool::h2
 			buf->align(7); \
 			buf->write(&ptr); \
 			buf->write_str(data->__field__->name); \
-			ZoneBuffer::clear_pointer(&dest->__field__); \
+			zone_buffer::clear_pointer(&dest->__field__); \
 		}
 
 		buf->push_stream(3);

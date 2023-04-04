@@ -48,7 +48,7 @@ namespace zonetool::h1
 
 	namespace iwi
 	{
-		GfxImage* parse(const std::string& name, ZoneMemory* mem)
+		GfxImage* parse(const std::string& name, zone_memory* mem)
 		{
 			::iwi::GfxImage img_ = {};
 			memset(&img_, 0, sizeof(::iwi::GfxImage));
@@ -57,7 +57,7 @@ namespace zonetool::h1
 
 			if (ret_img_)
 			{
-				auto* image = mem->Alloc<GfxImage>();
+				auto* image = mem->allocate<GfxImage>();
 				image->name = ret_img_->name;
 				image->imageFormat = ret_img_->imageFormat;
 				image->mapType = static_cast<MapType>(ret_img_->mapType);
@@ -134,7 +134,7 @@ namespace zonetool::h1
 			return false;
 		}
 
-		GfxImage* parse(const std::string& name, ZoneMemory* mem)
+		GfxImage* parse(const std::string& name, zone_memory* mem)
 		{
 			DirectX::ScratchImage image;
 			bool result;
@@ -176,7 +176,7 @@ namespace zonetool::h1
 				auto pixels_size = image.GetPixelsSize();
 				const auto& metadata = image.GetMetadata();
 
-				auto* gfx_image = mem->Alloc<GfxImage>();
+				auto* gfx_image = mem->allocate<GfxImage>();
 
 				gfx_image->imageFormat = metadata.format;
 				gfx_image->mapType = static_cast<MapType>(metadata.dimension);
@@ -191,9 +191,9 @@ namespace zonetool::h1
 				gfx_image->streamed = 0;
 				gfx_image->dataLen1 = static_cast<int>(pixels_size);
 				gfx_image->dataLen2 = static_cast<int>(pixels_size);
-				gfx_image->pixelData = mem->Alloc<unsigned char>(pixels_size);
+				gfx_image->pixelData = mem->allocate<unsigned char>(pixels_size);
 				memcpy(gfx_image->pixelData, pixels, pixels_size);
-				gfx_image->name = mem->StrDup(name);
+				gfx_image->name = mem->duplicate_string(name);
 
 				return gfx_image;
 			}
@@ -202,7 +202,7 @@ namespace zonetool::h1
 		}
 	}
 
-	GfxImage* IGfxImage::parse_custom(const std::string& name, ZoneMemory* mem)
+	GfxImage* gfx_image::parse_custom(const std::string& name, zone_memory* mem)
 	{
 		GfxImage* image = nullptr;
 		image = directxtex::parse(name, mem);
@@ -277,7 +277,7 @@ namespace zonetool::h1
 		return {};
 	}
 
-	GfxImage* IGfxImage::parse_streamed_image(const std::string& name, ZoneMemory* mem)
+	GfxImage* gfx_image::parse_streamed_image(const std::string& name, zone_memory* mem)
 	{
 		const auto asset_path = utils::string::va("streamed_images\\%s.h1Image", clean_name(name).data());
 
@@ -312,7 +312,7 @@ namespace zonetool::h1
 		return asset;
 	}
 
-	GfxImage* IGfxImage::parse(const std::string& name, ZoneMemory* mem)
+	GfxImage* gfx_image::parse(const std::string& name, zone_memory* mem)
 	{
 		auto path = "images\\" + clean_name(name) + ".h1Image";
 
@@ -347,14 +347,14 @@ namespace zonetool::h1
 		return asset;
 	}
 
-	void IGfxImage::init(const std::string& name, ZoneMemory* mem)
+	void gfx_image::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
@@ -376,7 +376,7 @@ namespace zonetool::h1
 			ZONETOOL_WARNING("Image \"%s\" not found, it will probably look messed up ingame!", name.data());
 
 			static unsigned char default_pixel_data[4] = { 255, 0, 0, 255 };
-			auto* image = mem->Alloc<GfxImage>();
+			auto* image = mem->allocate<GfxImage>();
 			image->imageFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 			image->mapType = MAPTYPE_2D;
 			image->semantic = 0;
@@ -391,13 +391,13 @@ namespace zonetool::h1
 			image->numElements = 1;
 			image->levelCount = 1;
 			image->streamed = 0;
-			image->name = mem->StrDup(this->name_);
+			image->name = mem->duplicate_string(this->name_);
 
 			this->asset_ = image;
 		}
 	}
 
-	void IGfxImage::init(void* asset, ZoneMemory* mem)
+	void gfx_image::init(void* asset, zone_memory* mem)
 	{
 		this->asset_ = reinterpret_cast<GfxImage*>(asset);
 		this->name_ = this->asset_->name;
@@ -409,25 +409,25 @@ namespace zonetool::h1
 		}
 	}
 
-	void IGfxImage::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void gfx_image::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IGfxImage::load_depending(IZone* zone)
+	void gfx_image::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string IGfxImage::name()
+	std::string gfx_image::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IGfxImage::type()
+	std::int32_t gfx_image::type()
 	{
 		return ASSET_TYPE_IMAGE;
 	}
 
-	void IGfxImage::write(IZone* zone, ZoneBuffer* buf)
+	void gfx_image::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		auto dest = buf->write(data);
@@ -443,7 +443,7 @@ namespace zonetool::h1
 			{
 				buf->align(3);
 				buf->write_stream(data->pixelData, data->dataLen1);
-				ZoneBuffer::clear_pointer(&dest->pixelData);
+				zone_buffer::clear_pointer(&dest->pixelData);
 			}
 			buf->pop_stream();
 		}
@@ -454,7 +454,7 @@ namespace zonetool::h1
 			{
 				buf->align(3);
 				buf->write_stream(data->pixelData, 1);
-				ZoneBuffer::clear_pointer(&dest->pixelData);
+				zone_buffer::clear_pointer(&dest->pixelData);
 			}
 			buf->pop_stream();
 		}
@@ -507,7 +507,7 @@ namespace zonetool::h1
 	}
 #endif
 
-	void IGfxImage::dump(GfxImage* asset)
+	void gfx_image::dump(GfxImage* asset)
 	{
 #ifdef IMAGE_DUMP_DDS
 		dump_image_dds(asset);

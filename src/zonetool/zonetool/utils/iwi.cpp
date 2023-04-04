@@ -93,7 +93,7 @@ namespace iwi
 			return nullptr;
 		}
 
-		ZoneMemory* mem = reinterpret_cast<ZoneMemory*>(meme);
+		zone_memory* mem = reinterpret_cast<zone_memory*>(meme);
 
 		const auto path = utils::string::va("images\\%s.iwi", clean_name(name).data());
 		auto file = filesystem::file(path);
@@ -309,7 +309,7 @@ namespace iwi
 
 				// zone image
 				auto* image = img_;
-				image->name = mem->StrDup(name);
+				image->name = mem->duplicate_string(name);
 				image->imageFormat = dxgi_format;
 				image->mapType = MAPTYPE_CUBE;
 				image->flags = iwi_header->flags;
@@ -320,7 +320,7 @@ namespace iwi
 				image->numElements = 6;
 				image->levelCount = 1;
 
-				image->pixelData = mem->Alloc<unsigned char>(total_len);
+				image->pixelData = mem->allocate<unsigned char>(total_len);
 				memcpy(image->pixelData, pixel_data, total_len);
 
 				return image;
@@ -407,7 +407,7 @@ namespace iwi
 
 					// zone image
 					auto* image = img_;
-					image->name = mem->StrDup(name);
+					image->name = mem->duplicate_string(name);
 					image->imageFormat = dxgi_format;
 					image->mapType = MAPTYPE_2D;
 					image->flags = iwi_header->flags;
@@ -425,7 +425,7 @@ namespace iwi
 						pixel_data += data_to_skip_size;
 					}
 
-					image->pixelData = mem->Alloc<unsigned char>(total_len);
+					image->pixelData = mem->allocate<unsigned char>(total_len);
 					unsigned int j = 0;
 					switch (iwi_header->format)
 					{
@@ -460,7 +460,7 @@ namespace iwi
 						break;
 					case IMG_FORMAT_BITMAP_ALPHA:
 						// A
-						image->pixelData = mem->Alloc<unsigned char>(total_len);
+						image->pixelData = mem->allocate<unsigned char>(total_len);
 						memcpy(image->pixelData, pixel_data, total_len);
 						break;
 					}
@@ -542,7 +542,7 @@ namespace iwi
 
 				// zone image
 				auto* image = img_;
-				image->name = mem->StrDup(name);
+				image->name = mem->duplicate_string(name);
 				image->imageFormat = dxgi_format;
 				image->mapType = MAPTYPE_2D;
 				image->flags = iwi_header->flags;
@@ -553,7 +553,7 @@ namespace iwi
 				image->numElements = 1;
 				image->levelCount = static_cast<unsigned char>(mipmaps_count);
 
-				image->pixelData = mem->Alloc<unsigned char>(total_len);
+				image->pixelData = mem->allocate<unsigned char>(total_len);
 				if (has_mipmaps)
 				{
 					unsigned int w = width;

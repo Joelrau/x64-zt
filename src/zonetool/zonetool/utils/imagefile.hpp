@@ -10,7 +10,7 @@ namespace zonetool::imagefile
 {
 	template <typename T>
 	void generate(const std::string& fastfile, std::uint16_t index, int ff_version, const std::string& ff_header,
-		std::vector<T*> images, ZoneMemory* mem)
+		std::vector<T*> images, zone_memory* mem)
 	{
 		if (images.size() == 0)
 		{
@@ -49,7 +49,7 @@ namespace zonetool::imagefile
 					continue;
 				}
 
-				image->image_stream_files[i] = mem->Alloc<XStreamFile>();
+				image->image_stream_files[i] = mem->allocate<XStreamFile>();
 
 				if (!image->image_stream_blocks[i].has_value())
 				{

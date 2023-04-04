@@ -7,7 +7,7 @@
 
 namespace zonetool::s1
 {
-	RawFile* IRawFile::parse(const std::string& name, ZoneMemory* mem)
+	RawFile* rawfile::parse(const std::string& name, zone_memory* mem)
 	{
 		auto file = filesystem::file(name);
 		file.open("rb");
@@ -19,15 +19,15 @@ namespace zonetool::s1
 			const auto size = file.size();
 			auto data = file.read_bytes(size);
 
-			auto* rawfile = mem->Alloc<RawFile>();
-			rawfile->name = mem->StrDup(name);
+			auto* rawfile = mem->allocate<RawFile>();
+			rawfile->name = mem->duplicate_string(name);
 
-			ZoneBuffer buf(data);
+			zone_buffer buf(data);
 			auto compressed = buf.compress_zlib();
 
 			rawfile->len = static_cast<int>(size);
 			rawfile->compressedLen = static_cast<int>(compressed.size());
-			rawfile->buffer = mem->Alloc<char>(compressed.size());
+			rawfile->buffer = mem->allocate<char>(compressed.size());
 			memcpy(
 				const_cast<char*>(rawfile->buffer),
 				compressed.data(),
@@ -41,14 +41,14 @@ namespace zonetool::s1
 		return nullptr;
 	}
 
-	void IRawFile::init(const std::string& name, ZoneMemory* mem)
+	void rawfile::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
@@ -56,41 +56,41 @@ namespace zonetool::s1
 		if (name == filesystem::get_fastfile())
 		{
 			std::string str = ZONETOOL_BRANDING;
-			ZoneBuffer buf(std::vector<uint8_t>(str.begin(), str.end()));
+			zone_buffer buf(std::vector<uint8_t>(str.begin(), str.end()));
 			auto compressed = buf.compress_zlib();
 			std::string buffer(compressed.begin(), compressed.end());
 
-			this->asset_ = mem->Alloc<RawFile>();
-			this->asset_->name = mem->StrDup(name);
-			this->asset_->buffer = mem->StrDup(buffer.data());
+			this->asset_ = mem->allocate<RawFile>();
+			this->asset_->name = mem->duplicate_string(name);
+			this->asset_->buffer = mem->duplicate_string(buffer.data());
 			this->asset_->len = static_cast<int>(str.size());
 			this->asset_->compressedLen = static_cast<int>(buffer.size());
 		}
 		else if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name_.data()).rawfile;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name_.data()).rawfile;
 		}
 	}
 
-	void IRawFile::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void rawfile::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IRawFile::load_depending(IZone* zone)
+	void rawfile::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string IRawFile::name()
+	std::string rawfile::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IRawFile::type()
+	std::int32_t rawfile::type()
 	{
 		return ASSET_TYPE_RAWFILE;
 	}
 
-	void IRawFile::write(IZone* zone, ZoneBuffer* buf)
+	void rawfile::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write<RawFile>(data);
@@ -103,13 +103,13 @@ namespace zonetool::s1
 		{
 			buf->align(0);
 			buf->write(data->buffer, data->compressedLen ? data->compressedLen : data->len + 1);
-			ZoneBuffer::clear_pointer(&dest->buffer);
+			zone_buffer::clear_pointer(&dest->buffer);
 		}
 
 		buf->pop_stream();
 	}
 
-	void IRawFile::dump(RawFile* asset)
+	void rawfile::dump(RawFile* asset)
 	{
 		auto file = filesystem::file(asset->name);
 		file.open("wb");

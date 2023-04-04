@@ -3,7 +3,7 @@
 
 namespace zonetool::h2
 {
-	SndContext* ISoundContext::parse(const std::string& name, ZoneMemory* mem)
+	SndContext* sound_context::parse(const std::string& name, zone_memory* mem)
 	{
 		if (name.empty())
 		{
@@ -14,8 +14,8 @@ namespace zonetool::h2
 		auto file = filesystem::file(path);
 		if (file.exists())
 		{
-			auto* asset = mem->Alloc<SndContext>();
-			asset->name = mem->StrDup(name);
+			auto* asset = mem->allocate<SndContext>();
+			asset->name = mem->duplicate_string(name);
 
 			file.open("rb");
 			auto bytes = file.read_bytes(file.size());
@@ -26,43 +26,43 @@ namespace zonetool::h2
 		return nullptr;
 	}
 
-	void ISoundContext::init(const std::string& name, ZoneMemory* mem)
+	void sound_context::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
 		this->asset_ = parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name().data()).sndContext;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).sndContext;
 		}
 	}
 
-	void ISoundContext::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void sound_context::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void ISoundContext::load_depending(IZone* zone)
+	void sound_context::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string ISoundContext::name()
+	std::string sound_context::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t ISoundContext::type()
+	std::int32_t sound_context::type()
 	{
 		return ASSET_TYPE_SOUND_CONTEXT;
 	}
 
-	void ISoundContext::write(IZone* zone, ZoneBuffer* buf)
+	void sound_context::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		auto dest = buf->write(data);
@@ -74,7 +74,7 @@ namespace zonetool::h2
 		buf->pop_stream();
 	}
 
-	void ISoundContext::dump(SndContext* asset)
+	void sound_context::dump(SndContext* asset)
 	{
 		const auto path = "sndcontext\\"s + asset->name;
 		auto file = filesystem::file(path);

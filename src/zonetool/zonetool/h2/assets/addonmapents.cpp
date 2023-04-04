@@ -3,7 +3,7 @@
 
 namespace zonetool::h2
 {
-	void IAddonMapEnts::parse_triggers(ZoneMemory* mem, std::string name, MapTriggers* trigger)
+	void IAddonMapEnts::parse_triggers(zone_memory* mem, std::string name, MapTriggers* trigger)
 	{
 		const auto path = name + ".triggers"s;
 		const auto file_path = filesystem::get_file_path(path);
@@ -24,7 +24,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void IAddonMapEnts::parse_entityStrings(ZoneMemory* mem, std::string name, char** entityStrings, int* numEntityChars)
+	void IAddonMapEnts::parse_entity_strings(zone_memory* mem, std::string name, char** entityStrings, int* numEntityChars)
 	{
 		const auto path = name;
 		auto file = filesystem::file(path);
@@ -36,7 +36,7 @@ namespace zonetool::h2
 
 		*numEntityChars = static_cast<int>(file.size());
 
-		*entityStrings = mem->Alloc<char>(static_cast<size_t>(*numEntityChars + 1));
+		*entityStrings = mem->allocate<char>(static_cast<size_t>(*numEntityChars + 1));
 		memset(*entityStrings, 0, *numEntityChars);
 
 		fread(*entityStrings, *numEntityChars, 1, file.get_fp());
@@ -45,7 +45,7 @@ namespace zonetool::h2
 		file.close();
 	}
 
-	AddonMapEnts* IAddonMapEnts::parse(std::string name, ZoneMemory* mem)
+	AddonMapEnts* IAddonMapEnts::parse(std::string name, zone_memory* mem)
 	{
 		const auto path = name;
 
@@ -56,25 +56,25 @@ namespace zonetool::h2
 
 		ZONETOOL_INFO("Parsing addonmapents \"%s\"...", name.data());
 
-		AddonMapEnts* ents = mem->Alloc<AddonMapEnts>();
-		ents->name = mem->StrDup(name);
+		AddonMapEnts* ents = mem->allocate<AddonMapEnts>();
+		ents->name = mem->duplicate_string(name);
 
-		parse_entityStrings(mem, name, &ents->entityString, &ents->numEntityChars);
-		IMapEnts::convert_ents(reinterpret_cast<MapEnts*>(ents), mem);
+		parse_entity_strings(mem, name, &ents->entityString, &ents->numEntityChars);
+		map_ents::convert_ents(reinterpret_cast<MapEnts*>(ents), mem);
 
 		parse_triggers(mem, name, &ents->trigger);
 
 		return ents;
 	}
 
-	void IAddonMapEnts::init(const std::string& name, ZoneMemory* mem)
+	void IAddonMapEnts::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = "maps/"s + (filesystem::get_fastfile().substr(0, 3) == "mp_" ? "mp/" : "") + filesystem::get_fastfile() + ".mapents"; // name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
@@ -85,11 +85,11 @@ namespace zonetool::h2
 		}
 	}
 
-	void IAddonMapEnts::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void IAddonMapEnts::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IAddonMapEnts::load_depending(IZone* zone)
+	void IAddonMapEnts::load_depending(zone_base* zone)
 	{
 	}
 
@@ -103,7 +103,7 @@ namespace zonetool::h2
 		return ASSET_TYPE_ADDON_MAP_ENTS;
 	}
 
-	void IAddonMapEnts::write_triggers(ZoneBuffer* buf, MapTriggers* dest)
+	void IAddonMapEnts::write_triggers(zone_buffer* buf, MapTriggers* dest)
 	{
 		if (dest->models)
 		{
@@ -121,7 +121,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void IAddonMapEnts::write(IZone* zone, ZoneBuffer* buf)
+	void IAddonMapEnts::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
@@ -134,7 +134,7 @@ namespace zonetool::h2
 		{
 			buf->align(0);
 			buf->write(data->entityString, data->numEntityChars);
-			ZoneBuffer::clear_pointer(&dest->entityString);
+			zone_buffer::clear_pointer(&dest->entityString);
 		}
 
 		write_triggers(buf, &dest->trigger);
@@ -161,7 +161,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void IAddonMapEnts::dump_entityStrings(const std::string& name, char* entityString, int numEntityChars)
+	void IAddonMapEnts::dump_entity_strings(const std::string& name, char* entityString, int numEntityChars)
 	{
 		const auto path = name + ".mapents"s;
 		auto file = filesystem::file(path);
@@ -175,7 +175,7 @@ namespace zonetool::h2
 
 	void IAddonMapEnts::dump(AddonMapEnts* asset)
 	{
-		dump_entityStrings(asset->name, asset->entityString, asset->numEntityChars);
+		dump_entity_strings(asset->name, asset->entityString, asset->numEntityChars);
 		dump_triggers(asset->name, &asset->trigger);
 	}
 }

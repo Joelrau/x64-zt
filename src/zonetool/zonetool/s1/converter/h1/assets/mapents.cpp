@@ -175,9 +175,9 @@ namespace zonetool::s1
 
 		namespace mapents
 		{
-			zonetool::h1::MapEnts* convert(MapEnts* asset, ZoneMemory* mem)
+			zonetool::h1::MapEnts* convert(MapEnts* asset, zone_memory* mem)
 			{
-				auto* new_asset = mem->Alloc<zonetool::h1::MapEnts>();
+				auto* new_asset = mem->allocate<zonetool::h1::MapEnts>();
 
 				REINTERPRET_CAST_SAFE(name);
 
@@ -202,7 +202,7 @@ namespace zonetool::s1
 				new_asset->clientTrigger.unk3 = asset->clientTrigger.unk3;
 				new_asset->clientTrigger.unk4 = asset->clientTrigger.unk4;
 				new_asset->clientTrigger.unk5 = asset->clientTrigger.unk5;
-				new_asset->clientTrigger.unk6 = mem->Alloc<short>(asset->clientTrigger.trigger.count);
+				new_asset->clientTrigger.unk6 = mem->allocate<short>(asset->clientTrigger.trigger.count);
 
 				COPY_VALUE_CAST(clientTriggerBlend);
 				COPY_VALUE_CAST(spawnList);
@@ -211,7 +211,7 @@ namespace zonetool::s1
 				return new_asset;
 			}
 
-			void dump_entityStrings(const std::string& name, char* entityString, int numEntityChars)
+			void dump_entity_strings(const std::string& name, char* entityString, int numEntityChars)
 			{
 				const auto path = name + ".ents"s;
 				auto file = filesystem::file(path);
@@ -225,13 +225,13 @@ namespace zonetool::s1
 				}
 			}
 
-			void dump(MapEnts* asset, ZoneMemory* mem)
+			void dump(MapEnts* asset, zone_memory* mem)
 			{
 				auto* converted_asset = convert(asset, mem);
-				zonetool::h1::IMapEnts::dump(converted_asset);
+				zonetool::h1::map_ents::dump(converted_asset);
 
 				// dump the converted mapent strings
-				dump_entityStrings(asset->name, asset->entityString, asset->numEntityChars);
+				dump_entity_strings(asset->name, asset->entityString, asset->numEntityChars);
 			}
 		}
 	}

@@ -10,9 +10,9 @@ namespace zonetool::iw6
 	{
 		namespace vertexdecl
 		{
-			zonetool::h1::MaterialVertexDeclaration* convert(MaterialVertexDeclaration* asset, ZoneMemory* mem)
+			zonetool::h1::MaterialVertexDeclaration* convert(MaterialVertexDeclaration* asset, zone_memory* mem)
 			{
-				auto* new_asset = mem->Alloc<zonetool::h1::MaterialVertexDeclaration>();
+				auto* new_asset = mem->allocate<zonetool::h1::MaterialVertexDeclaration>();
 
 				new_asset->streamCount = asset->streamCount;
 				new_asset->hasOptionalSource = asset->hasOptionalSource;
@@ -24,15 +24,15 @@ namespace zonetool::iw6
 					new_asset->routing.data[i].mask = asset->routing.data[i].mask;
 				}
 
-				new_asset->name = mem->StrDup(asset->name + TECHSET_PREFIX);
+				new_asset->name = mem->duplicate_string(asset->name + TECHSET_PREFIX);
 
 				return new_asset;
 			}
 
-			void dump(MaterialVertexDeclaration* asset, ZoneMemory* mem)
+			void dump(MaterialVertexDeclaration* asset, zone_memory* mem)
 			{
 				auto* converted_asset = convert(asset, mem);
-				zonetool::h1::IVertexDecl::dump(converted_asset);
+				zonetool::h1::vertex_decl::dump(converted_asset);
 			}
 		}
 	}

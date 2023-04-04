@@ -174,7 +174,7 @@ namespace zonetool::h1
 			{
 				utils::memory::allocator allocator;
 				const auto converted_asset = convert(asset, allocator);
-				zonetool::h2::IGfxWorld::dump(converted_asset);
+				zonetool::h2::gfx_world::dump(converted_asset);
 			}
 		}
 	}

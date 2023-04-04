@@ -3,7 +3,7 @@
 
 namespace zonetool::h2
 {
-	void IClipMap::add_script_string(scr_string_t* ptr, const char* str)
+	void clip_map::add_script_string(scr_string_t* ptr, const char* str)
 	{
 		for (std::uint32_t i = 0; i < this->script_strings.size(); i++)
 		{
@@ -15,7 +15,7 @@ namespace zonetool::h2
 		this->script_strings.push_back(std::pair<scr_string_t*, const char*>(ptr, str));
 	}
 
-	const char* IClipMap::get_script_string(scr_string_t* ptr)
+	const char* clip_map::get_script_string(scr_string_t* ptr)
 	{
 		for (std::uint32_t i = 0; i < this->script_strings.size(); i++)
 		{
@@ -27,7 +27,7 @@ namespace zonetool::h2
 		return nullptr;
 	}
 
-	void IClipMap::parse_info(ClipInfo* info, assetmanager::reader& read, ZoneMemory* mem)
+	void clip_map::parse_info(ClipInfo* info, assetmanager::reader& read, zone_memory* mem)
 	{
 		info->planes = read.read_array<cplane_s>();
 		info->materials = read.read_array<ClipMaterial>();
@@ -90,7 +90,7 @@ namespace zonetool::h2
 		}
 	}
 
-	clipMap_t* IClipMap::parse(const std::string& name, ZoneMemory* mem)
+	clipMap_t* clip_map::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = name + ".colmap";
 
@@ -159,7 +159,7 @@ namespace zonetool::h2
 			}
 		}
 
-		asset->dynEntAnchorNames = mem->Alloc<scr_string_t>(asset->dynEntAnchorCount);
+		asset->dynEntAnchorNames = mem->allocate<scr_string_t>(asset->dynEntAnchorCount);
 		for (unsigned int i = 0; i < asset->dynEntAnchorCount; i++)
 		{
 			this->add_script_string(&asset->dynEntAnchorNames[i], read.read_string());
@@ -246,12 +246,12 @@ namespace zonetool::h2
 
 		// pInfo -> info
 		asset->pInfo = &asset->info;
-		//asset->pInfo = mem->Alloc<ClipInfo>();
+		//asset->pInfo = mem->allocate<ClipInfo>();
 
 		return asset;
 	}
 
-	void IClipMap::init(const std::string& name, ZoneMemory* mem)
+	void clip_map::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = "maps/"s + (filesystem::get_fastfile().substr(0, 3) == "mp_" ? "mp/" : "") + filesystem::get_fastfile() + ".d3dbsp"; // name;
 		this->asset_ = this->parse(name, mem);
@@ -262,7 +262,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void IClipMap::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void clip_map::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 		auto* data = this->asset_;
 
@@ -285,7 +285,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void IClipMap::load_depending(IZone* zone)
+	void clip_map::load_depending(zone_base* zone)
 	{
 		auto* data = this->asset_;
 
@@ -358,17 +358,17 @@ namespace zonetool::h2
 		}
 	}
 
-	std::string IClipMap::name()
+	std::string clip_map::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IClipMap::type()
+	std::int32_t clip_map::type()
 	{
 		return ASSET_TYPE_COL_MAP_SP;
 	}
 
-	void IClipMap::write_info(IZone* zone, ZoneBuffer* buf, ClipInfo* data, ClipInfo* dest)
+	void clip_map::write_info(zone_base* zone, zone_buffer* buf, ClipInfo* data, ClipInfo* dest)
 	{
 		if (data->planes)
 		{
@@ -518,7 +518,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void IClipMap::write(IZone* zone, ZoneBuffer* buf)
+	void clip_map::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
@@ -537,7 +537,7 @@ namespace zonetool::h2
 			buf->align(3);
 			auto destInfo = buf->write(data->pInfo);
 			write_info(zone, buf, data->pInfo, destInfo);
-			ZoneBuffer::clear_pointer(&dest->pInfo);
+			zone_buffer::clear_pointer(&dest->pInfo);
 		}
 		buf->pop_stream();
 
@@ -552,14 +552,14 @@ namespace zonetool::h2
 					nodes[i].plane = buf->write_s(3, data->nodes[i].plane);
 				}
 			}
-			ZoneBuffer::clear_pointer(&dest->nodes);
+			zone_buffer::clear_pointer(&dest->nodes);
 		}
 
 		if (data->leafs)
 		{
 			buf->align(3);
 			buf->write(data->leafs, data->numLeafs);
-			ZoneBuffer::clear_pointer(&dest->leafs);
+			zone_buffer::clear_pointer(&dest->leafs);
 		}
 
 		if (data->cmodels)
@@ -574,11 +574,11 @@ namespace zonetool::h2
 				//buf->align(3);
 				//auto destInfo = buf->write(data->cmodels[i].info);
 				//write_info(zone, buf, data->cmodels[i].info, destInfo);
-				//ZoneBuffer::clear_pointer(&destcmodels[i].info);
+				//zone_buffer::clear_pointer(&destcmodels[i].info);
 				//buf->pop_stream();
 			}
 
-			ZoneBuffer::clear_pointer(&dest->cmodels);
+			zone_buffer::clear_pointer(&dest->cmodels);
 		}
 
 		if (data->mapEnts)
@@ -599,7 +599,7 @@ namespace zonetool::h2
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->stages);
+			zone_buffer::clear_pointer(&dest->stages);
 		}
 
 		// copy trigger data from mapents
@@ -615,7 +615,7 @@ namespace zonetool::h2
 		}
 
 		// write triggers
-		IMapEnts::write_triggers(buf, &dest->stageTrigger);
+		map_ents::write_triggers(buf, &dest->stageTrigger);
 
 		if (data->dynEntDefList[0])
 		{
@@ -656,7 +656,7 @@ namespace zonetool::h2
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->dynEntDefList[0]);
+			zone_buffer::clear_pointer(&dest->dynEntDefList[0]);
 		}
 
 		if (data->dynEntDefList[1])
@@ -698,7 +698,7 @@ namespace zonetool::h2
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->dynEntDefList[1]);
+			zone_buffer::clear_pointer(&dest->dynEntDefList[1]);
 		}
 
 		buf->push_stream(2);
@@ -706,42 +706,42 @@ namespace zonetool::h2
 		{
 			buf->align(3);
 			buf->write(data->dynEntPoseList[0], data->dynEntCount[0]);
-			ZoneBuffer::clear_pointer(&dest->dynEntPoseList[0]);
+			zone_buffer::clear_pointer(&dest->dynEntPoseList[0]);
 		}
 
 		if (data->dynEntPoseList[1])
 		{
 			buf->align(3);
 			buf->write(data->dynEntPoseList[1], data->dynEntCount[1]);
-			ZoneBuffer::clear_pointer(&dest->dynEntPoseList[1]);
+			zone_buffer::clear_pointer(&dest->dynEntPoseList[1]);
 		}
 
 		if (data->dynEntClientList[0])
 		{
 			buf->align(3);
 			buf->write(data->dynEntClientList[0], data->dynEntCount[0]);
-			ZoneBuffer::clear_pointer(&dest->dynEntClientList[0]);
+			zone_buffer::clear_pointer(&dest->dynEntClientList[0]);
 		}
 
 		if (data->dynEntClientList[1])
 		{
 			buf->align(3);
 			buf->write(data->dynEntClientList[1], data->dynEntCount[1]);
-			ZoneBuffer::clear_pointer(&dest->dynEntClientList[1]);
+			zone_buffer::clear_pointer(&dest->dynEntClientList[1]);
 		}
 
 		if (data->dynEntCollList[0])
 		{
 			buf->align(3);
 			buf->write(data->dynEntCollList[0], data->dynEntCount[0]);
-			ZoneBuffer::clear_pointer(&dest->dynEntCollList[0]);
+			zone_buffer::clear_pointer(&dest->dynEntCollList[0]);
 		}
 
 		if (data->dynEntCollList[1])
 		{
 			buf->align(3);
 			buf->write(data->dynEntCollList[1], data->dynEntCount[1]);
-			ZoneBuffer::clear_pointer(&dest->dynEntCollList[1]);
+			zone_buffer::clear_pointer(&dest->dynEntCollList[1]);
 		}
 		buf->pop_stream();
 
@@ -749,7 +749,7 @@ namespace zonetool::h2
 		{
 			buf->align(3);
 			buf->write(data->dynEntAnchorNames, data->dynEntAnchorCount);
-			ZoneBuffer::clear_pointer(&dest->dynEntAnchorNames);
+			zone_buffer::clear_pointer(&dest->dynEntAnchorNames);
 		}
 
 		if (data->scriptableMapEnts.instances)
@@ -777,14 +777,14 @@ namespace zonetool::h2
 					{
 						buf->align(0);
 						buf->write(scriptable->eventConstantsBuf, scriptableDef->eventConstantsSize);
-						ZoneBuffer::clear_pointer(&destscriptable->eventConstantsBuf);
+						zone_buffer::clear_pointer(&destscriptable->eventConstantsBuf);
 					}
 
 					if (scriptable->targetData)
 					{
 						buf->align(3);
 						buf->write(scriptable->targetData, scriptable->targetDataCount);
-						ZoneBuffer::clear_pointer(&destscriptable->targetData);
+						zone_buffer::clear_pointer(&destscriptable->targetData);
 					}
 
 					buf->push_stream(2);
@@ -798,14 +798,14 @@ namespace zonetool::h2
 					{
 						buf->align(3);
 						buf->write(scriptable->partStates, scriptableDef->partCount);
-						ZoneBuffer::clear_pointer(&destscriptable->partStates);
+						zone_buffer::clear_pointer(&destscriptable->partStates);
 					}
 
 					if (scriptable->eventStreamBuf)
 					{
 						buf->align(0);
 						buf->write(scriptable->eventStreamBuf, scriptableDef->eventStreamSize);
-						ZoneBuffer::clear_pointer(&destscriptable->eventStreamBuf);
+						zone_buffer::clear_pointer(&destscriptable->eventStreamBuf);
 					}
 					buf->pop_stream();
 				}
@@ -814,7 +814,7 @@ namespace zonetool::h2
 					memset(destscriptable, 0, sizeof(ScriptableInstance));
 				}
 			}
-			ZoneBuffer::clear_pointer(&dest->scriptableMapEnts.instances);
+			zone_buffer::clear_pointer(&dest->scriptableMapEnts.instances);
 		}
 
 		if (data->scriptableMapEnts.animEntries)
@@ -828,7 +828,7 @@ namespace zonetool::h2
 					animentries[i].animName = buf->write_str(data->scriptableMapEnts.animEntries[i].animName);
 				}
 			}
-			ZoneBuffer::clear_pointer(&dest->scriptableMapEnts.animEntries);
+			zone_buffer::clear_pointer(&dest->scriptableMapEnts.animEntries);
 		}
 
 		if (data->grappleData.sphereTreeData.sphereTree)
@@ -841,30 +841,30 @@ namespace zonetool::h2
 				{
 					buf->align(3);
 					buf->write(data->grappleData.sphereTreeData.sphereTree[i].unk, data->grappleData.sphereTreeData.sphereTree[i].unk_count);
-					ZoneBuffer::clear_pointer(&destSphereTree[i].unk);
+					zone_buffer::clear_pointer(&destSphereTree[i].unk);
 				}
 			}
-			ZoneBuffer::clear_pointer(&dest->grappleData.sphereTreeData.sphereTree);
+			zone_buffer::clear_pointer(&dest->grappleData.sphereTreeData.sphereTree);
 		}
 
 		if (data->grappleData.sphereTreeData.sphereTreeObj)
 		{
 			buf->align(3);
 			buf->write(data->grappleData.sphereTreeData.sphereTreeObj, data->grappleData.sphereTreeData.sphereTreeObjCount);
-			ZoneBuffer::clear_pointer(&dest->grappleData.sphereTreeData.sphereTreeObj);
+			zone_buffer::clear_pointer(&dest->grappleData.sphereTreeData.sphereTreeObj);
 		}
 
 		if (data->grappleData.magnet)
 		{
 			buf->align(3);
 			buf->write(data->grappleData.magnet, data->grappleData.magnetCount);
-			ZoneBuffer::clear_pointer(&dest->grappleData.magnet);
+			zone_buffer::clear_pointer(&dest->grappleData.magnet);
 		}
 
 		buf->pop_stream();
 	}
 
-	void IClipMap::dump_info(ClipInfo* info, assetmanager::dumper& write)
+	void clip_map::dump_info(ClipInfo* info, assetmanager::dumper& write)
 	{
 		write.dump_array(info->planes, info->planeCount);
 		write.dump_array(info->materials, info->numMaterials);
@@ -927,7 +927,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void IClipMap::dump(clipMap_t* asset)
+	void clip_map::dump(clipMap_t* asset)
 	{
 		const auto path = asset->name + ".colmap"s;
 

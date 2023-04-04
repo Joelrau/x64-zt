@@ -3,7 +3,7 @@
 
 namespace zonetool::h2
 {
-	GlassWorld* IGlassWorld::parse(const std::string& name, ZoneMemory* mem)
+	GlassWorld* glass_world::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = name + ".glassmap";
 
@@ -36,7 +36,7 @@ namespace zonetool::h2
 		return asset;
 	}
 
-	void IGlassWorld::init(const std::string& name, ZoneMemory* mem)
+	void glass_world::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = "maps/"s + (filesystem::get_fastfile().substr(0, 3) == "mp_" ? "mp/" : "") + filesystem::get_fastfile() + ".d3dbsp"; // name;
 		this->asset_ = this->parse(name, mem);
@@ -47,25 +47,25 @@ namespace zonetool::h2
 		}
 	}
 
-	void IGlassWorld::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void glass_world::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IGlassWorld::load_depending(IZone* zone)
+	void glass_world::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string IGlassWorld::name()
+	std::string glass_world::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IGlassWorld::type()
+	std::int32_t glass_world::type()
 	{
 		return ASSET_TYPE_GLASS_MAP;
 	}
 
-	void IGlassWorld::write(IZone* zone, ZoneBuffer* buf)
+	void glass_world::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
@@ -85,7 +85,7 @@ namespace zonetool::h2
 			{
 				buf->align(3);
 				buf->write(glassdata->glassPieces, glassdata->pieceCount);
-				ZoneBuffer::clear_pointer(&destdata->glassPieces);
+				zone_buffer::clear_pointer(&destdata->glassPieces);
 			}
 			if (glassdata->glassNames)
 			{
@@ -100,19 +100,19 @@ namespace zonetool::h2
 					{
 						buf->align(1);
 						buf->write(glassdata->glassNames[i].pieceIndices, glassdata->glassNames[i].pieceCount);
-						ZoneBuffer::clear_pointer(&namedest[i].pieceIndices);
+						zone_buffer::clear_pointer(&namedest[i].pieceIndices);
 					}
 				}
 
-				ZoneBuffer::clear_pointer(&destdata->glassNames);
+				zone_buffer::clear_pointer(&destdata->glassNames);
 			}
 
-			ZoneBuffer::clear_pointer(&dest->g_glassData);
+			zone_buffer::clear_pointer(&dest->g_glassData);
 		}
 		buf->pop_stream();
 	}
 
-	void IGlassWorld::dump(GlassWorld* asset)
+	void glass_world::dump(GlassWorld* asset)
 	{
 		const auto path = asset->name + ".glassmap"s;
 

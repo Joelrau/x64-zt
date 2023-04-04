@@ -15,7 +15,7 @@ namespace zonetool::iw6
 	{
 		namespace scriptfile
 		{
-			zonetool::h1::ScriptFile* convert(ScriptFile* asset, ZoneMemory* mem)
+			zonetool::h1::ScriptFile* convert(ScriptFile* asset, zone_memory* mem)
 			{
 				return nullptr;
 			}
@@ -63,7 +63,7 @@ namespace zonetool::iw6
 				file.close();
 			}
 
-			void dump(ScriptFile* asset, ZoneMemory* mem)
+			void dump(ScriptFile* asset, zone_memory* mem)
 			{
 				dump_as_gsc(asset);
 			}

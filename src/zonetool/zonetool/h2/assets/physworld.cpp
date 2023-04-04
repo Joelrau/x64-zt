@@ -3,7 +3,7 @@
 
 namespace zonetool::h2
 {
-	void IPhysWorld::add_script_string(scr_string_t* ptr, const char* str)
+	void phys_world::add_script_string(scr_string_t* ptr, const char* str)
 	{
 		for (std::uint32_t i = 0; i < this->script_strings.size(); i++)
 		{
@@ -15,7 +15,7 @@ namespace zonetool::h2
 		this->script_strings.push_back(std::pair<scr_string_t*, const char*>(ptr, str));
 	}
 
-	const char* IPhysWorld::get_script_string(scr_string_t* ptr)
+	const char* phys_world::get_script_string(scr_string_t* ptr)
 	{
 		for (std::uint32_t i = 0; i < this->script_strings.size(); i++)
 		{
@@ -27,7 +27,7 @@ namespace zonetool::h2
 		return nullptr;
 	}
 
-	PhysWorld* IPhysWorld::parse(const std::string& name, ZoneMemory* mem)
+	PhysWorld* phys_world::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = name + ".physmap"s;
 
@@ -72,7 +72,7 @@ namespace zonetool::h2
 		return asset;
 	}
 
-	void IPhysWorld::init(const std::string& name, ZoneMemory* mem)
+	void phys_world::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = "maps/"s + (filesystem::get_fastfile().substr(0, 3) == "mp_" ? "mp/" : "") + filesystem::get_fastfile() + ".d3dbsp"; // name;
 		this->asset_ = parse(name, mem);
@@ -83,7 +83,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void IPhysWorld::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void phys_world::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 		auto* data = this->asset_;
 
@@ -97,7 +97,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void IPhysWorld::load_depending(IZone* zone)
+	void phys_world::load_depending(zone_base* zone)
 	{
 		for (unsigned int i = 0; i < this->asset_->waterVolumesCount; i++)
 		{
@@ -105,17 +105,17 @@ namespace zonetool::h2
 		}
 	}
 
-	std::string IPhysWorld::name()
+	std::string phys_world::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IPhysWorld::type()
+	std::int32_t phys_world::type()
 	{
 		return ASSET_TYPE_PHYSWORLDMAP;
 	}
 
-	void IPhysWorld::write(IZone* zone, ZoneBuffer* buf)
+	void phys_world::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		auto dest = buf->write(data);
@@ -128,7 +128,7 @@ namespace zonetool::h2
 		{
 			buf->align(3);
 			buf->write(data->models, data->modelsCount);
-			ZoneBuffer::clear_pointer(&dest->models);
+			zone_buffer::clear_pointer(&dest->models);
 		}
 
 		if (data->polytopeDatas)
@@ -144,45 +144,45 @@ namespace zonetool::h2
 				{
 					buf->align(15);
 					buf->write(data_poly_data->vec4_array0, data_poly_data->count0);
-					ZoneBuffer::clear_pointer(&dest_poly_data->vec4_array0);
+					zone_buffer::clear_pointer(&dest_poly_data->vec4_array0);
 				}
 
 				if (data_poly_data->vec4_array1)
 				{
 					buf->align(15);
 					buf->write(data_poly_data->vec4_array1, data_poly_data->count1);
-					ZoneBuffer::clear_pointer(&dest_poly_data->vec4_array1);
+					zone_buffer::clear_pointer(&dest_poly_data->vec4_array1);
 				}
 
 				if (data_poly_data->edges)
 				{
 					buf->align(3);
 					buf->write(data_poly_data->edges, data_poly_data->count2);
-					ZoneBuffer::clear_pointer(&dest_poly_data->edges);
+					zone_buffer::clear_pointer(&dest_poly_data->edges);
 				}
 
 				if (data_poly_data->uint8_array0)
 				{
 					buf->align(0);
 					buf->write(data_poly_data->uint8_array0, data_poly_data->count1);
-					ZoneBuffer::clear_pointer(&dest_poly_data->uint8_array0);
+					zone_buffer::clear_pointer(&dest_poly_data->uint8_array0);
 				}
 
 				if (data_poly_data->uint16_array0)
 				{
 					buf->align(1);
 					buf->write(data_poly_data->uint16_array0, data_poly_data->count1);
-					ZoneBuffer::clear_pointer(&dest_poly_data->uint16_array0);
+					zone_buffer::clear_pointer(&dest_poly_data->uint16_array0);
 				}
 
 				if (data_poly_data->uint16_array1)
 				{
 					buf->align(1);
 					buf->write(data_poly_data->uint16_array1, data_poly_data->count0);
-					ZoneBuffer::clear_pointer(&dest_poly_data->uint16_array1);
+					zone_buffer::clear_pointer(&dest_poly_data->uint16_array1);
 				}
 			}
-			ZoneBuffer::clear_pointer(&dest->polytopeDatas);
+			zone_buffer::clear_pointer(&dest->polytopeDatas);
 		}
 
 		if (data->meshDatas)
@@ -198,24 +198,24 @@ namespace zonetool::h2
 				{
 					buf->align(15);
 					buf->write(data_mesh_data->meshNodes, data_mesh_data->count0);
-					ZoneBuffer::clear_pointer(&dest_mesh_data->meshNodes);
+					zone_buffer::clear_pointer(&dest_mesh_data->meshNodes);
 				}
 
 				if (data_mesh_data->vec4_array0)
 				{
 					buf->align(15);
 					buf->write(data_mesh_data->vec4_array0, data_mesh_data->count1);
-					ZoneBuffer::clear_pointer(&dest_mesh_data->vec4_array0);
+					zone_buffer::clear_pointer(&dest_mesh_data->vec4_array0);
 				}
 
 				if (data_mesh_data->meshTriangles)
 				{
 					buf->align(3);
 					buf->write(data_mesh_data->meshTriangles, data_mesh_data->count2);
-					ZoneBuffer::clear_pointer(&dest_mesh_data->meshTriangles);
+					zone_buffer::clear_pointer(&dest_mesh_data->meshTriangles);
 				}
 			}
-			ZoneBuffer::clear_pointer(&dest->meshDatas);
+			zone_buffer::clear_pointer(&dest->meshDatas);
 		}
 
 		if (data->waterVolumes)
@@ -233,12 +233,12 @@ namespace zonetool::h2
 						zone->get_asset_pointer(ASSET_TYPE_PHYSWATERPRESET, data->waterVolumes->physWaterPreset->name));
 				}
 			}
-			ZoneBuffer::clear_pointer(&dest->waterVolumes);
+			zone_buffer::clear_pointer(&dest->waterVolumes);
 		}
 		buf->pop_stream();
 	}
 
-	void IPhysWorld::dump(PhysWorld* asset)
+	void phys_world::dump(PhysWorld* asset)
 	{
 		const auto path = asset->name + ".physmap"s;
 

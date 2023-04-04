@@ -77,7 +77,7 @@ namespace zonetool
 	};
 
 	template <std::size_t num_streams>
-	struct XZoneMemory
+	struct Xzone_memory
 	{
 		std::uint64_t size;
 		std::uint64_t externalsize;

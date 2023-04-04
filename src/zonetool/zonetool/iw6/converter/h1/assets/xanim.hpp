@@ -6,8 +6,8 @@ namespace zonetool::iw6
 	{
 		namespace xanim
 		{
-			zonetool::h1::XAnimParts* convert(XAnimParts* asset, ZoneMemory* mem);
-			void dump(XAnimParts* asset, ZoneMemory* mem);
+			zonetool::h1::XAnimParts* convert(XAnimParts* asset, zone_memory* mem);
+			void dump(XAnimParts* asset, zone_memory* mem);
 		}
 	}
 }

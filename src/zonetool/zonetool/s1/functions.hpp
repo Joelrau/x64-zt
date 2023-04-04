@@ -11,7 +11,7 @@ namespace zonetool::s1
 
 	extern bool zone_exists(const std::string& zone);
 
-	extern XAssetHeader DB_FindXAssetHeader_Safe(XAssetType type, const std::string& name);
+	extern XAssetHeader db_find_x_asset_header_safe(XAssetType type, const std::string& name);
 	extern void DB_EnumXAssets(const XAssetType type, const std::function<void(XAssetHeader)>& callback, const bool includeOverride);
 
 	WEAK::s1::game::symbol<void(XAssetType type, void(__cdecl* func)(XAssetHeader, void*), const void* inData, bool includeOverride)> DB_EnumXAssets_Internal{ 0x14026EC80 };

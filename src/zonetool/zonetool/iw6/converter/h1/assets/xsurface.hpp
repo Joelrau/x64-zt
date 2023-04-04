@@ -6,8 +6,8 @@ namespace zonetool::iw6
 	{
 		namespace xsurface
 		{
-			zonetool::h1::XModelSurfs* convert(XModelSurfs* asset, ZoneMemory* mem);
-			void dump(XModelSurfs* asset, ZoneMemory* mem);
+			zonetool::h1::XModelSurfs* convert(XModelSurfs* asset, zone_memory* mem);
+			void dump(XModelSurfs* asset, zone_memory* mem);
 		}
 	}
 }

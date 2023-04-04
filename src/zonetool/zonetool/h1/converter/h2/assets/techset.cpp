@@ -569,42 +569,42 @@ namespace zonetool::h1
 			{
 				utils::memory::allocator allocator;
 				const auto converted_shader = convert_shader<zonetool::h2::ComputeShader>(asset, allocator);
-				zonetool::h2::IComputeShader::dump(converted_shader);
+				zonetool::h2::compute_shader::dump(converted_shader);
 			}
 
 			void dump(zonetool::h1::MaterialVertexShader* asset)
 			{
 				utils::memory::allocator allocator;
 				const auto converted_shader = convert_shader<zonetool::h2::MaterialVertexShader>(asset, allocator);
-				zonetool::h2::IVertexShader::dump(converted_shader);
+				zonetool::h2::vertex_shader::dump(converted_shader);
 			}
 
 			void dump(zonetool::h1::MaterialHullShader* asset)
 			{
 				utils::memory::allocator allocator;
 				const auto converted_shader = convert_shader<zonetool::h2::MaterialHullShader>(asset, allocator);
-				zonetool::h2::IHullShader::dump(converted_shader);
+				zonetool::h2::hull_shader::dump(converted_shader);
 			}
 
 			void dump(zonetool::h1::MaterialDomainShader* asset)
 			{
 				utils::memory::allocator allocator;
 				const auto converted_shader = convert_shader<zonetool::h2::MaterialDomainShader>(asset, allocator);
-				zonetool::h2::IDomainShader::dump(converted_shader);
+				zonetool::h2::domain_shader::dump(converted_shader);
 			}
 
 			void dump(zonetool::h1::MaterialPixelShader* asset)
 			{
 				utils::memory::allocator allocator;
 				const auto converted_shader = convert_shader<zonetool::h2::MaterialPixelShader>(asset, allocator);
-				zonetool::h2::IPixelShader::dump(converted_shader);
+				zonetool::h2::pixel_shader::dump(converted_shader);
 			}
 
 			void dump(zonetool::h1::MaterialTechniqueSet* asset)
 			{
 				utils::memory::allocator allocator;
 				const auto converted_asset = convert(asset, allocator);
-				zonetool::h2::ITechset::dump(converted_asset);
+				zonetool::h2::techset::dump(converted_asset);
 			}
 		}
 	}

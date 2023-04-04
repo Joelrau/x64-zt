@@ -3,39 +3,39 @@
 
 namespace zonetool::iw6
 {
-	void IPhysCollmap::init(const std::string& name, ZoneMemory* mem)
+	void phys_collmap::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
-		this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name().data()).physCollmap;
+		this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).physCollmap;
 	}
 
-	void IPhysCollmap::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void phys_collmap::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IPhysCollmap::load_depending(IZone* zone)
+	void phys_collmap::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string IPhysCollmap::name()
+	std::string phys_collmap::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IPhysCollmap::type()
+	std::int32_t phys_collmap::type()
 	{
 		return ASSET_TYPE_PHYSCOLLMAP;
 	}
 
-	void write_cbrush_wrapper(IZone* zone, ZoneBuffer* buf, BrushWrapper* brush, cbrush_t* data)
+	void write_cbrush_wrapper(zone_base* zone, zone_buffer* buf, BrushWrapper* brush, cbrush_t* data)
 	{
 		auto* dest = data;
 
@@ -47,20 +47,20 @@ namespace zonetool::iw6
 			{
 				buf->align(3);
 				buf->write(data->sides[i].plane);
-				ZoneBuffer::clear_pointer(&destsides[i].plane);
+				zone_buffer::clear_pointer(&destsides[i].plane);
 			}
 
-			ZoneBuffer::clear_pointer(&dest->sides);
+			zone_buffer::clear_pointer(&dest->sides);
 		}
 		if (data->baseAdjacentSide)
 		{
 			buf->align(0);
 			buf->write(data->baseAdjacentSide, brush->totalEdgeCount);
-			ZoneBuffer::clear_pointer(&dest->baseAdjacentSide);
+			zone_buffer::clear_pointer(&dest->baseAdjacentSide);
 		}
 	}
 
-	void write_brush_wrapper(IZone* zone, ZoneBuffer* buf, BrushWrapper* data)
+	void write_brush_wrapper(zone_base* zone, zone_buffer* buf, BrushWrapper* data)
 	{
 		auto* dest = data;
 		dest = buf->write(data);
@@ -71,11 +71,11 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			buf->write(data->planes, data->brush.numsides);
-			ZoneBuffer::clear_pointer(&dest->planes);
+			zone_buffer::clear_pointer(&dest->planes);
 		}
 	}
 
-	void write_phys_geom_info(IZone* zone, ZoneBuffer* buf, PhysGeomInfo* data)
+	void write_phys_geom_info(zone_base* zone, zone_buffer* buf, PhysGeomInfo* data)
 	{
 		auto* dest = data;
 
@@ -86,7 +86,7 @@ namespace zonetool::iw6
 		}
 	}
 
-	void IPhysCollmap::write(IZone* zone, ZoneBuffer* buf)
+	void phys_collmap::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
@@ -109,7 +109,7 @@ namespace zonetool::iw6
 		buf->pop_stream();
 	}
 
-	void IPhysCollmap::dump(PhysCollmap* asset)
+	void phys_collmap::dump(PhysCollmap* asset)
 	{
 	}
 }

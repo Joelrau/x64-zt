@@ -10,9 +10,9 @@ namespace zonetool::s1
 	{
 		namespace gfxworld
 		{
-			zonetool::h1::GfxWorld* convert(GfxWorld* asset, ZoneMemory* mem)
+			zonetool::h1::GfxWorld* convert(GfxWorld* asset, zone_memory* mem)
 			{
-				auto* new_asset = mem->Alloc<zonetool::h1::GfxWorld>();
+				auto* new_asset = mem->allocate<zonetool::h1::GfxWorld>();
 
 				REINTERPRET_CAST_SAFE(name);
 				REINTERPRET_CAST_SAFE(baseName);
@@ -123,12 +123,12 @@ namespace zonetool::s1
 					REINTERPRET_CAST_SAFE_ARR(dpvs.smodelUmbraVisData, 4);
 					REINTERPRET_CAST_SAFE_ARR(dpvs.surfaceUmbraVisData, 4);
 					REINTERPRET_CAST_SAFE(dpvs.lodData);
-					new_asset->dpvs.tessellationCutoffVisData = mem->Alloc<unsigned int>(asset->dpvs.surfaceVisDataCount);
+					new_asset->dpvs.tessellationCutoffVisData = mem->allocate<unsigned int>(asset->dpvs.surfaceVisDataCount);
 					REINTERPRET_CAST_SAFE(dpvs.sortedSurfIndex);
 					REINTERPRET_CAST_SAFE(dpvs.smodelInsts);
 					REINTERPRET_CAST_SAFE(dpvs.surfaces);
 
-					new_asset->dpvs.surfaces = mem->Alloc<zonetool::h1::GfxSurface>(asset->surfaceCount);
+					new_asset->dpvs.surfaces = mem->allocate<zonetool::h1::GfxSurface>(asset->surfaceCount);
 					for (unsigned int i = 0; i < asset->surfaceCount; i++)
 					{
 						COPY_VALUE(dpvs.surfaces[i].tris.vertexLayerData);
@@ -142,7 +142,7 @@ namespace zonetool::s1
 						COPY_ARR(dpvs.surfaces[i].laf);
 					}
 
-					new_asset->dpvs.surfacesBounds = mem->Alloc<zonetool::h1::GfxSurfaceBounds>(asset->surfaceCount);
+					new_asset->dpvs.surfacesBounds = mem->allocate<zonetool::h1::GfxSurfaceBounds>(asset->surfaceCount);
 					for (unsigned int i = 0; i < asset->surfaceCount; i++)
 					{
 						COPY_ARR(dpvs.surfacesBounds[i].bounds);
@@ -185,10 +185,10 @@ namespace zonetool::s1
 				return new_asset;
 			}
 
-			void dump(GfxWorld* asset, ZoneMemory* mem)
+			void dump(GfxWorld* asset, zone_memory* mem)
 			{
 				auto* converted_asset = convert(asset, mem);
-				zonetool::h1::IGfxWorld::dump(converted_asset);
+				zonetool::h1::gfx_world::dump(converted_asset);
 			}
 		}
 	}

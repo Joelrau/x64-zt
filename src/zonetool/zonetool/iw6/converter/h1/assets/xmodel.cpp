@@ -12,9 +12,9 @@ namespace zonetool::iw6
 	{
 		namespace xmodel
 		{
-			zonetool::h1::XModel* convert(XModel* asset, ZoneMemory* mem)
+			zonetool::h1::XModel* convert(XModel* asset, zone_memory* mem)
 			{
-				auto* new_asset = mem->Alloc<zonetool::h1::XModel>();
+				auto* new_asset = mem->allocate<zonetool::h1::XModel>();
 
 				REINTERPRET_CAST_SAFE(name);
 
@@ -59,12 +59,12 @@ namespace zonetool::iw6
 				new_asset->blendShapeWeightMap = nullptr;
 				if (asset->physPreset)
 				{
-					new_asset->physPreset = mem->Alloc<zonetool::h1::PhysPreset>();
+					new_asset->physPreset = mem->allocate<zonetool::h1::PhysPreset>();
 					new_asset->physPreset->name = asset->physPreset->name;
 				}
 				if (asset->physCollmap)
 				{
-					new_asset->physCollmap = mem->Alloc<zonetool::h1::PhysCollmap>();
+					new_asset->physCollmap = mem->allocate<zonetool::h1::PhysCollmap>();
 					new_asset->physCollmap->name = asset->physCollmap->name;
 				}
 				new_asset->mdaoVolumeCount = 0;
@@ -80,10 +80,10 @@ namespace zonetool::iw6
 				return new_asset;
 			}
 
-			void dump(XModel* asset, ZoneMemory* mem)
+			void dump(XModel* asset, zone_memory* mem)
 			{
 				auto* converted_asset = convert(asset, mem);
-				zonetool::h1::IXModel::dump(converted_asset);
+				zonetool::h1::xmodel::dump(converted_asset);
 			}
 		}
 	}

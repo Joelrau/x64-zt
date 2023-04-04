@@ -201,7 +201,7 @@ namespace zonetool::iw6
 
 	}
 
-	LoadedSound* ILoadedSound::parse_flac(const std::string& name, ZoneMemory* mem)
+	LoadedSound* loaded_sound::parse_flac(const std::string& name, zone_memory* mem)
 	{
 		ZONETOOL_INFO("Parsing loaded_sound \"%s\"...", name.data());
 
@@ -209,11 +209,11 @@ namespace zonetool::iw6
 		filesystem::file file(path);
 		file.open("rb");
 
-		auto* result = mem->Alloc<LoadedSound>();
-		result->name = mem->StrDup(name);
+		auto* result = mem->allocate<LoadedSound>();
+		result->name = mem->duplicate_string(name);
 
 		const auto size = static_cast<int>(file.size());
-		const auto data = mem->Alloc<char>(size);
+		const auto data = mem->allocate<char>(size);
 		file.read(data, size, 1);
 
 		result->sound.format.blockAlign = 0;
@@ -222,7 +222,7 @@ namespace zonetool::iw6
 		std::string data_str{data, static_cast<size_t>(size)};
 		const auto converted = convert_flac(data_str, &result->sound.format);
 
-		result->sound.data = mem->Alloc<char>(converted.size());
+		result->sound.data = mem->allocate<char>(converted.size());
 		std::memcpy(result->sound.data, converted.data(), converted.size());
 		result->sound.loadedSize = static_cast<int>(converted.size());
 		result->sound.format.dataByteCount = result->sound.loadedSize;
@@ -231,7 +231,7 @@ namespace zonetool::iw6
 		return result;
 	}
 
-	LoadedSound* ILoadedSound::parse_wav(const std::string& name, ZoneMemory* mem)
+	LoadedSound* loaded_sound::parse_wav(const std::string& name, zone_memory* mem)
 	{
 		ZONETOOL_INFO("Parsing loaded_sound \"%s\"...", name.data());
 
@@ -240,7 +240,7 @@ namespace zonetool::iw6
 		file.open("rb");
 
 		auto* fp = file.get_fp();
-		auto* result = mem->Alloc<LoadedSound>();
+		auto* result = mem->allocate<LoadedSound>();
 
 		unsigned int chunkIDBuffer;
 		unsigned int chunkSize;
@@ -302,7 +302,7 @@ namespace zonetool::iw6
 				break;
 
 			case 0x61746164: // data
-				result->sound.data = mem->Alloc<char>(chunkSize);
+				result->sound.data = mem->allocate<char>(chunkSize);
 				fread(result->sound.data, 1, chunkSize, fp);
 
 				result->sound.loadedSize = chunkSize;
@@ -327,13 +327,13 @@ namespace zonetool::iw6
 
 		result->sound.format.format = SND_FORMAT_PCM;
 
-		result->name = mem->StrDup(name);
+		result->name = mem->duplicate_string(name);
 
 		file.close();
 		return result;
 	}
 
-	LoadedSound* ILoadedSound::parse(const std::string& name, ZoneMemory* mem)
+	LoadedSound* loaded_sound::parse(const std::string& name, zone_memory* mem)
 	{
 		auto path = "loaded_sound\\"s + name;
 		if (filesystem::file(path).exists())
@@ -364,43 +364,43 @@ namespace zonetool::iw6
 		return nullptr;
 	}
 
-	void ILoadedSound::init(const std::string& name, ZoneMemory* mem)
+	void loaded_sound::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
 		this->asset_ = parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name_.data()).loadSnd;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name_.data()).loadSnd;
 		}
 	}
 
-	void ILoadedSound::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void loaded_sound::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void ILoadedSound::load_depending(IZone* zone)
+	void loaded_sound::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string ILoadedSound::name()
+	std::string loaded_sound::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t ILoadedSound::type()
+	std::int32_t loaded_sound::type()
 	{
 		return ASSET_TYPE_LOADED_SOUND;
 	}
 
-	void ILoadedSound::write(IZone* zone, ZoneBuffer* buf)
+	void loaded_sound::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
@@ -415,7 +415,7 @@ namespace zonetool::iw6
 		{
 			buf->align(0);
 			buf->write(data->sound.data, data->sound.loadedSize);
-			ZoneBuffer::clear_pointer(&dest->sound.data);
+			zone_buffer::clear_pointer(&dest->sound.data);
 		}
 
 		buf->pop_stream();
@@ -424,13 +424,13 @@ namespace zonetool::iw6
 		{
 			buf->align(0);
 			buf->write(data->sound.seekTable, data->sound.seekTableSize);
-			ZoneBuffer::clear_pointer(&dest->sound.seekTable);
+			zone_buffer::clear_pointer(&dest->sound.seekTable);
 		}
 
 		buf->pop_stream();
 	}
 
-	void ILoadedSound::dump_data(LoadedSound* asset, char* data, size_t size, const std::string& extension)
+	void loaded_sound::dump_data(LoadedSound* asset, char* data, size_t size, const std::string& extension)
 	{
 		const auto path = "loaded_sound\\"s + asset->name + extension;
 		auto file = filesystem::file(path);
@@ -453,7 +453,7 @@ namespace zonetool::iw6
 		".flac",
 	};
 
-	void ILoadedSound::dump(LoadedSound* asset)
+	void loaded_sound::dump(LoadedSound* asset)
 	{
 		if (asset)
 		{

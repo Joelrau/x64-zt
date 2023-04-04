@@ -3,7 +3,7 @@
 
 namespace zonetool::h1
 {
-	DopplerPreset* IDopplerPreset::parse(const std::string& name, ZoneMemory* mem)
+	DopplerPreset* doppler_preset::parse(const std::string& name, zone_memory* mem)
 	{
 		if (name.empty())
 		{
@@ -23,12 +23,12 @@ namespace zonetool::h1
 			file.close();
 			json data = json::parse(bytes);
 
-			auto asset = mem->Alloc<DopplerPreset>();
+			auto asset = mem->allocate<DopplerPreset>();
 
 			auto p_name = data["name"];
 			if (!p_name.is_null() && !p_name.empty())
 			{
-				asset->name = mem->StrDup(p_name.get<std::string>().data());
+				asset->name = mem->duplicate_string(p_name.get<std::string>().data());
 			}
 
 			auto speedOfSound = data["speedOfSound"];
@@ -67,43 +67,43 @@ namespace zonetool::h1
 		return nullptr;
 	}
 
-	void IDopplerPreset::init(const std::string& name, ZoneMemory* mem)
+	void doppler_preset::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
 		this->asset_ = parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name().data()).doppler;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).doppler;
 		}
 	}
 
-	void IDopplerPreset::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void doppler_preset::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IDopplerPreset::load_depending(IZone* zone)
+	void doppler_preset::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string IDopplerPreset::name()
+	std::string doppler_preset::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IDopplerPreset::type()
+	std::int32_t doppler_preset::type()
 	{
 		return ASSET_TYPE_DOPPLER_PRESET;
 	}
 
-	void IDopplerPreset::write(IZone* zone, ZoneBuffer* buf)
+	void doppler_preset::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		auto dest = buf->write(data);
@@ -115,7 +115,7 @@ namespace zonetool::h1
 		buf->pop_stream();
 	}
 
-	void IDopplerPreset::dump(DopplerPreset* asset)
+	void doppler_preset::dump(DopplerPreset* asset)
 	{
 		const auto path = "dopplerpreset\\"s + asset->name + "json"s;
 		auto file = filesystem::file(path);

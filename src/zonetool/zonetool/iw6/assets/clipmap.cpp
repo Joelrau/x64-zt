@@ -3,7 +3,7 @@
 
 namespace zonetool::iw6
 {
-	void IClipMap::add_script_string(scr_string_t* ptr, const char* str)
+	void clip_map::add_script_string(scr_string_t* ptr, const char* str)
 	{
 		for (std::uint32_t i = 0; i < this->script_strings.size(); i++)
 		{
@@ -15,7 +15,7 @@ namespace zonetool::iw6
 		this->script_strings.push_back(std::pair<scr_string_t*, const char*>(ptr, str));
 	}
 
-	const char* IClipMap::get_script_string(scr_string_t* ptr)
+	const char* clip_map::get_script_string(scr_string_t* ptr)
 	{
 		for (std::uint32_t i = 0; i < this->script_strings.size(); i++)
 		{
@@ -27,7 +27,7 @@ namespace zonetool::iw6
 		return nullptr;
 	}
 
-	void IClipMap::parse_info(ClipInfo* info, assetmanager::reader& read, ZoneMemory* mem)
+	void clip_map::parse_info(ClipInfo* info, assetmanager::reader& read, zone_memory* mem)
 	{
 		info->planes = read.read_array<cplane_s>();
 		info->materials = read.read_array<ClipMaterial>();
@@ -74,7 +74,7 @@ namespace zonetool::iw6
 		info->brushContents = read.read_array<int>();
 	}
 
-	clipMap_t* IClipMap::parse(const std::string& name, ZoneMemory* mem)
+	clipMap_t* clip_map::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = name + ".colmap";
 
@@ -175,7 +175,7 @@ namespace zonetool::iw6
 			}
 		}
 
-		asset->dynEntAnchorNames = mem->Alloc<scr_string_t>(asset->dynEntAnchorCount);
+		asset->dynEntAnchorNames = mem->allocate<scr_string_t>(asset->dynEntAnchorCount);
 		for (unsigned int i = 0; i < asset->dynEntAnchorCount; i++)
 		{
 			this->add_script_string(&asset->dynEntAnchorNames[i], read.read_string());
@@ -226,13 +226,13 @@ namespace zonetool::iw6
 
 		// copy info into pInfo
 		//asset->pInfo = &asset->info;
-		asset->pInfo = mem->Alloc<ClipInfo>();
+		asset->pInfo = mem->allocate<ClipInfo>();
 		memcpy(asset->pInfo, &asset->info, sizeof(ClipInfo));
 
 		return asset;
 	}
 
-	void IClipMap::init(const std::string& name, ZoneMemory* mem)
+	void clip_map::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = "maps/"s + (filesystem::get_fastfile().substr(0, 3) == "mp_" ? "mp/" : "") + filesystem::get_fastfile() + ".d3dbsp"; // name;
 		this->asset_ = this->parse(name, mem);
@@ -243,7 +243,7 @@ namespace zonetool::iw6
 		}
 	}
 
-	void IClipMap::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void clip_map::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 		auto* data = this->asset_;
 
@@ -266,7 +266,7 @@ namespace zonetool::iw6
 		}
 	}
 
-	void IClipMap::load_depending(IZone* zone)
+	void clip_map::load_depending(zone_base* zone)
 	{
 		auto* data = this->asset_;
 
@@ -335,17 +335,17 @@ namespace zonetool::iw6
 		}
 	}
 
-	std::string IClipMap::name()
+	std::string clip_map::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IClipMap::type()
+	std::int32_t clip_map::type()
 	{
 		return ASSET_TYPE_CLIPMAP;
 	}
 
-	void IClipMap::write_info(IZone* zone, ZoneBuffer* buf, ClipInfo* data, ClipInfo* dest)
+	void clip_map::write_info(zone_base* zone, zone_buffer* buf, ClipInfo* data, ClipInfo* dest)
 	{
 		if (data->planes)
 		{
@@ -458,7 +458,7 @@ namespace zonetool::iw6
 		}
 	}
 
-	void IClipMap::write(IZone* zone, ZoneBuffer* buf)
+	void clip_map::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
@@ -477,7 +477,7 @@ namespace zonetool::iw6
 			buf->align(3);
 			auto destInfo = buf->write(data->pInfo);
 			write_info(zone, buf, data->pInfo, destInfo);
-			ZoneBuffer::clear_pointer(&dest->pInfo);
+			zone_buffer::clear_pointer(&dest->pInfo);
 		}
 		buf->pop_stream();
 
@@ -493,7 +493,7 @@ namespace zonetool::iw6
 						ASSET_TYPE_XMODEL, data->staticModelList[i].xmodel->name));
 				}
 			}
-			ZoneBuffer::clear_pointer(&dest->staticModelList);
+			zone_buffer::clear_pointer(&dest->staticModelList);
 		}
 
 		if (data->nodes)
@@ -507,42 +507,42 @@ namespace zonetool::iw6
 					nodes[i].plane = buf->write_s(3, data->nodes[i].plane);
 				}
 			}
-			ZoneBuffer::clear_pointer(&dest->nodes);
+			zone_buffer::clear_pointer(&dest->nodes);
 		}
 
 		if (data->leafs)
 		{
 			buf->align(3);
 			buf->write(data->leafs, data->numLeafs);
-			ZoneBuffer::clear_pointer(&dest->leafs);
+			zone_buffer::clear_pointer(&dest->leafs);
 		}
 
 		if (data->verts)
 		{
 			buf->align(3);
 			buf->write(data->verts, data->vertCount);
-			ZoneBuffer::clear_pointer(&dest->verts);
+			zone_buffer::clear_pointer(&dest->verts);
 		}
 
 		if (data->triIndices)
 		{
 			buf->align(1);
 			buf->write(data->triIndices, data->triCount * 3);
-			ZoneBuffer::clear_pointer(&dest->triIndices);
+			zone_buffer::clear_pointer(&dest->triIndices);
 		}
 
 		if (data->triEdgeIsWalkable)
 		{
 			buf->align(0);
 			buf->write(data->triEdgeIsWalkable, ((data->triCount + 2 * data->triCount + 31) >> 3) & 0xFFFFFFFFFFFFFFFCui64);
-			ZoneBuffer::clear_pointer(&dest->triEdgeIsWalkable);
+			zone_buffer::clear_pointer(&dest->triEdgeIsWalkable);
 		}
 
 		if (data->borders)
 		{
 			buf->align(3);
 			buf->write_p(data->borders, data->borderCount);
-			ZoneBuffer::clear_pointer(&dest->borders);
+			zone_buffer::clear_pointer(&dest->borders);
 		}
 
 		if (data->partitions)
@@ -556,14 +556,14 @@ namespace zonetool::iw6
 					destpartitions[i].borders = buf->write_s(3, data->partitions[i].borders);
 				}
 			}
-			ZoneBuffer::clear_pointer(&dest->partitions);
+			zone_buffer::clear_pointer(&dest->partitions);
 		}
 
 		if (data->aabbTrees)
 		{
 			buf->align(15);
 			buf->write(data->aabbTrees, data->aabbTreeCount);
-			ZoneBuffer::clear_pointer(&dest->aabbTrees);
+			zone_buffer::clear_pointer(&dest->aabbTrees);
 		}
 
 		if (data->cmodels)
@@ -576,14 +576,14 @@ namespace zonetool::iw6
 				destcmodels[i].info = info_ptr;
 			}
 
-			ZoneBuffer::clear_pointer(&dest->cmodels);
+			zone_buffer::clear_pointer(&dest->cmodels);
 		}
 
 		if (data->smodelNodes)
 		{
 			buf->align(3);
 			buf->write(data->smodelNodes, data->smodelNodeCount);
-			ZoneBuffer::clear_pointer(&dest->smodelNodes);
+			zone_buffer::clear_pointer(&dest->smodelNodes);
 		}
 
 		if (data->mapEnts)
@@ -604,7 +604,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->stages);
+			zone_buffer::clear_pointer(&dest->stages);
 		}
 
 		// copy trigger data from mapents
@@ -620,7 +620,7 @@ namespace zonetool::iw6
 		}
 
 		// write triggers
-		IMapEnts::write_triggers(buf, &dest->stageTrigger);
+		map_ents::write_triggers(buf, &dest->stageTrigger);
 
 		if (data->dynEntDefList[0])
 		{
@@ -656,7 +656,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->dynEntDefList[0]);
+			zone_buffer::clear_pointer(&dest->dynEntDefList[0]);
 		}
 
 		if (data->dynEntDefList[1])
@@ -693,7 +693,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->dynEntDefList[1]);
+			zone_buffer::clear_pointer(&dest->dynEntDefList[1]);
 		}
 
 		buf->push_stream(2);
@@ -701,42 +701,42 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			buf->write(data->dynEntPoseList[0], data->dynEntCount[0]);
-			ZoneBuffer::clear_pointer(&dest->dynEntPoseList[0]);
+			zone_buffer::clear_pointer(&dest->dynEntPoseList[0]);
 		}
 
 		if (data->dynEntPoseList[1])
 		{
 			buf->align(3);
 			buf->write(data->dynEntPoseList[1], data->dynEntCount[1]);
-			ZoneBuffer::clear_pointer(&dest->dynEntPoseList[1]);
+			zone_buffer::clear_pointer(&dest->dynEntPoseList[1]);
 		}
 
 		if (data->dynEntClientList[0])
 		{
 			buf->align(3);
 			buf->write(data->dynEntClientList[0], data->dynEntCount[0]);
-			ZoneBuffer::clear_pointer(&dest->dynEntClientList[0]);
+			zone_buffer::clear_pointer(&dest->dynEntClientList[0]);
 		}
 
 		if (data->dynEntClientList[1])
 		{
 			buf->align(3);
 			buf->write(data->dynEntClientList[1], data->dynEntCount[1]);
-			ZoneBuffer::clear_pointer(&dest->dynEntClientList[1]);
+			zone_buffer::clear_pointer(&dest->dynEntClientList[1]);
 		}
 
 		if (data->dynEntCollList[0])
 		{
 			buf->align(3);
 			buf->write(data->dynEntCollList[0], data->dynEntCount[0]);
-			ZoneBuffer::clear_pointer(&dest->dynEntCollList[0]);
+			zone_buffer::clear_pointer(&dest->dynEntCollList[0]);
 		}
 
 		if (data->dynEntCollList[1])
 		{
 			buf->align(3);
 			buf->write(data->dynEntCollList[1], data->dynEntCount[1]);
-			ZoneBuffer::clear_pointer(&dest->dynEntCollList[1]);
+			zone_buffer::clear_pointer(&dest->dynEntCollList[1]);
 		}
 		buf->pop_stream();
 
@@ -744,7 +744,7 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			buf->write(data->dynEntAnchorNames, data->dynEntAnchorCount);
-			ZoneBuffer::clear_pointer(&dest->dynEntAnchorNames);
+			zone_buffer::clear_pointer(&dest->dynEntAnchorNames);
 		}
 
 		if (data->scriptableMapEnts.instances)
@@ -772,7 +772,7 @@ namespace zonetool::iw6
 					{
 						buf->align(0);
 						buf->write(scriptable->eventConstantsBuf, scriptableDef->eventConstantsSize);
-						ZoneBuffer::clear_pointer(&destscriptable->eventConstantsBuf);
+						zone_buffer::clear_pointer(&destscriptable->eventConstantsBuf);
 					}
 
 					buf->push_stream(2);
@@ -786,14 +786,14 @@ namespace zonetool::iw6
 					{
 						buf->align(3);
 						buf->write(scriptable->partStates, scriptableDef->partCount);
-						ZoneBuffer::clear_pointer(&destscriptable->partStates);
+						zone_buffer::clear_pointer(&destscriptable->partStates);
 					}
 
 					if (scriptable->eventStreamBuf)
 					{
 						buf->align(0);
 						buf->write(scriptable->eventStreamBuf, scriptableDef->eventStreamSize);
-						ZoneBuffer::clear_pointer(&destscriptable->eventStreamBuf);
+						zone_buffer::clear_pointer(&destscriptable->eventStreamBuf);
 					}
 					buf->pop_stream();
 				}
@@ -802,7 +802,7 @@ namespace zonetool::iw6
 					memset(destscriptable, 0, sizeof(ScriptableInstance));
 				}
 			}
-			ZoneBuffer::clear_pointer(&dest->scriptableMapEnts.instances);
+			zone_buffer::clear_pointer(&dest->scriptableMapEnts.instances);
 		}
 
 		if (data->scriptableMapEnts.animEntries)
@@ -816,13 +816,13 @@ namespace zonetool::iw6
 					animentries[i].animName = buf->write_str(data->scriptableMapEnts.animEntries[i].animName);
 				}
 			}
-			ZoneBuffer::clear_pointer(&dest->scriptableMapEnts.animEntries);
+			zone_buffer::clear_pointer(&dest->scriptableMapEnts.animEntries);
 		}
 
 		buf->pop_stream();
 	}
 
-	void IClipMap::dump_info(ClipInfo* info, assetmanager::dumper& write)
+	void clip_map::dump_info(ClipInfo* info, assetmanager::dumper& write)
 	{
 		write.dump_array(info->planes, info->planeCount);
 		write.dump_array(info->materials, info->numMaterials);
@@ -869,7 +869,7 @@ namespace zonetool::iw6
 		write.dump_array(info->brushContents, info->numBrushes);
 	}
 
-	void IClipMap::dump(clipMap_t* asset)
+	void clip_map::dump(clipMap_t* asset)
 	{
 		const auto path = asset->name + ".colmap"s;
 

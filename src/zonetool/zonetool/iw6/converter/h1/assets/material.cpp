@@ -64,7 +64,7 @@ matdata[#entry] = carr##entry;
 					}
 				}
 
-				void dump(Material* iw6_asset, ZoneMemory* mem)
+				void dump(Material* iw6_asset, zone_memory* mem)
 				{
 					auto* asset = converter::h1::material::convert(iw6_asset, mem);
 
@@ -299,9 +299,9 @@ matdata[#entry] = carr##entry;
 				//return material_type;
 			}
 
-			zonetool::h1::Material* convert(Material* asset, ZoneMemory* mem)
+			zonetool::h1::Material* convert(Material* asset, zone_memory* mem)
 			{
-				auto* new_asset = mem->Alloc<zonetool::h1::Material>();
+				auto* new_asset = mem->allocate<zonetool::h1::Material>();
 
 				REINTERPRET_CAST_SAFE(name);
 
@@ -367,7 +367,7 @@ matdata[#entry] = carr##entry;
 				REINTERPRET_CAST_SAFE(constantTable);
 				
 				// statemap
-				new_asset->stateBitsTable = mem->Alloc<zonetool::h1::GfxStateBits>(asset->stateBitsCount); // don't convert, dump from old
+				new_asset->stateBitsTable = mem->allocate<zonetool::h1::GfxStateBits>(asset->stateBitsCount); // don't convert, dump from old
 
 				std::memset(new_asset->constantBufferIndex, 0xFF, zonetool::h1::MaterialTechniqueType::TECHNIQUE_COUNT);
 				for (auto i = 0; i < MaterialTechniqueType::TECHNIQUE_COUNT; i++)
@@ -414,7 +414,7 @@ matdata[#entry] = carr##entry;
 				return new_asset;
 			}
 
-			void dump(Material* asset, ZoneMemory* mem)
+			void dump(Material* asset, zone_memory* mem)
 			{
 				ree::dump(asset, mem);
 			}

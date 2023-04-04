@@ -155,22 +155,22 @@ namespace zonetool::h2
 		return hash;
 	}
 
-	StringTable* StringTable_Parse(std::string name, ZoneMemory* mem)
+	StringTable* StringTable_Parse(std::string name, zone_memory* mem)
 	{
 		auto table = std::make_unique<CSV>(name);
-		auto stringtable = mem->Alloc<StringTable>();
+		auto stringtable = mem->allocate<StringTable>();
 
-		stringtable->name = mem->StrDup(name.c_str());
+		stringtable->name = mem->duplicate_string(name.c_str());
 		stringtable->rowCount = static_cast<int>(table->rows());
 		stringtable->columnCount = static_cast<int>(table->max_columns());
-		stringtable->values = mem->Alloc<StringTableCell>(stringtable->rowCount * stringtable->columnCount);
+		stringtable->values = mem->allocate<StringTableCell>(stringtable->rowCount * stringtable->columnCount);
 
 		for (int row = 0; row < table->rows(); row++)
 		{
 			for (int col = 0; col < table->columns(row); col++)
 			{
 				int entry = (row * stringtable->columnCount) + col;
-				stringtable->values[entry].string = mem->StrDup(table->entry(row, col).c_str());
+				stringtable->values[entry].string = mem->duplicate_string(table->entry(row, col).c_str());
 				stringtable->values[entry].hash = StringTable_Hash(stringtable->values[entry].string);
 			}
 		}
@@ -178,18 +178,18 @@ namespace zonetool::h2
 		return stringtable;
 	}
 
-	void IStringTable::init(const std::string& name, ZoneMemory* mem)
+	void string_table::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
-		this->asset_ = DB_FindXAssetHeader_Safe(static_cast<XAssetType>(this->type()), this->name().data()).stringTable;
+		this->asset_ = db_find_x_asset_header_safe(static_cast<XAssetType>(this->type()), this->name().data()).stringTable;
 		if (filesystem::file(name).exists())
 		{
 			ZONETOOL_INFO("Parsing stringtable \"%s\"...", name.data());
@@ -197,25 +197,25 @@ namespace zonetool::h2
 		}
 	}
 
-	void IStringTable::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void string_table::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IStringTable::load_depending(IZone* zone)
+	void string_table::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string IStringTable::name()
+	std::string string_table::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IStringTable::type()
+	std::int32_t string_table::type()
 	{
 		return ASSET_TYPE_STRINGTABLE;
 	}
 
-	void IStringTable::write(IZone* zone, ZoneBuffer* buf)
+	void string_table::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		auto dest = buf->write(data);
@@ -240,13 +240,13 @@ namespace zonetool::h2
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->values);
+			zone_buffer::clear_pointer(&dest->values);
 		}
 
 		buf->pop_stream();
 	}
 
-	void IStringTable::dump(StringTable* asset)
+	void string_table::dump(StringTable* asset)
 	{
 		auto file = filesystem::file(asset->name);
 		file.open("wb");

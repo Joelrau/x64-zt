@@ -130,7 +130,7 @@ namespace zonetool::s1
 				}
 			}
 
-			void dump(GfxImage* asset, ZoneMemory* mem)
+			void dump(GfxImage* asset, zone_memory* mem)
 			{
 				if (asset->streamed)
 				{

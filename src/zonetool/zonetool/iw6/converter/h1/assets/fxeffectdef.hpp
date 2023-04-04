@@ -6,8 +6,8 @@ namespace zonetool::iw6
 	{
 		namespace fxeffectdef
 		{
-			zonetool::h1::FxEffectDef* convert(FxEffectDef* asset, ZoneMemory* mem);
-			void dump(FxEffectDef* asset, ZoneMemory* mem);
+			zonetool::h1::FxEffectDef* convert(FxEffectDef* asset, zone_memory* mem);
+			void dump(FxEffectDef* asset, zone_memory* mem);
 		}
 	}
 }

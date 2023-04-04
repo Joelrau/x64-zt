@@ -3,39 +3,39 @@
 
 namespace zonetool::h2
 {
-	void IPhysConstraint::init(const std::string& name, ZoneMemory* mem)
+	void phys_constraint::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
-		this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name().data()).physConstraint;
+		this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).physConstraint;
 	}
 
-	void IPhysConstraint::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void phys_constraint::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IPhysConstraint::load_depending(IZone* zone)
+	void phys_constraint::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string IPhysConstraint::name()
+	std::string phys_constraint::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IPhysConstraint::type()
+	std::int32_t phys_constraint::type()
 	{
 		return ASSET_TYPE_PHYSCONSTRAINT;
 	}
 
-	void IPhysConstraint::write(IZone* zone, ZoneBuffer* buf)
+	void phys_constraint::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		auto dest = buf->write(data);
@@ -47,7 +47,7 @@ namespace zonetool::h2
 		buf->pop_stream();
 	}
 
-	void IPhysConstraint::dump(PhysConstraint* asset)
+	void phys_constraint::dump(PhysConstraint* asset)
 	{
 	}
 }

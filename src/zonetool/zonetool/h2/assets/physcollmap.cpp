@@ -3,39 +3,39 @@
 
 namespace zonetool::h2
 {
-	void IPhysCollmap::init(const std::string& name, ZoneMemory* mem)
+	void phys_collmap::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
-		this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name().data()).physCollmap;
+		this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).physCollmap;
 	}
 
-	void IPhysCollmap::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void phys_collmap::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IPhysCollmap::load_depending(IZone* zone)
+	void phys_collmap::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string IPhysCollmap::name()
+	std::string phys_collmap::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IPhysCollmap::type()
+	std::int32_t phys_collmap::type()
 	{
 		return ASSET_TYPE_PHYSCOLLMAP;
 	}
 
-	void IPhysCollmap::write(IZone* zone, ZoneBuffer* buf)
+	void phys_collmap::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		auto dest = buf->write(data);
@@ -61,55 +61,55 @@ namespace zonetool::h2
 					{
 						buf->align(15);
 						buf->write(data_poly_data->vec4_array0, data_poly_data->count0);
-						ZoneBuffer::clear_pointer(&dest_poly_data->vec4_array0);
+						zone_buffer::clear_pointer(&dest_poly_data->vec4_array0);
 					}
 
 					if (data_poly_data->vec4_array1)
 					{
 						buf->align(15);
 						buf->write(data_poly_data->vec4_array1, data_poly_data->count1);
-						ZoneBuffer::clear_pointer(&dest_poly_data->vec4_array1);
+						zone_buffer::clear_pointer(&dest_poly_data->vec4_array1);
 					}
 
 					if (data_poly_data->edges)
 					{
 						buf->align(3);
 						buf->write(data_poly_data->edges, data_poly_data->count2);
-						ZoneBuffer::clear_pointer(&dest_poly_data->edges);
+						zone_buffer::clear_pointer(&dest_poly_data->edges);
 					}
 
 					if (data_poly_data->uint8_array0)
 					{
 						buf->align(0);
 						buf->write(data_poly_data->uint8_array0, data_poly_data->count1);
-						ZoneBuffer::clear_pointer(&dest_poly_data->uint8_array0);
+						zone_buffer::clear_pointer(&dest_poly_data->uint8_array0);
 					}
 
 					if (data_poly_data->uint16_array0)
 					{
 						buf->align(1);
 						buf->write(data_poly_data->uint16_array0, data_poly_data->count1);
-						ZoneBuffer::clear_pointer(&dest_poly_data->uint16_array0);
+						zone_buffer::clear_pointer(&dest_poly_data->uint16_array0);
 					}
 
 					if (data_poly_data->uint16_array1)
 					{
 						buf->align(1);
 						buf->write(data_poly_data->uint16_array1, data_poly_data->count0);
-						ZoneBuffer::clear_pointer(&dest_poly_data->uint16_array1);
+						zone_buffer::clear_pointer(&dest_poly_data->uint16_array1);
 					}
 
-					ZoneBuffer::clear_pointer(&dest_geoms[i].data);
+					zone_buffer::clear_pointer(&dest_geoms[i].data);
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->geoms);
+			zone_buffer::clear_pointer(&dest->geoms);
 		}
 
 		buf->pop_stream();
 	}
 
-	void IPhysCollmap::dump(PhysCollmap* asset)
+	void phys_collmap::dump(PhysCollmap* asset)
 	{
 	}
 }

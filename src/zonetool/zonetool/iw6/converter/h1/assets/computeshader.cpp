@@ -10,23 +10,23 @@ namespace zonetool::iw6
 	{
 		namespace computeshader
 		{
-			zonetool::h1::ComputeShader* convert(ComputeShader* asset, ZoneMemory* mem)
+			zonetool::h1::ComputeShader* convert(ComputeShader* asset, zone_memory* mem)
 			{
-				auto* new_asset = mem->Alloc<zonetool::h1::ComputeShader>();
+				auto* new_asset = mem->allocate<zonetool::h1::ComputeShader>();
 
 				new_asset->prog.loadDef.program = asset->prog.loadDef.program;
 				new_asset->prog.loadDef.programSize = asset->prog.loadDef.programSize;
 				//memcpy(&new_asset->prog.loadDef.__pad, &asset->prog.loadDef.loadForRenderer, sizeof(short));
 
-				new_asset->name = mem->StrDup(asset->name + TECHSET_PREFIX);
+				new_asset->name = mem->duplicate_string(asset->name + TECHSET_PREFIX);
 
 				return new_asset;
 			}
 
-			void dump(ComputeShader* asset, ZoneMemory* mem)
+			void dump(ComputeShader* asset, zone_memory* mem)
 			{
 				auto* converted_asset = convert(asset, mem);
-				zonetool::h1::IComputeShader::dump(converted_asset);
+				zonetool::h1::compute_shader::dump(converted_asset);
 			}
 		}
 	}

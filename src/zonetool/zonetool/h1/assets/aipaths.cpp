@@ -60,17 +60,17 @@ namespace zonetool::h1
 		}
 	}
 
-	void write_node_tree_children(ZoneBuffer* buf, pathnode_tree_t* data, pathnode_tree_t** dest)
+	void write_node_tree_children(zone_buffer* buf, pathnode_tree_t* data, pathnode_tree_t** dest)
 	{
 		buf->align(3);
 		const auto tree = buf->write(data);
-		ZoneBuffer::clear_pointer(dest);
+		zone_buffer::clear_pointer(dest);
 
 		if (data->axis < 0)
 		{
 			buf->align(1);
 			buf->write(data->u.s.nodes, data->u.s.nodeCount);
-			ZoneBuffer::clear_pointer(&tree->u.s.nodes);
+			zone_buffer::clear_pointer(&tree->u.s.nodes);
 		}
 		else
 		{
@@ -84,13 +84,13 @@ namespace zonetool::h1
 		}
 	}
 
-	void write_node_tree(ZoneBuffer* buf, pathnode_tree_t* data, pathnode_tree_t* dest)
+	void write_node_tree(zone_buffer* buf, pathnode_tree_t* data, pathnode_tree_t* dest)
 	{
 		if (data->axis < 0)
 		{
 			buf->align(1);
 			buf->write(data->u.s.nodes, data->u.s.nodeCount);
-			ZoneBuffer::clear_pointer(&data->u.s.nodes);
+			zone_buffer::clear_pointer(&data->u.s.nodes);
 		}
 		else
 		{
@@ -129,14 +129,14 @@ namespace zonetool::h1
 		return std::sqrtf((a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]));
 	}
 
-	pathnode_tree_t* allocate_tree(PathData* asset, ZoneMemory* mem)
+	pathnode_tree_t* allocate_tree(PathData* asset, zone_memory* mem)
 	{
 		++asset->nodeTreeCount;
 		return reinterpret_cast<pathnode_tree_t*>(
 			::h1::game::Hunk_AllocAlignInternal(sizeof(pathnode_tree_t), 4));
 	}
 
-	pathnode_tree_t* build_node_tree(PathData* asset, ZoneMemory* mem, 
+	pathnode_tree_t* build_node_tree(PathData* asset, zone_memory* mem, 
 		unsigned short* node_indexes, unsigned int num_nodes)
 	{
 		if (num_nodes < 4)
@@ -240,7 +240,7 @@ namespace zonetool::h1
 
 
 	PathData* parse_from_botwarfare(const std::string& path, 
-		const std::string& name, ZoneMemory* mem)
+		const std::string& name, zone_memory* mem)
 	{
 		auto file = filesystem::file(path);
 		file.open("rb");
@@ -253,8 +253,8 @@ namespace zonetool::h1
 		ZONETOOL_INFO("Parsing botwarfare waypoints \"%s\"...", path.data());
 
 		auto table = csv::parser(filesystem::get_file_path(path) + path);
-		const auto asset = mem->Alloc<PathData>();
-		asset->name = mem->StrDup(name);
+		const auto asset = mem->allocate<PathData>();
+		asset->name = mem->duplicate_string(name);
 
 		if (table.get_num_rows() <= 0)
 		{
@@ -263,7 +263,7 @@ namespace zonetool::h1
 
 		const auto rows = table.get_rows();
 		asset->nodeCount = std::atoi(rows[0]->fields[0]);
-		asset->nodes = mem->Alloc<pathnode_t>(asset->nodeCount);
+		asset->nodes = mem->allocate<pathnode_t>(asset->nodeCount);
 
 		if (table.get_num_rows() < static_cast<int>(asset->nodeCount))
 		{
@@ -302,23 +302,23 @@ namespace zonetool::h1
 				node->constant.___u9.angles[2] = static_cast<float>(std::atof(angles_str[2].data()));
 			}
 
-			IMapEnts::add_entity_string("{\n");
-			IMapEnts::add_entity_string("\"classname\" \"node_pathnode\"\n");
-			IMapEnts::add_entity_string(utils::string::va("\"origin\" \"%f %f %f\"\n",
+			map_ents::add_entity_string("{\n");
+			map_ents::add_entity_string("\"classname\" \"node_pathnode\"\n");
+			map_ents::add_entity_string(utils::string::va("\"origin\" \"%f %f %f\"\n",
 				node->constant.vLocalOrigin[0],
 				node->constant.vLocalOrigin[1],
 				node->constant.vLocalOrigin[2]
 			));
-			IMapEnts::add_entity_string(utils::string::va("\"angles\" \"%f %f %f\"\n", 
+			map_ents::add_entity_string(utils::string::va("\"angles\" \"%f %f %f\"\n", 
 				node->constant.___u9.angles[0],
 				node->constant.___u9.angles[1],
 				node->constant.___u9.angles[2]
 			));
-			IMapEnts::add_entity_string("}\n");
+			map_ents::add_entity_string("}\n");
 
 			const auto links_str = utils::string::split(row->fields[1], ' ');
 			node->constant.totalLinkCount = static_cast<unsigned short>(links_str.size());
-			node->constant.Links = mem->Alloc<pathlink_s>(links_str.size());
+			node->constant.Links = mem->allocate<pathlink_s>(links_str.size());
 			for (auto o = 0; o < node->constant.totalLinkCount; o++)
 			{
 				const auto num = std::atoi(links_str[o].data());
@@ -344,7 +344,7 @@ namespace zonetool::h1
 			}
 		}
 
-		const auto node_indexes = mem->Alloc<unsigned short>(asset->nodeCount);
+		const auto node_indexes = mem->allocate<unsigned short>(asset->nodeCount);
 		for (auto i = 0u; i < asset->nodeCount; i++)
 		{
 			node_indexes[i] = static_cast<unsigned short>(i);
@@ -355,7 +355,7 @@ namespace zonetool::h1
 		return asset;
 	}
 
-	PathData* IAIPaths::parse(const std::string& name, ZoneMemory* mem)
+	PathData* IAIPaths::parse(const std::string& name, zone_memory* mem)
 	{
 		assetmanager::reader read(mem);
 
@@ -415,7 +415,7 @@ namespace zonetool::h1
 		return asset;
 	}
 
-	void IAIPaths::init(const std::string& name, ZoneMemory* mem)
+	void IAIPaths::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = "maps/"s + (filesystem::get_fastfile().substr(0, 3) == "mp_" ? "mp/" : "") + filesystem::get_fastfile() + ".d3dbsp"; // name;
 		this->asset_ = parse_from_botwarfare(name, this->name_, mem);
@@ -432,7 +432,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IAIPaths::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void IAIPaths::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 		auto* data = this->asset_;
 
@@ -453,7 +453,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IAIPaths::load_depending(IZone* zone)
+	void IAIPaths::load_depending(zone_base* zone)
 	{
 	}
 
@@ -467,7 +467,7 @@ namespace zonetool::h1
 		return ASSET_TYPE_AIPATHS;
 	}
 
-	void IAIPaths::write(IZone* zone, ZoneBuffer* buf)
+	void IAIPaths::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 
@@ -488,18 +488,18 @@ namespace zonetool::h1
 				{
 					buf->align(3);
 					dest_nodes[i].constant.Links = buf->write(data->nodes[i].constant.Links, data->nodes[i].constant.totalLinkCount);
-					ZoneBuffer::clear_pointer(&dest_nodes[i].constant.Links);
+					zone_buffer::clear_pointer(&dest_nodes[i].constant.Links);
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->nodes);
+			zone_buffer::clear_pointer(&dest->nodes);
 		}
 
 		if (data->pathVis)
 		{
 			buf->align(0);
 			buf->write(data->pathVis, data->visBytes);
-			ZoneBuffer::clear_pointer(&dest->pathVis);
+			zone_buffer::clear_pointer(&dest->pathVis);
 		}
 
 		if (data->nodeTree)
@@ -512,7 +512,7 @@ namespace zonetool::h1
 				write_node_tree(buf, &data->nodeTree[i], &dest_trees[i]);
 			}
 
-			ZoneBuffer::clear_pointer(&dest->nodeTree);
+			zone_buffer::clear_pointer(&dest->nodeTree);
 		}
 
 		if (data->dynamicNodeGroups)
@@ -531,39 +531,39 @@ namespace zonetool::h1
 					{
 						write_node_tree(buf, &data->dynamicNodeGroups[i].nodeTree[o], &dest_trees[o]);
 					}
-					ZoneBuffer::clear_pointer(dest->dynamicNodeGroups[i].nodeTree);
+					zone_buffer::clear_pointer(dest->dynamicNodeGroups[i].nodeTree);
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->dynamicNodeGroups);
+			zone_buffer::clear_pointer(&dest->dynamicNodeGroups);
 		}
 
 		if (data->pathExposure)
 		{
 			buf->align(0);
 			buf->write(data->pathExposure, data->exposureBytes);
-			ZoneBuffer::clear_pointer(dest->pathExposure);
+			zone_buffer::clear_pointer(dest->pathExposure);
 		}
 
 		if (data->pathNoPeekVis)
 		{
 			buf->align(0);
 			buf->write(data->pathNoPeekVis, data->noPeekVisBytes);
-			ZoneBuffer::clear_pointer(dest->pathNoPeekVis);
+			zone_buffer::clear_pointer(dest->pathNoPeekVis);
 		}
 
 		if (data->pathZones)
 		{
 			buf->align(0);
 			buf->write(data->pathZones, data->zonesBytes);
-			ZoneBuffer::clear_pointer(dest->pathZones);
+			zone_buffer::clear_pointer(dest->pathZones);
 		}
 
 		if (data->pathDynStates)
 		{
 			buf->align(0);
 			buf->write(data->pathDynStates, data->dynStatesBytes);
-			ZoneBuffer::clear_pointer(dest->pathDynStates);
+			zone_buffer::clear_pointer(dest->pathDynStates);
 		}
 
 		buf->pop_stream();

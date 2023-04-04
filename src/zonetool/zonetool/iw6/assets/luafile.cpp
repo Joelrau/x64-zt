@@ -3,7 +3,7 @@
 
 namespace zonetool::iw6
 {
-	LuaFile* ILuaFile::parse(const std::string& name, ZoneMemory* mem)
+	LuaFile* lua_file::parse(const std::string& name, zone_memory* mem)
 	{
 		auto file = filesystem::file(name);
 		file.open("rb");
@@ -15,11 +15,11 @@ namespace zonetool::iw6
 			const auto size = file.size();
 			auto data = file.read_bytes(size);
 
-			auto* luafile = mem->Alloc<LuaFile>();
-			luafile->name = mem->StrDup(name);
+			auto* luafile = mem->allocate<LuaFile>();
+			luafile->name = mem->duplicate_string(name);
 
 			luafile->len = static_cast<int>(size);
-			luafile->buffer = mem->Alloc<char>(luafile->len);
+			luafile->buffer = mem->allocate<char>(luafile->len);
 			memcpy(
 				const_cast<char*>(luafile->buffer),
 				data.data(),
@@ -33,43 +33,43 @@ namespace zonetool::iw6
 		return nullptr;
 	}
 
-	void ILuaFile::init(const std::string& name, ZoneMemory* mem)
+	void lua_file::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
 		this->asset_ = parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name_.data()).luaFile;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name_.data()).luaFile;
 		}
 	}
 
-	void ILuaFile::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void lua_file::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void ILuaFile::load_depending(IZone* zone)
+	void lua_file::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string ILuaFile::name()
+	std::string lua_file::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t ILuaFile::type()
+	std::int32_t lua_file::type()
 	{
 		return ASSET_TYPE_LUA_FILE;
 	}
 
-	void ILuaFile::write(IZone* zone, ZoneBuffer* buf)
+	void lua_file::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write<LuaFile>(data);
@@ -82,13 +82,13 @@ namespace zonetool::iw6
 		{
 			buf->align(15);
 			buf->write(data->buffer, data->len);
-			ZoneBuffer::clear_pointer(&dest->buffer);
+			zone_buffer::clear_pointer(&dest->buffer);
 		}
 
 		buf->pop_stream();
 	}
 
-	void ILuaFile::dump(LuaFile* asset)
+	void lua_file::dump(LuaFile* asset)
 	{
 		auto file = filesystem::file(asset->name);
 		file.open("wb");

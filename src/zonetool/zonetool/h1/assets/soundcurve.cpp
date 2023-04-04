@@ -3,7 +3,7 @@
 
 namespace zonetool::h1
 {
-	SndCurve* ISoundCurve::parse(const std::string& name, const std::string& type, ZoneMemory* mem)
+	SndCurve* sound_curve::parse(const std::string& name, const std::string& type, zone_memory* mem)
 	{
 		if (name.empty() || type.empty())
 		{
@@ -23,7 +23,7 @@ namespace zonetool::h1
 			file.close();
 			json data = json::parse(bytes);
 
-			auto asset = mem->Alloc<SndCurve>();
+			auto asset = mem->allocate<SndCurve>();
 
 			auto isDefault = data["isDefault"];
 			if (!isDefault.is_null())
@@ -34,7 +34,7 @@ namespace zonetool::h1
 			auto filename = data["filename"];
 			if (!filename.is_null() && !filename.empty())
 			{
-				asset->filename = mem->StrDup(filename.get<std::string>().data());
+				asset->filename = mem->duplicate_string(filename.get<std::string>().data());
 			}
 
 			auto knots = data["knots"];
@@ -60,47 +60,47 @@ namespace zonetool::h1
 		return nullptr;
 	}
 
-	SndCurve* ISoundCurve::parse(const std::string& name, ZoneMemory* mem)
+	SndCurve* sound_curve::parse(const std::string& name, zone_memory* mem)
 	{
 		return parse(name, "sndcurve", mem);
 	}
 
-	void ISoundCurve::init(const std::string& name, ZoneMemory* mem)
+	void sound_curve::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 		}
 
 		this->asset_ = parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name().data()).sndCurve;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).sndCurve;
 		}
 	}
 
-	void ISoundCurve::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void sound_curve::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void ISoundCurve::load_depending(IZone* zone)
+	void sound_curve::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string ISoundCurve::name()
+	std::string sound_curve::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t ISoundCurve::type()
+	std::int32_t sound_curve::type()
 	{
 		return ASSET_TYPE_SOUND_CURVE;
 	}
 
-	void ISoundCurve::write(IZone* zone, ZoneBuffer* buf)
+	void sound_curve::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		auto dest = buf->write(data);
@@ -112,7 +112,7 @@ namespace zonetool::h1
 		buf->pop_stream();
 	}
 
-	void ISoundCurve::dump(SndCurve* asset, const std::string& type)
+	void sound_curve::dump(SndCurve* asset, const std::string& type)
 	{
 		const auto path = type + "\\"s + asset->name + ".json";
 		auto file = filesystem::file(path);
@@ -138,7 +138,7 @@ namespace zonetool::h1
 		file.close();
 	}
 
-	void ISoundCurve::dump(SndCurve* asset)
+	void sound_curve::dump(SndCurve* asset)
 	{
 		dump(asset, "sndcurve");
 	}

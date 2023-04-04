@@ -6,7 +6,7 @@
 
 namespace zonetool::s1
 {
-	class ZoneBuffer
+	class zone_buffer
 	{
 	protected:
 		std::vector<std::uint8_t> m_buf;
@@ -43,11 +43,11 @@ namespace zonetool::s1
 		std::unordered_map<std::uintptr_t, std::uintptr_t> m_zonepointers;
 		
 	public:
-		ZoneBuffer();
-		~ZoneBuffer();
+		zone_buffer();
+		~zone_buffer();
 		
-		ZoneBuffer(std::vector<std::uint8_t> data);
-		ZoneBuffer(std::size_t size);
+		zone_buffer(std::vector<std::uint8_t> data);
+		zone_buffer(std::size_t size);
 		
 		std::uintptr_t get_stream_pos()
 		{

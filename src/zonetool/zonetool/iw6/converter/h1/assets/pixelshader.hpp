@@ -6,8 +6,8 @@ namespace zonetool::iw6
 	{
 		namespace pixelshader
 		{
-			zonetool::h1::MaterialPixelShader* convert(MaterialPixelShader* asset, ZoneMemory* mem);
-			void dump(MaterialPixelShader* asset, ZoneMemory* mem);
+			zonetool::h1::MaterialPixelShader* convert(MaterialPixelShader* asset, zone_memory* mem);
+			void dump(MaterialPixelShader* asset, zone_memory* mem);
 		}
 	}
 }

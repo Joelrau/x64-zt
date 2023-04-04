@@ -3,7 +3,7 @@
 
 namespace zonetool::iw6
 {
-	class IStructuredDataDefSet
+	class structured_data_def_set
 	{
 	private:
 		std::string name_;

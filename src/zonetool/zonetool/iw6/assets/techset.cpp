@@ -9,9 +9,9 @@
 
 namespace zonetool::iw6
 {
-	std::unordered_map<std::string, std::uintptr_t> ITechset::vertexdecl_pointers;
+	std::unordered_map<std::string, std::uintptr_t> techset::vertexdecl_pointers;
 
-	std::uintptr_t ITechset::get_vertexdecl_pointer(std::string vertexdecl)
+	std::uintptr_t techset::get_vertexdecl_pointer(std::string vertexdecl)
 	{
 		if (vertexdecl_pointers.find(vertexdecl) != vertexdecl_pointers.end())
 		{
@@ -20,7 +20,7 @@ namespace zonetool::iw6
 		return 0;
 	}
 
-	void ITechset::add_vertexdecl_pointer(std::string name, std::uintptr_t pointer)
+	void techset::add_vertexdecl_pointer(std::string name, std::uintptr_t pointer)
 	{
 		auto ptr = get_vertexdecl_pointer(name);
 		if (!ptr)
@@ -29,7 +29,7 @@ namespace zonetool::iw6
 		}
 	}
 
-	MaterialTechnique* parse_technique(const std::string& name, ZoneMemory* mem, std::uint32_t index)
+	MaterialTechnique* parse_technique(const std::string& name, zone_memory* mem, std::uint32_t index)
 	{
 		const auto path = "techsets\\" + name + ".technique";
 
@@ -47,7 +47,7 @@ namespace zonetool::iw6
 
 		header->name = reader.read_string();
 
-		const auto asset = mem->ManualAlloc<MaterialTechnique>(sizeof(MaterialTechniqueHeader) + (sizeof(MaterialPass) * header->passCount));
+		const auto asset = mem->manual_allocate<MaterialTechnique>(sizeof(MaterialTechniqueHeader) + (sizeof(MaterialPass) * header->passCount));
 		memcpy(&asset->hdr, header, sizeof(MaterialTechniqueHeader));
 		memcpy(asset->passArray, passes, sizeof(MaterialPass) * header->passCount);
 
@@ -61,7 +61,7 @@ namespace zonetool::iw6
 			if (asset->passArray[i].vertexDecl)
 			{
 				asset->passArray[i].vertexDecl = reader.read_asset<MaterialVertexDeclaration>();
-				asset->passArray[i].vertexDecl = IVertexDecl::parse(asset->passArray[i].vertexDecl->name, mem);
+				asset->passArray[i].vertexDecl = vertex_decl::parse(asset->passArray[i].vertexDecl->name, mem);
 			}
 
 			if (asset->passArray[i].hullShader)
@@ -98,7 +98,7 @@ namespace zonetool::iw6
 		return asset;
 	}
 
-	MaterialTechniqueSet* ITechset::parse(const std::string& name, ZoneMemory* mem)
+	MaterialTechniqueSet* techset::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = "techsets\\" + name + ".techset";
 
@@ -131,7 +131,7 @@ namespace zonetool::iw6
 		return asset;
 	}
 
-	void ITechset::parse_constant_buffer_indexes(const std::string& techset, unsigned char* indexes, ZoneMemory* mem)
+	void techset::parse_constant_buffer_indexes(const std::string& techset, unsigned char* indexes, zone_memory* mem)
 	{
 		const auto path = "techsets\\constantbuffer\\"s + techset + ".cbi";
 		auto file = filesystem::file(path);
@@ -148,7 +148,7 @@ namespace zonetool::iw6
 		ZONETOOL_FATAL("constantbufferindexes for techset \"%s\" are missing!", techset.data());
 	}
 
-	void ITechset::parse_constant_buffer_def_array(const std::string& techset, MaterialConstantBufferDef** def_ptr, unsigned char* count, ZoneMemory* mem)
+	void techset::parse_constant_buffer_def_array(const std::string& techset, MaterialConstantBufferDef** def_ptr, unsigned char* count, zone_memory* mem)
 	{
 		const auto path = "techsets\\constantbuffer\\"s + techset + ".cbt";
 		assetmanager::reader read(mem);
@@ -201,7 +201,7 @@ namespace zonetool::iw6
 		(*def_ptr) = def;
 	}
 
-	void ITechset::parse_stateinfo(const std::string& techset, Material* mat, ZoneMemory* mem)
+	void techset::parse_stateinfo(const std::string& techset, Material* mat, zone_memory* mem)
 	{
 		const auto path = "techsets\\state\\"s + techset + ".stateinfo"s;
 		filesystem::file file(path);
@@ -221,7 +221,7 @@ namespace zonetool::iw6
 		ZONETOOL_FATAL("stateinfo for techset \"%s\" are missing!", techset.data());
 	}
 
-	void ITechset::parse_statebits(const std::string& techset, unsigned char* statebits, ZoneMemory* mem)
+	void techset::parse_statebits(const std::string& techset, unsigned char* statebits, zone_memory* mem)
 	{
 		const auto path = "techsets\\state\\" + techset + ".statebits";
 		auto file = filesystem::file(path);
@@ -238,10 +238,10 @@ namespace zonetool::iw6
 		ZONETOOL_FATAL("statebits for techset \"%s\" are missing!", techset.data());
 	}
 
-	void ITechset::parse_statebitsmap(const std::string& techset, GfxStateBits** map, unsigned char* count,
+	void techset::parse_statebitsmap(const std::string& techset, GfxStateBits** map, unsigned char* count,
 		std::vector<std::array<std::uint64_t, 11>>* dssb,
 		std::vector<std::array<std::uint32_t, 3>>* bsb,
-		ZoneMemory* mem)
+		zone_memory* mem)
 	{
 		const auto path = "techsets\\state\\"s + techset + ".statebitsmap"s;
 		filesystem::file file(path);
@@ -255,7 +255,7 @@ namespace zonetool::iw6
 			auto stateMap = json::parse(bytes);
 			if (stateMap.size() > 0)
 			{
-				auto stateBits = mem->Alloc<GfxStateBits>(stateMap.size());
+				auto stateBits = mem->allocate<GfxStateBits>(stateMap.size());
 				for (int i = 0; i < stateMap.size(); i++)
 				{
 					stateBits[i].loadBits[0] = stateMap[i]["loadBits"][0].get<unsigned int>();
@@ -290,21 +290,21 @@ namespace zonetool::iw6
 		ZONETOOL_FATAL("statebitsmap for techset \"%s\" are missing!", techset.data());
 	}
 
-	void ITechset::init(const std::string& name, ZoneMemory* mem)
+	void techset::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
 		this->asset_ = this->parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name().data()).techniqueSet;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).techniqueSet;
 			if (DB_IsXAssetDefault(XAssetType(this->type()), this->name().data()))
 			{
 				ZONETOOL_FATAL("techset \"%s\" not found.", name.data());
@@ -312,7 +312,7 @@ namespace zonetool::iw6
 		}
 	}
 
-	void ITechset::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void techset::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 		auto data = this->asset_;
 		for (auto technique = 0u; technique < MaterialTechniqueType::TECHNIQUE_COUNT; technique++)
@@ -339,7 +339,7 @@ namespace zonetool::iw6
 		}
 	}
 
-	void ITechset::load_depending(IZone* zone)
+	void techset::load_depending(zone_base* zone)
 	{
 		auto data = this->asset_;
 
@@ -380,17 +380,17 @@ namespace zonetool::iw6
 		}
 	}
 
-	std::string ITechset::name()
+	std::string techset::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t ITechset::type()
+	std::int32_t techset::type()
 	{
 		return ASSET_TYPE_TECHNIQUE_SET;
 	}
 
-	void ITechset::write(IZone* zone, ZoneBuffer* buf)
+	void techset::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
@@ -452,7 +452,7 @@ namespace zonetool::iw6
 
 						buf->pop_stream();
 
-						ZoneBuffer::insert_pointer(&technique_passes[pass].vertexDecl);
+						zone_buffer::insert_pointer(&technique_passes[pass].vertexDecl);
 					}
 				}
 
@@ -503,15 +503,15 @@ namespace zonetool::iw6
 			}
 
 			buf->write_str(technique_header->name);
-			ZoneBuffer::clear_pointer(&technique_header->name);
+			zone_buffer::clear_pointer(&technique_header->name);
 
-			ZoneBuffer::clear_pointer(&dest->techniques[technique]);
+			zone_buffer::clear_pointer(&dest->techniques[technique]);
 		}
 
 		buf->pop_stream();
 	}
 
-	void ITechset::dump_constant_buffer_indexes(const std::string& techset, unsigned char* cbi)
+	void techset::dump_constant_buffer_indexes(const std::string& techset, unsigned char* cbi)
 	{
 		const auto path = "techsets\\constantbuffer\\"s + techset + ".cbi";
 		auto file = filesystem::file(path);
@@ -525,7 +525,7 @@ namespace zonetool::iw6
 		}
 	}
 
-	void ITechset::dump_constant_buffer_def_array(const std::string& techset, unsigned char count, MaterialConstantBufferDef* def)
+	void techset::dump_constant_buffer_def_array(const std::string& techset, unsigned char count, MaterialConstantBufferDef* def)
 	{
 		const auto path = "techsets\\constantbuffer\\"s + techset + ".cbt";
 		assetmanager::dumper dump;
@@ -575,7 +575,7 @@ namespace zonetool::iw6
 		dump.close();
 	}
 
-	void ITechset::dump_stateinfo(const std::string& techset, Material* mat)
+	void techset::dump_stateinfo(const std::string& techset, Material* mat)
 	{
 		const auto path = "techsets\\state\\"s + techset + ".stateinfo";
 
@@ -594,7 +594,7 @@ namespace zonetool::iw6
 		}
 	}
 
-	void ITechset::dump_statebits(const std::string& techset, unsigned char* statebits)
+	void techset::dump_statebits(const std::string& techset, unsigned char* statebits)
 	{
 		const auto path = "techsets\\state\\"s + techset + ".statebits";
 		auto file = filesystem::file(path);
@@ -608,7 +608,7 @@ namespace zonetool::iw6
 		}
 	}
 
-	void ITechset::dump_statebits_map(const std::string& techset, GfxStateBits* map, unsigned char count)
+	void techset::dump_statebits_map(const std::string& techset, GfxStateBits* map, unsigned char count)
 	{
 		const auto path = "techsets\\state\\"s + techset + ".statebitsmap";
 
@@ -650,7 +650,7 @@ namespace zonetool::iw6
 		}
 	}
 
-	void ITechset::dump_technique(MaterialTechnique* asset)
+	void techset::dump_technique(MaterialTechnique* asset)
 	{
 		const auto path = "techsets\\"s + asset->hdr.name + ".technique";
 
@@ -669,31 +669,31 @@ namespace zonetool::iw6
 			if (asset->passArray[i].vertexShader)
 			{
 				dumper.dump_asset(asset->passArray[i].vertexShader);
-				//IVertexShader::dump(asset->passArray[i].vertexShader);
+				//vertex_shader::dump(asset->passArray[i].vertexShader);
 			}
 
 			if (asset->passArray[i].vertexDecl)
 			{
 				dumper.dump_asset(asset->passArray[i].vertexDecl);
-				IVertexDecl::dump(asset->passArray[i].vertexDecl);
+				vertex_decl::dump(asset->passArray[i].vertexDecl);
 			}
 
 			if (asset->passArray[i].hullShader)
 			{
 				dumper.dump_asset(asset->passArray[i].hullShader);
-				//IHullShader::dump(asset->passArray[i].hullShader);
+				//hull_shader::dump(asset->passArray[i].hullShader);
 			}
 
 			if (asset->passArray[i].domainShader)
 			{
 				dumper.dump_asset(asset->passArray[i].domainShader);
-				//IDomainShader::dump(asset->passArray[i].domainShader);
+				//domain_shader::dump(asset->passArray[i].domainShader);
 			}
 
 			if (asset->passArray[i].pixelShader)
 			{
 				dumper.dump_asset(asset->passArray[i].pixelShader);
-				//IPixelShader::dump(asset->passArray[i].pixelShader);
+				//pixel_shader::dump(asset->passArray[i].pixelShader);
 			}
 
 			if (asset->passArray[i].args)
@@ -735,7 +735,7 @@ namespace zonetool::iw6
 		file.close();
 	}
 
-	void ITechset::dump(MaterialTechniqueSet* asset)
+	void techset::dump(MaterialTechniqueSet* asset)
 	{
 		const auto path = "techsets\\"s + asset->name + ".techset";
 
@@ -755,7 +755,7 @@ namespace zonetool::iw6
 			if (asset->techniques[i])
 			{
 				dumper.dump_string(asset->techniques[i]->hdr.name);
-				ITechset::dump_technique(asset->techniques[i]);
+				techset::dump_technique(asset->techniques[i]);
 			}
 		}
 

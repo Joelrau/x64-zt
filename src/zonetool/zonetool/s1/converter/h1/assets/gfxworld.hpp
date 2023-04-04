@@ -6,8 +6,8 @@ namespace zonetool::s1
 	{
 		namespace gfxworld
 		{
-			zonetool::h1::GfxWorld* convert(GfxWorld* asset, ZoneMemory* mem);
-			void dump(GfxWorld* asset, ZoneMemory* mem);
+			zonetool::h1::GfxWorld* convert(GfxWorld* asset, zone_memory* mem);
+			void dump(GfxWorld* asset, zone_memory* mem);
 		}
 	}
 }

@@ -3,7 +3,7 @@
 
 namespace zonetool::h2
 {
-	TTFDef* IFont::parse(const std::string& name, ZoneMemory* mem)
+	TTFDef* IFont::parse(const std::string& name, zone_memory* mem)
 	{
 		auto file = filesystem::file(name);
 		file.open("rb");
@@ -15,11 +15,11 @@ namespace zonetool::h2
 			const auto size = file.size();
 			auto data = file.read_bytes(size);
 			
-			auto* font = mem->Alloc<TTFDef>();
-			font->name = mem->StrDup(name);
+			auto* font = mem->allocate<TTFDef>();
+			font->name = mem->duplicate_string(name);
 
 			font->fileLen = static_cast<int>(size - 1);
-			font->file = mem->Alloc<char>(font->fileLen + 1);
+			font->file = mem->allocate<char>(font->fileLen + 1);
 			memcpy(
 				const_cast<char*>(font->file),
 				data.data(),
@@ -33,29 +33,29 @@ namespace zonetool::h2
 		return nullptr;
 	}
 
-	void IFont::init(const std::string& name, ZoneMemory* mem)
+	void IFont::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
 		this->asset_ = parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name_.data()).ttfDef;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name_.data()).ttfDef;
 		}
 	}
 
-	void IFont::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void IFont::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IFont::load_depending(IZone* zone)
+	void IFont::load_depending(zone_base* zone)
 	{
 	}
 
@@ -69,7 +69,7 @@ namespace zonetool::h2
 		return ASSET_TYPE_TTF;
 	}
 
-	void IFont::write(IZone* zone, ZoneBuffer* buf)
+	void IFont::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write<TTFDef>(data);
@@ -82,7 +82,7 @@ namespace zonetool::h2
 		{
 			buf->align(0);
 			buf->write(data->file, data->fileLen + 1);
-			ZoneBuffer::clear_pointer(&dest->file);
+			zone_buffer::clear_pointer(&dest->file);
 		}
 
 		buf->pop_stream();

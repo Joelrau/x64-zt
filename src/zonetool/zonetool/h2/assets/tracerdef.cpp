@@ -3,33 +3,33 @@
 
 namespace zonetool::h2
 {
-	TracerDef* ITracerDef::parse(const std::string& name, ZoneMemory* mem)
+	TracerDef* tracer_def::parse(const std::string& name, zone_memory* mem)
 	{
 		return nullptr;
 	}
 
-	void ITracerDef::init(const std::string& name, ZoneMemory* mem)
+	void tracer_def::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 		}
 
 		this->asset_ = this->parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name().data()).tracerDef;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).tracerDef;
 		}
 	}
 
-	void ITracerDef::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void tracer_def::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void ITracerDef::load_depending(IZone* zone)
+	void tracer_def::load_depending(zone_base* zone)
 	{
 		if (this->asset_->material)
 		{
@@ -42,17 +42,17 @@ namespace zonetool::h2
 		}
 	}
 
-	std::string ITracerDef::name()
+	std::string tracer_def::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t ITracerDef::type()
+	std::int32_t tracer_def::type()
 	{
 		return ASSET_TYPE_TRACER;
 	}
 
-	void ITracerDef::write(IZone* zone, ZoneBuffer* buf)
+	void tracer_def::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		auto dest = buf->write(data);
@@ -74,7 +74,7 @@ namespace zonetool::h2
 		buf->pop_stream();
 	}
 
-	void ITracerDef::dump(TracerDef* asset)
+	void tracer_def::dump(TracerDef* asset)
 	{
 	}
 }

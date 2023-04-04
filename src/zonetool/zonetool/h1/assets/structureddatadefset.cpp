@@ -25,7 +25,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IStructuredDataDefSet::dump(StructuredDataDefSet* asset)
+	void structured_data_def_set::dump(StructuredDataDefSet* asset)
 	{
 		const auto path = asset->name;
 		auto file = filesystem::file(path);

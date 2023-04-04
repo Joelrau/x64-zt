@@ -3,33 +3,33 @@
 
 namespace zonetool::iw6
 {
-	WeaponAttachment* IWeaponAttachment::parse(const std::string& name, ZoneMemory* mem)
+	WeaponAttachment* weapon_attachment::parse(const std::string& name, zone_memory* mem)
 	{
 		return nullptr;
 	}
 
-	void IWeaponAttachment::init(const std::string& name, ZoneMemory* mem)
+	void weapon_attachment::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 		this->asset_ = this->parse(name, mem);
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 		}
 
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name().data()).attachment;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).attachment;
 		}
 	}
 
-	void IWeaponAttachment::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void weapon_attachment::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IWeaponAttachment::load_depending(IZone* zone)
+	void weapon_attachment::load_depending(zone_base* zone)
 	{
 		auto data = this->asset_;
 
@@ -114,17 +114,17 @@ namespace zonetool::iw6
 		// TODO: projectile?
 	}
 
-	std::string IWeaponAttachment::name()
+	std::string weapon_attachment::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IWeaponAttachment::type()
+	std::int32_t weapon_attachment::type()
 	{
 		return ASSET_TYPE_ATTACHMENT;
 	}
 
-	void IWeaponAttachment::write(IZone* zone, ZoneBuffer* buf)
+	void weapon_attachment::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		auto dest = buf->write(data);
@@ -151,7 +151,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->worldModels);
+			zone_buffer::clear_pointer(&dest->worldModels);
 		}
 
 		if (data->viewModels)
@@ -167,7 +167,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->viewModels);
+			zone_buffer::clear_pointer(&dest->viewModels);
 		}
 
 		if (data->reticleViewModels)
@@ -183,7 +183,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			ZoneBuffer::clear_pointer(&dest->reticleViewModels);
+			zone_buffer::clear_pointer(&dest->reticleViewModels);
 		}
 
 		if (data->ammogeneral)
@@ -376,7 +376,7 @@ namespace zonetool::iw6
 		buf->pop_stream();
 	}
 
-	void IWeaponAttachment::dump(WeaponAttachment* asset)
+	void weapon_attachment::dump(WeaponAttachment* asset)
 	{
 	}
 }

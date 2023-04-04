@@ -3,7 +3,7 @@
 
 namespace zonetool::iw6
 {
-	XModelSurfs* IXSurface::parse(const std::string& name, ZoneMemory* mem)
+	XModelSurfs* xsurface::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = "xsurface\\" + name + ".xsurface_export";
 
@@ -64,43 +64,43 @@ namespace zonetool::iw6
 		return asset;
 	}
 
-	void IXSurface::init(const std::string& name, ZoneMemory* mem)
+	void xsurface::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
 		if (this->referenced())
 		{
-			this->asset_ = mem->Alloc<typename std::remove_reference<decltype(*this->asset_)>::type>();
-			this->asset_->name = mem->StrDup(name);
+			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
+			this->asset_->name = mem->duplicate_string(name);
 			return;
 		}
 
 		this->asset_ = this->parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader_Safe(XAssetType(this->type()), this->name_.data()).modelSurfs;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name_.data()).modelSurfs;
 		}
 	}
 
-	void IXSurface::prepare(ZoneBuffer* buf, ZoneMemory* mem)
+	void xsurface::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IXSurface::load_depending(IZone* zone)
+	void xsurface::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string IXSurface::name()
+	std::string xsurface::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IXSurface::type()
+	std::int32_t xsurface::type()
 	{
 		return ASSET_TYPE_XMODEL_SURFS;
 	}
 
-	void write_xsurface(IZone* zone, ZoneBuffer* buf, XSurface* dest, XSurface* data)
+	void write_xsurface(zone_base* zone, zone_buffer* buf, XSurface* dest, XSurface* data)
 	{
 		dest->vb0 = nullptr;
 		dest->vb0View = nullptr;
@@ -127,14 +127,14 @@ namespace zonetool::iw6
 				buf->write(reinterpret_cast<GfxPackedVertex*>(data->verts0.verts0), data->vertCount);
 			}
 
-			ZoneBuffer::clear_pointer(&dest->verts0.verts0);
+			zone_buffer::clear_pointer(&dest->verts0.verts0);
 		}
 
 		if (data->triIndices)
 		{
 			buf->align(15);
 			buf->write(data->triIndices, data->triCount);
-			ZoneBuffer::clear_pointer(&dest->triIndices);
+			zone_buffer::clear_pointer(&dest->triIndices);
 		}
 
 		if (data->rigidVertLists)
@@ -159,10 +159,10 @@ namespace zonetool::iw6
 						buf->align(1);
 						dest->rigidVertLists[vert].collisionTree->leafs = buf->write(data->rigidVertLists[vert].collisionTree->leafs, data->rigidVertLists[vert].collisionTree->leafCount);
 					}
-					ZoneBuffer::clear_pointer(&dest->rigidVertLists[vert].collisionTree);
+					zone_buffer::clear_pointer(&dest->rigidVertLists[vert].collisionTree);
 				}
 			}
-			ZoneBuffer::clear_pointer(&dest->rigidVertLists);
+			zone_buffer::clear_pointer(&dest->rigidVertLists);
 		}
 
 		if (data->blendVerts)
@@ -176,21 +176,21 @@ namespace zonetool::iw6
 				+ 11 * data->blendVertCounts[5]
 				+ 13 * data->blendVertCounts[6]
 				+ 15 * data->blendVertCounts[7]));
-			ZoneBuffer::clear_pointer(&dest->blendVerts);
+			zone_buffer::clear_pointer(&dest->blendVerts);
 		}
 
 		if (data->blendVertsTable)
 		{
 			buf->align(0);
 			buf->write_stream(data->blendVertsTable, 32, data->vertCount);
-			ZoneBuffer::clear_pointer(&dest->blendVertsTable);
+			zone_buffer::clear_pointer(&dest->blendVertsTable);
 		}
 
 		if (data->lmapUnwrap)
 		{
 			buf->align(3);
 			buf->write_stream(data->lmapUnwrap, 8, data->vertCount);
-			ZoneBuffer::clear_pointer(&dest->lmapUnwrap);
+			zone_buffer::clear_pointer(&dest->lmapUnwrap);
 		}
 
 		if (data->subdiv || data->subdivLevelCount)
@@ -211,18 +211,18 @@ namespace zonetool::iw6
 				+ data->blendVertCounts[6]
 				+ data->blendVertCounts[7]));
 
-			ZoneBuffer::clear_pointer(&dest->tensionData);
+			zone_buffer::clear_pointer(&dest->tensionData);
 		}
 
 		if (data->tensionAccumTable)
 		{
 			buf->align(1);
 			buf->write_stream(data->tensionAccumTable, 32, data->vertCount);
-			ZoneBuffer::clear_pointer(&dest->tensionAccumTable);
+			zone_buffer::clear_pointer(&dest->tensionAccumTable);
 		}
 	}
 
-	void IXSurface::write(IZone* zone, ZoneBuffer* buf)
+	void xsurface::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
@@ -244,7 +244,7 @@ namespace zonetool::iw6
 		buf->pop_stream();
 	}
 
-	void IXSurface::dump(XModelSurfs* asset)
+	void xsurface::dump(XModelSurfs* asset)
 	{
 		const auto path = "xsurface\\"s + asset->name + ".xsurface_export";
 

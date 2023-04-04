@@ -10,20 +10,20 @@ namespace zonetool::s1
 	{
 		namespace domainshader
 		{
-			zonetool::h1::MaterialDomainShader* convert(MaterialDomainShader* asset, ZoneMemory* mem)
+			zonetool::h1::MaterialDomainShader* convert(MaterialDomainShader* asset, zone_memory* mem)
 			{
-				auto* new_asset = mem->Alloc<zonetool::h1::MaterialDomainShader>();
+				auto* new_asset = mem->allocate<zonetool::h1::MaterialDomainShader>();
 
 				std::memcpy(new_asset, asset, sizeof(MaterialDomainShader));
-				new_asset->name = mem->StrDup(asset->name + TECHSET_PREFIX);
+				new_asset->name = mem->duplicate_string(asset->name + TECHSET_PREFIX);
 
 				return new_asset;
 			}
 
-			void dump(MaterialDomainShader* asset, ZoneMemory* mem)
+			void dump(MaterialDomainShader* asset, zone_memory* mem)
 			{
 				auto* converted_asset = convert(asset, mem);
-				zonetool::h1::IDomainShader::dump(converted_asset);
+				zonetool::h1::domain_shader::dump(converted_asset);
 			}
 		}
 	}

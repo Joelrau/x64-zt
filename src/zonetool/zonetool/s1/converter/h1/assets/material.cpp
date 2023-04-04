@@ -64,7 +64,7 @@ matdata[#entry] = carr##entry;
 					}
 				}
 
-				void dump(Material* s1_asset, ZoneMemory* mem)
+				void dump(Material* s1_asset, zone_memory* mem)
 				{
 					auto* asset = converter::h1::material::convert(s1_asset, mem);
 
@@ -159,9 +159,9 @@ matdata[#entry] = carr##entry;
 				}
 			}
 
-			zonetool::h1::Material* convert(Material* asset, ZoneMemory* mem)
+			zonetool::h1::Material* convert(Material* asset, zone_memory* mem)
 			{
-				auto* new_asset = mem->Alloc<zonetool::h1::Material>();
+				auto* new_asset = mem->allocate<zonetool::h1::Material>();
 
 				REINTERPRET_CAST_SAFE(name);
 
@@ -204,7 +204,7 @@ matdata[#entry] = carr##entry;
 				return new_asset;
 			}
 
-			void dump(Material* asset, ZoneMemory* mem)
+			void dump(Material* asset, zone_memory* mem)
 			{
 				ree::dump(asset, mem);
 			}

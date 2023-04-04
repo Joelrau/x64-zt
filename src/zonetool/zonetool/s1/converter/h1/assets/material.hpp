@@ -6,8 +6,8 @@ namespace zonetool::s1
 	{
 		namespace material
 		{
-			zonetool::h1::Material* convert(Material* asset, ZoneMemory* mem);
-			void dump(Material* asset, ZoneMemory* mem);
+			zonetool::h1::Material* convert(Material* asset, zone_memory* mem);
+			void dump(Material* asset, zone_memory* mem);
 		}
 	}
 }
