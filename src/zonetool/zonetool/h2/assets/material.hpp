@@ -12,7 +12,7 @@ namespace zonetool::h2
 		std::vector<std::array<std::uint64_t, 10>> depth_stenchil_state_bits;
 		std::vector<std::array<std::uint32_t, 3>> blend_state_bits;
 
-		MaterialTextureDef* prase_texture_table(json& matdata, zone_memory* mem);
+		MaterialTextureDef* parse_texture_table(json& matdata, zone_memory* mem);
 
 	public:
 		Material* parse(std::string name, zone_memory* mem);

@@ -53,7 +53,7 @@ namespace zonetool::h2
 		}
 	}
 
-	MaterialTextureDef* material::prase_texture_table(json& matdata, zone_memory* mem)
+	MaterialTextureDef* material::parse_texture_table(json& matdata, zone_memory* mem)
 	{
 		auto mat = mem->allocate<MaterialTextureDef>(matdata.size());
 
@@ -121,7 +121,7 @@ namespace zonetool::h2
 		json textureTable = matdata["textureTable"];
 		if (textureTable.size())
 		{
-			mat->textureTable = prase_texture_table(textureTable, mem);
+			mat->textureTable = parse_texture_table(textureTable, mem);
 		}
 		mat->textureCount = static_cast<unsigned char>(textureTable.size());
 
