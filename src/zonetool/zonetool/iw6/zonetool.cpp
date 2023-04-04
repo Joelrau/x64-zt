@@ -137,14 +137,6 @@ namespace zonetool::iw6
 			zonetool::h1::__interface__::dump(asset_ptr); \
 		}
 
-#define DUMP_ASSET_NO_CONVERT_SCRSTRING(__type__,__interface__,__struct__) \
-		if (asset->type == __type__) \
-		{ \
-			if(IS_DEBUG) ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
-			auto asset_ptr = reinterpret_cast<zonetool::h1::__struct__*>(asset->header.data); \
-			zonetool::h1::__interface__::dump(asset_ptr, reinterpret_cast<decltype(zonetool::h1::SL_ConvertToString.get())>(zonetool::iw6::SL_ConvertToString.get())); \
-		}
-
 #define DUMP_ASSET_CONVERT(__type__,__namespace__,__struct__) \
 		if (asset->type == __type__) \
 		{ \
@@ -181,7 +173,7 @@ namespace zonetool::iw6
 			DUMP_ASSET_CONVERT(ASSET_TYPE_SOUND, sound, snd_alias_list_t);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SOUND_CURVE, ISoundCurve, SndCurve);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_STRINGTABLE, IStringTable, StringTable);
-			DUMP_ASSET_NO_CONVERT_SCRSTRING(ASSET_TYPE_STRUCTURED_DATA_DEF, IStructuredDataDefSet, StructuredDataDefSet);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_STRUCTURED_DATA_DEF, IStructuredDataDefSet, StructuredDataDefSet);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_TECHNIQUE_SET, techset, MaterialTechniqueSet);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_TRACER, ITracerDef, TracerDef);
 			//DUMP_ASSET(ASSET_TYPE_FONT, IFontDef, Font_s);

@@ -60,7 +60,6 @@ namespace h2
 
 		WEAK symbol<const char* (int, int, int)> Key_KeynumToString{ 0x1403D32D0 };
 
-		WEAK symbol<const char* (unsigned int stringValue)> SL_ConvertToString{ 0x1405BFBB0 };
 		WEAK symbol<unsigned int(const char* str, unsigned int user)> SL_GetString{ 0x1405C0170 };
 		WEAK symbol<unsigned int(const char* str)> SL_GetCanonicalString{ 0x1405BC970 };
 

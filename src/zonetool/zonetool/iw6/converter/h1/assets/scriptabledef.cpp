@@ -64,8 +64,7 @@ namespace zonetool::iw6
 			void dump(ScriptableDef* asset, ZoneMemory* mem)
 			{
 				auto* converted_asset = convert(asset, mem);
-				zonetool::h1::IScriptableDef::dump(converted_asset, 
-					reinterpret_cast<decltype(zonetool::h1::SL_ConvertToString.get())>(zonetool::iw6::SL_ConvertToString.get()));
+				zonetool::h1::IScriptableDef::dump(converted_asset);
 			}
 		}
 	}

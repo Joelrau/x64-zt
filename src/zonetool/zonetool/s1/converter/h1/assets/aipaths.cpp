@@ -69,8 +69,7 @@ namespace zonetool::s1
 			void dump(PathData* asset, ZoneMemory* mem)
 			{
 				auto* converted_asset = convert(asset, mem);
-				zonetool::h1::IAIPaths::dump(converted_asset, 
-					reinterpret_cast<decltype(zonetool::h1::SL_ConvertToString.get())>(zonetool::s1::SL_ConvertToString.get()));
+				zonetool::h1::IAIPaths::dump(converted_asset);
 			}
 		}
 	}

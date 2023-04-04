@@ -134,14 +134,6 @@ namespace zonetool::s1
 			zonetool::h1::__interface__::dump(asset_ptr); \
 		}
 
-#define DUMP_ASSET_NO_CONVERT_SCRSTRING(__type__,__interface__,__struct__) \
-		if (asset->type == __type__) \
-		{ \
-			if(IS_DEBUG) ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
-			auto asset_ptr = reinterpret_cast<zonetool::h1::__struct__*>(asset->header.data); \
-			zonetool::h1::__interface__::dump(asset_ptr, reinterpret_cast<decltype(zonetool::h1::SL_ConvertToString.get())>(zonetool::s1::SL_ConvertToString.get())); \
-		}
-
 #define DUMP_ASSET_CONVERT(__type__,__namespace__,__struct__) \
 		if (asset->type == __type__) \
 		{ \
@@ -174,28 +166,28 @@ namespace zonetool::s1
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_NET_CONST_STRINGS, INetConstStrings, NetConstStrings);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_RAWFILE, IRawFile, RawFile);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_REVERB_CURVE, IReverbCurve, SndCurve);
-			DUMP_ASSET_NO_CONVERT_SCRSTRING(ASSET_TYPE_SCRIPTABLE, IScriptableDef, ScriptableDef);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SCRIPTABLE, IScriptableDef, ScriptableDef);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_SCRIPTFILE, scriptfile, ScriptFile);
-			DUMP_ASSET_NO_CONVERT_SCRSTRING(ASSET_TYPE_SKELETON_SCRIPT, ISkeletonScript, SkeletonScript);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SKELETON_SCRIPT, ISkeletonScript, SkeletonScript);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_SOUND, sound, snd_alias_list_t);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SOUND_CONTEXT, ISoundContext, SndContext);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SOUND_CURVE, ISoundCurve, SndCurve);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_STRINGTABLE, IStringTable, StringTable);
-			DUMP_ASSET_NO_CONVERT_SCRSTRING(ASSET_TYPE_STRUCTURED_DATA_DEF, IStructuredDataDefSet, StructuredDataDefSet);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_STRUCTURED_DATA_DEF, IStructuredDataDefSet, StructuredDataDefSet);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_TECHNIQUE_SET, techset, MaterialTechniqueSet);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_TRACER, ITracerDef, TracerDef);
 			//DUMP_ASSET(ASSET_TYPE_FONT, IFontDef, Font_s);
 			//DUMP_ASSET(ASSET_TYPE_ATTACHMENT, IWeaponAttachment, WeaponAttachment);
 			//DUMP_ASSET(ASSET_TYPE_WEAPON, IWeaponDef, WeaponDef);
-			DUMP_ASSET_NO_CONVERT_SCRSTRING(ASSET_TYPE_XANIMPARTS, IXAnimParts, XAnimParts);
-			DUMP_ASSET_NO_CONVERT_SCRSTRING(ASSET_TYPE_XMODEL, IXModel, XModel);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_XANIMPARTS, IXAnimParts, XAnimParts);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_XMODEL, IXModel, XModel);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_XMODELSURFS, IXSurface, XModelSurfs);
 
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_PHYSCOLLMAP, IPhysCollmap, PhysCollmap);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_PHYSCONSTRAINT, IPhysConstraint, PhysConstraint);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_PHYSPRESET, IPhysPreset, PhysPreset);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_PHYSWATERPRESET, IPhysWaterPreset, PhysWaterPreset);
-			DUMP_ASSET_NO_CONVERT_SCRSTRING(ASSET_TYPE_PHYSWORLDMAP, IPhysWorld, PhysWorld);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_PHYSWORLDMAP, IPhysWorld, PhysWorld);
 
 			DUMP_ASSET_CONVERT(ASSET_TYPE_COMPUTESHADER, computeshader, ComputeShader);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_DOMAINSHADER, domainshader, MaterialDomainShader);
@@ -208,7 +200,7 @@ namespace zonetool::s1
 			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENULIST, IMenuList, MenuList);
 
 			DUMP_ASSET_CONVERT(ASSET_TYPE_PATHDATA, aipaths, PathData);
-			DUMP_ASSET_NO_CONVERT_SCRSTRING(ASSET_TYPE_CLIPMAP, IClipMap, clipMap_t);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_CLIPMAP, IClipMap, clipMap_t);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_COMWORLD, IComWorld, ComWorld);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_FXWORLD, IFxWorld, FxWorld);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_GFXWORLD, gfxworld, GfxWorld);

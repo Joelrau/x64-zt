@@ -26,6 +26,4 @@ namespace zonetool::s1
 	WEAK::s1::game::symbol<void(XZoneInfo* zoneInfo, unsigned int zoneCount, DBSyncMode syncMode)> DB_LoadXAssets{ 0x140270F30 };
 	WEAK::s1::game::symbol<bool(const char* zone, int source)> DB_FileExists{ 0x14026EDC0 };
 	WEAK::s1::game::symbol<size_t(XAssetType type)> DB_GetXAssetTypeSize{ 0x140240DF0 };
-
-	WEAK::s1::game::symbol<char* (scr_string_t stringValue)> SL_ConvertToString{ 0x1403F0F10 };
 }

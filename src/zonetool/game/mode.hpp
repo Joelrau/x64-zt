@@ -5,10 +5,11 @@ namespace game
 	enum game_mode : std::int32_t
 	{
 		none = -1,
-		h1 = 0,
-		h2 = 1,
-		s1 = 2,
-		iw6 = 3,
+		iw6,
+		s1,
+		h1,
+		h2,
+		count,
 	};
 
 	std::string get_mode_as_string();

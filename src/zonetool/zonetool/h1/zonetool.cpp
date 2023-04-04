@@ -224,17 +224,6 @@ namespace zonetool::h1
 			converter::h2::__namespace__::dump(asset_ptr); \
 		} \
 
-#define DUMP_ASSET_SCRSTRING(__type__, __namespace__,__struct__) \
-		if (asset->type == __type__) \
-		{ \
-			if (IS_DEBUG) \
-			{ \
-				ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
-			} \
-			auto asset_ptr = reinterpret_cast<__struct__*>(asset->header.data); \
-			converter::h2::__namespace__::dump(asset_ptr, SL_ConvertToString); \
-		} \
-
 		try
 		{
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_CLUT, IClut, Clut);
@@ -248,7 +237,7 @@ namespace zonetool::h1
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_LPF_CURVE, ILpfCurve, SndCurve);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_LUA_FILE, ILuaFile, LuaFile);
 			DUMP_ASSET(ASSET_TYPE_MATERIAL, material, Material);
-			DUMP_ASSET_SCRSTRING(ASSET_TYPE_MAP_ENTS, mapents, MapEnts);
+			DUMP_ASSET(ASSET_TYPE_MAP_ENTS, mapents, MapEnts);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_NET_CONST_STRINGS, INetConstStrings, NetConstStrings);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_RAWFILE, IRawFile, RawFile);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_REVERB_CURVE, IReverbCurve, SndCurve);
@@ -266,7 +255,7 @@ namespace zonetool::h1
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_ATTACHMENT, IWeaponAttachment, WeaponAttachment);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_WEAPON, IWeaponDef, WeaponDef);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_XANIM, IXAnimParts, XAnimParts);
-			DUMP_ASSET_SCRSTRING(ASSET_TYPE_XMODEL, xmodel, XModel);
+			DUMP_ASSET(ASSET_TYPE_XMODEL, xmodel, XModel);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_XMODEL_SURFS, IXSurface, XModelSurfs);
 			
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_PHYSCOLLMAP, IPhysCollmap, PhysCollmap);

@@ -119,7 +119,7 @@ namespace zonetool::h1
 		buf->pop_stream();
 	}
 
-	void ISkeletonScript::dump(SkeletonScript* asset, const std::function<const char* (scr_string_t)>& convertToString)
+	void ISkeletonScript::dump(SkeletonScript* asset)
 	{
 	}
 }

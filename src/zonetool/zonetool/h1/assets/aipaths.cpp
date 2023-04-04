@@ -600,7 +600,7 @@ namespace zonetool::h1
 			}
 		}
 	}
-	void IAIPaths::dump(PathData* asset, const std::function<const char* (scr_string_t)>& convertToString)
+	void IAIPaths::dump(PathData* asset)
 	{
 		const auto path = asset->name + ".aipaths"s;
 
@@ -616,19 +616,19 @@ namespace zonetool::h1
 		dumper.dump_array(asset->nodes, asset->nodeCount);
 		for (auto i = 0u; i < asset->nodeCount; i++)
 		{
-			dumper.dump_string(convertToString(asset->nodes[i].constant.targetname));
-			dumper.dump_string(convertToString(asset->nodes[i].constant.script_linkName));
-			dumper.dump_string(convertToString(asset->nodes[i].constant.script_noteworthy));
-			dumper.dump_string(convertToString(asset->nodes[i].constant.target));
-			dumper.dump_string(convertToString(asset->nodes[i].constant.animscript));
+			dumper.dump_string(SL_ConvertToString(asset->nodes[i].constant.targetname));
+			dumper.dump_string(SL_ConvertToString(asset->nodes[i].constant.script_linkName));
+			dumper.dump_string(SL_ConvertToString(asset->nodes[i].constant.script_noteworthy));
+			dumper.dump_string(SL_ConvertToString(asset->nodes[i].constant.target));
+			dumper.dump_string(SL_ConvertToString(asset->nodes[i].constant.animscript));
 
 			if (!asset->parentIndexResolved)
 			{
-				dumper.dump_string(convertToString(asset->nodes[i].constant.parent.name));
+				dumper.dump_string(SL_ConvertToString(asset->nodes[i].constant.parent.name));
 			}
 
 			dumper.dump_array(asset->nodes[i].constant.Links, asset->nodes[i].constant.totalLinkCount);
-			dumper.dump_string(convertToString(asset->nodes[i].constant.unk));
+			dumper.dump_string(SL_ConvertToString(asset->nodes[i].constant.unk));
 		}
 
 		dumper.dump_array(asset->pathVis, asset->visBytes);

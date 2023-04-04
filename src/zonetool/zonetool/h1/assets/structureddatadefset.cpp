@@ -25,7 +25,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IStructuredDataDefSet::dump(StructuredDataDefSet* asset, const std::function<const char* (scr_string_t)>& convertToString)
+	void IStructuredDataDefSet::dump(StructuredDataDefSet* asset)
 	{
 		const auto path = asset->name;
 		auto file = filesystem::file(path);
@@ -63,7 +63,7 @@ namespace zonetool::h1
 				for (auto a = 0; a < current_def->enums[i].entryCount; a++)
 				{
 					temp1.clear();
-					temp1["string"] = convertToString(current_def->enums[i].entries[a].string);
+					temp1["string"] = SL_ConvertToString(current_def->enums[i].entries[a].string);
 					temp1["index"] = current_def->enums[i].entries[a].index;
 					temp0["entries"].push_back(temp1);
 				}
@@ -79,7 +79,7 @@ namespace zonetool::h1
 				for (auto a = 0; a < current_def->structs[i].propertyCount; a++)
 				{
 					temp1.clear();
-					temp1["name"] = convertToString(current_def->structs[i].properties[a].name);
+					temp1["name"] = SL_ConvertToString(current_def->structs[i].properties[a].name);
 					temp1["type"] = current_def->structs[i].properties[a].type.type;
 					temp1["index"] = get_data_type_index(current_def->structs[i].properties[a].type);
 					temp1["offset"] = current_def->structs[i].properties[a].offset;

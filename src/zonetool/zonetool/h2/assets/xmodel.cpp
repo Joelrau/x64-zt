@@ -494,7 +494,7 @@ namespace zonetool::h2
 		IXModel::dump(asset);
 	}
 
-	void IXModel::dump(XModel* asset, const std::function<const char*(unsigned int)>& convert_to_string)
+	void IXModel::dump(XModel* asset)
 	{
 		const auto path = "xmodel\\"s + asset->name + ".xmodel_export";
 
@@ -512,7 +512,7 @@ namespace zonetool::h2
 		dump.dump_array(asset->boneNames, asset->numBones);
 		for (unsigned char i = 0; i < asset->numBones; i++)
 		{
-			dump.dump_string(convert_to_string(asset->boneNames[i]));
+			dump.dump_string(SL_ConvertToString(asset->boneNames[i]));
 		}
 
 		// basic info

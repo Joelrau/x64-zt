@@ -71,7 +71,6 @@ namespace s1
 
 		WEAK symbol<unsigned int(int)> Live_SyncOnlineDataFlags{ 0x140562830 };
 
-		WEAK symbol<const char* (scr_string_t stringValue)> SL_ConvertToString{ 0x1403F0F10 };
 		WEAK symbol<scr_string_t(const char* str)> SL_FindString{ 0x1403F11C0 };
 		WEAK symbol<scr_string_t(const char* str, unsigned int user)> SL_GetString{ 0x1403F1440 };
 		WEAK symbol<unsigned int(char const* str)> SL_GetCanonicalString{ 0x1403EDCA0 };

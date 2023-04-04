@@ -9,6 +9,7 @@
 
 #include "shader.hpp"
 #include "game/mode.hpp"
+#include "game/shared.hpp"
 
 #include <utils/memory.hpp>
 

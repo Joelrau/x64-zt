@@ -27,6 +27,5 @@ namespace zonetool::iw6
 	WEAK::iw6::game::symbol<bool(const char* zone, int source)> DB_FileExists{ 0x14031F0E0 };
 	WEAK::iw6::game::symbol<size_t(XAssetType type)> DB_GetXAssetTypeSize{ 0x1402FB180 };
 
-	WEAK::iw6::game::symbol<char* (scr_string_t stringValue)> SL_ConvertToString{ 0x1404317F0 };
 	WEAK::iw6::game::symbol<scr_string_t(const char* s, int sys)> SL_AllocString{ 0x140432060 };
 }

@@ -238,7 +238,7 @@ namespace zonetool::h1
 		buf->pop_stream();
 	}
 
-	void IPhysWorld::dump(PhysWorld* asset, const std::function<const char* (scr_string_t)>& convertToString)
+	void IPhysWorld::dump(PhysWorld* asset)
 	{
 		const auto path = asset->name + ".physmap"s;
 
@@ -273,7 +273,7 @@ namespace zonetool::h1
 		for (unsigned int i = 0; i < asset->waterVolumesCount; i++)
 		{
 			write.dump_asset(asset->waterVolumes[i].physWaterPreset);
-			write.dump_string(convertToString(asset->waterVolumes[i].string));
+			write.dump_string(SL_ConvertToString(asset->waterVolumes[i].string));
 		}
 
 		write.close();

@@ -363,8 +363,7 @@ namespace zonetool::iw6
 			void dump(clipMap_t* asset, ZoneMemory* mem)
 			{
 				auto* converted_asset = convert(asset, mem);
-				zonetool::h1::IClipMap::dump(converted_asset, 
-					reinterpret_cast<decltype(zonetool::h1::SL_ConvertToString.get())>(zonetool::iw6::SL_ConvertToString.get()));
+				zonetool::h1::IClipMap::dump(converted_asset);
 
 				// dump physmap here too i guess, since it's needed.
 				auto* physmap = mem->Alloc<zonetool::h1::PhysWorld>();
@@ -392,8 +391,7 @@ namespace zonetool::iw6
 				physmap->waterVolumesCount = 0;
 				physmap->waterVolumes = nullptr;
 
-				zonetool::h1::IPhysWorld::dump(physmap, 
-					reinterpret_cast<decltype(zonetool::h1::SL_ConvertToString.get())>(zonetool::iw6::SL_ConvertToString.get()));
+				zonetool::h1::IPhysWorld::dump(physmap);
 			}
 		}
 	}

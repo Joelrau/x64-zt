@@ -542,7 +542,7 @@ namespace zonetool::h1
 		buf->pop_stream();
 	}
 
-	void IXAnimParts::dump(XAnimParts* asset, const std::function<const char* (scr_string_t)>& convertToString)
+	void IXAnimParts::dump(XAnimParts* asset)
 	{
 		const auto path = "xanim\\"s + asset->name + ".xanim_export";
 
@@ -559,7 +559,7 @@ namespace zonetool::h1
 		{
 			for (unsigned char bone = 0; bone < asset->boneCount[9]; bone++)
 			{
-				dump.dump_string(convertToString(asset->names[bone]));
+				dump.dump_string(SL_ConvertToString(asset->names[bone]));
 			}
 		}
 
@@ -605,7 +605,7 @@ namespace zonetool::h1
 			dump.dump_array(asset->notify, asset->notifyCount);
 			for (unsigned char i = 0; i < asset->notifyCount; i++)
 			{
-				dump.dump_string(convertToString(asset->notify[i].name));
+				dump.dump_string(SL_ConvertToString(asset->notify[i].name));
 			}
 		}
 
@@ -715,7 +715,7 @@ namespace zonetool::h1
 		{
 			for (auto name = 0; name < asset->blendShapeWeightCount; name++)
 			{
-				dump.dump_string(convertToString(asset->blendShapeWeightNames[name]));
+				dump.dump_string(SL_ConvertToString(asset->blendShapeWeightNames[name]));
 			}
 		}
 

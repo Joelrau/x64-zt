@@ -472,7 +472,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMapEnts::dump_spawnList(const std::string& name, SpawnPointRecordList* spawnList, const std::function<const char* (scr_string_t)>& convertToString)
+	void IMapEnts::dump_spawnList(const std::string& name, SpawnPointRecordList* spawnList)
 	{
 		const auto path = name + ".ents.spawnList"s;
 		auto file = filesystem::file(path);
@@ -487,10 +487,10 @@ namespace zonetool::h1
 
 		for (unsigned short i = 0; i < spawnList->spawnsCount; i++)
 		{
-			data[i]["name"] = convertToString(spawnList->spawns[i].name);
-			data[i]["target"] = convertToString(spawnList->spawns[i].target);
-			data[i]["script_noteworthy"] = convertToString(spawnList->spawns[i].script_noteworthy);
-			data[i]["unknown"] = convertToString(spawnList->spawns[i].unknown);
+			data[i]["name"] = SL_ConvertToString(spawnList->spawns[i].name);
+			data[i]["target"] = SL_ConvertToString(spawnList->spawns[i].target);
+			data[i]["script_noteworthy"] = SL_ConvertToString(spawnList->spawns[i].script_noteworthy);
+			data[i]["unknown"] = SL_ConvertToString(spawnList->spawns[i].unknown);
 			for (auto j = 0; j < 3; j++)
 			{
 				data[i]["origin"][j] = spawnList->spawns[i].origin[j];
@@ -583,13 +583,13 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMapEnts::dump(MapEnts* asset, const std::function<const char* (scr_string_t)>& convertToString)
+	void IMapEnts::dump(MapEnts* asset)
 	{
 		dump_entityStrings(asset->name, asset->entityString, asset->numEntityChars);
 		dump_triggers(asset->name, &asset->trigger);
 		dump_clientTriggers(asset->name, &asset->clientTrigger);
 		dump_clientBlendTriggers(asset->name, &asset->clientTriggerBlend);
-		dump_spawnList(asset->name, &asset->spawnList, convertToString);
+		dump_spawnList(asset->name, &asset->spawnList);
 		dump_splineList(asset->name, &asset->splineList);
 	}
 }

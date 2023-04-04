@@ -27,7 +27,6 @@ namespace zonetool::h2
 		std::int32_t type() override;
 		void write(IZone* zone, ZoneBuffer* buffer) override;
 
-		static void dump(XModel* asset, 
-			const std::function<const char*(unsigned int)>& convert_to_string = SL_ConvertToString.get());
+		static void dump(XModel* asset);
 	};
 }

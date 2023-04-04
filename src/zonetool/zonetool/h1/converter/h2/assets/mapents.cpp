@@ -66,12 +66,11 @@ namespace zonetool::h1
 				return new_asset;
 			}
 
-			void dump(zonetool::h1::MapEnts* asset, 
-				const std::function<const char* (unsigned int)>& convert_to_string)
+			void dump(zonetool::h1::MapEnts* asset)
 			{
 				utils::memory::allocator allocator;
 				const auto converted_asset = convert(asset, allocator);
-				zonetool::h2::IMapEnts::dump(converted_asset, convert_to_string);
+				zonetool::h2::IMapEnts::dump(converted_asset);
 			}
 		}
 	}

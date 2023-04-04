@@ -228,8 +228,7 @@ namespace zonetool::s1
 			void dump(MapEnts* asset, ZoneMemory* mem)
 			{
 				auto* converted_asset = convert(asset, mem);
-				zonetool::h1::IMapEnts::dump(converted_asset,
-					reinterpret_cast<decltype(zonetool::h1::SL_ConvertToString.get())>(zonetool::s1::SL_ConvertToString.get()));
+				zonetool::h1::IMapEnts::dump(converted_asset);
 
 				// dump the converted mapent strings
 				dump_entityStrings(asset->name, asset->entityString, asset->numEntityChars);
