@@ -5,16 +5,7 @@
 
 namespace zonetool::h2
 {
-	void dump_asset(XAsset* asset);
-	void stop_dumping();
-
-	bool verify = false;
-	bool dump = false;
-
-	filesystem::file csv_file;
-	bool dump_to_zonetool = false;
-
-	// referenced assets
+	zonetool_globals_t globals{};
 	std::vector<std::pair<XAssetType, std::string>> referenced_assets;
 
 	const char* get_asset_name(XAssetType type, void* pointer)
@@ -106,172 +97,178 @@ namespace zonetool::h2
 		}), &callback, includeOverride);
 	}
 
+	void dump_asset_h2(XAsset* asset)
+	{
+#define DUMP_ASSET(__type__,__interface__,__struct__) \
+		if (asset->type == __type__) \
+		{ \
+			auto asset_ptr = reinterpret_cast<__struct__*>(asset->header.data); \
+			__interface__::dump(asset_ptr); \
+		}
+
+		try
+		{
+			DUMP_ASSET(ASSET_TYPE_CLUT, IClut, Clut);
+			DUMP_ASSET(ASSET_TYPE_DOPPLER_PRESET, IDopplerPreset, DopplerPreset);
+			DUMP_ASSET(ASSET_TYPE_FX, IFxEffectDef, FxEffectDef);
+			DUMP_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, IFxParticleSimAnimation, FxParticleSimAnimation);
+			DUMP_ASSET(ASSET_TYPE_IMAGE, IGfxImage, GfxImage);
+			DUMP_ASSET(ASSET_TYPE_LIGHT_DEF, IGfxLightDef, GfxLightDef);
+			DUMP_ASSET(ASSET_TYPE_LOADED_SOUND, ILoadedSound, LoadedSound);
+			DUMP_ASSET(ASSET_TYPE_LOCALIZE_ENTRY, ILocalize, LocalizeEntry);
+			DUMP_ASSET(ASSET_TYPE_LPF_CURVE, ILpfCurve, SndCurve);
+			DUMP_ASSET(ASSET_TYPE_LUA_FILE, ILuaFile, LuaFile);
+			DUMP_ASSET(ASSET_TYPE_MATERIAL, IMaterial, Material);
+			DUMP_ASSET(ASSET_TYPE_MAP_ENTS, IMapEnts, MapEnts);
+			DUMP_ASSET(ASSET_TYPE_NET_CONST_STRINGS, INetConstStrings, NetConstStrings);
+			DUMP_ASSET(ASSET_TYPE_RAWFILE, IRawFile, RawFile);
+			DUMP_ASSET(ASSET_TYPE_REVERB_CURVE, IReverbCurve, SndCurve);
+			DUMP_ASSET(ASSET_TYPE_SCRIPTABLE, IScriptableDef, ScriptableDef);
+			DUMP_ASSET(ASSET_TYPE_SCRIPTFILE, IScriptFile, ScriptFile);
+			DUMP_ASSET(ASSET_TYPE_SKELETONSCRIPT, ISkeletonScript, SkeletonScript);
+			DUMP_ASSET(ASSET_TYPE_SOUND, ISound, snd_alias_list_t);
+			DUMP_ASSET(ASSET_TYPE_SOUND_CONTEXT, ISoundContext, SndContext);
+			DUMP_ASSET(ASSET_TYPE_SOUND_CURVE, ISoundCurve, SndCurve);
+			DUMP_ASSET(ASSET_TYPE_STRINGTABLE, IStringTable, StringTable);
+			DUMP_ASSET(ASSET_TYPE_STRUCTUREDDATADEF, IStructuredDataDefSet, StructuredDataDefSet);
+			DUMP_ASSET(ASSET_TYPE_TECHNIQUE_SET, ITechset, MaterialTechniqueSet);
+			DUMP_ASSET(ASSET_TYPE_TRACER, ITracerDef, TracerDef);
+			DUMP_ASSET(ASSET_TYPE_TTF, IFont, TTFDef);
+			DUMP_ASSET(ASSET_TYPE_ATTACHMENT, IWeaponAttachment, WeaponAttachment);
+			DUMP_ASSET(ASSET_TYPE_WEAPON, IWeaponDef, WeaponDef);
+			DUMP_ASSET(ASSET_TYPE_VEHICLE, IVehicleDef, VehicleDef);
+			DUMP_ASSET(ASSET_TYPE_XANIM, IXAnimParts, XAnimParts);
+			DUMP_ASSET(ASSET_TYPE_XMODEL, IXModel, XModel);
+			DUMP_ASSET(ASSET_TYPE_XMODEL_SURFS, IXSurface, XModelSurfs);
+
+			DUMP_ASSET(ASSET_TYPE_PHYSCOLLMAP, IPhysCollmap, PhysCollmap);
+			DUMP_ASSET(ASSET_TYPE_PHYSCONSTRAINT, IPhysConstraint, PhysConstraint);
+			DUMP_ASSET(ASSET_TYPE_PHYSPRESET, IPhysPreset, PhysPreset);
+			DUMP_ASSET(ASSET_TYPE_PHYSWATERPRESET, IPhysWaterPreset, PhysWaterPreset);
+			DUMP_ASSET(ASSET_TYPE_PHYSWORLDMAP, IPhysWorld, PhysWorld);
+
+			DUMP_ASSET(ASSET_TYPE_COMPUTESHADER, IComputeShader, ComputeShader);
+			DUMP_ASSET(ASSET_TYPE_DOMAINSHADER, IDomainShader, MaterialDomainShader);
+			DUMP_ASSET(ASSET_TYPE_HULLSHADER, IHullShader, MaterialHullShader);
+			DUMP_ASSET(ASSET_TYPE_PIXELSHADER, IPixelShader, MaterialPixelShader);
+			//DUMP_ASSET(ASSET_TYPE_VERTEXDECL, IVertexDecl, MaterialVertexDeclaration);
+			DUMP_ASSET(ASSET_TYPE_VERTEXSHADER, IVertexShader, MaterialVertexShader);
+
+			DUMP_ASSET(ASSET_TYPE_AIPATHS, IAIPaths, PathData);
+			DUMP_ASSET(ASSET_TYPE_COL_MAP_SP, IClipMap, clipMap_t);
+			DUMP_ASSET(ASSET_TYPE_COM_MAP, IComWorld, ComWorld);
+			DUMP_ASSET(ASSET_TYPE_FX_MAP, IFxWorld, FxWorld);
+			DUMP_ASSET(ASSET_TYPE_GFX_MAP, IGfxWorld, GfxWorld);
+			DUMP_ASSET(ASSET_TYPE_GLASS_MAP, IGlassWorld, GlassWorld);
+		}
+		catch (const std::exception& e)
+		{
+			ZONETOOL_FATAL("A fatal exception occured while dumping zone \"%s\", exception was: \n%s",
+				filesystem::get_fastfile().data(), e.what());
+		}
+	}
+
+	std::unordered_map<game::game_mode, std::function<void(XAsset*)>> dump_functions =
+	{
+		{game::h2, dump_asset_h2},
+	};
+
 	void dump_asset(XAsset* asset)
 	{
-		if (verify)
+		if (globals.verify)
 		{
 			ZONETOOL_INFO("Loading asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type));
 		}
 
-		// dump all
-		//dump = true;
-		//std::string fastfile = static_cast<std::string>(
-		//	reinterpret_cast<const char*>(*reinterpret_cast<std::uintptr_t*>(0x14338E020) + 32));
-		//filesystem::set_fastfile(fastfile);
-
-		if (!dump)
+		if (!globals.dump)
 		{
 			return;
 		}
 
-		// open csv file for dumping 
-		if (csv_file.get_fp() == nullptr)
+		if (globals.csv_file.get_fp() == nullptr)
 		{
-			csv_file = filesystem::file(filesystem::get_fastfile() + ".csv");
-			csv_file.open("wb");
+			globals.csv_file = filesystem::file(filesystem::get_fastfile() + ".csv");
+			globals.csv_file.open("wb");
 		}
 
 		// dump assets to disk
-		if (csv_file.get_fp()/* && !is_referenced_asset(xasset)*/)
+		if (globals.csv_file.get_fp()/* && !is_referenced_asset(xasset)*/)
 		{
-			fprintf(csv_file.get_fp(), "%s,%s\n", type_to_string(asset->type), get_asset_name(asset));
+			std::fprintf(globals.csv_file.get_fp(), "%s,%s\n", type_to_string(asset->type), get_asset_name(asset));
 		}
 
 		// dump referenced later
 		if (is_referenced_asset(asset))
 		{
-			//referenced_assets.push_back({ asset->type, get_asset_name(asset) });
+			//referenced_assets.emplace_back(asset->type, get_asset_name(asset));
+			return;
 		}
-		else
+
+		const auto dump_func = dump_functions.find(globals.target_game);
+		if (dump_func == dump_functions.end())
 		{
-#define DUMP_ASSET(__type__,__interface__,__struct__) \
-				if (asset->type == __type__) \
-				{ \
-					auto asset_ptr = reinterpret_cast<__struct__*>(asset->header.data); \
-					__interface__::dump(asset_ptr); \
-				}
-
-			try
-			{
-				DUMP_ASSET(ASSET_TYPE_CLUT, IClut, Clut);
-				DUMP_ASSET(ASSET_TYPE_DOPPLER_PRESET, IDopplerPreset, DopplerPreset);
-				DUMP_ASSET(ASSET_TYPE_FX, IFxEffectDef, FxEffectDef);
-				DUMP_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, IFxParticleSimAnimation, FxParticleSimAnimation);
-				DUMP_ASSET(ASSET_TYPE_IMAGE, IGfxImage, GfxImage);
-				DUMP_ASSET(ASSET_TYPE_LIGHT_DEF, IGfxLightDef, GfxLightDef);
-				DUMP_ASSET(ASSET_TYPE_LOADED_SOUND, ILoadedSound, LoadedSound);
-				DUMP_ASSET(ASSET_TYPE_LOCALIZE_ENTRY, ILocalize, LocalizeEntry);
-				DUMP_ASSET(ASSET_TYPE_LPF_CURVE, ILpfCurve, SndCurve);
-				DUMP_ASSET(ASSET_TYPE_LUA_FILE, ILuaFile, LuaFile);
-				DUMP_ASSET(ASSET_TYPE_MATERIAL, IMaterial, Material);
-				DUMP_ASSET(ASSET_TYPE_MAP_ENTS, IMapEnts, MapEnts);
-				DUMP_ASSET(ASSET_TYPE_NET_CONST_STRINGS, INetConstStrings, NetConstStrings);
-				DUMP_ASSET(ASSET_TYPE_RAWFILE, IRawFile, RawFile);
-				DUMP_ASSET(ASSET_TYPE_REVERB_CURVE, IReverbCurve, SndCurve);
-				DUMP_ASSET(ASSET_TYPE_SCRIPTABLE, IScriptableDef, ScriptableDef);
-				DUMP_ASSET(ASSET_TYPE_SCRIPTFILE, IScriptFile, ScriptFile);
-				DUMP_ASSET(ASSET_TYPE_SKELETONSCRIPT, ISkeletonScript, SkeletonScript);
-				DUMP_ASSET(ASSET_TYPE_SOUND, ISound, snd_alias_list_t);
-				DUMP_ASSET(ASSET_TYPE_SOUND_CONTEXT, ISoundContext, SndContext);
-				DUMP_ASSET(ASSET_TYPE_SOUND_CURVE, ISoundCurve, SndCurve);
-				DUMP_ASSET(ASSET_TYPE_STRINGTABLE, IStringTable, StringTable);
-				DUMP_ASSET(ASSET_TYPE_STRUCTUREDDATADEF, IStructuredDataDefSet, StructuredDataDefSet);
-				DUMP_ASSET(ASSET_TYPE_TECHNIQUE_SET, ITechset, MaterialTechniqueSet);
-				DUMP_ASSET(ASSET_TYPE_TRACER, ITracerDef, TracerDef);
-				DUMP_ASSET(ASSET_TYPE_TTF, IFont, TTFDef);
-				DUMP_ASSET(ASSET_TYPE_ATTACHMENT, IWeaponAttachment, WeaponAttachment);
-				DUMP_ASSET(ASSET_TYPE_WEAPON, IWeaponDef, WeaponDef);
-				DUMP_ASSET(ASSET_TYPE_VEHICLE, IVehicleDef, VehicleDef);
-				DUMP_ASSET(ASSET_TYPE_XANIM, IXAnimParts, XAnimParts);
-				DUMP_ASSET(ASSET_TYPE_XMODEL, IXModel, XModel);
-				DUMP_ASSET(ASSET_TYPE_XMODEL_SURFS, IXSurface, XModelSurfs);
-
-				DUMP_ASSET(ASSET_TYPE_PHYSCOLLMAP, IPhysCollmap, PhysCollmap);
-				DUMP_ASSET(ASSET_TYPE_PHYSCONSTRAINT, IPhysConstraint, PhysConstraint);
-				DUMP_ASSET(ASSET_TYPE_PHYSPRESET, IPhysPreset, PhysPreset);
-				DUMP_ASSET(ASSET_TYPE_PHYSWATERPRESET, IPhysWaterPreset, PhysWaterPreset);
-				DUMP_ASSET(ASSET_TYPE_PHYSWORLDMAP, IPhysWorld, PhysWorld);
-
-				DUMP_ASSET(ASSET_TYPE_COMPUTESHADER, IComputeShader, ComputeShader);
-				DUMP_ASSET(ASSET_TYPE_DOMAINSHADER, IDomainShader, MaterialDomainShader);
-				DUMP_ASSET(ASSET_TYPE_HULLSHADER, IHullShader, MaterialHullShader);
-				DUMP_ASSET(ASSET_TYPE_PIXELSHADER, IPixelShader, MaterialPixelShader);
-				//DUMP_ASSET(ASSET_TYPE_VERTEXDECL, IVertexDecl, MaterialVertexDeclaration);
-				DUMP_ASSET(ASSET_TYPE_VERTEXSHADER, IVertexShader, MaterialVertexShader);
-
-				DUMP_ASSET(ASSET_TYPE_AIPATHS, IAIPaths, PathData);
-				DUMP_ASSET(ASSET_TYPE_COL_MAP_SP, IClipMap, clipMap_t);
-				DUMP_ASSET(ASSET_TYPE_COM_MAP, IComWorld, ComWorld);
-				DUMP_ASSET(ASSET_TYPE_FX_MAP, IFxWorld, FxWorld);
-				DUMP_ASSET(ASSET_TYPE_GFX_MAP, IGfxWorld, GfxWorld);
-				DUMP_ASSET(ASSET_TYPE_GLASS_MAP, IGlassWorld, GlassWorld);
-			}
-			catch (const std::exception& e)
-			{
-				ZONETOOL_FATAL("A fatal exception occured while dumping zone \"%s\", exception was: \n%s", 
-					filesystem::get_fastfile().data(), e.what());
-			}
+			const auto name = game::get_mode_as_string(globals.target_game);
+			ZONETOOL_ERROR("Dump mode \"%s\" is not supported", name.data());
+			return;
 		}
+
+		dump_func->second(asset);
 	}
 
 	void stop_dumping()
 	{
-		static bool stopping = false;
-		if (stopping)
+		if (!globals.dump)
 		{
 			return;
 		}
-		stopping = true;
 
-		if (dump)
+		// remove duplicates
+		std::sort(referenced_assets.begin(), referenced_assets.end());
+		referenced_assets.erase(std::unique(referenced_assets.begin(),
+			referenced_assets.end()), referenced_assets.end());
+
+		for (auto& asset : referenced_assets)
 		{
-			// remove duplicates
-			sort(referenced_assets.begin(), referenced_assets.end());
-			referenced_assets.erase(unique(referenced_assets.begin(), referenced_assets.end()), referenced_assets.end());
-
-			for (auto& asset : referenced_assets)
+			if (asset.second.length() <= 1)
 			{
-				if (asset.second.length() <= 1)
-				{
-					continue;
-				}
-
-				const auto asset_name = &asset.second[1];
-
-				if (asset.first == ASSET_TYPE_IMAGE)
-				{
-					ZONETOOL_WARNING("Not dumping referenced asset \"%s\" of type \"%s\"", asset_name, type_to_string(asset.first));
-					continue;
-				}
-
-				const auto& asset_header = DB_FindXAssetHeader_Safe(asset.first, asset_name);
-
-				if (!asset_header.data || DB_IsXAssetDefault(asset.first, asset_name))
-				{
-					ZONETOOL_ERROR("Could not find referenced asset \"%s\" of type \"%s\"", asset_name, type_to_string(asset.first));
-					continue;
-				}
-
-				//ZONETOOL_INFO("Dumping additional asset \"%s\" of type \"%s\"", asset_name, type_to_string(asset.first));
-
-				XAsset referenced_asset = {
-					asset.first,
-					asset_header
-				};
-
-				dump_asset(&referenced_asset);
+				continue;
 			}
 
-			ZONETOOL_INFO("Zone \"%s\" dumped.", filesystem::get_fastfile().data());
+			const auto asset_name = &asset.second[1];
 
-			referenced_assets.clear();
+			if (asset.first == ASSET_TYPE_IMAGE)
+			{
+				ZONETOOL_WARNING("Not dumping referenced asset \"%s\" of type \"%s\"", asset_name, type_to_string(asset.first));
+				continue;
+			}
 
-			csv_file.close();
-			csv_file = {};
+			const auto& asset_header = DB_FindXAssetHeader_Safe(asset.first, asset_name);
 
-			dump = false;
+			if (!asset_header.data || DB_IsXAssetDefault(asset.first, asset_name))
+			{
+				ZONETOOL_ERROR("Could not find referenced asset \"%s\" of type \"%s\"", asset_name, type_to_string(asset.first));
+				continue;
+			}
+
+			//ZONETOOL_INFO("Dumping additional asset \"%s\" of type \"%s\"", asset_name, type_to_string(asset.first));
+
+			XAsset referenced_asset = 
+			{
+				asset.first,
+				asset_header
+			};
+
+			dump_asset(&referenced_asset);
 		}
-		stopping = false;
+
+		ZONETOOL_INFO("Zone \"%s\" dumped.", filesystem::get_fastfile().data());
+
+		referenced_assets.clear();
+
+		globals.csv_file.close();
+		globals.csv_file = {};
+
+		globals.dump = false;
 	}
 
 	utils::hook::detour db_link_x_asset_entry1_hook;
@@ -290,7 +287,7 @@ namespace zonetool::h2
 	utils::hook::detour db_finish_load_x_file_hook;
 	void db_finish_load_x_file_stub()
 	{
-		verify = false;
+		globals.verify = false;
 		stop_dumping();
 		return db_finish_load_x_file_hook.invoke<void>();
 	}
@@ -330,7 +327,7 @@ namespace zonetool::h2
 
 		wait_for_database();
 
-		if (!dump && !verify)
+		if (!globals.dump && !globals.verify)
 		{
 			for (unsigned int i = 0; i < *g_zoneCount; i++)
 			{
@@ -364,7 +361,7 @@ namespace zonetool::h2
 		ZONETOOL_INFO("Unloaded zones...");
 	}
 
-	void dump_zone(const std::string& name)
+	void dump_zone(const std::string& name, const game::game_mode target)
 	{
 		if (!zone_exists(name.data()))
 		{
@@ -374,16 +371,17 @@ namespace zonetool::h2
 
 		wait_for_database();
 
+		globals.target_game = target;
 		ZONETOOL_INFO("Dumping zone \"%s\"...", name.data());
 
 		filesystem::set_fastfile(name);
-		dump = true;
+		globals.dump = true;
 		if (!load_zone(name, DB_LOAD_ASYNC, false))
 		{
-			dump = false;
+			globals.dump = false;
 		}
 
-		while (dump)
+		while (globals.dump)
 		{
 			Sleep(1);
 		}
@@ -399,13 +397,13 @@ namespace zonetool::h2
 
 		wait_for_database();
 
-		verify = true;
+		globals.verify = true;
 		if (!load_zone(name, DB_LOAD_ASYNC, true))
 		{
-			verify = false;
+			globals.verify = false;
 		}
 
-		while (verify)
+		while (globals.verify)
 		{
 			Sleep(1);
 		}
@@ -414,40 +412,35 @@ namespace zonetool::h2
 	void add_assets_using_iterator(const std::string& fastfile, const std::string& type, const std::string& folder,
 		const std::string& extension, bool skip_reference, IZone* zone)
 	{
-		if (std::filesystem::is_directory("zonetool\\" + fastfile + "\\" + folder))
+		const auto path = "zonetool\\" + fastfile + "\\" + folder;
+		if (!std::filesystem::is_directory(path))
 		{
-			for (auto& file : std::filesystem::recursive_directory_iterator(
-				"zonetool\\" + fastfile + "\\" + folder))
+			return;
+		}
+
+		const auto iter = std::filesystem::recursive_directory_iterator(path);
+		for (auto& file : iter)
+		{
+			if (!is_regular_file(file))
 			{
-				if (is_regular_file(file))
-				{
-					auto filename = file.path().filename().string();
+				continue;
+			}
 
-					if (skip_reference && filename[0] == ',')
-					{
-						// skip this file
-						continue;
-					}
+			const auto filename = file.path().filename().string();
 
-					if (!extension.empty())
-					{
-						// check if the filename contains the correct extension
-						if (filename.length() > extension.length() &&
-							filename.substr(filename.length() - extension.length()) == extension)
-						{
-							// remove the extension
-							filename = filename.substr(0, filename.length() - extension.length());
+			if (skip_reference && filename[0] == ',')
+			{
+				continue;
+			}
 
-							// add asset to disk
-							zone->add_asset_of_type(type, filename);
-						}
-					}
-					else if (file.path().extension().empty())
-					{
-						// add asset to disk
-						zone->add_asset_of_type(type, filename);
-					}
-				}
+			if (!extension.empty() && filename.ends_with(extension))
+			{
+				const auto base_name = filename.substr(0, filename.length() - extension.length());
+				zone->add_asset_of_type(type, base_name);
+			}
+			else if (file.path().extension().empty())
+			{
+				zone->add_asset_of_type(type, filename);
 			}
 		}
 	}
@@ -473,12 +466,16 @@ namespace zonetool::h2
 		for (auto row_index = 0; row_index < parser.get_num_rows(); row_index++)
 		{
 			auto* row = rows[row_index];
-			if (row == nullptr || row->fields == nullptr)
+			if (row == nullptr)
 			{
 				continue;
 			}
 
-			// parse options
+			if (!row->fields)
+			{
+				continue;
+			}
+
 			if ((strlen(row->fields[0]) >= 1 && row->fields[0][0] == '#') || (strlen(row->fields[0]) >= 2 && row->
 				fields[0][0] == '/' && row->fields[0][1] == '/'))
 			{
@@ -492,7 +489,8 @@ namespace zonetool::h2
 			}
 			if (row->fields[0] == "require"s)
 			{
-				load_zone(row->fields[1], DB_LOAD_SYNC);
+				load_zone(row->fields[1], DB_LOAD_ASYNC);
+				wait_for_database();
 			}
 			else if (row->fields[0] == "include"s)
 			{
@@ -507,33 +505,36 @@ namespace zonetool::h2
 				}
 			}
 			// this will use a directory iterator to automatically add assets
-			else if (row->fields[0] == "iterate"s && row->num_fields >= 2)
+			else if (row->fields[0] == "iterate"s)
 			{
-				const auto type = row->fields[1];
-				const auto iterate_all = row->fields[1] == "true"s;
+				if (row->num_fields >= 2)
+				{
+					auto type = row->fields[1];
+					auto iterate_all = row->fields[1] == "true"s;
 
-				try
-				{
-					if (type == "fx"s || iterate_all)
+					try
 					{
-						add_assets_using_iterator(fastfile, type, "effects", ".fxe", true, zone);
+						if (type == "fx"s || iterate_all)
+						{
+							add_assets_using_iterator(fastfile, type, "effects", ".fxe", true, zone);
+						}
+						if (type == "material"s || iterate_all)
+						{
+							add_assets_using_iterator(fastfile, type, "materials", "", true, zone);
+						}
+						if (type == "xmodel"s || iterate_all)
+						{
+							add_assets_using_iterator(fastfile, type, "xmodel", ".xmodel_export", true, zone);
+						}
+						if (type == "xanim"s || iterate_all)
+						{
+							add_assets_using_iterator(fastfile, type, "xanim", ".xanim_export", true, zone);
+						}
 					}
-					if (type == "material"s || iterate_all)
+					catch (const std::exception& e)
 					{
-						add_assets_using_iterator(fastfile, type, "materials", "", true, zone);
+						ZONETOOL_FATAL("A fatal exception occured while building zone \"%s\", exception was: \n%s", fastfile.data(), e.what());
 					}
-					if (type == "xmodel"s || iterate_all)
-					{
-						add_assets_using_iterator(fastfile, type, "xmodel", ".xmodel_export", true, zone);
-					}
-					if (type == "xanim"s || iterate_all)
-					{
-						add_assets_using_iterator(fastfile, type, "xanim", ".xanim_export", true, zone);
-					}
-				}
-				catch (std::exception& ex)
-				{
-					ZONETOOL_FATAL("A fatal exception occured while building zone \"%s\", exception was: \n%s", fastfile.data(), ex.what());
 				}
 			}
 			// if entry is not an option, it should be an asset.
@@ -551,32 +552,31 @@ namespace zonetool::h2
 				}
 				else
 				{
-					if (row->num_fields >= 2)
+					if (row->num_fields < 2 || !is_valid_asset_type(row->fields[0]))
 					{
-						if (is_valid_asset_type(row->fields[0]))
-						{
-							std::string name;
-							if ((!row->fields[1] || !strlen(row->fields[1]) && row->fields[2] && strlen(row->fields[2])))
-							{
-								name = ","s + row->fields[2];
-							}
-							else
-							{
-								name = ((is_referencing) ? ","s : ""s) + row->fields[1];
-							}
+						continue;
+					}
 
-							try
-							{
-								zone->add_asset_of_type(
-									row->fields[0],
-									name
-								);
-							}
-							catch (std::exception& ex)
-							{
-								ZONETOOL_FATAL("A fatal exception occured while building zone \"%s\", exception was: \n%s", fastfile.data(), ex.what());
-							}
-						}
+					std::string name;
+					if ((!row->fields[1] || !strlen(row->fields[1]) && row->fields[2] && strlen(row->fields[2])))
+					{
+						name = ","s + row->fields[2];
+					}
+					else
+					{
+						name = ((is_referencing) ? ","s : ""s) + row->fields[1];
+					}
+
+					try
+					{
+						zone->add_asset_of_type(
+							row->fields[0],
+							name
+						);
+					}
+					catch (std::exception& ex)
+					{
+						ZONETOOL_FATAL("A fatal exception occured while building zone \"%s\", exception was: \n%s", fastfile.data(), ex.what());
 					}
 				}
 			}
@@ -647,7 +647,6 @@ namespace zonetool::h2
 
 		::h2::command::add("buildzone", [](const ::h2::command::params& params)
 		{
-			// Check if enough arguments have been passed to the command
 			if (params.size() != 2)
 			{
 				ZONETOOL_ERROR("usage: buildzone <zone>");
@@ -659,7 +658,6 @@ namespace zonetool::h2
 
 		::h2::command::add("loadzone", [](const ::h2::command::params& params)
 		{
-			// Check if enough arguments have been passed to the command
 			if (params.size() != 2)
 			{
 				ZONETOOL_ERROR("usage: loadzone <zone>");
@@ -676,19 +674,68 @@ namespace zonetool::h2
 
 		::h2::command::add("dumpzone", [](const ::h2::command::params& params)
 		{
-			// Check if enough arguments have been passed to the command
-			if (params.size() != 2)
+			if (params.size() < 2)
 			{
 				ZONETOOL_ERROR("usage: dumpzone <zone>");
 				return;
 			}
 
-			dump_zone(params.get(1));
+			if (params.size() >= 3)
+			{
+				const auto mode = params.get(1);
+				const auto dump_target = game::get_mode_from_string(mode);
+
+				if (dump_target == game::none)
+				{
+					ZONETOOL_ERROR("Invalid dump target \"%s\"", mode);
+					return;
+				}
+
+				if (!dump_functions.contains(dump_target))
+				{
+					ZONETOOL_ERROR("Unsupported dump target \"%s\" (%i)", mode, dump_target);
+					return;
+				}
+
+				dump_zone(params.get(2), dump_target);
+			}
+			else
+			{
+				dump_zone(params.get(1), game::h2);
+			}
 		});
 
+		::h2::command::add("dumpasset", [](const ::h2::command::params& params)
+		{
+			const auto type = XAssetType(type_to_int(params.get(1)));
+			const auto name = params.get(2);
+
+			XAsset asset{};
+			asset.type = type;
+
+			const auto header = DB_FindXAssetHeader(type, name, false);
+			if (!header.data)
+			{
+				ZONETOOL_INFO("Asset not found\n");
+				return;
+			}
+
+			globals.dump = true;
+			const auto _0 = gsl::finally([]
+			{
+				globals.dump = false;
+			});
+
+			filesystem::set_fastfile("assets");
+			asset.header = header;
+			globals.target_game = game::h2;
+			dump_asset(&asset);
+
+			ZONETOOL_INFO("Dumped to dump/assets");
+		});
+		
 		::h2::command::add("verifyzone", [](const ::h2::command::params& params)
 		{
-			// Check if enough arguments have been passed to the command
 			if (params.size() != 2)
 			{
 				ZONETOOL_ERROR("usage: verifyzone <zone>");
@@ -696,33 +743,6 @@ namespace zonetool::h2
 			}
 
 			verify_zone(params.get(1));
-		});
-
-		::h2::command::add("dumptozonetool", [](const ::h2::command::params& params)
-		{
-			dump_to_zonetool = !dump_to_zonetool;
-			printf("dump_to_zonetool: %i\n", dump_to_zonetool);
-		});
-
-		::h2::command::add("dumpasset", [](const ::h2::command::params& params)
-		{
-			const auto type = XAssetType(type_to_int(params.get(1)));
-			const auto name = params.get(2);
-			XAsset asset{};
-			asset.type = type;
-			const auto header = DB_FindXAssetHeader(type, name, false);
-			if (!header.data)
-			{
-				printf("Asset not found\n");
-				return;
-			}
-
-			dump = true;
-			filesystem::set_fastfile("assets");
-			asset.header = header;
-			dump_asset(&asset);
-			dump = false;
-			printf("Dumped to dump/assets\n");
 		});
 
 		::h2::command::add("buildxmodel", [](const ::h2::command::params& params)
@@ -777,7 +797,7 @@ namespace zonetool::h2
 			filesystem::set_fastfile("custom_xmodels");
 			IXModel::build_composite_model(name, attachments);
 
-			ZONETOOL_INFO("Saved to \"dump/custom_xmodels/xmodel/%s.xmodel_export\"\n", name.data());
+			ZONETOOL_INFO("Saved to \"dump/custom_xmodels/xmodel/%s.xmodel_export\"", name.data());
 		});
 	}
 
@@ -851,7 +871,7 @@ namespace zonetool::h2
 					}
 					else if (args[i] == "-dumpzone")
 					{
-						dump_zone(args[i + 1]);
+						dump_zone(args[i + 1], game::h2);
 						i++;
 					}
 				}
@@ -870,8 +890,8 @@ namespace zonetool::h2
 
 	void on_exit(void)
 	{
-		dump = false;
-		csv_file.close();
+		globals.dump = false;
+		globals.csv_file.close();
 	}
 
 	utils::hook::detour doexit_hook;

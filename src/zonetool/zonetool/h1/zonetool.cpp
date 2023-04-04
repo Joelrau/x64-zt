@@ -15,14 +15,7 @@ namespace zonetool::h1
 	constexpr auto IS_DEBUG = false;
 #endif
 
-	struct
-	{
-		bool verify;
-		bool dump;
-		game::game_mode target_game;
-		filesystem::file csv_file;
-	} globals{};
-
+	zonetool_globals_t globals{};
 	std::vector<std::pair<XAssetType, std::string>> referenced_assets;
 
 	const char* get_asset_name(XAssetType type, void* pointer)
@@ -110,12 +103,6 @@ namespace zonetool::h1
 
 	void dump_asset_h1(XAsset* asset)
 	{
-		if (is_referenced_asset(asset))
-		{
-			//referenced_assets.push_back({ asset->type, get_asset_name(asset) });
-			return;
-		}
-
 #define DUMP_ASSET(__type__,__interface__,__struct__) \
 		if (asset->type == __type__) \
 		{ \
@@ -194,12 +181,6 @@ namespace zonetool::h1
 
 	void dump_asset_h2(XAsset* asset)
 	{
-		if (is_referenced_asset(asset))
-		{
-			//referenced_assets.push_back({ asset->type, get_asset_name(asset) });
-			return;
-		}
-
 #define DUMP_ASSET_NO_CONVERT(__type__,__interface__,__struct__) \
 		if (asset->type == __type__) \
 		{ \
@@ -316,6 +297,12 @@ namespace zonetool::h1
 		if (globals.csv_file.get_fp()/* && !is_referenced_asset(xasset)*/)
 		{
 			std::fprintf(globals.csv_file.get_fp(), "%s,%s\n", type_to_string(asset->type), get_asset_name(asset));
+		}
+
+		if (is_referenced_asset(asset))
+		{
+			//referenced_assets.emplace_back(asset->type, get_asset_name(asset));
+			return;
 		}
 
 		const auto dump_func = dump_functions.find(globals.target_game);
@@ -524,7 +511,7 @@ namespace zonetool::h1
 		const std::string& extension, bool skip_reference, IZone* zone)
 	{
 		const auto path = "zonetool\\" + fastfile + "\\" + folder;
-		if (std::filesystem::is_directory(path))
+		if (!std::filesystem::is_directory(path))
 		{
 			return;
 		}
@@ -663,37 +650,35 @@ namespace zonetool::h1
 				}
 				else
 				{
-					if (row->num_fields >= 2)
+					if (row->num_fields < 2 || !is_valid_asset_type(row->fields[0]))
 					{
-						if (is_valid_asset_type(row->fields[0]))
-						{
-							std::string name;
-							if ((!row->fields[1] || !strlen(row->fields[1]) && row->fields[2] && strlen(row->fields[2])))
-							{
-								name = ","s + row->fields[2];
-							}
-							else
-							{
-								name = ((is_referencing) ? ","s : ""s) + row->fields[1];
-							}
+						continue;
+					}
 
-							try
-							{
-								zone->add_asset_of_type(
-									row->fields[0],
-									name
-								);
-							}
-							catch (std::exception& ex)
-							{
-								ZONETOOL_FATAL("A fatal exception occured while building zone \"%s\", exception was: \n%s", fastfile.data(), ex.what());
-							}
-						}
+					std::string name;
+					if ((!row->fields[1] || !strlen(row->fields[1]) && row->fields[2] && strlen(row->fields[2])))
+					{
+						name = ","s + row->fields[2];
+					}
+					else
+					{
+						name = ((is_referencing) ? ","s : ""s) + row->fields[1];
+					}
+
+					try
+					{
+						zone->add_asset_of_type(
+							row->fields[0],
+							name
+						);
+					}
+					catch (std::exception& ex)
+					{
+						ZONETOOL_FATAL("A fatal exception occured while building zone \"%s\", exception was: \n%s", fastfile.data(), ex.what());
 					}
 				}
 			}
 		}
-
 	}
 
 	std::shared_ptr<IZone> alloc_zone(const std::string& zone)
@@ -814,6 +799,35 @@ namespace zonetool::h1
 			}
 		});
 
+		::h1::command::add("dumpasset", [](const ::h1::command::params& params)
+		{
+			const auto type = XAssetType(type_to_int(params.get(1)));
+			const auto name = params.get(2);
+
+			XAsset asset{};
+			asset.type = type;
+
+			const auto header = DB_FindXAssetHeader(type, name, false);
+			if (!header.data)
+			{
+				ZONETOOL_INFO("Asset not found\n");
+				return;
+			}
+
+			globals.dump = true;
+			const auto _0 = gsl::finally([]
+			{
+				globals.dump = false;
+			});
+
+			filesystem::set_fastfile("assets");
+			asset.header = header;
+			globals.target_game = game::h1;
+			dump_asset(&asset);
+
+			ZONETOOL_INFO("Dumped to dump/assets");
+		});
+
 		::h1::command::add("verifyzone", [](const ::h1::command::params& params)
 		{
 			if (params.size() != 2)
@@ -923,7 +937,6 @@ namespace zonetool::h1
 	{
 		on_exit();
 		doexit_hook.invoke<void>(a1, a2, a3);
-		//std::quick_exit(0);
 	}
 
 	void init_zonetool()

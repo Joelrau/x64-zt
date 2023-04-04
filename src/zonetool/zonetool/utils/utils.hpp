@@ -112,4 +112,12 @@ namespace zonetool
 		DB_AuthSignature signature;
 	};
 #pragma pack(pop)
+
+	struct zonetool_globals_t
+	{
+		bool verify;
+		bool dump;
+		game::game_mode target_game;
+		filesystem::file csv_file;
+	};
 }
