@@ -17,12 +17,10 @@ namespace zonetool::h2
 	// referenced assets
 	std::vector<std::pair<XAssetType, std::string>> referenced_assets;
 
-	std::unordered_map<std::uint32_t, XGfxGlobals*> xGfxGlobals_map;
-
 	const char* get_asset_name(XAssetType type, void* pointer)
 	{
-		XAssetHeader header{ .data = pointer };
-		XAsset xasset = { XAssetType(type), header };
+		XAssetHeader header{.data = pointer};
+		XAsset xasset = {XAssetType(type), header};
 		return DB_GetXAssetName(&xasset);
 	}
 
@@ -276,44 +274,34 @@ namespace zonetool::h2
 		stopping = false;
 	}
 
-	utils::hook::detour DB_LinkXAssetEntry1_hook;
-	XAssetEntry* DB_LinkXAssetEntry1(XAssetType type, XAssetHeader* header)
+	utils::hook::detour db_link_x_asset_entry1_hook;
+	XAssetEntry* db_link_x_asset_entry1_stub(XAssetType type, XAssetHeader* header)
 	{
-		XAsset xasset = {
+		XAsset xasset = 
+		{
 			type,
 			*header
 		};
 
 		dump_asset(&xasset);
-
-		return DB_LinkXAssetEntry1_hook.invoke<XAssetEntry*>(type, header);
+		return db_link_x_asset_entry1_hook.invoke<XAssetEntry*>(type, header);
 	}
 
-	utils::hook::detour DB_FinishLoadXFile_hook;
-	void DB_FinishLoadXFile()
+	utils::hook::detour db_finish_load_x_file_hook;
+	void db_finish_load_x_file_stub()
 	{
 		verify = false;
 		stop_dumping();
-		return DB_FinishLoadXFile_hook.invoke<void>();
+		return db_finish_load_x_file_hook.invoke<void>();
 	}
 
-	utils::hook::detour Load_XGfxGlobals_hook;
-	void Load_XGfxGlobals(bool atStreamStart)
+	utils::hook::detour load_x_gfx_globals_hook;
+	void load_x_gfx_globals_stub(bool atStreamStart)
 	{
-		Load_XGfxGlobals_hook.invoke<void>(atStreamStart);
+		load_x_gfx_globals_hook.invoke<void>(atStreamStart);
 
-		XGfxGlobals* varXGfxGlobals = *reinterpret_cast<XGfxGlobals**>(0x14224EE18);
-		xGfxGlobals_map[*g_zoneIndex] = varXGfxGlobals;
-	}
-
-	XGfxGlobals* GetXGfxGlobalsForCurrentZone()
-	{
-		return xGfxGlobals_map[*g_zoneIndex];
-	}
-
-	XGfxGlobals* GetXGfxGlobalsForZone(std::uint32_t zone_index)
-	{
-		return xGfxGlobals_map[zone_index];
+		const auto var_x_gfx_globals = *reinterpret_cast<XGfxGlobals**>(0x14224EE18);
+		insert_x_gfx_globals_for_zone(*g_zoneIndex, var_x_gfx_globals);
 	}
 
 	void reallocate_asset_pool(const XAssetType type, const unsigned int new_size)
@@ -919,13 +907,13 @@ namespace zonetool::h2
 		reallocate_asset_pool_multiplier(ASSET_TYPE_REVERB_PRESET, 2);
 
 		// enable dumping
-		DB_LinkXAssetEntry1_hook.create(0x140414900, &DB_LinkXAssetEntry1);
+		db_link_x_asset_entry1_hook.create(0x140414900, &db_link_x_asset_entry1_stub);
 
 		// stop dumping
-		DB_FinishLoadXFile_hook.create(0x1403E6010, &DB_FinishLoadXFile);
+		db_finish_load_x_file_hook.create(0x1403E6010, &db_finish_load_x_file_stub);
 
 		// store xGfxGlobals pointers
-		Load_XGfxGlobals_hook.create(0x140401300, &Load_XGfxGlobals);
+		load_x_gfx_globals_hook.create(0x140401300, &load_x_gfx_globals_stub);
 
 		doexit_hook.create(0x1408B1A34, doexit);
 		atexit(on_exit);

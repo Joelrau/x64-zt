@@ -126,7 +126,7 @@ namespace zonetool::iw6
 					ordered_json json_data = {};
 					for (unsigned char i = 0; i < count; i++)
 					{
-						XGfxGlobals* varXGfxGlobals = zonetool::iw6::GetXGfxGlobalsForZone(map[i].zone);
+						const auto var_x_gfx_globals = get_x_gfx_globals_for_zone<XGfxGlobals>(map[i].zone);
 						ordered_json entry;
 
 						//convert_blend_bits
@@ -181,7 +181,7 @@ namespace zonetool::iw6
 						entry["loadBits"][0] = clb0(map[i].loadBits[0]);
 						entry["loadBits"][1] = clb1(map[i].loadBits[1]);
 						entry["loadBits"][2] = 0xFFFF;
-						entry["loadBits"][3] = cbb(varXGfxGlobals->blendStateBits[map[i].blendState][0]);
+						entry["loadBits"][3] = cbb(var_x_gfx_globals->blendStateBits[map[i].blendState][0]);
 						entry["loadBits"][4] = 0;
 						entry["loadBits"][5] = 0;
 						
@@ -252,16 +252,16 @@ namespace zonetool::iw6
 							return new_bits.to_ullong();
 						};
 
-						entry["depthStencilStateBits"][0] = varXGfxGlobals ? cdssb(varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[0]]) : 0;
-						entry["depthStencilStateBits"][1] = varXGfxGlobals ? fuck(cdssb(varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[1]])) : 0;
-						entry["depthStencilStateBits"][2] = varXGfxGlobals ? cdssb(varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[3]]) : 0;
-						entry["depthStencilStateBits"][3] = varXGfxGlobals ? cdssb(varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[4]]) : 0;
-						entry["depthStencilStateBits"][4] = varXGfxGlobals ? fuck2(fuck(cdssb(varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[2]]))) : 0;
-						entry["depthStencilStateBits"][5] = varXGfxGlobals ? cdssb(varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[5]]) : 0;
-						entry["depthStencilStateBits"][6] = varXGfxGlobals ? fuck(cdssb(varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[6]])) : 0;
-						entry["depthStencilStateBits"][7] = varXGfxGlobals ? cdssb(varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[8]]) : 0;
-						entry["depthStencilStateBits"][8] = varXGfxGlobals ? cdssb(varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[9]]) : 0;
-						entry["depthStencilStateBits"][9] = varXGfxGlobals ? cdssb(varXGfxGlobals->depthStencilStateBits[map[i].depthStencilState[10]]) : 0;
+						entry["depthStencilStateBits"][0] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[0]]) : 0;
+						entry["depthStencilStateBits"][1] = var_x_gfx_globals ? fuck(cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[1]])) : 0;
+						entry["depthStencilStateBits"][2] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[3]]) : 0;
+						entry["depthStencilStateBits"][3] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[4]]) : 0;
+						entry["depthStencilStateBits"][4] = var_x_gfx_globals ? fuck2(fuck(cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[2]]))) : 0;
+						entry["depthStencilStateBits"][5] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[5]]) : 0;
+						entry["depthStencilStateBits"][6] = var_x_gfx_globals ? fuck(cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[6]])) : 0;
+						entry["depthStencilStateBits"][7] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[8]]) : 0;
+						entry["depthStencilStateBits"][8] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[9]]) : 0;
+						entry["depthStencilStateBits"][9] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[10]]) : 0;
 						// 0 -> 0
 						// 1 -> 1/2/6/7
 						// 2 -> 3
@@ -275,7 +275,7 @@ namespace zonetool::iw6
 						// 
 						//
 
-						entry["blendStateBits"][0] = varXGfxGlobals ? cbb(varXGfxGlobals->blendStateBits[map[i].blendState][0]) : 0;
+						entry["blendStateBits"][0] = var_x_gfx_globals ? cbb(var_x_gfx_globals->blendStateBits[map[i].blendState][0]) : 0;
 						entry["blendStateBits"][1] = 0;
 						entry["blendStateBits"][2] = 0;
 

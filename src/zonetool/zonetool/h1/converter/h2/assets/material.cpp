@@ -93,7 +93,7 @@ namespace zonetool::h1
 			{
 				utils::memory::allocator allocator;
 				const auto converted_asset = convert(asset, allocator);
-				zonetool::h2::IMaterial::dump(converted_asset, zonetool::h1::GetXGfxGlobalsForZone);
+				zonetool::h2::IMaterial::dump(converted_asset);
 			}
 		}
 	}

@@ -611,16 +611,14 @@ namespace zonetool::h2
 		}
 	}
 
-	void ITechset::dump_statebits_map(const std::string& techset, GfxStateBits* map, unsigned char count,
-		const std::function<void*(int)>& get_gfx_globals_for_zone)
+	void ITechset::dump_statebits_map(const std::string& techset, GfxStateBits* map, unsigned char count)
 	{
 		const auto path = "techsets\\state\\"s + techset + ".statebitsmap";
 
 		ordered_json json_data = {};
 		for (unsigned char i = 0; i < count; i++)
 		{
-			const auto gfx_globals = 
-				reinterpret_cast<XGfxGlobals*>(get_gfx_globals_for_zone(map[i].zone));
+			const auto var_x_gfx_globals = get_x_gfx_globals_for_zone<XGfxGlobals>(map[i].zone);
 			ordered_json entry;
 			entry["loadBits"][0] = map[i].loadBits[0];
 			entry["loadBits"][1] = map[i].loadBits[1];
@@ -630,11 +628,11 @@ namespace zonetool::h2
 			entry["loadBits"][5] = map[i].loadBits[5];
 			for (int j = 0; j < 11; j++)
 			{
-				entry["depthStencilStateBits"][j] = gfx_globals ? gfx_globals->depthStencilStateBits[map[i].depthStencilState[j]] : 0;
+				entry["depthStencilStateBits"][j] = var_x_gfx_globals ? var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[j]] : 0;
 			}
 			for (int j = 0; j < 3; j++)
 			{
-				entry["blendStateBits"][j] = gfx_globals ? gfx_globals->blendStateBits[map[i].blendState][j] : 0;
+				entry["blendStateBits"][j] = var_x_gfx_globals ? var_x_gfx_globals->blendStateBits[map[i].blendState][j] : 0;
 			}
 			entry["rasterizerState"] = map[i].rasterizerState;
 			json_data[i] = entry;

@@ -56,5 +56,14 @@ namespace zonetool
 		return v[mode];
 	}
 
+	void* get_x_gfx_globals_for_zone(int zone);
+	void insert_x_gfx_globals_for_zone(int zone, void* globals);
+
+	template <typename T>
+	T* get_x_gfx_globals_for_zone(int zone)
+	{
+		return reinterpret_cast<T*>(get_x_gfx_globals_for_zone(zone));
+	}
+
 	WEAK symbol<char*(unsigned int stringValue)> SL_ConvertToString;
 }

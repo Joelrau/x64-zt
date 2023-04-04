@@ -246,12 +246,12 @@ namespace zonetool::iw6
 			auto material = this->asset_;
 			for (auto i = 0; i < material->stateBitsCount; i++)
 			{
-				XGfxGlobals* varXGfxGlobals = GetXGfxGlobalsForZone(material->stateMap[i].zone);
+				const auto var_x_gfx_globals = get_x_gfx_globals_for_zone<XGfxGlobals>(material->stateMap[i].zone);
 
 				std::array<std::uint64_t, 11> temp_bits;
 				for (auto j = 0; j < 11; j++)
 				{
-					temp_bits[j] = varXGfxGlobals->depthStencilStateBits[material->stateMap[i].depthStencilState[j]];
+					temp_bits[j] = var_x_gfx_globals->depthStencilStateBits[material->stateMap[i].depthStencilState[j]];
 				}
 				this->depth_stenchil_state_bits.push_back(temp_bits);
 
@@ -264,7 +264,7 @@ namespace zonetool::iw6
 					}
 					else
 					{
-						temp_bits2[j] = varXGfxGlobals->blendStateBits[material->stateMap[i].blendState][j];
+						temp_bits2[j] = var_x_gfx_globals->blendStateBits[material->stateMap[i].blendState][j];
 					}
 				}
 				this->blend_state_bits.push_back(temp_bits2);

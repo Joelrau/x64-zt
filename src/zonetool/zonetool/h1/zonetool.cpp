@@ -25,8 +25,6 @@ namespace zonetool::h1
 
 	std::vector<std::pair<XAssetType, std::string>> referenced_assets;
 
-	std::unordered_map<std::uint32_t, XGfxGlobals*> x_gfx_globals_map;
-
 	const char* get_asset_name(XAssetType type, void* pointer)
 	{
 		XAssetHeader header{.data = pointer};
@@ -410,17 +408,7 @@ namespace zonetool::h1
 		load_x_gfx_globals_hook.invoke<void>(at_stream_start);
 
 		const auto var_x_gfx_globals = *reinterpret_cast<XGfxGlobals**>(0x143411DB0);
-		x_gfx_globals_map[*g_zoneIndex] = var_x_gfx_globals;
-	}
-
-	XGfxGlobals* GetXGfxGlobalsForCurrentZone()
-	{
-		return x_gfx_globals_map[*g_zoneIndex];
-	}
-
-	XGfxGlobals* GetXGfxGlobalsForZone(std::uint32_t zone_index)
-	{
-		return x_gfx_globals_map[zone_index];
+		insert_x_gfx_globals_for_zone(*g_zoneIndex, var_x_gfx_globals);
 	}
 
 	void reallocate_asset_pool(const XAssetType type, const unsigned int new_size)

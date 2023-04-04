@@ -11,9 +11,6 @@ namespace zonetool::iw6
 
 	extern bool zone_exists(const std::string& zone);
 
-	extern XGfxGlobals* GetXGfxGlobalsForCurrentZone();
-	extern XGfxGlobals* GetXGfxGlobalsForZone(std::uint32_t zone_index);
-
 	extern XAssetHeader DB_FindXAssetHeader_Safe(XAssetType type, const std::string& name);
 	extern void DB_EnumXAssets(const XAssetType type, const std::function<void(XAssetHeader)>& callback, const bool includeOverride);
 
