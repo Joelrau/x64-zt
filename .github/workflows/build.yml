@@ -1,0 +1,45 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - "*"
+  pull_request:
+    branches:
+      - "*"
+    types: [opened, synchronize, reopened]
+jobs:
+  build:
+    name: Build binaries
+    runs-on: windows-2022
+    strategy:
+      matrix:
+        configuration:
+          - Debug
+          - Release
+    steps:
+      - name: Check out files
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+          fetch-depth: 0
+          lfs: false
+
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@v1.1.3
+
+      - name: Generate project files
+        run: tools/premake5 vs2022
+
+      - name: Set up problem matching
+        uses: ammaraskar/msvc-problem-matcher@master
+
+      - name: Build ${{matrix.configuration}} binaries
+        run: msbuild /m /v:minimal /p:Configuration=${{matrix.configuration}} /p:Platform=x64 build/zonetool.sln
+
+      - name: Upload ${{matrix.configuration}} binaries
+        uses: actions/upload-artifact@v3.1.0
+        with:
+          name: ${{matrix.configuration}} binaries
+          path: |
+            build/bin/x64/${{matrix.configuration}}/zonetool.exe
