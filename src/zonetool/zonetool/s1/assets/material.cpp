@@ -55,6 +55,8 @@ namespace zonetool::s1
 		}
 	}
 
+	std::unordered_map<GfxImage*, std::string> material::fixed_nml_images_map;
+
 	MaterialTextureDef* material::parse_texture_table(json& matdata, zone_memory* mem)
 	{
 		auto mat = mem->allocate<MaterialTextureDef>(matdata.size());
