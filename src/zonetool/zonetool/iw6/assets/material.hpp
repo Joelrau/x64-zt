@@ -15,6 +15,8 @@ namespace zonetool::iw6
 		MaterialTextureDef* parse_texture_table(json& matdata, zone_memory* mem);
 
 	public:
+		static std::unordered_map<GfxImage*, std::string> fixed_nml_images_map;
+
 		Material* parse(std::string name, zone_memory* mem);
 
 		void init(const std::string& name, zone_memory* mem) override;

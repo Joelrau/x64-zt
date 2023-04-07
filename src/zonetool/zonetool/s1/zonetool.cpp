@@ -739,6 +739,7 @@ namespace zonetool::s1
 		zone->build(buffer.get());
 
 		// clear asset shit
+		material::fixed_nml_images_map.clear();
 		techset::vertexdecl_pointers.clear();
 	}
 

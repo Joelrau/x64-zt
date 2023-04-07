@@ -147,6 +147,7 @@ namespace iwi
 			IMG_FLAG_MAPTYPE_CUBE = 0x10000,
 			IMG_FLAG_MAPTYPE_3D = 0x20000,
 			IMG_FLAG_MAPTYPE_1D = 0x30000,
+			IMG_FLAG_NORMALMAP = 0x40000,
 		};
 
 		struct GfxImageFileHeader
@@ -159,5 +160,7 @@ namespace iwi
 		};
 	}
 
-	GfxImage* parse_iwi(const std::string& name, void* mem, GfxImage* img_);
+	bool fixup_normal_map(GfxImage* img_);
+
+	GfxImage* parse_iwi(const std::string& name, void* mem, GfxImage* img_, bool is_normal_map = false);
 }

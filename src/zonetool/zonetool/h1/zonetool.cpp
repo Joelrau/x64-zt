@@ -728,6 +728,7 @@ namespace zonetool::h1
 		zone->build(buffer.get());
 
 		// clear asset shit
+		material::fixed_nml_images_map.clear();
 		techset::vertexdecl_pointers.clear();
 		map_ents::clear_entity_strings();
 	}

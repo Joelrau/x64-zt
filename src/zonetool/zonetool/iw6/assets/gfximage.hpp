@@ -14,7 +14,9 @@ namespace zonetool::iw6
 		std::array<std::optional<std::string>, 4> image_stream_blocks;
 		bool custom_streamed_image = false;	
 
-		static GfxImage* parse_custom(const std::string& name, zone_memory* mem);
+		bool is_iwi = false;
+
+		GfxImage* parse_custom(const std::string& name, zone_memory* mem);
 
 		GfxImage* parse_streamed_image(const std::string& name, zone_memory* mem);
 		GfxImage* parse(const std::string& name, zone_memory* mem);

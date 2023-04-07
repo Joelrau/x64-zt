@@ -72,18 +72,10 @@ namespace zonetool::h1
 
 				image->streamed = false;
 
-				image->semantic = 2;
-				image->category = 3;
+				image->semantic = TS_COLOR_MAP; // material changes this
+				image->category = IMG_CATEGORY_LOAD_FROM_FILE;
 
-				switch (image->mapType)
-				{
-				case MAPTYPE_CUBE:
-					image->flags = 2;
-					break;
-				default:
-					image->flags = 0;
-					break;
-				}
+				image->flags |= img_.levelCount > 1 ? 0 : IMAGE_FLAG_NOPICMIP;
 
 				return image;
 			}
@@ -180,8 +172,8 @@ namespace zonetool::h1
 
 				gfx_image->imageFormat = metadata.format;
 				gfx_image->mapType = static_cast<MapType>(metadata.dimension);
-				gfx_image->semantic = 2;
-				gfx_image->category = 3;
+				gfx_image->semantic = TS_COLOR_MAP; // material changes this
+				gfx_image->category = IMG_CATEGORY_LOAD_FROM_FILE;
 				gfx_image->flags = 0;
 				gfx_image->width = static_cast<unsigned short>(metadata.width);
 				gfx_image->height = static_cast<unsigned short>(metadata.height);
@@ -209,6 +201,10 @@ namespace zonetool::h1
 		if (!image)
 		{
 			image = iwi::parse(name, mem);
+			if (image)
+			{
+				this->is_iwi = true;
+			}
 		}
 
 		return image;
@@ -379,8 +375,8 @@ namespace zonetool::h1
 			auto* image = mem->allocate<GfxImage>();
 			image->imageFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 			image->mapType = MAPTYPE_2D;
-			image->semantic = 0;
-			image->category = 1;
+			image->semantic = TS_2D;
+			image->category = IMG_CATEGORY_AUTO_GENERATED;
 			image->flags = 0;
 			image->dataLen1 = sizeof(default_pixel_data);
 			image->dataLen2 = sizeof(default_pixel_data);

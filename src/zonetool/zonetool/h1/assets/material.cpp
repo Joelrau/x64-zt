@@ -3,6 +3,8 @@
 
 #include "techset.hpp"
 
+#include "zonetool/utils/iwi.hpp"
+
 #define MATERIAL_DUMP_STRING(entry) \
 	matdata[#entry] = std::string(asset->entry);
 
@@ -52,6 +54,8 @@ namespace zonetool::h1
 			return new_name;
 		}
 	}
+
+	std::unordered_map<GfxImage*, std::string> material::fixed_nml_images_map;
 
 	MaterialTextureDef* material::parse_texture_table(json& matdata, zone_memory* mem)
 	{
@@ -293,10 +297,43 @@ namespace zonetool::h1
 			if (data->textureTable[i].u.image)
 			{
 				zone->add_asset_of_type(ASSET_TYPE_IMAGE, data->textureTable[i].u.image->name);
-				auto img = zone->find_asset(ASSET_TYPE_IMAGE, data->textureTable[i].u.image->name);
+				auto img = static_cast<gfx_image*>(zone->find_asset(ASSET_TYPE_IMAGE, data->textureTable[i].u.image->name));
 				if (img)
 				{
-					reinterpret_cast<GfxImage*>(img->pointer())->semantic = data->textureTable[i].semantic;
+					auto* image = reinterpret_cast<GfxImage*>(img->pointer());
+					image->semantic = data->textureTable[i].semantic;
+
+					if (image->semantic == TS_NORMAL_MAP && img->is_iwi && !material::fixed_nml_images_map.contains(image))
+					{
+						iwi::parse::GfxImage img_{};
+						img_.name = image->name;
+						img_.imageFormat = image->imageFormat;
+						img_.mapType = static_cast<iwi::parse::MapType>(image->mapType);
+						img_.dataLen = image->dataLen1;
+						img_.width = image->width;
+						img_.height = image->height;
+						img_.depth = image->depth;
+						img_.numElements = image->numElements;
+						img_.levelCount = image->levelCount;
+						img_.pixelData = image->pixelData;
+
+						iwi::fixup_normal_map(&img_);
+						material::fixed_nml_images_map[image] = image->name;
+
+						image->name = img_.name;
+						image->imageFormat = img_.imageFormat;
+						image->mapType = static_cast<MapType>(img_.mapType);
+						image->dataLen1 = img_.dataLen;
+						image->dataLen2 = img_.dataLen;
+						image->width = img_.width;
+						image->height = img_.height;
+						image->depth = img_.depth;
+						image->numElements = img_.numElements;
+						image->levelCount = img_.levelCount;
+						image->pixelData = img_.pixelData;
+
+						image->flags |= img_.levelCount > 1 ? 0 : IMAGE_FLAG_NOPICMIP;
+					}
 				}
 			}
 		}

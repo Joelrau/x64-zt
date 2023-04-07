@@ -75,15 +75,7 @@ namespace zonetool::iw6
 				image->semantic = 2;
 				image->category = 3;
 
-				switch (image->mapType)
-				{
-				case MAPTYPE_CUBE:
-					image->flags = 2;
-					break;
-				default:
-					image->flags = 0;
-					break;
-				}
+				image->flags |= img_.levelCount > 1 ? 0 : 2;
 
 				return image;
 			}
@@ -209,6 +201,10 @@ namespace zonetool::iw6
 		if (!image)
 		{
 			image = iwi::parse(name, mem);
+			if (image)
+			{
+				this->is_iwi = true;
+			}
 		}
 
 		return image;

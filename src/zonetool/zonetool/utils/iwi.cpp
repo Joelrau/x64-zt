@@ -5,6 +5,11 @@
 
 #include "s3tc.hpp"
 
+#pragma warning( push )
+#pragma warning( disable : 4459 )
+#include <DirectXTex.h>
+#pragma warning( pop )
+
 #include <utils/io.hpp>
 #include <utils/string.hpp>
 
@@ -78,15 +83,158 @@ namespace iwi
 	inline std::uint32_t from_argb(std::uint32_t argb)
 	{
 		return
-			// Source is in format: 0xAARRGGBB
-			((argb & 0x00FF0000) >> 16) | //______RR
-			((argb & 0x0000FF00)) | //____GG__
-			((argb & 0x000000FF) << 16) | //___BB____
-			((argb & 0xFF000000));         //AA______
-		// Return value is in format:  0xAABBGGRR 
+			((argb & 0x00FF0000) >> 16) |
+			((argb & 0x0000FF00)) |
+			((argb & 0x000000FF) << 16) |
+			((argb & 0xFF000000));
 	}
 
-	GfxImage* parse_iwi(const std::string& name, void* meme, GfxImage* img_)
+	bool fixup_normal_map(GfxImage* img_)
+	{
+		if (img_ == nullptr)
+		{
+			return false;
+		}
+
+		if (img_->pixelData == nullptr)
+		{
+			return false;
+		}
+
+		const auto original_size = img_->dataLen;
+		const auto original_pixels = img_->pixelData;
+
+		auto name = img_->name;
+
+		auto dxgi_format = img_->imageFormat;
+		int width = img_->width;
+		int height = img_->height;
+		[[maybe_unused]] int level_count = img_->levelCount;
+		[[maybe_unused]] bool has_levels = img_->levelCount > 1;
+
+		std::uint8_t* pixel_data = original_pixels;
+		std::size_t pixel_data_size = original_size;
+
+		std::vector<std::uint8_t> new_pixels;
+		new_pixels.resize(original_size);
+
+		unsigned int total_size = static_cast<unsigned int>(pixel_data_size);
+
+		unsigned int w = width;
+		unsigned int h = height;
+
+		unsigned int data_left = total_size;
+		unsigned int data_offset = 0;
+		unsigned int i = 0;
+		unsigned int x = static_cast<unsigned int>(std::pow<int, int>(2, level_count - 1));
+		while (data_left)
+		{
+			w = std::max(1u, width / x);
+			h = std::max(1u, height / x);
+
+			unsigned int compressed_block_size = 0;
+			switch (img_->imageFormat)
+			{
+			case DXGI_FORMAT_BC3_UNORM:
+			case DXGI_FORMAT_BC5_UNORM:
+				compressed_block_size = CompressedBlockSizeDXT5(w, h);
+				break;
+			default:
+				ZONETOOL_FATAL("Normalmap has to be in a compressed format! (%s)", name);
+				break;
+			}
+
+			unsigned int data_to_skip_size = data_offset;
+
+			if (data_to_skip_size >= total_size)
+			{
+				ZONETOOL_FATAL("Something went horribly wrong converting normalmap \"%s\"", name);
+			}
+
+			auto pixels_block = pixel_data + data_to_skip_size;
+
+			// uncompress pixels
+			const unsigned int uncompressed_size = 4 * w * h;
+			std::vector<std::uint8_t> uncompressed_pixels;
+			uncompressed_pixels.resize(uncompressed_size * 16);
+			switch (img_->imageFormat)
+			{
+			case DXGI_FORMAT_BC3_UNORM:
+			case DXGI_FORMAT_BC5_UNORM:
+				BlockDecompressImageDXT5(w, h, pixels_block, reinterpret_cast<unsigned int*>(uncompressed_pixels.data()));
+				break;
+			default:
+				ZONETOOL_FATAL("Normalmap has to be in a compressed format! (%s)", name);
+				break;
+			}
+
+			auto uncomp_pixels = uncompressed_pixels.data();
+
+			// swap channels
+			{
+				for (auto pixel_index = 0u; pixel_index < uncompressed_size; pixel_index += 4)
+				{
+					[[maybe_unused]] auto r = uncomp_pixels[pixel_index + 0];
+					[[maybe_unused]] auto g = uncomp_pixels[pixel_index + 1];
+					[[maybe_unused]] auto b = uncomp_pixels[pixel_index + 2];
+					[[maybe_unused]] auto a = uncomp_pixels[pixel_index + 3];
+
+					std::uint8_t xy[2] = { g, a };
+
+					uncomp_pixels[pixel_index + 0] = xy[0];
+					uncomp_pixels[pixel_index + 1] = xy[1];
+					uncomp_pixels[pixel_index + 2] = 128ui8;
+					uncomp_pixels[pixel_index + 3] = 255ui8;
+				}
+			}
+
+			// re_compress
+			DirectX::Image img = {};
+
+			img.width = w;
+			img.height = h;
+			img.pixels = uncomp_pixels;
+			img.format = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+			dxgi_format = DXGI_FORMAT_BC5_SNORM;
+
+			size_t row_pitch{};
+			size_t slice_pitch{};
+
+			DirectX::ComputePitch(img.format, img.width, img.height, row_pitch, slice_pitch);
+
+			img.rowPitch = row_pitch;
+			img.slicePitch = slice_pitch;
+
+			DirectX::ScratchImage sc_img{};
+			DirectX::Compress(img, dxgi_format, DirectX::TEX_COMPRESS_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, sc_img);
+
+			// copy data
+			assert(sc_img.GetPixelsSize() == compressed_block_size);
+			memcpy(new_pixels.data() + data_offset, sc_img.GetPixels(), compressed_block_size);
+
+			// continue
+			data_left -= compressed_block_size;
+			data_offset += compressed_block_size;
+			i++;
+			x = x / 2;
+		}
+
+		pixel_data = new_pixels.data();
+		pixel_data_size = new_pixels.size();
+
+		assert(original_size >= pixel_data_size);
+
+		std::memset(img_->pixelData, 0, pixel_data_size);
+		std::memcpy(img_->pixelData, pixel_data, pixel_data_size);
+		img_->dataLen = static_cast<unsigned int>(pixel_data_size);
+
+		img_->imageFormat = dxgi_format;
+
+		return true;
+	}
+
+	GfxImage* parse_iwi(const std::string& name, void* meme, GfxImage* img_, bool is_normal_map)
 	{
 		if (img_ == nullptr)
 		{
@@ -138,7 +286,7 @@ namespace iwi
 				convert_flag(iw5::IMG_FLAG_MAPTYPE_CUBE, iwx::IMG_FLAG_MAPTYPE_CUBE);
 				convert_flag(iw5::IMG_FLAG_MAPTYPE_3D, iwx::IMG_FLAG_MAPTYPE_3D);
 				convert_flag(iw5::IMG_FLAG_MAPTYPE_1D, iwx::IMG_FLAG_MAPTYPE_1D);
-				//convert_flag(iw5::IMG_FLAG_NORMALMAP, iwx::IMG_FLAG_NORMALMAP);
+				convert_flag(iw5::IMG_FLAG_NORMALMAP, iwx::IMG_FLAG_NORMALMAP);
 				//convert_flag(iw5::IMG_FLAG_INTENSITY_TO_ALPHA, iwx::IMG_FLAG_INTENSITY_TO_ALPHA);
 				//convert_flag(iw5::IMG_FLAG_DYNAMIC, iwx::IMG_FLAG_DYNAMIC);
 				//convert_flag(iw5::IMG_FLAG_RENDER_TARGET, iwx::IMG_FLAG_RENDER_TARGET);
@@ -277,7 +425,7 @@ namespace iwi
 				pixel_data_size = uncompressed_size;
 
 				// darken the pixels
-				bool darken_cube_pixels = true;
+				const bool darken_cube_pixels = true;
 				if (darken_cube_pixels)
 				{
 					for (auto i = 0; i < pixel_data_size; i += 4)
@@ -467,76 +615,6 @@ namespace iwi
 
 					return image;
 				}
-
-#ifdef DEBUG
-				// convert normalmap image
-				std::vector<std::uint8_t> uncompressed_pixels;
-				if (name.find("_nml") != std::string::npos)
-				{
-					// skip mipmaps
-					if (has_mipmaps)
-					{
-						unsigned int compressed_block_size = 0;
-						switch (iwi_header->format)
-						{
-						case IMG_FORMAT_DXT1:
-							compressed_block_size = CompressedBlockSizeDXT1(iwi_header->dimensions[0], iwi_header->dimensions[1]);
-							break;
-						case IMG_FORMAT_DXT3:
-						case IMG_FORMAT_DXT5:
-							compressed_block_size = CompressedBlockSizeDXT5(iwi_header->dimensions[0], iwi_header->dimensions[1]);
-							break;
-						}
-						unsigned int data_to_skip_size = iwi_header->fileSizeForPicmip[0] - compressed_block_size - iwi_header->size;
-
-						if (data_to_skip_size >= bytes.size() - iwi_header->size)
-						{
-							ZONETOOL_FATAL("Something went horribly wrong parsing IWI file \"%s.iwi\"", name.data());
-						}
-
-						pixel_data = bytes.data() + iwi_header->size + data_to_skip_size;
-						pixel_data_size = bytes.size() - iwi_header->size - data_to_skip_size;
-
-						has_mipmaps = false;
-						mipmaps_count = 1;
-					}
-
-					// uncompress pixels
-					const unsigned int uncompressed_size = 4 * width * height;
-					uncompressed_pixels.resize(uncompressed_size);
-					dxgi_format = DXGI_FORMAT_R8G8B8A8_UNORM;
-					switch (iwi_header->format)
-					{
-					case IMG_FORMAT_DXT1:
-						BlockDecompressImageDXT1(width, height, pixel_data, reinterpret_cast<unsigned int*>(uncompressed_pixels.data()));
-						break;
-					case IMG_FORMAT_DXT3:
-					case IMG_FORMAT_DXT5:
-						BlockDecompressImageDXT5(width, height, pixel_data, reinterpret_cast<unsigned int*>(uncompressed_pixels.data()));
-						break;
-					}
-					pixel_data = uncompressed_pixels.data();
-					pixel_data_size = uncompressed_size;
-
-					// switch the channels
-					bool switch_normal_map_channels = true;
-					if (switch_normal_map_channels)
-					{
-						for (auto i = 0; i < pixel_data_size; i += 4)
-						{
-							[[maybe_unused]] auto r = pixel_data[i + 0];
-							auto g = pixel_data[i + 1];
-							auto b = pixel_data[i + 2];
-							auto a = pixel_data[i + 3];
-
-							pixel_data[i + 0] = a;
-							pixel_data[i + 1] = g;
-							pixel_data[i + 2] = b;
-							pixel_data[i + 3] = 255;
-						}
-					}
-				}
-#endif
 
 				const unsigned int total_len = static_cast<unsigned int>(pixel_data_size);
 
