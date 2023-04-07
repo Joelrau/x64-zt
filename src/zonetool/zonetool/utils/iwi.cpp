@@ -106,7 +106,7 @@ namespace iwi
 
 		auto name = img_->name;
 
-		auto dxgi_format = img_->imageFormat;
+		[[maybe_unused]] auto dxgi_format = img_->imageFormat;
 		int width = img_->width;
 		int height = img_->height;
 		[[maybe_unused]] int level_count = img_->levelCount;
@@ -136,7 +136,6 @@ namespace iwi
 			switch (img_->imageFormat)
 			{
 			case DXGI_FORMAT_BC3_UNORM:
-			case DXGI_FORMAT_BC5_UNORM:
 				compressed_block_size = CompressedBlockSizeDXT5(w, h);
 				break;
 			default:
@@ -154,13 +153,14 @@ namespace iwi
 			auto pixels_block = pixel_data + data_to_skip_size;
 
 			// uncompress pixels
-			const unsigned int uncompressed_size = 4 * w * h;
+			unsigned int uncompressed_size = 4 * w * h;
 			std::vector<std::uint8_t> uncompressed_pixels;
-			uncompressed_pixels.resize(uncompressed_size * 16);
+			uncompressed_pixels.resize(uncompressed_size * 16); // piece of shit
+			memset(uncompressed_pixels.data(), 0, uncompressed_pixels.size());
+
 			switch (img_->imageFormat)
 			{
 			case DXGI_FORMAT_BC3_UNORM:
-			case DXGI_FORMAT_BC5_UNORM:
 				BlockDecompressImageDXT5(w, h, pixels_block, reinterpret_cast<unsigned int*>(uncompressed_pixels.data()));
 				break;
 			default:
@@ -196,8 +196,6 @@ namespace iwi
 			img.pixels = uncomp_pixels;
 			img.format = DXGI_FORMAT_R8G8B8A8_UNORM;
 
-			dxgi_format = DXGI_FORMAT_BC5_SNORM;
-
 			size_t row_pitch{};
 			size_t slice_pitch{};
 
@@ -207,7 +205,7 @@ namespace iwi
 			img.slicePitch = slice_pitch;
 
 			DirectX::ScratchImage sc_img{};
-			DirectX::Compress(img, dxgi_format, DirectX::TEX_COMPRESS_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, sc_img);
+			DirectX::Compress(img, DXGI_FORMAT_BC5_SNORM, DirectX::TEX_COMPRESS_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, sc_img);
 
 			// copy data
 			assert(sc_img.GetPixelsSize() == compressed_block_size);
@@ -229,7 +227,7 @@ namespace iwi
 		std::memcpy(img_->pixelData, pixel_data, pixel_data_size);
 		img_->dataLen = static_cast<unsigned int>(pixel_data_size);
 
-		img_->imageFormat = dxgi_format;
+		img_->imageFormat = DXGI_FORMAT_BC5_SNORM;
 
 		return true;
 	}
