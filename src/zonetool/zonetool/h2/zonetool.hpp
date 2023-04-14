@@ -74,6 +74,8 @@
 
 namespace zonetool::h2
 {
+	constexpr auto custom_imagefile_index = 96;
+
 	template <typename T>
 	XAssetHeader db_find_x_asset_header_copy(XAssetType type, const std::string& name, zone_memory* mem)
 	{

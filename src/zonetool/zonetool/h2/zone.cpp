@@ -10,8 +10,6 @@
 #define FF_VERSION 130
 #define FF_HEADER "S1ffu100"
 
-#define CUSTOM_IMAGEFILE_INDEX 96
-
 #define COMPRESS_TYPE_LZ4 4
 #define COMPRESS_TYPE_ZLIB 1
 
@@ -233,7 +231,7 @@ namespace zonetool::h2
 			{
 				ZONETOOL_INFO("Writing imagefile...");
 				imagefile::generate(filesystem::get_fastfile(),
-					CUSTOM_IMAGEFILE_INDEX, FF_VERSION, FF_HEADER, images, this->m_zonemem.get());
+					custom_imagefile_index, FF_VERSION, FF_HEADER, images, this->m_zonemem.get());
 			}
 		}
 

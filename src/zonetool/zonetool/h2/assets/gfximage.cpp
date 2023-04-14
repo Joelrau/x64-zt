@@ -508,7 +508,17 @@ namespace zonetool::h2
 			const auto stream_file = &stream_files[*stream_file_index + i];
 
 			const auto db_fs = ::h2::game::DB_FSInitialize();
-			const auto imagefile_path = utils::string::va("imagefile%d.pak", stream_file->fileIndex);
+			const char* imagefile_path = nullptr;
+			if (stream_file->fileIndex == custom_imagefile_index)
+			{
+				const auto& fastfile = filesystem::get_fastfile();
+				imagefile_path = utils::string::va("%s.pak", fastfile.data());
+			}
+			else
+			{
+				imagefile_path = utils::string::va("imagefile%d.pak", stream_file->fileIndex);
+			}
+
 			const auto imagefile = db_fs->vftbl->OpenFile(db_fs, ::h2::game::Sys_Folder::SF_PAKFILE, imagefile_path);
 			if (!imagefile || stream_file->offset == 0 || stream_file->offsetEnd == 0)
 			{
@@ -609,6 +619,12 @@ namespace zonetool::h2
 #ifdef IMAGE_DUMP_DDS
 		dump_image_dds(asset);
 #endif
+
+		if (asset->streamed && stream_files[*stream_file_index].fileIndex == custom_imagefile_index)
+		{
+			dump_streamed_image_dds(asset);
+			return;
+		}
 
 		auto path = "images\\"s + clean_name(asset->name) + ".h2Image"s;
 		assetmanager::dumper write;
