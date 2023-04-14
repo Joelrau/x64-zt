@@ -503,12 +503,9 @@ namespace zonetool::h2
 
 		DirectX::Image img = {};
 
-		const auto stream_file_index = *reinterpret_cast<unsigned int*>(0x1420B27F4);
-		const auto stream_files = reinterpret_cast<XStreamFile*>(0x1420B2820);
-
 		for (auto i = 0u; i < 4; i++)
 		{
-			const auto stream_file = &stream_files[stream_file_index + i];
+			const auto stream_file = &stream_files[*stream_file_index + i];
 
 			const auto db_fs = ::h2::game::DB_FSInitialize();
 			const auto imagefile_path = utils::string::va("imagefile%d.pak", stream_file->fileIndex);
@@ -637,13 +634,10 @@ namespace zonetool::h2
 
 		if (asset->streamed)
 		{
-			auto streamFileIndex = *reinterpret_cast<unsigned int*>(0x1420B27F4);
-			auto streamFiles = reinterpret_cast<XStreamFile*>(0x1420B2820);
-
 			for (auto i = 0u; i < 4; i++)
 			{
-				auto streamFile = &streamFiles[streamFileIndex + i];
-				write.dump_single(streamFile);
+				const auto stream_file = &stream_files[*stream_file_index + i];
+				write.dump_single(stream_file);
 			}
 		}
 		write.close();

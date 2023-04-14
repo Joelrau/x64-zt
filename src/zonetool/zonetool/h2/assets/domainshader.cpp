@@ -3,22 +3,56 @@
 
 namespace zonetool::h2
 {
+	namespace
+	{
+		MaterialDomainShader* parse_legacy(const std::string& name, zone_memory* mem)
+		{
+			const auto path = "techsets\\" + name + ".domainshader";
+
+			assetmanager::reader read(mem);
+			if (!read.open(path))
+			{
+				return nullptr;
+			}
+
+			//ZONETOOL_INFO("Parsing domainshader \"%s\"...", name.data());
+
+			auto* asset = read.read_single<MaterialDomainShader>();
+			asset->name = read.read_string();
+			asset->prog.loadDef.program = read.read_array<unsigned char>();
+			read.close();
+
+			return asset;
+		}
+	}
+
 	MaterialDomainShader* domain_shader::parse(const std::string& name, zone_memory* mem)
 	{
-		const auto path = "techsets\\" + name + ".domainshader";
+		auto* legacy_parsed = parse_legacy(name, mem);
+		if (legacy_parsed) return legacy_parsed;
 
-		assetmanager::reader read(mem);
-		if (!read.open(path))
+		const auto path = "techsets\\ds\\"s + name + ".cso"s;
+
+		filesystem::file file(path);
+		file.open("rb");
+		if (!file.get_fp())
 		{
 			return nullptr;
 		}
 
 		//ZONETOOL_INFO("Parsing domainshader \"%s\"...", name.data());
 
-		auto* asset = read.read_single<MaterialDomainShader>();
-		asset->name = read.read_string();
-		asset->prog.loadDef.program = read.read_array<unsigned char>();
-		read.close();
+		const auto buffer_size = file.size();
+		const auto buffer = file.read_bytes(buffer_size);
+
+		auto* asset = mem->allocate<MaterialDomainShader>();
+		asset->name = mem->duplicate_string(name);
+		asset->prog.loadDef.programSize = static_cast<unsigned int>(buffer_size);
+		asset->prog.loadDef.program = mem->allocate<unsigned char>(buffer_size);
+		memcpy(asset->prog.loadDef.program, buffer.data(), buffer_size);
+		asset->prog.loadDef.__pad;
+
+		file.close();
 
 		return asset;
 	}
@@ -84,17 +118,11 @@ namespace zonetool::h2
 
 	void domain_shader::dump(MaterialDomainShader* asset)
 	{
-		const auto path = "techsets\\"s + asset->name + ".domainshader"s;
+		const auto path = "techsets\\ds\\"s + asset->name + ".cso"s;
 
-		assetmanager::dumper write;
-		if (!write.open(path))
-		{
-			return;
-		}
-
-		write.dump_single(asset);
-		write.dump_string(asset->name);
-		write.dump_array(asset->prog.loadDef.program, asset->prog.loadDef.programSize);
-		write.close();
+		filesystem::file file(path);
+		file.open("wb");
+		file.write(asset->prog.loadDef.program, asset->prog.loadDef.programSize);
+		file.close();
 	}
 }

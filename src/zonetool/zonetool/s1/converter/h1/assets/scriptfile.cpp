@@ -15,7 +15,7 @@ namespace zonetool::s1
 	{
 		namespace scriptfile
 		{
-			zonetool::h1::ScriptFile* convert(ScriptFile* asset, zone_memory* mem)
+			zonetool::h1::ScriptFile* convert(ScriptFile* asset, utils::memory::allocator& allocator)
 			{
 				return nullptr;
 			}
@@ -40,17 +40,17 @@ namespace zonetool::s1
 				auto& decompiler = gsc::s1::gsc_ctx->decompiler();
 				auto& disassembler = gsc::s1::gsc_ctx->disassembler();
 
-				const std::string stack_compressed{ asset->buffer, static_cast<std::uint32_t>(asset->compressedLen) };
+				const std::string stack_compressed{asset->buffer, static_cast<std::uint32_t>(asset->compressedLen)};
 				const auto decompressed_stack = utils::compression::zlib::decompress(stack_compressed);
 
-				const std::vector<std::uint8_t> stack{ decompressed_stack.begin(), decompressed_stack.end() };
-				const std::vector<std::uint8_t> bytecode{ asset->bytecode, asset->bytecode + asset->bytecodeLen };
+				const std::vector<std::uint8_t> stack{decompressed_stack.begin(), decompressed_stack.end()};
+				const std::vector<std::uint8_t> bytecode{asset->bytecode, asset->bytecode + asset->bytecodeLen};
 
 				const auto disasm = disassembler.disassemble(bytecode, stack);
 				const auto decomp = decompiler.decompile(*disasm);
 
 				const auto decomp_data = gsc::s1::gsc_ctx->source().dump(*decomp);
-				return { decomp_data.begin(), decomp_data.end() };
+				return {decomp_data.begin(), decomp_data.end()};
 			}
 
 			void dump_as_gsc(ScriptFile* asset)
@@ -63,7 +63,7 @@ namespace zonetool::s1
 				file.close();
 			}
 
-			void dump(ScriptFile* asset, zone_memory* mem)
+			void dump(ScriptFile* asset)
 			{
 				dump_as_gsc(asset);
 			}

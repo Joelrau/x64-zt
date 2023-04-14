@@ -12,22 +12,26 @@ namespace zonetool::s1
 	{
 		namespace sound
 		{
-			zonetool::h1::snd_alias_list_t* convert(snd_alias_list_t* asset, zone_memory* mem)
+			zonetool::h1::snd_alias_list_t* convert(snd_alias_list_t* asset, utils::memory::allocator& allocator)
 			{
-				auto* new_asset = mem->allocate<zonetool::h1::snd_alias_list_t>();
+				const auto new_asset = allocator.allocate<zonetool::h1::snd_alias_list_t>();
 
 				std::memcpy(new_asset, asset, sizeof(snd_alias_list_t));
-				new_asset->head = mem->allocate<zonetool::h1::snd_alias_t>(asset->count);
-				for (unsigned char i = 0; i < asset->count; i++)
+				new_asset->head = allocator.allocate_array<zonetool::h1::snd_alias_t>(asset->count);
+
+				for (auto i = 0u; i < asset->count; i++)
 				{
-					auto* head = &asset->head[i];
-					auto* new_head = &new_asset->head[i];
+					const auto head = &asset->head[i];
+					const auto new_head = &new_asset->head[i];
 
 					new_head->aliasName = head->aliasName;
 					new_head->subtitle = head->subtitle;
 					new_head->secondaryAliasName = head->secondaryAliasName;
 					new_head->chainAliasName = head->chainAliasName;
-					new_head->soundFile = reinterpret_cast<zonetool::h1::SoundFile*>(head->soundFile);
+
+					new_head->soundFile = allocator.allocate<zonetool::h1::SoundFile>();
+					std::memcpy(new_head->soundFile, head->soundFile, sizeof(zonetool::s1::SoundFile));
+
 					new_head->mixerGroup = head->chainAliasName;
 					new_head->poly = head->poly;
 					new_head->polyGlobal = 174;
@@ -119,10 +123,10 @@ namespace zonetool::s1
 						snd_data.resize(length);
 
 						// get data from offset
-						fseek(fp, static_cast<long>(offset), SEEK_SET);
-						fread(snd_data.data(), length, 1, fp);
+						std::fseek(fp, static_cast<long>(offset), SEEK_SET);
+						std::fread(snd_data.data(), length, 1, fp);
 
-						if (strncmp(reinterpret_cast<char*>(snd_data.data()), "fLaC", 4))
+						if (std::strncmp(reinterpret_cast<char*>(snd_data.data()), "fLaC", 4))
 						{
 							ZONETOOL_FATAL("streamed sound data for sound %s is not in fLaC format!", alias_name);
 							return false;
@@ -139,12 +143,11 @@ namespace zonetool::s1
 						}
 						loaded_name = utils::string::va("streamed/%s", loaded_name.data());
 
-						auto path = utils::string::va("loaded_sound/%s%s", loaded_name.data(), ".flac");
+						const auto path = utils::string::va("loaded_sound/%s%s", loaded_name.data(), ".flac");
+
 						auto file = filesystem::file(path);
 						file.open("wb");
-
 						file.write(snd_data.data(), snd_data.size(), 1);
-
 						file.close();
 
 						// convert sound
@@ -156,9 +159,9 @@ namespace zonetool::s1
 						flags.packed.type = zonetool::h1::SAT_LOADED;
 						new_head->flags = flags.intValue;
 
-						new_head->soundFile->u.loadSnd = mem->allocate<zonetool::h1::LoadedSound>();
-						auto* new_loaded = new_head->soundFile->u.loadSnd;
-						new_loaded->name = mem->duplicate_string(loaded_name);
+						new_head->soundFile->u.loadSnd = allocator.allocate<zonetool::h1::LoadedSound>();
+						const auto new_loaded = new_head->soundFile->u.loadSnd;
+						new_loaded->name = allocator.duplicate_string(loaded_name);
 
 						return true;
 					};
@@ -169,7 +172,7 @@ namespace zonetool::s1
 						{
 							if (!convert_and_dump_streamed())
 							{
-								new_head->soundFile = mem->allocate<zonetool::h1::SoundFile>();
+								new_head->soundFile = allocator.allocate<zonetool::h1::SoundFile>();
 								new_head->soundFile->exists = false;
 								new_head->soundFile->type = zonetool::h1::SAT_STREAMED;
 								new_head->soundFile->u.streamSnd.filename.info.raw.dir = "";
@@ -182,9 +185,10 @@ namespace zonetool::s1
 				return new_asset;
 			}
 
-			void dump(snd_alias_list_t* asset, zone_memory* mem)
+			void dump(snd_alias_list_t* asset)
 			{
-				auto* converted_asset = convert(asset, mem);
+				utils::memory::allocator allocator;
+				const auto converted_asset = convert(asset, allocator);
 				zonetool::h1::sound::dump(converted_asset);
 			}
 		}

@@ -175,9 +175,9 @@ namespace zonetool::s1
 
 		namespace mapents
 		{
-			zonetool::h1::MapEnts* convert(MapEnts* asset, zone_memory* mem)
+			zonetool::h1::MapEnts* convert(MapEnts* asset, utils::memory::allocator& allocator)
 			{
-				auto* new_asset = mem->allocate<zonetool::h1::MapEnts>();
+				const auto new_asset = allocator.allocate<zonetool::h1::MapEnts>();
 
 				REINTERPRET_CAST_SAFE(name);
 
@@ -202,7 +202,7 @@ namespace zonetool::s1
 				new_asset->clientTrigger.unk3 = asset->clientTrigger.unk3;
 				new_asset->clientTrigger.unk4 = asset->clientTrigger.unk4;
 				new_asset->clientTrigger.unk5 = asset->clientTrigger.unk5;
-				new_asset->clientTrigger.unk6 = mem->allocate<short>(asset->clientTrigger.trigger.count);
+				new_asset->clientTrigger.unk6 = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
 
 				COPY_VALUE_CAST(clientTriggerBlend);
 				COPY_VALUE_CAST(spawnList);
@@ -225,9 +225,10 @@ namespace zonetool::s1
 				}
 			}
 
-			void dump(MapEnts* asset, zone_memory* mem)
+			void dump(MapEnts* asset)
 			{
-				auto* converted_asset = convert(asset, mem);
+				utils::memory::allocator allocator;
+				const auto converted_asset = convert(asset, allocator);
 				zonetool::h1::map_ents::dump(converted_asset);
 
 				// dump the converted mapent strings

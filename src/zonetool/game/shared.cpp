@@ -15,6 +15,9 @@ namespace zonetool
 			void initialize()
 			{
 				SL_ConvertToString.set(0x1404317F0);
+
+				stream_files.set(0x141E5BF40);
+				stream_file_index.set(0x141E5BF14);
 			}
 		}
 
@@ -23,6 +26,9 @@ namespace zonetool
 			void initialize()
 			{
 				SL_ConvertToString.set(0x1403F0F10);
+
+				stream_files.set(0x141E57A30);
+				stream_file_index.set(0x141E57A04);
 			}
 		}
 
@@ -31,6 +37,9 @@ namespace zonetool
 			void initialize()
 			{
 				SL_ConvertToString.set(0x14043B170);
+
+				stream_files.set(0x1432748B0);
+				stream_file_index.set(0x143274884);
 			}
 		}
 
@@ -39,6 +48,9 @@ namespace zonetool
 			void initialize()
 			{
 				SL_ConvertToString.set(0x1405BFBB0);
+
+				stream_files.set(0x1420B2820);
+				stream_file_index.set(0x1420B27F4);
 			}
 		}
 	}

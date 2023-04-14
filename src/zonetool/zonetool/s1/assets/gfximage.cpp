@@ -533,13 +533,10 @@ namespace zonetool::s1
 
 		if (asset->streamed)
 		{
-			auto streamFileIndex = *reinterpret_cast<unsigned int*>(0x141E57A04);
-			auto streamFiles = reinterpret_cast<XStreamFile*>(0x141E57A30);
-
 			for (auto i = 0u; i < 4; i++)
 			{
-				auto streamFile = &streamFiles[streamFileIndex + i];
-				write.dump_single(streamFile);
+				const auto stream_file = &stream_files[*stream_file_index + i];
+				write.dump_single(stream_file);
 			}
 		}
 		write.close();

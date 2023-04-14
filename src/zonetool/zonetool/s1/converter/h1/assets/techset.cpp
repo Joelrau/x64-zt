@@ -6,11 +6,7 @@
 
 #include "zonetool/s1/functions.hpp"
 
-#include "domainshader.hpp"
-#include "hullshader.hpp"
-#include "pixelshader.hpp"
 #include "vertexdecl.hpp"
-#include "vertexshader.hpp"
 
 #include "zonetool/h1/assets/vertexdecl.hpp"
 
@@ -20,258 +16,6 @@ namespace zonetool::s1
 	{
 		namespace techset
 		{
-			namespace ree
-			{
-				void dump_constant_buffer_indexes(const std::string& techset, unsigned char* cbi)
-				{
-					const auto path = "techsets\\constantbuffer\\"s + techset + ".cbi";
-					auto file = filesystem::file(path);
-					file.open("wb");
-					auto fp = file.get_fp();
-
-					if (fp)
-					{
-						fwrite(cbi, zonetool::h1::MaterialTechniqueType::TECHNIQUE_COUNT, 1, fp);
-						file.close();
-					}
-				}
-
-				void dump_constant_buffer_def_array(const std::string& techset, unsigned char count, zonetool::h1::MaterialConstantBufferDef* def)
-				{
-					const auto path = "techsets\\constantbuffer\\"s + techset + ".cbt";
-					assetmanager::dumper dump;
-					if (!dump.open(path))
-					{
-						return;
-					}
-
-					dump.dump_int(count);
-					dump.dump_array(def, count);
-					for (int i = 0; i < count; i++)
-					{
-						if (def[i].vsData)
-						{
-							dump.dump_array(def[i].vsData, def[i].vsDataSize);
-						}
-						if (def[i].hsData)
-						{
-							dump.dump_array(def[i].hsData, def[i].hsDataSize);
-						}
-						if (def[i].dsData)
-						{
-							dump.dump_array(def[i].dsData, def[i].dsDataSize);
-						}
-						if (def[i].psData)
-						{
-							dump.dump_array(def[i].psData, def[i].psDataSize);
-						}
-						if (def[i].vsOffsetData)
-						{
-							dump.dump_array(def[i].vsOffsetData, def[i].vsOffsetDataSize);
-						}
-						if (def[i].hsOffsetData)
-						{
-							dump.dump_array(def[i].hsOffsetData, def[i].hsOffsetDataSize);
-						}
-						if (def[i].dsOffsetData)
-						{
-							dump.dump_array(def[i].dsOffsetData, def[i].dsOffsetDataSize);
-						}
-						if (def[i].psOffsetData)
-						{
-							dump.dump_array(def[i].psOffsetData, def[i].psOffsetDataSize);
-						}
-					}
-
-					dump.close();
-				}
-
-				void dump_stateinfo(const std::string& techset, zonetool::h1::Material* mat)
-				{
-					const auto path = "techsets\\state\\"s + techset + ".stateinfo";
-
-					ordered_json json_data = {};
-
-					json_data["stateFlags"] = mat->stateFlags;
-
-					auto file = filesystem::file(path);
-					file.open("wb");
-					auto fp = file.get_fp();
-					if (fp)
-					{
-						const auto json_dump = json_data.dump(4);
-						file.write(json_dump.data(), json_dump.size(), 1);
-						file.close();
-					}
-				}
-
-				void dump_statebits(const std::string& techset, unsigned char* statebits)
-				{
-					const auto path = "techsets\\state\\"s + techset + ".statebits";
-					auto file = filesystem::file(path);
-					file.open("wb");
-					auto fp = file.get_fp();
-
-					if (fp)
-					{
-						fwrite(statebits, zonetool::h1::MaterialTechniqueType::TECHNIQUE_COUNT, 1, fp);
-						file.close();
-					}
-				}
-
-				void dump_statebits_map(const std::string& techset, zonetool::h1::GfxStateBits* map, unsigned char count)
-				{
-					const auto path = "techsets\\state\\"s + techset + ".statebitsmap";
-
-					ordered_json json_data = {};
-					for (unsigned char i = 0; i < count; i++)
-					{
-						const auto var_x_gfx_globals = get_x_gfx_globals_for_zone<XGfxGlobals>(map[i].zone);
-						ordered_json entry;
-						entry["loadBits"][0] = map[i].loadBits[0];
-						entry["loadBits"][1] = map[i].loadBits[1];
-						entry["loadBits"][2] = map[i].loadBits[2];
-						entry["loadBits"][3] = map[i].loadBits[3];
-						entry["loadBits"][4] = map[i].loadBits[4];
-						entry["loadBits"][5] = map[i].loadBits[5];
-						for (int j = 0; j < 10; j++)
-						{
-							entry["depthStencilStateBits"][j] = var_x_gfx_globals ? var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[j]] : 0;
-						}
-						for (int j = 0; j < 3; j++)
-						{
-							entry["blendStateBits"][j] = var_x_gfx_globals ? var_x_gfx_globals->blendStateBits[map[i].blendState][j] : 0;
-						}
-						entry["rasterizerState"] = map[i].rasterizerState;
-						json_data[i] = entry;
-					}
-
-					auto file = filesystem::file(path);
-					file.open("wb");
-					auto fp = file.get_fp();
-					if (fp)
-					{
-						const auto json_dump = json_data.dump(4);
-						file.write(json_dump.data(), json_dump.size(), 1);
-						file.close();
-					}
-				}
-
-				void dump_technique(zonetool::h1::MaterialTechnique* asset)
-				{
-					const auto path = "techsets\\"s + asset->hdr.name + ".technique";
-
-					assetmanager::dumper dumper;
-					if (!dumper.open(path))
-					{
-						return;
-					}
-
-					dumper.dump_single(&asset->hdr);
-					dumper.dump_array(asset->passArray, asset->hdr.passCount);
-
-					dumper.dump_string(asset->hdr.name);
-					for (unsigned short i = 0; i < asset->hdr.passCount; i++)
-					{
-						if (asset->passArray[i].vertexShader)
-						{
-							dumper.dump_asset(asset->passArray[i].vertexShader);
-							//zonetool::h1::vertex_shader::dump(asset->passArray[i].vertexShader);
-						}
-
-						if (asset->passArray[i].vertexDecl)
-						{
-							dumper.dump_asset(asset->passArray[i].vertexDecl);
-							zonetool::h1::vertex_decl::dump(asset->passArray[i].vertexDecl);
-						}
-
-						if (asset->passArray[i].hullShader)
-						{
-							dumper.dump_asset(asset->passArray[i].hullShader);
-							//zonetool::h1::hull_shader::dump(asset->passArray[i].hullShader);
-						}
-
-						if (asset->passArray[i].domainShader)
-						{
-							dumper.dump_asset(asset->passArray[i].domainShader);
-							//zonetool::h1::domain_shader::dump(asset->passArray[i].domainShader);
-						}
-
-						if (asset->passArray[i].pixelShader)
-						{
-							dumper.dump_asset(asset->passArray[i].pixelShader);
-							//zonetool::h1::pixel_shader::dump(asset->passArray[i].pixelShader);
-						}
-
-						if (asset->passArray[i].args)
-						{
-							dumper.dump_array(asset->passArray[i].args, asset->passArray[i].perObjArgCount + asset->passArray[i].perPrimArgCount + asset->passArray[i].stableArgCount);
-							for (auto arg = 0; arg < asset->passArray[i].perObjArgCount + asset->passArray[i].perPrimArgCount + asset->passArray[i].stableArgCount; arg++)
-							{
-								if (asset->passArray[i].args[arg].type == 4)
-								{
-									dumper.dump_array(const_cast<float*>(asset->passArray[i].args[arg].u.literalConst), 4);
-								}
-							}
-						}
-					}
-
-					dumper.close();
-				}
-
-				void yeet(zonetool::h1::MaterialTechniqueSet* asset)
-				{
-					const auto path = "techsets\\"s + asset->name + ".techset.txt";
-
-					filesystem::file file(path);
-					file.open("wb");
-					auto fp = file.get_fp();
-
-					for (auto i = 0u; i < zonetool::h1::MaterialTechniqueType::TECHNIQUE_COUNT; i++)
-					{
-						if (asset->techniques[i])
-						{
-							fprintf(fp, "%i: %s\n", i, asset->techniques[i]->hdr.name);
-						}
-						else
-						{
-							fprintf(fp, "%i: nullptr\n", i);
-						}
-					}
-
-					file.close();
-				}
-
-				void dump(MaterialTechniqueSet* s1_asset, zone_memory* mem)
-				{
-					auto* asset = converter::h1::techset::convert(s1_asset, mem);
-
-					const auto path = "techsets\\"s + asset->name + ".techset";
-
-					yeet(asset);
-
-					assetmanager::dumper dumper;
-					if (!dumper.open(path))
-					{
-						return;
-					}
-
-					dumper.dump_single(asset);
-					dumper.dump_string(asset->name);
-
-					for (auto i = 0u; i < zonetool::h1::MaterialTechniqueType::TECHNIQUE_COUNT; i++)
-					{
-						if (asset->techniques[i])
-						{
-							dumper.dump_string(asset->techniques[i]->hdr.name);
-							dump_technique(asset->techniques[i]);
-						}
-					}
-
-					dumper.close();
-				}
-			}
-
 			const std::unordered_map <std::uint16_t, std::uint16_t> const_src_code_map =
 			{
 				{zonetool::s1::CONST_SRC_CODE_LIGHT_POSITION, zonetool::h1::CONST_SRC_CODE_LIGHT_POSITION},
@@ -798,18 +542,31 @@ namespace zonetool::s1
 				{14, 63},
 			};
 
-			std::unordered_map<std::string, zonetool::h1::MaterialTechniqueSet*> converted_techset_assets;
-
-			zonetool::h1::MaterialTechniqueSet* convert(MaterialTechniqueSet* asset, zone_memory* mem)
+			template <typename T, typename S>
+			T* convert_shader(S* source, utils::memory::allocator& allocator)
 			{
-				if (converted_techset_assets.contains(asset->name + TECHSET_PREFIX))
+				const auto new_shader = allocator.allocate<T>();
+				std::memcpy(new_shader, source, sizeof(S));
+				new_shader->name = allocator.duplicate_string(game::add_source_postfix(new_shader->name, game::s1));
+				return new_shader;
+			}
+
+			template <typename T, typename S>
+			void convert_shader(T** target, S* source, utils::memory::allocator& allocator)
+			{
+				if (source == nullptr)
 				{
-					return converted_techset_assets[asset->name];
+					return;
 				}
 
-				auto* new_asset = mem->allocate<zonetool::h1::MaterialTechniqueSet>();
+				*target = convert_shader<T>(source, allocator);
+			}
 
-				new_asset->name = mem->duplicate_string(asset->name + TECHSET_PREFIX);
+			zonetool::h1::MaterialTechniqueSet* convert(MaterialTechniqueSet* asset, utils::memory::allocator& allocator)
+			{
+				const auto new_asset = allocator.allocate<zonetool::h1::MaterialTechniqueSet>();
+
+				new_asset->name = allocator.duplicate_string(game::add_source_postfix(asset->name, game::s1));
 				new_asset->flags = asset->flags; // convert?
 
 				if (worldvertexformat_map.contains(asset->worldVertFormat))
@@ -825,111 +582,139 @@ namespace zonetool::s1
 				new_asset->preDisplacementOnlyCount = asset->preDisplacementOnlyCount;
 
 				std::unordered_map<std::uintptr_t, zonetool::h1::MaterialTechnique*> converted_asset_techniques;
-				for (std::int32_t i = 0; i < MaterialTechniqueType::TECHNIQUE_COUNT; i++)
+				for (auto i = 0; i < MaterialTechniqueType::TECHNIQUE_COUNT; i++)
 				{
-					if (asset->techniques[i])
+					if (asset->techniques[i] == nullptr)
 					{
-						if (converted_asset_techniques.contains(reinterpret_cast<std::uintptr_t>(asset->techniques[i])))
+						continue;
+					}
+
+					if (converted_asset_techniques.contains(reinterpret_cast<std::uintptr_t>(asset->techniques[i])))
+					{
+						new_asset->techniques[i] = converted_asset_techniques[reinterpret_cast<std::uintptr_t>(asset->techniques[i])];
+					}
+					else
+					{
+						const auto size = sizeof(MaterialTechniqueHeader) + sizeof(MaterialPass) * asset->techniques[i]->hdr.passCount;
+						new_asset->techniques[i] = allocator.manual_allocate<zonetool::h1::MaterialTechnique>(size); // no need to change index, it's the same
+
+						const auto technique = asset->techniques[i];
+						const auto new_technique = new_asset->techniques[i];
+
+						std::memcpy(new_technique, technique, size); // same struct
+
+						new_technique->hdr.name = allocator.duplicate_string(game::add_source_postfix(technique->hdr.name, game::s1));
+
+						for (auto pass_index = 0u; pass_index < technique->hdr.passCount; pass_index++)
 						{
-							new_asset->techniques[i] = converted_asset_techniques[reinterpret_cast<std::uintptr_t>(asset->techniques[i])];
-						}
-						else
-						{
-							const auto size = sizeof(MaterialTechniqueHeader) + sizeof(MaterialPass) * asset->techniques[i]->hdr.passCount;
-							new_asset->techniques[i] = mem->manual_allocate<zonetool::h1::MaterialTechnique>(size); // no need to change index, it's the same
+							const auto pass = &technique->passArray[pass_index];
+							const auto new_pass = &new_technique->passArray[pass_index];
 
-							auto* technique = asset->techniques[i];
-							auto* new_technique = new_asset->techniques[i];
+							convert_shader(&new_pass->vertexShader, pass->vertexShader, allocator);
+							convert_shader(&new_pass->hullShader, pass->hullShader, allocator);
+							convert_shader(&new_pass->domainShader, pass->domainShader, allocator);
+							convert_shader(&new_pass->pixelShader, pass->pixelShader, allocator);
 
-							std::memcpy(new_technique, technique, size); // same struct
-
-							new_technique->hdr.name = mem->duplicate_string(technique->hdr.name + TECHSET_PREFIX);
-
-							for (unsigned short pass_index = 0; pass_index < technique->hdr.passCount; pass_index++)
+							if (pass->vertexDecl)
 							{
-								auto* pass = &technique->passArray[pass_index];
-								auto* new_pass = &new_technique->passArray[pass_index];
+								new_pass->vertexDecl = converter::h1::vertexdecl::convert(pass->vertexDecl, allocator);
+							}
 
-								if (pass->vertexShader)
-								{
-									new_pass->vertexShader = converter::h1::vertexshader::convert(pass->vertexShader, mem);
-								}
-								if (pass->vertexDecl)
-								{
-									new_pass->vertexDecl = converter::h1::vertexdecl::convert(pass->vertexDecl, mem);
-								}
-								if (pass->hullShader)
-								{
-									new_pass->hullShader = converter::h1::hullshader::convert(pass->hullShader, mem);
-								}
-								if (pass->domainShader)
-								{
-									new_pass->domainShader = converter::h1::domainshader::convert(pass->domainShader, mem);
-								}
-								if (pass->pixelShader)
-								{
-									new_pass->pixelShader = converter::h1::pixelshader::convert(pass->pixelShader, mem);
-								}
+							//new_pass->stableArgSize += 16;
 
-								//new_pass->stableArgSize += 16;
-
-								if (pass->args)
+							if (pass->args)
+							{
+								const auto arg_count = pass->perObjArgCount + pass->perPrimArgCount + pass->stableArgCount;
+								new_pass->args = allocator.allocate_array<zonetool::h1::MaterialShaderArgument>(arg_count);
+								std::memcpy(new_pass->args, pass->args, sizeof(MaterialShaderArgument) * arg_count); // same struct
+								for (auto arg_index = 0; arg_index < arg_count; arg_index++)
 								{
-									const auto arg_count = pass->perObjArgCount + pass->perPrimArgCount + pass->stableArgCount;
-									new_pass->args = mem->allocate<zonetool::h1::MaterialShaderArgument>(arg_count);
-									std::memcpy(new_pass->args, pass->args, sizeof(MaterialShaderArgument) * arg_count); // same struct
-									for (auto arg_index = 0; arg_index < arg_count; arg_index++)
+									const auto arg = &pass->args[arg_index];
+									const auto new_arg = &new_pass->args[arg_index];
+
+									if (arg->type == MTL_ARG_CODE_CONST)
 									{
-										auto* arg = &pass->args[arg_index];
-										auto* new_arg = &new_pass->args[arg_index];
-
-										if (arg->type == MTL_ARG_CODE_CONST)
+										if (const_src_code_map.contains(arg->u.codeConst.index))
 										{
-											if (const_src_code_map.contains(arg->u.codeConst.index))
-											{
-												auto new_index = const_src_code_map.at(arg->u.codeConst.index);
-												new_arg->u.codeConst.index = new_index;
+											auto new_index = const_src_code_map.at(arg->u.codeConst.index);
+											new_arg->u.codeConst.index = new_index;
 
-												assert(new_arg->u.codeConst.index < zonetool::h1::CONST_SRC_TOTAL_COUNT);
-											}
-											else
-											{
-												ZONETOOL_ERROR("Unable to map code constant %d for technique '%s'!", arg->u.codeConst.index, asset->name);
-												new_arg->u.codeConst.index = 0;
-												new_arg->u.codeConst.firstRow = 0;
-												new_arg->u.codeConst.rowCount = 0;
-											}
+											assert(new_arg->u.codeConst.index < zonetool::h1::CONST_SRC_TOTAL_COUNT);
 										}
-										else if (arg->type == MTL_ARG_CODE_TEXTURE)
+										else
 										{
-											if (texture_src_code_map.contains(arg->u.codeConst.index))
-											{
-												auto new_index = texture_src_code_map.at(arg->u.codeConst.index);
-												new_arg->u.codeConst.index = new_index;
+											ZONETOOL_ERROR("Unable to map code constant %d for technique '%s'!", arg->u.codeConst.index, asset->name);
+											new_arg->u.codeConst.index = 0;
+											new_arg->u.codeConst.firstRow = 0;
+											new_arg->u.codeConst.rowCount = 0;
+										}
+									}
+									else if (arg->type == MTL_ARG_CODE_TEXTURE)
+									{
+										if (texture_src_code_map.contains(arg->u.codeConst.index))
+										{
+											auto new_index = texture_src_code_map.at(arg->u.codeConst.index);
+											new_arg->u.codeConst.index = new_index;
 
-												assert(new_arg->u.codeConst.index < zonetool::h1::TEXTURE_SRC_CODE_COUNT);
-											}
-											else
-											{
-												ZONETOOL_ERROR("Unable to map code sampler %d for technique '%s'!\n", arg->u.codeSampler, asset->name);
-												new_arg->u.codeConst.index = zonetool::h1::TEXTURE_SRC_CODE_BLACK;
-											}
+											assert(new_arg->u.codeConst.index < zonetool::h1::TEXTURE_SRC_CODE_COUNT);
+										}
+										else
+										{
+											ZONETOOL_ERROR("Unable to map code sampler %d for technique '%s'!\n", arg->u.codeSampler, asset->name);
+											new_arg->u.codeConst.index = zonetool::h1::TEXTURE_SRC_CODE_BLACK;
 										}
 									}
 								}
 							}
-							converted_asset_techniques[reinterpret_cast<std::uintptr_t>(asset->techniques[i])] = new_technique;
 						}
+
+						converted_asset_techniques[reinterpret_cast<std::uintptr_t>(asset->techniques[i])] = new_technique;
 					}
 				}
 
-				converted_techset_assets[asset->name] = new_asset;
 				return new_asset;
 			}
 
-			void dump(MaterialTechniqueSet* asset, zone_memory* mem)
+			void dump(zonetool::s1::ComputeShader* asset)
 			{
-				ree::dump(asset, mem);
+				utils::memory::allocator allocator;
+				const auto converted_shader = convert_shader<zonetool::h1::ComputeShader>(asset, allocator);
+				zonetool::h1::compute_shader::dump(converted_shader);
+			}
+
+			void dump(zonetool::s1::MaterialVertexShader* asset)
+			{
+				utils::memory::allocator allocator;
+				const auto converted_shader = convert_shader<zonetool::h1::MaterialVertexShader>(asset, allocator);
+				zonetool::h1::vertex_shader::dump(converted_shader);
+			}
+
+			void dump(zonetool::s1::MaterialHullShader* asset)
+			{
+				utils::memory::allocator allocator;
+				const auto converted_shader = convert_shader<zonetool::h1::MaterialHullShader>(asset, allocator);
+				zonetool::h1::hull_shader::dump(converted_shader);
+			}
+
+			void dump(zonetool::s1::MaterialDomainShader* asset)
+			{
+				utils::memory::allocator allocator;
+				const auto converted_shader = convert_shader<zonetool::h1::MaterialDomainShader>(asset, allocator);
+				zonetool::h1::domain_shader::dump(converted_shader);
+			}
+
+			void dump(zonetool::s1::MaterialPixelShader* asset)
+			{
+				utils::memory::allocator allocator;
+				const auto converted_shader = convert_shader<zonetool::h1::MaterialPixelShader>(asset, allocator);
+				zonetool::h1::pixel_shader::dump(converted_shader);
+			}
+
+			void dump(MaterialTechniqueSet* asset)
+			{
+				utils::memory::allocator allocator;
+				const auto converted_asset = convert(asset, allocator);
+				zonetool::h1::techset::dump(converted_asset);
 			}
 		}
 	}

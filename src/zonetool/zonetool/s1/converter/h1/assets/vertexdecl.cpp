@@ -10,9 +10,9 @@ namespace zonetool::s1
 	{
 		namespace vertexdecl
 		{
-			zonetool::h1::MaterialVertexDeclaration* convert(MaterialVertexDeclaration* asset, zone_memory* mem)
+			zonetool::h1::MaterialVertexDeclaration* convert(MaterialVertexDeclaration* asset, utils::memory::allocator& allocator)
 			{
-				auto* new_asset = mem->allocate<zonetool::h1::MaterialVertexDeclaration>();
+				const auto new_asset = allocator.allocate<zonetool::h1::MaterialVertexDeclaration>();
 
 				new_asset->streamCount = asset->streamCount;
 				new_asset->hasOptionalSource = asset->hasOptionalSource;
@@ -29,14 +29,15 @@ namespace zonetool::s1
 					}
 				}
 
-				new_asset->name = mem->duplicate_string(asset->name + TECHSET_PREFIX);
+				new_asset->name = allocator.duplicate_string(game::add_source_postfix(asset->name, game::s1));
 
 				return new_asset;
 			}
 
-			void dump(MaterialVertexDeclaration* asset, zone_memory* mem)
+			void dump(MaterialVertexDeclaration* asset)
 			{
-				auto* converted_asset = convert(asset, mem);
+				utils::memory::allocator allocator;
+				const auto converted_asset = convert(asset, allocator);
 				zonetool::h1::vertex_decl::dump(converted_asset);
 			}
 		}

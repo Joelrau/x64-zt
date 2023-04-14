@@ -6,8 +6,8 @@ namespace zonetool::s1
 	{
 		namespace vertexdecl
 		{
-			zonetool::h1::MaterialVertexDeclaration* convert(MaterialVertexDeclaration* asset, zone_memory* mem);
-			void dump(MaterialVertexDeclaration* asset, zone_memory* mem);
+			zonetool::h1::MaterialVertexDeclaration* convert(MaterialVertexDeclaration* asset, utils::memory::allocator& allocator);
+			void dump(MaterialVertexDeclaration* asset);
 		}
 	}
 }

@@ -12,19 +12,19 @@ namespace zonetool::s1
 	{
 		namespace aipaths
 		{
-			zonetool::h1::PathData* convert(PathData* asset, zone_memory* mem)
+			zonetool::h1::PathData* convert(PathData* asset, utils::memory::allocator& allocator)
 			{
-				auto* new_asset = mem->allocate<zonetool::h1::PathData>();
+				const auto new_asset = allocator.allocate<zonetool::h1::PathData>();
 
 				REINTERPRET_CAST_SAFE(name);
 
 				new_asset->nodeCount = asset->nodeCount;
-				new_asset->nodes = mem->allocate<zonetool::h1::pathnode_t>(asset->nodeCount);
-				for (unsigned int i = 0; i < asset->nodeCount; i++)
+				new_asset->nodes = allocator.allocate_array<zonetool::h1::pathnode_t>(asset->nodeCount);
+				for (auto i = 0u; i < asset->nodeCount; i++)
 				{
 					// something is wrong in these structs
-					auto* node = &asset->nodes[i];
-					auto* new_node = &new_asset->nodes[i];
+					const auto node = &asset->nodes[i];
+					const auto new_node = &new_asset->nodes[i];
 
 					new_node->constant.type = node->constant.type; // convert?
 					new_node->constant.spawnflags = node->constant.spawnflags;
@@ -66,9 +66,10 @@ namespace zonetool::s1
 				return new_asset;
 			}
 
-			void dump(PathData* asset, zone_memory* mem)
+			void dump(PathData* asset)
 			{
-				auto* converted_asset = convert(asset, mem);
+				utils::memory::allocator allocator;
+				const auto converted_asset = convert(asset, allocator);
 				zonetool::h1::IAIPaths::dump(converted_asset);
 			}
 		}

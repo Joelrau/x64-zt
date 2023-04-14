@@ -41,12 +41,9 @@ namespace zonetool::s1
 
 			void dump_streamed_image(GfxImage* image)
 			{
-				const auto stream_file_index = *reinterpret_cast<unsigned int*>(0x141E57A04);
-				const auto stream_files = reinterpret_cast<XStreamFile*>(0x141E57A30);
-
 				for (auto i = 0u; i < 4; i++)
 				{
-					const auto stream_file = &stream_files[stream_file_index + i];
+					const auto stream_file = &stream_files[*stream_file_index + i];
 
 					const auto imagefile_path = utils::string::va("zone\\imagefile%d.pak", stream_file->fileIndex);
 					std::ifstream imagefile;
@@ -130,7 +127,12 @@ namespace zonetool::s1
 				}
 			}
 
-			void dump(GfxImage* asset, zone_memory* mem)
+			zonetool::h1::GfxImage* convert(GfxImage* asset, utils::memory::allocator& allocator)
+			{
+				return nullptr;
+			}
+
+			void dump(GfxImage* asset)
 			{
 				if (asset->streamed)
 				{

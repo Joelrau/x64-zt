@@ -28,6 +28,12 @@ namespace utils
 			}
 
 			template <typename T>
+			inline T* manual_allocate(const size_t size)
+			{
+				return reinterpret_cast<T*>(this->allocate_array<char>(size));
+			}
+
+			template <typename T>
 			inline T* allocate_array(const size_t count = 1)
 			{
 				return static_cast<T*>(this->allocate(count * sizeof(T)));

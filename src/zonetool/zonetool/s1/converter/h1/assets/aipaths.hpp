@@ -6,8 +6,8 @@ namespace zonetool::s1
 	{
 		namespace aipaths
 		{
-			zonetool::h1::PathData* convert(PathData* asset, zone_memory* mem);
-			void dump(PathData* asset, zone_memory* mem);
+			zonetool::h1::PathData* convert(PathData* asset, utils::memory::allocator& allocator);
+			void dump(PathData* asset);
 		}
 	}
 }

@@ -41,12 +41,9 @@ namespace zonetool::iw6
 
 			void dump_streamed_image(GfxImage* image)
 			{
-				const auto stream_file_index = *reinterpret_cast<unsigned int*>(0x141E5BF14);
-				const auto stream_files = reinterpret_cast<XStreamFile*>(0x141E5BF40);
-
 				for (auto i = 0u; i < 4; i++)
 				{
-					const auto stream_file = &stream_files[stream_file_index + i];
+					const auto stream_file = &stream_files[*stream_file_index + i];
 
 					const auto imagefile_path = utils::string::va("zone\\imagefile%d.pak", stream_file->fileIndex);
 					std::ifstream imagefile;
