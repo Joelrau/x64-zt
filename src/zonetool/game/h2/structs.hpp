@@ -370,5 +370,14 @@ namespace h2
 			THREAD_CONTEXT_STATS_WRITE = 0xF,
 			THREAD_CONTEXT_COUNT = 0x10,
 		};
+
+		struct XZone
+		{
+			char __pad0[24];
+			char name[64];
+			char __pad1[128];
+		};
+
+		static_assert(sizeof(XZone) == 216);
 	}
 }
