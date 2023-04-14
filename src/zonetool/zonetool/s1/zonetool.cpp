@@ -938,7 +938,8 @@ namespace zonetool::s1
 						const auto type = type_to_int(type_str);
 						if (type == -1)
 						{
-							continue;
+							ZONETOOL_ERROR("Asset type \"%s\" does not exist", type_str.data());
+							return;
 						}
 
 						asset_type_filter.insert(static_cast<XAssetType>(type));

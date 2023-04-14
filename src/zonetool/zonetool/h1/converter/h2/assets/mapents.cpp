@@ -25,7 +25,7 @@ namespace zonetool::h1
 						buffer.append("\n");
 					});
 
-					if (line.starts_with("{") || line.starts_with("}"))
+					if (line.starts_with("{") || line.starts_with("}") || line.starts_with("\""))
 					{
 						buffer.append(line);
 						continue;
