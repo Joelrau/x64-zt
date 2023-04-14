@@ -72,7 +72,14 @@ namespace utils
 
 	void* memory::allocate(const size_t length)
 	{
-		return calloc(length, 1);
+		if (length == 0)
+		{
+			return nullptr;
+		}
+
+		const auto buffer = std::calloc(length, 1);
+		std::memset(buffer, 0, length);
+		return buffer;
 	}
 
 	char* memory::duplicate_string(const std::string& string)

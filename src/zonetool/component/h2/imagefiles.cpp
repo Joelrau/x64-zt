@@ -175,4 +175,4 @@ namespace imagefiles
 	};
 }
 
-REGISTER_COMPONENT(imagefiles::component)
+REGISTER_COMPONENT_H2(imagefiles::component)

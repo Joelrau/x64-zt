@@ -267,4 +267,4 @@ namespace database
 	};
 }
 
-REGISTER_COMPONENT(database::component)
+REGISTER_COMPONENT_H2(database::component)
