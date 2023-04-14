@@ -214,12 +214,12 @@ namespace zonetool::s1
 		ZONETOOL_INFO("Compiling fastfile \"%s\"...", this->name_.data());
 
 		constexpr std::size_t num_streams = 7;
-		Xzone_memory<num_streams> mem;
+		XZoneMemory<num_streams> mem;
 
-		std::size_t headersize = sizeof Xzone_memory<num_streams>;
+		std::size_t headersize = sizeof XZoneMemory<num_streams>;
 		memset(&mem, 0, headersize);
 
-		auto zone = buf->at<Xzone_memory<num_streams>>();
+		auto zone = buf->at<XZoneMemory<num_streams>>();
 
 		{
 			std::vector<gfx_image*> images;
