@@ -61,6 +61,36 @@ namespace zonetool::h1
 					COPY_VALUE_FX(velIntervalCount);
 					COPY_VALUE_FX(visStateIntervalCount);
 
+					//if ((asset->elemDefs[i].flags & 0x100) != 0)
+					//{
+					//	asset->elemDefs[i].flags &= ~0x100;
+					//	asset->elemDefs[i].flags |= 0x80;
+					//}
+					//
+					//if ((asset->elemDefs[i].flags & 0xC0) != 0)
+					//{
+					//	asset->elemDefs[i].flags &= ~0xC0;
+					//}
+					//else if (((asset->elemDefs[i].flags & 0x80) != 0) && ((asset->elemDefs[i].flags & 0x40) == 0))
+					//{
+					//	asset->elemDefs[i].flags &= ~0x80;
+					//	asset->elemDefs[i].flags |= 0x40;
+					//}
+					//else if (((asset->elemDefs[i].flags & 0x80) == 0) && ((asset->elemDefs[i].flags & 0x40) != 0))
+					//{
+					//	asset->elemDefs[i].flags &= ~0x40;
+					//}
+
+					const auto remove_flag = [&](const unsigned int flag)
+					{
+						if ((asset->elemDefs[i].flags & flag) != 0)
+						{
+							asset->elemDefs[i].flags &= ~flag;
+						}
+					};
+
+					remove_flag(0xC0);
+
 					if ((((asset->elemDefs[i].flags & 0x30) - 16) & 0xFFFFFFEF) != 0)
 					{
 						std::memset(&asset->elemDefs[i].spawnOffsetRadius, 0, sizeof(zonetool::h2::FxFloatRange));
@@ -72,29 +102,15 @@ namespace zonetool::h1
 					{
 						COPY_ARR_FX(velSamples[o].local.velocity.base);
 						COPY_ARR_FX(velSamples[o].local.velocity.amplitude);
-						std::memcpy(&asset->elemDefs[i].velSamples[o].local.velocity.unk_vec,
-							asset->elemDefs[i].velSamples[o].local.velocity.amplitude,
-							sizeof(float[3])
-						);
+
 						COPY_ARR_FX(velSamples[o].local.totalDelta.base);
 						COPY_ARR_FX(velSamples[o].local.totalDelta.amplitude);
-						std::memcpy(&asset->elemDefs[i].velSamples[o].local.totalDelta.unk_vec,
-							asset->elemDefs[i].velSamples[o].local.totalDelta.amplitude,
-							sizeof(float[3])
-						);
 
 						COPY_ARR_FX(velSamples[o].world.velocity.base);
 						COPY_ARR_FX(velSamples[o].world.velocity.amplitude);
-						std::memcpy(&asset->elemDefs[i].velSamples[o].world.totalDelta.unk_vec,
-							asset->elemDefs[i].velSamples[o].world.totalDelta.amplitude,
-							sizeof(float[3])
-						);
+
 						COPY_ARR_FX(velSamples[o].world.totalDelta.base);
 						COPY_ARR_FX(velSamples[o].world.totalDelta.amplitude);
-						std::memcpy(&asset->elemDefs[i].velSamples[o].world.totalDelta.unk_vec,
-							asset->elemDefs[i].velSamples[o].world.totalDelta.amplitude,
-							sizeof(float[3])
-						);
 					}
 
 					REINTERPRET_CAST_SAFE_FX(visSamples);

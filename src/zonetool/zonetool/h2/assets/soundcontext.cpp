@@ -21,6 +21,8 @@ namespace zonetool::h2
 			auto bytes = file.read_bytes(file.size());
 			memcpy(asset->__pad0, bytes.data(), bytes.size());
 			file.close();
+
+			return asset;
 		}
 
 		return nullptr;

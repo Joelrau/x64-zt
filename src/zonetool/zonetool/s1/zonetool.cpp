@@ -271,8 +271,8 @@ namespace zonetool::s1
 			DUMP_ASSET_CONVERT_CONVERT(ASSET_TYPE_TECHNIQUE_SET, techset, MaterialTechniqueSet);
 			DUMP_ASSET_NO_CONVERT_NO_CONVERT(ASSET_TYPE_TRACER, tracer_def, TracerDef);
 			//DUMP_ASSET(ASSET_TYPE_FONT, font_def, Font_s);
-			//DUMP_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment, WeaponAttachment);
-			//DUMP_ASSET(ASSET_TYPE_WEAPON, weapon_def, WeaponDef);
+			DUMP_ASSET_REGULAR(ASSET_TYPE_ATTACHMENT, weapon_attachment, WeaponAttachment);
+			DUMP_ASSET_REGULAR(ASSET_TYPE_WEAPON, weapon_def, WeaponDef);
 			DUMP_ASSET_NO_CONVERT_NO_CONVERT(ASSET_TYPE_XANIMPARTS, xanim_parts, XAnimParts);
 			DUMP_ASSET_NO_CONVERT_CONVERT(ASSET_TYPE_XMODEL, xmodel, XModel);
 			DUMP_ASSET_NO_CONVERT_NO_CONVERT(ASSET_TYPE_XMODELSURFS, xsurface, XModelSurfs);
@@ -927,11 +927,12 @@ namespace zonetool::s1
 					return;
 				}
 
+				asset_type_filter.clear();
+
 				if (params.size() >= 4)
 				{
 					const auto asset_types_str = params.get(3);
 					const auto asset_types = utils::string::split(asset_types_str, ',');
-					asset_type_filter.clear();
 
 					for (const auto& type_str : asset_types)
 					{

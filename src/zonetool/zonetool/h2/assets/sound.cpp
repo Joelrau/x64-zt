@@ -719,6 +719,9 @@ namespace zonetool::h2
 		// soundfile shit
 		if (asset->soundFile)
 		{
+			sound["soundfile"]["type"] = asset->soundFile->type;
+			sound["soundfile"]["exists"] = asset->soundFile->exists;
+
 			auto insert_loaded = [&]()
 			{
 				sound["soundfile"]["name"] = asset->soundFile->u.loadSnd ?

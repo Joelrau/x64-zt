@@ -7,6 +7,7 @@ namespace zonetool::h2
 {
 	zonetool_globals_t globals{};
 	std::vector<std::pair<XAssetType, std::string>> referenced_assets;
+	std::unordered_set<XAssetType> asset_type_filter;
 
 	const char* get_asset_name(XAssetType type, void* pointer)
 	{
@@ -181,6 +182,11 @@ namespace zonetool::h2
 		}
 
 		if (!globals.dump)
+		{
+			return;
+		}
+
+		if (asset_type_filter.size() > 0 && !asset_type_filter.contains(asset->type))
 		{
 			return;
 		}
@@ -696,6 +702,26 @@ namespace zonetool::h2
 				{
 					ZONETOOL_ERROR("Unsupported dump target \"%s\" (%i)", mode, dump_target);
 					return;
+				}
+
+				asset_type_filter.clear();
+
+				if (params.size() >= 4)
+				{
+					const auto asset_types_str = params.get(3);
+					const auto asset_types = utils::string::split(asset_types_str, ',');
+
+					for (const auto& type_str : asset_types)
+					{
+						const auto type = type_to_int(type_str);
+						if (type == -1)
+						{
+							ZONETOOL_ERROR("Asset type \"%s\" does not exist", type_str.data());
+							return;
+						}
+
+						asset_type_filter.insert(static_cast<XAssetType>(type));
+					}
 				}
 
 				dump_zone(params.get(2), dump_target);
