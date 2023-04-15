@@ -499,7 +499,7 @@ namespace zonetool::h2
 		if (data->blendShapeWeightUnknown1)
 		{
 			buf->align(0);
-			buf->write_stream(data->blendShapeWeightUnknown1, sizeof(*data->blendShapeWeightUnknown1)* data->blendShapeWeightCount);
+			buf->write_stream(data->blendShapeWeightUnknown1, sizeof(*data->blendShapeWeightUnknown1) * data->blendShapeWeightCount);
 			zone_buffer::clear_pointer(&dest->blendShapeWeightUnknown1);
 		}
 
@@ -513,22 +513,22 @@ namespace zonetool::h2
 		if (data->blendShapeWeightUnknown3)
 		{
 			buf->align(1);
-			buf->write_stream(data->blendShapeWeightUnknown3, sizeof(*data->blendShapeWeightUnknown3)* GetTotalNumberOfBlendShapeKeys(data));
+			buf->write_stream(data->blendShapeWeightUnknown3, sizeof(*data->blendShapeWeightUnknown3) * GetTotalNumberOfBlendShapeKeys(data));
 			zone_buffer::clear_pointer(&dest->blendShapeWeightUnknown3);
 		}
 
 		if (data->blendShapeWeightUnknown4)
 		{
 			buf->align(1);
-			buf->write_stream(data->blendShapeWeightUnknown4, 
-				sizeof(*data->blendShapeWeightUnknown4)* (GetTotalNumberOfBlendShapeKeys(data) + 2 * data->blendShapeWeightCount));
+			buf->write_stream(data->blendShapeWeightUnknown4,
+				sizeof(*data->blendShapeWeightUnknown4) * (GetTotalNumberOfBlendShapeKeys(data) + 2 * data->blendShapeWeightCount));
 			zone_buffer::clear_pointer(&dest->blendShapeWeightUnknown4);
 		}
 
 		if (data->blendShapeWeights)
 		{
 			buf->align(3);
-			buf->write_stream(data->blendShapeWeights, sizeof(*data->blendShapeWeights)* (data->numframes + 1));
+			buf->write_stream(data->blendShapeWeights, sizeof(*data->blendShapeWeights) * (data->numframes + 1));
 			zone_buffer::clear_pointer(&dest->blendShapeWeights);
 		}
 
@@ -538,19 +538,6 @@ namespace zonetool::h2
 			buf->write_stream(data->scriptedViewmodelAnimData, 8);
 			zone_buffer::clear_pointer(&dest->scriptedViewmodelAnimData);
 		}
-
-		dest->secondaryName = nullptr;
-		dest->blendShapeWeightNames = nullptr;
-		dest->blendShapeWeightCount = 0;
-		dest->blendShapeWeightUnknown1 = nullptr;
-		dest->blendShapeWeightUnknown2 = nullptr;
-		dest->blendShapeWeightUnknown3 = nullptr;
-		dest->blendShapeWeightUnknown4 = nullptr;
-		dest->blendShapeWeights = nullptr;
-		dest->scriptedViewmodelAnimData = nullptr;
-		dest->u3 = 0;
-		dest->u4 = 0;
-		dest->u5 = 0;
 
 		buf->pop_stream();
 	}
@@ -749,7 +736,7 @@ namespace zonetool::h2
 
 		if (asset->blendShapeWeightUnknown4)
 		{
-			dump.dump_raw(asset->blendShapeWeightUnknown4, 
+			dump.dump_raw(asset->blendShapeWeightUnknown4,
 				sizeof(*asset->blendShapeWeightUnknown4) * (static_cast<int>(GetTotalNumberOfBlendShapeKeys(asset)) + 2 * asset->blendShapeWeightCount));
 		}
 

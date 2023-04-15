@@ -772,22 +772,33 @@ namespace zonetool::h2
 
 		weapon->notetrackUnknownKeys = mem->allocate<scr_string_t>(16);
 		weapon->notetrackUnknownValues = mem->allocate<scr_string_t>(16);
-		for (auto i = 0; i < 16; i++)
+
+		if (!data["notetrackUnknownKeys"].is_null())
 		{
-			auto notetrack = data["notetrackUnknownKeys"][i].get<std::string>();
-			this->add_script_string(&weapon->notetrackUnknownKeys[i], mem->duplicate_string(notetrack));
-		}
-		for (auto i = 0; i < 16; i++)
-		{
-			auto notetrack = data["notetrackUnknownValues"][i].get<std::string>();
-			this->add_script_string(&weapon->notetrackUnknownValues[i], mem->duplicate_string(notetrack));
+			for (auto i = 0; i < 16; i++)
+			{
+				auto notetrack = data["notetrackUnknownKeys"][i].get<std::string>();
+				this->add_script_string(&weapon->notetrackUnknownKeys[i], mem->duplicate_string(notetrack));
+			}
 		}
 
-		weapon->notetrackUnknown = mem->allocate<char>(16);
-		for (auto i = 0; i < 16; i++)
+		if (!data["notetrackUnknownValues"].is_null())
 		{
-			auto value = data["notetrackUnknown"][i].get<char>();
-			weapon->notetrackUnknown[i] = value;
+			for (auto i = 0; i < 16; i++)
+			{
+				auto notetrack = data["notetrackUnknownValues"][i].get<std::string>();
+				this->add_script_string(&weapon->notetrackUnknownValues[i], mem->duplicate_string(notetrack));
+			}
+		}
+
+		if (!data["notetrackUnknown"].is_null())
+		{
+			weapon->notetrackUnknown = mem->allocate<char>(16);
+			for (auto i = 0; i < 16; i++)
+			{
+				auto value = data["notetrackUnknown"][i].get<char>();
+				weapon->notetrackUnknown[i] = value;
+			}
 		}
 
 		WEAPON_READ_STRING(szModeName);

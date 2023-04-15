@@ -61,35 +61,19 @@ namespace zonetool::h1
 					COPY_VALUE_FX(velIntervalCount);
 					COPY_VALUE_FX(visStateIntervalCount);
 
-					//if ((asset->elemDefs[i].flags & 0x100) != 0)
-					//{
-					//	asset->elemDefs[i].flags &= ~0x100;
-					//	asset->elemDefs[i].flags |= 0x80;
-					//}
-					//
-					//if ((asset->elemDefs[i].flags & 0xC0) != 0)
-					//{
-					//	asset->elemDefs[i].flags &= ~0xC0;
-					//}
-					//else if (((asset->elemDefs[i].flags & 0x80) != 0) && ((asset->elemDefs[i].flags & 0x40) == 0))
-					//{
-					//	asset->elemDefs[i].flags &= ~0x80;
-					//	asset->elemDefs[i].flags |= 0x40;
-					//}
-					//else if (((asset->elemDefs[i].flags & 0x80) == 0) && ((asset->elemDefs[i].flags & 0x40) != 0))
-					//{
-					//	asset->elemDefs[i].flags &= ~0x40;
-					//}
-
-					const auto remove_flag = [&](const unsigned int flag)
+					if ((asset->elemDefs[i].flags & 0xC0) != 0)
 					{
-						if ((asset->elemDefs[i].flags & flag) != 0)
-						{
-							asset->elemDefs[i].flags &= ~flag;
-						}
-					};
-
-					remove_flag(0xC0);
+						asset->elemDefs[i].flags &= ~0xC0;
+					}
+					else if (((asset->elemDefs[i].flags & 0x80) != 0) && ((asset->elemDefs[i].flags & 0x40) == 0))
+					{
+						asset->elemDefs[i].flags &= ~0x80;
+						asset->elemDefs[i].flags |= 0x40;
+					}
+					else if (((asset->elemDefs[i].flags & 0x80) == 0) && ((asset->elemDefs[i].flags & 0x40) != 0))
+					{
+						asset->elemDefs[i].flags &= ~0x40;
+					}
 
 					if ((((asset->elemDefs[i].flags & 0x30) - 16) & 0xFFFFFFEF) != 0)
 					{
