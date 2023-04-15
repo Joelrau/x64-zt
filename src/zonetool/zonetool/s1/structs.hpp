@@ -205,12 +205,12 @@ namespace zonetool::s1
 
 	struct dmPolytopeData
 	{
-		vec4_t* __ptr64 vec4_array0; // (array,count0)
-		vec4_t* __ptr64 vec4_array1; // (array,count1)
-		unsigned short* __ptr64 uint16_array0; // surfaceType? (array,count0)
-		unsigned short* __ptr64 uint16_array1; // m_vertexMaterials (array,count1)
-		dmSubEdge* __ptr64 edges; // (array,count2)
-		unsigned char* __ptr64 uint8_array0; // baseAdjacentSide? (array,count1)
+		vec4_t* vec4_array0; // (array,count0)
+		vec4_t* vec4_array1; // (array,count1)
+		unsigned short* uint16_array0; // surfaceType? (array,count0)
+		unsigned short* uint16_array1; // m_vertexMaterials (array,count1)
+		dmSubEdge* edges; // (array,count2)
+		unsigned char* uint8_array0; // baseAdjacentSide? (array,count1)
 		//unsigned __int8 firstAdjacentSideOffsets[2][3];
 		//unsigned __int8 edgeCount[2][3];
 		char __pad0[12];

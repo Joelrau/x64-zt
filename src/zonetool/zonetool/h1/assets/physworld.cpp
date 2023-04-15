@@ -42,29 +42,29 @@ namespace zonetool::h1
 		PhysWorld* asset = read.read_single<PhysWorld>();
 		asset->name = read.read_string();
 
-		asset->models = read.read_array<PhysBrushModel>();
+		asset->brushModels = read.read_array<PhysBrushModel>();
 		asset->polytopeDatas = read.read_array<dmPolytopeData>();
-		for (unsigned int i = 0; i < asset->polytopeDatasCount; i++)
+		for (unsigned int i = 0; i < asset->polytopeCount; i++)
 		{
-			asset->polytopeDatas[i].vec4_array0 = read.read_array<dmFloat4_array_t>();
-			asset->polytopeDatas[i].vec4_array1 = read.read_array<dmFloat4_array_t>();
-			asset->polytopeDatas[i].uint16_array0 = read.read_array<unsigned short>();
-			asset->polytopeDatas[i].uint16_array1 = read.read_array<unsigned short>();
-			asset->polytopeDatas[i].edges = read.read_array<dmSubEdge>();
-			asset->polytopeDatas[i].uint8_array0 = read.read_array<unsigned char>();
+			asset->polytopeDatas[i].vec4_array0 = read.read_array<dmFloat4>();
+			asset->polytopeDatas[i].vec4_array1 = read.read_array<dmFloat4>();
+			asset->polytopeDatas[i].uint16_array0 = read.read_array<dm_uint16>();
+			asset->polytopeDatas[i].uint16_array1 = read.read_array<dm_uint16>();
+			asset->polytopeDatas[i].m_aSubEdges = read.read_array<dmSubEdge>();
+			asset->polytopeDatas[i].m_aFaceSubEdges = read.read_array<dm_uint8>();
 		}
 		asset->meshDatas = read.read_array<dmMeshData>();
-		for (unsigned int i = 0; i < asset->meshDatasCount; i++)
+		for (unsigned int i = 0; i < asset->meshDataCount; i++)
 		{
-			asset->meshDatas[i].meshNodes = read.read_array<dmMeshNode_array_t>();
-			asset->meshDatas[i].vec4_array0 = read.read_array<dmFloat4_array_t>();
-			asset->meshDatas[i].meshTriangles = read.read_array<dmMeshTriangle>();
+			asset->meshDatas[i].m_pRoot = read.read_array<dmMeshNode>();
+			asset->meshDatas[i].m_aVertices = read.read_array<dmFloat4>();
+			asset->meshDatas[i].m_aTriangles = read.read_array<dmMeshTriangle>();
 		}
-		asset->waterVolumes = read.read_array<PhysWaterVolumeDef>();
-		for (unsigned int i = 0; i < asset->waterVolumesCount; i++)
+		asset->waterVolumeDefs = read.read_array<PhysWaterVolumeDef>();
+		for (unsigned int i = 0; i < asset->waterVolumeDefCount; i++)
 		{
-			asset->waterVolumes[i].physWaterPreset = read.read_asset<PhysWaterPreset>();
-			this->add_script_string(&asset->waterVolumes[i].string, read.read_string());
+			asset->waterVolumeDefs[i].physWaterPreset = read.read_asset<PhysWaterPreset>();
+			this->add_script_string(&asset->waterVolumeDefs[i].string, read.read_string());
 		}
 
 		read.close();
@@ -87,21 +87,21 @@ namespace zonetool::h1
 	{
 		auto* data = this->asset_;
 
-		if (data->waterVolumes)
+		if (data->waterVolumeDefs)
 		{
-			for (unsigned int i = 0; i < data->waterVolumesCount; i++)
+			for (unsigned int i = 0; i < data->waterVolumeDefCount; i++)
 			{
-				data->waterVolumes[i].string = static_cast<scr_string_t>(buf->write_scriptstring(
-					this->get_script_string(&data->waterVolumes[i].string)));
+				data->waterVolumeDefs[i].string = static_cast<scr_string_t>(buf->write_scriptstring(
+					this->get_script_string(&data->waterVolumeDefs[i].string)));
 			}
 		}
 	}
 
 	void phys_world::load_depending(zone_base* zone)
 	{
-		for (unsigned int i = 0; i < this->asset_->waterVolumesCount; i++)
+		for (unsigned int i = 0; i < this->asset_->waterVolumeDefCount; i++)
 		{
-			zone->add_asset_of_type(ASSET_TYPE_PHYSWATERPRESET, this->asset_->waterVolumes[i].physWaterPreset->name);
+			zone->add_asset_of_type(ASSET_TYPE_PHYSWATERPRESET, this->asset_->waterVolumeDefs[i].physWaterPreset->name);
 		}
 	}
 
@@ -124,18 +124,18 @@ namespace zonetool::h1
 
 		dest->name = buf->write_str(this->name());
 
-		if (data->models)
+		if (data->brushModels)
 		{
 			buf->align(3);
-			buf->write(data->models, data->modelsCount);
-			zone_buffer::clear_pointer(&dest->models);
+			buf->write(data->brushModels, data->brushModelCount);
+			zone_buffer::clear_pointer(&dest->brushModels);
 		}
 
 		if (data->polytopeDatas)
 		{
 			buf->align(3);
-			auto* dest_poly_datas = buf->write(data->polytopeDatas, data->polytopeDatasCount);
-			for (unsigned int i = 0; i < data->polytopeDatasCount; i++)
+			auto* dest_poly_datas = buf->write(data->polytopeDatas, data->polytopeCount);
+			for (unsigned int i = 0; i < data->polytopeCount; i++)
 			{
 				auto* data_poly_data = &data->polytopeDatas[i];
 				auto* dest_poly_data = &dest_poly_datas[i];
@@ -143,42 +143,42 @@ namespace zonetool::h1
 				if (data_poly_data->vec4_array0)
 				{
 					buf->align(15);
-					buf->write(data_poly_data->vec4_array0, data_poly_data->count0);
+					buf->write(data_poly_data->vec4_array0, data_poly_data->m_vertexCount);
 					zone_buffer::clear_pointer(&dest_poly_data->vec4_array0);
 				}
 
 				if (data_poly_data->vec4_array1)
 				{
 					buf->align(15);
-					buf->write(data_poly_data->vec4_array1, data_poly_data->count1);
+					buf->write(data_poly_data->vec4_array1, data_poly_data->m_faceCount);
 					zone_buffer::clear_pointer(&dest_poly_data->vec4_array1);
 				}
 
-				if (data_poly_data->edges)
+				if (data_poly_data->m_aSubEdges)
 				{
 					buf->align(3);
-					buf->write(data_poly_data->edges, data_poly_data->count2);
-					zone_buffer::clear_pointer(&dest_poly_data->edges);
+					buf->write(data_poly_data->m_aSubEdges, data_poly_data->m_subEdgeCount);
+					zone_buffer::clear_pointer(&dest_poly_data->m_aSubEdges);
 				}
 
-				if (data_poly_data->uint8_array0)
+				if (data_poly_data->m_aFaceSubEdges)
 				{
 					buf->align(0);
-					buf->write(data_poly_data->uint8_array0, data_poly_data->count1);
-					zone_buffer::clear_pointer(&dest_poly_data->uint8_array0);
+					buf->write(data_poly_data->m_aFaceSubEdges, data_poly_data->m_faceCount);
+					zone_buffer::clear_pointer(&dest_poly_data->m_aFaceSubEdges);
 				}
 
 				if (data_poly_data->uint16_array0)
 				{
 					buf->align(1);
-					buf->write(data_poly_data->uint16_array0, data_poly_data->count1);
+					buf->write(data_poly_data->uint16_array0, data_poly_data->m_faceCount);
 					zone_buffer::clear_pointer(&dest_poly_data->uint16_array0);
 				}
 
 				if (data_poly_data->uint16_array1)
 				{
 					buf->align(1);
-					buf->write(data_poly_data->uint16_array1, data_poly_data->count0);
+					buf->write(data_poly_data->uint16_array1, data_poly_data->m_vertexCount);
 					zone_buffer::clear_pointer(&dest_poly_data->uint16_array1);
 				}
 			}
@@ -188,52 +188,52 @@ namespace zonetool::h1
 		if (data->meshDatas)
 		{
 			buf->align(3);
-			auto* dest_mesh_datas = buf->write(data->meshDatas, data->meshDatasCount);
-			for (unsigned int i = 0; i < data->meshDatasCount; i++)
+			auto* dest_mesh_datas = buf->write(data->meshDatas, data->meshDataCount);
+			for (unsigned int i = 0; i < data->meshDataCount; i++)
 			{
 				auto* data_mesh_data = &data->meshDatas[i];
 				auto* dest_mesh_data = &dest_mesh_datas[i];
 
-				if (data_mesh_data->meshNodes)
+				if (data_mesh_data->m_pRoot)
 				{
 					buf->align(15);
-					buf->write(data_mesh_data->meshNodes, data_mesh_data->meshNodeCount);
-					zone_buffer::clear_pointer(&dest_mesh_data->meshNodes);
+					buf->write(data_mesh_data->m_pRoot, data_mesh_data->m_nodeCount);
+					zone_buffer::clear_pointer(&dest_mesh_data->m_pRoot);
 				}
 
-				if (data_mesh_data->vec4_array0)
+				if (data_mesh_data->m_aVertices)
 				{
 					buf->align(15);
-					buf->write(data_mesh_data->vec4_array0, data_mesh_data->vec4_array0_count);
-					zone_buffer::clear_pointer(&dest_mesh_data->vec4_array0);
+					buf->write(data_mesh_data->m_aVertices, data_mesh_data->m_vertexCount);
+					zone_buffer::clear_pointer(&dest_mesh_data->m_aVertices);
 				}
 
-				if (data_mesh_data->meshTriangles)
+				if (data_mesh_data->m_aTriangles)
 				{
 					buf->align(3);
-					buf->write(data_mesh_data->meshTriangles, data_mesh_data->meshTriangleCount);
-					zone_buffer::clear_pointer(&dest_mesh_data->meshTriangles);
+					buf->write(data_mesh_data->m_aTriangles, data_mesh_data->m_triangleCount);
+					zone_buffer::clear_pointer(&dest_mesh_data->m_aTriangles);
 				}
 			}
 			zone_buffer::clear_pointer(&dest->meshDatas);
 		}
 
-		if (data->waterVolumes)
+		if (data->waterVolumeDefs)
 		{
 			buf->align(3);
-			auto* dest_waterVolumes = buf->write(data->waterVolumes, data->waterVolumesCount);
-			for (unsigned int i = 0; i < data->waterVolumesCount; i++)
+			auto* dest_waterVolumes = buf->write(data->waterVolumeDefs, data->waterVolumeDefCount);
+			for (unsigned int i = 0; i < data->waterVolumeDefCount; i++)
 			{
-				auto* data_waterVolume = &data->waterVolumes[i];
+				auto* data_waterVolume = &data->waterVolumeDefs[i];
 				auto* dest_waterVolume = &dest_waterVolumes[i];
 
 				if (data_waterVolume->physWaterPreset)
 				{
 					dest_waterVolume->physWaterPreset = reinterpret_cast<PhysWaterPreset*>(
-						zone->get_asset_pointer(ASSET_TYPE_PHYSWATERPRESET, data->waterVolumes->physWaterPreset->name));
+						zone->get_asset_pointer(ASSET_TYPE_PHYSWATERPRESET, data->waterVolumeDefs->physWaterPreset->name));
 				}
 			}
-			zone_buffer::clear_pointer(&dest->waterVolumes);
+			zone_buffer::clear_pointer(&dest->waterVolumeDefs);
 		}
 		buf->pop_stream();
 	}
@@ -251,29 +251,29 @@ namespace zonetool::h1
 		write.dump_single(asset);
 		write.dump_string(asset->name);
 
-		write.dump_array(asset->models, asset->modelsCount);
-		write.dump_array(asset->polytopeDatas, asset->polytopeDatasCount);
-		for (unsigned int i = 0; i < asset->polytopeDatasCount; i++)
+		write.dump_array(asset->brushModels, asset->brushModelCount);
+		write.dump_array(asset->polytopeDatas, asset->polytopeCount);
+		for (unsigned int i = 0; i < asset->polytopeCount; i++)
 		{
-			write.dump_array(asset->polytopeDatas[i].vec4_array0, asset->polytopeDatas[i].count0);
-			write.dump_array(asset->polytopeDatas[i].vec4_array1, asset->polytopeDatas[i].count1);
-			write.dump_array(asset->polytopeDatas[i].uint16_array0, asset->polytopeDatas[i].count1);
-			write.dump_array(asset->polytopeDatas[i].uint16_array1, asset->polytopeDatas[i].count0);
-			write.dump_array(asset->polytopeDatas[i].edges, asset->polytopeDatas[i].count2);
-			write.dump_array(asset->polytopeDatas[i].uint8_array0, asset->polytopeDatas[i].count1);
+			write.dump_array(asset->polytopeDatas[i].vec4_array0, asset->polytopeDatas[i].m_vertexCount);
+			write.dump_array(asset->polytopeDatas[i].vec4_array1, asset->polytopeDatas[i].m_faceCount);
+			write.dump_array(asset->polytopeDatas[i].uint16_array0, asset->polytopeDatas[i].m_faceCount);
+			write.dump_array(asset->polytopeDatas[i].uint16_array1, asset->polytopeDatas[i].m_vertexCount);
+			write.dump_array(asset->polytopeDatas[i].m_aSubEdges, asset->polytopeDatas[i].m_subEdgeCount);
+			write.dump_array(asset->polytopeDatas[i].m_aFaceSubEdges, asset->polytopeDatas[i].m_faceCount);
 		}
-		write.dump_array(asset->meshDatas, asset->meshDatasCount);
-		for (unsigned int i = 0; i < asset->meshDatasCount; i++)
+		write.dump_array(asset->meshDatas, asset->meshDataCount);
+		for (unsigned int i = 0; i < asset->meshDataCount; i++)
 		{
-			write.dump_array(asset->meshDatas[i].meshNodes, asset->meshDatas[i].meshNodeCount);
-			write.dump_array(asset->meshDatas[i].vec4_array0, asset->meshDatas[i].vec4_array0_count);
-			write.dump_array(asset->meshDatas[i].meshTriangles, asset->meshDatas[i].meshTriangleCount);
+			write.dump_array(asset->meshDatas[i].m_pRoot, asset->meshDatas[i].m_nodeCount);
+			write.dump_array(asset->meshDatas[i].m_aVertices, asset->meshDatas[i].m_vertexCount);
+			write.dump_array(asset->meshDatas[i].m_aTriangles, asset->meshDatas[i].m_triangleCount);
 		}
-		write.dump_array(asset->waterVolumes, asset->waterVolumesCount);
-		for (unsigned int i = 0; i < asset->waterVolumesCount; i++)
+		write.dump_array(asset->waterVolumeDefs, asset->waterVolumeDefCount);
+		for (unsigned int i = 0; i < asset->waterVolumeDefCount; i++)
 		{
-			write.dump_asset(asset->waterVolumes[i].physWaterPreset);
-			write.dump_string(SL_ConvertToString(asset->waterVolumes[i].string));
+			write.dump_asset(asset->waterVolumeDefs[i].physWaterPreset);
+			write.dump_string(SL_ConvertToString(asset->waterVolumeDefs[i].string));
 		}
 
 		write.close();

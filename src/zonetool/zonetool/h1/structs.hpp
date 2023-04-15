@@ -147,76 +147,105 @@ namespace zonetool::h1
 	}; assert_sizeof(PhysPreset, 0x60);
 	assert_offsetof(PhysPreset, sndAliasPrefix, 40);
 	
-	struct dmMeshNode_array_t
-	{
-		union
-		{
-			struct _
-			{
-				short pad[8];
-			} a;
-			char __pad0[16];
-		};
-	}; assert_sizeof(dmMeshNode_array_t, 16);
+	typedef std::int8_t dm_int8;
+	typedef std::uint8_t dm_uint8;
+	typedef std::int16_t dm_int16;
+	typedef std::uint16_t dm_uint16;
+	typedef std::int32_t dm_int32;
+	typedef std::uint32_t dm_uint32;
+	typedef std::int64_t dm_int64;
+	typedef std::uint64_t dm_uint64;
+	typedef float dm_float32;
 
-	struct dmFloat4_array_t
+	struct dmFloat3
 	{
-		float array[4];
-	}; assert_sizeof(dmFloat4_array_t, 16);
+		dm_float32 x;
+		dm_float32 y;
+		dm_float32 z;
+	};
+
+	struct dmFloat4
+	{
+		dm_float32 x;
+		dm_float32 y;
+		dm_float32 z;
+		dm_float32 w;
+	};
+
+	struct dmMeshNode_anon_fields
+	{
+		unsigned int axis : 2;
+		unsigned int triangleCount : 4;
+		unsigned int index : 26;
+	};
+
+	union dmMeshNode_anon
+	{
+		dmMeshNode_anon_fields fields;
+		unsigned int packed;
+	};
+
+	struct dmMeshNode
+	{
+		dm_int16 lowerX;
+		dm_int16 lowerY;
+		dm_int16 lowerZ;
+		dm_int16 upperX;
+		dm_int16 upperY;
+		dm_int16 upperZ;
+		dmMeshNode_anon anon;
+	}; assert_sizeof(dmMeshNode, 16);
 
 	struct dmMeshTriangle
 	{
-		union
-		{
-			struct _
-			{
-				int indexes[8];
-			} a;
-			char __pad0[32];
-		};
+		dm_int32 i1;
+		dm_int32 i2;
+		dm_int32 i3;
+		dm_int32 w1;
+		dm_int32 w2;
+		dm_int32 w3;
+		dm_int32 materialIndex;
+		dm_int32 collisionFlags;
 	}; assert_sizeof(dmMeshTriangle, 32);
 
 	struct dmMeshData
 	{
-		dmMeshNode_array_t* meshNodes; // no clue
-		dmFloat4_array_t* vec4_array0; // (?, ?, ?, 0)
-		dmMeshTriangle* meshTriangles; // 8 indexes to vec4_array0?
-		Bounds bounds; // seems correct
-		float unk0[3]; // no clue
-		unsigned int meshNodeCount; // m_nodeCount
-		unsigned int vec4_array0_count;
-		unsigned int meshTriangleCount; // m_triangleCount
-		int unk1; // doesn't matter?
-		int contents; // seems correct
+		dmMeshNode* m_pRoot;
+		dmFloat4* m_aVertices;
+		dmMeshTriangle* m_aTriangles;
+		dmFloat3 m_center;
+		dmFloat3 m_extents;
+		dmFloat3 m_unquantize;
+		dm_int32 m_nodeCount;
+		dm_int32 m_vertexCount;
+		dm_int32 m_triangleCount;
+		dm_int32 m_height;
+		dm_int32 contents;
 	}; assert_sizeof(dmMeshData, 0x50);
 
 	struct dmSubEdge
 	{
-		union
-		{
-			int value; // planeIndex?
-			char __pad0[4];
-		} a;
+		dm_int8 twinOffset;
+		dm_uint8 tail;
+		dm_uint8 left;
+		dm_uint8 next;
 	}; assert_sizeof(dmSubEdge, 4);
 
 	struct dmPolytopeData
 	{
-		dmFloat4_array_t* __ptr64 vec4_array0; // (array,count0)
-		dmFloat4_array_t* __ptr64 vec4_array1; // (array,count1)
-		unsigned short* __ptr64 uint16_array0; // surfaceType? (array,count0)
-		unsigned short* __ptr64 uint16_array1; // m_vertexMaterials (array,count1)
-		dmSubEdge* __ptr64 edges; // (array,count2)
-		unsigned char* __ptr64 uint8_array0; // baseAdjacentSide? (array,count1)
-		//unsigned __int8 firstAdjacentSideOffsets[2][3];
-		//unsigned __int8 edgeCount[2][3];
-		char __pad0[12];
-		unsigned int count0; // m_vertexCount
-		unsigned int count1; // m_faceCount
-		unsigned int count2; // m_subEdgeCount
+		dmFloat4* vec4_array0; // count: m_vertexCount, m_aVertices?
+		dmFloat4* vec4_array1; // count: m_faceCount, m_aPlanes?
+		dm_uint16* uint16_array0; // count: m_faceCount, m_vertexMaterials? surfaceType? // ALWAYS 0
+		dm_uint16* uint16_array1; // count: m_vertexCount, m_vertexMaterials? // ALWAYS 0
+		dmSubEdge* m_aSubEdges; // count: m_subEdgeCount
+		dm_uint8* m_aFaceSubEdges; // count: m_faceCount
+		dmFloat3 m_centroid;
+		dm_int32 m_vertexCount;
+		dm_int32 m_faceCount;
+		dm_int32 m_subEdgeCount;
 		float pad1[8];
 		int contents;
 		int pad2;
-		//char __pad1[40];
 	}; assert_sizeof(dmPolytopeData, 0x70);
 
 	struct PhysGeomInfo
@@ -285,14 +314,14 @@ namespace zonetool::h1
 	struct PhysWorld // PhysicsWorld
 	{
 		const char* name;
-		PhysBrushModel* models;
+		PhysBrushModel* brushModels;
 		dmPolytopeData* polytopeDatas;
 		dmMeshData* meshDatas;
-		PhysWaterVolumeDef* waterVolumes;
-		unsigned int modelsCount; // brushModelCount
-		unsigned int polytopeDatasCount; // polytopeCount
-		unsigned int meshDatasCount; // meshDataCount
-		unsigned int waterVolumesCount; // waterVolumeDefCount
+		PhysWaterVolumeDef* waterVolumeDefs;
+		unsigned int brushModelCount;
+		unsigned int polytopeCount;
+		unsigned int meshDataCount;
+		unsigned int waterVolumeDefCount;
 	}; assert_sizeof(PhysWorld, 0x38);
 
 	struct PhysConstraint

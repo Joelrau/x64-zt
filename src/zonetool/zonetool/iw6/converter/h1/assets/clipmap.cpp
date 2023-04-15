@@ -369,27 +369,27 @@ namespace zonetool::iw6
 				auto* physmap = mem->allocate<zonetool::h1::PhysWorld>();
 				physmap->name = asset->name;
 
-				physmap->modelsCount = converted_asset->numSubModels;
-				physmap->models = mem->allocate<zonetool::h1::PhysBrushModel>(physmap->modelsCount);
-				for (unsigned int i = 0; i < physmap->modelsCount; i++)
+				physmap->brushModelCount = converted_asset->numSubModels;
+				physmap->brushModels = mem->allocate<zonetool::h1::PhysBrushModel>(physmap->brushModelCount);
+				for (unsigned int i = 0; i < physmap->brushModelCount; i++)
 				{
-					physmap->models[i].fields.polytopeIndex = -1;
-					physmap->models[i].fields.unk = -1;
-					physmap->models[i].fields.worldIndex = 0;
-					physmap->models[i].fields.meshIndex = -1;
+					physmap->brushModels[i].fields.polytopeIndex = -1;
+					physmap->brushModels[i].fields.unk = -1;
+					physmap->brushModels[i].fields.worldIndex = 0;
+					physmap->brushModels[i].fields.meshIndex = -1;
 				}
 
 				// todo: polytope data
-				physmap->polytopeDatasCount = 0;
+				physmap->polytopeCount = 0;
 				physmap->polytopeDatas = nullptr;
 
 				// todo: mesh data
-				physmap->meshDatasCount = 0;
+				physmap->meshDataCount = 0;
 				physmap->meshDatas = nullptr;
 
 				// todo?
-				physmap->waterVolumesCount = 0;
-				physmap->waterVolumes = nullptr;
+				physmap->waterVolumeDefCount = 0;
+				physmap->waterVolumeDefs = nullptr;
 
 				zonetool::h1::phys_world::dump(physmap);
 			}
