@@ -1,6 +1,6 @@
 #pragma once
 
-namespace fastfiles
+namespace h2::fastfiles
 {
 	std::string get_current_fastfile();
 }
