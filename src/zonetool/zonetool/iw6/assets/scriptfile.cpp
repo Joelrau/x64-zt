@@ -47,7 +47,7 @@ namespace zonetool::iw6
 		this->asset_ = this->parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = DB_FindXAssetHeader(XAssetType(this->type()), this->name_.data(), 1).scriptfile;
+			this->asset_ = db_find_x_asset_header(XAssetType(this->type()), this->name_.data(), 1).scriptfile;
 		}
 	}
 

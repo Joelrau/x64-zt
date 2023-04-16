@@ -6098,6 +6098,7 @@ namespace zonetool::iw6
 
 	union XAssetHeader
 	{
+		void* data;
 		PhysPreset* physPreset;
 		PhysCollmap* physCollmap;
 		XAnimParts* parts;
@@ -6156,7 +6157,6 @@ namespace zonetool::iw6
 		//VectorField* vectorField;
 		DopplerPreset* dopplerPreset;
 		FxParticleSimAnimation* particleSimAnimation;
-		void* data;
 	};
 
 	struct XAsset

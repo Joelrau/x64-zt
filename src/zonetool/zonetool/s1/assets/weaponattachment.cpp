@@ -40,7 +40,7 @@ namespace zonetool::s1
 			} \
 			else \
 			{ \
-				attachment->__field__[idx##__field__] = DB_FindXAssetHeader(XAssetType::__type__, asset##__field__.data(), 1).__datafield__; \
+				attachment->__field__[idx##__field__] = db_find_x_asset_header(XAssetType::__type__, asset##__field__.data(), 1).__datafield__; \
 			} \
 		} \
 	} \
@@ -75,7 +75,7 @@ namespace zonetool::s1
 		WeaponAttachment* baseAsset = nullptr;
 		if (!base.empty())
 		{
-			baseAsset = DB_FindXAssetHeader(ASSET_TYPE_ATTACHMENT, base.data(), 0).attachment;
+			baseAsset = db_find_x_asset_header(ASSET_TYPE_ATTACHMENT, base.data(), 0).attachment;
 			if (baseAsset == nullptr || DB_IsXAssetDefault(ASSET_TYPE_ATTACHMENT, base.data()))
 			{
 				ZONETOOL_FATAL("Could not load base asset \"%s\" into memory...", base.data());

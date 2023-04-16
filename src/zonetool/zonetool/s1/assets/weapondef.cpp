@@ -261,7 +261,7 @@ namespace zonetool::s1
 		} \
 		else \
 		{ \
-			weapon->__field__ = DB_FindXAssetHeader(XAssetType::__type__, asset##__field__.data(), 1).__datafield__; \
+			weapon->__field__ = db_find_x_asset_header(XAssetType::__type__, asset##__field__.data(), 1).__datafield__; \
 		} \
 	} \
 	else \
@@ -282,7 +282,7 @@ namespace zonetool::s1
 			} \
 			else \
 			{ \
-				weapon->__field__[idx##__field__] = DB_FindXAssetHeader(XAssetType::__type__, asset##__field__.data(), 1).__datafield__; \
+				weapon->__field__[idx##__field__] = db_find_x_asset_header(XAssetType::__type__, asset##__field__.data(), 1).__datafield__; \
 			} \
 		} \
 	} \
@@ -304,7 +304,7 @@ namespace zonetool::s1
 			} \
 			else \
 			{ \
-				weapon->__field__[idx##__field__] = DB_FindXAssetHeader(XAssetType::ASSET_TYPE_XANIMPARTS, asset##__field__.data(), 1).parts; \
+				weapon->__field__[idx##__field__] = db_find_x_asset_header(XAssetType::ASSET_TYPE_XANIMPARTS, asset##__field__.data(), 1).parts; \
 			} \
 		} \
 	} \
@@ -323,7 +323,7 @@ namespace zonetool::s1
 		} \
 		else \
 		{ \
-			weapon->__field__ = DB_FindXAssetHeader(XAssetType::ASSET_TYPE_SOUND, asset##__field__.data(), 1).sound; \
+			weapon->__field__ = db_find_x_asset_header(XAssetType::ASSET_TYPE_SOUND, asset##__field__.data(), 1).sound; \
 		} \
 	} \
 	else \
@@ -517,7 +517,7 @@ namespace zonetool::s1
 		WeaponDef* baseAsset = nullptr;
 		if (!base.empty())
 		{
-			baseAsset = DB_FindXAssetHeader(ASSET_TYPE_WEAPON, base.data(), 0).weapon;
+			baseAsset = db_find_x_asset_header(ASSET_TYPE_WEAPON, base.data(), 0).weapon;
 			if (baseAsset == nullptr || DB_IsXAssetDefault(ASSET_TYPE_WEAPON, base.data()))
 			{
 				ZONETOOL_FATAL("Could not load base asset \"%s\" into memory...", base.data());
@@ -579,12 +579,12 @@ namespace zonetool::s1
 				auto altmodeAnim = data["animOverrides"][i]["altmodeAnim"].get<std::string>();
 				if (!altmodeAnim.empty())
 				{
-					weapon->animOverrides[i].altmodeAnim = DB_FindXAssetHeader(ASSET_TYPE_XANIMPARTS, altmodeAnim.data(), 1).parts;
+					weapon->animOverrides[i].altmodeAnim = db_find_x_asset_header(ASSET_TYPE_XANIMPARTS, altmodeAnim.data(), 1).parts;
 				}
 				auto overrideAnim = data["animOverrides"][i]["overrideAnim"].get<std::string>();
 				if (!overrideAnim.empty())
 				{
-					weapon->animOverrides[i].overrideAnim = DB_FindXAssetHeader(ASSET_TYPE_XANIMPARTS, overrideAnim.data(), 1).parts;
+					weapon->animOverrides[i].overrideAnim = db_find_x_asset_header(ASSET_TYPE_XANIMPARTS, overrideAnim.data(), 1).parts;
 				}
 				weapon->animOverrides[i].attachment1 = data["animOverrides"][i]["attachment1"].get<unsigned short>();
 				weapon->animOverrides[i].attachment2 = data["animOverrides"][i]["attachment2"].get<unsigned short>();
@@ -603,12 +603,12 @@ namespace zonetool::s1
 				auto altmodeSound = data["soundOverrides"][i]["altmodeSound"].get<std::string>();
 				if (!altmodeSound.empty())
 				{
-					weapon->soundOverrides[i].altmodeSound = DB_FindXAssetHeader(ASSET_TYPE_SOUND, altmodeSound.data(), 1).sound;
+					weapon->soundOverrides[i].altmodeSound = db_find_x_asset_header(ASSET_TYPE_SOUND, altmodeSound.data(), 1).sound;
 				}
 				auto overrideSound = data["soundOverrides"][i]["overrideSound"].get<std::string>();
 				if (!overrideSound.empty())
 				{
-					weapon->soundOverrides[i].overrideSound = DB_FindXAssetHeader(ASSET_TYPE_SOUND, overrideSound.data(), 1).sound;
+					weapon->soundOverrides[i].overrideSound = db_find_x_asset_header(ASSET_TYPE_SOUND, overrideSound.data(), 1).sound;
 				}
 				weapon->soundOverrides[i].attachment1 = data["soundOverrides"][i]["attachment1"].get<unsigned short>();
 				weapon->soundOverrides[i].attachment2 = data["soundOverrides"][i]["attachment2"].get<unsigned short>();
@@ -625,12 +625,12 @@ namespace zonetool::s1
 				auto altmodeFX = data["fxOverrides"][i]["altmodeFX"].get<std::string>();
 				if (!altmodeFX.empty())
 				{
-					weapon->fxOverrides[i].altmodeFX = DB_FindXAssetHeader(ASSET_TYPE_FX, altmodeFX.data(), 1).fx;
+					weapon->fxOverrides[i].altmodeFX = db_find_x_asset_header(ASSET_TYPE_FX, altmodeFX.data(), 1).fx;
 				}
 				auto overrideFX = data["fxOverrides"][i]["overrideFX"].get<std::string>();
 				if (!overrideFX.empty())
 				{
-					weapon->fxOverrides[i].overrideFX = DB_FindXAssetHeader(ASSET_TYPE_SOUND, overrideFX.data(), 1).fx;
+					weapon->fxOverrides[i].overrideFX = db_find_x_asset_header(ASSET_TYPE_SOUND, overrideFX.data(), 1).fx;
 				}
 				weapon->fxOverrides[i].attachment1 = data["fxOverrides"][i]["attachment1"].get<unsigned short>();
 				weapon->fxOverrides[i].attachment2 = data["fxOverrides"][i]["attachment2"].get<unsigned short>();
@@ -717,7 +717,7 @@ namespace zonetool::s1
 		for (auto i = 0; i < 16; i++)
 		{
 			auto notetrack = data["notetrackFXMapValues"][i].get<std::string>();
-			weapon->notetrackFXMapValues[i] = DB_FindXAssetHeader(ASSET_TYPE_FX, notetrack.data(), 1).fx;
+			weapon->notetrackFXMapValues[i] = db_find_x_asset_header(ASSET_TYPE_FX, notetrack.data(), 1).fx;
 		}
 
 		WEAPON_READ_STRING(szModeName);
@@ -861,7 +861,7 @@ namespace zonetool::s1
 			auto sound = data["turretBarrelSpinUpSnd"][i].get<std::string>();
 			if (!sound.empty())
 			{
-				weapon->turretBarrelSpinUpSnd[i] = DB_FindXAssetHeader(ASSET_TYPE_SOUND, sound.data(), 1).sound;
+				weapon->turretBarrelSpinUpSnd[i] = db_find_x_asset_header(ASSET_TYPE_SOUND, sound.data(), 1).sound;
 			}
 		}
 		for (auto i = 0; i < 4; i++)
@@ -869,7 +869,7 @@ namespace zonetool::s1
 			auto sound = data["turretBarrelSpinDownSnd"][i].get<std::string>();
 			if (!sound.empty())
 			{
-				weapon->turretBarrelSpinDownSnd[i] = DB_FindXAssetHeader(ASSET_TYPE_SOUND, sound.data(), 1).sound;
+				weapon->turretBarrelSpinDownSnd[i] = db_find_x_asset_header(ASSET_TYPE_SOUND, sound.data(), 1).sound;
 			}
 		}
 		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, sound, missileConeSoundAlias);

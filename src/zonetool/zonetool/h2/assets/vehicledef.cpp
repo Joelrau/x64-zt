@@ -29,7 +29,7 @@ namespace zonetool::h2
 		} \
 		else \
 		{ \
-			vehicle->__field__ = DB_FindXAssetHeader(XAssetType::__type__, asset##__field__.data(), 1).__datafield__; \
+			vehicle->__field__ = db_find_x_asset_header(XAssetType::__type__, asset##__field__.data(), 1).__datafield__; \
 		} \
 	} \
 	else \
@@ -49,7 +49,7 @@ namespace zonetool::h2
 			} \
 			else \
 			{ \
-				vehicle->__field__[idx##__field__] = DB_FindXAssetHeader(XAssetType::__type__, asset##__field__.data(), 1).__datafield__; \
+				vehicle->__field__[idx##__field__] = db_find_x_asset_header(XAssetType::__type__, asset##__field__.data(), 1).__datafield__; \
 			} \
 		} \
 	} \
@@ -157,7 +157,7 @@ namespace zonetool::h2
 		VehicleDef* baseAsset = nullptr;
 		if (!base.empty())
 		{
-			baseAsset = DB_FindXAssetHeader(ASSET_TYPE_VEHICLE, base.data(), 0).vehicle;
+			baseAsset = db_find_x_asset_header(ASSET_TYPE_VEHICLE, base.data(), 0).vehicle;
 			if (baseAsset == nullptr || DB_IsXAssetDefault(ASSET_TYPE_VEHICLE, base.data()))
 			{
 				ZONETOOL_WARNING("Could not load base asset \"%s\" into memory...", base.data());

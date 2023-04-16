@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../memory.hpp"
 #include "zonebuffer.hpp"
 #include "zone.hpp"
 

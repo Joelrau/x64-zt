@@ -62,6 +62,12 @@ namespace nlohmann
 #define ZONETOOL_WARNING(__FMT__,...) \
 	printf("[ WARNING ][ " __FUNCTION__ " ]: " __FMT__ "\n", __VA_ARGS__)
 
+
+#define ASSET_TEMPLATE typename S, std::int32_t Type, typename H, typename E
+#define REGISTER_TEMPLATED_ASSET(__name__, __struct__, __type__) using __name__ = zonetool::__name__<__struct__, __type__, XAssetHeader, XAssetEntry>
+
+#include "assets/rawfile.hpp"
+
 namespace zonetool
 {
 	struct zonetool_globals_t

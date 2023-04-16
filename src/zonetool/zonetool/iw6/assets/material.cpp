@@ -70,7 +70,7 @@ namespace zonetool::iw6
 			mat[i].nameHash = matdata[i]["typeHash"].get<unsigned int>();
 
 			std::string img = matdata[i]["image"].get<std::string>();
-			mat[i].u.image = DB_FindXAssetHeader(ASSET_TYPE_IMAGE, img.data(), 1).image;
+			mat[i].u.image = db_find_x_asset_header(ASSET_TYPE_IMAGE, img.data(), 1).image;
 		}
 
 		return mat;
@@ -135,7 +135,7 @@ namespace zonetool::iw6
 		std::string techset = matdata["techniqueSet->name"];
 		if (!techset.empty())
 		{
-			mat->techniqueSet = DB_FindXAssetHeader(ASSET_TYPE_TECHNIQUE_SET, techset.data(), 1).techniqueSet;
+			mat->techniqueSet = db_find_x_asset_header(ASSET_TYPE_TECHNIQUE_SET, techset.data(), 1).techniqueSet;
 		}
 
 		json textureTable = matdata["textureTable"];

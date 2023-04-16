@@ -118,8 +118,36 @@ namespace zonetool
 		return reinterpret_cast<T*>(get_x_gfx_globals_for_zone(zone));
 	}
 
+	WEAK symbol<void*(int type, const char* name, int createDefault)> DB_FindXAssetHeader;
+	WEAK symbol<void*(int type, const char* name)> DB_FindXAssetEntry;
+
 	WEAK symbol<char*(unsigned int stringValue)> SL_ConvertToString;
 
 	WEAK symbol<XStreamFile> stream_files;
 	WEAK symbol<unsigned int> stream_file_index;
+
+	template <typename T>
+	T db_find_x_asset_header(int type, const char* name, int create_default)
+	{
+		return static_cast<T>(DB_FindXAssetHeader(type, name, create_default));
+	}
+
+	template <typename T>
+	T* db_find_x_asset_entry(int type, const char* name)
+	{
+		return reinterpret_cast<T*>(DB_FindXAssetEntry(type, name));
+	}
+
+	template <typename H, typename E>
+	H db_find_x_asset_header_safe(int type, const std::string& name)
+	{
+		const auto asset_entry = db_find_x_asset_entry<E>(type, name.data());
+
+		if (asset_entry)
+		{
+			return asset_entry->asset.header;
+		}
+
+		return db_find_x_asset_header<H>(type, name.data(), 1);
+	}
 }

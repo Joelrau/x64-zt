@@ -14,6 +14,9 @@ namespace zonetool
 		{
 			void initialize()
 			{
+				DB_FindXAssetHeader.set(0x14031F3A0);
+				DB_FindXAssetEntry.set(0x14031F2D0);
+
 				SL_ConvertToString.set(0x1404317F0);
 
 				stream_files.set(0x141E5BF40);
@@ -25,6 +28,9 @@ namespace zonetool
 		{
 			void initialize()
 			{
+				DB_FindXAssetHeader.set(0x14026F0F0);
+				DB_FindXAssetEntry.set(0x14026F020);
+
 				SL_ConvertToString.set(0x1403F0F10);
 
 				stream_files.set(0x141E57A30);
@@ -36,6 +42,9 @@ namespace zonetool
 		{
 			void initialize()
 			{
+				DB_FindXAssetHeader.set(0x1402BAC70);
+				DB_FindXAssetEntry.set(0x1402BABA0);
+
 				SL_ConvertToString.set(0x14043B170);
 
 				stream_files.set(0x1432748B0);
@@ -47,6 +56,9 @@ namespace zonetool
 		{
 			void initialize()
 			{
+				DB_FindXAssetHeader.set(0x140412F60);
+				DB_FindXAssetEntry.set(0x140412E90);
+
 				SL_ConvertToString.set(0x1405BFBB0);
 
 				stream_files.set(0x1420B2820);

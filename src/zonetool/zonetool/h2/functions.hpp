@@ -9,15 +9,12 @@ namespace zonetool::h2
 
 	extern bool zone_exists(const std::string& zone);
 
-	extern XAssetHeader db_find_x_asset_header_safe(XAssetType type, const std::string& name);
 	extern void DB_EnumXAssets(const XAssetType type, const std::function<void(XAssetHeader)>& callback, const bool includeOverride);
 
 	WEAK::h2::game::symbol<void(XAssetType type, void(__cdecl* func)(XAssetHeader, void*),
 		const void* inData, bool includeOverride)> DB_EnumXAssets_Internal{0x1404129F0};
 	WEAK::h2::game::symbol<const char* (const XAsset* asset)> DB_GetXAssetName{0x1403E4090};
 	WEAK::h2::game::symbol<void(const XAsset* asset, const char* name) > DB_SetXAssetName{0x1403E44E0};
-	WEAK::h2::game::symbol<XAssetHeader(XAssetType type, const char* name, int createDefault)> DB_FindXAssetHeader{0x140412F60};
-	WEAK::h2::game::symbol<XAssetEntry* (XAssetType type, const char* name)> DB_FindXAssetEntry{0x140412E90};
 	WEAK::h2::game::symbol<bool(XAssetType, const char* name)> DB_IsXAssetDefault{0x1404143C0};
 	WEAK::h2::game::symbol<void(XZoneInfo* zoneInfo, unsigned int zoneCount, DBSyncMode syncMode)> DB_LoadXAssets{0x140414FF0};
 	WEAK::h2::game::symbol<bool(const char* zone, int source)> DB_FileExists{0x140412B50};

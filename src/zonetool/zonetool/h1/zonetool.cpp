@@ -80,16 +80,14 @@ namespace zonetool::h1
 		}
 	}
 
+	XAssetHeader db_find_x_asset_header(XAssetType type, const char* name, int create_default)
+	{
+		return zonetool::db_find_x_asset_header<XAssetHeader>(type, name, create_default);
+	}
+
 	XAssetHeader db_find_x_asset_header_safe(XAssetType type, const std::string& name)
 	{
-		const auto asset_entry = DB_FindXAssetEntry(type, name.data());
-
-		if (asset_entry)
-		{
-			return asset_entry->asset.header;
-		}
-
-		return DB_FindXAssetHeader(type, name.data(), 1);
+		return zonetool::db_find_x_asset_header_safe<XAssetHeader, XAssetEntry>(type, name);
 	}
 
 	void DB_EnumXAssets(const XAssetType type,
@@ -834,7 +832,7 @@ namespace zonetool::h1
 			XAsset asset{};
 			asset.type = type;
 
-			const auto header = DB_FindXAssetHeader(type, name, false);
+			const auto header = db_find_x_asset_header(type, name, false);
 			if (!header.data)
 			{
 				ZONETOOL_INFO("Asset not found\n");
