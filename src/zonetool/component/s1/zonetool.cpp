@@ -111,6 +111,7 @@ namespace zonetool::s1
 		utils::hook::set<uint8_t>(0x14027A590, 0xC3); // ^
 		utils::hook::set<uint8_t>(0x140279E70, 0xC3); // DB_EnterStreamingTabulate
 
+		utils::hook::set<uint8_t>(0x14027A270, 0xC3); // DB_LoadPackedLoadedSounds
 		utils::hook::set<uint8_t>(0x14027A7C0, 0xC3); // DB_ReadPackedLoadedSounds
 
 		// Reduce min required memory
@@ -124,7 +125,7 @@ namespace zonetool::s1
 		{
 			"code_post_gfx_mp",
 			//"ui_mp",
-			//"common_mp",
+			"common_mp",
 		};
 
 		XZoneInfo zones[8]{ 0 };
