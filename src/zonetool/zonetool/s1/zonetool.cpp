@@ -920,7 +920,7 @@ namespace zonetool::s1
 					ZONETOOL_ERROR("Invalid dump target \"%s\"", mode);
 					return;
 				}
-
+					
 				if (!dump_functions.contains(dump_target))
 				{
 					ZONETOOL_ERROR("Unsupported dump target \"%s\" (%i)", mode, dump_target);

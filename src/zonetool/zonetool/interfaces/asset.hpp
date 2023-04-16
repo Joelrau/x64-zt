@@ -1,6 +1,8 @@
 #pragma once
 
-namespace zonetool::iw6
+#include "zonebuffer.hpp"
+
+namespace zonetool
 {
 	class asset_interface
 	{

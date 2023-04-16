@@ -7,7 +7,7 @@
 #define ZSTD_COMPRESSION 11
 #define ZLIB_COMPRESSION Z_BEST_COMPRESSION
 
-namespace zonetool::h2
+namespace zonetool
 {
 	zone_buffer::zone_buffer()
 	{
@@ -27,7 +27,6 @@ namespace zonetool::h2
 		this->m_sas.clear();
 		this->m_streamfiles.clear();
 
-		// 2gb, should be enough?
 		this->m_buf.resize(this->m_len);
 	}
 
@@ -58,7 +57,7 @@ namespace zonetool::h2
 		this->m_streamfiles.clear();
 
 		// clear zone buffer
-		this->m_buf.clear();
+		this->clear();
 	}
 
 	zone_buffer::zone_buffer(std::vector<std::uint8_t> data)
@@ -186,6 +185,12 @@ namespace zonetool::h2
 		return m_pos;
 	}
 
+	void zone_buffer::clear()
+	{
+		m_buf.clear();
+		m_buf.shrink_to_fit();
+	}
+
 	void zone_buffer::align(std::uint64_t alignment)
 	{
 		// if (m_numstreams > 0)
@@ -230,7 +235,7 @@ namespace zonetool::h2
 	{
 		for (std::uint32_t i = 0; i < this->m_scriptstrings.size(); i++)
 		{
-			if (this->m_scriptstrings[i] == str ||
+			if (this->m_scriptstrings[i] == str || 
 				str && this->m_scriptstrings[i] && !strcmp(this->m_scriptstrings[i], str))
 			{
 				return i;

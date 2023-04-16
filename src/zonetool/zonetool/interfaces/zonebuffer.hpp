@@ -4,7 +4,7 @@
 #include <stack>
 #include <bitset>
 
-namespace zonetool::h1
+namespace zonetool
 {
 	class zone_buffer
 	{
