@@ -11,10 +11,6 @@
 #include "game/mode.hpp"
 #include "game/shared.hpp"
 
-#include "interfaces/zonebuffer.hpp"
-#include "interfaces/zone.hpp"
-#include "interfaces/asset.hpp"
-
 #include <utils/memory.hpp>
 
 #define JSON_DIAGNOSTICS 1
@@ -62,11 +58,6 @@ namespace nlohmann
 #define ZONETOOL_WARNING(__FMT__,...) \
 	printf("[ WARNING ][ " __FUNCTION__ " ]: " __FMT__ "\n", __VA_ARGS__)
 
-
-#define ASSET_TEMPLATE typename S, std::int32_t Type, typename H, typename E
-#define REGISTER_TEMPLATED_ASSET(__name__, __struct__, __type__) using __name__ = zonetool::__name__<__struct__, __type__, XAssetHeader, XAssetEntry>
-
-#include "assets/rawfile.hpp"
 
 namespace zonetool
 {

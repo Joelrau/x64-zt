@@ -11,6 +11,7 @@
 #include "variables.hpp"
 
 #include "zonetool/utils/utils.hpp"
+#include "zonetool/shared/shared.hpp"
 
 #include "assets/clipmap.hpp"
 #include "assets/computeshader.hpp"
