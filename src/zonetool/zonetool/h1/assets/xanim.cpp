@@ -473,12 +473,12 @@ namespace zonetool::h1
 			if (data->numframes >= 256)
 			{
 				buf->align(1);
-				buf->write_stream(data->indices.data, data->indexCount * 2, 1);
+				buf->write_stream(data->indices.data, 2, data->indexCount);
 			}
 			else
 			{
 				buf->align(0);
-				buf->write_stream(data->indices.data, data->indexCount, 1);
+				buf->write_stream(data->indices.data, 1, data->indexCount);
 			}
 		}
 
@@ -499,7 +499,7 @@ namespace zonetool::h1
 		if (data->blendShapeWeightUnknown1)
 		{
 			buf->align(0);
-			buf->write_stream(data->blendShapeWeightUnknown1, sizeof(*data->blendShapeWeightUnknown1)* data->blendShapeWeightCount);
+			buf->write_stream(data->blendShapeWeightUnknown1, sizeof(*data->blendShapeWeightUnknown1) * data->blendShapeWeightCount);
 			zone_buffer::clear_pointer(&dest->blendShapeWeightUnknown1);
 		}
 
@@ -513,22 +513,23 @@ namespace zonetool::h1
 		if (data->blendShapeWeightUnknown3)
 		{
 			buf->align(1);
-			buf->write_stream(data->blendShapeWeightUnknown3, sizeof(*data->blendShapeWeightUnknown3)* GetTotalNumberOfBlendShapeKeys(data));
+			buf->write_stream(data->blendShapeWeightUnknown3,
+				sizeof(*data->blendShapeWeightUnknown3) * static_cast<int>(GetTotalNumberOfBlendShapeKeys(data)));
 			zone_buffer::clear_pointer(&dest->blendShapeWeightUnknown3);
 		}
 
 		if (data->blendShapeWeightUnknown4)
 		{
 			buf->align(1);
-			buf->write_stream(data->blendShapeWeightUnknown4, 
-				sizeof(*data->blendShapeWeightUnknown4)* (GetTotalNumberOfBlendShapeKeys(data) + 2 * data->blendShapeWeightCount));
+			buf->write_stream(data->blendShapeWeightUnknown4,
+				sizeof(*data->blendShapeWeightUnknown4) * (static_cast<int>(GetTotalNumberOfBlendShapeKeys(data)) + 2 * data->blendShapeWeightCount));
 			zone_buffer::clear_pointer(&dest->blendShapeWeightUnknown4);
 		}
 
 		if (data->blendShapeWeights)
 		{
 			buf->align(3);
-			buf->write_stream(data->blendShapeWeights, sizeof(*data->blendShapeWeights)* (data->numframes + 1));
+			buf->write_stream(data->blendShapeWeights, sizeof(*data->blendShapeWeights) * (data->blendShapeWeightCount * (data->numframes + 1)));
 			zone_buffer::clear_pointer(&dest->blendShapeWeights);
 		}
 
@@ -742,7 +743,7 @@ namespace zonetool::h1
 
 		if (asset->blendShapeWeights)
 		{
-			dump.dump_raw(asset->blendShapeWeights, sizeof(*asset->blendShapeWeights) * (asset->numframes + 1));
+			dump.dump_raw(asset->blendShapeWeights, sizeof(*asset->blendShapeWeights) * (asset->blendShapeWeightCount * (asset->numframes + 1)));
 		}
 
 		if (asset->scriptedViewmodelAnimData)
