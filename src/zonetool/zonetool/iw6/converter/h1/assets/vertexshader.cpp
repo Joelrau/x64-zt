@@ -16,7 +16,7 @@ namespace zonetool::iw6
 
 				new_asset->prog.loadDef.program = asset->prog.loadDef.program;
 				new_asset->prog.loadDef.programSize = asset->prog.loadDef.programSize;
-				new_asset->prog.loadDef.microCodeCrc = shader::calc_crc32(new_asset->prog.loadDef.program, new_asset->prog.loadDef.programSize);
+				new_asset->prog.loadDef.microCodeCrc = ::shader::calc_crc32(new_asset->prog.loadDef.program, new_asset->prog.loadDef.programSize);
 
 				new_asset->name = mem->duplicate_string(asset->name + TECHSET_PREFIX);
 

@@ -120,6 +120,7 @@ namespace zonetool
 
 	WEAK symbol<void*(int type, const char* name, int createDefault)> DB_FindXAssetHeader;
 	WEAK symbol<void*(int type, const char* name)> DB_FindXAssetEntry;
+	WEAK symbol<bool(int type, const char* name)> DB_IsXAssetDefault;
 
 	WEAK symbol<char*(unsigned int stringValue)> SL_ConvertToString;
 

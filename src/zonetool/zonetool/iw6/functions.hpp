@@ -17,7 +17,6 @@ namespace zonetool::iw6
 	WEAK::iw6::game::symbol<void(XAssetType type, void(__cdecl* func)(XAssetHeader, void*), const void* inData, bool includeOverride)> DB_EnumXAssets_Internal{ 0x14031F000 };
 	WEAK::iw6::game::symbol<const char* (const XAsset* asset)> DB_GetXAssetName{ 0x1402FB160 };
 	WEAK::iw6::game::symbol<void(const XAsset* asset, const char* name) > DB_SetXAssetName{ 0x1402FB190 };
-	WEAK::iw6::game::symbol<bool(XAssetType, const char* name)> DB_IsXAssetDefault{ 0x1403204D0 };
 	WEAK::iw6::game::symbol<void(XZoneInfo* zoneInfo, unsigned int zoneCount, DBSyncMode syncMode)> DB_LoadXAssets{ 0x140320F20 };
 	WEAK::iw6::game::symbol<bool(const char* zone, int source)> DB_FileExists{ 0x14031F0E0 };
 	WEAK::iw6::game::symbol<size_t(XAssetType type)> DB_GetXAssetTypeSize{ 0x1402FB180 };

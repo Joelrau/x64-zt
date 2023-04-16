@@ -16,6 +16,7 @@ namespace zonetool
 			{
 				DB_FindXAssetHeader.set(0x14031F3A0);
 				DB_FindXAssetEntry.set(0x14031F2D0);
+				DB_IsXAssetDefault.set(0x1403204D0);
 
 				SL_ConvertToString.set(0x1404317F0);
 
@@ -30,6 +31,7 @@ namespace zonetool
 			{
 				DB_FindXAssetHeader.set(0x14026F0F0);
 				DB_FindXAssetEntry.set(0x14026F020);
+				DB_IsXAssetDefault.set(0x140270320);
 
 				SL_ConvertToString.set(0x1403F0F10);
 
@@ -44,6 +46,7 @@ namespace zonetool
 			{
 				DB_FindXAssetHeader.set(0x1402BAC70);
 				DB_FindXAssetEntry.set(0x1402BABA0);
+				DB_IsXAssetDefault.set(0x1402BC370);
 
 				SL_ConvertToString.set(0x14043B170);
 
@@ -58,6 +61,7 @@ namespace zonetool
 			{
 				DB_FindXAssetHeader.set(0x140412F60);
 				DB_FindXAssetEntry.set(0x140412E90);
+				DB_IsXAssetDefault.set(0x1404143C0);
 
 				SL_ConvertToString.set(0x1405BFBB0);
 
