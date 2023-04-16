@@ -12,10 +12,6 @@
 
 #include "zonetool/utils/utils.hpp"
 
-#include "../interfaces/zonebuffer.hpp"
-#include "../interfaces/zone.hpp"
-#include "../interfaces/asset.hpp"
-
 #include "assets/clipmap.hpp"
 #include "assets/computeshader.hpp"
 #include "assets/comworld.hpp"

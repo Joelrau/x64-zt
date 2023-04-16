@@ -1,6 +1,7 @@
 #pragma once
 
 #include "zonebuffer.hpp"
+#include "zone.hpp"
 
 namespace zonetool
 {

@@ -11,6 +11,10 @@
 #include "game/mode.hpp"
 #include "game/shared.hpp"
 
+#include "interfaces/zonebuffer.hpp"
+#include "interfaces/zone.hpp"
+#include "interfaces/asset.hpp"
+
 #include <utils/memory.hpp>
 
 #define JSON_DIAGNOSTICS 1

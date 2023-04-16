@@ -12,10 +12,6 @@
 
 #include "zonetool/utils/utils.hpp"
 
-#include "../interfaces/zonebuffer.hpp"
-#include "../interfaces/zone.hpp"
-#include "../interfaces/asset.hpp"
-
 #include "assets/clut.hpp"
 #include "assets/dopplerpreset.hpp"
 #include "assets/fxeffectdef.hpp"
