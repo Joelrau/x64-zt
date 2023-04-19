@@ -44,13 +44,13 @@ namespace zonetool
 		std::string get_legacy_shader_path(const std::string& name, const shader_type type)
 		{
 			const auto& shader_name = shader_names.at(type);
-			return {utils::string::va("techsets\\%s.%s", name.data(), shader_name.data())};
+			return utils::string::va("techsets\\%s.%s", name.data(), shader_name.data());
 		}
 
 		std::string get_shader_path(const std::string& name, const shader_type type)
 		{
 			const auto& abbrev = shader_abbreviations.at(type);
-			return {utils::string::va("techsets\\%s\\%s.cso", abbrev.data(), name.data())};
+			return utils::string::va("techsets\\%s\\%s.cso", abbrev.data(), name.data());
 		}
 
 		template <typename T>

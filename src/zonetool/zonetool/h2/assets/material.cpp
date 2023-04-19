@@ -152,15 +152,32 @@ namespace zonetool::h2
 
 		if (mat->techniqueSet)
 		{
-			techset::parse_stateinfo(mat->techniqueSet->name, mat, mem);
-			techset::parse_statebits(mat->techniqueSet->name, mat->stateBitsEntry, mem);
-			techset::parse_statebitsmap(mat->techniqueSet->name, &mat->stateBitsTable, &mat->stateBitsCount,
+			const auto get_name = [&]()
+			{
+				const auto path = "techsets\\state\\"s + mat->name + ".stateinfo"s;
+				filesystem::file file(path);
+
+				if (file.exists())
+				{
+					return mat->name;
+				}
+
+				return mat->techniqueSet->name;
+			};
+
+			const auto state_name = get_name();
+			techset::parse_stateinfo(state_name, mat, mem);
+			techset::parse_statebits(state_name, mat->stateBitsEntry, mem);
+			techset::parse_statebitsmap(state_name, &mat->stateBitsTable, &mat->stateBitsCount,
 				&this->depth_stenchil_state_bits,
 				&this->blend_state_bits,
 				mem);
 
-			techset::parse_constant_buffer_indexes(mat->techniqueSet->name, mat->constantBufferIndex, mem);
-			techset::parse_constant_buffer_def_array(mat->techniqueSet->name, &mat->constantBufferTable, &mat->constantBufferCount, mem);
+			if (mat->constantCount)
+			{
+				techset::parse_constant_buffer_indexes(state_name, mat->constantBufferIndex, mem);
+				techset::parse_constant_buffer_def_array(state_name, &mat->constantBufferTable, &mat->constantBufferCount, mem);
+			}
 		}
 
 		auto max_state_index = 0;
@@ -462,12 +479,18 @@ namespace zonetool::h2
 
 			if (asset && asset->techniqueSet)
 			{
-				techset::dump_stateinfo(asset->techniqueSet->name, asset);
-				techset::dump_statebits(asset->techniqueSet->name, asset->stateBitsEntry);
-				techset::dump_statebits_map(asset->techniqueSet->name, asset->stateBitsTable, asset->stateBitsCount);
+				const auto dump_state_and_cbt = [&](const std::string& name)
+				{
+					techset::dump_stateinfo(name, asset);
+					techset::dump_statebits(name, asset->stateBitsEntry);
+					techset::dump_statebits_map(name, asset->stateBitsTable, asset->stateBitsCount);
 
-				techset::dump_constant_buffer_indexes(asset->techniqueSet->name, asset->constantBufferIndex);
-				techset::dump_constant_buffer_def_array(asset->techniqueSet->name, asset->constantBufferCount, asset->constantBufferTable);
+					techset::dump_constant_buffer_indexes(name, asset->constantBufferIndex);
+					techset::dump_constant_buffer_def_array(name, asset->constantBufferCount, asset->constantBufferTable);
+				};
+
+				dump_state_and_cbt(asset->name);
+				dump_state_and_cbt(asset->techniqueSet->name);
 			}
 
 			ordered_json matdata;
