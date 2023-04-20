@@ -237,7 +237,17 @@ namespace zonetool
 
 		std::string get_dump_path()
 		{
-			auto path = "dump\\" + fastfile + "\\";
+			auto fastfile_dir = fastfile;
+			if (fastfile.starts_with("mp_wm_") || fastfile.starts_with("mp_vm_"))
+			{
+				fastfile_dir = "weapon_models";
+			}
+			else if (fastfile.ends_with("_tr"))
+			{
+				fastfile_dir = "transient_assets";
+			}
+
+			auto path = "dump\\" + fastfile_dir + "\\";
 			if (!std::filesystem::exists(path))
 			{
 				create_directory(path);

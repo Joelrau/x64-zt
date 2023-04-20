@@ -1,9 +1,5 @@
 #pragma once
 
-#include "../../utils/utils.hpp"
-#include "../interfaces/asset.hpp"
-#include "../interfaces/zone.hpp"
-
 namespace zonetool
 {
 	template <ASSET_TEMPLATE>

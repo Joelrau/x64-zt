@@ -1,9 +1,5 @@
 #pragma once
 
-#include "../../utils/utils.hpp"
-#include "../interfaces/asset.hpp"
-#include "../interfaces/zone.hpp"
-
 #include <zlib.h>
 
 #define ZONETOOL_BRANDING "Compiled using x64 ZoneTool."

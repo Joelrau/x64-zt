@@ -954,6 +954,73 @@ namespace zonetool::s1
 			}
 		});
 
+		::s1::command::add("dumpmatchingzones", [](const ::s1::command::params& params)
+		{
+			if (params.size() < 2)
+			{
+				ZONETOOL_ERROR("usage: dumpzone <zone>");
+				return;
+			}
+
+			auto dump_target = game::s1;
+			auto zone_match = params.get(1);
+			if (params.size() >= 3)
+			{
+				const auto mode = params.get(1);
+				dump_target = game::get_mode_from_string(mode);
+
+				if (dump_target == game::none)
+				{
+					ZONETOOL_ERROR("Invalid dump target \"%s\"", mode);
+					return;
+				}
+
+				if (!dump_functions.contains(dump_target))
+				{
+					ZONETOOL_ERROR("Unsupported dump target \"%s\" (%i)", mode, dump_target);
+					return;
+				}
+
+				asset_type_filter.clear();
+
+				if (params.size() >= 4)
+				{
+					const auto asset_types_str = params.get(3);
+					const auto asset_types = utils::string::split(asset_types_str, ',');
+
+					for (const auto& type_str : asset_types)
+					{
+						const auto type = type_to_int(type_str);
+						if (type == -1)
+						{
+							ZONETOOL_ERROR("Asset type \"%s\" does not exist", type_str.data());
+							return;
+						}
+
+						asset_type_filter.insert(static_cast<XAssetType>(type));
+					}
+				}
+
+				zone_match = params.get(2);
+			}
+
+			const auto path = utils::io::directory_exists("zone") ? "zone" : "";
+			const auto files = utils::io::list_files(path);
+			for (const auto& file : files)
+			{
+				std::regex exp(zone_match);
+				std::smatch match;
+				if (file.ends_with(".ff") && std::regex_search(file, match, exp))
+				{
+					const auto last_slash = file.find_last_of('/');
+					const auto end = (file.size() - 3) - last_slash - 1;
+					const auto base_name = file.substr(last_slash + 1, end);
+					dump_zone(base_name, dump_target);
+					unload_zones();
+				}
+			}
+		});
+
 		::s1::command::add("dumpasset", [](const ::s1::command::params& params)
 		{
 			const auto type = XAssetType(type_to_int(params.get(1)));
@@ -1118,6 +1185,7 @@ namespace zonetool::s1
 		reallocate_asset_pool_multiplier(ASSET_TYPE_VERTEXDECL, 6);
 		reallocate_asset_pool_multiplier(ASSET_TYPE_COMPUTESHADER, 4);
 		reallocate_asset_pool_multiplier(ASSET_TYPE_REVERB_PRESET, 2);
+		reallocate_asset_pool_multiplier(ASSET_TYPE_IMPACT_FX, 10);
 
 		// enable dumping
 		db_link_x_asset_entry1_hook.create(0x1402708F0, &db_link_x_asset_entry1_stub);
