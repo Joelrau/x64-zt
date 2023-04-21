@@ -14,8 +14,6 @@
 
 #include "zonetool/h1/assets/vertexdecl.hpp"
 
-#include <utils/io.hpp>
-
 namespace zonetool::iw6
 {
 	namespace converter::h1

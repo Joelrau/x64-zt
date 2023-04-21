@@ -7,8 +7,6 @@
 #include "domainshader.hpp"
 #include "pixelshader.hpp"
 
-#include <utils/io.hpp>
-
 namespace zonetool::h2
 {
 	std::unordered_map<std::string, std::uintptr_t> techset::vertexdecl_pointers;
