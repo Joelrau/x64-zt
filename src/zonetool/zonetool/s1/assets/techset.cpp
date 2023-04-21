@@ -7,6 +7,8 @@
 #include "domainshader.hpp"
 #include "pixelshader.hpp"
 
+#include <utils/io.hpp>
+
 namespace zonetool::s1
 {
 	std::unordered_map<std::string, std::uintptr_t> techset::vertexdecl_pointers;
@@ -131,9 +133,98 @@ namespace zonetool::s1
 		return asset;
 	}
 
-	void techset::parse_constant_buffer_indexes(const std::string& techset, unsigned char* indexes, zone_memory* mem)
+	namespace material_data
 	{
-		const auto path = "techsets\\constantbuffer\\"s + techset + ".cbi";
+		namespace
+		{
+			// Given a directory path and an extension, returns a vector of file paths for all regular files with that extension in the directory and its subdirectories.
+			std::vector<std::string> list_files(const std::string& directory, const std::string& extension)
+			{
+				std::vector<std::string> files;
+
+				// Check if the directory exists before attempting to iterate over its contents.
+				if (std::filesystem::is_directory(directory))
+				{
+					// Iterate over all entries in the directory and its subdirectories.
+					for (auto& file : std::filesystem::recursive_directory_iterator(directory))
+					{
+						// Check if the entry refers to a regular file with the desired extension.
+						if (file.is_regular_file() && file.path().extension() == extension)
+						{
+							// Get the full path of the file.
+							std::string file_path = file.path().string();
+
+							// Trim the directory prefix from the file path.
+							size_t pos = file_path.find(directory);
+							if (pos != std::string::npos)
+							{
+								file_path.erase(0, pos + directory.length());
+								if (file_path.front() == '/' || file_path.front() == '\\') {
+									file_path.erase(0, 1);
+								}
+							}
+
+							// Add the file path to the vector of files.
+							files.push_back(file_path);
+						}
+					}
+				}
+
+				// Return the vector of file paths.
+				return files;
+			}
+		}
+
+		std::string get_legacy_parse_path(const std::string& type, const std::string& ext, const std::string& techset)
+		{
+			return utils::string::va("techsets\\%s\\%s.%s", type.data(), techset.data(), ext.data());
+		}
+
+		std::string get_parse_path(const std::string& type, const std::string& ext, const std::string& techset, const std::string& material)
+		{
+			const std::string parent_path = utils::string::va("techsets\\%s\\%s\\", type.data(), techset.data());
+			const std::string file = utils::string::va("%s.%s", material.data(), ext.data());
+			auto path = parent_path + file;
+
+			if (filesystem::file(path).exists())
+			{
+				return path;
+			}
+
+			// get a random one from the directory
+			{
+				std::vector<std::string> parse_paths =
+				{
+					"zonetool\\" + filesystem::get_fastfile() + "\\",
+					"zonetool\\"
+				};
+
+				for (const auto& parse_path : parse_paths)
+				{
+					const auto dir = parse_path + parent_path;
+					const auto files = list_files(dir, ext);
+					if (files.size())
+					{
+						path = parent_path + files[0];
+						return path;
+					}
+				}
+			}
+
+			// legacy
+			const auto legacy_path = get_legacy_parse_path(type, ext, techset);
+			if (filesystem::file(legacy_path).exists())
+			{
+				return legacy_path;
+			}
+
+			return path;
+		}
+	}
+
+	void techset::parse_constant_buffer_indexes(const std::string& techset, const std::string& material, unsigned char* indexes, zone_memory* mem)
+	{
+		const auto path = material_data::get_parse_path("constantbuffer", "cbi", techset, material);
 		auto file = filesystem::file(path);
 		file.open("rb");
 		auto fp = file.get_fp();
@@ -145,12 +236,13 @@ namespace zonetool::s1
 			return;
 		}
 
-		ZONETOOL_FATAL("constantbufferindexes for techset \"%s\" are missing!", techset.data());
+		ZONETOOL_FATAL("constantbufferindexes for techset \"%s\", material \"%s\" are missing!", techset.data(), material.data());
 	}
 
-	void techset::parse_constant_buffer_def_array(const std::string& techset, MaterialConstantBufferDef** def_ptr, unsigned char* count, zone_memory* mem)
+	void techset::parse_constant_buffer_def_array(const std::string& techset, const std::string& material, 
+		MaterialConstantBufferDef** def_ptr, unsigned char* count, zone_memory* mem)
 	{
-		const auto path = "techsets\\constantbuffer\\"s + techset + ".cbt";
+		const auto path = material_data::get_parse_path("constantbuffer", "cbt", techset, material);
 		assetmanager::reader read(mem);
 		if (!read.open(path))
 		{
@@ -201,9 +293,9 @@ namespace zonetool::s1
 		(*def_ptr) = def;
 	}
 
-	void techset::parse_stateinfo(const std::string& techset, Material* mat, zone_memory* mem)
+	void techset::parse_stateinfo(const std::string& techset, const std::string& material, Material* mat, zone_memory* mem)
 	{
-		const auto path = "techsets\\state\\"s + techset + ".stateinfo"s;
+		const auto path = material_data::get_parse_path("state", "stateinfo", techset, material);
 		filesystem::file file(path);
 		if (file.exists())
 		{
@@ -218,12 +310,12 @@ namespace zonetool::s1
 
 			return;
 		}
-		ZONETOOL_FATAL("stateinfo for techset \"%s\" are missing!", techset.data());
+		ZONETOOL_FATAL("stateinfo for techset \"%s\", material \"%s\" are missing!", techset.data(), material.data());
 	}
 
-	void techset::parse_statebits(const std::string& techset, unsigned char* statebits, zone_memory* mem)
+	void techset::parse_statebits(const std::string& techset, const std::string& material, unsigned char* statebits, zone_memory* mem)
 	{
-		const auto path = "techsets\\state\\" + techset + ".statebits";
+		const auto path = material_data::get_parse_path("state", "statebits", techset, material);
 		auto file = filesystem::file(path);
 		file.open("rb");
 		auto fp = file.get_fp();
@@ -235,15 +327,15 @@ namespace zonetool::s1
 			return;
 		}
 
-		ZONETOOL_FATAL("statebits for techset \"%s\" are missing!", techset.data());
+		ZONETOOL_FATAL("statebits for techset \"%s\", material \"%s\" are missing!", techset.data(), material.data());
 	}
 
-	void techset::parse_statebitsmap(const std::string& techset, GfxStateBits** map, unsigned char* count,
+	void techset::parse_statebitsmap(const std::string& techset, const std::string& material, GfxStateBits** map, unsigned char* count,
 		std::vector<std::array<std::uint64_t, 10>>* dssb,
 		std::vector<std::array<std::uint32_t, 3>>* bsb,
 		zone_memory* mem)
 	{
-		const auto path = "techsets\\state\\"s + techset + ".statebitsmap"s;
+		const auto path = material_data::get_parse_path("state", "statebitsmap", techset, material);
 		filesystem::file file(path);
 		if (file.exists())
 		{
@@ -290,7 +382,7 @@ namespace zonetool::s1
 			*count = static_cast<unsigned char>(stateMap.size());
 			return;
 		}
-		ZONETOOL_FATAL("statebitsmap for techset \"%s\" are missing!", techset.data());
+		ZONETOOL_FATAL("statebitsmap for techset \"%s\", material \"%s\" are missing!", techset.data(), material.data());
 	}
 
 	void techset::init(const std::string& name, zone_memory* mem)
@@ -514,9 +606,9 @@ namespace zonetool::s1
 		buf->pop_stream();
 	}
 
-	void techset::dump_constant_buffer_indexes(const std::string& techset, unsigned char* cbi)
+	void techset::dump_constant_buffer_indexes(const std::string& techset, const std::string& material, unsigned char* cbi)
 	{
-		const auto path = "techsets\\constantbuffer\\"s + techset + ".cbi";
+		const auto path = "techsets\\constantbuffer\\"s + techset + "\\"s + material + ".cbi";
 		auto file = filesystem::file(path);
 		file.open("wb");
 		auto fp = file.get_fp();
@@ -528,9 +620,9 @@ namespace zonetool::s1
 		}
 	}
 
-	void techset::dump_constant_buffer_def_array(const std::string& techset, unsigned char count, MaterialConstantBufferDef* def)
+	void techset::dump_constant_buffer_def_array(const std::string& techset, const std::string& material, unsigned char count, MaterialConstantBufferDef* def)
 	{
-		const auto path = "techsets\\constantbuffer\\"s + techset + ".cbt";
+		const auto path = "techsets\\constantbuffer\\"s + techset + "\\"s + material + ".cbt";
 		assetmanager::dumper dump;
 		if (!dump.open(path))
 		{
@@ -578,9 +670,9 @@ namespace zonetool::s1
 		dump.close();
 	}
 
-	void techset::dump_stateinfo(const std::string& techset, Material* mat)
+	void techset::dump_stateinfo(const std::string& techset, const std::string& material, Material* mat)
 	{
-		const auto path = "techsets\\state\\"s + techset + ".stateinfo";
+		const auto path = "techsets\\state\\"s + techset + "\\"s + material + ".stateinfo";
 
 		ordered_json json_data = {};
 
@@ -597,9 +689,9 @@ namespace zonetool::s1
 		}
 	}
 
-	void techset::dump_statebits(const std::string& techset, unsigned char* statebits)
+	void techset::dump_statebits(const std::string& techset, const std::string& material, unsigned char* statebits)
 	{
-		const auto path = "techsets\\state\\"s + techset + ".statebits";
+		const auto path = "techsets\\state\\"s + techset + "\\"s + material + ".statebits";
 		auto file = filesystem::file(path);
 		file.open("wb");
 		auto fp = file.get_fp();
@@ -611,9 +703,9 @@ namespace zonetool::s1
 		}
 	}
 
-	void techset::dump_statebits_map(const std::string& techset, GfxStateBits* map, unsigned char count)
+	void techset::dump_statebits_map(const std::string& techset, const std::string& material, GfxStateBits* map, unsigned char count)
 	{
-		const auto path = "techsets\\state\\"s + techset + ".statebitsmap";
+		const auto path = "techsets\\state\\"s + techset + "\\"s + material + ".statebitsmap";
 
 		ordered_json json_data = {};
 		for (unsigned char i = 0; i < count; i++)
@@ -626,7 +718,7 @@ namespace zonetool::s1
 			entry["loadBits"][3] = map[i].loadBits[3];
 			entry["loadBits"][4] = map[i].loadBits[4];
 			entry["loadBits"][5] = map[i].loadBits[5];
-			for (int j = 0; j < 11; j++)
+			for (int j = 0; j < 10; j++)
 			{
 				entry["depthStencilStateBits"][j] = var_x_gfx_globals ? var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[j]] : 0;
 			}

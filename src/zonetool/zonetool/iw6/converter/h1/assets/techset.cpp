@@ -14,6 +14,8 @@
 
 #include "zonetool/h1/assets/vertexdecl.hpp"
 
+#include <utils/io.hpp>
+
 namespace zonetool::iw6
 {
 	namespace converter::h1
@@ -22,9 +24,9 @@ namespace zonetool::iw6
 		{
 			namespace ree
 			{
-				void dump_constant_buffer_indexes(const std::string& techset, unsigned char* cbi)
+				void dump_constant_buffer_indexes(const std::string& techset, const std::string& material, unsigned char* cbi)
 				{
-					const auto path = "techsets\\constantbuffer\\"s + techset + ".cbi";
+					const auto path = "techsets\\constantbuffer\\"s + techset + "\\"s + material + ".cbi";
 					auto file = filesystem::file(path);
 					file.open("wb");
 					auto fp = file.get_fp();
@@ -36,9 +38,9 @@ namespace zonetool::iw6
 					}
 				}
 
-				void dump_constant_buffer_def_array(const std::string& techset, unsigned char count, zonetool::h1::MaterialConstantBufferDef* def)
+				void dump_constant_buffer_def_array(const std::string& techset, const std::string& material, unsigned char count, zonetool::h1::MaterialConstantBufferDef* def)
 				{
-					const auto path = "techsets\\constantbuffer\\"s + techset + ".cbt";
+					const auto path = "techsets\\constantbuffer\\"s + techset + "\\"s + material + ".cbt";
 					assetmanager::dumper dump;
 					if (!dump.open(path))
 					{
@@ -86,9 +88,9 @@ namespace zonetool::iw6
 					dump.close();
 				}
 
-				void dump_stateinfo(const std::string& techset, zonetool::h1::Material* mat)
+				void dump_stateinfo(const std::string& techset, const std::string& material, zonetool::h1::Material* mat)
 				{
-					const auto path = "techsets\\state\\"s + techset + ".stateinfo";
+					const auto path = "techsets\\state\\"s + techset + "\\"s + material + ".stateinfo";
 
 					ordered_json json_data = {};
 
@@ -105,9 +107,9 @@ namespace zonetool::iw6
 					}
 				}
 
-				void dump_statebits(const std::string& techset, unsigned char* statebits)
+				void dump_statebits(const std::string& techset, const std::string& material, unsigned char* statebits)
 				{
-					const auto path = "techsets\\state\\"s + techset + ".statebits";
+					const auto path = "techsets\\state\\"s + techset + "\\"s + material + ".statebits";
 					auto file = filesystem::file(path);
 					file.open("wb");
 					auto fp = file.get_fp();
@@ -119,9 +121,9 @@ namespace zonetool::iw6
 					}
 				}
 
-				void dump_statebits_map(const std::string& techset, GfxStateBits* map, unsigned char count)
+				void dump_statebits_map(const std::string& techset, const std::string& material, GfxStateBits* map, unsigned char count)
 				{
-					const auto path = "techsets\\state\\"s + techset + ".statebitsmap";
+					const auto path = "techsets\\state\\"s + techset + "\\"s + material + ".statebitsmap";
 
 					ordered_json json_data = {};
 					for (unsigned char i = 0; i < count; i++)

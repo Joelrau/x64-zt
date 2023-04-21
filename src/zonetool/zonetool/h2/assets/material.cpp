@@ -152,38 +152,24 @@ namespace zonetool::h2
 
 		if (mat->techniqueSet)
 		{
-			const auto get_name = [&]()
-			{
-				const auto path = "techsets\\state\\"s + mat->name + ".stateinfo"s;
-				filesystem::file file(path);
-
-				if (file.exists())
-				{
-					return mat->name;
-				}
-
-				return mat->techniqueSet->name;
-			};
-
-			const auto state_name = get_name();
-			techset::parse_stateinfo(state_name, mat, mem);
-			techset::parse_statebits(state_name, mat->stateBitsEntry, mem);
-			techset::parse_statebitsmap(state_name, &mat->stateBitsTable, &mat->stateBitsCount,
+			techset::parse_stateinfo(mat->techniqueSet->name, c_name.data(), mat, mem);
+			techset::parse_statebits(mat->techniqueSet->name, c_name.data(), mat->stateBitsEntry, mem);
+			techset::parse_statebitsmap(mat->techniqueSet->name, c_name.data(), &mat->stateBitsTable, &mat->stateBitsCount,
 				&this->depth_stenchil_state_bits,
 				&this->blend_state_bits,
 				mem);
 
 			if (mat->constantCount)
 			{
-				techset::parse_constant_buffer_indexes(state_name, mat->constantBufferIndex, mem);
-				techset::parse_constant_buffer_def_array(state_name, &mat->constantBufferTable, &mat->constantBufferCount, mem);
+				techset::parse_constant_buffer_indexes(mat->techniqueSet->name, c_name.data(), mat->constantBufferIndex, mem);
+				techset::parse_constant_buffer_def_array(mat->techniqueSet->name, c_name.data(), &mat->constantBufferTable, &mat->constantBufferCount, mem);
 			}
 		}
 
 		auto max_state_index = 0;
 		for (auto i = 0; i < MaterialTechniqueType::TECHNIQUE_COUNT; i++)
 		{
-			if (mat->stateBitsEntry[i] == 255)
+			if (mat->stateBitsEntry[i] == 0xFF)
 			{
 				continue;
 			}
@@ -204,22 +190,6 @@ namespace zonetool::h2
 			ZONETOOL_INFO("Material %s has %u statebits but only %u are used, removing unused statebits.", mat->name, mat->stateBitsCount, max_state_index + 1);
 			mat->stateBitsCount = static_cast<unsigned char>(max_state_index + 1);
 		}
-
-		// fix sortKeys
-		/*bool fixed = false;
-		DB_EnumXAssets(ASSET_TYPE_MATERIAL, [mat, &fixed](XAssetHeader header)
-		{
-			if (fixed) return;
-
-			const char* name = mat->techniqueSet->name;
-			if (name[0] == ',') ++name;
-
-			if (std::string(name) == header.material->techniqueSet->name)
-			{
-				mat->info.sortKey = header.material->info.sortKey;
-				fixed = true;
-			}
-		}, false);*/
 
 		return mat;
 	}
@@ -315,22 +285,24 @@ namespace zonetool::h2
 						img_.levelCount = image->levelCount;
 						img_.pixelData = image->pixelData;
 
-						iwi::fixup_normal_map(&img_);
-						material::fixed_nml_images_map[image] = image->name;
+						if (iwi::fixup_normal_map(&img_))
+						{
+							material::fixed_nml_images_map[image] = image->name;
 
-						image->name = img_.name;
-						image->imageFormat = img_.imageFormat;
-						image->mapType = static_cast<MapType>(img_.mapType);
-						image->dataLen1 = img_.dataLen;
-						image->dataLen2 = img_.dataLen;
-						image->width = img_.width;
-						image->height = img_.height;
-						image->depth = img_.depth;
-						image->numElements = img_.numElements;
-						image->levelCount = img_.levelCount;
-						image->pixelData = img_.pixelData;
+							image->name = img_.name;
+							image->imageFormat = img_.imageFormat;
+							image->mapType = static_cast<MapType>(img_.mapType);
+							image->dataLen1 = img_.dataLen;
+							image->dataLen2 = img_.dataLen;
+							image->width = img_.width;
+							image->height = img_.height;
+							image->depth = img_.depth;
+							image->numElements = img_.numElements;
+							image->levelCount = img_.levelCount;
+							image->pixelData = img_.pixelData;
 
-						image->flags |= img_.levelCount > 1 ? 0 : 2;
+							image->flags |= img_.levelCount > 1 ? 0 : 2;
+						}
 					}
 				}
 			}
@@ -479,18 +451,12 @@ namespace zonetool::h2
 
 			if (asset && asset->techniqueSet)
 			{
-				const auto dump_state_and_cbt = [&](const std::string& name)
-				{
-					techset::dump_stateinfo(name, asset);
-					techset::dump_statebits(name, asset->stateBitsEntry);
-					techset::dump_statebits_map(name, asset->stateBitsTable, asset->stateBitsCount);
+				techset::dump_stateinfo(asset->techniqueSet->name, c_name.data(), asset);
+				techset::dump_statebits(asset->techniqueSet->name, c_name.data(), asset->stateBitsEntry);
+				techset::dump_statebits_map(asset->techniqueSet->name, c_name.data(), asset->stateBitsTable, asset->stateBitsCount);
 
-					techset::dump_constant_buffer_indexes(name, asset->constantBufferIndex);
-					techset::dump_constant_buffer_def_array(name, asset->constantBufferCount, asset->constantBufferTable);
-				};
-
-				dump_state_and_cbt(asset->name);
-				dump_state_and_cbt(asset->techniqueSet->name);
+				techset::dump_constant_buffer_indexes(asset->techniqueSet->name, c_name.data(), asset->constantBufferIndex);
+				techset::dump_constant_buffer_def_array(asset->techniqueSet->name, c_name.data(), asset->constantBufferCount, asset->constantBufferTable);
 			}
 
 			ordered_json matdata;

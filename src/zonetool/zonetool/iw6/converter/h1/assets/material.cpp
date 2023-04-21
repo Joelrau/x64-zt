@@ -80,12 +80,13 @@ matdata[#entry] = carr##entry;
 
 						if (asset && asset->techniqueSet)
 						{
-							converter::h1::techset::ree::dump_stateinfo(asset->techniqueSet->name, asset);
-							converter::h1::techset::ree::dump_statebits(asset->techniqueSet->name, asset->stateBitsEntry);
-							converter::h1::techset::ree::dump_statebits_map(asset->techniqueSet->name, iw6_asset->stateMap, asset->stateBitsCount);
+							converter::h1::techset::ree::dump_stateinfo(asset->techniqueSet->name, c_name.data(), asset);
+							converter::h1::techset::ree::dump_statebits(asset->techniqueSet->name, c_name.data(), asset->stateBitsEntry);
+							converter::h1::techset::ree::dump_statebits_map(asset->techniqueSet->name, c_name.data(), iw6_asset->stateMap, asset->stateBitsCount);
 
-							converter::h1::techset::ree::dump_constant_buffer_indexes(asset->techniqueSet->name, asset->constantBufferIndex);
-							converter::h1::techset::ree::dump_constant_buffer_def_array(asset->techniqueSet->name, asset->constantBufferCount, asset->constantBufferTable);
+							converter::h1::techset::ree::dump_constant_buffer_indexes(asset->techniqueSet->name, c_name.data(), asset->constantBufferIndex);
+							converter::h1::techset::ree::dump_constant_buffer_def_array(asset->techniqueSet->name, c_name.data(),
+								asset->constantBufferCount, asset->constantBufferTable);
 						}
 
 						ordered_json matdata;
