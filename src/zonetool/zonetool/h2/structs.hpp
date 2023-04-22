@@ -2278,7 +2278,7 @@ namespace zonetool::h2
 		unsigned char useItemClip;
 		unsigned char fadeInfo;
 		int randomSeed;
-		char __pad2[16];
+		float unk_floats[4];
 	}; static_assert(sizeof(FxElemDef) == 0x140);
 
 	static_assert(offsetof(FxElemDef, spawnOrigin) == 60);
@@ -2310,8 +2310,8 @@ namespace zonetool::h2
 		int totalSize;
 		int msecLoopingLife;
 		int elemDefCountLooping;
-		int elemDefCountOneShot;
 		int elemDefCountEmission;
+		int elemDefCountOneShot;
 		float elemMaxRadius;
 		float occlusionQueryDepthBias;
 		int occlusionQueryFadeIn;
@@ -2323,8 +2323,8 @@ namespace zonetool::h2
 
 	static_assert(offsetof(FxEffectDef, elemDefs) == 0x40);
 	static_assert(offsetof(FxEffectDef, elemDefCountLooping) == 0x14);
-	static_assert(offsetof(FxEffectDef, elemDefCountOneShot) == 0x18);
-	static_assert(offsetof(FxEffectDef, elemDefCountEmission) == 0x1C);
+	//static_assert(offsetof(FxEffectDef, elemDefCountOneShot) == 0x18);
+	//static_assert(offsetof(FxEffectDef, elemDefCountEmission) == 0x1C);
 
 	struct XModelIKData
 	{

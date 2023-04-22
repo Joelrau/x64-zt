@@ -12,28 +12,44 @@ namespace zonetool::h1
 		{
 
 #define COPY_VALUE_FX(name) \
-		static_assert(sizeof(asset->elemDefs[i].name) == sizeof(h1_asset->elemDefs[i].name)); \
-		asset->elemDefs[i].name = h1_asset->elemDefs[i].name;
+		static_assert(sizeof(new_asset->elemDefs[i].name) == sizeof(asset->elemDefs[i].name)); \
+		new_asset->elemDefs[i].name = asset->elemDefs[i].name;
 
 #define COPY_VALUE_CAST_FX(name) \
-		static_assert(sizeof(asset->elemDefs[i].name) == sizeof(h1_asset->elemDefs[i].name)); \
-		asset->elemDefs[i].name = *reinterpret_cast<decltype(asset->elemDefs[i].name)*>(&h1_asset->elemDefs[i].name);
+		static_assert(sizeof(new_asset->elemDefs[i].name) == sizeof(asset->elemDefs[i].name)); \
+		new_asset->elemDefs[i].name = *reinterpret_cast<decltype(new_asset->elemDefs[i].name)*>(&asset->elemDefs[i].name);
 
 #define COPY_ARR_FX(name) \
-		static_assert(sizeof(asset->elemDefs[i].name) == sizeof(h1_asset->elemDefs[i].name)); \
-		std::memcpy(&asset->elemDefs[i].name, &h1_asset->elemDefs[i].name, sizeof(asset->elemDefs[i].name));
+		static_assert(sizeof(new_asset->elemDefs[i].name) == sizeof(asset->elemDefs[i].name)); \
+		std::memcpy(&new_asset->elemDefs[i].name, &asset->elemDefs[i].name, sizeof(new_asset->elemDefs[i].name));
 
 #define REINTERPRET_CAST_SAFE_FX(name) \
-		static_assert(sizeof(*asset->elemDefs[i].name) == sizeof(*h1_asset->elemDefs[i].name)); \
-		asset->elemDefs[i].name = reinterpret_cast<decltype(asset->elemDefs[i].name)>(h1_asset->elemDefs[i].name);
+		static_assert(sizeof(*new_asset->elemDefs[i].name) == sizeof(*asset->elemDefs[i].name)); \
+		new_asset->elemDefs[i].name = reinterpret_cast<decltype(new_asset->elemDefs[i].name)>(asset->elemDefs[i].name);
 
-			zonetool::h2::FxEffectDef* convert(zonetool::h1::FxEffectDef* h1_asset, utils::memory::allocator& allocator)
+			zonetool::h2::FxEffectDef* convert(zonetool::h1::FxEffectDef* asset, utils::memory::allocator& allocator)
 			{
-				const auto asset = allocator.allocate<zonetool::h2::FxEffectDef>();
+				const auto new_asset = allocator.allocate<zonetool::h2::FxEffectDef>();
 
-				std::memcpy(asset, h1_asset, sizeof(zonetool::h1::FxEffectDef));
-				const auto elem_count = asset->elemDefCountLooping + asset->elemDefCountOneShot + asset->elemDefCountEmission;
-				asset->elemDefs = allocator.allocate_array<zonetool::h2::FxElemDef>(elem_count);
+				REINTERPRET_CAST_SAFE(name);
+				COPY_VALUE(flags);
+				COPY_VALUE(totalSize);
+				COPY_VALUE(msecLoopingLife);
+				COPY_VALUE(elemDefCountLooping);
+				COPY_VALUE(elemDefCountOneShot);
+				COPY_VALUE(elemDefCountEmission);
+				COPY_VALUE(elemMaxRadius);
+				COPY_VALUE(occlusionQueryDepthBias);
+				COPY_VALUE(occlusionQueryFadeIn);
+				COPY_VALUE(occlusionQueryFadeOut);
+				COPY_VALUE(occlusionQueryScaleRange.base);
+				COPY_VALUE(occlusionQueryScaleRange.amplitude);
+
+				const auto elem_count = new_asset->elemDefCountLooping + new_asset->elemDefCountOneShot + new_asset->elemDefCountEmission;
+				new_asset->elemDefs = allocator.allocate_array<zonetool::h2::FxElemDef>(elem_count);
+
+				asset->flags |= 0x400;
+				new_asset->xU_01 = 1.f;
 
 				for (auto i = 0; i < elem_count; i++)
 				{
@@ -61,27 +77,46 @@ namespace zonetool::h1
 					COPY_VALUE_FX(velIntervalCount);
 					COPY_VALUE_FX(visStateIntervalCount);
 
-					if ((asset->elemDefs[i].flags & 0xC0) != 0)
+					const auto convert_flags = [](int flags)
 					{
-						asset->elemDefs[i].flags &= ~0xC0;
-					}
-					else if (((asset->elemDefs[i].flags & 0x80) != 0) && ((asset->elemDefs[i].flags & 0x40) == 0))
+						if ((flags & 0x100) != 0)
+						{
+							flags &= ~0x100;
+							flags |= 0x80;
+						}
+
+						if ((flags & 0x80) != 0 && (flags & 0x40) != 0)
+						{
+							flags &= ~0xC0;
+						}
+						else if (((flags & 0x80) != 0) && ((flags & 0x40) == 0))
+						{
+							flags &= ~0x80;
+							flags |= 0x40;
+						}
+						else if (((flags & 0x80) == 0) && ((flags & 0x40) != 0))
+						{
+							flags &= ~0x40;
+						}
+
+						if ((flags & 0x20000))
+						{
+							flags &= ~0x20000;
+						}
+
+						return flags;
+					};
+
+					new_asset->elemDefs[i].flags = convert_flags(new_asset->elemDefs[i].flags);
+
+					if ((((new_asset->elemDefs[i].flags & 0x30) - 16) & 0xFFFFFFEF) != 0)
 					{
-						asset->elemDefs[i].flags &= ~0x80;
-						asset->elemDefs[i].flags |= 0x40;
-					}
-					else if (((asset->elemDefs[i].flags & 0x80) == 0) && ((asset->elemDefs[i].flags & 0x40) != 0))
-					{
-						asset->elemDefs[i].flags &= ~0x40;
+						std::memset(&new_asset->elemDefs[i].spawnOffsetRadius, 0, sizeof(zonetool::h2::FxFloatRange));
+						std::memset(&new_asset->elemDefs[i].spawnOffsetHeight, 0, sizeof(zonetool::h2::FxFloatRange));
 					}
 
-					if ((((asset->elemDefs[i].flags & 0x30) - 16) & 0xFFFFFFEF) != 0)
-					{
-						std::memset(&asset->elemDefs[i].spawnOffsetRadius, 0, sizeof(zonetool::h2::FxFloatRange));
-					}
-
-					const auto vel_count = asset->elemDefs[i].velIntervalCount + 1;
-					asset->elemDefs[i].velSamples = allocator.allocate_array<zonetool::h2::FxElemVelStateSample>(vel_count);
+					const auto vel_count = new_asset->elemDefs[i].velIntervalCount + 1;
+					new_asset->elemDefs[i].velSamples = allocator.allocate_array<zonetool::h2::FxElemVelStateSample>(vel_count);
 					for (auto o = 0; o < vel_count; o++)
 					{
 						COPY_ARR_FX(velSamples[o].local.velocity.base);
@@ -107,11 +142,11 @@ namespace zonetool::h1
 					COPY_VALUE_CAST_FX(emitDistVariance);
 					REINTERPRET_CAST_SAFE_FX(extended.unknownDef);
 
-					if (asset->elemDefs[i].extended.trailDef)
+					if (new_asset->elemDefs[i].extended.trailDef)
 					{
-						if (asset->elemDefs[i].elemType == zonetool::h2::FX_ELEM_TYPE_TRAIL)
+						if (new_asset->elemDefs[i].elemType == zonetool::h2::FX_ELEM_TYPE_TRAIL)
 						{
-							asset->elemDefs[i].extended.trailDef = allocator.allocate<zonetool::h2::FxTrailDef>();
+							new_asset->elemDefs[i].extended.trailDef = allocator.allocate<zonetool::h2::FxTrailDef>();
 							COPY_VALUE_FX(extended.trailDef->scrollTimeMsec);
 							COPY_VALUE_FX(extended.trailDef->repeatDist);
 							COPY_VALUE_FX(extended.trailDef->invSplitDist);
@@ -120,9 +155,9 @@ namespace zonetool::h1
 							COPY_VALUE_FX(extended.trailDef->indCount);
 							REINTERPRET_CAST_SAFE_FX(extended.trailDef->inds);
 						}
-						else if (asset->elemDefs[i].elemType == zonetool::h2::FX_ELEM_TYPE_DECAL)
+						else if (new_asset->elemDefs[i].elemType == zonetool::h2::FX_ELEM_TYPE_DECAL)
 						{
-							asset->elemDefs[i].extended.decalDef = allocator.allocate<zonetool::h2::FxDecalDef>();
+							new_asset->elemDefs[i].extended.decalDef = allocator.allocate<zonetool::h2::FxDecalDef>();
 						}
 					}
 
@@ -131,9 +166,30 @@ namespace zonetool::h1
 					COPY_VALUE_FX(useItemClip);
 					COPY_VALUE_FX(fadeInfo);
 					COPY_VALUE_FX(randomSeed);
+
+					new_asset->elemDefs[i].unk_floats[0] = asset->elemDefs[i].__pad0[1];
+					new_asset->elemDefs[i].unk_floats[1] = asset->elemDefs[i].__pad0[2];
+					new_asset->elemDefs[i].unk_floats[2] = asset->elemDefs[i].__pad0[3];
+					new_asset->elemDefs[i].unk_floats[3] = asset->elemDefs[i].__pad0[4];
 				}
 
-				return asset;
+				const auto reordered_elems = allocator.allocate_array<zonetool::h2::FxElemDef>(elem_count);
+
+				const auto reordered_elems_looping = &reordered_elems[0];
+				const auto reordered_elems_emission = &reordered_elems[new_asset->elemDefCountLooping];
+				const auto reordered_elems_oneshot = &reordered_elems[new_asset->elemDefCountLooping + new_asset->elemDefCountEmission];
+
+				const auto elems_looping = &new_asset->elemDefs[0];
+				const auto elems_oneshot = &new_asset->elemDefs[asset->elemDefCountLooping];
+				const auto elems_emission = &new_asset->elemDefs[asset->elemDefCountLooping + new_asset->elemDefCountOneShot];
+
+				std::memcpy(reordered_elems_looping, elems_looping, asset->elemDefCountLooping * sizeof(zonetool::h2::FxElemDef));
+				std::memcpy(reordered_elems_oneshot, elems_oneshot, asset->elemDefCountOneShot * sizeof(zonetool::h2::FxElemDef));
+				std::memcpy(reordered_elems_emission, elems_emission, asset->elemDefCountEmission * sizeof(zonetool::h2::FxElemDef));
+
+				new_asset->elemDefs = reordered_elems;
+
+				return new_asset;
 			}
 
 			void dump(zonetool::h1::FxEffectDef* asset)
