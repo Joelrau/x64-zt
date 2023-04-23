@@ -3,6 +3,34 @@
 
 namespace zonetool::h1
 {
+	void parse_subdiv(XSurface* surf, assetmanager::reader& reader)
+	{
+		if (surf->subdiv)
+		{
+			surf->subdiv = reader.read_single<XSurfaceSubdivInfo>();
+
+			auto* levels = surf->subdiv->levels;
+			auto level_count = surf->subdivLevelCount;
+
+			levels = reader.read_array<XSurfaceSubdivLevel>();
+			for (unsigned char level_index = 0; level_index < level_count; level_index++)
+			{
+				auto* level = &levels[level_index];
+
+				level->rigidVertLists = reader.read_array<XSubdivRigidVertList>();
+				level->faceIndices = reader.read_array<unsigned short>();
+				level->regularPatchIndices = reader.read_array<unsigned short>();
+				level->regularPatchFlags = reader.read_array<unsigned int>();
+				level->facePoints = reader.read_array<unsigned int>();
+				level->edgePoints = reader.read_array<unsigned int>();
+				level->vertexPoints = reader.read_array<unsigned int>();
+				level->normals = reader.read_array<unsigned int>();
+				level->transitionPoints = reader.read_array<unsigned int>();
+				level->regularPatchCones = reader.read_array<float>();
+			}
+		}
+	}
+
 	XModelSurfs* xsurface::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = "xsurface\\" + name + ".xsurface_export";
@@ -60,6 +88,14 @@ namespace zonetool::h1
 
 			asset->surfs[i].tensionData = read.read_raw<alignCompBufFloat_t>();
 			asset->surfs[i].tensionAccumTable = read.read_raw<alignCompBufUShort_t>();
+
+			parse_subdiv(&asset->surfs[i], read);
+
+			asset->surfs[i].blendShapes = read.read_array<BlendShape>();
+			for (unsigned int bs_index = 0; bs_index < asset->surfs[i].blendShapesCount; bs_index++)
+			{
+				asset->surfs[i].blendShapes[bs_index].verts = read.read_array<BlendShapeVert>();
+			}
 		}
 
 		read.close();
@@ -210,10 +246,114 @@ namespace zonetool::h1
 			zone_buffer::clear_pointer(&dest->lmapUnwrap);
 		}
 
-		if (data->subdiv || data->subdivLevelCount)
+		if (data->subdiv)
 		{
-			dest->subdiv = nullptr;
-			dest->subdivLevelCount = 0;
+			buf->align(3);
+			dest->subdiv = buf->write(data->subdiv);
+			if (data->subdiv->levels)
+			{
+				buf->align(15);
+				dest->subdiv->levels = buf->write(data->subdiv->levels, data->subdivLevelCount);
+				for (unsigned char level_index = 0; level_index < data->subdivLevelCount; level_index++)
+				{
+					if (data->subdiv->levels[level_index].rigidVertLists)
+					{
+						buf->align(3);
+						dest->subdiv->levels[level_index].rigidVertLists = buf->write(data->subdiv->levels[level_index].rigidVertLists,
+							data->rigidVertListCount);
+						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].rigidVertLists);
+					}
+
+					if (data->subdiv->levels[level_index].faceIndices)
+					{
+						buf->align(3);
+						dest->subdiv->levels[level_index].faceIndices = buf->write(data->subdiv->levels[level_index].faceIndices,
+							data->subdiv->levels[level_index].faceCount);
+						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].faceIndices);
+					}
+
+					if (data->subdiv->levels[level_index].regularPatchIndices)
+					{
+						buf->align(3);
+						dest->subdiv->levels[level_index].regularPatchIndices = buf->write(data->subdiv->levels[level_index].regularPatchIndices,
+							data->subdiv->levels[level_index].regularPatchCount);
+						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].regularPatchIndices);
+					}
+
+					if (data->subdiv->levels[level_index].regularPatchFlags)
+					{
+						buf->align(3);
+						dest->subdiv->levels[level_index].regularPatchFlags = buf->write(data->subdiv->levels[level_index].regularPatchFlags,
+							data->subdiv->levels[level_index].regularPatchCount);
+						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].regularPatchFlags);
+					}
+
+					if (data->subdiv->levels[level_index].facePoints)
+					{
+						buf->align(3);
+						dest->subdiv->levels[level_index].facePoints = buf->write(data->subdiv->levels[level_index].facePoints,
+							data->subdiv->levels[level_index].facePointBufferSize & 0xFFFFFFFC);
+						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].facePoints);
+					}
+
+					if (data->subdiv->levels[level_index].edgePoints)
+					{
+						buf->align(3);
+						dest->subdiv->levels[level_index].edgePoints = buf->write(data->subdiv->levels[level_index].edgePoints,
+							data->subdiv->levels[level_index].edgePointCount);
+						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].edgePoints);
+					}
+
+					if (data->subdiv->levels[level_index].vertexPoints)
+					{
+						buf->align(3);
+						dest->subdiv->levels[level_index].vertexPoints = buf->write(data->subdiv->levels[level_index].vertexPoints,
+							data->subdiv->levels[level_index].vertexPointBufferSize & 0xFFFFFFFC);
+						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].vertexPoints);
+					}
+
+					if (data->subdiv->levels[level_index].normals)
+					{
+						buf->align(3);
+						dest->subdiv->levels[level_index].normals = buf->write(data->subdiv->levels[level_index].normals,
+							data->subdiv->levels[level_index].normalBufferSize & 0xFFFFFFFC);
+						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].normals);
+					}
+
+					if (data->subdiv->levels[level_index].transitionPoints)
+					{
+						buf->align(3);
+						dest->subdiv->levels[level_index].transitionPoints = buf->write(data->subdiv->levels[level_index].transitionPoints,
+							data->subdiv->levels[level_index].transitionPointCount);
+						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].transitionPoints);
+					}
+
+					if (data->subdiv->levels[level_index].regularPatchCones)
+					{
+						buf->align(3);
+						dest->subdiv->levels[level_index].regularPatchCones = buf->write(data->subdiv->levels[level_index].regularPatchCones,
+							data->subdiv->levels[level_index].regularPatchCount);
+						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].regularPatchCones);
+					}
+
+					dest->subdiv->levels[level_index].regularPatchIndexBuffer = nullptr;
+					dest->subdiv->levels[level_index].faceIndexBuffer = nullptr;
+					dest->subdiv->levels[level_index].regularPatchIndexBufferView = nullptr;
+					dest->subdiv->levels[level_index].regularPatchFlagsView = nullptr;
+					dest->subdiv->levels[level_index].facePointsView = nullptr;
+					dest->subdiv->levels[level_index].edgePointsView = nullptr;
+					dest->subdiv->levels[level_index].vertexPointsView = nullptr;
+					dest->subdiv->levels[level_index].normalsView = nullptr;
+					dest->subdiv->levels[level_index].transitionPointsView = nullptr;
+					dest->subdiv->levels[level_index].regularPatchConesView = nullptr;
+				}
+				zone_buffer::clear_pointer(&dest->subdiv->levels);
+			}
+
+			dest->subdiv->cache.subdivCacheBuffer = nullptr;
+			dest->subdiv->cache.subdivCacheView = nullptr;
+
+			zone_buffer::clear_pointer(&dest->subdiv);
 		}
 
 		if (data->tensionData)
@@ -240,8 +380,21 @@ namespace zonetool::h1
 
 		if (data->blendShapes)
 		{
-			dest->blendShapes = nullptr;
-			dest->blendShapesCount = 0;
+			buf->align(15);
+			dest->blendShapes = buf->write(data->blendShapes, data->blendShapesCount);
+			for (unsigned int bs_index = 0; bs_index < data->blendShapesCount; bs_index++)
+			{
+				if (data->blendShapes[bs_index].verts)
+				{
+					buf->align(15);
+					dest->blendShapes[bs_index].verts = buf->write(data->blendShapes[bs_index].verts, data->blendShapes[bs_index].vertCount);
+					zone_buffer::clear_pointer(&dest->blendShapes[bs_index].verts);
+				}
+
+				dest->blendShapes[bs_index].blendShapeVertsBuffer = nullptr;
+				dest->blendShapes[bs_index].blendShapeVertsView = nullptr;
+			}
+			zone_buffer::clear_pointer(&dest->blendShapes);
 		}
 	}
 
@@ -265,6 +418,34 @@ namespace zonetool::h1
 		}
 
 		buf->pop_stream();
+	}
+
+	void dump_subdiv(XSurface* surf, assetmanager::dumper& dumper)
+	{
+		if (surf->subdiv)
+		{
+			dumper.dump_single(surf->subdiv);
+
+			auto* levels = surf->subdiv->levels;
+			auto level_count = surf->subdivLevelCount;
+
+			dumper.dump_array(levels, level_count);
+			for (unsigned char level_index = 0; level_index < level_count; level_index++)
+			{
+				auto* level = &levels[level_index];
+
+				dumper.dump_array(level->rigidVertLists, surf->rigidVertListCount);
+				dumper.dump_array(level->faceIndices, level->faceCount);
+				dumper.dump_array(level->regularPatchIndices, level->regularPatchCount);
+				dumper.dump_array(level->regularPatchFlags, level->regularPatchCount);
+				dumper.dump_array(level->facePoints, level->facePointBufferSize & 0xFFFFFFFC);
+				dumper.dump_array(level->edgePoints, level->edgePointCount);
+				dumper.dump_array(level->vertexPoints, level->vertexPointBufferSize & 0xFFFFFFFC);
+				dumper.dump_array(level->normals, level->normalBufferSize & 0xFFFFFFFC);
+				dumper.dump_array(level->transitionPoints, level->transitionPointCount);
+				dumper.dump_array(level->regularPatchCones, level->regularPatchCount);
+			}
+		}
 	}
 
 	void xsurface::dump(XModelSurfs* asset)
@@ -341,6 +522,14 @@ namespace zonetool::h1
 				+ asset->surfs[i].blendVertCounts[6]
 				+ asset->surfs[i].blendVertCounts[7]));
 			dump.dump_raw(asset->surfs[i].tensionAccumTable, 32 * asset->surfs[i].vertCount);
+
+			dump_subdiv(&asset->surfs[i], dump);
+
+			dump.dump_array(asset->surfs[i].blendShapes, asset->surfs[i].blendShapesCount);
+			for (unsigned int bs_index = 0; bs_index < asset->surfs[i].blendShapesCount; bs_index++)
+			{
+				dump.dump_array(asset->surfs[i].blendShapes[bs_index].verts, asset->surfs[i].blendShapes[bs_index].vertCount);
+			}
 		}
 
 		dump.close();
