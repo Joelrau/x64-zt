@@ -757,11 +757,11 @@ namespace zonetool::s1
 						}
 						if (type == "xmodel"s || iterate_all)
 						{
-							add_assets_using_iterator(fastfile, type, "xmodel", ".xmodel_export", true, zone);
+							add_assets_using_iterator(fastfile, type, "xmodel", ".xmb", true, zone);
 						}
 						if (type == "xanim"s || iterate_all)
 						{
-							add_assets_using_iterator(fastfile, type, "xanim", ".xanim_export", true, zone);
+							add_assets_using_iterator(fastfile, type, "xanim", ".xab", true, zone);
 						}
 					}
 					catch (const std::exception& e)

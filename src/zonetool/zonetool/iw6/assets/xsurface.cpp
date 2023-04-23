@@ -33,7 +33,7 @@ namespace zonetool::iw6
 
 	XModelSurfs* xsurface::parse(const std::string& name, zone_memory* mem)
 	{
-		const auto path = "xsurface\\" + name + ".xsurface_export";
+		const auto path = "xsurface\\" + name + ".xsb";
 
 		assetmanager::reader read(mem);
 		if (!read.open(path))
@@ -408,7 +408,7 @@ namespace zonetool::iw6
 
 	void xsurface::dump(XModelSurfs* asset)
 	{
-		const auto path = "xsurface\\"s + asset->name + ".xsurface_export";
+		const auto path = "xsurface\\"s + asset->name + ".xsb";
 
 		assetmanager::dumper dump;
 		if (!dump.open(path))

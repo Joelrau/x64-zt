@@ -29,7 +29,7 @@ namespace zonetool::iw6
 
 	XModel* xmodel::parse(std::string name, zone_memory* mem)
 	{
-		const auto path = "xmodel\\"s + name + ".xmodel_export";
+		const auto path = "xmodel\\"s + name + ".xmb";
 
 		assetmanager::reader read(mem);
 		if (!read.open(path))
@@ -286,7 +286,7 @@ namespace zonetool::iw6
 
 	void xmodel::dump(XModel* asset)
 	{
-		const auto path = "xmodel\\"s + asset->name + ".xmodel_export";
+		const auto path = "xmodel\\"s + asset->name + ".xmb";
 
 		assetmanager::dumper dump;
 		if (!dump.open(path))

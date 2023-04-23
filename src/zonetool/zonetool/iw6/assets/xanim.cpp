@@ -29,7 +29,7 @@ namespace zonetool::iw6
 
 	XAnimParts* xanim_parts::parse(const std::string& name, zone_memory* mem)
 	{
-		const auto path = "xanim\\"s + name + ".xanim_export";
+		const auto path = "xanim\\"s + name + ".xab";
 
 		assetmanager::reader reader(mem);
 		if (!reader.open(path))
@@ -399,7 +399,7 @@ namespace zonetool::iw6
 
 	void xanim_parts::dump(XAnimParts* asset)
 	{
-		const auto path = "xanim\\"s + asset->name + ".xanim_export";
+		const auto path = "xanim\\"s + asset->name + ".xab";
 
 		assetmanager::dumper dump;
 		if (!dump.open(path))

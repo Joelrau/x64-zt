@@ -529,11 +529,11 @@ namespace zonetool::h2
 						}
 						if (type == "xmodel"s || iterate_all)
 						{
-							add_assets_using_iterator(fastfile, type, "xmodel", ".xmodel_export", true, zone);
+							add_assets_using_iterator(fastfile, type, "xmodel", ".xmb", true, zone);
 						}
 						if (type == "xanim"s || iterate_all)
 						{
-							add_assets_using_iterator(fastfile, type, "xanim", ".xanim_export", true, zone);
+							add_assets_using_iterator(fastfile, type, "xanim", ".xab", true, zone);
 						}
 					}
 					catch (const std::exception& e)
@@ -823,7 +823,7 @@ namespace zonetool::h2
 			filesystem::set_fastfile("custom_xmodels");
 			xmodel::build_composite_model(name, attachments);
 
-			ZONETOOL_INFO("Saved to \"dump/custom_xmodels/xmodel/%s.xmodel_export\"", name.data());
+			ZONETOOL_INFO("Saved to \"dump/custom_xmodels/xmodel/%s.xmb\"", name.data());
 		});
 	}
 
