@@ -133,10 +133,10 @@ namespace zonetool::h2
 			DUMP_ASSET(ASSET_TYPE_STRUCTUREDDATADEF, structured_data_def_set, StructuredDataDefSet);
 			DUMP_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset, MaterialTechniqueSet);
 			DUMP_ASSET(ASSET_TYPE_TRACER, tracer_def, TracerDef);
-			DUMP_ASSET(ASSET_TYPE_TTF, IFont, TTFDef);
+			DUMP_ASSET(ASSET_TYPE_TTF, font_def, TTFDef);
 			DUMP_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment, WeaponAttachment);
 			DUMP_ASSET(ASSET_TYPE_WEAPON, weapon_def, WeaponDef);
-			DUMP_ASSET(ASSET_TYPE_VEHICLE, IVehicleDef, VehicleDef);
+			DUMP_ASSET(ASSET_TYPE_VEHICLE, vehicle_def, VehicleDef);
 			DUMP_ASSET(ASSET_TYPE_XANIM, xanim_parts, XAnimParts);
 			DUMP_ASSET(ASSET_TYPE_XMODEL, xmodel, XModel);
 			DUMP_ASSET(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
@@ -154,7 +154,7 @@ namespace zonetool::h2
 			//DUMP_ASSET(ASSET_TYPE_VERTEXDECL, vertex_decl, MaterialVertexDeclaration);
 			DUMP_ASSET(ASSET_TYPE_VERTEXSHADER, vertex_shader, MaterialVertexShader);
 
-			DUMP_ASSET(ASSET_TYPE_AIPATHS, IAIPaths, PathData);
+			DUMP_ASSET(ASSET_TYPE_AIPATHS, path_data, PathData);
 			DUMP_ASSET(ASSET_TYPE_COL_MAP_SP, clip_map, clipMap_t);
 			DUMP_ASSET(ASSET_TYPE_COM_MAP, com_world, ComWorld);
 			DUMP_ASSET(ASSET_TYPE_FX_MAP, fx_world, FxWorld);

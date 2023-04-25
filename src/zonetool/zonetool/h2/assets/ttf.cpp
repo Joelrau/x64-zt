@@ -3,7 +3,7 @@
 
 namespace zonetool::h2
 {
-	TTFDef* IFont::parse(const std::string& name, zone_memory* mem)
+	TTFDef* font_def::parse(const std::string& name, zone_memory* mem)
 	{
 		auto file = filesystem::file(name);
 		file.open("rb");
@@ -33,7 +33,7 @@ namespace zonetool::h2
 		return nullptr;
 	}
 
-	void IFont::init(const std::string& name, zone_memory* mem)
+	void font_def::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
@@ -51,25 +51,25 @@ namespace zonetool::h2
 		}
 	}
 
-	void IFont::prepare(zone_buffer* buf, zone_memory* mem)
+	void font_def::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IFont::load_depending(zone_base* zone)
+	void font_def::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string IFont::name()
+	std::string font_def::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IFont::type()
+	std::int32_t font_def::type()
 	{
 		return ASSET_TYPE_TTF;
 	}
 
-	void IFont::write(zone_base* zone, zone_buffer* buf)
+	void font_def::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write<TTFDef>(data);
@@ -88,7 +88,7 @@ namespace zonetool::h2
 		buf->pop_stream();
 	}
 
-	void IFont::dump(TTFDef* asset)
+	void font_def::dump(TTFDef* asset)
 	{
 		auto file = filesystem::file(asset->name);
 		file.open("wb");

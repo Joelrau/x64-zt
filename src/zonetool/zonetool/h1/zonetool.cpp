@@ -140,7 +140,7 @@ namespace zonetool::h1
 			DUMP_ASSET(ASSET_TYPE_STRUCTUREDDATADEF, structured_data_def_set, StructuredDataDefSet);
 			DUMP_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset, MaterialTechniqueSet);
 			DUMP_ASSET(ASSET_TYPE_TRACER, tracer_def, TracerDef);
-			DUMP_ASSET(ASSET_TYPE_TTF, IFont, TTFDef);
+			DUMP_ASSET(ASSET_TYPE_TTF, font_def, TTFDef);
 			DUMP_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment, WeaponAttachment);
 			DUMP_ASSET(ASSET_TYPE_WEAPON, weapon_def, WeaponDef);
 			DUMP_ASSET(ASSET_TYPE_XANIM, xanim_parts, XAnimParts);
@@ -163,7 +163,7 @@ namespace zonetool::h1
 			DUMP_ASSET(ASSET_TYPE_MENU, IMenuDef, menuDef_t);
 			DUMP_ASSET(ASSET_TYPE_MENULIST, IMenuList, MenuList);
 
-			DUMP_ASSET(ASSET_TYPE_AIPATHS, IAIPaths, PathData);
+			DUMP_ASSET(ASSET_TYPE_AIPATHS, path_data, PathData);
 			DUMP_ASSET(ASSET_TYPE_COL_MAP_MP, clip_map, clipMap_t);
 			DUMP_ASSET(ASSET_TYPE_COM_MAP, com_world, ComWorld);
 			DUMP_ASSET(ASSET_TYPE_FX_MAP, fx_world, FxWorld);
@@ -229,7 +229,7 @@ namespace zonetool::h1
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_STRUCTUREDDATADEF, structured_data_def_set, StructuredDataDefSet);
 			DUMP_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset, MaterialTechniqueSet);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_TRACER, tracer_def, TracerDef);
-			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_TTF, IFont, TTFDef);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_TTF, font_def, TTFDef);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_ATTACHMENT, weapon_attachment, WeaponAttachment);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_WEAPON, weapon_def, WeaponDef);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_XANIM, xanim_parts, XAnimParts);
@@ -252,7 +252,7 @@ namespace zonetool::h1
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENU, IMenuDef, menuDef_t);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENULIST, IMenuList, MenuList);
 			
-			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_AIPATHS, IAIPaths, PathData);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_AIPATHS, path_data, PathData);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_COL_MAP_MP, clip_map, clipMap_t);
 			DUMP_ASSET(ASSET_TYPE_COM_MAP, comworld, ComWorld);
 			DUMP_ASSET(ASSET_TYPE_FX_MAP, fxworld, FxWorld);

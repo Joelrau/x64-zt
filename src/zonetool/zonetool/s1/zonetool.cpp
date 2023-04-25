@@ -376,7 +376,7 @@ namespace zonetool::s1
 			DUMP_ASSET(ASSET_TYPE_MENU, zonetool::h1::IMenuDef, zonetool::h1::menuDef_t);
 			DUMP_ASSET(ASSET_TYPE_MENULIST, zonetool::h1::IMenuList, zonetool::h1::MenuList);
 
-			//DUMP_ASSET(ASSET_TYPE_PATHDATA, IAIPaths, PathData);
+			//DUMP_ASSET(ASSET_TYPE_PATHDATA, path_data, PathData);
 			DUMP_ASSET(ASSET_TYPE_CLIPMAP, clip_map, clipMap_t);
 			DUMP_ASSET(ASSET_TYPE_COMWORLD, com_world, ComWorld);
 			DUMP_ASSET(ASSET_TYPE_FXWORLD, fx_world, FxWorld);

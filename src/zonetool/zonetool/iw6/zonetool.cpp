@@ -245,7 +245,7 @@ namespace zonetool::iw6
 			//DUMP_ASSET(ASSET_TYPE_MENU, IMenuDef, menuDef_t);
 			//DUMP_ASSET(ASSET_TYPE_MENULIST, IMenuList, MenuList);
 
-			//DUMP_ASSET(ASSET_TYPE_PATHDATA, IAIPaths, PathData);
+			//DUMP_ASSET(ASSET_TYPE_PATHDATA, path_data, PathData);
 			DUMP_ASSET(ASSET_TYPE_CLIPMAP, clip_map, clipMap_t);
 			DUMP_ASSET(ASSET_TYPE_COMWORLD, com_world, ComWorld);
 			DUMP_ASSET(ASSET_TYPE_FXWORLD, fx_world, FxWorld);

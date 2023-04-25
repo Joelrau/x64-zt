@@ -70,7 +70,7 @@ namespace zonetool::s1
 			{
 				utils::memory::allocator allocator;
 				const auto converted_asset = convert(asset, allocator);
-				zonetool::h1::IAIPaths::dump(converted_asset);
+				zonetool::h1::path_data::dump(converted_asset);
 			}
 		}
 	}

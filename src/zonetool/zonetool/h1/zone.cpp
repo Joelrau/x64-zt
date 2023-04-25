@@ -157,7 +157,7 @@ namespace zonetool::h1
 			ADD_ASSET(ASSET_TYPE_STRINGTABLE, string_table);
 			ADD_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset);
 			ADD_ASSET(ASSET_TYPE_TRACER, tracer_def);
-			ADD_ASSET(ASSET_TYPE_TTF, IFont);
+			ADD_ASSET(ASSET_TYPE_TTF, font_def);
 			ADD_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment);
 			ADD_ASSET(ASSET_TYPE_WEAPON, weapon_def);
 			ADD_ASSET(ASSET_TYPE_XANIM, xanim_parts);
@@ -180,7 +180,7 @@ namespace zonetool::h1
 			ADD_ASSET(ASSET_TYPE_MENU, IMenuDef);
 			ADD_ASSET(ASSET_TYPE_MENULIST, IMenuList);
 
-			ADD_ASSET(ASSET_TYPE_AIPATHS, IAIPaths);
+			ADD_ASSET(ASSET_TYPE_AIPATHS, path_data);
 			ADD_ASSET(ASSET_TYPE_COL_MAP_MP, clip_map);
 			ADD_ASSET(ASSET_TYPE_COM_MAP, com_world);
 			ADD_ASSET(ASSET_TYPE_FX_MAP, fx_world);

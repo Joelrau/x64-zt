@@ -151,10 +151,10 @@ namespace zonetool::h2
 			ADD_ASSET(ASSET_TYPE_STRINGTABLE, string_table);
 			ADD_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset);
 			ADD_ASSET(ASSET_TYPE_TRACER, tracer_def);
-			ADD_ASSET(ASSET_TYPE_TTF, IFont);
+			ADD_ASSET(ASSET_TYPE_TTF, font_def);
 			ADD_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment);
 			ADD_ASSET(ASSET_TYPE_WEAPON, weapon_def);
-			ADD_ASSET(ASSET_TYPE_VEHICLE, IVehicleDef);
+			ADD_ASSET(ASSET_TYPE_VEHICLE, vehicle_def);
 			ADD_ASSET(ASSET_TYPE_XANIM, xanim_parts);
 			ADD_ASSET(ASSET_TYPE_XMODEL, xmodel);
 			ADD_ASSET(ASSET_TYPE_XMODEL_SURFS, xsurface);
@@ -172,7 +172,7 @@ namespace zonetool::h2
 			//ADD_ASSET(ASSET_TYPE_VERTEXDECL, vertex_decl);
 			ADD_ASSET(ASSET_TYPE_VERTEXSHADER, vertex_shader);
 
-			ADD_ASSET(ASSET_TYPE_AIPATHS, IAIPaths);
+			ADD_ASSET(ASSET_TYPE_AIPATHS, path_data);
 			ADD_ASSET(ASSET_TYPE_COL_MAP_SP, clip_map);
 			ADD_ASSET(ASSET_TYPE_COM_MAP, com_world);
 			ADD_ASSET(ASSET_TYPE_FX_MAP, fx_world);
