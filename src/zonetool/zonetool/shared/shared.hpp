@@ -20,3 +20,4 @@
 #include "../shared/assets/shader.hpp"
 #include "../shared/assets/vertexdecl.hpp"
 #include "../shared/assets/laserdef.hpp"
+#include "../shared/assets/clipmap.hpp"
