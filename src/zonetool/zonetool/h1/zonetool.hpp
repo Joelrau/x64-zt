@@ -19,6 +19,7 @@
 #include "assets/fxparticlesimanimation.hpp"
 #include "assets/gfximage.hpp"
 #include "assets/gfxlightdef.hpp"
+#include "assets/laserdef.hpp"
 #include "assets/loadedsound.hpp"
 #include "assets/localize.hpp"
 #include "assets/lpfcurve.hpp"

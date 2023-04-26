@@ -4194,8 +4194,10 @@ namespace zonetool::h1
 		Material* laserLightMaterial;
 		FxEffectDef* effect;
 		LaserDef* altLaser;
-		scr_string_t* value;
-		char __pad0[104];
+		scr_string_t value;
+		float float_values[25];
+		unsigned char char_values[4];
+		int int_value;
 	}; assert_sizeof(LaserDef, 0x98);
 
 	struct TurretHydraulicSettings
@@ -7997,7 +7999,7 @@ namespace zonetool::h1
 		// vector field
 		DopplerPreset* doppler;
 		FxParticleSimAnimation* particleSimAnimation;
-		// laser
+		LaserDef* laser;
 		SkeletonScript* skeletonScript;
 		Clut* clut;
 		TTFDef* ttfDef;

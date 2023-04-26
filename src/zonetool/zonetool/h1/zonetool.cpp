@@ -121,6 +121,7 @@ namespace zonetool::h1
 			DUMP_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, fx_particle_sim_animation, FxParticleSimAnimation);
 			DUMP_ASSET(ASSET_TYPE_IMAGE, gfx_image, GfxImage);
 			DUMP_ASSET(ASSET_TYPE_LIGHT_DEF, gfx_light_def, GfxLightDef);
+			DUMP_ASSET(ASSET_TYPE_LASER, laser_def, LaserDef);
 			DUMP_ASSET(ASSET_TYPE_LOADED_SOUND, loaded_sound, LoadedSound);
 			DUMP_ASSET(ASSET_TYPE_LOCALIZE_ENTRY, localize, LocalizeEntry);
 			DUMP_ASSET(ASSET_TYPE_LPF_CURVE, lpf_curve, SndCurve);
@@ -778,6 +779,8 @@ namespace zonetool::h1
 				ZONETOOL_ERROR("usage: dumpzone <zone>");
 				return;
 			}
+
+			asset_type_filter.clear();
 			
 			if (params.size() >= 3)
 			{
@@ -795,8 +798,6 @@ namespace zonetool::h1
 					ZONETOOL_ERROR("Unsupported dump target \"%s\" (%i)", mode, dump_target);
 					return;
 				}
-
-				asset_type_filter.clear();
 
 				if (params.size() >= 4)
 				{
@@ -833,6 +834,8 @@ namespace zonetool::h1
 				return;
 			}
 
+			asset_type_filter.clear();
+
 			auto dump_target = game::s1;
 			auto zone_match = params.get(1);
 			if (params.size() >= 3)
@@ -851,8 +854,6 @@ namespace zonetool::h1
 					ZONETOOL_ERROR("Unsupported dump target \"%s\" (%i)", mode, dump_target);
 					return;
 				}
-
-				asset_type_filter.clear();
 
 				if (params.size() >= 4)
 				{
