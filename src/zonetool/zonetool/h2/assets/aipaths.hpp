@@ -3,7 +3,7 @@
 
 namespace zonetool::h2
 {
-	class IAIPaths : public asset_interface
+	class path_data : public asset_interface
 	{
 	private:
 		std::string name_;

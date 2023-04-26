@@ -5,6 +5,7 @@
 #include "assets/fxworld.hpp"
 #include "assets/gfximage.hpp"
 #include "assets/gfxworld.hpp"
+#include "assets/laserdef.hpp"
 #include "assets/mapents.hpp"
 #include "assets/material.hpp"
 #include "assets/scriptfile.hpp"

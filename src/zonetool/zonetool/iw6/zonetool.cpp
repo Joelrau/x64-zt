@@ -175,8 +175,8 @@ namespace zonetool::iw6
 			//DUMP_ASSET_CONVERT(ASSET_TYPE_VERTEXDECL, vertexdecl, MaterialVertexDeclaration);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_VERTEXSHADER, vertexshader, MaterialVertexShader);
 
-			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENU, IMenuDef, menuDef_t);
-			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENULIST, IMenuList, MenuList);
+			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENU, menu_def, menuDef_t);
+			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENULIST, menu_list, MenuList);
 
 			//DUMP_ASSET_CONVERT(ASSET_TYPE_PATHDATA, pathdata, PathData);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_CLIPMAP, clipmap, clipMap_t);
@@ -242,10 +242,10 @@ namespace zonetool::iw6
 			//DUMP_ASSET(ASSET_TYPE_VERTEXDECL, vertex_decl, MaterialVertexDeclaration);
 			DUMP_ASSET(ASSET_TYPE_VERTEXSHADER, vertex_shader, MaterialVertexShader);
 
-			//DUMP_ASSET(ASSET_TYPE_MENU, IMenuDef, menuDef_t);
-			//DUMP_ASSET(ASSET_TYPE_MENULIST, IMenuList, MenuList);
+			//DUMP_ASSET(ASSET_TYPE_MENU, menu_def, menuDef_t);
+			//DUMP_ASSET(ASSET_TYPE_MENULIST, menu_list, MenuList);
 
-			//DUMP_ASSET(ASSET_TYPE_PATHDATA, IAIPaths, PathData);
+			//DUMP_ASSET(ASSET_TYPE_PATHDATA, path_data, PathData);
 			DUMP_ASSET(ASSET_TYPE_CLIPMAP, clip_map, clipMap_t);
 			DUMP_ASSET(ASSET_TYPE_COMWORLD, com_world, ComWorld);
 			DUMP_ASSET(ASSET_TYPE_FXWORLD, fx_world, FxWorld);

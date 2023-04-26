@@ -114,6 +114,7 @@ namespace zonetool::h2
 			DUMP_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, fx_particle_sim_animation, FxParticleSimAnimation);
 			DUMP_ASSET(ASSET_TYPE_IMAGE, gfx_image, GfxImage);
 			DUMP_ASSET(ASSET_TYPE_LIGHT_DEF, gfx_light_def, GfxLightDef);
+			DUMP_ASSET(ASSET_TYPE_LASER, laser_def, LaserDef);
 			DUMP_ASSET(ASSET_TYPE_LOADED_SOUND, loaded_sound, LoadedSound);
 			DUMP_ASSET(ASSET_TYPE_LOCALIZE_ENTRY, localize, LocalizeEntry);
 			DUMP_ASSET(ASSET_TYPE_LPF_CURVE, lpf_curve, SndCurve);
@@ -133,10 +134,10 @@ namespace zonetool::h2
 			DUMP_ASSET(ASSET_TYPE_STRUCTUREDDATADEF, structured_data_def_set, StructuredDataDefSet);
 			DUMP_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset, MaterialTechniqueSet);
 			DUMP_ASSET(ASSET_TYPE_TRACER, tracer_def, TracerDef);
-			DUMP_ASSET(ASSET_TYPE_TTF, IFont, TTFDef);
+			DUMP_ASSET(ASSET_TYPE_TTF, font_def, TTFDef);
 			DUMP_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment, WeaponAttachment);
 			DUMP_ASSET(ASSET_TYPE_WEAPON, weapon_def, WeaponDef);
-			DUMP_ASSET(ASSET_TYPE_VEHICLE, IVehicleDef, VehicleDef);
+			DUMP_ASSET(ASSET_TYPE_VEHICLE, vehicle_def, VehicleDef);
 			DUMP_ASSET(ASSET_TYPE_XANIM, xanim_parts, XAnimParts);
 			DUMP_ASSET(ASSET_TYPE_XMODEL, xmodel, XModel);
 			DUMP_ASSET(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
@@ -154,7 +155,7 @@ namespace zonetool::h2
 			//DUMP_ASSET(ASSET_TYPE_VERTEXDECL, vertex_decl, MaterialVertexDeclaration);
 			DUMP_ASSET(ASSET_TYPE_VERTEXSHADER, vertex_shader, MaterialVertexShader);
 
-			DUMP_ASSET(ASSET_TYPE_AIPATHS, IAIPaths, PathData);
+			DUMP_ASSET(ASSET_TYPE_AIPATHS, path_data, PathData);
 			DUMP_ASSET(ASSET_TYPE_COL_MAP_SP, clip_map, clipMap_t);
 			DUMP_ASSET(ASSET_TYPE_COM_MAP, com_world, ComWorld);
 			DUMP_ASSET(ASSET_TYPE_FX_MAP, fx_world, FxWorld);
@@ -336,7 +337,7 @@ namespace zonetool::h2
 		{
 			for (unsigned int i = 0; i < *g_zoneCount; i++)
 			{
-				if (!_strnicmp(g_zoneInfo[i].name, name.data(), 64))
+				if (!_strnicmp(::h2::game::g_zones[i].name, name.data(), 64))
 				{
 					if (inform)
 					{
@@ -686,6 +687,8 @@ namespace zonetool::h2
 				return;
 			}
 
+			asset_type_filter.clear();
+
 			if (params.size() >= 3)
 			{
 				const auto mode = params.get(1);
@@ -702,8 +705,6 @@ namespace zonetool::h2
 					ZONETOOL_ERROR("Unsupported dump target \"%s\" (%i)", mode, dump_target);
 					return;
 				}
-
-				asset_type_filter.clear();
 
 				if (params.size() >= 4)
 				{

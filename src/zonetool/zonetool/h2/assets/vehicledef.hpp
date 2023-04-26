@@ -3,7 +3,7 @@
 
 namespace zonetool::h2
 {
-	class IVehicleDef : public asset_interface
+	class vehicle_def : public asset_interface
 	{
 	private:
 		std::string name_;

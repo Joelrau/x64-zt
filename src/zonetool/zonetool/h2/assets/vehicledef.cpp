@@ -107,7 +107,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void IVehicleDef::add_script_string(scr_string_t* ptr, const char* str)
+	void vehicle_def::add_script_string(scr_string_t* ptr, const char* str)
 	{
 		for (std::uint32_t i = 0; i < this->script_strings.size(); i++)
 		{
@@ -119,7 +119,7 @@ namespace zonetool::h2
 		this->script_strings.push_back(std::pair<scr_string_t*, const char*>(ptr, str));
 	}
 
-	const char* IVehicleDef::get_script_string(scr_string_t* ptr)
+	const char* vehicle_def::get_script_string(scr_string_t* ptr)
 	{
 		for (std::uint32_t i = 0; i < this->script_strings.size(); i++)
 		{
@@ -131,7 +131,7 @@ namespace zonetool::h2
 		return nullptr;
 	}
 
-	VehicleDef* IVehicleDef::parse(const std::string& name, zone_memory* mem)
+	VehicleDef* vehicle_def::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = "vehicles\\"s + name + ".json"s;
 
@@ -317,7 +317,7 @@ namespace zonetool::h2
 		return vehicle;
 	}
 
-	void IVehicleDef::init(const std::string& name, zone_memory* mem)
+	void vehicle_def::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
@@ -335,7 +335,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void IVehicleDef::prepare(zone_buffer* buf, zone_memory* mem)
+	void vehicle_def::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 		auto* vehicle = this->asset_;
 
@@ -352,7 +352,7 @@ namespace zonetool::h2
 			this->get_script_string(&vehicle->audioOriginTagAlt)));
 	}
 
-	void IVehicleDef::load_depending(zone_base* zone)
+	void vehicle_def::load_depending(zone_base* zone)
 	{
 		auto vehicle = this->asset_;
 #define VEHICLE_SUBASSET_DEPENDING(__field__,__type__/*,__struct__*/) \
@@ -415,17 +415,17 @@ namespace zonetool::h2
 		}
 	}
 
-	std::string IVehicleDef::name()
+	std::string vehicle_def::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IVehicleDef::type()
+	std::int32_t vehicle_def::type()
 	{
 		return ASSET_TYPE_VEHICLE;
 	}
 
-	void IVehicleDef::write(zone_base* zone, zone_buffer* buf)
+	void vehicle_def::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
@@ -585,7 +585,7 @@ namespace zonetool::h2
 		data[#__field__] = ""; \
 	} \
 
-	void IVehicleDef::dump(VehicleDef* asset)
+	void vehicle_def::dump(VehicleDef* asset)
 	{
 		const auto path = "vehicles\\"s + asset->internalName + ".json"s;
 

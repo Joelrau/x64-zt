@@ -3,7 +3,7 @@
 
 namespace zonetool::h1
 {
-	class IFont: public asset_interface
+	class font_def: public asset_interface
 	{
 	private:
 		std::string name_;

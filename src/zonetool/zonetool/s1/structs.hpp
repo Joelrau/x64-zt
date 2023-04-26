@@ -3732,9 +3732,13 @@ namespace zonetool::s1
 		Material* laserLightMaterial;
 		FxEffectDef* effect;
 		LaserDef* altLaser;
-		scr_string_t* value;
-		char __pad0[104];
+		scr_string_t value;
+		float float_values[25];
+		unsigned char char_values[4];
+		int int_value;
 	}; assert_sizeof(LaserDef, 0x98);
+
+	assert_offsetof(LaserDef, value, 40);
 
 	struct TurretHydraulicSettings
 	{

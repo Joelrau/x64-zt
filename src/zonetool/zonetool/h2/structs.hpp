@@ -3229,9 +3229,10 @@ namespace zonetool::h2
 		Material* laserLightMaterial;
 		FxEffectDef* effect;
 		LaserDef* altLaser;
-		scr_string_t* value;
-		char __pad0[104];
-	}; static_assert(sizeof(LaserDef) == 0x98);
+		scr_string_t value;
+		float float_values[17];
+		char char_values[4];
+	}; static_assert(sizeof(LaserDef) == 120);
 
 	struct TurretHydraulicSettings
 	{
@@ -6114,6 +6115,7 @@ namespace zonetool::h2
 		SndCurve* lpfCurve;
 		SndCurve* reverbCurve;
 		SndContext* sndContext;
+		LaserDef* laser;
 		LoadedSound* loadSnd;
 		LocalizeEntry* localize;
 		MapEnts* mapEnts;

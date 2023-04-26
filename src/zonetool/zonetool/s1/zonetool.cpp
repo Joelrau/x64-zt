@@ -136,6 +136,7 @@ namespace zonetool::s1
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_PARTICLE_SIM_ANIMATION, fx_particle_sim_animation, FxParticleSimAnimation);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_IMAGE, gfximage, GfxImage);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_LIGHT_DEF, gfx_light_def, GfxLightDef);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_LASER, laser_def, LaserDef);
 			DUMP_ASSET_REGULAR(ASSET_TYPE_LOADED_SOUND, loaded_sound, LoadedSound);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_LOCALIZE_ENTRY, localize, LocalizeEntry);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_LPF_CURVE, lpf_curve, SndCurve);
@@ -175,8 +176,8 @@ namespace zonetool::s1
 			//DUMP_ASSET_CONVERT(ASSET_TYPE_VERTEXDECL, vertexdecl, MaterialVertexDeclaration);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_VERTEXSHADER, techset, MaterialVertexShader);
 
-			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENU, IMenuDef, menuDef_t);
-			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENULIST, IMenuList, MenuList);
+			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENU, menu_def, menuDef_t);
+			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENULIST, menu_list, MenuList);
 
 			DUMP_ASSET_CONVERT(ASSET_TYPE_PATHDATA, aipaths, PathData);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_CLIPMAP, clip_map, clipMap_t);
@@ -250,6 +251,7 @@ namespace zonetool::s1
 			DUMP_ASSET_NO_CONVERT_NO_CONVERT(ASSET_TYPE_PARTICLE_SIM_ANIMATION, fx_particle_sim_animation, FxParticleSimAnimation);
 			DUMP_ASSET_NO_CONVERT_CONVERT(ASSET_TYPE_IMAGE, gfximage, GfxImage);
 			DUMP_ASSET_NO_CONVERT_NO_CONVERT(ASSET_TYPE_LIGHT_DEF, gfx_light_def, GfxLightDef);
+			DUMP_ASSET_NO_CONVERT_CONVERT(ASSET_TYPE_LASER, laserdef, LaserDef);
 			DUMP_ASSET_REGULAR(ASSET_TYPE_LOADED_SOUND, loaded_sound, LoadedSound);
 			DUMP_ASSET_NO_CONVERT_NO_CONVERT(ASSET_TYPE_LOCALIZE_ENTRY, localize, LocalizeEntry);
 			DUMP_ASSET_NO_CONVERT_NO_CONVERT(ASSET_TYPE_LPF_CURVE, lpf_curve, SndCurve);
@@ -289,8 +291,8 @@ namespace zonetool::s1
 			//DUMP_ASSET_CONVERT(ASSET_TYPE_VERTEXDECL, vertexdecl, MaterialVertexDeclaration);
 			DUMP_ASSET_CONVERT_NO_CONVERT(ASSET_TYPE_VERTEXSHADER, techset, MaterialVertexShader);
 
-			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENU, IMenuDef, menuDef_t);
-			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENULIST, IMenuList, MenuList);
+			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENU, menu_def, menuDef_t);
+			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENULIST, menu_list, MenuList);
 
 			DUMP_ASSET_CONVERT_NO_CONVERT(ASSET_TYPE_PATHDATA, aipaths, PathData);
 			DUMP_ASSET_NO_CONVERT_NO_CONVERT(ASSET_TYPE_CLIPMAP, clip_map, clipMap_t);
@@ -334,6 +336,7 @@ namespace zonetool::s1
 			DUMP_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, fx_particle_sim_animation, FxParticleSimAnimation);
 			DUMP_ASSET(ASSET_TYPE_IMAGE, gfx_image, GfxImage);
 			DUMP_ASSET(ASSET_TYPE_LIGHT_DEF, gfx_light_def, GfxLightDef);
+			DUMP_ASSET(ASSET_TYPE_LASER, laser_def, LaserDef);
 			DUMP_ASSET(ASSET_TYPE_LOADED_SOUND, loaded_sound, LoadedSound);
 			DUMP_ASSET(ASSET_TYPE_LOCALIZE_ENTRY, localize, LocalizeEntry);
 			DUMP_ASSET(ASSET_TYPE_LPF_CURVE, lpf_curve, SndCurve);
@@ -373,10 +376,10 @@ namespace zonetool::s1
 			//DUMP_ASSET(ASSET_TYPE_VERTEXDECL, vertex_decl, MaterialVertexDeclaration);
 			DUMP_ASSET(ASSET_TYPE_VERTEXSHADER, vertex_shader, MaterialVertexShader);
 
-			DUMP_ASSET(ASSET_TYPE_MENU, zonetool::h1::IMenuDef, zonetool::h1::menuDef_t);
-			DUMP_ASSET(ASSET_TYPE_MENULIST, zonetool::h1::IMenuList, zonetool::h1::MenuList);
+			DUMP_ASSET(ASSET_TYPE_MENU, zonetool::h1::menu_def, zonetool::h1::menuDef_t);
+			DUMP_ASSET(ASSET_TYPE_MENULIST, zonetool::h1::menu_list, zonetool::h1::MenuList);
 
-			//DUMP_ASSET(ASSET_TYPE_PATHDATA, IAIPaths, PathData);
+			//DUMP_ASSET(ASSET_TYPE_PATHDATA, path_data, PathData);
 			DUMP_ASSET(ASSET_TYPE_CLIPMAP, clip_map, clipMap_t);
 			DUMP_ASSET(ASSET_TYPE_COMWORLD, com_world, ComWorld);
 			DUMP_ASSET(ASSET_TYPE_FXWORLD, fx_world, FxWorld);
@@ -909,6 +912,8 @@ namespace zonetool::s1
 				return;
 			}
 
+			asset_type_filter.clear();
+
 			if (params.size() >= 3)
 			{
 				const auto mode = params.get(1);
@@ -925,8 +930,6 @@ namespace zonetool::s1
 					ZONETOOL_ERROR("Unsupported dump target \"%s\" (%i)", mode, dump_target);
 					return;
 				}
-
-				asset_type_filter.clear();
 
 				if (params.size() >= 4)
 				{
@@ -962,6 +965,8 @@ namespace zonetool::s1
 				return;
 			}
 
+			asset_type_filter.clear();
+
 			auto dump_target = game::s1;
 			auto zone_match = params.get(1);
 			if (params.size() >= 3)
@@ -980,8 +985,6 @@ namespace zonetool::s1
 					ZONETOOL_ERROR("Unsupported dump target \"%s\" (%i)", mode, dump_target);
 					return;
 				}
-
-				asset_type_filter.clear();
 
 				if (params.size() >= 4)
 				{

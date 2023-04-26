@@ -3,12 +3,12 @@
 
 namespace zonetool::h1
 {
-	menuDef_t* IMenuDef::parse(std::string name, zone_memory* mem)
+	menuDef_t* menu_def::parse(std::string name, zone_memory* mem)
 	{
 		return nullptr;
 	}
 
-	void IMenuDef::init(const std::string& name, zone_memory* mem)
+	void menu_def::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
@@ -26,7 +26,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMenuDef::init(void* ptr, zone_memory* mem)
+	void menu_def::init(void* ptr, zone_memory* mem)
 	{
 		this->asset_ = reinterpret_cast<menuDef_t*>(ptr);
 		if (!this->asset_)
@@ -36,11 +36,11 @@ namespace zonetool::h1
 		this->name_ = this->asset_->window.name;
 	}
 
-	void IMenuDef::prepare(zone_buffer* buf, zone_memory* mem)
+	void menu_def::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IMenuDef::load_depending(zone_base* zone)
+	void menu_def::load_depending(zone_base* zone)
 	{
 		auto* data = this->asset_;
 		if (data->window.background)
@@ -74,17 +74,17 @@ namespace zonetool::h1
 		}
 	}
 
-	std::string IMenuDef::name()
+	std::string menu_def::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IMenuDef::type()
+	std::int32_t menu_def::type()
 	{
 		return ASSET_TYPE_MENU;
 	}
 
-	void IMenuDef::write_menu_supporting_data(zone_base* zone, zone_buffer* buf, ExpressionSupportingData* data)
+	void menu_def::write_menu_supporting_data(zone_base* zone, zone_buffer* buf, ExpressionSupportingData* data)
 	{
 		auto* destSupData = buf->write(data);
 		if (data->uifunctions.functions)
@@ -141,7 +141,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMenuDef::write_menu_statement(zone_base* zone, zone_buffer* buf, Statement_s* data)
+	void menu_def::write_menu_statement(zone_base* zone, zone_buffer* buf, Statement_s* data)
 	{
 		auto* dest = buf->write(data);
 		if (data->entries)
@@ -176,7 +176,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMenuDef::write_menu_eventhandlerset(zone_base* zone, zone_buffer* buf, MenuEventHandlerSet* data)
+	void menu_def::write_menu_eventhandlerset(zone_base* zone, zone_buffer* buf, MenuEventHandlerSet* data)
 	{
 		auto* dest = buf->write(data);
 		if (data->eventHandlers)
@@ -253,7 +253,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMenuDef::write_menu_itemkeyhandler(zone_base* zone, zone_buffer* buf, ItemKeyHandler* data)
+	void menu_def::write_menu_itemkeyhandler(zone_base* zone, zone_buffer* buf, ItemKeyHandler* data)
 	{
 		auto* dest = buf->write(data);
 		if (data->action)
@@ -269,7 +269,7 @@ namespace zonetool::h1
 		zone_buffer::clear_pointer(&dest->next);
 	}
 
-	void IMenuDef::write_menu_data(zone_base* zone, zone_buffer* buf, menuData_t* data)
+	void menu_def::write_menu_data(zone_base* zone, zone_buffer* buf, menuData_t* data)
 	{
 		auto* dest = buf->write(data);
 		if (data->expressionData)
@@ -372,7 +372,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMenuDef::write_menu_window(zone_base* zone, zone_buffer* buf, windowDef_t* data, windowDef_t* dest)
+	void menu_def::write_menu_window(zone_base* zone, zone_buffer* buf, windowDef_t* data, windowDef_t* dest)
 	{
 		if (data->name)
 		{
@@ -388,7 +388,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMenuDef::write_menu_item_defdata(zone_base* zone, zone_buffer* buf, itemDefData_t* data, int type)
+	void menu_def::write_menu_item_defdata(zone_base* zone, zone_buffer* buf, itemDefData_t* data, int type)
 	{
 		switch (type)
 		{
@@ -480,7 +480,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMenuDef::write_menu_item_floatexpressions(zone_base* zone, zone_buffer* buf, ItemFloatExpression* data, int count)
+	void menu_def::write_menu_item_floatexpressions(zone_base* zone, zone_buffer* buf, ItemFloatExpression* data, int count)
 	{
 		auto* dest = buf->write(data, count);
 		for (int i = 0; i < count; i++)
@@ -494,7 +494,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMenuDef::write_menu_item(zone_base* zone, zone_buffer* buf, itemDef_t* data)
+	void menu_def::write_menu_item(zone_base* zone, zone_buffer* buf, itemDef_t* data)
 	{
 		auto* dest = buf->write(data);
 		write_menu_window(zone, buf, &data->window, &dest->window);
@@ -626,7 +626,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMenuDef::write(zone_base* zone, zone_buffer* buf)
+	void menu_def::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
@@ -663,7 +663,7 @@ namespace zonetool::h1
 		buf->pop_stream();
 	}
 
-	void IMenuDef::dump(menuDef_t* asset)
+	void menu_def::dump(menuDef_t* asset)
 	{
 	}
 }

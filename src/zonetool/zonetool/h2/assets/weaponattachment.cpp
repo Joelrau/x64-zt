@@ -33,14 +33,21 @@ namespace zonetool::h2
 		attachment->__field__ = mem->allocate<__struct__*>(__size__); \
 		for (auto idx##__field__ = 0; idx##__field__ < __size__; idx##__field__++) \
 		{ \
-			auto asset##__field__ = data[#__field__][idx##__field__].get<std::string>(); \
-			if (asset##__field__.empty()) \
+			if (!data[#__field__][idx##__field__].is_null()) \
 			{ \
-				attachment->__field__[idx##__field__] = nullptr; \
+				auto asset##__field__ = data[#__field__][idx##__field__].get<std::string>(); \
+				if (asset##__field__.empty()) \
+				{ \
+					attachment->__field__[idx##__field__] = nullptr; \
+				} \
+				else \
+				{ \
+					attachment->__field__[idx##__field__] = db_find_x_asset_header(XAssetType::__type__, asset##__field__.data(), 1).__datafield__; \
+				} \
 			} \
 			else \
 			{ \
-				attachment->__field__[idx##__field__] = db_find_x_asset_header(XAssetType::__type__, asset##__field__.data(), 1).__datafield__; \
+				attachment->__field__[idx##__field__] = nullptr; \
 			} \
 		} \
 	} \
@@ -120,15 +127,21 @@ namespace zonetool::h2
 		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_SOUND, sound, rollingSounds, snd_alias_list_t, 53);
 
 		attachment->stringArray1 = mem->allocate<scr_string_t>(4);
-		for (auto i = 0; i < 4; i++)
+		if (!data["stringArray1"].is_null())
 		{
-			this->add_script_string(&attachment->stringArray1[i], mem->duplicate_string(data["stringArray1"][i].get<std::string>()));
+			for (auto i = 0; i < 4; i++)
+			{
+				this->add_script_string(&attachment->stringArray1[i], mem->duplicate_string(data["stringArray1"][i].get<std::string>()));
+			}
 		}
 
 		attachment->stringArray2 = mem->allocate<scr_string_t>(4);
-		for (auto i = 0; i < 4; i++)
+		if (!data["stringArray2"].is_null())
 		{
-			this->add_script_string(&attachment->stringArray2[i], mem->duplicate_string(data["stringArray2"][i].get<std::string>()));
+			for (auto i = 0; i < 4; i++)
+			{
+				this->add_script_string(&attachment->stringArray2[i], mem->duplicate_string(data["stringArray2"][i].get<std::string>()));
+			}
 		}
 
 		if (!data["waFields"].is_null())

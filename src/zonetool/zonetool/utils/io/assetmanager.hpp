@@ -510,6 +510,11 @@ namespace zonetool
 				return c;
 			}
 
+			void read_char(std::int8_t* value)
+			{
+				*value = read_char();
+			}
+
 			std::int16_t read_short()
 			{
 				std::int16_t s;
@@ -517,11 +522,21 @@ namespace zonetool
 				return s;
 			}
 
+			void read_short(std::int16_t* value)
+			{
+				*value = read_short();
+			}
+
 			std::int32_t read_int()
 			{
 				std::int32_t i;
 				read_int_internal(&i);
 				return i;
+			}
+
+			void read_int(std::int32_t* value)
+			{
+				*value = read_int();
 			}
 
 			float dump_float()
@@ -536,6 +551,11 @@ namespace zonetool
 				std::int64_t i;
 				read_int64_internal(&i);
 				return i;
+			}
+
+			void read_int64(std::int64_t* value)
+			{
+				*value = read_int64();
 			}
 
 			char* read_string()
@@ -582,6 +602,11 @@ namespace zonetool
 				}
 
 				//return nullptr;
+			}
+
+			void read_string(const char** str)
+			{
+				*str = read_string();
 			}
 
 			template <typename T>
@@ -633,6 +658,12 @@ namespace zonetool
 				}
 
 				//return nullptr;
+			}
+
+			template <typename T>
+			void read_asset(T** asset)
+			{
+				*asset = read_asset<T>();
 			}
 
 			template <typename T>
@@ -688,9 +719,21 @@ namespace zonetool
 			}
 
 			template <typename T>
+			void read_array(T** value)
+			{
+				*value = read_array<T>();
+			}
+
+			template <typename T>
 			T* read_single()
 			{
 				return read_array<T>();
+			}
+
+			template <typename T>
+			void read_single(T** value)
+			{
+				*value = read_single<T>();
 			}
 
 			template <typename T>
@@ -743,6 +786,12 @@ namespace zonetool
 				}
 
 				//return nullptr;
+			}
+
+			template <typename T>
+			void read_raw(T** value)
+			{
+				*value = read_raw<T>();
 			}
 		};
 	}

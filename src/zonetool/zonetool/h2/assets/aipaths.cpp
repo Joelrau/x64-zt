@@ -3,7 +3,7 @@
 
 namespace zonetool::h2
 {
-	void IAIPaths::add_script_string(scr_string_t* ptr, const char* str)
+	void path_data::add_script_string(scr_string_t* ptr, const char* str)
 	{
 		for (std::uint32_t i = 0; i < this->script_strings.size(); i++)
 		{
@@ -15,7 +15,7 @@ namespace zonetool::h2
 		this->script_strings.push_back(std::pair<scr_string_t*, const char*>(ptr, str));
 	}
 
-	const char* IAIPaths::get_script_string(scr_string_t* ptr)
+	const char* path_data::get_script_string(scr_string_t* ptr)
 	{
 		for (std::uint32_t i = 0; i < this->script_strings.size(); i++)
 		{
@@ -119,7 +119,7 @@ namespace zonetool::h2
 			buf->write_scriptstring(this->get_script_string(&data->nodes[i].constant.__field__))); \
 	} \
 
-	PathData* IAIPaths::parse(const std::string& name, zone_memory* mem)
+	PathData* path_data::parse(const std::string& name, zone_memory* mem)
 	{
 		assetmanager::reader read(mem);
 
@@ -179,7 +179,7 @@ namespace zonetool::h2
 		return asset;
 	}
 
-	void IAIPaths::init(const std::string& name, zone_memory* mem)
+	void path_data::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
@@ -197,7 +197,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void IAIPaths::prepare(zone_buffer* buf, zone_memory* mem)
+	void path_data::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 		auto* data = this->asset_;
 
@@ -218,21 +218,21 @@ namespace zonetool::h2
 		}
 	}
 
-	void IAIPaths::load_depending(zone_base* zone)
+	void path_data::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string IAIPaths::name()
+	std::string path_data::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IAIPaths::type()
+	std::int32_t path_data::type()
 	{
 		return ASSET_TYPE_AIPATHS;
 	}
 
-	void IAIPaths::write(zone_base* zone, zone_buffer* buf)
+	void path_data::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		
@@ -362,7 +362,7 @@ namespace zonetool::h2
 			}
 		}
 	}
-	void IAIPaths::dump(PathData* asset)
+	void path_data::dump(PathData* asset)
 	{
 		const auto path = asset->name + ".aipaths"s;
 

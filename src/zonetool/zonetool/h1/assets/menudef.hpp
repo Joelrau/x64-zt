@@ -3,7 +3,7 @@
 
 namespace zonetool::h1
 {
-	class IMenuDef : public asset_interface
+	class menu_def : public asset_interface
 	{
 	private:
 		std::string name_;

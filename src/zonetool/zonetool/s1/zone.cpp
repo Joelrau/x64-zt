@@ -93,7 +93,7 @@ namespace zonetool::s1
 		try
 		{
 			// declare asset interfaces
-			//ADD_ASSET_PTR(ASSET_TYPE_MENU, IMenuDef);
+			//ADD_ASSET_PTR(ASSET_TYPE_MENU, menu_def);
 			ADD_ASSET_PTR(ASSET_TYPE_LOCALIZE_ENTRY, localize);
 		}
 		catch (std::exception& ex)
@@ -139,6 +139,7 @@ namespace zonetool::s1
 			ADD_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, fx_particle_sim_animation);
 			ADD_ASSET(ASSET_TYPE_IMAGE, gfx_image);
 			ADD_ASSET(ASSET_TYPE_LIGHT_DEF, gfx_light_def);
+			ADD_ASSET(ASSET_TYPE_LASER, laser_def);
 			ADD_ASSET(ASSET_TYPE_LOADED_SOUND, loaded_sound);
 			ADD_ASSET(ASSET_TYPE_LOCALIZE_ENTRY, localize);
 			ADD_ASSET(ASSET_TYPE_LPF_CURVE, lpf_curve);
@@ -177,10 +178,10 @@ namespace zonetool::s1
 			//ADD_ASSET(ASSET_TYPE_VERTEXDECL, vertex_decl);
 			ADD_ASSET(ASSET_TYPE_VERTEXSHADER, vertex_shader);
 
-			//ADD_ASSET(ASSET_TYPE_MENU, IMenuDef);
-			//ADD_ASSET(ASSET_TYPE_MENULIST, IMenuList);
+			//ADD_ASSET(ASSET_TYPE_MENU, menu_def);
+			//ADD_ASSET(ASSET_TYPE_MENULIST, menu_list);
 
-			//ADD_ASSET(ASSET_TYPE_PATHDATA, IAIPaths);
+			//ADD_ASSET(ASSET_TYPE_PATHDATA, path_data);
 			ADD_ASSET(ASSET_TYPE_CLIPMAP, clip_map);
 			ADD_ASSET(ASSET_TYPE_COMWORLD, com_world);
 			ADD_ASSET(ASSET_TYPE_FXWORLD, fx_world);
