@@ -9,23 +9,26 @@ namespace zonetool::h1
 		{
 			surf->subdiv = reader.read_single<XSurfaceSubdivInfo>();
 
-			surf->subdiv->levels = reader.read_array<XSurfaceSubdivLevel>();
-			auto* levels = surf->subdiv->levels;
-			auto level_count = surf->subdivLevelCount;
-			for (unsigned char level_index = 0; level_index < level_count; level_index++)
+			if (surf->subdiv->levels)
 			{
-				auto* level = &levels[level_index];
+				surf->subdiv->levels = reader.read_array<XSurfaceSubdivLevel>();
+				auto* levels = surf->subdiv->levels;
+				auto level_count = surf->subdivLevelCount;
+				for (unsigned char level_index = 0; level_index < level_count; level_index++)
+				{
+					auto* level = &levels[level_index];
 
-				level->rigidVertLists = reader.read_array<XSubdivRigidVertList>();
-				level->faceIndices = reader.read_array<unsigned short>();
-				level->regularPatchIndices = reader.read_array<unsigned short>();
-				level->regularPatchFlags = reader.read_array<unsigned int>();
-				level->facePoints = reader.read_array<unsigned int>();
-				level->edgePoints = reader.read_array<unsigned int>();
-				level->vertexPoints = reader.read_array<unsigned int>();
-				level->normals = reader.read_array<unsigned int>();
-				level->transitionPoints = reader.read_array<unsigned int>();
-				level->regularPatchCones = reader.read_array<float>();
+					level->rigidVertLists = reader.read_raw<XSubdivRigidVertList>();
+					level->faceIndices = reader.read_raw<unsigned short>();
+					level->regularPatchIndices = reader.read_raw<unsigned short>();
+					level->regularPatchFlags = reader.read_raw<unsigned int>();
+					level->facePoints = reader.read_raw<unsigned int>();
+					level->edgePoints = reader.read_raw<unsigned int>();
+					level->vertexPoints = reader.read_raw<unsigned int>();
+					level->normals = reader.read_raw<unsigned int>();
+					level->transitionPoints = reader.read_raw<unsigned int>();
+					level->regularPatchCones = reader.read_raw<float>();
+				}
 			}
 		}
 	}
@@ -258,80 +261,70 @@ namespace zonetool::h1
 					if (data->subdiv->levels[level_index].rigidVertLists)
 					{
 						buf->align(3);
-						dest->subdiv->levels[level_index].rigidVertLists = buf->write(data->subdiv->levels[level_index].rigidVertLists,
-							data->rigidVertListCount);
+						buf->write_stream(data->subdiv->levels[level_index].rigidVertLists, 16, data->rigidVertListCount);
 						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].rigidVertLists);
 					}
 
 					if (data->subdiv->levels[level_index].faceIndices)
 					{
 						buf->align(3);
-						dest->subdiv->levels[level_index].faceIndices = buf->write(data->subdiv->levels[level_index].faceIndices,
-							data->subdiv->levels[level_index].faceCount);
+						buf->write_stream(data->subdiv->levels[level_index].faceIndices, 12, data->subdiv->levels[level_index].faceCount);
 						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].faceIndices);
 					}
 
 					if (data->subdiv->levels[level_index].regularPatchIndices)
 					{
 						buf->align(3);
-						dest->subdiv->levels[level_index].regularPatchIndices = buf->write(data->subdiv->levels[level_index].regularPatchIndices,
-							data->subdiv->levels[level_index].regularPatchCount);
+						buf->write_stream(data->subdiv->levels[level_index].regularPatchIndices, 32, data->subdiv->levels[level_index].regularPatchCount);
 						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].regularPatchIndices);
 					}
 
 					if (data->subdiv->levels[level_index].regularPatchFlags)
 					{
 						buf->align(3);
-						dest->subdiv->levels[level_index].regularPatchFlags = buf->write(data->subdiv->levels[level_index].regularPatchFlags,
-							data->subdiv->levels[level_index].regularPatchCount);
+						buf->write_stream(data->subdiv->levels[level_index].regularPatchFlags, 4, data->subdiv->levels[level_index].regularPatchCount);
 						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].regularPatchFlags);
 					}
 
 					if (data->subdiv->levels[level_index].facePoints)
 					{
 						buf->align(3);
-						dest->subdiv->levels[level_index].facePoints = buf->write(data->subdiv->levels[level_index].facePoints,
-							data->subdiv->levels[level_index].facePointBufferSize & 0xFFFFFFFC);
+						buf->write_stream(data->subdiv->levels[level_index].facePoints, 1, data->subdiv->levels[level_index].facePointBufferSize & 0xFFFFFFFC);
 						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].facePoints);
 					}
 
 					if (data->subdiv->levels[level_index].edgePoints)
 					{
 						buf->align(3);
-						dest->subdiv->levels[level_index].edgePoints = buf->write(data->subdiv->levels[level_index].edgePoints,
-							data->subdiv->levels[level_index].edgePointCount);
+						buf->write_stream(data->subdiv->levels[level_index].edgePoints, 8, data->subdiv->levels[level_index].edgePointCount);
 						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].edgePoints);
 					}
 
 					if (data->subdiv->levels[level_index].vertexPoints)
 					{
 						buf->align(3);
-						dest->subdiv->levels[level_index].vertexPoints = buf->write(data->subdiv->levels[level_index].vertexPoints,
-							data->subdiv->levels[level_index].vertexPointBufferSize & 0xFFFFFFFC);
+						buf->write_stream(data->subdiv->levels[level_index].vertexPoints, 1, data->subdiv->levels[level_index].vertexPointBufferSize & 0xFFFFFFFC);
 						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].vertexPoints);
 					}
 
 					if (data->subdiv->levels[level_index].normals)
 					{
 						buf->align(3);
-						dest->subdiv->levels[level_index].normals = buf->write(data->subdiv->levels[level_index].normals,
-							data->subdiv->levels[level_index].normalBufferSize & 0xFFFFFFFC);
+						buf->write_stream(data->subdiv->levels[level_index].normals, 1, data->subdiv->levels[level_index].normalBufferSize & 0xFFFFFFFC);
 						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].normals);
 					}
 
 					if (data->subdiv->levels[level_index].transitionPoints)
 					{
 						buf->align(3);
-						dest->subdiv->levels[level_index].transitionPoints = buf->write(data->subdiv->levels[level_index].transitionPoints,
-							data->subdiv->levels[level_index].transitionPointCount);
+						buf->write_stream(data->subdiv->levels[level_index].transitionPoints, 4, data->subdiv->levels[level_index].transitionPointCount);
 						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].transitionPoints);
 					}
 
 					if (data->subdiv->levels[level_index].regularPatchCones)
 					{
 						buf->align(3);
-						dest->subdiv->levels[level_index].regularPatchCones = buf->write(data->subdiv->levels[level_index].regularPatchCones,
-							data->subdiv->levels[level_index].regularPatchCount);
+						buf->write_stream(data->subdiv->levels[level_index].regularPatchCones, 32, data->subdiv->levels[level_index].regularPatchCount);
 						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].regularPatchCones);
 					}
 
@@ -425,23 +418,26 @@ namespace zonetool::h1
 		{
 			dumper.dump_single(surf->subdiv);
 
-			dumper.dump_array(surf->subdiv->levels, surf->subdivLevelCount);
-			auto* levels = surf->subdiv->levels;
-			auto level_count = surf->subdivLevelCount;
-			for (unsigned char level_index = 0; level_index < level_count; level_index++)
+			if (surf->subdiv->levels)
 			{
-				auto* level = &levels[level_index];
+				dumper.dump_array(surf->subdiv->levels, surf->subdivLevelCount);
+				auto* levels = surf->subdiv->levels;
+				auto level_count = surf->subdivLevelCount;
+				for (unsigned char level_index = 0; level_index < level_count; level_index++)
+				{
+					auto* level = &levels[level_index];
 
-				dumper.dump_array(level->rigidVertLists, surf->rigidVertListCount);
-				dumper.dump_array(level->faceIndices, level->faceCount);
-				dumper.dump_array(level->regularPatchIndices, level->regularPatchCount);
-				dumper.dump_array(level->regularPatchFlags, level->regularPatchCount);
-				dumper.dump_array(level->facePoints, level->facePointBufferSize & 0xFFFFFFFC);
-				dumper.dump_array(level->edgePoints, level->edgePointCount);
-				dumper.dump_array(level->vertexPoints, level->vertexPointBufferSize & 0xFFFFFFFC);
-				dumper.dump_array(level->normals, level->normalBufferSize & 0xFFFFFFFC);
-				dumper.dump_array(level->transitionPoints, level->transitionPointCount);
-				dumper.dump_array(level->regularPatchCones, level->regularPatchCount);
+					dumper.dump_raw(level->rigidVertLists, 16 * surf->rigidVertListCount);
+					dumper.dump_raw(level->faceIndices, 12 * level->faceCount);
+					dumper.dump_raw(level->regularPatchIndices, 32 * level->regularPatchCount);
+					dumper.dump_raw(level->regularPatchFlags, 4 * level->regularPatchCount);
+					dumper.dump_raw(level->facePoints, level->facePointBufferSize & 0xFFFFFFFC);
+					dumper.dump_raw(level->edgePoints, 8 * level->edgePointCount);
+					dumper.dump_raw(level->vertexPoints, level->vertexPointBufferSize & 0xFFFFFFFC);
+					dumper.dump_raw(level->normals, level->normalBufferSize & 0xFFFFFFFC);
+					dumper.dump_raw(level->transitionPoints, 4 * level->transitionPointCount);
+					dumper.dump_raw(level->regularPatchCones, 32 * level->regularPatchCount);
+				}
 			}
 		}
 	}
