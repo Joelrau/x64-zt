@@ -3230,7 +3230,8 @@ namespace zonetool::h2
 		FxEffectDef* effect;
 		LaserDef* altLaser;
 		scr_string_t value;
-		float float_values[18];
+		float float_values[17];
+		char char_values[4];
 	}; static_assert(sizeof(LaserDef) == 120);
 
 	struct TurretHydraulicSettings

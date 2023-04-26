@@ -211,6 +211,7 @@ namespace zonetool::h1
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_PARTICLE_SIM_ANIMATION, fx_particle_sim_animation, FxParticleSimAnimation);
 			DUMP_ASSET(ASSET_TYPE_IMAGE, gfximage, GfxImage);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_LIGHT_DEF, gfx_light_def, GfxLightDef);
+			DUMP_ASSET(ASSET_TYPE_LASER, laserdef, LaserDef);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_LOADED_SOUND, loaded_sound, LoadedSound);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_LOCALIZE_ENTRY, localize, LocalizeEntry);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_LPF_CURVE, lpf_curve, SndCurve);
