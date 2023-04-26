@@ -7378,7 +7378,7 @@ namespace zonetool::h1
 		return result;
 	}
 
-	MenuList* IMenuList::parse(const std::string& name, zone_memory* mem)
+	MenuList* menu_list::parse(const std::string& name, zone_memory* mem)
 	{
 		MenuList* asset = nullptr;
 		menu_memory menu_memory;
@@ -7399,7 +7399,7 @@ namespace zonetool::h1
 		return asset;
 	}
 
-	void IMenuList::init(const std::string& name, zone_memory* mem)
+	void menu_list::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 		this->asset_ = parse(name, mem);
@@ -7410,11 +7410,11 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMenuList::prepare(zone_buffer* buf, zone_memory* mem)
+	void menu_list::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IMenuList::load_depending(zone_base* zone)
+	void menu_list::load_depending(zone_base* zone)
 	{
 		auto* data = this->asset_;
 		if (data->menus)
@@ -7426,17 +7426,17 @@ namespace zonetool::h1
 		}
 	}
 
-	std::string IMenuList::name()
+	std::string menu_list::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IMenuList::type()
+	std::int32_t menu_list::type()
 	{
 		return ASSET_TYPE_MENULIST;
 	}
 
-	void IMenuList::write(zone_base* zone, zone_buffer* buf)
+	void menu_list::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		auto dest = buf->write(data);
@@ -7458,10 +7458,10 @@ namespace zonetool::h1
 		buf->pop_stream();
 	}
 
-	int IMenuList::indentCounter = 0;
-	FILE* IMenuList::fp = nullptr;
+	int menu_list::indentCounter = 0;
+	FILE* menu_list::fp = nullptr;
 
-	const char* IMenuList::get_tabs()
+	const char* menu_list::get_tabs()
 	{
 		static char tabs[10];
 
@@ -7474,29 +7474,29 @@ namespace zonetool::h1
 		return tabs;
 	}
 
-	void IMenuList::emit_open_brace()
+	void menu_list::emit_open_brace()
 	{
 		fprintf(fp, "%s{\n", get_tabs());
 	}
 
-	void IMenuList::emit_closing_brace()
+	void menu_list::emit_closing_brace()
 	{
 		fprintf(fp, "%s}\n", get_tabs());
 	}
 
-	void IMenuList::push_indent()
+	void menu_list::push_indent()
 	{
 		emit_open_brace();
 		indentCounter++;
 	}
 
-	void IMenuList::pop_indent()
+	void menu_list::pop_indent()
 	{
 		indentCounter--;
 		emit_closing_brace();
 	}
 
-	void IMenuList::replace_all(std::string& str, std::string from, std::string to, bool case_insensitive)
+	void menu_list::replace_all(std::string& str, std::string from, std::string to, bool case_insensitive)
 	{
 		if (case_insensitive)
 		{
@@ -7529,7 +7529,7 @@ namespace zonetool::h1
 		}
 	}
 
-	std::string IMenuList::escape_string(const char* value)
+	std::string menu_list::escape_string(const char* value)
 	{
 		std::string out(value);
 		replace_all(out, "\t", "\\t");
@@ -7537,7 +7537,7 @@ namespace zonetool::h1
 		return out;
 	}
 
-	std::string IMenuList::format_script(const char* value)
+	std::string menu_list::format_script(const char* value)
 	{
 		std::string out = escape_string(value);
 		const std::string tabs = get_tabs();
@@ -7568,7 +7568,7 @@ namespace zonetool::h1
 		return out;
 	}
 
-	void IMenuList::emit_string(const char* name, const char* value)
+	void menu_list::emit_string(const char* name, const char* value)
 	{
 		if (value && *value)
 		{
@@ -7576,7 +7576,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMenuList::emit_bool(const char* name, bool value)
+	void menu_list::emit_bool(const char* name, bool value)
 	{
 		if (value)
 		{
@@ -7584,7 +7584,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMenuList::emit_int(const char* name, int value)
+	void menu_list::emit_int(const char* name, int value)
 	{
 		if (value)
 		{
@@ -7592,7 +7592,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMenuList::emit_float(const char* name, float value)
+	void menu_list::emit_float(const char* name, float value)
 	{
 		if (value)
 		{
@@ -7600,13 +7600,13 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMenuList::emit_rect(const char* name, rectDef_s& rect)
+	void menu_list::emit_rect(const char* name, rectDef_s& rect)
 	{
 		// TODO: Some pre-processing may be needed
 		fprintf(fp, "%s%s %g %g %g %g %i %i\n", get_tabs(), name, rect.x, rect.y, rect.w, rect.h, rect.horzAlign, rect.vertAlign);
 	}
 
-	void IMenuList::emit_color(const char* name, vec4_t& color)
+	void menu_list::emit_color(const char* name, vec4_t& color)
 	{
 		if (color[0] > 0.0f || color[1] > 0.0f || color[2] > 0.0f || color[3] > 0.0f)
 		{
@@ -7614,7 +7614,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMenuList::emit_statement(const char* name, Statement_s* statement, bool semiColon, bool linebreak)
+	void menu_list::emit_statement(const char* name, Statement_s* statement, bool semiColon, bool linebreak)
 	{
 		if (statement)
 		{
@@ -7761,12 +7761,12 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMenuList::emit_dynamic_flags(int flags)
+	void menu_list::emit_dynamic_flags(int flags)
 	{
 		emit_bool("visible 1", flags & WINDOWDYNAMIC_VISIBLE);
 	}
 
-	void IMenuList::emit_static_flags(int flags)
+	void menu_list::emit_static_flags(int flags)
 	{
 		emit_bool("decoration", flags & WINDOWSTATIC_DECORATION);
 		emit_bool("horizontalscroll", flags & WINDOWSTATIC_HORIZONTALSCROLL);
@@ -7781,7 +7781,7 @@ namespace zonetool::h1
 		emit_bool("textOnlyFocus", flags & WINDOWSTATIC_TEXTONLYFOCUS);
 	}
 
-	void IMenuList::emit_set_local_var_data(SetLocalVarData* data, EventType type)
+	void menu_list::emit_set_local_var_data(SetLocalVarData* data, EventType type)
 	{
 		if (data)
 		{
@@ -7807,7 +7807,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMenuList::emit_unconditional_script(const char* script)
+	void menu_list::emit_unconditional_script(const char* script)
 	{
 		if (!script || !strlen(script) || script[0] == ';')
 		{
@@ -7817,7 +7817,7 @@ namespace zonetool::h1
 		fprintf(fp, "%s%s", get_tabs(), format_script(script).c_str());
 	}
 
-	void IMenuList::emit_conditional_script(ConditionalScript* script)
+	void menu_list::emit_conditional_script(ConditionalScript* script)
 	{
 		if (script)
 		{
@@ -7829,7 +7829,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMenuList::emit_menu_event_handler_set(const char* name, MenuEventHandlerSet* set)
+	void menu_list::emit_menu_event_handler_set(const char* name, MenuEventHandlerSet* set)
 	{
 		if (set)
 		{
@@ -7872,7 +7872,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMenuList::emit_item_key_handler(const char* name, ItemKeyHandler* handler)
+	void menu_list::emit_item_key_handler(const char* name, ItemKeyHandler* handler)
 	{
 		if (handler)
 		{
@@ -7882,7 +7882,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMenuList::emit_window_def(windowDef_t* window, bool is_item)
+	void menu_list::emit_window_def(windowDef_t* window, bool is_item)
 	{
 		emit_string("name", window->name);
 		if (is_item)
@@ -7913,7 +7913,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMenuList::emit_column_info(columnInfo_s* columns, int count)
+	void menu_list::emit_column_info(columnInfo_s* columns, int count)
 	{
 		fprintf(fp, "//%snumcol\t\t\txpos\txwidth\ttextlen\t  alignment\n", get_tabs());
 		fprintf(fp, "%s%s %i\t\t%i\t\t%i\t\t%i\t\t  %i\n", get_tabs(), "columns", count, columns[0].xpos, columns[0].width, columns[0].maxChars, columns[0].alignment);
@@ -7923,7 +7923,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMenuList::emit_list_box(listBoxDef_s* listBox)
+	void menu_list::emit_list_box(listBoxDef_s* listBox)
 	{
 		emit_color("selectBorder", listBox->selectBorder);
 
@@ -7942,7 +7942,7 @@ namespace zonetool::h1
 		emit_menu_event_handler_set("doubleClick", listBox->onDoubleClick);
 	}
 
-	void IMenuList::emit_multi_def(multiDef_s* multiDef)
+	void menu_list::emit_multi_def(multiDef_s* multiDef)
 	{
 		if (multiDef->strDef)
 		{
@@ -7969,7 +7969,7 @@ namespace zonetool::h1
 		fputs(" }\n", fp);
 	}
 
-	void IMenuList::emit_item_def_data(itemDefData_t* data, int type)
+	void menu_list::emit_item_def_data(itemDefData_t* data, int type)
 	{
 		if (data->data)
 		{
@@ -8010,7 +8010,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMenuList::emit_dvar_flags(int dvarFlags, const char* dvarTest, const char* enableDvar)
+	void menu_list::emit_dvar_flags(int dvarFlags, const char* dvarTest, const char* enableDvar)
 	{
 		std::string command;
 		switch (dvarFlags)
@@ -8040,7 +8040,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMenuList::emit_item_float_expressions(ItemFloatExpression* expressions, int count)
+	void menu_list::emit_item_float_expressions(ItemFloatExpression* expressions, int count)
 	{
 		if (expressions)
 		{
@@ -8056,7 +8056,7 @@ namespace zonetool::h1
 		}
 	}
 
-	void IMenuList::emit_item_def(itemDef_t* item)
+	void menu_list::emit_item_def(itemDef_t* item)
 	{
 		fputs("\t\titemDef\n", fp);
 		push_indent();
@@ -8124,7 +8124,7 @@ namespace zonetool::h1
 		pop_indent();
 	}
 
-	void IMenuList::emit_menu_def(menuDef_t* asset)
+	void menu_list::emit_menu_def(menuDef_t* asset)
 	{
 		fprintf(fp, "%smenuDef\n", get_tabs());
 		push_indent();
@@ -8163,12 +8163,12 @@ namespace zonetool::h1
 		pop_indent();
 	}
 
-	void IMenuList::dump_menudef(menuDef_t* asset)
+	void menu_list::dump_menudef(menuDef_t* asset)
 	{
 		emit_menu_def(asset);
 	}
 
-	void IMenuList::dump(MenuList* asset)
+	void menu_list::dump(MenuList* asset)
 	{
 		const auto path = asset->name;
 

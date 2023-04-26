@@ -87,7 +87,7 @@ namespace zonetool::iw6
 		try
 		{
 			// declare asset interfaces
-			//ADD_ASSET_PTR(ASSET_TYPE_MENU, IMenuDef);
+			//ADD_ASSET_PTR(ASSET_TYPE_MENU, menu_def);
 			ADD_ASSET_PTR(ASSET_TYPE_LOCALIZE_ENTRY, localize);
 		}
 		catch (std::exception& ex)
@@ -165,8 +165,8 @@ namespace zonetool::iw6
 			//ADD_ASSET(ASSET_TYPE_VERTEXDECL, vertex_decl);
 			ADD_ASSET(ASSET_TYPE_VERTEXSHADER, vertex_shader);
 
-			//ADD_ASSET(ASSET_TYPE_MENU, IMenuDef);
-			//ADD_ASSET(ASSET_TYPE_MENULIST, IMenuList);
+			//ADD_ASSET(ASSET_TYPE_MENU, menu_def);
+			//ADD_ASSET(ASSET_TYPE_MENULIST, menu_list);
 
 			//ADD_ASSET(ASSET_TYPE_PATHDATA, path_data);
 			ADD_ASSET(ASSET_TYPE_CLIPMAP, clip_map);
