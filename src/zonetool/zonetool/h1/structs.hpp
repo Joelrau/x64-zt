@@ -3618,7 +3618,10 @@ namespace zonetool::h1
 	struct XSurfaceSubdivInfo
 	{
 		XSurfaceSubdivLevel* levels;
-		char __pad0[24];
+		int flags; // maybe
+		int totalVertCount; // foreach level: vertCount + VertOffset
+		int totalPatchCount; // foreach level: regularPatchCount + regularPatchOffset
+		int unk[3];
 		GfxSubdivCache cache;
 	}; assert_sizeof(XSurfaceSubdivInfo, 0x38);
 

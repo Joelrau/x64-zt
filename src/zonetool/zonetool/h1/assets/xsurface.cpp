@@ -9,10 +9,9 @@ namespace zonetool::h1
 		{
 			surf->subdiv = reader.read_single<XSurfaceSubdivInfo>();
 
+			surf->subdiv->levels = reader.read_array<XSurfaceSubdivLevel>();
 			auto* levels = surf->subdiv->levels;
 			auto level_count = surf->subdivLevelCount;
-
-			levels = reader.read_array<XSurfaceSubdivLevel>();
 			for (unsigned char level_index = 0; level_index < level_count; level_index++)
 			{
 				auto* level = &levels[level_index];
@@ -426,10 +425,9 @@ namespace zonetool::h1
 		{
 			dumper.dump_single(surf->subdiv);
 
+			dumper.dump_array(surf->subdiv->levels, surf->subdivLevelCount);
 			auto* levels = surf->subdiv->levels;
 			auto level_count = surf->subdivLevelCount;
-
-			dumper.dump_array(levels, level_count);
 			for (unsigned char level_index = 0; level_index < level_count; level_index++)
 			{
 				auto* level = &levels[level_index];
