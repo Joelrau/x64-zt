@@ -1739,7 +1739,7 @@ namespace zonetool::iw6
 				//new_asset->techniques[zonetool::h1::TECHNIQUE_ZPREPASS_HIDIR] = new_asset->techniques[zonetool::h1::TECHNIQUE_ZPREPASS];
 				//new_asset->techniques[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS_HIDIR] = new_asset->techniques[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS];
 				//new_asset->techniques[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS_HIDIR] = new_asset->techniques[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS];
-				new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS_HIDIR] = new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS];
+				//new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS_HIDIR] = new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS];
 
 				new_asset->techniques[zonetool::h1::TECHNIQUE_LIGHT_SPOT_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_LIGHT_SPOT];
 				new_asset->techniques[zonetool::h1::TECHNIQUE_LIGHT_OMNI_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_LIGHT_OMNI];

@@ -142,6 +142,7 @@ namespace zonetool::h1
 					return {};
 				}
 
+				std::string stored_path{};
 				for (const auto& entry : std::filesystem::recursive_directory_iterator(directory))
 				{
 					if (std::filesystem::is_regular_file(entry) && entry.path().extension() == extension)
@@ -152,11 +153,18 @@ namespace zonetool::h1
 						{
 							file_path = std::filesystem::relative(parent_path, directory).string() + "\\" + file_path;
 						}
-						return file_path;
+						if (file_path.starts_with("$") || file_path.contains("default"))
+						{
+							stored_path = file_path;
+						}
+						else
+						{
+							return file_path;
+						}
 					}
 				}
 
-				return {};
+				return stored_path;
 			}
 		}
 
