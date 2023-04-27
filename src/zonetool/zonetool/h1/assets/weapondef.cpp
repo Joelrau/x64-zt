@@ -879,7 +879,7 @@ namespace zonetool::h1
 		WEAPON_READ_ASSET(ASSET_TYPE_TRACER, tracerDef, tracer1);
 		WEAPON_READ_ASSET(ASSET_TYPE_TRACER, tracerDef, tracer2);
 
-		weapon->laser = nullptr; //WEAPON_READ_ASSET(ASSET_TYPE_LASER, laser, laser);
+		WEAPON_READ_ASSET(ASSET_TYPE_LASER, laser, laser);
 
 		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, sound, turretOverheatSound);
 		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, turretOverheatEffect);
