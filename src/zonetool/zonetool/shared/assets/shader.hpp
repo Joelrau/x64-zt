@@ -4,6 +4,7 @@ namespace zonetool
 {
 	enum shader_type
 	{
+		none,
 		pixelshader,
 		vertexshader,
 		computeshader,

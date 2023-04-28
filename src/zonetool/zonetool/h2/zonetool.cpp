@@ -1,10 +1,20 @@
 #include <std_include.hpp>
 #include "zonetool.hpp"
 
+#include "zonetool/h1/zonetool.hpp"
+
+#include "converter/converter.hpp"
+
 #include <utils/io.hpp>
 
 namespace zonetool::h2
 {
+#ifdef DEBUG
+	constexpr auto IS_DEBUG = true;
+#else
+	constexpr auto IS_DEBUG = false;
+#endif
+
 	zonetool_globals_t globals{};
 	std::vector<std::pair<XAssetType, std::string>> referenced_assets;
 	std::unordered_set<XAssetType> asset_type_filter;
@@ -97,6 +107,97 @@ namespace zonetool::h2
 		}), &callback, includeOverride);
 	}
 
+	void dump_asset_h1(XAsset* asset)
+	{
+#define DUMP_ASSET_NO_CONVERT(__type__,___,__struct__) \
+		if (asset->type == __type__) \
+		{ \
+			if (IS_DEBUG) \
+			{ \
+				ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
+			} \
+			auto asset_ptr = reinterpret_cast<__struct__*>(asset->header.data); \
+			___::dump(asset_ptr); \
+		} \
+
+#define DUMP_ASSET(__type__, __namespace__,__struct__) \
+		if (asset->type == __type__) \
+		{ \
+			if (IS_DEBUG) \
+			{ \
+				ZONETOOL_INFO("Dumping and converting asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
+			} \
+			auto asset_ptr = reinterpret_cast<__struct__*>(asset->header.data); \
+			converter::h1::__namespace__::dump(asset_ptr); \
+		} \
+
+		try
+		{
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_CLUT, clut, Clut);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_DOPPLER_PRESET, doppler_preset, DopplerPreset);
+			DUMP_ASSET(ASSET_TYPE_FX, fxeffectdef, FxEffectDef);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_PARTICLE_SIM_ANIMATION, fx_particle_sim_animation, FxParticleSimAnimation);
+			DUMP_ASSET(ASSET_TYPE_IMAGE, gfximage, GfxImage);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_LIGHT_DEF, gfx_light_def, GfxLightDef);
+			DUMP_ASSET(ASSET_TYPE_LASER, laserdef, LaserDef);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_LOADED_SOUND, loaded_sound, LoadedSound);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_LOCALIZE_ENTRY, localize, LocalizeEntry);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_LPF_CURVE, lpf_curve, SndCurve);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_LUA_FILE, lua_file, LuaFile);
+			DUMP_ASSET(ASSET_TYPE_MATERIAL, material, Material);
+			DUMP_ASSET(ASSET_TYPE_MAP_ENTS, mapents, MapEnts);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_NET_CONST_STRINGS, net_const_strings, NetConstStrings);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_RAWFILE, rawfile, RawFile);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_REVERB_CURVE, reverb_curve, SndCurve);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SCRIPTABLE, scriptable_def, ScriptableDef);
+			DUMP_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile, ScriptFile);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SKELETONSCRIPT, skeleton_script, SkeletonScript);
+			DUMP_ASSET(ASSET_TYPE_SOUND, sound, snd_alias_list_t);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SOUND_CONTEXT, sound_context, SndContext);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SOUND_CURVE, sound_curve, SndCurve);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_STRINGTABLE, string_table, StringTable);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_STRUCTUREDDATADEF, structured_data_def_set, StructuredDataDefSet);
+			DUMP_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset, MaterialTechniqueSet);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_TRACER, tracer_def, TracerDef);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_TTF, font_def, TTFDef);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_ATTACHMENT, weapon_attachment, WeaponAttachment);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_WEAPON, weapon_def, WeaponDef);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_XANIM, xanim_parts, XAnimParts);
+			DUMP_ASSET(ASSET_TYPE_XMODEL, xmodel, XModel);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
+
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_PHYSCOLLMAP, phys_collmap, PhysCollmap);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_PHYSCONSTRAINT, phys_constraint, PhysConstraint);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_PHYSPRESET, phys_preset, PhysPreset);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_PHYSWATERPRESET, phys_water_preset, PhysWaterPreset);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_PHYSWORLDMAP, phys_world, PhysWorld);
+
+			DUMP_ASSET(ASSET_TYPE_COMPUTESHADER, techset, ComputeShader);
+			DUMP_ASSET(ASSET_TYPE_DOMAINSHADER, techset, MaterialDomainShader);
+			DUMP_ASSET(ASSET_TYPE_HULLSHADER, techset, MaterialHullShader);
+			DUMP_ASSET(ASSET_TYPE_PIXELSHADER, techset, MaterialPixelShader);
+			//DUMP_ASSET(ASSET_TYPE_VERTEXDECL, techset, MaterialVertexDeclaration);
+			DUMP_ASSET(ASSET_TYPE_VERTEXSHADER, techset, MaterialVertexShader);
+
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENU, zonetool::h1::menu_def, zonetool::h1::menuDef_t);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENULIST, zonetool::h1::menu_list, zonetool::h1::MenuList);
+
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_AIPATHS, path_data, PathData);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_COL_MAP_SP, clip_map, clipMap_t);
+			DUMP_ASSET(ASSET_TYPE_COM_MAP, comworld, ComWorld);
+			DUMP_ASSET(ASSET_TYPE_FX_MAP, fxworld, FxWorld);
+			DUMP_ASSET(ASSET_TYPE_GFX_MAP, gfxworld, GfxWorld);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_GLASS_MAP, glass_world, GlassWorld);
+		}
+		catch (std::exception& ex)
+		{
+			ZONETOOL_FATAL("A fatal exception occured while dumping zone \"%s\", exception was: \n%s", filesystem::get_fastfile().data(), ex.what());
+		}
+
+#undef DUMP_ASSET_NO_CONVERT
+#undef DUMP_ASSET
+	}
+
 	void dump_asset_h2(XAsset* asset)
 	{
 #define DUMP_ASSET(__type__,___,__struct__) \
@@ -171,6 +272,7 @@ namespace zonetool::h2
 
 	std::unordered_map<game::game_mode, std::function<void(XAsset*)>> dump_functions =
 	{
+		{game::h1, dump_asset_h1},
 		{game::h2, dump_asset_h2},
 	};
 

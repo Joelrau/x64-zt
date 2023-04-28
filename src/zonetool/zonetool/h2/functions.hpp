@@ -1,5 +1,7 @@
 #pragma once
 
+#include "game/h2/game.hpp"
+
 namespace zonetool::h2
 {
 	extern const char* get_asset_name(XAssetType type, void* pointer);
