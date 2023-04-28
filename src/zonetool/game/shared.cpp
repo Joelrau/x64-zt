@@ -81,6 +81,24 @@ namespace zonetool
 		x_gfx_globals_map.insert(std::make_pair(zone, globals));
 	}
 
+	const char* strip_template(const std::string& function_name)
+	{
+		static char new_string[0x2000] = { 0 };
+		std::memset(new_string, 0, sizeof(new_string));
+
+		for (auto i = 0; i < function_name.size(); i++)
+		{
+			if (function_name[i] == '<')
+			{
+				break;
+			}
+
+			new_string[i] = function_name[i];
+		}
+
+		return new_string;
+	}
+
 	class shared final : public component_interface
 	{ 
 	public:

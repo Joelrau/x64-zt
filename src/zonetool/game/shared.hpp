@@ -112,6 +112,8 @@ namespace zonetool
 	void* get_x_gfx_globals_for_zone(int zone);
 	void insert_x_gfx_globals_for_zone(int zone, void* globals);
 
+	const char* strip_template(const std::string& function_name);
+
 	template <typename T>
 	T* get_x_gfx_globals_for_zone(int zone)
 	{
