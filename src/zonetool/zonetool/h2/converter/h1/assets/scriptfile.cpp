@@ -22,7 +22,7 @@ namespace zonetool::h2
 			{
 				if (utils::string::is_numeric(gsc_name))
 				{
-					const auto name = gsc::h1::gsc_ctx->token_name(std::atoi(gsc_name.data()));
+					const auto name = gsc::h2::gsc_ctx->token_name(std::atoi(gsc_name.data()));
 					if (!name.starts_with("_id_"))
 					{
 						gsc_name = name;
@@ -38,11 +38,11 @@ namespace zonetool::h2
 				auto& decompiler = gsc::h2::gsc_ctx->decompiler();
 				auto& disassembler = gsc::h2::gsc_ctx->disassembler();
 
-				const std::string stack_compressed{ asset->buffer, static_cast<std::uint32_t>(asset->compressedLen) };
+				const std::string stack_compressed{asset->buffer, static_cast<std::uint32_t>(asset->compressedLen)};
 				const auto decompressed_stack = utils::compression::zlib::decompress(stack_compressed);
 
-				const std::vector<std::uint8_t> stack{ decompressed_stack.begin(), decompressed_stack.end() };
-				const std::vector<std::uint8_t> bytecode{ asset->bytecode, asset->bytecode + asset->bytecodeLen };
+				const std::vector<std::uint8_t> stack{decompressed_stack.begin(), decompressed_stack.end()};
+				const std::vector<std::uint8_t> bytecode{asset->bytecode, asset->bytecode + asset->bytecodeLen};
 
 				const auto disasm = disassembler.disassemble(bytecode, stack);
 				const auto decomp = decompiler.decompile(*disasm);
