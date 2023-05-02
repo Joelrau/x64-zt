@@ -7,6 +7,9 @@
 
 #include "converter/converter.hpp"
 
+#include "../utils/gsc.hpp"
+#include "../utils/csv_generator.hpp"
+
 namespace zonetool::iw6
 {
 #ifdef DEBUG
@@ -842,6 +845,12 @@ namespace zonetool::iw6
 
 			verify_zone(params.get(1));
 		});
+
+		::iw6::command::add("generatecsv", csv_generator::create_command
+			<::iw6::command::params>([](const uint32_t id)
+		{
+			return gsc::iw6::gsc_ctx->token_name(id);
+		}));
 	}
 
 	std::vector<std::string> get_command_line_arguments()

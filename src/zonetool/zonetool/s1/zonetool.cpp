@@ -9,6 +9,9 @@
 #include "zonetool/h2/zonetool.hpp"
 #include "../h1/converter/converter.hpp"
 
+#include "../utils/gsc.hpp"
+#include "../utils/csv_generator.hpp"
+
 namespace zonetool::s1
 {
 #ifdef DEBUG
@@ -1063,6 +1066,12 @@ namespace zonetool::s1
 
 			verify_zone(params.get(1));
 		});
+
+		::s1::command::add("generatecsv", csv_generator::create_command
+			<::s1::command::params>([](const uint32_t id)
+		{
+			return gsc::s1::gsc_ctx->token_name(id);
+		}));
 	}
 
 	std::vector<std::string> get_command_line_arguments()
