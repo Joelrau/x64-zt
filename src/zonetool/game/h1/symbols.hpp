@@ -58,7 +58,7 @@ namespace h1
 
 		WEAK symbol<unsigned int(int)> Live_SyncOnlineDataFlags{ 0x14059A700 };
 
-		WEAK symbol<const char* ()> SEH_GetCurrentLanguageName{ 0x1404BA620 };
+		WEAK symbol<const char* ()> SEH_GetCurrentLanguageName{ 0x1404BA650 };
 		WEAK symbol<const char* ()> SEH_GetCurrentLanguageCode{ 0x1404BA5F0 };
 
 		WEAK symbol<void(int arg, char* buffer, int bufferLength)> SV_Cmd_ArgvBuffer{ 0x140404CA0 };
