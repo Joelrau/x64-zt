@@ -46,6 +46,11 @@ namespace zonetool::h1
 
 	std::int32_t type_to_int(std::string type)
 	{
+		if (type == "col_map_sp")
+		{
+			return ASSET_TYPE_COL_MAP_MP;
+		}
+
 		for (std::int32_t i = 0; i < ASSET_TYPE_COUNT; i++)
 		{
 			if (g_assetNames[i] == type)
