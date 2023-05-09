@@ -17,7 +17,7 @@
 * `dumpmap <target game> <map> <asset filter> <skip common>`: Dumps and converts all required assets for a map
 
   ### Definitions
-  * `asset filter`: A filter specifying all the assets that should be dumped, if not specified or empty it will dump all asset types.  
+  * `asset filter`: A filter specifying all the asset types that should be dumped, if not specified or empty it will dump all asset types.  
   Asset types are separated by **commas**, **`_`** indicates and empty filter.   
   **Examples**: 
     - `dumpzone h1 mp_clowntown3 sound,material,techset,rawfile`  
