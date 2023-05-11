@@ -125,7 +125,7 @@ namespace zonetool::s1
 		{
 			"code_post_gfx_mp",
 			//"ui_mp",
-			"common_mp",
+			//"common_mp",
 		};
 
 		XZoneInfo zones[8]{ 0 };
