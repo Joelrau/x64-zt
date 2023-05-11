@@ -691,8 +691,26 @@ namespace zonetool
 				std::memset(&dest->stageTrigger, 0, sizeof(MapTriggers));
 			}
 
-			// write triggers
+			const auto write_triggers = [](zone_buffer* buf, MapTriggers* dest)
+			{
+				if (dest->models)
+				{
+					dest->models = buf->write_s(3, dest->models, dest->count);
+				}
+
+				if (dest->hulls)
+				{
+					dest->hulls = buf->write_s(3, dest->hulls, dest->hullCount);
+				}
+
+				if (dest->slabs)
+				{
+					dest->slabs = buf->write_s(3, dest->slabs, dest->slabCount);
+				}
+			};
+
 			//map_ents::write_triggers(buf, &dest->stageTrigger);
+			write_triggers(buf, &dest->stageTrigger);
 
 			if (data->dynEntDefList[0])
 			{
