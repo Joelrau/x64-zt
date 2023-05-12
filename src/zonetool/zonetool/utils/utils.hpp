@@ -13,11 +13,6 @@
 
 #include <utils/memory.hpp>
 
-#define JSON_DIAGNOSTICS 1
-#include "json.hpp"
-using json = nlohmann::json;
-using ordered_json = nlohmann::ordered_json;
-
 namespace nlohmann
 {
 	static inline std::vector<std::uint8_t> get_object_bytes(json object)
@@ -64,6 +59,7 @@ namespace zonetool
 	{
 		bool verify;
 		bool dump;
+		bool dump_referenced;
 		game::game_mode target_game;
 		filesystem::file csv_file;
 	};

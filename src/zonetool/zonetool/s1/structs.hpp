@@ -7607,6 +7607,13 @@ namespace zonetool::s1
 		int freeFlags;
 	};
 
+	struct XZone
+	{
+		char __pad0[24];
+		char name[64];
+		char __pad1[408];
+	};
+
 	struct XZoneInfoInternal
 	{
 		char name[64];

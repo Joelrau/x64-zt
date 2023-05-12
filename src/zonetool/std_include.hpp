@@ -81,6 +81,14 @@
 #include <MinHook.h>
 #include <tomcrypt.h>
 
+#pragma warning(push)
+#pragma warning(disable: 4459)
+#define JSON_DIAGNOSTICS 1
+#include <json.hpp>
+using json = nlohmann::json;
+using ordered_json = nlohmann::ordered_json;
+#pragma warning(pop)
+
 #include <asmjit/core/jitruntime.h>
 #include <asmjit/x86/x86assembler.h>
 
