@@ -394,20 +394,32 @@ namespace zonetool::s1
 	{
 		for (auto i = 0; i < 2; i++)
 		{
-			def->accuracyGraphName[i] = data["accuracyGraphName"].is_string() ? mem->duplicate_string(data["accuracyGraphName"].get<std::string>()) : nullptr;
-			if (!data["accuracyGraphKnots"][i].is_null())
+			def->accuracyGraphName[i] = data["accuracyGraphName"][i].is_string()
+				? mem->duplicate_string(data["accuracyGraphName"][i].get<std::string>())
+				: nullptr;
+
+			if (data["accuracyGraphKnots"][i].is_array())
 			{
-				float accuracyGraphKnots[2];
-				accuracyGraphKnots[0] = 0;
-				def->accuracyGraphKnots[i] = mem->allocate<vec2_t>();
-				(*def->accuracyGraphKnots[i])[0] = data["accuracyGraphKnots"][i][0].get<float>();
-				(*def->accuracyGraphKnots[i])[1] = data["accuracyGraphKnots"][i][1].get<float>();
+				const auto count = data["accuracyGraphKnots"][i].size();
+				def->accuracyGraphKnots[i] = mem->allocate<vec2_t>(count);
+
+				for (auto o = 0; o < count; o++)
+				{
+					def->accuracyGraphKnots[i][o][0] = data["accuracyGraphKnots"][i][o][0].get<float>();
+					def->accuracyGraphKnots[i][o][1] = data["accuracyGraphKnots"][i][o][1].get<float>();
+				}
 			}
-			if (!data["originalAccuracyGraphKnots"][i].is_null())
+
+			if (data["originalAccuracyGraphKnots"][i].is_array())
 			{
-				def->originalAccuracyGraphKnots[i] = mem->allocate<vec2_t>();
-				(*def->originalAccuracyGraphKnots[i])[0] = data["originalAccuracyGraphKnots"][i][0].get<float>();
-				(*def->originalAccuracyGraphKnots[i])[1] = data["originalAccuracyGraphKnots"][i][1].get<float>();
+				const auto count = data["originalAccuracyGraphKnots"][i].size();
+				def->originalAccuracyGraphKnots[i] = mem->allocate<vec2_t>(count);
+
+				for (auto o = 0; o < count; o++)
+				{
+					def->originalAccuracyGraphKnots[i][o][0] = data["originalAccuracyGraphKnots"][i][o][0].get<float>();
+					def->originalAccuracyGraphKnots[i][o][1] = data["originalAccuracyGraphKnots"][i][o][1].get<float>();
+				}
 			}
 		}
 	}
@@ -2189,36 +2201,23 @@ namespace zonetool::s1
 
 		WEAPON_SOUND_CUSTOM(projIgnitionSound);
 
-		WEAPON_STRING(accuracyGraphName[0]);
-
-		if (data->accuracyGraphKnots[0])
+		for (auto i = 0; i < 2; i++)
 		{
-			buf->align(3);
-			buf->write(data->accuracyGraphKnots[0], data->accuracyGraphKnotCount[0]);
-			zone_buffer::clear_pointer(&dest->accuracyGraphKnots[0]);
-		}
+			WEAPON_STRING(accuracyGraphName[i]);
 
-		if (data->originalAccuracyGraphKnots[0])
-		{
-			buf->align(3);
-			buf->write(data->originalAccuracyGraphKnots[0], data->accuracyGraphKnotCount[0]);
-			zone_buffer::clear_pointer(&dest->originalAccuracyGraphKnots[0]);
-		}
+			if (data->accuracyGraphKnots[i])
+			{
+				buf->align(3);
+				buf->write(data->accuracyGraphKnots[i], data->accuracyGraphKnotCount[i]);
+				zone_buffer::clear_pointer(&dest->accuracyGraphKnots[i]);
+			}
 
-		WEAPON_STRING(accuracyGraphName[1]);
-
-		if (data->accuracyGraphKnots[1])
-		{
-			buf->align(3);
-			buf->write(data->accuracyGraphKnots[1], data->accuracyGraphKnotCount[1]);
-			zone_buffer::clear_pointer(&dest->accuracyGraphKnots[1]);
-		}
-
-		if (data->originalAccuracyGraphKnots[1])
-		{
-			buf->align(3);
-			buf->write(data->originalAccuracyGraphKnots[0], data->accuracyGraphKnotCount[1]);
-			zone_buffer::clear_pointer(&dest->originalAccuracyGraphKnots[1]);
+			if (data->originalAccuracyGraphKnots[i])
+			{
+				buf->align(3);
+				buf->write(data->originalAccuracyGraphKnots[i], data->accuracyGraphKnotCount[i]);
+				zone_buffer::clear_pointer(&dest->originalAccuracyGraphKnots[i]);
+			}
 		}
 
 		WEAPON_STRING(szScript);
@@ -2352,23 +2351,27 @@ namespace zonetool::s1
 			{
 				data["accuracyGraphName"][i] = "";
 			}
-			if (asset->accuracyGraphKnots[i])
+
+			for (auto o = 0; o < asset->accuracyGraphKnotCount[i]; o++)
 			{
-				data["accuracyGraphKnots"][i][0] = (*asset->accuracyGraphKnots[i])[0];
-				data["accuracyGraphKnots"][i][1] = (*asset->accuracyGraphKnots[i])[1];
-			}
-			else
-			{
-				data["accuracyGraphKnots"] = nullptr;
-			}
-			if (asset->accuracyGraphKnots[i])
-			{
-				data["originalAccuracyGraphKnots"][i][0] = (*asset->originalAccuracyGraphKnots[i])[0];
-				data["originalAccuracyGraphKnots"][i][1] = (*asset->originalAccuracyGraphKnots[i])[1];
-			}
-			else
-			{
-				data["originalAccuracyGraphKnots"] = nullptr;
+				if (asset->accuracyGraphKnots[i])
+				{
+					data["accuracyGraphKnots"][i][o][0] = asset->accuracyGraphKnots[i][o][0];
+					data["accuracyGraphKnots"][i][o][1] = asset->accuracyGraphKnots[i][o][1];
+				}
+				else
+				{
+					data["accuracyGraphKnots"] = nullptr;
+				}
+				if (asset->accuracyGraphKnots[i])
+				{
+					data["originalAccuracyGraphKnots"][i][o][0] = asset->originalAccuracyGraphKnots[i][o][0];
+					data["originalAccuracyGraphKnots"][i][o][1] = asset->originalAccuracyGraphKnots[i][o][1];
+				}
+				else
+				{
+					data["originalAccuracyGraphKnots"] = nullptr;
+				}
 			}
 		}
 
