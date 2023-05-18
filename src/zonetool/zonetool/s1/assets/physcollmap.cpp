@@ -3,6 +3,41 @@
 
 namespace zonetool::s1
 {
+	PhysCollmap* phys_collmap::parse(const std::string& name, zone_memory* mem)
+	{
+		const auto path = "physcollmap\\"s + name + ".pc";
+
+		assetmanager::reader read(mem);
+		if (!read.open(path))
+		{
+			return nullptr;
+		}
+
+		ZONETOOL_INFO("Parsing physcollmap \"%s\"...", name.data());
+
+		auto* asset = read.read_single<PhysCollmap>();
+		asset->name = read.read_string();
+		asset->geoms = read.read_array<PhysGeomInfo>();
+
+		for (auto i = 0u; i < asset->count; i++)
+		{
+			asset->geoms[i].data = read.read_single<dmPolytopeData>();
+			if (asset->geoms[i].data)
+			{
+				asset->geoms[i].data->vec4_array0 = read.read_array<vec4_t>();
+				asset->geoms[i].data->vec4_array1 = read.read_array<vec4_t>();
+				asset->geoms[i].data->uint16_array0 = read.read_array<unsigned short>();
+				asset->geoms[i].data->uint16_array1 = read.read_array<unsigned short>();
+				asset->geoms[i].data->edges = read.read_array<dmSubEdge>();
+				asset->geoms[i].data->uint8_array0 = read.read_array<unsigned char>();
+			}
+		}
+
+		read.close();
+
+		return asset;
+	}
+
 	void phys_collmap::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
@@ -14,7 +49,11 @@ namespace zonetool::s1
 			return;
 		}
 
-		this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).physCollmap;
+		this->asset_ = this->parse(name, mem);
+		if (!this->asset_)
+		{
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).physCollmap;
+		}
 	}
 
 	void phys_collmap::prepare(zone_buffer* buf, zone_memory* mem)
@@ -111,5 +150,31 @@ namespace zonetool::s1
 
 	void phys_collmap::dump(PhysCollmap* asset)
 	{
+		const auto path = "physcollmap\\"s + asset->name + ".pc";
+
+		assetmanager::dumper write;
+		if (!write.open(path))
+		{
+			return;
+		}
+
+		write.dump_single(asset);
+		write.dump_string(asset->name);
+		write.dump_array(asset->geoms, asset->count);
+
+		for (auto i = 0u; i < asset->count; i++)
+		{
+			const auto data = asset->geoms[i].data;
+			write.dump_single(data);
+			if (data)
+			{
+				write.dump_array(data->vec4_array0, data->count0);
+				write.dump_array(data->vec4_array1, data->count1);
+				write.dump_array(data->uint16_array0, data->count1);
+				write.dump_array(data->uint16_array1, data->count0);
+				write.dump_array(data->edges, data->count2);
+				write.dump_array(data->uint8_array0, data->count1);
+			}
+		}
 	}
 }

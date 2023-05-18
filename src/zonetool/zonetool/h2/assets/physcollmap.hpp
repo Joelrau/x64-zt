@@ -10,6 +10,8 @@ namespace zonetool::h2
 		PhysCollmap* asset_ = nullptr;
 
 	public:
+		PhysCollmap* parse(const std::string& name, zone_memory* mem);
+
 		void init(const std::string& name, zone_memory* mem) override;
 		void prepare(zone_buffer* buf, zone_memory* mem) override;
 		void load_depending(zone_base* zone) override;
