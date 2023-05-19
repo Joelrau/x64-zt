@@ -442,6 +442,7 @@ namespace zonetool::h2
 			{
 				const auto count = data["accuracyGraphKnots"][i].size();
 				def->accuracyGraphKnots[i] = mem->allocate<vec2_t>(count);
+				def->accuracyGraphKnotCount[i] = static_cast<short>(count);
 
 				for (auto o = 0; o < count; o++)
 				{
@@ -454,6 +455,7 @@ namespace zonetool::h2
 			{
 				const auto count = data["originalAccuracyGraphKnots"][i].size();
 				def->originalAccuracyGraphKnots[i] = mem->allocate<vec2_t>(count);
+				def->accuracyGraphKnotCount[i] = static_cast<short>(count);
 
 				for (auto o = 0; o < count; o++)
 				{
