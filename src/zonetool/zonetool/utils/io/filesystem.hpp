@@ -57,5 +57,6 @@ namespace zonetool
 		std::string get_file_path(const std::string& name);
 		std::string get_dump_path();
 		bool create_directory(const std::string& name);
+		std::vector<std::string>& get_search_paths();
 	}
 }

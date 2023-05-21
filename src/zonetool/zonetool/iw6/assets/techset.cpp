@@ -186,13 +186,7 @@ namespace zonetool::iw6
 
 			// get a random one from the directory
 			{
-				std::vector<std::string> parse_paths =
-				{
-					"zonetool\\" + filesystem::get_fastfile() + "\\",
-					"zonetool\\"
-				};
-
-				for (const auto& parse_path : parse_paths)
+				for (const auto& parse_path : filesystem::get_search_paths())
 				{
 					const std::string dir = parse_path + parent_path;
 					const auto first_file = find_first_file_with_extension_in_directory(dir, ext);

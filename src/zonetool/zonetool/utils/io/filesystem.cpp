@@ -1,6 +1,8 @@
 #include <std_include.hpp>
 #include "filesystem.hpp"
 
+#include <utils/io.hpp>
+
 namespace zonetool
 {
 	namespace filesystem
@@ -195,8 +197,38 @@ namespace zonetool
 			return {};
 		}
 
+		std::vector<std::string> load_extra_search_paths()
+		{
+			std::vector<std::string> paths;
+			const auto folders = utils::io::list_files("zonetool_paths");
+
+			for (const auto& folder : folders)
+			{
+				if (utils::io::directory_exists(folder))
+				{
+					paths.emplace_back(folder + "\\");
+				}
+			}
+
+			return paths;
+		}
+
+		std::vector<std::string>& get_search_paths()
+		{
+			static std::vector<std::string> paths;
+			return paths;
+		}
+
 		void set_fastfile(const std::string& ff)
 		{
+			const auto extra_paths = load_extra_search_paths();
+			auto& search_paths = get_search_paths();
+
+			search_paths.clear();
+			search_paths.emplace_back("zonetool\\" + ff + "\\");
+			search_paths.emplace_back("zonetool\\");
+			search_paths.insert(search_paths.end(), extra_paths.begin(), extra_paths.end());
+
 			fastfile = ff;
 		}
 
@@ -218,18 +250,14 @@ namespace zonetool
 
 		std::string get_file_path(const std::string& name)
 		{
-			std::string path = "";
-
-			path = "zonetool\\" + fastfile + "\\" + name;
-			if (std::filesystem::exists(path))
+			const auto& search_paths = get_search_paths();
+			for (const auto& search_path : search_paths)
 			{
-				return "zonetool\\" + fastfile + "\\";
-			}
-
-			path = "zonetool\\" + name;
-			if (std::filesystem::exists(path))
-			{
-				return "zonetool\\";
+				const auto full_path = search_path + "\\"s + name;
+				if (std::filesystem::exists(full_path))
+				{
+					return search_path + "\\"s;
+				}
 			}
 
 			return "";
