@@ -242,6 +242,10 @@ namespace zonetool::s1
 #define WEAPON_READ_FIELD_ARR(__type__, __field__, __size__) \
 	if (!data[#__field__].is_null()) \
 	{ \
+		if constexpr (std::is_pointer<decltype(weapon->__field__)>::value) \
+		{ \
+			*reinterpret_cast<__type__**>(reinterpret_cast<size_t>(&weapon->__field__)) = mem->allocate<__type__>(__size__); \
+		} \
 		for (auto idx##__field__ = 0; idx##__field__ < __size__; idx##__field__++) \
 		{ \
 			*(__type__*)(&weapon->__field__[idx##__field__]) = (__type__)data[#__field__][idx##__field__].get<__type__>(); \
