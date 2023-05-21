@@ -745,6 +745,7 @@ namespace zonetool::h1
 		material::fixed_nml_images_map.clear();
 		techset::vertexdecl_pointers.clear();
 		map_ents::clear_entity_strings();
+		xanim_parts::secondary_anims.clear();
 	}
 
 	void register_commands()

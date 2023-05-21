@@ -765,6 +765,7 @@ namespace zonetool::h2
 		// clear asset shit
 		material::fixed_nml_images_map.clear();
 		techset::vertexdecl_pointers.clear();
+		xanim_parts::secondary_anims.clear();
 	}
 
 	dump_params get_dump_params(const ::h2::command::params& params)

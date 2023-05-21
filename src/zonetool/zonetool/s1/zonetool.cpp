@@ -963,6 +963,7 @@ namespace zonetool::s1
 		// clear asset shit
 		material::fixed_nml_images_map.clear();
 		techset::vertexdecl_pointers.clear();
+		xanim_parts::secondary_anims.clear();
 	}
 
 	void register_commands()

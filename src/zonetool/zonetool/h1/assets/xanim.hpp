@@ -14,6 +14,8 @@ namespace zonetool::h1
 		const char* get_script_string(scr_string_t* ptr);
 
 	public:
+		static std::unordered_set<std::string> secondary_anims;
+
 		XAnimParts* parse(const std::string& name, zone_memory* mem);
 
 		void init(const std::string& name, zone_memory* mem) override;

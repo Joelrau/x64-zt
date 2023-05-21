@@ -3,6 +3,8 @@
 
 namespace zonetool::h2
 {
+	std::unordered_set<std::string> xanim_parts::secondary_anims;
+
 	void xanim_parts::add_script_string(scr_string_t* ptr, const char* str)
 	{
 		for (std::uint32_t i = 0; i < this->script_strings.size(); i++)
@@ -297,6 +299,14 @@ namespace zonetool::h2
 
 	void xanim_parts::load_depending(zone_base* zone)
 	{
+		auto* data = this->asset_;
+
+		secondary_anims.insert(data->name);
+		if (data->secondaryName && !secondary_anims.contains(data->secondaryName))
+		{
+			secondary_anims.insert(data->secondaryName);
+			zone->add_asset_of_type(ASSET_TYPE_XANIM, data->secondaryName);
+		}
 	}
 
 	std::string xanim_parts::name()
