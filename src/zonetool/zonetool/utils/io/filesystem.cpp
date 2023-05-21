@@ -200,6 +200,11 @@ namespace zonetool
 		std::vector<std::string> load_extra_search_paths()
 		{
 			std::vector<std::string> paths;
+			if (!utils::io::directory_exists("zonetool_paths"))
+			{
+				return {};
+			}
+
 			const auto folders = utils::io::list_files("zonetool_paths");
 
 			for (const auto& folder : folders)
