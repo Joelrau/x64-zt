@@ -11,387 +11,348 @@ namespace zonetool
 {
 	zone_buffer::zone_buffer()
 	{
-		this->m_stream = 0;
-		this->m_shiftsize = 0;
-		this->m_numstreams = 0;
+		this->init();
 
-		this->m_pos = 0;
-		this->m_len = MAX_ZONE_SIZE;
-
-		this->m_zonepointers.clear();
-		this->init_script_strings();
-		this->m_depthstencilstatebits.clear();
-		this->m_blendstatebits.clear();
-		this->m_ppas.clear();
-		this->m_poas.clear();
-		this->m_sas.clear();
-		this->m_streamfiles.clear();
-
-		this->m_buf.resize(this->m_len);
+		this->pos_ = 0;
+		this->length_ = MAX_ZONE_SIZE;
+		this->buffer_.resize(this->length_);
 	}
 
 	zone_buffer::~zone_buffer()
 	{
-		// clear zone pointers
-		this->m_zonepointers.clear();
-
-		// clear scriptstrings
-		this->init_script_strings();
-
-		// clear depth stencil state bits
-		this->m_depthstencilstatebits.clear();
-
-		// clear blend state bits
-		this->m_blendstatebits.clear();
-
-		// clear perPrimArgSizes
-		this->m_ppas.clear();
-
-		// clear perObjArgSizes
-		this->m_poas.clear();
-
-		// clear stableArgSizes
-		this->m_sas.clear();
-
-		// clear streamfiles
-		this->m_streamfiles.clear();
-
-		// clear zone buffer
+		this->init();
 		this->clear();
 	}
 
-	zone_buffer::zone_buffer(std::vector<std::uint8_t> data)
+	zone_buffer::zone_buffer(const std::vector<std::uint8_t>& data)
 	{
-		this->m_stream = 0;
-		this->m_shiftsize = 0;
-		this->m_numstreams = 0;
-
-		this->m_buf = data;
-		this->m_pos = data.size();
-		this->m_len = data.size();
-
-		this->m_zonepointers.clear();
-		this->init_script_strings();
-		this->m_depthstencilstatebits.clear();
-		this->m_blendstatebits.clear();
-		this->m_ppas.clear();
-		this->m_poas.clear();
-		this->m_sas.clear();
-		this->m_streamfiles.clear();
+		this->init();
+		this->buffer_ = data;
+		this->pos_ = data.size();
+		this->length_ = data.size();
 	}
 
-	zone_buffer::zone_buffer(std::size_t size)
+	zone_buffer::zone_buffer(const std::size_t size)
 	{
-		this->m_stream = 0;
-		this->m_shiftsize = 0;
-		this->m_numstreams = 0;
-
-		this->m_pos = 0;
-		this->m_len = size;
-		this->m_buf.resize(this->m_len);
-
-		this->m_zonepointers.clear();
-		this->init_script_strings();
-		this->m_depthstencilstatebits.clear();
-		this->m_blendstatebits.clear();
-		this->m_ppas.clear();
-		this->m_poas.clear();
-		this->m_sas.clear();
-		this->m_streamfiles.clear();
+		this->init();
+		this->pos_ = 0;
+		this->length_ = size;
+		this->buffer_.resize(this->length_);
 	}
 
-	void zone_buffer::init_streams(std::size_t streams)
+	void zone_buffer::init()
 	{
-		this->m_numstreams = streams;
-		this->m_zonestreams.resize(streams);
+		this->stream_ = 0;
+		this->shift_size_ = 0;
+		this->stream_count_ = 0;
 
-		this->m_shiftsize = 32;
+		this->pos_ = 0;
+		this->length_ = 0;
 
-		for (std::size_t i = 31; i > 0; i--)
+		this->sub_zone_buffers_.clear();
+		this->init_script_strings();
+		this->depth_stencil_state_bits_.clear();
+		this->blend_state_bits_.clear();
+		this->ppas_.clear();
+		this->poas_.clear();
+		this->sas_.clear();
+		this->stream_files_.clear();
+	}
+
+	void zone_buffer::init_streams(const std::size_t streams)
+	{
+		this->stream_count_ = streams;
+		this->zone_streams_.resize(streams);
+
+		this->shift_size_ = 32;
+
+		for (auto i = 31ull; i > 0; i--)
 		{
-			if (std::bitset<sizeof(std::size_t) * 8>(this->m_numstreams).test(i))
+			if (std::bitset<sizeof(std::size_t) * 8>(this->stream_count_).test(i))
 			{
-				this->m_shiftsize -= (static_cast<std::uint32_t>(i) + 1);
+				this->shift_size_ -= (static_cast<std::uint32_t>(i) + 1);
 				break;
 			}
 		}
 	}
 
-	void zone_buffer::write_data(const void* _data, std::size_t size, std::size_t count)
+	void zone_buffer::write_data(const void* data, const std::size_t size, const std::size_t count)
 	{
-		// Check if we should realloc the buffer
-		if ((size * count) + m_pos > m_len)
+		if ((size * count) + this->pos_ > this->length_)
 		{
 			ZONETOOL_ERROR("No more space left in zone buffer."); // this->realloc(((size * count) + m_pos) - m_len);
 			return;
 		}
 
-		// Copy data to buffer
-		memcpy(&m_buf[m_pos], _data, size * count);
-		m_pos += size * count;
+		std::memcpy(&this->buffer_[this->pos_], data, size * count);
+		this->pos_ += size * count;
 	}
 
-	void zone_buffer::write_data(const void* _data, std::size_t size)
+	void zone_buffer::write_data(const void* data, const std::size_t size)
 	{
-		write_data(_data, size, 1);
+		this->write_data(data, size, 1);
 	}
 
-	void zone_buffer::write_stream(const void* _data, std::size_t size, std::size_t count)
+	void zone_buffer::write_stream(const void* data, const std::size_t size, const std::size_t count)
 	{
-		// If we're writing to stream 2...
-		if (m_stream == 2) // ZONESTREAM_RUNTIME. Meaning that this data is generated when the game runs.
-			// Therefore we need to alloc space, but we don't write data.
+		if (this->stream_ == zone_stream_runtime)
 		{
-			// if (m_numstreams > 0)
+			if (this->stream_count_ > 0)
 			{
-				m_zonestreams[m_stream] += size * count;
+				this->zone_streams_[this->stream_] += size * count;
 			}
 
 			return;
 		}
 
-		write_data(_data, size, count);
+		this->write_data(data, size, count);
 
-		// Update streams
-		// if (m_numstreams > 0)
+		if (this->stream_count_ > 0)
 		{
-			m_zonestreams[m_stream] += size * count;
+			this->zone_streams_[this->stream_] += size * count;
 		}
 	}
 
-	void zone_buffer::write_stream(const void* _data, std::size_t size)
+	void zone_buffer::write_stream(const void* data, const std::size_t size)
 	{
-		return write_stream(_data, size, 1);
+		return this->write_stream(data, size, 1);
 	}
 
-	char* zone_buffer::write_str(const std::string& _str)
+	char* zone_buffer::write_str(const std::string& str)
 	{
-		write_stream(_str.data(), _str.size() + 1);
+		this->write_stream(str.data(), str.size() + 1);
 		return reinterpret_cast<char*>(0xFDFDFDFFFFFFFFFF);
 	}
 
-	void zone_buffer::write_str_raw(const std::string& _str)
+	void zone_buffer::write_str_raw(const std::string& str)
 	{
-		return write_stream(_str.data(), _str.size() + 1);
+		return write_stream(str.data(), str.size() + 1);
 	}
 
 	std::uint8_t* zone_buffer::buffer()
 	{
-		return m_buf.data();
+		return this->buffer_.data();
 	}
 
 	std::size_t zone_buffer::size()
 	{
-		return m_pos;
+		return this->pos_;
 	}
 
 	void zone_buffer::clear()
 	{
-		m_buf.clear();
-		m_buf.shrink_to_fit();
+		this->buffer_.clear();
+		this->buffer_.shrink_to_fit();
 	}
 
-	void zone_buffer::align(std::uint64_t alignment)
+	void zone_buffer::align(const std::size_t alignment)
 	{
-		// if (m_numstreams > 0)
+		if (this->stream_count_ > 0)
 		{
-			m_zonestreams[m_stream] = (~alignment & (alignment + m_zonestreams[m_stream]));
+			this->zone_streams_[this->stream_] = (~alignment & (alignment + this->zone_streams_[this->stream_]));
 		}
 	}
 
 	void zone_buffer::inc_stream(const std::uint8_t stream, const std::size_t size)
 	{
-		m_zonestreams[stream] += size;
+		this->zone_streams_[stream] += size;
 	}
 
-	void zone_buffer::push_stream(std::uint8_t stream)
+	void zone_buffer::push_stream(const std::uint8_t stream)
 	{
-		m_streamstack.push(m_stream);
-		m_stream = stream;
+		this->stream_stack_.push(this->stream_);
+		this->stream_ = stream;
 	}
 
 	void zone_buffer::pop_stream()
 	{
-		m_stream = m_streamstack.top();
-		m_streamstack.pop();
+		this->stream_ = this->stream_stack_.top();
+		this->stream_stack_.pop();
 	}
 
 	std::uint8_t zone_buffer::current_stream()
 	{
-		return m_stream;
+		return this->stream_;
 	}
 
 	std::uint32_t zone_buffer::current_stream_offset()
 	{
-		return static_cast<std::uint32_t>(m_zonestreams[m_stream]);
+		return static_cast<std::uint32_t>(this->zone_streams_[this->stream_]);
 	}
 
-	std::uint32_t zone_buffer::stream_offset(std::uint8_t stream)
+	std::uint32_t zone_buffer::stream_offset(const std::uint8_t stream)
 	{
-		return static_cast<std::uint32_t>(m_zonestreams[stream]);
+		return static_cast<std::uint32_t>(this->zone_streams_[stream]);
 	}
 
 	std::uint32_t zone_buffer::write_scriptstring(const char* str)
 	{
-		for (std::uint32_t i = 0; i < this->m_scriptstrings.size(); i++)
+		for (auto i = 0u; i < this->script_strings_.size(); i++)
 		{
-			if (this->m_scriptstrings[i] == str || 
-				str && this->m_scriptstrings[i] && !strcmp(this->m_scriptstrings[i], str))
+			if (this->script_strings_[i] == str || 
+				str && this->script_strings_[i] && !strcmp(this->script_strings_[i], str))
 			{
 				return i;
 			}
 		}
-		this->m_scriptstrings.push_back(str);
-		return static_cast<std::uint32_t>(this->m_scriptstrings.size() - 1);
+
+		this->script_strings_.push_back(str);
+		return static_cast<std::uint32_t>(this->script_strings_.size() - 1);
 	}
 
-	const char* zone_buffer::get_scriptstring(std::size_t idx)
+	const char* zone_buffer::get_scriptstring(const std::size_t idx)
 	{
-		return this->m_scriptstrings[idx];
+		return this->script_strings_[idx];
 	}
 
 	std::size_t zone_buffer::scriptstring_count()
 	{
-		return this->m_scriptstrings.size();
+		return this->script_strings_.size();
 	}
 
-	std::uint8_t zone_buffer::write_depthstencilstatebit(std::uint64_t bits)
+	std::uint8_t zone_buffer::write_depthstencilstatebit(const std::size_t bits)
 	{
-		for (std::uint8_t i = 0; i < this->m_depthstencilstatebits.size(); i++)
+		for (auto i = 0u; i < this->depth_stencil_state_bits_.size(); i++)
 		{
-			if (this->m_depthstencilstatebits[i] == bits)
+			if (this->depth_stencil_state_bits_[i] == bits)
 			{
-				return i;
+				return static_cast<std::uint8_t>(i);
 			}
 		}
-		this->m_depthstencilstatebits.push_back(bits);
-		return static_cast<std::uint8_t>(this->m_depthstencilstatebits.size() - 1);
+
+		this->depth_stencil_state_bits_.push_back(bits);
+		return static_cast<std::uint8_t>(this->depth_stencil_state_bits_.size() - 1);
 	}
 
-	std::uint64_t zone_buffer::get_depthstencilstatebit(std::size_t idx)
+	std::size_t zone_buffer::get_depthstencilstatebit(const std::size_t idx)
 	{
-		return this->m_depthstencilstatebits[idx];
+		return this->depth_stencil_state_bits_[idx];
 	}
 
 	std::size_t zone_buffer::depthstencilstatebit_count()
 	{
-		return this->m_depthstencilstatebits.size();
+		return this->depth_stencil_state_bits_.size();
 	}
 
-	std::uint8_t zone_buffer::write_blendstatebits(std::array<std::uint32_t, 3> bits)
+	std::uint8_t zone_buffer::write_blendstatebits(const std::array<std::uint32_t, 3>& bits)
 	{
-		for (std::uint8_t i = 0; i < this->m_blendstatebits.size(); i++)
+		for (auto i = 0u; i < this->blend_state_bits_.size(); i++)
 		{
-			bool match = true;
+			auto match = true;
 			for (auto j = 0; j < 3; j++)
 			{
-				if (this->m_blendstatebits[i][j] != bits[j])
+				if (this->blend_state_bits_[i][j] != bits[j])
 				{
 					match = false;
 					break;
 				}
 			}
+
 			if (match)
 			{
-				return i;
+				return static_cast<std::uint8_t>(i);
 			}
 		}
-		this->m_blendstatebits.push_back(bits);
-		return static_cast<std::uint8_t>(this->m_blendstatebits.size() - 1);
+
+		this->blend_state_bits_.push_back(bits);
+		return static_cast<std::uint8_t>(this->blend_state_bits_.size() - 1);
 	}
 
-	std::array<std::uint32_t, 3> zone_buffer::get_blendstatebits(std::size_t idx)
+	std::array<std::uint32_t, 3> zone_buffer::get_blendstatebits(const std::size_t idx)
 	{
-		return this->m_blendstatebits[idx];
+		return this->blend_state_bits_[idx];
 	}
 
 	std::size_t zone_buffer::blendstatebits_count()
 	{
-		return this->m_blendstatebits.size();
+		return this->blend_state_bits_.size();
 	}
 
-	std::uint8_t zone_buffer::write_ppas(std::uint32_t sz)
+	std::uint8_t zone_buffer::write_ppas(const std::uint32_t sz)
 	{
-		for (std::uint8_t i = 0; i < this->m_ppas.size(); i++)
+		for (auto i = 0u; i < this->ppas_.size(); i++)
 		{
-			if (this->m_ppas[i] == sz)
+			if (this->ppas_[i] == sz)
 			{
-				return i;
+				return static_cast<std::uint8_t>(i);
 			}
 		}
-		this->m_ppas.push_back(sz);
-		return static_cast<std::uint8_t>(this->m_ppas.size() - 1);
+
+		this->ppas_.push_back(sz);
+		return static_cast<std::uint8_t>(this->ppas_.size() - 1);
 	}
 
-	std::uint32_t zone_buffer::get_ppas(std::size_t idx)
+	std::uint32_t zone_buffer::get_ppas(const std::size_t idx)
 	{
-		return this->m_ppas[idx];
+		return this->ppas_[idx];
 	}
 
 	std::size_t zone_buffer::ppas_count()
 	{
-		return this->m_ppas.size();
+		return this->ppas_.size();
 	}
 
-	std::uint8_t zone_buffer::write_poas(std::uint32_t sz)
+	std::uint8_t zone_buffer::write_poas(const std::uint32_t sz)
 	{
-		for (std::uint8_t i = 0; i < this->m_poas.size(); i++)
+		for (auto i = 0; i < this->poas_.size(); i++)
 		{
-			if (this->m_poas[i] == sz)
+			if (this->poas_[i] == sz)
 			{
-				return i;
+				return static_cast<std::uint8_t>(i);
 			}
 		}
-		this->m_poas.push_back(sz);
-		return static_cast<std::uint8_t>(this->m_poas.size() - 1);
+
+		this->poas_.push_back(sz);
+		return static_cast<std::uint8_t>(this->poas_.size() - 1);
 	}
 
-	std::uint32_t zone_buffer::get_poas(std::size_t idx)
+	std::uint32_t zone_buffer::get_poas(const std::size_t idx)
 	{
-		return this->m_poas[idx];
+		return this->poas_[idx];
 	}
 
 	std::size_t zone_buffer::poas_count()
 	{
-		return this->m_poas.size();
+		return this->poas_.size();
 	}
 
-	std::uint8_t zone_buffer::write_sas(std::uint32_t sz)
+	std::uint8_t zone_buffer::write_sas(const std::uint32_t sz)
 	{
-		for (std::uint8_t i = 0; i < this->m_sas.size(); i++)
+		for (auto i = 0; i < this->sas_.size(); i++)
 		{
-			if (this->m_sas[i] == sz)
+			if (this->sas_[i] == sz)
 			{
-				return i;
+				return static_cast<std::uint8_t>(i);
 			}
 		}
-		this->m_sas.push_back(sz);
-		return static_cast<std::uint8_t>(this->m_sas.size() - 1);
+
+		this->sas_.push_back(sz);
+		return static_cast<std::uint8_t>(this->sas_.size() - 1);
 	}
 
-	std::uint32_t zone_buffer::get_sas(std::size_t idx)
+	std::uint32_t zone_buffer::get_sas(const std::size_t idx)
 	{
-		return this->m_sas[idx];
+		return this->sas_[idx];
 	}
 
 	std::size_t zone_buffer::sas_count()
 	{
-		return this->m_sas.size();
+		return this->sas_.size();
 	}
 
-	void zone_buffer::write_streamfile(std::uintptr_t stream)
+	void zone_buffer::write_streamfile(const std::size_t stream)
 	{
-		this->m_streamfiles.push_back(stream);
+		this->stream_files_.push_back(stream);
 	}
 
-	std::uintptr_t zone_buffer::get_streamfile(std::size_t idx)
+	std::size_t zone_buffer::get_streamfile(const std::size_t idx)
 	{
-		return this->m_streamfiles[idx];
+		return this->stream_files_[idx];
 	}
 
 	std::size_t zone_buffer::streamfile_count()
 	{
-		return this->m_streamfiles.size();
+		return this->stream_files_.size();
 	}
 
 	void zone_buffer::save(const std::string& filename, bool use_zone_path)
@@ -399,27 +360,27 @@ namespace zonetool
 		auto file = filesystem::file(filename);
 		file.create_path();
 		file.open("wb", false, use_zone_path);
-		file.write(this->m_buf.data(), this->m_pos, 1);
+		file.write(this->buffer_.data(), this->pos_, 1);
 		file.close();
 	}
 
 	std::vector<std::uint8_t> zone_buffer::compress_zlib(bool compress_blocks)
 	{
-		return compression::compress_zlib(this->m_buf.data(), this->m_pos, compress_blocks);
+		return compression::compress_zlib(this->buffer_.data(), this->pos_, compress_blocks);
 	}
 
 	std::vector<std::uint8_t> zone_buffer::compress_zstd()
 	{
-		return compression::compress_zstd(this->m_buf.data(), this->m_pos);
+		return compression::compress_zstd(this->buffer_.data(), this->pos_);
 	}
 
 	std::vector<std::uint8_t> zone_buffer::compress_lz4()
 	{
-		return compression::compress_lz4(this->m_buf.data(), this->m_pos);
+		return compression::compress_lz4(this->buffer_.data(), this->pos_);
 	}
 
 	void zone_buffer::init_script_strings()
 	{
-		this->m_scriptstrings.clear();
+		this->script_strings_.clear();
 	}
 }

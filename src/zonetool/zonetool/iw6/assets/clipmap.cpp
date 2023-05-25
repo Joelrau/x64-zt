@@ -541,7 +541,7 @@ namespace zonetool::iw6
 		if (data->borders)
 		{
 			buf->align(3);
-			buf->write_p(data->borders, data->borderCount);
+			buf->write(data->borders, data->borderCount);
 			zone_buffer::clear_pointer(&dest->borders);
 		}
 
