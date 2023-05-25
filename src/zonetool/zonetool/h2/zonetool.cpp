@@ -451,7 +451,7 @@ namespace zonetool::h2
 		{
 			for (unsigned int i = 0; i < *g_zoneCount; i++)
 			{
-				if (!_strnicmp(::h2::game::g_zones[i].name, name.data(), 64))
+				if (!_strnicmp(::h2::game::g_zones[i + 1].name, name.data(), 64))
 				{
 					if (inform)
 					{

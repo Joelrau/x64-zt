@@ -17,6 +17,13 @@ namespace zonetool::h1
 #else
 	constexpr auto IS_DEBUG = false;
 #endif
+	struct dump_params
+	{
+		game::game_mode target;
+		std::string zone;
+		bool valid;
+		std::unordered_set<XAssetType> filter;
+	};
 
 	zonetool_globals_t globals{};
 	std::vector<std::pair<XAssetType, std::string>> referenced_assets;
@@ -473,7 +480,7 @@ namespace zonetool::h1
 		ZONETOOL_INFO("Unloaded zones...");
 	}
 
-	void dump_zone(const std::string& name, const game::game_mode target)
+	void dump_zone(const std::string& name, const game::game_mode target, const std::optional<std::string> fastfile = {})
 	{
 		if (!zone_exists(name.data()))
 		{
@@ -486,7 +493,15 @@ namespace zonetool::h1
 		globals.target_game = target;
 		ZONETOOL_INFO("Dumping zone \"%s\"...", name.data());
 
-		filesystem::set_fastfile(name);
+		if (fastfile.has_value())
+		{
+			filesystem::set_fastfile(fastfile.value());
+		}
+		else
+		{
+			filesystem::set_fastfile(name);
+		}
+
 		globals.dump = true;
 		if (!load_zone(name, DB_LOAD_ASYNC, false))
 		{
@@ -707,6 +722,65 @@ namespace zonetool::h1
 		ptr->init_streams(7);
 
 		return ptr;
+	}
+
+	dump_params get_dump_params(const ::h1::command::params& params)
+	{
+		dump_params dump_params{};
+		dump_params.target = game::h1;
+
+		const auto parse_params = [&]()
+		{
+			if (params.size() < 3)
+			{
+				dump_params.zone = params.get(1);
+				return true;
+			}
+
+			const auto mode = params.get(1);
+			dump_params.zone = params.get(2);
+			dump_params.target = game::get_mode_from_string(mode);
+
+			if (dump_params.target == game::none)
+			{
+				ZONETOOL_ERROR("Invalid dump target \"%s\"", mode);
+				return false;
+			}
+
+			if (!dump_functions.contains(dump_params.target))
+			{
+				ZONETOOL_ERROR("Unsupported dump target \"%s\" (%i)", mode, dump_params.target);
+				return false;
+			}
+
+			if (params.size() >= 4)
+			{
+				const auto asset_types_str = params.get(3);
+				if (asset_types_str == "_"s)
+				{
+					return true;
+				}
+
+				const auto asset_types = utils::string::split(asset_types_str, ',');
+
+				for (const auto& type_str : asset_types)
+				{
+					const auto type = type_to_int(type_str);
+					if (type == -1)
+					{
+						ZONETOOL_ERROR("Asset type \"%s\" does not exist", type_str.data());
+						return false;
+					}
+
+					dump_params.filter.insert(static_cast<XAssetType>(type));
+				}
+			}
+
+			return true;
+		};
+
+		dump_params.valid = parse_params();
+		return dump_params;
 	}
 
 	void build_zone(const std::string& fastfile)
@@ -942,6 +1016,95 @@ namespace zonetool::h1
 
 			verify_zone(params.get(1));
 		});
+
+		::h1::command::add("dumpmap", [](const ::h1::command::params& params)
+		{
+			if (params.size() < 2)
+			{
+				ZONETOOL_ERROR("usage: dumpmap <zone>");
+				return;
+			}
+
+			const auto dump_params = get_dump_params(params);
+			if (!dump_params.valid)
+			{
+				return;
+			}
+
+			const auto dump_zone_ = [&](const std::string& zone, 
+				const std::optional<std::unordered_set<XAssetType>>& filter = {})
+			{
+				asset_type_filter.clear();
+				if (filter.has_value())
+				{
+					asset_type_filter = filter.value();
+				}
+
+				dump_zone(zone, dump_params.target, {dump_params.zone});
+			};
+
+			auto skip_common = false;
+			if (params.size() >= 5)
+			{
+				const std::string skip_value = params.get(4);
+				skip_common = skip_value == "1" || skip_value == "true";
+			}
+
+			const std::unordered_set<XAssetType> techset_filter =
+			{
+				ASSET_TYPE_TECHNIQUE_SET,
+				ASSET_TYPE_PIXELSHADER,
+				ASSET_TYPE_VERTEXSHADER,
+				ASSET_TYPE_COMPUTESHADER,
+				ASSET_TYPE_DOMAINSHADER,
+				ASSET_TYPE_HULLSHADER,
+				ASSET_TYPE_VERTEXDECL
+			};
+
+			auto common_filter = techset_filter;
+			//common_filter.insert(ASSET_TYPE_IMAGE);
+
+			unload_zones();
+
+			auto zone_postfix = "";
+			auto is_mp = false;
+			if (dump_params.zone.starts_with("mp_"))
+			{
+				zone_postfix = "_mp";
+				is_mp = true;
+			}
+
+			std::vector<std::pair<std::string, std::unordered_set<XAssetType>>> common_zones =
+			{
+				{"code_post_gfx"s + zone_postfix, techset_filter},
+				{"techsets_common"s + zone_postfix, techset_filter},
+				{"common"s + zone_postfix, common_filter},
+				{"patch_common"s + zone_postfix, common_filter},
+				{"techsets_common_core_mp", techset_filter},
+			};
+
+			for (const auto& zone : common_zones)
+			{
+				if (skip_common)
+				{
+					load_zone(zone.first);
+				}
+				else
+				{
+					dump_zone_(zone.first, zone.second);
+				}
+			}
+
+			dump_zone_("techsets_" + dump_params.zone, dump_params.filter);
+			dump_zone_("eng_patch_" + dump_params.zone, dump_params.filter);
+			dump_zone_("patch_" + dump_params.zone, dump_params.filter);
+			dump_zone_(dump_params.zone + "_path", dump_params.filter);
+			dump_zone_(dump_params.zone + "_load", dump_params.filter);
+			dump_zone_(dump_params.zone);
+
+			ZONETOOL_INFO("Map \"%s\" dumped", dump_params.zone.data());
+		});
+
 
 		::h1::command::add("generatecsv", csv_generator::create_command
 			<::h1::command::params>([](const uint32_t id)
