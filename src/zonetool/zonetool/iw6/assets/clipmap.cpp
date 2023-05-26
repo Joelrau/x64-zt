@@ -465,13 +465,13 @@ namespace zonetool::iw6
 
 		ClipInfo* info_ptr = reinterpret_cast<ClipInfo*>(0xFDFDFDF000000000 + offsetof(clipMap_t, pInfo) + 1);
 
-		buf->push_stream(3);
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 
 		dest->name = buf->write_str(this->name_);
 
 		write_info(zone, buf, &data->info, &dest->info);
 
-		buf->push_stream(0);
+		buf->push_stream(XFILE_BLOCK_TEMP);
 		if (data->pInfo)
 		{
 			buf->align(3);
@@ -696,7 +696,7 @@ namespace zonetool::iw6
 			zone_buffer::clear_pointer(&dest->dynEntDefList[1]);
 		}
 
-		buf->push_stream(2);
+		buf->push_stream(XFILE_BLOCK_RUNTIME);
 		if (data->dynEntPoseList[0])
 		{
 			buf->align(3);
@@ -775,7 +775,7 @@ namespace zonetool::iw6
 						zone_buffer::clear_pointer(&destscriptable->eventConstantsBuf);
 					}
 
-					buf->push_stream(2);
+					buf->push_stream(XFILE_BLOCK_RUNTIME);
 					if (scriptable->currentModel)
 					{
 						destscriptable->currentModel = reinterpret_cast<XModel*>(

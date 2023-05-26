@@ -257,10 +257,10 @@ namespace zonetool::iw6
 		bool write_globals = (buf->depthstencilstatebit_count() + buf->blendstatebits_count()) > 0;
 		buf->write<std::uintptr_t>(write_globals ? (&pad) : (&zero)); // pointer to globals
 
-		buf->push_stream(3);
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 
 		// write scriptstrings
-		buf->push_stream(3);
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 		if (stringcount)
 		{
 			// write pointer for every scriptstring
@@ -360,7 +360,7 @@ namespace zonetool::iw6
 				buf->write(globals->blendStateBits, globals->blendStateCount);
 				zone_buffer::clear_pointer(&dest->blendStateBits);
 			}
-			buf->push_stream(2);
+			buf->push_stream(XFILE_BLOCK_RUNTIME);
 			if (globals->depthStencilStates)
 			{
 				buf->align(3);
@@ -377,7 +377,7 @@ namespace zonetool::iw6
 				zone_buffer::clear_pointer(&dest->depthStencilStates);
 			}
 			buf->pop_stream();
-			buf->push_stream(2);
+			buf->push_stream(XFILE_BLOCK_RUNTIME);
 			if (globals->blendStates)
 			{
 				buf->align(3);
@@ -412,7 +412,7 @@ namespace zonetool::iw6
 				buf->write(globals->stableConstantBufferSizes, globals->stableConstantBufferCount);
 				zone_buffer::clear_pointer(&dest->stableConstantBufferSizes);
 			}
-			buf->push_stream(2);
+			buf->push_stream(XFILE_BLOCK_RUNTIME);
 			if (globals->perPrimConstantBuffers)
 			{
 				buf->align(3);
@@ -429,7 +429,7 @@ namespace zonetool::iw6
 				zone_buffer::clear_pointer(&dest->perPrimConstantBuffers);
 			}
 			buf->pop_stream();
-			buf->push_stream(2);
+			buf->push_stream(XFILE_BLOCK_RUNTIME);
 			if (globals->perObjConstantBuffers)
 			{
 				buf->align(3);
@@ -446,7 +446,7 @@ namespace zonetool::iw6
 				zone_buffer::clear_pointer(&dest->perObjConstantBuffers);
 			}
 			buf->pop_stream();
-			buf->push_stream(2);
+			buf->push_stream(XFILE_BLOCK_RUNTIME);
 			if (globals->stableConstantBuffers)
 			{
 				buf->align(3);
@@ -466,7 +466,7 @@ namespace zonetool::iw6
 		}
 
 		buf->pop_stream();
-		buf->push_stream(3);
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 
 		// align buffer
 		buf->align(3);
@@ -493,7 +493,7 @@ namespace zonetool::iw6
 #endif
 
 			// push stream
-			buf->push_stream(0);
+			buf->push_stream(XFILE_BLOCK_TEMP);
 			buf->align(3);
 
 			// write asset

@@ -1690,7 +1690,7 @@ namespace zonetool::s1
 			zone_buffer::clear_pointer(&dest->__field__); \
 		}
 
-		buf->push_stream(3);
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 
 		dest->szInternalName = buf->write_str(this->name());
 

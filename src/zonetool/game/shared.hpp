@@ -59,6 +59,18 @@ namespace zonetool
 	};
 #pragma pack(pop)
 
+	enum XFileBlock
+	{
+		XFILE_BLOCK_TEMP = 0x0,
+		XFILE_BLOCK_PHYSICAL = 0x1,
+		XFILE_BLOCK_RUNTIME = 0x2,
+		XFILE_BLOCK_VIRTUAL = 0x3,
+		XFILE_BLOCK_LARGE = 0x4,
+		XFILE_BLOCK_CALLBACK = 0x5,
+		XFILE_BLOCK_SCRIPT = 0x6,
+		MAX_XFILE_COUNT = 0x7,
+	};
+
 	template <typename T>
 	class symbol
 	{

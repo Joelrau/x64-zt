@@ -105,7 +105,7 @@ namespace zonetool::h2
 		auto data = this->asset_;
 		auto dest = buf->write(data);
 
-		buf->push_stream(3);
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 
 		dest->filename = buf->write_str(this->name());
 

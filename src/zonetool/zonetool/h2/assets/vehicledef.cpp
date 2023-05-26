@@ -452,7 +452,7 @@ namespace zonetool::h2
 			zone_buffer::clear_pointer(&dest->__field__); \
 		}
 
-		buf->push_stream(3);
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 
 		dest->internalName = buf->write_str(this->name());
 

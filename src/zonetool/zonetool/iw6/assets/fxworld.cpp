@@ -137,7 +137,7 @@ namespace zonetool::iw6
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
 
-		buf->push_stream(3);
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 
 		dest->name = buf->write_str(this->name());
 
@@ -215,7 +215,7 @@ namespace zonetool::iw6
 			zone_buffer::clear_pointer(&dest->glassSys.defs);
 		}
 
-		buf->push_stream(2);
+		buf->push_stream(XFILE_BLOCK_RUNTIME);
 		if (data->glassSys.piecePlaces)
 		{
 			buf->align(3);

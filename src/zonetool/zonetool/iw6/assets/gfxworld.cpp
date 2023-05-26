@@ -366,7 +366,7 @@ namespace zonetool::iw6
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
 
-		buf->push_stream(3);
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 
 		dest->name = buf->write_str(this->name_);
 		dest->baseName = buf->write_str(this->base_name_);
@@ -406,7 +406,7 @@ namespace zonetool::iw6
 			zone_buffer::clear_pointer(&dest->dpvsPlanes.nodes);
 		}
 
-		buf->push_stream(2);
+		buf->push_stream(XFILE_BLOCK_RUNTIME);
 		if (data->dpvsPlanes.sceneEntCellBits)
 		{
 			buf->align(3);
@@ -530,7 +530,7 @@ namespace zonetool::iw6
 			zone_buffer::clear_pointer(&dest->draw.reflectionProbeOrigins);
 		}
 
-		buf->push_stream(2);
+		buf->push_stream(XFILE_BLOCK_RUNTIME);
 		if (data->draw.reflectionProbeTextures)
 		{
 			buf->align(3);
@@ -576,7 +576,7 @@ namespace zonetool::iw6
 			zone_buffer::clear_pointer(&dest->draw.lightmaps);
 		}
 
-		buf->push_stream(2);
+		buf->push_stream(XFILE_BLOCK_RUNTIME);
 		if (data->draw.lightmapPrimaryTextures)
 		{
 			buf->align(3);
@@ -585,7 +585,7 @@ namespace zonetool::iw6
 		}
 		buf->pop_stream();
 
-		buf->push_stream(2);
+		buf->push_stream(XFILE_BLOCK_RUNTIME);
 		if (data->draw.lightmapSecondaryTextures)
 		{
 			buf->align(3);
@@ -735,7 +735,7 @@ namespace zonetool::iw6
 				zone->get_asset_pointer(ASSET_TYPE_IMAGE, data->outdoorImage->name));
 		}
 
-		buf->push_stream(2);
+		buf->push_stream(XFILE_BLOCK_RUNTIME);
 		if (data->cellCasterBits)
 		{
 			buf->align(3);
@@ -874,7 +874,7 @@ namespace zonetool::iw6
 			zone_buffer::clear_pointer(&dest->lightRegion);
 		}
 
-		buf->push_stream(2);
+		buf->push_stream(XFILE_BLOCK_RUNTIME);
 		if (data->dpvs.smodelVisData[0])
 		{
 			buf->align(127);
@@ -958,7 +958,7 @@ namespace zonetool::iw6
 			buf->write(data->dpvs.lodData, data->dpvs.smodelCount + 1);
 			zone_buffer::clear_pointer(&dest->dpvs.lodData);
 		}
-		buf->push_stream(2);
+		buf->push_stream(XFILE_BLOCK_RUNTIME);
 
 		if (data->dpvs.unknownData2[0])
 		{
@@ -1038,7 +1038,7 @@ namespace zonetool::iw6
 			zone_buffer::clear_pointer(&dest->dpvs.smodelDrawInsts);
 		}
 
-		buf->push_stream(2);
+		buf->push_stream(XFILE_BLOCK_RUNTIME);
 		if (data->dpvs.surfaceMaterials)
 		{
 			buf->align(7);
@@ -1091,7 +1091,7 @@ namespace zonetool::iw6
 		}
 		buf->pop_stream();
 
-		buf->push_stream(2);
+		buf->push_stream(XFILE_BLOCK_RUNTIME);
 		if (data->dpvsDyn.dynEntCellBits[0])
 		{
 			buf->align(3);

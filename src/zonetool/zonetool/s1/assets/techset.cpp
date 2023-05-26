@@ -477,7 +477,7 @@ namespace zonetool::s1
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
 
-		buf->push_stream(3);
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 
 		dest->name = buf->write_str(this->name());
 
@@ -514,9 +514,9 @@ namespace zonetool::s1
 					}
 					else
 					{
-						buf->push_stream(0);
+						buf->push_stream(XFILE_BLOCK_TEMP);
 
-						buf->push_stream(3);
+						buf->push_stream(XFILE_BLOCK_VIRTUAL);
 						buf->align(7);
 						ptr = 0xFDFDFDF300000000 + buf->stream_offset(3) + 1;
 						add_vertexdecl_pointer(technique_passes[pass].vertexDecl->name, ptr);
@@ -525,7 +525,7 @@ namespace zonetool::s1
 
 						auto vertexDecl = buf->write(data->techniques[technique]->passArray[pass].vertexDecl);
 
-						buf->push_stream(3);
+						buf->push_stream(XFILE_BLOCK_VIRTUAL);
 						if (data->techniques[technique]->passArray[pass].vertexDecl->name)
 						{
 							vertexDecl->name = buf->write_str(data->techniques[technique]->passArray[pass].vertexDecl->name);

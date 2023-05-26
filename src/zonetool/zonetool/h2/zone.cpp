@@ -140,7 +140,7 @@ namespace zonetool::h2
 			ADD_ASSET(ASSET_TYPE_ADDON_MAP_ENTS, IAddonMapEnts);
 			ADD_ASSET(ASSET_TYPE_MAP_ENTS, map_ents);
 			ADD_ASSET(ASSET_TYPE_MATERIAL, material);
-			ADD_ASSET(ASSET_TYPE_NET_CONST_STRINGS, net_const_strings);
+			//ADD_ASSET(ASSET_TYPE_NET_CONST_STRINGS, net_const_strings);
 			ADD_ASSET(ASSET_TYPE_RAWFILE, rawfile);
 			ADD_ASSET(ASSET_TYPE_REVERB_CURVE, reverb_curve);
 			ADD_ASSET(ASSET_TYPE_SCRIPTABLE, scriptable_def);
@@ -261,10 +261,10 @@ namespace zonetool::h2
 		bool write_globals = (buf->depthstencilstatebit_count() + buf->blendstatebits_count()) > 0;
 		buf->write<std::uintptr_t>(write_globals ? (&pad) : (&zero)); // pointer to globals
 
-		buf->push_stream(3);
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 
 		// write scriptstrings
-		buf->push_stream(3);
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 		if (stringcount)
 		{
 			// write pointer for every scriptstring
@@ -365,7 +365,7 @@ namespace zonetool::h2
 				buf->write(globals->blendStateBits, globals->blendStateCount);
 				zone_buffer::clear_pointer(&dest->blendStateBits);
 			}
-			buf->push_stream(2);
+			buf->push_stream(XFILE_BLOCK_RUNTIME);
 			if (globals->depthStencilStates)
 			{
 				buf->align(3);
@@ -382,7 +382,7 @@ namespace zonetool::h2
 				zone_buffer::clear_pointer(&dest->depthStencilStates);
 			}
 			buf->pop_stream();
-			buf->push_stream(2);
+			buf->push_stream(XFILE_BLOCK_RUNTIME);
 			if (globals->blendStates)
 			{
 				buf->align(3);
@@ -417,7 +417,7 @@ namespace zonetool::h2
 				buf->write(globals->stableConstantBufferSizes, globals->stableConstantBufferCount);
 				zone_buffer::clear_pointer(&dest->stableConstantBufferSizes);
 			}
-			buf->push_stream(2);
+			buf->push_stream(XFILE_BLOCK_RUNTIME);
 			if (globals->perPrimConstantBuffers)
 			{
 				buf->align(3);
@@ -434,7 +434,7 @@ namespace zonetool::h2
 				zone_buffer::clear_pointer(&dest->perPrimConstantBuffers);
 			}
 			buf->pop_stream();
-			buf->push_stream(2);
+			buf->push_stream(XFILE_BLOCK_RUNTIME);
 			if (globals->perObjConstantBuffers)
 			{
 				buf->align(3);
@@ -451,7 +451,7 @@ namespace zonetool::h2
 				zone_buffer::clear_pointer(&dest->perObjConstantBuffers);
 			}
 			buf->pop_stream();
-			buf->push_stream(2);
+			buf->push_stream(XFILE_BLOCK_RUNTIME);
 			if (globals->stableConstantBuffers)
 			{
 				buf->align(3);
@@ -471,7 +471,7 @@ namespace zonetool::h2
 		}
 
 		buf->pop_stream();
-		buf->push_stream(3);
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 
 		// align buffer
 		buf->align(3);
@@ -500,7 +500,7 @@ namespace zonetool::h2
 #endif
 
 			// push stream
-			buf->push_stream(0);
+			buf->push_stream(XFILE_BLOCK_TEMP);
 			buf->align(3);
 
 			// write asset
@@ -611,7 +611,7 @@ namespace zonetool::h2
 
 		this->m_assetbase = 0;
 
-		this->m_zonemem = std::make_shared<zone_memory>(MAX_ZONE_SIZE);
+		this->m_zonemem = std::make_shared<zone_memory>(MAX_ZONE_SIZE * 2);
 	}
 
 	zone_interface::~zone_interface()

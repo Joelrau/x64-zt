@@ -405,11 +405,11 @@ namespace zonetool::iw6
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
 
-		buf->push_stream(3);
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 
 		dest->name = buf->write_str(this->name());
 
-		buf->push_stream(0);
+		buf->push_stream(XFILE_BLOCK_TEMP);
 
 		if (data->sound.data)
 		{
