@@ -3,6 +3,7 @@
 #include "memory.hpp"
 #include "utils.hpp"
 #include "compression.hpp"
+#include "perf_debug.hpp"
 
 #include <utils/string.hpp>
 #include <utils/io.hpp>
@@ -10,39 +11,46 @@
 namespace zonetool::imagefile
 {
 	template <typename T>
-	void compress_images(const std::vector<T*>& images)
+	void compress_images(const std::vector<T*>& images, int mult)
 	{
-		constexpr auto max_threads = 100;
-		std::atomic_size_t thread_count{};
-
-		std::vector<std::thread> threads;
 		ZONETOOL_INFO("Compressing images...");
 
-		for (const auto& image : images)
+		const auto max_threads = std::thread::hardware_concurrency() * 2;
+		const auto images_per_thread = static_cast<int>(images.size() / max_threads);
+
+		std::vector<std::thread> threads;
+
+		const auto start_thread = [&](const int index, const int count)
 		{
-			while (thread_count > max_threads)
+			threads.emplace_back([&, index, count]
 			{
-				std::this_thread::sleep_for(10ms);
-			}
-
-			++thread_count;
-			threads.emplace_back([&]
-			{
-				for (auto i = 0; i < 4; i++)
+				for (auto i = index; i < index + count; i++)
 				{
-					auto& path = image->image_stream_blocks_paths[i];
-					if (!path.has_value())
+					const auto image = images[i];
+					for (auto o = 0; o < 4; o++)
 					{
-						continue;
+						auto& path = image->image_stream_blocks_paths[o];
+						if (!path.has_value())
+						{
+							continue;
+						}
+
+						const auto block = utils::io::read_file(path.value());
+						const auto compressed = compression::lz4::compress_lz4_block(block);
+						image->image_stream_blocks[o].emplace(compressed);
 					}
-
-					const auto block = utils::io::read_file(path.value());
-					const auto compressed = compression::lz4::compress_lz4_block(block);
-					image->image_stream_blocks[i].emplace(compressed);
 				}
-
-				--thread_count;
 			});
+		};
+
+		auto images_left = static_cast<int>(images.size());
+		auto index = 0;
+		while (images_left > 0)
+		{
+			const auto count = std::min(images_left, images_per_thread);
+			start_thread(index, count);
+			index += count;
+			images_left -= count;
 		}
 
 		for (auto& thread : threads)
