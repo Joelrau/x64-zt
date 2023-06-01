@@ -11,7 +11,7 @@
 namespace zonetool::imagefile
 {
 	template <typename T>
-	void compress_images(const std::vector<T*>& images, int mult)
+	void compress_images(const std::vector<T*>& images)
 	{
 		ZONETOOL_INFO("Compressing images...");
 
