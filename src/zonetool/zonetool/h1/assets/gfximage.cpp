@@ -256,6 +256,20 @@ namespace zonetool::h1
 		return {{reinterpret_cast<const char*>(pixel_data), size}};
 	}
 
+	std::optional<std::string> get_streamed_image_pixels_path(const std::string& name, int stream)
+	{
+		const auto image_path = utils::string::va("streamed_images\\%s_stream%i.pixels",
+			clean_name(name).data(), stream);
+		const auto full_path = filesystem::get_file_path(image_path) + image_path;
+
+		if (utils::io::file_exists(full_path))
+		{
+			return {full_path};
+		}
+
+		return {};
+	}
+
 	std::optional<std::string> get_streamed_image_data(const std::string& name, int stream)
 	{
 		const auto pixels = get_streamed_image_pixels(name, stream);
@@ -292,15 +306,14 @@ namespace zonetool::h1
 
 		for (auto i = 0; i < 4; i++)
 		{
-			const auto result = get_streamed_image_pixels(name, i);
+			const auto result = get_streamed_image_pixels_path(name, i);
 			if (!result.has_value())
 			{
 				continue;
 			}
 
-			const auto& pixels = result.value();
-			const auto compressed = compression::lz4::compress_lz4_block(pixels);
-			this->image_stream_blocks[i] = {compressed};
+			const auto& path = result.value();
+			this->image_stream_blocks_paths[i] = {path};
 		}
 
 		read.close();

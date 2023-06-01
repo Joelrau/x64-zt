@@ -160,6 +160,10 @@ namespace zonetool::h1
 							new_asset->elemDefs[i].extended.decalDef = allocator.allocate<zonetool::h2::FxDecalDef>();
 						}
 					}
+					else if (new_asset->elemDefs[i].elemType == zonetool::h2::FX_ELEM_TYPE_DECAL)
+					{
+						new_asset->elemDefs[i].extended.decalDef = allocator.allocate<zonetool::h2::FxDecalDef>();
+					}
 
 					COPY_VALUE_FX(sortOrder);
 					COPY_VALUE_FX(lightingFrac);

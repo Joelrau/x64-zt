@@ -11,6 +11,7 @@ namespace zonetool::h2
 
 	public:
 		std::array<XStreamFile*, 4> image_stream_files;
+		std::array<std::optional<std::string>, 4> image_stream_blocks_paths;
 		std::array<std::optional<std::string>, 4> image_stream_blocks;
 		bool custom_streamed_image = false;
 

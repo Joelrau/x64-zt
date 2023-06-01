@@ -225,6 +225,20 @@ namespace zonetool::h2
 		return {};
 	}
 
+	std::optional<std::string> get_streamed_image_pixels_path(const std::string& name, int stream)
+	{
+		const auto image_path = utils::string::va("streamed_images\\%s_stream%i.pixels",
+			clean_name(name).data(), stream);
+		const auto full_path = filesystem::get_file_path(image_path) + image_path;
+
+		if (utils::io::file_exists(full_path))
+		{
+			return {full_path};
+		}
+
+		return {};
+	}
+
 	bool get_streamed_image_dds(const std::string& name, int stream, DirectX::ScratchImage& image)
 	{
 		const auto image_path = utils::string::va("streamed_images\\%s_stream%i.dds",
@@ -291,48 +305,16 @@ namespace zonetool::h2
 
 		this->custom_streamed_image = true;
 
-		//auto total_size = 0;
 		for (auto i = 0; i < 4; i++)
 		{
-			// dds doesnt work properly yet
-			const auto result = get_streamed_image_pixels(name, i);
+			const auto result = get_streamed_image_pixels_path(name, i);
 			if (!result.has_value())
 			{
 				continue;
 			}
 
-			/*const auto& metadata = image.GetMetadata();
-			if (asset == nullptr)
-			{
-				asset->imageFormat = metadata.format;
-				asset->mapType = static_cast<MapType>(metadata.dimension);
-				asset->semantic = 2;
-				asset->category = 3;
-				asset->flags = 0;
-				asset->width = 1;
-				asset->height = 1;
-				asset->depth = static_cast<unsigned short>(metadata.depth);
-				asset->numElements = 1;
-				asset->levelCount = 1;
-				asset->streamed = 1;
-				asset->pixelData = nullptr;
-			}
-
-			const auto& pixels = result.value();
-			total_size += static_cast<unsigned int>(pixels.size());
-
-			const auto unk_byte = asset->streams[i].bytes[3];
-			asset->streams[i].pixelSize = total_size;
-			asset->streams[i].bytes[3] = unk_byte;*/
-
-			const auto& pixels = result.value();
-			const auto compressed = compression::lz4::compress_lz4_block(pixels);
-			this->image_stream_blocks[i] = {compressed};
-		}
-
-		if (asset != nullptr)
-		{
-			//asset->dataLen2 = total_size;
+			const auto& path = result.value();
+			this->image_stream_blocks_paths[i] = {path};
 		}
 
 		read.close();

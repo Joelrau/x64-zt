@@ -2,6 +2,7 @@
 
 #include "memory.hpp"
 #include "utils.hpp"
+#include "compression.hpp"
 
 #include <utils/string.hpp>
 #include <utils/io.hpp>
@@ -9,9 +10,56 @@
 namespace zonetool::imagefile
 {
 	template <typename T>
+	void compress_images(const std::vector<T*>& images)
+	{
+		constexpr auto max_threads = 100;
+		std::atomic_size_t thread_count{};
+
+		std::vector<std::thread> threads;
+		ZONETOOL_INFO("Compressing images...");
+
+		for (const auto& image : images)
+		{
+			while (thread_count > max_threads)
+			{
+				std::this_thread::sleep_for(10ms);
+			}
+
+			++thread_count;
+			threads.emplace_back([&]
+			{
+				for (auto i = 0; i < 4; i++)
+				{
+					auto& path = image->image_stream_blocks_paths[i];
+					if (!path.has_value())
+					{
+						continue;
+					}
+
+					const auto block = utils::io::read_file(path.value());
+					const auto compressed = compression::lz4::compress_lz4_block(block);
+					image->image_stream_blocks[i].emplace(compressed);
+				}
+
+				--thread_count;
+			});
+		}
+
+		for (auto& thread : threads)
+		{
+			if (thread.joinable())
+			{
+				thread.join();
+			}
+		}
+	}
+
+	template <typename T>
 	void generate(const std::string& fastfile, std::uint16_t index, int ff_version, const std::string& ff_header,
 		std::vector<T*> images, zone_memory* mem)
 	{
+		compress_images(images);
+
 		if (images.size() == 0)
 		{
 			return;
