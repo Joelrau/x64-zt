@@ -3,7 +3,6 @@
 #include "memory.hpp"
 #include "utils.hpp"
 #include "compression.hpp"
-#include "perf_debug.hpp"
 
 #include <utils/string.hpp>
 #include <utils/io.hpp>

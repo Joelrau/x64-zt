@@ -576,8 +576,9 @@ namespace zonetool::h2
 						{
 							if (technique_passes[pass].args[arg].u.literalConst)
 							{
-								technique_passes[pass].args[arg].u.literalConst = buf->write_s(3,
-									technique_passes[pass].args[arg].u.literalConst, 4);
+								buf->align(3);
+								buf->write(technique_passes[pass].args[arg].u.literalConst, 4);
+								zone_buffer::clear_pointer(&technique_passes[pass].args[arg].u.literalConst);
 							}
 						}
 					}
