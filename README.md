@@ -6,6 +6,9 @@
 * **H1** (*Call of Duty: Modern Warfare Remastered*)
 * **H2** (*Call of Duty: Modern Warfare 2 Campaign Remastered*)
 
+## Wiki
+Check out the [wiki](https://github.com/Joelrau/x64-zt/wiki) for useful guides & information.
+
 ## Commands
 * `loadzone <zone>`: Loads a zone
 * `unloadzones`: Unloads zones
