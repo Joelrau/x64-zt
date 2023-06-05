@@ -2081,13 +2081,13 @@ namespace zonetool::h2
 	{
 		float base[3];
 		float amplitude[3];
-		float unk_vec[3];
 	};
 
 	struct FxElemVelStateInFrame
 	{
 		FxElemVec3Range velocity;
 		FxElemVec3Range totalDelta;
+		FxElemVec3Range unk_range;
 	};
 
 	struct FxElemVelStateSample
