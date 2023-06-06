@@ -4,17 +4,6 @@ namespace h1
 {
 	namespace game
 	{
-		enum Sys_Folder
-		{
-			SF_ZONE = 0x0,
-			SF_ZONE_LOC = 0x1,
-			SF_VIDEO = 0x2,
-			SF_VIDEO_LOC = 0x3,
-			SF_PAKFILE = 0x4,
-			SF_PAKFILE_LOC = 0x5,
-			SF_COUNT = 0x6,
-		};
-
 		enum CodPlayMode
 		{
 			CODPLAYMODE_NONE = 0x0,
@@ -335,6 +324,84 @@ namespace h1
 			THREAD_CONTEXT_SNDSTREAMPACKETCALLBACK = 0xE,
 			THREAD_CONTEXT_STATS_WRITE = 0xF,
 			THREAD_CONTEXT_COUNT = 0x10,
+		};
+
+		enum Sys_Folder
+		{
+			SF_ZONE = 0x0,
+			SF_ZONE_LOC = 0x1,
+			SF_VIDEO = 0x2,
+			SF_VIDEO_LOC = 0x3,
+			SF_PAKFILE = 0x4,
+			SF_PAKFILE_LOC = 0x5,
+			SF_COUNT = 0x6,
+		};
+
+		enum FileSysResult : std::int32_t
+		{
+			FILESYSRESULT_SUCCESS = 0x0,
+			FILESYSRESULT_EOF = 0x1,
+			FILESYSRESULT_ERROR = 0x2,
+		};
+
+		struct DB_IFileSysFile
+		{
+			void* file;
+			uint64_t last_read;
+			uint64_t bytes_read;
+		};
+
+		struct DB_FileSysInterface;
+
+		// this is a best guess, interface doesn't match up exactly w/other games (IW8, T9)
+		struct DB_FileSysInterface_vtbl
+		{
+			DB_IFileSysFile* (__fastcall* OpenFile)(DB_FileSysInterface* _this, Sys_Folder folder, const char* filename);
+			FileSysResult(__fastcall* Read)(DB_FileSysInterface* _this, DB_IFileSysFile* handle, unsigned __int64 offset, unsigned __int64 size, void* dest);
+			FileSysResult(__fastcall* Tell)(DB_FileSysInterface* _this, DB_IFileSysFile* handle, unsigned __int64* bytesRead);
+			__int64(__fastcall* Size)(DB_FileSysInterface* _this, DB_IFileSysFile* handle);
+			void(__fastcall* Close)(DB_FileSysInterface* _this, DB_IFileSysFile* handle);
+			bool(__fastcall* Exists)(DB_FileSysInterface* _this, Sys_Folder folder, const char* filename);
+		};
+
+		struct DB_FileSysInterface
+		{
+			DB_FileSysInterface_vtbl* vftbl;
+		};
+
+		enum DBAllocFlags : std::int32_t
+		{
+			DB_ZONE_NONE = 0x0,
+			DB_ZONE_COMMON = 0x1,
+			DB_ZONE_UI = 0x2,
+			DB_ZONE_GAME = 0x4,
+			DB_ZONE_LOAD = 0x8,
+			DB_ZONE_DEV = 0x10,
+			DB_ZONE_BASEMAP = 0x20,
+			DB_ZONE_TRANSIENT_POOL = 0x40,
+			DB_ZONE_TRANSIENT_MASK = 0x40,
+			DB_ZONE_CUSTOM = 0x1000 // added for custom zone loading
+		};
+
+		struct XZoneInfo
+		{
+			const char* name;
+			int allocFlags;
+			int freeFlags;
+		};
+
+		struct XZoneInfoInternal
+		{
+			char name[64];
+			int flags;
+			int isBaseMap;
+		};
+
+		struct XZone
+		{
+			char __pad0[32];
+			char name[64];
+			char __pad1[408];
 		};
 	}
 }

@@ -24,6 +24,7 @@ namespace h1
 
 		WEAK symbol<void(errorParm code, const char* message, ...)> Com_Error{ 0x1400D78A0 };
 		WEAK symbol<void()> Com_Quit_f{ 0x1400DA830 };
+		WEAK symbol<int(char* dest, int size, const char* fmt, ...)> Com_sprintf{ 0x140503B10 };
 
 		WEAK symbol<void()> Quit{ 0x1400DA830 };
 
@@ -83,5 +84,9 @@ namespace h1
 		WEAK symbol<dvar_t> dvarPool{ 0x14D064D00 };
 
 		WEAK symbol<DWORD> threadIds{ 0x149810E00 };
+
+		WEAK symbol<XZone> g_zones{ 0x1450F56D0 };
+
+		WEAK symbol< DB_FileSysInterface*> db_fs{ 0x1413F8F78 };
 	}
 }
