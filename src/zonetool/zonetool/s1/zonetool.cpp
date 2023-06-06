@@ -1241,6 +1241,7 @@ namespace zonetool::s1
 				}
 			}
 
+			dump_zone_("eng_" + dump_params.zone, dump_params.filter);
 			dump_zone_("eng_patch_" + dump_params.zone, dump_params.filter);
 			dump_zone_("patch_" + dump_params.zone, dump_params.filter);
 			dump_zone_(dump_params.zone + "_path", dump_params.filter);
