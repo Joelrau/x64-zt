@@ -342,7 +342,8 @@ namespace zonetool::h1
 		}
 		else if (asset->soundFile->type == SAT_PRIMED)
 		{
-			ZONETOOL_FATAL("SAT_PRIMED parsing is not supported yet.");
+			ZONETOOL_ERROR("SAT_PRIMED parsing is not supported yet.");
+			asset->soundFile->exists = false;
 		}
 
 		SOUND_INT(flags);
