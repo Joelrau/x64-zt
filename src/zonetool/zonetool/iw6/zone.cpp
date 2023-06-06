@@ -197,7 +197,7 @@ namespace zonetool::iw6
 	{
 		buf->init_streams(7);
 
-		auto startTime = GetTickCount64();
+		[[maybe_unused]] const auto start_time = GetTickCount64();
 
 		ZONETOOL_INFO("Compiling fastfile \"%s\"...", this->name_.data());
 
@@ -592,7 +592,7 @@ namespace zonetool::iw6
 		fastfile.save(path);
 
 		ZONETOOL_INFO("Successfully compiled fastfile \"%s\"!", this->name_.data());
-		ZONETOOL_INFO("Compiling took %llu msec.", (GetTickCount64() - startTime));
+		ZONETOOL_INFO("Compiling took %llu msec.", (GetTickCount64() - start_time));
 	}
 
 	zone_interface::zone_interface(std::string name)
