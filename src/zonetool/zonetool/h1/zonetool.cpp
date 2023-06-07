@@ -453,7 +453,7 @@ namespace zonetool::h1
 		{
 			for (auto i = 0u; i < *g_zoneCount; i++)
 			{
-				if (!_strnicmp(g_zoneInfo[i].name, name.data(), 64))
+				if (!_strnicmp(g_zones[i + 1].name, name.data(), 64))
 				{
 					if (inform)
 					{

@@ -8111,4 +8111,11 @@ namespace zonetool::h1
 		int flags;
 		int isBaseMap;
 	};
+
+	struct XZone
+	{
+		char __pad0[32];
+		char name[64];
+		char __pad1[408];
+	};
 }
