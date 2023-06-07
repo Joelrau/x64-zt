@@ -7,14 +7,19 @@ namespace zonetool
 {
 	namespace filesystem
 	{
-		file::file(const std::string& filepath)
+		file::file(const std::string& filepath_)
 		{
-			if (filepath.empty())
+			this->initialize(filepath_);
+		}
+
+		void file::initialize(const std::filesystem::path& filepath_)
+		{
+			if (filepath_.empty())
 			{
 				return;
 			}
 
-			this->filepath = std::filesystem::path(filepath);
+			this->filepath = filepath_;
 			this->parent_path = this->filepath.parent_path().string();
 			this->filename = this->filepath.filename().string();
 		}
@@ -22,6 +27,41 @@ namespace zonetool
 		file::file()
 		{
 			this->fp = nullptr;
+		}
+
+		file::file(const file& other) : file(other.filepath.generic_string())
+		{
+		}
+
+		file::file(file&& other) noexcept
+		{
+			this->initialize(other.filepath);
+			this->fp = other.fp;
+			other.fp = nullptr;
+		}
+
+		file& file::operator=(const file& other)
+		{
+			if (&other != this)
+			{
+				this->close();
+				this->initialize(other.filepath);
+			}
+
+			return *this;
+		}
+
+		file& file::operator=(file&& other) noexcept
+		{
+			if (&other != this)
+			{
+				this->close();
+				this->initialize(other.filepath);
+				this->fp = other.fp;
+				other.fp = nullptr;
+			}
+
+			return *this;
 		}
 
 		file::~file()
