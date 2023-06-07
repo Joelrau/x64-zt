@@ -386,7 +386,11 @@ namespace zonetool::h1
 		ZONETOOL_INFO("Zone \"%s\" dumped.", filesystem::get_fastfile().data());
 
 		referenced_assets.clear();
-		globals = {};
+
+		globals.csv_file.close();
+		globals.csv_file = {};
+
+		globals.dump = false;
 	}
 
 	utils::hook::detour db_link_x_asset_entry1_hook;
@@ -449,7 +453,7 @@ namespace zonetool::h1
 		{
 			for (auto i = 0u; i < *g_zoneCount; i++)
 			{
-				if (!std::strncmp(g_zoneInfo[i].name, name.data(), 64))
+				if (!_strnicmp(g_zoneInfo[i].name, name.data(), 64))
 				{
 					if (inform)
 					{
@@ -1202,7 +1206,8 @@ namespace zonetool::h1
 
 	void on_exit(void)
 	{
-		globals = {};
+		globals.dump = false;
+		globals.csv_file.close();
 	}
 
 	utils::hook::detour doexit_hook;
@@ -1215,10 +1220,7 @@ namespace zonetool::h1
 	void init_zonetool()
 	{
 		static bool initialized = false;
-		if (initialized)
-		{
-			return;
-		}
+		if (initialized) return;
 
 		initialized = true;
 
