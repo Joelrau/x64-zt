@@ -133,7 +133,6 @@ namespace zonetool::s1
 	void scriptable_def::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
-		this->asset_ = this->parse(name, mem);
 
 		if (this->referenced())
 		{
@@ -142,6 +141,7 @@ namespace zonetool::s1
 			return;
 		}
 
+		this->asset_ = this->parse(name, mem);
 		if (!this->asset_)
 		{
 			ZONETOOL_FATAL("Could not parse scriptable \"%s\"", name.data());
