@@ -27,6 +27,35 @@ namespace zonetool::h1
 		return nullptr;
 	}
 
+	SkeletonScript* skeleton_script::parse(std::string name, zone_memory* mem)
+	{
+		const auto path = "skeletonscript\\"s + name;
+
+		assetmanager::reader read(mem);
+		if (!read.open(path))
+		{
+			return nullptr;
+		}
+
+		SkeletonScript* asset = read.read_single<SkeletonScript>();
+		asset->name = read.read_string();
+
+		asset->ikData.charData = read.read_array<char>();
+		asset->ikData.floatData = read.read_array<float>();
+		asset->ikData.int32Data = read.read_array<int>();
+		asset->ikData.strings = mem->allocate<scr_string_t>(asset->ikData.stringsCount);
+		for (unsigned char i = 0; i < asset->ikData.stringsCount; i++)
+		{
+			this->add_script_string(&asset->ikData.strings[i], read.read_string());
+		}
+
+		asset->code = read.read_array<SkeletonScriptCode>();
+
+		read.close();
+
+		return asset;
+	}
+
 	void skeleton_script::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
@@ -38,12 +67,16 @@ namespace zonetool::h1
 			return;
 		}
 
-		this->asset_ = db_find_x_asset_header_copy<SkeletonScript>(XAssetType(this->type()), this->name().data(), mem).skeletonScript;
-		auto* original_strings = this->asset_->ikData.strings;
-		this->asset_->ikData.strings = mem->allocate<scr_string_t>(this->asset_->ikData.stringsCount);
-		for (unsigned char i = 0; i < this->asset_->ikData.stringsCount; i++)
+		this->asset_ = this->parse(name, mem);
+		if (!this->asset_)
 		{
-			this->add_script_string(&this->asset_->ikData.strings[i], SL_ConvertToString(original_strings[i]));
+			this->asset_ = db_find_x_asset_header_copy<SkeletonScript>(XAssetType(this->type()), this->name().data(), mem).skeletonScript;
+			auto* original_strings = this->asset_->ikData.strings;
+			this->asset_->ikData.strings = mem->allocate<scr_string_t>(this->asset_->ikData.stringsCount);
+			for (unsigned char i = 0; i < this->asset_->ikData.stringsCount; i++)
+			{
+				this->add_script_string(&this->asset_->ikData.strings[i], SL_ConvertToString(original_strings[i]));
+			}
 		}
 	}
 
@@ -88,13 +121,6 @@ namespace zonetool::h1
 			zone_buffer::clear_pointer(&dest->ikData.charData);
 		}
 
-		if (data->ikData.charData)
-		{
-			buf->align(0);
-			buf->write(data->ikData.charData, data->ikData.charDataLen);
-			zone_buffer::clear_pointer(&dest->ikData.charData);
-		}
-
 		if (data->ikData.floatData)
 		{
 			buf->align(3);
@@ -121,5 +147,27 @@ namespace zonetool::h1
 
 	void skeleton_script::dump(SkeletonScript* asset)
 	{
+		const auto path = "skeletonscript\\"s + asset->name;
+
+		assetmanager::dumper dump;
+		if (!dump.open(path))
+		{
+			return;
+		}
+
+		dump.dump_single(asset);
+		dump.dump_string(asset->name);
+
+		dump.dump_array(asset->ikData.charData, asset->ikData.charDataLen);
+		dump.dump_array(asset->ikData.floatData, asset->ikData.floatDataLen);
+		dump.dump_array(asset->ikData.int32Data, asset->ikData.int32DataLen);
+		for (unsigned char i = 0; i < asset->ikData.stringsCount; i++)
+		{
+			dump.dump_string(SL_ConvertToString(asset->ikData.strings[i]));
+		}
+
+		dump.dump_array(asset->code, asset->codeLen);
+
+		dump.close();
 	}
 }
