@@ -226,7 +226,6 @@ namespace zonetool::iw6
 
 			if (images.size() > 0)
 			{
-				ZONETOOL_INFO("Writing imagefile...");
 				imagefile::generate(filesystem::get_fastfile(),
 					CUSTOM_IMAGEFILE_INDEX, FF_VERSION, FF_HEADER, images, this->m_zonemem.get());
 			}

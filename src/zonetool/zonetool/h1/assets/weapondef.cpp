@@ -545,8 +545,8 @@ namespace zonetool::h1
 		WeaponDef* baseAsset = nullptr;
 		if (!base.empty())
 		{
-			baseAsset = db_find_x_asset_header(ASSET_TYPE_WEAPON, base.data(), 0).weapon;
-			if (baseAsset == nullptr || DB_IsXAssetDefault(ASSET_TYPE_WEAPON, base.data()))
+			baseAsset = db_find_x_asset_header(ASSET_TYPE_WEAPON, base.data(), 1).weapon;
+			if (baseAsset == nullptr)
 			{
 				ZONETOOL_FATAL("Could not load base asset \"%s\" into memory...", base.data());
 			}

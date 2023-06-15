@@ -230,7 +230,6 @@ namespace zonetool::h2
 
 			if (images.size() > 0)
 			{
-				ZONETOOL_INFO("Writing imagefile...");
 				imagefile::generate(filesystem::get_fastfile(),
 					custom_imagefile_index, FF_VERSION, FF_HEADER, images, this->m_zonemem.get());
 			}

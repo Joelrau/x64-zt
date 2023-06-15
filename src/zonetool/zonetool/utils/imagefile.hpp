@@ -15,7 +15,7 @@ namespace zonetool::imagefile
 		ZONETOOL_INFO("Compressing images...");
 
 		const auto max_threads = std::thread::hardware_concurrency() * 2;
-		const auto images_per_thread = static_cast<int>(images.size() / max_threads);
+		const auto images_per_thread = std::max(1, static_cast<int>(images.size() / max_threads));
 
 		std::vector<std::thread> threads;
 
@@ -73,6 +73,8 @@ namespace zonetool::imagefile
 		}
 
 		std::string image_file_buffer;
+
+		ZONETOOL_INFO("Writing imagefile...");
 
 		const auto init_image_file = [&]
 		{

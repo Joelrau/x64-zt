@@ -3853,7 +3853,7 @@ namespace zonetool::h2
 		float scanSpeed; // 3212
 		float scanAccel; // 3216
 		int scanPauseTime; // 3220
-		char __pad[12];
+		char __pad[16];
 		const char* szScript; // 3224
 		int minDamage; // 3232
 		int midDamage; // 3236
@@ -3993,41 +3993,43 @@ namespace zonetool::h2
 		bool dualMagReloadSupported; // 3544
 		bool reloadStopsAlt; // 3545 X
 		bool bU_092; // 3546 X
-		bool alwaysShatterGlassOnImpact; // 3547
-		bool oldWeapon; // 3548
-		bool bU_093; // 3549 bool isC4;? (BulletRicochet)(PM_Weapon_OffHandPrepare)
-		bool bU_094; // 3550 (BG_WeaponFireRecoil)(Missile_Impact)
-		bool xU_095; // 3551 X
-		bool hasCounterSilencer; // 3552 (BG_HasCounterSilencer)
-		bool xU_097; // 3553 X
-		bool xU_098; // 3554 X
-		bool disableVariableAutosimRate; // 3555
-		bool bU_100; // 3556 (CG_Missile)
-		bool bU_101; // 3557 (CG_Missile)
-		bool bU_102; // 3558 (CG_Missile)
-		bool bU_103; // 3559 (CG_Missile)
-		bool bU_104; // 3560 X
-		bool cloakedWeapon; // 3561 (BG_IsWeaponCloaked)
-		bool adsHideWeapon; // 3562 (0x1401fa7aa)
-		bool adsHideHands; // 3563 (0x1401fa78a)
-		bool bU_108; // 3564 X
-		bool adsBlurSceneEnabled; // 3565 (BG_GetADSSceneBlur)
-		bool usesSniperScope; // 3566 (BG_UsingSniperScope)
-		bool bU_111; // 3567 (140499130) (14049CE70) (14049B890) (14049B680)
-		bool bU_112; // 3568 X
-		bool bU_113; // 3569 X
-		bool bU_114; // 3570 (BG_ShowHideTagsBasedOnAltMode)
-		bool bU_115; // 3571 (BG_ShowHideTagsBasedOnAltMode)
+		bool alwaysShatterGlassOnImpact; // 
+		bool bU_116; // 3548
+		bool oldWeapon; // 3773 !!
+		bool bU_093; // 
+		bool bU_094; // 
+		bool xU_095; // 
+		bool hasCounterSilencer; // 
+		bool xU_097; // 
+		bool xU_098; // 
+		bool disableVariableAutosimRate; // 
+		bool bU_100; // 
+		bool bU_101; // 
+		bool bU_102; // 
+		bool bU_103; // 
+		bool bU_104; // 
+		bool cloakedWeapon; //
+		bool adsHideWeapon; //
+		bool adsHideHands; // 
+		bool bU_108; // 
+		bool adsBlurSceneEnabled; // 
+		bool usesSniperScope; // 
+		bool bU_111; // 
+		bool bU_112; // 
+		bool bU_113; // 
+		bool bU_114; // 
+		bool bU_115; // 
 		float xU_03_1;
-		float adsDofPhysicalFStop; // 3572 (BG_ADSDOFPhysicalFStop)
-		float adsDofPhysicalFocusDistance; // 3576 (BG_ADSDOFPhysicalFocusDistance)
-		float autosimSpeedScalar; // 3580 (BG_GetAutosimSpeedScalar)
-		float explosionReactiveMotionParts[5]; // 3584 (BG_GetExplosionReactiveMotionParams)
-		char __pad_unknown[12]; // 3604
+		float adsDofPhysicalFStop; // 
+		float adsDofPhysicalFocusDistance; // 
+		float autosimSpeedScalar; //
+		float explosionReactiveMotionParts[5]; // 
+		char __pad_unknown[12]; // 
 		//1400C7650
 		// size: 3616
 	}; static_assert(sizeof(WeaponDef) == 0xF08);
 	
+	static_assert(offsetof(WeaponDef, oldWeapon) == 3773);
 	static_assert(offsetof(WeaponDef, gunModel) == 0x28);
 	static_assert(offsetof(WeaponDef, handModel) == 0x30);
 	static_assert(offsetof(WeaponDef, szModeName) == 0x48);
