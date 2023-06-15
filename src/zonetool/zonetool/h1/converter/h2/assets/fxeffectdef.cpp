@@ -27,6 +27,16 @@ namespace zonetool::h1
 		static_assert(sizeof(*new_asset->elemDefs[i].name) == sizeof(*asset->elemDefs[i].name)); \
 		new_asset->elemDefs[i].name = reinterpret_cast<decltype(new_asset->elemDefs[i].name)>(asset->elemDefs[i].name);
 
+			unsigned char convert_fx_elem_lit_type(unsigned char type)
+			{
+				if (type >= 2)
+				{
+					return type + 1;
+				}
+
+				return type;
+			}
+
 			zonetool::h2::FxEffectDef* convert(zonetool::h1::FxEffectDef* asset, utils::memory::allocator& allocator)
 			{
 				const auto new_asset = allocator.allocate<zonetool::h2::FxEffectDef>();
@@ -48,7 +58,7 @@ namespace zonetool::h1
 				const auto elem_count = new_asset->elemDefCountLooping + new_asset->elemDefCountOneShot + new_asset->elemDefCountEmission;
 				new_asset->elemDefs = allocator.allocate_array<zonetool::h2::FxElemDef>(elem_count);
 
-				asset->flags |= 0x400;
+				//asset->flags |= 0x400;
 				new_asset->xU_01 = 1.f;
 
 				for (auto i = 0; i < elem_count; i++)
@@ -72,7 +82,7 @@ namespace zonetool::h1
 					COPY_VALUE_CAST_FX(reflectionFactor);
 					COPY_VALUE_CAST_FX(atlas);
 					COPY_VALUE_CAST_FX(elemType);
-					COPY_VALUE_FX(elemLitType);
+					new_asset->elemDefs[i].elemLitType = convert_fx_elem_lit_type(asset->elemDefs[i].elemLitType);
 					COPY_VALUE_FX(visualCount);
 					COPY_VALUE_FX(velIntervalCount);
 					COPY_VALUE_FX(visStateIntervalCount);
