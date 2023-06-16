@@ -771,7 +771,6 @@ namespace zonetool::h2
 		DEFINE_FIELD(reloadStopsAlt),
 		DEFINE_FIELD(bU_092),
 		DEFINE_FIELD(alwaysShatterGlassOnImpact),
-		DEFINE_FIELD(bU_116),
 		DEFINE_FIELD(oldWeapon),
 		DEFINE_FIELD(bU_093),
 		DEFINE_FIELD(bU_094),

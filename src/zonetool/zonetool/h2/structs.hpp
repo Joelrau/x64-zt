@@ -3994,9 +3994,8 @@ namespace zonetool::h2
 		bool reloadStopsAlt; // 3545 X
 		bool bU_092; // 3546 X
 		bool alwaysShatterGlassOnImpact; // 
-		bool bU_116; // 3548
+		bool bU_093; //
 		bool oldWeapon; // 3773 !!
-		bool bU_093; // 
 		bool bU_094; // 
 		bool xU_095; // 
 		bool hasCounterSilencer; // 
@@ -4024,9 +4023,7 @@ namespace zonetool::h2
 		float adsDofPhysicalFocusDistance; // 
 		float autosimSpeedScalar; //
 		float explosionReactiveMotionParts[5]; // 
-		char __pad_unknown[12]; // 
-		//1400C7650
-		// size: 3616
+		char __pad_unknown[12]; //
 	}; static_assert(sizeof(WeaponDef) == 0xF08);
 	
 	static_assert(offsetof(WeaponDef, oldWeapon) == 3773);
