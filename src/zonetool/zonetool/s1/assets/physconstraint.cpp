@@ -3,6 +3,24 @@
 
 namespace zonetool::s1
 {
+	PhysConstraint* phys_constraint::parse(std::string name, zone_memory* mem)
+	{
+		const auto path = "physconstraint\\"s + name + ".pct";
+
+		assetmanager::reader read(mem);
+		if (!read.open(path))
+		{
+			return nullptr;
+		}
+
+		auto* asset = read.read_single<PhysConstraint>();
+		asset->name = read.read_string();
+
+		read.close();
+
+		return asset;
+	}
+
 	void phys_constraint::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
@@ -14,7 +32,11 @@ namespace zonetool::s1
 			return;
 		}
 
-		this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).physConstraint;
+		this->asset_ = this->parse(name, mem);
+		if (!this->asset_)
+		{
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).physConstraint;
+		}
 	}
 
 	void phys_constraint::prepare(zone_buffer* buf, zone_memory* mem)
@@ -49,5 +71,17 @@ namespace zonetool::s1
 
 	void phys_constraint::dump(PhysConstraint* asset)
 	{
+		const auto path = "physconstraint\\"s + asset->name + ".pct";
+
+		assetmanager::dumper dump;
+		if (!dump.open(path))
+		{
+			return;
+		}
+
+		dump.dump_single(asset);
+		dump.dump_string(asset->name);
+
+		dump.close();
 	}
 }
