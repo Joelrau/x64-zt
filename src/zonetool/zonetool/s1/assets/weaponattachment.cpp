@@ -234,6 +234,31 @@ namespace zonetool::s1
 				ATTACHMENT_SUBASSET_DEPENDING(reticleViewModels[i], ASSET_TYPE_XMODEL);
 			}
 		}
+
+		if (data->waFields)
+		{
+			for (auto i = 0u; i < data->waFieldsCount; i++)
+			{
+#define SUBASSET_CASE(__type__, __asset_type__) \
+				case __type__: \
+					if (field->parm.string) \
+					{ \
+						zone->add_asset_of_type(__asset_type__, field->parm.string); \
+					} \
+					break; \
+
+				const auto field = &data->waFields[i];
+				switch (field->fieldType)
+				{
+					SUBASSET_CASE(WAFIELD_TYPE_FX, ASSET_TYPE_FX);
+					SUBASSET_CASE(WAFIELD_TYPE_MATERIAL, ASSET_TYPE_MATERIAL);
+					SUBASSET_CASE(WAFIELD_TYPE_MODEL, ASSET_TYPE_XMODEL);
+					SUBASSET_CASE(WAFIELD_TYPE_SOUND, ASSET_TYPE_SOUND);
+					SUBASSET_CASE(WAFIELD_TYPE_TRACER, ASSET_TYPE_TRACER);
+				}
+#undef SUBASSET_CASE
+			}
+		}
 	}
 
 	std::string weapon_attachment::name()
