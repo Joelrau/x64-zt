@@ -1102,7 +1102,7 @@ namespace zonetool::h1
 				}
 				else if (type == WAFIELD_TYPE_FLOAT32)
 				{
-					attachment->waFields[f].parm.p_float = data["waFields"][i]["value"].get<float>();
+					attachment->waFields[f].parm.p_float = static_cast<float>(data["waFields"][i]["value"].get<int>() / 1000.0f);
 				}
 				else
 				{
@@ -1526,7 +1526,7 @@ namespace zonetool::h1
 				}
 				else if (type == WAFIELD_TYPE_FLOAT32)
 				{
-					data["waFields"][i]["value"] = asset->waFields[i].parm.p_float;
+					data["waFields"][i]["value"] = static_cast<int>(asset->waFields[i].parm.p_float * 1000.0f);
 				}
 				else
 				{

@@ -13,7 +13,7 @@ namespace csv_generator
 		std::unordered_set<std::string> parse_create_fx_gsc(const std::string& data)
 		{
 			std::unordered_set<std::string> sounds;
-			std::regex pattern("ent\\.v\\[\\s*\"soundalias\"\\s*\\]\\s*=\\s*\"([\\w\\s]+?)\"");
+			std::regex pattern("ent\\.v\\[\\s*\"soundalias\"\\s*\\]\\s*=\\s*\"([\\w\\s]+?)\"", std::regex_constants::icase);
 			std::smatch matches;
 
 			auto search_start = data.cbegin();
@@ -29,7 +29,7 @@ namespace csv_generator
 		std::unordered_set<std::string> parse_fx_gsc(const std::string& data)
 		{
 			std::unordered_set<std::string> effects;
-			std::regex pattern("loadfx\\s*\\(\\s*\"([^\"]+)\"\\s*\\);");
+			std::regex pattern("loadfx\\s*\\(\\s*\"([^\"]+)\"\\s*\\);", std::regex_constants::icase);
 			std::smatch matches;
 
 			auto search_start = data.cbegin();

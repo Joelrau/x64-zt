@@ -143,7 +143,7 @@ namespace zonetool::s1
 				}
 				else if (type == WAFIELD_TYPE_INT)
 				{
-					attachment->waFields[i].parm.p_int = data["waFields"][i]["value"].get<int>();
+					attachment->waFields[i].parm.p_float = static_cast<float>(data["waFields"][i]["value"].get<int>());
 				}
 				else if (type == WAFIELD_TYPE_BOOL)
 				{
@@ -155,7 +155,7 @@ namespace zonetool::s1
 				}
 				else if (type == WAFIELD_TYPE_FLOAT32)
 				{
-					attachment->waFields[i].parm.p_int = data["waFields"][i]["value"].get<int>();
+					attachment->waFields[i].parm.p_float = static_cast<float>(data["waFields"][i]["value"].get<int>() / 1000.0f);
 				}
 				else
 				{
@@ -476,7 +476,7 @@ namespace zonetool::s1
 				}
 				else if (type == WAFIELD_TYPE_INT)
 				{
-					data["waFields"][i]["value"] = asset->waFields[i].parm.p_int;
+					data["waFields"][i]["value"] = static_cast<int>(asset->waFields[i].parm.p_float);
 				}
 				else if (type == WAFIELD_TYPE_BOOL)
 				{
@@ -488,7 +488,7 @@ namespace zonetool::s1
 				}
 				else if (type == WAFIELD_TYPE_FLOAT32)
 				{
-					data["waFields"][i]["value"] = asset->waFields[i].parm.p_int;
+					data["waFields"][i]["value"] = static_cast<int>(asset->waFields[i].parm.p_float * 1000.0f);
 				}
 				else
 				{

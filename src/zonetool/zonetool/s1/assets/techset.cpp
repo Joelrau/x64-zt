@@ -190,7 +190,7 @@ namespace zonetool::s1
 				{
 					const std::string dir = parse_path + parent_path;
 					const auto first_file = find_first_file_with_extension_in_directory(dir, ext);
-					if (first_file.has_value())
+					if (first_file.has_value() && !first_file.value().empty())
 					{
 						path = parent_path + "\\" + first_file.value();
 						return path;
