@@ -6,6 +6,15 @@ namespace zonetool::h1
 {
 	namespace
 	{
+		struct field_info
+		{
+			int json_index;
+			unsigned short offset;
+			unsigned char index;
+			unsigned char type;
+			unsigned char code;
+		};
+
 #define DEFINE_FIELD(__name__) {#__name__, static_cast<unsigned short>(offsetof(WeaponDef, __name__))}
 
 		std::unordered_map<unsigned short, std::string> weapon_def_fields_rev;
@@ -1007,39 +1016,67 @@ namespace zonetool::h1
 			attachment->waFieldsCount = static_cast<unsigned int>(data["waFields"].size());
 			attachment->waFieldOffsets = mem->allocate<unsigned short>(attachment->waFieldsCount);
 			attachment->waFields = mem->allocate<WAField>(attachment->waFieldsCount);
-			for (unsigned int i = 0; i < attachment->waFieldsCount; i++)
+
+			std::vector<field_info> sorted_fields;
+			for (auto i = 0u; i < attachment->waFieldsCount; i++)
 			{
+				field_info info{};
+
+				info.json_index = i;
+				info.type = data["waFields"][i]["type"].get<unsigned char>();
+				info.code = data["waFields"][i]["code"].get<unsigned char>();
+
 				if (data["waFields"][i]["offset"].is_number())
 				{
-					attachment->waFieldOffsets[i] = data["waFields"][i]["offset"].get<unsigned short>();
+					info.offset = data["waFields"][i]["offset"].get<unsigned short>();
 
 				}
 				else if (data["waFields"][i]["name"].is_string())
 				{
-					attachment->waFieldOffsets[i] = weapon_field_to_offset(data["waFields"][i]["name"].get<std::string>());
+					info.offset = weapon_field_to_offset(data["waFields"][i]["name"].get<std::string>());
 				}
 				else
 				{
-					ZONETOOL_FATAL("Invalid waField offset or name value");
+					ZONETOOL_FATAL("Invalid WAField offset/name value");
 				}
-
-				attachment->waFields[i].fieldType = data["waFields"][i]["type"].get<unsigned char>();
-				attachment->waFields[i].code = data["waFields"][i]["code"].get<unsigned char>();
 
 				if (data["waFields"][i]["index"].is_number())
 				{
-					attachment->waFields[i].index = data["waFields"][i]["index"].get<unsigned char>();
+					info.index = data["waFields"][i]["index"].get<unsigned char>();
 				}
-				else if (attachment->waFields[i].fieldType == WAFIELD_TYPE_ANIM && data["waFields"][i]["anim"].is_string())
+				else if (info.type == WAFIELD_TYPE_ANIM && data["waFields"][i]["anim"].is_string())
 				{
-					attachment->waFields[i].index = get_anim_index(data["waFields"][i]["anim"].get<std::string>());
+					info.index = get_anim_index(data["waFields"][i]["anim"].get<std::string>());
 				}
 				else
 				{
-					ZONETOOL_FATAL("Invalid waField index");
+					ZONETOOL_FATAL("Invalid WAField index");
 				}
 
-				auto type = attachment->waFields[i].fieldType;
+				sorted_fields.emplace_back(info);
+			}
+
+			std::sort(sorted_fields.begin(), sorted_fields.end(), [](const auto a, const auto b)
+			{
+				if (a.offset == b.offset)
+				{
+					return a.index < b.index;
+				}
+
+			return a.offset < b.offset;
+			});
+
+			for (auto f = 0; f < sorted_fields.size(); f++)
+			{
+				const auto& field = sorted_fields[f];
+				const auto i = field.json_index;
+
+				attachment->waFieldOffsets[f] = field.offset;
+				attachment->waFields[f].code = field.code;
+				attachment->waFields[f].index = field.index;
+				attachment->waFields[f].fieldType = field.type;
+
+				auto type = attachment->waFields[f].fieldType;
 				if (type == WAFIELD_TYPE_STRING ||
 					type == WAFIELD_TYPE_FX ||
 					type == WAFIELD_TYPE_MODEL ||
@@ -1049,23 +1086,23 @@ namespace zonetool::h1
 					type == WAFIELD_TYPE_SOUND ||
 					type == WAFIELD_TYPE_TRACER)
 				{
-					attachment->waFields[i].parm.string = mem->duplicate_string(data["waFields"][i]["value"].get<std::string>());
+					attachment->waFields[f].parm.string = mem->duplicate_string(data["waFields"][i]["value"].get<std::string>());
 				}
 				else if (type == WAFIELD_TYPE_INT)
 				{
-					attachment->waFields[i].parm.p_int = data["waFields"][i]["value"].get<int>();
+					attachment->waFields[f].parm.p_float = static_cast<float>(data["waFields"][i]["value"].get<int>());
 				}
 				else if (type == WAFIELD_TYPE_BOOL)
 				{
-					attachment->waFields[i].parm.p_bool = data["waFields"][i]["value"].get<bool>();
+					attachment->waFields[f].parm.p_bool = data["waFields"][i]["value"].get<bool>();
 				}
 				else if (type == WAFIELD_TYPE_FLOAT)
 				{
-					attachment->waFields[i].parm.p_float = data["waFields"][i]["value"].get<float>();
+					attachment->waFields[f].parm.p_float = data["waFields"][i]["value"].get<float>();
 				}
 				else if (type == WAFIELD_TYPE_FLOAT32)
 				{
-					attachment->waFields[i].parm.p_int = data["waFields"][i]["value"].get<int>();
+					attachment->waFields[f].parm.p_float = data["waFields"][i]["value"].get<float>();
 				}
 				else
 				{
@@ -1477,7 +1514,7 @@ namespace zonetool::h1
 				}
 				else if (type == WAFIELD_TYPE_INT)
 				{
-					data["waFields"][i]["value"] = asset->waFields[i].parm.p_int;
+					data["waFields"][i]["value"] = static_cast<int>(asset->waFields[i].parm.p_float);
 				}
 				else if (type == WAFIELD_TYPE_BOOL)
 				{
@@ -1489,7 +1526,7 @@ namespace zonetool::h1
 				}
 				else if (type == WAFIELD_TYPE_FLOAT32)
 				{
-					data["waFields"][i]["value"] = asset->waFields[i].parm.p_int;
+					data["waFields"][i]["value"] = asset->waFields[i].parm.p_float;
 				}
 				else
 				{
