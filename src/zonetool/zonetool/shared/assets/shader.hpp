@@ -105,9 +105,10 @@ namespace zonetool
 			asset->prog.loadDef.programSize = static_cast<unsigned int>(buffer_size);
 			asset->prog.loadDef.program = mem->allocate<unsigned char>(buffer_size);
 
+			std::memcpy(asset->prog.loadDef.program, buffer.data(), buffer_size);
+
 			if constexpr (ShaderType == vertexshader || ShaderType == pixelshader)
 			{
-				std::memcpy(asset->prog.loadDef.program, buffer.data(), buffer_size);
 				asset->prog.loadDef.microCodeCrc = ::shader::calc_crc32(asset->prog.loadDef.program, asset->prog.loadDef.programSize);
 			}
 
