@@ -13,7 +13,7 @@ namespace csv_generator
 		std::unordered_set<std::string> parse_create_fx_gsc(const std::string& data)
 		{
 			std::unordered_set<std::string> sounds;
-			std::regex pattern("ent\\.v\\[\\s*\"soundalias\"\\s*\\]\\s*=\\s*\"([\\w\\s]+?)\"", std::regex_constants::icase);
+			std::regex pattern("\\w+\\.v\\[\\s*\"soundalias\"\\s*\\]\\s*=\\s*\"([\\w\\s]+?)\"", std::regex_constants::icase);
 			std::smatch matches;
 
 			auto search_start = data.cbegin();
@@ -156,9 +156,11 @@ namespace csv_generator
 		}
 
 		const std::string create_fx_name = utils::string::va("maps/createfx/%s_fx.gsc", map.data());
-		const auto add_sounds = [&]
+		const std::string create_fx_sounds_name = utils::string::va("maps/createfx/%s_sound.gsc", map.data());
+
+		const auto add_sounds = [&](const std::string& file)
 		{
-			const std::string create_fx_path = utils::string::va("%s/%s", root_dir.data(), create_fx_name.data());
+			const std::string create_fx_path = utils::string::va("%s/%s", root_dir.data(), file.data());
 
 			std::string data;
 			if (!utils::io::read_file(create_fx_path, &data))
@@ -202,7 +204,8 @@ namespace csv_generator
 			add_line("");
 		};
 
-		add_sounds();
+		add_sounds(create_fx_name);
+		add_sounds(create_fx_sounds_name);
 		add_effects();
 
 		const auto add_map_asset = [&](const std::string& type, const std::string& ext)
@@ -218,7 +221,7 @@ namespace csv_generator
 		};
 
 		const auto add_iterator = [&](const std::string& type, const std::string& folder,
-			const std::string& extension, const std::string& comment)
+			const std::string& extension, const std::string& comment, bool path = true)
 		{
 			auto added_comment = false;
 			const auto folder_ = root_dir + "/" + folder;
@@ -241,8 +244,16 @@ namespace csv_generator
 					add_line(comment);
 				}
 
-				const std::string name = folder + file.substr(folder_.size());
-				add_asset(type, name);
+				if (!path)
+				{
+					const std::string name = file.substr(folder_.size(), file.size() - folder_.size() - extension.size());
+					add_asset(type, name);
+				}
+				else
+				{
+					const std::string name = folder + file.substr(folder_.size());
+					add_asset(type, name);
+				}
 			}
 
 			if (added_comment)
@@ -269,7 +280,7 @@ namespace csv_generator
 		}
 
 		add_iterator("stringtable", "maps/createart/", ".csv", "// lightsets");
-		add_iterator("clut", "clut/", ".clut", "// color lookup tables");
+		add_iterator("clut", "clut/", ".clut", "// color lookup tables", false);
 		add_iterator("rawfile", "vision/", ".vision", "// visions");
 		add_iterator("rawfile", "sun/", ".sun", "// sun");
 
@@ -288,6 +299,7 @@ namespace csv_generator
 		add_gsc(utils::string::va("%s/%s.gsc", map_prefix.data(), map.data()));
 		add_gsc(fx_name);
 		add_gsc(create_fx_name);
+		add_gsc(create_fx_sounds_name);
 		add_gsc(utils::string::va("maps/createart/%s_art.gsc", map.data()));
 		add_gsc(utils::string::va("maps/createart/%s_fog.gsc", map.data()));
 		add_gsc(utils::string::va("maps/createart/%s_fog_hdr.gsc", map.data()));
