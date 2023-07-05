@@ -4,6 +4,8 @@
 #include "zonetool/utils/utils.hpp"
 #include "zonetool/utils/imagefile.hpp"
 
+#include "zonetool/h1/zonetool.hpp"
+
 #include <utils/flags.hpp>
 #include <utils/io.hpp>
 
@@ -92,6 +94,7 @@ namespace zonetool::h2
 		try
 		{
 			// declare asset interfaces
+			ADD_ASSET_PTR(ASSET_TYPE_MENU, zonetool::h1::menu_def);
 			ADD_ASSET_PTR(ASSET_TYPE_LOCALIZE_ENTRY, localize);
 		}
 		catch (std::exception& ex)
@@ -172,6 +175,9 @@ namespace zonetool::h2
 			ADD_ASSET(ASSET_TYPE_PIXELSHADER, pixel_shader);
 			//ADD_ASSET(ASSET_TYPE_VERTEXDECL, vertex_decl);
 			ADD_ASSET(ASSET_TYPE_VERTEXSHADER, vertex_shader);
+
+			ADD_ASSET(ASSET_TYPE_MENU, zonetool::h1::menu_def);
+			ADD_ASSET(ASSET_TYPE_MENULIST, zonetool::h1::menu_list);
 
 			ADD_ASSET(ASSET_TYPE_AIPATHS, path_data);
 			ADD_ASSET(ASSET_TYPE_COL_MAP_SP, clip_map);

@@ -268,6 +268,9 @@ namespace zonetool::h2
 			//DUMP_ASSET(ASSET_TYPE_VERTEXDECL, vertex_decl, MaterialVertexDeclaration);
 			DUMP_ASSET(ASSET_TYPE_VERTEXSHADER, vertex_shader, MaterialVertexShader);
 
+			DUMP_ASSET(ASSET_TYPE_MENU, zonetool::h1::menu_def, zonetool::h1::menuDef_t);
+			DUMP_ASSET(ASSET_TYPE_MENULIST, zonetool::h1::menu_list, zonetool::h1::MenuList);
+			
 			DUMP_ASSET(ASSET_TYPE_AIPATHS, path_data, PathData);
 			DUMP_ASSET(ASSET_TYPE_COL_MAP_SP, clip_map, clipMap_t);
 			DUMP_ASSET(ASSET_TYPE_COM_MAP, com_world, ComWorld);

@@ -4007,13 +4007,13 @@ namespace zonetool::h2
 		bool bU_102; // 
 		bool bU_103; // 
 		bool bU_104; // 
+		bool bU_105; // 
 		bool cloakedWeapon; //
 		bool adsHideWeapon; //
 		bool adsHideHands; // 
 		bool bU_108; // 
 		bool adsBlurSceneEnabled; // 
 		bool usesSniperScope; // 
-		bool bU_111; // 
 		bool bU_112; // 
 		bool bU_113; // 
 		bool bU_114; // 
@@ -4026,6 +4026,10 @@ namespace zonetool::h2
 		char __pad_unknown[12]; //
 	}; static_assert(sizeof(WeaponDef) == 0xF08);
 	
+	static_assert(offsetof(WeaponDef, viewFlashEffect) == 248);
+	static_assert(offsetof(WeaponDef, usesSniperScope) == 3791);
+	static_assert(offsetof(WeaponDef, adsHideWeapon) == 3787);
+	static_assert(offsetof(WeaponDef, adsHideHands) == 3788);
 	static_assert(offsetof(WeaponDef, oldWeapon) == 3773);
 	static_assert(offsetof(WeaponDef, gunModel) == 0x28);
 	static_assert(offsetof(WeaponDef, handModel) == 0x30);

@@ -7618,7 +7618,7 @@ namespace zonetool::h1
 	{
 		if (statement)
 		{
-			const bool clean_statements = false;
+			const bool clean_statements = true;
 			int num_open_parenthesis = 0;
 
 			if (name)
