@@ -3,7 +3,7 @@
 
 namespace zonetool::h2
 {
-	void IAddonMapEnts::parse_triggers(zone_memory* mem, std::string name, MapTriggers* trigger)
+	void addon_map_ents::parse_triggers(zone_memory* mem, std::string name, MapTriggers* trigger)
 	{
 		const auto path = name + ".triggers"s;
 		const auto file_path = filesystem::get_file_path(path);
@@ -24,7 +24,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void IAddonMapEnts::parse_entity_strings(zone_memory* mem, std::string name, char** entityStrings, int* numEntityChars)
+	void addon_map_ents::parse_entity_strings(zone_memory* mem, std::string name, char** entityStrings, int* numEntityChars)
 	{
 		const auto path = name;
 		auto file = filesystem::file(path);
@@ -45,7 +45,7 @@ namespace zonetool::h2
 		file.close();
 	}
 
-	AddonMapEnts* IAddonMapEnts::parse(std::string name, zone_memory* mem)
+	AddonMapEnts* addon_map_ents::parse(std::string name, zone_memory* mem)
 	{
 		const auto path = name;
 
@@ -67,7 +67,7 @@ namespace zonetool::h2
 		return ents;
 	}
 
-	void IAddonMapEnts::init(const std::string& name, zone_memory* mem)
+	void addon_map_ents::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = "maps/"s + (filesystem::get_fastfile().substr(0, 3) == "mp_" ? "mp/" : "") + filesystem::get_fastfile() + ".mapents"; // name;
 
@@ -85,25 +85,25 @@ namespace zonetool::h2
 		}
 	}
 
-	void IAddonMapEnts::prepare(zone_buffer* buf, zone_memory* mem)
+	void addon_map_ents::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void IAddonMapEnts::load_depending(zone_base* zone)
+	void addon_map_ents::load_depending(zone_base* zone)
 	{
 	}
 
-	std::string IAddonMapEnts::name()
+	std::string addon_map_ents::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t IAddonMapEnts::type()
+	std::int32_t addon_map_ents::type()
 	{
 		return ASSET_TYPE_ADDON_MAP_ENTS;
 	}
 
-	void IAddonMapEnts::write_triggers(zone_buffer* buf, MapTriggers* dest)
+	void addon_map_ents::write_triggers(zone_buffer* buf, MapTriggers* dest)
 	{
 		if (dest->models)
 		{
@@ -121,7 +121,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void IAddonMapEnts::write(zone_base* zone, zone_buffer* buf)
+	void addon_map_ents::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
@@ -142,10 +142,10 @@ namespace zonetool::h2
 		buf->pop_stream();
 	}
 
-	void IAddonMapEnts::dump_triggers(const std::string& name, MapTriggers* trigger)
+	void addon_map_ents::dump_triggers(const std::string& name, MapTriggers* trigger)
 	{
 		assetmanager::dumper dumper;
-		const auto path = name + ".mapents.triggers"s;
+		const auto path = name + ".triggers"s;
 		if (dumper.open(path))
 		{
 			dumper.dump_int(trigger->count);
@@ -161,9 +161,9 @@ namespace zonetool::h2
 		}
 	}
 
-	void IAddonMapEnts::dump_entity_strings(const std::string& name, char* entityString, int numEntityChars)
+	void addon_map_ents::dump_entity_strings(const std::string& name, char* entityString, int numEntityChars)
 	{
-		const auto path = name + ".mapents"s;
+		const auto& path = name;
 		auto file = filesystem::file(path);
 		file.open("wb");
 		if (file.get_fp())
@@ -173,7 +173,7 @@ namespace zonetool::h2
 		}
 	}
 
-	void IAddonMapEnts::dump(AddonMapEnts* asset)
+	void addon_map_ents::dump(AddonMapEnts* asset)
 	{
 		dump_entity_strings(asset->name, asset->entityString, asset->numEntityChars);
 		dump_triggers(asset->name, &asset->trigger);

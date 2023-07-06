@@ -3,7 +3,7 @@
 
 namespace zonetool::h2
 {
-	class IAddonMapEnts : public asset_interface
+	class addon_map_ents : public asset_interface
 	{
 	private:
 		std::string name_;

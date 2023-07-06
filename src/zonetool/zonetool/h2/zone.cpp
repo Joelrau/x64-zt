@@ -140,7 +140,7 @@ namespace zonetool::h2
 			ADD_ASSET(ASSET_TYPE_LOCALIZE_ENTRY, localize);
 			ADD_ASSET(ASSET_TYPE_LPF_CURVE, lpf_curve);
 			ADD_ASSET(ASSET_TYPE_LUA_FILE, lua_file);
-			ADD_ASSET(ASSET_TYPE_ADDON_MAP_ENTS, IAddonMapEnts);
+			ADD_ASSET(ASSET_TYPE_ADDON_MAP_ENTS, addon_map_ents);
 			ADD_ASSET(ASSET_TYPE_MAP_ENTS, map_ents);
 			ADD_ASSET(ASSET_TYPE_MATERIAL, material);
 			//ADD_ASSET(ASSET_TYPE_NET_CONST_STRINGS, net_const_strings);

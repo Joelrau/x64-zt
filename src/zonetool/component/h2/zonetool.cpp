@@ -64,7 +64,6 @@ namespace zonetool::h2
 		utils::hook::set<uint8_t>(0x1407587E0, 0xC3); // gfx stuff during fastfile loading
 		utils::hook::set<uint8_t>(0x1407588B0, 0xC3); // ^
 		utils::hook::set<uint8_t>(0x140758910, 0xC3); // ^
-		utils::hook::set<uint8_t>(0x1404181A0, 0xC3); // ^
 		utils::hook::set<uint8_t>(0x140758830, 0xC3); // ^
 		utils::hook::set<uint8_t>(0x140717C80, 0xC3); // directx stuff
 		utils::hook::set<uint8_t>(0x140749300, 0xC3); // ^
