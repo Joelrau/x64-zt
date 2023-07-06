@@ -68,23 +68,19 @@ function dependencies.projects()
 	end
 end
 
-newoption {
-	trigger = "s1-copy-to",
-	description = "Optional, copy the EXE to a custom folder after build, define the path here if wanted.",
-	value = "PATH"
-}
+local function addcopyopt(name)
+	newoption({
+		trigger = name,
+		description = "Optional, copy the EXE to a custom folder after build, define the path here if wanted.",
+		value = "PATH"
+	})
+end
 
-newoption {
-	trigger = "h1-copy-to",
-	description = "Optional, copy the EXE to a custom folder after build, define the path here if wanted.",
-	value = "PATH"
-}
-
-newoption {
-	trigger = "h2-copy-to",
-	description = "Optional, copy the EXE to a custom folder after build, define the path here if wanted.",
-	value = "PATH"
-}
+addcopyopt("copy-to")
+addcopyopt("iw6-copy-to")
+addcopyopt("s1-copy-to")
+addcopyopt("h1-copy-to")
+addcopyopt("h2-copy-to")
 
 newoption {
 	trigger = "target-project",

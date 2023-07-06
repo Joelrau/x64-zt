@@ -44,9 +44,17 @@ function zonetool:project()
 			"if \"%COMPUTERNAME%\" == \"PC-JOEL\" ( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"D:\\Steam\\steamapps\\common\\Call of Duty Ghosts\\$(TargetName)$(TargetExt)\" )",
 		}
 
-		if _OPTIONS["copy-to"] then
-			postbuildcommands {"copy /y \"$(TargetPath)\" \"" .. _OPTIONS["copy-to"] .. "\""}
+		local function addcopyopt(name)
+			if (_OPTIONS[name] ~= nil) then
+				postbuildcommands {"copy /y \"$(TargetPath)\" \"" .. _OPTIONS[name] .. "\""}
+			end
 		end
 
+		addcopyopt("copy-to")
+		addcopyopt("iw6-copy-to")
+		addcopyopt("s1-copy-to")
+		addcopyopt("h1-copy-to")
+		addcopyopt("h2-copy-to")
+		
 		dependencies.imports()
 end
