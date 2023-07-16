@@ -5002,13 +5002,13 @@ namespace zonetool::h2
 	{
 		float quat[4];
 		float origin[3];
-		char __pad0[4];
 	};
 
 	struct $03A8A7B39FA20F64B5AB79125E07CD62
 	{
 		FxSpatialFrame frame;
 		float radius;
+		float unk;
 	};
 
 	union FxGlassPiecePlace
@@ -5078,6 +5078,7 @@ namespace zonetool::h2
 		float radius;
 		float texCoordOrigin[2];
 		unsigned int supportMask;
+		unsigned int unkMask;
 		float areaX2;
 		unsigned short lightingIndex;
 		unsigned char defIndex;

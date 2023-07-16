@@ -18,22 +18,28 @@ namespace zonetool::h1
 				new_asset->glassSys.piecePlaces = allocator.allocate_array<zonetool::h2::FxGlassPiecePlace>(asset->glassSys.pieceLimit);
 				for (auto i = 0u; i < new_asset->glassSys.pieceLimit; i++)
 				{
-					std::memcpy(&new_asset->glassSys.piecePlaces[i].__s0.frame.quat, &asset->glassSys.piecePlaces[i].__s0.frame.quat,
-						sizeof(new_asset->glassSys.piecePlaces[i].__s0.frame.quat));
-					std::memcpy(&new_asset->glassSys.piecePlaces[i].__s0.frame.origin, &asset->glassSys.piecePlaces[i].__s0.frame.origin,
-						sizeof(new_asset->glassSys.piecePlaces[i].__s0.frame.origin));
+					new_asset->glassSys.piecePlaces[i].__s0.frame.quat[0] = asset->glassSys.piecePlaces[i].__s0.frame.quat[0];
+					new_asset->glassSys.piecePlaces[i].__s0.frame.quat[1] = asset->glassSys.piecePlaces[i].__s0.frame.quat[1];
+					new_asset->glassSys.piecePlaces[i].__s0.frame.quat[2] = asset->glassSys.piecePlaces[i].__s0.frame.quat[2];
+					new_asset->glassSys.piecePlaces[i].__s0.frame.quat[3] = asset->glassSys.piecePlaces[i].__s0.frame.quat[3];
+					new_asset->glassSys.piecePlaces[i].__s0.frame.origin[0] = asset->glassSys.piecePlaces[i].__s0.frame.origin[0];
+					new_asset->glassSys.piecePlaces[i].__s0.frame.origin[1] = asset->glassSys.piecePlaces[i].__s0.frame.origin[1];
+					new_asset->glassSys.piecePlaces[i].__s0.frame.origin[2] = asset->glassSys.piecePlaces[i].__s0.frame.origin[2];
 
 					new_asset->glassSys.piecePlaces[i].__s0.radius = asset->glassSys.piecePlaces[i].__s0.radius;
+					new_asset->glassSys.piecePlaces[i].__s0.unk = 0.f;
 				}
 
 				new_asset->glassSys.initPieceStates = allocator.allocate_array<zonetool::h2::FxGlassInitPieceState>(new_asset->glassSys.initPieceCount);
 				for (auto i = 0u; i < new_asset->glassSys.initPieceCount; i++)
 				{
-					std::memcpy(&new_asset->glassSys.initPieceStates[i].frame.quat, &asset->glassSys.initPieceStates[i].frame.quat,
-						sizeof(new_asset->glassSys.initPieceStates[i].frame.quat));
-
-					std::memcpy(&new_asset->glassSys.initPieceStates[i].frame.origin, &asset->glassSys.initPieceStates[i].frame.origin,
-						sizeof(new_asset->glassSys.initPieceStates[i].frame.origin));
+					new_asset->glassSys.initPieceStates[i].frame.quat[0] = asset->glassSys.initPieceStates[i].frame.quat[0];
+					new_asset->glassSys.initPieceStates[i].frame.quat[1] = asset->glassSys.initPieceStates[i].frame.quat[1];
+					new_asset->glassSys.initPieceStates[i].frame.quat[2] = asset->glassSys.initPieceStates[i].frame.quat[2];
+					new_asset->glassSys.initPieceStates[i].frame.quat[3] = asset->glassSys.initPieceStates[i].frame.quat[3];
+					new_asset->glassSys.initPieceStates[i].frame.origin[0] = asset->glassSys.initPieceStates[i].frame.origin[0];
+					new_asset->glassSys.initPieceStates[i].frame.origin[1] = asset->glassSys.initPieceStates[i].frame.origin[1];
+					new_asset->glassSys.initPieceStates[i].frame.origin[2] = asset->glassSys.initPieceStates[i].frame.origin[2];
 
 					new_asset->glassSys.initPieceStates[i].radius = asset->glassSys.initPieceStates[i].radius;
 					new_asset->glassSys.initPieceStates[i].texCoordOrigin[0] = asset->glassSys.initPieceStates[i].texCoordOrigin[0];
@@ -44,7 +50,9 @@ namespace zonetool::h1
 					new_asset->glassSys.initPieceStates[i].defIndex = asset->glassSys.initPieceStates[i].defIndex;
 					new_asset->glassSys.initPieceStates[i].vertCount = asset->glassSys.initPieceStates[i].vertCount;
 					new_asset->glassSys.initPieceStates[i].fanDataCount = asset->glassSys.initPieceStates[i].fanDataCount;
-					*new_asset->glassSys.initPieceStates[i].pad = *asset->glassSys.initPieceStates[i].pad;
+					new_asset->glassSys.initPieceStates[i].pad[0] = asset->glassSys.initPieceStates[i].pad[0];
+
+					new_asset->glassSys.initPieceStates[i].unkMask = 0;
 				}
 
 				return new_asset;
