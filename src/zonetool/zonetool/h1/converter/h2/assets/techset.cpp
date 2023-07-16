@@ -551,7 +551,7 @@ namespace zonetool::h1
 			{
 				const auto new_asset = allocator.allocate<zonetool::h2::MaterialTechniqueSet>();
 
-				new_asset->name = allocator.duplicate_string(game::add_source_postfix(asset->name, game::h1));
+				new_asset->name = allocator.duplicate_string(asset->name);
 				COPY_VALUE(flags);
 				COPY_VALUE(worldVertFormat);
 				COPY_VALUE(preDisplacementOnlyCount);

@@ -72,7 +72,7 @@ namespace zonetool::h1
 				new_asset->assetFlags = asset->assetFlags; 
 
 				new_asset->techniqueSet = allocator.allocate<zonetool::h2::MaterialTechniqueSet>();
-				new_asset->techniqueSet->name = allocator.duplicate_string(game::add_source_postfix(asset->techniqueSet->name, game::h1));
+				new_asset->techniqueSet->name = allocator.duplicate_string(asset->techniqueSet->name);
 				REINTERPRET_CAST_SAFE(textureTable);
 				REINTERPRET_CAST_SAFE(constantTable);
 				REINTERPRET_CAST_SAFE(stateBitsTable);
