@@ -233,7 +233,6 @@ namespace zonetool::h2
 			DUMP_ASSET(ASSET_TYPE_LPF_CURVE, lpf_curve, SndCurve);
 			DUMP_ASSET(ASSET_TYPE_LUA_FILE, lua_file, LuaFile);
 			DUMP_ASSET(ASSET_TYPE_MATERIAL, material, Material);
-			DUMP_ASSET(ASSET_TYPE_MAP_ENTS, map_ents, MapEnts);
 			DUMP_ASSET(ASSET_TYPE_NET_CONST_STRINGS, net_const_strings, NetConstStrings);
 			DUMP_ASSET(ASSET_TYPE_RAWFILE, rawfile, RawFile);
 			DUMP_ASSET(ASSET_TYPE_REVERB_CURVE, reverb_curve, SndCurve);
@@ -272,11 +271,13 @@ namespace zonetool::h2
 			DUMP_ASSET(ASSET_TYPE_MENULIST, zonetool::h1::menu_list, zonetool::h1::MenuList);
 			
 			DUMP_ASSET(ASSET_TYPE_AIPATHS, path_data, PathData);
+			DUMP_ASSET(ASSET_TYPE_ADDON_MAP_ENTS, addon_map_ents, AddonMapEnts);
 			DUMP_ASSET(ASSET_TYPE_COL_MAP_SP, clip_map, clipMap_t);
 			DUMP_ASSET(ASSET_TYPE_COM_MAP, com_world, ComWorld);
 			DUMP_ASSET(ASSET_TYPE_FX_MAP, fx_world, FxWorld);
 			DUMP_ASSET(ASSET_TYPE_GFX_MAP, gfx_world, GfxWorld);
 			DUMP_ASSET(ASSET_TYPE_GLASS_MAP, glass_world, GlassWorld);
+			DUMP_ASSET(ASSET_TYPE_MAP_ENTS, map_ents, MapEnts);
 		}
 		catch (const std::exception& e)
 		{
@@ -667,6 +668,10 @@ namespace zonetool::h2
 						ZONETOOL_FATAL("A fatal exception occured while building zone \"%s\", exception was: \n%s", fastfile.data(), e.what());
 					}
 				}
+			}
+			else if (row->fields[0] == "addpath"s && row->num_fields >= 2)
+			{
+				filesystem::add_paths_from_directory(row->fields[1]);
 			}
 			// if entry is not an option, it should be an asset.
 			else

@@ -237,15 +237,15 @@ namespace zonetool
 			return {};
 		}
 
-		std::vector<std::string> load_extra_search_paths()
+		std::vector<std::string> load_extra_search_paths(const std::string& dir)
 		{
 			std::vector<std::string> paths;
-			if (!utils::io::directory_exists("zonetool_paths"))
+			if (!utils::io::directory_exists(dir))
 			{
 				return {};
 			}
 
-			const auto folders = utils::io::list_files("zonetool_paths");
+			const auto folders = utils::io::list_files(dir);
 
 			for (const auto& folder : folders)
 			{
@@ -264,15 +264,21 @@ namespace zonetool
 			return paths;
 		}
 
+		void add_paths_from_directory(const std::string& dir)
+		{
+			const auto extra_paths = load_extra_search_paths(dir);
+			auto& search_paths = get_search_paths();
+			search_paths.insert(search_paths.end(), extra_paths.begin(), extra_paths.end());
+		}
+
 		void set_fastfile(const std::string& ff)
 		{
-			const auto extra_paths = load_extra_search_paths();
 			auto& search_paths = get_search_paths();
 
 			search_paths.clear();
 			search_paths.emplace_back("zonetool\\" + ff + "\\");
 			search_paths.emplace_back("zonetool\\");
-			search_paths.insert(search_paths.end(), extra_paths.begin(), extra_paths.end());
+			add_paths_from_directory("zonetool_paths");
 
 			fastfile = ff;
 		}
