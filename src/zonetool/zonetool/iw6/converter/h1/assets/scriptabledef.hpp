@@ -6,8 +6,8 @@ namespace zonetool::iw6
 	{
 		namespace scriptabledef
 		{
-			zonetool::h1::ScriptableDef* convert(ScriptableDef* asset, zone_memory* mem);
-			void dump(ScriptableDef* asset, zone_memory* mem);
+			zonetool::h1::ScriptableDef* convert(ScriptableDef* asset, utils::memory::allocator& allocator);
+			void dump(ScriptableDef* asset);
 		}
 	}
 }

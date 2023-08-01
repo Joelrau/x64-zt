@@ -7,6 +7,8 @@
 #include "domainshader.hpp"
 #include "pixelshader.hpp"
 
+#include "zonetool/iw6/zonetool.hpp"
+
 namespace zonetool::h1
 {
 	std::unordered_map<std::string, std::uintptr_t> techset::vertexdecl_pointers;
@@ -689,9 +691,189 @@ namespace zonetool::h1
 			file.close();
 		}
 	}
+	void dump_statebits_map_iw6(const std::string& techset, const std::string& material, zonetool::iw6::GfxStateBits* map, unsigned char count)
+	{
+		const auto path = "techsets\\state\\"s + techset + "\\"s + material + ".statebitsmap";
+
+		ordered_json json_data = {};
+		for (unsigned char i = 0; i < count; i++)
+		{
+			const auto var_x_gfx_globals = get_x_gfx_globals_for_zone<zonetool::iw6::XGfxGlobals>(map[i].zone);
+			ordered_json entry;
+
+			//convert_blend_bits
+			const auto cbb = [](std::uint32_t bits) -> std::uint32_t
+			{
+				std::bitset<32> new_bits(bits);
+				std::bitset<32> original_bits(bits);
+
+				if (original_bits[5] == 1)
+				{
+					new_bits[0] = 1;
+					new_bits[1] = 0;
+					new_bits[2] = 1;
+					new_bits[3] = 0;
+
+					new_bits[6] = 1;
+				}
+
+				//new_bits[27] = new_bits[26];
+
+				return new_bits.to_ulong();
+			};
+
+			//convert_load_bits
+			const auto clb0 = [](std::uint32_t bits) -> std::uint32_t
+			{
+				std::bitset<32> new_bits(bits);
+				std::bitset<32> original_bits(bits);
+
+				/*if (original_bits[4] == 1)
+				{
+					new_bits[3] = 1;
+					new_bits[4] = 0;
+				}*/
+
+				return new_bits.to_ulong();
+			};
+
+			const auto clb1 = [](std::uint32_t bits) -> std::uint32_t
+			{
+				std::bitset<32> new_bits(bits);
+				std::bitset<32> original_bits(bits);
+
+				new_bits[0] = original_bits[0];
+				new_bits[1] = original_bits[2];
+				new_bits[2] = original_bits[3];
+				new_bits[3] = 0;
+
+				return new_bits.to_ulong();
+			};
+
+			entry["loadBits"][0] = clb0(map[i].loadBits[0]);
+			entry["loadBits"][1] = clb1(map[i].loadBits[1]);
+			entry["loadBits"][2] = 0xFFFF;
+			entry["loadBits"][3] = cbb(var_x_gfx_globals->blendStateBits[map[i].blendState][0]);
+			entry["loadBits"][4] = 0;
+			entry["loadBits"][5] = 0;
+
+			//convert_depth_stencil_state_bits
+			const auto cdssb = [](std::uint64_t bits) -> std::uint64_t
+			{
+				std::bitset<64> new_bits(bits);
+				std::bitset<64> original_bits(bits);
+
+				new_bits[0] = original_bits[0];
+				new_bits[1] = original_bits[2];
+				new_bits[2] = original_bits[3];
+				new_bits[3] = original_bits[4];
+				new_bits[4] = 0;
+
+				/*for (auto i = 10; i < 64; i++)
+				{
+					new_bits[i] = 0;
+				}*/
+
+				return new_bits.to_ullong();
+			};
+
+			const auto fuck = [](std::uint64_t bits) -> std::uint64_t
+			{
+				std::bitset<64> new_bits(bits);
+				std::bitset<64> original_bits(bits);
+
+				if (original_bits[18] == 1)
+				{
+					new_bits[17] = 1;
+					new_bits[18] = 1;
+					new_bits[19] = 1;
+				}
+
+				if (original_bits[30] == 1)
+				{
+					new_bits[29] = 1;
+					new_bits[30] = 1;
+					new_bits[31] = 1;
+				}
+
+				if (original_bits[33] == 1)
+				{
+					new_bits[33] = 0;
+					new_bits[36] = 1;
+				}
+
+				if (original_bits[45] == 1 && original_bits[46] == 1 && original_bits[47] == 1)
+				{
+					new_bits[44] = 1;
+					new_bits[45] = 0;
+					new_bits[46] = 0;
+					new_bits[47] = 0;
+				}
+
+				return new_bits.to_ullong();
+			};
+
+			const auto fuck2 = [](std::uint64_t bits) -> std::uint64_t
+			{
+				std::bitset<64> new_bits(bits);
+
+				new_bits[15] = 0;
+				new_bits[33] = 1;
+				new_bits[41] = 1;
+
+				return new_bits.to_ullong();
+			};
+
+			entry["depthStencilStateBits"][0] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[0]]) : 0;
+			entry["depthStencilStateBits"][1] = var_x_gfx_globals ? fuck(cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[1]])) : 0;
+			entry["depthStencilStateBits"][2] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[3]]) : 0;
+			entry["depthStencilStateBits"][3] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[4]]) : 0;
+			entry["depthStencilStateBits"][4] = var_x_gfx_globals ? fuck2(fuck(cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[2]]))) : 0;
+			entry["depthStencilStateBits"][5] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[5]]) : 0;
+			entry["depthStencilStateBits"][6] = var_x_gfx_globals ? fuck(cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[6]])) : 0;
+			entry["depthStencilStateBits"][7] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[8]]) : 0;
+			entry["depthStencilStateBits"][8] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[9]]) : 0;
+			entry["depthStencilStateBits"][9] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[10]]) : 0;
+			// 0 -> 0
+			// 1 -> 1/2/6/7
+			// 2 -> 3
+			// 3 -> 4
+			// 4 -> 1/2/6/7
+			// 5 -> 5
+			// 6 -> 1/2/6/7
+			// 7 -> 8
+			// 8 -> 9
+			// 9 -> 10
+			// 
+			//
+
+			entry["blendStateBits"][0] = var_x_gfx_globals ? cbb(var_x_gfx_globals->blendStateBits[map[i].blendState][0]) : 0;
+			entry["blendStateBits"][1] = 0;
+			entry["blendStateBits"][2] = 0;
+
+			entry["rasterizerState"] = map[i].rasterizerState;
+
+			json_data[i] = entry;
+		}
+
+		auto file = filesystem::file(path);
+		file.open("wb");
+		auto fp = file.get_fp();
+		if (fp)
+		{
+			const auto json_dump = json_data.dump(4);
+			file.write(json_dump.data(), json_dump.size(), 1);
+			file.close();
+		}
+	}
 
 	void techset::dump_statebits_map(const std::string& techset, const std::string& material, GfxStateBits* map, unsigned char count)
 	{
+		if (game::get_mode() == game::iw6)
+		{
+			return dump_statebits_map_iw6(techset, material, (zonetool::iw6::GfxStateBits*)map, count);
+		}
+
 		const auto path = "techsets\\state\\"s + techset + "\\"s + material + ".statebitsmap";
 
 		ordered_json json_data = {};

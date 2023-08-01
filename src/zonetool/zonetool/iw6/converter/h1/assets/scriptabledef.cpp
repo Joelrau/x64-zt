@@ -12,16 +12,16 @@ namespace zonetool::iw6
 	{
 		namespace scriptabledef
 		{
-			zonetool::h1::ScriptableDef* convert(ScriptableDef* asset, zone_memory* mem)
+			zonetool::h1::ScriptableDef* convert(ScriptableDef* asset, utils::memory::allocator& allocator)
 			{
-				auto* new_asset = mem->allocate<zonetool::h1::ScriptableDef>();
+				auto* new_asset = allocator.allocate<zonetool::h1::ScriptableDef>();
 
 				// the only thing different about h1 scriptabledef is that there is extra type of ScriptableEventType
 				// ScriptableEventSunlightSettingsDef also changed, that may cause issues...
 
 				std::memcpy(new_asset, asset, sizeof(zonetool::h1::ScriptableDef)); // same struct
 
-				new_asset->parts = mem->allocate<zonetool::h1::ScriptablePartDef>(asset->partCount);
+				new_asset->parts = allocator.allocate_array<zonetool::h1::ScriptablePartDef>(asset->partCount);
 				for (unsigned char i = 0; i < asset->partCount; i++)
 				{
 					auto* part = &asset->parts[i];
@@ -29,7 +29,7 @@ namespace zonetool::iw6
 
 					std::memcpy(new_part, part, sizeof(zonetool::h1::ScriptablePartDef)); // same struct
 
-					new_part->states = mem->allocate<zonetool::h1::ScriptableStateDef>(part->stateCount);
+					new_part->states = allocator.allocate_array<zonetool::h1::ScriptableStateDef>(part->stateCount);
 					for (unsigned char j = 0; j < part->stateCount; j++)
 					{
 						auto* state = &part->states[j];
@@ -37,7 +37,7 @@ namespace zonetool::iw6
 
 						std::memcpy(new_state, state, sizeof(zonetool::h1::ScriptableStateDef)); // same struct
 
-						new_state->onEnterEvents = mem->allocate<zonetool::h1::ScriptableEventDef>(state->onEnterEventCount);
+						new_state->onEnterEvents = allocator.allocate_array<zonetool::h1::ScriptableEventDef>(state->onEnterEventCount);
 						for (unsigned char k = 0; k < state->onEnterEventCount; k++)
 						{
 							auto* eevent = &state->onEnterEvents[k];
@@ -61,9 +61,10 @@ namespace zonetool::iw6
 				return new_asset;
 			}
 
-			void dump(ScriptableDef* asset, zone_memory* mem)
+			void dump(ScriptableDef* asset)
 			{
-				auto* converted_asset = convert(asset, mem);
+				utils::memory::allocator allocator;
+				auto* converted_asset = convert(asset, allocator);
 				zonetool::h1::scriptable_def::dump(converted_asset);
 			}
 		}

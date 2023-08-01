@@ -39,7 +39,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			void dump_streamed_image(GfxImage* image)
+			void dump_streamed_image(GfxImage* image, const std::string& ext)
 			{
 				for (auto i = 0u; i < 4; i++)
 				{
@@ -132,7 +132,7 @@ namespace zonetool::iw6
 				}
 
 				{
-					const auto path = "streamed_images\\"s + clean_name(image->name) + ".h1Image"s;
+					const auto path = "streamed_images\\"s + clean_name(image->name) + ext;
 					assetmanager::dumper write;
 					if (!write.open(path))
 					{
@@ -145,15 +145,15 @@ namespace zonetool::iw6
 				}
 			}
 
-			void dump(GfxImage* asset, zone_memory* mem)
+			void dump(GfxImage* asset, const std::string& ext)
 			{
 				if (asset->streamed)
 				{
-					dump_streamed_image(asset);
+					dump_streamed_image(asset, ext);
 					return;
 				}
 
-				auto path = "images\\"s + clean_name(asset->name) + ".h1Image"s;
+				auto path = "images\\"s + clean_name(asset->name) + ext;
 				assetmanager::dumper write;
 				if (!write.open(path))
 				{
@@ -176,6 +176,16 @@ namespace zonetool::iw6
 				}
 
 				write.close();
+			}
+
+			void dump(GfxImage* asset)
+			{
+				dump(asset, ".h1Image");
+			}
+
+			void dump_h2(GfxImage* asset)
+			{
+				dump(asset, ".h2Image");
 			}
 		}
 	}

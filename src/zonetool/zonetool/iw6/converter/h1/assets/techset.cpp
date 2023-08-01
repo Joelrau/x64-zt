@@ -20,396 +20,6 @@ namespace zonetool::iw6
 	{
 		namespace techset
 		{
-			namespace ree
-			{
-				void dump_constant_buffer_indexes(const std::string& techset, const std::string& material, unsigned char* cbi)
-				{
-					const auto path = "techsets\\constantbuffer\\"s + techset + "\\"s + material + ".cbi";
-					auto file = filesystem::file(path);
-					file.open("wb");
-					auto fp = file.get_fp();
-
-					if (fp)
-					{
-						fwrite(cbi, zonetool::h1::MaterialTechniqueType::TECHNIQUE_COUNT, 1, fp);
-						file.close();
-					}
-				}
-
-				void dump_constant_buffer_def_array(const std::string& techset, const std::string& material, unsigned char count, zonetool::h1::MaterialConstantBufferDef* def)
-				{
-					const auto path = "techsets\\constantbuffer\\"s + techset + "\\"s + material + ".cbt";
-					assetmanager::dumper dump;
-					if (!dump.open(path))
-					{
-						return;
-					}
-
-					dump.dump_int(count);
-					dump.dump_array(def, count);
-					for (int i = 0; i < count; i++)
-					{
-						if (def[i].vsData)
-						{
-							dump.dump_array(def[i].vsData, def[i].vsDataSize);
-						}
-						if (def[i].hsData)
-						{
-							dump.dump_array(def[i].hsData, def[i].hsDataSize);
-						}
-						if (def[i].dsData)
-						{
-							dump.dump_array(def[i].dsData, def[i].dsDataSize);
-						}
-						if (def[i].psData)
-						{
-							dump.dump_array(def[i].psData, def[i].psDataSize);
-						}
-						if (def[i].vsOffsetData)
-						{
-							dump.dump_array(def[i].vsOffsetData, def[i].vsOffsetDataSize);
-						}
-						if (def[i].hsOffsetData)
-						{
-							dump.dump_array(def[i].hsOffsetData, def[i].hsOffsetDataSize);
-						}
-						if (def[i].dsOffsetData)
-						{
-							dump.dump_array(def[i].dsOffsetData, def[i].dsOffsetDataSize);
-						}
-						if (def[i].psOffsetData)
-						{
-							dump.dump_array(def[i].psOffsetData, def[i].psOffsetDataSize);
-						}
-					}
-
-					dump.close();
-				}
-
-				void dump_stateinfo(const std::string& techset, const std::string& material, zonetool::h1::Material* mat)
-				{
-					const auto path = "techsets\\state\\"s + techset + "\\"s + material + ".stateinfo";
-
-					ordered_json json_data = {};
-
-					json_data["stateFlags"] = mat->stateFlags;
-
-					auto file = filesystem::file(path);
-					file.open("wb");
-					auto fp = file.get_fp();
-					if (fp)
-					{
-						const auto json_dump = json_data.dump(4);
-						file.write(json_dump.data(), json_dump.size(), 1);
-						file.close();
-					}
-				}
-
-				void dump_statebits(const std::string& techset, const std::string& material, unsigned char* statebits)
-				{
-					const auto path = "techsets\\state\\"s + techset + "\\"s + material + ".statebits";
-					auto file = filesystem::file(path);
-					file.open("wb");
-					auto fp = file.get_fp();
-
-					if (fp)
-					{
-						fwrite(statebits, zonetool::h1::MaterialTechniqueType::TECHNIQUE_COUNT, 1, fp);
-						file.close();
-					}
-				}
-
-				void dump_statebits_map(const std::string& techset, const std::string& material, GfxStateBits* map, unsigned char count)
-				{
-					const auto path = "techsets\\state\\"s + techset + "\\"s + material + ".statebitsmap";
-
-					ordered_json json_data = {};
-					for (unsigned char i = 0; i < count; i++)
-					{
-						const auto var_x_gfx_globals = get_x_gfx_globals_for_zone<XGfxGlobals>(map[i].zone);
-						ordered_json entry;
-
-						//convert_blend_bits
-						const auto cbb = [](std::uint32_t bits) -> std::uint32_t
-						{
-							std::bitset<32> new_bits(bits);
-							std::bitset<32> original_bits(bits);
-
-							if (original_bits[5] == 1)
-							{
-								new_bits[0] = 1;
-								new_bits[1] = 0;
-								new_bits[2] = 1;
-								new_bits[3] = 0;
-
-								new_bits[6] = 1;
-							}
-
-							//new_bits[27] = new_bits[26];
-
-							return new_bits.to_ulong();
-						};
-
-						//convert_load_bits
-						const auto clb0 = [](std::uint32_t bits) -> std::uint32_t
-						{
-							std::bitset<32> new_bits(bits);
-							std::bitset<32> original_bits(bits);
-
-							/*if (original_bits[4] == 1)
-							{
-								new_bits[3] = 1;
-								new_bits[4] = 0;
-							}*/
-
-							return new_bits.to_ulong();
-						};
-
-						const auto clb1 = [](std::uint32_t bits) -> std::uint32_t
-						{
-							std::bitset<32> new_bits(bits);
-							std::bitset<32> original_bits(bits);
-
-							new_bits[0] = original_bits[0];
-							new_bits[1] = original_bits[2];
-							new_bits[2] = original_bits[3];
-							new_bits[3] = 0;
-
-							return new_bits.to_ulong();
-						};
-
-						entry["loadBits"][0] = clb0(map[i].loadBits[0]);
-						entry["loadBits"][1] = clb1(map[i].loadBits[1]);
-						entry["loadBits"][2] = 0xFFFF;
-						entry["loadBits"][3] = cbb(var_x_gfx_globals->blendStateBits[map[i].blendState][0]);
-						entry["loadBits"][4] = 0;
-						entry["loadBits"][5] = 0;
-						
-						//convert_depth_stencil_state_bits
-						const auto cdssb = [](std::uint64_t bits) -> std::uint64_t
-						{
-							std::bitset<64> new_bits(bits);
-							std::bitset<64> original_bits(bits);
-
-							new_bits[0] = original_bits[0];
-							new_bits[1] = original_bits[2];
-							new_bits[2] = original_bits[3];
-							new_bits[3] = original_bits[4];
-							new_bits[4] = 0;
-
-							/*for (auto i = 10; i < 64; i++)
-							{
-								new_bits[i] = 0;
-							}*/
-
-							return new_bits.to_ullong();
-						};
-
-						const auto fuck = [](std::uint64_t bits) -> std::uint64_t
-						{
-							std::bitset<64> new_bits(bits);
-							std::bitset<64> original_bits(bits);
-
-							if (original_bits[18] == 1)
-							{
-								new_bits[17] = 1;
-								new_bits[18] = 1;
-								new_bits[19] = 1;
-							}
-
-							if (original_bits[30] == 1)
-							{
-								new_bits[29] = 1;
-								new_bits[30] = 1;
-								new_bits[31] = 1;
-							}
-
-							if (original_bits[33] == 1)
-							{
-								new_bits[33] = 0;
-								new_bits[36] = 1;
-							}
-
-							if (original_bits[45] == 1 && original_bits[46] == 1 && original_bits[47] == 1)
-							{
-								new_bits[44] = 1;
-								new_bits[45] = 0;
-								new_bits[46] = 0;
-								new_bits[47] = 0;
-							}
-
-							return new_bits.to_ullong();
-						};
-
-						const auto fuck2 = [](std::uint64_t bits) -> std::uint64_t
-						{
-							std::bitset<64> new_bits(bits);
-
-							new_bits[15] = 0;
-							new_bits[33] = 1;
-							new_bits[41] = 1;
-
-							return new_bits.to_ullong();
-						};
-
-						entry["depthStencilStateBits"][0] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[0]]) : 0;
-						entry["depthStencilStateBits"][1] = var_x_gfx_globals ? fuck(cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[1]])) : 0;
-						entry["depthStencilStateBits"][2] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[3]]) : 0;
-						entry["depthStencilStateBits"][3] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[4]]) : 0;
-						entry["depthStencilStateBits"][4] = var_x_gfx_globals ? fuck2(fuck(cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[2]]))) : 0;
-						entry["depthStencilStateBits"][5] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[5]]) : 0;
-						entry["depthStencilStateBits"][6] = var_x_gfx_globals ? fuck(cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[6]])) : 0;
-						entry["depthStencilStateBits"][7] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[8]]) : 0;
-						entry["depthStencilStateBits"][8] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[9]]) : 0;
-						entry["depthStencilStateBits"][9] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[10]]) : 0;
-						// 0 -> 0
-						// 1 -> 1/2/6/7
-						// 2 -> 3
-						// 3 -> 4
-						// 4 -> 1/2/6/7
-						// 5 -> 5
-						// 6 -> 1/2/6/7
-						// 7 -> 8
-						// 8 -> 9
-						// 9 -> 10
-						// 
-						//
-
-						entry["blendStateBits"][0] = var_x_gfx_globals ? cbb(var_x_gfx_globals->blendStateBits[map[i].blendState][0]) : 0;
-						entry["blendStateBits"][1] = 0;
-						entry["blendStateBits"][2] = 0;
-
-						entry["rasterizerState"] = map[i].rasterizerState;
-
-						json_data[i] = entry;
-					}
-
-					auto file = filesystem::file(path);
-					file.open("wb");
-					auto fp = file.get_fp();
-					if (fp)
-					{
-						const auto json_dump = json_data.dump(4);
-						file.write(json_dump.data(), json_dump.size(), 1);
-						file.close();
-					}
-				}
-
-				void dump_technique(zonetool::h1::MaterialTechnique* asset)
-				{
-					const auto path = "techsets\\"s + asset->hdr.name + ".technique";
-
-					assetmanager::dumper dumper;
-					if (!dumper.open(path))
-					{
-						return;
-					}
-
-					dumper.dump_single(&asset->hdr);
-					dumper.dump_array(asset->passArray, asset->hdr.passCount);
-
-					dumper.dump_string(asset->hdr.name);
-					for (unsigned short i = 0; i < asset->hdr.passCount; i++)
-					{
-						if (asset->passArray[i].vertexShader)
-						{
-							dumper.dump_asset(asset->passArray[i].vertexShader);
-							//zonetool::h1::vertex_shader::dump(asset->passArray[i].vertexShader);
-						}
-
-						if (asset->passArray[i].vertexDecl)
-						{
-							dumper.dump_asset(asset->passArray[i].vertexDecl);
-							zonetool::h1::vertex_decl::dump(asset->passArray[i].vertexDecl);
-						}
-
-						if (asset->passArray[i].hullShader)
-						{
-							dumper.dump_asset(asset->passArray[i].hullShader);
-							//zonetool::h1::hull_shader::dump(asset->passArray[i].hullShader);
-						}
-
-						if (asset->passArray[i].domainShader)
-						{
-							dumper.dump_asset(asset->passArray[i].domainShader);
-							//zonetool::h1::domain_shader::dump(asset->passArray[i].domainShader);
-						}
-
-						if (asset->passArray[i].pixelShader)
-						{
-							dumper.dump_asset(asset->passArray[i].pixelShader);
-							//zonetool::h1::pixel_shader::dump(asset->passArray[i].pixelShader);
-						}
-
-						if (asset->passArray[i].args)
-						{
-							dumper.dump_array(asset->passArray[i].args, asset->passArray[i].perObjArgCount + asset->passArray[i].perPrimArgCount + asset->passArray[i].stableArgCount);
-							for (auto arg = 0; arg < asset->passArray[i].perObjArgCount + asset->passArray[i].perPrimArgCount + asset->passArray[i].stableArgCount; arg++)
-							{
-								if (asset->passArray[i].args[arg].type == 4)
-								{
-									dumper.dump_array(const_cast<float*>(asset->passArray[i].args[arg].u.literalConst), 4);
-								}
-							}
-						}
-					}
-
-					dumper.close();
-				}
-
-				void yeet(zonetool::h1::MaterialTechniqueSet* asset)
-				{
-					const auto path = "techsets\\"s + asset->name + ".techset.txt";
-
-					filesystem::file file(path);
-					file.open("wb");
-					auto fp = file.get_fp();
-
-					for (auto i = 0u; i < zonetool::h1::MaterialTechniqueType::TECHNIQUE_COUNT; i++)
-					{
-						if (asset->techniques[i])
-						{
-							fprintf(fp, "%i: %s\n", i, asset->techniques[i]->hdr.name);
-						}
-						else
-						{
-							fprintf(fp, "%i: nullptr\n", i);
-						}
-					}
-
-					file.close();
-				}
-
-				void dump(MaterialTechniqueSet* iw6_asset, zone_memory* mem)
-				{
-					auto* asset = converter::h1::techset::convert(iw6_asset, mem);
-
-					const auto path = "techsets\\"s + asset->name + ".techset";
-
-					yeet(asset);
-
-					assetmanager::dumper dumper;
-					if (!dumper.open(path))
-					{
-						return;
-					}
-
-					dumper.dump_single(asset);
-					dumper.dump_string(asset->name);
-
-					for (auto i = 0u; i < zonetool::h1::MaterialTechniqueType::TECHNIQUE_COUNT; i++)
-					{
-						if (asset->techniques[i])
-						{
-							dumper.dump_string(asset->techniques[i]->hdr.name);
-							dump_technique(asset->techniques[i]);
-						}
-					}
-
-					dumper.close();
-				}
-			}
-
 			const std::unordered_map <std::uint8_t, std::uint8_t> worldvertexformat_map =
 			{
 				{0, 0},
@@ -1565,18 +1175,11 @@ namespace zonetool::iw6
 				{-112.810379f, -242.356049f, 232.554977f, 1.000000f}, //290
 			};
 
-			std::unordered_map<std::string, zonetool::h1::MaterialTechniqueSet*> converted_techset_assets;
-
-			zonetool::h1::MaterialTechniqueSet* convert(MaterialTechniqueSet* asset, zone_memory* mem)
+			zonetool::h1::MaterialTechniqueSet* convert(MaterialTechniqueSet* asset, utils::memory::allocator& allocator)
 			{
-				if (converted_techset_assets.contains(asset->name + TECHSET_PREFIX))
-				{
-					return converted_techset_assets[asset->name];
-				}
+				auto* new_asset = allocator.allocate<zonetool::h1::MaterialTechniqueSet>();
 
-				auto* new_asset = mem->allocate<zonetool::h1::MaterialTechniqueSet>();
-
-				new_asset->name = mem->duplicate_string(asset->name + TECHSET_PREFIX);
+				new_asset->name = allocator.duplicate_string(asset->name);
 				new_asset->flags = asset->flags; // convert?
 
 				if (worldvertexformat_map.contains(asset->worldVertFormat))
@@ -1609,14 +1212,14 @@ namespace zonetool::iw6
 						else
 						{
 							const auto size = sizeof(MaterialTechniqueHeader) + sizeof(MaterialPass) * asset->techniques[i]->hdr.passCount;
-							new_asset->techniques[new_tech_index] = mem->manual_allocate<zonetool::h1::MaterialTechnique>(size);
+							new_asset->techniques[new_tech_index] = allocator.manual_allocate<zonetool::h1::MaterialTechnique>(size);
 
 							auto* technique = asset->techniques[i];
 							auto* new_technique = new_asset->techniques[new_tech_index];
 
 							std::memcpy(new_technique, technique, size); // same struct
 
-							new_technique->hdr.name = mem->duplicate_string(technique->hdr.name + TECHSET_PREFIX);
+							new_technique->hdr.name = allocator.duplicate_string(technique->hdr.name + TECHSET_PREFIX);
 
 							for (unsigned short pass_index = 0; pass_index < technique->hdr.passCount; pass_index++)
 							{
@@ -1625,23 +1228,23 @@ namespace zonetool::iw6
 
 								if (pass->vertexShader)
 								{
-									new_pass->vertexShader = converter::h1::vertexshader::convert(pass->vertexShader, mem);
+									new_pass->vertexShader = converter::h1::vertexshader::convert(pass->vertexShader, allocator);
 								}
 								if (pass->vertexDecl)
 								{
-									new_pass->vertexDecl = converter::h1::vertexdecl::convert(pass->vertexDecl, mem);
+									new_pass->vertexDecl = converter::h1::vertexdecl::convert(pass->vertexDecl, allocator);
 								}
 								if (pass->hullShader)
 								{
-									new_pass->hullShader = converter::h1::hullshader::convert(pass->hullShader, mem);
+									new_pass->hullShader = converter::h1::hullshader::convert(pass->hullShader, allocator);
 								}
 								if (pass->domainShader)
 								{
-									new_pass->domainShader = converter::h1::domainshader::convert(pass->domainShader, mem);
+									new_pass->domainShader = converter::h1::domainshader::convert(pass->domainShader, allocator);
 								}
 								if (pass->pixelShader)
 								{
-									new_pass->pixelShader = converter::h1::pixelshader::convert(pass->pixelShader, mem);
+									new_pass->pixelShader = converter::h1::pixelshader::convert(pass->pixelShader, allocator);
 								}
 
 								//new_pass->stableArgSize += 128;
@@ -1649,7 +1252,7 @@ namespace zonetool::iw6
 								if (pass->args)
 								{
 									auto arg_count = pass->perObjArgCount + pass->perPrimArgCount + pass->stableArgCount;
-									new_pass->args = mem->allocate<zonetool::h1::MaterialShaderArgument>(arg_count);
+									new_pass->args = allocator.allocate_array<zonetool::h1::MaterialShaderArgument>(arg_count);
 									std::memcpy(new_pass->args, pass->args, sizeof(MaterialShaderArgument) * arg_count); // same struct
 
 									auto new_arg_index = 0;
@@ -1701,7 +1304,7 @@ namespace zonetool::iw6
 												//new_arg->u.codeConst.rowCount = 0;
 
 												new_arg->type = zonetool::h1::MTL_ARG_LITERAL_CONST;
-												new_arg->u.literalConst = mem->allocate<float>(4);
+												new_arg->u.literalConst = allocator.allocate_array<float>(4);
 												std::memcpy(new_arg->u.literalConst, consts[arg->u.codeConst.index], sizeof(float[4]));
 
 												// add literalized arg to the list
@@ -1761,13 +1364,14 @@ namespace zonetool::iw6
 				new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW];
 				new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_CUCOLORIS];
 
-				converted_techset_assets[asset->name] = new_asset;
 				return new_asset;
 			}
 
-			void dump(MaterialTechniqueSet* asset, zone_memory* mem)
+			void dump(MaterialTechniqueSet* asset)
 			{
-				ree::dump(asset, mem);
+				utils::memory::allocator allocator;
+				const auto converted_asset = convert(asset, allocator);
+				zonetool::h1::techset::dump(converted_asset);
 			}
 		}
 	}

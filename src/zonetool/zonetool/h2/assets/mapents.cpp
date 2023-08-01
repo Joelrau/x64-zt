@@ -617,10 +617,10 @@ namespace zonetool::h2
 
 		for (unsigned short i = 0; i < spawnList->spawnsCount; i++)
 		{
-			data[i]["name"] = SL_ConvertToString(spawnList->spawns[i].name);
-			data[i]["target"] = SL_ConvertToString(spawnList->spawns[i].target);
-			data[i]["script_noteworthy"] = SL_ConvertToString(spawnList->spawns[i].script_noteworthy);
-			data[i]["unknown"] = SL_ConvertToString(spawnList->spawns[i].unknown);
+			data[i]["name"] = spawnList->spawns[i].name ? SL_ConvertToString(spawnList->spawns[i].name) : "";
+			data[i]["target"] = spawnList->spawns[i].target ? SL_ConvertToString(spawnList->spawns[i].target) : "";
+			data[i]["script_noteworthy"] = spawnList->spawns[i].script_noteworthy ? SL_ConvertToString(spawnList->spawns[i].script_noteworthy) : "";
+			data[i]["unknown"] = spawnList->spawns[i].unknown ? SL_ConvertToString(spawnList->spawns[i].unknown) : "";
 			for (auto j = 0; j < 3; j++)
 			{
 				data[i]["origin"][j] = spawnList->spawns[i].origin[j];

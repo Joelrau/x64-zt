@@ -175,15 +175,16 @@ namespace zonetool::iw6
 
 		namespace mapents
 		{
-			zonetool::h1::MapEnts* convert(MapEnts* asset, zone_memory* mem)
+			zonetool::h1::MapEnts* convert(MapEnts* asset, utils::memory::allocator& allocator)
 			{
-				auto* new_asset = mem->allocate<zonetool::h1::MapEnts>();
+				auto* new_asset = allocator.allocate<zonetool::h1::MapEnts>();
 
 				REINTERPRET_CAST_SAFE(name);
 
-				// todo:
-				REINTERPRET_CAST_SAFE(entityString);
-				COPY_VALUE(numEntityChars);
+				const auto str = convert_mapents_ids(
+					std::string{asset->entityString, static_cast<size_t>(asset->numEntityChars)});
+				new_asset->entityString = allocator.duplicate_string(str);
+				new_asset->numEntityChars = static_cast<int>(str.size());
 
 				COPY_VALUE_CAST(trigger);
 
@@ -194,9 +195,9 @@ namespace zonetool::iw6
 				REINTERPRET_CAST_SAFE(clientTrigger.triggerString);
 				REINTERPRET_CAST_SAFE(clientTrigger.visionSetTriggers);
 				REINTERPRET_CAST_SAFE(clientTrigger.blendLookup);
-				new_asset->clientTrigger.unk1 = mem->allocate<short>(asset->clientTrigger.trigger.count);
+				new_asset->clientTrigger.unk1 = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
 				
-				new_asset->clientTrigger.triggerType = mem->allocate<short>(asset->clientTrigger.trigger.count);
+				new_asset->clientTrigger.triggerType = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
 				for (unsigned int i = 0; i < asset->clientTrigger.trigger.count; i++)
 				{
 					// most likely needs converting
@@ -206,17 +207,17 @@ namespace zonetool::iw6
 				REINTERPRET_CAST_SAFE(clientTrigger.origins);
 				REINTERPRET_CAST_SAFE(clientTrigger.scriptDelay);
 				REINTERPRET_CAST_SAFE(clientTrigger.audioTriggers);
-				new_asset->clientTrigger.unk2 = mem->allocate<short>(asset->clientTrigger.trigger.count);
-				new_asset->clientTrigger.unk3 = mem->allocate<short>(asset->clientTrigger.trigger.count);
-				new_asset->clientTrigger.unk4 = mem->allocate<short>(asset->clientTrigger.trigger.count);
-				new_asset->clientTrigger.unk5 = mem->allocate<short>(asset->clientTrigger.trigger.count);
-				new_asset->clientTrigger.unk6 = mem->allocate<short>(asset->clientTrigger.trigger.count);
+				new_asset->clientTrigger.unk2 = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
+				new_asset->clientTrigger.unk3 = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
+				new_asset->clientTrigger.unk4 = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
+				new_asset->clientTrigger.unk5 = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
+				new_asset->clientTrigger.unk6 = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
 
 				COPY_VALUE(clientTriggerBlend.numClientTriggerBlendNodes);
 				REINTERPRET_CAST_SAFE(clientTriggerBlend.blendNodes);
 
 				COPY_VALUE_CAST(spawnList.spawnsCount);
-				new_asset->spawnList.spawns = mem->allocate<zonetool::h1::SpawnPointEntityRecord>(asset->spawnList.spawnsCount);
+				new_asset->spawnList.spawns = allocator.allocate_array<zonetool::h1::SpawnPointEntityRecord>(asset->spawnList.spawnsCount);
 				for (unsigned short i = 0; i < asset->spawnList.spawnsCount; i++)
 				{
 					COPY_VALUE_CAST(spawnList.spawns[i].index);
@@ -248,13 +249,11 @@ namespace zonetool::iw6
 				}
 			}
 
-			void dump(MapEnts* asset, zone_memory* mem)
+			void dump(MapEnts* asset)
 			{
-				auto* converted_asset = convert(asset, mem);
+				utils::memory::allocator allocator;
+				const auto converted_asset = convert(asset, allocator);
 				zonetool::h1::map_ents::dump(converted_asset);
-
-				// dump the converted mapent strings
-				dump_entity_strings(asset->name, asset->entityString, asset->numEntityChars);
 			}
 		}
 	}

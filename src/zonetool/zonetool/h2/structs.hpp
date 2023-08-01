@@ -6094,6 +6094,82 @@ namespace zonetool::h2
 	static_assert(offsetof(VehicleDef, soundTriggerOverrideZone) == 2264);
 	static_assert(sizeof(VehicleDef) == 0x8E8);
 
+
+	struct DDLMember
+	{
+		const char* name;
+		int index;
+		void* parent;
+		int bitSize;
+		int limitSize;
+		int offset;
+		int type;
+		int externalIndex;
+		unsigned int rangeLimit;
+		unsigned int serverDelta;
+		unsigned int clientDelta;
+		int arraySize;
+		int enumIndex;
+		int permission;
+	};
+
+	struct DDLHash
+	{
+		unsigned int hash;
+		int index;
+	};
+
+	struct DDLHashTable
+	{
+		DDLHash* list;
+		int count;
+		int max;
+	};
+
+	struct DDLStruct
+	{
+		const char* name;
+		int bitSize;
+		int memberCount;
+		DDLMember* members;
+		DDLHashTable hashTableUpper;
+		DDLHashTable hashTableLower;
+	};
+
+	struct DDLEnum
+	{
+		const char* name;
+		int memberCount;
+		const char** members;
+		DDLHashTable hashTable;
+	};
+
+	struct DDLDef
+	{
+		char* name;
+		unsigned short version;
+		unsigned int checksum;
+		unsigned char flags;
+		int bitSize;
+		int byteSize;
+		DDLStruct* structList;
+		int structCount;
+		DDLEnum* enumList;
+		int enumCount;
+		DDLDef* next;
+		int headerBitSize;
+		int headerByteSize;
+		int reserveSize;
+		int userFlagsSize;
+		bool paddingUsed;
+	};
+
+	struct DDLRoot
+	{
+		const char* name;
+		DDLDef* ddlDef;
+	};
+	
 	union XAssetHeader
 	{
 		void* data;
@@ -6115,32 +6191,59 @@ namespace zonetool::h2
 		MaterialTechniqueSet* techniqueSet;
 		GfxImage* image;
 		snd_alias_list_t* sound;
+		// submix
 		SndCurve* sndCurve;
 		SndCurve* lpfCurve;
 		SndCurve* reverbCurve;
 		SndContext* sndContext;
-		LaserDef* laser;
 		LoadedSound* loadSnd;
-		LocalizeEntry* localize;
+		clipMap_t* clipMap;
+		ComWorld* comWorld;
+		GlassWorld* glassWorld;
+		PathData* pathData;
+		// vehicle track
 		MapEnts* mapEnts;
+		FxWorld* fxWorld;
+		GfxWorld* gfxWorld;
 		GfxLightDef* lightDef;
+		// ui map
+		// menulist
+		// menu
+		// anim class
+		LocalizeEntry* localize;
 		WeaponAttachment* attachment;
 		WeaponDef* weapon;
-		VehicleDef* vehicle;
+		// snd driver globals
 		FxEffectDef* fx;
+		// impact fx
+		// surface fx
+		// ai type
+		// mp type
+		// character
+		// xmodel alias
 		RawFile* rawfile;
 		ScriptFile* scriptfile;
 		StringTable* stringTable;
+		// leaderboard
+		// virtual leaderboard
 		StructuredDataDefSet* structuredDataDefSet;
-		NetConstStrings* netConstStrings;
+		DDLRoot* ddlRoot;
+		// proto
 		TracerDef* tracerDef;
+		VehicleDef* vehicle;
+		AddonMapEnts* addonMapEnts;
+		NetConstStrings* netConstStrings;
+		// reverb preset
 		LuaFile* luaFile;
+		ScriptableDef* scriptable;
+		// equipment snd table
+		// vector field
 		DopplerPreset* doppler;
 		FxParticleSimAnimation* particleSimAnimation;
+		LaserDef* laser;
 		SkeletonScript* skeletonScript;
 		Clut* clut;
 		TTFDef* ttfDef;
-		PathData* aipaths;
 	};
 
 	struct XAsset

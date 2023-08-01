@@ -15,7 +15,7 @@ namespace zonetool::iw6
 	{
 		namespace scriptfile
 		{
-			zonetool::h1::ScriptFile* convert(ScriptFile* asset, zone_memory* mem)
+			zonetool::h1::ScriptFile* convert(ScriptFile* asset, utils::memory::allocator& allocator)
 			{
 				return nullptr;
 			}
@@ -50,7 +50,7 @@ namespace zonetool::iw6
 				const auto decomp = decompiler.decompile(*disasm);
 
 				const auto decomp_data = gsc::iw6::gsc_ctx->source().dump(*decomp);
-				return { decomp_data.begin(), decomp_data.end() };
+				return {decomp_data.begin(), decomp_data.end()};
 			}
 
 			void dump_as_gsc(ScriptFile* asset)
@@ -63,7 +63,7 @@ namespace zonetool::iw6
 				file.close();
 			}
 
-			void dump(ScriptFile* asset, zone_memory* mem)
+			void dump(ScriptFile* asset)
 			{
 				dump_as_gsc(asset);
 			}

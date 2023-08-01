@@ -6,8 +6,8 @@ namespace zonetool::iw6
 	{
 		namespace gfxworld
 		{
-			zonetool::h1::GfxWorld* convert(GfxWorld* asset, zone_memory* mem);
-			void dump(GfxWorld* asset, zone_memory* mem);
+			zonetool::h1::GfxWorld* convert(GfxWorld* asset, utils::memory::allocator& allocator);
+			void dump(GfxWorld* asset);
 		}
 	}
 }

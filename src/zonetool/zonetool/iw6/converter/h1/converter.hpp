@@ -8,6 +8,7 @@
 #include "assets/gfxworld.hpp"
 #include "assets/mapents.hpp"
 #include "assets/material.hpp"
+#include "assets/physworld.hpp"
 #include "assets/scriptabledef.hpp"
 #include "assets/scriptfile.hpp"
 #include "assets/sound.hpp"

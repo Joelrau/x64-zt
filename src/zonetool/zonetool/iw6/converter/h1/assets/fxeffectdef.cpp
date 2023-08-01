@@ -10,9 +10,9 @@ namespace zonetool::iw6
 	{
 		namespace fxeffectdef
 		{
-			zonetool::h1::FxEffectDef* convert(FxEffectDef* asset, zone_memory* mem)
+			zonetool::h1::FxEffectDef* convert(FxEffectDef* asset, utils::memory::allocator& allocator)
 			{
-				auto* new_asset = mem->allocate<zonetool::h1::FxEffectDef>();
+				auto* new_asset = allocator.allocate<zonetool::h1::FxEffectDef>();
 
 				REINTERPRET_CAST_SAFE(name);
 
@@ -29,7 +29,7 @@ namespace zonetool::iw6
 				COPY_VALUE_CAST(occlusionQueryScaleRange);
 				
 				auto count = asset->elemDefCountLooping + asset->elemDefCountOneShot + asset->elemDefCountEmission;
-				new_asset->elemDefs = mem->allocate<zonetool::h1::FxElemDef>(count);
+				new_asset->elemDefs = allocator.allocate_array<zonetool::h1::FxElemDef>(count);
 				for (auto i = 0; i < count; i++)
 				{
 					auto* elem = &asset->elemDefs[i];
@@ -62,7 +62,7 @@ namespace zonetool::iw6
 
 					if (elem->visSamples)
 					{
-						new_elem->visSamples = mem->allocate<zonetool::h1::FxElemVisStateSample>(elem->visStateIntervalCount + 1);
+						new_elem->visSamples = allocator.allocate_array<zonetool::h1::FxElemVisStateSample>(elem->visStateIntervalCount + 1);
 						for (int ii = 0; ii < elem->visStateIntervalCount + 1; ii++)
 						{
 							// base
@@ -102,7 +102,7 @@ namespace zonetool::iw6
 					{
 						if (elem->visuals.markArray)
 						{
-							new_elem->visuals.markArray = mem->allocate<zonetool::h1::FxElemMarkVisuals>(elem->visualCount);
+							new_elem->visuals.markArray = allocator.allocate_array<zonetool::h1::FxElemMarkVisuals>(elem->visualCount);
 
 							for (unsigned char j = 0; j < elem->visualCount; j++)
 							{
@@ -114,7 +114,7 @@ namespace zonetool::iw6
 					}
 					else if (elem->visualCount > 1)
 					{
-						new_elem->visuals.array = mem->allocate<zonetool::h1::FxElemVisuals>(elem->visualCount);
+						new_elem->visuals.array = allocator.allocate_array<zonetool::h1::FxElemVisuals>(elem->visualCount);
 						for (int j = 0; j < elem->visualCount; j++)
 						{
 							// this is fine
@@ -139,7 +139,7 @@ namespace zonetool::iw6
 					switch (elem->elemType)
 					{
 					case FX_ELEM_TYPE_TRAIL:
-						new_elem->extended.trailDef = mem->allocate<zonetool::h1::FxTrailDef>();
+						new_elem->extended.trailDef = allocator.allocate<zonetool::h1::FxTrailDef>();
 
 						// check
 						new_elem->extended.trailDef->scrollTimeMsec = elem->extended.trailDef->scrollTimeMsec;
@@ -150,7 +150,7 @@ namespace zonetool::iw6
 						// pad
 
 						new_elem->extended.trailDef->vertCount = elem->extended.trailDef->vertCount;
-						new_elem->extended.trailDef->verts = mem->allocate<zonetool::h1::FxTrailVertex>(new_elem->extended.trailDef->vertCount);
+						new_elem->extended.trailDef->verts = allocator.allocate_array<zonetool::h1::FxTrailVertex>(new_elem->extended.trailDef->vertCount);
 						for (int j = 0; j < new_elem->extended.trailDef->vertCount; j++)
 						{
 							// check
@@ -169,7 +169,7 @@ namespace zonetool::iw6
 						break;
 					case FX_ELEM_TYPE_SPOT_LIGHT:
 						// check
-						new_elem->extended.spotLightDef = mem->allocate<zonetool::h1::FxSpotLightDef>();
+						new_elem->extended.spotLightDef = allocator.allocate<zonetool::h1::FxSpotLightDef>();
 						if (elem->extended.spotLightDef)
 						{
 							new_elem->extended.spotLightDef->fovInnerFraction = elem->extended.spotLightDef->fovInnerFraction;
@@ -182,7 +182,7 @@ namespace zonetool::iw6
 						}
 						break;
 					case FX_ELEM_TYPE_OMNI_LIGHT:
-						new_elem->extended.omniLightDef = mem->allocate<zonetool::h1::FxOmniLightDef>();
+						new_elem->extended.omniLightDef = allocator.allocate<zonetool::h1::FxOmniLightDef>();
 						// todo?
 						break;
 					case FX_ELEM_TYPE_FLARE:
@@ -207,9 +207,10 @@ namespace zonetool::iw6
 				return new_asset;
 			}
 
-			void dump(FxEffectDef* asset, zone_memory* mem)
+			void dump(FxEffectDef* asset)
 			{
-				auto* converted_asset = convert(asset, mem);
+				utils::memory::allocator allocator;
+				const auto converted_asset = convert(asset, allocator);
 				zonetool::h1::fx_effect_def::dump(converted_asset);
 			}
 		}

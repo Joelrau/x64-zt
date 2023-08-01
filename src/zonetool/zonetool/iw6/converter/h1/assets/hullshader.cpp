@@ -10,22 +10,21 @@ namespace zonetool::iw6
 	{
 		namespace hullshader
 		{
-			zonetool::h1::MaterialHullShader* convert(MaterialHullShader* asset, zone_memory* mem)
+			zonetool::h1::MaterialHullShader* convert(MaterialHullShader* asset, utils::memory::allocator& allocator)
 			{
-				auto* new_asset = mem->allocate<zonetool::h1::MaterialHullShader>();
+				auto* new_asset = allocator.allocate<zonetool::h1::MaterialHullShader>();
 
 				new_asset->prog.loadDef.program = asset->prog.loadDef.program;
 				new_asset->prog.loadDef.programSize = asset->prog.loadDef.programSize;
-				//memcpy(&new_asset->prog.loadDef.__pad, &asset->prog.loadDef.loadForRenderer, sizeof(short));
-
-				new_asset->name = mem->duplicate_string(asset->name + TECHSET_PREFIX);
+				new_asset->name = allocator.duplicate_string(game::add_source_postfix(asset->name, game::iw6));
 
 				return new_asset;
 			}
 
-			void dump(MaterialHullShader* asset, zone_memory* mem)
+			void dump(MaterialHullShader* asset)
 			{
-				auto* converted_asset = convert(asset, mem);
+				utils::memory::allocator allocator;
+				const auto converted_asset = convert(asset, allocator);
 				zonetool::h1::hull_shader::dump(converted_asset);
 			}
 		}

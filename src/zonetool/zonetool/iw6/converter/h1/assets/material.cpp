@@ -2,7 +2,7 @@
 #include "zonetool/iw6/converter/h1/include.hpp"
 #include "material.hpp"
 
-//#include "zonetool/h1/assets/material.hpp"
+#include "zonetool/h1/assets/material.hpp"
 
 #include "techset.hpp"
 
@@ -14,152 +14,6 @@ namespace zonetool::iw6
 	{
 		namespace material
 		{
-			namespace ree
-			{
-#define MATERIAL_DUMP_STRING(entry) \
-matdata[#entry] = std::string(asset->entry);
-
-#define MATERIAL_DUMP(entry) \
-matdata[#entry] = asset->entry;
-
-#define MATERIAL_DUMP_INFO(entry) \
-matdata[#entry] = asset->info.entry;
-
-#define MATERIAL_DUMP_CONST_ARRAY(entry,size) \
-ordered_json carr##entry; \
-for (int i = 0; i < size; i++) \
-{ \
-	ordered_json cent##entry; \
-	std::string name = asset->constantTable[i].name; \
-	name.resize(12); \
-	cent##entry["name"] = name.data(); \
-	cent##entry["nameHash"] = asset->entry[i].nameHash; \
-	nlohmann::json centliteral##entry; \
-	centliteral##entry[0] = asset->entry[i].literal[0]; \
-	centliteral##entry[1] = asset->entry[i].literal[1]; \
-	centliteral##entry[2] = asset->entry[i].literal[2]; \
-	centliteral##entry[3] = asset->entry[i].literal[3]; \
-	cent##entry["literal"] = centliteral##entry; \
-	carr##entry[i] = cent##entry; \
-} \
-matdata[#entry] = carr##entry;
-
-				namespace
-				{
-					std::string clean_name(const std::string& name)
-					{
-						auto new_name = name;
-
-						for (auto i = 0u; i < name.size(); i++)
-						{
-							switch (new_name[i])
-							{
-							case '*':
-								new_name[i] = '_';
-								break;
-							}
-						}
-
-						return new_name;
-					}
-				}
-
-				void dump(Material* iw6_asset, zone_memory* mem)
-				{
-					auto* asset = converter::h1::material::convert(iw6_asset, mem);
-
-					// TODO: maybe add subMaterials?
-
-					if (asset)
-					{
-						auto c_name = clean_name(asset->name);
-
-						const auto path = "materials\\"s + c_name + ".json"s;
-						auto file = filesystem::file(path);
-						file.open("wb");
-
-						if (asset && asset->techniqueSet)
-						{
-							converter::h1::techset::ree::dump_stateinfo(asset->techniqueSet->name, c_name.data(), asset);
-							converter::h1::techset::ree::dump_statebits(asset->techniqueSet->name, c_name.data(), asset->stateBitsEntry);
-							converter::h1::techset::ree::dump_statebits_map(asset->techniqueSet->name, c_name.data(), iw6_asset->stateMap, asset->stateBitsCount);
-
-							converter::h1::techset::ree::dump_constant_buffer_indexes(asset->techniqueSet->name, c_name.data(), asset->constantBufferIndex);
-							converter::h1::techset::ree::dump_constant_buffer_def_array(asset->techniqueSet->name, c_name.data(),
-								asset->constantBufferCount, asset->constantBufferTable);
-						}
-
-						ordered_json matdata;
-
-						MATERIAL_DUMP_STRING(name);
-
-						if (asset->techniqueSet)
-						{
-							MATERIAL_DUMP_STRING(techniqueSet->name);
-						}
-
-						MATERIAL_DUMP_INFO(gameFlags);
-						MATERIAL_DUMP_INFO(sortKey);
-						MATERIAL_DUMP_INFO(renderFlags);
-
-						MATERIAL_DUMP_INFO(textureAtlasRowCount);
-						MATERIAL_DUMP_INFO(textureAtlasColumnCount);
-						MATERIAL_DUMP_INFO(textureAtlasFrameBlend);
-						MATERIAL_DUMP_INFO(textureAtlasAsArray);
-
-						MATERIAL_DUMP_INFO(surfaceTypeBits);
-						//MATERIAL_DUMP_INFO(hashIndex);
-
-						//MATERIAL_DUMP(stateFlags);
-						MATERIAL_DUMP(cameraRegion);
-						MATERIAL_DUMP(materialType);
-						MATERIAL_DUMP(assetFlags);
-
-						MATERIAL_DUMP_CONST_ARRAY(constantTable, asset->constantCount);
-
-						ordered_json material_images;
-						for (auto i = 0; i < asset->textureCount; i++)
-						{
-							ordered_json image;
-							if (asset->textureTable[i].semantic == 11)
-							{
-								// unsupported
-								MessageBoxA(nullptr, asset->textureTable[i].u.water->image->name, "water", 0);
-							}
-							else
-							{
-								if (asset->textureTable[i].u.image && asset->textureTable[i].u.image->name)
-								{
-									image["image"] = asset->textureTable[i].u.image->name;
-								}
-								else
-								{
-									image["image"] = "";
-								}
-							}
-
-							image["semantic"] = asset->textureTable[i].semantic;
-							image["samplerState"] = asset->textureTable[i].samplerState;
-							image["lastCharacter"] = asset->textureTable[i].nameEnd;
-							image["firstCharacter"] = asset->textureTable[i].nameStart;
-							image["typeHash"] = asset->textureTable[i].nameHash;
-
-							// add image data to material
-							material_images.push_back(image);
-						}
-						matdata["textureTable"] = material_images;
-
-						auto str = matdata.dump(4);
-
-						matdata.clear();
-
-						file.write(str);
-
-						file.close();
-					}
-				}
-			}
-
 			std::unordered_map<std::uint8_t, std::uint8_t> mapped_sortkeys =
 			{
 				{0, 1},		// Opaque ambient
@@ -300,9 +154,9 @@ matdata[#entry] = carr##entry;
 				//return material_type;
 			}
 
-			zonetool::h1::Material* convert(Material* asset, zone_memory* mem)
+			zonetool::h1::Material* convert(Material* asset, utils::memory::allocator& allocator)
 			{
-				auto* new_asset = mem->allocate<zonetool::h1::Material>();
+				auto* new_asset = allocator.allocate<zonetool::h1::Material>();
 
 				REINTERPRET_CAST_SAFE(name);
 
@@ -363,12 +217,15 @@ matdata[#entry] = carr##entry;
 				new_asset->layerCount = asset->layerCount;
 				new_asset->assetFlags = asset->assetFlags; // convert?
 
-				new_asset->techniqueSet = converter::h1::techset::convert(asset->techniqueSet, mem);
+				new_asset->techniqueSet = allocator.allocate<zonetool::h1::MaterialTechniqueSet>();
+				new_asset->techniqueSet->name = allocator.duplicate_string(asset->techniqueSet->name);
 				REINTERPRET_CAST_SAFE(textureTable);
 				REINTERPRET_CAST_SAFE(constantTable);
 				
 				// statemap
-				new_asset->stateBitsTable = mem->allocate<zonetool::h1::GfxStateBits>(asset->stateBitsCount); // don't convert, dump from old
+				//new_asset->stateBitsTable = allocator.allocate_array<zonetool::h1::GfxStateBits>(asset->stateBitsCount); // don't convert, dump from old
+				new_asset->stateBitsTable = (zonetool::h1::GfxStateBits*)asset->stateMap;
+				new_asset->stateBitsCount = asset->stateBitsCount;
 
 				std::memset(new_asset->constantBufferIndex, 0xFF, zonetool::h1::MaterialTechniqueType::TECHNIQUE_COUNT);
 				for (auto i = 0; i < MaterialTechniqueType::TECHNIQUE_COUNT; i++)
@@ -415,9 +272,11 @@ matdata[#entry] = carr##entry;
 				return new_asset;
 			}
 
-			void dump(Material* asset, zone_memory* mem)
+			void dump(Material* asset)
 			{
-				ree::dump(asset, mem);
+				utils::memory::allocator allocator;
+				const auto converted_asset = convert(asset, allocator);
+				zonetool::h1::material::dump(converted_asset);
 			}
 		}
 	}

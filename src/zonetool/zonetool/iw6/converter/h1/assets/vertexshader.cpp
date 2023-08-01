@@ -10,22 +10,22 @@ namespace zonetool::iw6
 	{
 		namespace vertexshader
 		{
-			zonetool::h1::MaterialVertexShader* convert(MaterialVertexShader* asset, zone_memory* mem)
+			zonetool::h1::MaterialVertexShader* convert(MaterialVertexShader* asset, utils::memory::allocator& allocator)
 			{
-				auto* new_asset = mem->allocate<zonetool::h1::MaterialVertexShader>();
+				auto* new_asset = allocator.allocate<zonetool::h1::MaterialVertexShader>();
 
 				new_asset->prog.loadDef.program = asset->prog.loadDef.program;
 				new_asset->prog.loadDef.programSize = asset->prog.loadDef.programSize;
 				new_asset->prog.loadDef.microCodeCrc = ::shader::calc_crc32(new_asset->prog.loadDef.program, new_asset->prog.loadDef.programSize);
-
-				new_asset->name = mem->duplicate_string(asset->name + TECHSET_PREFIX);
+				new_asset->name = allocator.duplicate_string(game::add_source_postfix(asset->name, game::iw6));
 
 				return new_asset;
 			}
 
-			void dump(MaterialVertexShader* asset, zone_memory* mem)
+			void dump(MaterialVertexShader* asset)
 			{
-				auto* converted_asset = convert(asset, mem);
+				utils::memory::allocator allocator;
+				auto* converted_asset = convert(asset, allocator);
 				zonetool::h1::vertex_shader::dump(converted_asset);
 			}
 		}

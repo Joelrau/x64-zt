@@ -10,15 +10,15 @@ namespace zonetool::iw6
 	{
 		namespace xsurface
 		{
-			zonetool::h1::XModelSurfs* convert(XModelSurfs* asset, zone_memory* mem)
+			zonetool::h1::XModelSurfs* convert(XModelSurfs* asset, utils::memory::allocator& allocator)
 			{
-				auto* new_asset = mem->allocate<zonetool::h1::XModelSurfs>();
+				auto* new_asset = allocator.allocate<zonetool::h1::XModelSurfs>();
 
 				REINTERPRET_CAST_SAFE(name);
 
 				COPY_VALUE(numsurfs);
 
-				new_asset->surfs = mem->allocate<zonetool::h1::XSurface>(asset->numsurfs);
+				new_asset->surfs = allocator.allocate_array<zonetool::h1::XSurface>(asset->numsurfs);
 				for (unsigned short i = 0; i < asset->numsurfs; i++)
 				{
 					auto* new_surf = &new_asset->surfs[i];
@@ -41,14 +41,14 @@ namespace zonetool::iw6
 					}
 
 					REINTERPRET_CAST_SAFE(surfs[i].triIndices);
-					new_surf->triIndices2 = mem->allocate<zonetool::h1::Face>(surf->triCount); // ?
+					new_surf->triIndices2 = allocator.allocate_array<zonetool::h1::Face>(surf->triCount); // ?
 					for (unsigned short j = 0; j < surf->triCount; j++)
 					{
 						memcpy(&new_surf->triIndices2[j], &surf->triIndices[j], sizeof(zonetool::h1::Face));
 					}
 
 					// unknown
-					new_surf->unknown0 = mem->allocate<zonetool::h1::UnknownXSurface0>(surf->vertCount); // related to indices2?
+					new_surf->unknown0 = allocator.allocate_array<zonetool::h1::UnknownXSurface0>(surf->vertCount); // related to indices2?
 					for (unsigned short j = 0; j < surf->vertCount; j++)
 					{
 						if ((surf->flags & 8) != 0)
@@ -75,7 +75,7 @@ namespace zonetool::iw6
 
 					if (surf->lmapUnwrap)
 					{
-						new_surf->lmapUnwrap = mem->allocate<zonetool::h1::alignVertBufFloat16Vec2_t>(surf->vertCount);
+						new_surf->lmapUnwrap = allocator.allocate_array<zonetool::h1::alignVertBufFloat16Vec2_t>(surf->vertCount);
 						for (int j = 0; j < surf->vertCount; j++)
 						{
 							// check (float -> short)
@@ -101,9 +101,10 @@ namespace zonetool::iw6
 				return new_asset;
 			}
 
-			void dump(XModelSurfs* asset, zone_memory* mem)
+			void dump(XModelSurfs* asset)
 			{
-				auto* converted_asset = convert(asset, mem);
+				utils::memory::allocator allocator;
+				auto* converted_asset = convert(asset, allocator);
 				zonetool::h1::xsurface::dump(converted_asset);
 			}
 		}

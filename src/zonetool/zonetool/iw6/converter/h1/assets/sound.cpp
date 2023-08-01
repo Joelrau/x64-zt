@@ -10,9 +10,9 @@ namespace zonetool::iw6
 	{
 		namespace sound
 		{
-			zonetool::h1::snd_alias_list_t* convert(snd_alias_list_t* asset, zone_memory* mem)
+			zonetool::h1::snd_alias_list_t* convert(snd_alias_list_t* asset, utils::memory::allocator& allocator)
 			{
-				auto* new_asset = mem->allocate<zonetool::h1::snd_alias_list_t>();
+				auto* new_asset = allocator.allocate<zonetool::h1::snd_alias_list_t>();
 
 				REINTERPRET_CAST_SAFE(name);
 
@@ -21,9 +21,9 @@ namespace zonetool::iw6
 				return new_asset;
 			}
 
-			void dump(snd_alias_list_t* asset, zone_memory* mem)
+			void dump(snd_alias_list_t* asset)
 			{
-				//auto* converted_asset = convert(asset, mem);
+				//auto* converted_asset = convert(asset, allocator);
 				//zonetool::h1::sound::dump(converted_asset);
 			}
 		}

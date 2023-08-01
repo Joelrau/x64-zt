@@ -10,20 +10,20 @@ namespace zonetool::iw6
 	{
 		namespace comworld
 		{
-			zonetool::h1::ComWorld* convert(ComWorld* asset, zone_memory* mem)
+			zonetool::h1::ComWorld* convert(ComWorld* asset, utils::memory::allocator& allocator)
 			{
-				auto* new_asset = mem->allocate<zonetool::h1::ComWorld>();
+				const auto new_asset = allocator.allocate<zonetool::h1::ComWorld>();
 
 				REINTERPRET_CAST_SAFE(name);
 
 				COPY_VALUE(isInUse);
 				COPY_VALUE(primaryLightCount);
 
-				new_asset->primaryLights = mem->allocate<zonetool::h1::ComPrimaryLight>(asset->primaryLightCount);
+				new_asset->primaryLights = allocator.allocate_array<zonetool::h1::ComPrimaryLight>(asset->primaryLightCount);
 				for (unsigned int i = 0; i < asset->primaryLightCount; i++)
 				{
 					//auto* light = &asset->primaryLights[i];
-					auto* new_light = &new_asset->primaryLights[i];
+					const auto new_light = &new_asset->primaryLights[i];
 
 					COPY_VALUE_CAST(primaryLights[i].type); // should be the same
 					COPY_VALUE_CAST(primaryLights[i].canUseShadowMap);
@@ -57,9 +57,10 @@ namespace zonetool::iw6
 				return new_asset;
 			}
 
-			void dump(ComWorld* asset, zone_memory* mem)
+			void dump(ComWorld* asset)
 			{
-				auto* converted_asset = convert(asset, mem);
+				utils::memory::allocator allocator;
+				const auto converted_asset = convert(asset, allocator);
 				zonetool::h1::com_world::dump(converted_asset);
 			}
 		}
