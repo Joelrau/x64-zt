@@ -193,7 +193,7 @@ namespace zonetool::h2
 		this->asset_ = parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = db_find_x_asset_header_copy<PathData>(XAssetType(this->type()), this->name_.data(), mem).aipaths;
+			this->asset_ = db_find_x_asset_header_copy<PathData>(XAssetType(this->type()), this->name_.data(), mem).pathData;
 		}
 	}
 
