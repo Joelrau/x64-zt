@@ -3448,12 +3448,13 @@ namespace zonetool::s1
 
 	enum weapClass_t : std::int32_t
 	{
-		WEAPTYPE_RIFLE = 0x1,
-		WEAPTYPE_SNIPER = 0x2,
-		WEAPTYPE_MG = 0x3,
-		WEAPTYPE_SMG = 0x4,
-		WEAPTYPE_SPREAD = 0x5,
-		WEAPTYPE_PISTOL = 0x6,
+		WEAPTYPE_RIFLE = 0x0,
+		WEAPTYPE_SNIPER = 0x1,
+		WEAPTYPE_MG = 0x2,
+		WEAPTYPE_SMG = 0x3,
+		WEAPTYPE_SPREAD = 0x4,
+		WEAPTYPE_PISTOL = 0x5,
+		WEAPTYPE_GRENADE = 0x6,
 		WEAPTYPE_ROCKETLAUNCHER = 0x7,
 		WEAPTYPE_TURRET = 0x8,
 		WEAPTYPE_THROWINGKNIFE = 0x9,
@@ -3629,6 +3630,9 @@ namespace zonetool::s1
 		FIELD_OP_STRING_APPEND = 2,
 		FIELD_OP_NUMBER_BEGIN = 3,
 		FIELD_OP_NUMBER_SET = 3,
+		FIELD_OP_NUMBER_ADD = 4,
+		//FIELD_OP_NUMBER_ADD_MULTIPLY = 5,
+		FIELD_OP_NUMBER_MULTIPLY = 6,
 		FIELD_OP_NUMBER_END = 6,
 		FIELD_OP_COUNT = 7,
 	};
@@ -3652,6 +3656,7 @@ namespace zonetool::s1
 		AttachmentType type; // 16
 		weapType_t weaponType; // 20
 		weapClass_t weapClass; // 24
+		weapGreebleType_t greebleType; // 28
 		XModel** worldModels; // 32 (2 xmodels)
 		XModel** viewModels; // 40 (2 xmodels)
 		XModel** reticleViewModels; // 48 (32 xmodels)
@@ -6629,9 +6634,9 @@ namespace zonetool::s1
 		unsigned char index;
 	};
 
-	struct GfxRawTexture
+	struct GfxRawTexture : GfxTexture
 	{
-		char __pad0[32];
+		char __pad0[8];
 	}; assert_sizeof(GfxRawTexture, 32);
 
 	struct GfxLightmapArray
@@ -6719,12 +6724,12 @@ namespace zonetool::s1
 
 	struct GfxLightGridColors
 	{
-		unsigned char colorVec6[56][6];
+		unsigned short rgb[56][3];
 	}; assert_sizeof(GfxLightGridColors, 336);
 
 	struct GfxLightGridColorsHDR
 	{
-		unsigned char colorVec6[56][6];
+		unsigned short rgb[56][3];
 	}; assert_sizeof(GfxLightGridColorsHDR, 336);
 
 	struct GfxLightGridTree
@@ -7098,7 +7103,8 @@ namespace zonetool::s1
 	struct GfxHeroOnlyLight
 	{
 		unsigned char type;
-		unsigned char unused[3];
+		unsigned char needsDynamicShadows;
+		unsigned char unused[2];
 		float color[3];
 		float dir[3];
 		float up[3];
