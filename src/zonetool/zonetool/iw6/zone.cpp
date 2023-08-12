@@ -312,10 +312,7 @@ namespace zonetool::iw6
 
 			for (unsigned int i = 0; i < globals->blendStateCount; i++)
 			{
-				for (auto j = 0; j < 1; j++)
-				{
-					globals->blendStateBits[i][j] = buf->get_blendstatebits(i)[j];
-				}
+				globals->blendStateBits[i][0] = buf->get_blendstatebits(i)[0];
 			}
 			
 			globals->perPrimConstantBufferCount = static_cast<unsigned int>(buf->ppas_count());

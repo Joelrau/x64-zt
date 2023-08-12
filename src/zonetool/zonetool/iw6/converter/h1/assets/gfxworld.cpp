@@ -106,9 +106,12 @@ namespace zonetool::iw6
 						new_asset->aabbTrees[i].aabbTree[j].childCount = asset->aabbTrees[i].aabbTree[j].childCount;
 						// re-calculate childrenOffset
 						auto offset = asset->aabbTrees[i].aabbTree[j].childrenOffset;
-						int childrenIndex = offset / sizeof(GfxAabbTree);
-						int childrenOffset = childrenIndex * sizeof(zonetool::h1::GfxAabbTree);
-						new_asset->aabbTrees[i].aabbTree[j].childrenOffset = childrenOffset;
+						if (offset)
+						{
+							int childrenIndex = offset / sizeof(GfxAabbTree);
+							int childrenOffset = childrenIndex * sizeof(zonetool::h1::GfxAabbTree);
+							new_asset->aabbTrees[i].aabbTree[j].childrenOffset = childrenOffset;
+						}
 					}
 				}
 
@@ -142,7 +145,7 @@ namespace zonetool::iw6
 				{
 					memcpy(new_asset->draw.reflectionProbeOrigins[i].origin, 
 						asset->draw.reflectionProbeOrigins[i].origin,
-						sizeof(float[4]));
+						sizeof(float[3]));
 
 					new_asset->draw.reflectionProbeOrigins[i].probeVolumeCount = 0;
 					new_asset->draw.reflectionProbeOrigins[i].probeVolumes = nullptr;
@@ -184,12 +187,22 @@ namespace zonetool::iw6
 				COPY_VALUE(lightGrid.entryCount);
 				REINTERPRET_CAST_SAFE(lightGrid.entries);
 				COPY_VALUE(lightGrid.colorCount);
+				new_asset->lightGrid.colors = allocator.allocate_array<zonetool::h1::GfxLightGridColors>(asset->lightGrid.colorCount);
 				if (asset->lightGrid.colors)
 				{
-					new_asset->lightGrid.colors = allocator.allocate_array<zonetool::h1::GfxLightGridColors>(asset->lightGrid.colorCount);
-					// todo?
+					for (unsigned int i = 0; i < 56; i++)
+					{
+						for (unsigned int j = 0; j < 3; j++)
+						{
+							auto& rgb = asset->lightGrid.colors[i].rgb[j];
+							auto& dest_rgb = new_asset->lightGrid.colors[i].rgb[j];
+							dest_rgb[0] = float_to_half(rgb[0] / 255.f);
+							dest_rgb[1] = float_to_half(rgb[1] / 255.f);
+							dest_rgb[2] = float_to_half(rgb[2] / 255.f);
+						}
+					}
 				}
-				memset(new_asset->lightGrid.__pad0, 0, sizeof(new_asset->lightGrid.__pad0)); // unknown data
+				memset(new_asset->lightGrid.__pad0, 0, sizeof(new_asset->lightGrid.__pad0)); // unknown data, seems to be runtime data
 
 				COPY_VALUE(lightGrid.missingGridColorIndex);
 				COPY_VALUE(lightGrid.tableVersion);
@@ -206,16 +219,21 @@ namespace zonetool::iw6
 				COPY_VALUE(lightGrid.paletteBitstreamSize);
 				REINTERPRET_CAST_SAFE(lightGrid.paletteBitstream);
 
-				std::uint8_t defaultLightGridColors_bytes[] =
+				for (unsigned int i = 0; i < 56; i++)
 				{
-				116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64,
-				};
-				std::memcpy(&new_asset->lightGrid.defaultLightGridColors, &asset->lightGrid.defaultLightGridColors, sizeof(defaultLightGridColors_bytes));
-				std::uint8_t skyLightGridColors_bytes[] =
+					for (unsigned int j = 0; j < 3; j++)
+					{
+						new_asset->lightGrid.defaultLightGridColors.rgb[i][j] = float_to_half(asset->lightGrid.defaultLightGridColors.rgb[i][j]);
+					}
+				}
+
+				for (unsigned int i = 0; i < 56; i++)
 				{
-				116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64, 116, 64, 119, 64, 153, 64,
-				};
-				std::memcpy(&new_asset->lightGrid.skyLightGridColors, &asset->lightGrid.skyLightGridColors, sizeof(skyLightGridColors_bytes));
+					for (unsigned int j = 0; j < 3; j++)
+					{
+						new_asset->lightGrid.skyLightGridColors.rgb[i][j] = float_to_half(asset->lightGrid.skyLightGridColors.rgb[i][j]);
+					}
+				}
 
 				for (auto i = 0; i < 3; i++)
 				{
@@ -247,44 +265,6 @@ namespace zonetool::iw6
 						new_asset->lightGrid.tree[i].unused[0] = leaf_table_version::iw6;
 					}
 				}
-
-				// --experimental--
-
-				/*new_asset->lightGrid.tableVersion = 1;
-				new_asset->lightGrid.paletteVersion = 1;
-				new_asset->lightGrid.paletteEntryCount = asset->lightGrid.entryCount;
-				new_asset->lightGrid.paletteEntryAddress = allocator.allocate_array<int>(new_asset->lightGrid.paletteEntryCount));
-				for (unsigned int i = 0; i < new_asset->lightGrid.paletteEntryCount; i++)
-				{
-					new_asset->lightGrid.paletteEntryAddress[i] = 30; // 0, 30, 86, 116 //asset->lightGrid.entries[i].colorsIndex;
-				}
-
-				// mp_character_room palettebitstream
-				std::uint8_t paletteBitStream[] =
-				{
-				8, 33, 195, 128, 128, 124, 128, 128, 128, 129, 128, 199, 128, 128, 124, 128, 128, 128, 129, 128, 216, 128, 128, 124, 128, 128, 128, 129, 128, 0, 8, 33, 187, 128, 128, 130, 128, 128, 128, 128, 128, 191, 128, 128, 130, 128, 128, 128, 128, 128, 209, 128, 128, 130, 128, 128, 128, 128, 128, 0, 0, 0, 82, 80, 18, 64, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 214, 106, 18, 64, 1, 0, 0, 0, 8, 33, 195, 128, 128, 124, 128, 128, 128, 129, 128, 199, 128, 128, 124, 128, 128, 128, 129, 128, 216, 128, 128, 124, 128, 128, 128, 129, 128, 0, 198, 24, 241, 248, 8, 128, 128, 128, 128, 90, 128, 241, 8, 128, 248, 128, 128, 128, 147, 184, 241, 128, 248, 8, 128, 128, 128, 147, 72, 0,
-				};
-
-				new_asset->lightGrid.paletteBitstreamSize = sizeof(paletteBitStream);
-				new_asset->lightGrid.paletteBitstream = allocator.allocate_array<unsigned char>(new_asset->lightGrid.paletteBitstreamSize);
-				memcpy(new_asset->lightGrid.paletteBitstream, paletteBitStream, sizeof(paletteBitStream));
-
-				new_asset->lightGrid.missingGridColorIndex = new_asset->lightGrid.paletteEntryCount - 1;
-
-				new_asset->lightGrid.rangeExponent8BitsEncoding = 0;
-				new_asset->lightGrid.rangeExponent12BitsEncoding = 4;
-				new_asset->lightGrid.rangeExponent16BitsEncoding = 23;
-
-				new_asset->lightGrid.stageCount = 1;
-				new_asset->lightGrid.stageLightingContrastGain = allocator.allocate_array<float>(1));
-				new_asset->lightGrid.stageLightingContrastGain[0] = 0.3f;
-
-				for (char i = 0; i < 3; i++)
-				{
-					new_asset->lightGrid.tree[i].index = i;
-				}*/
-
-				//
 
 				COPY_VALUE(modelCount);
 				new_asset->models = allocator.allocate_array<zonetool::h1::GfxBrushModel>(asset->modelCount);
@@ -373,7 +353,8 @@ namespace zonetool::iw6
 					new_asset->dpvs.unknownSModelVisData1 = allocator.allocate_array<unsigned int>(new_asset->dpvs.smodelVisDataCount);
 					new_asset->dpvs.unknownSModelVisData2 = allocator.allocate_array<unsigned int>(new_asset->dpvs.smodelVisDataCount * 2);
 
-					new_asset->dpvs.lodData = allocator.allocate_array<unsigned int>(new_asset->dpvs.smodelCount + 1);
+					new_asset->dpvs.lodData = asset->dpvs.lodData;
+
 					new_asset->dpvs.tessellationCutoffVisData = allocator.allocate_array<unsigned int>(new_asset->dpvs.surfaceVisDataCount);
 
 					REINTERPRET_CAST_SAFE(dpvs.sortedSurfIndex);
@@ -402,6 +383,8 @@ namespace zonetool::iw6
 					{
 						memcpy(&new_asset->dpvs.surfacesBounds[i].bounds, &asset->dpvs.surfacesBounds[i].bounds, sizeof(Bounds));
 						// unk data
+						memcpy(&new_asset->dpvs.surfacesBounds[i].bounds, &asset->dpvs.surfacesBounds[i].bounds, sizeof(GfxSurfaceBounds));
+						assert(sizeof(zonetool::h1::GfxSurfaceBounds) == sizeof(zonetool::iw6::GfxSurfaceBounds));
 					}
 
 					new_asset->dpvs.smodelDrawInsts = allocator.allocate_array<zonetool::h1::GfxStaticModelDrawInst>(asset->dpvs.smodelCount);
@@ -459,10 +442,48 @@ namespace zonetool::iw6
 								float_to_half(asset->dpvs.smodelDrawInsts[i].groundLighting[2]);
 							new_asset->dpvs.smodelLighting[i].modelLightGridLightingInfo.lighting[3] =
 								float_to_half(asset->dpvs.smodelDrawInsts[i].groundLighting[3]);
+						}
 
-							//// lightGrid.paletteBitstream[lightGrid.->paletteEntryAddress[colorsIndex]]
-							//new_asset->dpvs.smodelLighting[i].modelLightGridLightingInfo.colorsIndex = new_asset->lightGrid.missingGridColorIndex;
-							//new_asset->dpvs.smodelLighting[i].modelLightGridLightingInfo.unk3 = 1.0f;
+						//if ((new_asset->dpvs.smodelDrawInsts[i].flags & STATIC_MODEL_FLAG_REACTIVEMOTION) != 0)
+						//{
+						//	new_asset->dpvs.smodelDrawInsts[i].unk1 = 6; //new_asset->dpvs.smodelDrawInsts[i].model->u1;
+						//}
+
+						if (game::get_mode() == game::game_mode::iw6 &&
+							(new_asset->dpvs.smodelDrawInsts[i].flags & STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING) != 0 &&
+							(new_asset->dpvs.smodelDrawInsts[i].flags & STATIC_MODEL_FLAG_ANIMATED_VERTS) != 0)
+						{
+							if (asset->lightGrid.tableVersion != 0)
+							{
+								memset(&new_asset->dpvs.smodelLighting[i].modelLightGridLightingInfo, 0, sizeof(zonetool::h1::GfxStaticModelLightGridLightingInfo));
+
+								auto smodel_inst = asset->dpvs.smodelInsts[i];
+								auto smodel_draw_inst = asset->dpvs.smodelDrawInsts[i];
+
+								// void R_LightGridCacheFlush(void)
+								utils::hook::invoke<void>(0x1405FBB50);
+
+								struct GfxLightGridRaw
+								{
+									unsigned int colorIndex;
+									unsigned short lightIndex;
+									unsigned char voxel;
+								};
+
+								GfxLightGridRaw light_grid_raw{};
+
+								auto sample_pos = smodel_inst.lightingOrigin;
+								short grid_pos[3]{};
+								grid_pos[0] = static_cast<short>((static_cast<int>(std::floor(sample_pos[0])) + 0x20000) / 32);
+								grid_pos[1] = static_cast<short>((static_cast<int>(std::floor(sample_pos[1])) + 0x20000) / 32);
+								grid_pos[2] = static_cast<short>((static_cast<int>(std::floor(sample_pos[2])) + 0x20000) / 64);
+
+								// void R_GetLightGrid(const GfxLightGridTree *p_tree, const unsigned short *gridPos, GfxLightGridRaw *p_lightGrid, bool allowEmptyNode)
+								utils::hook::invoke<int>(0x1405FB6F0, &asset->lightGrid.tree, grid_pos, &light_grid_raw, 1);
+
+								new_asset->dpvs.smodelLighting[i].modelLightGridLightingInfo.colorsIndex = light_grid_raw.colorIndex;
+								new_asset->dpvs.smodelLighting[i].modelLightGridLightingInfo.unk3 = 1.0f;
+							}
 						}
 					}
 					
@@ -513,9 +534,9 @@ namespace zonetool::iw6
 				COPY_VALUE(heroOnlyLightCount);
 				REINTERPRET_CAST_SAFE(heroOnlyLights);
 				COPY_VALUE(fogTypesAllowed);
-				new_asset->umbraTomeSize = 0; //COPY_VALUE(umbraTomeSize);
-				new_asset->umbraTomeData = nullptr; //REINTERPRET_CAST_SAFE(umbraTomeData);
-				new_asset->umbraTomePtr = nullptr; //COPY_VALUE_CAST(umbraTomePtr);
+				COPY_VALUE(umbraTomeSize);
+				REINTERPRET_CAST_SAFE(umbraTomeData);
+				COPY_VALUE_CAST(umbraTomePtr);
 				new_asset->mdaoVolumesCount = 0;
 				new_asset->mdaoVolumes = nullptr;
 

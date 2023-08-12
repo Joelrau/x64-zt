@@ -876,6 +876,9 @@ namespace zonetool::iw6
 				{zonetool::iw6::TECHNIQUE_NO_DISPLACEMENT_VELOCITY_RIGID, zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_VELOCITY_RIGID},
 				{zonetool::iw6::TECHNIQUE_NO_DISPLACEMENT_VELOCITY_SKINNED, zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_VELOCITY_SKINNED},
 				{zonetool::iw6::TECHNIQUE_NO_DISPLACEMENT_DEBUG_BUMPMAP, zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_DEBUG_BUMPMAP},
+				{zonetool::iw6::TECHNIQUE_COUNT, zonetool::h1::TECHNIQUE_COUNT },
+				{zonetool::iw6::TECHNIQUE_TOTAL_COUNT, zonetool::h1::TECHNIQUE_TOTAL_COUNT},
+				{zonetool::iw6::TECHNIQUE_NONE, zonetool::h1::TECHNIQUE_NONE },
 			};
 
 			// hacker men
@@ -1339,10 +1342,10 @@ namespace zonetool::iw6
 					}
 				}
 
-				//new_asset->techniques[zonetool::h1::TECHNIQUE_ZPREPASS_HIDIR] = new_asset->techniques[zonetool::h1::TECHNIQUE_ZPREPASS];
-				//new_asset->techniques[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS_HIDIR] = new_asset->techniques[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS];
-				//new_asset->techniques[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS_HIDIR] = new_asset->techniques[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS];
-				//new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS_HIDIR] = new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS];
+				new_asset->techniques[zonetool::h1::TECHNIQUE_ZPREPASS_HIDIR] = new_asset->techniques[zonetool::h1::TECHNIQUE_ZPREPASS];
+				new_asset->techniques[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS_HIDIR] = new_asset->techniques[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS];
+				new_asset->techniques[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS_HIDIR] = new_asset->techniques[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS];
+				new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS_HIDIR] = new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS];
 
 				new_asset->techniques[zonetool::h1::TECHNIQUE_LIGHT_SPOT_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_LIGHT_SPOT];
 				new_asset->techniques[zonetool::h1::TECHNIQUE_LIGHT_OMNI_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_LIGHT_OMNI];

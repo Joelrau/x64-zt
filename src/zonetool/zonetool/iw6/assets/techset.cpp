@@ -705,7 +705,7 @@ namespace zonetool::iw6
 			}
 			for (int j = 0; j < 3; j++)
 			{
-				if (j > 1)
+				if (j >= 1)
 				{
 					entry["blendStateBits"][j] = 0;
 				}

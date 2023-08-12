@@ -691,6 +691,446 @@ namespace zonetool::h1
 			file.close();
 		}
 	}
+
+	GfxStateBitsRaw parse_statebits_raw_data(const ordered_json& data, const std::string& name)
+	{
+		std::uint32_t loadbits0 = 0;
+		std::uint32_t loadbits1 = 0;
+		std::uint32_t loadbits2 = 0xFFFF;
+		std::uint32_t loadbits3 = 0;
+		std::uint32_t loadbits4 = 0;
+		std::uint32_t loadbits5 = 0;
+
+#define READ_INT_LB_FROM_JSON(x) std::uint32_t x = data[#x].get<std::uint32_t>();
+#define READ_BOOL_LB_FROM_JSON(x) bool x = data[#x].get<bool>();
+#define READ_STR_LB_FROM_JSON(x) std::string x = data[#x].get<std::string>();
+
+		READ_INT_LB_FROM_JSON(srcBlendRgb);
+		READ_INT_LB_FROM_JSON(dstBlendRgb);
+		READ_INT_LB_FROM_JSON(blendOpRgb);
+		READ_INT_LB_FROM_JSON(srcBlendAlpha);
+		READ_INT_LB_FROM_JSON(dstBlendAlpha);
+		READ_INT_LB_FROM_JSON(blendOpAlpha);
+		READ_INT_LB_FROM_JSON(polygonOffset);
+
+		READ_STR_LB_FROM_JSON(alphaTest);
+		READ_STR_LB_FROM_JSON(cullFace);
+		READ_STR_LB_FROM_JSON(depthTest);
+
+		READ_BOOL_LB_FROM_JSON(colorWriteR);
+		READ_BOOL_LB_FROM_JSON(colorWriteG);
+		READ_BOOL_LB_FROM_JSON(colorWriteB);
+		READ_BOOL_LB_FROM_JSON(colorWriteAlpha);
+		READ_BOOL_LB_FROM_JSON(polymodeLine);
+
+		READ_BOOL_LB_FROM_JSON(gammaWrite);
+		READ_BOOL_LB_FROM_JSON(depthWrite);
+		READ_BOOL_LB_FROM_JSON(depthWriteOpaque);
+		READ_BOOL_LB_FROM_JSON(stencilFrontEnabled);
+		READ_BOOL_LB_FROM_JSON(stencilBackEnabled);
+
+		READ_INT_LB_FROM_JSON(stencilFrontPass);
+		READ_INT_LB_FROM_JSON(stencilFrontFail);
+		READ_INT_LB_FROM_JSON(stencilFrontZFail);
+		READ_INT_LB_FROM_JSON(stencilFrontFunc);
+		READ_INT_LB_FROM_JSON(stencilBackPass);
+		READ_INT_LB_FROM_JSON(stencilBackFail);
+		READ_INT_LB_FROM_JSON(stencilBackZFail);
+		READ_INT_LB_FROM_JSON(stencilBackFunc);
+		READ_INT_LB_FROM_JSON(stencilRefBits);
+
+		loadbits3 |= srcBlendRgb << GFXS3_SRCBLEND_RGB_SHIFT;
+		loadbits3 |= dstBlendRgb << GFXS3_DSTBLEND_RGB_SHIFT;
+		loadbits3 |= blendOpRgb << GFXS3_BLENDOP_RGB_SHIFT;
+		loadbits3 |= srcBlendAlpha << GFXS3_SRCBLEND_ALPHA_SHIFT;
+		loadbits3 |= dstBlendAlpha << GFXS3_DSTBLEND_ALPHA_SHIFT;
+		loadbits3 |= blendOpAlpha << GFXS3_BLENDOP_ALPHA_SHIFT;
+
+		if (depthTest == "always")
+		{
+			loadbits1 |= GFXS1_DEPTHTEST_ALWAYS;
+		}
+		else if (depthTest == "less")
+		{
+			loadbits1 |= GFXS1_DEPTHTEST_LESS;
+		}
+		else if (depthTest == "equal")
+		{
+			loadbits1 |= GFXS1_DEPTHTEST_EQUAL;
+		}
+		else if (depthTest == "lessequal")
+		{
+			loadbits1 |= GFXS1_DEPTHTEST_LESSEQUAL;
+		}
+		else if (depthTest == "mdao")
+		{
+			loadbits1 |= GFXS1_DEPTHTEST_MDAO;
+		}
+		else if (depthTest == "disable")
+		{
+			loadbits1 |= GFXS1_DEPTHTEST_DISABLE;
+		}
+		else
+		{
+			__debugbreak();
+		}
+
+		loadbits1 |= polygonOffset;
+
+		if (alphaTest == "disable")
+		{
+			loadbits0 |= GFXS0_ATEST_DISABLE;
+		}
+		else if (alphaTest == ">0")
+		{
+			loadbits0 |= GFXS0_ATEST_GT_0;
+		}
+		else if (alphaTest == "<128")
+		{
+			loadbits0 |= GFXS0_ATEST_LT_128;
+		}
+		else if (alphaTest == ">=128")
+		{
+			loadbits0 |= GFXS0_ATEST_GE_128;
+		}
+		else
+		{
+			printf("Invalid alphatest loadbit0 '%s' in material %s\n", alphaTest.data(), name.data());
+			return{};
+		}
+
+		if (cullFace == "none")
+		{
+			loadbits0 |= GFXS0_CULL_NONE;
+		}
+		else if (cullFace == "back")
+		{
+			loadbits0 |= GFXS0_CULL_BACK;
+		}
+		else if (cullFace == "front")
+		{
+			loadbits0 |= GFXS0_CULL_FRONT;
+		}
+		else
+		{
+			printf("Invalid cullFace loadbit0 '%s' in material %s\n", cullFace.data(), name.data());
+			return{};
+		}
+
+		if (gammaWrite)
+		{
+			loadbits0 |= GFXS0_GAMMAWRITE;
+		}
+
+		if (colorWriteAlpha)
+		{
+			loadbits3 |= GFXS3_BLEND_COLORWRITE_A;
+		}
+		if (colorWriteR)
+		{
+			loadbits3 |= GFXS3_BLEND_COLORWRITE_R;
+		}
+		if (colorWriteG)
+		{
+			loadbits3 |= GFXS3_BLEND_COLORWRITE_G;
+		}
+		if (colorWriteB)
+		{
+			loadbits3 |= GFXS3_BLEND_COLORWRITE_B;
+		}
+
+		if (polymodeLine)
+		{
+			loadbits0 |= GFXS0_POLYMODE_LINE;
+		}
+
+		if (depthWrite)
+		{
+			loadbits1 |= GFXS1_DEPTHWRITE;
+		}
+		if (depthWriteOpaque)
+		{
+			loadbits3 |= GFXS3_DEPTHWRITE_OPAQUE;
+		}
+
+		if (stencilFrontEnabled)
+		{
+			loadbits1 |= GFXS1_STENCIL_FRONT_ENABLE;
+		}
+		if (stencilBackEnabled)
+		{
+			loadbits1 |= GFXS1_STENCIL_BACK_ENABLE;
+		}
+
+		loadbits1 |= stencilFrontPass << GFXS1_STENCIL_FRONT_PASS_SHIFT;
+		loadbits1 |= stencilFrontFail << GFXS1_STENCIL_FRONT_FAIL_SHIFT;
+		loadbits1 |= stencilFrontZFail << GFXS1_STENCIL_FRONT_ZFAIL_SHIFT;
+		loadbits1 |= stencilFrontFunc << GFXS1_STENCIL_FRONT_FUNC_SHIFT;
+		loadbits1 |= stencilBackPass << GFXS1_STENCIL_BACK_PASS_SHIFT;
+		loadbits1 |= stencilBackFail << GFXS1_STENCIL_BACK_FAIL_SHIFT;
+		loadbits1 |= stencilBackZFail << GFXS1_STENCIL_BACK_ZFAIL_SHIFT;
+		loadbits1 |= stencilBackFunc << GFXS1_STENCIL_BACK_FUNC_SHIFT;
+
+		loadbits0 |= stencilRefBits;
+
+		GfxStateBitsRaw bits{};
+		bits.loadBits[0] = loadbits0;
+		bits.loadBits[1] = loadbits1;
+		bits.loadBits[2] = loadbits2;
+		bits.loadBits[3] = loadbits3;
+		bits.loadBits[4] = loadbits4;
+		bits.loadBits[5] = loadbits5;
+
+		return bits;
+	}
+
+	void generate_statebits_raw_data(GfxStateBits* statebits, ordered_json& data, const std::string& name)
+	{
+		GfxStateBitsRaw entry{};
+		entry.flags.loadbit0 = static_cast<GfxStateBitRawBits0>(statebits->loadBits[GFXS_RAWBITS_CULL_INDEX]);
+		entry.flags.loadbit1 = static_cast<GfxStateBitRawBits1>(statebits->loadBits[GFXS_RAWBITS_DEPTH_STENCIL_INDEX]);
+		entry.flags.loadbit2 = static_cast<GfxStateBitRawBits2>(statebits->loadBits[GFXS_RAWBITS_UNK2_INDEX]);
+		entry.flags.loadbit3 = static_cast<GfxStateBitRawBits3>(statebits->loadBits[GFXS_RAWBITS_BLEND_INDEX]);
+		entry.flags.loadbit4 = static_cast<GfxStateBitRawBits4>(statebits->loadBits[GFXS_RAWBITS_UNK4_INDEX]);
+		entry.flags.loadbit5 = static_cast<GfxStateBitRawBits5>(statebits->loadBits[GFXS_RAWBITS_UNK5_INDEX]);
+
+		const auto srcBlendRgb = (entry.flags.loadbit3 & GFXS3_SRCBLEND_RGB_MASK) >> GFXS3_SRCBLEND_RGB_SHIFT;
+		const auto dstBlendRgb = (entry.flags.loadbit3 & GFXS3_DSTBLEND_RGB_MASK) >> GFXS3_DSTBLEND_RGB_SHIFT;
+		const auto blendOpRgb = (entry.flags.loadbit3 & GFXS3_BLENDOP_RGB_MASK) >> GFXS3_BLENDOP_RGB_SHIFT;
+		const auto srcBlendAlpha = (entry.flags.loadbit3 & GFXS3_SRCBLEND_ALPHA_MASK) >> GFXS3_SRCBLEND_ALPHA_SHIFT;
+		const auto dstBlendAlpha = (entry.flags.loadbit3 & GFXS3_DSTBLEND_ALPHA_MASK) >> GFXS3_DSTBLEND_ALPHA_SHIFT;
+		const auto blendOpAlpha = (entry.flags.loadbit3 & GFXS3_BLENDOP_ALPHA_MASK) >> GFXS3_BLENDOP_ALPHA_SHIFT;
+
+		const auto polygonOffset = (entry.flags.loadbit1 & GFXS1_POLYGON_OFFSET_MASK);
+
+		const auto* depthTest = "always";
+		if ((entry.flags.loadbit1 & GFXS1_DEPTHTEST_MASK) == GFXS1_DEPTHTEST_LESS)
+		{
+			depthTest = "less";
+		}
+		else if ((entry.flags.loadbit1 & GFXS1_DEPTHTEST_MASK) == GFXS1_DEPTHTEST_EQUAL)
+		{
+			depthTest = "equal";
+		}
+		else if ((entry.flags.loadbit1 & GFXS1_DEPTHTEST_MASK) == GFXS1_DEPTHTEST_LESSEQUAL)
+		{
+			depthTest = "lessequal";
+		}
+		else if ((entry.flags.loadbit1 & GFXS1_DEPTHTEST_MASK) == GFXS1_DEPTHTEST_MDAO)
+		{
+			depthTest = "mdao";
+		}
+		else if ((entry.flags.loadbit1 & GFXS1_DEPTHTEST_MASK) == GFXS1_DEPTHTEST_DISABLE)
+		{
+			depthTest = "disable";
+		}
+
+		const auto* alphaTest = "disable";
+		if ((entry.flags.loadbit0 & GFXS0_ATEST_MASK) == GFXS0_ATEST_GE_128)
+		{
+			alphaTest = ">=128";
+		}
+		else if ((entry.flags.loadbit0 & GFXS0_ATEST_MASK) == GFXS0_ATEST_GT_0)
+		{
+			alphaTest = ">0";
+		}
+		else if ((entry.flags.loadbit0 & GFXS0_ATEST_MASK) == GFXS0_ATEST_LT_128)
+		{
+			alphaTest = "<128";
+		}
+		else
+		{
+			assert(entry.flags.loadbit0 & GFXS0_ATEST_DISABLE);
+		}
+
+		const auto* cullFace = "none";
+		if ((entry.flags.loadbit0 & GFXS0_CULL_MASK) == GFXS0_CULL_BACK)
+		{
+			cullFace = "back";
+		}
+		else if ((entry.flags.loadbit0 & GFXS0_CULL_MASK) == GFXS0_CULL_FRONT)
+		{
+			cullFace = "front";
+		}
+		else
+		{
+			assert((entry.flags.loadbit0 & GFXS0_CULL_MASK) == GFXS0_CULL_NONE);
+		}
+
+		const auto colorWriteR = entry.flags.loadbit3 & GFXS3_BLEND_COLORWRITE_R ? true : false;
+		const auto colorWriteG = entry.flags.loadbit3 & GFXS3_BLEND_COLORWRITE_G ? true : false;
+		const auto colorWriteB = entry.flags.loadbit3 & GFXS3_BLEND_COLORWRITE_B ? true : false;
+		const auto colorWriteAlpha = entry.flags.loadbit3 & GFXS3_BLEND_COLORWRITE_A ? true : false;
+		const auto polymodeLine = entry.flags.loadbit0 & GFXS0_POLYMODE_LINE ? true : false;
+		const auto gammaWrite = entry.flags.loadbit0 & GFXS0_GAMMAWRITE ? true : false;
+		const auto depthWrite = (entry.flags.loadbit1 & GFXS1_DEPTHWRITE) ? true : false;
+		const auto depthWriteOpaque = (entry.flags.loadbit3 & GFXS3_DEPTHWRITE_OPAQUE) ? true : false;
+		const auto stencilFrontEnabled = (entry.flags.loadbit1 & GFXS1_STENCIL_FRONT_ENABLE) ? true : false;
+		const auto stencilBackEnabled = (entry.flags.loadbit1 & GFXS1_STENCIL_BACK_ENABLE) ? true : false;
+		const auto stencilFrontPass = (entry.flags.loadbit1 >> GFXS1_STENCIL_FRONT_PASS_SHIFT) & GFXS_STENCILOP_MASK;
+		const auto stencilFrontFail = (entry.flags.loadbit1 >> GFXS1_STENCIL_FRONT_FAIL_SHIFT) & GFXS_STENCILOP_MASK;
+		const auto stencilFrontZFail = (entry.flags.loadbit1 >> GFXS1_STENCIL_FRONT_ZFAIL_SHIFT) & GFXS_STENCILOP_MASK;
+		const auto stencilFrontFunc = (entry.flags.loadbit1 >> GFXS1_STENCIL_FRONT_FUNC_SHIFT) & GFXS_STENCILFUNC_MASK;
+		const auto stencilBackPass = (entry.flags.loadbit1 >> GFXS1_STENCIL_BACK_PASS_SHIFT) & GFXS_STENCILOP_MASK;
+		const auto stencilBackFail = (entry.flags.loadbit1 >> GFXS1_STENCIL_BACK_FAIL_SHIFT) & GFXS_STENCILOP_MASK;
+		const auto stencilBackZFail = (entry.flags.loadbit1 >> GFXS1_STENCIL_BACK_ZFAIL_SHIFT) & GFXS_STENCILOP_MASK;
+		const auto stencilBackFunc = (entry.flags.loadbit1 >> GFXS1_STENCIL_BACK_FUNC_SHIFT) & GFXS_STENCILFUNC_MASK;
+
+		const auto stencilRefBits = (entry.flags.loadbit0 & GFXS0_STENCIL_REF_MASK);
+
+#define ADD_TO_JSON(x) data[#x] = x;
+
+		ADD_TO_JSON(alphaTest);
+		ADD_TO_JSON(blendOpAlpha);
+		ADD_TO_JSON(blendOpRgb);
+		ADD_TO_JSON(colorWriteAlpha);
+		ADD_TO_JSON(colorWriteR);
+		ADD_TO_JSON(colorWriteG);
+		ADD_TO_JSON(colorWriteB);
+		ADD_TO_JSON(cullFace);
+		ADD_TO_JSON(depthTest);
+		ADD_TO_JSON(depthWrite);
+		ADD_TO_JSON(depthWriteOpaque);
+		ADD_TO_JSON(dstBlendAlpha);
+		ADD_TO_JSON(dstBlendRgb);
+		ADD_TO_JSON(gammaWrite);
+		ADD_TO_JSON(polygonOffset);
+		ADD_TO_JSON(polymodeLine);
+		ADD_TO_JSON(srcBlendAlpha);
+		ADD_TO_JSON(srcBlendRgb);
+		ADD_TO_JSON(stencilBackEnabled);
+		ADD_TO_JSON(stencilBackFail);
+		ADD_TO_JSON(stencilBackFunc);
+		ADD_TO_JSON(stencilBackPass);
+		ADD_TO_JSON(stencilBackZFail);
+		ADD_TO_JSON(stencilFrontEnabled);
+		ADD_TO_JSON(stencilFrontFail);
+		ADD_TO_JSON(stencilFrontFunc);
+		ADD_TO_JSON(stencilFrontPass);
+		ADD_TO_JSON(stencilFrontZFail);
+		ADD_TO_JSON(stencilRefBits);
+	}
+
+	void generate_statebits_raw_data_iw6(zonetool::iw6::GfxStateBits* statebits, ordered_json& data, const std::string& name)
+	{
+		zonetool::iw6::GfxStateBitsRaw entry{};
+		entry.flags.loadbit0 = static_cast<zonetool::iw6::GfxStateBitRawBits0>(statebits->loadBits[zonetool::iw6::GFXS_RAWBITS_CULL_INDEX]);
+		entry.flags.loadbit1 = static_cast<zonetool::iw6::GfxStateBitRawBits1>(statebits->loadBits[zonetool::iw6::GFXS_RAWBITS_DEPTH_STENCIL_INDEX]);
+		entry.flags.loadbit2 = static_cast<zonetool::iw6::GfxStateBitRawBits2>(statebits->loadBits[zonetool::iw6::GFXS_RAWBITS_BLEND_INDEX]);
+
+		const auto srcBlendRgb = (entry.flags.loadbit2 & zonetool::iw6::GFXS_SRCBLEND_RGB_MASK) >> zonetool::iw6::GFXS_SRCBLEND_RGB_SHIFT;
+		const auto dstBlendRgb = (entry.flags.loadbit2 & zonetool::iw6::GFXS_DSTBLEND_RGB_MASK) >> zonetool::iw6::GFXS_DSTBLEND_RGB_SHIFT;
+		const auto blendOpRgb = (entry.flags.loadbit2 & zonetool::iw6::GFXS_BLENDOP_RGB_MASK) >> zonetool::iw6::GFXS_BLENDOP_RGB_SHIFT;
+		const auto srcBlendAlpha = (entry.flags.loadbit2 & zonetool::iw6::GFXS_SRCBLEND_ALPHA_MASK) >> zonetool::iw6::GFXS_SRCBLEND_ALPHA_SHIFT;
+		const auto dstBlendAlpha = (entry.flags.loadbit2 & zonetool::iw6::GFXS_DSTBLEND_ALPHA_MASK) >> zonetool::iw6::GFXS_DSTBLEND_ALPHA_SHIFT;
+		const auto blendOpAlpha = (entry.flags.loadbit2 & zonetool::iw6::GFXS_BLENDOP_ALPHA_MASK) >> zonetool::iw6::GFXS_BLENDOP_ALPHA_SHIFT;
+
+		const auto polygonOffset = (entry.flags.loadbit1 & zonetool::iw6::GFXS1_POLYGON_OFFSET_MASK);
+
+		const auto* depthTest = "disable";
+		if ((entry.flags.loadbit1 & zonetool::iw6::GFXS1_DEPTHTEST_DISABLE) == false)
+		{
+			depthTest = "always";
+			if ((entry.flags.loadbit1 & zonetool::iw6::GFXS1_DEPTHTEST_MASK) == zonetool::iw6::GFXS1_DEPTHTEST_LESS)
+			{
+				depthTest = "less";
+			}
+			else if ((entry.flags.loadbit1 & zonetool::iw6::GFXS1_DEPTHTEST_MASK) == zonetool::iw6::GFXS1_DEPTHTEST_EQUAL)
+			{
+				depthTest = "equal";
+			}
+			else if ((entry.flags.loadbit1 & zonetool::iw6::GFXS1_DEPTHTEST_MASK) == zonetool::iw6::GFXS1_DEPTHTEST_LESSEQUAL)
+			{
+				depthTest = "lessequal";
+			}
+		}
+
+		const auto* alphaTest = "disable";
+		if ((entry.flags.loadbit0 & zonetool::iw6::GFXS0_ATEST_MASK) == zonetool::iw6::GFXS0_ATEST_GE_128)
+		{
+			alphaTest = ">=128";
+		}
+		else if ((entry.flags.loadbit0 & zonetool::iw6::GFXS0_ATEST_MASK) == zonetool::iw6::GFXS0_ATEST_GT_0)
+		{
+			alphaTest = ">0";
+		}
+		else if ((entry.flags.loadbit0 & zonetool::iw6::GFXS0_ATEST_MASK) == zonetool::iw6::GFXS0_ATEST_LT_128)
+		{
+			alphaTest = "<128";
+		}
+		else
+		{
+			assert(entry.flags.loadbit0 & zonetool::iw6::GFXS0_ATEST_DISABLE);
+		}
+
+		const auto* cullFace = "none";
+		if ((entry.flags.loadbit0 & zonetool::iw6::GFXS0_CULL_MASK) == zonetool::iw6::GFXS0_CULL_BACK)
+		{
+			cullFace = "back";
+		}
+		else if ((entry.flags.loadbit0 & zonetool::iw6::GFXS0_CULL_MASK) == zonetool::iw6::GFXS0_CULL_FRONT)
+		{
+			cullFace = "front";
+		}
+		else
+		{
+			assert((entry.flags.loadbit0 & zonetool::iw6::GFXS0_CULL_MASK) == zonetool::iw6::GFXS0_CULL_NONE);
+		}
+
+		const auto colorWriteR = entry.flags.loadbit2 & zonetool::iw6::GFXS_BLEND_COLORWRITE_R ? true : false;
+		const auto colorWriteG = entry.flags.loadbit2 & zonetool::iw6::GFXS_BLEND_COLORWRITE_G ? true : false;
+		const auto colorWriteB = entry.flags.loadbit2 & zonetool::iw6::GFXS_BLEND_COLORWRITE_B ? true : false;
+		const auto colorWriteAlpha = entry.flags.loadbit2 & zonetool::iw6::GFXS_BLEND_COLORWRITE_A ? true : false;
+		const auto polymodeLine = entry.flags.loadbit0 & zonetool::iw6::GFXS0_POLYMODE_LINE ? true : false;
+		const auto gammaWrite = entry.flags.loadbit0 & zonetool::iw6::GFXS0_GAMMAWRITE ? true : false;
+		const auto depthWrite = (entry.flags.loadbit1 & zonetool::iw6::GFXS1_DEPTHWRITE) ? true : false;
+		const auto depthWriteOpaque = (entry.flags.loadbit2 & zonetool::iw6::GFXS2_DEPTHWRITE_OPAQUE) ? true : false;
+		const auto stencilFrontEnabled = (entry.flags.loadbit1 & zonetool::iw6::GFXS1_STENCIL_FRONT_ENABLE) ? true : false;
+		const auto stencilBackEnabled = (entry.flags.loadbit1 & zonetool::iw6::GFXS1_STENCIL_BACK_ENABLE) ? true : false;
+		const auto stencilFrontPass = (entry.flags.loadbit1 >> zonetool::iw6::GFXS1_STENCIL_FRONT_PASS_SHIFT) & zonetool::iw6::GFXS_STENCILOP_MASK;
+		const auto stencilFrontFail = (entry.flags.loadbit1 >> zonetool::iw6::GFXS1_STENCIL_FRONT_FAIL_SHIFT) & zonetool::iw6::GFXS_STENCILOP_MASK;
+		const auto stencilFrontZFail = (entry.flags.loadbit1 >> zonetool::iw6::GFXS1_STENCIL_FRONT_ZFAIL_SHIFT) & zonetool::iw6::GFXS_STENCILOP_MASK;
+		const auto stencilFrontFunc = (entry.flags.loadbit1 >> zonetool::iw6::GFXS1_STENCIL_FRONT_FUNC_SHIFT) & zonetool::iw6::GFXS_STENCILFUNC_MASK;
+		const auto stencilBackPass = (entry.flags.loadbit1 >> zonetool::iw6::GFXS1_STENCIL_BACK_PASS_SHIFT) & zonetool::iw6::GFXS_STENCILOP_MASK;
+		const auto stencilBackFail = (entry.flags.loadbit1 >> zonetool::iw6::GFXS1_STENCIL_BACK_FAIL_SHIFT) & zonetool::iw6::GFXS_STENCILOP_MASK;
+		const auto stencilBackZFail = (entry.flags.loadbit1 >> zonetool::iw6::GFXS1_STENCIL_BACK_ZFAIL_SHIFT) & zonetool::iw6::GFXS_STENCILOP_MASK;
+		const auto stencilBackFunc = (entry.flags.loadbit1 >> zonetool::iw6::GFXS1_STENCIL_BACK_FUNC_SHIFT) & zonetool::iw6::GFXS_STENCILFUNC_MASK;
+
+		const auto stencilRefBits = (entry.flags.loadbit0 & zonetool::iw6::GFXS0_STENCIL_REF_MASK);
+
+#define ADD_TO_JSON(x) data[#x] = x;
+
+		ADD_TO_JSON(alphaTest);
+		ADD_TO_JSON(blendOpAlpha);
+		ADD_TO_JSON(blendOpRgb);
+		ADD_TO_JSON(colorWriteAlpha);
+		ADD_TO_JSON(colorWriteR);
+		ADD_TO_JSON(colorWriteG);
+		ADD_TO_JSON(colorWriteB);
+		ADD_TO_JSON(cullFace);
+		ADD_TO_JSON(depthTest);
+		ADD_TO_JSON(depthWrite);
+		ADD_TO_JSON(depthWriteOpaque);
+		ADD_TO_JSON(dstBlendAlpha);
+		ADD_TO_JSON(dstBlendRgb);
+		ADD_TO_JSON(gammaWrite);
+		ADD_TO_JSON(polygonOffset);
+		ADD_TO_JSON(polymodeLine);
+		ADD_TO_JSON(srcBlendAlpha);
+		ADD_TO_JSON(srcBlendRgb);
+		ADD_TO_JSON(stencilBackEnabled);
+		ADD_TO_JSON(stencilBackFail);
+		ADD_TO_JSON(stencilBackFunc);
+		ADD_TO_JSON(stencilBackPass);
+		ADD_TO_JSON(stencilBackZFail);
+		ADD_TO_JSON(stencilFrontEnabled);
+		ADD_TO_JSON(stencilFrontFail);
+		ADD_TO_JSON(stencilFrontFunc);
+		ADD_TO_JSON(stencilFrontPass);
+		ADD_TO_JSON(stencilFrontZFail);
+		ADD_TO_JSON(stencilRefBits);
+	}
+
 	void dump_statebits_map_iw6(const std::string& techset, const std::string& material, zonetool::iw6::GfxStateBits* map, unsigned char count)
 	{
 		const auto path = "techsets\\state\\"s + techset + "\\"s + material + ".statebitsmap";
@@ -701,59 +1141,14 @@ namespace zonetool::h1
 			const auto var_x_gfx_globals = get_x_gfx_globals_for_zone<zonetool::iw6::XGfxGlobals>(map[i].zone);
 			ordered_json entry;
 
-			//convert_blend_bits
-			const auto cbb = [](std::uint32_t bits) -> std::uint32_t
-			{
-				std::bitset<32> new_bits(bits);
-				std::bitset<32> original_bits(bits);
+			ordered_json raw_bits_data;
+			generate_statebits_raw_data_iw6(&map[i], raw_bits_data, material);
+			auto converted_bits = parse_statebits_raw_data(raw_bits_data, material); // no need to convert raw_bits_data
 
-				if (original_bits[5] == 1)
-				{
-					new_bits[0] = 1;
-					new_bits[1] = 0;
-					new_bits[2] = 1;
-					new_bits[3] = 0;
-
-					new_bits[6] = 1;
-				}
-
-				//new_bits[27] = new_bits[26];
-
-				return new_bits.to_ulong();
-			};
-
-			//convert_load_bits
-			const auto clb0 = [](std::uint32_t bits) -> std::uint32_t
-			{
-				std::bitset<32> new_bits(bits);
-				std::bitset<32> original_bits(bits);
-
-				/*if (original_bits[4] == 1)
-				{
-					new_bits[3] = 1;
-					new_bits[4] = 0;
-				}*/
-
-				return new_bits.to_ulong();
-			};
-
-			const auto clb1 = [](std::uint32_t bits) -> std::uint32_t
-			{
-				std::bitset<32> new_bits(bits);
-				std::bitset<32> original_bits(bits);
-
-				new_bits[0] = original_bits[0];
-				new_bits[1] = original_bits[2];
-				new_bits[2] = original_bits[3];
-				new_bits[3] = 0;
-
-				return new_bits.to_ulong();
-			};
-
-			entry["loadBits"][0] = clb0(map[i].loadBits[0]);
-			entry["loadBits"][1] = clb1(map[i].loadBits[1]);
+			entry["loadBits"][0] = converted_bits.loadBits[0];
+			entry["loadBits"][1] = converted_bits.loadBits[1];
 			entry["loadBits"][2] = 0xFFFF;
-			entry["loadBits"][3] = cbb(var_x_gfx_globals->blendStateBits[map[i].blendState][0]);
+			entry["loadBits"][3] = converted_bits.loadBits[3]; // maybe wrong still (white flash)
 			entry["loadBits"][4] = 0;
 			entry["loadBits"][5] = 0;
 
@@ -763,95 +1158,58 @@ namespace zonetool::h1
 				std::bitset<64> new_bits(bits);
 				std::bitset<64> original_bits(bits);
 
-				new_bits[0] = original_bits[0];
-				new_bits[1] = original_bits[2];
-				new_bits[2] = original_bits[3];
-				new_bits[3] = original_bits[4];
-				new_bits[4] = 0;
-
-				/*for (auto i = 10; i < 64; i++)
+				for (auto idx = 0; idx < 4; idx++)
 				{
-					new_bits[i] = 0;
-				}*/
+					new_bits[idx] = 0;
+				}
 
-				return new_bits.to_ullong();
+				std::uint64_t h1_bits = static_cast<std::uint64_t>(new_bits.to_ullong());
+				std::uint64_t iw6_bits = static_cast<std::uint64_t>(original_bits.to_ullong());
+
+				const auto convert_bit = [&](std::uint64_t mask, std::uint64_t bit1, std::uint64_t bit2)
+				{
+					if (mask == 0)
+						mask = bit1;
+
+					h1_bits |= ((iw6_bits & mask) == bit1) ? bit2 : 0;
+				};
+
+				convert_bit(0, zonetool::iw6::GFXS1_DEPTHWRITE, zonetool::h1::GFXS1_DEPTHWRITE);
+				convert_bit(zonetool::iw6::GFXS1_DEPTHTEST_MASK, zonetool::iw6::GFXS1_DEPTHTEST_ALWAYS, zonetool::h1::GFXS1_DEPTHTEST_ALWAYS); // irrevelant
+				convert_bit(zonetool::iw6::GFXS1_DEPTHTEST_MASK, zonetool::iw6::GFXS1_DEPTHTEST_LESS, zonetool::h1::GFXS1_DEPTHTEST_LESS);
+				convert_bit(zonetool::iw6::GFXS1_DEPTHTEST_MASK, zonetool::iw6::GFXS1_DEPTHTEST_EQUAL, zonetool::h1::GFXS1_DEPTHTEST_EQUAL);
+				convert_bit(zonetool::iw6::GFXS1_DEPTHTEST_MASK, zonetool::iw6::GFXS1_DEPTHTEST_LESSEQUAL, zonetool::h1::GFXS1_DEPTHTEST_LESSEQUAL);
+				//convert_bit(zonetool::iw6::GFXS1_DEPTHTEST_MASK, zonetool::iw6::GFXS1_DEPTHTEST_MDAO, zonetool::h1::GFXS1_DEPTHTEST_MDAO);
+				convert_bit(0, zonetool::iw6::GFXS1_DEPTHTEST_DISABLE, zonetool::h1::GFXS1_DEPTHTEST_DISABLE);
+
+				return h1_bits;
 			};
 
-			const auto fuck = [](std::uint64_t bits) -> std::uint64_t
+			const auto add_ds_entry = [&](std::uint32_t dsi, std::uint32_t dsi2)
 			{
-				std::bitset<64> new_bits(bits);
-				std::bitset<64> original_bits(bits);
-
-				if (original_bits[18] == 1)
-				{
-					new_bits[17] = 1;
-					new_bits[18] = 1;
-					new_bits[19] = 1;
-				}
-
-				if (original_bits[30] == 1)
-				{
-					new_bits[29] = 1;
-					new_bits[30] = 1;
-					new_bits[31] = 1;
-				}
-
-				if (original_bits[33] == 1)
-				{
-					new_bits[33] = 0;
-					new_bits[36] = 1;
-				}
-
-				if (original_bits[45] == 1 && original_bits[46] == 1 && original_bits[47] == 1)
-				{
-					new_bits[44] = 1;
-					new_bits[45] = 0;
-					new_bits[46] = 0;
-					new_bits[47] = 0;
-				}
-
-				return new_bits.to_ullong();
+				entry["depthStencilStateBits"][dsi] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[dsi2]]) : 0;
 			};
-
-			const auto fuck2 = [](std::uint64_t bits) -> std::uint64_t
+			const auto add_ds_entry_val = [&](std::uint32_t dsi, std::uint64_t val)
 			{
-				std::bitset<64> new_bits(bits);
-
-				new_bits[15] = 0;
-				new_bits[33] = 1;
-				new_bits[41] = 1;
-
-				return new_bits.to_ullong();
+				entry["depthStencilStateBits"][dsi] = val;
 			};
 
-			entry["depthStencilStateBits"][0] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[0]]) : 0;
-			entry["depthStencilStateBits"][1] = var_x_gfx_globals ? fuck(cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[1]])) : 0;
-			entry["depthStencilStateBits"][2] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[3]]) : 0;
-			entry["depthStencilStateBits"][3] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[4]]) : 0;
-			entry["depthStencilStateBits"][4] = var_x_gfx_globals ? fuck2(fuck(cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[2]]))) : 0;
-			entry["depthStencilStateBits"][5] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[5]]) : 0;
-			entry["depthStencilStateBits"][6] = var_x_gfx_globals ? fuck(cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[6]])) : 0;
-			entry["depthStencilStateBits"][7] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[8]]) : 0;
-			entry["depthStencilStateBits"][8] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[9]]) : 0;
-			entry["depthStencilStateBits"][9] = var_x_gfx_globals ? cdssb(var_x_gfx_globals->depthStencilStateBits[map[i].depthStencilState[10]]) : 0;
-			// 0 -> 0
-			// 1 -> 1/2/6/7
-			// 2 -> 3
-			// 3 -> 4
-			// 4 -> 1/2/6/7
-			// 5 -> 5
-			// 6 -> 1/2/6/7
-			// 7 -> 8
-			// 8 -> 9
-			// 9 -> 10
-			// 
-			//
+			add_ds_entry(zonetool::h1::GFX_DEPTH_STENCIL_MODE_DEFAULT, zonetool::iw6::GFX_DEPTH_STENCIL_MODE_DEFAULT);
+			add_ds_entry(zonetool::h1::GFX_DEPTH_STENCIL_MODE_HUD_OUTLINE_ZFAIL, zonetool::iw6::GFX_DEPTH_STENCIL_MODE_HUD_OUTLINE_ZFAIL);
+			add_ds_entry(zonetool::h1::GFX_DEPTH_STENCIL_MODE_MOTION_BLUR_HQ, zonetool::iw6::GFX_DEPTH_STENCIL_MODE_MOTION_BLUR_HQ);
+			add_ds_entry(zonetool::h1::GFX_DEPTH_STENCIL_MODE_DEPTH_HACK, zonetool::iw6::GFX_DEPTH_STENCIL_MODE_DEPTH_HACK);
+			add_ds_entry(zonetool::h1::GFX_DEPTH_STENCIL_MODE_UNK, zonetool::iw6::GFX_DEPTH_STENCIL_MODE_DEFAULT); // 19872279822925 default
+			add_ds_entry(zonetool::h1::GFX_DEPTH_STENCIL_MODE_FORCE_DEPTH_WRITE, zonetool::iw6::GFX_DEPTH_STENCIL_MODE_FORCE_DEPTH_WRITE);
+			add_ds_entry(zonetool::h1::GFX_DEPTH_STENCIL_MODE_FORCE_DEPTH_WRITE_HUD_OUTLINE_ZFAIL, zonetool::iw6::GFX_DEPTH_STENCIL_MODE_FORCE_DEPTH_WRITE_HUD_OUTLINE_ZFAIL);
+			add_ds_entry(zonetool::h1::GFX_DEPTH_STENCIL_MODE_CACHED_SPOT_STENCIL_INCR_SAT, zonetool::iw6::GFX_DEPTH_STENCIL_MODE_CACHED_SPOT_STENCIL_INCR_SAT);
+			add_ds_entry(zonetool::h1::GFX_DEPTH_STENCIL_MODE_CACHED_SPOT_STENCIL_INCR_SAT_CLEAR_DEPTH, zonetool::iw6::GFX_DEPTH_STENCIL_MODE_CACHED_SPOT_STENCIL_INCR_SAT_CLEAR_DEPTH);
+			add_ds_entry(zonetool::h1::GFX_DEPTH_STENCIL_MODE_CACHED_SPOT_STENCIL_FULL_MASK, zonetool::iw6::GFX_DEPTH_STENCIL_MODE_CACHED_SPOT_STENCIL_FULL_MASK);
 
-			entry["blendStateBits"][0] = var_x_gfx_globals ? cbb(var_x_gfx_globals->blendStateBits[map[i].blendState][0]) : 0;
+			entry["blendStateBits"][0] = converted_bits.loadBits[3];
 			entry["blendStateBits"][1] = 0;
 			entry["blendStateBits"][2] = 0;
 
-			entry["rasterizerState"] = map[i].rasterizerState;
+			entry["rasterizerState"] = map[i].rasterizerState; // should be the same
 
 			json_data[i] = entry;
 		}

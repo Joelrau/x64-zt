@@ -16,7 +16,7 @@ namespace zonetool::iw6
 		{
 			namespace
 			{
-				/*zonetool::h1::CSurfaceFlags surf_flags_conversion_table[31]
+				zonetool::h1::CSurfaceFlags surf_flags_conversion_table[31]
 				{
 					zonetool::h1::SURF_FLAG_DEFAULT,
 					zonetool::h1::SURF_FLAG_BARK,
@@ -32,6 +32,7 @@ namespace zonetool::iw6
 					zonetool::h1::SURF_FLAG_GRAVEL,
 					zonetool::h1::SURF_FLAG_ICE,
 					zonetool::h1::SURF_FLAG_METAL_SOLID,
+					zonetool::h1::SURF_FLAG_METAL_GRATE,
 					zonetool::h1::SURF_FLAG_MUD,
 					zonetool::h1::SURF_FLAG_PAPER,
 					zonetool::h1::SURF_FLAG_PLASTER,
@@ -44,12 +45,11 @@ namespace zonetool::iw6
 					zonetool::h1::SURF_FLAG_CERAMIC,
 					zonetool::h1::SURF_FLAG_PLASTIC_SOLID,
 					zonetool::h1::SURF_FLAG_RUBBER,
-					zonetool::h1::SURF_FLAG_CUSHION,
 					zonetool::h1::SURF_FLAG_FRUIT,
 					zonetool::h1::SURF_FLAG_PAINTEDMETAL,
 					zonetool::h1::SURF_FLAG_RIOTSHIELD,
 					zonetool::h1::SURF_FLAG_SLUSH,
-				}; zonetool::iw6::CSurfaceFlags;
+				};
 
 				int convert_surf_flags(int flags)
 				{
@@ -58,7 +58,7 @@ namespace zonetool::iw6
 					{
 						new_flags |= ((flags & a) == a) ? b : 0;
 					};
-					convert(zonetool::iw6::CSurfaceFlags::SURF_FLAG_OPAQUEGLASS, zonetool::h1::CSurfaceFlags::SURF_FLAG_DEFAULT);
+					//convert(zonetool::iw6::CSurfaceFlags::SURF_FLAG_OPAQUEGLASS, zonetool::h1::CSurfaceFlags::SURF_FLAG_DEFAULT);
 					convert(zonetool::iw6::CSurfaceFlags::SURF_FLAG_CLIPMISSILE, zonetool::h1::CSurfaceFlags::SURF_FLAG_CLIPMISSILE);
 					convert(zonetool::iw6::CSurfaceFlags::SURF_FLAG_AI_NOSIGHT, zonetool::h1::CSurfaceFlags::SURF_FLAG_AI_NOSIGHT);
 					convert(zonetool::iw6::CSurfaceFlags::SURF_FLAG_CLIPSHOT, zonetool::h1::CSurfaceFlags::SURF_FLAG_CLIPSHOT);
@@ -94,7 +94,7 @@ namespace zonetool::iw6
 					convert(zonetool::iw6::CSurfaceFlags::SURF_FLAG_NOLIGHTMAP, zonetool::h1::CSurfaceFlags::SURF_FLAG_NOLIGHTMAP);
 					convert(zonetool::iw6::CSurfaceFlags::SURF_FLAG_NODLIGHT, zonetool::h1::CSurfaceFlags::SURF_FLAG_NODLIGHT);
 					return new_flags;
-				}*/
+				}
 			}
 
 			void generate_clip_info(zonetool::h1::ClipInfo* info, clipMap_t* asset, utils::memory::allocator& allocator)
@@ -107,7 +107,7 @@ namespace zonetool::iw6
 				for (unsigned int i = 0; i < info->numMaterials; i++)
 				{
 					info->materials[i].name = asset->info.materials[i].name;
-					info->materials[i].surfaceFlags = asset->info.materials[i].surfaceFlags; // todo://convert_surf_flags(asset->info.materials[i].surfaceFlags);
+					info->materials[i].surfaceFlags = convert_surf_flags(asset->info.materials[i].surfaceFlags);
 					info->materials[i].contents = asset->info.materials[i].contents;
 				}
 
@@ -164,7 +164,7 @@ namespace zonetool::iw6
 					int index = static_cast<int>(
 						(reinterpret_cast<std::uintptr_t>(asset->info.brushsides[i].plane) - 
 							reinterpret_cast<std::uintptr_t>(asset->info.planes)) / sizeof(cplane_s));
-					assert(index <= info->planeCount);
+					assert(index < info->planeCount);
 
 					info->bCollisionData.brushSides[i].planeIndex = index;
 
@@ -283,18 +283,18 @@ namespace zonetool::iw6
 				h1_asset->stages = allocator.allocate_array<zonetool::h1::Stage>(h1_asset->stageCount);
 				for (unsigned int i = 0; i < h1_asset->stageCount; i++)
 				{
-					h1_asset->stages[i].name = reinterpret_cast<const char*>(asset->stages[i].name);
+					h1_asset->stages[i].name = asset->stages[i].name;
 					memcpy(&h1_asset->stages[i].origin, &asset->stages[i].origin, sizeof(float[3]));
 					h1_asset->stages[i].triggerIndex = asset->stages[i].triggerIndex;
 					h1_asset->stages[i].sunPrimaryLightIndex = asset->stages[i].sunPrimaryLightIndex;
 					h1_asset->stages[i].unk = 0x3A83126F;
 				}
-				h1_asset->stageTrigger.count = 0;
-				h1_asset->stageTrigger.models = nullptr;
-				h1_asset->stageTrigger.hullCount = 0;
-				h1_asset->stageTrigger.hulls = nullptr;
-				h1_asset->stageTrigger.slabCount = 0;
-				h1_asset->stageTrigger.slabs = nullptr;
+				h1_asset->stageTrigger.count = asset->stageTrigger.count;
+				h1_asset->stageTrigger.models = reinterpret_cast<zonetool::h1::TriggerModel*>(asset->stageTrigger.models);
+				h1_asset->stageTrigger.hullCount = asset->stageTrigger.hullCount;
+				h1_asset->stageTrigger.hulls = reinterpret_cast<zonetool::h1::TriggerHull*>(asset->stageTrigger.hulls);
+				h1_asset->stageTrigger.slabCount = asset->stageTrigger.slabCount;
+				h1_asset->stageTrigger.slabs = reinterpret_cast<zonetool::h1::TriggerSlab*>(asset->stageTrigger.slabs);
 
 				for (unsigned char i = 0; i < 2; i++)
 				{
@@ -326,8 +326,8 @@ namespace zonetool::iw6
 
 						if (h1_asset->dynEntDefList[i][j].type == zonetool::h1::DYNENT_TYPE_SCRIPTABLEINST)
 						{
-							//h1_asset->dynEntDefList[i][j].scriptableIndex = asset->dynEntDefList[i][j].scriptableIndex;
-							h1_asset->dynEntDefList[i][j].type = zonetool::h1::DYNENT_TYPE_INVALID;
+							h1_asset->dynEntDefList[i][j].scriptableIndex = asset->dynEntDefList[i][j].scriptableIndex;
+							//h1_asset->dynEntDefList[i][j].type = zonetool::h1::DYNENT_TYPE_INVALID;
 						}
 
 						memcpy(&h1_asset->dynEntPoseList[i][j].pose, &asset->dynEntPoseList[i][j].pose, sizeof(GfxPlacement));
@@ -344,10 +344,47 @@ namespace zonetool::iw6
 					}
 				}
 
-				h1_asset->dynEntAnchorCount = 0;
-				h1_asset->dynEntAnchorNames = nullptr;
+				h1_asset->dynEntAnchorCount = asset->dynEntAnchorCount;
+				h1_asset->dynEntAnchorNames = reinterpret_cast<zonetool::h1::scr_string_t*>(asset->dynEntAnchorNames);
 
-				h1_asset->scriptableMapEnts;
+				h1_asset->scriptableMapEnts.instanceStateSize = asset->scriptableMapEnts.instanceStateSize;
+				h1_asset->scriptableMapEnts.instanceCount = asset->scriptableMapEnts.instanceCount;
+				h1_asset->scriptableMapEnts.reservedInstanceCount = asset->scriptableMapEnts.reservedInstanceCount;
+				h1_asset->scriptableMapEnts.instances = allocator.allocate_array<zonetool::h1::ScriptableInstance>(h1_asset->scriptableMapEnts.instanceCount);
+				for (unsigned int i = 0; i < h1_asset->scriptableMapEnts.instanceCount; i++)
+				{
+					auto instance = &asset->scriptableMapEnts.instances[i];
+					auto dest_instance = &h1_asset->scriptableMapEnts.instances[i];
+
+					dest_instance->def = reinterpret_cast<zonetool::h1::ScriptableDef*>(instance->def);
+
+					dest_instance->eventConstantsBuf = instance->eventConstantsBuf;
+					dest_instance->targetData = nullptr; // new
+					memcpy(dest_instance->origin, instance->origin, sizeof(float[3]));
+					memcpy(dest_instance->angles, instance->angles, sizeof(float[3]));
+					dest_instance->__pad0; // new
+					dest_instance->targetname = static_cast<zonetool::h1::scr_string_t>(instance->targetname);
+					dest_instance->preBrushModel = instance->preBrushModel;
+					dest_instance->postBrushModel = instance->postBrushModel;
+					dest_instance->flags = instance->flags; // convert?
+					dest_instance->targetDataCount = 0; // new
+					dest_instance->__pad1; // new
+					dest_instance->currentModel = reinterpret_cast<zonetool::h1::XModel*>(instance->currentModel);
+					REINTERPRET_CAST_SAFE_TO_FROM(dest_instance->partStates, instance->partStates);
+					dest_instance->eventStreamBuf = instance->eventStreamBuf;
+					memcpy(dest_instance->currentPartBits, instance->currentPartBits, sizeof(unsigned int[8]));
+					dest_instance->damageOwnerEntHandle = instance->damageOwnerEntHandle;
+					dest_instance->updateNextInstance = instance->updateNextInstance;
+					dest_instance->linkedObject = instance->linkedObject;
+				}
+				h1_asset->scriptableMapEnts.animEntryCount = asset->scriptableMapEnts.animEntryCount;
+				h1_asset->scriptableMapEnts.animEntries = allocator.allocate_array<zonetool::h1::ScriptableAnimationEntry>(h1_asset->scriptableMapEnts.animEntryCount);
+				for (unsigned int i = 0; i < h1_asset->scriptableMapEnts.animEntryCount; i++)
+				{
+					h1_asset->scriptableMapEnts.animEntries[i].animName = asset->scriptableMapEnts.animEntries[i].animName;
+					h1_asset->scriptableMapEnts.animEntries[i].runtimeBuf = asset->scriptableMapEnts.animEntries[i].runtimeBuf;
+				}
+				h1_asset->scriptableMapEnts.replicatedInstanceCount = asset->scriptableMapEnts.replicatedInstanceCount;
 
 				h1_asset->grappleData;
 

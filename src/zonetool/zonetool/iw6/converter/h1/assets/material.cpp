@@ -80,9 +80,9 @@ namespace zonetool::iw6
 					return mapped_sortkeys[sortkey];
 				}
 
-				ZONETOOL_ERROR("Could not find mapped sortkey: %d (material: %s)", sortkey, matname.data());
+				ZONETOOL_FATAL("Could not find mapped sortkey: %d (material: %s)", sortkey, matname.data());
 
-				return sortkey;
+				//return sortkey;
 			}
 
 			std::unordered_map<std::uint8_t, std::uint8_t> mapped_camera_regions =
@@ -105,9 +105,9 @@ namespace zonetool::iw6
 					return mapped_camera_regions[camera_region];
 				}
 
-				ZONETOOL_ERROR("Could not find mapped camera region: %d (material: %s)", camera_region, matname.data());
+				ZONETOOL_FATAL("Could not find mapped camera region: %d (material: %s)", camera_region, matname.data());
 
-				return camera_region;
+				//return camera_region;
 			}
 
 			std::unordered_map<std::uint8_t, std::uint8_t> mapped_material_type =
@@ -183,10 +183,10 @@ namespace zonetool::iw6
 						}
 					}
 				}
-				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_ZPREPASS];
-				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS];
-				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS];
-				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS];
+				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_ZPREPASS];
+				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS];
+				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS];
+				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS];
 
 				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_SPOT_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_SPOT];
 				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_OMNI_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_OMNI];
@@ -239,10 +239,10 @@ namespace zonetool::iw6
 						}
 					}
 				}
-				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_ZPREPASS];
-				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS];
-				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS];
-				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS];
+				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_ZPREPASS];
+				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS];
+				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS];
+				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS];
 
 				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_SPOT_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_SPOT];
 				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_OMNI_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_OMNI];

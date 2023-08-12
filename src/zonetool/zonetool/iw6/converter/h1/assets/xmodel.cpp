@@ -77,6 +77,11 @@ namespace zonetool::iw6
 				new_asset->bonePhysics = nullptr;
 				COPY_VALUE(quantization);
 
+				//if (asset->flags & 0x8) // reactive motion
+				//{
+				//	new_asset->u1 = 6; // lodInfo[6]
+				//}
+
 				return new_asset;
 			}
 
