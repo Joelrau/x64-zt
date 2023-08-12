@@ -621,6 +621,8 @@ namespace zonetool::h1
 		TECHNIQUE_NO_DISPLACEMENT_LAST = 240,
 
 		TECHNIQUE_COUNT = 240,
+		TECHNIQUE_TOTAL_COUNT = 241,
+		TECHNIQUE_NONE = 242,
 	};
 
 	enum MaterialConstSource : std::int32_t
@@ -1678,12 +1680,192 @@ namespace zonetool::h1
 
 	enum GfxStateBitRawBitsIndex : std::uint32_t
 	{
-		GFXS_RAWBITS_UNK0_INDEX = 0,
+		GFXS_RAWBITS_CULL_INDEX = 0,
 		GFXS_RAWBITS_DEPTH_STENCIL_INDEX = 1,
 		GFXS_RAWBITS_UNK2_INDEX = 2,
 		GFXS_RAWBITS_BLEND_INDEX = 3,
 		GFXS_RAWBITS_UNK4_INDEX = 4,
 		GFXS_RAWBITS_UNK5_INDEX = 5,
+		GFXS_RAWBITS_COUNT = 6
+	};
+
+	enum GfxStateBitRawBits0 : std::uint32_t
+	{
+		GFXS0_ATEST_DISABLE = 0x1,
+		GFXS0_ATEST_SHIFT = 0x1,
+		GFXS0_ATEST_GT_0 = 0x2,
+		GFXS0_ATEST_LT_128 = 0x4,
+		GFXS0_ATEST_GE_128 = 0x6,
+		GFXS0_ATEST_MASK = 0x6,
+		GFXS0_CULL_SHIFT = 0x3,
+		GFXS0_CULL_NONE = 0x8,
+		GFXS0_CULL_BACK = 0x10,
+		GFXS0_CULL_FRONT = 0x18,
+		GFXS0_CULL_MASK = 0x18,
+		GFXS0_POLYMODE_LINE = 0x20,
+		GFXS0_GAMMAWRITE = 0x40,
+		GFXS0_STENCIL_REF_SHIFT = 0x8,
+		GFXS0_STENCIL_REF_ZERO = 0x0,
+		GFXS0_STENCIL_REF_BIT_0 = 0x100,
+		GFXS0_STENCIL_REF_BIT_1 = 0x200,
+		GFXS0_STENCIL_REF_BIT_2 = 0x400,
+		GFXS0_STENCIL_REF_BIT_3 = 0x800,
+		GFXS0_STENCIL_REF_BIT_4 = 0x1000,
+		GFXS0_STENCIL_REF_BIT_5 = 0x2000,
+		GFXS0_STENCIL_REF_BIT_6 = 0x4000,
+		GFXS0_STENCIL_REF_BIT_7 = 0x8000,
+		GFXS0_STENCIL_REF_MASK = 0xFF00,
+	};
+
+	enum GfxStateBitRawBits1 : std::uint32_t
+	{
+		GFXS1_DEPTHWRITE = 0x1,
+		GFXS1_DEPTHTEST_SHIFT = 2,
+		GFXS1_DEPTHTEST_ALWAYS = 0,
+		GFXS1_DEPTHTEST_LESS = 2,
+		GFXS1_DEPTHTEST_EQUAL = 4,
+		GFXS1_DEPTHTEST_LESSEQUAL = 6,
+		GFXS1_DEPTHTEST_MDAO = 10,
+		GFXS1_DEPTHTEST_DISABLE = 12,
+		GFXS1_DEPTHTEST_MASK = 14,
+		GFXS1_POLYGON_OFFSET_SHIFT = 0x4,
+		GFXS1_POLYGON_OFFSET_0 = 0x0,
+		GFXS1_POLYGON_OFFSET_1 = 0x10,
+		GFXS1_POLYGON_OFFSET_2 = 0x20,
+		GFXS1_POLYGON_OFFSET_SHADOWMAP = 0x30,
+		GFXS1_POLYGON_OFFSET_MASK = 0x30,
+		GFXS1_STENCIL_FRONT_ENABLE = 0x40,
+		GFXS1_STENCIL_BACK_ENABLE = 0x80,
+		GFXS1_STENCIL_MASK = 0xC0,
+		GFXS1_STENCIL_FRONT_PASS_SHIFT = 0x8,
+		GFXS1_STENCIL_FRONT_FAIL_SHIFT = 0xB,
+		GFXS1_STENCIL_FRONT_ZFAIL_SHIFT = 0xE,
+		GFXS1_STENCIL_FRONT_FUNC_SHIFT = 0x11,
+		GFXS1_STENCIL_FRONT_MASK = 0xFFF00,
+		GFXS1_STENCIL_BACK_PASS_SHIFT = 0x14,
+		GFXS1_STENCIL_BACK_FAIL_SHIFT = 0x17,
+		GFXS1_STENCIL_BACK_ZFAIL_SHIFT = 0x1A,
+		GFXS1_STENCIL_BACK_FUNC_SHIFT = 0x1D,
+		GFXS1_STENCIL_BACK_MASK = 0xFFF00000,
+		GFXS1_STENCILFUNC_FRONTBACK_MASK = 0xE00E0000,
+		GFXS1_STENCILOP_FRONTBACK_MASK = 0x1FF1FF00,
+	};
+
+	enum GfxStateBitRawBits2 : std::uint32_t
+	{
+		// unk
+	};
+
+	enum GfxStateBitRawBits3 : std::uint32_t
+	{
+		GFXS3_SRCBLEND_RGB_SHIFT = 0x0,
+		GFXS3_SRCBLEND_RGB_MASK = 0xF,
+		GFXS3_DSTBLEND_RGB_SHIFT = 0x4,
+		GFXS3_DSTBLEND_RGB_MASK = 0xF0,
+		GFXS3_BLENDOP_RGB_SHIFT = 0x8,
+		GFXS3_BLENDOP_RGB_MASK = 0x700,
+		GFXS3_BLEND_RGB_MASK = 0x7FF,
+		GFXS3_SRCBLEND_ALPHA_SHIFT = 0xC,
+		GFXS3_SRCBLEND_ALPHA_MASK = 0xF000,
+		GFXS3_DSTBLEND_ALPHA_SHIFT = 0x10,
+		GFXS3_DSTBLEND_ALPHA_MASK = 0xF0000,
+		GFXS3_BLENDOP_ALPHA_SHIFT = 0x14,
+		GFXS3_BLENDOP_ALPHA_MASK = 0x700000,
+		GFXS3_BLEND_ALPHA_MASK = 0x7FF000,
+		GFXS3_BLEND_COLORWRITE_SHIFT = 0x18,
+		GFXS3_BLEND_COLORWRITE_R = 0x1000000,
+		GFXS3_BLEND_COLORWRITE_G = 0x2000000,
+		GFXS3_BLEND_COLORWRITE_B = 0x4000000,
+		GFXS3_BLEND_COLORWRITE_A = 0x8000000,
+		GFXS3_BLEND_COLORWRITE_RGB = 0x7000000,
+		GFXS3_BLEND_COLORWRITE_MASK = 0xF000000,
+		GFXS3_DEPTHWRITE_OPAQUE = 0x10000000,
+	};
+
+	enum GfxStateBitRawBits4 : std::uint32_t
+	{
+		// blend1
+	};
+
+	enum GfxStateBitRawBits5 : std::uint32_t
+	{
+		// blend2
+	};
+
+	enum GfxStencilOp
+	{
+		GFXS_STENCILOP_KEEP = 0x0,
+		GFXS_STENCILOP_ZERO = 0x1,
+		GFXS_STENCILOP_REPLACE = 0x2,
+		GFXS_STENCILOP_INCRSAT = 0x3,
+		GFXS_STENCILOP_DECRSAT = 0x4,
+		GFXS_STENCILOP_INVERT = 0x5,
+		GFXS_STENCILOP_INCR = 0x6,
+		GFXS_STENCILOP_DECR = 0x7,
+
+		GFXS_STENCILOP_COUNT = 0x8,
+		GFXS_STENCILOP_MASK = 0x7
+	};
+
+	enum GfxStencilFunc
+	{
+		GFXS_STENCILFUNC_NEVER = 0x0,
+		GFXS_STENCILFUNC_LESS = 0x1,
+		GFXS_STENCILFUNC_EQUAL = 0x2,
+		GFXS_STENCILFUNC_LESSEQUAL = 0x3,
+		GFXS_STENCILFUNC_GREATER = 0x4,
+		GFXS_STENCILFUNC_NOTEQUAL = 0x5,
+		GFXS_STENCILFUNC_GREATEREQUAL = 0x6,
+		GFXS_STENCILFUNC_ALWAYS = 0x7,
+
+		GFXS_STENCILFUNC_COUNT = 0x8,
+		GFXS_STENCILFUNC_MASK = 0x7,
+	};
+
+	struct GfxStateBitsRawBits
+	{
+		GfxStateBitRawBits0 loadbit0;
+		GfxStateBitRawBits1 loadbit1;
+		GfxStateBitRawBits2 loadbit2;
+		GfxStateBitRawBits3 loadbit3;
+		GfxStateBitRawBits4 loadbit4;
+		GfxStateBitRawBits5 loadbit5;
+	};
+
+	union GfxStateBitsRaw
+	{
+		GfxStateBitsRawBits flags;
+		std::uint32_t loadBits[6];
+	};
+
+	enum GfxDepthStencilMode : std::int32_t
+	{
+		GFX_DEPTH_STENCIL_MODE_DEFAULT = 0,
+		GFX_DEPTH_STENCIL_MODE_HUD_OUTLINE_ZFAIL = 1,
+		GFX_DEPTH_STENCIL_MODE_MOTION_BLUR_HQ = 2,
+		GFX_DEPTH_STENCIL_MODE_DEPTH_HACK = 3,
+		GFX_DEPTH_STENCIL_MODE_UNK = 4,
+		GFX_DEPTH_STENCIL_MODE_FORCE_DEPTH_WRITE = 5,
+		GFX_DEPTH_STENCIL_MODE_FORCE_DEPTH_WRITE_HUD_OUTLINE_ZFAIL = 6,
+		GFX_DEPTH_STENCIL_MODE_CACHED_SPOT_STENCIL_INCR_SAT = 7,
+		GFX_DEPTH_STENCIL_MODE_CACHED_SPOT_STENCIL_INCR_SAT_CLEAR_DEPTH = 8,
+		GFX_DEPTH_STENCIL_MODE_CACHED_SPOT_STENCIL_FULL_MASK = 9,
+		GFX_DEPTH_STENCIL_MODE_COUNT = 10,
+	};
+
+	enum RasterizerState : std::uint8_t
+	{
+		RASTERIZER_STATE_CULL_SHIFT = 0x0,
+		RASTERIZER_STATE_CULL_MASK = 0x3,
+		RASTERIZER_STATE_POLYGON_OFFSET_SHIFT = 0x2,
+		RASTERIZER_STATE_POLYGON_OFFSET_MASK = 0xC,
+		RASTERIZER_STATE_POLYMODE_LINE_SHIFT = 0x4,
+		RASTERIZER_STATE_POLYMODE_LINE_MASK = 0x10,
+		RASTERIZER_STATE_INDEX_MASK = 0x1F,
+		RASTERIZER_STATE_ATEST_SHIFT = 0x5,
+		RASTERIZER_STATE_ATEST_MASK = 0x60,
+		RASTERIZER_STATE_GAMMAWRITE_SHIFT = 0x7,
+		RASTERIZER_STATE_GAMMAWRITE_MASK = 0x80,
 	};
 
 	struct GfxStateBits
@@ -3702,6 +3884,13 @@ namespace zonetool::h1
 		int partBits[8];
 	}; assert_sizeof(XModelSurfs, 0x38);
 
+	enum XModelLodFlags
+	{
+		XMODEL_LOD_FLAG_NONE = 0x0,
+		XMODEL_LOD_FLAG_SUBDIV = 0x1,
+		XMODEL_LOD_FLAG_SUBDIV_UNK = 0x2,
+	};
+
 	struct XModelLodInfo
 	{
 		float dist;
@@ -3792,11 +3981,25 @@ namespace zonetool::h1
 		PhysPreset* physPreset;
 		PhysConstraint* physContraint;
 		PhysCollmap* physCollmap;
-		char __pad0[8];
+		float unk1;
+		char boneIndex;
+		char unk2;
+		char pad[2];
 	}; assert_sizeof(XPhysBoneInfo, 0x20);
 
 	enum XModelFlags : std::uint16_t
 	{
+		XMODEL_FLAG_NONE = 0x0,
+		XMODEL_FLAG_ANIMATED_VERTS = 0x1,
+		XMODEL_FLAG_UNK2 = 0x2,
+		XMODEL_FLAG_UNK3 = 0x4,
+		XMODEL_FLAG_UNK4 = 0x8,
+		XMODEL_FLAG_REACTIVEMOTION = 0x8,
+		XMODEL_FLAG_UNK6 = 0x20,
+		XMODEL_FLAG_UNK7 = 0x40,
+		XMODEL_FLAG_UNK8 = 0x80,
+		XMODEL_FLAG_UNK9 = 0x100,
+		XMODEL_FLAG_UNK10 = 0x200,
 		XMODEL_FLAG_COMPOSITE = 0x400,
 	};
 
@@ -3910,12 +4113,13 @@ namespace zonetool::h1
 
 	enum weapClass_t : std::int32_t
 	{
-		WEAPTYPE_RIFLE = 0x1,
-		WEAPTYPE_SNIPER = 0x2,
-		WEAPTYPE_MG = 0x3,
-		WEAPTYPE_SMG = 0x4,
-		WEAPTYPE_SPREAD = 0x5,
-		WEAPTYPE_PISTOL = 0x6,
+		WEAPTYPE_RIFLE = 0x0,
+		WEAPTYPE_SNIPER = 0x1,
+		WEAPTYPE_MG = 0x2,
+		WEAPTYPE_SMG = 0x3,
+		WEAPTYPE_SPREAD = 0x4,
+		WEAPTYPE_PISTOL = 0x5,
+		WEAPTYPE_GRENADE = 0x6,
 		WEAPTYPE_ROCKETLAUNCHER = 0x7,
 		WEAPTYPE_TURRET = 0x8,
 		WEAPTYPE_THROWINGKNIFE = 0x9,
@@ -4091,6 +4295,9 @@ namespace zonetool::h1
 		FIELD_OP_STRING_APPEND = 2,
 		FIELD_OP_NUMBER_BEGIN = 3,
 		FIELD_OP_NUMBER_SET = 3,
+		FIELD_OP_NUMBER_ADD = 4,
+		//FIELD_OP_NUMBER_ADD_MULTIPLY = 5,
+		FIELD_OP_NUMBER_MULTIPLY = 6,
 		FIELD_OP_NUMBER_END = 6,
 		FIELD_OP_COUNT = 7,
 	};
@@ -4114,6 +4321,7 @@ namespace zonetool::h1
 		AttachmentType type; // 16
 		weapType_t weaponType; // 20
 		weapClass_t weapClass; // 24
+		weapGreebleType_t greebleType; // 28
 		XModel** worldModels; // 32 (2 xmodels)
 		XModel** viewModels; // 40 (2 xmodels)
 		XModel** reticleViewModels; // 48 (64 xmodels)
@@ -4126,9 +4334,11 @@ namespace zonetool::h1
 		unsigned short* waFieldOffsets; // 104
 		WAField* waFields; // 112
 		unsigned int waFieldsCount; // 120 (MAX_ATTACH_FIELDS_PER_WEAPON = 256)
-		char __pad0[14];
+		char __pad0[12];
+		bool shareAmmoWithAlt; // 136
+		char __pad1[1];
 		bool riotShield; // 138
-		char __pad1[5];
+		char __pad2[5];
 		// size: 144
 	}; assert_sizeof(WeaponAttachment, 0x90);
 	assert_offsetof(WeaponAttachment, riotShield, 138);
@@ -7098,9 +7308,9 @@ namespace zonetool::h1
 		unsigned char index;
 	};
 
-	struct GfxRawTexture
+	struct GfxRawTexture : GfxTexture
 	{
-		char __pad0[32];
+		char __pad0[8];
 	}; assert_sizeof(GfxRawTexture, 32);
 
 	struct GfxLightmapArray
@@ -7197,12 +7407,12 @@ namespace zonetool::h1
 
 	struct GfxLightGridColors
 	{
-		unsigned char colorVec6[56][6];
+		unsigned short rgb[56][3];
 	}; assert_sizeof(GfxLightGridColors, 336);
 
 	struct GfxLightGridColorsHDR
 	{
-		unsigned char colorVec6[56][6];
+		unsigned short rgb[56][3];
 	}; assert_sizeof(GfxLightGridColorsHDR, 336);
 
 	struct GfxLightGridTree
@@ -7592,7 +7802,8 @@ namespace zonetool::h1
 	struct GfxHeroOnlyLight
 	{
 		unsigned char type;
-		unsigned char unused[3];
+		unsigned char needsDynamicShadows;
+		unsigned char unused[2];
 		float color[3];
 		float dir[3];
 		float up[3];
