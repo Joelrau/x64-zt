@@ -39,7 +39,7 @@ namespace zonetool::iw6
 				//{20, },	// ?
 				//{21, },	// ?
 				//{22, },	// ?
-				//{23, },	// ?
+				{23, 25},	// ?
 				{24, 26},	// Window inside
 				{25, 27},	// Window outside
 				{26, 28},	// Cloud 1
@@ -49,7 +49,7 @@ namespace zonetool::iw6
 				{30, 32},	// Blend 2
 				{31, 33},	// Blend 3
 				//{32, },	// ?
-				//{33, },	// ?
+				{33, 35},	// ?
 				{34, 38},	// Cloud dust?
 				//{35, 35},	// Opaque
 				//{36, },	// ?

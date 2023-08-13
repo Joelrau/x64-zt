@@ -6338,6 +6338,208 @@ namespace zonetool::iw6
 		const char** stringList;
 	};
 
+	enum nodeType : std::int32_t
+	{
+		NODE_ERROR = 0x0,
+		NODE_PATHNODE = 0x1,
+		NODE_COVER_STAND = 0x2,
+		NODE_COVER_CROUCH = 0x3,
+		NODE_COVER_CROUCH_WINDOW = 0x4,
+		NODE_COVER_PRONE = 0x5,
+		NODE_COVER_RIGHT = 0x6,
+		NODE_COVER_LEFT = 0x7,
+		NODE_COVER_MULTI = 0x8,
+		NODE_AMBUSH = 0x9,
+		NODE_EXPOSED = 0xA,
+		NODE_CONCEALMENT_STAND = 0xB,
+		NODE_CONCEALMENT_CROUCH = 0xC,
+		NODE_CONCEALMENT_PRONE = 0xD,
+		NODE_DOOR = 0xE,
+		NODE_DOOR_INTERIOR = 0xF,
+		NODE_SCRIPTED = 0x10,
+		NODE_NEGOTIATION_BEGIN = 0x11,
+		NODE_NEGOTIATION_END = 0x12,
+		NODE_TURRET = 0x13,
+		NODE_GUARD = 0x14,
+		NODE_PATHNODE_3D = 0x15,
+		NODE_COVER_UP_3D = 0x16,
+		NODE_COVER_RIGHT_3D = 0x17,
+		NODE_COVER_LEFT_3D = 0x18,
+		NODE_EXPOSED_3D = 0x19,
+		NODE_SCRIPTED_3D = 0x1A,
+		NODE_NEGOTIATION_BEGIN_3D = 0x1B,
+		NODE_NEGOTIATION_END_3D = 0x1C,
+		NODE_JUMP = 0x1D,
+		NODE_JUMP_ATTACK = 0x1E,
+		NODE_NUMTYPES = 0x1F,
+		NODE_DONTLINK = 0x1F,
+	};
+
+	struct pathnode_yaworient_t
+	{
+		float fLocalAngle;
+		float localForward[2];
+	};
+
+	union $3936EE84564F75EDA6DCBAC77A545FC8
+	{
+		pathnode_yaworient_t yaw_orient;
+		float angles[3];
+	};
+
+	enum PathNodeErrorCode : std::int32_t
+	{
+		PNERR_NONE = 0x0,
+		PNERR_INSOLID = 0x1,
+		PNERR_FLOATING = 0x2,
+		PNERR_NOLINK = 0x3,
+		PNERR_DUPLICATE = 0x4,
+		PNERR_NOSTANCE = 0x5,
+		PNERR_INVALIDDOOR = 0x6,
+		PNERR_NOANGLES = 0x7,
+		PNERR_BADPLACEMENT = 0x8,
+		NUM_PATH_NODE_ERRORS = 0x9,
+	};
+
+	union $5F11B9753862CE791E23553F99FA1738
+	{
+		float minUseDistSq;
+		PathNodeErrorCode error;
+	};
+
+	union PathNodeParentUnion
+	{
+		scr_string_t name;
+		unsigned short index;
+	};
+
+	struct pathlink_s
+	{
+		float fDist;
+		unsigned short nodeNum;
+		unsigned char disconnectCount;
+		unsigned char negotiationLink;
+		unsigned char flags;
+		unsigned char ubBadPlaceCount[3];
+	};
+
+	struct pathnode_constant_t
+	{
+		unsigned short type;
+		unsigned int spawnflags;
+		scr_string_t targetname;
+		scr_string_t script_linkName;
+		scr_string_t script_noteworthy;
+		scr_string_t target;
+		scr_string_t animscript;
+		int animscriptfunc;
+		float vLocalOrigin[3];
+		$3936EE84564F75EDA6DCBAC77A545FC8 ___u9;
+		PathNodeParentUnion parent;
+		$5F11B9753862CE791E23553F99FA1738 ___u11;
+		short wOverlapNode[2];
+		unsigned short totalLinkCount;
+		pathlink_s* Links;
+	};
+
+	struct SentientHandle
+	{
+		unsigned short number;
+		unsigned short infoIndex;
+	};
+
+	struct pathnode_dynamic_t
+	{
+		SentientHandle pOwner;
+		int iFreeTime;
+		int iValidTime[3];
+		short wLinkCount;
+		short wOverlapCount;
+		short turretEntNumber;
+		unsigned char userCount;
+		unsigned char hasBadPlaceLink;
+		int spreadUsedTime[2];
+		short flags;
+		short dangerousCount;
+		int recentUseProxTime;
+	};
+
+	union $73F238679C0419BE2C31C6559E8604FC
+	{
+		float nodeCost;
+		int linkIndex;
+	};
+
+	struct pathnode_t;
+	struct pathnode_transient_t
+	{
+		int iSearchFrame;
+		pathnode_t* pNextOpen;
+		pathnode_t* pPrevOpen;
+		pathnode_t* pParent;
+		float fCost;
+		float fHeuristic;
+		$73F238679C0419BE2C31C6559E8604FC ___u6;
+	};
+
+	struct pathnode_t
+	{
+		pathnode_constant_t constant;
+		pathnode_dynamic_t dynamic;
+		pathnode_transient_t transient;
+	};
+
+	struct pathnode_tree_nodes_t
+	{
+		int nodeCount;
+		unsigned short* nodes;
+	};
+
+	struct pathnode_tree_t;
+	union pathnode_tree_info_t
+	{
+		pathnode_tree_t* child[2];
+		pathnode_tree_nodes_t s;
+	};
+
+	struct pathnode_tree_t
+	{
+		int axis;
+		float dist;
+		pathnode_tree_info_t u;
+	};
+
+	struct PathDynamicNodeGroup
+	{
+		unsigned short parentIndex;
+		int nodeTreeCount;
+		pathnode_tree_t* nodeTree;
+	};
+
+	struct PathData
+	{
+		const char* name;
+		unsigned int nodeCount;
+		pathnode_t* nodes;
+		bool parentIndexResolved;
+		unsigned short version;
+		int visBytes;
+		unsigned char* pathVis;
+		int nodeTreeCount;
+		pathnode_tree_t* nodeTree;
+		int dynamicNodeGroupCount;
+		PathDynamicNodeGroup* dynamicNodeGroups;
+		int exposureBytes;
+		unsigned char* pathExposure;
+		int noPeekVisBytes;
+		unsigned char* pathNoPeekVis;
+		int zoneCount;
+		int zonesBytes;
+		unsigned char* pathZones;
+		int dynStatesBytes;
+		unsigned char* pathDynStates;
+	};
+
 	union XAssetHeader
 	{
 		void* data;

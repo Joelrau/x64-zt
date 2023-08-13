@@ -1,5 +1,6 @@
 #pragma once
 
+#include "assets/aipaths.hpp"
 #include "assets/clipmap.hpp"
 #include "assets/comworld.hpp"
 #include "assets/fxeffectdef.hpp"
