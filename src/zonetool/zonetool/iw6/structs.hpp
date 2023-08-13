@@ -6540,6 +6540,329 @@ namespace zonetool::iw6
 		unsigned char* pathDynStates;
 	};
 
+	enum VehicleType : std::int32_t
+	{
+		VEH_WHEELS_4 = 0x0,
+		VEH_TANK = 0x1,
+		VEH_PLANE = 0x2,
+		VEH_BOAT = 0x3,
+		VEH_ARTILLERY = 0x4,
+		VEH_HELICOPTER = 0x5,
+		VEH_SNOWMOBILE = 0x6,
+		VEH_SUBMARINE = 0x7,
+		VEH_UGV = 0x8,
+		VEH_TYPE_COUNT = 0x9,
+	};
+
+	enum VehicleAxleType : std::int32_t
+	{
+		VEH_AXLE_FRONT = 0x0,
+		VEH_AXLE_REAR = 0x1,
+		VEH_AXLE_ALL = 0x2,
+		VEH_AXLE_COUNT = 0x3,
+	};
+
+	struct VehiclePhysDef
+	{
+		int physicsEnabled;
+		const char* physPresetName;
+		PhysPreset* physPreset;
+		const char* accelGraphName;
+		VehicleAxleType steeringAxle;
+		VehicleAxleType powerAxle;
+		VehicleAxleType brakingAxle;
+		float topSpeed;
+		float reverseSpeed;
+		float maxVelocity;
+		float maxPitch;
+		float maxRoll;
+		float suspensionTravelFront;
+		float suspensionTravelRear;
+		float suspensionStrengthFront;
+		float suspensionDampingFront;
+		float suspensionStrengthRear;
+		float suspensionDampingRear;
+		float frictionBraking;
+		float frictionCoasting;
+		float frictionTopSpeed;
+		float frictionSide;
+		float frictionSideRear;
+		float velocityDependentSlip;
+		float rollStability;
+		float rollResistance;
+		float pitchResistance;
+		float yawResistance;
+		float uprightStrengthPitch;
+		float uprightStrengthRoll;
+		float targetAirPitch;
+		float airYawTorque;
+		float airPitchTorque;
+		float minimumMomentumForCollision;
+		float collisionLaunchForceScale;
+		float wreckedMassScale;
+		float wreckedBodyFriction;
+		float minimumJoltForNotify;
+		float slipThresholdFront;
+		float slipThresholdRear;
+		float slipFricScaleFront;
+		float slipFricScaleRear;
+		float slipFricRateFront;
+		float slipFricRateRear;
+		float slipYawTorque;
+	};
+
+	enum VehCamZOffsetMode : std::int32_t
+	{
+		VEHCAM_ZMODE_WORLD = 0x0,
+		VEHCAM_ZMODE_VEHICLE = 0x1,
+		VEHCAM_ZMODE_VIEW = 0x2,
+		VEHCAM_ZMODE_COUNT = 0x3,
+	};
+
+	enum VehicleTurretFireType : std::int32_t
+	{
+		VEH_TURRET_SINGLE_FIRE = 0x0,
+		VEH_TURRET_DUAL_FIRE = 0x1,
+		VEH_TURRET_ALT_FIRE = 0x2,
+		VEH_TURRET_FIRE_TYPE_COUNT = 0x3,
+	};
+
+	struct VehicleDef
+	{
+		const char* name;
+		VehicleType type;
+		const char* useHintString;
+		int health;
+		int quadBarrel;
+		int hitClientScriptables;
+		float texScrollScale;
+		float topSpeed;
+		float accel;
+		float rotRate;
+		float rotAccel;
+		float maxBodyPitch;
+		float maxBodyRoll;
+		float fakeBodyAccelPitch;
+		float fakeBodyAccelRoll;
+		float fakeBodyVelPitch;
+		float fakeBodyVelRoll;
+		float fakeBodySideVelPitch;
+		float fakeBodyPitchStrength;
+		float fakeBodyRollStrength;
+		float fakeBodyPitchDampening;
+		float fakeBodyRollDampening;
+		float fakeBodyBoatRockingAmplitude;
+		float fakeBodyBoatRockingPeriod;
+		float fakeBodyBoatRockingRotationPeriod;
+		float fakeBodyBoatRockingFadeoutSpeed;
+		float boatBouncingMinForce;
+		float boatBouncingMaxForce;
+		float boatBouncingRate;
+		float boatBouncingFadeinSpeed;
+		float boatBouncingFadeoutSteeringAngle;
+		float collisionDamage;
+		float collisionSpeed;
+		float killcamOffset[3];
+		int playerProtected;
+		int bulletDamage;
+		int armorPiercingDamage;
+		int grenadeDamage;
+		int projectileDamage;
+		int projectileSplashDamage;
+		int heavyExplosiveDamage;
+		VehiclePhysDef vehPhysDef;
+		float boostDuration;
+		float boostRechargeTime;
+		float boostAcceleration;
+		float suspensionTravel;
+		float maxSteeringAngle;
+		float steeringLerp;
+		float minSteeringScale;
+		float minSteeringSpeed;
+		int disableWheelsTurning;
+		int vehHelicopterIsASplinePlane;
+		int vehHelicopterLockAltitude;
+		int vehHelicopterOffsetFromMesh;
+		float vehHelicopterAltitudeOffset;
+		float vehHelicopterPitchOffset;
+		float vehHelicopterBoundsRadius;
+		float vehHelicopterMaxSpeed;
+		float vehHelicopterMaxSpeedVertical;
+		float vehHelicopterMaxAccel;
+		float vehHelicopterMaxAccelVertical;
+		float vehHelicopterDecelerationFwd;
+		float vehHelicopterDecelerationSide;
+		float vehHelicopterDecelerationUp;
+		float vehHelicopterMaxYawRate;
+		float vehHelicopterMaxYawAccel;
+		float vehHelicopterTiltFromVelocity;
+		float vehHelicopterTiltFromControllerAxes;
+		float vehHelicopterTiltFromAcceleration;
+		float vehHelicopterTiltFromDeceleration;
+		float vehHelicopterTiltFromFwdAndYaw_VelAtMaxTilt;
+		float vehHelicopterTiltFromFwdAndYaw;
+		float vehHelicopterTiltMomentum;
+		float vehHelicopterTiltSpeed;
+		float vehHelicopterMaxPitch;
+		float vehHelicopterMaxRoll;
+		float vehHelicopterHoverSpeedThreshold;
+		float vehHelicopterJitterJerkyness;
+		float vehHelicopterLookaheadTime;
+		int vehHelicopterSoftCollisions;
+		int vehHelicopterUseGroundFX;
+		FxEffectDef* vehHelicopterGroundFx;
+		FxEffectDef* vehHelicopterGroundWaterFx;
+		float vehHelicopterGroundFxDefaultRepeatRate;
+		float vehHelicopterGroundFxSlowestRepeatRate;
+		float vehHelicopterGroundFxFastestRepeatRate;
+		float vehHelicopterGroundFxMinGroundDist;
+		float vehHelicopterGroundFxMaxGroundDist;
+		float vehSplinePlaneCorridorMaxXVel;
+		float vehSplinePlaneCorridorMaxZVel;
+		float vehSplinePlaneCorridorMaxXAccel;
+		float vehSplinePlaneCorridorMaxZAccel;
+		float vehSplinePlaneTangentLookAtRate;
+		float vehSplinePlaneMaxPitchSpeed;
+		float vehSplinePlaneMaxYawSpeed;
+		float vehSplinePlaneMaxRollSpeed;
+		float vehSplinePlanePitchSpeedRate;
+		float vehSplinePlaneYawSpeedRate;
+		float vehSplinePlaneRollSpeedRateUp;
+		float vehSplinePlaneRollSpeedRateDown;
+		float vehSplinePlaneMaxPitchAccel;
+		float vehSplinePlaneMaxYawAccel;
+		float vehSplinePlaneMaxRollAccel;
+		float vehSplinePlaneYawToRollFactor;
+		float vehSplinePlaneRollToYawFactor;
+		float vehSplinePlaneRollToYawFactorBlend;
+		float vehSplinePlaneMaxPitch;
+		float vehSplinePlaneMaxRoll;
+		float vehSplinePlaneMaxPitchFromRoll;
+		float vehSplinePlaneMaxRollYawOffset;
+		float vehSplinePlaneRollYawOffsetThreshold;
+		float vehSplinePlaneMaxTiltRoll;
+		float vehSplinePlaneMaxTiltPitch;
+		float vehSplinePlaneTiltRollRate;
+		float vehSplinePlaneTiltPitchRate;
+		int camLookEnabled;
+		int camRelativeControl;
+		int camRemoteDrive;
+		float camLerp;
+		float camHeight;
+		float camRadius;
+		float camPitchInfluence;
+		float camYawInfluence;
+		float camRollInfluence;
+		float camFovIncrease;
+		float camFovOffset;
+		float camFovSpeed;
+		float camReturnSpeed;
+		float camReturnLerp;
+		float camVehicleAnglePitchRate;
+		float camVehicleAngleYawRate;
+		float camVehicleAngleRollRate;
+		int vehCam_UseGDT;
+		float vehCam_anglesPitch;
+		float vehCam_anglesYaw;
+		float vehCam_anglesRoll;
+		float vehCam_offsetX;
+		float vehCam_offsetY;
+		float vehCam_offsetZ;
+		float vehCam_radius;
+		float vehCam_speedInfluence;
+		float vehCam_pitchTurnRate;
+		float vehCam_pitchClamp;
+		float vehCam_yawTurnRate;
+		float vehCam_yawClamp;
+		VehCamZOffsetMode vehCam_zOffsetMode;
+		float vehCam_anglesPitch3P;
+		float vehCam_anglesYaw3P;
+		float vehCam_anglesRoll3P;
+		float vehCam_offsetX3P;
+		float vehCam_offsetY3P;
+		float vehCam_offsetZ3P;
+		float vehCam_radius3P;
+		float vehCam_speedInfluence3P;
+		float vehCam_pitchTurnRate3P;
+		float vehCam_pitchClamp3P;
+		float vehCam_yawTurnRate3P;
+		float vehCam_yawClamp3P;
+		VehCamZOffsetMode vehCam_zOffsetMode3P;
+		const char* turretWeaponName;
+		WeaponCompleteDef* turretWeapon;
+		float turretHorizSpanLeft;
+		float turretHorizSpanRight;
+		float turretVertSpanUp;
+		float turretVertSpanDown;
+		float turretHorizResistLeft;
+		float turretHorizResistRight;
+		float turretVertResistUp;
+		float turretVertResistDown;
+		float turretRotRate;
+		VehicleTurretFireType turretFireType;
+		snd_alias_list_t* turretSpinSnd;
+		snd_alias_list_t* turretStopSnd;
+		int trophyEnabled;
+		float trophyRadius;
+		float trophyInactiveRadius;
+		int trophyAmmoCount;
+		float trophyReloadTime;
+		scr_string_t trophyTags[4];
+		const FxEffectDef* trophyExplodeFx;
+		const FxEffectDef* trophyFlashFx;
+		Material* compassFriendlyIcon;
+		Material* compassEnemyIcon;
+		Material* compassFriendlyAltIcon;
+		Material* compassEnemyAltIcon;
+		int compassIconWidth;
+		int compassIconHeight;
+		snd_alias_list_t* idleLowSnd;
+		snd_alias_list_t* idleHighSnd;
+		snd_alias_list_t* engineLowSnd;
+		snd_alias_list_t* engineHighSnd;
+		float engineSndSpeed;
+		scr_string_t audioOriginTag;
+		snd_alias_list_t* idleLowSndAlt;
+		snd_alias_list_t* idleHighSndAlt;
+		snd_alias_list_t* engineLowSndAlt;
+		snd_alias_list_t* engineHighSndAlt;
+		float engineSndSpeedAlt;
+		scr_string_t audioOriginTagAlt;
+		snd_alias_list_t* turretSpinSndAlt;
+		snd_alias_list_t* turretStopSndAlt;
+		snd_alias_list_t* engineStartUpSnd;
+		int engineStartUpLength;
+		snd_alias_list_t* engineShutdownSnd;
+		snd_alias_list_t* engineIdleSnd;
+		snd_alias_list_t* engineSustainSnd;
+		snd_alias_list_t* engineRampUpSnd;
+		int engineRampUpLength;
+		snd_alias_list_t* engineRampDownSnd;
+		int engineRampDownLength;
+		snd_alias_list_t* suspensionSoftSnd;
+		float suspensionSoftCompression;
+		snd_alias_list_t* suspensionHardSnd;
+		float suspensionHardCompression;
+		snd_alias_list_t* collisionSnd;
+		float collisionBlendSpeed;
+		snd_alias_list_t* speedSnd;
+		float speedSndBlendSpeed;
+		const char* surfaceSndPrefix;
+		snd_alias_list_t* surfaceSnds[31];
+		float surfaceSndBlendSpeed;
+		float slideVolume;
+		float slideBlendSpeed;
+		float inAirPitch;
+		const char* soundTriggerOverrideZone;
+		bool soundTriggerOverrideReverb;
+		bool soundTriggerOverrideMix;
+		bool soundTriggerOverrideFilter;
+		bool soundTriggerOverrideOcclusion;
+		bool soundTriggerOverrideAmbient;
+		bool soundTriggerOverrideAmbientEvents;
+		bool soundTriggerOverrideADSR;
+	};
+
 	union XAssetHeader
 	{
 		void* data;
@@ -6588,7 +6911,7 @@ namespace zonetool::iw6
 		//LeaderboardDef* leaderboardDef;
 		StructuredDataDefSet* structuredDataDefSet;
 		TracerDef* tracerDef;
-		//VehicleDef* vehDef;
+		VehicleDef* vehDef;
 		AddonMapEnts* addonMapEnts;
 		NetConstStrings* netConstStrings;
 		//ReverbPreset* reverbPreset;

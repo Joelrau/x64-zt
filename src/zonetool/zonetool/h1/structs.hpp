@@ -8144,6 +8144,574 @@ namespace zonetool::h1
 	assert_offsetof(PathData, pathNoPeekVis, 96);
 	assert_offsetof(PathData, pathZones, 112);
 
+	enum VehicleType : std::int32_t
+	{
+		VEH_WHEELS_4 = 0x0,
+		VEH_TANK = 0x1,
+		VEH_PLANE = 0x2,
+		VEH_BOAT = 0x3,
+		VEH_ARTILLERY = 0x4,
+		VEH_HELICOPTER = 0x5,
+		VEH_SNOWMOBILE = 0x6,
+		VEH_SUBMARINE = 0x7,
+		VEH_UGV = 0x8,
+		VEH_UNK9 = 0x9,
+		VEH_UNK10 = 10,
+		VEH_MOBILECOVER = 11,
+		VEH_JETBIKE = 12,
+		VEH_UNK13 = 13,
+		VEH_HOVERTANK = 14,
+		VEH_DIVEBOAT = 15,
+		VEH_TYPE_COUNT = 16,
+	};
+
+	enum VehicleAxleType : std::int32_t
+	{
+		VEH_AXLE_FRONT = 0x0,
+		VEH_AXLE_REAR = 0x1,
+		VEH_AXLE_ALL = 0x2,
+		VEH_AXLE_COUNT = 0x3,
+	};
+
+	struct VehiclePhysDef
+	{
+		int physicsEnabled;
+		const char* physPresetName;
+		PhysPreset* physPreset;
+		const char* physMassName;
+		PhysMass* physMass;
+		const char* accelGraphName;
+		int unk_48;
+		int unk_52;
+		int unk_56;
+		float topSpeed;
+		float unk_64;
+		float reverseSpeed;
+		float maxVelocity;
+		float maxPitch;
+		float maxRoll;
+		float unk_84;
+		float suspensionTravelFront;
+		float suspensionTravelRear;
+		float suspensionStrengthFront;
+		float suspensionDampingFront;
+		float suspensionStrengthRear;
+		float suspensionDampingRear;
+		float frictionBraking;
+		float frictionCoasting;
+		float frictionTopSpeed;
+		float frictionSide;
+		float frictionSideRear;
+		float unk_132;
+		float unk_136;
+		float unk_140;
+		float unk_144;
+		float unk_148;
+		float unk_152;
+		float unk_156;
+		float unk_160;
+		float velocityDependentSlip;
+		float rollStability;
+		float rollResistance;
+		float pitchResistance;
+		float yawResistance;
+		float uprightStrengthPitch;
+		float uprightStrengthRoll;
+		float targetAirPitch;
+		float airYawTorque;
+		float airPitchTorque;
+		float minimumMomentumForCollision;
+		float collisionLaunchForceScale;
+		float wreckedMassScale;
+		float wreckedBodyFriction;
+		float minimumJoltForNotify;
+		float slipThresholdFront;
+		float slipThresholdRear;
+		float slipFricScaleFront;
+		float slipFricScaleRear;
+		float slipFricRateFront;
+		float slipFricRateRear;
+		float slipYawTorque;
+		float unk_252;
+		float unk_256;
+		float unk_260;
+	}; assert_sizeof(VehiclePhysDef, 0x108);
+	assert_offsetof(VehiclePhysDef, accelGraphName, 40);
+	assert_offsetof(VehiclePhysDef, rollStability, 168);
+	assert_offsetof(VehiclePhysDef, minimumMomentumForCollision, 204);
+
+	enum VehicleTurretFireType
+	{
+		VEH_TURRET_SINGLE_FIRE = 0x0,
+		VEH_TURRET_DUAL_FIRE = 0x1,
+		VEH_TURRET_ALT_FIRE = 0x2,
+		VEH_TURRET_FIRE_TYPE_COUNT = 0x3,
+	};
+
+	enum VehCamZOffsetMode : std::int32_t
+	{
+		VEHCAM_ZMODE_WORLD = 0x0,
+		VEHCAM_ZMODE_VEHICLE = 0x1,
+		VEHCAM_ZMODE_VIEW = 0x2,
+		VEHCAM_ZMODE_COUNT = 0x3,
+	};
+
+	struct VehicleDef
+	{
+		union
+		{
+			const char* name;
+			const char* internalName;
+		};
+		VehicleType type;
+		const char* useHintString;
+		int health;
+		int quadBarrel;
+		int unk_32;
+		int unk_36; // ScrCmd_SetOtherEnt
+		int unk_40;
+		float texScrollScale;
+		float topSpeed;
+		float accel;
+		float rotRate;
+		float rotAccel;
+		float maxBodyPitch;
+		float maxBodyRoll;
+		float unk_72;
+		float fakeBodyAccelPitch;
+		float fakeBodyAccelRoll;
+		float fakeBodyVelPitch;
+		float fakeBodyVelRoll;
+		float fakeBodySideVelPitch;
+		float fakeBodyPitchStrength;
+		float fakeBodyRollStrength;
+		float fakeBodyPitchDampening;
+		float fakeBodyRollDampening;
+		float fakeBodyBoatRockingAmplitude;
+		float fakeBodyBoatRockingPeriod;
+		float fakeBodyBoatRockingRotationPeriod;
+		float fakeBodyBoatRockingFadeoutSpeed;
+		float boatBouncingMinForce;
+		float boatBouncingMaxForce;
+		float boatBouncingRate;
+		float boatBouncingFadeinSpeed;
+		float boatBouncingFadeoutSteeringAngle;
+		float collisionDamage;
+		float collisionSpeed;
+		float killcamOffset[3];
+		int playerProtected;
+		int bulletDamage;
+		int armorPiercingDamage;
+		int grenadeDamage;
+		int projectileDamage;
+		int projectileSplashDamage;
+		int heavyExplosiveDamage;
+		int unk_196;
+		VehiclePhysDef vehPhysDef;
+		float boostDuration;
+		float boostRechargeTime;
+		float boostAcceleration;
+		float unk_476;
+		float suspensionTravel;
+		float maxSteeringAngle;
+		float steeringLerp;
+		float steeringLerpUnk; // Vehicle_LerpSteering
+		float minSteeringScale;
+		float minSteeringSpeed;
+		float unk_504;
+		float unk_508;
+		FxEffectDef* effect01;
+		FxEffectDef* effect02;
+		FxEffectDef* effect03;
+		FxEffectDef* effect04;
+		FxEffectDef* effect05;
+		float unk_552;
+		float unk_556;
+		float unk_560;
+		float unk_564;
+		int vehHelicopterIsASplinePlane;
+		int unk_572;
+		int unk_576;
+		int vehHelicopterOffsetFromMesh;
+		float unk_584;
+		float unk_588;
+		float unk_592;
+		float unk_596;
+		float vehHelicopterMaxSpeed;
+		float vehHelicopterMaxSpeedVertical;
+		float vehHelicopterMaxAccel;
+		float vehHelicopterMaxAccelVertical;
+		float vehHelicopterDecelerationFwd;
+		float vehHelicopterDecelerationSide;
+		float vehHelicopterDecelerationUp;
+		float vehHelicopterMaxYawRate;
+		float vehHelicopterMaxYawAccel;
+		float vehHelicopterTiltFromVelocity;
+		float vehHelicopterTiltFromControllerAxes;
+		float vehHelicopterTiltFromAcceleration;
+		float vehHelicopterTiltFromDeceleration;
+		float vehHelicopterTiltFromFwdAndYaw_VelAtMaxTilt;
+		float vehHelicopterTiltFromFwdAndYaw;
+		float vehHelicopterTiltMomentum;
+		float vehHelicopterTiltSpeed;
+		float vehHelicopterMaxPitch;
+		float vehHelicopterMaxRoll;
+		float vehHelicopterHoverSpeedThreshold;
+		float vehHelicopterJitterJerkyness;
+		int unk_684;
+		float unk_688;
+		float unk_692;
+		float unk_696;
+		float unk_700;
+		float unk_704;
+		float vehHelicopterLookaheadTime;
+		int vehHelicopterSoftCollisions;
+		int vehHelicopterUseGroundFX;
+		FxEffectDef* vehHelicopterGroundFx;
+		FxEffectDef* vehHelicopterGroundWaterFx;
+		float vehHelicopterGroundFxDefaultRepeatRate;
+		float vehHelicopterGroundFxSlowestRepeatRate;
+		float vehHelicopterGroundFxFastestRepeatRate;
+		float vehHelicopterGroundFxMinGroundDist;
+		float vehHelicopterGroundFxMaxGroundDist;
+		float vehSplinePlaneCorridorMaxXVel;
+		float vehSplinePlaneCorridorMaxZVel;
+		float vehSplinePlaneCorridorMaxXAccel;
+		float vehSplinePlaneCorridorMaxZAccel;
+		float vehSplinePlaneTangentLookAtRate;
+		float vehSplinePlaneMaxPitchSpeed;
+		float vehSplinePlaneMaxYawSpeed;
+		float vehSplinePlaneMaxRollSpeed;
+		float vehSplinePlanePitchSpeedRate;
+		float vehSplinePlaneYawSpeedRate;
+		float vehSplinePlaneRollSpeedRateUp;
+		float vehSplinePlaneRollSpeedRateDown;
+		float vehSplinePlaneMaxPitchAccel;
+		float vehSplinePlaneMaxYawAccel;
+		float vehSplinePlaneMaxRollAccel;
+		float vehSplinePlaneYawToRollFactor;
+		float vehSplinePlaneRollToYawFactor;
+		float vehSplinePlaneRollToYawFactorBlend;
+		float vehSplinePlaneMaxPitch;
+		float vehSplinePlaneMaxRoll;
+		float vehSplinePlaneMaxPitchFromRoll;
+		float vehSplinePlaneMaxRollYawOffset;
+		float vehSplinePlaneRollYawOffsetThreshold;
+		float vehSplinePlaneMaxTiltRoll;
+		float vehSplinePlaneMaxTiltPitch;
+		float vehSplinePlaneTiltRollRate;
+		float vehSplinePlaneTiltPitchRate;
+		float unk_864;
+		float unk_868;
+		float unk_872;
+		float unk_876;
+		float unk_880;
+		float unk_884;
+		float unk_888;
+		float unk_892;
+		float unk_896;
+		float unk_900;
+		float unk_904;
+		float unk_908;
+		float unk_912;
+		float unk_916;
+		float unk_920;
+		float unk_924;
+		float unk_928;
+		float unk_932;
+		float unk_936;
+		float unk_940;
+		float unk_944;
+		float unk_948;
+		float unk_952;
+		float unk_956;
+		float unk_960;
+		float unk_964;
+		float unk_968;
+		float unk_972;
+		float unk_976;
+		float unk_980;
+		float unk_984;
+		float unk_988;
+		float unk_992;
+		float unk_996;
+		float unk_1000;
+		float unk_1004;
+		float unk_1008;
+		float unk_1012;
+		float unk_1016;
+		float unk_1020;
+		float unk_1024;
+		float unk_1028;
+		float unk_1032;
+		float unk_1036;
+		float unk_1040;
+		float unk_1044;
+		const char* steeringGraphName;
+		int numSteeringGraphs; // set in Vehicle_LoadServerDefAssets
+		float unk_1060;
+		float unk_1064;
+		float unk_1068;
+		float unk_1072;
+		float unk_1076;
+		float unk_1080;
+		float unk_1084;
+		float unk_1088;
+		float unk_1092;
+		float unk_1096;
+		float unk_1100;
+		float unk_1104;
+		float unk_1108;
+		float unk_1112;
+		float unk_1116;
+		float unk_1120;
+		float unk_1124;
+		float unk_1128;
+		float unk_1132;
+		float unk_1136;
+		float unk_1140;
+		float unk_1144;
+		float unk_1148;
+		int camLookEnabled;
+		int camRelativeControl;
+		int camRemoteDrive;
+		float camLerp;
+		float camHeight;
+		float camRadius;
+		float camPitchInfluence;
+		float camYawInfluence;
+		float camRollInfluence;
+		float camFovIncrease;
+		float camFovOffset;
+		float camFovSpeed;
+		float camReturnSpeed;
+		float camReturnLerp;
+		float camVehicleAnglePitchRate;
+		float camVehicleAngleYawRate;
+		float camVehicleAngleRollRate;
+		float unk_1220;
+		float unk_1224;
+		float unk_1228;
+		float unk_1232;
+		float unk_1236;
+		float unk_1240;
+		float unk_1244;
+		float unk_1248;
+		float unk_1252;
+		float unk_1256;
+		float unk_1260;
+		float unk_1264;
+		int unk_1268;
+		float vehCam_anglesPitch;
+		float vehCam_anglesYaw;
+		float vehCam_anglesRoll;
+		float vehCam_offsetX;
+		float vehCam_offsetY;
+		float vehCam_offsetZ;
+		float vehCam_radius;
+		float vehCam_speedInfluence;
+		float vehCam_pitchTurnRate;
+		float vehCam_pitchClamp;
+		float vehCam_yawTurnRate;
+		float vehCam_yawClamp;
+		VehCamZOffsetMode vehCam_zOffsetMode;
+		float vehCam_anglesPitch3P;
+		float vehCam_anglesYaw3P;
+		float vehCam_anglesRoll3P;
+		float vehCam_offsetX3P;
+		float vehCam_offsetY3P;
+		float vehCam_offsetZ3P;
+		float vehCam_radius3P;
+		float vehCam_speedInfluence3P;
+		float vehCam_pitchTurnRate3P;
+		float vehCam_pitchClamp3P;
+		float vehCam_yawTurnRate3P;
+		float unk_1368;
+		float vehCam_yawClamp3P;
+		VehCamZOffsetMode vehCam_zOffsetMode3P;
+		float unk_1380;
+		const char* turretWeaponName;
+		WeaponDef* turretWeapon;
+		float turretHorizSpanLeft;
+		float turretHorizSpanRight;
+		float turretVertSpanUp;
+		float turretVertSpanDown;
+		float turretHorizResistLeft;
+		float turretHorizResistRight;
+		float turretVertResistUp;
+		float turretVertResistDown;
+		float turretRotRate;
+		VehicleTurretFireType turretFireType;
+		snd_alias_list_t* turretSpinSnd;
+		snd_alias_list_t* turretStopSnd;
+		int trophyEnabled;
+		float trophyRadius;
+		float trophyInactiveRadius;
+		int trophyAmmoCount;
+		float trophyReloadTime;
+		scr_string_t trophyTags[4];
+		FxEffectDef* trophyExplodeFx;
+		FxEffectDef* trophyFlashFx;
+		Material* compassFriendlyIcon;
+		Material* compassEnemyIcon;
+		Material* compassFriendlyAltIcon;
+		Material* compassEnemyAltIcon;
+		int compassIconWidth;
+		int compassIconHeight;
+		snd_alias_list_t* idleLowSnd;
+		snd_alias_list_t* idleHighSnd;
+		snd_alias_list_t* engineLowSnd;
+		snd_alias_list_t* engineHighSnd;
+		snd_alias_list_t* sound_1584; // rename
+		float engineSndSpeed;
+		scr_string_t audioOriginTag;
+		snd_alias_list_t* idleLowSndAlt;
+		snd_alias_list_t* idleHighSndAlt;
+		snd_alias_list_t* engineLowSndAlt;
+		snd_alias_list_t* engineHighSndAlt;
+		float engineSndSpeedAlt;
+		scr_string_t audioOriginTagAlt;
+		snd_alias_list_t* turretSpinSndAlt;
+		snd_alias_list_t* turretStopSndAlt;
+		snd_alias_list_t* engineStartUpSnd;
+		int engineStartUpLength;
+		snd_alias_list_t* engineShutdownSnd;
+		snd_alias_list_t* engineIdleSnd;
+		snd_alias_list_t* engineSustainSnd;
+		snd_alias_list_t* engineRampUpSnd;
+		int engineRampUpLength;
+		snd_alias_list_t* engineRampDownSnd;
+		int engineRampDownLength;
+		snd_alias_list_t* suspensionSoftSnd;
+		float suspensionSoftCompression;
+		snd_alias_list_t* suspensionHardSnd;
+		float suspensionHardCompression;
+		snd_alias_list_t* collisionSnd;
+		float collisionBlendSpeed;
+		snd_alias_list_t* speedSnd;
+		float speedSndBlendSpeed;
+		const char* surfaceSndPrefix;
+		snd_alias_list_t* surfaceSnds[53];
+		float surfaceSndBlendSpeed;
+		float slideVolume;
+		float slideBlendSpeed;
+		float inAirPitch;
+		const char* soundTriggerOverrideZone;
+		bool soundTriggerOverrideReverb;
+		bool soundTriggerOverrideMix;
+		bool soundTriggerOverrideFilter;
+		bool soundTriggerOverrideOcclusion;
+		bool soundTriggerOverrideAmbient;
+		bool soundTriggerOverrideAmbientEvents;
+		bool soundTriggerOverrideADSR;
+	}; assert_sizeof(VehicleDef, 0x8D0);
+	assert_offsetof(VehicleDef, vehPhysDef, 200);
+	assert_offsetof(VehicleDef, effect01, 512);
+	assert_offsetof(VehicleDef, effect05, 544);
+	assert_offsetof(VehicleDef, vehHelicopterGroundFx, 720);
+	assert_offsetof(VehicleDef, vehHelicopterGroundWaterFx, 728);
+	assert_offsetof(VehicleDef, steeringGraphName, 1048);
+	assert_offsetof(VehicleDef, turretWeaponName, 1384);
+	assert_offsetof(VehicleDef, turretWeapon, 1392);
+	assert_offsetof(VehicleDef, turretSpinSnd, 1440);
+	assert_offsetof(VehicleDef, turretStopSnd, 1448);
+	assert_offsetof(VehicleDef, trophyTags, 1476);
+	assert_offsetof(VehicleDef, trophyExplodeFx, 1496);
+	assert_offsetof(VehicleDef, trophyFlashFx, 1504);
+	assert_offsetof(VehicleDef, compassFriendlyIcon, 1512);
+	assert_offsetof(VehicleDef, compassEnemyIcon, 1520);
+	assert_offsetof(VehicleDef, compassFriendlyAltIcon, 1528);
+	assert_offsetof(VehicleDef, compassEnemyAltIcon, 1536);
+	assert_offsetof(VehicleDef, idleLowSnd, 1552);
+	assert_offsetof(VehicleDef, idleHighSnd, 1560);
+	assert_offsetof(VehicleDef, engineLowSnd, 1568);
+	assert_offsetof(VehicleDef, engineHighSnd, 1576);
+	assert_offsetof(VehicleDef, sound_1584, 1584);
+	assert_offsetof(VehicleDef, audioOriginTag, 1596);
+
+	assert_offsetof(VehicleDef, health, 24);
+	assert_offsetof(VehicleDef, quadBarrel, 28);
+	assert_offsetof(VehicleDef, unk_36, 36);
+
+	assert_offsetof(VehicleDef, accel, 52);
+	assert_offsetof(VehicleDef, rotRate, 56);
+	assert_offsetof(VehicleDef, rotAccel, 60);
+	assert_offsetof(VehicleDef, maxBodyPitch, 64);
+	assert_offsetof(VehicleDef, maxBodyRoll, 68);
+	assert_offsetof(VehicleDef, fakeBodyAccelPitch, 76);
+	assert_offsetof(VehicleDef, fakeBodyAccelRoll, 80);
+	assert_offsetof(VehicleDef, fakeBodyVelPitch, 84);
+	assert_offsetof(VehicleDef, fakeBodyVelRoll, 88);
+	assert_offsetof(VehicleDef, fakeBodySideVelPitch, 92);
+	assert_offsetof(VehicleDef, fakeBodyPitchStrength, 96);
+	assert_offsetof(VehicleDef, fakeBodyRollStrength, 100);
+	assert_offsetof(VehicleDef, fakeBodyPitchDampening, 104);
+	assert_offsetof(VehicleDef, fakeBodyRollDampening, 108);
+	assert_offsetof(VehicleDef, fakeBodyBoatRockingAmplitude, 112);
+	assert_offsetof(VehicleDef, fakeBodyBoatRockingPeriod, 116);
+	assert_offsetof(VehicleDef, fakeBodyBoatRockingRotationPeriod, 120);
+	assert_offsetof(VehicleDef, fakeBodyBoatRockingFadeoutSpeed, 124);
+	assert_offsetof(VehicleDef, boatBouncingMinForce, 128);
+	assert_offsetof(VehicleDef, boatBouncingMaxForce, 132);
+	assert_offsetof(VehicleDef, boatBouncingRate, 136);
+	assert_offsetof(VehicleDef, boatBouncingFadeinSpeed, 140);
+	assert_offsetof(VehicleDef, boatBouncingFadeoutSteeringAngle, 144);
+	assert_offsetof(VehicleDef, collisionDamage, 148);
+	assert_offsetof(VehicleDef, collisionSpeed, 152);
+
+	assert_offsetof(VehicleDef, playerProtected, 168);
+	assert_offsetof(VehicleDef, bulletDamage, 172);
+	assert_offsetof(VehicleDef, armorPiercingDamage, 176);
+	assert_offsetof(VehicleDef, grenadeDamage, 180);
+	assert_offsetof(VehicleDef, projectileDamage, 184);
+	assert_offsetof(VehicleDef, projectileSplashDamage, 188);
+	assert_offsetof(VehicleDef, heavyExplosiveDamage, 192);
+
+	assert_offsetof(VehicleDef, vehPhysDef.minimumMomentumForCollision, 404);
+
+	assert_offsetof(VehicleDef, boostDuration, 464);
+	assert_offsetof(VehicleDef, boostRechargeTime, 468);
+	assert_offsetof(VehicleDef, boostAcceleration, 472);
+
+	assert_offsetof(VehicleDef, suspensionTravel, 480);
+	assert_offsetof(VehicleDef, maxSteeringAngle, 484);
+	assert_offsetof(VehicleDef, steeringLerp, 488);
+	assert_offsetof(VehicleDef, steeringLerpUnk, 492);
+	assert_offsetof(VehicleDef, minSteeringScale, 496);
+	assert_offsetof(VehicleDef, minSteeringSpeed, 500);
+
+	assert_offsetof(VehicleDef, vehHelicopterIsASplinePlane, 568);
+
+	assert_offsetof(VehicleDef, camRelativeControl, 1156);
+	assert_offsetof(VehicleDef, camRemoteDrive, 1160);
+
+	assert_offsetof(VehicleDef, camRollInfluence, 1184);
+	assert_offsetof(VehicleDef, camFovIncrease, 1188);
+	assert_offsetof(VehicleDef, camFovOffset, 1192);
+
+	assert_offsetof(VehicleDef, vehCam_anglesPitch, 1272);
+	assert_offsetof(VehicleDef, vehCam_anglesYaw, 1276);
+	assert_offsetof(VehicleDef, vehCam_anglesRoll, 1280);
+
+	assert_offsetof(VehicleDef, vehCam_offsetX, 1284);
+	assert_offsetof(VehicleDef, vehCam_offsetY, 1288);
+	assert_offsetof(VehicleDef, vehCam_offsetZ, 1292);
+
+	assert_offsetof(VehicleDef, vehCam_pitchClamp, 1308);
+	assert_offsetof(VehicleDef, vehCam_yawClamp, 1316);
+
+	assert_offsetof(VehicleDef, vehCam_zOffsetMode, 1320);
+
+	assert_offsetof(VehicleDef, vehCam_offsetX3P, 1336);
+	assert_offsetof(VehicleDef, vehCam_offsetY3P, 1340);
+	assert_offsetof(VehicleDef, vehCam_offsetZ3P, 1344);
+	assert_offsetof(VehicleDef, vehCam_radius3P, 1348);
+
+	assert_offsetof(VehicleDef, vehCam_pitchTurnRate3P, 1356);
+	assert_offsetof(VehicleDef, vehCam_pitchClamp3P, 1360);
+
+	assert_offsetof(VehicleDef, vehCam_zOffsetMode3P, 1376);
+
 	union XAssetHeader
 	{
 		void* data;
@@ -8204,7 +8772,7 @@ namespace zonetool::h1
 		// ddl
 		// proto
 		TracerDef* tracerDef;
-		// vehicle
+		VehicleDef* vehDef;
 		AddonMapEnts* addonMapEnts;
 		NetConstStrings* netConstStrings;
 		// reverb preset
