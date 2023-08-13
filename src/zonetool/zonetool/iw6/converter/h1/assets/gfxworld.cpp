@@ -455,8 +455,6 @@ namespace zonetool::iw6
 						{
 							if (asset->lightGrid.tableVersion != 0)
 							{
-								memset(&new_asset->dpvs.smodelLighting[i].modelLightGridLightingInfo, 0, sizeof(zonetool::h1::GfxStaticModelLightGridLightingInfo));
-
 								auto smodel_inst = asset->dpvs.smodelInsts[i];
 								auto smodel_draw_inst = asset->dpvs.smodelDrawInsts[i];
 
