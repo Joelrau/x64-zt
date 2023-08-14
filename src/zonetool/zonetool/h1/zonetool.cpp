@@ -136,6 +136,7 @@ namespace zonetool::h1
 			DUMP_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, fx_particle_sim_animation, FxParticleSimAnimation);
 			DUMP_ASSET(ASSET_TYPE_IMAGE, gfx_image, GfxImage);
 			DUMP_ASSET(ASSET_TYPE_LIGHT_DEF, gfx_light_def, GfxLightDef);
+			DUMP_ASSET(ASSET_TYPE_IMPACT_FX, impact_fx, FxImpactTable);
 			DUMP_ASSET(ASSET_TYPE_LASER, laser_def, LaserDef);
 			DUMP_ASSET(ASSET_TYPE_LOADED_SOUND, loaded_sound, LoadedSound);
 			DUMP_ASSET(ASSET_TYPE_LOCALIZE_ENTRY, localize, LocalizeEntry);
@@ -154,6 +155,7 @@ namespace zonetool::h1
 			DUMP_ASSET(ASSET_TYPE_SOUND_CURVE, sound_curve, SndCurve);
 			DUMP_ASSET(ASSET_TYPE_STRINGTABLE, string_table, StringTable);
 			DUMP_ASSET(ASSET_TYPE_STRUCTUREDDATADEF, structured_data_def_set, StructuredDataDefSet);
+			DUMP_ASSET(ASSET_TYPE_SURFACE_FX, surface_fx, SurfaceFxTable);
 			DUMP_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset, MaterialTechniqueSet);
 			DUMP_ASSET(ASSET_TYPE_TRACER, tracer_def, TracerDef);
 			DUMP_ASSET(ASSET_TYPE_TTF, font_def, TTFDef);
@@ -684,19 +686,22 @@ namespace zonetool::h1
 				}
 				else
 				{
-					if (row->num_fields < 2 || !is_valid_asset_type(row->fields[0]))
+					if (!is_valid_asset_type(row->fields[0]))
 					{
 						continue;
 					}
 
 					std::string name;
-					if ((!row->fields[1] || !strlen(row->fields[1]) && row->fields[2] && strlen(row->fields[2])))
+					if (row->num_fields > 1)
 					{
-						name = ","s + row->fields[2];
-					}
-					else
-					{
-						name = ((is_referencing) ? ","s : ""s) + row->fields[1];
+						if (row->num_fields > 2 && (!row->fields[1] || !strlen(row->fields[1]) && row->fields[2] && strlen(row->fields[2])))
+						{
+							name = ","s + row->fields[2];
+						}
+						else
+						{
+							name = ((is_referencing) ? ","s : ""s) + row->fields[1];
+						}
 					}
 
 					try

@@ -8712,6 +8712,29 @@ namespace zonetool::h1
 
 	assert_offsetof(VehicleDef, vehCam_zOffsetMode3P, 1376);
 
+	struct FxImpactEntry
+	{
+		FxEffectDef* nonflesh[53];
+		FxEffectDef* flesh[7];
+	};
+
+	struct FxImpactTable
+	{
+		const char* name;
+		FxImpactEntry* table; // size: 19
+	};
+
+	struct SurfaceFxEntry
+	{
+		FxEffectDef* surfaceEffect[53];
+	};
+
+	struct SurfaceFxTable
+	{
+		const char* name;
+		SurfaceFxEntry* table; // size: 6
+	};
+
 	union XAssetHeader
 	{
 		void* data;
@@ -8757,8 +8780,8 @@ namespace zonetool::h1
 		WeaponDef* weapon;
 		// snd driver globals
 		FxEffectDef* fx;
-		// impact fx
-		// surface fx
+		FxImpactTable* impactFx;
+		SurfaceFxTable* surfaceFx;
 		// ai type
 		// mp type
 		// character

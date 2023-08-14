@@ -107,7 +107,7 @@ namespace zonetool::h1
 	{
 		if (name.empty())
 		{
-			return;
+			//return;
 		}
 
 		// don't add asset if it already exists
@@ -139,6 +139,7 @@ namespace zonetool::h1
 			ADD_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, fx_particle_sim_animation);
 			ADD_ASSET(ASSET_TYPE_IMAGE, gfx_image);
 			ADD_ASSET(ASSET_TYPE_LIGHT_DEF, gfx_light_def);
+			ADD_ASSET(ASSET_TYPE_IMPACT_FX, impact_fx);
 			ADD_ASSET(ASSET_TYPE_LASER, laser_def);
 			ADD_ASSET(ASSET_TYPE_LOADED_SOUND, loaded_sound);
 			ADD_ASSET(ASSET_TYPE_LOCALIZE_ENTRY, localize);
@@ -156,6 +157,7 @@ namespace zonetool::h1
 			ADD_ASSET(ASSET_TYPE_SOUND_CONTEXT, sound_context);
 			ADD_ASSET(ASSET_TYPE_SOUND_CURVE, sound_curve);
 			ADD_ASSET(ASSET_TYPE_STRINGTABLE, string_table);
+			ADD_ASSET(ASSET_TYPE_SURFACE_FX, surface_fx);
 			ADD_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset);
 			ADD_ASSET(ASSET_TYPE_TRACER, tracer_def);
 			ADD_ASSET(ASSET_TYPE_TTF, font_def);
