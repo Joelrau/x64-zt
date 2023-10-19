@@ -53,6 +53,31 @@ namespace zonetool::h1
 
 			return new_name;
 		}
+
+		void copy_constant_table_to_cbt(Material* mat)
+		{
+			for (auto i = 0u; i < mat->constantBufferCount; i++)
+			{
+				const auto cbt = &mat->constantBufferTable[i];
+				for (auto o = 0u; o < mat->constantCount; o++)
+				{
+#define COPY_CONSTANT_TABLE_VALUES(__data__, __offset_data__) \
+						if (cbt->__offset_data__ && cbt->__offset_data__[o] != 0xFFFF) \
+						{ \
+							const auto constant = reinterpret_cast<float*>(&cbt->__data__[cbt->__offset_data__[o]]); \
+							for (auto j = 0; j < 4; j++) \
+							{ \
+								constant[j] = mat->constantTable[o].literal[j]; \
+							} \
+						} \
+
+					COPY_CONSTANT_TABLE_VALUES(vsData, vsOffsetData);
+					COPY_CONSTANT_TABLE_VALUES(hsData, hsOffsetData);
+					COPY_CONSTANT_TABLE_VALUES(dsData, dsOffsetData);
+					COPY_CONSTANT_TABLE_VALUES(psData, psOffsetData);
+				}
+			}
+		}
 	}
 
 	std::unordered_map<GfxImage*, std::string> material::fixed_nml_images_map;
@@ -179,6 +204,7 @@ namespace zonetool::h1
 			{
 				techset::parse_constant_buffer_indexes(mat->techniqueSet->name, c_name.data(), mat->constantBufferIndex, mem);
 				techset::parse_constant_buffer_def_array(mat->techniqueSet->name, c_name.data(), &mat->constantBufferTable, &mat->constantBufferCount, mem);
+				copy_constant_table_to_cbt(mat);
 			}
 		}
 
