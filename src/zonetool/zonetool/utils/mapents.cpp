@@ -101,7 +101,7 @@ namespace mapents
 				std::smatch match{};
 				if (!std::regex_search(line, match, expr))
 				{
-					ZONETOOL_FATAL("Failed to parse line %i (%s)", i, line.data());
+					ZONETOOL_ERROR("Failed to parse line %i (%s)", i, line.data());
 					continue;
 				}
 
@@ -115,7 +115,7 @@ namespace mapents
 				std::smatch match{};
 				if (!std::regex_search(line, match, expr))
 				{
-					ZONETOOL_FATAL("Failed to parse line %i (%s)", i, line.data());
+					ZONETOOL_ERROR("Failed to parse line %i (%s)", i, line.data());
 					continue;
 				}
 
@@ -132,20 +132,20 @@ namespace mapents
 				}
 				else
 				{
-					ZONETOOL_FATAL("Invalid key ('%s') on line %i (%s)", var.key.data(), i, line.data());
+					ZONETOOL_ERROR("Invalid key ('%s') on line %i (%s)", var.key.data(), i, line.data());
 					continue;
 				}
 			}
 
 			if (var.key.size() <= 0)
 			{
-				ZONETOOL_FATAL("Invalid key ('%s') on line %i (%s)", var.key.data(), i, line.data());
+				ZONETOOL_ERROR("Invalid key ('%s') on line %i (%s)", var.key.data(), i, line.data());
 				continue;
 			}
 
 			if (var.value.size() <= 0)
 			{
-				ZONETOOL_FATAL("Invalid value ('%s') on line %i (%s)", var.value.data(), i, line.data());
+				ZONETOOL_ERROR("Invalid value ('%s') on line %i (%s)", var.value.data(), i, line.data());
 				continue;
 			}
 

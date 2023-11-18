@@ -161,19 +161,19 @@ namespace zonetool::iw6
 		asset->dpvs.surfaceVisData[1] = read.read_array<unsigned int>();
 		asset->dpvs.surfaceVisData[2] = read.read_array<unsigned int>();
 
-		asset->dpvs.tessellationCutoffVisData[0] = read.read_array<unsigned int>();
-		asset->dpvs.tessellationCutoffVisData[1] = read.read_array<unsigned int>();
-		asset->dpvs.tessellationCutoffVisData[2] = read.read_array<unsigned int>();
+		asset->dpvs.unknownData01[0] = read.read_array<unsigned int>();
+		asset->dpvs.unknownData01[1] = read.read_array<unsigned int>();
+		asset->dpvs.unknownData01[2] = read.read_array<unsigned int>();
 
-		asset->dpvs.unknownData[0] = read.read_array<unsigned int>();
-		asset->dpvs.unknownData[1] = read.read_array<unsigned int>();
-		asset->dpvs.unknownData[2] = read.read_array<unsigned int>();
+		asset->dpvs.unknownData02[0] = read.read_array<unsigned int>();
+		asset->dpvs.unknownData02[1] = read.read_array<unsigned int>();
+		asset->dpvs.unknownData02[2] = read.read_array<unsigned int>();
 
 		asset->dpvs.lodData = read.read_array<unsigned int>();
 
-		asset->dpvs.unknownData2[0] = read.read_array<unsigned int>();
-		asset->dpvs.unknownData2[1] = read.read_array<unsigned int>();
-		asset->dpvs.unknownData2[2] = read.read_array<unsigned int>();
+		asset->dpvs.tessellationCutoffVisData[0] = read.read_array<unsigned int>();
+		asset->dpvs.tessellationCutoffVisData[1] = read.read_array<unsigned int>();
+		asset->dpvs.tessellationCutoffVisData[2] = read.read_array<unsigned int>();
 
 		asset->dpvs.sortedSurfIndex = read.read_array<unsigned int>();
 
@@ -913,70 +913,70 @@ namespace zonetool::iw6
 			zone_buffer::clear_pointer(&dest->dpvs.surfaceVisData[2]);
 		}
 
-		if (data->dpvs.tessellationCutoffVisData[0])
+		if (data->dpvs.unknownData01[0])
 		{
 			buf->align(127);
-			buf->write(data->dpvs.tessellationCutoffVisData[0], data->dpvs.smodelVisDataCount + 1);
-			zone_buffer::clear_pointer(&dest->dpvs.tessellationCutoffVisData[0]);
+			buf->write(data->dpvs.unknownData01[0], data->dpvs.smodelVisDataCount + 1);
+			zone_buffer::clear_pointer(&dest->dpvs.unknownData01[0]);
 		}
-		if (data->dpvs.tessellationCutoffVisData[1])
+		if (data->dpvs.unknownData01[1])
 		{
 			buf->align(127);
-			buf->write(data->dpvs.tessellationCutoffVisData[1], data->dpvs.smodelVisDataCount + 1);
-			zone_buffer::clear_pointer(&dest->dpvs.tessellationCutoffVisData[1]);
+			buf->write(data->dpvs.unknownData01[1], data->dpvs.smodelVisDataCount + 1);
+			zone_buffer::clear_pointer(&dest->dpvs.unknownData01[1]);
 		}
-		if (data->dpvs.tessellationCutoffVisData[2])
+		if (data->dpvs.unknownData01[2])
 		{
 			buf->align(127);
-			buf->write(data->dpvs.tessellationCutoffVisData[2], data->dpvs.smodelVisDataCount + 1);
-			zone_buffer::clear_pointer(&dest->dpvs.tessellationCutoffVisData[2]);
-		}
-
-		if (data->dpvs.unknownData[0])
-		{
-			buf->align(127);
-			buf->write(data->dpvs.unknownData[0], data->dpvs.surfaceVisDataCount);
-			zone_buffer::clear_pointer(&dest->dpvs.unknownData[0]);
-		}
-		if (data->dpvs.unknownData[1])
-		{
-			buf->align(127);
-			buf->write(data->dpvs.unknownData[1], data->dpvs.surfaceVisDataCount);
-			zone_buffer::clear_pointer(&dest->dpvs.unknownData[1]);
-		}
-		if (data->dpvs.unknownData[2])
-		{
-			buf->align(127);
-			buf->write(data->dpvs.unknownData[2], data->dpvs.surfaceVisDataCount);
-			zone_buffer::clear_pointer(&dest->dpvs.unknownData[2]);
+			buf->write(data->dpvs.unknownData01[2], data->dpvs.smodelVisDataCount + 1);
+			zone_buffer::clear_pointer(&dest->dpvs.unknownData01[2]);
 		}
 
+		if (data->dpvs.unknownData02[0])
+		{
+			buf->align(127);
+			buf->write(data->dpvs.unknownData02[0], data->dpvs.surfaceVisDataCount);
+			zone_buffer::clear_pointer(&dest->dpvs.unknownData02[0]);
+		}
+		if (data->dpvs.unknownData02[1])
+		{
+			buf->align(127);
+			buf->write(data->dpvs.unknownData02[1], data->dpvs.surfaceVisDataCount);
+			zone_buffer::clear_pointer(&dest->dpvs.unknownData02[1]);
+		}
+		if (data->dpvs.unknownData02[2])
+		{
+			buf->align(127);
+			buf->write(data->dpvs.unknownData02[2], data->dpvs.surfaceVisDataCount);
+			zone_buffer::clear_pointer(&dest->dpvs.unknownData02[2]);
+		}
 		buf->pop_stream();
+
 		if (data->dpvs.lodData)
 		{
 			buf->align(3);
 			buf->write(data->dpvs.lodData, data->dpvs.smodelCount + 1);
 			zone_buffer::clear_pointer(&dest->dpvs.lodData);
 		}
-		buf->push_stream(XFILE_BLOCK_RUNTIME);
 
-		if (data->dpvs.unknownData2[0])
+		buf->push_stream(XFILE_BLOCK_RUNTIME);
+		if (data->dpvs.tessellationCutoffVisData[0])
 		{
 			buf->align(127);
-			buf->write(data->dpvs.unknownData2[0], data->dpvs.surfaceVisDataCount);
-			zone_buffer::clear_pointer(&dest->dpvs.unknownData2[0]);
+			buf->write(data->dpvs.tessellationCutoffVisData[0], data->dpvs.surfaceVisDataCount);
+			zone_buffer::clear_pointer(&dest->dpvs.tessellationCutoffVisData[0]);
 		}
-		if (data->dpvs.unknownData2[1])
+		if (data->dpvs.tessellationCutoffVisData[1])
 		{
 			buf->align(127);
-			buf->write(data->dpvs.unknownData2[1], data->dpvs.surfaceVisDataCount);
-			zone_buffer::clear_pointer(&dest->dpvs.unknownData2[1]);
+			buf->write(data->dpvs.tessellationCutoffVisData[1], data->dpvs.surfaceVisDataCount);
+			zone_buffer::clear_pointer(&dest->dpvs.tessellationCutoffVisData[1]);
 		}
-		if (data->dpvs.unknownData2[2])
+		if (data->dpvs.tessellationCutoffVisData[2])
 		{
 			buf->align(127);
-			buf->write(data->dpvs.unknownData2[2], data->dpvs.surfaceVisDataCount);
-			zone_buffer::clear_pointer(&dest->dpvs.unknownData2[2]);
+			buf->write(data->dpvs.tessellationCutoffVisData[2], data->dpvs.surfaceVisDataCount);
+			zone_buffer::clear_pointer(&dest->dpvs.tessellationCutoffVisData[2]);
 		}
 		buf->pop_stream();
 
@@ -1330,19 +1330,19 @@ namespace zonetool::iw6
 		write.dump_array(asset->dpvs.surfaceVisData[1], asset->dpvs.surfaceVisDataCount);
 		write.dump_array(asset->dpvs.surfaceVisData[2], asset->dpvs.surfaceVisDataCount);
 
-		write.dump_array(asset->dpvs.tessellationCutoffVisData[0], asset->dpvs.smodelVisDataCount + 1);
-		write.dump_array(asset->dpvs.tessellationCutoffVisData[1], asset->dpvs.smodelVisDataCount + 1);
-		write.dump_array(asset->dpvs.tessellationCutoffVisData[2], asset->dpvs.smodelVisDataCount + 1);
+		write.dump_array(asset->dpvs.unknownData01[0], asset->dpvs.smodelVisDataCount + 1);
+		write.dump_array(asset->dpvs.unknownData01[1], asset->dpvs.smodelVisDataCount + 1);
+		write.dump_array(asset->dpvs.unknownData01[2], asset->dpvs.smodelVisDataCount + 1);
 
-		write.dump_array(asset->dpvs.unknownData[0], asset->dpvs.surfaceVisDataCount);
-		write.dump_array(asset->dpvs.unknownData[1], asset->dpvs.surfaceVisDataCount);
-		write.dump_array(asset->dpvs.unknownData[2], asset->dpvs.surfaceVisDataCount);
+		write.dump_array(asset->dpvs.unknownData02[0], asset->dpvs.surfaceVisDataCount);
+		write.dump_array(asset->dpvs.unknownData02[1], asset->dpvs.surfaceVisDataCount);
+		write.dump_array(asset->dpvs.unknownData02[2], asset->dpvs.surfaceVisDataCount);
 
 		write.dump_array(asset->dpvs.lodData, asset->dpvs.smodelCount + 1);
 
-		write.dump_array(asset->dpvs.unknownData2[0], asset->dpvs.surfaceVisDataCount);
-		write.dump_array(asset->dpvs.unknownData2[1], asset->dpvs.surfaceVisDataCount);
-		write.dump_array(asset->dpvs.unknownData2[2], asset->dpvs.surfaceVisDataCount);
+		write.dump_array(asset->dpvs.tessellationCutoffVisData[0], asset->dpvs.surfaceVisDataCount);
+		write.dump_array(asset->dpvs.tessellationCutoffVisData[1], asset->dpvs.surfaceVisDataCount);
+		write.dump_array(asset->dpvs.tessellationCutoffVisData[2], asset->dpvs.surfaceVisDataCount);
 
 		write.dump_array(asset->dpvs.sortedSurfIndex, asset->dpvs.staticSurfaceCount);
 

@@ -272,7 +272,7 @@ namespace zonetool::iw6
 				std::array<std::uint32_t, 3> temp_bits2;
 				for (auto j = 0; j < 3; j++)
 				{
-					if (j > 1)
+					if (j >= 1)
 					{
 						temp_bits2[j] = 0;
 					}

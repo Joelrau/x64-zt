@@ -300,6 +300,7 @@ namespace csv_generator
 		add_gsc(fx_name);
 		add_gsc(create_fx_name);
 		add_gsc(create_fx_sounds_name);
+		add_gsc(utils::string::va("%s/%s_precache.gsc", map_prefix.data(), map.data()));
 		add_gsc(utils::string::va("maps/createart/%s_art.gsc", map.data()));
 		add_gsc(utils::string::va("maps/createart/%s_fog.gsc", map.data()));
 		add_gsc(utils::string::va("maps/createart/%s_fog_hdr.gsc", map.data()));

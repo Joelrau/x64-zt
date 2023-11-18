@@ -907,6 +907,18 @@ namespace zonetool::h1
 		return nullptr;
 	}
 
+#define ATTACHMENT_READ_FIELD(__type__, __field__) \
+	if(!data[#__field__].is_null()) \
+	{ \
+		attachment->__field__ = data[#__field__].get<__type__>(); \
+	}
+
+#define ATTACHMENT_READ_FIELD_RENAME(__type__, __field__, __name__) \
+	if(!data[#__field__].is_null()) \
+	{ \
+		attachment->__field__ = data[__name__].get<__type__>(); \
+	}
+
 #define ATTACHMENT_READ_ASSET_ARR(__type__, __datafield__, __field__, __struct__, __size__) \
 	if (!data[#__field__].is_null()) \
 	{ \
@@ -977,20 +989,10 @@ namespace zonetool::h1
 			attachment->szDisplayName = mem->duplicate_string(data["displayName"].get<std::string>());
 		}
 
-		if (!data["type"].is_null())
-		{
-			attachment->type = data["type"].get<AttachmentType>();
-		}
-
-		if (!data["weaponType"].is_null())
-		{
-			attachment->weaponType = data["weaponType"].get<weapType_t>();
-		}
-
-		if (!data["weaponClass"].is_null())
-		{
-			attachment->weapClass = data["weaponClass"].get<weapClass_t>();
-		}
+		ATTACHMENT_READ_FIELD(AttachmentType, type);
+		ATTACHMENT_READ_FIELD_RENAME(weapType_t, weaponType, "weaponType");
+		ATTACHMENT_READ_FIELD_RENAME(weapClass_t, weapClass, "weaponClass");
+		ATTACHMENT_READ_FIELD_RENAME(weapGreebleType_t, greebleType, "greebleType");
 
 		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_XMODEL, model, worldModels, XModel, 2);
 		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_XMODEL, model, viewModels, XModel, 2);
@@ -1406,6 +1408,12 @@ namespace zonetool::h1
 		buf->pop_stream();
 	}
 
+#define ATTACHMENT_DUMP_FIELD(__field__) \
+	data[#__field__] = asset->__field__;
+
+#define ATTACHMENT_DUMP_FIELD_RENAME(__field__, __name__) \
+	data[__name__] = asset->__field__;
+
 #define ATTACHMENT_DUMP_ASSET_ARR(__field__, __size__) \
 	if (asset->__field__) \
 	{ \
@@ -1437,9 +1445,13 @@ namespace zonetool::h1
 		data["internalName"] = asset->szInternalName;
 		data["displayName"] = asset->szDisplayName ? asset->szDisplayName : "";
 
-		data["type"] = asset->type;
-		data["weaponType"] = asset->weaponType;
-		data["weaponClass"] = asset->weapClass;
+		ATTACHMENT_DUMP_FIELD(type);
+		ATTACHMENT_DUMP_FIELD_RENAME(weaponType, "weaponType");
+		ATTACHMENT_DUMP_FIELD_RENAME(weapClass, "weaponClass");
+		ATTACHMENT_DUMP_FIELD_RENAME(greebleType, "greebleType");
+
+		ATTACHMENT_DUMP_FIELD(shareAmmoWithAlt);
+		ATTACHMENT_DUMP_FIELD(riotShield);
 
 		ATTACHMENT_DUMP_ASSET_ARR(worldModels, 2);
 		ATTACHMENT_DUMP_ASSET_ARR(viewModels, 2);

@@ -34,14 +34,14 @@ function zonetool:project()
 		prebuildcommands {"pushd %{_MAIN_SCRIPT_DIR}", "tools\\premake5 generate-buildinfo", "popd"}
 
 		if COMPUTER_NAME == "PC-JOEL" then
-			debugdir "E:\\Steam\\steamapps\\common\\Call of Duty Modern Warfare Remastered"
-			debugcommand "E:\\Steam\\steamapps\\common\\Call of Duty Modern Warfare Remastered\\$(TargetName)$(TargetExt)"
+			debugdir "E:\\Games\\PC\\H1"
+			debugcommand "E:\\Games\\PC\\H1\\$(TargetName)$(TargetExt)"
 		end
 		postbuildcommands {
-			"if \"%COMPUTERNAME%\" == \"PC-JOEL\" ( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"E:\\Steam\\steamapps\\common\\Call of Duty Modern Warfare Remastered\\$(TargetName)$(TargetExt)\" )",
+			"if \"%COMPUTERNAME%\" == \"PC-JOEL\" ( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"E:\\Games\\PC\\H1\\$(TargetName)$(TargetExt)\" )",
 			"if \"%COMPUTERNAME%\" == \"PC-JOEL\" ( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"E:\\Blizzard\\Call of Duty Modern Warfare 2 Campaign Remastered\\$(TargetName)$(TargetExt)\" )",
-			"if \"%COMPUTERNAME%\" == \"PC-JOEL\" ( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"D:\\Steam\\steamapps\\common\\Call of Duty Advanced Warfare\\$(TargetName)$(TargetExt)\" )",
-			"if \"%COMPUTERNAME%\" == \"PC-JOEL\" ( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"D:\\Steam\\steamapps\\common\\Call of Duty Ghosts\\$(TargetName)$(TargetExt)\" )",
+			"if \"%COMPUTERNAME%\" == \"PC-JOEL\" ( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"D:\\Games\\PC\\S1\\$(TargetName)$(TargetExt)\" )",
+			"if \"%COMPUTERNAME%\" == \"PC-JOEL\" ( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"D:\\Games\\PC\\IW6\\$(TargetName)$(TargetExt)\" )",
 		}
 
 		local function addcopyopt(name)

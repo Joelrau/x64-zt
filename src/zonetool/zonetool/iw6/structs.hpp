@@ -3614,7 +3614,8 @@ namespace zonetool::iw6
 	{
 		Bounds bounds;
 		unsigned char flags;
-		char __pad[8];
+		unsigned short mipRadius;
+		unsigned char invHighMipRadius[5];
 	};
 
 	struct GfxPackedPlacement
@@ -3697,10 +3698,10 @@ namespace zonetool::iw6
 		unsigned int surfaceVisDataCount; // 52
 		unsigned int* smodelVisData[3]; // 56
 		unsigned int* surfaceVisData[3]; // 80
-		unsigned int* tessellationCutoffVisData[3]; // 104
-		unsigned int* unknownData[3]; // 128
+		unsigned int* unknownData01[3]; // 104
+		unsigned int* unknownData02[3]; // 128
 		unsigned int* lodData; // 152
-		unsigned int* unknownData2[3]; // 160
+		unsigned int* tessellationCutoffVisData[3]; // 160
 		unsigned int* sortedSurfIndex; // 184
 		GfxStaticModelInst* smodelInsts; // 192
 		GfxSurface* surfaces; // 200
