@@ -37,6 +37,8 @@ namespace zonetool::h1
 			return nullptr;
 		}
 
+		ZONETOOL_INFO("Parsing skeletonscript \"%s\"...", name.data());
+
 		SkeletonScript* asset = read.read_single<SkeletonScript>();
 		asset->name = read.read_string();
 

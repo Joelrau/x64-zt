@@ -147,12 +147,15 @@ namespace zonetool::h1
 			DUMP_ASSET(ASSET_TYPE_NET_CONST_STRINGS, net_const_strings, NetConstStrings);
 			DUMP_ASSET(ASSET_TYPE_RAWFILE, rawfile, RawFile);
 			DUMP_ASSET(ASSET_TYPE_REVERB_CURVE, reverb_curve, SndCurve);
+			DUMP_ASSET(ASSET_TYPE_REVERB_PRESET, reverb_preset, ReverbPreset);
 			DUMP_ASSET(ASSET_TYPE_SCRIPTABLE, scriptable_def, ScriptableDef);
 			DUMP_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile, ScriptFile);
 			DUMP_ASSET(ASSET_TYPE_SKELETONSCRIPT, skeleton_script, SkeletonScript);
 			DUMP_ASSET(ASSET_TYPE_SOUND, sound, snd_alias_list_t);
 			DUMP_ASSET(ASSET_TYPE_SOUND_CONTEXT, sound_context, SndContext);
 			DUMP_ASSET(ASSET_TYPE_SOUND_CURVE, sound_curve, SndCurve);
+			DUMP_ASSET(ASSET_TYPE_SNDDRIVERGLOBALS, sound_driver_globals, SndDriverGlobals);
+			DUMP_ASSET(ASSET_TYPE_SOUNDSUBMIX, sound_submix, SndSubmixList);
 			DUMP_ASSET(ASSET_TYPE_STRINGTABLE, string_table, StringTable);
 			DUMP_ASSET(ASSET_TYPE_STRUCTUREDDATADEF, structured_data_def_set, StructuredDataDefSet);
 			DUMP_ASSET(ASSET_TYPE_SURFACE_FX, surface_fx, SurfaceFxTable);
@@ -165,6 +168,14 @@ namespace zonetool::h1
 			DUMP_ASSET(ASSET_TYPE_XANIM, xanim_parts, XAnimParts);
 			DUMP_ASSET(ASSET_TYPE_XMODEL, xmodel, XModel);
 			DUMP_ASSET(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
+
+			DUMP_ASSET(ASSET_TYPE_VIRTUAL_LEADERBOARD, virtual_leaderboard, VirtualLeaderboardDef);
+			DUMP_ASSET(ASSET_TYPE_LEADERBOARD, leaderboard, LeaderboardDef);
+
+			DUMP_ASSET(ASSET_TYPE_DDL, ddl, DDLRoot);
+			DUMP_ASSET(ASSET_TYPE_EQUIPMENT_SND_TABLE, equip_snd_table, EquipmentSoundTable);
+			DUMP_ASSET(ASSET_TYPE_VECTORFIELD, vector_field, VectorField);
+			DUMP_ASSET(ASSET_TYPE_ANIMCLASS, anim_class, AnimationClass);
 
 			DUMP_ASSET(ASSET_TYPE_PHYSCOLLMAP, phys_collmap, PhysCollmap);
 			DUMP_ASSET(ASSET_TYPE_PHYSCONSTRAINT, phys_constraint, PhysConstraint);
@@ -1243,7 +1254,7 @@ namespace zonetool::h1
 		reallocate_asset_pool_multiplier(ASSET_TYPE_EQUIPMENT_SND_TABLE, 4);
 		reallocate_asset_pool_multiplier(ASSET_TYPE_SOUND, 2);
 		reallocate_asset_pool_multiplier(ASSET_TYPE_LOADED_SOUND, 2);
-		reallocate_asset_pool_multiplier(ASSET_TYPE_LEADERBOARDDEF, 2);
+		reallocate_asset_pool_multiplier(ASSET_TYPE_LEADERBOARD, 2);
 		reallocate_asset_pool_multiplier(ASSET_TYPE_VERTEXDECL, 6);
 		reallocate_asset_pool_multiplier(ASSET_TYPE_COMPUTESHADER, 4);
 		reallocate_asset_pool_multiplier(ASSET_TYPE_REVERB_PRESET, 2);

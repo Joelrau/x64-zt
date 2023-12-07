@@ -1,5 +1,6 @@
 #pragma once
 #include <d3d11.h>
+#include <xaudio2fx.h>
 
 namespace zonetool::h1
 {
@@ -69,7 +70,7 @@ namespace zonetool::h1
 		ASSET_TYPE_RAWFILE,
 		ASSET_TYPE_SCRIPTFILE,
 		ASSET_TYPE_STRINGTABLE,
-		ASSET_TYPE_LEADERBOARDDEF,
+		ASSET_TYPE_LEADERBOARD,
 		ASSET_TYPE_VIRTUAL_LEADERBOARD,
 		ASSET_TYPE_STRUCTUREDDATADEF,
 		ASSET_TYPE_DDL,
@@ -8735,6 +8736,505 @@ namespace zonetool::h1
 		SurfaceFxEntry* table; // size: 6
 	};
 
+	enum StatsGroup : std::int32_t
+	{
+		STATSGROUP_RANKED = 0x0,
+		STATSGROUP_PRIVATE = 0x1,
+		STATSGROUP_COOP = 0x2,
+		STATSGROUP_COMMON = 0x3,
+		STATSGROUP_HORDE = 0x4,
+		STATSGROUP_SP = 0x5,
+		STATSGROUP_COUNT = 0x6,
+		STATSGROUP_IGNORE = 0x7,
+	};
+
+	enum LbColType : std::int32_t
+	{
+		
+	};
+
+	enum LbAggType : std::int32_t
+	{
+		
+	};
+
+	struct LbColumnDef
+	{
+		const char* name;
+		int id;
+		int propertyId;
+		bool hidden;
+		StatsGroup statsGroup;
+		const char* statName;
+		LbColType type;
+		int precision;
+		LbAggType agg;
+		int uiCalColX;
+		int uiCalColY;
+	}; assert_sizeof(LbColumnDef, 56);
+
+	enum LbUpdateType : std::int32_t
+	{
+		
+	};
+
+	enum LbTrackTypes : std::int32_t
+	{
+		
+	};
+
+	struct LeaderboardDef
+	{
+		const char* name;
+		int id;
+		int id2;
+		int columnCount;
+		int xpColId;
+		int prestigeColId;
+		int pad;
+		LbColumnDef* columns;
+		LbUpdateType updateType;
+		LbTrackTypes trackTypes;
+	}; assert_sizeof(LeaderboardDef, 0x30);
+	assert_offsetof(LeaderboardDef, columns, 32);
+	assert_offsetof(LeaderboardDef, columnCount, 16);
+
+	struct VLbColumnDef
+	{
+		const char* name;
+		int id;
+		int unk1;
+		int unk2;
+		int unk3;
+	}; assert_sizeof(VLbColumnDef, 24);
+
+	struct VirtualLeaderboardDef
+	{
+		const char* name;
+		const char* leaderboardName;
+		int id;
+		int leaderboardId;
+		VLbColumnDef* columns;
+		int columnCount;
+		int pad;
+	}; assert_sizeof(VirtualLeaderboardDef, 0x28);
+
+	enum DDLType : std::int32_t
+	{
+		DDL_BYTE_TYPE = 0x0,
+		DDL_SHORT_TYPE = 0x1,
+		DDL_BOOL_TYPE = 0x2, // BIT
+		DDL_UINT_TYPE = 0x3, // int or uint
+		DDL_INT_TYPE = 0x4, // unconfirmed
+		DDL_UINT64_TYPE = 0x5, // unconfirmed
+		DDL_FLOAT_TYPE = 0x6, // unconfirmed
+		DDL_STRING_TYPE = 0x7,
+		DDL_STRUCT_TYPE = 0x8,
+		DDL_ENUM_TYPE = 0x9,
+		DDL_PAD_TYPE = 0xA,
+	};
+
+	struct DDLMember
+	{
+		const char* name;
+		int index;
+		void* parent;
+		int bitSize;
+		int limitSize;
+		int offset;
+		int type;
+		int externalIndex;
+		unsigned int rangeLimit;
+		unsigned int serverDelta;
+		unsigned int clientDelta;
+		int arraySize;
+		int enumIndex;
+		int permission;
+	};
+
+	struct DDLHash
+	{
+		unsigned int hash;
+		int index;
+	};
+
+	struct DDLHashTable
+	{
+		DDLHash* list;
+		int count;
+		int max;
+	};
+
+	struct DDLStruct
+	{
+		const char* name;
+		int bitSize;
+		int memberCount;
+		DDLMember* members;
+		DDLHashTable hashTableUpper;
+		DDLHashTable hashTableLower;
+	};
+
+	struct DDLEnum
+	{
+		const char* name;
+		int memberCount;
+		const char** members;
+		DDLHashTable hashTable;
+	};
+
+	struct DDLDef
+	{
+		char* name;
+		unsigned short version;
+		unsigned int checksum;
+		unsigned char flags;
+		int bitSize;
+		int byteSize;
+		DDLStruct* structList;
+		int structCount;
+		DDLEnum* enumList;
+		int enumCount;
+		DDLDef* next;
+		int headerBitSize;
+		int headerByteSize;
+		int reserveSize;
+		int userFlagsSize;
+		bool paddingUsed;
+	};
+
+	struct DDLRoot
+	{
+		const char* name;
+		DDLDef* ddlDef;
+	};
+
+	struct Proto;
+	struct Proto_B;
+	struct Proto_A_A_A;
+	struct Proto_A_A_B_A;
+	struct Proto_A_A_B;
+	struct Proto_A_A;
+	struct Proto_A_B_A;
+	struct Proto_A_B;
+	struct Proto_A;
+	struct Proto_C;
+
+	struct Proto_B
+	{
+		Proto_A_B_A* unk1;
+		int unk1_count;
+		int unk2;
+	}; assert_sizeof(Proto_B, 16);
+
+	struct Proto_A_A_A
+	{
+		const char* unk1;
+		Proto_A_A* unk2;
+		int unk2_count;
+		Proto_B unk3;
+	}; assert_sizeof(Proto_A_A_A, 40);
+	assert_offsetof(Proto_A_A_A, unk2, 8);
+	assert_offsetof(Proto_A_A_A, unk2_count, 16);
+
+	struct Proto_A_A_B_A
+	{
+		int __pad0[3];
+		const char* unk1;
+	}; assert_sizeof(Proto_A_A_B_A, 24);
+
+	struct Proto_A_A_B
+	{
+		const char* unk1;
+		Proto_A_A_B_A* unk2;
+		int unk2_count;
+	}; assert_sizeof(Proto_A_A_B, 24);
+	assert_offsetof(Proto_A_A_B, unk2, 8);
+	assert_offsetof(Proto_A_A_B, unk2_count, 16);
+
+	struct Proto_A_A
+	{
+		const char* unk1;
+		int __pad0[4];
+		Proto_A_A_A* unk2;
+		Proto_A_A_B* unk3;
+	}; assert_sizeof(Proto_A_A, 40);
+	assert_offsetof(Proto_A_A, unk2, 24);
+	assert_offsetof(Proto_A_A, unk3, 32);
+
+	struct Proto_A_B_A
+	{
+		int __pad0[2];
+	}; assert_sizeof(Proto_A_B_A, 8);
+
+	struct Proto_A_B
+	{
+		Proto_A_B_A* unk1;
+		int unk1_count;
+	}; assert_sizeof(Proto_A_B, 16);
+	assert_offsetof(Proto_A_B, unk1, 0);
+	assert_offsetof(Proto_A_B, unk1_count, 8);
+
+	struct Proto_A
+	{
+		const char* unk1;
+		Proto_A_A* unk2;
+		int unk2_count;
+		Proto_A_B unk3;
+	}; assert_sizeof(Proto_A, 40);
+	assert_offsetof(Proto_A, unk2, 8);
+	assert_offsetof(Proto_A, unk2_count, 16);
+	assert_offsetof(Proto_A, unk3, 24);
+
+	struct Proto_C
+	{
+		const char* unk1;
+		Proto_A_A_B_A* unk2;
+		int unk2_count;
+	}; assert_sizeof(Proto_C, 24);
+	assert_offsetof(Proto_A, unk2, 8);
+	assert_offsetof(Proto_A, unk2_count, 16);
+
+	struct Proto
+	{
+		const char* name;
+		const char* checksum;
+		Proto_A* unk2;
+		int unk2_count;
+		Proto_B unk3;
+		Proto_C* unk4;
+		int unk4_count;
+		Proto_B unk5;
+	}; assert_sizeof(Proto, 0x50);
+	assert_offsetof(Proto, unk2, 16);
+	assert_offsetof(Proto, unk2_count, 24);
+	assert_offsetof(Proto, unk3, 32);
+	assert_offsetof(Proto, unk4, 48);
+	assert_offsetof(Proto, unk4_count, 56);
+	assert_offsetof(Proto, unk5, 64);
+
+	struct SndSubmix
+	{
+		const char* name;
+		int unk1;
+		float unk2;
+		int unk3[2];
+	}; assert_sizeof(SndSubmix, 24);
+
+	struct SndSubmixList
+	{
+		const char* name;
+		SndSubmix* submixes;
+		int submixCount;
+	}; assert_sizeof(SndSubmixList, 0x18);
+
+	struct ReverbPreset
+	{
+		union
+		{
+			const char* p_name;
+			const char* name;
+		};
+		float earlyTime;
+		float lateTime;
+		float earlyGain;
+		float lateGain;
+		float lateGainProx;
+		float returnGain;
+		float earlyLpf;
+		float lateLpf;
+		float inputLpf;
+		float dampLpf;
+		float wallReflect;
+		float dryGain;
+		float earlySize;
+		float lateSize;
+		float diffusion;
+		float rearLevel;
+	}; assert_sizeof(ReverbPreset, 0x48);
+
+	struct EquipmentClothData
+	{
+		char* szName;
+	};
+
+	struct EquipmentWeaponRattleData
+	{
+		char* szName;
+		float priority;
+	};
+
+	struct EquipmentSndChance
+	{
+		float rattleChance;
+		float accentChance;
+		float silentChance;
+	};
+
+	struct EquipmentChanceMoveTypes
+	{
+		EquipmentSndChance* chances;
+	};
+
+	struct EquipmentChanceRattleTypes
+	{
+		EquipmentChanceMoveTypes* chances;
+	};
+
+	struct EquipmentSoundSet
+	{
+		snd_alias_list_t* soundPLR;
+		snd_alias_list_t* soundNPC;
+	};
+
+	struct EquipSoundSetMoveTypes
+	{
+		EquipmentSoundSet* soundSets;
+	};
+
+	struct EquipSoundSetMantleTypes
+	{
+		EquipmentSoundSet soundSets[14];
+	};
+
+	struct EquipmentSoundTable
+	{
+		union
+		{
+			const char* szName;
+			const char* name;
+		};
+		unsigned int numClothTypes;
+		unsigned int numWeaponRattleTypes;
+		unsigned int numMoveTypes;
+		EquipmentClothData* clothTypes;
+		EquipmentWeaponRattleData* weaponRattleTypes;
+		EquipmentChanceRattleTypes* chancesPLR;
+		EquipmentChanceRattleTypes* chancesNPC;
+		EquipSoundSetMoveTypes* mvmtClothSoundSets;
+		EquipSoundSetMoveTypes* mvmtRattleSoundSets;
+		EquipSoundSetMoveTypes mvmtAccentSoundSets;
+		EquipSoundSetMantleTypes* mvmtMantleSoundSets;
+	};
+
+	struct SndGlobalSettings_t
+	{
+		float globalVolumeModifier;
+		float unk[9];
+		//char __pad0[36];
+	};
+
+	struct XaReverbSettings
+	{
+		int presetOverridden;
+		XAUDIO2FX_REVERB_I3DL2_PARAMETERS reverbSettings;
+	};
+
+	struct SndDriverGlobals
+	{
+		const char* name;
+		SndGlobalSettings_t settings;
+		XaReverbSettings* reverbSettings;  // array: 26
+	}; assert_sizeof(SndDriverGlobals, 0x38);
+	assert_offsetof(SndDriverGlobals, reverbSettings, 48);
+
+	enum VectorFieldType : std::int32_t
+	{
+		VECTOR_FIELD_TYPE_NONE = 0x0,
+		VECTOR_FIELD_TYPE_FORCE = 0x1,
+		VECTOR_FIELD_TYPE_VELOCITY = 0x2,
+		VECTOR_FIELD_NUM_TYPES = 0x3,
+	};
+
+	struct VectorFieldSubField
+	{
+		vec4_t* linearData;
+		ExtentBounds worldBounds;
+		float ds[3];
+		unsigned int numEntries[3];
+		unsigned int flags;
+		VectorFieldType type;
+		unsigned int pad[4];
+	}; assert_sizeof(VectorFieldSubField, 80);
+	assert_offsetof(VectorFieldSubField, linearData, 0);
+	assert_offsetof(VectorFieldSubField, numEntries, 44);
+
+	struct VectorField
+	{
+		const char* name;
+		VectorFieldSubField* fields;
+		ExtentBounds bounds;
+		int fieldsCount;
+		int pad;
+	}; assert_sizeof(VectorField, 48);
+	assert_offsetof(VectorField, fields, 8);
+	assert_offsetof(VectorField, fieldsCount, 40);
+
+	struct AnimationAimSet
+	{
+		scr_string_t name;
+		scr_string_t rootName;
+		scr_string_t animName[8];
+		unsigned __int64 rootIndex;
+		unsigned __int64 animIndices[8];
+	};
+
+	struct AnimationEntry
+	{
+		scr_string_t alias;
+		scr_string_t animName;
+	};
+
+	struct AnimationState
+	{
+		scr_string_t name;
+		scr_string_t notify;
+		float blendTime;
+		unsigned char flags;
+		unsigned char entryCount;
+		AnimationAimSet* aimSet;
+		AnimationEntry* animEntries;
+		unsigned __int64* animIndices;
+	};
+
+	struct AnimationStateMachine
+	{
+		scr_string_t name;
+		unsigned short stateCount;
+		unsigned short aimSetCount;
+		AnimationState* states;
+		AnimationAimSet* aimSets;
+	};
+
+	enum AnimationController : std::int32_t
+	{
+		ANIMCTRL_NONE = 0x0,
+		ANIMCTRL_PLAYER = 0x1,
+		ANIMCTRL_DOG = 0x2,
+		ANIMCTRL_NUM = 0x3,
+	};
+
+	struct AnimationClass
+	{
+		union
+		{
+			const char* className;
+			const char* name;
+		};
+		AnimationStateMachine* stateMachine;
+		AnimationController animCtrl;
+		scr_string_t animTree;
+		ScriptableDef* scriptable;
+		unsigned short soundCount;
+		unsigned short effectCount;
+		scr_string_t* soundNotes;
+		scr_string_t* soundNames;
+		scr_string_t* soundOptions;
+		scr_string_t* effectNotes;
+		FxEffectDef** effectDefs;
+		scr_string_t* effectTags;
+	};
+
 	union XAssetHeader
 	{
 		void* data;
@@ -8756,7 +9256,7 @@ namespace zonetool::h1
 		MaterialTechniqueSet* techniqueSet;
 		GfxImage* image;
 		snd_alias_list_t* sound;
-		// submix
+		SndSubmixList* sndSubmix;
 		SndCurve* sndCurve;
 		SndCurve* lpfCurve;
 		SndCurve* reverbCurve;
@@ -8774,11 +9274,11 @@ namespace zonetool::h1
 		// ui map
 		MenuList* menuList;
 		menuDef_t* menu;
-		// anim class
+		AnimationClass* animClass;
 		LocalizeEntry* localize;
 		WeaponAttachment* attachment;
 		WeaponDef* weapon;
-		// snd driver globals
+		SndDriverGlobals* sndDriverGlobals;
 		FxEffectDef* fx;
 		FxImpactTable* impactFx;
 		SurfaceFxTable* surfaceFx;
@@ -8789,20 +9289,20 @@ namespace zonetool::h1
 		RawFile* rawfile;
 		ScriptFile* scriptfile;
 		StringTable* stringTable;
-		// leaderboard
-		// virtual leaderboard
+		LeaderboardDef* leaderboardDef;
+		VirtualLeaderboardDef* virtualLeaderboard;
 		StructuredDataDefSet* structuredDataDefSet;
-		// ddl
-		// proto
+		DDLRoot* ddlRoot;
+		Proto* proto;
 		TracerDef* tracerDef;
 		VehicleDef* vehDef;
 		AddonMapEnts* addonMapEnts;
 		NetConstStrings* netConstStrings;
-		// reverb preset
+		ReverbPreset* reverbPreset;
 		LuaFile* luaFile;
 		ScriptableDef* scriptable;
-		// equipment snd table
-		// vector field
+		EquipmentSoundTable* equipSndTable;
+		VectorField* vectorField;
 		DopplerPreset* doppler;
 		FxParticleSimAnimation* particleSimAnimation;
 		LaserDef* laser;

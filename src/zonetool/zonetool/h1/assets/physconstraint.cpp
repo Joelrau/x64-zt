@@ -13,6 +13,8 @@ namespace zonetool::h1
 			return nullptr;
 		}
 
+		ZONETOOL_INFO("Parsing physconstraint \"%s\"...", name.data());
+
 		auto* asset = read.read_single<PhysConstraint>();
 		asset->name = read.read_string();
 

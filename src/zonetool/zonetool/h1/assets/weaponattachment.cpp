@@ -966,13 +966,15 @@ namespace zonetool::h1
 		auto base = data["baseAsset"].get<std::string>();
 		if (!base.empty())
 		{
-			const auto base_asset = db_find_x_asset_header(ASSET_TYPE_ATTACHMENT, base.data(), 1).attachment;
+			const auto base_asset = db_find_x_asset_header(ASSET_TYPE_ATTACHMENT, base.data(), 0).attachment;
 			if (base_asset == nullptr)
 			{
-				ZONETOOL_FATAL("Could not load base asset \"%s\" into memory...", base.data());
+				ZONETOOL_WARNING("Could not load base asset \"%s\" into memory...", base.data());
 			}
-
-			std::memcpy(attachment, base_asset, sizeof(WeaponAttachment));
+			else
+			{
+				std::memcpy(attachment, base_asset, sizeof(WeaponAttachment));
+			}
 		}
 		else
 		{

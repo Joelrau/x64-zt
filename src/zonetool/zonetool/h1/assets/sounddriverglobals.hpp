@@ -3,14 +3,14 @@
 
 namespace zonetool::h1
 {
-	class phys_water_preset : public asset_interface
+	class sound_driver_globals : public asset_interface
 	{
 	private:
 		std::string name_;
-		PhysWaterPreset* asset_ = nullptr;
+		SndDriverGlobals* asset_ = nullptr;
 
 	public:
-		PhysWaterPreset* parse(std::string name, zone_memory* mem);
+		SndDriverGlobals* parse(const std::string& name, zone_memory* mem);
 
 		void init(const std::string& name, zone_memory* mem) override;
 		void prepare(zone_buffer* buf, zone_memory* mem) override;
@@ -22,6 +22,6 @@ namespace zonetool::h1
 		std::int32_t type() override;
 		void write(zone_base* zone, zone_buffer* buffer) override;
 
-		static void dump(PhysWaterPreset* asset);
+		static void dump(SndDriverGlobals* asset);
 	};
 }

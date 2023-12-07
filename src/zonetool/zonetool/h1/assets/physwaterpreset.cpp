@@ -3,6 +3,34 @@
 
 namespace zonetool::h1
 {
+	PhysWaterPreset* phys_water_preset::parse(std::string name, zone_memory* mem)
+	{
+		const auto path = "physwaterpreset\\"s + name + ".pwp";
+
+		assetmanager::reader read(mem);
+		if (!read.open(path))
+		{
+			return nullptr;
+		}
+
+		ZONETOOL_INFO("Parsing physwaterpreset \"%s\"...", name.data());
+
+		auto* asset = read.read_single<PhysWaterPreset>();
+		asset->name = read.read_string();
+
+		asset->fx0 = read.read_asset<FxEffectDef>();
+		asset->fx1 = read.read_asset<FxEffectDef>();
+		asset->fx2 = read.read_asset<FxEffectDef>();
+		asset->fx3 = read.read_asset<FxEffectDef>();
+		asset->fx4 = read.read_asset<FxEffectDef>();
+		asset->fx5 = read.read_asset<FxEffectDef>();
+		asset->fx6 = read.read_asset<FxEffectDef>();
+
+		read.close();
+
+		return asset;
+	}
+
 	void phys_water_preset::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
@@ -108,5 +136,25 @@ namespace zonetool::h1
 
 	void phys_water_preset::dump(PhysWaterPreset* asset)
 	{
+		const auto path = "physwaterpreset\\"s + asset->name + ".pwp";
+
+		assetmanager::dumper dump;
+		if (!dump.open(path))
+		{
+			return;
+		}
+
+		dump.dump_single(asset);
+		dump.dump_string(asset->name);
+
+		dump.dump_asset(asset->fx0);
+		dump.dump_asset(asset->fx1);
+		dump.dump_asset(asset->fx2);
+		dump.dump_asset(asset->fx3);
+		dump.dump_asset(asset->fx4);
+		dump.dump_asset(asset->fx5);
+		dump.dump_asset(asset->fx6);
+
+		dump.close();
 	}
 }

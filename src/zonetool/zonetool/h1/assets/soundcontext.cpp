@@ -14,6 +14,8 @@ namespace zonetool::h1
 		auto file = filesystem::file(path);
 		if (file.exists())
 		{
+			ZONETOOL_INFO("Parsing sndcontext \"%s\"...", name.data());
+
 			auto* asset = mem->allocate<SndContext>();
 			asset->name = mem->duplicate_string(name);
 

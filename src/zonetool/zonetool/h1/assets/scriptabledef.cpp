@@ -86,6 +86,8 @@ namespace zonetool::h1
 			return nullptr;
 		}
 
+		ZONETOOL_INFO("Parsing scriptable \"%s\"...", name.data());
+
 		ScriptableDef* asset = read.read_single<ScriptableDef>();
 		asset->name = read.read_string();
 

@@ -150,13 +150,17 @@ namespace zonetool::h1
 			ADD_ASSET(ASSET_TYPE_NET_CONST_STRINGS, net_const_strings);
 			ADD_ASSET(ASSET_TYPE_RAWFILE, rawfile);
 			ADD_ASSET(ASSET_TYPE_REVERB_CURVE, reverb_curve);
+			ADD_ASSET(ASSET_TYPE_REVERB_PRESET, reverb_preset);
 			ADD_ASSET(ASSET_TYPE_SCRIPTABLE, scriptable_def);
 			ADD_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile);
 			ADD_ASSET(ASSET_TYPE_SKELETONSCRIPT, skeleton_script);
 			ADD_ASSET(ASSET_TYPE_SOUND, sound);
 			ADD_ASSET(ASSET_TYPE_SOUND_CONTEXT, sound_context);
 			ADD_ASSET(ASSET_TYPE_SOUND_CURVE, sound_curve);
+			ADD_ASSET(ASSET_TYPE_SNDDRIVERGLOBALS, sound_driver_globals);
+			ADD_ASSET(ASSET_TYPE_SOUNDSUBMIX, sound_submix);
 			ADD_ASSET(ASSET_TYPE_STRINGTABLE, string_table);
+			ADD_ASSET(ASSET_TYPE_STRUCTUREDDATADEF, structured_data_def_set);
 			ADD_ASSET(ASSET_TYPE_SURFACE_FX, surface_fx);
 			ADD_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset);
 			ADD_ASSET(ASSET_TYPE_TRACER, tracer_def);
@@ -167,6 +171,14 @@ namespace zonetool::h1
 			ADD_ASSET(ASSET_TYPE_XANIM, xanim_parts);
 			ADD_ASSET(ASSET_TYPE_XMODEL, xmodel);
 			ADD_ASSET(ASSET_TYPE_XMODEL_SURFS, xsurface);
+
+			ADD_ASSET(ASSET_TYPE_LEADERBOARD, leaderboard);
+			ADD_ASSET(ASSET_TYPE_VIRTUAL_LEADERBOARD, virtual_leaderboard);
+
+			ADD_ASSET(ASSET_TYPE_DDL, ddl);
+			ADD_ASSET(ASSET_TYPE_EQUIPMENT_SND_TABLE, equip_snd_table);
+			ADD_ASSET(ASSET_TYPE_VECTORFIELD, vector_field);
+			ADD_ASSET(ASSET_TYPE_ANIMCLASS, anim_class);
 
 			ADD_ASSET(ASSET_TYPE_PHYSCOLLMAP, phys_collmap);
 			ADD_ASSET(ASSET_TYPE_PHYSCONSTRAINT, phys_constraint);
@@ -181,7 +193,7 @@ namespace zonetool::h1
 			//ADD_ASSET(ASSET_TYPE_VERTEXDECL, vertex_decl);
 			ADD_ASSET(ASSET_TYPE_VERTEXSHADER, vertex_shader);
 
-			ADD_ASSET(ASSET_TYPE_MENU, menu_def);
+			//ADD_ASSET(ASSET_TYPE_MENU, menu_def); // added via menulist
 			ADD_ASSET(ASSET_TYPE_MENULIST, menu_list);
 
 			ADD_ASSET(ASSET_TYPE_AIPATHS, path_data);

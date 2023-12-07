@@ -3,15 +3,18 @@
 
 namespace zonetool::h1
 {
-	class phys_water_preset : public asset_interface
+	class anim_class : public asset_interface
 	{
 	private:
 		std::string name_;
-		PhysWaterPreset* asset_ = nullptr;
+		AnimationClass* asset_ = nullptr;
+
+		std::vector<std::pair<scr_string_t*, const char*>> script_strings;
+		void add_script_string(scr_string_t* ptr, const char* str);
+		const char* get_script_string(scr_string_t* ptr);
 
 	public:
-		PhysWaterPreset* parse(std::string name, zone_memory* mem);
-
+		AnimationClass* parse(const std::string& name, zone_memory* mem);
 		void init(const std::string& name, zone_memory* mem) override;
 		void prepare(zone_buffer* buf, zone_memory* mem) override;
 		void load_depending(zone_base* zone) override;
@@ -22,6 +25,6 @@ namespace zonetool::h1
 		std::int32_t type() override;
 		void write(zone_base* zone, zone_buffer* buffer) override;
 
-		static void dump(PhysWaterPreset* asset);
+		static void dump(AnimationClass* asset);
 	};
 }

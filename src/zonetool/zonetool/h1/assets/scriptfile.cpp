@@ -12,6 +12,8 @@ namespace zonetool::h1
 
 		if (fp)
 		{
+			ZONETOOL_INFO("Parsing scriptfile \"%s\"...", name.data());
+
 			auto* asset = mem->allocate<ScriptFile>();
 
 			std::string m_name;

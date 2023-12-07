@@ -5,7 +5,25 @@ namespace zonetool::h1
 {
 	TracerDef* tracer_def::parse(const std::string& name, zone_memory* mem)
 	{
-		return nullptr;
+		const auto path = "tracer\\"s + name;
+
+		assetmanager::reader read(mem);
+		if (!read.open(path))
+		{
+			return nullptr;
+		}
+
+		ZONETOOL_INFO("Parsing tracer \"%s\"...", name.data());
+
+		auto* asset = read.read_single<TracerDef>();
+		asset->name = read.read_string();
+
+		asset->material = read.read_asset<Material>();
+		asset->effect = read.read_asset<FxEffectDef>();
+
+		read.close();
+
+		return asset;
 	}
 
 	void tracer_def::init(const std::string& name, zone_memory* mem)
@@ -76,5 +94,20 @@ namespace zonetool::h1
 
 	void tracer_def::dump(TracerDef* asset)
 	{
+		const auto path = "tracer\\"s + asset->name;
+
+		assetmanager::dumper dump;
+		if (!dump.open(path))
+		{
+			return;
+		}
+
+		dump.dump_single(asset);
+		dump.dump_string(asset->name);
+
+		dump.dump_asset(asset->material);
+		dump.dump_asset(asset->effect);
+
+		dump.close();
 	}
 }
