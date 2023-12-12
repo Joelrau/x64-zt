@@ -6,6 +6,7 @@
 
 #include <utils/string.hpp>
 #include <utils/io.hpp>
+#include <utils/cryptography.hpp>
 
 namespace zonetool::imagefile
 {
@@ -76,26 +77,26 @@ namespace zonetool::imagefile
 
 		ZONETOOL_INFO("Writing imagefile...");
 
-		const auto init_image_file = [&]
-		{
-			image_file_buffer.clear();
+		XPakHeader header{};
+		std::memcpy(&header.header, ff_header.data(), ff_header.size());
+		header.version = ff_version;
 
-			XPakHeader header{};
-			std::memcpy(&header.header, ff_header.data(), ff_header.size());
-			header.version = ff_version;
-
-			image_file_buffer.append(reinterpret_cast<char*>(&header), sizeof(XPakHeader));
-		};
+		image_file_buffer.append(reinterpret_cast<char*>(&header), sizeof(XPakHeader));
 
 		const auto write_image_file = [&]
 		{
+			const auto header = reinterpret_cast<XPakHeader*>(image_file_buffer.data());
+
+			const auto hash_start = reinterpret_cast<std::uint8_t*>(image_file_buffer.data() + sizeof(XPakHeader));
+			const auto len = image_file_buffer.size() - sizeof(XPakHeader);
+
+			const auto hash = utils::cryptography::sha256::compute(hash_start, len, false);
+			std::memcpy(header->hash.bytes, hash.data(), sizeof(header->hash));
+
 			const auto save_path = utils::io::directory_exists("zone") ? "zone/" : "";
 			const auto name = utils::string::va("%s%s.pak", save_path, fastfile.data(), index);
 			utils::io::write_file(name, image_file_buffer);
-			init_image_file();
 		};
-
-		init_image_file();
 
 		for (auto i = 0; i < 4; i++)
 		{
