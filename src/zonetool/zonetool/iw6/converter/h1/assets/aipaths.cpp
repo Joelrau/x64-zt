@@ -12,6 +12,12 @@ namespace zonetool::iw6
 	{
 		namespace aipaths
 		{
+			std::uint16_t convert_type(std::uint16_t type)
+			{
+				if (type > 7) type += 2;
+				return type;
+			}
+
 			void convert_node(pathnode_t* node, zonetool::h1::pathnode_t* dest, PathData* asset, zonetool::h1::PathData* new_asset, 
 				std::unordered_map<pathnode_t*, zonetool::h1::pathnode_t*>& pathnode_map)
 			{
@@ -21,7 +27,7 @@ namespace zonetool::iw6
 				}
 				pathnode_map[node] = dest;
 
-				dest->constant.type = node->constant.type; // convert?
+				dest->constant.type = convert_type(node->constant.type);
 				dest->constant.spawnflags = node->constant.spawnflags;
 				std::memcpy(&dest->constant.targetname, &node->constant.targetname, sizeof(scr_string_t) * 5); // copy strings
 				dest->constant.animscriptfunc = node->constant.animscriptfunc;
@@ -32,7 +38,7 @@ namespace zonetool::iw6
 				std::memcpy(&dest->constant.wOverlapNode, &node->constant.wOverlapNode, sizeof(short[2]));
 				dest->constant.totalLinkCount = node->constant.totalLinkCount;
 				dest->constant.Links = reinterpret_cast<zonetool::h1::pathlink_s*>(node->constant.Links);
-				dest->constant.unk = zonetool::h1::scr_string_t(0);
+				dest->constant.customangles = zonetool::h1::scr_string_t(0);
 
 				std::memcpy(&dest->dynamic, &node->dynamic, sizeof(pathnode_dynamic_t));
 				std::memcpy(&dest->transient, &node->transient, sizeof(pathnode_transient_t));

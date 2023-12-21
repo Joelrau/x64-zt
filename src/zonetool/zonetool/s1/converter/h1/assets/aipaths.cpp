@@ -12,37 +12,72 @@ namespace zonetool::s1
 	{
 		namespace aipaths
 		{
+			std::uint16_t convert_type(std::uint16_t type)
+			{
+				if (type > 7) type += 2;
+				return type;
+			}
+
+			void convert_node(pathnode_t* node, zonetool::h1::pathnode_t* dest, PathData* asset, zonetool::h1::PathData* new_asset,
+				std::unordered_map<pathnode_t*, zonetool::h1::pathnode_t*>& pathnode_map)
+			{
+				if (pathnode_map.contains(node))
+				{
+					return;
+				}
+				pathnode_map[node] = dest;
+
+				dest->constant.type = convert_type(node->constant.type);
+				dest->constant.spawnflags = node->constant.spawnflags;
+				std::memcpy(&dest->constant.targetname, &node->constant.targetname, sizeof(scr_string_t) * 5); // copy strings
+				dest->constant.animscriptfunc = node->constant.animscriptfunc;
+				std::memcpy(&dest->constant.vLocalOrigin, &node->constant.vLocalOrigin, sizeof(float[3]));
+				std::memcpy(&dest->constant.___u9, &node->constant.___u9, 12);
+				std::memcpy(&dest->constant.parent, &node->constant.parent, 4);
+				std::memcpy(&dest->constant.___u11, &node->constant.___u11, 4);
+				std::memcpy(&dest->constant.wOverlapNode, &node->constant.wOverlapNode, sizeof(short[2]));
+				dest->constant.totalLinkCount = node->constant.totalLinkCount;
+				dest->constant.Links = reinterpret_cast<zonetool::h1::pathlink_s*>(node->constant.Links);
+				dest->constant.customangles = zonetool::h1::scr_string_t(0);
+
+				std::memcpy(&dest->dynamic, &node->dynamic, sizeof(pathnode_dynamic_t));
+				std::memcpy(&dest->transient, &node->transient, sizeof(pathnode_transient_t));
+
+				if (node->transient.pNextOpen)
+				{
+					auto index = ((reinterpret_cast<std::uintptr_t>(node->transient.pNextOpen) - reinterpret_cast<std::uintptr_t>(asset->nodes)) / sizeof(zonetool::s1::pathnode_t));
+					convert_node(node->transient.pNextOpen, &new_asset->nodes[index], asset, new_asset, pathnode_map);
+					dest->transient.pNextOpen = &new_asset->nodes[index];
+				}
+				if (node->transient.pPrevOpen)
+				{
+					auto index = ((reinterpret_cast<std::uintptr_t>(node->transient.pPrevOpen) - reinterpret_cast<std::uintptr_t>(asset->nodes)) / sizeof(zonetool::s1::pathnode_t));
+					convert_node(node->transient.pPrevOpen, &new_asset->nodes[index], asset, new_asset, pathnode_map);
+					dest->transient.pPrevOpen = &new_asset->nodes[index];
+				}
+				if (node->transient.pParent)
+				{
+					auto index = ((reinterpret_cast<std::uintptr_t>(node->transient.pParent) - reinterpret_cast<std::uintptr_t>(asset->nodes)) / sizeof(zonetool::s1::pathnode_t));
+					convert_node(node->transient.pParent, &new_asset->nodes[index], asset, new_asset, pathnode_map);
+					dest->transient.pParent = &new_asset->nodes[index];
+				}
+			};
+
 			zonetool::h1::PathData* convert(PathData* asset, utils::memory::allocator& allocator)
 			{
 				const auto new_asset = allocator.allocate<zonetool::h1::PathData>();
 
 				REINTERPRET_CAST_SAFE(name);
 
+				std::unordered_map<pathnode_t*, zonetool::h1::pathnode_t*> pathnode_map;
 				new_asset->nodeCount = asset->nodeCount;
 				new_asset->nodes = allocator.allocate_array<zonetool::h1::pathnode_t>(asset->nodeCount);
 				for (auto i = 0u; i < asset->nodeCount; i++)
 				{
-					// something is wrong in these structs
 					const auto node = &asset->nodes[i];
 					const auto new_node = &new_asset->nodes[i];
 
-					new_node->constant.type = node->constant.type; // convert?
-					new_node->constant.spawnflags = node->constant.spawnflags;
-					std::memcpy(&new_node->constant.targetname, &node->constant.targetname, sizeof(scr_string_t) * 5); // copy strings
-					new_node->constant.animscriptfunc = node->constant.animscriptfunc;
-					std::memcpy(&new_node->constant.vLocalOrigin, &node->constant.vLocalOrigin, sizeof(float[3]));
-					std::memcpy(&new_node->constant.___u9, &node->constant.___u9, 12);
-					std::memcpy(&new_node->constant.parent, &node->constant.parent, 4);
-					std::memcpy(&new_node->constant.___u11, &node->constant.___u11, 4);
-					std::memcpy(&new_node->constant.wOverlapNode, &node->constant.wOverlapNode, sizeof(short[2]));
-					new_node->constant.totalLinkCount = node->constant.totalLinkCount;
-					new_node->constant.Links = reinterpret_cast<zonetool::h1::pathlink_s*>(node->constant.Links);
-					new_node->constant.unk = zonetool::h1::scr_string_t(0);
-
-					// pad0, pad1
-
-					std::memcpy(&new_node->dynamic, &node->dynamic, sizeof(pathnode_dynamic_t));
-					std::memcpy(&new_node->transient, &node->transient, sizeof(pathnode_transient_t));
+					convert_node(node, new_node, asset, new_asset, pathnode_map);
 				}
 
 				new_asset->parentIndexResolved = asset->parentIndexResolved;

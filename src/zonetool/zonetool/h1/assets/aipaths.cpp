@@ -386,7 +386,7 @@ namespace zonetool::h1
 			}
 
 			asset->nodes[i].constant.Links = read.read_array<pathlink_s>();
-			ADD_SCRIPT_STRING(unk);
+			ADD_SCRIPT_STRING(customangles);
 		}
 
 		asset->pathVis = read.read_array<unsigned char>();
@@ -449,7 +449,7 @@ namespace zonetool::h1
 				WRITE_SCRIPT_STRING(parent.name);
 			}
 
-			WRITE_SCRIPT_STRING(unk);
+			WRITE_SCRIPT_STRING(customangles);
 		}
 	}
 
@@ -628,7 +628,7 @@ namespace zonetool::h1
 			}
 
 			dumper.dump_array(asset->nodes[i].constant.Links, asset->nodes[i].constant.totalLinkCount);
-			dumper.dump_string(SL_ConvertToString(asset->nodes[i].constant.unk));
+			dumper.dump_string(SL_ConvertToString(asset->nodes[i].constant.customangles));
 		}
 
 		dumper.dump_array(asset->pathVis, asset->visBytes);

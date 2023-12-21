@@ -8018,6 +8018,59 @@ namespace zonetool::h1
 		unsigned char ubBadPlaceCount[3];
 	};
 
+	enum nodeSpawnFlags : std::uint32_t
+	{
+		PNF_DONTLINK = 0x1,
+		PNF_INDOORTRANSITION = 0x2,
+		PNF_DONTSTAND = 0x4,
+		PNF_DONTCROUCH = 0x8,
+		PNF_DONTPRONE = 0x10,
+		PNF_CHOKEPOINT = 0x20,
+		PNF_ALT_BOUNDS = 0x40,
+		PNF_PRIORITY = 0x40,
+		PNF_IDLE = 0x80,
+		PSF_ZONE_ISLAND = 0x100,
+		PNF_COVER_PEEKOVER = 0x200,
+		PNF_COVER_PEEKLEFT = 0x400,
+		PNF_COVER_PEEKRIGHT = 0x800,
+		PNF_LINKSTOCHOKE = 0x1000,
+		PNF_INDOOR = 0x2000,
+		PNF_ERROR = 0x4000,
+		PNF_ANGLEVALID = 0x8000,
+		PNF_CANNOTBEUSEDBY_HUMANS = 0x10000,
+		PNF_CANNOTBEUSEDBY_DOGS = 0x20000,
+		PNF_GLASS_LINK = 0x40000,
+		PNF_NO_ENTITY_DISCONNECT = 0x80000,
+	};
+
+	enum nodeType : std::uint16_t
+	{
+		NODE_ERROR = 0,
+		NODE_PATHNODE = 1,
+		NODE_COVER_STAND = 2,
+		NODE_COVER_CROUCH = 3,
+		NODE_COVER_CROUCH_WINDOW = 4,
+		NODE_COVER_PRONE = 5,
+		NODE_COVER_RIGHT = 6,
+		NODE_COVER_LEFT = 7,
+		//NODE_COVER_UNK1 = 8,
+		//NODE_COVER_UNK2 = 9,
+		NODE_COVER_MULTI = 10,
+		NODE_AMBUSH = 11,
+		NODE_EXPOSED = 12,
+		NODE_CONCEALMENT_STAND = 13,
+		NODE_CONCEALMENT_CROUCH = 14,
+		NODE_CONCEALMENT_PRONE = 15,
+		NODE_DOOR = 16, // not confirmed
+		NODE_DOOR_INTERIOR = 17, // not confirmed
+		NODE_SCRIPTED = 18,
+		NODE_NEGOTIATION_BEGIN = 19,
+		NODE_NEGOTIATION_END = 20,
+		NODE_TURRET = 21,
+		NODE_GUARD = 22,
+		NODE_NUMTYPES = 31,
+	};
+
 	struct pathnode_constant_t
 	{
 		unsigned short type;
@@ -8036,7 +8089,7 @@ namespace zonetool::h1
 		short wOverlapNode[2];
 		unsigned short totalLinkCount;
 		pathlink_s* Links;
-		scr_string_t unk;
+		scr_string_t customangles;
 		char __pad1[4];
 	};
 

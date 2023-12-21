@@ -295,12 +295,26 @@ namespace csv_generator
 			add_asset("rawfile", path);
 		};
 
+		const auto add_gsc_if_exists = [&](const std::string& path)
+		{
+			const std::string gsc_path = root_dir + "/" + path;
+			if (!utils::io::file_exists(root_dir + "/" + path))
+			{
+				return false;
+			}
+
+			add_asset("rawfile", path);
+			return true;
+		};
+
 		add_line("// gsc");
 		add_gsc(utils::string::va("%s/%s.gsc", map_prefix.data(), map.data()));
 		add_gsc(fx_name);
 		add_gsc(create_fx_name);
-		add_gsc(create_fx_sounds_name);
-		add_gsc(utils::string::va("%s/%s_precache.gsc", map_prefix.data(), map.data()));
+		add_gsc_if_exists(create_fx_sounds_name);
+		add_gsc_if_exists(utils::string::va("%s/%s_precache.gsc", map_prefix.data(), map.data()));
+		add_gsc_if_exists(utils::string::va("%s/%s_lighting.gsc", map_prefix.data(), map.data()));
+		add_gsc_if_exists(utils::string::va("%s/%s_aud.gsc", map_prefix.data(), map.data()));
 		add_gsc(utils::string::va("maps/createart/%s_art.gsc", map.data()));
 		add_gsc(utils::string::va("maps/createart/%s_fog.gsc", map.data()));
 		add_gsc(utils::string::va("maps/createart/%s_fog_hdr.gsc", map.data()));

@@ -83,6 +83,10 @@ namespace zonetool::s1
 				new_asset->clientTrigger.unk4 = asset->clientTrigger.unk4;
 				new_asset->clientTrigger.unk5 = asset->clientTrigger.unk5;
 				new_asset->clientTrigger.unk6 = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
+				for (auto i = 0u; i < asset->clientTrigger.trigger.count; i++)
+				{
+					new_asset->clientTrigger.unk6[i] = -1;
+				}
 
 				COPY_VALUE_CAST(clientTriggerBlend);
 				COPY_VALUE_CAST(spawnList);
