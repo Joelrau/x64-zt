@@ -32,7 +32,7 @@ namespace zonetool::s1
 					new_head->soundFile = allocator.allocate<zonetool::h1::SoundFile>();
 					std::memcpy(new_head->soundFile, head->soundFile, sizeof(zonetool::s1::SoundFile));
 
-					new_head->mixerGroup = head->chainAliasName;
+					new_head->mixerGroup = head->mixerGroup;
 					new_head->poly = head->poly;
 					new_head->polyGlobal = 174;
 					new_head->polyEntityType = 0;

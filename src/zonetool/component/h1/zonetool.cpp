@@ -235,6 +235,7 @@ namespace zonetool::h1
 		utils::hook::set<uint8_t>(0x1402C5C00, 0xC3); // DB_EnterStreamingTabulate
 
 		utils::hook::set<uint8_t>(0x1402C6590, 0xC3); // DB_ReadPackedLoadedSounds
+		utils::hook::set<uint8_t>(0x1402C6000, 0xC3); // DB_LoadPackedLoadedSounds
 
 		utils::hook::set<uint8_t>(0x1402BF7F0, 0xC3); // some loop
 		utils::hook::set<uint8_t>(0x14007E150, 0xC3); // related to shader caching / techsets / fastfiles
