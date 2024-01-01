@@ -682,6 +682,10 @@ namespace zonetool::h1
 					}
 				}
 			}
+			else if (row->fields[0] == "addpath"s && row->num_fields >= 2)
+			{
+				filesystem::add_paths_from_directory(row->fields[1]);
+			}
 			// if entry is not an option, it should be an asset.
 			else
 			{
