@@ -72,13 +72,14 @@ namespace zonetool::s1
 				COPY_VALUE(clientTrigger.triggerStringLength);
 				REINTERPRET_CAST_SAFE(clientTrigger.triggerString);
 				REINTERPRET_CAST_SAFE(clientTrigger.visionSetTriggers);
-				REINTERPRET_CAST_SAFE(clientTrigger.blendLookup);
+				
 				new_asset->clientTrigger.unk1 = asset->clientTrigger.unk1;
+				new_asset->clientTrigger.unk2 = asset->clientTrigger.unk2;
 				REINTERPRET_CAST_SAFE(clientTrigger.triggerType); // convert?
 				REINTERPRET_CAST_SAFE(clientTrigger.origins);
 				REINTERPRET_CAST_SAFE(clientTrigger.scriptDelay);
 				REINTERPRET_CAST_SAFE(clientTrigger.audioTriggers);
-				new_asset->clientTrigger.unk2 = asset->clientTrigger.unk2;
+				REINTERPRET_CAST_SAFE(clientTrigger.blendLookup);
 				new_asset->clientTrigger.unk3 = asset->clientTrigger.unk3;
 				new_asset->clientTrigger.unk4 = asset->clientTrigger.unk4;
 				new_asset->clientTrigger.unk5 = asset->clientTrigger.unk5;

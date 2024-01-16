@@ -157,7 +157,7 @@ namespace zonetool::iw6
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_STRINGTABLE, string_table, StringTable);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_STRUCTURED_DATA_DEF, structured_data_def_set, StructuredDataDefSet);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_TECHNIQUE_SET, techset, MaterialTechniqueSet);
-			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_TRACER, tracer_def, TracerDef);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_TRACER, tracer_def, TracerDef);
 			//DUMP_ASSET(ASSET_TYPE_FONT, font_def, Font_s);
 			//DUMP_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment, WeaponAttachment);
 			//DUMP_ASSET(ASSET_TYPE_WEAPON, weapon_def, WeaponCompleteDef);
@@ -178,7 +178,7 @@ namespace zonetool::iw6
 			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENU, menu_def, menuDef_t);
 			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENULIST, menu_list, MenuList);
 
-			//DUMP_ASSET_CONVERT(ASSET_TYPE_PATHDATA, pathdata, PathData);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_PATHDATA, aipaths, PathData);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_CLIPMAP, clipmap, clipMap_t);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_COMWORLD, comworld, ComWorld);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_FXWORLD, fxworld, FxWorld);
@@ -271,7 +271,7 @@ namespace zonetool::iw6
 			DUMP_ASSET_NO_CONVERT_NO_CONVERT(ASSET_TYPE_STRINGTABLE, string_table, StringTable);
 			DUMP_ASSET_NO_CONVERT_NO_CONVERT(ASSET_TYPE_STRUCTURED_DATA_DEF, structured_data_def_set, StructuredDataDefSet);
 			DUMP_ASSET_CONVERT_CONVERT(ASSET_TYPE_TECHNIQUE_SET, techset, MaterialTechniqueSet);
-			DUMP_ASSET_NO_CONVERT_NO_CONVERT(ASSET_TYPE_TRACER, tracer_def, TracerDef);
+			DUMP_ASSET_CONVERT_NO_CONVERT(ASSET_TYPE_TRACER, tracer_def, TracerDef);
 			//DUMP_ASSET(ASSET_TYPE_FONT, font_def, Font_s);
 			//DUMP_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment, WeaponAttachment);
 			//DUMP_ASSET(ASSET_TYPE_WEAPON, weapon_def, WeaponCompleteDef);

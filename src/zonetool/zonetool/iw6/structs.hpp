@@ -3023,6 +3023,17 @@ namespace zonetool::iw6
 		unsigned short childCount;
 	};
 
+	enum clientTriggerType_t : std::int32_t
+	{
+		CLIENT_TRIGGER_NONE = 0x0,
+		CLIENT_TRIGGER_VISIONSET = 0x1,
+		CLIENT_TRIGGER_AUDIO = 0x2,
+		CLIENT_TRIGGER_BLEND_VISION = 0x4,
+		CLIENT_TRIGGER_BLEND_AUDIO = 0x8,
+		CLIENT_TRIGGER_BLEND_ALL = 0xC,
+		CLIENT_TRIGGER_NPC = 0x10,
+	};
+
 	struct ClientTriggers
 	{
 		MapTriggers trigger;

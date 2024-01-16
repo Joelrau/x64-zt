@@ -1440,13 +1440,13 @@ namespace zonetool::h2
 		unsigned int triggerStringLength;
 		char* triggerString;
 		short* visionSetTriggers;
-		short* blendLookup;
 		short* unk1;
+		short* unk2;
 		short* triggerType;
 		vec3_t* origins;
 		float* scriptDelay;
 		short* audioTriggers;
-		short* unk2;
+		short* blendLookup;
 		short* unk3;
 		short* unk4;
 		short* unk5;

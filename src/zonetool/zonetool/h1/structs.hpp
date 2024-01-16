@@ -2801,13 +2801,13 @@ namespace zonetool::h1
 		unsigned int triggerStringLength;
 		char* triggerString;
 		short* visionSetTriggers;
-		short* blendLookup;
 		short* unk1;
+		short* unk2;
 		short* triggerType;
 		vec3_t* origins;
 		float* scriptDelay;
 		short* audioTriggers;
-		short* unk2;
+		short* blendLookup;
 		short* unk3;
 		short* unk4;
 		short* unk5;
@@ -9069,9 +9069,10 @@ namespace zonetool::h1
 	struct SndSubmix
 	{
 		const char* name;
-		int unk1;
-		float unk2;
-		int unk3[2];
+		short volModIndex;
+		//short pad;
+		float volume;
+		int unk[2];
 	}; assert_sizeof(SndSubmix, 24);
 
 	struct SndSubmixList

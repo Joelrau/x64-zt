@@ -130,13 +130,13 @@ namespace zonetool::h1
 			clientTrigger->triggerString = reader.read_array<char>();
 
 			clientTrigger->visionSetTriggers = reader.read_array<short>();
-			clientTrigger->blendLookup = reader.read_array<short>();
 			clientTrigger->unk1 = reader.read_array<short>();
+			clientTrigger->unk2 = reader.read_array<short>();
 			clientTrigger->triggerType = reader.read_array<short>();
 			clientTrigger->origins = reader.read_array<vec3_t>();
 			clientTrigger->scriptDelay = reader.read_array<float>();
 			clientTrigger->audioTriggers = reader.read_array<short>();
-			clientTrigger->unk2 = reader.read_array<short>();
+			clientTrigger->blendLookup = reader.read_array<short>();
 			clientTrigger->unk3 = reader.read_array<short>();
 			clientTrigger->unk4 = reader.read_array<short>();
 			clientTrigger->unk5 = reader.read_array<short>();
@@ -332,17 +332,17 @@ namespace zonetool::h1
 			buf->write(data->clientTrigger.visionSetTriggers, data->clientTrigger.trigger.count);
 			zone_buffer::clear_pointer(&dest->clientTrigger.visionSetTriggers);
 		}
-		if (data->clientTrigger.blendLookup)
-		{
-			buf->align(1);
-			buf->write(data->clientTrigger.blendLookup, data->clientTrigger.trigger.count);
-			zone_buffer::clear_pointer(&dest->clientTrigger.blendLookup);
-		}
 		if (data->clientTrigger.unk1)
 		{
 			buf->align(1);
 			buf->write(data->clientTrigger.unk1, data->clientTrigger.trigger.count);
 			zone_buffer::clear_pointer(&dest->clientTrigger.unk1);
+		}
+		if (data->clientTrigger.unk2)
+		{
+			buf->align(1);
+			buf->write(data->clientTrigger.unk2, data->clientTrigger.trigger.count);
+			zone_buffer::clear_pointer(&dest->clientTrigger.unk2);
 		}
 		if (data->clientTrigger.triggerType)
 		{
@@ -368,11 +368,11 @@ namespace zonetool::h1
 			buf->write(data->clientTrigger.audioTriggers, data->clientTrigger.trigger.count);
 			zone_buffer::clear_pointer(&dest->clientTrigger.audioTriggers);
 		}
-		if (data->clientTrigger.unk2)
+		if (data->clientTrigger.blendLookup)
 		{
 			buf->align(1);
-			buf->write(data->clientTrigger.unk2, data->clientTrigger.trigger.count);
-			zone_buffer::clear_pointer(&dest->clientTrigger.unk2);
+			buf->write(data->clientTrigger.blendLookup, data->clientTrigger.trigger.count);
+			zone_buffer::clear_pointer(&dest->clientTrigger.blendLookup);
 		}
 		if (data->clientTrigger.unk3)
 		{
@@ -539,13 +539,13 @@ namespace zonetool::h1
 			dumper.dump_array(clientTrigger->triggerString, clientTrigger->triggerStringLength);
 
 			dumper.dump_array(clientTrigger->visionSetTriggers, clientTrigger->trigger.count);
-			dumper.dump_array(clientTrigger->blendLookup, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->unk1, clientTrigger->trigger.count);
+			dumper.dump_array(clientTrigger->unk2, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->triggerType, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->origins, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->scriptDelay, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->audioTriggers, clientTrigger->trigger.count);
-			dumper.dump_array(clientTrigger->unk2, clientTrigger->trigger.count);
+			dumper.dump_array(clientTrigger->blendLookup, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->unk3, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->unk4, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->unk5, clientTrigger->trigger.count);

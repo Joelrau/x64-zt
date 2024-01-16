@@ -175,6 +175,37 @@ namespace zonetool::iw6
 
 		namespace mapents
 		{
+			zonetool::h1::clientTriggerType_t type_flags_table[7]
+			{
+				zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_NONE,
+				zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_VISIONSET,
+				zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_AUDIO,
+				zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_BLEND_VISION,
+				zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_BLEND_AUDIO,
+				zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_BLEND_ALL,
+				zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_NPC,
+			};
+
+			std::int32_t convert_type(std::int32_t flags)
+			{
+				std::int32_t new_flags = type_flags_table[flags];
+				auto convert = [&](zonetool::iw6::clientTriggerType_t a, zonetool::h1::clientTriggerType_t b)
+				{
+					new_flags |= ((flags & a) == a) ? b : 0;
+				};
+
+				//convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_NONE, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_NONE);
+				convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_VISIONSET, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_VISIONSET);
+				convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_AUDIO, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_AUDIO);
+				convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_BLEND_VISION, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_BLEND_VISION);
+				convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_BLEND_AUDIO, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_BLEND_AUDIO);
+				convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_BLEND_ALL, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_BLEND_ALL);
+				convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_NONE, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_NONE);
+				convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_NONE, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_NONE);
+
+				return new_flags;
+			}
+
 			zonetool::h1::MapEnts* convert(MapEnts* asset, utils::memory::allocator& allocator)
 			{
 				auto* new_asset = allocator.allocate<zonetool::h1::MapEnts>();
@@ -194,24 +225,28 @@ namespace zonetool::iw6
 				COPY_VALUE(clientTrigger.triggerStringLength);
 				REINTERPRET_CAST_SAFE(clientTrigger.triggerString);
 				REINTERPRET_CAST_SAFE(clientTrigger.visionSetTriggers);
-				REINTERPRET_CAST_SAFE(clientTrigger.blendLookup);
 				new_asset->clientTrigger.unk1 = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
+				new_asset->clientTrigger.unk2 = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
 				
 				new_asset->clientTrigger.triggerType = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
 				for (unsigned int i = 0; i < asset->clientTrigger.trigger.count; i++)
 				{
-					// most likely needs converting
-					new_asset->clientTrigger.triggerType[i] = asset->clientTrigger.triggerType[i];
+					new_asset->clientTrigger.triggerType[i] = static_cast<short>(convert_type(asset->clientTrigger.triggerType[i]));
 				}
 
 				REINTERPRET_CAST_SAFE(clientTrigger.origins);
 				REINTERPRET_CAST_SAFE(clientTrigger.scriptDelay);
 				REINTERPRET_CAST_SAFE(clientTrigger.audioTriggers);
-				new_asset->clientTrigger.unk2 = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
+				REINTERPRET_CAST_SAFE(clientTrigger.blendLookup);
 				new_asset->clientTrigger.unk3 = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
 				new_asset->clientTrigger.unk4 = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
 				new_asset->clientTrigger.unk5 = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
 				new_asset->clientTrigger.unk6 = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
+
+				for (unsigned int i = 0; i < asset->clientTrigger.trigger.count; i++)
+				{
+					new_asset->clientTrigger.unk1[i] = -1;
+				}
 
 				COPY_VALUE(clientTriggerBlend.numClientTriggerBlendNodes);
 				REINTERPRET_CAST_SAFE(clientTriggerBlend.blendNodes);
