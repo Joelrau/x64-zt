@@ -238,17 +238,17 @@ namespace zonetool::h1
 		"notimescale",
 	};
 
-	const char* get_vol_mod_name(short index)
+	const char* sound::get_vol_mod_name(short index)
 	{
 		return volume_mod_groups[index];
 	}
 
-	const char* get_dsp_bus_name(char index)
+	const char* sound::get_dsp_bus_name(char index)
 	{
 		return dsp_buses[index];
 	}
 
-	short get_vol_mod_index_from_name(const char* name)
+	short sound::get_vol_mod_index_from_name(const char* name)
 	{
 		for (short i = 0; i < volume_mod_groups.size(); i++)
 		{
@@ -261,7 +261,7 @@ namespace zonetool::h1
 		return -1;
 	}
 
-	char get_dsp_bus_index_from_name(const char* name)
+	char sound::get_dsp_bus_index_from_name(const char* name)
 	{
 		for (char i = 0; i < dsp_buses.size(); i++)
 		{

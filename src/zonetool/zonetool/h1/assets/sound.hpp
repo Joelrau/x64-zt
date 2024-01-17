@@ -19,6 +19,11 @@ namespace zonetool::h1
 		static void json_dump(snd_alias_list_t* asset);
 
 	public:
+		static const char* get_vol_mod_name(short index);
+		static const char* get_dsp_bus_name(char index);
+		static short get_vol_mod_index_from_name(const char* name);
+		static char get_dsp_bus_index_from_name(const char* name);
+
 		snd_alias_list_t* parse(const std::string& name, zone_memory* mem);
 
 		void init(const std::string& name, zone_memory* mem) override;

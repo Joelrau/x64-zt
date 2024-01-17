@@ -1,30 +1,75 @@
 #include <std_include.hpp>
 #include "soundsubmix.hpp"
 
+#include "sound.hpp"
+
 namespace zonetool::h1
 {
+	const std::unordered_map<short, const char*> volmod_map =
+	{
+		{-2, "all"}
+	};
+
+	const char* get_vol_mod_name(short index)
+	{
+		if (volmod_map.contains(index))
+		{
+			return volmod_map.at(index);
+		}
+
+		return sound::get_vol_mod_name(index);
+	}
+
+	short get_vol_mod_index_from_name(const char* name)
+	{
+		for (auto& volmod : volmod_map)
+		{
+			if (!_stricmp(volmod.second, name))
+			{
+				return volmod.first;
+			}
+		}
+
+		return sound::get_vol_mod_index_from_name(name);
+	}
+
 	SndSubmixList* sound_submix::parse(const std::string& name, zone_memory* mem)
 	{
-		const auto path = "sndsubmix\\"s + name;
+		const auto path = "sndsubmix\\"s + name + ".json"s;
 
-		assetmanager::reader read(mem);
-		if (!read.open(path))
+		auto file = filesystem::file(path);
+		file.open("rb");
+		if (!file.get_fp())
 		{
 			return nullptr;
 		}
 
 		ZONETOOL_INFO("Parsing sndsubmix \"%s\"...", name.data());
 
-		auto* asset = read.read_single<SndSubmixList>();
-		asset->name = read.read_string();
+		const auto size = file.size();
+		auto bytes = file.read_bytes(size);
+		file.close();
 
-		asset->submixes = read.read_array<SndSubmix>();
-		for (auto i = 0; i < asset->submixCount; i++)
+		auto data = json::parse(bytes);
+
+		auto asset = mem->allocate<SndSubmixList>();
+		asset->name = mem->duplicate_string(data["name"].get<std::string>());
+
+		if (data["list"].is_object())
 		{
-			asset->submixes[i].name = read.read_string();
-		}
+			const auto submix_count = data["list"].size();
+			asset->submixCount = static_cast<int>(submix_count);
+			asset->submixes = mem->allocate<SndSubmix>(submix_count);
 
-		read.close();
+			for (auto i = 0; i < asset->submixCount; i++)
+			{
+				asset->submixes[i].name = mem->duplicate_string(data["list"][i]["name"].get<std::string>());
+				asset->submixes[i].volModIndex = get_vol_mod_index_from_name(mem->duplicate_string(data["list"][i]["volModIndex"].get<std::string>().data()));
+				asset->submixes[i].volume = data["list"][i]["volume"].get<float>();
+				asset->submixes[i].unk[0] = data["list"][i]["unk"][0].get<int>();
+				asset->submixes[i].unk[1] = data["list"][i]["unk"][1].get<int>();
+			}
+		}
 
 		return asset;
 	}
@@ -96,23 +141,31 @@ namespace zonetool::h1
 
 	void sound_submix::dump(SndSubmixList* asset)
 	{
-		const auto path = "sndsubmix\\"s + asset->name;
+		const auto path = "sndsubmix\\"s + asset->name + ".json"s;
 
-		assetmanager::dumper dump;
-		if (!dump.open(path))
+		auto file = filesystem::file(path);
+		file.open("wb");
+
+		ordered_json data;
+
+		data["name"] = asset->name;
+		if (asset->submixes)
 		{
-			return;
+			data["list"] = {};
+
+			for (auto i = 0; i < asset->submixCount; i++)
+			{
+				data["list"][i]["name"] = asset->submixes[i].name ? asset->submixes[i].name : "";
+				data["list"][i]["volModIndex"] = get_vol_mod_name(asset->submixes[i].volModIndex);
+				data["list"][i]["volume"] = asset->submixes[i].volume;
+				data["list"][i]["unk"][0] = asset->submixes[i].unk[0];
+				data["list"][i]["unk"][1] = asset->submixes[i].unk[1];
+			}
 		}
 
-		dump.dump_single(asset);
-		dump.dump_string(asset->name);
+		auto str = data.dump(4);
+		file.write(str);
 
-		dump.dump_array(asset->submixes, asset->submixCount);
-		for (auto i = 0; i < asset->submixCount; i++)
-		{
-			dump.dump_string(asset->submixes[i].name);
-		}
-
-		dump.close();
+		file.close();
 	}
 }
