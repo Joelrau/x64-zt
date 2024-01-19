@@ -966,7 +966,10 @@ namespace zonetool::iw7
 
 		doexit_hook.create(0x1412D7348, doexit);
 		atexit(on_exit);
+	}
 
+	void finalize()
+	{
 		ZONETOOL_INFO("ZoneTool initialization complete!");
 	}
 
@@ -978,6 +981,7 @@ namespace zonetool::iw7
 	void start()
 	{
 		initialize();
+		finalize();
 
 		branding();
 		register_commands();
