@@ -282,56 +282,56 @@ namespace zonetool::s1
 		{
 			buf->align(3);
 			buf->write(data->boneNames, data->numBones);
-			zone_buffer::clear_pointer(&dest->boneNames);
+			buf->clear_pointer(&dest->boneNames);
 		}
 
 		if (data->parentList)
 		{
 			buf->align(0);
 			buf->write(data->parentList, (data->numBones - data->numRootBones));
-			zone_buffer::clear_pointer(&dest->parentList);
+			buf->clear_pointer(&dest->parentList);
 		}
 
 		if (data->tagAngles)
 		{
 			buf->align(1);
 			buf->write(data->tagAngles, (data->numBones - data->numRootBones));
-			zone_buffer::clear_pointer(&dest->tagAngles);
+			buf->clear_pointer(&dest->tagAngles);
 		}
 
 		if (data->tagPositions)
 		{
 			buf->align(3);
 			buf->write(data->tagPositions, (data->numBones - data->numRootBones));
-			zone_buffer::clear_pointer(&dest->tagPositions);
+			buf->clear_pointer(&dest->tagPositions);
 		}
 
 		if (data->partClassification)
 		{
 			buf->align(0);
 			buf->write(data->partClassification, data->numBones);
-			zone_buffer::clear_pointer(&dest->partClassification);
+			buf->clear_pointer(&dest->partClassification);
 		}
 
 		if (data->baseMat)
 		{
 			buf->align(3);
 			buf->write(data->baseMat, data->numBones);
-			zone_buffer::clear_pointer(&dest->baseMat);
+			buf->clear_pointer(&dest->baseMat);
 		}
 
 		if (data->reactiveMotionParts)
 		{
 			buf->align(15);
 			buf->write(data->reactiveMotionParts, data->numReactiveMotionParts);
-			zone_buffer::clear_pointer(&dest->reactiveMotionParts);
+			buf->clear_pointer(&dest->reactiveMotionParts);
 		}
 
 		if (data->reactiveMotionTweaks)
 		{
 			buf->align(15);
 			buf->write(data->reactiveMotionTweaks);
-			zone_buffer::clear_pointer(&dest->reactiveMotionTweaks);
+			buf->clear_pointer(&dest->reactiveMotionTweaks);
 		}
 
 		buf->inc_stream(5, 4 * data->numsurfs);
@@ -357,28 +357,28 @@ namespace zonetool::s1
 		{
 			buf->align(3);
 			buf->write(data->collSurfs, data->numCollSurfs);
-			zone_buffer::clear_pointer(&dest->collSurfs);
+			buf->clear_pointer(&dest->collSurfs);
 		}
 
 		if (data->boneInfo)
 		{
 			buf->align(3);
 			buf->write(data->boneInfo, data->numBones);
-			zone_buffer::clear_pointer(&dest->boneInfo);
+			buf->clear_pointer(&dest->boneInfo);
 		}
 
 		if (data->invHighMipRadius)
 		{
 			buf->align(1);
 			buf->write(data->invHighMipRadius, data->numsurfs);
-			zone_buffer::clear_pointer(&dest->invHighMipRadius);
+			buf->clear_pointer(&dest->invHighMipRadius);
 		}
 
 		if (data->weightNames)
 		{
 			buf->align(3);
 			buf->write(data->weightNames, data->numberOfWeights);
-			zone_buffer::clear_pointer(&dest->weightNames);
+			buf->clear_pointer(&dest->weightNames);
 		}
 		//dest->weightNames = nullptr;
 		//dest->numberOfWeights = 0;
@@ -388,7 +388,7 @@ namespace zonetool::s1
 		{
 			buf->align(3);
 			buf->write(data->blendShapeWeightMap, data->numberOfWeightMaps);
-			zone_buffer::clear_pointer(&dest->blendShapeWeightMap);
+			buf->clear_pointer(&dest->blendShapeWeightMap);
 		}
 		//dest->blendShapeWeightMap = nullptr;
 		//dest->numberOfWeightMaps = 0;
@@ -414,7 +414,7 @@ namespace zonetool::s1
 				dest_mdaoVolumes[i].volumeData = reinterpret_cast<GfxImage*>(zone->get_asset_pointer(
 					ASSET_TYPE_IMAGE, data->mdaoVolumes[i].volumeData->name));
 			}
-			zone_buffer::clear_pointer(&dest->mdaoVolumes);
+			buf->clear_pointer(&dest->mdaoVolumes);
 		}
 		//dest->mdaoVolumes = nullptr;
 		//dest->mdaoVolumeCount = 0;
@@ -428,7 +428,7 @@ namespace zonetool::s1
 				dest_compositeModels[i] = reinterpret_cast<XModel*>(zone->get_asset_pointer(
 					ASSET_TYPE_XMODEL, data->compositeModels[i]->name));
 			}
-			zone_buffer::clear_pointer(&dest->compositeModels);
+			buf->clear_pointer(&dest->compositeModels);
 		}
 		//dest->compositeModels = nullptr;
 		//dest->numCompositeModels = 0;
@@ -462,7 +462,7 @@ namespace zonetool::s1
 						ASSET_TYPE_PHYSCOLLMAP, data->bonePhysics[i].physCollmap->name));
 				}
 			}
-			zone_buffer::clear_pointer(&dest->bonePhysics);
+			buf->clear_pointer(&dest->bonePhysics);
 		}
 		//dest->bonePhysics = nullptr;
 		//dest->numBonePhysics = 0;

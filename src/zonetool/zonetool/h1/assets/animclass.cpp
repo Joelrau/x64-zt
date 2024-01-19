@@ -292,35 +292,35 @@ namespace zonetool::h1
 					{
 						buf->align(3);
 						buf->write(data_states[i].aimSet);
-						zone_buffer::clear_pointer(&dest_states[i].aimSet);
+						buf->clear_pointer(&dest_states[i].aimSet);
 					}
 
 					if (data_states[i].animEntries)
 					{
 						buf->align(3);
 						buf->write(data_states[i].animEntries, data_states[i].entryCount);
-						zone_buffer::clear_pointer(&dest_states[i].animEntries);
+						buf->clear_pointer(&dest_states[i].animEntries);
 					}
 
 					if (data_states[i].animIndices)
 					{
 						buf->align(3);
 						buf->write(data_states[i].animIndices, data_states[i].entryCount);
-						zone_buffer::clear_pointer(&dest_states[i].animIndices);
+						buf->clear_pointer(&dest_states[i].animIndices);
 					}
 				}
 
-				zone_buffer::clear_pointer(&dest_state_machine->states);
+				buf->clear_pointer(&dest_state_machine->states);
 			}
 
 			if (data_state_machine->aimSets)
 			{
 				buf->align(3);
 				buf->write(data_state_machine->aimSets, data_state_machine->aimSetCount);
-				zone_buffer::clear_pointer(&dest_state_machine->aimSets);
+				buf->clear_pointer(&dest_state_machine->aimSets);
 			}
 
-			zone_buffer::clear_pointer(&dest->stateMachine);
+			buf->clear_pointer(&dest->stateMachine);
 		}
 
 		if (data->scriptable)
@@ -333,28 +333,28 @@ namespace zonetool::h1
 		{
 			buf->align(3);
 			buf->write(data->soundNotes, data->soundCount);
-			zone_buffer::clear_pointer(&dest->soundNotes);
+			buf->clear_pointer(&dest->soundNotes);
 		}
 
 		if (data->soundNames)
 		{
 			buf->align(3);
 			buf->write(data->soundNames, data->soundCount);
-			zone_buffer::clear_pointer(&dest->soundNames);
+			buf->clear_pointer(&dest->soundNames);
 		}
 
 		if (data->soundOptions)
 		{
 			buf->align(3);
 			buf->write(data->soundOptions, data->soundCount);
-			zone_buffer::clear_pointer(&dest->soundOptions);
+			buf->clear_pointer(&dest->soundOptions);
 		}
 
 		if (data->effectNotes)
 		{
 			buf->align(3);
 			buf->write(data->effectNotes, data->effectCount);
-			zone_buffer::clear_pointer(&dest->effectNotes);
+			buf->clear_pointer(&dest->effectNotes);
 		}
 
 		if (data->effectDefs)
@@ -366,14 +366,14 @@ namespace zonetool::h1
 				dest->effectDefs[i] = reinterpret_cast<FxEffectDef*>(zone->get_asset_pointer(
 					ASSET_TYPE_FX, data->effectDefs[i]->name));
 			}
-			zone_buffer::clear_pointer(&dest->effectDefs);
+			buf->clear_pointer(&dest->effectDefs);
 		}
 
 		if (data->effectTags)
 		{
 			buf->align(3);
 			buf->write(data->effectTags, data->effectCount);
-			zone_buffer::clear_pointer(&dest->effectTags);
+			buf->clear_pointer(&dest->effectTags);
 		}
 
 		buf->pop_stream();

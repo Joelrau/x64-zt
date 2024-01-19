@@ -328,7 +328,7 @@ namespace zonetool::h1
 				buf->align(7);
 				buf->write(&ptr);
 				buf->write_str(data->data.playSound.alias->name);
-				zone_buffer::clear_pointer(&dest->data.playSound.alias);
+				buf->clear_pointer(&dest->data.playSound.alias);
 			}
 			break;
 		case SCRIPTABLE_EVENT_ANIMATION:
@@ -427,13 +427,13 @@ namespace zonetool::h1
 								write_scriptable_event_def(zone, buf, &data->parts[i].states[j].onEnterEvents[k],
 									&destevents[k]);
 							}
-							zone_buffer::clear_pointer(&deststates[j].onEnterEvents);
+							buf->clear_pointer(&deststates[j].onEnterEvents);
 						}
 					}
-					zone_buffer::clear_pointer(&destparts[i].states);
+					buf->clear_pointer(&destparts[i].states);
 				}
 			}
-			zone_buffer::clear_pointer(&dest->parts);
+			buf->clear_pointer(&dest->parts);
 		}
 
 		if (data->notetracks)
@@ -452,7 +452,7 @@ namespace zonetool::h1
 							buf->align(7);
 							buf->write(&ptr);
 							buf->write_str(data->notetracks[i].data.playSound.alias->name);
-							zone_buffer::clear_pointer(&destnotetracks[i].data.playSound.alias);
+							buf->clear_pointer(&destnotetracks[i].data.playSound.alias);
 						}
 					}
 				}
@@ -465,7 +465,7 @@ namespace zonetool::h1
 					}
 				}
 			}
-			zone_buffer::clear_pointer(&dest->notetracks);
+			buf->clear_pointer(&dest->notetracks);
 		}
 
 		buf->pop_stream();

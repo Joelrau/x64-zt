@@ -384,14 +384,14 @@ namespace zonetool::h2
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->textureTable);
+			buf->clear_pointer(&dest->textureTable);
 		}
 
 		if (data->constantTable)
 		{
 			/*buf->align(15);
 			dest->constantTable = buf->write(data->constantTable, data->constantCount);
-			zone_buffer::clear_pointer(&dest->constantTable);*/
+			buf->clear_pointer(&dest->constantTable);*/
 			dest->constantTable = buf->write_s(15, data->constantTable, data->constantCount);
 		}
 
@@ -399,7 +399,7 @@ namespace zonetool::h2
 		{
 			/*buf->align(3);
 			dest->stateMap = buf->write(data->stateMap, data->stateBitsCount);
-			zone_buffer::clear_pointer(&dest->stateMap);*/
+			buf->clear_pointer(&dest->stateMap);*/
 			dest->stateBitsTable = buf->write_s(3, data->stateBitsTable, data->stateBitsCount);
 		}
 
@@ -446,7 +446,7 @@ namespace zonetool::h2
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->constantBufferTable);
+			buf->clear_pointer(&dest->constantBufferTable);
 		}
 
 		if (data->subMaterials)
@@ -457,7 +457,7 @@ namespace zonetool::h2
 			{
 				dest->subMaterials[i] = buf->write_str(data->subMaterials[i]);
 			}
-			zone_buffer::clear_pointer(&dest->subMaterials);
+			buf->clear_pointer(&dest->subMaterials);
 		}
 
 		buf->pop_stream();

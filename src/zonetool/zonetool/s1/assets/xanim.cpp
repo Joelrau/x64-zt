@@ -332,13 +332,13 @@ namespace zonetool::s1
 		{
 			buf->align(3);
 			buf->write(data->names, data->boneCount[9]);
-			zone_buffer::clear_pointer(&dest->names);
+			buf->clear_pointer(&dest->names);
 		}
 		if (data->notify) // notetracks
 		{
 			buf->align(3);
 			buf->write(data->notify, data->notifyCount);
-			zone_buffer::clear_pointer(&dest->notify);
+			buf->clear_pointer(&dest->notify);
 		}
 
 		if (data->deltaPart) // XAnimDeltaParts
@@ -381,7 +381,7 @@ namespace zonetool::s1
 				{
 					buf->write_stream(partdata->trans->u.frame0, sizeof(float), 3);
 				}
-				zone_buffer::clear_pointer(&partdest->trans);
+				buf->clear_pointer(&partdest->trans);
 			}
 
 			if (partdata->quat2)
@@ -411,7 +411,7 @@ namespace zonetool::s1
 				{
 					buf->write_stream(partdata->quat2->u.frame0, sizeof(short) * 2, 1);
 				}
-				zone_buffer::clear_pointer(&partdest->quat2);
+				buf->clear_pointer(&partdest->quat2);
 			}
 
 			if (partdata->quat)
@@ -442,7 +442,7 @@ namespace zonetool::s1
 				{
 					buf->write_stream(partdata->quat->u.frame0, sizeof(short) * 4, 1);
 				}
-				zone_buffer::clear_pointer(&partdest->quat);
+				buf->clear_pointer(&partdest->quat);
 			}
 		}
 
@@ -503,21 +503,21 @@ namespace zonetool::s1
 		{
 			buf->align(3);
 			buf->write(data->blendShapeWeightNames, data->blendShapeWeightCount);
-			zone_buffer::clear_pointer(&dest->blendShapeWeightNames);
+			buf->clear_pointer(&dest->blendShapeWeightNames);
 		}
 
 		if (data->blendShapeWeightUnknown1)
 		{
 			buf->align(0);
 			buf->write_stream(data->blendShapeWeightUnknown1, sizeof(*data->blendShapeWeightUnknown1) * data->blendShapeWeightCount);
-			zone_buffer::clear_pointer(&dest->blendShapeWeightUnknown1);
+			buf->clear_pointer(&dest->blendShapeWeightUnknown1);
 		}
 
 		if (data->blendShapeWeightUnknown2)
 		{
 			buf->align(1);
 			buf->write_stream(data->blendShapeWeightUnknown2, sizeof(*data->blendShapeWeightUnknown2) * data->blendShapeWeightCount);
-			zone_buffer::clear_pointer(&dest->blendShapeWeightUnknown2);
+			buf->clear_pointer(&dest->blendShapeWeightUnknown2);
 		}
 
 		if (data->blendShapeWeightUnknown3)
@@ -525,7 +525,7 @@ namespace zonetool::s1
 			buf->align(1);
 			buf->write_stream(data->blendShapeWeightUnknown3, 
 				sizeof(*data->blendShapeWeightUnknown3) * static_cast<int>(GetTotalNumberOfBlendShapeKeys(data)));
-			zone_buffer::clear_pointer(&dest->blendShapeWeightUnknown3);
+			buf->clear_pointer(&dest->blendShapeWeightUnknown3);
 		}
 
 		if (data->blendShapeWeightUnknown4)
@@ -533,21 +533,21 @@ namespace zonetool::s1
 			buf->align(1);
 			buf->write_stream(data->blendShapeWeightUnknown4, 
 				sizeof(*data->blendShapeWeightUnknown4) * (static_cast<int>(GetTotalNumberOfBlendShapeKeys(data)) + 2 * data->blendShapeWeightCount));
-			zone_buffer::clear_pointer(&dest->blendShapeWeightUnknown4);
+			buf->clear_pointer(&dest->blendShapeWeightUnknown4);
 		}
 
 		if (data->blendShapeWeights)
 		{
 			buf->align(3);
 			buf->write_stream(data->blendShapeWeights, sizeof(*data->blendShapeWeights)* (data->blendShapeWeightCount* (data->numframes + 1)));
-			zone_buffer::clear_pointer(&dest->blendShapeWeights);
+			buf->clear_pointer(&dest->blendShapeWeights);
 		}
 
 		if (data->scriptedViewmodelAnimData)
 		{
 			buf->align(3);
 			buf->write_stream(data->scriptedViewmodelAnimData, 8);
-			zone_buffer::clear_pointer(&dest->scriptedViewmodelAnimData);
+			buf->clear_pointer(&dest->scriptedViewmodelAnimData);
 		}
 
 		buf->pop_stream();

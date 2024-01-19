@@ -7,6 +7,12 @@ namespace compression
 {
 	namespace lz4
 	{
+		struct compressed_block_header_extra // iw7
+		{
+			int unknown; // always 0
+			int max_block_size;
+		};
+
 		struct compressed_block_header
 		{
 			int uncompressed_size;

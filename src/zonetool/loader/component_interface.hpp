@@ -2,6 +2,11 @@
 
 #include "game/mode.hpp"
 
+enum component_priority : std::int32_t
+{
+	min = 0,
+};
+
 class component_interface
 {
 public:
@@ -33,6 +38,11 @@ public:
 	virtual bool is_supported()
 	{
 		return true;
+	}
+
+	virtual component_priority priority()
+	{
+		return component_priority::min;
 	}
 
 	game::game_mode target_mode{game::game_mode::none};

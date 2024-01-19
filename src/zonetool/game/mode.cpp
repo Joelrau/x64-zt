@@ -7,14 +7,20 @@ namespace game
 {
 	namespace
 	{
-		std::unordered_map<game_mode, std::string> game_mode_map =
+		std::unordered_map<game_mode, std::string>& get_game_mode_map()
 		{
-			{none, "none"},
-			{iw6, "iw6"},
-			{s1, "s1"},
-			{h1, "h1"},
-			{h2, "h2"},
-		};
+			static std::unordered_map<game_mode, std::string> game_mode_map =
+			{
+				{none, "none"},
+				{iw6, "iw6"},
+				{s1, "s1"},
+				{h1, "h1"},
+				{h2, "h2"},
+				{iw7, "iw7"},
+			};
+
+			return game_mode_map;
+		}
 
 		std::string format_postfix(const std::string& name)
 		{
@@ -26,8 +32,8 @@ namespace game
 
 	std::string get_mode_as_string(game_mode mode)
 	{
-		const auto iter = game_mode_map.find(mode);
-		if (iter != game_mode_map.end())
+		const auto iter = get_game_mode_map().find(mode);
+		if (iter != get_game_mode_map().end())
 		{
 			return iter->second;
 		}
@@ -38,7 +44,7 @@ namespace game
 	game_mode get_mode_from_string(const std::string& name)
 	{
 		const auto lower = utils::string::to_lower(name);
-		for (const auto& [mode, game_name] : game_mode_map)
+		for (const auto& [mode, game_name] : get_game_mode_map())
 		{
 			if (game_name == lower)
 			{
@@ -51,7 +57,7 @@ namespace game
 
 	game_mode get_source(const std::string& string)
 	{
-		for (const auto& [mode, name] : game_mode_map)
+		for (const auto& [mode, name] : get_game_mode_map())
 		{
 			const auto postfix = format_postfix(name);
 			if (string.ends_with(postfix))

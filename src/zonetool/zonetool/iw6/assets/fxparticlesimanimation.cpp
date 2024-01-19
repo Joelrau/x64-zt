@@ -97,19 +97,19 @@ namespace zonetool::iw6
 		{
 			buf->align(31);
 			buf->write(data->particleData, data->header.particleDataCount);
-			zone_buffer::clear_pointer(&dest->particleData);
+			buf->clear_pointer(&dest->particleData);
 		}
 		if (data->frames)
 		{
 			buf->align(3);
 			buf->write(data->frames, data->header.frameCount);
-			zone_buffer::clear_pointer(&dest->frames);
+			buf->clear_pointer(&dest->frames);
 		}
 		if (data->colorTable)
 		{
 			buf->align(3);
 			buf->write(data->colorTable, data->header.colorTableSize);
-			zone_buffer::clear_pointer(&dest->colorTable);
+			buf->clear_pointer(&dest->colorTable);
 		}
 
 		buf->pop_stream();

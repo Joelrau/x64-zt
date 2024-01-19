@@ -96,7 +96,7 @@ namespace zonetool::h1
 					strings[i] = buf->write_str(data->stringList[i]);
 				}
 			}
-			zone_buffer::clear_pointer(&dest->stringList);
+			buf->clear_pointer(&dest->stringList);
 		}
 
 		buf->pop_stream();

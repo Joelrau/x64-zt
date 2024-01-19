@@ -128,7 +128,7 @@ namespace zonetool::h1
 		{
 			buf->align(3);
 			buf->write(data->brushModels, data->brushModelCount);
-			zone_buffer::clear_pointer(&dest->brushModels);
+			buf->clear_pointer(&dest->brushModels);
 		}
 
 		if (data->polytopeDatas)
@@ -144,45 +144,45 @@ namespace zonetool::h1
 				{
 					buf->align(15);
 					buf->write(data_poly_data->vec4_array0, data_poly_data->m_vertexCount);
-					zone_buffer::clear_pointer(&dest_poly_data->vec4_array0);
+					buf->clear_pointer(&dest_poly_data->vec4_array0);
 				}
 
 				if (data_poly_data->vec4_array1)
 				{
 					buf->align(15);
 					buf->write(data_poly_data->vec4_array1, data_poly_data->m_faceCount);
-					zone_buffer::clear_pointer(&dest_poly_data->vec4_array1);
+					buf->clear_pointer(&dest_poly_data->vec4_array1);
 				}
 
 				if (data_poly_data->m_aSubEdges)
 				{
 					buf->align(3);
 					buf->write(data_poly_data->m_aSubEdges, data_poly_data->m_subEdgeCount);
-					zone_buffer::clear_pointer(&dest_poly_data->m_aSubEdges);
+					buf->clear_pointer(&dest_poly_data->m_aSubEdges);
 				}
 
 				if (data_poly_data->m_aFaceSubEdges)
 				{
 					buf->align(0);
 					buf->write(data_poly_data->m_aFaceSubEdges, data_poly_data->m_faceCount);
-					zone_buffer::clear_pointer(&dest_poly_data->m_aFaceSubEdges);
+					buf->clear_pointer(&dest_poly_data->m_aFaceSubEdges);
 				}
 
 				if (data_poly_data->uint16_array0)
 				{
 					buf->align(1);
 					buf->write(data_poly_data->uint16_array0, data_poly_data->m_faceCount);
-					zone_buffer::clear_pointer(&dest_poly_data->uint16_array0);
+					buf->clear_pointer(&dest_poly_data->uint16_array0);
 				}
 
 				if (data_poly_data->uint16_array1)
 				{
 					buf->align(1);
 					buf->write(data_poly_data->uint16_array1, data_poly_data->m_vertexCount);
-					zone_buffer::clear_pointer(&dest_poly_data->uint16_array1);
+					buf->clear_pointer(&dest_poly_data->uint16_array1);
 				}
 			}
-			zone_buffer::clear_pointer(&dest->polytopeDatas);
+			buf->clear_pointer(&dest->polytopeDatas);
 		}
 
 		if (data->meshDatas)
@@ -198,24 +198,24 @@ namespace zonetool::h1
 				{
 					buf->align(15);
 					buf->write(data_mesh_data->m_pRoot, data_mesh_data->m_nodeCount);
-					zone_buffer::clear_pointer(&dest_mesh_data->m_pRoot);
+					buf->clear_pointer(&dest_mesh_data->m_pRoot);
 				}
 
 				if (data_mesh_data->m_aVertices)
 				{
 					buf->align(15);
 					buf->write(data_mesh_data->m_aVertices, data_mesh_data->m_vertexCount);
-					zone_buffer::clear_pointer(&dest_mesh_data->m_aVertices);
+					buf->clear_pointer(&dest_mesh_data->m_aVertices);
 				}
 
 				if (data_mesh_data->m_aTriangles)
 				{
 					buf->align(3);
 					buf->write(data_mesh_data->m_aTriangles, data_mesh_data->m_triangleCount);
-					zone_buffer::clear_pointer(&dest_mesh_data->m_aTriangles);
+					buf->clear_pointer(&dest_mesh_data->m_aTriangles);
 				}
 			}
-			zone_buffer::clear_pointer(&dest->meshDatas);
+			buf->clear_pointer(&dest->meshDatas);
 		}
 
 		if (data->waterVolumeDefs)
@@ -233,7 +233,7 @@ namespace zonetool::h1
 						zone->get_asset_pointer(ASSET_TYPE_PHYSWATERPRESET, data->waterVolumeDefs->physWaterPreset->name));
 				}
 			}
-			zone_buffer::clear_pointer(&dest->waterVolumeDefs);
+			buf->clear_pointer(&dest->waterVolumeDefs);
 		}
 		buf->pop_stream();
 	}

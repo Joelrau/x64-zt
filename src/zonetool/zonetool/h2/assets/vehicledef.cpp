@@ -449,7 +449,7 @@ namespace zonetool::h2
 			buf->align(7); \
 			buf->write(&ptr); \
 			buf->write_str(data->__field__->name); \
-			zone_buffer::clear_pointer(&dest->__field__); \
+			buf->clear_pointer(&dest->__field__); \
 		}
 
 		buf->push_stream(XFILE_BLOCK_VIRTUAL);

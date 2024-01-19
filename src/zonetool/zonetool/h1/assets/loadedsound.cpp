@@ -425,7 +425,7 @@ namespace zonetool::h1
 		{
 			buf->align(0);
 			buf->write(data->info.data, data->info.loadedSize);
-			zone_buffer::clear_pointer(&dest->info.data);
+			buf->clear_pointer(&dest->info.data);
 		}
 
 		buf->pop_stream();

@@ -25,8 +25,8 @@ FARPROC loader::load(const utils::nt::library& library, const std::string& buffe
 		.get_optional_header()->DataDirectory[
 			IMAGE_DIRECTORY_ENTRY_IMPORT];
 	std::memmove(library.get_nt_headers(), source.get_nt_headers(),
-	             sizeof(IMAGE_NT_HEADERS) + source.get_nt_headers()->FileHeader.NumberOfSections * sizeof(
-		             IMAGE_SECTION_HEADER));
+		sizeof(IMAGE_NT_HEADERS) + source.get_nt_headers()->FileHeader.NumberOfSections * sizeof(
+			IMAGE_SECTION_HEADER));
 
 	return FARPROC(library.get_ptr() + source.get_relative_entry_point());
 }
@@ -36,7 +36,7 @@ FARPROC loader::load_library(const std::string& filename) const
 	const auto target = utils::nt::library::load(filename);
 	if (!target)
 	{
-		throw std::runtime_error{"Failed to map binary!"};
+		throw std::runtime_error{ "Failed to map binary!" };
 	}
 
 	this->load_imports(target, target);
@@ -45,13 +45,13 @@ FARPROC loader::load_library(const std::string& filename) const
 	return FARPROC(target.get_ptr() + target.get_relative_entry_point());
 }
 
-void loader::set_import_resolver(const std::function<void*(const std::string&, const std::string&)>& resolver)
+void loader::set_import_resolver(const std::function<void* (const std::string&, const std::string&)>& resolver)
 {
 	this->import_resolver_ = resolver;
 }
 
 void loader::load_section(const utils::nt::library& target, const utils::nt::library& source,
-                          IMAGE_SECTION_HEADER* section)
+	IMAGE_SECTION_HEADER* section)
 {
 	void* target_ptr = target.get_ptr() + section->VirtualAddress;
 	const void* source_ptr = source.get_ptr() + section->PointerToRawData;
@@ -109,7 +109,7 @@ void loader::load_imports(const utils::nt::library& target, const utils::nt::lib
 			}
 			else
 			{
-				auto* import = PIMAGE_IMPORT_BY_NAME(target.get_ptr() + *name_table_entry);
+				auto * import = PIMAGE_IMPORT_BY_NAME(target.get_ptr() + *name_table_entry);
 				function_name = import->Name;
 				function_procname = function_name.data();
 			}
@@ -127,7 +127,7 @@ void loader::load_imports(const utils::nt::library& target, const utils::nt::lib
 			if (!function)
 			{
 				throw std::runtime_error(utils::string::va("Unable to load import '%s' from library '%s'",
-				                                           function_name.data(), name.data()));
+					function_name.data(), name.data()));
 			}
 
 			utils::hook::set(address_table_entry, reinterpret_cast<uintptr_t>(function));
@@ -173,7 +173,7 @@ void loader::load_exception_table(const utils::nt::library& target, const utils:
 	}
 
 	seh::setup_handler(target.get_ptr(), target.get_ptr() + source.get_optional_header()->SizeOfImage, function_list,
-	                   entry_count);
+		entry_count);
 }
 
 void loader::load_tls(const utils::nt::library& target, const utils::nt::library& source) const
@@ -192,8 +192,8 @@ void loader::load_tls(const utils::nt::library& target, const utils::nt::library
 
 		DWORD old_protect;
 		VirtualProtect(PVOID(target_tls->StartAddressOfRawData),
-		               source_tls->EndAddressOfRawData - source_tls->StartAddressOfRawData, PAGE_READWRITE,
-		               &old_protect);
+			source_tls->EndAddressOfRawData - source_tls->StartAddressOfRawData, PAGE_READWRITE,
+			&old_protect);
 
 		auto* const tls_base = *reinterpret_cast<LPVOID*>(__readgsqword(0x58) + 8ull * tls_index);
 		std::memmove(tls_base, PVOID(source_tls->StartAddressOfRawData), tls_size);

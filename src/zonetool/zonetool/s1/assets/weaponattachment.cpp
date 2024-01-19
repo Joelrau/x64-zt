@@ -282,9 +282,9 @@ namespace zonetool::s1
 				buf->align(7); \
 				buf->write(&ptr); \
 				buf->write_str(data->__field__[i]->name); \
-				zone_buffer::clear_pointer(&dest_sounds[i]); \
+				buf->clear_pointer(&dest_sounds[i]); \
 			} \
-			zone_buffer::clear_pointer(&dest->__field__); \
+			buf->clear_pointer(&dest->__field__); \
 		}
 
 #define ATTACHMENT_SCRIPTSTRING_ARRAY(__field__,__count__) \
@@ -292,7 +292,7 @@ namespace zonetool::s1
 		{ \
 			buf->align(3); \
 			buf->write(data->__field__,__count__); \
-			zone_buffer::clear_pointer(&dest->__field__); \
+			buf->clear_pointer(&dest->__field__); \
 		}
 
 	void weapon_attachment::write(zone_base* zone, zone_buffer* buf)
@@ -324,7 +324,7 @@ namespace zonetool::s1
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->worldModels);
+			buf->clear_pointer(&dest->worldModels);
 		}
 
 		if (data->viewModels)
@@ -342,7 +342,7 @@ namespace zonetool::s1
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->viewModels);
+			buf->clear_pointer(&dest->viewModels);
 		}
 
 		if (data->reticleViewModels)
@@ -360,28 +360,28 @@ namespace zonetool::s1
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->reticleViewModels);
+			buf->clear_pointer(&dest->reticleViewModels);
 		}
 
 		if (data->chargeInfo)
 		{
 			buf->align(3);
 			buf->write(data->chargeInfo);
-			zone_buffer::clear_pointer(&dest->chargeInfo);
+			buf->clear_pointer(&dest->chargeInfo);
 		}
 
 		if (data->hybridSettings)
 		{
 			buf->align(3);
 			buf->write(data->hybridSettings);
-			zone_buffer::clear_pointer(&dest->hybridSettings);
+			buf->clear_pointer(&dest->hybridSettings);
 		}
 
 		if (data->waFieldOffsets)
 		{
 			buf->align(1);
 			buf->write(data->waFieldOffsets, data->waFieldsCount);
-			zone_buffer::clear_pointer(&dest->waFieldOffsets);
+			buf->clear_pointer(&dest->waFieldOffsets);
 		}
 
 		if (data->waFields)
@@ -406,7 +406,7 @@ namespace zonetool::s1
 					}
 				}
 			}
-			zone_buffer::clear_pointer(&dest->waFields);
+			buf->clear_pointer(&dest->waFields);
 		}
 
 		buf->pop_stream();

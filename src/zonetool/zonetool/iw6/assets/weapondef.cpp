@@ -1472,7 +1472,7 @@ namespace zonetool::iw6
 			buf->align(7); \
 			buf->write(&ptr); \
 			buf->write_str(data->__field__->name); \
-			zone_buffer::clear_pointer(&dest->__field__); \
+			buf->clear_pointer(&dest->__field__); \
 		}
 
 #define WEAPON_SUBASSET(__field__,__type__,__struct__) \
@@ -1486,7 +1486,7 @@ namespace zonetool::iw6
 		{ \
 			buf->align(3); \
 			buf->write(data->__field__,__count__); \
-			zone_buffer::clear_pointer(&dest->__field__); \
+			buf->clear_pointer(&dest->__field__); \
 		}
 
 #define WEAPON_ATTACHMENT(__field__,__max__) \
@@ -1505,7 +1505,7 @@ namespace zonetool::iw6
 				} \
 			} \
 			 \
-			zone_buffer::clear_pointer(&dest->__field__); \
+			buf->clear_pointer(&dest->__field__); \
 		}
 
 	void weapon_def::write_weapondef(zone_base* zone, zone_buffer* buf, WeaponCompleteDef* complete, WeaponDef* data)
@@ -1532,7 +1532,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->gunXModel);
+			buf->clear_pointer(&dest->gunXModel);
 		}
 
 		if (data->handXModel)
@@ -1585,7 +1585,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->camoMaterialTarget);
+			buf->clear_pointer(&dest->camoMaterialTarget);
 		}
 
 		if (data->szXAnimsRightHanded)
@@ -1603,7 +1603,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->szXAnimsRightHanded);
+			buf->clear_pointer(&dest->szXAnimsRightHanded);
 		}
 
 		if (data->szXAnimsLeftHanded)
@@ -1621,7 +1621,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->szXAnimsLeftHanded);
+			buf->clear_pointer(&dest->szXAnimsLeftHanded);
 		}
 
 		if (data->szModeName)
@@ -1650,7 +1650,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->notetrackFXMapValues);
+			buf->clear_pointer(&dest->notetrackFXMapValues);
 		}
 
 		WEAPON_SCRIPTSTRING_ARRAY(notetrackFXMapTagValues, 16);
@@ -1718,7 +1718,7 @@ namespace zonetool::iw6
 				WEAPON_SOUND_CUSTOM(bounceSound[i]);
 			}
 
-			zone_buffer::clear_pointer(&dest->bounceSound);
+			buf->clear_pointer(&dest->bounceSound);
 		}
 
 		if (data->rollingSound)
@@ -1731,7 +1731,7 @@ namespace zonetool::iw6
 				WEAPON_SOUND_CUSTOM(rollingSound[i]);
 			}
 
-			zone_buffer::clear_pointer(&dest->rollingSound);
+			buf->clear_pointer(&dest->rollingSound);
 		}
 
 		WEAPON_SUBASSET(viewShellEjectEffect, ASSET_TYPE_FX, FxEffectDef);
@@ -1757,7 +1757,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->worldModel);
+			buf->clear_pointer(&dest->worldModel);
 		}
 
 		WEAPON_SUBASSET(worldClipModel, ASSET_TYPE_XMODEL, XModel);
@@ -1864,7 +1864,7 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			buf->write(data->locationDamageMultipliers, 22);
-			zone_buffer::clear_pointer(&dest->locationDamageMultipliers);
+			buf->clear_pointer(&dest->locationDamageMultipliers);
 		}
 
 		if (data->fireRumble)
@@ -1914,7 +1914,7 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			write_weapondef(zone, buf, data, data->weapDef);
-			zone_buffer::clear_pointer(&dest->weapDef);
+			buf->clear_pointer(&dest->weapDef);
 		}
 
 		if (data->szDisplayName)
@@ -1926,7 +1926,7 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			buf->write(data->hideTags, 32);
-			zone_buffer::clear_pointer(&dest->hideTags);
+			buf->clear_pointer(&dest->hideTags);
 		}
 
 		WEAPON_ATTACHMENT(scopes, 6);
@@ -1948,7 +1948,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->szXAnims);
+			buf->clear_pointer(&dest->szXAnims);
 		}
 
 		if (data->animOverrides)
@@ -1973,7 +1973,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->animOverrides);
+			buf->clear_pointer(&dest->animOverrides);
 		}
 
 		if (data->soundOverrides)
@@ -1994,7 +1994,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->soundOverrides);
+			buf->clear_pointer(&dest->soundOverrides);
 		}
 
 		if (data->fxOverrides)
@@ -2019,14 +2019,14 @@ namespace zonetool::iw6
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->fxOverrides);
+			buf->clear_pointer(&dest->fxOverrides);
 		}
 
 		if (data->reloadOverrides)
 		{
 			buf->align(3);
 			buf->write(data->reloadOverrides, data->numReloadStateTimerOverrides);
-			zone_buffer::clear_pointer(&dest->reloadOverrides);
+			buf->clear_pointer(&dest->reloadOverrides);
 		}
 
 		if (data->notetrackOverrides)
@@ -2040,18 +2040,18 @@ namespace zonetool::iw6
 				{
 					buf->align(3);
 					buf->write(data->notetrackOverrides[i].notetrackSoundMapKeys, 24);
-					zone_buffer::clear_pointer(&destNoteTrackOverrides[i].notetrackSoundMapKeys);
+					buf->clear_pointer(&destNoteTrackOverrides[i].notetrackSoundMapKeys);
 				}
 
 				if (destNoteTrackOverrides[i].notetrackSoundMapValues)
 				{
 					buf->align(3);
 					buf->write(data->notetrackOverrides[i].notetrackSoundMapValues, 24);
-					zone_buffer::clear_pointer(&destNoteTrackOverrides[i].notetrackSoundMapValues);
+					buf->clear_pointer(&destNoteTrackOverrides[i].notetrackSoundMapValues);
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->notetrackOverrides);
+			buf->clear_pointer(&dest->notetrackOverrides);
 		}
 
 		if (data->szAltWeaponName)
@@ -2077,14 +2077,14 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			buf->write(data->accuracyGraphKnots[0], data->accuracyGraphKnotCount[0]);
-			zone_buffer::clear_pointer(&dest->accuracyGraphKnots[0]);
+			buf->clear_pointer(&dest->accuracyGraphKnots[0]);
 		}
 
 		if (data->accuracyGraphKnots[1])
 		{
 			buf->align(3);
 			buf->write(data->accuracyGraphKnots[1], data->accuracyGraphKnotCount[1]);
-			zone_buffer::clear_pointer(&dest->accuracyGraphKnots[1]);
+			buf->clear_pointer(&dest->accuracyGraphKnots[1]);
 		}
 
 		if (data->szAdsrBaseSetting)

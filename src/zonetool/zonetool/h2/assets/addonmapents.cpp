@@ -134,7 +134,7 @@ namespace zonetool::h2
 		{
 			buf->align(0);
 			buf->write(data->entityString, data->numEntityChars);
-			zone_buffer::clear_pointer(&dest->entityString);
+			buf->clear_pointer(&dest->entityString);
 		}
 
 		write_triggers(buf, &dest->trigger);

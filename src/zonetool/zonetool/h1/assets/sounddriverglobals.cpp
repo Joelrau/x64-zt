@@ -77,7 +77,7 @@ namespace zonetool::h1
 		{
 			buf->align(3);
 			buf->write(data->reverbSettings, 26);
-			zone_buffer::clear_pointer(&dest->reverbSettings);
+			buf->clear_pointer(&dest->reverbSettings);
 		}
 
 		buf->pop_stream();

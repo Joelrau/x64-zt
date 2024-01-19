@@ -90,14 +90,14 @@ namespace zonetool::s1
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->primaryLights);
+			buf->clear_pointer(&dest->primaryLights);
 		}
 
 		if (data->primaryLightEnvs)
 		{
 			buf->align(3);
 			buf->write(data->primaryLightEnvs, data->primaryLightEnvCount);
-			zone_buffer::clear_pointer(&dest->primaryLightEnvs);
+			buf->clear_pointer(&dest->primaryLightEnvs);
 		}
 
 		buf->pop_stream();

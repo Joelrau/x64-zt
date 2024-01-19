@@ -6,8 +6,6 @@
 
 namespace zonetool
 {
-	constexpr auto zone_stream_runtime = 2;
-
 	struct sub_zone_buffer
 	{
 		std::size_t start;
@@ -24,8 +22,15 @@ namespace zonetool
 		
 		zone_buffer(const std::vector<std::uint8_t>& data);
 		zone_buffer(const std::size_t size);
+
+		std::uint32_t zone_stream_runtime;
+		std::uint64_t data_following;
+		std::uint64_t data_offset;
+		std::uint64_t data_ptr;
+		std::uint64_t data_shared; // iw7
 		
 		void init();
+		void set_fields(std::uint32_t zone_stream_runtime_, std::uint64_t data_following_, std::uint64_t data_offset_, std::uint64_t data_ptr_, std::uint64_t data_shared_ = 0);
 
 		std::size_t get_stream_pos()
 		{
@@ -75,7 +80,7 @@ namespace zonetool
 		T* write_s(const std::size_t alignment, T* data, const std::size_t count = 1, 
 			const std::size_t size = sizeof(T), T** out_pointer = nullptr)
 		{
-			if (this->stream_ != zone_stream_runtime)
+			if (this->stream_ != this->zone_stream_runtime)
 			{
 				if (!data)
 				{
@@ -112,13 +117,13 @@ namespace zonetool
 				*out_pointer = this->at<T>();
 			}
 
-			if (this->stream_ != zone_stream_runtime)
+			if (this->stream_ != this->zone_stream_runtime)
 			{
 				this->insert_sub_buffer(data, count, size);
 				this->write<T>(data, count);
 			}
 
-			return reinterpret_cast<T*>(0xFDFDFDFFFFFFFFFF);
+			return reinterpret_cast<T*>(this->data_following);
 		}
 
 		void init_streams(const std::size_t num_streams);
@@ -137,6 +142,7 @@ namespace zonetool
 			return dest;
 		}
 
+		std::vector<std::uint8_t>* buffer_raw();
 		std::uint8_t* buffer();
 		std::size_t size();
 		void clear();
@@ -179,15 +185,15 @@ namespace zonetool
 		std::size_t sas_count();
 
 		template <typename T>
-		static void insert_pointer(T* ptr)
+		void insert_pointer(T* ptr)
 		{
-			*reinterpret_cast<std::size_t*>(ptr) = static_cast<std::size_t>(0xFDFDFDFFFFFFFFFE);
+			*reinterpret_cast<std::size_t*>(ptr) = static_cast<std::size_t>(this->data_ptr);
 		}
 
 		template <typename T>
-		static void clear_pointer(T* ptr)
+		void clear_pointer(T* ptr)
 		{
-			*reinterpret_cast<std::size_t*>(ptr) = static_cast<std::size_t>(0xFDFDFDFFFFFFFFFF);
+			*reinterpret_cast<std::size_t*>(ptr) = static_cast<std::size_t>(this->data_following);
 		}
 
 		void save(const std::string& filename, bool use_zone_path = true);

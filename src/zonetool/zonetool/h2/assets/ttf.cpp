@@ -82,7 +82,7 @@ namespace zonetool::h2
 		{
 			buf->align(0);
 			buf->write(data->file, data->fileLen + 1);
-			zone_buffer::clear_pointer(&dest->file);
+			buf->clear_pointer(&dest->file);
 		}
 
 		buf->pop_stream();

@@ -1,6 +1,8 @@
 #include <std_include.hpp>
 #include "steam.hpp"
 
+#include "game/mode.hpp"
+
 #include <utils/nt.hpp>
 
 namespace steam
@@ -110,6 +112,17 @@ namespace steam
 
 	bool SteamAPI_Init()
 	{
+		if (game::get_mode() == game::game_mode::iw7)
+		{
+			const std::filesystem::path steam_path = SteamAPI_GetSteamInstallPath();
+			if (steam_path.empty()) return false;
+
+			::utils::nt::library::load(steam_path / "tier0_s64.dll");
+			::utils::nt::library::load(steam_path / "vstdlib_s64.dll");
+			::utils::nt::library::load(steam_path / "gameoverlayrenderer64.dll");
+			::utils::nt::library::load(steam_path / "steamclient64.dll");
+		}
+
 		return true;
 	}
 

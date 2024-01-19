@@ -774,7 +774,7 @@ namespace zonetool::h1
 			buf->align(7); \
 			buf->write(&ptr); \
 			buf->write_str(data->__field__->name); \
-			zone_buffer::clear_pointer(&dest->__field__); \
+			buf->clear_pointer(&dest->__field__); \
 		}
 
 		buf->push_stream(XFILE_BLOCK_VIRTUAL);
@@ -791,7 +791,7 @@ namespace zonetool::h1
 		{
 			buf->align(3);
 			buf->write(data->vehPhysDef.physMass);
-			zone_buffer::clear_pointer(&dest->vehPhysDef.physMass);
+			buf->clear_pointer(&dest->vehPhysDef.physMass);
 		}
 
 		VEHICLE_STRING(vehPhysDef.accelGraphName);

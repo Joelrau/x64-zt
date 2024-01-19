@@ -52,6 +52,7 @@ public:
 	static void post_unpack();
 	static void pre_destroy();
 	static void clean();
+	static void sort();
 
 	static void* load_import(const std::string& library, const std::string& function);
 
@@ -89,4 +90,10 @@ namespace \
 namespace \
 { \
 	static component_loader::installer<name> __component = component_loader::installer<name>(game::game_mode::iw6, #name); \
+}
+
+#define REGISTER_COMPONENT_IW7(name) \
+namespace \
+{ \
+	static component_loader::installer<name> __component = component_loader::installer<name>(game::game_mode::iw7, #name); \
 }

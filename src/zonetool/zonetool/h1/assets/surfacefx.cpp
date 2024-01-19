@@ -138,7 +138,7 @@ namespace zonetool::h1
 					}
 				}
 			}
-			zone_buffer::clear_pointer(&dest->table);
+			buf->clear_pointer(&dest->table);
 		}
 
 		buf->pop_stream();

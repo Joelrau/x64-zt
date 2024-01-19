@@ -477,7 +477,7 @@ namespace zonetool::iw6
 			buf->align(3);
 			auto destInfo = buf->write(data->pInfo);
 			write_info(zone, buf, data->pInfo, destInfo);
-			zone_buffer::clear_pointer(&dest->pInfo);
+			buf->clear_pointer(&dest->pInfo);
 		}
 		buf->pop_stream();
 
@@ -493,7 +493,7 @@ namespace zonetool::iw6
 						ASSET_TYPE_XMODEL, data->staticModelList[i].xmodel->name));
 				}
 			}
-			zone_buffer::clear_pointer(&dest->staticModelList);
+			buf->clear_pointer(&dest->staticModelList);
 		}
 
 		if (data->nodes)
@@ -507,42 +507,42 @@ namespace zonetool::iw6
 					nodes[i].plane = buf->write_s(3, data->nodes[i].plane);
 				}
 			}
-			zone_buffer::clear_pointer(&dest->nodes);
+			buf->clear_pointer(&dest->nodes);
 		}
 
 		if (data->leafs)
 		{
 			buf->align(3);
 			buf->write(data->leafs, data->numLeafs);
-			zone_buffer::clear_pointer(&dest->leafs);
+			buf->clear_pointer(&dest->leafs);
 		}
 
 		if (data->verts)
 		{
 			buf->align(3);
 			buf->write(data->verts, data->vertCount);
-			zone_buffer::clear_pointer(&dest->verts);
+			buf->clear_pointer(&dest->verts);
 		}
 
 		if (data->triIndices)
 		{
 			buf->align(1);
 			buf->write(data->triIndices, data->triCount * 3);
-			zone_buffer::clear_pointer(&dest->triIndices);
+			buf->clear_pointer(&dest->triIndices);
 		}
 
 		if (data->triEdgeIsWalkable)
 		{
 			buf->align(0);
 			buf->write(data->triEdgeIsWalkable, ((data->triCount + 2 * data->triCount + 31) >> 3) & 0xFFFFFFFFFFFFFFFCui64);
-			zone_buffer::clear_pointer(&dest->triEdgeIsWalkable);
+			buf->clear_pointer(&dest->triEdgeIsWalkable);
 		}
 
 		if (data->borders)
 		{
 			buf->align(3);
 			buf->write(data->borders, data->borderCount);
-			zone_buffer::clear_pointer(&dest->borders);
+			buf->clear_pointer(&dest->borders);
 		}
 
 		if (data->partitions)
@@ -556,14 +556,14 @@ namespace zonetool::iw6
 					destpartitions[i].borders = buf->write_s(3, data->partitions[i].borders);
 				}
 			}
-			zone_buffer::clear_pointer(&dest->partitions);
+			buf->clear_pointer(&dest->partitions);
 		}
 
 		if (data->aabbTrees)
 		{
 			buf->align(15);
 			buf->write(data->aabbTrees, data->aabbTreeCount);
-			zone_buffer::clear_pointer(&dest->aabbTrees);
+			buf->clear_pointer(&dest->aabbTrees);
 		}
 
 		if (data->cmodels)
@@ -576,14 +576,14 @@ namespace zonetool::iw6
 				destcmodels[i].info = info_ptr;
 			}
 
-			zone_buffer::clear_pointer(&dest->cmodels);
+			buf->clear_pointer(&dest->cmodels);
 		}
 
 		if (data->smodelNodes)
 		{
 			buf->align(3);
 			buf->write(data->smodelNodes, data->smodelNodeCount);
-			zone_buffer::clear_pointer(&dest->smodelNodes);
+			buf->clear_pointer(&dest->smodelNodes);
 		}
 
 		if (data->mapEnts)
@@ -604,7 +604,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->stages);
+			buf->clear_pointer(&dest->stages);
 		}
 
 		// copy trigger data from mapents
@@ -656,7 +656,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->dynEntDefList[0]);
+			buf->clear_pointer(&dest->dynEntDefList[0]);
 		}
 
 		if (data->dynEntDefList[1])
@@ -693,7 +693,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->dynEntDefList[1]);
+			buf->clear_pointer(&dest->dynEntDefList[1]);
 		}
 
 		buf->push_stream(XFILE_BLOCK_RUNTIME);
@@ -701,42 +701,42 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			buf->write(data->dynEntPoseList[0], data->dynEntCount[0]);
-			zone_buffer::clear_pointer(&dest->dynEntPoseList[0]);
+			buf->clear_pointer(&dest->dynEntPoseList[0]);
 		}
 
 		if (data->dynEntPoseList[1])
 		{
 			buf->align(3);
 			buf->write(data->dynEntPoseList[1], data->dynEntCount[1]);
-			zone_buffer::clear_pointer(&dest->dynEntPoseList[1]);
+			buf->clear_pointer(&dest->dynEntPoseList[1]);
 		}
 
 		if (data->dynEntClientList[0])
 		{
 			buf->align(3);
 			buf->write(data->dynEntClientList[0], data->dynEntCount[0]);
-			zone_buffer::clear_pointer(&dest->dynEntClientList[0]);
+			buf->clear_pointer(&dest->dynEntClientList[0]);
 		}
 
 		if (data->dynEntClientList[1])
 		{
 			buf->align(3);
 			buf->write(data->dynEntClientList[1], data->dynEntCount[1]);
-			zone_buffer::clear_pointer(&dest->dynEntClientList[1]);
+			buf->clear_pointer(&dest->dynEntClientList[1]);
 		}
 
 		if (data->dynEntCollList[0])
 		{
 			buf->align(3);
 			buf->write(data->dynEntCollList[0], data->dynEntCount[0]);
-			zone_buffer::clear_pointer(&dest->dynEntCollList[0]);
+			buf->clear_pointer(&dest->dynEntCollList[0]);
 		}
 
 		if (data->dynEntCollList[1])
 		{
 			buf->align(3);
 			buf->write(data->dynEntCollList[1], data->dynEntCount[1]);
-			zone_buffer::clear_pointer(&dest->dynEntCollList[1]);
+			buf->clear_pointer(&dest->dynEntCollList[1]);
 		}
 		buf->pop_stream();
 
@@ -744,7 +744,7 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			buf->write(data->dynEntAnchorNames, data->dynEntAnchorCount);
-			zone_buffer::clear_pointer(&dest->dynEntAnchorNames);
+			buf->clear_pointer(&dest->dynEntAnchorNames);
 		}
 
 		if (data->scriptableMapEnts.instances)
@@ -772,7 +772,7 @@ namespace zonetool::iw6
 					{
 						buf->align(0);
 						buf->write(scriptable->eventConstantsBuf, scriptableDef->eventConstantsSize);
-						zone_buffer::clear_pointer(&destscriptable->eventConstantsBuf);
+						buf->clear_pointer(&destscriptable->eventConstantsBuf);
 					}
 
 					buf->push_stream(XFILE_BLOCK_RUNTIME);
@@ -786,14 +786,14 @@ namespace zonetool::iw6
 					{
 						buf->align(3);
 						buf->write(scriptable->partStates, scriptableDef->partCount);
-						zone_buffer::clear_pointer(&destscriptable->partStates);
+						buf->clear_pointer(&destscriptable->partStates);
 					}
 
 					if (scriptable->eventStreamBuf)
 					{
 						buf->align(0);
 						buf->write(scriptable->eventStreamBuf, scriptableDef->eventStreamSize);
-						zone_buffer::clear_pointer(&destscriptable->eventStreamBuf);
+						buf->clear_pointer(&destscriptable->eventStreamBuf);
 					}
 					buf->pop_stream();
 				}
@@ -802,7 +802,7 @@ namespace zonetool::iw6
 					memset(destscriptable, 0, sizeof(ScriptableInstance));
 				}
 			}
-			zone_buffer::clear_pointer(&dest->scriptableMapEnts.instances);
+			buf->clear_pointer(&dest->scriptableMapEnts.instances);
 		}
 
 		if (data->scriptableMapEnts.animEntries)
@@ -816,7 +816,7 @@ namespace zonetool::iw6
 					animentries[i].animName = buf->write_str(data->scriptableMapEnts.animEntries[i].animName);
 				}
 			}
-			zone_buffer::clear_pointer(&dest->scriptableMapEnts.animEntries);
+			buf->clear_pointer(&dest->scriptableMapEnts.animEntries);
 		}
 
 		buf->pop_stream();

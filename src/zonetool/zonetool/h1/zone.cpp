@@ -378,13 +378,13 @@ namespace zonetool::h1
 			{
 				buf->align(3);
 				buf->write(globals->depthStencilStateBits, globals->depthStencilStateCount);
-				zone_buffer::clear_pointer(&dest->depthStencilStateBits);
+				buf->clear_pointer(&dest->depthStencilStateBits);
 			}
 			if (globals->blendStateBits)
 			{
 				buf->align(3);
 				buf->write(globals->blendStateBits, globals->blendStateCount);
-				zone_buffer::clear_pointer(&dest->blendStateBits);
+				buf->clear_pointer(&dest->blendStateBits);
 			}
 			buf->push_stream(XFILE_BLOCK_RUNTIME);
 			if (globals->depthStencilStates)
@@ -397,10 +397,10 @@ namespace zonetool::h1
 					{
 						buf->align(0);
 						buf->write(globals->depthStencilStates[i].dataPtr, 1);
-						zone_buffer::clear_pointer(&dest_0->dataPtr);
+						buf->clear_pointer(&dest_0->dataPtr);
 					}
 				}
-				zone_buffer::clear_pointer(&dest->depthStencilStates);
+				buf->clear_pointer(&dest->depthStencilStates);
 			}
 			buf->pop_stream();
 			buf->push_stream(XFILE_BLOCK_RUNTIME);
@@ -414,29 +414,29 @@ namespace zonetool::h1
 					{
 						buf->align(0);
 						buf->write(globals->blendStates[i].dataPtr, 1);
-						zone_buffer::clear_pointer(&dest_0->dataPtr);
+						buf->clear_pointer(&dest_0->dataPtr);
 					}
 				}
-				zone_buffer::clear_pointer(&dest->blendStates);
+				buf->clear_pointer(&dest->blendStates);
 			}
 			buf->pop_stream();
 			if (globals->perPrimConstantBufferSizes)
 			{
 				buf->align(3);
 				buf->write(globals->perPrimConstantBufferSizes, globals->perPrimConstantBufferCount);
-				zone_buffer::clear_pointer(&dest->perPrimConstantBufferSizes);
+				buf->clear_pointer(&dest->perPrimConstantBufferSizes);
 			}
 			if (globals->perObjConstantBufferSizes)
 			{
 				buf->align(3);
 				buf->write(globals->perObjConstantBufferSizes, globals->perObjConstantBufferCount);
-				zone_buffer::clear_pointer(&dest->perObjConstantBufferSizes);
+				buf->clear_pointer(&dest->perObjConstantBufferSizes);
 			}
 			if (globals->stableConstantBufferSizes)
 			{
 				buf->align(3);
 				buf->write(globals->stableConstantBufferSizes, globals->stableConstantBufferCount);
-				zone_buffer::clear_pointer(&dest->stableConstantBufferSizes);
+				buf->clear_pointer(&dest->stableConstantBufferSizes);
 			}
 			buf->push_stream(XFILE_BLOCK_RUNTIME);
 			if (globals->perPrimConstantBuffers)
@@ -449,10 +449,10 @@ namespace zonetool::h1
 					{
 						buf->align(0);
 						buf->write(globals->perPrimConstantBuffers[i].dataPtr, 1);
-						zone_buffer::clear_pointer(&dest_0->dataPtr);
+						buf->clear_pointer(&dest_0->dataPtr);
 					}
 				}
-				zone_buffer::clear_pointer(&dest->perPrimConstantBuffers);
+				buf->clear_pointer(&dest->perPrimConstantBuffers);
 			}
 			buf->pop_stream();
 			buf->push_stream(XFILE_BLOCK_RUNTIME);
@@ -466,10 +466,10 @@ namespace zonetool::h1
 					{
 						buf->align(0);
 						buf->write(globals->perObjConstantBuffers[i].dataPtr, 1);
-						zone_buffer::clear_pointer(&dest_0->dataPtr);
+						buf->clear_pointer(&dest_0->dataPtr);
 					}
 				}
-				zone_buffer::clear_pointer(&dest->perObjConstantBuffers);
+				buf->clear_pointer(&dest->perObjConstantBuffers);
 			}
 			buf->pop_stream();
 			buf->push_stream(XFILE_BLOCK_RUNTIME);
@@ -483,10 +483,10 @@ namespace zonetool::h1
 					{
 						buf->align(0);
 						buf->write(globals->stableConstantBuffers[i].dataPtr, 1);
-						zone_buffer::clear_pointer(&dest_0->dataPtr);
+						buf->clear_pointer(&dest_0->dataPtr);
 					}
 				}
-				zone_buffer::clear_pointer(&dest->stableConstantBuffers);
+				buf->clear_pointer(&dest->stableConstantBuffers);
 			}
 			buf->pop_stream();
 		}

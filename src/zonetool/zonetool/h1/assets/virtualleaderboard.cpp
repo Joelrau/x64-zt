@@ -116,7 +116,7 @@ namespace zonetool::h1
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->columns);
+			buf->clear_pointer(&dest->columns);
 		}
 
 		buf->pop_stream();

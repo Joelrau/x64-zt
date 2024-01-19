@@ -9,8 +9,8 @@ namespace seh
 {
 	namespace
 	{
-		void*(*rtlpx_lookup_function_table)(void*, FUNCTION_TABLE_DATA*);
-		void*(*rtlpx_lookup_function_table_down_level)(void*, PDWORD64, PULONG);
+		void* (*rtlpx_lookup_function_table)(void*, FUNCTION_TABLE_DATA*);
+		void* (*rtlpx_lookup_function_table_down_level)(void*, PDWORD64, PULONG);
 
 		FUNCTION_TABLE_DATA overridden_table;
 
@@ -70,7 +70,7 @@ namespace seh
 		}
 
 		void* rtlpx_lookup_function_table_override_down_level(void* exception_address, const PDWORD64 image_base,
-		                                                      const PULONG length)
+			const PULONG length)
 		{
 			auto* retval = seh::rtlpx_lookup_function_table_down_level(exception_address, image_base, length);
 
@@ -109,10 +109,10 @@ namespace seh
 				DWORD imageSize;
 				DWORD fieldC;
 				DWORD64 field10;
-			} query_result = {0, 0, 0, 0};
+			} query_result = { 0, 0, 0, 0 };
 
 			ntdll.invoke_pascal<NTSTATUS>("NtQueryVirtualMemory", GetCurrentProcess(), module_base, 6, &query_result,
-			                              sizeof(query_result), nullptr);
+				sizeof(query_result), nullptr);
 			seh::overridden_table.ImageSize = query_result.imageSize;
 		}
 

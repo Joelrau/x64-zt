@@ -1679,7 +1679,7 @@ namespace zonetool::s1
 			buf->align(7); \
 			buf->write(&ptr); \
 			buf->write_str(data->__field__->name); \
-			zone_buffer::clear_pointer(&dest->__field__); \
+			buf->clear_pointer(&dest->__field__); \
 		}
 
 #define WEAPON_SCRIPTSTRING_ARRAY(__field__,__count__) \
@@ -1687,7 +1687,7 @@ namespace zonetool::s1
 		{ \
 			buf->align(3); \
 			buf->write(data->__field__,__count__); \
-			zone_buffer::clear_pointer(&dest->__field__); \
+			buf->clear_pointer(&dest->__field__); \
 		}
 
 		buf->push_stream(XFILE_BLOCK_VIRTUAL);
@@ -1712,7 +1712,7 @@ namespace zonetool::s1
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->gunModel);
+			buf->clear_pointer(&dest->gunModel);
 		}
 
 		if (data->handModel)
@@ -1752,7 +1752,7 @@ namespace zonetool::s1
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->szXAnimsRightHanded);
+			buf->clear_pointer(&dest->szXAnimsRightHanded);
 		}
 
 		if (data->szXAnimsLeftHanded)
@@ -1770,14 +1770,14 @@ namespace zonetool::s1
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->szXAnimsLeftHanded);
+			buf->clear_pointer(&dest->szXAnimsLeftHanded);
 		}
 
 		if (data->hideTags)
 		{
 			buf->align(3);
 			buf->write(data->hideTags, 32);
-			zone_buffer::clear_pointer(&dest->hideTags);
+			buf->clear_pointer(&dest->hideTags);
 		}
 
 		if (data->attachments)
@@ -1795,7 +1795,7 @@ namespace zonetool::s1
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->attachments);
+			buf->clear_pointer(&dest->attachments);
 		}
 
 		if (data->szXAnims)
@@ -1813,7 +1813,7 @@ namespace zonetool::s1
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->szXAnims);
+			buf->clear_pointer(&dest->szXAnims);
 		}
 
 		if (data->animOverrides)
@@ -1838,7 +1838,7 @@ namespace zonetool::s1
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->animOverrides);
+			buf->clear_pointer(&dest->animOverrides);
 		}
 
 		if (data->soundOverrides)
@@ -1859,7 +1859,7 @@ namespace zonetool::s1
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->soundOverrides);
+			buf->clear_pointer(&dest->soundOverrides);
 		}
 
 		if (data->fxOverrides)
@@ -1884,14 +1884,14 @@ namespace zonetool::s1
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->fxOverrides);
+			buf->clear_pointer(&dest->fxOverrides);
 		}
 
 		if (data->reloadOverrides)
 		{
 			buf->align(3);
 			buf->write(data->reloadOverrides, data->numReloadStateTimerOverrides);
-			zone_buffer::clear_pointer(&dest->reloadOverrides);
+			buf->clear_pointer(&dest->reloadOverrides);
 		}
 
 		if (data->notetrackOverrides)
@@ -1905,18 +1905,18 @@ namespace zonetool::s1
 				{
 					buf->align(3);
 					buf->write(data->notetrackOverrides[i].notetrackSoundMapKeys, 36);
-					zone_buffer::clear_pointer(&destNoteTrackOverrides[i].notetrackSoundMapKeys);
+					buf->clear_pointer(&destNoteTrackOverrides[i].notetrackSoundMapKeys);
 				}
 
 				if (destNoteTrackOverrides[i].notetrackSoundMapValues)
 				{
 					buf->align(3);
 					buf->write(data->notetrackOverrides[i].notetrackSoundMapValues, 36);
-					zone_buffer::clear_pointer(&destNoteTrackOverrides[i].notetrackSoundMapValues);
+					buf->clear_pointer(&destNoteTrackOverrides[i].notetrackSoundMapValues);
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->notetrackOverrides);
+			buf->clear_pointer(&dest->notetrackOverrides);
 		}
 
 		WEAPON_SCRIPTSTRING_ARRAY(notetrackSoundMapKeys, 36);
@@ -1940,7 +1940,7 @@ namespace zonetool::s1
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->notetrackFXMapValues);
+			buf->clear_pointer(&dest->notetrackFXMapValues);
 		}
 		WEAPON_SCRIPTSTRING_ARRAY(notetrackFXMapTagValues, 16);
 
@@ -2044,7 +2044,7 @@ namespace zonetool::s1
 				WEAPON_SOUND_CUSTOM(bounceSound[i]);
 			}
 
-			zone_buffer::clear_pointer(&dest->bounceSound);
+			buf->clear_pointer(&dest->bounceSound);
 		}
 
 		if (data->rollingSound)
@@ -2057,7 +2057,7 @@ namespace zonetool::s1
 				WEAPON_SOUND_CUSTOM(rollingSound[i]);
 			}
 
-			zone_buffer::clear_pointer(&dest->rollingSound);
+			buf->clear_pointer(&dest->rollingSound);
 		}
 
 		WEAPON_SUBASSET(viewShellEjectEffect, ASSET_TYPE_FX, FxEffectDef);
@@ -2084,7 +2084,7 @@ namespace zonetool::s1
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->worldModel);
+			buf->clear_pointer(&dest->worldModel);
 		}
 
 		WEAPON_SUBASSET(worldClipModel, ASSET_TYPE_XMODEL, XModel);
@@ -2113,7 +2113,7 @@ namespace zonetool::s1
 		{
 			buf->align(3);
 			buf->write(data->locationDamageMultipliers, 22);
-			zone_buffer::clear_pointer(&dest->locationDamageMultipliers);
+			buf->clear_pointer(&dest->locationDamageMultipliers);
 		}
 
 		WEAPON_STRING(fireRumble);
@@ -2156,7 +2156,7 @@ namespace zonetool::s1
 			buf->align(7); \
 			buf->write(&ptr); \
 			buf->write_str(__data__->name); \
-			zone_buffer::clear_pointer(&__dest__); \
+			buf->clear_pointer(&__dest__); \
 		}
 
 			HYDRAULIC_SOUND_CUSTOM(data->turretHydraulicSettings->verticalSound, destTurretHydraulicSettings->verticalSound);
@@ -2165,7 +2165,7 @@ namespace zonetool::s1
 			HYDRAULIC_SOUND_CUSTOM(data->turretHydraulicSettings->horizontalStopSound, destTurretHydraulicSettings->horizontalStopSound);
 #undef HYDRAULIC_SOUND_CUSTOM
 
-			zone_buffer::clear_pointer(&dest->turretHydraulicSettings);
+			buf->clear_pointer(&dest->turretHydraulicSettings);
 		}
 
 		WEAPON_SUBASSET(overlay.shader, ASSET_TYPE_MATERIAL, Material);
@@ -2191,14 +2191,14 @@ namespace zonetool::s1
 		{
 			buf->align(3);
 			buf->write(data->parallelBounce, 53);
-			zone_buffer::clear_pointer(&dest->parallelBounce);
+			buf->clear_pointer(&dest->parallelBounce);
 		}
 
 		if (data->perpendicularBounce)
 		{
 			buf->align(3);
 			buf->write(data->perpendicularBounce, 53);
-			zone_buffer::clear_pointer(&dest->perpendicularBounce);
+			buf->clear_pointer(&dest->perpendicularBounce);
 		}
 
 		WEAPON_SUBASSET(projTrailEffect, ASSET_TYPE_FX, FxEffectDef);
@@ -2215,14 +2215,14 @@ namespace zonetool::s1
 			{
 				buf->align(3);
 				buf->write(data->accuracyGraphKnots[i], data->accuracyGraphKnotCount[i]);
-				zone_buffer::clear_pointer(&dest->accuracyGraphKnots[i]);
+				buf->clear_pointer(&dest->accuracyGraphKnots[i]);
 			}
 
 			if (data->originalAccuracyGraphKnots[i])
 			{
 				buf->align(3);
 				buf->write(data->originalAccuracyGraphKnots[i], data->accuracyGraphKnotCount[i]);
-				zone_buffer::clear_pointer(&dest->originalAccuracyGraphKnots[i]);
+				buf->clear_pointer(&dest->originalAccuracyGraphKnots[i]);
 			}
 		}
 

@@ -291,25 +291,25 @@ namespace zonetool::h1
 						}
 					}
 
-					zone_buffer::clear_pointer(&dest_struct_list[struct_index].members);
+					buf->clear_pointer(&dest_struct_list[struct_index].members);
 				}
 
 				if (data_struct_list[struct_index].hashTableUpper.list)
 				{
 					buf->align(3);
 					buf->write(data_struct_list[struct_index].hashTableUpper.list, data_struct_list[struct_index].hashTableUpper.count);
-					zone_buffer::clear_pointer(&dest_struct_list[struct_index].hashTableUpper.list);
+					buf->clear_pointer(&dest_struct_list[struct_index].hashTableUpper.list);
 				}
 
 				if (data_struct_list[struct_index].hashTableLower.list)
 				{
 					buf->align(3);
 					buf->write(data_struct_list[struct_index].hashTableLower.list, data_struct_list[struct_index].hashTableLower.count);
-					zone_buffer::clear_pointer(&dest_struct_list[struct_index].hashTableLower.list);
+					buf->clear_pointer(&dest_struct_list[struct_index].hashTableLower.list);
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->structList);
+			buf->clear_pointer(&dest->structList);
 		}
 
 		if (data->enumList)
@@ -336,25 +336,25 @@ namespace zonetool::h1
 							strings[member_index] = buf->write_str(data_enum_list[enum_index].members[member_index]);
 						}
 					}
-					zone_buffer::clear_pointer(&dest_enum_list[enum_index].members);
+					buf->clear_pointer(&dest_enum_list[enum_index].members);
 				}
 
 				if (data_enum_list[enum_index].hashTable.list)
 				{
 					buf->align(3);
 					buf->write(data_enum_list[enum_index].hashTable.list, data_enum_list[enum_index].hashTable.count);
-					zone_buffer::clear_pointer(&dest_enum_list[enum_index].hashTable.list);
+					buf->clear_pointer(&dest_enum_list[enum_index].hashTable.list);
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->enumList);
+			buf->clear_pointer(&dest->enumList);
 		}
 
 		if (data->next)
 		{
 			buf->align(3);
 			write_ddldef(buf, data->next);
-			zone_buffer::clear_pointer(&dest->next);
+			buf->clear_pointer(&dest->next);
 		}
 
 		return dest;
@@ -373,7 +373,7 @@ namespace zonetool::h1
 		{
 			buf->align(3);
 			write_ddldef(buf, data->ddlDef);
-			zone_buffer::clear_pointer(&dest->ddlDef);
+			buf->clear_pointer(&dest->ddlDef);
 		}
 
 		buf->pop_stream();

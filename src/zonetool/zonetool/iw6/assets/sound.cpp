@@ -587,7 +587,7 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			write_soundfile(zone, buf, data->soundFile);
-			zone_buffer::clear_pointer(&dest->soundFile);
+			buf->clear_pointer(&dest->soundFile);
 		}
 
 		if (data->volumeFalloffCurve)
@@ -618,7 +618,7 @@ namespace zonetool::iw6
 				speaker_map->name = buf->write_str(speaker_map->name);
 			}
 
-			zone_buffer::clear_pointer(&dest->speakerMap);
+			buf->clear_pointer(&dest->speakerMap);
 		}
 
 		if (data->dopplerPreset)
@@ -647,7 +647,7 @@ namespace zonetool::iw6
 				write_head(zone, buf, &dest_sound[i]);
 			}
 
-			zone_buffer::clear_pointer(&dest->head);
+			buf->clear_pointer(&dest->head);
 		}
 
 		buf->pop_stream();

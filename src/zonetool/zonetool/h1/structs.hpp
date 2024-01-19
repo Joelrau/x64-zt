@@ -9374,7 +9374,7 @@ namespace zonetool::h1
 	struct XAssetEntry
 	{
 		XAsset asset;
-		char zoneIndex;
+		short zoneIndex;
 		volatile char inuseMask;
 		unsigned int nextHash;
 		unsigned int nextOverride;

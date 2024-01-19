@@ -117,7 +117,7 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			buf->write(data->glyphs, data->glyphCount);
-			zone_buffer::clear_pointer(&dest->glyphs);
+			buf->clear_pointer(&dest->glyphs);
 		}
 
 		buf->pop_stream();

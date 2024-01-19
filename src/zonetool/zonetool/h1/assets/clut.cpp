@@ -69,7 +69,7 @@ namespace zonetool::h1
 		{
 			buf->align(0);
 			buf->write(data->unk, 4 * data->count0 * data->count1 * data->count2);
-			zone_buffer::clear_pointer(&dest->unk);
+			buf->clear_pointer(&dest->unk);
 		}
 
 		dest->name = buf->write_str(this->name());

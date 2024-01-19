@@ -1218,13 +1218,6 @@ namespace zonetool::h1
 		}
 	}
 
-	void branding()
-	{
-		ZONETOOL_INFO("ZoneTool initialization complete!");
-		ZONETOOL_INFO("No matter how hard or unlikely, if it's possible, it will be done.");
-		ZONETOOL_INFO("Special thanks to: RektInator, Laupetin, NTAuthority, momo5502, TheApadayo, localhost, X3RX35, homura, quaK & fed");
-	}
-
 	void on_exit(void)
 	{
 		globals.dump = false;
@@ -1274,6 +1267,8 @@ namespace zonetool::h1
 
 		doexit_hook.create(0x1407948E0, doexit);
 		atexit(on_exit);
+
+		ZONETOOL_INFO("ZoneTool initialization complete!");
 	}
 
 	void initialize()

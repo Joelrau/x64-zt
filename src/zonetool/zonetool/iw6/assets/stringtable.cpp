@@ -105,7 +105,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->values);
+			buf->clear_pointer(&dest->values);
 		}
 
 		buf->pop_stream();

@@ -85,13 +85,13 @@ namespace zonetool::h1
 		if (data->buffer)
 		{
 			buf->write(data->buffer, data->compressedLen);
-			zone_buffer::clear_pointer(&dest->buffer);
+			buf->clear_pointer(&dest->buffer);
 		}
 
 		if (data->bytecode)
 		{
 			buf->write(data->bytecode, data->bytecodeLen);
-			zone_buffer::clear_pointer(&dest->bytecode);
+			buf->clear_pointer(&dest->bytecode);
 		}
 
 		buf->pop_stream();

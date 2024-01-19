@@ -33,16 +33,17 @@ function zonetool:project()
 
 		prebuildcommands {"pushd %{_MAIN_SCRIPT_DIR}", "tools\\premake5 generate-buildinfo", "popd"}
 
-		if COMPUTER_NAME == "PC-JOEL" then
-			debugdir "E:\\Games\\PC\\H1"
-			debugcommand "E:\\Games\\PC\\H1\\$(TargetName)$(TargetExt)"
+		if COMPUTER_NAME == "JOEL-PC" then
+			debugdir "D:\\Games\\PC\\IW7"
+			debugcommand "D:\\Games\\PC\\IW7\\$(TargetName)$(TargetExt)"
+			postbuildcommands {
+				"( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"D:\\Games\\PC\\H1\\$(TargetName)$(TargetExt)\" )",
+				--"( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"E:\\Blizzard\\Call of Duty Modern Warfare 2 Campaign Remastered\\$(TargetName)$(TargetExt)\" )",
+				"( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"D:\\Games\\PC\\S1\\$(TargetName)$(TargetExt)\" )",
+				"( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"D:\\Games\\PC\\IW6\\$(TargetName)$(TargetExt)\" )",
+				"( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"D:\\Games\\PC\\IW7\\$(TargetName)$(TargetExt)\" )",
+			}
 		end
-		postbuildcommands {
-			"if \"%COMPUTERNAME%\" == \"PC-JOEL\" ( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"E:\\Games\\PC\\H1\\$(TargetName)$(TargetExt)\" )",
-			"if \"%COMPUTERNAME%\" == \"PC-JOEL\" ( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"E:\\Blizzard\\Call of Duty Modern Warfare 2 Campaign Remastered\\$(TargetName)$(TargetExt)\" )",
-			"if \"%COMPUTERNAME%\" == \"PC-JOEL\" ( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"D:\\Games\\PC\\S1\\$(TargetName)$(TargetExt)\" )",
-			"if \"%COMPUTERNAME%\" == \"PC-JOEL\" ( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"D:\\Games\\PC\\IW6\\$(TargetName)$(TargetExt)\" )",
-		}
 
 		local function addcopyopt(name)
 			if (_OPTIONS[name] ~= nil) then
@@ -55,6 +56,7 @@ function zonetool:project()
 		addcopyopt("s1-copy-to")
 		addcopyopt("h1-copy-to")
 		addcopyopt("h2-copy-to")
+		addcopyopt("iw7-copy-to")
 		
 		dependencies.imports()
 end

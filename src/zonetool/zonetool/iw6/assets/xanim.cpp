@@ -234,13 +234,13 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			buf->write(data->names, data->boneCount[9]);
-			zone_buffer::clear_pointer(&dest->names);
+			buf->clear_pointer(&dest->names);
 		}
 		if (data->notify) // notetracks
 		{
 			buf->align(3);
 			buf->write(data->notify, data->notifyCount);
-			zone_buffer::clear_pointer(&dest->notify);
+			buf->clear_pointer(&dest->notify);
 		}
 
 		if (data->deltaPart) // XAnimDeltaParts
@@ -283,7 +283,7 @@ namespace zonetool::iw6
 				{
 					buf->write_stream(partdata->trans->u.frame0, sizeof(float), 3);
 				}
-				zone_buffer::clear_pointer(&partdest->trans);
+				buf->clear_pointer(&partdest->trans);
 			}
 
 			if (partdata->quat2)
@@ -313,7 +313,7 @@ namespace zonetool::iw6
 				{
 					buf->write_stream(partdata->quat2->u.frame0, sizeof(short) * 2, 1);
 				}
-				zone_buffer::clear_pointer(&partdest->quat2);
+				buf->clear_pointer(&partdest->quat2);
 			}
 
 			if (partdata->quat)
@@ -344,7 +344,7 @@ namespace zonetool::iw6
 				{
 					buf->write_stream(partdata->quat->u.frame0, sizeof(short) * 4, 1);
 				}
-				zone_buffer::clear_pointer(&partdest->quat);
+				buf->clear_pointer(&partdest->quat);
 			}
 		}
 

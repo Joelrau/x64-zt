@@ -619,7 +619,7 @@ namespace zonetool
 				buf->align(3);
 				auto destInfo = buf->write(data->pInfo);
 				write_info(zone, buf, data->pInfo, destInfo);
-				zone_buffer::clear_pointer(&dest->pInfo);
+				buf->clear_pointer(&dest->pInfo);
 			}
 			buf->pop_stream();
 
@@ -634,14 +634,14 @@ namespace zonetool
 						nodes[i].plane = buf->write_s(3, data->nodes[i].plane);
 					}
 				}
-				zone_buffer::clear_pointer(&dest->nodes);
+				buf->clear_pointer(&dest->nodes);
 			}
 
 			if (data->leafs)
 			{
 				buf->align(3);
 				buf->write(data->leafs, data->numLeafs);
-				zone_buffer::clear_pointer(&dest->leafs);
+				buf->clear_pointer(&dest->leafs);
 			}
 
 			if (data->cmodels)
@@ -654,7 +654,7 @@ namespace zonetool
 					destcmodels[i].info = info_ptr;
 				}
 
-				zone_buffer::clear_pointer(&dest->cmodels);
+				buf->clear_pointer(&dest->cmodels);
 			}
 
 			if (data->mapEnts)
@@ -675,7 +675,7 @@ namespace zonetool
 					}
 				}
 
-				zone_buffer::clear_pointer(&dest->stages);
+				buf->clear_pointer(&dest->stages);
 			}
 
 			// copy trigger data from mapents
@@ -751,7 +751,7 @@ namespace zonetool
 					}
 				}
 
-				zone_buffer::clear_pointer(&dest->dynEntDefList[0]);
+				buf->clear_pointer(&dest->dynEntDefList[0]);
 			}
 
 			if (data->dynEntDefList[1])
@@ -793,7 +793,7 @@ namespace zonetool
 					}
 				}
 
-				zone_buffer::clear_pointer(&dest->dynEntDefList[1]);
+				buf->clear_pointer(&dest->dynEntDefList[1]);
 			}
 
 			buf->push_stream(XFILE_BLOCK_RUNTIME);
@@ -801,42 +801,42 @@ namespace zonetool
 			{
 				buf->align(3);
 				buf->write(data->dynEntPoseList[0], data->dynEntCount[0]);
-				zone_buffer::clear_pointer(&dest->dynEntPoseList[0]);
+				buf->clear_pointer(&dest->dynEntPoseList[0]);
 			}
 
 			if (data->dynEntPoseList[1])
 			{
 				buf->align(3);
 				buf->write(data->dynEntPoseList[1], data->dynEntCount[1]);
-				zone_buffer::clear_pointer(&dest->dynEntPoseList[1]);
+				buf->clear_pointer(&dest->dynEntPoseList[1]);
 			}
 
 			if (data->dynEntClientList[0])
 			{
 				buf->align(3);
 				buf->write(data->dynEntClientList[0], data->dynEntCount[0]);
-				zone_buffer::clear_pointer(&dest->dynEntClientList[0]);
+				buf->clear_pointer(&dest->dynEntClientList[0]);
 			}
 
 			if (data->dynEntClientList[1])
 			{
 				buf->align(3);
 				buf->write(data->dynEntClientList[1], data->dynEntCount[1]);
-				zone_buffer::clear_pointer(&dest->dynEntClientList[1]);
+				buf->clear_pointer(&dest->dynEntClientList[1]);
 			}
 
 			if (data->dynEntCollList[0])
 			{
 				buf->align(3);
 				buf->write(data->dynEntCollList[0], data->dynEntCount[0]);
-				zone_buffer::clear_pointer(&dest->dynEntCollList[0]);
+				buf->clear_pointer(&dest->dynEntCollList[0]);
 			}
 
 			if (data->dynEntCollList[1])
 			{
 				buf->align(3);
 				buf->write(data->dynEntCollList[1], data->dynEntCount[1]);
-				zone_buffer::clear_pointer(&dest->dynEntCollList[1]);
+				buf->clear_pointer(&dest->dynEntCollList[1]);
 			}
 			buf->pop_stream();
 
@@ -844,7 +844,7 @@ namespace zonetool
 			{
 				buf->align(3);
 				buf->write(data->dynEntAnchorNames, data->dynEntAnchorCount);
-				zone_buffer::clear_pointer(&dest->dynEntAnchorNames);
+				buf->clear_pointer(&dest->dynEntAnchorNames);
 			}
 
 			if (data->scriptableMapEnts.instances)
@@ -872,14 +872,14 @@ namespace zonetool
 						{
 							buf->align(0);
 							buf->write(scriptable->eventConstantsBuf, scriptableDef->eventConstantsSize);
-							zone_buffer::clear_pointer(&destscriptable->eventConstantsBuf);
+							buf->clear_pointer(&destscriptable->eventConstantsBuf);
 						}
 
 						if (scriptable->targetData)
 						{
 							buf->align(3);
 							buf->write(scriptable->targetData, scriptable->targetDataCount);
-							zone_buffer::clear_pointer(&destscriptable->targetData);
+							buf->clear_pointer(&destscriptable->targetData);
 						}
 
 						buf->push_stream(XFILE_BLOCK_RUNTIME);
@@ -893,14 +893,14 @@ namespace zonetool
 						{
 							buf->align(3);
 							buf->write(scriptable->partStates, scriptableDef->partCount);
-							zone_buffer::clear_pointer(&destscriptable->partStates);
+							buf->clear_pointer(&destscriptable->partStates);
 						}
 
 						if (scriptable->eventStreamBuf)
 						{
 							buf->align(0);
 							buf->write(scriptable->eventStreamBuf, scriptableDef->eventStreamSize);
-							zone_buffer::clear_pointer(&destscriptable->eventStreamBuf);
+							buf->clear_pointer(&destscriptable->eventStreamBuf);
 						}
 						buf->pop_stream();
 					}
@@ -909,7 +909,7 @@ namespace zonetool
 						memset(destscriptable, 0, sizeof(ScriptableInstance));
 					}
 				}
-				zone_buffer::clear_pointer(&dest->scriptableMapEnts.instances);
+				buf->clear_pointer(&dest->scriptableMapEnts.instances);
 			}
 
 			if (data->scriptableMapEnts.animEntries)
@@ -923,7 +923,7 @@ namespace zonetool
 						animentries[i].animName = buf->write_str(data->scriptableMapEnts.animEntries[i].animName);
 					}
 				}
-				zone_buffer::clear_pointer(&dest->scriptableMapEnts.animEntries);
+				buf->clear_pointer(&dest->scriptableMapEnts.animEntries);
 			}
 
 			if (data->grappleData.sphereTreeData.sphereTree)
@@ -936,24 +936,24 @@ namespace zonetool
 					{
 						buf->align(3);
 						buf->write(data->grappleData.sphereTreeData.sphereTree[i].unk, data->grappleData.sphereTreeData.sphereTree[i].unk_count);
-						zone_buffer::clear_pointer(&destSphereTree[i].unk);
+						buf->clear_pointer(&destSphereTree[i].unk);
 					}
 				}
-				zone_buffer::clear_pointer(&dest->grappleData.sphereTreeData.sphereTree);
+				buf->clear_pointer(&dest->grappleData.sphereTreeData.sphereTree);
 			}
 
 			if (data->grappleData.sphereTreeData.sphereTreeObj)
 			{
 				buf->align(3);
 				buf->write(data->grappleData.sphereTreeData.sphereTreeObj, data->grappleData.sphereTreeData.sphereTreeObjCount);
-				zone_buffer::clear_pointer(&dest->grappleData.sphereTreeData.sphereTreeObj);
+				buf->clear_pointer(&dest->grappleData.sphereTreeData.sphereTreeObj);
 			}
 
 			if (data->grappleData.magnet)
 			{
 				buf->align(3);
 				buf->write(data->grappleData.magnet, data->grappleData.magnetCount);
-				zone_buffer::clear_pointer(&dest->grappleData.magnet);
+				buf->clear_pointer(&dest->grappleData.magnet);
 			}
 
 			buf->pop_stream();

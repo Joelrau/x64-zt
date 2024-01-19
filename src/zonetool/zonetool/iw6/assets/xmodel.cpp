@@ -184,49 +184,49 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			buf->write(data->boneNames, data->numBones);
-			zone_buffer::clear_pointer(&dest->boneNames);
+			buf->clear_pointer(&dest->boneNames);
 		}
 
 		if (data->parentList)
 		{
 			buf->align(0);
 			buf->write(data->parentList, (data->numBones - data->numRootBones));
-			zone_buffer::clear_pointer(&dest->parentList);
+			buf->clear_pointer(&dest->parentList);
 		}
 
 		if (data->tagAngles)
 		{
 			buf->align(1);
 			buf->write(data->tagAngles, (data->numBones - data->numRootBones));
-			zone_buffer::clear_pointer(&dest->tagAngles);
+			buf->clear_pointer(&dest->tagAngles);
 		}
 
 		if (data->tagPositions)
 		{
 			buf->align(3);
 			buf->write(data->tagPositions, (data->numBones - data->numRootBones));
-			zone_buffer::clear_pointer(&dest->tagPositions);
+			buf->clear_pointer(&dest->tagPositions);
 		}
 
 		if (data->partClassification)
 		{
 			buf->align(0);
 			buf->write(data->partClassification, data->numBones);
-			zone_buffer::clear_pointer(&dest->partClassification);
+			buf->clear_pointer(&dest->partClassification);
 		}
 
 		if (data->baseMat)
 		{
 			buf->align(3);
 			buf->write(data->baseMat, data->numBones);
-			zone_buffer::clear_pointer(&dest->baseMat);
+			buf->clear_pointer(&dest->baseMat);
 		}
 
 		if (data->reactiveMotionParts)
 		{
 			buf->align(15);
 			buf->write(data->reactiveMotionParts, data->numReactiveMotionParts);
-			zone_buffer::clear_pointer(&dest->reactiveMotionParts);
+			buf->clear_pointer(&dest->reactiveMotionParts);
 		}
 
 		buf->inc_stream(5, 4 * data->numsurfs);
@@ -252,21 +252,21 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			buf->write(data->collSurfs, data->numCollSurfs);
-			zone_buffer::clear_pointer(&dest->collSurfs);
+			buf->clear_pointer(&dest->collSurfs);
 		}
 
 		if (data->boneInfo)
 		{
 			buf->align(3);
 			buf->write(data->boneInfo, data->numBones);
-			zone_buffer::clear_pointer(&dest->boneInfo);
+			buf->clear_pointer(&dest->boneInfo);
 		}
 
 		if (data->invHighMipRadius)
 		{
 			buf->align(1);
 			buf->write(data->invHighMipRadius, data->numsurfs);
-			zone_buffer::clear_pointer(&dest->invHighMipRadius);
+			buf->clear_pointer(&dest->invHighMipRadius);
 		}
 
 		if (data->physPreset)

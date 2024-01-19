@@ -85,7 +85,7 @@ namespace zonetool::iw6
 			{
 				buf->align(3);
 				buf->write(glassdata->glassPieces, glassdata->pieceCount);
-				zone_buffer::clear_pointer(&destdata->glassPieces);
+				buf->clear_pointer(&destdata->glassPieces);
 			}
 			if (glassdata->glassNames)
 			{
@@ -100,14 +100,14 @@ namespace zonetool::iw6
 					{
 						buf->align(1);
 						buf->write(glassdata->glassNames[i].pieceIndices, glassdata->glassNames[i].pieceCount);
-						zone_buffer::clear_pointer(&namedest[i].pieceIndices);
+						buf->clear_pointer(&namedest[i].pieceIndices);
 					}
 				}
 
-				zone_buffer::clear_pointer(&destdata->glassNames);
+				buf->clear_pointer(&destdata->glassNames);
 			}
 
-			zone_buffer::clear_pointer(&dest->g_glassData);
+			buf->clear_pointer(&dest->g_glassData);
 		}
 		buf->pop_stream();
 	}

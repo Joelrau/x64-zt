@@ -181,7 +181,7 @@ namespace zonetool
 			{
 				buf->align(3);
 				buf->write(data->prog.loadDef.program, data->prog.loadDef.programSize);
-				zone_buffer::clear_pointer(&dest->prog.loadDef.program);
+				buf->clear_pointer(&dest->prog.loadDef.program);
 			}
 
 			if constexpr (ShaderType != vertexshader)

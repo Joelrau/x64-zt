@@ -151,7 +151,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->worldModels);
+			buf->clear_pointer(&dest->worldModels);
 		}
 
 		if (data->viewModels)
@@ -167,7 +167,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->viewModels);
+			buf->clear_pointer(&dest->viewModels);
 		}
 
 		if (data->reticleViewModels)
@@ -183,7 +183,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->reticleViewModels);
+			buf->clear_pointer(&dest->reticleViewModels);
 		}
 
 		if (data->ammogeneral)

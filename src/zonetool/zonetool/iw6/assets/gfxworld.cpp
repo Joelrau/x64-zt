@@ -381,7 +381,7 @@ namespace zonetool::iw6
 				{
 					buf->align(3);
 					buf->write(data->skies[i].skyStartSurfs, data->skies[i].skySurfCount);
-					zone_buffer::clear_pointer(&destskies[i].skyStartSurfs);
+					buf->clear_pointer(&destskies[i].skyStartSurfs);
 				}
 
 				if (data->skies[i].skyImage)
@@ -391,7 +391,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->skies);
+			buf->clear_pointer(&dest->skies);
 		}
 
 		if (data->dpvsPlanes.planes)
@@ -403,7 +403,7 @@ namespace zonetool::iw6
 		{
 			buf->align(1);
 			buf->write(data->dpvsPlanes.nodes, data->nodeCount);
-			zone_buffer::clear_pointer(&dest->dpvsPlanes.nodes);
+			buf->clear_pointer(&dest->dpvsPlanes.nodes);
 		}
 
 		buf->push_stream(XFILE_BLOCK_RUNTIME);
@@ -411,7 +411,7 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			buf->write(data->dpvsPlanes.sceneEntCellBits, data->dpvsPlanes.cellCount << 9);
-			zone_buffer::clear_pointer(&dest->dpvsPlanes.sceneEntCellBits);
+			buf->clear_pointer(&dest->dpvsPlanes.sceneEntCellBits);
 		}
 		buf->pop_stream();
 
@@ -419,7 +419,7 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			buf->write(data->aabbTreeCounts, data->dpvsPlanes.cellCount);
-			zone_buffer::clear_pointer(&dest->aabbTreeCounts);
+			buf->clear_pointer(&dest->aabbTreeCounts);
 		}
 
 		if (data->aabbTrees)
@@ -445,11 +445,11 @@ namespace zonetool::iw6
 						}
 					}
 
-					zone_buffer::clear_pointer(&cell_tree[i].aabbTree);
+					buf->clear_pointer(&cell_tree[i].aabbTree);
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->aabbTrees);
+			buf->clear_pointer(&dest->aabbTrees);
 		}
 
 		if (data->cells)
@@ -470,27 +470,27 @@ namespace zonetool::iw6
 						{
 							buf->align(3);
 							buf->write(data->cells[i].portals[i2].vertices, data->cells[i].portals[i2].vertexCount);
-							zone_buffer::clear_pointer(&gfx_portal[i2].vertices);
+							buf->clear_pointer(&gfx_portal[i2].vertices);
 						}
 					}
 
-					zone_buffer::clear_pointer(&gfx_cell[i].portals);
+					buf->clear_pointer(&gfx_cell[i].portals);
 				}
 
 				if (data->cells[i].reflectionProbes)
 				{
 					buf->align(0);
 					buf->write(data->cells[i].reflectionProbes, data->cells[i].reflectionProbeCount);
-					zone_buffer::clear_pointer(&gfx_cell[i].reflectionProbes);
+					buf->clear_pointer(&gfx_cell[i].reflectionProbes);
 				}
 				if (data->cells[i].reflectionProbeReferences)
 				{
 					buf->align(0);
 					buf->write(data->cells[i].reflectionProbeReferences, data->cells[i].reflectionProbeReferenceCount);
-					zone_buffer::clear_pointer(&gfx_cell[i].reflectionProbeReferences);
+					buf->clear_pointer(&gfx_cell[i].reflectionProbeReferences);
 				}
 
-				zone_buffer::clear_pointer(&dest->cells);
+				buf->clear_pointer(&dest->cells);
 			}
 		}
 
@@ -509,7 +509,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->draw.reflectionProbes);
+			buf->clear_pointer(&dest->draw.reflectionProbes);
 		}
 
 		if (data->draw.reflectionProbeOrigins)
@@ -523,11 +523,11 @@ namespace zonetool::iw6
 				{
 					buf->align(3);
 					buf->write(data->draw.reflectionProbeOrigins[i].probeVolumes, data->draw.reflectionProbeOrigins[i].probeVolumeCount);
-					zone_buffer::clear_pointer(&reflectionProbeOrigins[i].probeVolumes);
+					buf->clear_pointer(&reflectionProbeOrigins[i].probeVolumes);
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->draw.reflectionProbeOrigins);
+			buf->clear_pointer(&dest->draw.reflectionProbeOrigins);
 		}
 
 		buf->push_stream(XFILE_BLOCK_RUNTIME);
@@ -535,7 +535,7 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			buf->write(data->draw.reflectionProbeTextures, data->draw.reflectionProbeCount);
-			zone_buffer::clear_pointer(&dest->draw.reflectionProbeTextures);
+			buf->clear_pointer(&dest->draw.reflectionProbeTextures);
 		}
 		buf->pop_stream();
 
@@ -543,14 +543,14 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			buf->write(data->draw.reflectionProbeReferenceOrigins, data->draw.reflectionProbeReferenceCount);
-			zone_buffer::clear_pointer(dest->draw.reflectionProbeReferenceOrigins);
+			buf->clear_pointer(dest->draw.reflectionProbeReferenceOrigins);
 		}
 
 		if (data->draw.reflectionProbeReferences)
 		{
 			buf->align(0);
 			buf->write(data->draw.reflectionProbeReferences, data->draw.reflectionProbeReferenceCount);
-			zone_buffer::clear_pointer(&dest->draw.reflectionProbeReferences);
+			buf->clear_pointer(&dest->draw.reflectionProbeReferences);
 		}
 
 		if (data->draw.lightmaps)
@@ -573,7 +573,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->draw.lightmaps);
+			buf->clear_pointer(&dest->draw.lightmaps);
 		}
 
 		buf->push_stream(XFILE_BLOCK_RUNTIME);
@@ -581,7 +581,7 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			buf->write(data->draw.lightmapPrimaryTextures, data->draw.lightmapCount);
-			zone_buffer::clear_pointer(&dest->draw.lightmapPrimaryTextures);
+			buf->clear_pointer(&dest->draw.lightmapPrimaryTextures);
 		}
 		buf->pop_stream();
 
@@ -590,7 +590,7 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			buf->write(data->draw.lightmapSecondaryTextures, data->draw.lightmapCount);
-			zone_buffer::clear_pointer(&dest->draw.lightmapSecondaryTextures);
+			buf->clear_pointer(&dest->draw.lightmapSecondaryTextures);
 		}
 		buf->pop_stream();
 
@@ -610,7 +610,7 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			buf->write(data->draw.vd.vertices, data->draw.vertexCount);
-			zone_buffer::clear_pointer(&dest->draw.vd.vertices);
+			buf->clear_pointer(&dest->draw.vd.vertices);
 		}
 		dest->draw.vd.worldVb = nullptr;
 
@@ -618,7 +618,7 @@ namespace zonetool::iw6
 		{
 			buf->align(0);
 			buf->write(data->draw.vld.data, data->draw.vertexLayerDataSize);
-			zone_buffer::clear_pointer(&dest->draw.vld.data);
+			buf->clear_pointer(&dest->draw.vld.data);
 		}
 		dest->draw.vld.layerVb = nullptr;
 
@@ -626,7 +626,7 @@ namespace zonetool::iw6
 		{
 			buf->align(1);
 			buf->write(data->draw.indices, data->draw.indexCount);
-			zone_buffer::clear_pointer(&dest->draw.indices);
+			buf->clear_pointer(&dest->draw.indices);
 		}
 		dest->draw.indexBuffer = nullptr;
 
@@ -635,70 +635,70 @@ namespace zonetool::iw6
 			buf->align(1);
 			buf->write(data->lightGrid.rowDataStart,
 				data->lightGrid.maxs[data->lightGrid.rowAxis] - data->lightGrid.mins[data->lightGrid.rowAxis] + 1);
-			zone_buffer::clear_pointer(&dest->lightGrid.rowDataStart);
+			buf->clear_pointer(&dest->lightGrid.rowDataStart);
 		}
 
 		if (data->lightGrid.rawRowData)
 		{
 			buf->align(0);
 			buf->write(data->lightGrid.rawRowData, data->lightGrid.rawRowDataSize);
-			zone_buffer::clear_pointer(&dest->lightGrid.rawRowData);
+			buf->clear_pointer(&dest->lightGrid.rawRowData);
 		}
 
 		if (data->lightGrid.entries)
 		{
 			buf->align(3);
 			buf->write(data->lightGrid.entries, data->lightGrid.entryCount);
-			zone_buffer::clear_pointer(&dest->lightGrid.entries);
+			buf->clear_pointer(&dest->lightGrid.entries);
 		}
 
 		if (data->lightGrid.colors)
 		{
 			buf->align(3);
 			buf->write(data->lightGrid.colors, data->lightGrid.colorCount);
-			zone_buffer::clear_pointer(&dest->lightGrid.colors);
+			buf->clear_pointer(&dest->lightGrid.colors);
 		}
 
 		if (data->lightGrid.stageLightingContrastGain)
 		{
 			buf->align(3);
 			buf->write(data->lightGrid.stageLightingContrastGain, data->lightGrid.stageCount);
-			zone_buffer::clear_pointer(&dest->lightGrid.stageLightingContrastGain);
+			buf->clear_pointer(&dest->lightGrid.stageLightingContrastGain);
 		}
 
 		if (data->lightGrid.paletteEntryAddress)
 		{
 			buf->align(3);
 			buf->write(data->lightGrid.paletteEntryAddress, data->lightGrid.paletteEntryCount);
-			zone_buffer::clear_pointer(&dest->lightGrid.paletteEntryAddress);
+			buf->clear_pointer(&dest->lightGrid.paletteEntryAddress);
 		}
 
 		if (data->lightGrid.paletteBitstream)
 		{
 			buf->align(0);
 			buf->write(data->lightGrid.paletteBitstream, data->lightGrid.paletteBitstreamSize);
-			zone_buffer::clear_pointer(&dest->lightGrid.paletteBitstream);
+			buf->clear_pointer(&dest->lightGrid.paletteBitstream);
 		}
 
 		if (data->lightGrid.tree.p_nodeTable)
 		{
 			buf->align(3);
 			buf->write(data->lightGrid.tree.p_nodeTable, data->lightGrid.tree.nodeCount);
-			zone_buffer::clear_pointer(&dest->lightGrid.tree.p_nodeTable);
+			buf->clear_pointer(&dest->lightGrid.tree.p_nodeTable);
 		}
 
 		if (data->lightGrid.tree.p_leafTable)
 		{
 			buf->align(0);
 			buf->write(data->lightGrid.tree.p_leafTable, data->lightGrid.tree.leafTableSize);
-			zone_buffer::clear_pointer(&dest->lightGrid.tree.p_leafTable);
+			buf->clear_pointer(&dest->lightGrid.tree.p_leafTable);
 		}
 
 		if (data->models)
 		{
 			buf->align(3);
 			buf->write(data->models, data->modelCount);
-			zone_buffer::clear_pointer(&dest->models);
+			buf->clear_pointer(&dest->models);
 		}
 
 		if (data->materialMemory)
@@ -715,7 +715,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->materialMemory);
+			buf->clear_pointer(&dest->materialMemory);
 		}
 
 		if (data->sun.spriteMaterial)
@@ -741,28 +741,28 @@ namespace zonetool::iw6
 			buf->align(3);
 			buf->write(data->cellCasterBits,
 				data->dpvsPlanes.cellCount * ((data->dpvsPlanes.cellCount + 31) >> 5));
-			zone_buffer::clear_pointer(&dest->cellCasterBits);
+			buf->clear_pointer(&dest->cellCasterBits);
 		}
 
 		if (data->cellHasSunLitSurfsBits)
 		{
 			buf->align(3);
 			buf->write(data->cellHasSunLitSurfsBits, (data->dpvsPlanes.cellCount + 31) >> 5);
-			zone_buffer::clear_pointer(&dest->cellHasSunLitSurfsBits);
+			buf->clear_pointer(&dest->cellHasSunLitSurfsBits);
 		}
 
 		if (data->sceneDynModel)
 		{
 			buf->align(3);
 			buf->write(data->sceneDynModel, data->dpvsDyn.dynEntClientCount[0]);
-			zone_buffer::clear_pointer(&dest->sceneDynModel);
+			buf->clear_pointer(&dest->sceneDynModel);
 		}
 
 		if (data->sceneDynBrush)
 		{
 			buf->align(3);
 			buf->write(data->sceneDynBrush, data->dpvsDyn.dynEntClientCount[1]);
-			zone_buffer::clear_pointer(&dest->sceneDynBrush);
+			buf->clear_pointer(&dest->sceneDynBrush);
 		}
 
 		if (data->primaryLightEntityShadowVis)
@@ -770,7 +770,7 @@ namespace zonetool::iw6
 			buf->align(3);
 			buf->write(data->primaryLightEntityShadowVis,
 				((data->primaryLightCount - data->lastSunPrimaryLightIndex - 1) << 13));
-			zone_buffer::clear_pointer(&dest->primaryLightEntityShadowVis);
+			buf->clear_pointer(&dest->primaryLightEntityShadowVis);
 		}
 
 		if (data->primaryLightDynEntShadowVis[0])
@@ -778,7 +778,7 @@ namespace zonetool::iw6
 			buf->align(3);
 			buf->write(data->primaryLightDynEntShadowVis[0],
 				data->dpvsDyn.dynEntClientCount[0] * (data->primaryLightCount - data->lastSunPrimaryLightIndex - 1));
-			zone_buffer::clear_pointer(&dest->primaryLightDynEntShadowVis[0]);
+			buf->clear_pointer(&dest->primaryLightDynEntShadowVis[0]);
 		}
 
 		if (data->primaryLightDynEntShadowVis[1])
@@ -786,14 +786,14 @@ namespace zonetool::iw6
 			buf->align(3);
 			buf->write(data->primaryLightDynEntShadowVis[1],
 				data->dpvsDyn.dynEntClientCount[1] * (data->primaryLightCount - data->lastSunPrimaryLightIndex - 1));
-			zone_buffer::clear_pointer(&dest->primaryLightDynEntShadowVis[1]);
+			buf->clear_pointer(&dest->primaryLightDynEntShadowVis[1]);
 		}
 
 		if (data->nonSunPrimaryLightForModelDynEnt)
 		{
 			buf->align(1);
 			buf->write(data->nonSunPrimaryLightForModelDynEnt, data->dpvsDyn.dynEntClientCount[0]);
-			zone_buffer::clear_pointer(&dest->nonSunPrimaryLightForModelDynEnt);
+			buf->clear_pointer(&dest->nonSunPrimaryLightForModelDynEnt);
 		}
 		buf->pop_stream();
 
@@ -808,17 +808,17 @@ namespace zonetool::iw6
 				{
 					buf->align(3);
 					buf->write(data->shadowGeom[i].sortedSurfIndex, data->shadowGeom[i].surfaceCount);
-					zone_buffer::clear_pointer(&shadow_geometry[i].sortedSurfIndex);
+					buf->clear_pointer(&shadow_geometry[i].sortedSurfIndex);
 				}
 				if (data->shadowGeom[i].smodelIndex)
 				{
 					buf->align(1);
 					buf->write(data->shadowGeom[i].smodelIndex, data->shadowGeom[i].smodelCount);
-					zone_buffer::clear_pointer(&shadow_geometry[i].smodelIndex);
+					buf->clear_pointer(&shadow_geometry[i].smodelIndex);
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->shadowGeom);
+			buf->clear_pointer(&dest->shadowGeom);
 		}
 		if (data->shadowGeomOptimized)
 		{
@@ -831,17 +831,17 @@ namespace zonetool::iw6
 				{
 					buf->align(3);
 					buf->write(data->shadowGeomOptimized[i].sortedSurfIndex, data->shadowGeomOptimized[i].surfaceCount);
-					zone_buffer::clear_pointer(&shadow_geometry[i].sortedSurfIndex);
+					buf->clear_pointer(&shadow_geometry[i].sortedSurfIndex);
 				}
 				if (data->shadowGeomOptimized[i].smodelIndex)
 				{
 					buf->align(1);
 					buf->write(data->shadowGeomOptimized[i].smodelIndex, data->shadowGeomOptimized[i].smodelCount);
-					zone_buffer::clear_pointer(&shadow_geometry[i].smodelIndex);
+					buf->clear_pointer(&shadow_geometry[i].smodelIndex);
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->shadowGeom);
+			buf->clear_pointer(&dest->shadowGeom);
 		}
 
 		if (data->lightRegion)
@@ -863,15 +863,15 @@ namespace zonetool::iw6
 							buf->align(3);
 							buf->write(data->lightRegion[i].hulls[i2].axis,
 								data->lightRegion[i].hulls[i2].axisCount);
-							zone_buffer::clear_pointer(&light_region_hull[i2].axis);
+							buf->clear_pointer(&light_region_hull[i2].axis);
 						}
 					}
 
-					zone_buffer::clear_pointer(&light_region[i].hulls);
+					buf->clear_pointer(&light_region[i].hulls);
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->lightRegion);
+			buf->clear_pointer(&dest->lightRegion);
 		}
 
 		buf->push_stream(XFILE_BLOCK_RUNTIME);
@@ -879,76 +879,76 @@ namespace zonetool::iw6
 		{
 			buf->align(127);
 			buf->write(data->dpvs.smodelVisData[0], data->dpvs.smodelVisDataCount);
-			zone_buffer::clear_pointer(&dest->dpvs.smodelVisData[0]);
+			buf->clear_pointer(&dest->dpvs.smodelVisData[0]);
 		}
 		if (data->dpvs.smodelVisData[1])
 		{
 			buf->align(127);
 			buf->write(data->dpvs.smodelVisData[1], data->dpvs.smodelVisDataCount);
-			zone_buffer::clear_pointer(&dest->dpvs.smodelVisData[1]);
+			buf->clear_pointer(&dest->dpvs.smodelVisData[1]);
 		}
 		if (data->dpvs.smodelVisData[2])
 		{
 			buf->align(127);
 			buf->write(data->dpvs.smodelVisData[2], data->dpvs.smodelVisDataCount);
-			zone_buffer::clear_pointer(&dest->dpvs.smodelVisData[2]);
+			buf->clear_pointer(&dest->dpvs.smodelVisData[2]);
 		}
 
 		if (data->dpvs.surfaceVisData[0])
 		{
 			buf->align(127);
 			buf->write(data->dpvs.surfaceVisData[0], data->dpvs.surfaceVisDataCount);
-			zone_buffer::clear_pointer(&dest->dpvs.surfaceVisData[0]);
+			buf->clear_pointer(&dest->dpvs.surfaceVisData[0]);
 		}
 		if (data->dpvs.surfaceVisData[1])
 		{
 			buf->align(127);
 			buf->write(data->dpvs.surfaceVisData[1], data->dpvs.surfaceVisDataCount);
-			zone_buffer::clear_pointer(&dest->dpvs.surfaceVisData[1]);
+			buf->clear_pointer(&dest->dpvs.surfaceVisData[1]);
 		}
 		if (data->dpvs.surfaceVisData[2])
 		{
 			buf->align(127);
 			buf->write(data->dpvs.surfaceVisData[2], data->dpvs.surfaceVisDataCount);
-			zone_buffer::clear_pointer(&dest->dpvs.surfaceVisData[2]);
+			buf->clear_pointer(&dest->dpvs.surfaceVisData[2]);
 		}
 
 		if (data->dpvs.unknownData01[0])
 		{
 			buf->align(127);
 			buf->write(data->dpvs.unknownData01[0], data->dpvs.smodelVisDataCount + 1);
-			zone_buffer::clear_pointer(&dest->dpvs.unknownData01[0]);
+			buf->clear_pointer(&dest->dpvs.unknownData01[0]);
 		}
 		if (data->dpvs.unknownData01[1])
 		{
 			buf->align(127);
 			buf->write(data->dpvs.unknownData01[1], data->dpvs.smodelVisDataCount + 1);
-			zone_buffer::clear_pointer(&dest->dpvs.unknownData01[1]);
+			buf->clear_pointer(&dest->dpvs.unknownData01[1]);
 		}
 		if (data->dpvs.unknownData01[2])
 		{
 			buf->align(127);
 			buf->write(data->dpvs.unknownData01[2], data->dpvs.smodelVisDataCount + 1);
-			zone_buffer::clear_pointer(&dest->dpvs.unknownData01[2]);
+			buf->clear_pointer(&dest->dpvs.unknownData01[2]);
 		}
 
 		if (data->dpvs.unknownData02[0])
 		{
 			buf->align(127);
 			buf->write(data->dpvs.unknownData02[0], data->dpvs.surfaceVisDataCount);
-			zone_buffer::clear_pointer(&dest->dpvs.unknownData02[0]);
+			buf->clear_pointer(&dest->dpvs.unknownData02[0]);
 		}
 		if (data->dpvs.unknownData02[1])
 		{
 			buf->align(127);
 			buf->write(data->dpvs.unknownData02[1], data->dpvs.surfaceVisDataCount);
-			zone_buffer::clear_pointer(&dest->dpvs.unknownData02[1]);
+			buf->clear_pointer(&dest->dpvs.unknownData02[1]);
 		}
 		if (data->dpvs.unknownData02[2])
 		{
 			buf->align(127);
 			buf->write(data->dpvs.unknownData02[2], data->dpvs.surfaceVisDataCount);
-			zone_buffer::clear_pointer(&dest->dpvs.unknownData02[2]);
+			buf->clear_pointer(&dest->dpvs.unknownData02[2]);
 		}
 		buf->pop_stream();
 
@@ -956,7 +956,7 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			buf->write(data->dpvs.lodData, data->dpvs.smodelCount + 1);
-			zone_buffer::clear_pointer(&dest->dpvs.lodData);
+			buf->clear_pointer(&dest->dpvs.lodData);
 		}
 
 		buf->push_stream(XFILE_BLOCK_RUNTIME);
@@ -964,19 +964,19 @@ namespace zonetool::iw6
 		{
 			buf->align(127);
 			buf->write(data->dpvs.tessellationCutoffVisData[0], data->dpvs.surfaceVisDataCount);
-			zone_buffer::clear_pointer(&dest->dpvs.tessellationCutoffVisData[0]);
+			buf->clear_pointer(&dest->dpvs.tessellationCutoffVisData[0]);
 		}
 		if (data->dpvs.tessellationCutoffVisData[1])
 		{
 			buf->align(127);
 			buf->write(data->dpvs.tessellationCutoffVisData[1], data->dpvs.surfaceVisDataCount);
-			zone_buffer::clear_pointer(&dest->dpvs.tessellationCutoffVisData[1]);
+			buf->clear_pointer(&dest->dpvs.tessellationCutoffVisData[1]);
 		}
 		if (data->dpvs.tessellationCutoffVisData[2])
 		{
 			buf->align(127);
 			buf->write(data->dpvs.tessellationCutoffVisData[2], data->dpvs.surfaceVisDataCount);
-			zone_buffer::clear_pointer(&dest->dpvs.tessellationCutoffVisData[2]);
+			buf->clear_pointer(&dest->dpvs.tessellationCutoffVisData[2]);
 		}
 		buf->pop_stream();
 
@@ -984,14 +984,14 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			buf->write(data->dpvs.sortedSurfIndex, data->dpvs.staticSurfaceCount);
-			zone_buffer::clear_pointer(&dest->dpvs.sortedSurfIndex);
+			buf->clear_pointer(&dest->dpvs.sortedSurfIndex);
 		}
 
 		if (data->dpvs.smodelInsts)
 		{
 			buf->align(3);
 			buf->write(data->dpvs.smodelInsts, data->dpvs.smodelCount);
-			zone_buffer::clear_pointer(&dest->dpvs.smodelInsts);
+			buf->clear_pointer(&dest->dpvs.smodelInsts);
 		}
 
 		if (data->dpvs.surfaces)
@@ -1007,14 +1007,14 @@ namespace zonetool::iw6
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->dpvs.surfaces);
+			buf->clear_pointer(&dest->dpvs.surfaces);
 		}
 
 		if (data->dpvs.surfacesBounds)
 		{
 			buf->align(3);
 			buf->write(data->dpvs.surfacesBounds, data->surfaceCount);
-			zone_buffer::clear_pointer(&dest->dpvs.surfacesBounds);
+			buf->clear_pointer(&dest->dpvs.surfacesBounds);
 		}
 
 		if (data->dpvs.smodelDrawInsts)
@@ -1035,7 +1035,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->dpvs.smodelDrawInsts);
+			buf->clear_pointer(&dest->dpvs.smodelDrawInsts);
 		}
 
 		buf->push_stream(XFILE_BLOCK_RUNTIME);
@@ -1043,19 +1043,19 @@ namespace zonetool::iw6
 		{
 			buf->align(7);
 			buf->write(data->dpvs.surfaceMaterials, data->surfaceCount);
-			zone_buffer::clear_pointer(&dest->dpvs.surfaceMaterials);
+			buf->clear_pointer(&dest->dpvs.surfaceMaterials);
 		}
 		if (data->dpvs.surfaceCastsSunShadow)
 		{
 			buf->align(127);
 			buf->write(data->dpvs.surfaceCastsSunShadow, data->dpvs.surfaceVisDataCount);
-			zone_buffer::clear_pointer(&dest->dpvs.surfaceCastsSunShadow);
+			buf->clear_pointer(&dest->dpvs.surfaceCastsSunShadow);
 		}
 		if (data->dpvs.surfaceCastsSunShadowOpt)
 		{
 			buf->align(127);
 			buf->write(data->dpvs.surfaceCastsSunShadowOpt, data->dpvs.sunShadowOptCount * data->dpvs.sunSurfVisDataCount);
-			zone_buffer::clear_pointer(&dest->dpvs.surfaceCastsSunShadowOpt);
+			buf->clear_pointer(&dest->dpvs.surfaceCastsSunShadowOpt);
 		}
 
 		if (data->dpvs.constantBuffersLit)
@@ -1071,7 +1071,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->dpvs.constantBuffersLit);
+			buf->clear_pointer(&dest->dpvs.constantBuffersLit);
 		}
 
 		if (data->dpvs.constantBuffersAmbient)
@@ -1087,7 +1087,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->dpvs.constantBuffersAmbient);
+			buf->clear_pointer(&dest->dpvs.constantBuffersAmbient);
 		}
 		buf->pop_stream();
 
@@ -1097,7 +1097,7 @@ namespace zonetool::iw6
 			buf->align(3);
 			buf->write(data->dpvsDyn.dynEntCellBits[0],
 				data->dpvsDyn.dynEntClientWordCount[0] * data->dpvsPlanes.cellCount);
-			zone_buffer::clear_pointer(&dest->dpvsDyn.dynEntCellBits[0]);
+			buf->clear_pointer(&dest->dpvsDyn.dynEntCellBits[0]);
 		}
 
 		if (data->dpvsDyn.dynEntCellBits[1])
@@ -1105,49 +1105,49 @@ namespace zonetool::iw6
 			buf->align(3);
 			buf->write(data->dpvsDyn.dynEntCellBits[1],
 				data->dpvsDyn.dynEntClientWordCount[1] * data->dpvsPlanes.cellCount);
-			zone_buffer::clear_pointer(&dest->dpvsDyn.dynEntCellBits[1]);
+			buf->clear_pointer(&dest->dpvsDyn.dynEntCellBits[1]);
 		}
 
 		if (data->dpvsDyn.dynEntVisData[0][0])
 		{
 			buf->align(15);
 			buf->write(data->dpvsDyn.dynEntVisData[0][0], 32 * data->dpvsDyn.dynEntClientWordCount[0]);
-			zone_buffer::clear_pointer(&dest->dpvsDyn.dynEntVisData[0][0]);
+			buf->clear_pointer(&dest->dpvsDyn.dynEntVisData[0][0]);
 		}
 
 		if (data->dpvsDyn.dynEntVisData[1][0])
 		{
 			buf->align(15);
 			buf->write(data->dpvsDyn.dynEntVisData[1][0], 32 * data->dpvsDyn.dynEntClientWordCount[1]);
-			zone_buffer::clear_pointer(&dest->dpvsDyn.dynEntVisData[1][0]);
+			buf->clear_pointer(&dest->dpvsDyn.dynEntVisData[1][0]);
 		}
 
 		if (data->dpvsDyn.dynEntVisData[0][1])
 		{
 			buf->align(15);
 			buf->write(data->dpvsDyn.dynEntVisData[0][1], 32 * data->dpvsDyn.dynEntClientWordCount[0]);
-			zone_buffer::clear_pointer(&dest->dpvsDyn.dynEntVisData[0][1]);
+			buf->clear_pointer(&dest->dpvsDyn.dynEntVisData[0][1]);
 		}
 
 		if (data->dpvsDyn.dynEntVisData[1][1])
 		{
 			buf->align(15);
 			buf->write(data->dpvsDyn.dynEntVisData[1][1], 32 * data->dpvsDyn.dynEntClientWordCount[1]);
-			zone_buffer::clear_pointer(&dest->dpvsDyn.dynEntVisData[1][1]);
+			buf->clear_pointer(&dest->dpvsDyn.dynEntVisData[1][1]);
 		}
 
 		if (data->dpvsDyn.dynEntVisData[0][2])
 		{
 			buf->align(15);
 			buf->write(data->dpvsDyn.dynEntVisData[0][2], 32 * data->dpvsDyn.dynEntClientWordCount[0]);
-			zone_buffer::clear_pointer(&dest->dpvsDyn.dynEntVisData[0][2]);
+			buf->clear_pointer(&dest->dpvsDyn.dynEntVisData[0][2]);
 		}
 
 		if (data->dpvsDyn.dynEntVisData[1][2])
 		{
 			buf->align(15);
 			buf->write(data->dpvsDyn.dynEntVisData[1][2], 32 * data->dpvsDyn.dynEntClientWordCount[1]);
-			zone_buffer::clear_pointer(&dest->dpvsDyn.dynEntVisData[1][2]);
+			buf->clear_pointer(&dest->dpvsDyn.dynEntVisData[1][2]);
 		}
 		buf->pop_stream();
 
@@ -1155,14 +1155,14 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			buf->write(data->heroOnlyLights, data->heroOnlyLightCount);
-			zone_buffer::clear_pointer(&dest->heroOnlyLights);
+			buf->clear_pointer(&dest->heroOnlyLights);
 		}
 
 		if (data->umbraTomeData)
 		{
 			buf->align(15);
 			buf->write(data->umbraTomeData, data->umbraTomeSize);
-			zone_buffer::clear_pointer(&dest->umbraTomeData);
+			buf->clear_pointer(&dest->umbraTomeData);
 		}
 		dest->umbraTomePtr = nullptr;
 

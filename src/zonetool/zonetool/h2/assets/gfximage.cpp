@@ -451,7 +451,7 @@ namespace zonetool::h2
 			{
 				buf->align(3);
 				buf->write_stream(data->pixelData, data->dataLen1);
-				zone_buffer::clear_pointer(&dest->pixelData);
+				buf->clear_pointer(&dest->pixelData);
 			}
 			buf->pop_stream();
 		}

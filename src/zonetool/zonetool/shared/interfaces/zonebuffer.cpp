@@ -20,7 +20,6 @@ namespace zonetool
 
 	zone_buffer::~zone_buffer()
 	{
-		this->init();
 		this->clear();
 	}
 
@@ -42,21 +41,18 @@ namespace zonetool
 
 	void zone_buffer::init()
 	{
-		this->stream_ = 0;
-		this->shift_size_ = 0;
-		this->stream_count_ = 0;
+		this->clear();
 
-		this->pos_ = 0;
-		this->length_ = 0;
+		this->set_fields(2, 0xFDFDFDFFFFFFFFFF, 0xFDFDFDFFFFFFFFFD, 0xFDFDFDFFFFFFFFFE);
+	}
 
-		this->sub_zone_buffers_.clear();
-		this->init_script_strings();
-		this->depth_stencil_state_bits_.clear();
-		this->blend_state_bits_.clear();
-		this->ppas_.clear();
-		this->poas_.clear();
-		this->sas_.clear();
-		this->stream_files_.clear();
+	void zone_buffer::set_fields(std::uint32_t zone_stream_runtime_, std::uint64_t data_following_, std::uint64_t data_offset_, std::uint64_t data_ptr_, std::uint64_t data_shared_)
+	{
+		this->zone_stream_runtime = zone_stream_runtime_;
+		this->data_following = data_following_;
+		this->data_offset = data_offset_;
+		this->data_ptr = data_ptr_;
+		this->data_shared = data_shared_;
 	}
 
 	void zone_buffer::init_streams(const std::size_t streams)
@@ -95,7 +91,7 @@ namespace zonetool
 
 	void zone_buffer::write_stream(const void* data, const std::size_t size, const std::size_t count)
 	{
-		if (this->stream_ == zone_stream_runtime)
+		if (this->stream_ == this->zone_stream_runtime)
 		{
 			if (this->stream_count_ > 0)
 			{
@@ -121,12 +117,17 @@ namespace zonetool
 	char* zone_buffer::write_str(const std::string& str)
 	{
 		this->write_stream(str.data(), str.size() + 1);
-		return reinterpret_cast<char*>(0xFDFDFDFFFFFFFFFF);
+		return reinterpret_cast<char*>(this->data_following);
 	}
 
 	void zone_buffer::write_str_raw(const std::string& str)
 	{
 		return write_stream(str.data(), str.size() + 1);
+	}
+
+	std::vector<std::uint8_t>* zone_buffer::buffer_raw()
+	{
+		return &this->buffer_;
 	}
 
 	std::uint8_t* zone_buffer::buffer()
@@ -141,6 +142,22 @@ namespace zonetool
 
 	void zone_buffer::clear()
 	{
+		this->stream_ = 0;
+		this->shift_size_ = 0;
+		this->stream_count_ = 0;
+
+		this->pos_ = 0;
+		this->length_ = 0;
+
+		this->sub_zone_buffers_.clear();
+		this->init_script_strings();
+		this->depth_stencil_state_bits_.clear();
+		this->blend_state_bits_.clear();
+		this->ppas_.clear();
+		this->poas_.clear();
+		this->sas_.clear();
+		this->stream_files_.clear();
+
 		this->buffer_.clear();
 		this->buffer_.shrink_to_fit();
 	}

@@ -192,7 +192,7 @@ namespace zonetool::h1
 					buf->write(&ptr);
 					buf->align(7);
 					buf->write_str(data->glassSys.defs[i].damagedSound->name);
-					zone_buffer::clear_pointer(&glass_def[i].damagedSound);
+					buf->clear_pointer(&glass_def[i].damagedSound);
 				}
 				if (data->glassSys.defs[i].destroyedSound)
 				{
@@ -200,7 +200,7 @@ namespace zonetool::h1
 					buf->write(&ptr);
 					buf->align(7);
 					buf->write_str(data->glassSys.defs[i].destroyedSound->name);
-					zone_buffer::clear_pointer(&glass_def[i].destroyedSound);
+					buf->clear_pointer(&glass_def[i].destroyedSound);
 				}
 				if (data->glassSys.defs[i].destroyedQuietSound)
 				{
@@ -208,11 +208,11 @@ namespace zonetool::h1
 					buf->write(&ptr);
 					buf->align(7);
 					buf->write_str(data->glassSys.defs[i].destroyedQuietSound->name);
-					zone_buffer::clear_pointer(&glass_def[i].destroyedQuietSound);
+					buf->clear_pointer(&glass_def[i].destroyedQuietSound);
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->glassSys.defs);
+			buf->clear_pointer(&dest->glassSys.defs);
 		}
 
 		buf->push_stream(XFILE_BLOCK_RUNTIME);
@@ -220,63 +220,63 @@ namespace zonetool::h1
 		{
 			buf->align(3);
 			buf->write(data->glassSys.piecePlaces, data->glassSys.pieceLimit);
-			zone_buffer::clear_pointer(&dest->glassSys.piecePlaces);
+			buf->clear_pointer(&dest->glassSys.piecePlaces);
 		}
 
 		if (data->glassSys.pieceStates)
 		{
 			buf->align(3);
 			buf->write(data->glassSys.pieceStates, data->glassSys.pieceLimit);
-			zone_buffer::clear_pointer(&dest->glassSys.pieceStates);
+			buf->clear_pointer(&dest->glassSys.pieceStates);
 		}
 
 		if (data->glassSys.pieceDynamics)
 		{
 			buf->align(3);
 			buf->write(data->glassSys.pieceDynamics, data->glassSys.pieceLimit);
-			zone_buffer::clear_pointer(&dest->glassSys.pieceDynamics);
+			buf->clear_pointer(&dest->glassSys.pieceDynamics);
 		}
 
 		if (data->glassSys.geoData)
 		{
 			buf->align(3);
 			buf->write(data->glassSys.geoData, data->glassSys.geoDataLimit);
-			zone_buffer::clear_pointer(&dest->glassSys.geoData);
+			buf->clear_pointer(&dest->glassSys.geoData);
 		}
 
 		if (data->glassSys.isInUse)
 		{
 			buf->align(3);
 			buf->write(data->glassSys.isInUse, data->glassSys.pieceWordCount);
-			zone_buffer::clear_pointer(&dest->glassSys.isInUse);
+			buf->clear_pointer(&dest->glassSys.isInUse);
 		}
 
 		if (data->glassSys.cellBits)
 		{
 			buf->align(3);
 			buf->write(data->glassSys.cellBits, data->glassSys.pieceWordCount * data->glassSys.cellCount);
-			zone_buffer::clear_pointer(&dest->glassSys.cellBits);
+			buf->clear_pointer(&dest->glassSys.cellBits);
 		}
 
 		if (data->glassSys.visData)
 		{
 			buf->align(15);
 			buf->write(data->glassSys.visData, (data->glassSys.pieceLimit + 15) & 0xFFFFFFF0);
-			zone_buffer::clear_pointer(&dest->glassSys.visData);
+			buf->clear_pointer(&dest->glassSys.visData);
 		}
 
 		if (data->glassSys.linkOrg)
 		{
 			buf->align(3);
 			buf->write(data->glassSys.linkOrg, data->glassSys.pieceLimit);
-			zone_buffer::clear_pointer(&dest->glassSys.linkOrg);
+			buf->clear_pointer(&dest->glassSys.linkOrg);
 		}
 
 		if (data->glassSys.halfThickness)
 		{
 			buf->align(15);
 			buf->write(data->glassSys.halfThickness, (data->glassSys.pieceLimit + 3) & 0xFFFFFFFC);
-			zone_buffer::clear_pointer(&dest->glassSys.halfThickness);
+			buf->clear_pointer(&dest->glassSys.halfThickness);
 		}
 		buf->pop_stream();
 
@@ -284,21 +284,21 @@ namespace zonetool::h1
 		{
 			buf->align(1);
 			buf->write(data->glassSys.lightingHandles, data->glassSys.initPieceCount);
-			zone_buffer::clear_pointer(&dest->glassSys.lightingHandles);
+			buf->clear_pointer(&dest->glassSys.lightingHandles);
 		}
 
 		if (data->glassSys.initGeoData)
 		{
 			buf->align(3);
 			buf->write(data->glassSys.initGeoData, data->glassSys.initGeoDataCount);
-			zone_buffer::clear_pointer(&dest->glassSys.initGeoData);
+			buf->clear_pointer(&dest->glassSys.initGeoData);
 		}
 
 		if (data->glassSys.initPieceStates)
 		{
 			buf->align(3);
 			buf->write(data->glassSys.initPieceStates, data->glassSys.initPieceCount);
-			zone_buffer::clear_pointer(&dest->glassSys.initPieceStates);
+			buf->clear_pointer(&dest->glassSys.initPieceStates);
 		}
 
 		buf->pop_stream();

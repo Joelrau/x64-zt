@@ -81,6 +81,7 @@ addcopyopt("iw6-copy-to")
 addcopyopt("s1-copy-to")
 addcopyopt("h1-copy-to")
 addcopyopt("h2-copy-to")
+addcopyopt("iw7-copy-to")
 
 newoption {
 	trigger = "target-project",

@@ -133,7 +133,7 @@ namespace zonetool::h1
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->submixes);
+			buf->clear_pointer(&dest->submixes);
 		}
 
 		buf->pop_stream();

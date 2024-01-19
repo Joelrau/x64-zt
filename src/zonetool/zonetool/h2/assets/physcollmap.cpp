@@ -100,49 +100,49 @@ namespace zonetool::h2
 					{
 						buf->align(15);
 						buf->write(data_poly_data->vec4_array0, data_poly_data->count0);
-						zone_buffer::clear_pointer(&dest_poly_data->vec4_array0);
+						buf->clear_pointer(&dest_poly_data->vec4_array0);
 					}
 
 					if (data_poly_data->vec4_array1)
 					{
 						buf->align(15);
 						buf->write(data_poly_data->vec4_array1, data_poly_data->count1);
-						zone_buffer::clear_pointer(&dest_poly_data->vec4_array1);
+						buf->clear_pointer(&dest_poly_data->vec4_array1);
 					}
 
 					if (data_poly_data->edges)
 					{
 						buf->align(3);
 						buf->write(data_poly_data->edges, data_poly_data->count2);
-						zone_buffer::clear_pointer(&dest_poly_data->edges);
+						buf->clear_pointer(&dest_poly_data->edges);
 					}
 
 					if (data_poly_data->uint8_array0)
 					{
 						buf->align(0);
 						buf->write(data_poly_data->uint8_array0, data_poly_data->count1);
-						zone_buffer::clear_pointer(&dest_poly_data->uint8_array0);
+						buf->clear_pointer(&dest_poly_data->uint8_array0);
 					}
 
 					if (data_poly_data->uint16_array0)
 					{
 						buf->align(1);
 						buf->write(data_poly_data->uint16_array0, data_poly_data->count1);
-						zone_buffer::clear_pointer(&dest_poly_data->uint16_array0);
+						buf->clear_pointer(&dest_poly_data->uint16_array0);
 					}
 
 					if (data_poly_data->uint16_array1)
 					{
 						buf->align(1);
 						buf->write(data_poly_data->uint16_array1, data_poly_data->count0);
-						zone_buffer::clear_pointer(&dest_poly_data->uint16_array1);
+						buf->clear_pointer(&dest_poly_data->uint16_array1);
 					}
 
-					zone_buffer::clear_pointer(&dest_geoms[i].data);
+					buf->clear_pointer(&dest_geoms[i].data);
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->geoms);
+			buf->clear_pointer(&dest->geoms);
 		}
 
 		buf->pop_stream();

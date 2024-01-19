@@ -415,7 +415,7 @@ namespace zonetool::iw6
 		{
 			buf->align(0);
 			buf->write(data->sound.data, data->sound.loadedSize);
-			zone_buffer::clear_pointer(&dest->sound.data);
+			buf->clear_pointer(&dest->sound.data);
 		}
 
 		buf->pop_stream();
@@ -424,7 +424,7 @@ namespace zonetool::iw6
 		{
 			buf->align(0);
 			buf->write(data->sound.seekTable, data->sound.seekTableSize);
-			zone_buffer::clear_pointer(&dest->sound.seekTable);
+			buf->clear_pointer(&dest->sound.seekTable);
 		}
 
 		buf->pop_stream();

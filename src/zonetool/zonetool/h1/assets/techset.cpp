@@ -536,7 +536,7 @@ namespace zonetool::h1
 
 						buf->pop_stream();
 
-						zone_buffer::insert_pointer(&technique_passes[pass].vertexDecl);
+						buf->insert_pointer(&technique_passes[pass].vertexDecl);
 					}
 				}
 
@@ -587,9 +587,9 @@ namespace zonetool::h1
 			}
 
 			buf->write_str(technique_header->name);
-			zone_buffer::clear_pointer(&technique_header->name);
+			buf->clear_pointer(&technique_header->name);
 
-			zone_buffer::clear_pointer(&dest->techniques[technique]);
+			buf->clear_pointer(&dest->techniques[technique]);
 		}
 
 		buf->pop_stream();

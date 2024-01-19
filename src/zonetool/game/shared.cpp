@@ -69,6 +69,17 @@ namespace zonetool
 				stream_file_index.set(0x1420B27F4);
 			}
 		}
+
+		namespace iw7
+		{
+			void initialize()
+			{
+				DB_FindXAssetHeader.set(0x140A76E00);
+				DB_IsXAssetDefault.set(0x140A780D0);
+
+				SL_ConvertToString.set(0x140C03300);
+			}
+		}
 	}
 
 	void* get_x_gfx_globals_for_zone(int zone)
@@ -104,7 +115,7 @@ namespace zonetool
 	public:
 		void post_start() override
 		{
-			select(iw6::initialize, s1::initialize, h1::initialize, h2::initialize)();
+			select(iw6::initialize, s1::initialize, h1::initialize, h2::initialize, iw7::initialize)();
 		}
 	};
 

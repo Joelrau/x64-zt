@@ -422,7 +422,7 @@ namespace zonetool::h2
 		{
 			buf->align(0);
 			buf->write(data->entityString, data->numEntityChars);
-			zone_buffer::clear_pointer(&dest->entityString);
+			buf->clear_pointer(&dest->entityString);
 		}
 
 		write_triggers(buf, &dest->trigger);
@@ -432,112 +432,112 @@ namespace zonetool::h2
 		{
 			buf->align(3);
 			buf->write(data->clientTrigger.clientTriggerAabbTree, data->clientTrigger.numClientTriggerNodes);
-			zone_buffer::clear_pointer(&dest->clientTrigger.clientTriggerAabbTree);
+			buf->clear_pointer(&dest->clientTrigger.clientTriggerAabbTree);
 		}
 
 		if (data->clientTrigger.triggerString)
 		{
 			buf->align(0);
 			buf->write(data->clientTrigger.triggerString, data->clientTrigger.triggerStringLength);
-			zone_buffer::clear_pointer(&dest->clientTrigger.triggerString);
+			buf->clear_pointer(&dest->clientTrigger.triggerString);
 		}
 
 		if (data->clientTrigger.visionSetTriggers)
 		{
 			buf->align(1);
 			buf->write(data->clientTrigger.visionSetTriggers, data->clientTrigger.trigger.count);
-			zone_buffer::clear_pointer(&dest->clientTrigger.visionSetTriggers);
+			buf->clear_pointer(&dest->clientTrigger.visionSetTriggers);
 		}
 
 		if (data->clientTrigger.unk1)
 		{
 			buf->align(1);
 			buf->write(data->clientTrigger.unk1, data->clientTrigger.trigger.count);
-			zone_buffer::clear_pointer(&dest->clientTrigger.unk1);
+			buf->clear_pointer(&dest->clientTrigger.unk1);
 		}
 
 		if (data->clientTrigger.unk2)
 		{
 			buf->align(1);
 			buf->write(data->clientTrigger.unk2, data->clientTrigger.trigger.count);
-			zone_buffer::clear_pointer(&dest->clientTrigger.unk2);
+			buf->clear_pointer(&dest->clientTrigger.unk2);
 		}
 
 		if (data->clientTrigger.triggerType)
 		{
 			buf->align(1);
 			buf->write(data->clientTrigger.triggerType, data->clientTrigger.trigger.count);
-			zone_buffer::clear_pointer(&dest->clientTrigger.triggerType);
+			buf->clear_pointer(&dest->clientTrigger.triggerType);
 		}
 
 		if (data->clientTrigger.origins)
 		{
 			buf->align(3);
 			buf->write(data->clientTrigger.origins, data->clientTrigger.trigger.count);
-			zone_buffer::clear_pointer(&dest->clientTrigger.origins);
+			buf->clear_pointer(&dest->clientTrigger.origins);
 		}
 
 		if (data->clientTrigger.scriptDelay)
 		{
 			buf->align(3);
 			buf->write(data->clientTrigger.scriptDelay, data->clientTrigger.trigger.count);
-			zone_buffer::clear_pointer(&dest->clientTrigger.scriptDelay);
+			buf->clear_pointer(&dest->clientTrigger.scriptDelay);
 		}
 
 		if (data->clientTrigger.audioTriggers)
 		{
 			buf->align(1);
 			buf->write(data->clientTrigger.audioTriggers, data->clientTrigger.trigger.count);
-			zone_buffer::clear_pointer(&dest->clientTrigger.audioTriggers);
+			buf->clear_pointer(&dest->clientTrigger.audioTriggers);
 		}
 
 		if (data->clientTrigger.blendLookup)
 		{
 			buf->align(1);
 			buf->write(data->clientTrigger.blendLookup, data->clientTrigger.trigger.count);
-			zone_buffer::clear_pointer(&dest->clientTrigger.blendLookup);
+			buf->clear_pointer(&dest->clientTrigger.blendLookup);
 		}
 
 		if (data->clientTrigger.unk3)
 		{
 			buf->align(1);
 			buf->write(data->clientTrigger.unk3, data->clientTrigger.trigger.count);
-			zone_buffer::clear_pointer(&dest->clientTrigger.unk3);
+			buf->clear_pointer(&dest->clientTrigger.unk3);
 		}
 
 		if (data->clientTrigger.unk4)
 		{
 			buf->align(1);
 			buf->write(data->clientTrigger.unk4, data->clientTrigger.trigger.count);
-			zone_buffer::clear_pointer(&dest->clientTrigger.unk4);
+			buf->clear_pointer(&dest->clientTrigger.unk4);
 		}
 
 		if (data->clientTrigger.unk5)
 		{
 			buf->align(1);
 			buf->write(data->clientTrigger.unk5, data->clientTrigger.trigger.count);
-			zone_buffer::clear_pointer(&dest->clientTrigger.unk5);
+			buf->clear_pointer(&dest->clientTrigger.unk5);
 		}
 
 		if (data->clientTrigger.unk6)
 		{
 			buf->align(1);
 			buf->write(data->clientTrigger.unk6, data->clientTrigger.trigger.count);
-			zone_buffer::clear_pointer(&dest->clientTrigger.unk6);
+			buf->clear_pointer(&dest->clientTrigger.unk6);
 		}
 
 		if (data->clientTriggerBlend.blendNodes)
 		{
 			buf->align(3);
 			buf->write(data->clientTriggerBlend.blendNodes, data->clientTriggerBlend.numClientTriggerBlendNodes);
-			zone_buffer::clear_pointer(&dest->clientTriggerBlend.blendNodes);
+			buf->clear_pointer(&dest->clientTriggerBlend.blendNodes);
 		}
 
 		if (data->spawnList.spawns)
 		{
 			buf->align(3);
 			buf->write(data->spawnList.spawns, data->spawnList.spawnsCount);
-			zone_buffer::clear_pointer(&dest->spawnList.spawns);
+			buf->clear_pointer(&dest->spawnList.spawns);
 		}
 
 		if (data->splineList.splines)
@@ -557,25 +557,25 @@ namespace zonetool::h2
 						{
 							buf->align(0);
 							buf->write(data->splineList.splines[i].splinePoints[j].splineNodeLabel, 64);
-							zone_buffer::clear_pointer(destsplinepoints[j].splineNodeLabel);
+							buf->clear_pointer(destsplinepoints[j].splineNodeLabel);
 						}
 						if (data->splineList.splines[i].splinePoints[j].positionCubic)
 						{
 							buf->align(3);
 							buf->write(data->splineList.splines[i].splinePoints[j].positionCubic, 4);
-							zone_buffer::clear_pointer(&destsplinepoints[j].positionCubic);
+							buf->clear_pointer(&destsplinepoints[j].positionCubic);
 						}
 						if (data->splineList.splines[i].splinePoints[j].tangentQuadratic)
 						{
 							buf->align(3);
 							buf->write(data->splineList.splines[i].splinePoints[j].tangentQuadratic, 3);
-							zone_buffer::clear_pointer(&destsplinepoints[j].tangentQuadratic);
+							buf->clear_pointer(&destsplinepoints[j].tangentQuadratic);
 						}
 					}
-					zone_buffer::clear_pointer(&destsplines->splinePoints);
+					buf->clear_pointer(&destsplines->splinePoints);
 				}
 			}
-			zone_buffer::clear_pointer(&dest->splineList.splines);
+			buf->clear_pointer(&dest->splineList.splines);
 		}
 
 		buf->pop_stream();

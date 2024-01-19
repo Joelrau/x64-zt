@@ -114,7 +114,7 @@ namespace zonetool
 			{
 				buf->align(0);
 				buf->write(data->buffer, data->compressedLen ? data->compressedLen : data->len + 1);
-				zone_buffer::clear_pointer(&dest->buffer);
+				buf->clear_pointer(&dest->buffer);
 			}
 
 			buf->pop_stream();

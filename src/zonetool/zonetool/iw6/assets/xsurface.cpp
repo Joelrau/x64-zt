@@ -159,14 +159,14 @@ namespace zonetool::iw6
 				buf->write(reinterpret_cast<GfxPackedVertex*>(data->verts0.verts0), data->vertCount);
 			}
 
-			zone_buffer::clear_pointer(&dest->verts0.verts0);
+			buf->clear_pointer(&dest->verts0.verts0);
 		}
 
 		if (data->triIndices)
 		{
 			buf->align(15);
 			buf->write(data->triIndices, data->triCount);
-			zone_buffer::clear_pointer(&dest->triIndices);
+			buf->clear_pointer(&dest->triIndices);
 		}
 
 		if (data->rigidVertLists)
@@ -191,10 +191,10 @@ namespace zonetool::iw6
 						buf->align(1);
 						dest->rigidVertLists[vert].collisionTree->leafs = buf->write(data->rigidVertLists[vert].collisionTree->leafs, data->rigidVertLists[vert].collisionTree->leafCount);
 					}
-					zone_buffer::clear_pointer(&dest->rigidVertLists[vert].collisionTree);
+					buf->clear_pointer(&dest->rigidVertLists[vert].collisionTree);
 				}
 			}
-			zone_buffer::clear_pointer(&dest->rigidVertLists);
+			buf->clear_pointer(&dest->rigidVertLists);
 		}
 
 		if (data->blendVerts)
@@ -208,21 +208,21 @@ namespace zonetool::iw6
 				+ 11 * data->blendVertCounts[5]
 				+ 13 * data->blendVertCounts[6]
 				+ 15 * data->blendVertCounts[7]));
-			zone_buffer::clear_pointer(&dest->blendVerts);
+			buf->clear_pointer(&dest->blendVerts);
 		}
 
 		if (data->blendVertsTable)
 		{
 			buf->align(0);
 			buf->write_stream(data->blendVertsTable, 32, data->vertCount);
-			zone_buffer::clear_pointer(&dest->blendVertsTable);
+			buf->clear_pointer(&dest->blendVertsTable);
 		}
 
 		if (data->lmapUnwrap)
 		{
 			buf->align(3);
 			buf->write_stream(data->lmapUnwrap, 8, data->vertCount);
-			zone_buffer::clear_pointer(&dest->lmapUnwrap);
+			buf->clear_pointer(&dest->lmapUnwrap);
 		}
 
 		if (data->subdiv)
@@ -239,70 +239,70 @@ namespace zonetool::iw6
 					{
 						buf->align(3);
 						buf->write_stream(data->subdiv->levels[level_index].rigidVertLists, 16, data->rigidVertListCount);
-						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].rigidVertLists);
+						buf->clear_pointer(&dest->subdiv->levels[level_index].rigidVertLists);
 					}
 
 					if (data->subdiv->levels[level_index].faceIndices)
 					{
 						buf->align(3);
 						buf->write_stream(data->subdiv->levels[level_index].faceIndices, 12, data->subdiv->levels[level_index].faceCount);
-						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].faceIndices);
+						buf->clear_pointer(&dest->subdiv->levels[level_index].faceIndices);
 					}
 
 					if (data->subdiv->levels[level_index].regularPatchIndices)
 					{
 						buf->align(3);
 						buf->write_stream(data->subdiv->levels[level_index].regularPatchIndices, 32, data->subdiv->levels[level_index].regularPatchCount);
-						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].regularPatchIndices);
+						buf->clear_pointer(&dest->subdiv->levels[level_index].regularPatchIndices);
 					}
 
 					if (data->subdiv->levels[level_index].regularPatchFlags)
 					{
 						buf->align(3);
 						buf->write_stream(data->subdiv->levels[level_index].regularPatchFlags, 4, data->subdiv->levels[level_index].regularPatchCount);
-						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].regularPatchFlags);
+						buf->clear_pointer(&dest->subdiv->levels[level_index].regularPatchFlags);
 					}
 
 					if (data->subdiv->levels[level_index].facePoints)
 					{
 						buf->align(3);
 						buf->write_stream(data->subdiv->levels[level_index].facePoints, 1, data->subdiv->levels[level_index].facePointBufferSize & 0xFFFFFFFC);
-						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].facePoints);
+						buf->clear_pointer(&dest->subdiv->levels[level_index].facePoints);
 					}
 
 					if (data->subdiv->levels[level_index].edgePoints)
 					{
 						buf->align(3);
 						buf->write_stream(data->subdiv->levels[level_index].edgePoints, 8, data->subdiv->levels[level_index].edgePointCount);
-						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].edgePoints);
+						buf->clear_pointer(&dest->subdiv->levels[level_index].edgePoints);
 					}
 
 					if (data->subdiv->levels[level_index].vertexPoints)
 					{
 						buf->align(3);
 						buf->write_stream(data->subdiv->levels[level_index].vertexPoints, 1, data->subdiv->levels[level_index].vertexPointBufferSize & 0xFFFFFFFC);
-						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].vertexPoints);
+						buf->clear_pointer(&dest->subdiv->levels[level_index].vertexPoints);
 					}
 
 					if (data->subdiv->levels[level_index].normals)
 					{
 						buf->align(3);
 						buf->write_stream(data->subdiv->levels[level_index].normals, 1, data->subdiv->levels[level_index].normalBufferSize & 0xFFFFFFFC);
-						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].normals);
+						buf->clear_pointer(&dest->subdiv->levels[level_index].normals);
 					}
 
 					if (data->subdiv->levels[level_index].transitionPoints)
 					{
 						buf->align(3);
 						buf->write_stream(data->subdiv->levels[level_index].transitionPoints, 4, data->subdiv->levels[level_index].transitionPointCount);
-						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].transitionPoints);
+						buf->clear_pointer(&dest->subdiv->levels[level_index].transitionPoints);
 					}
 
 					if (data->subdiv->levels[level_index].regularPatchCones)
 					{
 						buf->align(3);
 						buf->write_stream(data->subdiv->levels[level_index].regularPatchCones, 32, data->subdiv->levels[level_index].regularPatchCount);
-						zone_buffer::clear_pointer(&dest->subdiv->levels[level_index].regularPatchCones);
+						buf->clear_pointer(&dest->subdiv->levels[level_index].regularPatchCones);
 					}
 
 					dest->subdiv->levels[level_index].regularPatchIndexBuffer = nullptr;
@@ -316,13 +316,13 @@ namespace zonetool::iw6
 					dest->subdiv->levels[level_index].transitionPointsView = nullptr;
 					dest->subdiv->levels[level_index].regularPatchConesView = nullptr;
 				}
-				zone_buffer::clear_pointer(&dest->subdiv->levels);
+				buf->clear_pointer(&dest->subdiv->levels);
 			}
 
 			dest->subdiv->cache.subdivCacheBuffer = nullptr;
 			dest->subdiv->cache.subdivCacheView = nullptr;
 
-			zone_buffer::clear_pointer(&dest->subdiv);
+			buf->clear_pointer(&dest->subdiv);
 		}
 
 		if (data->tensionData)
@@ -337,14 +337,14 @@ namespace zonetool::iw6
 				+ data->blendVertCounts[6]
 				+ data->blendVertCounts[7]));
 
-			zone_buffer::clear_pointer(&dest->tensionData);
+			buf->clear_pointer(&dest->tensionData);
 		}
 
 		if (data->tensionAccumTable)
 		{
 			buf->align(1);
 			buf->write_stream(data->tensionAccumTable, 32, data->vertCount);
-			zone_buffer::clear_pointer(&dest->tensionAccumTable);
+			buf->clear_pointer(&dest->tensionAccumTable);
 		}
 	}
 

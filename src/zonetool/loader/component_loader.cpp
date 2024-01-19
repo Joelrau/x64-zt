@@ -113,6 +113,17 @@ void component_loader::clean()
 	}
 }
 
+void component_loader::sort()
+{
+	auto& components = get_components();
+
+	std::ranges::stable_sort(components, [](const std::unique_ptr<component_interface>& a,
+		const std::unique_ptr<component_interface>& b)
+	{
+		return a->priority() > b->priority();
+	});
+}
+
 void* component_loader::load_import(const std::string& library, const std::string& function)
 {
 	void* function_ptr = nullptr;

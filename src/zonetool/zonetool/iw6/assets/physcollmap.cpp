@@ -47,16 +47,16 @@ namespace zonetool::iw6
 			{
 				buf->align(3);
 				buf->write(data->sides[i].plane);
-				zone_buffer::clear_pointer(&destsides[i].plane);
+				buf->clear_pointer(&destsides[i].plane);
 			}
 
-			zone_buffer::clear_pointer(&dest->sides);
+			buf->clear_pointer(&dest->sides);
 		}
 		if (data->baseAdjacentSide)
 		{
 			buf->align(0);
 			buf->write(data->baseAdjacentSide, brush->totalEdgeCount);
-			zone_buffer::clear_pointer(&dest->baseAdjacentSide);
+			buf->clear_pointer(&dest->baseAdjacentSide);
 		}
 	}
 
@@ -71,7 +71,7 @@ namespace zonetool::iw6
 		{
 			buf->align(3);
 			buf->write(data->planes, data->brush.numsides);
-			zone_buffer::clear_pointer(&dest->planes);
+			buf->clear_pointer(&dest->planes);
 		}
 	}
 

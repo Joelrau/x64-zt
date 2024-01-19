@@ -452,7 +452,7 @@ namespace zonetool::iw6
 			{
 				buf->align(3);
 				buf->write_stream(data->pixelData, data->dataLen1);
-				zone_buffer::clear_pointer(&dest->pixelData);
+				buf->clear_pointer(&dest->pixelData);
 			}
 			buf->pop_stream();
 		}
@@ -463,7 +463,7 @@ namespace zonetool::iw6
 			{
 				buf->align(3);
 				buf->write_stream(data->pixelData, 1);
-				zone_buffer::clear_pointer(&dest->pixelData);
+				buf->clear_pointer(&dest->pixelData);
 			}
 			buf->pop_stream();
 		}

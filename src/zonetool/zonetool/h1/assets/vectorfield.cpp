@@ -87,11 +87,11 @@ namespace zonetool::h1
 					buf->align(3);
 					buf->write(data_fields[i].linearData, 
 						data_fields[i].numEntries[0] * data_fields[i].numEntries[1] * data_fields[i].numEntries[2]);
-					zone_buffer::clear_pointer(&dest_fields[i].linearData);
+					buf->clear_pointer(&dest_fields[i].linearData);
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->fields);
+			buf->clear_pointer(&dest->fields);
 		}
 
 		buf->pop_stream();

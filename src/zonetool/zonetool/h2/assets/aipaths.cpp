@@ -64,13 +64,13 @@ namespace zonetool::h2
 	{
 		buf->align(3);
 		const auto tree = buf->write(data);
-		zone_buffer::clear_pointer(dest);
+		buf->clear_pointer(dest);
 
 		if (data->axis < 0)
 		{
 			buf->align(1);
 			buf->write(data->u.s.nodes, data->u.s.nodeCount);
-			zone_buffer::clear_pointer(&tree->u.s.nodes);
+			buf->clear_pointer(&tree->u.s.nodes);
 		}
 		else
 		{
@@ -90,7 +90,7 @@ namespace zonetool::h2
 		{
 			buf->align(1);
 			buf->write(data->u.s.nodes, data->u.s.nodeCount);
-			zone_buffer::clear_pointer(&data->u.s.nodes);
+			buf->clear_pointer(&data->u.s.nodes);
 		}
 		else
 		{
@@ -251,17 +251,17 @@ namespace zonetool::h2
 			{
 				buf->align(3);
 				buf->write(data->nodes[i].constant.Links, data->nodes[i].constant.totalLinkCount);
-				zone_buffer::clear_pointer(&dest->nodes[i].constant.Links);
+				buf->clear_pointer(&dest->nodes[i].constant.Links);
 			}
 
-			zone_buffer::clear_pointer(&dest->nodes);
+			buf->clear_pointer(&dest->nodes);
 		}
 
 		if (data->pathVis)
 		{
 			buf->align(0);
 			buf->write(data->pathVis, data->visBytes);
-			zone_buffer::clear_pointer(&dest->pathVis);
+			buf->clear_pointer(&dest->pathVis);
 		}
 
 		if (data->nodeTree)
@@ -274,7 +274,7 @@ namespace zonetool::h2
 				write_node_tree(buf, &data->nodeTree[i], &dest_trees[i]);
 			}
 
-			zone_buffer::clear_pointer(&dest->nodeTree);
+			buf->clear_pointer(&dest->nodeTree);
 		}
 
 		if (data->dynamicNodeGroups)
@@ -293,39 +293,39 @@ namespace zonetool::h2
 					{
 						write_node_tree(buf, &data->dynamicNodeGroups[i].nodeTree[o], &dest_trees[o]);
 					}
-					zone_buffer::clear_pointer(dest->dynamicNodeGroups[i].nodeTree);
+					buf->clear_pointer(dest->dynamicNodeGroups[i].nodeTree);
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->dynamicNodeGroups);
+			buf->clear_pointer(&dest->dynamicNodeGroups);
 		}
 
 		if (data->pathExposure)
 		{
 			buf->align(0);
 			buf->write(data->pathExposure, data->exposureBytes);
-			zone_buffer::clear_pointer(dest->pathExposure);
+			buf->clear_pointer(dest->pathExposure);
 		}
 
 		if (data->pathNoPeekVis)
 		{
 			buf->align(0);
 			buf->write(data->pathNoPeekVis, data->noPeekVisBytes);
-			zone_buffer::clear_pointer(dest->pathNoPeekVis);
+			buf->clear_pointer(dest->pathNoPeekVis);
 		}
 
 		if (data->pathZones)
 		{
 			buf->align(0);
 			buf->write(data->pathZones, data->zonesBytes);
-			zone_buffer::clear_pointer(dest->pathZones);
+			buf->clear_pointer(dest->pathZones);
 		}
 
 		if (data->pathDynStates)
 		{
 			buf->align(0);
 			buf->write(data->pathDynStates, data->dynStatesBytes);
-			zone_buffer::clear_pointer(dest->pathDynStates);
+			buf->clear_pointer(dest->pathDynStates);
 		}
 
 		buf->pop_stream();

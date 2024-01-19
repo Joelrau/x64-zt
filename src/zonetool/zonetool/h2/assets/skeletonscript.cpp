@@ -118,28 +118,28 @@ namespace zonetool::h2
 		{
 			buf->align(0);
 			buf->write(data->ikData.charData, data->ikData.charDataLen);
-			zone_buffer::clear_pointer(&dest->ikData.charData);
+			buf->clear_pointer(&dest->ikData.charData);
 		}
 
 		if (data->ikData.floatData)
 		{
 			buf->align(3);
 			buf->write(data->ikData.floatData, data->ikData.floatDataLen);
-			zone_buffer::clear_pointer(&dest->ikData.floatData);
+			buf->clear_pointer(&dest->ikData.floatData);
 		}
 
 		if (data->ikData.int32Data)
 		{
 			buf->align(3);
 			buf->write(data->ikData.int32Data, data->ikData.int32DataLen);
-			zone_buffer::clear_pointer(&dest->ikData.int32Data);
+			buf->clear_pointer(&dest->ikData.int32Data);
 		}
 
 		if (data->ikData.strings)
 		{
 			buf->align(3);
 			buf->write(data->ikData.strings, data->ikData.stringsCount);
-			zone_buffer::clear_pointer(&dest->ikData.strings);
+			buf->clear_pointer(&dest->ikData.strings);
 		}
 
 		buf->pop_stream();

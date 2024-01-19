@@ -366,14 +366,14 @@ namespace zonetool::s1
 		{
 			buf->align(3);
 			buf->write(data->velSamples, data->velIntervalCount + 1);
-			zone_buffer::clear_pointer(&dest->velSamples);
+			buf->clear_pointer(&dest->velSamples);
 		}
 
 		if (data->visSamples)
 		{
 			buf->align(3);
 			buf->write(data->visSamples, data->visStateIntervalCount + 1);
-			zone_buffer::clear_pointer(&dest->velSamples);
+			buf->clear_pointer(&dest->velSamples);
 		}
 
 		write_fx_elem_def_visuals(zone, buf, data, &dest->visuals);
@@ -381,19 +381,19 @@ namespace zonetool::s1
 		if (data->effectOnImpact.handle)
 		{
 			buf->write_str(data->effectOnImpact.handle->name);
-			zone_buffer::clear_pointer(&dest->effectOnImpact);
+			buf->clear_pointer(&dest->effectOnImpact);
 		}
 
 		if (data->effectOnDeath.handle)
 		{
 			buf->write_str(data->effectOnDeath.handle->name);
-			zone_buffer::clear_pointer(&dest->effectOnDeath);
+			buf->clear_pointer(&dest->effectOnDeath);
 		}
 
 		if (data->effectEmitted.handle)
 		{
 			buf->write_str(data->effectEmitted.handle->name);
-			zone_buffer::clear_pointer(&dest->effectEmitted);
+			buf->clear_pointer(&dest->effectEmitted);
 		}
 
 		if (data->extended.trailDef)
@@ -417,7 +417,7 @@ namespace zonetool::s1
 						buf->write(data->extended.trailDef->inds, data->extended.trailDef->indCount);
 					}
 
-					zone_buffer::clear_pointer(&dest->extended.trailDef);
+					buf->clear_pointer(&dest->extended.trailDef);
 				}
 			}
 			else if (data->elemType == FX_ELEM_TYPE_SPARK_FOUNTAIN)
@@ -426,7 +426,7 @@ namespace zonetool::s1
 				{
 					buf->align(3);
 					buf->write(data->extended.sparkFountainDef);
-					zone_buffer::clear_pointer(&dest->extended.sparkFountainDef);
+					buf->clear_pointer(&dest->extended.sparkFountainDef);
 				}
 			}
 			else if (data->elemType == FX_ELEM_TYPE_SPOT_LIGHT)
@@ -435,7 +435,7 @@ namespace zonetool::s1
 				{
 					buf->align(3);
 					buf->write(data->extended.spotLightDef);
-					zone_buffer::clear_pointer(&dest->extended.spotLightDef);
+					buf->clear_pointer(&dest->extended.spotLightDef);
 				}
 			}
 			else if (data->elemType == FX_ELEM_TYPE_OMNI_LIGHT)
@@ -444,7 +444,7 @@ namespace zonetool::s1
 				{
 					buf->align(3);
 					buf->write(data->extended.omniLightDef);
-					zone_buffer::clear_pointer(&dest->extended.omniLightDef);
+					buf->clear_pointer(&dest->extended.omniLightDef);
 				}
 			}
 			else if (data->elemType == FX_ELEM_TYPE_FLARE)
@@ -472,13 +472,13 @@ namespace zonetool::s1
 					buf->write(data->extended.flareDef->srcCosScale, data->extended.flareDef->srcCosScaleIntervalCount + 1);
 				}
 
-				zone_buffer::clear_pointer(&dest->extended.flareDef);
+				buf->clear_pointer(&dest->extended.flareDef);
 			}
 			else
 			{
 				buf->align(0);
 				buf->write_stream(data->extended.unknownDef, 1);
-				zone_buffer::clear_pointer(&dest->extended.unknownDef);
+				buf->clear_pointer(&dest->extended.unknownDef);
 			}
 		}
 	}
@@ -503,7 +503,7 @@ namespace zonetool::s1
 				write_fx_elem_def(zone, buf, &destdef[i]);
 			}
 
-			zone_buffer::clear_pointer(&dest->elemDefs);
+			buf->clear_pointer(&dest->elemDefs);
 		}
 
 		buf->pop_stream();

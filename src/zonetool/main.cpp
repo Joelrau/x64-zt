@@ -13,6 +13,7 @@
 #define H2_BINARY1 "h2_sp64_bnet_ship.exe"
 #define S1_BINARY "s1_mp64_ship.exe"
 #define IW6_BINARY "iw6mp64_ship.exe"
+#define IW7_BINARY "iw7_ship.exe"
 
 namespace
 {
@@ -26,6 +27,58 @@ namespace
 	{
 		component_loader::post_unpack();
 		return SystemParametersInfoA(uiAction, uiParam, pvParam, fWinIni);
+	}
+
+	namespace iw7
+	{
+
+		DWORD_PTR WINAPI set_thread_affinity_mask(HANDLE hThread, DWORD_PTR dwThreadAffinityMask)
+		{
+			component_loader::post_unpack();
+			return SetThreadAffinityMask(hThread, dwThreadAffinityMask);
+		}
+
+		FARPROC load_binary()
+		{
+			loader loader;
+			utils::nt::library self;
+
+			loader.set_import_resolver([self](const std::string& library, const std::string& function) -> void*
+			{
+				if (library == "steam_api64.dll"
+					&& function != "SteamAPI_Shutdown")
+				{
+					return self.get_proc<FARPROC>(function);
+				}
+				else if (function == "ExitProcess")
+				{
+					return exit_hook;
+				}
+				else if (function == "SetThreadAffinityMask")
+				{
+					return set_thread_affinity_mask;
+				}
+
+				return component_loader::load_import(library, function);
+			});
+
+			std::string binary = IW7_BINARY;
+
+			std::string data;
+			if (!utils::io::read_file(binary, &data))
+			{
+				throw std::runtime_error(utils::string::va(
+					"Failed to read game binary (%s)!\nPlease copy the iw7-zonetool.exe into your Call of Duty: Infinite Warfare installation folder and run it from there.",
+					binary.data()));
+			}
+
+			return loader.load_library(binary);
+		}
+
+		void remove_crash_file()
+		{
+			utils::io::remove_file("__iw7_ship");
+		}
 	}
 
 	namespace h1
@@ -187,7 +240,7 @@ namespace
 			if (!utils::io::read_file(binary, &data))
 			{
 				throw std::runtime_error(utils::string::va(
-					"Failed to read game binary (%s)!\nPlease copy the h2-mod.exe into your Call of Duty: Modern Warfare 2 Campaign Remastered installation folder and run it from there.",
+					"Failed to read game binary (%s)!\nPlease copy the h2-zonetool.exe into your Call of Duty: Modern Warfare 2 Campaign Remastered installation folder and run it from there.",
 					binary.data()));
 			}
 
@@ -246,7 +299,7 @@ namespace
 			if (!utils::io::read_file(binary, &data))
 			{
 				throw std::runtime_error(utils::string::va(
-					"Failed to read game binary (%s)!\nPlease select the correct path in the launcher settings.",
+					"Failed to read game binary (%s)!\n",
 					binary.data()));
 			}
 
@@ -321,6 +374,8 @@ namespace
 			return h1::remove_crash_file();
 		case game::h2:
 			return h2::remove_crash_file();
+		case game::iw7:
+			return iw7::remove_crash_file();
 		}
 	}
 
@@ -336,6 +391,8 @@ namespace
 			return h1::load_binary();
 		case game::h2:
 			return h2::load_binary();
+		case game::iw7:
+			return iw7::load_binary();
 		}
 
 		return nullptr;
@@ -358,6 +415,8 @@ namespace
 		remove_crash_file();
 
 		{
+			component_loader::sort();
+
 			auto premature_shutdown = true;
 			const auto _ = gsl::finally([&premature_shutdown]()
 			{
@@ -417,6 +476,10 @@ int main()
 	else if (utils::io::file_exists(IW6_BINARY))
 	{
 		game::set_mode(game::game_mode::iw6);
+	}
+	else if (utils::io::file_exists(IW7_BINARY))
+	{
+		game::set_mode(game::game_mode::iw7);
 	}
 	else
 	{

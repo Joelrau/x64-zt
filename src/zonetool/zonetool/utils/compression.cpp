@@ -141,6 +141,7 @@ namespace compression
 			auto first_block = true;
 
 			compressed_block_header header{};
+			compressed_block_header_extra header_extra{};
 
 			while (data_ptr < end_ptr)
 			{
@@ -150,6 +151,15 @@ namespace compression
 						reinterpret_cast<size_t>(data_ptr));
 
 					data_ptr += sizeof(compressed_block_header);
+
+					header_extra.max_block_size = MAX_BLOCK_SIZE;
+					if (*reinterpret_cast<const int*>(data_ptr) == 0) // iw7
+					{
+						header_extra = *reinterpret_cast<compressed_block_header_extra*>(
+							reinterpret_cast<size_t>(data_ptr));
+
+						data_ptr += sizeof(compressed_block_header_extra);
+					}
 				}
 				else
 				{

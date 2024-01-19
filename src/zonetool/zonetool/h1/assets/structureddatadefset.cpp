@@ -234,11 +234,11 @@ namespace zonetool::h1
 						{
 							buf->align(3);
 							buf->write(enum_->entries, enum_->entryCount);
-							zone_buffer::clear_pointer(&dest_enum->entries);
+							buf->clear_pointer(&dest_enum->entries);
 						}
 					}
 
-					zone_buffer::clear_pointer(&dest_def->enums);
+					buf->clear_pointer(&dest_def->enums);
 				}
 
 				if (def->structs)
@@ -257,29 +257,29 @@ namespace zonetool::h1
 						{
 							buf->align(3);
 							buf->write(struct_->properties, struct_->propertyCount);
-							zone_buffer::clear_pointer(&dest_struct->properties);
+							buf->clear_pointer(&dest_struct->properties);
 						}
 					}
 
-					zone_buffer::clear_pointer(&dest_def->structs);
+					buf->clear_pointer(&dest_def->structs);
 				}
 
 				if (def->indexedArrays)
 				{
 					buf->align(3);
 					buf->write(def->indexedArrays, def->indexedArrayCount);
-					zone_buffer::clear_pointer(&dest_def->indexedArrays);
+					buf->clear_pointer(&dest_def->indexedArrays);
 				}
 
 				if (def->enumedArrays)
 				{
 					buf->align(3);
 					buf->write(def->enumedArrays, def->enumedArrayCount);
-					zone_buffer::clear_pointer(&dest_def->enumedArrays);
+					buf->clear_pointer(&dest_def->enumedArrays);
 				}
 			}
 
-			zone_buffer::clear_pointer(&dest->defs);
+			buf->clear_pointer(&dest->defs);
 		}
 
 		buf->pop_stream();

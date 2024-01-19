@@ -623,7 +623,7 @@ namespace zonetool::h2
 		{
 			buf->align(3);
 			write_soundfile(zone, buf, data->soundFile);
-			zone_buffer::clear_pointer(&dest->soundFile);
+			buf->clear_pointer(&dest->soundFile);
 		}
 
 		if (data->sndContext)
@@ -666,7 +666,7 @@ namespace zonetool::h2
 				speaker_map->name = buf->write_str(speaker_map->name);
 			}
 
-			zone_buffer::clear_pointer(&dest->speakerMap);
+			buf->clear_pointer(&dest->speakerMap);
 		}
 
 		if (data->dopplerPreset)
@@ -695,14 +695,14 @@ namespace zonetool::h2
 				write_head(zone, buf, &dest_sound[i]);
 			}
 
-			zone_buffer::clear_pointer(&dest->head);
+			buf->clear_pointer(&dest->head);
 		}
 
 		if (data->contextList)
 		{
 			buf->align(1);
 			buf->write(data->contextList, data->contextListCount);
-			zone_buffer::clear_pointer(&dest->contextList);
+			buf->clear_pointer(&dest->contextList);
 		}
 
 		buf->pop_stream();
