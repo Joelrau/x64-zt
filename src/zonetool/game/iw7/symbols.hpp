@@ -100,6 +100,8 @@ namespace iw7
 
 		WEAK symbol<HANDLE(Sys_Folder folder, const char* baseFilename)> Sys_CreateFile{ 0x140CFDF50 };
 
+		WEAK symbol<bool()> Sys_IsDatabaseThread{ 0x140BB7B30 };
+
 		WEAK symbol<void(int)> Scr_AddInt{ 0x140C0A580 };
 		WEAK symbol<int()> Scr_GetInt{ 0x140C0B950 };
 
@@ -132,8 +134,8 @@ namespace iw7
 		WEAK symbol<DB_LoadData> g_load{ 0x1452A8010 };
 		WEAK symbol<int> g_authLoad_isSecure{ 0x14529DD90 };
 		WEAK symbol<DB_ReadStream> db_stream{ 0x1452A8050 };
-		WEAK symbol<db_z_stream_s> db_zlib_stream{ 0x14529DD30 };
-		WEAK symbol<char*> db_zlib_memory{ 0x14525B500 };
+		WEAK symbol<db_z_stream_s> db_zip_stream{ 0x14529DD30 };
+		WEAK symbol<char*> db_zip_memory{ 0x14525B500 };
 
 		WEAK symbol<unsigned __int64> g_streamPos{ 0x145687E30 };
 	}

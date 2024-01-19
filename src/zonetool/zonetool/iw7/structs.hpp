@@ -1821,8 +1821,8 @@ namespace zonetool::iw7
 
 	enum DBSyncMode : std::int8_t
 	{
-		DB_LOAD_ASYNC = 0x0,
-		DB_LOAD_SYNC = 0x1,
+		DB_LOAD_SYNC = 0x0,
+		DB_LOAD_ASYNC = 0x1,
 	};
 
 	enum DBAllocFlags : std::int32_t
@@ -1915,6 +1915,26 @@ namespace zonetool::iw7
 		XFILE_BLOCK_VIRTUAL = 0x8,
 		XFILE_BLOCK_SCRIPT = 0x9,
 		MAX_XFILE_COUNT = 0xA,
+	};
+
+	struct XBlock
+	{
+		char* alloc;
+		unsigned __int64 size;
+	};
+
+	struct XZoneMemory
+	{
+		XBlock blocks[MAX_XFILE_COUNT];
+		char __pad0[112];
+		void* shared_ff_data;
+		unsigned int shared_ff_count;
+		int padding1;
+		void* unknown; // always 0
+		void* image_ff_data;
+		unsigned int image_ff_count;
+		int padding2;
+		char __pad1[0x100]; // unk size
 	};
 
 	struct XFileSignedInfo // sub_1409E6100

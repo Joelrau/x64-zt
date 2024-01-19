@@ -508,6 +508,15 @@ namespace iw7
 		}
 		using namespace ddl;
 
+		enum DBAllocFlags : std::int32_t
+		{
+			DB_ZONE_NONE = 0x0,
+			DB_ZONE_COMMON = 0x1,
+			DB_ZONE_GAME = 0x4, // maybe
+			DB_ZONE_LOAD = 0x100,
+			DB_ZONE_CUSTOM = 0x1000000 // added for custom zone loading
+		};
+
 		struct DBFile
 		{
 			char name[64];

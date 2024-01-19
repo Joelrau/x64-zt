@@ -222,6 +222,9 @@ namespace iw7
 				utils::hook::set<uint8_t>(0x140D58530, 0xC3); // Sys_HideSplashWindow
 				utils::hook::set<uint8_t>(0x140D58550, 0xC3); // Sys_ShowSplashWindow
 
+				// disable demonware
+				utils::hook::set<uint8_t>(0x140D31744, 0xC3); // dwNetStart
+
 				::zonetool::iw7::initialize();
 			}
 		};
