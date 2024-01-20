@@ -11,9 +11,11 @@
 
 #include "integrity.hpp"
 #include "breakpoints.hpp"
+#include "illegal_instructions.hpp"
 
 #define PRECOMPUTED_INTEGRITY_CHECKS
 #define PRECOMPUTED_BREAKPOINTS
+#define PRECOMPUTED_ILLEGAL_INSTRUCTIONS
 
 #define ProcessDebugPort 7
 #define ProcessDebugObjectHandle 30
@@ -127,37 +129,6 @@ namespace iw7
 				}
 
 				return correct_checksum;
-			}
-
-			void patch_intact_basic_block_integrity_check_test(void* address)
-			{
-				const auto game_address = reinterpret_cast<uint64_t>(address);
-				constexpr auto inst_len = 3;
-
-				const auto next_inst_addr = game_address + inst_len;
-				const auto next_inst = *reinterpret_cast<uint32_t*>(next_inst_addr);
-
-				if ((next_inst & 0xFF00FFFF) != 0xFF004583)
-				{
-					throw std::runtime_error(utils::string::va("Unable to patch intact basic block: %llX", game_address));
-				}
-
-				const auto offset = *reinterpret_cast<uint8_t*>(game_address + 5);
-				static const auto stub = utils::hook::assemble([game_address, offset](utils::hook::assembler& a)
-				{
-					a.mov(dword_ptr(rdx, rcx, 4), eax); // how to do this? mov, [rdx+rcx*4], eax
-					a.add(dword_ptr(rbp, offset), 0xFFFFFFFF);
-
-					//a.push(rax);
-					//a.mov(rax, qword_ptr(rsp, 0x88));
-					//a.mov(qword_ptr(rsp, 0x80), rax); // make checksums same
-					//a.pop(rax);
-
-					a.jmp(game_address + 7);
-				});
-
-				utils::hook::nop(game_address, 7);
-				utils::hook::jump(game_address, stub, false);
 			}
 
 			void patch_intact_basic_block_integrity_check(void* address)
@@ -445,11 +416,11 @@ namespace iw7
 				}
 			}
 
-			namespace breakpoints
+			namespace exceptions
 			{
 				std::unordered_map<PVOID, void*> handle_handler;
 
-				void fake_breakpoint_trigger(void* address, _CONTEXT* fake_context)
+				void fake_exception(void* address, _CONTEXT* fake_context, DWORD exception)
 				{
 					_EXCEPTION_POINTERS fake_info{};
 					_EXCEPTION_RECORD fake_record{};
@@ -457,7 +428,7 @@ namespace iw7
 					fake_info.ContextRecord = fake_context;
 
 					fake_record.ExceptionAddress = reinterpret_cast<void*>(reinterpret_cast<std::uint64_t>(address) + 3);
-					fake_record.ExceptionCode = EXCEPTION_BREAKPOINT;
+					fake_record.ExceptionCode = exception;
 
 					for (auto handler : handle_handler)
 					{
@@ -490,7 +461,8 @@ namespace iw7
 						a.pushad64();
 						a.mov(rcx, address);
 						a.mov(rdx, fake_context);
-						a.call_aligned(fake_breakpoint_trigger);
+						a.mov(r8, EXCEPTION_BREAKPOINT);
+						a.call_aligned(fake_exception);
 						a.popad64();
 
 						a.jmp(jump_target);
@@ -530,9 +502,121 @@ namespace iw7
 #endif
 				}
 
+				void patch_illegal_instruction_intact(void* address)
+				{
+					const auto game_address = reinterpret_cast<std::uint64_t>(address);
+
+					const auto jump_target = game_address + 6;
+
+					const auto a1 = *reinterpret_cast<std::uint8_t*>(game_address + 3);
+
+					_CONTEXT* fake_context = new _CONTEXT{};
+					const auto stub = utils::hook::assemble([address, jump_target, fake_context, a1](utils::hook::assembler& a)
+					{
+						a.lea(rax, ptr(rbp, a1));
+
+						a.push(rcx);
+						a.mov(rcx, fake_context);
+						a.call_aligned(RtlCaptureContext);
+						a.pop(rcx);
+
+						a.pushad64();
+						a.mov(rcx, address);
+						a.mov(rdx, fake_context);
+						a.mov(r8, EXCEPTION_ILLEGAL_INSTRUCTION);
+						a.call_aligned(fake_exception);
+						a.popad64();
+
+						a.jmp(jump_target);
+					});
+
+					utils::hook::nop(game_address, 6);
+					utils::hook::jump(game_address, stub, false);
+				}
+
+				void patch_illegal_instruction_split(void* address)
+				{
+					const auto game_address = reinterpret_cast<std::uint64_t>(address);
+
+					const auto jump_target = utils::hook::extract<void*>(reinterpret_cast<void*>(game_address + 5));
+
+					if (*reinterpret_cast<std::uint16_t*>(jump_target) != 0x0B0F) // illegal instruction
+					{
+						return; // false positive
+					}
+
+					const auto a1 = *reinterpret_cast<std::uint8_t*>(game_address + 3);
+
+					_CONTEXT* fake_context = new _CONTEXT{};
+					const auto stub = utils::hook::assemble([address, jump_target, fake_context, a1](utils::hook::assembler& a)
+					{
+						a.lea(rax, ptr(rbp, a1));
+
+						a.push(rcx);
+						a.mov(rcx, fake_context);
+						a.call_aligned(RtlCaptureContext);
+						a.pop(rcx);
+
+						a.pushad64();
+						a.mov(rcx, address);
+						a.mov(rdx, fake_context);
+						a.mov(r8, EXCEPTION_ILLEGAL_INSTRUCTION);
+						a.call_aligned(fake_exception);
+						a.popad64();
+
+						a.jmp(jump_target);
+					});
+
+					utils::hook::nop(game_address, 9);
+					utils::hook::nop(jump_target, 2);
+					utils::hook::jump(game_address, stub, false);
+				}
+
+#ifdef PRECOMPUTED_ILLEGAL_INSTRUCTIONS
+				void patch_illegal_instructions_precomputed()
+				{
+					for (const auto i : illegal_instructions_intact)
+					{
+						patch_illegal_instruction_intact(reinterpret_cast<void*>(i));
+					}
+
+					for (const auto i : illegal_instructions_split)
+					{
+						patch_illegal_instruction_split(reinterpret_cast<void*>(i));
+					}
+				}
+#endif
+
+				void patch_illegal_instructions()
+				{
+					static bool once = false;
+					if (once)
+					{
+						return;
+					}
+					once = true;
+
+#ifdef PRECOMPUTED_ILLEGAL_INSTRUCTIONS
+					patch_illegal_instructions_precomputed();
+#else
+					const auto intact_results = utils::hook::signature("48 8D 45 ? 0F 0B", game_module::get_game_module()).process(); // 48 89 04 24 48 8D 45 ? 0F 0B
+					for (auto* i : intact_results)
+					{
+						patch_illegal_instruction_intact(i);
+					}
+
+					const auto split_results = utils::hook::signature("48 8D 45 ? E9 ? ? ?", game_module::get_game_module()).process();
+					for (auto* i : split_results)
+					{
+						patch_illegal_instruction_split(i);
+					}
+#endif
+				}
+
 				PVOID WINAPI add_vectored_exception_handler_stub(ULONG first, PVECTORED_EXCEPTION_HANDLER handler)
 				{
-					breakpoints::patch_breakpoints();
+					exceptions::patch_breakpoints();
+					exceptions::patch_illegal_instructions();
 
 					auto handle = AddVectoredExceptionHandler(first, handler);
 					handle_handler[handle] = handler;
@@ -560,11 +644,11 @@ namespace iw7
 				}
 				else if (function == "AddVectoredExceptionHandler")
 				{
-					return breakpoints::add_vectored_exception_handler_stub;
+					return exceptions::add_vectored_exception_handler_stub;
 				}
 				else if (function == "RemoveVectoredExceptionHandler")
 				{
-					return breakpoints::remove_vectored_exception_handler_stub;
+					return exceptions::remove_vectored_exception_handler_stub;
 				}
 
 				return nullptr;
