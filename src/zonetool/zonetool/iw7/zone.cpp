@@ -766,7 +766,7 @@ namespace zonetool::iw7
 #endif
 
 		// Generate FF header
-		XFileHeader header = {};
+		XFileHeader header{};
 		strcat(header.magic, FF_MAGIC);
 		header.version = FF_VERSION;
 		header.unused = 0;

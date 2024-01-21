@@ -59,13 +59,13 @@ namespace zonetool::iw7
 		ASSET_TYPE_ATTACHMENT = 38,
 		ASSET_TYPE_WEAPON = 39,
 		ASSET_TYPE_VFX = 40,
-		ASSET_TYPE_IMPACT_FX = 41,
-		ASSET_TYPE_SURFACE_FX = 42,
-		ASSET_TYPE_AITYPE = 43, // unused
-		ASSET_TYPE_MPTYPE = 44, // unused
-		ASSET_TYPE_CHARACTER = 45, // unused
-		ASSET_TYPE_XMODELALIAS = 46, // unused
-		ASSET_TYPE_UNKNOWN = 47, // unused
+		ASSET_TYPE_FX = 41,
+		ASSET_TYPE_IMPACT_FX = 42,
+		ASSET_TYPE_SURFACE_FX = 43,
+		ASSET_TYPE_AITYPE = 44, // unused
+		ASSET_TYPE_MPTYPE = 45, // unused
+		ASSET_TYPE_CHARACTER = 46, // unused
+		ASSET_TYPE_XMODELALIAS = 47, // unused
 		ASSET_TYPE_RAWFILE = 48,
 		ASSET_TYPE_SCRIPTFILE = 49,
 		ASSET_TYPE_STRINGTABLE = 50,
@@ -120,72 +120,78 @@ namespace zonetool::iw7
 	struct MaterialVertexDeclaration;
 	struct MaterialTechniqueSet;
 	struct GfxImage;
-	//ASSET_TYPE_SOUND_GLOBALS = 19,
-	//ASSET_TYPE_SOUND_BANK = 20,
-	//ASSET_TYPE_SOUND_BANK_TRANSIENT = 21,
-	//ASSET_TYPE_CLIPMAP = 22,
-	//ASSET_TYPE_COMWORLD = 23,
-	//ASSET_TYPE_GLASSWORLD = 24,
-	//ASSET_TYPE_PATHDATA = 25,
-	//ASSET_TYPE_NAVMESH = 26,
+	struct SndGlobals;
+	struct SndBank;
+	struct SndBankTransient;
+	struct clipMap_t;
+	struct ComWorld;
+	struct GlassWorld;
+	struct PathData;
+	struct NavMeshData;
 	struct MapEnts;
-	//ASSET_TYPE_FXWORLD = 28,
-	//ASSET_TYPE_GFXWORLD = 29,
-	//ASSET_TYPE_GFXWORLD_TRANSIENT_ZONE = 30,
+	struct FxWorld;
+	struct GfxWorld;
+	struct GfxWorldTransientZone;
 	//ASSET_TYPE_IESPROFILE = 31, // unused
-	//ASSET_TYPE_LIGHT_DEF = 32,
+	struct GfxLightDef;
 	//ASSET_TYPE_UI_MAP = 33, // unused
-	//ASSET_TYPE_ANIMCLASS = 34,
-	//ASSET_TYPE_PLAYERANIM = 35,
-	//ASSET_TYPE_GESTURE = 36,
-	//ASSET_TYPE_LOCALIZE_ENTRY = 37,
-	//ASSET_TYPE_ATTACHMENT = 38,
-	//ASSET_TYPE_WEAPON = 39,
-	//ASSET_TYPE_VFX = 40,
-	//ASSET_TYPE_IMPACT_FX = 41,
-	//ASSET_TYPE_SURFACE_FX = 42,
-	//ASSET_TYPE_AITYPE = 43, // unused
-	//ASSET_TYPE_MPTYPE = 44, // unused
-	//ASSET_TYPE_CHARACTER = 45, // unused
-	//ASSET_TYPE_XMODELALIAS = 46, // unused
-	//ASSET_TYPE_UNKNOWN = 47, // unused
+	struct AnimationClass;
+	struct PlayerAnimScript;
+	struct Gesture;
+	struct LocalizeEntry;
+	struct WeaponAttachment;
+	struct WeaponCompleteDef;
+	struct ParticleSystemDef;
+	struct FxEffectDef;
+	struct FxImpactTable;
+	struct SurfaceFxTable;
+	//ASSET_TYPE_AITYPE = 44, // unused
+	//ASSET_TYPE_MPTYPE = 45, // unused
+	//ASSET_TYPE_CHARACTER = 46, // unused
+	//ASSET_TYPE_XMODELALIAS = 47, // unused
 	struct RawFile;
-	//ASSET_TYPE_SCRIPTFILE = 49,
-	//ASSET_TYPE_STRINGTABLE = 50,
-	//ASSET_TYPE_LEADERBOARD = 51,
-	//ASSET_TYPE_VIRTUAL_LEADERBOARD = 52,
-	//ASSET_TYPE_STRUCTUREDDATADEF = 53,
-	//ASSET_TYPE_DDL = 54,
-	//ASSET_TYPE_TRACER = 55,
-	//ASSET_TYPE_VEHICLE = 56,
-	//ASSET_TYPE_ADDON_MAP_ENTS = 57,
-	//ASSET_TYPE_NET_CONST_STRINGS = 58,
-	//ASSET_TYPE_LUA_FILE = 59,
+	struct ScriptFile;
+	struct StringTable;
+	struct LeaderBoardDef;
+	struct VirtualLeaderboardDef;
+	struct StructuredDataDefSet;
+	struct DDLFile;
+	struct TracerDef;
+	struct VehicleDef;
+	struct AddonMapEnts;
+	struct NetConstStrings;
+	struct LuaFile;
 	struct ScriptableDef;
-	//ASSET_TYPE_EQUIPMENT_SND_TABLE = 61,
-	//ASSET_TYPE_VECTORFIELD = 62,
-	//ASSET_TYPE_PARTICLE_SIM_ANIMATION = 63,
-	//ASSET_TYPE_STREAMING_INFO = 64,
-	//ASSET_TYPE_LASER = 65,
-	//ASSET_TYPE_TTF = 66,
-	//ASSET_TYPE_SUIT = 67,
-	//ASSET_TYPE_SUITANIMPACKAGE = 68,
-	//ASSET_TYPE_SPACESHIPTARGET = 69,
-	//ASSET_TYPE_RUMBLE = 70,
-	//ASSET_TYPE_RUMBLE_GRAPH = 71,
-	//ASSET_TYPE_ANIM_PACKAGE = 72,
-	//ASSET_TYPE_SFX_PACKAGE = 73,
-	//ASSET_TYPE_VFX_PACKAGE = 74,
-	//ASSET_TYPE_BEHAVIOR_TREE = 75,
-	//ASSET_TYPE_XANIM_ARCHETYPE = 76,
+	struct EquipmentSoundTable;
+	struct VectorField;
+	struct FxParticleSimAnimation;
+	struct StreamingInfo;
+	struct LaserDef;
+	struct TTFDef;
+	struct SuitDef;
+	struct SuitAnimPackage;
+	struct SpaceshipTargetDef;
+	struct RumbleInfo;
+	struct RumbleGraph;
+	struct WeaponAnimPackage;
+	struct WeaponSFXPackage;
+	struct WeaponVFXPackage;
+	struct BehaviorTree;
+	struct XAnimArcheType;
 	struct XAnimProceduralBones;
-	//ASSET_TYPE_RETICLE = 78,
-	//ASSET_TYPE_GFXLIGHTMAP = 79,
+	struct ReticleDef;
+	struct GfxLightmap;
 
 	struct Bounds
 	{
 		vec3_t midPoint;
 		vec3_t halfSize;
+	};
+
+	struct ExtentBounds
+	{
+		vec3_t mins;
+		vec3_t maxs;
 	};
 
 	struct PhysicsLibrary
@@ -522,9 +528,9 @@ namespace zonetool::iw7
 		char __pad0[8];
 		int numConstraints;
 		int numSFXEventAssets;
-		void** sfxEventAssets;
+		PhysicsSFXEventAsset** sfxEventAssets;
 		int numVFXEventAssets;
-		void** vfxEventAssets;
+		PhysicsVFXEventAsset** vfxEventAssets;
 		char __pad1[16];
 	}; assert_sizeof(PhysicsAsset, 0x50);
 
@@ -1505,7 +1511,11 @@ namespace zonetool::iw7
 	struct SndAlias
 	{
 		const char* aliasName;
-		char __pad0[192];
+		const char* subtitle;
+		const char* secondaryAliasName;
+		const char* unk1;
+		const char* unk2;
+		char __pad0[160];
 	}; assert_sizeof(SndAlias, 200);
 
 	struct SndAliasList
@@ -1530,9 +1540,188 @@ namespace zonetool::iw7
 		char __pad0[136];
 	}; assert_sizeof(SndSendEffectParams, 136);
 
+	enum ADSRCurve
+	{
+		ADSR_CURVE_LINEAR = 0x0,
+		ADSR_CURVE_LOG_FAST = 0x1,
+		ADSR_CURVE_LOG_SLOW = 0x2,
+		ADSR_CURVE_FLAT_ENDED = 0x3,
+		ADSR_CURVE_FLAT_MIDDLE = 0x4,
+	};
+
+	struct ADSRSetting
+	{
+		const char* name;
+		unsigned int id;
+		float attackLength;
+		ADSRCurve attackCurve;
+		float decayLength;
+		ADSRCurve decayCurve;
+		float releaseLength;
+		ADSRCurve releaseCurve;
+		float sustainLevel;
+		float sustainLength;
+	};
+
+	struct AmbientDef
+	{
+		const char* name;
+		unsigned int id;
+		unsigned __int16 ambientEventIndex;
+		unsigned __int16 numEvents;
+		float timeMin;
+		float timeMax;
+	};
+
+	struct AmbientEvent
+	{
+		unsigned int id;
+		unsigned __int16 ambientElementIndex;
+		float weight;
+	};
+
+	struct AmbientElement
+	{
+		unsigned int id;
+		const char* unusedNameField;
+		const char* aliasName;
+		float rangeMin;
+		float rangeMax;
+		float coneMin;
+		float coneMax;
+	};
+
+	enum SND_EQTYPE
+	{
+		SND_EQTYPE_FIRST = 0x0,
+		SND_EQTYPE_LOWPASS = 0x0,
+		SND_EQTYPE_HIGHPASS = 0x1,
+		SND_EQTYPE_LOWSHELF = 0x2,
+		SND_EQTYPE_HIGHSHELF = 0x3,
+		SND_EQTYPE_BELL = 0x4,
+		SND_EQTYPE_LAST = 0x4,
+		SND_EQTYPE_COUNT = 0x5,
+		SND_EQTYPE_INVALID = 0x5,
+	};
+
+	struct FilterDef
+	{
+		unsigned int id;
+		char entChannelIdx;
+		char band;
+		SND_EQTYPE type;
+		float freq;
+		float gain;
+		float q;
+	};
+
+	struct MixDef
+	{
+		unsigned int id;
+		unsigned __int16 volModIndex;
+		float volume;
+		float fade;
+	};
+
+	struct AdsrZoneEntry
+	{
+		const char* name;
+		unsigned int id;
+		const char* weaponName;
+		int adsrIdx;
+		unsigned int weaponIdx;
+	};
+
+	struct OccludeDef
+	{
+		unsigned int id;
+		unsigned __int16 entChannelIdx;
+		float cutoffLevel1;
+		float cutoffLevel2;
+		float cutoffLevel3;
+		float cutoffLevel4;
+		float attnLevel1;
+		float attnLevel2;
+		float attnLevel3;
+		float attnLevel4;
+	};
+
+	struct ReverbDef
+	{
+		unsigned int id;
+		unsigned int roomTypeId;
+		char roomType[64];
+		float dryLevel;
+		float wetLevel;
+		float fadeTime;
+	};
+
+	struct TimescaleEntry
+	{
+		unsigned int id;
+		unsigned int presetName;
+		int entChannelIdx;
+		float scale;
+	};
+
+	struct ZoneDef
+	{
+		char __pad0[184];
+	};
+
+	struct unk_1453E2FD8
+	{
+		char __pad0[56];
+	};
+
+	struct FullOcclusionDef
+	{
+		unsigned int id;
+		unsigned int presetName;
+		int entChannelIdx;
+	};
+
+	struct PlayerBreathStateDef
+	{
+		unsigned int stateType;
+		const char* inhaleAlias;
+		const char* exhaleAlias;
+		int minBreaths;
+	};
+
 	struct SoundTable
 	{
-		char __pad0[248];
+		unsigned int id;
+		ADSRSetting* adsrSettings;
+		unsigned int adsrCount;
+		AmbientDef* ambientDefs;
+		unsigned int ambientDefCount;
+		AmbientEvent* ambientEvents;
+		unsigned int ambientEventCount;
+		AmbientElement* ambientElements;
+		unsigned int ambientElementsCount;
+		FilterDef* filters;
+		unsigned int filterCount;
+		MixDef* mixes;
+		unsigned int mixCount;
+		AdsrZoneEntry* npcADSRZones;
+		unsigned int npcADSRZoneCount;
+		OccludeDef* occlusionFilters;
+		unsigned int occlusionFilterCount;
+		AdsrZoneEntry* playerADSRZones;
+		unsigned int playerADSRZoneCount;
+		ReverbDef* reverbs;
+		unsigned int reverbCount;
+		TimescaleEntry* timeScaleSettings;
+		unsigned int timeScaleSettingCount;
+		ZoneDef* zones;
+		unsigned int zoneCount;
+		unk_1453E2FD8* unk;
+		unsigned int unkCount;
+		FullOcclusionDef* fullOcclusionDefs;
+		unsigned int fullOcclusionDefCount;
+		PlayerBreathStateDef* plrBreathStateDefs;
+		unsigned int plrBreathStateDefCount;
 	}; assert_sizeof(SoundTable, 248);
 
 	struct SndDuck
@@ -1598,11 +1787,306 @@ namespace zonetool::iw7
 		unsigned int* elements;
 	}; assert_sizeof(SndBankTransient, 0x18);
 
+	struct clipMap_t;
+
+	struct ComWorld;
+
+	struct GlassWorld;
+
+	struct PathData;
+
+	struct NavMeshData;
+
+	struct MapEnts;
+
+	struct FxWorld;
+
+	struct GfxWorld;
+
+	struct GfxWorldTransientZone;
+
+	struct GfxLightDef
+	{
+		const char* name;
+		const char* iesProfile;
+		char __pad0[24];
+	}; assert_sizeof(GfxLightDef, 0x28);
+
+	struct AnimationEntry
+	{
+		scr_string_t animName;
+		int aimSetIndex;
+	};
+
+	struct AnimAliasInfo
+	{
+		char animIndex;
+		float animWeight;
+	};
+
+	struct AnimAlias
+	{
+		scr_string_t aliasName;
+		char animCount;
+		AnimAliasInfo* aliasInfo;
+	};
+
+	struct AnimationState
+	{
+		scr_string_t name;
+		scr_string_t notify;
+		float blendTime;
+		float blendOutTime;
+		char flags;
+		char entryCount;
+		char aliasCount;
+		int aimSetIndex;
+		AnimationEntry* animEntries;
+		unsigned __int64* animIndices;
+		AnimAlias* aliasList;
+	};
+
+	struct AnimationAimSet
+	{
+		scr_string_t name;
+		scr_string_t rootName;
+		int animCount;
+		scr_string_t* animName;
+		unsigned __int64 rootIndex;
+		unsigned __int64* animIndices;
+		unsigned __int64* aimNodeIndices;
+	};
+
+	struct AnimationStateMachine
+	{
+		scr_string_t name;
+		unsigned __int16 stateCount;
+		unsigned __int16 aimSetCount;
+		AnimationState* states;
+		AnimationAimSet* aimSets;
+	};
+
+	enum AnimationController
+	{
+		ANIMCTRL_NONE = 0x0,
+		ANIMCTRL_PLAYER = 0x1,
+		ANIMCTRL_DOG = 0x2,
+		ANIMCTRL_NUM = 0x3,
+	};
+
+	struct FxCombinedDef
+	{
+		FxEffectDef* fx;
+		ParticleSystemDef* particleSystemDef;
+	};
+
+	struct AnimationClass
+	{
+		const char* className;
+		AnimationStateMachine* stateMachine;
+		AnimationController animCtrl;
+		scr_string_t animTree;
+		ScriptableDef* scriptable;
+		unsigned __int16 soundCount;
+		unsigned __int16 effectCount;
+		scr_string_t* soundNotes;
+		scr_string_t* soundNames;
+		scr_string_t* soundOptions;
+		scr_string_t* effectNotes;
+		FxCombinedDef* effectDefs;
+		scr_string_t* effectTags;
+	}; assert_sizeof(AnimationClass, 0x58);
+
+	struct PlayerAnimEntry
+	{
+		scr_string_t entryName;
+		scr_string_t animName;
+		scr_string_t shadowAnimName;
+		char __pad0[68];
+	}; assert_sizeof(PlayerAnimEntry, 80);
+
+	struct PlayerAnimScriptEntry
+	{
+		unsigned int flags;
+		unsigned int itemCount;
+		unsigned int transitionCount;
+		unsigned int* items;
+		unsigned int* transitions;
+	};
+
+	struct PlayerAnimScriptCondition
+	{
+		unsigned int index;
+		unsigned int value[4];
+	}; assert_sizeof(PlayerAnimScriptCondition, 20);
+
+	struct PlayerAnimScriptCommand
+	{
+		unsigned __int16 bodyPart;
+		unsigned __int16 animIndex;
+		unsigned __int16 animDuration;
+	};
+
+	struct PlayerAnimScriptItem
+	{
+		unsigned int conditionCount;
+		unsigned int commandCount;
+		PlayerAnimScriptCondition* conditions;
+		PlayerAnimScriptCommand* commands;
+	};
+
+	enum PlayerAnimScriptTransitionTriggerType
+	{
+		ANIM_TRANSITIONTRIGGERTYPE_MOVETYPE = 0x0,
+		ANIM_TRANSITIONTRIGGERTYPE_MOVETYPE_NOT_STRAFING = 0x1,
+		ANIM_TRANSITIONTRIGGERTYPE_ANIMCOMPLETE = 0x2,
+		ANIM_TRANSITIONTRIGGERTYPE_ANIMCHANGE = 0x3,
+		NUM_ANIM_TRANSITION_TRIGGER_TYPES = 0x4,
+	};
+
+	enum PlayerAnimScriptMoveType
+	{
+		ANIM_MT_UNUSED = 0x0,
+		ANIM_MT_IDLE = 0x1,
+		ANIM_MT_IDLECR = 0x2,
+		ANIM_MT_IDLEPRONE = 0x3,
+		ANIM_MT_WALK = 0x4,
+		ANIM_MT_WALKBK = 0x5,
+		ANIM_MT_WALKCR = 0x6,
+		ANIM_MT_WALKCRBK = 0x7,
+		ANIM_MT_WALKPRONE = 0x8,
+		ANIM_MT_WALKPRONEBK = 0x9,
+		ANIM_MT_RUN = 0xA,
+		ANIM_MT_RUNBK = 0xB,
+		ANIM_MT_RUNCR = 0xC,
+		ANIM_MT_RUNCRBK = 0xD,
+		ANIM_MT_CLIMBUP = 0xE,
+		ANIM_MT_LADDERSLIDE = 0xF,
+		ANIM_MT_CLIMBDOWN = 0x10,
+		ANIM_MT_JOG = 0x11,
+		ANIM_MT_SPRINT = 0x12,
+		ANIM_MT_SUPERSPRINT = 0x13,
+		ANIM_MT_MANTLE = 0x14,
+		ANIM_MT_IDLELASTSTAND = 0x15,
+		ANIM_MT_CRAWLLASTSTAND = 0x16,
+		ANIM_MT_CRAWLLASTSTANDBK = 0x17,
+		ANIM_MT_SLIDE = 0x18,
+		ANIM_MT_SLIDEBK = 0x19,
+		ANIM_MT_MOUNTED_TOP = 0x1A,
+		ANIM_MT_MOUNTED_LEFT = 0x1B,
+		ANIM_MT_MOUNTED_RIGHT = 0x1C,
+		ANIM_MT_BOOSTAIRDODGE = 0x1D,
+		ANIM_MT_BOOSTAIRDODGELEFT = 0x1E,
+		ANIM_MT_BOOSTAIRDODGERIGHT = 0x1F,
+		ANIM_MT_BOOSTAIRDODGEBACK = 0x20,
+		ANIM_MT_WALLRUN = 0x21,
+		ANIM_MT_AIR = 0x22,
+		ANIM_MT_KNOCKBACK = 0x23,
+		ANIM_MT_KNOCKBACKBK = 0x24,
+		ANIM_MT_PARACHUTE = 0x25,
+		NUM_ANIM_CODEMOVETYPES = 0x26,
+		FIRST_TRANSITION_MOVETYPE = 0x26,
+		NUM_ANIM_MOVETYPES = 0x80,
+	};
+
+	struct PlayerAnimTriggerParam
+	{
+		PlayerAnimScriptMoveType moveType;
+	};
+
+	struct PlayerAnimScriptTransition
+	{
+		PlayerAnimScriptTransitionTriggerType triggerType;
+		PlayerAnimTriggerParam triggerParam;
+		PlayerAnimScriptMoveType targetMoveType;
+	};
+
+	struct PlayerAnimScriptIdleTurn
+	{
+		unsigned __int16 turnleft;
+		unsigned __int16 turnright;
+	};
+
+	struct PlayerAnimScriptIdleTwitch
+	{
+		unsigned int twitchCount;
+		float cycleLength;
+		unsigned __int16* twitches;
+	};
+
+	struct PlayerAnimScriptAimSet
+	{
+		unsigned __int16 aim_1;
+		unsigned __int16 aim_2;
+		unsigned __int16 aim_3;
+		unsigned __int16 aim_4;
+		unsigned __int16 aim_6;
+		unsigned __int16 aim_7;
+		unsigned __int16 aim_8;
+		unsigned __int16 aim_9;
+	};
+
+	struct PlayerAnimScriptLeanSet
+	{
+		unsigned __int16 lean_left;
+		unsigned __int16 lean_right;
+	};
+
+	struct unk_1453E3788
+	{
+		char __pad0[48];
+	};
+
+	struct PlayerAnimScript
+	{
+		const char* scriptName;
+		unsigned int animationCount;
+		unsigned int scriptItemCount;
+		unsigned int scriptTransitionCount;
+		unsigned int scriptIdleTurnCount;
+		unsigned int scriptIdleTwitchCount;
+		unsigned int scriptAimSetCount;
+		unsigned int scriptLeanSetCount;
+		unsigned int unkCount;
+		unsigned int torsoAnimCount;
+		unsigned int legsAnimCount;
+		PlayerAnimEntry* animations;
+		PlayerAnimScriptEntry* scriptAnims; // count: 121
+		PlayerAnimScriptEntry* scriptEvents; // count: 55
+		PlayerAnimScriptItem* scriptItems;
+		PlayerAnimScriptTransition* scriptTransitions;
+		PlayerAnimScriptIdleTurn* scriptIdleTurns;
+		PlayerAnimScriptIdleTwitch* scriptIdleTwitches;
+		PlayerAnimScriptAimSet* scriptAimSets;
+		PlayerAnimScriptLeanSet* scriptLeanSets;
+		unk_1453E3788* unk;
+		unsigned __int16* torsoAnimPackMap;
+		unsigned __int16* torsoAnimUnpackMap;
+		unsigned __int16* legsAnimPackMap;
+		unsigned __int16* legsAnimUnpackMap;
+		unsigned int xAnimCount;
+		XAnimParts** xAnims;
+	}; assert_sizeof(PlayerAnimScript, 0xB0);
+
+	struct Gesture;
+
 	struct LocalizeEntry
 	{
 		const char* name;
 		const char* value;
 	};
+
+	struct WeaponAttachment;
+
+	struct WeaponCompleteDef;
+
+	struct ParticleSystemDef;
+
+	struct FxEffectDef;
+
+	struct FxImpactTable;
+
+	struct SurfaceFxTable;
 
 	struct RawFile
 	{
@@ -1636,6 +2120,283 @@ namespace zonetool::iw7
 		StringTableCell* values;
 	};
 
+	enum LbColType
+	{
+		LBCOL_TYPE_NUMBER = 0x0,
+		LBCOL_TYPE_TIME = 0x1,
+		LBCOL_TYPE_LEVELXP = 0x2,
+		LBCOL_TYPE_PRESTIGE = 0x3,
+		LBCOL_TYPE_BIGNUMBER = 0x4,
+		LBCOL_TYPE_PERCENT = 0x5,
+		LBCOL_TYPE_TIME_FULL = 0x6,
+		LBCOL_TYPE_COUNT = 0x7,
+	};
+
+	enum LbAggType
+	{
+		LBAGG_TYPE_MIN = 0x0,
+		LBAGG_TYPE_MAX = 0x1,
+		LBAGG_TYPE_SUM = 0x2,
+		LBAGG_TYPE_LAST = 0x3,
+		LBAGG_TYPE_COUNT = 0x4,
+	};
+
+	struct LbColumnDef
+	{
+		const char* name;
+		int id;
+		int propertyId;
+		bool hidden;
+		int statsGroup;
+		const char* statName;
+		LbColType type;
+		int precision;
+		LbAggType agg;
+		int uiCalColX;
+		int uiCalColY;
+	};
+
+	enum LbUpdateType
+	{
+		LBUPDATE_TYPE_NORMAL = 0x0,
+		LBUPDATE_TYPE_RANK = 0x1,
+		LBUPDATE_TYPE_COMBINE = 0x2,
+		LBUPDATE_TYPE_VIRTUAL = 0x3,
+		LBUPDATE_TYPE_COUNT = 0x4,
+	};
+
+	struct LeaderboardDef
+	{
+		const char* name;
+		int id;
+		int sourceLbId;
+		int sourceLbWidth;
+		int columnCount;
+		int xpColId;
+		int prestigeColId;
+		LbColumnDef* columns;
+		LbUpdateType updateType;
+		int trackTypes;
+		int rankColIdX;
+		int rankColIdY;
+	};
+
+	struct LbVrColumnDef
+	{
+		const char* name;
+		int id;
+		int uiCalColX;
+		int uiCalColY;
+	};
+
+	struct VirtualLeaderboardDef
+	{
+		const char* name;
+		const char* sourceName;
+		int id;
+		int sourceId;
+		LbVrColumnDef* columns;
+		int columnCount;
+		int rankColIdX;
+		int rankColIdY;
+	};
+
+	struct StructuredDataEnumEntry
+	{
+		scr_string_t string;
+		unsigned short index;
+	};
+
+	struct StructuredDataEnum
+	{
+		int entryCount;
+		int reservedEntryCount;
+		StructuredDataEnumEntry* entries;
+	};
+
+	enum StructuredDataTypeCategory
+	{
+		DATA_INT = 0x0,
+		DATA_BYTE = 0x1,
+		DATA_BOOL = 0x2,
+		DATA_STRING = 0x3,
+		DATA_ENUM = 0x4,
+		DATA_STRUCT = 0x5,
+		DATA_INDEXED_ARRAY = 0x6,
+		DATA_ENUM_ARRAY = 0x7,
+		DATA_FLOAT = 0x8,
+		DATA_SHORT = 0x9,
+		DATA_COUNT = 0xA,
+	};
+
+	union StructuredDataTypeUnion
+	{
+		unsigned int stringDataLength;
+		int enumIndex;
+		int structIndex;
+		int indexedArrayIndex;
+		int enumedArrayIndex;
+		int index;
+	};
+
+	struct StructuredDataType
+	{
+		StructuredDataTypeCategory type;
+		StructuredDataTypeUnion u;
+	};
+
+	enum StructuredDataValidationType
+	{
+		VALIDATION_NONE = 0x0,
+	};
+
+	struct StructuredDataStructProperty
+	{
+		scr_string_t name;
+		StructuredDataType type;
+		unsigned int offset;
+		StructuredDataValidationType validation;
+	};
+
+	struct StructuredDataStruct
+	{
+		int propertyCount;
+		StructuredDataStructProperty* properties;
+		int size;
+		unsigned int bitOffset;
+	};
+
+	struct StructuredDataIndexedArray
+	{
+		int arraySize;
+		StructuredDataType elementType;
+		unsigned int elementSize;
+	};
+
+	struct StructuredDataEnumedArray
+	{
+		int enumIndex;
+		StructuredDataType elementType;
+		unsigned int elementSize;
+	};
+
+	struct StructuredDataDef
+	{
+		int version;
+		unsigned int formatChecksum;
+		int enumCount;
+		StructuredDataEnum* enums;
+		int structCount;
+		StructuredDataStruct* structs;
+		int indexedArrayCount;
+		StructuredDataIndexedArray* indexedArrays;
+		int enumedArrayCount;
+		StructuredDataEnumedArray* enumedArrays;
+		StructuredDataType rootType;
+		unsigned int size;
+	};
+
+	struct StructuredDataDefSet
+	{
+		const char* name;
+		unsigned int defCount;
+		StructuredDataDef* defs;
+	};
+
+	struct DDLMember
+	{
+		const char* name;
+		int index;
+		void* parent;
+		int bitSize;
+		int limitSize;
+		int offset;
+		int type;
+		int externalIndex;
+		unsigned int rangeLimit;
+		unsigned int serverDelta;
+		unsigned int clientDelta;
+		int arraySize;
+		int enumIndex;
+		int permission;
+	};
+
+	struct DDLHash
+	{
+		unsigned int hash;
+		int index;
+	};
+
+	struct DDLHashTable
+	{
+		DDLHash* list;
+		int count;
+		int max;
+	};
+
+	struct DDLStruct
+	{
+		const char* name;
+		int bitSize;
+		int memberCount;
+		DDLMember* members;
+		DDLHashTable hashTableUpper;
+		DDLHashTable hashTableLower;
+	};
+
+	struct DDLEnum
+	{
+		const char* name;
+		int memberCount;
+		const char** members;
+		DDLHashTable hashTable;
+	};
+
+	struct DDLDef
+	{
+		char* name;
+		unsigned short version;
+		unsigned int checksum;
+		unsigned char flags;
+		int bitSize;
+		int byteSize;
+		DDLStruct* structList;
+		int structCount;
+		DDLEnum* enumList;
+		int enumCount;
+		DDLDef* next;
+		int headerBitSize;
+		int headerByteSize;
+		int reserveSize;
+		int userFlagsSize;
+		bool paddingUsed;
+	};
+
+	struct DDLFile
+	{
+		char* name;
+		DDLDef* ddlDef;
+	};
+
+	struct TracerDef
+	{
+		const char* name;
+		Material* material;
+		unsigned int drawInterval;
+		int unk1;
+		float unk2;
+		float speed;
+		float beamLength;
+		float beamWidth;
+		float screwRadius;
+		float screwDist;
+		vec4_t colors[5];
+	}; assert_sizeof(TracerDef, 0x80);
+
+	struct VehicleDef;
+
+	struct AddonMapEnts;
+
 	enum NetConstStringType
 	{
 	};
@@ -1662,6 +2423,219 @@ namespace zonetool::iw7
 		const char* buffer;
 	};
 
+	struct ScriptableDef;
+
+	struct EquipmentClothData
+	{
+		char* foleyName;
+		char* footstepName;
+	};
+
+	struct EquipmentWeaponRattleData
+	{
+		char* szName;
+		float priority;
+	};
+
+	struct EquipmentSndChance
+	{
+		float rattleChance;
+		float accentChance;
+		float silentChance;
+	};
+
+	struct EquipmentChanceMoveTypes
+	{
+		EquipmentSndChance* chances;
+	};
+
+	struct EquipmentChanceRattleTypes
+	{
+		EquipmentChanceMoveTypes* chances;
+	};
+
+	struct EquipmentSoundSet
+	{
+		SndAliasList* soundPLR;
+		SndAliasList* soundNPC;
+	};
+
+	struct EquipSoundSetMoveTypes
+	{
+		EquipmentSoundSet* soundSets;
+	};
+
+	struct EquipSoundSetMantleTypes
+	{
+		EquipmentSoundSet soundSets[12];
+	}; assert_sizeof(EquipSoundSetMantleTypes, 192);
+
+	struct EquipSoundSetStanceTypes
+	{
+		EquipmentSoundSet soundSets[4];
+	};
+
+	struct EquipSoundSetMeleeVM
+	{
+		EquipmentSoundSet soundSets[56];
+	}; assert_sizeof(EquipSoundSetMeleeVM, 896);
+
+	struct EquipmentSoundTable
+	{
+		const char* szName;
+		unsigned int numClothTypes;
+		unsigned int numWeaponRattleTypes;
+		unsigned int numMoveTypes;
+		unsigned int numStanceTypes;
+		EquipmentClothData* clothTypes;
+		EquipmentWeaponRattleData* weaponRattleTypes;
+		EquipmentChanceRattleTypes* chancesPLR;
+		EquipmentChanceRattleTypes* chancesNPC;
+		EquipSoundSetMoveTypes* mvmtClothFootstepCeilingSoundSets;
+		EquipSoundSetMoveTypes* mvmtClothFoleySoundSets;
+		EquipSoundSetMoveTypes* mvmtRattleSoundSets;
+		EquipSoundSetMoveTypes mvmtAccentSoundSets;
+		EquipSoundSetMantleTypes* mvmtMantleSoundSets;
+		EquipSoundSetStanceTypes* mvmtStanceSoundSets;
+		EquipSoundSetMeleeVM* meleeAttackVMSoundSets;
+	}; assert_sizeof(EquipmentSoundTable, 0x70);
+	assert_offsetof(EquipmentSoundTable, mvmtStanceSoundSets, 96);
+
+	enum VectorFieldType : std::int32_t
+	{
+		VECTOR_FIELD_TYPE_NONE = 0x0,
+		VECTOR_FIELD_TYPE_FORCE = 0x1,
+		VECTOR_FIELD_TYPE_VELOCITY = 0x2,
+		VECTOR_FIELD_NUM_TYPES = 0x3,
+	};
+
+	struct VectorSubField
+	{
+		vec4_t* linearData;
+		ExtentBounds worldBounds;
+		vec3_t ds;
+		unsigned int numEntries[3];
+		unsigned int flags;
+		VectorFieldType type;
+		unsigned int pad[4];
+	}; assert_sizeof(VectorSubField, 80);
+
+	struct VectorField
+	{
+		const char* name;
+		VectorSubField* subFields;
+		ExtentBounds worldBounds;
+		unsigned int numSubFields;
+		unsigned int pad;
+	}; assert_sizeof(VectorField, 48);
+
+	struct FxParticleSimAnimationHeader
+	{
+		float playbackRate;
+		float duration;
+		unsigned int frameCount;
+		float minX;
+		float minY;
+		float minZ;
+		float boundsXDelta;
+		float boundsYDelta;
+		float boundsZDelta;
+		float maxWidth;
+		float maxHeight;
+		unsigned int colorTableSize;
+		unsigned int particleDataCount;
+		unsigned int maxActiveParticles;
+		bool evalVisStatePerParticle;
+		bool sortParticlesAtRuntime;
+		bool hasOrientation3D;
+		bool hasIndex;
+	};
+
+	struct FxParticleSimAnimationParticleData
+	{
+		unsigned __int16 xNormalizedPos;
+		unsigned __int16 yNormalizedPos;
+		unsigned __int16 zNormalizedPos;
+		unsigned __int16 xNormalizedWidth;
+		unsigned __int16 yNormalizedHeight;
+		unsigned __int16 orientation;
+		unsigned __int16 lifetime;
+		unsigned __int16 particleID;
+		unsigned __int16 xNormalizedPosNextFrame;
+		unsigned __int16 yNormalizedPosNextFrame;
+		unsigned __int16 zNormalizedPosNextFrame;
+		unsigned __int16 xNormalizedWidthNextFrame;
+		unsigned __int16 yNormalizedHeightNextFrame;
+		__int16 orientationDelta;
+		unsigned __int16 colorTableIndex;
+		unsigned __int16 nextColorTableIndex;
+	};
+
+	struct FxParticleSimAnimationParticleDataOrientation3D
+	{
+		unsigned __int16 yOrientation;
+		unsigned __int16 zOrientation;
+		__int16 yOrientationDelta;
+		__int16 zOrientationDelta;
+	};
+
+	struct FxParticleSimAnimationParticleDataIndex
+	{
+		char index;
+		char nextIndex;
+	};
+
+	struct FxParticleSimAnimationFrame
+	{
+		unsigned int particleDataOffset;
+		unsigned int numActiveParticles;
+	};
+
+	struct FxParticleSimAnimation
+	{
+		const char* name;
+		Material* material;
+		FxParticleSimAnimationHeader header;
+		FxParticleSimAnimationParticleData* particleData;
+		FxParticleSimAnimationParticleDataOrientation3D* particleDataOrientation3D;
+		FxParticleSimAnimationParticleDataIndex* particleDataIndex;
+		FxParticleSimAnimationFrame* frames;
+		vec4_t* colorTable;
+	};
+
+	struct StreamingInfo;
+
+	struct LaserDef
+	{
+		const char* name;
+		Material* laserMaterial;
+		Material* laserLightMaterial;
+		bool ownerOnly;
+		bool nightvisionOnly;
+		float range;
+		float radius;
+		float endOffsetViewmodel;
+		float endOffsetOther;
+		float flarePct;
+		FxCombinedDef beamEffect;
+		FxCombinedDef laserEndEffect;
+		bool clientCollision;
+		vec4_t color;
+		vec4_t hdrColorScale;
+		bool laserLight;
+		bool laserLightNvgOnly;
+		float laserLightRadius;
+		float laserLightBeginOffset;
+		float laserLightEndOffset;
+		float laserLightBodyTweak;
+		vec4_t laserLightColor;
+		vec4_t laserLightHdrColorScale;
+		float range_alt;
+		float radius_alt;
+		float laserLightRadius_alt;
+		float flarePct_alt;
+	}; assert_sizeof(LaserDef, 0xB8);
+
 	struct TTFDef
 	{
 		const char* name;
@@ -1669,6 +2643,32 @@ namespace zonetool::iw7
 		const char* file;
 		void* ftFace;
 	}; assert_sizeof(TTFDef, 0x20);
+
+	struct SuitDef;
+
+	struct SuitAnimPackage;
+
+	struct SpaceshipTargetDef;
+
+	struct RumbleInfo;
+
+	struct RumbleGraph;
+
+	struct WeaponAnimPackage;
+
+	struct WeaponSFXPackage;
+
+	struct WeaponVFXPackage;
+
+	struct BehaviorTree;
+
+	struct XAnimArcheType;
+
+	struct XAnimProceduralBones;
+
+	struct ReticleDef;
+
+	struct GfxLightmap;
 
 	union XAssetHeader
 	{
@@ -1684,13 +2684,13 @@ namespace zonetool::iw7
 		XModel* model;
 		MayhemData* mayhem;
 		Material* material;
-		//ComputeShader* computeShader;
-		//MaterialVertexShader* vertexShader;
-		//MaterialHullShader* hullShader;
-		//MaterialDomainShader* domainShader;
-		//MaterialPixelShader* pixelShader;
-		//MaterialVertexDeclaration* vertexDecl;
-		//MaterialTechniqueSet* techniqueSet;
+		ComputeShader* computeShader;
+		MaterialVertexShader* vertexShader;
+		MaterialHullShader* hullShader;
+		MaterialDomainShader* domainShader;
+		MaterialPixelShader* pixelShader;
+		MaterialVertexDeclaration* vertexDecl;
+		MaterialTechniqueSet* techniqueSet;
 		GfxImage* image;
 		SndGlobals* soundGlobals;
 		SndBankResident* soundBankResident;
@@ -1707,37 +2707,38 @@ namespace zonetool::iw7
 		//GfxIESProfile* iesProfile;
 		//GfxLightDef* lightDef;
 		//void* uiMap;
-		//AnimationClass* animClass;
-		//PlayerAnimScript* playerAnim;
+		AnimationClass* animClass;
+		PlayerAnimScript* playerAnim;
 		//Gesture* gesture;
 		LocalizeEntry* localize;
 		//WeaponAttachment* attachment;
 		//WeaponCompleteDef* weapon;
 		//ParticleSystemDef* vfx;
+		//FxEffectDef* fx;
 		//FxImpactTable* impactFx;
 		//SurfaceFxTable* surfaceFx;
 		//void* aiType;
 		//void* mpType;
 		//void* character;
 		//void* modelAlias;
-		//void* unknown;
 		RawFile* rawfile;
 		ScriptFile* scriptfile;
 		StringTable* stringTable;
-		//LeaderboardDef* leaderboardDef;
-		//VirtualLeaderboardDef* virtualLeaderboardDef;
-		//DDLFile* ddlFile;
-		//TracerDef* tracerDef;
+		LeaderboardDef* leaderboardDef;
+		VirtualLeaderboardDef* virtualLeaderboardDef;
+		StructuredDataDefSet* structuredDataDefSet;
+		DDLFile* ddlFile;
+		TracerDef* tracerDef;
 		//VehicleDef* vehDef;
 		//AddonMapEnts* addonMapEnts;
 		NetConstStrings* netConstStrings;
 		LuaFile* luaFile;
 		//ScriptableDef* scriptable;
-		//EquipmentSoundTable* equipSndTable;
-		//VectorField* vectorField;
-		//FxParticleSimAnimation* particleSimAnimation;
+		EquipmentSoundTable* equipSndTable;
+		VectorField* vectorField;
+		FxParticleSimAnimation* particleSimAnimation;
 		//StreamingInfo* streamingInfo;
-		//LaserDef* laserDef;
+		LaserDef* laserDef;
 		TTFDef* ttfDef;
 		//SuitDef* suitDef;
 		//SuitAnimPackage* suitAnimPackage;

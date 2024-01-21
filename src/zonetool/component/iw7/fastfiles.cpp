@@ -98,8 +98,6 @@ namespace iw7
 
 			void db_dirty_disc_error_stub(int err1, int err2)
 			{
-				game::g_load;
-				game::db_stream;
 				return db_dirty_disc_error_hook.invoke<void>(err1, err2);
 			}
 #endif
@@ -124,7 +122,7 @@ namespace iw7
 				utils::hook::set<uint8_t>(0x1409E8CAE, 0xEB); // DB_InflateInit
 
 				// Skip signature validation
-				utils::hook::set(0x1409E6390, 0xC301B0); // signature
+				utils::hook::set(0x1409E6390, 0xC301B0);
 
 #ifdef DEBUG
 				// debug stuff
