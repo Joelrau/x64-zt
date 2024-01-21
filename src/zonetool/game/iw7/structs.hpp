@@ -521,9 +521,12 @@ namespace iw7
 		{
 			char name[64];
 			void* handle;
-			char __pad0[46];
+			unsigned __int64 memoryBufferSize;
+			unsigned char* memoryBuffer;
+			void* handle_dcache;
+			char __pad1[22];
 			bool isSecure;
-			char __pad1[49];
+			char __pad2[49];
 		}; assert_sizeof(DBFile, 0xA8);
 		assert_offsetof(DBFile, isSecure, 118);
 
@@ -571,12 +574,25 @@ namespace iw7
 		struct DB_LoadData
 		{
 			DBFile* file;
-			unsigned __int8* fileBuffer;
+			void* unk1;
+			unsigned char* fileBuffer;
 			unsigned __int64 readSize;
 			unsigned __int64 completedReadSize;
 			unsigned __int64 offset;
-			unsigned __int8* start_in;
+			unsigned char* start_in;
+			unsigned int readError;
+			int readingResident;
 			DB_ReadStream stream;
+			__int64 read_size_;
+			__int64 offset_;
+			int unk4;
+			int unk5;
+			int unk6;
+			int unk7;
+			int unk8;
+			int unk9;
+			int unk10;
+			int unk11;
 		};
 	}
 }

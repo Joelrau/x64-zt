@@ -19,22 +19,12 @@ namespace iw7
 		{
 			utils::hook::detour db_init_load_x_file_hook;
 			utils::hook::detour db_is_patch_hook;
-			utils::hook::detour db_read_stream_file_hook;
-			utils::hook::detour db_auth_load_inflate_hook;
-			utils::hook::detour db_auth_load_inflate_init_hook;
-			utils::hook::detour db_auth_load_inflate_end_hook;
-			utils::hook::detour db_patch_mem_fix_stream_alignment_hook;
 
 #ifdef DEBUG
 			utils::hook::detour db_read_x_file_hook;
 			utils::hook::detour db_dirty_disc_error_hook;
 			utils::hook::detour db_block_decompress_zlib_hook;
 #endif
-
-			game::db_z_stream_s db_zlib_stream;
-			char db_zlib_memory[0x20000];
-
-			bool is_reading_stream_file;
 
 			void db_init_load_x_file_stub(const char* name, std::uint64_t offset)
 			{
@@ -46,9 +36,9 @@ namespace iw7
 			{
 				const char* lang_code = game::SEH_GetCurrentLanguageCode();
 				char buffer[0x100]{ 0 };
-				sprintf_s(buffer, "%s_", lang_code);
+				const auto len = sprintf_s(buffer, "%s_", lang_code);
 
-				if (!strncmp(zone_name, buffer, strlen(buffer)))
+				if (!strncmp(zone_name, buffer, len))
 				{
 					printf("Tried to load missing language zone: %s\n", zone_name);
 					return true;
@@ -88,93 +78,6 @@ namespace iw7
 				a.jmp(0x1403BAC06);
 			}
 
-			void db_read_stream_file_stub(int a1, int a2)
-			{
-				if (!game::Sys_IsDatabaseThread()) // sanity check
-				{
-					__debugbreak();
-				}
-
-				is_reading_stream_file = true;
-				db_read_stream_file_hook.invoke<void>(a1, a2);
-				is_reading_stream_file = false;
-			}
-
-			template <class T1, class T2>
-			void stream_copy(T1 dest, T2 src)
-			{
-				dest->next_in = static_cast<decltype(dest->next_in)>(src->next_in);
-				dest->avail_in = static_cast<decltype(dest->avail_in)>(src->avail_in);
-				dest->total_in = static_cast<decltype(dest->total_in)>(src->total_in);
-				dest->next_out = static_cast<decltype(dest->next_out)>(src->next_out);
-				dest->avail_out = static_cast<decltype(dest->avail_out)>(src->avail_out);
-				dest->total_out = static_cast<decltype(dest->total_out)>(src->total_out);
-			}
-
-			bool is_custom_zone_read;
-
-			__int64 db_auth_load_inflate_stub(game::DB_ReadStream* stream)
-			{
-				if (!is_custom_zone_read) return db_auth_load_inflate_hook.invoke<__int64>(stream);
-
-				__int64 result{};
-
-				stream_copy(&db_zlib_stream, stream);
-				if (db_zlib_stream.avail_in)
-				{
-					result = game::db_inflate(&db_zlib_stream, Z_SYNC_FLUSH);
-					if (result == 1 && !db_zlib_stream.avail_out) result = 0;
-				}
-				stream_copy(stream, &db_zlib_stream);
-
-				return result;
-			}
-
-			void db_auth_load_inflate_init_stub(game::DB_ReadStream* stream, int isSecure, const char* filename)
-			{
-				is_custom_zone_read = false;
-
-				db_auth_load_inflate_init_hook.invoke<void>(stream, isSecure, filename);
-
-				if (stream->avail_in >= 4 &&
-					(stream->next_in[1] == 'I' && stream->next_in[2] == 'W' && stream->next_in[3] == 'C'))
-				{
-					return;
-				}
-
-				if (is_reading_stream_file || game::g_load->file->isSecure) return;
-
-				is_custom_zone_read = true;
-
-				memset(&db_zlib_stream, 0, sizeof(game::db_z_stream_s));
-				stream_copy(&db_zlib_stream, stream);
-
-				game::DB_Zip_InitThreadMemory(&db_zlib_stream, &db_zlib_memory, 0x20000);
-				game::db_inflateInit_(&db_zlib_stream, "1.1.4", 88);
-
-				stream_copy(stream, &db_zlib_stream);
-			}
-
-			void db_auth_load_inflate_end_stub()
-			{
-				db_auth_load_inflate_end_hook.invoke<void>();
-
-				if (!is_custom_zone_read) return;
-
-				game::db_inflateEnd(&db_zlib_stream);
-				game::DB_Zip_ShutdownThreadMemory(&db_zlib_stream);
-
-				is_custom_zone_read = false;
-			}
-
-			unsigned __int64 db_patch_mem_fix_stream_alignment_stub(int alignment) // probably unneeded
-			{
-				if (!is_custom_zone_read) return db_patch_mem_fix_stream_alignment_hook.invoke<unsigned __int64>(alignment);
-
-				*game::g_streamPos = (~alignment & (alignment + *game::g_streamPos));
-				return *game::g_streamPos;
-			}
-
 #ifdef DEBUG
 			void sys_err_read(const char* msg, ...)
 			{
@@ -195,12 +98,9 @@ namespace iw7
 
 			void db_dirty_disc_error_stub(int err1, int err2)
 			{
+				game::g_load;
+				game::db_stream;
 				return db_dirty_disc_error_hook.invoke<void>(err1, err2);
-			}
-
-			void db_block_decompress_zlib_stub(int a1, int a2, int a3, int a4)
-			{
-				return db_block_decompress_zlib_hook.invoke<void>(a1, a2, a3, a4);
 			}
 #endif
 		}
@@ -222,18 +122,15 @@ namespace iw7
 
 				// Allow loading of unsigned fastfiles
 				utils::hook::set<uint8_t>(0x1409E8CAE, 0xEB); // DB_InflateInit
-				db_read_stream_file_hook.create(0x140A7F370, db_read_stream_file_stub);
-				db_auth_load_inflate_hook.create(0x1409E6AE0, db_auth_load_inflate_stub);
-				db_auth_load_inflate_init_hook.create(0x1409E6970, db_auth_load_inflate_init_stub);
-				db_auth_load_inflate_end_hook.create(0x1409E8CF0, db_auth_load_inflate_end_stub);
-				db_patch_mem_fix_stream_alignment_hook.create(0x1400A0A80, db_patch_mem_fix_stream_alignment_stub);
+
+				// Skip signature validation
+				utils::hook::set(0x1409E6390, 0xC301B0); // signature
 
 #ifdef DEBUG
 				// debug stuff
 				utils::hook::call(0x1409E9309, sys_err_read);
 				db_read_x_file_hook.create(0x1409E91B0, db_read_x_file_stub);
 				db_dirty_disc_error_hook.create(0x1409E89D0, db_dirty_disc_error_stub);
-				db_block_decompress_zlib_hook.create(0x1409E6DA0, db_block_decompress_zlib_stub);
 #endif
 			}
 		};

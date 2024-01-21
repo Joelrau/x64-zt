@@ -6,26 +6,305 @@
 
 #include <utils/io.hpp>
 
+#include <zlib.h>
+#include <lz4.h>
+#include <lz4hc.h>
+
 //#define FF_SIGNED
 #ifdef FF_SIGNED
-#define FF_HEADER "IWff0100"
+#define FF_MAGIC "IWff0100"
 #else
-#define FF_HEADER "IWffu100"
+#define FF_MAGIC "IWffu100"
 #endif
 
 #define FF_VERSION 1619
 
-#define CUSTOM_IMAGEFILE_INDEX 230
+#define CUSTOM_IMAGEFILE_INDEX 431
 
-#define COMPRESS_TYPE_LZ4 4
-#define COMPRESS_TYPE_ZLIB 1
-#define COMPRESS_TYPE_NONE 0
+#define COMPRESS_BLOCK_TYPE_ZLIB 1
+#define COMPRESS_BLOCK_TYPE_LZ4 4
+#define COMPRESS_BLOCK_TYPE COMPRESS_BLOCK_TYPE_LZ4
 
-#define COMPRESS_TYPE COMPRESS_TYPE_ZLIB
-static_assert(COMPRESS_TYPE == COMPRESS_TYPE_LZ4 || COMPRESS_TYPE == COMPRESS_TYPE_ZLIB || COMPRESS_TYPE == COMPRESS_TYPE_NONE);
+#define COMPRESSOR_BLOCK 2
+#define COMPRESSOR_PASSTHROUGH 1
+#define COMPRESSOR COMPRESSOR_BLOCK
+
+#ifdef FF_SIGNED
+static_assert(COMPRESS_BLOCK_TYPE == COMPRESS_BLOCK_TYPE_LZ4, "LZ4 is the only compression type supported with signed fastfiles currently");
+static_assert(COMPRESSOR == COMPRESSOR_BLOCK, "Block compressor is the only supported type with signed fastfiles currently");
+#else
+static_assert(COMPRESSOR == COMPRESSOR_BLOCK || COMPRESSOR == COMPRESSOR_PASSTHROUGH, "Unknown compressor type");
+static_assert(COMPRESS_BLOCK_TYPE == COMPRESS_BLOCK_TYPE_LZ4 || COMPRESSOR == COMPRESS_BLOCK_TYPE_ZLIB, "Unsupported block compression type");
+#endif
 
 namespace zonetool::iw7
 {
+	namespace compression::iwc
+	{
+		size_t align_value(size_t value, unsigned int alignment)
+		{
+			return (value + alignment - 1) & ~(static_cast<size_t>(alignment) - 1);
+		}
+
+		const char* align_value(const char* value, unsigned int alignment)
+		{
+			return reinterpret_cast<const char*>(align_value(reinterpret_cast<size_t>(value), alignment));
+		}
+
+		constexpr auto MAX_BLOCK_SIZE = 0x10000ull;
+		constexpr auto BLOCK_SIZE_CHUNK_SIGNED = 0x4000ull;
+		constexpr auto BLOCK_SIZE_SIGNED = BLOCK_SIZE_CHUNK_SIGNED - sizeof(XBlockCompressionBlockHeader);
+		constexpr auto BLOCK_SIZE_FIRST_SIGNED = BLOCK_SIZE_SIGNED - sizeof(XBlockCompressionDataHeader) - sizeof(XFileCompressorHeader);
+
+		std::vector<std::uint8_t> compress_block_signed(const std::uint8_t* data, const std::size_t size, const int type, std::vector<DB_AuthHash>& chunk_hashes)
+		{
+			std::uint8_t block_buffer[BLOCK_SIZE_CHUNK_SIGNED]{};
+
+			std::vector<std::uint8_t> out_buffer;
+
+			auto bytes_to_compress = size;
+			if (bytes_to_compress > std::numeric_limits<unsigned int>::max())
+			{
+				throw std::runtime_error("cannot compress more than `std::numeric_limits<unsigned int>::max()` bytes");
+			}
+
+			auto data_ptr = reinterpret_cast<const char*>(data);
+
+			const auto write = [&](void* data, const size_t len)
+			{
+				for (auto i = 0ull; i < len; i++)
+				{
+					out_buffer.push_back(reinterpret_cast<char*>(data)[i]);
+				}
+			};
+
+			XFileCompressorHeader compress_header{};
+			memcpy(compress_header.magic, "IWC", 3);
+			compress_header.compressor = DB_COMPRESSOR_BLOCK;
+			write(&compress_header, sizeof(XFileCompressorHeader));
+
+			auto first_block = true;
+
+			const auto compress_block_lz4 = [&]()
+			{
+				memset(block_buffer, 0, sizeof(block_buffer));
+
+				const auto uncompressed_size = static_cast<unsigned int>(std::min(bytes_to_compress, MAX_BLOCK_SIZE));
+				memcpy(block_buffer, data_ptr, uncompressed_size);
+
+				const auto block_size = first_block ? BLOCK_SIZE_FIRST_SIGNED : BLOCK_SIZE_SIGNED;
+				const auto bound = LZ4_compressBound(static_cast<int>(block_size));
+				assert(bound > block_size);
+
+				std::string buffer;
+				buffer.resize(block_size);
+
+				const auto compressed_size = LZ4_compress_HC(reinterpret_cast<char*>(block_buffer),
+					buffer.data(), uncompressed_size, bound, LZ4HC_CLEVEL_DEFAULT);
+				assert(buffer.size() == block_size);
+
+				if (first_block)
+				{
+					XBlockCompressionDataHeader header{};
+					header.uncompressedSize = bytes_to_compress;
+					header.blockSizeAndType.blockSize = MAX_BLOCK_SIZE;
+					header.blockSizeAndType.compressionType = XBLOCK_COMPRESSION_LZ4;
+
+					write(&header, sizeof(header));
+				}
+
+				XBlockCompressionBlockHeader block_header{};
+				block_header.compressedSize = compressed_size;
+				block_header.uncompressedSize = uncompressed_size;
+
+				write(&block_header, sizeof(block_header));
+
+				write(buffer.data(), buffer.size());
+
+				first_block = false;
+
+				bytes_to_compress -= uncompressed_size;
+				data_ptr += uncompressed_size;
+
+				assert(buffer.size() % BLOCK_SIZE_CHUNK_SIGNED);
+			};
+
+			const auto compress_block_zlib = [&]()
+			{
+				__debugbreak();
+			};
+
+			while (bytes_to_compress > 0)
+			{
+				if (type == XBLOCK_COMPRESSION_LZ4)
+				{
+					compress_block_lz4();
+				}
+				else
+				{
+					__debugbreak();
+				}
+
+				// calc hash
+				DB_AuthHash hash{};
+				hash_state state{};
+				sha256_init(&state);
+				sha256_process(&state, out_buffer.data() + out_buffer.size() - BLOCK_SIZE_CHUNK_SIGNED, BLOCK_SIZE_CHUNK_SIGNED);
+				sha256_done(&state, hash.bytes);
+				chunk_hashes.push_back(hash);
+			}
+
+			return out_buffer;
+		}
+
+		std::vector<std::uint8_t> compress_block(const std::uint8_t* data, const std::size_t size, const int type)
+		{
+			std::vector<std::uint8_t> out_buffer;
+
+			auto bytes_to_compress = size;
+			if (bytes_to_compress > std::numeric_limits<unsigned int>::max())
+			{
+				throw std::runtime_error("cannot compress more than `std::numeric_limits<unsigned int>::max()` bytes");
+			}
+
+			auto data_ptr = reinterpret_cast<const char*>(data);
+
+			const auto write = [&](void* data, const size_t len)
+			{
+				for (auto i = 0ull; i < len; i++)
+				{
+					out_buffer.push_back(reinterpret_cast<char*>(data)[i]);
+				}
+			};
+
+			XFileCompressorHeader compress_header{};
+			memcpy(compress_header.magic, "IWC", 3);
+			compress_header.compressor = DB_COMPRESSOR_BLOCK;
+			write(&compress_header, sizeof(XFileCompressorHeader));
+
+			auto first_block = true;
+
+			const auto compress_block_lz4 = [&]()
+			{
+				const auto block_size = static_cast<unsigned int>(std::min(bytes_to_compress, MAX_BLOCK_SIZE));
+				const auto bound = LZ4_compressBound(block_size);
+
+				std::string buffer;
+				buffer.resize(bound);
+
+				const auto compressed_size = LZ4_compress_HC(data_ptr,
+					buffer.data(), block_size, bound, LZ4HC_CLEVEL_DEFAULT);
+				buffer.resize(align_value(compressed_size, 4));
+
+				if (first_block)
+				{
+					XBlockCompressionDataHeader header{};
+					header.uncompressedSize = bytes_to_compress;
+					header.blockSizeAndType.blockSize = MAX_BLOCK_SIZE;
+					header.blockSizeAndType.compressionType = XBLOCK_COMPRESSION_LZ4;
+
+					write(&header, sizeof(header));
+				}
+
+				XBlockCompressionBlockHeader block_header{};
+				block_header.compressedSize = compressed_size;
+				block_header.uncompressedSize = block_size;
+
+				write(&block_header, sizeof(block_header));
+
+				write(buffer.data(), buffer.size());
+
+				first_block = false;
+
+				bytes_to_compress -= block_size;
+				data_ptr += block_size;
+			};
+
+			const auto compress_block_zlib = [&]()
+			{
+				const auto block_size = static_cast<unsigned int>(std::min(bytes_to_compress, MAX_BLOCK_SIZE));
+				auto bound = compressBound(static_cast<unsigned long>(block_size));
+
+				std::string buffer;
+				buffer.resize(bound);
+
+				compress2(reinterpret_cast<unsigned char*>(buffer.data()), &bound,
+					reinterpret_cast<const unsigned char*>(data_ptr), static_cast<uLong>(size), Z_BEST_COMPRESSION);
+				const auto compressed_size = bound;
+				buffer.resize(compressed_size);
+
+				if (first_block)
+				{
+					XBlockCompressionDataHeader header{};
+					header.uncompressedSize = bytes_to_compress;
+					header.blockSizeAndType.blockSize = MAX_BLOCK_SIZE;
+					header.blockSizeAndType.compressionType = XBLOCK_COMPRESSION_ZLIB_SIZE;
+
+					write(&header, sizeof(header));
+				}
+
+				XBlockCompressionBlockHeader block_header{};
+				block_header.compressedSize = compressed_size;
+				block_header.uncompressedSize = block_size;
+
+				write(&block_header, sizeof(block_header));
+
+				write(buffer.data(), buffer.size());
+
+				first_block = false;
+
+				bytes_to_compress -= block_size;
+				data_ptr += block_size;
+			};
+
+			const auto compress_block_none = [&]()
+			{
+				const auto block_size = static_cast<unsigned int>(std::min(bytes_to_compress, MAX_BLOCK_SIZE));
+
+				if (first_block)
+				{
+					XBlockCompressionDataHeader header{};
+					header.uncompressedSize = bytes_to_compress;
+					header.blockSizeAndType.blockSize = MAX_BLOCK_SIZE;
+					header.blockSizeAndType.compressionType = XBLOCK_COMPRESSION_NONE;
+
+					write(&header, sizeof(header));
+				}
+
+				XBlockCompressionBlockHeader block_header{};
+				block_header.compressedSize = 0;
+				block_header.uncompressedSize = block_size;
+
+				write(&block_header, sizeof(block_header));
+
+				write(const_cast<char*>(data_ptr), block_size);
+
+				first_block = false;
+
+				bytes_to_compress -= block_size;
+				data_ptr += block_size;
+			};
+
+			while (bytes_to_compress > 0)
+			{
+				if (type == XBLOCK_COMPRESSION_LZ4)
+				{
+					compress_block_lz4();
+				}
+				else if (type == XBLOCK_COMPRESSION_ZLIB_SIZE)
+				{
+					compress_block_zlib();
+				}
+				else
+				{
+					compress_block_none(); // not working
+				}
+			}
+
+			return out_buffer;
+		}
+	}
+
 	asset_interface* zone_interface::find_asset(std::int32_t type, const std::string& name)
 	{
 		if (name.empty())
@@ -272,7 +551,7 @@ namespace zonetool::iw7
 					globals->blendStateBits[i][j] = buf->get_blendstatebits(i)[j];
 				}
 			}
-			
+
 			globals->perPrimConstantBufferCount = static_cast<unsigned int>(buf->ppas_count());
 			globals->perPrimConstantBufferSizes = mem_->allocate<unsigned int>(globals->perPrimConstantBufferCount);
 			globals->perPrimConstantBuffers = mem_->allocate<GfxZoneTableEntry>(globals->perPrimConstantBufferCount);
@@ -418,11 +697,6 @@ namespace zonetool::iw7
 			}
 			buf->pop_stream();
 		}
-		else
-		{
-			buf->align(7);
-			buf->write<std::uintptr_t>(&zero); // pointer to gfxglobals
-		}
 
 		buf->pop_stream();
 		buf->push_stream(XFILE_BLOCK_VIRTUAL);
@@ -464,118 +738,135 @@ namespace zonetool::iw7
 
 		// pop stream
 		buf->pop_stream();
-		
+
 #ifdef DEBUG
 		// Dump zone to disk (for debugging)
 		buf->save("zonetool\\_debug\\" + this->name_ + ".zone", false);
 #endif
 
 		// Compress buffer
-#if (COMPRESS_TYPE == COMPRESS_TYPE_LZ4)
-		const auto buf_compressed = buf->compress_lz4();
-		const auto buf_output = buf_compressed.data();
-		const auto buf_output_size = buf_compressed.size();
-#elif (COMPRESS_TYPE == COMPRESS_TYPE_ZLIB)
-		const auto buf_compressed = buf->compress_zlib();
+#if (COMPRESSOR == COMPRESSOR_BLOCK)
+#ifdef FF_SIGNED
+		std::vector<DB_AuthHash> chunk_hashes{};
+		const auto buf_compressed = compression::iwc::compress_block_signed(buf->buffer(), buf->size(), COMPRESS_BLOCK_TYPE, chunk_hashes);
 		const auto buf_output = buf_compressed.data();
 		const auto buf_output_size = buf_compressed.size();
 #else
+		const auto buf_compressed = compression::iwc::compress_block(buf->buffer(), buf->size(), COMPRESS_BLOCK_TYPE);
+		const auto buf_output = buf_compressed.data();
+		const auto buf_output_size = buf_compressed.size();
+#endif
+#elif (COMPRESSOR == COMPRESSOR_PASSTHROUGH)
 		const auto buf_output = buf->buffer();
 		const auto buf_output_size = buf->size();
+
+		XFileCompressorHeader compress_header{};
+		memcpy(compress_header.magic, "IWC", 3);
+		compress_header.compressor = DB_COMPRESSOR_PASSTHROUGH;
 #endif
 
 		// Generate FF header
-		auto header = this->m_zonemem->allocate<XFileHeader>();
-		strcat(header->header, FF_HEADER);
-		header->version = FF_VERSION;
-		header->unused = 0;
-		header->has_no_image_fastfile = 1;
-		header->has_no_shared_fastfile = 1;
-		header->unk1 = 1;
-		header->fileTimeLow = 0;
-		header->fileTimeHigh = 0;
-		header->shared_ff_hash = 0;
-		header->shared_ff_count = 0;
-		header->image_ff_hash = 0;
-		header->image_ff_count = 0;
-		header->fileLen = buf_output_size + sizeof(XFileHeader);
-		header->fileLenUnk1 = 0; // imagefile?
-		header->fileLenUnk2 = 0; // shared?
+		XFileHeader header = {};
+		strcat(header.magic, FF_MAGIC);
+		header.version = FF_VERSION;
+		header.unused = 0;
+		header.has_no_image_fastfile = 1;
+		header.has_no_shared_fastfile = 1;
+		header.unk1 = 1;
+		header.fileTimeLow = 0;
+		header.fileTimeHigh = 0;
+		header.shared_ff_hash = 0;
+		header.shared_ff_count = 0;
+		header.image_ff_hash = 0;
+		header.image_ff_count = 0;
+		header.fileLen = buf_output_size + sizeof(XFileHeader) + sizeof(XFileCompressorHeader);
+		header.fileLenUnk1 = 0; // imagefile?
+		header.fileLenUnk2 = 0; // shared?
 
 		{
-			header->stream_data.unk1 = 0;
-			header->stream_data.unk2 = 0;
+			header.stream_data.unk1 = 0;
+			header.stream_data.unk2 = 0;
 
 			std::uint64_t total_block_size = 0;
 			for (auto i = 0; i < MAX_XFILE_COUNT; i++)
 			{
-				header->stream_data.block_size[i] = buf->stream_offset(static_cast<std::uint8_t>(i));
-				total_block_size += header->stream_data.block_size[i];
+				header.stream_data.block_size[i] = buf->stream_offset(static_cast<std::uint8_t>(i));
+				total_block_size += header.stream_data.block_size[i];
 			}
-			header->stream_data.size = total_block_size; // not correct
-			memset(header->stream_data.unk_arr, 0, sizeof(header->stream_data.unk_arr));
+			header.stream_data.size = total_block_size; // not correct
+			memset(header.stream_data.unk_arr, 0, sizeof(header.stream_data.unk_arr));
 		}
 
 #ifdef FF_SIGNED
-		header->fileLen += sizeof(XFileSignedInfo);
+		header.fileLen += sizeof(DB_MasterBlock);
 
-		XFileSignedInfo secret{};
-		strcat(secret.magic, "IWffs100");
-		secret.unk = 0;
-		memset(secret.key, 0, sizeof(secret.key));
-		memset(secret.sha, 0, sizeof(secret.sha));
-		strcat(secret.name, this->name_.data());
+		DB_MasterBlock master_block{};
+		memset(&master_block, 0, sizeof(DB_MasterBlock));
+
+		// process_master_blocks()
+		{
+			for (auto i = 0; i < chunk_hashes.size(); i++)
+			{
+				memcpy(master_block.chunkHashes[i].bytes, chunk_hashes[i].bytes, sizeof(DB_AuthHash));
+			}
+		}
+
+		header.fileLen += sizeof(DB_AuthHeader);
+
+		DB_AuthHeader auth_header{};
+		memset(&auth_header, 0, sizeof(DB_AuthHeader));
+		strcat(auth_header.magic, "IWffs100");
+		auth_header.reserved = 0;
+		strcat(auth_header.subheader.fastfileName, this->name_.data());
+		auth_header.subheader.reserved = 0;
+
+		// process_sub_header_master_block_hashes()
+		{
+			///for (std::uint8_t i = 0; i < 192; i++)
+			{
+				hash_state state{};
+				sha256_init(&state);
+				sha256_process(&state, reinterpret_cast<unsigned char*>(&master_block), sizeof(DB_MasterBlock));
+				sha256_done(&state, auth_header.subheader.masterBlockHashes[0].bytes);
+			}
+		}
+
+		// process_sub_header()
+		{
+			hash_state state{};
+			sha256_init(&state);
+			sha256_process(&state, reinterpret_cast<unsigned char*>(&auth_header.subheader), sizeof(DB_AuthSubHeader));
+			sha256_done(&state, auth_header.subheaderHash.bytes);
+		}
+
+		// process_signature
+		{
+			// we don't know the private key so we can't generate signature?
+			constexpr auto DEADBEEF = 0xDEADBEEF;
+			memcpy_s(auth_header.signedSubheaderHash.bytes, sizeof(DB_AuthSignature), &DEADBEEF, sizeof(DEADBEEF));
+		}
 #endif
 
-		// calculate header->fileLen + streamfiles
+		header.fileLen += sizeof(XStreamFile) * header.image_ff_count;
+		header.fileLen += sizeof(XStreamFile) * header.shared_ff_count;
 
-		zone_buffer fastfile(header->fileLen);
+		zone_buffer fastfile(header.fileLen);
 
 		// Do streamfile stuff
-		/*auto streamfiles_count = buf->streamfile_count();
-		if (streamfiles_count > 0)
-		{
-			if (streamfiles_count > 55168)
-			{
-				ZONETOOL_ERROR("There was an error writing the zone: Too many streamFiles!");
-				return;
-			}
+		/*{
 
-			header->imageCount = static_cast<std::uint32_t>(streamfiles_count);
-			std::uint64_t base_len = buf_compressed.size() + sizeof(XFileHeader) + (sizeof(XStreamFile) * streamfiles_count);
-
-			// Generate fastfile
-			fastfile = zone_buffer(base_len);
-			fastfile.init_streams(1);
-			fastfile.write_stream(header, sizeof(XFileHeader) - 16);
-
-			// Write stream files
-			std::uint64_t total_len = base_len;
-			for (std::size_t i = 0; i < streamfiles_count; i++)
-			{
-				auto* stream = reinterpret_cast<XStreamFile*>(buf->get_streamfile(i));
-				fastfile.write_stream(stream, sizeof(XStreamFile));
-
-				total_len += (stream->offsetEnd - stream->offset);
-			}
-
-			header->baseFileLen = base_len;
-			header->totalFileLen = total_len;
-
-			fastfile.write_stream(&header->baseFileLen, 8);
-			fastfile.write_stream(&header->totalFileLen, 8);
-
-#ifdef FF_SIGNED
-			fastfile.write_stream(&secret, sizeof(XFileSignedInfo));
-#endif
 		}
 		else*/
 		{
 			// Generate fastfile
 			fastfile.init_streams(1);
-			fastfile.write_stream(header, sizeof(XFileHeader));
+			fastfile.write_stream(&header, sizeof(XFileHeader));
 #ifdef FF_SIGNED
-			fastfile.write_stream(&secret, sizeof(XFileSignedInfo));
+			fastfile.write_stream(&auth_header, sizeof(DB_AuthHeader));
+			fastfile.write_stream(&master_block, sizeof(DB_MasterBlock));
+#endif
+#if (COMPRESSOR == COMPRESSOR_PASSTHROUGH)
+			fastfile.write_stream(&compress_header, sizeof(XFileCompressorHeader));
 #endif
 		}
 

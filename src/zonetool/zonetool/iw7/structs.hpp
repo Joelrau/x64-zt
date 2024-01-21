@@ -1844,9 +1844,12 @@ namespace zonetool::iw7
 	{
 		char name[64];
 		void* handle;
-		char __pad0[46];
+		unsigned __int64 memoryBufferSize;
+		unsigned char* memoryBuffer;
+		void* handle_dcache;
+		char __pad1[22];
 		bool isSecure;
-		char __pad1[49];
+		char __pad2[49];
 	}; assert_sizeof(DBFile, 0xA8);
 	assert_offsetof(DBFile, isSecure, 118);
 
@@ -1873,7 +1876,7 @@ namespace zonetool::iw7
 		unsigned long reserved;
 	};
 
-	enum DB_CompressorType
+	enum DB_CompressorType : std::uint8_t
 	{
 		DB_COMPRESSOR_INVALID = 0x0,
 		DB_COMPRESSOR_PASSTHROUGH = 0x1,
@@ -1894,13 +1897,26 @@ namespace zonetool::iw7
 	struct DB_LoadData
 	{
 		DBFile* file;
-		unsigned __int8* fileBuffer;
+		void* unk1;
+		unsigned char* fileBuffer;
 		unsigned __int64 readSize;
 		unsigned __int64 completedReadSize;
 		unsigned __int64 offset;
-		unsigned __int8* start_in;
+		unsigned char* start_in;
+		unsigned int readError;
+		int readingResident;
 		DB_ReadStream stream;
-	};
+		__int64 read_size_;
+		__int64 offset_;
+		int unk4;
+		int unk5;
+		int unk6;
+		int unk7;
+		int unk8;
+		int unk9;
+		int unk10;
+		int unk11;
+	}; assert_sizeof(DB_LoadData, 0xA8);
 
 	enum XFileBlock
 	{
@@ -1937,14 +1953,45 @@ namespace zonetool::iw7
 		char __pad1[0x100]; // unk size
 	};
 
-	struct XFileSignedInfo // sub_1409E6100
+	struct DB_AuthHash
+	{
+		unsigned char bytes[32];
+	};
+
+	struct DB_AuthSignature
+	{
+		unsigned char bytes[256];
+	};
+
+	struct DB_MasterBlock
+	{
+		DB_AuthHash chunkHashes[512];
+	}; assert_sizeof(DB_MasterBlock, 0x4000);
+
+	struct DB_AuthSubHeader
+	{
+		char fastfileName[32];
+		unsigned int reserved;
+		DB_AuthHash masterBlockHashes[192];
+	};
+
+	struct DB_AuthHeader // sub_1409E6100
 	{
 		char magic[8]; // IWffs100
-		std::uint32_t unk;
-		char key[32];
-		char sha[256];
-		char name[32];
-		char pad[4];
+		unsigned int reserved;
+		DB_AuthHash subheaderHash;
+		DB_AuthSignature signedSubheaderHash;
+		DB_AuthSubHeader subheader;
+		char padding[9904]; // not used
+	}; assert_sizeof(DB_AuthHeader, 0x4000);
+
+	struct XPakHeader
+	{
+		char magic[8];
+		std::uint32_t version;
+		char unknown[20]; // unused
+		DB_AuthHash hash;
+		DB_AuthSignature signedhash;
 	};
 
 	struct XFileStreamData
@@ -1958,7 +2005,7 @@ namespace zonetool::iw7
 
 	struct XFileHeader
 	{
-		char header[8];
+		char magic[8];
 		std::uint32_t version;
 		std::uint8_t unused; // (unused)
 		std::uint8_t has_no_image_fastfile;
@@ -1976,7 +2023,44 @@ namespace zonetool::iw7
 		std::uint64_t fileLen;
 		std::uint64_t fileLenUnk1;
 		std::uint64_t fileLenUnk2;
-		// if signed: XFileSignedInfo info;
+		// if signed: DB_AuthHeader info;
+		// XFileCompressorHeader
+	};
+
+	struct XFileCompressorHeader
+	{
+		DB_CompressorType compressor;
+		char magic[3];
+	};
+
+#pragma pack(push, 1)
+	struct XBlockCompressionBlockHeader
+	{
+		unsigned int compressedSize;
+		std::uint64_t uncompressedSize;
+	};
+
+	struct XBlockCompressionBlockSizeAndCompressionType
+	{
+		unsigned __int32 blockSize : 24;
+		unsigned __int32 compressionType : 8;
+	};
+
+	struct XBlockCompressionDataHeader
+	{
+		std::uint64_t uncompressedSize;
+		XBlockCompressionBlockSizeAndCompressionType blockSizeAndType;
+	};
+#pragma pack(pop)
+
+	enum XBlockCompressionType
+	{
+		XBLOCK_COMPRESSION_INVALID = 0x0,
+		XBLOCK_COMPRESSION_ZLIB_SIZE = 0x1,
+		XBLOCK_COMPRESSION_ZLIB_SPEED = 0x2,
+		XBLOCK_COMPRESSION_LZ4HC = 0x3,
+		XBLOCK_COMPRESSION_LZ4 = 0x4,
+		XBLOCK_COMPRESSION_NONE = 0x5,
 	};
 
 	struct XFileReadData
@@ -1987,7 +2071,7 @@ namespace zonetool::iw7
 		std::uint8_t unk1;
 		char __pad0[4];
 		XFileStreamData stream_data;
-		std::uint32_t pad;
+		std::uint32_t version;
 		std::uint32_t shared_ff_hash;
 		std::uint32_t shared_ff_count;
 		std::uint64_t fileLenUnk1;

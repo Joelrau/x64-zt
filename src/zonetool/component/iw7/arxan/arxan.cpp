@@ -599,7 +599,7 @@ namespace iw7
 #ifdef PRECOMPUTED_ILLEGAL_INSTRUCTIONS
 					patch_illegal_instructions_precomputed();
 #else
-					const auto intact_results = utils::hook::signature("48 8D 45 ? 0F 0B", game_module::get_game_module()).process(); // 48 89 04 24 48 8D 45 ? 0F 0B
+					const auto intact_results = utils::hook::signature("48 8D 45 ? 0F 0B", game_module::get_game_module()).process();
 					for (auto* i : intact_results)
 					{
 						patch_illegal_instruction_intact(i);
