@@ -92,7 +92,10 @@ void component_loader::pre_destroy()
 
 	for (const auto& component_ : get_components())
 	{
-		component_->pre_destroy();
+		if (component_->target_mode == game::game_mode::none || component_->target_mode == game::get_mode())
+		{
+			component_->pre_destroy();
+		}
 	}
 }
 
@@ -130,10 +133,13 @@ void* component_loader::load_import(const std::string& library, const std::strin
 
 	for (const auto& component_ : get_components())
 	{
-		auto* const component_function_ptr = component_->load_import(library, function);
-		if (component_function_ptr)
+		if (component_->target_mode == game::game_mode::none || component_->target_mode == game::get_mode())
 		{
-			function_ptr = component_function_ptr;
+			auto* const component_function_ptr = component_->load_import(library, function);
+			if (component_function_ptr)
+			{
+				function_ptr = component_function_ptr;
+			}
 		}
 	}
 
