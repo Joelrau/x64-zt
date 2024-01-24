@@ -8,10 +8,6 @@ namespace zonetool::iw7
 	typedef vec_t vec3_t[3];
 	typedef vec_t vec4_t[4];
 
-	struct dummy
-	{
-	};
-
 	enum scr_string_t : std::int32_t
 	{
 	};
@@ -1446,6 +1442,49 @@ namespace zonetool::iw7
 	assert_offsetof(MaterialTechniqueSet, techniqueCount, 12);
 	assert_offsetof(MaterialTechniqueSet, techniques, 48);
 
+	enum GfxImageFlags : std::uint32_t
+	{
+		IMG_FLAG_NONE = 0x0,
+		IMG_DISK_FLAG_NOPICMIP = 0x1,
+		IMG_DISK_FLAG_NOMIPMAPS = 0x2,
+		IMG_DISK_FLAG_UNUSED = 0x4,
+		IMG_DISK_FLAG_NORMAL_OCCLUSON_GLOSS = 0x8,
+		IMG_DISK_FLAG_CLAMP_U = 0x10,
+		IMG_DISK_FLAG_CLAMP_V = 0x20,
+		IMG_DISK_FLAG_STREAMED = 0x40,
+		IMG_DISK_FLAG_USE_OODLE_COMPRESSION = 0x80,
+		IMG_DISK_FLAG_GAMMA_SRGB = 0x100,
+		IMG_DISK_FLAG_PACKED_ATLAS = 0x200,
+		IMG_CREATE_FLAG_UNTILED = 0x400,
+		IMG_CREATE_FLAG_CPU_READ = 0x800,
+		IMG_CREATE_FLAG_CPU_WRITE = 0x1000,
+		IMG_DISK_FLAG_AUTOMETALNESS = 0x2000,
+		IMG_DISK_FLAG_AUTODISPLACEMENT = 0x4000,
+		IMG_DISK_FLAG_MAPTYPE_2D = 0x0,
+		IMG_DISK_FLAG_MAPTYPE_CUBE = 0x8000,
+		IMG_DISK_FLAG_MAPTYPE_3D = 0x10000,
+		IMG_DISK_FLAG_MAPTYPE_1D = 0x18000,
+		IMG_DISK_FLAG_MAPTYPE_ARRAY = 0x20000,
+		IMG_DISK_FLAG_MAPTYPE_CUBE_ARRAY = 0x28000,
+		IMG_DISK_FLAG_INVERT_ALPHA = 0x40000,
+		IMG_DISK_FLAG_PREMUL_ALPHA = 0x80000,
+		IMG_DISK_FLAG_MIPGEN_ORIGINAL = 0x0,
+		IMG_DISK_FLAG_MIPGEN_LANCZOS3 = 0x100000,
+		IMG_DISK_FLAG_MIPGEN_CATMULL_ROM = 0x200000,
+		IMG_DISK_FLAG_MIPGEN_CUBIC_BSPLINE = 0x300000,
+		IMG_DISK_FLAG_MIPGEN_BOX = 0x400000,
+		IMG_DISK_FLAG_MIPGEN_COVERAGE_PRESERVING = 0x500000,
+		IMG_CREATE_FLAG_RW_VIEW = 0x800000,
+		IMG_CREATE_FLAG_DYNAMIC = 0x1000000,
+		IMG_DISK_FLAG_PREMUL_KEEP_ALPHA = 0x2000000,
+		IMG_DISK_FLAG_RTT = 0x4000000,
+		IMG_DISK_FLAG_EXTRACT_ALPHA = 0x8000000,
+		IMG_DISK_FLAG_OCTAHEDRON = 0x10000000,
+		IMG_CREATE_FLAG_STAGING = 0x20000000,
+		IMG_CREATE_FLAG_VOLUMETRIC_LAYOUT_OVERRIDE = 0x40000000,
+		IMG_CREATE_FLAG_TYPELESS = 0x80000000,
+	};
+
 	enum MapType : std::uint8_t
 	{
 		MAPTYPE_NONE = 0x0,
@@ -1459,36 +1498,110 @@ namespace zonetool::iw7
 		MAPTYPE_COUNT = 0x8,
 	};
 
+	enum TextureSemantic : std::uint8_t
+	{
+		TS_2D = 0x0,
+		TS_FUNCTION = 0x1,
+		TS_COLOR_MAP = 0x2,
+		TS_DETAIL_MAP = 0x3,
+		TS_UNUSED_4 = 0x4,
+		TS_NORMAL_MAP = 0x5,
+		TS_UNUSED_6 = 0x6,
+		TS_UNUSED_7 = 0x7,
+		TS_SPECULAR_MAP = 0x8,
+		TS_SPECULAR_OCCLUSION_MAP = 0x9,
+		TS_UNUSED_10 = 0xA,
+		TS_THINFILM_MAP = 0xB,
+		TS_DISPLACEMENT_MAP = 0xC,
+		TS_PARALLAX_MAP = 0xD,
+		TS_COLOR_SPECULAR_MAP = 0xE,
+		TS_NORMAL_OCCLUSSION_GLOSS_MAP = 0xF,
+		TS_ALPHA_REVEAL_THICKNESS_MAP = 0x10,
+		TS_COUNT = 0x11,
+	};
+
+	enum GfxImageCategory : std::uint8_t
+	{
+		IMG_CATEGORY_UNKNOWN = 0x0,
+		IMG_CATEGORY_AUTO_GENERATED = 0x1,
+		IMG_CATEGORY_LIGHTMAP = 0x2,
+		IMG_CATEGORY_LOAD_FROM_FILE = 0x3,
+		IMG_CATEGORY_RAW = 0x4,
+		IMG_CATEGORY_FIRST_UNMANAGED = 0x5,
+		IMG_CATEGORY_RENDERTARGET = 0x5,
+		IMG_CATEGORY_TEMP = 0x6,
+	};
+
+	struct GfxImageLoadDef
+	{
+		char levelCount;
+		char numElements;
+		char pad[2];
+		int flags;
+		int format;
+		int resourceSize;
+		char data[1];
+	};
+
+	struct GfxTexture
+	{
+		union
+		{
+			ID3D11Texture1D* linemap;
+			ID3D11Texture2D* map;
+			ID3D11Texture3D* volmap;
+			ID3D11Texture2D* cubemap;
+			GfxImageLoadDef* loadDef;
+		};
+		ID3D11ShaderResourceView* shaderView;
+		ID3D11ShaderResourceView* shaderViewAlternate;
+	};
+
+	struct PicMip
+	{
+		unsigned char platform[2];
+	};
+
+	struct CardMemory
+	{
+		unsigned char platform[2];
+	};
+
+	struct GfxImageStreamLevelCountAndSize
+	{
+		unsigned int pixelSize : 26;
+		unsigned int levelCount : 6;
+	};
+
 	struct GfxImageStreamData
 	{
 		unsigned short width;
 		unsigned short height;
-		unsigned int pixelSize;
+		GfxImageStreamLevelCountAndSize levelCountAndSize;
 	};
 
 	struct GfxImage
 	{
-		char __pad0[24];
-		DXGI_FORMAT imageFormat; // 24
-		char flags; // 28
-		char __pad1[3];
-		MapType mapType; // 32
-		char sematic; // 33
-		char category; // 34
-		unsigned char platform[2]; // 35
-		char __pad2[3];
-		unsigned int dataLen1; // 40
-		unsigned int dataLen2; // 44
-		unsigned short width; // 48
-		unsigned short height; // 50
-		unsigned short depth; // 52
-		unsigned short numElements; // 54
-		unsigned char mipmapCount; // 56
-		bool streamed; // 57
-		char __pad3[6];
-		char* pixelData; // 64
-		GfxImageStreamData streams[4]; // 72
-		const char* name; // 104
+		GfxTexture texture;
+		DXGI_FORMAT imageFormat;
+		GfxImageFlags flags;
+		MapType mapType;
+		TextureSemantic sematic;
+		GfxImageCategory category;
+		PicMip picmip;
+		CardMemory cardMemory;
+		unsigned int dataLen1;
+		unsigned int dataLen2;
+		unsigned short width;
+		unsigned short height;
+		unsigned short depth;
+		unsigned short numElements;
+		unsigned char levelCount;
+		unsigned char streamed;
+		unsigned char unknown1;
+		unsigned char* pixelData;
+		GfxImageStreamData streams[4];
+		const char* name;
 	}; assert_sizeof(GfxImage, 0x70);
 
 	struct snd_volmod_info_t
@@ -1498,6 +1611,164 @@ namespace zonetool::iw7
 		float value;
 	};
 
+	enum SndEntchannelSpaitalType
+	{
+		SND_ENTCHAN_TYPE_2D = 0x0,
+		SND_ENTCHAN_TYPE_3D = 0x1,
+		SND_ENTCHAN_TYPE_PA_SPEAKER = 0x2,
+	};
+
+	enum SndLimitBehavior
+	{
+		LIMIT_BEHAVIOR_NO_NEW = 0x0,
+		LIMIT_BEHAVIOR_REPLACE_QUIETER = 0x1,
+		LIMIT_BEHAVIOR_REPLACE_OLDEST = 0x2,
+		LIMIT_BEHAVIOR_REPLACE_FARTHEST = 0x3,
+		LIMIT_BEHAVIOR_COUNT = 0x4,
+	};
+
+	enum SndFarReverbBehavior
+	{
+		SND_FAR_REVERB_NONE = 0x0,
+		SND_FAR_REVERB_FULL = 0x1,
+		SND_FAR_REVERB_WET_ONLY = 0x2,
+	};
+
+	struct snd_entchannel_info_t
+	{
+		char name[64];
+		unsigned int id;
+		int priority;
+		SndEntchannelSpaitalType spatialType;
+		bool isRestricted;
+		bool isPausable;
+		int maxVoices;
+		SndLimitBehavior limitBehavior;
+		bool centerSpeakerPan;
+		SndFarReverbBehavior mpFarReverbBehavior;
+		SndFarReverbBehavior spFarReverbBehavior;
+		SndFarReverbBehavior cpFarReverbBehavior;
+	}; assert_sizeof(snd_entchannel_info_t, 104);
+
+	struct DopplerPreset
+	{
+		char name[64];
+		unsigned int id;
+		float speedOfSound;
+		float playerVelocityScale;
+		float minPitch;
+		float maxPitch;
+		float smoothing;
+	}; assert_sizeof(DopplerPreset, 88);
+
+	struct OcclusionShape
+	{
+		char name[64];
+		unsigned int id;
+		float unk;
+		float innerAngleVolume;
+		float outerAngleVolume;
+		float occludedVolume;
+		float innerAngleLPF;
+		float outerAngleLPF;
+		float occludedLPF;
+	}; assert_sizeof(OcclusionShape, 96);
+
+	struct SndCurve
+	{
+		char name[64];
+		unsigned int id;
+		int numPoints;
+		vec2_t points[16];
+	};
+	assert_sizeof(SndCurve, 200);
+
+	struct SpeakerMap
+	{
+		char name[64];
+		unsigned int id;
+		float monoToStereo[2];
+		float stereoToStereo[4];
+		float monoTo51[6];
+		float stereoTo51[12];
+		float monoTo71[8];
+		float stereoTo71[16];
+	}; assert_sizeof(SpeakerMap, 260);
+
+	struct SndContext
+	{
+		char* type;
+		unsigned int typeId;
+		int numValues;
+		int startIndex;
+		bool allowDefaults;
+		bool includeDefaultsInRandom;
+		bool canBlend;
+	}; assert_sizeof(SndContext, 24);
+
+	struct SndContextValue
+	{
+		char* value;
+		unsigned int valueId;
+	};
+
+	struct SndMasterEqParam
+	{
+		int enabled;
+		float gain;
+		float frequency;
+		float q;
+	};
+
+	struct SndMasterEqParamBank
+	{
+		SndMasterEqParam low;
+		SndMasterEqParam peak1;
+		SndMasterEqParam peak2;
+		SndMasterEqParam high;
+	};
+
+	struct SndDynamicsParams
+	{
+		int enable;
+		float preGain;
+		float postGain;
+		float threshold;
+		float ratio;
+		float timeAttack;
+		float timeRelease;
+		float spread;
+		int linear;
+		int ITU1770;
+	};
+
+	struct SndMaster
+	{
+		char name[64];
+		unsigned int id;
+		SndMasterEqParamBank dialogEq;
+		SndMasterEqParamBank weapExpScenesEq;
+		SndMasterEqParamBank sfxEq;
+		SndMasterEqParamBank mainEq;
+		SndDynamicsParams dialogDyn;
+		SndDynamicsParams sfxDyn;
+		SndDynamicsParams mainDyn;
+		float busDialogGain;
+		float busWeapExpSceneGain;
+		float busSfxGain;
+		float busReverbGain;
+		float busMusicGain;
+		float busMovieGain;
+		float busReferenceGain;
+		int busDialogEnable;
+		int busWeapExpSceneEnable;
+		int busSfxEnable;
+		int busReverbEnable;
+		int busMusicEnable;
+		int busMovieEnable;
+		int busReferenceEnable;
+	}; assert_sizeof(SndMaster, 500);
+
 	struct SndGlobals
 	{
 		const char* name;
@@ -1505,18 +1776,86 @@ namespace zonetool::iw7
 		float binkVolumeModifier;
 		unsigned int volmodinfoCount;
 		snd_volmod_info_t* volmodinfo;
-		char __pad0[176];
+		unsigned int entchannelCount;
+		snd_entchannel_info_t* entchannelInfo;
+		unsigned int dopplerPresetCount;
+		DopplerPreset* dopplerPresets;
+		unsigned int occlusionShapeCount;
+		OcclusionShape* occlusionShapes;
+		unsigned int vfCurveCount;
+		SndCurve* vfCurves;
+		unsigned int lpfCurveCount;
+		SndCurve* lpfCurves;
+		unsigned int hpfCurveCount;
+		SndCurve* hpfCurves;
+		unsigned int rvbCurveCount;
+		SndCurve* rvbCurves;
+		unsigned int speakerMapCount;
+		SpeakerMap* speakerMaps;
+		unsigned int contextCount;
+		SndContext* contexts;
+		unsigned int contextValueCount;
+		SndContextValue* contextValues;
+		unsigned int masterCount;
+		SndMaster* masters;
 	}; assert_sizeof(SndGlobals, 0xD0);
+
+	enum SoundVolMod : std::int32_t
+	{
+		SND_VOLMOD_DEFAULT,
+		SND_VOLMOD_HUD,
+		SND_VOLMOD_VOICEOVER = 28,
+	};
 
 	struct SndAlias
 	{
 		const char* aliasName;
 		const char* subtitle;
 		const char* secondaryAliasName;
-		const char* unk1;
-		const char* unk2;
-		char __pad0[160];
+		const char* unk_24;
+		const char* assetFileName;
+		unsigned int id;
+		unsigned int secondaryId;
+		unsigned int unk_48;
+		unsigned int assetId;
+		unsigned int contextType;
+		unsigned int contextValue;
+		unsigned int duck;
+		int sequence;
+		float volMin;
+		float volMax;
+		int volModIndex;
+		float pitchMin;
+		float pitchMax;
+		float donutFadeEnd;
+		float distMin;
+		float distMax;
+		float velocityMin;
+		int flags;
+		int masterPriority;
+		float masterPercentage;
+		float slavePercentage;
+		float probability;
+		float lfePercentage;
+		float centerPercentage;
+		int startDelay;
+		int volumeFalloffCurve; // guess
+		float envelopMin;
+		float envelopMax;
+		float envelopPercentage;
+		int speakerMap; // guess
+		float reverbMultiplier;
+		float farReverbMultiplier;
+		int dopplerPreset; // guess
+		float smartPanDistance2d;
+		float smartPanDistance3d;
+		float smartPanAttenuation2d;
+		float stereoSpreadMinDist;
+		float stereoSpreadMaxDist;
+		float stereoSpreadMidPoint;
+		int stereoSpreadMaxAngle;
 	}; assert_sizeof(SndAlias, 200);
+	assert_offsetof(SndAlias, flags, 108);
 
 	struct SndAliasList
 	{
@@ -1537,7 +1876,25 @@ namespace zonetool::iw7
 
 	struct SndSendEffectParams
 	{
-		char __pad0[136];
+		char name[64];
+		unsigned int id;
+		float smoothing;
+		float earlyTime;
+		float lateTime;
+		float earlyGain;
+		float lateGain;
+		float lateGainProx;
+		float returnGain;
+		float earlyLpf;
+		float lateLpf;
+		float inputLpf;
+		float dampLpf;
+		float wallReflect;
+		float dryGain;
+		float earlySize;
+		float lateSize;
+		float diffusion;
+		float rearLevel;
 	}; assert_sizeof(SndSendEffectParams, 136);
 
 	enum ADSRCurve
@@ -1654,7 +2011,7 @@ namespace zonetool::iw7
 		float dryLevel;
 		float wetLevel;
 		float fadeTime;
-	};
+	}; assert_sizeof(ReverbDef, 84);
 
 	struct TimescaleEntry
 	{
@@ -1662,17 +2019,60 @@ namespace zonetool::iw7
 		unsigned int presetName;
 		int entChannelIdx;
 		float scale;
-	};
+	}; assert_sizeof(TimescaleEntry, 16);
 
 	struct ZoneDef
 	{
-		char __pad0[184];
-	};
+		unsigned int id;
+		unsigned int stateId;
+		__int16 reverbIndex;
+		__int16 startOcclusionIndex;
+		__int16 numOcclusion;
+		__int16 startFilterIndex;
+		__int16 numFilter;
+		__int16 startMixIndex;
+		__int16 numMix;
+		const char* ambientStream;
+		__int16 startAdsrZoneIndex;
+		__int16 numAdsrZone;
+		__int16 startNPCAdsrZoneIndex;
+		__int16 numNPCAdsrZone;
+		__int16 ambientDefIndex;
+		__int16 numAmbientDef; // idk
+		__int16 startFullOccIndex;
+		__int16 numDisableFullOcc;
+		__int16 startPlayerBreathStateIndex;
+		__int16 numPlayerBreathStates;
+		unsigned int weapReflId;
+		//bool exterior;
+		const char* zoneName;
+		const char* stateName;
+		const char* ambientName;
+		const char* mixName;
+		const char* reverbName;
+		const char* filterName;
+		const char* occlusionName;
+		const char* plrAdsrName;
+		const char* npcAdsrName;
+		const char* weapReflName;
+		const char* fullOccName;
+		const char* playerBreathStateName;
+		unsigned int contextType1;
+		unsigned int contextValue1;
+		unsigned int contextType2;
+		unsigned int contextValue2;
+		unsigned int contextType3;
+		unsigned int contextValue3;
+		unsigned int contextType4;
+		unsigned int contextValue4;
+		//unsigned int duck;
+	}; assert_sizeof(ZoneDef, 184);
 
 	struct unk_1453E2FD8
 	{
-		char __pad0[56];
-	};
+		unsigned int id;
+		int __pad0[13]; //char __pad0[56];
+	}; assert_sizeof(unk_1453E2FD8, 56);
 
 	struct FullOcclusionDef
 	{
@@ -1726,12 +2126,84 @@ namespace zonetool::iw7
 
 	struct SndDuck
 	{
-		char __pad0[144];
+		char name[64];
+		unsigned int id;
+		float fadeIn;
+		float fadeOut;
+		float startDelay;
+		float minDistance;
+		float distance;
+		float length;
+		unsigned int fadeInCurve;
+		unsigned int fadeOutCurve;
+		float* hpf;
+		float* lpf;
+		bool updateWhilePaused;
+		bool trackAmplitude;
+		bool disableInSplitscreen;
+		char pad;
+		int unk1;
+		int unk2;
+		float aliasHpf;
+		float aliasLpf;
+		unsigned int duckAlias;
 	}; assert_sizeof(SndDuck, 144);
+
+	enum SndMusicAssetType
+	{
+		SND_MUSIC_INTRO = 0x0,
+		SND_MUSIC_LOOP = 0x1,
+		SND_MUSIC_EXIT = 0x2,
+	};
+
+	struct SndMusicAsset
+	{
+		char alias[64];
+		unsigned int aliasId;
+		int inactive;
+		int completeLoop;
+		int removeAfterPlay;
+		int firstRandom;
+		int startSync;
+		int stopSync;
+		int completeOnStop;
+		unsigned int loopStartOffset;
+		int bpm;
+		int assetType;
+		int loopNumber;
+		unsigned int sampleCount;
+		int startDelayBeats;
+		int startFadeBeats;
+		int stopDelayBeats;
+		int stopFadeBeats;
+		//int startOffsetFrames;
+		int meter;
+		unsigned int sampleRate;
+	}; assert_sizeof(SndMusicAsset, 140);
+
+	enum SndMusicStateStatus
+	{
+		SND_MUSIC_STATE_INACTIVE = 0x0,
+		SND_MUSIC_STATE_ACTIVE = 0x1,
+	};
 
 	struct SndMusicState
 	{
-		char __pad0[384];
+		char name[64];
+		unsigned int id;
+		SndMusicAsset intro;
+		SndMusicAsset exit;
+		unsigned int loopCount;
+		SndMusicAsset* loops;
+		int order;
+		int interruptPriority;
+		int persistPriority;
+		bool isRandom;
+		bool isSequential;
+		bool skipPreviousExit;
+		bool wallClockSync;
+		unsigned int refCount;
+		SndMusicStateStatus status;
 	}; assert_sizeof(SndMusicState, 384);
 
 	struct SndMusicSet
@@ -2693,7 +3165,7 @@ namespace zonetool::iw7
 		MaterialTechniqueSet* techniqueSet;
 		GfxImage* image;
 		SndGlobals* soundGlobals;
-		SndBankResident* soundBankResident;
+		SndBank* soundBank;
 		SndBankTransient* soundBankTransient;
 		//clipMap_t* clipMap;
 		//ComWorld* comWorld;
