@@ -190,6 +190,24 @@ namespace zonetool::iw7
 		vec3_t maxs;
 	};
 
+	union FxCombinedUnion
+	{
+		FxEffectDef* fx;
+		ParticleSystemDef* particleSystemDef;
+	};
+
+	enum FxCombinedType : std::uint8_t
+	{
+		FX_COMBINED_DEFAULT,
+		FX_COMBINED_PARTICLE_SYSTEM,
+	};
+
+	struct FxCombinedDef
+	{
+		FxCombinedUnion u;
+		FxCombinedType type;
+	};
+
 	struct PhysicsLibrary
 	{
 		const char* name;
@@ -2261,17 +2279,605 @@ namespace zonetool::iw7
 
 	struct clipMap_t;
 
-	struct ComWorld;
+	enum GfxLightType : std::uint8_t
+	{
+		GFX_LIGHT_TYPE_NONE = 0x0,
+		GFX_LIGHT_TYPE_DIR = 0x1,
+		GFX_LIGHT_TYPE_SPOT = 0x2,
+		GFX_LIGHT_TYPE_OMNI = 0x3,
+		GFX_LIGHT_TYPE_COUNT = 0x4,
+		GFX_LIGHT_TYPE_DIR_SHADOWMAP = 0x4,
+		GFX_LIGHT_TYPE_SPOT_SHADOWMAP = 0x5,
+		GFX_LIGHT_TYPE_OMNI_SHADOWMAP = 0x6,
+		GFX_LIGHT_TYPE_COUNT_WITH_SHADOWMAP_VERSIONS = 0x7,
+		GFX_LIGHT_TYPE_SPOT_SHADOWMAP_CUCOLORIS = 0x7,
+		GFX_LIGHT_TYPE_COUNT_WITH_ALL_VERSIONS = 0x8,
+	};
 
-	struct GlassWorld;
+	struct ComPrimaryLight
+	{
+		GfxLightType type;
+		unsigned char canUseShadowMap;
+		unsigned char needsDynamicShadows;
+		unsigned char isVolumetric;
+		unsigned char exponent;
+		char unused[3];
+		unsigned int transientZoneList;
+		unsigned int entityId;
+		float uvIntensity;
+		float heatIntensity;
+		float color[3];
+		float dir[3];
+		float up[3];
+		float origin[3];
+		float radius;
+		vec2_t fadeOffsetRt;
+		float bulbRadius;
+		vec3_t bulbLength;
+		float cosHalfFovOuter;
+		float cosHalfFovInner;
+		float shadowSoftness;
+		float shadowBias;
+		float shadowArea;
+		float distanceFalloff;
+		float rotationLimit;
+		float translationLimit;
+		const char* defName;
+	}; assert_sizeof(ComPrimaryLight, 144);
 
-	struct PathData;
+	struct ComPrimaryLightEnv
+	{
+		unsigned short primaryLightIndices[4];
+		unsigned char numIndices;
+	}; assert_sizeof(ComPrimaryLightEnv, 10);
+
+	struct ComChangeListInfo
+	{
+		unsigned int changeListNumber;
+		int time;
+		const char* userName;
+	}; assert_sizeof(ComChangeListInfo, 16);
+
+	struct ComWorld
+	{
+		const char* name;
+		int isInUse;
+		int useForwardPlus;
+		unsigned int bakeQuality;
+		unsigned int primaryLightCount;
+		ComPrimaryLight* primaryLights;
+		unsigned int scriptablePrimaryLightCount;
+		unsigned int firstScriptablePrimaryLight;
+		unsigned int primaryLightEnvCount;
+		ComPrimaryLightEnv* primaryLightEnvs;
+		ComChangeListInfo changeListInfo;
+		unsigned int numUmbraGates;
+		const char** umbraGateNames;
+		int umbraGateInitialStates[4];
+	}; assert_sizeof(ComWorld, 0x68);
+
+	struct G_GlassPiece
+	{
+		unsigned short damageTaken;
+		unsigned short collapseTime;
+		int lastStateChangeTime;
+		char impactDir;
+		char impactPos[2];
+	};
+
+	struct G_GlassName
+	{
+		char* nameStr;
+		scr_string_t name;
+		unsigned short pieceCount;
+		unsigned short* pieceIndices;
+	};
+
+	struct G_GlassData
+	{
+		G_GlassPiece* glassPieces;
+		unsigned int pieceCount;
+		unsigned short damageToWeaken;
+		unsigned short damageToDestroy;
+		unsigned int glassNameCount;
+		G_GlassName* glassNames;
+	};
+
+	struct GlassWorld
+	{
+		const char* name;
+		G_GlassData* g_glassData;
+	};
+
+	struct pathnode_t;
+	struct pathnode_tree_t;
+
+	struct pathnode_yaworient_t
+	{
+		float fLocalAngle;
+		vec2_t localForward;
+	};
+
+	union PathNodeOrientationUnion
+	{
+		pathnode_yaworient_t yaw_orient;
+		vec3_t angles;
+	};
+
+	union PathNodeParentUnion
+	{
+		scr_string_t name;
+		unsigned short index;
+	};
+
+	enum PathNodeErrorCode
+	{
+		PNERR_NONE = 0x0,
+		PNERR_INSOLID = 0x1,
+		PNERR_FLOATING = 0x2,
+		PNERR_NOLINK = 0x3,
+		PNERR_DUPLICATE = 0x4,
+		PNERR_NOSTANCE = 0x5,
+		PNERR_INVALIDDOOR = 0x6,
+		PNERR_NOANGLES = 0x7,
+		PNERR_NOPEEKOUT = 0x8,
+		PNERR_NEARSOLID = 0x9,
+		PNERR_NOCOVER = 0xA,
+		NUM_PATH_NODE_ERRORS = 0xB,
+	};
+
+	union $96C58BBB7F3ED2CCC5F07A7E763FE6AE
+	{
+		float minUseDistSq;
+		PathNodeErrorCode error;
+	};
+
+	struct pathlink_s
+	{
+		float fDist;
+		unsigned short nodeNum;
+		char disconnectCount;
+		char negotiationLink;
+		char flags;
+		char ubBadPlaceCount[3];
+	};
+
+	struct pathnode_constant_t
+	{
+		unsigned short type;
+		unsigned int spawnflags;
+		scr_string_t targetname;
+		scr_string_t script_linkName;
+		scr_string_t script_noteworthy;
+		scr_string_t target;
+		scr_string_t animscript;
+		int animscriptfunc;
+		vec3_t vLocalOrigin;
+		PathNodeOrientationUnion orientation;
+		PathNodeParentUnion parent;
+		$96C58BBB7F3ED2CCC5F07A7E763FE6AE ___u11;
+		unsigned short wOverlapNode[2];
+		unsigned short totalLinkCount;
+		pathlink_s* Links;
+	}; assert_sizeof(pathnode_constant_t, 80);
+	assert_offsetof(pathnode_constant_t, parent, 56);
+	assert_offsetof(pathnode_constant_t, animscript, 24);
+	assert_offsetof(pathnode_constant_t, Links, 72);
+
+	struct SentientHandle
+	{
+		unsigned short number;
+		unsigned short infoIndex;
+	};
+
+	struct pathnode_dynamic_t
+	{
+		SentientHandle pOwner;
+		int iFreeTime;
+		int iValidTime[3];
+		short wLinkCount;
+		short wOverlapCount;
+		short turretEntNumber;
+		unsigned char userCount;
+		unsigned char hasBadPlaceLink;
+		int spreadUsedTime[2];
+		short flags;
+		short dangerousCount;
+		int recentUseProxTime;
+	};
+
+	union $73F238679C0419BE2C31C6559E8604FC
+	{
+		float nodeCost;
+		int linkIndex;
+	};
+
+	struct pathnode_transient_t
+	{
+		int iSearchFrame;
+		pathnode_t* pNextOpen;
+		pathnode_t* pPrevOpen;
+		pathnode_t* pParent;
+		float fCost;
+		float fHeuristic;
+		$73F238679C0419BE2C31C6559E8604FC ___u6;
+	};
+
+	struct pathnode_t
+	{
+		pathnode_constant_t constant;
+		pathnode_dynamic_t dynamic;
+		pathnode_transient_t transient;
+	}; assert_sizeof(pathnode_t, 176);
+
+	struct pathnode_tree_nodes_t
+	{
+		int nodeCount;
+		unsigned short* nodes;
+	};
+
+	union pathnode_tree_info_t
+	{
+		pathnode_tree_t* child[2];
+		pathnode_tree_nodes_t s;
+	};
+
+	struct pathnode_tree_t
+	{
+		int axis;
+		float dist;
+		pathnode_tree_info_t u;
+	};
+
+	struct PathDynamicNodeGroup
+	{
+		unsigned short parentIndex;
+		int nodeTreeCount;
+		pathnode_tree_t* nodeTree;
+	};
+
+	struct PathData
+	{
+		const char* name;
+		unsigned int nodeCount;
+		pathnode_t* nodes;
+		bool parentIndexResolved;
+		unsigned __int16 version;
+		int visBytes;
+		char* pathVis;
+		int nodeTreeCount;
+		pathnode_tree_t* nodeTree;
+		int dynamicNodeGroupCount;
+		PathDynamicNodeGroup* dynamicNodeGroups;
+		int exposureBytes;
+		char* pathExposure;
+		int noPeekVisBytes;
+		char* pathNoPeekVis;
+		int zoneCount;
+		int zonesBytes;
+		char* pathZones;
+		int fixedNodeCount;
+		int maxDynamicSpawnedNodeCount;
+		int dynStatesBytes;
+		char* pathDynStates;
+	}; assert_sizeof(PathData, 0x90);
 
 	struct NavMeshData;
 
-	struct MapEnts;
+	struct TriggerModel
+	{
+		int contents;
+		unsigned short hullCount;
+		unsigned short firstHull;
+		unsigned short windingCount;
+		unsigned short firstWinding;
+		unsigned int flags;
+		PhysicsAsset* physicsAsset;
+		unsigned short physicsShapeOverrideIdx;
+	};
 
-	struct FxWorld;
+	struct TriggerHull
+	{
+		Bounds bounds;
+		int contents;
+		unsigned short slabCount;
+		unsigned short firstSlab;
+	};
+
+	struct TriggerSlab
+	{
+		vec3_t dir;
+		float midPoint;
+		float halfSize;
+	};
+
+	struct TriggerWinding
+	{
+		vec3_t dir;
+		unsigned short pointCount;
+		unsigned short firstPoint;
+		unsigned int flags;
+	};
+
+	struct TriggerWindingPoint
+	{
+		vec3_t loc;
+	};
+
+	struct MapTriggers
+	{
+		unsigned int count;
+		TriggerModel* models;
+		unsigned int hullCount;
+		TriggerHull* hulls;
+		unsigned int slabCount;
+		TriggerSlab* slabs;
+		unsigned int windingCount;
+		TriggerWinding* windings;
+		unsigned int windingPointCount;
+		TriggerWindingPoint* windingPoints;
+	}; assert_sizeof(MapTriggers, 0x50);
+
+	struct CTAudRvbPanInfo
+	{
+		bool hasCustomPosition;
+		vec3_t position;
+		float maxWallDistance;
+		float minReverbVolume;
+	};
+
+	struct ClientEntityLinkToDef
+	{
+		int anchorIndex;
+		vec3_t originOffset;
+		vec3_t angleOffset;
+	};
+
+	struct ClientTriggers
+	{
+		MapTriggers trigger;
+		unsigned int triggerStringLength;
+		char* triggerString;
+		short* visionSetTriggers;
+		unsigned char* triggerType;
+		vec3_t* origins;
+		float* scriptDelay;
+		short* audioTriggers;
+		short* blendLookup;
+		short* npcTriggers;
+		short* audioStateIds;
+		CTAudRvbPanInfo* audioRvbPanInfo;
+		short* transientIndex; // guess
+		ClientEntityLinkToDef** linkTo;
+	}; assert_sizeof(ClientTriggers, 0xB8);
+
+	struct ClientTriggerBlendNode
+	{
+		vec3_t pointA;
+		vec3_t pointB;
+		unsigned short triggerA;
+		unsigned short triggerB;
+	};
+
+	struct ClientTriggerBlend
+	{
+		unsigned short numClientTriggerBlendNodes;
+		ClientTriggerBlendNode* blendNodes;
+	};
+
+	struct SpawnPointEntityRecord
+	{
+		unsigned short index;
+		scr_string_t name;
+		scr_string_t target;
+		scr_string_t script_noteworthy;
+		vec3_t origin;
+		vec3_t angles;
+	};
+
+	struct SpawnPointRecordList
+	{
+		unsigned short spawnsCount;
+		SpawnPointEntityRecord* spawns;
+	};
+
+	struct SplinePointEntityRecord
+	{
+		int splineId;
+		int splineNodeId;
+		scr_string_t splineNodeLabel;
+		scr_string_t targetname;
+		scr_string_t target;
+		scr_string_t string;
+		float speed;
+		float splineNodeTension;
+		vec3_t origin;
+		vec3_t angles;
+		float throttle;
+		vec2_t corridorDims;
+		vec3_t tangent;
+		float distToNextNode;
+		vec3_t positionCubic[4];
+		vec3_t tangentQuadratic[3];
+	};
+
+	struct SplinePointRecordList
+	{
+		unsigned short splinePointCount;
+		float splineLength;
+		SplinePointEntityRecord* splinePoints;
+	};
+
+	struct SplineRecordList
+	{
+		unsigned short splineCount;
+		SplinePointRecordList* splines;
+	};
+
+	struct MapEnts
+	{
+		const char* name;
+		char* entityString;
+		int numEntityChars;
+		MapTriggers trigger;
+		ClientTriggers clientTrigger;
+		ClientTriggerBlend clientTriggerBlend;
+		SpawnPointRecordList spawnList;
+		SplineRecordList splineList;
+		unsigned int havokEntsShapeDataSize;
+		char* havokEntsShapeData;
+		//unsigned int numSubModels;
+		//cmodel_t* cmodels;
+		char __pad0[480]; // todo
+	}; assert_sizeof(MapEnts, 0x340);
+	assert_offsetof(MapEnts, havokEntsShapeDataSize, 336);
+
+	struct FxGlassDef
+	{
+		float halfThickness;
+		vec2_t texVecs[2];
+		GfxColor color;
+		Material* material;
+		Material* materialShattered;
+		PhysicsAsset* physicsAsset;
+		FxCombinedDef pieceBreakEffect;
+		FxCombinedDef shatterEffect;
+		FxCombinedDef shatterSmallEffect;
+		FxCombinedDef crackDecalEffect;
+		const char* damagedSound;
+		const char* destroyedSound;
+		const char* destroyedQuietSound;
+		float highMipRadiusInvSq;
+		float shatteredHighMipRadiusInvSq;
+		int numCrackRings;
+		bool isOpaque;
+	};
+
+	struct FxSpatialFrame
+	{
+		vec4_t quat;
+		vec3_t origin;
+	};
+
+	struct $03A8A7B39FA20F64B5AB79125E07CD62
+	{
+		FxSpatialFrame frame;
+		float radius;
+	};
+
+	union FxGlassPiecePlace
+	{
+		$03A8A7B39FA20F64B5AB79125E07CD62 __s0;
+		unsigned int nextFree;
+	};
+
+	struct FxGlassPieceState
+	{
+		vec2_t texCoordOrigin;
+		unsigned int supportMask;
+		unsigned int geoDataStart;
+		unsigned __int16 initIndex;
+		char defIndex;
+		char pad[1];
+		char vertCount;
+		char holeDataCount;
+		char crackDataCount;
+		char fanDataCount;
+		unsigned __int16 flags;
+		float areaX2;
+	};
+
+	struct FxGlassPieceDynamics
+	{
+		int fallTime;
+		unsigned int physicsInstance;
+		unsigned int physicsDetailInstance;
+		vec3_t vel;
+		vec3_t avel;
+		bool pendingCreation;
+	};
+
+	struct FxGlassVertex
+	{
+		short x;
+		short y;
+	};
+
+	struct FxGlassHoleHeader
+	{
+		unsigned short uniqueVertCount;
+		unsigned char touchVert;
+		unsigned char pad[1];
+	};
+
+	struct FxGlassCrackHeader
+	{
+		unsigned short uniqueVertCount;
+		unsigned char beginVertIndex;
+		unsigned char endVertIndex;
+	};
+
+	union FxGlassGeometryData
+	{
+		FxGlassVertex vert;
+		FxGlassHoleHeader hole;
+		FxGlassCrackHeader crack;
+		unsigned char asBytes[4];
+		short anonymous[2];
+	};
+
+	struct FxGlassInitPieceState
+	{
+		FxSpatialFrame frame;
+		float radius;
+		vec2_t texCoordOrigin;
+		unsigned int supportMask;
+		float areaX2;
+		unsigned short lightingIndex;
+		unsigned char defIndex;
+		unsigned char vertCount;
+		unsigned char fanDataCount;
+		unsigned char pad[1];
+	};
+
+	struct FxGlassSystem
+	{
+		int time;
+		int prevTime;
+		unsigned int defCount;
+		unsigned int pieceLimit;
+		unsigned int pieceWordCount;
+		unsigned int initPieceCount;
+		unsigned int cellCount;
+		unsigned int activePieceCount;
+		unsigned int firstFreePiece;
+		unsigned int geoDataLimit;
+		unsigned int geoDataCount;
+		unsigned int initGeoDataCount;
+		FxGlassDef* defs;
+		FxGlassPiecePlace* piecePlaces;
+		FxGlassPieceState* pieceStates;
+		FxGlassPieceDynamics* pieceDynamics;
+		FxGlassGeometryData* geoData;
+		unsigned int* isInUse;
+		unsigned int* cellBits;
+		unsigned char* visData;
+		vec3_t* linkOrg;
+		float* halfThickness;
+		unsigned short* lightingHandles;
+		FxGlassInitPieceState* initPieceStates;
+		FxGlassGeometryData* initGeoData;
+		bool needToCompactData;
+		unsigned char initCount;
+		float effectChanceAccum;
+		int lastPieceDeletionTime;
+	};
+
+	struct FxWorld
+	{
+		const char* name;
+		FxGlassSystem glassSys;
+	};
 
 	struct GfxWorld;
 
@@ -2344,12 +2950,6 @@ namespace zonetool::iw7
 		ANIMCTRL_PLAYER = 0x1,
 		ANIMCTRL_DOG = 0x2,
 		ANIMCTRL_NUM = 0x3,
-	};
-
-	struct FxCombinedDef
-	{
-		FxEffectDef* fx;
-		ParticleSystemDef* particleSystemDef;
 	};
 
 	struct AnimationClass
@@ -2552,13 +3152,1375 @@ namespace zonetool::iw7
 
 	struct WeaponCompleteDef;
 
-	struct ParticleSystemDef;
+	enum PARTICLE_FLAG
+	{
+		PARTICLE_FLAG_KILL = 0x1,
+		PARTICLE_FLAG_PENDING_DEFERRED_PHYSICS = 0x2,
+		PARTICLE_FLAG_IMPACT = 0x4,
+		PARTICLE_FLAG_IMPACT_WITH_RAYCAST = 0x8,
+		PARTICLE_FLAG_AT_REST = 0x10,
+		PARTICLE_FLAG_SENT_FIRST_RAY_CAST = 0x20,
+		PARTICLE_FLAG_PENDING_DEFERRED_PHYSICS_UPDATE = 0x40,
+		PARTICLE_FLAG_HAS_SOUND = 0x80,
+	};
 
-	struct FxEffectDef;
+	enum PARTICLE_MODULE_FLAG
+	{
+		PARTICLE_MODULE_FLAG_DISABLED = 0x1,
+		PARTICLE_MODULE_FLAG_HAS_CURVES = 0x2,
+		PARTICLE_MODULE_FLAG_USE_EMITTER_LIFE = 0x4,
+		PARTICLE_MODULE_FLAG_HAS_ASSETS = 0x8,
+		PARTICLE_MODULE_FLAG_RANDOMIZE_BETWEEN_CURVES = 0x10,
+		PARTICLE_MODULE_FLAG_USE_NON_UNIFORM_INTERPOLATION = 0x20,
+		PARTICLE_MODULE_FLAG_NO_LERP = 0x40,
+		PARTICLE_MODULE_FLAG_USE_WORLD_SPACE = 0x80,
+		PARTICLE_MODULE_FLAG_GRAPH_BY_LENGTH = 0x100,
+		PARTICLE_MODULE_FLAG_UPDATE_EXTERNAL = 0x200,
+		PARTICLE_MODULE_FLAG_GRAPH_ADDITIVE = 0x400,
+		PARTICLE_MODULE_FLAG_HAS_LIGHT_DEFS = 0x800,
+		PARTICLE_MODULE_FLAG_GRAPH_IS_LINEAR = 0x1000,
+		PARTICLE_MODULE_FLAG_MODEL_IGNORE_EMITTER_ORIENTATION = 0x2000,
+		PARTICLE_MODULE_FLAG_USE_OCCLUSION_QUERY_WORLD_SIZE = 0x4000,
+		PARTICLE_MODULE_FLAG_EMISSION_CURVE_SCRUBBED_BY_GAME = 0x8000,
+		PARTICLE_MODULE_FLAG_ON_IMPACT_BOLT_TO_ENTITY = 0x10000,
+		PARTICLE_MODULE_FLAG_RAYCAST_COLLIDE_WITH_WZ_TRAIN = 0x20000,
+		PARTICLE_MODULE_FLAGS_ALL = 0xFFFFFFFF,
+	};
 
-	struct FxImpactTable;
+	enum PARTICLE_EMITTER_DEF_FLAG
+	{
+		PARTICLE_EMITTER_DEF_FLAG_DISABLED = 0x1,
+		PARTICLE_EMITTER_DEF_FLAG_USE_BURST_MODE = 0x2,
+		PARTICLE_EMITTER_DEF_FLAG_DRAW_PAST_FOG = 0x4,
+		PARTICLE_EMITTER_DEF_FLAG_INFINITE_PARTICLE_LIFE = 0x8,
+		PARTICLE_EMITTER_DEF_FLAG_LOOP_INFINITE_PARTICLES = 0x10,
+		PARTICLE_EMITTER_DEF_FLAG_HAS_PHYSICS_HEAVY = 0x20,
+		PARTICLE_EMITTER_DEF_FLAG_HAS_SCRIPTED_INPUTS = 0x40,
+		PARTICLE_EMITTER_DEF_FLAG_HAS_LIGHTS = 0x80,
+		PARTICLE_EMITTER_DEF_FLAG_USE_SCRIPTED_VELOCITY = 0x100,
+		PARTICLE_EMITTER_DEF_FLAG_EMIT_BY_DISTANCE = 0x200,
+		PARTICLE_EMITTER_DEF_FLAG_USE_OCCLUSION_QUERY = 0x400,
+		PARTICLE_EMITTER_DEF_FLAG_HAS_TRANS_SHADOWS = 0x800,
+		PARTICLE_EMITTER_DEF_FLAG_GROUP_ONLY_WHEN_NVG_ON = 0x1000,
+		PARTICLE_EMITTER_DEF_FLAG_GROUP_ONLY_WHEN_NVG_OFF = 0x2000,
+		PARTICLE_EMITTER_DEF_FLAG_GROUP_ONLY_WHEN_THERMAL_ON = 0x4000,
+		PARTICLE_EMITTER_DEF_FLAG_GROUP_ONLY_WHEN_THERMAL_OFF = 0x8000,
+		PARTICLE_EMITTER_DEF_FLAG_DISABLE_IN_SP = 0x10000,
+		PARTICLE_EMITTER_DEF_FLAG_DISABLE_IN_MP_LPC = 0x20000,
+		PARTICLE_EMITTER_DEF_FLAG_DISABLE_IN_MP_HPC = 0x40000,
+		PARTICLE_EMITTER_DEF_FLAG_DISABLE_IN_CP = 0x80000,
+		PARTICLE_EMITTER_DEF_FLAG_HAS_INSTANCE_POOL = 0x100000,
+		PARTICLE_EMITTER_DEF_FLAG_FORCE_HALF_RES = 0x200000,
+		PARTICLE_EMITTER_DEF_FLAG_FORCE_FULL_RES = 0x400000,
+		PARTICLE_EMITTER_DEF_FLAG_IGNORE_MODIFIERS = 0x800000,
+		PARTICLE_EMITTER_DEF_FLAG_HAS_BARREL_HEAT_SCALE = 0x1000000,
+		PARTICLE_EMITTER_DEF_FLAG_IGNORE_FOV_SCALE = 0x2000000,
+	};
 
-	struct SurfaceFxTable;
+	enum PARTICLE_ELEMENT_TYPE
+	{
+		PARTICLE_ELEMENT_TYPE_BILLBOARD_SPRITE = 0x0,
+		PARTICLE_ELEMENT_TYPE_BEAM = 0x1,
+		PARTICLE_ELEMENT_TYPE_DECAL = 0x2,
+		PARTICLE_ELEMENT_TYPE_FLARE = 0x3,
+		PARTICLE_ELEMENT_TYPE_GEO_TRAIL = 0x4,
+		PARTICLE_ELEMENT_TYPE_LIGHT_OMNI = 0x5,
+		PARTICLE_ELEMENT_TYPE_LIGHT_SPOT = 0x6,
+		PARTICLE_ELEMENT_TYPE_MODEL = 0x7,
+		PARTICLE_ELEMENT_TYPE_ORIENTED_SPRITE = 0x8,
+		PARTICLE_ELEMENT_TYPE_RUNNER = 0x9,
+		PARTICLE_ELEMENT_TYPE_TAIL = 0xA,
+		PARTICLE_ELEMENT_TYPE_VECTOR_FIELD = 0xB,
+		PARTICLE_ELEMENT_TYPE_VOLUMETRIC = 0xC,
+		PARTICLE_ELEMENT_TYPE_DISMEMBER = 0xD,
+	};
+
+	enum PARTICLE_STATE_DEF_FLAG
+	{
+		PARTICLE_STATE_DEF_FLAG_DISABLED = 0x1,
+		PARTICLE_STATE_DEF_FLAG_HAS_CAMERA_OFFSET = 0x2,
+		PARTICLE_STATE_DEF_FLAG_HAS_SPAWN_SHAPE = 0x4,
+		PARTICLE_STATE_DEF_FLAG_HAS_POSITION_CURVE = 0x8,
+		PARTICLE_STATE_DEF_FLAG_HAS_ROTATION_1D_CURVE = 0x10,
+		PARTICLE_STATE_DEF_FLAG_HAS_ROTATION_3D_CURVE = 0x20,
+		PARTICLE_STATE_DEF_FLAG_HAS_ROTATION_1D_INIT = 0x40,
+		PARTICLE_STATE_DEF_FLAG_HAS_ROTATION_3D_INIT = 0x80,
+		PARTICLE_STATE_DEF_FLAG_HAS_VELOCITY_CURVE_LOCAL = 0x100,
+		PARTICLE_STATE_DEF_FLAG_HAS_VELOCITY_CURVE_WORLD = 0x200,
+		PARTICLE_STATE_DEF_FLAG_USE_PHYSICS = 0x400,
+		PARTICLE_STATE_DEF_FLAG_MIRROR_TEXTURE_HORIZONTALLY = 0x800,
+		PARTICLE_STATE_DEF_FLAG_MIRROR_TEXTURE_HORIZONTALLY_RANDOM = 0x1000,
+		PARTICLE_STATE_DEF_FLAG_MIRROR_TEXTURE_VERTICALLY = 0x2000,
+		PARTICLE_STATE_DEF_FLAG_MIRROR_TEXTURE_VERTICALLY_RANDOM = 0x4000,
+		PARTICLE_STATE_DEF_FLAG_SORT_PARTICLES = 0x8000,
+		PARTICLE_STATE_DEF_FLAG_HANDLE_ON_IMPACT = 0x10000,
+		PARTICLE_STATE_DEF_FLAG_PLAYER_FACING = 0x20000,
+		PARTICLE_STATE_DEF_FLAG_PLAYER_FACING_LOCK_UP_VECTOR = 0x40000,
+		PARTICLE_STATE_DEF_FLAG_USE_OCCLUSION_QUERY = 0x80000,
+		PARTICLE_STATE_DEF_FLAG_HAS_COLOR = 0x100000,
+		PARTICLE_STATE_DEF_FLAG_HAS_RAY_CAST_PHYSICS = 0x200000,
+		PARTICLE_STATE_DEF_FLAG_HAS_EMISSIVE_CURVE = 0x400000,
+		PARTICLE_STATE_DEF_FLAG_HAS_INTENSITY_CURVE = 0x800000,
+		PARTICLE_STATE_DEF_FLAG_USE_VECTOR_FIELDS = 0x1000000,
+		PARTICLE_STATE_DEF_FLAG_INHERIT_PARENT_VELOCITY = 0x2000000,
+		PARTICLE_STATE_DEF_FLAG_DRAW_WITH_VIEW_MODEL = 0x4000000,
+		PARTICLE_STATE_DEF_FLAG_PLAY_SOUNDS = 0x8000000,
+		PARTICLE_STATE_DEF_FLAG_HAS_CAMERA_OFFSET_POSITION_ONLY = 0x10000000,
+		PARTICLE_STATE_DEF_FLAG_ON_IMPACT_USE_SURFACE_TYPE = 0x20000000,
+		PARTICLE_STATE_DEF_FLAG_IS_SPRITE = 0x40000000,
+		PARTICLE_STATE_DEF_FLAG_HAS_TRANS_SHADOWS = 0x80000000,
+		PARTICLE_STATE_DEF_FLAG_HAS_CHILD_EFFECTS = 0x0,
+		PARTICLE_STATE_DEF_FLAG_BLOCKS_SIGHT = 0x0,
+		PARTICLE_STATE_DEF_FLAG_HANDLE_TIME_IN_STATE = 0x0,
+		PARTICLE_STATE_DEF_FLAG_SCALE_BY_DISTANCE = 0x0,
+		PARTICLE_STATE_DEF_FLAG_HAS_VECTOR_FIELD_CURVE = 0x0,
+		PARTICLE_STATE_DEF_FLAG_USE_LOCAL_VECTOR_FIELDS_ONLY = 0x0,
+		PARTICLE_STATE_DEF_FLAG_HAS_SHADER_CURVE = 0x0,
+		PARTICLE_STATE_DEF_FLAG_HAS_SIZE_CURVE = 0x0,
+		PARTICLE_STATE_DEF_FLAG_HAS_SIZE_LERP = 0x0,
+		PARTICLE_STATE_DEF_FLAG_HAS_TEMPERATURE_CURVE = 0x0,
+		PARTICLE_STATE_DEF_FLAG_HAS_LIGHTING_FRACTION_CURVE = 0x0,
+		PARTICLE_STATE_DEF_FLAG_HAS_ROTATION_CURVE = 0x30,
+		PARTICLE_STATE_DEF_FLAG_HAS_ROTATION_1D = 0x50,
+		PARTICLE_STATE_DEF_FLAG_HAS_ROTATION_3D = 0xA0,
+		PARTICLE_STATE_DEF_FLAG_HAS_ROTATION = 0xF0,
+		PARTICLE_STATE_DEF_FLAG_HAS_MIRROR_TEXTURE = 0x7800,
+		PARTICLE_STATE_DEF_FLAG_HAS_VELOCITY_CURVE = 0x300,
+		PARTICLE_STATE_DEF_FLAG_REQUIRES_WORLD_COLLISION = 0x200400,
+	};
+
+	enum PARTICLE_SYSTEM_DEF_FLAG
+	{
+		PARTICLE_SYSTEM_DEF_FLAG_HAS_SPRITES = 0x1,
+		PARTICLE_SYSTEM_DEF_FLAG_HAS_NON_SPRITES = 0x2,
+		PARTICLE_SYSTEM_DEF_FLAG_HAS_LIGHTS = 0x4,
+		PARTICLE_SYSTEM_DEF_FLAG_HAS_PHYSICS_HEAVY = 0x8,
+		PARTICLE_SYSTEM_DEF_FLAG_HAS_PHYSICS_LIGHT = 0x10,
+		PARTICLE_SYSTEM_DEF_FLAG_HAS_SCRIPTED_INPUTS = 0x20,
+		PARTICLE_SYSTEM_DEF_FLAG_USE_OCCLUSION_QUERY = 0x40,
+		PARTICLE_SYSTEM_DEF_FLAG_USE_OCCLUSION_QUERY_OVERRIDE_POS = 0x80,
+		PARTICLE_SYSTEM_DEF_FLAG_KILL_ON_OWNER_ENTITY_DEATH = 0x100,
+		PARTICLE_SYSTEM_DEF_FLAG_HAS_TRANS_SHADOWS = 0x200,
+		PARTICLE_SYSTEM_DEF_FLAG_ALIGN_TO_SUN = 0x400,
+		PARTICLE_SYSTEM_DEF_FLAG_KILL_ON_KILLCAM_TRANSITION = 0x800,
+		PARTICLE_SYSTEM_DEF_FLAG_CANNOT_PRE_ROLL = 0x1000,
+		PARTICLE_SYSTEM_DEF_FLAG_ALWAYS_UPDATE_BONE_INDEX = 0x2000,
+		PARTICLE_SYSTEM_DEF_FLAG_AFFECTS_GAMEPLAY = 0x4000,
+		PARTICLE_SYSTEM_DEF_FLAG_UPDATE_CHILDREN_AFTER_BOLTING = 0x8000,
+		PARTICLE_SYSTEM_DEF_FLAG_PRE_ROLL_CHILD_EFFECTS = 0x10000,
+		PARTICLE_SYSTEM_DEF_FLAG_KILL_ON_KILLCAM_ENTITY_TRANSITION = 0x20000,
+		PARTICLE_SYSTEM_DEF_FLAG_KILL_STOPPED_INFINITE_EFFECTS = 0x40000,
+		PARTICLE_SYSTEM_DEF_FLAG_PARENT_UPDATES_CHILD = 0x80000,
+		PARTICLE_SYSTEM_DEF_FLAG_STOP_ON_DYNAMIC_BOLT_DEATH = 0x100000,
+		PARTICLE_SYSTEM_DEF_FLAG_DISABLE_IN_SPLIT_SCREEN = 0x200000,
+		PARTICLE_SYSTEM_DEF_FLAG_HAS_EMITTER_GROUP_IDS = 0x400000,
+		PARTICLE_SYSTEM_DEF_FLAG_HAS_EMITTER_NVG_OR_THERMAL = 0x800000,
+		PARTICLE_SYSTEM_DEF_FLAG_HAS_INSTANCE_POOL = 0x1000000,
+		PARTICLE_SYSTEM_DEF_FLAG_HIDE_IF_BONE_IS_HIDDEN = 0x2000000,
+		PARTICLE_SYSTEM_DEF_FLAG_FOV_CULL = 0x4000000,
+		PARTICLE_SYSTEM_DEF_FLAG_USE_OCCLUSION_QUERY_OVERRIDE_LOC = 0x8000000,
+	};
+
+	enum ParticleModuleType : std::uint16_t
+	{
+		PARTICLE_MODULE_INIT_ATLAS = 0x0,
+		PARTICLE_MODULE_INIT_ATTRIBUTES = 0x1,
+		PARTICLE_MODULE_INIT_BEAM = 0x2,
+		PARTICLE_MODULE_INIT_CAMERA_OFFSET = 0x3,
+		PARTICLE_MODULE_INIT_CLOUD = 0x4,
+		PARTICLE_MODULE_INIT_DECAL = 0x5,
+		PARTICLE_MODULE_INIT_FLARE = 0x6,
+		PARTICLE_MODULE_INIT_GEO_TRAIL = 0x7,
+		PARTICLE_MODULE_INIT_LIGHT_OMNI = 0x8,
+		PARTICLE_MODULE_INIT_LIGHT_SPOT = 0x9,
+		PARTICLE_MODULE_INIT_MATERIAL = 0xA,
+		PARTICLE_MODULE_INIT_MIRROR_TEXTURE = 0xB,
+		PARTICLE_MODULE_INIT_MODEL = 0xC,
+		PARTICLE_MODULE_INIT_OCCLUSION_QUERY = 0xD,
+		PARTICLE_MODULE_INIT_ORIENTED_SPRITE = 0xE,
+		PARTICLE_MODULE_INIT_PARTICLE_SIM = 0xF,
+		PARTICLE_MODULE_INIT_PLAYER_FACING = 0x10,
+		PARTICLE_MODULE_INIT_RELATIVE_VELOCITY = 0x11,
+		PARTICLE_MODULE_INIT_ROTATION = 0x12,
+		PARTICLE_MODULE_INIT_ROTATION_3D = 0x13,
+		PARTICLE_MODULE_INIT_RUNNER = 0x14,
+		PARTICLE_MODULE_INIT_SOUND = 0x15,
+		PARTICLE_MODULE_INIT_SPAWN = 0x16,
+		PARTICLE_MODULE_INIT_SPAWN_SHAPE_BOX = 0x17,
+		PARTICLE_MODULE_INIT_SPAWN_SHAPE_CYLINDER = 0x18,
+		PARTICLE_MODULE_INIT_SPAWN_SHAPE_ELLIPSOID = 0x19,
+		PARTICLE_MODULE_INIT_SPAWN_SHAPE_MESH = 0x1A,
+		PARTICLE_MODULE_INIT_SPAWN_SHAPE_SPHERE = 0x1B,
+		PARTICLE_MODULE_INIT_TAIL = 0x1C,
+		PARTICLE_MODULE_INIT_VECTOR_FIELD = 0x1D,
+		PARTICLE_MODULE_INIT_VOLUMETRIC = 0x1E,
+		PARTICLE_MODULE_ATTRACTOR = 0x1F,
+		PARTICLE_MODULE_COLOR_GRAPH = 0x20,
+		PARTICLE_MODULE_COLOR_LERP = 0x21,
+		PARTICLE_MODULE_EMISSION_GRAPH = 0x22,
+		PARTICLE_MODULE_EMISSIVE_GRAPH = 0x23,
+		PARTICLE_MODULE_FORCE = 0x24,
+		PARTICLE_MODULE_GRAVITY = 0x25,
+		PARTICLE_MODULE_INTENSITY_GRAPH = 0x26,
+		PARTICLE_MODULE_TEMPERATURE_GRAPH = 0x27,
+		PARTICLE_MODULE_PHYSICS_LIGHT = 0x28,
+		PARTICLE_MODULE_PHYSICS_RAY_CAST = 0x29,
+		PARTICLE_MODULE_POSITION_GRAPH = 0x2A,
+		PARTICLE_MODULE_ROTATION_GRAPH = 0x2B,
+		PARTICLE_MODULE_ROTATION_GRAPH_3D = 0x2C,
+		PARTICLE_MODULE_SIZE_GRAPH = 0x2D,
+		PARTICLE_MODULE_SIZE_LERP = 0x2E,
+		PARTICLE_MODULE_VELOCITY_GRAPH = 0x2F,
+		PARTICLE_MODULE_TEST_BIRTH = 0x30,
+		PARTICLE_MODULE_TEST_DEATH = 0x31,
+		PARTICLE_MODULE_TEST_GRAVITY = 0x32,
+		PARTICLE_MODULE_TEST_IMPACT = 0x33,
+		PARTICLE_MODULE_TEST_POS = 0x34,
+		PARTICLE_MODULE_TEST_TIME_IN_STATE = 0x35,
+		PARTICLE_MODULE_COUNT = 0x36,
+		PARTICLE_MODULE_INVALID = 0xFF,
+	};
+
+	struct float4
+	{
+		float v[4];
+	};
+
+	struct ParticleFloatRange
+	{
+		float min;
+		float max;
+	};
+
+	struct ParticleIntRange
+	{
+		int min;
+		int max;
+	};
+
+	struct ParticlePhysicsFXData
+	{
+		PhysicsFXPipeline* physicsFXPipeline;
+		PhysicsFXShape* physicsFXShape;
+	};
+
+	struct ParticleMarkVisuals
+	{
+		Material* materials[3];
+	};
+
+	union ParticleLinkedAssetDef
+	{
+		Material* material;
+		XModel* model;
+		ParticleSystemDef* particleSystem;
+		ParticlePhysicsFXData physicsFXData;
+		FxParticleSimAnimation* particleSim;
+		ParticleMarkVisuals decal;
+		const char* sound;
+		VectorField* vectorField;
+		GfxLightDef* lightDef;
+		char pad[32];
+	}; assert_sizeof(ParticleLinkedAssetDef, 32);
+
+	struct ParticleModule
+	{
+		ParticleModuleType type;
+		unsigned int m_flags;
+	};
+
+	struct ParticleCurveControlPointDef
+	{
+		float time;
+		float value;
+		float invTimeDelta;
+		unsigned int pad[1];
+	};
+
+	struct ParticleCurveDef
+	{
+		ParticleCurveControlPointDef* controlPoints;
+		int numControlPoints;
+		float scale;
+	};
+
+	struct ParticleModuleInitAtlas : ParticleModule
+	{
+		int m_startFrame;
+		int m_loopCount;
+		bool m_randomIndex;
+		bool m_playOverLife;
+	}; assert_sizeof(ParticleModuleInitAtlas, 20);
+
+	struct ParticleModuleInitAttributes : ParticleModule
+	{
+		bool m_useNonUniformInterpolationForColor;
+		bool m_useNonUniformInterpolationForSize;
+		char m_pad[6];
+		float4 m_sizeMin;
+		float4 m_sizeMax;
+		float4 m_colorMin;
+		float4 m_colorMax;
+		float4 m_velocityMin;
+		float4 m_velocityMax;
+	}; assert_sizeof(ParticleModuleInitAttributes, 112);
+
+	enum ParticleModuleInitBeamFlags
+	{
+		PARTICLE_MODULE_INIT_BEAM_FLAG_TILE = 0x1,
+		PARTICLE_MODULE_INIT_BEAM_FLAG_USE_CURVE_POINTS = 0x2,
+		PARTICLE_MODULE_INIT_BEAM_FLAG_CAMERA_FACING = 0x4,
+	};
+
+	struct ParticleLinkedAssetListDef
+	{
+		ParticleLinkedAssetDef* assetList;
+		int numAssets;
+	};
+
+	struct ParticleModuleInitBeam : ParticleModule
+	{
+		ParticleModuleInitBeamFlags m_beamFlags;
+		float m_splitDistance;
+		float4 m_startPos;
+		float4 m_endPos;
+		float4 m_offset;
+		float4 m_curvePoint1;
+		float4 m_curvePoint2;
+		ParticleLinkedAssetListDef m_linkedAssetList;
+		float m_scrollRateUV;
+		float m_scrollRateSpiralGraph;
+		float m_spiralRepeatDistance;
+	}; assert_sizeof(ParticleModuleInitBeam, 128);
+
+	struct ParticleModuleInitCameraOffset : ParticleModule
+	{
+		unsigned int m_pad[2];
+	}; assert_sizeof(ParticleModuleInitCameraOffset, 16);
+
+	struct ParticleModuleInitCloud : ParticleModule
+	{
+		unsigned int m_pad[2];
+		ParticleCurveDef curves[2];
+	}; assert_sizeof(ParticleModuleInitCloud, 48);
+
+	struct ParticleModuleInitDecal : ParticleModule
+	{
+		unsigned __int16 m_fadeInTime;
+		unsigned __int16 m_fadeOutTime;
+		unsigned __int16 m_stoppableFadeOutTime;
+		unsigned __int16 m_lerpWaitTime;
+		float4 m_lerpColor;
+		ParticleLinkedAssetListDef m_linkedAssetList;
+	}; assert_sizeof(ParticleModuleInitDecal, 48);
+	assert_offsetof(ParticleModuleInitDecal, m_linkedAssetList, 32);
+
+	struct ParticleModuleInitFlare : ParticleModule
+	{
+		unsigned int m_pad[1];
+		float m_position;
+		float4 m_direction;
+		int m_angularRotCount;
+		unsigned int m_flareFlags;
+		ParticleFloatRange m_depthScaleRange;
+		ParticleFloatRange m_depthScaleValue;
+		ParticleFloatRange m_radialRot;
+		ParticleFloatRange m_radialScaleX;
+		ParticleFloatRange m_radialScaleY;
+		ParticleCurveDef m_curves[4];
+	}; assert_sizeof(ParticleModuleInitFlare, 144);
+	assert_offsetof(ParticleModuleInitFlare, m_curves, 80);
+
+	struct ParticleModuleInitGeoTrail : ParticleModule
+	{
+		unsigned int m_numPointsMax;
+		float m_splitDistance;
+		float m_splitAngle;
+		float m_centerOffset;
+		unsigned int m_numSheets;
+		float m_fadeInDistance;
+		float m_fadeOutDistance;
+		float m_tileDistance;
+		ParticleFloatRange m_tileOffset;
+		float m_scrollTime;
+		bool m_useLocalVelocity;
+		bool m_useVerticalTexture;
+		bool m_cameraFacing;
+		bool m_fixLeadingEdge;
+		bool m_clampUVs;
+		char m_pad[3];
+		unsigned int m_pad2[1];
+	}; assert_sizeof(ParticleModuleInitGeoTrail, 64);
+
+	struct ParticleModuleInitLightOmni : ParticleModule
+	{
+		ParticleLinkedAssetListDef m_linkedAssetList;
+		float m_fovOuter;
+		float m_fovInner;
+		float m_bulbRadius;
+		float m_bulbLength;
+		bool m_disableVolumetric;
+		bool m_disableShadowMap;
+		bool m_disableDynamicShadows;
+		bool m_scriptScale;
+	}; assert_sizeof(ParticleModuleInitLightOmni, 48);
+
+	struct ParticleModuleInitLightSpot : ParticleModule
+	{
+		float m_fovOuter;
+		float m_fovInner;
+		float m_bulbRadius;
+		float m_bulbLength;
+		float m_distanceFalloff;
+		//float m_fovCollimation;
+		float m_brightness;
+		float m_intensityUV;
+		float m_intensityIR;
+		//float m_intensityHeat;
+		float m_shadowSoftness;
+		float m_shadowBias;
+		float m_shadowArea;
+		float m_shadowNearPlane;
+		float m_toneMappingScaleFactor;
+		bool m_disableVolumetric;
+		bool m_disableShadowMap;
+		bool m_disableDynamicShadows;
+		bool m_scriptScale;
+		ParticleLinkedAssetListDef m_linkedAssetList;
+	}; assert_sizeof(ParticleModuleInitLightSpot, 80);
+	assert_offsetof(ParticleModuleInitLightSpot, m_linkedAssetList, 64);
+
+	struct ParticleModuleInitMaterial : ParticleModule
+	{
+		unsigned int m_pad[2];
+		ParticleLinkedAssetListDef m_linkedAssetList;
+	}; assert_sizeof(ParticleModuleInitMaterial, 32);
+
+	enum ParticleMirrorTextureType
+	{
+		PARTICLE_MIRROR_TEXTURE_TYPE_NONE = 0x0,
+		PARTICLE_MIRROR_TEXTURE_TYPE_STANDARD = 0x1,
+		PARTICLE_MIRROR_TEXTURE_TYPE_RANDOM = 0x2,
+		PARTICLE_MIRROR_TEXTURE_TYPE_COUNT = 0x3,
+	};
+
+	struct ParticleModuleInitMirrorTexture : ParticleModule
+	{
+		ParticleMirrorTextureType m_mirrorHorizontal;
+		ParticleMirrorTextureType m_mirrorVertical;
+	}; assert_sizeof(ParticleModuleInitMirrorTexture, 16);
+
+	struct ParticleModuleInitModel : ParticleModule
+	{
+		bool m_usePhysics;
+		bool m_motionBlurHQ;
+		ParticleLinkedAssetListDef m_linkedAssetList;
+	}; assert_sizeof(ParticleModuleInitModel, 32);
+	assert_offsetof(ParticleModuleInitModel, m_linkedAssetList, 16);
+
+	struct ParticleModuleInitOcclusionQuery : ParticleModule
+	{
+		float m_fadeInTime;
+		float m_fadeOutTime;
+		ParticleFloatRange m_scale;
+		vec2_t m_worldSize;
+	}; assert_sizeof(ParticleModuleInitOcclusionQuery, 32);
+
+	struct ParticleModuleInitOrientedSprite : ParticleModule
+	{
+		unsigned int m_pad[2];
+		float4 m_orientationQuat;
+	}; assert_sizeof(ParticleModuleInitOrientedSprite, 32);
+
+	struct ParticleModuleInitParticleSim : ParticleModule
+	{
+		ParticleLinkedAssetListDef m_linkedAssetList;
+		ParticleFloatRange m_scaleFactor;
+		bool m_holdLastFrame;
+		unsigned int m_pad[3];
+	}; assert_sizeof(ParticleModuleInitParticleSim, 48);
+
+	struct ParticleModuleInitPlayerFacing : ParticleModule
+	{
+		unsigned int m_pad[2];
+	}; assert_sizeof(ParticleModuleInitPlayerFacing, 16);
+
+	enum ParticleRelativeVelocityType
+	{
+		PARTICLE_RELATIVE_VELOCITY_TYPE_LOCAL = 0x0,
+		PARTICLE_RELATIVE_VELOCITY_TYPE_WORLD = 0x1,
+		PARTICLE_RELATIVE_VELOCITY_TYPE_RELATIVE_TO_EFFECT_ORIGIN = 0x2,
+		PARTICLE_RELATIVE_VELOCITY_TYPE_COUNT = 0x3,
+		PARTICLE_RELATIVE_VELOCITY_TYPE_LOCAL_WITH_BOLT_INFO = 0x3,
+		PARTICLE_RELATIVE_VELOCITY_TYPE_WORLD_WITH_BOLT_INFO = 0x4,
+		PARTICLE_RELATIVE_VELOCITY_TYPE_RELATIVE_TO_EFFECT_ORIGIN_WITH_BOLT_INFO = 0x5,
+	};
+
+	struct __declspec(align(4)) ParticleModuleInitRelativeVelocity : ParticleModule
+	{
+		ParticleRelativeVelocityType m_velocityType;
+		bool m_useBoltInfo;
+	}; assert_sizeof(ParticleModuleInitRelativeVelocity, 16);
+
+	struct ParticleModuleInitRotation : ParticleModule
+	{
+		unsigned int m_pad[2];
+		ParticleFloatRange m_rotationAngle;
+		ParticleFloatRange m_rotationRate;
+	}; assert_sizeof(ParticleModuleInitRotation, 32);
+
+	struct ParticleModuleInitRotation3D : ParticleModule
+	{
+		unsigned int m_pad[2];
+		float4 m_rotationAngleMin;
+		float4 m_rotationAngleMax;
+		float4 m_rotationRateMin;
+		float4 m_rotationRateMax;
+	}; assert_sizeof(ParticleModuleInitRotation3D, 80);
+
+	struct ParticleModuleInitRunner : ParticleModule
+	{
+		unsigned int m_pad[2];
+		ParticleLinkedAssetListDef m_linkedAssetList;
+	}; assert_sizeof(ParticleModuleInitRunner, 32);
+
+	struct ParticleModuleInitSound : ParticleModule
+	{
+		unsigned int m_pad[2];
+		ParticleLinkedAssetListDef m_linkedAssetList;
+	}; assert_sizeof(ParticleModuleInitSound, 32);
+
+	struct ParticleModuleInitSpawn : ParticleModule
+	{
+		unsigned int m_pad[2];
+		ParticleCurveDef m_curves[1];
+	}; assert_sizeof(ParticleModuleInitSpawn, 32);
+
+	struct ParticleModuleInitSpawnShape : ParticleModule
+	{
+		char m_axisFlags[1];
+		char m_spawnFlags[1];
+		char m_normalAxis[1];
+		char m_spawnType[1];
+		float m_volumeCubeRoot;
+		//float4 m_calculationOffset;
+		float4 m_offset;
+	};
+
+	struct ParticleModuleInitSpawnShapeBox : ParticleModuleInitSpawnShape
+	{
+		bool m_useBeamInfo;
+		char m_pad[15];
+		float4 m_dimensionsMin;
+		float4 m_dimensionsMax;
+	}; assert_sizeof(ParticleModuleInitSpawnShapeBox, 80);
+
+	struct ParticleModuleInitSpawnShapeCylinder : ParticleModuleInitSpawnShape
+	{
+		bool m_hasRotation;
+		bool m_rotateCalculatedOffset;
+		float m_halfHeight;
+		ParticleFloatRange m_radius;
+		float4 m_directionQuat;
+		unsigned int m_pad[4];
+	}; assert_sizeof(ParticleModuleInitSpawnShapeCylinder, 80);
+
+	struct ParticleModuleInitSpawnShapeEllipsoid : ParticleModuleInitSpawnShape
+	{
+		float4 m_radiusMin;
+		float4 m_radiusMax;
+		unsigned int m_pad[4];
+	}; assert_sizeof(ParticleModuleInitSpawnShapeEllipsoid, 80);
+
+	struct ParticleSpawnMeshAssetDef
+	{
+		unsigned int m_numVertsTotal;
+		unsigned int m_numTrisTotal;
+		unsigned int m_pad[2];
+	};
+
+	struct ParticleModuleInitSpawnShapeMesh : ParticleModuleInitSpawnShape
+	{
+		unsigned int m_numMeshAssets;
+		ParticleLinkedAssetListDef m_linkedAssetList;
+		ParticleSpawnMeshAssetDef* m_meshAssetData;
+		unsigned int m_pad[3];
+	}; assert_sizeof(ParticleModuleInitSpawnShapeMesh, 80);
+	assert_offsetof(ParticleModuleInitSpawnShapeMesh, m_numMeshAssets, 32);
+
+	struct ParticleModuleInitSpawnShapeSphere : ParticleModuleInitSpawnShape
+	{
+		unsigned int m_pad[2];
+		ParticleFloatRange m_radius;
+		unsigned int m_pad2[4];
+	}; assert_sizeof(ParticleModuleInitSpawnShapeSphere, 64);
+
+	struct ParticleModuleInitTail : ParticleModule
+	{
+		unsigned __int16 m_averagePastVelocities;
+		unsigned __int16 m_maxParentSpeed;
+		bool m_tailLeading;
+		bool m_scaleWithVelocity;
+		bool m_rotateAroundPivot;
+	}; assert_sizeof(ParticleModuleInitTail, 16);
+
+	struct ParticleModuleInitVectorField : ParticleModule
+	{
+		unsigned int m_pad[2];
+		ParticleLinkedAssetListDef m_linkedAssetList;
+	}; assert_sizeof(ParticleModuleInitVectorField, 32);
+
+	struct ParticleModuleInitVolumetric : ParticleModule
+	{
+		float m_density;
+		float m_falloff;
+		float m_noiseAmplitude;
+		unsigned int m_noiseMode;
+		unsigned int m_pad[2];
+	}; assert_sizeof(ParticleModuleInitVolumetric, 32);
+
+	struct ParticleModuleAttractor : ParticleModule
+	{
+		unsigned int m_pad[3];
+		bool m_killWhenNear;
+		float m_forceMag;
+		float m_nearDistanceSq;
+		float4 m_attractPoint;
+	}; assert_sizeof(ParticleModuleAttractor, 48);
+
+	struct ParticleModuleColorGraph : ParticleModule
+	{
+		bool firstCurve;
+		char m_pad[3];
+		bool m_modulateColorByAlpha;
+		ParticleCurveDef m_curves[8];
+	}; assert_sizeof(ParticleModuleColorGraph, 144);
+
+	struct ParticleModuleColorLerp : ParticleModule
+	{
+		unsigned int m_pad[2];
+		float4 m_colorBegin;
+		float4 m_colorEnd;
+	}; assert_sizeof(ParticleModuleColorLerp, 48);
+
+	struct ParticleModuleEmissionGraph : ParticleModule
+	{
+		unsigned int m_pad[2];
+		ParticleCurveDef m_curves[2];
+	}; assert_sizeof(ParticleModuleEmissionGraph, 48);
+
+	struct ParticleModuleEmissiveGraph : ParticleModule
+	{
+		bool firstCurve;
+		char m_pad[7];
+		ParticleCurveDef m_curves[2];
+	}; assert_sizeof(ParticleModuleEmissiveGraph, 48);
+	assert_offsetof(ParticleModuleEmissiveGraph, m_curves, 16);
+
+	struct ParticleModuleForce : ParticleModule
+	{
+		unsigned int m_pad[2];
+		float4 m_forceMin;
+		float4 m_forceMax;
+	}; assert_sizeof(ParticleModuleForce, 48);
+
+	struct ParticleModuleGravity : ParticleModule
+	{
+		ParticleFloatRange m_gravityPercentage;
+	}; assert_sizeof(ParticleModuleGravity, 16);
+
+	struct ParticleModuleIntensityGraph : ParticleModule
+	{
+		bool firstCurve;
+		char m_pad[7];
+		ParticleCurveDef m_curves[2];
+	}; assert_sizeof(ParticleModuleIntensityGraph, 48);
+
+	struct ParticleModuleTemperatureGraph : ParticleModule
+	{
+		bool firstCurve;
+		char m_pad[7];
+		ParticleCurveDef m_curves[2];
+	}; assert_sizeof(ParticleModuleTemperatureGraph, 48);
+
+	struct ParticleModulePhysicsLight : ParticleModule
+	{
+		bool m_ignoreEmitterOrientation;
+		bool m_useSurfaceType;
+		char m_pad[6];
+		ParticleLinkedAssetListDef m_linkedAssetList;
+	}; assert_sizeof(ParticleModulePhysicsLight, 32);
+
+	struct ParticleModulePhysicsRayCast : ParticleModule
+	{
+		ParticleFloatRange m_bounce;
+		Bounds m_bounds;
+		bool m_useItemClip;
+		bool m_useSurfaceType;
+		bool m_collideWithWater;
+		bool m_ignoreContentItem;
+		char m_pad[3];
+	}; assert_sizeof(ParticleModulePhysicsRayCast, 48);
+
+	struct ParticleModulePositionGraph : ParticleModule
+	{
+		unsigned int m_pad[2];
+		ParticleCurveDef m_curves[6];
+	}; assert_sizeof(ParticleModulePositionGraph, 112);
+
+	struct ParticleModuleRotationGraph : ParticleModule
+	{
+		bool m_useRotationRate;
+		unsigned int m_pad[1];
+		ParticleCurveDef m_curves[2];
+	}; assert_sizeof(ParticleModuleRotationGraph, 48);
+
+	struct ParticleModuleRotationGraph3D : ParticleModule
+	{
+		bool m_useRotationRate;
+		unsigned int m_pad[1];
+		ParticleCurveDef m_curves[6];
+	}; assert_sizeof(ParticleModuleRotationGraph3D, 112);
+
+	struct ParticleModuleSizeGraph : ParticleModule
+	{
+		bool firstCurve;
+		char m_pad[7];
+		ParticleCurveDef m_curves[6];
+		float4 m_sizeBegin;
+		float4 m_sizeEnd;
+	}; assert_sizeof(ParticleModuleSizeGraph, 144);
+
+	struct ParticleModuleSizeLerp : ParticleModule
+	{
+		unsigned int m_pad[2];
+		float4 m_sizeBegin;
+		float4 m_sizeEnd;
+	}; assert_sizeof(ParticleModuleSizeLerp, 48);
+
+	struct ParticleModuleVelocityGraph : ParticleModule
+	{
+		unsigned int m_pad[2];
+		ParticleCurveDef m_curves[6];
+		float4 m_velocityBegin;
+		float4 m_velocityEnd;
+	}; assert_sizeof(ParticleModuleVelocityGraph, 144);
+
+	struct ParticleModuleTestEventHandlerData
+	{
+		unsigned int m_nextState;
+		ParticleLinkedAssetListDef m_linkedAssetList;
+		bool m_kill;
+		unsigned int m_pad[1];
+	};
+
+	struct ParticleModuleTest : ParticleModule
+	{
+		unsigned __int16 m_moduleIndex;
+		char m_useOrientationOptions[1];
+		char m_useScaleOptions[1];
+		char m_useVelocityOptions[1];
+		ParticleModuleTestEventHandlerData m_eventHandlerData;
+	}; assert_sizeof(ParticleModuleTest, 48);
+	assert_offsetof(ParticleModuleTest, m_eventHandlerData, 16);
+
+	struct ParticleModuleTestBirth : ParticleModuleTest
+	{
+	};
+
+	struct ParticleModuleTestDeath : ParticleModuleTest
+	{
+	};
+
+	struct ParticleModuleTestGravity : ParticleModuleTest
+	{
+	};
+
+	struct ParticleModuleTestImpact : ParticleModuleTest
+	{
+	};
+
+	struct ParticleModuleTestPos : ParticleModuleTest
+	{
+	};
+
+	struct ParticleModuleTestTimeInState : ParticleModuleTest
+	{
+	};
+
+	union ParticleModuleTypeDef
+	{
+		ParticleModule moduleBase;
+		ParticleModuleInitAtlas initAtlas;
+		ParticleModuleInitAttributes initAttributes;
+		ParticleModuleInitBeam initBeam;
+		ParticleModuleInitCameraOffset initCameraOffset;
+		ParticleModuleInitCloud initCloud; // maybe different
+		ParticleModuleInitDecal initDecal; // maybe wrong fields
+		ParticleModuleInitFlare initFlare;
+		ParticleModuleInitGeoTrail initGeoTrail;
+		ParticleModuleInitLightOmni initLightOmni; // maybe wrong fields
+		ParticleModuleInitLightSpot initLightSpot; // maybe wrong fields
+		ParticleModuleInitMaterial initMaterial;
+		ParticleModuleInitMirrorTexture initMirrorTexture;
+		ParticleModuleInitModel initModel;
+		ParticleModuleInitOcclusionQuery initOcclusionQuery; // maybe wrong fields
+		ParticleModuleInitOrientedSprite initOrientedSprite;
+		ParticleModuleInitParticleSim initParticleSim;
+		ParticleModuleInitPlayerFacing initPlayerFacing;
+		ParticleModuleInitRelativeVelocity initRelativeVelocity;
+		ParticleModuleInitRotation initRotation;
+		ParticleModuleInitRotation3D initRotation3D;
+		ParticleModuleInitRunner initRunner; // maybe wrong
+		ParticleModuleInitSound initSound;
+		ParticleModuleInitSpawn initSpawn;
+		ParticleModuleInitSpawnShapeBox initSpawnShapeBox; // maybe wrong fields
+		ParticleModuleInitSpawnShapeCylinder initSpawnShapeCylinder; // maybe wrong fields
+		ParticleModuleInitSpawnShapeEllipsoid initSpawnShapeEllipsoid; // maybe wrong
+		ParticleModuleInitSpawnShapeMesh initSpawnShapeMesh;  // maybe wrong
+		ParticleModuleInitSpawnShapeSphere initSpawnShapeSphere;  // maybe wrong
+		ParticleModuleInitTail initTail;
+		ParticleModuleInitVectorField initVectorField; // maybe wrong
+		ParticleModuleInitVolumetric initVolumetric;
+		ParticleModuleAttractor attractor;
+		ParticleModuleColorGraph colorGraph;
+		ParticleModuleColorLerp colorLerp;
+		ParticleModuleEmissionGraph emissionGraph;
+		ParticleModuleEmissiveGraph emissiveGraph;
+		ParticleModuleForce force;
+		ParticleModuleGravity gravity;
+		ParticleModuleIntensityGraph intensityGraph;
+		ParticleModuleTemperatureGraph temperatureGraph;
+		ParticleModulePhysicsLight physicsLight;
+		ParticleModulePhysicsRayCast physicsRayCast;
+		ParticleModulePositionGraph positionGraph;
+		ParticleModuleRotationGraph rotationGraph;
+		ParticleModuleRotationGraph3D rotationGraph3D;
+		ParticleModuleSizeGraph sizeGraph;
+		ParticleModuleSizeLerp sizeLerp;
+		ParticleModuleVelocityGraph velocityGraph;
+		ParticleModuleTestBirth testBirth;
+		ParticleModuleTestDeath testDeath;
+		ParticleModuleTestGravity testGravity;
+		ParticleModuleTestImpact testImpact;
+		ParticleModuleTestPos testPos;
+		ParticleModuleTestTimeInState testTimeInState;
+	};
+
+	struct ParticleModuleDef
+	{
+		ParticleModuleType type;
+		unsigned int m_pad[3];
+		ParticleModuleTypeDef moduleData;
+	}; assert_sizeof(ParticleModuleDef, 160);
+
+	enum ParticleGravityOptions
+	{
+		PARTICLE_GRAVITY_OPTION_NONE = 0x0,
+		PARTICLE_GRAVITY_OPTION_GRAVITY_ONLY = 0x1,
+		PARTICLE_GRAVITY_OPTION_GRAVITY_NEVER = 0x2,
+		PARTICLE_GRAVITY_OPTION_COUNT = 0x3,
+	};
+
+	enum ParticleInstancePoolAction
+	{
+		PARTICLE_INSTANCE_POOL_ACTION_NO_SPAWN = 0x0,
+		PARTICLE_INSTANCE_POOL_ACTION_KILL_OLDEST_AND_SPAWN = 0x1,
+		PARTICLE_INSTANCE_POOL_ACTION_COUNT = 0x2,
+	};
+
+	enum ParticleDataFlags
+	{
+		USE_NONE = 0x0,
+		USE_POSITION = 0x1,
+		USE_VELOCITY = 0x2,
+		USE_COLOR = 0x4,
+		USE_ROTATION_ANGLE = 0x8,
+		USE_ROTATION_RATE = 0x10,
+		USE_SPAWN_POS = 0x20,
+		USE_SPAWN_QUAT = 0x40,
+		USE_SIZE = 0x80,
+		USE_EMISSIVE = 0x100,
+		USE_PARENT_VELOCITY = 0x200,
+		USE_CHILD_SYSTEM = 0x400,
+		USE_SPAWN_TIME = 0x800,
+		USE_LIFE = 0x1000,
+		USE_STATE = 0x2000,
+		USE_RANDOM_SEED = 0x4000,
+		USE_FLAGS = 0x8000,
+		USE_MODULE_TESTS = 0x10000,
+		USE_HANDLE = 0x20000,
+		USE_INTENSITY = 0x40000,
+		USE_TEMPERATURE = 0x80000,
+		USE_CAMERA_DISTANCE = 0x100000,
+		USE_INHERIT_PERCENTAGE = 0x200000,
+		USE_RAY_CAST_HANDLE = 0x400000,
+		USE_ATLAS_INDEX = 0x800000,
+		USE_VECTOR_FIELD_SCALE = 0x1000000,
+		USE_LIGHTING_FRAC = 0x2000000,
+		USE_PREV_PLACEMENT = 0x4000000,
+		USE_SHADER_PARAMS = 0x8000000,
+		CHECK_FIELD_COUNT = 0x8000001,
+		USE_ALL = 0xFFFFFFF,
+		USE_BASE = 0x192F8FF,
+		USE_EMISSIVE_CURVES = 0x2040100,
+	};
+
+	struct ParticleModuleGroupDef
+	{
+		ParticleModuleDef* moduleDefs;
+		int numModules;
+		bool disabled;
+	};
+
+	struct ParticleStateDef
+	{
+		ParticleModuleGroupDef* moduleGroupDefs; // size: 3
+		unsigned int elementType;
+		unsigned __int64 flags;
+		unsigned int pad[2];
+	};
+
+	struct ParticleEmitterDef
+	{
+		ParticleStateDef* stateDefs;
+		int numStates;
+		ParticleFloatRange particleSpawnRate;
+		ParticleFloatRange particleLife;
+		ParticleFloatRange particleDelay;
+		unsigned int particleCountMax;
+		ParticleIntRange particleBurstCount;
+		ParticleFloatRange emitterLife;
+		ParticleFloatRange emitterDelay;
+		int randomSeed;
+		ParticleFloatRange spawnRangeSq;
+		float fadeOutMaxDistance;
+		ParticleCurveDef fadeCurveDef;
+		float spawnFrustumCullRadius;
+		unsigned int flags;
+		ParticleGravityOptions gravityOptions;
+		//int groupIDs[4];
+		ParticleFloatRange emitByDistanceDensity;
+		unsigned int instancePool;
+		unsigned int soloInstanceMax;
+		ParticleInstancePoolAction instanceAction;
+		ParticleDataFlags m_dataFlags;
+		ParticleFloatRange particleSpawnShapeRange;
+		unsigned int pad[1];
+	}; assert_sizeof(ParticleEmitterDef, 144);
+
+	enum ParticleScriptedInputNodeType
+	{
+		PARTICLE_SCRIPTED_INPUT_NODE_INVALID = 0xFFFFFFFF,
+		PARTICLE_SCRIPTED_INPUT_NODE_KVP = 0x0,
+		PARTICLE_SCRIPTED_INPUT_NODE_EMITTER_DISABLE = 0x1,
+		PARTICLE_SCRIPTED_INPUT_NODE_COUNT = 0x2,
+	};
+
+	struct ParticleScriptedInputNode
+	{
+		ParticleScriptedInputNodeType m_type;
+		unsigned int m_flags;
+		unsigned int m_emitterIndex;
+		unsigned int m_pad[5];
+	};
+
+	enum ParticleScriptedInputKey
+	{
+	};
+
+	struct ParticleScriptedInputRecord
+	{
+		ParticleScriptedInputKey key;
+		bool dirty;
+		bool value;
+		unsigned int pad[2];
+	};
+
+	struct ParticleScriptedInputNodeKVP : ParticleScriptedInputNode
+	{
+		ParticleScriptedInputRecord m_inputRecord;
+	};
+
+	struct ParticleScriptedInputNodeEmitterDisable : ParticleScriptedInputNode
+	{
+	};
+
+	union ParticleScriptedInputNodeDef // maybe wrong
+	{
+		ParticleScriptedInputNode nodeBase;
+		ParticleScriptedInputNodeKVP KVP;
+		ParticleScriptedInputNodeEmitterDisable emitterDisable;
+	}; assert_sizeof(ParticleScriptedInputNodeDef, 48);
+
+	enum ParticlePhaseOptions
+	{
+		PARTICLE_PHASE_OPTION_PHASE_NEVER = 0x0,
+		PARTICLE_PHASE_OPTION_PHASE_ONLY = 0x1,
+		PARTICLE_PHASE_OPTION_ALWAYS = 0x2,
+		PARTICLE_PHASE_OPTION_COUNT = 0x3,
+	};
+
+	struct ParticleSystemDef
+	{
+		const char* name;
+		ParticleEmitterDef* emitterDefs;
+		ParticleScriptedInputNodeDef* scriptedInputNodeDefs;
+		int version;
+		int numEmitters;
+		int numScriptedInputNodes;
+		unsigned int flags;
+		int occlusionOverrideEmitterIndex;
+		ParticlePhaseOptions phaseOptions;
+		float drawFrustumCullRadius;
+		float updateFrustumCullRadius;
+		float sunDistance;
+		int preRollMSec;
+		float4 editorPosition;
+		float4 editorRotation;
+		float4 gameTweakPosition;
+		float4 gameTweakRotation;
+	}; assert_sizeof(ParticleSystemDef, 0x80);
+
+	struct FxFloatRange
+	{
+		float base;
+		float amplitude;
+	};
+
+	struct FxIntRange
+	{
+		int base;
+		int amplitude;
+	};
+
+	struct FxElemVec3Range
+	{
+		float base[3];
+		float amplitude[3];
+	};
+
+	struct FxSpawnDefLooping
+	{
+		int intervalMsec;
+		int count;
+	};
+
+	struct FxSpawnDefOneShot
+	{
+		FxIntRange count;
+	};
+
+	union FxSpawnDef
+	{
+		FxSpawnDefLooping looping;
+		FxSpawnDefOneShot oneShot;
+	};
+
+	struct FxElemAtlas
+	{
+		unsigned char behavior;
+		unsigned char index;
+		unsigned char fps;
+		unsigned char loopCount;
+		unsigned char colIndexBits;
+		unsigned char rowIndexBits;
+		short entryCount;
+	};
+
+	struct FxElemVelStateInFrame
+	{
+		FxElemVec3Range velocity;
+		FxElemVec3Range totalDelta;
+	};
+
+	struct FxElemVelStateSample
+	{
+		FxElemVelStateInFrame local;
+		FxElemVelStateInFrame world;
+	};
+
+	struct FxElemVisualState
+	{
+		float color[4];
+		float rotationDelta;
+		float rotationTotal;
+		float size[2];
+		float scale;
+	};
+
+	struct FxElemVisStateSample
+	{
+		FxElemVisualState base;
+		FxElemVisualState amplitude;
+	};
+
+	struct FxElemMarkVisuals
+	{
+		Material* materials[3];
+	};
+
+	union FxEffectDefRef
+	{
+		const FxEffectDef* handle;
+		const char* name;
+	};
+
+	union FxElemVisuals
+	{
+		const void* anonymous;
+		Material* material;
+		XModel* model;
+		FxEffectDefRef effectDef;
+		const char* soundName;
+		const char* vectorFieldName;
+		GfxLightDef* lightDef;
+		FxParticleSimAnimation* particleSimAnimation;
+	};
+
+	union FxElemDefVisuals
+	{
+		FxElemMarkVisuals* markArray;
+		FxElemVisuals* array;
+		FxElemVisuals instance;
+	};
+
+	struct FxTrailVertex
+	{
+		vec2_t pos;
+		vec2_t normal;
+		vec2_t texCoord;
+	};
+
+	struct FxTrailDef
+	{
+		int scrollTimeMsec;
+		int repeatDist;
+		float invSplitDist;
+		float invSplitArcDist;
+		float invSplitTime;
+		int vertCount;
+		FxTrailVertex* verts;
+		int indCount;
+		unsigned short* inds;
+	};
+
+	struct FxSparkFountainDef
+	{
+		float gravity;
+		float bounceFrac;
+		float bounceRand;
+		float sparkSpacing;
+		float sparkLength;
+		int sparkCount;
+		float loopTime;
+		float velMin;
+		float velMax;
+		float velConeFrac;
+		float restSpeed;
+		float boostTime;
+		float boostFactor;
+	};
+
+	struct FxSpotLightDef
+	{
+		float fovInnerFraction;
+		float startRadius;
+		float endRadius;
+		float brightness;
+		float maxLength;
+		int exponent;
+	};
+
+	struct FxFlareDef
+	{
+		float position;
+		int angularRotCount;
+		int flags;
+		FxFloatRange depthScaleRange;
+		FxFloatRange depthScaleValue;
+		FxFloatRange radialRot;
+		FxFloatRange radialScaleX;
+		FxFloatRange radialScaleY;
+		vec3_t dir;
+		int intensityXIntervalCount;
+		int intensityYIntervalCount;
+		int srcCosIntensityIntervalCount;
+		int srcCosScaleIntervalCount;
+		float* intensityX;
+		float* intensityY;
+		float* srcCosIntensity;
+		float* srcCosScale;
+	};
+
+	union FxElemExtendedDefPtr
+	{
+		FxTrailDef* trailDef;
+		FxSparkFountainDef* sparkFountainDef;
+		FxSpotLightDef* spotLightDef;
+		FxFlareDef* flareDef;
+		void* unknownDef;
+	};
+
+	enum FxElemType : std::uint8_t
+	{
+		FX_ELEM_TYPE_SPRITE_BILLBOARD = 0,
+		FX_ELEM_TYPE_SPRITE_ORIENTED = 1,
+		FX_ELEM_TYPE_SPRITE_ROTATED = 2,
+		FX_ELEM_TYPE_TAIL = 3,
+		FX_ELEM_TYPE_LINE = 4,
+		FX_ELEM_TYPE_TRAIL = 5,
+		FX_ELEM_TYPE_FLARE = 6,
+		FX_ELEM_TYPE_PARTICLE_SIM_ANIMATION = 7,
+		FX_ELEM_TYPE_CLOUD = 8,
+		FX_ELEM_TYPE_SPARK_CLOUD = 9,
+		FX_ELEM_TYPE_SPARK_FOUNTAIN = 10,
+		FX_ELEM_TYPE_MODEL = 11,
+		FX_ELEM_TYPE_OMNI_LIGHT = 12,
+		FX_ELEM_TYPE_SPOT_LIGHT = 13,
+		FX_ELEM_TYPE_SOUND = 14,
+		FX_ELEM_TYPE_DECAL = 15,
+		FX_ELEM_TYPE_RUNNER = 16,
+		FX_ELEM_TYPE_VECTORFIELD = 17,
+	};
+
+	enum FxElemDefFlags : std::uint32_t
+	{
+		FX_ELEM_SPAWN_RELATIVE_TO_EFFECT = 0x2,
+		FX_ELEM_SPAWN_FRUSTUM_CULL = 0x4,
+		FX_ELEM_RUNNER_USES_RAND_ROT = 0x8,
+		FX_ELEM_SPAWN_OFFSET_NONE = 0x0,
+		FX_ELEM_SPAWN_OFFSET_SPHERE = 0x10,
+		FX_ELEM_SPAWN_OFFSET_CYLINDER = 0x20,
+		FX_ELEM_SPAWN_OFFSET_MASK = 0x30,
+		FX_ELEM_RUN_RELATIVE_TO_WORLD = 0x0,
+		FX_ELEM_RUN_RELATIVE_TO_SPAWN = 0x40,
+		FX_ELEM_RUN_RELATIVE_TO_EFFECT = 0x80,
+		FX_ELEM_RUN_RELATIVE_TO_OFFSET = 0xC0,
+		FX_ELEM_RUN_RELATIVE_TO_CAMERA = 0x100,
+		FX_ELEM_RUN_MASK = 0x1C0,
+		FX_ELEM_DIE_ON_TOUCH = 0x200,
+		FX_ELEM_DRAW_PAST_FOG = 0x400,
+		FX_ELEM_DRAW_WITH_VIEWMODEL = 0x800,
+		FX_ELEM_BLOCK_SIGHT = 0x1000,
+		FX_ELEM_DRAW_IN_THERMAL_VIEW_ONLY = 0x2000,
+		FX_ELEM_TRAIL_ORIENT_BY_VELOCITY = 0x4000,
+		FX_ELEM_EMIT_BOLT = 0x80000000,
+		FX_ELEM_EMIT_ORIENT_BY_ELEM = 0x8000,
+		FX_ELEM_USE_OCCLUSION_QUERY = 0x10000,
+		FX_ELEM_NODRAW_IN_THERMAL_VIEW = 0x20000,
+		FX_ELEM_THERMAL_MASK = 0x22000,
+		FX_ELEM_SPAWN_IMPACT_FX_WITH_SURFACE_NAME = 0x40000,
+		FX_ELEM_RECEIVE_DYNAMIC_LIGHT = 0x80000,
+		FX_ELEM_VOLUMETRIC_TRAIL = 0x100000,
+		FX_ELEM_USE_COLLISION = 0x200000,
+		FX_ELEM_USE_VECTORFIELDS = 0x400000,
+		FX_ELEM_NO_SURFACE_HDR_SCALAR = 0x800000,
+		FX_ELEM_HAS_VELOCITY_GRAPH_LOCAL = 0x1000000,
+		FX_ELEM_HAS_VELOCITY_GRAPH_WORLD = 0x2000000,
+		FX_ELEM_HAS_GRAVITY = 0x4000000,
+		FX_ELEM_USE_MODEL_PHYSICS = 0x8000000,
+		FX_ELEM_NONUNIFORM_SCALE = 0x10000000,
+		FX_ELEM_CLOUD_SHAPE_CUBE = 0x0,
+		FX_ELEM_CLOUD_SHAPE_SPHERE_LARGE = 0x20000000,
+		FX_ELEM_CLOUD_SHAPE_SPHERE_MEDIUM = 0x40000000,
+		FX_ELEM_CLOUD_SHAPE_SPHERE_SMALL = 0x60000000,
+		FX_ELEM_CLOUD_SHAPE_MASK = 0x60000000,
+		FX_ELEM_FOUNTAIN_DISABLE_COLLISION = 0x80000000,
+	};
+
+	enum FxElemDefExtraFlags : std::uint32_t
+	{
+
+	};
+
+	struct FxElemDef
+	{
+		int flags;
+		int flags2;
+		FxSpawnDef spawn;
+		FxFloatRange spawnRange;
+		FxFloatRange fadeInRange;
+		FxFloatRange fadeOutRange;
+		float spawnFrustumCullRadius;
+		FxIntRange spawnDelayMsec;
+		FxIntRange lifeSpanMsec;
+		FxFloatRange spawnOrigin[3];
+		FxFloatRange spawnOffsetRadius;
+		FxFloatRange spawnOffsetHeight;
+		FxFloatRange spawnAngles[3];
+		FxFloatRange angularVelocity[3];
+		FxFloatRange initialRotation;
+		FxFloatRange gravity;
+		FxFloatRange reflectionFactor;
+		FxElemAtlas atlas;
+		char unk[2];
+		unsigned char elemType;
+		unsigned char visualCount;
+		unsigned char velIntervalCount;
+		unsigned char visStateIntervalCount;
+		FxElemVelStateSample* velSamples;
+		FxElemVisStateSample* visSamples;
+		FxElemDefVisuals visuals;
+		Bounds collBounds;
+		FxEffectDefRef effectOnImpact;
+		FxEffectDefRef effectOnDeath;
+		FxEffectDefRef effectEmitted;
+		FxFloatRange emitDist;
+		FxFloatRange emitDistVariance;
+		FxElemExtendedDefPtr extended;
+		unsigned char sortOrder;
+		unsigned char lightingFrac;
+		unsigned char useItemClip;
+		unsigned char fadeInfo;
+		int randomSeed;
+		float litMaxColorChangePerSec;
+		float litUnlitBlendFactor;
+	}; assert_sizeof(FxElemDef, 304);
+	assert_offsetof(FxElemDef, elemType, 182);
+	assert_offsetof(FxElemDef, visualCount, 183);
+	assert_offsetof(FxElemDef, visuals, 208);
+	assert_offsetof(FxElemDef, extended, 280);
+
+	struct FxEffectDef
+	{
+		const char* name;
+		int flags;
+		int totalSize;
+		int msecLoopingLife;
+		int elemDefCountLooping;
+		int elemDefCountOneShot;
+		int elemDefCountEmission;
+		float elemMaxRadius;
+		float occlusionQueryDepthBias;
+		int occlusionQueryFadeIn;
+		int occlusionQueryFadeOut;
+		FxFloatRange occlusionQueryScaleRange;
+		FxElemDef* elemDefs;
+	}; assert_sizeof(FxEffectDef, 0x40);
+
+	struct FxImpactEntry
+	{
+		FxCombinedDef nonflesh[64];
+		FxCombinedDef flesh[23];
+	};
+
+	struct FxImpactTable
+	{
+		const char* name;
+		FxImpactEntry* table; // size: 49
+	};
+
+	struct SurfaceFxEntry
+	{
+		FxCombinedDef surfaceEffect[64];
+	};
+
+	struct SurfaceFxTable
+	{
+		const char* name;
+		SurfaceFxEntry* table; // size: 6
+	};
 
 	struct RawFile
 	{
@@ -3168,16 +5130,16 @@ namespace zonetool::iw7
 		SndBank* soundBank;
 		SndBankTransient* soundBankTransient;
 		//clipMap_t* clipMap;
-		//ComWorld* comWorld;
-		//GlassWorld* glassWorld;
-		//PathData* pathData;
+		ComWorld* comWorld;
+		GlassWorld* glassWorld;
+		PathData* pathData;
 		//NavMeshData* navMeshData;
 		//MapEnts* mapEnts;
-		//FxWorld* fxWorld;
+		FxWorld* fxWorld;
 		//GfxWorld* gfxWorld;
 		//GfxWorldTransientZone* gfxWorldTransientZone;
 		//GfxIESProfile* iesProfile;
-		//GfxLightDef* lightDef;
+		GfxLightDef* lightDef;
 		//void* uiMap;
 		AnimationClass* animClass;
 		PlayerAnimScript* playerAnim;
@@ -3185,10 +5147,10 @@ namespace zonetool::iw7
 		LocalizeEntry* localize;
 		//WeaponAttachment* attachment;
 		//WeaponCompleteDef* weapon;
-		//ParticleSystemDef* vfx;
-		//FxEffectDef* fx;
-		//FxImpactTable* impactFx;
-		//SurfaceFxTable* surfaceFx;
+		ParticleSystemDef* vfx;
+		FxEffectDef* fx;
+		FxImpactTable* impactFx;
+		SurfaceFxTable* surfaceFx;
 		//void* aiType;
 		//void* mpType;
 		//void* character;
