@@ -8,7 +8,7 @@ namespace tls
 {
 	namespace
 	{
-		utils::binary_resource tls_dll_file(TLS_DLL, "iw7-tlsdll.dll");
+		utils::binary_resource tls_dll_file(TLS_DLL, "zt-tlsdll.dll");
 	}
 
 	PIMAGE_TLS_DIRECTORY allocate_tls_index()

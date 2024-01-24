@@ -88,7 +88,7 @@ namespace iw7
 				vsnprintf_s(buffer, _TRUNCATE, msg + 1, ap);
 				va_end(ap);
 
-				game::Com_Error(game::errorParm::ERR_FATAL, buffer);
+				game::Com_Error(game::errorParm::ERR_FATAL, "%s", buffer);
 			}
 
 			__int64 db_read_x_file_stub(unsigned __int8* pos, unsigned __int64 size)

@@ -225,6 +225,9 @@ namespace iw7
 				// disable demonware
 				utils::hook::set<uint8_t>(0x140D31744, 0xC3); // dwNetStart
 
+				// don't load streamed assets
+				utils::hook::set<uint8_t>(0x1403BB990, 0xC3); // DB_StreamingInfo_Register
+
 				::zonetool::iw7::initialize();
 			}
 		};
