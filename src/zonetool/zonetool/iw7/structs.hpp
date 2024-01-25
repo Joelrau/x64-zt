@@ -176,7 +176,7 @@ namespace zonetool::iw7
 	struct XAnimArcheType;
 	struct XAnimProceduralBones;
 	struct ReticleDef;
-	struct GfxLightmap;
+	struct GfxLightMap;
 
 	struct Bounds
 	{
@@ -968,57 +968,85 @@ namespace zonetool::iw7
 		};
 	};
 
+	struct unk_1453E14D8
+	{
+		char __pad0[24];
+	};
+
+	enum XModelCharCollBoundsType : std::uint8_t
+	{
+		CharCollBoundsType_None = 0x0,
+		CharCollBoundsType_Human = 0x1,
+		CharCollBoundsType_C12 = 0x2,
+		CharCollBoundsType_C8 = 0x3,
+		CharCollBoundsType_Seeker = 0x4,
+		CharCollBoundsType_Zombie = 0x5,
+		CharCollBoundsType_LargeZombie = 0x6,
+		CharCollBoundsType_Alien = 0x7,
+		CharCollBoundsType_LargeAlien = 0x8,
+		CharCollBoundsType_ExtraLargeZombie = 0x9,
+		CharCollBoundsType_Num = 0xA,
+	};
+
 	struct XModel
 	{
-		const char* name; // 0
-		char __pad0[12];
-		unsigned char numBones; // 20
-		unsigned char numRootBones; // 21
-		unsigned char numReactiveMotionParts; // 22
-		char b;
-		unsigned short numClientBones; // 24
-		unsigned char numsurfs; // 26
-		char __pad1[5];
-		unsigned short numCollSurfs; // 32
-		char __pad2[38];
-		unsigned char unk1Count; // 72
-		char __pad3[15];
-		ScriptableDef* scriptableMoverDef; // 88
-		XAnimProceduralBones* proceduralBones; // 96
-		scr_string_t* aimAssistBones; // 104
-		unsigned char numAimAssistBones; // 112
-		char __pad4[39];
-		scr_string_t* boneNames; // 152
-		unsigned char* parentList; // 160
-		XModelAngle* tagAngles; // 168
-		XModelTagPos* tagPositions; // 176
-		unsigned char* partClassification; // 184
-		DObjAnimMat* baseMat; // 192
-		ReactiveMotionModelPart* reactiveMotionParts; // 200
-		ReactiveMotionModelTweaks* reactiveMotionTweaks; // 208
-		Material** materialHandles; // 216
-		XModelLodInfo lodInfo[6]; // 224
-		XModelCollSurf_s* collSurfs; // 608
-		XBoneInfo* boneInfo; // 616
-		unsigned short* invHighMipRadius; // 624
-		PhysicsAsset* physAsset; // 632
-		PhysicsFXShape* physFxShape; // 640
-		char* unk1; // 648
-		unsigned short unkNamesCount; // 656
-		char __pad5[6];
-		scr_string_t* unkNames; // 664
-		char __pad6[16];
-		int unk2Count;
-		char __pad8[4];
-		char* unk2;
-		char __pad9[1];
-		unsigned char unkVec3Count;
-		char __pad10[6];
-		vec3_t* unkVec3;
-		char __pad11[1];
-		char unk3Count;
-		char __pad12[6];
-		void* unk3;
+		const char* name;
+		char unused01;
+		unsigned char unknown01;
+		char unused02;
+		unsigned char numLods;
+		unsigned char collLod;
+		unsigned char shadowCutoffLod;
+		unsigned char characterCollBoundsType;
+		int flags;
+		unsigned char numBones;
+		unsigned char numRootBones;
+		unsigned char numReactiveMotionParts;
+		unsigned short numClientBones;
+		unsigned short numsurfs;
+		float scale;
+		unsigned short numCollSurfs;
+		int contents;
+		float radius;
+		Bounds bounds;
+		int memUsage;
+		unsigned int unknown02Count;
+		char unk_01[12]; // unknown data
+		ScriptableDef* scriptableMoverDef;
+		XAnimProceduralBones* proceduralBones;
+		scr_string_t* aimAssistBones;
+		unsigned char numAimAssistBones;
+		unsigned int noScalePartBits[8];
+		scr_string_t* boneNames;
+		unsigned char* parentList;
+		XModelAngle* tagAngles;
+		XModelTagPos* tagPositions;
+		unsigned char* partClassification;
+		DObjAnimMat* baseMat;
+		ReactiveMotionModelPart* reactiveMotionParts;
+		ReactiveMotionModelTweaks* reactiveMotionTweaks;
+		Material** materialHandles;
+		XModelLodInfo lodInfo[6];
+		XModelCollSurf_s* collSurfs;
+		XBoneInfo* boneInfo;
+		unsigned short* invHighMipRadius;
+		PhysicsAsset* physAsset;
+		PhysicsFXShape* physFxShape;
+		char* unknown02;
+		unsigned short unknownNamesCount;
+		char unk_02[6]; // unknown data
+		scr_string_t* unknownNames;
+		char unk_03[16]; // unknown data
+		unsigned char unknown03Count;
+		char* unknown03;
+		unsigned char unknownIndex;
+		unsigned char unknownVec3Count;
+		char unk_04[6]; // unknown data
+		vec3_t* unknownVec3;
+		char unk;
+		unsigned char unknown04Count;
+		char unk_05[6]; // unknown data
+		unk_1453E14D8* unknown04;
 	}; assert_sizeof(XModel, 0x2E0); // 736
 
 	struct MayhemModel
@@ -4262,7 +4290,7 @@ namespace zonetool::iw7
 
 	union FxEffectDefRef
 	{
-		const FxEffectDef* handle;
+		FxEffectDef* handle;
 		const char* name;
 	};
 
@@ -4857,7 +4885,716 @@ namespace zonetool::iw7
 		const char* buffer;
 	};
 
-	struct ScriptableDef;
+	struct ScriptableEventDef;
+	struct ScriptablePartDef;
+
+	struct ScriptableEventBaseDef
+	{
+		const char* name;
+		int flags;
+	}; assert_sizeof(ScriptableEventBaseDef, 16);
+
+	enum Scriptable_EventType
+	{
+		Scriptable_EventType_StateChange = 0x0,
+		Scriptable_EventType_Wait = 0x1,
+		Scriptable_EventType_Random = 0x2,
+		Scriptable_EventType_Script = 0x3,
+		Scriptable_EventType_Model = 0x4,
+		Scriptable_EventType_Collision = 0x5,
+		Scriptable_EventType_Animation = 0x6,
+		Scriptable_EventType_HideShowBone = 0x7,
+		Scriptable_EventType_NoteTrack = 0x8,
+		Scriptable_EventType_ChunkDynent = 0x9,
+		Scriptable_EventType_SpawnDynent = 0xA,
+		Scriptable_EventType_PFX = 0xB,
+		Scriptable_EventType_Sound = 0xC,
+		Scriptable_EventType_Explosion = 0xD,
+		Scriptable_EventType_Light = 0xE,
+		Scriptable_EventType_Sun = 0xF,
+		Scriptable_EventType_Rumble = 0x10,
+		Scriptable_EventType_Screenshake = 0x11,
+		Scriptable_EventType_PartDamage = 0x12,
+		Scriptable_EventType_SetMayhem = 0x13,
+		Scriptable_EventType_PlayMayhem = 0x14,
+		Scriptable_EventType_ViewmodelShaderParam = 0x15,
+		Scriptable_EventType_ViewmodelChangeImage = 0x16,
+		Scriptable_EventType_ClientViewSelector = 0x17,
+		Scriptable_EventType_TeamSelector = 0x18,
+		Scriptable_EventType_AddModel = 0x19,
+		Scriptable_EventType_ApplyForce = 0x1A,
+		Scriptable_EventType_CompassIcon = 0x1B,
+		Scriptable_EventType_MaterialOverride = 0x1C,
+		Scriptable_EventType_Count = 0x1D,
+	};
+
+	struct ScriptableEventAnonymousDef
+	{
+		ScriptableEventBaseDef* base;
+		char buffer[144];
+	};
+
+	struct unk_1453E1B90
+	{
+		const char* name;
+		char __pad0[8];
+	}; assert_sizeof(unk_1453E1B90, 0x10);
+
+	struct unk_1453E1BC0
+	{
+		const char* name;
+	};
+
+	struct unk_1453E1C00
+	{
+		const char* name;
+	};
+
+	struct unk_1453E1C20
+	{
+		const char* name;
+		char __pad0[8];
+	};
+
+	struct unk_1453E1C70
+	{
+		const char* name;
+		unsigned int count;
+		unsigned int* val;
+	};
+
+	union unk_1453E1C80
+	{
+		unk_1453E1BC0 __1;
+		unk_1453E1C00 __2;
+		unk_1453E1C20 __3;
+		unk_1453E1C70 __4;
+	};
+
+	enum ScriptablePartReferenceType
+	{
+		type_1453E1BC0,
+		type_1453E1C00,
+		type_1453E1C20,
+		type_1453E1C70,
+		unk_1453E1CC8_type_count,
+	};
+
+	struct ScriptablePartReference
+	{
+		unk_1453E1B90 unk01;
+		int type;
+		unk_1453E1C80 u;
+	}; assert_sizeof(ScriptablePartReference, 0x30);
+
+	struct ScriptableEventStateChangeDef
+	{
+		ScriptableEventBaseDef* base;
+		ScriptablePartReference partReference;
+		ScriptablePartDef* part;
+	}; assert_sizeof(ScriptableEventStateChangeDef, 64);
+
+	struct ScriptableEventWaitDef
+	{
+		ScriptableEventBaseDef* base;
+		float delayMin;
+		float delayMax;
+		unsigned __int16 eventStreamBufferOffsetServer;
+		unsigned __int16 eventStreamBufferOffsetClient;
+	}; assert_sizeof(ScriptableEventWaitDef, 24);
+
+	struct ScriptableEventRandomDef
+	{
+		ScriptableEventBaseDef* base;
+		float threshold;
+		unsigned int eventACount;
+		ScriptableEventDef* eventsA;
+		unsigned int eventBCount;
+		ScriptableEventDef* eventsB;
+		unsigned __int16 eventStreamBufferOffsetServer;
+		unsigned __int16 eventStreamBufferOffsetClient;
+	}; assert_sizeof(ScriptableEventRandomDef, 48);
+
+	struct ScriptableEventScriptDef
+	{
+		ScriptableEventBaseDef* base;
+		const char* notification;
+		scr_string_t scrNotification;
+		int param;
+		//bool doNotifyCallback;
+	}; assert_sizeof(ScriptableEventScriptDef, 24);
+
+	struct ScriptableEventModelDef
+	{
+		ScriptableEventBaseDef* base;
+		XModel* model;
+		char hudOutlineColor;
+		bool hudOutlineActive;
+		bool hudOutlineFill;
+		bool neverMoves;
+		bool dynamicSimulation;
+		bool activatePhysics;
+	}; assert_sizeof(ScriptableEventModelDef, 24);
+
+	struct ScriptableEventCollisionDef
+	{
+		ScriptableEventBaseDef* base;
+		const char* collmapName;
+		bool aiObstacle;
+		int clipmapCModelIndex;
+		bool neverMoves;
+		bool canPush;
+		bool canTouch;
+		bool destroyOnExit;
+	}; assert_sizeof(ScriptableEventCollisionDef, 32);
+
+	struct $6CB7272563F4458FB40A4A5E123C4ABA
+	{
+		unsigned __int16 index;
+		unsigned __int16 tree;
+	};
+
+	union $754892263A8270AD7855E320C3BF2A51
+	{
+		$6CB7272563F4458FB40A4A5E123C4ABA __s0;
+		unsigned __int64 linkPointer;
+	};
+
+	struct scr_anim_t
+	{
+		$754892263A8270AD7855E320C3BF2A51 ___u0;
+	};
+
+	struct ScriptableEventAnimationDef
+	{
+		ScriptableEventBaseDef* base;
+		XAnimParts* animation;
+		bool stateful;
+		bool overrideAnimation;
+		bool pauseOnExit;
+		bool clientOnlyInMP;
+		float startTimeMin;
+		float startTimeMax;
+		bool startTimeNormalized;
+		float playbackRateMin;
+		float playbackRateMax;
+		float blendTime;
+		unsigned int eventAtEndCount;
+		ScriptableEventDef* eventsAtEnd;
+		unsigned __int16 eventStreamBufferOffsetClient;
+		unsigned __int16 eventStreamBufferOffsetServer;
+		scr_anim_t animationIndex[2];
+	}; assert_sizeof(ScriptableEventAnimationDef, 80);
+
+	struct ScriptableEventHideShowBoneDef
+	{
+		ScriptableEventBaseDef* base;
+		const char* tagName;
+		scr_string_t scrTagName;
+		bool hide;
+		bool allowMissingTag;
+		bool hideShowChildren;
+	}; assert_sizeof(ScriptableEventHideShowBoneDef, 24);
+
+	struct ScriptableNoteTrackDef
+	{
+		int flags;
+		const char* noteTrackName;
+		scr_string_t scrNoteTrackName;
+		unsigned int numEvents;
+		ScriptableEventDef* events;
+	}; assert_sizeof(ScriptableNoteTrackDef, 32);
+
+	struct ScriptableEventNoteTrackDef
+	{
+		ScriptableEventBaseDef* base;
+		unsigned int noteTrackCount;
+		ScriptableNoteTrackDef* noteTracks;
+	}; assert_sizeof(ScriptableEventNoteTrackDef, 24);
+
+	struct ScriptableEventChunkDynentDef
+	{
+		ScriptableEventBaseDef* base;
+		ScriptablePartReference partReference;
+		vec3_t launchLinVel;
+		vec3_t launchAngVel;
+		ScriptablePartDef* part;
+	}; assert_sizeof(ScriptableEventChunkDynentDef, 88);
+
+	struct ScriptableEventSpawnDynentDef
+	{
+		ScriptableEventBaseDef* base;
+		bool stateful;
+		XModel* model;
+		const char* tagName;
+		scr_string_t scrTagName;
+		bool allowCauseVelocity;
+		bool allowNearestVehicleVelocity;
+		bool worldSpaceLinVel;
+		bool worldSpaceAngVel;
+		bool randomRangeLinVel;
+		bool randomRangeAngVel;
+		vec3_t launchLinVel;
+		vec3_t launchAngVel;
+		unsigned __int16 eventStreamBufferOffsetClient;
+		bool allowMissingTag;
+		bool useRootOnMissingTag;
+	}; assert_sizeof(ScriptableEventSpawnDynentDef, 72);
+
+	struct ScriptableEventPFXDef
+	{
+		ScriptableEventBaseDef* base;
+		bool stateful;
+		scr_string_t* scrTagNames;
+		unsigned int scrTagCount;
+		scr_string_t* scrEndTagNames;
+		unsigned int scrEndTagCount;
+		bool useTagAngles;
+		const char* effectAlias;
+		FxCombinedDef effectDef;
+		float loopRate;
+		bool oneshotLooping;
+		unsigned __int16 eventStreamBufferOffsetClient;
+		bool allowMissingTag;
+		bool useRootOnMissingTag;
+		bool allowNearestVehicleVelocity;
+		bool isViewmodel;
+		bool killOnExit;
+		bool useDynamicScriptedBeamLength;
+		int beamBoneAxis;
+		float beamLength;
+		char __pad0[8];
+	}; assert_sizeof(ScriptableEventPFXDef, 104);
+	assert_offsetof(ScriptableEventPFXDef, effectDef, 56);
+
+	struct ScriptableEventSoundDef
+	{
+		ScriptableEventBaseDef* base;
+		char __pad0[8];
+		const char* tagName;
+		scr_string_t scrTagName;
+		const char* soundAlias;
+		const char* soundAliasCache;
+		char __pad1[8];
+	}; assert_sizeof(ScriptableEventSoundDef, 56);
+	assert_offsetof(ScriptableEventSoundDef, tagName, 16);
+	assert_offsetof(ScriptableEventSoundDef, soundAlias, 32);
+	assert_offsetof(ScriptableEventSoundDef, soundAliasCache, 40);
+
+	struct ScriptableEventExplosionDef
+	{
+		ScriptableEventBaseDef* base;
+		const char* tagName;
+		scr_string_t scrTagName;
+		float radius;
+		float dmgOuter;
+		float dmgInner;
+		bool stateful;
+		bool allowMissingTag;
+		bool useRootOnMissingTag;
+		char __pad0[8];
+	}; assert_sizeof(ScriptableEventExplosionDef, 48);
+
+	struct ScriptableEventLightDef
+	{
+		ScriptableEventBaseDef* base;
+		const char* name;
+		scr_string_t scrName;
+		float intensityScaleMin;
+		float intensityScaleMax;
+		float radiusMin;
+		float radiusMax;
+		bool useColor;
+		vec4_t colorLinearSrgb;
+		bool useStateTransitionTime;
+		float transitionMin;
+		float transitionMax;
+		unsigned __int16 eventStreamBufferOffsetClient;
+	}; assert_sizeof(ScriptableEventLightDef, 72);
+
+	struct ScriptableEventSunDef
+	{
+		ScriptableEventBaseDef* base;
+		bool useIntensity;
+		float intensityOverrideMin;
+		float intensityOverrideMax;
+		bool useColor;
+		vec4_t colorLinearSrgb;
+		bool useStateTransitionTime;
+		float transitionMin;
+		float transitionMax;
+		float pitchMin;
+		float pitchMax;
+		float headingMin;
+		float headingMax;
+		bool useDirection;
+	}; assert_sizeof(ScriptableEventSunDef, 72);
+
+	struct ScriptableEventRumbleDef
+	{
+		ScriptableEventBaseDef* base;
+		bool stateful;
+		const char* tagName;
+		scr_string_t scrTagName;
+		const char* rumble;
+		RumbleInfo* rumbleAsset;
+		bool allowMissingTag;
+		bool useRootOnMissingTag;
+	}; assert_sizeof(ScriptableEventRumbleDef, 56);
+
+	struct ScriptableEventScreenshakeDef
+	{
+		ScriptableEventBaseDef* base;
+		bool stateful;
+		bool isEarthquake;
+		bool isScreenShake;
+		const char* tagName;
+		scr_string_t scrTagName;
+		float duration;
+		float durationFadeUp;
+		float durationFadeDown;
+		int radius;
+		float scaleEarthquake;
+		int scalePitch;
+		int scaleYaw;
+		int scaleRoll;
+		int frequencyPitch;
+		int frequencyYaw;
+		int frequencyRoll;
+		bool allowMissingTag;
+		bool useRootOnMissingTag;
+	}; assert_sizeof(ScriptableEventScreenshakeDef, 80);
+
+	struct ScriptableEventPartDamageDef
+	{
+		ScriptableEventBaseDef* base;
+		ScriptablePartReference partReference;
+		float amount;
+		//bool destroy;
+		float amountDoT;
+		float intervalDoT;
+		unsigned __int16 eventStreamBufferOffsetServer;
+		unsigned __int16 eventStreamBufferOffsetClient;
+		ScriptablePartDef* part;
+	}; assert_sizeof(ScriptableEventPartDamageDef, 80);
+
+	struct ScriptableEventSetMayhemDef
+	{
+		ScriptableEventBaseDef* base;
+		MayhemData* mayhem;
+		unsigned __int16 eventStreamBufferOffsetClient;
+	}; assert_sizeof(ScriptableEventSetMayhemDef, 24);
+
+	enum Scriptable_MayhemAction
+	{
+		Scriptable_MayhemAction_Play = 0x0,
+		Scriptable_MayhemAction_Pause = 0x1,
+		Scriptable_MayhemAction_Count = 0x2,
+	};
+
+	struct ScriptableEventPlayMayhemDef
+	{
+		ScriptableEventBaseDef* base;
+		Scriptable_MayhemAction action;
+		unsigned __int16 eventStreamBufferOffsetClient;
+	}; assert_sizeof(ScriptableEventPlayMayhemDef, 16);
+
+	enum Scriptable_ShaderParamType
+	{
+		Scriptable_ShaderParamType_Unknown = 0x0,
+		Scriptable_ShaderParamType_ScrollRate_X = 0x1,
+		Scriptable_ShaderParamType_ScrollRate_Y = 0x2,
+		Scriptable_ShaderParamType_ScrollRate_R = 0x3,
+		Scriptable_ShaderParamType_Rotation = 0x4,
+		Scriptable_ShaderParamType_Tiling_X = 0x5,
+		Scriptable_ShaderParamType_Tiling_Y = 0x6,
+		Scriptable_ShaderParamType_Alpha = 0x7,
+		Scriptable_ShaderParamType_Emissive = 0x8,
+		Scriptable_ShaderParamType_AtlasFrame = 0x9,
+		Scriptable_ShaderParamType_Placeholder1 = 0xA,
+		Scriptable_ShaderParamType_Placeholder2 = 0xB,
+		Scriptable_ShaderParamType_Placeholder3 = 0xC,
+		Scriptable_ShaderParamType_Placeholder4 = 0xD,
+		Scriptable_ShaderParamType_Count = 0xE,
+	};
+
+	struct ScriptableEventViewmodelShaderParamDef
+	{
+		ScriptableEventBaseDef* base;
+		Scriptable_ShaderParamType shaderParam;
+		float floatValue;
+		float placeHolderValue1;
+		float placeHolderValue2;
+		float placeHolderValue3;
+		float placeHolderValue4;
+		float transitionTime;
+		unsigned __int16 eventStreamBufferOffsetClient;
+	}; assert_sizeof(ScriptableEventViewmodelShaderParamDef, 40);
+
+	enum Scriptable_ImageId
+	{
+		Scriptable_ImageId_Unknown = 0x0,
+		Scriptable_ImageId_Count = 0x1,
+	};
+
+	struct ScriptableEventViewmodelChangeImageDef
+	{
+		ScriptableEventBaseDef* base;
+		Scriptable_ImageId imageId;
+		int imageValue;
+	}; assert_sizeof(ScriptableEventViewmodelChangeImageDef, 16);
+
+	struct ScriptableEventClientViewSelectorDef
+	{
+		ScriptableEventBaseDef* base;
+		unsigned int event1pCount;
+		ScriptableEventDef* events1p;
+		unsigned int event3pCount;
+		ScriptableEventDef* events3p;
+		unsigned __int16 eventStreamBufferOffsetClient;
+	}; assert_sizeof(ScriptableEventClientViewSelectorDef, 48);
+
+	enum Scriptable_TeamFilter
+	{
+		Scriptable_Team_Filter_All = 0x0,
+		Scriptable_Team_Filter_Bad = 0x1,
+		Scriptable_Team_Filter_Axis = 0x2,
+		Scriptable_Team_Filter_Allies = 0x3,
+		Scriptable_Team_Filter_Three = 0x4,
+		Scriptable_Team_Filter_Neutral = 0x5,
+		Scriptable_Team_Filter_Dead = 0x6,
+		Scriptable_Team_Filter_My_Team = 0x7,
+		Scriptable_Team_Filter_Enemy_Team = 0x8,
+		Scriptable_Team_Filter_All_But_My_Team = 0x9,
+		Scriptable_Team_Filter_All_But_Enemy_Team = 0xA,
+		Scriptable_Team_Filter_Enemy_Team_And_Me = 0xB,
+		Scriptable_Team_Filter_Just_Me = 0xC,
+		Scriptable_Team_Filter_Count = 0xD,
+	};
+
+	struct ScriptableEventTeamSelectorDef
+	{
+		ScriptableEventBaseDef* base;
+		Scriptable_TeamFilter teamFilter;
+		bool testLocalPlayer;
+		unsigned int eventPassCount;
+		ScriptableEventDef* eventsPass;
+		unsigned int eventFailCount;
+		ScriptableEventDef* eventsFail;
+		unsigned __int16 eventStreamBufferOffsetClient;
+		unsigned __int16 eventStreamBufferOffsetServer;
+	}; assert_sizeof(ScriptableEventTeamSelectorDef, 56);
+
+	struct ScriptableEventAddModelDef
+	{
+		ScriptableEventBaseDef* base;
+		const char* tagName;
+		scr_string_t scrTagName;
+		XModel* model;
+	}; assert_sizeof(ScriptableEventAddModelDef, 32);
+
+	struct ScriptableEventApplyForceDef
+	{
+		ScriptableEventBaseDef* base;
+		vec3_t forcePos;
+		vec3_t forceVector;
+	}; assert_sizeof(ScriptableEventApplyForceDef, 32);
+
+	struct ScriptableEventCompassIconDef
+	{
+		ScriptableEventBaseDef* base;
+		bool stateful;
+		bool friendlyCompassIconAlwaysVisible;
+		bool enemyCompassIconAlwaysVisible;
+		Material* friendlyArrow;
+		Material* friendlyFiring;
+		Material* friendlyChatting;
+		Material* friendlyYelling;
+		Material* partyArrow;
+		Material* partyFiring;
+		Material* partyChatting;
+		Material* partyYelling;
+		Material* squadArrow;
+		Material* squadFiring;
+		Material* enemyCompassIconQuiet[3];
+		Material* enemyCompassIconFiring[3];
+		Material* enemyCompassIconDirectional;
+	}; assert_sizeof(ScriptableEventCompassIconDef, 152);
+
+	enum Scriptable_MaterialOverrideType
+	{
+		Scriptable_MaterialOverrideType_Off = 0x0,
+		Scriptable_MaterialOverrideType_Refraction = 0x1,
+		Scriptable_MaterialOverrideType_Dissolve = 0x2,
+		Scriptable_MaterialOverrideType_FlagAmplitudeScale = 0x3,
+		Scriptable_MaterialOverrideType_Count = 0x4,
+	};
+
+	struct ScriptableEventMaterialOverrideDef
+	{
+		ScriptableEventBaseDef* base;
+		Scriptable_MaterialOverrideType materialOverrideType;
+		char __pad0[4];
+		Material* material;
+		int transitionTime;
+		char finalValue;
+		unsigned __int16 eventStreamBufferOffsetClient;
+		char __pad1[8];
+	}; assert_sizeof(ScriptableEventMaterialOverrideDef, 40);
+
+	union ScriptableEventDefUnion
+	{
+		ScriptableEventAnonymousDef anonymous;
+		ScriptableEventStateChangeDef stateChange; //
+		ScriptableEventWaitDef wait;
+		ScriptableEventRandomDef random;
+		ScriptableEventScriptDef script; //
+		ScriptableEventModelDef model;
+		ScriptableEventCollisionDef collision;
+		ScriptableEventAnimationDef animation;
+		ScriptableEventHideShowBoneDef hideShowBone;
+		ScriptableEventNoteTrackDef noteTrack;
+		ScriptableEventChunkDynentDef chunkDynent;
+		ScriptableEventSpawnDynentDef spawnDynent; //
+		ScriptableEventPFXDef particleFX; //
+		ScriptableEventSoundDef sound; //
+		ScriptableEventExplosionDef explosion; //
+		ScriptableEventLightDef light; //
+		ScriptableEventSunDef sun;
+		ScriptableEventRumbleDef rumble;
+		ScriptableEventScreenshakeDef screenshake;
+		ScriptableEventPartDamageDef partDamage; //
+		ScriptableEventSetMayhemDef setMayhem;
+		ScriptableEventPlayMayhemDef playMayhem;
+		ScriptableEventViewmodelShaderParamDef viewmodelShaderParam;
+		ScriptableEventViewmodelChangeImageDef viewmodelChangeImage;
+		ScriptableEventClientViewSelectorDef clientViewSelector;
+		ScriptableEventTeamSelectorDef teamSelector;
+		ScriptableEventAddModelDef addModel;
+		ScriptableEventApplyForceDef applyForce; //
+		ScriptableEventCompassIconDef compassIcon;
+		ScriptableEventMaterialOverrideDef materialOverride; //
+	};
+
+	struct ScriptableEventDef
+	{
+		ScriptableEventBaseDef base;
+		Scriptable_EventType type;
+		ScriptableEventDefUnion data;
+	}; assert_sizeof(ScriptableEventDef, 176);
+
+	struct ScriptableStateBaseDef
+	{
+		const char* name;
+		int flags;
+		unsigned int numEvents;
+		ScriptableEventDef* events;
+	}; assert_sizeof(ScriptableStateBaseDef, 24);
+
+	enum Scriptable_StateType
+	{
+		Scriptable_StateType_Simple = 0x0,
+		Scriptable_StateType_Health = 0x1,
+		Scriptable_StateType_Scripted = 0x2,
+		Scriptable_StateType_Count = 0x3,
+	};
+
+	struct ScriptableStateSimpleDef
+	{
+		ScriptableStateBaseDef* base;
+	};
+
+	struct ScriptableStateHealthDef
+	{
+		ScriptableStateBaseDef* base;
+		int health;
+		int validDamageCause;
+		//int validAttackers;
+		//int validAttackerTeams;
+		int minimumDamage;
+		float damagePropagationToParent;
+		float damagePropagationToChild;
+		float damagePropagationFromParent;
+		float damagePropagationFromChild;
+		const char* script_id;
+		scr_string_t scrScript_id;
+		bool localizeSplashDamage;
+	}; assert_sizeof(ScriptableStateHealthDef, 56);
+	assert_offsetof(ScriptableStateHealthDef, scrScript_id, 48);
+
+	struct ScriptableStateScriptedDef
+	{
+		ScriptableStateBaseDef* base;
+		const char* script_id;
+		scr_string_t scrScript_id;
+	};
+
+	union ScriptableStateDefUnion
+	{
+		ScriptableStateSimpleDef simple;
+		ScriptableStateHealthDef health; //
+		ScriptableStateScriptedDef scripted;
+	};
+
+	struct ScriptableStateDef
+	{
+		ScriptableStateBaseDef base;
+		Scriptable_StateType type;
+		ScriptableStateDefUnion data;
+	}; assert_sizeof(ScriptableStateDef, 88);
+	assert_offsetof(ScriptableStateDef, data, 32);
+
+	struct ScriptableDamageTagOverride
+	{
+		const char* tag;
+		scr_string_t scrTag;
+	};
+
+	struct ScriptablePartDef // unchecked
+	{
+		const char* name;
+		scr_string_t scrName;
+		int flags;
+		unsigned int flatId;
+		unsigned int serverInstanceFlatId;
+		unsigned int serverControlledFlatId;
+		const char* tagName;
+		scr_string_t scrTagName;
+		unsigned int numStates;
+		ScriptableStateDef* states;
+		ScriptablePartDef* parentPart;
+		unsigned int numChildParts;
+		ScriptablePartDef* childParts;
+		unsigned int numDamageTagOverrides;
+		ScriptableDamageTagOverride* damageTagOverrides;
+		unsigned __int16 eventStreamBufferOffsetServer;
+		unsigned __int16 eventStreamBufferOffsetClient;
+		unsigned __int16 eventStreamSize;
+	}; assert_sizeof(ScriptablePartDef, 104);
+
+	struct ScriptableDef // unchecked
+	{
+		const char* name;
+		int flags;
+		int type;
+		ScriptableDef* nextScriptableDef;
+		unsigned int numParts;
+		ScriptablePartDef* parts;
+		unsigned int maxNumDynEntsRequired;
+		unsigned int partCount;
+		unsigned int serverInstancedPartCount;
+		unsigned int serverControlledPartCount;
+		unsigned int maxNumDynEntPartsBase;
+		unsigned int maxNumDynEntPartsForSpawning;
+		unsigned __int16 eventStreamSizeRequiredServer;
+		unsigned __int16 eventStreamSizeRequiredClient;
+		unsigned __int16 eventStreamSize;
+		unsigned int ffMemCost;
+		scr_string_t animationTreeName;
+		void* animationTreeDef[2];
+		unsigned int numXModels;
+		XModel** models;
+	}; assert_sizeof(ScriptableDef, 0x70);
 
 	struct EquipmentClothData
 	{
@@ -5082,11 +5819,67 @@ namespace zonetool::iw7
 
 	struct SuitAnimPackage;
 
-	struct SpaceshipTargetDef;
+	struct SpaceshipTargetDef
+	{
+		const char* name;
+		scr_string_t targetTag;
+		float annotationOffsetX;
+		float annotationOffsetY;
+		float annotationOffsetZ;
+		bool disableLeading;
+		float lock_minDistance;
+		float lock_maxDistance;
+		float lock_cutoffDistance;
+		float lock_minRate;
+		float lock_maxRate;
+		float lock_maxZoomFOV;
+		float lock_followDistance;
+		float lockCooldown_rate;
+		float aa_closeDistance;
+		float aa_farDistance;
+		float aa_closeMinAngle;
+		float aa_closeMaxAngle;
+		float aa_closeBlendMax;
+		float aa_farMinAngle;
+		float aa_farMaxAngle;
+		float aa_farBlendMax;
+		float aaLocked_closeDistance;
+		float aaLocked_farDistance;
+		float aaLocked_closeMinAngle;
+		float aaLocked_closeMaxAngle;
+		float aaLocked_closeBlendMax;
+		float aaLocked_farMinAngle;
+		float aaLocked_farMaxAngle;
+		float aaLocked_farBlendMax;
+		float pilotAssistScale;
+		float callout_maxDistance;
+		float callout_maxAngle;
+	};
 
-	struct RumbleInfo;
+	enum RumbleGraphs
+	{
+		RUMBLEGRAPH_HIGH = 0x0,
+		RUMBLEGRAPH_LOW = 0x1,
+		RUMBLEGRAPH_COUNT = 0x2,
+	};
 
-	struct RumbleGraph;
+	struct RumbleInfo
+	{
+		const char* name;
+		int duration;
+		float range;
+		RumbleGraph* highRumbleGraph;
+		RumbleGraph* lowRumbleGraph;
+		bool fadeWithDistance;
+		bool broadcast;
+	};
+
+	struct RumbleGraph
+	{
+		const char* name;
+		vec2_t knots[16];
+		unsigned short knotCount;
+	};
 
 	struct WeaponAnimPackage;
 
@@ -5098,11 +5891,121 @@ namespace zonetool::iw7
 
 	struct XAnimArcheType;
 
-	struct XAnimProceduralBones;
+	enum XAnimUpVectorType
+	{
+		XANIM_UP_VECTOR_TYPE_WORLD_SPACE = 0x0,
+		XANIM_UP_VECTOR_TYPE_BONE_RELATIVE = 0x1,
+		XANIM_UP_VECTOR_TYPE_AIM_AT_BONE = 0x2,
+	};
 
-	struct ReticleDef;
+	struct XAnimAimConstraint
+	{
+		vec3_t aimTargetLocalOffset;
+		vec3_t localAimVector;
+		vec3_t localUpVector;
+		vec3_t axisMask;
+		vec3_t upVector;
+		XAnimUpVectorType upVectorType;
+	};
 
-	struct GfxLightmap;
+	struct XAnimRotationConstraint
+	{
+		vec4_t rotationOffsetQuat;
+		vec3_t axisMask;
+		float blendFraction;
+	};
+
+	struct XAnimPositionConstraint
+	{
+		float blendFraction;
+		vec3_t minLocalTranslationLimit;
+		vec3_t maxLocalTranslationLimit;
+		vec3_t offset;
+		vec3_t sourceBoneOffsets[2];
+		vec3_t axisMask;
+	};
+
+	struct XAnimDistanceDrivenOffsetConstraint
+	{
+		vec4_t minLocalOffset;
+		vec4_t maxLocalOffset;
+		vec3_t sourceBoneOffsets[2];
+		float distanceScale;
+		float distanceBias;
+		char curveType;
+	};
+
+	union XAnimConstraintUnion
+	{
+		XAnimPositionConstraint positionConstraint;
+		XAnimRotationConstraint rotationConstraint;
+		XAnimAimConstraint aimConstraint;
+		XAnimDistanceDrivenOffsetConstraint distanceDrivenOffsetConstraint;
+	};
+
+	struct XAnimConstraint
+	{
+		char type;
+		char localTargetBoneIndex;
+		scr_string_t sourceBoneNames[2];
+		XAnimConstraintUnion u;
+	}; assert_sizeof(XAnimConstraint, 88);
+
+	struct unk_1453E1E68
+	{
+		scr_string_t unk01;
+		char __pad0[92];
+		scr_string_t unk02;
+		char __pad1[4];
+		scr_string_t unk03;
+		char __pad2[20];
+	}; assert_sizeof(unk_1453E1E68, 0x80);
+
+	struct unk_1453E1E30
+	{
+		scr_string_t unk01;
+		char __pad0[8];
+	}; assert_sizeof(unk_1453E1E30, 12);
+
+	struct unk_1453E1EA8
+	{
+		char __pad0[32];
+	}; assert_sizeof(unk_1453E1EA8, 32);
+
+	struct XAnimProceduralBones
+	{
+		const char* name;
+		XAnimConstraint* constraints;
+		unsigned int numConstraints;
+		unsigned int numTargetBones;
+		scr_string_t* targetBoneNames;
+		unsigned int unk01_count;
+		unk_1453E1E68* unk01;
+		unsigned int unk02_count;
+		unk_1453E1E30* unk02;
+		int unk_04;
+		unsigned int unk03_count;
+		unk_1453E1EA8* unk03;
+	}; assert_sizeof(XAnimProceduralBones, 0x50);
+
+	struct ReticleDef
+	{
+		const char* name;
+		const char* widgetName;
+		bool lockReticleToTag;
+		bool primaryAffectedByEMP;
+		bool secondaryAffectedByEMP;
+		bool scaleWithFOV;
+		float naturalDistance;
+		float minReticleScale;
+		float maxReticleScale;
+	}; assert_sizeof(ReticleDef, 0x20);
+
+	struct GfxLightMap
+	{
+		const char* name;
+		GfxImage* textures[3];
+	};
 
 	union XAssetHeader
 	{
@@ -5138,7 +6041,7 @@ namespace zonetool::iw7
 		FxWorld* fxWorld;
 		//GfxWorld* gfxWorld;
 		//GfxWorldTransientZone* gfxWorldTransientZone;
-		//GfxIESProfile* iesProfile;
+		//void* iesProfile;
 		GfxLightDef* lightDef;
 		//void* uiMap;
 		AnimationClass* animClass;
@@ -5167,7 +6070,7 @@ namespace zonetool::iw7
 		//AddonMapEnts* addonMapEnts;
 		NetConstStrings* netConstStrings;
 		LuaFile* luaFile;
-		//ScriptableDef* scriptable;
+		ScriptableDef* scriptable;
 		EquipmentSoundTable* equipSndTable;
 		VectorField* vectorField;
 		FxParticleSimAnimation* particleSimAnimation;
@@ -5177,16 +6080,16 @@ namespace zonetool::iw7
 		//SuitDef* suitDef;
 		//SuitAnimPackage* suitAnimPackage;
 		//SpaceshipTargetDef* spaceshipTargetDef;
-		//RumbleInfo* rumble;
-		//RumbleGraph* rumbleGraph;
+		RumbleInfo* rumble;
+		RumbleGraph* rumbleGraph;
 		//WeaponAnimPackage* weaponAnimPackage;
 		//WeaponSFXPackage* weaponSFXPackage;
 		//WeaponVFXPackage* weaponVFXPackage;
 		//BehaviorTree* behaviorTree;
 		//XAnimArcheType* archeType;
-		//XAnimProceduralBones *proceduralBones;
-		//ReticleDef* reticleDef;
-		//GfxLightMap* lightMap;
+		XAnimProceduralBones *proceduralBones;
+		ReticleDef* reticleDef;
+		GfxLightMap* lightMap;
 	};
 
 	struct XAsset
