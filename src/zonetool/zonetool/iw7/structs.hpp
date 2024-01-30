@@ -2305,7 +2305,163 @@ namespace zonetool::iw7
 		unsigned int* elements;
 	}; assert_sizeof(SndBankTransient, 0x18);
 
-	struct clipMap_t;
+	struct cplane_s
+	{
+		float normal[3];
+		float dist;
+		unsigned char type;
+		unsigned char pad[3];
+	}; assert_sizeof(cplane_s, 20);
+
+	struct ClipInfo
+	{
+		int planeCount;
+		cplane_s* planes;
+	}; assert_sizeof(ClipInfo, 16);
+
+	struct cStaticModel_s
+	{
+		XModel* xmodel;
+		float origin[3];
+		float invScaledAxis[3][3];
+		float unk[2];
+	}; assert_sizeof(cStaticModel_s, 0x40);
+
+	struct unk_1453E2338
+	{
+		unsigned int num;
+		int* unk;
+	};
+
+	struct Stage
+	{
+		const char* name;
+		vec3_t origin;
+		unsigned __int16 triggerIndex;
+		char sunPrimaryLightIndex;
+		unsigned int entityUID;
+		char unk[20];
+	}; assert_sizeof(Stage, 48);
+
+	struct PhysicsCapacities
+	{
+		int maxNumRigidBodiesServer;
+		int maxNumDetailRigidBodiesServer;
+		int maxNumConstraintsServer;
+		int maxNumMotionsServer;
+		int maxNumRigidBodiesClient;
+		int maxNumDetailRigidBodiesClient;
+		int maxNumConstraintsClient;
+		int maxNumMotionsClient;
+	};
+
+	struct CollisionHeatmapEntry
+	{
+		int vertexCount;
+		float vertexDensity;
+		vec3_t minExtent;
+		vec3_t maxExtent;
+	};
+
+	struct TopDownMapDataHeader
+	{
+		int version;
+		int samplesPerAxis;
+		vec2_t bottomLeft;
+		vec2_t topRight;
+	};
+
+	struct TopDownMapDataContent
+	{
+		char navMeshVisible[8193];
+	};
+
+	struct TopDownMapData
+	{
+		TopDownMapDataHeader header;
+		TopDownMapDataContent content;
+	}; assert_sizeof(TopDownMapData, 8220);
+
+	struct TriggerModel
+	{
+		int contents;
+		unsigned short hullCount;
+		unsigned short firstHull;
+		unsigned short windingCount;
+		unsigned short firstWinding;
+		unsigned int flags;
+		PhysicsAsset* physicsAsset;
+		unsigned short physicsShapeOverrideIdx;
+	};
+
+	struct TriggerHull
+	{
+		Bounds bounds;
+		int contents;
+		unsigned short slabCount;
+		unsigned short firstSlab;
+	};
+
+	struct TriggerSlab
+	{
+		vec3_t dir;
+		float midPoint;
+		float halfSize;
+	};
+
+	struct TriggerWinding
+	{
+		vec3_t dir;
+		unsigned short pointCount;
+		unsigned short firstPoint;
+		unsigned int flags;
+	};
+
+	struct TriggerWindingPoint
+	{
+		vec3_t loc;
+	};
+
+	struct MapTriggers
+	{
+		unsigned int count;
+		TriggerModel* models;
+		unsigned int hullCount;
+		TriggerHull* hulls;
+		unsigned int slabCount;
+		TriggerSlab* slabs;
+		unsigned int windingCount;
+		TriggerWinding* windings;
+		unsigned int windingPointCount;
+		TriggerWindingPoint* windingPoints;
+	}; assert_sizeof(MapTriggers, 0x50);
+
+	struct clipMap_t // __declspec(align(128))
+	{
+		const char* name;
+		int isInUse;
+		ClipInfo info;
+		ClipInfo* pInfo;
+		unsigned int numStaticModels;
+		cStaticModel_s* staticModelList;
+		unk_1453E2338 unk01;
+		unsigned int numUnk02;
+		unk_1453E2338* unk02;
+		MapEnts* mapEnts;
+		Stage* stages;
+		unsigned char stageCount;
+		MapTriggers stageTrigger;
+		vec3_t broadphaseMin;
+		vec3_t broadphaseMax;
+		PhysicsCapacities physicsCapacities;
+		unsigned int havokWorldShapeDataSize;
+		char* havokWorldShapeData;
+		unsigned int numCollisionHeatmapEntries;
+		CollisionHeatmapEntry* collisionHeatmap;
+		TopDownMapData* topDownMapData;
+		unsigned int checksum;
+		char padding[88]; // alignment pad
+	}; assert_sizeof(clipMap_t, 0x180);
 
 	enum GfxLightType : std::uint8_t
 	{
@@ -2470,6 +2626,43 @@ namespace zonetool::iw7
 		char ubBadPlaceCount[3];
 	};
 
+	enum nodeType : std::uint16_t
+	{
+		NODE_ERROR = 0x0,
+		NODE_PATHNODE = 0x1,
+		NODE_COVER_STAND = 0x2,
+		NODE_COVER_CROUCH = 0x3,
+		NODE_COVER_CROUCH_WINDOW = 0x4,
+		NODE_COVER_PRONE = 0x5,
+		NODE_COVER_RIGHT = 0x6,
+		NODE_COVER_LEFT = 0x7,
+		NODE_AMBUSH = 0x8,
+		NODE_EXPOSED = 0x9,
+		NODE_CONCEALMENT_STAND = 0xA,
+		NODE_CONCEALMENT_CROUCH = 0xB,
+		NODE_CONCEALMENT_PRONE = 0xC,
+		NODE_DOOR = 0xD,
+		NODE_DOOR_INTERIOR = 0xE,
+		NODE_SCRIPTED = 0xF,
+		NODE_NEGOTIATION_BEGIN = 0x10,
+		NODE_NEGOTIATION_END = 0x11,
+		NODE_TURRET = 0x12,
+		NODE_GUARD = 0x13,
+		NODE_PATHNODE_3D = 0x14,
+		NODE_COVER_3D = 0x15,
+		NODE_COVER_STAND_3D = 0x16,
+		UNUSED_0 = 0x17,
+		UNUSED_1 = 0x18,
+		NODE_EXPOSED_3D = 0x19,
+		NODE_SCRIPTED_3D = 0x1A,
+		NODE_NEGOTIATION_BEGIN_3D = 0x1B,
+		NODE_NEGOTIATION_END_3D = 0x1C,
+		NODE_JUMP = 0x1D,
+		NODE_JUMP_ATTACK = 0x1E,
+		NODE_COVER_MULTI = 0x1F,
+		NODE_NUMTYPES = 0x20,
+	};
+
 	struct pathnode_constant_t
 	{
 		unsigned short type;
@@ -2590,61 +2783,138 @@ namespace zonetool::iw7
 		char* pathDynStates;
 	}; assert_sizeof(PathData, 0x90);
 
-	struct NavMeshData;
+	struct nav_resource_s;
 
-	struct TriggerModel
+	struct nav_resource_s
 	{
-		int contents;
-		unsigned short hullCount;
-		unsigned short firstHull;
-		unsigned short windingCount;
-		unsigned short firstWinding;
-		unsigned int flags;
-		PhysicsAsset* physicsAsset;
-		unsigned short physicsShapeOverrideIdx;
+		scr_string_t targetName;
+		int modelIdx;
+		int targetEntNum;
+		void* pSpace;
+		int graphSize;
+		vec3_t localOffsetPos;
+		vec4_t localOffsetRot;
+		int offsetLayer;
+		nav_resource_s* pPrev;
+		nav_resource_s* pNext;
+		//int buildError;
+		unsigned int layerFlags;
+		bool bDockable;
+		bool bIsVolume;
+		char* pGraphBuffer;
+		char* pWorkingGraph;
+	}; assert_sizeof(nav_resource_s, 104);
+	assert_offsetof(nav_resource_s, pGraphBuffer, 88);
+
+	struct nav_boundary_plane_s
+	{
+		vec3_t m_Normal;
+		float m_DistFromCenter;
 	};
 
-	struct TriggerHull
+	struct nav_obstacle_hull_s
 	{
-		Bounds bounds;
-		int contents;
-		unsigned short slabCount;
-		unsigned short firstSlab;
+		nav_boundary_plane_s* m_Boundaries;
+		int m_NumBoundaries;
+		float m_BoundsX;
+		float m_BoundsY;
+		float m_BoundsZ;
+		vec3_t m_Offset;
+		bool m_bUseBounds;
 	};
 
-	struct TriggerSlab
+	struct nav_obstacle_bounds_s
 	{
-		vec3_t dir;
-		float midPoint;
-		float halfSize;
+		nav_obstacle_hull_s* m_Hulls;
+		int m_NumHulls;
 	};
 
-	struct TriggerWinding
+	struct nav_glass_bounds_s
 	{
-		vec3_t dir;
-		unsigned short pointCount;
-		unsigned short firstPoint;
-		unsigned int flags;
+		nav_boundary_plane_s* m_Boundaries;
+		int m_NumBoundaries;
+		vec3_t m_Pos;
+		unsigned int m_GlassPieceIndex;
 	};
 
-	struct TriggerWindingPoint
+	struct nav_modifier_s
 	{
-		vec3_t loc;
+		nav_boundary_plane_s* m_Boundaries;
+		int m_NumBoundaries;
+		vec3_t m_Pos;
+		scr_string_t m_TargetName;
+		//scr_string_t m_Target;
+		//scr_string_t m_ScriptNoteworthy;
+		//scr_string_t m_ScriptLinkName;
+		unsigned int m_UserFlags;
+		unsigned int m_LayerFlags;
+		float m_Weight;
+		bool m_bActiveOnLoad;
+	}; assert_sizeof(nav_modifier_s, 48);
+	assert_offsetof(nav_modifier_s, m_TargetName, 24);
+
+	struct nav_link_point_s
+	{
+		vec3_t m_Pt1;
+		vec3_t m_Pt2;
 	};
 
-	struct MapTriggers
+	struct nav_link_creation_data_s
 	{
-		unsigned int count;
-		TriggerModel* models;
-		unsigned int hullCount;
-		TriggerHull* hulls;
-		unsigned int slabCount;
-		TriggerSlab* slabs;
-		unsigned int windingCount;
-		TriggerWinding* windings;
-		unsigned int windingPointCount;
-		TriggerWindingPoint* windingPoints;
-	}; assert_sizeof(MapTriggers, 0x50);
+		nav_link_point_s m_Start;
+		nav_link_point_s m_End;
+		scr_string_t m_Animscript;
+		scr_string_t m_Target;
+		scr_string_t m_Parent;
+		unsigned int m_UsageFlags;
+		float m_PenaltyMult;
+		bool m_bBidirectional;
+	}; assert_sizeof(nav_link_creation_data_s, 72);
+	assert_offsetof(nav_link_creation_data_s, m_Animscript, 48);
+
+	struct nav_raw_volume_s
+	{
+		vec3_t m_MidPoint;
+		vec3_t m_HalfSize;
+		float m_MinVoxelSize;
+		float m_ClearanceXY;
+		float m_ClearanceZ;
+	}; assert_sizeof(nav_raw_volume_s, 36);
+
+	struct nav_raw_custom_volume_tri_s
+	{
+		vec3_t m_Verts[3];
+	}; assert_sizeof(nav_raw_custom_volume_tri_s, 36);
+
+	struct nav_raw_custom_volume_s
+	{
+		nav_raw_custom_volume_tri_s* m_Tris;
+		int m_NumTris;
+	}; assert_sizeof(nav_raw_custom_volume_s, 16);
+
+	struct NavMeshData
+	{
+		const char* name;
+		int version;
+		int hasExposureData;
+		int numNavResources;
+		nav_resource_s* navResources;
+		int numObstacleBounds;
+		nav_obstacle_bounds_s* obstacleBounds;
+		int numGlassBounds;
+		nav_glass_bounds_s* glassBounds;
+		int numModifiers;
+		nav_modifier_s* modifiers;
+		int numLinkCreationData;
+		nav_link_creation_data_s* linkCreationData;
+		int numVolumeSeeds;
+		vec3_t* volumeSeeds;
+		int numRawVolumes;
+		nav_raw_volume_s* rawVolumes;
+		int numRawCustomVolumes;
+		nav_raw_custom_volume_s* rawCustomVolumes;
+	}; assert_sizeof(NavMeshData, 0x90);
+	assert_offsetof(NavMeshData, rawCustomVolumes, 136);
 
 	struct CTAudRvbPanInfo
 	{
@@ -2742,6 +3012,254 @@ namespace zonetool::iw7
 		SplinePointRecordList* splines;
 	};
 
+	struct cmodel_t
+	{
+		Bounds bounds;
+		float radius;
+		ClipInfo* info;
+		PhysicsAsset* physicsAsset;
+		//unsigned __int16 physicsShapeOverrideIdx;
+		//unsigned __int16 navObstacleIdx;
+		unsigned int edgeFirstIndex;
+		unsigned int edgeTotalCount;
+	}; assert_sizeof(cmodel_t, 56);
+
+	enum DynEntityType : std::int32_t
+	{
+		DYNENT_TYPE_INVALID = 0x0,
+	};
+
+	struct GfxPlacement
+	{
+		float quat[4];
+		float origin[3];
+	};
+
+	struct DynEntityLinkToDef
+	{
+		int anchorIndex;
+		float originOffset[3];
+		float angleOffset[3];
+	};
+
+	struct DynEntityDef
+	{
+		DynEntityType type;
+		char __pad0[28];
+		GfxPlacement pose;
+		char __pad1[4];
+		XModel* baseModel;
+		char __pad2[16];
+		DynEntityLinkToDef* linkTo;
+		char __pad3[16];
+	}; assert_sizeof(DynEntityDef, 112);
+	assert_offsetof(DynEntityDef, baseModel, 64);
+	assert_offsetof(DynEntityDef, linkTo, 88);
+
+	struct unk_1453E3260
+	{
+		char __pad0[28];
+	}; assert_sizeof(unk_1453E3260, 28);
+
+	struct unk_1453E4268
+	{
+		char __pad0[44];
+		unsigned int unk01Count;
+		unk_1453E3260* unk01;
+		char* unk02;
+		char __pad1[8];
+	}; assert_sizeof(unk_1453E4268, 72);
+	assert_offsetof(unk_1453E4268, unk02, 56);
+
+	struct unk_1453E4278
+	{
+		char __pad0[56];
+	}; assert_sizeof(unk_1453E4278, 56);
+
+	struct unk_1453E4238
+	{
+		char __pad0[8];
+	}; assert_sizeof(unk_1453E4238, 8);
+
+	struct unk_1453E4280
+	{
+		char __pad0[8];
+	}; assert_sizeof(unk_1453E4280, 8);
+
+	struct unk_1453E4298
+	{
+		char __pad0[32];
+		unsigned int unk01Count;
+		unk_1453E4280* unk01;
+	}; assert_sizeof(unk_1453E4298, 48);
+
+	struct unk_1453E42A8
+	{
+		char __pad0[8];
+	}; assert_sizeof(unk_1453E42A8, 8);
+
+	struct unk_1453E1130
+	{
+		char unk;
+	}; assert_sizeof(unk_1453E1130, 1);
+
+	struct unk_1453E20F0
+	{
+		int unk1;
+		scr_string_t unk2;
+	}; assert_sizeof(unk_1453E20F0, 8);
+
+	struct ScriptablePhysicsLimits
+	{
+		unsigned int clientStandaloneMainRigidBodyCount;
+		unsigned int clientStandaloneDetailedRigidBodyCount;
+		unsigned int clientStandaloneMotionCount;
+		unsigned int serverStandaloneMainRigidBodyCount;
+		unsigned int serverStandaloneDetailedRigidBodyCount;
+		unsigned int serverStandaloneMotionCount;
+	};
+
+	struct unk_1453E24B0
+	{
+		XModel* model;
+		unsigned int count;
+		char __pad0[4];
+	}; assert_sizeof(unk_1453E24B0, 16);
+
+	struct unk_1453E2510
+	{
+		ScriptableDef* def;
+		char __pad0[64];
+		unk_1453E24B0 unk01;
+		char* unk02;
+		char __pad1[16];
+	}; assert_sizeof(unk_1453E2510, 112);
+
+	struct unk_1453E2520
+	{
+		unk_1453E2510 unk01;
+		char __pad0[16];
+	}; assert_sizeof(unk_1453E2520, 128);
+
+	struct unk_1453E2530
+	{
+		unk_1453E2510 unk01;
+		char __pad0[40];
+	}; assert_sizeof(unk_1453E2530, 152);
+
+	struct ScriptableInstance
+	{
+		unk_1453E2520 unk01;
+		unk_1453E2530 unk02[2];
+		scr_string_t unk03;
+		char __pad0[8];
+		scr_string_t unk04;
+		char __pad1[8];
+		scr_string_t unk05;
+	}; assert_sizeof(ScriptableInstance, 464);
+	assert_offsetof(ScriptableInstance, unk03, 432);
+	assert_offsetof(ScriptableInstance, unk05, 456);
+
+	struct ScriptableReservedDynent
+	{
+		unsigned int dynentId;
+		__int16 next;
+	};
+
+	struct ScriptableReservedDynents
+	{
+		__int16 freeHead;
+		unsigned int numReservedDynents;
+		ScriptableReservedDynent* reservedDynents;
+	};
+
+	struct unk_1453E2558
+	{
+		int id;
+	};
+
+	struct unk_1453E2560
+	{
+		int unk01Count;
+		unk_1453E2558* unk01;
+		int unk02Count;
+		unk_1453E2558* unk02_1;
+		unk_1453E2558* unk02_2;
+	};
+
+	struct Scriptable_EventSun_Data
+	{
+		int startTime;
+		int transTime;
+		vec3_t startColorLinearSrgb;
+		float startIntensity;
+		float targetIntensity;
+		vec3_t startAngles;
+		vec3_t targetAngles;
+	};
+
+	struct ScriptableMapEnts
+	{
+		unsigned int instanceCount;
+		unsigned int unkCount1;
+		unsigned int unkCount2;
+		unsigned int unkCount3;
+		ScriptableInstance* instances;
+		unk_1453E2560 unk;
+		Scriptable_EventSun_Data sunClientDatas[2];
+		ScriptableReservedDynents reservedDynents[2];
+		unsigned int ffMemCost;
+	}; assert_sizeof(ScriptableMapEnts, 0xD0);
+	assert_offsetof(ScriptableMapEnts, unk, 24);
+	assert_offsetof(ScriptableMapEnts, reservedDynents, 168);
+
+	struct MayhemInstance
+	{
+		GfxPlacement initialPose;
+		MayhemData* mayhem;
+		ClientEntityLinkToDef* linkTo;
+		scr_string_t scriptName;
+		float curTime;
+		float oldTime;
+		unsigned int initialFlags;
+		unsigned int flags;
+		unsigned int mapEntLookup;
+		//unsigned __int16 transientIndexStored;
+	}; assert_sizeof(MayhemInstance, 72);
+
+	struct SpawnerField
+	{
+		scr_string_t key;
+		unsigned int keyCanonical;
+		scr_string_t value;
+		char type;
+	}; assert_sizeof(SpawnerField, 16);
+
+	struct Spawner
+	{
+		vec3_t origin;
+		vec3_t angles;
+		SpawnerField* fields;
+		int flags;
+		int count;
+		unsigned int numFields;
+		scr_string_t targetname;
+		scr_string_t classname;
+	}; assert_sizeof(Spawner, 56);
+
+	struct SpawnerList
+	{
+		unsigned int spawnerCount;
+		Spawner* spanwerList;
+	};
+
+	struct AudioPASpeaker
+	{
+		vec3_t origin;
+		unsigned int nameHash;
+		unsigned int entChannelHash;
+	};
+
 	struct MapEnts
 	{
 		const char* name;
@@ -2754,11 +3272,38 @@ namespace zonetool::iw7
 		SplineRecordList splineList;
 		unsigned int havokEntsShapeDataSize;
 		char* havokEntsShapeData;
-		//unsigned int numSubModels;
-		//cmodel_t* cmodels;
-		char __pad0[480]; // todo
+		unsigned int numSubModels;
+		cmodel_t* cmodels;
+		unsigned short dynEntCount[2];
+		unsigned short dynEntCountTotal;
+		DynEntityDef* dynEntDefList[2];
+		unk_1453E4268* dynEntUnk01List[4];
+		unk_1453E4278* dynEntUnk02List[4];
+		char __pad0[16];
+		unk_1453E4238* unk1[2];
+		char __pad1[8];
+		unsigned int unk2Count;
+		unk_1453E4298* unk2;
+		unk_1453E42A8* unk2_1[2];
+		unk_1453E1130* unk2_2[2];
+		unsigned int unk3Count;
+		unsigned int* unk3;
+		unsigned int unk4Count; // dynEntAnchorCount
+		unk_1453E20F0* unk4; // DynEntityAnchor
+		ScriptableMapEnts scriptableMapEnts;
+		unsigned int numMayhemScenes;
+		MayhemInstance* mayhemScenes;
+		SpawnerList spawners;
+		unsigned int audioPASpeakerCount;
+		AudioPASpeaker* audioPASpeakers;
 	}; assert_sizeof(MapEnts, 0x340);
 	assert_offsetof(MapEnts, havokEntsShapeDataSize, 336);
+	assert_offsetof(MapEnts, cmodels, 360);
+	assert_offsetof(MapEnts, dynEntDefList, 376);
+	assert_offsetof(MapEnts, unk1, 472);
+	assert_offsetof(MapEnts, unk2, 504);
+	assert_offsetof(MapEnts, scriptableMapEnts, 576);
+	assert_offsetof(MapEnts, audioPASpeakers, 824);
 
 	struct FxGlassDef
 	{
@@ -2907,9 +3452,350 @@ namespace zonetool::iw7
 		FxGlassSystem glassSys;
 	};
 
-	struct GfxWorld;
+	struct GfxPortal;
 
-	struct GfxWorldTransientZone;
+	struct GfxSky
+	{
+		int skySurfCount;
+		int* skyStartSurfs;
+		GfxImage* skyImage;
+		unsigned __int8 skySamplerState;
+	}; assert_sizeof(GfxSky, 32);
+
+	struct GfxWorldDpvsPlanes
+	{
+		int cellCount;
+		cplane_s* planes;
+		unsigned short* nodes;
+		unsigned int* sceneEntCellBits;
+	}; assert_sizeof(GfxWorldDpvsPlanes, 32);
+
+	struct GfxPortalWritable
+	{
+		bool isQueued;
+		bool isAncestor;
+		char recursionDepth;
+		char hullPointCount;
+		vec2_t* hullPoints;
+		GfxPortal* queuedParent;
+	};
+
+	struct DpvsPlane
+	{
+		vec4_t coeffs;
+	};
+
+	struct GfxPortal
+	{
+		GfxPortalWritable writable;
+		DpvsPlane plane;
+		vec3_t* vertices;
+		unsigned __int16 cellIndex;
+		unsigned __int16 closeDistance;
+		char vertexCount;
+		vec3_t hullAxis[2];
+	};
+
+	struct GfxCell
+	{
+		Bounds bounds;
+		unsigned __int16 portalCount;
+		GfxPortal* portals;
+	};
+
+	struct GfxCellTransientInfo
+	{
+		unsigned __int16 aabbTreeIndex;
+		unsigned __int16 transientZone;
+	};
+
+	struct GfxReflectionProbe
+	{
+		char* livePath;
+		vec3_t origin;
+		vec3_t angles;
+		unsigned __int16* probeInstances;
+		unsigned __int16 probeInstanceCount;
+		unsigned __int16 probeRelightingIndex;
+		unsigned int probeImageIndirection;
+	};
+
+	struct GfxReflectionProbeRelightingData
+	{
+		unsigned int reflectionProbeIndex;
+		unsigned __int16 relightingFlags;
+		unsigned __int16 zoneCount;
+		unsigned int gBufferAlbedoImageIndex;
+		unsigned int gBufferNormalImageIndex;
+		unsigned int gBufferSecondaryDiffuseImageIndex;
+		float relightingScale;
+		unsigned __int16* zones;
+	};
+
+	struct GfxReflectionProbeObb
+	{
+		vec3_t center;
+		vec3_t xAxis;
+		vec3_t yAxis;
+		vec3_t zAxis;
+		vec3_t halfSize;
+	};
+
+	struct GfxReflectionProbeInstance
+	{
+		char* livePath;
+		char* livePath2;
+		vec3_t probePosition;
+		unsigned __int16 probeImageIndex;
+		char lodLevel;
+		char flags;
+		vec4_t probeRotation;
+		GfxReflectionProbeObb volumeObb;
+		float priority;
+		vec3_t feather;
+		vec3_t expandProjectionNeg;
+		vec3_t expandProjectionPos;
+	}; assert_sizeof(GfxReflectionProbeInstance, 152);
+
+	struct GfxRawTexture : GfxTexture
+	{
+	}; assert_sizeof(GfxRawTexture, 24);
+
+	struct GfxReflectionProbeSampleData
+	{
+		float unk[8];
+	}; assert_sizeof(GfxReflectionProbeSampleData, 32);
+
+	struct GfxWorldReflectionProbeData
+	{
+		unsigned int reflectionProbeCount;
+		unsigned int sharedReflectionProbeCount;
+		GfxReflectionProbe* reflectionProbes;
+		GfxImage* reflectionProbeArrayImage;
+		unsigned int probeRelightingCount;
+		GfxReflectionProbeRelightingData* probeRelightingData;
+		unsigned int reflectionProbeGBufferImageCount;
+		GfxImage** reflectionProbeGBufferImages;
+		GfxRawTexture* reflectionProbeGBufferTextures;
+		unsigned int reflectionProbeInstanceCount;
+		GfxReflectionProbeInstance* reflectionProbeInstances;
+		GfxReflectionProbeSampleData* reflectionProbeLightgridSampleData;
+		void* reflectionProbeLightgridSampleDataBuffer;
+		void* reflectionProbeLightgridSampleDataBufferView;
+		void* reflectionProbeLightgridSampleDataBufferRWView;
+	}; assert_sizeof(GfxWorldReflectionProbeData, 112);
+
+	struct GfxWorldLightmapReindexDataElement
+	{
+		unsigned int index;
+		unsigned int posX;
+		unsigned int posY;
+		unsigned int width;
+		unsigned int height;
+	}; assert_sizeof(GfxWorldLightmapReindexDataElement, 20);
+
+	struct GfxWorldPackedLightmap
+	{
+		unsigned int imageWidth;
+		unsigned int imageHeight;
+	};
+
+	struct GfxWorldLightmapReindexData
+	{
+		unsigned int imagePixelSize;
+		unsigned int reindexCount;
+		GfxWorldLightmapReindexDataElement* reindexElement;
+		unsigned int packedLightmapCount;
+		GfxWorldPackedLightmap* packedLightmap;
+	}; assert_sizeof(GfxWorldLightmapReindexData, 32);
+
+	struct unk_1453E41D8
+	{
+		char __pad0[388];
+	}; assert_sizeof(unk_1453E41D8, 388);
+
+	struct unk_1453E4A70
+	{
+		char __pad0[24];
+	}; assert_sizeof(unk_1453E4A70, 24);
+
+	struct GfxOrientedBoundingBox
+	{
+		vec3_t center;
+		vec3_t xAxis;
+		vec3_t yAxis;
+		vec3_t zAxis;
+		vec3_t halfSize;
+	};
+
+	enum VolumetricMaskType
+	{
+		VOLUMETRIC_MASK_UNUSED = 0x0,
+		VOLUMETRIC_MASK_HEIGHTMAP = 0x1,
+		VOLUMETRIC_MASK_OPACITYMAP = 0x2,
+		VOLUMETRIC_MASK_TYPE_COUNT = 0x3,
+	};
+
+	enum VolumetricAxis
+	{
+		VOLUMETRIC_X_AXIS = 0x0,
+		VOLUMETRIC_Y_AXIS = 0x1,
+		VOLUMETRIC_Z_AXIS = 0x2,
+		VOLUMETRIC_AXIS_COUNT = 0x3,
+		VOLUMETRIC_NEGATVE_AXIS_FLAG = 0x4,
+	};
+
+	struct GfxVolumetricMask
+	{
+		VolumetricMaskType type;
+		VolumetricAxis axis;
+		GfxImage* image;
+		vec2_t scale;
+		vec2_t offset;
+		vec2_t scroll;
+	}; assert_sizeof(GfxVolumetricMask, 40);
+
+	struct GfxVolumetric
+	{
+		char* livePath;
+		unsigned int flags;
+		GfxOrientedBoundingBox obb;
+		float unk;
+		GfxVolumetricMask masks[4];
+	}; assert_sizeof(GfxVolumetric, 240);
+	assert_offsetof(GfxVolumetric, masks, 80);
+
+	struct GfxWorldVolumetrics
+	{
+		unsigned int volumetricCount;
+		GfxVolumetric* volumetrics;
+	};
+
+	struct GfxWorldDraw
+	{
+		GfxWorldReflectionProbeData reflectionProbeData;
+		GfxWorldLightmapReindexData lightmapReindexData;
+		GfxImage* iesLookupTexture;
+		unsigned int unk01Count;
+		unk_1453E41D8* unk01;
+		GfxImage* lightmapOverridePrimary;
+		GfxImage* lightmapOverrideSecondary;
+		unsigned int lightMapCount;
+		GfxLightMap** lightMaps;
+		unk_1453E4A70* unk02;
+		char __pad0[24];
+		unsigned int transientZoneCount;
+		GfxWorldTransientZone* transientZones[32];
+		unsigned int indexCount;
+		unsigned short* indices;
+		void* indexBuffer;
+		GfxWorldVolumetrics volumetrics;
+	}; assert_sizeof(GfxWorldDraw, 536);
+	assert_offsetof(GfxWorldDraw, iesLookupTexture, 144);
+	assert_offsetof(GfxWorldDraw, unk01Count, 152);
+	assert_offsetof(GfxWorldDraw, unk01, 160);
+	assert_offsetof(GfxWorldDraw, transientZones, 240);
+	assert_offsetof(GfxWorldDraw, indices, 504);
+	assert_offsetof(GfxWorldDraw, indexBuffer, 512);
+	assert_offsetof(GfxWorldDraw, volumetrics, 520);
+
+	struct GfxWorld
+	{
+		const char* name;
+		const char* baseName;
+		unsigned int bspVersion;
+		int planeCount;
+		int nodeCount;
+		unsigned int surfaceCount;
+		int skyCount;
+		GfxSky* skies; // 40
+		unsigned int lastSunPrimaryLightIndex;
+		unsigned int primaryLightCount;
+		unsigned int unused;
+		unsigned int sortKeyLitDecal;
+		unsigned int sortKeyEffectDecal;
+		unsigned int sortKeyTopDecal;
+		unsigned int sortKeyEffectAuto;
+		unsigned int sortKeyDistortion;
+		unsigned int sortKeyEffectDistortion;
+		unsigned int sortKey2D;
+		unsigned int sortKeyOpaqueBegin;
+		unsigned int sortKeyOpaqueEnd;
+		unsigned int sortKeyDecalBegin;
+		unsigned int sortKeyDecalEnd;
+		unsigned int sortKeyTransBegin;
+		unsigned int sortKeyTransEnd;
+		unsigned int sortKeyEmissiveBegin;
+		unsigned int sortKeyEmissiveEnd;
+		GfxWorldDpvsPlanes dpvsPlanes; // 120
+		GfxCellTransientInfo* cellTransientInfos;
+		GfxCell* cells;
+		GfxWorldDraw draw;
+		char __pad0[3816]; // todo
+	}; assert_sizeof(GfxWorld, 0x11A8);
+	assert_offsetof(GfxWorld, dpvsPlanes, 120);
+
+	struct GfxWorldVertex
+	{
+		float xyz[3];
+		float binormalSign;
+		GfxColor color;
+		float texCoord[2];
+		float lmapCoord[2];
+		PackedUnitVec normal;
+		PackedUnitVec tangent;
+	}; assert_sizeof(GfxWorldVertex, 44);
+
+	union GfxWorldVertex0Union
+	{
+		GfxWorldVertex* vertices;
+	};
+
+	struct GfxWorldVertexData
+	{
+		GfxWorldVertex* vertices;
+		ID3D11Buffer* worldVb;
+	}; assert_sizeof(GfxWorldVertexData, 16);
+
+	struct GfxWorldVertexLayerData
+	{
+		unsigned char* data;
+		ID3D11Buffer* layerVb;
+	}; assert_sizeof(GfxWorldVertexLayerData, 16);
+
+	struct GfxCellTreeCount
+	{
+		int aabbTreeCount;
+	};
+
+	struct GfxAabbTree
+	{
+		Bounds bounds;
+		unsigned __int16 childCount;
+		unsigned __int16 surfaceCount;
+		unsigned int startSurfIndex;
+		unsigned __int16 smodelIndexCount;
+		unsigned __int16* smodelIndexes;
+		int childrenOffset;
+	}; assert_sizeof(GfxAabbTree, 56);
+
+	struct GfxCellTree
+	{
+		GfxAabbTree* aabbTree;
+	};
+
+	struct GfxWorldTransientZone
+	{
+		const char* name;
+		unsigned int transientZoneIndex;
+		unsigned int vertexCount;
+		GfxWorldVertexData vd;
+		unsigned int vertexLayerDataSize;
+		GfxWorldVertexLayerData vld;
+		unsigned int cellCount;
+		GfxCellTreeCount* aabbTreeCounts;
+		GfxCellTree* aabbTrees;
+	}; assert_sizeof(GfxWorldTransientZone, 0x50);
 
 	struct GfxLightDef
 	{
@@ -3168,7 +4054,117 @@ namespace zonetool::iw7
 		XAnimParts** xAnims;
 	}; assert_sizeof(PlayerAnimScript, 0xB0);
 
-	struct Gesture;
+	enum GestureType
+	{
+		GESTURE_TYPE_NON_DIRECTIONAL = 0x0,
+		GESTURE_TYPE_DIRECTIONAL = 0x1,
+		GESTURE_TYPE_LOOK_AROUND = 0x2,
+		GESTURE_TYPE_IK_TARGET = 0x3,
+		GESTURE_TYPE_NUM = 0x4,
+	};
+
+	enum GesturePriority
+	{
+		GESTURE_PRIORITY_OFFHAND_SHIELD = 0x0,
+		GESTURE_PRIORITY_OFFHAND_THROWN_WEAPON = 0x1,
+		GESTURE_PRIORITY_OFFHAND_SCRIPT_WEAPON = 0x2,
+		GESTURE_PRIORITY_SPACE_JUMP = 0x3,
+		GESTURE_PRIORITY_SCRIPT = 0x4,
+		GESTURE_PRIORITY_SLIDE = 0x5,
+		GESTURE_PRIORITY_MANTLE = 0x6,
+		GESTURE_PRIORITY_GROUND_POUND = 0x7,
+		GESTURE_PRIORITY_WALL_RUN = 0x8,
+		GESTURE_PRIORITY_DEMEANOR = 0x9,
+		GESTURE_PRIORITY_COUNT = 0xC,
+	};
+
+	struct GestureWeaponSettings
+	{
+		unsigned __int16 blendToStates;
+		bool hideReticle;
+		float fireDelay;
+		float sprintDelay;
+		bool useLeftIdleAkimbo;
+		bool splitAnimsAkimbo;
+		bool blendToDemeanorLoop;
+		bool blendOutRaise;
+	};
+
+	struct GestureDirectionalSettings
+	{
+		float maxAngle;
+		float lerpAtMaxAngle;
+		float widthCushionAngle;
+		float lerpAtMinCushionAngle;
+		float lerpAtMaxCushionAngle;
+		float limitLeft;
+		float limitRight;
+		float limitUp;
+		float limitDown;
+	};
+
+	struct FootstepTime
+	{
+		float time;
+		bool isLeft;
+	};
+
+	struct MovementTime
+	{
+		float time;
+		bool isLeadIn;
+	};
+
+	struct FootstepAnim
+	{
+		int leftCount;
+		FootstepTime step[4];
+		MovementTime movement[4];
+	};
+
+	struct GestureLookAroundSettings
+	{
+		float yawLerpIn;
+		float yawLerpOut;
+		unsigned __int16 walkTime;
+		FootstepAnim walkFootStepAnim;
+	};
+
+	enum GestureDirectionalAssetIndex
+	{
+		GESTURE_ASSET_LEFT_CENTER = 0,
+		GESTURE_ASSET_LEFT_DOWN = 1,
+		GESTURE_ASSET_LEFT_LEFT = 2,
+		GESTURE_ASSET_LEFT_RIGHT = 3,
+		GESTURE_ASSET_LEFT_UP = 4,
+		GESTURE_ASSET_RIGHT_CENTER = 5,
+		GESTURE_ASSET_RIGHT_DOWN = 6,
+		GESTURE_ASSET_RIGHT_LEFT = 7,
+		GESTURE_ASSET_RIGHT_RIGHT = 8,
+		GESTURE_ASSET_RIGHT_UP = 9,
+		GESTURE_ASSET_IN = 10,
+		GESTURE_ASSET_OUT = 11,
+		GESTURE_ASSET_IN_ADDITIVE = 12,
+		GESTURE_ASSET_OUT_ADDITIVE = 13,
+		GESTURE_ASSET_PITCH = 14,
+		GESTURE_ASSET_YAW = 15,
+		GESTURE_ASSET_WEAPON_CHECK = 16,
+		GESTURE_ASSET_WALK_ADDITIVE = 17,
+		GESTURE_ASSET_NUM = 18,
+	};
+
+	struct Gesture
+	{
+		const char* name;
+		GestureType type;
+		GesturePriority priority;
+		bool looping;
+		XAnimParts** anims; // array: 18
+		GestureWeaponSettings weaponSettings;
+		GestureDirectionalSettings directionalSettings;
+		GestureLookAroundSettings lookAroundSettings;
+	}; assert_sizeof(Gesture, 0xA8);
+	assert_offsetof(Gesture, anims, 24);
 
 	struct LocalizeEntry
 	{
@@ -3684,7 +4680,7 @@ namespace zonetool::iw7
 		PARTICLE_RELATIVE_VELOCITY_TYPE_RELATIVE_TO_EFFECT_ORIGIN_WITH_BOLT_INFO = 0x5,
 	};
 
-	struct __declspec(align(4)) ParticleModuleInitRelativeVelocity : ParticleModule
+	struct ParticleModuleInitRelativeVelocity : ParticleModule
 	{
 		ParticleRelativeVelocityType m_velocityType;
 		bool m_useBoltInfo;
@@ -5774,7 +6770,70 @@ namespace zonetool::iw7
 		vec4_t* colorTable;
 	};
 
-	struct StreamingInfo;
+	struct AlwaysloadedFlags
+	{
+		unsigned int imageCount;
+		GfxImage** images;
+		unsigned int* imageFlags;
+		unsigned int stringCount;
+		const char** strings;
+		unsigned int* stringFlags;
+		unsigned int materialCount;
+		Material** materials;
+		unsigned int* materialFlags;
+	}; assert_sizeof(AlwaysloadedFlags, 72);
+
+	struct AlwaysloadedFlagsPerModel
+	{
+		XModel* model;
+		AlwaysloadedFlags flags;
+	}; assert_sizeof(AlwaysloadedFlagsPerModel, 80);
+
+	struct ForcedStubAssetReference
+	{
+		const char* name;
+		char type;
+	};
+
+	struct TransientFileReference
+	{
+		const char* name;
+		char type;
+	};
+
+	struct TransientAssetReference
+	{
+		const char* name;
+		char type;
+		unsigned int mpParentIndex;
+	};
+
+	struct TransientSets
+	{
+		unsigned int count;
+		const char** names;
+		unsigned int* masks;
+	};
+
+	struct StreamingInfo
+	{
+		const char* name;
+		int unused[2];
+		AlwaysloadedFlags flags;
+		int transientInfoFlags;
+		unsigned int modelCount;
+		AlwaysloadedFlagsPerModel* perModelFlags;
+		unsigned int forcedStubAssetCount;
+		ForcedStubAssetReference* forcedStubAssets;
+		unsigned int transientFileCount;
+		TransientFileReference* transientFiles;
+		unsigned int transientAssetCount;
+		TransientAssetReference* transientAssets;
+		unsigned int stringCount;
+		const char** strings;
+		TransientSets transientSets;
+	}; assert_sizeof(StreamingInfo, 0xC0);
+	assert_offsetof(StreamingInfo, modelCount, 92);
 
 	struct LaserDef
 	{
@@ -6032,21 +7091,21 @@ namespace zonetool::iw7
 		SndGlobals* soundGlobals;
 		SndBank* soundBank;
 		SndBankTransient* soundBankTransient;
-		//clipMap_t* clipMap;
+		clipMap_t* clipMap;
 		ComWorld* comWorld;
 		GlassWorld* glassWorld;
 		PathData* pathData;
-		//NavMeshData* navMeshData;
-		//MapEnts* mapEnts;
+		NavMeshData* navMeshData;
+		MapEnts* mapEnts;
 		FxWorld* fxWorld;
-		//GfxWorld* gfxWorld;
-		//GfxWorldTransientZone* gfxWorldTransientZone;
+		GfxWorld* gfxWorld;
+		GfxWorldTransientZone* gfxWorldTransientZone;
 		//void* iesProfile;
 		GfxLightDef* lightDef;
 		//void* uiMap;
 		AnimationClass* animClass;
 		PlayerAnimScript* playerAnim;
-		//Gesture* gesture;
+		Gesture* gesture;
 		LocalizeEntry* localize;
 		//WeaponAttachment* attachment;
 		//WeaponCompleteDef* weapon;
@@ -6074,7 +7133,7 @@ namespace zonetool::iw7
 		EquipmentSoundTable* equipSndTable;
 		VectorField* vectorField;
 		FxParticleSimAnimation* particleSimAnimation;
-		//StreamingInfo* streamingInfo;
+		StreamingInfo* streamingInfo;
 		LaserDef* laserDef;
 		TTFDef* ttfDef;
 		//SuitDef* suitDef;
