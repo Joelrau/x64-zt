@@ -73,14 +73,19 @@ namespace iw7
 			utils::hook::set<uint8_t>(0x140E08360, 0xC3); // don't shutdown renderer
 
 			// SOUND patches
-			//utils::hook::nop(0x140C93213, 5); // snd stream thread
-			//utils::hook::set<uint8_t>(0x140C93206, 0); // snd_active
-			//utils::hook::set<uint8_t>(0x140CB9150, 0xC3); // sound queue thing
-			//utils::hook::set<uint8_t>(0x140C75550, 0xC3); // SD_AllocInit
-			//utils::hook::set<uint8_t>(0x140C75CA0, 0xC3); // SD_Init
+			utils::hook::nop(0x140C93213, 5); // snd stream thread
+			utils::hook::set<uint8_t>(0x140C93206, 0); // snd_active
+			utils::hook::set<uint8_t>(0x140CB9150, 0xC3); // sound queue thing
+			utils::hook::set<uint8_t>(0x140C75550, 0xC3); // SD_AllocInit
+			utils::hook::set<uint8_t>(0x140C75CA0, 0xC3); // SD_Init
+
+			utils::hook::set<uint8_t>(0x140CA30C0, 0xC3); // SNDL_AddBank
+			utils::hook::set<uint8_t>(0x140CB9090, 0xC3); // SND_UpdateWait
+			utils::hook::set<uint8_t>(0x1403B7D70, 0xC3); // something sound related
+
+			utils::hook::set(0x140CFDC40, 0xC3C033); // sound stream reading
 
 			utils::hook::set<uint8_t>(0x140D597C0, 0xC3); // Voice_Init
-			utils::hook::set(0x140CFDC40, 0xC3C033); // sound stream reading
 
 			// IMAGE patches
 			// image stream (pak)

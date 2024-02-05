@@ -17,6 +17,7 @@ namespace zonetool::iw7
 	WEAK::iw7::game::symbol<const char* (XAssetType type, XAssetHeader header)> DB_GetXAssetHeaderName{ 0x1409E5BA0 };
 	WEAK::iw7::game::symbol<void(XAssetType type, XAssetHeader header, const char* name)> DB_SetXAssetHeaderName{ 0x1409E5C40 };
 	WEAK::iw7::game::symbol<void(XZoneInfo* zoneInfo, unsigned int zoneCount, char syncMode)> DB_LoadXAssets{ 0x140A78630 };
+	WEAK::iw7::game::symbol<void(int flags)> DB_UnloadFastfilesByZoneFlags{ 0x140A7BCE0 };
 	WEAK::iw7::game::symbol<bool(const char* zone, int source)> DB_FileExists{ 0x1403BCF10 };
 	WEAK::iw7::game::symbol<size_t(XAssetType type)> DB_GetXAssetTypeSize{ 0x1409E5BD0 };
 }

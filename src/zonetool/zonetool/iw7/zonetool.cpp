@@ -234,7 +234,7 @@ namespace zonetool::iw7
 
 			//ZONETOOL_INFO("Dumping additional asset \"%s\" of type \"%s\"", asset_name, type_to_string(asset.first));
 
-			XAsset referenced_asset = 
+			XAsset referenced_asset =
 			{
 				asset.first,
 				asset_header
@@ -267,7 +267,6 @@ namespace zonetool::iw7
 	}
 
 	utils::hook::detour db_finish_load_x_file_hook;
-
 	void db_finish_load_x_file_stub()
 	{
 		globals.verify = false;
@@ -353,12 +352,8 @@ namespace zonetool::iw7
 
 	void unload_zones()
 	{
-		ZONETOOL_INFO("Unloading zones...");
-
-		static XZoneInfo zone = {0, DB_ZONE_NONE};
-		//DB_LoadXAssets(&zone, 1, DB_LOAD_ASYNC_FORCE_FREE);
-
-		ZONETOOL_INFO("Unloaded zones...");
+		DB_UnloadFastfilesByZoneFlags(DB_ZONE_CUSTOM);
+		ZONETOOL_INFO("Unloaded loaded zones...");
 	}
 
 	void dump_zone(const std::string& name, const game::game_mode target, const std::optional<std::string> fastfile = {})

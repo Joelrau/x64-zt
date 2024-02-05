@@ -64,17 +64,16 @@ namespace iw7
 				a.jnz(skip);
 
 				a.bind(original);
-				//a.popad64();
 				a.call(0x1403BC450); // strnicmp_ffotd
 				a.mov(r12d, edi);
 				a.mov(rdx, 0x141467970); // "patch_"
 				a.jmp(0x1403BA9C0);
 
 				a.bind(skip);
-				//a.popad64();
-				a.mov(r12d, game::DB_ZONE_CUSTOM);
-				a.not_(r12d);
-				a.and_(edi, r12d);
+				// don't remove flag
+				//a.mov(r12d, game::DB_ZONE_CUSTOM);
+				//a.not_(r12d);
+				//a.and_(edi, r12d);
 				a.jmp(0x1403BAC06);
 			}
 
