@@ -20,4 +20,5 @@ namespace zonetool::iw7
 	WEAK::iw7::game::symbol<void(int flags)> DB_UnloadFastfilesByZoneFlags{ 0x140A7BCE0 };
 	WEAK::iw7::game::symbol<bool(const char* zone, int source)> DB_FileExists{ 0x1403BCF10 };
 	WEAK::iw7::game::symbol<size_t(XAssetType type)> DB_GetXAssetTypeSize{ 0x1409E5BD0 };
+	WEAK::iw7::game::symbol<int(const char* name)> DB_Zones_GetZoneIndexFromName{ 0x1403BC3A0 };
 }

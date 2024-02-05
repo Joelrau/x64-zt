@@ -306,13 +306,10 @@ namespace zonetool::iw7
 
 	bool is_zone_loaded(const std::string& name)
 	{
-		/*for (auto i = 0u; i < *g_zoneCount; i++)
+		if (DB_Zones_GetZoneIndexFromName(name.data()) != 0xFFFF)
 		{
-			if (!_strnicmp(g_zones[i + 1].name, name.data(), 64))
-			{
-				return true;
-			}
-		}*/
+			return true;
+		}
 
 		return false;
 	}
