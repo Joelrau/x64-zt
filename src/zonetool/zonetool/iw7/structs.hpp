@@ -1038,7 +1038,8 @@ namespace zonetool::iw7
 		unsigned short unknownNamesCount;
 		char unk_02[6]; // unknown data
 		scr_string_t* unknownNames;
-		char unk_03[16]; // unknown data
+		unsigned char impactType;
+		char unk_03[15]; // unknown data
 		unsigned char unknown03Count;
 		char* unknown03;
 		unsigned char unknownIndex;
@@ -4174,7 +4175,30 @@ namespace zonetool::iw7
 		const char* value;
 	};
 
-	enum AttachmentType
+	enum OffhandGestureTypes
+	{
+		OHGT_WEAPON,
+		OHGT_PULLBACK,
+		OHGT_THROW,
+		OHGT_DETONATE,
+		OHGT_SHIELD_DEPLOY,
+		OHGT_SHIELD_DEPLOY_WHILE_FIRING,
+		OHGT_SHIELD_FIRE_WEAPON,
+		OHGT_SHIELD_RETRACT_WHILE_FIRING,
+		OHGT_SHIELD_BASH,
+		OHGT_NUM_TYPES,
+		OHGT_ANY_TYPE,
+	};
+
+	enum AdsAltSwitchInterpType : std::int32_t
+	{
+		ADS_ALT_SWITCH_INTERP_TYPE_LINEAR = 0x0,
+		ADS_ALT_SWITCH_INTERP_TYPE_COSINE = 0x1,
+		ADS_ALT_SWITCH_INTERP_TYPE_SINE = 0x2,
+		ADS_ALT_SWITCH_INTERP_TYPE_COUNT = 0x3,
+	};
+
+	enum AttachmentType : std::int32_t
 	{
 		ATTACHMENT_SCOPE = 0x0,
 		ATTACHMENT_UNDERBARREL = 0x1,
@@ -4182,23 +4206,25 @@ namespace zonetool::iw7
 		ATTACHMENT_COUNT = 0x3,
 	};
 
-	enum weapType_t
+	enum weapType_t : std::int32_t
 	{
 		WEAPTYPE_NONE = 0x0,
-		WEAPTYPE_MODEL_ONLY = 0x1,
-		WEAPTYPE_BULLET = 0x2,
-		WEAPTYPE_GRENADE = 0x3,
-		WEAPTYPE_PROJECTILE = 0x4,
-		WEAPTYPE_RIOTSHIELD = 0x5,
-		WEAPTYPE_SCRIPT = 0x6,
-		WEAPTYPE_SHIELD = 0x7,
-		WEAPTYPE_CHARGE_SHIELD = 0x8,
-		WEAPTYPE_LOCATION_SELECT = 0x9,
-		WEAPTYPE_EQUIP_DEPLOY = 0xA,
-		WEAPTYPE_NUM = 0xB,
+		WEAPTYPE_BULLET = 0x1,
+		WEAPTYPE_GRENADE = 0x2,
+		WEAPTYPE_PROJECTILE = 0x3,
+		WEAPTYPE_RIOTSHIELD = 0x4,
+		WEAPTYPE_SCRIPT = 0x5,
+		WEAPTYPE_SHIELD = 0x6,
+		WEAPTYPE_CHARGE_SHIELD = 0x7,
+		WEAPTYPE_UNK8 = 0x8,
+		WEAPTYPE_UNK9 = 0x9,
+		WEAPTYPE_UNK10 = 0xA,
+		WEAPTYPE_UNK11 = 0xB,
+		WEAPTYPE_EQUIP_DEPLOY = 0xC,
+		WEAPTYPE_NUM = 0xD,
 	};
 
-	enum weapClass_t
+	enum weapClass_t : std::int32_t
 	{
 		WEAPCLASS_RIFLE = 0x0,
 		WEAPCLASS_SNIPER = 0x1,
@@ -4218,7 +4244,7 @@ namespace zonetool::iw7
 		WEAPCLASS_NUM = 0xF,
 	};
 
-	enum weapFireType_t
+	enum weapFireType_t : std::int32_t
 	{
 		WEAPON_FIRETYPE_FULLAUTO = 0x0,
 		WEAPON_FIRETYPE_SINGLESHOT = 0x1,
@@ -4229,29 +4255,25 @@ namespace zonetool::iw7
 		WEAPON_FIRETYPECOUNT = 0x6,
 	};
 
-	struct AttAmmoGeneral
+	enum ImpactType : std::int32_t
 	{
-		int unk1;
-		int unk2;
-		int unk3;
-		weapFireType_t fireType;
-		int burstCount;
-	}; assert_sizeof(AttAmmoGeneral, 0x14);
+		IMPACT_TYPE_NONE = 0,
+		IMPACT_TYPE_COUNT = 37,
+	};
 
-	enum tracerStyle_t
+	enum MeleeImpactType : std::int32_t
+	{
+		MELEE_IMPACT_TYPE_NONE = 0,
+	};
+
+	enum tracerStyle_t : std::int32_t
 	{
 		TRACERSTYLE_TRACER = 0x0,
 		TRACERSTYLE_BEAM = 0x1,
 		TRACERSTYLE_NUM = 0x2,
 	};
 
-	struct AttAmmoTracer
-	{
-		TracerDef* tracerType;
-		tracerStyle_t tracerStyle;
-	}; assert_sizeof(AttAmmoTracer, 0x10);
-
-	enum PenetrateType
+	enum PenetrateType : std::int32_t
 	{
 		PENETRATE_TYPE_NONE = 0x0,
 		PENETRATE_TYPE_SMALL = 0x1,
@@ -4262,6 +4284,486 @@ namespace zonetool::iw7
 		PENETRATE_TYPE_RICOCHET = 0x5,
 		PENETRATE_TYPE_COUNT = 0x6,
 	};
+
+	enum ReticleType : std::int32_t
+	{
+		RETICLE_TYPE_FOUR_SIDED = 0x0,
+		RETICLE_TYPE_ONE_PIECE = 0x1,
+		RETICLE_TYPE_COUNT = 0x2,
+	};
+
+	enum targetAssistType_t : std::int32_t
+	{
+		TARGET_ASSISTTYPPE_DEFAULT = 0x0,
+		TARGET_ASSISTTYPPE_CONE = 0x1,
+		TARGET_ASSISTTYPPE_COUNT = 0x2,
+	};
+
+	enum targetAssistBehavior_t : std::int32_t
+	{
+		TARGET_ASSISTBEHAVE_DEFAULT = 0x0,
+		TARGET_ASSISTBEHAVE_DIRECT_DAMAGE = 0x1,
+		TARGET_ASSISTBEHAVE_TARGET_ONLY = 0x2,
+		TARGET_ASSISTBEHAVE_BEAM = 0x3,
+		TARGET_ASSISTBEHAVE_SMART_PELLET = 0x4,
+		TARGET_ASSISTBEHAVE_COUNT = 0x5,
+	};
+
+	enum AnimDamageType : std::int32_t
+	{
+		ANIM_DAMAGETYPE_NONE = 0x0,
+		ANIM_DAMAGETYPE_EXPLOSION_LIGHT = 0x1,
+		ANIM_DAMAGETYPE_EXPLOSION = 0x2,
+		ANIM_DAMAGETYPE_MELEE = 0x3,
+		ANIM_DAMAGETYPE_MELEE_DOG = 0x4,
+		ANIM_DAMAGETYPE_MELEE_ALIEN = 0x5,
+		ANIM_DAMAGETYPE_ENERGY_BULLET = 0x6,
+		ANIM_DAMAGETYPE_FIRE_EXPLOSION = 0x7,
+		ANIM_DAMAGETYPE_BULLET_SM = 0x8,
+		ANIM_DAMAGETYPE_BULLET_MD = 0x9,
+		ANIM_DAMAGETYPE_BULLET_LG = 0xA,
+		ANIM_DAMAGETYPE_FALL = 0xB,
+		ANIM_DAMAGETYPE_COUNT = 0xC,
+	};
+
+	enum weapOverlayReticle_t : std::int32_t
+	{
+		WEAPOVERLAYRETICLE_NONE = 0x0,
+		WEAPOVERLAYRETICLE_CROSSHAIR = 0x1,
+		WEAPOVERLAYRETICLE_NUM = 0x2,
+	};
+
+	enum ammoCounterClipType_t : std::int32_t
+	{
+		AMMO_COUNTER_CLIP_NONE = 0x0,
+		AMMO_COUNTER_CLIP_MAGAZINE = 0x1,
+		AMMO_COUNTER_CLIP_SHORTMAGAZINE = 0x2,
+		AMMO_COUNTER_CLIP_SHOTGUN = 0x3,
+		AMMO_COUNTER_CLIP_ROCKET = 0x4,
+		AMMO_COUNTER_CLIP_BELTFED = 0x5,
+		AMMO_COUNTER_CLIP_ALTWEAPON = 0x6,
+		AMMO_COUNTER_CLIP_COUNT = 0x7,
+	};
+
+	enum weapProjExposion_t : std::int32_t
+	{
+		WEAPPROJEXP_GRENADE = 0x0,
+		WEAPPROJEXP_ROCKET = 0x1,
+		WEAPPROJEXP_FLASHBANG = 0x2,
+		WEAPPROJEXP_NONE = 0x3,
+		WEAPPROJEXP_DUD = 0x4,
+		WEAPPROJEXP_SMOKE = 0x5,
+		WEAPPROJEXP_HEAVY = 0x6,
+		WEAPPROJEXP_NUM = 0x7,
+	};
+
+	enum WeapStickinessType : std::int32_t
+	{
+		WEAPSTICKINESS_NONE = 0x0,
+		WEAPSTICKINESS_ALL = 0x1,
+		WEAPSTICKINESS_ALL_ORIENT = 0x2,
+		WEAPSTICKINESS_GROUND = 0x3,
+		WEAPSTICKINESS_GROUND_WITH_YAW = 0x4,
+		WEAPSTICKINESS_GROUND_ORIENT = 0x5,
+		WEAPSTICKINESS_KNIFE = 0x6,
+		WEAPSTICKINESS_COUNT = 0x7,
+	};
+
+	enum WeapOverlayInteface_t : std::int32_t
+	{
+		WEAPOVERLAYINTERFACE_NONE = 0x0,
+		WEAPOVERLAYINTERFACE_JAVELIN = 0x1,
+		WEAPOVERLAYINTERFACE_TURRETSCOPE = 0x2,
+		WEAPOVERLAYINTERFACECOUNT = 0x3,
+	};
+
+	enum weaponIconRatioType_t : std::int32_t
+	{
+		WEAPON_ICON_RATIO_1TO1 = 0x0,
+		WEAPON_ICON_RATIO_2TO1 = 0x1,
+		WEAPON_ICON_RATIO_4TO1 = 0x2,
+		WEAPON_ICON_RATIO_COUNT = 0x3,
+	};
+
+	enum guidedMissileType_t : std::int32_t
+	{
+		MISSILE_GUIDANCE_NONE = 0x0,
+		MISSILE_GUIDANCE_SIDEWINDER = 0x1,
+		MISSILE_GUIDANCE_HELLFIRE = 0x2,
+		MISSILE_GUIDANCE_JAVELIN = 0x3,
+		MISSILE_GUIDANCE_ROBOTECH = 0x4,
+		MISSILE_GUIDANCE_SOFTLOCKON = 0x5,
+		MISSILE_GUIDANCE_COUNT = 0x6,
+	};
+
+	enum offhandShieldMaxSpeed_t : std::int32_t
+	{
+		WEAP_OFFHAND_SHIELD_SPEED_WALK = 0x0,
+		WEAP_OFFHAND_SHIELD_SPEED_RUN = 0x1,
+		WEAP_OFFHAND_SHIELD_SPEED_SPRINT = 0x2,
+		WEAP_OFFHAND_SHIELD_SPEED_COUNT = 0x3,
+	};
+
+	enum WeaponSlot : std::int32_t
+	{
+		WEAPON_SLOT_NONE = 0x0,
+		WEAPON_SLOT_PRIMARY = 0x1,
+		WEAPON_SLOT_HEAVY = 0x2,
+		WEAPON_SLOT_MELEE = 0x3,
+		WEAPON_SLOT_EXECUTION = 0x4,
+		WEAPON_SLOT_ACCESSORY = 0x5,
+		WEAPON_SLOT_NUM = 0x6,
+	};
+
+	enum weapInventoryType_t : std::int32_t
+	{
+		WEAPINVENTORY_PRIMARY = 0x0,
+		WEAPINVENTORY_OFFHAND = 0x1,
+		WEAPINVENTORY_ITEM = 0x2,
+		WEAPINVENTORY_ALTMODE = 0x3,
+		WEAPINVENTORY_EXCLUSIVE = 0x4,
+		WEAPINVENTORY_SCAVENGER = 0x5,
+		WEAPINVENTORY_MODEL_ONLY = 0x6,
+		WEAPINVENTORYCOUNT = 0x7,
+	};
+
+	enum OffhandClass : std::int32_t
+	{
+		OFFHAND_CLASS_NONE = 0x0,
+		OFFHAND_CLASS_FRAG_GRENADE = 0x1,
+		OFFHAND_CLASS_SMOKE_GRENADE = 0x2,
+		OFFHAND_CLASS_FLASH_GRENADE = 0x3,
+		OFFHAND_CLASS_THROWINGKNIFE = 0x4,
+		OFFHAND_CLASS_SHIELD = 0x5,
+		OFFHAND_CLASS_OTHER = 0x6,
+		OFFHAND_CLASS_COUNT = 0x7,
+	};
+
+	enum activeReticleType_t : std::int32_t
+	{
+		VEH_ACTIVE_RETICLE_NONE = 0x0,
+		VEH_ACTIVE_RETICLE_PIP_ON_A_STICK = 0x1,
+		VEH_ACTIVE_RETICLE_BOUNCING_DIAMOND = 0x2,
+		VEH_ACTIVE_RETICLE_COUNT = 0x3,
+	};
+
+	enum DualWieldType : std::int32_t
+	{
+		DUAL_WIELD_TYPE_DEFAULT = 0x0,
+		DUAL_WIELD_TYPE_ALT_MODE = 0x1,
+		DUAL_WIELD_TYPE_COUNT = 0x2,
+	};
+
+	enum weapStance_t : std::int32_t
+	{
+		WEAPSTANCE_STAND = 0x0,
+		WEAPSTANCE_DUCK = 0x1,
+		WEAPSTANCE_PRONE = 0x2,
+		WEAPSTANCE_NUM = 0x3,
+	};
+
+	enum scriptedAnimEvent_t : std::int32_t
+	{
+		SCRIPTEDANIMEVENT_POWER_ACTIVE = 0x0,
+		SCRIPTEDANIMEVENT_POWER_ACTIVE_CP = 0x1,
+		SCRIPTEDANIMEVENT_COUNT = 0x2,
+	};
+
+	enum playerAnimType_t : std::int32_t
+	{
+		PLAYERANIMTYPE_NONE,
+		PLAYERANIMTYPE_OTHER,
+		PLAYERANIMTYPE_PISTOL,
+		PLAYERANIMTYPE_SMG,
+		PLAYERANIMTYPE_AUTORIFLE,
+		PLAYERANIMTYPE_MG,
+		PLAYERANIMTYPE_SNIPER,
+		PLAYERANIMTYPE_ROCKETLAUNCHER,
+		PLAYERANIMTYPE_EXPLOSIVE,
+		PLAYERANIMTYPE_GRENADE,
+		PLAYERANIMTYPE_TURRET,
+		PLAYERANIMTYPE_C4,
+		PLAYERANIMTYPE_M203,
+		PLAYERANIMTYPE_HOLD,
+		PLAYERANIMTYPE_BRIEFCASE,
+		PLAYERANIMTYPE_RIOTSHIELD,
+		PLAYERANIMTYPE_LAPTOP,
+		PLAYERANIMTYPE_THROWINGKNIFE,
+		PLAYERANIMTYPE_MORTAR,
+		PLAYERANIMTYPE_KNIFE,
+		PLAYERANIMTYPE_CLAYMORE,
+		PLAYERANIMTYPE_MINIGUN,
+		PLAYERANIMTYPE_DRILL,
+		PLAYERANIMTYPE_KILLSTREAKTRIGGER,
+		PLAYERANIMTYPE_TROPHYSYSTEM,
+		PLAYERANIMTYPE_GRENADE_TROPHY,
+		PLAYERANIMTYPE_GRENADE_FRISBEE,
+		PLAYERANIMTYPE_GRENADE_LARGE,
+		PLAYERANIMTYPE_GRENADE_UNDERHAND,
+		PLAYERANIMTYPE_GRENADE_CHUCK,
+		PLAYERANIMTYPE_GRENADE_BASKETBALL,
+		PLAYERANIMTYPE_GRENADE_SKEEBALL,
+		PLAYERANIMTYPE_GRENADE_BASEBALL,
+		PLAYERANIMTYPE_CHARGESHIELD,
+		PLAYERANIMTYPE_AXE,
+		PLAYERANIMTYPE_CLAW,
+		PLAYERANIMTYPE_SMG_ENERGY,
+		PLAYERANIMTYPE_ERAD,
+		PLAYERANIMTYPE_AR57,
+		PLAYERANIMTYPE_KBS,
+		PLAYERANIMTYPE_CRB,
+		PLAYERANIMTYPE_M4,
+		PLAYERANIMTYPE_ACR,
+		PLAYERANIMTYPE_M1,
+		PLAYERANIMTYPE_SPAS,
+		PLAYERANIMTYPE_DEVASTATOR,
+		PLAYERANIMTYPE_NRG,
+		PLAYERANIMTYPE_GAUNTLET,
+		PLAYERANIMTYPE_BALL,
+		PLAYERANIMTYPE_FHR,
+		PLAYERANIMTYPE_REVOLVER,
+		PLAYERANIMTYPE_AKE,
+		PLAYERANIMTYPE_RIPPER,
+		PLAYERANIMTYPE_FMG,
+		PLAYERANIMTYPE_SDFLMG,
+		PLAYERANIMTYPE_LMGTURRET,
+		PLAYERANIMTYPE_SDFSHOTTY,
+		PLAYERANIMTYPE_SONIC,
+		PLAYERANIMTYPE_LONGBOW,
+		PLAYERANIMTYPE_M200,
+		PLAYERANIMTYPE_M8,
+		PLAYERANIMTYPE_CHARGESHOT,
+		PLAYERANIMTYPE_ROLLERCOASTERSEATED,
+		PLAYERANIMTYPE_CANDYBOX,
+		PLAYERANIMTYPE_C6_SUPER,
+		PLAYERANIMTYPE_UMP45,
+		PLAYERANIMTYPE_SDFAR,
+		PLAYERANIMTYPE_SDFAR_LEGENDARY,
+		PLAYERANIMTYPE_REVOLVER_LEGENDARY,
+		PLAYERANIMTYPE_ACR_LEGENDARY,
+		PLAYERANIMTYPE_AR57_LEGENDARY,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_01,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_02,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_03,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_04,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_05,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_06,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_07,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_08,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_09,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_10,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_11,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_12,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_13,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_14,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_15,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_16,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_17,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_18,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_19,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_20,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_21,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_22,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_23,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_24,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_25,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_26,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_27,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_28,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_29,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_30,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_31,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_32,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_33,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_34,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_35,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_36,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_37,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_38,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_39,
+		PLAYERANIMTYPE_ADDITIONAL_WEAPON_40,
+		PLAYERANIMTYPE_NUM,
+	};
+
+	enum scriptedAnimType_t : std::int32_t
+	{
+		SCRIPTEDANIMTYPE_NONE,
+		SCRIPTEDANIMTYPE_OVERCHARGE,
+		SCRIPTEDANIMTYPE_ADRENALINE,
+		SCRIPTEDANIMTYPE_MULTIVISOR,
+		SCRIPTEDANIMTYPE_SURGE,
+		SCRIPTEDANIMTYPE_KINETICWAVE,
+		SCRIPTEDANIMTYPE_PHASESHIFT,
+		SCRIPTEDANIMTYPE_OPTICWAVE,
+		SCRIPTEDANIMTYPE_CAMO,
+		SCRIPTEDANIMTYPE_TELEPORT,
+		SCRIPTEDANIMTYPE_REWIND,
+		SCRIPTEDANIMTYPE_KILLSTREAKCALLOUT,
+		SCRIPTEDANIMTYPE_GESTURE000,
+		SCRIPTEDANIMTYPE_GESTURE001,
+		SCRIPTEDANIMTYPE_GESTURE002,
+		SCRIPTEDANIMTYPE_GESTURE003,
+		SCRIPTEDANIMTYPE_GESTURE004,
+		SCRIPTEDANIMTYPE_GESTURE005,
+		SCRIPTEDANIMTYPE_GESTURE006,
+		SCRIPTEDANIMTYPE_GESTURE007,
+		SCRIPTEDANIMTYPE_GESTURE008,
+		SCRIPTEDANIMTYPE_GESTURE009,
+		SCRIPTEDANIMTYPE_GESTURE010,
+		SCRIPTEDANIMTYPE_GESTURE011,
+		SCRIPTEDANIMTYPE_GESTURE012,
+		SCRIPTEDANIMTYPE_GESTURE013,
+		SCRIPTEDANIMTYPE_GESTURE014,
+		SCRIPTEDANIMTYPE_GESTURE015,
+		SCRIPTEDANIMTYPE_GESTURE016,
+		SCRIPTEDANIMTYPE_GESTURE017,
+		SCRIPTEDANIMTYPE_GESTURE018,
+		SCRIPTEDANIMTYPE_GESTURE019,
+		SCRIPTEDANIMTYPE_GESTURE020,
+		SCRIPTEDANIMTYPE_GESTURE021,
+		SCRIPTEDANIMTYPE_GESTURE022,
+		SCRIPTEDANIMTYPE_GESTURE023,
+		SCRIPTEDANIMTYPE_GESTURE024,
+		SCRIPTEDANIMTYPE_GESTURE025,
+		SCRIPTEDANIMTYPE_GESTURE026,
+		SCRIPTEDANIMTYPE_GESTURE027,
+		SCRIPTEDANIMTYPE_GESTURE028,
+		SCRIPTEDANIMTYPE_GESTURE029,
+		SCRIPTEDANIMTYPE_GESTURE030,
+		SCRIPTEDANIMTYPE_GESTURE031,
+		SCRIPTEDANIMTYPE_GESTURE032,
+		SCRIPTEDANIMTYPE_GESTURE033,
+		SCRIPTEDANIMTYPE_GESTURE034,
+		SCRIPTEDANIMTYPE_GESTURE035,
+		SCRIPTEDANIMTYPE_GESTURE036,
+		SCRIPTEDANIMTYPE_GESTURE037,
+		SCRIPTEDANIMTYPE_GESTURE038,
+		SCRIPTEDANIMTYPE_GESTURE039,
+		SCRIPTEDANIMTYPE_GESTURE040,
+		SCRIPTEDANIMTYPE_GESTURE041,
+		SCRIPTEDANIMTYPE_GESTURE042,
+		SCRIPTEDANIMTYPE_GESTURE043,
+		SCRIPTEDANIMTYPE_GESTURE044,
+		SCRIPTEDANIMTYPE_GESTURE045,
+		SCRIPTEDANIMTYPE_GESTURE046,
+		SCRIPTEDANIMTYPE_GESTURE047,
+		SCRIPTEDANIMTYPE_GESTURE048,
+		SCRIPTEDANIMTYPE_GESTURE049,
+		SCRIPTEDANIMTYPE_GESTURE050,
+		SCRIPTEDANIMTYPE_GESTURE051,
+		SCRIPTEDANIMTYPE_GESTURE052,
+		SCRIPTEDANIMTYPE_GESTURE053,
+		SCRIPTEDANIMTYPE_GESTURE054,
+		SCRIPTEDANIMTYPE_GESTURE055,
+		SCRIPTEDANIMTYPE_GESTURE056,
+		SCRIPTEDANIMTYPE_GESTURE057,
+		SCRIPTEDANIMTYPE_GESTURE058,
+		SCRIPTEDANIMTYPE_GESTURE059,
+		SCRIPTEDANIMTYPE_GESTURE060,
+		SCRIPTEDANIMTYPE_GESTURE061,
+		SCRIPTEDANIMTYPE_GESTURE062,
+		SCRIPTEDANIMTYPE_GESTURE063,
+		SCRIPTEDANIMTYPE_GESTURE064,
+		SCRIPTEDANIMTYPE_GESTURE065,
+		SCRIPTEDANIMTYPE_GESTURE066,
+		SCRIPTEDANIMTYPE_GESTURE067,
+		SCRIPTEDANIMTYPE_GESTURE068,
+		SCRIPTEDANIMTYPE_GESTURE069,
+		SCRIPTEDANIMTYPE_GESTURE070,
+		SCRIPTEDANIMTYPE_GESTURE071,
+		SCRIPTEDANIMTYPE_GESTURE072,
+		SCRIPTEDANIMTYPE_GESTURE073,
+		SCRIPTEDANIMTYPE_GESTURE074,
+		SCRIPTEDANIMTYPE_GESTURE075,
+		SCRIPTEDANIMTYPE_GESTURE076,
+		SCRIPTEDANIMTYPE_GESTURE077,
+		SCRIPTEDANIMTYPE_GESTURE078,
+		SCRIPTEDANIMTYPE_GESTURE079,
+		SCRIPTEDANIMTYPE_GESTURE080,
+		SCRIPTEDANIMTYPE_GESTURE081,
+		SCRIPTEDANIMTYPE_GESTURE082,
+		SCRIPTEDANIMTYPE_GESTURE083,
+		SCRIPTEDANIMTYPE_GESTURE084,
+		SCRIPTEDANIMTYPE_GESTURE085,
+		SCRIPTEDANIMTYPE_GESTURE086,
+		SCRIPTEDANIMTYPE_GESTURE087,
+		SCRIPTEDANIMTYPE_GESTURE088,
+		SCRIPTEDANIMTYPE_GESTURE089,
+		SCRIPTEDANIMTYPE_GESTURE090,
+		SCRIPTEDANIMTYPE_GESTURE091,
+		SCRIPTEDANIMTYPE_GESTURE092,
+		SCRIPTEDANIMTYPE_GESTURE093,
+		SCRIPTEDANIMTYPE_GESTURE094,
+		SCRIPTEDANIMTYPE_GESTURE095,
+		SCRIPTEDANIMTYPE_GESTURE096,
+		SCRIPTEDANIMTYPE_GESTURE097,
+		SCRIPTEDANIMTYPE_GESTURE098,
+		SCRIPTEDANIMTYPE_GESTURE099,
+		SCRIPTEDANIMTYPE_GESTURE100,
+		SCRIPTEDANIMTYPE_GESTURE101,
+		SCRIPTEDANIMTYPE_GESTURE102,
+		SCRIPTEDANIMTYPE_GESTURE103,
+		SCRIPTEDANIMTYPE_GESTURE104,
+		SCRIPTEDANIMTYPE_GESTURE105,
+		SCRIPTEDANIMTYPE_GESTURE106,
+		SCRIPTEDANIMTYPE_GESTURE107,
+		SCRIPTEDANIMTYPE_GESTURE108,
+		SCRIPTEDANIMTYPE_GESTURE109,
+		SCRIPTEDANIMTYPE_GESTURE110,
+		SCRIPTEDANIMTYPE_GESTURE111,
+		SCRIPTEDANIMTYPE_GESTURE112,
+		SCRIPTEDANIMTYPE_GESTURE113,
+		SCRIPTEDANIMTYPE_GESTURE114,
+		SCRIPTEDANIMTYPE_GESTURE115,
+		SCRIPTEDANIMTYPE_NUM,
+	};
+
+	enum weapAnimFiles_t
+	{
+		WEAP_ANIM_ROOT = 0,
+		WEAP_ANIM_INNER_ROOT = 1,
+		WEAP_ANIM_GESTURE_IK_TARGET_1 = 2,
+		WEAP_ANIM_GESTURE_IK_TARGET_2 = 3,
+		WEAP_ANIM_GESTURE_IK_TARGET_3 = 4,
+		WEAP_ANIM_GESTURE_IK_TARGET_4 = 5,
+		WEAP_ANIM_ADDITIVE_WALK = 31,
+		WEAP_ANIM_RELOAD_ADS = 171,
+		WEAP_ANIM_RELOAD_EMPTY_ADS = 172,
+		WEAP_ANIM_FAST_RELOAD_ADS = 175,
+		WEAP_ANIM_FAST_RELOAD_EMPTY_ADS = 176,
+		WEAP_ANIM_RELOAD_MULTIPLE_1 = 233,
+		WEAP_ANIM_RELOAD_MULTIPLE_2 = 234,
+		WEAP_ANIM_RELOAD_MULTIPLE_3 = 235,
+		WEAP_ANIM_RELOAD_MULTIPLE_4 = 236,
+		WEAP_ANIM_RELOAD_MULTIPLE_5 = 237,
+		WEAP_ANIM_RELOAD_MULTIPLE_6 = 238,
+		WEAP_ANIM_RELOAD_MULTIPLE_7 = 239,
+		WEAP_ANIM_RELOAD_MULTIPLE_8 = 240,
+		WEAP_ANIM_RELOAD_MULTIPLE_FAST_1 = 241,
+		WEAP_ANIM_RELOAD_MULTIPLE_FAST_2 = 242,
+		WEAP_ANIM_RELOAD_MULTIPLE_FAST_3 = 243,
+		WEAP_ANIM_RELOAD_MULTIPLE_FAST_4 = 244,
+		WEAP_ANIM_RELOAD_MULTIPLE_FAST_5 = 245,
+		WEAP_ANIM_RELOAD_MULTIPLE_FAST_6 = 246,
+		WEAP_ANIM_RELOAD_MULTIPLE_FAST_7 = 247,
+		WEAP_ANIM_RELOAD_MULTIPLE_FAST_8 = 248,
+		NUM_WEAP_ANIMS = 9999,
+	};
+
+	struct AttAmmoGeneral
+	{
+		ImpactType vfxImpactType;
+		ImpactType sfxImpactType;
+		MeleeImpactType meleeImpactType;
+		weapFireType_t fireType;
+		int burstCount;
+	}; assert_sizeof(AttAmmoGeneral, 0x14);
+
+	struct AttAmmoTracer
+	{
+		TracerDef* tracerType;
+		tracerStyle_t tracerStyle;
+	}; assert_sizeof(AttAmmoTracer, 0x10);
 
 	struct AttPenetration
 	{
@@ -4306,13 +4808,6 @@ namespace zonetool::iw7
 		bool riotShield;
 	};
 
-	enum ReticleType
-	{
-		RETICLE_TYPE_FOUR_SIDED = 0x0,
-		RETICLE_TYPE_ONE_PIECE = 0x1,
-		RETICLE_TYPE_COUNT = 0x2,
-	};
-
 	struct AttGeneral
 	{
 		bool boltAction;
@@ -4347,23 +4842,6 @@ namespace zonetool::iw7
 		float aimAssistYawSlowdownAds;
 		float aimAssistLockonStrength;
 	}; assert_sizeof(AttAimAssist, 0x20);
-
-	enum targetAssistType_t
-	{
-		TARGET_ASSISTTYPPE_DEFAULT = 0x0,
-		TARGET_ASSISTTYPPE_CONE = 0x1,
-		TARGET_ASSISTTYPPE_COUNT = 0x2,
-	};
-
-	enum targetAssistBehavior_t
-	{
-		TARGET_ASSISTBEHAVE_DEFAULT = 0x0,
-		TARGET_ASSISTBEHAVE_DIRECT_DAMAGE = 0x1,
-		TARGET_ASSISTBEHAVE_TARGET_ONLY = 0x2,
-		TARGET_ASSISTBEHAVE_BEAM = 0x3,
-		TARGET_ASSISTBEHAVE_SMART_PELLET = 0x4,
-		TARGET_ASSISTBEHAVE_COUNT = 0x5,
-	};
 
 	struct AttTargetAssist
 	{
@@ -4441,7 +4919,7 @@ namespace zonetool::iw7
 		int shotCount;
 		int reloadAmmoAdd;
 		int reloadStartAdd;
-		int lowAmmoWarningCount;
+		bool requireAmmoUsedPerShot;
 	}; assert_sizeof(AttAmmunition, 0x1C);
 
 	struct AttDamage
@@ -4462,7 +4940,7 @@ namespace zonetool::iw7
 		int mid2PlayerDamage;
 		int mid3PlayerDamage;
 		int minPlayerDamage;
-		int unknown;
+		AnimDamageType deathAnimDamageType;
 	}; assert_sizeof(AttDamage, 0x44);
 
 	struct AttIdleSettings
@@ -4588,13 +5066,6 @@ namespace zonetool::iw7
 		float kickOpposedInputScalar;
 	}; assert_sizeof(AttViewKick, 0x38);
 
-	enum weapOverlayReticle_t : std::int32_t
-	{
-		WEAPOVERLAYRETICLE_NONE = 0x0,
-		WEAPOVERLAYRETICLE_CROSSHAIR = 0x1,
-		WEAPOVERLAYRETICLE_NUM = 0x2,
-	};
-
 	struct ADSOverlay
 	{
 		Material* shader;
@@ -4639,26 +5110,6 @@ namespace zonetool::iw7
 		bool outlineLockOn;
 	}; assert_sizeof(AttOutline, 0x80);
 
-	enum ammoCounterClipType_t : std::int32_t
-	{
-		AMMO_COUNTER_CLIP_NONE = 0x0,
-		AMMO_COUNTER_CLIP_MAGAZINE = 0x1,
-		AMMO_COUNTER_CLIP_SHORTMAGAZINE = 0x2,
-		AMMO_COUNTER_CLIP_SHOTGUN = 0x3,
-		AMMO_COUNTER_CLIP_ROCKET = 0x4,
-		AMMO_COUNTER_CLIP_BELTFED = 0x5,
-		AMMO_COUNTER_CLIP_ALTWEAPON = 0x6,
-		AMMO_COUNTER_CLIP_COUNT = 0x7,
-	};
-
-	enum weaponIconRatioType_t : std::int32_t
-	{
-		WEAPON_ICON_RATIO_1TO1 = 0x0,
-		WEAPON_ICON_RATIO_2TO1 = 0x1,
-		WEAPON_ICON_RATIO_4TO1 = 0x2,
-		WEAPON_ICON_RATIO_COUNT = 0x3,
-	};
-
 	struct AttUI
 	{
 		Material* hudIcon;
@@ -4678,30 +5129,6 @@ namespace zonetool::iw7
 		RumbleInfo* fireRumble;
 		RumbleInfo* meleeImpactRumble;
 	}; assert_sizeof(AttRumbles, 0x10);
-
-	enum weapProjExposion_t : std::int32_t
-	{
-		WEAPPROJEXP_GRENADE = 0x0,
-		WEAPPROJEXP_ROCKET = 0x1,
-		WEAPPROJEXP_FLASHBANG = 0x2,
-		WEAPPROJEXP_NONE = 0x3,
-		WEAPPROJEXP_DUD = 0x4,
-		WEAPPROJEXP_SMOKE = 0x5,
-		WEAPPROJEXP_HEAVY = 0x6,
-		WEAPPROJEXP_NUM = 0x7,
-	};
-
-	enum WeapStickinessType : std::int32_t
-	{
-		WEAPSTICKINESS_NONE = 0x0,
-		WEAPSTICKINESS_ALL = 0x1,
-		WEAPSTICKINESS_ALL_ORIENT = 0x2,
-		WEAPSTICKINESS_GROUND = 0x3,
-		WEAPSTICKINESS_GROUND_WITH_YAW = 0x4,
-		WEAPSTICKINESS_GROUND_ORIENT = 0x5,
-		WEAPSTICKINESS_KNIFE = 0x6,
-		WEAPSTICKINESS_COUNT = 0x7,
-	};
 
 	struct AttProjectile
 	{
@@ -4778,14 +5205,6 @@ namespace zonetool::iw7
 		RumbleInfo* chargeRumble;
 	}; assert_sizeof(AttCharged, 0x90);
 
-	enum AdsAltSwitchInterpType
-	{
-		ADS_ALT_SWITCH_INTERP_TYPE_LINEAR = 0x0,
-		ADS_ALT_SWITCH_INTERP_TYPE_COSINE = 0x1,
-		ADS_ALT_SWITCH_INTERP_TYPE_SINE = 0x2,
-		ADS_ALT_SWITCH_INTERP_TYPE_COUNT = 0x3,
-	};
-
 	struct AdsAltSwitch
 	{
 		float fovInterpTimeSecMainToAlt;
@@ -4823,7 +5242,11 @@ namespace zonetool::iw7
 
 	struct WeaponAttachment
 	{
-		const char* szInternalName;
+		union
+		{
+			const char* szInternalName;
+			const char* name;
+		};
 		const char* szDisplayName;
 		scr_string_t internalName;
 		bool papAttachment; // packapunch
@@ -4916,7 +5339,915 @@ namespace zonetool::iw7
 		const char* szLUIWeaponInfoWidgetTag;
 	}; assert_sizeof(WeaponAttachment, 0x218);
 
-	struct WeaponCompleteDef;
+	struct AnimOverride
+	{
+		scr_string_t attachment1;
+		scr_string_t attachment2;
+		WeaponAnimPackage* overrides;
+		WeaponAnimPackage* overridesAlt;
+	}; assert_sizeof(AnimOverride, 24);
+
+	struct SFXOverride
+	{
+		scr_string_t attachment1;
+		scr_string_t attachment2;
+		WeaponSFXPackage* overrides;
+		WeaponSFXPackage* overridesAlt;
+	}; assert_sizeof(SFXOverride, 24);
+
+	struct VFXOverride
+	{
+		scr_string_t attachment1;
+		scr_string_t attachment2;
+		WeaponVFXPackage* overrides;
+		WeaponVFXPackage* overridesAlt;
+	}; assert_sizeof(VFXOverride, 24);
+
+	enum GrenadeRotationDirection : std::int32_t
+	{
+		GRD_RANDOM = 0x0,
+		GRD_CLOCKWISE = 0x1,
+		GRD_COUNTERCLOCKWISE = 0x2,
+		GRD_COUNT = 0x3,
+	};
+
+	struct GrenadeRotationParams
+	{
+		float initialPitch;
+		float initialYaw;
+		float initialRoll;
+		GrenadeRotationDirection rotationPitchDir;
+		int rotationPitchMin;
+		int rotationPitchMax;
+		GrenadeRotationDirection rotationYawDir;
+		int rotationYawMin;
+		int rotationYawMax;
+		GrenadeRotationDirection rotationRollDir;
+		int rotationRollMin;
+		int rotationRollMax;
+		bool rotate;
+	};
+
+	struct WeaponDef
+	{
+		const char* szOverlayName;
+		XModel* gunXModel;
+		XModel* gunXModelLeftHand;
+		XModel* gunXModelRightHand;
+		XModel* defaultViewModel;
+		XModel* defaultWorldModelLeftHand;
+		XModel* defaultWorldModelRightHand;
+		XModel* worldModel;
+		XModel* worldXModelLeftHand;
+		XModel* worldXModelRightHand;
+		XModel* defaultWorldModel;
+		XModel* playerShadowModel;
+		XModel* playerShadowModelLeftHand;
+		XModel* playerShadowModelRightHand;
+		XModel* handXModel;
+		XModel** complexWorldModel;
+		XModel** complexWorldModelLeftHand;
+		XModel** complexWorldModelRightHand;
+		XModel** complexGunXModel;
+		XModel** complexGunXModelLeftHand;
+		XModel** complexGunXModelRightHand;
+		unsigned int numComplexModels;
+		int pad; // padding
+		Material* camoWorldModelMaterialOverride[16];
+		Material* camoViewModelMaterialOverride[16];
+		float unk_0; // set but unused?
+		float unk_1; // set but unused?
+		float unk_2; // set but unused?
+		float unk_3; // set but unused?
+		WeaponAnimPackage* szXAnims;
+		WeaponAnimPackage* szXAnimsRightHanded;
+		WeaponAnimPackage* szXAnimsLeftHanded;
+		bool unk_4_0; // meleeAnims? // 1407448B0
+		bool unk_4_1; // weaponCamo? // 140718630
+		char pad17[2]; // padding
+		int iFireTime;
+		int iFireDelay;
+		int iFireTimeAkimbo;
+		int iFireDelayAkimbo;
+		int pad3; // padding
+		const char* szModeName;
+		scr_string_t* notetrackRumbleMapKeys; //  array: 16
+		scr_string_t* notetrackRumbleMapValues; //  array: 16
+		scr_string_t* notetrackFXMapKeys; //  array: 16
+		FxCombinedDef* notetrackFXMapValues; //  array: 16
+		scr_string_t* notetrackFXMapTagValues; //  array: 16
+		playerAnimType_t playerAnimType;
+		scriptedAnimEvent_t scriptedAnimEvent;
+		scriptedAnimType_t scriptedAnimType;
+		weapType_t weapType;
+		unsigned int whizbyType; // guessed // 140747580
+		weapClass_t weapClass;
+		PenetrateType penetrateType;
+		AnimDamageType deathAnimDamageType;
+		weapInventoryType_t inventoryType;
+		weapFireType_t fireType;
+		int burstCount;
+		targetAssistType_t targetAssistType;
+		targetAssistBehavior_t targetAssistBehavior;
+		float pad28; // padding
+		Material* unkMaterial; // -start AttUnknown01 // 140101130
+		float unk_18;
+		int unk_19;
+		float unk_20;
+		float unk_21;
+		float unk_22;
+		float unk_23;
+		float unk_24;
+		float unk_25;
+		float unk_26;
+		float unk_27;
+		float unk_28;
+		float unk_29;
+		float unk_30;
+		float unk_31;
+		float unk_32;
+		float unk_33;
+		float unk_34;
+		float unk_35;
+		float unk_36;
+		float unk_37;
+		float unk_38;
+		float unk_39;
+		float unk_40;
+		float unk_41;
+		float unk_42;
+		float unk_43;
+		float unk_44;
+		float unk_45;
+		float unk_46;
+		float unk_47;
+		float unk_48;
+		float unk_49;
+		float unk_50;
+		float unk_51;
+		int unk_52;
+		int unk_53;
+		int unk_54;
+		int unk_55;
+		int unk_56;
+		int unk_57;
+		int unk_58;
+		int unk_59;
+		int unk_60;
+		int unk_61;
+		float unk_62;
+		float unk_63; 
+		float unk_64;
+		bool unk_65_0;
+		bool unk_65_1;
+		bool unk_65_2;
+		bool unk_65_3; // -end
+		float targetAssistRange;
+		float targetAssistAngle;
+		float targetAssistLosOffsetForward;
+		float targetAssistLosOffsetRight;
+		float targetAssistLosOffsetUp;
+		bool targetAssistOnlyAvailableInAds;
+		bool unk_71_1; // unused
+		bool unk_71_2; // unused
+		bool unk_71_3; // unused
+		bool bSegmentedReload;
+		bool unk_72_1; // unused/padding
+		bool unk_72_2; // unused/padding
+		bool unk_72_3; // unused/padding
+		float burstFireCooldown;
+		bool burstFireAuto;
+		bool pad27[3]; // padding
+		OffhandClass offhandClass;
+		weapStance_t stance;
+		float pad18; // padding
+		WeaponVFXPackage* vfxPackage;
+		WeaponSFXPackage* sfxPackage;
+		ReticleType reticleType;
+		float pad8; // padding
+		Material* reticleCenter;
+		Material* reticleSide;
+		Material* reticleOnePiece;
+		int iReticleCenterSize;
+		int iReticleSideSize;
+		int iReticleMinOfs;
+		bool reticleCenterPulse;
+		char pad25[3]; // padding
+		activeReticleType_t activeReticleType;
+		float vStandMove[3];
+		float vStandRot[3];
+		float strafeMove[3];
+		float strafeRot[3];
+		float vDuckedOfs[3];
+		float vDuckedMove[3];
+		float vDuckedRot[3];
+		float vProneOfs[3];
+		float vProneMove[3];
+		float vProneRot[3];
+		float fPosMoveRate;
+		float fPosProneMoveRate;
+		float fStandMoveMinSpeed;
+		float fDuckedMoveMinSpeed;
+		float fProneMoveMinSpeed;
+		float fPosRotRate;
+		float fPosProneRotRate;
+		float fStandRotMinSpeed;
+		float fDuckedRotMinSpeed;
+		float fProneRotMinSpeed;
+		float pad4; // padding
+		XModel* worldClipModel;
+		XModel* rocketModel;
+		XModel* knifeModel;
+		XModel* worldKnifeModel;
+		Material* hudIcon;
+		Material* pickupIcon;
+		Material* dangerIcon;
+		Material* throwBackIcon;
+		bool hideWarningIcons;
+		char pad6[3]; // padding
+		float warningIconsDelay;
+		Material* ammoCounterIcon;
+		ammoCounterClipType_t ammoCounterClip;
+		int iStartAmmo;
+		int iPerkStartAmmo;
+		int iPerkMaxAmmo;
+		const char* szAmmoName;
+		int iAmmoIndex;
+		int iMaxAmmo;
+		int shotCount;
+		const char* szSharedAmmoCapName;
+		int iSharedAmmoCapIndex;
+		int iSharedAmmoCap;
+		int iAmmoUsedPerShot;
+		bool requireAmmoUsedPerShot;
+		char pad24[3]; // padding
+		float lowAmmoWarningThreshold;
+		bool disableNoAmmoWarning;
+		char pad19[3]; // padding
+		int damage;
+		int playerDamage;
+		int meleeDamage;
+		int iDamageType;
+		float autoAimRange;
+		float aimAssistRange;
+		float aimAssistRangeAds;
+		float aimAssistPitchSlowdown;
+		float aimAssistPitchSlowdownAds;
+		float aimAssistYawSlowdown;
+		float aimAssistYawSlowdownAds;
+		float aimAssistLockonStrength;
+		float aimPadding;
+		float enemyCrosshairRange;
+		float moveSpeedScale;
+		float adsMoveSpeedScale;
+		float sprintDurationScale;
+		float sprintRestoreDelay;
+		float fAdsZoomInFrac;
+		float fAdsZoomOutFrac;
+		ADSOverlay overlay;
+		WeapOverlayInteface_t overlayInterface;
+		float fAdsBobFactor;
+		float fAdsViewBobMult;
+		float fHipSpreadStandMin;
+		float fHipSpreadDuckedMin;
+		float fHipSpreadProneMin;
+		float hipSpreadSprintMin;
+		float hipSpreadInAirMin;
+		float hipSpreadStandMax;
+		float hipSpreadDuckedMax;
+		float hipSpreadProneMax;
+		float hipSpreadSprintMax;
+		float hipSpreadInAirMax;
+		float fHipSpreadDecayRate;
+		float fHipSpreadFireAdd;
+		float fHipSpreadTurnAdd;
+		float fHipSpreadMoveAdd;
+		float fHipSpreadDuckedDecay;
+		float fHipSpreadProneDecay;
+		float hipSpreadSprintDecay;
+		float hipSpreadInAirDecay;
+		float fHipReticleSidePos;
+		float fAdsIdleAmount;
+		float fHipIdleAmount;
+		float adsIdleSpeed;
+		float hipIdleSpeed;
+		float fIdleCrouchFactor;
+		float fIdleProneFactor;
+		float fGunMaxPitch;
+		float fGunMaxYaw;
+		float adsIdleLerpStartTime;
+		float adsIdleLerpTime;
+		float slideSpreadMin;
+		float slideSpreadMax;
+		float slideSpreadDecayRate;
+		float slideSpreadFireAdd;
+		float slideSpreadTurnAdd;
+		float swayMaxAngleSteadyAim;
+		float swayMaxAngle;
+		float swayLerpSpeed;
+		float swayPitchScale;
+		float swayYawScale;
+		float swayHorizScale;
+		float swayVertScale;
+		float swayShellShockScale;
+		float adsSwayMaxAngle;
+		float adsSwayLerpSpeed;
+		float adsSway_UNKNOWN_Scale; // set but unused
+		float adsSwayPitchScale;
+		float adsSwayYawScale;
+		float adsSwayHorizScale;
+		float adsSwayVertScale;
+		float adsFireRateScale;
+		float adsDamageRangeScale;
+		float adsFireAnimFrac;
+		float fireTimerLerpToAdsScale;
+		bool alwaysFireAtMaxRangeInAds;
+		char pad23[3]; // padding
+		float dualWieldViewModelOffset;
+		float fScopeDriftDelay;
+		float fScopeDriftLerpInTime;
+		float fScopeDriftSteadyTime;
+		float fScopeDriftLerpOutTime;
+		float fScopeDriftSteadyFactor;
+		float fScopeDriftUnsteadyFactor;
+		weaponIconRatioType_t killIconRatio;
+		int iReloadAmmoAdd;
+		int iReloadStartAdd;
+		int ammoDropStockMin;
+		int ammoDropClipPercentMin;
+		int ammoDropClipPercentMax;
+		int iExplosionRadius;
+		int iExplosionRadiusMin;
+		int iExplosionForceRadius;
+		int iExplosionInnerDamage;
+		int iExplosionOuterDamage;
+		float damageConeAngle;
+		float bulletExplDmgMult;
+		float bulletExplRadiusMult;
+		int iProjectileSpeed;
+		int iProjectileSpeedUp;
+		int iProjectileSpeedForward;
+		int iProjectileActivateDist;
+		int iProjectileDetonationRadius;
+		float projLifetime;
+		float projLifetimeStdDeviation;
+		float timeToAccelerate;
+		float projectileCurvature;
+		float pad2; // padding
+		XModel* projectileModel;
+		weapProjExposion_t projExplosion;
+		FxCombinedDef projExplosionEffect;
+		FxCombinedDef projDudEffect;
+		WeapStickinessType stickiness;
+		float ricochetChance;
+		bool riotShieldEnableDamage;
+		int riotShieldHealth;
+		float riotShieldDamageMult;
+		float pad7; // padding
+		float* parallelBounce; // array: 64
+		float* perpendicularBounce; // array: 64
+		FxCombinedDef projBodyEffect;
+		FxCombinedDef projTrailEffect;
+		FxCombinedDef projBeaconEffect;
+		vec3_t vProjectileColor;
+		guidedMissileType_t guidedMissileType;
+		float maxSteeringAccel;
+		int projIgnitionDelay;
+		FxCombinedDef projIgnitionEffect;
+		float fAdsAimPitch;
+		float fAdsCrosshairInFrac;
+		float fAdsCrosshairOutFrac;
+		float adsInCrosshairAlphaStart;
+		float adsInCrosshairAlphaEnd;
+		float adsOutCrosshairAlphaStart;
+		float adsOutCrosshairAlphaEnd;
+		bool adsShouldShowCrosshair;
+		int adsGunKickReducedKickBullets;
+		float adsGunKickReducedKickPercent;
+		float fAdsGunKickPitchMin;
+		float fAdsGunKickPitchMax;
+		float fAdsGunKickYawMin;
+		float fAdsGunKickYawMax;
+		float fAdsGunKickMagMin;
+		float fAdsGunKickAccel;
+		float fAdsGunKickSpeedMax;
+		float fAdsGunKickSpeedDecay;
+		float fAdsGunKickStaticDecay;
+		float fAdsViewKickPitchMin;
+		float fAdsViewKickPitchMax;
+		float fAdsViewKickYawMin;
+		float fAdsViewKickYawMax;
+		float fAdsViewKickMagMin;
+		float fAdsViewScatterMin;
+		float fAdsViewScatterMax;
+		float fAdsSpread;
+		int iVisibilityAxis;
+		float fVisibilityUpOffset;
+		int hipGunKickReducedKickBullets;
+		float hipGunKickReducedKickPercent;
+		float fHipGunKickPitchMin;
+		float fHipGunKickPitchMax;
+		float fHipGunKickYawMin;
+		float fHipGunKickYawMax;
+		float fHipGunKickMagMin;
+		float fHipGunKickAccel;
+		float fHipGunKickSpeedMax;
+		float fHipGunKickSpeedDecay;
+		float fHipGunKickStaticDecay;
+		float fHipViewKickPitchMin;
+		float fHipViewKickPitchMax;
+		float fHipViewKickYawMin;
+		float fHipViewKickYawMax;
+		float fHipViewKickMagMin;
+		float fHipViewScatterMin;
+		float fHipViewScatterMax;
+		float multipleReloadClipPercentage;
+		float kickAlignedInputScalar;
+		float kickOpposedInputScalar;
+		float fightDist;
+		float maxDist;
+		const char* accuracyGraphName[2];
+		vec2_t* originalAccuracyGraphKnots[2];
+		unsigned __int16 originalAccuracyGraphKnotCount[2];
+		int iPositionReloadTransTime;
+		float leftArc;
+		float rightArc;
+		float topArc;
+		float bottomArc;
+		bool softLeftRightArc;
+		char pad20[3]; // padding
+		float accuracy;
+		float aiSpread;
+		float playerSpread;
+		float minTurnSpeed[2];
+		float maxTurnSpeed[2];
+		float pitchConvergenceTime;
+		float yawConvergenceTime;
+		float suppressTime;
+		float maxRange;
+		float fAnimHorRotateInc;
+		float fPlayerPositionDist;
+		const char* szUseHintString;
+		const char* dropHintString;
+		unsigned int iUseHintStringIndex;
+		unsigned int dropHintStringIndex;
+		float horizViewJitter;
+		float vertViewJitter;
+		float scanSpeed;
+		float scanAccel;
+		int scanPauseTime;
+		const char* szScript;
+		float adsSpeedMs[2];
+		int minDamage;
+		int minPlayerDamage;
+		int mid1Damage;
+		int mid2Damage;
+		int mid3Damage;
+		int mid1PlayerDamage;
+		int mid2PlayerDamage;
+		int mid3PlayerDamage;
+		float maxDamageRange;
+		float mid1DamageRange;
+		float mid2DamageRange;
+		float mid3DamageRange;
+		float minDamageRange;
+		float destabilizationRateTime;
+		float destabilizationCurvatureMax;
+		int destabilizeDistance;
+		float robotechMaxPitch;
+		float robotechMaxYaw;
+		float robotechFrequency;
+		float robotechVariancePitch;
+		float robotechVarianceYaw;
+		float robotechVarianceFrequency;
+		float* locationDamageMultipliers;
+		char* hitLocPriorityMap;
+		float unittypeMultipliers[10];
+		RumbleInfo* fireRumble;
+		RumbleInfo* meleeImpactRumble;
+		tracerStyle_t tracerStyle;
+		TracerDef* tracerType;
+		TracerDef* overchargeTracerType;
+		LaserDef* laserTypeFriendly;
+		LaserDef* laserTypeEnemy;
+		bool turretADSEnabled;
+		float turretADSTime;
+		float turretFov;
+		float turretFovADS;
+		float turretScopeZoomRate;
+		float turretScopeZoomMin;
+		float turretScopeZoomMax;
+		float turretOverheatUpRate;
+		float turretOverheatDownRate;
+		float turretOverheatPenalty;
+		const char* turretOverheatSound;
+		FxCombinedDef turretOverheatEffect;
+		RumbleInfo* turretBarrelSpinRumble;
+		float turretBarrelSpinSpeed;
+		float turretBarrelSpinUpTime;
+		float turretBarrelSpinDownTime;
+		const char* turretBarrelSpinMaxSnd;
+		const char* turretBarrelSpinUpSnd[4];
+		const char* turretBarrelSpinDownSnd[4];
+		const char* missileConeSoundAlias;
+		const char* missileConeSoundAliasAtBase;
+		float missileConeSoundRadiusAtTop;
+		float missileConeSoundRadiusAtBase;
+		float missileConeSoundHeight;
+		float missileConeSoundOriginOffset;
+		float missileConeSoundVolumescaleAtCore;
+		float missileConeSoundVolumescaleAtEdge;
+		float missileConeSoundVolumescaleCoreSize;
+		float missileConeSoundPitchAtTop;
+		float missileConeSoundPitchAtBottom;
+		float missileConeSoundPitchTopSize;
+		float missileConeSoundPitchBottomSize;
+		float missileConeSoundCrossfadeTopSize;
+		float missileConeSoundCrossfadeBottomSize;
+		scr_string_t knifeAttachTagOverride;
+		scr_string_t knifeAttachTagOverride2;
+		bool knifeAlwaysAttached;
+		bool meleeOverrideValues;
+		char pad26[2]; // padding
+		float aim_automelee_lerp;
+		float aim_automelee_region_height;
+		float aim_automelee_region_width;
+		float aim_automelee_maxPitchMovement;
+		float aim_automelee_maxYawMovement;
+		float player_meleeHeight;
+		float player_meleeWidth;
+		float playerMeleeRangeStanding;
+		float playerMeleeRangeCrouched;
+		float playerMeleeRangeProne;
+		float playerMeleeRangeChargeStanding;
+		float playerMeleeRangeChargeCrouched;
+		float playerMeleeChargeHeightTolerance;
+		bool shieldAllowFiring;
+		bool shieldUnkBool; // shieldAllowGesture? // 14004CCE0
+		char pad13[2]; // padding
+		offhandShieldMaxSpeed_t shieldMaxSpeed;
+		bool shieldAlwaysDisplay;
+		char pad14[3]; // padding
+		Gesture* shieldDeployGesture;
+		Gesture* shieldFireWeapGesture;
+		Gesture* shieldDeployWhileFiring;
+		Gesture* shieldRetractWhileFiring;
+		Gesture* shieldBashGesture;
+		FxCombinedDef shieldMeleeFx;
+		float shieldMeleeFxDelay;
+		float HitEarthquakeScale;
+		float HitEarthquakeDuration;
+		float HitEarthquakeRadius;
+		RumbleInfo* shieldHitRumble;
+		float MissEarthquakeScale;
+		float MissEarthquakeDuration;
+		float MissEarthquakeRadius;
+		RumbleInfo* shieldMissRumble;
+		int shieldDeployButton;
+		bool shieldUsesEnergy;
+		float shieldMaxEnergy;
+		float shieldConsumptionRate;
+		float shieldMeleeEnergyCost;
+		float shieldMeleeHitEnergyCost;
+		float reactiveMotionRadiusScale;
+		float reactiveMotionFrequencyScale;
+		float reactiveMotionAmplitudeScale;
+		float reactiveMotionFalloff;
+		float reactiveMotionLifetime;
+		bool hasAnyTransientModels;
+		bool sharedAmmo;
+		bool lockonSupported;
+		bool requireLockonToFire;
+		bool isAirburstWeapon;
+		bool bigExplosion;
+		bool noAdsWhenMagEmpty;
+		bool avoidDropCleanup;
+		bool allowGrenadeSwitching;
+		bool inheritsPerks;
+		bool crosshairColorChange;
+		bool bRifleBullet;
+		bool bEnergyBullet;
+		bool armorPiercing;
+		bool impaling;
+		bool bBoltAction;
+		bool aimDownSight;
+		bool canHoldBreath;
+		bool meleeOnly;
+		bool supportsAlternateMelee;
+		bool canVariableZoom;
+		bool bRechamberWhileAds;
+		bool bBulletExplosiveDamage;
+		bool bCookOffHold;
+		bool reticleSpin45;
+		bool bClipOnly;
+		bool bDoesNotConsumeAmmo;
+		bool bRemoveWeaponOnEmpty;
+		bool noAmmoPickup;
+		bool adsFireOnly;
+		bool cancelAutoHolsterWhenEmpty;
+		bool disableSwitchToWhenEmpty;
+		bool suppressAmmoPrimaryDisplay;
+		bool suppressAmmoReserveDisplay;
+		bool laserSightDuringNightvision;
+		bool markableViewmodel;
+		DualWieldType dualWieldType;
+		bool flipKillIcon;
+		bool bNoPartialReload;
+		bool reloadDisabled;
+		bool blocksProne;
+		bool silenced;
+		bool isRollingGrenade;
+		bool dropGrenadeHeldOnDeath;
+		bool projExplosionEffectForceNormalUp;
+		bool projExplosionEffectInheritParentDirection;
+		bool bProjImpactExplode;
+		bool disableProjectileCrumpleCheck;
+		bool bProjTrajectoryEvents;
+		bool bProjWhizByEnabled;
+		bool stickToPlayers;
+		bool stickToVehicles;
+		bool stickToTurrets;
+		bool stickToNonStick;
+		bool projEnableMissileStickiness;
+		bool thrownSideways;
+		bool hasDetonator;
+		bool disableFiring;
+		bool firesOnWeaponSwitch;
+		bool disableHolding;
+		bool timedDetonation;
+		int explosiveDamageDelay;
+		int fuseTime;
+		int aiFuseTime;
+		int maxHoldTime;
+		GrenadeRotationParams rotationParams;
+		bool holdButtonToThrow;
+		bool infiniteHold;
+		bool freezeMovementWhenFiring;
+		bool offhandAllowsSprint;
+		bool thermalScope;
+		bool thermalToggle;
+		bool outlineEnemies;
+		bool outlineDepthTest;
+		bool outlineFill;
+		char pad10[3]; // padding
+		float enemyOutlineR;
+		float enemyOutlineG;
+		float enemyOutlineB;
+		float enemyOutlineA;
+		float allyOutlineR;
+		float allyOutlineG;
+		float allyOutlineB;
+		float allyOutlineA;
+		bool depthScan;
+		char pad11[3]; // padding
+		float depthScanThickness;
+		float depthScanR;
+		float depthScanG;
+		float depthScanB;
+		float depthScanA;
+		float depthScanOutlineThickness;
+		float depthScanOutlineR;
+		float depthScanOutlineG;
+		float depthScanOutlineB;
+		float depthScanOutlineA;
+		bool depthScanOverlay;
+		char pad12[3]; // padding
+		float depthScanOverlayStrength;
+		float depthScanOverlayXTiles;
+		float depthScanOverlayYTiles;
+		float depthScanOverlayXScroll;
+		float depthScanOverlayYScroll;
+		float blurSceneAdsInFraction;
+		float blurSceneAdsOutFraction;
+		bool altModeSameWeapon;
+		bool turretBarrelSpinEnabled;
+		bool missileConeSoundEnabled;
+		bool missileConeSoundPitchshiftEnabled;
+		bool missileConeSoundCrossfadeEnabled;
+		bool offhandHoldIsCancelable;
+		bool doNotAllowAttachmentsToOverrideSpread;
+		bool useScopeDrift;
+		bool alwaysShatterGlassOnImpact;
+		bool oldWeapon;
+		bool jumpSpread;
+		bool noFullViewmodelAnimations;
+		float killcamOffset;
+		bool useDualFOV;
+		bool disableDrop;
+		bool preferredDrop;
+		char pad21[5]; // pad
+		Gesture* gestureAnimation;
+		float gestureFireStateTime;
+		Gesture* gesturePullback;
+		float minPullbackTime;
+		Gesture* gestureThrow;
+		float gestureFireTime;
+		Gesture* gestureDetonate;
+		float gestureDetonationTime;
+		float unk_433; // 1400688A0
+		const char* unknownString1;
+		float unk_434; // 1400688A0
+		char pad22[4]; // pad
+		const char* unknownString2;
+		bool gesturesDisablePrimary;
+		char pad15[7]; // pad
+		FxCombinedDef cameraFireEffect;
+		float cameraFireEffectDurationSec;
+		float changedFireTime;
+		float changedFireTimeAkimbo;
+		int changedFireTimeNumBullets;
+		WeaponChargeType chargeType;
+		float chargeGain;
+		float chargeCostPerShot;
+		float chargeLossWhenIdle;
+		float chargeEmptyCooldown;
+		float chargeFireAtMaxDamageMultiplier;
+		int chargeMeterEffectBoneCount;
+		FxCombinedDef chargeMeterEffect;
+		const char* chargeUpSound;
+		const char* chargeDownSound;
+		const char* chargeUpSoundPlayer;
+		const char* chargeDownSoundPlayer;
+		const char* chargeDownToUpSound;
+		const char* chargeDownToUpSoundPlayer;
+		const char* chargeUpToDownSound;
+		const char* chargeUpToDownSoundPlayer;
+		const char* chargeMaxSound;
+		const char* chargeMaxSoundPlayer;
+		bool chargeHudReveal;
+		RumbleInfo* chargeRumble;
+		scr_string_t stowTag;
+		XModel* stowOffsetModel;
+		WeaponSlot slot;
+		float maxTargetAngle;
+		bool spaceshipSecondaryWeapon;
+		float impulseFieldRadius;
+		float impulseFieldInitialSpeed;
+		float impulseFieldMaxSpeed;
+		float impulseFieldAcceleration;
+		float impulseFieldInAirImpulseMultiplier;
+		float impulseFieldInAirImpulseMultiplierInterpTime;
+		float impulseFieldSlideMultiplier;
+		float impulseFieldSlideMultiplierInterpTime;
+		bool impulseFieldIsPush;
+		bool impulseFieldAffectsFriendlies;
+		bool impulseFieldAffectsSelf;
+		bool impulseFieldAffectsProne;
+		bool regenerationEnabled;
+		int regenerationTimeMs;
+		int regenerationAddTimeMs;
+		int regenerationAmount;
+		bool regenerationConsumeStock;
+		bool regenerationDisableWhileFiring;
+		bool deployRequireOnWalkableSurface;
+		bool deployRequireOnNavmesh;
+		bool deployRequireSkyAbove;
+		bool deployRequireNoOverhang;
+		bool deployAlwaysUpright;
+		bool deployEdgeSnap;
+		float deployCylinderRadius;
+		float deployCylinderHeight;
+		float deployMaxDistance;
+		float pad16;  // pad
+		FxCombinedDef deployEffect;
+		int deployValidGroupId;
+		int deployIndoorGroupId;
+		int deployInvalidGroupId;
+		int deployOutOfRangeGroupId;
+		AnimOverride animOverrides[21];
+		SFXOverride sfxOverrides[21];
+		VFXOverride vfxOverrides[21];
+		float reactiveEmitterDelay;
+		float grenadeDangerIconDistance;
+		bool unk_466_0; // unk // 14074E570
+		char pad29[7]; // pad
+	}; assert_sizeof(WeaponDef, 0x1418);
+	assert_offsetof(WeaponDef, handXModel, 112);
+	assert_offsetof(WeaponDef, camoWorldModelMaterialOverride, 176);
+	assert_offsetof(WeaponDef, camoViewModelMaterialOverride, 304);
+	assert_offsetof(WeaponDef, szXAnims, 448);
+	assert_offsetof(WeaponDef, szModeName, 496);
+	assert_offsetof(WeaponDef, notetrackFXMapTagValues, 536);
+	assert_offsetof(WeaponDef, reticleOnePiece, 888);
+	assert_offsetof(WeaponDef, hudIcon, 1112);
+	assert_offsetof(WeaponDef, szAmmoName, 1176);
+	assert_offsetof(WeaponDef, szSharedAmmoCapName, 1200);
+	assert_offsetof(WeaponDef, projDudEffect, 1752);
+	assert_offsetof(WeaponDef, parallelBounce, 1792);
+	assert_offsetof(WeaponDef, projIgnitionEffect, 1880);
+	assert_offsetof(WeaponDef, accuracyGraphName, 2104);
+	assert_offsetof(WeaponDef, szUseHintString, 2216);
+	assert_offsetof(WeaponDef, szScript, 2264);
+	assert_offsetof(WeaponDef, locationDamageMultipliers, 2368);
+	assert_offsetof(WeaponDef, fireRumble, 2424);
+	assert_offsetof(WeaponDef, laserTypeEnemy, 2472);
+	assert_offsetof(WeaponDef, turretOverheatSound, 2520);
+	assert_offsetof(WeaponDef, missileConeSoundAliasAtBase, 2648);
+	assert_offsetof(WeaponDef, knifeAttachTagOverride, 2708);
+	assert_offsetof(WeaponDef, shieldDeployGesture, 2784);
+	assert_offsetof(WeaponDef, shieldHitRumble, 2856);
+	assert_offsetof(WeaponDef, shieldMissRumble, 2880);
+	assert_offsetof(WeaponDef, gestureAnimation, 3208);
+	assert_offsetof(WeaponDef, gestureDetonate, 3256);
+	assert_offsetof(WeaponDef, unknownString2, 3288);
+	assert_offsetof(WeaponDef, cameraFireEffect, 3304);
+	assert_offsetof(WeaponDef, chargeMeterEffect, 3368);
+	assert_offsetof(WeaponDef, chargeRumble, 3472);
+	assert_offsetof(WeaponDef, stowOffsetModel, 3488);
+
+	struct NoteTrackToSoundEntry
+	{
+		unsigned int numSoundMappings;
+		scr_string_t attachment;
+		scr_string_t* notetrackSoundMapKeys;
+		scr_string_t* notetrackSoundMapValues;
+	};
+
+	enum SuitAnimType : std::int32_t
+	{
+		ANIM_SUIT_HUMAN = 0x0,
+		ANIM_SUIT_ROBOTIC = 0x1,
+		ANIM_SUIT_C8 = 0x2,
+		ANIM_SUIT_REAPER = 0x3,
+		NUM_ANIM_SUIT_STATE = 0x4,
+		ANIM_SUIT_INVALID = 0x4,
+	};
+
+	struct NoteTrackToSuitSoundEntry
+	{
+		unsigned int numSoundMappings;
+		SuitAnimType suitAnimState;
+		scr_string_t* notetrackSoundMapKeys;
+		scr_string_t* notetrackSoundMapValues;
+	};
+
+	struct WeaponCompleteDef
+	{
+		union
+		{
+			const char* szInternalName;
+			const char* name;
+		};
+		WeaponDef* weapDef;
+		const char* szDisplayName;
+		const char* szLootTable;
+		scr_string_t* hideTags;
+		unsigned int numAttachments;
+		unsigned int numAttachments2;
+		unsigned int numAttachments3; // underbarrel
+		unsigned int numAttachments4;
+		unsigned int numAttachments5; // cosmetic
+		unsigned int numAttachments6;
+		int numLootVariants; // runtime data
+		int pad; // padding
+		WeaponAttachment** attachments;
+		WeaponAttachment** attachments2;
+		WeaponAttachment** attachments3;
+		WeaponAttachment** attachments4;
+		WeaponAttachment** attachments5;
+		WeaponAttachment** attachments6;
+		unsigned int numNotetrackSoundMappings;
+		int pad2; // padding
+		scr_string_t* notetrackSoundMapKeys;
+		scr_string_t* notetrackSoundMapValues;
+		unsigned int numNotetrackOverrides;
+		NoteTrackToSoundEntry* notetrackOverrides;
+		unsigned int numNotetrackSuitEntries;
+		NoteTrackToSuitSoundEntry* notetrackSuitEntries;
+		float fAdsZoomFov;
+		int iAdsTransInTime;
+		int iAdsTransOutTime;
+		int iClipSize;
+		ImpactType vfxImpactType;
+		ImpactType sfxImpactType;
+		MeleeImpactType meleeImpactType;
+		float penetrateMultiplier;
+		float fAdsViewKickCenterSpeed;
+		float fHipViewKickCenterSpeed;
+		const char* szAltWeaponName;
+		Material* killIconMat;
+		Material* dpadIconMat;
+		int ammoDropStockMax;
+		float adsDofStart;
+		float adsDofEnd;
+		unsigned short accuracyGraphKnotCount[2];
+		vec2_t* accuracyGraphKnots[2];
+		bool motionTracker;
+		bool enhanced;
+		bool dpadIconShowsAmmo;
+		bool luiWeaponInfoWidgetUsesScopeStencil;
+		const char* szAdsrBaseSetting;
+		const char* szLUIWeaponInfoWidgetName;
+		const char* szLUIWeaponInfoWidgetTag;
+		const char* szLUICrosshairWidget;
+	}; assert_sizeof(WeaponCompleteDef, 0x138);
+	assert_offsetof(WeaponCompleteDef, attachments, 72);
+	assert_offsetof(WeaponCompleteDef, notetrackSuitEntries, 168);
+	assert_offsetof(WeaponCompleteDef, killIconMat, 224);
+	assert_offsetof(WeaponCompleteDef, notetrackSuitEntries, 168);
+	assert_offsetof(WeaponCompleteDef, accuracyGraphKnotCount, 252);
+	assert_offsetof(WeaponCompleteDef, accuracyGraphKnots, 256);
+	assert_offsetof(WeaponCompleteDef, szAdsrBaseSetting, 280);
 
 	enum PARTICLE_FLAG
 	{
@@ -8088,16 +9419,6 @@ namespace zonetool::iw7
 		void* ftFace;
 	}; assert_sizeof(TTFDef, 0x20);
 
-	enum SuitAnimType
-	{
-		ANIM_SUIT_HUMAN = 0x0,
-		ANIM_SUIT_ROBOTIC = 0x1,
-		ANIM_SUIT_C8 = 0x2,
-		ANIM_SUIT_REAPER = 0x3,
-		NUM_ANIM_SUIT_STATE = 0x4,
-		ANIM_SUIT_INVALID = 0x4,
-	};
-
 	enum SuitBodyAnimType
 	{
 		SUITBODYANIMTYPE_HUMAN = 0x0,
@@ -8424,13 +9745,13 @@ namespace zonetool::iw7
 		unsigned __int16 iFastReloadAddTime;
 		unsigned __int16 iReloadEmptyAddTime;
 		unsigned __int16 iFastReloadEmptyAddTime;
-		unsigned __int16 unk_28;
+		unsigned __int16 iReloadStartTime;
 		unsigned __int16 iAltOverride3PInTime;
 		unsigned __int16 iAltOverride3POutTime;
-		unsigned __int16 unk_31;
-		unsigned __int16 unk_32;
-		unsigned __int16 unk_33;
-		unsigned __int16 unk_34;
+		unsigned __int16 iReloadStartAddTime;
+		unsigned __int16 iFastReloadStartAddTime;
+		unsigned __int16 iReloadEndTime;
+		unsigned __int16 iFastReloadEndTime;
 		unsigned __int16 iDropTime;
 		unsigned __int16 iRaiseTime;
 		unsigned __int16 iAltDropTime;
@@ -8480,352 +9801,46 @@ namespace zonetool::iw7
 		unsigned __int16 iRegenerationAddTime;
 		unsigned __int16 iReloadInterruptTime;
 		unsigned __int16 iReloadEmptyInterruptTime;
-		unsigned __int16 unk_83;
-		unsigned __int16 unk_84;
-		unsigned __int16 unk_85;
-		unsigned __int16 unk_86;
-		unsigned __int16 unk_87;
-		unsigned __int16 unk_88;
-		unsigned __int16 unk_89;
-		unsigned __int16 unk_90;
-		unsigned __int16 unk_91;
+		unsigned __int16 iReloadEndInterruptTime;
+		unsigned __int16 iReloadMultiple1InterruptTime;
+		unsigned __int16 iReloadMultiple2InterruptTime;
+		unsigned __int16 iReloadMultiple3InterruptTime;
+		unsigned __int16 iReloadMultiple4InterruptTime;
+		unsigned __int16 iReloadMultiple5InterruptTime;
+		unsigned __int16 iReloadMultiple6InterruptTime;
+		unsigned __int16 iReloadMultiple7InterruptTime;
+		unsigned __int16 iReloadMultiple8InterruptTime;
 		unsigned __int16 iFastReloadInterruptTime;
 		unsigned __int16 iFastReloadEmptyInterruptTime;
-		unsigned __int16 unk_94;
-		unsigned __int16 unk_95;
-		unsigned __int16 unk_96;
-		unsigned __int16 unk_97;
-		unsigned __int16 unk_98;
-		unsigned __int16 unk_99;
-		unsigned __int16 unk_100;
-		unsigned __int16 unk_101;
-		unsigned __int16 unk_102;
+		unsigned __int16 iFastReloadEndInterruptTime;
+		unsigned __int16 iFastReloadMultiple1InterruptTime;
+		unsigned __int16 iFastReloadMultiple2InterruptTime;
+		unsigned __int16 iFastReloadMultiple3InterruptTime;
+		unsigned __int16 iFastReloadMultiple4InterruptTime;
+		unsigned __int16 iFastReloadMultiple5InterruptTime;
+		unsigned __int16 iFastReloadMultiple6InterruptTime;
+		unsigned __int16 iFastReloadMultiple7InterruptTime;
+		unsigned __int16 iFastReloadMultiple8InterruptTime;
 	}; assert_sizeof(WeaponAnimPackageStateTimers, 206);
 
-	struct unk_1453E3DD0
+	struct FootstepAnims
 	{
-		unsigned __int16 unk_0;
-		unsigned __int16 unk_1;
-		unsigned __int16 unk_2;
-		unsigned __int16 unk_3;
-		unsigned __int16 unk_4;
-		unsigned __int16 unk_5;
-		unsigned __int16 unk_6;
-		unsigned __int16 unk_7;
-		unsigned __int16 unk_8;
-		unsigned __int16 unk_9;
-		unsigned __int16 unk_10;
-		unsigned __int16 unk_11;
-		unsigned __int16 unk_12;
-		unsigned __int16 unk_13;
-		unsigned __int16 unk_14;
-		unsigned __int16 unk_15;
-		unsigned __int16 unk_16;
-		unsigned __int16 unk_17;
-		unsigned __int16 unk_18;
-		unsigned __int16 unk_19;
-		unsigned __int16 unk_20;
-		unsigned __int16 unk_21;
-		unsigned __int16 unk_22;
-		unsigned __int16 unk_23;
-		unsigned __int16 unk_24;
-		unsigned __int16 unk_25;
-		unsigned __int16 unk_26;
-		unsigned __int16 unk_27;
-		unsigned __int16 unk_28;
-		unsigned __int16 unk_29;
-		unsigned __int16 unk_30;
-		unsigned __int16 unk_31;
-		unsigned __int16 unk_32;
-		unsigned __int16 unk_33;
-		unsigned __int16 unk_34;
-		unsigned __int16 unk_35;
-		unsigned __int16 unk_36;
-		unsigned __int16 unk_37;
-		unsigned __int16 unk_38;
-		unsigned __int16 unk_39;
-		unsigned __int16 unk_40;
-		unsigned __int16 unk_41;
-		unsigned __int16 unk_42;
-		unsigned __int16 unk_43;
-		unsigned __int16 unk_44;
-		unsigned __int16 unk_45;
-		unsigned __int16 unk_46;
-		unsigned __int16 unk_47;
-		unsigned __int16 unk_48;
-		unsigned __int16 unk_49;
-		unsigned __int16 unk_50;
-		unsigned __int16 unk_51;
-		unsigned __int16 unk_52;
-		unsigned __int16 unk_53;
-		unsigned __int16 unk_54;
-		unsigned __int16 unk_55;
-		unsigned __int16 unk_56;
-		unsigned __int16 unk_57;
-		unsigned __int16 unk_58;
-		unsigned __int16 unk_59;
-		unsigned __int16 unk_60;
-		unsigned __int16 unk_61;
-		unsigned __int16 unk_62;
-		unsigned __int16 unk_63;
-		unsigned __int16 unk_64;
-		unsigned __int16 unk_65;
-		unsigned __int16 unk_66;
-		unsigned __int16 unk_67;
-		unsigned __int16 unk_68;
-		unsigned __int16 unk_69;
-		unsigned __int16 unk_70;
-		unsigned __int16 unk_71;
-		unsigned __int16 unk_72;
-		unsigned __int16 unk_73;
-		unsigned __int16 unk_74;
-		unsigned __int16 unk_75;
-		unsigned __int16 unk_76;
-		unsigned __int16 unk_77;
-		unsigned __int16 unk_78;
-		unsigned __int16 unk_79;
-		unsigned __int16 unk_80;
-		unsigned __int16 unk_81;
-		unsigned __int16 unk_82;
-		unsigned __int16 unk_83;
-		unsigned __int16 unk_84;
-		unsigned __int16 unk_85;
-		unsigned __int16 unk_86;
-		unsigned __int16 unk_87;
-		unsigned __int16 unk_88;
-		unsigned __int16 unk_89;
-		unsigned __int16 unk_90;
-		unsigned __int16 unk_91;
-		unsigned __int16 unk_92;
-		unsigned __int16 unk_93;
-		unsigned __int16 unk_94;
-		unsigned __int16 unk_95;
-		unsigned __int16 unk_96;
-		unsigned __int16 unk_97;
-		unsigned __int16 unk_98;
-		unsigned __int16 unk_99;
-		unsigned __int16 unk_100;
-		unsigned __int16 unk_101;
-		unsigned __int16 unk_102;
-		unsigned __int16 unk_103;
-		unsigned __int16 unk_104;
-		unsigned __int16 unk_105;
-		unsigned __int16 unk_106;
-		unsigned __int16 unk_107;
-		unsigned __int16 unk_108;
-		unsigned __int16 unk_109;
-		unsigned __int16 unk_110;
-		unsigned __int16 unk_111;
-		unsigned __int16 unk_112;
-		unsigned __int16 unk_113;
-		unsigned __int16 unk_114;
-		unsigned __int16 unk_115;
-		unsigned __int16 unk_116;
-		unsigned __int16 unk_117;
-		unsigned __int16 unk_118;
-		unsigned __int16 unk_119;
-		unsigned __int16 unk_120;
-		unsigned __int16 unk_121;
-		unsigned __int16 unk_122;
-		unsigned __int16 unk_123;
-		unsigned __int16 unk_124;
-		unsigned __int16 unk_125;
-		unsigned __int16 unk_126;
-		unsigned __int16 unk_127;
-		unsigned __int16 unk_128;
-		unsigned __int16 unk_129;
-		unsigned __int16 unk_130;
-		unsigned __int16 unk_131;
-		unsigned __int16 unk_132;
-		unsigned __int16 unk_133;
-		unsigned __int16 unk_134;
-		unsigned __int16 unk_135;
-		unsigned __int16 unk_136;
-		unsigned __int16 unk_137;
-		unsigned __int16 unk_138;
-		unsigned __int16 unk_139;
-		unsigned __int16 unk_140;
-		unsigned __int16 unk_141;
-		unsigned __int16 unk_142;
-		unsigned __int16 unk_143;
-		unsigned __int16 unk_144;
-		unsigned __int16 unk_145;
-		unsigned __int16 unk_146;
-		unsigned __int16 unk_147;
-		unsigned __int16 unk_148;
-		unsigned __int16 unk_149;
-		unsigned __int16 unk_150;
-		unsigned __int16 unk_151;
-		unsigned __int16 unk_152;
-		unsigned __int16 unk_153;
-		unsigned __int16 unk_154;
-		unsigned __int16 unk_155;
-		unsigned __int16 unk_156;
-		unsigned __int16 unk_157;
-		unsigned __int16 unk_158;
-		unsigned __int16 unk_159;
-		unsigned __int16 unk_160;
-		unsigned __int16 unk_161;
-		unsigned __int16 unk_162;
-		unsigned __int16 unk_163;
-		unsigned __int16 unk_164;
-		unsigned __int16 unk_165;
-		unsigned __int16 unk_166;
-		unsigned __int16 unk_167;
-		unsigned __int16 unk_168;
-		unsigned __int16 unk_169;
-		unsigned __int16 unk_170;
-		unsigned __int16 unk_171;
-		unsigned __int16 unk_172;
-		unsigned __int16 unk_173;
-		unsigned __int16 unk_174;
-		unsigned __int16 unk_175;
-		unsigned __int16 unk_176;
-		unsigned __int16 unk_177;
-		unsigned __int16 unk_178;
-		unsigned __int16 unk_179;
-		unsigned __int16 unk_180;
-		unsigned __int16 unk_181;
-		unsigned __int16 unk_182;
-		unsigned __int16 unk_183;
-		unsigned __int16 unk_184;
-		unsigned __int16 unk_185;
-		unsigned __int16 unk_186;
-		unsigned __int16 unk_187;
-		unsigned __int16 unk_188;
-		unsigned __int16 unk_189;
-		unsigned __int16 unk_190;
-		unsigned __int16 unk_191;
-		unsigned __int16 unk_192;
-		unsigned __int16 unk_193;
-		unsigned __int16 unk_194;
-		unsigned __int16 unk_195;
-		unsigned __int16 unk_196;
-		unsigned __int16 unk_197;
-		unsigned __int16 unk_198;
-		unsigned __int16 unk_199;
-		unsigned __int16 unk_200;
-		unsigned __int16 unk_201;
-		unsigned __int16 unk_202;
-		unsigned __int16 unk_203;
-		unsigned __int16 unk_204;
-		unsigned __int16 unk_205;
-		unsigned __int16 unk_206;
-		unsigned __int16 unk_207;
-		unsigned __int16 unk_208;
-		unsigned __int16 unk_209;
-		unsigned __int16 unk_210;
-		unsigned __int16 unk_211;
-		unsigned __int16 unk_212;
-		unsigned __int16 unk_213;
-		unsigned __int16 unk_214;
-		unsigned __int16 unk_215;
-		unsigned __int16 unk_216;
-		unsigned __int16 unk_217;
-		unsigned __int16 unk_218;
-		unsigned __int16 unk_219;
-		unsigned __int16 unk_220;
-		unsigned __int16 unk_221;
-		unsigned __int16 unk_222;
-		unsigned __int16 unk_223;
-		unsigned __int16 unk_224;
-		unsigned __int16 unk_225;
-		unsigned __int16 unk_226;
-		unsigned __int16 unk_227;
-		unsigned __int16 unk_228;
-		unsigned __int16 unk_229;
-		unsigned __int16 unk_230;
-		unsigned __int16 unk_231;
-		unsigned __int16 unk_232;
-		unsigned __int16 unk_233;
-		unsigned __int16 unk_234;
-		unsigned __int16 unk_235;
-		unsigned __int16 unk_236;
-		unsigned __int16 unk_237;
-		unsigned __int16 unk_238;
-		unsigned __int16 unk_239;
-		unsigned __int16 unk_240;
-		unsigned __int16 unk_241;
-		unsigned __int16 unk_242;
-		unsigned __int16 unk_243;
-		unsigned __int16 unk_244;
-		unsigned __int16 unk_245;
-		unsigned __int16 unk_246;
-		unsigned __int16 unk_247;
-		unsigned __int16 unk_248;
-		unsigned __int16 unk_249;
-		unsigned __int16 unk_250;
-		unsigned __int16 unk_251;
-		unsigned __int16 unk_252;
-		unsigned __int16 unk_253;
-		unsigned __int16 unk_254;
-		unsigned __int16 unk_255;
-		unsigned __int16 unk_256;
-		unsigned __int16 unk_257;
-		unsigned __int16 unk_258;
-		unsigned __int16 unk_259;
-		unsigned __int16 unk_260;
-		unsigned __int16 unk_261;
-		unsigned __int16 unk_262;
-		unsigned __int16 unk_263;
-		unsigned __int16 unk_264;
-		unsigned __int16 unk_265;
-		unsigned __int16 unk_266;
-		unsigned __int16 unk_267;
-		unsigned __int16 unk_268;
-		unsigned __int16 unk_269;
-		unsigned __int16 unk_270;
-		unsigned __int16 unk_271;
-		unsigned __int16 unk_272;
-		unsigned __int16 unk_273;
-		unsigned __int16 unk_274;
-		unsigned __int16 unk_275;
-		unsigned __int16 unk_276;
-		unsigned __int16 unk_277;
-		unsigned __int16 unk_278;
-		unsigned __int16 unk_279;
-		unsigned __int16 unk_280;
-		unsigned __int16 unk_281;
-		unsigned __int16 unk_282;
-		unsigned __int16 unk_283;
-		unsigned __int16 unk_284;
-		unsigned __int16 unk_285;
-		unsigned __int16 unk_286;
-		unsigned __int16 unk_287;
-		unsigned __int16 unk_288;
-		unsigned __int16 unk_289;
-		unsigned __int16 unk_290;
-		unsigned __int16 unk_291;
-		unsigned __int16 unk_292;
-		unsigned __int16 unk_293;
-		unsigned __int16 unk_294;
-		unsigned __int16 unk_295;
-		unsigned __int16 unk_296;
-		unsigned __int16 unk_297;
-		unsigned __int16 unk_298;
-		unsigned __int16 unk_299;
-		unsigned __int16 unk_300;
-		unsigned __int16 unk_301;
-		unsigned __int16 unk_302;
-		unsigned __int16 unk_303;
-		unsigned __int16 unk_304;
-		unsigned __int16 unk_305;
-	}; assert_sizeof(unk_1453E3DD0, 612);
+		FootstepAnim footstep[9];
+	}; assert_sizeof(FootstepAnims, 612);
 
 	struct WeaponAnimPackage
 	{
 		const char* name;
-		XAnimParts** anims;
+		XAnimParts** anims; // array: 260
 		WeaponAnimPackageStateTimers* timers;
-		int meleeAnimPrimaryType;
+		int meleeAnimType;
 		int meleeAnimPrimaryCount;
-		char meleeAnimPrimarySet;
-		char __pad0[3];
-		int unk0[4];
+		int meleeAnimAltCount;
+		int fireAnimTimesMs[4];
 		int pad;
-		unk_1453E3DD0* unk2; // always same values
+		FootstepAnims* footstep; // always same values
 	}; assert_sizeof(WeaponAnimPackage, 0x40);
-	assert_offsetof(WeaponAnimPackage, unk2, 56);
+	assert_offsetof(WeaponAnimPackage, footstep, 56);
 
 	struct WeaponSFXPackageSounds
 	{
@@ -9100,7 +10115,7 @@ namespace zonetool::iw7
 		Gesture* gesture;
 		LocalizeEntry* localize;
 		WeaponAttachment* attachment;
-		//WeaponCompleteDef* weapon;
+		WeaponCompleteDef* weapon;
 		ParticleSystemDef* vfx;
 		FxEffectDef* fx;
 		FxImpactTable* impactFx;
