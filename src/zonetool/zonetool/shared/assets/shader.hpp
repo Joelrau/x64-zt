@@ -38,6 +38,11 @@ namespace zonetool
 			return shader_names.at(type);
 		}
 
+		std::string get_shader_abbrev(const shader_type type)
+		{
+			return shader_abbreviations.at(type);
+		}
+
 		std::string get_legacy_shader_path(const std::string& name, const shader_type type)
 		{
 			const auto& shader_name = shader_names.at(type);

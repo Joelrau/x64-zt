@@ -43,16 +43,28 @@ namespace zonetool
 	{
 		this->clear();
 
-		this->set_fields(2, 0xFDFDFDFFFFFFFFFF, 0xFDFDFDFFFFFFFFFD, 0xFDFDFDFFFFFFFFFE);
+		this->set_fields(2,
+			0xFDFDFDF000000000,
+			static_cast<std::uint32_t>(-1),
+			static_cast<std::uint32_t>(-3),
+			static_cast<std::uint32_t>(-2));
 	}
 
-	void zone_buffer::set_fields(std::uint32_t zone_stream_runtime_, std::uint64_t data_following_, std::uint64_t data_offset_, std::uint64_t data_ptr_, std::uint64_t data_shared_)
+	void zone_buffer::set_fields(std::uint32_t zone_stream_runtime_, std::uint64_t data_mask_, std::uint32_t data_following_, std::uint32_t data_offset_, std::uint32_t data_ptr_, std::uint32_t data_shared_)
 	{
 		this->zone_stream_runtime = zone_stream_runtime_;
-		this->data_following = data_following_;
-		this->data_offset = data_offset_;
-		this->data_ptr = data_ptr_;
-		this->data_shared = data_shared_;
+
+		this->data_mask = data_mask_;
+
+		this->data_following = this->create_data_ptr(data_following_);
+		this->data_offset = this->create_data_ptr(data_offset_);
+		this->data_ptr = this->create_data_ptr(data_ptr_);
+		this->data_shared = this->create_data_ptr(data_shared_);
+	}
+
+	std::size_t zone_buffer::create_data_ptr(const std::uint32_t data, const std::uint8_t stream)
+	{
+		return this->data_mask | data | (static_cast<std::size_t>(stream) & 0x0F) << 32;
 	}
 
 	void zone_buffer::init_streams(const std::size_t streams)
@@ -251,12 +263,12 @@ namespace zonetool
 		return this->depth_stencil_state_bits_.size();
 	}
 
-	std::uint8_t zone_buffer::write_blendstatebits(const std::array<std::uint32_t, 3>& bits)
+	std::uint8_t zone_buffer::write_blendstatebits(const std::array<std::uint32_t, 4>& bits)
 	{
 		for (auto i = 0u; i < this->blend_state_bits_.size(); i++)
 		{
 			auto match = true;
-			for (auto j = 0; j < 3; j++)
+			for (auto j = 0; j < 4; j++)
 			{
 				if (this->blend_state_bits_[i][j] != bits[j])
 				{
@@ -275,7 +287,7 @@ namespace zonetool
 		return static_cast<std::uint8_t>(this->blend_state_bits_.size() - 1);
 	}
 
-	std::array<std::uint32_t, 3> zone_buffer::get_blendstatebits(const std::size_t idx)
+	std::array<std::uint32_t, 4> zone_buffer::get_blendstatebits(const std::size_t idx)
 	{
 		return this->blend_state_bits_[idx];
 	}

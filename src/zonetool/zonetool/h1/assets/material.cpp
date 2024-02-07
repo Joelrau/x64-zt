@@ -289,7 +289,9 @@ namespace zonetool::h1
 			{
 				material->stateBitsTable[i].depthStencilState[j] = buf->write_depthstencilstatebit(this->depth_stenchil_state_bits[i][j]);
 			}
-			material->stateBitsTable[i].blendState = buf->write_blendstatebits(this->blend_state_bits[i]);
+
+			std::array<std::uint32_t, 4> temp_bits{ this->blend_state_bits[i][0], this->blend_state_bits[i][1], this->blend_state_bits[i][2], 0 };
+			material->stateBitsTable[i].blendState = buf->write_blendstatebits(temp_bits);
 		}
 	}
 

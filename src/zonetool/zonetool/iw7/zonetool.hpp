@@ -13,7 +13,24 @@
 #include "zonetool/utils/utils.hpp"
 #include "zonetool/shared/shared.hpp"
 
+#include "assets/gfximage.hpp"
+#include "assets/localize.hpp"
+#include "assets/luafile.hpp"
+#include "assets/material.hpp"
+#include "assets/netconststrings.hpp"
 #include "assets/rawfile.hpp"
+#include "assets/scriptfile.hpp"
+#include "assets/stringtable.hpp"
+#include "assets/ttf.hpp"
+
+#include "assets/computeshader.hpp"
+#include "assets/domainshader.hpp"
+#include "assets/hullshader.hpp"
+#include "assets/pixelshader.hpp"
+#include "assets/vertexdecl.hpp"
+#include "assets/vertexshader.hpp"
+
+#include "assets/techset.hpp"
 
 #include "zone.hpp"
 

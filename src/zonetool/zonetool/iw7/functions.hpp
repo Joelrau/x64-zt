@@ -12,6 +12,7 @@ namespace zonetool::iw7
 	extern bool zone_exists(const std::string& zone);
 
 	extern void DB_EnumXAssets(const XAssetType type, const std::function<void(XAssetHeader)>& callback, const bool includeOverride);
+	extern bool Material_TechSetHasTechnique(const MaterialTechniqueSet* techSet, MaterialTechniqueType techType);
 
 	WEAK::iw7::game::symbol<void(XAssetType type, void(__cdecl* func)(XAssetHeader, void*), const void* inData, bool includeOverride)> DB_EnumXAssets_Internal{ 0x140A76CE0 };
 	WEAK::iw7::game::symbol<const char* (XAssetType type, XAssetHeader header)> DB_GetXAssetHeaderName{ 0x1409E5BA0 };

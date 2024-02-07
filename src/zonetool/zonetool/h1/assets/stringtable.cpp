@@ -5,21 +5,7 @@
 
 namespace zonetool::h1
 {
-	int StringTable_Hash(const std::string& string)
-	{
-		int hash = 0;
-		const char* data = string.data();
-
-		while (*data != 0)
-		{
-			hash = tolower(*data) + (31 * hash);
-			data++;
-		}
-
-		return hash;
-	}
-
-	StringTable* StringTable_Parse(std::string name, zone_memory* mem)
+	StringTable* parse(std::string name, zone_memory* mem)
 	{
 		auto table = csv::parser(filesystem::get_file_path(name) + name);
 		auto stringtable = mem->allocate<StringTable>();
@@ -36,7 +22,7 @@ namespace zonetool::h1
 			{
 				int entry = (row * stringtable->columnCount) + col;
 				stringtable->values[entry].string = mem->duplicate_string(rows[row]->fields[col]);
-				stringtable->values[entry].hash = StringTable_Hash(stringtable->values[entry].string);
+				stringtable->values[entry].hash = string_table_hash(stringtable->values[entry].string);
 			}
 		}
 
@@ -58,7 +44,7 @@ namespace zonetool::h1
 		if (filesystem::file(name).exists())
 		{
 			ZONETOOL_INFO("Parsing stringtable \"%s\"...", name.data());
-			this->asset_ = StringTable_Parse(name, mem);
+			this->asset_ = parse(name, mem);
 		}
 	}
 

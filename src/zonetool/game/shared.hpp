@@ -132,6 +132,9 @@ namespace zonetool
 		return reinterpret_cast<T*>(get_x_gfx_globals_for_zone(zone));
 	}
 
+	std::uint32_t snd_hash_name(const char* name);
+	int string_table_hash(const std::string& string);
+
 	WEAK symbol<void*(int type, const char* name, int createDefault)> DB_FindXAssetHeader;
 	WEAK symbol<void*(int type, const char* name)> DB_FindXAssetEntry;
 	WEAK symbol<bool(int type, const char* name)> DB_IsXAssetDefault;

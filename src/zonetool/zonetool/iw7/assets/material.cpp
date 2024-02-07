@@ -33,7 +33,10 @@
 	} \
 	matdata[#entry] = carr##entry;
 
-namespace zonetool::s1
+#define MATERIAL_PARSE(__field__, __type__) \
+	mat->__field__ = !matdata[#__field__].is_null() ? matdata[#__field__].get<__type__>() : 0;
+
+namespace zonetool::iw7
 {
 	namespace
 	{
@@ -62,14 +65,14 @@ namespace zonetool::s1
 				for (auto o = 0u; o < mat->constantCount; o++)
 				{
 #define COPY_CONSTANT_TABLE_VALUES(__data__, __offset_data__) \
-						if (cbt->__offset_data__ && cbt->__offset_data__[o] != 0xFFFF) \
+					if (cbt->__offset_data__ && cbt->__offset_data__[o] != 0xFFFF) \
+					{ \
+						const auto constant = reinterpret_cast<float*>(&cbt->__data__[cbt->__offset_data__[o]]); \
+						for (auto j = 0; j < 4; j++) \
 						{ \
-							const auto constant = reinterpret_cast<float*>(&cbt->__data__[cbt->__offset_data__[o]]); \
-							for (auto j = 0; j < 4; j++) \
-							{ \
-								constant[j] = mat->constantTable[o].literal[j]; \
-							} \
+							constant[j] = mat->constantTable[o].literal[j]; \
 						} \
+					} \
 
 					COPY_CONSTANT_TABLE_VALUES(vsData, vsOffsetData);
 					COPY_CONSTANT_TABLE_VALUES(hsData, hsOffsetData);
@@ -95,7 +98,7 @@ namespace zonetool::s1
 			mat[i].nameHash = matdata[i]["typeHash"].get<unsigned int>();
 
 			std::string img = matdata[i]["image"].get<std::string>();
-			mat[i].u.image = db_find_x_asset_header(ASSET_TYPE_IMAGE, img.data(), 1).image;
+			mat[i].image = db_find_x_asset_header(ASSET_TYPE_IMAGE, img.data(), 1).image;
 		}
 
 		return mat;
@@ -125,6 +128,7 @@ namespace zonetool::s1
 		mat->name = mem->duplicate_string(name);
 
 		mat->info.gameFlags = matdata["gameFlags"].get<unsigned char>();
+		mat->info.unkFlags = matdata["unkFlags"].get<unsigned char>();
 		mat->info.sortKey = matdata["sortKey"].get<unsigned char>();
 		mat->info.renderFlags = matdata["renderFlags"].get<unsigned char>();
 
@@ -136,26 +140,12 @@ namespace zonetool::s1
 		mat->info.surfaceTypeBits = matdata["surfaceTypeBits"].get<SurfaceTypeBits>();
 		//mat->info.hashIndex = matdata["hashIndex"].get<unsigned int>();
 
-		//mat->stateFlags = matdata["stateFlags"].get<unsigned char>();
+		const auto has_state_flags = !matdata["stateFlags"].is_null();
+		mat->stateFlags = has_state_flags ? matdata["stateFlags"].get<unsigned char>() : 0ui8;
+
 		mat->cameraRegion = matdata["cameraRegion"].get<unsigned char>();
 		mat->materialType = matdata["materialType"].get<unsigned char>();
 		mat->assetFlags = matdata["assetFlags"].get<unsigned char>();
-
-		if (!matdata["drawSurf"].is_null())
-		{
-			mat->info.drawSurf.fields.objectId = matdata["drawSurf"]["objectId"].get<int>();
-			mat->info.drawSurf.fields.reflectionProbeIndex = matdata["drawSurf"]["reflectionProbeIndex"].get<int>();
-			mat->info.drawSurf.fields.hasGfxEntIndex = matdata["drawSurf"]["hasGfxEntIndex"].get<int>();
-			mat->info.drawSurf.fields.customIndex = matdata["drawSurf"]["customIndex"].get<int>();
-			mat->info.drawSurf.fields.materialSortedIndex = matdata["drawSurf"]["materialSortedIndex"].get<int>();
-			mat->info.drawSurf.fields.tessellation = matdata["drawSurf"]["tessellation"].get<int>();
-			mat->info.drawSurf.fields.prepass = matdata["drawSurf"]["prepass"].get<int>();
-			mat->info.drawSurf.fields.useHeroLighting = matdata["drawSurf"]["useHeroLighting"].get<int>();
-			mat->info.drawSurf.fields.sceneLightEnvIndex = matdata["drawSurf"]["sceneLightEnvIndex"].get<int>();
-			mat->info.drawSurf.fields.viewModelRender = matdata["drawSurf"]["viewModelRender"].get<int>();
-			mat->info.drawSurf.fields.surfType = matdata["drawSurf"]["surfType"].get<int>();
-			mat->info.drawSurf.fields.primarySortKey = matdata["drawSurf"]["primarySortKey"].get<int>();
-		}
 
 		std::string techset = matdata["techniqueSet->name"];
 		if (!techset.empty())
@@ -169,6 +159,16 @@ namespace zonetool::s1
 			mat->textureTable = parse_texture_table(textureTable, mem);
 		}
 		mat->textureCount = static_cast<unsigned char>(textureTable.size());
+
+		json subMaterials = matdata["subMaterials"];
+		if (subMaterials.size())
+		{
+			mat->subMaterials = mem->allocate<const char*>(subMaterials.size());
+			for (auto i = 0; i < subMaterials.size(); i++)
+			{
+				mat->subMaterials[i] = mem->duplicate_string(subMaterials[i].get<std::string>());
+			}
+		}
 
 		json constantTable = matdata["constantTable"];
 		if (constantTable.size() > 0)
@@ -193,7 +193,10 @@ namespace zonetool::s1
 
 		if (mat->techniqueSet)
 		{
-			techset::parse_stateinfo(mat->techniqueSet->name, c_name.data(), mat, mem);
+			if (!has_state_flags)
+			{
+				techset::parse_stateinfo(mat->techniqueSet->name, c_name.data(), mat, mem);
+			}
 			techset::parse_statebits(mat->techniqueSet->name, c_name.data(), mat->stateBitsEntry, mem);
 			techset::parse_statebitsmap(mat->techniqueSet->name, c_name.data(), &mat->stateBitsTable, &mat->stateBitsCount,
 				&this->depth_stenchil_state_bits,
@@ -202,7 +205,9 @@ namespace zonetool::s1
 
 			if (mat->constantCount)
 			{
+				mat->constantBufferIndex = mem->allocate<unsigned char>(MaterialTechniqueType::TECHNIQUE_COUNT);
 				techset::parse_constant_buffer_indexes(mat->techniqueSet->name, c_name.data(), mat->constantBufferIndex, mem);
+
 				techset::parse_constant_buffer_def_array(mat->techniqueSet->name, c_name.data(), &mat->constantBufferTable, &mat->constantBufferCount, mem);
 				copy_constant_table_to_cbt(mat);
 			}
@@ -262,15 +267,15 @@ namespace zonetool::s1
 			{
 				const auto var_x_gfx_globals = get_x_gfx_globals_for_zone<XGfxGlobals>(material->stateBitsTable[i].zone);
 
-				std::array<std::uint64_t, 10> temp_bits;
-				for (auto j = 0; j < 10; j++)
+				std::array<std::uint64_t, 14> temp_bits;
+				for (auto j = 0; j < 14; j++)
 				{
 					temp_bits[j] = var_x_gfx_globals->depthStencilStateBits[material->stateBitsTable[i].depthStencilState[j]];
 				}
 				this->depth_stenchil_state_bits.push_back(temp_bits);
 
-				std::array<std::uint32_t, 3> temp_bits2;
-				for (auto j = 0; j < 3; j++)
+				std::array<std::uint32_t, 4> temp_bits2;
+				for (auto j = 0; j < 4; j++)
 				{
 					temp_bits2[j] = var_x_gfx_globals->blendStateBits[material->stateBitsTable[i].blendState][j];
 				}
@@ -285,13 +290,12 @@ namespace zonetool::s1
 
 		for (auto i = 0; i < material->stateBitsCount; i++)
 		{
-			for (auto j = 0; j < 10; j++)
+			for (auto j = 0; j < 14; j++)
 			{
 				material->stateBitsTable[i].depthStencilState[j] = buf->write_depthstencilstatebit(this->depth_stenchil_state_bits[i][j]);
 			}
 
-			std::array<std::uint32_t, 4> temp_bits{ this->blend_state_bits[i][0], this->blend_state_bits[i][1], this->blend_state_bits[i][2], 0 };
-			material->stateBitsTable[i].blendState = buf->write_blendstatebits(temp_bits);
+			material->stateBitsTable[i].blendState = buf->write_blendstatebits(this->blend_state_bits[i]);
 		}
 	}
 
@@ -306,16 +310,17 @@ namespace zonetool::s1
 
 		for (auto i = 0; i < data->textureCount; i++)
 		{
-			if (data->textureTable[i].u.image)
+			if (data->textureTable[i].image)
 			{
-				zone->add_asset_of_type(ASSET_TYPE_IMAGE, data->textureTable[i].u.image->name);
-				auto img = static_cast<gfx_image*>(zone->find_asset(ASSET_TYPE_IMAGE, data->textureTable[i].u.image->name));
+				zone->add_asset_of_type(ASSET_TYPE_IMAGE, data->textureTable[i].image->name);
+
+				auto img = static_cast<gfx_image*>(zone->find_asset(ASSET_TYPE_IMAGE, data->textureTable[i].image->name));
 				if (img)
 				{
 					auto* image = reinterpret_cast<GfxImage*>(img->pointer());
-					image->semantic = data->textureTable[i].semantic;
+					image->semantic = static_cast<TextureSemantic>(data->textureTable[i].semantic);
 
-					if (image->semantic == 5 && img->is_iwi && !material::fixed_nml_images_map.contains(image))
+					if (image->semantic == TS_NORMAL_MAP && img->is_iwi && !material::fixed_nml_images_map.contains(image))
 					{
 						iwi::parse::GfxImage img_{};
 						img_.name = image->name;
@@ -345,7 +350,7 @@ namespace zonetool::s1
 							image->levelCount = img_.levelCount;
 							image->pixelData = img_.pixelData;
 
-							image->flags |= img_.levelCount > 1 ? 0 : 2;
+							image->flags |= img_.levelCount > 1 ? 0 : IMG_DISK_FLAG_NOMIPMAPS;
 						}
 					}
 				}
@@ -380,25 +385,17 @@ namespace zonetool::s1
 
 		if (data->textureTable)
 		{
-			buf->inc_stream(5, 2 * (2 * data->textureCount));
+			buf->inc_stream(XFILE_BLOCK_CALLBACK, 4 * data->textureCount);
 
-			buf->align(3);
+			buf->align(7);
 			auto destmaps = buf->write(data->textureTable, data->textureCount);
 
 			for (auto i = 0; i < data->textureCount; i++)
 			{
-				if (data->textureTable[i].semantic == 11)
+				if (data->textureTable[i].image)
 				{
-					ZONETOOL_ERROR("Watermaps are not supported.");
-					destmaps[i].u.water = nullptr;
-				}
-				else
-				{
-					if (data->textureTable[i].u.image)
-					{
-						destmaps[i].u.image = reinterpret_cast<GfxImage*>(zone->get_asset_pointer(
-							ASSET_TYPE_IMAGE, data->textureTable[i].u.image->name));
-					}
+					destmaps[i].image = reinterpret_cast<GfxImage*>(zone->get_asset_pointer(
+						ASSET_TYPE_IMAGE, data->textureTable[i].image->name));
 				}
 			}
 
@@ -407,23 +404,22 @@ namespace zonetool::s1
 
 		if (data->constantTable)
 		{
-			/*buf->align(15);
-			dest->constantTable = buf->write(data->constantTable, data->constantCount);
-			buf->clear_pointer(&dest->constantTable);*/
 			dest->constantTable = buf->write_s(15, data->constantTable, data->constantCount);
 		}
 
 		if (data->stateBitsTable)
 		{
-			/*buf->align(3);
-			dest->stateMap = buf->write(data->stateMap, data->stateBitsCount);
-			buf->clear_pointer(&dest->stateMap);*/
 			dest->stateBitsTable = buf->write_s(3, data->stateBitsTable, data->stateBitsCount);
+		}
+
+		if (data->constantBufferIndex)
+		{
+			dest->constantBufferIndex = buf->write_s(0, data->constantBufferIndex, MaterialTechniqueType::TECHNIQUE_COUNT);
 		}
 
 		if (data->constantBufferTable)
 		{
-			buf->align(3);
+			buf->align(15);
 			auto destcbt = buf->write(data->constantBufferTable, data->constantBufferCount);
 
 			for (int i = 0; i < data->constantBufferCount; i++)
@@ -483,8 +479,6 @@ namespace zonetool::s1
 
 	void material::dump(Material* asset)
 	{
-		// TODO: maybe add subMaterials?
-
 		if (asset)
 		{
 			auto c_name = clean_name(asset->name);
@@ -499,8 +493,11 @@ namespace zonetool::s1
 				techset::dump_statebits(asset->techniqueSet->name, c_name.data(), asset->stateBitsEntry);
 				techset::dump_statebits_map(asset->techniqueSet->name, c_name.data(), asset->stateBitsTable, asset->stateBitsCount);
 
-				techset::dump_constant_buffer_indexes(asset->techniqueSet->name, c_name.data(), asset->constantBufferIndex);
-				techset::dump_constant_buffer_def_array(asset->techniqueSet->name, c_name.data(), asset->constantBufferCount, asset->constantBufferTable);
+				if (asset->constantCount)
+				{
+					techset::dump_constant_buffer_indexes(asset->techniqueSet->name, c_name.data(), asset->constantBufferIndex);
+					techset::dump_constant_buffer_def_array(asset->techniqueSet->name, c_name.data(), asset->constantBufferCount, asset->constantBufferTable);
+				}
 			}
 
 			ordered_json matdata;
@@ -513,6 +510,7 @@ namespace zonetool::s1
 			}
 
 			MATERIAL_DUMP_INFO(gameFlags);
+			MATERIAL_DUMP_INFO(unkFlags);
 			MATERIAL_DUMP_INFO(sortKey);
 			MATERIAL_DUMP_INFO(renderFlags);
 
@@ -524,7 +522,7 @@ namespace zonetool::s1
 			MATERIAL_DUMP_INFO(surfaceTypeBits);
 			//MATERIAL_DUMP_INFO(hashIndex);
 
-			//MATERIAL_DUMP(stateFlags);
+			MATERIAL_DUMP(stateFlags);
 			MATERIAL_DUMP(cameraRegion);
 			MATERIAL_DUMP(materialType);
 			MATERIAL_DUMP(assetFlags);
@@ -535,58 +533,14 @@ namespace zonetool::s1
 			for (auto i = 0; i < asset->textureCount; i++)
 			{
 				ordered_json image;
-				if (asset->textureTable[i].semantic == 11)
+				
+				if (asset->textureTable[i].image && asset->textureTable[i].image->name)
 				{
-					// Haven't tested water yet.
-					MessageBoxA(nullptr, asset->textureTable[i].u.water->image->name, "water", 0);
-
-					water_t* waterData = asset->textureTable[i].u.water;
-
-					image["image"] = waterData->image->name;
-
-					ordered_json waterdata;
-					waterdata["floatTime"] = waterData->writable.floatTime;
-					waterdata["M"] = waterData->M;
-					waterdata["N"] = waterData->N;
-					waterdata["Lx"] = waterData->Lx;
-					waterdata["Lz"] = waterData->Lz;
-					waterdata["gravity"] = waterData->gravity;
-					waterdata["windvel"] = waterData->windvel;
-					waterdata["winddir"][0] = waterData->winddir[0];
-					waterdata["winddir"][1] = waterData->winddir[1];
-					waterdata["amplitude"] = waterData->amplitude;
-
-					ordered_json waterComplexData;
-					ordered_json wTerm;
-
-					for (int a = 0; a < waterData->M * waterData->N; a++)
-					{
-						ordered_json complexdata;
-						ordered_json curWTerm;
-
-						complexdata["real"] = waterData->H0X[a];
-						complexdata["imag"] = waterData->H0Y[a];
-
-						curWTerm[a] = waterData->wTerm[a];
-
-						waterComplexData[a] = complexdata;
-					}
-
-					waterdata["complex"] = waterComplexData;
-					waterdata["wTerm"] = wTerm;
-
-					image["waterinfo"] = waterdata;
+					image["image"] = asset->textureTable[i].image->name;
 				}
 				else
 				{
-					if (asset->textureTable[i].u.image && asset->textureTable[i].u.image->name)
-					{
-						image["image"] = asset->textureTable[i].u.image->name;
-					}
-					else
-					{
-						image["image"] = "";
-					}
+					image["image"] = "";
 				}
 
 				image["semantic"] = asset->textureTable[i].semantic;
@@ -599,6 +553,11 @@ namespace zonetool::s1
 				material_images.push_back(image);
 			}
 			matdata["textureTable"] = material_images;
+
+			for (auto i = 0; i < asset->layerCount; i++)
+			{
+				matdata["subMaterials"][i] = asset->subMaterials[i];
+			}
 
 			auto str = matdata.dump(4);
 

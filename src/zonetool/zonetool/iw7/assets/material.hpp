@@ -1,7 +1,7 @@
 #pragma once
 #include "../zonetool.hpp"
 
-namespace zonetool::iw6
+namespace zonetool::iw7
 {
 	class material : public asset_interface
 	{
@@ -9,8 +9,8 @@ namespace zonetool::iw6
 		std::string name_;
 		Material* asset_ = nullptr;
 
-		std::vector<std::array<std::uint64_t, 11>> depth_stenchil_state_bits;
-		std::vector<std::array<std::uint32_t, 1>> blend_state_bits;
+		std::vector<std::array<std::uint64_t, 14>> depth_stenchil_state_bits;
+		std::vector<std::array<std::uint32_t, 4>> blend_state_bits;
 
 		MaterialTextureDef* parse_texture_table(json& matdata, zone_memory* mem);
 

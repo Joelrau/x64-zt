@@ -2,19 +2,22 @@
 #include "zonetool.hpp"
 #include "zone.hpp"
 #include "zonetool/utils/utils.hpp"
-#include "zonetool/utils/imagefile.hpp"
 
 #include <utils/io.hpp>
+#include <utils/cryptography.hpp>
 
 #include <zlib.h>
 #include <lz4.h>
 #include <lz4hc.h>
 
+#define FF_MAGIC_SIGNED "IWff0100"
+#define FF_MAGIC_UNSIGNED "IWffu100"
+
 //#define FF_SIGNED
 #ifdef FF_SIGNED
-#define FF_MAGIC "IWff0100"
+#define FF_MAGIC FF_MAGIC_SIGNED
 #else
-#define FF_MAGIC "IWffu100"
+#define FF_MAGIC FF_MAGIC_UNSIGNED
 #endif
 
 #define FF_VERSION 1619
@@ -58,7 +61,7 @@ namespace zonetool::iw7
 
 		std::vector<std::uint8_t> compress_block_signed(const std::uint8_t* data, const std::size_t size, const int type, std::vector<DB_AuthHash>& chunk_hashes)
 		{
-			std::uint8_t block_buffer[BLOCK_SIZE_CHUNK_SIGNED]{};
+			auto* block_buffer = reinterpret_cast<std::uint8_t*>(malloc(BLOCK_SIZE_CHUNK_SIGNED));
 
 			std::vector<std::uint8_t> out_buffer;
 
@@ -153,6 +156,8 @@ namespace zonetool::iw7
 				sha256_done(&state, hash.bytes);
 				chunk_hashes.push_back(hash);
 			}
+
+			free(block_buffer);
 
 			return out_buffer;
 		}
@@ -305,6 +310,127 @@ namespace zonetool::iw7
 		}
 	}
 
+	namespace imagefile
+	{
+		void compress_images(const std::vector<gfx_image*>& images)
+		{
+			ZONETOOL_INFO("Compressing images...");
+
+			const auto max_threads = std::thread::hardware_concurrency() * 2;
+			const auto images_per_thread = std::max(1, static_cast<int>(images.size() / max_threads));
+
+			std::vector<std::thread> threads;
+
+			const auto start_thread = [&](const int index, const int count)
+			{
+				threads.emplace_back([&, index, count]
+				{
+					for (auto i = index; i < index + count; i++)
+					{
+						const auto image = images[i];
+						for (auto o = 0; o < 4; o++)
+						{
+							auto& path = image->image_stream_blocks_paths[o];
+							if (!path.has_value())
+							{
+								continue;
+							}
+
+							auto block = utils::io::read_file(path.value());
+							const auto compressed = compression::iwc::compress_block(reinterpret_cast<std::uint8_t*>(block.data()), block.size(), XBLOCK_COMPRESSION_LZ4);
+							const std::string compressed_str = { compressed.begin(), compressed.end() };
+							image->image_stream_blocks[o].emplace(compressed_str);
+						}
+					}
+				});
+			};
+
+			auto images_left = static_cast<int>(images.size());
+			auto index = 0;
+			while (images_left > 0)
+			{
+				const auto count = std::min(images_left, images_per_thread);
+				start_thread(index, count);
+				index += count;
+				images_left -= count;
+			}
+
+			for (auto& thread : threads)
+			{
+				if (thread.joinable())
+				{
+					thread.join();
+				}
+			}
+		}
+
+		void generate(const std::string& fastfile, std::uint16_t index, int ff_version, const std::string& ff_magic,
+			std::vector<gfx_image*> images, zone_memory* mem)
+		{
+			compress_images(images);
+
+			if (images.size() == 0)
+			{
+				return;
+			}
+
+			std::string image_file_buffer;
+
+			ZONETOOL_INFO("Writing imagefile...");
+
+			XPakHeader header{};
+			std::memcpy(&header.magic, ff_magic.data(), ff_magic.size());
+			header.version = ff_version;
+
+			image_file_buffer.append(reinterpret_cast<char*>(&header), sizeof(XPakHeader));
+
+			const auto write_image_file = [&]
+			{
+				const auto header = reinterpret_cast<XPakHeader*>(image_file_buffer.data());
+
+				const auto hash_start = reinterpret_cast<std::uint8_t*>(image_file_buffer.data() + sizeof(XPakHeader));
+				const auto len = image_file_buffer.size() - sizeof(XPakHeader);
+
+				const auto hash = utils::cryptography::sha256::compute(hash_start, len, false);
+				std::memcpy(header->hash.bytes, hash.data(), sizeof(header->hash));
+
+				const auto save_path = utils::io::directory_exists("zone") ? "zone/" : "";
+				const auto name = utils::string::va("%s%s.pak", save_path, fastfile.data(), index);
+				utils::io::write_file(name, image_file_buffer);
+			};
+
+			for (auto i = 0; i < 4; i++)
+			{
+				for (const auto& image : images)
+				{
+					if (image->image_stream_files[i])
+					{
+						continue;
+					}
+
+					image->image_stream_files[i] = mem->allocate<XStreamFile>();
+
+					if (!image->image_stream_blocks[i].has_value())
+					{
+						continue;
+					}
+
+					const auto& data = image->image_stream_blocks[i].value();
+					const auto offset = image_file_buffer.size();
+					image_file_buffer.append(reinterpret_cast<const char*>(data.data()), data.size());
+					const auto offset_end = image_file_buffer.size();
+					image->image_stream_blocks[i].reset();
+
+					image->image_stream_files[i]->fileIndex = index;
+					image->image_stream_files[i]->offset = offset;
+					image->image_stream_files[i]->offsetEnd = offset_end;
+				}
+			}
+
+			write_image_file();
+		}
+	}
+
 	asset_interface* zone_interface::find_asset(std::int32_t type, const std::string& name)
 	{
 		if (name.empty())
@@ -337,12 +463,14 @@ namespace zonetool::iw7
 			ref_name.erase(0, 1);
 		}
 
+		const std::uint64_t mask = 0x0000000000000000;
 		for (std::size_t idx = 0; idx < m_assets.size(); idx++)
 		{
 			if (m_assets[idx]->type() == type && (m_assets[idx]->name() == name || m_assets[idx]->name() == ref_name))
 			{
-				auto ptr = reinterpret_cast<void*>(0xFDFDFDF300000000 + (this->m_assetbase + ((16 * idx) + 8) + 1));
-				return ptr;
+				auto ptr = mask | (static_cast<std::uint64_t>(XFILE_BLOCK_VIRTUAL) & 0x0F) << 32; // add stream index
+				ptr = (ptr + static_cast<std::uint32_t>((this->m_assetbase + ((16 * idx) + 8) + 1))); // add offset
+				return reinterpret_cast<void*>(ptr);
 			}
 		}
 
@@ -417,7 +545,24 @@ namespace zonetool::iw7
 		try
 		{
 			// declare asset interfaces
+			ADD_ASSET(ASSET_TYPE_IMAGE, gfx_image);
+			ADD_ASSET(ASSET_TYPE_LOCALIZE_ENTRY, localize);
+			ADD_ASSET(ASSET_TYPE_LUA_FILE, lua_file);
+			ADD_ASSET(ASSET_TYPE_MATERIAL, material);
+			ADD_ASSET(ASSET_TYPE_NET_CONST_STRINGS, net_const_strings);
 			ADD_ASSET(ASSET_TYPE_RAWFILE, rawfile);
+			ADD_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile);
+			ADD_ASSET(ASSET_TYPE_STRINGTABLE, string_table);
+			ADD_ASSET(ASSET_TYPE_TTF, font_def);
+
+			ADD_ASSET(ASSET_TYPE_COMPUTESHADER, compute_shader);
+			ADD_ASSET(ASSET_TYPE_DOMAINSHADER, domain_shader);
+			ADD_ASSET(ASSET_TYPE_HULLSHADER, hull_shader);
+			ADD_ASSET(ASSET_TYPE_PIXELSHADER, pixel_shader);
+			//ADD_ASSET(ASSET_TYPE_VERTEXDECL, vertex_decl);
+			ADD_ASSET(ASSET_TYPE_VERTEXSHADER, vertex_shader);
+
+			ADD_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset);
 		}
 		catch (std::exception& ex)
 		{
@@ -445,7 +590,7 @@ namespace zonetool::iw7
 
 		ZONETOOL_INFO("Compiling fastfile \"%s\"...", this->name_.data());
 
-		/* {
+		{
 			std::vector<gfx_image*> images;
 			for (std::size_t i = 0; i < m_assets.size(); i++)
 			{
@@ -462,9 +607,9 @@ namespace zonetool::iw7
 			if (images.size() > 0)
 			{
 				imagefile::generate(filesystem::get_fastfile(),
-					CUSTOM_IMAGEFILE_INDEX, FF_VERSION, FF_HEADER, images, this->m_zonemem.get());
+					CUSTOM_IMAGEFILE_INDEX, FF_VERSION, FF_MAGIC_UNSIGNED, images, this->m_zonemem.get());
 			}
-		}*/
+		}
 
 		std::uintptr_t following = static_cast<std::uintptr_t>(buf->data_following);
 		std::uintptr_t zero = 0; // data_none
@@ -546,7 +691,7 @@ namespace zonetool::iw7
 
 			for (unsigned int i = 0; i < globals->blendStateCount; i++)
 			{
-				for (auto j = 0; j < 3; j++)
+				for (auto j = 0; j < 4; j++)
 				{
 					globals->blendStateBits[i][j] = buf->get_blendstatebits(i)[j];
 				}
@@ -847,28 +992,48 @@ namespace zonetool::iw7
 		}
 #endif
 
+		const auto image_streamfiles_count = buf->streamfile_count();
+		if (image_streamfiles_count)
+		{
+			header.image_ff_count = static_cast<std::uint32_t>(image_streamfiles_count);
+		}
+
 		header.fileLen += sizeof(XStreamFile) * header.image_ff_count;
 		header.fileLen += sizeof(XStreamFile) * header.shared_ff_count;
 
 		zone_buffer fastfile(header.fileLen);
 
 		// Do streamfile stuff
-		/*{
+		if (image_streamfiles_count > 0)
+		{
+			const auto offset = sizeof(XFileHeader) - offsetof(XFileHeader, fileLen);
 
+			// Generate fastfile
+			fastfile.init_streams(1);
+			fastfile.write_stream(&header, sizeof(XFileHeader) - offset);
+
+			// Write stream files
+			for (std::size_t i = 0; i < image_streamfiles_count; i++)
+			{
+				auto* stream = reinterpret_cast<XStreamFile*>(buf->get_streamfile(i));
+				fastfile.write_stream(stream, sizeof(XStreamFile));
+			}
+
+			fastfile.write_stream(reinterpret_cast<std::uint8_t*>(&header) + sizeof(XFileHeader) - offset, offset);
 		}
-		else*/
+		else
 		{
 			// Generate fastfile
 			fastfile.init_streams(1);
 			fastfile.write_stream(&header, sizeof(XFileHeader));
+		}
 #ifdef FF_SIGNED
-			fastfile.write_stream(&auth_header, sizeof(DB_AuthHeader));
-			fastfile.write_stream(&master_block, sizeof(DB_MasterBlock));
+		fastfile.write_stream(&auth_header, sizeof(DB_AuthHeader));
+		fastfile.write_stream(&master_block, sizeof(DB_MasterBlock));
 #endif
 #if (COMPRESSOR == COMPRESSOR_PASSTHROUGH)
-			fastfile.write_stream(&compress_header, sizeof(XFileCompressorHeader));
+		fastfile.write_stream(&compress_header, sizeof(XFileCompressorHeader));
 #endif
-		}
 
 		fastfile.write(buf_output, buf_output_size);
 

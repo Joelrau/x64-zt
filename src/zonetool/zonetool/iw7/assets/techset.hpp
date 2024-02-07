@@ -1,7 +1,7 @@
 #pragma once
 #include "../zonetool.hpp"
 
-namespace zonetool::iw6
+namespace zonetool::iw7
 {
 	class techset : public asset_interface
 	{
@@ -19,8 +19,8 @@ namespace zonetool::iw6
 		static void parse_stateinfo(const std::string& techset, const std::string& material, Material* mat, zone_memory* mem);
 		static void parse_statebits(const std::string& techset, const std::string& material, unsigned char* statebits, zone_memory* mem);
 		static void parse_statebitsmap(const std::string& techset, const std::string& material, GfxStateBits** map, unsigned char* count,
-			std::vector<std::array<std::uint64_t, 11>>*,
-			std::vector<std::array<std::uint32_t, 1>>*,
+			std::vector<std::array<std::uint64_t, 14>>*,
+			std::vector<std::array<std::uint32_t, 4>>*,
 			zone_memory* mem);
 		static void parse_constant_buffer_indexes(const std::string& techset, const std::string& material, unsigned char* indexes, zone_memory* mem);
 		static void parse_constant_buffer_def_array(const std::string& techset, const std::string& material, 

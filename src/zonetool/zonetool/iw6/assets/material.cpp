@@ -269,17 +269,10 @@ namespace zonetool::iw6
 				}
 				this->depth_stenchil_state_bits.push_back(temp_bits);
 
-				std::array<std::uint32_t, 3> temp_bits2;
-				for (auto j = 0; j < 3; j++)
+				std::array<std::uint32_t, 1> temp_bits2;
+				for (auto j = 0; j < 1; j++)
 				{
-					if (j >= 1)
-					{
-						temp_bits2[j] = 0;
-					}
-					else
-					{
-						temp_bits2[j] = var_x_gfx_globals->blendStateBits[material->stateMap[i].blendState][j];
-					}
+					temp_bits2[j] = var_x_gfx_globals->blendStateBits[material->stateMap[i].blendState][j];
 				}
 				this->blend_state_bits.push_back(temp_bits2);
 			}
@@ -296,7 +289,9 @@ namespace zonetool::iw6
 			{
 				material->stateMap[i].depthStencilState[j] = buf->write_depthstencilstatebit(this->depth_stenchil_state_bits[i][j]);
 			}
-			material->stateMap[i].blendState = buf->write_blendstatebits(this->blend_state_bits[i]);
+
+			std::array<std::uint32_t, 4> temp_bits{this->blend_state_bits[i][0], 0, 0, 0};
+			material->stateMap[i].blendState = buf->write_blendstatebits(temp_bits);
 		}
 	}
 

@@ -122,7 +122,6 @@ namespace iw7
 
 			utils::hook::set(0x140DD42A0, 0xC3C033); // shutdown
 			utils::hook::set(0x140DD42E0, 0xC3C033); // ^
-			utils::hook::set(0x140DD42E0, 0xC3C033); // ^
 			utils::hook::set(0x140DD4280, 0xC3C033); // ^
 
 			utils::hook::set(0x140DD4230, 0xC3C033); // ^
@@ -151,6 +150,9 @@ namespace iw7
 
 			// recipe save threads
 			utils::hook::set<uint8_t>(0x140E7C970, 0xC3);
+
+			// don't set computeshader program to 0
+			utils::hook::set<uint8_t>(0x140E11520, 0xC3);
 		}
 
 		void load_code_pre_gfx_zone()

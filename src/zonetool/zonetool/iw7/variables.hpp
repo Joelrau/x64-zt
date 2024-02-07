@@ -12,4 +12,6 @@ namespace zonetool::iw7
 	WEAK::iw7::game::symbol<unsigned short> g_zoneIndex{ 0x143A7A7D4 };
 
 	WEAK::iw7::game::symbol<DB_LoadData> g_load{ 0x1452A8010 };
+
+	WEAK::iw7::game::symbol<XZoneMemory*> g_streamZoneMem{ 0x145687E90 };
 }

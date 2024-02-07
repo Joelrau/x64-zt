@@ -121,6 +121,25 @@ namespace zonetool::iw7
 		}), &callback, includeOverride);
 	}
 
+	bool Material_TechSetHasTechnique(const MaterialTechniqueSet* techSet, MaterialTechniqueType techType)
+	{
+		const int techniqueIndex = techType >> 6;
+		const uint64_t techniqueBit = 1ULL << (static_cast<std::uint32_t>(techType) & TECHNIQUE_MASK);
+
+		if (techType >= TECHNIQUE_COUNT)
+		{
+			printf("techType doesn't index TECHNIQUE_COUNT\n\t%i not in [0, %i)\n", techType, TECHNIQUE_COUNT);
+			__debugbreak();
+		}
+
+		if (techniqueIndex >= NUM_TECHNIQUE_MASK_ELEMS)
+		{
+			__debugbreak();
+		}
+
+		return (techSet->techniqueMask[techniqueIndex] & techniqueBit) != 0;
+	}
+
 	void dump_asset_iw7(XAsset* asset)
 	{
 #define DUMP_ASSET(__type__,___,__struct__) \
@@ -134,7 +153,24 @@ namespace zonetool::iw7
 		try
 		{
 			// dump assets
+			DUMP_ASSET(ASSET_TYPE_IMAGE, gfx_image, GfxImage);
+			DUMP_ASSET(ASSET_TYPE_LOCALIZE_ENTRY, localize, LocalizeEntry);
+			DUMP_ASSET(ASSET_TYPE_LUA_FILE , lua_file, LuaFile);
+			DUMP_ASSET(ASSET_TYPE_MATERIAL, material, Material);
+			DUMP_ASSET(ASSET_TYPE_NET_CONST_STRINGS, net_const_strings, NetConstStrings);
 			DUMP_ASSET(ASSET_TYPE_RAWFILE, rawfile, RawFile);
+			DUMP_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile, ScriptFile);
+			DUMP_ASSET(ASSET_TYPE_STRINGTABLE, string_table, StringTable);
+			DUMP_ASSET(ASSET_TYPE_TTF, font_def, TTFDef);
+
+			DUMP_ASSET(ASSET_TYPE_COMPUTESHADER, compute_shader, ComputeShader);
+			DUMP_ASSET(ASSET_TYPE_DOMAINSHADER, domain_shader, MaterialDomainShader);
+			DUMP_ASSET(ASSET_TYPE_HULLSHADER, hull_shader, MaterialHullShader);
+			DUMP_ASSET(ASSET_TYPE_PIXELSHADER, pixel_shader, MaterialPixelShader);
+			//DUMP_ASSET(ASSET_TYPE_VERTEXDECL, vertex_decl, MaterialVertexDeclaration);
+			DUMP_ASSET(ASSET_TYPE_VERTEXSHADER, vertex_shader, MaterialVertexShader);
+
+			DUMP_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset, MaterialTechniqueSet);
 		}
 		catch (const std::exception& e)
 		{
@@ -452,8 +488,7 @@ namespace zonetool::iw7
 
 		if (!parser.valid())
 		{
-			ZONETOOL_ERROR("Could not find csv file \"%s\" to build zone!", csv.data());
-			return;
+			throw std::runtime_error(utils::string::va("Could not find csv file \"%s\" to build zone!", csv.data()));
 		}
 
 		auto is_referencing = false;
@@ -656,6 +691,13 @@ namespace zonetool::iw7
 		return dump_params;
 	}
 
+	void clear_static_asset_fields()
+	{
+		material::fixed_nml_images_map.clear();
+		techset::vertexdecl_pointers.clear();
+		//xanim_parts::secondary_anims.clear();
+	}
+
 	void build_zone(const std::string& fastfile)
 	{
 		// make sure FS is correct.
@@ -670,13 +712,16 @@ namespace zonetool::iw7
 			return;
 		}
 
+		clear_static_asset_fields();
+
 		try
 		{
 			parse_csv_file(zone.get(), fastfile, fastfile);
 		}
 		catch (std::exception& ex)
 		{
-			ZONETOOL_FATAL("%s", ex.what());
+			ZONETOOL_ERROR("%s", ex.what());
+			return;
 		}
 
 		// allocate zone buffer
@@ -684,10 +729,11 @@ namespace zonetool::iw7
 
 		// set game specific zone type info
 		buffer->set_fields(XFILE_BLOCK_RUNTIME, 
-			static_cast<std::uintptr_t>(-2), 
-			static_cast<std::uintptr_t>(-4), 
-			static_cast<std::uintptr_t>(-3), 
-			static_cast<std::uintptr_t>(-1));
+			0xFFFFFFF000000000,
+			static_cast<std::uint32_t>(-2),
+			static_cast<std::uint32_t>(-4),
+			static_cast<std::uint32_t>(-3),
+			static_cast<std::uint32_t>(-1));
 
 		// add branding asset
 		zone->add_asset_of_type("rawfile", fastfile);
@@ -696,9 +742,7 @@ namespace zonetool::iw7
 		zone->build(buffer.get());
 
 		// clear asset shit
-		//material::fixed_nml_images_map.clear();
-		//techset::vertexdecl_pointers.clear();
-		//xanim_parts::secondary_anims.clear();
+		clear_static_asset_fields();
 	}
 
 	void register_commands()

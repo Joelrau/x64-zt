@@ -110,6 +110,38 @@ namespace zonetool
 		return new_string;
 	}
 
+	std::uint32_t snd_hash_name(const char* name)
+	{
+		if (!name || !*name)
+			return 0;
+
+		std::uint32_t hash = 5381;
+
+		while (*name)
+		{
+			unsigned char lowercase = static_cast<unsigned char>(std::tolower(static_cast<unsigned char>(*name)));
+
+			hash = 65599 * hash + lowercase;
+			++name;
+		}
+
+		return hash ? hash : 1;
+	}
+
+	int string_table_hash(const std::string& string)
+	{
+		int hash = 0;
+		const char* data = string.data();
+
+		while (*data != 0)
+		{
+			hash = tolower(*data) + (31 * hash);
+			data++;
+		}
+
+		return hash;
+	}
+
 	class shared final : public component_interface
 	{ 
 	public:

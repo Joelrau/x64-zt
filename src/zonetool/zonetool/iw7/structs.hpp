@@ -1168,9 +1168,159 @@ namespace zonetool::iw7
 
 	enum MaterialTechniqueType
 	{
+		TECHNIQUE_DEPTH_PREPASS = 0,
+		TECHNIQUE_DEPTH_PREPASS_VELOCITY_RIGID = 1,
+		TECHNIQUE_DEPTH_PREPASS_VELOCITY_SKINNED = 2,
+		TECHNIQUE_DEPTH_PREPASS_OBJECTID = 3,
+		TECHNIQUE_DEPTH_PREPASS_OBJECTID_VELOCITY_RIGID = 1,
+		TECHNIQUE_DEPTH_PREPASS_OBJECTID_VELOCITY_SKINNED = 2,
+		TECHNIQUE_BUILD_SHADOWMAP_DEPTH = 6,
+		TECHNIQUE_BUILD_SHADOWMAP_COLOR = 7,
 		TECHNIQUE_UNLIT = 8,
+		TECHNIQUE_UNLIT_UNK = 9,
 		TECHNIQUE_EMISSIVE = 10,
+		TECHNIQUE_EMISSIVE_UNK = 11,
+		TECHNIQUE_EMISSIVE_DEBUG = 12,
 		TECHNIQUE_LIT = 13,
+		//TECHNIQUE_LIT_ = 14
+		//TECHNIQUE_LIT_ = 15
+		//TECHNIQUE_LIT_ = 16
+		//TECHNIQUE_LIT_ = 17
+		//TECHNIQUE_LIT_ = 18
+		//TECHNIQUE_LIT_ = 19
+		//TECHNIQUE_LIT_ = 20
+		//TECHNIQUE_LIT_ = 21
+		//TECHNIQUE_LIT_ = 22
+		//TECHNIQUE_LIT_ = 23
+		//TECHNIQUE_LIT_ = 24
+		//TECHNIQUE_LIT_ = 25
+		//TECHNIQUE_LIT_ = 26
+		TECHNIQUE_THERMAL = 27,
+		TECHNIQUE_VELOCITY_RIGID = 28,
+		TECHNIQUE_VELOCITY_SKINNED = 29,
+		TECHNIQUE_DEBUG_BUMPMAP = 30,
+		// 31
+		// 32
+		// 33
+		// 34
+		// 35
+		// 36
+		// 37
+		TECHNIQUE_INSTANCED_DEPTH_PREPASS = 38,
+		TECHNIQUE_INSTANCED_DEPTH_PREPASS_VELOCITY_RIGID = 39,
+		TECHNIQUE_INSTANCED_DEPTH_PREPASS_VELOCITY_SKINNED = 40,
+		TECHNIQUE_INSTANCED_DEPTH_PREPASS_OBJECTID = 41,
+		TECHNIQUE_INSTANCED_DEPTH_PREPASS_OBJECTID_VELOCITY_RIGID = 42,
+		TECHNIQUE_INSTANCED_DEPTH_PREPASS_OBJECTID_VELOCITY_SKINNED = 43,
+		TECHNIQUE_INSTANCED_BUILD_SHADOWMAP_DEPTH = 44,
+		TECHNIQUE_INSTANCED_BUILD_SHADOWMAP_COLOR = 45,
+		TECHNIQUE_INSTANCED_UNLIT = 46,
+		TECHNIQUE_INSTANCED_UNLIT_UNK = 47,
+		TECHNIQUE_INSTANCED_EMISSIVE = 48,
+		TECHNIQUE_INSTANCED_EMISSIVE_UNK = 49,
+		TECHNIQUE_INSTANCED_EMISSIVE_DEBUG = 50,
+		TECHNIQUE_INSTANCED_LIT = 51,
+		//TECHNIQUE_INSTANCED_LIT_ = 52
+		//TECHNIQUE_INSTANCED_LIT_ = 53
+		//TECHNIQUE_INSTANCED_LIT_ = 54
+		//TECHNIQUE_INSTANCED_LIT_ = 55
+		//TECHNIQUE_INSTANCED_LIT_ = 56
+		//TECHNIQUE_INSTANCED_LIT_ = 57
+		//TECHNIQUE_INSTANCED_LIT_ = 58
+		//TECHNIQUE_INSTANCED_LIT_ = 59
+		//TECHNIQUE_INSTANCED_LIT_ = 60
+		//TECHNIQUE_INSTANCED_LIT_ = 61
+		//TECHNIQUE_INSTANCED_LIT_ = 62
+		//TECHNIQUE_INSTANCED_LIT_ = 63
+		//TECHNIQUE_INSTANCED_LIT_ = 64
+		TECHNIQUE_INSTANCED_THERMAL = 65,
+		TECHNIQUE_INSTANCED_VELOCITY_RIGID = 66,
+		TECHNIQUE_INSTANCED_VELOCITY_SKINNED = 67,
+		TECHNIQUE_INSTANCED_DEBUG_BUMPMAP = 68,
+		// 69
+		// 70
+		// 71
+		// 72
+		// 73
+		// 74
+		// 75
+		TECHNIQUE_SUBDIV_DEPTH_PREPASS = 76,
+		TECHNIQUE_SUBDIV_DEPTH_PREPASS_VELOCITY_RIGID = 77,
+		TECHNIQUE_SUBDIV_DEPTH_PREPASS_VELOCITY_SKINNED = 78,
+		TECHNIQUE_SUBDIV_DEPTH_PREPASS_OBJECTID = 79,
+		TECHNIQUE_SUBDIV_DEPTH_PREPASS_OBJECTID_VELOCITY_RIGID = 80,
+		TECHNIQUE_SUBDIV_DEPTH_PREPASS_OBJECTID_VELOCITY_SKINNED = 81,
+		TECHNIQUE_SUBDIV_BUILD_SHADOWMAP_DEPTH = 82,
+		TECHNIQUE_SUBDIV_BUILD_SHADOWMAP_COLOR = 83,
+		TECHNIQUE_SUBDIV_UNLIT = 84,
+		TECHNIQUE_SUBDIV_UNLIT_UNK = 85,
+		TECHNIQUE_SUBDIV_EMISSIVE = 86,
+		TECHNIQUE_SUBDIV_EMISSIVE_UNK = 87,
+		TECHNIQUE_SUBDIV_EMISSIVE_DEBUG = 88,
+		TECHNIQUE_SUBDIV_LIT = 89,
+		//TECHNIQUE_SUBDIV_LIT_ = 90
+		//TECHNIQUE_SUBDIV_LIT_ = 91
+		//TECHNIQUE_SUBDIV_LIT_ = 92
+		//TECHNIQUE_SUBDIV_LIT_ = 93
+		//TECHNIQUE_SUBDIV_LIT_ = 94
+		//TECHNIQUE_SUBDIV_LIT_ = 95
+		//TECHNIQUE_SUBDIV_LIT_ = 96
+		//TECHNIQUE_SUBDIV_LIT_ = 97
+		//TECHNIQUE_SUBDIV_LIT_ = 98
+		//TECHNIQUE_SUBDIV_LIT_ = 99
+		//TECHNIQUE_SUBDIV_LIT_ = 100
+		//TECHNIQUE_SUBDIV_LIT_ = 101
+		//TECHNIQUE_SUBDIV_LIT_ = 102
+		TECHNIQUE_SUBDIV_THERMAL = 103,
+		TECHNIQUE_SUBDIV_VELOCITY_RIGID = 104,
+		TECHNIQUE_SUBDIV_VELOCITY_SKINNED = 105,
+		TECHNIQUE_SUBDIV_DEBUG_BUMPMAP = 106,
+		// 107
+		// 108
+		// 109
+		// 110
+		// 111
+		// 112
+		// 113
+		TECHNIQUE_NO_DISPLACEMENT_DEPTH_PREPASS = 114,
+		TECHNIQUE_NO_DISPLACEMENT_DEPTH_PREPASS_VELOCITY_RIGID = 115,
+		TECHNIQUE_NO_DISPLACEMENT_DEPTH_PREPASS_VELOCITY_SKINNED = 116,
+		TECHNIQUE_NO_DISPLACEMENT_DEPTH_PREPASS_OBJECTID = 117,
+		TECHNIQUE_NO_DISPLACEMENT_DEPTH_PREPASS_OBJECTID_VELOCITY_RIGID = 118,
+		TECHNIQUE_NO_DISPLACEMENT_DEPTH_PREPASS_OBJECTID_VELOCITY_SKINNED = 119,
+		TECHNIQUE_NO_DISPLACEMENT_BUILD_SHADOWMAP_DEPTH = 120,
+		TECHNIQUE_NO_DISPLACEMENT_BUILD_SHADOWMAP_COLOR = 121,
+		TECHNIQUE_NO_DISPLACEMENT_UNLIT = 122,
+		TECHNIQUE_NO_DISPLACEMENT_UNLIT_UNK = 123,
+		TECHNIQUE_NO_DISPLACEMENT_EMISSIVE = 124,
+		TECHNIQUE_NO_DISPLACEMENT_EMISSIVE_UNK = 125,
+		TECHNIQUE_NO_DISPLACEMENT_EMISSIVE_DEBUG = 126,
+		TECHNIQUE_NO_DISPLACEMENT_LIT = 127,
+		//TECHNIQUE_NO_DISPLACEMENT_LIT_ = 128
+		//TECHNIQUE_NO_DISPLACEMENT_LIT_ = 129
+		//TECHNIQUE_NO_DISPLACEMENT_LIT_ = 130
+		//TECHNIQUE_NO_DISPLACEMENT_LIT_ = 131
+		//TECHNIQUE_NO_DISPLACEMENT_LIT_ = 132
+		//TECHNIQUE_NO_DISPLACEMENT_LIT_ = 133
+		//TECHNIQUE_NO_DISPLACEMENT_LIT_ = 134
+		//TECHNIQUE_NO_DISPLACEMENT_LIT_ = 135
+		//TECHNIQUE_NO_DISPLACEMENT_LIT_ = 136
+		//TECHNIQUE_NO_DISPLACEMENT_LIT_ = 137
+		//TECHNIQUE_NO_DISPLACEMENT_LIT_ = 138
+		//TECHNIQUE_NO_DISPLACEMENT_LIT_ = 139
+		//TECHNIQUE_NO_DISPLACEMENT_LIT_ = 140
+		TECHNIQUE_NO_DISPLACEMENT_THERMAL = 141,
+		TECHNIQUE_NO_DISPLACEMENT_VELOCITY_RIGID = 142,
+		TECHNIQUE_NO_DISPLACEMENT_VELOCITY_SKINNED = 143,
+		TECHNIQUE_NO_DISPLACEMENT_DEBUG_BUMPMAP = 144,
+		// 145
+		// 146
+		// 147
+		// 148
+		// 149
+		// 150
+		// 151
+		TECHNIQUE_COUNT = 152,
 	};
 
 	struct Packed128
@@ -1199,6 +1349,7 @@ namespace zonetool::iw7
 	{
 		const char* name;
 		unsigned char gameFlags;
+		unsigned char unkFlags;
 		unsigned char sortKey;
 		unsigned char textureAtlasRowCount;
 		unsigned char textureAtlasColumnCount;
@@ -1459,7 +1610,14 @@ namespace zonetool::iw7
 		unsigned short perObjArgSize;
 		unsigned short stableArgSize;
 		unsigned short zone;
-		char __pad0[44];
+		unsigned char perPrimConstantBuffer;
+		unsigned char perObjConstantBuffer;
+		unsigned char stableConstantBuffer;
+		unsigned int customBufferFlags;
+		unsigned char customSamplerFlags;
+		unsigned char precompiledIndex;
+		unsigned char stageConfig;
+		char __pad0[33];
 		MaterialShaderArgument* args;
 	}; assert_sizeof(MaterialPass, 104);
 	assert_offsetof(MaterialPass, zone, 50);
@@ -1478,15 +1636,23 @@ namespace zonetool::iw7
 		MaterialPass passArray[1];
 	};
 
+	enum TechniqueMask
+	{
+		TECHNIQUE_MASK = 0x3F,
+		NUM_TECHNIQUE_MASK_ELEMS = 3, // TECHNIQUE_COUNT / 64
+	};
+
 	struct MaterialTechniqueSet
 	{
 		const char* name;
 		unsigned short flags;
 		unsigned char worldVertFormat;
 		unsigned char preDisplacementOnlyCount;
-		unsigned int techniqueCount;
-		char __pad0[32];
-		MaterialTechnique* techniques;
+		unsigned short techniqueCount;
+		short techniqueMaskStartIndex[3];
+		short unk[2];
+		unsigned __int64 techniqueMask[3];
+		MaterialTechnique** techniques;
 	}; assert_sizeof(MaterialTechniqueSet, 0x38);
 	assert_offsetof(MaterialTechniqueSet, techniqueCount, 12);
 	assert_offsetof(MaterialTechniqueSet, techniques, 48);
@@ -1633,9 +1799,9 @@ namespace zonetool::iw7
 	{
 		GfxTexture texture;
 		DXGI_FORMAT imageFormat;
-		GfxImageFlags flags;
+		unsigned int flags;
 		MapType mapType;
-		TextureSemantic sematic;
+		TextureSemantic semantic;
 		GfxImageCategory category;
 		PicMip picmip;
 		CardMemory cardMemory;
@@ -8402,10 +8568,40 @@ namespace zonetool::iw7
 
 	enum NetConstStringType
 	{
+		NETCONSTSTRINGTYPE_XMODEL = 0, // mdl
+		NETCONSTSTRINGTYPE_MATERIAL = 1, // mat
+		NETCONSTSTRINGTYPE_RUMBLE = 2, // rmb
+		NETCONSTSTRINGTYPE_RUMBLE_GRAPH = 3, // rmg
+		NETCONSTSTRINGTYPE_VEHICLES = 4, // veh
+		NETCONSTSTRINGTYPE_FX = 5, // efx
+		NETCONSTSTRINGTYPE_VFX = 6, // vfx
+		NETCONSTSTRINGTYPE_LOCSTRING = 7, //loc
+		NETCONSTSTRINGTYPE_SHOCK = 8, // shk
+		NETCONSTSTRINGTYPE_CLIENT_TAGS = 9, // tag
+		NETCONSTSTRINGTYPE_HEADICON = 10, // hic
+		NETCONSTSTRINGTYPE_STATUSICON = 11, // sic
+		NETCONSTSTRINGTYPE_NAMEPLATE = 12, // nps
+		NETCONSTSTRINGTYPE_MINIMAPICON = 13, // mic
+		NETCONSTSTRINGTYPE_WEAPON = 14, // wep
+		NETCONSTSTRINGTYPE_HINTSTRING = 15, // hnt
+		NETCONSTSTRINGTYPE_ANIM = 16, // anm
+		NETCONSTSTRINGTYPE_ANIMCLASS = 17, // acl
+		NETCONSTSTRINGTYPE_LUI = 18, // lui
+		NETCONSTSTRINGTYPE_SUIT = 19, // sut
+		NETCONSTSTRINGTYPE_GESTURE = 20, // ges
+		NETCONSTSTRINGTYPE_TGT = 21, // tgt
+		NETCONSTSTRINGTYPE_VISION = 22, // vsn
+		NETCONSTSTRINGTYPE_COUNT = 25,
+		NETCONSTSTRINGTYPE_NONE = 25,
 	};
 
 	enum NetConstStringSource
 	{
+		NETCONSTSTRINGSOURCE_MAP = 0x0,
+		NETCONSTSTRINGSOURCE_PRE_MAP = 0x1,
+		NETCONSTSTRINGSOURCE_COMMON = 0x2,
+		NETCONSTSTRINGSOURCE_COUNT = 0x3,
+		NETCONSTSTRINGSOURCE_NONE = 0x3,
 	};
 
 	struct NetConstStrings
@@ -10189,7 +10385,7 @@ namespace zonetool::iw7
 		ID3D11BlendState* blendState;
 	};
 
-	typedef std::uint32_t GfxBlendStateBits[3];
+	typedef std::uint32_t GfxBlendStateBits[4];
 
 	struct XGfxGlobals
 	{
@@ -10329,7 +10525,7 @@ namespace zonetool::iw7
 		XFILE_BLOCK_UNK2 = 0x2,
 		XFILE_BLOCK_IMAGE_STREAM = 0x3,
 		XFILE_BLOCK_SHARED_STREAM = 0x4,
-		XFILE_BLOCK_UNK5 = 0x5,
+		XFILE_BLOCK_CALLBACK = 0x5,
 		XFILE_BLOCK_RUNTIME = 0x6,
 		XFILE_BLOCK_UNK7 = 0x7,
 		XFILE_BLOCK_VIRTUAL = 0x8,
@@ -10343,6 +10539,14 @@ namespace zonetool::iw7
 		unsigned __int64 size;
 	};
 
+	struct XStreamFile
+	{
+		std::uint64_t offset;
+		std::uint64_t offsetEnd;
+		std::uint16_t fileIndex;
+		bool isLocalized;
+	};
+
 	struct XZoneMemory
 	{
 		XBlock blocks[MAX_XFILE_COUNT];
@@ -10351,9 +10555,9 @@ namespace zonetool::iw7
 		unsigned int shared_ff_count;
 		int padding1;
 		void* unknown; // always 0
-		void* image_ff_data;
-		unsigned int image_ff_count;
-		int padding2;
+		XStreamFile* streamed_images;
+		unsigned int streamed_image_count;
+		int streamed_image_index;
 		char __pad1[0x100]; // unk size
 	};
 
@@ -10394,8 +10598,10 @@ namespace zonetool::iw7
 		char magic[8];
 		std::uint32_t version;
 		char unknown[20]; // unused
+		unsigned char iv[16];
 		DB_AuthHash hash;
 		DB_AuthSignature signedhash;
+		// iv for each image
 	};
 
 	struct XFileStreamData
@@ -10418,10 +10624,10 @@ namespace zonetool::iw7
 		std::uint32_t fileTimeHigh; // (unused)
 		std::uint32_t fileTimeLow; // (unused)
 		XFileStreamData stream_data;
-		std::uint32_t shared_ff_hash; // shared fastfile // (unused)
-		std::uint32_t shared_ff_count; // shared fastfile // (unused)
-		std::uint32_t image_ff_hash; // image fastfile // (unused)
-		std::uint32_t image_ff_count; // image fastfile // (unused)
+		std::uint32_t shared_ff_hash; // some check
+		std::uint32_t shared_ff_count; // streamed shared_asset count
+		std::uint32_t image_ff_hash; // some check
+		std::uint32_t image_ff_count; // streamed image count
 		// image streams 24 * sharedcount
 		// image streams 24 * imagecount
 		std::uint64_t fileLen;
@@ -10484,4 +10690,51 @@ namespace zonetool::iw7
 		std::uint64_t fileLen;
 		std::uint64_t fileLenUnk2;
 	}; assert_sizeof(XFileReadData, 224);
+
+	// SoundAssetBank
+	struct SndAssetBankHeader
+	{
+		unsigned int magic;
+		unsigned int version;
+		unsigned int entrySize;
+		unsigned int checksumSize;
+		unsigned int dependencySize;
+		unsigned int entryCount;
+		unsigned int dependencyCount;
+		unsigned int buildVersion;
+		std::uint64_t fileSize;
+		std::uint64_t entryOffset;
+		std::uint64_t checksumOffset;
+		char checksumChecksum[16];
+		char dependencies[512];
+		std::uint64_t SourceChecksumOffset;
+		std::uint64_t AssetNameOffset;
+		char zoneName[64];
+		char platform[8];
+		char language[3];
+		unsigned int convertedAssetVersion;
+		unsigned int assetSectionSize;
+		char padding[5];
+	};
+
+	struct SndAssetBankEntry
+	{
+		unsigned int id;
+		unsigned int size;
+		unsigned int seekTableSize;
+		unsigned int frameCount;
+		unsigned int hybridPcmSize;
+		unsigned __int64 offset;
+		int frameRate;
+		char channelCount;
+		char looping;
+		char format;
+		unsigned __int16 EnvelopeTime1;
+		unsigned __int16 EnvelopeTime2;
+		char EnvelopeLoudness0;
+		char EnvelopeLoudness1;
+		char EnvelopeLoudness2;
+		char EnvelopeLoudness3;
+		char BlocksizeKB;
+	};
 }

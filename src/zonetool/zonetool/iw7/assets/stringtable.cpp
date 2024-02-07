@@ -1,162 +1,27 @@
 #include <std_include.hpp>
 #include "stringtable.hpp"
 
-namespace zonetool::h2
+#include "zonetool/utils/csv.hpp"
+
+namespace zonetool::iw7
 {
-	namespace
-	{
-		std::vector<std::string> csv_split(const std::string& src)
-		{
-			std::vector<std::string> res;
-			std::string buffer;
-			auto in_quote = false;
-
-			for (auto i = 0; i < src.size(); i++)
-			{
-				const auto c = src[i];
-				if (c == '\\' && (i < src.size() - 1 && src[i + 1] == '\"'))
-				{
-					buffer.append("\"");
-					++i;
-					continue;
-				}
-
-				if (c == '"')
-				{
-					in_quote = !in_quote;
-					continue;
-				}
-
-				if (c != ',' || in_quote)
-				{
-					buffer.push_back(src[i]);
-				}
-				else if (c == ',' && !in_quote)
-				{
-					res.push_back(buffer);
-					buffer.clear();
-				}
-			}
-
-			if (!buffer.empty())
-			{
-				res.push_back(buffer);
-			}
-
-			return res;
-		}
-	}
-
-	// LEGACY ZONETOOL CODE, FIX ME!
-	class CSV
-	{
-	protected:
-		std::string _name;
-		std::vector<std::vector<std::string>> _data;
-
-	public:
-		CSV(std::string name, char sep = ',')
-			: _name(name)
-		{
-			auto f = filesystem::file(name);
-			f.open("rb");
-
-			auto fp = f.get_fp();
-
-			if (fp)
-			{
-				auto len = f.size();
-				auto buf = std::make_unique<char[]>(len + 1);
-				memset(buf.get(), 0, len + 1);
-				fread(buf.get(), len, 1, fp);
-				fclose(fp);
-
-				std::vector<std::string> rows = utils::string::split(std::string(buf.get()), '\n');
-
-				for (auto& row : rows)
-				{
-					// Replace literal characters
-					std::size_t pos;
-					while ((pos = row.find("\\n")) != std::string::npos)
-					{
-						row.replace(pos, 2, "\n");
-					}
-
-					while ((pos = row.find("\\t")) != std::string::npos)
-					{
-						row.replace(pos, 2, "\t");
-					}
-
-					if (row.size() && row[row.size() - 1] == '\r')
-					{
-						row.pop_back();
-					}
-
-					_data.push_back(csv_split(row));
-				}
-			}
-
-			f.close();
-		}
-
-		std::string entry(std::size_t row, std::size_t column)
-		{
-			return _data[row][column];
-		}
-
-		std::size_t rows()
-		{
-			return _data.size();
-		}
-
-		std::size_t columns(std::size_t row)
-		{
-			return _data[row].size();
-		}
-
-		std::size_t max_columns()
-		{
-			std::size_t _max = 0;
-
-			for (std::size_t row = 0; row < this->rows(); row++)
-			{
-				if (_max < this->columns(row))
-					_max = this->columns(row);
-			}
-
-			return _max;
-		}
-
-		void clear()
-		{
-			for (std::size_t i = 0; i < _data.size(); i++)
-			{
-				for (std::size_t j = 0; j < _data[i].size(); j++)
-					_data[i][j].clear();
-
-				_data[i].clear();
-			}
-
-			_data.clear();
-		}
-	};
-
 	StringTable* parse(std::string name, zone_memory* mem)
 	{
-		auto table = std::make_unique<CSV>(name);
+		auto table = csv::parser(filesystem::get_file_path(name) + name);
 		auto stringtable = mem->allocate<StringTable>();
 
-		stringtable->name = mem->duplicate_string(name.c_str());
-		stringtable->rowCount = static_cast<int>(table->rows());
-		stringtable->columnCount = static_cast<int>(table->max_columns());
+		stringtable->name = mem->duplicate_string(name);
+		stringtable->rowCount = static_cast<int>(table.get_num_rows());
+		stringtable->columnCount = static_cast<int>(table.get_max_columns());
 		stringtable->values = mem->allocate<StringTableCell>(stringtable->rowCount * stringtable->columnCount);
 
-		for (int row = 0; row < table->rows(); row++)
+		auto rows = table.get_rows();
+		for (int row = 0; row < table.get_num_rows(); row++)
 		{
-			for (int col = 0; col < table->columns(row); col++)
+			for (int col = 0; col < rows[row]->num_fields; col++)
 			{
 				int entry = (row * stringtable->columnCount) + col;
-				stringtable->values[entry].string = mem->duplicate_string(table->entry(row, col).c_str());
+				stringtable->values[entry].string = mem->duplicate_string(rows[row]->fields[col]);
 				stringtable->values[entry].hash = string_table_hash(stringtable->values[entry].string);
 			}
 		}
@@ -212,7 +77,7 @@ namespace zonetool::h2
 
 		if (data->values)
 		{
-			buf->align(3);
+			buf->align(7);
 			const auto destStrings = buf->write(data->values, data->columnCount * data->rowCount);
 
 			if (data->columnCount * data->rowCount > 0)

@@ -24,23 +24,28 @@ namespace zonetool
 		zone_buffer(const std::size_t size);
 
 		std::uint32_t zone_stream_runtime;
+
+		std::uint64_t data_mask;
+
 		std::uint64_t data_following;
 		std::uint64_t data_offset;
 		std::uint64_t data_ptr;
 		std::uint64_t data_shared; // iw7
 		
 		void init();
-		void set_fields(std::uint32_t zone_stream_runtime_, std::uint64_t data_following_, std::uint64_t data_offset_, std::uint64_t data_ptr_, std::uint64_t data_shared_ = 0);
+		void set_fields(std::uint32_t zone_stream_runtime_, std::uint64_t data_mask_, std::uint32_t data_following_, std::uint32_t data_offset_, std::uint32_t data_ptr_, std::uint32_t data_shared_ = 0);
 
 		std::size_t get_stream_pos()
 		{
 			return this->zone_streams_[this->stream_];
 		}
 
+		std::size_t create_data_ptr(const std::uint32_t data = 0x0, const std::uint8_t stream = 0xF);
+
 		template <typename T>
 		T* get_zone_pointer(const std::uint8_t stream, const std::size_t ptr)
 		{
-			return reinterpret_cast<T*>(0xFDFDFDF000000000 | (static_cast<std::size_t>(stream) & 0x0F) << 32 | ((ptr + 1) & 0x0FFFFFFFFFFFFFF));
+			return reinterpret_cast<T*>(create_data_ptr(0x0, stream) | ((ptr + 1) & 0x0FFFFFFFFFFFFFF));
 		}
 
 		template <typename T = char>
@@ -164,8 +169,8 @@ namespace zonetool
 		std::size_t get_depthstencilstatebit(const std::size_t idx);
 		std::size_t depthstencilstatebit_count();
 
-		std::uint8_t write_blendstatebits(const std::array<std::uint32_t, 3>& bits);
-		std::array<std::uint32_t, 3> get_blendstatebits(std::size_t idx);
+		std::uint8_t write_blendstatebits(const std::array<std::uint32_t, 4>& bits);
+		std::array<std::uint32_t, 4> get_blendstatebits(std::size_t idx);
 		std::size_t blendstatebits_count();
 
 		void write_streamfile(const std::size_t stream);
@@ -218,7 +223,7 @@ namespace zonetool
 		std::vector<const char*> script_strings_;
 
 		std::vector<std::size_t> depth_stencil_state_bits_;
-		std::vector<std::array<std::uint32_t, 3>> blend_state_bits_;
+		std::vector<std::array<std::uint32_t, 4>> blend_state_bits_;
 
 		std::vector<std::uint32_t> ppas_;
 		std::vector<std::uint32_t> poas_;
