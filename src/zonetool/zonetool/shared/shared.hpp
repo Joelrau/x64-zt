@@ -21,9 +21,16 @@
 #include "../shared/assets/vertexdecl.hpp"
 #include "../shared/assets/laserdef.hpp"
 #include "../shared/assets/clipmap.hpp"
+#include "../shared/assets/localize.hpp"
 
 static inline void branding()
 {
 	ZONETOOL_INFO("No matter how hard or unlikely, if it's possible, it will be done.");
 	ZONETOOL_INFO("Special thanks to: RektInator, Laupetin, NTAuthority, momo5502, TheApadayo, localhost, X3RX35, homura, quaK & fed");
 }
+
+#ifdef DEBUG
+constexpr auto IS_DEBUG = true;
+#else
+constexpr auto IS_DEBUG = false;
+#endif

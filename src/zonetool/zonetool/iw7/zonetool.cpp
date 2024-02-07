@@ -7,16 +7,9 @@
 #include "../utils/csv_generator.hpp"
 
 #include "zonetool/utils/compression.hpp"
-#include <zlib.h>
 
 namespace zonetool::iw7
 {
-#ifdef DEBUG
-	constexpr auto IS_DEBUG = true;
-#else
-	constexpr auto IS_DEBUG = false;
-#endif
-
 	struct dump_params
 	{
 		game::game_mode target;
@@ -101,14 +94,7 @@ namespace zonetool::iw7
 
 	XAssetHeader db_find_x_asset_header_safe(XAssetType type, const std::string& name)
 	{
-		const auto asset_entry = db_find_x_asset_entry(type, name.data());
-
-		if (asset_entry)
-		{
-			return asset_entry->header;
-		}
-
-		return db_find_x_asset_header(type, name.data(), 1);
+		return zonetool::db_find_x_asset_header_safe<XAssetHeader, XAssetEntry>(type, name);
 	}
 
 	void DB_EnumXAssets(const XAssetType type,
@@ -578,12 +564,12 @@ namespace zonetool::iw7
 				if (row->fields[0] == "localize"s && row->num_fields >= 2 &&
 					filesystem::file("localizedstrings/"s + row->fields[1] + ".str").exists())
 				{
-					//localize::parse_localizedstrings_file(zone, row->fields[1]);
+					localize::parse_localizedstrings_file(zone, row->fields[1]);
 				}
 				else if (row->fields[0] == "localize"s && row->num_fields >= 2 &&
 					filesystem::file("localizedstrings/"s + row->fields[1] + ".json").exists())
 				{
-					//localize::parse_localizedstrings_json(zone, row->fields[1]);
+					localize::parse_localizedstrings_json(zone, row->fields[1]);
 				}
 				else
 				{
@@ -989,8 +975,6 @@ namespace zonetool::iw7
 		reallocate_asset_pool_multiplier(ASSET_TYPE_COMPUTESHADER, 4);
 		reallocate_asset_pool_multiplier(ASSET_TYPE_IMPACT_FX, 2);
 
-		DB_FindXAssetEntry.set((std::uintptr_t)db_find_x_asset_entry);
-
 		// enable dumping
 		db_add_xasset_hook.create(0x140A76520, &db_add_xasset_stub);
 
@@ -1002,6 +986,8 @@ namespace zonetool::iw7
 
 		doexit_hook.create(0x1412D7348, doexit);
 		atexit(on_exit);
+
+		DB_FindXAssetEntry.set((std::uintptr_t)db_find_x_asset_entry);
 	}
 
 	void finalize()

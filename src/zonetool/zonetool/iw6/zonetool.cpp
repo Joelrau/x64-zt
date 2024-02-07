@@ -14,12 +14,6 @@
 
 namespace zonetool::iw6
 {
-#ifdef DEBUG
-	constexpr auto IS_DEBUG = true;
-#else
-	constexpr auto IS_DEBUG = false;
-#endif
-
 	zonetool_globals_t globals{};
 
 	std::vector<std::pair<XAssetType, std::string>> referenced_assets;

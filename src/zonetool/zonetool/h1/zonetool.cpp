@@ -12,11 +12,6 @@
 
 namespace zonetool::h1
 {
-#ifdef DEBUG
-	constexpr auto IS_DEBUG = true;
-#else
-	constexpr auto IS_DEBUG = false;
-#endif
 	struct dump_params
 	{
 		game::game_mode target;

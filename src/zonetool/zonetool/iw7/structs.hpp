@@ -4337,8 +4337,8 @@ namespace zonetool::iw7
 
 	struct LocalizeEntry
 	{
-		const char* name;
 		const char* value;
+		const char* name;
 	};
 
 	enum OffhandGestureTypes

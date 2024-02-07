@@ -156,16 +156,37 @@ namespace zonetool
 		return reinterpret_cast<T*>(DB_FindXAssetEntry(type, name));
 	}
 
-	template <typename H, typename E>
-	H db_find_x_asset_header_safe(int type, const std::string& name)
+	// First version of the function template
+	template<typename H, typename E>
+	auto db_find_x_asset_header_safe_impl(int type, const std::string& name) -> decltype(std::declval<E>().asset.header, H{}) 
 	{
 		const auto asset_entry = db_find_x_asset_entry<E>(type, name.data());
 
-		if (asset_entry)
+		if (asset_entry) 
 		{
 			return asset_entry->asset.header;
 		}
 
 		return db_find_x_asset_header<H>(type, name.data(), 1);
+	}
+
+	// Second version of the function template
+	template<typename H, typename E>
+	auto db_find_x_asset_header_safe_impl(int type, const std::string& name) -> decltype(std::declval<E>().header, H{}) 
+	{
+		const auto asset_entry = db_find_x_asset_entry<E>(type, name.data());
+
+		if (asset_entry) 
+		{
+			return asset_entry->header;
+		}
+
+		return db_find_x_asset_header<H>(type, name.data(), 1);
+	}
+
+	template<typename H, typename E>
+	H db_find_x_asset_header_safe(int type, const std::string& name) 
+	{
+		return db_find_x_asset_header_safe_impl<H, E>(type, name);
 	}
 }
