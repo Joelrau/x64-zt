@@ -126,7 +126,7 @@ namespace zonetool::iw7
 
 			auto* original_scriptstrings = asset->boneNames;
 			asset->boneNames = mem->allocate<scr_string_t>(asset->numBones + asset->numClientBones);
-			for (unsigned int i = 0; i < asset->numBones + asset->numClientBones; i++)
+			for (auto i = 0; i < asset->numBones + asset->numClientBones; i++)
 			{
 				this->add_script_string(&asset->boneNames[i], SL_ConvertToString(original_scriptstrings[i]));
 			}
@@ -155,7 +155,7 @@ namespace zonetool::iw7
 		// name bonenames
 		if (xmodel->boneNames)
 		{
-			for (unsigned int i = 0; i < xmodel->numBones + xmodel->numClientBones; i++)
+			for (auto i = 0; i < xmodel->numBones + xmodel->numClientBones; i++)
 			{
 				xmodel->boneNames[i] = static_cast<scr_string_t>(buf->write_scriptstring(
 					this->get_script_string(&xmodel->boneNames[i])));
@@ -418,7 +418,7 @@ namespace zonetool::iw7
 		dump.dump_string(asset->name);
 
 		// tags
-		for (unsigned int i = 0; i < asset->numBones + asset->numClientBones; i++)
+		for (auto i = 0; i < asset->numBones + asset->numClientBones; i++)
 		{
 			dump.dump_string(SL_ConvertToString(asset->boneNames[i]));
 		}
