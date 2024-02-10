@@ -22,6 +22,9 @@
 #include "assets/scriptfile.hpp"
 #include "assets/stringtable.hpp"
 #include "assets/ttf.hpp"
+#include "assets/xanim.hpp"
+#include "assets/xmodel.hpp"
+#include "assets/xsurface.hpp"
 
 #include "assets/computeshader.hpp"
 #include "assets/domainshader.hpp"

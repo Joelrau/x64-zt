@@ -98,6 +98,11 @@ namespace zonetool::iw7
 		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 		dest->name = buf->write_str(this->name());
 
+		if (data->debugName)
+		{
+			dest->debugName = buf->write_str(data->debugName);
+		}
+
 		buf->push_stream(XFILE_BLOCK_TEMP);
 		if (data->prog.loadDef.program)
 		{

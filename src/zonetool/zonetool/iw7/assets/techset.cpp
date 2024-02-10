@@ -135,10 +135,7 @@ namespace zonetool::iw7
 		asset->techniques = mem->allocate<MaterialTechnique*>(asset->techniqueCount);
 		for (auto i = 0u; i < asset->techniqueCount; i++)
 		{
-			if (asset->techniques[i])
-			{
-				asset->techniques[i] = parse_technique(reader.read_string(), mem, i);
-			}
+			asset->techniques[i] = parse_technique(reader.read_string(), mem, i);
 		}
 
 		reader.close();
@@ -406,23 +403,20 @@ namespace zonetool::iw7
 		auto data = this->asset_;
 		for (auto technique = 0u; technique < data->techniqueCount; technique++)
 		{
-			if (data->techniques[technique])
+			for (unsigned short pass = 0; pass < data->techniques[technique]->hdr.passCount; pass++)
 			{
-				for (unsigned short pass = 0; pass < data->techniques[technique]->hdr.passCount; pass++)
+				auto& techniquePass = data->techniques[technique]->passArray[pass];
+				if (techniquePass.perPrimArgSize)
 				{
-					auto& techniquePass = data->techniques[technique]->passArray[pass];
-					if (techniquePass.perPrimArgSize)
-					{
-						techniquePass.perPrimConstantBuffer = buf->write_ppas(techniquePass.perPrimArgSize);
-					}
-					if (techniquePass.perObjArgSize)
-					{
-						techniquePass.perObjConstantBuffer = buf->write_poas(techniquePass.perObjArgSize);
-					}
-					if (techniquePass.stableArgSize)
-					{
-						techniquePass.stableConstantBuffer = buf->write_sas(techniquePass.stableArgSize);
-					}
+					techniquePass.perPrimConstantBuffer = buf->write_ppas(techniquePass.perPrimArgSize);
+				}
+				if (techniquePass.perObjArgSize)
+				{
+					techniquePass.perObjConstantBuffer = buf->write_poas(techniquePass.perObjArgSize);
+				}
+				if (techniquePass.stableArgSize)
+				{
+					techniquePass.stableConstantBuffer = buf->write_sas(techniquePass.stableArgSize);
 				}
 			}
 		}
@@ -434,36 +428,33 @@ namespace zonetool::iw7
 
 		for (auto technique = 0u; technique < data->techniqueCount; technique++)
 		{
-			if (data->techniques[technique])
+			for (unsigned short pass = 0; pass < data->techniques[technique]->hdr.passCount; pass++)
 			{
-				for (unsigned short pass = 0; pass < data->techniques[technique]->hdr.passCount; pass++)
+				auto& techniquePass = data->techniques[technique]->passArray[pass];
+
+				if (techniquePass.vertexShader)
 				{
-					auto& techniquePass = data->techniques[technique]->passArray[pass];
+					zone->add_asset_of_type(ASSET_TYPE_VERTEXSHADER, techniquePass.vertexShader->name);
+				}
 
-					if (techniquePass.vertexShader)
-					{
-						zone->add_asset_of_type(ASSET_TYPE_VERTEXSHADER, techniquePass.vertexShader->name);
-					}
+				/*if (techniquePass.vertexDecl)
+				{
+					zone->add_asset_of_type(ASSET_TYPE_VERTEXDECL, techniquePass.vertexDecl->name);
+				}*/
 
-					/*if (techniquePass.vertexDecl)
-					{
-						zone->add_asset_of_type(ASSET_TYPE_VERTEXDECL, techniquePass.vertexDecl->name);
-					}*/
+				if (techniquePass.hullShader)
+				{
+					zone->add_asset_of_type(ASSET_TYPE_HULLSHADER, techniquePass.hullShader->name);
+				}
 
-					if (techniquePass.hullShader)
-					{
-						zone->add_asset_of_type(ASSET_TYPE_HULLSHADER, techniquePass.hullShader->name);
-					}
+				if (techniquePass.domainShader)
+				{
+					zone->add_asset_of_type(ASSET_TYPE_DOMAINSHADER, techniquePass.domainShader->name);
+				}
 
-					if (techniquePass.domainShader)
-					{
-						zone->add_asset_of_type(ASSET_TYPE_DOMAINSHADER, techniquePass.domainShader->name);
-					}
-
-					if (techniquePass.pixelShader)
-					{
-						zone->add_asset_of_type(ASSET_TYPE_PIXELSHADER, techniquePass.pixelShader->name);
-					}
+				if (techniquePass.pixelShader)
+				{
+					zone->add_asset_of_type(ASSET_TYPE_PIXELSHADER, techniquePass.pixelShader->name);
 				}
 			}
 		}
@@ -488,17 +479,13 @@ namespace zonetool::iw7
 
 		dest->name = buf->write_str(this->name());
 
-		if (data->techniqueCount)
+		if (data->techniques)
 		{
-			buf->write(data->techniques, data->techniqueCount);
+			buf->align(7);
+			auto dest_techniques = buf->write(data->techniques, data->techniqueCount);
 
 			for (auto technique = 0; technique < data->techniqueCount; technique++)
 			{
-				if (!data->techniques[technique])
-				{
-					continue;
-				}
-
 				buf->align(7);
 
 				auto* technique_header = buf->write(&data->techniques[technique]->hdr);
@@ -527,7 +514,11 @@ namespace zonetool::iw7
 						{
 							buf->push_stream(XFILE_BLOCK_VIRTUAL);
 							buf->align(7);
-							ptr = buf->create_data_ptr(buf->stream_offset(buf->current_stream()) + 1, buf->current_stream());
+							//auto orig = buf->data_mask;
+							//buf->data_mask = 0;
+							//ptr = buf->create_data_ptr(buf->stream_offset(buf->current_stream()) + 1, buf->current_stream());
+							//buf->data_mask = orig;
+							ptr = 0x0000000800000000 + buf->stream_offset(XFILE_BLOCK_VIRTUAL) + 1;
 							add_vertexdecl_pointer(technique_passes[pass].vertexDecl->name, ptr);
 							buf->inc_stream(XFILE_BLOCK_VIRTUAL, 8);
 							buf->pop_stream();
@@ -594,7 +585,7 @@ namespace zonetool::iw7
 				buf->write_str(technique_header->name);
 				buf->clear_pointer(&technique_header->name);
 
-				buf->clear_pointer(&dest->techniques[technique]);
+				buf->clear_pointer(&dest_techniques[technique]);
 			}
 
 			buf->clear_pointer(&dest->techniques);
@@ -846,11 +837,8 @@ namespace zonetool::iw7
 
 		for (auto i = 0u; i < asset->techniqueCount; i++)
 		{
-			if (asset->techniques[i])
-			{
-				dumper.dump_string(asset->techniques[i]->hdr.name);
-				techset::dump_technique(asset->techniques[i]);
-			}
+			dumper.dump_string(asset->techniques[i]->hdr.name);
+			techset::dump_technique(asset->techniques[i]);
 		}
 
 		dumper.close();

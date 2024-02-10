@@ -99,6 +99,11 @@ namespace zonetool::iw7
 
 		dest->name = buf->write_str(this->name());
 
+		if (data->debugName)
+		{
+			dest->debugName = buf->write_str(data->debugName);
+		}
+
 		if (data->prog.loadDef.program)
 		{
 			buf->align(3);

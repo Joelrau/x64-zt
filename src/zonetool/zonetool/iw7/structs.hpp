@@ -565,7 +565,7 @@ namespace zonetool::iw7
 
 	union XAnimIndices
 	{
-		char* _1;
+		unsigned char* _1;
 		unsigned short* _2;
 		void* data;
 	};
@@ -578,13 +578,13 @@ namespace zonetool::iw7
 
 	union XAnimDynamicFrames
 	{
-		char(*_1)[3];
+		unsigned char(*_1)[3];
 		unsigned short(*_2)[3];
 	};
 
 	union XAnimDynamicIndices
 	{
-		char _1[1];
+		unsigned char _1[1];
 		unsigned short _2[1];
 	};
 
@@ -605,7 +605,7 @@ namespace zonetool::iw7
 	struct XAnimPartTrans
 	{
 		unsigned short size;
-		char smallTrans;
+		unsigned char smallTrans;
 		XAnimPartTransData u;
 	};
 
@@ -656,11 +656,11 @@ namespace zonetool::iw7
 	{
 		const char* name; // 0
 		scr_string_t* names; // 8
-		char* dataByte; // 16
+		unsigned char* dataByte; // 16
 		short* dataShort; // 24
 		int* dataInt; // 32
 		short* randomDataShort; // 40
-		char* randomDataByte; // 48
+		unsigned char* randomDataByte; // 48
 		int* randomDataInt; // 56
 		XAnimIndices indices; // 64
 		XAnimNotifyInfo* notify; // 72
@@ -675,11 +675,11 @@ namespace zonetool::iw7
 		unsigned short dataIntCount; // 112
 		unsigned short randomDataIntCount; // 114
 		unsigned short numframes; // 116
-		char flags; // 118
-		char boneCount[10]; // 119
-		char notifyCount; // 129
-		char assetType; // 130
-		char ikType; // 131
+		unsigned char flags; // 118
+		unsigned char boneCount[10]; // 119
+		unsigned char notifyCount; // 129
+		unsigned char assetType; // 130
+		unsigned char ikType; // 131
 	}; assert_sizeof(XAnimParts, 0x88);
 
 	struct XSurfaceCollisionAabb
@@ -722,11 +722,13 @@ namespace zonetool::iw7
 	union PackedUnitVec
 	{
 		unsigned int packed;
+		unsigned char array[4];
 	};
 
 	union PackedTexCoords
 	{
 		unsigned int packed;
+		unsigned char array[4];
 	};
 
 	union GfxColor
@@ -735,10 +737,15 @@ namespace zonetool::iw7
 		unsigned int packed;
 	};
 
+	struct PackedSelfVisibility
+	{
+		unsigned int packed;
+	};
+
 	struct GfxPackedVertex
 	{
 		float xyz[3];
-		float binormalSign;
+		PackedSelfVisibility selfVisibility;
 		GfxColor color;
 		PackedTexCoords texCoord;
 		PackedUnitVec normal;
@@ -768,8 +775,6 @@ namespace zonetool::iw7
 		unsigned short v2;
 		unsigned short v3;
 	};
-
-	typedef unsigned int XBlendInfo;
 
 	struct XSubdivRigidVertList
 	{
@@ -834,14 +839,9 @@ namespace zonetool::iw7
 		GfxSubdivCache cache;
 	}; assert_sizeof(XSurfaceSubdivInfo, 0x38);
 
-	struct TensionData
+	struct SHProbeSimplexData2
 	{
-		char __pad0[32];
-	};
-
-	struct SHProbeSimplexData0
-	{
-		char __pad0[32];
+		char __pad0[24];
 	};
 
 	struct SHProbeSimplexData1
@@ -849,53 +849,57 @@ namespace zonetool::iw7
 		char __pad0[8];
 	};
 
-	struct SHProbeSimplexData2
+	struct SHProbeSimplexData0
 	{
-		char __pad0[24];
+		SHProbeSimplexData2 a; // coulbereversed?
+		SHProbeSimplexData1 b; // ^
 	};
 
 	union SHProbeSimplexDataUnion
 	{
-		SHProbeSimplexData0 data0;
-		SHProbeSimplexData1 data1;
-		SHProbeSimplexData2 data2;
+		SHProbeSimplexData0* data0;
+		SHProbeSimplexData1* data1;
+		SHProbeSimplexData2* data2;
 	};
+
+	typedef unsigned short XBlendInfo;
 
 	struct XSurface
 	{
-		unsigned short flags; // 0
-		unsigned short vertCount; // 2
-		unsigned short triCount; // 4
-		char rigidVertListCount; // 6
-		char subdivLevelCount; // 7
-		short blendVertCounts[8]; // 8
-		int unkBlendCount; // 24
-		char __pad0[4]; // 28
-		GfxVertexUnion0 verts0; // 32
-		Face* triIndices; // 40
-		ID3D11Buffer* vb0; // 48
-		ID3D11ShaderResourceView* vb0View; // 56
-		ID3D11Buffer* indexBuffer; // 64
-		XRigidVertList* rigidVertLists; // 72
-		char* unkBlend; // 80
-		ID3D11Buffer* blendVertsBuffer; // 88
-		ID3D11ShaderResourceView* blendVertsView; // 96
-		__int64* lmapUnwrap; // 104
-		ID3D11Buffer* vblmapBuffer; // 112
-		ID3D11ShaderResourceView* vblmapView; // 120
-		XSurfaceSubdivInfo* subdiv; // 128
-		XBlendInfo* blendVerts; // 136
-		TensionData* tensionData; // 144
-		void* tensionAccumTable; // 152
-		ID3D11Buffer* tensionAccumTableBuffer; // 160
-		ID3D11ShaderResourceView* tensionAccumTableView; // 168
-		ID3D11Buffer* tensionDataBuffer; // 176
-		ID3D11ShaderResourceView* tensionDataView; // 184
-		ID3D11ShaderResourceView* indexBufferView; // 192
-		SHProbeSimplexDataUnion* shProbeSimplexVertData; // 200
-		ID3D11Buffer* shProbeSimplexVertBuffer; // 208
-		ID3D11ShaderResourceView* shProbeSimplexVertBufferView; // 216
-		int partBits[8]; // 224
+		unsigned short flags;
+		unsigned short vertCount;
+		unsigned short triCount;
+		char rigidVertListCount;
+		char subdivLevelCount;
+		short blendVertCounts[8];
+		int blendVertCount;
+		char __pad0[4];
+		GfxVertexUnion0 verts0;
+		Face* triIndices;
+		ID3D11Buffer* vb0;
+		ID3D11ShaderResourceView* vb0View;
+		ID3D11Buffer* indexBuffer;
+		XRigidVertList* rigidVertLists;
+		XBlendInfo* blendVerts;
+		ID3D11Buffer* blendVertsBuffer;
+		ID3D11ShaderResourceView* blendVertsView;
+		float(*lmapUnwrap)[2];
+		ID3D11Buffer* vblmapBuffer;
+		ID3D11ShaderResourceView* vblmapView;
+		XSurfaceSubdivInfo* subdiv;
+		float* tensionData;
+		unsigned short* tensionAccumTable;
+		ID3D11Buffer* tensionAccumTableBuffer;
+		ID3D11ShaderResourceView* tensionAccumTableView;
+		ID3D11Buffer* tensionDataBuffer;
+		ID3D11ShaderResourceView* tensionDataView;
+		ID3D11ShaderResourceView* indexBufferView;
+		int unk; // vertexLightingIndex
+		int pad;
+		SHProbeSimplexDataUnion shProbeSimplexVertData;
+		ID3D11Buffer* shProbeSimplexVertBuffer;
+		ID3D11ShaderResourceView* shProbeSimplexVertBufferView;
+		int partBits[8];
 	}; assert_sizeof(XSurface, 0x100);
 
 	struct XModelSurfs
@@ -3515,16 +3519,17 @@ namespace zonetool::iw7
 
 	struct FxGlassPieceState
 	{
-		vec2_t texCoordOrigin;
+		float texCoordOrigin[2];
 		unsigned int supportMask;
-		unsigned int geoDataStart;
 		unsigned __int16 initIndex;
-		char defIndex;
-		char pad[1];
-		char vertCount;
-		char holeDataCount;
-		char crackDataCount;
-		char fanDataCount;
+		unsigned __int16 geoDataStart;
+		unsigned __int16 lightingIndex;
+		unsigned __int8 defIndex;
+		unsigned __int8 pad[3];
+		unsigned __int8 vertCount;
+		unsigned __int8 holeDataCount;
+		unsigned __int8 crackDataCount;
+		unsigned __int8 fanDataCount;
 		unsigned __int16 flags;
 		float areaX2;
 	};

@@ -554,6 +554,9 @@ namespace zonetool::iw7
 			ADD_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile);
 			ADD_ASSET(ASSET_TYPE_STRINGTABLE, string_table);
 			ADD_ASSET(ASSET_TYPE_TTF, font_def);
+			ADD_ASSET(ASSET_TYPE_XANIMPARTS, xanim_parts);
+			ADD_ASSET(ASSET_TYPE_XMODEL, xmodel);
+			ADD_ASSET(ASSET_TYPE_XMODEL_SURFS, xsurface);
 
 			ADD_ASSET(ASSET_TYPE_COMPUTESHADER, compute_shader);
 			ADD_ASSET(ASSET_TYPE_DOMAINSHADER, domain_shader);
@@ -620,6 +623,8 @@ namespace zonetool::iw7
 			m_assets[i]->prepare(buf, this->m_zonemem.get());
 		}
 
+		buf->push_stream(XFILE_BLOCK_TEMP);
+
 		// write scriptstring count
 		std::size_t stringcount = buf->scriptstring_count();
 		buf->write<std::uintptr_t>(&stringcount);
@@ -633,12 +638,16 @@ namespace zonetool::iw7
 		bool write_globals = (buf->depthstencilstatebit_count() + buf->blendstatebits_count()) > 0;
 		buf->write<std::uintptr_t>(write_globals ? (&following) : (&zero)); // pointer to globals
 
+		buf->pop_stream();
+
 		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 
 		// write scriptstrings
 		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 		if (stringcount)
 		{
+			buf->align(7);
+
 			// write pointer for every scriptstring
 			for (std::size_t idx = 0; idx < stringcount; idx++)
 			{
@@ -656,7 +665,6 @@ namespace zonetool::iw7
 			// write scriptstrings
 			for (std::size_t idx = 0; idx < stringcount; idx++)
 			{
-				buf->align(7);
 				const auto str = buf->get_scriptstring(idx);
 				if (str != nullptr)
 				{

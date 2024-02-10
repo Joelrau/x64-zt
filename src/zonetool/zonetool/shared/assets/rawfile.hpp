@@ -106,7 +106,7 @@ namespace zonetool
 			auto* data = this->asset_;
 			auto* dest = buf->write<S>(data);
 
-			buf->push_stream(XFILE_BLOCK_VIRTUAL);
+			buf->push_stream(Streams::XFILE_BLOCK_VIRTUAL);
 
 			dest->name = buf->write_str(this->name());
 
