@@ -235,6 +235,9 @@ namespace iw7
 				// don't load streamed assets
 				utils::hook::set<uint8_t>(0x1403BB990, 0xC3); // DB_StreamingInfo_Register
 
+				// don't fatal error on misc model error
+				utils::hook::nop(0x140571ECF, 5);
+
 				::zonetool::iw7::initialize();
 			}
 		};

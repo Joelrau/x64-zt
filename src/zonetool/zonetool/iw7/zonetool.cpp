@@ -7,6 +7,7 @@
 #include "../utils/csv_generator.hpp"
 
 #include "zonetool/utils/compression.hpp"
+#include <intsafe.h>
 
 namespace zonetool::iw7
 {
@@ -148,9 +149,21 @@ namespace zonetool::iw7
 			DUMP_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile, ScriptFile);
 			DUMP_ASSET(ASSET_TYPE_STRINGTABLE, string_table, StringTable);
 			DUMP_ASSET(ASSET_TYPE_TTF, font_def, TTFDef);
+			DUMP_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment, WeaponAttachment);
+			DUMP_ASSET(ASSET_TYPE_ANIM_PACKAGE, weapon_anim_package, WeaponAnimPackage);
+			DUMP_ASSET(ASSET_TYPE_SFX_PACKAGE, weapon_sfx_package, WeaponSFXPackage);
+			DUMP_ASSET(ASSET_TYPE_VFX_PACKAGE, weapon_vfx_package, WeaponVFXPackage);
+			DUMP_ASSET(ASSET_TYPE_WEAPON, weapon_def, WeaponCompleteDef);
 			DUMP_ASSET(ASSET_TYPE_XANIMPARTS, xanim_parts, XAnimParts);
 			DUMP_ASSET(ASSET_TYPE_XMODEL, xmodel, XModel);
 			DUMP_ASSET(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
+
+			DUMP_ASSET(ASSET_TYPE_PHYSICSASSET, physics_asset, PhysicsAsset);
+			DUMP_ASSET(ASSET_TYPE_PHYSICS_FX_PIPELINE, physics_fx_pipeline, PhysicsFXPipeline);
+			DUMP_ASSET(ASSET_TYPE_PHYSICS_FX_SHAPE, physics_fx_shape, PhysicsFXShape);
+			DUMP_ASSET(ASSET_TYPE_PHYSICSLIBRARY, physics_library, PhysicsLibrary);
+			DUMP_ASSET(ASSET_TYPE_PHYSICS_SFX_EVENT_ASSET, physics_sfx_event, PhysicsSFXEventAsset);
+			DUMP_ASSET(ASSET_TYPE_PHYSICS_VFX_EVENT_ASSET, physics_vfx_event, PhysicsVFXEventAsset);
 
 			DUMP_ASSET(ASSET_TYPE_COMPUTESHADER, compute_shader, ComputeShader);
 			DUMP_ASSET(ASSET_TYPE_DOMAINSHADER, domain_shader, MaterialDomainShader);
@@ -859,6 +872,38 @@ namespace zonetool::iw7
 			}
 
 			verify_zone(params.get(1));
+		});
+
+		::iw7::command::add("iteratezones", []()
+		{
+			const auto iterate_zones = [](const std::string& path)
+			{
+				for (auto const& dir_entry : std::filesystem::directory_iterator{ path })
+				{
+					if (dir_entry.is_regular_file() && dir_entry.path().extension() == ".ff")
+					{
+						const auto zone = dir_entry.path().stem().string();
+
+						try
+						{
+							load_zone(zone);
+						}
+						catch (std::exception& err)
+						{
+							ZONETOOL_ERROR("failure while loading zone %s\n", zone.data());
+						}
+
+						wait_for_database();
+						unload_zones();
+					}
+				}
+			};
+
+			const auto zone_path = utils::io::directory_exists("zone") ? "zone/" : "";
+			iterate_zones(zone_path);
+
+			const auto lang_path = zone_path ? "zone/english/" : "english/";
+			iterate_zones(lang_path);
 		});
 	}
 

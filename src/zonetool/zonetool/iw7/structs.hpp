@@ -106,7 +106,7 @@ namespace zonetool::iw7
 	struct XAnimParts;
 	struct XModelSurfs;
 	struct XModel;
-	struct Mayhem;
+	struct MayhemData;
 	struct Material;
 	struct ComputeShader;
 	struct MaterialVertexShader;
@@ -194,6 +194,7 @@ namespace zonetool::iw7
 	{
 		FxEffectDef* fx;
 		ParticleSystemDef* particleSystemDef;
+		void* data;
 	};
 
 	enum FxCombinedType : std::uint8_t
@@ -208,7 +209,7 @@ namespace zonetool::iw7
 		FxCombinedType type;
 	};
 
-	//typedef const char* SndAliasLookup;
+	typedef const char* SndAliasLookup;
 
 	struct PhysicsLibrary
 	{
@@ -550,10 +551,22 @@ namespace zonetool::iw7
 		char __pad1[16];
 	}; assert_sizeof(PhysicsAsset, 0x50);
 
+	struct unk_1453E1188
+	{
+		char __pad0[68];
+	}; assert_sizeof(unk_1453E1188, 68);
+
+	struct unk_1453E1068
+	{
+		int numUnk;
+		unk_1453E1188* unk;
+	}; assert_sizeof(unk_1453E1068, 16);
+
 	struct PhysicsFXPipeline
 	{
 		const char* name;
-		char __pad0[24];
+		char __pad0[8];
+		unk_1453E1068 unk;
 	}; assert_sizeof(PhysicsFXPipeline, 0x20);
 
 	struct PhysicsFXShape
@@ -4421,9 +4434,8 @@ namespace zonetool::iw7
 		WEAPON_FIRETYPE_SINGLESHOT = 0x1,
 		WEAPON_FIRETYPE_BURST = 0x2,
 		WEAPON_FIRETYPE_DOUBLEBARREL = 0x3,
-		WEAPON_FIRETYPE_DOUBLEBARREL_DUALTRIGGER = 0x4,
-		WEAPON_FIRETYPE_BEAM = 0x5,
-		WEAPON_FIRETYPECOUNT = 0x6,
+		WEAPON_FIRETYPE_BEAM = 0x4,
+		WEAPON_FIRETYPECOUNT = 0x5,
 	};
 
 	enum ImpactType : std::int32_t
@@ -4897,11 +4909,233 @@ namespace zonetool::iw7
 		WEAP_ANIM_GESTURE_IK_TARGET_2 = 3,
 		WEAP_ANIM_GESTURE_IK_TARGET_3 = 4,
 		WEAP_ANIM_GESTURE_IK_TARGET_4 = 5,
+		WEAP_ANIM_IK_NODE = 6,
+		WEAP_ANIM_PROC_NODE = 7,
+		WEAP_ANIM_IK_NODE_VOID = 8,
+		WEAP_ANIM_PROC_NODE_VOID = 9,
+		WEAP_ANIM_RELATIVE_ROOT = 10,
+		WEAP_ANIM_ADDITIVE_ADS_ROOT = 11,
+		WEAP_ANIM_ADDITIVE_ADS_UP = 12,
+		WEAP_ANIM_ADDITIVE_DRAG_LEFT_ROOT = 13,
+		WEAP_ANIM_ADDITIVE_DRAG_LEFT = 14,
+		WEAP_ANIM_ADDITIVE_DRAG_RIGHT_ROOT = 15,
+		WEAP_ANIM_ADDITIVE_DRAG_RIGHT = 16,
+		WEAP_ANIM_ADDITIVE_DRAG_UP_ROOT = 17,
+		WEAP_ANIM_ADDITIVE_DRAG_UP = 18,
+		WEAP_ANIM_ADDITIVE_DRAG_DOWN_ROOT = 19,
+		WEAP_ANIM_ADDITIVE_DRAG_DOWN = 20,
+		WEAP_ANIM_ADDITIVE_SWIM_FORWARD_ROOT = 21,
+		WEAP_ANIM_ADDITIVE_SWIM_FORWARD = 22,
+		WEAP_ANIM_ADDITIVE_SWIM_BACKWARD_ROOT = 23,
+		WEAP_ANIM_ADDITIVE_SWIM_BACKWARD = 24,
+		WEAP_ANIM_ADDITIVE_JUMP_ROOT = 25,
+		WEAP_ANIM_ADDITIVE_JUMP = 26,
+		WEAP_ANIM_ADDITIVE_JUMP_BOOST = 27,
+		WEAP_ANIM_ADDITIVE_JUMP_LAND_ROOT = 28,
+		WEAP_ANIM_ADDITIVE_JUMP_LAND = 29,
+		WEAP_ANIM_ADDITIVE_WALK_ROOT = 30,
 		WEAP_ANIM_ADDITIVE_WALK = 31,
-		WEAP_ANIM_RELOAD_ADS = 171,
-		WEAP_ANIM_RELOAD_EMPTY_ADS = 172,
-		WEAP_ANIM_FAST_RELOAD_ADS = 175,
-		WEAP_ANIM_FAST_RELOAD_EMPTY_ADS = 176,
+		WEAP_ANIM_ADDITIVE_WALK_GESTURE_1 = 32,
+		WEAP_ANIM_ADDITIVE_WALK_GESTURE_2 = 33,
+		WEAP_ANIM_ADDITIVE_SPRINT_ROOT = 34,
+		WEAP_ANIM_ADDITIVE_SPRINT_IN = 35,
+		WEAP_ANIM_ADDITIVE_SPRINT_LOOP = 36,
+		WEAP_ANIM_ADDITIVE_SUPER_SPRINT_LOOP = 37,
+		WEAP_ANIM_ADDITIVE_SPRINT_OUT = 38,
+		WEAP_ANIM_ADDITIVE_SPRINT_OFFSET_ROOT = 39,
+		WEAP_ANIM_ADDITIVE_SPRINT_OFFSET = 40,
+		WEAP_ANIM_ADDITIVE_CRAWL_IN_ROOT = 41,
+		WEAP_ANIM_ADDITIVE_CRAWL_IN = 42,
+		WEAP_ANIM_ADDITIVE_CRAWL_LOOP_ROOT = 43,
+		WEAP_ANIM_ADDITIVE_CRAWL_LOOP = 44,
+		WEAP_ANIM_ADDITIVE_CRAWL_LOOP_LEFT_ROOT = 45,
+		WEAP_ANIM_ADDITIVE_CRAWL_LOOP_LEFT = 46,
+		WEAP_ANIM_ADDITIVE_CRAWL_LOOP_RIGHT_ROOT = 47,
+		WEAP_ANIM_ADDITIVE_CRAWL_LOOP_RIGHT = 48,
+		WEAP_ANIM_ADDITIVE_PRONE_DROP_ROOT = 49,
+		WEAP_ANIM_ADDITIVE_PRONE_DROP = 50,
+		WEAP_ANIM_ADDITIVE_FINGER_POSE_LEFT_ROOT = 51,
+		WEAP_ANIM_ADDITIVE_FINGER_POSE_LEFT = 52,
+		WEAP_ANIM_ADDITIVE_FINGER_POSE_RIGHT_ROOT = 53,
+		WEAP_ANIM_ADDITIVE_FINGER_POSE_RIGHT = 54,
+		WEAP_ANIM_ADDITIVE_DEMEANOR_OFFSET_ROOT = 55,
+		WEAP_ANIM_ADDITIVE_DEMEANOR_OFFSET_SAFE = 56,
+		WEAP_ANIM_ADDITIVE_GESTURE_1 = 57,
+		WEAP_ANIM_ADDITIVE_GESTURE_2 = 58,
+		WEAP_ANIM_ADDITIVE_GESTURE_3 = 59,
+		WEAP_ANIM_ADDITIVE_GESTURE_4 = 60,
+		WEAP_ANIM_ADDITIVE_GESTURE_5 = 61,
+		WEAP_ANIM_ADDITIVE_GESTURE_6 = 62,
+		WEAP_ANIM_ADDITIVE_GESTURE_7 = 63,
+		WEAP_ANIM_ADDITIVE_GESTURE_8 = 64,
+		WEAP_ANIM_ADDITIVE_GESTURE_9 = 65,
+		WEAP_ANIM_ADDITIVE_GESTURE_10 = 66,
+		WEAP_ANIM_ADDITIVE_GESTURE_11 = 67,
+		WEAP_ANIM_ADDITIVE_GESTURE_12 = 68,
+		WEAP_ANIM_ADDITIVE_GESTURE_13 = 69,
+		WEAP_ANIM_ADDITIVE_GESTURE_14 = 70,
+		WEAP_ANIM_ADDITIVE_GESTURE_15 = 71,
+		WEAP_ANIM_ADDITIVE_GESTURE_16 = 72,
+		WEAP_ANIM_ADDITIVE_GESTURE_17 = 73,
+		WEAP_ANIM_ADDITIVE_GESTURE_18 = 74,
+		WEAP_ANIM_ADDITIVE_GESTURE_19 = 75,
+		WEAP_ANIM_ADDITIVE_GESTURE_20 = 76,
+		WEAP_ANIM_ADDITIVE_GESTURE_21 = 77,
+		WEAP_ANIM_ADDITIVE_GESTURE_22 = 78,
+		WEAP_ANIM_ADDITIVE_GESTURE_23 = 79,
+		WEAP_ANIM_ADDITIVE_GESTURE_24 = 80,
+		WEAP_ANIM_ADDITIVE_GESTURE_25 = 81,
+		WEAP_ANIM_ADDITIVE_GESTURE_26 = 82,
+		WEAP_ANIM_ADDITIVE_GESTURE_27 = 83,
+		WEAP_ANIM_ADDITIVE_GESTURE_28 = 84,
+		WEAP_ANIM_ADDITIVE_GESTURE_29 = 85,
+		WEAP_ANIM_ADDITIVE_GESTURE_30 = 86,
+		WEAP_ANIM_ADDITIVE_GESTURE_31 = 87,
+		WEAP_ANIM_ADDITIVE_GESTURE_32 = 88,
+		WEAP_ANIM_ADDITIVE_GESTURE_33 = 89,
+		WEAP_ANIM_ADDITIVE_GESTURE_34 = 90,
+		WEAP_ANIM_ADDITIVE_GESTURE_35 = 91,
+		WEAP_ANIM_ADDITIVE_GESTURE_36 = 92,
+		WEAP_ANIM_ADDITIVE_GESTURE_37 = 93,
+		WEAP_ANIM_ADDITIVE_GESTURE_38 = 94,
+		WEAP_ANIM_ADDITIVE_GESTURE_39 = 95,
+		WEAP_ANIM_ADDITIVE_GESTURE_40 = 96,
+		WEAP_ANIM_ADDITIVE_SETTLE_ROOT = 97,
+		WEAP_ANIM_ADDITIVE_SETTLE_ADS = 98,
+		WEAP_ANIM_ADDITIVE_REGENERATE_ROOT = 99,
+		WEAP_ANIM_ADDITIVE_REGENERATE = 100,
+		WEAP_ANIM_ADDITIVE_MAGAZINE_BULLETS_ROOT = 101,
+		WEAP_ANIM_ADDITIVE_MAGAZINE_BULLETS = 102,
+		WEAP_ANIM_ADDITIVE_RECOIL_ROOT = 103,
+		WEAP_ANIM_ADDITIVE_RECOIL = 104,
+		WEAP_ANIM_ADDITIVE_EMPTY_ROOT = 105,
+		WEAP_ANIM_ADDITIVE_EMPTY = 106,
+		WEAP_ANIM_IDLE = 107,
+		WEAP_ANIM_EMPTY_IDLE = 108,
+		WEAP_ANIM_FIRE = 109,
+		WEAP_ANIM_HOLD_FIRE = 110,
+		WEAP_ANIM_LASTSHOT = 111,
+		WEAP_ANIM_RECHAMBER = 112,
+		WEAP_ANIM_GRENADE_PRIME = 113,
+		WEAP_ANIM_GRENADE_PRIME_READY_TO_THROW = 114,
+		WEAP_ANIM_MELEE_FATAL = 115,
+		WEAP_ANIM_MELEE_HIT = 116,
+		WEAP_ANIM_MELEE_MISS = 117,
+		WEAP_ANIM_MELEE_SWIPE = 118,
+		WEAP_ANIM_MELEE_VICTIM_CROUCHING_FATAL = 119,
+		WEAP_ANIM_MELEE_VICTIM_CROUCHING_HIT = 120,
+		WEAP_ANIM_MELEE_VICTIM_CROUCHING_MISS = 121,
+		WEAP_ANIM_MELEE_FATAL_2 = 122,
+		WEAP_ANIM_MELEE_HIT_2 = 123,
+		WEAP_ANIM_MELEE_MISS_2 = 124,
+		WEAP_ANIM_MELEE_SWIPE_2 = 125,
+		WEAP_ANIM_MELEE_VICTIM_CROUCHING_FATAL_2 = 126,
+		WEAP_ANIM_MELEE_VICTIM_CROUCHING_HIT_2 = 127,
+		WEAP_ANIM_MELEE_VICTIM_CROUCHING_MISS_2 = 128,
+		WEAP_ANIM_MELEE_FATAL_3 = 129,
+		WEAP_ANIM_MELEE_HIT_3 = 130,
+		WEAP_ANIM_MELEE_MISS_3 = 131,
+		WEAP_ANIM_MELEE_SWIPE_3 = 132,
+		WEAP_ANIM_MELEE_VICTIM_CROUCHING_FATAL_3 = 133,
+		WEAP_ANIM_MELEE_VICTIM_CROUCHING_HIT_3 = 134,
+		WEAP_ANIM_MELEE_VICTIM_CROUCHING_MISS_3 = 135,
+		WEAP_ANIM_MELEE_FATAL_4 = 136,
+		WEAP_ANIM_MELEE_HIT_4 = 137,
+		WEAP_ANIM_MELEE_MISS_4 = 138,
+		WEAP_ANIM_MELEE_SWIPE_4 = 139,
+		WEAP_ANIM_MELEE_VICTIM_CROUCHING_FATAL_4 = 140,
+		WEAP_ANIM_MELEE_VICTIM_CROUCHING_HIT_4 = 141,
+		WEAP_ANIM_MELEE_VICTIM_CROUCHING_MISS_4 = 142,
+		WEAP_ANIM_ALT_MELEE_FATAL = 143,
+		WEAP_ANIM_ALT_MELEE_HIT = 144,
+		WEAP_ANIM_ALT_MELEE_MISS = 145,
+		WEAP_ANIM_ALT_MELEE_SWIPE = 146,
+		WEAP_ANIM_ALT_MELEE_VICTIM_CROUCHING_FATAL = 147,
+		WEAP_ANIM_ALT_MELEE_VICTIM_CROUCHING_HIT = 148,
+		WEAP_ANIM_ALT_MELEE_VICTIM_CROUCHING_MISS = 149,
+		WEAP_ANIM_ALT_MELEE_FATAL_2 = 150,
+		WEAP_ANIM_ALT_MELEE_HIT_2 = 151,
+		WEAP_ANIM_ALT_MELEE_MISS_2 = 152,
+		WEAP_ANIM_ALT_MELEE_SWIPE_2 = 153,
+		WEAP_ANIM_ALT_MELEE_VICTIM_CROUCHING_FATAL_2 = 154,
+		WEAP_ANIM_ALT_MELEE_VICTIM_CROUCHING_HIT_2 = 155,
+		WEAP_ANIM_ALT_MELEE_VICTIM_CROUCHING_MISS_2 = 156,
+		WEAP_ANIM_ALT_MELEE_FATAL_3 = 157,
+		WEAP_ANIM_ALT_MELEE_HIT_3 = 158,
+		WEAP_ANIM_ALT_MELEE_MISS_3 = 159,
+		WEAP_ANIM_ALT_MELEE_SWIPE_3 = 160,
+		WEAP_ANIM_ALT_MELEE_VICTIM_CROUCHING_FATAL_3 = 161,
+		WEAP_ANIM_ALT_MELEE_VICTIM_CROUCHING_HIT_3 = 162,
+		WEAP_ANIM_ALT_MELEE_VICTIM_CROUCHING_MISS_3 = 163,
+		WEAP_ANIM_ALT_MELEE_FATAL_4 = 164,
+		WEAP_ANIM_ALT_MELEE_HIT_4 = 165,
+		WEAP_ANIM_ALT_MELEE_MISS_4 = 166,
+		WEAP_ANIM_ALT_MELEE_SWIPE_4 = 167,
+		WEAP_ANIM_ALT_MELEE_VICTIM_CROUCHING_FATAL_4 = 168,
+		WEAP_ANIM_ALT_MELEE_VICTIM_CROUCHING_HIT_4 = 169,
+		WEAP_ANIM_ALT_MELEE_VICTIM_CROUCHING_MISS_4 = 170,
+		WEAP_ANIM_RELOAD = 171,
+		WEAP_ANIM_RELOAD_EMPTY = 172,
+		WEAP_ANIM_RELOAD_START = 173,
+		WEAP_ANIM_RELOAD_END = 174,
+		WEAP_ANIM_FAST_RELOAD = 175,
+		WEAP_ANIM_FAST_RELOAD_EMPTY = 176,
+		WEAP_ANIM_FAST_RELOAD_START = 177,
+		WEAP_ANIM_FAST_RELOAD_END = 178,
+		WEAP_ANIM_RAISE = 179,
+		WEAP_ANIM_FIRST_RAISE = 180,
+		WEAP_ANIM_BREACH_RAISE = 181,
+		WEAP_ANIM_DROP = 182,
+		WEAP_ANIM_ALT_RAISE = 183,
+		WEAP_ANIM_ALT_RAISE_ADS = 184,
+		WEAP_ANIM_ALT_RAISE_AKIMBO = 185,
+		WEAP_ANIM_ALT_DROP = 186,
+		WEAP_ANIM_ALT_DROP_ADS = 187,
+		WEAP_ANIM_ALT_DROP_AKIMBO = 188,
+		WEAP_ANIM_ALT_OVERRIDE = 189,
+		WEAP_ANIM_TOGGLE_OVERRIDE = 190,
+		WEAP_ANIM_SCOPE_TOGGLE_ON = 191,
+		WEAP_ANIM_SCOPE_TOGGLE_OFF = 192,
+		WEAP_ANIM_QUICK_RAISE = 193,
+		WEAP_ANIM_QUICK_DROP = 194,
+		WEAP_ANIM_EMPTY_RAISE = 195,
+		WEAP_ANIM_EMPTY_DROP = 196,
+		WEAP_ANIM_SPRINT_IN = 197,
+		WEAP_ANIM_SPRINT_IN_CANCEL = 198,
+		WEAP_ANIM_SPRINT_LOOP = 199,
+		WEAP_ANIM_SPRINT_OUT = 200,
+		WEAP_ANIM_STUNNED_START = 201,
+		WEAP_ANIM_STUNNED_LOOP = 202,
+		WEAP_ANIM_STUNNED_END = 203,
+		WEAP_ANIM_DETONATE = 204,
+		WEAP_ANIM_NIGHTVISION_WEAR = 205,
+		WEAP_ANIM_NIGHTVISION_REMOVE = 206,
+		WEAP_ANIM_ADS_FIRE = 207,
+		WEAP_ANIM_ADS_LASTSHOT = 208,
+		WEAP_ANIM_ADS_RECHAMBER = 209,
+		WEAP_ANIM_BLAST_FRONT = 210,
+		WEAP_ANIM_BLAST_RIGHT = 211,
+		WEAP_ANIM_BLAST_BACK = 212,
+		WEAP_ANIM_BLAST_LEFT = 213,
+		WEAP_ANIM_DODGE_GROUND_BACK = 214,
+		WEAP_ANIM_DODGE_GROUND_LEFT = 215,
+		WEAP_ANIM_DODGE_GROUND_RIGHT = 216,
+		WEAP_ANIM_DODGE_AIR_FORWARD = 217,
+		WEAP_ANIM_DODGE_AIR_BACK = 218,
+		WEAP_ANIM_DODGE_AIR_LEFT = 219,
+		WEAP_ANIM_DODGE_AIR_RIGHT = 220,
+		WEAP_ANIM_LEAP_IN = 221,
+		WEAP_ANIM_LEAP_LOOP = 222,
+		WEAP_ANIM_LEAP_CANCEL = 223,
+		WEAP_ANIM_LEAP_OUT = 224,
+		WEAP_ANIM_CHARGE_IN = 225,
+		WEAP_ANIM_CHARGE_LOOP = 226,
+		WEAP_ANIM_CHARGE_OUT = 227,
+		WEAP_ANIM_ADS_CHARGE_IN = 228,
+		WEAP_ANIM_ADS_CHARGE_LOOP = 229,
+		WEAP_ANIM_ADS_CHARGE_OUT = 230,
+		WEAP_ANIM_RECOIL_SETTLE = 231,
+		WEAP_ANIM_SWIM_LOOP = 232,
 		WEAP_ANIM_RELOAD_MULTIPLE_1 = 233,
 		WEAP_ANIM_RELOAD_MULTIPLE_2 = 234,
 		WEAP_ANIM_RELOAD_MULTIPLE_3 = 235,
@@ -4918,7 +5152,18 @@ namespace zonetool::iw7
 		WEAP_ANIM_RELOAD_MULTIPLE_FAST_6 = 246,
 		WEAP_ANIM_RELOAD_MULTIPLE_FAST_7 = 247,
 		WEAP_ANIM_RELOAD_MULTIPLE_FAST_8 = 248,
-		NUM_WEAP_ANIMS = 9999,
+		WEAP_ANIM_ADS_UP = 249,
+		WEAP_ANIM_ADS_DOWN = 250,
+		WEAP_ANIM_SHIELD_UP = 251,
+		WEAP_ANIM_SHIELD_IDLE = 252,
+		WEAP_ANIM_SHIELD_DOWN = 253,
+		WEAP_ANIM_RECOIL = 254,
+		WEAP_ALT_ANIM_ADJUST = 255,
+		WEAP_ANIM_UNUSED = 256,
+		WEAP_ANIM_3P_FINGER_POSE_LEFT = 257,
+		WEAP_ANIM_3P_FINGER_POSE_RIGHT = 258,
+		WEAP_ANIM_3P_ADDITIVE_ALT_OVERRIDE = 259,
+		NUM_WEAP_ANIMS = 260,
 	};
 
 	struct AttAmmoGeneral
@@ -5472,7 +5717,7 @@ namespace zonetool::iw7
 		AttRegeneration* regeneration;
 		AttMovement* movement;
 		AttBurst* burst;
-		float* locationDamage;
+		float* locationDamage; // arr: 22
 		float ammunitionScale;
 		float damageScale;
 		float stateTimersScale;
@@ -5743,11 +5988,11 @@ namespace zonetool::iw7
 		int iPerkStartAmmo;
 		int iPerkMaxAmmo;
 		const char* szAmmoName;
-		int iAmmoIndex;
+		int iAmmoIndex; // runtime data
 		int iMaxAmmo;
 		int shotCount;
 		const char* szSharedAmmoCapName;
-		int iSharedAmmoCapIndex;
+		int iSharedAmmoCapIndex; // runtime data
 		int iSharedAmmoCap;
 		int iAmmoUsedPerShot;
 		bool requireAmmoUsedPerShot;
@@ -5960,8 +6205,8 @@ namespace zonetool::iw7
 		float fPlayerPositionDist;
 		const char* szUseHintString;
 		const char* dropHintString;
-		unsigned int iUseHintStringIndex;
-		unsigned int dropHintStringIndex;
+		unsigned int iUseHintStringIndex; // runtime data
+		unsigned int dropHintStringIndex; // runtime data
 		float horizViewJitter;
 		float vertViewJitter;
 		float scanSpeed;
@@ -5991,9 +6236,10 @@ namespace zonetool::iw7
 		float robotechVariancePitch;
 		float robotechVarianceYaw;
 		float robotechVarianceFrequency;
-		float* locationDamageMultipliers;
-		char* hitLocPriorityMap;
-		float unittypeMultipliers[10];
+		float* locationDamageMultipliers; // arr: 22
+		unsigned char* hitLocPriorityMap; // arr: 22
+		float unittypeMultipliers[9];
+		float pad30;
 		RumbleInfo* fireRumble;
 		RumbleInfo* meleeImpactRumble;
 		tracerStyle_t tracerStyle;
@@ -6362,7 +6608,7 @@ namespace zonetool::iw7
 		WeaponDef* weapDef;
 		const char* szDisplayName;
 		const char* szLootTable;
-		scr_string_t* hideTags;
+		scr_string_t* hideTags; // arr: 32
 		unsigned int numAttachments;
 		unsigned int numAttachments2;
 		unsigned int numAttachments3; // underbarrel
@@ -6396,8 +6642,8 @@ namespace zonetool::iw7
 		float fAdsViewKickCenterSpeed;
 		float fHipViewKickCenterSpeed;
 		const char* szAltWeaponName;
-		Material* killIconMat;
-		Material* dpadIconMat;
+		Material* killIcon;
+		Material* dpadIcon;
 		int ammoDropStockMax;
 		float adsDofStart;
 		float adsDofEnd;
@@ -6412,13 +6658,6 @@ namespace zonetool::iw7
 		const char* szLUIWeaponInfoWidgetTag;
 		const char* szLUICrosshairWidget;
 	}; assert_sizeof(WeaponCompleteDef, 0x138);
-	assert_offsetof(WeaponCompleteDef, attachments, 72);
-	assert_offsetof(WeaponCompleteDef, notetrackSuitEntries, 168);
-	assert_offsetof(WeaponCompleteDef, killIconMat, 224);
-	assert_offsetof(WeaponCompleteDef, notetrackSuitEntries, 168);
-	assert_offsetof(WeaponCompleteDef, accuracyGraphKnotCount, 252);
-	assert_offsetof(WeaponCompleteDef, accuracyGraphKnots, 256);
-	assert_offsetof(WeaponCompleteDef, szAdsrBaseSetting, 280);
 
 	enum PARTICLE_FLAG
 	{
@@ -10046,67 +10285,67 @@ namespace zonetool::iw7
 	struct WeaponSFXPackageSounds
 	{
 		const char* name;
-		const char* pickupSound;
-		const char* pickupSoundPlayer;
-		const char* ammoPickupSound;
-		const char* ammoPickupSoundPlayer;
-		const char* projectileSound;
-		const char* pullbackSound;
-		const char* pullbackSoundPlayer;
-		const char* pullbackSoundQuick;
-		const char* pullbackSoundQuickPlayer;
-		const char* fireSound;
-		const char* fireSoundPlayer;
-		const char* fireSoundPlayerAkimbo;
-		const char* fireSoundPlayerAkimboRight;
-		const char* fireStartSound;
-		const char* fireStartSoundPlayer;
-		const char* fireLoopSound;
-		const char* fireLoopSoundPlayer;
-		const char* fireStopSound;
-		const char* fireStopSoundPlayer;
-		const char* fireLastSound;
-		const char* fireLastSoundPlayer;
-		const char* fireLastSoundPlayerAkimbo;
-		const char* fireLastSoundPlayerAkimboRight;
-		const char* regenerateSound;
-		const char* regenerateSoundPlayer;
-		const char* emptyFireSound;
-		const char* emptyFireSoundPlayer;
-		const char* emptyRegenFireSound;
-		const char* emptyRegenFireSoundPlayer;
-		const char* rechamberSound;
-		const char* rechamberSoundPlayer;
-		const char* reloadSound;
-		const char* reloadSoundPlayer;
-		const char* reloadEmptySound;
-		const char* reloadEmptySoundPlayer;
-		const char* reloadStartSound;
-		const char* reloadStartSoundPlayer;
-		const char* reloadEndSound;
-		const char* reloadEndSoundPlayer;
-		const char* detonateSound;
-		const char* detonateSoundPlayer;
-		const char* nightVisionWearSound;
-		const char* nightVisionWearSoundPlayer;
-		const char* nightVisionRemoveSound;
-		const char* nightVisionRemoveSoundPlayer;
-		const char* altSwitchSound;
-		const char* altSwitchSoundPlayer;
-		const char* raiseSound;
-		const char* raiseSoundPlayer;
-		const char* firstRaiseSound;
-		const char* firstRaiseSoundPlayer;
-		const char* putawaySound;
-		const char* putawaySoundPlayer;
-		const char* enterAdsSoundPlayer;
-		const char* leaveAdsSoundPlayer;
-		const char* bulletRicochetImpact;
-		const char* projExplosionSound;
-		const char* projDudSound;
-		const char* projIgnitionSound;
-		const char* bounceSound;
-		const char* rollingSound;
+		SndAliasLookup pickupSound;
+		SndAliasLookup pickupSoundPlayer;
+		SndAliasLookup ammoPickupSound;
+		SndAliasLookup ammoPickupSoundPlayer;
+		SndAliasLookup projectileSound;
+		SndAliasLookup pullbackSound;
+		SndAliasLookup pullbackSoundPlayer;
+		SndAliasLookup pullbackSoundQuick;
+		SndAliasLookup pullbackSoundQuickPlayer;
+		SndAliasLookup fireSound;
+		SndAliasLookup fireSoundPlayer;
+		SndAliasLookup fireSoundPlayerAkimbo;
+		SndAliasLookup fireSoundPlayerAkimboRight;
+		SndAliasLookup fireStartSound;
+		SndAliasLookup fireStartSoundPlayer;
+		SndAliasLookup fireLoopSound;
+		SndAliasLookup fireLoopSoundPlayer;
+		SndAliasLookup fireStopSound;
+		SndAliasLookup fireStopSoundPlayer;
+		SndAliasLookup fireLastSound;
+		SndAliasLookup fireLastSoundPlayer;
+		SndAliasLookup fireLastSoundPlayerAkimbo;
+		SndAliasLookup fireLastSoundPlayerAkimboRight;
+		SndAliasLookup regenerateSound;
+		SndAliasLookup regenerateSoundPlayer;
+		SndAliasLookup emptyFireSound;
+		SndAliasLookup emptyFireSoundPlayer;
+		SndAliasLookup emptyRegenFireSound;
+		SndAliasLookup emptyRegenFireSoundPlayer;
+		SndAliasLookup rechamberSound;
+		SndAliasLookup rechamberSoundPlayer;
+		SndAliasLookup reloadSound;
+		SndAliasLookup reloadSoundPlayer;
+		SndAliasLookup reloadEmptySound;
+		SndAliasLookup reloadEmptySoundPlayer;
+		SndAliasLookup reloadStartSound;
+		SndAliasLookup reloadStartSoundPlayer;
+		SndAliasLookup reloadEndSound;
+		SndAliasLookup reloadEndSoundPlayer;
+		SndAliasLookup detonateSound;
+		SndAliasLookup detonateSoundPlayer;
+		SndAliasLookup nightVisionWearSound;
+		SndAliasLookup nightVisionWearSoundPlayer;
+		SndAliasLookup nightVisionRemoveSound;
+		SndAliasLookup nightVisionRemoveSoundPlayer;
+		SndAliasLookup altSwitchSound;
+		SndAliasLookup altSwitchSoundPlayer;
+		SndAliasLookup raiseSound;
+		SndAliasLookup raiseSoundPlayer;
+		SndAliasLookup firstRaiseSound;
+		SndAliasLookup firstRaiseSoundPlayer;
+		SndAliasLookup putawaySound;
+		SndAliasLookup putawaySoundPlayer;
+		SndAliasLookup enterAdsSoundPlayer;
+		SndAliasLookup leaveAdsSoundPlayer;
+		SndAliasLookup bulletRicochetImpact;
+		SndAliasLookup projExplosionSound;
+		SndAliasLookup projDudSound;
+		SndAliasLookup projIgnitionSound;
+		SndAliasLookup bounceSound;
+		SndAliasLookup rollingSound;
 	}; assert_sizeof(WeaponSFXPackageSounds, 0x1F0);
 
 	struct WeaponSFXPackage
@@ -10522,6 +10761,12 @@ namespace zonetool::iw7
 		int unk10;
 		int unk11;
 	}; assert_sizeof(DB_LoadData, 0xA8);
+
+	struct DB_Zone
+	{
+		char name[64];
+		char __pad0[1080];
+	}; assert_sizeof(DB_Zone, 1144);
 
 	enum XFileBlock
 	{
