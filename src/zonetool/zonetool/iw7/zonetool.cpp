@@ -884,14 +884,7 @@ namespace zonetool::iw7
 					{
 						const auto zone = dir_entry.path().stem().string();
 
-						try
-						{
-							load_zone(zone);
-						}
-						catch (std::exception& err)
-						{
-							ZONETOOL_ERROR("failure while loading zone %s\n", zone.data());
-						}
+						load_zone(zone);
 
 						wait_for_database();
 						unload_zones();
