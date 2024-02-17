@@ -895,7 +895,7 @@ namespace zonetool::iw7
 			const auto zone_path = utils::io::directory_exists("zone") ? "zone/" : "";
 			iterate_zones(zone_path);
 
-			const auto lang_path = zone_path ? "zone/english/" : "english/";
+			const auto lang_path = utils::io::directory_exists("zone") ? "zone/english/" : "english/";
 			iterate_zones(lang_path);
 		});
 	}
