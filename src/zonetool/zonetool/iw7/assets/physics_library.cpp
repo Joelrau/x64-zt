@@ -7,20 +7,33 @@ namespace zonetool::iw7
 	{
 		const auto path = "physicslibrary\\"s + name;
 
-		assetmanager::reader read(mem);
-		if (!read.open(path))
+		auto file = filesystem::file(name);
+		if (!file.exists())
 		{
 			return nullptr;
 		}
 
 		ZONETOOL_INFO("Parsing physicslibrary \"%s\"...", name.data());
 
-		auto* asset = read.read_single<PhysicsLibrary>();
-		asset->name = read.read_string();
+		const auto size = file.size();
+		const auto bytes = file.read_bytes(size);
+		file.close();
 
-		asset->havokData = read.read_array<char>();
+		auto* asset = mem->allocate<PhysicsLibrary>();
+		asset->name = mem->duplicate_string(this->name());
 
-		read.close();
+		asset->havokData = mem->allocate<char>(size);
+		memcpy(asset->havokData, bytes.data(), size);
+
+		constexpr auto* str0 = "HavokPhysicsMaterialList";
+		constexpr auto* str1 = "HavokPhysicsBodyQualityList";
+		constexpr auto* str2 = "HavokPhysicsMotionPropertiesList";
+
+		asset->isMaterialList = std::search(bytes.begin(), bytes.end(), str0, str0 + std::strlen(str0)) != bytes.end();
+		asset->isBodyQualityList = std::search(bytes.begin(), bytes.end(), str1, str1 + std::strlen(str1)) != bytes.end();
+		asset->isMotionPropertiesList = std::search(bytes.begin(), bytes.end(), str2, str2 + std::strlen(str2)) != bytes.end();
+		asset->isGlobalTypeCompendium = false;
+
 		return asset;
 	}
 
@@ -83,17 +96,9 @@ namespace zonetool::iw7
 	{
 		const auto path = "physicslibrary\\"s + asset->name;
 
-		assetmanager::dumper write;
-		if (!write.open(path))
-		{
-			return;
-		}
-
-		write.dump_single(asset);
-		write.dump_string(asset->name);
-
-		write.dump_array(asset->havokData, asset->havokDataSize);
-
-		write.close();
+		auto file = filesystem::file(path);
+		file.open("wb");
+		file.write(asset->havokData, asset->havokDataSize);
+		file.close();
 	}
 }

@@ -542,13 +542,13 @@ namespace zonetool::iw7
 		const char* name;
 		unsigned int havokDataSize;
 		char* havokData;
-		char __pad0[8];
+		int numRigidBodies;
 		int numConstraints;
 		int numSFXEventAssets;
 		PhysicsSFXEventAsset** sfxEventAssets;
 		int numVFXEventAssets;
 		PhysicsVFXEventAsset** vfxEventAssets;
-		char __pad1[16];
+		char __pad0[16]; // unused
 	}; assert_sizeof(PhysicsAsset, 0x50);
 
 	struct unk_1453E1188
