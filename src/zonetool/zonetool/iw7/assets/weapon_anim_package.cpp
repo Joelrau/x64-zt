@@ -3,7 +3,7 @@
 
 namespace zonetool::iw7
 {
-	constexpr const char* anim_names[NUM_WEAP_ANIMS] =
+	const char* weapon_anim_package::anim_names[NUM_WEAP_ANIMS] =
 	{
 		"WEAP_ANIM_ROOT",
 		"WEAP_ANIM_INNER_ROOT",
@@ -11,11 +11,11 @@ namespace zonetool::iw7
 		"WEAP_ANIM_GESTURE_IK_TARGET_2",
 		"WEAP_ANIM_GESTURE_IK_TARGET_3",
 		"WEAP_ANIM_GESTURE_IK_TARGET_4",
-		"WEAP_ANIM_UNK_6",
-		"WEAP_ANIM_UNK_7",
-		"WEAP_ANIM_UNK_8",
-		"WEAP_ANIM_UNK_9",
-		"WEAP_ANIM_UNK_10",
+		"WEAP_ANIM_IK_NODE",
+		"WEAP_ANIM_PROC_NODE",
+		"WEAP_ANIM_IK_NODE_VOID",
+		"WEAP_ANIM_PROC_NODE_VOID",
+		"WEAP_ANIM_RELATIVE_ROOT",
 		"WEAP_ANIM_ADDITIVE_ADS_ROOT",
 		"WEAP_ANIM_ADDITIVE_ADS_UP",
 		"WEAP_ANIM_ADDITIVE_DRAG_LEFT_ROOT",
@@ -260,8 +260,8 @@ namespace zonetool::iw7
 		"WEAP_ANIM_SHIELD_IDLE",
 		"WEAP_ANIM_SHIELD_DOWN",
 		"WEAP_ANIM_RECOIL",
-		"WEAP_ANIM_UNK_255",
-		"WEAP_ANIM_UNK_256",
+		"WEAP_ALT_ANIM_ADJUST",
+		"WEAP_ANIM_UNUSED",
 		"WEAP_ANIM_3P_FINGER_POSE_LEFT",
 		"WEAP_ANIM_3P_FINGER_POSE_RIGHT",
 		"WEAP_ANIM_3P_ADDITIVE_ALT_OVERRIDE",
@@ -269,19 +269,19 @@ namespace zonetool::iw7
 
 	const char* get_anim_name_from_index(weapAnimFiles_t index)
 	{
-		return anim_names[index];
+		return weapon_anim_package::anim_names[index];
 	}
 
 	const char* get_anim_name_from_index(int index)
 	{
-		return anim_names[index];
+		return weapon_anim_package::anim_names[index];
 	}
 
 	weapAnimFiles_t get_anim_index_from_name(const char* name)
 	{
 		for (unsigned int i = 0; i < NUM_WEAP_ANIMS; i++)
 		{
-			const char* anim_name = anim_names[i];
+			const char* anim_name = weapon_anim_package::anim_names[i];
 			if (!_stricmp(anim_name, name))
 			{
 				return static_cast<weapAnimFiles_t>(i);
@@ -292,30 +292,231 @@ namespace zonetool::iw7
 		//return WEAP_ANIM_INVALID;
 	}
 
+#define PARSE_STRING(__field__) \
+	static_assert(std::is_same_v<decltype(asset->__field__), const char*>, "Field is not of type const char*"); \
+	!data[#__field__].is_null() && !data[#__field__].empty() ? asset->__field__ = mem->duplicate_string(data[#__field__].get<std::string>()) : asset->__field__ = nullptr;
+
+#define PARSE_FIELD(__field__) \
+	if (!data[#__field__].is_null()) asset->__field__ = data[#__field__].get<decltype(asset->__field__)>();
+
+#define PARSE_FIELD_ARR(__field__, __size__) \
+	if(!data[#__field__].is_null()) \
+	{ \
+		for (auto idx##__field__ = 0u; idx##__field__ < (unsigned int)__size__; idx##__field__++) \
+		{ \
+			asset->__field__[idx##__field__] = data[#__field__][idx##__field__].get<typename std::remove_reference<decltype(asset->__field__[idx##__field__])>::type>(); \
+		} \
+	}
+
+	void parse_anims(XAnimParts** anims, ordered_json& data, zone_memory* mem)
+	{
+		for (auto i = 0; i < NUM_WEAP_ANIMS; i++)
+		{
+			if (!data[get_anim_name_from_index(i)].empty())
+			{
+				anims[i] = mem->allocate<XAnimParts>();
+				anims[i]->name = mem->duplicate_string(data[get_anim_name_from_index(i)].get<std::string>());
+			}
+		}
+	}
+
+	void parse_state_timers(WeaponAnimPackageStateTimers* asset, ordered_json& data)
+	{
+		PARSE_FIELD(iFireDelay);
+		PARSE_FIELD(iMeleeDelay);
+		PARSE_FIELD(iDetonateDelay);
+		PARSE_FIELD(iFirstRaiseTime);
+		PARSE_FIELD(iAltRaiseTime);
+		PARSE_FIELD(iAltRaiseADSTime);
+		PARSE_FIELD(iAltRaiseAkimboTime);
+		PARSE_FIELD(iRechamberTime);
+		PARSE_FIELD(rechamberTimeOneHanded);
+		PARSE_FIELD(iRechamberBoltTime);
+		PARSE_FIELD(iHoldFireTime);
+		PARSE_FIELD(iHoldPrimeTime);
+		PARSE_FIELD(iDetonateTime);
+		PARSE_FIELD(iMeleeTime);
+		PARSE_FIELD(meleeChargeTime);
+		PARSE_FIELD(meleeUnkTime);
+		PARSE_FIELD(altMeleeTime);
+		PARSE_FIELD(altMeleeChargeTime);
+		PARSE_FIELD(altMeleeUnkTime);
+		PARSE_FIELD(iReloadTime);
+		PARSE_FIELD(iFastReloadTime);
+		PARSE_FIELD(reloadShowRocketTime);
+		PARSE_FIELD(iReloadEmptyTime);
+		PARSE_FIELD(iFastReloadEmptyTime);
+		PARSE_FIELD(iReloadAddTime);
+		PARSE_FIELD(iFastReloadAddTime);
+		PARSE_FIELD(iReloadEmptyAddTime);
+		PARSE_FIELD(iFastReloadEmptyAddTime);
+		PARSE_FIELD(iReloadStartTime);
+		PARSE_FIELD(iAltOverride3PInTime);
+		PARSE_FIELD(iAltOverride3POutTime);
+		PARSE_FIELD(iReloadStartAddTime);
+		PARSE_FIELD(iFastReloadStartAddTime);
+		PARSE_FIELD(iReloadEndTime);
+		PARSE_FIELD(iFastReloadEndTime);
+		PARSE_FIELD(iDropTime);
+		PARSE_FIELD(iRaiseTime);
+		PARSE_FIELD(iAltDropTime);
+		PARSE_FIELD(iAltDropADSTime);
+		PARSE_FIELD(iAltDropAkimboTime);
+		PARSE_FIELD(quickDropTime);
+		PARSE_FIELD(quickRaiseTime);
+		PARSE_FIELD(iBreachRaiseTime);
+		PARSE_FIELD(iEmptyRaiseTime);
+		PARSE_FIELD(iEmptyDropTime);
+		PARSE_FIELD(sprintInTime);
+		PARSE_FIELD(sprintLoopTime);
+		PARSE_FIELD(sprintOutTime);
+		PARSE_FIELD(walkTime);
+		PARSE_FIELD(gungHoTime);
+		PARSE_FIELD(crawlTime);
+		PARSE_FIELD(stunnedTimeBegin);
+		PARSE_FIELD(stunnedTimeLoop);
+		PARSE_FIELD(stunnedTimeEnd);
+		PARSE_FIELD(nightVisionWearTime);
+		PARSE_FIELD(nightVisionWearTimeFadeOutEnd);
+		PARSE_FIELD(nightVisionWearTimePowerUp);
+		PARSE_FIELD(nightVisionRemoveTime);
+		PARSE_FIELD(nightVisionRemoveTimePowerDown);
+		PARSE_FIELD(nightVisionRemoveTimeFadeInStart);
+		PARSE_FIELD(primeTime);
+		PARSE_FIELD(bHoldFullPrime);
+		PARSE_FIELD(bAltOverride3PADSOnly);
+		PARSE_FIELD(blastFrontTime);
+		PARSE_FIELD(blastRightTime);
+		PARSE_FIELD(blastBackTime);
+		PARSE_FIELD(blastLeftTime);
+		PARSE_FIELD(slideInTime);
+		PARSE_FIELD(slideLoopTime);
+		PARSE_FIELD(slideOutTime);
+		PARSE_FIELD(dodgeTime);
+		PARSE_FIELD(wallRunInTime);
+		PARSE_FIELD(wallRunOutTime);
+		PARSE_FIELD(leapInTime);
+		PARSE_FIELD(leapLoopTime);
+		PARSE_FIELD(leapOutTime);
+		PARSE_FIELD(leapCancelTime);
+		PARSE_FIELD(chargeInTime);
+		PARSE_FIELD(chargeLoopTime);
+		PARSE_FIELD(chargeOutTime);
+		PARSE_FIELD(iRegenerationTime);
+		PARSE_FIELD(iRegenerationAddTime);
+		PARSE_FIELD(iReloadInterruptTime);
+		PARSE_FIELD(iReloadEmptyInterruptTime);
+		PARSE_FIELD(iReloadEndInterruptTime);
+		PARSE_FIELD(iReloadMultiple1InterruptTime);
+		PARSE_FIELD(iReloadMultiple2InterruptTime);
+		PARSE_FIELD(iReloadMultiple3InterruptTime);
+		PARSE_FIELD(iReloadMultiple4InterruptTime);
+		PARSE_FIELD(iReloadMultiple5InterruptTime);
+		PARSE_FIELD(iReloadMultiple6InterruptTime);
+		PARSE_FIELD(iReloadMultiple7InterruptTime);
+		PARSE_FIELD(iReloadMultiple8InterruptTime);
+		PARSE_FIELD(iFastReloadInterruptTime);
+		PARSE_FIELD(iFastReloadEmptyInterruptTime);
+		PARSE_FIELD(iFastReloadEndInterruptTime);
+		PARSE_FIELD(iFastReloadMultiple1InterruptTime);
+		PARSE_FIELD(iFastReloadMultiple2InterruptTime);
+		PARSE_FIELD(iFastReloadMultiple3InterruptTime);
+		PARSE_FIELD(iFastReloadMultiple4InterruptTime);
+		PARSE_FIELD(iFastReloadMultiple5InterruptTime);
+		PARSE_FIELD(iFastReloadMultiple6InterruptTime);
+		PARSE_FIELD(iFastReloadMultiple7InterruptTime);
+		PARSE_FIELD(iFastReloadMultiple8InterruptTime);
+	}
+
+	void parse(MovementTime* asset, ordered_json& data)
+	{
+		PARSE_FIELD(time);
+		PARSE_FIELD(isLeadIn);
+	}
+
+	void parse(FootstepTime* asset, ordered_json& data)
+	{
+		PARSE_FIELD(time);
+		PARSE_FIELD(isLeft);
+	}
+
+	void parse(FootstepAnim* asset, ordered_json& data)
+	{
+		PARSE_FIELD(leftCount);
+		for (auto i = 0; i < 4; i++)
+		{
+			parse(&asset->step[i], data["step"][i]);
+		}
+		for (auto i = 0; i < 4; i++)
+		{
+			parse(&asset->movement[i], data["movement"][i]);
+		}
+	}
+
+	void parse_footsteps(FootstepAnims* asset, ordered_json& data)
+	{
+		for (auto i = 0; i < 9; i++)
+		{
+			parse(&asset->footstep[i], data["footstep"][i]);
+		}
+	}
+
 	WeaponAnimPackage* weapon_anim_package::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = "animpkg\\"s + name + ".json"s;
-		filesystem::file file(path);
-		file.open("rb");
 
-		if (file.get_fp())
+		auto file = filesystem::file(path);
+		if (!file.exists())
 		{
 			return nullptr;
 		}
 
 		ZONETOOL_INFO("Parsing animpkg \"%s\"...", name.data());
 
-		const auto size = file.size();
-		auto bytes = file.read_bytes(size);
+		// parse json file
+		file.open("rb");
+		ordered_json data = json::parse(file.read_bytes(file.size()));
 		file.close();
-
-		auto data = json::parse(bytes);
 
 		auto asset = mem->allocate<WeaponAnimPackage>();
 
 		asset->name = mem->duplicate_string(data["name"].get<std::string>());
 		
-		//
+		PARSE_STRING(name);
+		PARSE_FIELD(meleeAnimType);
+		PARSE_FIELD(meleeAnimPrimaryCount);
+		PARSE_FIELD(meleeAnimAltCount);
+		PARSE_FIELD_ARR(fireAnimTimesMs, 4);
+
+		if (!data["anims"].is_null())
+		{
+			asset->anims = mem->allocate<XAnimParts*>(NUM_WEAP_ANIMS);
+			parse_anims(asset->anims, data["anims"], mem);
+		}
+		else
+		{
+			asset->anims = nullptr;
+		}
+
+		if (!data["timers"].is_null())
+		{
+			asset->timers = mem->allocate<WeaponAnimPackageStateTimers>();
+			parse_state_timers(asset->timers, data["timers"]);
+		}
+		else
+		{
+			asset->timers = nullptr;
+		}
+
+		if (!data["footsteps"].is_null())
+		{
+			asset->footstep = mem->allocate<FootstepAnims>();
+			parse_footsteps(asset->footstep, data["footsteps"]);
+		}
+		else
+		{
+			asset->footstep = nullptr;
+		}
 
 		return asset;
 	}
@@ -344,6 +545,17 @@ namespace zonetool::iw7
 
 	void weapon_anim_package::load_depending(zone_base* zone)
 	{
+		auto* asset = this->asset_;
+		if (asset->anims)
+		{
+			for (auto i = 0; i < NUM_WEAP_ANIMS; i++)
+			{
+				if (asset->anims[i])
+				{
+					zone->add_asset_of_type(ASSET_TYPE_XANIMPARTS, asset->anims[i]->name);
+				}
+			}
+		}
 	}
 
 	std::string weapon_anim_package::name()
@@ -365,7 +577,33 @@ namespace zonetool::iw7
 
 		dest->name = buf->write_str(this->name());
 
-		//
+		if (data->anims)
+		{
+			buf->align(7);
+			auto* dest_anims = buf->write(data->anims, NUM_WEAP_ANIMS);
+			for (auto i = 0; i < NUM_WEAP_ANIMS; i++)
+			{
+				if (data->anims[i])
+				{
+					dest_anims[i] = reinterpret_cast<XAnimParts*>(zone->get_asset_pointer(ASSET_TYPE_XANIMPARTS, data->anims[i]->name));
+				}
+			}
+			buf->clear_pointer(&dest->anims);
+		}
+
+		if (data->timers)
+		{
+			buf->align(3);
+			buf->write(data->timers);
+			buf->clear_pointer(&dest->timers);
+		}
+
+		if (data->footstep)
+		{
+			buf->align(3);
+			buf->write(data->footstep);
+			buf->clear_pointer(&dest->footstep);
+		}
 
 		buf->pop_stream();
 	}
@@ -387,8 +625,6 @@ namespace zonetool::iw7
 	{
 		for (auto i = 0; i < NUM_WEAP_ANIMS; i++)
 		{
-			auto* anim = anims[i];
-			if (anim && std::string(get_anim_name_from_index(i)).find("_UNK") != std::string::npos) __debugbreak();
 			data[get_anim_name_from_index(i)] = anims[i] ? anims[i]->name : "";
 		}
 	}

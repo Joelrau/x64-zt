@@ -3,16 +3,14 @@
 
 namespace zonetool::iw7
 {
-	class weapon_anim_package : public asset_interface
+	class rumble : public asset_interface
 	{
 	private:
 		std::string name_;
-		WeaponAnimPackage* asset_ = nullptr;
+		RumbleInfo* asset_ = nullptr;
 
 	public:
-		static const char* anim_names[NUM_WEAP_ANIMS];
-
-		WeaponAnimPackage* parse(const std::string& name, zone_memory* mem);
+		RumbleInfo* parse(const std::string& name, zone_memory* mem);
 
 		void init(const std::string& name, zone_memory* mem) override;
 		void prepare(zone_buffer* buf, zone_memory* mem) override;
@@ -24,6 +22,6 @@ namespace zonetool::iw7
 		std::int32_t type() override;
 		void write(zone_base* zone, zone_buffer* buffer) override;
 
-		static void dump(WeaponAnimPackage* asset);
+		static void dump(RumbleInfo* asset);
 	};
 }

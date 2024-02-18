@@ -145,7 +145,7 @@ namespace zonetool::iw7
 	if (!data[#__field__].is_null()) \
 	{ \
 		__size__ = static_cast<decltype(__size__)>(data[#__field__].size()); \
-		asset->__field__ = mem->allocate<typename std::remove_reference<decltype(*asset->__field__)>::type>(); \
+		asset->__field__ = mem->manual_allocate<typename std::remove_reference<decltype(*asset->__field__)>::type>(sizeof(const char*)); \
 		for (auto idx##__field__ = 0u; idx##__field__ < (unsigned int)__size__; idx##__field__++) \
 		{ \
 			if (!data[#__field__][idx##__field__].is_null()) \
@@ -167,7 +167,7 @@ namespace zonetool::iw7
 #define ATTACHMENT_PARSE_ASSET(__field__) \
 	if (!data[#__field__].is_null()) \
 	{ \
-		asset->__field__ = mem->allocate<typename std::remove_reference<decltype(*asset->__field__)>::type>(); \
+		asset->__field__ = mem->manual_allocate<typename std::remove_reference<decltype(*asset->__field__)>::type>(sizeof(const char*)); \
 		asset->__field__->name = mem->duplicate_string(data[#__field__].get<std::string>()); \
 	} \
 	else \
@@ -805,7 +805,7 @@ namespace zonetool::iw7
 		auto* asset = this->asset_;
 		
 		asset->internalName = static_cast<scr_string_t>(buf->write_scriptstring(this->get_script_string(&asset->internalName)));
-		asset->internalName = static_cast<scr_string_t>(buf->write_scriptstring(this->get_script_string(&asset->internalName)));
+		asset->attachPoint = static_cast<scr_string_t>(buf->write_scriptstring(this->get_script_string(&asset->attachPoint)));
 	}
 
 #define ATTACHMENT_SUBASSET_DEPENDING(__field__,__type__) \
@@ -906,6 +906,20 @@ namespace zonetool::iw7
 	std::int32_t weapon_attachment::type()
 	{
 		return ASSET_TYPE_ATTACHMENT;
+	}
+
+	void weapon_attachment::write(zone_base* zone, zone_buffer* buf)
+	{
+		auto data = this->asset_;
+		auto dest = buf->write(data);
+
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
+
+		dest->szInternalName = buf->write_str(this->name());
+
+		// todo:
+
+		buf->pop_stream();
 	}
 
 #define ATTACHMENT_DUMP_STRING(__field__) \

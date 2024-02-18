@@ -141,11 +141,15 @@ namespace zonetool::iw7
 		{
 			// dump assets
 			DUMP_ASSET(ASSET_TYPE_IMAGE, gfx_image, GfxImage);
+			DUMP_ASSET(ASSET_TYPE_LASER, laser, LaserDef);
 			DUMP_ASSET(ASSET_TYPE_LOCALIZE_ENTRY, localize, LocalizeEntry);
 			DUMP_ASSET(ASSET_TYPE_LUA_FILE , lua_file, LuaFile);
 			DUMP_ASSET(ASSET_TYPE_MATERIAL, material, Material);
 			DUMP_ASSET(ASSET_TYPE_NET_CONST_STRINGS, net_const_strings, NetConstStrings);
 			DUMP_ASSET(ASSET_TYPE_RAWFILE, rawfile, RawFile);
+			DUMP_ASSET(ASSET_TYPE_RETICLE, reticle, ReticleDef);
+			DUMP_ASSET(ASSET_TYPE_RUMBLE, rumble, RumbleInfo);
+			DUMP_ASSET(ASSET_TYPE_RUMBLE_GRAPH, rumble_graph, RumbleGraph);
 			DUMP_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile, ScriptFile);
 			DUMP_ASSET(ASSET_TYPE_STRINGTABLE, string_table, StringTable);
 			DUMP_ASSET(ASSET_TYPE_TTF, font_def, TTFDef);
