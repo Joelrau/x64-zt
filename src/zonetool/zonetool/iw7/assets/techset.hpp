@@ -44,4 +44,10 @@ namespace zonetool::iw7
 		static void dump_technique(MaterialTechnique* asset);
 		static void dump(MaterialTechniqueSet* asset);
 	};
+
+	namespace shader
+	{
+		extern const char* parse_debug_name(const char* name, zone_memory* mem);
+		extern void dump_debug_name(const std::string& name, const std::string& debug_name);
+	}
 }

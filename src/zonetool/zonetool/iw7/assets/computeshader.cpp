@@ -3,24 +3,6 @@
 
 namespace zonetool::iw7
 {
-	static const char* parse_debug_name(const char* name, zone_memory* mem)
-	{
-		const auto& abbrev = get_shader_abbrev(computeshader);
-		const auto path = utils::string::va("techsets\\dbg\\%s\\%s", abbrev.data(), name);
-
-		filesystem::file file(path);
-		file.open("rb");
-		if (!file.get_fp())
-		{
-			return name;
-		}
-
-		const auto data = file.read_bytes(file.size());
-		file.close();
-
-		return mem->duplicate_string({ data.begin(), data.end() });
-	}
-
 	ComputeShader* compute_shader::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = get_shader_path(name, computeshader);
@@ -44,7 +26,7 @@ namespace zonetool::iw7
 
 		file.close();
 
-		asset->debugName = parse_debug_name(asset->name, mem);
+		asset->debugName = shader::parse_debug_name(asset->name, mem);
 
 		return asset;
 	}
@@ -115,22 +97,6 @@ namespace zonetool::iw7
 		buf->pop_stream();
 	}
 
-	static void dump_debug_name(const std::string& name, const std::string& debug_name)
-	{
-		if (name == debug_name)
-		{
-			return;
-		}
-
-		const auto& abbrev = get_shader_abbrev(computeshader);
-		const auto path = utils::string::va("techsets\\dbg\\%s\\%s", abbrev.data(), name.data());
-
-		filesystem::file file(path);
-		file.open("wb");
-		file.write(debug_name.data(), debug_name.size());
-		file.close();
-	}
-
 	void compute_shader::dump(ComputeShader* asset)
 	{
 		const auto path = get_shader_path(asset->name, computeshader);
@@ -142,7 +108,7 @@ namespace zonetool::iw7
 
 		if (asset->debugName)
 		{
-			dump_debug_name(asset->name, asset->debugName);
+			shader::dump_debug_name(asset->name, asset->debugName);
 		}
 	}
 }

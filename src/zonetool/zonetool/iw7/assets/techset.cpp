@@ -843,4 +843,39 @@ namespace zonetool::iw7
 
 		dumper.close();
 	}
+
+	namespace shader
+	{
+		const char* parse_debug_name(const char* name, zone_memory* mem)
+		{
+			const auto path = utils::string::va("techsets\\dbg\\%s", name);
+
+			filesystem::file file(path);
+			file.open("rb");
+			if (!file.get_fp())
+			{
+				return name;
+			}
+
+			const auto data = file.read_bytes(file.size());
+			file.close();
+
+			return mem->duplicate_string({ data.begin(), data.end() });
+		}
+
+		void dump_debug_name(const std::string& name, const std::string& debug_name)
+		{
+			if (name == debug_name)
+			{
+				return;
+			}
+
+			const auto path = utils::string::va("techsets\\dbg\\%s", name.data());
+
+			filesystem::file file(path);
+			file.open("wb");
+			file.write(debug_name.data(), debug_name.size());
+			file.close();
+		}
+	}
 }

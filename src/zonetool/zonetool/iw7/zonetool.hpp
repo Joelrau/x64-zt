@@ -42,14 +42,14 @@
 #include "assets/physics_sfx_event.hpp"
 #include "assets/physics_vfx_event.hpp"
 
+#include "assets/techset.hpp"
+
 #include "assets/computeshader.hpp"
 #include "assets/domainshader.hpp"
 #include "assets/hullshader.hpp"
 #include "assets/pixelshader.hpp"
 #include "assets/vertexdecl.hpp"
 #include "assets/vertexshader.hpp"
-
-#include "assets/techset.hpp"
 
 #include "zone.hpp"
 

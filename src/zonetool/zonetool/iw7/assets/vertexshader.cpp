@@ -3,24 +3,6 @@
 
 namespace zonetool::iw7
 {
-	static const char* parse_debug_name(const char* name, zone_memory* mem)
-	{
-		const auto& abbrev = get_shader_abbrev(vertexshader);
-		const auto path = utils::string::va("techsets\\dbg\\%s\\%s", abbrev.data(), name);
-
-		filesystem::file file(path);
-		file.open("rb");
-		if (!file.get_fp())
-		{
-			return name;
-		}
-
-		const auto data = file.read_bytes(file.size());
-		file.close();
-
-		return mem->duplicate_string({ data.begin(), data.end() });
-	}
-
 	MaterialVertexShader* vertex_shader::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = get_shader_path(name, vertexshader);
@@ -42,9 +24,11 @@ namespace zonetool::iw7
 
 		std::memcpy(asset->prog.loadDef.program, buffer.data(), buffer_size);
 
+		asset->prog.loadDef.microCodeCrc = ::shader::calc_crc32(asset->prog.loadDef.program, asset->prog.loadDef.programSize);
+
 		file.close();
 
-		asset->debugName = parse_debug_name(asset->name, mem);
+		asset->debugName = shader::parse_debug_name(asset->name, mem);
 
 		return asset;
 	}
@@ -114,22 +98,6 @@ namespace zonetool::iw7
 		buf->pop_stream();
 	}
 
-	static void dump_debug_name(const std::string& name, const std::string& debug_name)
-	{
-		if (name == debug_name)
-		{
-			return;
-		}
-
-		const auto& abbrev = get_shader_abbrev(vertexshader);
-		const auto path = utils::string::va("techsets\\dbg\\%s\\%s", abbrev.data(), name.data());
-
-		filesystem::file file(path);
-		file.open("wb");
-		file.write(debug_name.data(), debug_name.size());
-		file.close();
-	}
-
 	void vertex_shader::dump(MaterialVertexShader* asset)
 	{
 		const auto path = get_shader_path(asset->name, vertexshader);
@@ -141,7 +109,7 @@ namespace zonetool::iw7
 
 		if (asset->debugName)
 		{
-			dump_debug_name(asset->name, asset->debugName);
+			shader::dump_debug_name(asset->name, asset->debugName);
 		}
 	}
 }
