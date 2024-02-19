@@ -512,6 +512,8 @@ namespace zonetool::iw7
 						}
 						else
 						{
+							buf->push_stream(XFILE_BLOCK_TEMP);
+
 							buf->push_stream(XFILE_BLOCK_VIRTUAL);
 							buf->align(7);
 							//auto orig = buf->data_mask;
@@ -533,6 +535,8 @@ namespace zonetool::iw7
 							buf->pop_stream();
 
 							buf->insert_pointer(&technique_passes[pass].vertexDecl);
+
+							buf->pop_stream();
 						}
 					}
 
