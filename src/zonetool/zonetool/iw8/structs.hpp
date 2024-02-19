@@ -33,18 +33,15 @@ namespace zonetool::iw8
 		char pad[3];
 	};
 
-#pragma pack(push, 4)
 	struct GfxWorldDpvsPlanes
 	{
 		unsigned int cellCount;		// 0
 		unsigned short planeCount;	// 4
 		GfxWorldDpvsPlane* planes;	// 8
 		unsigned short nodeCount;	// 16
-		int unk_2;					// 20
-		unsigned short* nodes;			// 24
+		unsigned short* nodes;		// 24
 		unsigned int* sceneEntCellBits; // 32
-	}; assert_sizeof(GfxWorldDpvsPlanes, 40);
-#pragma pack(pop)
+	}; static_assert(sizeof(GfxWorldDpvsPlanes) == 40);
 
 	struct Bounds
 	{
@@ -80,16 +77,12 @@ namespace zonetool::iw8
 		vec3_t hullAxis[2];
 	};
 
-#pragma pack(push, 4)
 	struct GfxCell
 	{
 		Bounds bounds; // 0
 		unsigned short portalCount; // 24
-		int unk; // 28
 		GfxPortal* portals; // 32
-	}; assert_sizeof(GfxCell, 40);
-	assert_offsetof(GfxCell, portals, 32);
-#pragma pack(pop)
+	}; static_assert(sizeof(GfxCell) == 40);
 
 	struct GfxCellTransientInfo
 	{
