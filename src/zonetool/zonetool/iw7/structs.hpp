@@ -4009,6 +4009,57 @@ namespace zonetool::iw7
 		GfxImage* volumeData;
 	};
 
+	// pretty unresearched, but its weird between IW7 & IW8 lol
+	struct GfxFrustumLights
+	{
+		char __pad[8];				// 0
+		unsigned __int16* indices;	// 8
+		void* idk;					// 16
+		void* some_indices_thing;	// 24
+		void* indexBuffer;			// 32
+		void* vertexBuffer;			// 40
+	}; assert_sizeof(GfxFrustumLights, 48);
+
+#pragma pack(push, 8)
+	struct GfxLightViewFrustum
+	{
+		int planeCount;					// 0
+		vec4_t* planes;					// 8
+		int varushort_count;			// 16 (indexCount?)
+		unsigned short* varushort_val;	// 24 (indices? its short instead of varbyte)
+		int vertexCount;				// 32
+		vec3_t* vertices;				// 40
+	}; assert_sizeof(GfxLightViewFrustum, 48);
+	assert_offsetof(GfxLightViewFrustum, vertexCount, 32);
+#pragma pack(pop)
+
+	// 0x1409F3530
+	struct unk_struct_lol
+	{
+		int bspsurf_count;				// 0
+		void* bspsurf_count_type;		// 8
+		int bspsurf_count_2;			// 16
+		void* bspsurf_count_type_2;		// 24
+		int smodelCount;				// 32
+		unsigned short* smodelIndex;	// 40
+	}; assert_sizeof(unk_struct_lol, 48);
+
+	struct GfxBrushModelWritable
+	{
+		Bounds bounds;
+	};
+
+#pragma pack(push, 4)
+	struct GfxBrushModel
+	{
+		GfxBrushModelWritable writable;		// 0
+		Bounds bounds;						// 24
+		unsigned int surfaceCount;			// 48
+		unsigned int startSurfIndex;		// 52
+		unsigned int surfaceCountNoDecal;	// 56
+	}; assert_sizeof(GfxBrushModel, 60);
+#pragma pack(pop)
+
 	struct GfxWorld
 	{
 		const char* name;			// 0
@@ -4021,7 +4072,7 @@ namespace zonetool::iw7
 		GfxSky* skies;				// 40
 		unsigned int lastSunPrimaryLightIndex;	// 48
 		unsigned int primaryLightCount;			// 52
-		unsigned int unknown;
+		unsigned int primaryLightEnvCount;		// 56 (env count?)
 		unsigned int sortKeyLitDecal;
 		unsigned int sortKeyEffectDecal;
 		unsigned int sortKeyTopDecal;
@@ -4042,19 +4093,22 @@ namespace zonetool::iw7
 		GfxCell* cells;								// 160
 		GfxWorldDraw draw;							// 168
 		GfxDynamicLightset dynamicLightset;			// 704
-		void* something48Bytes;			// 2456
-		void* something48BytesToo;		// 2464
-		int voxelTreeCount;				// 2472
-		void* voxelTree;				// 2480
-		int heightfieldCount;			// 2488
-		GfxHeightfield* heightfields;	// 2496
-		char __pad1[48];	// 2504
-		int modelCount;		// 2552
-		void* models;		// 2560
-		char __pad2[28];	// 2568
+		GfxFrustumLights* frustumLights;			// 2456
+		GfxLightViewFrustum* something48BytesToo;	// 2464
+		int voxelTreeCount;							// 2472
+		void* voxelTree;							// 2480
+		int heightfieldCount;						// 2488
+		GfxHeightfield* heightfields;				// 2496
+		unk_struct_lol unk_value;	// 2504 (idk what this is but its structured out ig)
+		int modelCount;				// 2552
+		GfxBrushModel* models;		// 2560
+		char __pad2[28];			// 2568
 		int gfxMapEntLookupCount;	// 2596
 		void* gfxMapEntLookup;		// 2600
-		char __pad3[176];			// 2608
+		void* unk_lmao;				// 2608
+		Material* unk_material;		// 2616 (apart of unk_lmao)
+		Material* unk_material2;	// 2624 ^
+		char __pad3[152];			// 2632
 		GfxImage* outdoorImage;		// 2784
 		Material* dustMaterial;		// 2792
 		float materialLod0SizeThreshold;		// 2800
@@ -4066,7 +4120,7 @@ namespace zonetool::iw7
 		unsigned int* primaryLightMotionDetectBits;			// 2848
 		unsigned int entityMotionBitsEntries;				// 2856
 		unsigned int* entityMotionBits;						// 2864
-		char __pad4[4];										// 2872
+		char __pad4[4];										// 2872 (just padding?)
 		unsigned int numPrimaryLightEntityShadowVisEntries;	// 2876
 		unsigned int* primaryLightEntityShadowVis;			// 2880
 		unsigned int dynEntMotionBitsEntries[2];			// 2888 (2892)
@@ -4078,7 +4132,7 @@ namespace zonetool::iw7
 		GfxLightAABB lightAABB;						// 2952
 		GfxWorldDpvsStatic dpvs;					// 2976
 		GfxWorldDpvsDynamic dpvsDyn;				// 3896
-		int unk_idrk;								// 4408
+		int unk_idrk;								// 4408 (padding only?)
 		int count_for_something;					// 4412
 		void* something;							// 4416
 		unsigned int numUmbraGates;					// 4424
@@ -4088,7 +4142,11 @@ namespace zonetool::iw7
 		char* umbraTomeData;						// 4456
 		unsigned int mdaoVolumeCount;				// 4464
 		MdaoVolume* mdaoVolumes;					// 4472
-		char __pad69[40];							// 4480
+		int unk_byte16_count;						// 4480
+		char* unk_byte16;							// 4488
+		char __pad69[8];							// 4496
+		int unk_byte16_count_2;						// 4504
+		char* unk_byte16_2;							// 4512
 	}; assert_sizeof(GfxWorld, 0x11A8); // 4520
 	assert_offsetof(GfxWorld, bspVersion, 16);
 	assert_offsetof(GfxWorld, planeCount, 20);
@@ -8992,7 +9050,7 @@ namespace zonetool::iw7
 		ClipInfo* info;
 		unsigned int numSubModels;
 		cmodel_t* cmodels;
-		void* models; //GfxBrushModel* models;
+		GfxBrushModel* models;
 	}; assert_sizeof(AddonMapEnts, 0x88);
 
 	enum NetConstStringType
