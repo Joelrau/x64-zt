@@ -140,12 +140,16 @@ namespace zonetool::iw7
 		try
 		{
 			// dump assets
+			DUMP_ASSET(ASSET_TYPE_FX, fx_effect_def, FxEffectDef);
+			DUMP_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, fx_particle_sim_animation, FxParticleSimAnimation);
 			DUMP_ASSET(ASSET_TYPE_IMAGE, gfx_image, GfxImage);
+			DUMP_ASSET(ASSET_TYPE_LIGHT_DEF, gfx_light_def, GfxLightDef);
 			DUMP_ASSET(ASSET_TYPE_LASER, laser, LaserDef);
 			DUMP_ASSET(ASSET_TYPE_LOCALIZE_ENTRY, localize, LocalizeEntry);
 			DUMP_ASSET(ASSET_TYPE_LUA_FILE , lua_file, LuaFile);
 			DUMP_ASSET(ASSET_TYPE_MATERIAL, material, Material);
 			DUMP_ASSET(ASSET_TYPE_NET_CONST_STRINGS, net_const_strings, NetConstStrings);
+			DUMP_ASSET(ASSET_TYPE_VFX, particle_system, ParticleSystemDef);
 			DUMP_ASSET(ASSET_TYPE_RAWFILE, rawfile, RawFile);
 			DUMP_ASSET(ASSET_TYPE_RETICLE, reticle, ReticleDef);
 			DUMP_ASSET(ASSET_TYPE_RUMBLE, rumble, RumbleInfo);
@@ -153,6 +157,7 @@ namespace zonetool::iw7
 			DUMP_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile, ScriptFile);
 			DUMP_ASSET(ASSET_TYPE_STRINGTABLE, string_table, StringTable);
 			DUMP_ASSET(ASSET_TYPE_TTF, font_def, TTFDef);
+			DUMP_ASSET(ASSET_TYPE_VECTORFIELD, vector_field, VectorField);
 			DUMP_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment, WeaponAttachment);
 			DUMP_ASSET(ASSET_TYPE_ANIM_PACKAGE, weapon_anim_package, WeaponAnimPackage);
 			DUMP_ASSET(ASSET_TYPE_SFX_PACKAGE, weapon_sfx_package, WeaponSFXPackage);

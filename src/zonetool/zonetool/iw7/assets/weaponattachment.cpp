@@ -139,18 +139,19 @@ namespace zonetool::iw7
 	}
 
 #define ATTACHMENT_PARSE_FIELD_RENAME(__field__, __name__) \
-	if (!data[#__name__].is_null()) asset->__field__ = data[#__name__].get<decltype(asset->__field__)>();
+	if (!data[__name__].is_null()) asset->__field__ = data[__name__].get<decltype(asset->__field__)>();
 
 #define ATTACHMENT_PARSE_ASSET_ARR(__field__, __size__) \
 	if (!data[#__field__].is_null()) \
 	{ \
+		if (__size__) assert(__size__ == static_cast<decltype(__size__)>(data[#__field__].size())); \
 		__size__ = static_cast<decltype(__size__)>(data[#__field__].size()); \
-		asset->__field__ = mem->manual_allocate<typename std::remove_reference<decltype(*asset->__field__)>::type>(sizeof(const char*)); \
+		asset->__field__ = mem->allocate<typename std::remove_reference<decltype(*asset->__field__)>::type>(__size__); \
 		for (auto idx##__field__ = 0u; idx##__field__ < (unsigned int)__size__; idx##__field__++) \
 		{ \
 			if (!data[#__field__][idx##__field__].is_null()) \
 			{ \
-				asset->__field__[idx##__field__] = mem->allocate<typename std::remove_reference<decltype(*asset->__field__[idx##__field__])>::type>(); \
+				asset->__field__[idx##__field__] = mem->manual_allocate<typename std::remove_reference<decltype(*asset->__field__[idx##__field__])>::type>(sizeof(const char*)); \
 				asset->__field__[idx##__field__]->name = mem->duplicate_string(data[#__field__][idx##__field__].get<std::string>()); \
 			} \
 			else \
@@ -908,6 +909,222 @@ namespace zonetool::iw7
 		return ASSET_TYPE_ATTACHMENT;
 	}
 
+#define ATTACHMENT_WRITE_STRING(__field__) \
+	if (data->__field__) \
+	{ \
+		dest->__field__ = buf->write_str(data->__field__); \
+	}
+
+#define ATTACHMENT_WRITE_ASSET(__field__,__type__) \
+	if (data->__field__) \
+	{ \
+		dest->__field__ = reinterpret_cast<typename std::remove_reference<decltype(data->__field__)>::type>(zone->get_asset_pointer(__type__, data->__field__->name)); \
+	}
+
+#define ATTACHMENT_WRITE_ASSET_ARR(__field__, __type__, __size__, __align__) \
+	if (data->__field__) \
+	{ \
+		buf->align(__align__); \
+		dest->__field__ = buf->write(data->__field__, __size__); \
+		for (auto idx##__field__ = 0u; idx##__field__ < (unsigned int)__size__; idx##__field__++) \
+		{ \
+			if (data->__field__[idx##__field__]) \
+			{ \
+				dest->__field__[idx##__field__] = reinterpret_cast<typename std::remove_reference<decltype(data->__field__[idx##__field__])>::type>( \
+				zone->get_asset_pointer(__type__, data->__field__[idx##__field__]->name)); \
+			} \
+			else \
+			{ \
+				dest->__field__[idx##__field__] = nullptr; \
+			} \
+		} \
+		buf->clear_pointer(&dest->__field__); \
+	} \
+
+#define ATTACHMENT_WRITE_FXCOMBINED(__field__) \
+	if (data->__field__.u.data) \
+	{ \
+		if(data->__field__.type == FX_COMBINED_PARTICLE_SYSTEM) \
+			dest->__field__.u.particleSystemDef = reinterpret_cast<ParticleSystemDef*>(zone->get_asset_pointer(ASSET_TYPE_VFX, data->__field__.u.particleSystemDef->name)); \
+		else \
+			dest->__field__.u.fx = reinterpret_cast<FxEffectDef*>(zone->get_asset_pointer(ASSET_TYPE_FX, data->__field__.u.fx->name)); \
+	}
+
+	void write_att(AttAmmoGeneral* data, AttAmmoGeneral* dest, zone_base* zone, zone_buffer* buf)
+	{
+	}
+
+	void write_att(AttAmmoTracer* data, AttAmmoTracer* dest, zone_base* zone, zone_buffer* buf)
+	{
+		ATTACHMENT_WRITE_ASSET(tracerType, ASSET_TYPE_TRACER);
+	}
+
+	void write_att(AttPenetration* data, AttPenetration* dest, zone_base* zone, zone_buffer* buf)
+	{
+	}
+
+	void write_att(AttSight* data, AttSight* dest, zone_base* zone, zone_buffer* buf)
+	{
+	}
+
+	void write_att(AttHoldBreath* data, AttHoldBreath* dest, zone_base* zone, zone_buffer* buf)
+	{
+	}
+
+	void write_att(AttReload* data, AttReload* dest, zone_base* zone, zone_buffer* buf)
+	{
+	}
+
+	void write_att(AttAddOns* data, AttAddOns* dest, zone_base* zone, zone_buffer* buf)
+	{
+	}
+
+	void write_att(AttGeneral* data, AttGeneral* dest, zone_base* zone, zone_buffer* buf)
+	{
+		ATTACHMENT_WRITE_ASSET(reticleCenter, ASSET_TYPE_MATERIAL);
+		ATTACHMENT_WRITE_ASSET(reticleSide, ASSET_TYPE_MATERIAL);
+		ATTACHMENT_WRITE_ASSET(reticleOnePiece, ASSET_TYPE_MATERIAL);
+		ATTACHMENT_WRITE_STRING(szLUICrosshairWidget);
+	}
+
+	void write_att(AttLaser* data, AttLaser* dest, zone_base* zone, zone_buffer* buf)
+	{
+		ATTACHMENT_WRITE_ASSET(laserTypeFriendly, ASSET_TYPE_LASER);
+		ATTACHMENT_WRITE_ASSET(laserTypeEnemy, ASSET_TYPE_LASER);
+	}
+
+	void write_att(AttAimAssist* data, AttAimAssist* dest, zone_base* zone, zone_buffer* buf)
+	{
+	}
+
+	void write_att(AttTargetAssist* data, AttTargetAssist* dest, zone_base* zone, zone_buffer* buf)
+	{
+	}
+
+	void write_att(AttUnknown01* data, AttUnknown01* dest, zone_base* zone, zone_buffer* buf)
+	{
+		ATTACHMENT_WRITE_ASSET(material, ASSET_TYPE_MATERIAL);
+	}
+
+	void write_att(AttAmmunition* data, AttAmmunition* dest, zone_base* zone, zone_buffer* buf)
+	{
+	}
+
+	void write_att(AttDamage* data, AttDamage* dest, zone_base* zone, zone_buffer* buf)
+	{
+	}
+
+	void write_att(AttIdleSettings* data, AttIdleSettings* dest, zone_base* zone, zone_buffer* buf)
+	{
+	}
+
+	void write_att(AttADSSettings* data, AttADSSettings* dest, zone_base* zone, zone_buffer* buf)
+	{
+	}
+
+	void write_att(AttScopeDriftSettings* data, AttScopeDriftSettings* dest, zone_base* zone, zone_buffer* buf)
+	{
+	}
+
+	void write_att(AttHipSpread* data, AttHipSpread* dest, zone_base* zone, zone_buffer* buf)
+	{
+	}
+
+	void write_att(AttSlideSpread* data, AttSlideSpread* dest, zone_base* zone, zone_buffer* buf)
+	{
+	}
+
+	void write_att(AttGunKick* data, AttGunKick* dest, zone_base* zone, zone_buffer* buf)
+	{
+	}
+
+	void write_att(AttViewKick* data, AttViewKick* dest, zone_base* zone, zone_buffer* buf)
+	{
+	}
+
+	void write_att(AttADSOverlay* data, AttADSOverlay* dest, zone_base* zone, zone_buffer* buf)
+	{
+		ATTACHMENT_WRITE_ASSET(overlay.shader, ASSET_TYPE_MATERIAL);
+		ATTACHMENT_WRITE_ASSET(overlay.shaderLowRes, ASSET_TYPE_MATERIAL);
+		ATTACHMENT_WRITE_ASSET(overlay.shaderEMP, ASSET_TYPE_MATERIAL);
+		ATTACHMENT_WRITE_ASSET(overlay.shaderEMPLowRes, ASSET_TYPE_MATERIAL);
+	}
+
+	void write_att(AttOutline* data, AttOutline* dest, zone_base* zone, zone_buffer* buf)
+	{
+	}
+
+	void write_att(AttUI* data, AttUI* dest, zone_base* zone, zone_buffer* buf)
+	{
+		ATTACHMENT_WRITE_ASSET(hudIcon, ASSET_TYPE_MATERIAL);
+		ATTACHMENT_WRITE_ASSET(pickupIcon, ASSET_TYPE_MATERIAL);
+		ATTACHMENT_WRITE_ASSET(dangerIcon, ASSET_TYPE_MATERIAL);
+		ATTACHMENT_WRITE_ASSET(throwBackIcon, ASSET_TYPE_MATERIAL);
+		ATTACHMENT_WRITE_ASSET(dpadIcon, ASSET_TYPE_MATERIAL);
+		ATTACHMENT_WRITE_ASSET(ammoCounterIcon, ASSET_TYPE_MATERIAL);
+	}
+
+	void write_att(AttRumbles* data, AttRumbles* dest, zone_base* zone, zone_buffer* buf)
+	{
+		ATTACHMENT_WRITE_ASSET(fireRumble, ASSET_TYPE_RUMBLE);
+		ATTACHMENT_WRITE_ASSET(meleeImpactRumble, ASSET_TYPE_RUMBLE);
+	}
+
+	void write_att(AttProjectile* data, AttProjectile* dest, zone_base* zone, zone_buffer* buf)
+	{
+		ATTACHMENT_WRITE_ASSET(projectileModel, ASSET_TYPE_XMODEL);
+		ATTACHMENT_WRITE_FXCOMBINED(projExplosionEffect);
+		ATTACHMENT_WRITE_STRING(projExplosionSound);
+		ATTACHMENT_WRITE_FXCOMBINED(projDudEffect);
+		ATTACHMENT_WRITE_STRING(projDudSound);
+		ATTACHMENT_WRITE_FXCOMBINED(projBodyEffect);
+		ATTACHMENT_WRITE_FXCOMBINED(projTrailEffect);
+		ATTACHMENT_WRITE_FXCOMBINED(projBeaconEffect);
+		ATTACHMENT_WRITE_FXCOMBINED(projIgnitionEffect);
+		ATTACHMENT_WRITE_STRING(projIgnitionSound);
+	}
+
+	void write_att(AttCharged* data, AttCharged* dest, zone_base* zone, zone_buffer* buf)
+	{
+		ATTACHMENT_WRITE_FXCOMBINED(chargeMeterEffect);
+		ATTACHMENT_WRITE_STRING(chargeUpSound);
+		ATTACHMENT_WRITE_STRING(chargeDownSound);
+		ATTACHMENT_WRITE_STRING(chargeDownToUpSound);
+		ATTACHMENT_WRITE_STRING(chargeUpToDownSound);
+		ATTACHMENT_WRITE_STRING(chargeMaxSound);
+		ATTACHMENT_WRITE_STRING(chargeUpSoundPlayer);
+		ATTACHMENT_WRITE_STRING(chargeDownSoundPlayer);
+		ATTACHMENT_WRITE_STRING(chargeDownToUpSoundPlayer);
+		ATTACHMENT_WRITE_STRING(chargeUpToDownSoundPlayer);
+		ATTACHMENT_WRITE_STRING(chargeMaxSoundPlayer);
+		ATTACHMENT_WRITE_ASSET(chargeRumble, ASSET_TYPE_RUMBLE);
+	}
+
+	void write_att(AdsAltSwitch* data, AdsAltSwitch* dest, zone_base* zone, zone_buffer* buf)
+	{
+	}
+
+	void write_att(AttRegeneration* data, AttRegeneration* dest, zone_base* zone, zone_buffer* buf)
+	{
+	}
+
+	void write_att(AttMovement* data, AttMovement* dest, zone_base* zone, zone_buffer* buf)
+	{
+	}
+
+	void write_att(AttBurst* data, AttBurst* dest, zone_base* zone, zone_buffer* buf)
+	{
+	}
+
+#define WRITE_ATT(__att__, __align__) \
+	if(data->__att__) \
+	{ \
+		buf->align(__align__); \
+		dest->__att__ = buf->write(data->__att__); \
+		write_att(data->__att__, dest->__att__, zone, buf); \
+		buf->clear_pointer(&dest->__att__); \
+	}
+
 	void weapon_attachment::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
@@ -917,7 +1134,61 @@ namespace zonetool::iw7
 
 		dest->szInternalName = buf->write_str(this->name());
 
-		// todo:
+		ATTACHMENT_WRITE_STRING(szDisplayName);
+
+		ATTACHMENT_WRITE_ASSET(worldModelCamo, ASSET_TYPE_XMODEL);
+		ATTACHMENT_WRITE_ASSET(viewModelCamo, ASSET_TYPE_XMODEL);
+		ATTACHMENT_WRITE_ASSET_ARR(worldModelVariations, ASSET_TYPE_XMODEL, data->numModelVariations, 7);
+		ATTACHMENT_WRITE_ASSET_ARR(viewModelVariations, ASSET_TYPE_XMODEL, data->numModelVariations, 7);
+		ATTACHMENT_WRITE_ASSET_ARR(worldModelCamoMaterials, ASSET_TYPE_MATERIAL, data->numWorldModelCamoMaterials, 7);
+		ATTACHMENT_WRITE_ASSET_ARR(viewModelCamoMaterials, ASSET_TYPE_MATERIAL, data->numViewModelCamoMaterials, 7);
+		ATTACHMENT_WRITE_ASSET_ARR(reticles, ASSET_TYPE_RETICLE, data->numReticles, 7);
+		ATTACHMENT_WRITE_ASSET_ARR(altReticles, ASSET_TYPE_RETICLE, data->numAltReticles, 7);
+
+		WRITE_ATT(ammogeneral, 3);
+		WRITE_ATT(tracer, 7);
+		WRITE_ATT(penetration, 3);
+		WRITE_ATT(sight, 3);
+		WRITE_ATT(holdBreath, 0);
+		WRITE_ATT(reload, 0);
+		WRITE_ATT(addOns, 0);
+		WRITE_ATT(general, 7);
+		WRITE_ATT(laser, 7);
+		WRITE_ATT(aimAssist, 3);
+		WRITE_ATT(targetAssist, 3);
+		WRITE_ATT(unkAtt01, 7);
+		WRITE_ATT(ammunition, 3);
+		WRITE_ATT(damage, 3);
+		WRITE_ATT(idleSettings, 3);
+		WRITE_ATT(adsSettings, 3);
+		WRITE_ATT(adsSettingsMain, 3);
+		WRITE_ATT(scopeDriftSettings, 3);
+		WRITE_ATT(scopeDriftSettingsMain, 3);
+		WRITE_ATT(hipSpread, 3);
+		WRITE_ATT(slideSpread, 3);
+		WRITE_ATT(gunKick, 3);
+		WRITE_ATT(viewKick, 3);
+		WRITE_ATT(adsOverlay, 7);
+		WRITE_ATT(outline, 3);
+		WRITE_ATT(ui, 7);
+		WRITE_ATT(rumbles, 7);
+		WRITE_ATT(projectile, 7);
+		WRITE_ATT(charged, 7);
+		WRITE_ATT(adsAltSwitch, 3);
+		WRITE_ATT(regeneration, 3);
+		WRITE_ATT(movement, 3);
+		WRITE_ATT(burst, 3);
+
+		if (data->locationDamage)
+		{
+			buf->align(3);
+			buf->write(data->locationDamage, 22);
+			buf->clear_pointer(&dest->locationDamage);
+		}
+
+		ATTACHMENT_WRITE_STRING(szAltModeName);
+		ATTACHMENT_WRITE_STRING(szLUIWeaponInfoWidgetName);
+		ATTACHMENT_WRITE_STRING(szLUIWeaponInfoWidgetTag);
 
 		buf->pop_stream();
 	}

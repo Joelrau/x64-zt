@@ -56,15 +56,15 @@ namespace zonetool
 
 		this->data_mask = data_mask_;
 
-		this->data_following = this->create_data_ptr(data_following_);
-		this->data_offset = this->create_data_ptr(data_offset_);
-		this->data_ptr = this->create_data_ptr(data_ptr_);
-		this->data_shared = this->create_data_ptr(data_shared_);
+		this->data_following = this->create_data_ptr(data_following_, 0xF, this->data_mask);
+		this->data_offset = this->create_data_ptr(data_offset_, 0xF, this->data_mask);
+		this->data_ptr = this->create_data_ptr(data_ptr_, 0xF, this->data_mask);
+		this->data_shared = this->create_data_ptr(data_shared_, 0xF, this->data_mask);
 	}
 
-	std::size_t zone_buffer::create_data_ptr(const std::uint32_t data, const std::uint8_t stream)
+	std::size_t zone_buffer::create_data_ptr(const std::uint32_t data, const std::uint8_t stream, std::uint64_t mask)
 	{
-		return this->data_mask | data | (static_cast<std::size_t>(stream) & 0x0F) << 32;
+		return mask | data | (static_cast<std::size_t>(stream) & 0x0F) << 32;
 	}
 
 	void zone_buffer::init_streams(const std::size_t streams)

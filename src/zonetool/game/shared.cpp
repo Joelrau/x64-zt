@@ -89,7 +89,7 @@ namespace zonetool
 
 	void insert_x_gfx_globals_for_zone(int zone, void* globals)
 	{
-		x_gfx_globals_map.insert(std::make_pair(zone, globals));
+		x_gfx_globals_map[zone] = globals;
 	}
 
 	const char* strip_template(const std::string& function_name)

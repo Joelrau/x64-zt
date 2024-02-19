@@ -14,8 +14,10 @@ namespace zonetool::h1
 			vis->effectDef.handle = read->read_asset<FxEffectDef>();
 			break;
 		case FX_ELEM_TYPE_SOUND:
-		case FX_ELEM_TYPE_VECTORFIELD:
 			vis->soundName = read->read_string();
+			break;
+		case FX_ELEM_TYPE_VECTORFIELD:
+			vis->vectorFieldName = read->read_string();
 			break;
 		case FX_ELEM_TYPE_PARTICLE_SIM_ANIMATION:
 			vis->particleSimAnimation = read->read_asset<FxParticleSimAnimation>();
@@ -208,8 +210,10 @@ namespace zonetool::h1
 					zone->add_asset_of_type(ASSET_TYPE_FX, vis->effectDef.handle->name);
 					break;
 				case FX_ELEM_TYPE_SOUND:
-				case FX_ELEM_TYPE_VECTORFIELD:
 					zone->add_asset_of_type(ASSET_TYPE_SOUND, vis->soundName);
+					break;
+				case FX_ELEM_TYPE_VECTORFIELD:
+					zone->add_asset_of_type(ASSET_TYPE_VECTORFIELD, vis->vectorFieldName);
 					break;
 				case FX_ELEM_TYPE_PARTICLE_SIM_ANIMATION:
 					zone->add_asset_of_type(ASSET_TYPE_PARTICLE_SIM_ANIMATION, vis->particleSimAnimation->name);
@@ -304,8 +308,10 @@ namespace zonetool::h1
 			dest->effectDef.name = buf->write_str(data->effectDef.handle->name);
 			break;
 		case FX_ELEM_TYPE_SOUND:
-		case FX_ELEM_TYPE_VECTORFIELD:
 			dest->soundName = buf->write_str(data->soundName);
+			break;
+		case FX_ELEM_TYPE_VECTORFIELD:
+			dest->vectorFieldName = buf->write_str(data->vectorFieldName);
 			break;
 		case FX_ELEM_TYPE_PARTICLE_SIM_ANIMATION:
 			dest->particleSimAnimation = reinterpret_cast<FxParticleSimAnimation*>(zone->get_asset_pointer(ASSET_TYPE_PARTICLE_SIM_ANIMATION, data->particleSimAnimation->name));
@@ -530,8 +536,10 @@ namespace zonetool::h1
 			dump->dump_asset(vis->effectDef.handle);
 			break;
 		case FX_ELEM_TYPE_SOUND:
-		case FX_ELEM_TYPE_VECTORFIELD:
 			dump->dump_string(vis->soundName);
+			break;
+		case FX_ELEM_TYPE_VECTORFIELD:
+			dump->dump_string(vis->vectorFieldName);
 			break;
 		case FX_ELEM_TYPE_PARTICLE_SIM_ANIMATION:
 			dump->dump_asset(vis->particleSimAnimation);

@@ -520,7 +520,7 @@ namespace zonetool::iw7
 							//buf->data_mask = 0;
 							//ptr = buf->create_data_ptr(buf->stream_offset(buf->current_stream()) + 1, buf->current_stream());
 							//buf->data_mask = orig;
-							ptr = 0x0000000800000000 + buf->stream_offset(XFILE_BLOCK_VIRTUAL) + 1;
+							ptr = reinterpret_cast<std::uintptr_t>(buf->get_zone_pointer<MaterialVertexDeclaration>(buf->current_stream(), buf->stream_offset(XFILE_BLOCK_VIRTUAL)));
 							add_vertexdecl_pointer(technique_passes[pass].vertexDecl->name, ptr);
 							buf->inc_stream(XFILE_BLOCK_VIRTUAL, 8);
 							buf->pop_stream();

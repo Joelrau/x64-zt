@@ -1,6 +1,8 @@
 #pragma once
 #include <std_include.hpp>
 
+#include "game/mode.hpp"
+
 #include <stack>
 #include <bitset>
 
@@ -40,12 +42,17 @@ namespace zonetool
 			return this->zone_streams_[this->stream_];
 		}
 
-		std::size_t create_data_ptr(const std::uint32_t data = 0x0, const std::uint8_t stream = 0xF);
+		std::size_t create_data_ptr(const std::uint32_t data = 0x0, const std::uint8_t stream = 0xF, std::uint64_t mask = 0);
 
 		template <typename T>
 		T* get_zone_pointer(const std::uint8_t stream, const std::size_t ptr)
 		{
-			return reinterpret_cast<T*>(create_data_ptr(0x0, stream) | ((ptr + 1) & 0x0FFFFFFFFFFFFFF));
+			if (game::get_mode() == game::game_mode::iw7)
+			{
+				return reinterpret_cast<T*>(create_data_ptr(0x0, stream, 0x0) | ((ptr + 1) & 0x0FFFFFFFFFFFFFF));
+			}
+
+			return reinterpret_cast<T*>(create_data_ptr(0x0, stream, this->data_mask) | ((ptr + 1) & 0x0FFFFFFFFFFFFFF));
 		}
 
 		template <typename T = char>

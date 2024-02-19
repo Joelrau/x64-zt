@@ -3988,7 +3988,11 @@ namespace zonetool::iw7
 	{
 		const char* name;
 		const char* iesProfile;
-		char __pad0[24];
+		unsigned int unk0;
+		unsigned int unk1;
+		float coordOffset;
+		float coordScale;
+		int unk2[2];
 	}; assert_sizeof(GfxLightDef, 0x28);
 
 	struct AnimationEntry
@@ -7866,7 +7870,7 @@ namespace zonetool::iw7
 		FxSparkFountainDef* sparkFountainDef;
 		FxSpotLightDef* spotLightDef;
 		FxFlareDef* flareDef;
-		void* unknownDef;
+		char* unknownDef;
 	};
 
 	enum FxElemType : std::uint8_t

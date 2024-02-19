@@ -1,7 +1,7 @@
 #include <std_include.hpp>
 #include "fxeffectdef.hpp"
 
-namespace zonetool::iw6
+namespace zonetool::iw7
 {
 	void parse_visuals(assetmanager::reader* read, FxElemDef* def, FxElemVisuals* vis)
 	{
@@ -202,7 +202,7 @@ namespace zonetool::iw6
 					zone->add_asset_of_type(ASSET_TYPE_FX, vis->effectDef.handle->name);
 					break;
 				case FX_ELEM_TYPE_SOUND:
-					zone->add_asset_of_type(ASSET_TYPE_SOUND, vis->soundName);
+					//zone->add_asset_of_type(ASSET_TYPE_SOUND, vis->soundName);
 					break;
 				case FX_ELEM_TYPE_VECTORFIELD:
 					zone->add_asset_of_type(ASSET_TYPE_VECTORFIELD, vis->vectorFieldName);

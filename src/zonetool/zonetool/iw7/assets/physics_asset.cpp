@@ -11,10 +11,12 @@ namespace zonetool::iw7
 			*size = 0;
 			return nullptr;
 		}
+		file.open("rb");
 		*size = static_cast<unsigned int>(file.size());
 		auto bytes = file.read_bytes(*size);
 		auto* data = mem->allocate<char>(*size);
 		memcpy(data, bytes.data(), *size);
+		file.close();
 		return data;
 	}
 
@@ -78,14 +80,26 @@ namespace zonetool::iw7
 	{
 		auto* asset = this->asset_;
 
-		for (auto i = 0; i < asset->numSFXEventAssets; i++)
+		if (asset->sfxEventAssets)
 		{
-			zone->add_asset_of_type(ASSET_TYPE_PHYSICS_SFX_EVENT_ASSET, asset->sfxEventAssets[i]->name);
+			for (auto i = 0; i < asset->numSFXEventAssets; i++)
+			{
+				if (asset->sfxEventAssets[i])
+				{
+					zone->add_asset_of_type(ASSET_TYPE_PHYSICS_SFX_EVENT_ASSET, asset->sfxEventAssets[i]->name);
+				}
+			}
 		}
 
-		for (auto i = 0; i < asset->numVFXEventAssets; i++)
+		if (asset->vfxEventAssets)
 		{
-			zone->add_asset_of_type(ASSET_TYPE_PHYSICS_VFX_EVENT_ASSET, asset->vfxEventAssets[i]->name);
+			for (auto i = 0; i < asset->numVFXEventAssets; i++)
+			{
+				if (asset->vfxEventAssets[i])
+				{
+					zone->add_asset_of_type(ASSET_TYPE_PHYSICS_VFX_EVENT_ASSET, asset->vfxEventAssets[i]->name);
+				}
+			}
 		}
 	}
 
@@ -121,8 +135,15 @@ namespace zonetool::iw7
 			auto* dest_events = buf->write(data->sfxEventAssets, data->numSFXEventAssets);
 			for (auto i = 0; i < data->numSFXEventAssets; i++)
 			{
-				dest_events[i] = reinterpret_cast<PhysicsSFXEventAsset*>(
-					zone->get_asset_pointer(ASSET_TYPE_PHYSICS_SFX_EVENT_ASSET, data->sfxEventAssets[i]->name));
+				if(data->sfxEventAssets[i])
+				{
+					dest_events[i] = reinterpret_cast<PhysicsSFXEventAsset*>(
+						zone->get_asset_pointer(ASSET_TYPE_PHYSICS_SFX_EVENT_ASSET, data->sfxEventAssets[i]->name));
+				}
+				else
+				{
+					dest_events[i] = nullptr;
+				}
 			}
 			buf->clear_pointer(&dest->sfxEventAssets);
 		}
@@ -133,8 +154,15 @@ namespace zonetool::iw7
 			auto* dest_events = buf->write(data->vfxEventAssets, data->numVFXEventAssets);
 			for (auto i = 0; i < data->numVFXEventAssets; i++)
 			{
-				dest_events[i] = reinterpret_cast<PhysicsVFXEventAsset*>(
-					zone->get_asset_pointer(ASSET_TYPE_PHYSICS_VFX_EVENT_ASSET, data->vfxEventAssets[i]->name));
+				if (data->vfxEventAssets[i])
+				{
+					dest_events[i] = reinterpret_cast<PhysicsVFXEventAsset*>(
+						zone->get_asset_pointer(ASSET_TYPE_PHYSICS_VFX_EVENT_ASSET, data->vfxEventAssets[i]->name));
+				}
+				else
+				{
+					dest_events[i] = nullptr;
+				}
 			}
 			buf->clear_pointer(&dest->vfxEventAssets);
 		}

@@ -507,6 +507,7 @@ namespace zonetool::iw7
 		try
 		{
 			// declare asset interfaces
+			ADD_ASSET_PTR(ASSET_TYPE_LOCALIZE_ENTRY, localize);
 		}
 		catch (std::exception& ex)
 		{
@@ -545,18 +546,39 @@ namespace zonetool::iw7
 		try
 		{
 			// declare asset interfaces
+			ADD_ASSET(ASSET_TYPE_FX, fx_effect_def);
+			ADD_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, fx_particle_sim_animation);
 			ADD_ASSET(ASSET_TYPE_IMAGE, gfx_image);
+			ADD_ASSET(ASSET_TYPE_LIGHT_DEF, gfx_light_def);
+			ADD_ASSET(ASSET_TYPE_LASER, laser);
 			ADD_ASSET(ASSET_TYPE_LOCALIZE_ENTRY, localize);
 			ADD_ASSET(ASSET_TYPE_LUA_FILE, lua_file);
 			ADD_ASSET(ASSET_TYPE_MATERIAL, material);
 			ADD_ASSET(ASSET_TYPE_NET_CONST_STRINGS, net_const_strings);
+			ADD_ASSET(ASSET_TYPE_VFX, particle_system);
 			ADD_ASSET(ASSET_TYPE_RAWFILE, rawfile);
+			ADD_ASSET(ASSET_TYPE_RETICLE, reticle);
+			ADD_ASSET(ASSET_TYPE_RUMBLE, rumble);
+			ADD_ASSET(ASSET_TYPE_RUMBLE_GRAPH, rumble_graph);
 			ADD_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile);
 			ADD_ASSET(ASSET_TYPE_STRINGTABLE, string_table);
 			ADD_ASSET(ASSET_TYPE_TTF, font_def);
+			ADD_ASSET(ASSET_TYPE_VECTORFIELD, vector_field);
+			ADD_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment);
+			ADD_ASSET(ASSET_TYPE_ANIM_PACKAGE, weapon_anim_package);
+			ADD_ASSET(ASSET_TYPE_SFX_PACKAGE, weapon_sfx_package);
+			ADD_ASSET(ASSET_TYPE_VFX_PACKAGE, weapon_vfx_package);
+			//ADD_ASSET(ASSET_TYPE_WEAPON, weapon_def);
 			ADD_ASSET(ASSET_TYPE_XANIMPARTS, xanim_parts);
 			ADD_ASSET(ASSET_TYPE_XMODEL, xmodel);
 			ADD_ASSET(ASSET_TYPE_XMODEL_SURFS, xsurface);
+
+			ADD_ASSET(ASSET_TYPE_PHYSICSASSET, physics_asset);
+			ADD_ASSET(ASSET_TYPE_PHYSICS_FX_PIPELINE, physics_fx_pipeline);
+			ADD_ASSET(ASSET_TYPE_PHYSICS_FX_SHAPE, physics_fx_shape);
+			ADD_ASSET(ASSET_TYPE_PHYSICSLIBRARY, physics_library);
+			ADD_ASSET(ASSET_TYPE_PHYSICS_SFX_EVENT_ASSET, physics_sfx_event);
+			ADD_ASSET(ASSET_TYPE_PHYSICS_VFX_EVENT_ASSET, physics_vfx_event);
 
 			ADD_ASSET(ASSET_TYPE_COMPUTESHADER, compute_shader);
 			ADD_ASSET(ASSET_TYPE_DOMAINSHADER, domain_shader);
