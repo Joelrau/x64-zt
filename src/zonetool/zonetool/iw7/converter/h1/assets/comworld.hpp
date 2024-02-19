@@ -1,13 +1,13 @@
 #pragma once
 
-namespace zonetool::h1
+namespace zonetool::iw7
 {
-	namespace converter::h2
+	namespace converter::h1
 	{
 		namespace comworld
 		{
-			zonetool::h2::ComWorld* convert(zonetool::h1::ComWorld* asset, utils::memory::allocator& allocator);
-			void dump(zonetool::h1::ComWorld* asset);
+			zonetool::h1::ComWorld* convert(zonetool::iw7::ComWorld* asset, utils::memory::allocator& allocator);
+			void dump(zonetool::iw7::ComWorld* asset);
 		}
 	}
 }

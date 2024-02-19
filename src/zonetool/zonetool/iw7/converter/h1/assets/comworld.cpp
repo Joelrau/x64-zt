@@ -16,6 +16,9 @@ namespace zonetool::iw7
 #define COPY_ARR_COMWORLD(name) \
 		std::memcpy(&lights[i].name, &iw7_lights[i].name, sizeof(lights[i].name)); \
 
+#define COPY_ARR_COMWORLD_(name, iw7_name) \
+		std::memcpy(&lights[i].name, &iw7_lights[i].iw7_name, sizeof(lights[i].name)); \
+
 			zonetool::h1::ComPrimaryLight* convert_primary_lights(zonetool::iw7::ComPrimaryLight* iw7_lights, const unsigned int count,
 				utils::memory::allocator& allocator)
 			{
@@ -29,24 +32,26 @@ namespace zonetool::iw7
 					COPY_VALUE_COMWORLD(exponent);
 					COPY_VALUE_COMWORLD(isVolumetric);
 					COPY_ARR_COMWORLD(color);
-					std::memcpy(lights[i].color2, lights[i].color, sizeof(lights[i].color));
 					COPY_ARR_COMWORLD(dir);
 					COPY_ARR_COMWORLD(up);
 					COPY_ARR_COMWORLD(origin);
-					COPY_ARR_COMWORLD(fadeOffset);
+					COPY_ARR_COMWORLD_(fadeOffset, fadeOffsetRt);
 					COPY_VALUE_COMWORLD(bulbRadius);
 					COPY_ARR_COMWORLD(bulbLength);
 					COPY_VALUE_COMWORLD(radius);
 					COPY_VALUE_COMWORLD(cosHalfFovOuter);
 					COPY_VALUE_COMWORLD(cosHalfFovInner);
-					COPY_VALUE_COMWORLD(cosHalfFovExpanded);
+					lights[i].cosHalfFovExpanded = 0.0f;	//COPY_VALUE_COMWORLD(cosHalfFovExpanded);
 					COPY_VALUE_COMWORLD(rotationLimit);
 					COPY_VALUE_COMWORLD(translationLimit);
-					COPY_VALUE_COMWORLD(cucRotationOffsetRad);
-					COPY_VALUE_COMWORLD(cucRotationSpeedRad);
-					COPY_ARR_COMWORLD(cucScrollVector);
-					COPY_ARR_COMWORLD(cucScaleVector);
-					COPY_ARR_COMWORLD(cucTransVector);
+					lights[i].cucRotationOffsetRad = 0.0f;	//COPY_VALUE_COMWORLD(cucRotationOffsetRad);
+					lights[i].cucRotationSpeedRad = 0.0f;	//COPY_VALUE_COMWORLD(cucRotationSpeedRad);
+					lights[i].cucScrollVector[0] = 0.0f;	//COPY_ARR_COMWORLD(cucScrollVector);
+					lights[i].cucScrollVector[1] = 0.0f;
+					lights[i].cucScaleVector[0] = 0.0f;		//COPY_ARR_COMWORLD(cucScaleVector);
+					lights[i].cucScaleVector[1] = 0.0f;
+					lights[i].cucTransVector[0] = 0.0f;		//COPY_ARR_COMWORLD(cucTransVector);
+					lights[i].cucTransVector[1] = 0.0f;
 					lights[i].defName = iw7_lights[i].defName;
 				}
 
@@ -64,8 +69,15 @@ namespace zonetool::iw7
 				COPY_VALUE(isInUse);
 				COPY_VALUE(primaryLightCount);
 				new_asset->primaryLights = convert_primary_lights(asset->primaryLights, asset->primaryLightCount, allocator);
-				COPY_VALUE(primaryLightEnvCount);
-				REINTERPRET_CAST_SAFE(primaryLightEnvs);
+				
+				// priaryLightsEnv
+				new_asset->primaryLightEnvCount = asset->primaryLightCount; // use same count as primaryLight
+				new_asset->primaryLightEnvs = allocator.allocate_array<zonetool::h1::ComPrimaryLightEnv>(new_asset->primaryLightEnvCount);
+				for (auto i = 0; i < new_asset->primaryLightEnvCount; ++i)
+				{
+					new_asset->primaryLightEnvs[i].numIndices = 1;
+					//new_asset->primaryLightEnvs[i].primaryLightIndices = 0; // needed?
+				}
 
 				return new_asset;
 			}

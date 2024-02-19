@@ -1,68 +1,83 @@
 #include <std_include.hpp>
 
-#include "zonetool/h1/converter/h2/include.hpp"
+#include "zonetool/iw7/converter/h1/include.hpp"
 #include "fxworld.hpp"
-#include "zonetool/h2/assets/fxworld.hpp"
+#include "zonetool/h1/assets/fxworld.hpp"
 
-namespace zonetool::h1
+namespace zonetool::iw7
 {
-	namespace converter::h2
+	namespace converter::h1
 	{
 		namespace fxworld
 		{
-			zonetool::h2::FxWorld* convert(FxWorld* asset, utils::memory::allocator& allocator)
+#define COPY_VALUE_FXWORLD(name) \
+		new_asset->name = asset->name; \
+
+#define COPY_ARR_FXWORLD(name) \
+		std::memcpy(new_asset->name, asset->name, sizeof(new_asset->name)); \
+
+#define COPY_ARR_FXWORLD_(name, iw7_name) \
+		std::memcpy(new_asset->name, asset->iw7_name, sizeof(new_asset->name)); \
+
+			zonetool::h1::FxWorld* convert(FxWorld* asset, utils::memory::allocator& allocator)
 			{
-				const auto new_asset = allocator.allocate<zonetool::h2::FxWorld>();
+				const auto new_asset = allocator.allocate<zonetool::h1::FxWorld>();
 				std::memcpy(new_asset, asset, sizeof(FxWorld));
 
-				new_asset->glassSys.piecePlaces = allocator.allocate_array<zonetool::h2::FxGlassPiecePlace>(asset->glassSys.pieceLimit);
-				for (auto i = 0u; i < new_asset->glassSys.pieceLimit; i++)
-				{
-					new_asset->glassSys.piecePlaces[i].__s0.frame.quat[0] = asset->glassSys.piecePlaces[i].__s0.frame.quat[0];
-					new_asset->glassSys.piecePlaces[i].__s0.frame.quat[1] = asset->glassSys.piecePlaces[i].__s0.frame.quat[1];
-					new_asset->glassSys.piecePlaces[i].__s0.frame.quat[2] = asset->glassSys.piecePlaces[i].__s0.frame.quat[2];
-					new_asset->glassSys.piecePlaces[i].__s0.frame.quat[3] = asset->glassSys.piecePlaces[i].__s0.frame.quat[3];
-					new_asset->glassSys.piecePlaces[i].__s0.frame.origin[0] = asset->glassSys.piecePlaces[i].__s0.frame.origin[0];
-					new_asset->glassSys.piecePlaces[i].__s0.frame.origin[1] = asset->glassSys.piecePlaces[i].__s0.frame.origin[1];
-					new_asset->glassSys.piecePlaces[i].__s0.frame.origin[2] = asset->glassSys.piecePlaces[i].__s0.frame.origin[2];
+				// mismatch up to here
+				COPY_VALUE_FXWORLD(glassSys.initPieceCount);
+				COPY_VALUE_FXWORLD(glassSys.cellCount);
+				COPY_VALUE_FXWORLD(glassSys.activePieceCount);
+				COPY_VALUE_FXWORLD(glassSys.firstFreePiece);
+				COPY_VALUE_FXWORLD(glassSys.geoDataLimit);
+				COPY_VALUE_FXWORLD(glassSys.geoDataCount);
+				COPY_VALUE_FXWORLD(glassSys.initGeoDataCount);
 
-					new_asset->glassSys.piecePlaces[i].__s0.radius = asset->glassSys.piecePlaces[i].__s0.radius;
-					new_asset->glassSys.piecePlaces[i].__s0.unk = 0.f;
-				}
+				// FxGlassDef (defs)
+				COPY_ARR_FXWORLD(glassSys.defs);
+				auto fx_glass_def = new_asset->glassSys.defs;
 
-				new_asset->glassSys.initPieceStates = allocator.allocate_array<zonetool::h2::FxGlassInitPieceState>(new_asset->glassSys.initPieceCount);
-				for (auto i = 0u; i < new_asset->glassSys.initPieceCount; i++)
-				{
-					new_asset->glassSys.initPieceStates[i].frame.quat[0] = asset->glassSys.initPieceStates[i].frame.quat[0];
-					new_asset->glassSys.initPieceStates[i].frame.quat[1] = asset->glassSys.initPieceStates[i].frame.quat[1];
-					new_asset->glassSys.initPieceStates[i].frame.quat[2] = asset->glassSys.initPieceStates[i].frame.quat[2];
-					new_asset->glassSys.initPieceStates[i].frame.quat[3] = asset->glassSys.initPieceStates[i].frame.quat[3];
-					new_asset->glassSys.initPieceStates[i].frame.origin[0] = asset->glassSys.initPieceStates[i].frame.origin[0];
-					new_asset->glassSys.initPieceStates[i].frame.origin[1] = asset->glassSys.initPieceStates[i].frame.origin[1];
-					new_asset->glassSys.initPieceStates[i].frame.origin[2] = asset->glassSys.initPieceStates[i].frame.origin[2];
+				fx_glass_def->physPreset = reinterpret_cast<zonetool::h1::PhysPreset*>(asset->glassSys.defs->physicsAsset); // NOT a proper conversion
+				COPY_ARR_FXWORLD_(glassSys.defs->pieceBreakEffect, glassSys.defs->pieceBreakEffect.u.fx);
+				COPY_ARR_FXWORLD_(glassSys.defs->shatterEffect, glassSys.defs->shatterEffect.u.fx);
+				COPY_ARR_FXWORLD_(glassSys.defs->shatterSmallEffect, glassSys.defs->shatterSmallEffect.u.fx);
+				COPY_ARR_FXWORLD_(glassSys.defs->crackDecalEffect, glassSys.defs->crackDecalEffect.u.fx);
 
-					new_asset->glassSys.initPieceStates[i].radius = asset->glassSys.initPieceStates[i].radius;
-					new_asset->glassSys.initPieceStates[i].texCoordOrigin[0] = asset->glassSys.initPieceStates[i].texCoordOrigin[0];
-					new_asset->glassSys.initPieceStates[i].texCoordOrigin[1] = asset->glassSys.initPieceStates[i].texCoordOrigin[1];
-					new_asset->glassSys.initPieceStates[i].supportMask = asset->glassSys.initPieceStates[i].supportMask;
-					new_asset->glassSys.initPieceStates[i].areaX2 = asset->glassSys.initPieceStates[i].areaX2;
-					new_asset->glassSys.initPieceStates[i].lightingIndex = asset->glassSys.initPieceStates[i].lightingIndex;
-					new_asset->glassSys.initPieceStates[i].defIndex = asset->glassSys.initPieceStates[i].defIndex;
-					new_asset->glassSys.initPieceStates[i].vertCount = asset->glassSys.initPieceStates[i].vertCount;
-					new_asset->glassSys.initPieceStates[i].fanDataCount = asset->glassSys.initPieceStates[i].fanDataCount;
-					new_asset->glassSys.initPieceStates[i].pad[0] = asset->glassSys.initPieceStates[i].pad[0];
+				COPY_ARR_FXWORLD(glassSys.defs->damagedSound);			// SndAliasLookup = const char*
+				COPY_ARR_FXWORLD(glassSys.defs->destroyedSound);		// ^
+				COPY_ARR_FXWORLD(glassSys.defs->destroyedQuietSound);	// ^
 
-					new_asset->glassSys.initPieceStates[i].unkMask = 0;
-				}
+				COPY_VALUE_FXWORLD(glassSys.defs->numCrackRings);
+				COPY_VALUE_FXWORLD(glassSys.defs->isOpaque);
+				//
+
+				COPY_ARR_FXWORLD(glassSys.piecePlaces);
+				COPY_ARR_FXWORLD(glassSys.pieceStates);
+				COPY_ARR_FXWORLD(glassSys.pieceDynamics);
+				COPY_ARR_FXWORLD(glassSys.geoData);
+
+				COPY_ARR_FXWORLD(glassSys.isInUse);
+				COPY_ARR_FXWORLD(glassSys.cellBits);
+				COPY_ARR_FXWORLD(glassSys.visData);
+				COPY_ARR_FXWORLD(glassSys.linkOrg);
+				COPY_ARR_FXWORLD(glassSys.halfThickness);
+				COPY_ARR_FXWORLD(glassSys.lightingHandles);
+				COPY_ARR_FXWORLD(glassSys.initGeoData);
+				COPY_VALUE_FXWORLD(glassSys.needToCompactData);
+				COPY_VALUE_FXWORLD(glassSys.initCount);
+				COPY_VALUE_FXWORLD(glassSys.effectChanceAccum);
+				COPY_VALUE_FXWORLD(glassSys.lastPieceDeletionTime);
+				COPY_VALUE_FXWORLD(glassSys.initPieceCount);
+				COPY_ARR_FXWORLD(glassSys.initPieceStates);
 
 				return new_asset;
 			}
 
-			void dump(zonetool::h1::FxWorld* asset)
+			void dump(zonetool::iw7::FxWorld* asset)
 			{
 				utils::memory::allocator allocator;
 				const auto converted_asset = convert(asset, allocator);
-				zonetool::h2::fx_world::dump(converted_asset);
+				zonetool::h1::fx_world::dump(converted_asset);
 			}
 		}
 	}

@@ -3995,12 +3995,6 @@ namespace zonetool::iw7
 		float closeDistance;
 	};
 
-	struct ExtentBounds
-	{
-		vec3_t mins;
-		vec3_t maxs;
-	};
-
 	struct MdaoVolume
 	{
 		ExtentBounds bounds;
