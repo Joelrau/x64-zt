@@ -1,18 +1,25 @@
 #include <std_include.hpp>
 
-#include "zonetool/h1/converter/h2/include.hpp"
+#include "zonetool/iw7/converter/h1/include.hpp"
 #include "gfxworld.hpp"
-#include "zonetool/h2/assets/gfxworld.hpp"
+#include "zonetool/iw7/assets/gfxworld.hpp"
 
-namespace zonetool::h1
+//#define HARDCODED_DATA
+
+namespace zonetool::iw7
 {
-	namespace converter::h2
+	namespace converter::h1
 	{
 		namespace gfxworld
 		{
-			zonetool::h2::GfxWorld* convert(zonetool::h1::GfxWorld* asset, utils::memory::allocator& allocator)
+#define COPY_VALUE_(name, name2) \
+		static_assert(sizeof(new_asset->name) == sizeof(asset->name2)); \
+		new_asset->name = asset->name2;
+
+			zonetool::h1::GfxWorld* convert(GfxWorld* asset, utils::memory::allocator& allocator)
 			{
-				const auto new_asset = allocator.allocate<zonetool::h2::GfxWorld>();
+				const auto new_asset = allocator.allocate<zonetool::h1::GfxWorld>();
+				//std::memcpy(new_asset, asset, sizeof(GfxWorld));
 
 				REINTERPRET_CAST_SAFE(name);
 				REINTERPRET_CAST_SAFE(baseName);
@@ -20,11 +27,17 @@ namespace zonetool::h1
 				COPY_VALUE(planeCount);
 				COPY_VALUE(surfaceCount);
 				COPY_VALUE(skyCount);
-				REINTERPRET_CAST_SAFE(skies);
-				COPY_VALUE(portalGroupCount);
+
+				// skies
+				std::memcpy(new_asset->skies, asset->skies, sizeof(zonetool::h1::GfxSky));
+				//new_asset->skies->bounds // TODO????
+
+				new_asset->portalGroupCount = 0; // eeeek
 				COPY_VALUE(lastSunPrimaryLightIndex);
 				COPY_VALUE(primaryLightCount);
-				COPY_VALUE(primaryLightEnvCount);
+				new_asset->primaryLightEnvCount = 0; // doesn't exist on IW7
+
+#ifdef HARDCODED_DATA
 				new_asset->sortKeyLitDecal = 7;
 				new_asset->sortKeyEffectDecal = 44;
 				new_asset->sortKeyTopDecal = 17;
@@ -32,39 +45,42 @@ namespace zonetool::h1
 				new_asset->sortKeyDistortion = 49;
 				new_asset->sortKeyHair = 18;
 				new_asset->sortKeyEffectBlend = 33;
+#else
+				// partially hardcoded but most of these values are found on IW7 so
+				COPY_VALUE(sortKeyLitDecal);
+				COPY_VALUE(sortKeyEffectDecal);
+				COPY_VALUE(sortKeyTopDecal);
+				COPY_VALUE(sortKeyEffectAuto);
+				COPY_VALUE(sortKeyDistortion);
+				new_asset->sortKeyHair = 18;		//COPY_VALUE(sortKeyHair);
+				new_asset->sortKeyEffectBlend = 33;	//COPY_VALUE(sortKeyEffectBlend);
+#endif
 
-				{
-					COPY_VALUE(dpvsPlanes.cellCount);
-					REINTERPRET_CAST_SAFE(dpvsPlanes.planes);
+				COPY_VALUE_CAST(dpvsPlanes);
 
-					new_asset->nodeCount = asset->nodeCount / 2;
-					new_asset->dpvsPlanes.nodes = allocator.allocate_array<zonetool::h2::mnode_t>(asset->nodeCount);
-					auto node_index = 0;
-					for (auto i = 0; i < asset->nodeCount; i += 2)
-					{
-						new_asset->dpvsPlanes.nodes[node_index].unk0 = asset->dpvsPlanes.nodes[i];
-						new_asset->dpvsPlanes.nodes[node_index].unk1 = asset->dpvsPlanes.nodes[i + 1] / 2;
-					}
+				// from what i understand and quaK explaining, only 1 transientZone is used (singleplayer uses more than 1, but thats someone else's problem)
+				REINTERPRET_CAST_SAFE_TO_FROM(new_asset->aabbTreeCounts, asset->draw.transientZones[0]->aabbTreeCounts);
+				REINTERPRET_CAST_SAFE_TO_FROM(new_asset->aabbTrees, asset->draw.transientZones[0]->aabbTrees);
 
-					REINTERPRET_CAST_SAFE(dpvsPlanes.sceneEntCellBits);
-				}
+				// cells
+				COPY_VALUE_CAST(cells->bounds);
+				COPY_VALUE(cells->portalCount);
+				new_asset->cells->reflectionProbeCount = asset->draw.reflectionProbeData.reflectionProbeCount; // not on IW7?
+				new_asset->cells->reflectionProbeReferenceCount = 0;
+				COPY_VALUE_CAST(cells->portals);
+				new_asset->cells->reflectionProbes = nullptr; // TODO (lol)
+				new_asset->cells->reflectionProbeReferences = nullptr;
 
-				REINTERPRET_CAST_SAFE(skies);
-				REINTERPRET_CAST_SAFE(aabbTreeCounts);
-				REINTERPRET_CAST_SAFE(aabbTrees);
-				REINTERPRET_CAST_SAFE(cells);
+				// portalGroup
+				new_asset->portalGroup = nullptr; // :3
 
-				new_asset->portalGroup = allocator.allocate_array<zonetool::h2::GfxPortalGroup>(new_asset->portalGroupCount);
-				for (auto i = 0u; i < new_asset->portalGroupCount; i++)
-				{
-					COPY_VALUE(portalGroup[i].group);
-					REINTERPRET_CAST_SAFE(portalGroup[i].info);
-					COPY_VALUE(portalGroup[i].infoCount);
-				}
+				// not in IW7
+				//COPY_VALUE(unk_vec4_count_0);
+				//REINTERPRET_CAST_SAFE(unk_vec4_0);
 
-				COPY_VALUE(unk_vec4_count_0);
-				REINTERPRET_CAST_SAFE(unk_vec4_0);
-				COPY_VALUE_CAST(draw);
+				// draw
+				//new_asset->draw
+
 				COPY_VALUE_CAST(lightGrid);
 				COPY_VALUE(modelCount);
 				REINTERPRET_CAST_SAFE(models);

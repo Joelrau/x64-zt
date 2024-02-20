@@ -1,5 +1,6 @@
 #pragma once
 
+/*
 namespace zonetool::h1
 {
 	namespace converter::h2
@@ -11,3 +12,4 @@ namespace zonetool::h1
 		}
 	}
 }
+*/

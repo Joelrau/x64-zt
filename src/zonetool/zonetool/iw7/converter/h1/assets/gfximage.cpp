@@ -1,6 +1,6 @@
 #include <std_include.hpp>
 
-#include "zonetool/h1/converter/h2/include.hpp"
+#include "zonetool/iw7/converter/h1/include.hpp"
 #include "gfximage.hpp"
 
 #include <utils/io.hpp>
@@ -14,9 +14,9 @@
 
 #include <zlib.h>
 
-namespace zonetool::h1
+namespace zonetool::iw7
 {
-	namespace converter::h2
+	namespace converter::h1
 	{
 		namespace gfximage
 		{
@@ -131,9 +131,34 @@ namespace zonetool::h1
 				}
 			}
 
-			zonetool::h2::GfxImage* convert(GfxImage* asset, utils::memory::allocator& allocator)
+#define COPY_VALUE_GFXIMAGE(name) \
+		new_asset->name = asset->name; \
+
+#define COPY_ARR_GFXIMAGE(name) \
+		std::memcpy(new_asset->name, asset->name, sizeof(new_asset->name)); \
+
+			zonetool::h1::GfxImage* convert(GfxImage* asset, utils::memory::allocator& allocator)
 			{
-				return nullptr;
+				auto new_asset = allocator.allocate<zonetool::h1::GfxImage>();
+
+				std::memcpy(new_asset, asset, sizeof(GfxImage));
+
+				// TODO
+				if (asset->mapType == MAPTYPE_CUBE_ARRAY)
+				{
+					ZONETOOL_INFO("using MAPTYPE_NONE instead of MAPTYPE_CUBE_ARRAY for IW7 -> H1 conversion");
+					asset->mapType = MAPTYPE_NONE;
+				}
+				new_asset->mapType = static_cast<zonetool::h1::MapType>(asset->mapType);
+				COPY_VALUE_GFXIMAGE(semantic); // h1 doesn't use a TextureSemantic, might cause problems?
+				COPY_VALUE_GFXIMAGE(category); // ^ but for GfxImageCategory
+				COPY_VALUE_GFXIMAGE(flags);
+
+				COPY_ARR_GFXIMAGE(pixelData);
+				std::memcpy(new_asset->streams, asset->streams, 4 * sizeof(GfxImageStreamData));
+				COPY_VALUE_GFXIMAGE(name);
+
+				return new_asset;
 			}
 
 			void dump(GfxImage* asset)

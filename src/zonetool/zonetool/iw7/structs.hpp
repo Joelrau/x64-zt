@@ -3685,8 +3685,9 @@ namespace zonetool::iw7
 
 	struct GfxCell
 	{
-		Bounds bounds; // 0
-		unsigned short portalCount; // 24
+		Bounds bounds;		// 0
+		short portalCount;	// 24
+		char __pad[6];		// 26 (might be reflection probe stuff or padding)
 		GfxPortal* portals; // 32
 	}; assert_sizeof(GfxCell, 40);
 	assert_offsetof(GfxCell, portals, 32);
@@ -4054,6 +4055,22 @@ namespace zonetool::iw7
 	}; assert_sizeof(GfxBrushModel, 60);
 #pragma pack(pop)
 
+	// wtf is this? its not even close to be similar to GfxMapEntLookup
+	struct unk_struct_lol2
+	{
+		Material* unk; // 0
+		char __pad[8]; // 8
+	}; assert_sizeof(unk_struct_lol2, 16);
+
+	// same as above, i have 0 clue what this could be
+	struct unk_struct_lol3
+	{
+		void* pad_or_something; // 0
+		Material* unk_1;		// 8
+		Material* unk_2;		// 16
+		char __pad[112 - 24];	// 24
+	}; assert_sizeof(unk_struct_lol3, 112);
+
 	struct GfxWorld
 	{
 		const char* name;			// 0
@@ -4096,10 +4113,11 @@ namespace zonetool::iw7
 		unk_struct_lol unk_value;	// 2504 (idk what this is but its structured out ig)
 		int modelCount;				// 2552
 		GfxBrushModel* models;		// 2560
-		char __pad2[28];			// 2568
-		int gfxMapEntLookupCount;	// 2596
-		void* gfxMapEntLookup;		// 2600
-		void* unk_lmao;				// 2608
+		Bounds bounds;				// 2568 (just a guess tbh but other cods compare to this 1:1)
+		unsigned int checksum;		// 2592 ^ same for above, i should be okay but idek wh at this shit is
+		int gfxMapEntLookupCount;			// 2596
+		unk_struct_lol2* gfxMapEntLookup;	// 2600
+		unk_struct_lol3* unk_lmao;			// 2608
 		Material* unk_material;		// 2616 (apart of unk_lmao)
 		Material* unk_material2;	// 2624 ^
 		char __pad3[152];			// 2632

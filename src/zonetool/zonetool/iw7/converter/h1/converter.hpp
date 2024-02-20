@@ -1,10 +1,10 @@
 #pragma once
 
-#include "assets/comworld.hpp"
-//#include "assets/fxeffectdef.hpp"
-#include "assets/fxworld.hpp"
-#include "assets/gfximage.hpp"
-#include "assets/gfxworld.hpp"
+#include "assets/comworld.hpp"			// done
+//#include "assets/fxeffectdef.hpp"		// TODO
+#include "assets/fxworld.hpp"			// done
+#include "assets/gfximage.hpp"			// done
+#include "assets/gfxworld.hpp"			// TODO
 //#include "assets/laserdef.hpp"
 #include "assets/mapents.hpp"
 //#include "assets/material.hpp"

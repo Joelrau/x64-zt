@@ -1,5 +1,6 @@
 #include <std_include.hpp>
 
+/*
 #include "zonetool/h1/converter/h2/include.hpp"
 #include "fxeffectdef.hpp"
 #include "zonetool/h2/assets/fxeffectdef.hpp"
@@ -215,3 +216,4 @@ namespace zonetool::h1
 		}
 	}
 }
+*/

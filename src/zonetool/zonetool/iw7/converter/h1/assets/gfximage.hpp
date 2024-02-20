@@ -1,12 +1,12 @@
 #pragma once
 
-namespace zonetool::h1
+namespace zonetool::iw7
 {
-	namespace converter::h2
+	namespace converter::h1
 	{
 		namespace gfximage
 		{
-			zonetool::h2::GfxImage* convert(GfxImage* asset, utils::memory::allocator& allocator);
+			zonetool::h1::GfxImage* convert(GfxImage* asset, utils::memory::allocator& allocator);
 			void dump(GfxImage* asset);
 		}
 	}
