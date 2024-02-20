@@ -4,7 +4,11 @@
 #include "gfxworld.hpp"
 #include "zonetool/iw7/assets/gfxworld.hpp"
 
+#include "zonetool/iw7/converter/h1/assets/gfximage.hpp"
+#include <zonetool/h1/assets/gfxworld.hpp>
+
 //#define HARDCODED_DATA
+//#define DO_SHIT_PROPERLY
 
 namespace zonetool::iw7
 {
@@ -28,14 +32,27 @@ namespace zonetool::iw7
 				COPY_VALUE(surfaceCount);
 				COPY_VALUE(skyCount);
 
-				// skies
 				std::memcpy(new_asset->skies, asset->skies, sizeof(zonetool::h1::GfxSky));
-				//new_asset->skies->bounds // TODO????
+				/*
+				for (int i = 0; i < asset->skyCount; ++i)
+				{
+					// add bounds
+					for (auto j = 0; j < asset->skies[i].skySurfCount; j++)
+					{
+						auto index = asset->dpvs.sortedSurfIndex[asset->skies[i].skyStartSurfs[j]];
+						auto* surface_bounds = &asset->dpvs.surfacesBounds[index];
+						memcpy(&new_asset->skies[i].bounds, &surface_bounds->bounds, sizeof(surface_bounds->bounds));
 
-				new_asset->portalGroupCount = 0; // eeeek
+						//
+						break;
+					}
+				}
+				*/
+
+				new_asset->portalGroupCount = 0;
 				COPY_VALUE(lastSunPrimaryLightIndex);
 				COPY_VALUE(primaryLightCount);
-				new_asset->primaryLightEnvCount = 0; // doesn't exist on IW7
+				new_asset->primaryLightEnvCount = asset->primaryLightCount + 1; // doesn't exist on IW7
 
 #ifdef HARDCODED_DATA
 				new_asset->sortKeyLitDecal = 7;
@@ -59,9 +76,39 @@ namespace zonetool::iw7
 				COPY_VALUE_CAST(dpvsPlanes);
 
 				// from what i understand and quaK explaining, only 1 transientZone is used (singleplayer uses more than 1, but thats someone else's problem)
-				REINTERPRET_CAST_SAFE_TO_FROM(new_asset->aabbTreeCounts, asset->draw.transientZones[0]->aabbTreeCounts);
-				REINTERPRET_CAST_SAFE_TO_FROM(new_asset->aabbTrees, asset->draw.transientZones[0]->aabbTrees);
+				const auto transient_zone = asset->draw.transientZones[0];
+				REINTERPRET_CAST_SAFE_TO_FROM(new_asset->aabbTreeCounts, transient_zone->aabbTreeCounts);
+				REINTERPRET_CAST_SAFE_TO_FROM(new_asset->aabbTrees, transient_zone->aabbTrees);
 
+				// this is pasted straight from IW5 -> H1, but it'll help me debug it so its ok lmfao
+				// you shouldn't need to paste it this hard (or at all), but i'm not interested in wonky results rn and just wanna get into a game
+				new_asset->aabbTreeCounts = allocator.allocate_array<zonetool::h1::GfxCellTreeCount>(new_asset->dpvsPlanes.cellCount);
+				new_asset->aabbTrees = allocator.allocate_array<zonetool::h1::GfxCellTree>(new_asset->dpvsPlanes.cellCount);
+				for (int i = 0; i < new_asset->dpvsPlanes.cellCount; ++i)
+				{
+					new_asset->aabbTreeCounts[i].aabbTreeCount = transient_zone->aabbTreeCounts[i].aabbTreeCount;
+					new_asset->aabbTrees[i].aabbTree = allocator.allocate_array<zonetool::h1::GfxAabbTree>(new_asset->aabbTreeCounts[i].aabbTreeCount);
+					
+					for (int j = 0; j < new_asset->aabbTreeCounts[i].aabbTreeCount; ++j)
+					{
+						memcpy(&new_asset->aabbTrees[i].aabbTree[j].bounds, &transient_zone->aabbTrees[i].aabbTree[j].bounds, sizeof(Bounds));
+
+						new_asset->aabbTrees[i].aabbTree[j].startSurfIndex = transient_zone->aabbTrees[i].aabbTree[j].startSurfIndex;
+						new_asset->aabbTrees[i].aabbTree[j].surfaceCount = transient_zone->aabbTrees[i].aabbTree[j].surfaceCount;
+
+						new_asset->aabbTrees[i].aabbTree[j].smodelIndexCount = transient_zone->aabbTrees[i].aabbTree[j].smodelIndexCount;
+						REINTERPRET_CAST_SAFE_TO_FROM(new_asset->aabbTrees[i].aabbTree[j].smodelIndexes, transient_zone->aabbTrees[i].aabbTree[j].smodelIndexes);
+
+						new_asset->aabbTrees[i].aabbTree[j].childCount = transient_zone->aabbTrees[i].aabbTree[j].childCount;
+						// re-calculate childrenOffset
+						auto offset = transient_zone->aabbTrees[i].aabbTree[j].childrenOffset;
+						int childrenIndex = offset / sizeof(zonetool::h1::GfxAabbTree);
+						int childrenOffset = childrenIndex * sizeof(zonetool::h1::GfxAabbTree);
+						new_asset->aabbTrees[i].aabbTree[j].childrenOffset = childrenOffset;
+					}
+				}
+
+				/*
 				// cells
 				COPY_VALUE_CAST(cells->bounds);
 				COPY_VALUE(cells->portalCount);
@@ -70,127 +117,182 @@ namespace zonetool::iw7
 				COPY_VALUE_CAST(cells->portals);
 				new_asset->cells->reflectionProbes = nullptr; // TODO (lol)
 				new_asset->cells->reflectionProbeReferences = nullptr;
+				*/
 
-				// portalGroup
-				new_asset->portalGroup = nullptr; // :3
-
-				// not in IW7
-				//COPY_VALUE(unk_vec4_count_0);
-				//REINTERPRET_CAST_SAFE(unk_vec4_0);
-
-				// draw
-				//new_asset->draw
-
-				COPY_VALUE_CAST(lightGrid);
-				COPY_VALUE(modelCount);
-				REINTERPRET_CAST_SAFE(models);
-				COPY_VALUE_CAST(unkBounds);
-				COPY_VALUE_CAST(shadowBounds);
-				COPY_VALUE(checksum);
-				COPY_VALUE(materialMemoryCount);
-				REINTERPRET_CAST_SAFE(materialMemory);
-				COPY_VALUE_CAST(sun);
-				COPY_ARR(outdoorLookupMatrix);
-				REINTERPRET_CAST_SAFE(outdoorImage);
-				REINTERPRET_CAST_SAFE(cellCasterBits);
-				REINTERPRET_CAST_SAFE(cellHasSunLitSurfsBits);
-				REINTERPRET_CAST_SAFE(sceneDynModel);
-				REINTERPRET_CAST_SAFE(sceneDynBrush);
-				REINTERPRET_CAST_SAFE(primaryLightEntityShadowVis);
-				REINTERPRET_CAST_SAFE_ARR(primaryLightDynEntShadowVis, 2);
-				REINTERPRET_CAST_SAFE(nonSunPrimaryLightForModelDynEnt);
-				REINTERPRET_CAST_SAFE(shadowGeom);
-				REINTERPRET_CAST_SAFE(shadowGeomOptimized);
-				REINTERPRET_CAST_SAFE(lightRegion);
-
-				// dpvs
+				new_asset->cells = allocator.allocate_array<zonetool::h1::GfxCell>(new_asset->dpvsPlanes.cellCount);
+				for (int i = 0; i < new_asset->dpvsPlanes.cellCount; i++)
 				{
-					COPY_VALUE(dpvs.smodelCount);
-					COPY_VALUE(dpvs.subdivVertexLightingInfoCount);
-					COPY_VALUE(dpvs.staticSurfaceCount);
-					COPY_VALUE(dpvs.litOpaqueSurfsBegin);
-					COPY_VALUE(dpvs.litOpaqueSurfsEnd);
-					COPY_VALUE(dpvs.unkSurfsBegin);
-					COPY_VALUE(dpvs.unkSurfsEnd);
-					COPY_VALUE(dpvs.litDecalSurfsBegin);
-					COPY_VALUE(dpvs.litDecalSurfsEnd);
-					COPY_VALUE(dpvs.litTransSurfsBegin);
-					COPY_VALUE(dpvs.litTransSurfsEnd);
-					COPY_VALUE(dpvs.shadowCasterSurfsBegin);
-					COPY_VALUE(dpvs.shadowCasterSurfsEnd);
-					COPY_VALUE(dpvs.emissiveSurfsBegin);
-					COPY_VALUE(dpvs.emissiveSurfsEnd);
-					COPY_VALUE(dpvs.smodelVisDataCount);
-					COPY_VALUE(dpvs.surfaceVisDataCount);
-					new_asset->dpvs.unkCount1 = 0;
-					REINTERPRET_CAST_SAFE_ARR(dpvs.smodelVisData, 4);
-					REINTERPRET_CAST_SAFE_ARR(dpvs.smodelUnknownVisData, 27);
-					REINTERPRET_CAST_SAFE_ARR(dpvs.surfaceVisData, 4);
-					REINTERPRET_CAST_SAFE_ARR(dpvs.surfaceUnknownVisData, 27);
-					REINTERPRET_CAST_SAFE_ARR(dpvs.smodelUmbraVisData, 4);
-					REINTERPRET_CAST_SAFE_ARR(dpvs.surfaceUmbraVisData, 4);
-					new_asset->dpvs.unkCount2 = asset->dpvs.smodelCount;
-					REINTERPRET_CAST_SAFE(dpvs.lodData);
-					REINTERPRET_CAST_SAFE(dpvs.tessellationCutoffVisData);
-					REINTERPRET_CAST_SAFE(dpvs.sortedSurfIndex);
-					REINTERPRET_CAST_SAFE(dpvs.smodelInsts);
-					REINTERPRET_CAST_SAFE(dpvs.surfaces);
-					REINTERPRET_CAST_SAFE(dpvs.surfacesBounds);
+					memcpy(&new_asset->cells[i].bounds, &asset->cells[i].bounds, sizeof(Bounds));
+					new_asset->cells[i].portalCount = asset->cells[i].portalCount;
 
-					new_asset->dpvs.smodelDrawInsts = allocator.allocate_array<zonetool::h2::GfxStaticModelDrawInst>(asset->dpvs.smodelCount);
-					for (auto i = 0u; i < new_asset->dpvs.smodelCount; i++)
+					auto add_portal = [](zonetool::h1::GfxPortal* h1_portal, zonetool::iw7::GfxPortal* iw7_portal)
 					{
-						new_asset->dpvs.smodelDrawInsts[i].model = allocator.allocate<zonetool::h2::XModel>();
-						new_asset->dpvs.smodelDrawInsts[i].model->name = asset->dpvs.smodelDrawInsts[i].model->name;
-						COPY_VALUE_CAST(dpvs.smodelDrawInsts[i].placement);
-						COPY_VALUE(dpvs.smodelDrawInsts[i].cullDist);
-						COPY_VALUE(dpvs.smodelDrawInsts[i].flags);
-						COPY_VALUE(dpvs.smodelDrawInsts[i].lightingHandle);
-						COPY_VALUE(dpvs.smodelDrawInsts[i].staticModelId);
-						COPY_VALUE(dpvs.smodelDrawInsts[i].primaryLightEnvIndex);
-						COPY_VALUE(dpvs.smodelDrawInsts[i].reflectionProbeIndex);
-						COPY_VALUE(dpvs.smodelDrawInsts[i].firstMtlSkinIndex);
-						COPY_VALUE(dpvs.smodelDrawInsts[i].sunShadowFlags);
-						new_asset->dpvs.smodelDrawInsts[i].pad = 1;
-						new_asset->dpvs.smodelDrawInsts[i].unk = asset->dpvs.smodelDrawInsts[i].unk1;
+						//h1_portal->writable.isQueued = iw7_portal->writable.isQueued;
+						//h1_portal->writable.isAncestor = iw7_portal->writable.isAncestor;
+						//h1_portal->writable.recursionDepth = iw7_portal->writable.recursionDepth;
+						//h1_portal->writable.hullPointCount = iw7_portal->writable.hullPointCount;
+						//h1_portal->writable.hullPoints = reinterpret_cast<float(*__ptr64)[2]>(iw7_portal->writable.hullPoints);
+						//h1_portal->writable.queuedParent = add_portal(iw7_portal->writable.queuedParent); // mapped at runtime
+
+						memcpy(&h1_portal->plane, &iw7_portal->plane, sizeof(zonetool::h1::DpvsPlane));
+						h1_portal->vertices = reinterpret_cast<float(*__ptr64)[3]>(iw7_portal->vertices);
+						h1_portal->cellIndex = iw7_portal->cellIndex;
+						h1_portal->closeDistance = iw7_portal->closeDistance;
+						h1_portal->vertexCount = iw7_portal->vertexCount;
+						memcpy(&h1_portal->hullAxis, &iw7_portal->hullAxis, sizeof(float[2][3]));
+					};
+
+					new_asset->cells[i].portals = allocator.allocate_array<zonetool::h1::GfxPortal>(new_asset->cells[i].portalCount);
+					for (int j = 0; j < new_asset->cells[i].portalCount; j++)
+					{
+						add_portal(&new_asset->cells[i].portals[j], &asset->cells[i].portals[j]);
 					}
 
-					REINTERPRET_CAST_SAFE(dpvs.unknownSModelVisData1);
-					REINTERPRET_CAST_SAFE(dpvs.unknownSModelVisData2);
-					REINTERPRET_CAST_SAFE(dpvs.smodelLighting);
-					REINTERPRET_CAST_SAFE(dpvs.subdivVertexLighting);
-					REINTERPRET_CAST_SAFE(dpvs.surfaceMaterials);
-					REINTERPRET_CAST_SAFE(dpvs.surfaceCastsSunShadow);
-					COPY_VALUE(dpvs.sunShadowOptCount);
-					COPY_VALUE(dpvs.sunSurfVisDataCount);
-					REINTERPRET_CAST_SAFE(dpvs.surfaceCastsSunShadowOpt);
-					REINTERPRET_CAST_SAFE(dpvs.surfaceDeptAndSurf);
-					REINTERPRET_CAST_SAFE(dpvs.constantBuffersLit);
-					REINTERPRET_CAST_SAFE(dpvs.constantBuffersAmbient);
-					new_asset->dpvs.gfx_unk = nullptr;
-					COPY_VALUE(dpvs.usageCount);
+#ifdef DO_SHIT_PROPERLY
+					new_asset->cells[i].reflectionProbeCount = asset->cells[i].reflectionProbeCount;
+					new_asset->cells[i].reflectionProbes = reinterpret_cast<unsigned __int8* __ptr64>(asset->cells[i].reflectionProbes);
+					new_asset->cells[i].reflectionProbeReferenceCount = asset->cells[i].reflectionProbeReferenceCount;
+					new_asset->cells[i].reflectionProbeReferences = reinterpret_cast<unsigned __int8* __ptr64>(asset->cells[i].reflectionProbeReferences);
+#else
+					new_asset->cells[i].reflectionProbeCount = 0;
+					new_asset->cells[i].reflectionProbes = nullptr;
+					new_asset->cells[i].reflectionProbeReferenceCount = 0;
+					new_asset->cells[i].reflectionProbeReferences = nullptr;
+#endif
 				}
 
-				COPY_VALUE_CAST(dpvsDyn);
-				COPY_VALUE(mapVtxChecksum);
-				COPY_VALUE(heroOnlyLightCount);
-				REINTERPRET_CAST_SAFE(heroOnlyLights);
-				COPY_VALUE(fogTypesAllowed);
-				COPY_VALUE(umbraTomeSize);
-				REINTERPRET_CAST_SAFE(umbraTomeData);
-				COPY_VALUE_CAST(umbraTomePtr);
-				COPY_VALUE(mdaoVolumesCount);
-				REINTERPRET_CAST_SAFE(mdaoVolumes);
-				COPY_VALUE_CAST(buildInfo);
+				new_asset->portalGroup = nullptr; // :3
+
+				new_asset->unk_vec4_count_0 = 0;
+				new_asset->unk_vec4_0 = nullptr;
+
+				auto draw = new_asset->draw;
+				draw.reflectionProbeCount = asset->draw.reflectionProbeData.reflectionProbeCount;
+				draw.reflectionProbes = allocator.allocate_array<zonetool::h1::GfxImage*>(new_asset->draw.reflectionProbeCount);
+				draw.reflectionProbeOrigins = allocator.allocate_array<zonetool::h1::GfxReflectionProbe>(new_asset->draw.reflectionProbeCount);
+				draw.reflectionProbeTextures = allocator.allocate_array<zonetool::h1::GfxRawTexture>(new_asset->draw.reflectionProbeCount);
+#ifdef DO_SHIT_PROPERLY
+				for (unsigned int i = 0; i < new_asset->draw.reflectionProbeCount; i++)
+				{
+					new_asset->draw.reflectionProbes[i] = allocator.allocate<zonetool::h1::GfxImage>();
+					new_asset->draw.reflectionProbes[i]->name = asset->draw.reflectionProbeData.reflectionProbes[i];
+					memcpy(&new_asset->draw.reflectionProbeOrigins[i].origin, &asset->draw.reflectionProbeOrigins[i].origin, sizeof(float[3]));
+					new_asset->draw.reflectionProbeOrigins[i].probeVolumeCount = 0;
+					new_asset->draw.reflectionProbeOrigins[i].probeVolumes = nullptr;
+					//memcpy(&new_asset->draw.reflectionProbeTextures[i], &asset->draw.reflectionProbeTextures[i].loadDef, 20);
+				}
+#else
+				for (unsigned int i = 0; i < new_asset->draw.reflectionProbeCount; i++)
+				{
+					new_asset->draw.reflectionProbes[i] = allocator.allocate<zonetool::h1::GfxImage>();
+					new_asset->draw.reflectionProbes[i]->name = utils::string::va("x64zt_reflection_probe_%d", i); // theres literally no name info lmfao
+					memcpy(&new_asset->draw.reflectionProbeOrigins[i].origin, &asset->draw.reflectionProbeData.reflectionProbes[i].origin, sizeof(float[3]));
+					new_asset->draw.reflectionProbeOrigins[i].probeVolumeCount = 0;
+					new_asset->draw.reflectionProbeOrigins[i].probeVolumes = nullptr;
+					//memcpy(&new_asset->draw.reflectionProbeTextures[i], &asset->draw.reflectionProbeTextures[i].loadDef, 20);
+				}
+#endif
+
+				// none of this data exists in IW7 lmfao
+				new_asset->draw.reflectionProbeReferenceCount = 0;
+				new_asset->draw.reflectionProbeReferenceOrigins = nullptr;
+				new_asset->draw.reflectionProbeReferences = nullptr;
+
+				new_asset->draw.lightmapCount = asset->draw.lightMapCount;
+				new_asset->draw.lightmaps = allocator.allocate_array<zonetool::h1::GfxLightmapArray>(new_asset->draw.lightmapCount);
+				new_asset->draw.lightmapPrimaryTextures = allocator.allocate_array<zonetool::h1::GfxRawTexture>(new_asset->draw.lightmapCount);
+				new_asset->draw.lightmapSecondaryTextures = allocator.allocate_array<zonetool::h1::GfxRawTexture>(new_asset->draw.lightmapCount);
+				for (int i = 0; i < new_asset->draw.lightmapCount; i++)
+				{
+					new_asset->draw.lightmaps[i].primary = allocator.allocate<zonetool::h1::GfxImage>();
+					new_asset->draw.lightmaps[i].primary->name = asset->draw.lightMaps[i]->name;
+					new_asset->draw.lightmaps[i].secondary = allocator.allocate<zonetool::h1::GfxImage>();
+					new_asset->draw.lightmaps[i].secondary->name = utils::string::va("x64zt_secondary_%s", asset->draw.lightMaps[i]->name); // idk????
+
+					//memcpy(&new_asset->draw.lightmapPrimaryTextures[i], &asset->draw.lightmapPrimaryTextures[i].loadDef, 20);
+					//memcpy(&new_asset->draw.lightmapSecondaryTextures[i], &asset->draw.lightmapSecondaryTextures[i].loadDef, 20);
+				}
+
+				if (asset->draw.lightmapOverridePrimary)
+				{
+					new_asset->draw.lightmapOverridePrimary = allocator.allocate<zonetool::h1::GfxImage>();
+					new_asset->draw.lightmapOverridePrimary->name = asset->draw.lightmapOverridePrimary->name;
+				}
+				else
+				{
+					new_asset->draw.lightmapOverridePrimary = nullptr;
+				}
+
+				if (asset->draw.lightmapOverrideSecondary)
+				{
+					new_asset->draw.lightmapOverrideSecondary = allocator.allocate<zonetool::h1::GfxImage>();
+					new_asset->draw.lightmapOverrideSecondary->name = asset->draw.lightmapOverrideSecondary->name;
+				}
+				else
+				{
+					new_asset->draw.lightmapOverrideSecondary = nullptr;
+				}
+
+				new_asset->draw.u1[0] = 1024; new_asset->draw.u1[1] = 1024; // u1
+				new_asset->draw.u2[0] = 512; new_asset->draw.u2[1] = 512; // u2
+				new_asset->draw.u3 = 8; // u3
+
+				new_asset->draw.trisType = 0; // dunno
+				new_asset->draw.vertexCount = transient_zone->vertexCount;
+				new_asset->draw.vd.vertices = allocator.allocate_array<zonetool::h1::GfxWorldVertex>(new_asset->draw.vertexCount);
+
+				new_asset->draw.vertexLayerDataSize = transient_zone->vertexLayerDataSize;
+				REINTERPRET_CAST_SAFE_TO_FROM(new_asset->draw.vld.data, transient_zone->vld.data);
+
+				new_asset->draw.indexCount = asset->draw.indexCount;
+				REINTERPRET_CAST_SAFE_TO_FROM(new_asset->draw.indices, asset->draw.indices);
+
+				new_asset->draw.displacementParmsCount = 0;
+				new_asset->draw.displacementParms = nullptr;
+
+				/*
+				new_asset->lightGrid.hasLightRegions = 0;
+				new_asset->lightGrid.useSkyForLowZ = 0;
+				new_asset->lightGrid.lastSunPrimaryLightIndex = asset->lastSunPrimaryLightIndex; // wrong but idk
+				memcpy(&new_asset->lightGrid.mins, &asset->lightGrid.mins, sizeof(short[3]));
+				memcpy(&new_asset->lightGrid.maxs, &asset->lightGrid.maxs, sizeof(short[3]));
+				new_asset->lightGrid.rowAxis = asset->lightGrid.rowAxis;
+				new_asset->lightGrid.colAxis = asset->lightGrid.colAxis;
+				REINTERPRET_CAST_SAFE(new_asset->lightGrid.rowDataStart, asset->lightGrid.rowDataStart);
+				new_asset->lightGrid.rawRowDataSize = asset->lightGrid.rawRowDataSize;
+				REINTERPRET_CAST_SAFE(new_asset->lightGrid.rawRowData, asset->lightGrid.rawRowData);
+				new_asset->lightGrid.entryCount = asset->lightGrid.entryCount;
+				new_asset->lightGrid.entries = mem.allocate<H1::GfxLightGridEntry>(new_asset->lightGrid.entryCount);
+				for (unsigned int i = 0; i < new_asset->lightGrid.entryCount; i++)
+				{
+					new_asset->lightGrid.entries[i].colorsIndex = asset->lightGrid.entries[i].colorsIndex;
+					new_asset->lightGrid.entries[i].primaryLightEnvIndex = asset->lightGrid.entries[i].primaryLightIndex;
+					new_asset->lightGrid.entries[i].unused = 0;
+					new_asset->lightGrid.entries[i].needsTrace = asset->lightGrid.entries[i].needsTrace;
+				}
+				new_asset->lightGrid.colorCount = asset->lightGrid.colorCount;
+				new_asset->lightGrid.colors = mem.allocate<H1::GfxLightGridColors>(new_asset->lightGrid.colorCount);
+				for (unsigned int i = 0; i < new_asset->lightGrid.colorCount; i++)
+				{
+					for (unsigned int j = 0; j < 56; j++)
+					{
+						auto& rgb = asset->lightGrid.colors[i].rgb[j];
+						auto& dest_rgb = new_asset->lightGrid.colors[i].rgb[j];
+						dest_rgb[0] = float_to_half(rgb[0] / 255.f);
+						dest_rgb[1] = float_to_half(rgb[1] / 255.f);
+						dest_rgb[2] = float_to_half(rgb[2] / 255.f);
+					}
+				}
+				*/
 
 				return new_asset;
 			}
 
-			void dump(zonetool::h1::GfxWorld* asset)
+			void dump(zonetool::iw7::GfxWorld* asset)
 			{
 				utils::memory::allocator allocator;
 				const auto converted_asset = convert(asset, allocator);
-				zonetool::h2::gfx_world::dump(converted_asset);
+				zonetool::h1::gfx_world::dump(converted_asset);
 			}
 		}
 	}
