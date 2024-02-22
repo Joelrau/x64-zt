@@ -974,6 +974,13 @@ namespace zonetool::iw7
 			break;
 		case PARTICLE_MODULE_INIT_BEAM:
 		case PARTICLE_MODULE_INIT_RUNNER:
+
+		case PARTICLE_MODULE_TEST_BIRTH:
+		case PARTICLE_MODULE_TEST_DEATH:
+		case PARTICLE_MODULE_TEST_GRAVITY:
+		case PARTICLE_MODULE_TEST_IMPACT:
+		case PARTICLE_MODULE_TEST_POS:
+		case PARTICLE_MODULE_TEST_TIME_IN_STATE:
 			dump.dump_asset(asset->particleSystem);
 			break;
 		default:

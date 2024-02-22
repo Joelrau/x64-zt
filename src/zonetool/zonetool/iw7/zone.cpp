@@ -572,6 +572,10 @@ namespace zonetool::iw7
 			ADD_ASSET(ASSET_TYPE_XANIMPARTS, xanim_parts);
 			ADD_ASSET(ASSET_TYPE_XMODEL, xmodel);
 			ADD_ASSET(ASSET_TYPE_XMODEL_SURFS, xsurface);
+			
+			//ADD_ASSET(ASSET_TYPE_SOUND_GLOBALS, sound_globals);
+			ADD_ASSET(ASSET_TYPE_SOUND_BANK, sound_bank);
+			//ADD_ASSET(ASSET_TYPE_SOUND_BANK_TRANSIENT, sound_bank_transient);
 
 			ADD_ASSET(ASSET_TYPE_PHYSICSASSET, physics_asset);
 			ADD_ASSET(ASSET_TYPE_PHYSICS_FX_PIPELINE, physics_fx_pipeline);

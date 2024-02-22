@@ -1836,10 +1836,12 @@ namespace zonetool::iw7
 		const char* name;
 	}; assert_sizeof(GfxImage, 0x70);
 
+	typedef uint32_t SndStringHash;
+
 	struct snd_volmod_info_t
 	{
 		char name[64];
-		unsigned int id;
+		SndStringHash id;
 		float value;
 	};
 
@@ -1864,12 +1866,15 @@ namespace zonetool::iw7
 		SND_FAR_REVERB_NONE = 0x0,
 		SND_FAR_REVERB_FULL = 0x1,
 		SND_FAR_REVERB_WET_ONLY = 0x2,
+		SND_FAR_REVERB_UNK3 = 3,
+		SND_FAR_REVERB_UNK4 = 4,
+		SND_FAR_REVERB_UNK5 = 5,
 	};
 
 	struct snd_entchannel_info_t
 	{
 		char name[64];
-		unsigned int id;
+		SndStringHash id;
 		int priority;
 		SndEntchannelSpaitalType spatialType;
 		bool isRestricted;
@@ -1885,7 +1890,7 @@ namespace zonetool::iw7
 	struct DopplerPreset
 	{
 		char name[64];
-		unsigned int id;
+		SndStringHash id;
 		float speedOfSound;
 		float playerVelocityScale;
 		float minPitch;
@@ -1896,7 +1901,7 @@ namespace zonetool::iw7
 	struct OcclusionShape
 	{
 		char name[64];
-		unsigned int id;
+		SndStringHash id;
 		float unk;
 		float innerAngleVolume;
 		float outerAngleVolume;
@@ -1909,7 +1914,7 @@ namespace zonetool::iw7
 	struct SndCurve
 	{
 		char name[64];
-		unsigned int id;
+		SndStringHash id;
 		int numPoints;
 		vec2_t points[16];
 	};
@@ -1918,7 +1923,7 @@ namespace zonetool::iw7
 	struct SpeakerMap
 	{
 		char name[64];
-		unsigned int id;
+		SndStringHash id;
 		float monoToStereo[2];
 		float stereoToStereo[4];
 		float monoTo51[6];
@@ -1930,7 +1935,7 @@ namespace zonetool::iw7
 	struct SndContext
 	{
 		char* type;
-		unsigned int typeId;
+		SndStringHash typeId;
 		int numValues;
 		int startIndex;
 		bool allowDefaults;
@@ -1941,7 +1946,7 @@ namespace zonetool::iw7
 	struct SndContextValue
 	{
 		char* value;
-		unsigned int valueId;
+		SndStringHash valueId;
 	};
 
 	struct SndMasterEqParam
@@ -1977,7 +1982,7 @@ namespace zonetool::iw7
 	struct SndMaster
 	{
 		char name[64];
-		unsigned int id;
+		SndStringHash id;
 		SndMasterEqParamBank dialogEq;
 		SndMasterEqParamBank weapExpScenesEq;
 		SndMasterEqParamBank sfxEq;
@@ -2032,11 +2037,252 @@ namespace zonetool::iw7
 		SndMaster* masters;
 	}; assert_sizeof(SndGlobals, 0xD0);
 
-	enum SoundVolMod : std::int32_t
+	enum SndVolMod
 	{
-		SND_VOLMOD_DEFAULT,
-		SND_VOLMOD_HUD,
+		SND_VOLMOD_HUD = 0,
+		SND_VOLMOD_INTERFACE = 1,
+		SND_VOLMOD_INTERFACE_MUSIC = 2,
+		SND_VOLMOD_MUSIC = 3,
+		SND_VOLMOD_MUSIC_EMITTER = 4,
+		SND_VOLMOD_MUSIC_EMITTER_PA = 5,
+		SND_VOLMOD_AMBIENCE = 6,
+		SND_VOLMOD_AMBIENCE_DIST = 7,
+		SND_VOLMOD_ELEMENT = 8,
+		SND_VOLMOD_EMITTER = 9,
+		SND_VOLMOD_PHYSICS = 10,
+		SND_VOLMOD_BODYFALL = 11,
+		SND_VOLMOD_FOLEY_PLR = 12,
+		SND_VOLMOD_FOLEYMP_PLR = 13,
+		SND_VOLMOD_FOLEY_NPC = 14,
+		SND_VOLMOD_FOLEYMP_NPC = 15,
+		SND_VOLMOD_FOLEY_WPN_PLR = 16,
+		SND_VOLMOD_FOLEY_WPN_NPC = 17,
+		SND_VOLMOD_FOOTSTEP_PLR = 18,
+		SND_VOLMOD_FOOTSTEP_NPC = 19,
+		SND_VOLMOD_FOOTSTEPMP_PLR = 20,
+		SND_VOLMOD_FOOTSTEPMP_NPC = 21,
+		SND_VOLMOD_MELEE_PLR = 22,
+		SND_VOLMOD_MELEE_NPC = 23,
+		SND_VOLMOD_CHATTERAL = 24,
+		SND_VOLMOD_CHATTERAX = 25,
+		SND_VOLMOD_REACTIONAL = 26,
+		SND_VOLMOD_REACTIONAX = 27,
 		SND_VOLMOD_VOICEOVER = 28,
+		SND_VOLMOD_VOICEOVER_RADIO = 29,
+		SND_VOLMOD_VOICEOVER_RADIO_3D = 30,
+		SND_VOLMOD_VOICEOVER_CRITICAL = 31,
+		SND_VOLMOD_VOICEOVER_AMB = 32,
+		SND_VOLMOD_VOICEOVER_PLR = 33,
+		SND_VOLMOD_DESTRUCT = 34,
+		SND_VOLMOD_EXPLOSION = 35,
+		SND_VOLMOD_EXPLOSION_GRENADE = 36,
+		SND_VOLMOD_EXPLOSION_FLASHBANG = 37,
+		SND_VOLMOD_EXPLOSION_ROCKET = 38,
+		SND_VOLMOD_EXPLOSION_CAR = 39,
+		SND_VOLMOD_REX_EMITTERS = 40,
+		SND_VOLMOD_IMPACT = 41,
+		SND_VOLMOD_IMPACT_PLR = 42,
+		SND_VOLMOD_IMPACT_NPC = 43,
+		SND_VOLMOD_IMPACT_PLR_TO_NPC = 44,
+		SND_VOLMOD_IMPACTMP = 45,
+		SND_VOLMOD_IMPACTMP_PLR = 46,
+		SND_VOLMOD_IMPACTMP_NPC = 47,
+		SND_VOLMOD_IMPACTMP_PLR_TO_NPC = 48,
+		SND_VOLMOD_WHIZBY = 49,
+		SND_VOLMOD_WHIZBYMP = 50,
+		SND_VOLMOD_VEHICLE_PLR = 51,
+		SND_VOLMOD_VEHICLE_NPC = 52,
+		SND_VOLMOD_VEHICLE_WPN_PLR = 53,
+		SND_VOLMOD_VEHICLE_WPN_NPC = 54,
+		SND_VOLMOD_VEHICLE = 55,
+		SND_VOLMOD_GRENADEBOUNCE = 56,
+		SND_VOLMOD_GRENADEBOUNCEMP = 57,
+		SND_VOLMOD_SHELLCASINGS = 58,
+		SND_VOLMOD_SHELLCASINGSMP = 59,
+		SND_VOLMOD_WPN_PLR = 60,
+		SND_VOLMOD_WPNMP_PLR = 61,
+		SND_VOLMOD_WPN_NPC = 62,
+		SND_VOLMOD_WPNMP_NPC = 63,
+		SND_VOLMOD_WPN_PROJECTILE = 64,
+		SND_VOLMOD_WPNMP_PROJECTILE = 65,
+		SND_VOLMOD_WPN_REFLECTIONS = 66,
+		SND_VOLMOD_WPN_REFLECTIONS_MID = 67,
+		SND_VOLMOD_WPN_REFLECTIONS_FAR = 68,
+		SND_VOLMOD_NA = 69,
+		SND_VOLMOD_MAX = 70,
+		SND_VOLMOD_SCRIPTED1 = 71,
+		SND_VOLMOD_SCRIPTED2 = 72,
+		SND_VOLMOD_SCRIPTED3 = 73,
+		SND_VOLMOD_SCRIPTED4 = 74,
+		SND_VOLMOD_SCRIPTED5 = 75,
+		SND_VOLMOD_FULLVOLUME = 76,
+		SND_VOLMOD_PERKMP_QUIET = 77,
+		SND_VOLMOD_DEATHSDOOR = 78,
+		SND_VOLMOD_DEFAULT = 79,
+	};
+
+	enum SndChannel
+	{
+		SND_CHANNEL_SCN_FX_UNRES_3D = 0,
+		SND_CHANNEL_SCN_LFE_UNRES_3D = 1,
+		SND_CHANNEL_SCN_FX_UNRES_2D = 2,
+		SND_CHANNEL_SCN_LFE_UNRES_2D = 3,
+		SND_CHANNEL_SCN_FX_SPECIAL_UNRES_3D = 4,
+		SND_CHANNEL_SCN_FX_SPECIAL_UNRES_2D = 5,
+		SND_CHANNEL_SCN_FX_UNRES_3D_LIM = 6,
+		SND_CHANNEL_SCN_FX_UNRES_2D_LIM = 7,
+		SND_CHANNEL_SCN_FX_RES_3D = 8,
+		SND_CHANNEL_SCN_FX_RES_2D = 9,
+		SND_CHANNEL_MELEE_PLR_2D = 10,
+		SND_CHANNEL_WEAP_PLR_FIRE_1_2D = 11,
+		SND_CHANNEL_WEAP_PLR_FIRE_2_2D = 12,
+		SND_CHANNEL_WEAP_PLR_FIRE_3_2D = 13,
+		SND_CHANNEL_WEAP_PLR_FIRE_4_2D = 14,
+		SND_CHANNEL_WEAP_PLR_FIRE_OVERLAP_2D = 15,
+		SND_CHANNEL_WEAP_PLR_FIRE_LFE_2D = 16,
+		SND_CHANNEL_WEAP_PLR_FIRE_ALT_1_2D = 17,
+		SND_CHANNEL_WEAP_PLR_FIRE_ALT_2_2D = 18,
+		SND_CHANNEL_WEAP_PLR_FIRE_ALT_3_2D = 19,
+		SND_CHANNEL_WEAP_PLR_FIRE_ALT_4_2D = 20,
+		SND_CHANNEL_WEAP_PLR_FIRE_ALT_OVERLAP_2D = 21,
+		SND_CHANNEL_WEAP_PLR_FIRE_ALT_LFE_2D = 22,
+		SND_CHANNEL_FOLEY_PLR_STEP_2D = 23,
+		SND_CHANNEL_FOLEY_PLR_STEP_UNRES_2D = 24,
+		SND_CHANNEL_FOLEY_PLR_MVMT_UNRES_2D_LIM = 25,
+		SND_CHANNEL_FOLEY_PLR_WEAP_2D_LIM = 26,
+		SND_CHANNEL_RELOAD_PLR_RES_2D = 27,
+		SND_CHANNEL_RELOAD_PLR_UNRES_2D = 28,
+		SND_CHANNEL_RELOAD_PLR_AKIMBO_RES_2D = 29,
+		SND_CHANNEL_RELOAD_PLR_AKIMBO_UNRES_2D = 30,
+		SND_CHANNEL_SPEAR_REFL_CLOSE_UNRES_3D_LIM = 31,
+		SND_CHANNEL_SPEAR_REFL_UNRES_3D_LIM = 32,
+		SND_CHANNEL_WEAP_NPC_MAIN_3D = 33,
+		SND_CHANNEL_WEAP_NPC_MECH_3D = 34,
+		SND_CHANNEL_WEAP_NPC_MID_3D = 35,
+		SND_CHANNEL_WEAP_NPC_LFE_3D = 36,
+		SND_CHANNEL_WEAP_NPC_DIST_3D = 37,
+		SND_CHANNEL_WEAP_NPC_LO_3D = 38,
+		SND_CHANNEL_MELEE_NPC_3D = 39,
+		SND_CHANNEL_PLR_USE_MISC_UNRES_2D = 40,
+		SND_CHANNEL_PLR_UI_INGAME_UNRES_2D = 41,
+		SND_CHANNEL_PLR_USE_PS4SPKR_RES_2D = 42,
+		SND_CHANNEL_EQUIP_USE_UNRES_3D = 43,
+		SND_CHANNEL_EQUIP_UI_INGAME_UNRES_3D = 44,
+		SND_CHANNEL_ABILITY_PLR_UNRES_2D = 45,
+		SND_CHANNEL_ABILITY_NPC_UNRES_3D = 46,
+		SND_CHANNEL_EXPLO_1_3D = 47,
+		SND_CHANNEL_EXPLO_2_3D = 48,
+		SND_CHANNEL_EXPLO_3_3D = 49,
+		SND_CHANNEL_EXPLO_4_3D = 50,
+		SND_CHANNEL_EXPLO_5_3D = 51,
+		SND_CHANNEL_EXPLO_LFE_3D = 52,
+		SND_CHANNEL_EXPLO_DIST_1_3D = 53,
+		SND_CHANNEL_EXPLO_DIST_2_3D = 54,
+		SND_CHANNEL_FOLEY_C12_STEP_3D = 55,
+		SND_CHANNEL_FOLEY_C12_LFE_3D = 56,
+		SND_CHANNEL_PROJECTILE_LOOP_CLOSE = 57,
+		SND_CHANNEL_PROJECTILE_LOOP_MID = 58,
+		SND_CHANNEL_PROJECTILE_LOOP_DIST = 59,
+		SND_CHANNEL_WHIZBY_IN_UNRES_3D_LIM = 60,
+		SND_CHANNEL_WHIZBY_OUT_UNRES_3D_LIM = 61,
+		SND_CHANNEL_BULLETIMPACT_UNRES_3D_LIM = 62,
+		SND_CHANNEL_BEAMIMPACT_UNRES_3D_LIM = 63,
+		SND_CHANNEL_BULLETIMPACT_LO_UNRES_3D_LIM = 64,
+		SND_CHANNEL_BULLET_RICOCHETS_UNRES_3D_LIM = 65,
+		SND_CHANNEL_BULLET_RICO_REFLECT_UNRES_3D_LIM = 66,
+		SND_CHANNEL_BULLETFLESH_1_UNRES_3D_LIM = 67,
+		SND_CHANNEL_BULLETFLESH_2_UNRES_3D_LIM = 68,
+		SND_CHANNEL_BULLETFLESH_LFE_UNRES_2D_LIM = 69,
+		SND_CHANNEL_BULLETFLESH_NPC_1_UNRES_3D_LIM = 70,
+		SND_CHANNEL_BULLETFLESH_NPC_2_UNRES_3D_LIM = 71,
+		SND_CHANNEL_BULLETFLESH_NPCNPC1_UNRES_3D_LIM = 72,
+		SND_CHANNEL_BULLETFLESH_NPCNPC2_UNRES_3D_LIM = 73,
+		SND_CHANNEL_MELEE_IMPACT_3D = 74,
+		SND_CHANNEL_FOLEY_NPC_STEP_3D = 75,
+		SND_CHANNEL_FOLEY_NPC_STEP_UNRES_3D = 76,
+		SND_CHANNEL_FOLEY_NPC_ZMB_STEP_3D_LIM = 77,
+		SND_CHANNEL_FOLEY_NPC_MVMT_UNRES_3D_LIM = 78,
+		SND_CHANNEL_FOLEY_NPC_WEAP_UNRES_3D_LIM = 79,
+		SND_CHANNEL_RELOAD_NPC_RES_3D = 80,
+		SND_CHANNEL_RELOAD_NPC_UNRES_3D = 81,
+		SND_CHANNEL_VOICE_AIR_3D = 82,
+		SND_CHANNEL_VOICE_RADIO_3D = 83,
+		SND_CHANNEL_VOICE_RADIO_2D = 84,
+		SND_CHANNEL_VOICE_NARRATION_2D = 85,
+		SND_CHANNEL_VOICE_SPECIAL_2D = 86,
+		SND_CHANNEL_VOICE_WALLA_1_3D = 87,
+		SND_CHANNEL_VOICE_BCHATTER_1_3D = 88,
+		SND_CHANNEL_VOICE_BCHATTER_LO_UNRES_3D_LIM = 89,
+		SND_CHANNEL_VOICE_PLR_2D = 90,
+		SND_CHANNEL_VOICE_PLR_EFFORTS_2D = 91,
+		SND_CHANNEL_VOICE_PLR_BREATH_2D = 92,
+		SND_CHANNEL_VOICE_ANIMAL_1_3D = 93,
+		SND_CHANNEL_AMB_BED_2D = 94,
+		SND_CHANNEL_AMB_ELM_UNRES_3D = 95,
+		SND_CHANNEL_AMB_ELM_INT_UNRES_3D = 96,
+		SND_CHANNEL_AMB_ELM_EXT_UNRES_3D = 97,
+		SND_CHANNEL_AMB_ELM_UNRES_2D_LIM = 98,
+		SND_CHANNEL_AMB_ELM_UNRES_2D = 99,
+		SND_CHANNEL_AMB_ELM_INT_SPECIAL_UNRES_3D = 100,
+		SND_CHANNEL_AMB_ELM_EXT_SPECIAL_UNRES_3D = 101,
+		SND_CHANNEL_BODYFALLS_HI_UNRES_3D_LIM = 102,
+		SND_CHANNEL_VEHICLE_AIR_FLYBY_CLOSE_3D_LIM = 103,
+		SND_CHANNEL_VEHICLE_AIR_LOOPS_3D_LIM = 104,
+		SND_CHANNEL_VEHICLE_AIR_FLYBY_MIDFAR_3D_LIM = 105,
+		SND_CHANNEL_VEHICLE_WEAP_CLOSE_3D_LIM = 106,
+		SND_CHANNEL_VEHICLE_HI_RES_3D = 107,
+		SND_CHANNEL_VEHICLE_HI_UNRES_3D = 108,
+		SND_CHANNEL_VEHICLE_LFE_3D = 109,
+		SND_CHANNEL_VEHICLE_LO_3D_LIM = 110,
+		SND_CHANNEL_VEHICLE_UNRES_2D = 111,
+		SND_CHANNEL_VEHICLE_UNRES_2D_LIM = 112,
+		SND_CHANNEL_SHOCK_NOFILTER_2D = 113,
+		SND_CHANNEL_HURT_NOFILTER_2D = 114,
+		SND_CHANNEL_SHOCK1_NOFILTER_3D = 115,
+		SND_CHANNEL_SHOCK2_NOFILTER_3D = 116,
+		SND_CHANNEL_MUSIC_LR = 117,
+		SND_CHANNEL_MUSIC_LSRS = 118,
+		SND_CHANNEL_MUSICNOPAUSE_LR = 119,
+		SND_CHANNEL_MUSICNOPAUSE_LSRS = 120,
+		SND_CHANNEL_MUS_EMITTER_3D = 121,
+		SND_CHANNEL_MENU_UNRES_2D = 122,
+		SND_CHANNEL_MENU_1_2D_LIM = 123,
+		SND_CHANNEL_MENU_2_2D_LIM = 124,
+		SND_CHANNEL_PHYSICS_HI_UNRES_3D_LIM = 125,
+		SND_CHANNEL_PHYSICS_LO_UNRES_3D_LIM = 126,
+		SND_CHANNEL_BODYFALLS_LO_UNRES_3D_LIM = 127,
+		SND_CHANNEL_SPECIAL_HI_UNRES_1_3D = 128,
+		SND_CHANNEL_SPECIAL_HI_UNRES_1_2D = 129,
+		SND_CHANNEL_SPECIAL_LO_UNRES_1_3D = 130,
+		SND_CHANNEL_SPECIAL_LO_UNRES_1_2D = 131,
+		SND_CHANNEL_PA_SPEAKER = 132,
+		SND_CHANNEL_PA_VOICE = 133,
+	};
+
+	enum SndAliasType
+	{
+		SAT_LOADED = 0x0,
+		SAT_REV_VEHICLE = 0x1,
+		SAT_HYBRID_PCM = 0x2,
+		SAT_STREAMED = 0x3,
+		SAT_PRIMED = 0x4,
+		SAT_COUNT = 0x5,
+	};
+
+	struct SndAliasFlags
+	{
+		unsigned int looping : 3; // 0
+		unsigned int reverb : 1; // 3
+		unsigned int shape : 3; // 4
+		unsigned int type : 2; // 7
+		unsigned int channel : 8; // 9
+		unsigned int unused : 1; // 17
+		unsigned int ignoreDistanceCheck : 1; // 18
+		unsigned int precached : 1; // 19
+		unsigned int MusicContent : 2; // 20
+		unsigned int GPadOutput : 2; // 22
+		unsigned int ForceSubtitle : 1; // 24
+		unsigned int pad : 7; // 26
 	};
 
 	struct SndAlias
@@ -2044,15 +2290,15 @@ namespace zonetool::iw7
 		const char* aliasName;
 		const char* subtitle;
 		const char* secondaryAliasName;
-		const char* unk_24;
+		const char* stopAliasName;
 		const char* assetFileName;
-		unsigned int id;
-		unsigned int secondaryId;
-		unsigned int unk_48;
-		unsigned int assetId;
-		unsigned int contextType;
-		unsigned int contextValue;
-		unsigned int duck;
+		SndStringHash id;
+		SndStringHash secondaryId;
+		SndStringHash stopAliasID;
+		SndStringHash assetId;
+		SndStringHash contextType;
+		SndStringHash contextValue;
+		SndStringHash duck;
 		int sequence;
 		float volMin;
 		float volMax;
@@ -2063,7 +2309,7 @@ namespace zonetool::iw7
 		float distMin;
 		float distMax;
 		float velocityMin;
-		int flags;
+		SndAliasFlags flags;
 		int masterPriority;
 		float masterPercentage;
 		float slavePercentage;
@@ -2071,14 +2317,20 @@ namespace zonetool::iw7
 		float lfePercentage;
 		float centerPercentage;
 		int startDelay;
-		int volumeFalloffCurve; // guess
+		unsigned char volumeFalloffCurveIndex;
+		unsigned char lpfCurveIndex;
+		unsigned char hpfCurveIndex;
+		unsigned char reverbSendCurveIndex;
 		float envelopMin;
 		float envelopMax;
 		float envelopPercentage;
-		int speakerMap; // guess
+		unsigned char speakerMapIndex;
+		char pad1[3];
 		float reverbMultiplier;
 		float farReverbMultiplier;
-		int dopplerPreset; // guess
+		unsigned char occlusionShapeIndex;
+		unsigned char dopplerPresetIndex;
+		char pad2[2];
 		float smartPanDistance2d;
 		float smartPanDistance3d;
 		float smartPanAttenuation2d;
@@ -2092,7 +2344,7 @@ namespace zonetool::iw7
 	struct SndAliasList
 	{
 		const char* aliasName;
-		unsigned int id;
+		SndStringHash id;
 		SndAlias* head;
 		int count;
 		int sequence;
@@ -2109,7 +2361,7 @@ namespace zonetool::iw7
 	struct SndSendEffectParams
 	{
 		char name[64];
-		unsigned int id;
+		SndStringHash id;
 		float smoothing;
 		float earlyTime;
 		float lateTime;
@@ -2141,7 +2393,7 @@ namespace zonetool::iw7
 	struct ADSRSetting
 	{
 		const char* name;
-		unsigned int id;
+		SndStringHash id;
 		float attackLength;
 		ADSRCurve attackCurve;
 		float decayLength;
@@ -2155,7 +2407,7 @@ namespace zonetool::iw7
 	struct AmbientDef
 	{
 		const char* name;
-		unsigned int id;
+		SndStringHash id;
 		unsigned __int16 ambientEventIndex;
 		unsigned __int16 numEvents;
 		float timeMin;
@@ -2164,14 +2416,14 @@ namespace zonetool::iw7
 
 	struct AmbientEvent
 	{
-		unsigned int id;
+		SndStringHash id;
 		unsigned __int16 ambientElementIndex;
 		float weight;
 	};
 
 	struct AmbientElement
 	{
-		unsigned int id;
+		SndStringHash id;
 		const char* unusedNameField;
 		const char* aliasName;
 		float rangeMin;
@@ -2195,9 +2447,9 @@ namespace zonetool::iw7
 
 	struct FilterDef
 	{
-		unsigned int id;
-		char entChannelIdx;
-		char band;
+		SndStringHash id;
+		unsigned char entChannelIdx;
+		unsigned char band;
 		SND_EQTYPE type;
 		float freq;
 		float gain;
@@ -2206,7 +2458,7 @@ namespace zonetool::iw7
 
 	struct MixDef
 	{
-		unsigned int id;
+		SndStringHash id;
 		unsigned __int16 volModIndex;
 		float volume;
 		float fade;
@@ -2215,7 +2467,7 @@ namespace zonetool::iw7
 	struct AdsrZoneEntry
 	{
 		const char* name;
-		unsigned int id;
+		SndStringHash id;
 		const char* weaponName;
 		int adsrIdx;
 		unsigned int weaponIdx;
@@ -2223,7 +2475,7 @@ namespace zonetool::iw7
 
 	struct OccludeDef
 	{
-		unsigned int id;
+		SndStringHash id;
 		unsigned __int16 entChannelIdx;
 		float cutoffLevel1;
 		float cutoffLevel2;
@@ -2237,8 +2489,8 @@ namespace zonetool::iw7
 
 	struct ReverbDef
 	{
-		unsigned int id;
-		unsigned int roomTypeId;
+		SndStringHash id;
+		SndStringHash roomTypeId;
 		char roomType[64];
 		float dryLevel;
 		float wetLevel;
@@ -2247,16 +2499,16 @@ namespace zonetool::iw7
 
 	struct TimescaleEntry
 	{
-		unsigned int id;
-		unsigned int presetName;
+		SndStringHash id;
+		SndStringHash presetName;
 		int entChannelIdx;
 		float scale;
 	}; assert_sizeof(TimescaleEntry, 16);
 
 	struct ZoneDef
 	{
-		unsigned int id;
-		unsigned int stateId;
+		SndStringHash id;
+		SndStringHash stateId;
 		__int16 reverbIndex;
 		__int16 startOcclusionIndex;
 		__int16 numOcclusion;
@@ -2270,12 +2522,12 @@ namespace zonetool::iw7
 		__int16 startNPCAdsrZoneIndex;
 		__int16 numNPCAdsrZone;
 		__int16 ambientDefIndex;
-		__int16 numAmbientDef; // idk
+		__int16 unkIndex; // idk
 		__int16 startFullOccIndex;
 		__int16 numDisableFullOcc;
 		__int16 startPlayerBreathStateIndex;
 		__int16 numPlayerBreathStates;
-		unsigned int weapReflId;
+		SndStringHash weapReflId;
 		//bool exterior;
 		const char* zoneName;
 		const char* stateName;
@@ -2289,33 +2541,43 @@ namespace zonetool::iw7
 		const char* weapReflName;
 		const char* fullOccName;
 		const char* playerBreathStateName;
-		unsigned int contextType1;
-		unsigned int contextValue1;
-		unsigned int contextType2;
-		unsigned int contextValue2;
-		unsigned int contextType3;
-		unsigned int contextValue3;
-		unsigned int contextType4;
-		unsigned int contextValue4;
-		//unsigned int duck;
+		SndStringHash contextType1;
+		SndStringHash contextValue1;
+		SndStringHash contextType2;
+		SndStringHash contextValue2;
+		SndStringHash contextType3;
+		SndStringHash contextValue3;
+		SndStringHash contextType4;
+		SndStringHash contextValue4;
+		//SndStringHash duck;
 	}; assert_sizeof(ZoneDef, 184);
 
 	struct unk_1453E2FD8
 	{
-		unsigned int id;
-		int __pad0[13]; //char __pad0[56];
+		SndStringHash id;
+		const char* name;
+		float unk3;
+		float unk4;
+		float unk5;
+		float unk6;
+		int unk7;
+		int unk8;
+		int unk9;
+		float unk10;
+		float unk11;
+		int unk12;
 	}; assert_sizeof(unk_1453E2FD8, 56);
 
 	struct FullOcclusionDef
 	{
-		unsigned int id;
-		unsigned int presetName;
+		SndStringHash id;
+		SndStringHash presetName;
 		int entChannelIdx;
 	};
 
 	struct PlayerBreathStateDef
 	{
-		unsigned int stateType;
+		SndStringHash stateType;
 		const char* inhaleAlias;
 		const char* exhaleAlias;
 		int minBreaths;
@@ -2323,7 +2585,7 @@ namespace zonetool::iw7
 
 	struct SoundTable
 	{
-		unsigned int id;
+		SndStringHash id;
 		ADSRSetting* adsrSettings;
 		unsigned int adsrCount;
 		AmbientDef* ambientDefs;
@@ -2359,26 +2621,24 @@ namespace zonetool::iw7
 	struct SndDuck
 	{
 		char name[64];
-		unsigned int id;
+		SndStringHash id;
 		float fadeIn;
 		float fadeOut;
 		float startDelay;
 		float minDistance;
 		float distance;
 		float length;
-		unsigned int fadeInCurve;
-		unsigned int fadeOutCurve;
-		float* hpf;
+		SndStringHash fadeInCurve;
+		SndStringHash fadeOutCurve;
+		float* attenuation;
 		float* lpf;
 		bool updateWhilePaused;
 		bool trackAmplitude;
 		bool disableInSplitscreen;
-		char pad;
-		int unk1;
-		int unk2;
-		float aliasHpf;
+		float unused[2];
+		float aliasAttenuation;
 		float aliasLpf;
-		unsigned int duckAlias;
+		SndStringHash duckAlias;
 	}; assert_sizeof(SndDuck, 144);
 
 	enum SndMusicAssetType
@@ -2391,8 +2651,8 @@ namespace zonetool::iw7
 	struct SndMusicAsset
 	{
 		char alias[64];
-		unsigned int aliasId;
-		int inactive;
+		SndStringHash aliasId;
+		int looping;
 		int completeLoop;
 		int removeAfterPlay;
 		int firstRandom;
@@ -2403,14 +2663,13 @@ namespace zonetool::iw7
 		int bpm;
 		int assetType;
 		int loopNumber;
-		unsigned int sampleCount;
+		int order;
 		int startDelayBeats;
 		int startFadeBeats;
 		int stopDelayBeats;
 		int stopFadeBeats;
-		//int startOffsetFrames;
+		int startOffsetFrames;
 		int meter;
-		unsigned int sampleRate;
 	}; assert_sizeof(SndMusicAsset, 140);
 
 	enum SndMusicStateStatus
@@ -2422,7 +2681,7 @@ namespace zonetool::iw7
 	struct SndMusicState
 	{
 		char name[64];
-		unsigned int id;
+		SndStringHash id;
 		SndMusicAsset intro;
 		SndMusicAsset exit;
 		unsigned int loopCount;
@@ -2441,7 +2700,7 @@ namespace zonetool::iw7
 	struct SndMusicSet
 	{
 		char name[64];
-		unsigned int id;
+		SndStringHash id;
 		unsigned int stateCount;
 		SndMusicState* states;
 	}; assert_sizeof(SndMusicSet, 80);
@@ -10944,6 +11203,23 @@ namespace zonetool::iw7
 	}; assert_sizeof(XFileReadData, 224);
 
 	// SoundAssetBank
+
+	enum snd_asset_format : std::int32_t
+	{
+		SND_ASSET_FORMAT_PCMS16 = 0x0,
+		SND_ASSET_FORMAT_PCMS24 = 0x1,
+		SND_ASSET_FORMAT_PCMS32 = 0x2,
+		SND_ASSET_FORMAT_IEEE = 0x3,
+		SND_ASSET_FORMAT_XMA4 = 0x4,
+		SND_ASSET_FORMAT_MP3 = 0x5,
+		SND_ASSET_FORMAT_MSADPCM = 0x6,
+		SND_ASSET_FORMAT_WMA = 0x7,
+		SND_ASSET_FORMAT_FLAC = 0x8,
+		SND_ASSET_FORMAT_WIIUADPCM = 0x9,
+		SND_ASSET_FORMAT_MPC = 0xA,
+		SND_ASSET_FORMAT_COUNT = 0xB,
+	};
+
 	struct SndAssetBankHeader
 	{
 		unsigned int magic;
@@ -10969,7 +11245,8 @@ namespace zonetool::iw7
 		char padding[5];
 	};
 
-	struct SndAssetBankEntry
+#pragma pack(1)
+	struct __declspec(align(4)) SndAssetBankEntry
 	{
 		unsigned int id;
 		unsigned int size;
@@ -10988,5 +11265,6 @@ namespace zonetool::iw7
 		char EnvelopeLoudness2;
 		char EnvelopeLoudness3;
 		char BlocksizeKB;
-	};
+	}; static_assert(sizeof(SndAssetBankEntry) == 44);
+#pragma pack()
 }

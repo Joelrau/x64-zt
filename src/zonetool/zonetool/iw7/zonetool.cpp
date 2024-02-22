@@ -167,6 +167,10 @@ namespace zonetool::iw7
 			DUMP_ASSET(ASSET_TYPE_XMODEL, xmodel, XModel);
 			DUMP_ASSET(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
 
+			DUMP_ASSET(ASSET_TYPE_SOUND_GLOBALS, sound_globals, SndGlobals);
+			DUMP_ASSET(ASSET_TYPE_SOUND_BANK, sound_bank, SndBank);
+			//DUMP_ASSET(ASSET_TYPE_SOUND_BANK_TRANSIENT, sound_bank_transient, SndBankTransient);
+
 			DUMP_ASSET(ASSET_TYPE_PHYSICSASSET, physics_asset, PhysicsAsset);
 			DUMP_ASSET(ASSET_TYPE_PHYSICS_FX_PIPELINE, physics_fx_pipeline, PhysicsFXPipeline);
 			DUMP_ASSET(ASSET_TYPE_PHYSICS_FX_SHAPE, physics_fx_shape, PhysicsFXShape);
