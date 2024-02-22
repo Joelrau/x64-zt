@@ -152,9 +152,19 @@ namespace zonetool
 			return this->write(str.data(), str.size(), 1);
 		}
 
+		int file::seek(size_t offset, int origin)
+		{
+			return _fseeki64(this->fp, offset, origin);
+		}
+
+		size_t file::tell()
+		{
+			return _ftelli64(this->fp);
+		}
+
 		inline size_t get_string_size(FILE* fp)
 		{
-			auto i = ftell(fp);
+			auto i = _ftelli64(fp);
 			char c;
 			size_t size = 0;
 			while (fread(&c, sizeof(char), 1, fp) == 1)
@@ -165,7 +175,7 @@ namespace zonetool
 				}
 				size++;
 			}
-			fseek(fp, i, SEEK_SET);
+			_fseeki64(fp, i, SEEK_SET);
 			return size;
 		}
 
@@ -207,11 +217,11 @@ namespace zonetool
 		{
 			if (this->fp)
 			{
-				auto i = ftell(this->fp);
-				fseek(this->fp, 0, SEEK_END);
+				auto i = _ftelli64(this->fp);
+				_fseeki64(this->fp, 0, SEEK_END);
 
-				auto ret = ftell(this->fp);
-				fseek(this->fp, i, SEEK_SET);
+				auto ret = _ftelli64(this->fp);
+				_fseeki64(this->fp, i, SEEK_SET);
 
 				return ret;
 			}

@@ -40,6 +40,9 @@
 #include "assets/xmodel.hpp"
 #include "assets/xsurface.hpp"
 
+#include "assets/sound_globals.hpp"
+#include "assets/sound_bank.hpp"
+
 #include "assets/physics_asset.hpp"
 #include "assets/physics_fx_pipeline.hpp"
 #include "assets/physics_fx_shape.hpp"

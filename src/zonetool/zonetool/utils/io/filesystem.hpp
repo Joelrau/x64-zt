@@ -41,6 +41,9 @@ namespace zonetool
 				return this->write(reinterpret_cast<const void*>(val), size, count);
 			}
 
+			int seek(size_t offset, int origin);
+			size_t tell();
+
 			size_t read_string(std::string* str);
 			size_t read(void* buffer, size_t size, size_t count);
 
