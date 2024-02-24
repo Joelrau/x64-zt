@@ -1620,8 +1620,8 @@ namespace zonetool::iw7
 
 				{
 					// Write min/max blocksize
-					uint16_t min = _byteswap_ushort(info.min_blocksize);
-					uint16_t max = _byteswap_ushort(info.max_blocksize);
+					uint16_t min = _byteswap_ushort((uint16_t)info.min_blocksize);
+					uint16_t max = _byteswap_ushort((uint16_t)info.max_blocksize);
 
 					memcpy(&buffer[0], &min, 2);
 					memcpy(&buffer[2], &max, 2);
