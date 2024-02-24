@@ -1556,7 +1556,35 @@ namespace zonetool::iw7
 
 		namespace flac
 		{
-			enum MetaDataBlockType : unsigned
+			constexpr auto MARKER = "fLaC";
+			constexpr auto BLOCK_SIZE = 0x400;
+			constexpr auto FRAME_SIZE_UNKNOWN = 0;
+			constexpr auto BITS_PER_SAMPLE_DEFAULT = 16;
+
+			constexpr auto METADATA_STREAMINFO_MIN_BLOCK_SIZE_LEN_BITS = 16; /**< == 16 (bits) */
+			constexpr auto METADATA_STREAMINFO_MAX_BLOCK_SIZE_LEN_BITS = 16; /**< == 16 (bits) */
+			constexpr auto METADATA_STREAMINFO_MIN_FRAME_SIZE_LEN_BITS = 24; /**< == 24 (bits) */
+			constexpr auto METADATA_STREAMINFO_MAX_FRAME_SIZE_LEN_BITS = 24; /**< == 24 (bits) */
+			constexpr auto METADATA_STREAMINFO_SAMPLE_RATE_LEN_BITS = 20; /**< == 20 (bits) */
+			constexpr auto METADATA_STREAMINFO_CHANNELS_LEN_BITS = 3; /**< == 3 (bits) */
+			constexpr auto METADATA_STREAMINFO_BITS_PER_SAMPLE_LEN_BITS = 5; /**< == 5 (bits) */
+			constexpr auto METADATA_STREAMINFO_TOTAL_SAMPLES_LEN_BITS = 36; /**< == 36 (bits) */
+			constexpr auto METADATA_STREAMINFO_MD5SUM_LEN_BITS = 128; /**< == 128 (bits) */
+
+			constexpr auto METADATA_STREAMINFO_LEN_BITS =
+				METADATA_STREAMINFO_MIN_BLOCK_SIZE_LEN_BITS +
+				METADATA_STREAMINFO_MAX_BLOCK_SIZE_LEN_BITS +
+				METADATA_STREAMINFO_MIN_FRAME_SIZE_LEN_BITS +
+				METADATA_STREAMINFO_MAX_FRAME_SIZE_LEN_BITS +
+				METADATA_STREAMINFO_SAMPLE_RATE_LEN_BITS +
+				METADATA_STREAMINFO_CHANNELS_LEN_BITS +
+				METADATA_STREAMINFO_BITS_PER_SAMPLE_LEN_BITS +
+				METADATA_STREAMINFO_TOTAL_SAMPLES_LEN_BITS +
+				METADATA_STREAMINFO_MD5SUM_LEN_BITS;
+
+			constexpr auto METADATA_STREAMINFO_LEN_BYTES = METADATA_STREAMINFO_LEN_BITS / 8;
+
+			enum MetaDataBlockType : uint8_t
 			{
 				STREAMINFO = 0,
 				PADDING = 1,
@@ -1569,49 +1597,133 @@ namespace zonetool::iw7
 
 			struct MetaDataBlockHeader
 			{
-				unsigned int isLastMetaDataBlock : 1;
-				unsigned int blockType : 7;
-				unsigned int blockLength : 24;
+				bool isLastMetaDataBlock;
+				MetaDataBlockType blockType;
+				uint32_t blockLength;
 			};
 
-#pragma pack(1)
-			/*struct StreamInfo
+			struct StreamInfo
 			{
-				uint16_t m_minimum_block_size : 16; // 0 
-				uint16_t m_maximum_block_size : 16; // 16
-				uint32_t m_minimum_frame_size : 24; // 32
-				uint32_t m_maximum_frame_size : 24; // 56
-				uint32_t m_sample_rate : 20; // 80
-				uint8_t m_number_of_channels : 3; // 100
-				uint8_t m_bits_per_sample : 5; // 103
-				uint64_t m_total_samples : 36; // 108
-				uint8_t m_md5_signature[16]; // 109?
-			};*/
-#pragma pack()
+				uint32_t min_blocksize, max_blocksize;
+				uint32_t min_framesize, max_framesize;
+				uint32_t sample_rate;
+				uint32_t channels;
+				uint32_t bits_per_sample;
+				uint64_t total_samples;
+				uint8_t md5sum[16];
+			};
+
+			std::vector<std::uint8_t> write_metadata_streaminfo(StreamInfo info)
+			{
+				std::vector<std::uint8_t> buffer{};
+				buffer.resize(METADATA_STREAMINFO_LEN_BYTES);
+
+				{
+					// Write min/max blocksize
+					uint16_t min = _byteswap_ushort(info.min_blocksize);
+					uint16_t max = _byteswap_ushort(info.max_blocksize);
+
+					memcpy(&buffer[0], &min, 2);
+					memcpy(&buffer[2], &max, 2);
+				}
+
+				{
+					// Write min/max framesize
+					uint8_t b[6]{};
+					b[0] = (char)((info.min_framesize >> 16) & 0xFF);
+					b[1] = (char)((info.min_framesize >> 8) & 0xFF);
+					b[2] = (char)(info.min_framesize & 0xFF);
+					b[3] = (char)((info.max_framesize >> 16) & 0xFF);
+					b[4] = (char)((info.max_framesize >> 8) & 0xFF);
+					b[5] = (char)(info.max_framesize & 0xFF);
+
+					memcpy(&buffer[4], b, 6);
+				}
+
+				{
+					// Write sample rate and channels
+					uint8_t b[3]{};
+					b[0] = (char)(((info.sample_rate) >> 12) & 0xFF);
+					b[1] = (char)(((info.sample_rate) >> 4) & 0xFF);
+					b[2] = ((char)(info.channels - 1) << 1) | (char)((info.sample_rate << 4) & 0xF0);
+					memcpy(&buffer[10], b, 3);
+				}
+
+				{
+					// Write total samples and bits per sample
+					uint8_t b[5]{};
+					b[0] = ((char)(info.bits_per_sample - 1) << 4) | (char)((info.total_samples >> 32) & 0x0F);
+					b[1] = (char)((info.total_samples >> 24) & 0xFF);
+					b[2] = (char)((info.total_samples >> 16) & 0xFF);
+					b[3] = (char)((info.total_samples >> 8) & 0xFF);
+					b[4] = (char)(info.total_samples & 0xFF);
+
+					memcpy(&buffer[13], b, 5);
+				}
+
+				{
+					// Write md5
+					memcpy(&buffer[18], info.md5sum, 16);
+				}
+
+				return buffer;
+			}
+
+			std::vector<std::uint8_t> write_metadata_block_header(bool is_last, MetaDataBlockType type, uint32_t length)
+			{
+				std::vector<std::uint8_t> buffer{};
+				buffer.resize(4);
+
+				{
+					uint8_t b[4]{};
+					b[0] = ((char)(type) << 0) | ((char)(is_last) << 7);
+					b[1] = (char)((length >> 16) & 0xFF);
+					b[2] = (char)((length >> 8) & 0xFF);
+					b[3] = (char)(length & 0xFF);
+
+					memcpy(&buffer[0], b, 4);
+				}
+
+				return buffer;
+			}
+
+			std::vector<std::uint8_t> write_marker()
+			{
+				std::vector<std::uint8_t> buffer{};
+				buffer.resize(4);
+
+				memcpy(&buffer[0], MARKER, 4);
+
+				return buffer;
+			}
 
 			void dump(SndAssetBankEntry entry, const std::string& name, uint8_t* data, size_t size)
 			{
 				std::string buffer{};
 
-				// if someone can figure out how to generate this shit go ahead
-				constexpr uint8_t header[] = { 
-					// Signature
-					0x66,0x4C,0x61,0x43,
-					// MetadataBlockHeader
-					0x0,0x0,0x0,0x22,
-					// StreamInfo
-					// min block size
-					0x4,0x0,
-					// max block size
-					0x4,0x0,
-					// bitfield bullshit
-					0x0,0x1,0xB7,0x0,0x7,0x8F,0xA,0xC4,0x40,0xF0,0x0,0x0,0x26,0x84,
-					// md5
-					0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
-					// idk
-					0x83,0x0,0x0,0x0, };
+				const auto write = [&](std::vector<std::uint8_t> data)
+				{
+					buffer.append(reinterpret_cast<const char*>(data.data()), data.size());
+				};
 
-				buffer.append(reinterpret_cast<const char*>(header), sizeof(header));
+				write(write_marker());
+
+				{
+					write(write_metadata_block_header(false, STREAMINFO, METADATA_STREAMINFO_LEN_BYTES));
+					StreamInfo info{};
+					info.min_blocksize = BLOCK_SIZE;
+					info.max_blocksize = BLOCK_SIZE;
+					info.min_framesize = FRAME_SIZE_UNKNOWN;
+					info.max_framesize = FRAME_SIZE_UNKNOWN;
+					info.sample_rate = entry.frameRate;
+					info.channels = entry.channelCount;
+					info.bits_per_sample = BITS_PER_SAMPLE_DEFAULT;
+					info.total_samples = entry.frameCount;
+					memset(info.md5sum, 0x00, sizeof(info.md5sum));
+					write(write_metadata_streaminfo(info));
+
+					write(write_metadata_block_header(true, SEEKTABLE, entry.seekTableSize));
+				}
 
 				buffer.append(reinterpret_cast<const char*>(data), size);
 
@@ -1620,6 +1732,15 @@ namespace zonetool::iw7
 				file.open("wb");
 				file.write(buffer.data(), buffer.size());
 				file.close();
+			}
+		}
+
+		namespace pcm
+		{
+			void dump(SndAssetBankEntry entry, const std::string& name, uint8_t* data, size_t size)
+			{
+				// haven't foud any sound that uses this
+				__debugbreak();
 			}
 		}
 
@@ -1646,19 +1767,29 @@ namespace zonetool::iw7
 			return true;
 		}
 
-		void dump_pcm(const std::string& name, uint8_t* data, size_t size)
-		{
-
-		}
-
-		bool dump_internal(std::string name, std::string language_folder)
+		bool dump_internal(std::string name, std::string language_folder, std::string language_prefix)
 		{
 			std::string path;
 			if (use_zone_dir())
 			{
 				path.append("zone/");
 			}
-			path.append(language_folder);
+			if (!language_folder.empty())
+			{
+				path.append(language_folder);
+				if (!language_folder.ends_with("/") || !language_folder.ends_with("\\"))
+				{
+					path.append("/");
+				}
+			}
+			if (!language_prefix.empty())
+			{
+				path.append(language_prefix);
+				if (!language_prefix.ends_with("_"))
+				{
+					path.append("_");
+				}
+			}
 			path.append(name);
 
 			auto file = filesystem::file(path);
@@ -1689,7 +1820,7 @@ namespace zonetool::iw7
 				file.read(asset_name, sizeof(asset_name));
 
 				file.seek(entry.offset, SEEK_SET);
-				auto data = file.read_bytes(entry.size);
+				auto data = file.read_bytes(entry.size + entry.seekTableSize);
 
 				switch(entry.format)
 				{
@@ -1706,28 +1837,37 @@ namespace zonetool::iw7
 
 		namespace loaded
 		{
-			void dump(std::string name, std::string language_folder = "")
+			void dump(std::string name, std::string language_folder, std::string language_prefix)
 			{
 				if (!name.ends_with(".sabl")) name.append(".sabl");
 
-				dump_internal(name, language_folder);
+				dump_internal(name, language_folder, language_prefix);
 			}
 		}
 
 		namespace streamed
 		{
-			void dump(std::string name, std::string language_folder = "")
+			void dump(std::string name, std::string language_folder, std::string language_prefix)
 			{
 				if (!name.ends_with(".sabs")) name.append(".sabs");
 
-				dump_internal(name, language_folder);
+				dump_internal(name, language_folder, language_prefix);
 			}
 		}
 
-		void dump(const std::string& name)
+		void dump(const std::string& name, std::string language_folder = "", std::string language_prefix = "")
 		{
-			loaded::dump(name);
-			streamed::dump(name);
+			if (language_folder == "all")
+			{
+				language_folder.clear();
+			}
+			if (language_prefix == "all")
+			{
+				language_prefix.clear();
+			}
+
+			loaded::dump(name, language_folder, language_prefix);
+			streamed::dump(name, language_folder, language_prefix);
 		}
 	}
 
@@ -2249,7 +2389,7 @@ namespace zonetool::iw7
 
 		// music
 
-		sound_asset_bank::dump(asset->zone);
+		sound_asset_bank::dump(asset->zone, asset->soundLanguage, asset->gameLanguage);
 
 		file.write(data.dump(4));
 		file.close();
