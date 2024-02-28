@@ -107,10 +107,10 @@ namespace zonetool::iw7
 
 #define ATTACHMENT_PARSE_STRING(__field__) \
 	static_assert(std::is_same_v<decltype(asset->__field__), const char*>, "Field is not of type const char*"); \
-	!data[#__field__].is_null() && !data[#__field__].empty() ? asset->__field__ = mem->duplicate_string(data[#__field__].get<std::string>()) : asset->__field__ = nullptr;
+	!data[#__field__].is_null() && !data[#__field__].get<std::string>().empty() ? asset->__field__ = mem->duplicate_string(data[#__field__].get<std::string>()) : asset->__field__ = nullptr;
 
 #define ATTACHMENT_PARSE_SCRIPT_STRING(__field__) \
-	if (!data[#__field__].is_null()) this->add_script_string(&asset->__field__, mem->duplicate_string(data[#__field__].get<std::string>())); asset->__field__ = scr_string_t(0);
+	if (!data[#__field__].is_null() && !data[#__field__].get<std::string>().empty()) this->add_script_string(&asset->__field__, mem->duplicate_string(data[#__field__].get<std::string>())); asset->__field__ = scr_string_t(0);
 
 #define ATTACHMENT_PARSE_FIELD(__field__) \
 	if (!data[#__field__].is_null()) asset->__field__ = data[#__field__].get<decltype(asset->__field__)>();
@@ -135,7 +135,7 @@ namespace zonetool::iw7
 	} \
 	else \
 	{ \
-		 \
+		asset->__field__ = nullptr; \
 	}
 
 #define ATTACHMENT_PARSE_FIELD_RENAME(__field__, __name__) \
@@ -149,7 +149,7 @@ namespace zonetool::iw7
 		asset->__field__ = mem->allocate<typename std::remove_reference<decltype(*asset->__field__)>::type>(__size__); \
 		for (auto idx##__field__ = 0u; idx##__field__ < (unsigned int)__size__; idx##__field__++) \
 		{ \
-			if (!data[#__field__][idx##__field__].is_null()) \
+			if (!data[#__field__][idx##__field__].is_null() && !data[#__field__][idx##__field__].get<std::string>().empty()) \
 			{ \
 				asset->__field__[idx##__field__] = mem->manual_allocate<typename std::remove_reference<decltype(*asset->__field__[idx##__field__])>::type>(sizeof(const char*)); \
 				asset->__field__[idx##__field__]->name = mem->duplicate_string(data[#__field__][idx##__field__].get<std::string>()); \
@@ -166,7 +166,7 @@ namespace zonetool::iw7
 	}
 
 #define ATTACHMENT_PARSE_ASSET(__field__) \
-	if (!data[#__field__].is_null()) \
+	if (!data[#__field__].is_null() && !data[#__field__].get<std::string>().empty()) \
 	{ \
 		asset->__field__ = mem->manual_allocate<typename std::remove_reference<decltype(*asset->__field__)>::type>(sizeof(const char*)); \
 		asset->__field__->name = mem->duplicate_string(data[#__field__].get<std::string>()); \

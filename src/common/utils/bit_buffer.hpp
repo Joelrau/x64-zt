@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <cassert>
 
 // https://github.com/Aadeshp/BitBufferCpp/tree/master/src
 
@@ -11,18 +12,38 @@ namespace utils
     public:
         bit_buffer(const std::string&);
 
-        std::uint32_t read_bits(const size_t bit_index, const size_t num_bits);
-        std::uint32_t read_bits(const size_t num_bits);
+        std::uint64_t read_bits(const size_t bit_index, const size_t num_bits);
+        std::uint64_t read_bits(const size_t num_bits);
+
+        template<typename T> T read_bits(const size_t bit_index, const size_t num_bits)
+        {
+            return static_cast<T>(read_bits(bit_index, num_bits));
+        }
+
+        template<typename T> T read_bits(const size_t num_bits)
+        {
+            return static_cast<T>(read_bits(num_bits));
+        }
+
+        void read_buffer(std::uint8_t* buffer, const size_t num_bits)
+        {
+            assert(num_bits % 8 == 0);
+
+            for(auto i = 0; i < num_bits / 8; i++)
+            {
+                buffer[i] = read_bits<std::uint8_t>(num_bits);
+            }
+        }
 
     private:
-        std::uint32_t read_bits_internal(const std::size_t bit_index, const std::size_t num_bits, std::size_t ret) const
+        std::uint64_t read_bits_internal(const std::size_t bit_index, const std::size_t num_bits, std::size_t ret) const
         {
             if (bit_index + num_bits > this->buffer_.size() * 8) 
             {
                 return 0;
             }
 
-            std::uint32_t pos = static_cast<std::uint32_t>(bit_index / 8);
+            std::uint64_t pos = static_cast<std::uint64_t>(bit_index / 8);
             std::uint8_t bit_index_start = static_cast<std::uint8_t>(bit_index - (pos * 8));
             std::size_t bit_index_end = bit_index_start + num_bits - 1;
 
@@ -56,7 +77,6 @@ namespace utils
                 return read_bits_internal(bit_index + bits_read, num_bits - bits_read, ret);
             }
 
-
             std::uint8_t byte = this->buffer_[pos];
             if (bit_index_start > 0) 
             {
@@ -65,14 +85,13 @@ namespace utils
             }
 
             byte >>= (8 - num_bits - bit_index_start);
-            ret += static_cast<std::uint32_t>(byte);
+            ret += static_cast<std::uint64_t>(byte);
 
-            return static_cast<std::uint32_t>(ret);
+            return static_cast<std::uint64_t>(ret);
         }
 
         std::string buffer_;
         std::size_t bit_index_{};
-
     };
 
     class bit_buffer_le
@@ -80,11 +99,11 @@ namespace utils
     public:
         bit_buffer_le(const std::string&);
 
-        std::uint32_t read_bits(const unsigned int bit_index, const size_t num_bits);
-        std::uint32_t read_bits(const unsigned int num_bits);
-        std::uint32_t read_bytes(const unsigned int num_bytes);
-        uint32_t total();
-        void set_bit(unsigned int bit);
+        std::uint64_t read_bits(const unsigned int bit_index, const size_t num_bits);
+        std::uint64_t read_bits(const unsigned int num_bits);
+        std::uint64_t read_bytes(const unsigned int num_bytes);
+        uint64_t total();
+        void set_bit(std::uint64_t bit);
 
     private:
         void read_bits_internal(unsigned int bits, void* output)
@@ -92,7 +111,7 @@ namespace utils
             if (bits == 0) return;
             if ((this->current_bit_ + bits) > (this->buffer_.size() * 8)) return;
 
-            int cur_byte = this->current_bit_ >> 3;
+            std::uint64_t cur_byte = this->current_bit_ >> 3;
             auto cur_out = 0;
 
             const char* bytes = this->buffer_.data();
@@ -123,9 +142,8 @@ namespace utils
         }
 
         std::string buffer_{};
-        unsigned int current_bit_ = 0;
-        unsigned int total_read_ = 0;
+        std::uint64_t current_bit_ = 0;
+        std::uint64_t total_read_ = 0;
         bool use_data_types_ = true;
-
     };
 }

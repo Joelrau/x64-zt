@@ -5,7 +5,7 @@ namespace zonetool::iw7
 {
 #define PARSE_STRING(__field__) \
 	static_assert(std::is_same_v<decltype(asset->__field__), const char*>, "Field is not of type const char*"); \
-	!data[#__field__].is_null() && !data[#__field__].empty() ? asset->__field__ = mem->duplicate_string(data[#__field__].get<std::string>()) : asset->__field__ = nullptr;
+	!data[#__field__].is_null() && !data[#__field__].get<std::string>().empty() ? asset->__field__ = mem->duplicate_string(data[#__field__].get<std::string>()) : asset->__field__ = nullptr;
 
 #define PARSE_FIELD(__field__) \
 	if (!data[#__field__].is_null()) asset->__field__ = data[#__field__].get<decltype(asset->__field__)>();

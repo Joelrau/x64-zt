@@ -23,6 +23,8 @@ namespace zonetool::iw7
 	std::vector<std::pair<XAssetType, std::string>> referenced_assets;
 	std::unordered_set<XAssetType> asset_type_filter;
 
+	std::unordered_set<std::pair<std::uint32_t, std::string>, pair_hash<std::uint32_t, std::string>> ignore_assets;
+
 	const char* get_asset_name(XAssetType type, void* pointer)
 	{
 		XAssetHeader header{.data = pointer};
@@ -156,6 +158,7 @@ namespace zonetool::iw7
 			DUMP_ASSET(ASSET_TYPE_RUMBLE_GRAPH, rumble_graph, RumbleGraph);
 			DUMP_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile, ScriptFile);
 			DUMP_ASSET(ASSET_TYPE_STRINGTABLE, string_table, StringTable);
+			DUMP_ASSET(ASSET_TYPE_TRACER, tracer, TracerDef);
 			DUMP_ASSET(ASSET_TYPE_TTF, font_def, TTFDef);
 			DUMP_ASSET(ASSET_TYPE_VECTORFIELD, vector_field, VectorField);
 			DUMP_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment, WeaponAttachment);
@@ -377,17 +380,14 @@ namespace zonetool::iw7
 
 		wait_for_database();
 
-		if (!globals.dump && !globals.verify)
+		if (is_zone_loaded(name))
 		{
-			if (is_zone_loaded(name))
+			if (inform)
 			{
-				if (inform)
-				{
-					ZONETOOL_INFO("zone \"%s\" is already loaded...", name.data());
-				}
-
-				return true;
+				ZONETOOL_INFO("zone \"%s\" is already loaded...", name.data());
 			}
+
+			return false;
 		}
 
 		if (inform)
@@ -429,9 +429,10 @@ namespace zonetool::iw7
 		}
 
 		globals.dump = true;
-		if (!load_zone(name, DB_LOAD_ASYNC, false))
+		if (!load_zone(name, DB_LOAD_ASYNC, true))
 		{
 			globals.dump = false;
+			ZONETOOL_INFO("Aborted dump.");
 		}
 
 		while (globals.dump)
@@ -498,6 +499,67 @@ namespace zonetool::iw7
 		}
 	}
 
+	void parse_csv_file_ignore(const std::string& fastfile, const std::string& csv)
+	{
+		auto path = "zone_source\\" + csv + ".csv";
+		auto parser = csv::parser(path.data(), ',');
+
+		if (!parser.valid())
+		{
+			throw std::runtime_error(utils::string::va("Could not find csv file \"%s\" to build zone!", csv.data()));
+		}
+
+		auto rows = parser.get_rows();
+		if (rows == nullptr)
+		{
+			return;
+		}
+
+		for (auto row_index = 0; row_index < parser.get_num_rows(); row_index++)
+		{
+			auto* row = rows[row_index];
+			if (row == nullptr)
+			{
+				continue;
+			}
+
+			if (!row->fields)
+			{
+				continue;
+			}
+
+			if ((strlen(row->fields[0]) >= 1 && row->fields[0][0] == '#') || (strlen(row->fields[0]) >= 2 && row->
+				fields[0][0] == '/' && row->fields[0][1] == '/'))
+			{
+				// comment line, go to next line.
+				continue;
+			}
+			if (!strlen(row->fields[0]))
+			{
+				// empty line, go to next line.
+				continue;
+			}
+
+			if (row->num_fields < 2 || !is_valid_asset_type(row->fields[0]))
+			{
+				continue;
+			}
+
+			std::string name;
+			if ((!row->fields[1] || !strlen(row->fields[1]) && row->fields[2] && strlen(row->fields[2])))
+			{
+				continue;
+			}
+			else
+			{
+				name = row->fields[1];
+			}
+
+			const auto type = static_cast<std::uint32_t>(type_to_int(row->fields[0]));
+			ignore_assets.insert(std::make_pair( type, name ));
+		}
+	}
+
 	void parse_csv_file(zone_base* zone, const std::string& fastfile, const std::string& csv)
 	{
 		auto path = "zone_source\\" + csv + ".csv";
@@ -547,6 +609,10 @@ namespace zonetool::iw7
 			else if (row->fields[0] == "include"s)
 			{
 				parse_csv_file(zone, fastfile, row->fields[1]);
+			}
+			else if (row->fields[0] == "ignore"s)
+			{
+				parse_csv_file_ignore(fastfile, row->fields[1]);
 			}
 			// this allows us to reference assets instead of rewriting them
 			else if (row->fields[0] == "reference"s)
@@ -729,6 +795,7 @@ namespace zonetool::iw7
 			return;
 		}
 
+		ignore_assets.clear();
 		clear_static_asset_fields();
 
 		try
@@ -760,6 +827,31 @@ namespace zonetool::iw7
 
 		// clear asset shit
 		clear_static_asset_fields();
+	}
+
+	void iterate_zones()
+	{
+		const auto iterate_zones_internal = [](const std::string& path)
+		{
+			for (auto const& dir_entry : std::filesystem::directory_iterator{ path })
+			{
+				if (dir_entry.is_regular_file() && dir_entry.path().extension() == ".ff")
+				{
+					const auto zone = dir_entry.path().stem().string();
+
+					load_zone(zone);
+
+					wait_for_database();
+					unload_zones();
+				}
+			}
+		};
+
+		const auto zone_path = utils::io::directory_exists("zone") ? "zone/" : "";
+		iterate_zones_internal(zone_path);
+
+		const auto lang_path = utils::io::directory_exists("zone") ? "zone/english/" : "english/";
+		iterate_zones_internal(lang_path);
 	}
 
 	void register_commands()
@@ -891,27 +983,7 @@ namespace zonetool::iw7
 
 		::iw7::command::add("iteratezones", []()
 		{
-			const auto iterate_zones = [](const std::string& path)
-			{
-				for (auto const& dir_entry : std::filesystem::directory_iterator{ path })
-				{
-					if (dir_entry.is_regular_file() && dir_entry.path().extension() == ".ff")
-					{
-						const auto zone = dir_entry.path().stem().string();
-
-						load_zone(zone);
-
-						wait_for_database();
-						unload_zones();
-					}
-				}
-			};
-
-			const auto zone_path = utils::io::directory_exists("zone") ? "zone/" : "";
-			iterate_zones(zone_path);
-
-			const auto lang_path = utils::io::directory_exists("zone") ? "zone/english/" : "english/";
-			iterate_zones(lang_path);
+			iterate_zones();
 		});
 	}
 

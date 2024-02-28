@@ -153,10 +153,10 @@ namespace zonetool::h2
 
 					utils::bit_buffer buffer({block.data, static_cast<size_t>(block.header.length)});
 
-					info->sampleRate = buffer.read_bits(80, 20);
-					info->channels = static_cast<char>(buffer.read_bits(100, 3) + 1);
-					info->numBits = static_cast<char>(buffer.read_bits(103, 5)) + 1; // bps
-					info->numSamples = buffer.read_bits(108, 36);
+					info->sampleRate = buffer.read_bits<unsigned int>(80, 20);
+					info->channels = buffer.read_bits<char>(100, 3) + 1;
+					info->numBits = buffer.read_bits<char>(103, 5) + 1; // bps
+					info->numSamples = buffer.read_bits<unsigned int>(108, 36);
 				}
 
 				if (block.header.type == block_type_t::seektable)

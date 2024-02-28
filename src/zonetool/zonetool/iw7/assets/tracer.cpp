@@ -1,5 +1,5 @@
 #include "std_include.hpp"
-#include "rumble.hpp"
+#include "tracer.hpp"
 
 namespace zonetool::iw7
 {
@@ -21,9 +21,9 @@ namespace zonetool::iw7
 		asset->__field__ = nullptr; \
 	}
 
-	RumbleInfo* rumble::parse(const std::string& name, zone_memory* mem)
+	TracerDef* tracer::parse(const std::string& name, zone_memory* mem)
 	{
-		const auto path = "rumble\\"s + name + ".json"s;
+		const auto path = "tracer\\"s + name + ".json"s;
 
 		auto file = filesystem::file(path);
 		if (!file.exists())
@@ -31,27 +31,36 @@ namespace zonetool::iw7
 			return nullptr;
 		}
 
-		ZONETOOL_INFO("Parsing rumble \"%s\"...", name.data());
+		ZONETOOL_INFO("Parsing reticle \"%s\"...", name.data());
 
 		// parse json file
 		file.open("rb");
 		ordered_json data = json::parse(file.read_bytes(file.size()));
 		file.close();
 
-		auto asset = mem->allocate<RumbleInfo>();
+		auto asset = mem->allocate<TracerDef>();
 
 		PARSE_STRING(name);
-		PARSE_FIELD(duration);
-		PARSE_FIELD(range);
-		PARSE_ASSET(highRumbleGraph);
-		PARSE_ASSET(lowRumbleGraph);
-		PARSE_FIELD(fadeWithDistance);
-		PARSE_FIELD(broadcast);
+		PARSE_ASSET(material);
+		PARSE_FIELD(fadeOverTime);
+		PARSE_FIELD(fadeTime);
+		PARSE_FIELD(speed);
+		PARSE_FIELD(beamLength);
+		PARSE_FIELD(beamWidth);
+		PARSE_FIELD(screwRadius);
+		PARSE_FIELD(screwDist);
+		for (auto i = 0; i < 5; i++)
+		{
+			asset->colors[i][0] = data["colors"][i][0].get<float>();
+			asset->colors[i][1] = data["colors"][i][1].get<float>();
+			asset->colors[i][2] = data["colors"][i][2].get<float>();
+			asset->colors[i][3] = data["colors"][i][3].get<float>();
+		}
 
 		return asset;
 	}
 
-	void rumble::init(const std::string& name, zone_memory* mem)
+	void tracer::init(const std::string& name, zone_memory* mem)
 	{
 		this->name_ = name;
 
@@ -65,38 +74,29 @@ namespace zonetool::iw7
 		this->asset_ = this->parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).rumble;
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).tracerDef;
 		}
 	}
 
-	void rumble::prepare(zone_buffer* buf, zone_memory* mem)
+	void tracer::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 	}
 
-	void rumble::load_depending(zone_base* zone)
+	void tracer::load_depending(zone_base* zone)
 	{
-		auto* asset = this->asset_;
-		if (asset->highRumbleGraph)
-		{
-			zone->add_asset_of_type(ASSET_TYPE_RUMBLE_GRAPH, asset->highRumbleGraph->name);
-		}
-		if (asset->lowRumbleGraph)
-		{
-			zone->add_asset_of_type(ASSET_TYPE_RUMBLE_GRAPH, asset->lowRumbleGraph->name);
-		}
 	}
 
-	std::string rumble::name()
+	std::string tracer::name()
 	{
 		return this->name_;
 	}
 
-	std::int32_t rumble::type()
+	std::int32_t tracer::type()
 	{
-		return ASSET_TYPE_RUMBLE;
+		return ASSET_TYPE_TRACER;
 	}
 
-	void rumble::write(zone_base* zone, zone_buffer* buf)
+	void tracer::write(zone_base* zone, zone_buffer* buf)
 	{
 		auto data = this->asset_;
 		auto dest = buf->write(data);
@@ -104,17 +104,9 @@ namespace zonetool::iw7
 		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 
 		dest->name = buf->write_str(this->name());
-
-		if (data->highRumbleGraph)
+		if (data->material)
 		{
-			dest->highRumbleGraph = reinterpret_cast<RumbleGraph*>(
-				zone->get_asset_pointer(ASSET_TYPE_RUMBLE_GRAPH, data->highRumbleGraph->name));
-		}
-
-		if (data->lowRumbleGraph)
-		{
-			dest->lowRumbleGraph = reinterpret_cast<RumbleGraph*>(
-				zone->get_asset_pointer(ASSET_TYPE_RUMBLE_GRAPH, data->lowRumbleGraph->name));
+			dest->material = reinterpret_cast<Material*>(zone->get_asset_pointer(type(), name()));
 		}
 
 		buf->pop_stream();
@@ -137,21 +129,30 @@ namespace zonetool::iw7
 		data[#__field__] = ""; \
 	}
 
-	void rumble::dump(RumbleInfo* asset)
+	void tracer::dump(TracerDef* asset)
 	{
-		const auto path = "rumble\\"s + asset->name + ".json"s;
+		const auto path = "tracer\\"s + asset->name + ".json"s;
 		auto file = filesystem::file(path);
 		file.open("wb");
 
 		ordered_json data;
 
 		DUMP_STRING(name);
-		DUMP_FIELD(duration);
-		DUMP_FIELD(range);
-		DUMP_ASSET(highRumbleGraph);
-		DUMP_ASSET(lowRumbleGraph);
-		DUMP_FIELD(fadeWithDistance);
-		DUMP_FIELD(broadcast);
+		DUMP_ASSET(material);
+		DUMP_FIELD(fadeOverTime);
+		DUMP_FIELD(fadeTime);
+		DUMP_FIELD(speed);
+		DUMP_FIELD(beamLength);
+		DUMP_FIELD(beamWidth);
+		DUMP_FIELD(screwRadius);
+		DUMP_FIELD(screwDist);
+		for (auto i = 0; i < 5; i++)
+		{
+			data["colors"][i][0] = asset->colors[i][0];
+			data["colors"][i][1] = asset->colors[i][1];
+			data["colors"][i][2] = asset->colors[i][2];
+			data["colors"][i][3] = asset->colors[i][3];
+		}
 
 		auto str = data.dump(4);
 		data.clear();
