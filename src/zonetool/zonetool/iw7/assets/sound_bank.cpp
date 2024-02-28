@@ -1551,12 +1551,13 @@ namespace zonetool::iw7
 
 	namespace sound_asset_bank
 	{
-		constexpr unsigned int magic = 0x23585532;
-		constexpr unsigned int version = 4;
+		constexpr unsigned int MAGIC = 0x23585532;
+		constexpr unsigned int VERSION = 4;
 
 		namespace flac
 		{
 			constexpr auto MARKER = "fLaC";
+			constexpr auto MARKER_LEN = 4;
 			constexpr auto BLOCK_SIZE = 0x400;
 			constexpr auto FRAME_SIZE_UNKNOWN = 0;
 			constexpr auto BITS_PER_SAMPLE_DEFAULT = 16;
@@ -1583,6 +1584,8 @@ namespace zonetool::iw7
 				METADATA_STREAMINFO_MD5SUM_LEN_BITS;
 
 			constexpr auto METADATA_STREAMINFO_LEN_BYTES = METADATA_STREAMINFO_LEN_BITS / 8;
+
+			constexpr auto METADATA_BLOCK_HEADER_LEN_BYTES = 4;
 
 			enum MetaDataBlockType : uint8_t
 			{
@@ -1672,16 +1675,16 @@ namespace zonetool::iw7
 			std::vector<std::uint8_t> write_metadata_block_header(bool is_last, MetaDataBlockType type, uint32_t length)
 			{
 				std::vector<std::uint8_t> buffer{};
-				buffer.resize(4);
+				buffer.resize(METADATA_BLOCK_HEADER_LEN_BYTES);
 
 				{
-					uint8_t b[4]{};
+					uint8_t b[METADATA_BLOCK_HEADER_LEN_BYTES]{};
 					b[0] = ((char)(type) << 0) | ((char)(is_last) << 7);
 					b[1] = (char)((length >> 16) & 0xFF);
 					b[2] = (char)((length >> 8) & 0xFF);
 					b[3] = (char)(length & 0xFF);
 
-					memcpy(&buffer[0], b, 4);
+					memcpy(&buffer[0], b, METADATA_BLOCK_HEADER_LEN_BYTES);
 				}
 
 				return buffer;
@@ -1690,9 +1693,9 @@ namespace zonetool::iw7
 			std::vector<std::uint8_t> write_marker()
 			{
 				std::vector<std::uint8_t> buffer{};
-				buffer.resize(4);
+				buffer.resize(MARKER_LEN);
 
-				memcpy(&buffer[0], MARKER, 4);
+				memcpy(&buffer[0], MARKER, MARKER_LEN);
 
 				return buffer;
 			}
@@ -1733,6 +1736,122 @@ namespace zonetool::iw7
 				file.write(buffer.data(), buffer.size());
 				file.close();
 			}
+
+			bool verify_marker(std::vector<uint8_t>& data)
+			{
+				const auto marker_len = MARKER_LEN;
+				if (data.size() < marker_len || strcmp(reinterpret_cast<const char*>(data.data()), MARKER))
+				{
+					return false;
+				}
+				return true;
+			}
+
+			bool parse(std::string& path, SndAssetBankEntry* entry, filesystem::file& out_file, unsigned char* checksum, unsigned char* source_checksum)
+			{
+				auto file = filesystem::file(path);
+
+				if (!file.exists())
+				{
+					ZONETOOL_ERROR("Sound asset file %s could not be found", path.data());
+					return false;
+				}
+
+				file.open("rb");
+				auto data = file.read_bytes(file.size());
+				file.close();
+
+				const auto start_pos = data.data();
+				const auto end_pos = start_pos + data.size();
+
+				// verify marker
+				if (!verify_marker(data))
+				{
+					ZONETOOL_ERROR("Failed to verify flac marker for file %s", path.data());
+					return false;
+				}
+				auto pos = start_pos;
+				pos += 4; // skip "fLaC"
+
+				std::string buffer{};
+
+				bool has_placed_seektable = false;
+				while (pos < end_pos)
+				{
+					if (pos + METADATA_BLOCK_HEADER_LEN_BYTES > end_pos)
+					{
+						ZONETOOL_ERROR("unexpected eof");
+						return false;
+					}
+
+					utils::bit_buffer header_buffer{ std::string(pos, pos + METADATA_BLOCK_HEADER_LEN_BYTES) }; // header
+					MetaDataBlockHeader header{};
+					header.isLastMetaDataBlock = header_buffer.read_bits<bool>(1);
+					header.blockType = header_buffer.read_bits<MetaDataBlockType>(7);
+					header.blockLength = header_buffer.read_bits<std::uint32_t>(24);
+					pos += METADATA_BLOCK_HEADER_LEN_BYTES;
+
+					if (header.blockType == STREAMINFO)
+					{
+						assert(header.blockLength == METADATA_STREAMINFO_LEN_BYTES);
+						utils::bit_buffer block_buffer{std::string(pos, pos + header.blockLength)};
+						StreamInfo info{};
+						info.min_blocksize = block_buffer.read_bits<uint32_t>(16);
+						info.max_blocksize = block_buffer.read_bits<uint32_t>(16);
+						info.min_framesize = block_buffer.read_bits<uint32_t>(24);
+						info.max_framesize = block_buffer.read_bits<uint32_t>(24);
+						info.sample_rate = block_buffer.read_bits<uint32_t>(20);
+						info.channels = static_cast<uint8_t>(block_buffer.read_bits<uint8_t>(3) + 1);
+						info.bits_per_sample = static_cast<uint8_t>(block_buffer.read_bits<uint8_t>(5) + 1);
+						info.total_samples = block_buffer.read_bits<uint64_t>(36);
+						block_buffer.read_buffer(info.md5sum, 128);
+
+						memcpy(source_checksum, info.md5sum, 16);
+
+						entry->frameRate = static_cast<int>(info.sample_rate);
+						entry->channelCount = static_cast<char>(info.channels);
+						entry->frameCount = static_cast<unsigned int>(info.total_samples);
+					}
+					else if(header.blockType == SEEKTABLE)
+					{
+						if (has_placed_seektable)
+						{
+							ZONETOOL_FATAL("double seektable in flac file %s ?!", path.data());
+						}
+
+						entry->seekTableSize = header.blockLength;
+						buffer.append(pos, pos + header.blockLength);
+
+						has_placed_seektable = true;
+					}
+
+					pos += header.blockLength;
+
+					if (header.isLastMetaDataBlock)
+					{
+						break;
+					}
+				}
+
+				std::string sound_data(pos, end_pos);
+				buffer.append(sound_data);
+
+				if (!buffer.size())
+				{
+					ZONETOOL_ERROR("Failed to parse flac file %s", path.data());
+					return false;
+				}
+
+				hash_state md{};
+				md5_init(&md);
+				md5_process(&md, reinterpret_cast<const unsigned char*>(buffer.data()), static_cast<unsigned int>(buffer.size()));
+				md5_done(&md, checksum);
+
+				out_file.write(buffer.data(), buffer.size());
+				entry->size = static_cast<unsigned int>(buffer.size() - entry->seekTableSize);
+
+				return true;
+			}
 		}
 
 		namespace pcm
@@ -1751,23 +1870,37 @@ namespace zonetool::iw7
 			return use_zone;
 		}
 
-		bool validate_header(SndAssetBankHeader* header)
+		std::string create_path(SndBank* bank, bool streamed)
 		{
-			if (header->magic != magic)
+			std::string path;
+			if (use_zone_dir())
 			{
-				ZONETOOL_ERROR("Sound Asset Bank has wrong header MAGIC");
-				return false;
+				path.append("zone/");
 			}
-			if (header->version != version)
+			if (bank->soundLanguage && bank->soundLanguage != "all"s)
 			{
-				ZONETOOL_ERROR("Sound Asset Bank has wrong header VERSION");
-				return false;
+				path.append(bank->soundLanguage);
+				path.append("/");
+			}
+			if (bank->gameLanguage && bank->gameLanguage != "all"s)
+			{
+				path.append(bank->gameLanguage);
+				path.append("_");
+			}
+			path.append(bank->zone);
+			if (streamed)
+			{
+				path.append(".sabs");
+			}
+			else
+			{
+				path.append(".sabl");
 			}
 
-			return true;
+			return path;
 		}
 
-		bool dump_internal(std::string name, std::string language_folder, std::string language_prefix)
+		std::string create_path(std::string name, std::string language_folder, std::string language_prefix)
 		{
 			std::string path;
 			if (use_zone_dir())
@@ -1792,6 +1925,28 @@ namespace zonetool::iw7
 			}
 			path.append(name);
 
+			return path;
+		}
+
+		bool validate_header(SndAssetBankHeader* header)
+		{
+			if (header->magic != MAGIC)
+			{
+				ZONETOOL_ERROR("Sound Asset Bank has wrong header MAGIC");
+				return false;
+			}
+			if (header->version != VERSION)
+			{
+				ZONETOOL_ERROR("Sound Asset Bank has wrong header VERSION");
+				return false;
+			}
+
+			return true;
+		}
+
+		bool dump_internal(std::string name, std::string language_folder, std::string language_prefix)
+		{
+			const auto path = create_path(name, language_folder, language_prefix);
 			auto file = filesystem::file(path);
 			file.open("rb", false, false);
 			if (!file.get_fp())
@@ -1835,6 +1990,234 @@ namespace zonetool::iw7
 			return true;
 		}
 
+		std::string find_asset_file(std::string name, char* format)
+		{
+			name = sound_path_assets + name;
+			if (filesystem::file(name + ".flac").exists())
+			{
+				*format = SND_ASSET_FORMAT_FLAC;
+				return name + ".flac";
+			}
+			else if (filesystem::file(name + ".wav").exists())
+			{
+				*format = SND_ASSET_FORMAT_PCMS16;
+				return name + ".wav";
+			}
+			return "";
+		}
+
+		size_t align_value(size_t value, unsigned int alignment)
+		{
+			return (value + alignment - 1) & ~(static_cast<size_t>(alignment) - 1);
+		}
+
+		const char* align_value(const char* value, unsigned int alignment)
+		{
+			return reinterpret_cast<const char*>(align_value(reinterpret_cast<size_t>(value), alignment));
+		}
+
+		void create_internal(SndBank* bank, bool streamed)
+		{
+			SndAssetBankHeader header{};
+			header.magic = MAGIC;
+			header.version = VERSION;
+			header.buildVersion = VERSION;
+			header.convertedAssetVersion = VERSION;
+			header.entrySize = sizeof(SndAssetBankEntry);
+			header.checksumSize = 16;
+			header.dependencySize = 64;
+			header.dependencyCount = 8;
+			memcpy_s(header.zoneName, sizeof(header.zoneName), bank->zone, strlen(bank->zone));
+			memcpy_s(header.platform, sizeof(header.platform), "pc", 2);
+			if (bank->gameLanguage)
+			{
+				memcpy_s(header.language, sizeof(header.language), bank->gameLanguage, strlen(bank->gameLanguage));
+			}
+
+			const auto path = create_path(bank, streamed);
+			if (utils::io::file_exists(path))
+			{
+				utils::io::remove_file(path);
+			}
+
+			ZONETOOL_INFO("Creating sound asset bank %s", path.data());
+
+			auto file = filesystem::file(path);
+			file.open("ab", false, false);
+
+			std::uint64_t data_offset = 0;
+
+			const auto padding = '\0';
+			const auto align = [&](const unsigned int alignment)
+			{
+				auto align_val = align_value(data_offset, alignment) - data_offset;
+				while (align_val)
+				{
+					align_val--;
+					file.write(&padding);
+					data_offset++;
+				}
+			};
+
+			// write header, we will come back to this later
+			file.write(&header);
+			data_offset += sizeof(header);
+
+			align(0x1000);
+
+			assert(data_offset == 0x1000);
+
+			typedef unsigned char checksum128_t[16];
+			struct checksum128_s
+			{
+				checksum128_t md5;
+			};
+
+			std::vector<SndAssetBankEntry> entries{};
+			std::vector<std::string> assets{};
+			std::vector<checksum128_s> checksums{};
+			std::vector<checksum128_s> source_checksums{};
+			std::unordered_set<SndStringHash> inserted_sound;
+			const auto asset_offset_start = data_offset;
+			for (auto i = 0u; i < bank->aliasCount; i++)
+			{
+				for (auto j = 0; j < bank->alias[i].count; j++)
+				{
+					auto* alias = &bank->alias[i].head[j];
+					if (!alias->assetFileName)
+					{
+						continue;
+					}
+
+					if (inserted_sound.contains(alias->assetId))
+					{
+						continue;
+					}
+
+					if (alias->flags.type != SAT_STREAMED && streamed || alias->flags.type == SAT_STREAMED && !streamed)
+					{
+						continue;
+					}
+
+					SndAssetBankEntry entry{};
+					entry.id = alias->assetId;
+					entry.looping = alias->flags.looping;
+					entry.offset = data_offset;
+
+					auto asset_file = find_asset_file(alias->assetFileName, &entry.format);
+					if (asset_file.empty())
+					{
+						ZONETOOL_ERROR("Could not find sound asset %s", alias->assetFileName);
+						continue;
+					}
+
+					checksum128_s checksum{};
+					checksum128_s source_checksum{};
+
+					switch (entry.format)
+					{
+					case SND_ASSET_FORMAT_FLAC:
+						if (!flac::parse(asset_file, &entry, file, checksum.md5, source_checksum.md5))
+						{
+							continue;
+						}
+						break;
+					case SND_ASSET_FORMAT_PCMS16:
+						__debugbreak();
+						break;
+					default:
+						__debugbreak();
+					}
+
+					assets.push_back(asset_file);
+					checksums.push_back(checksum);
+					source_checksums.push_back(source_checksum);
+					data_offset += entry.size + entry.seekTableSize + entry.hybridPcmSize;
+					entries.push_back(entry);
+					inserted_sound.insert(alias->assetId);
+				}
+				align(0x1000);
+			}
+			const auto asset_offset_end = data_offset;
+
+			const auto asset_section_size = asset_offset_end - asset_offset_start;
+			header.assetSectionSize = static_cast<unsigned int>(asset_section_size);
+
+			// write entries
+			const auto entries_offset = data_offset;
+			if (entries.size())
+			{
+				header.entryCount = static_cast<unsigned int>(entries.size());
+				header.entryOffset = entries_offset;
+
+				for (auto& entry : entries)
+				{
+					file.write(&entry);
+					data_offset += sizeof(entry);
+				}
+				align(0x1000);
+			}
+
+			// write checksums
+			const auto checksums_offset = data_offset;
+			if (checksums.size())
+			{
+				header.checksumOffset = checksums_offset;
+
+				for (auto& checksum : checksums)
+				{
+					file.write(&checksum.md5);
+					data_offset += sizeof(checksum);
+				}
+				align(0x1000);
+			}
+
+			// write source checksums
+			const auto source_checksums_offset = data_offset;
+			if (source_checksums.size())
+			{
+				header.SourceChecksumOffset = source_checksums_offset;
+
+				for (auto& checksum : source_checksums)
+				{
+					file.write(&checksum.md5);
+					data_offset += sizeof(checksum);
+				}
+				align(0x1000);
+			}
+
+			// write names
+			const auto names_offset = data_offset;
+			if (assets.size())
+			{
+				header.AssetNameOffset = names_offset;
+				char name_buffer[128]{};
+
+				for (auto& asset : assets)
+				{
+					memset(name_buffer, 0, sizeof(name_buffer));
+					memcpy(name_buffer, asset.data(), asset.size());
+					file.write(name_buffer, sizeof(name_buffer));
+					data_offset += sizeof(name_buffer);
+				}
+			}
+
+			file.close();
+
+			// fixup header
+
+			file.open("rb+");
+			header.fileSize = file.size();
+
+			// calculate checksumChecksum
+			memset(header.checksumChecksum, 0xCC, 16); // YOU THOUGHT!
+
+			file.seek(0, SEEK_SET);
+			file.write(&header);
+
+			file.close();
+		}
+
 		namespace loaded
 		{
 			void dump(std::string name, std::string language_folder, std::string language_prefix)
@@ -1868,6 +2251,14 @@ namespace zonetool::iw7
 
 			loaded::dump(name, language_folder, language_prefix);
 			streamed::dump(name, language_folder, language_prefix);
+		}
+
+		void create(SndBank* bank)
+		{
+			if (!bank->aliasCount) return;
+
+			create_internal(bank, false); // loaded
+			create_internal(bank, true); // streamed
 		}
 	}
 
@@ -1930,6 +2321,9 @@ namespace zonetool::iw7
 		// plr_breath_state
 
 		// ducks are parsed from alias list
+
+		// create sabl and sabs
+		sound_asset_bank::create(asset);
 
 		return asset;
 	}

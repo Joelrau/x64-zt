@@ -848,7 +848,8 @@ namespace zonetool::iw7
 	struct XSurfaceSubdivInfo
 	{
 		XSurfaceSubdivLevel* levels;
-		char __pad0[24];
+		unsigned int flags;
+		char __pad0[20];
 		GfxSubdivCache cache;
 	}; assert_sizeof(XSurfaceSubdivInfo, 0x38);
 
@@ -876,6 +877,45 @@ namespace zonetool::iw7
 	};
 
 	typedef unsigned short XBlendInfo;
+
+	enum XSurfaceFlagBits
+	{
+		SURF_FLAG_BIT_VERTCOL_GREY = 0x0,
+		SURF_FLAG_BIT_VERTCOL_NONE = 0x1,
+		SURF_FLAG_BIT_SKINNED = 0x2,
+		SURF_FLAG_BIT_REACTIVE_MOTION = 0x3,
+		SURF_FLAG_BIT_LIGHTMAP_COORDS = 0x4,
+		SURF_FLAG_BIT_SUBDIV = 0x5,
+		SURF_FLAG_BIT_TENSION = 0x6,
+		SURF_FLAG_BIT_SELF_VISIBILITY = 0x7,
+		SURF_FLAG_BIT_SECONDUV = 0x8,
+		SURF_FLAG_BIT_MAYHEM_CUSTOM_CHANNELS = 0x9,
+		SURF_FLAG_BIT_MAYHEM_SELFVIS = 0xA,
+		SURF_FLAG_BIT_COUNT = 0xB,
+	};
+
+	enum XSurfaceFlags
+	{
+		SURF_FLAG_NONE = 0x0,
+		SURF_FLAG_VERTCOL_GREY = 0x1,
+		SURF_FLAG_VERTCOL_NONE = 0x2,
+		SURF_FLAG_SKINNED = 0x4,
+		SURF_FLAG_REACTIVE_MOTION = 0x8,
+		SURF_FLAG_LIGHTMAP_COORDS = 0x10,
+		SURF_FLAG_SUBDIV = 0x20,
+		SURF_FLAG_TENSION = 0x40,
+		SURF_FLAG_SELF_VISIBILITY = 0x80,
+		SURF_FLAG_SECONDUV = 0x100,
+		SURF_FLAG_MAYHEM_CUSTOM_CHANNELS = 0x200,
+		SURF_FLAG_MAYHEM_SELFVIS = 0x400,
+	};
+
+	enum XModelLodInfoFlags
+	{
+		XMODEL_LODINFO_FLAG_NONE = 0x0,
+		XMODEL_LODINFO_FLAG_SUBDIV = 0x1,
+		XMODEL_LODINFO_FLAG_SUBDIV_NON_ADAPTIVE = 0x2,
+	};
 
 	struct XSurface
 	{
@@ -1007,12 +1047,17 @@ namespace zonetool::iw7
 		CharCollBoundsType_Num = 0xA,
 	};
 
+	enum XModelFlags : std::uint16_t
+	{
+		XMODEL_FLAG_NONE = 0x0,
+	};
+
 	struct XModel
 	{
 		const char* name;
 		char unused01;
 		unsigned char unknown01;
-		char unused02;
+		unsigned char maxLoadedLod;
 		unsigned char numLods;
 		unsigned char collLod;
 		unsigned char shadowCutoffLod;
@@ -8587,8 +8632,8 @@ namespace zonetool::iw7
 		const char* name;
 		Material* material;
 		unsigned int drawInterval;
-		int unk1;
-		float unk2;
+		bool fadeOverTime;
+		float fadeTime;
 		float speed;
 		float beamLength;
 		float beamWidth;
@@ -11220,6 +11265,7 @@ namespace zonetool::iw7
 		SND_ASSET_FORMAT_COUNT = 0xB,
 	};
 
+#pragma pack(1)
 	struct SndAssetBankHeader
 	{
 		unsigned int magic;
@@ -11245,8 +11291,7 @@ namespace zonetool::iw7
 		char padding[5];
 	};
 
-#pragma pack(1)
-	struct __declspec(align(4)) SndAssetBankEntry
+	struct SndAssetBankEntry
 	{
 		unsigned int id;
 		unsigned int size;

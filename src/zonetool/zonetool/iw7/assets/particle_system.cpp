@@ -40,6 +40,13 @@ namespace zonetool::iw7
 			break;
 		case PARTICLE_MODULE_INIT_BEAM:
 		case PARTICLE_MODULE_INIT_RUNNER:
+
+		case PARTICLE_MODULE_TEST_BIRTH:
+		case PARTICLE_MODULE_TEST_DEATH:
+		case PARTICLE_MODULE_TEST_GRAVITY:
+		case PARTICLE_MODULE_TEST_IMPACT:
+		case PARTICLE_MODULE_TEST_POS:
+		case PARTICLE_MODULE_TEST_TIME_IN_STATE:
 			asset->particleSystem = read.read_asset<ParticleSystemDef>();
 			break;
 		default:
@@ -324,6 +331,8 @@ namespace zonetool::iw7
 
 	void load_depening_particle_linked_asset_def(ParticleLinkedAssetDef* asset, zone_base* zone)
 	{
+		auto saved = parent_module;
+
 		switch (parent_module->type)
 		{
 		case PARTICLE_MODULE_INIT_MATERIAL:
@@ -387,6 +396,13 @@ namespace zonetool::iw7
 			break;
 		case PARTICLE_MODULE_INIT_BEAM:
 		case PARTICLE_MODULE_INIT_RUNNER:
+
+		case PARTICLE_MODULE_TEST_BIRTH:
+		case PARTICLE_MODULE_TEST_DEATH:
+		case PARTICLE_MODULE_TEST_GRAVITY:
+		case PARTICLE_MODULE_TEST_IMPACT:
+		case PARTICLE_MODULE_TEST_POS:
+		case PARTICLE_MODULE_TEST_TIME_IN_STATE:
 			if (asset->particleSystem)
 			{
 				zone->add_asset_of_type(ASSET_TYPE_VFX, asset->particleSystem->name);
@@ -396,6 +412,8 @@ namespace zonetool::iw7
 			__debugbreak();
 			break;
 		}
+
+		parent_module = saved;
 	}
 
 	void load_depending_linked_asset_list(ParticleLinkedAssetListDef& asset, zone_base* zone)
@@ -580,6 +598,13 @@ namespace zonetool::iw7
 			break;
 		case PARTICLE_MODULE_INIT_BEAM:
 		case PARTICLE_MODULE_INIT_RUNNER:
+
+		case PARTICLE_MODULE_TEST_BIRTH:
+		case PARTICLE_MODULE_TEST_DEATH:
+		case PARTICLE_MODULE_TEST_GRAVITY:
+		case PARTICLE_MODULE_TEST_IMPACT:
+		case PARTICLE_MODULE_TEST_POS:
+		case PARTICLE_MODULE_TEST_TIME_IN_STATE:
 			if (data->particleSystem)
 			{
 				dest->particleSystem = reinterpret_cast<ParticleSystemDef*>(zone->get_asset_pointer(ASSET_TYPE_VFX, data->particleSystem->name));
@@ -621,13 +646,13 @@ namespace zonetool::iw7
 		case PARTICLE_MODULE_INIT_CAMERA_OFFSET:
 			break;
 		case PARTICLE_MODULE_INIT_CLOUD:
-			if (data->moduleData.initCloud.curves)
+			for (auto i = 0; i < 2; i++)
 			{
-				for (auto i = 0; i < 2; i++)
+				if (data->moduleData.initCloud.curves[i].controlPoints)
 				{
 					buf->align(15);
-					buf->write(data->moduleData.initCloud.curves->controlPoints, data->moduleData.initCloud.curves->numControlPoints);
-					buf->clear_pointer(&dest->moduleData.initCloud.curves->controlPoints);
+					buf->write(data->moduleData.initCloud.curves[i].controlPoints, data->moduleData.initCloud.curves->numControlPoints);
+					buf->clear_pointer(&dest->moduleData.initCloud.curves[i].controlPoints);
 				}
 			}
 			break;
@@ -635,13 +660,13 @@ namespace zonetool::iw7
 			write_particle_linked_asset_list(data->moduleData.initDecal.m_linkedAssetList, dest->moduleData.initDecal.m_linkedAssetList, zone, buf);
 			break;
 		case PARTICLE_MODULE_INIT_FLARE:
-			if (data->moduleData.initFlare.m_curves)
+			for (auto i = 0; i < 4; i++)
 			{
-				for (auto i = 0; i < 4; i++)
+				if (data->moduleData.initFlare.m_curves[i].controlPoints)
 				{
 					buf->align(15);
-					buf->write(data->moduleData.initFlare.m_curves->controlPoints, data->moduleData.initFlare.m_curves->numControlPoints);
-					buf->clear_pointer(&dest->moduleData.initFlare.m_curves->controlPoints);
+					buf->write(data->moduleData.initFlare.m_curves[i].controlPoints, data->moduleData.initFlare.m_curves[i].numControlPoints);
+					buf->clear_pointer(&dest->moduleData.initFlare.m_curves[i].controlPoints);
 				}
 			}
 			break;
@@ -683,13 +708,13 @@ namespace zonetool::iw7
 			write_particle_linked_asset_list(data->moduleData.initSound.m_linkedAssetList, dest->moduleData.initSound.m_linkedAssetList, zone, buf);
 			break;
 		case PARTICLE_MODULE_INIT_SPAWN:
-			if (data->moduleData.initSpawn.m_curves)
+			for (auto i = 0; i < 1; i++)
 			{
-				for (auto i = 0; i < 1; i++)
+				if (data->moduleData.initSpawn.m_curves[i].controlPoints)
 				{
 					buf->align(15);
-					buf->write(data->moduleData.initSpawn.m_curves->controlPoints, data->moduleData.initSpawn.m_curves->numControlPoints);
-					buf->clear_pointer(&dest->moduleData.initSpawn.m_curves->controlPoints);
+					buf->write(data->moduleData.initSpawn.m_curves[i].controlPoints, data->moduleData.initSpawn.m_curves[i].numControlPoints);
+					buf->clear_pointer(&dest->moduleData.initSpawn.m_curves[i].controlPoints);
 				}
 			}
 			break;
@@ -701,9 +726,12 @@ namespace zonetool::iw7
 			break;
 		case PARTICLE_MODULE_INIT_SPAWN_SHAPE_MESH:
 			write_particle_linked_asset_list(data->moduleData.initSpawnShapeMesh.m_linkedAssetList, dest->moduleData.initSpawnShapeMesh.m_linkedAssetList, zone, buf);
-			buf->align(3);
-			buf->write(data->moduleData.initSpawnShapeMesh.m_meshAssetData, data->moduleData.initSpawnShapeMesh.m_numMeshAssets);
-			buf->clear_pointer(&dest->moduleData.initSpawnShapeMesh.m_meshAssetData);
+			if (data->moduleData.initSpawnShapeMesh.m_meshAssetData)
+			{
+				buf->align(3);
+				buf->write(data->moduleData.initSpawnShapeMesh.m_meshAssetData, data->moduleData.initSpawnShapeMesh.m_numMeshAssets);
+				buf->clear_pointer(&dest->moduleData.initSpawnShapeMesh.m_meshAssetData);
+			}
 			break;
 		case PARTICLE_MODULE_INIT_SPAWN_SHAPE_SPHERE:
 			break;
@@ -717,37 +745,37 @@ namespace zonetool::iw7
 		case PARTICLE_MODULE_ATTRACTOR:
 			break;
 		case PARTICLE_MODULE_COLOR_GRAPH:
-			if (data->moduleData.colorGraph.m_curves)
+			for (auto i = 0; i < 8; i++)
 			{
-				for (auto i = 0; i < 8; i++)
+				if (data->moduleData.colorGraph.m_curves[i].controlPoints)
 				{
 					buf->align(15);
-					buf->write(data->moduleData.colorGraph.m_curves->controlPoints, data->moduleData.colorGraph.m_curves->numControlPoints);
-					buf->clear_pointer(&dest->moduleData.colorGraph.m_curves->controlPoints);
+					buf->write(data->moduleData.colorGraph.m_curves[i].controlPoints, data->moduleData.colorGraph.m_curves[i].numControlPoints);
+					buf->clear_pointer(&dest->moduleData.colorGraph.m_curves[i].controlPoints);
 				}
 			}
 			break;
 		case PARTICLE_MODULE_COLOR_LERP:
 			break;
 		case PARTICLE_MODULE_EMISSION_GRAPH:
-			if (data->moduleData.emissionGraph.m_curves)
+			for (auto i = 0; i < 2; i++)
 			{
-				for (auto i = 0; i < 2; i++)
+				if (data->moduleData.emissionGraph.m_curves[i].controlPoints)
 				{
 					buf->align(15);
-					buf->write(data->moduleData.emissionGraph.m_curves->controlPoints, data->moduleData.emissionGraph.m_curves->numControlPoints);
-					buf->clear_pointer(&dest->moduleData.emissionGraph.m_curves->controlPoints);
+					buf->write(data->moduleData.emissionGraph.m_curves[i].controlPoints, data->moduleData.emissionGraph.m_curves[i].numControlPoints);
+					buf->clear_pointer(&dest->moduleData.emissionGraph.m_curves[i].controlPoints);
 				}
 			}
 			break;
 		case PARTICLE_MODULE_EMISSIVE_GRAPH:
-			if (data->moduleData.emissiveGraph.m_curves)
+			for (auto i = 0; i < 2; i++)
 			{
-				for (auto i = 0; i < 2; i++)
+				if (data->moduleData.emissiveGraph.m_curves[i].controlPoints)
 				{
 					buf->align(15);
-					buf->write(data->moduleData.emissiveGraph.m_curves->controlPoints, data->moduleData.emissiveGraph.m_curves->numControlPoints);
-					buf->clear_pointer(&dest->moduleData.emissiveGraph.m_curves->controlPoints);
+					buf->write(data->moduleData.emissiveGraph.m_curves[i].controlPoints, data->moduleData.emissiveGraph.m_curves[i].numControlPoints);
+					buf->clear_pointer(&dest->moduleData.emissiveGraph.m_curves[i].controlPoints);
 				}
 			}
 			break;
@@ -756,24 +784,24 @@ namespace zonetool::iw7
 		case PARTICLE_MODULE_GRAVITY:
 			break;
 		case PARTICLE_MODULE_INTENSITY_GRAPH:
-			if (data->moduleData.intensityGraph.m_curves)
+			for (auto i = 0; i < 2; i++)
 			{
-				for (auto i = 0; i < 2; i++)
+				if (data->moduleData.intensityGraph.m_curves[i].controlPoints)
 				{
 					buf->align(15);
-					buf->write(data->moduleData.intensityGraph.m_curves->controlPoints, data->moduleData.intensityGraph.m_curves->numControlPoints);
-					buf->clear_pointer(&dest->moduleData.intensityGraph.m_curves->controlPoints);
+					buf->write(data->moduleData.intensityGraph.m_curves[i].controlPoints, data->moduleData.intensityGraph.m_curves[i].numControlPoints);
+					buf->clear_pointer(&dest->moduleData.intensityGraph.m_curves[i].controlPoints);
 				}
 			}
 			break;
 		case PARTICLE_MODULE_TEMPERATURE_GRAPH:
-			if (data->moduleData.temperatureGraph.m_curves)
+			for (auto i = 0; i < 2; i++)
 			{
-				for (auto i = 0; i < 2; i++)
+				if (data->moduleData.temperatureGraph.m_curves[i].controlPoints)
 				{
 					buf->align(15);
-					buf->write(data->moduleData.temperatureGraph.m_curves->controlPoints, data->moduleData.temperatureGraph.m_curves->numControlPoints);
-					buf->clear_pointer(&dest->moduleData.temperatureGraph.m_curves->controlPoints);
+					buf->write(data->moduleData.temperatureGraph.m_curves[i].controlPoints, data->moduleData.temperatureGraph.m_curves[i].numControlPoints);
+					buf->clear_pointer(&dest->moduleData.temperatureGraph.m_curves[i].controlPoints);
 				}
 			}
 			break;
@@ -783,59 +811,59 @@ namespace zonetool::iw7
 		case PARTICLE_MODULE_PHYSICS_RAY_CAST:
 			break;
 		case PARTICLE_MODULE_POSITION_GRAPH:
-			if (data->moduleData.positionGraph.m_curves)
+			for (auto i = 0; i < 6; i++)
 			{
-				for (auto i = 0; i < 6; i++)
+				if (data->moduleData.positionGraph.m_curves[i].controlPoints)
 				{
 					buf->align(15);
-					buf->write(data->moduleData.positionGraph.m_curves->controlPoints, data->moduleData.positionGraph.m_curves->numControlPoints);
-					buf->clear_pointer(&dest->moduleData.positionGraph.m_curves->controlPoints);
+					buf->write(data->moduleData.positionGraph.m_curves[i].controlPoints, data->moduleData.positionGraph.m_curves[i].numControlPoints);
+					buf->clear_pointer(&dest->moduleData.positionGraph.m_curves[i].controlPoints);
 				}
 			}
 			break;
 		case PARTICLE_MODULE_ROTATION_GRAPH:
-			if (data->moduleData.rotationGraph.m_curves)
+			for (auto i = 0; i < 2; i++)
 			{
-				for (auto i = 0; i < 2; i++)
+				if (data->moduleData.rotationGraph.m_curves[i].controlPoints)
 				{
 					buf->align(15);
-					buf->write(data->moduleData.rotationGraph.m_curves->controlPoints, data->moduleData.rotationGraph.m_curves->numControlPoints);
-					buf->clear_pointer(&dest->moduleData.rotationGraph.m_curves->controlPoints);
+					buf->write(data->moduleData.rotationGraph.m_curves[i].controlPoints, data->moduleData.rotationGraph.m_curves[i].numControlPoints);
+					buf->clear_pointer(&dest->moduleData.rotationGraph.m_curves[i].controlPoints);
 				}
 			}
 			break;
 		case PARTICLE_MODULE_ROTATION_GRAPH_3D:
-			if (data->moduleData.rotationGraph3D.m_curves)
+			for (auto i = 0; i < 6; i++)
 			{
-				for (auto i = 0; i < 6; i++)
+				if (data->moduleData.rotationGraph3D.m_curves[i].controlPoints)
 				{
 					buf->align(15);
-					buf->write(data->moduleData.rotationGraph3D.m_curves->controlPoints, data->moduleData.rotationGraph3D.m_curves->numControlPoints);
-					buf->clear_pointer(&dest->moduleData.rotationGraph3D.m_curves->controlPoints);
+					buf->write(data->moduleData.rotationGraph3D.m_curves[i].controlPoints, data->moduleData.rotationGraph3D.m_curves[i].numControlPoints);
+					buf->clear_pointer(&dest->moduleData.rotationGraph3D.m_curves[i].controlPoints);
 				}
 			}
 			break;
 		case PARTICLE_MODULE_SIZE_GRAPH:
-			if (data->moduleData.sizeGraph.m_curves)
+			for (auto i = 0; i < 6; i++)
 			{
-				for (auto i = 0; i < 6; i++)
+				if (data->moduleData.sizeGraph.m_curves[i].controlPoints)
 				{
 					buf->align(15);
-					buf->write(data->moduleData.sizeGraph.m_curves->controlPoints, data->moduleData.sizeGraph.m_curves->numControlPoints);
-					buf->clear_pointer(&dest->moduleData.sizeGraph.m_curves->controlPoints);
+					buf->write(data->moduleData.sizeGraph.m_curves[i].controlPoints, data->moduleData.sizeGraph.m_curves[i].numControlPoints);
+					buf->clear_pointer(&dest->moduleData.sizeGraph.m_curves[i].controlPoints);
 				}
 			}
 			break;
 		case PARTICLE_MODULE_SIZE_LERP:
 			break;
 		case PARTICLE_MODULE_VELOCITY_GRAPH:
-			if (data->moduleData.velocityGraph.m_curves)
+			for (auto i = 0; i < 6; i++)
 			{
-				for (auto i = 0; i < 6; i++)
+				if (data->moduleData.velocityGraph.m_curves[i].controlPoints)
 				{
 					buf->align(15);
-					buf->write(data->moduleData.velocityGraph.m_curves->controlPoints, data->moduleData.velocityGraph.m_curves->numControlPoints);
-					buf->clear_pointer(&dest->moduleData.velocityGraph.m_curves->controlPoints);
+					buf->write(data->moduleData.velocityGraph.m_curves[i].controlPoints, data->moduleData.velocityGraph.m_curves[i].numControlPoints);
+					buf->clear_pointer(&dest->moduleData.velocityGraph.m_curves[i].controlPoints);
 				}
 			}
 			break;
