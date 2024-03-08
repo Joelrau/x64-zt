@@ -692,7 +692,8 @@ namespace zonetool::iw7
 		unsigned char boneCount[10]; // 119
 		unsigned char notifyCount; // 129
 		unsigned char assetType; // 130
-		unsigned char ikType; // 131
+		unsigned char unk1; // 131
+		unsigned char unk2; // 132
 	}; assert_sizeof(XAnimParts, 0x88);
 
 	struct XSurfaceCollisionAabb
@@ -910,22 +911,15 @@ namespace zonetool::iw7
 		SURF_FLAG_MAYHEM_SELFVIS = 0x400,
 	};
 
-	enum XModelLodInfoFlags
-	{
-		XMODEL_LODINFO_FLAG_NONE = 0x0,
-		XMODEL_LODINFO_FLAG_SUBDIV = 0x1,
-		XMODEL_LODINFO_FLAG_SUBDIV_NON_ADAPTIVE = 0x2,
-	};
-
 	struct XSurface
 	{
 		unsigned short flags;
 		unsigned short vertCount;
 		unsigned short triCount;
-		char rigidVertListCount;
-		char subdivLevelCount;
-		short blendVertCounts[8];
-		int blendVertCount;
+		unsigned char rigidVertListCount;
+		unsigned char subdivLevelCount;
+		unsigned short blendVertCounts[8];
+		unsigned int blendVertSize;
 		char __pad0[4];
 		GfxVertexUnion0 verts0;
 		Face* triIndices;
@@ -996,6 +990,13 @@ namespace zonetool::iw7
 		float scale[4];
 	};
 
+	enum XModelLodInfoFlags
+	{
+		XMODEL_LODINFO_FLAG_NONE = 0x0,
+		XMODEL_LODINFO_FLAG_SUBDIV = 0x1,
+		XMODEL_LODINFO_FLAG_SUBDIV_NON_ADAPTIVE = 0x2,
+	};
+
 	struct XModelLodInfo
 	{
 		float dist;
@@ -1004,9 +1005,8 @@ namespace zonetool::iw7
 		XModelSurfs* modelSurfs;
 		int partBits[8];
 		XSurface* surfs;
-		int unk; // subdivLodValidMask?
+		int subdivLodValidMask;
 		char flags;
-		char pad[3];
 	}; assert_sizeof(XModelLodInfo, 0x40);
 
 	struct XModelCollSurf_s
@@ -1025,6 +1025,13 @@ namespace zonetool::iw7
 			float radiusSquared;
 			unsigned int radiusSquaredAsInt;
 		};
+	};
+
+	struct XModelPhysicsUsageCounter
+	{
+		int serverEnt;
+		int clientEnt;
+		int dynEnt;
 	};
 
 	struct unk_1453E14D8
@@ -1047,16 +1054,21 @@ namespace zonetool::iw7
 		CharCollBoundsType_Num = 0xA,
 	};
 
-	enum XModelFlags : std::uint16_t
+	enum XModelFlags
 	{
 		XMODEL_FLAG_NONE = 0x0,
+		XMODEL_FLAG_ANIMATED_VERTS = 0x1,
+		XMODEL_FLAG_REACTIVE_MOTION = 0x8,
+		XMODEL_FLAG_COMPOSITE = 0x400,
+		XMODEL_FLAG_HAS_ANY_DEFAULT_SURFS = 0x10000,
+		XMODEL_FLAG_HAS_MAYHEM_SELFVIS = 0x8000000,
 	};
 
 	struct XModel
 	{
 		const char* name;
 		char unused01;
-		unsigned char unknown01;
+		bool hasLods;
 		unsigned char maxLoadedLod;
 		unsigned char numLods;
 		unsigned char collLod;
@@ -1075,11 +1087,12 @@ namespace zonetool::iw7
 		Bounds bounds;
 		int memUsage;
 		unsigned int unknown02Count;
-		char unk_01[12]; // unknown data
+		XModelPhysicsUsageCounter physicsUsageCounter;
 		ScriptableDef* scriptableMoverDef;
 		XAnimProceduralBones* proceduralBones;
 		scr_string_t* aimAssistBones;
 		unsigned char numAimAssistBones;
+		float edgeLength;
 		unsigned int noScalePartBits[8];
 		scr_string_t* boneNames;
 		unsigned char* parentList;
@@ -1094,8 +1107,8 @@ namespace zonetool::iw7
 		XModelCollSurf_s* collSurfs;
 		XBoneInfo* boneInfo;
 		unsigned short* invHighMipRadius;
-		PhysicsAsset* physAsset;
-		PhysicsFXShape* physFxShape;
+		PhysicsAsset* physicsAsset;
+		PhysicsFXShape* physicsFXShape;
 		char* unknown02;
 		unsigned short unknownNamesCount;
 		char unk_02[6]; // unknown data
@@ -1108,7 +1121,7 @@ namespace zonetool::iw7
 		unsigned char unknownVec3Count;
 		char unk_04[6]; // unknown data
 		vec3_t* unknownVec3;
-		char unk;
+		unsigned char unknownIndex2;
 		unsigned char unknown04Count;
 		char unk_05[6]; // unknown data
 		unk_1453E14D8* unknown04;

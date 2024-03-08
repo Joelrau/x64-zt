@@ -109,7 +109,6 @@ namespace zonetool::iw7
 			else \
 			{ \
 				asset->__field__[idx##__field__] = nullptr; \
-				ZONETOOL_FATAL("Field %s[%d] is empty", #__field__, idx##__field__); \
 			} \
 		} \
 	} \
@@ -1260,7 +1259,10 @@ namespace zonetool::iw7
 	{ \
 		for (auto idx = 0u; idx < (unsigned int)__size__; idx++) \
 		{ \
-			zone->add_asset_of_type(__type__, asset->__field__[idx]->name); \
+			if (asset->__field__[idx]) \
+			{ \
+				zone->add_asset_of_type(__type__, asset->__field__[idx]->name); \
+			} \
 		} \
 	}
 
