@@ -218,7 +218,7 @@ namespace zonetool::iw7
 		if (data->blendVerts)
 		{
 			buf->align(3);
-			buf->write_stream(data->blendVerts, data->blendVertCount & 0xFFFFFFFE);
+			buf->write_stream(data->blendVerts, data->blendVertSize & 0xFFFFFFFE);
 			buf->clear_pointer(&dest->blendVerts);
 		}
 
@@ -489,7 +489,7 @@ namespace zonetool::iw7
 				}
 			}
 
-			dump.dump_raw(asset->surfs[i].blendVerts, asset->surfs[i].blendVertCount & 0xFFFFFFFE);
+			dump.dump_raw(asset->surfs[i].blendVerts, asset->surfs[i].blendVertSize & 0xFFFFFFFE);
 
 			dump.dump_raw(asset->surfs[i].lmapUnwrap, 8 * asset->surfs[i].vertCount);
 
