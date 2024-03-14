@@ -4002,10 +4002,12 @@ namespace zonetool::iw7
 
 	struct GfxCell
 	{
-		Bounds bounds;
-		unsigned __int16 portalCount;
-		GfxPortal* portals;
-	};
+		Bounds bounds;		// 0
+		short portalCount;	// 24
+		char __pad[6];		// 26 (might be reflection probe stuff or padding)
+		GfxPortal* portals; // 32
+	}; assert_sizeof(GfxCell, 40);
+	assert_offsetof(GfxCell, portals, 32);
 
 	struct GfxCellTransientInfo
 	{
@@ -4177,9 +4179,9 @@ namespace zonetool::iw7
 
 	struct GfxWorldDraw
 	{
-		GfxWorldReflectionProbeData reflectionProbeData;
-		GfxWorldLightmapReindexData lightmapReindexData;
-		GfxImage* iesLookupTexture;
+		GfxWorldReflectionProbeData reflectionProbeData; // 0
+		GfxWorldLightmapReindexData lightmapReindexData; // 112
+		GfxImage* iesLookupTexture; // 144
 		unsigned int unk01Count;
 		unk_1453E41D8* unk01;
 		GfxImage* lightmapOverridePrimary;
@@ -4203,19 +4205,202 @@ namespace zonetool::iw7
 	assert_offsetof(GfxWorldDraw, indexBuffer, 512);
 	assert_offsetof(GfxWorldDraw, volumetrics, 520);
 
+	struct GfxDynamicLightset
+	{
+		char __pad0[1752]; // lmao
+	}; assert_sizeof(GfxDynamicLightset, 1752);
+
+	struct GfxHeightfield
+	{
+		Bounds bounds;		// 0
+		char __pad0[64];	// 24
+		GfxImage* image;	// 88
+	}; assert_sizeof(GfxHeightfield, 96);
+
+	struct GfxPrecomputedSkyIllumination
+	{
+		GfxImage* detailMask;
+		GfxImage* heightMap;
+		GfxImage* SVDCoefficient;
+		GfxImage* SVDBasis;
+		vec4_t boxMin;
+		vec4_t boxMax;
+		vec4_t SVDCoefficientMinMax;
+		vec4_t heightConsts;
+	};
+
+	struct XModelDrawInfo
+	{
+		unsigned __int32 hasGfxEntIndex : 1;
+		unsigned __int32 lod : 4;
+		unsigned __int32 materialLod : 1;
+		unsigned __int32 surfBufSize : 24;
+		unsigned __int32 surfId : 24;
+	};
+
+	struct GfxSceneDynModel
+	{
+		char __pad0[10];
+	}; assert_sizeof(GfxSceneDynModel, 10);
+
+	struct BModelDrawInfo
+	{
+		unsigned int surfId;
+		unsigned int surfBufSize;
+	};
+
+	struct GfxSceneDynBrush
+	{
+		char __pad0[6];
+	}; assert_sizeof(GfxSceneDynBrush, 6);
+
+	struct GfxShadowGeometry
+	{
+		unsigned __int16 surfaceCount;
+		unsigned __int16 smodelCount;
+		unsigned int* sortedSurfIndex;
+		unsigned __int16* smodelIndex;
+	}; assert_sizeof(GfxShadowGeometry, 24);
+
+	struct GfxLightAABBNode
+	{
+		Bounds bound;
+		unsigned __int16 firstChild;
+		unsigned __int16 childCount;
+	}; // should be good
+
+	struct GfxLightAABB
+	{
+		unsigned __int16 nodeCount;
+		unsigned __int16 lightCount;
+		GfxLightAABBNode* nodeArray;
+		unsigned __int16* lightArray;
+	}; assert_sizeof(GfxLightAABB, 24);
+
+	struct GfxWorldDpvsStatic
+	{
+		char __pad0[40]; // 0
+		unsigned int smodelVisDataCount;			// 40
+		unsigned int surfaceVisDataCount;			// 44
+		unsigned int primaryLightVisDataCount;		// 48
+		unsigned int reflectionProbeVisDataCount;	// 52
+		unsigned int volumetricVisDataCount;		// 56
+		unsigned int decalVisDataCount;				// 60
+		unsigned int* smodelVisData[30];			// 64	(8 * 30)
+		unsigned int* surfaceVisData[30];			// 304	(8 * 30)
+		unsigned int* sortedSmodelIndices;			// 544	(maybe sortedSmodelIndices?)
+		unsigned int* primaryLightVisData;			// 552
+		unsigned int* reflectionProbeVisData;		// 560
+		unsigned int* volumetricVisData;			// 568
+		unsigned int* decalVisData;					// 576
+		unsigned int* surfaceCastsSunShadow;		// 584
+		unsigned int* surfaceCastsSunShadowOpt;		// 592
+		char __pad1[320]; // 600 (no clue what the rest of this is lmfao)
+	}; assert_sizeof(GfxWorldDpvsStatic, 920);
+
+	struct GfxWorldDpvsDynamic
+	{
+		unsigned int dynEntClientWordCount[2];	// 0 (4)
+		unsigned int dynEntClientCount[2];		// 8 (12)
+		unsigned int* dynEntCellBits[2];		// 16 (24)
+		char* dynEntVisData[2][30];				// 33 -> 30 fixes byte difference, idk
+	}; assert_sizeof(GfxWorldDpvsDynamic, 512);
+
+	struct UmbraGate
+	{
+		unsigned int objID;
+		Bounds bounds;
+		float closeDistance;
+	};
+
+	struct MdaoVolume
+	{
+		ExtentBounds bounds;
+		unsigned __int16 cellCount[3];
+		unsigned __int16 parentBoneIndex;
+		GfxImage* volumeData;
+	};
+
+	// pretty unresearched, but its weird between IW7 & IW8 lol
+	struct GfxFrustumLights
+	{
+		char __pad[8];				// 0
+		unsigned __int16* indices;	// 8
+		void* idk;					// 16
+		void* some_indices_thing;	// 24
+		void* indexBuffer;			// 32
+		void* vertexBuffer;			// 40
+	}; assert_sizeof(GfxFrustumLights, 48);
+
+#pragma pack(push, 8)
+	struct GfxLightViewFrustum
+	{
+		int planeCount;					// 0
+		vec4_t* planes;					// 8
+		int varushort_count;			// 16 (indexCount?)
+		unsigned short* varushort_val;	// 24 (indices? its short instead of varbyte)
+		int vertexCount;				// 32
+		vec3_t* vertices;				// 40
+	}; assert_sizeof(GfxLightViewFrustum, 48);
+	assert_offsetof(GfxLightViewFrustum, vertexCount, 32);
+#pragma pack(pop)
+
+	// 0x1409F3530
+	struct unk_struct_lol
+	{
+		int bspsurf_count;				// 0
+		void* bspsurf_count_type;		// 8
+		int bspsurf_count_2;			// 16
+		void* bspsurf_count_type_2;		// 24
+		int smodelCount;				// 32
+		unsigned short* smodelIndex;	// 40
+	}; assert_sizeof(unk_struct_lol, 48);
+
+	struct GfxBrushModelWritable
+	{
+		Bounds bounds;
+	};
+
+#pragma pack(push, 4)
+	struct GfxBrushModel
+	{
+		GfxBrushModelWritable writable;		// 0
+		Bounds bounds;						// 24
+		unsigned int surfaceCount;			// 48
+		unsigned int startSurfIndex;		// 52
+		unsigned int surfaceCountNoDecal;	// 56
+	}; assert_sizeof(GfxBrushModel, 60);
+#pragma pack(pop)
+
+	// wtf is this? its not even close to be similar to GfxMapEntLookup
+	struct unk_struct_lol2
+	{
+		Material* unk; // 0
+		char __pad[8]; // 8
+	}; assert_sizeof(unk_struct_lol2, 16);
+
+	// same as above, i have 0 clue what this could be
+	struct unk_struct_lol3
+	{
+		void* pad_or_something; // 0
+		Material* unk_1;		// 8
+		Material* unk_2;		// 16
+		char __pad[112 - 24];	// 24
+	}; assert_sizeof(unk_struct_lol3, 112);
+
 	struct GfxWorld
 	{
-		const char* name;
-		const char* baseName;
-		unsigned int bspVersion;
-		int planeCount;
-		int nodeCount;
-		unsigned int surfaceCount;
-		int skyCount;
-		GfxSky* skies; // 40
-		unsigned int lastSunPrimaryLightIndex;
-		unsigned int primaryLightCount;
-		unsigned int unknown;
+		const char* name;			// 0
+		const char* baseName;		// 8
+		unsigned int bspVersion;	// 16
+		int planeCount;				// 20
+		int nodeCount;				// 24
+		unsigned int surfaceCount;	// 28
+		int skyCount;				// 32
+		GfxSky* skies;				// 40
+		unsigned int lastSunPrimaryLightIndex;	// 48
+		unsigned int primaryLightCount;			// 52
+		unsigned int primaryLightEnvCount;		// 56 (env count?)
 		unsigned int sortKeyLitDecal;
 		unsigned int sortKeyEffectDecal;
 		unsigned int sortKeyTopDecal;
@@ -4231,13 +4416,79 @@ namespace zonetool::iw7
 		unsigned int sortKeyTransEnd;
 		unsigned int sortKeyEmissiveBegin;
 		unsigned int sortKeyEmissiveEnd;
-		GfxWorldDpvsPlanes dpvsPlanes; // 120
-		GfxCellTransientInfo* cellTransientInfos;
-		GfxCell* cells;
-		GfxWorldDraw draw;
-		char __pad0[3816]; // todo
-	}; assert_sizeof(GfxWorld, 0x11A8);
+		GfxWorldDpvsPlanes dpvsPlanes;				// 120
+		GfxCellTransientInfo* cellTransientInfos;	// 152
+		GfxCell* cells;								// 160
+		GfxWorldDraw draw;							// 168
+		GfxDynamicLightset dynamicLightset;			// 704
+		GfxFrustumLights* frustumLights;			// 2456
+		GfxLightViewFrustum* something48BytesToo;	// 2464
+		int voxelTreeCount;							// 2472
+		void* voxelTree;							// 2480
+		int heightfieldCount;						// 2488
+		GfxHeightfield* heightfields;				// 2496
+		unk_struct_lol unk_value;	// 2504 (idk what this is but its structured out ig)
+		int modelCount;				// 2552
+		GfxBrushModel* models;		// 2560
+		Bounds bounds;				// 2568 (just a guess tbh but other cods compare to this 1:1)
+		unsigned int checksum;		// 2592 ^ same for above, i should be okay but idek wh at this shit is
+		int gfxMapEntLookupCount;			// 2596
+		unk_struct_lol2* gfxMapEntLookup;	// 2600
+		unk_struct_lol3* unk_lmao;			// 2608
+		Material* unk_material;		// 2616 (apart of unk_lmao)
+		Material* unk_material2;	// 2624 ^
+		char __pad3[152];			// 2632
+		GfxImage* outdoorImage;		// 2784
+		Material* dustMaterial;		// 2792
+		float materialLod0SizeThreshold;		// 2800
+		unsigned int* cellCasterBits;			// 2808
+		unsigned int* cellHasSunLitSurfsBits;	// 2816
+		GfxSceneDynModel* sceneDynModel;		// 2824
+		GfxSceneDynBrush* sceneDynBrush;		// 2832
+		unsigned int primaryLightMotionDetectBitsEntries;	// 2840
+		unsigned int* primaryLightMotionDetectBits;			// 2848
+		unsigned int entityMotionBitsEntries;				// 2856
+		unsigned int* entityMotionBits;						// 2864
+		char __pad4[4];										// 2872 (just padding?)
+		unsigned int numPrimaryLightEntityShadowVisEntries;	// 2876
+		unsigned int* primaryLightEntityShadowVis;			// 2880
+		unsigned int dynEntMotionBitsEntries[2];			// 2888 (2892)
+		unsigned int* dynEntMotionBits[2];					// 2896 (2904)
+		unsigned int numPrimaryLightDynEntShadowVisEntries[2];	// 2912 (2916)
+		unsigned int* primaryLightDynEntShadowVis[2];			// 2920 (2928)
+		GfxShadowGeometry* shadowGeomOptimized;		// 2936
+		void* unk_ptr_uses_primary_lights;			// 2944
+		GfxLightAABB lightAABB;						// 2952
+		GfxWorldDpvsStatic dpvs;					// 2976
+		GfxWorldDpvsDynamic dpvsDyn;				// 3896
+		int unk_idrk;								// 4408 (padding only?)
+		int count_for_something;					// 4412
+		void* something;							// 4416
+		unsigned int numUmbraGates;					// 4424
+		UmbraGate* umbraGates;						// 4432
+		unsigned int umbraTomeSize;					// 4440
+		void* umbraTome;							// 4448
+		char* umbraTomeData;						// 4456
+		unsigned int mdaoVolumeCount;				// 4464
+		MdaoVolume* mdaoVolumes;					// 4472
+		int unk_byte16_count;						// 4480
+		char* unk_byte16;							// 4488
+		char __pad69[8];							// 4496
+		int unk_byte16_count_2;						// 4504
+		char* unk_byte16_2;							// 4512
+	}; assert_sizeof(GfxWorld, 0x11A8); // 4520
+	assert_offsetof(GfxWorld, bspVersion, 16);
+	assert_offsetof(GfxWorld, planeCount, 20);
+	assert_offsetof(GfxWorld, skies, 40);
 	assert_offsetof(GfxWorld, dpvsPlanes, 120);
+	assert_offsetof(GfxWorld, voxelTreeCount, 2472);
+	assert_offsetof(GfxWorld, voxelTree, 2480);
+	assert_offsetof(GfxWorld, heightfieldCount, 2488);
+	assert_offsetof(GfxWorld, heightfields, 2496);
+	assert_offsetof(GfxWorld, materialLod0SizeThreshold, 2800);
+	assert_offsetof(GfxWorld, cellCasterBits, 2808);
+	assert_offsetof(GfxWorld, numPrimaryLightEntityShadowVisEntries, 2876);
+	assert_offsetof(GfxWorld, primaryLightEntityShadowVis, 2880);
 
 	struct GfxWorldVertex
 	{
@@ -9128,7 +9379,7 @@ namespace zonetool::iw7
 		ClipInfo* info;
 		unsigned int numSubModels;
 		cmodel_t* cmodels;
-		void* models; //GfxBrushModel* models;
+		GfxBrushModel* models;
 	}; assert_sizeof(AddonMapEnts, 0x88);
 
 	enum NetConstStringType
