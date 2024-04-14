@@ -11278,7 +11278,7 @@ namespace zonetool::iw7
 		SND_ASSET_FORMAT_COUNT = 0xB,
 	};
 
-#pragma pack(1)
+#pragma pack(push, 1)
 	struct SndAssetBankHeader
 	{
 		unsigned int magic;
@@ -11324,5 +11324,5 @@ namespace zonetool::iw7
 		char EnvelopeLoudness3;
 		char BlocksizeKB;
 	}; static_assert(sizeof(SndAssetBankEntry) == 44);
-#pragma pack()
+#pragma pack(pop)
 }
