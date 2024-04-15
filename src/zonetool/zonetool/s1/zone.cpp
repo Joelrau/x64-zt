@@ -4,6 +4,7 @@
 #include "zonetool/utils/utils.hpp"
 #include "zonetool/utils/imagefile.hpp"
 
+#include <utils/flags.hpp>
 #include <utils/io.hpp>
 
 #define FF_VERSION 1838
@@ -612,7 +613,12 @@ namespace zonetool::s1
 
 		this->m_assetbase = 0;
 
-		this->m_zonemem = std::make_shared<zone_memory>(MAX_ZONE_SIZE);
+		auto max_memory_size = MAX_ZONE_SIZE;
+		if (utils::flags::has_flag("more_memory"))
+		{
+			max_memory_size = max_memory_size * 2; // double the memory (2GB -> 4GB)
+		}
+		this->m_zonemem = std::make_shared<zone_memory>(max_memory_size);
 	}
 
 	zone_interface::~zone_interface()
