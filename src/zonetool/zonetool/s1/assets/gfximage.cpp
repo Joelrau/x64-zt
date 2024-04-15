@@ -9,10 +9,10 @@
 #include "zonetool/utils/iwi.hpp"
 
 #include "zonetool/utils/compression.hpp"
-#include <utils/io.hpp>
-#include <utils/cryptography.hpp>
 
-//#define IMAGE_DUMP_DDS
+#include <utils/cryptography.hpp>
+#include <utils/flags.hpp>
+#include <utils/io.hpp>
 
 namespace zonetool::s1
 {
@@ -480,7 +480,6 @@ namespace zonetool::s1
 		}
 	}
 
-#ifdef IMAGE_DUMP_DDS
 	void dump_image_dds(GfxImage* image)
 	{
 		if (!image->streamed)
@@ -514,13 +513,13 @@ namespace zonetool::s1
 			}
 		}
 	}
-#endif
 
 	void gfx_image::dump(GfxImage* asset)
 	{
-#ifdef IMAGE_DUMP_DDS
-		dump_image_dds(asset);
-#endif
+		if (utils::flags::has_flag("dump_dds"))
+		{
+			dump_image_dds(asset);
+		}
 
 		auto path = "images\\"s + clean_name(asset->name) + ".s1Image"s;
 		assetmanager::dumper write;
