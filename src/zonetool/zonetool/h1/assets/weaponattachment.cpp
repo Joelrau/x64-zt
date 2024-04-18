@@ -978,7 +978,7 @@ namespace zonetool::h1
 		}
 		else
 		{
-			ZONETOOL_WARNING("No base asset is defined for attachment \"%s\", stuff might go wrong!", name.data());
+			ZONETOOL_WARNING("No base asset is defined for attachment \"%s\", stuff might be wrong!", name.data());
 		}
 
 		if (!data["internalName"].is_null())

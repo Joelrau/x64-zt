@@ -516,10 +516,13 @@ namespace zonetool::h1
 
 	void gfx_image::dump(GfxImage* asset)
 	{
-		if (utils::flags::has_flag("dump_dds"))
+		/*
+		if (utils::flags::has_flag("dds"))
 		{
 			dump_image_dds(asset);
 		}
+		*/
+		dump_image_dds(asset);
 
 		auto path = "images\\"s + clean_name(asset->name) + ".h1Image"s;
 		assetmanager::dumper write;
