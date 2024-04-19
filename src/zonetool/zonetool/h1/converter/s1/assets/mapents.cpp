@@ -31,10 +31,16 @@ namespace zonetool::h1
 					std::smatch match{};
 					if (!line.starts_with("0 ") && std::regex_search(line, match, expr))
 					{
-						const auto id = std::atoi(match[1].str().data());
 						const auto value = match[2].str();
 
-						std::string key = gsc::s1::gsc_ctx->token_name(
+						const auto id = std::atoi(match[1].str().data());
+						if (id == 0) // invalid id
+						{
+							out_buffer.append(line.data());
+							continue;
+						}
+
+						std::string key = gsc::h1::gsc_ctx->token_name(
 							static_cast<std::uint16_t>(id));
 						if (!key.starts_with("_id_"))
 						{

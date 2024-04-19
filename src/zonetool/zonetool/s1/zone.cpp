@@ -182,7 +182,7 @@ namespace zonetool::s1
 			//ADD_ASSET(ASSET_TYPE_MENU, menu_def);
 			//ADD_ASSET(ASSET_TYPE_MENULIST, menu_list);
 
-			//ADD_ASSET(ASSET_TYPE_PATHDATA, path_data);
+			ADD_ASSET(ASSET_TYPE_PATHDATA, path_data);
 			ADD_ASSET(ASSET_TYPE_CLIPMAP, clip_map);
 			ADD_ASSET(ASSET_TYPE_COMWORLD, com_world);
 			ADD_ASSET(ASSET_TYPE_FXWORLD, fx_world);

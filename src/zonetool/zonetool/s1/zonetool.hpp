@@ -61,7 +61,7 @@
 //#include "assets/menudef.hpp"
 //#include "assets/menulist.hpp"
 
-//#include "assets/aipaths.hpp"
+#include "assets/aipaths.hpp"
 #include "assets/clipmap.hpp"
 #include "assets/comworld.hpp"
 #include "assets/fxworld.hpp"

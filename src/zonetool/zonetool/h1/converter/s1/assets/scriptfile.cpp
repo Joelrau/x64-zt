@@ -2,7 +2,7 @@
 #include "zonetool/h1/converter/s1/include.hpp"
 #include "scriptfile.hpp"
 
-//#include "zonetool/h1/assets/scriptfile.hpp"
+//#include "zonetool/s1/assets/scriptfile.hpp"
 
 #include "zonetool/utils/gsc.hpp"
 
