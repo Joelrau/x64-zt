@@ -65,6 +65,9 @@ namespace s1
 		WEAK symbol<void(const char* path, const char* dir, int bLanguageDirectory, int iLanguage)> FS_AddGameDirectory{ 0x1404ACF80 };
 		WEAK symbol<void(const char* path, const char* dir)> FS_AddLocalizedGameDirectory{ 0x1404AD170 };
 
+		WEAK symbol<char*(const size_t size, 
+			const size_t alignment)> Hunk_AllocAlignInternal{0x1404B5F10};
+
 		WEAK symbol<char* (char* string)> I_CleanStr{ 0x1404C99A0 };
 
 		WEAK symbol<const char* (int, int, int)> Key_KeynumToString{ 0x140207C50 };
