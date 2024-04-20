@@ -970,7 +970,7 @@ namespace zonetool::s1
 			const auto base_asset = db_find_x_asset_header(ASSET_TYPE_ATTACHMENT, base.data(), 0).attachment;
 			if (base_asset == nullptr)
 			{
-				ZONETOOL_FATAL("Could not load base asset \"%s\" into memory...", base.data());
+				ZONETOOL_WARNING("Could not load base asset \"%s\" into memory...", base.data());
 			}
 			else
 			{
