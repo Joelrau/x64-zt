@@ -24,7 +24,7 @@ namespace zonetool::h1
 			{
 				if (utils::string::is_numeric(gsc_name))
 				{
-					const auto name = gsc::s1::gsc_ctx->token_name(std::atoi(gsc_name.data()));
+					const auto name = gsc::h1::gsc_ctx->token_name(std::atoi(gsc_name.data()));
 					if (!name.starts_with("_id_"))
 					{
 						gsc_name = name;

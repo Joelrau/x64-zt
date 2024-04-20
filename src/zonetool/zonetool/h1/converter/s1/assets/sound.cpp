@@ -4,7 +4,7 @@
 
 #include "zonetool/s1/assets/sound.hpp"
 
-#include "game/s1/game.hpp"
+#include "game/h1/game.hpp"
 
 namespace zonetool::h1
 {
@@ -98,8 +98,8 @@ namespace zonetool::h1
 						if (head->soundFile->u.streamSnd.filename.isLocalized)
 						{
 							soundfile_path = utils::string::va("%s/%s_%s", 
-								::s1::game::SEH_GetCurrentLanguageName(),
-								::s1::game::SEH_GetCurrentLanguageCode(), 
+								::h1::game::SEH_GetCurrentLanguageName(),
+								::h1::game::SEH_GetCurrentLanguageCode(), 
 								soundfile_path.data());
 						}
 
@@ -133,8 +133,8 @@ namespace zonetool::h1
 						if (head->soundFile->u.streamSnd.filename.isLocalized)
 						{
 							loaded_name = utils::string::va("%s/%s_%s_%d", 
-								::s1::game::SEH_GetCurrentLanguageName(), 
-								::s1::game::SEH_GetCurrentLanguageCode(), 
+								::h1::game::SEH_GetCurrentLanguageName(), 
+								::h1::game::SEH_GetCurrentLanguageCode(), 
 								alias_name, 
 								i);
 						}

@@ -524,7 +524,7 @@ namespace zonetool::h1
 			};
 
 			// S1 -> H1
-			const std::unordered_map <std::uint8_t, std::uint8_t> worldvertexformat_map =
+			const std::unordered_map <std::uint8_t, std::uint8_t> worldvertexformat_map_s1_to_h1 =
 			{
 				{0, 0},
 				{1, 1},
@@ -541,6 +541,25 @@ namespace zonetool::h1
 				{12, 51},
 				{13, 57},
 				{14, 63},
+			};
+
+			const std::unordered_map <std::uint8_t, std::uint8_t> worldvertexformat_map =
+			{
+				{0, 0},
+				{1, 1},
+				{4, 2},
+				{7, 3},
+				{11, 4},
+				{15, 5},
+				{19, 6},
+				{24, 7},
+				{29, 8},
+				{34, 9},
+				{39, 10},
+				{45, 11},
+				{51, 12},
+				{57, 13},
+				{63, 14},
 			};
 
 			template <typename T, typename S>
@@ -714,7 +733,7 @@ namespace zonetool::h1
 			void dump(MaterialTechniqueSet* asset)
 			{
 				utils::memory::allocator allocator;
-				const auto converted_asset = convert(asset, allocator);
+				const auto converted_asset = convert(asset, allocator); // 240 techs to -> 180 techs in S1
 				zonetool::s1::techset::dump(converted_asset);
 			}
 		}
