@@ -20,12 +20,6 @@ namespace zonetool::iw6
 	{
 		namespace techset
 		{
-			const std::unordered_map <std::uint8_t, std::uint8_t> worldvertexformat_map =
-			{
-				{0, 0},
-				{1, 1},
-			};
-
 			const std::unordered_map <std::uint16_t, std::uint16_t> const_src_code_map =
 			{
 				{zonetool::iw6::CONST_SRC_CODE_LIGHT_POSITION, zonetool::h1::CONST_SRC_CODE_LIGHT_POSITION},
@@ -1185,15 +1179,7 @@ namespace zonetool::iw6
 				new_asset->name = allocator.duplicate_string(asset->name);
 				new_asset->flags = asset->flags; // convert?
 
-				if (worldvertexformat_map.contains(asset->worldVertFormat))
-				{
-					new_asset->worldVertFormat = worldvertexformat_map.at(asset->worldVertFormat);
-				}
-				else
-				{
-					//ZONETOOL_ERROR("Unable to map worldVertFormat %d for technique '%s'!", asset->worldVertFormat, asset->name);
-					new_asset->worldVertFormat = asset->worldVertFormat;
-				}
+				new_asset->worldVertFormat = asset->worldVertFormat; // iw6 is same as h1
 
 				new_asset->preDisplacementOnlyCount = asset->preDisplacementOnlyCount;
 

@@ -315,7 +315,7 @@ namespace zonetool::s1
 					auto* image = reinterpret_cast<GfxImage*>(img->pointer());
 					image->semantic = data->textureTable[i].semantic;
 
-					if (image->semantic == 5 && img->is_iwi && !material::fixed_nml_images_map.contains(image))
+					if (image->semantic == TS_NORMAL_MAP && img->is_iwi && !material::fixed_nml_images_map.contains(image))
 					{
 						iwi::parse::GfxImage img_{};
 						img_.name = image->name;
@@ -537,45 +537,8 @@ namespace zonetool::s1
 				ordered_json image;
 				if (asset->textureTable[i].semantic == 11)
 				{
-					// Haven't tested water yet.
-					MessageBoxA(nullptr, asset->textureTable[i].u.water->image->name, "water", 0);
-
-					water_t* waterData = asset->textureTable[i].u.water;
-
-					image["image"] = waterData->image->name;
-
-					ordered_json waterdata;
-					waterdata["floatTime"] = waterData->writable.floatTime;
-					waterdata["M"] = waterData->M;
-					waterdata["N"] = waterData->N;
-					waterdata["Lx"] = waterData->Lx;
-					waterdata["Lz"] = waterData->Lz;
-					waterdata["gravity"] = waterData->gravity;
-					waterdata["windvel"] = waterData->windvel;
-					waterdata["winddir"][0] = waterData->winddir[0];
-					waterdata["winddir"][1] = waterData->winddir[1];
-					waterdata["amplitude"] = waterData->amplitude;
-
-					ordered_json waterComplexData;
-					ordered_json wTerm;
-
-					for (int a = 0; a < waterData->M * waterData->N; a++)
-					{
-						ordered_json complexdata;
-						ordered_json curWTerm;
-
-						complexdata["real"] = waterData->H0X[a];
-						complexdata["imag"] = waterData->H0Y[a];
-
-						curWTerm[a] = waterData->wTerm[a];
-
-						waterComplexData[a] = complexdata;
-					}
-
-					waterdata["complex"] = waterComplexData;
-					waterdata["wTerm"] = wTerm;
-
-					image["waterinfo"] = waterdata;
+					ZONETOOL_ERROR("Water texture found in material %s", asset->name);
+					image["image"] = "";
 				}
 				else
 				{

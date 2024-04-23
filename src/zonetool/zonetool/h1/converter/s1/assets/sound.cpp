@@ -34,7 +34,8 @@ namespace zonetool::h1
 
 					new_head->mixerGroup = head->mixerGroup;
 					new_head->poly = head->poly;
-					new_head->dspBusIndex = head->dspBusIndex > 9 ? head->dspBusIndex - 1 : head->dspBusIndex; // S1 inverts?
+					if (head->dspBusIndex == SND_DSPBUS_NOTIMESCALE) new_head->dspBusIndex = zonetool::s1::SND_DSPBUS_DEFAULT; 
+					else new_head->dspBusIndex = head->dspBusIndex > 8 ? head->dspBusIndex - 1 : head->dspBusIndex;
 					new_head->priority = head->priority;
 					// pad/unknown
 					new_head->volMin = head->volMin;

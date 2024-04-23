@@ -37,8 +37,8 @@ namespace zonetool::h1
 
 			std::string decompile_script(ScriptFile* asset)
 			{
-				auto& decompiler = gsc::s1::gsc_ctx->decompiler();
-				auto& disassembler = gsc::s1::gsc_ctx->disassembler();
+				auto& decompiler = gsc::h1::gsc_ctx->decompiler();
+				auto& disassembler = gsc::h1::gsc_ctx->disassembler();
 
 				const std::string stack_compressed{asset->buffer, static_cast<std::uint32_t>(asset->compressedLen)};
 				const auto decompressed_stack = utils::compression::zlib::decompress(stack_compressed);
@@ -49,7 +49,7 @@ namespace zonetool::h1
 				const auto disasm = disassembler.disassemble(bytecode, stack);
 				const auto decomp = decompiler.decompile(*disasm);
 
-				const auto decomp_data = gsc::s1::gsc_ctx->source().dump(*decomp);
+				const auto decomp_data = gsc::h1::gsc_ctx->source().dump(*decomp);
 				return {decomp_data.begin(), decomp_data.end()};
 			}
 

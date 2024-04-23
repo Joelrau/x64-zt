@@ -578,11 +578,12 @@ namespace zonetool::s1
 			buf->clear_pointer(dest->pathDynStates);
 		}
 
-		if (data->unkStrings)
+		for (auto i = 0; i < 32; i++)
 		{
-			buf->align(0);
-			buf->write(data->unkStrings, sizeof(const char*) * 32);
-			buf->clear_pointer(dest->unkStrings);
+			if (data->unkStrings[i])
+			{
+				buf->write_str(data->unkStrings[i]);
+			}
 		}
 
 		buf->pop_stream();
@@ -675,7 +676,10 @@ namespace zonetool::s1
 		dumper.dump_array(asset->unkData, asset->unkDataCount); // S1
 		dumper.dump_array(asset->pathZones, asset->zonesBytes);
 		dumper.dump_array(asset->pathDynStates, asset->dynStatesBytes);
-		dumper.dump_array(asset->unkStrings, sizeof(const char*) * 32); // S1
+		for (auto i = 0; i < 32; ++i)
+		{
+			dumper.dump_string(asset->unkStrings[i]);
+		}
 
 		dumper.close();
 	}

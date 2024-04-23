@@ -117,7 +117,7 @@ namespace zonetool::h1
 				}
 
 				{
-					const auto path = "streamed_images\\"s + clean_name(image->name) + ".h1Image"s;
+					const auto path = "streamed_images\\"s + clean_name(image->name) + ".s1Image"s;
 					assetmanager::dumper write;
 					if (!write.open(path))
 					{
@@ -143,7 +143,7 @@ namespace zonetool::h1
 					return;
 				}
 
-				auto path = "images\\"s + clean_name(asset->name) + ".h1Image"s;
+				auto path = "images\\"s + clean_name(asset->name) + ".s1Image"s;
 				assetmanager::dumper write;
 				if (!write.open(path))
 				{
