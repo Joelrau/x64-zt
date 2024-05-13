@@ -8887,6 +8887,17 @@ namespace zonetool::h1
 		DDL_PAD_TYPE = 0xA,
 	};
 
+	enum DDLFLags : std::uint8_t
+	{
+		DDL_FLAG_DIRTY = 0x0,
+		DDL_FLAG_CHECKSUM = 0x1,
+		DDL_FLAG_CODE_VERSION = 0x2,
+		DDL_FLAG_USER_FLAGS = 0x4,
+		DDL_FLAG_NO_PADDING = 0x8,
+		DDL_FLAG_RESERVE = 0x10,
+		DDL_FLAG_DDL_CHECKSUM = 0x20,
+	};
+
 	struct DDLMember
 	{
 		const char* name;
@@ -8934,17 +8945,6 @@ namespace zonetool::h1
 		int memberCount;
 		const char** members;
 		DDLHashTable hashTable;
-	};
-
-	enum DDLFLags
-	{
-		DDL_FLAG_DIRTY = 0x0,
-		DDL_FLAG_CHECKSUM = 0x1,
-		DDL_FLAG_CODE_VERSION = 0x2,
-		DDL_FLAG_USER_FLAGS = 0x4,
-		DDL_FLAG_NO_PADDING = 0x8,
-		DDL_FLAG_RESERVE = 0x10,
-		DDL_FLAG_DDL_CHECKSUM = 0x20,
 	};
 
 	struct DDLDef
