@@ -30,7 +30,7 @@
 #include "assets/scriptfile.hpp"
 #include "assets/stringtable.hpp"
 #include "assets/tracer.hpp"
-#include "assets/ttf.hpp"
+#include "assets/ttfdef.hpp"
 #include "assets/vectorfield.hpp"
 #include "assets/weapon_anim_package.hpp"
 #include "assets/weapon_sfx_package.hpp"

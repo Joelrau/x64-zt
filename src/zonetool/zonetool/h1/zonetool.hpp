@@ -49,7 +49,7 @@
 #include "assets/surfacefx.hpp"
 #include "assets/techset.hpp"
 #include "assets/tracerdef.hpp"
-#include "assets/ttf.hpp"
+#include "assets/ttfdef.hpp"
 #include "assets/vehicledef.hpp"
 #include "assets/weaponattachment.hpp"
 #include "assets/weapondef.hpp"

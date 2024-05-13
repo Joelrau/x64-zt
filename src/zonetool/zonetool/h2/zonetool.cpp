@@ -165,7 +165,7 @@ namespace zonetool::h2
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_STRUCTUREDDATADEF, structured_data_def_set, StructuredDataDefSet);
 			DUMP_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset, MaterialTechniqueSet);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_TRACER, tracer_def, TracerDef);
-			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_TTF, font_def, TTFDef);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_TTF, ttf_def, TTFDef);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_ATTACHMENT, weapon_attachment, WeaponAttachment);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_WEAPON, weapon_def, WeaponDef);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_XANIM, xanim_parts, XAnimParts);
@@ -240,7 +240,7 @@ namespace zonetool::h2
 			DUMP_ASSET(ASSET_TYPE_STRUCTUREDDATADEF, structured_data_def_set, StructuredDataDefSet);
 			DUMP_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset, MaterialTechniqueSet);
 			DUMP_ASSET(ASSET_TYPE_TRACER, tracer_def, TracerDef);
-			DUMP_ASSET(ASSET_TYPE_TTF, font_def, TTFDef);
+			DUMP_ASSET(ASSET_TYPE_TTF, ttf_def, TTFDef);
 			DUMP_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment, WeaponAttachment);
 			DUMP_ASSET(ASSET_TYPE_WEAPON, weapon_def, WeaponDef);
 			DUMP_ASSET(ASSET_TYPE_VEHICLE, vehicle_def, VehicleDef);

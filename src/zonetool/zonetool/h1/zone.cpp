@@ -164,7 +164,7 @@ namespace zonetool::h1
 			ADD_ASSET(ASSET_TYPE_SURFACE_FX, surface_fx);
 			ADD_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset);
 			ADD_ASSET(ASSET_TYPE_TRACER, tracer_def);
-			ADD_ASSET(ASSET_TYPE_TTF, font_def);
+			ADD_ASSET(ASSET_TYPE_TTF, ttf_def);
 			ADD_ASSET(ASSET_TYPE_VEHICLE, vehicle_def);
 			ADD_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment);
 			ADD_ASSET(ASSET_TYPE_WEAPON, weapon_def);

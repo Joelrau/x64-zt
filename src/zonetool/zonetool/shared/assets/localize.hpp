@@ -263,7 +263,7 @@ namespace zonetool
 			}
 			else
 			{
-				this->asset_ = db_find_x_asset_header_safe<H, E>(this->type(), this->name_.data()).localize;
+				this->asset_ = db_find_x_asset_header_safe<H, E>(this->type(), this->name().data()).localize;
 			}
 			this->name_ = this->asset_->name;
 		}
