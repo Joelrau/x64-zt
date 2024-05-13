@@ -159,7 +159,7 @@ namespace zonetool::iw7
 			DUMP_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile, ScriptFile);
 			DUMP_ASSET(ASSET_TYPE_STRINGTABLE, string_table, StringTable);
 			DUMP_ASSET(ASSET_TYPE_TRACER, tracer, TracerDef);
-			DUMP_ASSET(ASSET_TYPE_TTF, font_def, TTFDef);
+			DUMP_ASSET(ASSET_TYPE_TTF, ttf_def, TTFDef);
 			DUMP_ASSET(ASSET_TYPE_VECTORFIELD, vector_field, VectorField);
 			DUMP_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment, WeaponAttachment);
 			DUMP_ASSET(ASSET_TYPE_ANIM_PACKAGE, weapon_anim_package, WeaponAnimPackage);
@@ -506,7 +506,7 @@ namespace zonetool::iw7
 
 		if (!parser.valid())
 		{
-			throw std::runtime_error(utils::string::va("Could not find csv file \"%s\" to build zone!", csv.data()));
+			throw std::runtime_error(utils::string::va("Could not find csv file \"%s\"", csv.data()));
 		}
 
 		auto rows = parser.get_rows();

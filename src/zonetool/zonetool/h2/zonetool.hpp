@@ -45,7 +45,7 @@
 #include "assets/structureddatadefset.hpp"
 #include "assets/techset.hpp"
 #include "assets/tracerdef.hpp"
-#include "assets/ttf.hpp"
+#include "assets/ttfdef.hpp"
 #include "assets/weaponattachment.hpp"
 #include "assets/weapondef.hpp"
 #include "assets/vehicledef.hpp"

@@ -75,7 +75,7 @@ namespace zonetool
 			}
 			else if (!this->asset_)
 			{
-				this->asset_ = db_find_x_asset_header_safe<H, E>(this->type(), this->name_.data()).rawfile;
+				this->asset_ = db_find_x_asset_header_safe<H, E>(this->type(), this->name().data()).rawfile;
 			}
 		}
 
@@ -112,7 +112,6 @@ namespace zonetool
 
 			if (data->buffer)
 			{
-				buf->align(0);
 				buf->write(data->buffer, data->compressedLen ? data->compressedLen : data->len + 1);
 				buf->clear_pointer(&dest->buffer);
 			}

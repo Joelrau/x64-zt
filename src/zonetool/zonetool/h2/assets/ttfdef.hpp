@@ -3,5 +3,5 @@
 
 namespace zonetool::h2
 {
-	REGISTER_TEMPLATED_ASSET(lua_file, LuaFile, ASSET_TYPE_LUA_FILE);
+	REGISTER_TEMPLATED_ASSET(ttf_def, TTFDef, ASSET_TYPE_TTF);
 }

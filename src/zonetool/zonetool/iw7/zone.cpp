@@ -565,7 +565,7 @@ namespace zonetool::iw7
 			ADD_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile);
 			ADD_ASSET(ASSET_TYPE_STRINGTABLE, string_table);
 			ADD_ASSET(ASSET_TYPE_TRACER, tracer);
-			ADD_ASSET(ASSET_TYPE_TTF, font_def);
+			ADD_ASSET(ASSET_TYPE_TTF, ttf_def);
 			ADD_ASSET(ASSET_TYPE_VECTORFIELD, vector_field);
 			ADD_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment);
 			ADD_ASSET(ASSET_TYPE_ANIM_PACKAGE, weapon_anim_package);
