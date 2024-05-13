@@ -13,6 +13,7 @@
 #include "zonetool/utils/utils.hpp"
 #include "zonetool/shared/shared.hpp"
 
+#include "assets/ddl.hpp"
 #include "assets/fxeffectdef.hpp"
 #include "assets/fxparticlesimanimation.hpp"
 #include "assets/gfximage.hpp"

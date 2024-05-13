@@ -142,6 +142,7 @@ namespace zonetool::iw7
 		try
 		{
 			// dump assets
+			DUMP_ASSET(ASSET_TYPE_DDL, ddl, DDLFile);
 			DUMP_ASSET(ASSET_TYPE_FX, fx_effect_def, FxEffectDef);
 			DUMP_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, fx_particle_sim_animation, FxParticleSimAnimation);
 			DUMP_ASSET(ASSET_TYPE_IMAGE, gfx_image, GfxImage);

@@ -8565,6 +8565,32 @@ namespace zonetool::iw7
 		StructuredDataDef* defs;
 	};
 
+	enum DDLFLags : std::uint8_t
+	{
+		DDL_FLAG_DIRTY = 0x0,
+		DDL_FLAG_CHECKSUM = 0x1,
+		DDL_FLAG_CODE_VERSION = 0x2,
+		DDL_FLAG_USER_FLAGS = 0x4,
+		DDL_FLAG_NO_PADDING = 0x8,
+		DDL_FLAG_RESERVE = 0x10,
+		DDL_FLAG_DDL_CHECKSUM = 0x20,
+	};
+
+	enum DDLType : std::int32_t
+	{
+		DDL_BYTE_TYPE = 0x0,
+		DDL_SHORT_TYPE = 0x1,
+		DDL_BOOL_TYPE = 0x2,
+		DDL_INT_TYPE = 0x3,
+		DDL_UINT64_TYPE = 0x4,
+		DDL_FLOAT_TYPE = 0x5,
+		DDL_FIXEDPOINT_TYPE = 0x6,
+		DDL_STRING_TYPE = 0x7,
+		DDL_STRUCT_TYPE = 0x8,
+		DDL_ENUM_TYPE = 0x9,
+		DDL_PAD_TYPE = 0xA,
+	};
+
 	struct DDLMember
 	{
 		const char* name;
