@@ -1406,7 +1406,11 @@ namespace zonetool::iw7
 
 	struct GfxDrawSurfFields
 	{
-
+		unsigned __int64 objectId : 16; // p0 >> 0
+		unsigned __int64 pad0 : 32;
+		unsigned __int64 tessellation : 2; // p0 >> 48
+		unsigned __int64 pad1 : 14;
+		unsigned __int64 pad2 : 64;
 	};
 
 	union GfxDrawSurf
@@ -4101,10 +4105,10 @@ namespace zonetool::iw7
 		GfxWorldPackedLightmap* packedLightmap;
 	}; assert_sizeof(GfxWorldLightmapReindexData, 32);
 
-	struct unk_1453E41D8
+	struct GfxDecalVolumeCollection
 	{
 		char __pad0[388];
-	}; assert_sizeof(unk_1453E41D8, 388);
+	}; assert_sizeof(GfxDecalVolumeCollection, 388);
 
 	struct GfxOrientedBoundingBox
 	{
@@ -4163,14 +4167,16 @@ namespace zonetool::iw7
 		GfxWorldReflectionProbeData reflectionProbeData;
 		GfxWorldLightmapReindexData lightmapReindexData;
 		GfxImage* iesLookupTexture;
-		unsigned int unk01Count;
-		unk_1453E41D8* unk01; // unused
+		unsigned int decalVolumeCollectionCount;
+		GfxDecalVolumeCollection* decalVolumeCollections;
 		GfxImage* lightmapOverridePrimary;
 		GfxImage* lightmapOverrideSecondary;
 		unsigned int lightMapCount;
 		GfxLightMap** lightMaps;
 		GfxTexture* lightmapTextures;
-		char unused[24];
+		void* unused1;
+		void* unused2;
+		void* unused3;
 		unsigned int transientZoneCount;
 		GfxWorldTransientZone* transientZones[32];
 		unsigned int indexCount;
@@ -4179,8 +4185,8 @@ namespace zonetool::iw7
 		GfxWorldVolumetrics volumetrics;
 	}; assert_sizeof(GfxWorldDraw, 536);
 	assert_offsetof(GfxWorldDraw, iesLookupTexture, 144);
-	assert_offsetof(GfxWorldDraw, unk01Count, 152);
-	assert_offsetof(GfxWorldDraw, unk01, 160);
+	assert_offsetof(GfxWorldDraw, decalVolumeCollectionCount, 152);
+	assert_offsetof(GfxWorldDraw, decalVolumeCollections, 160);
 	assert_offsetof(GfxWorldDraw, transientZones, 240);
 	assert_offsetof(GfxWorldDraw, indices, 504);
 	assert_offsetof(GfxWorldDraw, indexBuffer, 512);
@@ -4379,7 +4385,7 @@ namespace zonetool::iw7
 		Bounds bounds;
 		float radius;
 		unsigned int startSurfIndex;
-		unsigned int surfaceCount;
+		unsigned short surfaceCount;
 	}; assert_sizeof(GfxBrushModel, 60);
 
 	struct MaterialMemory
@@ -4504,30 +4510,19 @@ namespace zonetool::iw7
 		unsigned int baseIndex;
 	};
 
-	struct GfxSurfaceLightingAndFlagsFields
-	{
-		unsigned char lightmapIndex;
-		unsigned char reflectionProbeIndex;
-		unsigned short primaryLightEnvIndex;
-		unsigned char flags;
-		unsigned char unused[3];
-	};
-
-	union GfxSurfaceLightingAndFlags
-	{
-		GfxSurfaceLightingAndFlagsFields fields;
-		unsigned __int64 packed;
-	};
-
 	struct GfxSurface
 	{
 		srfTriangles_t tris;
 		Material* material;
-		//unsigned int surfDataIndex;
-		//unsigned short transientZone;
-		//unsigned short lightmapIndex;
-		GfxSurfaceLightingAndFlags laf;
-		char unused[8]; // maybe unused
+		unsigned char lightmapIndex;
+		unsigned char flags;
+		unsigned short sortKey;
+		unsigned char unk1;
+		unsigned char unk2;
+		unsigned char unk3;
+		unsigned char unk4;
+		unsigned char transientZone;
+		unsigned char unused[7];
 	}; assert_sizeof(GfxSurface, 48);
 	assert_offsetof(GfxSurface, material, 24);
 
@@ -4564,6 +4559,24 @@ namespace zonetool::iw7
 
 	enum StaticModelFlag : std::int32_t
 	{
+		// scale modifiers: 
+		// 0 = 4.0f
+		// 1 = 2.66667f
+		// 2 = 2.0f
+		// 3 = 1.6f
+		// 4 = 1.33333f
+		// 5 = 1.14286f
+		// 6 = 1.0f
+		// 7 = 0.888889f
+		// 8 = 0.8f
+		// 9 = 0.666667f
+		// 10 = 0.571429f
+		// 11 = 0.5f
+		// 12 = 0.4f
+		// 13 = 0.333333f
+		// 14 = 0.285714f
+		// 15 = 0.25f
+		STATIC_MODEL_FLAG_SCALE_MODIFIER_MASK = 0xF,
 		STATIC_MODEL_FLAG_NO_CAST_SHADOW = 0x10,
 		STATIC_MODEL_FLAG_GROUND_LIGHTING = 0x20,
 		STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING = 0x40,
@@ -4584,32 +4597,25 @@ namespace zonetool::iw7
 		unsigned short unk1;
 		unsigned short unk2;
 		unsigned short unk3;
-		unsigned short unk4;
+		unsigned short lightingHandle;
 		unsigned short unk5;
-		unsigned short unk6;
-		unsigned short unk7;
-		unsigned short unk8;
-		unsigned short unk9;
+		unsigned short unk6[4];
 		unsigned short cullDist;
 		unsigned short flags;
-		unsigned short staticModelId;
-		unsigned short primaryLightEnvIndex;
+		unsigned short unk9;
+		unsigned short unk10;
+		unsigned short unk11;
+		unsigned char unk13;
+		unsigned char unk14;
+		unsigned char unk15[4];
+		unsigned char primaryLightEnvIndex;
+		unsigned char unk20;
 		unsigned char reflectionProbeIndex;
 		unsigned char firstMtlSkinIndex;
 		unsigned char sunShadowFlags;
-		unsigned char unk14;
-		unsigned char unk15;
-		unsigned char unk16;
-		unsigned char unk17;
-		unsigned char unk18;
-		unsigned char unk19;
-		unsigned char unk20;
+		unsigned char transientZone;
 		unsigned char unk21;
-		unsigned char unk22;
-		unsigned char unk23;
-		unsigned char unk24;
-		unsigned char unk25;
-		unsigned char unk26;
+		unsigned char unused[1];
 	}; assert_sizeof(GfxStaticModelDrawInst, 184);
 	assert_offsetof(GfxStaticModelDrawInst, model, 56);
 	assert_offsetof(GfxStaticModelDrawInst, vertexLightingInfo, 64);
@@ -4618,16 +4624,8 @@ namespace zonetool::iw7
 	struct GfxSurfaceBounds
 	{
 		Bounds bounds;
-		unsigned char flags;
-		char __pad0[11];
+		unsigned int unk[3];
 	}; assert_sizeof(GfxSurfaceBounds, 36);
-
-	struct GfxDepthAndSurf
-	{
-		short depthSort;
-		short pad;
-		int surfIndex;
-	};
 
 	struct GfxWorldDpvsStatic
 	{
@@ -4654,7 +4652,7 @@ namespace zonetool::iw7
 		unsigned int* reflectionProbeVisData[1];
 		unsigned int* volumetricVisData[1];
 		unsigned int* decalVisData[1];
-		unsigned int* unkSurfaceVisData[30]; // only [0] used
+		unsigned int* tessellationCutoffVisData[30]; // only [0] used
 		unsigned int* sortedSurfIndex;
 		GfxStaticModelInst* smodelInsts;
 		GfxSurface* surfaces;
@@ -4666,7 +4664,7 @@ namespace zonetool::iw7
 		unsigned int sunShadowOptCount;
 		unsigned int sunSurfVisDataCount;
 		unsigned int* surfaceCastsSunShadowOpt;
-		GfxDepthAndSurf* surfaceDeptAndSurf;
+		char** constantBuffers;
 		int usageCount;
 	}; assert_sizeof(GfxWorldDpvsStatic, 920);
 
@@ -4718,7 +4716,7 @@ namespace zonetool::iw7
 		GfxSky* skies;
 		unsigned int lastSunPrimaryLightIndex;
 		unsigned int primaryLightCount;
-		unsigned int unknown;
+		unsigned int movingScriptablePrimaryLightCount;
 		unsigned int sortKeyLitDecal;
 		unsigned int sortKeyEffectDecal;
 		unsigned int sortKeyTopDecal;
