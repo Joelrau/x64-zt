@@ -22,6 +22,36 @@ namespace zonetool::iw7
 		{
 			namespace
 			{
+				std::unordered_map<std::uint8_t, std::uint8_t> mapped_semantics =
+				{
+					{zonetool::iw7::TS_2D, zonetool::h1::TS_2D},
+					{zonetool::iw7::TS_FUNCTION, zonetool::h1::TS_FUNCTION},
+					{zonetool::iw7::TS_COLOR_MAP, zonetool::h1::TS_COLOR_MAP},
+					{zonetool::iw7::TS_DETAIL_MAP, zonetool::h1::TS_DETAIL_MAP},
+					{zonetool::iw7::TS_UNUSED_4, zonetool::h1::TS_UNUSED_2},
+					{zonetool::iw7::TS_NORMAL_MAP, zonetool::h1::TS_NORMAL_MAP},
+					{zonetool::iw7::TS_UNUSED_6, zonetool::h1::TS_UNUSED_3},
+					{zonetool::iw7::TS_UNUSED_7, zonetool::h1::TS_UNUSED_4},
+					{zonetool::iw7::TS_SPECULAR_MAP, zonetool::h1::TS_SPECULAR_MAP},
+					//{zonetool::iw7::TS_SPECULAR_OCCLUSION_MAP,	zonetool::h1::TS_2D},
+					//{zonetool::iw7::TS_UNUSED_10,					zonetool::h1::TS_2D},
+					//{zonetool::iw7::TS_THINFILM_MAP,				zonetool::h1::TS_2D},
+					//{zonetool::iw7::TS_DISPLACEMENT_MAP,			zonetool::h1::TS_2D},
+					//{zonetool::iw7::TS_PARALLAX_MAP,				zonetool::h1::TS_2D},
+					//{zonetool::iw7::TS_COLOR_SPECULAR_MAP,		zonetool::h1::TS_2D},
+					//{zonetool::iw7::TS_NORMAL_OCCLUSSION_GLOSS_MAP,	zonetool::h1::TS_2D},
+					//{zonetool::iw7::TS_ALPHA_REVEAL_THICKNESS_MAP,	zonetool::h1::TS_2D},
+				};
+
+				std::uint8_t convert_iw7_to_h1_category(std::uint8_t iw7_id)
+				{
+					if (iw7_id >= zonetool::h1::IMG_CATEGORY_FIRST_UNMANAGED)
+					{
+						iw7_id += 1; // h1 has water
+					}
+					return iw7_id;
+				}
+
 				std::string clean_name(const std::string& name)
 				{
 					auto new_name = name;
@@ -150,9 +180,10 @@ namespace zonetool::iw7
 					asset->mapType = MAPTYPE_NONE;
 				}
 				new_asset->mapType = static_cast<zonetool::h1::MapType>(asset->mapType);
-				COPY_VALUE_GFXIMAGE(semantic); // h1 doesn't use a TextureSemantic, might cause problems?
-				COPY_VALUE_GFXIMAGE(category); // ^ but for GfxImageCategory
+				new_asset->semantic = mapped_semantics[asset->semantic];
+				new_asset->category = convert_iw7_to_h1_category(asset->category);
 				COPY_VALUE_GFXIMAGE(flags);
+				new_asset->picmip.platform = asset->picmip.platform;
 
 				COPY_ARR_GFXIMAGE(pixelData);
 				std::memcpy(new_asset->streams, asset->streams, 4 * sizeof(GfxImageStreamData));

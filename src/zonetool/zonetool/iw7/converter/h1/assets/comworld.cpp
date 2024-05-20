@@ -71,13 +71,8 @@ namespace zonetool::iw7
 				new_asset->primaryLights = convert_primary_lights(asset->primaryLights, asset->primaryLightCount, allocator);
 				
 				// priaryLightsEnv
-				new_asset->primaryLightEnvCount = asset->primaryLightCount; // use same count as primaryLight
-				new_asset->primaryLightEnvs = allocator.allocate_array<zonetool::h1::ComPrimaryLightEnv>(new_asset->primaryLightEnvCount);
-				for (auto i = 0; i < new_asset->primaryLightEnvCount; ++i)
-				{
-					new_asset->primaryLightEnvs[i].numIndices = 1;
-					//new_asset->primaryLightEnvs[i].primaryLightIndices = 0; // needed?
-				}
+				COPY_VALUE(primaryLightEnvCount);
+				COPY_ARR(primaryLightEnvs);
 
 				return new_asset;
 			}

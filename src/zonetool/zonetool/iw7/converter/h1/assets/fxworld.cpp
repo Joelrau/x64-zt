@@ -24,7 +24,7 @@ namespace zonetool::iw7
 				const auto new_asset = allocator.allocate<zonetool::h1::FxWorld>();
 				std::memcpy(new_asset, asset, sizeof(FxWorld));
 
-				// mismatch up to here
+				// everything is fine until here. initPieceCount is at end of iw7 struct
 				COPY_VALUE_FXWORLD(glassSys.initPieceCount);
 				COPY_VALUE_FXWORLD(glassSys.cellCount);
 				COPY_VALUE_FXWORLD(glassSys.activePieceCount);
@@ -33,7 +33,8 @@ namespace zonetool::iw7
 				COPY_VALUE_FXWORLD(glassSys.geoDataCount);
 				COPY_VALUE_FXWORLD(glassSys.initGeoDataCount);
 
-				// FxGlassDef (defs)
+				// FxGlassDef (needs converting of FxEffectDef & another asset)
+				/*
 				COPY_ARR_FXWORLD(glassSys.defs);
 				auto fx_glass_def = new_asset->glassSys.defs;
 
@@ -50,6 +51,7 @@ namespace zonetool::iw7
 				COPY_VALUE_FXWORLD(glassSys.defs->numCrackRings);
 				COPY_VALUE_FXWORLD(glassSys.defs->isOpaque);
 				//
+				*/
 
 				COPY_ARR_FXWORLD(glassSys.piecePlaces);
 				COPY_ARR_FXWORLD(glassSys.pieceStates);

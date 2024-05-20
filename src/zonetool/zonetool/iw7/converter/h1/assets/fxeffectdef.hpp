@@ -1,14 +1,14 @@
 #pragma once
 
 /*
-namespace zonetool::h1
+namespace zonetool::iw7
 {
-	namespace converter::h2
+	namespace converter::h1
 	{
 		namespace fxeffectdef
 		{
-			zonetool::h2::FxEffectDef* convert(zonetool::h1::FxEffectDef* asset, utils::memory::allocator& allocator);
-			void dump(zonetool::h1::FxEffectDef* asset);
+			zonetool::h1::FxEffectDef* convert(zonetool::iw7::FxEffectDef* asset, utils::memory::allocator& allocator);
+			void dump(zonetool::iw7::FxEffectDef* asset);
 		}
 	}
 }

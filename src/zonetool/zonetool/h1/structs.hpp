@@ -7035,7 +7035,7 @@ namespace zonetool::h1
 	struct FxGlassDef
 	{
 		float halfThickness;
-		float texVecs[2][2];
+		vec2_t texVecs[2];
 		GfxColor color;
 		Material* material;
 		Material* materialShattered;
