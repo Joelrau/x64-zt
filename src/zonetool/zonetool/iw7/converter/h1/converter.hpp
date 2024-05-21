@@ -7,7 +7,7 @@
 #include "assets/gfxworld.hpp"			// TODO (has progress, but needs checked over)
 //#include "assets/laserdef.hpp"		
 #include "assets/mapents.hpp"			// TODO
-//#include "assets/material.hpp"
+#include "assets/material.hpp"			// TODO (almost done, just needs minor fixes)
 //#include "assets/scriptfile.hpp"
 //#include "assets/sound.hpp"
 //#include "assets/techset.hpp"
