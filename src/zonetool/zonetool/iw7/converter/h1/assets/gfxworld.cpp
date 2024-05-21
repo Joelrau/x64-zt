@@ -7,9 +7,6 @@
 #include "zonetool/iw7/converter/h1/assets/gfximage.hpp"
 #include <zonetool/h1/assets/gfxworld.hpp>
 
-//#define HARDCODED_DATA
-//#define DO_SHIT_PROPERLY
-
 namespace zonetool::iw7
 {
 	namespace converter::h1
@@ -33,9 +30,11 @@ namespace zonetool::iw7
 				COPY_VALUE(skyCount);
 
 				std::memcpy(new_asset->skies, asset->skies, sizeof(zonetool::h1::GfxSky));
-				/*
 				for (int i = 0; i < asset->skyCount; ++i)
 				{
+					// properly convert sky image
+					new_asset->skies[i].skyImage = zonetool::iw7::converter::h1::gfximage::convert(asset->skies[i].skyImage, allocator);
+
 					// add bounds
 					for (auto j = 0; j < asset->skies[i].skySurfCount; j++)
 					{
@@ -47,22 +46,13 @@ namespace zonetool::iw7
 						break;
 					}
 				}
-				*/
 
 				new_asset->portalGroupCount = 0;
 				COPY_VALUE(lastSunPrimaryLightIndex);
 				COPY_VALUE(primaryLightCount);
-				new_asset->primaryLightEnvCount = asset->primaryLightCount + 1; // doesn't exist on IW7
+				COPY_VALUE(primaryLightCount);
+				new_asset->primaryLightEnvCount = asset->primaryLightCount + 1; // doesn't exist on IW7 (i think?)
 
-#ifdef HARDCODED_DATA
-				new_asset->sortKeyLitDecal = 7;
-				new_asset->sortKeyEffectDecal = 44;
-				new_asset->sortKeyTopDecal = 17;
-				new_asset->sortKeyEffectAuto = 54;
-				new_asset->sortKeyDistortion = 49;
-				new_asset->sortKeyHair = 18;
-				new_asset->sortKeyEffectBlend = 33;
-#else
 				// partially hardcoded but most of these values are found on IW7 so
 				COPY_VALUE(sortKeyLitDecal);
 				COPY_VALUE(sortKeyEffectDecal);
@@ -71,7 +61,6 @@ namespace zonetool::iw7
 				COPY_VALUE(sortKeyDistortion);
 				new_asset->sortKeyHair = 18;		//COPY_VALUE(sortKeyHair);
 				new_asset->sortKeyEffectBlend = 33;	//COPY_VALUE(sortKeyEffectBlend);
-#endif
 
 				COPY_VALUE_CAST(dpvsPlanes);
 
@@ -125,40 +114,17 @@ namespace zonetool::iw7
 					memcpy(&new_asset->cells[i].bounds, &asset->cells[i].bounds, sizeof(Bounds));
 					new_asset->cells[i].portalCount = asset->cells[i].portalCount;
 
-					auto add_portal = [](zonetool::h1::GfxPortal* h1_portal, zonetool::iw7::GfxPortal* iw7_portal)
-					{
-						//h1_portal->writable.isQueued = iw7_portal->writable.isQueued;
-						//h1_portal->writable.isAncestor = iw7_portal->writable.isAncestor;
-						//h1_portal->writable.recursionDepth = iw7_portal->writable.recursionDepth;
-						//h1_portal->writable.hullPointCount = iw7_portal->writable.hullPointCount;
-						//h1_portal->writable.hullPoints = reinterpret_cast<float(*__ptr64)[2]>(iw7_portal->writable.hullPoints);
-						//h1_portal->writable.queuedParent = add_portal(iw7_portal->writable.queuedParent); // mapped at runtime
-
-						memcpy(&h1_portal->plane, &iw7_portal->plane, sizeof(zonetool::h1::DpvsPlane));
-						h1_portal->vertices = reinterpret_cast<float(*__ptr64)[3]>(iw7_portal->vertices);
-						h1_portal->cellIndex = iw7_portal->cellIndex;
-						h1_portal->closeDistance = iw7_portal->closeDistance;
-						h1_portal->vertexCount = iw7_portal->vertexCount;
-						memcpy(&h1_portal->hullAxis, &iw7_portal->hullAxis, sizeof(float[2][3]));
-					};
-
 					new_asset->cells[i].portals = allocator.allocate_array<zonetool::h1::GfxPortal>(new_asset->cells[i].portalCount);
 					for (int j = 0; j < new_asset->cells[i].portalCount; j++)
 					{
-						add_portal(&new_asset->cells[i].portals[j], &asset->cells[i].portals[j]);
+						memcpy(&new_asset->cells[i].portals[j], &asset->cells[i].portals[j], sizeof(zonetool::h1::GfxPortal));
 					}
 
-#ifdef DO_SHIT_PROPERLY
-					new_asset->cells[i].reflectionProbeCount = asset->cells[i].reflectionProbeCount;
-					new_asset->cells[i].reflectionProbes = reinterpret_cast<unsigned __int8* __ptr64>(asset->cells[i].reflectionProbes);
-					new_asset->cells[i].reflectionProbeReferenceCount = asset->cells[i].reflectionProbeReferenceCount;
-					new_asset->cells[i].reflectionProbeReferences = reinterpret_cast<unsigned __int8* __ptr64>(asset->cells[i].reflectionProbeReferences);
-#else
+					// ???
 					new_asset->cells[i].reflectionProbeCount = 0;
 					new_asset->cells[i].reflectionProbes = nullptr;
 					new_asset->cells[i].reflectionProbeReferenceCount = 0;
 					new_asset->cells[i].reflectionProbeReferences = nullptr;
-#endif
 				}
 
 				new_asset->portalGroup = nullptr; // :3
@@ -166,32 +132,21 @@ namespace zonetool::iw7
 				new_asset->unk_vec4_count_0 = 0;
 				new_asset->unk_vec4_0 = nullptr;
 
+				// TODO: GfxWorldReflectionProbeData might contain data for this stuff?
 				auto draw = new_asset->draw;
 				draw.reflectionProbeCount = asset->draw.reflectionProbeData.reflectionProbeCount;
 				draw.reflectionProbes = allocator.allocate_array<zonetool::h1::GfxImage*>(new_asset->draw.reflectionProbeCount);
 				draw.reflectionProbeOrigins = allocator.allocate_array<zonetool::h1::GfxReflectionProbe>(new_asset->draw.reflectionProbeCount);
 				draw.reflectionProbeTextures = allocator.allocate_array<zonetool::h1::GfxRawTexture>(new_asset->draw.reflectionProbeCount);
-#ifdef DO_SHIT_PROPERLY
 				for (unsigned int i = 0; i < new_asset->draw.reflectionProbeCount; i++)
 				{
 					new_asset->draw.reflectionProbes[i] = allocator.allocate<zonetool::h1::GfxImage>();
-					new_asset->draw.reflectionProbes[i]->name = asset->draw.reflectionProbeData.reflectionProbes[i];
-					memcpy(&new_asset->draw.reflectionProbeOrigins[i].origin, &asset->draw.reflectionProbeOrigins[i].origin, sizeof(float[3]));
-					new_asset->draw.reflectionProbeOrigins[i].probeVolumeCount = 0;
-					new_asset->draw.reflectionProbeOrigins[i].probeVolumes = nullptr;
-					//memcpy(&new_asset->draw.reflectionProbeTextures[i], &asset->draw.reflectionProbeTextures[i].loadDef, 20);
-				}
-#else
-				for (unsigned int i = 0; i < new_asset->draw.reflectionProbeCount; i++)
-				{
-					new_asset->draw.reflectionProbes[i] = allocator.allocate<zonetool::h1::GfxImage>();
-					new_asset->draw.reflectionProbes[i]->name = utils::string::va("x64zt_reflection_probe_%d", i); // theres literally no name info lmfao
+					new_asset->draw.reflectionProbes[i]->name = utils::string::va("x64zt_reflection_probe_%d", i);
 					memcpy(&new_asset->draw.reflectionProbeOrigins[i].origin, &asset->draw.reflectionProbeData.reflectionProbes[i].origin, sizeof(float[3]));
 					new_asset->draw.reflectionProbeOrigins[i].probeVolumeCount = 0;
 					new_asset->draw.reflectionProbeOrigins[i].probeVolumes = nullptr;
 					//memcpy(&new_asset->draw.reflectionProbeTextures[i], &asset->draw.reflectionProbeTextures[i].loadDef, 20);
 				}
-#endif
 
 				// none of this data exists in IW7 lmfao
 				new_asset->draw.reflectionProbeReferenceCount = 0;
@@ -200,6 +155,8 @@ namespace zonetool::iw7
 
 				new_asset->draw.lightmapCount = asset->draw.lightMapCount;
 				new_asset->draw.lightmaps = allocator.allocate_array<zonetool::h1::GfxLightmapArray>(new_asset->draw.lightmapCount);
+
+				// TODO: lightmapTextures might also contain this data, this all meme code lmfao
 				new_asset->draw.lightmapPrimaryTextures = allocator.allocate_array<zonetool::h1::GfxRawTexture>(new_asset->draw.lightmapCount);
 				new_asset->draw.lightmapSecondaryTextures = allocator.allocate_array<zonetool::h1::GfxRawTexture>(new_asset->draw.lightmapCount);
 				for (int i = 0; i < new_asset->draw.lightmapCount; i++)
@@ -247,8 +204,11 @@ namespace zonetool::iw7
 				new_asset->draw.indexCount = asset->draw.indexCount;
 				REINTERPRET_CAST_SAFE_TO_FROM(new_asset->draw.indices, asset->draw.indices);
 
+				// i have no clue
 				new_asset->draw.displacementParmsCount = 0;
 				new_asset->draw.displacementParms = nullptr;
+				new_asset->draw.displacementParmsBuffer = nullptr;
+				new_asset->draw.displacementParmsBufferView = nullptr;
 
 				/*
 				new_asset->lightGrid.hasLightRegions = 0;

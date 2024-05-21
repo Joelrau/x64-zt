@@ -148,7 +148,7 @@ namespace zonetool::iw7
 				}
 
 				{
-					const auto path = "streamed_images\\"s + clean_name(image->name) + ".h2Image"s;
+					const auto path = "streamed_images\\"s + clean_name(image->name) + ".h1Image"s;
 					assetmanager::dumper write;
 					if (!write.open(path))
 					{
@@ -183,7 +183,7 @@ namespace zonetool::iw7
 				new_asset->semantic = mapped_semantics[asset->semantic];
 				new_asset->category = convert_iw7_to_h1_category(asset->category);
 				COPY_VALUE_GFXIMAGE(flags);
-				new_asset->picmip.platform = asset->picmip.platform;
+				std::memcpy(new_asset->picmip.platform, asset->picmip.platform, sizeof(asset->picmip.platform));
 
 				COPY_ARR_GFXIMAGE(pixelData);
 				std::memcpy(new_asset->streams, asset->streams, 4 * sizeof(GfxImageStreamData));
@@ -200,7 +200,7 @@ namespace zonetool::iw7
 					return;
 				}
 
-				auto path = "images\\"s + clean_name(asset->name) + ".h2Image"s;
+				auto path = "images\\"s + clean_name(asset->name) + ".h1Image"s;
 				assetmanager::dumper write;
 				if (!write.open(path))
 				{

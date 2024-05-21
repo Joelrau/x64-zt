@@ -1,8 +1,9 @@
 #include <std_include.hpp>
 
-#include "zonetool/h1/converter/h2/include.hpp"
+/*
+#include "zonetool/iw7/converter/h2/include.hpp"
 #include "laserdef.hpp"
-#include "zonetool/h2/assets/laserdef.hpp"
+#include "zonetool/h1/assets/laserdef.hpp"
 
 #define REINTERPRET_CAST_COPY_NAME(__name__) \
 	if (asset->__name__ != nullptr) \
@@ -11,15 +12,15 @@
 		new_asset->__name__->name = allocator.duplicate_string(asset->__name__->name); \
 	} \
 
-namespace zonetool::h1
+namespace zonetool::iw7
 {
-	namespace converter::h2
+	namespace converter::h1
 	{
 		namespace laserdef
 		{
-			zonetool::h2::LaserDef* convert(LaserDef* asset, utils::memory::allocator& allocator)
+			zonetool::h1::LaserDef* convert(LaserDef* asset, utils::memory::allocator& allocator)
 			{
-				const auto new_asset = allocator.allocate<zonetool::h2::LaserDef>();
+				const auto new_asset = allocator.allocate<zonetool::h1::LaserDef>();
 
 				REINTERPRET_CAST_SAFE(name);
 				REINTERPRET_CAST_COPY_NAME(laserMaterial);
@@ -54,14 +55,15 @@ namespace zonetool::h1
 				return new_asset;
 			}
 
-			void dump(zonetool::h1::LaserDef* asset)
+			void dump(zonetool::iw7::LaserDef* asset)
 			{
 				utils::memory::allocator allocator;
 				const auto converted_asset = convert(asset, allocator);
-				zonetool::h2::laser_def::dump(converted_asset);
+				zonetool::h1::laser_def::dump(converted_asset);
 			}
 		}
 	}
 }
 
 #undef REINTERPRET_CAST_COPY_NAME
+*/

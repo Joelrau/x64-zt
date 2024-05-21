@@ -1,13 +1,15 @@
 #pragma once
 
-namespace zonetool::h1
+/*
+namespace zonetool::iw7
 {
-	namespace converter::h2
+	namespace converter::h1
 	{
 		namespace laserdef
 		{
-			zonetool::h2::LaserDef* convert(zonetool::h1::LaserDef* asset, utils::memory::allocator& allocator);
-			void dump(zonetool::h1::LaserDef* asset);
+			zonetool::h1::LaserDef* convert(zonetool::iw7::LaserDef* asset, utils::memory::allocator& allocator);
+			void dump(zonetool::iw7::LaserDef* asset);
 		}
 	}
 }
+*/

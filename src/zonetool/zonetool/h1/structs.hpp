@@ -7245,11 +7245,11 @@ namespace zonetool::h1
 	{
 		GfxPortalWritable writable;
 		DpvsPlane plane;
-		float(*vertices)[3];
+		vec3_t* vertices;
 		unsigned short cellIndex;
 		unsigned short closeDistance;
-		unsigned char vertexCount;
-		float hullAxis[2][3];
+		char vertexCount; // unsigned?
+		vec3_t hullAxis[2];
 	}; assert_sizeof(GfxPortal, 80);
 	assert_offsetof(GfxPortal, vertices, 40);
 	assert_offsetof(GfxPortal, vertexCount, 52);
