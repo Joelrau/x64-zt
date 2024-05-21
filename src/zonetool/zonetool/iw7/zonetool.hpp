@@ -18,6 +18,7 @@
 #include "assets/fxparticlesimanimation.hpp"
 #include "assets/gfximage.hpp"
 #include "assets/gfxlightdef.hpp"
+#include "assets/gfxlightmap.hpp"
 #include "assets/laser.hpp"
 #include "assets/localize.hpp"
 #include "assets/luafile.hpp"
@@ -29,6 +30,7 @@
 #include "assets/rumble.hpp"
 #include "assets/rumble_graph.hpp"
 #include "assets/scriptfile.hpp"
+#include "assets/streaming_info.hpp"
 #include "assets/stringtable.hpp"
 #include "assets/tracer.hpp"
 #include "assets/ttfdef.hpp"
@@ -60,6 +62,14 @@
 #include "assets/pixelshader.hpp"
 #include "assets/vertexdecl.hpp"
 #include "assets/vertexshader.hpp"
+
+#include "assets/clipmap.hpp"
+#include "assets/comworld.hpp"
+#include "assets/fxworld.hpp"
+#include "assets/gfxworld.hpp"
+#include "assets/gfxworld_tr.hpp"
+#include "assets/glassworld.hpp"
+#include "assets/mapents.hpp"
 
 #include "zone.hpp"
 

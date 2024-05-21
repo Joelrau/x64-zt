@@ -21,8 +21,8 @@ namespace zonetool::iw7
 		file.close();
 
 		auto asset = mem->allocate<RumbleGraph>();
+		asset->name = mem->duplicate_string(name);
 
-		asset->name = data["name"].is_null() ? nullptr : mem->duplicate_string(data["name"].get<std::string>());
 		for (auto i = 0; i < 16; i++)
 		{
 			asset->knots[i][0] = data["knots"][i][0].get<float>();
@@ -89,7 +89,6 @@ namespace zonetool::iw7
 
 		ordered_json data;
 
-		data["name"] = asset->name;
 		for (auto i = 0; i < 16; i++)
 		{
 			data["knots"][i][0] = asset->knots[i][0];

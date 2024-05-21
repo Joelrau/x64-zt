@@ -39,8 +39,8 @@ namespace zonetool::iw7
 		file.close();
 
 		auto asset = mem->allocate<RumbleInfo>();
+		asset->name = mem->duplicate_string(name);
 
-		PARSE_STRING(name);
 		PARSE_FIELD(duration);
 		PARSE_FIELD(range);
 		PARSE_ASSET(highRumbleGraph);
@@ -145,7 +145,6 @@ namespace zonetool::iw7
 
 		ordered_json data;
 
-		DUMP_STRING(name);
 		DUMP_FIELD(duration);
 		DUMP_FIELD(range);
 		DUMP_ASSET(highRumbleGraph);

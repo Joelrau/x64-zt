@@ -27,7 +27,7 @@ namespace zonetool::iw7
 
 	const char* get_asset_name(XAssetType type, void* pointer)
 	{
-		XAssetHeader header{.data = pointer};
+		XAssetHeader header{ .data = pointer };
 		return DB_GetXAssetHeaderName(type, header);
 	}
 
@@ -142,14 +142,14 @@ namespace zonetool::iw7
 		try
 		{
 			// dump assets
-			DUMP_ASSET(ASSET_TYPE_DDL, ddl, DDLFile);
 			DUMP_ASSET(ASSET_TYPE_FX, fx_effect_def, FxEffectDef);
 			DUMP_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, fx_particle_sim_animation, FxParticleSimAnimation);
 			DUMP_ASSET(ASSET_TYPE_IMAGE, gfx_image, GfxImage);
 			DUMP_ASSET(ASSET_TYPE_LIGHT_DEF, gfx_light_def, GfxLightDef);
+			DUMP_ASSET(ASSET_TYPE_GFXLIGHTMAP, gfx_light_map, GfxLightMap);
 			DUMP_ASSET(ASSET_TYPE_LASER, laser, LaserDef);
 			DUMP_ASSET(ASSET_TYPE_LOCALIZE_ENTRY, localize, LocalizeEntry);
-			DUMP_ASSET(ASSET_TYPE_LUA_FILE , lua_file, LuaFile);
+			DUMP_ASSET(ASSET_TYPE_LUA_FILE, lua_file, LuaFile);
 			DUMP_ASSET(ASSET_TYPE_MATERIAL, material, Material);
 			DUMP_ASSET(ASSET_TYPE_NET_CONST_STRINGS, net_const_strings, NetConstStrings);
 			DUMP_ASSET(ASSET_TYPE_VFX, particle_system, ParticleSystemDef);
@@ -158,6 +158,7 @@ namespace zonetool::iw7
 			DUMP_ASSET(ASSET_TYPE_RUMBLE, rumble, RumbleInfo);
 			DUMP_ASSET(ASSET_TYPE_RUMBLE_GRAPH, rumble_graph, RumbleGraph);
 			DUMP_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile, ScriptFile);
+			DUMP_ASSET(ASSET_TYPE_STREAMING_INFO, streaming_info, StreamingInfo);
 			DUMP_ASSET(ASSET_TYPE_STRINGTABLE, string_table, StringTable);
 			DUMP_ASSET(ASSET_TYPE_TRACER, tracer, TracerDef);
 			DUMP_ASSET(ASSET_TYPE_TTF, ttf_def, TTFDef);
@@ -190,10 +191,18 @@ namespace zonetool::iw7
 			DUMP_ASSET(ASSET_TYPE_VERTEXSHADER, vertex_shader, MaterialVertexShader);
 
 			DUMP_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset, MaterialTechniqueSet);
+
+			DUMP_ASSET(ASSET_TYPE_CLIPMAP, clip_map, clipMap_t);
+			DUMP_ASSET(ASSET_TYPE_COMWORLD, com_world, ComWorld);
+			DUMP_ASSET(ASSET_TYPE_FXWORLD, fx_world, FxWorld);
+			DUMP_ASSET(ASSET_TYPE_GFXWORLD, gfx_world, GfxWorld);
+			DUMP_ASSET(ASSET_TYPE_GFXWORLD_TRANSIENT_ZONE, gfx_world_tr, GfxWorldTransientZone);
+			DUMP_ASSET(ASSET_TYPE_GLASSWORLD, glass_world, GlassWorld);
+			DUMP_ASSET(ASSET_TYPE_MAP_ENTS, map_ents, MapEnts);
 		}
 		catch (const std::exception& e)
 		{
-			ZONETOOL_FATAL("A fatal exception occured while dumping zone \"%s\", exception was: \n%s", 
+			ZONETOOL_FATAL("A fatal exception occured while dumping zone \"%s\", exception was: \n%s",
 				filesystem::get_fastfile().data(), e.what());
 		}
 
@@ -394,7 +403,7 @@ namespace zonetool::iw7
 			ZONETOOL_INFO("Loading zone \"%s\"...", name.data());
 		}
 
-		XZoneInfo zone = {name.data(), DB_ZONE_GAME | DB_ZONE_CUSTOM};
+		XZoneInfo zone = { name.data(), DB_ZONE_GAME | DB_ZONE_CUSTOM };
 		DB_LoadXAssets(&zone, 1, mode);
 		return true;
 	}
@@ -555,7 +564,7 @@ namespace zonetool::iw7
 			}
 
 			const auto type = static_cast<std::uint32_t>(type_to_int(row->fields[0]));
-			ignore_assets.insert(std::make_pair( type, name ));
+			ignore_assets.insert(std::make_pair(type, name));
 		}
 	}
 
@@ -811,7 +820,7 @@ namespace zonetool::iw7
 		auto buffer = alloc_buffer();
 
 		// set game specific zone type info
-		buffer->set_fields(XFILE_BLOCK_RUNTIME, 
+		buffer->set_fields(XFILE_BLOCK_RUNTIME,
 			0xFFFFFFF000000000,
 			static_cast<std::uint32_t>(-2),
 			static_cast<std::uint32_t>(-4),
@@ -907,7 +916,7 @@ namespace zonetool::iw7
 					ZONETOOL_ERROR("Invalid dump target \"%s\"", mode);
 					return;
 				}
-					
+
 				if (!dump_functions.contains(dump_target))
 				{
 					ZONETOOL_ERROR("Unsupported dump target \"%s\" (%i)", mode, dump_target);

@@ -61,7 +61,6 @@ namespace zonetool::iw7
 
 		auto asset = mem->allocate<LaserDef>();
 
-		PARSE_STRING(name);
 		PARSE_ASSET(laserMaterial);
 		PARSE_ASSET(laserLightMaterial);
 		PARSE_FIELD(ownerOnly);
@@ -218,7 +217,6 @@ namespace zonetool::iw7
 
 		ordered_json data;
 
-		DUMP_STRING(name);
 		DUMP_ASSET(laserMaterial);
 		DUMP_ASSET(laserLightMaterial);
 		DUMP_FIELD(ownerOnly);

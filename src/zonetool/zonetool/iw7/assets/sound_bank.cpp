@@ -1704,9 +1704,9 @@ namespace zonetool::iw7
 			{
 				std::string buffer{};
 
-				const auto write = [&](std::vector<std::uint8_t> data)
+				const auto write = [&](std::vector<std::uint8_t> data_)
 				{
-					buffer.append(reinterpret_cast<const char*>(data.data()), data.size());
+					buffer.append(reinterpret_cast<const char*>(data_.data()), data_.size());
 				};
 
 				write(write_marker());
@@ -1975,7 +1975,7 @@ namespace zonetool::iw7
 				file.read(asset_name, sizeof(asset_name));
 
 				file.seek(entry.offset, SEEK_SET);
-				auto data = file.read_bytes(entry.size + entry.seekTableSize);
+				auto data = file.read_bytes(entry.size + entry.seekTableSize + entry.hybridPcmSize);
 
 				switch(entry.format)
 				{

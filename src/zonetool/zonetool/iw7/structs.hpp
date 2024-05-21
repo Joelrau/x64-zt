@@ -3595,7 +3595,8 @@ namespace zonetool::iw7
 
 	struct unk_1453E4298
 	{
-		char __pad0[32];
+		char __pad0[28];
+		int unkIndex;
 		unsigned int unk01Count;
 		unk_1453E4280* unk01;
 	}; assert_sizeof(unk_1453E4298, 48);
@@ -3652,7 +3653,7 @@ namespace zonetool::iw7
 		scr_string_t unk03;
 		char __pad0[12];
 		const char* unk04;
-		scr_string_t unk06;
+		scr_string_t unk05;
 	}; assert_sizeof(ScriptableInstance, 464);
 
 	struct ScriptableReservedDynent
@@ -3722,12 +3723,22 @@ namespace zonetool::iw7
 		//unsigned short transientIndexStored;
 	}; assert_sizeof(MayhemInstance, 72);
 
+	enum SpawnerFieldType : std::uint8_t // VariableType
+	{
+		SF_TYPE_UNDEFINED = 0x0,
+		SF_TYPE_STRING = 0x2,
+		SF_TYPE_ISTRING = 0x3,
+		SF_TYPE_VECTOR = 0x4,
+		SF_TYPE_FLOAT = 0x5,
+		SF_TYPE_INTEGER = 0x6,
+	};
+
 	struct SpawnerField
 	{
 		scr_string_t key;
 		unsigned int keyCanonical;
 		scr_string_t value;
-		char type;
+		unsigned char type;
 	}; assert_sizeof(SpawnerField, 16);
 
 	struct Spawner
@@ -3772,10 +3783,10 @@ namespace zonetool::iw7
 		unsigned short dynEntCount[2];
 		unsigned short dynEntCountTotal;
 		DynEntityDef* dynEntDefList[2];
-		unk_1453E4268* dynEntUnk01List[4];
-		unk_1453E4278* dynEntUnk02List[4];
-		char __pad0[16];
-		unk_1453E4238* unk1[2];
+		unk_1453E4268* dynEntUnk01List[2][2];
+		unk_1453E4278* dynEntUnk02List[2][2]; // runtime data
+		int unkIndexes[4];
+		unk_1453E4238* dynEntUnk03List[2];
 		char __pad1[8];
 		unsigned int unk2Count;
 		unk_1453E4298* unk2;
@@ -3795,7 +3806,7 @@ namespace zonetool::iw7
 	assert_offsetof(MapEnts, havokEntsShapeDataSize, 336);
 	assert_offsetof(MapEnts, cmodels, 360);
 	assert_offsetof(MapEnts, dynEntDefList, 376);
-	assert_offsetof(MapEnts, unk1, 472);
+	assert_offsetof(MapEnts, dynEntUnk03List, 472);
 	assert_offsetof(MapEnts, unk2, 504);
 	assert_offsetof(MapEnts, scriptableMapEnts, 576);
 	assert_offsetof(MapEnts, audioPASpeakers, 824);
@@ -4010,23 +4021,20 @@ namespace zonetool::iw7
 		char* livePath;
 		vec3_t origin;
 		vec3_t angles;
-		unsigned short* probeInstances;
-		unsigned short probeInstanceCount;
-		unsigned short probeRelightingIndex;
-		unsigned int probeImageIndirection;
-	};
+		unsigned int* probeInstances;
+		unsigned int probeInstanceCount;
+		unsigned int probeRelightingIndex;
+	}; assert_sizeof(GfxReflectionProbe, 48);
 
 	struct GfxReflectionProbeRelightingData
 	{
 		unsigned int reflectionProbeIndex;
 		unsigned short relightingFlags;
-		unsigned short zoneCount;
 		unsigned int gBufferAlbedoImageIndex;
 		unsigned int gBufferNormalImageIndex;
-		unsigned int gBufferSecondaryDiffuseImageIndex;
+		//unsigned int gBufferSecondaryDiffuseImageIndex;
 		float relightingScale;
-		unsigned short* zones;
-	};
+	}; assert_sizeof(GfxReflectionProbeRelightingData, 20);
 
 	struct GfxReflectionProbeObb
 	{
@@ -4660,7 +4668,7 @@ namespace zonetool::iw7
 		GfxStaticModelDrawInst* smodelDrawInsts;
 		GfxDrawSurf* surfaceMaterials;
 		unsigned int* surfaceCastsSunShadow;
-		unsigned short* smodelCastsSunShadow; // guess
+		unsigned short* smodelUnk;
 		unsigned int sunShadowOptCount;
 		unsigned int sunSurfVisDataCount;
 		unsigned int* surfaceCastsSunShadowOpt;
@@ -4764,7 +4772,7 @@ namespace zonetool::iw7
 		unsigned int entityMotionBitsEntries;
 		unsigned int* entityMotionBits;
 		//unsigned int staticSpotOmniPrimaryLightCountAligned;
-		//unsigned int shadowBitsArrayPitch;
+		unsigned int shadowBitsArrayPitch;
 		unsigned int numPrimaryLightEntityShadowVisEntries;
 		unsigned int* primaryLightEntityShadowVis;
 		unsigned int dynEntMotionBitsEntries[2];
@@ -11605,7 +11613,9 @@ namespace zonetool::iw7
 		void* handle_dcache;
 		char __pad1[22];
 		bool isSecure;
-		char __pad2[49];
+		char __pad2[1];
+		int some_check;
+		char __pad3[44];
 	}; assert_sizeof(DBFile, 0xA8);
 	assert_offsetof(DBFile, isSecure, 118);
 
@@ -11712,10 +11722,11 @@ namespace zonetool::iw7
 	struct XZoneMemory
 	{
 		XBlock blocks[MAX_XFILE_COUNT];
-		char __pad0[112];
-		void* shared_ff_data;
+		unsigned __int64 callbackPos;
+		char __pad0[104];
+		XStreamFile* shared_ff_data;
 		unsigned int shared_ff_count;
-		int padding1;
+		unsigned int shared_ff_count2;
 		void* unknown; // always 0
 		XStreamFile* streamed_images;
 		unsigned int streamed_image_count;
@@ -11780,8 +11791,8 @@ namespace zonetool::iw7
 		char magic[8];
 		std::uint32_t version;
 		std::uint8_t unused; // (unused)
-		std::uint8_t has_no_image_fastfile;
-		std::uint8_t has_no_shared_fastfile;
+		std::uint8_t has_no_image_fastfile; // .ffi
+		std::uint8_t has_no_shared_fastfile; // .ffs
 		std::uint8_t unk1;
 		std::uint32_t fileTimeHigh; // (unused)
 		std::uint32_t fileTimeLow; // (unused)

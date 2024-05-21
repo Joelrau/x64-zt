@@ -524,9 +524,11 @@ namespace zonetool::iw7
 
 		if (asset->streamed)
 		{
+			const auto index = (*g_streamZoneMem)->streamed_image_index;
+
 			for (auto i = 0u; i < 4; i++)
 			{
-				const auto stream_file = &(*g_streamZoneMem)->streamed_images[(*g_streamZoneMem)->streamed_image_index + i];
+				const auto stream_file = &(*g_streamZoneMem)->streamed_images[index + i];
 				write.dump_single(stream_file);
 			}
 		}
