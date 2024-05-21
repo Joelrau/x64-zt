@@ -8,7 +8,7 @@
 //#include "assets/laserdef.hpp"		
 #include "assets/mapents.hpp"			// TODO
 #include "assets/material.hpp"			// TODO (almost done, just needs minor fixes)
-//#include "assets/scriptfile.hpp"
-//#include "assets/sound.hpp"
-//#include "assets/techset.hpp"
-//#include "assets/xmodel.hpp"
+//#include "assets/scriptfile.hpp"		// TODO
+//#include "assets/sound.hpp"			// TODO (skipping)
+//#include "assets/techset.hpp"			// TODO (not doing as of now per quak recommendation)
+//#include "assets/xmodel.hpp"			// TODO
