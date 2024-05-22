@@ -91,7 +91,7 @@ namespace zonetool::iw7
 
 	void clip_map::init(const std::string& name, zone_memory* mem)
 	{
-		this->name_ = "maps/"s + (filesystem::get_fastfile().substr(0, 3) == "mp_" ? "mp/" : "") + filesystem::get_fastfile() + ".d3dbsp"; // name;
+		this->name_ = name;
 		this->asset_ = this->parse(name, mem);
 
 		if (!this->asset_)

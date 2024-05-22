@@ -91,11 +91,14 @@ namespace zonetool::iw7
 				spawners->spawnerList[i].angles[j] = data[i]["angles"][j].get<float>();
 			}
 
+			spawners->spawnerList[i].numFields = data[i]["fields"].size();
 			for (unsigned int j = 0; j < spawners->spawnerList[i].numFields; j++)
 			{
 				add_script_string(&spawners->spawnerList[i].fields[j].key, mem->duplicate_string(data[i]["fields"][j]["key"].get<std::string>()));
 				add_script_string(&spawners->spawnerList[i].fields[j].value, mem->duplicate_string(data[i]["fields"][j]["value"].get<std::string>()));
 				spawners->spawnerList[i].fields[j].type = data[i]["fields"][j]["type"].get<SpawnerFieldType>();
+
+				spawners->spawnerList[i].fields[j].keyCanonical = 0; // this being 0 makes the game generate it at runtime
 			}
 		}
 	}
