@@ -516,19 +516,19 @@ namespace zonetool::iw7
 		}
 	}
 
-	void zone_interface::add_asset_of_type(std::int32_t type, const std::string& name_)
+	void zone_interface::add_asset_of_type(std::int32_t type, const std::string& _name)
 	{
-		if (name_.empty())
+		if (_name.empty())
 		{
 			return;
 		}
 
-		std::string name = name_;
+		std::string name = _name;
 
 		// add ignore assets as referenced
 		if (ignore_assets.find(std::make_pair(static_cast<std::uint32_t>(type), name)) != ignore_assets.end())
 		{
-			if (!name_.starts_with(","))
+			if (!name.starts_with(","))
 			{
 				name = ","s + name;
 			}
