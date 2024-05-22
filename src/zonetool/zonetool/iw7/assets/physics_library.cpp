@@ -22,6 +22,7 @@ namespace zonetool::iw7
 		auto* asset = mem->allocate<PhysicsLibrary>();
 		asset->name = mem->duplicate_string(this->name());
 
+		asset->havokDataSize = static_cast<unsigned int>(size);
 		asset->havokData = mem->allocate<char>(size);
 		memcpy(asset->havokData, bytes.data(), size);
 

@@ -76,7 +76,7 @@ namespace zonetool::iw7
 
 		auto data = json::parse(bytes);
 
-		spawners->spawnerCount = static_cast<unsigned short>(data.size());
+		spawners->spawnerCount = static_cast<unsigned int>(data.size());
 		spawners->spawnerList = mem->allocate<Spawner>(spawners->spawnerCount);
 
 		for (unsigned int i = 0; i < spawners->spawnerCount; i++)
@@ -91,7 +91,7 @@ namespace zonetool::iw7
 				spawners->spawnerList[i].angles[j] = data[i]["angles"][j].get<float>();
 			}
 
-			spawners->spawnerList[i].numFields = data[i]["fields"].size();
+			spawners->spawnerList[i].numFields = static_cast<unsigned int>(data[i]["fields"].size());
 			for (unsigned int j = 0; j < spawners->spawnerList[i].numFields; j++)
 			{
 				add_script_string(&spawners->spawnerList[i].fields[j].key, mem->duplicate_string(data[i]["fields"][j]["key"].get<std::string>()));
