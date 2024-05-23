@@ -90,6 +90,7 @@ namespace iw7
 			// IMAGE patches
 			// image stream (pak)
 			utils::hook::set<uint8_t>(0x140A81D40, 0xC3); // AlwaysLoadedAssets (image file data)
+			utils::hook::nop(0x140A7DC7C, 2); // Skip opening pakfiles
 
 			// UI patches
 			utils::hook::set<uint8_t>(0x140615090, 0xC3); // LUI_CoD_Init

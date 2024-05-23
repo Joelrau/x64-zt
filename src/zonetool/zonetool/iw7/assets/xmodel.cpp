@@ -80,12 +80,12 @@ namespace zonetool::iw7
 		asset->physicsFXShape = read.read_asset<PhysicsFXShape>();
 
 		// unknown
-		asset->unknown02 = read.read_array<char>();
+		asset->physicsLODData = read.read_array<char>();
 
-		asset->unknownNames = mem->allocate<scr_string_t>(asset->unknownNamesCount);
-		for (unsigned int i = 0; i < asset->unknownNamesCount; i++)
+		asset->physicsLODDataNames = mem->allocate<scr_string_t>(asset->physicsLODDataNameCount);
+		for (unsigned int i = 0; i < asset->physicsLODDataNameCount; i++)
 		{
-			this->add_script_string(&asset->unknownNames[i], read.read_string());
+			this->add_script_string(&asset->physicsLODDataNames[i], read.read_string());
 		}
 
 		asset->scriptableMoverDef = read.read_asset<ScriptableDef>();
@@ -131,11 +131,11 @@ namespace zonetool::iw7
 				this->add_script_string(&asset->boneNames[i], SL_ConvertToString(original_scriptstrings[i]));
 			}
 
-			original_scriptstrings = asset->unknownNames;
-			asset->unknownNames = mem->allocate<scr_string_t>(asset->unknownNamesCount);
-			for (unsigned int i = 0; i < asset->unknownNamesCount; i++)
+			original_scriptstrings = asset->physicsLODDataNames;
+			asset->physicsLODDataNames = mem->allocate<scr_string_t>(asset->physicsLODDataNameCount);
+			for (unsigned int i = 0; i < asset->physicsLODDataNameCount; i++)
 			{
-				this->add_script_string(&asset->unknownNames[i], SL_ConvertToString(original_scriptstrings[i]));
+				this->add_script_string(&asset->physicsLODDataNames[i], SL_ConvertToString(original_scriptstrings[i]));
 			}
 
 			original_scriptstrings = asset->aimAssistBones;
@@ -161,10 +161,10 @@ namespace zonetool::iw7
 					this->get_script_string(&xmodel->boneNames[i])));
 			}
 
-			for (unsigned int i = 0; i < xmodel->unknownNamesCount; i++)
+			for (unsigned int i = 0; i < xmodel->physicsLODDataNameCount; i++)
 			{
-				xmodel->unknownNames[i] = static_cast<scr_string_t>(buf->write_scriptstring(
-					this->get_script_string(&xmodel->unknownNames[i])));
+				xmodel->physicsLODDataNames[i] = static_cast<scr_string_t>(buf->write_scriptstring(
+					this->get_script_string(&xmodel->physicsLODDataNames[i])));
 			}
 
 			for (unsigned int i = 0; i < xmodel->numAimAssistBones; i++)
@@ -346,18 +346,18 @@ namespace zonetool::iw7
 				ASSET_TYPE_PHYSICS_FX_SHAPE, data->physicsFXShape->name));
 		}
 
-		if (data->unknown02)
+		if (data->physicsLODData)
 		{
 			buf->align(15);
-			buf->write(data->unknown02, data->unknown02Count);
-			buf->clear_pointer(&dest->unknown02);
+			buf->write(data->physicsLODData, data->physicsLODDataSize);
+			buf->clear_pointer(&dest->physicsLODData);
 		}
 
-		if (data->unknownNames)
+		if (data->physicsLODDataNames)
 		{
 			buf->align(3);
-			buf->write(data->unknownNames, data->unknownNamesCount);
-			buf->clear_pointer(&dest->unknownNames);
+			buf->write(data->physicsLODDataNames, data->physicsLODDataNameCount);
+			buf->clear_pointer(&dest->physicsLODDataNames);
 		}
 
 		if (data->scriptableMoverDef)
@@ -453,11 +453,11 @@ namespace zonetool::iw7
 		dump.dump_asset(asset->physicsFXShape);
 
 		// unknown
-		dump.dump_array(asset->unknown02, asset->unknown02Count);
+		dump.dump_array(asset->physicsLODData, asset->physicsLODDataSize);
 
-		for (unsigned int i = 0; i < asset->unknownNamesCount; i++)
+		for (unsigned int i = 0; i < asset->physicsLODDataNameCount; i++)
 		{
-			dump.dump_string(SL_ConvertToString(asset->unknownNames[i]));
+			dump.dump_string(SL_ConvertToString(asset->physicsLODDataNames[i]));
 		}
 
 		dump.dump_asset(asset->scriptableMoverDef);

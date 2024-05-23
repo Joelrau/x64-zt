@@ -224,41 +224,41 @@ namespace zonetool::iw7
 			asset->dynEntDefList[1][i].linkTo = reader.read_single<DynEntityLinkToDef>();
 		}
 
-		asset->dynEntUnk01List[0][0] = reader.read_array<unk_1453E4268>();
+		asset->dynEntPoseList[0][0] = reader.read_array<DynEntityPose>();
 		for (unsigned short i = 0; i < asset->dynEntCount[0]; i++)
 		{
-			asset->dynEntUnk01List[0][0][i].unk01 = reader.read_array<unk_1453E3260>();
-			asset->dynEntUnk01List[0][0][i].unk02 = reader.read_array<char>();
+			asset->dynEntPoseList[0][0][i].poses = reader.read_array<GfxPlacement>();
+			asset->dynEntPoseList[0][0][i].unk = reader.read_array<char>();
 		}
 
-		asset->dynEntUnk01List[1][0] = reader.read_array<unk_1453E4268>();
+		asset->dynEntPoseList[1][0] = reader.read_array<DynEntityPose>();
 		for (unsigned short i = 0; i < asset->dynEntCount[0]; i++)
 		{
-			asset->dynEntUnk01List[1][0][i].unk01 = reader.read_array<unk_1453E3260>();
-			asset->dynEntUnk01List[1][0][i].unk02 = reader.read_array<char>();
+			asset->dynEntPoseList[1][0][i].poses = reader.read_array<GfxPlacement>();
+			asset->dynEntPoseList[1][0][i].unk = reader.read_array<char>();
 		}
 
-		asset->dynEntUnk01List[0][1] = reader.read_array<unk_1453E4268>();
+		asset->dynEntPoseList[0][1] = reader.read_array<DynEntityPose>();
 		for (unsigned short i = 0; i < asset->dynEntCount[1]; i++)
 		{
-			asset->dynEntUnk01List[0][1][i].unk01 = reader.read_array<unk_1453E3260>();
-			asset->dynEntUnk01List[0][1][i].unk02 = reader.read_array<char>();
+			asset->dynEntPoseList[0][1][i].poses = reader.read_array<GfxPlacement>();
+			asset->dynEntPoseList[0][1][i].unk = reader.read_array<char>();
 		}
 
-		asset->dynEntUnk01List[1][1] = reader.read_array<unk_1453E4268>();
+		asset->dynEntPoseList[1][1] = reader.read_array<DynEntityPose>();
 		for (unsigned short i = 0; i < asset->dynEntCount[1]; i++)
 		{
-			asset->dynEntUnk01List[1][1][i].unk01 = reader.read_array<unk_1453E3260>();
-			asset->dynEntUnk01List[1][1][i].unk02 = reader.read_array<char>();
+			asset->dynEntPoseList[1][1][i].poses = reader.read_array<GfxPlacement>();
+			asset->dynEntPoseList[1][1][i].unk = reader.read_array<char>();
 		}
 
-		asset->dynEntUnk02List[0][0] = mem->allocate<unk_1453E4278>(asset->dynEntCount[0]);
-		asset->dynEntUnk02List[1][0] = mem->allocate<unk_1453E4278>(asset->dynEntCount[0]);
-		asset->dynEntUnk02List[0][1] = mem->allocate<unk_1453E4278>(asset->dynEntCount[1]);
-		asset->dynEntUnk02List[1][1] = mem->allocate<unk_1453E4278>(asset->dynEntCount[1]);
+		asset->dynEntClientList[0][0] = mem->allocate<DynEntityClient>(asset->dynEntCount[0]);
+		asset->dynEntClientList[1][0] = mem->allocate<DynEntityClient>(asset->dynEntCount[0]);
+		asset->dynEntClientList[0][1] = mem->allocate<DynEntityClient>(asset->dynEntCount[1]);
+		asset->dynEntClientList[1][1] = mem->allocate<DynEntityClient>(asset->dynEntCount[1]);
 
-		asset->dynEntUnk03List[0] = reader.read_array<unk_1453E4238>();
-		asset->dynEntUnk03List[1] = reader.read_array<unk_1453E4238>();
+		asset->dynEntGlobalIdList[0] = reader.read_array<DynEntityGlobalId>();
+		asset->dynEntGlobalIdList[1] = reader.read_array<DynEntityGlobalId>();
 
 		asset->unk2 = reader.read_array<unk_1453E4298>();
 		asset->unk2_1[0] = reader.read_array<unk_1453E42A8>();
@@ -275,23 +275,23 @@ namespace zonetool::iw7
 		}
 
 		asset->scriptableMapEnts.instances = reader.read_array<ScriptableInstance>();
-		for (unsigned int i = 0; i < asset->scriptableMapEnts.instanceCount; i++)
+		for (unsigned int i = 0; i < asset->scriptableMapEnts.totalInstanceCount; i++)
 		{
 			asset->scriptableMapEnts.instances[i].unk01.unk01.def = reader.read_asset<ScriptableDef>();
 			asset->scriptableMapEnts.instances[i].unk01.unk01.unk01.model = reader.read_asset<XModel>();
-			asset->scriptableMapEnts.instances[i].unk01.unk01.unk02 = reader.read_array<char>();
+			asset->scriptableMapEnts.instances[i].unk01.unk01.eventStreamBuffer = reader.read_array<char>();
 
 			asset->scriptableMapEnts.instances[i].unk02[0].unk01.def = reader.read_asset<ScriptableDef>();
 			asset->scriptableMapEnts.instances[i].unk02[0].unk01.unk01.model = reader.read_asset<XModel>();
-			asset->scriptableMapEnts.instances[i].unk02[0].unk01.unk02 = reader.read_array<char>();
+			asset->scriptableMapEnts.instances[i].unk02[0].unk01.eventStreamBuffer = reader.read_array<char>();
 
 			asset->scriptableMapEnts.instances[i].unk02[1].unk01.def = reader.read_asset<ScriptableDef>();
 			asset->scriptableMapEnts.instances[i].unk02[1].unk01.unk01.model = reader.read_asset<XModel>();
-			asset->scriptableMapEnts.instances[i].unk02[1].unk01.unk02 = reader.read_array<char>();
+			asset->scriptableMapEnts.instances[i].unk02[1].unk01.eventStreamBuffer = reader.read_array<char>();
 
 			add_script_string(&asset->scriptableMapEnts.instances[i].unk03, reader.read_string());
 			asset->scriptableMapEnts.instances[i].unk04 = reader.read_string();
-			add_script_string(&asset->scriptableMapEnts.instances[i].unk05, reader.read_string());
+			add_script_string(&asset->scriptableMapEnts.instances[i].targetname, reader.read_string());
 		}
 
 		asset->scriptableMapEnts.unk.unk01 = reader.read_array<unk_1453E2558>();
@@ -387,12 +387,12 @@ namespace zonetool::iw7
 				this->get_script_string(&data->clientEntAnchors[i].name)));
 		}
 
-		for (unsigned int i = 0; i < data->scriptableMapEnts.instanceCount; i++)
+		for (unsigned int i = 0; i < data->scriptableMapEnts.totalInstanceCount; i++)
 		{
 			data->scriptableMapEnts.instances[i].unk03 = static_cast<scr_string_t>(buf->write_scriptstring(
 				this->get_script_string(&data->scriptableMapEnts.instances[i].unk03)));
-			data->scriptableMapEnts.instances[i].unk05 = static_cast<scr_string_t>(buf->write_scriptstring(
-				this->get_script_string(&data->scriptableMapEnts.instances[i].unk05)));
+			data->scriptableMapEnts.instances[i].targetname = static_cast<scr_string_t>(buf->write_scriptstring(
+				this->get_script_string(&data->scriptableMapEnts.instances[i].targetname)));
 		}
 
 		for (unsigned int i = 0; i < data->numMayhemScenes; i++)
@@ -452,7 +452,7 @@ namespace zonetool::iw7
 			}
 		}
 
-		for (unsigned int i = 0; i < data->scriptableMapEnts.instanceCount; i++)
+		for (unsigned int i = 0; i < data->scriptableMapEnts.totalInstanceCount; i++)
 		{
 			if (data->scriptableMapEnts.instances[i].unk01.unk01.def)
 			{
@@ -738,129 +738,129 @@ namespace zonetool::iw7
 			}
 			buf->clear_pointer(&dest->dynEntDefList[1]);
 		}
-		if (data->dynEntUnk01List[0][0])
+		if (data->dynEntPoseList[0][0])
 		{
 			buf->align(7);
-			dest->dynEntUnk01List[0][0] = buf->write(data->dynEntUnk01List[0][0], data->dynEntCount[0]);
+			dest->dynEntPoseList[0][0] = buf->write(data->dynEntPoseList[0][0], data->dynEntCount[0]);
 			for (unsigned short i = 0; i < data->dynEntCount[0]; i++)
 			{
-				if (data->dynEntUnk01List[0][0][i].unk01)
+				if (data->dynEntPoseList[0][0][i].poses)
 				{
 					buf->align(3);
-					buf->write(data->dynEntUnk01List[0][0][i].unk01, data->dynEntUnk01List[0][0][i].unk01Count);
-					buf->clear_pointer(&dest->dynEntUnk01List[0][0][i].unk01);
+					buf->write(data->dynEntPoseList[0][0][i].poses, data->dynEntPoseList[0][0][i].numPoses);
+					buf->clear_pointer(&dest->dynEntPoseList[0][0][i].poses);
 				}
-				if (data->dynEntUnk01List[0][0][i].unk02)
+				if (data->dynEntPoseList[0][0][i].unk)
 				{
 					buf->align(0);
-					buf->write(data->dynEntUnk01List[0][0][i].unk02, data->dynEntUnk01List[0][0][i].unk01Count);
-					buf->clear_pointer(&dest->dynEntUnk01List[0][0][i].unk02);
+					buf->write(data->dynEntPoseList[0][0][i].unk, data->dynEntPoseList[0][0][i].numPoses);
+					buf->clear_pointer(&dest->dynEntPoseList[0][0][i].unk);
 				}
 			}
-			buf->clear_pointer(&dest->dynEntUnk01List[0][0]);
+			buf->clear_pointer(&dest->dynEntPoseList[0][0]);
 		}
-		if (data->dynEntUnk01List[1][0])
+		if (data->dynEntPoseList[1][0])
 		{
 			buf->align(7);
-			dest->dynEntUnk01List[1][0] = buf->write(data->dynEntUnk01List[1][0], data->dynEntCount[0]);
+			dest->dynEntPoseList[1][0] = buf->write(data->dynEntPoseList[1][0], data->dynEntCount[0]);
 			for (unsigned short i = 0; i < data->dynEntCount[0]; i++)
 			{
-				if (data->dynEntUnk01List[1][0][i].unk01)
+				if (data->dynEntPoseList[1][0][i].poses)
 				{
 					buf->align(3);
-					buf->write(data->dynEntUnk01List[1][0][i].unk01, data->dynEntUnk01List[1][0][i].unk01Count);
-					buf->clear_pointer(&dest->dynEntUnk01List[1][0][i].unk01);
+					buf->write(data->dynEntPoseList[1][0][i].poses, data->dynEntPoseList[1][0][i].numPoses);
+					buf->clear_pointer(&dest->dynEntPoseList[1][0][i].poses);
 				}
-				if (data->dynEntUnk01List[1][0][i].unk02)
+				if (data->dynEntPoseList[1][0][i].unk)
 				{
 					buf->align(0);
-					buf->write(data->dynEntUnk01List[1][0][i].unk02, data->dynEntUnk01List[1][0][i].unk01Count);
-					buf->clear_pointer(&dest->dynEntUnk01List[1][0][i].unk02);
+					buf->write(data->dynEntPoseList[1][0][i].unk, data->dynEntPoseList[1][0][i].numPoses);
+					buf->clear_pointer(&dest->dynEntPoseList[1][0][i].unk);
 				}
 			}
-			buf->clear_pointer(&dest->dynEntUnk01List[1][0]);
+			buf->clear_pointer(&dest->dynEntPoseList[1][0]);
 		}
-		if (data->dynEntUnk01List[0][1])
+		if (data->dynEntPoseList[0][1])
 		{
 			buf->align(7);
-			dest->dynEntUnk01List[0][1] = buf->write(data->dynEntUnk01List[0][1], data->dynEntCount[1]);
+			dest->dynEntPoseList[0][1] = buf->write(data->dynEntPoseList[0][1], data->dynEntCount[1]);
 			for (unsigned short i = 0; i < data->dynEntCount[1]; i++)
 			{
-				if (data->dynEntUnk01List[0][1][i].unk01)
+				if (data->dynEntPoseList[0][1][i].poses)
 				{
 					buf->align(3);
-					buf->write(data->dynEntUnk01List[0][1][i].unk01, data->dynEntUnk01List[0][1][i].unk01Count);
-					buf->clear_pointer(&dest->dynEntUnk01List[0][1][i].unk01);
+					buf->write(data->dynEntPoseList[0][1][i].poses, data->dynEntPoseList[0][1][i].numPoses);
+					buf->clear_pointer(&dest->dynEntPoseList[0][1][i].poses);
 				}
-				if (data->dynEntUnk01List[0][1][i].unk02)
+				if (data->dynEntPoseList[0][1][i].unk)
 				{
 					buf->align(0);
-					buf->write(data->dynEntUnk01List[0][1][i].unk02, data->dynEntUnk01List[0][1][i].unk01Count);
-					buf->clear_pointer(&dest->dynEntUnk01List[0][1][i].unk02);
+					buf->write(data->dynEntPoseList[0][1][i].unk, data->dynEntPoseList[0][1][i].numPoses);
+					buf->clear_pointer(&dest->dynEntPoseList[0][1][i].unk);
 				}
 			}
-			buf->clear_pointer(&dest->dynEntUnk01List[0][1]);
+			buf->clear_pointer(&dest->dynEntPoseList[0][1]);
 		}
-		if (data->dynEntUnk01List[1][1])
+		if (data->dynEntPoseList[1][1])
 		{
 			buf->align(7);
-			dest->dynEntUnk01List[1][1] = buf->write(data->dynEntUnk01List[1][1], data->dynEntCount[1]);
+			dest->dynEntPoseList[1][1] = buf->write(data->dynEntPoseList[1][1], data->dynEntCount[1]);
 			for (unsigned short i = 0; i < data->dynEntCount[1]; i++)
 			{
-				if (data->dynEntUnk01List[1][1][i].unk01)
+				if (data->dynEntPoseList[1][1][i].poses)
 				{
 					buf->align(3);
-					buf->write(data->dynEntUnk01List[1][1][i].unk01, data->dynEntUnk01List[1][1][i].unk01Count);
-					buf->clear_pointer(&dest->dynEntUnk01List[1][1][i].unk01);
+					buf->write(data->dynEntPoseList[1][1][i].poses, data->dynEntPoseList[1][1][i].numPoses);
+					buf->clear_pointer(&dest->dynEntPoseList[1][1][i].poses);
 				}
-				if (data->dynEntUnk01List[1][1][i].unk02)
+				if (data->dynEntPoseList[1][1][i].unk)
 				{
 					buf->align(0);
-					buf->write(data->dynEntUnk01List[1][1][i].unk02, data->dynEntUnk01List[1][1][i].unk01Count);
-					buf->clear_pointer(&dest->dynEntUnk01List[1][1][i].unk02);
+					buf->write(data->dynEntPoseList[1][1][i].unk, data->dynEntPoseList[1][1][i].numPoses);
+					buf->clear_pointer(&dest->dynEntPoseList[1][1][i].unk);
 				}
 			}
-			buf->clear_pointer(&dest->dynEntUnk01List[1][1]);
+			buf->clear_pointer(&dest->dynEntPoseList[1][1]);
 		}
 
 		buf->push_stream(XFILE_BLOCK_RUNTIME);
-		if (data->dynEntUnk02List[0][0])
+		if (data->dynEntClientList[0][0])
 		{
 			buf->align(3);
-			buf->write(data->dynEntUnk02List[0][0], data->dynEntCount[0]);
-			buf->clear_pointer(&dest->dynEntUnk02List[0][0]);
+			buf->write(data->dynEntClientList[0][0], data->dynEntCount[0]);
+			buf->clear_pointer(&dest->dynEntClientList[0][0]);
 		}
-		if (data->dynEntUnk02List[1][0])
+		if (data->dynEntClientList[1][0])
 		{
 			buf->align(3);
-			buf->write(data->dynEntUnk02List[1][0], data->dynEntCount[0]);
-			buf->clear_pointer(&dest->dynEntUnk02List[1][0]);
+			buf->write(data->dynEntClientList[1][0], data->dynEntCount[0]);
+			buf->clear_pointer(&dest->dynEntClientList[1][0]);
 		}
-		if (data->dynEntUnk02List[0][1])
+		if (data->dynEntClientList[0][1])
 		{
 			buf->align(3);
-			buf->write(data->dynEntUnk02List[0][1], data->dynEntCount[1]);
-			buf->clear_pointer(&dest->dynEntUnk02List[0][1]);
+			buf->write(data->dynEntClientList[0][1], data->dynEntCount[1]);
+			buf->clear_pointer(&dest->dynEntClientList[0][1]);
 		}
-		if (data->dynEntUnk02List[1][1])
+		if (data->dynEntClientList[1][1])
 		{
 			buf->align(3);
-			buf->write(data->dynEntUnk02List[1][1], data->dynEntCount[1]);
-			buf->clear_pointer(&dest->dynEntUnk02List[1][1]);
+			buf->write(data->dynEntClientList[1][1], data->dynEntCount[1]);
+			buf->clear_pointer(&dest->dynEntClientList[1][1]);
 		}
 		buf->pop_stream();
 
-		if (data->dynEntUnk03List[0])
+		if (data->dynEntGlobalIdList[0])
 		{
 			buf->align(3);
-			buf->write(data->dynEntUnk03List[0], data->dynEntCountTotal);
-			buf->clear_pointer(&dest->dynEntUnk03List[0]);
+			buf->write(data->dynEntGlobalIdList[0], data->dynEntCountTotal);
+			buf->clear_pointer(&dest->dynEntGlobalIdList[0]);
 		}
-		if (data->dynEntUnk03List[1])
+		if (data->dynEntGlobalIdList[1])
 		{
 			buf->align(3);
-			buf->write(data->dynEntUnk03List[1], data->dynEntCountTotal);
-			buf->clear_pointer(&dest->dynEntUnk03List[1]);
+			buf->write(data->dynEntGlobalIdList[1], data->dynEntCountTotal);
+			buf->clear_pointer(&dest->dynEntGlobalIdList[1]);
 		}
 
 		if (data->unk2)
@@ -921,8 +921,8 @@ namespace zonetool::iw7
 		if (data->scriptableMapEnts.instances)
 		{
 			buf->align(7);
-			dest->scriptableMapEnts.instances = buf->write(data->scriptableMapEnts.instances, data->scriptableMapEnts.instanceCount);
-			for (unsigned int i = 0; i < data->scriptableMapEnts.instanceCount; i++)
+			dest->scriptableMapEnts.instances = buf->write(data->scriptableMapEnts.instances, data->scriptableMapEnts.totalInstanceCount);
+			for (unsigned int i = 0; i < data->scriptableMapEnts.totalInstanceCount; i++)
 			{
 				if (data->scriptableMapEnts.instances[i].unk01.unk01.def)
 				{
@@ -934,11 +934,11 @@ namespace zonetool::iw7
 					dest->scriptableMapEnts.instances[i].unk01.unk01.unk01.model = reinterpret_cast<XModel*>(
 						zone->get_asset_pointer(ASSET_TYPE_XMODEL, data->scriptableMapEnts.instances[i].unk01.unk01.unk01.model->name));
 				}
-				if (data->scriptableMapEnts.instances[i].unk01.unk01.unk02)
+				if (data->scriptableMapEnts.instances[i].unk01.unk01.eventStreamBuffer)
 				{
 					buf->align(0);
-					buf->write(data->scriptableMapEnts.instances[i].unk01.unk01.unk02, data->scriptableMapEnts.instances[i].unk01.unk01.unk02Count);
-					buf->clear_pointer(&dest->scriptableMapEnts.instances[i].unk01.unk01.unk02);
+					buf->write(data->scriptableMapEnts.instances[i].unk01.unk01.eventStreamBuffer, data->scriptableMapEnts.instances[i].unk01.unk01.eventStreamBufferSize);
+					buf->clear_pointer(&dest->scriptableMapEnts.instances[i].unk01.unk01.eventStreamBuffer);
 				}
 				//
 				if (data->scriptableMapEnts.instances[i].unk02[0].unk01.def)
@@ -951,11 +951,11 @@ namespace zonetool::iw7
 					dest->scriptableMapEnts.instances[i].unk02[0].unk01.unk01.model = reinterpret_cast<XModel*>(
 						zone->get_asset_pointer(ASSET_TYPE_XMODEL, data->scriptableMapEnts.instances[i].unk02[0].unk01.unk01.model->name));
 				}
-				if (data->scriptableMapEnts.instances[i].unk02[0].unk01.unk02)
+				if (data->scriptableMapEnts.instances[i].unk02[0].unk01.eventStreamBuffer)
 				{
 					buf->align(0);
-					buf->write(data->scriptableMapEnts.instances[i].unk02[0].unk01.unk02, data->scriptableMapEnts.instances[i].unk02[0].unk01.unk02Count);
-					buf->clear_pointer(&dest->scriptableMapEnts.instances[i].unk02[0].unk01.unk02);
+					buf->write(data->scriptableMapEnts.instances[i].unk02[0].unk01.eventStreamBuffer, data->scriptableMapEnts.instances[i].unk02[0].unk01.eventStreamBufferSize);
+					buf->clear_pointer(&dest->scriptableMapEnts.instances[i].unk02[0].unk01.eventStreamBuffer);
 				}
 				//
 				if (data->scriptableMapEnts.instances[i].unk02[1].unk01.def)
@@ -968,11 +968,11 @@ namespace zonetool::iw7
 					dest->scriptableMapEnts.instances[i].unk02[1].unk01.unk01.model = reinterpret_cast<XModel*>(
 						zone->get_asset_pointer(ASSET_TYPE_XMODEL, data->scriptableMapEnts.instances[i].unk02[1].unk01.unk01.model->name));
 				}
-				if (data->scriptableMapEnts.instances[i].unk02[1].unk01.unk02)
+				if (data->scriptableMapEnts.instances[i].unk02[1].unk01.eventStreamBuffer)
 				{
 					buf->align(0);
-					buf->write(data->scriptableMapEnts.instances[i].unk02[1].unk01.unk02, data->scriptableMapEnts.instances[i].unk02[1].unk01.unk02Count);
-					buf->clear_pointer(&dest->scriptableMapEnts.instances[i].unk02[1].unk01.unk02);
+					buf->write(data->scriptableMapEnts.instances[i].unk02[1].unk01.eventStreamBuffer, data->scriptableMapEnts.instances[i].unk02[1].unk01.eventStreamBufferSize);
+					buf->clear_pointer(&dest->scriptableMapEnts.instances[i].unk02[1].unk01.eventStreamBuffer);
 				}
 			}
 
@@ -1240,36 +1240,36 @@ namespace zonetool::iw7
 			dumper.dump_single(asset->dynEntDefList[1][i].linkTo);
 		}
 
-		dumper.dump_array(asset->dynEntUnk01List[0][0], asset->dynEntCount[0]);
+		dumper.dump_array(asset->dynEntPoseList[0][0], asset->dynEntCount[0]);
 		for (unsigned short i = 0; i < asset->dynEntCount[0]; i++)
 		{
-			dumper.dump_array(asset->dynEntUnk01List[0][0][i].unk01, asset->dynEntUnk01List[0][0][i].unk01Count);
-			dumper.dump_array(asset->dynEntUnk01List[0][0][i].unk02, asset->dynEntUnk01List[0][0][i].unk01Count);
+			dumper.dump_array(asset->dynEntPoseList[0][0][i].poses, asset->dynEntPoseList[0][0][i].numPoses);
+			dumper.dump_array(asset->dynEntPoseList[0][0][i].unk, asset->dynEntPoseList[0][0][i].numPoses);
 		}
 
-		dumper.dump_array(asset->dynEntUnk01List[1][0], asset->dynEntCount[0]);
+		dumper.dump_array(asset->dynEntPoseList[1][0], asset->dynEntCount[0]);
 		for (unsigned short i = 0; i < asset->dynEntCount[0]; i++)
 		{
-			dumper.dump_array(asset->dynEntUnk01List[1][0][i].unk01, asset->dynEntUnk01List[1][0][i].unk01Count);
-			dumper.dump_array(asset->dynEntUnk01List[1][0][i].unk02, asset->dynEntUnk01List[1][0][i].unk01Count);
+			dumper.dump_array(asset->dynEntPoseList[1][0][i].poses, asset->dynEntPoseList[1][0][i].numPoses);
+			dumper.dump_array(asset->dynEntPoseList[1][0][i].unk, asset->dynEntPoseList[1][0][i].numPoses);
 		}
 
-		dumper.dump_array(asset->dynEntUnk01List[0][1], asset->dynEntCount[1]);
+		dumper.dump_array(asset->dynEntPoseList[0][1], asset->dynEntCount[1]);
 		for (unsigned short i = 0; i < asset->dynEntCount[1]; i++)
 		{
-			dumper.dump_array(asset->dynEntUnk01List[0][1][i].unk01, asset->dynEntUnk01List[0][1][i].unk01Count);
-			dumper.dump_array(asset->dynEntUnk01List[0][1][i].unk02, asset->dynEntUnk01List[0][1][i].unk01Count);
+			dumper.dump_array(asset->dynEntPoseList[0][1][i].poses, asset->dynEntPoseList[0][1][i].numPoses);
+			dumper.dump_array(asset->dynEntPoseList[0][1][i].unk, asset->dynEntPoseList[0][1][i].numPoses);
 		}
 
-		dumper.dump_array(asset->dynEntUnk01List[1][1], asset->dynEntCount[1]);
+		dumper.dump_array(asset->dynEntPoseList[1][1], asset->dynEntCount[1]);
 		for (unsigned short i = 0; i < asset->dynEntCount[1]; i++)
 		{
-			dumper.dump_array(asset->dynEntUnk01List[1][1][i].unk01, asset->dynEntUnk01List[1][1][i].unk01Count);
-			dumper.dump_array(asset->dynEntUnk01List[1][1][i].unk02, asset->dynEntUnk01List[1][1][i].unk01Count);
+			dumper.dump_array(asset->dynEntPoseList[1][1][i].poses, asset->dynEntPoseList[1][1][i].numPoses);
+			dumper.dump_array(asset->dynEntPoseList[1][1][i].unk, asset->dynEntPoseList[1][1][i].numPoses);
 		}
 
-		dumper.dump_array(asset->dynEntUnk03List[0], asset->dynEntCountTotal);
-		dumper.dump_array(asset->dynEntUnk03List[1], asset->dynEntCountTotal);
+		dumper.dump_array(asset->dynEntGlobalIdList[0], asset->dynEntCountTotal);
+		dumper.dump_array(asset->dynEntGlobalIdList[1], asset->dynEntCountTotal);
 
 		dumper.dump_array(asset->unk2, asset->unk2Count);
 		dumper.dump_array(asset->unk2_1[0], asset->unk2Count);
@@ -1285,24 +1285,24 @@ namespace zonetool::iw7
 			dumper.dump_string(SL_ConvertToString(asset->clientEntAnchors[i].name));
 		}
 
-		dumper.dump_array(asset->scriptableMapEnts.instances, asset->scriptableMapEnts.instanceCount);
-		for (unsigned int i = 0; i < asset->scriptableMapEnts.instanceCount; i++)
+		dumper.dump_array(asset->scriptableMapEnts.instances, asset->scriptableMapEnts.totalInstanceCount);
+		for (unsigned int i = 0; i < asset->scriptableMapEnts.totalInstanceCount; i++)
 		{
 			dumper.dump_asset(asset->scriptableMapEnts.instances[i].unk01.unk01.def);
 			dumper.dump_asset(asset->scriptableMapEnts.instances[i].unk01.unk01.unk01.model);
-			dumper.dump_array(asset->scriptableMapEnts.instances[i].unk01.unk01.unk02, asset->scriptableMapEnts.instances[i].unk01.unk01.unk02Count);
+			dumper.dump_array(asset->scriptableMapEnts.instances[i].unk01.unk01.eventStreamBuffer, asset->scriptableMapEnts.instances[i].unk01.unk01.eventStreamBufferSize);
 
 			dumper.dump_asset(asset->scriptableMapEnts.instances[i].unk02[0].unk01.def);
 			dumper.dump_asset(asset->scriptableMapEnts.instances[i].unk02[0].unk01.unk01.model);
-			dumper.dump_array(asset->scriptableMapEnts.instances[i].unk02[0].unk01.unk02, asset->scriptableMapEnts.instances[i].unk02[0].unk01.unk02Count);
+			dumper.dump_array(asset->scriptableMapEnts.instances[i].unk02[0].unk01.eventStreamBuffer, asset->scriptableMapEnts.instances[i].unk02[0].unk01.eventStreamBufferSize);
 
 			dumper.dump_asset(asset->scriptableMapEnts.instances[i].unk02[1].unk01.def);
 			dumper.dump_asset(asset->scriptableMapEnts.instances[i].unk02[1].unk01.unk01.model);
-			dumper.dump_array(asset->scriptableMapEnts.instances[i].unk02[1].unk01.unk02, asset->scriptableMapEnts.instances[i].unk02[1].unk01.unk02Count);
+			dumper.dump_array(asset->scriptableMapEnts.instances[i].unk02[1].unk01.eventStreamBuffer, asset->scriptableMapEnts.instances[i].unk02[1].unk01.eventStreamBufferSize);
 
 			dumper.dump_string(SL_ConvertToString(asset->scriptableMapEnts.instances[i].unk03));
 			dumper.dump_string(asset->scriptableMapEnts.instances[i].unk04);
-			dumper.dump_string(SL_ConvertToString(asset->scriptableMapEnts.instances[i].unk05));
+			dumper.dump_string(SL_ConvertToString(asset->scriptableMapEnts.instances[i].targetname));
 		}
 
 		dumper.dump_array(asset->scriptableMapEnts.unk.unk01, asset->scriptableMapEnts.unk.unk01Count);

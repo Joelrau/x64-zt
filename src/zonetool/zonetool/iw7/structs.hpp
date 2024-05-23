@@ -537,6 +537,13 @@ namespace zonetool::iw7
 		PhysicsVFXEventAssetRules rules;
 	}; assert_sizeof(PhysicsVFXEventAsset, 0x20);
 
+	struct PhysicsAssetUsageCounter
+	{
+		int serverEnt;
+		int clientEnt;
+		int dynEnt;
+	};
+
 	struct PhysicsAsset
 	{
 		const char* name;
@@ -548,7 +555,8 @@ namespace zonetool::iw7
 		PhysicsSFXEventAsset** sfxEventAssets;
 		int numVFXEventAssets;
 		PhysicsVFXEventAsset** vfxEventAssets;
-		char __pad0[16]; // unused
+		PhysicsAssetUsageCounter physicsUsageCounter;
+		char __pad0[4]; // unused
 	}; assert_sizeof(PhysicsAsset, 0x50);
 
 	struct unk_1453E1188
@@ -1027,13 +1035,6 @@ namespace zonetool::iw7
 		};
 	};
 
-	struct XModelPhysicsUsageCounter
-	{
-		int serverEnt;
-		int clientEnt;
-		int dynEnt;
-	};
-
 	struct unk_1453E14D8
 	{
 		char __pad0[24];
@@ -1064,6 +1065,13 @@ namespace zonetool::iw7
 		XMODEL_FLAG_HAS_MAYHEM_SELFVIS = 0x8000000,
 	};
 
+	struct XModelPhysicsUsageCounter
+	{
+		int serverEnt;
+		int clientEnt;
+		int dynEnt;
+	};
+
 	struct XModel
 	{
 		const char* name;
@@ -1086,7 +1094,7 @@ namespace zonetool::iw7
 		float radius;
 		Bounds bounds;
 		int memUsage;
-		unsigned int unknown02Count;
+		unsigned int physicsLODDataSize;
 		XModelPhysicsUsageCounter physicsUsageCounter;
 		ScriptableDef* scriptableMoverDef;
 		XAnimProceduralBones* proceduralBones;
@@ -1109,10 +1117,9 @@ namespace zonetool::iw7
 		unsigned short* invHighMipRadius;
 		PhysicsAsset* physicsAsset;
 		PhysicsFXShape* physicsFXShape;
-		char* unknown02;
-		unsigned short unknownNamesCount;
-		char unk_02[6]; // unknown data
-		scr_string_t* unknownNames;
+		char* physicsLODData;
+		unsigned int physicsLODDataNameCount;
+		scr_string_t* physicsLODDataNames;
 		unsigned char impactType;
 		char unk_03[15]; // unknown data
 		unsigned char unknown03Count;
@@ -3525,21 +3532,35 @@ namespace zonetool::iw7
 		float radius;
 		ClipInfo* info;
 		PhysicsAsset* physicsAsset;
-		//unsigned short physicsShapeOverrideIdx;
-		//unsigned short navObstacleIdx;
+		unsigned short physicsShapeOverrideIdx;
+		unsigned short navObstacleIdx;
 		unsigned int edgeFirstIndex;
-		unsigned int edgeTotalCount;
+		//unsigned int edgeTotalCount;
 	}; assert_sizeof(cmodel_t, 56);
 
-	enum DynEntityType : std::int32_t
+	enum DynEntityType : std::int8_t
 	{
 		DYNENT_TYPE_INVALID = 0x0,
+		DYNENT_TYPE_CLUTTER = 0x1,
+		DYNENT_TYPE_CLUTTER_NOSHADOW = 0x2,
+		DYNENT_TYPE_SCRIPTABLEINST = 0x3,
+		DYNENT_TYPE_SCRIPTABLEPHYSICS = 0x4,
+		DYNENT_TYPE_LINKED = 0x5,
+		DYNENT_TYPE_LINKED_NOSHADOW = 0x6,
+		DYNENT_TYPE_COUNT = 0x7,
+	};
+
+	enum DynEntityBasis
+	{
+		DYNENT_BASIS_MODEL = 0x0,
+		DYNENT_BASIS_BRUSH = 0x1,
+		DYNENT_BASIS_COUNT = 0x2,
 	};
 
 	struct GfxPlacement
 	{
-		float quat[4];
-		float origin[3];
+		vec4_t quat;
+		vec3_t origin;
 	};
 
 	struct DynEntityLinkToDef
@@ -3552,41 +3573,72 @@ namespace zonetool::iw7
 	struct DynEntityDef
 	{
 		DynEntityType type;
-		char __pad0[28];
+		char __pad0[31];
 		GfxPlacement pose;
 		char __pad1[4];
 		XModel* baseModel;
-		char __pad2[16];
+		unsigned short brushModel;
+		bool spawnActive;
+		char __pad2[1];
+		short instanceIndex;
+		char __pad3[10];
 		DynEntityLinkToDef* linkTo;
-		char __pad3[16];
+		bool noPhysics;
+		bool unk;
+		char __pad4[1];
+		bool distantShadows;
+		bool noSpotShadows;
+		bool isTransient;
+		bool transientZoneLoaded;
+		char __pad5[1];
+		char priority;
+		char __pad6[7];
 	}; assert_sizeof(DynEntityDef, 112);
 	assert_offsetof(DynEntityDef, baseModel, 64);
 	assert_offsetof(DynEntityDef, linkTo, 88);
 
-	struct unk_1453E3260
+	struct GpuLightGridRequestRecord
 	{
-		char __pad0[28];
-	}; assert_sizeof(unk_1453E3260, 28);
+		unsigned int lgvFrame;
+		unsigned int lgvHistoryEntry;
+		unsigned int lgvNumProbes;
+	};
 
-	struct unk_1453E4268
+	struct DynEntityPose
 	{
-		char __pad0[44];
-		unsigned int unk01Count;
-		unk_1453E3260* unk01;
-		char* unk02;
-		char __pad1[8];
-	}; assert_sizeof(unk_1453E4268, 72);
-	assert_offsetof(unk_1453E4268, unk02, 56);
+		GfxPlacement pose;
+		float radius;
+		GpuLightGridRequestRecord lastGpuLightGridRequest;
+		unsigned int numPoses;
+		GfxPlacement* poses;
+		char* unk;
+		char __pad1[1];
+		bool cachedActive;
+		char __pad2[6];
+	}; assert_sizeof(DynEntityPose, 72);
+	assert_offsetof(DynEntityPose, unk, 56);
 
-	struct unk_1453E4278
+	struct DynEntityClient
 	{
-		char __pad0[56];
-	}; assert_sizeof(unk_1453E4278, 56);
+		unsigned short flags;
+		char __pad0[6];
+		XModel* activeModel;
+		int physicsSystemId;
+		int physicsSystemDetailId;
+		char numPhysicsBodies;
+		int singlePhysicsBody;
+		int detailBoundBody;
+		int unkId;
+		int dynEntDefId;
+		int locked;
+		char __pad3[8];
+	}; assert_sizeof(DynEntityClient, 56);
 
-	struct unk_1453E4238
+	struct DynEntityGlobalId
 	{
-		char __pad0[8];
-	}; assert_sizeof(unk_1453E4238, 8);
+		char basis;
+		unsigned int id;
+	}; assert_sizeof(DynEntityGlobalId, 8);
 
 	struct unk_1453E4280
 	{
@@ -3603,7 +3655,8 @@ namespace zonetool::iw7
 
 	struct unk_1453E42A8
 	{
-		char __pad0[8];
+		int unkIndex;
+		int unk;
 	}; assert_sizeof(unk_1453E42A8, 8);
 
 	struct unk_1453E1130
@@ -3620,18 +3673,21 @@ namespace zonetool::iw7
 	struct unk_1453E24B0
 	{
 		XModel* model;
-		unsigned int count;
-		char __pad0[4];
+		bool neverMoves;
+		bool dynamicSimulation;
+		char __pad0[6];
 	}; assert_sizeof(unk_1453E24B0, 16);
 
 	struct unk_1453E2510
 	{
 		ScriptableDef* def;
-		char __pad0[64];
+		char __pad0[52];
+		short entityId;
+		char __pad1[10];
 		unk_1453E24B0 unk01;
-		unsigned int unk02Count;
-		char* unk02;
-		char __pad1[4];
+		unsigned int eventStreamBufferSize;
+		char* eventStreamBuffer;
+		char __pad2[4];
 	}; assert_sizeof(unk_1453E2510, 112);
 
 	struct unk_1453E2520
@@ -3651,9 +3707,10 @@ namespace zonetool::iw7
 		unk_1453E2520 unk01;
 		unk_1453E2530 unk02[2];
 		scr_string_t unk03;
-		char __pad0[12];
+		int flags;
+		char __pad0[8];
 		const char* unk04;
-		scr_string_t unk05;
+		scr_string_t targetname;
 	}; assert_sizeof(ScriptableInstance, 464);
 
 	struct ScriptableReservedDynent
@@ -3696,10 +3753,10 @@ namespace zonetool::iw7
 
 	struct ScriptableMapEnts
 	{
-		unsigned int instanceCount;
-		unsigned int unkCount1;
-		unsigned int unkCount2;
-		unsigned int unkCount3;
+		unsigned int totalInstanceCount;
+		unsigned int runtimeInstanceCount;
+		unsigned int reservedInstanceCount;
+		unsigned int pad;
 		ScriptableInstance* instances;
 		unk_1453E2560 unk;
 		Scriptable_EventSun_Data sunClientDatas[2];
@@ -3783,10 +3840,10 @@ namespace zonetool::iw7
 		unsigned short dynEntCount[2];
 		unsigned short dynEntCountTotal;
 		DynEntityDef* dynEntDefList[2];
-		unk_1453E4268* dynEntUnk01List[2][2];
-		unk_1453E4278* dynEntUnk02List[2][2]; // runtime data
-		int unkIndexes[4];
-		unk_1453E4238* dynEntUnk03List[2];
+		DynEntityPose* dynEntPoseList[2][2];
+		DynEntityClient* dynEntClientList[2][2]; // runtime data
+		short unkIndexes[8];
+		DynEntityGlobalId* dynEntGlobalIdList[2];
 		char __pad1[8];
 		unsigned int unk2Count;
 		unk_1453E4298* unk2;
@@ -3806,7 +3863,7 @@ namespace zonetool::iw7
 	assert_offsetof(MapEnts, havokEntsShapeDataSize, 336);
 	assert_offsetof(MapEnts, cmodels, 360);
 	assert_offsetof(MapEnts, dynEntDefList, 376);
-	assert_offsetof(MapEnts, dynEntUnk03List, 472);
+	assert_offsetof(MapEnts, dynEntGlobalIdList, 472);
 	assert_offsetof(MapEnts, unk2, 504);
 	assert_offsetof(MapEnts, scriptableMapEnts, 576);
 	assert_offsetof(MapEnts, audioPASpeakers, 824);
@@ -4530,7 +4587,6 @@ namespace zonetool::iw7
 		unsigned char unk3;
 		unsigned char unk4;
 		unsigned char transientZone;
-		unsigned char unused[7];
 	}; assert_sizeof(GfxSurface, 48);
 	assert_offsetof(GfxSurface, material, 24);
 
@@ -4623,7 +4679,6 @@ namespace zonetool::iw7
 		unsigned char sunShadowFlags;
 		unsigned char transientZone;
 		unsigned char unk21;
-		unsigned char unused[1];
 	}; assert_sizeof(GfxStaticModelDrawInst, 184);
 	assert_offsetof(GfxStaticModelDrawInst, model, 56);
 	assert_offsetof(GfxStaticModelDrawInst, vertexLightingInfo, 64);
@@ -4771,8 +4826,7 @@ namespace zonetool::iw7
 		unsigned int* primaryLightMotionDetectBits;
 		unsigned int entityMotionBitsEntries;
 		unsigned int* entityMotionBits;
-		//unsigned int staticSpotOmniPrimaryLightCountAligned;
-		unsigned int shadowBitsArrayPitch;
+		unsigned int staticSpotOmniPrimaryLightCountAligned;
 		unsigned int numPrimaryLightEntityShadowVisEntries;
 		unsigned int* primaryLightEntityShadowVis;
 		unsigned int dynEntMotionBitsEntries[2];
