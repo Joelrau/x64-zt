@@ -47,12 +47,7 @@ namespace zonetool::iw7
 		this->asset_ = this->parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).pixelShader;
-
-			if (DB_IsXAssetDefault(XAssetType(this->type()), this->name().data()))
-			{
-				ZONETOOL_FATAL("pixelshader \"%s\" not found.", name.data());
-			}
+			ZONETOOL_FATAL("pixelshader \"%s\" not found.", name.data());
 		}
 	}
 

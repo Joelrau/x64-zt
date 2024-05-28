@@ -6430,7 +6430,7 @@ namespace zonetool::h1
 		float origin[3];
 		unsigned short triggerIndex;
 		unsigned char sunPrimaryLightIndex;
-		unsigned int unk;
+		unsigned int entityUID;
 	}; assert_sizeof(Stage, 32);
 
 	enum DynEntityType : std::int32_t
@@ -7047,7 +7047,8 @@ namespace zonetool::h1
 		snd_alias_list_t* damagedSound;
 		snd_alias_list_t* destroyedSound;
 		snd_alias_list_t* destroyedQuietSound;
-		float unk[2];
+		float highMipRadiusInvSq;
+		float shatteredHighMipRadiusInvSq;
 		int numCrackRings;
 		bool isOpaque;
 	}; assert_sizeof(FxGlassDef, 120);

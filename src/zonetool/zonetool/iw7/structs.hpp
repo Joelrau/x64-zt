@@ -880,6 +880,7 @@ namespace zonetool::iw7
 
 	union SHProbeSimplexDataUnion
 	{
+		void* data;
 		SHProbeSimplexData0* data0;
 		SHProbeSimplexData1* data1;
 		SHProbeSimplexData2* data2;
@@ -1037,7 +1038,7 @@ namespace zonetool::iw7
 
 	struct unk_1453E14D8
 	{
-		char __pad0[24];
+		Bounds bounds;
 	};
 
 	enum XModelCharCollBoundsType : std::uint8_t
@@ -1133,6 +1134,7 @@ namespace zonetool::iw7
 		char unk_05[6]; // unknown data
 		unk_1453E14D8* unknown04;
 	}; assert_sizeof(XModel, 0x2E0); // 736
+	assert_offsetof(XModel, lodInfo, 224);
 
 	struct MayhemModel
 	{
@@ -4672,8 +4674,7 @@ namespace zonetool::iw7
 		unsigned char unk13;
 		unsigned char unk14;
 		unsigned char unk15[4];
-		unsigned char primaryLightEnvIndex;
-		unsigned char unk20;
+		unsigned short primaryLightEnvIndex;
 		unsigned char reflectionProbeIndex;
 		unsigned char firstMtlSkinIndex;
 		unsigned char sunShadowFlags;

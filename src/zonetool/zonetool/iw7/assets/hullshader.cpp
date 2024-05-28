@@ -45,12 +45,7 @@ namespace zonetool::iw7
 		this->asset_ = this->parse(name, mem);
 		if (!this->asset_)
 		{
-			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).hullShader;
-
-			if (DB_IsXAssetDefault(XAssetType(this->type()), this->name().data()))
-			{
-				ZONETOOL_FATAL("hullshader \"%s\" not found.", name.data());
-			}
+			ZONETOOL_FATAL("hullshader \"%s\" not found.", name.data());
 		}
 	}
 
