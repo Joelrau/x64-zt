@@ -202,13 +202,16 @@ namespace zonetool::iw7
 					{
 						buf->align(15);
 						dest->rigidVertLists[vert].collisionTree->nodes = buf->write(data->rigidVertLists[vert].collisionTree->nodes, data->rigidVertLists[vert].collisionTree->nodeCount);
+						buf->clear_pointer(&dest->rigidVertLists[vert].collisionTree->nodes);
 					}
 
 					if (data->rigidVertLists[vert].collisionTree->leafs)
 					{
 						buf->align(1);
 						dest->rigidVertLists[vert].collisionTree->leafs = buf->write(data->rigidVertLists[vert].collisionTree->leafs, data->rigidVertLists[vert].collisionTree->leafCount);
+						buf->clear_pointer(&dest->rigidVertLists[vert].collisionTree->leafs);
 					}
+
 					buf->clear_pointer(&dest->rigidVertLists[vert].collisionTree);
 				}
 			}
