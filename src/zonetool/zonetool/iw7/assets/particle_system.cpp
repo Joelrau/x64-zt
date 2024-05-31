@@ -7,7 +7,7 @@ namespace zonetool::iw7
 
 	void read_particle_linked_asset_def(ParticleLinkedAssetDef* asset, assetmanager::reader& read)
 	{
-		switch (parent_module->type)
+		switch (parent_module->moduleType)
 		{
 		case PARTICLE_MODULE_INIT_MATERIAL:
 			asset->material = read.read_asset<Material>();
@@ -41,12 +41,12 @@ namespace zonetool::iw7
 		case PARTICLE_MODULE_INIT_BEAM:
 		case PARTICLE_MODULE_INIT_RUNNER:
 
+		case PARTICLE_MODULE_TEST_AGE:
 		case PARTICLE_MODULE_TEST_BIRTH:
 		case PARTICLE_MODULE_TEST_DEATH:
 		case PARTICLE_MODULE_TEST_GRAVITY:
 		case PARTICLE_MODULE_TEST_IMPACT:
 		case PARTICLE_MODULE_TEST_POS:
-		case PARTICLE_MODULE_TEST_TIME_IN_STATE:
 			asset->particleSystem = read.read_asset<ParticleSystemDef>();
 			break;
 		default:
@@ -68,7 +68,7 @@ namespace zonetool::iw7
 	{
 		parent_module = asset;
 
-		switch (asset->type)
+		switch (asset->moduleType)
 		{
 		case PARTICLE_MODULE_INIT_ATLAS:
 			break;
@@ -188,10 +188,10 @@ namespace zonetool::iw7
 				asset->moduleData.intensityGraph.m_curves[i].controlPoints = read.read_array<ParticleCurveControlPointDef>();
 			}
 			break;
-		case PARTICLE_MODULE_TEMPERATURE_GRAPH:
+		case PARTICLE_MODULE_PARENT_VELOCITY_GRAPH:
 			for (auto i = 0; i < 2; i++)
 			{
-				asset->moduleData.temperatureGraph.m_curves[i].controlPoints = read.read_array<ParticleCurveControlPointDef>();
+				asset->moduleData.parentVelocityGraph.m_curves[i].controlPoints = read.read_array<ParticleCurveControlPointDef>();
 			}
 			break;
 		case PARTICLE_MODULE_PHYSICS_LIGHT:
@@ -231,6 +231,9 @@ namespace zonetool::iw7
 				asset->moduleData.velocityGraph.m_curves[i].controlPoints = read.read_array<ParticleCurveControlPointDef>();
 			}
 			break;
+		case PARTICLE_MODULE_TEST_AGE:
+			read_particle_linked_asset_list(asset->moduleData.testAge.m_eventHandlerData.m_linkedAssetList, read);
+			break;
 		case PARTICLE_MODULE_TEST_BIRTH:
 			read_particle_linked_asset_list(asset->moduleData.testBirth.m_eventHandlerData.m_linkedAssetList, read);
 			break;
@@ -245,9 +248,6 @@ namespace zonetool::iw7
 			break;
 		case PARTICLE_MODULE_TEST_POS:
 			read_particle_linked_asset_list(asset->moduleData.testPos.m_eventHandlerData.m_linkedAssetList, read);
-			break;
-		case PARTICLE_MODULE_TEST_TIME_IN_STATE:
-			read_particle_linked_asset_list(asset->moduleData.testTimeInState.m_eventHandlerData.m_linkedAssetList, read);
 			break;
 		}
 	}
@@ -333,7 +333,7 @@ namespace zonetool::iw7
 	{
 		auto saved = parent_module;
 
-		switch (parent_module->type)
+		switch (parent_module->moduleType)
 		{
 		case PARTICLE_MODULE_INIT_MATERIAL:
 			if (asset->material)
@@ -397,12 +397,12 @@ namespace zonetool::iw7
 		case PARTICLE_MODULE_INIT_BEAM:
 		case PARTICLE_MODULE_INIT_RUNNER:
 
+		case PARTICLE_MODULE_TEST_AGE:
 		case PARTICLE_MODULE_TEST_BIRTH:
 		case PARTICLE_MODULE_TEST_DEATH:
 		case PARTICLE_MODULE_TEST_GRAVITY:
 		case PARTICLE_MODULE_TEST_IMPACT:
 		case PARTICLE_MODULE_TEST_POS:
-		case PARTICLE_MODULE_TEST_TIME_IN_STATE:
 			if (asset->particleSystem)
 			{
 				zone->add_asset_of_type(ASSET_TYPE_VFX, asset->particleSystem->name);
@@ -431,7 +431,7 @@ namespace zonetool::iw7
 	{
 		parent_module = asset;
 
-		switch (asset->type)
+		switch (asset->moduleType)
 		{
 		case PARTICLE_MODULE_INIT_BEAM:
 			load_depending_linked_asset_list(asset->moduleData.initBeam.m_linkedAssetList, zone);
@@ -469,6 +469,9 @@ namespace zonetool::iw7
 		case PARTICLE_MODULE_PHYSICS_LIGHT:
 			load_depending_linked_asset_list(asset->moduleData.physicsLight.m_linkedAssetList, zone);
 			break;
+		case PARTICLE_MODULE_TEST_AGE:
+			load_depending_linked_asset_list(asset->moduleData.testAge.m_eventHandlerData.m_linkedAssetList, zone);
+			break;
 		case PARTICLE_MODULE_TEST_BIRTH:
 			load_depending_linked_asset_list(asset->moduleData.testBirth.m_eventHandlerData.m_linkedAssetList, zone);
 			break;
@@ -483,9 +486,6 @@ namespace zonetool::iw7
 			break;
 		case PARTICLE_MODULE_TEST_POS:
 			load_depending_linked_asset_list(asset->moduleData.testPos.m_eventHandlerData.m_linkedAssetList, zone);
-			break;
-		case PARTICLE_MODULE_TEST_TIME_IN_STATE:
-			load_depending_linked_asset_list(asset->moduleData.testTimeInState.m_eventHandlerData.m_linkedAssetList, zone);
 			break;
 		}
 	}
@@ -532,7 +532,7 @@ namespace zonetool::iw7
 
 	void write_particle_linked_asset_def(ParticleLinkedAssetDef* data, ParticleLinkedAssetDef* dest, zone_base* zone, zone_buffer* buf)
 	{
-		switch (parent_module->type)
+		switch (parent_module->moduleType)
 		{
 		case PARTICLE_MODULE_INIT_MATERIAL:
 			if (data->material)
@@ -599,12 +599,12 @@ namespace zonetool::iw7
 		case PARTICLE_MODULE_INIT_BEAM:
 		case PARTICLE_MODULE_INIT_RUNNER:
 
+		case PARTICLE_MODULE_TEST_AGE:
 		case PARTICLE_MODULE_TEST_BIRTH:
 		case PARTICLE_MODULE_TEST_DEATH:
 		case PARTICLE_MODULE_TEST_GRAVITY:
 		case PARTICLE_MODULE_TEST_IMPACT:
 		case PARTICLE_MODULE_TEST_POS:
-		case PARTICLE_MODULE_TEST_TIME_IN_STATE:
 			if (data->particleSystem)
 			{
 				dest->particleSystem = reinterpret_cast<ParticleSystemDef*>(zone->get_asset_pointer(ASSET_TYPE_VFX, data->particleSystem->name));
@@ -634,7 +634,7 @@ namespace zonetool::iw7
 	{
 		parent_module = data;
 
-		switch (data->type)
+		switch (data->moduleType)
 		{
 		case PARTICLE_MODULE_INIT_ATLAS:
 			break;
@@ -794,14 +794,14 @@ namespace zonetool::iw7
 				}
 			}
 			break;
-		case PARTICLE_MODULE_TEMPERATURE_GRAPH:
+		case PARTICLE_MODULE_PARENT_VELOCITY_GRAPH:
 			for (auto i = 0; i < 2; i++)
 			{
-				if (data->moduleData.temperatureGraph.m_curves[i].controlPoints)
+				if (data->moduleData.parentVelocityGraph.m_curves[i].controlPoints)
 				{
 					buf->align(15);
-					buf->write(data->moduleData.temperatureGraph.m_curves[i].controlPoints, data->moduleData.temperatureGraph.m_curves[i].numControlPoints);
-					buf->clear_pointer(&dest->moduleData.temperatureGraph.m_curves[i].controlPoints);
+					buf->write(data->moduleData.parentVelocityGraph.m_curves[i].controlPoints, data->moduleData.parentVelocityGraph.m_curves[i].numControlPoints);
+					buf->clear_pointer(&dest->moduleData.parentVelocityGraph.m_curves[i].controlPoints);
 				}
 			}
 			break;
@@ -867,6 +867,9 @@ namespace zonetool::iw7
 				}
 			}
 			break;
+		case PARTICLE_MODULE_TEST_AGE:
+			write_particle_linked_asset_list(data->moduleData.testAge.m_eventHandlerData.m_linkedAssetList, dest->moduleData.testAge.m_eventHandlerData.m_linkedAssetList, zone, buf);
+			break;
 		case PARTICLE_MODULE_TEST_BIRTH:
 			write_particle_linked_asset_list(data->moduleData.testBirth.m_eventHandlerData.m_linkedAssetList, dest->moduleData.testBirth.m_eventHandlerData.m_linkedAssetList, zone, buf);
 			break;
@@ -881,9 +884,6 @@ namespace zonetool::iw7
 			break;
 		case PARTICLE_MODULE_TEST_POS:
 			write_particle_linked_asset_list(data->moduleData.testPos.m_eventHandlerData.m_linkedAssetList, dest->moduleData.testPos.m_eventHandlerData.m_linkedAssetList, zone, buf);
-			break;
-		case PARTICLE_MODULE_TEST_TIME_IN_STATE:
-			write_particle_linked_asset_list(data->moduleData.testTimeInState.m_eventHandlerData.m_linkedAssetList, dest->moduleData.testTimeInState.m_eventHandlerData.m_linkedAssetList, zone, buf);
 			break;
 		}
 	}
@@ -969,7 +969,7 @@ namespace zonetool::iw7
 
 	void dump_particle_linked_asset_def(ParticleLinkedAssetDef* asset, assetmanager::dumper& dump)
 	{
-		switch (parent_module->type)
+		switch (parent_module->moduleType)
 		{
 		case PARTICLE_MODULE_INIT_MATERIAL:
 			dump.dump_asset(asset->material);
@@ -1003,12 +1003,12 @@ namespace zonetool::iw7
 		case PARTICLE_MODULE_INIT_BEAM:
 		case PARTICLE_MODULE_INIT_RUNNER:
 
+		case PARTICLE_MODULE_TEST_AGE:
 		case PARTICLE_MODULE_TEST_BIRTH:
 		case PARTICLE_MODULE_TEST_DEATH:
 		case PARTICLE_MODULE_TEST_GRAVITY:
 		case PARTICLE_MODULE_TEST_IMPACT:
 		case PARTICLE_MODULE_TEST_POS:
-		case PARTICLE_MODULE_TEST_TIME_IN_STATE:
 			dump.dump_asset(asset->particleSystem);
 			break;
 		default:
@@ -1030,7 +1030,7 @@ namespace zonetool::iw7
 	{
 		parent_module = asset;
 
-		switch (asset->type)
+		switch (asset->moduleType)
 		{
 		case PARTICLE_MODULE_INIT_ATLAS:
 			break;
@@ -1150,10 +1150,10 @@ namespace zonetool::iw7
 				dump.dump_array(asset->moduleData.intensityGraph.m_curves[i].controlPoints, asset->moduleData.intensityGraph.m_curves[i].numControlPoints);
 			}
 			break;
-		case PARTICLE_MODULE_TEMPERATURE_GRAPH:
+		case PARTICLE_MODULE_PARENT_VELOCITY_GRAPH:
 			for (auto i = 0; i < 2; i++)
 			{
-				dump.dump_array(asset->moduleData.temperatureGraph.m_curves[i].controlPoints, asset->moduleData.temperatureGraph.m_curves[i].numControlPoints);
+				dump.dump_array(asset->moduleData.parentVelocityGraph.m_curves[i].controlPoints, asset->moduleData.parentVelocityGraph.m_curves[i].numControlPoints);
 			}
 			break;
 		case PARTICLE_MODULE_PHYSICS_LIGHT:
@@ -1193,6 +1193,9 @@ namespace zonetool::iw7
 				dump.dump_array(asset->moduleData.velocityGraph.m_curves[i].controlPoints, asset->moduleData.velocityGraph.m_curves[i].numControlPoints);
 			}
 			break;
+		case PARTICLE_MODULE_TEST_AGE:
+			dump_particle_linked_asset_list(asset->moduleData.testAge.m_eventHandlerData.m_linkedAssetList, dump);
+			break;
 		case PARTICLE_MODULE_TEST_BIRTH:
 			dump_particle_linked_asset_list(asset->moduleData.testBirth.m_eventHandlerData.m_linkedAssetList, dump);
 			break;
@@ -1207,9 +1210,6 @@ namespace zonetool::iw7
 			break;
 		case PARTICLE_MODULE_TEST_POS:
 			dump_particle_linked_asset_list(asset->moduleData.testPos.m_eventHandlerData.m_linkedAssetList, dump);
-			break;
-		case PARTICLE_MODULE_TEST_TIME_IN_STATE:
-			dump_particle_linked_asset_list(asset->moduleData.testTimeInState.m_eventHandlerData.m_linkedAssetList, dump);
 			break;
 		}
 	}
