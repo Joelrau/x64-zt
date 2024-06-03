@@ -3178,7 +3178,7 @@ namespace zonetool::iw7
 		unsigned int transientZoneList;
 		unsigned int entityId;
 		float uvIntensity;
-		float heatIntensity;
+		float irIntensity;
 		float color[3];
 		float dir[3];
 		float up[3];
@@ -8179,14 +8179,14 @@ namespace zonetool::iw7
 	struct ParticleModuleInitLightOmni : ParticleModule
 	{
 		ParticleLinkedAssetListDef m_linkedAssetList;
-		float m_fovOuter;
-		float m_fovInner;
-		float m_bulbRadius;
-		float m_bulbLength;
+		float m_tonemappingScaleFactor;
+		float m_intensityIR;
 		bool m_disableVolumetric;
-		bool m_disableShadowMap;
-		bool m_disableDynamicShadows;
-		bool m_scriptScale;
+		unsigned char m_exponent;
+		char __pad0[2];
+		float m_shadowSoftness;
+		float m_shadowBias;
+		float m_shadowArea;
 	}; assert_sizeof(ParticleModuleInitLightOmni, 48);
 
 	struct ParticleModuleInitLightSpot : ParticleModule
@@ -8195,21 +8195,19 @@ namespace zonetool::iw7
 		float m_fovInner;
 		float m_bulbRadius;
 		float m_bulbLength;
-		float m_distanceFalloff;
-		//float m_fovCollimation;
 		float m_brightness;
+		float unk1;
 		float m_intensityUV;
 		float m_intensityIR;
-		//float m_intensityHeat;
+		float m_shadowNearPlane;
+		float m_toneMappingScaleFactor;
 		float m_shadowSoftness;
 		float m_shadowBias;
 		float m_shadowArea;
-		float m_shadowNearPlane;
-		float m_toneMappingScaleFactor;
 		bool m_disableVolumetric;
 		bool m_disableShadowMap;
 		bool m_disableDynamicShadows;
-		bool m_scriptScale;
+		bool m_exponent;
 		ParticleLinkedAssetListDef m_linkedAssetList;
 	}; assert_sizeof(ParticleModuleInitLightSpot, 80);
 	assert_offsetof(ParticleModuleInitLightSpot, m_linkedAssetList, 64);
@@ -8322,10 +8320,10 @@ namespace zonetool::iw7
 
 	struct ParticleModuleInitSpawnShape : ParticleModule
 	{
-		char m_axisFlags[1];
-		char m_spawnFlags[1];
-		char m_normalAxis[1];
-		char m_spawnType[1];
+		char m_axisFlags;
+		char m_spawnFlags;
+		char m_normalAxis;
+		char m_spawnType;
 		float m_volumeCubeRoot;
 		//float4 m_calculationOffset;
 		float4 m_offset;
@@ -8999,22 +8997,23 @@ namespace zonetool::iw7
 	{
 		FX_ELEM_TYPE_SPRITE_BILLBOARD = 0,
 		FX_ELEM_TYPE_SPRITE_ORIENTED = 1,
-		FX_ELEM_TYPE_SPRITE_ROTATED = 2,
-		FX_ELEM_TYPE_TAIL = 3,
-		FX_ELEM_TYPE_LINE = 4,
-		FX_ELEM_TYPE_TRAIL = 5,
-		FX_ELEM_TYPE_FLARE = 6,
-		FX_ELEM_TYPE_PARTICLE_SIM_ANIMATION = 7,
-		FX_ELEM_TYPE_CLOUD = 8,
-		FX_ELEM_TYPE_SPARK_CLOUD = 9,
-		FX_ELEM_TYPE_SPARK_FOUNTAIN = 10,
-		FX_ELEM_TYPE_MODEL = 11,
-		FX_ELEM_TYPE_OMNI_LIGHT = 12,
-		FX_ELEM_TYPE_SPOT_LIGHT = 13,
-		FX_ELEM_TYPE_SOUND = 14,
-		FX_ELEM_TYPE_DECAL = 15,
-		FX_ELEM_TYPE_RUNNER = 16,
-		FX_ELEM_TYPE_VECTORFIELD = 17,
+		FX_ELEM_TYPE_TAIL = 2,
+		FX_ELEM_TYPE_TRAIL = 3,
+		FX_ELEM_TYPE_FLARE = 4,
+		FX_ELEM_TYPE_PARTICLE_SIM_ANIMATION = 5,
+		FX_ELEM_TYPE_CLOUD = 6,
+		FX_ELEM_TYPE_SPARK_CLOUD = 7,
+		FX_ELEM_TYPE_SPARK_FOUNTAIN = 8,
+		FX_ELEM_TYPE_MODEL = 9,
+		FX_ELEM_TYPE_OMNI_LIGHT = 10,
+		FX_ELEM_TYPE_SPOT_LIGHT = 11,
+		FX_ELEM_TYPE_SOUND = 12,
+		FX_ELEM_TYPE_DECAL = 13,
+		FX_ELEM_TYPE_RUNNER = 14,
+		FX_ELEM_TYPE_VECTORFIELD = 15,
+		FX_ELEM_TYPE_COUNT = 16,
+		FX_ELEM_TYPE_LAST_SPRITE = FX_ELEM_TYPE_PARTICLE_SIM_ANIMATION,
+		FX_ELEM_TYPE_LAST_DRAWN = FX_ELEM_TYPE_SPOT_LIGHT,
 	};
 
 	enum FxElemDefFlags : std::uint32_t
@@ -9107,8 +9106,8 @@ namespace zonetool::iw7
 		unsigned char useItemClip;
 		unsigned char fadeInfo;
 		int randomSeed;
-		float litMaxColorChangePerSec;
-		float litUnlitBlendFactor;
+		float litUnlitBlendFactor; // FX_EvaluateVisualState_DoLighting
+		float pad;
 	}; assert_sizeof(FxElemDef, 304);
 	assert_offsetof(FxElemDef, elemType, 182);
 	assert_offsetof(FxElemDef, visualCount, 183);
@@ -11832,10 +11831,14 @@ namespace zonetool::iw7
 	enum DBAllocFlags : std::int32_t
 	{
 		DB_ZONE_NONE = 0x0,
-		DB_ZONE_COMMON = 0x1,
-		DB_ZONE_GAME = 0x4, // maybe
+		DB_ZONE_PERMAMENT = 0x1,
+		DB_ZONE_UI = 0x20,
+		DB_ZONE_UI_SCENE = 0x40,
+		DB_ZONE_GAME = 0x80,
 		DB_ZONE_LOAD = 0x100,
-		DB_ZONE_CUSTOM = 0x1000000 // added for custom zone loading
+		DB_ZONE_PRELOAD_LEVEL_SP = 0x20000,
+		DB_ZONE_PRELOAD_TRANSIENT_SP = 0x40000,
+		DB_ZONE_CUSTOM = 0x1000000, // added for custom zone loading
 	};
 
 	struct XZoneInfo

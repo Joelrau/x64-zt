@@ -160,7 +160,7 @@ namespace iw7
 		{
 			::zonetool::iw7::XZoneInfo zone{};
 			zone.name = "code_pre_gfx";
-			zone.allocFlags = ::zonetool::iw7::DB_ZONE_COMMON;
+			zone.allocFlags = ::zonetool::iw7::DB_ZONE_PERMAMENT;
 			return ::zonetool::iw7::DB_LoadXAssets(&zone, 1, ::zonetool::iw7::DB_LOAD_SYNC);
 		}
 
@@ -178,7 +178,7 @@ namespace iw7
 			for (std::size_t i = 0; i < defaultzones.size(); i++)
 			{
 				zones[i].name = defaultzones[i];
-				zones[i].allocFlags = ::zonetool::iw7::DB_ZONE_COMMON;
+				zones[i].allocFlags = ::zonetool::iw7::DB_ZONE_PERMAMENT;
 			}
 
 			return ::zonetool::iw7::DB_LoadXAssets(zones, static_cast<unsigned int>(defaultzones.size()), ::zonetool::iw7::DB_LOAD_ASYNC);
