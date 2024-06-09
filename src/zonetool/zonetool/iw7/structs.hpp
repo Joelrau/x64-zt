@@ -1606,11 +1606,18 @@ namespace zonetool::iw7
 		Packed128 packed;
 	};
 
+	enum TechsetdefRenderFlags : std::uint8_t
+	{
+		TECHSETDEF_RENDER_FLAGS_NONE = 0x0,
+		TECHSETDEF_RENDER_FLAGS_2D = 0x1,
+		TECHSETDEF_RENDER_FLAGS_CASTS_SHADOWS = 0x2,
+	};
+
 	struct MaterialInfo
 	{
 		const char* name;
 		unsigned char gameFlags;
-		unsigned char unkFlags;
+		unsigned char unkFlags; // runtimeFlags?
 		unsigned char sortKey;
 		unsigned char textureAtlasRowCount;
 		unsigned char textureAtlasColumnCount;
@@ -5112,7 +5119,8 @@ namespace zonetool::iw7
 		unsigned int unk1;
 		float coordOffset;
 		float coordScale;
-		int unk2[2];
+		float unk2;
+		int pad;
 	}; assert_sizeof(GfxLightDef, 0x28);
 
 	struct AnimationEntry
@@ -8071,9 +8079,9 @@ namespace zonetool::iw7
 
 	struct ParticleModuleInitAtlas : ParticleModule
 	{
+		int m_playRate;
 		int m_startFrame;
 		int m_loopCount;
-		int unk;
 	}; assert_sizeof(ParticleModuleInitAtlas, 20);
 
 	struct ParticleModuleInitAttributes : ParticleModule
@@ -8318,6 +8326,31 @@ namespace zonetool::iw7
 		ParticleCurveDef m_curves[1];
 	}; assert_sizeof(ParticleModuleInitSpawn, 32);
 
+	enum ParticleModuleAxesFlags
+	{
+		PARTICLE_MODULE_AXES_FLAG_POS_X = 0x1,
+		PARTICLE_MODULE_AXES_FLAG_NEG_X = 0x2,
+		PARTICLE_MODULE_AXES_FLAG_POS_Y = 0x4,
+		PARTICLE_MODULE_AXES_FLAG_NEG_Y = 0x8,
+		PARTICLE_MODULE_AXES_FLAG_POS_Z = 0x10,
+		PARTICLE_MODULE_AXES_FLAG_NEG_Z = 0x20,
+		PARTICLE_MODULE_AXES_FLAG_ALL_X = 0x3,
+		PARTICLE_MODULE_AXES_FLAG_ALL_Y = 0xC,
+		PARTICLE_MODULE_AXES_FLAG_ALL_Z = 0x30,
+		PARTICLE_MODULE_AXES_FLAG_ALL_POS = 0x15,
+		PARTICLE_MODULE_AXES_FLAG_ALL_NEG = 0x2A,
+		PARTICLE_MODULE_AXES_FLAG_ALL = 0x3F,
+	};
+
+	enum ParticleSpawnFlags
+	{
+		PARTICLE_SPAWN_ONLY_ON_SURFACE = 0x1,
+		PARTICLE_SPAWN_USE_CURVE_VALUES = 0x2,
+		PARTICLE_SPAWN_USE_MODIFIER_SCALE = 0x4,
+		PARTICLE_SPAWN_IS_DETERMINISTIC = 0x8,
+		PARTICLE_SPAWN_UNIFORM = 0x10,
+	};
+
 	struct ParticleModuleInitSpawnShape : ParticleModule
 	{
 		char m_axisFlags;
@@ -8343,8 +8376,8 @@ namespace zonetool::iw7
 		bool m_rotateCalculatedOffset;
 		float m_halfHeight;
 		ParticleFloatRange m_radius;
+		float4 unk;
 		float4 m_directionQuat;
-		unsigned int m_pad[4];
 	}; assert_sizeof(ParticleModuleInitSpawnShapeCylinder, 80);
 
 	struct ParticleModuleInitSpawnShapeEllipsoid : ParticleModuleInitSpawnShape
@@ -8374,7 +8407,7 @@ namespace zonetool::iw7
 	{
 		unsigned int m_pad[2];
 		ParticleFloatRange m_radius;
-		unsigned int m_pad2[4];
+		float4 m_offset2;
 	}; assert_sizeof(ParticleModuleInitSpawnShapeSphere, 64);
 
 	struct ParticleModuleInitTail : ParticleModule
@@ -8845,6 +8878,16 @@ namespace zonetool::iw7
 	{
 		FxSpawnDefLooping looping;
 		FxSpawnDefOneShot oneShot;
+	};
+
+	enum FXElemAtlasBehavior : std::uint8_t
+	{
+		FX_ATLAS_START_FIXED = 0x0,
+		FX_ATLAS_START_RANDOM = 0x1,
+		FX_ATLAS_START_INDEXED = 0x2,
+		FX_ATLAS_START_MASK = 0x3,
+		FX_ATLAS_PLAY_OVER_LIFE = 0x4,
+		FX_ATLAS_LOOP_ONLY_N_TIMES = 0x8,
 	};
 
 	struct FxElemAtlas
