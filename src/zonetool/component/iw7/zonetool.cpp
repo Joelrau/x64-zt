@@ -234,7 +234,9 @@ namespace iw7
 				utils::hook::set<uint8_t>(0x140D31744, 0xC3); // dwNetStart
 
 				// don't load streamed assets
-				utils::hook::set<uint8_t>(0x1403BB990, 0xC3); // DB_StreamingInfo_Register
+				utils::hook::set<uint8_t>(0x140A79AE0, 0xC3);
+				utils::hook::set<uint8_t>(0x1403BB990, 0xC3);
+				utils::hook::set<uint8_t>(0x140A78910, 0xC3);
 
 				// don't fatal error on misc model error
 				utils::hook::nop(0x140571ECF, 5);
