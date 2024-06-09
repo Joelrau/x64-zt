@@ -1880,7 +1880,7 @@ namespace zonetool::iw7
 
 				// ChunkSize
 				int subchunk1Size = 16;
-				int subchunk2Size = size;
+				int subchunk2Size = static_cast<int>(size);
 				int chunkSize = 4 + (8 + subchunk1Size) + (8 + subchunk2Size);
 				file.write(&chunkSize, 4, 1);
 
