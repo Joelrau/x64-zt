@@ -1700,7 +1700,7 @@ namespace zonetool::iw7
 				return buffer;
 			}
 
-			void dump(SndAssetBankEntry entry, const std::string& name, uint8_t* data, size_t size)
+			void dump(SndAssetBankEntry& entry, const std::string& name, uint8_t* data, size_t size)
 			{
 				std::string buffer{};
 
@@ -1712,7 +1712,13 @@ namespace zonetool::iw7
 				write(write_marker());
 
 				{
-					write(write_metadata_block_header(false, STREAMINFO, METADATA_STREAMINFO_LEN_BYTES));
+					bool has_seektable = false;
+					if (entry.seekTableSize)
+					{
+						has_seektable = true;
+					}
+
+					write(write_metadata_block_header(has_seektable ? false : true, STREAMINFO, METADATA_STREAMINFO_LEN_BYTES));
 					StreamInfo info{};
 					info.min_blocksize = BLOCK_SIZE;
 					info.max_blocksize = BLOCK_SIZE;
@@ -1725,7 +1731,10 @@ namespace zonetool::iw7
 					memset(info.md5sum, 0x00, sizeof(info.md5sum));
 					write(write_metadata_streaminfo(info));
 
-					write(write_metadata_block_header(true, SEEKTABLE, entry.seekTableSize));
+					if (has_seektable)
+					{
+						write(write_metadata_block_header(true, SEEKTABLE, entry.seekTableSize));
+					}
 				}
 
 				buffer.append(reinterpret_cast<const char*>(data), size);
@@ -1753,7 +1762,7 @@ namespace zonetool::iw7
 
 				if (!file.exists())
 				{
-					ZONETOOL_ERROR("Sound asset file %s could not be found", path.data());
+					ZONETOOL_ERROR("Flac file %s could not be found", path.data());
 					return false;
 				}
 
@@ -1856,10 +1865,187 @@ namespace zonetool::iw7
 
 		namespace pcm
 		{
-			void dump(SndAssetBankEntry entry, const std::string& name, uint8_t* data, size_t size)
+			constexpr auto BLOCK_SIZE = 0x400;
+			constexpr auto BITS_PER_SAMPLE_DEFAULT = 16;
+
+			void dump(SndAssetBankEntry& entry, const std::string& name, uint8_t* data, size_t size)
 			{
-				// haven't foud any sound that uses this
-				__debugbreak();
+				const auto path = sound_path_assets + name + ".wav"s;
+				auto file = filesystem::file(path);
+
+				file.open("wb");
+
+				char chunkID[] = { 'R', 'I', 'F', 'F' };
+				file.write(chunkID, 4, 1);
+
+				// ChunkSize
+				int subchunk1Size = 16;
+				int subchunk2Size = size;
+				int chunkSize = 4 + (8 + subchunk1Size) + (8 + subchunk2Size);
+				file.write(&chunkSize, 4, 1);
+
+				// Format
+				char format[] = { 'W', 'A', 'V', 'E' };
+				file.write(format, 4, 1);
+
+				// --- FMT SUBCHUNK
+				// Subchunk1ID
+				char subchunk1ID[] = { 'f', 'm', 't', ' ' };
+				file.write(subchunk1ID, 4, 1);
+
+				// Subchunk1Size
+				file.write(&subchunk1Size, 4, 1);
+
+				// AudioFormat
+				short audioFormat = 1; // PCM
+				file.write(&audioFormat, 2, 1);
+
+				// NumChannels
+				short numChannels = entry.channelCount;
+				file.write(&numChannels, 2, 1);
+
+				// SampleRate
+				int sampleRate = entry.frameRate;
+				file.write(&sampleRate, 4, 1);
+
+				// ByteRate
+				int byteRate = entry.frameRate * entry.channelCount * BITS_PER_SAMPLE_DEFAULT / 8;
+				file.write(&byteRate, 4, 1);
+
+				// BlockAlign
+				short blockAlign = BLOCK_SIZE;
+				file.write(&blockAlign, 2, 1);
+
+				// BitsPerSample
+				short bitsPerSample = BITS_PER_SAMPLE_DEFAULT;
+				file.write(&bitsPerSample, 2, 1);
+
+				// --- DATA SUBCHUNK
+					// Subchunk2ID
+				char subchunk2ID[] = { 'd', 'a', 't', 'a' };
+				file.write(subchunk2ID, 4, 1);
+
+				// Subchunk2Size
+				file.write(&subchunk2Size, 4, 1);
+
+				// Data
+				file.write(data, size, 1);
+
+				file.close();
+			}
+
+			bool parse(std::string& path, SndAssetBankEntry* entry, filesystem::file& out_file, unsigned char* checksum, unsigned char* source_checksum)
+			{
+				filesystem::file file(path);
+
+				if (!file.exists())
+				{
+					ZONETOOL_ERROR("Wav file %s could not be found", path.data());
+					return false;
+				}
+
+				file.open("rb");
+				auto* fp = file.get_fp();
+
+				unsigned int chunkIDBuffer = 0;
+				unsigned int chunkSize = 0;
+				short format = 0;
+				short numChannels = 0;
+				int sampleRate = 0;
+				int byteRate = 0;
+				short blockAlign = 0;
+				short bitPerSample = 0;
+
+				std::vector<std::uint8_t> buffer{};
+				bool wrote_data = false;
+
+				fread(&chunkIDBuffer, 4, 1, fp);
+				if (chunkIDBuffer != 0x46464952) // RIFF
+				{
+					ZONETOOL_FATAL("%s: Invalid RIFF Header.", path.data());
+				}
+
+				fread(&chunkSize, 4, 1, fp);
+				fread(&chunkIDBuffer, 4, 1, fp);
+
+				if (chunkIDBuffer != 0x45564157) // WAVE
+				{
+					ZONETOOL_FATAL("%s: Invalid WAVE Header.", path.data());
+				}
+
+				while (!wrote_data && !feof(fp))
+				{
+					fread(&chunkIDBuffer, 4, 1, fp);
+					fread(&chunkSize, 4, 1, fp);
+					switch (chunkIDBuffer)
+					{
+					case 0x20746D66: // fmt
+						if (chunkSize >= 16)
+						{
+							fread(&format, 2, 1, fp);
+							if (format != 1 && format != 17)
+							{
+								ZONETOOL_FATAL("%s: Invalid wave format %i.", path.data(), format);
+							}
+							
+							fread(&numChannels, 2, 1, fp);
+							entry->channelCount = static_cast<char>(numChannels);
+							
+							fread(&sampleRate, 4, 1, fp);
+							entry->frameRate = sampleRate;
+							
+							fread(&byteRate, 4, 1, fp);
+							
+							fread(&blockAlign, 2, 1, fp);
+							
+							fread(&bitPerSample, 2, 1, fp);
+
+							if (chunkSize > 16)
+							{
+								fseek(fp, chunkSize - 16, SEEK_CUR);
+							}
+						}
+						break;
+
+					case 0x61746164: // data
+						buffer.resize(chunkSize);
+						fread(buffer.data(), 1, chunkSize, fp);
+
+						entry->size = chunkSize;
+						entry->frameCount = chunkSize / (numChannels * bitPerSample / 8);
+
+						wrote_data = true;
+						
+						break;
+
+					default:
+						if (chunkSize > 0)
+						{
+							fseek(fp, chunkSize, SEEK_CUR);
+						}
+						break;
+					}
+				}
+
+				file.close();
+
+				if (!buffer.size())
+				{
+					ZONETOOL_ERROR("Failed to parse wav file %s", path.data());
+					return false;
+				}
+
+				assert(static_cast<unsigned int>(buffer.size()) == chunkSize);
+
+				hash_state md{};
+				md5_init(&md);
+				md5_process(&md, reinterpret_cast<const unsigned char*>(buffer.data()), static_cast<unsigned int>(buffer.size()));
+				md5_done(&md, checksum);
+
+				out_file.write(buffer.data(), buffer.size());
+				entry->size = static_cast<unsigned int>(buffer.size() - entry->seekTableSize);
+				
+				return true;
 			}
 		}
 
@@ -1982,8 +2168,12 @@ namespace zonetool::iw7
 				case SND_ASSET_FORMAT_FLAC:
 					flac::dump(entry, asset_name, data.data(), data.size());
 					break;
+				case SND_ASSET_FORMAT_PCMS16:
+					//pcm::dump(entry, asset_name, data.data(), data.size());
+					break;
 				default:
 					__debugbreak();
+					break;
 				}
 			}
 
@@ -2037,6 +2227,21 @@ namespace zonetool::iw7
 			const auto path = create_path(bank, streamed);
 			if (utils::io::file_exists(path))
 			{
+				if (path.find(filesystem::get_fastfile()) == std::string::npos)
+				{
+					const int result = MessageBoxA(NULL, utils::string::va("You are about to overwrite file %s\nAre you sure?", path.data()), "WARNING", MB_YESNOCANCEL);
+
+					switch (result)
+					{
+					case IDYES:
+						break;
+					case IDNO:
+					case IDCANCEL:
+						return;
+						break;
+					}
+				}
+
 				utils::io::remove_file(path);
 			}
 
@@ -2123,13 +2328,20 @@ namespace zonetool::iw7
 						}
 						break;
 					case SND_ASSET_FORMAT_PCMS16:
-						__debugbreak();
+						// I think I'm correctly parsing the file, 
+						// but the game just doesn't seem to support any other audio format other than FLAC...
+						// 
+						//if (!pcm::parse(asset_file, &entry, file, checksum.md5, source_checksum.md5))
+						//{
+						//	continue;
+						//}
+						ZONETOOL_ERROR("Wav files are not supported! (%s)", asset_file.data());
 						break;
 					default:
 						__debugbreak();
 					}
 
-					assets.push_back(asset_file);
+					assets.push_back(alias->assetFileName);
 					checksums.push_back(checksum);
 					source_checksums.push_back(source_checksum);
 					data_offset += entry.size + entry.seekTableSize + entry.hybridPcmSize;
@@ -2139,6 +2351,8 @@ namespace zonetool::iw7
 				align(0x1000);
 			}
 			const auto asset_offset_end = data_offset;
+
+			assert(file.size() == data_offset);
 
 			const auto asset_section_size = asset_offset_end - asset_offset_start;
 			header.assetSectionSize = static_cast<unsigned int>(asset_section_size);
