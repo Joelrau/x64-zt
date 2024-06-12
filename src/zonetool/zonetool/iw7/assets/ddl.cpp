@@ -136,7 +136,6 @@ namespace zonetool::iw7
 		ddl_dumper dumper;
 
 		auto def = asset->ddlDef;
-		int ddl_index = 0;
 
 		// write header
 
@@ -257,7 +256,6 @@ namespace zonetool::iw7
 
 			dumper.cbracket();
 
-			ddl_index++;
 			def = def->next;
 
 			if (def)

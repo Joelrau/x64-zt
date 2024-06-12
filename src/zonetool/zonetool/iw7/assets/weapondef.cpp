@@ -1278,7 +1278,7 @@ namespace zonetool::iw7
 #define WEAPON_SUBASSET_DEPENDING_FXCOMBINED(__field__) \
 	if (asset->__field__.u.data) \
 	{ \
-		if(asset->__field__.type == FX_COMBINED_PARTICLE_SYSTEM) zone->add_asset_of_type(ASSET_TYPE_VFX, asset->__field__.u.particleSystemDef->name); \
+		if(asset->__field__.type == FX_COMBINED_VFX) zone->add_asset_of_type(ASSET_TYPE_VFX, asset->__field__.u.vfx->name); \
 		else zone->add_asset_of_type(ASSET_TYPE_FX, asset->__field__.u.fx->name); \
 	}
 
@@ -1289,7 +1289,7 @@ namespace zonetool::iw7
 		{ \
 			if (asset->__field__[idx].u.data) \
 			{ \
-				if(asset->__field__[idx].type == FX_COMBINED_PARTICLE_SYSTEM) zone->add_asset_of_type(ASSET_TYPE_VFX, asset->__field__[idx].u.particleSystemDef->name); \
+				if(asset->__field__[idx].type == FX_COMBINED_VFX) zone->add_asset_of_type(ASSET_TYPE_VFX, asset->__field__[idx].u.vfx->name); \
 				else zone->add_asset_of_type(ASSET_TYPE_FX, asset->__field__[idx].u.fx->name); \
 			} \
 		} \
@@ -1494,8 +1494,8 @@ namespace zonetool::iw7
 #define WEAPON_WRITE_FXCOMBINED(__field__) \
 	if (data->__field__.u.data) \
 	{ \
-		if(data->__field__.type == FX_COMBINED_PARTICLE_SYSTEM) \
-			dest->__field__.u.particleSystemDef = reinterpret_cast<ParticleSystemDef*>(zone->get_asset_pointer(ASSET_TYPE_VFX, data->__field__.u.particleSystemDef->name)); \
+		if(data->__field__.type == FX_COMBINED_VFX) \
+			dest->__field__.u.vfx = reinterpret_cast<ParticleSystemDef*>(zone->get_asset_pointer(ASSET_TYPE_VFX, data->__field__.u.vfx->name)); \
 		else \
 			dest->__field__.u.fx = reinterpret_cast<FxEffectDef*>(zone->get_asset_pointer(ASSET_TYPE_FX, data->__field__.u.fx->name)); \
 	}
@@ -1509,8 +1509,8 @@ namespace zonetool::iw7
 		{ \
 			if(data->__field__[idx##__field__].u.data) \
 			{ \
-				if(data->__field__[idx##__field__].type == FX_COMBINED_PARTICLE_SYSTEM) \
-					dest->__field__[idx##__field__].u.particleSystemDef = reinterpret_cast<ParticleSystemDef*>(zone->get_asset_pointer(ASSET_TYPE_VFX, data->__field__[idx##__field__].u.particleSystemDef->name)); \
+				if(data->__field__[idx##__field__].type == FX_COMBINED_VFX) \
+					dest->__field__[idx##__field__].u.vfx = reinterpret_cast<ParticleSystemDef*>(zone->get_asset_pointer(ASSET_TYPE_VFX, data->__field__[idx##__field__].u.vfx->name)); \
 				else \
 					dest->__field__[idx##__field__].u.fx = reinterpret_cast<FxEffectDef*>(zone->get_asset_pointer(ASSET_TYPE_FX, data->__field__[idx##__field__].u.fx->name)); \
 			} \

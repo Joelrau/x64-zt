@@ -111,38 +111,38 @@ namespace zonetool::iw7
 		asset->lightGrid.tree.p_nodeTable = read.read_array<unsigned int>();
 		asset->lightGrid.tree.p_leafTable = read.read_array<unsigned char>();
 
-		asset->lightGrid.probeData.gpuVisibleProbes = read.read_array<unk_1453E2FD0>();
-		asset->lightGrid.probeData.gpuVisibleProbesData = read.read_array<char>();
+		asset->lightGrid.probeData.gpuVisibleProbePositions = read.read_array<GfxGpuLightGridProbePosition>();
+		asset->lightGrid.probeData.gpuVisibleProbesData = read.read_array<GfxProbeData>();
 		asset->lightGrid.probeData.gpuVisibleProbesBuffer = nullptr;
 		asset->lightGrid.probeData.gpuVisibleProbesView = nullptr;
 		asset->lightGrid.probeData.gpuVisibleProbesRWView = nullptr;
 
-		asset->lightGrid.probeData.probesData = read.read_array<char>();
-		asset->lightGrid.probeData.probesDataBuffer = nullptr;
-		asset->lightGrid.probeData.probesDataView = nullptr;
-		asset->lightGrid.probeData.probesDataRWView = nullptr;
+		asset->lightGrid.probeData.probes = read.read_array<GfxProbeData>();
+		asset->lightGrid.probeData.probesBuffer = nullptr;
+		asset->lightGrid.probeData.probesView = nullptr;
+		asset->lightGrid.probeData.probesRWView = nullptr;
 
-		asset->lightGrid.probeData.probesPositions = read.read_array<unk_1453E2FD0>();
-		asset->lightGrid.probeData.probesPositionsBuffer = nullptr;
-		asset->lightGrid.probeData.probesPositionsView = nullptr;
+		asset->lightGrid.probeData.probePositions = read.read_array<GfxGpuLightGridProbePosition>();
+		asset->lightGrid.probeData.probePositionsBuffer = nullptr;
+		asset->lightGrid.probeData.probePositionsView = nullptr;
 
-		asset->lightGrid.probeData.unk01 = read.read_array<unk_1453E47B0>();
+		asset->lightGrid.probeData.zones = read.read_array<GfxGpuLightGridZone>();
 
-		asset->lightGrid.probeData.probeTets = read.read_array<unk_1453E47D0>();
-		asset->lightGrid.probeData.probeTetsBuffer = nullptr;
-		asset->lightGrid.probeData.probeTetsView = nullptr;
+		asset->lightGrid.probeData.tetrahedrons = read.read_array<GfxGpuLightGridTetrahedron>();
+		asset->lightGrid.probeData.tetrahedronBuffer = nullptr;
+		asset->lightGrid.probeData.tetrahedronView = nullptr;
 
-		asset->lightGrid.probeData.probeTetNeighbors = read.read_array<unk_1453E47F8>();
-		asset->lightGrid.probeData.probeTetNeighborsBuffer = nullptr;
-		asset->lightGrid.probeData.probeTetNeighborsView = nullptr;
+		asset->lightGrid.probeData.tetrahedronNeighbors = read.read_array<GfxGpuLightGridTetrahedronNeighbors>();
+		asset->lightGrid.probeData.tetrahedronNeighborsBuffer = nullptr;
+		asset->lightGrid.probeData.tetrahedronNeighborsView = nullptr;
 
-		asset->lightGrid.probeData.probeTetVisibility = read.read_array<char>();
-		asset->lightGrid.probeData.probeTetVisibilityBuffer = nullptr;
-		asset->lightGrid.probeData.probeTetVisibilityView = nullptr;
+		asset->lightGrid.probeData.tetrahedronVisibility = read.read_array<GfxGpuLightGridTetrahedronVisibility>();
+		asset->lightGrid.probeData.tetrahedronVisibilityBuffer = nullptr;
+		asset->lightGrid.probeData.tetrahedronVisibilityView = nullptr;
 
-		asset->lightGrid.probeData.probeVoxelStartTet = read.read_array<unk_1453E4830>();
-		asset->lightGrid.probeData.probeVoxelStartTetBuffer = nullptr;
-		asset->lightGrid.probeData.probeVoxelStartTetView = nullptr;
+		asset->lightGrid.probeData.voxelStartTetrahedron = read.read_array<GfxGpuLightGridVoxelStartTetrahedron>();
+		asset->lightGrid.probeData.voxelStartTetrahedronBuffer = nullptr;
+		asset->lightGrid.probeData.voxelStartTetrahedronView = nullptr;
 
 		asset->frustumLights = read.read_array<GfxFrustumLights>();
 		if (asset->frustumLights)
@@ -822,67 +822,67 @@ namespace zonetool::iw7
 			buf->clear_pointer(&dest->lightGrid.tree.p_leafTable);
 		}
 
-		if (data->lightGrid.probeData.gpuVisibleProbes)
+		if (data->lightGrid.probeData.gpuVisibleProbePositions)
 		{
 			buf->align(3);
-			buf->write(data->lightGrid.probeData.gpuVisibleProbes, data->lightGrid.probeData.gpuVisibleProbesCount);
-			buf->clear_pointer(&dest->lightGrid.probeData.gpuVisibleProbes);
+			buf->write(data->lightGrid.probeData.gpuVisibleProbePositions, data->lightGrid.probeData.gpuVisibleProbesCount);
+			buf->clear_pointer(&dest->lightGrid.probeData.gpuVisibleProbePositions);
 		}
 
 		if (data->lightGrid.probeData.gpuVisibleProbesData)
 		{
 			buf->align(63);
-			buf->write(data->lightGrid.probeData.gpuVisibleProbesData, (data->lightGrid.probeData.gpuVisibleProbesCount + 0x2000) * 64);
+			buf->write_stream(data->lightGrid.probeData.gpuVisibleProbesData, (data->lightGrid.probeData.gpuVisibleProbesCount + 0x2000) * 64);
 			buf->clear_pointer(&dest->lightGrid.probeData.gpuVisibleProbesData);
 		}
 
-		if (data->lightGrid.probeData.probesData)
+		if (data->lightGrid.probeData.probes)
 		{
 			buf->align(63);
-			buf->write(data->lightGrid.probeData.probesData, data->lightGrid.probeData.probesDataCount * 64);
-			buf->clear_pointer(&dest->lightGrid.probeData.probesData);
+			buf->write_stream(data->lightGrid.probeData.probes, data->lightGrid.probeData.probeCount * 64);
+			buf->clear_pointer(&dest->lightGrid.probeData.probes);
 		}
 
-		if (data->lightGrid.probeData.probesPositions)
+		if (data->lightGrid.probeData.probePositions)
 		{
 			buf->align(3);
-			buf->write(data->lightGrid.probeData.probesPositions, data->lightGrid.probeData.probesDataCount);
-			buf->clear_pointer(&dest->lightGrid.probeData.probesPositions);
+			buf->write(data->lightGrid.probeData.probePositions, data->lightGrid.probeData.probeCount);
+			buf->clear_pointer(&dest->lightGrid.probeData.probePositions);
 		}
 
-		if (data->lightGrid.probeData.unk01)
+		if (data->lightGrid.probeData.zones)
 		{
 			buf->align(63);
-			buf->write(data->lightGrid.probeData.unk01, data->lightGrid.probeData.unk01Count);
-			buf->clear_pointer(&dest->lightGrid.probeData.unk01);
+			buf->write(data->lightGrid.probeData.zones, data->lightGrid.probeData.zoneCount);
+			buf->clear_pointer(&dest->lightGrid.probeData.zones);
 		}
 
-		if (data->lightGrid.probeData.probeTets)
+		if (data->lightGrid.probeData.tetrahedrons)
 		{
 			buf->align(63);
-			buf->write(data->lightGrid.probeData.probeTets, data->lightGrid.probeData.probeTetsCount);
-			buf->clear_pointer(&dest->lightGrid.probeData.probeTets);
+			buf->write(data->lightGrid.probeData.tetrahedrons, data->lightGrid.probeData.tetrahedronCount);
+			buf->clear_pointer(&dest->lightGrid.probeData.tetrahedrons);
 		}
 
-		if (data->lightGrid.probeData.probeTetNeighbors)
+		if (data->lightGrid.probeData.tetrahedronNeighbors)
 		{
 			buf->align(63);
-			buf->write(data->lightGrid.probeData.probeTetNeighbors, data->lightGrid.probeData.probeTetsCount);
-			buf->clear_pointer(&dest->lightGrid.probeData.probeTetNeighbors);
+			buf->write(data->lightGrid.probeData.tetrahedronNeighbors, data->lightGrid.probeData.tetrahedronCount);
+			buf->clear_pointer(&dest->lightGrid.probeData.tetrahedronNeighbors);
 		}
 
-		if (data->lightGrid.probeData.probeTetVisibility)
+		if (data->lightGrid.probeData.tetrahedronVisibility)
 		{
 			buf->align(63);
-			buf->write(data->lightGrid.probeData.probeTetVisibility, data->lightGrid.probeData.probeTetVisibilityCount * 64);
-			buf->clear_pointer(&dest->lightGrid.probeData.probeTetVisibility);
+			buf->write_stream(data->lightGrid.probeData.tetrahedronVisibility, data->lightGrid.probeData.tetrahedronCountVisible * 64);
+			buf->clear_pointer(&dest->lightGrid.probeData.tetrahedronVisibility);
 		}
 
-		if (data->lightGrid.probeData.probeVoxelStartTet)
+		if (data->lightGrid.probeData.voxelStartTetrahedron)
 		{
 			buf->align(63);
-			buf->write(data->lightGrid.probeData.probeVoxelStartTet, data->lightGrid.probeData.probeVoxelStartTetCount);
-			buf->clear_pointer(&dest->lightGrid.probeData.probeVoxelStartTet);
+			buf->write(data->lightGrid.probeData.voxelStartTetrahedron, data->lightGrid.probeData.voxelStartTetrahedronCount);
+			buf->clear_pointer(&dest->lightGrid.probeData.voxelStartTetrahedron);
 		}
 
 		if (data->voxelTree)
@@ -1698,22 +1698,22 @@ namespace zonetool::iw7
 		write.dump_array(asset->lightGrid.tree.p_nodeTable, asset->lightGrid.tree.nodeCount);
 		write.dump_array(asset->lightGrid.tree.p_leafTable, asset->lightGrid.tree.leafTableSize);
 
-		write.dump_array(asset->lightGrid.probeData.gpuVisibleProbes, asset->lightGrid.probeData.gpuVisibleProbesCount);
-		write.dump_array(asset->lightGrid.probeData.gpuVisibleProbesData, (asset->lightGrid.probeData.gpuVisibleProbesCount + 0x2000) * 64);
+		write.dump_array(asset->lightGrid.probeData.gpuVisibleProbePositions, asset->lightGrid.probeData.gpuVisibleProbesCount);
+		write.dump_array(asset->lightGrid.probeData.gpuVisibleProbesData, (asset->lightGrid.probeData.gpuVisibleProbesCount + 0x2000));
 
-		write.dump_array(asset->lightGrid.probeData.probesData, asset->lightGrid.probeData.probesDataCount * 64);
+		write.dump_array(asset->lightGrid.probeData.probes, asset->lightGrid.probeData.probeCount);
 
-		write.dump_array(asset->lightGrid.probeData.probesPositions, asset->lightGrid.probeData.probesDataCount);
+		write.dump_array(asset->lightGrid.probeData.probePositions, asset->lightGrid.probeData.probeCount);
 
-		write.dump_array(asset->lightGrid.probeData.unk01, asset->lightGrid.probeData.unk01Count);
+		write.dump_array(asset->lightGrid.probeData.zones, asset->lightGrid.probeData.zoneCount);
 
-		write.dump_array(asset->lightGrid.probeData.probeTets, asset->lightGrid.probeData.probeTetsCount);
+		write.dump_array(asset->lightGrid.probeData.tetrahedrons, asset->lightGrid.probeData.tetrahedronCount);
 
-		write.dump_array(asset->lightGrid.probeData.probeTetNeighbors, asset->lightGrid.probeData.probeTetsCount);
+		write.dump_array(asset->lightGrid.probeData.tetrahedronNeighbors, asset->lightGrid.probeData.tetrahedronCount);
 
-		write.dump_array(asset->lightGrid.probeData.probeTetVisibility, asset->lightGrid.probeData.probeTetVisibilityCount * 64);
+		write.dump_array(asset->lightGrid.probeData.tetrahedronVisibility, asset->lightGrid.probeData.tetrahedronCountVisible);
 
-		write.dump_array(asset->lightGrid.probeData.probeVoxelStartTet, asset->lightGrid.probeData.probeVoxelStartTetCount);
+		write.dump_array(asset->lightGrid.probeData.voxelStartTetrahedron, asset->lightGrid.probeData.voxelStartTetrahedronCount);
 
 		write.dump_array(asset->frustumLights, asset->primaryLightCount);
 		if (asset->frustumLights)

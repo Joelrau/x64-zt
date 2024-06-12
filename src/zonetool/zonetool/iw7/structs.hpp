@@ -193,14 +193,14 @@ namespace zonetool::iw7
 	union FxCombinedUnion
 	{
 		FxEffectDef* fx;
-		ParticleSystemDef* particleSystemDef;
+		ParticleSystemDef* vfx;
 		void* data;
 	};
 
 	enum FxCombinedType : std::uint8_t
 	{
-		FX_COMBINED_DEFAULT,
-		FX_COMBINED_PARTICLE_SYSTEM,
+		FX_COMBINED_FX,
+		FX_COMBINED_VFX,
 	};
 
 	struct FxCombinedDef
@@ -3725,11 +3725,12 @@ namespace zonetool::iw7
 		DYNENT_TYPE_INVALID = 0x0,
 		DYNENT_TYPE_CLUTTER = 0x1,
 		DYNENT_TYPE_CLUTTER_NOSHADOW = 0x2,
-		DYNENT_TYPE_SCRIPTABLEINST = 0x3,
-		DYNENT_TYPE_SCRIPTABLEPHYSICS = 0x4,
-		DYNENT_TYPE_LINKED = 0x5,
-		DYNENT_TYPE_LINKED_NOSHADOW = 0x6,
-		DYNENT_TYPE_COUNT = 0x7,
+		DYNENT_TYPE_HINGE = 0x3,
+		DYNENT_TYPE_SCRIPTABLEINST = 0x4,
+		DYNENT_TYPE_SCRIPTABLEPHYSICS = 0x5,
+		DYNENT_TYPE_LINKED = 0x6,
+		DYNENT_TYPE_LINKED_NOSHADOW = 0x7,
+		DYNENT_TYPE_COUNT = 0x8,
 	};
 
 	enum DynEntityBasis
@@ -3766,13 +3767,13 @@ namespace zonetool::iw7
 		char __pad3[10];
 		DynEntityLinkToDef* linkTo;
 		bool noPhysics;
-		bool unk;
-		char __pad4[1];
+		bool unk1;
+		bool unk2;
 		bool distantShadows;
 		bool noSpotShadows;
 		bool isTransient;
 		bool transientZoneLoaded;
-		char __pad5[1];
+		char unk3;
 		char priority;
 		char __pad6[7];
 	}; assert_sizeof(DynEntityDef, 112);
@@ -4398,7 +4399,8 @@ namespace zonetool::iw7
 		char* livePath;
 		unsigned int flags;
 		GfxOrientedBoundingBox obb;
-		float unk;
+		float density;
+		float falloff;
 		GfxVolumetricMask masks[4];
 	}; assert_sizeof(GfxVolumetric, 240);
 	assert_offsetof(GfxVolumetric, masks, 80);
@@ -4459,64 +4461,87 @@ namespace zonetool::iw7
 		float rgb[56][3];
 	}; assert_sizeof(GfxLightGridColorsHDR, 672);
 
-	struct unk_1453E2FD0
+	struct GfxProbeData
+	{
+		unsigned int data[16];
+	}; assert_sizeof(GfxProbeData, 64);
+
+	struct GfxGpuLightGridProbePosition
 	{
 		float origin[3];
-	}; assert_sizeof(unk_1453E2FD0, 12);
+	}; assert_sizeof(GfxGpuLightGridProbePosition, 12);
 
-	struct unk_1453E47B0
+	struct GfxSHProbeData
 	{
-		char __pad0[88];
-	}; assert_sizeof(unk_1453E47B0, 88);
+		unsigned __int16 coeffs[29];
+		unsigned __int16 pad[3];
+	};
 
-	struct unk_1453E47D0
+	struct GfxGpuLightGridZone
 	{
-		char __pad0[16];
-	}; assert_sizeof(unk_1453E47D0, 16);
+		unsigned int numProbes;
+		unsigned int firstProbe;
+		unsigned int numTetrahedrons;
+		unsigned int firstTetrahedron;
+		unsigned int firstVoxelTetrahedronIndex;
+		//unsigned int voxelTetrahedronInternalNodeShift;
+		unsigned int numVoxelTetrahedronIndices;
+		GfxSHProbeData fallbackProbeData;
+	}; assert_sizeof(GfxGpuLightGridZone, 88);
 
-	struct unk_1453E47F8
+	struct GfxGpuLightGridTetrahedron
 	{
-		char __pad0[16];
-	}; assert_sizeof(unk_1453E47F8, 16);
+		unsigned int indexFlags[4];
+	}; assert_sizeof(GfxGpuLightGridTetrahedron, 16);
 
-	struct unk_1453E4830
+	struct GfxGpuLightGridTetrahedronNeighbors
 	{
-		char __pad0[4];
-	}; assert_sizeof(unk_1453E4830, 4);
+		unsigned int neighbors[4];
+	}; assert_sizeof(GfxGpuLightGridTetrahedronNeighbors, 16);
+
+	struct GfxGpuLightGridTetrahedronVisibility
+	{
+		unsigned int visibility[16];
+	}; assert_sizeof(GfxGpuLightGridTetrahedronVisibility, 64);
+
+	struct GfxGpuLightGridVoxelStartTetrahedron
+	{
+		unsigned int index;
+	}; assert_sizeof(GfxGpuLightGridVoxelStartTetrahedron, 4);
 
 	struct GfxLightGridProbeData
 	{
 		unsigned int gpuVisibleProbesCount;
-		unk_1453E2FD0* gpuVisibleProbes;
-		char* gpuVisibleProbesData; // 64 * (count * 0x2000)
+		GfxGpuLightGridProbePosition* gpuVisibleProbePositions;
+		GfxProbeData* gpuVisibleProbesData; // 64 * (count * 0x2000)
 		void* gpuVisibleProbesBuffer;
 		void* gpuVisibleProbesView;
 		void* gpuVisibleProbesRWView;
-		unsigned int probesDataCount;
-		char* probesData; // 64 * count
-		void* probesDataBuffer;
-		void* probesDataView;
-		void* probesDataRWView;
-		unk_1453E2FD0* probesPositions;
-		void* probesPositionsBuffer;
-		void* probesPositionsView;
-		unsigned int unk01Count;
-		unk_1453E47B0* unk01;
-		unsigned int probeTetsCount;
-		unsigned int probeTetVisibilityCount;
-		unk_1453E47D0* probeTets;
-		void* probeTetsBuffer;
-		void* probeTetsView;
-		unk_1453E47F8* probeTetNeighbors;
-		void* probeTetNeighborsBuffer;
-		void* probeTetNeighborsView;
-		char* probeTetVisibility; // 64 * count
-		void* probeTetVisibilityBuffer;
-		void* probeTetVisibilityView;
-		unsigned int probeVoxelStartTetCount;
-		unk_1453E4830* probeVoxelStartTet;
-		void* probeVoxelStartTetBuffer;
-		void* probeVoxelStartTetView;
+		unsigned int probeCount;
+		GfxProbeData* probes; // 64 * count
+		void* probesBuffer;
+		void* probesView;
+		void* probesRWView;
+		GfxGpuLightGridProbePosition* probePositions;
+		void* probePositionsBuffer;
+		void* probePositionsView;
+		unsigned int zoneCount;
+		GfxGpuLightGridZone* zones;
+		unsigned int tetrahedronCount;
+		unsigned int tetrahedronCountVisible;
+		GfxGpuLightGridTetrahedron* tetrahedrons;
+		void* tetrahedronBuffer;
+		void* tetrahedronView;
+		GfxGpuLightGridTetrahedronNeighbors* tetrahedronNeighbors;
+		void* tetrahedronNeighborsBuffer;
+		void* tetrahedronNeighborsView;
+		GfxGpuLightGridTetrahedronVisibility* tetrahedronVisibility; // 64 * count
+		void* tetrahedronVisibilityBuffer;
+		void* tetrahedronVisibilityView;
+		unsigned int voxelStartTetrahedronCount;
+		GfxGpuLightGridVoxelStartTetrahedron* voxelStartTetrahedron;
+		void* voxelStartTetrahedronBuffer;
+		void* voxelStartTetrahedronView;
 	}; assert_sizeof(GfxLightGridProbeData, 240);
 
 	struct GfxLightGrid

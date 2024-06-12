@@ -1,5 +1,6 @@
 #pragma once
 
+#include <xsk/gsc/engine/iw7.hpp>
 #include <xsk/gsc/engine/iw6_pc.hpp>
 #include <xsk/gsc/engine/s1_pc.hpp>
 #include <xsk/gsc/engine/h1.hpp>
@@ -7,6 +8,11 @@
 
 namespace gsc
 {
+	namespace iw7
+	{
+		extern std::unique_ptr<xsk::gsc::iw7::context> gsc_ctx;
+	}
+
 	namespace iw6
 	{
 		extern std::unique_ptr<xsk::gsc::iw6_pc::context> gsc_ctx;

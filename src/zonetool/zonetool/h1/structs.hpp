@@ -2240,7 +2240,7 @@ namespace zonetool::h1
 	enum IMAGE_FLAG : std::uint8_t
 	{
 		IMAGE_FLAG_USE_SRGB_READS = 0x1,
-		IMAGE_FLAG_NOPICMIP = 0x2,
+		IMAGE_FLAG_NOMIPMAPS = 0x2,
 		IMAGE_FLAG_DELAY_LOAD_PIXELS = 0x4,
 		IMAGE_FLAG_PARABOLOID = 0x8,
 		IMAGE_FLAG_HEATMAP = 0x10,
@@ -3372,13 +3372,24 @@ namespace zonetool::h1
 		float brightness;
 		float maxLength;
 		int exponent;
-		char __pad0[24];
-	}; assert_sizeof(FxSpotLightDef, 0x30);
+		float unk;
+		float bulbRadius;
+		float multiplier;
+		float fadeOffset[2];
+		char unk1;
+		char opl;
+		char unk2;
+		char unused;
+	};
+	assert_sizeof(FxSpotLightDef, 0x30);
 
 	struct FxOmniLightDef
 	{
-		char __pad0[16];
-	}; assert_sizeof(FxOmniLightDef, 0x10);
+		float bulbRadius;
+		float multiplier;
+		float fadeOffset[2];
+	};
+	assert_sizeof(FxOmniLightDef, 0x10);
 
 	struct FxFlareDef
 	{

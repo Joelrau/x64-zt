@@ -4,9 +4,9 @@
 namespace zonetool::iw7
 {
 #define READ_VFX(__NAME__) \
-	if (__NAME__.type == FX_COMBINED_PARTICLE_SYSTEM) \
+	if (__NAME__.type == FX_COMBINED_VFX) \
 	{ \
-		__NAME__.u.particleSystemDef = read.read_asset<ParticleSystemDef>(); \
+		__NAME__.u.vfx = read.read_asset<ParticleSystemDef>(); \
 	} \
 	else \
 	{ \
@@ -84,9 +84,9 @@ namespace zonetool::iw7
 #define DEPENDING_VFX(__NAME__) \
 	if (__NAME__.u.data) \
 	{ \
-		if (__NAME__.type == FX_COMBINED_PARTICLE_SYSTEM) \
+		if (__NAME__.type == FX_COMBINED_VFX) \
 		{ \
-			zone->add_asset_of_type(ASSET_TYPE_VFX, __NAME__.u.particleSystemDef->name); \
+			zone->add_asset_of_type(ASSET_TYPE_VFX, __NAME__.u.vfx->name); \
 		} \
 		else \
 		{ \
@@ -143,9 +143,9 @@ namespace zonetool::iw7
 #define WRITE_VFX(__NAME__) \
 	if (data->__NAME__.u.data) \
 	{ \
-		if (data->__NAME__.type == FX_COMBINED_PARTICLE_SYSTEM) \
+		if (data->__NAME__.type == FX_COMBINED_VFX) \
 		{ \
-			dest->__NAME__.u.particleSystemDef = reinterpret_cast<ParticleSystemDef*>(zone->get_asset_pointer(ASSET_TYPE_VFX, data->__NAME__.u.particleSystemDef->name)); \
+			dest->__NAME__.u.vfx = reinterpret_cast<ParticleSystemDef*>(zone->get_asset_pointer(ASSET_TYPE_VFX, data->__NAME__.u.vfx->name)); \
 		} \
 		else \
 		{ \
@@ -300,9 +300,9 @@ namespace zonetool::iw7
 #undef WRITE_VFX
 
 #define DUMP_VFX(__NAME__) \
-	if (__NAME__.type == FX_COMBINED_PARTICLE_SYSTEM) \
+	if (__NAME__.type == FX_COMBINED_VFX) \
 	{ \
-		write.dump_asset(__NAME__.u.particleSystemDef); \
+		write.dump_asset(__NAME__.u.vfx); \
 	} \
 	else \
 	{ \

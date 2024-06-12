@@ -46,6 +46,45 @@ namespace zonetool::s1
 		}
 	}
 
+	namespace
+	{
+		void add_loaded_image_flags(GfxImage* image)
+		{
+			if (image->levelCount <= 1)
+			{
+				image->flags |= 0x2;
+			}
+
+			if (image->numElements > 1)
+			{
+				const bool is_cube = image->numElements % 6 == 0;
+				if (is_cube)
+				{
+					image->mapType = MAPTYPE_CUBE;
+					//image->flags |= IMG_DISK_FLAG_MAPTYPE_CUBE;
+
+					image->numElements = image->numElements / 6;
+				}
+				else
+				{
+					image->mapType = MAPTYPE_ARRAY;
+					//image->flags |= IMG_DISK_FLAG_MAPTYPE_ARRAY;
+				}
+			}
+			else
+			{
+				if (image->mapType == MAPTYPE_1D)
+				{
+					//image->flags |= IMG_DISK_FLAG_MAPTYPE_1D;
+				}
+				else if (image->mapType == MAPTYPE_3D)
+				{
+					//image->flags |= IMG_DISK_FLAG_MAPTYPE_3D;
+				}
+			}
+		}
+	}
+
 	namespace iwi
 	{
 		GfxImage* parse(const std::string& name, zone_memory* mem)
@@ -72,10 +111,10 @@ namespace zonetool::s1
 
 				image->streamed = false;
 
-				image->semantic = 2;
-				image->category = 3;
+				image->semantic = TS_COLOR_MAP; // material changes this
+				image->category = IMG_CATEGORY_LOAD_FROM_FILE;
 
-				image->flags |= img_.levelCount > 1 ? 0 : 2;
+				add_loaded_image_flags(image);
 
 				return image;
 			}
@@ -129,38 +168,9 @@ namespace zonetool::s1
 		GfxImage* parse(const std::string& name, zone_memory* mem)
 		{
 			DirectX::ScratchImage image;
-			bool result;
-			int w;
-			int h;
-			char m_name[128]{ 0 };
+			load_image(name, &image);
 
-			result = true;
-			if (!load_image(name, &image))
-			{
-				w = 4096;
-				result = false;
-				do
-				{
-					h = 4096;
-					do
-					{
-						snprintf(m_name, sizeof(m_name), "%s_%dx%d", name.data(), w, h);
-						if (load_image(m_name, &image))
-						{
-							result = true;
-							break;
-						}
-						h = h / 2;
-					} while (h > 0);
-					if (result)
-					{
-						break;
-					}
-					w = w / 2;
-				} while (w > 0);
-			}
-
-			if (result)
+			if (load_image(name, &image))
 			{
 				ZONETOOL_INFO("Parsing custom image \"%s\"", name.data());
 
@@ -172,20 +182,21 @@ namespace zonetool::s1
 
 				gfx_image->imageFormat = metadata.format;
 				gfx_image->mapType = static_cast<MapType>(metadata.dimension);
-				gfx_image->semantic = 2;
-				gfx_image->category = 3;
-				gfx_image->flags = 0;
+				gfx_image->semantic = TS_COLOR_MAP; // material changes this
+				gfx_image->category = IMG_CATEGORY_LOAD_FROM_FILE;
 				gfx_image->width = static_cast<unsigned short>(metadata.width);
 				gfx_image->height = static_cast<unsigned short>(metadata.height);
 				gfx_image->depth = static_cast<unsigned short>(metadata.depth);
-				gfx_image->numElements = 1;
-				gfx_image->levelCount = 1;
+				gfx_image->numElements = static_cast<unsigned short>(metadata.arraySize);
+				gfx_image->levelCount = static_cast<unsigned char>(metadata.mipLevels);
 				gfx_image->streamed = 0;
 				gfx_image->dataLen1 = static_cast<int>(pixels_size);
 				gfx_image->dataLen2 = static_cast<int>(pixels_size);
 				gfx_image->pixelData = mem->allocate<unsigned char>(pixels_size);
 				memcpy(gfx_image->pixelData, pixels, pixels_size);
 				gfx_image->name = mem->duplicate_string(name);
+
+				add_loaded_image_flags(gfx_image);
 
 				return gfx_image;
 			}
