@@ -1,6 +1,8 @@
 #include <std_include.hpp>
 #include "mapents.hpp"
 
+#include "../common/havok.hpp"
+
 namespace zonetool::iw7
 {
 	void map_ents::add_script_string(scr_string_t* ptr, const char* str)
@@ -196,7 +198,8 @@ namespace zonetool::iw7
 			}
 		}
 
-		asset->havokEntsShapeData = reader.read_array<char>();
+		const auto havok_data_path = path;
+		asset->havokEntsShapeData = havok::parse_havok_data(havok_data_path, &asset->havokEntsShapeDataSize, mem);
 
 		asset->cmodels = reader.read_array<cmodel_t>();
 		for (unsigned int i = 0; i < asset->numSubModels; i++)
@@ -1213,7 +1216,8 @@ namespace zonetool::iw7
 			}
 		}
 
-		dumper.dump_array(asset->havokEntsShapeData, asset->havokEntsShapeDataSize);
+		const auto havok_data_path = path;
+		havok::dump_havok_data(havok_data_path, asset->havokEntsShapeData, asset->havokEntsShapeDataSize);
 
 		dumper.dump_array(asset->cmodels, asset->numSubModels);
 		for (unsigned int i = 0; i < asset->numSubModels; i++)

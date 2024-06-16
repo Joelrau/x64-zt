@@ -1,6 +1,8 @@
 #include <std_include.hpp>
 #include "clipmap.hpp"
 
+#include "../common/havok.hpp"
+
 namespace zonetool::iw7
 {
 	void clip_map::add_script_string(scr_string_t* ptr, const char* str)
@@ -73,7 +75,8 @@ namespace zonetool::iw7
 			asset->stages[i].name = read.read_string();
 		}
 
-		asset->havokWorldShapeData = read.read_array<char>();
+		const auto havok_data_path = path;
+		asset->havokWorldShapeData = havok::parse_havok_data(havok_data_path, &asset->havokWorldShapeDataSize, mem);
 
 		asset->collisionHeatmap = read.read_array<CollisionHeatmapEntry>();
 
@@ -300,7 +303,8 @@ namespace zonetool::iw7
 			write.dump_string(asset->stages[i].name);
 		}
 
-		write.dump_array(asset->havokWorldShapeData, asset->havokWorldShapeDataSize);
+		const auto havok_data_path = path;
+		havok::dump_havok_data(havok_data_path, asset->havokWorldShapeData, asset->havokWorldShapeDataSize);
 
 		write.dump_array(asset->collisionHeatmap, asset->numCollisionHeatmapEntries);
 

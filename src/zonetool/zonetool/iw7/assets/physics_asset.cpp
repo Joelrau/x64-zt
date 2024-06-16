@@ -1,25 +1,10 @@
 #include "std_include.hpp"
 #include "physics_asset.hpp"
 
+#include "../common/havok.hpp"
+
 namespace zonetool::iw7
 {
-	char* parse_havok_data(const std::string path, unsigned int* size, zone_memory* mem)
-	{
-		auto file = filesystem::file(path);
-		if (!file.exists())
-		{
-			*size = 0;
-			return nullptr;
-		}
-		file.open("rb");
-		*size = static_cast<unsigned int>(file.size());
-		auto bytes = file.read_bytes(*size);
-		auto* data = mem->allocate<char>(*size);
-		memcpy(data, bytes.data(), *size);
-		file.close();
-		return data;
-	}
-
 	PhysicsAsset* physics_asset::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = "physicsasset\\"s + name;
@@ -49,7 +34,7 @@ namespace zonetool::iw7
 
 		read.close();
 
-		asset->havokData = parse_havok_data(path + ".hvk", &asset->havokDataSize, mem);
+		asset->havokData = havok::parse_havok_data(path, &asset->havokDataSize, mem);
 
 		return asset;
 	}
@@ -170,14 +155,6 @@ namespace zonetool::iw7
 		buf->pop_stream();
 	}
 
-	void dump_havok_data(char* data, unsigned int size, const std::string& path)
-	{
-		auto file = filesystem::file(path);
-		file.open("wb");
-		file.write(data, size, 1);
-		file.close();
-	}
-
 	void physics_asset::dump(PhysicsAsset* asset)
 	{
 		const auto path = "physicsasset\\"s + asset->name;
@@ -203,6 +180,6 @@ namespace zonetool::iw7
 
 		write.close();
 
-		dump_havok_data(asset->havokData, asset->havokDataSize, path + ".hvk");
+		havok::dump_havok_data(path, asset->havokData, asset->havokDataSize);
 	}
 }
