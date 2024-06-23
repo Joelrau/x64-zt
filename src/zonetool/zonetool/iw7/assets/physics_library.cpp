@@ -9,9 +9,9 @@ namespace zonetool::iw7
 	{
 		const auto path = "physicslibrary\\"s + name;
 
-		if (!name.ends_with(havok::havok_file_ext))
+		if (!name.ends_with(havok::binary::havok_file_ext))
 		{
-			ZONETOOL_ERROR("physicslibrary \"%s\" does not end with havok file extension (%s)", name.data(), havok::havok_file_ext);
+			ZONETOOL_ERROR("physicslibrary \"%s\" does not end with havok file extension (%s)", name.data(), havok::binary::havok_file_ext);
 			return nullptr;
 		}
 
@@ -41,7 +41,7 @@ namespace zonetool::iw7
 
 		bytes.clear();
 
-		asset->havokData = havok::parse_havok_data(path, &asset->havokDataSize, mem);
+		asset->havokData = havok::binary::parse_havok_data(path, &asset->havokDataSize, mem);
 
 		return asset;
 	}
@@ -104,6 +104,6 @@ namespace zonetool::iw7
 	void physics_library::dump(PhysicsLibrary* asset)
 	{
 		const auto path = "physicslibrary\\"s + asset->name;
-		havok::dump_havok_data(path, asset->havokData, asset->havokDataSize);
+		havok::binary::dump_havok_data(path, asset->havokData, asset->havokDataSize);
 	}
 }

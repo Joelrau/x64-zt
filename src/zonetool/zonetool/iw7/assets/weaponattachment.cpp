@@ -1195,7 +1195,7 @@ namespace zonetool::iw7
 
 #define ATTACHMENT_DUMP_STRING(__field__) \
 	static_assert(std::is_same_v<decltype(asset->__field__), const char*>, "Field is not of type const char*"); \
-	asset->__field__ ? data[#__field__] = asset->__field__ : data[#__field__] = "";
+	asset->__field__ ? data[#__field__] = asset->__field__ : data[#__field__] = nullptr;
 
 #define ATTACHMENT_DUMP_SCRIPT_STRING(__field__) \
 	if (asset->__field__) data[#__field__] = SL_ConvertToString(asset->__field__); else data[#__field__] = "";

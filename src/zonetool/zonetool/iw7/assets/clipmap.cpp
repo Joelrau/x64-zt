@@ -76,7 +76,7 @@ namespace zonetool::iw7
 		}
 
 		const auto havok_data_path = path;
-		asset->havokWorldShapeData = havok::parse_havok_data(havok_data_path, &asset->havokWorldShapeDataSize, mem);
+		asset->havokWorldShapeData = havok::binary::parse_havok_data(havok_data_path, &asset->havokWorldShapeDataSize, mem);
 
 		asset->collisionHeatmap = read.read_array<CollisionHeatmapEntry>();
 
@@ -304,7 +304,7 @@ namespace zonetool::iw7
 		}
 
 		const auto havok_data_path = path;
-		havok::dump_havok_data(havok_data_path, asset->havokWorldShapeData, asset->havokWorldShapeDataSize);
+		havok::binary::dump_havok_data(havok_data_path, asset->havokWorldShapeData, asset->havokWorldShapeDataSize);
 
 		write.dump_array(asset->collisionHeatmap, asset->numCollisionHeatmapEntries);
 

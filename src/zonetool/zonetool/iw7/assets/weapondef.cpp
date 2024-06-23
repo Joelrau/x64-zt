@@ -136,9 +136,9 @@ namespace zonetool::iw7
 			} \
 		} \
 	}
-#define WEAPON_PARSE_ASSET_ARR_MODVAL(__field__, __size__) \
+#define WEAPON_PARSE_ASSET_FIELD_ARR_MODVAL(__field__, __size__) \
 	MODVAL(__field__, __size__) \
-	WEAPON_PARSE_ASSET_ARR(__field__, __size__)
+	WEAPON_PARSE_ASSET_FIELD_ARR(__field__, __size__)
 
 #define WEAPON_PARSE_ASSET(__field__) \
 	if (!data[#__field__].is_null() && !data[#__field__].get<std::string>().empty()) \
@@ -1748,7 +1748,7 @@ namespace zonetool::iw7
 
 #define WEAPON_DUMP_STRING(__field__) \
 	static_assert(std::is_same_v<decltype(asset->__field__), const char*>, "Field is not of type const char*"); \
-	asset->__field__ ? data[#__field__] = asset->__field__ : nullptr;
+	asset->__field__ ? data[#__field__] = asset->__field__ : data[#__field__] = nullptr;
 
 #define WEAPON_DUMP_STRING_ARR(__field__, __size__) \
 	for (auto idx##__field__ = 0u; idx##__field__ < (unsigned int)__size__; idx##__field__++) \
@@ -1760,7 +1760,7 @@ namespace zonetool::iw7
 	if (asset->__field__) data[#__field__] = SL_ConvertToString(asset->__field__); else data[#__field__] = "";
 
 #define WEAPON_DUMP_SCRIPT_STRING_ALLOC_ARR(__field__, __size__) \
-	if(asset->__field__) \
+	if(asset->__field__ && __size__) \
 	{ \
 		for (auto idx##__field__ = 0u; idx##__field__ < (unsigned int)__size__; idx##__field__++) \
 		{ \
@@ -1836,7 +1836,7 @@ namespace zonetool::iw7
 	}
 
 #define WEAPON_DUMP_FXCOMBINED_ALLOC_ARR(__field__, __size__) \
-	if (asset->__field__) \
+	if (asset->__field__ && __size__) \
 	{ \
 		for (auto idx##__field__ = 0u; idx##__field__ < (unsigned int)__size__; idx##__field__++) \
 		{ \

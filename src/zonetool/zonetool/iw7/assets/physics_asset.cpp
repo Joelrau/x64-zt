@@ -34,7 +34,7 @@ namespace zonetool::iw7
 
 		read.close();
 
-		asset->havokData = havok::parse_havok_data(path, &asset->havokDataSize, mem);
+		asset->havokData = havok::binary::parse_havok_data(path, &asset->havokDataSize, mem);
 
 		return asset;
 	}
@@ -180,6 +180,6 @@ namespace zonetool::iw7
 
 		write.close();
 
-		havok::dump_havok_data(path, asset->havokData, asset->havokDataSize);
+		havok::binary::dump_havok_data(path, asset->havokData, asset->havokDataSize);
 	}
 }

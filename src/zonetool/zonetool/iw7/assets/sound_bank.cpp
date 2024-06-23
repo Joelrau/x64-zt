@@ -153,12 +153,12 @@ namespace zonetool::iw7
 			writer.write_column(LOAD_TYPES[alias->flags.type]);
 			writer.write_column(LOOP_TYPES[alias->flags.looping]);
 			writer.write_column(alias->probability);
-			writer.write_column(alias->volumeFalloffCurveIndex == 0xFF ? "" : vf_curves_s[alias->volumeFalloffCurveIndex]);
-			writer.write_column(alias->lpfCurveIndex == 0xFF ? "" : lpf_curves_s[alias->lpfCurveIndex]);
-			writer.write_column(alias->hpfCurveIndex == 0xFF ? "" : hpf_curves_s[alias->hpfCurveIndex]);
-			writer.write_column(alias->reverbSendCurveIndex == 0xFF ? "" : rvb_curves_s[alias->reverbSendCurveIndex]);
+			writer.write_column(vf_curves_s[alias->volumeFalloffCurveIndex]);
+			writer.write_column(lpf_curves_s[alias->lpfCurveIndex]);
+			writer.write_column(hpf_curves_s[alias->hpfCurveIndex]);
+			writer.write_column(rvb_curves_s[alias->reverbSendCurveIndex]);
 			writer.write_column(alias->startDelay);
-			writer.write_column(alias->speakerMapIndex == 0xFF ? "" : speaker_maps_s[alias->speakerMapIndex]);
+			writer.write_column(speaker_maps_s[alias->speakerMapIndex]);
 			writer.write_column(FULLDRYLEVEL[alias->flags.reverb]);
 			writer.write_column(alias->reverbMultiplier);
 			writer.write_column(alias->farReverbMultiplier);
@@ -169,7 +169,7 @@ namespace zonetool::iw7
 			writer.write_column(alias->envelopPercentage);
 			writer.write_column(SHAPES[alias->flags.shape]);
 			writer.write_column(FALSE_TRUE[alias->flags.ignoreDistanceCheck]);
-			writer.write_column(alias->occlusionShapeIndex == 0xFF ? "" : occlusion_shapes_s[alias->occlusionShapeIndex]);
+			writer.write_column(occlusion_shapes_s[alias->occlusionShapeIndex]);
 			writer.write_column(alias->dopplerPresetIndex == 0xFF ? "" : doppler_presets_s[alias->dopplerPresetIndex]);
 			writer.write_column(alias->smartPanDistance2d);
 			writer.write_column(alias->smartPanDistance3d);
@@ -292,12 +292,24 @@ namespace zonetool::iw7
 				alias->flags.type = get_value_index<unsigned int>(get(), LOAD_TYPES, std::extent_v<decltype(LOAD_TYPES)>);
 				alias->flags.looping = get_value_index<unsigned int>(get(), LOOP_TYPES, std::extent_v<decltype(LOOP_TYPES)>);
 				alias->probability = get_value<float>(get());
-				alias->volumeFalloffCurveIndex = get_value_index<unsigned char>(get(), vf_curves_s, std::extent_v<decltype(vf_curves_s)>, 0xFF);
-				alias->lpfCurveIndex = get_value_index<unsigned char>(get(), lpf_curves_s, std::extent_v<decltype(lpf_curves_s)>, 0xFF);
-				alias->hpfCurveIndex = get_value_index<unsigned char>(get(), hpf_curves_s, std::extent_v<decltype(hpf_curves_s)>, 0xFF);
-				alias->reverbSendCurveIndex = get_value_index<unsigned char>(get(), rvb_curves_s, std::extent_v<decltype(rvb_curves_s)>, 0xFF);
+
+				const auto default_vf_curve = get_value_index<unsigned char>("default", vf_curves_s, std::extent_v<decltype(vf_curves_s)>, 0);
+				alias->volumeFalloffCurveIndex = get_value_index<unsigned char>(get(), vf_curves_s, std::extent_v<decltype(vf_curves_s)>, default_vf_curve);
+
+				const auto default_lpf_curve = get_value_index<unsigned char>("default", lpf_curves_s, std::extent_v<decltype(lpf_curves_s)>, 0);
+				alias->lpfCurveIndex = get_value_index<unsigned char>(get(), lpf_curves_s, std::extent_v<decltype(lpf_curves_s)>, default_lpf_curve);
+
+				const auto default_hpf_curve = get_value_index<unsigned char>("default", hpf_curves_s, std::extent_v<decltype(hpf_curves_s)>, 0);
+				alias->hpfCurveIndex = get_value_index<unsigned char>(get(), hpf_curves_s, std::extent_v<decltype(hpf_curves_s)>, default_hpf_curve);
+
+				const auto default_reverb_send_curve = get_value_index<unsigned char>("default", rvb_curves_s, std::extent_v<decltype(rvb_curves_s)>, 0);
+				alias->reverbSendCurveIndex = get_value_index<unsigned char>(get(), rvb_curves_s, std::extent_v<decltype(rvb_curves_s)>, default_reverb_send_curve);
+
 				alias->startDelay = get_value<int>(get());
-				alias->speakerMapIndex = get_value_index<unsigned char>(get(), speaker_maps_s, std::extent_v<decltype(speaker_maps_s)>, 0xFF);
+
+				const auto default_speaker_map = get_value_index<unsigned char>("default", speaker_maps_s, std::extent_v<decltype(speaker_maps_s)>, 0);
+				alias->speakerMapIndex = get_value_index<unsigned char>(get(), speaker_maps_s, std::extent_v<decltype(speaker_maps_s)>, default_speaker_map);
+
 				alias->flags.reverb = get_value_index<unsigned int>(get(), FULLDRYLEVEL, std::extent_v<decltype(FULLDRYLEVEL)>);
 				alias->reverbMultiplier = get_value<float>(get());
 				alias->farReverbMultiplier = get_value<float>(get());
@@ -308,8 +320,12 @@ namespace zonetool::iw7
 				alias->envelopPercentage = get_value<float>(get());
 				alias->flags.shape = get_value_index<unsigned int>(get(), SHAPES, std::extent_v<decltype(SHAPES)>);
 				alias->flags.ignoreDistanceCheck = get_value_index<unsigned int>(get(), FALSE_TRUE, std::extent_v<decltype(FALSE_TRUE)>);
-				alias->occlusionShapeIndex = get_value_index<unsigned char>(get(), occlusion_shapes_s, std::extent_v<decltype(occlusion_shapes_s)>, 0xFF);
+
+				const auto default_occlusion_shape = get_value_index<unsigned char>("default", occlusion_shapes_s, std::extent_v<decltype(occlusion_shapes_s)>, 0);
+				alias->occlusionShapeIndex = get_value_index<unsigned char>(get(), occlusion_shapes_s, std::extent_v<decltype(occlusion_shapes_s)>, default_occlusion_shape);
+
 				alias->dopplerPresetIndex = get_value_index<unsigned char>(get(), doppler_presets_s, std::extent_v<decltype(doppler_presets_s)>, 0xFF);
+
 				alias->smartPanDistance2d = get_value<float>(get());
 				alias->smartPanDistance3d = get_value<float>(get());
 				alias->smartPanAttenuation2d = get_value<float>(get());
@@ -406,7 +422,7 @@ namespace zonetool::iw7
 			asset->alias = mem->allocate<SndAliasList>(asset->aliasCount);
 			for (auto i = 0u; i < asset->aliasCount; i++)
 			{
-				memcpy(asset->alias, &alias_list[i], sizeof(SndAliasList));
+				memcpy(&asset->alias[i], &alias_list[i], sizeof(SndAliasList));
 			}
 			alias_list.clear();
 
