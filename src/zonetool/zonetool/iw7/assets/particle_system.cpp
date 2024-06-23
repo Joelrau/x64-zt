@@ -1,7 +1,7 @@
 #include "std_include.hpp"
 #include "particle_system.hpp"
 
-#define DUMP_JSON
+//#define DUMP_JSON
 
 namespace zonetool::iw7
 {
