@@ -518,12 +518,12 @@ namespace zonetool::iw7
 
 	void zone_interface::add_asset_of_type(std::int32_t type, const std::string& _name)
 	{
-		if (_name.empty())
+		std::string name = _name;
+
+		if (name.empty())
 		{
 			return;
 		}
-
-		std::string name = _name;
 
 		// add ignore assets as referenced
 		if (ignore_assets.find(std::make_pair(static_cast<std::uint32_t>(type), name)) != ignore_assets.end())
@@ -652,8 +652,8 @@ namespace zonetool::iw7
 
 			if (images.size() > 0)
 			{
-				imagefile::generate(filesystem::get_fastfile(),
-					CUSTOM_IMAGEFILE_INDEX, FF_VERSION, FF_MAGIC_UNSIGNED, images, this->m_zonemem.get());
+				//imagefile::generate(filesystem::get_fastfile(),
+				//	CUSTOM_IMAGEFILE_INDEX, FF_VERSION, FF_MAGIC_UNSIGNED, images, this->m_zonemem.get());
 			}
 		}
 

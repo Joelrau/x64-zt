@@ -60,6 +60,7 @@ namespace zonetool
 		bool verify;
 		bool dump;
 		bool dump_referenced;
+		bool dump_csv;
 		game::game_mode target_game;
 		filesystem::file csv_file;
 	};

@@ -103,11 +103,22 @@ namespace zonetool::h1
 		}
 	}
 
-	void zone_interface::add_asset_of_type(std::int32_t type, const std::string& name)
+	void zone_interface::add_asset_of_type(std::int32_t type, const std::string& _name)
 	{
+		std::string name = _name;
+
 		if (name.empty())
 		{
-			//return;
+			return;
+		}
+
+		// add ignore assets as referenced
+		if (ignore_assets.find(std::make_pair(static_cast<std::uint32_t>(type), name)) != ignore_assets.end())
+		{
+			if (!name.starts_with(","))
+			{
+				name = ","s + name;
+			}
 		}
 
 		// don't add asset if it already exists
