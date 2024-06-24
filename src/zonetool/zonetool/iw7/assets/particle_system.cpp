@@ -1665,20 +1665,16 @@ namespace zonetool::iw7
 
 			PARSE_FIELD(gravityOptions);
 
-			PARSE_FIELD_ARR(groupIDs, 1);
+			PARSE_FIELD_ARR(groupIDs, 4);
 
-			PARSE_FIELD(emitByDistanceDensity.min);
-			PARSE_FIELD(emitByDistanceDensity.max);
-
-			PARSE_FIELD(soloInstanceMax);
-			PARSE_FIELD(instanceAction);
+			PARSE_FIELD(unk1);
+			PARSE_FIELD(unk2);
 
 			PARSE_FIELD(particleSpawnShapeRange.min);
 			PARSE_FIELD(particleSpawnShapeRange.max);
 
 			PARSE_FIELD_ARR(pad, 1);
 
-			PARSE_FIELD(m_dataFlags);
 			PARSE_FIELD(flags);
 
 			asset->numStates = static_cast<int>(data["State"].size());
@@ -2667,20 +2663,17 @@ namespace zonetool::iw7
 
 			DUMP_FIELD(gravityOptions);
 
-			DUMP_FIELD_ARR(groupIDs, 1);
+			DUMP_FIELD_ARR(groupIDs, 4);
 
-			DUMP_FIELD(emitByDistanceDensity.min);
-			DUMP_FIELD(emitByDistanceDensity.max);
-
-			DUMP_FIELD(soloInstanceMax);
-			DUMP_FIELD(instanceAction);
+			DUMP_FIELD(unk1);
+			DUMP_FIELD(unk2);
 
 			DUMP_FIELD(particleSpawnShapeRange.min);
 			DUMP_FIELD(particleSpawnShapeRange.max);
 
 			DUMP_FIELD_ARR(pad, 1);
 
-			DUMP_FIELD(m_dataFlags);
+			//DUMP_FIELD(m_dataFlags);
 			DUMP_FIELD(flags);
 
 			for (auto i = 0; i < asset->numStates; i++)
