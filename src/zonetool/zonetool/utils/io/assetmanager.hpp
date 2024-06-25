@@ -631,8 +631,7 @@ namespace zonetool
 					char* name = memory->allocate<char>(str.size() + 1);
 					strcpy(name, str.c_str());
 
-					T* asset = memory->allocate<T>();
-					memset(asset, 0, sizeof(T));
+					T* asset = memory->manual_allocate<T>(offsetof(T, name) + sizeof(const char*));
 					asset->name = const_cast<char*>(name);
 
 					dump_entry entry{ 0 };

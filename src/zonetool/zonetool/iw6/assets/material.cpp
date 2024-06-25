@@ -407,17 +407,11 @@ namespace zonetool::iw6
 
 		if (data->constantTable)
 		{
-			/*buf->align(15);
-			dest->constantTable = buf->write(data->constantTable, data->constantCount);
-			buf->clear_pointer(&dest->constantTable);*/
 			dest->constantTable = buf->write_s(15, data->constantTable, data->constantCount);
 		}
 
 		if (data->stateMap)
 		{
-			/*buf->align(3);
-			dest->stateMap = buf->write(data->stateMap, data->stateBitsCount);
-			buf->clear_pointer(&dest->stateMap);*/
 			dest->stateMap = buf->write_s(3, data->stateMap, data->stateBitsCount);
 		}
 

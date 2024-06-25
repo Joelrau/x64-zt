@@ -2240,7 +2240,7 @@ namespace zonetool::h1
 	enum IMAGE_FLAG : std::uint8_t
 	{
 		IMAGE_FLAG_USE_SRGB_READS = 0x1,
-		IMAGE_FLAG_NOPICMIP = 0x2,
+		IMAGE_FLAG_NOMIPMAPS = 0x2,
 		IMAGE_FLAG_DELAY_LOAD_PIXELS = 0x4,
 		IMAGE_FLAG_PARABOLOID = 0x8,
 		IMAGE_FLAG_HEATMAP = 0x10,
@@ -3372,13 +3372,24 @@ namespace zonetool::h1
 		float brightness;
 		float maxLength;
 		int exponent;
-		char __pad0[24];
-	}; assert_sizeof(FxSpotLightDef, 0x30);
+		float unk;
+		float bulbRadius;
+		float multiplier;
+		float fadeOffset[2];
+		char unk1;
+		char opl;
+		char unk2;
+		char unused;
+	};
+	assert_sizeof(FxSpotLightDef, 0x30);
 
 	struct FxOmniLightDef
 	{
-		char __pad0[16];
-	}; assert_sizeof(FxOmniLightDef, 0x10);
+		float bulbRadius;
+		float multiplier;
+		float fadeOffset[2];
+	};
+	assert_sizeof(FxOmniLightDef, 0x10);
 
 	struct FxFlareDef
 	{
@@ -4103,42 +4114,42 @@ namespace zonetool::h1
 
 	enum weapType_t : std::int32_t
 	{
-		WEAPCLASS_NONE = 0x0,
-		WEAPCLASS_BULLET = 0x1,
-		WEAPCLASS_GRENADE = 0x2,
-		WEAPCLASS_PROJECTILE = 0x3,
-		WEAPCLASS_RIOTSHIELD = 0x4,
-		WEAPCLASS_ENERGY = 0x5,
-		WEAPCLASS_NUM = 0x6,
+		WEAPTYPE_NONE = 0x0,
+		WEAPTYPE_BULLET = 0x1,
+		WEAPTYPE_GRENADE = 0x2,
+		WEAPTYPE_PROJECTILE = 0x3,
+		WEAPTYPE_RIOTSHIELD = 0x4,
+		WEAPTYPE_ENERGY = 0x5,
+		WEAPTYPE_NUM = 0x6,
 	};
 
 	enum weapClass_t : std::int32_t
 	{
-		WEAPTYPE_RIFLE = 0x0,
-		WEAPTYPE_SNIPER = 0x1,
-		WEAPTYPE_MG = 0x2,
-		WEAPTYPE_SMG = 0x3,
-		WEAPTYPE_SPREAD = 0x4,
-		WEAPTYPE_PISTOL = 0x5,
-		WEAPTYPE_GRENADE = 0x6,
-		WEAPTYPE_ROCKETLAUNCHER = 0x7,
-		WEAPTYPE_TURRET = 0x8,
-		WEAPTYPE_THROWINGKNIFE = 0x9,
-		WEAPTYPE_NON_PLAYER = 0xA,
-		WEAPTYPE_ITEM = 0xB,
-		WEAPTYPE_CONE = 0xC,
-		WEAPTYPE_BEAM = 0xD,
-		WEAPTYPE_SHIELD = 0xE,
-		WEAPTYPE_HOVER = 0xF,
-		WEAPTYPE_CLOAK = 0x10,
-		WEAPTYPE_PING = 0x11,
-		WEAPTYPE_REPULSOR = 0x12,
-		WEAPTYPE_ADRENALINE = 0x13,
-		WEAPTYPE_HEALTH = 0x14,
-		WEAPTYPE_MUTE = 0x15,
-		WEAPTYPE_UNDERWATER = 0x16,
-		WEAPTYPE_BALL = 0x17,
-		WEAPTYPE_NUM = 0x18,
+		WEAPCLASS_RIFLE = 0x0,
+		WEAPCLASS_SNIPER = 0x1,
+		WEAPCLASS_MG = 0x2,
+		WEAPCLASS_SMG = 0x3,
+		WEAPCLASS_SPREAD = 0x4,
+		WEAPCLASS_PISTOL = 0x5,
+		WEAPCLASS_GRENADE = 0x6,
+		WEAPCLASS_ROCKETLAUNCHER = 0x7,
+		WEAPCLASS_TURRET = 0x8,
+		WEAPCLASS_THROWINGKNIFE = 0x9,
+		WEAPCLASS_NON_PLAYER = 0xA,
+		WEAPCLASS_ITEM = 0xB,
+		WEAPCLASS_CONE = 0xC,
+		WEAPCLASS_BEAM = 0xD,
+		WEAPCLASS_SHIELD = 0xE,
+		WEAPCLASS_HOVER = 0xF,
+		WEAPCLASS_CLOAK = 0x10,
+		WEAPCLASS_PING = 0x11,
+		WEAPCLASS_REPULSOR = 0x12,
+		WEAPCLASS_ADRENALINE = 0x13,
+		WEAPCLASS_HEALTH = 0x14,
+		WEAPCLASS_MUTE = 0x15,
+		WEAPCLASS_UNDERWATER = 0x16,
+		WEAPCLASS_BALL = 0x17,
+		WEAPCLASS_NUM = 0x18,
 	};
 
 	enum weapInventoryType_t : std::int32_t
@@ -6430,7 +6441,7 @@ namespace zonetool::h1
 		float origin[3];
 		unsigned short triggerIndex;
 		unsigned char sunPrimaryLightIndex;
-		unsigned int unk;
+		unsigned int entityUID;
 	}; assert_sizeof(Stage, 32);
 
 	enum DynEntityType : std::int32_t
@@ -7047,7 +7058,8 @@ namespace zonetool::h1
 		snd_alias_list_t* damagedSound;
 		snd_alias_list_t* destroyedSound;
 		snd_alias_list_t* destroyedQuietSound;
-		float unk[2];
+		float highMipRadiusInvSq;
+		float shatteredHighMipRadiusInvSq;
 		int numCrackRings;
 		bool isOpaque;
 	}; assert_sizeof(FxGlassDef, 120);
@@ -8876,15 +8888,26 @@ namespace zonetool::h1
 	{
 		DDL_BYTE_TYPE = 0x0,
 		DDL_SHORT_TYPE = 0x1,
-		DDL_BOOL_TYPE = 0x2, // BIT
-		DDL_UINT_TYPE = 0x3, // int or uint
-		DDL_INT_TYPE = 0x4, // unconfirmed
-		DDL_UINT64_TYPE = 0x5, // unconfirmed
-		DDL_FLOAT_TYPE = 0x6, // unconfirmed
+		DDL_BOOL_TYPE = 0x2,
+		DDL_INT_TYPE = 0x3,
+		DDL_UINT64_TYPE = 0x4,
+		DDL_FLOAT_TYPE = 0x5,
+		DDL_FIXEDPOINT_TYPE = 0x6, // unused
 		DDL_STRING_TYPE = 0x7,
 		DDL_STRUCT_TYPE = 0x8,
 		DDL_ENUM_TYPE = 0x9,
 		DDL_PAD_TYPE = 0xA,
+	};
+
+	enum DDLFLags : std::uint8_t
+	{
+		DDL_FLAG_DIRTY = 0x0,
+		DDL_FLAG_CHECKSUM = 0x1,
+		DDL_FLAG_CODE_VERSION = 0x2,
+		DDL_FLAG_USER_FLAGS = 0x4,
+		DDL_FLAG_NO_PADDING = 0x8,
+		DDL_FLAG_RESERVE = 0x10,
+		DDL_FLAG_DDL_CHECKSUM = 0x20,
 	};
 
 	struct DDLMember

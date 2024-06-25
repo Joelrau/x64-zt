@@ -17,11 +17,17 @@
 	std::remove_pointer<typename std::remove_all_extents<decltype(std::declval<__struct__>().__member__)>::type>::type \
 
 #include "../shared/assets/rawfile.hpp"
+#include "../shared/assets/luafile.hpp"
+#include "../shared/assets/scriptfile.hpp"
+#include "../shared/assets/stringtable.hpp"
+#include "../shared/assets/localize.hpp"
+#include "../shared/assets/ttfdef.hpp"
+#include "../shared/assets/fontdef.hpp"
+
 #include "../shared/assets/shader.hpp"
 #include "../shared/assets/vertexdecl.hpp"
 #include "../shared/assets/laserdef.hpp"
 #include "../shared/assets/clipmap.hpp"
-#include "../shared/assets/localize.hpp"
 
 static inline void branding()
 {

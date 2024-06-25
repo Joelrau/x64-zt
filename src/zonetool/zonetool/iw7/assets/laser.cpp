@@ -61,7 +61,6 @@ namespace zonetool::iw7
 
 		auto asset = mem->allocate<LaserDef>();
 
-		PARSE_STRING(name);
 		PARSE_ASSET(laserMaterial);
 		PARSE_ASSET(laserLightMaterial);
 		PARSE_FIELD(ownerOnly);
@@ -119,7 +118,7 @@ namespace zonetool::iw7
 #define SUBASSET_DEPENDING_FXCOMBINED(__field__) \
 	if (asset->__field__.u.data) \
 	{ \
-		if(asset->__field__.type == FX_COMBINED_PARTICLE_SYSTEM) zone->add_asset_of_type(ASSET_TYPE_VFX, asset->__field__.u.particleSystemDef->name); \
+		if(asset->__field__.type == FX_COMBINED_VFX) zone->add_asset_of_type(ASSET_TYPE_VFX, asset->__field__.u.vfx->name); \
 		else zone->add_asset_of_type(ASSET_TYPE_FX, asset->__field__.u.fx->name); \
 	}
 
@@ -153,8 +152,8 @@ namespace zonetool::iw7
 #define WRITE_FXCOMBINED(__field__) \
 	if (data->__field__.u.data) \
 	{ \
-		if(data->__field__.type == FX_COMBINED_PARTICLE_SYSTEM) dest->__field__.u.particleSystemDef =  \
-			reinterpret_cast<ParticleSystemDef*>(zone->get_asset_pointer(ASSET_TYPE_VFX, data->__field__.u.particleSystemDef->name)); \
+		if(data->__field__.type == FX_COMBINED_VFX) dest->__field__.u.vfx =  \
+			reinterpret_cast<ParticleSystemDef*>(zone->get_asset_pointer(ASSET_TYPE_VFX, data->__field__.u.vfx->name)); \
 		else dest->__field__.u.fx = reinterpret_cast<FxEffectDef*>(zone->get_asset_pointer(ASSET_TYPE_VFX, data->__field__.u.fx->name)); \
 	}
 
@@ -218,7 +217,6 @@ namespace zonetool::iw7
 
 		ordered_json data;
 
-		DUMP_STRING(name);
 		DUMP_ASSET(laserMaterial);
 		DUMP_ASSET(laserLightMaterial);
 		DUMP_FIELD(ownerOnly);

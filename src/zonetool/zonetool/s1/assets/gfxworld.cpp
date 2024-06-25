@@ -652,7 +652,7 @@ namespace zonetool::s1
 		{
 			buf->align(3);
 			buf->write(data->draw.reflectionProbeReferenceOrigins, data->draw.reflectionProbeReferenceCount);
-			buf->clear_pointer(dest->draw.reflectionProbeReferenceOrigins);
+			buf->clear_pointer(&dest->draw.reflectionProbeReferenceOrigins);
 		}
 
 		if (data->draw.reflectionProbeReferences)
@@ -950,7 +950,7 @@ namespace zonetool::s1
 				}
 			}
 
-			buf->clear_pointer(&dest->shadowGeom);
+			buf->clear_pointer(&dest->shadowGeomOptimized);
 		}
 
 		if (data->lightRegion)

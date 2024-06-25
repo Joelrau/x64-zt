@@ -516,8 +516,10 @@ namespace zonetool::iw7
 		}
 	}
 
-	void zone_interface::add_asset_of_type(std::int32_t type, const std::string& name)
+	void zone_interface::add_asset_of_type(std::int32_t type, const std::string& _name)
 	{
+		std::string name = _name;
+
 		if (name.empty())
 		{
 			return;
@@ -526,8 +528,10 @@ namespace zonetool::iw7
 		// add ignore assets as referenced
 		if (ignore_assets.find(std::make_pair(static_cast<std::uint32_t>(type), name)) != ignore_assets.end())
 		{
-			add_asset_of_type(type, ","s + name);
-			return;
+			if (!name.starts_with(","))
+			{
+				name = ","s + name;
+			}
 		}
 
 		// don't add asset if it already exists
@@ -552,6 +556,7 @@ namespace zonetool::iw7
 			ADD_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, fx_particle_sim_animation);
 			ADD_ASSET(ASSET_TYPE_IMAGE, gfx_image);
 			ADD_ASSET(ASSET_TYPE_LIGHT_DEF, gfx_light_def);
+			ADD_ASSET(ASSET_TYPE_GFXLIGHTMAP, gfx_light_map);
 			ADD_ASSET(ASSET_TYPE_LASER, laser);
 			ADD_ASSET(ASSET_TYPE_LOCALIZE_ENTRY, localize);
 			ADD_ASSET(ASSET_TYPE_LUA_FILE, lua_file);
@@ -563,9 +568,10 @@ namespace zonetool::iw7
 			ADD_ASSET(ASSET_TYPE_RUMBLE, rumble);
 			ADD_ASSET(ASSET_TYPE_RUMBLE_GRAPH, rumble_graph);
 			ADD_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile);
+			ADD_ASSET(ASSET_TYPE_STREAMING_INFO, streaming_info);
 			ADD_ASSET(ASSET_TYPE_STRINGTABLE, string_table);
 			ADD_ASSET(ASSET_TYPE_TRACER, tracer);
-			ADD_ASSET(ASSET_TYPE_TTF, font_def);
+			ADD_ASSET(ASSET_TYPE_TTF, ttf_def);
 			ADD_ASSET(ASSET_TYPE_VECTORFIELD, vector_field);
 			ADD_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment);
 			ADD_ASSET(ASSET_TYPE_ANIM_PACKAGE, weapon_anim_package);
@@ -595,6 +601,14 @@ namespace zonetool::iw7
 			ADD_ASSET(ASSET_TYPE_VERTEXSHADER, vertex_shader);
 
 			ADD_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset);
+
+			ADD_ASSET(ASSET_TYPE_CLIPMAP, clip_map);
+			ADD_ASSET(ASSET_TYPE_COMWORLD, com_world);
+			ADD_ASSET(ASSET_TYPE_FXWORLD, fx_world);
+			ADD_ASSET(ASSET_TYPE_GFXWORLD, gfx_world);
+			ADD_ASSET(ASSET_TYPE_GFXWORLD_TRANSIENT_ZONE, gfx_world_tr);
+			ADD_ASSET(ASSET_TYPE_GLASSWORLD, glass_world);
+			ADD_ASSET(ASSET_TYPE_MAP_ENTS, map_ents);
 		}
 		catch (std::exception& ex)
 		{
@@ -638,8 +652,8 @@ namespace zonetool::iw7
 
 			if (images.size() > 0)
 			{
-				imagefile::generate(filesystem::get_fastfile(),
-					CUSTOM_IMAGEFILE_INDEX, FF_VERSION, FF_MAGIC_UNSIGNED, images, this->m_zonemem.get());
+				//imagefile::generate(filesystem::get_fastfile(),
+				//	CUSTOM_IMAGEFILE_INDEX, FF_VERSION, FF_MAGIC_UNSIGNED, images, this->m_zonemem.get());
 			}
 		}
 
@@ -961,20 +975,31 @@ namespace zonetool::iw7
 		header.shared_ff_count = 0;
 		header.image_ff_hash = 0;
 		header.image_ff_count = 0;
-		header.fileLen = buf_output_size + sizeof(XFileHeader) + sizeof(XFileCompressorHeader);
+		header.fileLen = buf_output_size + sizeof(XFileHeader);
 		header.fileLenUnk1 = 0; // imagefile?
 		header.fileLenUnk2 = 0; // shared?
+
+		const auto image_streamfiles_count = buf->streamfile_count();
+		if (image_streamfiles_count)
+		{
+			header.image_ff_count = static_cast<std::uint32_t>(image_streamfiles_count);
+		}
 
 		{
 			header.stream_data.unk1 = 0;
 			header.stream_data.unk2 = 0;
 
 			std::uint64_t total_block_size = 0;
+			memset(header.stream_data.block_size, 0, sizeof(header.stream_data.block_size));
+
+			header.stream_data.block_size[XFILE_BLOCK_IMAGE_STREAM] = sizeof(XStreamFile) * image_streamfiles_count;
+
 			for (auto i = 0; i < MAX_XFILE_COUNT; i++)
 			{
-				header.stream_data.block_size[i] = buf->stream_offset(static_cast<std::uint8_t>(i));
+				header.stream_data.block_size[i] += buf->stream_offset(static_cast<std::uint8_t>(i));
 				total_block_size += header.stream_data.block_size[i];
 			}
+
 			header.stream_data.size = total_block_size; // not correct
 			memset(header.stream_data.unk_arr, 0, sizeof(header.stream_data.unk_arr));
 		}
@@ -1029,12 +1054,6 @@ namespace zonetool::iw7
 		}
 #endif
 
-		const auto image_streamfiles_count = buf->streamfile_count();
-		if (image_streamfiles_count)
-		{
-			header.image_ff_count = static_cast<std::uint32_t>(image_streamfiles_count);
-		}
-
 		header.fileLen += sizeof(XStreamFile) * header.image_ff_count;
 		header.fileLen += sizeof(XStreamFile) * header.shared_ff_count;
 
@@ -1043,11 +1062,11 @@ namespace zonetool::iw7
 		// Do streamfile stuff
 		if (image_streamfiles_count > 0)
 		{
-			const auto offset = sizeof(XFileHeader) - offsetof(XFileHeader, fileLen);
+			const auto offset = offsetof(XFileHeader, fileLen);
 
 			// Generate fastfile
 			fastfile.init_streams(1);
-			fastfile.write_stream(&header, sizeof(XFileHeader) - offset);
+			fastfile.write_stream(&header, offset);
 
 			// Write stream files
 			for (std::size_t i = 0; i < image_streamfiles_count; i++)
@@ -1056,7 +1075,7 @@ namespace zonetool::iw7
 				fastfile.write_stream(stream, sizeof(XStreamFile));
 			}
 
-			fastfile.write_stream(reinterpret_cast<std::uint8_t*>(&header) + sizeof(XFileHeader) - offset, offset);
+			fastfile.write_stream(reinterpret_cast<std::uint8_t*>(&header) + offset, sizeof(XFileHeader) - offset);
 		}
 		else
 		{
@@ -1073,6 +1092,7 @@ namespace zonetool::iw7
 #endif
 
 		fastfile.write(buf_output, buf_output_size);
+		assert(fastfile.size() == header.fileLen);
 
 		std::string path = this->name_ + ".ff";
 		fastfile.save(path);

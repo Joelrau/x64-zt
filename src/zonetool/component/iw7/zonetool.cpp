@@ -89,7 +89,8 @@ namespace iw7
 
 			// IMAGE patches
 			// image stream (pak)
-			utils::hook::set<uint8_t>(0x140A7DB10, 0xC3); // DB_CreateGfxImageStreamInternal
+			utils::hook::set<uint8_t>(0x140A81D40, 0xC3); // AlwaysLoadedAssets (image file data)
+			utils::hook::nop(0x140A7DC7C, 2); // Skip opening pakfiles
 
 			// UI patches
 			utils::hook::set<uint8_t>(0x140615090, 0xC3); // LUI_CoD_Init
@@ -159,7 +160,7 @@ namespace iw7
 		{
 			::zonetool::iw7::XZoneInfo zone{};
 			zone.name = "code_pre_gfx";
-			zone.allocFlags = ::zonetool::iw7::DB_ZONE_COMMON;
+			zone.allocFlags = ::zonetool::iw7::DB_ZONE_PERMAMENT;
 			return ::zonetool::iw7::DB_LoadXAssets(&zone, 1, ::zonetool::iw7::DB_LOAD_SYNC);
 		}
 
@@ -177,7 +178,7 @@ namespace iw7
 			for (std::size_t i = 0; i < defaultzones.size(); i++)
 			{
 				zones[i].name = defaultzones[i];
-				zones[i].allocFlags = ::zonetool::iw7::DB_ZONE_COMMON;
+				zones[i].allocFlags = ::zonetool::iw7::DB_ZONE_PERMAMENT;
 			}
 
 			return ::zonetool::iw7::DB_LoadXAssets(zones, static_cast<unsigned int>(defaultzones.size()), ::zonetool::iw7::DB_LOAD_ASYNC);
@@ -233,7 +234,9 @@ namespace iw7
 				utils::hook::set<uint8_t>(0x140D31744, 0xC3); // dwNetStart
 
 				// don't load streamed assets
-				utils::hook::set<uint8_t>(0x1403BB990, 0xC3); // DB_StreamingInfo_Register
+				utils::hook::set<uint8_t>(0x140A79AE0, 0xC3);
+				utils::hook::set<uint8_t>(0x1403BB990, 0xC3);
+				utils::hook::set<uint8_t>(0x140A78910, 0xC3);
 
 				// don't fatal error on misc model error
 				utils::hook::nop(0x140571ECF, 5);

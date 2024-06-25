@@ -23,7 +23,7 @@ namespace zonetool::iw7
 			vis->particleSimAnimation = read->read_asset<FxParticleSimAnimation>();
 			break;
 		default:
-			if (def->elemType - 12 <= 1u)
+			if (def->elemType - 10 <= 1u)
 			{
 				if (def->elemType == FX_ELEM_TYPE_SPOT_LIGHT)
 				{
@@ -98,7 +98,7 @@ namespace zonetool::iw7
 			def->effectOnDeath.handle = read.read_asset<FxEffectDef>();
 			def->effectEmitted.handle = read.read_asset<FxEffectDef>();
 
-			if (def->extended.trailDef)
+			if (def->extended.unknownDef)
 			{
 				if (def->elemType == FX_ELEM_TYPE_TRAIL)
 				{
@@ -211,7 +211,7 @@ namespace zonetool::iw7
 					zone->add_asset_of_type(ASSET_TYPE_PARTICLE_SIM_ANIMATION, vis->particleSimAnimation->name);
 					break;
 				default:
-					if (def->elemType - 12 <= 1u)
+					if (def->elemType - 10 <= 1u)
 					{
 						if (def->elemType == FX_ELEM_TYPE_SPOT_LIGHT)
 						{
@@ -307,7 +307,7 @@ namespace zonetool::iw7
 			dest->particleSimAnimation = reinterpret_cast<FxParticleSimAnimation*>(zone->get_asset_pointer(ASSET_TYPE_PARTICLE_SIM_ANIMATION, data->particleSimAnimation->name));
 			break;
 		default:
-			if (def->elemType - 12 <= 1u)
+			if (def->elemType - 10 <= 1u)
 			{
 				if (def->elemType == FX_ELEM_TYPE_SPOT_LIGHT)
 				{
@@ -330,6 +330,7 @@ namespace zonetool::iw7
 		{
 			if (data->markArray)
 			{
+				buf->align(7);
 				auto destvisuals = buf->write(data->markArray, def->visualCount);
 
 				for (unsigned char i = 0; i < def->visualCount; i++)
@@ -347,12 +348,15 @@ namespace zonetool::iw7
 		}
 		else if (def->visualCount > 1)
 		{
+			buf->align(7);
 			auto vis = buf->write(data->array, def->visualCount);
 
 			for (unsigned char i = 0; i < def->visualCount; i++)
 			{
 				write_fx_elem_visuals(zone, buf, def, &vis[i]);
 			}
+
+			buf->clear_pointer(&dest->array);
 		}
 		else
 		{
@@ -398,25 +402,27 @@ namespace zonetool::iw7
 			buf->clear_pointer(&dest->effectEmitted);
 		}
 
-		if (data->extended.trailDef)
+		if (data->extended.unknownDef)
 		{
 			if (data->elemType == FX_ELEM_TYPE_TRAIL)
 			{
 				if (data->extended.trailDef)
 				{
-					buf->align(3);
-					buf->write(data->extended.trailDef);
+					buf->align(7);
+					auto* dest_traildef = buf->write(data->extended.trailDef);
 
 					if (data->extended.trailDef->verts)
 					{
 						buf->align(3);
 						buf->write(data->extended.trailDef->verts, data->extended.trailDef->vertCount);
+						buf->clear_pointer(&dest_traildef->verts);
 					}
 
 					if (data->extended.trailDef->inds)
 					{
 						buf->align(1);
 						buf->write(data->extended.trailDef->inds, data->extended.trailDef->indCount);
+						buf->clear_pointer(&dest_traildef->inds);
 					}
 
 					buf->clear_pointer(&dest->extended.trailDef);
@@ -442,27 +448,35 @@ namespace zonetool::iw7
 			}
 			else if (data->elemType == FX_ELEM_TYPE_FLARE)
 			{
-				buf->align(3);
-				buf->write(data->extended.flareDef);
+				buf->align(7);
+				auto* dest_flare = buf->write(data->extended.flareDef);
 
 				if (data->extended.flareDef->intensityX)
 				{
+					buf->align(3);
 					buf->write(data->extended.flareDef->intensityX, data->extended.flareDef->intensityXIntervalCount + 1);
+					buf->clear_pointer(&dest_flare->intensityX);
 				}
 
 				if (data->extended.flareDef->intensityY)
 				{
+					buf->align(3);
 					buf->write(data->extended.flareDef->intensityY, data->extended.flareDef->intensityYIntervalCount + 1);
+					buf->clear_pointer(&dest_flare->intensityY);
 				}
 
 				if (data->extended.flareDef->srcCosIntensity)
 				{
+					buf->align(3);
 					buf->write(data->extended.flareDef->srcCosIntensity, data->extended.flareDef->srcCosIntensityIntervalCount + 1);
+					buf->clear_pointer(&dest_flare->srcCosIntensity);
 				}
 
 				if (data->extended.flareDef->srcCosScale)
 				{
+					buf->align(3);
 					buf->write(data->extended.flareDef->srcCosScale, data->extended.flareDef->srcCosScaleIntervalCount + 1);
+					buf->clear_pointer(&dest_flare->srcCosScale);
 				}
 
 				buf->clear_pointer(&dest->extended.flareDef);
@@ -487,7 +501,7 @@ namespace zonetool::iw7
 
 		if (data->elemDefs)
 		{
-			buf->align(3);
+			buf->align(7);
 			auto destdef = buf->write(data->elemDefs,
 				data->elemDefCountLooping + data->elemDefCountOneShot + data->elemDefCountEmission);
 
@@ -522,7 +536,7 @@ namespace zonetool::iw7
 			dump->dump_asset(vis->particleSimAnimation);
 			break;
 		default:
-			if (def->elemType - 12 <= 1u)
+			if (def->elemType - 10 <= 1u)
 			{
 				if (def->elemType == FX_ELEM_TYPE_SPOT_LIGHT)
 				{
@@ -603,7 +617,7 @@ namespace zonetool::iw7
 			dump.dump_asset(def->effectEmitted.handle);
 
 			// dump extended FX data
-			if (def->extended.trailDef)
+			if (def->extended.unknownDef)
 			{
 				if (def->elemType == FX_ELEM_TYPE_TRAIL)
 				{

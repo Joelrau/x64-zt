@@ -824,7 +824,7 @@ namespace zonetool::iw7
 #define ATTACHMENT_ATT_SUBASSET_DEPENDING_FXCOMBINED(__att__,__field__) \
 	if (asset->__att__ && asset->__att__->__field__.u.data) \
 	{ \
-		if(asset->__att__->__field__.type == FX_COMBINED_PARTICLE_SYSTEM) zone->add_asset_of_type(ASSET_TYPE_VFX, asset->__att__->__field__.u.particleSystemDef->name); \
+		if(asset->__att__->__field__.type == FX_COMBINED_VFX) zone->add_asset_of_type(ASSET_TYPE_VFX, asset->__att__->__field__.u.vfx->name); \
 		else zone->add_asset_of_type(ASSET_TYPE_FX, asset->__att__->__field__.u.fx->name); \
 	}
 
@@ -944,8 +944,8 @@ namespace zonetool::iw7
 #define ATTACHMENT_WRITE_FXCOMBINED(__field__) \
 	if (data->__field__.u.data) \
 	{ \
-		if(data->__field__.type == FX_COMBINED_PARTICLE_SYSTEM) \
-			dest->__field__.u.particleSystemDef = reinterpret_cast<ParticleSystemDef*>(zone->get_asset_pointer(ASSET_TYPE_VFX, data->__field__.u.particleSystemDef->name)); \
+		if(data->__field__.type == FX_COMBINED_VFX) \
+			dest->__field__.u.vfx = reinterpret_cast<ParticleSystemDef*>(zone->get_asset_pointer(ASSET_TYPE_VFX, data->__field__.u.vfx->name)); \
 		else \
 			dest->__field__.u.fx = reinterpret_cast<FxEffectDef*>(zone->get_asset_pointer(ASSET_TYPE_FX, data->__field__.u.fx->name)); \
 	}
@@ -1195,7 +1195,7 @@ namespace zonetool::iw7
 
 #define ATTACHMENT_DUMP_STRING(__field__) \
 	static_assert(std::is_same_v<decltype(asset->__field__), const char*>, "Field is not of type const char*"); \
-	asset->__field__ ? data[#__field__] = asset->__field__ : data[#__field__] = "";
+	asset->__field__ ? data[#__field__] = asset->__field__ : data[#__field__] = nullptr;
 
 #define ATTACHMENT_DUMP_SCRIPT_STRING(__field__) \
 	if (asset->__field__) data[#__field__] = SL_ConvertToString(asset->__field__); else data[#__field__] = "";

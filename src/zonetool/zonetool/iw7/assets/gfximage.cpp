@@ -11,6 +11,7 @@
 #include "zonetool/utils/compression.hpp"
 #include <utils/io.hpp>
 #include <utils/cryptography.hpp>
+#include <lz4.h>
 
 //#define IMAGE_DUMP_DDS
 
@@ -46,6 +47,52 @@ namespace zonetool::iw7
 		}
 	}
 
+	namespace
+	{
+		void add_loaded_image_flags(GfxImage* image)
+		{
+			if (image->levelCount <= 1)
+			{
+				image->flags |= IMG_DISK_FLAG_NOMIPMAPS;
+			}
+
+			if (image->numElements > 1)
+			{
+				const bool is_cube = image->numElements % 6 == 0;
+				if (is_cube)
+				{
+					if (image->numElements > 6)
+					{
+						image->mapType = MAPTYPE_CUBE_ARRAY;
+						image->flags |= IMG_DISK_FLAG_MAPTYPE_CUBE_ARRAY;
+					}
+					else
+					{
+						image->mapType = MAPTYPE_CUBE;
+						image->flags |= IMG_DISK_FLAG_MAPTYPE_CUBE;
+					}
+					image->numElements = image->numElements / 6;
+				}
+				else
+				{
+					image->mapType = MAPTYPE_ARRAY;
+					image->flags |= IMG_DISK_FLAG_MAPTYPE_ARRAY;
+				}
+			}
+			else
+			{
+				if (image->mapType == MAPTYPE_1D)
+				{
+					image->flags |= IMG_DISK_FLAG_MAPTYPE_1D;
+				}
+				else if (image->mapType == MAPTYPE_3D)
+				{
+					image->flags |= IMG_DISK_FLAG_MAPTYPE_3D;
+				}
+			}
+		}
+	}
+
 	namespace iwi
 	{
 		GfxImage* parse(const std::string& name, zone_memory* mem)
@@ -75,7 +122,7 @@ namespace zonetool::iw7
 				image->semantic = TS_COLOR_MAP; // material changes this
 				image->category = IMG_CATEGORY_LOAD_FROM_FILE;
 
-				image->flags |= img_.levelCount > 1 ? IMG_FLAG_NONE : IMG_DISK_FLAG_NOMIPMAPS;
+				add_loaded_image_flags(image);
 
 				return image;
 			}
@@ -129,38 +176,9 @@ namespace zonetool::iw7
 		GfxImage* parse(const std::string& name, zone_memory* mem)
 		{
 			DirectX::ScratchImage image;
-			bool result;
-			int w;
-			int h;
-			char m_name[128]{ 0 };
+			load_image(name, &image);
 
-			result = true;
-			if (!load_image(name, &image))
-			{
-				w = 4096;
-				result = false;
-				do
-				{
-					h = 4096;
-					do
-					{
-						snprintf(m_name, sizeof(m_name), "%s_%dx%d", name.data(), w, h);
-						if (load_image(m_name, &image))
-						{
-							result = true;
-							break;
-						}
-						h = h / 2;
-					} while (h > 0);
-					if (result)
-					{
-						break;
-					}
-					w = w / 2;
-				} while (w > 0);
-			}
-
-			if (result)
+			if (load_image(name, &image))
 			{
 				ZONETOOL_INFO("Parsing custom image \"%s\"", name.data());
 
@@ -174,18 +192,19 @@ namespace zonetool::iw7
 				gfx_image->mapType = static_cast<MapType>(metadata.dimension);
 				gfx_image->semantic = TS_COLOR_MAP; // material changes this
 				gfx_image->category = IMG_CATEGORY_LOAD_FROM_FILE;
-				gfx_image->flags = IMG_DISK_FLAG_NOMIPMAPS;
 				gfx_image->width = static_cast<unsigned short>(metadata.width);
 				gfx_image->height = static_cast<unsigned short>(metadata.height);
 				gfx_image->depth = static_cast<unsigned short>(metadata.depth);
-				gfx_image->numElements = 1;
-				gfx_image->levelCount = 1;
+				gfx_image->numElements = static_cast<unsigned short>(metadata.arraySize);
+				gfx_image->levelCount = static_cast<unsigned char>(metadata.mipLevels);
 				gfx_image->streamed = 0;
 				gfx_image->dataLen1 = static_cast<int>(pixels_size);
 				gfx_image->dataLen2 = static_cast<int>(pixels_size);
 				gfx_image->pixelData = mem->allocate<unsigned char>(pixels_size);
 				memcpy(gfx_image->pixelData, pixels, pixels_size);
 				gfx_image->name = mem->duplicate_string(name);
+
+				add_loaded_image_flags(gfx_image);
 
 				return gfx_image;
 			}
@@ -224,38 +243,6 @@ namespace zonetool::iw7
 		return {};
 	}
 
-	bool get_streamed_image_dds(const std::string& name, int stream, DirectX::ScratchImage& image)
-	{
-		const auto image_path = utils::string::va("streamed_images\\%s_stream%i.dds",
-			clean_name(name).data(), stream);
-
-		const auto full_path = filesystem::get_file_path(image_path) + image_path;
-		const auto full_path_w = utils::string::convert(full_path);
-		const auto result = DirectX::LoadFromDDSFile(full_path_w.data(), DirectX::DDS_FLAGS_NONE, nullptr, image);
-		return SUCCEEDED(result);
-	}
-
-	std::optional<std::string> get_streamed_image_dds(const std::string& name, int stream)
-	{
-		const auto image_path = utils::string::va("streamed_images\\%s_stream%i.dds",
-			clean_name(name).data(), stream);
-
-		DirectX::ScratchImage image{};
-
-		const auto full_path = filesystem::get_file_path(image_path) + image_path;
-		const auto full_path_w = utils::string::convert(full_path);
-		const auto result = DirectX::LoadFromDDSFile(full_path_w.data(), DirectX::DDS_FLAGS_NONE, nullptr, image);
-		if (!SUCCEEDED(result))
-		{
-			return {};
-		}
-
-		const auto pixel_data = image.GetPixels();
-		const auto size = image.GetPixelsSize();
-
-		return {{reinterpret_cast<const char*>(pixel_data), size}};
-	}
-
 	std::optional<std::string> get_streamed_image_pixels_path(const std::string& name, int stream)
 	{
 		const auto image_path = utils::string::va("streamed_images\\%s_stream%i.pixels",
@@ -276,12 +263,6 @@ namespace zonetool::iw7
 		if (pixels.has_value())
 		{
 			return pixels;
-		}
-
-		const auto dds = get_streamed_image_dds(name, stream);
-		if (dds.has_value())
-		{
-			return dds;
 		}
 
 		return {};
@@ -466,37 +447,233 @@ namespace zonetool::iw7
 	}
 
 #ifdef IMAGE_DUMP_DDS
+	namespace
+	{
+		size_t align_value(size_t value, unsigned int alignment)
+		{
+			const auto diff = value % alignment;
+			return diff != 0
+				? value + (alignment - diff)
+				: value;
+		}
+
+		const char* align_value(const char* value, unsigned int alignment)
+		{
+			return reinterpret_cast<const char*>(
+				align_value(reinterpret_cast<size_t>(value), alignment));
+		}
+	}
+
+	std::vector<std::uint8_t> decompress_lz4_block(const void* data, const size_t size)
+	{
+		std::vector<std::uint8_t> out_buffer;
+
+		auto data_ptr = reinterpret_cast<const char*>(data);
+		auto end_ptr = data_ptr + size;
+
+		const auto write = [&](void* data, const size_t len)
+		{
+			for (auto i = 0ull; i < len; i++)
+			{
+				out_buffer.push_back(reinterpret_cast<char*>(data)[i]);
+			}
+		};
+
+		auto first_block = true;
+
+		XBlockCompressionDataHeader header{};
+
+		while (data_ptr < end_ptr)
+		{
+			if (first_block)
+			{
+				header = *reinterpret_cast<XBlockCompressionDataHeader*>(
+					reinterpret_cast<size_t>(data_ptr));
+
+				data_ptr += sizeof(XBlockCompressionDataHeader);
+			}
+
+			XBlockCompressionBlockHeader block_header{};
+			block_header = *reinterpret_cast<XBlockCompressionBlockHeader*>(reinterpret_cast<size_t>(data_ptr));
+			data_ptr += sizeof(XBlockCompressionBlockHeader);
+
+			if (header.blockSizeAndType.compressionType != 4)
+			{
+				throw std::runtime_error("invalid compression type");
+			}
+
+			std::string buffer;
+			buffer.resize(block_header.uncompressedSize);
+
+			const auto read_count = static_cast<unsigned int>(LZ4_decompress_safe(data_ptr, buffer.data(),
+				block_header.compressedSize, static_cast<unsigned int>(block_header.uncompressedSize)));
+
+			if (read_count != block_header.uncompressedSize)
+			{
+				throw std::runtime_error("bad read");
+			}
+
+			first_block = false;
+
+			data_ptr += block_header.compressedSize;
+			data_ptr = align_value(data_ptr, 4);
+
+			write(buffer.data(), buffer.size());
+		}
+
+		return out_buffer;
+	}
+
+	void dump_streamed_image_dds(GfxImage* image)
+	{
+		const auto index = (*g_streamZoneMem)->streamed_image_index;
+		for (auto i = 0u; i < 4; i++)
+		{
+			const auto stream_file = &(*g_streamZoneMem)->streamed_images[index + i];
+
+			const std::string filename = utils::string::va("imagefile%d.pak", stream_file->fileIndex);
+			const auto folder = filesystem::get_zone_path(filename);
+
+			const auto imagefile_path = utils::string::va("%s%s", folder.data(), filename.data());
+			std::ifstream imagefile;
+			imagefile.open(imagefile_path, std::ios::binary);
+
+			if (!imagefile.is_open() || stream_file->offset == 0 || stream_file->offsetEnd == 0)
+			{
+				continue;
+			}
+
+			std::string buffer;
+			const auto size = stream_file->offsetEnd - stream_file->offset;
+			buffer.resize(size);
+			imagefile.seekg(stream_file->offset);
+			imagefile.read(buffer.data(), size);
+
+			XFileCompressorHeader compress_header{};
+			compress_header = *(XFileCompressorHeader*)(buffer.data());
+
+			if (compress_header.compressor != DB_COMPRESSOR_BLOCK) __debugbreak();
+
+			try
+			{
+				auto pixel_data = decompress_lz4_block(buffer.data() + sizeof(XFileCompressorHeader), buffer.size() - sizeof(XFileCompressorHeader));
+				const auto name = clean_name(image->name);
+
+				DirectX::Image img = {};
+
+				img.width = image->streams[i].width;
+				img.height = image->streams[i].height;
+				img.pixels = reinterpret_cast<uint8_t*>(pixel_data.data());
+				img.format = DXGI_FORMAT(image->imageFormat);
+
+				size_t row_pitch{};
+				size_t slice_pitch{};
+
+				DirectX::ComputePitch(img.format, img.width, img.height, row_pitch, slice_pitch);
+
+				img.rowPitch = row_pitch;
+				img.slicePitch = slice_pitch;
+
+				const auto parent_path = filesystem::get_dump_path() + "streamed_images\\";
+				const std::string spath = utils::string::va("%s\\%s_stream%i.dds", parent_path.data(),
+					name.data(), i);
+				const std::wstring wpath(spath.begin(), spath.end());
+				if (!std::filesystem::exists(parent_path))
+				{
+					std::filesystem::create_directories(parent_path);
+				}
+
+				auto result = DirectX::SaveToDDSFile(img, DirectX::DDS_FLAGS_NONE, wpath.data());
+				if (FAILED(result))
+				{
+					ZONETOOL_WARNING("Failed to dump image \"%s.dds\"", image->name);
+				}
+			}
+			catch (...)
+			{
+				ZONETOOL_ERROR("Failed to dump streamed image \"%s\"", image->name);
+			}
+		}
+	}
+
 	void dump_image_dds(GfxImage* image)
 	{
-		if (!image->streamed)
+		if (image->streamed)
 		{
-			DirectX::Image img = {};
-			img.pixels = image->pixelData;
-			img.width = image->width;
-			img.height = image->height;
-			img.format = DXGI_FORMAT(image->imageFormat);
+			dump_streamed_image_dds(image);
+			return;
+		}
 
-			size_t rowPitch;
-			size_t slicePitch;
-			DirectX::ComputePitch(img.format, img.width, img.height, rowPitch, slicePitch);
+		auto* data = image->pixelData;
+		std::size_t data_used = 0;
 
-			img.rowPitch = rowPitch;
-			img.slicePitch = slicePitch;
+		const auto sides = image->mapType == MAPTYPE_CUBE || image->mapType == MAPTYPE_CUBE_ARRAY ? 6 : 1;
 
-			std::string parent_path = filesystem::get_dump_path() + "images\\";
-			std::string spath = parent_path + clean_name(image->name) + ".dds";
-			std::wstring wpath(spath.begin(), spath.end());
-
-			if (!std::filesystem::exists(parent_path))
+		std::vector<DirectX::Image> images{};
+		for (auto idx = 0; idx < image->numElements; idx++)
+		{
+			for (auto s = 0; s < sides; s++)
 			{
-				std::filesystem::create_directories(parent_path);
-			}
+				for (auto d = 0; d < image->depth; d++)
+				{
+					int divider = 1;
+					for (auto i = 0; i < image->levelCount; i++)
+					{
+						DirectX::Image img{};
+						img.pixels = data;
+						img.width = image->width / divider;
+						img.height = image->height / divider;
+						img.format = DXGI_FORMAT(image->imageFormat);
 
-			auto result = DirectX::SaveToDDSFile(img, DirectX::DDS_FLAGS_NONE, wpath.data());
-			if (FAILED(result))
-			{
-				ZONETOOL_WARNING("Failed to dump image \"%s.dds\"", image->name);
+						size_t rowPitch;
+						size_t slicePitch;
+						DirectX::ComputePitch(img.format, img.width, img.height, rowPitch, slicePitch);
+
+						img.rowPitch = rowPitch;
+						img.slicePitch = slicePitch;
+
+						images.push_back(img);
+
+						data += slicePitch;
+						data_used += slicePitch;
+						divider += divider;
+					}
+				}
 			}
+		}
+		
+		if (image->dataLen1 != 4 && image->width != 1 && image->height != 1) // default asset, uses wrong values for some reason
+		{
+			assert(data_used == image->dataLen1);
+		}
+
+		DirectX::TexMetadata mdata{};
+		mdata.width = image->width;
+		mdata.height = image->height;
+		mdata.depth = image->depth;
+		mdata.arraySize = image->numElements * sides;
+		mdata.mipLevels = image->levelCount;
+		mdata.format = DXGI_FORMAT(image->imageFormat);
+		mdata.dimension = image->mapType > 4 ? DirectX::TEX_DIMENSION::TEX_DIMENSION_TEXTURE2D : (DirectX::TEX_DIMENSION)image->mapType;
+
+		if (image->mapType == MAPTYPE_CUBE || image->mapType == MAPTYPE_CUBE_ARRAY)
+		{
+			mdata.miscFlags |= DirectX::TEX_MISC_FLAG::TEX_MISC_TEXTURECUBE;
+		}
+
+		std::string parent_path = filesystem::get_dump_path() + "images\\";
+		std::string spath = parent_path + clean_name(image->name) + ".dds";
+		std::wstring wpath(spath.begin(), spath.end());
+
+		if (!std::filesystem::exists(parent_path))
+		{
+			std::filesystem::create_directories(parent_path);
+		}
+
+		auto result = DirectX::SaveToDDSFile(images.data(), images.size(), mdata, DirectX::DDS_FLAGS_NONE, wpath.data());
+		if (FAILED(result))
+		{
+			ZONETOOL_WARNING("Failed to dump image \"%s\"", spath.data());
 		}
 	}
 #endif
@@ -524,9 +701,11 @@ namespace zonetool::iw7
 
 		if (asset->streamed)
 		{
+			const auto index = (*g_streamZoneMem)->streamed_image_index;
+
 			for (auto i = 0u; i < 4; i++)
 			{
-				const auto stream_file = &(*g_streamZoneMem)->streamed_images[(*g_streamZoneMem)->streamed_image_index + i];
+				const auto stream_file = &(*g_streamZoneMem)->streamed_images[index + i];
 				write.dump_single(stream_file);
 			}
 		}

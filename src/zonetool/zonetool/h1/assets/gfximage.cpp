@@ -46,6 +46,45 @@ namespace zonetool::h1
 		}
 	}
 
+	namespace
+	{
+		void add_loaded_image_flags(GfxImage* image)
+		{
+			if (image->levelCount <= 1)
+			{
+				image->flags |= IMAGE_FLAG_NOMIPMAPS;
+			}
+
+			if (image->numElements > 1)
+			{
+				const bool is_cube = image->numElements % 6 == 0;
+				if (is_cube)
+				{
+					image->mapType = MAPTYPE_CUBE;
+					//image->flags |= IMG_DISK_FLAG_MAPTYPE_CUBE;
+
+					image->numElements = image->numElements / 6;
+				}
+				else
+				{
+					image->mapType = MAPTYPE_ARRAY;
+					//image->flags |= IMG_DISK_FLAG_MAPTYPE_ARRAY;
+				}
+			}
+			else
+			{
+				if (image->mapType == MAPTYPE_1D)
+				{
+					//image->flags |= IMG_DISK_FLAG_MAPTYPE_1D;
+				}
+				else if (image->mapType == MAPTYPE_3D)
+				{
+					//image->flags |= IMG_DISK_FLAG_MAPTYPE_3D;
+				}
+			}
+		}
+	}
+
 	namespace iwi
 	{
 		GfxImage* parse(const std::string& name, zone_memory* mem)
@@ -75,7 +114,7 @@ namespace zonetool::h1
 				image->semantic = TS_COLOR_MAP; // material changes this
 				image->category = IMG_CATEGORY_LOAD_FROM_FILE;
 
-				image->flags |= img_.levelCount > 1 ? 0 : IMAGE_FLAG_NOPICMIP;
+				add_loaded_image_flags(image);
 
 				return image;
 			}
@@ -129,38 +168,9 @@ namespace zonetool::h1
 		GfxImage* parse(const std::string& name, zone_memory* mem)
 		{
 			DirectX::ScratchImage image;
-			bool result;
-			int w;
-			int h;
-			char m_name[128]{ 0 };
+			load_image(name, &image);
 
-			result = true;
-			if (!load_image(name, &image))
-			{
-				w = 4096;
-				result = false;
-				do
-				{
-					h = 4096;
-					do
-					{
-						snprintf(m_name, sizeof(m_name), "%s_%dx%d", name.data(), w, h);
-						if (load_image(m_name, &image))
-						{
-							result = true;
-							break;
-						}
-						h = h / 2;
-					} while (h > 0);
-					if (result)
-					{
-						break;
-					}
-					w = w / 2;
-				} while (w > 0);
-			}
-
-			if (result)
+			if (load_image(name, &image))
 			{
 				ZONETOOL_INFO("Parsing custom image \"%s\"", name.data());
 
@@ -174,18 +184,19 @@ namespace zonetool::h1
 				gfx_image->mapType = static_cast<MapType>(metadata.dimension);
 				gfx_image->semantic = TS_COLOR_MAP; // material changes this
 				gfx_image->category = IMG_CATEGORY_LOAD_FROM_FILE;
-				gfx_image->flags = 0;
 				gfx_image->width = static_cast<unsigned short>(metadata.width);
 				gfx_image->height = static_cast<unsigned short>(metadata.height);
 				gfx_image->depth = static_cast<unsigned short>(metadata.depth);
-				gfx_image->numElements = 1;
-				gfx_image->levelCount = 1;
+				gfx_image->numElements = static_cast<unsigned short>(metadata.arraySize);
+				gfx_image->levelCount = static_cast<unsigned char>(metadata.mipLevels);
 				gfx_image->streamed = 0;
 				gfx_image->dataLen1 = static_cast<int>(pixels_size);
 				gfx_image->dataLen2 = static_cast<int>(pixels_size);
 				gfx_image->pixelData = mem->allocate<unsigned char>(pixels_size);
 				memcpy(gfx_image->pixelData, pixels, pixels_size);
 				gfx_image->name = mem->duplicate_string(name);
+
+				add_loaded_image_flags(gfx_image);
 
 				return gfx_image;
 			}
@@ -482,35 +493,81 @@ namespace zonetool::h1
 
 	void dump_image_dds(GfxImage* image)
 	{
-		if (!image->streamed)
+		if (image->streamed)
 		{
-			DirectX::Image img = {};
-			img.pixels = image->pixelData;
-			img.width = image->width;
-			img.height = image->height;
-			img.format = DXGI_FORMAT(image->imageFormat);
+			return;
+		}
 
-			size_t rowPitch;
-			size_t slicePitch;
-			DirectX::ComputePitch(img.format, img.width, img.height, rowPitch, slicePitch);
+		auto* data = image->pixelData;
+		std::size_t data_used = 0;
 
-			img.rowPitch = rowPitch;
-			img.slicePitch = slicePitch;
+		const auto sides = image->mapType == MAPTYPE_CUBE ? 6 : 1;
 
-			std::string parent_path = filesystem::get_dump_path() + "images\\";
-			std::string spath = parent_path + clean_name(image->name) + ".dds";
-			std::wstring wpath(spath.begin(), spath.end());
-
-			if (!std::filesystem::exists(parent_path))
+		std::vector<DirectX::Image> images{};
+		for (auto idx = 0; idx < image->numElements; idx++)
+		{
+			for (auto s = 0; s < sides; s++)
 			{
-				std::filesystem::create_directories(parent_path);
-			}
+				for (auto d = 0; d < image->depth; d++)
+				{
+					int divider = 1;
+					for (auto i = 0; i < image->levelCount; i++)
+					{
+						DirectX::Image img{};
+						img.pixels = data;
+						img.width = image->width / divider;
+						img.height = image->height / divider;
+						img.format = DXGI_FORMAT(image->imageFormat);
 
-			auto result = DirectX::SaveToDDSFile(img, DirectX::DDS_FLAGS_NONE, wpath.data());
-			if (FAILED(result))
-			{
-				ZONETOOL_WARNING("Failed to dump image \"%s.dds\"", image->name);
+						size_t rowPitch;
+						size_t slicePitch;
+						DirectX::ComputePitch(img.format, img.width, img.height, rowPitch, slicePitch);
+
+						img.rowPitch = rowPitch;
+						img.slicePitch = slicePitch;
+
+						images.push_back(img);
+
+						data += slicePitch;
+						data_used += slicePitch;
+						divider += divider;
+					}
+				}
 			}
+		}
+
+		if (image->dataLen1 != 4 && image->width != 1 && image->height != 1) // default asset, uses wrong values for some reason
+		{
+			assert(data_used == image->dataLen1);
+		}
+
+		DirectX::TexMetadata mdata{};
+		mdata.width = image->width;
+		mdata.height = image->height;
+		mdata.depth = image->depth;
+		mdata.arraySize = image->numElements * sides;
+		mdata.mipLevels = image->levelCount;
+		mdata.format = DXGI_FORMAT(image->imageFormat);
+		mdata.dimension = image->mapType > 4 ? DirectX::TEX_DIMENSION::TEX_DIMENSION_TEXTURE2D : (DirectX::TEX_DIMENSION)image->mapType;
+
+		if (image->mapType == MAPTYPE_CUBE)
+		{
+			mdata.miscFlags |= DirectX::TEX_MISC_FLAG::TEX_MISC_TEXTURECUBE;
+		}
+
+		std::string parent_path = filesystem::get_dump_path() + "images\\";
+		std::string spath = parent_path + clean_name(image->name) + ".dds";
+		std::wstring wpath(spath.begin(), spath.end());
+
+		if (!std::filesystem::exists(parent_path))
+		{
+			std::filesystem::create_directories(parent_path);
+		}
+
+		auto result = DirectX::SaveToDDSFile(images.data(), images.size(), mdata, DirectX::DDS_FLAGS_NONE, wpath.data());
+		if (FAILED(result))
+		{
+			ZONETOOL_WARNING("Failed to dump image \"%s\"", spath.data());
 		}
 	}
 

@@ -39,8 +39,8 @@ namespace zonetool::iw7
 		file.close();
 
 		auto asset = mem->allocate<TracerDef>();
+		asset->name = mem->duplicate_string(name);
 
-		PARSE_STRING(name);
 		PARSE_ASSET(material);
 		PARSE_FIELD(fadeOverTime);
 		PARSE_FIELD(fadeTime);
@@ -137,7 +137,6 @@ namespace zonetool::iw7
 
 		ordered_json data;
 
-		DUMP_STRING(name);
 		DUMP_ASSET(material);
 		DUMP_FIELD(fadeOverTime);
 		DUMP_FIELD(fadeTime);

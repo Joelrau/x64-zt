@@ -502,8 +502,6 @@ namespace zonetool::iw7
 
 			ordered_json matdata;
 
-			MATERIAL_DUMP_STRING(name);
-
 			if (asset->techniqueSet)
 			{
 				MATERIAL_DUMP_STRING(techniqueSet->name);

@@ -345,7 +345,7 @@ namespace zonetool::h1
 							image->levelCount = img_.levelCount;
 							image->pixelData = img_.pixelData;
 
-							image->flags |= img_.levelCount > 1 ? 0 : IMAGE_FLAG_NOPICMIP;
+							image->flags |= img_.levelCount > 1 ? 0 : IMAGE_FLAG_NOMIPMAPS;
 						}
 					}
 				}

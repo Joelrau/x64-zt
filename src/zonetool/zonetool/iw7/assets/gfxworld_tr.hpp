@@ -1,16 +1,16 @@
 #pragma once
 #include "../zonetool.hpp"
 
-namespace zonetool::h1
+namespace zonetool::iw7
 {
-	class font_def: public asset_interface
+	class gfx_world_tr : public asset_interface
 	{
 	private:
 		std::string name_;
-		TTFDef* asset_ = nullptr;
+		GfxWorldTransientZone* asset_ = nullptr;
 
 	public:
-		TTFDef* parse(const std::string& name, zone_memory* mem);
+		GfxWorldTransientZone* parse(const std::string& name, zone_memory* mem);
 
 		void init(const std::string& name, zone_memory* mem) override;
 		void prepare(zone_buffer* buf, zone_memory* mem) override;
@@ -22,6 +22,6 @@ namespace zonetool::h1
 		std::int32_t type() override;
 		void write(zone_base* zone, zone_buffer* buffer) override;
 
-		static void dump(TTFDef* asset);
+		static void dump(GfxWorldTransientZone* asset);
 	};
 }

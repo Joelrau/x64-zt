@@ -193,14 +193,14 @@ namespace zonetool::iw7
 	union FxCombinedUnion
 	{
 		FxEffectDef* fx;
-		ParticleSystemDef* particleSystemDef;
+		ParticleSystemDef* vfx;
 		void* data;
 	};
 
 	enum FxCombinedType : std::uint8_t
 	{
-		FX_COMBINED_DEFAULT,
-		FX_COMBINED_PARTICLE_SYSTEM,
+		FX_COMBINED_FX,
+		FX_COMBINED_VFX,
 	};
 
 	struct FxCombinedDef
@@ -537,6 +537,13 @@ namespace zonetool::iw7
 		PhysicsVFXEventAssetRules rules;
 	}; assert_sizeof(PhysicsVFXEventAsset, 0x20);
 
+	struct PhysicsAssetUsageCounter
+	{
+		int serverEnt;
+		int clientEnt;
+		int dynEnt;
+	};
+
 	struct PhysicsAsset
 	{
 		const char* name;
@@ -548,7 +555,8 @@ namespace zonetool::iw7
 		PhysicsSFXEventAsset** sfxEventAssets;
 		int numVFXEventAssets;
 		PhysicsVFXEventAsset** vfxEventAssets;
-		char __pad0[16]; // unused
+		PhysicsAssetUsageCounter physicsUsageCounter;
+		char __pad0[4]; // unused
 	}; assert_sizeof(PhysicsAsset, 0x50);
 
 	struct unk_1453E1188
@@ -726,7 +734,7 @@ namespace zonetool::iw7
 
 	struct XRigidVertList
 	{
-		unsigned short boneOffset;
+		unsigned short boneOffsetIndex;
 		unsigned short vertCount;
 		unsigned short triOffset;
 		unsigned short triCount;
@@ -872,6 +880,7 @@ namespace zonetool::iw7
 
 	union SHProbeSimplexDataUnion
 	{
+		void* data;
 		SHProbeSimplexData0* data0;
 		SHProbeSimplexData1* data1;
 		SHProbeSimplexData2* data2;
@@ -1009,6 +1018,181 @@ namespace zonetool::iw7
 		char flags;
 	}; assert_sizeof(XModelLodInfo, 0x40);
 
+	enum SurfaceFlags : std::uint32_t
+	{
+		SURFACE_FLAG_NONE = 0x00000000,
+		SURFACE_FLAG_BARK = 0x00080000,
+		SURFACE_FLAG_BRICK = 0x00100000,
+		SURFACE_FLAG_CARPET_SOLID = 0x00180000,
+		SURFACE_FLAG_CLOTH = 0x00200000,
+		SURFACE_FLAG_CONCRETE_DRY = 0x00280000,
+		SURFACE_FLAG_DIRT = 0x00300000,
+		SURFACE_FLAG_FLESH = 0x00380000,
+		SURFACE_FLAG_FOLIAGE_DRY = 0x00400000,
+		SURFACE_FLAG_GLASS_PANE = 0x00480000,
+		SURFACE_FLAG_GRASS_SHORT = 0x00500000,
+		SURFACE_FLAG_GRAVEL = 0x00580000,
+		SURFACE_FLAG_ICE_SOLID = 0x00600000,
+		SURFACE_FLAG_METAL_THICK = 0x00680000,
+		SURFACE_FLAG_METAL_GRATE = 0x00700000,
+		SURFACE_FLAG_MUD = 0x00780000,
+		SURFACE_FLAG_PAPER = 0x00800000,
+		SURFACE_FLAG_PLASTER = 0x00880000,
+		SURFACE_FLAG_ROCK = 0x00900000,
+		SURFACE_FLAG_SAND = 0x00980000,
+		SURFACE_FLAG_SNOW = 0x00A00000,
+		SURFACE_FLAG_WATER = 0x00A80000,
+		SURFACE_FLAG_WOOD_SOLID = 0x00B00000,
+		SURFACE_FLAG_ASPHALT_DRY = 0x00B80000,
+		SURFACE_FLAG_CERAMIC = 0x00C00000,
+		SURFACE_FLAG_PLASTIC = 0x00C80000,
+		SURFACE_FLAG_RUBBER = 0x00D00000,
+		SURFACE_FLAG_FRUIT = 0x00D80000,
+		SURFACE_FLAG_METAL_PAINTED = 0x00E00000,
+		SURFACE_FLAG_RIOTSHIELD = 0x00E80000,
+		SURFACE_FLAG_SLUSH = 0x00F00000,
+		SURFACE_FLAG_ASPHALT_WET = 0x00F80000,
+		SURFACE_FLAG_CARPET_WOOD = 0x01000000,
+		SURFACE_FLAG_CARPET_METAL = 0x01080000,
+		SURFACE_FLAG_CONCRETE_WET = 0x01100000,
+		SURFACE_FLAG_CUSHION = 0x01180000,
+		SURFACE_FLAG_DEFAULT = 0x01200000,
+		SURFACE_FLAG_FOLIAGE_WET = 0x01280000,
+		SURFACE_FLAG_GLASS_BROKEN = 0x01300000,
+		SURFACE_FLAG_GLASS_SOLID = 0x01380000,
+		SURFACE_FLAG_GLASS_VEHICLE = 0x01400000,
+		SURFACE_FLAG_GRASS_TALL = 0x01480000,
+		SURFACE_FLAG_ICE_THIN = 0x01500000,
+		SURFACE_FLAG_METAL_THIN = 0x01580000,
+		SURFACE_FLAG_ROBOT_HEAD = 0x01600000,
+		SURFACE_FLAG_ROBOT_TORSO = 0x01680000,
+		SURFACE_FLAG_ROBOT_LIMB = 0x01700000,
+		SURFACE_FLAG_ROBOT_ARMOR = 0x01780000,
+		SURFACE_FLAG_BIG_ROBOT_HEAD = 0x01800000,
+		SURFACE_FLAG_BIG_ROBOT_LIMB = 0x01880000,
+		SURFACE_FLAG_WATER_KNEE = 0x01900000,
+		SURFACE_FLAG_WATER_WAIST = 0x01980000,
+		SURFACE_FLAG_WOOD_FLOOR = 0x01A00000,
+		SURFACE_FLAG_USER_TERRAIN_1 = 0x01A80000,
+		SURFACE_FLAG_USER_TERRAIN_2 = 0x01B00000,
+		SURFACE_FLAG_USER_TERRAIN_3 = 0x01B80000,
+		SURFACE_FLAG_USER_TERRAIN_4 = 0x01C00000,
+		SURFACE_FLAG_USER_TERRAIN_5 = 0x01C80000,
+		SURFACE_FLAG_USER_TERRAIN_6 = 0x01D00000,
+		SURFACE_FLAG_USER_TERRAIN_7 = 0x01D80000,
+		SURFACE_FLAG_USER_TERRAIN_8 = 0x01E00000,
+		SURFACE_FLAG_USER_TERRAIN_9 = 0x01E80000,
+		SURFACE_FLAG_USER_TERRAIN_10 = 0x01F00000,
+		SURFACE_FLAG_CODE_RESERVED = 0x01F80000,
+		SURFACE_FLAG_OPAQUEGLASS = 0x01380000,
+		SURFACE_FLAG_CLIPMISSILE = 0x00000000,
+		SURFACE_FLAG_AI_NOSIGHT = 0x00000000,
+		SURFACE_FLAG_CLIPSHOT = 0x00000000,
+		SURFACE_FLAG_PLAYERCLIP = 0x00000000,
+		SURFACE_FLAG_MONSTERCLIP = 0x00000000,
+		SURFACE_FLAG_AICLIPALLOWDEATH = 0x00000000,
+		SURFACE_FLAG_VEHICLECLIP = 0x00000000,
+		SURFACE_FLAG_ITEMCLIP = 0x00000000,
+		SURFACE_FLAG_NODROP = 0x00000000,
+		SURFACE_FLAG_NONSOLID = 0x00004000,
+		SURFACE_FLAG_DETAIL = 0x00000000,
+		SURFACE_FLAG_STRUCTURAL = 0x00000000,
+		SURFACE_FLAG_PORTAL = 0x80000000,
+		SURFACE_FLAG_CANSHOOTCLIP = 0x00000000,
+		SURFACE_FLAG_ORIGIN = 0x00000000,
+		SURFACE_FLAG_SKY = 0x00000004,
+		SURFACE_FLAG_NOCASTSHADOW = 0x00040000,
+		SURFACE_FLAG_PHYSICSGEOM = 0x00000000,
+		SURFACE_FLAG_LIGHTPORTAL = 0x00000000,
+		SURFACE_FLAG_OUTDOORBOUNDS = 0x00000000,
+		SURFACE_FLAG_SLICK = 0x00000002,
+		SURFACE_FLAG_NOIMPACT = 0x00000010,
+		SURFACE_FLAG_NOMARKS = 0x00000020,
+		SURFACE_FLAG_NOPENETRATE = 0x00000100,
+		SURFACE_FLAG_LADDER = 0x00000008,
+		SURFACE_FLAG_NODAMAGE = 0x00000001,
+		SURFACE_FLAG_MANTLEON = 0x02000000,
+		SURFACE_FLAG_MANTLEOVER = 0x04000000,
+		SURFACE_FLAG_STAIRS = 0x00000200,
+		SURFACE_FLAG_SOFT = 0x00001000,
+		SURFACE_FLAG_NOSTEPS = 0x00002000,
+		SURFACE_FLAG_NODRAW = 0x00000080,
+		SURFACE_FLAG_NOLIGHTMAP = 0x00000400,
+		SURFACE_FLAG_NODLIGHT = 0x00020000,
+		SURFACE_FLAG_NAVINCLUSIONVOLUME = 0x00000000,
+		SURFACE_FLAG_NAVEXCLUSIONVOLUME = 0x00000000,
+		SURFACE_FLAG_NAV3DVOLUME = 0x00000000,
+	};
+
+	enum SurfaceTypeBits : std::uint64_t
+	{
+		SURFACE_TYPE_BIT_NONE = 0x0,
+		SURFACE_TYPE_BIT_BARK = 0x1,
+		SURFACE_TYPE_BIT_BRICK = 0x2,
+		SURFACE_TYPE_BIT_CARPET_SOLID = 0x4,
+		SURFACE_TYPE_BIT_CLOTH = 0x8,
+		SURFACE_TYPE_BIT_CONCRETE_DRY = 0x10,
+		SURFACE_TYPE_BIT_DIRT = 0x20,
+		SURFACE_TYPE_BIT_FLESH = 0x40,
+		SURFACE_TYPE_BIT_FOLIAGE_DRY = 0x80,
+		SURFACE_TYPE_BIT_GLASS_PANE = 0x100,
+		SURFACE_TYPE_BIT_GRASS_SHORT = 0x200,
+		SURFACE_TYPE_BIT_GRAVEL = 0x400,
+		SURFACE_TYPE_BIT_ICE_SOLID = 0x800,
+		SURFACE_TYPE_BIT_METAL_THICK = 0x1000,
+		SURFACE_TYPE_BIT_METAL_GRATE = 0x2000,
+		SURFACE_TYPE_BIT_MUD = 0x4000,
+		SURFACE_TYPE_BIT_PAPER = 0x8000,
+		SURFACE_TYPE_BIT_PLASTER = 0x10000,
+		SURFACE_TYPE_BIT_ROCK = 0x20000,
+		SURFACE_TYPE_BIT_SAND = 0x40000,
+		SURFACE_TYPE_BIT_SNOW = 0x80000,
+		SURFACE_TYPE_BIT_WATER = 0x100000,
+		SURFACE_TYPE_BIT_WOOD_SOLID = 0x200000,
+		SURFACE_TYPE_BIT_ASPHALT_DRY = 0x400000,
+		SURFACE_TYPE_BIT_CERAMIC = 0x800000,
+		SURFACE_TYPE_BIT_PLASTIC = 0x1000000,
+		SURFACE_TYPE_BIT_RUBBER = 0x2000000,
+		SURFACE_TYPE_BIT_FRUIT = 0x4000000,
+		SURFACE_TYPE_BIT_METAL_PAINTED = 0x8000000,
+		SURFACE_TYPE_BIT_RIOTSHIELD = 0x10000000,
+		SURFACE_TYPE_BIT_SLUSH = 0x20000000,
+		SURFACE_TYPE_BIT_ASPHALT_WET = 0x40000000,
+		SURFACE_TYPE_BIT_CARPET_WOOD = 0x80000000,
+		SURFACE_TYPE_BIT_CARPET_METAL = 0x100000000,
+		SURFACE_TYPE_BIT_CONCRETE_WET = 0x200000000,
+		SURFACE_TYPE_BIT_CUSHION = 0x400000000,
+		SURFACE_TYPE_BIT_DEFAULT = 0x800000000,
+		SURFACE_TYPE_BIT_FOLIAGE_WET = 0x1000000000,
+		SURFACE_TYPE_BIT_GLASS_BROKEN = 0x2000000000,
+		SURFACE_TYPE_BIT_GLASS_SOLID = 0x4000000000,
+		SURFACE_TYPE_BIT_GLASS_VEHICLE = 0x8000000000,
+		SURFACE_TYPE_BIT_GRASS_TALL = 0x10000000000,
+		SURFACE_TYPE_BIT_ICE_THIN = 0x20000000000,
+		SURFACE_TYPE_BIT_METAL_THIN = 0x40000000000,
+		SURFACE_TYPE_BIT_ROBOT_HEAD = 0x80000000000,
+		SURFACE_TYPE_BIT_ROBOT_TORSO = 0x100000000000,
+		SURFACE_TYPE_BIT_ROBOT_LIMB = 0x200000000000,
+		SURFACE_TYPE_BIT_ROBOT_ARMOR = 0x400000000000,
+		SURFACE_TYPE_BIT_BIG_ROBOT_HEAD = 0x800000000000,
+		SURFACE_TYPE_BIT_BIG_ROBOT_LIMB = 0x1000000000000,
+		SURFACE_TYPE_BIT_WATER_KNEE = 0x2000000000000,
+		SURFACE_TYPE_BIT_WATER_WAIST = 0x4000000000000,
+		SURFACE_TYPE_BIT_WOOD_FLOOR = 0x8000000000000,
+		SURFACE_TYPE_BIT_USER_TERRAIN_1 = 0x10000000000000,
+		SURFACE_TYPE_BIT_USER_TERRAIN_2 = 0x20000000000000,
+		SURFACE_TYPE_BIT_USER_TERRAIN_3 = 0x40000000000000,
+		SURFACE_TYPE_BIT_USER_TERRAIN_4 = 0x80000000000000,
+		SURFACE_TYPE_BIT_USER_TERRAIN_5 = 0x100000000000000,
+		SURFACE_TYPE_BIT_USER_TERRAIN_6 = 0x200000000000000,
+		SURFACE_TYPE_BIT_USER_TERRAIN_7 = 0x400000000000000,
+		SURFACE_TYPE_BIT_USER_TERRAIN_8 = 0x800000000000000,
+		SURFACE_TYPE_BIT_USER_TERRAIN_9 = 0x1000000000000000,
+		SURFACE_TYPE_BIT_USER_TERRAIN_10 = 0x2000000000000000,
+		SURFACE_TYPE_BIT_CODE_RESERVED = 0x4000000000000000,
+		SURFACE_TYPE_BIT_OPAQUEGLASS = 0x8000000000000000,
+	};
+
 	struct XModelCollSurf_s
 	{
 		Bounds bounds;
@@ -1027,16 +1211,9 @@ namespace zonetool::iw7
 		};
 	};
 
-	struct XModelPhysicsUsageCounter
-	{
-		int serverEnt;
-		int clientEnt;
-		int dynEnt;
-	};
-
 	struct unk_1453E14D8
 	{
-		char __pad0[24];
+		Bounds bounds;
 	};
 
 	enum XModelCharCollBoundsType : std::uint8_t
@@ -1060,8 +1237,18 @@ namespace zonetool::iw7
 		XMODEL_FLAG_ANIMATED_VERTS = 0x1,
 		XMODEL_FLAG_REACTIVE_MOTION = 0x8,
 		XMODEL_FLAG_COMPOSITE = 0x400,
+		XMODEL_FLAG_HAS_DEFAULT_MODEL = 0x8000,
 		XMODEL_FLAG_HAS_ANY_DEFAULT_SURFS = 0x10000,
+		XMODEL_FLAG_HAS_ALL_DEFAULT_SURFS = 0x20000,
+		XMODEL_FLAG_HAS_RIGID_VERT_LIST = 0x80000,
 		XMODEL_FLAG_HAS_MAYHEM_SELFVIS = 0x8000000,
+	};
+
+	struct XModelPhysicsUsageCounter
+	{
+		int serverEnt;
+		int clientEnt;
+		int dynEnt;
 	};
 
 	struct XModel
@@ -1086,7 +1273,7 @@ namespace zonetool::iw7
 		float radius;
 		Bounds bounds;
 		int memUsage;
-		unsigned int unknown02Count;
+		unsigned int physicsLODDataSize;
 		XModelPhysicsUsageCounter physicsUsageCounter;
 		ScriptableDef* scriptableMoverDef;
 		XAnimProceduralBones* proceduralBones;
@@ -1109,10 +1296,9 @@ namespace zonetool::iw7
 		unsigned short* invHighMipRadius;
 		PhysicsAsset* physicsAsset;
 		PhysicsFXShape* physicsFXShape;
-		char* unknown02;
-		unsigned short unknownNamesCount;
-		char unk_02[6]; // unknown data
-		scr_string_t* unknownNames;
+		char* physicsLODData;
+		unsigned int physicsLODDataNameCount;
+		scr_string_t* physicsLODDataNames;
 		unsigned char impactType;
 		char unk_03[15]; // unknown data
 		unsigned char unknown03Count;
@@ -1126,6 +1312,7 @@ namespace zonetool::iw7
 		char unk_05[6]; // unknown data
 		unk_1453E14D8* unknown04;
 	}; assert_sizeof(XModel, 0x2E0); // 736
+	assert_offsetof(XModel, lodInfo, 224);
 
 	struct MayhemModel
 	{
@@ -1148,10 +1335,10 @@ namespace zonetool::iw7
 	{
 		char* diskQuat;
 		char* diskPos;
-		unsigned __int16* diskQuatFrames;
-		unsigned __int16* diskPosFrames;
-		unsigned __int16* numDiskQuatFrames;
-		unsigned __int16* numDiskPosFrames;
+		unsigned short* diskQuatFrames;
+		unsigned short* diskPosFrames;
+		unsigned short* numDiskQuatFrames;
+		unsigned short* numDiskPosFrames;
 		MayhemTransBounds* transBounds;
 		GfxWrappedBaseBuffer quat;
 		GfxWrappedBaseBuffer pos;
@@ -1182,8 +1369,8 @@ namespace zonetool::iw7
 	struct MayhemDataKeysSplineCompressed
 	{
 		char* keys;
-		unsigned __int16* numKeys;
-		unsigned __int16* keyFrames;
+		unsigned short* numKeys;
+		unsigned short* keyFrames;
 		unsigned int totalCompressedKeyFrames;
 		unsigned int numStreams;
 		unsigned int keyStride;
@@ -1406,7 +1593,11 @@ namespace zonetool::iw7
 
 	struct GfxDrawSurfFields
 	{
-
+		unsigned __int64 objectId : 16; // p0 >> 0
+		unsigned __int64 pad0 : 32;
+		unsigned __int64 tessellation : 2; // p0 >> 48
+		unsigned __int64 pad1 : 14;
+		unsigned __int64 pad2 : 64;
 	};
 
 	union GfxDrawSurf
@@ -1415,16 +1606,18 @@ namespace zonetool::iw7
 		Packed128 packed;
 	};
 
-	enum SurfaceTypeBits : std::uint64_t
+	enum TechsetdefRenderFlags : std::uint8_t
 	{
-
+		TECHSETDEF_RENDER_FLAGS_NONE = 0x0,
+		TECHSETDEF_RENDER_FLAGS_2D = 0x1,
+		TECHSETDEF_RENDER_FLAGS_CASTS_SHADOWS = 0x2,
 	};
 
 	struct MaterialInfo
 	{
 		const char* name;
 		unsigned char gameFlags;
-		unsigned char unkFlags;
+		unsigned char unkFlags; // runtimeFlags?
 		unsigned char sortKey;
 		unsigned char textureAtlasRowCount;
 		unsigned char textureAtlasColumnCount;
@@ -2466,8 +2659,8 @@ namespace zonetool::iw7
 	{
 		const char* name;
 		SndStringHash id;
-		unsigned __int16 ambientEventIndex;
-		unsigned __int16 numEvents;
+		unsigned short ambientEventIndex;
+		unsigned short numEvents;
 		float timeMin;
 		float timeMax;
 	};
@@ -2475,7 +2668,7 @@ namespace zonetool::iw7
 	struct AmbientEvent
 	{
 		SndStringHash id;
-		unsigned __int16 ambientElementIndex;
+		unsigned short ambientElementIndex;
 		float weight;
 	};
 
@@ -2517,7 +2710,7 @@ namespace zonetool::iw7
 	struct MixDef
 	{
 		SndStringHash id;
-		unsigned __int16 volModIndex;
+		unsigned short volModIndex;
 		float volume;
 		float fade;
 	};
@@ -2534,7 +2727,7 @@ namespace zonetool::iw7
 	struct OccludeDef
 	{
 		SndStringHash id;
-		unsigned __int16 entChannelIdx;
+		unsigned short entChannelIdx;
 		float cutoffLevel1;
 		float cutoffLevel2;
 		float cutoffLevel3;
@@ -2567,24 +2760,24 @@ namespace zonetool::iw7
 	{
 		SndStringHash id;
 		SndStringHash stateId;
-		__int16 reverbIndex;
-		__int16 startOcclusionIndex;
-		__int16 numOcclusion;
-		__int16 startFilterIndex;
-		__int16 numFilter;
-		__int16 startMixIndex;
-		__int16 numMix;
+		short reverbIndex;
+		short startOcclusionIndex;
+		short numOcclusion;
+		short startFilterIndex;
+		short numFilter;
+		short startMixIndex;
+		short numMix;
 		const char* ambientStream;
-		__int16 startAdsrZoneIndex;
-		__int16 numAdsrZone;
-		__int16 startNPCAdsrZoneIndex;
-		__int16 numNPCAdsrZone;
-		__int16 ambientDefIndex;
-		__int16 unkIndex; // idk
-		__int16 startFullOccIndex;
-		__int16 numDisableFullOcc;
-		__int16 startPlayerBreathStateIndex;
-		__int16 numPlayerBreathStates;
+		short startAdsrZoneIndex;
+		short numAdsrZone;
+		short startNPCAdsrZoneIndex;
+		short numNPCAdsrZone;
+		short ambientDefIndex;
+		short unkIndex; // idk
+		short startFullOccIndex;
+		short numDisableFullOcc;
+		short startPlayerBreathStateIndex;
+		short numPlayerBreathStates;
 		SndStringHash weapReflId;
 		//bool exterior;
 		const char* zoneName;
@@ -2840,7 +3033,7 @@ namespace zonetool::iw7
 	{
 		const char* name;
 		vec3_t origin;
-		unsigned __int16 triggerIndex;
+		unsigned short triggerIndex;
 		char sunPrimaryLightIndex;
 		unsigned int entityUID;
 		char unk[20];
@@ -2992,7 +3185,7 @@ namespace zonetool::iw7
 		unsigned int transientZoneList;
 		unsigned int entityId;
 		float uvIntensity;
-		float heatIntensity;
+		float irIntensity;
 		float color[3];
 		float dir[3];
 		float up[3];
@@ -3266,7 +3459,7 @@ namespace zonetool::iw7
 		unsigned int nodeCount;
 		pathnode_t* nodes;
 		bool parentIndexResolved;
-		unsigned __int16 version;
+		unsigned short version;
 		int visBytes;
 		char* pathVis;
 		int nodeTreeCount;
@@ -3521,21 +3714,36 @@ namespace zonetool::iw7
 		float radius;
 		ClipInfo* info;
 		PhysicsAsset* physicsAsset;
-		//unsigned __int16 physicsShapeOverrideIdx;
-		//unsigned __int16 navObstacleIdx;
+		unsigned short physicsShapeOverrideIdx;
+		unsigned short navObstacleIdx;
 		unsigned int edgeFirstIndex;
-		unsigned int edgeTotalCount;
+		//unsigned int edgeTotalCount;
 	}; assert_sizeof(cmodel_t, 56);
 
-	enum DynEntityType : std::int32_t
+	enum DynEntityType : std::int8_t
 	{
 		DYNENT_TYPE_INVALID = 0x0,
+		DYNENT_TYPE_CLUTTER = 0x1,
+		DYNENT_TYPE_CLUTTER_NOSHADOW = 0x2,
+		DYNENT_TYPE_HINGE = 0x3,
+		DYNENT_TYPE_SCRIPTABLEINST = 0x4,
+		DYNENT_TYPE_SCRIPTABLEPHYSICS = 0x5,
+		DYNENT_TYPE_LINKED = 0x6,
+		DYNENT_TYPE_LINKED_NOSHADOW = 0x7,
+		DYNENT_TYPE_COUNT = 0x8,
+	};
+
+	enum DynEntityBasis
+	{
+		DYNENT_BASIS_MODEL = 0x0,
+		DYNENT_BASIS_BRUSH = 0x1,
+		DYNENT_BASIS_COUNT = 0x2,
 	};
 
 	struct GfxPlacement
 	{
-		float quat[4];
-		float origin[3];
+		vec4_t quat;
+		vec3_t origin;
 	};
 
 	struct DynEntityLinkToDef
@@ -3548,41 +3756,72 @@ namespace zonetool::iw7
 	struct DynEntityDef
 	{
 		DynEntityType type;
-		char __pad0[28];
+		char __pad0[31];
 		GfxPlacement pose;
 		char __pad1[4];
 		XModel* baseModel;
-		char __pad2[16];
+		unsigned short brushModel;
+		bool spawnActive;
+		char __pad2[1];
+		short instanceIndex;
+		char __pad3[10];
 		DynEntityLinkToDef* linkTo;
-		char __pad3[16];
+		bool noPhysics;
+		bool unk1;
+		bool unk2;
+		bool distantShadows;
+		bool noSpotShadows;
+		bool isTransient;
+		bool transientZoneLoaded;
+		char unk3;
+		char priority;
+		char __pad6[7];
 	}; assert_sizeof(DynEntityDef, 112);
 	assert_offsetof(DynEntityDef, baseModel, 64);
 	assert_offsetof(DynEntityDef, linkTo, 88);
 
-	struct unk_1453E3260
+	struct GpuLightGridRequestRecord
 	{
-		char __pad0[28];
-	}; assert_sizeof(unk_1453E3260, 28);
+		unsigned int lgvFrame;
+		unsigned int lgvHistoryEntry;
+		unsigned int lgvNumProbes;
+	};
 
-	struct unk_1453E4268
+	struct DynEntityPose
 	{
-		char __pad0[44];
-		unsigned int unk01Count;
-		unk_1453E3260* unk01;
-		char* unk02;
-		char __pad1[8];
-	}; assert_sizeof(unk_1453E4268, 72);
-	assert_offsetof(unk_1453E4268, unk02, 56);
+		GfxPlacement pose;
+		float radius;
+		GpuLightGridRequestRecord lastGpuLightGridRequest;
+		unsigned int numPoses;
+		GfxPlacement* poses;
+		char* unk;
+		char __pad1[1];
+		bool cachedActive;
+		char __pad2[6];
+	}; assert_sizeof(DynEntityPose, 72);
+	assert_offsetof(DynEntityPose, unk, 56);
 
-	struct unk_1453E4278
+	struct DynEntityClient
 	{
-		char __pad0[56];
-	}; assert_sizeof(unk_1453E4278, 56);
+		unsigned short flags;
+		char __pad0[6];
+		XModel* activeModel;
+		int physicsSystemId;
+		int physicsSystemDetailId;
+		char numPhysicsBodies;
+		int singlePhysicsBody;
+		int detailBoundBody;
+		int unkId;
+		int dynEntDefId;
+		int locked;
+		char __pad3[8];
+	}; assert_sizeof(DynEntityClient, 56);
 
-	struct unk_1453E4238
+	struct DynEntityGlobalId
 	{
-		char __pad0[8];
-	}; assert_sizeof(unk_1453E4238, 8);
+		char basis;
+		unsigned int id;
+	}; assert_sizeof(DynEntityGlobalId, 8);
 
 	struct unk_1453E4280
 	{
@@ -3591,14 +3830,16 @@ namespace zonetool::iw7
 
 	struct unk_1453E4298
 	{
-		char __pad0[32];
+		char __pad0[28];
+		int unkIndex;
 		unsigned int unk01Count;
 		unk_1453E4280* unk01;
 	}; assert_sizeof(unk_1453E4298, 48);
 
 	struct unk_1453E42A8
 	{
-		char __pad0[8];
+		int unkIndex;
+		int unk;
 	}; assert_sizeof(unk_1453E42A8, 8);
 
 	struct unk_1453E1130
@@ -3606,36 +3847,30 @@ namespace zonetool::iw7
 		char unk;
 	}; assert_sizeof(unk_1453E1130, 1);
 
-	struct unk_1453E20F0
+	struct ClientEntAnchor
 	{
-		int unk1;
-		scr_string_t unk2;
-	}; assert_sizeof(unk_1453E20F0, 8);
-
-	struct ScriptablePhysicsLimits
-	{
-		unsigned int clientStandaloneMainRigidBodyCount;
-		unsigned int clientStandaloneDetailedRigidBodyCount;
-		unsigned int clientStandaloneMotionCount;
-		unsigned int serverStandaloneMainRigidBodyCount;
-		unsigned int serverStandaloneDetailedRigidBodyCount;
-		unsigned int serverStandaloneMotionCount;
-	};
+		scr_string_t name;
+		int entNum;
+	}; assert_sizeof(ClientEntAnchor, 8);
 
 	struct unk_1453E24B0
 	{
 		XModel* model;
-		unsigned int count;
-		char __pad0[4];
+		bool neverMoves;
+		bool dynamicSimulation;
+		char __pad0[6];
 	}; assert_sizeof(unk_1453E24B0, 16);
 
 	struct unk_1453E2510
 	{
 		ScriptableDef* def;
-		char __pad0[64];
+		char __pad0[52];
+		short entityId;
+		char __pad1[10];
 		unk_1453E24B0 unk01;
-		char* unk02;
-		char __pad1[16];
+		unsigned int eventStreamBufferSize;
+		char* eventStreamBuffer;
+		char __pad2[4];
 	}; assert_sizeof(unk_1453E2510, 112);
 
 	struct unk_1453E2520
@@ -3655,23 +3890,21 @@ namespace zonetool::iw7
 		unk_1453E2520 unk01;
 		unk_1453E2530 unk02[2];
 		scr_string_t unk03;
+		int flags;
 		char __pad0[8];
-		scr_string_t unk04;
-		char __pad1[8];
-		scr_string_t unk05;
+		const char* unk04;
+		scr_string_t targetname;
 	}; assert_sizeof(ScriptableInstance, 464);
-	assert_offsetof(ScriptableInstance, unk03, 432);
-	assert_offsetof(ScriptableInstance, unk05, 456);
 
 	struct ScriptableReservedDynent
 	{
 		unsigned int dynentId;
-		__int16 next;
+		short next;
 	};
 
 	struct ScriptableReservedDynents
 	{
-		__int16 freeHead;
+		short freeHead;
 		unsigned int numReservedDynents;
 		ScriptableReservedDynent* reservedDynents;
 	};
@@ -3703,10 +3936,10 @@ namespace zonetool::iw7
 
 	struct ScriptableMapEnts
 	{
-		unsigned int instanceCount;
-		unsigned int unkCount1;
-		unsigned int unkCount2;
-		unsigned int unkCount3;
+		unsigned int totalInstanceCount;
+		unsigned int runtimeInstanceCount;
+		unsigned int reservedInstanceCount;
+		unsigned int pad;
 		ScriptableInstance* instances;
 		unk_1453E2560 unk;
 		Scriptable_EventSun_Data sunClientDatas[2];
@@ -3727,15 +3960,25 @@ namespace zonetool::iw7
 		unsigned int initialFlags;
 		unsigned int flags;
 		unsigned int mapEntLookup;
-		//unsigned __int16 transientIndexStored;
+		//unsigned short transientIndexStored;
 	}; assert_sizeof(MayhemInstance, 72);
+
+	enum SpawnerFieldType : std::uint8_t // VariableType
+	{
+		SF_TYPE_UNDEFINED = 0x0,
+		SF_TYPE_STRING = 0x2,
+		SF_TYPE_ISTRING = 0x3,
+		SF_TYPE_VECTOR = 0x4,
+		SF_TYPE_FLOAT = 0x5,
+		SF_TYPE_INTEGER = 0x6,
+	};
 
 	struct SpawnerField
 	{
 		scr_string_t key;
 		unsigned int keyCanonical;
 		scr_string_t value;
-		char type;
+		unsigned char type;
 	}; assert_sizeof(SpawnerField, 16);
 
 	struct Spawner
@@ -3753,7 +3996,7 @@ namespace zonetool::iw7
 	struct SpawnerList
 	{
 		unsigned int spawnerCount;
-		Spawner* spanwerList;
+		Spawner* spawnerList;
 	};
 
 	struct AudioPASpeaker
@@ -3780,10 +4023,10 @@ namespace zonetool::iw7
 		unsigned short dynEntCount[2];
 		unsigned short dynEntCountTotal;
 		DynEntityDef* dynEntDefList[2];
-		unk_1453E4268* dynEntUnk01List[4];
-		unk_1453E4278* dynEntUnk02List[4];
-		char __pad0[16];
-		unk_1453E4238* unk1[2];
+		DynEntityPose* dynEntPoseList[2][2];
+		DynEntityClient* dynEntClientList[2][2]; // runtime data
+		short unkIndexes[8];
+		DynEntityGlobalId* dynEntGlobalIdList[2];
 		char __pad1[8];
 		unsigned int unk2Count;
 		unk_1453E4298* unk2;
@@ -3791,8 +4034,8 @@ namespace zonetool::iw7
 		unk_1453E1130* unk2_2[2];
 		unsigned int unk3Count;
 		unsigned int* unk3;
-		unsigned int unk4Count; // dynEntAnchorCount
-		unk_1453E20F0* unk4; // DynEntityAnchor
+		unsigned int clientEntAnchorCount;
+		ClientEntAnchor* clientEntAnchors;
 		ScriptableMapEnts scriptableMapEnts;
 		unsigned int numMayhemScenes;
 		MayhemInstance* mayhemScenes;
@@ -3803,7 +4046,7 @@ namespace zonetool::iw7
 	assert_offsetof(MapEnts, havokEntsShapeDataSize, 336);
 	assert_offsetof(MapEnts, cmodels, 360);
 	assert_offsetof(MapEnts, dynEntDefList, 376);
-	assert_offsetof(MapEnts, unk1, 472);
+	assert_offsetof(MapEnts, dynEntGlobalIdList, 472);
 	assert_offsetof(MapEnts, unk2, 504);
 	assert_offsetof(MapEnts, scriptableMapEnts, 576);
 	assert_offsetof(MapEnts, audioPASpeakers, 824);
@@ -3851,16 +4094,16 @@ namespace zonetool::iw7
 	{
 		float texCoordOrigin[2];
 		unsigned int supportMask;
-		unsigned __int16 initIndex;
-		unsigned __int16 geoDataStart;
-		unsigned __int16 lightingIndex;
-		unsigned __int8 defIndex;
-		unsigned __int8 pad[3];
-		unsigned __int8 vertCount;
-		unsigned __int8 holeDataCount;
-		unsigned __int8 crackDataCount;
-		unsigned __int8 fanDataCount;
-		unsigned __int16 flags;
+		unsigned short initIndex;
+		unsigned short geoDataStart;
+		unsigned short lightingIndex;
+		unsigned char defIndex;
+		unsigned char pad[3];
+		unsigned char vertCount;
+		unsigned char holeDataCount;
+		unsigned char crackDataCount;
+		unsigned char fanDataCount;
+		unsigned short flags;
 		float areaX2;
 	};
 
@@ -3963,7 +4206,7 @@ namespace zonetool::iw7
 		int skySurfCount;
 		int* skyStartSurfs;
 		GfxImage* skyImage;
-		unsigned __int8 skySamplerState;
+		unsigned char skySamplerState;
 	}; assert_sizeof(GfxSky, 32);
 
 	struct GfxWorldDpvsPlanes
@@ -3994,8 +4237,8 @@ namespace zonetool::iw7
 		GfxPortalWritable writable;
 		DpvsPlane plane;
 		vec3_t* vertices;
-		unsigned __int16 cellIndex;
-		unsigned __int16 closeDistance;
+		unsigned short cellIndex;
+		unsigned short closeDistance;
 		char vertexCount;
 		vec3_t hullAxis[2];
 	};
@@ -4003,14 +4246,14 @@ namespace zonetool::iw7
 	struct GfxCell
 	{
 		Bounds bounds;
-		unsigned __int16 portalCount;
+		unsigned short portalCount;
 		GfxPortal* portals;
 	};
 
 	struct GfxCellTransientInfo
 	{
-		unsigned __int16 aabbTreeIndex;
-		unsigned __int16 transientZone;
+		unsigned short aabbTreeIndex;
+		unsigned short transientZone;
 	};
 
 	struct GfxReflectionProbe
@@ -4018,23 +4261,20 @@ namespace zonetool::iw7
 		char* livePath;
 		vec3_t origin;
 		vec3_t angles;
-		unsigned __int16* probeInstances;
-		unsigned __int16 probeInstanceCount;
-		unsigned __int16 probeRelightingIndex;
-		unsigned int probeImageIndirection;
-	};
+		unsigned int* probeInstances;
+		unsigned int probeInstanceCount;
+		unsigned int probeRelightingIndex;
+	}; assert_sizeof(GfxReflectionProbe, 48);
 
 	struct GfxReflectionProbeRelightingData
 	{
 		unsigned int reflectionProbeIndex;
-		unsigned __int16 relightingFlags;
-		unsigned __int16 zoneCount;
+		unsigned short relightingFlags;
 		unsigned int gBufferAlbedoImageIndex;
 		unsigned int gBufferNormalImageIndex;
-		unsigned int gBufferSecondaryDiffuseImageIndex;
+		//unsigned int gBufferSecondaryDiffuseImageIndex;
 		float relightingScale;
-		unsigned __int16* zones;
-	};
+	}; assert_sizeof(GfxReflectionProbeRelightingData, 20);
 
 	struct GfxReflectionProbeObb
 	{
@@ -4050,7 +4290,7 @@ namespace zonetool::iw7
 		char* livePath;
 		char* livePath2;
 		vec3_t probePosition;
-		unsigned __int16 probeImageIndex;
+		unsigned short probeImageIndex;
 		char lodLevel;
 		char flags;
 		vec4_t probeRotation;
@@ -4113,15 +4353,10 @@ namespace zonetool::iw7
 		GfxWorldPackedLightmap* packedLightmap;
 	}; assert_sizeof(GfxWorldLightmapReindexData, 32);
 
-	struct unk_1453E41D8
+	struct GfxDecalVolumeCollection
 	{
 		char __pad0[388];
-	}; assert_sizeof(unk_1453E41D8, 388);
-
-	struct unk_1453E4A70
-	{
-		char __pad0[24];
-	}; assert_sizeof(unk_1453E4A70, 24);
+	}; assert_sizeof(GfxDecalVolumeCollection, 388);
 
 	struct GfxOrientedBoundingBox
 	{
@@ -4164,7 +4399,8 @@ namespace zonetool::iw7
 		char* livePath;
 		unsigned int flags;
 		GfxOrientedBoundingBox obb;
-		float unk;
+		float density;
+		float falloff;
 		GfxVolumetricMask masks[4];
 	}; assert_sizeof(GfxVolumetric, 240);
 	assert_offsetof(GfxVolumetric, masks, 80);
@@ -4180,28 +4416,562 @@ namespace zonetool::iw7
 		GfxWorldReflectionProbeData reflectionProbeData;
 		GfxWorldLightmapReindexData lightmapReindexData;
 		GfxImage* iesLookupTexture;
-		unsigned int unk01Count;
-		unk_1453E41D8* unk01;
+		unsigned int decalVolumeCollectionCount;
+		GfxDecalVolumeCollection* decalVolumeCollections;
 		GfxImage* lightmapOverridePrimary;
 		GfxImage* lightmapOverrideSecondary;
 		unsigned int lightMapCount;
 		GfxLightMap** lightMaps;
-		unk_1453E4A70* unk02;
-		char __pad0[24];
+		GfxTexture* lightmapTextures;
+		void* unused1;
+		void* unused2;
+		void* unused3;
 		unsigned int transientZoneCount;
 		GfxWorldTransientZone* transientZones[32];
 		unsigned int indexCount;
 		unsigned short* indices;
-		void* indexBuffer;
+		ID3D11Buffer* indexBuffer;
 		GfxWorldVolumetrics volumetrics;
 	}; assert_sizeof(GfxWorldDraw, 536);
 	assert_offsetof(GfxWorldDraw, iesLookupTexture, 144);
-	assert_offsetof(GfxWorldDraw, unk01Count, 152);
-	assert_offsetof(GfxWorldDraw, unk01, 160);
+	assert_offsetof(GfxWorldDraw, decalVolumeCollectionCount, 152);
+	assert_offsetof(GfxWorldDraw, decalVolumeCollections, 160);
 	assert_offsetof(GfxWorldDraw, transientZones, 240);
 	assert_offsetof(GfxWorldDraw, indices, 504);
 	assert_offsetof(GfxWorldDraw, indexBuffer, 512);
 	assert_offsetof(GfxWorldDraw, volumetrics, 520);
+
+	struct GfxLightGridTree
+	{
+		unsigned char maxDepth;
+		int nodeCount;
+		int leafCount;
+		int coordMinGridSpace[3];
+		int coordMaxGridSpace[3];
+		int coordHalfSizeGridSpace[3];
+		int defaultColorIndexBitCount;
+		int defaultLightIndexBitCount;
+		unsigned int* p_nodeTable;
+		int leafTableSize;
+		unsigned char* p_leafTable;
+	};
+
+	struct GfxLightGridColorsHDR
+	{
+		float rgb[56][3];
+	}; assert_sizeof(GfxLightGridColorsHDR, 672);
+
+	struct GfxProbeData
+	{
+		unsigned int data[16];
+	}; assert_sizeof(GfxProbeData, 64);
+
+	struct GfxGpuLightGridProbePosition
+	{
+		float origin[3];
+	}; assert_sizeof(GfxGpuLightGridProbePosition, 12);
+
+	struct GfxSHProbeData
+	{
+		unsigned __int16 coeffs[29];
+		unsigned __int16 pad[3];
+	};
+
+	struct GfxGpuLightGridZone
+	{
+		unsigned int numProbes;
+		unsigned int firstProbe;
+		unsigned int numTetrahedrons;
+		unsigned int firstTetrahedron;
+		unsigned int firstVoxelTetrahedronIndex;
+		//unsigned int voxelTetrahedronInternalNodeShift;
+		unsigned int numVoxelTetrahedronIndices;
+		GfxSHProbeData fallbackProbeData;
+	}; assert_sizeof(GfxGpuLightGridZone, 88);
+
+	struct GfxGpuLightGridTetrahedron
+	{
+		unsigned int indexFlags[4];
+	}; assert_sizeof(GfxGpuLightGridTetrahedron, 16);
+
+	struct GfxGpuLightGridTetrahedronNeighbors
+	{
+		unsigned int neighbors[4];
+	}; assert_sizeof(GfxGpuLightGridTetrahedronNeighbors, 16);
+
+	struct GfxGpuLightGridTetrahedronVisibility
+	{
+		unsigned int visibility[16];
+	}; assert_sizeof(GfxGpuLightGridTetrahedronVisibility, 64);
+
+	struct GfxGpuLightGridVoxelStartTetrahedron
+	{
+		unsigned int index;
+	}; assert_sizeof(GfxGpuLightGridVoxelStartTetrahedron, 4);
+
+	struct GfxLightGridProbeData
+	{
+		unsigned int gpuVisibleProbesCount;
+		GfxGpuLightGridProbePosition* gpuVisibleProbePositions;
+		GfxProbeData* gpuVisibleProbesData; // 64 * (count * 0x2000)
+		void* gpuVisibleProbesBuffer;
+		void* gpuVisibleProbesView;
+		void* gpuVisibleProbesRWView;
+		unsigned int probeCount;
+		GfxProbeData* probes; // 64 * count
+		void* probesBuffer;
+		void* probesView;
+		void* probesRWView;
+		GfxGpuLightGridProbePosition* probePositions;
+		void* probePositionsBuffer;
+		void* probePositionsView;
+		unsigned int zoneCount;
+		GfxGpuLightGridZone* zones;
+		unsigned int tetrahedronCount;
+		unsigned int tetrahedronCountVisible;
+		GfxGpuLightGridTetrahedron* tetrahedrons;
+		void* tetrahedronBuffer;
+		void* tetrahedronView;
+		GfxGpuLightGridTetrahedronNeighbors* tetrahedronNeighbors;
+		void* tetrahedronNeighborsBuffer;
+		void* tetrahedronNeighborsView;
+		GfxGpuLightGridTetrahedronVisibility* tetrahedronVisibility; // 64 * count
+		void* tetrahedronVisibilityBuffer;
+		void* tetrahedronVisibilityView;
+		unsigned int voxelStartTetrahedronCount;
+		GfxGpuLightGridVoxelStartTetrahedron* voxelStartTetrahedron;
+		void* voxelStartTetrahedronBuffer;
+		void* voxelStartTetrahedronView;
+	}; assert_sizeof(GfxLightGridProbeData, 240);
+
+	struct GfxLightGrid
+	{
+		int unk[9];
+		int tableVersion;
+		int paletteVersion;
+		char rangeExponent8BitsEncoding;
+		char rangeExponent12BitsEncoding;
+		char rangeExponent16BitsEncoding;
+		unsigned char stageCount;
+		float* stageLightingContrastGain;
+		unsigned int paletteEntryCount;
+		int* paletteEntryAddress;
+		unsigned int paletteBitstreamSize;
+		unsigned char* paletteBitstream;
+		GfxLightGridColorsHDR skyLightGridColors;
+		GfxLightGridColorsHDR defaultLightGridColors;
+		GfxLightGridTree tree;
+		GfxLightGridProbeData probeData;
+	}; assert_sizeof(GfxLightGrid, 0x6D8);
+	assert_offsetof(GfxLightGrid, stageCount, 47);
+
+	struct GfxVoxelTreeHeader
+	{
+		int rootNodeDimension[4];
+		int nodeCoordBitShift[4];
+		vec4_t boundMin;
+		vec4_t boundMax;
+	}; assert_sizeof(GfxVoxelTreeHeader, 0x40);
+
+	struct GfxVoxelTopDownViewNode
+	{
+		int firstNodeIndex;
+		int zMin;
+		int zMax;
+	}; assert_sizeof(GfxVoxelTopDownViewNode, 12);
+
+	struct GfxVoxelInternalNode
+	{
+		int firstNodeIndex[2];
+		int childNodeMask[2];
+	}; assert_sizeof(GfxVoxelInternalNode, 16);
+
+	struct GfxVoxelLeafNode
+	{
+		unsigned short lightListAddress;
+	};
+
+	struct GfxVoxelTree
+	{
+		Bounds zoneBound;
+		int voxelTopDownViewNodeCount;
+		int voxelInternalNodeCount;
+		int voxelLeafNodeCount;
+		int lightListArraySize;
+		GfxVoxelTreeHeader* voxelTreeHeader;
+		GfxVoxelTopDownViewNode* voxelTopDownViewNodeArray;
+		GfxVoxelInternalNode* voxelInternalNodeArray;
+		GfxVoxelLeafNode* voxelLeafNodeArray;
+		unsigned short* lightListArray;
+		unsigned int* voxelInternalNodeDynamicLightList; // 2 * count
+		char __pad0[24];
+	}; assert_sizeof(GfxVoxelTree, 112);
+	assert_offsetof(GfxVoxelTree, voxelTreeHeader, 40);
+	assert_offsetof(GfxVoxelTree, voxelInternalNodeDynamicLightList, 80);
+
+	struct GfxFrustumLights
+	{
+		unsigned int indexCount;
+		unsigned short* indices;
+		unsigned int vertexCount;
+		char* vertices; // 32 * count
+		void* indexBuffer;
+		void* vertexBuffer;
+	}; assert_sizeof(GfxFrustumLights, 48);
+
+	struct GfxLightViewFrustum
+	{
+		unsigned int planeCount;
+		vec4_t* planes;
+		unsigned int indexCount;
+		unsigned short* indices;
+		unsigned int vertexCount;
+		vec3_t* vertices;
+	}; assert_sizeof(GfxLightViewFrustum, 48);
+
+	struct GfxHeightfield
+	{
+		Bounds bounds;
+		vec4_t lookupMatrix[4];
+		GfxImage* image;
+	}; assert_sizeof(GfxHeightfield, 96);
+
+	struct unk_1453E4B08
+	{
+		unsigned int unk01Count;
+		unsigned int* unk01; // unused
+		unsigned int unk02Count;
+		unsigned int* unk02; // unused
+		unsigned int unk03Count;
+		unsigned short* unk03;
+	}; assert_sizeof(unk_1453E4B08, 48);
+
+	struct GfxBrushModelWritable
+	{
+		Bounds bounds;
+	};
+
+	struct GfxBrushModel
+	{
+		GfxBrushModelWritable writable;
+		Bounds bounds;
+		float radius;
+		unsigned int startSurfIndex;
+		unsigned short surfaceCount;
+	}; assert_sizeof(GfxBrushModel, 60);
+
+	struct MaterialMemory
+	{
+		Material* material;
+		int memory;
+	};
+
+	struct sunflare_t
+	{
+		bool hasValidData;
+		Material* spriteMaterial;
+		Material* flareMaterial;
+		float spriteSize;
+		float flareMinSize;
+		float flareMinDot;
+		float flareMaxSize;
+		float flareMaxDot;
+		float flareMaxAlpha;
+		int flareFadeInTime;
+		int flareFadeOutTime;
+		float blindMinDot;
+		float blindMaxDot;
+		float blindMaxDarken;
+		int blindFadeInTime;
+		int blindFadeOutTime;
+		float glareMinDot;
+		float glareMaxDot;
+		float glareMaxLighten;
+		int glareFadeInTime;
+		int glareFadeOutTime;
+		float sunFxPosition[3];
+	}; assert_sizeof(sunflare_t, 112);
+
+	struct XModelDrawInfo
+	{
+		unsigned int hasGfxEntIndex : 1;
+		unsigned int lod : 4;
+		unsigned int materialLod : 1;
+		unsigned int surfBufSize : 24;
+		unsigned int surfId : 24;
+	};
+
+#pragma pack(push, 2)
+	struct GfxSceneDynModel
+	{
+		XModelDrawInfo info;
+		unsigned short dynEntId;
+	};
+#pragma pack(pop)
+
+	struct BModelDrawInfo
+	{
+		unsigned int surfId;
+	};
+
+#pragma pack(push, 2)
+	struct GfxSceneDynBrush
+	{
+		BModelDrawInfo info;
+		unsigned short dynEntId;
+	};
+#pragma pack(pop)
+
+	struct GfxShadowGeometry
+	{
+		unsigned short surfaceCount;
+		unsigned short smodelCount;
+		unsigned int* sortedSurfIndex;
+		unsigned short* smodelIndex;
+	}; assert_sizeof(GfxShadowGeometry, 24);
+
+	struct GfxLightRegionAxis
+	{
+		float dir[3];
+		float midPoint;
+		float halfSize;
+	};
+
+	struct GfxLightRegionHull
+	{
+		float kdopMidPoint[9];
+		float kdopHalfSize[9];
+		unsigned int axisCount;
+		GfxLightRegionAxis* axis;
+	};
+
+	struct GfxLightRegion
+	{
+		unsigned int hullCount;
+		GfxLightRegionHull* hulls;
+	};
+
+	struct GfxLightAABBNode
+	{
+		Bounds bound;
+		unsigned short firstChild;
+		unsigned short childCount;
+	}; assert_sizeof(GfxLightAABBNode, 28);
+
+	struct GfxLightAABB
+	{
+		unsigned short nodeCount;
+		unsigned short lightCount;
+		GfxLightAABBNode* nodeArray;
+		unsigned short* lightArray;
+	}; assert_sizeof(GfxLightAABB, 24);
+
+	struct GfxStaticModelInst
+	{
+		Bounds bounds;
+		float lightingOrigin[3];
+	};
+
+	struct srfTriangles_t
+	{
+		unsigned int vertexLayerData;
+		unsigned int firstVertex;
+		float maxEdgeLength;
+		unsigned short vertexCount;
+		unsigned short triCount;
+		unsigned int baseIndex;
+	};
+
+	struct GfxSurface
+	{
+		srfTriangles_t tris;
+		Material* material;
+		unsigned char lightmapIndex;
+		unsigned char flags;
+		unsigned short sortKey;
+		unsigned char unk1;
+		unsigned char unk2;
+		unsigned char unk3;
+		unsigned char unk4;
+		unsigned char transientZone;
+	}; assert_sizeof(GfxSurface, 48);
+	assert_offsetof(GfxSurface, material, 24);
+
+	struct GfxPackedPlacement
+	{
+		float origin[3];
+		float axis[3][3];
+		float scale;
+	};
+
+	struct GfxStaticModelVertexLighting
+	{
+		unsigned char visibility[4];
+		unsigned short ambientColorFloat16[4];
+		unsigned short highlightColorFloat16[4];
+	};
+
+	struct GfxStaticModelVertexLightingInfo
+	{
+		GfxStaticModelVertexLighting* lightingValues;
+		ID3D11Buffer* smodelLightingVb;
+		ID3D11Buffer* lightingValuesVb;
+		GfxSubdivCache cache;
+		int flags;
+		unsigned int numLightingValues;
+	}; assert_sizeof(GfxStaticModelVertexLightingInfo, 56);
+
+	struct GfxStaticModelLightmapInfo
+	{
+		float offset[2];
+		float scale[2];
+		int lightmapIndex;
+	};
+
+	enum StaticModelFlag : std::int32_t
+	{
+		// scale modifiers: 
+		// 0 = 4.0f
+		// 1 = 2.66667f
+		// 2 = 2.0f
+		// 3 = 1.6f
+		// 4 = 1.33333f
+		// 5 = 1.14286f
+		// 6 = 1.0f
+		// 7 = 0.888889f
+		// 8 = 0.8f
+		// 9 = 0.666667f
+		// 10 = 0.571429f
+		// 11 = 0.5f
+		// 12 = 0.4f
+		// 13 = 0.333333f
+		// 14 = 0.285714f
+		// 15 = 0.25f
+		STATIC_MODEL_FLAG_SCALE_MODIFIER_MASK = 0xF,
+		STATIC_MODEL_FLAG_NO_CAST_SHADOW = 0x10,
+		STATIC_MODEL_FLAG_GROUND_LIGHTING = 0x20,
+		STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING = 0x40,
+		STATIC_MODEL_FLAG_VERTEXLIT_LIGHTING = 0x80,
+		STATIC_MODEL_FLAG_LIGHTMAP_LIGHTING = 0x100,
+		STATIC_MODEL_FLAG_ALLOW_FXMARK = 0x200,
+		STATIC_MODEL_FLAG_REACTIVEMOTION = 0x400,
+		STATIC_MODEL_FLAG_ANIMATED_VERTS = 0x800,
+	};
+
+	struct GfxStaticModelDrawInst
+	{
+		GfxPackedPlacement placement;
+		XModel* model;
+		GfxStaticModelVertexLightingInfo vertexLightingInfo;
+		GfxStaticModelLightmapInfo modelLightmapInfo;
+		unsigned short unk0;
+		unsigned short unk1;
+		unsigned short unk2;
+		unsigned short unk3;
+		unsigned short lightingHandle;
+		unsigned short unk5;
+		unsigned short unk6[4];
+		unsigned short cullDist;
+		unsigned short flags;
+		unsigned short unk9;
+		unsigned short unk10;
+		unsigned short unk11;
+		unsigned char unk13;
+		unsigned char unk14;
+		unsigned char unk15[4];
+		unsigned short primaryLightEnvIndex;
+		unsigned char reflectionProbeIndex;
+		unsigned char firstMtlSkinIndex;
+		unsigned char sunShadowFlags;
+		unsigned char transientZone;
+		unsigned char unk21;
+	}; assert_sizeof(GfxStaticModelDrawInst, 184);
+	assert_offsetof(GfxStaticModelDrawInst, model, 56);
+	assert_offsetof(GfxStaticModelDrawInst, vertexLightingInfo, 64);
+	assert_offsetof(GfxStaticModelDrawInst, cullDist, 160);
+
+	struct GfxSurfaceBounds
+	{
+		Bounds bounds;
+		unsigned int unk[3];
+	}; assert_sizeof(GfxSurfaceBounds, 36);
+
+	struct GfxWorldDpvsStatic
+	{
+		unsigned int smodelCount;
+		unsigned int staticSurfaceCount;
+		unsigned int litOpaqueSurfsBegin;
+		unsigned int litOpaqueSurfsEnd;
+		unsigned int litDecalSurfsBegin;
+		unsigned int litDecalSurfsEnd;
+		unsigned int litTransSurfsBegin;
+		unsigned int litTransSurfsEnd;
+		unsigned int emissiveSurfsBegin;
+		unsigned int emissiveSurfsEnd;
+		unsigned int smodelVisDataCount;
+		unsigned int surfaceVisDataCount;
+		unsigned int primaryLightVisDataCount;
+		unsigned int reflectionProbeVisDataCount;
+		unsigned int volumetricVisDataCount;
+		unsigned int decalVisDataCount;
+		unsigned int* smodelVisData[30];
+		unsigned int* surfaceVisData[30];
+		unsigned int* lodData;
+		unsigned int* primaryLightVisData[1];
+		unsigned int* reflectionProbeVisData[1];
+		unsigned int* volumetricVisData[1];
+		unsigned int* decalVisData[1];
+		unsigned int* tessellationCutoffVisData[30]; // only [0] used
+		unsigned int* sortedSurfIndex;
+		GfxStaticModelInst* smodelInsts;
+		GfxSurface* surfaces;
+		GfxSurfaceBounds* surfacesBounds;
+		GfxStaticModelDrawInst* smodelDrawInsts;
+		GfxDrawSurf* surfaceMaterials;
+		unsigned int* surfaceCastsSunShadow;
+		unsigned short* smodelUnk;
+		unsigned int sunShadowOptCount;
+		unsigned int sunSurfVisDataCount;
+		unsigned int* surfaceCastsSunShadowOpt;
+		char** constantBuffers;
+		int usageCount;
+	}; assert_sizeof(GfxWorldDpvsStatic, 920);
+
+	struct GfxWorldDpvsDynamic
+	{
+		unsigned int dynEntClientWordCount[2];
+		unsigned int dynEntClientCount[2];
+		unsigned int* dynEntCellBits[2];
+		unsigned char *dynEntVisData[2][30];
+	}; assert_sizeof(GfxWorldDpvsDynamic, 512);
+
+	struct GfxHeroOnlyLight
+	{
+		unsigned char type;
+		unsigned char unused[3];
+		float color[3];
+		float dir[3];
+		float up[3];
+		float origin[3];
+		float radius;
+		float cosHalfFovOuter;
+		float cosHalfFovInner;
+		int exponent;
+	};
+
+	typedef void* umbraTomePtr_t;
+
+	struct UmbraGate
+	{
+		unsigned int objID;
+		Bounds bounds;
+		float closeDistance;
+	};
+
+	struct UmbraGate2
+	{
+		char __pad0[40];
+	};
 
 	struct GfxWorld
 	{
@@ -4212,10 +4982,10 @@ namespace zonetool::iw7
 		int nodeCount;
 		unsigned int surfaceCount;
 		int skyCount;
-		GfxSky* skies; // 40
+		GfxSky* skies;
 		unsigned int lastSunPrimaryLightIndex;
 		unsigned int primaryLightCount;
-		unsigned int unknown;
+		unsigned int movingScriptablePrimaryLightCount;
 		unsigned int sortKeyLitDecal;
 		unsigned int sortKeyEffectDecal;
 		unsigned int sortKeyTopDecal;
@@ -4231,13 +5001,78 @@ namespace zonetool::iw7
 		unsigned int sortKeyTransEnd;
 		unsigned int sortKeyEmissiveBegin;
 		unsigned int sortKeyEmissiveEnd;
-		GfxWorldDpvsPlanes dpvsPlanes; // 120
+		GfxWorldDpvsPlanes dpvsPlanes;
 		GfxCellTransientInfo* cellTransientInfos;
 		GfxCell* cells;
 		GfxWorldDraw draw;
-		char __pad0[3816]; // todo
+		GfxLightGrid lightGrid;
+		GfxFrustumLights* frustumLights;
+		GfxLightViewFrustum* lightViewFrustums;
+		int voxelTreeCount;
+		GfxVoxelTree* voxelTree;
+		int heightfieldCount;
+		GfxHeightfield* heightfields;
+		unk_1453E4B08 unk01; // something related to surfaces
+		int modelCount;
+		GfxBrushModel* models;
+		Bounds bounds;
+		unsigned int checksum;
+		int materialMemoryCount;
+		MaterialMemory* materialMemory;
+		sunflare_t sun;
+		float outdoorLookupMatrix[4][4];
+		GfxImage* outdoorImage;
+		Material* dustMaterial;
+		float materialLod0SizeThreshold;
+		unsigned int* cellCasterBits;
+		unsigned int* cellHasSunLitSurfsBits;
+		GfxSceneDynModel* sceneDynModel;
+		GfxSceneDynBrush* sceneDynBrush;
+		unsigned int primaryLightMotionDetectBitsEntries;
+		unsigned int* primaryLightMotionDetectBits;
+		unsigned int entityMotionBitsEntries;
+		unsigned int* entityMotionBits;
+		unsigned int staticSpotOmniPrimaryLightCountAligned;
+		unsigned int numPrimaryLightEntityShadowVisEntries;
+		unsigned int* primaryLightEntityShadowVis;
+		unsigned int dynEntMotionBitsEntries[2];
+		unsigned int* dynEntMotionBits[2];
+		unsigned int numPrimaryLightDynEntShadowVisEntries[2];
+		unsigned int* primaryLightDynEntShadowVis[2];
+		GfxShadowGeometry* shadowGeomOptimized;
+		GfxLightRegion* lightRegion;
+		GfxLightAABB lightAABB;
+		GfxWorldDpvsStatic dpvs;
+		GfxWorldDpvsDynamic dpvsDyn;
+		unsigned int mapVtxChecksum;
+		unsigned int heroOnlyLightCount;
+		GfxHeroOnlyLight* heroOnlyLights;
+		unsigned int numUmbraGates;
+		UmbraGate* umbraGates;
+		unsigned int umbraTomeSize;
+		char* umbraTomeData;
+		umbraTomePtr_t umbraTomePtr;
+		unsigned int numUmbraGates2;
+		UmbraGate2* umbraGates2;
+		unsigned int umbraTomeSize2;
+		char* umbraTomeData2;
+		umbraTomePtr_t umbraTomePtr2;
+		unsigned int umbraUnkSize;
+		char* umbraUnkData;
 	}; assert_sizeof(GfxWorld, 0x11A8);
 	assert_offsetof(GfxWorld, dpvsPlanes, 120);
+	assert_offsetof(GfxWorld, voxelTreeCount, 2472);
+	assert_offsetof(GfxWorld, models, 2560);
+	assert_offsetof(GfxWorld, materialMemory, 2600);
+	assert_offsetof(GfxWorld, outdoorImage, 2784);
+	assert_offsetof(GfxWorld, cellHasSunLitSurfsBits, 2816);
+	assert_offsetof(GfxWorld, sceneDynModel, 2824);
+	assert_offsetof(GfxWorld, shadowGeomOptimized, 2936);
+	assert_offsetof(GfxWorld, lightAABB, 2952);
+	assert_offsetof(GfxWorld, heroOnlyLights, 4416);
+	assert_offsetof(GfxWorld, numUmbraGates, 4424);
+	assert_offsetof(GfxWorld, numUmbraGates2, 4464);
+	assert_offsetof(GfxWorld, umbraUnkData, 4512);
 
 	struct GfxWorldVertex
 	{
@@ -4275,11 +5110,11 @@ namespace zonetool::iw7
 	struct GfxAabbTree
 	{
 		Bounds bounds;
-		unsigned __int16 childCount;
-		unsigned __int16 surfaceCount;
+		unsigned short childCount;
+		unsigned short surfaceCount;
 		unsigned int startSurfIndex;
-		unsigned __int16 smodelIndexCount;
-		unsigned __int16* smodelIndexes;
+		unsigned short smodelIndexCount;
+		unsigned short* smodelIndexes;
 		int childrenOffset;
 	}; assert_sizeof(GfxAabbTree, 56);
 
@@ -4309,7 +5144,8 @@ namespace zonetool::iw7
 		unsigned int unk1;
 		float coordOffset;
 		float coordScale;
-		int unk2[2];
+		float unk2;
+		int pad;
 	}; assert_sizeof(GfxLightDef, 0x28);
 
 	struct AnimationEntry
@@ -4360,8 +5196,8 @@ namespace zonetool::iw7
 	struct AnimationStateMachine
 	{
 		scr_string_t name;
-		unsigned __int16 stateCount;
-		unsigned __int16 aimSetCount;
+		unsigned short stateCount;
+		unsigned short aimSetCount;
 		AnimationState* states;
 		AnimationAimSet* aimSets;
 	};
@@ -4381,8 +5217,8 @@ namespace zonetool::iw7
 		AnimationController animCtrl;
 		scr_string_t animTree;
 		ScriptableDef* scriptable;
-		unsigned __int16 soundCount;
-		unsigned __int16 effectCount;
+		unsigned short soundCount;
+		unsigned short effectCount;
 		scr_string_t* soundNotes;
 		scr_string_t* soundNames;
 		scr_string_t* soundOptions;
@@ -4416,9 +5252,9 @@ namespace zonetool::iw7
 
 	struct PlayerAnimScriptCommand
 	{
-		unsigned __int16 bodyPart;
-		unsigned __int16 animIndex;
-		unsigned __int16 animDuration;
+		unsigned short bodyPart;
+		unsigned short animIndex;
+		unsigned short animDuration;
 	};
 
 	struct PlayerAnimScriptItem
@@ -4497,33 +5333,33 @@ namespace zonetool::iw7
 
 	struct PlayerAnimScriptIdleTurn
 	{
-		unsigned __int16 turnleft;
-		unsigned __int16 turnright;
+		unsigned short turnleft;
+		unsigned short turnright;
 	};
 
 	struct PlayerAnimScriptIdleTwitch
 	{
 		unsigned int twitchCount;
 		float cycleLength;
-		unsigned __int16* twitches;
+		unsigned short* twitches;
 	};
 
 	struct PlayerAnimScriptAimSet
 	{
-		unsigned __int16 aim_1;
-		unsigned __int16 aim_2;
-		unsigned __int16 aim_3;
-		unsigned __int16 aim_4;
-		unsigned __int16 aim_6;
-		unsigned __int16 aim_7;
-		unsigned __int16 aim_8;
-		unsigned __int16 aim_9;
+		unsigned short aim_1;
+		unsigned short aim_2;
+		unsigned short aim_3;
+		unsigned short aim_4;
+		unsigned short aim_6;
+		unsigned short aim_7;
+		unsigned short aim_8;
+		unsigned short aim_9;
 	};
 
 	struct PlayerAnimScriptLeanSet
 	{
-		unsigned __int16 lean_left;
-		unsigned __int16 lean_right;
+		unsigned short lean_left;
+		unsigned short lean_right;
 	};
 
 	struct unk_1453E3788
@@ -4554,10 +5390,10 @@ namespace zonetool::iw7
 		PlayerAnimScriptAimSet* scriptAimSets;
 		PlayerAnimScriptLeanSet* scriptLeanSets;
 		unk_1453E3788* unk;
-		unsigned __int16* torsoAnimPackMap;
-		unsigned __int16* torsoAnimUnpackMap;
-		unsigned __int16* legsAnimPackMap;
-		unsigned __int16* legsAnimUnpackMap;
+		unsigned short* torsoAnimPackMap;
+		unsigned short* torsoAnimUnpackMap;
+		unsigned short* legsAnimPackMap;
+		unsigned short* legsAnimUnpackMap;
 		unsigned int xAnimCount;
 		XAnimParts** xAnims;
 	}; assert_sizeof(PlayerAnimScript, 0xB0);
@@ -4588,7 +5424,7 @@ namespace zonetool::iw7
 
 	struct GestureWeaponSettings
 	{
-		unsigned __int16 blendToStates;
+		unsigned short blendToStates;
 		bool hideReticle;
 		float fireDelay;
 		float sprintDelay;
@@ -4634,7 +5470,7 @@ namespace zonetool::iw7
 	{
 		float yawLerpIn;
 		float yawLerpOut;
-		unsigned __int16 walkTime;
+		unsigned short walkTime;
 		FootstepAnim walkFootStepAnim;
 	};
 
@@ -6125,6 +6961,35 @@ namespace zonetool::iw7
 		bool rotate;
 	};
 
+	enum hitLocation_t
+	{
+		HITLOC_NONE = 0x0,
+		HITLOC_HELMET = 0x1,
+		HITLOC_HEAD = 0x2,
+		HITLOC_NECK = 0x3,
+		HITLOC_TORSO_UPR = 0x4,
+		HITLOC_TORSO_LWR = 0x5,
+		HITLOC_R_ARM_UPR = 0x6,
+		HITLOC_L_ARM_UPR = 0x7,
+		HITLOC_R_ARM_LWR = 0x8,
+		HITLOC_L_ARM_LWR = 0x9,
+		HITLOC_R_HAND = 0xA,
+		HITLOC_L_HAND = 0xB,
+		HITLOC_R_LEG_UPR = 0xC,
+		HITLOC_L_LEG_UPR = 0xD,
+		HITLOC_R_LEG_LWR = 0xE,
+		HITLOC_L_LEG_LWR = 0xF,
+		HITLOC_R_FOOT = 0x10,
+		HITLOC_L_FOOT = 0x11,
+		HITLOC_GUN = 0x12,
+		HITLOC_SHIELD = 0x13,
+		HITLOC_ARMOR = 0x14,
+		HITLOC_SOFT = 0x15,
+		HITLOC_NUM = 0x16,
+		HITLOC_LIMB_START = 0x6,
+		HITLOC_LIMB_END = 0x11,
+	};
+
 	struct WeaponDef
 	{
 		const char* szOverlayName;
@@ -6505,7 +7370,7 @@ namespace zonetool::iw7
 		float maxDist;
 		const char* accuracyGraphName[2];
 		vec2_t* originalAccuracyGraphKnots[2];
-		unsigned __int16 originalAccuracyGraphKnotCount[2];
+		unsigned short originalAccuracyGraphKnotCount[2];
 		int iPositionReloadTransTime;
 		float leftArc;
 		float rightArc;
@@ -6980,19 +7845,7 @@ namespace zonetool::iw7
 		const char* szLUICrosshairWidget;
 	}; assert_sizeof(WeaponCompleteDef, 0x138);
 
-	enum PARTICLE_FLAG
-	{
-		PARTICLE_FLAG_KILL = 0x1,
-		PARTICLE_FLAG_PENDING_DEFERRED_PHYSICS = 0x2,
-		PARTICLE_FLAG_IMPACT = 0x4,
-		PARTICLE_FLAG_IMPACT_WITH_RAYCAST = 0x8,
-		PARTICLE_FLAG_AT_REST = 0x10,
-		PARTICLE_FLAG_SENT_FIRST_RAY_CAST = 0x20,
-		PARTICLE_FLAG_PENDING_DEFERRED_PHYSICS_UPDATE = 0x40,
-		PARTICLE_FLAG_HAS_SOUND = 0x80,
-	};
-
-	enum PARTICLE_MODULE_FLAG
+	enum PARTICLE_MODULE_FLAG : std::uint32_t
 	{
 		PARTICLE_MODULE_FLAG_DISABLED = 0x1,
 		PARTICLE_MODULE_FLAG_HAS_CURVES = 0x2,
@@ -7015,7 +7868,66 @@ namespace zonetool::iw7
 		PARTICLE_MODULE_FLAGS_ALL = 0xFFFFFFFF,
 	};
 
-	enum PARTICLE_EMITTER_DEF_FLAG
+	enum PARTICLE_STATE_DEF_FLAG : std::uint64_t
+	{
+		PARTICLE_STATE_DEF_FLAG_DISABLED = 0x1,
+		PARTICLE_STATE_DEF_FLAG_HAS_CAMERA_OFFSET = 0x2,
+		PARTICLE_STATE_DEF_FLAG_HAS_SPAWN_SHAPE = 0x4,
+		PARTICLE_STATE_DEF_FLAG_HAS_POSITION_CURVE = 0x8,
+		PARTICLE_STATE_DEF_FLAG_HAS_ROTATION_1D_CURVE = 0x10,
+		PARTICLE_STATE_DEF_FLAG_HAS_ROTATION_3D_CURVE = 0x20,
+		PARTICLE_STATE_DEF_FLAG_HAS_ROTATION_1D_INIT = 0x40,
+		PARTICLE_STATE_DEF_FLAG_HAS_ROTATION_3D_INIT = 0x80, // c
+		PARTICLE_STATE_DEF_FLAG_HAS_VELOCITY_CURVE_LOCAL1 = 0x100,
+		PARTICLE_STATE_DEF_FLAG_HAS_VELOCITY_CURVE_WORLD1 = 0x200,
+		PARTICLE_STATE_DEF_FLAG_HAS_VELOCITY_CURVE_LOCAL2 = 0x400,
+		PARTICLE_STATE_DEF_FLAG_HAS_VELOCITY_CURVE_WORLD2 = 0x800,
+		PARTICLE_STATE_DEF_FLAG_USE_PHYSICS = 0x1000, // c
+		PARTICLE_STATE_DEF_FLAG_MIRROR_TEXTURE_HORIZONTALLY = 0x2000, // c
+		PARTICLE_STATE_DEF_FLAG_MIRROR_TEXTURE_HORIZONTALLY_RANDOM = 0x4000, // c
+		PARTICLE_STATE_DEF_FLAG_MIRROR_TEXTURE_VERTICALLY = 0x8000, // c
+		PARTICLE_STATE_DEF_FLAG_MIRROR_TEXTURE_VERTICALLY_RANDOM = 0x10000, // c
+		PARTICLE_STATE_DEF_FLAG_SORT_PARTICLES = 0x20000,
+		PARTICLE_STATE_DEF_FLAG_HANDLE_ON_IMPACT = 0x40000,
+		PARTICLE_STATE_DEF_FLAG_PLAYER_FACING = 0x80000, // c
+		PARTICLE_STATE_DEF_FLAG_PLAYER_FACING_LOCK_UP_VECTOR = 0x100000, // c
+		PARTICLE_STATE_DEF_FLAG_USE_OCCLUSION_QUERY = 0x200000, // c
+
+		PARTICLE_STATE_DEF_FLAG_HAS_COLOR = 0x400000,
+		PARTICLE_STATE_DEF_FLAG_HAS_RAY_CAST_PHYSICS = 0x800000,
+		PARTICLE_STATE_DEF_FLAG_0x1000000 = 0x1000000,
+
+		PARTICLE_STATE_DEF_FLAG_HAS_EMISSIVE_CURVE = 0x2000000, // c
+		PARTICLE_STATE_DEF_FLAG_HAS_INTENSITY_CURVE = 0x4000000,
+		PARTICLE_STATE_DEF_FLAG_USE_VECTOR_FIELDS = 0x8000000,
+		PARTICLE_STATE_DEF_FLAG_INHERIT_PARENT_VELOCITY = 0x10000000,
+		PARTICLE_STATE_DEF_FLAG_DRAW_WITH_VIEW_MODEL = 0x20000000,
+		PARTICLE_STATE_DEF_FLAG_PLAY_SOUNDS = 0x40000000,
+		PARTICLE_STATE_DEF_FLAG_HAS_CAMERA_OFFSET_POSITION_ONLY = 0x40000000, // c
+		PARTICLE_STATE_DEF_FLAG_ON_IMPACT_USE_SURFACE_TYPE = 0x80000000,
+		PARTICLE_STATE_DEF_FLAG_IS_SPRITE = 0x100000000, // c
+		PARTICLE_STATE_DEF_FLAG_HAS_TRANS_SHADOWS = 0x200000000, // c
+		PARTICLE_STATE_DEF_FLAG_HAS_CHILD_EFFECTS = 0x400000000,
+		PARTICLE_STATE_DEF_FLAG_BLOCKS_SIGHT = 0x0,
+		PARTICLE_STATE_DEF_FLAG_HANDLE_TIME_IN_STATE = 0x0,
+		PARTICLE_STATE_DEF_FLAG_SCALE_BY_DISTANCE = 0x0,
+		PARTICLE_STATE_DEF_FLAG_HAS_VECTOR_FIELD_CURVE = 0x0,
+		PARTICLE_STATE_DEF_FLAG_USE_LOCAL_VECTOR_FIELDS_ONLY = 0x0,
+		PARTICLE_STATE_DEF_FLAG_HAS_SHADER_CURVE = 0x0,
+		PARTICLE_STATE_DEF_FLAG_HAS_SIZE_CURVE = 0x0,
+		PARTICLE_STATE_DEF_FLAG_HAS_SIZE_LERP = 0x0,
+		PARTICLE_STATE_DEF_FLAG_HAS_TEMPERATURE_CURVE = 0x0,
+		PARTICLE_STATE_DEF_FLAG_HAS_LIGHTING_FRACTION_CURVE = 0x0,
+		PARTICLE_STATE_DEF_FLAG_HAS_ROTATION_CURVE = 0x30,
+		PARTICLE_STATE_DEF_FLAG_HAS_ROTATION_1D = 0x50,
+		PARTICLE_STATE_DEF_FLAG_HAS_ROTATION_3D = 0xA0,
+		PARTICLE_STATE_DEF_FLAG_HAS_ROTATION = 0xF0,
+		PARTICLE_STATE_DEF_FLAG_HAS_MIRROR_TEXTURE = 0x1E000, // c
+		PARTICLE_STATE_DEF_FLAG_HAS_VELOCITY_CURVE = 0x300,
+		PARTICLE_STATE_DEF_FLAG_REQUIRES_WORLD_COLLISION = 0x801000,
+	};
+
+	enum PARTICLE_EMITTER_DEF_FLAG : std::uint32_t
 	{
 		PARTICLE_EMITTER_DEF_FLAG_DISABLED = 0x1,
 		PARTICLE_EMITTER_DEF_FLAG_USE_BURST_MODE = 0x2,
@@ -7045,79 +7957,7 @@ namespace zonetool::iw7
 		PARTICLE_EMITTER_DEF_FLAG_IGNORE_FOV_SCALE = 0x2000000,
 	};
 
-	enum PARTICLE_ELEMENT_TYPE
-	{
-		PARTICLE_ELEMENT_TYPE_BILLBOARD_SPRITE = 0x0,
-		PARTICLE_ELEMENT_TYPE_BEAM = 0x1,
-		PARTICLE_ELEMENT_TYPE_DECAL = 0x2,
-		PARTICLE_ELEMENT_TYPE_FLARE = 0x3,
-		PARTICLE_ELEMENT_TYPE_GEO_TRAIL = 0x4,
-		PARTICLE_ELEMENT_TYPE_LIGHT_OMNI = 0x5,
-		PARTICLE_ELEMENT_TYPE_LIGHT_SPOT = 0x6,
-		PARTICLE_ELEMENT_TYPE_MODEL = 0x7,
-		PARTICLE_ELEMENT_TYPE_ORIENTED_SPRITE = 0x8,
-		PARTICLE_ELEMENT_TYPE_RUNNER = 0x9,
-		PARTICLE_ELEMENT_TYPE_TAIL = 0xA,
-		PARTICLE_ELEMENT_TYPE_VECTOR_FIELD = 0xB,
-		PARTICLE_ELEMENT_TYPE_VOLUMETRIC = 0xC,
-		PARTICLE_ELEMENT_TYPE_DISMEMBER = 0xD,
-	};
-
-	enum PARTICLE_STATE_DEF_FLAG
-	{
-		PARTICLE_STATE_DEF_FLAG_DISABLED = 0x1,
-		PARTICLE_STATE_DEF_FLAG_HAS_CAMERA_OFFSET = 0x2,
-		PARTICLE_STATE_DEF_FLAG_HAS_SPAWN_SHAPE = 0x4,
-		PARTICLE_STATE_DEF_FLAG_HAS_POSITION_CURVE = 0x8,
-		PARTICLE_STATE_DEF_FLAG_HAS_ROTATION_1D_CURVE = 0x10,
-		PARTICLE_STATE_DEF_FLAG_HAS_ROTATION_3D_CURVE = 0x20,
-		PARTICLE_STATE_DEF_FLAG_HAS_ROTATION_1D_INIT = 0x40,
-		PARTICLE_STATE_DEF_FLAG_HAS_ROTATION_3D_INIT = 0x80,
-		PARTICLE_STATE_DEF_FLAG_HAS_VELOCITY_CURVE_LOCAL = 0x100,
-		PARTICLE_STATE_DEF_FLAG_HAS_VELOCITY_CURVE_WORLD = 0x200,
-		PARTICLE_STATE_DEF_FLAG_USE_PHYSICS = 0x400,
-		PARTICLE_STATE_DEF_FLAG_MIRROR_TEXTURE_HORIZONTALLY = 0x800,
-		PARTICLE_STATE_DEF_FLAG_MIRROR_TEXTURE_HORIZONTALLY_RANDOM = 0x1000,
-		PARTICLE_STATE_DEF_FLAG_MIRROR_TEXTURE_VERTICALLY = 0x2000,
-		PARTICLE_STATE_DEF_FLAG_MIRROR_TEXTURE_VERTICALLY_RANDOM = 0x4000,
-		PARTICLE_STATE_DEF_FLAG_SORT_PARTICLES = 0x8000,
-		PARTICLE_STATE_DEF_FLAG_HANDLE_ON_IMPACT = 0x10000,
-		PARTICLE_STATE_DEF_FLAG_PLAYER_FACING = 0x20000,
-		PARTICLE_STATE_DEF_FLAG_PLAYER_FACING_LOCK_UP_VECTOR = 0x40000,
-		PARTICLE_STATE_DEF_FLAG_USE_OCCLUSION_QUERY = 0x80000,
-		PARTICLE_STATE_DEF_FLAG_HAS_COLOR = 0x100000,
-		PARTICLE_STATE_DEF_FLAG_HAS_RAY_CAST_PHYSICS = 0x200000,
-		PARTICLE_STATE_DEF_FLAG_HAS_EMISSIVE_CURVE = 0x400000,
-		PARTICLE_STATE_DEF_FLAG_HAS_INTENSITY_CURVE = 0x800000,
-		PARTICLE_STATE_DEF_FLAG_USE_VECTOR_FIELDS = 0x1000000,
-		PARTICLE_STATE_DEF_FLAG_INHERIT_PARENT_VELOCITY = 0x2000000,
-		PARTICLE_STATE_DEF_FLAG_DRAW_WITH_VIEW_MODEL = 0x4000000,
-		PARTICLE_STATE_DEF_FLAG_PLAY_SOUNDS = 0x8000000,
-		PARTICLE_STATE_DEF_FLAG_HAS_CAMERA_OFFSET_POSITION_ONLY = 0x10000000,
-		PARTICLE_STATE_DEF_FLAG_ON_IMPACT_USE_SURFACE_TYPE = 0x20000000,
-		PARTICLE_STATE_DEF_FLAG_IS_SPRITE = 0x40000000,
-		PARTICLE_STATE_DEF_FLAG_HAS_TRANS_SHADOWS = 0x80000000,
-		PARTICLE_STATE_DEF_FLAG_HAS_CHILD_EFFECTS = 0x0,
-		PARTICLE_STATE_DEF_FLAG_BLOCKS_SIGHT = 0x0,
-		PARTICLE_STATE_DEF_FLAG_HANDLE_TIME_IN_STATE = 0x0,
-		PARTICLE_STATE_DEF_FLAG_SCALE_BY_DISTANCE = 0x0,
-		PARTICLE_STATE_DEF_FLAG_HAS_VECTOR_FIELD_CURVE = 0x0,
-		PARTICLE_STATE_DEF_FLAG_USE_LOCAL_VECTOR_FIELDS_ONLY = 0x0,
-		PARTICLE_STATE_DEF_FLAG_HAS_SHADER_CURVE = 0x0,
-		PARTICLE_STATE_DEF_FLAG_HAS_SIZE_CURVE = 0x0,
-		PARTICLE_STATE_DEF_FLAG_HAS_SIZE_LERP = 0x0,
-		PARTICLE_STATE_DEF_FLAG_HAS_TEMPERATURE_CURVE = 0x0,
-		PARTICLE_STATE_DEF_FLAG_HAS_LIGHTING_FRACTION_CURVE = 0x0,
-		PARTICLE_STATE_DEF_FLAG_HAS_ROTATION_CURVE = 0x30,
-		PARTICLE_STATE_DEF_FLAG_HAS_ROTATION_1D = 0x50,
-		PARTICLE_STATE_DEF_FLAG_HAS_ROTATION_3D = 0xA0,
-		PARTICLE_STATE_DEF_FLAG_HAS_ROTATION = 0xF0,
-		PARTICLE_STATE_DEF_FLAG_HAS_MIRROR_TEXTURE = 0x7800,
-		PARTICLE_STATE_DEF_FLAG_HAS_VELOCITY_CURVE = 0x300,
-		PARTICLE_STATE_DEF_FLAG_REQUIRES_WORLD_COLLISION = 0x200400,
-	};
-
-	enum PARTICLE_SYSTEM_DEF_FLAG
+	enum PARTICLE_SYSTEM_DEF_FLAG : std::uint32_t
 	{
 		PARTICLE_SYSTEM_DEF_FLAG_HAS_SPRITES = 0x1,
 		PARTICLE_SYSTEM_DEF_FLAG_HAS_NON_SPRITES = 0x2,
@@ -7125,7 +7965,7 @@ namespace zonetool::iw7
 		PARTICLE_SYSTEM_DEF_FLAG_HAS_PHYSICS_HEAVY = 0x8,
 		PARTICLE_SYSTEM_DEF_FLAG_HAS_PHYSICS_LIGHT = 0x10,
 		PARTICLE_SYSTEM_DEF_FLAG_HAS_SCRIPTED_INPUTS = 0x20,
-		PARTICLE_SYSTEM_DEF_FLAG_USE_OCCLUSION_QUERY = 0x40,
+		PARTICLE_SYSTEM_DEF_FLAG_USE_OCCLUSION_QUERY = 0x40, // c
 		PARTICLE_SYSTEM_DEF_FLAG_USE_OCCLUSION_QUERY_OVERRIDE_POS = 0x80,
 		PARTICLE_SYSTEM_DEF_FLAG_KILL_ON_OWNER_ENTITY_DEATH = 0x100,
 		PARTICLE_SYSTEM_DEF_FLAG_HAS_TRANS_SHADOWS = 0x200,
@@ -7190,7 +8030,7 @@ namespace zonetool::iw7
 		PARTICLE_MODULE_FORCE = 0x24,
 		PARTICLE_MODULE_GRAVITY = 0x25,
 		PARTICLE_MODULE_INTENSITY_GRAPH = 0x26,
-		PARTICLE_MODULE_TEMPERATURE_GRAPH = 0x27,
+		PARTICLE_MODULE_PARENT_VELOCITY_GRAPH = 0x27,
 		PARTICLE_MODULE_PHYSICS_LIGHT = 0x28,
 		PARTICLE_MODULE_PHYSICS_RAY_CAST = 0x29,
 		PARTICLE_MODULE_POSITION_GRAPH = 0x2A,
@@ -7199,14 +8039,33 @@ namespace zonetool::iw7
 		PARTICLE_MODULE_SIZE_GRAPH = 0x2D,
 		PARTICLE_MODULE_SIZE_LERP = 0x2E,
 		PARTICLE_MODULE_VELOCITY_GRAPH = 0x2F,
-		PARTICLE_MODULE_TEST_BIRTH = 0x30,
-		PARTICLE_MODULE_TEST_DEATH = 0x31,
-		PARTICLE_MODULE_TEST_GRAVITY = 0x32,
-		PARTICLE_MODULE_TEST_IMPACT = 0x33,
-		PARTICLE_MODULE_TEST_POS = 0x34,
-		PARTICLE_MODULE_TEST_TIME_IN_STATE = 0x35,
+		PARTICLE_MODULE_TEST_AGE = 0x30,
+		PARTICLE_MODULE_TEST_BIRTH = 0x31,
+		PARTICLE_MODULE_TEST_DEATH = 0x32,
+		PARTICLE_MODULE_TEST_GRAVITY = 0x33,
+		PARTICLE_MODULE_TEST_IMPACT = 0x34,
+		PARTICLE_MODULE_TEST_POS = 0x35,
 		PARTICLE_MODULE_COUNT = 0x36,
 		PARTICLE_MODULE_INVALID = 0xFF,
+	};
+
+	enum PARTICLE_ELEMENT_TYPE : std::uint32_t
+	{
+		PARTICLE_ELEMENT_TYPE_BILLBOARD_SPRITE = 0,
+		PARTICLE_ELEMENT_TYPE_BEAM = 1,
+		PARTICLE_ELEMENT_TYPE_CLOUD = 2,
+		PARTICLE_ELEMENT_TYPE_SPARK_CLOUD = 3,
+		PARTICLE_ELEMENT_TYPE_DECAL = 4,
+		PARTICLE_ELEMENT_TYPE_FLARE = 5,
+		PARTICLE_ELEMENT_TYPE_GEO_TRAIL = 6,
+		PARTICLE_ELEMENT_TYPE_LIGHT_OMNI = 7,
+		PARTICLE_ELEMENT_TYPE_LIGHT_SPOT = 8,
+		PARTICLE_ELEMENT_TYPE_MODEL = 9,
+		PARTICLE_ELEMENT_TYPE_ORIENTED_SPRITE = 10,
+		PARTICLE_ELEMENT_TYPE_RUNNER = 11,
+		PARTICLE_ELEMENT_TYPE_TAIL = 12,
+		PARTICLE_ELEMENT_TYPE_VECTOR_FIELD = 13,
+		PARTICLE_ELEMENT_TYPE_VOLUMETRIC = 14,
 	};
 
 	struct float4
@@ -7274,10 +8133,9 @@ namespace zonetool::iw7
 
 	struct ParticleModuleInitAtlas : ParticleModule
 	{
+		int m_playRate;
 		int m_startFrame;
 		int m_loopCount;
-		bool m_randomIndex;
-		bool m_playOverLife;
 	}; assert_sizeof(ParticleModuleInitAtlas, 20);
 
 	struct ParticleModuleInitAttributes : ParticleModule
@@ -7334,10 +8192,10 @@ namespace zonetool::iw7
 
 	struct ParticleModuleInitDecal : ParticleModule
 	{
-		unsigned __int16 m_fadeInTime;
-		unsigned __int16 m_fadeOutTime;
-		unsigned __int16 m_stoppableFadeOutTime;
-		unsigned __int16 m_lerpWaitTime;
+		unsigned short m_fadeInTime;
+		unsigned short m_fadeOutTime;
+		unsigned short m_stoppableFadeOutTime;
+		unsigned short m_lerpWaitTime;
 		float4 m_lerpColor;
 		ParticleLinkedAssetListDef m_linkedAssetList;
 	}; assert_sizeof(ParticleModuleInitDecal, 48);
@@ -7383,14 +8241,14 @@ namespace zonetool::iw7
 	struct ParticleModuleInitLightOmni : ParticleModule
 	{
 		ParticleLinkedAssetListDef m_linkedAssetList;
-		float m_fovOuter;
-		float m_fovInner;
-		float m_bulbRadius;
-		float m_bulbLength;
+		float m_tonemappingScaleFactor;
+		float m_intensityIR;
 		bool m_disableVolumetric;
-		bool m_disableShadowMap;
-		bool m_disableDynamicShadows;
-		bool m_scriptScale;
+		unsigned char m_exponent;
+		char __pad0[2];
+		float m_shadowSoftness;
+		float m_shadowBias;
+		float m_shadowArea;
 	}; assert_sizeof(ParticleModuleInitLightOmni, 48);
 
 	struct ParticleModuleInitLightSpot : ParticleModule
@@ -7399,21 +8257,19 @@ namespace zonetool::iw7
 		float m_fovInner;
 		float m_bulbRadius;
 		float m_bulbLength;
-		float m_distanceFalloff;
-		//float m_fovCollimation;
 		float m_brightness;
+		float unk1;
 		float m_intensityUV;
 		float m_intensityIR;
-		//float m_intensityHeat;
+		float m_shadowNearPlane;
+		float m_toneMappingScaleFactor;
 		float m_shadowSoftness;
 		float m_shadowBias;
 		float m_shadowArea;
-		float m_shadowNearPlane;
-		float m_toneMappingScaleFactor;
 		bool m_disableVolumetric;
 		bool m_disableShadowMap;
 		bool m_disableDynamicShadows;
-		bool m_scriptScale;
+		bool m_exponent;
 		ParticleLinkedAssetListDef m_linkedAssetList;
 	}; assert_sizeof(ParticleModuleInitLightSpot, 80);
 	assert_offsetof(ParticleModuleInitLightSpot, m_linkedAssetList, 64);
@@ -7524,12 +8380,37 @@ namespace zonetool::iw7
 		ParticleCurveDef m_curves[1];
 	}; assert_sizeof(ParticleModuleInitSpawn, 32);
 
+	enum ParticleModuleAxesFlags
+	{
+		PARTICLE_MODULE_AXES_FLAG_POS_X = 0x1,
+		PARTICLE_MODULE_AXES_FLAG_NEG_X = 0x2,
+		PARTICLE_MODULE_AXES_FLAG_POS_Y = 0x4,
+		PARTICLE_MODULE_AXES_FLAG_NEG_Y = 0x8,
+		PARTICLE_MODULE_AXES_FLAG_POS_Z = 0x10,
+		PARTICLE_MODULE_AXES_FLAG_NEG_Z = 0x20,
+		PARTICLE_MODULE_AXES_FLAG_ALL_X = 0x3,
+		PARTICLE_MODULE_AXES_FLAG_ALL_Y = 0xC,
+		PARTICLE_MODULE_AXES_FLAG_ALL_Z = 0x30,
+		PARTICLE_MODULE_AXES_FLAG_ALL_POS = 0x15,
+		PARTICLE_MODULE_AXES_FLAG_ALL_NEG = 0x2A,
+		PARTICLE_MODULE_AXES_FLAG_ALL = 0x3F,
+	};
+
+	enum ParticleSpawnFlags
+	{
+		PARTICLE_SPAWN_ONLY_ON_SURFACE = 0x1,
+		PARTICLE_SPAWN_USE_CURVE_VALUES = 0x2,
+		PARTICLE_SPAWN_USE_MODIFIER_SCALE = 0x4,
+		PARTICLE_SPAWN_IS_DETERMINISTIC = 0x8,
+		PARTICLE_SPAWN_UNIFORM = 0x10,
+	};
+
 	struct ParticleModuleInitSpawnShape : ParticleModule
 	{
-		char m_axisFlags[1];
-		char m_spawnFlags[1];
-		char m_normalAxis[1];
-		char m_spawnType[1];
+		char m_axisFlags;
+		char m_spawnFlags;
+		char m_normalAxis;
+		char m_spawnType;
 		float m_volumeCubeRoot;
 		//float4 m_calculationOffset;
 		float4 m_offset;
@@ -7549,8 +8430,8 @@ namespace zonetool::iw7
 		bool m_rotateCalculatedOffset;
 		float m_halfHeight;
 		ParticleFloatRange m_radius;
+		float4 unk;
 		float4 m_directionQuat;
-		unsigned int m_pad[4];
 	}; assert_sizeof(ParticleModuleInitSpawnShapeCylinder, 80);
 
 	struct ParticleModuleInitSpawnShapeEllipsoid : ParticleModuleInitSpawnShape
@@ -7580,13 +8461,13 @@ namespace zonetool::iw7
 	{
 		unsigned int m_pad[2];
 		ParticleFloatRange m_radius;
-		unsigned int m_pad2[4];
+		float4 m_offset2;
 	}; assert_sizeof(ParticleModuleInitSpawnShapeSphere, 64);
 
 	struct ParticleModuleInitTail : ParticleModule
 	{
-		unsigned __int16 m_averagePastVelocities;
-		unsigned __int16 m_maxParentSpeed;
+		unsigned short m_averagePastVelocities;
+		unsigned short m_maxParentSpeed;
 		bool m_tailLeading;
 		bool m_scaleWithVelocity;
 		bool m_rotateAroundPivot;
@@ -7664,12 +8545,11 @@ namespace zonetool::iw7
 		ParticleCurveDef m_curves[2];
 	}; assert_sizeof(ParticleModuleIntensityGraph, 48);
 
-	struct ParticleModuleTemperatureGraph : ParticleModule
+	struct ParticleModuleParentVelocityGraph : ParticleModule
 	{
-		bool firstCurve;
-		char m_pad[7];
+		unsigned int m_pad[2];
 		ParticleCurveDef m_curves[2];
-	}; assert_sizeof(ParticleModuleTemperatureGraph, 48);
+	}; assert_sizeof(ParticleModuleParentVelocityGraph, 48);
 
 	struct ParticleModulePhysicsLight : ParticleModule
 	{
@@ -7742,15 +8622,48 @@ namespace zonetool::iw7
 		unsigned int m_pad[1];
 	};
 
+	enum ParticleUseOrientationOptions
+	{
+		PARTICLE_USE_ORIENTATION_OPTION_IDENTITY = 0x0,
+		PARTICLE_USE_ORIENTATION_OPTION_ROTATION = 0x1,
+		PARTICLE_USE_ORIENTATION_OPTION_RELATIVE_ROTATION = 0x2,
+		PARTICLE_USE_ORIENTATION_OPTION_VELOCITY_Y = 0x3,
+		PARTICLE_USE_ORIENTATION_OPTION_VELOCITY_X = 0x4,
+		PARTICLE_USE_ORIENTATION_OPTION_VELOCITY_Z = 0x5,
+		PARTICLE_USE_ORIENTATION_OPTION_RELATIVE = 0x6,
+		PARTICLE_USE_ORIENTATION_OPTION_COUNT = 0x7,
+	};
+
+	enum ParticleUseScaleOptions
+	{
+		PARTICLE_USE_SCALE_OPTION_NONE = 0x0,
+		PARTICLE_USE_SCALE_OPTION_MULT = 0x1,
+		PARTICLE_USE_SCALE_OPTION_OVERRIDE = 0x2,
+		PARTICLE_USE_SCALE_OPTION_COUNT = 0x3,
+	};
+
+	enum ParticleUseVelocityOptions
+	{
+		PARTICLE_USE_VELOCITY_OPTION_NONE = 0x0,
+		PARTICLE_USE_VELOCITY_OPTION_MULT = 0x1,
+		PARTICLE_USE_VELOCITY_OPTION_OVERRIDE = 0x2,
+		PARTICLE_USE_VELOCITY_OPTION_COUNT = 0x3,
+	};
+
 	struct ParticleModuleTest : ParticleModule
 	{
-		unsigned __int16 m_moduleIndex;
+		unsigned short m_moduleIndex;
 		char m_useOrientationOptions[1];
 		char m_useScaleOptions[1];
 		char m_useVelocityOptions[1];
 		ParticleModuleTestEventHandlerData m_eventHandlerData;
 	}; assert_sizeof(ParticleModuleTest, 48);
 	assert_offsetof(ParticleModuleTest, m_eventHandlerData, 16);
+
+	struct ParticleModuleTestAge : ParticleModuleTest
+	{
+		float m_age;
+	};
 
 	struct ParticleModuleTestBirth : ParticleModuleTest
 	{
@@ -7769,10 +8682,6 @@ namespace zonetool::iw7
 	};
 
 	struct ParticleModuleTestPos : ParticleModuleTest
-	{
-	};
-
-	struct ParticleModuleTestTimeInState : ParticleModuleTest
 	{
 	};
 
@@ -7818,7 +8727,7 @@ namespace zonetool::iw7
 		ParticleModuleForce force;
 		ParticleModuleGravity gravity;
 		ParticleModuleIntensityGraph intensityGraph;
-		ParticleModuleTemperatureGraph temperatureGraph;
+		ParticleModuleParentVelocityGraph parentVelocityGraph;
 		ParticleModulePhysicsLight physicsLight;
 		ParticleModulePhysicsRayCast physicsRayCast;
 		ParticleModulePositionGraph positionGraph;
@@ -7827,17 +8736,17 @@ namespace zonetool::iw7
 		ParticleModuleSizeGraph sizeGraph;
 		ParticleModuleSizeLerp sizeLerp;
 		ParticleModuleVelocityGraph velocityGraph;
+		ParticleModuleTestAge testAge;
 		ParticleModuleTestBirth testBirth;
 		ParticleModuleTestDeath testDeath;
 		ParticleModuleTestGravity testGravity;
 		ParticleModuleTestImpact testImpact;
 		ParticleModuleTestPos testPos;
-		ParticleModuleTestTimeInState testTimeInState;
 	};
 
 	struct ParticleModuleDef
 	{
-		ParticleModuleType type;
+		ParticleModuleType moduleType;
 		unsigned int m_pad[3];
 		ParticleModuleTypeDef moduleData;
 	}; assert_sizeof(ParticleModuleDef, 160);
@@ -7850,48 +8759,12 @@ namespace zonetool::iw7
 		PARTICLE_GRAVITY_OPTION_COUNT = 0x3,
 	};
 
-	enum ParticleInstancePoolAction
+	enum ParticleModuleGroup
 	{
-		PARTICLE_INSTANCE_POOL_ACTION_NO_SPAWN = 0x0,
-		PARTICLE_INSTANCE_POOL_ACTION_KILL_OLDEST_AND_SPAWN = 0x1,
-		PARTICLE_INSTANCE_POOL_ACTION_COUNT = 0x2,
-	};
-
-	enum ParticleDataFlags
-	{
-		USE_NONE = 0x0,
-		USE_POSITION = 0x1,
-		USE_VELOCITY = 0x2,
-		USE_COLOR = 0x4,
-		USE_ROTATION_ANGLE = 0x8,
-		USE_ROTATION_RATE = 0x10,
-		USE_SPAWN_POS = 0x20,
-		USE_SPAWN_QUAT = 0x40,
-		USE_SIZE = 0x80,
-		USE_EMISSIVE = 0x100,
-		USE_PARENT_VELOCITY = 0x200,
-		USE_CHILD_SYSTEM = 0x400,
-		USE_SPAWN_TIME = 0x800,
-		USE_LIFE = 0x1000,
-		USE_STATE = 0x2000,
-		USE_RANDOM_SEED = 0x4000,
-		USE_FLAGS = 0x8000,
-		USE_MODULE_TESTS = 0x10000,
-		USE_HANDLE = 0x20000,
-		USE_INTENSITY = 0x40000,
-		USE_TEMPERATURE = 0x80000,
-		USE_CAMERA_DISTANCE = 0x100000,
-		USE_INHERIT_PERCENTAGE = 0x200000,
-		USE_RAY_CAST_HANDLE = 0x400000,
-		USE_ATLAS_INDEX = 0x800000,
-		USE_VECTOR_FIELD_SCALE = 0x1000000,
-		USE_LIGHTING_FRAC = 0x2000000,
-		USE_PREV_PLACEMENT = 0x4000000,
-		USE_SHADER_PARAMS = 0x8000000,
-		CHECK_FIELD_COUNT = 0x8000001,
-		USE_ALL = 0xFFFFFFF,
-		USE_BASE = 0x192F8FF,
-		USE_EMISSIVE_CURVES = 0x2040100,
+		PARTICLE_MODULE_GROUP_INIT = 0x0,
+		PARTICLE_MODULE_GROUP_UPDATE = 0x1,
+		PARTICLE_MODULE_GROUP_TEST = 0x2,
+		PARTICLE_MODULE_GROUP_COUNT = 0x3,
 	};
 
 	struct ParticleModuleGroupDef
@@ -7927,12 +8800,9 @@ namespace zonetool::iw7
 		float spawnFrustumCullRadius;
 		unsigned int flags;
 		ParticleGravityOptions gravityOptions;
-		//int groupIDs[4];
-		ParticleFloatRange emitByDistanceDensity;
-		unsigned int instancePool;
-		unsigned int soloInstanceMax;
-		ParticleInstancePoolAction instanceAction;
-		ParticleDataFlags m_dataFlags;
+		int groupIDs[4];
+		float unk1;
+		float unk2;
 		ParticleFloatRange particleSpawnShapeRange;
 		unsigned int pad[1];
 	}; assert_sizeof(ParticleEmitterDef, 144);
@@ -8045,11 +8915,22 @@ namespace zonetool::iw7
 		FxSpawnDefOneShot oneShot;
 	};
 
+	enum FXElemAtlasBehavior : std::uint8_t
+	{
+		FX_ATLAS_START_FIXED = 0x0,
+		FX_ATLAS_START_RANDOM = 0x1,
+		FX_ATLAS_START_INDEXED = 0x2,
+		FX_ATLAS_START_MASK = 0x3,
+		FX_ATLAS_PLAY_OVER_LIFE = 0x4,
+		FX_ATLAS_LOOP_ONLY_N_TIMES = 0x8,
+	};
+
 	struct FxElemAtlas
 	{
 		unsigned char behavior;
 		unsigned char index;
 		unsigned char fps;
+		unsigned char unk;
 		unsigned char loopCount;
 		unsigned char colIndexBits;
 		unsigned char rowIndexBits;
@@ -8194,22 +9075,23 @@ namespace zonetool::iw7
 	{
 		FX_ELEM_TYPE_SPRITE_BILLBOARD = 0,
 		FX_ELEM_TYPE_SPRITE_ORIENTED = 1,
-		FX_ELEM_TYPE_SPRITE_ROTATED = 2,
-		FX_ELEM_TYPE_TAIL = 3,
-		FX_ELEM_TYPE_LINE = 4,
-		FX_ELEM_TYPE_TRAIL = 5,
-		FX_ELEM_TYPE_FLARE = 6,
-		FX_ELEM_TYPE_PARTICLE_SIM_ANIMATION = 7,
-		FX_ELEM_TYPE_CLOUD = 8,
-		FX_ELEM_TYPE_SPARK_CLOUD = 9,
-		FX_ELEM_TYPE_SPARK_FOUNTAIN = 10,
-		FX_ELEM_TYPE_MODEL = 11,
-		FX_ELEM_TYPE_OMNI_LIGHT = 12,
-		FX_ELEM_TYPE_SPOT_LIGHT = 13,
-		FX_ELEM_TYPE_SOUND = 14,
-		FX_ELEM_TYPE_DECAL = 15,
-		FX_ELEM_TYPE_RUNNER = 16,
-		FX_ELEM_TYPE_VECTORFIELD = 17,
+		FX_ELEM_TYPE_TAIL = 2,
+		FX_ELEM_TYPE_TRAIL = 3,
+		FX_ELEM_TYPE_FLARE = 4,
+		FX_ELEM_TYPE_PARTICLE_SIM_ANIMATION = 5,
+		FX_ELEM_TYPE_CLOUD = 6,
+		FX_ELEM_TYPE_SPARK_CLOUD = 7,
+		FX_ELEM_TYPE_SPARK_FOUNTAIN = 8,
+		FX_ELEM_TYPE_MODEL = 9,
+		FX_ELEM_TYPE_OMNI_LIGHT = 10,
+		FX_ELEM_TYPE_SPOT_LIGHT = 11,
+		FX_ELEM_TYPE_SOUND = 12,
+		FX_ELEM_TYPE_DECAL = 13,
+		FX_ELEM_TYPE_RUNNER = 14,
+		FX_ELEM_TYPE_VECTORFIELD = 15,
+		FX_ELEM_TYPE_COUNT = 16,
+		FX_ELEM_TYPE_LAST_SPRITE = FX_ELEM_TYPE_PARTICLE_SIM_ANIMATION,
+		FX_ELEM_TYPE_LAST_DRAWN = FX_ELEM_TYPE_SPOT_LIGHT,
 	};
 
 	enum FxElemDefFlags : std::uint32_t
@@ -8239,27 +9121,28 @@ namespace zonetool::iw7
 		FX_ELEM_NODRAW_IN_THERMAL_VIEW = 0x20000,
 		FX_ELEM_THERMAL_MASK = 0x22000,
 		FX_ELEM_SPAWN_IMPACT_FX_WITH_SURFACE_NAME = 0x40000,
-		FX_ELEM_RECEIVE_DYNAMIC_LIGHT = 0x80000,
+		FX_ELEM_DEPRECATED = 0x80000,
 		FX_ELEM_VOLUMETRIC_TRAIL = 0x100000,
 		FX_ELEM_USE_COLLISION = 0x200000,
 		FX_ELEM_USE_VECTORFIELDS = 0x400000,
-		FX_ELEM_NO_SURFACE_HDR_SCALAR = 0x800000,
 		FX_ELEM_HAS_VELOCITY_GRAPH_LOCAL = 0x1000000,
 		FX_ELEM_HAS_VELOCITY_GRAPH_WORLD = 0x2000000,
 		FX_ELEM_HAS_GRAVITY = 0x4000000,
 		FX_ELEM_USE_MODEL_PHYSICS = 0x8000000,
 		FX_ELEM_NONUNIFORM_SCALE = 0x10000000,
-		FX_ELEM_CLOUD_SHAPE_CUBE = 0x0,
-		FX_ELEM_CLOUD_SHAPE_SPHERE_LARGE = 0x20000000,
-		FX_ELEM_CLOUD_SHAPE_SPHERE_MEDIUM = 0x40000000,
-		FX_ELEM_CLOUD_SHAPE_SPHERE_SMALL = 0x60000000,
-		FX_ELEM_CLOUD_SHAPE_MASK = 0x60000000,
 		FX_ELEM_FOUNTAIN_DISABLE_COLLISION = 0x80000000,
 	};
 
 	enum FxElemDefExtraFlags : std::uint32_t
 	{
-
+		FX_ELEM2_BILLBOARD_FACING_CAMERA_PERPENDICULAR = 0x1,
+		FX_ELEM2_BILLBOARD_FACING_PLAYER = 0x2,
+		FX_ELEM2_BILLBOARD_FACING_MASK = 0x3,
+		FX_ELEM2_EMIT_TRAILS = 0x4,
+		FX_ELEM2_REACTIVE_TURBULANCE = 0x8,
+		FX_ELEM2_GPU_LIGHTING = 0x10,
+		FX_ELEM2_GPU_LIGHTING_SH = 0x20,
+		FX_ELEM2_COLOR_OR_ALPHA_CURVE = 0x40,
 	};
 
 	struct FxElemDef
@@ -8282,8 +9165,7 @@ namespace zonetool::iw7
 		FxFloatRange gravity;
 		FxFloatRange reflectionFactor;
 		FxElemAtlas atlas;
-		char unk[2];
-		unsigned char elemType;
+		FxElemType elemType;
 		unsigned char visualCount;
 		unsigned char velIntervalCount;
 		unsigned char visStateIntervalCount;
@@ -8302,13 +9184,23 @@ namespace zonetool::iw7
 		unsigned char useItemClip;
 		unsigned char fadeInfo;
 		int randomSeed;
-		float litMaxColorChangePerSec;
-		float litUnlitBlendFactor;
+		float litUnlitBlendFactor; // FX_EvaluateVisualState_DoLighting
+		float pad;
 	}; assert_sizeof(FxElemDef, 304);
 	assert_offsetof(FxElemDef, elemType, 182);
 	assert_offsetof(FxElemDef, visualCount, 183);
 	assert_offsetof(FxElemDef, visuals, 208);
 	assert_offsetof(FxElemDef, extended, 280);
+
+	enum FxEffectDefFlags : std::uint32_t
+	{
+		FX_EFFECT_NEEDS_LIGHTING_AT_SPAWN = 0x1,
+		FX_EFFECT_NEEDS_LIGHTING_PER_FRAME_AT_ORIGIN = 0x2,
+		FX_EFFECT_RECEIVES_DYNAMIC_LIGHTING_PER_FRAME_AT_ORIGIN = 0x4,
+		FX_EFFECT_USE_VECTORFIELDS = 0x8,
+		FX_EFFECT_UNK = 0x10,
+		FX_EFFECT_NEEDS_LIGHTING_AT_SPAWN_2 = 0x20,
+	};
 
 	struct FxEffectDef
 	{
@@ -8563,6 +9455,32 @@ namespace zonetool::iw7
 		const char* name;
 		unsigned int defCount;
 		StructuredDataDef* defs;
+	};
+
+	enum DDLFLags : std::uint8_t
+	{
+		DDL_FLAG_DIRTY = 0x0,
+		DDL_FLAG_CHECKSUM = 0x1,
+		DDL_FLAG_CODE_VERSION = 0x2,
+		DDL_FLAG_USER_FLAGS = 0x4,
+		DDL_FLAG_NO_PADDING = 0x8,
+		DDL_FLAG_RESERVE = 0x10,
+		DDL_FLAG_DDL_CHECKSUM = 0x20,
+	};
+
+	enum DDLType : std::int32_t
+	{
+		DDL_BYTE_TYPE = 0x0,
+		DDL_SHORT_TYPE = 0x1,
+		DDL_BOOL_TYPE = 0x2,
+		DDL_INT_TYPE = 0x3,
+		DDL_UINT64_TYPE = 0x4,
+		DDL_FLOAT_TYPE = 0x5,
+		DDL_FIXEDPOINT_TYPE = 0x6,
+		DDL_STRING_TYPE = 0x7,
+		DDL_STRUCT_TYPE = 0x8,
+		DDL_ENUM_TYPE = 0x9,
+		DDL_PAD_TYPE = 0xA,
 	};
 
 	struct DDLMember
@@ -9128,7 +10046,7 @@ namespace zonetool::iw7
 		ClipInfo* info;
 		unsigned int numSubModels;
 		cmodel_t* cmodels;
-		void* models; //GfxBrushModel* models;
+		GfxBrushModel* models;
 	}; assert_sizeof(AddonMapEnts, 0x88);
 
 	enum NetConstStringType
@@ -9301,8 +10219,8 @@ namespace zonetool::iw7
 		ScriptableEventBaseDef* base;
 		float delayMin;
 		float delayMax;
-		unsigned __int16 eventStreamBufferOffsetServer;
-		unsigned __int16 eventStreamBufferOffsetClient;
+		unsigned short eventStreamBufferOffsetServer;
+		unsigned short eventStreamBufferOffsetClient;
 	}; assert_sizeof(ScriptableEventWaitDef, 24);
 
 	struct ScriptableEventRandomDef
@@ -9313,8 +10231,8 @@ namespace zonetool::iw7
 		ScriptableEventDef* eventsA;
 		unsigned int eventBCount;
 		ScriptableEventDef* eventsB;
-		unsigned __int16 eventStreamBufferOffsetServer;
-		unsigned __int16 eventStreamBufferOffsetClient;
+		unsigned short eventStreamBufferOffsetServer;
+		unsigned short eventStreamBufferOffsetClient;
 	}; assert_sizeof(ScriptableEventRandomDef, 48);
 
 	struct ScriptableEventScriptDef
@@ -9352,8 +10270,8 @@ namespace zonetool::iw7
 
 	struct $6CB7272563F4458FB40A4A5E123C4ABA
 	{
-		unsigned __int16 index;
-		unsigned __int16 tree;
+		unsigned short index;
+		unsigned short tree;
 	};
 
 	union $754892263A8270AD7855E320C3BF2A51
@@ -9383,8 +10301,8 @@ namespace zonetool::iw7
 		float blendTime;
 		unsigned int eventAtEndCount;
 		ScriptableEventDef* eventsAtEnd;
-		unsigned __int16 eventStreamBufferOffsetClient;
-		unsigned __int16 eventStreamBufferOffsetServer;
+		unsigned short eventStreamBufferOffsetClient;
+		unsigned short eventStreamBufferOffsetServer;
 		scr_anim_t animationIndex[2];
 	}; assert_sizeof(ScriptableEventAnimationDef, 80);
 
@@ -9438,7 +10356,7 @@ namespace zonetool::iw7
 		bool randomRangeAngVel;
 		vec3_t launchLinVel;
 		vec3_t launchAngVel;
-		unsigned __int16 eventStreamBufferOffsetClient;
+		unsigned short eventStreamBufferOffsetClient;
 		bool allowMissingTag;
 		bool useRootOnMissingTag;
 	}; assert_sizeof(ScriptableEventSpawnDynentDef, 72);
@@ -9456,7 +10374,7 @@ namespace zonetool::iw7
 		FxCombinedDef effectDef;
 		float loopRate;
 		bool oneshotLooping;
-		unsigned __int16 eventStreamBufferOffsetClient;
+		unsigned short eventStreamBufferOffsetClient;
 		bool allowMissingTag;
 		bool useRootOnMissingTag;
 		bool allowNearestVehicleVelocity;
@@ -9511,7 +10429,7 @@ namespace zonetool::iw7
 		bool useStateTransitionTime;
 		float transitionMin;
 		float transitionMax;
-		unsigned __int16 eventStreamBufferOffsetClient;
+		unsigned short eventStreamBufferOffsetClient;
 	}; assert_sizeof(ScriptableEventLightDef, 72);
 
 	struct ScriptableEventSunDef
@@ -9575,8 +10493,8 @@ namespace zonetool::iw7
 		//bool destroy;
 		float amountDoT;
 		float intervalDoT;
-		unsigned __int16 eventStreamBufferOffsetServer;
-		unsigned __int16 eventStreamBufferOffsetClient;
+		unsigned short eventStreamBufferOffsetServer;
+		unsigned short eventStreamBufferOffsetClient;
 		ScriptablePartDef* part;
 	}; assert_sizeof(ScriptableEventPartDamageDef, 80);
 
@@ -9584,7 +10502,7 @@ namespace zonetool::iw7
 	{
 		ScriptableEventBaseDef* base;
 		MayhemData* mayhem;
-		unsigned __int16 eventStreamBufferOffsetClient;
+		unsigned short eventStreamBufferOffsetClient;
 	}; assert_sizeof(ScriptableEventSetMayhemDef, 24);
 
 	enum Scriptable_MayhemAction
@@ -9598,7 +10516,7 @@ namespace zonetool::iw7
 	{
 		ScriptableEventBaseDef* base;
 		Scriptable_MayhemAction action;
-		unsigned __int16 eventStreamBufferOffsetClient;
+		unsigned short eventStreamBufferOffsetClient;
 	}; assert_sizeof(ScriptableEventPlayMayhemDef, 16);
 
 	enum Scriptable_ShaderParamType
@@ -9630,7 +10548,7 @@ namespace zonetool::iw7
 		float placeHolderValue3;
 		float placeHolderValue4;
 		float transitionTime;
-		unsigned __int16 eventStreamBufferOffsetClient;
+		unsigned short eventStreamBufferOffsetClient;
 	}; assert_sizeof(ScriptableEventViewmodelShaderParamDef, 40);
 
 	enum Scriptable_ImageId
@@ -9653,7 +10571,7 @@ namespace zonetool::iw7
 		ScriptableEventDef* events1p;
 		unsigned int event3pCount;
 		ScriptableEventDef* events3p;
-		unsigned __int16 eventStreamBufferOffsetClient;
+		unsigned short eventStreamBufferOffsetClient;
 	}; assert_sizeof(ScriptableEventClientViewSelectorDef, 48);
 
 	enum Scriptable_TeamFilter
@@ -9683,8 +10601,8 @@ namespace zonetool::iw7
 		ScriptableEventDef* eventsPass;
 		unsigned int eventFailCount;
 		ScriptableEventDef* eventsFail;
-		unsigned __int16 eventStreamBufferOffsetClient;
-		unsigned __int16 eventStreamBufferOffsetServer;
+		unsigned short eventStreamBufferOffsetClient;
+		unsigned short eventStreamBufferOffsetServer;
 	}; assert_sizeof(ScriptableEventTeamSelectorDef, 56);
 
 	struct ScriptableEventAddModelDef
@@ -9740,7 +10658,7 @@ namespace zonetool::iw7
 		Material* material;
 		int transitionTime;
 		char finalValue;
-		unsigned __int16 eventStreamBufferOffsetClient;
+		unsigned short eventStreamBufferOffsetClient;
 		char __pad1[8];
 	}; assert_sizeof(ScriptableEventMaterialOverrideDef, 40);
 
@@ -9869,9 +10787,9 @@ namespace zonetool::iw7
 		ScriptablePartDef* childParts;
 		unsigned int numDamageTagOverrides;
 		ScriptableDamageTagOverride* damageTagOverrides;
-		unsigned __int16 eventStreamBufferOffsetServer;
-		unsigned __int16 eventStreamBufferOffsetClient;
-		unsigned __int16 eventStreamSize;
+		unsigned short eventStreamBufferOffsetServer;
+		unsigned short eventStreamBufferOffsetClient;
+		unsigned short eventStreamSize;
 	}; assert_sizeof(ScriptablePartDef, 104);
 
 	struct ScriptableDef // unchecked
@@ -9888,9 +10806,9 @@ namespace zonetool::iw7
 		unsigned int serverControlledPartCount;
 		unsigned int maxNumDynEntPartsBase;
 		unsigned int maxNumDynEntPartsForSpawning;
-		unsigned __int16 eventStreamSizeRequiredServer;
-		unsigned __int16 eventStreamSizeRequiredClient;
-		unsigned __int16 eventStreamSize;
+		unsigned short eventStreamSizeRequiredServer;
+		unsigned short eventStreamSizeRequiredClient;
+		unsigned short eventStreamSize;
 		unsigned int ffMemCost;
 		scr_string_t animationTreeName;
 		void* animationTreeDef[2];
@@ -10026,30 +10944,30 @@ namespace zonetool::iw7
 
 	struct FxParticleSimAnimationParticleData
 	{
-		unsigned __int16 xNormalizedPos;
-		unsigned __int16 yNormalizedPos;
-		unsigned __int16 zNormalizedPos;
-		unsigned __int16 xNormalizedWidth;
-		unsigned __int16 yNormalizedHeight;
-		unsigned __int16 orientation;
-		unsigned __int16 lifetime;
-		unsigned __int16 particleID;
-		unsigned __int16 xNormalizedPosNextFrame;
-		unsigned __int16 yNormalizedPosNextFrame;
-		unsigned __int16 zNormalizedPosNextFrame;
-		unsigned __int16 xNormalizedWidthNextFrame;
-		unsigned __int16 yNormalizedHeightNextFrame;
-		__int16 orientationDelta;
-		unsigned __int16 colorTableIndex;
-		unsigned __int16 nextColorTableIndex;
+		unsigned short xNormalizedPos;
+		unsigned short yNormalizedPos;
+		unsigned short zNormalizedPos;
+		unsigned short xNormalizedWidth;
+		unsigned short yNormalizedHeight;
+		unsigned short orientation;
+		unsigned short lifetime;
+		unsigned short particleID;
+		unsigned short xNormalizedPosNextFrame;
+		unsigned short yNormalizedPosNextFrame;
+		unsigned short zNormalizedPosNextFrame;
+		unsigned short xNormalizedWidthNextFrame;
+		unsigned short yNormalizedHeightNextFrame;
+		short orientationDelta;
+		unsigned short colorTableIndex;
+		unsigned short nextColorTableIndex;
 	};
 
 	struct FxParticleSimAnimationParticleDataOrientation3D
 	{
-		unsigned __int16 yOrientation;
-		unsigned __int16 zOrientation;
-		__int16 yOrientationDelta;
-		__int16 zOrientationDelta;
+		unsigned short yOrientation;
+		unsigned short zOrientation;
+		short yOrientationDelta;
+		short zOrientationDelta;
 	};
 
 	struct FxParticleSimAnimationParticleDataIndex
@@ -10476,110 +11394,110 @@ namespace zonetool::iw7
 
 	struct WeaponAnimPackageStateTimers
 	{
-		unsigned __int16 iFireDelay;
-		unsigned __int16 iMeleeDelay;
-		unsigned __int16 iDetonateDelay;
-		unsigned __int16 iFirstRaiseTime;
-		unsigned __int16 iAltRaiseTime;
-		unsigned __int16 iAltRaiseADSTime;
-		unsigned __int16 iAltRaiseAkimboTime;
-		unsigned __int16 iRechamberTime;
-		unsigned __int16 rechamberTimeOneHanded;
-		unsigned __int16 iRechamberBoltTime;
-		unsigned __int16 iHoldFireTime;
-		unsigned __int16 iHoldPrimeTime;
-		unsigned __int16 iDetonateTime;
-		unsigned __int16 iMeleeTime;
-		unsigned __int16 meleeChargeTime;
-		unsigned __int16 meleeUnkTime;
-		unsigned __int16 altMeleeTime;
-		unsigned __int16 altMeleeChargeTime;
-		unsigned __int16 altMeleeUnkTime;
-		unsigned __int16 iReloadTime;
-		unsigned __int16 iFastReloadTime;
-		unsigned __int16 reloadShowRocketTime;
-		unsigned __int16 iReloadEmptyTime;
-		unsigned __int16 iFastReloadEmptyTime;
-		unsigned __int16 iReloadAddTime;
-		unsigned __int16 iFastReloadAddTime;
-		unsigned __int16 iReloadEmptyAddTime;
-		unsigned __int16 iFastReloadEmptyAddTime;
-		unsigned __int16 iReloadStartTime;
-		unsigned __int16 iAltOverride3PInTime;
-		unsigned __int16 iAltOverride3POutTime;
-		unsigned __int16 iReloadStartAddTime;
-		unsigned __int16 iFastReloadStartAddTime;
-		unsigned __int16 iReloadEndTime;
-		unsigned __int16 iFastReloadEndTime;
-		unsigned __int16 iDropTime;
-		unsigned __int16 iRaiseTime;
-		unsigned __int16 iAltDropTime;
-		unsigned __int16 iAltDropADSTime;
-		unsigned __int16 iAltDropAkimboTime;
-		unsigned __int16 quickDropTime;
-		unsigned __int16 quickRaiseTime;
-		unsigned __int16 iBreachRaiseTime;
-		unsigned __int16 iEmptyRaiseTime;
-		unsigned __int16 iEmptyDropTime;
-		unsigned __int16 sprintInTime;
-		unsigned __int16 sprintLoopTime;
-		unsigned __int16 sprintOutTime;
-		unsigned __int16 walkTime;
-		unsigned __int16 gungHoTime;
-		unsigned __int16 crawlTime;
-		unsigned __int16 stunnedTimeBegin;
-		unsigned __int16 stunnedTimeLoop;
-		unsigned __int16 stunnedTimeEnd;
-		unsigned __int16 nightVisionWearTime;
-		unsigned __int16 nightVisionWearTimeFadeOutEnd;
-		unsigned __int16 nightVisionWearTimePowerUp;
-		unsigned __int16 nightVisionRemoveTime;
-		unsigned __int16 nightVisionRemoveTimePowerDown;
-		unsigned __int16 nightVisionRemoveTimeFadeInStart;
-		unsigned __int16 primeTime;
+		unsigned short iFireDelay;
+		unsigned short iMeleeDelay;
+		unsigned short iDetonateDelay;
+		unsigned short iFirstRaiseTime;
+		unsigned short iAltRaiseTime;
+		unsigned short iAltRaiseADSTime;
+		unsigned short iAltRaiseAkimboTime;
+		unsigned short iRechamberTime;
+		unsigned short rechamberTimeOneHanded;
+		unsigned short iRechamberBoltTime;
+		unsigned short iHoldFireTime;
+		unsigned short iHoldPrimeTime;
+		unsigned short iDetonateTime;
+		unsigned short iMeleeTime;
+		unsigned short meleeChargeTime;
+		unsigned short meleeChargeDelay;
+		unsigned short altMeleeTime;
+		unsigned short altMeleeChargeTime;
+		unsigned short altMeleeChargeDelay;
+		unsigned short iReloadTime;
+		unsigned short iFastReloadTime;
+		unsigned short reloadShowRocketTime;
+		unsigned short iReloadEmptyTime;
+		unsigned short iFastReloadEmptyTime;
+		unsigned short iReloadAddTime;
+		unsigned short iFastReloadAddTime;
+		unsigned short iReloadEmptyAddTime;
+		unsigned short iFastReloadEmptyAddTime;
+		unsigned short iReloadStartTime;
+		unsigned short iAltOverride3PInTime;
+		unsigned short iAltOverride3POutTime;
+		unsigned short iReloadStartAddTime;
+		unsigned short iFastReloadStartAddTime;
+		unsigned short iReloadEndTime;
+		unsigned short iFastReloadEndTime;
+		unsigned short iDropTime;
+		unsigned short iRaiseTime;
+		unsigned short iAltDropTime;
+		unsigned short iAltDropADSTime;
+		unsigned short iAltDropAkimboTime;
+		unsigned short quickDropTime;
+		unsigned short quickRaiseTime;
+		unsigned short iBreachRaiseTime;
+		unsigned short iEmptyRaiseTime;
+		unsigned short iEmptyDropTime;
+		unsigned short sprintInTime;
+		unsigned short sprintLoopTime;
+		unsigned short sprintOutTime;
+		unsigned short walkTime;
+		unsigned short gungHoTime;
+		unsigned short crawlTime;
+		unsigned short stunnedTimeBegin;
+		unsigned short stunnedTimeLoop;
+		unsigned short stunnedTimeEnd;
+		unsigned short nightVisionWearTime;
+		unsigned short nightVisionWearTimeFadeOutEnd;
+		unsigned short nightVisionWearTimePowerUp;
+		unsigned short nightVisionRemoveTime;
+		unsigned short nightVisionRemoveTimePowerDown;
+		unsigned short nightVisionRemoveTimeFadeInStart;
+		unsigned short primeTime;
 		bool bHoldFullPrime;
 		bool bAltOverride3PADSOnly;
-		unsigned __int16 blastFrontTime;
-		unsigned __int16 blastRightTime;
-		unsigned __int16 blastBackTime;
-		unsigned __int16 blastLeftTime;
-		unsigned __int16 slideInTime;
-		unsigned __int16 slideLoopTime;
-		unsigned __int16 slideOutTime;
-		unsigned __int16 dodgeTime;
-		unsigned __int16 wallRunInTime;
-		unsigned __int16 wallRunOutTime;
-		unsigned __int16 leapInTime;
-		unsigned __int16 leapLoopTime;
-		unsigned __int16 leapOutTime;
-		unsigned __int16 leapCancelTime;
-		unsigned __int16 chargeInTime;
-		unsigned __int16 chargeLoopTime;
-		unsigned __int16 chargeOutTime;
-		unsigned __int16 iRegenerationTime;
-		unsigned __int16 iRegenerationAddTime;
-		unsigned __int16 iReloadInterruptTime;
-		unsigned __int16 iReloadEmptyInterruptTime;
-		unsigned __int16 iReloadEndInterruptTime;
-		unsigned __int16 iReloadMultiple1InterruptTime;
-		unsigned __int16 iReloadMultiple2InterruptTime;
-		unsigned __int16 iReloadMultiple3InterruptTime;
-		unsigned __int16 iReloadMultiple4InterruptTime;
-		unsigned __int16 iReloadMultiple5InterruptTime;
-		unsigned __int16 iReloadMultiple6InterruptTime;
-		unsigned __int16 iReloadMultiple7InterruptTime;
-		unsigned __int16 iReloadMultiple8InterruptTime;
-		unsigned __int16 iFastReloadInterruptTime;
-		unsigned __int16 iFastReloadEmptyInterruptTime;
-		unsigned __int16 iFastReloadEndInterruptTime;
-		unsigned __int16 iFastReloadMultiple1InterruptTime;
-		unsigned __int16 iFastReloadMultiple2InterruptTime;
-		unsigned __int16 iFastReloadMultiple3InterruptTime;
-		unsigned __int16 iFastReloadMultiple4InterruptTime;
-		unsigned __int16 iFastReloadMultiple5InterruptTime;
-		unsigned __int16 iFastReloadMultiple6InterruptTime;
-		unsigned __int16 iFastReloadMultiple7InterruptTime;
-		unsigned __int16 iFastReloadMultiple8InterruptTime;
+		unsigned short blastFrontTime;
+		unsigned short blastRightTime;
+		unsigned short blastBackTime;
+		unsigned short blastLeftTime;
+		unsigned short slideInTime;
+		unsigned short slideLoopTime;
+		unsigned short slideOutTime;
+		unsigned short dodgeTime;
+		unsigned short wallRunInTime;
+		unsigned short wallRunOutTime;
+		unsigned short leapInTime;
+		unsigned short leapLoopTime;
+		unsigned short leapOutTime;
+		unsigned short leapCancelTime;
+		unsigned short chargeInTime;
+		unsigned short chargeLoopTime;
+		unsigned short chargeOutTime;
+		unsigned short iRegenerationTime;
+		unsigned short iRegenerationAddTime;
+		unsigned short iReloadInterruptTime;
+		unsigned short iReloadEmptyInterruptTime;
+		unsigned short iReloadEndInterruptTime;
+		unsigned short iReloadMultiple1InterruptTime;
+		unsigned short iReloadMultiple2InterruptTime;
+		unsigned short iReloadMultiple3InterruptTime;
+		unsigned short iReloadMultiple4InterruptTime;
+		unsigned short iReloadMultiple5InterruptTime;
+		unsigned short iReloadMultiple6InterruptTime;
+		unsigned short iReloadMultiple7InterruptTime;
+		unsigned short iReloadMultiple8InterruptTime;
+		unsigned short iFastReloadInterruptTime;
+		unsigned short iFastReloadEmptyInterruptTime;
+		unsigned short iFastReloadEndInterruptTime;
+		unsigned short iFastReloadMultiple1InterruptTime;
+		unsigned short iFastReloadMultiple2InterruptTime;
+		unsigned short iFastReloadMultiple3InterruptTime;
+		unsigned short iFastReloadMultiple4InterruptTime;
+		unsigned short iFastReloadMultiple5InterruptTime;
+		unsigned short iFastReloadMultiple6InterruptTime;
+		unsigned short iFastReloadMultiple7InterruptTime;
+		unsigned short iFastReloadMultiple8InterruptTime;
 	}; assert_sizeof(WeaponAnimPackageStateTimers, 206);
 
 	struct FootstepAnims
@@ -10991,10 +11909,14 @@ namespace zonetool::iw7
 	enum DBAllocFlags : std::int32_t
 	{
 		DB_ZONE_NONE = 0x0,
-		DB_ZONE_COMMON = 0x1,
-		DB_ZONE_GAME = 0x4, // maybe
+		DB_ZONE_PERMAMENT = 0x1,
+		DB_ZONE_UI = 0x20,
+		DB_ZONE_UI_SCENE = 0x40,
+		DB_ZONE_GAME = 0x80,
 		DB_ZONE_LOAD = 0x100,
-		DB_ZONE_CUSTOM = 0x1000000 // added for custom zone loading
+		DB_ZONE_PRELOAD_LEVEL_SP = 0x20000,
+		DB_ZONE_PRELOAD_TRANSIENT_SP = 0x40000,
+		DB_ZONE_CUSTOM = 0x1000000, // added for custom zone loading
 	};
 
 	struct XZoneInfo
@@ -11012,7 +11934,9 @@ namespace zonetool::iw7
 		void* handle_dcache;
 		char __pad1[22];
 		bool isSecure;
-		char __pad2[49];
+		char __pad2[1];
+		int some_check;
+		char __pad3[44];
 	}; assert_sizeof(DBFile, 0xA8);
 	assert_offsetof(DBFile, isSecure, 118);
 
@@ -11031,9 +11955,9 @@ namespace zonetool::iw7
 		unsigned int total_out;
 		char* msg;
 		db_internal_state* state;
-		unsigned __int8* (__fastcall* zalloc)(unsigned __int8*, unsigned int, unsigned int);
-		void(__fastcall* zfree)(unsigned __int8*, unsigned __int8*);
-		unsigned __int8* opaque;
+		unsigned char* (__fastcall* zalloc)(unsigned char*, unsigned int, unsigned int);
+		void(__fastcall* zfree)(unsigned char*, unsigned char*);
+		unsigned char* opaque;
 		int data_type;
 		unsigned long adler;
 		unsigned long reserved;
@@ -11119,10 +12043,11 @@ namespace zonetool::iw7
 	struct XZoneMemory
 	{
 		XBlock blocks[MAX_XFILE_COUNT];
-		char __pad0[112];
-		void* shared_ff_data;
+		unsigned __int64 callbackPos;
+		char __pad0[104];
+		XStreamFile* shared_ff_data;
 		unsigned int shared_ff_count;
-		int padding1;
+		unsigned int shared_ff_count2;
 		void* unknown; // always 0
 		XStreamFile* streamed_images;
 		unsigned int streamed_image_count;
@@ -11187,8 +12112,8 @@ namespace zonetool::iw7
 		char magic[8];
 		std::uint32_t version;
 		std::uint8_t unused; // (unused)
-		std::uint8_t has_no_image_fastfile;
-		std::uint8_t has_no_shared_fastfile;
+		std::uint8_t has_no_image_fastfile; // .ffi
+		std::uint8_t has_no_shared_fastfile; // .ffs
 		std::uint8_t unk1;
 		std::uint32_t fileTimeHigh; // (unused)
 		std::uint32_t fileTimeLow; // (unused)
@@ -11221,8 +12146,8 @@ namespace zonetool::iw7
 
 	struct XBlockCompressionBlockSizeAndCompressionType
 	{
-		unsigned __int32 blockSize : 24;
-		unsigned __int32 compressionType : 8;
+		unsigned int blockSize : 24;
+		unsigned int compressionType : 8;
 	};
 
 	struct XBlockCompressionDataHeader
@@ -11316,8 +12241,8 @@ namespace zonetool::iw7
 		char channelCount;
 		char looping;
 		char format;
-		unsigned __int16 EnvelopeTime1;
-		unsigned __int16 EnvelopeTime2;
+		unsigned short EnvelopeTime1;
+		unsigned short EnvelopeTime2;
 		char EnvelopeLoudness0;
 		char EnvelopeLoudness1;
 		char EnvelopeLoudness2;

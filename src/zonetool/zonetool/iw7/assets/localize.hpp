@@ -3,5 +3,5 @@
 
 namespace zonetool::iw7
 {
-	using localize = zonetool::localize<LocalizeEntry, ASSET_TYPE_LOCALIZE_ENTRY, XAssetType, XAssetHeader, XAssetEntry, XFileBlock>;
+	REGISTER_TEMPLATED_ASSET(localize, LocalizeEntry, ASSET_TYPE_LOCALIZE_ENTRY);
 }

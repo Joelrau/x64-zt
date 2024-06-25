@@ -45,7 +45,7 @@ namespace zonetool::iw7
 
 		// tags
 		asset->boneNames = mem->allocate<scr_string_t>(asset->numBones + asset->numClientBones);
-		for (unsigned char i = 0; i < asset->numBones + asset->numClientBones; i++)
+		for (auto i = 0; i < asset->numBones + asset->numClientBones; i++)
 		{
 			this->add_script_string(&asset->boneNames[i], read.read_string());
 		}
@@ -64,7 +64,7 @@ namespace zonetool::iw7
 
 		// surfaces
 		asset->materialHandles = read.read_array<Material*>();
-		for (unsigned char i = 0; i < asset->numsurfs; i++)
+		for (unsigned int i = 0; i < asset->numsurfs; i++)
 		{
 			asset->materialHandles[i] = read.read_asset<Material>();
 		}
@@ -80,12 +80,12 @@ namespace zonetool::iw7
 		asset->physicsFXShape = read.read_asset<PhysicsFXShape>();
 
 		// unknown
-		asset->unknown02 = read.read_array<char>();
+		asset->physicsLODData = read.read_array<char>();
 
-		asset->unknownNames = mem->allocate<scr_string_t>(asset->unknownNamesCount);
-		for (unsigned int i = 0; i < asset->unknownNamesCount; i++)
+		asset->physicsLODDataNames = mem->allocate<scr_string_t>(asset->physicsLODDataNameCount);
+		for (unsigned int i = 0; i < asset->physicsLODDataNameCount; i++)
 		{
-			this->add_script_string(&asset->unknownNames[i], read.read_string());
+			this->add_script_string(&asset->physicsLODDataNames[i], read.read_string());
 		}
 
 		asset->scriptableMoverDef = read.read_asset<ScriptableDef>();
@@ -102,77 +102,6 @@ namespace zonetool::iw7
 		asset->unknown04 = read.read_array<unk_1453E14D8>();
 
 		read.close();
-
-		/*std::string name_e = asset->name;
-		if (name_e.find("viewmodel_ak47") != std::string::npos)
-		{
-			auto asset2 = db_find_x_asset_header_copy<XModel>(XAssetType(this->type()), "weapon_ftlpistol_vm", mem).model;
-			XModel iw7_asset_{};
-			XModel* iw7_asset = &iw7_asset_;
-			memcpy(iw7_asset, asset2, sizeof(XModel));
-
-			iw7_asset->name = asset->name;
-			iw7_asset->numBones = asset->numBones;
-			iw7_asset->numRootBones = asset->numRootBones;
-			iw7_asset->numsurfs = asset->numsurfs;
-			iw7_asset->numReactiveMotionParts = 0;
-			iw7_asset->scale = asset->scale;
-			memcpy(&iw7_asset->noScalePartBits, &asset->noScalePartBits, sizeof(asset->noScalePartBits));
-
-			iw7_asset->boneNames = asset->boneNames;
-
-			iw7_asset->parentList = asset->parentList;
-			iw7_asset->tagAngles = asset->tagAngles;
-			iw7_asset->tagPositions = asset->tagPositions;
-			iw7_asset->partClassification = asset->partClassification;
-			iw7_asset->baseMat = asset->baseMat;
-			iw7_asset->reactiveMotionParts = nullptr;
-
-			iw7_asset->materialHandles = asset->materialHandles;
-
-			for (auto i = 0; i < 6; i++)
-			{
-				iw7_asset->lodInfo[i].dist = 1000000.0f;
-			}
-
-			// level of detail data
-			for (auto i = 0; i < asset->numLods; i++)
-			{
-				iw7_asset->lodInfo[i].dist = asset->lodInfo[i].dist;
-				iw7_asset->lodInfo[i].numsurfs = asset->lodInfo[i].numsurfs;
-				iw7_asset->lodInfo[i].surfIndex = asset->lodInfo[i].surfIndex;
-				iw7_asset->lodInfo[i].modelSurfs = asset->lodInfo[i].modelSurfs;
-				memcpy(&iw7_asset->lodInfo[i].partBits, &asset->lodInfo[i].partBits, sizeof(asset->lodInfo[i].partBits));
-			}
-
-			iw7_asset->maxLoadedLod = asset->maxLoadedLod;
-			iw7_asset->numLods = asset->numLods;
-			iw7_asset->collLod = asset->collLod;
-			//iw7_asset->flags = asset->flags;
-
-			iw7_asset->numCollSurfs = asset->numCollSurfs;
-			iw7_asset->collSurfs = asset->collSurfs;
-
-			iw7_asset->contents = asset->contents;
-
-			iw7_asset->boneInfo = asset->boneInfo;
-
-			iw7_asset->radius = asset->radius;
-			memcpy(&iw7_asset->bounds, &asset->bounds, sizeof(asset->bounds));
-			iw7_asset->memUsage = asset->memUsage;
-
-			// idk
-			//iw7_asset->invHighMipRadius = asset->invHighMipRadius;
-
-			//iw7_asset->quantization = 0.0f;
-
-			iw7_asset->unknownIndex = 0xFF;
-			iw7_asset->unknownIndex2 = 0xFF;
-
-			//iw7_asset->flags = 0x40;
-
-			memcpy(asset, iw7_asset, sizeof(XModel));
-		}*/
 
 		return asset;
 	}
@@ -202,11 +131,11 @@ namespace zonetool::iw7
 				this->add_script_string(&asset->boneNames[i], SL_ConvertToString(original_scriptstrings[i]));
 			}
 
-			original_scriptstrings = asset->unknownNames;
-			asset->unknownNames = mem->allocate<scr_string_t>(asset->unknownNamesCount);
-			for (unsigned int i = 0; i < asset->unknownNamesCount; i++)
+			original_scriptstrings = asset->physicsLODDataNames;
+			asset->physicsLODDataNames = mem->allocate<scr_string_t>(asset->physicsLODDataNameCount);
+			for (unsigned int i = 0; i < asset->physicsLODDataNameCount; i++)
 			{
-				this->add_script_string(&asset->unknownNames[i], SL_ConvertToString(original_scriptstrings[i]));
+				this->add_script_string(&asset->physicsLODDataNames[i], SL_ConvertToString(original_scriptstrings[i]));
 			}
 
 			original_scriptstrings = asset->aimAssistBones;
@@ -232,10 +161,10 @@ namespace zonetool::iw7
 					this->get_script_string(&xmodel->boneNames[i])));
 			}
 
-			for (unsigned int i = 0; i < xmodel->unknownNamesCount; i++)
+			for (unsigned int i = 0; i < xmodel->physicsLODDataNameCount; i++)
 			{
-				xmodel->unknownNames[i] = static_cast<scr_string_t>(buf->write_scriptstring(
-					this->get_script_string(&xmodel->unknownNames[i])));
+				xmodel->physicsLODDataNames[i] = static_cast<scr_string_t>(buf->write_scriptstring(
+					this->get_script_string(&xmodel->physicsLODDataNames[i])));
 			}
 
 			for (unsigned int i = 0; i < xmodel->numAimAssistBones; i++)
@@ -251,7 +180,7 @@ namespace zonetool::iw7
 		auto* data = this->asset_;
 
 		// materials
-		for (unsigned char i = 0; i < data->numsurfs; i++)
+		for (unsigned int i = 0; i < data->numsurfs; i++)
 		{
 			if (data->materialHandles[i])
 			{
@@ -370,7 +299,7 @@ namespace zonetool::iw7
 		{
 			buf->align(7);
 			auto* dest_materials = buf->write(data->materialHandles, data->numsurfs);
-			for (unsigned char i = 0; i < data->numsurfs; i++)
+			for (unsigned int i = 0; i < data->numsurfs; i++)
 			{
 				dest_materials[i] = reinterpret_cast<Material*>(zone->get_asset_pointer(
 					ASSET_TYPE_MATERIAL, data->materialHandles[i]->name));
@@ -417,18 +346,18 @@ namespace zonetool::iw7
 				ASSET_TYPE_PHYSICS_FX_SHAPE, data->physicsFXShape->name));
 		}
 
-		if (data->unknown02)
+		if (data->physicsLODData)
 		{
 			buf->align(15);
-			buf->write(data->unknown02, data->unknown02Count);
-			buf->clear_pointer(&dest->unknown02);
+			buf->write(data->physicsLODData, data->physicsLODDataSize);
+			buf->clear_pointer(&dest->physicsLODData);
 		}
 
-		if (data->unknownNames)
+		if (data->physicsLODDataNames)
 		{
 			buf->align(3);
-			buf->write(data->unknownNames, data->unknownNamesCount);
-			buf->clear_pointer(&dest->unknownNames);
+			buf->write(data->physicsLODDataNames, data->physicsLODDataNameCount);
+			buf->clear_pointer(&dest->physicsLODDataNames);
 		}
 
 		if (data->scriptableMoverDef)
@@ -524,11 +453,11 @@ namespace zonetool::iw7
 		dump.dump_asset(asset->physicsFXShape);
 
 		// unknown
-		dump.dump_array(asset->unknown02, asset->unknown02Count);
+		dump.dump_array(asset->physicsLODData, asset->physicsLODDataSize);
 
-		for (unsigned int i = 0; i < asset->unknownNamesCount; i++)
+		for (unsigned int i = 0; i < asset->physicsLODDataNameCount; i++)
 		{
-			dump.dump_string(SL_ConvertToString(asset->unknownNames[i]));
+			dump.dump_string(SL_ConvertToString(asset->physicsLODDataNames[i]));
 		}
 
 		dump.dump_asset(asset->scriptableMoverDef);

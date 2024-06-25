@@ -104,11 +104,22 @@ namespace zonetool::h1
 		}
 	}
 
-	void zone_interface::add_asset_of_type(std::int32_t type, const std::string& name)
+	void zone_interface::add_asset_of_type(std::int32_t type, const std::string& _name)
 	{
+		std::string name = _name;
+
 		if (name.empty())
 		{
-			//return;
+			return;
+		}
+
+		// add ignore assets as referenced
+		if (ignore_assets.find(std::make_pair(static_cast<std::uint32_t>(type), name)) != ignore_assets.end())
+		{
+			if (!name.starts_with(","))
+			{
+				name = ","s + name;
+			}
 		}
 
 		// don't add asset if it already exists
@@ -165,7 +176,7 @@ namespace zonetool::h1
 			ADD_ASSET(ASSET_TYPE_SURFACE_FX, surface_fx);
 			ADD_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset);
 			ADD_ASSET(ASSET_TYPE_TRACER, tracer_def);
-			ADD_ASSET(ASSET_TYPE_TTF, font_def);
+			ADD_ASSET(ASSET_TYPE_TTF, ttf_def);
 			ADD_ASSET(ASSET_TYPE_VEHICLE, vehicle_def);
 			ADD_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment);
 			ADD_ASSET(ASSET_TYPE_WEAPON, weapon_def);

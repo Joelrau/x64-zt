@@ -136,9 +136,9 @@ namespace zonetool::iw7
 			} \
 		} \
 	}
-#define WEAPON_PARSE_ASSET_ARR_MODVAL(__field__, __size__) \
+#define WEAPON_PARSE_ASSET_FIELD_ARR_MODVAL(__field__, __size__) \
 	MODVAL(__field__, __size__) \
-	WEAPON_PARSE_ASSET_ARR(__field__, __size__)
+	WEAPON_PARSE_ASSET_FIELD_ARR(__field__, __size__)
 
 #define WEAPON_PARSE_ASSET(__field__) \
 	if (!data[#__field__].is_null() && !data[#__field__].get<std::string>().empty()) \
@@ -1278,7 +1278,7 @@ namespace zonetool::iw7
 #define WEAPON_SUBASSET_DEPENDING_FXCOMBINED(__field__) \
 	if (asset->__field__.u.data) \
 	{ \
-		if(asset->__field__.type == FX_COMBINED_PARTICLE_SYSTEM) zone->add_asset_of_type(ASSET_TYPE_VFX, asset->__field__.u.particleSystemDef->name); \
+		if(asset->__field__.type == FX_COMBINED_VFX) zone->add_asset_of_type(ASSET_TYPE_VFX, asset->__field__.u.vfx->name); \
 		else zone->add_asset_of_type(ASSET_TYPE_FX, asset->__field__.u.fx->name); \
 	}
 
@@ -1289,7 +1289,7 @@ namespace zonetool::iw7
 		{ \
 			if (asset->__field__[idx].u.data) \
 			{ \
-				if(asset->__field__[idx].type == FX_COMBINED_PARTICLE_SYSTEM) zone->add_asset_of_type(ASSET_TYPE_VFX, asset->__field__[idx].u.particleSystemDef->name); \
+				if(asset->__field__[idx].type == FX_COMBINED_VFX) zone->add_asset_of_type(ASSET_TYPE_VFX, asset->__field__[idx].u.vfx->name); \
 				else zone->add_asset_of_type(ASSET_TYPE_FX, asset->__field__[idx].u.fx->name); \
 			} \
 		} \
@@ -1494,8 +1494,8 @@ namespace zonetool::iw7
 #define WEAPON_WRITE_FXCOMBINED(__field__) \
 	if (data->__field__.u.data) \
 	{ \
-		if(data->__field__.type == FX_COMBINED_PARTICLE_SYSTEM) \
-			dest->__field__.u.particleSystemDef = reinterpret_cast<ParticleSystemDef*>(zone->get_asset_pointer(ASSET_TYPE_VFX, data->__field__.u.particleSystemDef->name)); \
+		if(data->__field__.type == FX_COMBINED_VFX) \
+			dest->__field__.u.vfx = reinterpret_cast<ParticleSystemDef*>(zone->get_asset_pointer(ASSET_TYPE_VFX, data->__field__.u.vfx->name)); \
 		else \
 			dest->__field__.u.fx = reinterpret_cast<FxEffectDef*>(zone->get_asset_pointer(ASSET_TYPE_FX, data->__field__.u.fx->name)); \
 	}
@@ -1509,8 +1509,8 @@ namespace zonetool::iw7
 		{ \
 			if(data->__field__[idx##__field__].u.data) \
 			{ \
-				if(data->__field__[idx##__field__].type == FX_COMBINED_PARTICLE_SYSTEM) \
-					dest->__field__[idx##__field__].u.particleSystemDef = reinterpret_cast<ParticleSystemDef*>(zone->get_asset_pointer(ASSET_TYPE_VFX, data->__field__[idx##__field__].u.particleSystemDef->name)); \
+				if(data->__field__[idx##__field__].type == FX_COMBINED_VFX) \
+					dest->__field__[idx##__field__].u.vfx = reinterpret_cast<ParticleSystemDef*>(zone->get_asset_pointer(ASSET_TYPE_VFX, data->__field__[idx##__field__].u.vfx->name)); \
 				else \
 					dest->__field__[idx##__field__].u.fx = reinterpret_cast<FxEffectDef*>(zone->get_asset_pointer(ASSET_TYPE_FX, data->__field__[idx##__field__].u.fx->name)); \
 			} \
@@ -1748,7 +1748,7 @@ namespace zonetool::iw7
 
 #define WEAPON_DUMP_STRING(__field__) \
 	static_assert(std::is_same_v<decltype(asset->__field__), const char*>, "Field is not of type const char*"); \
-	asset->__field__ ? data[#__field__] = asset->__field__ : nullptr;
+	asset->__field__ ? data[#__field__] = asset->__field__ : data[#__field__] = nullptr;
 
 #define WEAPON_DUMP_STRING_ARR(__field__, __size__) \
 	for (auto idx##__field__ = 0u; idx##__field__ < (unsigned int)__size__; idx##__field__++) \
@@ -1760,7 +1760,7 @@ namespace zonetool::iw7
 	if (asset->__field__) data[#__field__] = SL_ConvertToString(asset->__field__); else data[#__field__] = "";
 
 #define WEAPON_DUMP_SCRIPT_STRING_ALLOC_ARR(__field__, __size__) \
-	if(asset->__field__) \
+	if(asset->__field__ && __size__) \
 	{ \
 		for (auto idx##__field__ = 0u; idx##__field__ < (unsigned int)__size__; idx##__field__++) \
 		{ \
@@ -1836,7 +1836,7 @@ namespace zonetool::iw7
 	}
 
 #define WEAPON_DUMP_FXCOMBINED_ALLOC_ARR(__field__, __size__) \
-	if (asset->__field__) \
+	if (asset->__field__ && __size__) \
 	{ \
 		for (auto idx##__field__ = 0u; idx##__field__ < (unsigned int)__size__; idx##__field__++) \
 		{ \

@@ -287,7 +287,7 @@ namespace zonetool::iw6
 					memcpy(&h1_asset->stages[i].origin, &asset->stages[i].origin, sizeof(float[3]));
 					h1_asset->stages[i].triggerIndex = asset->stages[i].triggerIndex;
 					h1_asset->stages[i].sunPrimaryLightIndex = asset->stages[i].sunPrimaryLightIndex;
-					h1_asset->stages[i].unk = 0x3A83126F;
+					h1_asset->stages[i].entityUID = 0x3A83126F;
 				}
 				h1_asset->stageTrigger.count = asset->stageTrigger.count;
 				h1_asset->stageTrigger.models = reinterpret_cast<zonetool::h1::TriggerModel*>(asset->stageTrigger.models);

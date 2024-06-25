@@ -245,138 +245,155 @@ namespace zonetool::iw7
 
 		if (data->deltaPart) // XAnimDeltaParts
 		{
-			buf->align(3);
+			buf->align(7);
 			auto* partdata = data->deltaPart;
 			auto* partdest = buf->write(partdata);
 
 			if (partdata->trans)
 			{
-				buf->align(3);
-				buf->write_stream(partdata->trans, 8, 1); // not full struct
+				buf->align(7);
+				auto* partdestu = buf->at<XAnimPartTrans>();
+				buf->write_stream(partdata->trans, 8); // not full struct
+
 				if (partdata->trans->size)
 				{
-					buf->write_stream(&partdata->trans->u, 32, 1); // not full struct
+					buf->write_stream(&partdata->trans->u, 32); // not full struct
 					if (data->numframes >= 256)
 					{
-						buf->write_stream(&partdata->trans->u.frames.indices, sizeof(short), partdata->trans->size + 1);
+						buf->align(1);
+						buf->write_stream(&partdata->trans->u.frames.indices, sizeof(short) * partdata->trans->size + 2);
 					}
 					else
 					{
-						buf->write_stream(&partdata->trans->u.frames.indices, sizeof(char), partdata->trans->size + 1);
+						buf->write_stream(&partdata->trans->u.frames.indices, sizeof(char) * partdata->trans->size + 1);
 					}
 
 					if (partdata->trans->u.frames.frames._1)
 					{
 						if (partdata->trans->smallTrans)
 						{
-							buf->align(0);
-							buf->write_stream(partdata->trans->u.frames.frames._1, sizeof(char) * 3, partdata->trans->size + 1);
+							buf->write_stream(partdata->trans->u.frames.frames._1, sizeof(char[3]) * (partdata->trans->size + 1));
+							buf->clear_pointer(&partdestu->u.frames.frames._1);
 						}
 						else
 						{
 							buf->align(3);
-							buf->write_stream(partdata->trans->u.frames.frames._2, sizeof(short) * 3, partdata->trans->size + 1);
+							buf->write_stream(partdata->trans->u.frames.frames._2, sizeof(short[3]) * (partdata->trans->size + 1));
+							buf->clear_pointer(&partdestu->u.frames.frames._2);
 						}
 					}
 				}
 				else
 				{
-					buf->write_stream(partdata->trans->u.frame0, sizeof(float), 3);
+					buf->write_stream(partdata->trans->u.frame0, sizeof(float[3]));
 				}
 				buf->clear_pointer(&partdest->trans);
 			}
 
 			if (partdata->quat2)
 			{
-				buf->align(3);
-				buf->write_stream(partdata->quat2, 8, 1); // not full struct
+				buf->align(7);
+				auto* partdestu = buf->at<XAnimDeltaPartQuat2>();
+				buf->write_stream(partdata->quat2, 8); // not full struct
 
 				if (partdata->quat2->size)
 				{
-					buf->write_stream(&partdata->quat2->u, 8, 1); // not full struct
+					buf->write_stream(&partdata->quat2->u, 8); // not full struct
 					if (data->numframes >= 256)
 					{
-						buf->write_stream(&partdata->quat2->u.frames.indices, sizeof(short), partdata->quat2->size + 1);
+						buf->align(1);
+						buf->write_stream(&partdata->quat2->u.frames.indices, sizeof(short) * partdata->quat2->size + 2);
 					}
 					else
 					{
-						buf->write_stream(&partdata->quat2->u.frames.indices, sizeof(char), partdata->quat2->size + 1);
+						buf->write_stream(&partdata->quat2->u.frames.indices, sizeof(char) * partdata->quat2->size + 1);
 					}
 
 					if (partdata->quat2->u.frames.frames)
 					{
 						buf->align(3);
-						buf->write_stream(partdata->quat2->u.frames.frames, sizeof(short) * 2, partdata->quat2->size + 1);
+						buf->write_stream(partdata->quat2->u.frames.frames, sizeof(short[2]) * partdata->quat2->size + 4);
+						buf->clear_pointer(partdestu->u.frames.frames);
 					}
 				}
 				else
 				{
-					buf->write_stream(partdata->quat2->u.frame0, sizeof(short) * 2, 1);
+					buf->write_stream(partdata->quat2->u.frame0, sizeof(short[2]));
 				}
 				buf->clear_pointer(&partdest->quat2);
 			}
 
 			if (partdata->quat)
 			{
-				buf->align(3);
-				buf->write_stream(partdata->quat, 8, 1);
+				buf->align(7);
+				auto* partdestu = buf->at<XAnimDeltaPartQuat>();
+				buf->write_stream(partdata->quat, 8);
 
 				if (partdata->quat->size)
 				{
-					buf->write_stream(&partdata->quat->u, 8, 1); // not full struct
+					buf->write_stream(&partdata->quat->u, 8); // not full struct
 
 					if (data->numframes >= 256)
 					{
-						buf->write_stream(&partdata->quat->u.frames.indices, sizeof(short), partdata->quat->size + 1);
+						buf->align(1);
+						buf->write_stream(&partdata->quat->u.frames.indices, sizeof(short) * partdata->quat->size + 2);
 					}
 					else
 					{
-						buf->write_stream(&partdata->quat->u.frames.indices, sizeof(char), partdata->quat->size + 1);
+						buf->write_stream(&partdata->quat->u.frames.indices, sizeof(char) * partdata->quat->size + 1);
 					}
 
 					if (partdata->quat->u.frames.frames)
 					{
 						buf->align(3);
-						buf->write_stream(partdata->quat->u.frames.frames, sizeof(short) * 4, partdata->quat->size + 1);
+						buf->write_stream(partdata->quat->u.frames.frames, sizeof(short[4]) * partdata->quat->size + 8);
+						buf->clear_pointer(&partdestu->u.frames.frames);
 					}
 				}
 				else
 				{
-					buf->write_stream(partdata->quat->u.frame0, sizeof(short) * 4, 1);
+					buf->write_stream(partdata->quat->u.frame0, sizeof(short[4]));
 				}
 				buf->clear_pointer(&partdest->quat);
 			}
+			buf->clear_pointer(&dest->deltaPart);
 		}
 
 		if (data->dataByte) // dataByte
 		{
 			buf->align(0);
 			buf->write_stream(data->dataByte, sizeof(char), data->dataByteCount);
+			buf->clear_pointer(&dest->dataByte);
 		}
 		if (data->dataShort) // dataShort
 		{
 			buf->align(1);
 			buf->write_stream(data->dataShort, sizeof(short), data->dataShortCount);
+			buf->clear_pointer(&dest->dataShort);
 		}
 		if (data->dataInt) // dataInt
 		{
 			buf->align(3);
 			buf->write_stream(data->dataInt, sizeof(int), data->dataIntCount);
+			buf->clear_pointer(&dest->dataInt);
 		}
 		if (data->randomDataShort) // randomDataShort
 		{
 			buf->align(1);
 			buf->write_stream(data->randomDataShort, sizeof(short), data->randomDataShortCount);
+			buf->clear_pointer(&dest->randomDataShort);
 		}
 		if (data->randomDataByte) // randomDataByte
 		{
 			buf->align(0);
 			buf->write_stream(data->randomDataByte, sizeof(char), data->randomDataByteCount);
+			buf->clear_pointer(&dest->randomDataByte);
 		}
 		if (data->randomDataInt) // randomDataInt
 		{
 			buf->align(3);
 			buf->write_stream(data->randomDataInt, sizeof(int), data->randomDataIntCount);
+			buf->clear_pointer(&dest->randomDataInt);
 		}
 
 		// XAnim indice data
@@ -385,12 +402,13 @@ namespace zonetool::iw7
 			if (data->numframes >= 256)
 			{
 				buf->align(1);
-				buf->write_stream(data->indices.data, data->indexCount * 2, 1);
+				buf->write_stream(data->indices._2, 2 * data->indexCount);
+				buf->clear_pointer(&dest->indices._2);
 			}
 			else
 			{
-				buf->align(0);
-				buf->write_stream(data->indices.data, data->indexCount, 1);
+				buf->write_stream(data->indices._1, data->indexCount);
+				buf->clear_pointer(&dest->indices._1);
 			}
 		}
 

@@ -7,7 +7,9 @@
 #include "../utils/csv_generator.hpp"
 
 #include "zonetool/utils/compression.hpp"
-#include <intsafe.h>
+
+#include "../utils/gsc.hpp"
+#include "zonetool/utils/csv_generator.hpp"
 
 namespace zonetool::iw7
 {
@@ -27,7 +29,7 @@ namespace zonetool::iw7
 
 	const char* get_asset_name(XAssetType type, void* pointer)
 	{
-		XAssetHeader header{.data = pointer};
+		XAssetHeader header{ .data = pointer };
 		return DB_GetXAssetHeaderName(type, header);
 	}
 
@@ -142,13 +144,15 @@ namespace zonetool::iw7
 		try
 		{
 			// dump assets
+			DUMP_ASSET(ASSET_TYPE_DDL, ddl, DDLFile);
 			DUMP_ASSET(ASSET_TYPE_FX, fx_effect_def, FxEffectDef);
 			DUMP_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, fx_particle_sim_animation, FxParticleSimAnimation);
 			DUMP_ASSET(ASSET_TYPE_IMAGE, gfx_image, GfxImage);
 			DUMP_ASSET(ASSET_TYPE_LIGHT_DEF, gfx_light_def, GfxLightDef);
+			DUMP_ASSET(ASSET_TYPE_GFXLIGHTMAP, gfx_light_map, GfxLightMap);
 			DUMP_ASSET(ASSET_TYPE_LASER, laser, LaserDef);
 			DUMP_ASSET(ASSET_TYPE_LOCALIZE_ENTRY, localize, LocalizeEntry);
-			DUMP_ASSET(ASSET_TYPE_LUA_FILE , lua_file, LuaFile);
+			DUMP_ASSET(ASSET_TYPE_LUA_FILE, lua_file, LuaFile);
 			DUMP_ASSET(ASSET_TYPE_MATERIAL, material, Material);
 			DUMP_ASSET(ASSET_TYPE_NET_CONST_STRINGS, net_const_strings, NetConstStrings);
 			DUMP_ASSET(ASSET_TYPE_VFX, particle_system, ParticleSystemDef);
@@ -157,9 +161,10 @@ namespace zonetool::iw7
 			DUMP_ASSET(ASSET_TYPE_RUMBLE, rumble, RumbleInfo);
 			DUMP_ASSET(ASSET_TYPE_RUMBLE_GRAPH, rumble_graph, RumbleGraph);
 			DUMP_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile, ScriptFile);
+			DUMP_ASSET(ASSET_TYPE_STREAMING_INFO, streaming_info, StreamingInfo);
 			DUMP_ASSET(ASSET_TYPE_STRINGTABLE, string_table, StringTable);
 			DUMP_ASSET(ASSET_TYPE_TRACER, tracer, TracerDef);
-			DUMP_ASSET(ASSET_TYPE_TTF, font_def, TTFDef);
+			DUMP_ASSET(ASSET_TYPE_TTF, ttf_def, TTFDef);
 			DUMP_ASSET(ASSET_TYPE_VECTORFIELD, vector_field, VectorField);
 			DUMP_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment, WeaponAttachment);
 			DUMP_ASSET(ASSET_TYPE_ANIM_PACKAGE, weapon_anim_package, WeaponAnimPackage);
@@ -189,10 +194,18 @@ namespace zonetool::iw7
 			DUMP_ASSET(ASSET_TYPE_VERTEXSHADER, vertex_shader, MaterialVertexShader);
 
 			DUMP_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset, MaterialTechniqueSet);
+
+			DUMP_ASSET(ASSET_TYPE_CLIPMAP, clip_map, clipMap_t);
+			DUMP_ASSET(ASSET_TYPE_COMWORLD, com_world, ComWorld);
+			DUMP_ASSET(ASSET_TYPE_FXWORLD, fx_world, FxWorld);
+			DUMP_ASSET(ASSET_TYPE_GFXWORLD, gfx_world, GfxWorld);
+			DUMP_ASSET(ASSET_TYPE_GFXWORLD_TRANSIENT_ZONE, gfx_world_tr, GfxWorldTransientZone);
+			DUMP_ASSET(ASSET_TYPE_GLASSWORLD, glass_world, GlassWorld);
+			DUMP_ASSET(ASSET_TYPE_MAP_ENTS, map_ents, MapEnts);
 		}
 		catch (const std::exception& e)
 		{
-			ZONETOOL_FATAL("A fatal exception occured while dumping zone \"%s\", exception was: \n%s", 
+			ZONETOOL_FATAL("A fatal exception occured while dumping zone \"%s\", exception was: \n%s",
 				filesystem::get_fastfile().data(), e.what());
 		}
 
@@ -211,6 +224,21 @@ namespace zonetool::iw7
 			ZONETOOL_INFO("Loading asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type));
 		}
 
+		if (globals.dump_csv)
+		{
+			if (globals.csv_file.get_fp() == nullptr)
+			{
+				globals.csv_file = filesystem::file(filesystem::get_fastfile() + ".csv");
+				globals.csv_file.open("wb");
+			}
+
+			// dump assets to disk
+			if (globals.csv_file.get_fp())
+			{
+				std::fprintf(globals.csv_file.get_fp(), "%s,%s\n", type_to_string(asset->type), get_asset_name(asset));
+			}
+		}
+
 		if (!globals.dump)
 		{
 			return;
@@ -219,18 +247,6 @@ namespace zonetool::iw7
 		if (asset_type_filter.size() > 0 && !asset_type_filter.contains(asset->type))
 		{
 			return;
-		}
-
-		if (globals.csv_file.get_fp() == nullptr)
-		{
-			globals.csv_file = filesystem::file(filesystem::get_fastfile() + ".csv");
-			globals.csv_file.open("wb");
-		}
-
-		// dump assets to disk
-		if (globals.csv_file.get_fp()/* && !is_referenced_asset(xasset)*/)
-		{
-			std::fprintf(globals.csv_file.get_fp(), "%s,%s\n", type_to_string(asset->type), get_asset_name(asset));
 		}
 
 		// dump referenced later
@@ -251,13 +267,8 @@ namespace zonetool::iw7
 		dump_func->second(asset);
 	}
 
-	void stop_dumping()
+	void dump_refs()
 	{
-		if (!globals.dump)
-		{
-			return;
-		}
-
 		// remove duplicates
 		std::sort(referenced_assets.begin(), referenced_assets.end());
 		referenced_assets.erase(std::unique(referenced_assets.begin(),
@@ -297,12 +308,28 @@ namespace zonetool::iw7
 			dump_asset(&referenced_asset);
 		}
 
-		ZONETOOL_INFO("Zone \"%s\" dumped.", filesystem::get_fastfile().data());
-
 		referenced_assets.clear();
+	}
 
-		globals.csv_file.close();
-		globals.csv_file = {};
+	void stop_dumping()
+	{
+		globals.verify = false;
+
+		if (globals.dump_csv)
+		{
+			globals.csv_file.close();
+			globals.csv_file = {};
+			globals.dump_csv = false;
+		}
+
+		if (!globals.dump)
+		{
+			return;
+		}
+
+		dump_refs();
+
+		ZONETOOL_INFO("Zone \"%s\" dumped.", filesystem::get_fastfile().data());
 
 		globals.dump = false;
 	}
@@ -323,7 +350,6 @@ namespace zonetool::iw7
 	utils::hook::detour db_finish_load_x_file_hook;
 	void db_finish_load_x_file_stub()
 	{
-		globals.verify = false;
 		if (std::string(g_load->file->name) == filesystem::get_fastfile() &&
 			reinterpret_cast<std::uintptr_t>(_ReturnAddress()) == 0x1409E7745ui64)
 		{
@@ -393,7 +419,7 @@ namespace zonetool::iw7
 			ZONETOOL_INFO("Loading zone \"%s\"...", name.data());
 		}
 
-		XZoneInfo zone = {name.data(), DB_ZONE_GAME | DB_ZONE_CUSTOM};
+		XZoneInfo zone = { name.data(), DB_ZONE_GAME | DB_ZONE_CUSTOM };
 		DB_LoadXAssets(&zone, 1, mode);
 		return true;
 	}
@@ -427,16 +453,47 @@ namespace zonetool::iw7
 		}
 
 		globals.dump = true;
-		if (!load_zone(name, DB_LOAD_ASYNC, true))
+		globals.dump_csv = true;
+		if (!load_zone(name, DB_LOAD_ASYNC, false))
 		{
 			globals.dump = false;
-			ZONETOOL_INFO("Aborted dump.");
+			globals.dump_csv = false;
+			return;
 		}
 
 		while (globals.dump)
 		{
 			Sleep(1);
 		}
+	}
+
+	void dump_csv(const std::string& name)
+	{
+		if (!zone_exists(name.data()))
+		{
+			ZONETOOL_INFO("Zone \"%s\" could not be found!", name.data());
+			return;
+		}
+
+		wait_for_database();
+
+		ZONETOOL_INFO("Dumping csv \"%s\"...", name.data());
+
+		filesystem::set_fastfile(name);
+
+		globals.dump_csv = true;
+		if (!load_zone(name, DB_LOAD_ASYNC, true))
+		{
+			globals.dump_csv = false;
+			return;
+		}
+
+		while (globals.dump_csv)
+		{
+			Sleep(1);
+		}
+
+		ZONETOOL_INFO("Csv \"%s\" dumped...", name.data());
 	}
 
 	void verify_zone(const std::string& name)
@@ -504,7 +561,7 @@ namespace zonetool::iw7
 
 		if (!parser.valid())
 		{
-			throw std::runtime_error(utils::string::va("Could not find csv file \"%s\" to build zone!", csv.data()));
+			throw std::runtime_error(utils::string::va("Could not find csv file \"%s\"", csv.data()));
 		}
 
 		auto rows = parser.get_rows();
@@ -554,7 +611,7 @@ namespace zonetool::iw7
 			}
 
 			const auto type = static_cast<std::uint32_t>(type_to_int(row->fields[0]));
-			ignore_assets.insert(std::make_pair( type, name ));
+			ignore_assets.insert(std::make_pair(type, name));
 		}
 	}
 
@@ -772,7 +829,7 @@ namespace zonetool::iw7
 		return dump_params;
 	}
 
-	void clear_static_asset_fields()
+	void clear_asset_fields()
 	{
 		material::fixed_nml_images_map.clear();
 		techset::vertexdecl_pointers.clear();
@@ -794,7 +851,7 @@ namespace zonetool::iw7
 		}
 
 		ignore_assets.clear();
-		clear_static_asset_fields();
+		clear_asset_fields();
 
 		try
 		{
@@ -810,7 +867,7 @@ namespace zonetool::iw7
 		auto buffer = alloc_buffer();
 
 		// set game specific zone type info
-		buffer->set_fields(XFILE_BLOCK_RUNTIME, 
+		buffer->set_fields(XFILE_BLOCK_RUNTIME,
 			0xFFFFFFF000000000,
 			static_cast<std::uint32_t>(-2),
 			static_cast<std::uint32_t>(-4),
@@ -823,8 +880,8 @@ namespace zonetool::iw7
 		// compile zone
 		zone->build(buffer.get());
 
-		// clear asset shit
-		clear_static_asset_fields();
+		ignore_assets.clear();
+		clear_asset_fields();
 	}
 
 	void iterate_zones()
@@ -906,7 +963,7 @@ namespace zonetool::iw7
 					ZONETOOL_ERROR("Invalid dump target \"%s\"", mode);
 					return;
 				}
-					
+
 				if (!dump_functions.contains(dump_target))
 				{
 					ZONETOOL_ERROR("Unsupported dump target \"%s\" (%i)", mode, dump_target);
@@ -968,6 +1025,17 @@ namespace zonetool::iw7
 			ZONETOOL_INFO("Dumped to dump/assets");
 		});
 
+		::iw7::command::add("dumpcsv", [](const ::iw7::command::params& params)
+		{
+			if (params.size() != 2)
+			{
+				ZONETOOL_ERROR("usage: dumpcsv <zone>");
+				return;
+			}
+
+			dump_csv(params.get(1));
+		});
+
 		::iw7::command::add("verifyzone", [](const ::iw7::command::params& params)
 		{
 			if (params.size() != 2)
@@ -978,6 +1046,12 @@ namespace zonetool::iw7
 
 			verify_zone(params.get(1));
 		});
+
+		::iw7::command::add("generatecsv", csv_generator::create_command
+			<::iw7::command::params>([](const uint32_t id)
+		{
+			return gsc::iw7::gsc_ctx->token_name(id);
+		}));
 
 		::iw7::command::add("iteratezones", []()
 		{
@@ -1067,7 +1141,9 @@ namespace zonetool::iw7
 
 	void on_exit(void)
 	{
+		globals.verify = false;
 		globals.dump = false;
+		globals.dump_csv = false;
 		globals.csv_file.close();
 	}
 

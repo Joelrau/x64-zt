@@ -337,10 +337,10 @@ namespace zonetool::iw7
 		PARSE_FIELD(iDetonateTime);
 		PARSE_FIELD(iMeleeTime);
 		PARSE_FIELD(meleeChargeTime);
-		PARSE_FIELD(meleeUnkTime);
+		PARSE_FIELD(meleeChargeDelay);
 		PARSE_FIELD(altMeleeTime);
 		PARSE_FIELD(altMeleeChargeTime);
-		PARSE_FIELD(altMeleeUnkTime);
+		PARSE_FIELD(altMeleeChargeDelay);
 		PARSE_FIELD(iReloadTime);
 		PARSE_FIELD(iFastReloadTime);
 		PARSE_FIELD(reloadShowRocketTime);
@@ -646,10 +646,10 @@ namespace zonetool::iw7
 		DUMP_FIELD(iDetonateTime);
 		DUMP_FIELD(iMeleeTime);
 		DUMP_FIELD(meleeChargeTime);
-		DUMP_FIELD(meleeUnkTime);
+		DUMP_FIELD(meleeChargeDelay);
 		DUMP_FIELD(altMeleeTime);
 		DUMP_FIELD(altMeleeChargeTime);
-		DUMP_FIELD(altMeleeUnkTime);
+		DUMP_FIELD(altMeleeChargeDelay);
 		DUMP_FIELD(iReloadTime);
 		DUMP_FIELD(iFastReloadTime);
 		DUMP_FIELD(reloadShowRocketTime);

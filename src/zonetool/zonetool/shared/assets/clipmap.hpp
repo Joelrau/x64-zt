@@ -2,9 +2,6 @@
 
 namespace zonetool
 {
-#define TYPEOF_MEMBER(__struct__, __member__) \
-	std::remove_pointer<typename std::remove_all_extents<decltype(std::declval<__struct__>().__member__)>::type>::type \
-
 	template <ASSET_TEMPLATE>
 	class clip_map : public asset_interface
 	{
@@ -29,9 +26,6 @@ namespace zonetool
 		typedef TYPEOF_MEMBER(S, info.bCollisionData.brushBounds) Bounds;
 		typedef TYPEOF_MEMBER(S, info.pCollisionData.partitions) CollisionPartition;
 		typedef TYPEOF_MEMBER(S, info.sCollisionData.staticModelList) cStaticModel_s;
-
-#undef TYPEOF_PTR
-#undef TYPEOF_MEMBER
 
 	private:
 		std::string name_;

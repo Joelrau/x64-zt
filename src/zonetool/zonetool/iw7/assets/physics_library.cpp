@@ -1,11 +1,19 @@
 #include "std_include.hpp"
 #include "physics_library.hpp"
 
+#include "../common/havok.hpp"
+
 namespace zonetool::iw7
 {
 	PhysicsLibrary* physics_library::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = "physicslibrary\\"s + name;
+
+		if (!name.ends_with(havok::binary::havok_file_ext))
+		{
+			ZONETOOL_ERROR("physicslibrary \"%s\" does not end with havok file extension (%s)", name.data(), havok::binary::havok_file_ext);
+			return nullptr;
+		}
 
 		auto file = filesystem::file(name);
 		if (!file.exists())
@@ -16,14 +24,11 @@ namespace zonetool::iw7
 		ZONETOOL_INFO("Parsing physicslibrary \"%s\"...", name.data());
 
 		const auto size = file.size();
-		const auto bytes = file.read_bytes(size);
+		auto bytes = file.read_bytes(size);
 		file.close();
 
 		auto* asset = mem->allocate<PhysicsLibrary>();
 		asset->name = mem->duplicate_string(this->name());
-
-		asset->havokData = mem->allocate<char>(size);
-		memcpy(asset->havokData, bytes.data(), size);
 
 		constexpr auto* str0 = "HavokPhysicsMaterialList";
 		constexpr auto* str1 = "HavokPhysicsBodyQualityList";
@@ -33,6 +38,10 @@ namespace zonetool::iw7
 		asset->isBodyQualityList = std::search(bytes.begin(), bytes.end(), str1, str1 + std::strlen(str1)) != bytes.end();
 		asset->isMotionPropertiesList = std::search(bytes.begin(), bytes.end(), str2, str2 + std::strlen(str2)) != bytes.end();
 		asset->isGlobalTypeCompendium = false;
+
+		bytes.clear();
+
+		asset->havokData = havok::binary::parse_havok_data(path, &asset->havokDataSize, mem);
 
 		return asset;
 	}
@@ -95,10 +104,6 @@ namespace zonetool::iw7
 	void physics_library::dump(PhysicsLibrary* asset)
 	{
 		const auto path = "physicslibrary\\"s + asset->name;
-
-		auto file = filesystem::file(path);
-		file.open("wb");
-		file.write(asset->havokData, asset->havokDataSize);
-		file.close();
+		havok::binary::dump_havok_data(path, asset->havokData, asset->havokDataSize);
 	}
 }

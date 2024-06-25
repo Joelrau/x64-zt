@@ -423,7 +423,7 @@ namespace zonetool::s1
 						{
 							buf->align(0);
 							buf->write(data->splineList.splines[i].splinePoints[j].splineNodeLabel, 64);
-							buf->clear_pointer(destsplinepoints[j].splineNodeLabel);
+							buf->clear_pointer(&destsplinepoints[j].splineNodeLabel);
 						}
 						if (data->splineList.splines[i].splinePoints[j].positionCubic)
 						{

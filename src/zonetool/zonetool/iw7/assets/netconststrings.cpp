@@ -21,7 +21,7 @@ namespace zonetool::iw7
 
 			auto data = json::parse(bytes);
 
-			asset->name = mem->duplicate_string(data["name"].get<std::string>());
+			asset->name = mem->duplicate_string(name);
 			asset->stringType = data["stringType"].get<NetConstStringType>();
 			asset->sourceType = data["sourceType"].get<NetConstStringSource>();
 			asset->entryCount = static_cast<unsigned int>(data["stringList"].size());
@@ -110,7 +110,6 @@ namespace zonetool::iw7
 
 		ordered_json j;
 
-		j["name"] = asset->name;
 		j["stringType"] = asset->stringType;
 		j["sourceType"] = asset->sourceType;
 		j["stringList"] = {};
