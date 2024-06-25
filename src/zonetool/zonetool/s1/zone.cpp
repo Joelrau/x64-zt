@@ -616,7 +616,7 @@ namespace zonetool::s1
 		auto max_memory_size = MAX_ZONE_SIZE;
 		if (utils::flags::has_flag("more_memory"))
 		{
-			max_memory_size = max_memory_size * 2; // double the memory (2GB -> 4GB)
+			max_memory_size = max_memory_size * 2ull; // double the memory (2GB -> 4GB)
 		}
 		this->m_zonemem = std::make_shared<zone_memory>(max_memory_size);
 	}

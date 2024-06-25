@@ -4,7 +4,6 @@
 
 #include "zonetool/s1/assets/weapondef.hpp"
 
-#define COPY_VALUE(value) new_asset->value = asset->value;
 #define COPY_VALUE_(value, type) new_asset->value = reinterpret_cast<type>(asset->value);
 #define COPY_VALUE_MEM(value, type) memcpy(new_asset->value, asset->value, sizeof(type));
 

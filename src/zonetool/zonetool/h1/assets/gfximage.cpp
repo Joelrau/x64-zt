@@ -522,7 +522,6 @@ namespace zonetool::h1
 			dump_image_dds(asset);
 		}
 		*/
-		dump_image_dds(asset);
 
 		auto path = "images\\"s + clean_name(asset->name) + ".h1Image"s;
 		assetmanager::dumper write;
