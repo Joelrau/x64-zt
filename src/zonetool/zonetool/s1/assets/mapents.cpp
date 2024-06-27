@@ -152,6 +152,18 @@ namespace zonetool::s1
 		}
 	}
 
+	std::string extra_entity_strings;
+
+	void map_ents::add_entity_string(const std::string& line)
+	{
+		extra_entity_strings.append(line);
+	}
+
+	void map_ents::clear_entity_strings()
+	{
+		extra_entity_strings.clear();
+	}
+
 	void map_ents::parse_entity_strings(zone_memory* mem, std::string name, char** entityStrings, int* numEntityChars)
 	{
 		const auto path = name + ".ents"s;
@@ -171,6 +183,19 @@ namespace zonetool::s1
 		(*entityStrings)[*numEntityChars] = '\0';
 
 		file.close();
+
+		if (!extra_entity_strings.empty())
+		{
+			std::string entity_string = *entityStrings;
+			if (!entity_string.ends_with("\n"))
+			{
+				entity_string.append("\n");
+			}
+
+			entity_string.append(extra_entity_strings);
+			*entityStrings = mem->duplicate_string(entity_string);
+			*numEntityChars = static_cast<int>(entity_string.size());
+		}
 	}
 
 	MapEnts* map_ents::parse(std::string name, zone_memory* mem)

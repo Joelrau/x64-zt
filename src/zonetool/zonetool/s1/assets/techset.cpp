@@ -226,7 +226,7 @@ namespace zonetool::s1
 		ZONETOOL_FATAL("constantbufferindexes for techset \"%s\", material \"%s\" are missing!", techset.data(), material.data());
 	}
 
-	void techset::parse_constant_buffer_def_array(const std::string& techset, const std::string& material, 
+	void techset::parse_constant_buffer_def_array(const std::string& techset, const std::string& material,
 		MaterialConstantBufferDef** def_ptr, unsigned char* count, zone_memory* mem)
 	{
 		const auto path = material_data::get_parse_path("constantbuffer", ".cbt", techset, material);
