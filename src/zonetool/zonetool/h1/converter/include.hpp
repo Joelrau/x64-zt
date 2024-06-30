@@ -6,26 +6,34 @@
 
 #define TECHSET_PREFIX "_h1"s
 
-#define COPY_VALUE(name) \
-		static_assert(sizeof(new_asset->name) == sizeof(asset->name)); \
-		new_asset->name = asset->name;
+#define COPY_VALUE(__name__) \
+		static_assert(sizeof(new_asset->__name__) == sizeof(asset->__name__)); \
+		new_asset->__name__ = asset->__name__;
 
-#define COPY_VALUE_CAST(name) \
-		static_assert(sizeof(new_asset->name) == sizeof(asset->name)); \
-		new_asset->name = *reinterpret_cast<decltype(new_asset->name)*>(&asset->name);
+#define COPY_VALUE_CAST(__name__) \
+		static_assert(sizeof(new_asset->__name__) == sizeof(asset->__name__)); \
+		new_asset->__name__ = *reinterpret_cast<decltype(new_asset->__name__)*>(&asset->__name__);
 
-#define COPY_ARR(name) \
-		static_assert(sizeof(new_asset->name) == sizeof(asset->name)); \
-		std::memcpy(&new_asset->name, &asset->name, sizeof(new_asset->name));
+#define COPY_ARR(__name__) \
+		static_assert(sizeof(new_asset->__name__) == sizeof(asset->__name__)); \
+		std::memcpy(&new_asset->__name__, &asset->__name__, sizeof(new_asset->__name__));
 
-#define REINTERPRET_CAST_SAFE(name) \
-		static_assert(sizeof(*new_asset->name) == sizeof(*asset->name)); \
-		new_asset->name = reinterpret_cast<decltype(new_asset->name)>(asset->name);
+#define COPY_ASSET(__name__) \
+		if(asset->__name__) \
+		{ \
+			new_asset->__name__ = allocator.allocate<typename std::remove_reference<decltype(*new_asset->__name__)>::type>(); \
+			new_asset->__name__->name = asset->__name__->name; \
+		}
+		
 
-#define REINTERPRET_CAST_SAFE_ARR(name, count) \
+#define REINTERPRET_CAST_SAFE(__name__) \
+		static_assert(sizeof(*new_asset->__name__) == sizeof(*asset->__name__)); \
+		new_asset->__name__ = reinterpret_cast<decltype(new_asset->__name__)>(asset->__name__);
+
+#define REINTERPRET_CAST_SAFE_ARR(__name__, count) \
 		for (auto i_ = 0; i_ < count; i_++) \
 		{ \
-			REINTERPRET_CAST_SAFE(name[i_]); \
+			REINTERPRET_CAST_SAFE(__name__[i_]); \
 		} \
 
 #define REINTERPRET_CAST_SAFE_TO_FROM(__TO__, __FROM__) \

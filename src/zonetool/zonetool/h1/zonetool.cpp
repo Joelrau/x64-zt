@@ -1,8 +1,6 @@
 #include <std_include.hpp>
 #include "zonetool.hpp"
 
-#include "zonetool/h2/zonetool.hpp"
-
 #include "converter/converter.hpp"
 
 #include "../utils/gsc.hpp"
@@ -389,11 +387,86 @@ namespace zonetool::h1
 #undef DUMP_ASSET
 	}
 
+	void dump_asset_iw7(XAsset* asset)
+	{
+#define DUMP_ASSET_NO_CONVERT(__type__,___,__struct__) \
+		if (asset->type == __type__) \
+		{ \
+			if (IS_DEBUG) \
+			{ \
+				ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
+			} \
+			auto asset_ptr = reinterpret_cast<__struct__*>(asset->header.data); \
+			___::dump(asset_ptr); \
+		} \
+
+#define DUMP_ASSET(__type__, __namespace__,__struct__) \
+		if (asset->type == __type__) \
+		{ \
+			if (IS_DEBUG) \
+			{ \
+				ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
+			} \
+			auto asset_ptr = reinterpret_cast<__struct__*>(asset->header.data); \
+			converter::iw7::__namespace__::dump(asset_ptr); \
+		} \
+
+		try
+		{
+			//DUMP_ASSET(ASSET_TYPE_FX, fxeffectdef, FxEffectDef);
+			//DUMP_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, fx_particle_sim_animation, FxParticleSimAnimation);
+			DUMP_ASSET(ASSET_TYPE_IMAGE, gfximage, GfxImage);
+			//DUMP_ASSET(ASSET_TYPE_LIGHT_DEF, gfx_light_def, GfxLightDef);
+			//DUMP_ASSET(ASSET_TYPE_LASER, laserdef, LaserDef);
+			//DUMP_ASSET(ASSET_TYPE_LOADED_SOUND, loaded_sound, LoadedSound);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_LOCALIZE_ENTRY, localize, LocalizeEntry);
+			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_LUA_FILE, lua_file, LuaFile);
+			//DUMP_ASSET(ASSET_TYPE_MATERIAL, material, Material);
+			//DUMP_ASSET(ASSET_TYPE_NET_CONST_STRINGS, net_const_strings, NetConstStrings);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_RAWFILE, rawfile, RawFile);
+			//DUMP_ASSET(ASSET_TYPE_SCRIPTABLE, scriptable_def, ScriptableDef);
+			//DUMP_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile, ScriptFile);
+			//DUMP_ASSET(ASSET_TYPE_SOUND, sound, snd_alias_list_t);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_STRINGTABLE, string_table, StringTable);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_STRUCTUREDDATADEF, structured_data_def_set, StructuredDataDefSet);
+			//DUMP_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset, MaterialTechniqueSet);
+			//DUMP_ASSET(ASSET_TYPE_TRACER, tracer_def, TracerDef);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_TTF, ttf_def, TTFDef);
+			//DUMP_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment, WeaponAttachment);
+			//DUMP_ASSET(ASSET_TYPE_WEAPON, weapon_def, WeaponDef);
+			//DUMP_ASSET(ASSET_TYPE_XANIM, xanim_parts, XAnimParts);
+			//DUMP_ASSET(ASSET_TYPE_XMODEL, xmodel, XModel);
+			//DUMP_ASSET(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
+
+			//DUMP_ASSET(ASSET_TYPE_COMPUTESHADER, techset, ComputeShader);
+			//DUMP_ASSET(ASSET_TYPE_DOMAINSHADER, techset, MaterialDomainShader);
+			//DUMP_ASSET(ASSET_TYPE_HULLSHADER, techset, MaterialHullShader);
+			//DUMP_ASSET(ASSET_TYPE_PIXELSHADER, techset, MaterialPixelShader);
+			////DUMP_ASSET(ASSET_TYPE_VERTEXDECL, techset, MaterialVertexDeclaration);
+			//DUMP_ASSET(ASSET_TYPE_VERTEXSHADER, techset, MaterialVertexShader);
+
+			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_AIPATHS, path_data, PathData);
+			/*DUMP_ASSET(ASSET_TYPE_COL_MAP_MP, clip_map, clipMap_t);
+			DUMP_ASSET(ASSET_TYPE_COM_MAP, comworld, ComWorld);
+			DUMP_ASSET(ASSET_TYPE_FX_MAP, fxworld, FxWorld);
+			DUMP_ASSET(ASSET_TYPE_GFX_MAP, gfxworld, GfxWorld);
+			DUMP_ASSET(ASSET_TYPE_GLASS_MAP, glass_world, GlassWorld);*/
+		}
+		catch (std::exception& ex)
+		{
+			ZONETOOL_FATAL("A fatal exception occured while dumping zone \"%s\", exception was: \n%s", filesystem::get_fastfile().data(), ex.what());
+		}
+
+#undef DUMP_ASSET_NO_CONVERT
+#undef DUMP_ASSET
+	}
+
 	std::unordered_map<game::game_mode, std::function<void(XAsset*)>> dump_functions =
 	{
 		{game::h1, dump_asset_h1},
 		{game::h2, dump_asset_h2},
 		{game::s1, dump_asset_s1},
+		{game::iw7, dump_asset_iw7},
 	};
 
 	void dump_asset(XAsset* asset)
@@ -520,6 +593,33 @@ namespace zonetool::h1
 			type,
 			*header
 		};
+
+		if (type == ASSET_TYPE_IMAGE)
+		{
+			auto* asset = header->image;
+
+			// patch reflection probe pixeldata, so that it will remain accessible, this is needed when converting from h1->iw7
+			if (std::string(asset->name).find("*reflection_probe") != std::string::npos)
+			{
+				constexpr auto buffer_size = 1024 * 1024 * 32; // 32mb
+				static std::uint8_t pixel_buffer[buffer_size];
+				static std::uint32_t pixel_buffer_index = 0;
+
+				if (pixel_buffer_index + asset->dataLen1 >= buffer_size)
+				{
+					ZONETOOL_FATAL("reflection probe pixeldata buffer is full...");
+				}
+
+				memcpy(&pixel_buffer[pixel_buffer_index], asset->pixelData, asset->dataLen1);
+
+				auto ret = db_link_x_asset_entry1_hook.invoke<XAssetEntry*>(type, header);
+				ret->asset.header.image->pixelData = &pixel_buffer[pixel_buffer_index];
+
+				pixel_buffer_index += asset->dataLen1;
+
+				return ret;
+			}
+		}
 
 		dump_asset(&xasset);
 		

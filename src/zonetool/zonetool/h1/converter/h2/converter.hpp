@@ -1,5 +1,7 @@
 #pragma once
 
+#include "include.hpp"
+
 #include "assets/comworld.hpp"
 #include "assets/fxeffectdef.hpp"
 #include "assets/fxworld.hpp"
