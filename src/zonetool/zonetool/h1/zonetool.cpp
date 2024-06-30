@@ -599,7 +599,8 @@ namespace zonetool::h1
 			auto* asset = header->image;
 
 			// patch reflection probe pixeldata, so that it will remain accessible, this is needed when converting from h1->iw7
-			if (std::string(asset->name).find("*reflection_probe") != std::string::npos)
+			if (globals.dump && globals.target_game == game::game_mode::iw7 && 
+				std::string(asset->name).find("*reflection_probe") != std::string::npos)
 			{
 				constexpr auto buffer_size = 1024 * 1024 * 32; // 32mb
 				static std::uint8_t pixel_buffer[buffer_size];
@@ -616,6 +617,8 @@ namespace zonetool::h1
 				ret->asset.header.image->pixelData = &pixel_buffer[pixel_buffer_index];
 
 				pixel_buffer_index += asset->dataLen1;
+
+				//dump_asset(&xasset); // gfxworld generates reflection_probe array, no need to dump
 
 				return ret;
 			}
