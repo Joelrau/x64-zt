@@ -3,6 +3,83 @@
 
 namespace zonetool::iw7
 {
+	namespace Umbra
+	{
+		struct Vector3
+		{
+			float x;
+			float y;
+			float z;
+		};
+
+		struct DataPtr
+		{
+			unsigned int m_offset;
+		};
+
+		struct SerializedTreeData
+		{
+			unsigned int m_nodeCount_mapWidth;
+			DataPtr m_treeData;
+			DataPtr m_map;
+			unsigned int m_numSplitValues;
+			DataPtr m_splitValues;
+		};
+
+		struct ImpTome
+		{
+			unsigned int m_versionMagic;
+			unsigned int m_crc32;
+			unsigned int m_size;
+			float m_lodBaseDistance;
+			unsigned int m_flags;
+			Vector3 m_treeMin;
+			Vector3 m_treeMax;
+			SerializedTreeData m_tileTree;
+			int m_numObjects;
+			DataPtr m_objBounds;
+			DataPtr m_objDistances;
+			DataPtr m_userIDStarts;
+			DataPtr m_userIDs;
+			unsigned int m_listWidths;
+			DataPtr m_objectLists;
+			int m_objectListSize;
+			DataPtr m_clusterLists;
+			int m_clusterListSize;
+			int m_numGates;
+			DataPtr m_gateIndexMap;
+			DataPtr m_gateVertices;
+			int m_numGateVertices;
+			DataPtr m_gateIndices;
+			int m_numClusters;
+			DataPtr m_clusters;
+			DataPtr m_clusterPortals;
+			DataPtr m_cellStarts;
+			int m_numLeafTiles;
+			int m_numTiles;
+			int m_bitsPerSlotPath;
+			DataPtr m_slotPaths;
+			DataPtr m_tileLodLevels;
+			DataPtr m_tiles;
+			DataPtr m_tileMatchingData;
+			DataPtr m_matchingTrees;
+			int m_numMatchingTrees;
+			int m_numTomes;
+			DataPtr m_tomeClusterStarts;
+			DataPtr m_tomeClusterPortalStarts;
+			char m_computationString[128];
+			DataPtr m_objectDepthmaps;
+			DataPtr m_depthmapFaces;
+			DataPtr m_depthmapPalettes;
+			int m_numFaces;
+			DataPtr m_tilePortalExpands;
+			Vector3 m_boundsMin;
+			Vector3 m_boundsMax;
+			float m_clusterCoordScale;
+			int m_pad[1];
+		};
+	}
+
 	typedef float vec_t;
 	typedef vec_t vec2_t[2];
 	typedef vec_t vec3_t[3];
@@ -4929,7 +5006,7 @@ namespace zonetool::iw7
 		GfxStaticModelDrawInst* smodelDrawInsts;
 		GfxDrawSurf* surfaceMaterials;
 		unsigned int* surfaceCastsSunShadow;
-		unsigned short* smodelUnk;
+		unsigned short* sortedSmodelIndices;
 		unsigned int sunShadowOptCount;
 		unsigned int sunSurfVisDataCount;
 		unsigned int* surfaceCastsSunShadowOpt;
@@ -12014,7 +12091,7 @@ namespace zonetool::iw7
 	enum XFileBlock
 	{
 		XFILE_BLOCK_TEMP = 0x0,
-		XFILE_BLOCK_UNK1 = 0x1,
+		XFILE_BLOCK_TEMP_PRELOAD = 0x1,
 		XFILE_BLOCK_UNK2 = 0x2,
 		XFILE_BLOCK_IMAGE_STREAM = 0x3,
 		XFILE_BLOCK_SHARED_STREAM = 0x4,

@@ -308,7 +308,7 @@ namespace zonetool::iw7
 		asset->dpvs.surfaceCastsSunShadow = read.read_array<unsigned int>();
 		asset->dpvs.surfaceCastsSunShadowOpt = mem->allocate<unsigned int>(asset->dpvs.sunShadowOptCount * asset->dpvs.sunSurfVisDataCount);
 
-		asset->dpvs.smodelUnk = read.read_array<unsigned short>();
+		asset->dpvs.sortedSmodelIndices = read.read_array<unsigned short>();
 
 		asset->dpvs.constantBuffers = mem->allocate<char*>(asset->dpvs.smodelCount);
 
@@ -1464,11 +1464,11 @@ namespace zonetool::iw7
 		}
 		buf->pop_stream();
 
-		if (data->dpvs.smodelUnk)
+		if (data->dpvs.sortedSmodelIndices)
 		{
 			buf->align(1);
-			buf->write(data->dpvs.smodelUnk, data->dpvs.smodelCount);
-			buf->clear_pointer(&dest->dpvs.smodelUnk);
+			buf->write(data->dpvs.sortedSmodelIndices, data->dpvs.smodelCount);
+			buf->clear_pointer(&dest->dpvs.sortedSmodelIndices);
 		}
 
 		buf->push_stream(XFILE_BLOCK_RUNTIME);
@@ -1813,7 +1813,7 @@ namespace zonetool::iw7
 
 		write.dump_array(asset->dpvs.surfaceCastsSunShadow, asset->dpvs.surfaceVisDataCount);
 
-		write.dump_array(asset->dpvs.smodelUnk, asset->dpvs.smodelCount);
+		write.dump_array(asset->dpvs.sortedSmodelIndices, asset->dpvs.smodelCount);
 
 		write.dump_array(asset->heroOnlyLights, asset->heroOnlyLightCount);
 
