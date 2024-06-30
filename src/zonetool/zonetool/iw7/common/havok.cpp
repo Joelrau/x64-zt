@@ -137,6 +137,11 @@ namespace zonetool::iw7
 					path.append(binary::havok_file_ext);
 				}
 
+				if (!data || !size)
+				{
+					return;
+				}
+
 				if (!validate_header(reinterpret_cast<binary::hkxHeaderData*>(data)))
 				{
 					__debugbreak();

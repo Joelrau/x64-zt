@@ -1000,6 +1000,9 @@ namespace zonetool::iw7
 				total_block_size += header.stream_data.block_size[i];
 			}
 
+			header.stream_data.block_size[XFILE_BLOCK_TEMP_PRELOAD] = header.stream_data.block_size[XFILE_BLOCK_TEMP];
+			total_block_size += header.stream_data.block_size[XFILE_BLOCK_TEMP_PRELOAD];
+
 			header.stream_data.size = total_block_size; // not correct
 			memset(header.stream_data.unk_arr, 0, sizeof(header.stream_data.unk_arr));
 		}
