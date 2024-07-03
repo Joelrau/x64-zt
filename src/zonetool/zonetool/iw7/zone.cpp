@@ -554,6 +554,7 @@ namespace zonetool::iw7
 			// declare asset interfaces
 			ADD_ASSET(ASSET_TYPE_FX, fx_effect_def);
 			ADD_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, fx_particle_sim_animation);
+			ADD_ASSET(ASSET_TYPE_GESTURE, gesture);
 			ADD_ASSET(ASSET_TYPE_IMAGE, gfx_image);
 			ADD_ASSET(ASSET_TYPE_LIGHT_DEF, gfx_light_def);
 			ADD_ASSET(ASSET_TYPE_GFXLIGHTMAP, gfx_light_map);

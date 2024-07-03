@@ -147,6 +147,7 @@ namespace zonetool::iw7
 			DUMP_ASSET(ASSET_TYPE_DDL, ddl, DDLFile);
 			DUMP_ASSET(ASSET_TYPE_FX, fx_effect_def, FxEffectDef);
 			DUMP_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, fx_particle_sim_animation, FxParticleSimAnimation);
+			DUMP_ASSET(ASSET_TYPE_GESTURE, gesture, Gesture);
 			DUMP_ASSET(ASSET_TYPE_IMAGE, gfx_image, GfxImage);
 			DUMP_ASSET(ASSET_TYPE_LIGHT_DEF, gfx_light_def, GfxLightDef);
 			DUMP_ASSET(ASSET_TYPE_GFXLIGHTMAP, gfx_light_map, GfxLightMap);
