@@ -122,14 +122,17 @@ namespace zonetool::h2
 
 					COPY_VALUE_FX(sortOrder);
 					COPY_VALUE_FX(lightingFrac);
+					COPY_VALUE_FX(hdrLightingFrac);
 					COPY_VALUE_FX(useItemClip);
 					COPY_VALUE_FX(fadeInfo);
 					COPY_VALUE_FX(randomSeed);
 
-					new_asset->elemDefs[i].__pad0[1] = asset->elemDefs[i].unk_floats[0];
-					new_asset->elemDefs[i].__pad0[2] = asset->elemDefs[i].unk_floats[1];
-					new_asset->elemDefs[i].__pad0[3] = asset->elemDefs[i].unk_floats[2];
-					new_asset->elemDefs[i].__pad0[4] = asset->elemDefs[i].unk_floats[3];
+					COPY_VALUE_FX(unlitHDRScalar);
+					COPY_VALUE_FX(litHDRScalar);
+					COPY_VALUE_FX(alphaScalar);
+
+					new_asset->elemDefs[i].unk4 = 0.0f;
+					new_asset->elemDefs[i].unk5 = -1.0f;
 				}
 
 				const auto reordered_elems = allocator.allocate_array<zonetool::h1::FxElemDef>(elem_count);

@@ -70,30 +70,30 @@ namespace zonetool::iw6
 							new_elem->visSamples[ii].base.color[1] = elem->visSamples[ii].base.color[1];
 							new_elem->visSamples[ii].base.color[2] = elem->visSamples[ii].base.color[2];
 							new_elem->visSamples[ii].base.color[3] = elem->visSamples[ii].base.color[3];
-							new_elem->visSamples[ii].base.pad1[0] = 1.0f;
-							new_elem->visSamples[ii].base.pad1[1] = 1.0f;
-							new_elem->visSamples[ii].base.pad1[2] = 1.0f;
+							new_elem->visSamples[ii].base.colorHDRScalar[0] = 1.0f;
+							new_elem->visSamples[ii].base.colorHDRScalar[1] = 1.0f;
+							new_elem->visSamples[ii].base.colorHDRScalar[2] = 1.0f;
 							new_elem->visSamples[ii].base.rotationDelta = elem->visSamples[ii].base.rotationDelta;
 							new_elem->visSamples[ii].base.rotationTotal = elem->visSamples[ii].base.rotationTotal;
 							memcpy(&new_elem->visSamples[ii].base.size, &elem->visSamples[ii].base.size, sizeof(float[2]));
 							new_elem->visSamples[ii].base.scale = elem->visSamples[ii].base.scale;
-							new_elem->visSamples[ii].base.pad2[1] = 0.0f;
-							new_elem->visSamples[ii].base.pad2[1] = 0.0f;
+							new_elem->visSamples[ii].base.pivot[1] = 0.0f;
+							new_elem->visSamples[ii].base.pivot[1] = 0.0f;
 
 							// amplitude
 							new_elem->visSamples[ii].amplitude.color[0] = elem->visSamples[ii].amplitude.color[0];
 							new_elem->visSamples[ii].amplitude.color[1] = elem->visSamples[ii].amplitude.color[1];
 							new_elem->visSamples[ii].amplitude.color[2] = elem->visSamples[ii].amplitude.color[2];
 							new_elem->visSamples[ii].amplitude.color[3] = elem->visSamples[ii].amplitude.color[3];
-							new_elem->visSamples[ii].amplitude.pad1[0] = 1.0f;
-							new_elem->visSamples[ii].amplitude.pad1[1] = 1.0f;
-							new_elem->visSamples[ii].amplitude.pad1[2] = 1.0f;
+							new_elem->visSamples[ii].amplitude.colorHDRScalar[0] = 1.0f;
+							new_elem->visSamples[ii].amplitude.colorHDRScalar[1] = 1.0f;
+							new_elem->visSamples[ii].amplitude.colorHDRScalar[2] = 1.0f;
 							new_elem->visSamples[ii].amplitude.rotationDelta = elem->visSamples[ii].amplitude.rotationDelta;
 							new_elem->visSamples[ii].amplitude.rotationTotal = elem->visSamples[ii].amplitude.rotationTotal;
 							memcpy(&new_elem->visSamples[ii].amplitude.size, &elem->visSamples[ii].amplitude.size, sizeof(float[2]));
 							new_elem->visSamples[ii].amplitude.scale = elem->visSamples[ii].amplitude.scale;
-							new_elem->visSamples[ii].amplitude.pad2[1] = 0.0f;
-							new_elem->visSamples[ii].amplitude.pad2[1] = 0.0f;
+							new_elem->visSamples[ii].amplitude.pivot[1] = 0.0f;
+							new_elem->visSamples[ii].amplitude.pivot[1] = 0.0f;
 						}
 					}
 
@@ -199,9 +199,13 @@ namespace zonetool::iw6
 					COPY_VALUE(elemDefs[i].useItemClip);
 					COPY_VALUE(elemDefs[i].fadeInfo);
 					COPY_VALUE(elemDefs[i].randomSeed);
-					
-					// unknown stuff in h1
-					memcpy(&new_elem->__pad0, &elem->litMaxColorChangePerSec, sizeof(float[4]));
+
+					new_elem->hdrLightingFrac = new_elem->lightingFrac;
+					new_elem->unlitHDRScalar = 1.0f;
+					new_elem->litHDRScalar = 1.0f;
+					new_elem->alphaScalar = 1.0f;
+					new_elem->unk4 = 0.0f;
+					new_elem->unk5 = -1.0f;
 				}
 
 				return new_asset;
