@@ -1,6 +1,8 @@
 #include <std_include.hpp>
 #include "csv.hpp"
 
+#include "utils/string.hpp"
+
 #include <stdexcept>
 
 namespace csv
@@ -255,7 +257,7 @@ namespace csv
 
 		if (!path.size())
 		{
-			throw std::runtime_error("CSV: File path is invalid!");
+			throw std::runtime_error(utils::string::va("CSV: File path \"%s\" is invalid!", path.data()));
 		}
 		else if (path.size() >= sizeof(path_buffer))
 		{
@@ -267,29 +269,22 @@ namespace csv
 
 		if (!this->info.fp)
 		{
-			throw std::runtime_error("CSV: Failed to open file for read!");
+			throw std::runtime_error(utils::string::va("CSV: Failed to open file \"%s\" for read!", path.data()));
 		}
 
 		int buffer_len = 0;
-		if (this->info.fp)
-		{
-			auto len = file_len(this->info.fp);
-			buffer_len = len * sizeof(char) + 1;
-			this->info.buffer = reinterpret_cast<char*>(malloc(buffer_len));
+		auto len = file_len(this->info.fp);
+		buffer_len = len * sizeof(char) + 1;
+		this->info.buffer = reinterpret_cast<char*>(malloc(buffer_len));
 
-			if (this->info.buffer != NULL)
-			{
-				memset(this->info.buffer, 0, buffer_len * sizeof(char));
-				fread(this->info.buffer, len, 1, this->info.fp);
-			}
-			else
-			{
-				throw std::runtime_error("CSV: Couldn't allocate memory for file buffer!");
-			}
+		if (this->info.buffer != NULL)
+		{
+			memset(this->info.buffer, 0, buffer_len * sizeof(char));
+			fread(this->info.buffer, len, 1, this->info.fp);
 		}
 		else
 		{
-			throw std::runtime_error("CSV: Failed to open file for read!");
+			throw std::runtime_error("CSV: Couldn't allocate memory for file buffer!");
 		}
 
 		this->raw = new parser_raw(this->info.buffer, buffer_len, delimeter);

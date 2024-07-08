@@ -56,32 +56,21 @@ namespace zonetool::h2
 				image->flags |= 0x2;
 			}
 
-			if (image->numElements > 1)
+			if (image->mapType == MAPTYPE_1D)
 			{
-				const bool is_cube = image->numElements % 6 == 0;
-				if (is_cube)
-				{
-					image->mapType = MAPTYPE_CUBE;
-					//image->flags |= IMG_DISK_FLAG_MAPTYPE_CUBE;
-
-					image->numElements = image->numElements / 6;
-				}
-				else
-				{
-					image->mapType = MAPTYPE_ARRAY;
-					//image->flags |= IMG_DISK_FLAG_MAPTYPE_ARRAY;
-				}
+				//image->flags |= IMG_DISK_FLAG_MAPTYPE_1D;
 			}
-			else
+			else if (image->mapType == MAPTYPE_3D)
 			{
-				if (image->mapType == MAPTYPE_1D)
-				{
-					//image->flags |= IMG_DISK_FLAG_MAPTYPE_1D;
-				}
-				else if (image->mapType == MAPTYPE_3D)
-				{
-					//image->flags |= IMG_DISK_FLAG_MAPTYPE_3D;
-				}
+				//image->flags |= IMG_DISK_FLAG_MAPTYPE_3D;
+			}
+			else if (image->mapType == MAPTYPE_CUBE)
+			{
+				//image->flags |= IMG_DISK_FLAG_MAPTYPE_CUBE;
+			}
+			else if (image->numElements > 1)
+			{
+				image->mapType = MAPTYPE_ARRAY;
 			}
 		}
 	}
@@ -169,7 +158,6 @@ namespace zonetool::h2
 		GfxImage* parse(const std::string& name, zone_memory* mem)
 		{
 			DirectX::ScratchImage image;
-			load_image(name, &image);
 
 			if (load_image(name, &image))
 			{
@@ -196,6 +184,12 @@ namespace zonetool::h2
 				gfx_image->pixelData = mem->allocate<unsigned char>(pixels_size);
 				memcpy(gfx_image->pixelData, pixels, pixels_size);
 				gfx_image->name = mem->duplicate_string(name);
+
+				if (metadata.IsCubemap())
+				{
+					gfx_image->mapType = MAPTYPE_CUBE;
+					gfx_image->numElements = 1;
+				}
 
 				add_loaded_image_flags(gfx_image);
 

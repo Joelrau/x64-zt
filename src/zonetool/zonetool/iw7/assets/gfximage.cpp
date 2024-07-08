@@ -11,9 +11,8 @@
 #include "zonetool/utils/compression.hpp"
 #include <utils/io.hpp>
 #include <utils/cryptography.hpp>
+#include <utils/flags.hpp>
 #include <lz4.h>
-
-//#define IMAGE_DUMP_DDS
 
 namespace zonetool::iw7
 {
@@ -176,7 +175,6 @@ namespace zonetool::iw7
 		GfxImage* parse(const std::string& name, zone_memory* mem)
 		{
 			DirectX::ScratchImage image;
-			load_image(name, &image);
 
 			if (load_image(name, &image))
 			{
@@ -446,7 +444,6 @@ namespace zonetool::iw7
 		}
 	}
 
-#ifdef IMAGE_DUMP_DDS
 	namespace
 	{
 		size_t align_value(size_t value, unsigned int alignment)
@@ -656,7 +653,7 @@ namespace zonetool::iw7
 		mdata.format = DXGI_FORMAT(image->imageFormat);
 		mdata.dimension = image->mapType > 4 ? DirectX::TEX_DIMENSION::TEX_DIMENSION_TEXTURE2D : (DirectX::TEX_DIMENSION)image->mapType;
 
-		if (image->mapType == MAPTYPE_CUBE || image->mapType == MAPTYPE_CUBE_ARRAY)
+		if (image->mapType == MAPTYPE_CUBE)
 		{
 			mdata.miscFlags |= DirectX::TEX_MISC_FLAG::TEX_MISC_TEXTURECUBE;
 		}
@@ -676,13 +673,13 @@ namespace zonetool::iw7
 			ZONETOOL_WARNING("Failed to dump image \"%s\"", spath.data());
 		}
 	}
-#endif
 
 	void gfx_image::dump(GfxImage* asset)
 	{
-#ifdef IMAGE_DUMP_DDS
-		dump_image_dds(asset);
-#endif
+		if (utils::flags::has_flag("dds"))
+		{
+			dump_image_dds(asset);
+		}
 
 		auto path = "images\\"s + clean_name(asset->name) + ".iw7Image"s;
 		assetmanager::dumper write;

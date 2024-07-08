@@ -38,6 +38,8 @@ namespace utils
     private:
         std::uint64_t read_bits_internal(const std::size_t bit_index, const std::size_t num_bits, std::size_t ret) const
         {
+            if (!num_bits) return 0;
+
             if (bit_index + num_bits > this->buffer_.size() * 8) 
             {
                 return 0;

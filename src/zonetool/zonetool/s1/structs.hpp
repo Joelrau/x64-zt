@@ -2681,12 +2681,12 @@ namespace zonetool::s1
 	struct FxElemVisualState
 	{
 		float color[4];
-		float pad1[3];
+		float colorHDRScalar[3];
 		float rotationDelta;
 		float rotationTotal;
 		float size[2];
 		float scale;
-		float pad2[2];
+		float pivot[2];
 	};
 
 	struct FxElemVisStateSample
@@ -2734,7 +2734,8 @@ namespace zonetool::s1
 		float invSplitDist;
 		float invSplitArcDist;
 		float invSplitTime;
-		char __pad0[8];
+		float fadeHeadDist;
+		float fadeTailDist;
 		int vertCount;
 		FxTrailVertex* verts;
 		int indCount;
@@ -2767,12 +2768,21 @@ namespace zonetool::s1
 		float brightness;
 		float maxLength;
 		int exponent;
-		char __pad0[24];
+		float nearClip;
+		float bulbRadius;
+		float bulbLength;
+		float fadeOffset[2];
+		char unk1;
+		char opl;
+		char unk2;
+		char unused;
 	}; assert_sizeof(FxSpotLightDef, 0x30);
 
 	struct FxOmniLightDef
 	{
-		char __pad0[16];
+		float bulbRadius;
+		float bulbLength;
+		float fadeOffset[2];
 	}; assert_sizeof(FxOmniLightDef, 0x10);
 
 	struct FxFlareDef
@@ -2843,11 +2853,15 @@ namespace zonetool::s1
 		FxElemExtendedDefPtr extended;
 		unsigned char sortOrder;
 		unsigned char lightingFrac;
+		unsigned char hdrLightingFrac;
 		unsigned char useItemClip;
 		unsigned char fadeInfo;
 		int randomSeed;
-		float __pad0[6];
-		//char __pad0[24];
+		float unlitHDRScalar;
+		float litHDRScalar;
+		float alphaScalar;
+		float unk4;
+		float unk5;
 	}; assert_sizeof(FxElemDef, 0x140);
 
 	struct FxEffectDef

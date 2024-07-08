@@ -681,7 +681,7 @@ namespace zonetool::h1
 					{
 						ZONETOOL_INFO("Zone \"%s\" is already loaded...", name.data());
 					}
-					return true;
+					return false;
 				}
 			}
 		}
@@ -734,6 +734,7 @@ namespace zonetool::h1
 		{
 			globals.dump = false;
 			globals.dump_csv = false;
+			return;
 		}
 
 		while (globals.dump)
@@ -760,6 +761,7 @@ namespace zonetool::h1
 		if (!load_zone(name, DB_LOAD_ASYNC, true))
 		{
 			globals.dump_csv = false;
+			return;
 		}
 
 		while (globals.dump_csv)
@@ -784,6 +786,7 @@ namespace zonetool::h1
 		if (!load_zone(name, DB_LOAD_ASYNC, true))
 		{
 			globals.verify = false;
+			return;
 		}
 
 		while (globals.verify)
@@ -1532,6 +1535,11 @@ namespace zonetool::h1
 					else if (args[i] == "-dumpzone")
 					{
 						dump_zone(args[i + 1], game::h1);
+						i++;
+					}
+					else if (args[i] == "-dumpcsv")
+					{
+						dump_csv(args[i + 1]);
 						i++;
 					}
 				}
