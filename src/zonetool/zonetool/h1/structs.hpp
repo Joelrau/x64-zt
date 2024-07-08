@@ -3135,6 +3135,14 @@ namespace zonetool::h1
 		GfxColorFloat* colorTable;
 	};
 
+	enum FxEffectDefFlags : std::uint32_t
+	{
+		FX_EFFECT_NEEDS_LIGHTING_AT_SPAWN = 0x1,
+		FX_EFFECT_NEEDS_LIGHTING_PER_FRAME_AT_ORIGIN = 0x2,
+		FX_EFFECT_RECEIVES_DYNAMIC_LIGHTING_PER_FRAME_AT_ORIGIN = 0x4,
+		FX_EFFECT_USE_VECTORFIELDS = 0x8,
+	};
+
 	enum FxElemType : std::uint8_t
 	{
 		FX_ELEM_TYPE_SPRITE_BILLBOARD = 0,
@@ -3193,9 +3201,9 @@ namespace zonetool::h1
 		FX_ELEM_USE_OCCLUSION_QUERY = 0x10000,
 		FX_ELEM_NODRAW_IN_THERMAL_VIEW = 0x20000,
 		FX_ELEM_THERMAL_MASK = 0x22000,
-		FX_ELEM_SPAWN_IMPACT_FX_WITH_SURFACE_NAME = 0x40000,
-		FX_ELEM_RECEIVE_DYNAMIC_LIGHT = 0x80000,
-		FX_ELEM_VOLUMETRIC_TRAIL = 0x100000,
+		//FX_ELEM_SPAWN_IMPACT_FX_WITH_SURFACE_NAME = 0x40000,
+		FX_ELEM_RECEIVE_DYNAMIC_LIGHT = 0x100000,
+		//FX_ELEM_VOLUMETRIC_TRAIL = 0x100000,
 		FX_ELEM_USE_COLLISION = 0x200000,
 		FX_ELEM_USE_VECTORFIELDS = 0x400000,
 		FX_ELEM_NO_SURFACE_HDR_SCALAR = 0x800000,
@@ -3284,12 +3292,12 @@ namespace zonetool::h1
 	struct FxElemVisualState
 	{
 		float color[4];
-		float pad1[3];
+		float colorHDRScalar[3];
 		float rotationDelta;
 		float rotationTotal;
 		float size[2];
 		float scale;
-		float pad2[2];
+		float pivot[2];
 	};
 
 	struct FxElemVisStateSample
@@ -3337,7 +3345,8 @@ namespace zonetool::h1
 		float invSplitDist;
 		float invSplitArcDist;
 		float invSplitTime;
-		char __pad0[8];
+		float fadeHeadDist;
+		float fadeTailDist;
 		int vertCount;
 		FxTrailVertex* verts;
 		int indCount;
@@ -3370,9 +3379,9 @@ namespace zonetool::h1
 		float brightness;
 		float maxLength;
 		int exponent;
-		float unk;
+		float nearClip;
 		float bulbRadius;
-		float multiplier;
+		float bulbLength;
 		float fadeOffset[2];
 		char unk1;
 		char opl;
@@ -3384,7 +3393,7 @@ namespace zonetool::h1
 	struct FxOmniLightDef
 	{
 		float bulbRadius;
-		float multiplier;
+		float bulbLength;
 		float fadeOffset[2];
 	};
 	assert_sizeof(FxOmniLightDef, 0x10);
@@ -3457,11 +3466,15 @@ namespace zonetool::h1
 		FxElemExtendedDefPtr extended;
 		unsigned char sortOrder;
 		unsigned char lightingFrac;
+		unsigned char hdrLightingFrac;
 		unsigned char useItemClip;
 		unsigned char fadeInfo;
 		int randomSeed;
-		float __pad0[6];
-		//char __pad0[24];
+		float unlitHDRScalar;
+		float litHDRScalar;
+		float alphaScalar;
+		float unk4;
+		float unk5;
 	}; assert_sizeof(FxElemDef, 0x140);
 
 	struct FxEffectDef
