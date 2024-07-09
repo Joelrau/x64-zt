@@ -34,5 +34,5 @@ Check out the [wiki](https://github.com/Joelrau/x64-zt/wiki) for useful guides &
 | --- | --- | --- | --- | --- |
 | **IW6** | ✔️ | ❌ | ✔️ | ✔️ |
 | **S1** | ❌ | ✔️ | ✔️ | ✔️ |
-| **H1** | ❌ | ❌ | ✔️ | ✔️ |
+| **H1** | ❌ | ⚠️ | ✔️ | ✔️ |
 | **H2** | ❌ | ❌ | ✔️ | ✔️ |
