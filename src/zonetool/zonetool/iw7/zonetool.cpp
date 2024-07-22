@@ -688,13 +688,13 @@ namespace zonetool::iw7
 
 					try
 					{
-						if (type == "fx"s || iterate_all)
+						if (type == "vfx"s || iterate_all)
 						{
-							add_assets_using_iterator(fastfile, type, "effects", ".fxe", true, zone);
+							add_assets_using_iterator(fastfile, type, "particlesystem", ".iw7VFX", true, zone);
 						}
 						if (type == "material"s || iterate_all)
 						{
-							add_assets_using_iterator(fastfile, type, "materials", "", true, zone);
+							add_assets_using_iterator(fastfile, type, "materials", ".json", true, zone);
 						}
 						if (type == "xmodel"s || iterate_all)
 						{

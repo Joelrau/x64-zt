@@ -6970,7 +6970,7 @@ namespace zonetool::h1
 		unsigned char canUseShadowMap; // 1
 		unsigned char needsDynamicShadows; // 2
 		unsigned char exponent; // 3
-		unsigned char isVolumetric; // 4
+		unsigned char lightState; // 4
 		char __pad0[3];
 		float color[3]; // 8 12 16
 		float dir[3]; // 20 24 28
@@ -7310,7 +7310,7 @@ namespace zonetool::h1
 
 	struct GfxReflectionProbeVolume
 	{
-		unsigned short* data;
+		unsigned short* data; // cellIndexes
 		unsigned int count;
 	}; assert_sizeof(GfxReflectionProbeVolume, 16);
 
@@ -7650,12 +7650,8 @@ namespace zonetool::h1
 	struct GfxSurfaceBounds
 	{
 		Bounds bounds;
-		unsigned __int16 mipRadius;
-		unsigned __int8 invHighMipRadius[5];
-		char __pad0[4];
-		char flags;
+		float unk[3];
 	}; assert_sizeof(GfxSurfaceBounds, 36);
-	assert_offsetof(GfxSurfaceBounds, flags, 35);
 
 	struct GfxPackedPlacement
 	{

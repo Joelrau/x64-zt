@@ -27,7 +27,7 @@ namespace zonetool::h2
 					COPY_VALUE_COMWORLD(canUseShadowMap);
 					COPY_VALUE_COMWORLD(needsDynamicShadows);
 					COPY_VALUE_COMWORLD(exponent);
-					COPY_VALUE_COMWORLD(isVolumetric);
+					lights[i].lightState = h1_lights[i].isVolumetric;
 					COPY_ARR_COMWORLD(color);
 					COPY_ARR_COMWORLD(dir);
 					COPY_ARR_COMWORLD(up);

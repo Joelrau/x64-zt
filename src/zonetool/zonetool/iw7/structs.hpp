@@ -11979,14 +11979,18 @@ namespace zonetool::iw7
 
 	enum DBSyncMode : std::int8_t
 	{
-		DB_LOAD_SYNC = 0x0,
-		DB_LOAD_ASYNC = 0x1,
+		DB_LOAD_SYNC = 0x1,
+		DB_LOAD_ASYNC = 0x2,
 	};
 
 	enum DBAllocFlags : std::int32_t
 	{
 		DB_ZONE_NONE = 0x0,
-		DB_ZONE_PERMAMENT = 0x1,
+		DB_ZONE_PERMANENT = 0x1,
+		DB_ZONE_GLOBAL_TIER1 = 0x2,
+		DB_ZONE_GLOBAL_TIER2 = 0x4,
+		DB_ZONE_GAMEMODE_TIER1 = 0x8,
+		DB_ZONE_GAMEMODE_TIER2 = 0x10,
 		DB_ZONE_UI = 0x20,
 		DB_ZONE_UI_SCENE = 0x40,
 		DB_ZONE_GAME = 0x80,
@@ -12000,6 +12004,7 @@ namespace zonetool::iw7
 	{
 		const char* name;
 		int allocFlags;
+		int freeFlags;
 	};
 
 	struct DBFile
@@ -12092,7 +12097,7 @@ namespace zonetool::iw7
 	{
 		XFILE_BLOCK_TEMP = 0x0,
 		XFILE_BLOCK_TEMP_PRELOAD = 0x1,
-		XFILE_BLOCK_UNK2 = 0x2,
+		XFILE_BLOCK_TEMP_POSTLOAD = 0x2,
 		XFILE_BLOCK_IMAGE_STREAM = 0x3,
 		XFILE_BLOCK_SHARED_STREAM = 0x4,
 		XFILE_BLOCK_CALLBACK = 0x5,

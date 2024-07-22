@@ -12,7 +12,6 @@ namespace zonetool::iw7
 
 	void parse_sounds(WeaponSFXPackageSounds* asset, ordered_json& data, zone_memory* mem)
 	{
-		PARSE_STRING(name);
 		PARSE_STRING(pickupSound);
 		PARSE_STRING(pickupSoundPlayer);
 		PARSE_STRING(ammoPickupSound);
@@ -94,8 +93,8 @@ namespace zonetool::iw7
 		file.close();
 
 		auto asset = mem->allocate<WeaponSFXPackage>();
+		asset->name = mem->duplicate_string(name);
 
-		PARSE_STRING(name);
 		PARSE_FIELD(rattleSoundType);
 		PARSE_STRING(szAdsrBaseSetting);
 		PARSE_STRING(szWeapSndReflectionClass);
@@ -407,7 +406,6 @@ namespace zonetool::iw7
 
 		ordered_json data;
 
-		DUMP_STRING(name);
 		DUMP_FIELD(rattleSoundType);
 		DUMP_STRING(szAdsrBaseSetting);
 		DUMP_STRING(szWeapSndReflectionClass);

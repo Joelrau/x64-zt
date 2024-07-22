@@ -479,10 +479,8 @@ namespace zonetool::iw7
 		file.close();
 
 		auto asset = mem->allocate<WeaponAnimPackage>();
+		asset->name = mem->duplicate_string(name);
 
-		asset->name = mem->duplicate_string(data["name"].get<std::string>());
-		
-		PARSE_STRING(name);
 		PARSE_FIELD(meleeAnimType);
 		PARSE_FIELD(meleeAnimPrimaryCount);
 		PARSE_FIELD(meleeAnimAltCount);
@@ -778,7 +776,6 @@ namespace zonetool::iw7
 
 		ordered_json data;
 
-		DUMP_STRING(name);
 		DUMP_FIELD(meleeAnimType);
 		DUMP_FIELD(meleeAnimPrimaryCount);
 		DUMP_FIELD(meleeAnimAltCount);

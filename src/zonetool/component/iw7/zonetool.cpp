@@ -6,6 +6,7 @@
 #include "dvars.hpp"
 
 #include <utils/hook.hpp>
+#include <utils/flags.hpp>
 
 #include "zonetool/iw7/zonetool.hpp"
 
@@ -160,17 +161,21 @@ namespace iw7
 		{
 			::zonetool::iw7::XZoneInfo zone{};
 			zone.name = "code_pre_gfx";
-			zone.allocFlags = ::zonetool::iw7::DB_ZONE_PERMAMENT;
+			zone.allocFlags = ::zonetool::iw7::DB_ZONE_PERMANENT;
 			return ::zonetool::iw7::DB_LoadXAssets(&zone, 1, ::zonetool::iw7::DB_LOAD_SYNC);
 		}
 
 		void load_common_zones()
 		{
-			std::vector<const char*> defaultzones =
+			std::vector<const char*> defaultzones;
+			if (!utils::flags::has_flag("no_code_post_gfx"))
 			{
-				"code_post_gfx",
-				"common",
-			};
+				defaultzones.push_back("code_post_gfx");
+			}
+			if (!utils::flags::has_flag("no_common"))
+			{
+				defaultzones.push_back("common");
+			}
 
 			::zonetool::iw7::XZoneInfo zones[8]{ 0 };
 
@@ -178,16 +183,14 @@ namespace iw7
 			for (std::size_t i = 0; i < defaultzones.size(); i++)
 			{
 				zones[i].name = defaultzones[i];
-				zones[i].allocFlags = ::zonetool::iw7::DB_ZONE_PERMAMENT;
+				zones[i].allocFlags = ::zonetool::iw7::DB_ZONE_PERMANENT;
 			}
 
-			return ::zonetool::iw7::DB_LoadXAssets(zones, static_cast<unsigned int>(defaultzones.size()), ::zonetool::iw7::DB_LOAD_ASYNC);
+			return ::zonetool::iw7::DB_LoadXAssets(zones, static_cast<unsigned int>(defaultzones.size()), ::zonetool::iw7::DB_LOAD_SYNC);
 		}
 
 		void load_init_zones_stub()
 		{
-			::zonetool::iw7::start();
-
 			if (!*reinterpret_cast<uint32_t*>(0x146006DAC))
 			{
 				utils::hook::set<uint32_t>(0x146006DAC, 1); // initialized
@@ -196,6 +199,8 @@ namespace iw7
 			}
 
 			load_common_zones();
+
+			::zonetool::iw7::start();
 
 			const auto do_forever = true;
 			if (!do_forever)
@@ -220,6 +225,8 @@ namespace iw7
 			void post_unpack() override
 			{
 				remove_renderer();
+
+				utils::hook::set(0x140D33DC0, 0xC300000001B8);
 
 				// stop the game after loading init zones
 				utils::hook::call(0x140E06224, load_init_zones_stub);

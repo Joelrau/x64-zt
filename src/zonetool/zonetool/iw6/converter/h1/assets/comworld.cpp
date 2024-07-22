@@ -29,7 +29,7 @@ namespace zonetool::iw6
 					COPY_VALUE_CAST(primaryLights[i].canUseShadowMap);
 					new_light->needsDynamicShadows = false;
 					COPY_VALUE_CAST(primaryLights[i].exponent);
-					new_light->isVolumetric = false;
+					new_light->lightState = 0;
 					COPY_ARR(primaryLights[i].color);
 					COPY_ARR(primaryLights[i].dir);
 					COPY_ARR(primaryLights[i].up);

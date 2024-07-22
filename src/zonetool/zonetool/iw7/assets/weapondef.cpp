@@ -1219,6 +1219,13 @@ namespace zonetool::iw7
 		WEAPON_PREPARE_SCRIPT_STRING(knifeAttachTagOverride2);
 
 		WEAPON_PREPARE_SCRIPT_STRING(stowTag);
+
+		for (auto i = 0; i < 21; i++)
+		{
+			prepare(&asset->animOverrides[i], buf);
+			prepare(&asset->sfxOverrides[i], buf);
+			prepare(&asset->vfxOverrides[i], buf);
+		}
 	}
 
 	void weapon_def::prepare(zone_buffer* buf, zone_memory* mem)

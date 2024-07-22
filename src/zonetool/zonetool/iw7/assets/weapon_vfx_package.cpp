@@ -52,8 +52,8 @@ namespace zonetool::iw7
 		file.close();
 
 		auto asset = mem->allocate<WeaponVFXPackage>();
+		asset->name = mem->duplicate_string(name);
 
-		PARSE_STRING(name);
 		if (!data["vfx"].is_null())
 		{
 			asset->vfx = mem->allocate<WeaponVFXPackageDefs>();
@@ -218,7 +218,6 @@ namespace zonetool::iw7
 
 		ordered_json data;
 
-		DUMP_STRING(name);
 		if (asset->vfx)
 		{
 			dump_vfx(asset->vfx, data["vfx"]);
