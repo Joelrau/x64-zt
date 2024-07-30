@@ -14,6 +14,7 @@
 #define S1_BINARY "s1_mp64_ship.exe"
 #define IW6_BINARY "iw6mp64_ship.exe"
 #define IW7_BINARY "iw7_ship.exe"
+#define T7_BINARY "BlackOps3_UnrankedDedicatedServer.exe"
 
 namespace
 {
@@ -29,9 +30,49 @@ namespace
 		return SystemParametersInfoA(uiAction, uiParam, pvParam, fWinIni);
 	}
 
+	namespace t7
+	{
+		BOOL set_process_dpi_aware_stub()
+		{
+			component_loader::post_unpack();
+			return SetProcessDPIAware();
+		}
+
+		FARPROC load_binary()
+		{
+			loader loader;
+			utils::nt::library self;
+
+			loader.set_import_resolver([self](const std::string& library, const std::string& function) -> void*
+			{
+				if (function == "ExitProcess")
+				{
+					return exit_hook;
+				}
+				else if (function == "SetProcessDPIAware")
+				{
+					return set_process_dpi_aware_stub;
+				}
+
+				return component_loader::load_import(library, function);
+			});
+
+			std::string binary = T7_BINARY;
+
+			std::string data;
+			if (!utils::io::read_file(binary, &data))
+			{
+				throw std::runtime_error(utils::string::va(
+					"Failed to read game binary (%s)!\nPlease copy the t7-zonetool.exe into your Call of Duty: Black Ops 3 UnrankedServer installation folder and run it from there.",
+					binary.data()));
+			}
+
+			return loader.load_library(binary);
+		}
+	}
+
 	namespace iw7
 	{
-
 		DWORD_PTR WINAPI set_thread_affinity_mask(HANDLE hThread, DWORD_PTR dwThreadAffinityMask)
 		{
 			component_loader::post_unpack();
@@ -393,6 +434,8 @@ namespace
 			return h2::load_binary();
 		case game::iw7:
 			return iw7::load_binary();
+		case game::t7:
+			return t7::load_binary();
 		}
 
 		return nullptr;
@@ -480,6 +523,10 @@ int main()
 	else if (utils::io::file_exists(IW7_BINARY))
 	{
 		game::set_mode(game::game_mode::iw7);
+	}
+	else if (utils::io::file_exists(T7_BINARY))
+	{
+		game::set_mode(game::game_mode::t7);
 	}
 	else
 	{
