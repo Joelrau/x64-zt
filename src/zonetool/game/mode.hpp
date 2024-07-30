@@ -10,6 +10,7 @@ namespace game
 		h1,
 		h2,
 		iw7,
+		t7,
 		count,
 	};
 

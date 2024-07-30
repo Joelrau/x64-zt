@@ -135,6 +135,25 @@ namespace zonetool
 	std::uint32_t snd_hash_name(const char* name);
 	int string_table_hash(const std::string& string);
 
+	namespace half_float
+	{
+		typedef unsigned short ushort;
+		typedef unsigned int uint;
+
+		float half_to_float(const ushort x);
+		ushort float_to_half(const float x);
+	}
+
+	template<typename T>
+	static void compute(T* bounds, float* mins, float* maxs)
+	{
+		for (int i = 0; i < 3; ++i)
+		{
+			bounds->halfSize[i] = (maxs[i] - mins[i]) / 2;
+			bounds->midPoint[i] = bounds->halfSize[i] + mins[i];
+		}
+	}
+
 	WEAK symbol<void*(int type, const char* name, int createDefault)> DB_FindXAssetHeader;
 	WEAK symbol<void*(int type, const char* name)> DB_FindXAssetEntry;
 	WEAK symbol<bool(int type, const char* name)> DB_IsXAssetDefault;
