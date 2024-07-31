@@ -173,6 +173,27 @@ namespace zonetool
 		}
 	}
 
+	namespace self_visibility
+	{
+		// Packing function
+		uint32_t XSurfacePackSelfVisibility(float* packed)
+		{
+			return (uint32_t)(float)((float)(fminf(fmaxf((float)(*packed + 1.0f) * 0.5f, 0.0f), 1.0f) * 511.0f) + 0.5f) |
+				(((((int)(float)((float)(fminf(fmaxf(packed[2], 0.0f), 1.0f) * 127.0f) + 0.5f) |
+					((int)(float)((float)(fminf(fmaxf(packed[3], 0.0f), 1.0f) * 127.0f) + 0.5f) << 7)) << 9) |
+					(unsigned int)(int)(float)((float)(fminf(fmaxf((float)(packed[1] + 1.0f) * 0.5f, 0.0f), 1.0f) * 511.0f) + 0.5f)) << 9);
+		}
+
+		// Unpacking function
+		void XSurfaceUnpackSelfVisibility(uint32_t src, float* result)
+		{
+			result[2] = static_cast<float>((src >> 18) & 0x7F) * 0.0078740157f;
+			result[3] = static_cast<float>((src >> 25) & 0x7F) * 0.0078740157f;
+			result[0] = (static_cast<float>(src & 0x1FF) * 0.0019569471f * 2.0f) - 1.0f;
+			result[1] = (static_cast<float>((src >> 9) & 0x1FF) * 0.0019569471f * 2.0f) - 1.0f;
+		}
+	}
+
 	class shared final : public component_interface
 	{ 
 	public:

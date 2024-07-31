@@ -153,6 +153,49 @@ namespace zonetool::t7
 #undef DUMP_ASSET_REGULAR
 	}
 
+	void dump_asset_iw7(XAsset* asset)
+	{
+#define DUMP_ASSET_REGULAR(__type__,__namespace__,__struct__) \
+		if (asset->type == __type__) \
+		{ \
+			if(IS_DEBUG) ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
+			auto asset_ptr = reinterpret_cast<__struct__*>(asset->header.data); \
+			__namespace__::dump(asset_ptr); \
+		}
+
+#define DUMP_ASSET_NO_CONVERT(__type__,__namespace__,__struct__) \
+		if (asset->type == __type__) \
+		{ \
+			if(IS_DEBUG) ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
+			auto asset_ptr = reinterpret_cast<zonetool::iw7::__struct__*>(asset->header.data); \
+			zonetool::iw7::__namespace__::dump(asset_ptr); \
+		}
+
+#define DUMP_ASSET_CONVERT(__type__,__namespace__,__struct__) \
+		if (asset->type == __type__) \
+		{ \
+			if(IS_DEBUG) ZONETOOL_INFO("Converting and dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
+			auto asset_ptr = reinterpret_cast<__struct__*>(asset->header.data); \
+			converter::iw7::__namespace__::dump(asset_ptr); \
+		}
+
+		try
+		{
+			DUMP_ASSET_CONVERT(ASSET_TYPE_XANIMPARTS, xanim, XAnimParts);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_XMODEL, xmodel, XModel);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_XMODELMESH, xmodel_mesh, XModelMesh);
+		}
+		catch (const std::exception& e)
+		{
+			ZONETOOL_FATAL("A fatal exception occured while dumping zone \"%s\", exception was: \n%s",
+				filesystem::get_fastfile().data(), e.what());
+		}
+
+#undef DUMP_ASSET_CONVERT
+#undef DUMP_ASSET_NO_CONVERT
+#undef DUMP_ASSET_REGULAR
+	}
+
 	void dump_asset_t7(XAsset* asset)
 	{
 #define DUMP_ASSET(__type__,___,__struct__) \
@@ -181,6 +224,7 @@ namespace zonetool::t7
 	{
 		{game::t7, dump_asset_t7},
 		{game::h1, dump_asset_h1},
+		{game::iw7, dump_asset_iw7},
 	};
 
 	void dump_asset(XAsset* asset)

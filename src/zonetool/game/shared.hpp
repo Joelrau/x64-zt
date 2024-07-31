@@ -144,6 +144,12 @@ namespace zonetool
 		ushort float_to_half(const float x);
 	}
 
+	namespace self_visibility
+	{
+		uint32_t XSurfacePackSelfVisibility(float* packed);
+		void XSurfaceUnpackSelfVisibility(uint32_t src, float* result);
+	}
+
 	template<typename T>
 	static void compute(T* bounds, float* mins, float* maxs)
 	{

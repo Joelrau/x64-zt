@@ -1395,7 +1395,7 @@ namespace zonetool::t7
 		XModelLod highestRenderLod;
 		float areaScale;
 		float cullOutRadius;
-		char __pad0[24];
+		float unk[6];
 		float averageTriArea[8];
 		XModelMesh* meshes[8];
 		XModelMeshMaterials* meshMaterials;

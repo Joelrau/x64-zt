@@ -754,11 +754,11 @@ namespace zonetool::iw7
 	{
 		const char* name; // 0
 		scr_string_t* names; // 8
-		unsigned char* dataByte; // 16
+		char* dataByte; // 16
 		short* dataShort; // 24
 		int* dataInt; // 32
 		short* randomDataShort; // 40
-		unsigned char* randomDataByte; // 48
+		char* randomDataByte; // 48
 		int* randomDataInt; // 56
 		XAnimIndices indices; // 64
 		XAnimNotifyInfo* notify; // 72

@@ -53,7 +53,7 @@ namespace zonetool::iw7
 
 		if (asset->dataByte)
 		{
-			asset->dataByte = reader.read_array<unsigned char>();
+			asset->dataByte = reader.read_array<char>();
 		}
 		if (asset->dataShort)
 		{
@@ -69,7 +69,7 @@ namespace zonetool::iw7
 		}
 		if (asset->randomDataByte)
 		{
-			asset->randomDataByte = reader.read_array<unsigned char>();
+			asset->randomDataByte = reader.read_array<char>();
 		}
 		if (asset->randomDataInt)
 		{

@@ -14,8 +14,8 @@ namespace zonetool::t7
 		{
 			void GenerateH1BlendVertsTable(zonetool::h1::XSurface* surf)
 			{
-				unsigned short a = 0;
-				unsigned short b = 0;
+				unsigned int a = 0;
+				unsigned int b = 0;
 				unsigned short index = 1;
 				for (short s = 0; s < (surf->blendVertCounts[0]); s++)
 				{
@@ -190,10 +190,10 @@ namespace zonetool::t7
 							new_surf->verts0.packedVerts0[j].xyz[1] = positions[j][1];
 							new_surf->verts0.packedVerts0[j].xyz[2] = positions[j][2];
 
-							new_surf->verts0.packedVerts0[j].color.packed = verts[j].Color[0];
-							new_surf->verts0.packedVerts0[j].color.packed = verts[j].Color[1];
-							new_surf->verts0.packedVerts0[j].color.packed = verts[j].Color[2];
-							new_surf->verts0.packedVerts0[j].color.packed = verts[j].Color[3];
+							new_surf->verts0.packedVerts0[j].color.array[0] = verts[j].Color[0];
+							new_surf->verts0.packedVerts0[j].color.array[1] = verts[j].Color[1];
+							new_surf->verts0.packedVerts0[j].color.array[2] = verts[j].Color[2];
+							new_surf->verts0.packedVerts0[j].color.array[3] = verts[j].Color[3];
 
 							memcpy(&new_surf->verts0.packedVerts0[j].texCoord.packed, &verts[j].UVUPosition, sizeof(int)); // check
 

@@ -1,62 +1,62 @@
 #include <std_include.hpp>
-#include "zonetool/t7/converter/h1/include.hpp"
+#include "zonetool/t7/converter/iw7/include.hpp"
 #include "xanim.hpp"
 
-#include "zonetool/h1/assets/xanim.hpp"
+#include "zonetool/iw7/assets/xanim.hpp"
 
 #include <utils/string.hpp>
 
 namespace zonetool::t7
 {
-	namespace converter::h1
+	namespace converter::iw7
 	{
 		namespace xanim
 		{
-			zonetool::h1::XAnimParts* convert(XAnimParts* asset, utils::memory::allocator& allocator)
+			zonetool::iw7::XAnimParts* convert(XAnimParts* asset, utils::memory::allocator& allocator)
 			{
-				const auto new_asset = allocator.allocate<zonetool::h1::XAnimParts>();
+				const auto new_asset = allocator.allocate<zonetool::iw7::XAnimParts>();
 
 				REINTERPRET_CAST_SAFE(name);
 
 				new_asset->dataByteCount = static_cast<unsigned short>(asset->dataByteCount);
 				new_asset->dataShortCount = static_cast<unsigned short>(asset->dataShortCount);
 				new_asset->dataIntCount = static_cast<unsigned short>(asset->dataIntCount);
+				new_asset->randomDataShortCount = asset->randomDataShortCount;
 				new_asset->randomDataByteCount = asset->randomDataByteCount;
-				new_asset->randomDataIntCount = asset->randomDataIntCount;
+				new_asset->randomDataIntCount = static_cast<unsigned short>(asset->randomDataIntCount);
 				new_asset->numframes = asset->numframes;
 				new_asset->flags = 0;
 				memcpy(&new_asset->boneCount, &asset->boneCount, sizeof(asset->boneCount));
 				new_asset->notifyCount = asset->notifyCount;
 				new_asset->assetType = asset->assetType;
 				//new_asset->ikType = asset->ikType;
-				new_asset->randomDataShortCount = asset->randomDataShortCount;
 				new_asset->indexCount = asset->indexCount;
 				new_asset->framerate = asset->framerate;
 				new_asset->frequency = asset->frequency;
-				new_asset->names = allocator.allocate_array<zonetool::h1::scr_string_t>(new_asset->boneCount[9]);
+				new_asset->names = allocator.allocate_array<zonetool::iw7::scr_string_t>(new_asset->boneCount[9]);
 				for (auto i = 0; i < new_asset->boneCount[9]; i++)
 				{
-					new_asset->names[i] = static_cast<zonetool::h1::scr_string_t>(asset->names[i]);
+					new_asset->names[i] = static_cast<zonetool::iw7::scr_string_t>(asset->names[i]);
 				}
 				new_asset->dataByte = reinterpret_cast<char*>(asset->dataByte);
 				new_asset->dataShort = reinterpret_cast<short*>(asset->dataShort);
 				new_asset->dataInt = reinterpret_cast<int*>(asset->dataInt);
 				new_asset->randomDataShort = reinterpret_cast<short*>(asset->randomDataShort);
-				new_asset->randomDataByte = reinterpret_cast<unsigned char*>(asset->randomDataByte);
+				new_asset->randomDataByte = reinterpret_cast<char*>(asset->randomDataByte);
 				new_asset->randomDataInt = reinterpret_cast<int*>(asset->randomDataInt);
 
 				new_asset->indices.data = reinterpret_cast<void*>(asset->indices.data);
 
-				new_asset->notify = allocator.allocate_array<zonetool::h1::XAnimNotifyInfo>(new_asset->notifyCount);
+				new_asset->notify = allocator.allocate_array<zonetool::iw7::XAnimNotifyInfo>(new_asset->notifyCount);
 				for (auto i = 0; i < asset->notifyCount; i++)
 				{
-					new_asset->notify[i].name = static_cast<zonetool::h1::scr_string_t>(asset->notify[i].param1);
+					new_asset->notify[i].name = static_cast<zonetool::iw7::scr_string_t>(asset->notify[i].param1);
 					new_asset->notify[i].time = asset->notify[i].time;
 				}
 
 				if (asset->deltaPart)
 				{
-					new_asset->deltaPart = allocator.allocate<zonetool::h1::XAnimDeltaPart>();
+					new_asset->deltaPart = allocator.allocate<zonetool::iw7::XAnimDeltaPart>();
 					if (asset->deltaPart->trans)
 					{
 						auto extra_size = 0;
@@ -73,7 +73,7 @@ namespace zonetool::t7
 							}
 						}
 
-						new_asset->deltaPart->trans = allocator.manual_allocate<zonetool::h1::XAnimPartTrans>(sizeof(zonetool::h1::XAnimPartTrans) + extra_size);
+						new_asset->deltaPart->trans = allocator.manual_allocate<zonetool::iw7::XAnimPartTrans>(sizeof(zonetool::iw7::XAnimPartTrans) + extra_size);
 
 						new_asset->deltaPart->trans->size = asset->deltaPart->trans->size;
 						new_asset->deltaPart->trans->smallTrans = static_cast<unsigned short>(asset->deltaPart->trans->smallTrans);
@@ -153,7 +153,7 @@ namespace zonetool::t7
 							extra_size += 4;
 						}
 
-						new_asset->deltaPart->quat = allocator.manual_allocate<zonetool::h1::XAnimDeltaPartQuat>(sizeof(zonetool::h1::XAnimDeltaPartQuat) + extra_size);
+						new_asset->deltaPart->quat = allocator.manual_allocate<zonetool::iw7::XAnimDeltaPartQuat>(sizeof(zonetool::iw7::XAnimDeltaPartQuat) + extra_size);
 						new_asset->deltaPart->quat->size = asset->deltaPart->quat->size;
 
 						if (asset->deltaPart->quat->size)
@@ -199,7 +199,7 @@ namespace zonetool::t7
 			{
 				utils::memory::allocator allocator;
 				const auto converted_asset = convert(asset, allocator);
-				zonetool::h1::xanim_parts::dump(converted_asset);
+				zonetool::iw7::xanim_parts::dump(converted_asset);
 			}
 		}
 	}
