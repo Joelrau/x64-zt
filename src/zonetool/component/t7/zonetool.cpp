@@ -47,9 +47,9 @@ namespace zonetool::t7
 			// some download thing
 			utils::hook::set<uint8_t>(0x1407D5F70, 0xC3);
 
-			// disable g_copyInfo shit ( freezes after dump, but at least wont crash )
-			utils::hook::set<uint8_t>(0x1401D4FE0, 0xC3);
-			utils::hook::set<uint8_t>(0x1401D86A0, 0xC3);
+			// disable g_copyInfo shit
+			utils::hook::set<uint8_t>(0x1401A18DF, 0xEB);
+			utils::hook::set<uint8_t>(0x1401A1B5B, 0xEB);
 
 			// patch Load_XAsset nullsubs
 			utils::hook::call(0x1401B1E5D, load_gfximage_asset_stub);

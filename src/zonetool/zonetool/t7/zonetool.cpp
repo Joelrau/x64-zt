@@ -366,9 +366,10 @@ namespace zonetool::t7
 	}
 
 	utils::hook::detour db_finish_load_x_file_hook;
-	void db_finish_load_x_file_stub(void* a1, const char** a2)
+	void db_finish_load_x_file_stub(void* a1, void* a2)
 	{
-		if (*a2 == filesystem::get_fastfile())
+		const auto ff_name = *reinterpret_cast<const char**>(0x1468FD4A8);
+		if (ff_name == filesystem::get_fastfile())
 		{
 			stop_dumping();
 		}
@@ -405,11 +406,7 @@ namespace zonetool::t7
 
 		if (is_zone_loaded(name))
 		{
-			if (inform)
-			{
-				ZONETOOL_INFO("zone \"%s\" is already loaded...", name.data());
-			}
-
+			ZONETOOL_INFO("zone \"%s\" is already loaded...", name.data());
 			return false;
 		}
 
@@ -484,7 +481,7 @@ namespace zonetool::t7
 
 		globals.dump = true;
 		globals.dump_csv = true;
-		if (!load_zone(name, false, true))
+		if (!load_zone(name, false, false))
 		{
 			globals.dump = false;
 			globals.dump_csv = false;
