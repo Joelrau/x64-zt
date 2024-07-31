@@ -37,6 +37,16 @@ namespace zonetool::t7
 			// forever loop after game initialization
 			utils::hook::call(0x140502AA9, com_init_try_block_function_stub);
 
+			// don't create server thread
+			utils::hook::set<uint8_t>(0x140537840, 0xC3);
+
+			// demonware
+			utils::hook::set<uint8_t>(0x1401E6050, 0xC3); // start
+			utils::hook::set<uint8_t>(0x1407EA850, 0xC3); // shutdown
+
+			// some download thing
+			utils::hook::set<uint8_t>(0x1407D5F70, 0xC3);
+
 			// disable g_copyInfo shit ( freezes after dump, but at least wont crash )
 			utils::hook::set<uint8_t>(0x1401D4FE0, 0xC3);
 			utils::hook::set<uint8_t>(0x1401D86A0, 0xC3);
