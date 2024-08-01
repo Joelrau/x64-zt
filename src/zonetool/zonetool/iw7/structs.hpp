@@ -750,6 +750,15 @@ namespace zonetool::iw7
 		XAnimDeltaPartQuat* quat;
 	};
 
+	enum XAnimPartsFlags
+	{
+		ANIM_LOOP = 0x1,
+		ANIM_DELTA = 0x2,
+		ANIM_DELTA_3D = 0x4,
+		ANIM_DEFAULT = 0x8,
+		ANIM_SHMEM = 0x10,
+	};
+
 	struct XAnimParts
 	{
 		const char* name; // 0

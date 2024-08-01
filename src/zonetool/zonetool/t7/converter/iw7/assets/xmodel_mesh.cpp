@@ -144,7 +144,7 @@ namespace zonetool::t7
 							new_surf->verts0.packedVerts0[j].tangent.packed = verts[j].VertexTangent; // check
 
 							float default_visibility[4] = { 0.0f, 0.0f, 1.0f, 0.0f };
-							new_surf->verts0.packedVerts0[i].selfVisibility.packed = self_visibility::XSurfacePackSelfVisibility(default_visibility);
+							new_surf->verts0.packedVerts0[j].selfVisibility.packed = self_visibility::XSurfacePackSelfVisibility(default_visibility);
 						}
 
 						new_surf->triIndices = reinterpret_cast<zonetool::iw7::Face*>(indices);

@@ -25,8 +25,27 @@ namespace zonetool::t7
 				new_asset->randomDataByteCount = asset->randomDataByteCount;
 				new_asset->randomDataIntCount = static_cast<unsigned short>(asset->randomDataIntCount);
 				new_asset->numframes = asset->numframes;
+
 				new_asset->flags = 0;
-				memcpy(&new_asset->boneCount, &asset->boneCount, sizeof(asset->boneCount));
+				if (asset->bLoop)
+				{
+					new_asset->flags |= zonetool::iw7::ANIM_LOOP;
+				}
+				if (asset->bDelta)
+				{
+					new_asset->flags |= zonetool::iw7::ANIM_DELTA;
+				}
+				if (asset->bDelta3D)
+				{
+					new_asset->flags |= zonetool::iw7::ANIM_DELTA_3D;
+				}
+
+				for (auto i = 0; i < 10; i++)
+				{
+					assert(asset->boneCount[i] <= std::numeric_limits<unsigned char>::max());
+					new_asset->boneCount[i] = static_cast<unsigned char>(asset->boneCount[i]);
+				}
+
 				new_asset->notifyCount = asset->notifyCount;
 				new_asset->assetType = asset->assetType;
 				//new_asset->ikType = asset->ikType;
@@ -50,147 +69,14 @@ namespace zonetool::t7
 				new_asset->notify = allocator.allocate_array<zonetool::iw7::XAnimNotifyInfo>(new_asset->notifyCount);
 				for (auto i = 0; i < asset->notifyCount; i++)
 				{
-					new_asset->notify[i].name = static_cast<zonetool::iw7::scr_string_t>(asset->notify[i].param1);
+					new_asset->notify[i].name = static_cast<zonetool::iw7::scr_string_t>(asset->notify[i].type);
 					new_asset->notify[i].time = asset->notify[i].time;
 				}
 
-				if (asset->deltaPart)
-				{
-					new_asset->deltaPart = allocator.allocate<zonetool::iw7::XAnimDeltaPart>();
-					if (asset->deltaPart->trans)
-					{
-						auto extra_size = 0;
-
-						if (asset->deltaPart->trans->size)
-						{
-							if (asset->numframes >= 256)
-							{
-								extra_size += (asset->deltaPart->trans->size * 2) + 2;
-							}
-							else
-							{
-								extra_size += asset->deltaPart->trans->size + 1;
-							}
-						}
-
-						new_asset->deltaPart->trans = allocator.manual_allocate<zonetool::iw7::XAnimPartTrans>(sizeof(zonetool::iw7::XAnimPartTrans) + extra_size);
-
-						new_asset->deltaPart->trans->size = asset->deltaPart->trans->size;
-						new_asset->deltaPart->trans->smallTrans = static_cast<unsigned short>(asset->deltaPart->trans->smallTrans);
-
-						if (asset->deltaPart->trans->size)
-						{
-							for (auto i = 0; i < 3; i++)
-							{
-								new_asset->deltaPart->trans->u.frames.mins[i] = asset->deltaPart->trans->u.frames.mins[i];
-								new_asset->deltaPart->trans->u.frames.size[i] = asset->deltaPart->trans->u.frames.size[i];
-							}
-							if (asset->numframes >= 256)
-							{
-								for (auto i = 0; i < asset->deltaPart->trans->size + 1; i++)
-								{
-									new_asset->deltaPart->trans->u.frames.indices._2[i] = asset->deltaPart->trans->u.frames.indices._2[i];
-								}
-							}
-							else
-							{
-								for (auto i = 0; i < asset->deltaPart->trans->size + 1; i++)
-								{
-									new_asset->deltaPart->trans->u.frames.indices._1[i] = static_cast<unsigned char>(asset->deltaPart->trans->u.frames.indices._1[i]);
-								}
-							}
-							if (asset->deltaPart->trans->u.frames.frames._1)
-							{
-								if (asset->deltaPart->trans->smallTrans)
-								{
-									new_asset->deltaPart->trans->u.frames.frames._1 = allocator.allocate_array<unsigned char[3]>(asset->deltaPart->trans->size + 1);
-									for (auto i = 0; i < asset->deltaPart->trans->size + 1; i++)
-									{
-										new_asset->deltaPart->trans->u.frames.frames._1[i][0] = static_cast<unsigned char>(asset->deltaPart->trans->u.frames.frames._1[i][0]);
-										new_asset->deltaPart->trans->u.frames.frames._1[i][1] = static_cast<unsigned char>(asset->deltaPart->trans->u.frames.frames._1[i][1]);
-										new_asset->deltaPart->trans->u.frames.frames._1[i][2] = static_cast<unsigned char>(asset->deltaPart->trans->u.frames.frames._1[i][2]);
-									}
-								}
-								else
-								{
-									new_asset->deltaPart->trans->u.frames.frames._2 = allocator.allocate_array<unsigned short[3]>(asset->deltaPart->trans->size + 1);
-									for (auto i = 0; i < asset->deltaPart->trans->size + 1; i++)
-									{
-										new_asset->deltaPart->trans->u.frames.frames._2[i][0] = asset->deltaPart->trans->u.frames.frames._2[i][0];
-										new_asset->deltaPart->trans->u.frames.frames._2[i][1] = asset->deltaPart->trans->u.frames.frames._2[i][1];
-										new_asset->deltaPart->trans->u.frames.frames._2[i][2] = asset->deltaPart->trans->u.frames.frames._2[i][2];
-									}
-								}
-							}
-						}
-						else
-						{
-							for (auto i = 0; i < 3; i++)
-							{
-								new_asset->deltaPart->trans->u.frame0[i] = asset->deltaPart->trans->u.frame0[i];
-							}
-						}
-					}
-
-					if (asset->deltaPart->quat)
-					{
-						auto extra_size = 0;
-
-						if (asset->deltaPart->quat->size)
-						{
-							if (asset->numframes >= 256)
-							{
-								extra_size += (asset->deltaPart->quat->size * 2) + 2;
-							}
-							else
-							{
-								extra_size += asset->deltaPart->quat->size + 1;
-							}
-						}
-						else
-						{
-							// quat data contains 4 extra bytes
-							extra_size += 4;
-						}
-
-						new_asset->deltaPart->quat = allocator.manual_allocate<zonetool::iw7::XAnimDeltaPartQuat>(sizeof(zonetool::iw7::XAnimDeltaPartQuat) + extra_size);
-						new_asset->deltaPart->quat->size = asset->deltaPart->quat->size;
-
-						if (asset->deltaPart->quat->size)
-						{
-							if (asset->numframes >= 256)
-							{
-								for (auto i = 0; i < asset->deltaPart->quat->size + 1; i++)
-								{
-									new_asset->deltaPart->quat->u.frames.indices._2[i] = asset->deltaPart->quat->u.frames.indices._2[i];
-								}
-							}
-							else
-							{
-								for (auto i = 0; i < asset->deltaPart->quat->size + 1; i++)
-								{
-									new_asset->deltaPart->quat->u.frames.indices._1[i] = static_cast<unsigned char>(asset->deltaPart->quat->u.frames.indices._1[i]);
-								}
-							}
-							if (asset->deltaPart->quat->u.frames.frames)
-							{
-								new_asset->deltaPart->quat->u.frames.frames = allocator.allocate_array<short[4]>(asset->deltaPart->quat->size + 1);
-								for (auto i = 0; i < asset->deltaPart->quat->size + 1; i++)
-								{
-									new_asset->deltaPart->quat->u.frames.frames[i][0] = asset->deltaPart->quat->u.frames.frames[i][0];
-									new_asset->deltaPart->quat->u.frames.frames[i][1] = asset->deltaPart->quat->u.frames.frames[i][1];
-								}
-							}
-						}
-						else
-						{
-							for (auto i = 0; i < 2; i++)
-							{
-								new_asset->deltaPart->quat->u.frame0[i] = asset->deltaPart->quat->u.frame0[i];
-							}
-						}
-					}
-				}
+				static_assert(sizeof(XAnimPartTrans) == sizeof(zonetool::iw7::XAnimPartTrans));
+				static_assert(sizeof(XAnimDeltaPartQuat2) == sizeof(zonetool::iw7::XAnimDeltaPartQuat2));
+				static_assert(sizeof(XAnimDeltaPartQuat) == sizeof(zonetool::iw7::XAnimDeltaPartQuat));
+				REINTERPRET_CAST_SAFE(deltaPart);
 
 				return new_asset;
 			}

@@ -16,7 +16,7 @@ namespace zonetool::t7
 			{
 				const auto new_asset = allocator.allocate<zonetool::h1::XModel>();
 
-				assert(asset->numBones <= 256);
+				assert(asset->numBones < 256);
 
 				COPY_VALUE(numLods);
 				if (new_asset->numLods > 6)
@@ -59,8 +59,8 @@ namespace zonetool::t7
 					// i made up this function, not sure how its calculated in bo3
 					auto calc_lod_dist = [&]()
 					{
-						const auto multiplier = 100000.0f;
-						return asset->averageTriArea[i] * multiplier;
+						float constantFactor = 1000000.0f;
+						return std::round(sqrtf(constantFactor / asset->averageTriArea[i]));
 					};
 
 					new_asset->lodInfo[i].dist = calc_lod_dist();

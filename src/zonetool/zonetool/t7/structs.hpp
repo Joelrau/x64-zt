@@ -1130,6 +1130,16 @@ namespace zonetool::t7
 		vec_t* himipInvSqRadii;
 	};
 
+	enum XModelUsageFlags : int32_t
+	{
+		XMODEL_USAGE_WEAPON = 0x1,
+		XMODEL_USAGE_ATTACHMENT = 0x2,
+		XMODEL_USAGE_HERO = 0x4,
+		XMODEL_USAGE_VIEW = 0x8,
+		XMODEL_USAGE_PREFAB = 0x10,
+		XMODEL_USAGE_ZOMBIE_BODY = 0x20,
+		XMODEL_USAGE_ZOMBIE_WORLD_PROP = 0x40,
+	};
 	typedef uint64_t XModelUsage;
 
 	struct XBoneInfo

@@ -12,26 +12,16 @@ namespace zonetool::t7
 	{
 		namespace xmodel
 		{
-			const float lod_dist[] =
-			{
-				100.0f,
-				200.0f,
-				400.0f,
-				800.0f,
-				1600.0f,
-				3200.0f,
-			};
-
 			zonetool::iw7::XModel* convert(XModel* asset, utils::memory::allocator& allocator)
 			{
 				const auto new_asset = allocator.allocate<zonetool::iw7::XModel>();
 
-				assert(asset->numBones <= 256);
+				assert(asset->numBones < 256);
 
 				if (asset->numCosmeticBones)
 				{
 					ZONETOOL_WARNING("model %s has cosmetic bones, this is untested and might not work!", asset->name);
-					assert(asset->numBones + asset->numCosmeticBones <= 256);
+					assert(asset->numBones + asset->numCosmeticBones < 256);
 				}
 
 				COPY_VALUE(numLods);
@@ -74,11 +64,12 @@ namespace zonetool::t7
 					// i made up this function, not sure how its calculated in bo3
 					auto calc_lod_dist = [&]()
 					{
-						const auto multiplier = 100000.0f;
-						return asset->averageTriArea[i] * multiplier;
+						float constantFactor = 1000000.0f;
+						return std::round(sqrtf(constantFactor / asset->averageTriArea[i]));
 					};
 
 					new_asset->lodInfo[i].dist = calc_lod_dist();
+
 					new_asset->lodInfo[i].numsurfs = asset->meshes[i]->numSurfs;
 					new_asset->lodInfo[i].surfIndex = 0;
 					new_asset->lodInfo[i].modelSurfs = allocator.allocate<zonetool::iw7::XModelSurfs>();
