@@ -311,8 +311,14 @@ namespace zonetool
 
 			buf->push_stream(Streams::XFILE_BLOCK_VIRTUAL);
 
+			std::string name = this->name();
+			if (game::get_mode() == game::game_mode::iw7)
+			{
+				name = utils::string::to_lower(name);
+			}
+
 			dest->value = buf->write_str(data->value);
-			dest->name = buf->write_str(this->name());
+			dest->name = buf->write_str(name);
 
 			buf->pop_stream();
 		}
