@@ -1155,7 +1155,7 @@ namespace zonetool::t7
 		short x;
 		short y;
 		short z;
-		short base;
+		short w;
 	};
 
 	struct XModelTagPos
@@ -1163,8 +1163,7 @@ namespace zonetool::t7
 		float x;
 		float y;
 		float z;
-		float w;
-	};
+	}; // Load_Stream(1, v9, 16 * (varXModel->numBones + varXModel->numCosmeticBones - varXModel->numRootBones));
 
 	union PackedUnitVec
 	{
@@ -1284,8 +1283,7 @@ namespace zonetool::t7
 		XSurfaceShared* shared;
 		XRigidVertList* vertList;
 		XPartBits partBits;
-		uint nameHash;
-		char __pad0[4];
+		uint64_t unk;
 		const char* name;
 	};
 

@@ -12,7 +12,7 @@ namespace zonetool::t7
 	{
 		namespace xmodel_mesh
 		{
-			void GenerateIW7BlendVerts(unsigned short* vertsBlend, zonetool::iw7::XSurface* surf, utils::memory::allocator& mem)
+			void GenerateIW7BlendVerts(zonetool::iw7::XSurface* surf, utils::memory::allocator& mem, std::vector<GfxStreamWeight*>* weights_arr)
 			{
 				unsigned int size = (2 * surf->blendVertCounts[0]
 					+ 4 * surf->blendVertCounts[1]
@@ -27,46 +27,44 @@ namespace zonetool::t7
 				assert(surf->blendVertSize % 2 == 0);
 
 				unsigned int a = 0;
-				unsigned int b = 0;
-				for (unsigned short s = 0; s < (surf->blendVertCounts[0]); s++)
+				for (unsigned short s = 0; s < surf->blendVertCounts[0]; s++)
 				{
-					surf->blendVerts[a++] = vertsBlend[b + 0] / 64;
+					auto weight = weights_arr[0][s];
+					surf->blendVerts[a++] = weight->WeightID1;
 					surf->blendVerts[a++] = 0;
-
-					b += 1;
 				}
 
-				for (unsigned short s = 0; s < (surf->blendVertCounts[1]); s++)
+				for (unsigned short s = 0; s < surf->blendVertCounts[1]; s++)
 				{
-					surf->blendVerts[a++] = vertsBlend[b + 0] / 64;
-					surf->blendVerts[a++] = vertsBlend[b + 1] / 64;
-					surf->blendVerts[a++] = vertsBlend[b + 2];
+					auto weight = weights_arr[1][s];
+					surf->blendVerts[a++] = weight->WeightID1;
+					surf->blendVerts[a++] = weight->WeightID2;
+					surf->blendVerts[a++] = weight->WeightVal1;
 					surf->blendVerts[a++] = 0;
-					b += 3;
 				}
 
-				for (unsigned short s = 0; s < (surf->blendVertCounts[2]); s++)
+				for (unsigned short s = 0; s < surf->blendVertCounts[2]; s++)
 				{
-					surf->blendVerts[a++] = vertsBlend[b + 0] / 64;
-					surf->blendVerts[a++] = vertsBlend[b + 1] / 64;
-					surf->blendVerts[a++] = vertsBlend[b + 2];
-					surf->blendVerts[a++] = vertsBlend[b + 3] / 64;
-					surf->blendVerts[a++] = vertsBlend[b + 4];
+					auto weight = weights_arr[2][s];
+					surf->blendVerts[a++] = weight->WeightID1;
+					surf->blendVerts[a++] = weight->WeightID2;
+					surf->blendVerts[a++] = weight->WeightVal1;
+					surf->blendVerts[a++] = weight->WeightID3;
+					surf->blendVerts[a++] = weight->WeightVal2;
 					surf->blendVerts[a++] = 0;
-					b += 5;
 				}
 
-				for (unsigned short s = 0; s < (surf->blendVertCounts[3]); s++)
+				for (unsigned short s = 0; s < surf->blendVertCounts[3]; s++)
 				{
-					surf->blendVerts[a++] = vertsBlend[b + 0] / 64;
-					surf->blendVerts[a++] = vertsBlend[b + 1] / 64;
-					surf->blendVerts[a++] = vertsBlend[b + 2];
-					surf->blendVerts[a++] = vertsBlend[b + 3] / 64;
-					surf->blendVerts[a++] = vertsBlend[b + 4];
-					surf->blendVerts[a++] = vertsBlend[b + 5] / 64;
-					surf->blendVerts[a++] = vertsBlend[b + 6];
+					auto weight = weights_arr[3][s];
+					surf->blendVerts[a++] = weight->WeightID1;
+					surf->blendVerts[a++] = weight->WeightID2;
+					surf->blendVerts[a++] = weight->WeightVal1;
+					surf->blendVerts[a++] = weight->WeightID3;
+					surf->blendVerts[a++] = weight->WeightVal2;
+					surf->blendVerts[a++] = weight->WeightID4;
+					surf->blendVerts[a++] = weight->WeightVal3;
 					surf->blendVerts[a++] = 0;
-					b += 7;
 				}
 
 				assert(a == size);
@@ -140,8 +138,8 @@ namespace zonetool::t7
 
 							memcpy(&new_surf->verts0.packedVerts0[j].texCoord.packed, &verts[j].UVUPosition, sizeof(int)); // check
 
-							new_surf->verts0.packedVerts0[j].normal.packed = verts[j].VertexNormal; // check
-							new_surf->verts0.packedVerts0[j].tangent.packed = verts[j].VertexTangent; // check
+							new_surf->verts0.packedVerts0[j].normal.packed = verts[j].VertexNormal;
+							new_surf->verts0.packedVerts0[j].tangent.packed = verts[j].VertexTangent;
 
 							float default_visibility[4] = { 0.0f, 0.0f, 1.0f, 0.0f };
 							new_surf->verts0.packedVerts0[j].selfVisibility.packed = self_visibility::XSurfacePackSelfVisibility(default_visibility);
@@ -178,73 +176,7 @@ namespace zonetool::t7
 								weights_arr[idx].push_back(weight);
 							}
 
-							const auto total_blend_verts = (new_surf->blendVertCounts[0]
-								+ 3 * new_surf->blendVertCounts[1]
-								+ 5 * new_surf->blendVertCounts[2]
-								+ 7 * new_surf->blendVertCounts[3]
-								+ 9 * new_surf->blendVertCounts[4]
-								+ 11 * new_surf->blendVertCounts[5]
-								+ 13 * new_surf->blendVertCounts[6]
-								+ 15 * new_surf->blendVertCounts[7]);
-
-							// generate
-							{
-								auto vertsBlend = allocator.manual_allocate<unsigned short>(2 * total_blend_verts);
-								unsigned short b = 0;
-								for (short s = 0; s < (new_surf->blendVertCounts[0]); s++)
-								{
-									auto weight = weights_arr[0][s];
-
-									vertsBlend[b] = weight->WeightID1 * 64;
-
-									b += 1;
-								}
-
-								for (short s = 0; s < (new_surf->blendVertCounts[1]); s++)
-								{
-									auto weight = weights_arr[1][s];
-
-									vertsBlend[b] = weight->WeightID1 * 64;
-									vertsBlend[b + 1] = weight->WeightID2 * 64;
-
-									vertsBlend[b + 2] = weight->WeightVal1;
-
-									b += 3;
-								}
-
-								for (short s = 0; s < (new_surf->blendVertCounts[2]); s++)
-								{
-									auto weight = weights_arr[2][s];
-
-									vertsBlend[b] = weight->WeightID1 * 64;
-									vertsBlend[b + 1] = weight->WeightID2 * 64;
-									vertsBlend[b + 3] = weight->WeightID3 * 64;
-
-									vertsBlend[b + 2] = weight->WeightVal1;
-									vertsBlend[b + 4] = weight->WeightVal2;
-
-									b += 5;
-								}
-
-								for (short s = 0; s < (new_surf->blendVertCounts[3]); s++)
-								{
-									auto weight = weights_arr[3][s];
-
-									vertsBlend[b] = weight->WeightID1 * 64;
-									vertsBlend[b + 1] = weight->WeightID2 * 64;
-									vertsBlend[b + 3] = weight->WeightID3 * 64;
-									vertsBlend[b + 5] = weight->WeightID4 * 64;
-
-									vertsBlend[b + 2] = weight->WeightVal1;
-									vertsBlend[b + 4] = weight->WeightVal2;
-									vertsBlend[b + 6] = weight->WeightVal3;
-
-									b += 7;
-								}
-
-								GenerateIW7BlendVerts(vertsBlend, new_surf, allocator);
-								allocator.free(vertsBlend);
-							}
+							GenerateIW7BlendVerts(new_surf, allocator, weights_arr);
 						}
 					}
 

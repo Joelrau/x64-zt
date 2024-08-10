@@ -150,6 +150,19 @@ namespace zonetool
 		return hash;
 	}
 
+	namespace QuatInt16
+	{
+		short ToInt16(const float quat)
+		{
+			return static_cast<short>(quat * INT16_MAX);
+		}
+
+		float ToFloat(const short quat)
+		{
+			return static_cast<float>(quat) / static_cast<float>(INT16_MAX);
+		}
+	}
+
 	namespace half_float
 	{
 		uint as_uint(const float x) {
@@ -191,6 +204,113 @@ namespace zonetool
 			result[3] = static_cast<float>((src >> 25) & 0x7F) * 0.0078740157f;
 			result[0] = (static_cast<float>(src & 0x1FF) * 0.0019569471f * 2.0f) - 1.0f;
 			result[1] = (static_cast<float>((src >> 9) & 0x1FF) * 0.0019569471f * 2.0f) - 1.0f;
+		}
+	}
+
+	namespace Byte4
+	{
+		void Byte4UnpackRgba(float* result, unsigned char* arr)
+		{
+			result[0] = arr[0] * 0.003921568859368563f;
+			result[1] = arr[1] * 0.003921568859368563f;
+			result[2] = arr[2] * 0.003921568859368563f;
+			result[3] = arr[3] * 0.003921568859368563f;
+		}
+	}
+
+	namespace PackedVec
+	{
+		uint32_t Vec2PackTexCoords(float* in)
+		{
+			__m128 xmm0 = _mm_loadu_ps(in);
+			__m128i xmmi0 = _mm_cvtps_ph(xmm0, 3);
+			uint32_t result = _mm_cvtsi128_si32(xmmi0);
+			return result;
+		}
+
+		void Vec2UnpackTexCoords(const uint32_t in, float* out) // iw5 func
+		{
+			uint32_t val;
+
+			if (LOWORD(in))
+				val = ((LOWORD(in) & 0x8000) << 16) | (((((in & 0x3FFF) << 14) - (~(LOWORD(in) << 14) & 0x10000000)) ^ 0x80000001) >> 1);
+			else
+				val = 0;
+
+			out[0] = *reinterpret_cast<float*>(&val);
+
+			if (HIWORD(in))
+				val = ((HIWORD(in) & 0x8000) << 16) | (((((HIWORD(in) & 0x3FFF) << 14)
+					- (~(HIWORD(in) << 14) & 0x10000000)) ^ 0x80000001) >> 1);
+			else
+				val = 0;
+
+			out[1] = *reinterpret_cast<float*>(&val);
+		}
+
+		uint32_t Vec3PackUnitVec_H1(float* in) // h1 func
+		{
+			uint32_t bits;
+
+			bits = ((uint32_t)floor(((((fmaxf(-1.0f, fminf(1.0f, in[2])) + 1.0f) * 0.5f) * 1023.0f) + 0.5f)) | 0xFFFFFC00) << 10;
+			bits = ((uint32_t)floor(((((fmaxf(-1.0f, fminf(1.0f, in[1])) + 1.0f) * 0.5f) * 1023.0f) + 0.5f)) | bits) << 10;
+			bits = ((uint32_t)floor(((((fmaxf(-1.0f, fminf(1.0f, in[0])) + 1.0f) * 0.5f) * 1023.0f) + 0.5f)) | bits);
+
+			return bits;
+		}
+
+		uint32_t Vec3PackUnitVecWithAlpha_H1(float* in, float alpha) // h1 func
+		{
+			uint32_t bits;
+
+			bits = ((uint32_t)floor(((((fmaxf(-1.0f, fminf(1.0f, alpha)) + 1.0f) * 0.5f) * 1023.0f) + 0.5f)) | 0xFFFFFC00) << 10;
+			bits = ((uint32_t)floor(((((fmaxf(-1.0f, fminf(1.0f, in[2])) + 1.0f) * 0.5f) * 1023.0f) + 0.5f)) | bits) << 10;
+			bits = ((uint32_t)floor(((((fmaxf(-1.0f, fminf(1.0f, in[1])) + 1.0f) * 0.5f) * 1023.0f) + 0.5f)) | bits) << 10;
+			bits = ((uint32_t)floor(((((fmaxf(-1.0f, fminf(1.0f, in[0])) + 1.0f) * 0.5f) * 1023.0f) + 0.5f)) | bits);
+
+			return bits;
+		}
+
+		void Vec3UnpackUnitVec_T6(const uint8_t* in, float* out) // t6 func
+		{
+			float decodeScale;
+
+			decodeScale = (in[3] - -192.0f) / 32385.0f;
+			out[0] = (in[0] - 127.0f) * decodeScale;
+			out[1] = (in[1] - 127.0f) * decodeScale;
+			out[2] = (in[2] - 127.0f) * decodeScale;
+		}
+
+		void Vec3UnpackUnitVec_IW8(const uint32_t in, float* out) // iw8 func
+		{
+			// Constants based on the original code
+			const float g_packMask1010102[4] = { 0x3FF, 0x3FF, 0x3FF, 0.0f }; // Mask for unpacking
+			const float g_packAdd1010102[4] = { 0.5f, 0.5f, 0.5f, 0.0f };     // Addition after unpacking
+			const float g_packMul1010102[4] = { 2.0f, 2.0f, 2.0f, 1.0f };     // Multiplication factor after unpacking
+
+			// Unpack the packed value
+			uint32_t packedValue = in;
+
+			// Apply mask and convert to float
+			float unpacked[3];
+			unpacked[0] = static_cast<float>(packedValue & 0x3FF);
+			unpacked[1] = static_cast<float>((packedValue >> 10) & 0x3FF);
+			unpacked[2] = static_cast<float>((packedValue >> 20) & 0x3FF);
+
+			// Add the constant value (equivalent to adding g_packAdd1010102)
+			unpacked[0] += g_packAdd1010102[0];
+			unpacked[1] += g_packAdd1010102[1];
+			unpacked[2] += g_packAdd1010102[2];
+
+			// Multiply by the scale factor (equivalent to multiplying by g_packMul1010102)
+			unpacked[0] *= g_packMul1010102[0];
+			unpacked[1] *= g_packMul1010102[1];
+			unpacked[2] *= g_packMul1010102[2];
+
+			// Assign the result to the output vector
+			out[0] = unpacked[0];
+			out[1] = unpacked[1];
+			out[2] = unpacked[2];
 		}
 	}
 

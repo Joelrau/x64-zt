@@ -42,12 +42,20 @@ namespace zonetool::t7
 				REINTERPRET_CAST_SAFE(boneNames);
 				REINTERPRET_CAST_SAFE(parentList);
 				REINTERPRET_CAST_SAFE(tagAngles);
+				new_asset->tagAngles = allocator.allocate_array<zonetool::iw7::XModelAngle>(asset->numBones + asset->numCosmeticBones - asset->numRootBones);
+				for (auto i = 0; i < asset->numBones + asset->numCosmeticBones - asset->numRootBones; i++)
+				{
+					new_asset->tagAngles[i].x = QuatInt16::ToInt16(half_float::half_to_float(asset->tagAngles[i].x));
+					new_asset->tagAngles[i].y = QuatInt16::ToInt16(half_float::half_to_float(asset->tagAngles[i].y));
+					new_asset->tagAngles[i].z = QuatInt16::ToInt16(half_float::half_to_float(asset->tagAngles[i].z));
+					new_asset->tagAngles[i].base = QuatInt16::ToInt16(half_float::half_to_float(asset->tagAngles[i].w));
+				}
 				new_asset->tagPositions = allocator.allocate_array<zonetool::iw7::XModelTagPos>(asset->numBones + asset->numCosmeticBones - asset->numRootBones);
 				for (auto i = 0; i < asset->numBones + asset->numCosmeticBones - asset->numRootBones; i++)
 				{
 					new_asset->tagPositions[i].x = asset->tagPositions[i].x;
-					new_asset->tagPositions[i].x = asset->tagPositions[i].y;
-					new_asset->tagPositions[i].x = asset->tagPositions[i].z;
+					new_asset->tagPositions[i].y = asset->tagPositions[i].y;
+					new_asset->tagPositions[i].z = asset->tagPositions[i].z;
 				}
 				REINTERPRET_CAST_SAFE(partClassification);
 				REINTERPRET_CAST_SAFE(baseMat);
@@ -121,8 +129,8 @@ namespace zonetool::t7
 				new_asset->collSurfs = allocator.allocate_array<zonetool::iw7::XModelCollSurf_s>(new_asset->numCollSurfs);
 				for (auto i = 0; i < new_asset->numCollSurfs; i++)
 				{
-					compute(&new_asset->collSurfs[i].bounds, asset->collSurfs[i].mins, asset->collSurfs[i].maxs);
-					//memcpy(&new_asset->collSurfs[i].bounds, &asset->collSurfs[i].mins, sizeof(zonetool::iw7::Bounds)); // compute?
+					//compute(&new_asset->collSurfs[i].bounds, asset->collSurfs[i].mins, asset->collSurfs[i].maxs);
+					memcpy(&new_asset->collSurfs[i].bounds, &asset->collSurfs[i].mins, sizeof(zonetool::iw7::Bounds)); // compute?
 					new_asset->collSurfs[i].boneIdx = asset->collSurfs[i].boneIdx;
 					new_asset->collSurfs[i].contents = asset->collSurfs[i].contents; // convert...
 					new_asset->collSurfs[i].surfFlags = asset->collSurfs[i].surfFlags; // convert...
@@ -130,16 +138,17 @@ namespace zonetool::t7
 
 				new_asset->contents = asset->contents; // convert...
 
-				new_asset->boneInfo = allocator.allocate_array<zonetool::iw7::XBoneInfo>(new_asset->numBones - asset->numRootBones);
-				for (auto i = 0; i < new_asset->numBones - asset->numRootBones; i++)
+				new_asset->boneInfo = allocator.allocate_array<zonetool::iw7::XBoneInfo>(new_asset->numBones + asset->numCosmeticBones - asset->numRootBones);
+				for (auto i = 0; i < new_asset->numBones + asset->numCosmeticBones - asset->numRootBones; i++)
 				{
-					memcpy(&new_asset->boneInfo[i].bounds, asset->boneInfo[i].bounds, sizeof(zonetool::iw7::Bounds));
+					//compute(&new_asset->boneInfo[i].bounds, asset->boneInfo[i].bounds[0], asset->boneInfo[i].bounds[1]);
+					memcpy(&new_asset->boneInfo[i].bounds, &asset->boneInfo[i].bounds, sizeof(zonetool::iw7::Bounds)); // compute?
 					new_asset->boneInfo[i].radiusSquared = asset->boneInfo[i].radiusSquared;
 				}
 
 				COPY_VALUE(radius);
-				compute(&new_asset->bounds, asset->mins, asset->maxs);
-				//memcpy(&new_asset->bounds, asset->mins, sizeof(zonetool::iw7::Bounds)); // compute?
+				//compute(&new_asset->bounds, asset->mins, asset->maxs);
+				memcpy(&new_asset->bounds, &asset->mins, sizeof(zonetool::iw7::Bounds)); // compute?
 
 				new_asset->invHighMipRadius = allocator.allocate_array<unsigned short>(new_asset->numsurfs);
 				for (unsigned char i = 0; i < new_asset->numsurfs; i++)
@@ -150,16 +159,10 @@ namespace zonetool::t7
 
 				new_asset->memUsage = 0;
 
-				if (asset->physPreset)
+				if (asset->collmaps)
 				{
-					//new_asset->physAsset = mem.allocate<IW7::PhysicsAsset>();
-					//new_asset->physAsset->name = mem.duplicate_string(asset->physPreset->name);
-				}
-
-				if (asset->physConstraints)
-				{
-					//new_asset->physFxShape = mem.allocate<IW7::PhysicsFXShape>();
-					//new_asset->physFxShape->name = mem.duplicate_string(asset->physCollmap->name);
+					new_asset->physicsAsset = allocator.allocate<zonetool::iw7::PhysicsAsset>();
+					new_asset->physicsAsset->name = allocator.duplicate_string(asset->name);
 				}
 				
 				new_asset->hasLods = asset->numLods ? 1 : 0;

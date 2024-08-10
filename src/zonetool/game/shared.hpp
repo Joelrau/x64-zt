@@ -135,6 +135,12 @@ namespace zonetool
 	std::uint32_t snd_hash_name(const char* name);
 	int string_table_hash(const std::string& string);
 
+	namespace QuatInt16
+	{
+		short ToInt16(const float quat);
+		float ToFloat(const short quat);
+	}
+
 	namespace half_float
 	{
 		typedef unsigned short ushort;
@@ -148,6 +154,21 @@ namespace zonetool
 	{
 		uint32_t XSurfacePackSelfVisibility(float* packed);
 		void XSurfaceUnpackSelfVisibility(uint32_t src, float* result);
+	}
+
+	namespace Byte4
+	{
+		void Byte4UnpackRgba(float* result, unsigned char* arr);
+	}
+
+	namespace PackedVec
+	{
+		uint32_t Vec2PackTexCoords(float* in);
+		void Vec2UnpackTexCoords(const uint32_t in, float* out);
+		uint32_t Vec3PackUnitVec_H1(float* in);
+		uint32_t Vec3PackUnitVecWithAlpha_H1(float* in, float alpha);
+		void Vec3UnpackUnitVec_T6(const uint8_t* in, float* out);
+		void Vec3UnpackUnitVec_IW8(const uint32_t in, float* out);
 	}
 
 	template<typename T>

@@ -197,9 +197,16 @@ namespace zonetool::t7
 
 							memcpy(&new_surf->verts0.packedVerts0[j].texCoord.packed, &verts[j].UVUPosition, sizeof(int)); // check
 
-							new_surf->verts0.packedVerts0[j].normal.packed = verts[j].VertexNormal; // check
-							new_surf->verts0.packedVerts0[j].tangent.packed = verts[j].VertexTangent; // check
-							new_surf->verts0.packedVerts0[j].binormalSign = 0.0f; // fixme
+							new_surf->verts0.packedVerts0[j].normal.packed = verts[j].VertexNormal;
+							new_surf->verts0.packedVerts0[j].tangent.packed = verts[j].VertexTangent;
+
+							float unpacked_normal[3]{};
+							PackedVec::Vec3UnpackUnitVec_IW8(verts[j].VertexNormal, unpacked_normal);
+
+							float unpacked_tangent[3]{};
+							PackedVec::Vec3UnpackUnitVec_IW8(verts[j].VertexTangent, unpacked_tangent);
+
+							new_surf->verts0.packedVerts0[j].binormalSign = 1.0f; // check
 						}
 
 						new_surf->triIndices = reinterpret_cast<zonetool::h1::Face*>(indices);
