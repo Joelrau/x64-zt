@@ -403,7 +403,7 @@ namespace iwi
 				image->height = static_cast<unsigned short>(height);
 				image->depth = static_cast<unsigned short>(depth);
 				image->dataLen = total_len;
-				image->numElements = 6;
+				image->numElements = 1;
 				image->levelCount = 1;
 
 				image->pixelData = mem->allocate<unsigned char>(total_len);
