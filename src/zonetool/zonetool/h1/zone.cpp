@@ -569,10 +569,10 @@ namespace zonetool::h1
 		auto buf_compressed = buf->compress_zlib();
 #endif
 
-		// clear zone buffer
-		buf->clear();
-
 		const auto streamfiles_count = buf->streamfile_count();
+
+		// clear zone buffer
+		//buf->clear();
 
 		// Generate FF header
 		XFileHeader header{0};

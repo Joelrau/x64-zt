@@ -76,7 +76,7 @@ namespace h1
 					const auto zone_name = get_zone_name(unload_zones[i]);
 					if (zone_name[0] != '\0')
 					{
-						imagefiles::close_handle(zone_name);
+						//imagefiles::close_handle(zone_name);
 					}
 				}
 

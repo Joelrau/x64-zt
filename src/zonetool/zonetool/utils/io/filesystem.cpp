@@ -274,11 +274,12 @@ namespace zonetool
 			return paths;
 		}
 
-		void add_paths_from_directory(const std::string& dir)
+		void add_paths_from_directory(const std::string& dir, bool insert_at_beginning)
 		{
 			const auto extra_paths = load_extra_search_paths(dir);
 			auto& search_paths = get_search_paths();
-			search_paths.insert(search_paths.end(), extra_paths.begin(), extra_paths.end());
+			search_paths.insert(insert_at_beginning ? search_paths.begin() : search_paths.end(), 
+				extra_paths.begin(), extra_paths.end());
 		}
 
 		void set_fastfile(const std::string& ff)
