@@ -590,14 +590,14 @@ namespace zonetool::h2
 		}
 	}
 
+	const char* aliasname_ptr = nullptr;
+
 	void sound::write_head(zone_base* zone, zone_buffer* buf, snd_alias_t* dest)
 	{
 		auto* data = dest;
 
-		if (data->aliasName)
-		{
-			dest->aliasName = buf->write_str(data->aliasName);
-		}
+		// this needs to be the same PTR
+		dest->aliasName = aliasname_ptr;
 
 		if (data->subtitle)
 		{
@@ -683,6 +683,7 @@ namespace zonetool::h2
 
 		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 
+		aliasname_ptr = buf->get_zone_pointer<const char>(buf->current_stream(), buf->current_stream_offset());
 		dest->name = buf->write_str(this->name());
 
 		if (data->head)

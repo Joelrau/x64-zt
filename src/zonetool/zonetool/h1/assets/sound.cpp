@@ -346,7 +346,25 @@ namespace zonetool::h1
 			asset->soundFile->exists = false;
 		}
 
-		SOUND_INT(flags);
+		if (snddata["flags"].is_object())
+		{
+			SoundAliasFlags flags{ 0 };
+			flags.packed.looping = snddata["flags"]["looping"].get<int>();
+			flags.packed.isMaster = snddata["flags"]["isMaster"].get<int>();
+			flags.packed.isSlave = snddata["flags"]["isSlave"].get<int>();
+			flags.packed.fullDryLevel = snddata["flags"]["fullDryLevel"].get<int>();
+			flags.packed.noWetLevel = snddata["flags"]["noWetLevel"].get<int>();
+			flags.packed.is3d = snddata["flags"]["is3d"].get<int>();
+			flags.packed.unk1 = snddata["flags"]["unk1"].get<int>();
+			flags.packed.type = snddata["flags"]["type"].get<int>();
+			flags.packed.unk2 = snddata["flags"]["unk2"].get<int>();
+			asset->flags = flags.intValue;
+		}
+		else if (snddata["flags"].is_number_integer())
+		{
+			asset->flags = snddata["flags"].get<int>();
+		}
+
 		SOUND_CHAR(priority);
 		asset->dspBusIndex = get_dsp_bus_index_from_name(snddata["dspBus"].get<std::string>().data()); //SOUND_CHAR(dspBusIndex);
 		asset->volModIndex = get_vol_mod_index_from_name(snddata["volMod"].get<std::string>().data()); //SOUND_SHORT(volModIndex);
@@ -401,6 +419,7 @@ namespace zonetool::h1
 
 			asset->speakerMap->name = mem->duplicate_string(speakerMap["name"].get<std::string>().data());
 			asset->speakerMap->isDefault = speakerMap["isDefault"].get<bool>();
+			asset->speakerMap->unknown = 0;
 
 			if (!speakerMap["channelMaps"].is_null())
 			{
@@ -636,14 +655,14 @@ namespace zonetool::h1
 		}
 	}
 
+	const char* aliasname_ptr = nullptr;
+
 	void sound::write_head(zone_base* zone, zone_buffer* buf, snd_alias_t* dest)
 	{
 		auto* data = dest;
 
-		if (data->aliasName)
-		{
-			dest->aliasName = buf->write_str(data->aliasName);
-		}
+		// this needs to be the same PTR
+		dest->aliasName = aliasname_ptr;
 
 		if (data->subtitle)
 		{
@@ -723,6 +742,7 @@ namespace zonetool::h1
 
 		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 
+		aliasname_ptr = buf->get_zone_pointer<const char>(buf->current_stream(), buf->current_stream_offset());
 		dest->name = buf->write_str(this->name());
 
 		if (data->head)
