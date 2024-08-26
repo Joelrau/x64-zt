@@ -124,14 +124,15 @@ namespace zonetool::h1
 			clientTrigger->trigger.slabCount = reader.read_int();
 			clientTrigger->trigger.slabs = reader.read_array<TriggerSlab>();
 
+			clientTrigger->numClientTriggerNodes = static_cast<short>(reader.read_int());
 			clientTrigger->clientTriggerAabbTree = reader.read_array<ClientTriggerAabbNode>();
 
 			clientTrigger->triggerStringLength = reader.read_int();
 			clientTrigger->triggerString = reader.read_array<char>();
 
 			clientTrigger->visionSetTriggers = reader.read_array<short>();
-			clientTrigger->unk1 = reader.read_array<short>();
-			clientTrigger->unk2 = reader.read_array<short>();
+			clientTrigger->lightSetTriggers = reader.read_array<short>();
+			clientTrigger->colorGradingTriggers = reader.read_array<short>();
 			clientTrigger->triggerType = reader.read_array<short>();
 			clientTrigger->origins = reader.read_array<vec3_t>();
 			clientTrigger->scriptDelay = reader.read_array<float>();
@@ -332,17 +333,17 @@ namespace zonetool::h1
 			buf->write(data->clientTrigger.visionSetTriggers, data->clientTrigger.trigger.count);
 			buf->clear_pointer(&dest->clientTrigger.visionSetTriggers);
 		}
-		if (data->clientTrigger.unk1)
+		if (data->clientTrigger.lightSetTriggers)
 		{
 			buf->align(1);
-			buf->write(data->clientTrigger.unk1, data->clientTrigger.trigger.count);
-			buf->clear_pointer(&dest->clientTrigger.unk1);
+			buf->write(data->clientTrigger.lightSetTriggers, data->clientTrigger.trigger.count);
+			buf->clear_pointer(&dest->clientTrigger.lightSetTriggers);
 		}
-		if (data->clientTrigger.unk2)
+		if (data->clientTrigger.colorGradingTriggers)
 		{
 			buf->align(1);
-			buf->write(data->clientTrigger.unk2, data->clientTrigger.trigger.count);
-			buf->clear_pointer(&dest->clientTrigger.unk2);
+			buf->write(data->clientTrigger.colorGradingTriggers, data->clientTrigger.trigger.count);
+			buf->clear_pointer(&dest->clientTrigger.colorGradingTriggers);
 		}
 		if (data->clientTrigger.triggerType)
 		{
@@ -533,14 +534,15 @@ namespace zonetool::h1
 			dumper.dump_int(clientTrigger->trigger.slabCount);
 			dumper.dump_array<TriggerSlab>(clientTrigger->trigger.slabs, clientTrigger->trigger.slabCount);
 
+			dumper.dump_int(clientTrigger->numClientTriggerNodes);
 			dumper.dump_array(clientTrigger->clientTriggerAabbTree, clientTrigger->numClientTriggerNodes);
 
 			dumper.dump_int(clientTrigger->triggerStringLength);
 			dumper.dump_array(clientTrigger->triggerString, clientTrigger->triggerStringLength);
 
 			dumper.dump_array(clientTrigger->visionSetTriggers, clientTrigger->trigger.count);
-			dumper.dump_array(clientTrigger->unk1, clientTrigger->trigger.count);
-			dumper.dump_array(clientTrigger->unk2, clientTrigger->trigger.count);
+			dumper.dump_array(clientTrigger->lightSetTriggers, clientTrigger->trigger.count);
+			dumper.dump_array(clientTrigger->colorGradingTriggers, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->triggerType, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->origins, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->scriptDelay, clientTrigger->trigger.count);

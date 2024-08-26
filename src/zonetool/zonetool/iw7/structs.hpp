@@ -3106,13 +3106,17 @@ namespace zonetool::iw7
 		XModel* xmodel;
 		float origin[3];
 		float invScaledAxis[3][3];
-		float unk[2];
+		bool unk1;
+		bool unk2;
+		bool hasTransientModel;
+		bool hasTransientPhysicsAsset;
+		int pad;
 	}; assert_sizeof(cStaticModel_s, 0x40);
 
-	struct unk_1453E2338
+	struct StaticModelCollisionModelList
 	{
-		unsigned int num;
-		int* unk;
+		unsigned int numModels;
+		int* staticModelIndex;
 	};
 
 	struct Stage
@@ -3226,9 +3230,9 @@ namespace zonetool::iw7
 		ClipInfo* pInfo;
 		unsigned int numStaticModels;
 		cStaticModel_s* staticModelList;
-		unk_1453E2338 unk01;
-		unsigned int numUnk02;
-		unk_1453E2338* unk02;
+		StaticModelCollisionModelList staticModelCollisionModelList; // all collision models
+		unsigned int numStaticModelCollisionModelLists;
+		StaticModelCollisionModelList* staticModelCollisionModelLists; // transient collision models
 		MapEnts* mapEnts;
 		Stage* stages;
 		unsigned char stageCount;
@@ -4917,22 +4921,38 @@ namespace zonetool::iw7
 	enum StaticModelFlag : std::int32_t
 	{
 		// scale modifiers: 
-		// 0 = 4.0f
-		// 1 = 2.66667f
-		// 2 = 2.0f
-		// 3 = 1.6f
-		// 4 = 1.33333f
-		// 5 = 1.14286f
-		// 6 = 1.0f
-		// 7 = 0.888889f
-		// 8 = 0.8f
-		// 9 = 0.666667f
-		// 10 = 0.571429f
-		// 11 = 0.5f
-		// 12 = 0.4f
-		// 13 = 0.333333f
-		// 14 = 0.285714f
-		// 15 = 0.25f
+		// 0 = 0.25f
+		// 1 = 0.285714f
+		// 2 = 0.333333f
+		// 3 = 0.4f
+		// 4 = 0.5f
+		// 5 = 0.571429f
+		// 6 = 0.666667f
+		// 7 = 0.8f
+		// 8 = 0.888889f
+		// 9 = 1.0f
+		// 10 = 1.14286f
+		// 11 = 1.33333f
+		// 12 = 1.6f
+		// 13 = 2.0f
+		// 14 = 2.66667f
+		// 15 = 4.0f
+		STATIC_MODEL_FLAG_SCALE_0 = 0,
+		STATIC_MODEL_FLAG_SCALE_1 = 1,
+		STATIC_MODEL_FLAG_SCALE_2 = 2,
+		STATIC_MODEL_FLAG_SCALE_3 = 3,
+		STATIC_MODEL_FLAG_SCALE_4 = 4,
+		STATIC_MODEL_FLAG_SCALE_5 = 5,
+		STATIC_MODEL_FLAG_SCALE_6 = 6,
+		STATIC_MODEL_FLAG_SCALE_7 = 7,
+		STATIC_MODEL_FLAG_SCALE_8 = 8,
+		STATIC_MODEL_FLAG_SCALE_9 = 9,
+		STATIC_MODEL_FLAG_SCALE_10 = 10,
+		STATIC_MODEL_FLAG_SCALE_11 = 11,
+		STATIC_MODEL_FLAG_SCALE_12 = 12,
+		STATIC_MODEL_FLAG_SCALE_13 = 13,
+		STATIC_MODEL_FLAG_SCALE_14 = 14,
+		STATIC_MODEL_FLAG_SCALE_15 = 15,
 		STATIC_MODEL_FLAG_SCALE_MODIFIER_MASK = 0xF,
 		STATIC_MODEL_FLAG_NO_CAST_SHADOW = 0x10,
 		STATIC_MODEL_FLAG_GROUND_LIGHTING = 0x20,
@@ -12135,7 +12155,8 @@ namespace zonetool::iw7
 	{
 		XBlock blocks[MAX_XFILE_COUNT];
 		unsigned __int64 callbackPos;
-		char __pad0[104];
+		char __pad0[4][24];
+		void* unk1;
 		XStreamFile* shared_ff_data;
 		unsigned int shared_ff_count;
 		unsigned int shared_ff_count2;
@@ -12143,8 +12164,7 @@ namespace zonetool::iw7
 		XStreamFile* streamed_images;
 		unsigned int streamed_image_count;
 		int streamed_image_index;
-		char __pad1[0x100]; // unk size
-	};
+	}; assert_sizeof(XZoneMemory, 0x138);
 
 	struct DB_AuthHash
 	{

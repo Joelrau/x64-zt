@@ -225,8 +225,10 @@ namespace zonetool::iw6
 				COPY_VALUE(clientTrigger.triggerStringLength);
 				REINTERPRET_CAST_SAFE(clientTrigger.triggerString);
 				REINTERPRET_CAST_SAFE(clientTrigger.visionSetTriggers);
-				new_asset->clientTrigger.unk1 = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
-				new_asset->clientTrigger.unk2 = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
+				new_asset->clientTrigger.lightSetTriggers = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
+				std::fill(new_asset->clientTrigger.lightSetTriggers, new_asset->clientTrigger.lightSetTriggers + asset->clientTrigger.trigger.count, -1);
+				new_asset->clientTrigger.colorGradingTriggers = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
+				std::fill(new_asset->clientTrigger.colorGradingTriggers, new_asset->clientTrigger.colorGradingTriggers + asset->clientTrigger.trigger.count, -1);
 				
 				new_asset->clientTrigger.triggerType = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
 				for (unsigned int i = 0; i < asset->clientTrigger.trigger.count; i++)
@@ -239,13 +241,17 @@ namespace zonetool::iw6
 				REINTERPRET_CAST_SAFE(clientTrigger.audioTriggers);
 				REINTERPRET_CAST_SAFE(clientTrigger.blendLookup);
 				new_asset->clientTrigger.unk3 = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
+				std::fill(new_asset->clientTrigger.unk3, new_asset->clientTrigger.unk3 + asset->clientTrigger.trigger.count, -1);
 				new_asset->clientTrigger.unk4 = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
+				std::fill(new_asset->clientTrigger.unk4, new_asset->clientTrigger.unk4 + asset->clientTrigger.trigger.count, -1);
 				new_asset->clientTrigger.unk5 = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
+				std::fill(new_asset->clientTrigger.unk5, new_asset->clientTrigger.unk5 + asset->clientTrigger.trigger.count, -1);
 				new_asset->clientTrigger.unk6 = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
+				std::fill(new_asset->clientTrigger.unk6, new_asset->clientTrigger.unk6 + asset->clientTrigger.trigger.count, -1);
 
 				for (unsigned int i = 0; i < asset->clientTrigger.trigger.count; i++)
 				{
-					new_asset->clientTrigger.unk1[i] = -1;
+					new_asset->clientTrigger.lightSetTriggers[i] = asset->clientTrigger.visionSetTriggers[i];
 				}
 
 				COPY_VALUE(clientTriggerBlend.numClientTriggerBlendNodes);

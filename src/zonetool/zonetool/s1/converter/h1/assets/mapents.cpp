@@ -73,8 +73,8 @@ namespace zonetool::s1
 				REINTERPRET_CAST_SAFE(clientTrigger.triggerString);
 				REINTERPRET_CAST_SAFE(clientTrigger.visionSetTriggers);
 				
-				new_asset->clientTrigger.unk1 = asset->clientTrigger.unk1;
-				new_asset->clientTrigger.unk2 = asset->clientTrigger.unk2;
+				new_asset->clientTrigger.lightSetTriggers = asset->clientTrigger.unk1;
+				new_asset->clientTrigger.colorGradingTriggers = asset->clientTrigger.unk2;
 				REINTERPRET_CAST_SAFE(clientTrigger.triggerType); // convert?
 				REINTERPRET_CAST_SAFE(clientTrigger.origins);
 				REINTERPRET_CAST_SAFE(clientTrigger.scriptDelay);

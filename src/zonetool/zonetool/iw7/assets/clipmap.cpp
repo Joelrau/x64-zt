@@ -60,11 +60,11 @@ namespace zonetool::iw7
 			}
 		}
 
-		asset->unk01.unk = read.read_array<int>();
-		asset->unk02 = read.read_array<unk_1453E2338>();
-		for (unsigned int i = 0; i < asset->numUnk02; i++)
+		asset->staticModelCollisionModelList.staticModelIndex = read.read_array<int>();
+		asset->staticModelCollisionModelLists = read.read_array<StaticModelCollisionModelList>();
+		for (unsigned int i = 0; i < asset->numStaticModelCollisionModelLists; i++)
 		{
-			asset->unk02[i].unk = read.read_array<int>();
+			asset->staticModelCollisionModelLists[i].staticModelIndex = read.read_array<int>();
 		}
 
 		asset->mapEnts = read.read_asset<MapEnts>();
@@ -182,27 +182,27 @@ namespace zonetool::iw7
 			buf->clear_pointer(&dest->staticModelList);
 		}
 
-		if (data->unk01.unk)
+		if (data->staticModelCollisionModelList.staticModelIndex)
 		{
 			buf->align(3);
-			buf->write(data->unk01.unk, data->unk01.num);
-			buf->clear_pointer(&dest->unk01.unk);
+			buf->write(data->staticModelCollisionModelList.staticModelIndex, data->staticModelCollisionModelList.numModels);
+			buf->clear_pointer(&dest->staticModelCollisionModelList.staticModelIndex);
 		}
 
-		if (data->unk02)
+		if (data->staticModelCollisionModelLists)
 		{
 			buf->align(7);
-			dest->unk02 = buf->write(data->unk02, data->numUnk02);
-			for (unsigned int i = 0; i < data->numUnk02; i++)
+			dest->staticModelCollisionModelLists = buf->write(data->staticModelCollisionModelLists, data->numStaticModelCollisionModelLists);
+			for (unsigned int i = 0; i < data->numStaticModelCollisionModelLists; i++)
 			{
-				if (data->unk02[i].unk)
+				if (data->staticModelCollisionModelLists[i].staticModelIndex)
 				{
 					buf->align(3);
-					buf->write(data->unk02[i].unk, data->unk02[i].num);
-					buf->clear_pointer(&dest->unk02[i].unk);
+					buf->write(data->staticModelCollisionModelLists[i].staticModelIndex, data->staticModelCollisionModelLists[i].numModels);
+					buf->clear_pointer(&dest->staticModelCollisionModelLists[i].staticModelIndex);
 				}
 			}
-			buf->clear_pointer(&dest->unk02);
+			buf->clear_pointer(&dest->staticModelCollisionModelLists);
 		}
 
 		if (data->mapEnts)
@@ -288,11 +288,11 @@ namespace zonetool::iw7
 			write.dump_asset(asset->staticModelList[i].xmodel);
 		}
 
-		write.dump_array(asset->unk01.unk, asset->unk01.num);
-		write.dump_array(asset->unk02, asset->numUnk02);
-		for (unsigned int i = 0; i < asset->numUnk02; i++)
+		write.dump_array(asset->staticModelCollisionModelList.staticModelIndex, asset->staticModelCollisionModelList.numModels);
+		write.dump_array(asset->staticModelCollisionModelLists, asset->numStaticModelCollisionModelLists);
+		for (unsigned int i = 0; i < asset->numStaticModelCollisionModelLists; i++)
 		{
-			write.dump_array(asset->unk02[i].unk, asset->unk02[i].num);
+			write.dump_array(asset->staticModelCollisionModelLists[i].staticModelIndex, asset->staticModelCollisionModelLists[i].numModels);
 		}
 		
 		write.dump_asset(asset->mapEnts);

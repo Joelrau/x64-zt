@@ -311,17 +311,20 @@ namespace zonetool::h1
 					iw7_asset->staticModelList[i].xmodel = reinterpret_cast<zonetool::iw7::XModel*>(asset->info.sCollisionData.staticModelList[i].xmodel);
 					std::memcpy(&iw7_asset->staticModelList[i].origin, &asset->info.sCollisionData.staticModelList[i].origin, sizeof(float[3]));
 					std::memcpy(&iw7_asset->staticModelList[i].invScaledAxis, &asset->info.sCollisionData.staticModelList[i].invScaledAxis, sizeof(float[3][3]));
-					iw7_asset->staticModelList[i].unk; // ...
+					iw7_asset->staticModelList[i].unk1 = false;
+					iw7_asset->staticModelList[i].unk2 = false;
+					iw7_asset->staticModelList[i].hasTransientModel = false;
+					iw7_asset->staticModelList[i].hasTransientPhysicsAsset = false;
 				}
 
-				iw7_asset->unk01.num = asset->info.sCollisionData.numStaticModels;
-				iw7_asset->unk01.unk = allocator.allocate_array<int>(asset->info.sCollisionData.numStaticModels);
+				iw7_asset->staticModelCollisionModelList.numModels = asset->info.sCollisionData.numStaticModels;
+				iw7_asset->staticModelCollisionModelList.staticModelIndex = allocator.allocate_array<int>(asset->info.sCollisionData.numStaticModels);
 				for (unsigned int i = 0; i < asset->info.sCollisionData.numStaticModels; i++)
 				{
-					iw7_asset->unk01.unk[i] = i;
+					iw7_asset->staticModelCollisionModelList.staticModelIndex[i] = i;
 				}
-				iw7_asset->numUnk02 = 0;
-				iw7_asset->unk02 = nullptr;
+				iw7_asset->numStaticModelCollisionModelLists = 0;
+				iw7_asset->staticModelCollisionModelLists = nullptr;
 
 				iw7_asset->mapEnts = allocator.allocate<zonetool::iw7::MapEnts>();
 				iw7_asset->mapEnts->name = asset->mapEnts->name;

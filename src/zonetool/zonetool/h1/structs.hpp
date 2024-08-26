@@ -2799,8 +2799,8 @@ namespace zonetool::h1
 		unsigned int triggerStringLength;
 		char* triggerString;
 		short* visionSetTriggers;
-		short* unk1;
-		short* unk2;
+		short* lightSetTriggers;
+		short* colorGradingTriggers;
 		short* triggerType;
 		vec3_t* origins;
 		float* scriptDelay;
@@ -2808,7 +2808,7 @@ namespace zonetool::h1
 		short* blendLookup;
 		short* unk3;
 		short* unk4;
-		short* unk5;
+		short* unk5; // soundContext
 		short* unk6;
 	}; assert_sizeof(ClientTriggers, 0xB0);
 
@@ -7662,6 +7662,40 @@ namespace zonetool::h1
 
 	enum StaticModelFlag : std::int16_t
 	{
+		// scale modifiers: 
+		// 0 = 0.25f
+		// 1 = 0.285714f
+		// 2 = 0.333333f
+		// 3 = 0.4f
+		// 4 = 0.5f
+		// 5 = 0.571429f
+		// 6 = 0.666667f
+		// 7 = 0.8f
+		// 8 = 0.888889f
+		// 9 = 1.0f
+		// 10 = 1.14286f
+		// 11 = 1.33333f
+		// 12 = 1.6f
+		// 13 = 2.0f
+		// 14 = 2.66667f
+		// 15 = 4.0f
+		STATIC_MODEL_FLAG_SCALE_0 = 0,
+		STATIC_MODEL_FLAG_SCALE_1 = 1,
+		STATIC_MODEL_FLAG_SCALE_2 = 2,
+		STATIC_MODEL_FLAG_SCALE_3 = 3,
+		STATIC_MODEL_FLAG_SCALE_4 = 4,
+		STATIC_MODEL_FLAG_SCALE_5 = 5,
+		STATIC_MODEL_FLAG_SCALE_6 = 6,
+		STATIC_MODEL_FLAG_SCALE_7 = 7,
+		STATIC_MODEL_FLAG_SCALE_8 = 8,
+		STATIC_MODEL_FLAG_SCALE_9 = 9,
+		STATIC_MODEL_FLAG_SCALE_10 = 10,
+		STATIC_MODEL_FLAG_SCALE_11 = 11,
+		STATIC_MODEL_FLAG_SCALE_12 = 12,
+		STATIC_MODEL_FLAG_SCALE_13 = 13,
+		STATIC_MODEL_FLAG_SCALE_14 = 14,
+		STATIC_MODEL_FLAG_SCALE_15 = 15,
+		STATIC_MODEL_FLAG_SCALE_MODIFIER_MASK = 0xF,
 		STATIC_MODEL_FLAG_NO_CAST_SHADOW = 0x10,
 		STATIC_MODEL_FLAG_GROUND_LIGHTING = 0x20,
 		STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING = 0x40,
