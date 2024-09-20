@@ -24,12 +24,12 @@ namespace zonetool::h1
 			asset->geoms[i].data = read.read_single<dmPolytopeData>();
 			if (asset->geoms[i].data)
 			{
-				asset->geoms[i].data->vec4_array0 = read.read_array<dmFloat4>();
-				asset->geoms[i].data->vec4_array1 = read.read_array<dmFloat4>();
-				asset->geoms[i].data->uint16_array0 = read.read_array<unsigned short>();
-				asset->geoms[i].data->uint16_array1 = read.read_array<unsigned short>();
+				asset->geoms[i].data->m_aVertices = read.read_array<dmFloat4>();
+				asset->geoms[i].data->m_aPlanes = read.read_array<dmPlane>();
+				asset->geoms[i].data->m_surfaceTypes = read.read_array<dm_uint16>();
+				asset->geoms[i].data->m_vertexMaterials = read.read_array<dm_uint16>();
 				asset->geoms[i].data->m_aSubEdges = read.read_array<dmSubEdge>();
-				asset->geoms[i].data->m_aFaceSubEdges = read.read_array<unsigned char>();
+				asset->geoms[i].data->m_aFaceSubEdges = read.read_array<dm_uint8>();
 			}
 		}
 
@@ -96,18 +96,18 @@ namespace zonetool::h1
 					auto* data_poly_data = data_geoms[i].data;
 					auto* dest_poly_data = buf->write(data_poly_data);
 
-					if (data_poly_data->vec4_array0)
+					if (data_poly_data->m_aVertices)
 					{
 						buf->align(15);
-						buf->write(data_poly_data->vec4_array0, data_poly_data->m_vertexCount);
-						buf->clear_pointer(&dest_poly_data->vec4_array0);
+						buf->write(data_poly_data->m_aVertices, data_poly_data->m_vertexCount);
+						buf->clear_pointer(&dest_poly_data->m_aVertices);
 					}
 
-					if (data_poly_data->vec4_array1)
+					if (data_poly_data->m_aPlanes)
 					{
 						buf->align(15);
-						buf->write(data_poly_data->vec4_array1, data_poly_data->m_faceCount);
-						buf->clear_pointer(&dest_poly_data->vec4_array1);
+						buf->write(data_poly_data->m_aPlanes, data_poly_data->m_faceCount);
+						buf->clear_pointer(&dest_poly_data->m_aPlanes);
 					}
 
 					if (data_poly_data->m_aSubEdges)
@@ -124,18 +124,18 @@ namespace zonetool::h1
 						buf->clear_pointer(&dest_poly_data->m_aFaceSubEdges);
 					}
 
-					if (data_poly_data->uint16_array0)
+					if (data_poly_data->m_surfaceTypes)
 					{
 						buf->align(1);
-						buf->write(data_poly_data->uint16_array0, data_poly_data->m_faceCount);
-						buf->clear_pointer(&dest_poly_data->uint16_array0);
+						buf->write(data_poly_data->m_surfaceTypes, data_poly_data->m_faceCount);
+						buf->clear_pointer(&dest_poly_data->m_surfaceTypes);
 					}
 
-					if (data_poly_data->uint16_array1)
+					if (data_poly_data->m_vertexMaterials)
 					{
 						buf->align(1);
-						buf->write(data_poly_data->uint16_array1, data_poly_data->m_vertexCount);
-						buf->clear_pointer(&dest_poly_data->uint16_array1);
+						buf->write(data_poly_data->m_vertexMaterials, data_poly_data->m_vertexCount);
+						buf->clear_pointer(&dest_poly_data->m_vertexMaterials);
 					}
 
 					buf->clear_pointer(&dest_geoms[i].data);
@@ -168,10 +168,10 @@ namespace zonetool::h1
 			write.dump_single(data);
 			if (data)
 			{
-				write.dump_array(data->vec4_array0, data->m_vertexCount);
-				write.dump_array(data->vec4_array1, data->m_faceCount);
-				write.dump_array(data->uint16_array0, data->m_faceCount);
-				write.dump_array(data->uint16_array1, data->m_vertexCount);
+				write.dump_array(data->m_aVertices, data->m_vertexCount);
+				write.dump_array(data->m_aPlanes, data->m_faceCount);
+				write.dump_array(data->m_surfaceTypes, data->m_faceCount);
+				write.dump_array(data->m_vertexMaterials, data->m_vertexCount);
 				write.dump_array(data->m_aSubEdges, data->m_subEdgeCount);
 				write.dump_array(data->m_aFaceSubEdges, data->m_faceCount);
 			}

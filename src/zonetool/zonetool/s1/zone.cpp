@@ -164,7 +164,7 @@ namespace zonetool::s1
 			ADD_ASSET(ASSET_TYPE_WEAPON, weapon_def);
 			ADD_ASSET(ASSET_TYPE_XANIMPARTS, xanim_parts);
 			ADD_ASSET(ASSET_TYPE_XMODEL, xmodel);
-			ADD_ASSET(ASSET_TYPE_XMODELSURFS, xsurface);
+			ADD_ASSET(ASSET_TYPE_XMODEL_SURFS, xsurface);
 
 			ADD_ASSET(ASSET_TYPE_PHYSCOLLMAP, phys_collmap);
 			ADD_ASSET(ASSET_TYPE_PHYSCONSTRAINT, phys_constraint);

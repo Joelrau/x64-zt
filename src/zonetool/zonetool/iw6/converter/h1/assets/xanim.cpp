@@ -23,9 +23,9 @@ namespace zonetool::iw6
 				COPY_VALUE(dataIntCount);
 				COPY_VALUE(numframes);
 				COPY_VALUE(flags); // convert?
-				COPY_ARR(boneCount);
-				new_asset->u1 = 0;
-				new_asset->u2 = 0;
+				memcpy(new_asset->boneCount, asset->boneCount, sizeof(char[10]));
+				new_asset->boneCount[10] = 0;
+				new_asset->boneCount[11] = 0;
 				COPY_VALUE(notifyCount);
 				COPY_VALUE(assetType);
 				COPY_VALUE(ikType);
@@ -47,17 +47,17 @@ namespace zonetool::iw6
 				REINTERPRET_CAST_SAFE(deltaPart);
 
 				new_asset->secondaryName = nullptr;
-				new_asset->u3 = 0;
-				new_asset->u4 = 0;
-				new_asset->blendShapeWeightCount = 0;
+				new_asset->alternateAnimWeight = 0;
+				new_asset->numAlternatives = 0;
+				new_asset->blendShapeCount = 0;
 				new_asset->blendShapeWeightNames = nullptr;
-				new_asset->blendShapeWeightUnknown1 = nullptr;
-				new_asset->blendShapeWeightUnknown2 = nullptr;
-				new_asset->blendShapeWeightUnknown3 = nullptr;
-				new_asset->blendShapeWeightUnknown4 = nullptr;
+				new_asset->blendShapeCoefficientMagnitudes = nullptr;
+				new_asset->numberOfBlendShapeKeys = nullptr;
+				new_asset->blendShapeKeys = nullptr;
+				new_asset->compressedBlendShapeCoefficients = nullptr;
 				new_asset->blendShapeWeights = nullptr;
-				new_asset->u5 = 0;
-				new_asset->scriptedViewmodelAnimData = nullptr;
+				new_asset->alternativeAnim = 0;
+				new_asset->svAmimData = nullptr;
 
 				return new_asset;
 			}

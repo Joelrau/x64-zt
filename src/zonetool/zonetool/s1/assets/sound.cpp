@@ -278,39 +278,27 @@ namespace zonetool::s1
 #define SOUND_DUMP_STRING(entry) \
 	if (asset->entry) sound[#entry] = std::string(asset->entry); \
 	else sound[#entry] = nullptr;
-#define SOUND_DUMP_CHAR(entry) \
-	sound[#entry] = (char)asset->entry;
-#define SOUND_DUMP_SHORT(entry) \
-	sound[#entry] = (short)asset->entry;
-#define SOUND_DUMP_INT(entry) \
-	sound[#entry] = (int)asset->entry;
-#define SOUND_DUMP_FLOAT(entry) \
-	sound[#entry] = (float)asset->entry;
+#define SOUND_DUMP_FIELD(entry) \
+	sound[#entry] = asset->entry;
 
-#define SOUND_SUBASSET(entry, __type__) \
+#define SOUND_READ_SUBASSET(entry, __type__) \
 	if (!snddata[#entry].is_null()) { \
 		asset->entry = mem->allocate<__type__>(); \
 		asset->entry->name = mem->duplicate_string(snddata[#entry].get<std::string>().data()); }
-#define SOUND_STRING(entry) \
+#define SOUND_READ_STRING(entry) \
 	if (!snddata[#entry].is_null()) { \
 		asset->entry = mem->duplicate_string(snddata[#entry].get<std::string>().data()); \
 	} else { asset->entry = nullptr; }
-#define SOUND_CHAR(entry) \
-	asset->entry = snddata[#entry].get<char>()
-#define SOUND_SHORT(entry) \
-	asset->entry = snddata[#entry].get<short>()
-#define SOUND_INT(entry) \
-	asset->entry = snddata[#entry].get<int>()
-#define SOUND_FLOAT(entry) \
-	asset->entry = snddata[#entry].get<float>()
+#define SOUND_READ_FIELD(entry) \
+	asset->entry = snddata[#entry].get<decltype(asset->entry)>()
 
 	void sound::json_parse_snd_alias(snd_alias_t* asset, nlohmann::json snddata, zone_memory* mem)
 	{
-		SOUND_STRING(aliasName);
-		SOUND_STRING(secondaryAliasName);
-		SOUND_STRING(chainAliasName);
-		SOUND_STRING(subtitle);
-		SOUND_STRING(mixerGroup);
+		SOUND_READ_STRING(aliasName);
+		SOUND_READ_STRING(secondaryAliasName);
+		SOUND_READ_STRING(chainAliasName);
+		SOUND_READ_STRING(subtitle);
+		SOUND_READ_STRING(squelchName);
 
 		asset->soundFile = mem->allocate<SoundFile>();
 		asset->soundFile->type = snddata["soundfile"]["type"].get<snd_alias_type_t>();
@@ -343,50 +331,56 @@ namespace zonetool::s1
 			ZONETOOL_FATAL("SAT_PRIMED parsing is not supported yet.");
 		}
 
-		SOUND_INT(flags);
-		SOUND_CHAR(priority);
+		SOUND_READ_FIELD(flags);
+		SOUND_READ_FIELD(variationType);
+		SOUND_READ_FIELD(priority);
 		asset->dspBusIndex = get_dsp_bus_index_from_name(snddata["dspBus"].get<std::string>().data()); //SOUND_CHAR(dspBusIndex);
 		asset->volModIndex = get_vol_mod_index_from_name(snddata["volMod"].get<std::string>().data()); //SOUND_SHORT(volModIndex);
-		SOUND_FLOAT(volMin);
-		SOUND_FLOAT(volMax);
-		SOUND_FLOAT(pitchMin);
-		SOUND_FLOAT(pitchMax);
-		SOUND_FLOAT(distMin);
-		SOUND_FLOAT(distMax);
-		SOUND_FLOAT(velocityMin);
-		SOUND_FLOAT(probability);
-		SOUND_CHAR(sequence);
-		SOUND_INT(startDelay);
+		SOUND_READ_FIELD(volMin);
+		SOUND_READ_FIELD(volMax);
+		SOUND_READ_FIELD(pitchMin);
+		SOUND_READ_FIELD(pitchMax);
+		SOUND_READ_FIELD(distMin);
+		SOUND_READ_FIELD(distMax);
+		SOUND_READ_FIELD(velocityMin);
+		SOUND_READ_FIELD(probability);
+		SOUND_READ_FIELD(sequence);
+		SOUND_READ_FIELD(startDelay);
 
-		SOUND_CHAR(masterPriority);
-		SOUND_FLOAT(masterPercentage);
-		SOUND_FLOAT(slavePercentage);
-		SOUND_CHAR(playbackPercentage);
+		SOUND_READ_FIELD(masterPriority);
+		SOUND_READ_FIELD(masterPercentage);
+		SOUND_READ_FIELD(slavePercentage);
+		SOUND_READ_FIELD(playbackPercentage);
 
-		SOUND_FLOAT(lfePercentage);
-		SOUND_FLOAT(centerPercentage);
+		SOUND_READ_FIELD(lfePercentage);
+		SOUND_READ_FIELD(centerPercentage);
 
-		SOUND_SHORT(poly);
+		SOUND_READ_FIELD(polyCount);
+		SOUND_READ_FIELD(playCount);
+		SOUND_READ_FIELD(polyClass);
 
-		SOUND_FLOAT(envelopMin);
-		SOUND_FLOAT(envelopMax);
-		SOUND_FLOAT(envelopPercentage);
+		SOUND_READ_FIELD(envelopMin);
+		SOUND_READ_FIELD(envelopMax);
 
-		SOUND_FLOAT(reverbWetMixOverride);
-		SOUND_FLOAT(focusPercentage);
+		SOUND_READ_FIELD(wetMixOverride);
+		SOUND_READ_FIELD(focusPercentage);
 
-		SOUND_FLOAT(smartPanDistance2d);
-		SOUND_FLOAT(smartPanDistance3d);
-		SOUND_FLOAT(smartPanAttenuation3d);
+		SOUND_READ_FIELD(smartpanDistance2d);
+		SOUND_READ_FIELD(smartpanDistance3d);
+		SOUND_READ_FIELD(smartpanAttenuation3d);
+		SOUND_READ_FIELD(minSmartpan2dContribution);
 
-		SOUND_SHORT(stereo3dAngle);
-		SOUND_FLOAT(stereo3dStart);
-		SOUND_FLOAT(stereo3dEnd);
+		SOUND_READ_FIELD(stereo3DAngle);
+		SOUND_READ_FIELD(stereo3DStart);
+		SOUND_READ_FIELD(stereo3DEnd);
 
-		SOUND_SUBASSET(sndContext, SndContext);
-		SOUND_SUBASSET(sndCurve, SndCurve);
-		SOUND_SUBASSET(lpfCurve, SndCurve);
-		SOUND_SUBASSET(reverbSendCurve, SndCurve);
+		SOUND_READ_FIELD(threshold);
+		SOUND_READ_FIELD(lockedLoopTime);
+
+		SOUND_READ_SUBASSET(sndContext, SndContext);
+		SOUND_READ_SUBASSET(volumeFalloffCurve, SndCurve);
+		SOUND_READ_SUBASSET(lpfCurve, SndCurve);
+		SOUND_READ_SUBASSET(reverbSendCurve, SndCurve);
 
 		if (!snddata["speakerMap"].is_null())
 		{
@@ -395,6 +389,7 @@ namespace zonetool::s1
 
 			asset->speakerMap->name = mem->duplicate_string(speakerMap["name"].get<std::string>().data());
 			asset->speakerMap->isDefault = speakerMap["isDefault"].get<bool>();
+			asset->speakerMap->orientation = speakerMap["orientation"].get<unsigned char>();
 
 			if (!speakerMap["channelMaps"].is_null())
 			{
@@ -435,18 +430,8 @@ namespace zonetool::s1
 			}
 		}
 
-		SOUND_CHAR(allowDoppler);
-		SOUND_SUBASSET(dopplerPreset, DopplerPreset);
-
-		// parse all unknown things too
-		json snd_unknown = snddata["unknown"];
-		if (!snd_unknown.is_null())
-		{
-			auto pad0 = nlohmann::get_object_bytes(snd_unknown["pad"][0]);
-			memcpy(asset->__pad0, pad0.data(), pad0.size());
-			asset->u1 = snd_unknown["u1"].get<char>();
-			asset->u2 = snd_unknown["u2"].get<float>();
-		}
+		SOUND_READ_FIELD(allowDoppler);
+		SOUND_READ_SUBASSET(dopplerPreset, DopplerPreset);
 	}
 
 	snd_alias_list_t* sound::json_parse(const std::string& name, zone_memory* mem)
@@ -467,8 +452,8 @@ namespace zonetool::s1
 
 			snd_alias_list_t* asset = mem->allocate<snd_alias_list_t>();
 
-			SOUND_STRING(aliasName);
-			SOUND_CHAR(count);
+			SOUND_READ_STRING(aliasName);
+			SOUND_READ_FIELD(count);
 
 			asset->head = mem->allocate<snd_alias_t>(asset->count);
 
@@ -486,7 +471,8 @@ namespace zonetool::s1
 
 				for (unsigned char i = 0; i < asset->contextListCount; i++)
 				{
-					asset->contextList[i].unk = context_list[i].get<short>();
+					asset->contextList[i].aliasOffset = context_list[i]["aliasOffset"].get<unsigned char>();
+					asset->contextList[i].count = context_list[i]["count"].get<unsigned char>();
 				}
 			}
 
@@ -540,9 +526,9 @@ namespace zonetool::s1
 				zone->add_asset_of_type(ASSET_TYPE_SOUND_CONTEXT, head->sndContext->name);
 			}
 
-			if (head->sndCurve)
+			if (head->volumeFalloffCurve)
 			{
-				zone->add_asset_of_type(ASSET_TYPE_SOUND_CURVE, head->sndCurve->name);
+				zone->add_asset_of_type(ASSET_TYPE_SOUND_CURVE, head->volumeFalloffCurve->name);
 			}
 
 			if (head->lpfCurve)
@@ -654,9 +640,9 @@ namespace zonetool::s1
 			dest->chainAliasName = buf->write_str(data->chainAliasName);
 		}
 
-		if (data->mixerGroup)
+		if (data->squelchName)
 		{
-			dest->mixerGroup = buf->write_str(data->mixerGroup);
+			dest->squelchName = buf->write_str(data->squelchName);
 		}
 
 		if (data->soundFile)
@@ -672,10 +658,10 @@ namespace zonetool::s1
 				ASSET_TYPE_SOUND_CONTEXT, data->sndContext->name));
 		}
 
-		if (data->sndCurve)
+		if (data->volumeFalloffCurve)
 		{
-			dest->sndCurve = static_cast<SndCurve*>(zone->get_asset_pointer(
-				ASSET_TYPE_SOUND_CURVE, data->sndCurve->name));
+			dest->volumeFalloffCurve = static_cast<SndCurve*>(zone->get_asset_pointer(
+				ASSET_TYPE_SOUND_CURVE, data->volumeFalloffCurve->name));
 		}
 
 		if (data->lpfCurve)
@@ -749,7 +735,7 @@ namespace zonetool::s1
 		SOUND_DUMP_STRING(secondaryAliasName);
 		SOUND_DUMP_STRING(chainAliasName);
 		SOUND_DUMP_STRING(subtitle);
-		SOUND_DUMP_STRING(mixerGroup);
+		SOUND_DUMP_STRING(squelchName);
 
 		// soundfile shit
 		if (asset->soundFile)
@@ -844,48 +830,54 @@ namespace zonetool::s1
 			}
 		}
 
-		SOUND_DUMP_INT(flags);
-		SOUND_DUMP_CHAR(priority);
+		SOUND_DUMP_FIELD(flags);
+		SOUND_DUMP_FIELD(variationType);
+		SOUND_DUMP_FIELD(priority);
 		sound["dspBus"] = get_dsp_bus_name(asset->dspBusIndex); //SOUND_DUMP_CHAR(dspBusIndex);
 		sound["volMod"] = get_vol_mod_name(asset->volModIndex); //SOUND_DUMP_SHORT(volModIndex);
-		SOUND_DUMP_FLOAT(volMin);
-		SOUND_DUMP_FLOAT(volMax);
-		SOUND_DUMP_FLOAT(pitchMin);
-		SOUND_DUMP_FLOAT(pitchMax);
-		SOUND_DUMP_FLOAT(distMin);
-		SOUND_DUMP_FLOAT(distMax);
-		SOUND_DUMP_FLOAT(velocityMin);
-		SOUND_DUMP_FLOAT(probability);
-		SOUND_DUMP_INT(sequence);
-		SOUND_DUMP_INT(startDelay);
+		SOUND_DUMP_FIELD(volMin);
+		SOUND_DUMP_FIELD(volMax);
+		SOUND_DUMP_FIELD(pitchMin);
+		SOUND_DUMP_FIELD(pitchMax);
+		SOUND_DUMP_FIELD(distMin);
+		SOUND_DUMP_FIELD(distMax);
+		SOUND_DUMP_FIELD(velocityMin);
+		SOUND_DUMP_FIELD(probability);
+		SOUND_DUMP_FIELD(sequence);
+		SOUND_DUMP_FIELD(startDelay);
 
-		SOUND_DUMP_CHAR(masterPriority);
-		SOUND_DUMP_FLOAT(masterPercentage);
-		SOUND_DUMP_FLOAT(slavePercentage);
-		SOUND_DUMP_CHAR(playbackPercentage);
+		SOUND_DUMP_FIELD(masterPriority);
+		SOUND_DUMP_FIELD(masterPercentage);
+		SOUND_DUMP_FIELD(slavePercentage);
+		SOUND_DUMP_FIELD(playbackPercentage);
 
-		SOUND_DUMP_FLOAT(lfePercentage);
-		SOUND_DUMP_FLOAT(centerPercentage);
+		SOUND_DUMP_FIELD(lfePercentage);
+		SOUND_DUMP_FIELD(centerPercentage);
 
-		SOUND_DUMP_SHORT(poly);
+		SOUND_DUMP_FIELD(polyCount);
+		SOUND_DUMP_FIELD(playCount);
+		SOUND_DUMP_FIELD(polyClass);
 
-		SOUND_DUMP_FLOAT(envelopMin);
-		SOUND_DUMP_FLOAT(envelopMax);
-		SOUND_DUMP_FLOAT(envelopPercentage);
+		SOUND_DUMP_FIELD(envelopMin);
+		SOUND_DUMP_FIELD(envelopMax);
 
-		SOUND_DUMP_FLOAT(reverbWetMixOverride);
-		SOUND_DUMP_FLOAT(focusPercentage);
+		SOUND_DUMP_FIELD(wetMixOverride);
+		SOUND_DUMP_FIELD(focusPercentage);
 
-		SOUND_DUMP_FLOAT(smartPanDistance2d);
-		SOUND_DUMP_FLOAT(smartPanDistance3d);
-		SOUND_DUMP_FLOAT(smartPanAttenuation3d);
+		SOUND_DUMP_FIELD(smartpanDistance2d);
+		SOUND_DUMP_FIELD(smartpanDistance3d);
+		SOUND_DUMP_FIELD(smartpanAttenuation3d);
+		SOUND_DUMP_FIELD(minSmartpan2dContribution);
 
-		SOUND_DUMP_SHORT(stereo3dAngle);
-		SOUND_DUMP_FLOAT(stereo3dStart);
-		SOUND_DUMP_FLOAT(stereo3dEnd);
+		SOUND_DUMP_FIELD(stereo3DAngle);
+		SOUND_DUMP_FIELD(stereo3DStart);
+		SOUND_DUMP_FIELD(stereo3DEnd);
+
+		SOUND_DUMP_FIELD(threshold);
+		SOUND_DUMP_FIELD(lockedLoopTime);
 
 		SOUND_DUMP_SUBASSET(sndContext);
-		SOUND_DUMP_SUBASSET(sndCurve);
+		SOUND_DUMP_SUBASSET(volumeFalloffCurve);
 		SOUND_DUMP_SUBASSET(lpfCurve);
 		SOUND_DUMP_SUBASSET(reverbSendCurve);
 
@@ -895,6 +887,7 @@ namespace zonetool::s1
 			json speakerMap;
 			speakerMap["name"] = asset->speakerMap->name;
 			speakerMap["isDefault"] = asset->speakerMap->isDefault;
+			speakerMap["orientation"] = asset->speakerMap->orientation;
 
 			json channelMaps;
 			for (char x = 0; x < 2; x++)
@@ -928,13 +921,8 @@ namespace zonetool::s1
 			sound["speakerMap"] = speakerMap;
 		}
 
-		SOUND_DUMP_CHAR(allowDoppler);
+		SOUND_DUMP_FIELD(allowDoppler);
 		SOUND_DUMP_SUBASSET(dopplerPreset);
-
-		// dump all unknown things too
-		sound["unknown"]["pad"][0] = json::binary(std::vector<std::uint8_t>(asset->__pad0, asset->__pad0 + sizeof(asset->__pad0)));
-		sound["unknown"]["u1"] = asset->u1;
-		sound["unknown"]["u2"] = asset->u2;
 	}
 
 	void sound::json_dump(snd_alias_list_t* asset)
@@ -946,7 +934,7 @@ namespace zonetool::s1
 		ordered_json unknownArray;
 
 		SOUND_DUMP_STRING(aliasName);
-		SOUND_DUMP_CHAR(count);
+		SOUND_DUMP_FIELD(count);
 
 		for (unsigned char i = 0; i < asset->count; i++)
 		{
@@ -957,7 +945,8 @@ namespace zonetool::s1
 
 		for (unsigned char i = 0; i < asset->contextListCount; i++)
 		{
-			sound["contextList"][i] = asset->contextList[i].unk;
+			sound["contextList"][i]["aliasOffset"] = asset->contextList[i].aliasOffset;
+			sound["contextList"][i]["count"] = asset->contextList[i].count;
 		}
 
 		std::string assetstr = sound.dump(4);

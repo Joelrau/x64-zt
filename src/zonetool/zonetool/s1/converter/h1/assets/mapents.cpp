@@ -73,20 +73,20 @@ namespace zonetool::s1
 				REINTERPRET_CAST_SAFE(clientTrigger.triggerString);
 				REINTERPRET_CAST_SAFE(clientTrigger.visionSetTriggers);
 				
-				new_asset->clientTrigger.lightSetTriggers = asset->clientTrigger.unk1;
-				new_asset->clientTrigger.colorGradingTriggers = asset->clientTrigger.unk2;
+				new_asset->clientTrigger.lightSetTriggers = asset->clientTrigger.lightSetTriggers;
+				new_asset->clientTrigger.clutTriggers = asset->clientTrigger.clutTriggers;
 				REINTERPRET_CAST_SAFE(clientTrigger.triggerType); // convert?
 				REINTERPRET_CAST_SAFE(clientTrigger.origins);
 				REINTERPRET_CAST_SAFE(clientTrigger.scriptDelay);
 				REINTERPRET_CAST_SAFE(clientTrigger.audioTriggers);
 				REINTERPRET_CAST_SAFE(clientTrigger.blendLookup);
-				new_asset->clientTrigger.unk3 = asset->clientTrigger.unk3;
-				new_asset->clientTrigger.unk4 = asset->clientTrigger.unk4;
-				new_asset->clientTrigger.unk5 = asset->clientTrigger.unk5;
-				new_asset->clientTrigger.unk6 = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
+				new_asset->clientTrigger.npcTriggers = asset->clientTrigger.npcTriggers;
+				new_asset->clientTrigger.contextTriggers = asset->clientTrigger.contextTriggers;
+				new_asset->clientTrigger.waterTriggers = asset->clientTrigger.waterTriggers;
+				new_asset->clientTrigger.unkTriggers = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
 				for (auto i = 0u; i < asset->clientTrigger.trigger.count; i++)
 				{
-					new_asset->clientTrigger.unk6[i] = -1;
+					new_asset->clientTrigger.unkTriggers[i] = -1;
 				}
 
 				COPY_VALUE_CAST(clientTriggerBlend);

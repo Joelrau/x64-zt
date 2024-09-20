@@ -171,7 +171,19 @@ namespace zonetool::s1
 			//DUMP_ASSET(ASSET_TYPE_WEAPON, weapon_def, WeaponDef);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_XANIMPARTS, xanim_parts, XAnimParts);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_XMODEL, xmodel, XModel);
-			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_XMODELSURFS, xsurface, XModelSurfs);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
+
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_REVERB_PRESET, reverb_preset, ReverbPreset);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SNDDRIVER_GLOBALS, sound_driver_globals, SndDriverGlobals);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SOUND_SUBMIX, sound_submix, SndSubmixList);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SURFACE_FX, surface_fx, SurfaceFxTable);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_VEHICLE, vehicle_def, VehicleDef);
+
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_LEADERBOARD, leaderboard, LeaderboardDef);
+
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_EQUIPMENT_SND_TABLE, equip_snd_table, EquipmentSoundTable);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_VECTORFIELD, vector_field, VectorField);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_ANIMCLASS, anim_class, AnimationClass);
 
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_PHYSCOLLMAP, phys_collmap, PhysCollmap);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_PHYSCONSTRAINT, phys_constraint, PhysConstraint);
@@ -286,7 +298,7 @@ namespace zonetool::s1
 			DUMP_ASSET_REGULAR(ASSET_TYPE_WEAPON, weapon_def, WeaponDef);
 			DUMP_ASSET_NO_CONVERT_NO_CONVERT(ASSET_TYPE_XANIMPARTS, xanim_parts, XAnimParts);
 			DUMP_ASSET_NO_CONVERT_CONVERT(ASSET_TYPE_XMODEL, xmodel, XModel);
-			DUMP_ASSET_NO_CONVERT_NO_CONVERT(ASSET_TYPE_XMODELSURFS, xsurface, XModelSurfs);
+			DUMP_ASSET_NO_CONVERT_NO_CONVERT(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
 
 			DUMP_ASSET_NO_CONVERT_NO_CONVERT(ASSET_TYPE_PHYSCOLLMAP, phys_collmap, PhysCollmap);
 			DUMP_ASSET_NO_CONVERT_NO_CONVERT(ASSET_TYPE_PHYSCONSTRAINT, phys_constraint, PhysConstraint);
@@ -371,7 +383,7 @@ namespace zonetool::s1
 			DUMP_ASSET(ASSET_TYPE_WEAPON, weapon_def, WeaponDef);
 			DUMP_ASSET(ASSET_TYPE_XANIMPARTS, xanim_parts, XAnimParts);
 			DUMP_ASSET(ASSET_TYPE_XMODEL, xmodel, XModel);
-			DUMP_ASSET(ASSET_TYPE_XMODELSURFS, xsurface, XModelSurfs);
+			DUMP_ASSET(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
 
 			DUMP_ASSET(ASSET_TYPE_PHYSCOLLMAP, phys_collmap, PhysCollmap);
 			DUMP_ASSET(ASSET_TYPE_PHYSCONSTRAINT, phys_constraint, PhysConstraint);

@@ -96,8 +96,8 @@ namespace zonetool::h1
 				new_asset->pathNoPeekVis = asset->pathNoPeekVis;
 
 				// S1 (compared to mp_vlobby_room)
-				new_asset->unkDataCount = 0;
-				new_asset->unkData = nullptr;
+				new_asset->visBulletBlockerBytes = 0;
+				new_asset->pathVisBulletBlockers = nullptr;
 
 				new_asset->zoneCount = asset->zoneCount;
 				new_asset->zonesBytes = asset->zonesBytes;
@@ -107,7 +107,7 @@ namespace zonetool::h1
 
 				for (auto i = 0; i < 32; ++i)
 				{
-					new_asset->unkStrings[i] = 0;
+					new_asset->pathAbilities[i] = nullptr;
 				}
 
 				return new_asset;

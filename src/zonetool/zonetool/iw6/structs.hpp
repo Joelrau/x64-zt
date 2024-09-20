@@ -8,13 +8,7 @@ namespace zonetool::iw6
 	typedef vec_t vec3_t[3];
 	typedef vec_t vec4_t[4];
 
-	struct dummy
-	{
-	};
-
-	enum scr_string_t : std::int32_t
-	{
-	};
+	typedef std::int32_t scr_string_t;
 
 	enum XAssetType : std::int32_t
 	{
@@ -2595,7 +2589,7 @@ namespace zonetool::iw6
 			unsigned int isSlave : 1;
 			unsigned int fullDryLevel : 1;
 			unsigned int noWetLevel : 1;
-			unsigned int unknown1 : 1;
+			unsigned int randomLooping : 1;
 			unsigned int unknown2 : 1;
 			unsigned int type : 2;
 			SoundChannel channel : 7;
@@ -2970,20 +2964,6 @@ namespace zonetool::iw6
 		G_GlassData* g_glassData;
 	};
 
-	struct Glyph
-	{
-		unsigned short letter;
-		char x0;
-		char y0;
-		unsigned char dx;
-		unsigned char pixelWidth;
-		unsigned char pixelHeight;
-		float s0;
-		float t0;
-		float s1;
-		float t1;
-	};
-
 	struct TriggerModel
 	{
 		int contents;
@@ -3135,7 +3115,8 @@ namespace zonetool::iw6
 		snd_alias_list_t* damagedSound;
 		snd_alias_list_t* destroyedSound;
 		snd_alias_list_t* destroyedQuietSound;
-		char __pad[8];
+		float invHighMipRadius;
+		float shatteredInvHighMipRadius;
 		int numCrackRings;
 		bool isOpaque;
 	};
@@ -4427,6 +4408,20 @@ namespace zonetool::iw6
 		ScriptableMapEnts scriptableMapEnts;
 		unsigned int checksum;
 		char __pad[108]; // alignment padding
+	};
+
+	struct Glyph
+	{
+		unsigned short letter;
+		char x0;
+		char y0;
+		unsigned char dx;
+		unsigned char pixelWidth;
+		unsigned char pixelHeight;
+		float s0;
+		float t0;
+		float s1;
+		float t1;
 	};
 
 	struct Font_s
@@ -6900,7 +6895,7 @@ namespace zonetool::iw6
 		clipMap_t* clipMap;
 		ComWorld* comWorld;
 		GlassWorld* glassWorld;
-		//PathData* pathData;
+		PathData* pathData;
 		//VehicleTrack* vehicleTrack;
 		MapEnts* mapEnts;
 		FxWorld* fxWorld;

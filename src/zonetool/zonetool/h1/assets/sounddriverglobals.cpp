@@ -61,7 +61,7 @@ namespace zonetool::h1
 
 	std::int32_t sound_driver_globals::type()
 	{
-		return ASSET_TYPE_SNDDRIVERGLOBALS;
+		return ASSET_TYPE_SNDDRIVER_GLOBALS;
 	}
 
 	void sound_driver_globals::write(zone_base* zone, zone_buffer* buf)

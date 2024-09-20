@@ -132,16 +132,16 @@ namespace zonetool::h1
 
 			clientTrigger->visionSetTriggers = reader.read_array<short>();
 			clientTrigger->lightSetTriggers = reader.read_array<short>();
-			clientTrigger->colorGradingTriggers = reader.read_array<short>();
+			clientTrigger->clutTriggers = reader.read_array<short>();
 			clientTrigger->triggerType = reader.read_array<short>();
 			clientTrigger->origins = reader.read_array<vec3_t>();
 			clientTrigger->scriptDelay = reader.read_array<float>();
 			clientTrigger->audioTriggers = reader.read_array<short>();
 			clientTrigger->blendLookup = reader.read_array<short>();
-			clientTrigger->unk3 = reader.read_array<short>();
-			clientTrigger->unk4 = reader.read_array<short>();
-			clientTrigger->unk5 = reader.read_array<short>();
-			clientTrigger->unk6 = reader.read_array<short>();
+			clientTrigger->unkTriggers = reader.read_array<short>();
+			clientTrigger->npcTriggers = reader.read_array<short>();
+			clientTrigger->contextTriggers = reader.read_array<short>();
+			clientTrigger->waterTriggers = reader.read_array<short>();
 
 			reader.close();
 		}
@@ -339,11 +339,11 @@ namespace zonetool::h1
 			buf->write(data->clientTrigger.lightSetTriggers, data->clientTrigger.trigger.count);
 			buf->clear_pointer(&dest->clientTrigger.lightSetTriggers);
 		}
-		if (data->clientTrigger.colorGradingTriggers)
+		if (data->clientTrigger.clutTriggers)
 		{
 			buf->align(1);
-			buf->write(data->clientTrigger.colorGradingTriggers, data->clientTrigger.trigger.count);
-			buf->clear_pointer(&dest->clientTrigger.colorGradingTriggers);
+			buf->write(data->clientTrigger.clutTriggers, data->clientTrigger.trigger.count);
+			buf->clear_pointer(&dest->clientTrigger.clutTriggers);
 		}
 		if (data->clientTrigger.triggerType)
 		{
@@ -375,29 +375,29 @@ namespace zonetool::h1
 			buf->write(data->clientTrigger.blendLookup, data->clientTrigger.trigger.count);
 			buf->clear_pointer(&dest->clientTrigger.blendLookup);
 		}
-		if (data->clientTrigger.unk3)
+		if (data->clientTrigger.unkTriggers)
 		{
 			buf->align(1);
-			buf->write(data->clientTrigger.unk3, data->clientTrigger.trigger.count);
-			buf->clear_pointer(&dest->clientTrigger.unk3);
+			buf->write(data->clientTrigger.unkTriggers, data->clientTrigger.trigger.count);
+			buf->clear_pointer(&dest->clientTrigger.unkTriggers);
 		}
-		if (data->clientTrigger.unk4)
+		if (data->clientTrigger.npcTriggers)
 		{
 			buf->align(1);
-			buf->write(data->clientTrigger.unk4, data->clientTrigger.trigger.count);
-			buf->clear_pointer(&dest->clientTrigger.unk4);
+			buf->write(data->clientTrigger.npcTriggers, data->clientTrigger.trigger.count);
+			buf->clear_pointer(&dest->clientTrigger.npcTriggers);
 		}
-		if (data->clientTrigger.unk5)
+		if (data->clientTrigger.contextTriggers)
 		{
 			buf->align(1);
-			buf->write(data->clientTrigger.unk5, data->clientTrigger.trigger.count);
-			buf->clear_pointer(&dest->clientTrigger.unk5);
+			buf->write(data->clientTrigger.contextTriggers, data->clientTrigger.trigger.count);
+			buf->clear_pointer(&dest->clientTrigger.contextTriggers);
 		}
-		if (data->clientTrigger.unk6)
+		if (data->clientTrigger.waterTriggers)
 		{
 			buf->align(1);
-			buf->write(data->clientTrigger.unk6, data->clientTrigger.trigger.count);
-			buf->clear_pointer(&dest->clientTrigger.unk6);
+			buf->write(data->clientTrigger.waterTriggers, data->clientTrigger.trigger.count);
+			buf->clear_pointer(&dest->clientTrigger.waterTriggers);
 		}
 
 		if (data->clientTriggerBlend.blendNodes)
@@ -542,16 +542,16 @@ namespace zonetool::h1
 
 			dumper.dump_array(clientTrigger->visionSetTriggers, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->lightSetTriggers, clientTrigger->trigger.count);
-			dumper.dump_array(clientTrigger->colorGradingTriggers, clientTrigger->trigger.count);
+			dumper.dump_array(clientTrigger->clutTriggers, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->triggerType, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->origins, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->scriptDelay, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->audioTriggers, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->blendLookup, clientTrigger->trigger.count);
-			dumper.dump_array(clientTrigger->unk3, clientTrigger->trigger.count);
-			dumper.dump_array(clientTrigger->unk4, clientTrigger->trigger.count);
-			dumper.dump_array(clientTrigger->unk5, clientTrigger->trigger.count);
-			dumper.dump_array(clientTrigger->unk6, clientTrigger->trigger.count);
+			dumper.dump_array(clientTrigger->unkTriggers, clientTrigger->trigger.count);
+			dumper.dump_array(clientTrigger->npcTriggers, clientTrigger->trigger.count);
+			dumper.dump_array(clientTrigger->contextTriggers, clientTrigger->trigger.count);
+			dumper.dump_array(clientTrigger->waterTriggers, clientTrigger->trigger.count);
 
 			dumper.close();
 		}

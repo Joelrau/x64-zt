@@ -25,9 +25,9 @@ namespace zonetool::h1
 	{
 		PARSE_FIELD(type);
 		PARSE_FIELD(canUseShadowMap);
-		PARSE_FIELD(needsDynamicShadows);
+		PARSE_FIELD(physicallyBased);
 		PARSE_FIELD(exponent);
-		PARSE_FIELD(lightState);
+		PARSE_FIELD(lightingState);
 		PARSE_FIELD_ARR(color, 3);
 		PARSE_FIELD_ARR(dir, 3);
 		PARSE_FIELD_ARR(up, 3);
@@ -161,7 +161,7 @@ namespace zonetool::h1
 
 	std::int32_t com_world::type()
 	{
-		return ASSET_TYPE_COM_MAP;
+		return ASSET_TYPE_COMWORLD;
 	}
 
 	void com_world::write(zone_base* zone, zone_buffer* buf)
@@ -216,9 +216,9 @@ namespace zonetool::h1
 	{
 		DUMP_FIELD(type);
 		DUMP_FIELD(canUseShadowMap);
-		DUMP_FIELD(needsDynamicShadows);
+		DUMP_FIELD(physicallyBased);
 		DUMP_FIELD(exponent);
-		DUMP_FIELD(lightState);
+		DUMP_FIELD(lightingState);
 		DUMP_FIELD_ARR(color, 3);
 		DUMP_FIELD_ARR(dir, 3);
 		DUMP_FIELD_ARR(up, 3);

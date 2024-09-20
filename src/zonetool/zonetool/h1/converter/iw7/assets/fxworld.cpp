@@ -70,8 +70,8 @@ namespace zonetool::h1
 					COPY_SOUND(glassSys.defs[i].destroyedSound);
 					COPY_SOUND(glassSys.defs[i].destroyedQuietSound);
 
-					COPY_VALUE(glassSys.defs[i].highMipRadiusInvSq);
-					COPY_VALUE(glassSys.defs[i].shatteredHighMipRadiusInvSq);
+					new_asset->glassSys.defs[i].highMipRadiusInvSq = asset->glassSys.defs[i].invHighMipRadius; // recalc?
+					new_asset->glassSys.defs[i].shatteredHighMipRadiusInvSq = asset->glassSys.defs[i].shatteredInvHighMipRadius; // recalc?
 					COPY_VALUE(glassSys.defs[i].numCrackRings);
 					COPY_VALUE(glassSys.defs[i].isOpaque);
 				}

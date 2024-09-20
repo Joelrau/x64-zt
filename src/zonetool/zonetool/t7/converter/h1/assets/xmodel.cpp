@@ -155,11 +155,11 @@ namespace zonetool::t7
 				new_asset->memUsage = 0;
 				new_asset->bad = 0;
 
-				new_asset->targetCount = 0;
-				new_asset->numberOfWeights = 0;
-				new_asset->numberOfWeightMaps = 0;
-				new_asset->weightNames = nullptr;
-				new_asset->blendShapeWeightMap = nullptr;
+				new_asset->blendShapeCount = 0;
+				new_asset->numberOfBlendShapeWeights = 0;
+				new_asset->numberOfBlendShapeWeightMaps = 0;
+				new_asset->blendShapeWeightNames = nullptr;
+				new_asset->blendShapeWeightMaps = nullptr;
 				new_asset->physPreset = reinterpret_cast<zonetool::h1::PhysPreset*>(asset->physPreset);
 
 				if (asset->physPreset)

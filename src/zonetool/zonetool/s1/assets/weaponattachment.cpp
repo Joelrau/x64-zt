@@ -21,12 +21,11 @@ namespace zonetool::s1
 		{
 			DEFINE_FIELD(name),
 			DEFINE_FIELD(szDisplayName),
-			DEFINE_FIELD(szOverlayName),
+			DEFINE_FIELD(szAltWeaponName),
 			DEFINE_FIELD(gunModel),
 			DEFINE_FIELD(handModel),
-			DEFINE_FIELD(unknownModel),
-			//DEFINE_FIELD(reticleViewModels),
-			DEFINE_FIELD(szModeName),
+			DEFINE_FIELD(persistentArmXModel),
+			DEFINE_FIELD(lobWorldModelName),
 			DEFINE_FIELD(szXAnimsRightHanded),
 			DEFINE_FIELD(szXAnimsLeftHanded),
 			DEFINE_FIELD(hideTags),
@@ -44,22 +43,19 @@ namespace zonetool::s1
 			DEFINE_FIELD(notetrackFXMapKeys),
 			DEFINE_FIELD(notetrackFXMapValues),
 			DEFINE_FIELD(notetrackFXMapTagValues),
-			//DEFINE_FIELD(notetrackUnknownKeys),
-			//DEFINE_FIELD(notetrackUnknown),
-			//DEFINE_FIELD(notetrackUnknownValues),
-			DEFINE_FIELD(szAltWeaponName),
+			DEFINE_FIELD(szAdsrBaseSetting),
 			DEFINE_FIELD(viewFlashEffect),
 			DEFINE_FIELD(viewBodyFlashEffect),
 			DEFINE_FIELD(worldFlashEffect),
 			DEFINE_FIELD(viewFlashADSEffect),
 			DEFINE_FIELD(viewBodyFlashADSEffect),
-			DEFINE_FIELD(effect06),
-			DEFINE_FIELD(effect07),
-			DEFINE_FIELD(effect08),
-			DEFINE_FIELD(effect09),
-			DEFINE_FIELD(effect10),
-			DEFINE_FIELD(effect11),
-			DEFINE_FIELD(effect12),
+			DEFINE_FIELD(signatureViewFlashEffect),
+			DEFINE_FIELD(signatureViewBodyFlashEffect),
+			DEFINE_FIELD(signatureWorldFlashEffect),
+			DEFINE_FIELD(signatureViewFlashADSEffect),
+			DEFINE_FIELD(signatureViewBodyFlashADSEffect),
+			DEFINE_FIELD(meleeHitEffect),
+			DEFINE_FIELD(meleeMissEffect),
 			DEFINE_FIELD(pickupSound),
 			DEFINE_FIELD(pickupSoundPlayer),
 			DEFINE_FIELD(ammoPickupSound),
@@ -67,38 +63,38 @@ namespace zonetool::s1
 			DEFINE_FIELD(projectileSound),
 			DEFINE_FIELD(pullbackSound),
 			DEFINE_FIELD(pullbackSoundPlayer),
-			DEFINE_FIELD(pullbackSoundQuick),
-			DEFINE_FIELD(pullbackSoundQuickPlayer),
+			DEFINE_FIELD(throwbackSound),
+			DEFINE_FIELD(throwbackSoundPlayer),
 			DEFINE_FIELD(fireSound),
 			DEFINE_FIELD(fireSoundPlayer),
 			DEFINE_FIELD(fireSoundPlayerAkimbo),
-			DEFINE_FIELD(sound13),
-			DEFINE_FIELD(sound14),
-			DEFINE_FIELD(sound15),
-			DEFINE_FIELD(sound16),
+			DEFINE_FIELD(fireMedSound),
+			DEFINE_FIELD(fireMedSoundPlayer),
+			DEFINE_FIELD(fireHighSound),
+			DEFINE_FIELD(fireHighSoundPlayer),
 			DEFINE_FIELD(fireLoopSound),
 			DEFINE_FIELD(fireLoopSoundPlayer),
-			DEFINE_FIELD(sound19),
-			DEFINE_FIELD(sound20),
-			DEFINE_FIELD(sound21),
-			DEFINE_FIELD(sound22),
+			DEFINE_FIELD(fireMedLoopSound),
+			DEFINE_FIELD(fireMedLoopSoundPlayer),
+			DEFINE_FIELD(fireHighLoopSound),
+			DEFINE_FIELD(fireHighLoopSoundPlayer),
 			DEFINE_FIELD(fireLoopEndPointSound),
 			DEFINE_FIELD(fireLoopEndPointSoundPlayer),
 			DEFINE_FIELD(fireStopSound),
 			DEFINE_FIELD(fireStopSoundPlayer),
-			DEFINE_FIELD(sound27),
-			DEFINE_FIELD(sound28),
-			DEFINE_FIELD(sound29),
-			DEFINE_FIELD(sound30),
-			DEFINE_FIELD(fireLastShotSound),
-			DEFINE_FIELD(fireLastShotSoundPlayer),
-			DEFINE_FIELD(fireFirstSound),
-			DEFINE_FIELD(fireFirstSoundPlayer),
+			DEFINE_FIELD(fireMedStopSound),
+			DEFINE_FIELD(fireMedStopSoundPlayer),
+			DEFINE_FIELD(fireHighStopSound),
+			DEFINE_FIELD(fireHighStopSoundPlayer),
 			DEFINE_FIELD(fireLastSound),
 			DEFINE_FIELD(fireLastSoundPlayer),
+			DEFINE_FIELD(fireFirstSound),
+			DEFINE_FIELD(fireFirstSoundPlayer),
+			DEFINE_FIELD(fireCustomSound),
+			DEFINE_FIELD(fireCustomSoundPlayer),
 			DEFINE_FIELD(emptyFireSound),
 			DEFINE_FIELD(emptyFireSoundPlayer),
-			DEFINE_FIELD(sound39),
+			DEFINE_FIELD(adsRequiredFireSoundPlayer),
 			DEFINE_FIELD(meleeSwipeSound),
 			DEFINE_FIELD(meleeSwipeSoundPlayer),
 			DEFINE_FIELD(meleeHitSound),
@@ -121,18 +117,18 @@ namespace zonetool::s1
 			DEFINE_FIELD(nightVisionWearSoundPlayer),
 			DEFINE_FIELD(nightVisionRemoveSound),
 			DEFINE_FIELD(nightVisionRemoveSoundPlayer),
+			DEFINE_FIELD(altSwitchSound),
+			DEFINE_FIELD(altSwitchSoundPlayer),
 			DEFINE_FIELD(raiseSound),
 			DEFINE_FIELD(raiseSoundPlayer),
-			DEFINE_FIELD(sound64),
-			DEFINE_FIELD(sound65),
-			DEFINE_FIELD(sound66),
-			DEFINE_FIELD(sound67),
+			DEFINE_FIELD(firstRaiseSound),
+			DEFINE_FIELD(firstRaiseSoundPlayer),
 			DEFINE_FIELD(putawaySound),
 			DEFINE_FIELD(putawaySoundPlayer),
-			DEFINE_FIELD(sound70),
-			DEFINE_FIELD(sound71),
-			DEFINE_FIELD(adsEnterSoundPlayer),
-			DEFINE_FIELD(adsLeaveSoundPlayer),
+			DEFINE_FIELD(scanSound),
+			DEFINE_FIELD(changeVariableZoomSound),
+			DEFINE_FIELD(adsUpSound),
+			DEFINE_FIELD(adsDownSound),
 			DEFINE_FIELD(adsCrosshairEnemySound),
 			DEFINE_FIELD(bounceSound),
 			DEFINE_FIELD(rollingSound),
@@ -150,9 +146,9 @@ namespace zonetool::s1
 			DEFINE_FIELD(worldKnifeModel),
 			DEFINE_FIELD(hudIcon),
 			DEFINE_FIELD(pickupIcon),
-			DEFINE_FIELD(unknownIcon2),
-			DEFINE_FIELD(unknownIcon3),
-			DEFINE_FIELD(unknownIcon4),
+			DEFINE_FIELD(minimapIconFriendly),
+			DEFINE_FIELD(minimapIconEnemy),
+			DEFINE_FIELD(minimapIconNeutral),
 			DEFINE_FIELD(ammoCounterIcon),
 			DEFINE_FIELD(szAmmoName),
 			DEFINE_FIELD(szClipName),
@@ -166,9 +162,9 @@ namespace zonetool::s1
 			DEFINE_FIELD(fireMedRumble),
 			DEFINE_FIELD(fireHighRumble),
 			DEFINE_FIELD(meleeImpactRumble),
-			DEFINE_FIELD(tracer1),
-			DEFINE_FIELD(tracer2),
-			DEFINE_FIELD(laser),
+			DEFINE_FIELD(tracerType),
+			DEFINE_FIELD(signatureTracerType),
+			DEFINE_FIELD(laserType),
 			DEFINE_FIELD(turretOverheatSound),
 			DEFINE_FIELD(turretOverheatEffect),
 			DEFINE_FIELD(turretBarrelSpinRumble),
@@ -186,7 +182,7 @@ namespace zonetool::s1
 			DEFINE_FIELD(stowOffsetModel),
 			DEFINE_FIELD(turretHydraulicSettings),
 			DEFINE_FIELD(altWeapon),
-			DEFINE_FIELD(numWeaponAttachments),
+			DEFINE_FIELD(numAttachments),
 			DEFINE_FIELD(numAnimOverrides),
 			DEFINE_FIELD(numSoundOverrides),
 			DEFINE_FIELD(numFXOverrides),
@@ -206,7 +202,7 @@ namespace zonetool::s1
 			DEFINE_FIELD(burstFireCooldown),
 			DEFINE_FIELD(greebleType),
 			DEFINE_FIELD(autoReloadType),
-			DEFINE_FIELD(slotRestriction),
+			DEFINE_FIELD(autoHolsterType),
 			DEFINE_FIELD(offhandClass),
 			DEFINE_FIELD(stance),
 			DEFINE_FIELD(reticleCenterSize),
@@ -255,16 +251,16 @@ namespace zonetool::s1
 			DEFINE_FIELD(ammoCounterIconRatio),
 			DEFINE_FIELD(ammoCounterClip),
 			DEFINE_FIELD(startAmmo),
-			DEFINE_FIELD(ammoIndex),
-			DEFINE_FIELD(ammoIndexUnknown),
-			DEFINE_FIELD(__pad002[0]),
-			DEFINE_FIELD(__pad002[1]),
-			DEFINE_FIELD(__pad002[2]),
-			DEFINE_FIELD(clipIndex),
-			DEFINE_FIELD(clipIndexUnknown),
-			DEFINE_FIELD(__pad003[0]),
-			DEFINE_FIELD(__pad003[1]),
-			DEFINE_FIELD(__pad003[2]),
+			//DEFINE_FIELD(ammoIndex),
+			//DEFINE_FIELD(ammoIndexUnknown),
+			//DEFINE_FIELD(__pad002[0]),
+			//DEFINE_FIELD(__pad002[1]),
+			//DEFINE_FIELD(__pad002[2]),
+			//DEFINE_FIELD(clipIndex),
+			//DEFINE_FIELD(clipIndexUnknown),
+			//DEFINE_FIELD(__pad003[0]),
+			//DEFINE_FIELD(__pad003[1]),
+			//DEFINE_FIELD(__pad003[2]),
 			DEFINE_FIELD(maxAmmo),
 			DEFINE_FIELD(minAmmoReq),
 			DEFINE_FIELD(clipSize),
@@ -300,8 +296,8 @@ namespace zonetool::s1
 			DEFINE_FIELD(stateTimers.reloadAddTimeDualWield),
 			DEFINE_FIELD(stateTimers.reloadEmptyDualMag),
 			DEFINE_FIELD(stateTimers.reloadEmptyAddTimeDualMag),
-			DEFINE_FIELD(stateTimers.u25),
-			DEFINE_FIELD(stateTimers.u26),
+			DEFINE_FIELD(stateTimers.speedReloadTime),
+			DEFINE_FIELD(stateTimers.speedReloadAddTime),
 			DEFINE_FIELD(stateTimers.dropTime),
 			DEFINE_FIELD(stateTimers.raiseTime),
 			DEFINE_FIELD(stateTimers.altDropTime),
@@ -333,23 +329,23 @@ namespace zonetool::s1
 			DEFINE_FIELD(stateTimers.blastRightTime),
 			DEFINE_FIELD(stateTimers.blastBackTime),
 			DEFINE_FIELD(stateTimers.blastLeftTime),
-			DEFINE_FIELD(stateTimers.u58),
-			DEFINE_FIELD(stateTimers.u59),
-			DEFINE_FIELD(stateTimers.u60),
-			DEFINE_FIELD(stateTimers.u61),
-			DEFINE_FIELD(stateTimers.u62),
-			DEFINE_FIELD(stateTimers.u63),
-			DEFINE_FIELD(stateTimers.u64),
-			DEFINE_FIELD(stateTimers.u65),
-			DEFINE_FIELD(stateTimers.u66),
-			DEFINE_FIELD(stateTimers.u67),
-			DEFINE_FIELD(stateTimers.u68),
+			DEFINE_FIELD(stateTimers.slideInTime),
+			DEFINE_FIELD(stateTimers.slideLoopTime),
+			DEFINE_FIELD(stateTimers.slideOutTime),
+			DEFINE_FIELD(stateTimers.highJumpInTime),
+			DEFINE_FIELD(stateTimers.highJumpDropInTime),
+			DEFINE_FIELD(stateTimers.highJumpDropLoopTime),
+			DEFINE_FIELD(stateTimers.highJumpDropLandTime),
+			DEFINE_FIELD(stateTimers.dodgeTime),
+			DEFINE_FIELD(stateTimers.landDipTime),
+			DEFINE_FIELD(stateTimers.hybridSightInTime),
+			DEFINE_FIELD(stateTimers.hybridSightOutTime),
 			DEFINE_FIELD(stateTimers.offhandSwitchTime),
-			DEFINE_FIELD(stateTimers.u70),
-			DEFINE_FIELD(stateTimers.u71),
-			DEFINE_FIELD(stateTimers.u72),
-			DEFINE_FIELD(stateTimers.u73),
-			DEFINE_FIELD(stateTimers.u74),
+			DEFINE_FIELD(stateTimers.heatCooldownInTime),
+			DEFINE_FIELD(stateTimers.heatCooldownOutTime),
+			DEFINE_FIELD(stateTimers.heatCooldownOutReadyTime),
+			DEFINE_FIELD(stateTimers.overheatOutTime),
+			DEFINE_FIELD(stateTimers.overheatOutReadyTime),
 			DEFINE_FIELD(stateTimers),
 			DEFINE_FIELD(akimboStateTimers.fireDelay),
 			DEFINE_FIELD(akimboStateTimers.meleeDelay),
@@ -376,8 +372,8 @@ namespace zonetool::s1
 			DEFINE_FIELD(akimboStateTimers.reloadAddTimeDualWield),
 			DEFINE_FIELD(akimboStateTimers.reloadEmptyDualMag),
 			DEFINE_FIELD(akimboStateTimers.reloadEmptyAddTimeDualMag),
-			DEFINE_FIELD(akimboStateTimers.u25),
-			DEFINE_FIELD(akimboStateTimers.u26),
+			DEFINE_FIELD(akimboStateTimers.speedReloadTime),
+			DEFINE_FIELD(akimboStateTimers.speedReloadAddTime),
 			DEFINE_FIELD(akimboStateTimers.dropTime),
 			DEFINE_FIELD(akimboStateTimers.raiseTime),
 			DEFINE_FIELD(akimboStateTimers.altDropTime),
@@ -409,23 +405,23 @@ namespace zonetool::s1
 			DEFINE_FIELD(akimboStateTimers.blastRightTime),
 			DEFINE_FIELD(akimboStateTimers.blastBackTime),
 			DEFINE_FIELD(akimboStateTimers.blastLeftTime),
-			DEFINE_FIELD(akimboStateTimers.u58),
-			DEFINE_FIELD(akimboStateTimers.u59),
-			DEFINE_FIELD(akimboStateTimers.u60),
-			DEFINE_FIELD(akimboStateTimers.u61),
-			DEFINE_FIELD(akimboStateTimers.u62),
-			DEFINE_FIELD(akimboStateTimers.u63),
-			DEFINE_FIELD(akimboStateTimers.u64),
-			DEFINE_FIELD(akimboStateTimers.u65),
-			DEFINE_FIELD(akimboStateTimers.u66),
-			DEFINE_FIELD(akimboStateTimers.u67),
-			DEFINE_FIELD(akimboStateTimers.u68),
+			DEFINE_FIELD(akimboStateTimers.slideInTime),
+			DEFINE_FIELD(akimboStateTimers.slideLoopTime),
+			DEFINE_FIELD(akimboStateTimers.slideOutTime),
+			DEFINE_FIELD(akimboStateTimers.highJumpInTime),
+			DEFINE_FIELD(akimboStateTimers.highJumpDropInTime),
+			DEFINE_FIELD(akimboStateTimers.highJumpDropLoopTime),
+			DEFINE_FIELD(akimboStateTimers.highJumpDropLandTime),
+			DEFINE_FIELD(akimboStateTimers.dodgeTime),
+			DEFINE_FIELD(akimboStateTimers.landDipTime),
+			DEFINE_FIELD(akimboStateTimers.hybridSightInTime),
+			DEFINE_FIELD(akimboStateTimers.hybridSightOutTime),
 			DEFINE_FIELD(akimboStateTimers.offhandSwitchTime),
-			DEFINE_FIELD(akimboStateTimers.u70),
-			DEFINE_FIELD(akimboStateTimers.u71),
-			DEFINE_FIELD(akimboStateTimers.u72),
-			DEFINE_FIELD(akimboStateTimers.u73),
-			DEFINE_FIELD(akimboStateTimers.u74),
+			DEFINE_FIELD(akimboStateTimers.heatCooldownInTime),
+			DEFINE_FIELD(akimboStateTimers.heatCooldownOutTime),
+			DEFINE_FIELD(akimboStateTimers.heatCooldownOutReadyTime),
+			DEFINE_FIELD(akimboStateTimers.overheatOutTime),
+			DEFINE_FIELD(akimboStateTimers.overheatOutReadyTime),
 			DEFINE_FIELD(akimboStateTimers),
 			DEFINE_FIELD(autoAimRange),
 			DEFINE_FIELD(aimAssistRange),
@@ -458,8 +454,8 @@ namespace zonetool::s1
 			DEFINE_FIELD(hipSpreadDuckedMin),
 			DEFINE_FIELD(hipSpreadProneMin),
 			DEFINE_FIELD(hipSpreadStandMax),
-			DEFINE_FIELD(xU_009),
-			DEFINE_FIELD(xU_010),
+			DEFINE_FIELD(hipSpreadSprintMax),
+			DEFINE_FIELD(hipSpreadSlideMax),
 			DEFINE_FIELD(hipSpreadDuckedMax),
 			DEFINE_FIELD(hipSpreadProneMax),
 			DEFINE_FIELD(hipSpreadDecayRate),
@@ -480,9 +476,9 @@ namespace zonetool::s1
 			DEFINE_FIELD(adsIdleLerpStartTime),
 			DEFINE_FIELD(adsIdleLerpTime),
 			DEFINE_FIELD(adsTransInTime),
-			DEFINE_FIELD(xU_011),
+			DEFINE_FIELD(adsTransInFromSprintTime),
 			DEFINE_FIELD(adsTransOutTime),
-			DEFINE_FIELD(xU_012),
+			DEFINE_FIELD(swayMaxAngleSteadyAim),
 			DEFINE_FIELD(swayMaxAngle),
 			DEFINE_FIELD(swayLerpSpeed),
 			DEFINE_FIELD(swayPitchScale),
@@ -506,17 +502,16 @@ namespace zonetool::s1
 			DEFINE_FIELD(scopeDriftLerpOutTime),
 			DEFINE_FIELD(scopeDriftSteadyFactor),
 			DEFINE_FIELD(scopeDriftUnsteadyFactor),
-			DEFINE_FIELD(bobVerticalFactor),
-			DEFINE_FIELD(bobHorizontalFactor),
-			DEFINE_FIELD(bobViewVerticalFactor),
-			DEFINE_FIELD(bobViewHorizontalFactor),
+			DEFINE_FIELD(weaponBobVerticalFactor),
+			DEFINE_FIELD(weaponBobHorizontalFactor),
+			DEFINE_FIELD(viewBobVerticalFactor),
+			DEFINE_FIELD(viewBobHorizontalFactor),
 			DEFINE_FIELD(stationaryZoomFov),
-			DEFINE_FIELD(stationaryZoomDelay),
+			DEFINE_FIELD(stationaryZoomDelayTime),
 			DEFINE_FIELD(stationaryZoomLerpInTime),
 			DEFINE_FIELD(stationaryZoomLerpOutTime),
 			DEFINE_FIELD(adsDofStart),
 			DEFINE_FIELD(adsDofEnd),
-			DEFINE_FIELD(xU_020),
 			DEFINE_FIELD(killIcon),
 			DEFINE_FIELD(dpadIcon),
 			DEFINE_FIELD(hudProximityWarningIcon),
@@ -545,7 +540,6 @@ namespace zonetool::s1
 			DEFINE_FIELD(projLifetime),
 			DEFINE_FIELD(timeToAccelerate),
 			DEFINE_FIELD(projectileCurvature),
-			//DEFINE_FIELD(xU_021),
 			DEFINE_FIELD(projectileName),
 			DEFINE_FIELD(projectileModel),
 			DEFINE_FIELD(projExplosionEffect),
@@ -612,8 +606,8 @@ namespace zonetool::s1
 			DEFINE_FIELD(hipViewKickCenterSpeed),
 			DEFINE_FIELD(hipViewScatterMin),
 			DEFINE_FIELD(hipViewScatterMax),
-			DEFINE_FIELD(xU_043),
-			DEFINE_FIELD(adsReloadTransTime),
+			DEFINE_FIELD(viewKickScale),
+			DEFINE_FIELD(positionReloadTransTime),
 			DEFINE_FIELD(fightDist),
 			DEFINE_FIELD(maxDist),
 			DEFINE_FIELD(accuracyGraphName[0]),
@@ -624,7 +618,6 @@ namespace zonetool::s1
 			DEFINE_FIELD(originalAccuracyGraphKnots[1]),
 			DEFINE_FIELD(accuracyGraphKnotCount[0]),
 			DEFINE_FIELD(accuracyGraphKnotCount[1]),
-			DEFINE_FIELD(positionReloadTransTime),
 			DEFINE_FIELD(leftArc),
 			DEFINE_FIELD(rightArc),
 			DEFINE_FIELD(topArc),
@@ -656,12 +649,12 @@ namespace zonetool::s1
 			DEFINE_FIELD(midPlayerDamage),
 			DEFINE_FIELD(maxDamageRange),
 			DEFINE_FIELD(minDamageRange),
-			DEFINE_FIELD(iU_045),
-			DEFINE_FIELD(iU_046),
-			DEFINE_FIELD(iU_047),
-			DEFINE_FIELD(iU_048),
-			DEFINE_FIELD(fU_049),
-			DEFINE_FIELD(fU_050),
+			DEFINE_FIELD(signatureAmmoInClip),
+			DEFINE_FIELD(signatureDamage),
+			DEFINE_FIELD(signatureMidDamage),
+			DEFINE_FIELD(signatureMinDamage),
+			DEFINE_FIELD(signatureMaxDamageRange),
+			DEFINE_FIELD(signatureMinDamageRange),
 			DEFINE_FIELD(destabilizationRateTime),
 			DEFINE_FIELD(destabilizationCurvatureMax),
 			DEFINE_FIELD(destabilizeDistance),
@@ -671,10 +664,10 @@ namespace zonetool::s1
 			DEFINE_FIELD(turretScopeZoomRate),
 			DEFINE_FIELD(turretScopeZoomMin),
 			DEFINE_FIELD(turretScopeZoomMax),
-			DEFINE_FIELD(xU_056),
-			DEFINE_FIELD(xU_057),
-			DEFINE_FIELD(xU_058),
-			DEFINE_FIELD(xU_059),
+			DEFINE_FIELD(overheatUpRate),
+			DEFINE_FIELD(overheatDownRate),
+			DEFINE_FIELD(overheatCooldownRate),
+			DEFINE_FIELD(overheatPenalty),
 			DEFINE_FIELD(turretBarrelSpinSpeed),
 			DEFINE_FIELD(turretBarrelSpinUpTime),
 			DEFINE_FIELD(turretBarrelSpinDownTime),
@@ -698,27 +691,23 @@ namespace zonetool::s1
 			DEFINE_FIELD(player_meleeHeight),
 			DEFINE_FIELD(player_meleeRange),
 			DEFINE_FIELD(player_meleeWidth),
-			DEFINE_FIELD(signatureFireTime),
-			DEFINE_FIELD(signatureNumBullets),
+			DEFINE_FIELD(changedFireTime),
+			DEFINE_FIELD(changedFireTimeNumBullets),
 			DEFINE_FIELD(fireTimeInterpolationType),
-
-			DEFINE_FIELD(iU_3408),
-			DEFINE_FIELD(iU_3412),
-			DEFINE_FIELD(iU_3416),
-			DEFINE_FIELD(iU_3420),
-			DEFINE_FIELD(iU_3424),
-
+			DEFINE_FIELD(generateAmmo),
+			DEFINE_FIELD(ammoPerShot),
+			DEFINE_FIELD(explodeCount),
+			DEFINE_FIELD(batteryDischargeRate),
+			DEFINE_FIELD(extendedBattery),
 			DEFINE_FIELD(stowTag),
-
-			DEFINE_FIELD(bU_3432),
-			DEFINE_FIELD(bU_3433),
-			DEFINE_FIELD(bU_3434),
-			DEFINE_FIELD(bU_3435),
-			DEFINE_FIELD(bU_3436),
-			DEFINE_FIELD(bU_3437),
-			DEFINE_FIELD(bU_3438),
-			DEFINE_FIELD(bU_3439),
-
+			DEFINE_FIELD(rattleSoundType),
+			DEFINE_FIELD(adsShouldShowCrosshair),
+			DEFINE_FIELD(adsCrosshairShouldScale),
+			DEFINE_FIELD(turretADSEnabled),
+			DEFINE_FIELD(knifeAlwaysAttached),
+			DEFINE_FIELD(meleeOverrideValues),
+			DEFINE_FIELD(riotShieldEnableDamage),
+			DEFINE_FIELD(allowPrimaryWeaponPickup),
 			DEFINE_FIELD(sharedAmmo),
 			DEFINE_FIELD(lockonSupported),
 			DEFINE_FIELD(requireLockonToFire),
@@ -733,24 +722,23 @@ namespace zonetool::s1
 			DEFINE_FIELD(boltAction),
 			DEFINE_FIELD(aimDownSight),
 			DEFINE_FIELD(canHoldBreath),
-			//DEFINE_FIELD(meleeOnly),
-			DEFINE_FIELD(bU_3454),
-			DEFINE_FIELD(bU_3455),
+			DEFINE_FIELD(meleeOnly),
+			DEFINE_FIELD(altMelee),
 			DEFINE_FIELD(canVariableZoom),
 			DEFINE_FIELD(rechamberWhileAds),
 			DEFINE_FIELD(bulletExplosiveDamage),
 			DEFINE_FIELD(cookOffHold),
+			DEFINE_FIELD(useBattery),
 			DEFINE_FIELD(reticleSpin45),
-			DEFINE_FIELD(reticleSideEnabled),
 			DEFINE_FIELD(clipOnly),
 			DEFINE_FIELD(noAmmoPickup),
 			DEFINE_FIELD(disableSwitchToWhenEmpty),
-			DEFINE_FIELD(bU_3465),
-			DEFINE_FIELD(hasMotionTracker),
-			DEFINE_FIELD(bU_3467),
+			DEFINE_FIELD(suppressAmmoReserveDisplay),
+			DEFINE_FIELD(motionTracker),
+			DEFINE_FIELD(markableViewmodel),
 			DEFINE_FIELD(noDualWield),
 			DEFINE_FIELD(flipKillIcon),
-			DEFINE_FIELD(actionSlotShowAmmo),
+			DEFINE_FIELD(dpadIconShowsAmmo),
 			DEFINE_FIELD(noPartialReload),
 			DEFINE_FIELD(segmentedReload),
 			DEFINE_FIELD(multipleReload),
@@ -766,12 +754,12 @@ namespace zonetool::s1
 			DEFINE_FIELD(stickToVehicles),
 			DEFINE_FIELD(stickToTurrets),
 			DEFINE_FIELD(thrownSideways),
-			DEFINE_FIELD(hasDetonatorEmptyThrow),
-			DEFINE_FIELD(hasDetonatorDoubleTap),
+			DEFINE_FIELD(detonatesOnEmptyThrow),
+			DEFINE_FIELD(detonatesOnDoubleTap),
 			DEFINE_FIELD(disableFiring),
 			DEFINE_FIELD(timedDetonation),
-			DEFINE_FIELD(bU_3528),
-			DEFINE_FIELD(bU_3529),
+			DEFINE_FIELD(noCrumpleMissile),
+			DEFINE_FIELD(fuseLitAfterImpact),
 			DEFINE_FIELD(rotate),
 			DEFINE_FIELD(holdButtonToThrow),
 			DEFINE_FIELD(freezeMovementWhenFiring),
@@ -786,55 +774,36 @@ namespace zonetool::s1
 			DEFINE_FIELD(offhandHoldIsCancelable),
 			DEFINE_FIELD(doNotAllowAttachmentsToOverrideSpread),
 			DEFINE_FIELD(useFastReloadAnims),
-			DEFINE_FIELD(dualMagReloadSupported),
+			DEFINE_FIELD(useDualMagReloadAnims),
 			DEFINE_FIELD(reloadStopsAlt),
-			DEFINE_FIELD(bU_3546),
+			DEFINE_FIELD(useScopeDrift),
 			DEFINE_FIELD(alwaysShatterGlassOnImpact),
 			DEFINE_FIELD(oldWeapon),
-			DEFINE_FIELD(bU_3511),
-			DEFINE_FIELD(bU_3512),
-			DEFINE_FIELD(bU_3513),
-			DEFINE_FIELD(hasCounterSilencer),
-			DEFINE_FIELD(bU_3515),
-			DEFINE_FIELD(bU_3516),
-			DEFINE_FIELD(disableVariableAutosimRate),
-			DEFINE_FIELD(bU_3518),
-			DEFINE_FIELD(bU_3519),
-			DEFINE_FIELD(bU_3520),
-			DEFINE_FIELD(bU_3521),
-			DEFINE_FIELD(bU_3522),
-			DEFINE_FIELD(cloakedWeapon),
+			DEFINE_FIELD(raiseToHold),
+			DEFINE_FIELD(notifyOnPlayerImpact),
+			DEFINE_FIELD(decreasingKick),
+			DEFINE_FIELD(counterSilencer),
+			DEFINE_FIELD(projSuppressedByEMP),
+			DEFINE_FIELD(projDisabledByEMP),
+			DEFINE_FIELD(autosimDisableVariableRate),
+			DEFINE_FIELD(projPlayTrailEffectForOwnerOnly),
+			DEFINE_FIELD(projPlayBeaconEffectForOwnerOnly),
+			DEFINE_FIELD(projKillTrailEffectOnDeath),
+			DEFINE_FIELD(projKillBeaconEffectOnDeath),
+			DEFINE_FIELD(reticleDetonateHide),
+			DEFINE_FIELD(cloaked),
 			DEFINE_FIELD(adsHideWeapon),
-			DEFINE_FIELD(bU_3525),
-			DEFINE_FIELD(bU_3526),
-			DEFINE_FIELD(bU_3527),
-			DEFINE_FIELD(adsDofPhysicalFStop),
+			DEFINE_FIELD(hasTransientModels),
+			DEFINE_FIELD(signatureAmmoAlternate),
+			DEFINE_FIELD(useScriptCallbackForHit),
+			DEFINE_FIELD(adsDofPhysicalFstop),
 			DEFINE_FIELD(adsDofPhysicalFocusDistance),
-
-			DEFINE_FIELD(__pad_unknown[0]),
-			DEFINE_FIELD(__pad_unknown[1]),
-			DEFINE_FIELD(__pad_unknown[2]),
-			DEFINE_FIELD(__pad_unknown[3]),
-			DEFINE_FIELD(__pad_unknown[4]),
-			DEFINE_FIELD(__pad_unknown[5]),
-			DEFINE_FIELD(__pad_unknown[6]),
-			DEFINE_FIELD(__pad_unknown[7]),
-			DEFINE_FIELD(__pad_unknown[8]),
-			DEFINE_FIELD(__pad_unknown[9]),
-			DEFINE_FIELD(__pad_unknown[10]),
-			DEFINE_FIELD(__pad_unknown[11]),
-			DEFINE_FIELD(__pad_unknown[12]),
-			DEFINE_FIELD(__pad_unknown[13]),
-			DEFINE_FIELD(__pad_unknown[14]),
-			DEFINE_FIELD(__pad_unknown[15]),
-			DEFINE_FIELD(__pad_unknown[16]),
-			DEFINE_FIELD(__pad_unknown[17]),
-			DEFINE_FIELD(__pad_unknown[18]),
-			DEFINE_FIELD(__pad_unknown[19]),
-			DEFINE_FIELD(__pad_unknown[20]),
-			DEFINE_FIELD(__pad_unknown[21]),
-			DEFINE_FIELD(__pad_unknown[22]),
-			DEFINE_FIELD(__pad_unknown[23]),
+			DEFINE_FIELD(autosimSpeedScale),
+			DEFINE_FIELD(reactiveMotionRadiusScale),
+			DEFINE_FIELD(reactiveMotionFrequencyScale),
+			DEFINE_FIELD(reactiveMotionAmplitudeScale),
+			DEFINE_FIELD(reactiveMotionFalloff),
+			DEFINE_FIELD(reactiveMotionLifetime),
 		};
 
 		unsigned char get_anim_index(const std::string& anim)
@@ -942,6 +911,39 @@ namespace zonetool::s1
 		attachment->__field__ = nullptr; \
 	}
 
+	void parse_charge_info(AttChargeInfo* attachment, ordered_json& data, zone_memory* mem)
+	{
+		ATTACHMENT_READ_FIELD(float, minChargeTime);
+		ATTACHMENT_READ_FIELD(float, overChargeTime);
+		ATTACHMENT_READ_FIELD(float, timePerChargeShot);
+		ATTACHMENT_READ_FIELD(int, maxChargeShots);
+		ATTACHMENT_READ_FIELD(float, minChargeAngle);
+		ATTACHMENT_READ_FIELD(float, maxChargeAngle);
+		ATTACHMENT_READ_FIELD(bool, autoFireOnMaxCharge);
+	}
+
+	void parse_hybrid_settings(AttHybridSettings* attachment, ordered_json& data, zone_memory* mem)
+	{
+		ATTACHMENT_READ_FIELD(float, adsSpread);
+		ATTACHMENT_READ_FIELD(float, adsAimPitch);
+		ATTACHMENT_READ_FIELD(float, adsTransInTime);
+		ATTACHMENT_READ_FIELD(float, adsTransInFromSprintTime);
+		ATTACHMENT_READ_FIELD(float, adsTransOutTime);
+		ATTACHMENT_READ_FIELD(int, adsReloadTransTime);
+		ATTACHMENT_READ_FIELD(float, adsCrosshairInFrac);
+		ATTACHMENT_READ_FIELD(float, adsCrosshairOutFrac);
+		ATTACHMENT_READ_FIELD(float, adsZoomFov);
+		ATTACHMENT_READ_FIELD(float, adsZoomInFrac);
+		ATTACHMENT_READ_FIELD(float, adsZoomOutFrac);
+		ATTACHMENT_READ_FIELD(float, adsFovLerpInTime);
+		ATTACHMENT_READ_FIELD(float, adsFovLerpOutTime);
+		ATTACHMENT_READ_FIELD(float, adsBobFactor);
+		ATTACHMENT_READ_FIELD(float, adsViewBobMult);
+		ATTACHMENT_READ_FIELD(float, adsViewErrorMin);
+		ATTACHMENT_READ_FIELD(float, adsViewErrorMax);
+		ATTACHMENT_READ_FIELD(float, adsFireAnimFrac);
+	}
+
 	WeaponAttachment* weapon_attachment::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = "attachments\\"s + name + ".json"s;
@@ -959,28 +961,9 @@ namespace zonetool::s1
 		auto size = file.size();
 		auto bytes = file.read_bytes(size);
 		file.close();
-		json data = json::parse(bytes);
+		ordered_json data = json::parse(bytes);
 
 		auto* attachment = mem->allocate<WeaponAttachment>();
-
-		// base asset
-		auto base = data["baseAsset"].get<std::string>();
-		if (!base.empty())
-		{
-			const auto base_asset = db_find_x_asset_header(ASSET_TYPE_ATTACHMENT, base.data(), 0).attachment;
-			if (base_asset == nullptr)
-			{
-				ZONETOOL_WARNING("Could not load base asset \"%s\" into memory...", base.data());
-			}
-			else
-			{
-				std::memcpy(attachment, base_asset, sizeof(WeaponAttachment));
-			}
-		}
-		else
-		{
-			ZONETOOL_WARNING("No base asset is defined for attachment \"%s\", stuff might be wrong!", name.data());
-		}
 
 		if (!data["internalName"].is_null())
 		{
@@ -995,48 +978,68 @@ namespace zonetool::s1
 		ATTACHMENT_READ_FIELD(AttachmentType, type);
 		ATTACHMENT_READ_FIELD_RENAME(weapType_t, weaponType, "weaponType");
 		ATTACHMENT_READ_FIELD_RENAME(weapClass_t, weapClass, "weaponClass");
-		//ATTACHMENT_READ_FIELD_RENAME(weapGreebleType_t, greebleType, "greebleType");
+		ATTACHMENT_READ_FIELD_RENAME(weapGreebleType_t, greebleType, "greebleType");
 
 		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_XMODEL, model, worldModels, XModel, 2);
 		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_XMODEL, model, viewModels, XModel, 2);
 		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_XMODEL, model, reticleViewModels, XModel, 32);
 
-		if (!data["waFields"].is_null())
+		if (!data["chargeInfo"].is_null())
 		{
-			attachment->waFieldsCount = static_cast<unsigned int>(data["waFields"].size());
-			attachment->waFieldOffsets = mem->allocate<unsigned short>(attachment->waFieldsCount);
-			attachment->waFields = mem->allocate<WAField>(attachment->waFieldsCount);
+			attachment->chargeInfo = mem->allocate<AttChargeInfo>();
+			parse_charge_info(attachment->chargeInfo, data["chargeInfo"], mem);
+		}
+		else
+		{
+			attachment->chargeInfo = nullptr;
+		}
+
+		if (!data["hybridSettings"].is_null())
+		{
+			attachment->hybridSettings = mem->allocate<AttHybridSettings>();
+			parse_hybrid_settings(attachment->hybridSettings, data["hybridSettings"], mem);
+		}
+		else
+		{
+			attachment->hybridSettings = nullptr;
+		}
+
+		if (!data["fields"].is_null())
+		{
+			attachment->numFields = static_cast<unsigned int>(data["fields"].size());
+			attachment->fieldOffsets = mem->allocate<unsigned short>(attachment->numFields);
+			attachment->fields = mem->allocate<WAField>(attachment->numFields);
 
 			std::vector<field_info> sorted_fields;
-			for (auto i = 0u; i < attachment->waFieldsCount; i++)
+			for (int i = 0; i < attachment->numFields; i++)
 			{
 				field_info info{};
 
 				info.json_index = i;
-				info.type = data["waFields"][i]["type"].get<unsigned char>();
-				info.code = data["waFields"][i]["code"].get<unsigned char>();
+				info.type = data["fields"][i]["type"].get<unsigned char>();
+				info.code = data["fields"][i]["code"].get<unsigned char>();
 
-				if (data["waFields"][i]["offset"].is_number())
+				if (data["fields"][i]["offset"].is_number())
 				{
-					info.offset = data["waFields"][i]["offset"].get<unsigned short>();
+					info.offset = data["fields"][i]["offset"].get<unsigned short>();
 
 				}
-				else if (data["waFields"][i]["name"].is_string())
+				else if (data["fields"][i]["name"].is_string())
 				{
-					info.offset = weapon_field_to_offset(data["waFields"][i]["name"].get<std::string>());
+					info.offset = weapon_field_to_offset(data["fields"][i]["name"].get<std::string>());
 				}
 				else
 				{
 					ZONETOOL_FATAL("Invalid WAField offset/name value");
 				}
 
-				if (data["waFields"][i]["index"].is_number())
+				if (data["fields"][i]["index"].is_number())
 				{
-					info.index = data["waFields"][i]["index"].get<unsigned char>();
+					info.index = data["fields"][i]["index"].get<unsigned char>();
 				}
-				else if (info.type == WAFIELD_TYPE_ANIM && data["waFields"][i]["anim"].is_string())
+				else if (info.type == WAFIELD_TYPE_ANIM && data["fields"][i]["anim"].is_string())
 				{
-					info.index = get_anim_index(data["waFields"][i]["anim"].get<std::string>());
+					info.index = get_anim_index(data["fields"][i]["anim"].get<std::string>());
 				}
 				else
 				{
@@ -1061,12 +1064,12 @@ namespace zonetool::s1
 				const auto& field = sorted_fields[f];
 				const auto i = field.json_index;
 
-				attachment->waFieldOffsets[f] = field.offset;
-				attachment->waFields[f].code = field.code;
-				attachment->waFields[f].index = field.index;
-				attachment->waFields[f].fieldType = field.type;
+				attachment->fieldOffsets[f] = field.offset;
+				attachment->fields[f].code = field.code;
+				attachment->fields[f].index = field.index;
+				attachment->fields[f].type = field.type;
 
-				auto type = attachment->waFields[f].fieldType;
+				auto type = attachment->fields[f].type;
 				if (type == WAFIELD_TYPE_STRING ||
 					type == WAFIELD_TYPE_FX ||
 					type == WAFIELD_TYPE_MODEL ||
@@ -1076,23 +1079,23 @@ namespace zonetool::s1
 					type == WAFIELD_TYPE_SOUND ||
 					type == WAFIELD_TYPE_TRACER)
 				{
-					attachment->waFields[f].parm.string = mem->duplicate_string(data["waFields"][i]["value"].get<std::string>());
+					attachment->fields[f].parm.string = mem->duplicate_string(data["fields"][i]["value"].get<std::string>());
 				}
 				else if (type == WAFIELD_TYPE_INT)
 				{
-					attachment->waFields[f].parm.p_float = static_cast<float>(data["waFields"][i]["value"].get<int>());
+					attachment->fields[f].parm.p_float = static_cast<float>(data["fields"][i]["value"].get<int>());
 				}
 				else if (type == WAFIELD_TYPE_BOOL)
 				{
-					attachment->waFields[f].parm.p_bool = data["waFields"][i]["value"].get<bool>();
+					attachment->fields[f].parm.p_bool = data["fields"][i]["value"].get<bool>();
 				}
 				else if (type == WAFIELD_TYPE_FLOAT)
 				{
-					attachment->waFields[f].parm.p_float = data["waFields"][i]["value"].get<float>();
+					attachment->fields[f].parm.p_float = data["fields"][i]["value"].get<float>();
 				}
 				else if (type == WAFIELD_TYPE_FLOAT32)
 				{
-					attachment->waFields[f].parm.p_float = static_cast<float>(data["waFields"][i]["value"].get<int>() / 1000.0f);
+					attachment->fields[f].parm.p_float = static_cast<float>(data["fields"][i]["value"].get<int>() / 1000.0f);
 				}
 				else
 				{
@@ -1102,12 +1105,26 @@ namespace zonetool::s1
 		}
 		else
 		{
-			attachment->waFieldOffsets = nullptr;
-			attachment->waFields = nullptr;
-			attachment->waFieldsCount = 0;
+			attachment->fieldOffsets = nullptr;
+			attachment->fields = nullptr;
+			attachment->numFields = 0;
 		}
 
-		this->add_script_string(&attachment->unkScriptString, mem->duplicate_string(data["unkScriptString"].get<std::string>()));
+		this->add_script_string(&attachment->knifeAttachTagOverride, mem->duplicate_string(data["knifeAttachTagOverride"].get<std::string>()));
+
+		//ATTACHMENT_READ_FIELD(int, loadIndex); // runtime data, most likely
+
+		ATTACHMENT_READ_FIELD(int, adsSettingsMode);
+		ATTACHMENT_READ_FIELD(float, adsSceneBlurStrength);
+		ATTACHMENT_READ_FIELD(bool, hideIronSightsWithThisAttachment);
+		ATTACHMENT_READ_FIELD(bool, showMasterRail);
+		ATTACHMENT_READ_FIELD(bool, showSideRail);
+		ATTACHMENT_READ_FIELD(bool, shareAmmoWithAlt);
+		ATTACHMENT_READ_FIELD(bool, knifeAlwaysAttached);
+		ATTACHMENT_READ_FIELD(bool, useDualFOV);
+		ATTACHMENT_READ_FIELD(bool, riotShield);
+		ATTACHMENT_READ_FIELD(bool, adsSceneBlur);
+		ATTACHMENT_READ_FIELD(bool, automaticAttachment);
 
 		return attachment;
 	}
@@ -1128,14 +1145,14 @@ namespace zonetool::s1
 			this->asset_ = db_find_x_asset_header_copy<WeaponAttachment>(XAssetType(this->type()), this->name().data(), mem).attachment;
 
 			auto* attachment = this->asset_;
-			this->add_script_string(&attachment->unkScriptString, SL_ConvertToString(attachment->unkScriptString));
+			this->add_script_string(&attachment->knifeAttachTagOverride, SL_ConvertToString(attachment->knifeAttachTagOverride));
 		}
 	}
 
 	void weapon_attachment::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 		auto* data = this->asset_;
-		data->unkScriptString = static_cast<scr_string_t>(buf->write_scriptstring(this->get_script_string(&data->unkScriptString)));
+		data->knifeAttachTagOverride = static_cast<scr_string_t>(buf->write_scriptstring(this->get_script_string(&data->knifeAttachTagOverride)));
 	}
 
 #define ATTACHMENT_SUBASSET_DEPENDING(__field__,__type__/*,__struct__*/) \
@@ -1172,9 +1189,9 @@ namespace zonetool::s1
 			}
 		}
 
-		if (data->waFields)
+		if (data->fields)
 		{
-			for (auto i = 0u; i < data->waFieldsCount; i++)
+			for (int i = 0; i < data->numFields; i++)
 			{
 #define SUBASSET_CASE(__type__, __asset_type__) \
 				case __type__: \
@@ -1184,8 +1201,8 @@ namespace zonetool::s1
 					} \
 					break; \
 
-				const auto field = &data->waFields[i];
-				switch (field->fieldType)
+				const auto field = &data->fields[i];
+				switch (field->type)
 				{
 					SUBASSET_CASE(WAFIELD_TYPE_FX, ASSET_TYPE_FX);
 					SUBASSET_CASE(WAFIELD_TYPE_MATERIAL, ASSET_TYPE_MATERIAL);
@@ -1314,20 +1331,20 @@ namespace zonetool::s1
 			buf->clear_pointer(&dest->hybridSettings);
 		}
 
-		if (data->waFieldOffsets)
+		if (data->fieldOffsets)
 		{
 			buf->align(1);
-			buf->write(data->waFieldOffsets, data->waFieldsCount);
-			buf->clear_pointer(&dest->waFieldOffsets);
+			buf->write(data->fieldOffsets, data->numFields);
+			buf->clear_pointer(&dest->fieldOffsets);
 		}
 
-		if (data->waFields)
+		if (data->fields)
 		{
 			buf->align(3);
-			auto* dest_waFields = buf->write(data->waFields, data->waFieldsCount);
-			for (unsigned int i = 0; i < data->waFieldsCount; i++)
+			auto* dest_fields = buf->write(data->fields, data->numFields);
+			for (int i = 0; i < data->numFields; i++)
 			{
-				auto type = data->waFields[i].fieldType;
+				auto type = data->fields[i].type;
 				if (type == WAFIELD_TYPE_STRING ||
 					type == WAFIELD_TYPE_FX ||
 					type == WAFIELD_TYPE_MODEL ||
@@ -1337,13 +1354,13 @@ namespace zonetool::s1
 					type == WAFIELD_TYPE_SOUND ||
 					type == WAFIELD_TYPE_TRACER)
 				{
-					if (data->waFields[i].parm.string)
+					if (data->fields[i].parm.string)
 					{
-						dest_waFields[i].parm.string = buf->write_str(data->waFields[i].parm.string);
+						dest_fields[i].parm.string = buf->write_str(data->fields[i].parm.string);
 					}
 				}
 			}
-			buf->clear_pointer(&dest->waFields);
+			buf->clear_pointer(&dest->fields);
 		}
 
 		buf->pop_stream();
@@ -1375,13 +1392,44 @@ namespace zonetool::s1
 		data[#__field__] = nullptr; \
 	}
 
+	void dump_charge_info(AttChargeInfo* asset, ordered_json& data)
+	{
+		ATTACHMENT_DUMP_FIELD(minChargeTime);
+		ATTACHMENT_DUMP_FIELD(overChargeTime);
+		ATTACHMENT_DUMP_FIELD(timePerChargeShot);
+		ATTACHMENT_DUMP_FIELD(maxChargeShots);
+		ATTACHMENT_DUMP_FIELD(minChargeAngle);
+		ATTACHMENT_DUMP_FIELD(maxChargeAngle);
+		ATTACHMENT_DUMP_FIELD(autoFireOnMaxCharge);
+	}
+
+	void dump_hybrid_settings(AttHybridSettings* asset, ordered_json& data)
+	{
+		ATTACHMENT_DUMP_FIELD(adsSpread);
+		ATTACHMENT_DUMP_FIELD(adsAimPitch);
+		ATTACHMENT_DUMP_FIELD(adsTransInTime);
+		ATTACHMENT_DUMP_FIELD(adsTransInFromSprintTime);
+		ATTACHMENT_DUMP_FIELD(adsTransOutTime);
+		ATTACHMENT_DUMP_FIELD(adsReloadTransTime);
+		ATTACHMENT_DUMP_FIELD(adsCrosshairInFrac);
+		ATTACHMENT_DUMP_FIELD(adsCrosshairOutFrac);
+		ATTACHMENT_DUMP_FIELD(adsZoomFov);
+		ATTACHMENT_DUMP_FIELD(adsZoomInFrac);
+		ATTACHMENT_DUMP_FIELD(adsZoomOutFrac);
+		ATTACHMENT_DUMP_FIELD(adsFovLerpInTime);
+		ATTACHMENT_DUMP_FIELD(adsFovLerpOutTime);
+		ATTACHMENT_DUMP_FIELD(adsBobFactor);
+		ATTACHMENT_DUMP_FIELD(adsViewBobMult);
+		ATTACHMENT_DUMP_FIELD(adsViewErrorMin);
+		ATTACHMENT_DUMP_FIELD(adsViewErrorMax);
+		ATTACHMENT_DUMP_FIELD(adsFireAnimFrac);
+	}
+
 	void weapon_attachment::dump(WeaponAttachment* asset)
 	{
 		const auto path = "attachments\\"s + asset->name + ".json"s;
 
 		ordered_json data;
-
-		data["baseAsset"] = asset->szInternalName;
 
 		data["internalName"] = asset->szInternalName;
 		data["displayName"] = asset->szDisplayName ? asset->szDisplayName : "";
@@ -1389,40 +1437,59 @@ namespace zonetool::s1
 		ATTACHMENT_DUMP_FIELD(type);
 		ATTACHMENT_DUMP_FIELD_RENAME(weaponType, "weaponType");
 		ATTACHMENT_DUMP_FIELD_RENAME(weapClass, "weaponClass");
+		ATTACHMENT_DUMP_FIELD_RENAME(greebleType, "greebleType");
 
 		ATTACHMENT_DUMP_ASSET_ARR(worldModels, 2);
 		ATTACHMENT_DUMP_ASSET_ARR(viewModels, 2);
 		ATTACHMENT_DUMP_ASSET_ARR(reticleViewModels, 32);
 
-		if (asset->waFieldOffsets && asset->waFields)
+		if (asset->chargeInfo)
 		{
-			data["waFields"] = {};
-			for (unsigned int i = 0; i < asset->waFieldsCount; i++)
+			dump_charge_info(asset->chargeInfo, data["chargeInfo"]);
+		}
+		else
+		{
+			data["chargeInfo"] = nullptr;
+		}
+
+		if (asset->hybridSettings)
+		{
+			dump_hybrid_settings(asset->hybridSettings, data["hybridSettings"]);
+		}
+		else
+		{
+			data["hybridSettings"] = nullptr;
+		}
+
+		if (asset->fieldOffsets && asset->fields)
+		{
+			data["fields"] = {};
+			for (int i = 0; i < asset->numFields; i++)
 			{
-				const auto field_name = weapon_offset_to_name(asset->waFieldOffsets[i]);
+				const auto field_name = weapon_offset_to_name(asset->fieldOffsets[i]);
 				if (field_name.has_value())
 				{
-					data["waFields"][i]["name"] = field_name.value();
+					data["fields"][i]["name"] = field_name.value();
 				}
 				else
 				{
-					data["waFields"][i]["offset"] = asset->waFieldOffsets[i];
+					data["fields"][i]["offset"] = asset->fieldOffsets[i];
 				}
 
-				data["waFields"][i]["type"] = asset->waFields[i].fieldType;
+				data["fields"][i]["type"] = asset->fields[i].type;
 
-				if (asset->waFields[i].fieldType == WAFIELD_TYPE_ANIM)
+				if (asset->fields[i].type == WAFIELD_TYPE_ANIM)
 				{
-					data["waFields"][i]["anim"] = anim_names[asset->waFields[i].index];
+					data["fields"][i]["anim"] = anim_names[asset->fields[i].index];
 				}
 				else
 				{
-					data["waFields"][i]["index"] = asset->waFields[i].index;
+					data["fields"][i]["index"] = asset->fields[i].index;
 				}
 
-				data["waFields"][i]["code"] = asset->waFields[i].code;
+				data["fields"][i]["code"] = asset->fields[i].code;
 
-				auto type = asset->waFields[i].fieldType;
+				auto type = asset->fields[i].type;
 				if (type == WAFIELD_TYPE_STRING ||
 					type == WAFIELD_TYPE_FX ||
 					type == WAFIELD_TYPE_MODEL ||
@@ -1432,23 +1499,23 @@ namespace zonetool::s1
 					type == WAFIELD_TYPE_SOUND ||
 					type == WAFIELD_TYPE_TRACER)
 				{
-					data["waFields"][i]["value"] = asset->waFields[i].parm.string;
+					data["fields"][i]["value"] = asset->fields[i].parm.string;
 				}
 				else if (type == WAFIELD_TYPE_INT)
 				{
-					data["waFields"][i]["value"] = static_cast<int>(asset->waFields[i].parm.p_float);
+					data["fields"][i]["value"] = static_cast<int>(asset->fields[i].parm.p_float);
 				}
 				else if (type == WAFIELD_TYPE_BOOL)
 				{
-					data["waFields"][i]["value"] = asset->waFields[i].parm.p_bool;
+					data["fields"][i]["value"] = asset->fields[i].parm.p_bool;
 				}
 				else if (type == WAFIELD_TYPE_FLOAT)
 				{
-					data["waFields"][i]["value"] = asset->waFields[i].parm.p_float;
+					data["fields"][i]["value"] = asset->fields[i].parm.p_float;
 				}
 				else if (type == WAFIELD_TYPE_FLOAT32)
 				{
-					data["waFields"][i]["value"] = static_cast<int>(asset->waFields[i].parm.p_float * 1000.0f);
+					data["fields"][i]["value"] = static_cast<int>(asset->fields[i].parm.p_float * 1000.0f);
 				}
 				else
 				{
@@ -1458,11 +1525,25 @@ namespace zonetool::s1
 		}
 		else
 		{
-			data["waFields"] = nullptr;
+			data["fields"] = nullptr;
 		}
 
-		auto* str = SL_ConvertToString(asset->unkScriptString);
-		data["unkScriptString"] = str ? str : "";
+		auto* str = SL_ConvertToString(asset->knifeAttachTagOverride);
+		data["knifeAttachTagOverride"] = str ? str : "";
+
+		//ATTACHMENT_DUMP_FIELD(loadIndex); // runtime data, most likely
+
+		ATTACHMENT_DUMP_FIELD(adsSettingsMode);
+		ATTACHMENT_DUMP_FIELD(adsSceneBlurStrength);
+		ATTACHMENT_DUMP_FIELD(hideIronSightsWithThisAttachment);
+		ATTACHMENT_DUMP_FIELD(showMasterRail);
+		ATTACHMENT_DUMP_FIELD(showSideRail);
+		ATTACHMENT_DUMP_FIELD(shareAmmoWithAlt);
+		ATTACHMENT_DUMP_FIELD(knifeAlwaysAttached);
+		ATTACHMENT_DUMP_FIELD(useDualFOV);
+		ATTACHMENT_DUMP_FIELD(riotShield);
+		ATTACHMENT_DUMP_FIELD(adsSceneBlur);
+		ATTACHMENT_DUMP_FIELD(automaticAttachment);
 
 		std::string json = data.dump(4);
 

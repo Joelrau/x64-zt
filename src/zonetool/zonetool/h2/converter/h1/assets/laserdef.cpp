@@ -24,32 +24,40 @@ namespace zonetool::h2
 				REINTERPRET_CAST_SAFE(name);
 				REINTERPRET_CAST_COPY_NAME(laserMaterial);
 				REINTERPRET_CAST_COPY_NAME(laserLightMaterial);
-				REINTERPRET_CAST_COPY_NAME(effect);
-				REINTERPRET_CAST_COPY_NAME(altLaser);
+				REINTERPRET_CAST_COPY_NAME(laserEndEffect);
+				REINTERPRET_CAST_COPY_NAME(friendlyTeamLaser);
 
-				COPY_VALUE_CAST(value);
-				
-				// color ?
-				new_asset->float_values[4] = asset->float_values[0];
-				new_asset->float_values[5] = asset->float_values[1];
-				new_asset->float_values[6] = asset->float_values[2];
+				COPY_VALUE_CAST(laserTag);
 
-				new_asset->float_values[11] = asset->float_values[3];
-				new_asset->float_values[12] = asset->float_values[4];
-				new_asset->float_values[13] = asset->float_values[5];
-				new_asset->float_values[14] = asset->float_values[6];
-				new_asset->float_values[15] = asset->float_values[7];
-				new_asset->float_values[16] = asset->float_values[8];
-				new_asset->float_values[17] = asset->float_values[9];
-				new_asset->float_values[18] = asset->float_values[10];
-				new_asset->float_values[19] = asset->float_values[11];
-				new_asset->float_values[20] = asset->float_values[12];
-				new_asset->float_values[21] = asset->float_values[13];
-				new_asset->float_values[22] = asset->float_values[14];
-				new_asset->float_values[23] = asset->float_values[15];
-				new_asset->float_values[24] = asset->float_values[16];
+				new_asset->hdrColorScale[0] = asset->hdrColorScale[0];
+				new_asset->hdrColorScale[1] = asset->hdrColorScale[1];
+				new_asset->hdrColorScale[2] = asset->hdrColorScale[2];
+				new_asset->hdrColorScale[3] = asset->hdrColorScale[3];
 
-				COPY_ARR(char_values);
+				new_asset->laserLightHdrColorScale[0] = asset->laserLightHdrColorScale[0];
+				new_asset->laserLightHdrColorScale[1] = asset->laserLightHdrColorScale[1];
+				new_asset->laserLightHdrColorScale[2] = asset->laserLightHdrColorScale[2];
+				new_asset->laserLightHdrColorScale[3] = asset->laserLightHdrColorScale[3];
+
+				new_asset->range = asset->range;
+				new_asset->radius = asset->radius;
+				new_asset->endOffset = asset->endOffset;
+				new_asset->flarePct = asset->flarePct;
+				new_asset->texCoordOffset = asset->texCoordOffset;
+				new_asset->laserLightRadius = asset->laserLightRadius;
+				new_asset->laserLightBeginOffset = asset->laserLightBeginOffset;
+				new_asset->laserLightEndOffset = asset->laserLightEndOffset;
+				new_asset->laserLightBodyTweak = asset->laserLightBodyTweak;
+
+				new_asset->ownerOnly = asset->ownerOnly;
+				new_asset->nightvisionOnly = asset->nightvisionOnly;
+				new_asset->useHalfCylinderGeometry = asset->useHalfCylinderGeometry;
+				new_asset->laserLight = asset->laserLight;
+				new_asset->laserLightNvgOnly = asset->laserLightNvgOnly;
+				new_asset->laserSightLaser = asset->laserSightLaser;
+
+				memcpy(new_asset->color, new_asset->hdrColorScale, sizeof(float[4]));
+				memcpy(new_asset->laserLightColor, new_asset->laserLightHdrColorScale, sizeof(float[4]));
 
 				return new_asset;
 			}

@@ -139,10 +139,10 @@ namespace zonetool
 				dump_entries.clear();
 			}
 
-			void initialize(const std::string& name)
+			void initialize(const std::string& name, bool use_path = true)
 			{
 				file = filesystem::file(name);
-				file.open("wb");
+				file.open("wb", use_path);
 
 				dump_entries.clear();
 			}
@@ -161,11 +161,11 @@ namespace zonetool
 				return is_open();
 			}
 
-			auto open(const std::string& name)
+			auto open(const std::string& name, bool use_path = true)
 			{
 				if (!is_open())
 				{
-					initialize(name);
+					initialize(name, use_path);
 				}
 				return is_open();
 			}
@@ -450,10 +450,10 @@ namespace zonetool
 			}
 
 		public:
-			reader(const std::string& name, zone_memory* mem)
+			reader(const std::string& name, zone_memory* mem, bool use_path = true)
 			{
 				memory = mem;
-				initialize(name);
+				initialize(name, use_path);
 			}
 
 			reader(zone_memory* mem)
@@ -467,10 +467,10 @@ namespace zonetool
 				read_entries.clear();
 			}
 
-			void initialize(const std::string& name)
+			void initialize(const std::string& name, bool use_path = true)
 			{
 				file = filesystem::file(name);
-				file.open("rb");
+				file.open("rb", use_path);
 
 				read_entries.clear();
 			}
@@ -489,11 +489,11 @@ namespace zonetool
 				return is_open();
 			}
 
-			auto open(const std::string& name)
+			auto open(const std::string& name, bool use_path = true)
 			{
 				if (!is_open())
 				{
-					initialize(name);
+					initialize(name, use_path);
 				}
 				return is_open();
 			}

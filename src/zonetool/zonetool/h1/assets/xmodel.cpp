@@ -80,14 +80,14 @@ namespace zonetool::h1
 		asset->physCollmap = read.read_asset<PhysCollmap>();
 
 		// weights
-		asset->weightNames = read.read_array<scr_string_t>();
-		for (unsigned short i = 0; i < asset->numberOfWeights; i++)
+		asset->blendShapeWeightNames = read.read_array<scr_string_t>();
+		for (unsigned short i = 0; i < asset->numberOfBlendShapeWeights; i++)
 		{
-			this->add_script_string(&asset->weightNames[i], read.read_string());
+			this->add_script_string(&asset->blendShapeWeightNames[i], read.read_string());
 		}
 
 		// blendshape
-		asset->blendShapeWeightMap = read.read_array<BlendShapeWeightMap>();
+		asset->blendShapeWeightMaps = read.read_array<BlendShapeWeightMap>();
 
 		// mdao
 		asset->mdaoVolumes = read.read_array<MdaoVolume>();
@@ -134,8 +134,6 @@ namespace zonetool::h1
 		this->asset_ = this->parse(name, mem);
 		if (!this->asset_)
 		{
-			ZONETOOL_INFO("XModel \"%s\" not found, adding one from game...", name.data());
-
 			this->asset_ = db_find_x_asset_header_copy<XModel>(XAssetType(this->type()), this->name_.data(), mem).model;
 
 			auto* asset = this->asset_;
@@ -147,11 +145,11 @@ namespace zonetool::h1
 				this->add_script_string(&asset->boneNames[i], SL_ConvertToString(original_scriptstrings[i]));
 			}
 
-			auto* original_weights = asset->weightNames;
-			asset->weightNames = mem->allocate<scr_string_t>(asset->numberOfWeights);
-			for (unsigned char i = 0; i < asset->numberOfWeights; i++)
+			auto* original_weights = asset->blendShapeWeightNames;
+			asset->blendShapeWeightNames = mem->allocate<scr_string_t>(asset->numberOfBlendShapeWeights);
+			for (unsigned char i = 0; i < asset->numberOfBlendShapeWeights; i++)
 			{
-				this->add_script_string(&asset->weightNames[i], SL_ConvertToString(original_weights[i]));
+				this->add_script_string(&asset->blendShapeWeightNames[i], SL_ConvertToString(original_weights[i]));
 			}
 		}
 	}
@@ -172,12 +170,12 @@ namespace zonetool::h1
 		}
 
 		// name weights
-		if (xmodel->weightNames)
+		if (xmodel->blendShapeWeightNames)
 		{
-			for (unsigned short i = 0; i < xmodel->numberOfWeights; i++)
+			for (unsigned short i = 0; i < xmodel->numberOfBlendShapeWeights; i++)
 			{
-				xmodel->weightNames[i] = static_cast<scr_string_t>(
-					buf->write_scriptstring(this->get_script_string(&xmodel->weightNames[i])));
+				xmodel->blendShapeWeightNames[i] = static_cast<scr_string_t>(
+					buf->write_scriptstring(this->get_script_string(&xmodel->blendShapeWeightNames[i])));
 			}
 		}
 	}
@@ -237,7 +235,7 @@ namespace zonetool::h1
 		// SkeletonScript
 		if (data->skeletonScript)
 		{
-			zone->add_asset_of_type(ASSET_TYPE_SKELETONSCRIPT, data->skeletonScript->name);
+			zone->add_asset_of_type(ASSET_TYPE_SKELETON_SCRIPT, data->skeletonScript->name);
 		}
 
 		// Bone Physics
@@ -376,24 +374,19 @@ namespace zonetool::h1
 			buf->clear_pointer(&dest->invHighMipRadius);
 		}
 
-		if (data->weightNames)
+		if (data->blendShapeWeightNames)
 		{
 			buf->align(3);
-			buf->write(data->weightNames, data->numberOfWeights);
-			buf->clear_pointer(&dest->weightNames);
+			buf->write(data->blendShapeWeightNames, data->numberOfBlendShapeWeights);
+			buf->clear_pointer(&dest->blendShapeWeightNames);
 		}
-		//dest->weightNames = nullptr;
-		//dest->numberOfWeights = 0;
-		//dest->targetCount = 0;
 
-		if (data->blendShapeWeightMap)
+		if (data->blendShapeWeightMaps)
 		{
 			buf->align(3);
-			buf->write(data->blendShapeWeightMap, data->numberOfWeightMaps);
-			buf->clear_pointer(&dest->blendShapeWeightMap);
+			buf->write(data->blendShapeWeightMaps, data->numberOfBlendShapeWeightMaps);
+			buf->clear_pointer(&dest->blendShapeWeightMaps);
 		}
-		//dest->blendShapeWeightMap = nullptr;
-		//dest->numberOfWeightMaps = 0;
 
 		if (data->physPreset)
 		{
@@ -418,8 +411,6 @@ namespace zonetool::h1
 			}
 			buf->clear_pointer(&dest->mdaoVolumes);
 		}
-		//dest->mdaoVolumes = nullptr;
-		//dest->mdaoVolumeCount = 0;
 
 		if (data->compositeModels)
 		{
@@ -432,15 +423,12 @@ namespace zonetool::h1
 			}
 			buf->clear_pointer(&dest->compositeModels);
 		}
-		//dest->compositeModels = nullptr;
-		//dest->numCompositeModels = 0;
 
 		if (data->skeletonScript)
 		{
 			dest->skeletonScript = reinterpret_cast<SkeletonScript*>(zone->get_asset_pointer(
-				ASSET_TYPE_SKELETONSCRIPT, data->skeletonScript->name));
+				ASSET_TYPE_SKELETON_SCRIPT, data->skeletonScript->name));
 		}
-		//dest->skeletonScript = nullptr;
 
 		if (data->bonePhysics)
 		{
@@ -466,8 +454,6 @@ namespace zonetool::h1
 			}
 			buf->clear_pointer(&dest->bonePhysics);
 		}
-		//dest->bonePhysics = nullptr;
-		//dest->numBonePhysics = 0;
 
 		buf->pop_stream();
 	}
@@ -523,14 +509,14 @@ namespace zonetool::h1
 		dump.dump_asset(asset->physCollmap);
 
 		// weights
-		dump.dump_array(asset->weightNames, asset->numberOfWeights);
-		for (unsigned short i = 0; i < asset->numberOfWeights; i++)
+		dump.dump_array(asset->blendShapeWeightNames, asset->numberOfBlendShapeWeights);
+		for (unsigned short i = 0; i < asset->numberOfBlendShapeWeights; i++)
 		{
-			dump.dump_string(SL_ConvertToString(asset->weightNames[i]));
+			dump.dump_string(SL_ConvertToString(asset->blendShapeWeightNames[i]));
 		}
 
 		// blendshapeweights
-		dump.dump_array(asset->blendShapeWeightMap, asset->numberOfWeightMaps);
+		dump.dump_array(asset->blendShapeWeightMaps, asset->numberOfBlendShapeWeightMaps);
 
 		// mdao
 		dump.dump_array(asset->mdaoVolumes, asset->mdaoVolumeCount);

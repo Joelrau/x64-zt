@@ -50,7 +50,7 @@ namespace zonetool::h1
 	{
 		if (type == "col_map_sp")
 		{
-			return ASSET_TYPE_COL_MAP_MP;
+			return ASSET_TYPE_CLIPMAP;
 		}
 
 		for (std::int32_t i = 0; i < ASSET_TYPE_COUNT; i++)
@@ -145,14 +145,14 @@ namespace zonetool::h1
 			DUMP_ASSET(ASSET_TYPE_REVERB_PRESET, reverb_preset, ReverbPreset);
 			DUMP_ASSET(ASSET_TYPE_SCRIPTABLE, scriptable_def, ScriptableDef);
 			DUMP_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile, ScriptFile);
-			DUMP_ASSET(ASSET_TYPE_SKELETONSCRIPT, skeleton_script, SkeletonScript);
+			DUMP_ASSET(ASSET_TYPE_SKELETON_SCRIPT, skeleton_script, SkeletonScript);
 			DUMP_ASSET(ASSET_TYPE_SOUND, sound, snd_alias_list_t);
 			DUMP_ASSET(ASSET_TYPE_SOUND_CONTEXT, sound_context, SndContext);
 			DUMP_ASSET(ASSET_TYPE_SOUND_CURVE, sound_curve, SndCurve);
-			DUMP_ASSET(ASSET_TYPE_SNDDRIVERGLOBALS, sound_driver_globals, SndDriverGlobals);
-			DUMP_ASSET(ASSET_TYPE_SOUNDSUBMIX, sound_submix, SndSubmixList);
+			DUMP_ASSET(ASSET_TYPE_SNDDRIVER_GLOBALS, sound_driver_globals, SndDriverGlobals);
+			DUMP_ASSET(ASSET_TYPE_SOUND_SUBMIX, sound_submix, SndSubmixList);
 			DUMP_ASSET(ASSET_TYPE_STRINGTABLE, string_table, StringTable);
-			DUMP_ASSET(ASSET_TYPE_STRUCTUREDDATADEF, structured_data_def_set, StructuredDataDefSet);
+			DUMP_ASSET(ASSET_TYPE_STRUCTURED_DATA_DEF, structured_data_def_set, StructuredDataDefSet);
 			DUMP_ASSET(ASSET_TYPE_SURFACE_FX, surface_fx, SurfaceFxTable);
 			DUMP_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset, MaterialTechniqueSet);
 			DUMP_ASSET(ASSET_TYPE_TRACER, tracer_def, TracerDef);
@@ -160,7 +160,7 @@ namespace zonetool::h1
 			DUMP_ASSET(ASSET_TYPE_VEHICLE, vehicle_def, VehicleDef);
 			DUMP_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment, WeaponAttachment);
 			DUMP_ASSET(ASSET_TYPE_WEAPON, weapon_def, WeaponDef);
-			DUMP_ASSET(ASSET_TYPE_XANIM, xanim_parts, XAnimParts);
+			DUMP_ASSET(ASSET_TYPE_XANIMPARTS, xanim_parts, XAnimParts);
 			DUMP_ASSET(ASSET_TYPE_XMODEL, xmodel, XModel);
 			DUMP_ASSET(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
 
@@ -188,12 +188,12 @@ namespace zonetool::h1
 			DUMP_ASSET(ASSET_TYPE_MENU, menu_def, menuDef_t);
 			DUMP_ASSET(ASSET_TYPE_MENULIST, menu_list, MenuList);
 
-			DUMP_ASSET(ASSET_TYPE_AIPATHS, path_data, PathData);
-			DUMP_ASSET(ASSET_TYPE_COL_MAP_MP, clip_map, clipMap_t);
-			DUMP_ASSET(ASSET_TYPE_COM_MAP, com_world, ComWorld);
-			DUMP_ASSET(ASSET_TYPE_FX_MAP, fx_world, FxWorld);
-			DUMP_ASSET(ASSET_TYPE_GFX_MAP, gfx_world, GfxWorld);
-			DUMP_ASSET(ASSET_TYPE_GLASS_MAP, glass_world, GlassWorld);
+			DUMP_ASSET(ASSET_TYPE_PATHDATA, path_data, PathData);
+			DUMP_ASSET(ASSET_TYPE_CLIPMAP, clip_map, clipMap_t);
+			DUMP_ASSET(ASSET_TYPE_COMWORLD, com_world, ComWorld);
+			DUMP_ASSET(ASSET_TYPE_FXWORLD, fx_world, FxWorld);
+			DUMP_ASSET(ASSET_TYPE_GFXWORLD, gfx_world, GfxWorld);
+			DUMP_ASSET(ASSET_TYPE_GLASSWORLD, glass_world, GlassWorld);
 		}
 		catch (std::exception& ex)
 		{
@@ -247,18 +247,18 @@ namespace zonetool::h1
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_REVERB_CURVE, reverb_curve, SndCurve);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SCRIPTABLE, scriptable_def, ScriptableDef);
 			DUMP_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile, ScriptFile);
-			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SKELETONSCRIPT, skeleton_script, SkeletonScript);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SKELETON_SCRIPT, skeleton_script, SkeletonScript);
 			DUMP_ASSET(ASSET_TYPE_SOUND, sound, snd_alias_list_t);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SOUND_CONTEXT, sound_context, SndContext);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SOUND_CURVE, sound_curve, SndCurve);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_STRINGTABLE, string_table, StringTable);
-			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_STRUCTUREDDATADEF, structured_data_def_set, StructuredDataDefSet);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_STRUCTURED_DATA_DEF, structured_data_def_set, StructuredDataDefSet);
 			DUMP_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset, MaterialTechniqueSet);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_TRACER, tracer_def, TracerDef);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_TTF, ttf_def, TTFDef);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_ATTACHMENT, weapon_attachment, WeaponAttachment);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_WEAPON, weapon_def, WeaponDef);
-			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_XANIM, xanim_parts, XAnimParts);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_XANIMPARTS, xanim_parts, XAnimParts);
 			DUMP_ASSET(ASSET_TYPE_XMODEL, xmodel, XModel);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
 			
@@ -278,12 +278,12 @@ namespace zonetool::h1
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENU, menu_def, menuDef_t);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENULIST, menu_list, MenuList);
 			
-			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_AIPATHS, path_data, PathData);
-			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_COL_MAP_MP, clip_map, clipMap_t);
-			DUMP_ASSET(ASSET_TYPE_COM_MAP, comworld, ComWorld);
-			DUMP_ASSET(ASSET_TYPE_FX_MAP, fxworld, FxWorld);
-			DUMP_ASSET(ASSET_TYPE_GFX_MAP, gfxworld, GfxWorld);
-			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_GLASS_MAP, glass_world, GlassWorld);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_PATHDATA, path_data, PathData);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_CLIPMAP, clip_map, clipMap_t);
+			DUMP_ASSET(ASSET_TYPE_COMWORLD, comworld, ComWorld);
+			DUMP_ASSET(ASSET_TYPE_FXWORLD, fxworld, FxWorld);
+			DUMP_ASSET(ASSET_TYPE_GFXWORLD, gfxworld, GfxWorld);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_GLASSWORLD, glass_world, GlassWorld);
 		}
 		catch (std::exception& ex)
 		{
@@ -340,7 +340,7 @@ namespace zonetool::h1
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_REVERB_CURVE, reverb_curve, SndCurve);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SCRIPTABLE, scriptable_def, ScriptableDef);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_SCRIPTFILE, scriptfile, ScriptFile);
-			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SKELETONSCRIPT, skeleton_script, SkeletonScript);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SKELETON_SCRIPT, skeleton_script, SkeletonScript);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_SOUND, sound, snd_alias_list_t);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SOUND_CONTEXT, sound_context, SndContext);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SOUND_CURVE, sound_curve, SndCurve);
@@ -351,7 +351,7 @@ namespace zonetool::h1
 			//DUMP_ASSET(ASSET_TYPE_FONT, font_def, Font_s);
 			//DUMP_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment, WeaponAttachment);
 			//DUMP_ASSET(ASSET_TYPE_WEAPON, weapon_def, WeaponDef);
-			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_XANIM, xanim_parts, XAnimParts);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_XANIMPARTS, xanim_parts, XAnimParts);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_XMODEL, xmodel, XModel);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
 
@@ -371,12 +371,12 @@ namespace zonetool::h1
 			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENU, menu_def, menuDef_t);
 			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENULIST, menu_list, MenuList);
 
-			DUMP_ASSET_CONVERT(ASSET_TYPE_AIPATHS, aipaths, PathData);
-			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_COL_MAP_MP, clip_map, clipMap_t);
-			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_COM_MAP, com_world, ComWorld);
-			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_FX_MAP, fx_world, FxWorld);
-			DUMP_ASSET_CONVERT(ASSET_TYPE_GFX_MAP, gfxworld, GfxWorld);
-			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_GLASS_MAP, glass_world, GlassWorld);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_PATHDATA, aipaths, PathData);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_CLIPMAP, clip_map, clipMap_t);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_COMWORLD, com_world, ComWorld);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_FXWORLD, fx_world, FxWorld);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_GFXWORLD, gfxworld, GfxWorld);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_GLASSWORLD, glass_world, GlassWorld);
 		}
 		catch (std::exception& ex)
 		{
@@ -428,7 +428,7 @@ namespace zonetool::h1
 			//DUMP_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile, ScriptFile);
 			//DUMP_ASSET(ASSET_TYPE_SOUND, sound, snd_alias_list_t);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_STRINGTABLE, string_table, StringTable);
-			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_STRUCTUREDDATADEF, structured_data_def_set, StructuredDataDefSet);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_STRUCTURED_DATA_DEF, structured_data_def_set, StructuredDataDefSet);
 			//DUMP_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset, MaterialTechniqueSet);
 			//DUMP_ASSET(ASSET_TYPE_TRACER, tracer_def, TracerDef);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_TTF, ttf_def, TTFDef);
@@ -1580,10 +1580,10 @@ namespace zonetool::h1
 		reallocate_asset_pool_multiplier(ASSET_TYPE_LUA_FILE, 2);
 		reallocate_asset_pool_multiplier(ASSET_TYPE_WEAPON, 2);
 		reallocate_asset_pool_multiplier(ASSET_TYPE_LOCALIZE_ENTRY, 2);
-		reallocate_asset_pool_multiplier(ASSET_TYPE_XANIM, 2);
+		reallocate_asset_pool_multiplier(ASSET_TYPE_XANIMPARTS, 2);
 		reallocate_asset_pool_multiplier(ASSET_TYPE_ATTACHMENT, 2);
 		reallocate_asset_pool_multiplier(ASSET_TYPE_TTF, 2);
-		reallocate_asset_pool_multiplier(ASSET_TYPE_SNDDRIVERGLOBALS, 4);
+		reallocate_asset_pool_multiplier(ASSET_TYPE_SNDDRIVER_GLOBALS, 4);
 		reallocate_asset_pool_multiplier(ASSET_TYPE_EQUIPMENT_SND_TABLE, 4);
 		reallocate_asset_pool_multiplier(ASSET_TYPE_SOUND, 2);
 		reallocate_asset_pool_multiplier(ASSET_TYPE_LOADED_SOUND, 2);

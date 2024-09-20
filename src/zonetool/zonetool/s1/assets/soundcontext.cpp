@@ -10,17 +10,26 @@ namespace zonetool::s1
 			return nullptr;
 		}
 
-		const auto path = "sndcontext\\"s + name;
+		const auto path = "sndcontext\\"s + name + ".json";
 		auto file = filesystem::file(path);
 		if (file.exists())
 		{
-			auto* asset = mem->allocate<SndContext>();
-			asset->name = mem->duplicate_string(name);
+			ZONETOOL_INFO("Parsing sndcontext \"%s\"...", name.data());
 
+			// parse json file
 			file.open("rb");
-			auto bytes = file.read_bytes(file.size());
-			memcpy(asset->__pad0, bytes.data(), bytes.size());
+			auto size = file.size();
+			auto bytes = file.read_bytes(size);
 			file.close();
+			json data = json::parse(bytes);
+
+			auto asset = mem->allocate<SndContext>();
+
+			auto priority = data["priority"];
+			if (!priority.is_null())
+			{
+				asset->priority = priority.get<unsigned char>();
+			}
 
 			return asset;
 		}
@@ -78,10 +87,18 @@ namespace zonetool::s1
 
 	void sound_context::dump(SndContext* asset)
 	{
-		const auto path = "sndcontext\\"s + asset->name;
+		const auto path = "sndcontext\\"s + asset->name + ".json";
 		auto file = filesystem::file(path);
 		file.open("wb");
-		file.write(asset->__pad0, sizeof(asset->__pad0), 1);
+
+		ordered_json j;
+
+		j["priority"] = asset->priority;
+
+		auto str = j.dump(4);
+		j.clear();
+
+		file.write(str);
 		file.close();
 	}
 }

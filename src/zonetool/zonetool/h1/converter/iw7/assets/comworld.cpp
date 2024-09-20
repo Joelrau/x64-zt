@@ -25,9 +25,9 @@ namespace zonetool::h1
 				{
 					lights[i].type = static_cast<zonetool::iw7::GfxLightType>(h1_lights[i].type);
 					COPY_VALUE_COMWORLD(canUseShadowMap);
-					COPY_VALUE_COMWORLD(needsDynamicShadows);
+					lights[i].needsDynamicShadows = h1_lights[i].physicallyBased;
 					COPY_VALUE_COMWORLD(exponent);
-					lights[i].isVolumetric = h1_lights[i].lightState;
+					lights[i].isVolumetric = 0;
 					COPY_ARR_COMWORLD(color);
 					COPY_ARR_COMWORLD(dir);
 					COPY_ARR_COMWORLD(up);

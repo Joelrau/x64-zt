@@ -5,9 +5,9 @@ namespace zonetool
 	template <ASSET_TEMPLATE>
 	class laser_def : public asset_interface
 	{
-		typedef TYPEOF_MEMBER(S, value) scr_string_t;
+		typedef TYPEOF_MEMBER(S, laserTag) scr_string_t;
 		typedef TYPEOF_MEMBER(S, laserMaterial) Material;
-		typedef TYPEOF_MEMBER(S, effect) FxEffectDef;
+		typedef TYPEOF_MEMBER(S, laserEndEffect) FxEffectDef;
 
 	private:
 		std::string name_;
@@ -56,8 +56,10 @@ namespace zonetool
 			read.read_string(&asset->name);
 			read.read_asset(&asset->laserMaterial);
 			read.read_asset(&asset->laserLightMaterial);
-			read.read_asset(&asset->altLaser);
-			read.read_asset(&asset->effect);
+			read.read_asset(&asset->friendlyTeamLaser);
+			read.read_asset(&asset->laserEndEffect);
+
+			this->add_script_string(&asset->laserTag, read.read_string());
 
 			return asset;
 		}
@@ -83,8 +85,8 @@ namespace zonetool
 		{
 			auto* data = this->asset_;
 
-			data->value = static_cast<scr_string_t>(buf->write_scriptstring(
-				this->get_script_string(&data->value)));
+			data->laserTag = static_cast<scr_string_t>(buf->write_scriptstring(
+				this->get_script_string(&data->laserTag)));
 		}
 
 		void load_depending(zone_base* zone) override
@@ -101,14 +103,14 @@ namespace zonetool
 				zone->add_asset_of_type(Types::ASSET_TYPE_MATERIAL, data->laserLightMaterial->name);
 			}
 
-			if (data->effect)
+			if (data->laserEndEffect)
 			{
-				zone->add_asset_of_type(Types::ASSET_TYPE_FX, data->effect->name);
+				zone->add_asset_of_type(Types::ASSET_TYPE_FX, data->laserEndEffect->name);
 			}
 
-			if (data->altLaser)
+			if (data->friendlyTeamLaser)
 			{
-				zone->add_asset_of_type(Types::ASSET_TYPE_LASER, data->altLaser->name);
+				zone->add_asset_of_type(Types::ASSET_TYPE_LASER, data->friendlyTeamLaser->name);
 			}
 		}
 
@@ -148,17 +150,17 @@ namespace zonetool
 					);
 			}
 
-			if (data->effect)
+			if (data->laserEndEffect)
 			{
-				dest->effect = reinterpret_cast<FxEffectDef*>(
-					zone->get_asset_pointer(Types::ASSET_TYPE_FX, data->effect->name)
+				dest->laserEndEffect = reinterpret_cast<FxEffectDef*>(
+					zone->get_asset_pointer(Types::ASSET_TYPE_FX, data->laserEndEffect->name)
 					);
 			}
 
-			if (data->altLaser)
+			if (data->friendlyTeamLaser)
 			{
-				dest->altLaser = reinterpret_cast<S*>(
-					zone->get_asset_pointer(Types::ASSET_TYPE_LASER, data->altLaser->name)
+				dest->friendlyTeamLaser = reinterpret_cast<S*>(
+					zone->get_asset_pointer(Types::ASSET_TYPE_LASER, data->friendlyTeamLaser->name)
 					);
 			}
 
@@ -179,8 +181,10 @@ namespace zonetool
 			write.dump_string(asset->name);
 			write.dump_asset(asset->laserMaterial);
 			write.dump_asset(asset->laserLightMaterial);
-			write.dump_asset(asset->altLaser);
-			write.dump_asset(asset->effect);
+			write.dump_asset(asset->friendlyTeamLaser);
+			write.dump_asset(asset->laserEndEffect);
+
+			write.dump_string(SL_ConvertToString(asset->laserTag));
 
 			write.close();
 		}

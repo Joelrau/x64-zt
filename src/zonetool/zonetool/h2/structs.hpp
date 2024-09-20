@@ -14,13 +14,7 @@ namespace zonetool::h2
 		float data[N];
 	};
 
-	struct dummy
-	{
-	};
-
-	enum scr_string_t : std::int32_t
-	{
-	};
+	typedef std::int32_t scr_string_t;
 
 	enum XAssetType
 	{
@@ -1278,7 +1272,7 @@ namespace zonetool::h2
 	{
 		bool isDefault;
 		const char* name;
-		int unknown;
+		unsigned char orientation;
 		ChannelMap channelMaps[2][2];
 	}; static_assert(sizeof(SpeakerMap) == 0x148);
 
@@ -1314,14 +1308,16 @@ namespace zonetool::h2
 		const char* secondaryAliasName;
 		const char* chainAliasName;
 		SoundFile* soundFile;
-		const char* mixerGroup;
-		short poly;
-		short polyGlobal;
+		const char* squelchName;
+		short polyCount;
+		short polyGlobalCount;
 		char polyEntityType;
 		char polyGlobalType;
-		char dspBusIndex;
-		char priority;
-		char __pad0[12]; // unknown
+		unsigned char dspBusIndex;
+		unsigned char priority;
+		int playCount;
+		int polyClass;
+		int unk;
 		float volMin;
 		float volMax;
 		short volModIndex;
@@ -1336,41 +1332,42 @@ namespace zonetool::h2
 		float slavePercentage;
 		char playbackPercentage;
 		float probability;
-		char u1; // value: 0-4
+		unsigned char variationType; // value: 0-4
 		SndContext* sndContext;
 		int sequence;
 		float lfePercentage;
 		float centerPercentage;
 		int startDelay;
-		SndCurve* sndCurve;
+		SndCurve* volumeFalloffCurve;
 		float envelopMin;
 		float envelopMax;
 		SndCurve* lpfCurve;
 		SndCurve* hpfCurve;
 		SndCurve* reverbSendCurve;
 		SpeakerMap* speakerMap;
-		float reverbWetMixOverride;
-		float reverbMultiplier;
-		float smartPanDistance2d;
-		float smartPanDistance3d;
-		float smartPanAttenuation3d;
-		float envelopPercentage;
-		short stereo3dAngle;
+		float wetMixOverride;
+		float focusPercentage;
+		float smartpanDistance2d;
+		float smartpanDistance3d;
+		float smartpanAttenuation3d;
+		float minSmartpan2dContribution;
+		short stereo3DAngle;
 		//char __padding4[2]; // padding
-		float stereo3dStart;
-		float stereo3dEnd;
+		float stereo3DStart;
+		float stereo3DEnd;
 		unsigned char allowDoppler;
 		//char __padding5[3]; // padding
 		DopplerPreset* dopplerPreset;
-		float u2;
-		//char __padding6[4]; // padding
+		float threshold;
+		int lockedLoopTime;
 	};
 
 	static_assert(sizeof(snd_alias_t) == 256);
 
 	struct snd_alias_context_list
 	{
-		short unk;
+		unsigned char aliasOffset;
+		unsigned char count;
 	};
 
 	struct snd_alias_list_t
@@ -2275,13 +2272,13 @@ namespace zonetool::h2
 		FxElemExtendedDefPtr extended;
 		unsigned char sortOrder;
 		unsigned char lightingFrac;
-		unsigned char hdrLightingFrac;
 		unsigned char useItemClip;
 		unsigned char fadeInfo;
+		unsigned char fadeOutInfo;
 		int randomSeed;
-		float unlitHDRScalar;
-		float litHDRScalar;
-		float alphaScalar;
+		float emissiveScaleScale;
+		float hdrLightingFrac;
+		float shadowDensityScale;
 	}; static_assert(sizeof(FxElemDef) == 0x140);
 
 	static_assert(offsetof(FxElemDef, spawnOrigin) == 60);
@@ -2521,6 +2518,12 @@ namespace zonetool::h2
 	{
 		unsigned char array[4];
 		unsigned int packed;
+	};
+
+	union GfxColorHdr
+	{
+		unsigned short array[4];
+		unsigned __int64 packed;
 	};
 
 	struct GfxPackedVertex
@@ -3230,11 +3233,26 @@ namespace zonetool::h2
 		const char* name;
 		Material* laserMaterial;
 		Material* laserLightMaterial;
-		FxEffectDef* effect;
-		LaserDef* altLaser;
-		scr_string_t value;
-		float float_values[17];
-		char char_values[4];
+		FxEffectDef* laserEndEffect;
+		LaserDef* friendlyTeamLaser;
+		scr_string_t laserTag;
+		float hdrColorScale[4];
+		float laserLightHdrColorScale[4];
+		float range;
+		float radius;
+		float endOffset;
+		float flarePct;
+		float texCoordOffset;
+		float laserLightRadius;
+		float laserLightBeginOffset;
+		float laserLightEndOffset;
+		float laserLightBodyTweak;
+		bool ownerOnly;
+		bool nightvisionOnly;
+		bool useHalfCylinderGeometry;
+		bool laserLight;
+		bool laserLightNvgOnly;
+		bool laserSightLaser;
 	}; static_assert(sizeof(LaserDef) == 120);
 
 	struct TurretHydraulicSettings
@@ -4769,7 +4787,7 @@ namespace zonetool::h2
 		unsigned short preBrushModel;
 		unsigned short postBrushModel;
 		unsigned char flags;
-		unsigned char targetDataCount;
+		unsigned char targetCount;
 		char __pad1[6];
 		XModel* currentModel;
 		ScriptableInstancePartState* partStates;
@@ -4806,40 +4824,44 @@ namespace zonetool::h2
 
 	struct sphere_tree_t
 	{
-		char __pad0[8];
-		int unk_count;
-		char __pad1[4];
-		unsigned int* unk;
-		char __pad2[8];
-	}; assert_sizeof(sphere_tree_t, 32);
-	assert_offsetof(sphere_tree_t, unk_count, 8);
-	assert_offsetof(sphere_tree_t, unk, 16);
+		int axis;
+		float dist;
+		int numObjects;
+		unsigned int* objIdx;
+		unsigned int child[2];
+	};
 
 	struct sphere_tree_obj_t
 	{
-		char __pad0[20];
-	}; assert_sizeof(sphere_tree_obj_t, 20);
+		float origin[3];
+		float radius;
+		unsigned int object;
+	};
 
 	struct sphere_tree_data_t
 	{
-		int sphereTreeCount;
-		sphere_tree_t* sphereTree;
-		int sphereTreeObjCount;
-		sphere_tree_obj_t* sphereTreeObj;
-	}; assert_sizeof(sphere_tree_data_t, 32);
+		int treeCount;
+		sphere_tree_t* tree;
+		int numObjects;
+		sphere_tree_obj_t* objects;
+	};
 
 	struct grapple_magnet_t
 	{
-		char __pad0[40];
-	}; assert_sizeof(grapple_magnet_t, 40);
+		unsigned int flags;
+		float origin[3];
+		float normal[3];
+		float length;
+		int next;
+		int prev;
+	};
 
 	struct grapple_data_t
 	{
-		sphere_tree_data_t sphereTreeData;
-		grapple_magnet_t* magnet;
+		sphere_tree_data_t magnetTree;
+		grapple_magnet_t* magnets;
 		unsigned int magnetCount;
-		char __pad0[4];
-	}; assert_sizeof(grapple_data_t, 48);
+	};
 
 	struct /*alignas(128)*/ clipMap_t
 	{
@@ -4865,7 +4887,7 @@ namespace zonetool::h2
 		unsigned int dynEntAnchorCount; // 464
 		scr_string_t* dynEntAnchorNames; // 472
 		ScriptableMapEnts scriptableMapEnts; // 480
-		grapple_data_t grappleData; // 528
+		grapple_data_t grapple; // 528
 		unsigned int checksum;
 		char __pad0[60]; // alignment padding
 	}; assert_sizeof(clipMap_t, 0x280);
@@ -4876,7 +4898,7 @@ namespace zonetool::h2
 	assert_offsetof(clipMap_t, cmodels, 312);
 	assert_offsetof(clipMap_t, stageTrigger, 344);
 	assert_offsetof(clipMap_t, scriptableMapEnts, 480);
-	assert_offsetof(clipMap_t, grappleData, 528);
+	assert_offsetof(clipMap_t, grapple, 528);
 
 
 	enum GfxLightType : std::uint8_t
@@ -4898,9 +4920,9 @@ namespace zonetool::h2
 	{
 		GfxLightType type; // 0
 		unsigned char canUseShadowMap; // 1
-		unsigned char needsDynamicShadows; // 2
+		unsigned char physicallyBased; // 2
 		unsigned char exponent; // 3
-		unsigned char isVolumetric; // 4
+		unsigned char lightingState; // 4
 		char __pad0[3];
 		float color[3]; // 8 12 16
 		float color2[3]; // 8 12 16
@@ -4996,7 +5018,8 @@ namespace zonetool::h2
 		snd_alias_list_t* damagedSound;
 		snd_alias_list_t* destroyedSound;
 		snd_alias_list_t* destroyedQuietSound;
-		char __pad[8];
+		float invHighMipRadius;
+		float shatteredInvHighMipRadius;
 		int numCrackRings;
 		bool isOpaque;
 	}; assert_sizeof(FxGlassDef, 120);
@@ -5234,19 +5257,20 @@ namespace zonetool::h2
 
 	struct GfxPortalGroupInfo
 	{
-		char __pad0[4];
+		unsigned short cellIndex;
+		unsigned short portalIndex;
 	};
 
 	struct GfxPortalGroup
 	{
-		const char* group;
-		GfxPortalGroupInfo* info;
+		const char* targetName;
+		GfxPortalGroupInfo* gfxPortalArray;
 		char __pad0[8];
-		int infoCount;
+		unsigned short numPortals;
 	}; 
 	
 	assert_sizeof(GfxPortalGroup, 32);
-	assert_offsetof(GfxPortalGroup, infoCount, 24);
+	assert_offsetof(GfxPortalGroup, numPortals, 24);
 
 	struct GfxReflectionProbeVolume
 	{
@@ -5318,6 +5342,15 @@ namespace zonetool::h2
 		char __pad0[16];
 	}; assert_sizeof(GfxDisplacementParms, 16);
 
+	struct GfxLightmapParameters
+	{
+		int lightmapWidthPrimary;
+		int lightmapHeightPrimary;
+		int lightmapWidthSecondary;
+		int lightmapHeightSecondary;
+		int lightmapModelUnitsPerTexel;
+	};
+
 	struct GfxWorldDraw
 	{
 		unsigned int reflectionProbeCount;
@@ -5333,9 +5366,7 @@ namespace zonetool::h2
 		GfxRawTexture* lightmapSecondaryTextures;
 		GfxImage* lightmapOverridePrimary;
 		GfxImage* lightmapOverrideSecondary;
-		int u1[2];
-		int u2[2];
-		int u3;
+		GfxLightmapParameters lightmapParameters;
 		unsigned int trisType;
 		unsigned int vertexCount;
 		GfxWorldVertexData vd;
@@ -5650,26 +5681,24 @@ namespace zonetool::h2
 
 	struct GfxStaticModelLightmapInfo
 	{
-		unsigned short smodelCacheIndex[4];
-		unsigned short unk1;
-		unsigned short unk2;
-		float unk3;
-		int unk4;
-		int unk5;
-		/*
-		unsigned short V0[4];
-		unsigned short V1[4];
-		unsigned short V2[4];
-		*/
+		float offset[2];
+		float scale[2];
+		unsigned int lightmapIndex;
 	};
 
-	struct GfxStaticModelLighting
+	struct GfxStaticModelAmbientLightingInfo
 	{
-		union
-		{
-			GfxStaticModelVertexLightingInfo info;
-			GfxStaticModelLightmapInfo info2;
-		};
+		GfxColorHdr groundLighting;
+		unsigned int colorIndex;
+		float primaryLightWeight;
+	};
+
+	union GfxStaticModelLighting
+	{
+		GfxStaticModelAmbientLightingInfo ambientLightingInfo;
+		GfxStaticModelVertexLightingInfo vertexLightingInfo;
+		GfxStaticModelLightmapInfo modelLightmapInfo;
+		char pad[24];
 	}; assert_sizeof(GfxStaticModelLighting, 24);
 
 	struct GfxSubdivVertexLightingInfo
@@ -5731,7 +5760,7 @@ namespace zonetool::h2
 		GfxStaticModelDrawInst* smodelDrawInsts; // 688
 		unsigned int* unknownSModelVisData1; // 696
 		unsigned int* unknownSModelVisData2; // 704
-		GfxStaticModelLighting* smodelLighting; // 712 (array)
+		GfxStaticModelLighting* smodelLightingInsts; // 712 (array)
 		GfxSubdivVertexLightingInfo* subdivVertexLighting; // 720 (array)
 		GfxDrawSurf* surfaceMaterials; // 728
 		unsigned int* surfaceCastsSunShadow; // 736
@@ -5791,10 +5820,10 @@ namespace zonetool::h2
 
 	struct GfxBuildInfo
 	{
-		const char* args0;
-		const char* args1;
-		const char* buildStartTime;
-		const char* buildEndTime;
+		const char* bspCommandline;
+		const char* lightCommandline;
+		const char* bspTimestamp;
+		const char* lightTimestamp;
 	}; assert_sizeof(GfxBuildInfo, 32);
 
 	struct GfxWorld
@@ -5825,14 +5854,14 @@ namespace zonetool::h2
 		GfxCellTree* aabbTrees; // 152
 		GfxCell* cells; // 160
 		GfxPortalGroup* portalGroup; // 168
-		int unk_vec4_count_0; // 176
+		int portalDistanceAnchorCount; // 176
 		char __pad2[4]; // 180
-		vec4_t* unk_vec4_0; // 184
+		vec4_t* portalDistanceAnchorsAndCloseDistSquared; // 184
 		GfxWorldDraw draw; // 192
 		GfxLightGrid lightGrid; // 448
 		int modelCount; // 1528
 		GfxBrushModel* models; // 1536
-		Bounds unkBounds;
+		Bounds bounds;
 		Bounds shadowBounds;
 		unsigned int checksum; // 1592
 		int materialMemoryCount; // 1596

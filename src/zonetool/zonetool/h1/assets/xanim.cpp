@@ -37,11 +37,11 @@ namespace zonetool::h1
 		__int64 v4; // r8
 		int v5; // edx
 
-		v1 = a1->blendShapeWeightCount;
+		v1 = a1->blendShapeCount;
 		result = 0i64;
 		if (v1)
 		{
-			v3 = a1->blendShapeWeightUnknown2;
+			v3 = a1->blendShapeKeys;
 			v4 = v1;
 			do
 			{
@@ -174,31 +174,31 @@ namespace zonetool::h1
 
 		if (asset->blendShapeWeightNames)
 		{
-			asset->blendShapeWeightNames = mem->allocate<scr_string_t>(asset->blendShapeWeightCount);
-			for (auto i = 0; i < asset->blendShapeWeightCount; i++)
+			asset->blendShapeWeightNames = mem->allocate<scr_string_t>(asset->blendShapeCount);
+			for (auto i = 0; i < asset->blendShapeCount; i++)
 			{
 				this->add_script_string(&asset->blendShapeWeightNames[i], reader.read_string());
 			}
 		}
 
-		if (asset->blendShapeWeightUnknown1)
+		if (asset->blendShapeCoefficientMagnitudes)
 		{
-			asset->blendShapeWeightUnknown1 = reader.read_raw<char[3]>();
+			asset->blendShapeCoefficientMagnitudes = reader.read_raw<char[3]>();
 		}
 
-		if (asset->blendShapeWeightUnknown2)
+		if (asset->numberOfBlendShapeKeys)
 		{
-			asset->blendShapeWeightUnknown2 = reader.read_raw<unsigned short>();
+			asset->numberOfBlendShapeKeys = reader.read_raw<unsigned short>();
 		}
 
-		if (asset->blendShapeWeightUnknown3)
+		if (asset->blendShapeKeys)
 		{
-			asset->blendShapeWeightUnknown3 = reader.read_raw<unsigned short>();
+			asset->blendShapeKeys = reader.read_raw<unsigned short>();
 		}
 
-		if (asset->blendShapeWeightUnknown4)
+		if (asset->compressedBlendShapeCoefficients)
 		{
-			asset->blendShapeWeightUnknown4 = reader.read_raw<unsigned short>();
+			asset->compressedBlendShapeCoefficients = reader.read_raw<unsigned short>();
 		}
 
 		if (asset->blendShapeWeights)
@@ -206,9 +206,9 @@ namespace zonetool::h1
 			asset->blendShapeWeights = reader.read_raw<BlendShapeWeight>();
 		}
 
-		if (asset->scriptedViewmodelAnimData)
+		if (asset->svAmimData)
 		{
-			asset->scriptedViewmodelAnimData = reader.read_raw<XAnimScriptedViewmodelAnimData>();
+			asset->svAmimData = reader.read_raw<XAnimScriptedViewmodelAnimData>();
 		}
 
 		reader.close();
@@ -253,10 +253,10 @@ namespace zonetool::h1
 			}
 
 			auto* original_blends = asset->blendShapeWeightNames;
-			asset->blendShapeWeightNames = mem->allocate<scr_string_t>(asset->blendShapeWeightCount);
+			asset->blendShapeWeightNames = mem->allocate<scr_string_t>(asset->blendShapeCount);
 			if (asset->blendShapeWeightNames)
 			{
-				for (auto i = 0; i < asset->blendShapeWeightCount; i++)
+				for (auto i = 0; i < asset->blendShapeCount; i++)
 				{
 					this->add_script_string(&asset->blendShapeWeightNames[i], SL_ConvertToString(original_blends[i]));
 				}
@@ -289,7 +289,7 @@ namespace zonetool::h1
 		// blend tagnames
 		if (xanim->blendShapeWeightNames)
 		{
-			for (unsigned short i = 0; i < xanim->blendShapeWeightCount; i++)
+			for (unsigned short i = 0; i < xanim->blendShapeCount; i++)
 			{
 				xanim->blendShapeWeightNames[i] = static_cast<scr_string_t>(buf->write_scriptstring(
 					this->get_script_string(&xanim->blendShapeWeightNames[i])));
@@ -305,7 +305,7 @@ namespace zonetool::h1
 		if (data->secondaryName && !secondary_anims.contains(data->secondaryName))
 		{
 			secondary_anims.insert(data->secondaryName);
-			zone->add_asset_of_type(ASSET_TYPE_XANIM, data->secondaryName);
+			zone->add_asset_of_type(ASSET_TYPE_XANIMPARTS, data->secondaryName);
 		}
 	}
 
@@ -316,7 +316,7 @@ namespace zonetool::h1
 
 	std::int32_t xanim_parts::type()
 	{
-		return ASSET_TYPE_XANIM;
+		return ASSET_TYPE_XANIMPARTS;
 	}
 
 	void xanim_parts::write(zone_base* zone, zone_buffer* buf)
@@ -502,52 +502,52 @@ namespace zonetool::h1
 		if (data->blendShapeWeightNames)
 		{
 			buf->align(3);
-			buf->write(data->blendShapeWeightNames, data->blendShapeWeightCount);
+			buf->write(data->blendShapeWeightNames, data->blendShapeCount);
 			buf->clear_pointer(&dest->blendShapeWeightNames);
 		}
 
-		if (data->blendShapeWeightUnknown1)
+		if (data->blendShapeCoefficientMagnitudes)
 		{
 			buf->align(0);
-			buf->write_stream(data->blendShapeWeightUnknown1, sizeof(*data->blendShapeWeightUnknown1) * data->blendShapeWeightCount);
-			buf->clear_pointer(&dest->blendShapeWeightUnknown1);
+			buf->write_stream(data->blendShapeCoefficientMagnitudes, sizeof(*data->blendShapeCoefficientMagnitudes) * data->blendShapeCount);
+			buf->clear_pointer(&dest->blendShapeCoefficientMagnitudes);
 		}
 
-		if (data->blendShapeWeightUnknown2)
+		if (data->numberOfBlendShapeKeys)
 		{
 			buf->align(1);
-			buf->write_stream(data->blendShapeWeightUnknown2, sizeof(*data->blendShapeWeightUnknown2) * data->blendShapeWeightCount);
-			buf->clear_pointer(&dest->blendShapeWeightUnknown2);
+			buf->write_stream(data->numberOfBlendShapeKeys, sizeof(*data->numberOfBlendShapeKeys) * data->blendShapeCount);
+			buf->clear_pointer(&dest->numberOfBlendShapeKeys);
 		}
 
-		if (data->blendShapeWeightUnknown3)
+		if (data->blendShapeKeys)
 		{
 			buf->align(1);
-			buf->write_stream(data->blendShapeWeightUnknown3,
-				sizeof(*data->blendShapeWeightUnknown3) * static_cast<int>(GetTotalNumberOfBlendShapeKeys(data)));
-			buf->clear_pointer(&dest->blendShapeWeightUnknown3);
+			buf->write_stream(data->blendShapeKeys,
+				sizeof(*data->blendShapeKeys) * static_cast<int>(GetTotalNumberOfBlendShapeKeys(data)));
+			buf->clear_pointer(&dest->blendShapeKeys);
 		}
 
-		if (data->blendShapeWeightUnknown4)
+		if (data->compressedBlendShapeCoefficients)
 		{
 			buf->align(1);
-			buf->write_stream(data->blendShapeWeightUnknown4,
-				sizeof(*data->blendShapeWeightUnknown4) * (static_cast<int>(GetTotalNumberOfBlendShapeKeys(data)) + 2 * data->blendShapeWeightCount));
-			buf->clear_pointer(&dest->blendShapeWeightUnknown4);
+			buf->write_stream(data->compressedBlendShapeCoefficients,
+				sizeof(*data->compressedBlendShapeCoefficients) * (static_cast<int>(GetTotalNumberOfBlendShapeKeys(data)) + 2 * data->blendShapeCount));
+			buf->clear_pointer(&dest->compressedBlendShapeCoefficients);
 		}
 
 		if (data->blendShapeWeights)
 		{
 			buf->align(3);
-			buf->write_stream(data->blendShapeWeights, sizeof(*data->blendShapeWeights) * (data->blendShapeWeightCount * (data->numframes + 1)));
+			buf->write_stream(data->blendShapeWeights, sizeof(*data->blendShapeWeights) * (data->blendShapeCount * (data->numframes + 1)));
 			buf->clear_pointer(&dest->blendShapeWeights);
 		}
 
-		if (data->scriptedViewmodelAnimData)
+		if (data->svAmimData)
 		{
 			buf->align(3);
-			buf->write_stream(data->scriptedViewmodelAnimData, 8);
-			buf->clear_pointer(&dest->scriptedViewmodelAnimData);
+			buf->write_stream(data->svAmimData, 8);
+			buf->clear_pointer(&dest->svAmimData);
 		}
 
 		buf->pop_stream();
@@ -724,41 +724,41 @@ namespace zonetool::h1
 
 		if (asset->blendShapeWeightNames)
 		{
-			for (auto name = 0; name < asset->blendShapeWeightCount; name++)
+			for (auto name = 0; name < asset->blendShapeCount; name++)
 			{
 				dump.dump_string(SL_ConvertToString(asset->blendShapeWeightNames[name]));
 			}
 		}
 
-		if (asset->blendShapeWeightUnknown1)
+		if (asset->blendShapeCoefficientMagnitudes)
 		{
-			dump.dump_raw(asset->blendShapeWeightUnknown1, sizeof(*asset->blendShapeWeightUnknown1) * asset->blendShapeWeightCount);
+			dump.dump_raw(asset->blendShapeCoefficientMagnitudes, sizeof(*asset->blendShapeCoefficientMagnitudes) * asset->blendShapeCount);
 		}
 
-		if (asset->blendShapeWeightUnknown2)
+		if (asset->numberOfBlendShapeKeys)
 		{
-			dump.dump_raw(asset->blendShapeWeightUnknown2, sizeof(*asset->blendShapeWeightUnknown2) * asset->blendShapeWeightCount);
+			dump.dump_raw(asset->numberOfBlendShapeKeys, sizeof(*asset->numberOfBlendShapeKeys) * asset->blendShapeCount);
 		}
 
-		if (asset->blendShapeWeightUnknown3)
+		if (asset->blendShapeKeys)
 		{
-			dump.dump_raw(asset->blendShapeWeightUnknown3, sizeof(*asset->blendShapeWeightUnknown3) * static_cast<int>(GetTotalNumberOfBlendShapeKeys(asset)));
+			dump.dump_raw(asset->blendShapeKeys, sizeof(*asset->blendShapeKeys) * static_cast<int>(GetTotalNumberOfBlendShapeKeys(asset)));
 		}
 
-		if (asset->blendShapeWeightUnknown4)
+		if (asset->compressedBlendShapeCoefficients)
 		{
-			dump.dump_raw(asset->blendShapeWeightUnknown4, 
-				sizeof(*asset->blendShapeWeightUnknown4) * (static_cast<int>(GetTotalNumberOfBlendShapeKeys(asset)) + 2 * asset->blendShapeWeightCount));
+			dump.dump_raw(asset->compressedBlendShapeCoefficients,
+				sizeof(*asset->compressedBlendShapeCoefficients) * (static_cast<int>(GetTotalNumberOfBlendShapeKeys(asset)) + 2 * asset->blendShapeCount));
 		}
 
 		if (asset->blendShapeWeights)
 		{
-			dump.dump_raw(asset->blendShapeWeights, sizeof(*asset->blendShapeWeights) * (asset->blendShapeWeightCount * (asset->numframes + 1)));
+			dump.dump_raw(asset->blendShapeWeights, sizeof(*asset->blendShapeWeights) * (asset->blendShapeCount * (asset->numframes + 1)));
 		}
 
-		if (asset->scriptedViewmodelAnimData)
+		if (asset->svAmimData)
 		{
-			dump.dump_raw(asset->scriptedViewmodelAnimData, 8);
+			dump.dump_raw(asset->svAmimData, 8);
 		}
 
 		dump.close();

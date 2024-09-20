@@ -129,7 +129,7 @@ namespace zonetool::h1
 
 	std::int32_t fx_world::type()
 	{
-		return ASSET_TYPE_FX_MAP;
+		return ASSET_TYPE_FXWORLD;
 	}
 
 	void fx_world::write(zone_base* zone, zone_buffer* buf)

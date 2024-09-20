@@ -177,14 +177,15 @@ namespace zonetool::h1
 
 					COPY_VALUE_FX(sortOrder);
 					COPY_VALUE_FX(lightingFrac);
-					COPY_VALUE_FX(hdrLightingFrac);
 					COPY_VALUE_FX(useItemClip);
 					COPY_VALUE_FX(fadeInfo);
+					COPY_VALUE_FX(fadeOutInfo);
+
 					COPY_VALUE_FX(randomSeed);
 
-					COPY_VALUE_FX(unlitHDRScalar);
-					COPY_VALUE_FX(litHDRScalar);
-					COPY_VALUE_FX(alphaScalar);
+					COPY_VALUE_FX(emissiveScaleScale);
+					COPY_VALUE_FX(hdrLightingFrac);
+					COPY_VALUE_FX(shadowDensityScale);
 				}
 
 				const auto reordered_elems = allocator.allocate_array<zonetool::h2::FxElemDef>(elem_count);

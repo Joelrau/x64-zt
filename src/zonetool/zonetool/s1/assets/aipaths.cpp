@@ -408,13 +408,13 @@ namespace zonetool::s1
 
 		asset->pathExposure = read.read_array<unsigned char>();
 		asset->pathNoPeekVis = read.read_array<unsigned char>();
-		asset->unkData = read.read_array<unsigned char>();
+		asset->pathVisBulletBlockers = read.read_array<unsigned char>();
 		asset->pathZones = read.read_array<unsigned char>();
 		asset->pathDynStates = read.read_array<unsigned char>();
 
 		for (auto i = 0; i < 32; ++i)
 		{
-			asset->unkStrings[i] = read.read_string();
+			asset->pathAbilities[i] = read.read_string();
 		}
 
 		return asset;
@@ -557,11 +557,11 @@ namespace zonetool::s1
 			buf->clear_pointer(dest->pathNoPeekVis);
 		}
 
-		if (data->unkData)
+		if (data->pathVisBulletBlockers)
 		{
 			buf->align(0);
-			buf->write(data->unkData, data->unkDataCount);
-			buf->clear_pointer(dest->unkData);
+			buf->write(data->pathVisBulletBlockers, data->visBulletBlockerBytes);
+			buf->clear_pointer(dest->pathVisBulletBlockers);
 		}
 
 		if (data->pathZones)
@@ -580,9 +580,9 @@ namespace zonetool::s1
 
 		for (auto i = 0; i < 32; i++)
 		{
-			if (data->unkStrings[i])
+			if (data->pathAbilities[i])
 			{
-				buf->write_str(data->unkStrings[i]);
+				buf->write_str(data->pathAbilities[i]);
 			}
 		}
 
@@ -673,12 +673,12 @@ namespace zonetool::s1
 
 		dumper.dump_array(asset->pathExposure, asset->exposureBytes);
 		dumper.dump_array(asset->pathNoPeekVis, asset->noPeekVisBytes);
-		dumper.dump_array(asset->unkData, asset->unkDataCount); // S1
+		dumper.dump_array(asset->pathVisBulletBlockers, asset->visBulletBlockerBytes);
 		dumper.dump_array(asset->pathZones, asset->zonesBytes);
 		dumper.dump_array(asset->pathDynStates, asset->dynStatesBytes);
 		for (auto i = 0; i < 32; ++i)
 		{
-			dumper.dump_string(asset->unkStrings[i]);
+			dumper.dump_string(asset->pathAbilities[i]);
 		}
 
 		dumper.close();

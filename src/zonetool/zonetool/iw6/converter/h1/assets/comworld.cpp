@@ -27,9 +27,9 @@ namespace zonetool::iw6
 
 					COPY_VALUE_CAST(primaryLights[i].type); // should be the same
 					COPY_VALUE_CAST(primaryLights[i].canUseShadowMap);
-					new_light->needsDynamicShadows = false;
+					new_light->physicallyBased = false;
 					COPY_VALUE_CAST(primaryLights[i].exponent);
-					new_light->lightState = 0;
+					new_light->lightingState = 0;
 					COPY_ARR(primaryLights[i].color);
 					COPY_ARR(primaryLights[i].dir);
 					COPY_ARR(primaryLights[i].up);
@@ -49,6 +49,30 @@ namespace zonetool::iw6
 					COPY_ARR(primaryLights[i].cucScaleVector);
 					COPY_ARR(primaryLights[i].cucTransVector);
 					REINTERPRET_CAST_SAFE(primaryLights[i].defName);
+
+					if (new_light->type == zonetool::h1::GFX_LIGHT_TYPE_SPOT || 
+						new_light->type == zonetool::h1::GFX_LIGHT_TYPE_OMNI)
+					{
+						new_light->canUseShadowMap = 1;
+						new_light->physicallyBased = 1;
+						new_light->lightingState = 0;
+
+						new_light->cucScaleVector[0] = 1.0f;
+						new_light->cucScaleVector[1] = 1.0f;
+
+						new_light->bulbRadius = 3.0f;
+						new_light->bulbLength[0] = 0.0f;
+						new_light->bulbLength[1] = 0.0f;
+						new_light->bulbLength[2] = 0.0f;
+						new_light->fadeOffset[0] = 0.0f;
+						new_light->fadeOffset[1] = 0.0f;
+
+						// idk why...
+						for (auto c = 0; c < 3; c++)
+						{
+							new_light->color[c] *= 10000.0f;
+						}
+					}
 				}
 
 				COPY_VALUE(primaryLightEnvCount);

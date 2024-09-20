@@ -449,18 +449,18 @@ namespace zonetool
 				}
 			}
 
-			read.read_array(&asset->grappleData.sphereTreeData.sphereTree);
-			if (asset->grappleData.sphereTreeData.sphereTree)
+			read.read_array(&asset->grapple.magnetTree.tree);
+			if (asset->grapple.magnetTree.tree)
 			{
-				for (int i = 0; i < asset->grappleData.sphereTreeData.sphereTreeCount; i++)
+				for (int i = 0; i < asset->grapple.magnetTree.treeCount; i++)
 				{
-					read.read_array(&asset->grappleData.sphereTreeData.sphereTree[i].unk);
+					read.read_array(&asset->grapple.magnetTree.tree[i].objIdx);
 				}
 			}
 
-			read.read_array(&asset->grappleData.sphereTreeData.sphereTreeObj);
+			read.read_array(&asset->grapple.magnetTree.objects);
 
-			read.read_array(&asset->grappleData.magnet);
+			read.read_array(&asset->grapple.magnets);
 
 			read.close();
 
@@ -872,7 +872,7 @@ namespace zonetool
 						if (scriptable->targetData)
 						{
 							buf->align(3);
-							buf->write(scriptable->targetData, scriptable->targetDataCount);
+							buf->write(scriptable->targetData, scriptable->targetCount);
 							buf->clear_pointer(&destscriptable->targetData);
 						}
 
@@ -920,34 +920,34 @@ namespace zonetool
 				buf->clear_pointer(&dest->scriptableMapEnts.animEntries);
 			}
 
-			if (data->grappleData.sphereTreeData.sphereTree)
+			if (data->grapple.magnetTree.tree)
 			{
 				buf->align(3);
-				auto destSphereTree = buf->write(data->grappleData.sphereTreeData.sphereTree, data->grappleData.sphereTreeData.sphereTreeCount);
-				for (int i = 0; i < data->grappleData.sphereTreeData.sphereTreeCount; i++)
+				auto destSphereTree = buf->write(data->grapple.magnetTree.tree, data->grapple.magnetTree.treeCount);
+				for (int i = 0; i < data->grapple.magnetTree.treeCount; i++)
 				{
-					if (data->grappleData.sphereTreeData.sphereTree[i].unk)
+					if (data->grapple.magnetTree.tree[i].objIdx)
 					{
 						buf->align(3);
-						buf->write(data->grappleData.sphereTreeData.sphereTree[i].unk, data->grappleData.sphereTreeData.sphereTree[i].unk_count);
-						buf->clear_pointer(&destSphereTree[i].unk);
+						buf->write(data->grapple.magnetTree.tree[i].objIdx, data->grapple.magnetTree.tree[i].numObjects);
+						buf->clear_pointer(&destSphereTree[i].objIdx);
 					}
 				}
-				buf->clear_pointer(&dest->grappleData.sphereTreeData.sphereTree);
+				buf->clear_pointer(&dest->grapple.magnetTree.tree);
 			}
 
-			if (data->grappleData.sphereTreeData.sphereTreeObj)
+			if (data->grapple.magnetTree.objects)
 			{
 				buf->align(3);
-				buf->write(data->grappleData.sphereTreeData.sphereTreeObj, data->grappleData.sphereTreeData.sphereTreeObjCount);
-				buf->clear_pointer(&dest->grappleData.sphereTreeData.sphereTreeObj);
+				buf->write(data->grapple.magnetTree.objects, data->grapple.magnetTree.numObjects);
+				buf->clear_pointer(&dest->grapple.magnetTree.objects);
 			}
 
-			if (data->grappleData.magnet)
+			if (data->grapple.magnets)
 			{
 				buf->align(3);
-				buf->write(data->grappleData.magnet, data->grappleData.magnetCount);
-				buf->clear_pointer(&dest->grappleData.magnet);
+				buf->write(data->grapple.magnets, data->grapple.magnetCount);
+				buf->clear_pointer(&dest->grapple.magnets);
 			}
 
 			buf->pop_stream();
@@ -1037,7 +1037,7 @@ namespace zonetool
 					if (asset->scriptableMapEnts.instances[i].targetData)
 					{
 						write.dump_array(asset->scriptableMapEnts.instances[i].targetData,
-							asset->scriptableMapEnts.instances[i].targetDataCount);
+							asset->scriptableMapEnts.instances[i].targetCount);
 					}
 					auto str = SL_ConvertToString(asset->scriptableMapEnts.instances[i].targetname);
 					write.dump_string(str ? str : "");
@@ -1070,18 +1070,18 @@ namespace zonetool
 				}
 			}
 
-			write.dump_array(asset->grappleData.sphereTreeData.sphereTree, asset->grappleData.sphereTreeData.sphereTreeCount);
-			if (asset->grappleData.sphereTreeData.sphereTree)
+			write.dump_array(asset->grapple.magnetTree.tree, asset->grapple.magnetTree.treeCount);
+			if (asset->grapple.magnetTree.tree)
 			{
-				for (int i = 0; i < asset->grappleData.sphereTreeData.sphereTreeCount; i++)
+				for (int i = 0; i < asset->grapple.magnetTree.treeCount; i++)
 				{
-					write.dump_array(asset->grappleData.sphereTreeData.sphereTree[i].unk, asset->grappleData.sphereTreeData.sphereTree[i].unk_count);
+					write.dump_array(asset->grapple.magnetTree.tree[i].objIdx, asset->grapple.magnetTree.tree[i].numObjects);
 				}
 			}
 
-			write.dump_array(asset->grappleData.sphereTreeData.sphereTreeObj, asset->grappleData.sphereTreeData.sphereTreeObjCount);
+			write.dump_array(asset->grapple.magnetTree.objects, asset->grapple.magnetTree.numObjects);
 
-			write.dump_array(asset->grappleData.magnet, asset->grappleData.magnetCount);
+			write.dump_array(asset->grapple.magnets, asset->grapple.magnetCount);
 
 			write.close();
 		}

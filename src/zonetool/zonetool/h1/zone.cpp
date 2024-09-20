@@ -165,14 +165,14 @@ namespace zonetool::h1
 			ADD_ASSET(ASSET_TYPE_REVERB_PRESET, reverb_preset);
 			ADD_ASSET(ASSET_TYPE_SCRIPTABLE, scriptable_def);
 			ADD_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile);
-			ADD_ASSET(ASSET_TYPE_SKELETONSCRIPT, skeleton_script);
+			ADD_ASSET(ASSET_TYPE_SKELETON_SCRIPT, skeleton_script);
 			ADD_ASSET(ASSET_TYPE_SOUND, sound);
 			ADD_ASSET(ASSET_TYPE_SOUND_CONTEXT, sound_context);
 			ADD_ASSET(ASSET_TYPE_SOUND_CURVE, sound_curve);
-			ADD_ASSET(ASSET_TYPE_SNDDRIVERGLOBALS, sound_driver_globals);
-			ADD_ASSET(ASSET_TYPE_SOUNDSUBMIX, sound_submix);
+			ADD_ASSET(ASSET_TYPE_SNDDRIVER_GLOBALS, sound_driver_globals);
+			ADD_ASSET(ASSET_TYPE_SOUND_SUBMIX, sound_submix);
 			ADD_ASSET(ASSET_TYPE_STRINGTABLE, string_table);
-			ADD_ASSET(ASSET_TYPE_STRUCTUREDDATADEF, structured_data_def_set);
+			ADD_ASSET(ASSET_TYPE_STRUCTURED_DATA_DEF, structured_data_def_set);
 			ADD_ASSET(ASSET_TYPE_SURFACE_FX, surface_fx);
 			ADD_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset);
 			ADD_ASSET(ASSET_TYPE_TRACER, tracer_def);
@@ -180,7 +180,7 @@ namespace zonetool::h1
 			ADD_ASSET(ASSET_TYPE_VEHICLE, vehicle_def);
 			ADD_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment);
 			ADD_ASSET(ASSET_TYPE_WEAPON, weapon_def);
-			ADD_ASSET(ASSET_TYPE_XANIM, xanim_parts);
+			ADD_ASSET(ASSET_TYPE_XANIMPARTS, xanim_parts);
 			ADD_ASSET(ASSET_TYPE_XMODEL, xmodel);
 			ADD_ASSET(ASSET_TYPE_XMODEL_SURFS, xsurface);
 
@@ -208,12 +208,12 @@ namespace zonetool::h1
 			//ADD_ASSET(ASSET_TYPE_MENU, menu_def); // added via menulist
 			ADD_ASSET(ASSET_TYPE_MENULIST, menu_list);
 
-			ADD_ASSET(ASSET_TYPE_AIPATHS, path_data);
-			ADD_ASSET(ASSET_TYPE_COL_MAP_MP, clip_map);
-			ADD_ASSET(ASSET_TYPE_COM_MAP, com_world);
-			ADD_ASSET(ASSET_TYPE_FX_MAP, fx_world);
-			ADD_ASSET(ASSET_TYPE_GFX_MAP, gfx_world);
-			ADD_ASSET(ASSET_TYPE_GLASS_MAP, glass_world);
+			ADD_ASSET(ASSET_TYPE_PATHDATA, path_data);
+			ADD_ASSET(ASSET_TYPE_CLIPMAP, clip_map);
+			ADD_ASSET(ASSET_TYPE_COMWORLD, com_world);
+			ADD_ASSET(ASSET_TYPE_FXWORLD, fx_world);
+			ADD_ASSET(ASSET_TYPE_GFXWORLD, gfx_world);
+			ADD_ASSET(ASSET_TYPE_GLASSWORLD, glass_world);
 		}
 		catch (std::exception& ex)
 		{

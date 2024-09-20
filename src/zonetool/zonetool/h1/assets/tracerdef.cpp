@@ -19,7 +19,7 @@ namespace zonetool::h1
 		asset->name = read.read_string();
 
 		asset->material = read.read_asset<Material>();
-		asset->effect = read.read_asset<FxEffectDef>();
+		asset->effectDef = read.read_asset<FxEffectDef>();
 
 		read.close();
 
@@ -54,9 +54,9 @@ namespace zonetool::h1
 			zone->add_asset_of_type(ASSET_TYPE_MATERIAL, this->asset_->material->name);
 		}
 
-		if (this->asset_->effect)
+		if (this->asset_->effectDef)
 		{
-			zone->add_asset_of_type(ASSET_TYPE_MATERIAL, this->asset_->effect->name);
+			zone->add_asset_of_type(ASSET_TYPE_MATERIAL, this->asset_->effectDef->name);
 		}
 	}
 
@@ -84,9 +84,9 @@ namespace zonetool::h1
 			dest->material = reinterpret_cast<Material*>(zone->get_asset_pointer(ASSET_TYPE_MATERIAL, data->material->name));
 		}
 
-		if (data->effect)
+		if (data->effectDef)
 		{
-			dest->effect = reinterpret_cast<FxEffectDef*>(zone->get_asset_pointer(ASSET_TYPE_FX, data->effect->name));
+			dest->effectDef = reinterpret_cast<FxEffectDef*>(zone->get_asset_pointer(ASSET_TYPE_FX, data->effectDef->name));
 		}
 
 		buf->pop_stream();
@@ -106,7 +106,7 @@ namespace zonetool::h1
 		dump.dump_string(asset->name);
 
 		dump.dump_asset(asset->material);
-		dump.dump_asset(asset->effect);
+		dump.dump_asset(asset->effectDef);
 
 		dump.close();
 	}

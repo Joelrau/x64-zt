@@ -46,8 +46,8 @@ namespace zonetool::h1
 
 				REINTERPRET_CAST_SAFE(portalGroup);
 
-				COPY_VALUE(unk_vec4_count_0);
-				REINTERPRET_CAST_SAFE(unk_vec4_0);
+				COPY_VALUE(portalDistanceAnchorCount);
+				REINTERPRET_CAST_SAFE(portalDistanceAnchorsAndCloseDistSquared);
 
 				COPY_VALUE(draw.reflectionProbeCount);
 				REINTERPRET_CAST_SAFE(draw.reflectionProbes);
@@ -62,9 +62,7 @@ namespace zonetool::h1
 				REINTERPRET_CAST_SAFE(draw.lightmapSecondaryTextures);
 				REINTERPRET_CAST_SAFE(draw.lightmapOverridePrimary);
 				REINTERPRET_CAST_SAFE(draw.lightmapOverrideSecondary);
-				COPY_ARR(draw.u1);
-				COPY_ARR(draw.u2);
-				COPY_VALUE(draw.u3);
+				COPY_ARR(draw.lightmapParameters);
 				COPY_VALUE(draw.trisType);
 				COPY_VALUE(draw.vertexCount);
 				REINTERPRET_CAST_SAFE(draw.vd.vertices);
@@ -76,7 +74,7 @@ namespace zonetool::h1
 				COPY_VALUE_CAST(lightGrid);
 				COPY_VALUE(modelCount);
 				REINTERPRET_CAST_SAFE(models);
-				COPY_ARR(unkBounds);
+				COPY_ARR(bounds);
 				COPY_ARR(shadowBounds);
 				COPY_VALUE(checksum);
 				COPY_VALUE(materialMemoryCount);
@@ -148,7 +146,7 @@ namespace zonetool::h1
 
 					REINTERPRET_CAST_SAFE(dpvs.unknownSModelVisData1);
 					REINTERPRET_CAST_SAFE(dpvs.unknownSModelVisData2);
-					REINTERPRET_CAST_SAFE(dpvs.smodelLighting);
+					REINTERPRET_CAST_SAFE(dpvs.smodelLightingInsts);
 					REINTERPRET_CAST_SAFE(dpvs.subdivVertexLighting);
 					REINTERPRET_CAST_SAFE(dpvs.surfaceMaterials);
 					REINTERPRET_CAST_SAFE(dpvs.surfaceCastsSunShadow);
@@ -172,9 +170,10 @@ namespace zonetool::h1
 				COPY_VALUE(mdaoVolumesCount);
 				REINTERPRET_CAST_SAFE(mdaoVolumes);
 
-				COPY_VALUE(unk1);
-				COPY_ARR(unk2);
-				COPY_VALUE(unk3);
+				COPY_VALUE(useLightGridDefaultModelLightingLookup);
+				COPY_VALUE(useLightGridDefaultFXLightingLookup);
+				COPY_ARR(lightGridDefaultModelLightingLookup);
+				COPY_ARR(lightGridDefaultFXLightingLookup);
 
 				COPY_VALUE_CAST(buildInfo);
 

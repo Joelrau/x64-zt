@@ -167,7 +167,6 @@ namespace zonetool::s1
 	void parse_turret_hydraulic_settings(TurretHydraulicSettings* settings, json& data, zone_memory* mem)
 	{
 		settings->minVelocity = data["minVelocity"].is_number() ? data["minVelocity"].get<float>() : 0.0f;
-		settings->maxVelocity = data["maxVelocity"].is_number() ? data["maxVelocity"].get<float>() : 0.0f;
 
 		if (!data["verticalSound"].is_null())
 		{
@@ -273,8 +272,8 @@ namespace zonetool::s1
 		WEAPON_READ_FIELD(int, reloadAddTimeDualWield);
 		WEAPON_READ_FIELD(int, reloadEmptyDualMag);
 		WEAPON_READ_FIELD(int, reloadEmptyAddTimeDualMag);
-		//WEAPON_READ_FIELD(int, u25);
-		//WEAPON_READ_FIELD(int, u26);
+		WEAPON_READ_FIELD(int, speedReloadTime);
+		WEAPON_READ_FIELD(int, speedReloadAddTime);
 		WEAPON_READ_FIELD(int, dropTime);
 		WEAPON_READ_FIELD(int, raiseTime);
 		WEAPON_READ_FIELD(int, altDropTime);
@@ -306,23 +305,23 @@ namespace zonetool::s1
 		WEAPON_READ_FIELD(int, blastRightTime);
 		WEAPON_READ_FIELD(int, blastBackTime);
 		WEAPON_READ_FIELD(int, blastLeftTime);
-		//WEAPON_READ_FIELD(int, u58);
-		//WEAPON_READ_FIELD(int, u59);
-		//WEAPON_READ_FIELD(int, u60);
-		//WEAPON_READ_FIELD(int, u61);
-		//WEAPON_READ_FIELD(int, u62);
-		//WEAPON_READ_FIELD(int, u63);
-		//WEAPON_READ_FIELD(int, u64);
-		//WEAPON_READ_FIELD(int, u65);
-		//WEAPON_READ_FIELD(int, u66);
-		//WEAPON_READ_FIELD(int, u67);
-		//WEAPON_READ_FIELD(int, u68);
+		WEAPON_READ_FIELD(int, slideInTime);
+		WEAPON_READ_FIELD(int, slideLoopTime);
+		WEAPON_READ_FIELD(int, slideOutTime);
+		WEAPON_READ_FIELD(int, highJumpInTime);
+		WEAPON_READ_FIELD(int, highJumpDropInTime);
+		WEAPON_READ_FIELD(int, highJumpDropLoopTime);
+		WEAPON_READ_FIELD(int, highJumpDropLandTime);
+		WEAPON_READ_FIELD(int, dodgeTime);
+		WEAPON_READ_FIELD(int, landDipTime);
+		WEAPON_READ_FIELD(int, hybridSightInTime);
+		WEAPON_READ_FIELD(int, hybridSightOutTime);
 		WEAPON_READ_FIELD(int, offhandSwitchTime);
-		//WEAPON_READ_FIELD(int, u70);
-		//WEAPON_READ_FIELD(int, u71);
-		//WEAPON_READ_FIELD(int, u72);
-		//WEAPON_READ_FIELD(int, u73);
-		//WEAPON_READ_FIELD(int, u74);
+		WEAPON_READ_FIELD(int, heatCooldownInTime);
+		WEAPON_READ_FIELD(int, heatCooldownOutTime);
+		WEAPON_READ_FIELD(int, heatCooldownOutReadyTime);
+		WEAPON_READ_FIELD(int, overheatOutTime);
+		WEAPON_READ_FIELD(int, overheatOutReadyTime);
 	}
 
 	WeaponDef* weapon_def::parse(const std::string& name, zone_memory* mem)
@@ -346,28 +345,9 @@ namespace zonetool::s1
 
 		auto* weapon = mem->allocate<WeaponDef>();
 
-		// base asset
-		auto base = data["baseAsset"].get<std::string>();
-		if (!base.empty())
-		{
-			const auto* base_asset = db_find_x_asset_header(ASSET_TYPE_WEAPON, base.data(), 0).weapon;
-			if (base_asset == nullptr)
-			{
-				ZONETOOL_WARNING("Could not load base asset \"%s\" into memory...", base.data());
-			}
-			else
-			{
-				std::memcpy(weapon, base_asset, sizeof(WeaponDef));
-			}
-		}
-		else
-		{
-			ZONETOOL_WARNING("No base asset is defined for weapon \"%s\", stuff might go wrong!", name.data());
-		}
-
 		WEAPON_READ_STRING(szInternalName);
 		WEAPON_READ_STRING(szDisplayName);
-		WEAPON_READ_STRING(szOverlayName);
+		WEAPON_READ_STRING(szAltWeaponName);
 
 		WEAPON_READ_ASSET_ARR(ASSET_TYPE_XMODEL, model, gunModel, XModel, 2);
 		WEAPON_READ_ASSET_ARR(ASSET_TYPE_XMODEL, model, worldModel, XModel, 2);
@@ -376,7 +356,7 @@ namespace zonetool::s1
 		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, camoViewModelMaterialOverride);
 
 		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, model, handModel);
-		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, model, unknownModel);
+		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, model, persistentArmXModel);
 		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, model, worldClipModel);
 		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, model, rocketModel);
 		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, model, knifeModel);
@@ -392,11 +372,11 @@ namespace zonetool::s1
 			this->add_script_string(&weapon->hideTags[i], mem->duplicate_string(data["hideTags"][i].get<std::string>()));
 		}
 
-		weapon->numWeaponAttachments = static_cast<unsigned char>(data["attachments"].size());
-		if (weapon->numWeaponAttachments)
+		weapon->numAttachments = static_cast<unsigned char>(data["attachments"].size());
+		if (weapon->numAttachments)
 		{
-			weapon->attachments = mem->allocate<WeaponAttachment*>(weapon->numWeaponAttachments);
-			for (auto i = 0; i < weapon->numWeaponAttachments; i++)
+			weapon->attachments = mem->allocate<WeaponAttachment*>(weapon->numAttachments);
+			for (auto i = 0; i < weapon->numAttachments; i++)
 			{
 				if (!data["attachments"][i].is_null())
 				{
@@ -422,11 +402,12 @@ namespace zonetool::s1
 				{
 					weapon->animOverrides[i].overrideAnim = db_find_x_asset_header(ASSET_TYPE_XANIMPARTS, overrideAnim.data(), 1).parts;
 				}
-				weapon->animOverrides[i].attachment1 = data["animOverrides"][i]["attachment1"].get<unsigned short>();
-				weapon->animOverrides[i].attachment2 = data["animOverrides"][i]["attachment2"].get<unsigned short>();
+				weapon->animOverrides[i].attachment1 = data["animOverrides"][i]["attachment1"].get<unsigned char>();
+				weapon->animOverrides[i].attachment2 = data["animOverrides"][i]["attachment2"].get<unsigned char>();
 				weapon->animOverrides[i].altTime = data["animOverrides"][i]["altTime"].get<int>();
 				weapon->animOverrides[i].animTime = data["animOverrides"][i]["animTime"].get<int>();
-				//weapon->animOverrides[i].animTreeType = data["animOverrides"][i]["animTreeType"].get<unsigned int>();
+				weapon->animOverrides[i].animTreeType = data["animOverrides"][i]["animTreeType"].get<unsigned char>();
+				weapon->animOverrides[i].animHand = data["animOverrides"][i]["animHand"].get<unsigned char>();
 			}
 		}
 
@@ -446,9 +427,9 @@ namespace zonetool::s1
 				{
 					weapon->soundOverrides[i].overrideSound = db_find_x_asset_header(ASSET_TYPE_SOUND, overrideSound.data(), 1).sound;
 				}
-				weapon->soundOverrides[i].attachment1 = data["soundOverrides"][i]["attachment1"].get<unsigned short>();
-				weapon->soundOverrides[i].attachment2 = data["soundOverrides"][i]["attachment2"].get<unsigned short>();
-				//weapon->soundOverrides[i].soundType = data["soundOverrides"][i]["soundType"].get<unsigned int>();
+				weapon->soundOverrides[i].attachment1 = data["soundOverrides"][i]["attachment1"].get<unsigned char>();
+				weapon->soundOverrides[i].attachment2 = data["soundOverrides"][i]["attachment2"].get<unsigned char>();
+				weapon->soundOverrides[i].soundType = data["soundOverrides"][i]["soundType"].get<unsigned char>();
 			}
 		}
 
@@ -468,9 +449,9 @@ namespace zonetool::s1
 				{
 					weapon->fxOverrides[i].overrideFX = db_find_x_asset_header(ASSET_TYPE_SOUND, overrideFX.data(), 1).fx;
 				}
-				weapon->fxOverrides[i].attachment1 = data["fxOverrides"][i]["attachment1"].get<unsigned short>();
-				weapon->fxOverrides[i].attachment2 = data["fxOverrides"][i]["attachment2"].get<unsigned short>();
-				//weapon->fxOverrides[i].fxType = data["fxOverrides"][i]["fxType"].get<unsigned int>();
+				weapon->fxOverrides[i].attachment1 = data["fxOverrides"][i]["attachment1"].get<unsigned char>();
+				weapon->fxOverrides[i].attachment2 = data["fxOverrides"][i]["attachment2"].get<unsigned char>();
+				weapon->fxOverrides[i].fxType = data["fxOverrides"][i]["fxType"].get<unsigned char>();
 			}
 		}
 
@@ -555,9 +536,9 @@ namespace zonetool::s1
 			auto notetrack = data["notetrackFXMapValues"][i].get<std::string>();
 			weapon->notetrackFXMapValues[i] = db_find_x_asset_header(ASSET_TYPE_FX, notetrack.data(), 1).fx;
 		}
-
-		WEAPON_READ_STRING(szModeName);
-		WEAPON_READ_STRING(szAltWeaponName);
+		
+		WEAPON_READ_STRING(lobWorldModelName);
+		WEAPON_READ_STRING(szAdsrBaseSetting);
 		WEAPON_READ_STRING(szAmmoName);
 		WEAPON_READ_STRING(szClipName);
 		WEAPON_READ_STRING(szSharedAmmoCapName);
@@ -567,13 +548,13 @@ namespace zonetool::s1
 		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, worldFlashEffect);
 		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, viewFlashADSEffect);
 		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, viewBodyFlashADSEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, effect06);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, effect07);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, effect08);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, effect09);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, effect10);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, effect11);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, effect12);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, signatureViewFlashEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, signatureViewBodyFlashEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, signatureWorldFlashEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, signatureViewFlashADSEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, signatureViewBodyFlashADSEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, meleeHitEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, meleeMissEffect);
 
 		WEAPON_READ_SOUND(pickupSound);
 		WEAPON_READ_SOUND(pickupSoundPlayer);
@@ -582,31 +563,31 @@ namespace zonetool::s1
 		WEAPON_READ_SOUND(projectileSound);
 		WEAPON_READ_SOUND(pullbackSound);
 		WEAPON_READ_SOUND(pullbackSoundPlayer);
-		WEAPON_READ_SOUND(pullbackSoundQuick);
-		WEAPON_READ_SOUND(pullbackSoundQuickPlayer);
+		WEAPON_READ_SOUND(throwbackSound);
+		WEAPON_READ_SOUND(throwbackSoundPlayer);
 		WEAPON_READ_SOUND(fireSound);
 		WEAPON_READ_SOUND(fireSoundPlayer);
 		WEAPON_READ_SOUND(fireSoundPlayerAkimbo);
-		WEAPON_READ_SOUND(sound13);
-		WEAPON_READ_SOUND(sound14);
-		WEAPON_READ_SOUND(sound15);
-		WEAPON_READ_SOUND(sound16);
+		WEAPON_READ_SOUND(fireMedSound);
+		WEAPON_READ_SOUND(fireMedSoundPlayer);
+		WEAPON_READ_SOUND(fireHighSound);
+		WEAPON_READ_SOUND(fireHighSoundPlayer);
 		WEAPON_READ_SOUND(fireLoopSound);
 		WEAPON_READ_SOUND(fireLoopSoundPlayer);
-		WEAPON_READ_SOUND(sound19);
-		WEAPON_READ_SOUND(sound20);
-		WEAPON_READ_SOUND(sound21);
-		WEAPON_READ_SOUND(sound22);
+		WEAPON_READ_SOUND(fireMedLoopSound);
+		WEAPON_READ_SOUND(fireMedLoopSoundPlayer);
+		WEAPON_READ_SOUND(fireHighLoopSound);
+		WEAPON_READ_SOUND(fireHighLoopSoundPlayer);
 		WEAPON_READ_SOUND(fireLoopEndPointSound);
 		WEAPON_READ_SOUND(fireLoopEndPointSoundPlayer);
 		WEAPON_READ_SOUND(fireStopSound);
 		WEAPON_READ_SOUND(fireStopSoundPlayer);
-		WEAPON_READ_SOUND(sound27);
-		WEAPON_READ_SOUND(sound28);
-		WEAPON_READ_SOUND(sound29);
-		WEAPON_READ_SOUND(sound30);
-		WEAPON_READ_SOUND(fireLastShotSound);
-		WEAPON_READ_SOUND(fireLastShotSoundPlayer);
+		WEAPON_READ_SOUND(fireMedStopSound);
+		WEAPON_READ_SOUND(fireMedStopSoundPlayer);
+		WEAPON_READ_SOUND(fireHighStopSound);
+		WEAPON_READ_SOUND(fireHighStopSoundPlayer);
+		WEAPON_READ_SOUND(fireLastSound);
+		WEAPON_READ_SOUND(fireLastSoundPlayer);
 		WEAPON_READ_SOUND(fireFirstSound);
 		WEAPON_READ_SOUND(fireFirstSound);
 		WEAPON_READ_SOUND(fireFirstSoundPlayer);
@@ -614,7 +595,7 @@ namespace zonetool::s1
 		WEAPON_READ_SOUND(fireLastSoundPlayer);
 		WEAPON_READ_SOUND(emptyFireSound);
 		WEAPON_READ_SOUND(emptyFireSoundPlayer);
-		WEAPON_READ_SOUND(sound39);
+		WEAPON_READ_SOUND(adsRequiredFireSoundPlayer);
 		WEAPON_READ_SOUND(meleeSwipeSound);
 		WEAPON_READ_SOUND(meleeSwipeSoundPlayer);
 		WEAPON_READ_SOUND(meleeHitSound);
@@ -637,18 +618,18 @@ namespace zonetool::s1
 		WEAPON_READ_SOUND(nightVisionWearSoundPlayer);
 		WEAPON_READ_SOUND(nightVisionRemoveSound);
 		WEAPON_READ_SOUND(nightVisionRemoveSoundPlayer);
+		WEAPON_READ_SOUND(altSwitchSound);
+		WEAPON_READ_SOUND(altSwitchSoundPlayer);
 		WEAPON_READ_SOUND(raiseSound);
 		WEAPON_READ_SOUND(raiseSoundPlayer);
-		WEAPON_READ_SOUND(sound64);
-		WEAPON_READ_SOUND(sound65);
-		WEAPON_READ_SOUND(sound66);
-		WEAPON_READ_SOUND(sound67);
+		WEAPON_READ_SOUND(firstRaiseSound);
+		WEAPON_READ_SOUND(firstRaiseSoundPlayer);
 		WEAPON_READ_SOUND(putawaySound);
 		WEAPON_READ_SOUND(putawaySoundPlayer);
-		WEAPON_READ_SOUND(sound70);
-		WEAPON_READ_SOUND(sound71);
-		WEAPON_READ_SOUND(adsEnterSoundPlayer);
-		WEAPON_READ_SOUND(adsLeaveSoundPlayer);
+		WEAPON_READ_SOUND(scanSound);
+		WEAPON_READ_SOUND(changeVariableZoomSound);
+		WEAPON_READ_SOUND(adsUpSound);
+		WEAPON_READ_SOUND(adsDownSound);
 		WEAPON_READ_SOUND(adsCrosshairEnemySound);
 
 		WEAPON_READ_ASSET_ARR(ASSET_TYPE_SOUND, sound, bounceSound, snd_alias_list_t, 53);
@@ -665,9 +646,9 @@ namespace zonetool::s1
 
 		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, hudIcon);
 		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, pickupIcon);
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, unknownIcon2);
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, unknownIcon3);
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, unknownIcon4);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, minimapIconFriendly);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, minimapIconEnemy);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, minimapIconNeutral);
 		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, ammoCounterIcon);
 
 		WEAPON_READ_ASSET(ASSET_TYPE_PHYSCOLLMAP, physCollmap, physCollmap);
@@ -683,10 +664,10 @@ namespace zonetool::s1
 		WEAPON_READ_STRING(fireHighRumble);
 		WEAPON_READ_STRING(meleeImpactRumble);
 
-		WEAPON_READ_ASSET(ASSET_TYPE_TRACER, tracerDef, tracer1);
-		WEAPON_READ_ASSET(ASSET_TYPE_TRACER, tracerDef, tracer2);
+		WEAPON_READ_ASSET(ASSET_TYPE_TRACER, tracerDef, tracerType);
+		WEAPON_READ_ASSET(ASSET_TYPE_TRACER, tracerDef, signatureTracerType);
 
-		WEAPON_READ_ASSET(ASSET_TYPE_LASER, laser, laser);
+		WEAPON_READ_ASSET(ASSET_TYPE_LASER, laser, laserType);
 
 		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, sound, turretOverheatSound);
 		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, turretOverheatEffect);
@@ -743,6 +724,13 @@ namespace zonetool::s1
 
 		parse_accuracy_graph(weapon, data["accuracy_graph"], mem);
 
+		// parse knifeAttachTagOverride
+		if (!data["knifeAttachTagOverride"].is_null())
+		{
+			auto knifeAttachTagOverride = data["knifeAttachTagOverride"].get<std::string>();
+			this->add_script_string(&weapon->knifeAttachTagOverride, mem->duplicate_string(knifeAttachTagOverride));
+		}
+
 		// parse stowtag
 		if (!data["stowTag"].is_null())
 		{
@@ -764,7 +752,7 @@ namespace zonetool::s1
 		WEAPON_READ_FIELD(float, burstFireCooldown);
 		WEAPON_READ_FIELD(weapGreebleType_t, greebleType);
 		WEAPON_READ_FIELD(weapAutoReloadType_t, autoReloadType);
-		WEAPON_READ_FIELD(WeaponSlotRestriction, slotRestriction);
+		WEAPON_READ_FIELD(weapAutoHolsterType_t, autoHolsterType);
 		WEAPON_READ_FIELD(OffhandClass, offhandClass);
 		WEAPON_READ_FIELD(weapStance_t, stance);
 		WEAPON_READ_FIELD(int, reticleCenterSize);
@@ -793,14 +781,13 @@ namespace zonetool::s1
 		WEAPON_READ_FIELD(weaponIconRatioType_t, ammoCounterIconRatio);
 		WEAPON_READ_FIELD(int, ammoCounterClip);
 		WEAPON_READ_FIELD(int, startAmmo);
-		WEAPON_READ_FIELD(int, ammoIndex);
-		WEAPON_READ_FIELD(int, ammoIndexUnknown);
-		WEAPON_READ_FIELD(int, clipIndex);
+		//WEAPON_READ_FIELD(int, iAmmoIndex); // runtime
+		//WEAPON_READ_FIELD(int, iClipIndex); // runtime
 		WEAPON_READ_FIELD(int, maxAmmo);
 		WEAPON_READ_FIELD(int, minAmmoReq);
 		WEAPON_READ_FIELD(int, clipSize);
 		WEAPON_READ_FIELD(int, shotCount);
-		WEAPON_READ_FIELD(int, sharedAmmoCapIndex);
+		//WEAPON_READ_FIELD(int, sharedAmmoCapIndex); // runtime
 		WEAPON_READ_FIELD(int, sharedAmmoCap);
 		WEAPON_READ_FIELD(int, damage);
 		WEAPON_READ_FIELD(int, playerDamage);
@@ -824,8 +811,8 @@ namespace zonetool::s1
 		WEAPON_READ_FIELD(float, hipSpreadDuckedMin);
 		WEAPON_READ_FIELD(float, hipSpreadProneMin);
 		WEAPON_READ_FIELD(float, hipSpreadStandMax);
-		//WEAPON_READ_FIELD(float, xU_009);
-		//WEAPON_READ_FIELD(float, xU_010);
+		WEAPON_READ_FIELD(float, hipSpreadSprintMax);
+		WEAPON_READ_FIELD(float, hipSpreadSlideMax);
 		WEAPON_READ_FIELD(float, hipSpreadDuckedMax);
 		WEAPON_READ_FIELD(float, hipSpreadProneMax);
 		WEAPON_READ_FIELD(float, hipSpreadDecayRate);
@@ -846,9 +833,9 @@ namespace zonetool::s1
 		WEAPON_READ_FIELD(float, adsIdleLerpStartTime);
 		WEAPON_READ_FIELD(float, adsIdleLerpTime);
 		WEAPON_READ_FIELD(int, adsTransInTime);
-		//WEAPON_READ_FIELD(int, xU_011);
+		WEAPON_READ_FIELD(int, adsTransInFromSprintTime);
 		WEAPON_READ_FIELD(int, adsTransOutTime);
-		//WEAPON_READ_FIELD(int, xU_012);
+		WEAPON_READ_FIELD(float, swayMaxAngleSteadyAim);
 		WEAPON_READ_FIELD(float, swayMaxAngle);
 		WEAPON_READ_FIELD(float, swayLerpSpeed);
 		WEAPON_READ_FIELD(float, swayPitchScale);
@@ -872,17 +859,16 @@ namespace zonetool::s1
 		WEAPON_READ_FIELD(float, scopeDriftLerpOutTime);
 		WEAPON_READ_FIELD(float, scopeDriftSteadyFactor);
 		WEAPON_READ_FIELD(float, scopeDriftUnsteadyFactor);
-		WEAPON_READ_FIELD(float, bobVerticalFactor);
-		WEAPON_READ_FIELD(float, bobHorizontalFactor);
-		WEAPON_READ_FIELD(float, bobViewVerticalFactor);
-		WEAPON_READ_FIELD(float, bobViewHorizontalFactor);
+		WEAPON_READ_FIELD(float, weaponBobVerticalFactor);
+		WEAPON_READ_FIELD(float, weaponBobHorizontalFactor);
+		WEAPON_READ_FIELD(float, viewBobVerticalFactor);
+		WEAPON_READ_FIELD(float, viewBobHorizontalFactor);
 		WEAPON_READ_FIELD(float, stationaryZoomFov);
-		WEAPON_READ_FIELD(float, stationaryZoomDelay);
+		WEAPON_READ_FIELD(float, stationaryZoomDelayTime);
 		WEAPON_READ_FIELD(float, stationaryZoomLerpInTime);
 		WEAPON_READ_FIELD(float, stationaryZoomLerpOutTime);
 		WEAPON_READ_FIELD(float, adsDofStart);
 		WEAPON_READ_FIELD(float, adsDofEnd);
-		//WEAPON_READ_FIELD(float, xU_020);
 		WEAPON_READ_FIELD(weaponIconRatioType_t, killIconRatio);
 		WEAPON_READ_FIELD(weaponIconRatioType_t, dpadIconRatio);
 		WEAPON_READ_FIELD(int, fireAnimLength);
@@ -907,7 +893,6 @@ namespace zonetool::s1
 		WEAPON_READ_FIELD(float, projLifetime);
 		WEAPON_READ_FIELD(float, timeToAccelerate);
 		WEAPON_READ_FIELD(float, projectileCurvature);
-		//WEAPON_READ_FIELD(float, xU_021);
 		WEAPON_READ_FIELD(weapProjExposion_t, projExplosion);
 		WEAPON_READ_FIELD(WeapStickinessType, stickiness);
 		WEAPON_READ_FIELD(float, lowAmmoWarningThreshold);
@@ -962,11 +947,10 @@ namespace zonetool::s1
 		WEAPON_READ_FIELD(float, hipViewKickCenterSpeed);
 		WEAPON_READ_FIELD(float, hipViewScatterMin);
 		WEAPON_READ_FIELD(float, hipViewScatterMax);
-		//WEAPON_READ_FIELD(float, xU_043);
-		WEAPON_READ_FIELD(int, adsReloadTransTime);
+		WEAPON_READ_FIELD(float, viewKickScale);
+		WEAPON_READ_FIELD(int, positionReloadTransTime);
 		WEAPON_READ_FIELD(float, fightDist);
 		WEAPON_READ_FIELD(float, maxDist);
-		WEAPON_READ_FIELD(int, positionReloadTransTime);
 		WEAPON_READ_FIELD(float, leftArc);
 		WEAPON_READ_FIELD(float, rightArc);
 		WEAPON_READ_FIELD(float, topArc);
@@ -982,8 +966,8 @@ namespace zonetool::s1
 		WEAPON_READ_FIELD(float, maxRange);
 		WEAPON_READ_FIELD(float, animHorRotateInc);
 		WEAPON_READ_FIELD(float, playerPositionDist);
-		//WEAPON_READ_FIELD(unsigned int, iUseHintStringIndex);
-		//WEAPON_READ_FIELD(unsigned int, dropHintStringIndex);
+		//WEAPON_READ_FIELD(unsigned int, iUseHintStringIndex); // runtime
+		//WEAPON_READ_FIELD(unsigned int, dropHintStringIndex); // runtime
 		WEAPON_READ_FIELD(float, horizViewJitter);
 		WEAPON_READ_FIELD(float, vertViewJitter);
 		WEAPON_READ_FIELD(float, scanSpeed);
@@ -995,12 +979,12 @@ namespace zonetool::s1
 		WEAPON_READ_FIELD(int, midPlayerDamage);
 		WEAPON_READ_FIELD(float, maxDamageRange);
 		WEAPON_READ_FIELD(float, minDamageRange);
-		//WEAPON_READ_FIELD(int, iU_045);
-		//WEAPON_READ_FIELD(int, iU_046);
-		//WEAPON_READ_FIELD(int, iU_047);
-		//WEAPON_READ_FIELD(int, iU_048);
-		//WEAPON_READ_FIELD(float, fU_049);
-		//WEAPON_READ_FIELD(float, fU_050);
+		WEAPON_READ_FIELD(int, signatureAmmoInClip);
+		WEAPON_READ_FIELD(int, signatureDamage);
+		WEAPON_READ_FIELD(int, signatureMidDamage);
+		WEAPON_READ_FIELD(int, signatureMinDamage);
+		WEAPON_READ_FIELD(float, signatureMaxDamageRange);
+		WEAPON_READ_FIELD(float, signatureMinDamageRange);
 		WEAPON_READ_FIELD(float, destabilizationRateTime);
 		WEAPON_READ_FIELD(float, destabilizationCurvatureMax);
 		WEAPON_READ_FIELD(int, destabilizeDistance);
@@ -1010,10 +994,10 @@ namespace zonetool::s1
 		WEAPON_READ_FIELD(float, turretScopeZoomRate);
 		WEAPON_READ_FIELD(float, turretScopeZoomMin);
 		WEAPON_READ_FIELD(float, turretScopeZoomMax);
-		//WEAPON_READ_FIELD(float, xU_056);
-		//WEAPON_READ_FIELD(float, xU_057);
-		//WEAPON_READ_FIELD(float, xU_058);
-		//WEAPON_READ_FIELD(float, xU_059);
+		WEAPON_READ_FIELD(float, overheatUpRate);
+		WEAPON_READ_FIELD(float, overheatDownRate);
+		WEAPON_READ_FIELD(float, overheatCooldownRate);
+		WEAPON_READ_FIELD(float, overheatPenalty);
 		WEAPON_READ_FIELD(float, turretBarrelSpinSpeed);
 		WEAPON_READ_FIELD(float, turretBarrelSpinUpTime);
 		WEAPON_READ_FIELD(float, turretBarrelSpinDownTime);
@@ -1037,22 +1021,22 @@ namespace zonetool::s1
 		WEAPON_READ_FIELD(float, player_meleeHeight);
 		WEAPON_READ_FIELD(float, player_meleeRange);
 		WEAPON_READ_FIELD(float, player_meleeWidth);
-		WEAPON_READ_FIELD(float ,signatureFireTime);
-		WEAPON_READ_FIELD(int, signatureNumBullets);
+		WEAPON_READ_FIELD(float , changedFireTime);
+		WEAPON_READ_FIELD(int, changedFireTimeNumBullets);
 		WEAPON_READ_FIELD(weapFireTimeInterpolation_t, fireTimeInterpolationType);
-		//WEAPON_READ_FIELD(int, iU_3408);
-		//WEAPON_READ_FIELD(int, iU_3412);
-		//WEAPON_READ_FIELD(int, iU_3416);
-		//WEAPON_READ_FIELD(int, iU_3420);
-		//WEAPON_READ_FIELD(int, iU_3424);
-		//WEAPON_READ_FIELD(bool, bU_3432);
-		//WEAPON_READ_FIELD(bool, bU_3433);
-		//WEAPON_READ_FIELD(bool, bU_3434);
-		//WEAPON_READ_FIELD(bool, bU_3435);
-		//WEAPON_READ_FIELD(bool, bU_3436);
-		//WEAPON_READ_FIELD(bool, bU_3437);
-		//WEAPON_READ_FIELD(bool, bU_3438);
-		//WEAPON_READ_FIELD(bool, bU_3439);
+		WEAPON_READ_FIELD(int, generateAmmo);
+		WEAPON_READ_FIELD(int, ammoPerShot);
+		WEAPON_READ_FIELD(int, explodeCount);
+		WEAPON_READ_FIELD(int, batteryDischargeRate);
+		WEAPON_READ_FIELD(int, extendedBattery);
+		WEAPON_READ_FIELD(unsigned char, rattleSoundType);
+		WEAPON_READ_FIELD(bool, adsShouldShowCrosshair);
+		WEAPON_READ_FIELD(bool, adsCrosshairShouldScale);
+		WEAPON_READ_FIELD(bool, turretADSEnabled);
+		WEAPON_READ_FIELD(bool, knifeAlwaysAttached);
+		WEAPON_READ_FIELD(bool, meleeOverrideValues);
+		WEAPON_READ_FIELD(bool, riotShieldEnableDamage);
+		WEAPON_READ_FIELD(bool, allowPrimaryWeaponPickup);
 		WEAPON_READ_FIELD(bool, sharedAmmo);
 		WEAPON_READ_FIELD(bool, lockonSupported);
 		WEAPON_READ_FIELD(bool, requireLockonToFire);
@@ -1067,23 +1051,23 @@ namespace zonetool::s1
 		WEAPON_READ_FIELD(bool, boltAction);
 		WEAPON_READ_FIELD(bool, aimDownSight);
 		WEAPON_READ_FIELD(bool, canHoldBreath);
-		//WEAPON_READ_FIELD(bool, bU_3454);
-		//WEAPON_READ_FIELD(bool, bU_3455);
+		WEAPON_READ_FIELD(bool, meleeOnly);
+		WEAPON_READ_FIELD(bool, altMelee);
 		WEAPON_READ_FIELD(bool, canVariableZoom);
 		WEAPON_READ_FIELD(bool, rechamberWhileAds);
 		WEAPON_READ_FIELD(bool, bulletExplosiveDamage);
 		WEAPON_READ_FIELD(bool, cookOffHold);
+		WEAPON_READ_FIELD(bool, useBattery);
 		WEAPON_READ_FIELD(bool, reticleSpin45);
-		WEAPON_READ_FIELD(bool, reticleSideEnabled);
 		WEAPON_READ_FIELD(bool, clipOnly);
 		WEAPON_READ_FIELD(bool, noAmmoPickup);
 		WEAPON_READ_FIELD(bool, disableSwitchToWhenEmpty);
-		//WEAPON_READ_FIELD(bool, bU_3465);
-		WEAPON_READ_FIELD(bool, hasMotionTracker);
-		//WEAPON_READ_FIELD(bool, bU_3467);
+		WEAPON_READ_FIELD(bool, suppressAmmoReserveDisplay);
+		WEAPON_READ_FIELD(bool, motionTracker);
+		WEAPON_READ_FIELD(bool, markableViewmodel);
 		WEAPON_READ_FIELD(bool, noDualWield);
 		WEAPON_READ_FIELD(bool, flipKillIcon);
-		WEAPON_READ_FIELD(bool, actionSlotShowAmmo);
+		WEAPON_READ_FIELD(bool, dpadIconShowsAmmo);
 		WEAPON_READ_FIELD(bool, noPartialReload);
 		WEAPON_READ_FIELD(bool, segmentedReload);
 		WEAPON_READ_FIELD(bool, multipleReload);
@@ -1099,12 +1083,12 @@ namespace zonetool::s1
 		WEAPON_READ_FIELD(bool, stickToVehicles);
 		WEAPON_READ_FIELD(bool, stickToTurrets);
 		WEAPON_READ_FIELD(bool, thrownSideways);
-		WEAPON_READ_FIELD(bool, hasDetonatorEmptyThrow);
-		WEAPON_READ_FIELD(bool, hasDetonatorDoubleTap);
+		WEAPON_READ_FIELD(bool, detonatesOnEmptyThrow);
+		WEAPON_READ_FIELD(bool, detonatesOnDoubleTap);
 		WEAPON_READ_FIELD(bool, disableFiring);
 		WEAPON_READ_FIELD(bool, timedDetonation);
-		//WEAPON_READ_FIELD(bool, bU_3528);
-		//WEAPON_READ_FIELD(bool, bU_3529);
+		WEAPON_READ_FIELD(bool, noCrumpleMissile);
+		WEAPON_READ_FIELD(bool, fuseLitAfterImpact);
 		WEAPON_READ_FIELD(bool, rotate);
 		WEAPON_READ_FIELD(bool, holdButtonToThrow);
 		WEAPON_READ_FIELD(bool, freezeMovementWhenFiring);
@@ -1119,31 +1103,36 @@ namespace zonetool::s1
 		WEAPON_READ_FIELD(bool, offhandHoldIsCancelable);
 		WEAPON_READ_FIELD(bool, doNotAllowAttachmentsToOverrideSpread);
 		WEAPON_READ_FIELD(bool, useFastReloadAnims);
-		WEAPON_READ_FIELD(bool, dualMagReloadSupported);
+		WEAPON_READ_FIELD(bool, useDualMagReloadAnims);
 		WEAPON_READ_FIELD(bool, reloadStopsAlt);
-		//WEAPON_READ_FIELD(bool, bU_3546);
+		WEAPON_READ_FIELD(bool, useScopeDrift);
 		WEAPON_READ_FIELD(bool, alwaysShatterGlassOnImpact);
 		WEAPON_READ_FIELD(bool, oldWeapon);
-		//WEAPON_READ_FIELD(bool, bU_3511);
-		//WEAPON_READ_FIELD(bool, bU_3512);
-		//WEAPON_READ_FIELD(bool, bU_3513);
-		WEAPON_READ_FIELD(bool, hasCounterSilencer);
-		//WEAPON_READ_FIELD(bool, bU_3515);
-		//WEAPON_READ_FIELD(bool, bU_3516);
-		WEAPON_READ_FIELD(bool, disableVariableAutosimRate);
-		//WEAPON_READ_FIELD(bool, bU_3518);
-		//WEAPON_READ_FIELD(bool, bU_3519);
-		//WEAPON_READ_FIELD(bool, bU_3520);
-		//WEAPON_READ_FIELD(bool, bU_3521);
-		//WEAPON_READ_FIELD(bool, bU_3522);
-		WEAPON_READ_FIELD(bool, cloakedWeapon);
+		WEAPON_READ_FIELD(bool, raiseToHold);
+		WEAPON_READ_FIELD(bool, notifyOnPlayerImpact);
+		WEAPON_READ_FIELD(bool, decreasingKick);
+		WEAPON_READ_FIELD(bool, counterSilencer);
+		WEAPON_READ_FIELD(bool, projSuppressedByEMP);
+		WEAPON_READ_FIELD(bool, projDisabledByEMP);
+		WEAPON_READ_FIELD(bool, autosimDisableVariableRate);
+		WEAPON_READ_FIELD(bool, projPlayTrailEffectForOwnerOnly);
+		WEAPON_READ_FIELD(bool, projPlayBeaconEffectForOwnerOnly);
+		WEAPON_READ_FIELD(bool, projKillTrailEffectOnDeath);
+		WEAPON_READ_FIELD(bool, projKillBeaconEffectOnDeath);
+		WEAPON_READ_FIELD(bool, reticleDetonateHide);
+		WEAPON_READ_FIELD(bool, cloaked);
 		WEAPON_READ_FIELD(bool, adsHideWeapon);
-		//WEAPON_READ_FIELD(bool, bU_3525);
-		//WEAPON_READ_FIELD(bool, bU_3526);
-		//WEAPON_READ_FIELD(bool, bU_3527);
-		WEAPON_READ_FIELD(float, adsDofPhysicalFStop);
+		WEAPON_READ_FIELD(bool, hasTransientModels);
+		WEAPON_READ_FIELD(bool, signatureAmmoAlternate);
+		WEAPON_READ_FIELD(bool, useScriptCallbackForHit);
+		WEAPON_READ_FIELD(float, adsDofPhysicalFstop);
 		WEAPON_READ_FIELD(float, adsDofPhysicalFocusDistance);
-		// unknown data
+		WEAPON_READ_FIELD(float, autosimSpeedScale);
+		WEAPON_READ_FIELD(float, reactiveMotionRadiusScale);
+		WEAPON_READ_FIELD(float, reactiveMotionFrequencyScale);
+		WEAPON_READ_FIELD(float, reactiveMotionAmplitudeScale);
+		WEAPON_READ_FIELD(float, reactiveMotionFalloff);
+		WEAPON_READ_FIELD(float, reactiveMotionLifetime);
 
 		return weapon;
 	}
@@ -1204,6 +1193,9 @@ namespace zonetool::s1
 		WEAPON_SCRIPTSTRING_ARRAY_PREPARE(notetrackFXMapKeys, 16);
 		WEAPON_SCRIPTSTRING_ARRAY_PREPARE(notetrackFXMapTagValues, 16);
 
+		weapon->knifeAttachTagOverride = static_cast<scr_string_t>(buf->write_scriptstring(
+			this->get_script_string(&weapon->knifeAttachTagOverride)));
+
 		weapon->stowTag = static_cast<scr_string_t>(buf->write_scriptstring(
 			this->get_script_string(&weapon->stowTag)));
 	}
@@ -1233,7 +1225,7 @@ namespace zonetool::s1
 		WEAPON_SUBASSET_DEPENDING(camoViewModelMaterialOverride, ASSET_TYPE_MATERIAL);
 
 		WEAPON_SUBASSET_DEPENDING(handModel, ASSET_TYPE_XMODEL);
-		WEAPON_SUBASSET_DEPENDING(unknownModel, ASSET_TYPE_XMODEL);
+		WEAPON_SUBASSET_DEPENDING(persistentArmXModel, ASSET_TYPE_XMODEL);
 		WEAPON_SUBASSET_DEPENDING(worldClipModel, ASSET_TYPE_XMODEL);
 		WEAPON_SUBASSET_DEPENDING(rocketModel, ASSET_TYPE_XMODEL);
 		WEAPON_SUBASSET_DEPENDING(knifeModel, ASSET_TYPE_XMODEL);
@@ -1255,7 +1247,7 @@ namespace zonetool::s1
 			}
 		}
 
-		for (auto i = 0; i < weapon->numWeaponAttachments; i++)
+		for (auto i = 0; i < weapon->numAttachments; i++)
 		{
 			if (weapon->attachments)
 			{
@@ -1312,13 +1304,13 @@ namespace zonetool::s1
 		WEAPON_SUBASSET_DEPENDING(worldFlashEffect, ASSET_TYPE_FX);
 		WEAPON_SUBASSET_DEPENDING(viewFlashADSEffect, ASSET_TYPE_FX);
 		WEAPON_SUBASSET_DEPENDING(viewBodyFlashADSEffect, ASSET_TYPE_FX);
-		WEAPON_SUBASSET_DEPENDING(effect06, ASSET_TYPE_FX);
-		WEAPON_SUBASSET_DEPENDING(effect07, ASSET_TYPE_FX);
-		WEAPON_SUBASSET_DEPENDING(effect08, ASSET_TYPE_FX);
-		WEAPON_SUBASSET_DEPENDING(effect09, ASSET_TYPE_FX);
-		WEAPON_SUBASSET_DEPENDING(effect10, ASSET_TYPE_FX);
-		WEAPON_SUBASSET_DEPENDING(effect11, ASSET_TYPE_FX);
-		WEAPON_SUBASSET_DEPENDING(effect12, ASSET_TYPE_FX);
+		WEAPON_SUBASSET_DEPENDING(signatureViewFlashEffect, ASSET_TYPE_FX);
+		WEAPON_SUBASSET_DEPENDING(signatureViewBodyFlashEffect, ASSET_TYPE_FX);
+		WEAPON_SUBASSET_DEPENDING(signatureWorldFlashEffect, ASSET_TYPE_FX);
+		WEAPON_SUBASSET_DEPENDING(signatureViewFlashADSEffect, ASSET_TYPE_FX);
+		WEAPON_SUBASSET_DEPENDING(signatureViewBodyFlashADSEffect, ASSET_TYPE_FX);
+		WEAPON_SUBASSET_DEPENDING(meleeHitEffect, ASSET_TYPE_FX);
+		WEAPON_SUBASSET_DEPENDING(meleeMissEffect, ASSET_TYPE_FX);
 		
 		WEAPON_SUBASSET_DEPENDING(pickupSound, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(pickupSoundPlayer, ASSET_TYPE_SOUND);
@@ -1330,33 +1322,33 @@ namespace zonetool::s1
 		WEAPON_SUBASSET_DEPENDING(fireSound, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(fireSoundPlayer, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(fireSoundPlayerAkimbo, ASSET_TYPE_SOUND);
-		WEAPON_SUBASSET_DEPENDING(sound13, ASSET_TYPE_SOUND);
-		WEAPON_SUBASSET_DEPENDING(sound14, ASSET_TYPE_SOUND);
-		WEAPON_SUBASSET_DEPENDING(sound15, ASSET_TYPE_SOUND);
-		WEAPON_SUBASSET_DEPENDING(sound16, ASSET_TYPE_SOUND);
+		WEAPON_SUBASSET_DEPENDING(fireMedSound, ASSET_TYPE_SOUND);
+		WEAPON_SUBASSET_DEPENDING(fireMedSoundPlayer, ASSET_TYPE_SOUND);
+		WEAPON_SUBASSET_DEPENDING(fireHighSound, ASSET_TYPE_SOUND);
+		WEAPON_SUBASSET_DEPENDING(fireHighSoundPlayer, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(fireLoopSound, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(fireLoopSoundPlayer, ASSET_TYPE_SOUND);
-		WEAPON_SUBASSET_DEPENDING(sound19, ASSET_TYPE_SOUND);
-		WEAPON_SUBASSET_DEPENDING(sound20, ASSET_TYPE_SOUND);
-		WEAPON_SUBASSET_DEPENDING(sound21, ASSET_TYPE_SOUND);
-		WEAPON_SUBASSET_DEPENDING(sound22, ASSET_TYPE_SOUND);
+		WEAPON_SUBASSET_DEPENDING(fireMedLoopSound, ASSET_TYPE_SOUND);
+		WEAPON_SUBASSET_DEPENDING(fireMedLoopSoundPlayer, ASSET_TYPE_SOUND);
+		WEAPON_SUBASSET_DEPENDING(fireHighLoopSound, ASSET_TYPE_SOUND);
+		WEAPON_SUBASSET_DEPENDING(fireHighLoopSoundPlayer, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(fireLoopEndPointSound, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(fireLoopEndPointSoundPlayer, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(fireStopSound, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(fireStopSoundPlayer, ASSET_TYPE_SOUND);
-		WEAPON_SUBASSET_DEPENDING(sound27, ASSET_TYPE_SOUND);
-		WEAPON_SUBASSET_DEPENDING(sound28, ASSET_TYPE_SOUND);
-		WEAPON_SUBASSET_DEPENDING(sound29, ASSET_TYPE_SOUND);
-		WEAPON_SUBASSET_DEPENDING(sound30, ASSET_TYPE_SOUND);
-		WEAPON_SUBASSET_DEPENDING(fireLastShotSound, ASSET_TYPE_SOUND);
-		WEAPON_SUBASSET_DEPENDING(fireLastShotSoundPlayer, ASSET_TYPE_SOUND);
+		WEAPON_SUBASSET_DEPENDING(fireMedStopSound, ASSET_TYPE_SOUND);
+		WEAPON_SUBASSET_DEPENDING(fireMedStopSoundPlayer, ASSET_TYPE_SOUND);
+		WEAPON_SUBASSET_DEPENDING(fireHighStopSound, ASSET_TYPE_SOUND);
+		WEAPON_SUBASSET_DEPENDING(fireHighStopSoundPlayer, ASSET_TYPE_SOUND);
+		WEAPON_SUBASSET_DEPENDING(fireLastSound, ASSET_TYPE_SOUND);
+		WEAPON_SUBASSET_DEPENDING(fireLastSoundPlayer, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(fireFirstSound, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(fireFirstSoundPlayer, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(fireLastSound, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(fireLastSoundPlayer, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(emptyFireSound, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(emptyFireSoundPlayer, ASSET_TYPE_SOUND);
-		WEAPON_SUBASSET_DEPENDING(sound39, ASSET_TYPE_SOUND);
+		WEAPON_SUBASSET_DEPENDING(adsRequiredFireSoundPlayer, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(meleeSwipeSound, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(meleeSwipeSoundPlayer, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(meleeHitSound, ASSET_TYPE_SOUND);
@@ -1379,18 +1371,18 @@ namespace zonetool::s1
 		WEAPON_SUBASSET_DEPENDING(nightVisionWearSoundPlayer, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(nightVisionRemoveSound, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(nightVisionRemoveSoundPlayer, ASSET_TYPE_SOUND);
+		WEAPON_SUBASSET_DEPENDING(altSwitchSound, ASSET_TYPE_SOUND);
+		WEAPON_SUBASSET_DEPENDING(altSwitchSoundPlayer, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(raiseSound, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(raiseSoundPlayer, ASSET_TYPE_SOUND);
-		WEAPON_SUBASSET_DEPENDING(sound64, ASSET_TYPE_SOUND);
-		WEAPON_SUBASSET_DEPENDING(sound65, ASSET_TYPE_SOUND);
-		WEAPON_SUBASSET_DEPENDING(sound66, ASSET_TYPE_SOUND);
-		WEAPON_SUBASSET_DEPENDING(sound67, ASSET_TYPE_SOUND);
+		WEAPON_SUBASSET_DEPENDING(firstRaiseSound, ASSET_TYPE_SOUND);
+		WEAPON_SUBASSET_DEPENDING(firstRaiseSoundPlayer, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(putawaySound, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(putawaySoundPlayer, ASSET_TYPE_SOUND);
-		WEAPON_SUBASSET_DEPENDING(sound70, ASSET_TYPE_SOUND);
-		WEAPON_SUBASSET_DEPENDING(sound71, ASSET_TYPE_SOUND);
-		WEAPON_SUBASSET_DEPENDING(adsEnterSoundPlayer, ASSET_TYPE_SOUND);
-		WEAPON_SUBASSET_DEPENDING(adsLeaveSoundPlayer, ASSET_TYPE_SOUND);
+		WEAPON_SUBASSET_DEPENDING(scanSound, ASSET_TYPE_SOUND);
+		WEAPON_SUBASSET_DEPENDING(changeVariableZoomSound, ASSET_TYPE_SOUND);
+		WEAPON_SUBASSET_DEPENDING(adsUpSound, ASSET_TYPE_SOUND);
+		WEAPON_SUBASSET_DEPENDING(adsDownSound, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(adsCrosshairEnemySound, ASSET_TYPE_SOUND);
 		
 		for (auto i = 0; i < 53; i++)
@@ -1417,18 +1409,18 @@ namespace zonetool::s1
 
 		WEAPON_SUBASSET_DEPENDING(hudIcon, ASSET_TYPE_MATERIAL);
 		WEAPON_SUBASSET_DEPENDING(pickupIcon, ASSET_TYPE_MATERIAL);
-		WEAPON_SUBASSET_DEPENDING(unknownIcon2, ASSET_TYPE_MATERIAL);
-		WEAPON_SUBASSET_DEPENDING(unknownIcon3, ASSET_TYPE_MATERIAL);
-		WEAPON_SUBASSET_DEPENDING(unknownIcon4, ASSET_TYPE_MATERIAL);
+		WEAPON_SUBASSET_DEPENDING(minimapIconFriendly, ASSET_TYPE_MATERIAL);
+		WEAPON_SUBASSET_DEPENDING(minimapIconEnemy, ASSET_TYPE_MATERIAL);
+		WEAPON_SUBASSET_DEPENDING(minimapIconNeutral, ASSET_TYPE_MATERIAL);
 		WEAPON_SUBASSET_DEPENDING(ammoCounterIcon, ASSET_TYPE_MATERIAL);
 		
 		WEAPON_SUBASSET_DEPENDING(physCollmap, ASSET_TYPE_PHYSCOLLMAP);
 		WEAPON_SUBASSET_DEPENDING(physPreset, ASSET_TYPE_PHYSPRESET);
 
-		WEAPON_SUBASSET_DEPENDING(tracer1, ASSET_TYPE_TRACER);
-		WEAPON_SUBASSET_DEPENDING(tracer2, ASSET_TYPE_TRACER);
+		WEAPON_SUBASSET_DEPENDING(tracerType, ASSET_TYPE_TRACER);
+		WEAPON_SUBASSET_DEPENDING(signatureTracerType, ASSET_TYPE_TRACER);
 
-		WEAPON_SUBASSET_DEPENDING(laser, ASSET_TYPE_LASER);
+		WEAPON_SUBASSET_DEPENDING(laserType, ASSET_TYPE_LASER);
 
 		WEAPON_SUBASSET_DEPENDING(turretOverheatSound, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(turretOverheatEffect, ASSET_TYPE_FX);
@@ -1513,7 +1505,7 @@ namespace zonetool::s1
 		dest->szInternalName = buf->write_str(this->name());
 
 		WEAPON_STRING(szDisplayName);
-		WEAPON_STRING(szOverlayName);
+		WEAPON_STRING(szAltWeaponName);
 
 		if (data->gunModel)
 		{
@@ -1540,14 +1532,14 @@ namespace zonetool::s1
 				);
 		}
 
-		if (data->unknownModel)
+		if (data->persistentArmXModel)
 		{
-			dest->unknownModel = reinterpret_cast<XModel*>(
-				zone->get_asset_pointer(ASSET_TYPE_XMODEL, data->unknownModel->name)
+			dest->persistentArmXModel = reinterpret_cast<XModel*>(
+				zone->get_asset_pointer(ASSET_TYPE_XMODEL, data->persistentArmXModel->name)
 				);
 		}
 
-		WEAPON_STRING(szModeName);
+		WEAPON_STRING(lobWorldModelName);
 
 		if (data->camoWorldModelMaterialOverride)
 		{
@@ -1601,9 +1593,9 @@ namespace zonetool::s1
 		if (data->attachments)
 		{
 			buf->align(7);
-			auto destAttachments = buf->write(data->attachments, data->numWeaponAttachments);
+			auto destAttachments = buf->write(data->attachments, data->numAttachments);
 
-			for (auto i = 0; i < data->numWeaponAttachments; i++)
+			for (auto i = 0; i < data->numAttachments; i++)
 			{
 				if (destAttachments[i])
 				{
@@ -1762,20 +1754,20 @@ namespace zonetool::s1
 		}
 		WEAPON_SCRIPTSTRING_ARRAY(notetrackFXMapTagValues, 16);
 
-		WEAPON_STRING(szAltWeaponName);
+		WEAPON_STRING(szAdsrBaseSetting);
 
 		WEAPON_SUBASSET(viewFlashEffect, ASSET_TYPE_FX, FxEffectDef);
 		WEAPON_SUBASSET(viewBodyFlashEffect, ASSET_TYPE_FX, FxEffectDef);
 		WEAPON_SUBASSET(worldFlashEffect, ASSET_TYPE_FX, FxEffectDef);
 		WEAPON_SUBASSET(viewFlashADSEffect, ASSET_TYPE_FX, FxEffectDef);
 		WEAPON_SUBASSET(viewBodyFlashADSEffect, ASSET_TYPE_FX, FxEffectDef);
-		WEAPON_SUBASSET(effect06, ASSET_TYPE_FX, FxEffectDef);
-		WEAPON_SUBASSET(effect07, ASSET_TYPE_FX, FxEffectDef);
-		WEAPON_SUBASSET(effect08, ASSET_TYPE_FX, FxEffectDef);
-		WEAPON_SUBASSET(effect09, ASSET_TYPE_FX, FxEffectDef);
-		WEAPON_SUBASSET(effect10, ASSET_TYPE_FX, FxEffectDef);
-		WEAPON_SUBASSET(effect11, ASSET_TYPE_FX, FxEffectDef);
-		WEAPON_SUBASSET(effect12, ASSET_TYPE_FX, FxEffectDef);
+		WEAPON_SUBASSET(signatureViewFlashEffect, ASSET_TYPE_FX, FxEffectDef);
+		WEAPON_SUBASSET(signatureViewBodyFlashEffect, ASSET_TYPE_FX, FxEffectDef);
+		WEAPON_SUBASSET(signatureWorldFlashEffect, ASSET_TYPE_FX, FxEffectDef);
+		WEAPON_SUBASSET(signatureViewFlashADSEffect, ASSET_TYPE_FX, FxEffectDef);
+		WEAPON_SUBASSET(signatureViewBodyFlashADSEffect, ASSET_TYPE_FX, FxEffectDef);
+		WEAPON_SUBASSET(meleeHitEffect, ASSET_TYPE_FX, FxEffectDef);
+		WEAPON_SUBASSET(meleeMissEffect, ASSET_TYPE_FX, FxEffectDef);
 		
 		WEAPON_SOUND_CUSTOM(pickupSound);
 		WEAPON_SOUND_CUSTOM(pickupSoundPlayer);
@@ -1784,38 +1776,38 @@ namespace zonetool::s1
 		WEAPON_SOUND_CUSTOM(projectileSound);
 		WEAPON_SOUND_CUSTOM(pullbackSound);
 		WEAPON_SOUND_CUSTOM(pullbackSoundPlayer);
-		WEAPON_SOUND_CUSTOM(pullbackSoundQuick);
-		WEAPON_SOUND_CUSTOM(pullbackSoundQuickPlayer);
+		WEAPON_SOUND_CUSTOM(throwbackSound);
+		WEAPON_SOUND_CUSTOM(throwbackSoundPlayer);
 		WEAPON_SOUND_CUSTOM(fireSound);
 		WEAPON_SOUND_CUSTOM(fireSoundPlayer);
 		WEAPON_SOUND_CUSTOM(fireSoundPlayerAkimbo);
-		WEAPON_SOUND_CUSTOM(sound13);
-		WEAPON_SOUND_CUSTOM(sound14);
-		WEAPON_SOUND_CUSTOM(sound15);
-		WEAPON_SOUND_CUSTOM(sound16);
+		WEAPON_SOUND_CUSTOM(fireMedSound);
+		WEAPON_SOUND_CUSTOM(fireMedSoundPlayer);
+		WEAPON_SOUND_CUSTOM(fireHighSound);
+		WEAPON_SOUND_CUSTOM(fireHighSoundPlayer);
 		WEAPON_SOUND_CUSTOM(fireLoopSound);
 		WEAPON_SOUND_CUSTOM(fireLoopSoundPlayer);
-		WEAPON_SOUND_CUSTOM(sound19);
-		WEAPON_SOUND_CUSTOM(sound20);
-		WEAPON_SOUND_CUSTOM(sound21);
-		WEAPON_SOUND_CUSTOM(sound22);
+		WEAPON_SOUND_CUSTOM(fireMedLoopSound);
+		WEAPON_SOUND_CUSTOM(fireMedLoopSoundPlayer);
+		WEAPON_SOUND_CUSTOM(fireHighLoopSound);
+		WEAPON_SOUND_CUSTOM(fireHighLoopSoundPlayer);
 		WEAPON_SOUND_CUSTOM(fireLoopEndPointSound);
 		WEAPON_SOUND_CUSTOM(fireLoopEndPointSoundPlayer);
 		WEAPON_SOUND_CUSTOM(fireStopSound);
 		WEAPON_SOUND_CUSTOM(fireStopSoundPlayer);
-		WEAPON_SOUND_CUSTOM(sound27);
-		WEAPON_SOUND_CUSTOM(sound28);
-		WEAPON_SOUND_CUSTOM(sound29);
-		WEAPON_SOUND_CUSTOM(sound30);
-		WEAPON_SOUND_CUSTOM(fireLastShotSound);
-		WEAPON_SOUND_CUSTOM(fireLastShotSoundPlayer);
+		WEAPON_SOUND_CUSTOM(fireMedStopSound);
+		WEAPON_SOUND_CUSTOM(fireMedStopSoundPlayer);
+		WEAPON_SOUND_CUSTOM(fireHighStopSound);
+		WEAPON_SOUND_CUSTOM(fireHighStopSoundPlayer);
+		WEAPON_SOUND_CUSTOM(fireLastSound);
+		WEAPON_SOUND_CUSTOM(fireLastSoundPlayer);
 		WEAPON_SOUND_CUSTOM(fireFirstSound);
 		WEAPON_SOUND_CUSTOM(fireFirstSoundPlayer);
 		WEAPON_SOUND_CUSTOM(fireLastSound);
 		WEAPON_SOUND_CUSTOM(fireLastSoundPlayer);
 		WEAPON_SOUND_CUSTOM(emptyFireSound);
 		WEAPON_SOUND_CUSTOM(emptyFireSoundPlayer);
-		WEAPON_SOUND_CUSTOM(sound39);
+		WEAPON_SOUND_CUSTOM(adsRequiredFireSoundPlayer);
 		WEAPON_SOUND_CUSTOM(meleeSwipeSound);
 		WEAPON_SOUND_CUSTOM(meleeSwipeSoundPlayer);
 		WEAPON_SOUND_CUSTOM(meleeHitSound);
@@ -1838,18 +1830,18 @@ namespace zonetool::s1
 		WEAPON_SOUND_CUSTOM(nightVisionWearSoundPlayer);
 		WEAPON_SOUND_CUSTOM(nightVisionRemoveSound);
 		WEAPON_SOUND_CUSTOM(nightVisionRemoveSoundPlayer);
+		WEAPON_SOUND_CUSTOM(altSwitchSound);
+		WEAPON_SOUND_CUSTOM(altSwitchSoundPlayer);
 		WEAPON_SOUND_CUSTOM(raiseSound);
 		WEAPON_SOUND_CUSTOM(raiseSoundPlayer);
-		WEAPON_SOUND_CUSTOM(sound64);
-		WEAPON_SOUND_CUSTOM(sound65);
-		WEAPON_SOUND_CUSTOM(sound66);
-		WEAPON_SOUND_CUSTOM(sound67);
+		WEAPON_SOUND_CUSTOM(firstRaiseSound);
+		WEAPON_SOUND_CUSTOM(firstRaiseSoundPlayer);
 		WEAPON_SOUND_CUSTOM(putawaySound);
 		WEAPON_SOUND_CUSTOM(putawaySoundPlayer);
-		WEAPON_SOUND_CUSTOM(sound70);
-		WEAPON_SOUND_CUSTOM(sound71);
-		WEAPON_SOUND_CUSTOM(adsEnterSoundPlayer);
-		WEAPON_SOUND_CUSTOM(adsLeaveSoundPlayer);
+		WEAPON_SOUND_CUSTOM(scanSound);
+		WEAPON_SOUND_CUSTOM(changeVariableZoomSound);
+		WEAPON_SOUND_CUSTOM(adsUpSound);
+		WEAPON_SOUND_CUSTOM(adsDownSound);
 		WEAPON_SOUND_CUSTOM(adsCrosshairEnemySound);
 		
 		if (data->bounceSound)
@@ -1912,9 +1904,9 @@ namespace zonetool::s1
 		
 		WEAPON_SUBASSET(hudIcon, ASSET_TYPE_MATERIAL, Material);
 		WEAPON_SUBASSET(pickupIcon, ASSET_TYPE_MATERIAL, Material);
-		WEAPON_SUBASSET(unknownIcon2, ASSET_TYPE_MATERIAL, Material);
-		WEAPON_SUBASSET(unknownIcon3, ASSET_TYPE_MATERIAL, Material);
-		WEAPON_SUBASSET(unknownIcon4, ASSET_TYPE_MATERIAL, Material);
+		WEAPON_SUBASSET(minimapIconFriendly, ASSET_TYPE_MATERIAL, Material);
+		WEAPON_SUBASSET(minimapIconEnemy, ASSET_TYPE_MATERIAL, Material);
+		WEAPON_SUBASSET(minimapIconNeutral, ASSET_TYPE_MATERIAL, Material);
 		WEAPON_SUBASSET(ammoCounterIcon, ASSET_TYPE_MATERIAL, Material);
 
 		WEAPON_STRING(szAmmoName);
@@ -1939,10 +1931,10 @@ namespace zonetool::s1
 		WEAPON_STRING(fireHighRumble);
 		WEAPON_STRING(meleeImpactRumble);
 		
-		WEAPON_SUBASSET(tracer1, ASSET_TYPE_TRACER, TracerDef);
-		WEAPON_SUBASSET(tracer2, ASSET_TYPE_TRACER, TracerDef);
+		WEAPON_SUBASSET(tracerType, ASSET_TYPE_TRACER, TracerDef);
+		WEAPON_SUBASSET(signatureTracerType, ASSET_TYPE_TRACER, TracerDef);
 
-		WEAPON_SUBASSET(laser, ASSET_TYPE_LASER, LaserDef);
+		WEAPON_SUBASSET(laserType, ASSET_TYPE_LASER, LaserDef);
 
 		WEAPON_SOUND_CUSTOM(turretOverheatSound);
 		WEAPON_SUBASSET(turretOverheatEffect, ASSET_TYPE_FX, FxEffectDef);
@@ -2152,7 +2144,6 @@ namespace zonetool::s1
 		json data;
 
 		data["minVelocity"] = settings->minVelocity;
-		data["maxVelocity"] = settings->maxVelocity;
 		data["verticalSound"] = settings->verticalSound ? settings->verticalSound->name : "";
 		data["verticalStopSound"] = settings->verticalStopSound ? settings->verticalStopSound->name : "";
 		data["horizontalSound"] = settings->horizontalSound ? settings->horizontalSound->name : "";
@@ -2231,8 +2222,8 @@ namespace zonetool::s1
 		WEAPON_DUMP_FIELD(reloadAddTimeDualWield);
 		WEAPON_DUMP_FIELD(reloadEmptyDualMag);
 		WEAPON_DUMP_FIELD(reloadEmptyAddTimeDualMag);
-		//WEAPON_DUMP_FIELD(u25);
-		//WEAPON_DUMP_FIELD(u26);
+		WEAPON_DUMP_FIELD(speedReloadTime);
+		WEAPON_DUMP_FIELD(speedReloadAddTime);
 		WEAPON_DUMP_FIELD(dropTime);
 		WEAPON_DUMP_FIELD(raiseTime);
 		WEAPON_DUMP_FIELD(altDropTime);
@@ -2264,23 +2255,23 @@ namespace zonetool::s1
 		WEAPON_DUMP_FIELD(blastRightTime);
 		WEAPON_DUMP_FIELD(blastBackTime);
 		WEAPON_DUMP_FIELD(blastLeftTime);
-		//WEAPON_DUMP_FIELD(u58);
-		//WEAPON_DUMP_FIELD(u59);
-		//WEAPON_DUMP_FIELD(u60);
-		//WEAPON_DUMP_FIELD(u61);
-		//WEAPON_DUMP_FIELD(u62);
-		//WEAPON_DUMP_FIELD(u63);
-		//WEAPON_DUMP_FIELD(u64);
-		//WEAPON_DUMP_FIELD(u65);
-		//WEAPON_DUMP_FIELD(u66);
-		//WEAPON_DUMP_FIELD(u67);
-		//WEAPON_DUMP_FIELD(u68);
+		WEAPON_DUMP_FIELD(slideInTime);
+		WEAPON_DUMP_FIELD(slideLoopTime);
+		WEAPON_DUMP_FIELD(slideOutTime);
+		WEAPON_DUMP_FIELD(highJumpInTime);
+		WEAPON_DUMP_FIELD(highJumpDropInTime);
+		WEAPON_DUMP_FIELD(highJumpDropLoopTime);
+		WEAPON_DUMP_FIELD(highJumpDropLandTime);
+		WEAPON_DUMP_FIELD(dodgeTime);
+		WEAPON_DUMP_FIELD(landDipTime);
+		WEAPON_DUMP_FIELD(hybridSightInTime);
+		WEAPON_DUMP_FIELD(hybridSightOutTime);
 		WEAPON_DUMP_FIELD(offhandSwitchTime);
-		//WEAPON_DUMP_FIELD(u70);
-		//WEAPON_DUMP_FIELD(u71);
-		//WEAPON_DUMP_FIELD(u72);
-		//WEAPON_DUMP_FIELD(u73);
-		//WEAPON_DUMP_FIELD(u74);
+		WEAPON_DUMP_FIELD(heatCooldownInTime);
+		WEAPON_DUMP_FIELD(heatCooldownOutTime);
+		WEAPON_DUMP_FIELD(heatCooldownOutReadyTime);
+		WEAPON_DUMP_FIELD(overheatOutTime);
+		WEAPON_DUMP_FIELD(overheatOutReadyTime);
 
 		return data;
 	}
@@ -2295,7 +2286,7 @@ namespace zonetool::s1
 
 		WEAPON_DUMP_STRING(szInternalName);
 		WEAPON_DUMP_STRING(szDisplayName);
-		WEAPON_DUMP_STRING(szOverlayName);
+		WEAPON_DUMP_STRING(szAltWeaponName);
 
 		WEAPON_DUMP_ASSET_ARR(gunModel, 2);
 		WEAPON_DUMP_ASSET_ARR(worldModel, 2);
@@ -2304,7 +2295,7 @@ namespace zonetool::s1
 		WEAPON_DUMP_ASSET(camoViewModelMaterialOverride);
 
 		WEAPON_DUMP_ASSET(handModel);
-		WEAPON_DUMP_ASSET(unknownModel);
+		WEAPON_DUMP_ASSET(persistentArmXModel);
 		WEAPON_DUMP_ASSET(worldClipModel);
 		WEAPON_DUMP_ASSET(rocketModel);
 		WEAPON_DUMP_ASSET(knifeModel);
@@ -2326,7 +2317,7 @@ namespace zonetool::s1
 			}
 		}
 
-		WEAPON_DUMP_ASSET_ARR(attachments, asset->numWeaponAttachments);
+		WEAPON_DUMP_ASSET_ARR(attachments, asset->numAttachments);
 
 		for (auto i = 0u; i < asset->numAnimOverrides; i++)
 		{
@@ -2340,7 +2331,8 @@ namespace zonetool::s1
 			data["animOverrides"][i]["attachment2"] = asset->animOverrides[i].attachment2;
 			data["animOverrides"][i]["altTime"] = asset->animOverrides[i].altTime;
 			data["animOverrides"][i]["animTime"] = asset->animOverrides[i].animTime;
-			//data["animOverrides"][i]["animTreeType"] = asset->animOverrides[i].animTreeType;
+			data["animOverrides"][i]["animTreeType"] = asset->animOverrides[i].animTreeType;
+			data["animOverrides"][i]["animHand"] = asset->animOverrides[i].animHand;
 		}
 
 		for (auto i = 0u; i < asset->numSoundOverrides; i++)
@@ -2353,7 +2345,7 @@ namespace zonetool::s1
 			data["soundOverrides"][i]["overrideSound"] = (asset->soundOverrides[i].overrideSound)
 				? asset->soundOverrides[i].overrideSound->name
 				: "";
-			//data["soundOverrides"][i]["soundType"] = asset->soundOverrides[i].soundType;
+			data["soundOverrides"][i]["soundType"] = asset->soundOverrides[i].soundType;
 		}
 
 		for (auto i = 0u; i < asset->numFXOverrides; i++)
@@ -2363,7 +2355,7 @@ namespace zonetool::s1
 				: "";
 			data["fxOverrides"][i]["attachment1"] = asset->fxOverrides[i].attachment1;
 			data["fxOverrides"][i]["attachment2"] = asset->fxOverrides[i].attachment2;
-			//data["fxOverrides"][i]["fxType"] = asset->fxOverrides[i].fxType;
+			data["fxOverrides"][i]["fxType"] = asset->fxOverrides[i].fxType;
 			data["fxOverrides"][i]["overrideFX"] = (asset->fxOverrides[i].overrideFX)
 				? asset->fxOverrides[i].overrideFX->name
 				: "";
@@ -2465,8 +2457,8 @@ namespace zonetool::s1
 			}
 		}
 
-		WEAPON_DUMP_STRING(szModeName);
-		WEAPON_DUMP_STRING(szAltWeaponName);
+		WEAPON_DUMP_STRING(lobWorldModelName);
+		WEAPON_DUMP_STRING(szAdsrBaseSetting);
 		WEAPON_DUMP_STRING(szAmmoName);
 		WEAPON_DUMP_STRING(szClipName);
 		WEAPON_DUMP_STRING(szSharedAmmoCapName);
@@ -2476,13 +2468,13 @@ namespace zonetool::s1
 		WEAPON_DUMP_ASSET(worldFlashEffect);
 		WEAPON_DUMP_ASSET(viewFlashADSEffect);
 		WEAPON_DUMP_ASSET(viewBodyFlashADSEffect);
-		WEAPON_DUMP_ASSET(effect06);
-		WEAPON_DUMP_ASSET(effect07);
-		WEAPON_DUMP_ASSET(effect08);
-		WEAPON_DUMP_ASSET(effect09);
-		WEAPON_DUMP_ASSET(effect10);
-		WEAPON_DUMP_ASSET(effect11);
-		WEAPON_DUMP_ASSET(effect12);
+		WEAPON_DUMP_ASSET(signatureViewFlashEffect);
+		WEAPON_DUMP_ASSET(signatureViewBodyFlashEffect);
+		WEAPON_DUMP_ASSET(signatureWorldFlashEffect);
+		WEAPON_DUMP_ASSET(signatureViewFlashADSEffect);
+		WEAPON_DUMP_ASSET(signatureViewBodyFlashADSEffect);
+		WEAPON_DUMP_ASSET(meleeHitEffect);
+		WEAPON_DUMP_ASSET(meleeMissEffect);
 
 		WEAPON_DUMP_SOUND(pickupSound);
 		WEAPON_DUMP_SOUND(pickupSoundPlayer);
@@ -2491,31 +2483,31 @@ namespace zonetool::s1
 		WEAPON_DUMP_SOUND(projectileSound);
 		WEAPON_DUMP_SOUND(pullbackSound);
 		WEAPON_DUMP_SOUND(pullbackSoundPlayer);
-		WEAPON_DUMP_SOUND(pullbackSoundQuick);
-		WEAPON_DUMP_SOUND(pullbackSoundQuickPlayer);
+		WEAPON_DUMP_SOUND(throwbackSound);
+		WEAPON_DUMP_SOUND(throwbackSoundPlayer);
 		WEAPON_DUMP_SOUND(fireSound);
 		WEAPON_DUMP_SOUND(fireSoundPlayer);
 		WEAPON_DUMP_SOUND(fireSoundPlayerAkimbo);
-		WEAPON_DUMP_SOUND(sound13);
-		WEAPON_DUMP_SOUND(sound14);
-		WEAPON_DUMP_SOUND(sound15);
-		WEAPON_DUMP_SOUND(sound16);
+		WEAPON_DUMP_SOUND(fireMedSound);
+		WEAPON_DUMP_SOUND(fireMedSoundPlayer);
+		WEAPON_DUMP_SOUND(fireHighSound);
+		WEAPON_DUMP_SOUND(fireHighSoundPlayer);
 		WEAPON_DUMP_SOUND(fireLoopSound);
 		WEAPON_DUMP_SOUND(fireLoopSoundPlayer);
-		WEAPON_DUMP_SOUND(sound19);
-		WEAPON_DUMP_SOUND(sound20);
-		WEAPON_DUMP_SOUND(sound21);
-		WEAPON_DUMP_SOUND(sound22);
+		WEAPON_DUMP_SOUND(fireMedLoopSound);
+		WEAPON_DUMP_SOUND(fireMedLoopSoundPlayer);
+		WEAPON_DUMP_SOUND(fireHighLoopSound);
+		WEAPON_DUMP_SOUND(fireHighLoopSoundPlayer);
 		WEAPON_DUMP_SOUND(fireLoopEndPointSound);
 		WEAPON_DUMP_SOUND(fireLoopEndPointSoundPlayer);
 		WEAPON_DUMP_SOUND(fireStopSound);
 		WEAPON_DUMP_SOUND(fireStopSoundPlayer);
-		WEAPON_DUMP_SOUND(sound27);
-		WEAPON_DUMP_SOUND(sound28);
-		WEAPON_DUMP_SOUND(sound29);
-		WEAPON_DUMP_SOUND(sound30);
-		WEAPON_DUMP_SOUND(fireLastShotSound);
-		WEAPON_DUMP_SOUND(fireLastShotSoundPlayer);
+		WEAPON_DUMP_SOUND(fireMedStopSound);
+		WEAPON_DUMP_SOUND(fireMedStopSoundPlayer);
+		WEAPON_DUMP_SOUND(fireHighStopSound);
+		WEAPON_DUMP_SOUND(fireHighStopSoundPlayer);
+		WEAPON_DUMP_SOUND(fireLastSound);
+		WEAPON_DUMP_SOUND(fireLastSoundPlayer);
 		WEAPON_DUMP_SOUND(fireFirstSound);
 		WEAPON_DUMP_SOUND(fireFirstSound);
 		WEAPON_DUMP_SOUND(fireFirstSoundPlayer);
@@ -2523,7 +2515,7 @@ namespace zonetool::s1
 		WEAPON_DUMP_SOUND(fireLastSoundPlayer);
 		WEAPON_DUMP_SOUND(emptyFireSound);
 		WEAPON_DUMP_SOUND(emptyFireSoundPlayer);
-		WEAPON_DUMP_SOUND(sound39);
+		WEAPON_DUMP_SOUND(adsRequiredFireSoundPlayer);
 		WEAPON_DUMP_SOUND(meleeSwipeSound);
 		WEAPON_DUMP_SOUND(meleeSwipeSoundPlayer);
 		WEAPON_DUMP_SOUND(meleeHitSound);
@@ -2546,18 +2538,18 @@ namespace zonetool::s1
 		WEAPON_DUMP_SOUND(nightVisionWearSoundPlayer);
 		WEAPON_DUMP_SOUND(nightVisionRemoveSound);
 		WEAPON_DUMP_SOUND(nightVisionRemoveSoundPlayer);
+		WEAPON_DUMP_SOUND(altSwitchSound);
+		WEAPON_DUMP_SOUND(altSwitchSoundPlayer);
 		WEAPON_DUMP_SOUND(raiseSound);
 		WEAPON_DUMP_SOUND(raiseSoundPlayer);
-		WEAPON_DUMP_SOUND(sound64);
-		WEAPON_DUMP_SOUND(sound65);
-		WEAPON_DUMP_SOUND(sound66);
-		WEAPON_DUMP_SOUND(sound67);
+		WEAPON_DUMP_SOUND(firstRaiseSound);
+		WEAPON_DUMP_SOUND(firstRaiseSoundPlayer);
 		WEAPON_DUMP_SOUND(putawaySound);
 		WEAPON_DUMP_SOUND(putawaySoundPlayer);
-		WEAPON_DUMP_SOUND(sound70);
-		WEAPON_DUMP_SOUND(sound71);
-		WEAPON_DUMP_SOUND(adsEnterSoundPlayer);
-		WEAPON_DUMP_SOUND(adsLeaveSoundPlayer);
+		WEAPON_DUMP_SOUND(scanSound);
+		WEAPON_DUMP_SOUND(changeVariableZoomSound);
+		WEAPON_DUMP_SOUND(adsUpSound);
+		WEAPON_DUMP_SOUND(adsDownSound);
 		WEAPON_DUMP_SOUND(adsCrosshairEnemySound);
 
 		WEAPON_DUMP_ASSET_ARR(bounceSound, 53);
@@ -2574,9 +2566,9 @@ namespace zonetool::s1
 
 		WEAPON_DUMP_ASSET(hudIcon);
 		WEAPON_DUMP_ASSET(pickupIcon);
-		WEAPON_DUMP_ASSET(unknownIcon2);
-		WEAPON_DUMP_ASSET(unknownIcon3);
-		WEAPON_DUMP_ASSET(unknownIcon4);
+		WEAPON_DUMP_ASSET(minimapIconFriendly);
+		WEAPON_DUMP_ASSET(minimapIconEnemy);
+		WEAPON_DUMP_ASSET(minimapIconNeutral);
 		WEAPON_DUMP_ASSET(ammoCounterIcon);
 
 		WEAPON_DUMP_ASSET(physCollmap);
@@ -2592,10 +2584,10 @@ namespace zonetool::s1
 		WEAPON_DUMP_STRING(fireHighRumble);
 		WEAPON_DUMP_STRING(meleeImpactRumble);
 
-		WEAPON_DUMP_ASSET(tracer1);
-		WEAPON_DUMP_ASSET(tracer2);
+		WEAPON_DUMP_ASSET(tracerType);
+		WEAPON_DUMP_ASSET(signatureTracerType);
 
-		WEAPON_DUMP_ASSET(laser);
+		WEAPON_DUMP_ASSET(laserType);
 
 		WEAPON_DUMP_ASSET(turretOverheatSound);
 		WEAPON_DUMP_ASSET(turretOverheatEffect);
@@ -2637,7 +2629,7 @@ namespace zonetool::s1
 
 		data["accuracy_graph"] = dump_accuracy_graph(asset);
 
-		data["unkScriptString"] = SL_ConvertToString(asset->unkScriptString) ? SL_ConvertToString(asset->unkScriptString) : "";
+		data["knifeAttachTagOverride"] = SL_ConvertToString(asset->knifeAttachTagOverride) ? SL_ConvertToString(asset->knifeAttachTagOverride) : "";
 
 		data["stowTag"] = SL_ConvertToString(asset->stowTag) ? SL_ConvertToString(asset->stowTag) : "";
 
@@ -2655,7 +2647,7 @@ namespace zonetool::s1
 		WEAPON_DUMP_FIELD(burstFireCooldown);
 		WEAPON_DUMP_FIELD(greebleType);
 		WEAPON_DUMP_FIELD(autoReloadType);
-		WEAPON_DUMP_FIELD(slotRestriction);
+		WEAPON_DUMP_FIELD(autoHolsterType);
 		WEAPON_DUMP_FIELD(offhandClass);
 		WEAPON_DUMP_FIELD(stance);
 		WEAPON_DUMP_FIELD(reticleCenterSize);
@@ -2684,13 +2676,13 @@ namespace zonetool::s1
 		WEAPON_DUMP_FIELD(ammoCounterIconRatio);
 		WEAPON_DUMP_FIELD(ammoCounterClip);
 		WEAPON_DUMP_FIELD(startAmmo);
-		WEAPON_DUMP_FIELD(ammoIndex);
-		WEAPON_DUMP_FIELD(clipIndex);
+		//WEAPON_DUMP_FIELD(iAmmoIndex); // runtime
+		//WEAPON_DUMP_FIELD(iClipIndex); // runtime
 		WEAPON_DUMP_FIELD(maxAmmo);
 		WEAPON_DUMP_FIELD(minAmmoReq);
 		WEAPON_DUMP_FIELD(clipSize);
 		WEAPON_DUMP_FIELD(shotCount);
-		WEAPON_DUMP_FIELD(sharedAmmoCapIndex);
+		//WEAPON_DUMP_FIELD(sharedAmmoCapIndex); // runtime
 		WEAPON_DUMP_FIELD(sharedAmmoCap);
 		WEAPON_DUMP_FIELD(damage);
 		WEAPON_DUMP_FIELD(playerDamage);
@@ -2708,16 +2700,14 @@ namespace zonetool::s1
 		WEAPON_DUMP_FIELD(adsZoomInFrac);
 		WEAPON_DUMP_FIELD(adsZoomOutFrac);
 		WEAPON_DUMP_FIELD(adsSceneBlur);
-		//WEAPON_DUMP_FIELD(fU_007);
-		//WEAPON_DUMP_FIELD(xU_008);
 		WEAPON_DUMP_FIELD(adsBobFactor);
 		WEAPON_DUMP_FIELD(adsViewBobMult);
 		WEAPON_DUMP_FIELD(hipSpreadStandMin);
 		WEAPON_DUMP_FIELD(hipSpreadDuckedMin);
 		WEAPON_DUMP_FIELD(hipSpreadProneMin);
 		WEAPON_DUMP_FIELD(hipSpreadStandMax);
-		//WEAPON_DUMP_FIELD(xU_009);
-		//WEAPON_DUMP_FIELD(xU_010);
+		WEAPON_DUMP_FIELD(hipSpreadSprintMax);
+		WEAPON_DUMP_FIELD(hipSpreadSlideMax);
 		WEAPON_DUMP_FIELD(hipSpreadDuckedMax);
 		WEAPON_DUMP_FIELD(hipSpreadProneMax);
 		WEAPON_DUMP_FIELD(hipSpreadDecayRate);
@@ -2738,9 +2728,9 @@ namespace zonetool::s1
 		WEAPON_DUMP_FIELD(adsIdleLerpStartTime);
 		WEAPON_DUMP_FIELD(adsIdleLerpTime);
 		WEAPON_DUMP_FIELD(adsTransInTime);
-		//WEAPON_DUMP_FIELD(xU_011);
+		WEAPON_DUMP_FIELD(adsTransInFromSprintTime);
 		WEAPON_DUMP_FIELD(adsTransOutTime);
-		//WEAPON_DUMP_FIELD(xU_012);
+		WEAPON_DUMP_FIELD(swayMaxAngleSteadyAim);
 		WEAPON_DUMP_FIELD(swayMaxAngle);
 		WEAPON_DUMP_FIELD(swayLerpSpeed);
 		WEAPON_DUMP_FIELD(swayPitchScale);
@@ -2764,17 +2754,16 @@ namespace zonetool::s1
 		WEAPON_DUMP_FIELD(scopeDriftLerpOutTime);
 		WEAPON_DUMP_FIELD(scopeDriftSteadyFactor);
 		WEAPON_DUMP_FIELD(scopeDriftUnsteadyFactor);
-		WEAPON_DUMP_FIELD(bobVerticalFactor);
-		WEAPON_DUMP_FIELD(bobHorizontalFactor);
-		WEAPON_DUMP_FIELD(bobViewVerticalFactor);
-		WEAPON_DUMP_FIELD(bobViewHorizontalFactor);
+		WEAPON_DUMP_FIELD(weaponBobVerticalFactor);
+		WEAPON_DUMP_FIELD(weaponBobHorizontalFactor);
+		WEAPON_DUMP_FIELD(viewBobVerticalFactor);
+		WEAPON_DUMP_FIELD(viewBobHorizontalFactor);
 		WEAPON_DUMP_FIELD(stationaryZoomFov);
-		WEAPON_DUMP_FIELD(stationaryZoomDelay);
+		WEAPON_DUMP_FIELD(stationaryZoomDelayTime);
 		WEAPON_DUMP_FIELD(stationaryZoomLerpInTime);
 		WEAPON_DUMP_FIELD(stationaryZoomLerpOutTime);
 		WEAPON_DUMP_FIELD(adsDofStart);
 		WEAPON_DUMP_FIELD(adsDofEnd);
-		//WEAPON_DUMP_FIELD(xU_020);
 		WEAPON_DUMP_FIELD(killIconRatio);
 		WEAPON_DUMP_FIELD(dpadIconRatio);
 		WEAPON_DUMP_FIELD(fireAnimLength);
@@ -2799,7 +2788,6 @@ namespace zonetool::s1
 		WEAPON_DUMP_FIELD(projLifetime);
 		WEAPON_DUMP_FIELD(timeToAccelerate);
 		WEAPON_DUMP_FIELD(projectileCurvature);
-		//WEAPON_DUMP_FIELD(xU_021);
 		WEAPON_DUMP_FIELD(projExplosion);
 		WEAPON_DUMP_FIELD(stickiness);
 		WEAPON_DUMP_FIELD(lowAmmoWarningThreshold);
@@ -2854,11 +2842,10 @@ namespace zonetool::s1
 		WEAPON_DUMP_FIELD(hipViewKickCenterSpeed);
 		WEAPON_DUMP_FIELD(hipViewScatterMin);
 		WEAPON_DUMP_FIELD(hipViewScatterMax);
-		//WEAPON_DUMP_FIELD(xU_043);
-		WEAPON_DUMP_FIELD(adsReloadTransTime);
+		WEAPON_DUMP_FIELD(viewKickScale);
+		WEAPON_DUMP_FIELD(positionReloadTransTime);
 		WEAPON_DUMP_FIELD(fightDist);
 		WEAPON_DUMP_FIELD(maxDist);
-		WEAPON_DUMP_FIELD(positionReloadTransTime);
 		WEAPON_DUMP_FIELD(leftArc);
 		WEAPON_DUMP_FIELD(rightArc);
 		WEAPON_DUMP_FIELD(topArc);
@@ -2887,12 +2874,12 @@ namespace zonetool::s1
 		WEAPON_DUMP_FIELD(midPlayerDamage);
 		WEAPON_DUMP_FIELD(maxDamageRange);
 		WEAPON_DUMP_FIELD(minDamageRange);
-		//WEAPON_DUMP_FIELD(iU_045);
-		//WEAPON_DUMP_FIELD(iU_046);
-		//WEAPON_DUMP_FIELD(iU_047);
-		//WEAPON_DUMP_FIELD(iU_048);
-		//WEAPON_DUMP_FIELD(fU_049);
-		//WEAPON_DUMP_FIELD(fU_050);
+		WEAPON_DUMP_FIELD(signatureAmmoInClip);
+		WEAPON_DUMP_FIELD(signatureDamage);
+		WEAPON_DUMP_FIELD(signatureMidDamage);
+		WEAPON_DUMP_FIELD(signatureMinDamage);
+		WEAPON_DUMP_FIELD(signatureMaxDamageRange);
+		WEAPON_DUMP_FIELD(signatureMinDamageRange);
 		WEAPON_DUMP_FIELD(destabilizationRateTime);
 		WEAPON_DUMP_FIELD(destabilizationCurvatureMax);
 		WEAPON_DUMP_FIELD(destabilizeDistance);
@@ -2902,10 +2889,10 @@ namespace zonetool::s1
 		WEAPON_DUMP_FIELD(turretScopeZoomRate);
 		WEAPON_DUMP_FIELD(turretScopeZoomMin);
 		WEAPON_DUMP_FIELD(turretScopeZoomMax);
-		//WEAPON_DUMP_FIELD(xU_056);
-		//WEAPON_DUMP_FIELD(xU_057);
-		//WEAPON_DUMP_FIELD(xU_058);
-		//WEAPON_DUMP_FIELD(xU_059);
+		WEAPON_DUMP_FIELD(overheatUpRate);
+		WEAPON_DUMP_FIELD(overheatDownRate);
+		WEAPON_DUMP_FIELD(overheatCooldownRate);
+		WEAPON_DUMP_FIELD(overheatPenalty);
 		WEAPON_DUMP_FIELD(turretBarrelSpinSpeed);
 		WEAPON_DUMP_FIELD(turretBarrelSpinUpTime);
 		WEAPON_DUMP_FIELD(turretBarrelSpinDownTime);
@@ -2929,21 +2916,22 @@ namespace zonetool::s1
 		WEAPON_DUMP_FIELD(player_meleeHeight);
 		WEAPON_DUMP_FIELD(player_meleeRange);
 		WEAPON_DUMP_FIELD(player_meleeWidth);
-		WEAPON_DUMP_FIELD(signatureFireTime);
-		WEAPON_DUMP_FIELD(signatureNumBullets);
+		WEAPON_DUMP_FIELD(changedFireTime);
+		WEAPON_DUMP_FIELD(changedFireTimeNumBullets);
 		WEAPON_DUMP_FIELD(fireTimeInterpolationType);
-		//WEAPON_DUMP_FIELD(iU_3408);
-		//WEAPON_DUMP_FIELD(iU_3412);
-		//WEAPON_DUMP_FIELD(iU_3416);
-		//WEAPON_DUMP_FIELD(iU_3420);
-		//WEAPON_DUMP_FIELD(iU_3424);
-		//WEAPON_DUMP_FIELD(bU_3432);
-		//WEAPON_DUMP_FIELD(bU_3433);
-		//WEAPON_DUMP_FIELD(bU_3434);
-		//WEAPON_DUMP_FIELD(bU_3435);
-		//WEAPON_DUMP_FIELD(bU_3437);
-		//WEAPON_DUMP_FIELD(bU_3438);
-		//WEAPON_DUMP_FIELD(bU_3439);
+		WEAPON_DUMP_FIELD(generateAmmo);
+		WEAPON_DUMP_FIELD(ammoPerShot);
+		WEAPON_DUMP_FIELD(explodeCount);
+		WEAPON_DUMP_FIELD(batteryDischargeRate);
+		WEAPON_DUMP_FIELD(extendedBattery);
+		WEAPON_DUMP_FIELD(rattleSoundType);
+		WEAPON_DUMP_FIELD(adsShouldShowCrosshair);
+		WEAPON_DUMP_FIELD(adsCrosshairShouldScale);
+		WEAPON_DUMP_FIELD(turretADSEnabled);
+		WEAPON_DUMP_FIELD(knifeAlwaysAttached);
+		WEAPON_DUMP_FIELD(meleeOverrideValues);
+		WEAPON_DUMP_FIELD(riotShieldEnableDamage);
+		WEAPON_DUMP_FIELD(allowPrimaryWeaponPickup);
 		WEAPON_DUMP_FIELD(sharedAmmo);
 		WEAPON_DUMP_FIELD(lockonSupported);
 		WEAPON_DUMP_FIELD(requireLockonToFire);
@@ -2958,23 +2946,23 @@ namespace zonetool::s1
 		WEAPON_DUMP_FIELD(boltAction);
 		WEAPON_DUMP_FIELD(aimDownSight);
 		WEAPON_DUMP_FIELD(canHoldBreath);
-		//WEAPON_DUMP_FIELD(bU_3454);
-		//WEAPON_DUMP_FIELD(bU_3455);
+		WEAPON_DUMP_FIELD(meleeOnly);
+		WEAPON_DUMP_FIELD(altMelee);
 		WEAPON_DUMP_FIELD(canVariableZoom);
 		WEAPON_DUMP_FIELD(rechamberWhileAds);
 		WEAPON_DUMP_FIELD(bulletExplosiveDamage);
 		WEAPON_DUMP_FIELD(cookOffHold);
+		WEAPON_DUMP_FIELD(useBattery);
 		WEAPON_DUMP_FIELD(reticleSpin45);
-		WEAPON_DUMP_FIELD(reticleSideEnabled);
 		WEAPON_DUMP_FIELD(clipOnly);
 		WEAPON_DUMP_FIELD(noAmmoPickup);
 		WEAPON_DUMP_FIELD(disableSwitchToWhenEmpty);
-		//WEAPON_DUMP_FIELD(bU_3465);
-		WEAPON_DUMP_FIELD(hasMotionTracker);
-		//WEAPON_DUMP_FIELD(bU_3467);
+		WEAPON_DUMP_FIELD(suppressAmmoReserveDisplay);
+		WEAPON_DUMP_FIELD(motionTracker);
+		WEAPON_DUMP_FIELD(markableViewmodel);
 		WEAPON_DUMP_FIELD(noDualWield);
 		WEAPON_DUMP_FIELD(flipKillIcon);
-		WEAPON_DUMP_FIELD(actionSlotShowAmmo);
+		WEAPON_DUMP_FIELD(dpadIconShowsAmmo);
 		WEAPON_DUMP_FIELD(noPartialReload);
 		WEAPON_DUMP_FIELD(segmentedReload);
 		WEAPON_DUMP_FIELD(multipleReload);
@@ -2990,12 +2978,12 @@ namespace zonetool::s1
 		WEAPON_DUMP_FIELD(stickToVehicles);
 		WEAPON_DUMP_FIELD(stickToTurrets);
 		WEAPON_DUMP_FIELD(thrownSideways);
-		WEAPON_DUMP_FIELD(hasDetonatorEmptyThrow);
-		WEAPON_DUMP_FIELD(hasDetonatorDoubleTap);
+		WEAPON_DUMP_FIELD(detonatesOnEmptyThrow);
+		WEAPON_DUMP_FIELD(detonatesOnDoubleTap);
 		WEAPON_DUMP_FIELD(disableFiring);
 		WEAPON_DUMP_FIELD(timedDetonation);
-		//WEAPON_DUMP_FIELD(bU_3528);
-		//WEAPON_DUMP_FIELD(bU_3529);
+		WEAPON_DUMP_FIELD(noCrumpleMissile);
+		WEAPON_DUMP_FIELD(fuseLitAfterImpact);
 		WEAPON_DUMP_FIELD(rotate);
 		WEAPON_DUMP_FIELD(holdButtonToThrow);
 		WEAPON_DUMP_FIELD(freezeMovementWhenFiring);
@@ -3010,31 +2998,36 @@ namespace zonetool::s1
 		WEAPON_DUMP_FIELD(offhandHoldIsCancelable);
 		WEAPON_DUMP_FIELD(doNotAllowAttachmentsToOverrideSpread);
 		WEAPON_DUMP_FIELD(useFastReloadAnims);
-		WEAPON_DUMP_FIELD(dualMagReloadSupported);
+		WEAPON_DUMP_FIELD(useDualMagReloadAnims);
 		WEAPON_DUMP_FIELD(reloadStopsAlt);
-		//WEAPON_DUMP_FIELD(bU_3546);
+		WEAPON_DUMP_FIELD(useScopeDrift);
 		WEAPON_DUMP_FIELD(alwaysShatterGlassOnImpact);
 		WEAPON_DUMP_FIELD(oldWeapon);
-		//WEAPON_DUMP_FIELD(bU_3511);
-		//WEAPON_DUMP_FIELD(bU_3512);
-		//WEAPON_DUMP_FIELD(bU_3513);
-		WEAPON_DUMP_FIELD(hasCounterSilencer);
-		//WEAPON_DUMP_FIELD(bU_3515);
-		//WEAPON_DUMP_FIELD(bU_3516);
-		WEAPON_DUMP_FIELD(disableVariableAutosimRate);
-		//WEAPON_DUMP_FIELD(bU_3518);
-		//WEAPON_DUMP_FIELD(bU_3519);
-		//WEAPON_DUMP_FIELD(bU_3520);
-		//WEAPON_DUMP_FIELD(bU_3521);
-		//WEAPON_DUMP_FIELD(bU_3522);
-		WEAPON_DUMP_FIELD(cloakedWeapon);
+		WEAPON_DUMP_FIELD(raiseToHold);
+		WEAPON_DUMP_FIELD(notifyOnPlayerImpact);
+		WEAPON_DUMP_FIELD(decreasingKick);
+		WEAPON_DUMP_FIELD(counterSilencer);
+		WEAPON_DUMP_FIELD(projSuppressedByEMP);
+		WEAPON_DUMP_FIELD(projDisabledByEMP);
+		WEAPON_DUMP_FIELD(autosimDisableVariableRate);
+		WEAPON_DUMP_FIELD(projPlayTrailEffectForOwnerOnly);
+		WEAPON_DUMP_FIELD(projPlayBeaconEffectForOwnerOnly);
+		WEAPON_DUMP_FIELD(projKillTrailEffectOnDeath);
+		WEAPON_DUMP_FIELD(projKillBeaconEffectOnDeath);
+		WEAPON_DUMP_FIELD(reticleDetonateHide);
+		WEAPON_DUMP_FIELD(cloaked);
 		WEAPON_DUMP_FIELD(adsHideWeapon);
-		//WEAPON_DUMP_FIELD(bU_3525);
-		//WEAPON_DUMP_FIELD(bU_3526);
-		//WEAPON_DUMP_FIELD(bU_3527);
-		WEAPON_DUMP_FIELD(adsDofPhysicalFStop);
+		WEAPON_DUMP_FIELD(hasTransientModels);
+		WEAPON_DUMP_FIELD(signatureAmmoAlternate);
+		WEAPON_DUMP_FIELD(useScriptCallbackForHit);
+		WEAPON_DUMP_FIELD(adsDofPhysicalFstop);
 		WEAPON_DUMP_FIELD(adsDofPhysicalFocusDistance);
-		// TODO: name and dump rest
+		WEAPON_DUMP_FIELD(autosimSpeedScale);
+		WEAPON_DUMP_FIELD(reactiveMotionRadiusScale);
+		WEAPON_DUMP_FIELD(reactiveMotionFrequencyScale);
+		WEAPON_DUMP_FIELD(reactiveMotionAmplitudeScale);
+		WEAPON_DUMP_FIELD(reactiveMotionFalloff);
+		WEAPON_DUMP_FIELD(reactiveMotionLifetime);
 
 		std::string json = data.dump(4);
 

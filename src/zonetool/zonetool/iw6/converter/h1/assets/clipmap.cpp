@@ -362,13 +362,14 @@ namespace zonetool::iw6
 					dest_instance->targetData = nullptr; // new
 					memcpy(dest_instance->origin, instance->origin, sizeof(float[3]));
 					memcpy(dest_instance->angles, instance->angles, sizeof(float[3]));
-					dest_instance->__pad0; // new
+					//dest_instance->startOrigin; // new
+					//dest_instance->startAngles;
 					dest_instance->targetname = static_cast<zonetool::h1::scr_string_t>(instance->targetname);
 					dest_instance->preBrushModel = instance->preBrushModel;
 					dest_instance->postBrushModel = instance->postBrushModel;
 					dest_instance->flags = instance->flags; // convert?
-					dest_instance->targetDataCount = 0; // new
-					dest_instance->__pad1; // new
+					dest_instance->targetCount = 0; // new
+					//dest_instance->__pad1; // new
 					dest_instance->currentModel = reinterpret_cast<zonetool::h1::XModel*>(instance->currentModel);
 					REINTERPRET_CAST_SAFE_TO_FROM(dest_instance->partStates, instance->partStates);
 					dest_instance->eventStreamBuf = instance->eventStreamBuf;
@@ -386,7 +387,7 @@ namespace zonetool::iw6
 				}
 				h1_asset->scriptableMapEnts.replicatedInstanceCount = asset->scriptableMapEnts.replicatedInstanceCount;
 
-				h1_asset->grappleData;
+				//h1_asset->grapple;
 
 				h1_asset->checksum = asset->checksum;
 

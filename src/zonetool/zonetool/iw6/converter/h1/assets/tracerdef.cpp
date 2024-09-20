@@ -16,7 +16,7 @@ namespace zonetool::iw6
 
 				REINTERPRET_CAST_SAFE(name);
 				new_asset->material = reinterpret_cast<zonetool::h1::Material*>(asset->material);
-				new_asset->effect = nullptr;
+				new_asset->effectDef = nullptr;
 				COPY_VALUE(drawInterval);
 				COPY_VALUE(speed);
 				COPY_VALUE(beamLength);

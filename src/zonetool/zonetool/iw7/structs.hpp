@@ -85,9 +85,7 @@ namespace zonetool::iw7
 	typedef vec_t vec3_t[3];
 	typedef vec_t vec4_t[4];
 
-	enum scr_string_t : std::int32_t
-	{
-	};
+	typedef std::int32_t scr_string_t;
 
 	enum XAssetType : std::int32_t
 	{

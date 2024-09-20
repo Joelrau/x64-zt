@@ -17,7 +17,7 @@ namespace zonetool::s1
 
 		const auto asset = read.read_single<Clut>();
 		asset->name = read.read_string();
-		asset->unk = read.read_array<char>();
+		asset->pixels = read.read_array<unsigned char>();
 
 		return asset;
 	}
@@ -65,11 +65,11 @@ namespace zonetool::s1
 
 		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 
-		if (data->unk)
+		if (data->pixels)
 		{
 			buf->align(0);
-			buf->write(data->unk, 4 * data->count0 * data->count1 * data->count2);
-			buf->clear_pointer(&dest->unk);
+			buf->write(data->pixels, 4 * data->width * data->height * data->depth);
+			buf->clear_pointer(&dest->pixels);
 		}
 
 		dest->name = buf->write_str(this->name());
@@ -89,7 +89,7 @@ namespace zonetool::s1
 
 		dumper.dump_single(asset);
 		dumper.dump_string(asset->name);
-		dumper.dump_array(asset->unk, 4 * asset->count0 * asset->count1 * asset->count2);
+		dumper.dump_array(asset->pixels, 4 * asset->width * asset->height * asset->depth);
 
 		dumper.close();
 	}

@@ -39,7 +39,7 @@ namespace zonetool::iw6
 				COPY_VALUE(numLods);
 				COPY_VALUE(collLod);
 				new_asset->numCompositeModels = 0;
-				new_asset->u1 = 0;
+				new_asset->reactiveMotionLOD = 0;
 				new_asset->flags = static_cast<short>(asset->flags); // convert?
 				new_asset->numCollSurfs = static_cast<short>(asset->numCollSurfs);
 				REINTERPRET_CAST_SAFE(collSurfs);
@@ -51,12 +51,12 @@ namespace zonetool::iw6
 				COPY_VALUE(memUsage);
 				new_asset->bad = 0;
 				new_asset->pad = 0;
-				new_asset->targetCount = 0;
-				new_asset->numberOfWeights = 0;
-				new_asset->numberOfWeightMaps = 0;
+				new_asset->blendShapeCount = 0;
+				new_asset->numberOfBlendShapeWeights = 0;
+				new_asset->numberOfBlendShapeWeightMaps = 0;
 				memset(new_asset->__pad2, 0, sizeof(new_asset->__pad2));
-				new_asset->weightNames = nullptr;
-				new_asset->blendShapeWeightMap = nullptr;
+				new_asset->blendShapeWeightNames = nullptr;
+				new_asset->blendShapeWeightMaps = nullptr;
 				if (asset->physPreset)
 				{
 					new_asset->physPreset = allocator.allocate<zonetool::h1::PhysPreset>();
@@ -79,7 +79,7 @@ namespace zonetool::iw6
 
 				//if (asset->flags & 0x1) // reactive motion
 				//{
-				//	new_asset->u1 = 6; // lodInfo[6]
+				//	new_asset->reactiveMotionLOD = 6; // lodInfo[6]
 				//}
 
 				return new_asset;

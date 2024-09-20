@@ -56,14 +56,14 @@ namespace zonetool::s1
 		asset->portalGroup = read.read_array<GfxPortalGroup>();
 		for (unsigned int i = 0; i < asset->portalGroupCount; i++)
 		{
-			if (asset->portalGroup[i].group)
+			if (asset->portalGroup[i].targetName)
 			{
-				asset->portalGroup[i].group = read.read_string();
+				asset->portalGroup[i].targetName = read.read_string();
 			}
-			asset->portalGroup[i].info = read.read_array<GfxPortalGroupInfo>();
+			asset->portalGroup[i].gfxPortalArray = read.read_array<GfxPortalGroupInfo>();
 		}
 
-		asset->unk_vec4_0 = read.read_array<vec4_t>();
+		asset->portalDistanceAnchorsAndCloseDistSquared = read.read_array<vec4_t>();
 
 		asset->draw.reflectionProbes = read.read_array<GfxImage*>();
 		for (unsigned int i = 0; i < asset->draw.reflectionProbeCount; i++)
@@ -77,7 +77,7 @@ namespace zonetool::s1
 			asset->draw.reflectionProbeOrigins[i].probeVolumes = read.read_array<GfxReflectionProbeVolume>();
 			for (unsigned int j = 0; j < asset->draw.reflectionProbeOrigins[i].probeVolumeCount; j++)
 			{
-				asset->draw.reflectionProbeOrigins[i].probeVolumes[j].data = read.read_array<unsigned short>();
+				asset->draw.reflectionProbeOrigins[i].probeVolumes[j].probeVolumePlanes = read.read_array<unsigned short>();
 			}
 		}
 
@@ -220,13 +220,13 @@ namespace zonetool::s1
 		{
 			asset->dpvs.smodelDrawInsts[i].model = read.read_asset<XModel>();
 		}
-		asset->dpvs.smodelLighting = read.read_array<GfxStaticModelLighting>();
+		asset->dpvs.smodelLightingInsts = read.read_array<GfxStaticModelLighting>();
 		for (unsigned int i = 0; i < asset->dpvs.smodelCount; i++)
 		{
 			auto flags = asset->dpvs.smodelDrawInsts[i].flags;
-			if ((flags & 0x180) != 0 && (flags & 0x80) != 0 && asset->dpvs.smodelLighting[i].vertexLightingInfo.lightingValues)
+			if ((flags & 0x180) != 0 && (flags & 0x80) != 0 && asset->dpvs.smodelLightingInsts[i].vertexLightingInfo.lightingValues)
 			{
-				asset->dpvs.smodelLighting[i].vertexLightingInfo.lightingValues = read.read_array<GfxStaticModelVertexLighting>();
+				asset->dpvs.smodelLightingInsts[i].vertexLightingInfo.lightingValues = read.read_array<GfxStaticModelVertexLighting>();
 			}
 		}
 
@@ -273,10 +273,10 @@ namespace zonetool::s1
 			asset->mdaoVolumes[i].volumeData = read.read_asset<GfxImage>();
 		}
 
-		asset->buildInfo.args0 = read.read_string();
-		asset->buildInfo.args1 = read.read_string();
-		asset->buildInfo.buildStartTime = read.read_string();
-		asset->buildInfo.buildEndTime = read.read_string();
+		asset->buildInfo.bspCommandline = read.read_string();
+		asset->buildInfo.lightCommandline = read.read_string();
+		asset->buildInfo.bspTimestamp = read.read_string();
+		asset->buildInfo.lightTimestamp = read.read_string();
 
 		read.close();
 
@@ -570,26 +570,26 @@ namespace zonetool::s1
 
 			for (unsigned int i = 0; i < data->portalGroupCount; i++)
 			{
-				if (data->portalGroup[i].group)
+				if (data->portalGroup[i].targetName)
 				{
-					portalGroups[i].group = buf->write_str(data->portalGroup[i].group);
+					portalGroups[i].targetName = buf->write_str(data->portalGroup[i].targetName);
 				}
-				if (data->portalGroup[i].info)
+				if (data->portalGroup[i].gfxPortalArray)
 				{
 					buf->align(3);
-					buf->write(data->portalGroup[i].info, data->portalGroup[i].infoCount);
-					buf->clear_pointer(&portalGroups[i].info);
+					buf->write(data->portalGroup[i].gfxPortalArray, data->portalGroup[i].numPortals);
+					buf->clear_pointer(&portalGroups[i].gfxPortalArray);
 				}
 			}
 
 			buf->clear_pointer(&dest->portalGroup);
 		}
 
-		if (data->unk_vec4_0)
+		if (data->portalDistanceAnchorsAndCloseDistSquared)
 		{
 			buf->align(3);
-			buf->write(data->unk_vec4_0, data->unk_vec4_count_0);
-			buf->clear_pointer(&dest->unk_vec4_0);
+			buf->write(data->portalDistanceAnchorsAndCloseDistSquared, data->portalDistanceAnchorCount);
+			buf->clear_pointer(&dest->portalDistanceAnchorsAndCloseDistSquared);
 		}
 
 		if (data->draw.reflectionProbes)
@@ -624,11 +624,11 @@ namespace zonetool::s1
 
 					for (unsigned int j = 0; j < data->draw.reflectionProbeOrigins[i].probeVolumeCount; j++)
 					{
-						if (probeVolumes[j].data)
+						if (probeVolumes[j].probeVolumePlanes)
 						{
 							buf->align(1);
-							buf->write(data->draw.reflectionProbeOrigins[i].probeVolumes[j].data, data->draw.reflectionProbeOrigins[i].probeVolumes[j].count);
-							buf->clear_pointer(&probeVolumes[j].data);
+							buf->write(data->draw.reflectionProbeOrigins[i].probeVolumes[j].probeVolumePlanes, data->draw.reflectionProbeOrigins[i].probeVolumes[j].probeVolumePlaneCount);
+							buf->clear_pointer(&probeVolumes[j].probeVolumePlanes);
 						}
 					}
 
@@ -1551,24 +1551,24 @@ namespace zonetool::s1
 			buf->clear_pointer(&dest->dpvs.smodelDrawInsts);
 		}
 
-		if (data->dpvs.smodelLighting)
+		if (data->dpvs.smodelLightingInsts)
 		{
 			buf->align(3);
-			auto destlighting = buf->write(data->dpvs.smodelLighting, data->dpvs.smodelCount);
+			auto destlighting = buf->write(data->dpvs.smodelLightingInsts, data->dpvs.smodelCount);
 
 			for (unsigned int i = 0; i < data->dpvs.smodelCount; i++)
 			{
 				auto flags = data->dpvs.smodelDrawInsts[i].flags;
-				if ((flags & 0x180) != 0 && (flags & 0x80) != 0 && data->dpvs.smodelLighting[i].vertexLightingInfo.lightingValues)
+				if ((flags & 0x180) != 0 && (flags & 0x80) != 0 && data->dpvs.smodelLightingInsts[i].vertexLightingInfo.lightingValues)
 				{
 					destlighting[i].vertexLightingInfo.lightingValuesVb = nullptr;
 					buf->align(3);
-					buf->write(data->dpvs.smodelLighting[i].vertexLightingInfo.lightingValues, data->dpvs.smodelLighting[i].vertexLightingInfo.numLightingValues);
+					buf->write(data->dpvs.smodelLightingInsts[i].vertexLightingInfo.lightingValues, data->dpvs.smodelLightingInsts[i].vertexLightingInfo.numLightingValues);
 					buf->clear_pointer(&destlighting[i].vertexLightingInfo.lightingValues);
 				}
 			}
 
-			buf->clear_pointer(&dest->dpvs.smodelLighting);
+			buf->clear_pointer(&dest->dpvs.smodelLightingInsts);
 		}
 
 		if (data->dpvs.subdivVertexLighting)
@@ -1744,21 +1744,21 @@ namespace zonetool::s1
 			buf->clear_pointer(&dest->mdaoVolumes);
 		}
 
-		if (data->buildInfo.args0)
+		if (data->buildInfo.bspCommandline)
 		{
-			dest->buildInfo.args0 = buf->write_str(data->buildInfo.args0);
+			dest->buildInfo.bspCommandline = buf->write_str(data->buildInfo.bspCommandline);
 		}
-		if (data->buildInfo.args1)
+		if (data->buildInfo.lightCommandline)
 		{
-			dest->buildInfo.args1 = buf->write_str(data->buildInfo.args1);
+			dest->buildInfo.lightCommandline = buf->write_str(data->buildInfo.lightCommandline);
 		}
-		if (data->buildInfo.buildStartTime)
+		if (data->buildInfo.bspTimestamp)
 		{
-			dest->buildInfo.buildStartTime = buf->write_str(data->buildInfo.buildStartTime);
+			dest->buildInfo.bspTimestamp = buf->write_str(data->buildInfo.bspTimestamp);
 		}
-		if (data->buildInfo.buildEndTime)
+		if (data->buildInfo.lightTimestamp)
 		{
-			dest->buildInfo.buildEndTime = buf->write_str(data->buildInfo.buildEndTime);
+			dest->buildInfo.lightTimestamp = buf->write_str(data->buildInfo.lightTimestamp);
 		}
 
 		buf->pop_stream();
@@ -1816,15 +1816,15 @@ namespace zonetool::s1
 		write.dump_array(asset->portalGroup, asset->portalGroupCount);
 		for (unsigned int i = 0; i < asset->portalGroupCount; i++)
 		{
-			if (asset->portalGroup[i].group)
+			if (asset->portalGroup[i].targetName)
 			{
-				write.dump_string(asset->portalGroup[i].group);
+				write.dump_string(asset->portalGroup[i].targetName);
 			}
 
-			write.dump_array(asset->portalGroup[i].info, asset->portalGroup[i].infoCount);
+			write.dump_array(asset->portalGroup[i].gfxPortalArray, asset->portalGroup[i].numPortals);
 		}
 
-		write.dump_array(asset->unk_vec4_0, asset->unk_vec4_count_0);
+		write.dump_array(asset->portalDistanceAnchorsAndCloseDistSquared, asset->portalDistanceAnchorCount);
 
 		write.dump_array(asset->draw.reflectionProbes, asset->draw.reflectionProbeCount);
 		for (unsigned int i = 0; i < asset->draw.reflectionProbeCount; i++)
@@ -1838,7 +1838,7 @@ namespace zonetool::s1
 			write.dump_array(asset->draw.reflectionProbeOrigins[i].probeVolumes, asset->draw.reflectionProbeOrigins[i].probeVolumeCount);
 			for (unsigned int j = 0; j < asset->draw.reflectionProbeOrigins[i].probeVolumeCount; j++)
 			{
-				write.dump_array(asset->draw.reflectionProbeOrigins[i].probeVolumes[j].data, asset->draw.reflectionProbeOrigins[i].probeVolumes[j].count);
+				write.dump_array(asset->draw.reflectionProbeOrigins[i].probeVolumes[j].probeVolumePlanes, asset->draw.reflectionProbeOrigins[i].probeVolumes[j].probeVolumePlaneCount);
 			}
 		}
 
@@ -1985,13 +1985,13 @@ namespace zonetool::s1
 		{
 			write.dump_asset(asset->dpvs.smodelDrawInsts[i].model);
 		}
-		write.dump_array(asset->dpvs.smodelLighting, asset->dpvs.smodelCount);
+		write.dump_array(asset->dpvs.smodelLightingInsts, asset->dpvs.smodelCount);
 		for (unsigned int i = 0; i < asset->dpvs.smodelCount; i++)
 		{
 			auto flags = asset->dpvs.smodelDrawInsts[i].flags;
-			if ((flags & 0x180) != 0 && (flags & 0x80) != 0 && asset->dpvs.smodelLighting[i].vertexLightingInfo.lightingValues)
+			if ((flags & 0x180) != 0 && (flags & 0x80) != 0 && asset->dpvs.smodelLightingInsts[i].vertexLightingInfo.lightingValues)
 			{
-				write.dump_array(asset->dpvs.smodelLighting[i].vertexLightingInfo.lightingValues, asset->dpvs.smodelLighting[i].vertexLightingInfo.numLightingValues);
+				write.dump_array(asset->dpvs.smodelLightingInsts[i].vertexLightingInfo.lightingValues, asset->dpvs.smodelLightingInsts[i].vertexLightingInfo.numLightingValues);
 			}
 		}
 
@@ -2040,10 +2040,10 @@ namespace zonetool::s1
 			write.dump_asset(asset->mdaoVolumes[i].volumeData);
 		}
 
-		write.dump_string(asset->buildInfo.args0);
-		write.dump_string(asset->buildInfo.args1);
-		write.dump_string(asset->buildInfo.buildStartTime);
-		write.dump_string(asset->buildInfo.buildEndTime);
+		write.dump_string(asset->buildInfo.bspCommandline);
+		write.dump_string(asset->buildInfo.lightCommandline);
+		write.dump_string(asset->buildInfo.bspTimestamp);
+		write.dump_string(asset->buildInfo.lightTimestamp);
 
 		write.close();
 	}

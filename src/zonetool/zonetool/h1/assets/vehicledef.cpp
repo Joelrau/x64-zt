@@ -90,11 +90,11 @@ namespace zonetool::h1
 			"snowmobile",
 			"submarine",
 			"ugv",
-			"unk9",
-			"unk10",
+			"walker",
+			"ball_wheels",
 			"mobilecover",
 			"jetbike",
-			"unk13",
+			"recon_ugv",
 			"hovertank",
 			"divehoat",
 		};
@@ -130,16 +130,16 @@ namespace zonetool::h1
 
 			VEHICLE_READ_STRING(accelGraphName);
 
-			//VEHICLE_READ_FIELD(int, unk_48);
-			//VEHICLE_READ_FIELD(int, unk_52);
-			//VEHICLE_READ_FIELD(int, unk_56);
+			VEHICLE_READ_FIELD(int, steeringAxle);
+			VEHICLE_READ_FIELD(int, powerAxle);
+			VEHICLE_READ_FIELD(int, brakingAxle);
 			VEHICLE_READ_FIELD(float, topSpeed);
-			//VEHICLE_READ_FIELD(float, unk_64);
+			VEHICLE_READ_FIELD(float, topSpeedTurbo);
 			VEHICLE_READ_FIELD(float, reverseSpeed);
 			VEHICLE_READ_FIELD(float, maxVelocity);
 			VEHICLE_READ_FIELD(float, maxPitch);
 			VEHICLE_READ_FIELD(float, maxRoll);
-			//VEHICLE_READ_FIELD(float, unk_84);
+			VEHICLE_READ_FIELD(float, wheelRadius);
 			VEHICLE_READ_FIELD(float, suspensionTravelFront);
 			VEHICLE_READ_FIELD(float, suspensionTravelRear);
 			VEHICLE_READ_FIELD(float, suspensionStrengthFront);
@@ -151,14 +151,14 @@ namespace zonetool::h1
 			VEHICLE_READ_FIELD(float, frictionTopSpeed);
 			VEHICLE_READ_FIELD(float, frictionSide);
 			VEHICLE_READ_FIELD(float, frictionSideRear);
-			//VEHICLE_READ_FIELD(float, unk_132);
-			//VEHICLE_READ_FIELD(float, unk_136);
-			//VEHICLE_READ_FIELD(float, unk_140);
-			//VEHICLE_READ_FIELD(float, unk_144);
-			//VEHICLE_READ_FIELD(float, unk_148);
-			//VEHICLE_READ_FIELD(float, unk_152);
-			//VEHICLE_READ_FIELD(float, unk_156);
-			//VEHICLE_READ_FIELD(float, unk_160);
+			VEHICLE_READ_FIELD(float, handBrakeLongitudinalSteerableFrictionScale);
+			VEHICLE_READ_FIELD(float, handBrakeLateralSteerableFrictionScale);
+			VEHICLE_READ_FIELD(float, handBrakeLongitudinalNonsteerableFrictionScale);
+			VEHICLE_READ_FIELD(float, handBrakeLateralNonsteerableFrictionScale);
+			VEHICLE_READ_FIELD(float, handBrakingStrength);
+			VEHICLE_READ_FIELD(float, handBrakeExtraYawTorque);
+			VEHICLE_READ_FIELD(float, speedAtMaxHandBrakeExtraYawTorque);
+			VEHICLE_READ_FIELD(float, driveForceFalloffFraction);
 			VEHICLE_READ_FIELD(float, velocityDependentSlip);
 			VEHICLE_READ_FIELD(float, rollStability);
 			VEHICLE_READ_FIELD(float, rollResistance);
@@ -181,8 +181,8 @@ namespace zonetool::h1
 			VEHICLE_READ_FIELD(float, slipFricRateFront);
 			VEHICLE_READ_FIELD(float, slipFricRateRear);
 			VEHICLE_READ_FIELD(float, slipYawTorque);
-			//VEHICLE_READ_FIELD(float, unk_252);
-			//VEHICLE_READ_FIELD(float, unk_256);
+			VEHICLE_READ_FIELD(float, cruiseControlProportionalGain);
+			VEHICLE_READ_FIELD(float, cruiseControlIntegralGain);
 			//VEHICLE_READ_FIELD(float, unk_260);
 		}
 	}
@@ -232,34 +232,14 @@ namespace zonetool::h1
 
 		auto* vehicle = mem->allocate<VehicleDef>();
 
-		// base asset
-		auto base = data["baseAsset"].get<std::string>();
-		VehicleDef* baseAsset = nullptr;
-		if (!base.empty())
-		{
-			baseAsset = db_find_x_asset_header(ASSET_TYPE_VEHICLE, base.data(), 0).vehDef;
-			if (baseAsset == nullptr/* || DB_IsXAssetDefault(ASSET_TYPE_VEHICLE, base.data())*/)
-			{
-				ZONETOOL_WARNING("Could not load base asset \"%s\" into memory...", base.data());
-			}
-			else
-			{
-				memcpy(vehicle, baseAsset, sizeof(VehicleDef));
-			}
-		}
-		else
-		{
-			ZONETOOL_WARNING("No base asset is defined for vehicle \"%s\", stuff might go wrong!", name.data());
-		}
-
 		VEHICLE_READ_STRING(name);
 		VEHICLE_READ_FIELD(VehicleType, type);
 		VEHICLE_READ_STRING(useHintString);
 		VEHICLE_READ_FIELD(int, health);
 		VEHICLE_READ_FIELD(int, quadBarrel);
-		//VEHICLE_READ_FIELD(int, unk_32);
-		//VEHICLE_READ_FIELD(int, unk_36);
-		//VEHICLE_READ_FIELD(int, unk_40);
+		VEHICLE_READ_FIELD(int, hitClientScriptables);
+		VEHICLE_READ_FIELD(int, multipleLinkedGroundEntities);
+		VEHICLE_READ_FIELD(int, hideVehicleForDriver);
 		VEHICLE_READ_FIELD(float, texScrollScale);
 		VEHICLE_READ_FIELD(float, topSpeed);
 		VEHICLE_READ_FIELD(float, accel);
@@ -267,7 +247,7 @@ namespace zonetool::h1
 		VEHICLE_READ_FIELD(float, rotAccel);
 		VEHICLE_READ_FIELD(float, maxBodyPitch);
 		VEHICLE_READ_FIELD(float, maxBodyRoll);
-		//VEHICLE_READ_FIELD(float, unk_72);
+		VEHICLE_READ_FIELD(int, legIK);
 		VEHICLE_READ_FIELD(float, fakeBodyAccelPitch);
 		VEHICLE_READ_FIELD(float, fakeBodyAccelRoll);
 		VEHICLE_READ_FIELD(float, fakeBodyVelPitch);
@@ -296,41 +276,42 @@ namespace zonetool::h1
 		VEHICLE_READ_FIELD(int, projectileDamage);
 		VEHICLE_READ_FIELD(int, projectileSplashDamage);
 		VEHICLE_READ_FIELD(int, heavyExplosiveDamage);
-		//VEHICLE_READ_FIELD(int, unk_196);
+		//VEHICLE_READ_FIELD(int, pad1);
 		
 		parse_veh_phys_def(&vehicle->vehPhysDef, data["vehPhysDef"], mem);
 
 		VEHICLE_READ_FIELD(float, boostDuration);
 		VEHICLE_READ_FIELD(float, boostRechargeTime);
 		VEHICLE_READ_FIELD(float, boostAcceleration);
-		//VEHICLE_READ_FIELD(float, unk_476);
+		VEHICLE_READ_FIELD(float, boostTopSpeed);
 		VEHICLE_READ_FIELD(float, suspensionTravel);
 		VEHICLE_READ_FIELD(float, maxSteeringAngle);
 		VEHICLE_READ_FIELD(float, steeringLerp);
-		//VEHICLE_READ_FIELD(float, steeringLerpUnk);
+		VEHICLE_READ_FIELD(float, steeringLerpCentering);
 		VEHICLE_READ_FIELD(float, minSteeringScale);
 		VEHICLE_READ_FIELD(float, minSteeringSpeed);
-		//VEHICLE_READ_FIELD(float, unk_504);
-		//VEHICLE_READ_FIELD(float, unk_508);
+		VEHICLE_READ_FIELD(float, disableWheelsTurning);
+		//VEHICLE_READ_FIELD(float, pad2);
 
-		VEHICLE_READ_ASSET(ASSET_TYPE_FX, fx, effect01);
-		VEHICLE_READ_ASSET(ASSET_TYPE_FX, fx, effect02);
-		VEHICLE_READ_ASSET(ASSET_TYPE_FX, fx, effect03);
-		VEHICLE_READ_ASSET(ASSET_TYPE_FX, fx, effect04);
-		VEHICLE_READ_ASSET(ASSET_TYPE_FX, fx, effect05);
+		VEHICLE_READ_ASSET(ASSET_TYPE_FX, fx, treadDefaultFx);
+		VEHICLE_READ_ASSET(ASSET_TYPE_FX, fx, handBrakeDefaultFx);
+		VEHICLE_READ_ASSET(ASSET_TYPE_FX, fx, handBrakeLeftFx);
+		VEHICLE_READ_ASSET(ASSET_TYPE_FX, fx, handBrakeRightFx);
+		VEHICLE_READ_ASSET(ASSET_TYPE_FX, fx, boostFx);
 
-		//VEHICLE_READ_FIELD(float, unk_552);
-		//VEHICLE_READ_FIELD(float, unk_556);
-		//VEHICLE_READ_FIELD(float, unk_560);
-		//VEHICLE_READ_FIELD(float, unk_564);
+		VEHICLE_READ_FIELD(float, treadFxSlowestRepeatRate);
+		VEHICLE_READ_FIELD(float, treadFxFastestRepeatRate);
+		VEHICLE_READ_FIELD(float, treadFxMinSpeed);
+		VEHICLE_READ_FIELD(float, treadFxMaxSpeed);
+
 		VEHICLE_READ_FIELD(int, vehHelicopterIsASplinePlane);
-		//VEHICLE_READ_FIELD(int, unk_572);
-		//VEHICLE_READ_FIELD(int, unk_576);
+		VEHICLE_READ_FIELD(int, vehHelicopterOrbitsAroundPoint);
+		VEHICLE_READ_FIELD(int, vehHelicopterLockAltitude);
 		VEHICLE_READ_FIELD(int, vehHelicopterOffsetFromMesh);
-		//VEHICLE_READ_FIELD(float, unk_584);
-		//VEHICLE_READ_FIELD(float, unk_588);
-		//VEHICLE_READ_FIELD(float, unk_592);
-		//VEHICLE_READ_FIELD(float, unk_596);
+		VEHICLE_READ_FIELD(float, vehHelicopterAltitudeOffset);
+		VEHICLE_READ_FIELD(float, vehHelicopterPitchOffset);
+		VEHICLE_READ_FIELD(float, vehHelicopterBoundsRadius);
+		VEHICLE_READ_FIELD(float, vehHelicopterBoundsOffsetZ);
 		VEHICLE_READ_FIELD(float, vehHelicopterMaxSpeed);
 		VEHICLE_READ_FIELD(float, vehHelicopterMaxSpeedVertical);
 		VEHICLE_READ_FIELD(float, vehHelicopterMaxAccel);
@@ -352,12 +333,12 @@ namespace zonetool::h1
 		VEHICLE_READ_FIELD(float, vehHelicopterMaxRoll);
 		VEHICLE_READ_FIELD(float, vehHelicopterHoverSpeedThreshold);
 		VEHICLE_READ_FIELD(float, vehHelicopterJitterJerkyness);
-		//VEHICLE_READ_FIELD(int, unk_684);
-		//VEHICLE_READ_FIELD(float, unk_688);
-		//VEHICLE_READ_FIELD(float, unk_692);
-		//VEHICLE_READ_FIELD(float, unk_696);
-		//VEHICLE_READ_FIELD(float, unk_700);
-		//VEHICLE_READ_FIELD(float, unk_704);
+		VEHICLE_READ_FIELD(int, vehHelicopterUseHoverWobble);
+		VEHICLE_READ_FIELD(float, vehHelicopterHoverWobblePhase);
+		VEHICLE_READ_FIELD(float, vehHelicopterHoverWobbleAmplitude);
+		VEHICLE_READ_FIELD(int, vehHelicopterUseBob);
+		VEHICLE_READ_FIELD(float, vehHelicopterBobPhase);
+		VEHICLE_READ_FIELD(float, vehHelicopterBobAmplitude);
 		VEHICLE_READ_FIELD(float, vehHelicopterLookaheadTime);
 		VEHICLE_READ_FIELD(int, vehHelicopterSoftCollisions);
 		VEHICLE_READ_FIELD(int, vehHelicopterUseGroundFX);
@@ -397,79 +378,79 @@ namespace zonetool::h1
 		VEHICLE_READ_FIELD(float, vehSplinePlaneMaxTiltPitch);
 		VEHICLE_READ_FIELD(float, vehSplinePlaneTiltRollRate);
 		VEHICLE_READ_FIELD(float, vehSplinePlaneTiltPitchRate);
-		//VEHICLE_READ_FIELD(float, unk_864);
-		//VEHICLE_READ_FIELD(float, unk_868);
-		//VEHICLE_READ_FIELD(float, unk_872);
-		//VEHICLE_READ_FIELD(float, unk_876);
-		//VEHICLE_READ_FIELD(float, unk_880);
-		//VEHICLE_READ_FIELD(float, unk_884);
-		//VEHICLE_READ_FIELD(float, unk_888);
-		//VEHICLE_READ_FIELD(float, unk_892);
-		//VEHICLE_READ_FIELD(float, unk_896);
-		//VEHICLE_READ_FIELD(float, unk_900);
-		//VEHICLE_READ_FIELD(float, unk_904);
-		//VEHICLE_READ_FIELD(float, unk_908);
-		//VEHICLE_READ_FIELD(float, unk_912);
-		//VEHICLE_READ_FIELD(float, unk_916);
-		//VEHICLE_READ_FIELD(float, unk_920);
-		//VEHICLE_READ_FIELD(float, unk_924);
-		//VEHICLE_READ_FIELD(float, unk_928);
-		//VEHICLE_READ_FIELD(float, unk_932);
-		//VEHICLE_READ_FIELD(float, unk_936);
-		//VEHICLE_READ_FIELD(float, unk_940);
-		//VEHICLE_READ_FIELD(float, unk_944);
-		//VEHICLE_READ_FIELD(float, unk_948);
-		//VEHICLE_READ_FIELD(float, unk_952);
-		//VEHICLE_READ_FIELD(float, unk_956);
-		//VEHICLE_READ_FIELD(float, unk_960);
-		//VEHICLE_READ_FIELD(float, unk_964);
-		//VEHICLE_READ_FIELD(float, unk_968);
-		//VEHICLE_READ_FIELD(float, unk_972);
-		//VEHICLE_READ_FIELD(float, unk_976);
-		//VEHICLE_READ_FIELD(float, unk_980);
-		//VEHICLE_READ_FIELD(float, unk_984);
-		//VEHICLE_READ_FIELD(float, unk_988);
-		//VEHICLE_READ_FIELD(float, unk_992);
-		//VEHICLE_READ_FIELD(float, unk_996);
-		//VEHICLE_READ_FIELD(float, unk_1000);
-		//VEHICLE_READ_FIELD(float, unk_1004);
-		//VEHICLE_READ_FIELD(float, unk_1008);
-		//VEHICLE_READ_FIELD(float, unk_1012);
-		//VEHICLE_READ_FIELD(float, unk_1016);
-		//VEHICLE_READ_FIELD(float, unk_1020);
-		//VEHICLE_READ_FIELD(float, unk_1024);
-		//VEHICLE_READ_FIELD(float, unk_1028);
-		//VEHICLE_READ_FIELD(float, unk_1032);
-		//VEHICLE_READ_FIELD(float, unk_1036);
-		//VEHICLE_READ_FIELD(float, unk_1040);
-		//VEHICLE_READ_FIELD(float, unk_1044);
+		VEHICLE_READ_FIELD(float, vehJetbikeThrottleForce);
+		VEHICLE_READ_FIELD(float, vehJetbikeStrafeForce);
+		VEHICLE_READ_FIELD(float, vehJetbikeYawTorque);
+		VEHICLE_READ_FIELD(float, vehJetbikePitchTorque);
+		VEHICLE_READ_FIELD(float, vehJetbikeYawDamping);
+		VEHICLE_READ_FIELD(float, vehJetbikePitchDamping);
+		VEHICLE_READ_FIELD(float, vehJetbikeRollDamping);
+		VEHICLE_READ_FIELD(float, vehJetbikeRepulsorMaxForceFraction);
+		VEHICLE_READ_FIELD(float, vehJetbikeRepulsorMinForceFraction);
+		VEHICLE_READ_FIELD(float, vehJetbikeRepulsorCompressionDampingConstant);
+		VEHICLE_READ_FIELD(float, vehJetbikeRepulsorReboundDampingConstant);
+		VEHICLE_READ_FIELD(float, vehJetbikeRepulsorTorqueScale);
+		VEHICLE_READ_FIELD(float, vehJetbikeRepulsorCrossCoupling);
+		VEHICLE_READ_FIELD(float, vehJetbikeAntislipConstant);
+		VEHICLE_READ_FIELD(float, vehJetbikeAntislipMaxForce);
+		VEHICLE_READ_FIELD(float, vehJetbikeControlForceLocalOffsetX);
+		VEHICLE_READ_FIELD(float, vehJetbikeControlForceLocalOffsetZ);
+		VEHICLE_READ_FIELD(float, vehJetbikeControlTorqueLocalOffsetX);
+		VEHICLE_READ_FIELD(float, vehJetbikeControlTorqueLocalOffsetZ);
+		VEHICLE_READ_FIELD(float, vehJetbikeMaxControlForce);
+		VEHICLE_READ_FIELD(float, vehJetbikeMinContactForFullControl);
+		VEHICLE_READ_FIELD(float, vehJetbikeThrustScaleWithNoContact);
+		VEHICLE_READ_FIELD(float, vehJetbikeTorqueScaleWithNoContact);
+		VEHICLE_READ_FIELD(float, vehJetbikeUprightingTorque);
+		VEHICLE_READ_FIELD(float, vehJetbikeUprightingTorqueWithNoContact);
+		VEHICLE_READ_FIELD(float, vehJetbikeWeathervaneTorque);
+		VEHICLE_READ_FIELD(float, vehJetbikeWeathervaneTorqueWithNoContact);
+		VEHICLE_READ_FIELD(float, vehJetbikeAiSteeringConstant);
+		VEHICLE_READ_FIELD(float, vehJetbikeAiStationarySteeringScale);
+		VEHICLE_READ_FIELD(float, vehJetbikeAiThrottleConstant);
+		VEHICLE_READ_FIELD(float, vehHovertankAutoYawForce);
+		VEHICLE_READ_FIELD(float, vehHovertankAutoBrakeForce);
+		VEHICLE_READ_FIELD(float, vehHovertankRandomHoverForceMagMin);
+		VEHICLE_READ_FIELD(float, vehHovertankRandomHoverForceMagMax);
+		VEHICLE_READ_FIELD(float, vehHovertankRandomHoverForceStartTimerMin);
+		VEHICLE_READ_FIELD(float, vehHovertankRandomHoverForceStartTimerMax);
+		VEHICLE_READ_FIELD(float, vehHovertankRandomHoverForceDurationMin);
+		VEHICLE_READ_FIELD(float, vehHovertankRandomHoverForceDurationMax);
+		VEHICLE_READ_FIELD(float, vehDiveboatInitialDiveForceFactor);
+		VEHICLE_READ_FIELD(float, vehDiveboatContinuingDiveForceFactor);
+		VEHICLE_READ_FIELD(float, vehDiveboatMaxDiveTime);
+		VEHICLE_READ_FIELD(float, vehDiveboatDiveResetTime);
+		VEHICLE_READ_FIELD(float, vehDiveboatSubmergedDragFactor);
+		VEHICLE_READ_FIELD(float, vehDiveboatRollFactor);
+		VEHICLE_READ_FIELD(float, vehDiveboatBuoyancyOffset);
+		VEHICLE_READ_FIELD(float, pad3);
 
-		VEHICLE_READ_STRING(steeringGraphName);
-		//VEHICLE_READ_FIELD(float, numSteeringGraphs); // runtime
+		VEHICLE_READ_STRING(vehDiveboatSteeringGraphName);
+		//VEHICLE_READ_FIELD(int, steeringGraphIndex); // runtime
 
-		//VEHICLE_READ_FIELD(float, unk_1060);
-		//VEHICLE_READ_FIELD(float, unk_1064);
-		//VEHICLE_READ_FIELD(float, unk_1068);
-		//VEHICLE_READ_FIELD(float, unk_1072);
-		//VEHICLE_READ_FIELD(float, unk_1076);
-		//VEHICLE_READ_FIELD(float, unk_1080);
-		//VEHICLE_READ_FIELD(float, unk_1084);
-		//VEHICLE_READ_FIELD(float, unk_1088);
-		//VEHICLE_READ_FIELD(float, unk_1092);
-		//VEHICLE_READ_FIELD(float, unk_1096);
-		//VEHICLE_READ_FIELD(float, unk_1100);
-		//VEHICLE_READ_FIELD(float, unk_1104);
-		//VEHICLE_READ_FIELD(float, unk_1108);
-		//VEHICLE_READ_FIELD(float, unk_1112);
-		//VEHICLE_READ_FIELD(float, unk_1116);
-		//VEHICLE_READ_FIELD(float, unk_1120);
-		//VEHICLE_READ_FIELD(float, unk_1124);
-		//VEHICLE_READ_FIELD(float, unk_1128);
-		//VEHICLE_READ_FIELD(float, unk_1132);
-		//VEHICLE_READ_FIELD(float, unk_1136);
-		//VEHICLE_READ_FIELD(float, unk_1140);
-		//VEHICLE_READ_FIELD(float, unk_1144);
-		//VEHICLE_READ_FIELD(float, unk_1148);
+		VEHICLE_READ_FIELD(float, vehOrbiterMinYaw);
+		VEHICLE_READ_FIELD(float, vehOrbiterMaxYaw);
+		VEHICLE_READ_FIELD(float, vehOrbiterMinZ);
+		VEHICLE_READ_FIELD(float, vehOrbiterMaxZ);
+		VEHICLE_READ_FIELD(float, vehOrbiterAngularAcceleration);
+		VEHICLE_READ_FIELD(float, vehOrbiterAngularMaxVelocity);
+		VEHICLE_READ_FIELD(float, vehOrbiterAngularDeceleration);
+		VEHICLE_READ_FIELD(float, vehOrbiterAngularADSDeceleration);
+		VEHICLE_READ_FIELD(float, vehOrbiterAngularBraking);
+		VEHICLE_READ_FIELD(float, vehOrbiterAngularADSBraking);
+		VEHICLE_READ_FIELD(float, vehOrbiterAngularLookAheadTime);
+		VEHICLE_READ_FIELD(float, vehOrbiterVerticalAcceleration);
+		VEHICLE_READ_FIELD(float, vehOrbiterVerticalMaxVelocity);
+		VEHICLE_READ_FIELD(float, vehOrbiterVerticalDeceleration);
+		VEHICLE_READ_FIELD(float, vehOrbiterVerticalADSDeceleration);
+		VEHICLE_READ_FIELD(float, vehOrbiterVerticalBraking);
+		VEHICLE_READ_FIELD(float, vehOrbiterVerticalADSBraking);
+		VEHICLE_READ_FIELD(float, vehOrbiterVerticalLookAheadTime);
+		VEHICLE_READ_FIELD(float, vehOrbiterADSVelocityMult);
+		VEHICLE_READ_FIELD(float, vehOrbiterTiltRollMax);
+		VEHICLE_READ_FIELD(float, vehOrbiterTiltRollRate);
+		VEHICLE_READ_FIELD(float, vehOrbiterTiltPitchMax);
+		VEHICLE_READ_FIELD(float, vehOrbiterTiltPitchRate);
 		VEHICLE_READ_FIELD(int, camLookEnabled);
 		VEHICLE_READ_FIELD(int, camRelativeControl);
 		VEHICLE_READ_FIELD(int, camRemoteDrive);
@@ -487,19 +468,19 @@ namespace zonetool::h1
 		VEHICLE_READ_FIELD(float, camVehicleAnglePitchRate);
 		VEHICLE_READ_FIELD(float, camVehicleAngleYawRate);
 		VEHICLE_READ_FIELD(float, camVehicleAngleRollRate);
-		//VEHICLE_READ_FIELD(float, unk_1220);
-		//VEHICLE_READ_FIELD(float, unk_1224);
-		//VEHICLE_READ_FIELD(float, unk_1228);
-		//VEHICLE_READ_FIELD(float, unk_1232);
-		//VEHICLE_READ_FIELD(float, unk_1236);
-		//VEHICLE_READ_FIELD(float, unk_1240);
-		//VEHICLE_READ_FIELD(float, unk_1244);
-		//VEHICLE_READ_FIELD(float, unk_1248);
-		//VEHICLE_READ_FIELD(float, unk_1252);
-		//VEHICLE_READ_FIELD(float, unk_1256);
-		//VEHICLE_READ_FIELD(float, unk_1260);
-		//VEHICLE_READ_FIELD(float, unk_1264);
-		//VEHICLE_READ_FIELD(int, unk_1268);
+		VEHICLE_READ_FIELD(float, camShakeMinSpeed);
+		VEHICLE_READ_FIELD(float, camShakeMaxSpeed);
+		VEHICLE_READ_FIELD(float, camShakeMinFreq);
+		VEHICLE_READ_FIELD(float, camShakeMaxFreq);
+		VEHICLE_READ_FIELD(float, camShakeMaxAmplitudePitch);
+		VEHICLE_READ_FIELD(float, camShakeMaxAmplitudeYaw);
+		VEHICLE_READ_FIELD(float, camShakeMaxAmplitudeRoll);
+		VEHICLE_READ_FIELD(float, camShakeMaxAmplitudeX);
+		VEHICLE_READ_FIELD(float, camShakeMaxAmplitudeY);
+		VEHICLE_READ_FIELD(float, camShakeMaxAmplitudeZ);
+		VEHICLE_READ_FIELD(float, camShakeMinAmplitudeScale);
+		VEHICLE_READ_FIELD(int, camShakeTurretInherit);
+		VEHICLE_READ_FIELD(int, vehCam_UseGDT);
 		VEHICLE_READ_FIELD(float, vehCam_anglesPitch);
 		VEHICLE_READ_FIELD(float, vehCam_anglesYaw);
 		VEHICLE_READ_FIELD(float, vehCam_anglesRoll);
@@ -524,10 +505,10 @@ namespace zonetool::h1
 		VEHICLE_READ_FIELD(float, vehCam_pitchTurnRate3P);
 		VEHICLE_READ_FIELD(float, vehCam_pitchClamp3P);
 		VEHICLE_READ_FIELD(float, vehCam_yawTurnRate3P);
-		//VEHICLE_READ_FIELD(float, unk_1368);
+		VEHICLE_READ_FIELD(float, vehCam_yawTurnRate3PHandbrakeInc);
 		VEHICLE_READ_FIELD(float, vehCam_yawClamp3P);
 		VEHICLE_READ_FIELD(VehCamZOffsetMode, vehCam_zOffsetMode3P);
-		//VEHICLE_READ_FIELD(float, unk_1380);
+		//VEHICLE_READ_FIELD(float, pad4);
 
 		VEHICLE_READ_STRING(turretWeaponName);
 		VEHICLE_READ_ASSET(ASSET_TYPE_WEAPON, weapon, turretWeapon);
@@ -575,7 +556,7 @@ namespace zonetool::h1
 		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, idleHighSnd);
 		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, engineLowSnd);
 		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, engineHighSnd);
-		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, sound_1584);
+		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, boostSnd);
 
 		VEHICLE_READ_FIELD(float, engineSndSpeed);
 		if (!data["audioOriginTag"].empty())
@@ -637,7 +618,6 @@ namespace zonetool::h1
 		VEHICLE_READ_FIELD(bool, soundTriggerOverrideOcclusion);
 		VEHICLE_READ_FIELD(bool, soundTriggerOverrideAmbient);
 		VEHICLE_READ_FIELD(bool, soundTriggerOverrideAmbientEvents);
-		VEHICLE_READ_FIELD(bool, soundTriggerOverrideADSR);
 
 		return vehicle;
 	}
@@ -688,11 +668,11 @@ namespace zonetool::h1
 
 		VEHICLE_SUBASSET_DEPENDING(vehPhysDef.physPreset, ASSET_TYPE_PHYSPRESET);
 
-		VEHICLE_SUBASSET_DEPENDING(effect01, ASSET_TYPE_FX);
-		VEHICLE_SUBASSET_DEPENDING(effect02, ASSET_TYPE_FX);
-		VEHICLE_SUBASSET_DEPENDING(effect03, ASSET_TYPE_FX);
-		VEHICLE_SUBASSET_DEPENDING(effect04, ASSET_TYPE_FX);
-		VEHICLE_SUBASSET_DEPENDING(effect05, ASSET_TYPE_FX);
+		VEHICLE_SUBASSET_DEPENDING(treadDefaultFx, ASSET_TYPE_FX);
+		VEHICLE_SUBASSET_DEPENDING(handBrakeDefaultFx, ASSET_TYPE_FX);
+		VEHICLE_SUBASSET_DEPENDING(handBrakeLeftFx, ASSET_TYPE_FX);
+		VEHICLE_SUBASSET_DEPENDING(handBrakeRightFx, ASSET_TYPE_FX);
+		VEHICLE_SUBASSET_DEPENDING(boostFx, ASSET_TYPE_FX);
 		VEHICLE_SUBASSET_DEPENDING(vehHelicopterGroundFx, ASSET_TYPE_FX);
 		VEHICLE_SUBASSET_DEPENDING(vehHelicopterGroundWaterFx, ASSET_TYPE_FX);
 
@@ -713,7 +693,7 @@ namespace zonetool::h1
 		VEHICLE_SUBASSET_DEPENDING(idleHighSnd, ASSET_TYPE_SOUND);
 		VEHICLE_SUBASSET_DEPENDING(engineLowSnd, ASSET_TYPE_SOUND);
 		VEHICLE_SUBASSET_DEPENDING(engineHighSnd, ASSET_TYPE_SOUND);
-		VEHICLE_SUBASSET_DEPENDING(sound_1584, ASSET_TYPE_SOUND);
+		VEHICLE_SUBASSET_DEPENDING(boostSnd, ASSET_TYPE_SOUND);
 
 		VEHICLE_SUBASSET_DEPENDING(idleLowSndAlt, ASSET_TYPE_SOUND);
 		VEHICLE_SUBASSET_DEPENDING(idleHighSndAlt, ASSET_TYPE_SOUND);
@@ -796,16 +776,16 @@ namespace zonetool::h1
 
 		VEHICLE_STRING(vehPhysDef.accelGraphName);
 
-		VEHICLE_SUBASSET(effect01, ASSET_TYPE_FX, FxEffectDef);
-		VEHICLE_SUBASSET(effect02, ASSET_TYPE_FX, FxEffectDef);
-		VEHICLE_SUBASSET(effect03, ASSET_TYPE_FX, FxEffectDef);
-		VEHICLE_SUBASSET(effect04, ASSET_TYPE_FX, FxEffectDef);
-		VEHICLE_SUBASSET(effect05, ASSET_TYPE_FX, FxEffectDef);
+		VEHICLE_SUBASSET(treadDefaultFx, ASSET_TYPE_FX, FxEffectDef);
+		VEHICLE_SUBASSET(handBrakeDefaultFx, ASSET_TYPE_FX, FxEffectDef);
+		VEHICLE_SUBASSET(handBrakeLeftFx, ASSET_TYPE_FX, FxEffectDef);
+		VEHICLE_SUBASSET(handBrakeRightFx, ASSET_TYPE_FX, FxEffectDef);
+		VEHICLE_SUBASSET(boostFx, ASSET_TYPE_FX, FxEffectDef);
 
 		VEHICLE_SUBASSET(vehHelicopterGroundFx, ASSET_TYPE_FX, FxEffectDef);
 		VEHICLE_SUBASSET(vehHelicopterGroundWaterFx, ASSET_TYPE_FX, FxEffectDef);
 
-		VEHICLE_STRING(steeringGraphName);
+		VEHICLE_STRING(vehDiveboatSteeringGraphName);
 		VEHICLE_STRING(turretWeaponName);
 
 		VEHICLE_SUBASSET(turretWeapon, ASSET_TYPE_WEAPON, WeaponDef);
@@ -825,7 +805,7 @@ namespace zonetool::h1
 		VEHICLE_SOUND_CUSTOM(idleHighSnd);
 		VEHICLE_SOUND_CUSTOM(engineLowSnd);
 		VEHICLE_SOUND_CUSTOM(engineHighSnd);
-		VEHICLE_SOUND_CUSTOM(sound_1584);
+		VEHICLE_SOUND_CUSTOM(boostSnd);
 		VEHICLE_SOUND_CUSTOM(idleLowSndAlt);
 		VEHICLE_SOUND_CUSTOM(idleHighSndAlt);
 		VEHICLE_SOUND_CUSTOM(engineLowSndAlt);
@@ -944,16 +924,16 @@ namespace zonetool::h1
 
 		VEHICLE_DUMP_STRING(accelGraphName);
 
-		//VEHICLE_DUMP_FIELD(unk_48);
-		//VEHICLE_DUMP_FIELD(unk_52);
-		//VEHICLE_DUMP_FIELD(unk_56);
+		VEHICLE_DUMP_FIELD(steeringAxle);
+		VEHICLE_DUMP_FIELD(powerAxle);
+		VEHICLE_DUMP_FIELD(brakingAxle);
 		VEHICLE_DUMP_FIELD(topSpeed);
-		//VEHICLE_DUMP_FIELD(unk_64);
+		VEHICLE_DUMP_FIELD(topSpeedTurbo);
 		VEHICLE_DUMP_FIELD(reverseSpeed);
 		VEHICLE_DUMP_FIELD(maxVelocity);
 		VEHICLE_DUMP_FIELD(maxPitch);
 		VEHICLE_DUMP_FIELD(maxRoll);
-		//VEHICLE_DUMP_FIELD(unk_84);
+		VEHICLE_DUMP_FIELD(wheelRadius);
 		VEHICLE_DUMP_FIELD(suspensionTravelFront);
 		VEHICLE_DUMP_FIELD(suspensionTravelRear);
 		VEHICLE_DUMP_FIELD(suspensionStrengthFront);
@@ -965,14 +945,14 @@ namespace zonetool::h1
 		VEHICLE_DUMP_FIELD(frictionTopSpeed);
 		VEHICLE_DUMP_FIELD(frictionSide);
 		VEHICLE_DUMP_FIELD(frictionSideRear);
-		//VEHICLE_DUMP_FIELD(unk_132);
-		//VEHICLE_DUMP_FIELD(unk_136);
-		//VEHICLE_DUMP_FIELD(unk_140);
-		//VEHICLE_DUMP_FIELD(unk_144);
-		//VEHICLE_DUMP_FIELD(unk_148);
-		//VEHICLE_DUMP_FIELD(unk_152);
-		//VEHICLE_DUMP_FIELD(unk_156);
-		//VEHICLE_DUMP_FIELD(unk_160);
+		VEHICLE_DUMP_FIELD(handBrakeLongitudinalSteerableFrictionScale);
+		VEHICLE_DUMP_FIELD(handBrakeLateralSteerableFrictionScale);
+		VEHICLE_DUMP_FIELD(handBrakeLongitudinalNonsteerableFrictionScale);
+		VEHICLE_DUMP_FIELD(handBrakeLateralNonsteerableFrictionScale);
+		VEHICLE_DUMP_FIELD(handBrakingStrength);
+		VEHICLE_DUMP_FIELD(handBrakeExtraYawTorque);
+		VEHICLE_DUMP_FIELD(speedAtMaxHandBrakeExtraYawTorque);
+		VEHICLE_DUMP_FIELD(driveForceFalloffFraction);
 		VEHICLE_DUMP_FIELD(velocityDependentSlip);
 		VEHICLE_DUMP_FIELD(rollStability);
 		VEHICLE_DUMP_FIELD(rollResistance);
@@ -995,8 +975,8 @@ namespace zonetool::h1
 		VEHICLE_DUMP_FIELD(slipFricRateFront);
 		VEHICLE_DUMP_FIELD(slipFricRateRear);
 		VEHICLE_DUMP_FIELD(slipYawTorque);
-		//VEHICLE_DUMP_FIELD(unk_252);
-		//VEHICLE_DUMP_FIELD(unk_256);
+		VEHICLE_DUMP_FIELD(cruiseControlProportionalGain);
+		VEHICLE_DUMP_FIELD(cruiseControlIntegralGain);
 		//VEHICLE_DUMP_FIELD(unk_260);
 	}
 
@@ -1006,16 +986,14 @@ namespace zonetool::h1
 
 		ordered_json data;
 
-		data["baseAsset"] = asset->name;
-
 		VEHICLE_DUMP_FIELD(name);
 		VEHICLE_DUMP_FIELD(type);
 		VEHICLE_DUMP_STRING(useHintString);
 		VEHICLE_DUMP_FIELD(health);
 		VEHICLE_DUMP_FIELD(quadBarrel);
-		//VEHICLE_DUMP_FIELD(unk_32);
-		//VEHICLE_DUMP_FIELD(unk_36);
-		//VEHICLE_DUMP_FIELD(unk_40);
+		VEHICLE_DUMP_FIELD(hitClientScriptables);
+		VEHICLE_DUMP_FIELD(multipleLinkedGroundEntities);
+		VEHICLE_DUMP_FIELD(hideVehicleForDriver);
 		VEHICLE_DUMP_FIELD(texScrollScale);
 		VEHICLE_DUMP_FIELD(topSpeed);
 		VEHICLE_DUMP_FIELD(accel);
@@ -1023,7 +1001,7 @@ namespace zonetool::h1
 		VEHICLE_DUMP_FIELD(rotAccel);
 		VEHICLE_DUMP_FIELD(maxBodyPitch);
 		VEHICLE_DUMP_FIELD(maxBodyRoll);
-		//VEHICLE_DUMP_FIELD(unk_72);
+		VEHICLE_DUMP_FIELD(legIK);
 		VEHICLE_DUMP_FIELD(fakeBodyAccelPitch);
 		VEHICLE_DUMP_FIELD(fakeBodyAccelRoll);
 		VEHICLE_DUMP_FIELD(fakeBodyVelPitch);
@@ -1052,41 +1030,42 @@ namespace zonetool::h1
 		VEHICLE_DUMP_FIELD(projectileDamage);
 		VEHICLE_DUMP_FIELD(projectileSplashDamage);
 		VEHICLE_DUMP_FIELD(heavyExplosiveDamage);
-		//VEHICLE_DUMP_FIELD(unk_196);
+		//VEHICLE_DUMP_FIELD(pad1);
 
 		dump_veh_phys_def(&asset->vehPhysDef, data["vehPhysDef"]);
 
 		VEHICLE_DUMP_FIELD(boostDuration);
 		VEHICLE_DUMP_FIELD(boostRechargeTime);
 		VEHICLE_DUMP_FIELD(boostAcceleration);
-		//VEHICLE_DUMP_FIELD(unk_476);
+		VEHICLE_DUMP_FIELD(boostTopSpeed);
 		VEHICLE_DUMP_FIELD(suspensionTravel);
 		VEHICLE_DUMP_FIELD(maxSteeringAngle);
 		VEHICLE_DUMP_FIELD(steeringLerp);
-		//VEHICLE_DUMP_FIELD(steeringLerpUnk);
+		VEHICLE_DUMP_FIELD(steeringLerpCentering);
 		VEHICLE_DUMP_FIELD(minSteeringScale);
 		VEHICLE_DUMP_FIELD(minSteeringSpeed);
-		//VEHICLE_DUMP_FIELD(unk_504);
-		//VEHICLE_DUMP_FIELD(unk_508);
+		VEHICLE_DUMP_FIELD(disableWheelsTurning);
+		//VEHICLE_DUMP_FIELD(pad2);
 
-		VEHICLE_DUMP_ASSET(effect01);
-		VEHICLE_DUMP_ASSET(effect02);
-		VEHICLE_DUMP_ASSET(effect03);
-		VEHICLE_DUMP_ASSET(effect04);
-		VEHICLE_DUMP_ASSET(effect05);
+		VEHICLE_DUMP_ASSET(treadDefaultFx);
+		VEHICLE_DUMP_ASSET(handBrakeDefaultFx);
+		VEHICLE_DUMP_ASSET(handBrakeLeftFx);
+		VEHICLE_DUMP_ASSET(handBrakeRightFx);
+		VEHICLE_DUMP_ASSET(boostFx);
 
-		//VEHICLE_DUMP_FIELD(unk_552);
-		//VEHICLE_DUMP_FIELD(unk_556);
-		//VEHICLE_DUMP_FIELD(unk_560);
-		//VEHICLE_DUMP_FIELD(unk_564);
+		VEHICLE_DUMP_FIELD(treadFxSlowestRepeatRate);
+		VEHICLE_DUMP_FIELD(treadFxFastestRepeatRate);
+		VEHICLE_DUMP_FIELD(treadFxMinSpeed);
+		VEHICLE_DUMP_FIELD(treadFxMaxSpeed);
+
 		VEHICLE_DUMP_FIELD(vehHelicopterIsASplinePlane);
-		//VEHICLE_DUMP_FIELD(unk_572);
-		//VEHICLE_DUMP_FIELD(unk_576);
+		VEHICLE_DUMP_FIELD(vehHelicopterOrbitsAroundPoint);
+		VEHICLE_DUMP_FIELD(vehHelicopterLockAltitude);
 		VEHICLE_DUMP_FIELD(vehHelicopterOffsetFromMesh);
-		//VEHICLE_DUMP_FIELD(unk_584);
-		//VEHICLE_DUMP_FIELD(unk_588);
-		//VEHICLE_DUMP_FIELD(unk_592);
-		//VEHICLE_DUMP_FIELD(unk_596);
+		VEHICLE_DUMP_FIELD(vehHelicopterAltitudeOffset);
+		VEHICLE_DUMP_FIELD(vehHelicopterPitchOffset);
+		VEHICLE_DUMP_FIELD(vehHelicopterBoundsRadius);
+		VEHICLE_DUMP_FIELD(vehHelicopterBoundsOffsetZ);
 		VEHICLE_DUMP_FIELD(vehHelicopterMaxSpeed);
 		VEHICLE_DUMP_FIELD(vehHelicopterMaxSpeedVertical);
 		VEHICLE_DUMP_FIELD(vehHelicopterMaxAccel);
@@ -1108,12 +1087,12 @@ namespace zonetool::h1
 		VEHICLE_DUMP_FIELD(vehHelicopterMaxRoll);
 		VEHICLE_DUMP_FIELD(vehHelicopterHoverSpeedThreshold);
 		VEHICLE_DUMP_FIELD(vehHelicopterJitterJerkyness);
-		//VEHICLE_DUMP_FIELD(unk_684);
-		//VEHICLE_DUMP_FIELD(unk_688);
-		//VEHICLE_DUMP_FIELD(unk_692);
-		//VEHICLE_DUMP_FIELD(unk_696);
-		//VEHICLE_DUMP_FIELD(unk_700);
-		//VEHICLE_DUMP_FIELD(unk_704);
+		VEHICLE_DUMP_FIELD(vehHelicopterUseHoverWobble);
+		VEHICLE_DUMP_FIELD(vehHelicopterHoverWobblePhase);
+		VEHICLE_DUMP_FIELD(vehHelicopterHoverWobbleAmplitude);
+		VEHICLE_DUMP_FIELD(vehHelicopterUseBob);
+		VEHICLE_DUMP_FIELD(vehHelicopterBobPhase);
+		VEHICLE_DUMP_FIELD(vehHelicopterBobAmplitude);
 		VEHICLE_DUMP_FIELD(vehHelicopterLookaheadTime);
 		VEHICLE_DUMP_FIELD(vehHelicopterSoftCollisions);
 		VEHICLE_DUMP_FIELD(vehHelicopterUseGroundFX);
@@ -1153,79 +1132,79 @@ namespace zonetool::h1
 		VEHICLE_DUMP_FIELD(vehSplinePlaneMaxTiltPitch);
 		VEHICLE_DUMP_FIELD(vehSplinePlaneTiltRollRate);
 		VEHICLE_DUMP_FIELD(vehSplinePlaneTiltPitchRate);
-		//VEHICLE_DUMP_FIELD(unk_864);
-		//VEHICLE_DUMP_FIELD(unk_868);
-		//VEHICLE_DUMP_FIELD(unk_872);
-		//VEHICLE_DUMP_FIELD(unk_876);
-		//VEHICLE_DUMP_FIELD(unk_880);
-		//VEHICLE_DUMP_FIELD(unk_884);
-		//VEHICLE_DUMP_FIELD(unk_888);
-		//VEHICLE_DUMP_FIELD(unk_892);
-		//VEHICLE_DUMP_FIELD(unk_896);
-		//VEHICLE_DUMP_FIELD(unk_900);
-		//VEHICLE_DUMP_FIELD(unk_904);
-		//VEHICLE_DUMP_FIELD(unk_908);
-		//VEHICLE_DUMP_FIELD(unk_912);
-		//VEHICLE_DUMP_FIELD(unk_916);
-		//VEHICLE_DUMP_FIELD(unk_920);
-		//VEHICLE_DUMP_FIELD(unk_924);
-		//VEHICLE_DUMP_FIELD(unk_928);
-		//VEHICLE_DUMP_FIELD(unk_932);
-		//VEHICLE_DUMP_FIELD(unk_936);
-		//VEHICLE_DUMP_FIELD(unk_940);
-		//VEHICLE_DUMP_FIELD(unk_944);
-		//VEHICLE_DUMP_FIELD(unk_948);
-		//VEHICLE_DUMP_FIELD(unk_952);
-		//VEHICLE_DUMP_FIELD(unk_956);
-		//VEHICLE_DUMP_FIELD(unk_960);
-		//VEHICLE_DUMP_FIELD(unk_964);
-		//VEHICLE_DUMP_FIELD(unk_968);
-		//VEHICLE_DUMP_FIELD(unk_972);
-		//VEHICLE_DUMP_FIELD(unk_976);
-		//VEHICLE_DUMP_FIELD(unk_980);
-		//VEHICLE_DUMP_FIELD(unk_984);
-		//VEHICLE_DUMP_FIELD(unk_988);
-		//VEHICLE_DUMP_FIELD(unk_992);
-		//VEHICLE_DUMP_FIELD(unk_996);
-		//VEHICLE_DUMP_FIELD(unk_1000);
-		//VEHICLE_DUMP_FIELD(unk_1004);
-		//VEHICLE_DUMP_FIELD(unk_1008);
-		//VEHICLE_DUMP_FIELD(unk_1012);
-		//VEHICLE_DUMP_FIELD(unk_1016);
-		//VEHICLE_DUMP_FIELD(unk_1020);
-		//VEHICLE_DUMP_FIELD(unk_1024);
-		//VEHICLE_DUMP_FIELD(unk_1028);
-		//VEHICLE_DUMP_FIELD(unk_1032);
-		//VEHICLE_DUMP_FIELD(unk_1036);
-		//VEHICLE_DUMP_FIELD(unk_1040);
-		//VEHICLE_DUMP_FIELD(unk_1044);
+		VEHICLE_DUMP_FIELD(vehJetbikeThrottleForce);
+		VEHICLE_DUMP_FIELD(vehJetbikeStrafeForce);
+		VEHICLE_DUMP_FIELD(vehJetbikeYawTorque);
+		VEHICLE_DUMP_FIELD(vehJetbikePitchTorque);
+		VEHICLE_DUMP_FIELD(vehJetbikeYawDamping);
+		VEHICLE_DUMP_FIELD(vehJetbikePitchDamping);
+		VEHICLE_DUMP_FIELD(vehJetbikeRollDamping);
+		VEHICLE_DUMP_FIELD(vehJetbikeRepulsorMaxForceFraction);
+		VEHICLE_DUMP_FIELD(vehJetbikeRepulsorMinForceFraction);
+		VEHICLE_DUMP_FIELD(vehJetbikeRepulsorCompressionDampingConstant);
+		VEHICLE_DUMP_FIELD(vehJetbikeRepulsorReboundDampingConstant);
+		VEHICLE_DUMP_FIELD(vehJetbikeRepulsorTorqueScale);
+		VEHICLE_DUMP_FIELD(vehJetbikeRepulsorCrossCoupling);
+		VEHICLE_DUMP_FIELD(vehJetbikeAntislipConstant);
+		VEHICLE_DUMP_FIELD(vehJetbikeAntislipMaxForce);
+		VEHICLE_DUMP_FIELD(vehJetbikeControlForceLocalOffsetX);
+		VEHICLE_DUMP_FIELD(vehJetbikeControlForceLocalOffsetZ);
+		VEHICLE_DUMP_FIELD(vehJetbikeControlTorqueLocalOffsetX);
+		VEHICLE_DUMP_FIELD(vehJetbikeControlTorqueLocalOffsetZ);
+		VEHICLE_DUMP_FIELD(vehJetbikeMaxControlForce);
+		VEHICLE_DUMP_FIELD(vehJetbikeMinContactForFullControl);
+		VEHICLE_DUMP_FIELD(vehJetbikeThrustScaleWithNoContact);
+		VEHICLE_DUMP_FIELD(vehJetbikeTorqueScaleWithNoContact);
+		VEHICLE_DUMP_FIELD(vehJetbikeUprightingTorque);
+		VEHICLE_DUMP_FIELD(vehJetbikeUprightingTorqueWithNoContact);
+		VEHICLE_DUMP_FIELD(vehJetbikeWeathervaneTorque);
+		VEHICLE_DUMP_FIELD(vehJetbikeWeathervaneTorqueWithNoContact);
+		VEHICLE_DUMP_FIELD(vehJetbikeAiSteeringConstant);
+		VEHICLE_DUMP_FIELD(vehJetbikeAiStationarySteeringScale);
+		VEHICLE_DUMP_FIELD(vehJetbikeAiThrottleConstant);
+		VEHICLE_DUMP_FIELD(vehHovertankAutoYawForce);
+		VEHICLE_DUMP_FIELD(vehHovertankAutoBrakeForce);
+		VEHICLE_DUMP_FIELD(vehHovertankRandomHoverForceMagMin);
+		VEHICLE_DUMP_FIELD(vehHovertankRandomHoverForceMagMax);
+		VEHICLE_DUMP_FIELD(vehHovertankRandomHoverForceStartTimerMin);
+		VEHICLE_DUMP_FIELD(vehHovertankRandomHoverForceStartTimerMax);
+		VEHICLE_DUMP_FIELD(vehHovertankRandomHoverForceDurationMin);
+		VEHICLE_DUMP_FIELD(vehHovertankRandomHoverForceDurationMax);
+		VEHICLE_DUMP_FIELD(vehDiveboatInitialDiveForceFactor);
+		VEHICLE_DUMP_FIELD(vehDiveboatContinuingDiveForceFactor);
+		VEHICLE_DUMP_FIELD(vehDiveboatMaxDiveTime);
+		VEHICLE_DUMP_FIELD(vehDiveboatDiveResetTime);
+		VEHICLE_DUMP_FIELD(vehDiveboatSubmergedDragFactor);
+		VEHICLE_DUMP_FIELD(vehDiveboatRollFactor);
+		VEHICLE_DUMP_FIELD(vehDiveboatBuoyancyOffset);
+		//VEHICLE_DUMP_FIELD(pad3);
 
-		VEHICLE_DUMP_STRING(steeringGraphName);
-		//VEHICLE_DUMP_FIELD(numSteeringGraphs); // runtime
+		VEHICLE_DUMP_STRING(vehDiveboatSteeringGraphName);
+		//VEHICLE_DUMP_FIELD(steeringGraphIndex); // runtime
 
-		//VEHICLE_DUMP_FIELD(unk_1060);
-		//VEHICLE_DUMP_FIELD(unk_1064);
-		//VEHICLE_DUMP_FIELD(unk_1068);
-		//VEHICLE_DUMP_FIELD(unk_1072);
-		//VEHICLE_DUMP_FIELD(unk_1076);
-		//VEHICLE_DUMP_FIELD(unk_1080);
-		//VEHICLE_DUMP_FIELD(unk_1084);
-		//VEHICLE_DUMP_FIELD(unk_1088);
-		//VEHICLE_DUMP_FIELD(unk_1092);
-		//VEHICLE_DUMP_FIELD(unk_1096);
-		//VEHICLE_DUMP_FIELD(unk_1100);
-		//VEHICLE_DUMP_FIELD(unk_1104);
-		//VEHICLE_DUMP_FIELD(unk_1108);
-		//VEHICLE_DUMP_FIELD(unk_1112);
-		//VEHICLE_DUMP_FIELD(unk_1116);
-		//VEHICLE_DUMP_FIELD(unk_1120);
-		//VEHICLE_DUMP_FIELD(unk_1124);
-		//VEHICLE_DUMP_FIELD(unk_1128);
-		//VEHICLE_DUMP_FIELD(unk_1132);
-		//VEHICLE_DUMP_FIELD(unk_1136);
-		//VEHICLE_DUMP_FIELD(unk_1140);
-		//VEHICLE_DUMP_FIELD(unk_1144);
-		//VEHICLE_DUMP_FIELD(unk_1148);
+		VEHICLE_DUMP_FIELD(vehOrbiterMinYaw);
+		VEHICLE_DUMP_FIELD(vehOrbiterMaxYaw);
+		VEHICLE_DUMP_FIELD(vehOrbiterMinZ);
+		VEHICLE_DUMP_FIELD(vehOrbiterMaxZ);
+		VEHICLE_DUMP_FIELD(vehOrbiterAngularAcceleration);
+		VEHICLE_DUMP_FIELD(vehOrbiterAngularMaxVelocity);
+		VEHICLE_DUMP_FIELD(vehOrbiterAngularDeceleration);
+		VEHICLE_DUMP_FIELD(vehOrbiterAngularADSDeceleration);
+		VEHICLE_DUMP_FIELD(vehOrbiterAngularBraking);
+		VEHICLE_DUMP_FIELD(vehOrbiterAngularADSBraking);
+		VEHICLE_DUMP_FIELD(vehOrbiterAngularLookAheadTime);
+		VEHICLE_DUMP_FIELD(vehOrbiterVerticalAcceleration);
+		VEHICLE_DUMP_FIELD(vehOrbiterVerticalMaxVelocity);
+		VEHICLE_DUMP_FIELD(vehOrbiterVerticalDeceleration);
+		VEHICLE_DUMP_FIELD(vehOrbiterVerticalADSDeceleration);
+		VEHICLE_DUMP_FIELD(vehOrbiterVerticalBraking);
+		VEHICLE_DUMP_FIELD(vehOrbiterVerticalADSBraking);
+		VEHICLE_DUMP_FIELD(vehOrbiterVerticalLookAheadTime);
+		VEHICLE_DUMP_FIELD(vehOrbiterADSVelocityMult);
+		VEHICLE_DUMP_FIELD(vehOrbiterTiltRollMax);
+		VEHICLE_DUMP_FIELD(vehOrbiterTiltRollRate);
+		VEHICLE_DUMP_FIELD(vehOrbiterTiltPitchMax);
+		VEHICLE_DUMP_FIELD(vehOrbiterTiltPitchRate);
 		VEHICLE_DUMP_FIELD(camLookEnabled);
 		VEHICLE_DUMP_FIELD(camRelativeControl);
 		VEHICLE_DUMP_FIELD(camRemoteDrive);
@@ -1243,19 +1222,19 @@ namespace zonetool::h1
 		VEHICLE_DUMP_FIELD(camVehicleAnglePitchRate);
 		VEHICLE_DUMP_FIELD(camVehicleAngleYawRate);
 		VEHICLE_DUMP_FIELD(camVehicleAngleRollRate);
-		//VEHICLE_DUMP_FIELD(unk_1220);
-		//VEHICLE_DUMP_FIELD(unk_1224);
-		//VEHICLE_DUMP_FIELD(unk_1228);
-		//VEHICLE_DUMP_FIELD(unk_1232);
-		//VEHICLE_DUMP_FIELD(unk_1236);
-		//VEHICLE_DUMP_FIELD(unk_1240);
-		//VEHICLE_DUMP_FIELD(unk_1244);
-		//VEHICLE_DUMP_FIELD(unk_1248);
-		//VEHICLE_DUMP_FIELD(unk_1252);
-		//VEHICLE_DUMP_FIELD(unk_1256);
-		//VEHICLE_DUMP_FIELD(unk_1260);
-		//VEHICLE_DUMP_FIELD(unk_1264);
-		//VEHICLE_DUMP_FIELD(unk_1268);
+		VEHICLE_DUMP_FIELD(camShakeMinSpeed);
+		VEHICLE_DUMP_FIELD(camShakeMaxSpeed);
+		VEHICLE_DUMP_FIELD(camShakeMinFreq);
+		VEHICLE_DUMP_FIELD(camShakeMaxFreq);
+		VEHICLE_DUMP_FIELD(camShakeMaxAmplitudePitch);
+		VEHICLE_DUMP_FIELD(camShakeMaxAmplitudeYaw);
+		VEHICLE_DUMP_FIELD(camShakeMaxAmplitudeRoll);
+		VEHICLE_DUMP_FIELD(camShakeMaxAmplitudeX);
+		VEHICLE_DUMP_FIELD(camShakeMaxAmplitudeY);
+		VEHICLE_DUMP_FIELD(camShakeMaxAmplitudeZ);
+		VEHICLE_DUMP_FIELD(camShakeMinAmplitudeScale);
+		VEHICLE_DUMP_FIELD(camShakeTurretInherit);
+		VEHICLE_DUMP_FIELD(vehCam_UseGDT);
 		VEHICLE_DUMP_FIELD(vehCam_anglesPitch);
 		VEHICLE_DUMP_FIELD(vehCam_anglesYaw);
 		VEHICLE_DUMP_FIELD(vehCam_anglesRoll);
@@ -1280,10 +1259,10 @@ namespace zonetool::h1
 		VEHICLE_DUMP_FIELD(vehCam_pitchTurnRate3P);
 		VEHICLE_DUMP_FIELD(vehCam_pitchClamp3P);
 		VEHICLE_DUMP_FIELD(vehCam_yawTurnRate3P);
-		//VEHICLE_DUMP_FIELD(unk_1368);
+		VEHICLE_DUMP_FIELD(vehCam_yawTurnRate3PHandbrakeInc);
 		VEHICLE_DUMP_FIELD(vehCam_yawClamp3P);
 		VEHICLE_DUMP_FIELD(vehCam_zOffsetMode3P);
-		//VEHICLE_DUMP_FIELD(unk_1380);
+		//VEHICLE_DUMP_FIELD(pad4);
 
 		VEHICLE_DUMP_STRING(turretWeaponName);
 		VEHICLE_DUMP_ASSET(turretWeapon);
@@ -1331,7 +1310,7 @@ namespace zonetool::h1
 		VEHICLE_DUMP_ASSET(idleHighSnd);
 		VEHICLE_DUMP_ASSET(engineLowSnd);
 		VEHICLE_DUMP_ASSET(engineHighSnd);
-		VEHICLE_DUMP_ASSET(sound_1584);
+		VEHICLE_DUMP_ASSET(boostSnd);
 		VEHICLE_DUMP_FIELD(engineSndSpeed);
 
 		if (asset->audioOriginTag)
@@ -1402,7 +1381,6 @@ namespace zonetool::h1
 		VEHICLE_DUMP_FIELD(soundTriggerOverrideOcclusion);
 		VEHICLE_DUMP_FIELD(soundTriggerOverrideAmbient);
 		VEHICLE_DUMP_FIELD(soundTriggerOverrideAmbientEvents);
-		VEHICLE_DUMP_FIELD(soundTriggerOverrideADSR);
 
 		std::string json = data.dump(4);
 

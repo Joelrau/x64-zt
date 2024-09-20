@@ -62,11 +62,11 @@ namespace zonetool::h1
 				REINTERPRET_CAST_SAFE(invHighMipRadius);
 				REINTERPRET_CAST_SAFE(mdaoVolumes);
 				COPY_VALUE(mdaoVolumeCount);
-				COPY_VALUE(targetCount);
-				COPY_VALUE(numberOfWeights);
-				COPY_VALUE(numberOfWeightMaps);
-				REINTERPRET_CAST_SAFE(weightNames);
-				REINTERPRET_CAST_SAFE(blendShapeWeightMap);
+				new_asset->targetCount = asset->blendShapeCount;//COPY_VALUE(targetCount);
+				new_asset->numberOfWeights = asset->numberOfBlendShapeWeights;//COPY_VALUE(numberOfWeights);
+				new_asset->numberOfWeightMaps = asset->numberOfBlendShapeWeightMaps;//COPY_VALUE(numberOfWeightMaps);
+				new_asset->weightNames = reinterpret_cast<zonetool::h2::scr_string_t*>(asset->blendShapeWeightNames);//REINTERPRET_CAST_SAFE(weightNames);
+				new_asset->blendShapeWeightMap = reinterpret_cast<zonetool::h2::BlendShapeWeightMap*>(asset->blendShapeWeightMaps);//REINTERPRET_CAST_SAFE(blendShapeWeightMap);
 				REINTERPRET_CAST_SAFE(physPreset);
 				REINTERPRET_CAST_SAFE(physCollmap);
 				COPY_VALUE(quantization);

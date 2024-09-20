@@ -57,18 +57,18 @@ namespace zonetool::h2
 				new_asset->portalGroup = allocator.allocate_array<zonetool::h1::GfxPortalGroup>(new_asset->portalGroupCount);
 				for (auto i = 0u; i < new_asset->portalGroupCount; i++)
 				{
-					COPY_VALUE(portalGroup[i].group);
-					REINTERPRET_CAST_SAFE(portalGroup[i].info);
-					COPY_VALUE(portalGroup[i].infoCount);
+					COPY_VALUE(portalGroup[i].targetName);
+					REINTERPRET_CAST_SAFE(portalGroup[i].gfxPortalArray);
+					COPY_VALUE(portalGroup[i].numPortals);
 				}
 
-				COPY_VALUE(unk_vec4_count_0);
-				REINTERPRET_CAST_SAFE(unk_vec4_0);
+				COPY_VALUE(portalDistanceAnchorCount);
+				REINTERPRET_CAST_SAFE(portalDistanceAnchorsAndCloseDistSquared);
 				COPY_VALUE_CAST(draw);
 				COPY_VALUE_CAST(lightGrid);
 				COPY_VALUE(modelCount);
 				REINTERPRET_CAST_SAFE(models);
-				COPY_VALUE_CAST(unkBounds);
+				COPY_VALUE_CAST(bounds);
 				COPY_VALUE_CAST(shadowBounds);
 				COPY_VALUE(checksum);
 				COPY_VALUE(materialMemoryCount);
@@ -133,13 +133,13 @@ namespace zonetool::h2
 						COPY_VALUE(dpvs.smodelDrawInsts[i].reflectionProbeIndex);
 						COPY_VALUE(dpvs.smodelDrawInsts[i].firstMtlSkinIndex);
 						COPY_VALUE(dpvs.smodelDrawInsts[i].sunShadowFlags);
-						new_asset->dpvs.smodelDrawInsts[i].unk0 = 1;
-						new_asset->dpvs.smodelDrawInsts[i].unk1 = asset->dpvs.smodelDrawInsts[i].unk;
+						new_asset->dpvs.smodelDrawInsts[i].reactiveMotionCullDist = asset->dpvs.smodelDrawInsts[i].cullDist;
+						new_asset->dpvs.smodelDrawInsts[i].reactiveMotionLOD = asset->dpvs.smodelDrawInsts[i].unk;
 					}
 
 					REINTERPRET_CAST_SAFE(dpvs.unknownSModelVisData1);
 					REINTERPRET_CAST_SAFE(dpvs.unknownSModelVisData2);
-					REINTERPRET_CAST_SAFE(dpvs.smodelLighting);
+					REINTERPRET_CAST_SAFE(dpvs.smodelLightingInsts);
 					REINTERPRET_CAST_SAFE(dpvs.subdivVertexLighting);
 					REINTERPRET_CAST_SAFE(dpvs.surfaceMaterials);
 					REINTERPRET_CAST_SAFE(dpvs.surfaceCastsSunShadow);

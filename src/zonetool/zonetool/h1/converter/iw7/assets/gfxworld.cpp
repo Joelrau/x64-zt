@@ -470,7 +470,7 @@ namespace zonetool::h1
 					COPY_VALUE(models[i].surfaceCount);
 				}
 
-				std::memcpy(&new_asset->bounds, &asset->unkBounds, sizeof(Bounds));
+				std::memcpy(&new_asset->bounds, &asset->bounds, sizeof(Bounds));
 
 				COPY_VALUE(checksum);
 				COPY_VALUE(materialMemoryCount);
@@ -547,9 +547,9 @@ namespace zonetool::h1
 					{
 						COPY_VALUE_CAST(dpvs.smodelDrawInsts[i].placement);
 
-						new_asset->dpvs.smodelDrawInsts[i].vertexLightingInfo.numLightingValues = asset->dpvs.smodelLighting[i].vertexLightingInfo.numLightingValues;
+						new_asset->dpvs.smodelDrawInsts[i].vertexLightingInfo.numLightingValues = asset->dpvs.smodelLightingInsts[i].vertexLightingInfo.numLightingValues;
 						new_asset->dpvs.smodelDrawInsts[i].vertexLightingInfo.lightingValues = 
-							reinterpret_cast<zonetool::iw7::GfxStaticModelVertexLighting*>(asset->dpvs.smodelLighting[i].vertexLightingInfo.lightingValues);
+							reinterpret_cast<zonetool::iw7::GfxStaticModelVertexLighting*>(asset->dpvs.smodelLightingInsts[i].vertexLightingInfo.lightingValues);
 
 						new_asset->dpvs.smodelDrawInsts[i].modelLightmapInfo.lightmapIndex = -1;
 

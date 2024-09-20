@@ -76,17 +76,16 @@ namespace zonetool::h1
 				COPY_VALUE(clientTrigger.triggerStringLength);
 				REINTERPRET_CAST_SAFE(clientTrigger.triggerString);
 				REINTERPRET_CAST_SAFE(clientTrigger.visionSetTriggers);
-				
-				new_asset->clientTrigger.unk1 = asset->clientTrigger.lightSetTriggers;
-				new_asset->clientTrigger.unk2 = asset->clientTrigger.colorGradingTriggers;
+				REINTERPRET_CAST_SAFE(clientTrigger.lightSetTriggers);
+				REINTERPRET_CAST_SAFE(clientTrigger.clutTriggers);
 				REINTERPRET_CAST_SAFE(clientTrigger.triggerType); // convert?
 				REINTERPRET_CAST_SAFE(clientTrigger.origins);
 				REINTERPRET_CAST_SAFE(clientTrigger.scriptDelay);
 				REINTERPRET_CAST_SAFE(clientTrigger.audioTriggers);
 				REINTERPRET_CAST_SAFE(clientTrigger.blendLookup);
-				new_asset->clientTrigger.unk3 = asset->clientTrigger.unk3;
-				new_asset->clientTrigger.unk4 = asset->clientTrigger.unk4;
-				new_asset->clientTrigger.unk5 = asset->clientTrigger.unk5;
+				REINTERPRET_CAST_SAFE(clientTrigger.npcTriggers);
+				REINTERPRET_CAST_SAFE(clientTrigger.contextTriggers);
+				REINTERPRET_CAST_SAFE(clientTrigger.waterTriggers);
 
 				COPY_VALUE_CAST(clientTriggerBlend);
 				COPY_VALUE_CAST(spawnList);

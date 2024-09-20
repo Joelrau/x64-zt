@@ -227,8 +227,8 @@ namespace zonetool::iw6
 				REINTERPRET_CAST_SAFE(clientTrigger.visionSetTriggers);
 				new_asset->clientTrigger.lightSetTriggers = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
 				std::fill(new_asset->clientTrigger.lightSetTriggers, new_asset->clientTrigger.lightSetTriggers + asset->clientTrigger.trigger.count, -1);
-				new_asset->clientTrigger.colorGradingTriggers = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
-				std::fill(new_asset->clientTrigger.colorGradingTriggers, new_asset->clientTrigger.colorGradingTriggers + asset->clientTrigger.trigger.count, -1);
+				new_asset->clientTrigger.clutTriggers = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
+				std::fill(new_asset->clientTrigger.clutTriggers, new_asset->clientTrigger.clutTriggers + asset->clientTrigger.trigger.count, -1);
 				
 				new_asset->clientTrigger.triggerType = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
 				for (unsigned int i = 0; i < asset->clientTrigger.trigger.count; i++)
@@ -240,14 +240,14 @@ namespace zonetool::iw6
 				REINTERPRET_CAST_SAFE(clientTrigger.scriptDelay);
 				REINTERPRET_CAST_SAFE(clientTrigger.audioTriggers);
 				REINTERPRET_CAST_SAFE(clientTrigger.blendLookup);
-				new_asset->clientTrigger.unk3 = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
-				std::fill(new_asset->clientTrigger.unk3, new_asset->clientTrigger.unk3 + asset->clientTrigger.trigger.count, -1);
-				new_asset->clientTrigger.unk4 = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
-				std::fill(new_asset->clientTrigger.unk4, new_asset->clientTrigger.unk4 + asset->clientTrigger.trigger.count, -1);
-				new_asset->clientTrigger.unk5 = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
-				std::fill(new_asset->clientTrigger.unk5, new_asset->clientTrigger.unk5 + asset->clientTrigger.trigger.count, -1);
-				new_asset->clientTrigger.unk6 = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
-				std::fill(new_asset->clientTrigger.unk6, new_asset->clientTrigger.unk6 + asset->clientTrigger.trigger.count, -1);
+				new_asset->clientTrigger.unkTriggers = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
+				std::fill(new_asset->clientTrigger.unkTriggers, new_asset->clientTrigger.unkTriggers + asset->clientTrigger.trigger.count, -1);
+				new_asset->clientTrigger.npcTriggers = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
+				std::fill(new_asset->clientTrigger.npcTriggers, new_asset->clientTrigger.npcTriggers + asset->clientTrigger.trigger.count, -1);
+				new_asset->clientTrigger.contextTriggers = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
+				std::fill(new_asset->clientTrigger.contextTriggers, new_asset->clientTrigger.contextTriggers + asset->clientTrigger.trigger.count, -1);
+				new_asset->clientTrigger.waterTriggers = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
+				std::fill(new_asset->clientTrigger.waterTriggers, new_asset->clientTrigger.waterTriggers + asset->clientTrigger.trigger.count, -1);
 
 				for (unsigned int i = 0; i < asset->clientTrigger.trigger.count; i++)
 				{

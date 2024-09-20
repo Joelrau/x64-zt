@@ -20,7 +20,7 @@ namespace zonetool::h1
 				// copy first 40 bytes
 				memcpy(new_asset, asset, 40);
 				// reticleViewModels
-				COPY_VALUE(szModeName)
+				COPY_VALUE(lobWorldModelName)
 				new_asset->camoWorldModelMaterialOverride = nullptr;
 				new_asset->camoViewModelMaterialOverride = nullptr;
 				COPY_VALUE_MEM(szXAnimsRightHanded, zonetool::s1::XAnimParts**)

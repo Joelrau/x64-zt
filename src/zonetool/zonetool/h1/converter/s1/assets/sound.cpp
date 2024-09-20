@@ -32,12 +32,13 @@ namespace zonetool::h1
 					new_head->soundFile = allocator.allocate<zonetool::s1::SoundFile>();
 					std::memcpy(new_head->soundFile, head->soundFile, sizeof(zonetool::s1::SoundFile));
 
-					new_head->mixerGroup = head->mixerGroup;
-					new_head->poly = head->poly;
+					new_head->squelchName = head->squelchName;
+					new_head->polyCount = head->polyCount > 142 ? 142 : head->polyCount;
 					if (head->dspBusIndex == SND_DSPBUS_NOTIMESCALE) new_head->dspBusIndex = zonetool::s1::SND_DSPBUS_DEFAULT; 
 					else new_head->dspBusIndex = head->dspBusIndex > 8 ? head->dspBusIndex - 1 : head->dspBusIndex;
 					new_head->priority = head->priority;
-					// pad/unknown
+					new_head->playCount = head->playCount;
+					new_head->polyClass = head->polyClass;
 					new_head->volMin = head->volMin;
 					new_head->volMax = head->volMax;
 					new_head->volModIndex = head->volModIndex; // should be the same
@@ -52,30 +53,31 @@ namespace zonetool::h1
 					new_head->slavePercentage = head->slavePercentage;
 					new_head->playbackPercentage = head->playbackPercentage;
 					new_head->probability = head->probability;
-					new_head->u1 = head->u1;
+					new_head->variationType = head->variationType;
 					new_head->sndContext = reinterpret_cast<zonetool::s1::SndContext*>(head->sndContext);
 					new_head->sequence = head->sequence;
 					new_head->lfePercentage = head->lfePercentage;
 					new_head->centerPercentage = head->centerPercentage;
 					new_head->startDelay = head->startDelay;
-					new_head->sndCurve = reinterpret_cast<zonetool::s1::SndCurve*>(head->sndCurve);
+					new_head->volumeFalloffCurve = reinterpret_cast<zonetool::s1::SndCurve*>(head->volumeFalloffCurve);
 					new_head->envelopMin = head->envelopMin;
 					new_head->envelopMax = head->envelopMax;
 					new_head->lpfCurve = reinterpret_cast<zonetool::s1::SndCurve*>(head->lpfCurve);
 					new_head->reverbSendCurve = reinterpret_cast<zonetool::s1::SndCurve*>(head->reverbSendCurve);
 					new_head->speakerMap = reinterpret_cast<zonetool::s1::SpeakerMap*>(head->speakerMap);
-					new_head->reverbWetMixOverride = head->reverbWetMixOverride;
-					new_head->focusPercentage = head->reverbMultiplier; // should be same
-					new_head->smartPanDistance2d = head->smartPanDistance2d;
-					new_head->smartPanDistance3d = head->smartPanDistance3d;
-					new_head->smartPanAttenuation3d = head->smartPanAttenuation3d;
-					new_head->envelopPercentage = head->envelopPercentage;
-					new_head->stereo3dAngle = head->stereo3dAngle;
-					new_head->stereo3dStart = head->stereo3dStart;
-					new_head->stereo3dEnd = head->stereo3dEnd;
+					new_head->wetMixOverride = head->wetMixOverride;
+					new_head->focusPercentage = head->focusPercentage;
+					new_head->smartpanDistance2d = head->smartpanDistance2d;
+					new_head->smartpanDistance3d = head->smartpanDistance3d;
+					new_head->smartpanAttenuation3d = head->smartpanAttenuation3d;
+					new_head->minSmartpan2dContribution = head->minSmartpan2dContribution;
+					new_head->stereo3DAngle = head->stereo3DAngle;
+					new_head->stereo3DStart = head->stereo3DStart;
+					new_head->stereo3DEnd = head->stereo3DEnd;
 					new_head->allowDoppler = head->allowDoppler;
 					new_head->dopplerPreset = reinterpret_cast<zonetool::s1::DopplerPreset*>(head->dopplerPreset);
-					new_head->u2 = head->u2;
+					new_head->threshold = head->threshold;
+					new_head->lockedLoopTime = head->lockedLoopTime;
 
 					const auto convert_and_dump_streamed = [&]() -> bool
 					{

@@ -62,7 +62,7 @@ namespace zonetool::h1
 
 	std::int32_t glass_world::type()
 	{
-		return ASSET_TYPE_GLASS_MAP;
+		return ASSET_TYPE_GLASSWORLD;
 	}
 
 	void glass_world::write(zone_base* zone, zone_buffer* buf)

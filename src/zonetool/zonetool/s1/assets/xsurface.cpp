@@ -138,7 +138,7 @@ namespace zonetool::s1
 
 	std::int32_t xsurface::type()
 	{
-		return ASSET_TYPE_XMODELSURFS;
+		return ASSET_TYPE_XMODEL_SURFS;
 	}
 
 	void write_xsurface(zone_base* zone, zone_buffer* buf, XSurface* dest, XSurface* data)

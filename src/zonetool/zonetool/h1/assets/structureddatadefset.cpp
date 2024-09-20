@@ -194,7 +194,7 @@ namespace zonetool::h1
 
 	std::int32_t structured_data_def_set::type()
 	{
-		return ASSET_TYPE_STRUCTUREDDATADEF;
+		return ASSET_TYPE_STRUCTURED_DATA_DEF;
 	}
 
 	void structured_data_def_set::write(zone_base* zone, zone_buffer* buf)

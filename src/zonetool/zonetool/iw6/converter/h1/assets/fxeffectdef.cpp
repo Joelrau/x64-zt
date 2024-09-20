@@ -70,9 +70,9 @@ namespace zonetool::iw6
 							new_elem->visSamples[ii].base.color[1] = elem->visSamples[ii].base.color[1];
 							new_elem->visSamples[ii].base.color[2] = elem->visSamples[ii].base.color[2];
 							new_elem->visSamples[ii].base.color[3] = elem->visSamples[ii].base.color[3];
-							new_elem->visSamples[ii].base.colorHDRScalar[0] = 1.0f;
-							new_elem->visSamples[ii].base.colorHDRScalar[1] = 1.0f;
-							new_elem->visSamples[ii].base.colorHDRScalar[2] = 1.0f;
+							new_elem->visSamples[ii].base.emissiveScale[0] = 1.0f;
+							new_elem->visSamples[ii].base.emissiveScale[1] = 1.0f;
+							new_elem->visSamples[ii].base.emissiveScale[2] = 1.0f;
 							new_elem->visSamples[ii].base.rotationDelta = elem->visSamples[ii].base.rotationDelta;
 							new_elem->visSamples[ii].base.rotationTotal = elem->visSamples[ii].base.rotationTotal;
 							memcpy(&new_elem->visSamples[ii].base.size, &elem->visSamples[ii].base.size, sizeof(float[2]));
@@ -85,9 +85,9 @@ namespace zonetool::iw6
 							new_elem->visSamples[ii].amplitude.color[1] = elem->visSamples[ii].amplitude.color[1];
 							new_elem->visSamples[ii].amplitude.color[2] = elem->visSamples[ii].amplitude.color[2];
 							new_elem->visSamples[ii].amplitude.color[3] = elem->visSamples[ii].amplitude.color[3];
-							new_elem->visSamples[ii].amplitude.colorHDRScalar[0] = 1.0f;
-							new_elem->visSamples[ii].amplitude.colorHDRScalar[1] = 1.0f;
-							new_elem->visSamples[ii].amplitude.colorHDRScalar[2] = 1.0f;
+							new_elem->visSamples[ii].amplitude.emissiveScale[0] = 1.0f;
+							new_elem->visSamples[ii].amplitude.emissiveScale[1] = 1.0f;
+							new_elem->visSamples[ii].amplitude.emissiveScale[2] = 1.0f;
 							new_elem->visSamples[ii].amplitude.rotationDelta = elem->visSamples[ii].amplitude.rotationDelta;
 							new_elem->visSamples[ii].amplitude.rotationTotal = elem->visSamples[ii].amplitude.rotationTotal;
 							memcpy(&new_elem->visSamples[ii].amplitude.size, &elem->visSamples[ii].amplitude.size, sizeof(float[2]));
@@ -172,18 +172,27 @@ namespace zonetool::iw6
 						new_elem->extended.spotLightDef = allocator.allocate<zonetool::h1::FxSpotLightDef>();
 						if (elem->extended.spotLightDef)
 						{
-							new_elem->extended.spotLightDef->fovInnerFraction = elem->extended.spotLightDef->fovInnerFraction;
-							new_elem->extended.spotLightDef->startRadius = elem->extended.spotLightDef->startRadius;
-							new_elem->extended.spotLightDef->endRadius = elem->extended.spotLightDef->endRadius;
+							new_elem->extended.spotLightDef->halfFovOuter = elem->extended.spotLightDef->fovInnerFraction; // idk
+							new_elem->extended.spotLightDef->halfFovOuter = elem->extended.spotLightDef->fovInnerFraction; // ^
+							new_elem->extended.spotLightDef->radius = elem->extended.spotLightDef->startRadius; // idk
+							//new_elem->extended.spotLightDef->radius = elem->extended.spotLightDef->endRadius; // ^
 							new_elem->extended.spotLightDef->brightness = elem->extended.spotLightDef->brightness;
 							new_elem->extended.spotLightDef->maxLength = elem->extended.spotLightDef->maxLength;
 							new_elem->extended.spotLightDef->exponent = elem->extended.spotLightDef->exponent;
-							// pad
+
+							new_elem->extended.spotLightDef->nearClip = 1.0f;
+							new_elem->extended.spotLightDef->bulbRadius = 1.0f;
+							new_elem->extended.spotLightDef->bulbLength = 1.0f;
+							new_elem->extended.spotLightDef->fadeOffsetRt[0] = 0.0f;
+							new_elem->extended.spotLightDef->fadeOffsetRt[1] = 1.0f;
 						}
 						break;
 					case FX_ELEM_TYPE_OMNI_LIGHT:
 						new_elem->extended.omniLightDef = allocator.allocate<zonetool::h1::FxOmniLightDef>();
-						// todo?
+						new_elem->extended.omniLightDef->bulbRadius = 1.0f;
+						new_elem->extended.omniLightDef->bulbLength = 0.0f;
+						new_elem->extended.omniLightDef->fadeOffsetRt[0] = 0.0f;
+						new_elem->extended.omniLightDef->fadeOffsetRt[1] = -1.0f;
 						break;
 					case FX_ELEM_TYPE_FLARE:
 						// should be fine
@@ -198,14 +207,14 @@ namespace zonetool::iw6
 					COPY_VALUE(elemDefs[i].lightingFrac);
 					COPY_VALUE(elemDefs[i].useItemClip);
 					COPY_VALUE(elemDefs[i].fadeInfo);
+					new_elem->fadeOutInfo = 0;
 					COPY_VALUE(elemDefs[i].randomSeed);
-
-					new_elem->hdrLightingFrac = new_elem->lightingFrac;
-					new_elem->unlitHDRScalar = 1.0f;
-					new_elem->litHDRScalar = 1.0f;
-					new_elem->alphaScalar = 1.0f;
-					new_elem->unk4 = 0.0f;
-					new_elem->unk5 = -1.0f;
+					
+					new_elem->emissiveScaleScale = 1.0f;
+					new_elem->hdrLightingFrac = 1.0f;
+					new_elem->shadowDensityScale = 1.0f;
+					new_elem->scatterRatio = 0.0f;
+					new_elem->volumetricTrailFadeStart = -1.0f;
 				}
 
 				return new_asset;

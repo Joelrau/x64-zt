@@ -5,7 +5,25 @@ namespace zonetool::s1
 {
 	TracerDef* tracer_def::parse(const std::string& name, zone_memory* mem)
 	{
-		return nullptr;
+		const auto path = "tracer\\"s + name;
+
+		assetmanager::reader read(mem);
+		if (!read.open(path))
+		{
+			return nullptr;
+		}
+
+		ZONETOOL_INFO("Parsing tracer \"%s\"...", name.data());
+
+		auto* asset = read.read_single<TracerDef>();
+		asset->name = read.read_string();
+
+		asset->material = read.read_asset<Material>();
+		asset->effectDef = read.read_asset<FxEffectDef>();
+
+		read.close();
+
+		return asset;
 	}
 
 	void tracer_def::init(const std::string& name, zone_memory* mem)
@@ -36,9 +54,9 @@ namespace zonetool::s1
 			zone->add_asset_of_type(ASSET_TYPE_MATERIAL, this->asset_->material->name);
 		}
 
-		if (this->asset_->effect)
+		if (this->asset_->effectDef)
 		{
-			zone->add_asset_of_type(ASSET_TYPE_MATERIAL, this->asset_->effect->name);
+			zone->add_asset_of_type(ASSET_TYPE_MATERIAL, this->asset_->effectDef->name);
 		}
 	}
 
@@ -66,9 +84,9 @@ namespace zonetool::s1
 			dest->material = reinterpret_cast<Material*>(zone->get_asset_pointer(ASSET_TYPE_MATERIAL, data->material->name));
 		}
 
-		if (data->effect)
+		if (data->effectDef)
 		{
-			dest->effect = reinterpret_cast<FxEffectDef*>(zone->get_asset_pointer(ASSET_TYPE_FX, data->effect->name));
+			dest->effectDef = reinterpret_cast<FxEffectDef*>(zone->get_asset_pointer(ASSET_TYPE_FX, data->effectDef->name));
 		}
 
 		buf->pop_stream();
@@ -76,5 +94,20 @@ namespace zonetool::s1
 
 	void tracer_def::dump(TracerDef* asset)
 	{
+		const auto path = "tracer\\"s + asset->name;
+
+		assetmanager::dumper dump;
+		if (!dump.open(path))
+		{
+			return;
+		}
+
+		dump.dump_single(asset);
+		dump.dump_string(asset->name);
+
+		dump.dump_asset(asset->material);
+		dump.dump_asset(asset->effectDef);
+
+		dump.close();
 	}
 }

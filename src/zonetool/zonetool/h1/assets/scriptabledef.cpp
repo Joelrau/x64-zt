@@ -64,10 +64,10 @@ namespace zonetool::h1
 			event->data.shake.rumbleName = read.read_string();
 			break;
 		case SCRIPTABLE_EVENT_TRANSLATE:
-			event->data.translate.str = read.read_string();
+			event->data.translate.noteworthy = read.read_string();
 			break;
 		case SCRIPTABLE_EVENT_ROTATE:
-			event->data.rotate.str = read.read_string();
+			event->data.rotate.noteworthy = read.read_string();
 			break;
 		case SCRIPTABLE_EVENT_STATECHANGE:
 			break;
@@ -215,7 +215,7 @@ namespace zonetool::h1
 			zone->add_asset_of_type(ASSET_TYPE_SOUND, event->data.playSound.alias->name);
 			break;
 		case SCRIPTABLE_EVENT_ANIMATION:
-			zone->add_asset_of_type(ASSET_TYPE_XANIM, event->data.playAnim.animName);
+			zone->add_asset_of_type(ASSET_TYPE_XANIMPARTS, event->data.playAnim.animName);
 			break;
 		case SCRIPTABLE_EVENT_EXPLODE:
 			break;
@@ -363,15 +363,15 @@ namespace zonetool::h1
 			}
 			break;
 		case SCRIPTABLE_EVENT_TRANSLATE:
-			if (data->data.translate.str)
+			if (data->data.translate.noteworthy)
 			{
-				dest->data.translate.str = buf->write_str(data->data.translate.str);
+				dest->data.translate.noteworthy = buf->write_str(data->data.translate.noteworthy);
 			}
 			break;
 		case SCRIPTABLE_EVENT_ROTATE:
-			if (data->data.rotate.str)
+			if (data->data.rotate.noteworthy)
 			{
-				dest->data.rotate.str = buf->write_str(data->data.rotate.str);
+				dest->data.rotate.noteworthy = buf->write_str(data->data.rotate.noteworthy);
 			}
 			break;
 		case SCRIPTABLE_EVENT_STATECHANGE:
@@ -508,10 +508,10 @@ namespace zonetool::h1
 			dump.dump_string(event->data.shake.rumbleName);
 			break;
 		case SCRIPTABLE_EVENT_TRANSLATE:
-			dump.dump_string(event->data.translate.str);
+			dump.dump_string(event->data.translate.noteworthy);
 			break;
 		case SCRIPTABLE_EVENT_ROTATE:
-			dump.dump_string(event->data.rotate.str);
+			dump.dump_string(event->data.rotate.noteworthy);
 			break;
 		case SCRIPTABLE_EVENT_STATECHANGE:
 			break;
