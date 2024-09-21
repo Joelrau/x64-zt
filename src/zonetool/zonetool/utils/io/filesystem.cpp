@@ -74,15 +74,20 @@ namespace zonetool
 			return this->fp;
 		}
 
-		bool file::exists()
+		bool file::exists(bool use_path)
 		{
-			this->open("rb");
+			this->open("rb", use_path);
 			if (this->fp)
 			{
 				this->close();
 				return true;
 			}
 			return false;
+		}
+
+		bool file::exists()
+		{
+			return this->exists(true);
 		}
 
 		errno_t file::open(std::string mode, bool use_path, bool is_zone)

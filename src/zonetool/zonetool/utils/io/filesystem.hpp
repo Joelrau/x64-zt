@@ -27,7 +27,8 @@ namespace zonetool
 			void initialize(const std::filesystem::path& filepath);
 
 			FILE* get_fp();
-			bool exists();
+			bool exists(bool use_path);
+			bool exists(void);
 
 			errno_t open(std::string mode = "wb", bool use_path = true, bool is_zone = false);
 
