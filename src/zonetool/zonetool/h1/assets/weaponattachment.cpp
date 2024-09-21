@@ -977,25 +977,6 @@ namespace zonetool::h1
 
 		auto* attachment = mem->allocate<WeaponAttachment>();
 
-		// base asset
-		auto base = data["baseAsset"].get<std::string>();
-		if (!base.empty())
-		{
-			const auto base_asset = db_find_x_asset_header(ASSET_TYPE_ATTACHMENT, base.data(), 0).attachment;
-			if (base_asset == nullptr)
-			{
-				ZONETOOL_WARNING("Could not load base asset \"%s\" into memory...", base.data());
-			}
-			else
-			{
-				std::memcpy(attachment, base_asset, sizeof(WeaponAttachment));
-			}
-		}
-		else
-		{
-			ZONETOOL_WARNING("No base asset is defined for attachment \"%s\", stuff might be wrong!", name.data());
-		}
-
 		if (!data["internalName"].is_null())
 		{
 			attachment->szInternalName = mem->duplicate_string(data["internalName"].get<std::string>());
@@ -1523,8 +1504,6 @@ namespace zonetool::h1
 
 		ordered_json data;
 
-		data["baseAsset"] = asset->szInternalName;
-
 		data["internalName"] = asset->szInternalName;
 		data["displayName"] = asset->szDisplayName ? asset->szDisplayName : "";
 
@@ -1532,9 +1511,6 @@ namespace zonetool::h1
 		ATTACHMENT_DUMP_FIELD_RENAME(weaponType, "weaponType");
 		ATTACHMENT_DUMP_FIELD_RENAME(weapClass, "weaponClass");
 		ATTACHMENT_DUMP_FIELD_RENAME(greebleType, "greebleType");
-
-		ATTACHMENT_DUMP_FIELD(shareAmmoWithAlt);
-		ATTACHMENT_DUMP_FIELD(riotShield);
 
 		ATTACHMENT_DUMP_ASSET_ARR(worldModels, 2);
 		ATTACHMENT_DUMP_ASSET_ARR(viewModels, 2);
