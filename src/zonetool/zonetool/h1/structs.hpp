@@ -5015,10 +5015,10 @@ namespace zonetool::h1
 		snd_alias_list_t* nightVisionWearSoundPlayer; // 792
 		snd_alias_list_t* nightVisionRemoveSound; // 800
 		snd_alias_list_t* nightVisionRemoveSoundPlayer; // 808
-		snd_alias_list_t* firstRaiseSound; // 816
-		snd_alias_list_t* firstRaiseSoundPlayer; // 824
-		snd_alias_list_t* raiseSound; // 832
-		snd_alias_list_t* raiseSoundPlayer; // 840
+		snd_alias_list_t* raiseSound; // 816
+		snd_alias_list_t* raiseSoundPlayer; // 824
+		snd_alias_list_t* firstRaiseSound; // 832
+		snd_alias_list_t* firstRaiseSoundPlayer; // 840
 		snd_alias_list_t* altSwitchSound; // 848
 		snd_alias_list_t* altSwitchSoundPlayer; // 856
 		snd_alias_list_t* putawaySound; // 864
