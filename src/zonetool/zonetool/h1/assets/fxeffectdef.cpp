@@ -54,13 +54,6 @@ namespace zonetool::h1
 		asset->name = read.read_string();
 		asset->elemDefs = read.read_array<FxElemDef>();
 
-		// distort fix...
-		//if (name.find("distort") != std::string::npos)//
-		{
-			asset->flags |= 0x10;
-			asset->flags |= 0x100;
-		}
-
 		for (int i = 0; i < asset->elemDefCountLooping + asset->elemDefCountOneShot + asset->elemDefCountEmission; i++)
 		{
 			auto def = &asset->elemDefs[i];
