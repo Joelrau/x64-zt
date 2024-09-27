@@ -213,7 +213,8 @@ namespace csv_generator
 			std::string name = utils::string::va("%s/%s.d3dbsp", map_prefix.data(), map.data());
 
 			const std::string path = root_dir + "/" + name + ext;
-			if (!utils::io::file_exists(path))
+			const std::string path_json = path + ".json";
+			if (!utils::io::file_exists(path) && !utils::io::file_exists(path_json))
 			{
 				add_str("#");
 			}
