@@ -305,12 +305,16 @@ namespace zonetool::h1
 		bool use_path = true;
 		auto spath = material_data::get_parse_path("state", ".statebits", name, "", &use_path);
 		std::string parent_path = spath.substr(0, spath.find("\\state"));
-		const auto path = parent_path + "\\"s + name + ".techset"s;
+		auto path = parent_path + "\\"s + name + ".techset"s;
 
 		assetmanager::reader reader(mem);
 		if (!reader.open(path, use_path))
 		{
-			return nullptr;
+			path = "techsets\\"s + name + ".techset"s;
+			if (!reader.open(path, true))
+			{
+				return nullptr;
+			}
 		}
 #else
 		const auto path = "techsets\\" + name + ".techset";
@@ -348,12 +352,20 @@ namespace zonetool::h1
 
 				try
 				{
-					const auto itr = technique_name.find("_ld0");
-					if (itr == std::string::npos)
-					{
-						return;
+					std::regex pattern("_l.0");  // '.' matches any single character between '_l' and '0'
+					std::smatch match;
+
+					if (std::regex_search(technique_name, match, pattern)) {
+						// If the pattern is found, get the position of the match
+						size_t pos = match.position(0);
+
+						// Replace the matched substring with the new string
+						technique_name.replace(pos, 4, str);  // '4' is the length of the pattern "_ln0"
 					}
-					technique_name.replace(itr, itr + 4, str.data());
+					else
+					{
+						//return;
+					}
 				}
 				catch (const std::runtime_error& err)
 				{
@@ -369,47 +381,55 @@ namespace zonetool::h1
 			}
 		};
 
-		add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_LIT_DIR, "_ls0");
-		add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW, "_ls1");
-		add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW, "_ls2");
+		add(MaterialTechniqueType::TECHNIQUE_LIT, MaterialTechniqueType::TECHNIQUE_LIT, "_ln0");
+		add(MaterialTechniqueType::TECHNIQUE_LIT_DIR, MaterialTechniqueType::TECHNIQUE_LIT, "_ld0");
+		add(MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT, "_ld1");
 
-		add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_LIT_DIR, "_lo0");
-		add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW, "_lo1");
+		add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_LIT, "_ls0");
+		add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT, "_ls1");
+		add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_LIT, "_ls2");
 
-		add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_DFOG, "_ls0");
-		add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW_DFOG, "_ls1");
-		add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW_DFOG, "_ls2");
+		add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_LIT, "_lo0");
+		add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT, "_lo1");
 
-		add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_DFOG, "_lo0");
-		add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW_DFOG, "_lo1");
+		add(MaterialTechniqueType::TECHNIQUE_LIT_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DFOG, "_ln0");
+		add(MaterialTechniqueType::TECHNIQUE_LIT_DIR_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DFOG, "_ld0");
+		add(MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT_DFOG, "_ld1");
 
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR, "_ls0");
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW, "_ls1");
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW, "_ls2");
+		add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DFOG, "_ls0");
+		add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DFOG, "_ls1");
+		add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DFOG, "_ls2");
 
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR, "_lo0");
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW, "_lo1");
+		add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DFOG, "_lo0");
+		add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DFOG, "_lo1");
 
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_DFOG, "_ls0");
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW_DFOG, "_ls1");
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW_DFOG, "_ls2");
+		/*add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_LIT, "_ls0");
+		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT, "_ls1");
+		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_LIT, "_ls2");
 
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_DFOG, "_lo0");
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW_DFOG, "_lo1");
+		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_LIT, "_lo0");
+		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT, "_lo1");
 
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR, "_ls0");
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW, "_ls1");
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW, "_ls2");
+		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_LIT, "_ls0");
+		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT, "_ls1");
+		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_LIT, "_ls2");
 
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR, "_lo0");
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW, "_lo1");
+		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_LIT, "_lo0");
+		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT, "_lo1");
 
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_DFOG, "_ls0");
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW_DFOG, "_ls1");
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW_DFOG, "_ls2");
+		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_LIT, "_ls0");
+		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT, "_ls1");
+		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_LIT, "_ls2");
 
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_DFOG, "_lo0");
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW_DFOG, "_lo1");
+		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_LIT, "_lo0");
+		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT, "_lo1");
+
+		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_LIT, "_ls0");
+		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT, "_ls1");
+		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_LIT, "_ls2");
+
+		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_LIT, "_lo0");
+		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT, "_lo1");TECHNIQUE_LIT_DFOG*/
 
 		if (asset->techniques[0] && asset->techniques[0]->hdr.name == "textured_3d"s)
 		{
@@ -442,6 +462,10 @@ namespace zonetool::h1
 				}
 			};
 
+			add(MaterialTechniqueType::TECHNIQUE_LIT, MaterialTechniqueType::TECHNIQUE_LIT);
+			add(MaterialTechniqueType::TECHNIQUE_LIT_DIR, MaterialTechniqueType::TECHNIQUE_LIT);
+			add(MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT_DIR);
+
 			add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_LIT_DIR);
 			add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW);
 			add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW);
@@ -449,40 +473,16 @@ namespace zonetool::h1
 			add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_LIT_DIR);
 			add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW);
 
+			add(MaterialTechniqueType::TECHNIQUE_LIT_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_LIT_DIR_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_DFOG);
+
 			add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_DFOG);
 			add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW_DFOG);
 			add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW_DFOG);
 
 			add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_DFOG);
 			add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW_DFOG);
-
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW);
-
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW);
-
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW_DFOG);
-
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW_DFOG);
-
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW);
-
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW);
-
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW_DFOG);
-
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW_DFOG);
 
 			return;
 		}
@@ -587,6 +587,10 @@ namespace zonetool::h1
 				}
 			};
 
+			add(MaterialTechniqueType::TECHNIQUE_LIT, MaterialTechniqueType::TECHNIQUE_LIT);
+			add(MaterialTechniqueType::TECHNIQUE_LIT_DIR, MaterialTechniqueType::TECHNIQUE_LIT);
+			add(MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT_DIR);
+
 			add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_LIT_DIR);
 			add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW);
 			add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW);
@@ -594,40 +598,16 @@ namespace zonetool::h1
 			add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_LIT_DIR);
 			add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW);
 
+			add(MaterialTechniqueType::TECHNIQUE_LIT_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_LIT_DIR_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_DFOG);
+
 			add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_DFOG);
 			add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW_DFOG);
 			add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW_DFOG);
 
 			add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_DFOG);
 			add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW_DFOG);
-
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW);
-
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW);
-
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW_DFOG);
-
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW_DFOG);
-
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW);
-
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW);
-
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW_DFOG);
-
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW_DFOG);
 
 			return;
 		}
