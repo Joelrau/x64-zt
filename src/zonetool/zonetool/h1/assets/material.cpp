@@ -136,7 +136,11 @@ namespace zonetool::h1
 		mat->info.surfaceTypeBits = matdata["surfaceTypeBits"].get<SurfaceTypeBits>();
 		//mat->info.hashIndex = matdata["hashIndex"].get<unsigned int>();
 
-		//mat->stateFlags = matdata["stateFlags"].get<unsigned char>();
+		if (!matdata["stateFlags"].is_null())
+		{
+			mat->stateFlags = matdata["stateFlags"].get<unsigned char>();
+		}
+		
 		mat->cameraRegion = matdata["cameraRegion"].get<unsigned char>();
 		mat->materialType = matdata["materialType"].get<unsigned char>();
 		mat->assetFlags = matdata["assetFlags"].get<unsigned char>();
@@ -171,6 +175,8 @@ namespace zonetool::h1
 		mat->textureCount = static_cast<unsigned char>(textureTable.size());
 
 		json constantTable = matdata["constantTable"];
+		mat->constantTable = nullptr;
+		mat->constantCount = static_cast<unsigned char>(constantTable.size());
 		if (constantTable.size() > 0)
 		{
 			auto constant_def = mem->allocate<MaterialConstantDef>(constantTable.size());
@@ -185,15 +191,26 @@ namespace zonetool::h1
 			}
 			mat->constantTable = constant_def;
 		}
-		else
+
+		json layers = matdata["subMaterials"];
+		mat->subMaterials = nullptr;
+		mat->layerCount = static_cast<unsigned char>(layers.size());
+		if (layers.size() > 0)
 		{
-			mat->constantTable = nullptr;
+			auto sub_materials = mem->allocate<const char*>(layers.size());
+			for (int i = 0; i < layers.size(); i++)
+			{
+				sub_materials[i] = mem->duplicate_string(layers[i].get<std::string>());
+			}
 		}
-		mat->constantCount = static_cast<unsigned char>(constantTable.size());
 
 		if (mat->techniqueSet)
 		{
-			techset::parse_stateinfo(mat->techniqueSet->name, c_name.data(), mat, mem);
+			if (!matdata["stateFlags"].is_null())
+			{
+				techset::parse_stateinfo(mat->techniqueSet->name, c_name.data(), mat, mem);
+			}
+			
 			techset::parse_statebits(mat->techniqueSet->name, c_name.data(), mat->stateBitsEntry, mem);
 			techset::parse_statebitsmap(mat->techniqueSet->name, c_name.data(), &mat->stateBitsTable, &mat->stateBitsCount,
 				&this->depth_stenchil_state_bits,
@@ -483,8 +500,6 @@ namespace zonetool::h1
 
 	void material::dump(Material* asset)
 	{
-		// TODO: maybe add subMaterials?
-
 		if (asset)
 		{
 			auto c_name = clean_name(asset->name);
@@ -562,6 +577,15 @@ namespace zonetool::h1
 				material_images.push_back(image);
 			}
 			matdata["textureTable"] = material_images;
+
+			matdata["subMaterials"] = nullptr;
+			if (asset->subMaterials)
+			{
+				for (auto i = 0; i < asset->layerCount; i++)
+				{
+					matdata["subMaterials"][i] = asset->subMaterials[i];
+				}
+			}
 
 			auto str = matdata.dump(4);
 
