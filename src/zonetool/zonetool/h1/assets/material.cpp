@@ -206,7 +206,7 @@ namespace zonetool::h1
 
 		if (mat->techniqueSet)
 		{
-			if (!matdata["stateFlags"].is_null())
+			if (matdata["stateFlags"].is_null())
 			{
 				techset::parse_stateinfo(mat->techniqueSet->name, c_name.data(), mat, mem);
 			}
