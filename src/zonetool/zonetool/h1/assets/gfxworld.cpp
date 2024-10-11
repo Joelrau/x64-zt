@@ -5,10 +5,25 @@ namespace zonetool::h1
 {
 	namespace
 	{
+		template <typename T>
+		T* get_asset(XAssetType type, const char* name, zone_base* zone)
+		{
+			T* asset = nullptr;
+			auto* asset_interface = zone->find_asset(type, name);
+			if (!asset_interface)
+			{
+				asset = reinterpret_cast<T*>(db_find_x_asset_header(type, name, 1).data);
+			}
+			else
+			{
+				asset = reinterpret_cast<T*>(asset_interface->pointer());
+			}
+			return asset;
+		}
+
 		MaterialTechnique* Material_GetTechnique(const Material* material, int techType, zone_base* zone)
 		{
-			return reinterpret_cast<MaterialTechniqueSet*>(zone->find_asset(
-				ASSET_TYPE_TECHNIQUE_SET, material->techniqueSet->name)->pointer())->techniques[techType];
+			return get_asset<MaterialTechniqueSet>(ASSET_TYPE_TECHNIQUE_SET, material->techniqueSet->name, zone)->techniques[techType];
 		}
 
 		bool Material_IsShadowCaster(Material* material, zone_base* zone)
@@ -56,7 +71,8 @@ namespace zonetool::h1
 			for (unsigned int surf_idx = 0; surf_idx < asset->surfaceCount; surf_idx++)
 			{
 				auto& surf = asset->dpvs.surfaces[surf_idx];
-				auto* surf_material = reinterpret_cast<Material*>(zone->find_asset(ASSET_TYPE_MATERIAL, surf.material->name)->pointer());
+
+				auto* surf_material = get_asset<Material>(ASSET_TYPE_MATERIAL, surf.material->name, zone);
 
 				if (Material_IsDecal(surf_material, zone))
 					decal.push_back(surf_idx);
