@@ -43,7 +43,7 @@ namespace zonetool::h1
 		{
 			return material->techniqueSet &&
 				Material_GetTechnique(material, TECHNIQUE_LIT, zone) &&
-				material->info.sortKey >= 26 && material->info.sortKey <= 33;
+				material->info.sortKey >= 18 && material->info.sortKey <= 33;
 		}
 
 		bool Material_IsDecal(Material* material, zone_base* zone)
