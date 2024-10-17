@@ -139,7 +139,7 @@ namespace zonetool::h1
 				for (unsigned int i = 0; i < asset->dpvs.staticSurfaceCount; ++i)
 				{
 					const auto old_index = asset->dpvs.sortedSurfIndex[i];
-					const auto new_index = old_to_new_surface_index.at(old_index);  // Use .at() to get out-of-bounds check
+					const auto new_index = old_to_new_surface_index.at(old_index);
 					replace_index_at_address(&asset->dpvs.sortedSurfIndex[i], new_index);
 				}
 
@@ -151,7 +151,7 @@ namespace zonetool::h1
 						for (unsigned int i = 0; i < asset->shadowGeom[s].surfaceCount; ++i)
 						{
 							const auto old_index = asset->shadowGeom[s].sortedSurfIndex[i];
-							const auto new_index = old_to_new_surface_index.at(old_index);  // Use .at()
+							const auto new_index = old_to_new_surface_index.at(old_index);
 							replace_index_at_address(&asset->shadowGeom[s].sortedSurfIndex[i], new_index);
 						}
 					}
@@ -164,7 +164,7 @@ namespace zonetool::h1
 						for (unsigned int i = 0; i < asset->shadowGeomOptimized[s].surfaceCount; ++i)
 						{
 							const auto old_index = asset->shadowGeomOptimized[s].sortedSurfIndex[i];
-							const auto new_index = old_to_new_surface_index.at(old_index);  // Use .at()
+							const auto new_index = old_to_new_surface_index.at(old_index);
 							replace_index_at_address(&asset->shadowGeomOptimized[s].sortedSurfIndex[i], new_index);
 						}
 					}
