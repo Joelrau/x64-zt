@@ -258,8 +258,8 @@ namespace zonetool::h1
 		dm_int32 m_subEdgeCount;
 		dm_float32 m_volume;
 		dm_float32 m_area;
-		dmFloat3 unk1;
-		dmFloat3 unk2;
+		dmFloat3 m_inertiaMoments;
+		dmFloat3 m_inertiaProducts;
 		int contents;
 		int pad2;
 	}; assert_sizeof(dmPolytopeData, 0x70);
