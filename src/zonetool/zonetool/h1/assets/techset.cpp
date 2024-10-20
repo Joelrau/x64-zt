@@ -9,7 +9,7 @@
 
 #include "zonetool/iw6/zonetool.hpp"
 
-//#define DEEP_LOOK_TECHNIQUES
+#define DEEP_LOOK_TECHNIQUES
 
 namespace zonetool::h1
 {
@@ -230,12 +230,12 @@ namespace zonetool::h1
 		}
 	}
 
-	MaterialTechnique* parse_technique(const std::string& name, zone_memory* mem, std::uint32_t index)
+	MaterialTechnique* parse_technique_internal(const std::string& name, zone_memory* mem, std::uint32_t index, bool use_path = true)
 	{
-		const auto path = "techsets\\" + name + ".technique";
+		const auto path = name;
 
 		assetmanager::reader reader(mem);
-		if (!reader.open(path))
+		if (!reader.open(path, use_path))
 		{
 			//ZONETOOL_FATAL("technique \"%s\" is missing.", name.data());
 			return nullptr;
@@ -299,6 +299,12 @@ namespace zonetool::h1
 		return asset;
 	}
 
+	MaterialTechnique* parse_technique(const std::string& name, zone_memory* mem, std::uint32_t index)
+	{
+		const auto path = "techsets\\" + name + ".technique";
+		return parse_technique_internal(path, mem, index);
+	}
+
 	MaterialTechniqueSet* techset::parse(const std::string& name, zone_memory* mem)
 	{
 #ifdef DEEP_LOOK_TECHNIQUES
@@ -339,6 +345,7 @@ namespace zonetool::h1
 			}
 		}
 
+#ifdef DEEP_LOOK_TECHNIQUES
 		const auto add = [&](MaterialTechniqueType type, MaterialTechniqueType a2, const std::string& str)
 		{
 			if (!asset->techniques[type])
@@ -381,6 +388,8 @@ namespace zonetool::h1
 			}
 		};
 
+		// regular
+
 		add(MaterialTechniqueType::TECHNIQUE_LIT, MaterialTechniqueType::TECHNIQUE_LIT, "_ln0");
 		add(MaterialTechniqueType::TECHNIQUE_LIT_DIR, MaterialTechniqueType::TECHNIQUE_LIT, "_ld0");
 		add(MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT, "_ld1");
@@ -403,33 +412,78 @@ namespace zonetool::h1
 		add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DFOG, "_lo0");
 		add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DFOG, "_lo1");
 
-		/*add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_LIT, "_ls0");
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT, "_ls1");
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_LIT, "_ls2");
+		// instanced
 
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_LIT, "_lo0");
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT, "_lo1");
+		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT, "_ln0");
+		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT, "_ld0");
+		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT, "_ld1");
 
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_LIT, "_ls0");
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT, "_ls1");
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_LIT, "_ls2");
+		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT, "_ls0");
+		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT, "_ls1");
+		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT, "_ls2");
 
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_LIT, "_lo0");
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT, "_lo1");
+		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT, "_lo0");
+		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT, "_lo1");
 
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_LIT, "_ls0");
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT, "_ls1");
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_LIT, "_ls2");
+		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG, "_ln0");
+		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG, "_ld0");
+		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG, "_ld1");
 
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_LIT, "_lo0");
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT, "_lo1");
+		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG, "_ls0");
+		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG, "_ls1");
+		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG, "_ls2");
 
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_LIT, "_ls0");
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT, "_ls1");
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_LIT, "_ls2");
+		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG, "_lo0");
+		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG, "_lo1");
 
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_LIT, "_lo0");
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT, "_lo1");TECHNIQUE_LIT_DFOG*/
+		// subdiv
+
+		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT, "_ln0");
+		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT, "_ld0");
+		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT, "_ld1");
+
+		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT, "_ls0");
+		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT, "_ls1");
+		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT, "_ls2");
+
+		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT, "_lo0");
+		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT, "_lo1");
+
+		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG, "_ln0");
+		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG, "_ld0");
+		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG, "_ld1");
+
+		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG, "_ls0");
+		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG, "_ls1");
+		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG, "_ls2");
+
+		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG, "_lo0");
+		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG, "_lo1");
+
+		// displacement
+
+		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT, "_ln0");
+		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT, "_ld0");
+		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT, "_ld1");
+
+		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT, "_ls0");
+		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT, "_ls1");
+		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT, "_ls2");
+
+		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT, "_lo0");
+		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT, "_lo1");
+
+		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG, "_ln0");
+		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG, "_ld0");
+		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG, "_ld1");
+
+		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG, "_ls0");
+		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG, "_ls1");
+		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG, "_ls2");
+
+		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG, "_lo0");
+		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG, "_lo1");
+#endif
 
 		if (asset->techniques[0] && asset->techniques[0]->hdr.name == "textured_3d"s)
 		{
@@ -454,6 +508,7 @@ namespace zonetool::h1
 			fread(indexes, MaterialTechniqueType::TECHNIQUE_COUNT, 1, fp);
 			file.close();
 
+#ifdef DEEP_LOOK_TECHNIQUES
 			const auto add = [&](MaterialTechniqueType type, MaterialTechniqueType a2 = MaterialTechniqueType::TECHNIQUE_LIT_DIR)
 			{
 				if (indexes[type] == 0xFF)
@@ -461,6 +516,8 @@ namespace zonetool::h1
 					indexes[type] = indexes[a2];
 				}
 			};
+
+			// regular
 
 			add(MaterialTechniqueType::TECHNIQUE_LIT, MaterialTechniqueType::TECHNIQUE_LIT);
 			add(MaterialTechniqueType::TECHNIQUE_LIT_DIR, MaterialTechniqueType::TECHNIQUE_LIT);
@@ -483,6 +540,79 @@ namespace zonetool::h1
 
 			add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_DFOG);
 			add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW_DFOG);
+
+			// instanced
+
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT);
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT);
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR);
+
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR);
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW);
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW);
+
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR);
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW);
+
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_DFOG);
+
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW_DFOG);
+
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW_DFOG);
+
+			// subdiv
+
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT);
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT);
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR);
+
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR);
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW);
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW);
+
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR);
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW);
+
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_DFOG);
+
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW_DFOG);
+
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW_DFOG);
+
+			// displacement
+
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT);
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT);
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR);
+
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR);
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW);
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW);
+
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR);
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW);
+
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_DFOG);
+
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW_DFOG);
+
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW_DFOG);
+#endif
 
 			return;
 		}
@@ -579,6 +709,7 @@ namespace zonetool::h1
 			fread(statebits, MaterialTechniqueType::TECHNIQUE_COUNT, 1, fp);
 			file.close();
 
+#ifdef DEEP_LOOK_TECHNIQUES
 			const auto add = [&](MaterialTechniqueType type, MaterialTechniqueType a2 = MaterialTechniqueType::TECHNIQUE_LIT_DIR)
 			{
 				if (statebits[type] == 0xFF)
@@ -586,6 +717,8 @@ namespace zonetool::h1
 					statebits[type] = statebits[a2];
 				}
 			};
+
+			// regular
 
 			add(MaterialTechniqueType::TECHNIQUE_LIT, MaterialTechniqueType::TECHNIQUE_LIT);
 			add(MaterialTechniqueType::TECHNIQUE_LIT_DIR, MaterialTechniqueType::TECHNIQUE_LIT);
@@ -608,6 +741,79 @@ namespace zonetool::h1
 
 			add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_DFOG);
 			add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW_DFOG);
+
+			// instanced
+
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT);
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT);
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR);
+
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR);
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW);
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW);
+
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR);
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW);
+
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_DFOG);
+
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW_DFOG);
+
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW_DFOG);
+
+			// subdiv
+
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT);
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT);
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR);
+
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR);
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW);
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW);
+
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR);
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW);
+
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_DFOG);
+
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW_DFOG);
+
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW_DFOG);
+
+			// displacement
+
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT);
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT);
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR);
+
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR);
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW);
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW);
+
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR);
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW);
+
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_DFOG);
+
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW_DFOG);
+
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_DFOG);
+			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW_DFOG);
+#endif
 
 			return;
 		}

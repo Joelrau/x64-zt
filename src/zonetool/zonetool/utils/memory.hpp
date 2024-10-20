@@ -45,16 +45,25 @@ namespace zonetool
 			}
 		}
 
+		void print_statistics()
+		{
+			printf("ZoneTool memory statistics: used %ub of ram (%fmb).\n", static_cast<unsigned int>(this->mem_pos_),
+				static_cast<float>(this->mem_pos_) / 1024 / 1024);
+		}
+
 		void free()
 		{
 			std::lock_guard<std::recursive_mutex> g(this->mutex_);
 			VirtualFree(this->memory_pool_, 0, MEM_RELEASE);
 
-			printf("ZoneTool memory statistics: used %ub of ram (%fmb).\n", static_cast<unsigned int>(this->mem_pos_),
-				static_cast<float>(this->mem_pos_) / 1024 / 1024);
-
 			this->memory_pool_ = nullptr;
 			this->memory_size_ = 0;
+			this->mem_pos_ = 0;
+		}
+
+		void clear()
+		{
+			memset(this->memory_pool_, 0, this->memory_size_);
 			this->mem_pos_ = 0;
 		}
 		
