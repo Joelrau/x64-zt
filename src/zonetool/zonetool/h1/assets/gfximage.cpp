@@ -531,6 +531,12 @@ namespace zonetool::h1
 			}
 		}
 
+		if (data_used != image->dataLen1)
+		{
+			ZONETOOL_WARNING("Failed to dump image \"%s\"", image->name);
+			return;
+		}
+
 		if (image->dataLen1 != 4 && image->width != 1 && image->height != 1) // default asset, uses wrong values for some reason
 		{
 			assert(data_used == image->dataLen1);
@@ -566,13 +572,17 @@ namespace zonetool::h1
 		}
 	}
 
-	void dump_streamed_image_self(GfxImage* image)
+	void dump_streamed_image(GfxImage* image, bool is_self = false)
 	{
 		for (auto i = 0u; i < 4; i++)
 		{
 			const auto stream_file = &stream_files[*stream_file_index + i];
 
-			const std::string filename = utils::string::va("%s.pak", filesystem::get_fastfile().data());
+			std::string filename = utils::string::va("imagefile%d.pak", stream_file->fileIndex);
+			if (is_self)
+			{
+				filename = utils::string::va("%s.pak", filesystem::get_fastfile().data());
+			}
 			const auto folder = filesystem::get_zone_path(filename);
 
 			const auto imagefile_path = utils::string::va("%s%s", folder.data(), filename.data());
@@ -595,47 +605,9 @@ namespace zonetool::h1
 				auto pixel_data = compression::lz4::decompress_lz4_block(buffer);
 				const auto name = clean_name(image->name);
 
-				const auto dump_pixels = true;
-				if (dump_pixels)
-				{
-					std::string parent_path = filesystem::get_dump_path() + "streamed_images\\";
-					std::string raw_path = utils::string::va("%s%s_stream%i.pixels", parent_path.data(), name.data(), i);
-					utils::io::write_file(raw_path, pixel_data, false);
-				}
-
-				const auto dump_dds = false;
-				if (dump_dds)
-				{
-					DirectX::Image img = {};
-
-					img.width = image->streams[i].width;
-					img.height = image->streams[i].height;
-					img.pixels = reinterpret_cast<uint8_t*>(pixel_data.data());
-					img.format = DXGI_FORMAT(image->imageFormat);
-
-					size_t row_pitch{};
-					size_t slice_pitch{};
-
-					DirectX::ComputePitch(img.format, img.width, img.height, row_pitch, slice_pitch);
-
-					img.rowPitch = row_pitch;
-					img.slicePitch = slice_pitch;
-
-					const auto parent_path = filesystem::get_dump_path() + "streamed_images\\";
-					const std::string spath = utils::string::va("%s\\%s_stream%i.dds", parent_path.data(),
-						name.data(), i);
-					const std::wstring wpath(spath.begin(), spath.end());
-					if (!std::filesystem::exists(parent_path))
-					{
-						std::filesystem::create_directories(parent_path);
-					}
-
-					auto result = DirectX::SaveToDDSFile(img, DirectX::DDS_FLAGS_NONE, wpath.data());
-					if (FAILED(result))
-					{
-						ZONETOOL_WARNING("Failed to dump image \"%s.dds\"", image->name);
-					}
-				}
+				std::string parent_path = filesystem::get_dump_path() + "streamed_images\\";
+				std::string raw_path = utils::string::va("%s%s_stream%i.pixels", parent_path.data(), name.data(), i);
+				utils::io::write_file(raw_path, pixel_data, false);
 			}
 			catch (...)
 			{
@@ -668,7 +640,13 @@ namespace zonetool::h1
 		{
 			if (stream_files[*stream_file_index].fileIndex == 96)
 			{
-				dump_streamed_image_self(asset);
+				dump_streamed_image(asset, true);
+				return;
+			}
+
+			if (utils::flags::has_flag("dump_streamed_image"))
+			{
+				dump_streamed_image(asset, false);
 				return;
 			}
 		}
