@@ -419,7 +419,7 @@ namespace zonetool::h1
 
 			PARSE_BOUNDS(collBounds);
 
-			// dump reference FX defs
+			// parse reference FX defs
 			PARSE_ASSET(effectOnImpact.handle);
 			PARSE_ASSET(effectOnDeath.handle);
 			PARSE_ASSET(effectEmitted.handle);
@@ -427,28 +427,33 @@ namespace zonetool::h1
 			PARSE_RANGE(emitDist);
 			PARSE_RANGE(emitDistVariance);
 
-			// dump extended FX data
+			// parse extended FX data
 			asset->extended.unknownDef = nullptr;
-			if (asset->extended.unknownDef)
+			if (!data["extended"].is_null() && data["extended"].size())
 			{
 				if (asset->elemType == FX_ELEM_TYPE_TRAIL)
 				{
+					asset->extended.trailDef = mem->allocate<FxTrailDef>();
 					parse_trail(asset->extended.trailDef, data["extended"]["trail"], mem);
 				}
 				else if (asset->elemType == FX_ELEM_TYPE_SPARK_FOUNTAIN)
 				{
+					asset->extended.sparkFountainDef = mem->allocate<FxSparkFountainDef>();
 					parse_spark_fountain(asset->extended.sparkFountainDef, data["extended"]["sparkFountain"]);
 				}
 				else if (asset->elemType == FX_ELEM_TYPE_SPOT_LIGHT)
 				{
+					asset->extended.spotLightDef = mem->allocate<FxSpotLightDef>();
 					parse_spot_light(asset->extended.spotLightDef, data["extended"]["spotLight"]);
 				}
 				else if (asset->elemType == FX_ELEM_TYPE_OMNI_LIGHT)
 				{
+					asset->extended.omniLightDef = mem->allocate<FxOmniLightDef>();
 					parse_omni_light(asset->extended.omniLightDef, data["extended"]["omniLight"]);
 				}
 				else if (asset->elemType == FX_ELEM_TYPE_FLARE)
 				{
+					asset->extended.flareDef = mem->allocate<FxFlareDef>();
 					parse_flare(asset->extended.flareDef, data["extended"]["flare"], mem);
 				}
 				else
