@@ -38,7 +38,7 @@ function zonetool:project()
 			debugcommand "D:\\Games\\PC\\IW7\\$(TargetName)$(TargetExt)"
 			postbuildcommands {
 				"( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"D:\\Games\\PC\\H1\\$(TargetName)$(TargetExt)\" )",
-				--"( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"E:\\Blizzard\\Call of Duty Modern Warfare 2 Campaign Remastered\\$(TargetName)$(TargetExt)\" )",
+				"( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"D:\\Games\\PC\\H2\\$(TargetName)$(TargetExt)\" )",
 				"( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"D:\\Games\\PC\\S1\\$(TargetName)$(TargetExt)\" )",
 				"( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"D:\\Games\\PC\\IW6\\$(TargetName)$(TargetExt)\" )",
 				"( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"D:\\Games\\PC\\IW7\\$(TargetName)$(TargetExt)\" )",

@@ -69,7 +69,7 @@ namespace zonetool::h2
 				new_asset->cameraRegion = convert_camera_region(asset->cameraRegion);
 				new_asset->materialType = asset->materialType;
 				new_asset->layerCount = asset->layerCount;
-				new_asset->assetFlags = asset->assetFlags; 
+				new_asset->assetFlags = asset->assetFlags;
 
 				new_asset->techniqueSet = allocator.allocate<zonetool::h1::MaterialTechniqueSet>();
 				new_asset->techniqueSet->name = allocator.duplicate_string(game::add_source_postfix(asset->techniqueSet->name, game::h2));

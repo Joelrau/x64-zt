@@ -18,7 +18,11 @@ namespace zonetool::h2
 				const auto new_array = allocator.allocate_array<T>(
 					zonetool::h1::MaterialTechniqueType::TECHNIQUE_COUNT);
 
-				std::vector<int> debug_tech_indexes = {59, 122, 185, 248};
+				std::vector<int> debug_tech_indexes = {
+					zonetool::h2::TECHNIQUE_DEBUG_TEXDENSITY, 
+					zonetool::h2::TECHNIQUE_INSTANCED_DEBUG_TEXDENSITY, 
+					zonetool::h2::TECHNIQUE_SUBDIV_PATCH_DEBUG_TEXDENSITY, 
+					zonetool::h2::TECHNIQUE_NO_DISPLACEMENT_DEBUG_TEXDENSITY};
 				auto current_debug_tech = 0;
 				auto h2_tecniques_index = 0;
 				for (auto i = 0u; i < zonetool::h1::MaterialTechniqueType::TECHNIQUE_COUNT; i++)
