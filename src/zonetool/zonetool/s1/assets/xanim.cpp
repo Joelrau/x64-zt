@@ -41,12 +41,12 @@ namespace zonetool::s1
 		result = 0i64;
 		if (v1)
 		{
-			v3 = a1->blendShapeKeys;
+			v3 = a1->numberOfBlendShapeKeys;
 			v4 = v1;
 			do
 			{
 				v5 = *v3++;
-				result = (v5 + result);
+				result = (unsigned int)(v5 + result);
 				--v4;
 			} while (v4);
 		}
