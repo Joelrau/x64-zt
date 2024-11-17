@@ -745,6 +745,15 @@ namespace zonetool::iw6
 					}
 				}
 			}
+			else if (row->fields[0] == "addpath"s && row->num_fields >= 2)
+			{
+				bool insert_at_beginning = false;
+				if (row->num_fields >= 3 && row->fields[2] == "true"s)
+				{
+					insert_at_beginning = true;
+				}
+				filesystem::add_paths_from_directory(row->fields[1], insert_at_beginning);
+			}
 			// if entry is not an option, it should be an asset.
 			else
 			{
@@ -983,6 +992,8 @@ namespace zonetool::iw6
 		auto args = get_command_line_arguments();
 		if (args.size() > 1)
 		{
+			bool do_exit = false;
+
 			for (std::size_t i = 0; i < args.size(); i++)
 			{
 				if (i < args.size() - 1 && i + 1 < args.size())
@@ -996,6 +1007,8 @@ namespace zonetool::iw6
 					{
 						build_zone(args[i + 1]);
 						i++;
+
+						do_exit = true;
 					}
 					else if (args[i] == "-buildzones")
 					{
@@ -1018,21 +1031,30 @@ namespace zonetool::iw6
 						}
 
 						i++;
+
+						do_exit = true;
 					}
 					else if (args[i] == "-verifyzone")
 					{
 						verify_zone(args[i + 1]);
 						i++;
+
+						do_exit = true;
 					}
 					else if (args[i] == "-dumpzone")
 					{
 						dump_zone(args[i + 1], game::iw6);
 						i++;
+
+						do_exit = true;
 					}
 				}
 			}
 
-			std::quick_exit(EXIT_SUCCESS);
+			if (do_exit)
+			{
+				std::quick_exit(EXIT_SUCCESS);
+			}
 		}
 	}
 

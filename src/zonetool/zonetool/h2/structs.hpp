@@ -1880,6 +1880,14 @@ namespace zonetool::h2
 		unsigned short index;
 	};
 
+	enum nodeType
+	{
+		NODE_ERROR = 0x0,
+		NODE_PATHNODE = 0x1,
+		NODE_NEGOTIATION_BEGIN = 0x13,
+		NODE_NEGOTIATION_END = 0x14
+	};
+
 	enum PathNodeErrorCode : std::int32_t
 	{
 		PNERR_NONE = 0x0,

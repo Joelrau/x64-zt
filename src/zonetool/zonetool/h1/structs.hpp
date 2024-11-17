@@ -1929,13 +1929,14 @@ namespace zonetool::h1
 	{
 		MTL_GAMEFLAG_NONE = 0x0,
 		MTL_GAMEFLAG_1 = 0x1,
-		MTL_GAMEFLAG_2 = 0x2,
+		MTL_GAMEFLAG_2 = 0x2, // with this flag, the game will use precomputed primaryLightIndex instead of computed one for shadows
 		MTL_GAMEFLAG_4 = 0x4,
 		MTL_GAMEFLAG_8 = 0x8,
 		MTL_GAMEFLAG_10 = 0x10,
 		MTL_GAMEFLAG_20 = 0x20,
 		MTL_GAMEFLAG_CASTS_SHADOW = 0x40,
-		MTL_GAMEFLAG_EFFECT = 0x80,
+		MTL_GAMEFLAG_CASTS_SHADOW_EFFECT = 0x80,
+		MTL_GAMEFLAG_CASTS_SHADOW_MASK = 0xC0,
 	};
 
 	enum MaterialSortKey : std::uint8_t
@@ -7808,6 +7809,11 @@ namespace zonetool::h1
 		float maxs[3];
 		float lightingOrigin[3];
 	}; assert_sizeof(GfxStaticModelInst, 36);
+
+	enum GFX_SURFACE_FLAGS : std::int32_t
+	{
+		GFX_SURFACE_CASTS_SUN_SHADOW = 0x1,
+	};
 
 	struct srfTriangles_t
 	{

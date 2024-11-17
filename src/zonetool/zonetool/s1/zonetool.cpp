@@ -1291,6 +1291,8 @@ namespace zonetool::s1
 		auto args = get_command_line_arguments();
 		if (args.size() > 1)
 		{
+			bool do_exit = false;
+
 			for (std::size_t i = 0; i < args.size(); i++)
 			{
 				if (i < args.size() - 1 && i + 1 < args.size())
@@ -1304,6 +1306,8 @@ namespace zonetool::s1
 					{
 						build_zone(args[i + 1]);
 						i++;
+
+						do_exit = true;
 					}
 					else if (args[i] == "-buildzones")
 					{
@@ -1326,21 +1330,30 @@ namespace zonetool::s1
 						}
 
 						i++;
+
+						do_exit = true;
 					}
 					else if (args[i] == "-verifyzone")
 					{
 						verify_zone(args[i + 1]);
 						i++;
+
+						do_exit = true;
 					}
 					else if (args[i] == "-dumpzone")
 					{
 						dump_zone(args[i + 1], game::s1);
 						i++;
+
+						do_exit = true;
 					}
 				}
 			}
 
-			std::quick_exit(EXIT_SUCCESS);
+			if (do_exit)
+			{
+				std::quick_exit(EXIT_SUCCESS);
+			}
 		}
 	}
 

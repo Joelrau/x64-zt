@@ -83,46 +83,10 @@ namespace zonetool::iw6
 
 						const auto name = clean_name(image->name);
 
-						const auto dump_pixels = true;
-						if (dump_pixels)
 						{
 							std::string parent_path = filesystem::get_dump_path() + "streamed_images\\";
 							std::string raw_path = utils::string::va("%s%s_stream%i.pixels", parent_path.data(), name.data(), i);
 							utils::io::write_file(raw_path, pixel_data, false);
-						}
-
-						const auto dump_dds = false;
-						if (dump_dds)
-						{
-							DirectX::Image img = {};
-
-							img.width = image->streams[i].width;
-							img.height = image->streams[i].height;
-							img.pixels = reinterpret_cast<uint8_t*>(pixel_data.data());
-							img.format = DXGI_FORMAT(image->imageFormat);
-
-							size_t row_pitch{};
-							size_t slice_pitch{};
-
-							DirectX::ComputePitch(img.format, img.width, img.height, row_pitch, slice_pitch);
-
-							img.rowPitch = row_pitch;
-							img.slicePitch = slice_pitch;
-
-							const auto parent_path = filesystem::get_dump_path() + "streamed_images\\";
-							const std::string spath = utils::string::va("%s\\%s_stream%i.dds", parent_path.data(),
-								name.data(), i);
-							const std::wstring wpath(spath.begin(), spath.end());
-							if (!std::filesystem::exists(parent_path))
-							{
-								std::filesystem::create_directories(parent_path);
-							}
-
-							auto result = DirectX::SaveToDDSFile(img, DirectX::DDS_FLAGS_NONE, wpath.data());
-							if (FAILED(result))
-							{
-								ZONETOOL_WARNING("Failed to dump image \"%s.dds\"", image->name);
-							}
 						}
 					}
 					catch (...)

@@ -504,7 +504,6 @@ namespace zonetool::h2
 						continue;
 					}
 
-
 					//if (i >= pass->perPrimArgCount + pass->perObjArgCount)
 					{
 						converted_args[i].dest = convert_dest(converted_args[i].dest);

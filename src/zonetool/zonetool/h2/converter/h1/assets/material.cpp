@@ -18,6 +18,7 @@ namespace zonetool::h2
 				std::unordered_map<std::uint8_t, std::uint8_t> mapped_camera_regions =
 				{
 					{14, 12},
+					{13, 12},
 				};
 
 				std::uint8_t convert_sortkey(const std::uint8_t sort_key)

@@ -63,7 +63,14 @@ namespace zonetool::h2
 
 			void dump(zonetool::h2::ScriptFile* asset)
 			{
-				dump_as_gsc(asset);
+				try
+				{
+					dump_as_gsc(asset);
+				}
+				catch (std::runtime_error& err)
+				{
+					ZONETOOL_ERROR("Failed to dump scriptfile asset %s as gsc\n%s", asset->name, err.what());
+				}
 			}
 		}
 	}
