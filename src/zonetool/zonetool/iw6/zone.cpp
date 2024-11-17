@@ -523,9 +523,6 @@ namespace zonetool::iw6
 		// Compress buffer
 		auto buf_compressed = buf->compress_zlib();
 
-		// clear zone buffer
-		buf->clear();
-
 		const auto streamfiles_count = buf->streamfile_count();
 
 		// Generate FF header
