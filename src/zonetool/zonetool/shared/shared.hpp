@@ -32,7 +32,7 @@
 static inline void branding()
 {
 	ZONETOOL_INFO("No matter how hard or unlikely, if it's possible, it will be done.");
-	ZONETOOL_INFO("Special thanks to: RektInator, Laupetin, NTAuthority, momo5502, TheApadayo, localhost, X3RX35, homura, quaK & fed");
+	ZONETOOL_INFO("Special thanks to: RektInator, Laupetin, NTAuthority, momo5502, TheApadayo, localhost, X3RX35, homura, quaK & alice");
 }
 
 #ifdef DEBUG

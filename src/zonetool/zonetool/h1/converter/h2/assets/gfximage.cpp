@@ -46,10 +46,20 @@ namespace zonetool::h1
 				{
 					const auto stream_file = &stream_files[*stream_file_index + i];
 
-					const std::string filename = utils::string::va("imagefile%d.pak", stream_file->fileIndex);
+					const char* filename = nullptr;
+					if (stream_file->fileIndex == 96)
+					{
+						const auto& fastfile = filesystem::get_fastfile();
+						filename = utils::string::va("%s.pak", fastfile.data());
+					}
+					else
+					{
+						filename = utils::string::va("imagefile%d.pak", stream_file->fileIndex);
+					}
+
 					const auto folder = filesystem::get_zone_path(filename);
 
-					const auto imagefile_path = utils::string::va("%s%s", folder.data(), filename.data());
+					const auto imagefile_path = utils::string::va("%s%s", folder.data(), filename);
 					std::ifstream imagefile;
 					imagefile.open(imagefile_path, std::ios::binary);
 
