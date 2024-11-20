@@ -600,6 +600,7 @@ namespace zonetool::h1
 			}
 		}
 	}
+
 	void path_data::dump(PathData* asset)
 	{
 		const auto path = asset->name + ".aipaths"s;

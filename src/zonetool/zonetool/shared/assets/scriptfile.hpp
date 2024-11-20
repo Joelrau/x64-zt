@@ -16,7 +16,7 @@ namespace zonetool
 			file.open("rb");
 			if (!file.get_fp())
 			{
-				return nullptr;
+				ZONETOOL_FATAL("Could not find scriptfile \"%s\"", name.data());
 			}
 
 			ZONETOOL_INFO("Parsing scriptfile \"%s\"...", name.data());
@@ -37,8 +37,6 @@ namespace zonetool
 			file.read(asset->bytecode, asset->bytecodeLen);
 
 			return asset;
-
-			return nullptr;
 		}
 
 		void init(const std::string& name, zone_memory* mem) override
