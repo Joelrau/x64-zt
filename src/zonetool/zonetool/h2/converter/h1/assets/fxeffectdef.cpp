@@ -122,7 +122,6 @@ namespace zonetool::h2
 
 					COPY_VALUE_FX(sortOrder);
 					COPY_VALUE_FX(lightingFrac);
-					COPY_VALUE_FX(useItemClip);
 					COPY_VALUE_FX(fadeInfo);
 					COPY_VALUE_FX(fadeOutInfo);
 					COPY_VALUE_FX(randomSeed);

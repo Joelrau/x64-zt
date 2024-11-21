@@ -177,7 +177,6 @@ namespace zonetool::h1
 
 					COPY_VALUE_FX(sortOrder);
 					COPY_VALUE_FX(lightingFrac);
-					COPY_VALUE_FX(useItemClip);
 					COPY_VALUE_FX(fadeInfo);
 					COPY_VALUE_FX(fadeOutInfo);
 

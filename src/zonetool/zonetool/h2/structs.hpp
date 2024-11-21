@@ -2608,13 +2608,13 @@ namespace zonetool::h2
 		FxElemExtendedDefPtr extended;
 		unsigned char sortOrder;
 		unsigned char lightingFrac;
-		unsigned char useItemClip;
 		unsigned char fadeInfo;
 		unsigned char fadeOutInfo;
 		int randomSeed;
 		float emissiveScaleScale;
 		float hdrLightingFrac;
 		float shadowDensityScale;
+		float scatterRatio;
 	}; static_assert(sizeof(FxElemDef) == 0x140);
 
 	static_assert(offsetof(FxElemDef, spawnOrigin) == 60);
