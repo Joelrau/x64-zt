@@ -12,7 +12,7 @@ Check out the [wiki](https://github.com/Joelrau/x64-zt/wiki) for useful guides &
 ## Commands
 * `loadzone <zone>`: Loads a zone
 * `unloadzones`: Unloads zones
-* `verifyzones <zone>`: Lists assets in a zone
+* `verifyzone <zone>`: Lists assets in a zone
 * `dumpzone <zone>`: Dumps a zone
 * `dumpzone <target game> <zone> <asset filter>`: Dumps a zone converting assets for a specific game
 * `dumpasset <type> <name>`: Dumps a single assset
