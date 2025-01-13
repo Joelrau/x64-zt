@@ -96,31 +96,54 @@ namespace zonetool::h1
 		this->add_script_string(&asset->animTree, read.read_string());
 		asset->scriptable = read.read_asset<ScriptableDef>();
 
-		for (auto i = 0; i < asset->soundCount; i++)
+		if (asset->soundNotes)
 		{
-			this->add_script_string(&asset->soundNotes[i], read.read_string());
+			asset->soundNotes = read.read_array<scr_string_t>();
+			for (auto i = 0; i < asset->soundCount; i++)
+			{
+				this->add_script_string(&asset->soundNotes[i], read.read_string());
+			}
 		}
-		for (auto i = 0; i < asset->soundCount; i++)
+		if (asset->soundNames)
 		{
-			this->add_script_string(&asset->soundNames[i], read.read_string());
+			asset->soundNames = read.read_array<scr_string_t>();
+			for (auto i = 0; i < asset->soundCount; i++)
+			{
+				this->add_script_string(&asset->soundNames[i], read.read_string());
+			}
 		}
-		for (auto i = 0; i < asset->soundCount; i++)
+		if (asset->soundOptions)
 		{
-			this->add_script_string(&asset->soundOptions[i], read.read_string());
+			asset->soundOptions = read.read_array<scr_string_t>();
+			for (auto i = 0; i < asset->soundCount; i++)
+			{
+				this->add_script_string(&asset->soundOptions[i], read.read_string());
+			}
 		}
 
-		for (auto i = 0; i < asset->effectCount; i++)
+		if (asset->effectNotes)
 		{
-			this->add_script_string(&asset->effectNotes[i], read.read_string());
+			asset->effectNotes = read.read_array<scr_string_t>();
+			for (auto i = 0; i < asset->effectCount; i++)
+			{
+				this->add_script_string(&asset->effectNotes[i], read.read_string());
+			}
 		}
-		asset->effectDefs = mem->allocate<FxEffectDef*>(asset->effectCount);
-		for (auto i = 0; i < asset->effectCount; i++)
+		if (asset->effectDefs)
 		{
-			asset->effectDefs[i] = read.read_asset<FxEffectDef>();
+			asset->effectDefs = read.read_array<FxEffectDef*>();
+			for (auto i = 0; i < asset->effectCount; i++)
+			{
+				asset->effectDefs[i] = read.read_asset<FxEffectDef>();
+			}
 		}
-		for (auto i = 0; i < asset->effectCount; i++)
+		if (asset->effectTags)
 		{
-			this->add_script_string(&asset->effectTags[i], read.read_string());
+			asset->effectTags = read.read_array<scr_string_t>();
+			for (auto i = 0; i < asset->effectCount; i++)
+			{
+				this->add_script_string(&asset->effectTags[i], read.read_string());
+			}
 		}
 
 		return asset;
@@ -204,31 +227,45 @@ namespace zonetool::h1
 		asset->animTree = static_cast<scr_string_t>(buf->write_scriptstring(
 			this->get_script_string(&asset->animTree)));
 
-		for (auto i = 0; i < asset->soundCount; i++)
+		if (asset->soundNotes)
 		{
-			asset->soundNotes[i] = static_cast<scr_string_t>(buf->write_scriptstring(
-				this->get_script_string(&asset->soundNotes[i])));
+			for (auto i = 0; i < asset->soundCount; i++)
+			{
+				asset->soundNotes[i] = static_cast<scr_string_t>(buf->write_scriptstring(
+					this->get_script_string(&asset->soundNotes[i])));
+			}
 		}
-		for (auto i = 0; i < asset->soundCount; i++)
+		if (asset->soundNames)
 		{
-			asset->soundNames[i] = static_cast<scr_string_t>(buf->write_scriptstring(
-				this->get_script_string(&asset->soundNames[i])));
+			for (auto i = 0; i < asset->soundCount; i++)
+			{
+				asset->soundNames[i] = static_cast<scr_string_t>(buf->write_scriptstring(
+					this->get_script_string(&asset->soundNames[i])));
+			}
 		}
-		for (auto i = 0; i < asset->soundCount; i++)
+		if (asset->soundOptions)
 		{
-			asset->soundOptions[i] = static_cast<scr_string_t>(buf->write_scriptstring(
-				this->get_script_string(&asset->soundOptions[i])));
+			for (auto i = 0; i < asset->soundCount; i++)
+			{
+				asset->soundOptions[i] = static_cast<scr_string_t>(buf->write_scriptstring(
+					this->get_script_string(&asset->soundOptions[i])));
+			}
 		}
-
-		for (auto i = 0; i < asset->effectCount; i++)
+		if(asset->effectNotes)
 		{
-			asset->effectNotes[i] = static_cast<scr_string_t>(buf->write_scriptstring(
-				this->get_script_string(&asset->effectNotes[i])));
+			for (auto i = 0; i < asset->effectCount; i++)
+			{
+				asset->effectNotes[i] = static_cast<scr_string_t>(buf->write_scriptstring(
+					this->get_script_string(&asset->effectNotes[i])));
+			}
 		}
-		for (auto i = 0; i < asset->effectCount; i++)
+		if (asset->effectTags)
 		{
-			asset->effectTags[i] = static_cast<scr_string_t>(buf->write_scriptstring(
-				this->get_script_string(&asset->effectTags[i])));
+			for (auto i = 0; i < asset->effectCount; i++)
+			{
+				asset->effectTags[i] = static_cast<scr_string_t>(buf->write_scriptstring(
+					this->get_script_string(&asset->effectTags[i])));
+			}
 		}
 	}
 
@@ -258,11 +295,6 @@ namespace zonetool::h1
 	std::int32_t anim_class::type()
 	{
 		return ASSET_TYPE_ANIMCLASS;
-	}
-
-	void write_aim_set(zone_buffer* buf, AnimationAimSet* data)
-	{
-
 	}
 
 	void anim_class::write(zone_base* zone, zone_buffer* buf)
@@ -302,12 +334,14 @@ namespace zonetool::h1
 						buf->clear_pointer(&dest_states[i].animEntries);
 					}
 
+					buf->push_stream(XFILE_BLOCK_RUNTIME);
 					if (data_states[i].animIndices)
 					{
 						buf->align(3);
 						buf->write(data_states[i].animIndices, data_states[i].entryCount);
 						buf->clear_pointer(&dest_states[i].animIndices);
 					}
+					buf->pop_stream();
 				}
 
 				buf->clear_pointer(&dest_state_machine->states);
@@ -360,10 +394,10 @@ namespace zonetool::h1
 		if (data->effectDefs)
 		{
 			buf->align(7);
-			buf->write(data->effectDefs, data->effectCount);
+			auto* dest_defs = buf->write(data->effectDefs, data->effectCount);
 			for (auto i = 0; i < data->effectCount; i++)
 			{
-				dest->effectDefs[i] = reinterpret_cast<FxEffectDef*>(zone->get_asset_pointer(
+				dest_defs[i] = reinterpret_cast<FxEffectDef*>(zone->get_asset_pointer(
 					ASSET_TYPE_FX, data->effectDefs[i]->name));
 			}
 			buf->clear_pointer(&dest->effectDefs);
@@ -446,30 +480,54 @@ namespace zonetool::h1
 		dumper.dump_string(SL_ConvertToString(asset->animTree));
 		dumper.dump_asset(asset->scriptable);
 		
-		for (auto i = 0; i < asset->soundCount; i++)
+		if (asset->soundNotes)
 		{
-			dumper.dump_string(SL_ConvertToString(asset->soundNotes[i]));
+			dumper.dump_array(asset->soundNotes, asset->soundCount);
+			for (auto i = 0; i < asset->soundCount; i++)
+			{
+				dumper.dump_string(SL_ConvertToString(asset->soundNotes[i]));
+			}
 		}
-		for (auto i = 0; i < asset->soundCount; i++)
+		if (asset->soundNames)
 		{
-			dumper.dump_string(SL_ConvertToString(asset->soundNames[i]));
+			dumper.dump_array(asset->soundNames, asset->soundCount);
+			for (auto i = 0; i < asset->soundCount; i++)
+			{
+				dumper.dump_string(SL_ConvertToString(asset->soundNames[i]));
+			}
 		}
-		for (auto i = 0; i < asset->soundCount; i++)
+		if (asset->soundOptions)
 		{
-			dumper.dump_string(SL_ConvertToString(asset->soundOptions[i]));
+			dumper.dump_array(asset->soundOptions, asset->soundCount);
+			for (auto i = 0; i < asset->soundCount; i++)
+			{
+				dumper.dump_string(SL_ConvertToString(asset->soundOptions[i]));
+			}
 		}
 
-		for (auto i = 0; i < asset->effectCount; i++)
+		if (asset->effectNotes)
 		{
-			dumper.dump_string(SL_ConvertToString(asset->effectNotes[i]));
+			dumper.dump_array(asset->effectNotes, asset->effectCount);
+			for (auto i = 0; i < asset->effectCount; i++)
+			{
+				dumper.dump_string(SL_ConvertToString(asset->effectNotes[i]));
+			}
 		}
-		for (auto i = 0; i < asset->effectCount; i++)
+		if (asset->effectDefs)
 		{
-			dumper.dump_asset(asset->effectDefs[i]);
+			dumper.dump_array(asset->effectDefs, asset->effectCount);
+			for (auto i = 0; i < asset->effectCount; i++)
+			{
+				dumper.dump_asset(asset->effectDefs[i]);
+			}
 		}
-		for (auto i = 0; i < asset->effectCount; i++)
+		if (asset->effectTags)
 		{
-			dumper.dump_string(SL_ConvertToString(asset->effectTags[i]));
+			dumper.dump_array(asset->effectTags, asset->effectCount);
+			for (auto i = 0; i < asset->effectCount; i++)
+			{
+				dumper.dump_string(SL_ConvertToString(asset->effectTags[i]));
+			}
 		}
 
 		dumper.close();
