@@ -192,15 +192,15 @@ namespace zonetool::h1
 			mat->constantTable = constant_def;
 		}
 
-		json layers = matdata["subMaterials"];
+		json subMaterials = matdata["subMaterials"];
 		mat->subMaterials = nullptr;
-		mat->layerCount = static_cast<unsigned char>(layers.size());
-		if (layers.size() > 0)
+		mat->layerCount = static_cast<unsigned char>(subMaterials.size());
+		if (subMaterials.size() > 0)
 		{
-			auto sub_materials = mem->allocate<const char*>(layers.size());
-			for (int i = 0; i < layers.size(); i++)
+			mat->subMaterials = mem->allocate<const char*>(subMaterials.size());
+			for (int i = 0; i < subMaterials.size(); i++)
 			{
-				sub_materials[i] = mem->duplicate_string(layers[i].get<std::string>());
+				mat->subMaterials[i] = mem->duplicate_string(subMaterials[i].get<std::string>());
 			}
 		}
 

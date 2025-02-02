@@ -1176,7 +1176,7 @@ namespace zonetool::iw6
 			{
 				auto* new_asset = allocator.allocate<zonetool::h1::MaterialTechniqueSet>();
 
-				new_asset->name = allocator.duplicate_string(asset->name);
+				new_asset->name = allocator.duplicate_string(game::add_source_postfix(asset->name, game::iw6));
 				new_asset->flags = asset->flags; // convert?
 
 				new_asset->worldVertFormat = asset->worldVertFormat; // iw6 is same as h1
@@ -1208,7 +1208,7 @@ namespace zonetool::iw6
 
 							std::memcpy(new_technique, technique, size); // same struct
 
-							new_technique->hdr.name = allocator.duplicate_string(technique->hdr.name + TECHSET_PREFIX);
+							new_technique->hdr.name = allocator.duplicate_string(game::add_source_postfix(technique->hdr.name, game::iw6));
 
 							for (unsigned short pass_index = 0; pass_index < technique->hdr.passCount; pass_index++)
 							{

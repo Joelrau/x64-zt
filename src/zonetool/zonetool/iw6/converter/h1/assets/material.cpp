@@ -218,7 +218,7 @@ namespace zonetool::iw6
 				new_asset->assetFlags = asset->assetFlags; // convert?
 
 				new_asset->techniqueSet = allocator.allocate<zonetool::h1::MaterialTechniqueSet>();
-				new_asset->techniqueSet->name = allocator.duplicate_string(asset->techniqueSet->name);
+				new_asset->techniqueSet->name = allocator.duplicate_string(game::add_source_postfix(asset->techniqueSet->name, game::iw6));
 				REINTERPRET_CAST_SAFE(textureTable);
 				REINTERPRET_CAST_SAFE(constantTable);
 				

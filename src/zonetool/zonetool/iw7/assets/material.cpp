@@ -163,8 +163,9 @@ namespace zonetool::iw7
 		json subMaterials = matdata["subMaterials"];
 		if (subMaterials.size())
 		{
-			mat->subMaterials = mem->allocate<const char*>(subMaterials.size());
-			for (auto i = 0; i < subMaterials.size(); i++)
+			mat->layerCount = static_cast<unsigned char>(subMaterials.size());
+			mat->subMaterials = mem->allocate<const char*>(mat->layerCount);
+			for (auto i = 0; i < mat->layerCount; i++)
 			{
 				mat->subMaterials[i] = mem->duplicate_string(subMaterials[i].get<std::string>());
 			}
