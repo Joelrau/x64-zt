@@ -150,6 +150,49 @@ namespace zonetool
 		return hash;
 	}
 
+	void vectoangles(const float* vec, float* angles)
+	{
+		float x = vec[0], y = vec[1], z = vec[2];
+
+		if (x == 0.0f && y == 0.0f) {
+			angles[0] = (z < 0.0f) ? 270.0f : 90.0f; // Pitch
+			angles[1] = 0.0f;  // Yaw
+		}
+		else {
+			angles[1] = atan2f(y, x) * 57.295776f; // Yaw (rad to deg)
+			if (angles[1] < 0.0f) angles[1] += 360.0f;
+
+			float horizontalLength = sqrtf(x * x + y * y);
+			angles[0] = atan2f(z, horizontalLength) * -57.295776f; // Pitch
+			if (angles[0] < 0.0f) angles[0] += 360.0f;
+		}
+
+		angles[2] = 0.0f; // Roll is always zero
+	}
+
+	void AxisToAngles(const float axis[3][3], float angles[3])
+	{
+		vectoangles(reinterpret_cast<const float*>(axis), angles);
+
+		float yawRad = angles[1] * -0.0174533f;
+		float sinYaw = sinf(yawRad), cosYaw = cosf(yawRad);
+
+		float forwardX = axis[1][0], forwardY = axis[1][1], forwardZ = axis[1][2];
+		float newX = (cosYaw * forwardX) - (sinYaw * forwardY);
+		float newY = (cosYaw * forwardY) + (sinYaw * forwardX);
+
+		float pitchRad = angles[0] * -0.0174533f;
+		float sinPitch = sinf(pitchRad), cosPitch = cosf(pitchRad);
+		float rotatedZ = (forwardZ * sinPitch) + (newX * cosPitch);
+		float rotatedX = (forwardZ * cosPitch) - (newX * sinPitch);
+
+		float rollAngle = (newY == 0.0f && rotatedZ == 0.0f)
+			? ((rotatedX < 0.0f) ? -90.0f : 90.0f)
+			: atan2f(rotatedX, sqrtf(newY * newY + rotatedZ * rotatedZ)) * -57.295776f;
+
+		angles[2] = (newY >= 0.0f) ? -rollAngle : ((rollAngle >= 0.0f) ? (-180.0f + rollAngle) : (180.0f + rollAngle));
+	}
+
 	namespace QuatInt16
 	{
 		short ToInt16(const float quat)

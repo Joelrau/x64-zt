@@ -76,6 +76,7 @@
 #include <unordered_set>
 #include <variant>
 #include <set>
+#include <numbers>
 
 #include <gsl/gsl>
 #include <udis86.h>

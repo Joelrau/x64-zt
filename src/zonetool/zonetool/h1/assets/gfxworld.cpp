@@ -75,6 +75,7 @@ namespace zonetool::h1
 				{
 					auto& surf = asset->dpvs.surfaces[surf_idx];
 					auto* surf_material = get_asset<Material>(ASSET_TYPE_MATERIAL, surf.material->name, zone);
+
 					if (Material_IsOpaque(surf_material, zone))
 						opaque.push_back(surf_idx);
 					else if (Material_IsDecal(surf_material, zone))
@@ -189,6 +190,81 @@ namespace zonetool::h1
 			catch (const std::exception& e)
 			{
 				ZONETOOL_ERROR("Could not sort dpvs surfaces!\n%s", e.what());
+			}
+		}
+
+		void re_calc_lightmap_params(GfxLightmapArray* array, GfxLightmapParameters* params, zone_base* zone)
+		{
+			array->primary = get_asset<GfxImage>(ASSET_TYPE_IMAGE, array->primary->name, zone);
+			array->secondary = get_asset<GfxImage>(ASSET_TYPE_IMAGE, array->secondary->name, zone);
+
+			params->lightmapWidthPrimary = array->primary->width;
+			params->lightmapHeightPrimary = array->primary->height;
+
+			params->lightmapWidthSecondary = array->secondary->width;
+			params->lightmapHeightSecondary = array->secondary->height;
+
+			params->lightmapModelUnitsPerTexel = 8;
+		}
+
+		void fixup_static_models(GfxWorld* world, zone_base* zone)
+		{
+			for (auto i = 0u; i < world->dpvs.smodelCount; i++)
+			{
+				auto* smodel_draw_inst = &world->dpvs.smodelDrawInsts[i];
+				auto* smodel_inst = &world->dpvs.smodelInsts[i];
+				if (smodel_draw_inst->model)
+				{
+					constexpr unsigned char SURF_PER_LOD_HARD_LIMIT = 16;
+					bool model_has_more_surfs_than_allowed = false;
+					auto* model = get_asset<XModel>(ASSET_TYPE_XMODEL, smodel_draw_inst->model->name, zone);
+					for (auto lod_index = 0; lod_index < model->numLods; lod_index++)
+					{
+						auto* lod = &model->lodInfo[lod_index];
+						if (lod->numsurfs >= SURF_PER_LOD_HARD_LIMIT)
+						{
+							model_has_more_surfs_than_allowed = true;
+							break;
+						}
+					}
+
+					if (model_has_more_surfs_than_allowed)
+					{
+						ZONETOOL_INFO("Converting static model %s to script model since it uses more than %d surfs...", model->name, SURF_PER_LOD_HARD_LIMIT);
+
+						float angles[3]{};
+						AxisToAngles(smodel_draw_inst->placement.axis, angles);
+
+						map_ents::add_entity_string("{\n");
+						map_ents::add_entity_string("\"classname\" \"script_model\"\n");
+						map_ents::add_entity_string(utils::string::va("\"model\" \"%s\"\n", model->name));
+						map_ents::add_entity_string(utils::string::va("\"origin\" \"%f %f %f\"\n",
+							smodel_draw_inst->placement.origin[0],
+							smodel_draw_inst->placement.origin[1],
+							smodel_draw_inst->placement.origin[2]
+						));
+						map_ents::add_entity_string(utils::string::va("\"angles\" \"%f %f %f\"\n",
+							angles[0],
+							angles[1],
+							angles[2]
+						));
+						if (smodel_draw_inst->placement.scale != 1.0f)
+						{
+							ZONETOOL_WARNING("Lost model scale(%f) for model %s while converting from static model to script model...", smodel_draw_inst->placement.scale, model->name);
+							//map_ents::add_entity_string(utils::string::va("\"modelscale\" \"%f\"\n", smodel_draw_inst->placement.scale));
+						}
+						map_ents::add_entity_string("}\n");
+
+						static XModel empty_model{};
+						empty_model.name = "tag_origin";
+
+						memset(smodel_inst->mins, 0, sizeof(smodel_inst->mins));
+						memset(smodel_inst->maxs, 0, sizeof(smodel_inst->maxs));
+
+						smodel_draw_inst->model = &empty_model;
+						zone->add_asset_of_type(ASSET_TYPE_XMODEL, ","s + empty_model.name);
+					}
+				}
 			}
 		}
 	}
@@ -611,7 +687,10 @@ namespace zonetool::h1
 			}
 		}
 
+		// fixes
 		sort_dpvs_surfaces(this->asset_, zone);
+		re_calc_lightmap_params(this->asset_->draw.lightmaps, &this->asset_->draw.lightmapParameters, zone);
+		fixup_static_models(this->asset_, zone);
 	}
 
 	std::string gfx_world::name()

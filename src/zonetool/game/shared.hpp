@@ -135,6 +135,8 @@ namespace zonetool
 	std::uint32_t snd_hash_name(const char* name);
 	int string_table_hash(const std::string& string);
 
+	void AxisToAngles(const float axis[3][3], float angles[3]);
+
 	namespace QuatInt16
 	{
 		short ToInt16(const float quat);
