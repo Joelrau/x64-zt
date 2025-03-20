@@ -85,6 +85,8 @@ namespace zonetool
 		{
 			void initialize()
 			{
+				DB_IsXAssetDefault.set(0x1401D7260);
+
 				SL_ConvertToString.set(0x1401632C0);
 			}
 		}

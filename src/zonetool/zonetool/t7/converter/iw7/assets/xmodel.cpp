@@ -129,8 +129,7 @@ namespace zonetool::t7
 				new_asset->collSurfs = allocator.allocate_array<zonetool::iw7::XModelCollSurf_s>(new_asset->numCollSurfs);
 				for (auto i = 0; i < new_asset->numCollSurfs; i++)
 				{
-					//compute(&new_asset->collSurfs[i].bounds, asset->collSurfs[i].mins, asset->collSurfs[i].maxs);
-					memcpy(&new_asset->collSurfs[i].bounds, &asset->collSurfs[i].mins, sizeof(zonetool::iw7::Bounds)); // compute?
+					compute(&new_asset->collSurfs[i].bounds, asset->collSurfs[i].mins, asset->collSurfs[i].maxs);
 					new_asset->collSurfs[i].boneIdx = asset->collSurfs[i].boneIdx;
 					new_asset->collSurfs[i].contents = asset->collSurfs[i].contents; // convert...
 					new_asset->collSurfs[i].surfFlags = asset->collSurfs[i].surfFlags; // convert...
@@ -138,17 +137,15 @@ namespace zonetool::t7
 
 				new_asset->contents = asset->contents; // convert...
 
-				new_asset->boneInfo = allocator.allocate_array<zonetool::iw7::XBoneInfo>(new_asset->numBones + asset->numCosmeticBones - asset->numRootBones);
-				for (auto i = 0; i < new_asset->numBones + asset->numCosmeticBones - asset->numRootBones; i++)
+				new_asset->boneInfo = allocator.allocate_array<zonetool::iw7::XBoneInfo>(asset->numBones + asset->numCosmeticBones);
+				for (auto i = 0; i < asset->numBones + asset->numCosmeticBones; i++)
 				{
-					//compute(&new_asset->boneInfo[i].bounds, asset->boneInfo[i].bounds[0], asset->boneInfo[i].bounds[1]);
-					memcpy(&new_asset->boneInfo[i].bounds, &asset->boneInfo[i].bounds, sizeof(zonetool::iw7::Bounds)); // compute?
+					compute(&new_asset->boneInfo[i].bounds, asset->boneInfo[i].bounds[0], asset->boneInfo[i].bounds[1]);
 					new_asset->boneInfo[i].radiusSquared = asset->boneInfo[i].radiusSquared;
 				}
 
 				COPY_VALUE(radius);
-				//compute(&new_asset->bounds, asset->mins, asset->maxs);
-				memcpy(&new_asset->bounds, &asset->mins, sizeof(zonetool::iw7::Bounds)); // compute?
+				compute(&new_asset->bounds, asset->mins, asset->maxs);
 
 				new_asset->invHighMipRadius = allocator.allocate_array<unsigned short>(new_asset->numsurfs);
 				for (unsigned char i = 0; i < new_asset->numsurfs; i++)

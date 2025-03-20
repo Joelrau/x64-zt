@@ -18,6 +18,12 @@ namespace zonetool::t7
 
 				assert(asset->numBones < 256);
 
+				if (asset->numCosmeticBones)
+				{
+					ZONETOOL_WARNING("model %s has cosmetic bones, this is untested and might not work!", asset->name);
+					assert(asset->numBones + asset->numCosmeticBones < 256);
+				}
+
 				COPY_VALUE(numLods);
 				if (new_asset->numLods > 6)
 				{
@@ -27,6 +33,7 @@ namespace zonetool::t7
 				REINTERPRET_CAST_SAFE(name);
 
 				COPY_VALUE(numBones);
+				new_asset->numBones += static_cast<unsigned char>(asset->numCosmeticBones);
 				COPY_VALUE(numRootBones);
 				new_asset->numsurfs = 0;
 				new_asset->numReactiveMotionParts = 0;
@@ -44,8 +51,8 @@ namespace zonetool::t7
 					new_asset->tagAngles[i].z = QuatInt16::ToInt16(half_float::half_to_float(asset->tagAngles[i].z));
 					new_asset->tagAngles[i].base = QuatInt16::ToInt16(half_float::half_to_float(asset->tagAngles[i].w));
 				}
-				new_asset->tagPositions = allocator.allocate_array<zonetool::h1::XModelTagPos>(asset->numBones - asset->numRootBones);
-				for (auto i = 0; i < asset->numBones - asset->numRootBones; i++)
+				new_asset->tagPositions = allocator.allocate_array<zonetool::h1::XModelTagPos>(asset->numBones + asset->numCosmeticBones - asset->numRootBones);
+				for (auto i = 0; i < asset->numBones + asset->numCosmeticBones - asset->numRootBones; i++)
 				{
 					new_asset->tagPositions[i].x = asset->tagPositions[i].x;
 					new_asset->tagPositions[i].y = asset->tagPositions[i].y;
@@ -124,8 +131,7 @@ namespace zonetool::t7
 				new_asset->collSurfs = allocator.allocate_array<zonetool::h1::XModelCollSurf_s>(new_asset->numCollSurfs);
 				for (auto i = 0; i < new_asset->numCollSurfs; i++)
 				{
-					//compute(&new_asset->collSurfs[i].bounds, asset->collSurfs[i].mins, asset->collSurfs[i].maxs);
-					memcpy(&new_asset->collSurfs[i].bounds, &asset->collSurfs[i].mins, sizeof(zonetool::h1::Bounds)); // compute?
+					compute(&new_asset->collSurfs[i].bounds, asset->collSurfs[i].mins, asset->collSurfs[i].maxs);
 					new_asset->collSurfs[i].boneIdx = asset->collSurfs[i].boneIdx;
 					new_asset->collSurfs[i].contents = asset->collSurfs[i].contents; // convert...
 					new_asset->collSurfs[i].surfFlags = asset->collSurfs[i].surfFlags; // convert...
@@ -133,17 +139,15 @@ namespace zonetool::t7
 
 				new_asset->contents = asset->contents; // convert...
 
-				new_asset->boneInfo = allocator.allocate_array<zonetool::h1::XBoneInfo>(new_asset->numBones - asset->numRootBones);
-				for (auto i = 0; i < new_asset->numBones - asset->numRootBones; i++)
+				new_asset->boneInfo = allocator.allocate_array<zonetool::h1::XBoneInfo>(asset->numBones + asset->numCosmeticBones);
+				for (auto i = 0; i < asset->numBones + asset->numCosmeticBones; i++)
 				{
-					//compute(&new_asset->boneInfo[i].bounds, asset->boneInfo[i].bounds[0], asset->boneInfo[i].bounds[1]);
-					memcpy(&new_asset->boneInfo[i].bounds, asset->boneInfo[i].bounds, sizeof(zonetool::h1::Bounds)); // compute?
+					compute(&new_asset->boneInfo[i].bounds, asset->boneInfo[i].bounds[0], asset->boneInfo[i].bounds[1]);
 					new_asset->boneInfo[i].radiusSquared = asset->boneInfo[i].radiusSquared;
 				}
 
 				COPY_VALUE(radius);
-				//compute(&new_asset->bounds, asset->mins, asset->maxs);
-				memcpy(&new_asset->bounds, &asset->mins, sizeof(zonetool::h1::Bounds)); // compute?
+				compute(&new_asset->bounds, asset->mins, asset->maxs);
 
 				new_asset->invHighMipRadius = allocator.allocate_array<unsigned short>(new_asset->numsurfs);
 				for (unsigned char i = 0; i < new_asset->numsurfs; i++)

@@ -42,7 +42,7 @@ function zonetool:project()
 				"( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"D:\\Games\\PC\\S1\\$(TargetName)$(TargetExt)\" )",
 				"( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"D:\\Games\\PC\\IW6\\$(TargetName)$(TargetExt)\" )",
 				"( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"D:\\Games\\PC\\IW7\\$(TargetName)$(TargetExt)\" )",
-				"( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Call of Duty Black Ops III\\UnrankedServer\\$(TargetName)$(TargetExt)\" )",
+				"( copy /y \"$(OutDir)$(TargetName)$(TargetExt)\" \"D:\\SteamLibrary\\steamapps\\common\\Call of Duty Black Ops III\\UnrankedServer\\$(TargetName)$(TargetExt)\" )",
 			}
 		end
 

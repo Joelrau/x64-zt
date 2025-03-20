@@ -14,8 +14,8 @@ namespace zonetool::t7
 		{
 			void GenerateH1BlendVertsTable(zonetool::h1::XSurface* surf)
 			{
-				unsigned int a = 0;
-				unsigned int b = 0;
+				unsigned short a = 0;
+				unsigned short b = 0;
 				unsigned short index = 1;
 				for (short s = 0; s < (surf->blendVertCounts[0]); s++)
 				{
@@ -206,7 +206,7 @@ namespace zonetool::t7
 							float unpacked_tangent[3]{};
 							PackedVec::Vec3UnpackUnitVec_IW8(verts[j].VertexTangent, unpacked_tangent);
 
-							new_surf->verts0.packedVerts0[j].binormalSign = 1.0f; // check
+							new_surf->verts0.packedVerts0[j].binormalSign = unpacked_normal[0] > 0.0f ? 1.0f : -1.0f; // check
 						}
 
 						new_surf->triIndices = reinterpret_cast<zonetool::h1::Face*>(indices);

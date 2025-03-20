@@ -262,7 +262,7 @@ namespace zonetool::t7
 		// dump referenced later
 		if (is_referenced_asset(asset))
 		{
-			//referenced_assets.emplace_back(asset->type, get_asset_name(asset));
+			referenced_assets.emplace_back(asset->type, get_asset_name(asset));
 			return;
 		}
 
