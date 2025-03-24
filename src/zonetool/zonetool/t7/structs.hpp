@@ -18,8 +18,39 @@ namespace zonetool::t7
 
 	typedef uint16_t UnsignedShort;
 
+	typedef float float2[2];
+	typedef float float3[3];
+	typedef float float4[4];
+
+	typedef uint uint2[2];
+	typedef uint uint3[3];
+	typedef uint uint4[4];
+
 	typedef byte ByteVec[3];
 	typedef uint16_t UShortVec[3];
+
+	typedef byte byte4;
+	typedef byte byte16;
+
+	typedef unsigned __int64 __uint64_t;
+	typedef __uint64_t __uintptr_t;
+	typedef __uintptr_t uintptr_t_0;
+	typedef __int64 intptr_t_0;
+
+	typedef intptr_t_0 scr_funcptr_t;
+
+	enum LocalClientNum_t : __int32
+	{
+		//INVALID_LOCAL_CLIENT = 0xFFFFFFFF,
+		LOCAL_CLIENT_0 = 0x0,
+		LOCAL_CLIENT_FIRST = 0x0,
+		LOCAL_CLIENT_KEYBOARD_AND_MOUSE = 0x0,
+		LOCAL_CLIENT_1 = 0x1,
+		LOCAL_CLIENT_2 = 0x2,
+		LOCAL_CLIENT_3 = 0x3,
+		LOCAL_CLIENT_COUNT = 0x4,
+	};
+	typedef LocalClientNum_t LocalClientNum_t_0;
 
 	enum XAssetType
 	{
@@ -146,10 +177,10 @@ namespace zonetool::t7
 	struct GfxImage;
 	//struct SndBank*;
 	//struct SndPatch;
-	//struct clipMap_t;
-	//struct ComWorld;
-	//struct GameWorld;
-	//struct MapEnts;
+	struct clipMap_t;
+	struct ComWorld;
+	struct GameWorld;
+	struct MapEnts;
 	//struct GfxWorld;
 	//struct GfxLightDef;
 	//struct GfxLensFlareDef;
@@ -232,6 +263,14 @@ namespace zonetool::t7
 	//struct BeamDef;
 	//struct StreamerHint;
 
+	struct FxEffectDef;
+	typedef const FxEffectDef* FxEffectDefHandle;
+
+	typedef int FxUniqueHandle;
+
+	typedef uint32_t SndStringHash;
+	typedef SndStringHash SndAliasId;
+
 	struct XPakEntryInfo
 	{
 		uint64_t key;
@@ -253,6 +292,18 @@ namespace zonetool::t7
 	{
 		uint32_t packed;
 		byte array[4];
+	};
+
+	struct Bounds
+	{
+		vec3_t midPoint;
+		vec3_t halfSize;
+	};
+
+	struct GfxPlacement
+	{
+		vec4_t quat;
+		vec3_t origin;
 	};
 
 	enum MaterialDrawMethodType : uint8_t
@@ -722,9 +773,15 @@ namespace zonetool::t7
 
 	typedef Material* MaterialHandle;
 
+	struct GfxImageStreamLevelCountAndSize
+	{
+		uint levelCount : 4;
+		uint pixelSize : 28;
+	};
+
 	struct GfxStreamedPartInfo
 	{
-		uint levelCountAndSize;
+		GfxImageStreamLevelCountAndSize levelCountAndSize; //uint levelCountAndSize;
 		uint16_t width;
 		uint16_t height;
 		XPakEntryInfo xpakEntry;
@@ -756,8 +813,27 @@ namespace zonetool::t7
 		IMG_SEMANTIC_COUNT = 0x15,
 	};
 
-	typedef byte MapType;
-	typedef byte GfxImageCategory;
+	enum MapType : byte
+	{
+		MAPTYPE_NONE = 0x0,
+		MAPTYPE_2D = 0x1,
+		MAPTYPE_2D_ARRAY = 0x2,
+		MAPTYPE_3D = 0x3,
+		MAPTYPE_CUBE = 0x4,
+		MAPTYPE_CUBE_ARRAY = 0x5,
+		MAPTYPE_COUNT = 0x6,
+	};
+
+	enum GfxImageCategory : byte
+	{
+		IMG_CATEGORY_UNKNOWN = 0x0,
+		IMG_CATEGORY_AUTO_GENERATED = 0x1,
+		IMG_CATEGORY_LIGHTMAP = 0x2,
+		IMG_CATEGORY_LOAD_FROM_FILE = 0x3,
+		IMG_CATEGORY_RAW = 0x4,
+		IMG_CATEGORY_RENDERTARGET = 0x5,
+		IMG_CATEGORY_TEMP = 0x6,
+	};
 
 	struct GfxTexture
 	{
@@ -815,6 +891,30 @@ namespace zonetool::t7
 		GFX_PF_R32G32_UI = 0x2D,
 	};
 
+	enum file_image_flags_t : int32_t
+	{
+		IMG_FLAG_NOPICMIP = 0x1,
+		IMG_FLAG_NOMIPMAPS = 0x2,
+		IMG_FLAG_CUBEMAP = 0x4,
+		IMG_FLAG_VOLMAP = 0x8,
+		IMG_FLAG_STREAMING = 0x10,
+		IMG_FLAG_CLAMP_U = 0x40,
+		IMG_FLAG_CLAMP_V = 0x80,
+		IMG_FLAG_FORCE_SYSTEM = 0x100,
+		IMG_FLAG_ARRAY = 0x200,
+		IMG_FLAG_DYNAMIC = 0x10000,
+		IMG_FLAG_RENDER_TARGET = 0x20000,
+		IMG_FLAG_UNTILED = 0x40000,
+		IMG_FLAG_CPU_READ = 0x80000,
+		IMG_FLAG_CPU_WRITE = 0x100000,
+		IMG_FLAG_GPU_WRITE = 0x200000,
+		IMG_FLAG_TYPE_CAST = 0x400000,
+		IMG_FLAG_LIGHTDEF = 0x800000,
+		IMG_FLAG_DX_ONLY = 0x1000000,
+		IMG_FLAG_INTERFRAME_USE = 0x2000000,
+		IMG_FLAG_CLEARMEM = 0x4000000,
+	};
+
 	struct GfxImage
 	{
 		GfxStreamedPartInfo streamedParts[4];
@@ -843,7 +943,7 @@ namespace zonetool::t7
 		byte* fallbackPixels;
 		uint totalSize;
 		uint fallbackSize;
-		GfxPixelFormat format;
+		DXGI_FORMAT format; //GfxPixelFormat format;
 		const char* name;
 		unsigned int hash;
 	}; assert_sizeof(GfxImage, 0x108);
@@ -1429,6 +1529,1726 @@ namespace zonetool::t7
 		XPartBits combinedPartBits;
 	}; assert_sizeof(XModel, 0x188);
 
+	struct TriggerModel
+	{
+		contents_t contents;
+		ushort hullCount;
+		ushort firstHull;
+	};
+
+	struct TriggerHull
+	{
+		Bounds bounds;
+		contents_t contents;
+		ushort slabCount;
+		ushort firstSlab;
+	};
+
+	struct TriggerSlab
+	{
+		vec3_t dir;
+		float midPoint;
+		float halfSize;
+	};
+
+	struct MapTriggers
+	{
+		uint count;
+		TriggerModel* models;
+		uint hullCount;
+		TriggerHull* hulls;
+		uint slabCount;
+		TriggerSlab* slabs;
+	};
+
+	struct MapEnts
+	{
+		const char* name;
+		char* entityString;
+		int numEntityChars;
+		MapTriggers trigger;
+	};
+
+	struct ClipMaterial
+	{
+		const char* name;
+		int surfaceFlags;
+		contents_t contentFlags;
+	};
+
+	struct cLeafBrushNodeLeaf_t
+	{
+		unsigned __int16* brushes;
+	};
+
+	struct cLeafBrushNodeChildren_t
+	{
+		float dist;
+		float range;
+		unsigned __int16 childOffset[2];
+	};
+
+	union cLeafBrushNodeData_t
+	{
+		cLeafBrushNodeLeaf_t leaf;
+		cLeafBrushNodeChildren_t children;
+	};
+
+	struct cLeafBrushNode_s
+	{
+		byte axis;
+		__int16 leafBrushCount;
+		contents_t contents;
+		cLeafBrushNodeData_t data;
+	};
+	typedef cLeafBrushNode_s cLeafBrushNode_t;
+
+	struct cbrush_t
+	{
+		vec3_t mins;
+		contents_t contents;
+		vec3_t maxs;
+		uint numsides;
+		cbrushside_t* sides;
+		contents_t axial_cflags[2][3];
+		int axial_sflags[2][3];
+		uint numverts;
+		vec3_t* verts;
+	};
+
+	struct ClipInfo
+	{
+		int planeCount;
+		cplane_t* planes;
+		uint numMaterials;
+		ClipMaterial* materials;
+		uint numBrushSides;
+		cbrushside_t* brushsides;
+		uint leafbrushNodesCount;
+		cLeafBrushNode_t* leafbrushNodes;
+		uint numLeafBrushes;
+		unsigned __int16* leafbrushes;
+		uint numBrushVerts;
+		vec3_t* brushVerts;
+		uint nuinds;
+		uint* uinds;
+		unsigned __int16 numBrushes;
+		cbrush_t* brushes;
+		Bounds* brushBounds;
+		contents_t* brushContents;
+	};
+
+	struct cStaticModelWritable
+	{
+		unsigned __int16 nextModelInWorldSector;
+	};
+
+	struct cStaticModel_s
+	{
+		cStaticModelWritable writable;
+		XModel* xmodel;
+		contents_t contents;
+		vec3_t origin;
+		vec3_t invScaledAxis[3];
+		vec3_t absmin;
+		vec3_t absmax;
+		DObjAnimMat* boneMtxs;
+		int numBoneMtxs;
+		ScrString_t targetname;
+	};
+	typedef cStaticModel_s cStaticModel_t;
+
+	struct cNode_t
+	{
+		cplane_t* plane;
+		int children[2];
+	};
+
+	struct cLeaf_s
+	{
+		uint firstCollAabbIndex;
+		uint collAabbCount;
+		contents_t brushContents;
+		contents_t terrainContents;
+		vec3_t mins;
+		vec3_t maxs;
+		intptr_t_0 leafBrushNode;
+		int cluster;
+	};
+	typedef cLeaf_s cLeaf_t;
+
+	struct CollisionPartition
+	{
+		byte triCount;
+		int firstTri;
+		int nuinds;
+		int fuind;
+	};
+
+	union CollisionAabbTreeIndex
+	{
+		int firstChildIndex;
+		int partitionIndex;
+	};
+
+	struct CollisionAabbTree
+	{
+		vec3_t origin;
+		unsigned __int16 materialIndex;
+		unsigned __int16 childCount;
+		vec3_t halfSize;
+		CollisionAabbTreeIndex u;
+	};
+
+	struct cmodel_t
+	{
+		vec3_t mins;
+		vec3_t maxs;
+		float radius;
+		ClipInfo* info;
+		cLeaf_t leaf;
+	};
+
+	typedef unsigned __int16 DynEntityId;
+
+	struct DynEntityDef
+	{
+		GfxPlacement pose;
+		XModel* xModel;
+		XModel* destroyedxModel;
+		ushort brushModel;
+		ushort physicsBrushModel;
+		FxEffectDefHandle destroyFx;
+		SndAliasId destroySound;
+		FxEffectDefHandle rattleFx;
+		SndAliasId rattleSound;
+		FxEffectDefHandle splashUpFx[3];
+		PhysPreset* physPreset;
+		__int16 physConstraints[4];
+		int health;
+		int flags;
+		contents_t contents;
+		ScrString_t targetname;
+		ScrString_t target;
+	};
+
+	struct GfxEntityPreFrame
+	{
+		uint activePartBits[12];
+		int modelCount;
+		int numBones;
+		int numCosmeticBones;
+		int boneArrayOffset;
+	};
+
+	struct DynEntityPose
+	{
+		GfxPlacement pose;
+		float radius;
+		GfxEntityPreFrame prevFrame;
+	};
+
+	struct LocalClientFxUniqueHandle
+	{
+		LocalClientNum_t_0 localClient;
+		FxUniqueHandle fxHandle;
+	};
+
+	struct DynEntityClient
+	{
+		intptr_t_0 physObjId;
+		ushort flags;
+		int health;
+		ushort burnTime;
+		ushort fadeTime;
+		int physicsStartTime;
+		LocalClientFxUniqueHandle fxHandles[10];
+		int numFxHandles;
+	};
+
+	struct DynEntityServer
+	{
+		ushort flags;
+		int health;
+	};
+
+	struct DynEntityColl
+	{
+		ushort sector;
+		ushort nextEntInSector;
+		vec3_t linkMins;
+		vec3_t linkMaxs;
+		contents_t contents;
+	};
+
+	struct par_t
+	{
+		vec3_t p;
+		vec3_t p0;
+		vec3_t p_prev;
+		int flags;
+	};
+
+	enum rope_constraint_e : __int32
+	{
+		ROPE_PAIR_CONSTRAINT = 0x0,
+		ROPE_WORLD_CONSTRAINT = 0x1,
+		ROPE_DENTITY_CONSTRAINT = 0x2,
+		ROPE_CENTITY_CONSTRAINT = 0x3,
+	};
+
+	struct constraint_t
+	{
+		vec3_t p;
+		rope_constraint_e type;
+		int entity_index;
+		ScrString_t bone_name_hash;
+		byte pi1;
+		byte pi2;
+	};
+
+	struct rope_frame_verts_t
+	{
+		int num_verts;
+		vec3_t v[60];
+	};
+
+	struct rope_client_verts_t
+	{
+		rope_frame_verts_t frame_verts[2];
+		unsigned int frame_index;
+	};
+
+	struct rope_t
+	{
+		par_t m_particles[30];
+		constraint_t m_constraints[35];
+		int m_entity_anchors[3];
+		int m_num_particles;
+		int m_num_constraints;
+		int m_num_entity_anchors;
+		int m_num_draw_verts;
+		rope_client_verts_t m_client_verts;
+		vec3_t m_min;
+		vec3_t m_max;
+		vec3_t m_start;
+		vec3_t m_end;
+		qboolean m_in_use;
+		qboolean m_visible;
+		qboolean m_dist_constraint;
+		int m_flags;
+		MaterialHandle m_material;
+		float m_seglen;
+		float m_length;
+		float m_width;
+		float m_scale;
+		vec3_t m_force_scale;
+		int m_health;
+		int m_frame;
+		int m_stable_count;
+		int m_static_rope;
+		int m_model;
+		int m_slice_count;
+	};
+
+	struct clipMap_t
+	{
+		const char* name;
+		qboolean isInUse;
+		ClipInfo info;
+		ClipInfo* pInfo;
+		uint numStaticModels;
+		cStaticModel_t* staticModelList;
+		uint numNodes;
+		cNode_t* nodes;
+		uint numLeafs;
+		cLeaf_t* leafs;
+		uint vertCount;
+		vec3_t* verts;
+		int triCount;
+		uint* triIndices;
+		byte* triEdgeIsWalkable;
+		int partitionCount;
+		CollisionPartition* partitions;
+		int aabbTreeCount;
+		CollisionAabbTree* aabbTrees;
+		uint numSubModels;
+		cmodel_t* cmodels;
+		int numClusters;
+		int clusterBytes;
+		byte* visibility;
+		qboolean vised;
+		MapEnts* mapEnts;
+		cbrush_t* box_brush;
+		cmodel_t box_model;
+		DynEntityId originalDynEntCount;
+		DynEntityId dynEntCount[4];
+		DynEntityDef* dynEntDefList[2];
+		DynEntityPose* dynEntPoseList[2];
+		DynEntityClient* dynEntClientList[2];
+		DynEntityServer* dynEntServerList[2];
+		DynEntityColl* dynEntCollList[4];
+		int num_constraints;
+		PhysConstraint* constraints;
+		int max_ropes;
+		rope_t* ropes;
+		ScrString_t miscModelTargetnameGroups[32];
+		unsigned int checksum;
+	};
+
+	enum LightType : __int32
+	{
+		LIGHT_TYPE_NONE = 0x0,
+		LIGHT_TYPE_DIR = 0x1,
+		LIGHT_TYPE_SPOT = 0x2,
+		LIGHT_TYPE_OMNI = 0x4,
+		LIGHT_TYPE_ALL_MASK = 0x7,
+	};
+
+	enum ShadowQuality : __int32
+	{
+		SHADOW_QUALITY_NONE = 0x1,
+		SHADOW_QUALITY_SST_ONLY = 0x2,
+		SHADOW_QUALITY_HARD = 0x3,
+		SHADOW_QUALITY_PCSS = 0x4,
+		SHADOW_QUALITY_INVALID = 0x0,
+	};
+
+	enum ShadowUpdateType : __int32
+	{
+		SHADOW_UPDATE_ALWAYS_NOCACHE = 0x0,
+		SHADOW_UPDATE_ALWAYS = 0x1,
+		SHADOW_UPDATE_NEVER = 0x2,
+	};
+
+	enum ShadowResolutionScaleType : __int32
+	{
+		SHADOW_DS_4_0X = 0x0,
+		SHADOW_DS_2_0X = 0x1,
+		SHADOW_DS_1_0X = 0x2,
+		SHADOW_DS_0_5X = 0x3,
+		SHADOW_DS_COUNT = 0x4,
+	};
+
+	struct GfxConfig_Light
+	{
+		vec4_t nonSunShadowTransform[4];
+		LightType type;
+		uint guid;
+		vec3_t origin;
+		float dAttenuation;
+		vec3_t _color;
+		float specScale;
+		float cut_on;
+		float cut_off;
+		float near_edge;
+		float far_edge;
+		bool mCullingUseCutOffRadius;
+		float mCullingFalloff;
+		float mCullingCutoff;
+		ShadowQuality shadowQuality;
+		bool probeOnly;
+		bool mExcludeNeverUpdateFromDedicated;
+		bool mShadowUseFxAxis;
+		float pcss_min;
+		float pcss_max;
+		float mShadowPenumbraRadius;
+		ShadowUpdateType shadowUpdate;
+		vec3_t wldDir;
+		vec4_t wldClipPlanes[6];
+		float spotRotation;
+		float cosHalfFov;
+		float cosHalfCull;
+		float roundness;
+		vec4_t superellipse;
+		float ortho_effect;
+		float orthoDist;
+		float finalCosHalfFov;
+		float bulbRadius;
+		vec4_t bulbDirAndLength;
+		uint lightPriority;
+		float cullRadius;
+		uint shadowPriority;
+		ShadowResolutionScaleType mShadowResolutionScale;
+		uint lightStateMask;
+		bool exploderDisabled;
+		float exploderFade;
+		bool volumetric;
+		bool volumetricCookies;
+		uint volumetricSampleCount;
+		float volumetricIntensityScale;
+		vec4_t cookieTransform[2];
+		char lightDefName[64];
+		float cookieAngle;
+		float cookieRotation;
+		vec2_t cookieScale;
+		vec2_t cookieScroll;
+		vec2_t cookieOffset;
+		vec3_t wldCullMin;
+		vec3_t wldCullMax;
+		int umbraId;
+		vec3_t mAxisFromFx[3];
+	};
+
+
+	struct ComPrimaryLight
+	{
+		GfxConfig_Light config;
+		int cookieIndex;
+	};
+
+	struct ComLightTriggerData
+	{
+		int delayOn;
+		int delayOff;
+		int fadeIn;
+		int fadeOut;
+		ushort primaryLightIndex;
+		bool reversed;
+	};
+
+	struct ComLightExploder
+	{
+		int nameHash;
+		int triggerCount;
+		ComLightTriggerData* triggerData;
+	};
+
+	struct ComProbeTriggerData
+	{
+		int probeID;
+		int volumeID;
+		int delayOn;
+		int delayOff;
+		int fadeIn;
+		int fadeOut;
+		bool reversed;
+	};
+
+	struct ComProbeExploder
+	{
+		int nameHash;
+		int triggerCount;
+		ComProbeTriggerData* triggerData;
+	};
+
+	struct ComUmbraVolume
+	{
+		vec3_t min;
+		vec3_t max;
+	};
+
+	struct ComUmbraGate
+	{
+		const char* name;
+		int umbraId;
+		int gateIndex;
+	};
+
+	struct ComUmbraTome
+	{
+		const char* name;
+		uint numVolumes;
+		ComUmbraVolume* volumes;
+		uint indicesSize;
+		byte4* indicesSTQuery;
+		byte4* indicesMTQuery;
+		uint numGates;
+		ComUmbraGate* gates;
+	};
+
+	struct ComWorld
+	{
+		const char* name;
+		qboolean isInUse;
+		uint primaryLightCount;
+		ComPrimaryLight* primaryLights;
+		uint lightExploderCount;
+		ComLightExploder* lightExploders;
+		uint sunVolumeCount;
+		uint* sunVolumeProbeCount;
+		uint probeCount;
+		uint* probeGuids;
+		uint probeExploderCount;
+		ComProbeExploder* probeExploders;
+		uint umbraTomeCount;
+		ComUmbraTome* umbraTomes;
+	};
+
+	struct pathnode_t;
+
+	struct pathnode_tree_t;
+	typedef pathnode_tree_t* pathnode_tree_ptr;
+
+	enum nodeType : __int32
+	{
+		NODE_BADNODE = 0x0,
+		NODE_PATHNODE = 0x1,
+		NODE_COVER_STAND = 0x2,
+		NODE_COVER_CROUCH = 0x3,
+		NODE_COVER_CROUCH_WINDOW = 0x4,
+		NODE_COVER_PRONE = 0x5,
+		NODE_COVER_RIGHT = 0x6,
+		NODE_COVER_LEFT = 0x7,
+		NODE_COVER_PILLAR = 0x8,
+		NODE_AMBUSH = 0x9,
+		NODE_EXPOSED = 0xA,
+		NODE_CONCEALMENT_STAND = 0xB,
+		NODE_CONCEALMENT_CROUCH = 0xC,
+		NODE_CONCEALMENT_PRONE = 0xD,
+		NODE_REACQUIRE = 0xE,
+		NODE_BALCONY = 0xF,
+		NODE_SCRIPTED = 0x10,
+		NODE_NEGOTIATION_BEGIN = 0x11,
+		NODE_NEGOTIATION_END = 0x12,
+		NODE_TURRET = 0x13,
+		NODE_GUARD = 0x14,
+		NODE_NUMTYPES = 0x15,
+		NODE_DONTLINK = 0x15,
+	};
+
+	struct pathlink_s
+	{
+		float fDist;
+		unsigned __int16 nodeNum;
+		byte disconnectCount;
+		byte negotiationLink;
+		byte flags;
+		byte ubBadPlaceCount[5];
+	};
+	typedef pathlink_s pathlink_t;
+
+	struct pathnode_constant_t
+	{
+		nodeType type;
+		int spawnflags;
+		int movementtype_ignore;
+		int movementtype_require;
+		ScrString_t targetname;
+		ScrString_t script_linkName;
+		ScrString_t script_noteworthy;
+		ScrString_t target;
+		ScrString_t animscript;
+		scr_funcptr_t animscriptfunc;
+		vec3_t vOrigin;
+		float fAngle;
+		vec2_t forward;
+		__int16 wOverlapNode[4];
+		ushort totalLinkCount;
+		pathlink_t* Links;
+		int navFaceIndex;
+		int32_t navRegionIndex;
+		int negotiationLinkedNodeIndex;
+		float negotiationCostModifier;
+		float width;
+	};
+
+	struct SentientHandle
+	{
+		ushort number;
+		ushort infoIndex;
+		uint32_t pad;
+	};
+
+	struct pathnode_dynamic_t
+	{
+		SentientHandle pOwner;
+		int iFreeTime;
+		int iValidTime[3];
+		int dangerousNodeTime[3];
+		int inPlayerLOSTime;
+		__int16 wLinkCount;
+		__int16 wOverlapCount;
+		__int16 turretEntNumber;
+		__int16 userCount;
+		int flags;
+	};
+
+	struct pathnode_transient_t
+	{
+		int iSearchFrame;
+		pathnode_t* pNextOpen;
+		pathnode_t* pPrevOpen;
+		pathnode_t* pParent;
+		float fCost;
+		float fHeuristic;
+		union
+		{
+			float nodeCost;
+			int linkIndex;
+		};
+	};
+
+	struct pathnode_t
+	{
+		pathnode_constant_t constant;
+		pathnode_dynamic_t dynamic;
+		pathnode_transient_t transient;
+	};
+
+	struct pathbasenode_t
+	{
+		vec3_t vOrigin;
+		uint type;
+	};
+
+	struct pathnode_tree_nodes_t
+	{
+		int nodeCount;
+		ushort* nodes;
+	};
+
+	union pathnode_tree_info_t
+	{
+		pathnode_tree_ptr child[2];
+		pathnode_tree_nodes_t s;
+	};
+
+	struct pathnode_tree_t
+	{
+		int axis;
+		vec_t dist;
+		pathnode_tree_info_t u;
+	};
+
+	struct PathData
+	{
+		uint nodeCount;
+		uint originalNodeCount;
+		pathnode_t* nodes;
+		pathbasenode_t* basenodes;
+		int visBytes;
+		byte* pathVis;
+		int smoothBytes;
+		byte* smoothCache;
+		int nodeTreeCount;
+		pathnode_tree_t* nodeTree;
+	};
+
+	struct GameWorld
+	{
+		const char* name;
+		PathData path;
+	};
+
+	struct GfxStreamingAabbTree
+	{
+		vec4_t mins;
+		vec4_t maxs;
+		float maxStreamingDistance;
+		unsigned int firstItem;
+		unsigned __int16 firstChild;
+		unsigned __int16 childCount;
+		unsigned __int16 smodelCount;
+		unsigned __int16 surfaceCount;
+	}; assert_sizeof(GfxStreamingAabbTree, 48);
+
+	struct GfxWorldStreamInfo
+	{
+		int aabbTreeCount;
+		GfxStreamingAabbTree* aabbTrees;
+		int leafRefCount;
+		int* leafRefs;
+	}; assert_sizeof(GfxWorldStreamInfo, 0x20);
+
+	struct GfxConfig_FogBank
+	{
+		float3 _fogcolor;
+		float fogopacity;
+		float fogintensity;
+		float basedist;
+		float halfdist;
+		float baseheight;
+		float halfheight;
+		float skyhalfheightoffset;
+		float probebakeworldfogdensityscaler;
+		float3 _sunfogcolor;
+		float sunfogopacity;
+		float sunfogintensity;
+		float sunfoginner;
+		float sunfogouter;
+		float sunPitchOffset;
+		float sunYawOffset;
+		float3 _atmospherefogcolor;
+		float atmospherefogdensity;
+		float3 _atmospherehazecolor;
+		float atmospherehazebasedist;
+		float atmospherehazefadedist;
+		float atmospherehazedensity;
+		float atmospherehazespread;
+		float atmosphereinscatterstrength;
+		float atmosphereextinctionstrength;
+		float atmospheresunstrength;
+		float atmospherepbramount;
+		float worldfogskysize;
+	};
+
+	struct WorldSpawnConfig
+	{
+		//char name[64];
+		float fogTransitionTime;
+		GfxConfig_FogBank defaultFog;
+		uint32_t expEvAuto;
+		uint16_t numSpotShadowSlices;
+		uint16_t numOmniShadowSlices;
+	};
+
+	struct GfxLightCorona
+	{
+		vec3_t origin;
+		float radius;
+		vec3_t color;
+		float intensity;
+	};
+
+	struct GfxGlobalLightSettings
+	{
+		float pitch;
+		float yaw;
+		float3 color;
+		float intensity;
+		float specScale;
+		float penumbra_inches;
+		char skyboxmodel[64];
+		bool shadow;
+		char __pad0[24];
+		float ev;
+		float evcmp;
+		float evmin;
+		float evmax;
+		float sunCookieIntensity;
+		char sunCookieLightDefName[64];
+		float sunCookieScale;
+		float sunCookieAngle;
+		float sunCookieRotation;
+		float2 sunCookieOffset;
+		float2 sunCookieScroll;
+		uint sunCookieIndex;
+		float sunVolumetricCookieIntensity;
+	};
+
+	struct GfxConfig_Sun
+	{
+		float shadowSplitDistance;
+		float shadowBiasScale;
+		float transitionTime;
+		bool streamLighting;
+		uint lightStateMask;
+		float3 globalProbeCenter;
+		float3 globalProbeFill;
+		uint maxGridDimension;
+		uint3 gridDimensions;
+		GfxGlobalLightSettings settings[4];
+	};
+
+	struct GfxConfig_SST
+	{
+		vec4_t wldToPinTransform[4];
+		float2 dimensionInTiles;
+		float inchesPerTexel;
+		float spanInInches;
+		float yaw;
+		float pitch;
+	};
+
+	struct GfxConfig_SSTMultiRes
+	{
+		uint mipDrop;
+		uint rootOffsets[3];
+		GfxConfig_SST uniformMip;
+	};
+
+	typedef int32_t StreamWrappedHandle;
+	enum StreamWrappedType : __int8
+	{
+		SWT_PROBE_ARRAY = 0x0,
+		SWT_PROBE_VOLUME = 0x1,
+		SWT_SST = 0x2,
+		SWT_UNCOMP_SIEGE = 0x3,
+		SWT_SKY_BOX = 0x4,
+	};
+	enum StreamWrappedMode : __int8
+	{
+		SWM_RESIDENT = 0x0,
+		SWM_STREAMED = 0x1,
+	};
+
+	struct StreamWrappedBuffer
+	{
+		StreamWrappedHandle handle;
+		XPakEntryInfo xpakEntry;
+		const char* name;
+		StreamWrappedType type;
+		StreamWrappedMode mode;
+		uint dataSize;
+		byte* data;
+	};
+
+	struct GfxBuffer
+	{
+		char pad[8];
+	};
+
+	typedef GfxBuffer GfxStructuredBuffer;
+
+	struct GfxShadowTreeBuffer
+	{
+		byte* elements;
+		uint32_t elementStrideBytes;
+		uint32_t elementCount;
+		GfxStructuredBuffer buffer;
+	};
+
+	struct GfxStreamedShadowTreeBuffer
+	{
+		StreamWrappedBuffer elements;
+		uint32_t* mipByteOffsets;
+		uint32_t* mipElementCounts;
+		uint32_t totalElementCount;
+		uint32_t mipCount;
+		uint32_t mipDropTarget;
+		uint32_t mipDropCurrent;
+		GfxStructuredBuffer buffer;
+		GfxShadowTreeBuffer* fallback;
+	};
+
+	typedef GfxStreamedShadowTreeBuffer* GfxStreamedShadowTreeBufferPtr;
+
+	struct GfxMultiResSST
+	{
+		GfxConfig_SSTMultiRes config;
+		GfxStreamedShadowTreeBufferPtr shadowTree;
+	};
+
+	typedef GfxImage* GfxImagePtr;
+
+	struct GfxMinMaxTree
+	{
+		int mip0Width;
+		int mip0Height;
+		float2 sstTexScale;
+		uint sstMinMaxCount;
+		ushort* sstMaxCPU;
+		GfxImagePtr sstMaxGPU;
+		float treeMax;
+	};
+
+	struct GfxConfig_Probe
+	{
+		float3 origin;
+		float3 rotation[3];
+		float3 size_min;
+		float3 size_max;
+		float3 cullOrigin;
+		float cullRadius;
+		float resolution;
+		uint grid_density;
+		uint3 gridDim;
+		float evcomp;
+		float brightnessAdjust;
+		float ao_range;
+		float ao_strength;
+		float ao_strength_double_sided;
+		float ao_power;
+		bool inpaint_occluded_rays;
+		uint adaptQuality;
+		uint planeCount;
+		vec4_t wldClipPlanes[6];
+		uint guid;
+		bool isDynamic;
+		bool isVolumetric;
+		bool isOverride;
+		uint debug_render_index_x;
+		uint debug_render_index_y;
+		uint debug_render_index_z;
+		uint debug_render_phase;
+		uint debugLineIndex;
+	};
+
+	struct GfxReflectionProbe
+	{
+		float exposure;
+		vec3_t avgCubeColor;
+		vec3_t volumeCoordMul;
+		vec3_t volumeCoordAdd;
+		uint16_t firstBlend;
+		uint16_t numBlends;
+		GfxConfig_Probe config;
+		float exploderFade;
+		bool exploderDisabled;
+		int umbraId;
+	};
+
+	struct GfxConfig_ProbeBlend
+	{
+		float3 origin;
+		float3 rotation[3];
+		float3 size_min;
+		float3 size_max;
+		float3 blend_mins;
+		float3 blend_maxs;
+		uint faceCount;
+		vec4_t faces[24];
+		float blends[24];
+		float3 cullOrigin;
+		float cullRadius;
+		float evcomp;
+		bool negative;
+	};
+
+	struct GfxReflectionProbeArray
+	{
+		StreamWrappedBuffer* pixelData;
+		GfxImagePtr probeImages;
+		GfxReflectionProbe* configs;
+		GfxConfig_ProbeBlend* blends;
+		uint localReflectionProbeCount;
+		uint probeBlendsCount;
+	};
+
+	struct GfxProbeVolumeTextures
+	{
+		GfxImagePtr X;
+		GfxImagePtr Y;
+		GfxImagePtr Z;
+		StreamWrappedBuffer* pixelData;
+	};
+
+	typedef XModel* XModelPtr;
+
+	struct GfxSkyBoxImage
+	{
+		GfxImagePtr image;
+		StreamWrappedBuffer pixelData;
+	};
+
+	struct GfxSkyBox
+	{
+		XModelPtr model;
+		float rotation;
+		float size;
+		GfxSkyBoxImage* image;
+	};
+
+	struct GfxExposureProbeBlend
+	{
+		vec3_t pos;
+		vec3_t size;
+		vec3_t blendMins;
+		vec3_t blendMaxs;
+		vec3_t angles;
+		uint numFaces;
+		vec4_t* faces;
+		bool negative;
+	};
+
+	struct GfxExposureProbe
+	{
+		vec3_t pos;
+		vec3_t size;
+		vec3_t angles;
+		float value;
+		uint16_t dX;
+		uint16_t dY;
+		uint16_t dZ;
+		uint16_t* pData;
+		uint16_t numBlends;
+		GfxExposureProbeBlend* blends;
+	};
+
+	struct GfxExposureGrid
+	{
+		uint32_t nProbe;
+		float baseValue;
+		GfxExposureProbe* pEprobe;
+	};
+
+	struct GfxVBLOOMGPU
+	{
+		vec4_t vRGB1;
+		vec4_t vLUM1;
+		vec4_t vRGB2;
+		vec4_t vLUM2;
+		vec4_t vRGB3;
+		vec4_t vLUM3;
+		vec4_t vRGB4;
+		vec4_t vLUM4;
+		vec4_t vRGB5;
+		vec4_t vLUM5;
+		vec4_t vLIB;
+		vec4_t vLIW;
+		vec4_t vLIG;
+		vec4_t vLOB;
+		vec4_t vLOW;
+		vec4_t vMXR;
+		vec4_t vMXG;
+		vec4_t vMXB;
+		char nLVI[32];
+	};
+
+	struct GfxVCOLORGPU
+	{
+		vec4_t vLumaM;
+		vec4_t vRangeM;
+		vec4_t vRangeA;
+		vec4_t vMtxSR;
+		vec4_t vMtxSG;
+		vec4_t vMtxSB;
+		vec4_t vMtxMR;
+		vec4_t vMtxMG;
+		vec4_t vMtxMB;
+		vec4_t vMtxHR;
+		vec4_t vMtxHG;
+		vec4_t vMtxHB;
+		vec4_t vMixR;
+		vec4_t vMixG;
+		vec4_t vMixB;
+		char nLVI[32];
+	};
+
+	struct GfxSunVolume
+	{
+		int planeStart;
+		int planeCount;
+		uint lightExportFlags;
+		uint lightingStateMask;
+		GfxConfig_Sun sun;
+		GfxMultiResSST multiResSST[4];
+		GfxMinMaxTree sstMinMaxs[4];
+		uint lightCount;
+		ushort* lights;
+		GfxReflectionProbeArray reflectionProbes[4];
+		GfxProbeVolumeTextures probeVolumes[4];
+		GfxSkyBox skyboxes[4];
+		GfxExposureGrid exposureGrid[4];
+		uint16_t idxLUT;
+		uint16_t idxSKY;
+		GfxVBLOOMGPU vbloomSUN[4];
+		GfxVCOLORGPU vcolorSUN[4];
+	}; assert_sizeof(GfxSunVolume, 4536);
+	assert_offsetof(GfxSunVolume, multiResSST, 1056);
+
+	struct GfxOutdoorForState
+	{
+		GfxConfig_SST sst;
+		GfxStreamedShadowTreeBufferPtr outdoorTree;
+		float pitch;
+		float yaw;
+	};
+
+	struct GfxOutdoorVolume
+	{
+		int planeStart;
+		int planeCount;
+		GfxOutdoorForState state[4];
+	};
+
+	struct GfxExposureVolume
+	{
+		int priority;
+		vec3_t angles;
+		int planeStart;
+		int planeCount;
+		float blends[6];
+		uint16_t evmin[4];
+		uint16_t evmax[4];
+		uint16_t evcmp[4];
+		float exposure[4];
+		float adaptation[4];
+		uint8_t bankMask;
+	};
+
+	struct GfxWorldFogVolume
+	{
+		int planeStart;
+		int planeCount;
+		vec3_t mins;
+		vec3_t maxs;
+		float fogTransitionTime;
+		uint32_t controlEx;
+		uint lightingStateMask;
+		char __pad0[4];
+		GfxConfig_FogBank bank[4];
+	};
+
+	struct GfxWorldFogModifierVolume
+	{
+		uint32_t control;
+		uint16_t minX;
+		uint16_t minY;
+		uint16_t minZ;
+		uint16_t maxX;
+		uint16_t maxY;
+		uint16_t maxZ;
+		uint32_t controlEx;
+		float transitionTime;
+		float depthScale;
+		float heightScale;
+		vec4_t colorAdjust;
+	};
+
+	struct GfxVolumePlane
+	{
+		vec4_t plane;
+	};
+
+	struct GfxLutVolume
+	{
+		vec3_t mins;
+		uint32_t control;
+		vec3_t maxs;
+		float blends[6];
+		float lutTransitionTime;
+		uint32_t lutIndex;
+	};
+
+	struct GfxWeatherGrimeVolume
+	{
+		int planeStart;
+		int planeCount;
+		bool enabled;
+		float rain;
+		float windDirection;
+		float windSpeed;
+		float weatherPitch;
+		float weatherYaw;
+		float weatherTiling;
+		vec3_t weatherTint;
+		vec3_t weatherTint2;
+		char __pad0[8];
+		GfxImage* weatherGlossMap;
+		GfxImage* weatherColorMap;
+		GfxImage* weatherNormalMap;
+		GfxImage* weatherGlossMap2;
+		GfxImage* weatherColorMap2;
+		GfxImage* weatherNormalMap2;
+	}; assert_sizeof(GfxWeatherGrimeVolume, 120);
+	assert_offsetof(GfxWeatherGrimeVolume, weatherGlossMap, 72);
+
+	struct GfxGenericVolume
+	{
+		int type;
+		int planeStart;
+		int planeCount;
+	};
+
+	struct GfxConfig_LightAttenuationVolume
+	{
+		vec4_t planes[8];
+		vec3_t color;
+		uint planeCount;
+	};
+
+	struct GfxSkyDynamicIntensity
+	{
+		float angle0;
+		float angle1;
+		float factor0;
+		float factor1;
+	};
+
+	struct GfxWorldDpvsPlanes
+	{
+		int cellCount;
+		cplane_t* planes;
+		uint* nodes;
+		uint* sceneEntCellBits;
+	};
+
+	typedef ushort StaticModelIndex;
+
+	struct GfxAabbTree
+	{
+		vec3_t mins;
+		vec3_t maxs;
+		ushort childCount;
+		ushort surfaceCount;
+		ushort startSurfIndex;
+		ushort smodelIndexCount;
+		StaticModelIndex* smodelIndexes;
+		intptr_t_0 childrenOffset;
+	};
+
+	struct GfxPortal;
+	struct GfxCell;
+
+	struct GfxPortalWritable
+	{
+		bool isQueued;
+		bool isAncestor;
+		byte recursionDepth;
+		byte hullPointCount;
+		vec2_t* hullPoints;
+		GfxPortal* queuedParent;
+	};
+
+	struct DpvsPlane
+	{
+		vec4_t coeffs;
+		byte side[3];
+		byte pad;
+	};
+
+	struct GfxPortal
+	{
+		GfxPortalWritable writable;
+		DpvsPlane plane;
+		GfxCell* cell;
+		vec3_t* vertices;
+		byte vertexCount;
+		vec3_t hullAxis[2];
+		vec3_t bounds[2];
+	};
+
+	struct GfxCell
+	{
+		vec3_t mins;
+		vec3_t maxs;
+		int aabbTreeCount;
+		GfxAabbTree* aabbTree;
+		int portalCount;
+		GfxPortal* portals;
+	};
+	
+	struct GfxVertexBuffer
+	{
+		char pad[8];
+	};
+
+	struct GfxIndexBuffer
+	{
+		char pad[8];
+	};
+
+	struct GfxWorldVertexData0
+	{
+		byte* data;
+		GfxVertexBuffer vb;
+	};
+
+	struct GfxWorldVertexData1
+	{
+		byte* data;
+		GfxVertexBuffer vb;
+	};
+
+	typedef uint16_t r_index_t;
+
+	struct GfxWorldDraw
+	{
+		int cookieCount;
+		GfxImagePtr cookieArray;
+		uint vertexCount;
+		uint vertexDataSize0;
+		GfxWorldVertexData0 vd0;
+		uint vertexDataSize1;
+		GfxWorldVertexData1 vd1;
+		int indexCount;
+		r_index_t* indices;
+		GfxIndexBuffer indexBuffer;
+	};
+
+	struct GfxBrushModelWritable
+	{
+		vec3_t mins;
+		vec_t padding1;
+		vec3_t maxs;
+		int prevFrameBoneArrayOffset;
+	};
+
+	struct GfxBrushModel
+	{
+		GfxBrushModelWritable writable;
+		vec3_t bounds[2];
+		uint surfaceCount;
+		uint startSurfIndex;
+	};
+
+	struct MaterialMemory
+	{
+		Material* material;
+		int memory;
+	};
+
+	struct GfxBoneArrayInfo
+	{
+		int boneArrayOffset;
+		int prevFrameBoneArrayOffset;
+	};
+
+	struct GfxSceneDynModel : GfxBoneArrayInfo
+	{
+	};
+
+	typedef byte visdata_t;
+
+	struct GfxVisArray
+	{
+		uint visDataCount;
+		visdata_t* visData;
+	};
+
+	struct srfTriangles_t
+	{
+		vec3_t mins;
+		int vertexDataOffset0;
+		vec3_t maxs;
+		int vertexDataOffset1;
+		int firstVertex;
+		vec_t himipRadiusInvSq;
+		unsigned __int16 vertexCount;
+		unsigned __int16 triCount;
+		int baseIndex;
+	};
+
+	struct GfxSurface
+	{
+		srfTriangles_t tris;
+		vec3_t bounds[2];
+		Material* material;
+		byte flags;
+		byte decalSort;
+	};
+
+	struct GfxPackedPlacement
+	{
+		vec3_t origin;
+		vec3_t axis[3];
+		float scale;
+	};
+
+	struct GfxStaticModelBone
+	{
+		vec4_t m[3];
+		vec4_t extra;
+	};
+
+	struct GfxStaticModelDrawInst
+	{
+		GfxPackedPlacement placement;
+		vec3_t center;
+		vec3_t mins;
+		vec3_t maxs;
+		XModel* model;
+		uint16_t flags;
+		int16_t umbraGateId;
+		float invScaleSq;
+		uint smid;
+		ScrString_t targetname;
+		byte hidden;
+		GfxStaticModelBone* posedBones;
+		uint numPosedBones;
+		float scaledRadius;
+		union
+		{
+			//GfxSiegeAnimState* sanimPlayback;
+			//GfxSiegeAnim* sanim;
+			void* sanim;
+		};
+		XModelLod cachedLod[4];
+	};
+
+	struct GfxWorldDpvsStatic
+	{
+		int smodelUpdateFrame;
+		uint smodelCount;
+		uint staticSurfaceCount;
+		uint gbufferSurfsBegin;
+		uint gbufferSurfsEnd;
+		uint gbufferDecalSurfsBegin;
+		uint gbufferDecalSurfsEnd;
+		uint litForwardSurfsBegin;
+		uint litForwardSurfsEnd;
+		uint litTransSurfsBegin;
+		uint litTransSurfsEnd;
+		GfxVisArray smodelVisData[4];
+		GfxVisArray surfaceVisData[4];
+		GfxVisArray volDecalVisData[4];
+		GfxVisArray smodelVisDataCameraSaved;
+		GfxVisArray surfaceVisDataCameraSaved;
+		ushort* sortedSurfIndex;
+		ushort* umbraIdToSmodelIndex;
+		uint semiStaticModelCount;
+		uint fullyStaticModelCount;
+		ushort* semiStaticModelList;
+		ushort* fullyStaticModelList;
+		GfxSurface* surfaces;
+		GfxStaticModelDrawInst* smodelDrawInsts;
+		GfxSortKey* surfaceMaterials;
+		GfxVisArray surfaceCastsSunShadow;
+		GfxVisArray surfaceCastsShadow;
+		GfxVisArray smodelCastsShadow;
+	}; assert_sizeof(GfxWorldDpvsStatic, 0x180);
+
+	struct GfxVisDynamic
+	{
+		GfxVisArray visArray[2];
+	};
+
+	struct GfxWorldDpvsDynamic
+	{
+		uint dynEntClientCount[2];
+		GfxVisDynamic dynEntVisData[4];
+		GfxVisDynamic umbraDynEntVisData;
+	};
+
+	struct Occluder
+	{
+		uint flags;
+		char name[16];
+		vec3_t points[4];
+	};
+
+	struct GfxUmbraParameterVolume
+	{
+		vec3_t min;
+		vec3_t max;
+		int priority;
+		float distanceScale;
+		float accurateOcclusionThreshold;
+		int minimumContributionThreshold;
+	};
+
+	struct GfxUmbraTome
+	{
+		uint tomeSize;
+		byte16* tome;
+		void* tomePtr;
+		uint numParameterVolumes;
+		GfxUmbraParameterVolume* parameterVolumes;
+	};
+
+	struct SiegeAutoPlay
+	{
+		uint smid;
+		uint worldSanimIndex;
+		float timeOffset;
+		ScrString_t shotName;
+		uint16_t flags;
+	};
+
+	struct GfxCameraLens
+	{
+		uint32_t cFlags;
+		float minfocalLength;
+		float maxfocalLength;
+		float minfstop;
+		float maxfstop;
+		float minfocusDistance;
+		float maxfocusDistance;
+		float opticalLength;
+		float abbe;
+		float distortionK1;
+		float distortionK2;
+		float distortionK3;
+		float distortionKS;
+		char name[32];
+	};
+
+	struct GfxConfig_LitFogBank
+	{
+		float3 extcolor;
+		float4 suncoloroverride;
+		float basedist;
+		float halfdist;
+		float baseheight;
+		float halfheight;
+		float probebakelitfogdensityscaler;
+		float distribution;
+		float albedo;
+		float densityScaler;
+		float probeContributionScaler;
+		float sunintensityscale;
+		float maxlitsunfogdistance;
+		float maxlitomnispotfogdistance;
+	};
+
+	struct GfxLitFogVolume
+	{
+		vec3_t mins;
+		vec3_t maxs;
+		vec3_t ambientColor;
+		uint16_t control;
+		uint16_t priority;
+		uint scriptid;
+		float fogtime;
+		char __pad0[8];
+		GfxConfig_LitFogBank bank[4];
+	};
+
+	struct GfxVolumeDecal
+	{
+		vec3_t localToWld[4];
+		vec3_t wldToLocal[4];
+		vec3_t halfExtents;
+		vec3_t edgeFeather;
+		vec4_t revealTextureUV;
+		vec4_t uvBaseAndScale;
+		MaterialHandle material;
+		uint decalSort;
+		float boundSphereRadius;
+		float himipInvSqRadius;
+		ScrString_t targetName;
+		bool hidden;
+	};
+
+	struct GfxWorldWaterDisk
+	{
+		int totalWaterCount;
+		int interactiveWaveWaterCount;
+		void* interactiveWaveWaters; //GfxInteractiveWaveWaterDisk* interactiveWaveWaters;
+		int gridMemSize;
+		int gridCount;
+		byte* gridMem;
+	};
+
+	struct GfxWorld
+	{
+		const char* name;
+		const char* baseName;
+		int planeCount;
+		int nodeCount;
+		int surfaceCount;
+		GfxWorldStreamInfo streamInfo;
+		WorldSpawnConfig worldSpawnConfig;
+		uint coronaCount;
+		GfxLightCorona* coronas;
+		uint sunVolumeCount;
+		GfxSunVolume* sunVolumes;
+		uint sunVolumePlanesCount;
+		vec4_t* sunVolumePlanes;
+		uint outdoorVolumeCount;
+		GfxOutdoorVolume* outdoorVolumes;
+		uint outdoorVolumePlanesCount;
+		vec4_t* outdoorVolumePlanes;
+		uint exposureVolumeCount;
+		GfxExposureVolume* exposureVolumes;
+		uint exposureVolumePlaneCount;
+		vec4_t* exposureVolumePlanes;
+		uint worldFogVolumeCount;
+		GfxWorldFogVolume* worldFogVolumes;
+		uint worldFogVolumePlaneCount;
+		vec4_t* worldFogVolumePlanes;
+		uint worldFogModifierVolumeCount;
+		GfxWorldFogModifierVolume* worldFogModifierVolumes;
+		uint worldFogModifierVolumePlaneCount;
+		GfxVolumePlane* worldFogModifierVolumePlanes;
+		uint lutVolumeCount;
+		GfxLutVolume* lutVolumes;
+		uint lutVolumePlaneCount;
+		GfxVolumePlane* lutVolumePlanes;
+		uint weatherGrimeVolumeCount;
+		GfxWeatherGrimeVolume* weatherGrimeVolumes;
+		uint weatherGrimeVolumePlaneCount;
+		vec4_t* weatherGrimeVolumePlanes;
+		uint genericVolumeCount;
+		GfxGenericVolume* genericVolumes;
+		uint genericVolumePlaneCount;
+		vec4_t* genericVolumePlanes;
+		uint unkCount;
+		void* unk;
+		uint unk2Count;
+		vec4_t* unk2;
+		uint attenuationVolumeCount;
+		GfxConfig_LightAttenuationVolume* attenuationVolumes;
+		GfxSkyDynamicIntensity skyDynIntensity;
+		GfxWorldDpvsPlanes dpvsPlanes;
+		int cellBitsCount;
+		GfxCell* cells;
+		GfxWorldDraw draw;
+		int modelCount;
+		GfxBrushModel* models;
+		vec3_t mins;
+		vec3_t maxs;
+		unsigned int checksum;
+		int materialMemoryCount;
+		MaterialMemory* materialMemory;
+		uint* cellCasterBits;
+		GfxSceneDynModel* sceneDynModel;
+		GfxWorldDpvsStatic dpvs;
+		GfxWorldDpvsDynamic dpvsDyn;
+		const Material* coronaMaterial;
+		const Material* ropeMaterial;
+		const Material* lutMaterial;
+		const Material* lutMaterialALT;
+		uint numOccluders;
+		Occluder* occluders;
+		uint lightingFlags;
+		int lightingQuality;
+		int umbraNumTomes;
+		GfxUmbraTome* umbraTomes;
+		int umbraNumTomes2;
+		GfxUmbraTome* umbraTomes2;
+		bool umbraTomeIncludesLightsAndFx;
+		uint numSiegeAnims;
+		void* siegeAnims; //GfxSiegeAnimPtr* siegeAnims;
+		uint numSiegeAnimsAutoPlay;
+		SiegeAutoPlay* siegeAnimsAutoPlay;
+		uint lensPackCount;
+		GfxCameraLens* lensPackData;
+		uint litFogVolumeCount;
+		GfxLitFogVolume* litFogVolumes;
+		uint unk3Count;
+		void* unk3;
+		uint volumeDecalCount;
+		GfxVolumeDecal* volumeDecals;
+		GfxImagePtr volumeDecalRevealTexture;
+		GfxWorldWaterDisk water;
+		char __pad0[6714];
+		//GfxVATLASUKKOGPU vukkoLVX[32];
+		//uint baseGfxVUKKO[4];
+		//uint nGfxModOverVUKKO;
+		//GfxModVUKKO* pGfxModOverVUKKO;
+		//uint nGfxBoxOverVUKKO;
+		//GfxBoxVUKKO* pGfxBoxOverVUKKO;
+		//uint nGfxBoxBaseVUKKO;
+		//GfxBoxVUKKO* pGfxBoxBaseVUKKO;
+		//GfxVBLOOMGPU baseGfxVBLOOMGPU[4];
+		//uint nGfxModOverVBLOOM;
+		//GfxModVBLOOM* pGfxModOverVBLOOM;
+		//uint nGfxBoxOverVBLOOM;
+		//GfxBoxVBLOOM* pGfxBoxOverVBLOOM;
+		//uint nGfxBoxBaseVBLOOM;
+		//GfxBoxVBLOOM* pGfxBoxBaseVBLOOM;
+		//uint baseGfxVLUT[4];
+		//uint nGfxModOverVLUT;
+		//GfxModVLUT* pGfxModOverVLUT;
+		//uint nGfxBoxOverVLUT;
+		//GfxBoxVLUT* pGfxBoxOverVLUT;
+		//uint nGfxBoxBaseVLUT;
+		//GfxBoxVLUT* pGfxBoxBaseVLUT;
+		//GfxVCOLORGPU baseGfxVCOLORGPU[4];
+		//uint nGfxModOverVCOLOR;
+		//GfxModVCOLOR* pGfxModOverVCOLOR;
+		//uint nGfxBoxOverVCOLOR;
+		//GfxBoxVCOLOR* pGfxBoxOverVCOLOR;
+		//uint nGfxBoxBaseVCOLOR;
+		//GfxBoxVCOLOR* pGfxBoxBaseVCOLOR;
+		//uint nGfxBoxOverUNDERWATER;
+		//GfxBoxUNDERWATER* pGfxBoxOverUNDERWATER;
+		//uint nGfxBoxBaseUNDERWATER;
+		//GfxBoxUNDERWATER* pGfxBoxBaseUNDERWATER;
+	}; assert_sizeof(GfxWorld, 0x2040);
+	assert_offsetof(GfxWorld, streamInfo, 32);
+	assert_offsetof(GfxWorld, coronas, 224);
+	assert_offsetof(GfxWorld, lutVolumes, 400);
+	assert_offsetof(GfxWorld, genericVolumes, 464);
+	assert_offsetof(GfxWorld, genericVolumePlanes, 480);
+	assert_offsetof(GfxWorld, unk, 496);
+	assert_offsetof(GfxWorld, unk2, 512);
+	assert_offsetof(GfxWorld, umbraTomes, 1376);
+	assert_offsetof(GfxWorld, unk3, 1472);
+
+	struct GfxLightDef
+	{
+		const char* name;
+		float angle;
+		float rotation;
+		float2 offset;
+		float2 scroll;
+		GfxImage* gfxImage;
+	};
+
 	union XAssetHeader
 	{
 		PhysPreset* physPreset;
@@ -1443,12 +3263,12 @@ namespace zonetool::t7
 		GfxImage* image;
 		//SndBank* sound;
 		//SndPatch* soundPatch;
-		//clipMap_t* clipMap;
-		//ComWorld* comWorld;
-		//GameWorld* gameWorld;
-		//MapEnts* mapEnts;
-		//GfxWorld* gfxWorld;
-		//GfxLightDef* lightDef;
+		clipMap_t* clipMap;
+		ComWorld* comWorld;
+		GameWorld* gameWorld;
+		MapEnts* mapEnts;
+		GfxWorld* gfxWorld;
+		GfxLightDef* lightDef;
 		//GfxLensFlareDef* lensFlareDef;
 		//Font* font;
 		//FontIcon* fontIcon;
@@ -1610,5 +3430,15 @@ namespace zonetool::t7
 		void* unk2;
 		XZoneState state;
 		bool streamPreloaded;
+	};
+
+	struct XAssetEntry
+	{
+		XAsset asset;
+		byte zoneIndex;
+		bool inuse;
+		uint32_t nextHash;
+		uint32_t nextType;
+		uint32_t nextOverride;
 	};
 }
