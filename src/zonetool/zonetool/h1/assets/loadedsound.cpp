@@ -274,7 +274,7 @@ namespace zonetool::h1
 				{
 					short format;
 					fread(&format, 2, 1, fp);
-					if (format != 1 && format != 17)
+					if (format != 1)
 					{
 						ZONETOOL_FATAL("%s: Invalid wave format %i.", name.data(), format);
 						return nullptr;
@@ -293,7 +293,7 @@ namespace zonetool::h1
 
 					short blockAlign;
 					fread(&blockAlign, 2, 1, fp);
-					result->info.blockAlign = static_cast<unsigned char>(blockAlign);
+					result->info.blockAlign = static_cast<unsigned short>(blockAlign);
 
 					short bitPerSample;
 					fread(&bitPerSample, 2, 1, fp);

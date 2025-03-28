@@ -1879,6 +1879,9 @@ namespace zonetool::h1
 	enum RasterizerState : std::uint8_t
 	{
 		RASTERIZER_STATE_CULL_SHIFT = 0x0,
+		RASTERIZER_STATE_CULL_NONE = 0x1,
+		RASTERIZER_STATE_CULL_BACK = 0x2,
+		RASTERIZER_STATE_CULL_FRONT = 0x3,
 		RASTERIZER_STATE_CULL_MASK = 0x3,
 		RASTERIZER_STATE_POLYGON_OFFSET_SHIFT = 0x2,
 		RASTERIZER_STATE_POLYGON_OFFSET_MASK = 0xC,
@@ -2090,6 +2093,8 @@ namespace zonetool::h1
 	enum MaterialStateFlags : std::uint8_t
 	{
 		STATE_FLAG_CULL_BACK = 0x1,
+		STATE_FLAG_CULL_FRONT = 0x2,
+		STATE_FLAG_CULL_MASK = 0x3,
 		STATE_FLAG_DECAL = 0x4,
 		STATE_FLAG_WRITES_DEPTH = 0x8,
 		STATE_FLAG_USES_DEPTH_BUFFER = 0x10,
@@ -2359,11 +2364,11 @@ namespace zonetool::h1
 		unsigned int sampleRate;
 		unsigned int dataByteCount;
 		unsigned int numSamples;
-		char channels;
-		char numBits;
-		char blockAlign;
+		unsigned char channels;
+		unsigned char numBits;
+		unsigned short blockAlign;
 		short format;
-		int loadedSize;
+		unsigned int loadedSize;
 	}; assert_sizeof(LoadedSoundInfo, 0x20);
 
 	struct LoadedSound
