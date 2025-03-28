@@ -36,6 +36,7 @@ namespace zonetool::h1
 			"FX_ELEM_LIT_TYPE_LIGHTGRID_FRAME_SINGLE",
 			"FX_ELEM_LIT_TYPE_LIGHTGRID_FRAME_SPRITE",
 			"FX_ELEM_LIT_TYPE_LIGHTGRID_FRAME_VERTEX",
+			"FX_ELEM_LIT_TYPE_NONE", // some h2 fx uses this
 		};
 
 		enum elem_type_e

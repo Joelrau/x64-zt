@@ -69,7 +69,14 @@ namespace zonetool::h2
 					COPY_VALUE_CAST_FX(reflectionFactor);
 					COPY_VALUE_CAST_FX(atlas);
 					COPY_VALUE_CAST_FX(elemType);
-					COPY_VALUE_CAST_FX(elemLitType);
+
+					int elemlittype = asset->elemDefs[i].elemLitType;
+					if (elemlittype >= 5)
+					{
+						elemlittype = 0;
+					}
+					new_asset->elemDefs[i].elemLitType = static_cast<zonetool::h1::FxElemLitType>(elemlittype);
+
 					COPY_VALUE_FX(visualCount);
 					COPY_VALUE_FX(velIntervalCount);
 					COPY_VALUE_FX(visStateIntervalCount);
