@@ -302,7 +302,7 @@ namespace zonetool::h1
 			mat->stateBitsCount = static_cast<unsigned char>(max_state_index + 1);
 		}
 
-		fixup_statebits_from_stateflags(mat);
+		//fixup_statebits_from_stateflags(mat);
 
 		return mat;
 	}
