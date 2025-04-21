@@ -153,7 +153,7 @@ namespace zonetool::t7
 				new_asset->notify = allocator.allocate_array<zonetool::h1::XAnimNotifyInfo>(new_asset->notifyCount);
 				for (auto i = 0; i < asset->notifyCount; i++)
 				{
-					new_asset->notify[i].name = static_cast<zonetool::h1::scr_string_t>(asset->notify[i].type);
+					new_asset->notify[i].name = static_cast<zonetool::h1::scr_string_t>(asset->notify[i].param1);
 					new_asset->notify[i].time = asset->notify[i].time;
 				}
 
