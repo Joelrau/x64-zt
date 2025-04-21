@@ -118,40 +118,30 @@ namespace zonetool::h1
 		{
 			std::string c_name = clean_name(name);
 			c_name = utils::string::va("images\\%s", c_name.data());
+
+			// append suffixes
 			if (filesystem::file(c_name + ".dds").exists())
-			{
-				// DDS Found
-				c_name.append(".dds");
-			}
+				c_name.append(".dds"); // DDS Found
 			else if (filesystem::file(c_name + ".tga").exists())
-			{
-				// TGA Found
-				c_name.append(".tga");
-			}
+				c_name.append(".tga"); // TGA Found
+			else if (filesystem::file(c_name + ".png").exists())
+				c_name.append(".png"); // PNG Found
 			else
-			{
-				// No image found
-				return false;
-			}
+				return false; // No image found
+
 			std::string path = filesystem::get_file_path(c_name) + c_name;
 
 			std::wstring wname = utils::string::convert(path);
 
 			HRESULT hr = E_FAIL;
 			if (c_name.ends_with(".dds"))
-			{
 				hr = LoadFromDDSFile(wname.data(), DirectX::DDS_FLAGS_NONE, nullptr, *image);
-			}
 			else if (c_name.ends_with(".tga"))
-			{
 				hr = LoadFromTGAFile(wname.data(), nullptr, *image);
-			}
+			else if (c_name.ends_with(".png"))
+				hr = LoadFromWICFile(wname.data(), DirectX::WIC_FLAGS_NONE, nullptr, *image);
 
-			if (SUCCEEDED(hr))
-			{
-				return true;
-			}
-			return false;
+			return SUCCEEDED(hr);
 		}
 
 		GfxImage* parse(const std::string& name, zone_memory* mem)
