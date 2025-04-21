@@ -1148,6 +1148,20 @@ namespace zonetool::t7
 		XAnimDeltaPartQuat* quat;
 	};
 
+	enum BoneCountTypes
+	{
+		NoneRotatedBoneCount,
+		TwoDRotatedBoneCount,
+		NormalRotatedBoneCount, 
+		TwoDStaticRotatedBoneCount, 
+		NormalStaticRotatedBoneCount, 
+		NormalTranslatedBoneCount, 
+		PreciseTranslatedBoneCount, 
+		StaticTranslatedBoneCount, 
+		NoneTranslatedBoneCount, 
+		TotalBoneCount
+	};
+
 	struct XAnimParts
 	{
 		const char* name;

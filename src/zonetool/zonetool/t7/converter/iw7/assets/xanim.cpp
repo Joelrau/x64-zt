@@ -47,7 +47,7 @@ namespace zonetool::t7
 				}
 
 				new_asset->notifyCount = asset->notifyCount;
-				new_asset->assetType = asset->assetType;
+				new_asset->assetType = 0; //asset->assetType;
 				//new_asset->ikType = asset->ikType;
 				new_asset->indexCount = asset->indexCount;
 				new_asset->framerate = asset->framerate;
@@ -58,11 +58,95 @@ namespace zonetool::t7
 					new_asset->names[i] = static_cast<zonetool::iw7::scr_string_t>(asset->names[i]);
 				}
 				new_asset->dataByte = reinterpret_cast<char*>(asset->dataByte);
-				new_asset->dataShort = reinterpret_cast<short*>(asset->dataShort);
+				//new_asset->dataShort = reinterpret_cast<short*>(asset->dataShort);
 				new_asset->dataInt = reinterpret_cast<int*>(asset->dataInt);
-				new_asset->randomDataShort = reinterpret_cast<short*>(asset->randomDataShort);
+				//new_asset->randomDataShort = reinterpret_cast<short*>(asset->randomDataShort);
 				new_asset->randomDataByte = reinterpret_cast<char*>(asset->randomDataByte);
 				new_asset->randomDataInt = reinterpret_cast<int*>(asset->randomDataInt);
+
+				// Credits: Scobalula/Greyhound CoDXAnimTranslator::TranslateXAnim
+				if (new_asset->dataShortCount)
+				{
+					new_asset->dataShort = allocator.allocate_array<short>(new_asset->dataShortCount);
+					new_asset->randomDataShort = allocator.allocate_array<short>(new_asset->randomDataShortCount);
+
+					std::memcpy(new_asset->dataShort, asset->dataShort, sizeof(short) * new_asset->dataShortCount);
+					std::memcpy(new_asset->randomDataShort, asset->randomDataShort, sizeof(short) * new_asset->randomDataShortCount);
+
+					short* NewDataShortPtr = new_asset->dataShort;
+					short* NewRandomDataShortPtr = new_asset->randomDataShort;
+
+					short* DataShortPtr = asset->dataShort;
+					short* RandomDataShortPtr = asset->randomDataShort;
+
+					const auto ReadConvert = [&](short*& NewData, short*& Data, unsigned int size = 1)
+					{
+						for (unsigned int idx = 0; idx < size; idx++)
+						{
+							*NewData = QuatInt16::ToInt16(half_float::half_to_float(*Data));
+							NewData++;
+							Data++;
+						}
+					};
+
+					const auto Read = [&](short*& NewData, short*& Data, unsigned int size = 1)
+					{
+						for (unsigned int idx = 0; idx < size; idx++)
+						{
+							*NewData = *Data;
+							NewData++;
+							Data++;
+						}
+					};
+
+					uint32_t FrameSize = (asset->numframes > 255) ? 2 : 1;
+
+					for (auto i = 0; i < asset->boneCount[TwoDRotatedBoneCount]; i++)
+					{
+						uint16_t FrameCount = *DataShortPtr; // Get FrameCount
+						Read(NewDataShortPtr, DataShortPtr); // Read FrameCount
+
+						if (FrameSize == 2)
+						{
+							Read(NewDataShortPtr, DataShortPtr); // Read FrameIndex
+						}
+
+						for (auto frameIdx = 0; frameIdx < FrameCount + 1; frameIdx++)
+						{
+							// Read 2D Rotations
+							ReadConvert(NewRandomDataShortPtr, RandomDataShortPtr, 2);
+						}
+					}
+
+					for (auto i = 0; i < asset->boneCount[NormalRotatedBoneCount]; i++)
+					{
+						uint16_t FrameCount = *DataShortPtr; // Get FrameCount
+						Read(NewDataShortPtr, DataShortPtr); // Read FrameCount
+
+						if (FrameSize == 2)
+						{
+							Read(NewDataShortPtr, DataShortPtr); // Read FrameIndex
+						}
+
+						for (auto frameIdx = 0; frameIdx < FrameCount + 1; frameIdx++)
+						{
+							// Read 3D Rotations
+							ReadConvert(NewRandomDataShortPtr, RandomDataShortPtr, 4);
+						}
+					}
+
+					for (auto i = 0; i < asset->boneCount[TwoDStaticRotatedBoneCount]; i++)
+					{
+						// Read 2D Static Rotations
+						ReadConvert(NewDataShortPtr, DataShortPtr, 2);
+					}
+
+					for (auto i = 0; i < asset->boneCount[NormalStaticRotatedBoneCount]; i++)
+					{
+						// Read 3D Static Rotations
+						ReadConvert(NewDataShortPtr, DataShortPtr, 4);
+					}
+				}
 
 				new_asset->indices.data = reinterpret_cast<void*>(asset->indices.data);
 
