@@ -73,79 +73,51 @@ namespace zonetool::t7
 					std::memcpy(new_asset->dataShort, asset->dataShort, sizeof(short) * new_asset->dataShortCount);
 					std::memcpy(new_asset->randomDataShort, asset->randomDataShort, sizeof(short) * new_asset->randomDataShortCount);
 
-					short* NewDataShortPtr = new_asset->dataShort;
-					short* NewRandomDataShortPtr = new_asset->randomDataShort;
+					short* newData = new_asset->dataShort;
+					short* newRandom = new_asset->randomDataShort;
+					short* data = asset->dataShort;
+					short* random = asset->randomDataShort;
 
-					short* DataShortPtr = asset->dataShort;
-					short* RandomDataShortPtr = asset->randomDataShort;
-
-					const auto ReadConvert = [&](short*& NewData, short*& Data, unsigned int size = 1)
+					auto readConvert = [](short*& dst, short*& src, uint32_t count)
 					{
-						for (unsigned int idx = 0; idx < size; idx++)
+						for (uint32_t i = 0; i < count; ++i)
+							*dst++ = QuatInt16::ToInt16(half_float::half_to_float(*src++));
+					};
+
+					auto readRaw = [](short*& dst, short*& src, uint32_t count = 1)
+					{
+						for (uint32_t i = 0; i < count; ++i)
+							*dst++ = *src++;
+					};
+
+					const uint32_t frameSize = (asset->numframes > 255) ? 2 : 1;
+
+					auto processBoneData = [&](int boneCountIndex, int rotSize)
+					{
+						for (int i = 0; i < asset->boneCount[boneCountIndex]; ++i)
 						{
-							*NewData = QuatInt16::ToInt16(half_float::half_to_float(*Data));
-							NewData++;
-							Data++;
+							const uint16_t frameCount = *data;
+							readRaw(newData, data); // Frame count
+
+							if (frameSize == 2)
+								readRaw(newData, data); // Frame index
+
+							for (int f = 0; f < frameCount + 1; ++f)
+								readConvert(newRandom, random, rotSize); // Rotation data
 						}
 					};
 
-					const auto Read = [&](short*& NewData, short*& Data, unsigned int size = 1)
+					processBoneData(TwoDRotatedBoneCount, 2);
+					processBoneData(NormalRotatedBoneCount, 4);
+
+					auto processStaticBoneData = [&](int boneCountIndex, int rotSize)
 					{
-						for (unsigned int idx = 0; idx < size; idx++)
-						{
-							*NewData = *Data;
-							NewData++;
-							Data++;
-						}
+						for (int i = 0; i < asset->boneCount[boneCountIndex]; ++i)
+							readConvert(newData, data, rotSize); // Static rotation data
 					};
 
-					uint32_t FrameSize = (asset->numframes > 255) ? 2 : 1;
-
-					for (auto i = 0; i < asset->boneCount[TwoDRotatedBoneCount]; i++)
-					{
-						uint16_t FrameCount = *DataShortPtr; // Get FrameCount
-						Read(NewDataShortPtr, DataShortPtr); // Read FrameCount
-
-						if (FrameSize == 2)
-						{
-							Read(NewDataShortPtr, DataShortPtr); // Read FrameIndex
-						}
-
-						for (auto frameIdx = 0; frameIdx < FrameCount + 1; frameIdx++)
-						{
-							// Read 2D Rotations
-							ReadConvert(NewRandomDataShortPtr, RandomDataShortPtr, 2);
-						}
-					}
-
-					for (auto i = 0; i < asset->boneCount[NormalRotatedBoneCount]; i++)
-					{
-						uint16_t FrameCount = *DataShortPtr; // Get FrameCount
-						Read(NewDataShortPtr, DataShortPtr); // Read FrameCount
-
-						if (FrameSize == 2)
-						{
-							Read(NewDataShortPtr, DataShortPtr); // Read FrameIndex
-						}
-
-						for (auto frameIdx = 0; frameIdx < FrameCount + 1; frameIdx++)
-						{
-							// Read 3D Rotations
-							ReadConvert(NewRandomDataShortPtr, RandomDataShortPtr, 4);
-						}
-					}
-
-					for (auto i = 0; i < asset->boneCount[TwoDStaticRotatedBoneCount]; i++)
-					{
-						// Read 2D Static Rotations
-						ReadConvert(NewDataShortPtr, DataShortPtr, 2);
-					}
-
-					for (auto i = 0; i < asset->boneCount[NormalStaticRotatedBoneCount]; i++)
-					{
-						// Read 3D Static Rotations
-						ReadConvert(NewDataShortPtr, DataShortPtr, 4);
-					}
+					processStaticBoneData(TwoDStaticRotatedBoneCount, 2);
+					processStaticBoneData(NormalStaticRotatedBoneCount, 4);
 				}
 
 				new_asset->indices.data = reinterpret_cast<void*>(asset->indices.data);
