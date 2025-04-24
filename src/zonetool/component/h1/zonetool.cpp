@@ -7,6 +7,8 @@
 
 #include "zonetool/h1/zonetool.hpp"
 
+#include <utils/flags.hpp>
+
 namespace zonetool::h1
 {
 	void load_proto_stub(utils::hook::assembler& a)
@@ -108,7 +110,7 @@ namespace zonetool::h1
 		utils::hook::inject(0x1402BBAA5, image_pool + 8);
 		utils::hook::inject(0x1402BBAC3, image_pool + 8);
 
-		const auto* material_pool = reallocate_asset_pool<ASSET_TYPE_MATERIAL, 16000>();
+		const auto* material_pool = reallocate_asset_pool<ASSET_TYPE_MATERIAL, 18000>();
 		utils::hook::inject(0x1402BBB02 + 3, material_pool + 8);
 		utils::hook::inject(0x1402BBB20 + 3, material_pool + 8);
 		utils::hook::inject(0x1402BBB6F + 3, material_pool + 8);
@@ -246,12 +248,18 @@ namespace zonetool::h1
 
 	void load_common_zones()
 	{
-		static std::vector<std::string> defaultzones =
+		std::vector<std::string> defaultzones;
+		if (!utils::flags::has_flag("no_code_post_gfx"))
 		{
-			"code_post_gfx_mp",
-			//"ui_mp",
-			"common_mp",
-		};
+			defaultzones.push_back(utils::flags::has_flag("sp") ? "code_post_gfx" : "code_post_gfx_mp");
+		}
+		if (!utils::flags::has_flag("no_common"))
+		{
+			defaultzones.push_back(utils::flags::has_flag("sp") ? "common" : "common_mp");
+
+			defaultzones.push_back("techsets_common_mp");
+			defaultzones.push_back("techsets_common");
+		}
 
 		XZoneInfo zones[8]{ 0 };
 

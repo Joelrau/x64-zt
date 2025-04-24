@@ -698,12 +698,11 @@ namespace zonetool::h1
 
 	void unload_zones()
 	{
-		ZONETOOL_INFO("Unloading zones...");
-
-		static XZoneInfo zone = {0, DB_ZONE_NONE, 70};
+		static XZoneInfo zone = {0, DB_ZONE_CUSTOM, 70};
 		DB_LoadXAssets(&zone, 1, DB_LOAD_ASYNC_FORCE_FREE);
+		wait_for_database();
 
-		ZONETOOL_INFO("Unloaded zones...");
+		ZONETOOL_INFO("Unloaded loaded zones...");
 	}
 
 	void dump_zone(const std::string& name, const game::game_mode target, const std::optional<std::string> fastfile = {})
@@ -899,8 +898,7 @@ namespace zonetool::h1
 
 		if (!parser.valid())
 		{
-			ZONETOOL_ERROR("Could not find csv file \"%s\" to build zone!", csv.data());
-			return;
+			throw std::runtime_error(utils::string::va("Could not find csv file \"%s\" to build zone!", csv.data()));
 		}
 
 		auto is_referencing = false;
@@ -1151,7 +1149,8 @@ namespace zonetool::h1
 		}
 		catch (std::exception& ex)
 		{
-			ZONETOOL_FATAL("%s", ex.what());
+			ZONETOOL_ERROR("%s", ex.what());
+			return;
 		}
 
 		// allocate zone buffer
@@ -1165,6 +1164,31 @@ namespace zonetool::h1
 
 		ignore_assets.clear();
 		clear_asset_fields();
+	}
+
+	void iterate_zones()
+	{
+		const auto iterate_zones_internal = [](const std::string& path)
+		{
+			for (auto const& dir_entry : std::filesystem::directory_iterator{ path })
+			{
+				if (dir_entry.is_regular_file() && dir_entry.path().extension() == ".ff")
+				{
+					const auto zone = dir_entry.path().stem().string();
+
+					load_zone(zone);
+
+					wait_for_database();
+					unload_zones();
+				}
+			}
+		};
+
+		const auto zone_path = utils::io::directory_exists("zone") ? "zone/" : "";
+		iterate_zones_internal(zone_path);
+
+		const auto lang_path = utils::io::directory_exists("zone") ? "zone/english/" : "english/";
+		iterate_zones_internal(lang_path);
 	}
 
 	void register_commands()
@@ -1467,6 +1491,11 @@ namespace zonetool::h1
 		{
 			return gsc::h1::gsc_ctx->token_name(id);
 		}));
+
+		::h1::command::add("iteratezones", []()
+		{
+			iterate_zones();
+		});
 	}
 
 	std::vector<std::string> get_command_line_arguments()
@@ -1496,6 +1525,8 @@ namespace zonetool::h1
 		auto args = get_command_line_arguments();
 		if (args.size() > 1)
 		{
+			bool do_exit = false;
+
 			for (std::size_t i = 0; i < args.size(); i++)
 			{
 				if (i < args.size() - 1 && i + 1 < args.size())
@@ -1509,6 +1540,8 @@ namespace zonetool::h1
 					{
 						build_zone(args[i + 1]);
 						i++;
+
+						do_exit = true;
 					}
 					else if (args[i] == "-buildzones")
 					{
@@ -1531,26 +1564,59 @@ namespace zonetool::h1
 						}
 
 						i++;
+
+						do_exit = true;
 					}
 					else if (args[i] == "-verifyzone")
 					{
 						verify_zone(args[i + 1]);
 						i++;
+
+						do_exit = true;
 					}
 					else if (args[i] == "-dumpzone")
 					{
 						dump_zone(args[i + 1], game::h1);
 						i++;
+
+						do_exit = true;
 					}
 					else if (args[i] == "-dumpcsv")
 					{
 						dump_csv(args[i + 1]);
 						i++;
+
+						do_exit = true;
+					}
+					else if (args[i] == "-unloadzones")
+					{
+						unload_zones();
+						i++;
+					}
+					else if (args[i] == "-quit")
+					{
+						do_exit = true;
+					}
+					else if (args[i] == "-help")
+					{
+						ZONETOOL_INFO("Usage: zonetool.exe [options]");
+						ZONETOOL_INFO("Options:");
+						ZONETOOL_INFO("-loadzone <zone> - Load a zone");
+						ZONETOOL_INFO("-buildzone <zone> - Build a zone");
+						ZONETOOL_INFO("-buildzones <file> - Build zones from a file");
+						ZONETOOL_INFO("-verifyzone <zone> - Verify a zone");
+						ZONETOOL_INFO("-dumpzone <zone> - Dump a zone");
+						ZONETOOL_INFO("-dumpcsv <zone> - Dump a csv");
+						ZONETOOL_INFO("-unloadzones - Unload all zones");
+						ZONETOOL_INFO("-quit - Quit the application");
 					}
 				}
 			}
 
-			std::quick_exit(EXIT_SUCCESS);
+			if (do_exit)
+			{
+				std::quick_exit(EXIT_SUCCESS);
+			}
 		}
 	}
 
