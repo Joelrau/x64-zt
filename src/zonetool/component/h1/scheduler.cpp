@@ -151,7 +151,7 @@ namespace h1
 				});
 			}
 
-			void post_unpack() override
+			void post_load() override
 			{
 				main_frame_hook.create(0x1400D8310, scheduler::main_frame_stub);
 			}

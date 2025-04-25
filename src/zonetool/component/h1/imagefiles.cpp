@@ -30,7 +30,7 @@ namespace h1
 		class component final : public component_interface
 		{
 		public:
-			void post_unpack() override
+			void post_load() override
 			{
 				utils::hook::jump(0x1402C5930, DB_CreateGfxImageStream_Internal);
 			}

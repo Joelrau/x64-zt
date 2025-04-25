@@ -424,7 +424,7 @@ namespace h1
 		class component final : public component_interface
 		{
 		public:
-			void post_unpack() override
+			void post_load() override
 			{
 				dvar_register_bool_hook.create(0x1404FA540, &dvar_register_bool);
 				dvar_register_float_hook.create(0x1404FA910, &dvar_register_float);

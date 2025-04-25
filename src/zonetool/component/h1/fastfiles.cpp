@@ -95,7 +95,7 @@ namespace h1
 		class component final : public component_interface
 		{
 		public:
-			void post_unpack() override
+			void post_load() override
 			{
 				db_init_load_x_file_hook.create(0x14028DE30, &db_init_load_x_file);
 				db_try_load_x_file_internal_hook.create(0x1402BFFE0, &db_try_load_x_file_internal);

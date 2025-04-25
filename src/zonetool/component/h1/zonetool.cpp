@@ -292,7 +292,7 @@ namespace zonetool::h1
 	class component final : public component_interface
 	{
 	public:
-		void post_unpack() override
+		void post_load() override
 		{
 			patch_asset_loading();
 
@@ -306,6 +306,10 @@ namespace zonetool::h1
 
 			// disable demonware
 			utils::hook::set<uint8_t>(0x140543730, 0xC3); // dwNetStart
+
+			// disable some wmi stuff (speeds up boot)
+			utils::hook::set<uint8_t>(0x140046588, 0xC3); // WMI
+			utils::hook::set<uint8_t>(0x14009CA40, 0xC3); // disable hardware query (uses WMI)
 
 			zonetool::h1::initialize();
 		}
