@@ -36,7 +36,6 @@ namespace zonetool::h1
 			"FX_ELEM_LIT_TYPE_LIGHTGRID_FRAME_SINGLE",
 			"FX_ELEM_LIT_TYPE_LIGHTGRID_FRAME_SPRITE",
 			"FX_ELEM_LIT_TYPE_LIGHTGRID_FRAME_VERTEX",
-			"FX_ELEM_LIT_TYPE_NONE", // some h2 fx uses this
 		};
 
 		enum elem_type_e
@@ -45,6 +44,7 @@ namespace zonetool::h1
 			elem_type_oneshot,
 			elem_type_emission,
 			elem_type_error,
+			elem_type_count = elem_type_error,
 		};
 
 		const std::string elem_type_s[] =
@@ -174,8 +174,8 @@ namespace zonetool::h1
 
 		void parse_vec3_range(FxElemVec3Range* asset, ordered_json& data)
 		{
-			for (auto i = 0; i < 3; i++) asset->base[i] = data["base"][i];
-			for (auto i = 0; i < 3; i++) asset->amplitude[i] = data["amplitude"][i];
+			for (auto i = 0; i < 3; i++) asset->base[i] = data["base"][i].get<float>();
+			for (auto i = 0; i < 3; i++) asset->amplitude[i] = data["amplitude"][i].get<float>();
 		}
 
 		void parse_vel_state_sample(FxElemVelStateSample* asset, ordered_json& data)
@@ -380,10 +380,6 @@ namespace zonetool::h1
 				{
 					for (unsigned char a = 0; a < asset->visualCount; a++)
 					{
-						data["visuals"][a]["materials"][0] = nullptr;
-						data["visuals"][a]["materials"][1] = nullptr;
-						data["visuals"][a]["materials"][2] = nullptr;
-
 						if (!data["visuals"][a]["materials"][0].is_null())
 						{
 							asset->visuals.markArray[a].materials[0] = mem->allocate<Material>();
@@ -413,7 +409,7 @@ namespace zonetool::h1
 					}
 				}
 			}
-			else
+			else if (asset->visualCount)
 			{
 				parse_visuals(&asset->visuals.instance, asset, data["visuals"][0], mem);
 			}
@@ -479,44 +475,26 @@ namespace zonetool::h1
 		void sort_and_count_elems(ordered_json& data, int& loop_count, int& one_shot_count, int& emission_count)
 		{
 			if (data.empty())
-			{
 				return;
-			}
 
-			ordered_json loop_data;
-			ordered_json one_shot_data;
-			ordered_json emission_data;
+			std::array<ordered_json, elem_type_count> categorized_data{};
 
 			for (const auto& item : data)
 			{
 				auto type = get_value_index<elem_type_e>(item["type"].get<std::string>(), elem_type_s, std::extent_v<decltype(elem_type_s)>, elem_type_error);
-				assert(type != elem_type_error);
-
-				switch (type)
-				{
-				case elem_type_looping:
-					loop_data.push_back(item);
-					break;
-				case elem_type_oneshot:
-					one_shot_data.push_back(item);
-					break;
-				case elem_type_emission:
-					emission_data.push_back(item);
-					break;
-				}
+				assert(type >= 0 && type < elem_type_count);
+				categorized_data[type].push_back(item);
 			}
 
-			// Clear and rebuild the data structure
 			data.clear();
 			data = ::json::array();
-			data.insert(data.end(), loop_data.begin(), loop_data.end());
-			data.insert(data.end(), one_shot_data.begin(), one_shot_data.end());
-			data.insert(data.end(), emission_data.begin(), emission_data.end());
 
-			// Update the counts
-			loop_count = static_cast<int>(loop_data.size());
-			one_shot_count = static_cast<int>(one_shot_data.size());
-			emission_count = static_cast<int>(emission_data.size());
+			for (const auto& category : categorized_data)
+				data.insert(data.end(), category.begin(), category.end());
+
+			loop_count = static_cast<int>(categorized_data[elem_type_looping].size());
+			one_shot_count = static_cast<int>(categorized_data[elem_type_oneshot].size());
+			emission_count = static_cast<int>(categorized_data[elem_type_emission].size());
 		}
 
 		FxEffectDef* parse(const std::string& name, zone_memory* mem)
@@ -591,7 +569,7 @@ namespace zonetool::h1
 		} \
 		else \
 		{ \
-			data[#__field__] = ""; \
+			data[#__field__] = nullptr; \
 		}
 
 #define DUMP_RANGE(__field__) \
@@ -878,7 +856,7 @@ namespace zonetool::h1
 					}
 				}
 			}
-			else
+			else if (asset->visualCount)
 			{
 				dump_visuals(&asset->visuals.instance, asset, data["visuals"][0]);
 			}

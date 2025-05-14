@@ -45,6 +45,11 @@ namespace zonetool::h2
 				COPY_VALUE(occlusionQueryScaleRange.base);
 				COPY_VALUE(occlusionQueryScaleRange.amplitude);
 
+				if (asset->flags & 0x400)
+				{
+					new_asset->flags = new_asset->flags &= ~0x400;
+				}
+
 				const auto elem_count = new_asset->elemDefCountLooping + new_asset->elemDefCountOneShot + new_asset->elemDefCountEmission;
 				new_asset->elemDefs = allocator.allocate_array<zonetool::h1::FxElemDef>(elem_count);
 
@@ -71,9 +76,9 @@ namespace zonetool::h2
 					COPY_VALUE_CAST_FX(elemType);
 
 					int elemlittype = asset->elemDefs[i].elemLitType;
-					if (elemlittype >= 5)
+					if (elemlittype >= 2)
 					{
-						elemlittype = 0;
+						elemlittype -= 1;
 					}
 					new_asset->elemDefs[i].elemLitType = static_cast<zonetool::h1::FxElemLitType>(elemlittype);
 
@@ -137,8 +142,36 @@ namespace zonetool::h2
 					COPY_VALUE_FX(hdrLightingFrac);
 					COPY_VALUE_FX(shadowDensityScale);
 
+					new_asset->elemDefs[i].useItemClip = (asset->elemDefs[i].flags2 & FX_ELEM2_USE_ITEM_CLIP) != 0;
+
 					new_asset->elemDefs[i].scatterRatio = 0.0f;
 					new_asset->elemDefs[i].volumetricTrailFadeStart = -1.0f;
+
+					new_asset->elemDefs[i].flags = (zonetool::h1::FxElemDefFlags)(new_asset->elemDefs[i].flags & ~zonetool::h1::FX_ELEM_RUN_MASK);
+					if (asset->elemDefs[i].flags2 & FX_ELEM2_RUN_RELATIVE_TO_OFFSET)
+					{
+						new_asset->elemDefs[i].flags2 = new_asset->elemDefs[i].flags2 &= ~FX_ELEM2_RUN_RELATIVE_TO_OFFSET;
+						new_asset->elemDefs[i].flags = (zonetool::h1::FxElemDefFlags)(new_asset->elemDefs[i].flags | zonetool::h1::FX_ELEM_RUN_RELATIVE_TO_OFFSET);
+					}
+					else
+					{
+						switch (asset->elemDefs[i].flags & FX_ELEM_RUN_MASK)
+						{
+						case FX_ELEM_RUN_RELATIVE_TO_EFFECT:
+							new_asset->elemDefs[i].flags = (zonetool::h1::FxElemDefFlags)(new_asset->elemDefs[i].flags | zonetool::h1::FX_ELEM_RUN_RELATIVE_TO_EFFECT);
+							break;
+						case FX_ELEM_RUN_RELATIVE_TO_CAMERA:
+							new_asset->elemDefs[i].flags = (zonetool::h1::FxElemDefFlags)(new_asset->elemDefs[i].flags | zonetool::h1::FX_ELEM_RUN_RELATIVE_TO_CAMERA);
+							break;
+						case FX_ELEM_RUN_RELATIVE_TO_WORLD:
+							new_asset->elemDefs[i].flags = (zonetool::h1::FxElemDefFlags)(new_asset->elemDefs[i].flags | zonetool::h1::FX_ELEM_RUN_RELATIVE_TO_WORLD);
+							break;
+						case FX_ELEM_RUN_RELATIVE_TO_UNK:
+						case FX_ELEM_RUN_RELATIVE_TO_SPAWN:
+							new_asset->elemDefs[i].flags = (zonetool::h1::FxElemDefFlags)(new_asset->elemDefs[i].flags | zonetool::h1::FX_ELEM_RUN_RELATIVE_TO_SPAWN);
+							break;
+						}
+					}
 				}
 
 				const auto reordered_elems = allocator.allocate_array<zonetool::h1::FxElemDef>(elem_count);
