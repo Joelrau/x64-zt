@@ -279,6 +279,17 @@ namespace zonetool
 			return paths;
 		}
 
+		void add_path(const std::string& path, bool insert_at_beginning)
+		{
+			if (path.empty()) return;
+
+			auto& search_paths = get_search_paths();
+			if (insert_at_beginning)
+				search_paths.insert(search_paths.begin(), path);
+			else
+				search_paths.push_back(path);
+		}
+
 		void add_paths_from_directory(const std::string& dir, bool insert_at_beginning)
 		{
 			const auto extra_paths = load_extra_search_paths(dir);

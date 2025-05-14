@@ -8,7 +8,6 @@
 
 #include "zonetool/utils/iwi.hpp"
 
-#include "zonetool/utils/compression.hpp"
 #include <utils/io.hpp>
 #include <utils/cryptography.hpp>
 #include <utils/flags.hpp>

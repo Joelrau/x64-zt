@@ -477,16 +477,11 @@ namespace zonetool::h1
 				weapon->notetrackOverrides[i].attachment = data["notetrackOverrides"][i]["attachment"].get<int>();
 				for (auto j = 0u; j < 36; j++)
 				{
-					auto notetrackSoundMapKey = data["notetrackOverrides"][i]["notetrackSoundMapKeys"][j].get<std::string>();
-					if (!notetrackSoundMapKey.empty())
-					{
-						this->add_script_string(&weapon->notetrackOverrides[i].notetrackSoundMapKeys[j], mem->duplicate_string(notetrackSoundMapKey));
-					}
-					auto notetrackSoundMapValue = data["notetrackOverrides"][i]["notetrackSoundMapValues"][j].get<std::string>();
-					if (!notetrackSoundMapValue.empty())
-					{
-						this->add_script_string(&weapon->notetrackOverrides[i].notetrackSoundMapValues[j], mem->duplicate_string(notetrackSoundMapValue));
-					}
+					this->add_script_string(&weapon->notetrackOverrides[i].notetrackSoundMapKeys[j], 
+						mem->duplicate_string(data["notetrackOverrides"][i]["notetrackSoundMap"][j]["Key"].get<std::string>()));
+
+					this->add_script_string(&weapon->notetrackOverrides[i].notetrackSoundMapValues[j],
+						mem->duplicate_string(data["notetrackOverrides"][i]["notetrackSoundMap"][j]["Value"].get<std::string>()));
 				}
 			}
 		}
@@ -495,66 +490,51 @@ namespace zonetool::h1
 		weapon->notetrackSoundMapValues = mem->allocate<scr_string_t>(36);
 		for (auto i = 0; i < 36; i++)
 		{
-			auto notetrack = data["notetrackSoundMapKeys"][i].get<std::string>();
-			this->add_script_string(&weapon->notetrackSoundMapKeys[i], mem->duplicate_string(notetrack));
-		}
-		for (auto i = 0; i < 36; i++)
-		{
-			auto notetrack = data["notetrackSoundMapValues"][i].get<std::string>();
-			this->add_script_string(&weapon->notetrackSoundMapValues[i], mem->duplicate_string(notetrack));
+			this->add_script_string(&weapon->notetrackSoundMapKeys[i], 
+				mem->duplicate_string(data["notetrackSoundMap"][i]["Key"].get<std::string>()));
+
+			this->add_script_string(&weapon->notetrackSoundMapValues[i],
+				mem->duplicate_string(data["notetrackSoundMap"][i]["Value"].get<std::string>()));
 		}
 
 		weapon->notetrackRumbleMapKeys = mem->allocate<scr_string_t>(16);
 		weapon->notetrackRumbleMapValues = mem->allocate<scr_string_t>(16);
 		for (auto i = 0; i < 16; i++)
 		{
-			auto notetrack = data["notetrackRumbleMapKeys"][i].get<std::string>();
-			this->add_script_string(&weapon->notetrackRumbleMapKeys[i], mem->duplicate_string(notetrack));
-		}
-		for (auto i = 0; i < 16; i++)
-		{
-			auto notetrack = data["notetrackRumbleMapValues"][i].get<std::string>();
-			this->add_script_string(&weapon->notetrackRumbleMapValues[i], mem->duplicate_string(notetrack));
+			this->add_script_string(&weapon->notetrackRumbleMapKeys[i], 
+				mem->duplicate_string(data["notetrackRumbleMap"][i]["Key"].get<std::string>()));
+
+			this->add_script_string(&weapon->notetrackRumbleMapValues[i],
+				mem->duplicate_string(data["notetrackRumbleMap"][i]["Value"].get<std::string>()));
 		}
 
 		weapon->notetrackFXMapKeys = mem->allocate<scr_string_t>(16);
 		weapon->notetrackFXMapTagValues = mem->allocate<scr_string_t>(16);
-		for (auto i = 0; i < 16; i++)
-		{
-			auto notetrack = data["notetrackFXMapKeys"][i].get<std::string>();
-			this->add_script_string(&weapon->notetrackFXMapKeys[i], mem->duplicate_string(notetrack));
-		}
-		for (auto i = 0; i < 16; i++)
-		{
-			auto notetrack = data["notetrackFXMapTagValues"][i].get<std::string>();
-			this->add_script_string(&weapon->notetrackFXMapTagValues[i], mem->duplicate_string(notetrack));
-		}
-
 		weapon->notetrackFXMapValues = mem->allocate<FxEffectDef*>(16);
 		for (auto i = 0; i < 16; i++)
 		{
-			auto notetrack = data["notetrackFXMapValues"][i].get<std::string>();
-			weapon->notetrackFXMapValues[i] = db_find_x_asset_header(ASSET_TYPE_FX, notetrack.data(), 1).fx;
+			this->add_script_string(&weapon->notetrackFXMapKeys[i], 
+				mem->duplicate_string(data["notetrackFXMap"][i]["Key"].get<std::string>()));
+
+			this->add_script_string(&weapon->notetrackFXMapTagValues[i], 
+				mem->duplicate_string(data["notetrackFXMap"][i]["Tag"].get<std::string>()));
+
+			weapon->notetrackFXMapValues[i] = db_find_x_asset_header(ASSET_TYPE_FX, 
+				data["notetrackFXMap"][i]["Value"].get<std::string>().data(), 1).fx;
 		}
 
-		weapon->notetrackUnknownKeys = mem->allocate<scr_string_t>(16);
-		weapon->notetrackUnknownValues = mem->allocate<scr_string_t>(16);
+		weapon->notetrackHideTagKeys = mem->allocate<scr_string_t>(16);
+		weapon->notetrackHideTagTagValues = mem->allocate<scr_string_t>(16);
+		weapon->notetrackHideTagValues = mem->allocate<bool>(16);
 		for (auto i = 0; i < 16; i++)
 		{
-			auto notetrack = data["notetrackUnknownKeys"][i].get<std::string>();
-			this->add_script_string(&weapon->notetrackUnknownKeys[i], mem->duplicate_string(notetrack));
-		}
-		for (auto i = 0; i < 16; i++)
-		{
-			auto notetrack = data["notetrackUnknownValues"][i].get<std::string>();
-			this->add_script_string(&weapon->notetrackUnknownValues[i], mem->duplicate_string(notetrack));
-		}
+			this->add_script_string(&weapon->notetrackHideTagKeys[i], 
+				mem->duplicate_string(data["notetrackHideTag"][i]["Key"].get<std::string>()));
 
-		weapon->notetrackUnknown = mem->allocate<char>(16);
-		for (auto i = 0; i < 16; i++)
-		{
-			auto value = data["notetrackUnknown"][i].get<char>();
-			weapon->notetrackUnknown[i] = value;
+			this->add_script_string(&weapon->notetrackHideTagTagValues[i],
+				mem->duplicate_string(data["notetrackHideTag"][i]["Tag"].get<std::string>()));
+
+			weapon->notetrackHideTagValues[i] = data["notetrackHideTag"][i]["Value"].get<bool>();
 		}
 
 		WEAPON_READ_STRING(lobWorldModelName);
@@ -1046,8 +1026,8 @@ namespace zonetool::h1
 		WEAPON_READ_FIELD(int, explodeCount);
 		WEAPON_READ_FIELD(int, batteryDischargeRate);
 		WEAPON_READ_FIELD(int, extendedBattery);
-		WEAPON_READ_FIELD(int, iU_079);
-		WEAPON_READ_FIELD(int, iU_080);
+		WEAPON_READ_FIELD(int, bulletsPerTag);
+		WEAPON_READ_FIELD(int, maxTags);
 		WEAPON_READ_FIELD(unsigned char, rattleSoundType);
 		WEAPON_READ_FIELD(bool, adsShouldShowCrosshair);
 		WEAPON_READ_FIELD(bool, adsCrosshairShouldScale);
@@ -1072,7 +1052,7 @@ namespace zonetool::h1
 		WEAPON_READ_FIELD(bool, aimDownSight);
 		WEAPON_READ_FIELD(bool, canHoldBreath);
 		WEAPON_READ_FIELD(bool, meleeOnly);
-		WEAPON_READ_FIELD(bool, bU_085);
+		WEAPON_READ_FIELD(bool, quickMelee);
 		WEAPON_READ_FIELD(bool, bU_086);
 		WEAPON_READ_FIELD(bool, canVariableZoom);
 		WEAPON_READ_FIELD(bool, rechamberWhileAds);
@@ -1148,10 +1128,10 @@ namespace zonetool::h1
 		WEAPON_READ_FIELD(bool, adsSceneBlur);
 		WEAPON_READ_FIELD(bool, usesSniperScope);
 		WEAPON_READ_FIELD(bool, hasTransientModels);
-		WEAPON_READ_FIELD(bool, bU_112);
-		WEAPON_READ_FIELD(bool, bU_113);
-		WEAPON_READ_FIELD(bool, bU_114);
-		WEAPON_READ_FIELD(bool, bU_115);
+		WEAPON_READ_FIELD(bool, signatureAmmoAlternate);
+		WEAPON_READ_FIELD(bool, useScriptCallbackForHit);
+		WEAPON_READ_FIELD(bool, useBulletTagSystem);
+		WEAPON_READ_FIELD(bool, hideBulletTags);
 		WEAPON_READ_FIELD(float, adsDofPhysicalFstop);
 		WEAPON_READ_FIELD(float, adsDofPhysicalFocusDistance);
 		WEAPON_READ_FIELD(float, autosimSpeedScale);
@@ -1221,8 +1201,8 @@ namespace zonetool::h1
 		WEAPON_SCRIPTSTRING_ARRAY_PREPARE(notetrackRumbleMapValues, 16);
 		WEAPON_SCRIPTSTRING_ARRAY_PREPARE(notetrackFXMapKeys, 16);
 		WEAPON_SCRIPTSTRING_ARRAY_PREPARE(notetrackFXMapTagValues, 16);
-		WEAPON_SCRIPTSTRING_ARRAY_PREPARE(notetrackUnknownKeys, 16);
-		WEAPON_SCRIPTSTRING_ARRAY_PREPARE(notetrackUnknownValues, 16);
+		WEAPON_SCRIPTSTRING_ARRAY_PREPARE(notetrackHideTagKeys, 16);
+		WEAPON_SCRIPTSTRING_ARRAY_PREPARE(notetrackHideTagTagValues, 16);
 
 		weapon->stowTag = static_cast<scr_string_t>(buf->write_scriptstring(
 			this->get_script_string(&weapon->stowTag)));
@@ -1799,14 +1779,14 @@ namespace zonetool::h1
 		}
 		WEAPON_SCRIPTSTRING_ARRAY(notetrackFXMapTagValues, 16);
 
-		WEAPON_SCRIPTSTRING_ARRAY(notetrackUnknownKeys, 16);
-		if (data->notetrackUnknown)
+		WEAPON_SCRIPTSTRING_ARRAY(notetrackHideTagKeys, 16);
+		if (data->notetrackHideTagTagValues)
 		{
 			buf->align(0);
-			buf->write(data->notetrackUnknown, 16);
-			buf->clear_pointer(&dest->notetrackUnknown);
+			buf->write(data->notetrackHideTagTagValues, 16);
+			buf->clear_pointer(&dest->notetrackHideTagTagValues);
 		}
-		WEAPON_SCRIPTSTRING_ARRAY(notetrackUnknownValues, 16);
+		WEAPON_SCRIPTSTRING_ARRAY(notetrackHideTagTagValues, 16);
 
 		WEAPON_STRING(szAdsrBaseSetting);
 
@@ -2427,11 +2407,11 @@ namespace zonetool::h1
 
 			for (auto j = 0u; j < 36; j++)
 			{
-				data["notetrackOverrides"][i]["notetrackSoundMapKeys"][j] = (asset->notetrackOverrides[i].notetrackSoundMapKeys[j])
+				data["notetrackOverrides"][i]["notetrackSoundMap"][j]["Key"] = (asset->notetrackOverrides[i].notetrackSoundMapKeys[j])
 					? SL_ConvertToString(asset->notetrackOverrides[i].notetrackSoundMapKeys[j])
 					: "";
 
-				data["notetrackOverrides"][i]["notetrackSoundMapValues"][j] = (asset->notetrackOverrides[i].notetrackSoundMapValues[j])
+				data["notetrackOverrides"][i]["notetrackSoundMap"][j]["Value"] = (asset->notetrackOverrides[i].notetrackSoundMapValues[j])
 					? SL_ConvertToString(asset->notetrackOverrides[i].notetrackSoundMapValues[j])
 					: "";
 			}
@@ -2439,104 +2419,54 @@ namespace zonetool::h1
 
 		for (auto i = 0; i < 36; i++)
 		{
-			if (asset->notetrackSoundMapKeys && asset->notetrackSoundMapKeys[i])
-			{
-				data["notetrackSoundMapKeys"][i] = SL_ConvertToString(asset->notetrackSoundMapKeys[i]);
-			}
-			else
-			{
-				data["notetrackSoundMapKeys"][i] = "";
-			}
+			data["notetrackSoundMap"][i]["Key"] = asset->notetrackSoundMapKeys && asset->notetrackSoundMapKeys[i] 
+				? SL_ConvertToString(asset->notetrackSoundMapKeys[i]) 
+				: "";
 
-			if (asset->notetrackSoundMapValues && asset->notetrackSoundMapValues[i])
-			{
-				data["notetrackSoundMapValues"][i] = SL_ConvertToString(asset->notetrackSoundMapValues[i]);
-			}
-			else
-			{
-				data["notetrackSoundMapValues"][i] = "";
-			}
+			data["notetrackSoundMap"][i]["Value"] = asset->notetrackSoundMapValues && asset->notetrackSoundMapValues[i]
+				? SL_ConvertToString(asset->notetrackSoundMapValues[i])
+				: "";
 		}
 
 		for (auto i = 0; i < 16; i++)
 		{
-			if (asset->notetrackRumbleMapKeys && asset->notetrackRumbleMapKeys[i])
-			{
-				data["notetrackRumbleMapKeys"][i] = SL_ConvertToString(asset->notetrackRumbleMapKeys[i]);
-			}
-			else
-			{
-				data["notetrackRumbleMapKeys"][i] = "";
-			}
+			data["notetrackRumbleMap"][i]["Key"] = asset->notetrackRumbleMapKeys && asset->notetrackRumbleMapKeys[i]
+				? SL_ConvertToString(asset->notetrackRumbleMapKeys[i])
+				: "";
 
-			if (asset->notetrackRumbleMapValues && asset->notetrackRumbleMapValues[i])
-			{
-				data["notetrackRumbleMapValues"][i] = SL_ConvertToString(asset->notetrackRumbleMapValues[i]);
-			}
-			else
-			{
-				data["notetrackRumbleMapValues"][i] = "";
-			}
+			data["notetrackRumbleMap"][i]["Value"] = asset->notetrackRumbleMapValues && asset->notetrackRumbleMapValues[i]
+				? SL_ConvertToString(asset->notetrackRumbleMapValues[i])
+				: "";
 		}
 
 		for (auto i = 0; i < 16; i++)
 		{
-			if (asset->notetrackFXMapKeys && asset->notetrackFXMapKeys[i])
-			{
-				data["notetrackFXMapKeys"][i] = SL_ConvertToString(asset->notetrackFXMapKeys[i]);
-			}
-			else
-			{
-				data["notetrackFXMapKeys"][i] = "";
-			}
+			data["notetrackFXMap"][i]["Key"] = asset->notetrackFXMapKeys && asset->notetrackFXMapKeys[i]
+				? SL_ConvertToString(asset->notetrackFXMapKeys[i])
+				: "";
 
-			if (asset->notetrackFXMapValues && asset->notetrackFXMapValues[i])
-			{
-				data["notetrackFXMapValues"][i] = asset->notetrackFXMapValues[i]->name;
-			}
-			else
-			{
-				data["notetrackFXMapValues"][i] = "";
-			}
+			data["notetrackFXMap"][i]["Value"] = asset->notetrackFXMapValues && asset->notetrackFXMapValues[i]
+				? asset->notetrackFXMapValues[i]->name
+				: "";
 
-			if (asset->notetrackFXMapTagValues && asset->notetrackFXMapTagValues[i])
-			{
-				data["notetrackFXMapTagValues"][i] = SL_ConvertToString(asset->notetrackFXMapTagValues[i]);
-			}
-			else
-			{
-				data["notetrackFXMapTagValues"][i] = "";
-			}
+			data["notetrackFXMap"][i]["Tag"] = asset->notetrackFXMapTagValues && asset->notetrackFXMapTagValues[i]
+				? SL_ConvertToString(asset->notetrackFXMapTagValues[i])
+				: "";
 		}
 
 		for (auto i = 0; i < 16; i++)
 		{
-			if (asset->notetrackUnknownKeys && asset->notetrackUnknownKeys[i])
-			{
-				data["notetrackUnknownKeys"][i] = SL_ConvertToString(asset->notetrackUnknownKeys[i]);
-			}
-			else
-			{
-				data["notetrackUnknownKeys"][i] = "";
-			}
+			data["notetrackHideTag"][i]["Key"] = asset->notetrackHideTagKeys && asset->notetrackHideTagKeys[i]
+				? SL_ConvertToString(asset->notetrackHideTagKeys[i])
+				: "";
 
-			if (asset->notetrackUnknown && asset->notetrackUnknown[i])
-			{
-				data["notetrackUnknown"][i] = asset->notetrackUnknown[i];
-			}
-			else
-			{
-				data["notetrackUnknown"][i] = 0;
-			}
+			data["notetrackHideTag"][i]["Value"] = asset->notetrackHideTagValues && asset->notetrackHideTagValues[i]
+				? asset->notetrackHideTagValues[i]
+				: false;
 
-			if (asset->notetrackUnknownValues && asset->notetrackUnknownValues[i])
-			{
-				data["notetrackUnknownValues"][i] = SL_ConvertToString(asset->notetrackUnknownValues[i]);
-			}
-			else
-			{
-				data["notetrackUnknownValues"][i] = "";
-			}
+			data["notetrackHideTag"][i]["Tag"] = asset->notetrackHideTagTagValues && asset->notetrackHideTagTagValues[i]
+				? SL_ConvertToString(asset->notetrackHideTagTagValues[i])
+				: "";
 		}
 
 		WEAPON_DUMP_STRING(lobWorldModelName);
@@ -3008,8 +2938,8 @@ namespace zonetool::h1
 		WEAPON_DUMP_FIELD(explodeCount);
 		WEAPON_DUMP_FIELD(batteryDischargeRate);
 		WEAPON_DUMP_FIELD(extendedBattery);
-		WEAPON_DUMP_FIELD(iU_079);
-		WEAPON_DUMP_FIELD(iU_080);
+		WEAPON_DUMP_FIELD(bulletsPerTag);
+		WEAPON_DUMP_FIELD(maxTags);
 		WEAPON_DUMP_FIELD(rattleSoundType);
 		WEAPON_DUMP_FIELD(adsShouldShowCrosshair);
 		WEAPON_DUMP_FIELD(adsCrosshairShouldScale);
@@ -3034,7 +2964,7 @@ namespace zonetool::h1
 		WEAPON_DUMP_FIELD(aimDownSight);
 		WEAPON_DUMP_FIELD(canHoldBreath);
 		WEAPON_DUMP_FIELD(meleeOnly);
-		WEAPON_DUMP_FIELD(bU_085);
+		WEAPON_DUMP_FIELD(quickMelee);
 		WEAPON_DUMP_FIELD(bU_086);
 		WEAPON_DUMP_FIELD(canVariableZoom);
 		WEAPON_DUMP_FIELD(rechamberWhileAds);
@@ -3110,10 +3040,10 @@ namespace zonetool::h1
 		WEAPON_DUMP_FIELD(adsSceneBlur);
 		WEAPON_DUMP_FIELD(usesSniperScope);
 		WEAPON_DUMP_FIELD(hasTransientModels);
-		WEAPON_DUMP_FIELD(bU_112);
-		WEAPON_DUMP_FIELD(bU_113);
-		WEAPON_DUMP_FIELD(bU_114);
-		WEAPON_DUMP_FIELD(bU_115);
+		WEAPON_DUMP_FIELD(signatureAmmoAlternate);
+		WEAPON_DUMP_FIELD(useScriptCallbackForHit);
+		WEAPON_DUMP_FIELD(useBulletTagSystem);
+		WEAPON_DUMP_FIELD(hideBulletTags);
 		WEAPON_DUMP_FIELD(adsDofPhysicalFstop);
 		WEAPON_DUMP_FIELD(adsDofPhysicalFocusDistance);
 		WEAPON_DUMP_FIELD(autosimSpeedScale);

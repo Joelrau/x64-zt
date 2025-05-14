@@ -4966,9 +4966,9 @@ namespace zonetool::h1
 		scr_string_t* notetrackFXMapKeys; // 176 (16 xstrings)
 		FxEffectDef** notetrackFXMapValues; // 184 (16 effects)
 		scr_string_t* notetrackFXMapTagValues; // 192 (16 xstrings)
-		scr_string_t* notetrackUnknownKeys; // 200 (16 xstrings)
-		char* notetrackUnknown; // 208 (16 chars)
-		scr_string_t* notetrackUnknownValues; // 216 (16 xstrings)
+		scr_string_t* notetrackHideTagKeys; // 200 (16 xstrings)
+		bool* notetrackHideTagValues; // 208 (16 booleans)
+		scr_string_t* notetrackHideTagTagValues; // 216 (16 xstrings)
 		const char* szAdsrBaseSetting; // 224
 		FxEffectDef* viewFlashEffect; // 232
 		FxEffectDef* viewBodyFlashEffect; // 240
@@ -5426,8 +5426,8 @@ namespace zonetool::h1
 		int explodeCount; // 3444 X
 		int batteryDischargeRate; // 3448 X
 		int extendedBattery; // 3452 X
-		int iU_079; // 3456 // int numBulletTags (BG_ShowHideTagsBasedOnAltMode)
-		int iU_080; // 3460 // int tagForAmmo (1400C77D0)
+		int bulletsPerTag; // 3456 (1400C77D0)
+		int maxTags; // 3460 (1400C77D0)
 		scr_string_t stowTag; // 3464
 		unsigned char rattleSoundType; // 3468 X
 		bool adsShouldShowCrosshair; // 3469 (CG_DrawCrosshair)
@@ -5453,8 +5453,8 @@ namespace zonetool::h1
 		bool aimDownSight; // 3489
 		bool canHoldBreath; // 3490
 		bool meleeOnly; // 3491
-		bool bU_085; // 3492 bool isMeleeAnimDelayed;? (0x14009FDC0)(1401F2BC0)
-		bool bU_086; // 3493 X bool oldWeaponBot;?
+		bool quickMelee; // 3492 (0x14009FDC0)(1401F2BC0)
+		bool bU_086; // 3493 UNUSED
 		bool canVariableZoom; // 3494
 		bool rechamberWhileAds; // 3495
 		bool bulletExplosiveDamage; // 3496
@@ -5525,14 +5525,14 @@ namespace zonetool::h1
 		bool cloaked; // 3561 (BG_IsWeaponCloaked)
 		bool adsHideWeapon; // 3562 (0x1401fa7aa)
 		bool adsHideHands; // 3563 (0x1401fa78a)
-		bool bU_108; // 3564 X
+		bool bU_108; // 3564 USED
 		bool adsSceneBlur; // 3565 (BG_GetADSSceneBlur)
 		bool usesSniperScope; // 3566 (BG_UsingSniperScope)
 		bool hasTransientModels; // 3567 (140499130) (14049CE70) (14049B890) (14049B680)
-		bool bU_112; // 3568 X
-		bool bU_113; // 3569 X
-		bool bU_114; // 3570 (BG_ShowHideTagsBasedOnAltMode)
-		bool bU_115; // 3571 (BG_ShowHideTagsBasedOnAltMode)
+		bool signatureAmmoAlternate; // 3568 X
+		bool useScriptCallbackForHit; // 3569 X
+		bool useBulletTagSystem; // 3570 (1400C77D0)
+		bool hideBulletTags; // 3571 (1400C77D0)
 		float adsDofPhysicalFstop; // 3572 (BG_ADSDOFPhysicalFStop)
 		float adsDofPhysicalFocusDistance; // 3576 (BG_ADSDOFPhysicalFocusDistance)
 		float autosimSpeedScale; // 3580 (BG_GetAutosimSpeedScalar)
@@ -9609,6 +9609,7 @@ namespace zonetool::h1
 		DB_ZONE_BASEMAP = 0x20,
 		DB_ZONE_TRANSIENT_POOL = 0x40,
 		DB_ZONE_TRANSIENT_MASK = 0x40,
+		DB_ZONE_VLOBBY = 0x100,
 		DB_ZONE_CUSTOM = 0x1000 // added for custom zone loading
 	};
 

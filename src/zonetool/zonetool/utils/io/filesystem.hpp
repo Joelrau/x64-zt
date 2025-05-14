@@ -80,6 +80,7 @@ namespace zonetool
 		std::string get_file_path(const std::string& name);
 		std::string get_dump_path();
 		bool create_directory(const std::string& name);
+		void add_path(const std::string& path, bool insert_at_beginning = false);
 		void add_paths_from_directory(const std::string& dir, bool insert_at_beginning = false);
 		std::vector<std::string>& get_search_paths();
 	}
