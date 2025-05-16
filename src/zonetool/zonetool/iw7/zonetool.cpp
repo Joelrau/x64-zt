@@ -1,15 +1,13 @@
 #include <std_include.hpp>
 #include "zonetool.hpp"
 
-#include <utils/io.hpp>
+#include "converter/converter.hpp"
 
 #include "../utils/gsc.hpp"
 #include "../utils/csv_generator.hpp"
 
-#include "zonetool/utils/compression.hpp"
-
-#include "../utils/gsc.hpp"
-#include "zonetool/utils/csv_generator.hpp"
+#include <utils/io.hpp>
+#include <utils/flags.hpp>
 
 namespace zonetool::iw7
 {
@@ -131,6 +129,52 @@ namespace zonetool::iw7
 		return (techSet->techniqueMask[techniqueIndex] & techniqueBit) != 0;
 	}
 
+	void dump_asset_h1(XAsset* asset)
+	{
+		utils::memory::allocator allocator;
+
+#define DUMP_ASSET_REGULAR(__type__,___,__struct__) \
+		if (asset->type == __type__) \
+		{ \
+			if(IS_DEBUG) ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
+			auto asset_ptr = reinterpret_cast<__struct__*>(asset->header.data); \
+			___::dump(asset_ptr); \
+		}
+
+#define DUMP_ASSET_NO_CONVERT(__type__,___,__struct__) \
+		if (asset->type == __type__) \
+		{ \
+			if(IS_DEBUG) ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
+			auto asset_ptr = reinterpret_cast<zonetool::h1::__struct__*>(asset->header.data); \
+			zonetool::h1::___::dump(asset_ptr); \
+		}
+
+#define DUMP_ASSET_CONVERT(__type__,__namespace__,__struct__) \
+		if (asset->type == __type__) \
+		{ \
+			if(IS_DEBUG) ZONETOOL_INFO("Converting and dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
+			auto asset_ptr = reinterpret_cast<__struct__*>(asset->header.data); \
+			converter::h1::__namespace__::dump(asset_ptr); \
+		}
+
+		try
+		{
+			DUMP_ASSET_CONVERT(ASSET_TYPE_IMAGE, gfximage, GfxImage);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_MATERIAL, material, Material);
+			//DUMP_ASSET_CONVERT(ASSET_TYPE_XANIMPARTS, xanim, XAnimParts);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_XMODEL, xmodel, XModel);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
+		}
+		catch (std::exception& ex)
+		{
+			ZONETOOL_FATAL("A fatal exception occured while dumping zone \"%s\", exception was: \n%s", filesystem::get_fastfile().data(), ex.what());
+		}
+
+#undef DUMP_ASSET_CONVERT
+#undef DUMP_ASSET_NO_CONVERT
+#undef DUMP_ASSET_REGULAR
+	}
+
 	void dump_asset_iw7(XAsset* asset)
 	{
 #define DUMP_ASSET(__type__,___,__struct__) \
@@ -216,6 +260,7 @@ namespace zonetool::iw7
 	std::unordered_map<game::game_mode, std::function<void(XAsset*)>> dump_functions =
 	{
 		{game::iw7, dump_asset_iw7},
+		{game::h1, dump_asset_h1},
 	};
 
 	void dump_asset(XAsset* asset)
@@ -664,7 +709,9 @@ namespace zonetool::iw7
 			}
 			else if (row->fields[0] == "include"s)
 			{
+				filesystem::get_search_paths().push_back("zonetool\\"s + row->fields[1] + "\\");
 				parse_csv_file(zone, fastfile, row->fields[1]);
+				filesystem::get_search_paths().pop_back();
 			}
 			else if (row->fields[0] == "ignore"s)
 			{
@@ -710,6 +757,16 @@ namespace zonetool::iw7
 						ZONETOOL_FATAL("A fatal exception occured while building zone \"%s\", exception was: \n%s", fastfile.data(), e.what());
 					}
 				}
+			}
+			// add paths
+			else if ((row->fields[0] == "addpath"s || row->fields[0] == "addpaths"s) && row->num_fields >= 2)
+			{
+				bool insert_at_beginning = row->num_fields >= 3 && row->fields[2] == "true"s;
+
+				if (row->fields[0] == "addpath"s)
+					filesystem::add_path(row->fields[1], insert_at_beginning);
+				else
+					filesystem::add_paths_from_directory(row->fields[1], insert_at_beginning);
 			}
 			// if entry is not an option, it should be an asset.
 			else
@@ -1087,6 +1144,8 @@ namespace zonetool::iw7
 		auto args = get_command_line_arguments();
 		if (args.size() > 1)
 		{
+			bool do_exit = false;
+
 			for (std::size_t i = 0; i < args.size(); i++)
 			{
 				if (i < args.size() - 1 && i + 1 < args.size())
@@ -1095,11 +1154,15 @@ namespace zonetool::iw7
 					{
 						load_zone(args[i + 1]);
 						i++;
+
+						do_exit = true;
 					}
 					else if (args[i] == "-buildzone")
 					{
 						build_zone(args[i + 1]);
 						i++;
+
+						do_exit = true;
 					}
 					else if (args[i] == "-buildzones")
 					{
@@ -1122,21 +1185,30 @@ namespace zonetool::iw7
 						}
 
 						i++;
+
+						do_exit = true;
 					}
 					else if (args[i] == "-verifyzone")
 					{
 						verify_zone(args[i + 1]);
 						i++;
+
+						do_exit = true;
 					}
 					else if (args[i] == "-dumpzone")
 					{
 						dump_zone(args[i + 1], game::iw7);
 						i++;
+
+						do_exit = true;
 					}
 				}
 			}
 
-			std::quick_exit(EXIT_SUCCESS);
+			if (do_exit)
+			{
+				std::quick_exit(EXIT_SUCCESS);
+			}
 		}
 	}
 

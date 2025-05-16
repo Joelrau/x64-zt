@@ -1002,6 +1002,7 @@ namespace zonetool::iw7
 		SURF_FLAG_SECONDUV = 0x100,
 		SURF_FLAG_MAYHEM_CUSTOM_CHANNELS = 0x200,
 		SURF_FLAG_MAYHEM_SELFVIS = 0x400,
+		SURF_FLAG_UNK800 = 0x800, // R_SkinDObjModels
 	};
 
 	struct XSurface
