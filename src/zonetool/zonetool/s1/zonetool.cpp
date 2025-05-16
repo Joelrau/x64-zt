@@ -431,6 +431,21 @@ namespace zonetool::s1
 			ZONETOOL_INFO("Loading asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type));
 		}
 
+		if (globals.dump_csv)
+		{
+			if (globals.csv_file.get_fp() == nullptr)
+			{
+				globals.csv_file = filesystem::file(filesystem::get_fastfile() + ".csv");
+				globals.csv_file.open("wb");
+			}
+
+			// dump assets to disk
+			if (globals.csv_file.get_fp())
+			{
+				std::fprintf(globals.csv_file.get_fp(), "%s,%s\n", type_to_string(asset->type), get_asset_name(asset));
+			}
+		}
+
 		if (!globals.dump)
 		{
 			return;
@@ -439,18 +454,6 @@ namespace zonetool::s1
 		if (asset_type_filter.size() > 0 && !asset_type_filter.contains(asset->type))
 		{
 			return;
-		}
-
-		if (globals.csv_file.get_fp() == nullptr)
-		{
-			globals.csv_file = filesystem::file(filesystem::get_fastfile() + ".csv");
-			globals.csv_file.open("wb");
-		}
-
-		// dump assets to disk
-		if (globals.csv_file.get_fp()/* && !is_referenced_asset(xasset)*/)
-		{
-			std::fprintf(globals.csv_file.get_fp(), "%s,%s\n", type_to_string(asset->type), get_asset_name(asset));
 		}
 
 		// dump referenced later
@@ -665,6 +668,35 @@ namespace zonetool::s1
 		}
 	}
 
+	void dump_csv(const std::string& name)
+	{
+		if (!zone_exists(name.data()))
+		{
+			ZONETOOL_INFO("Zone \"%s\" could not be found!", name.data());
+			return;
+		}
+
+		wait_for_database();
+
+		ZONETOOL_INFO("Dumping csv \"%s\"...", name.data());
+
+		filesystem::set_fastfile(name);
+
+		globals.dump_csv = true;
+		if (!load_zone(name, DB_LOAD_ASYNC, true))
+		{
+			globals.dump_csv = false;
+			return;
+		}
+
+		while (globals.dump_csv)
+		{
+			Sleep(1);
+		}
+
+		ZONETOOL_INFO("Csv \"%s\" dumped...", name.data());
+	}
+
 	void verify_zone(const std::string& name)
 	{
 		if (!zone_exists(name.data()))
@@ -814,6 +846,16 @@ namespace zonetool::s1
 						ZONETOOL_FATAL("A fatal exception occured while building zone \"%s\", exception was: \n%s", fastfile.data(), e.what());
 					}
 				}
+			}
+			// add paths
+			else if ((row->fields[0] == "addpath"s || row->fields[0] == "addpaths"s) && row->num_fields >= 2)
+			{
+				bool insert_at_beginning = row->num_fields >= 3 && row->fields[2] == "true"s;
+
+				if (row->fields[0] == "addpath"s)
+					filesystem::add_path(row->fields[1], insert_at_beginning);
+				else
+					filesystem::add_paths_from_directory(row->fields[1], insert_at_beginning);
 			}
 			// if entry is not an option, it should be an asset.
 			else
@@ -1255,6 +1297,17 @@ namespace zonetool::s1
 			dump_zone_(dump_params.zone);
 
 			ZONETOOL_INFO("Map \"%s\" dumped", dump_params.zone.data());
+		});
+
+		::s1::command::add("dumpcsv", [](const ::s1::command::params& params)
+		{
+			if (params.size() != 2)
+			{
+				ZONETOOL_ERROR("usage: dumpcsv <zone>");
+				return;
+			}
+
+			dump_csv(params.get(1));
 		});
 
 		::s1::command::add("generatecsv", csv_generator::create_command
