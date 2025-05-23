@@ -1521,102 +1521,105 @@ namespace zonetool::h1
 
 	void handle_params()
 	{
-		// Execute command line commands
 		auto args = get_command_line_arguments();
-		if (args.size() > 1)
+
+		bool do_exit = false;
+		if (args.size() <= 1)
 		{
-			bool do_exit = false;
+			return;
+		}
 
-			for (std::size_t i = 0; i < args.size(); i++)
+		for (std::size_t i = 0; i < args.size(); ++i)
+		{
+			const auto& arg = args[i];
+
+			// Commands that require a following parameter
+			if (i + 1 < args.size())
 			{
-				if (i < args.size() - 1 && i + 1 < args.size())
+				const auto& param = args[i + 1];
+
+				if (arg == "-loadzone")
 				{
-					if (args[i] == "-loadzone")
-					{
-						load_zone(args[i + 1]);
-						i++;
-					}
-					else if (args[i] == "-buildzone")
-					{
-						build_zone(args[i + 1]);
-						i++;
+					load_zone(param);
+					++i;
 
-						do_exit = true;
-					}
-					else if (args[i] == "-buildzones")
-					{
-						const auto& filename = args[i + 1];
-						std::string data{};
-						if (!utils::io::read_file(filename, &data))
-						{
-							return;
-						}
+					do_exit = true;
+				}
+				else if (arg == "-buildzone")
+				{
+					build_zone(param);
+					++i;
 
-						const auto zones = utils::string::split(data, '\n');
-						for (auto zone : zones)
-						{
-							if (zone.ends_with("\r"))
-							{
-								zone.pop_back();
-							}
+					do_exit = true;
+				}
+				else if (arg == "-buildzones")
+				{
+					std::string data;
+					if (!utils::io::read_file(param, &data))
+						return;
 
-							build_zone(zone);
-						}
+					auto zones = utils::string::split(data, '\n');
+					for (auto& zone : zones)
+					{
+						if (zone.ends_with("\r"))
+							zone.pop_back();
 
-						i++;
+						build_zone(zone);
+					}
 
-						do_exit = true;
-					}
-					else if (args[i] == "-verifyzone")
-					{
-						verify_zone(args[i + 1]);
-						i++;
+					++i;
 
-						do_exit = true;
-					}
-					else if (args[i] == "-dumpzone")
-					{
-						dump_zone(args[i + 1], game::h1);
-						i++;
+					do_exit = true;
+				}
+				else if (arg == "-verifyzone")
+				{
+					verify_zone(param);
+					++i;
 
-						do_exit = true;
-					}
-					else if (args[i] == "-dumpcsv")
-					{
-						dump_csv(args[i + 1]);
-						i++;
+					do_exit = true;
+				}
+				else if (arg == "-dumpzone")
+				{
+					dump_zone(param, game::h1);
+					++i;
 
-						do_exit = true;
-					}
-					else if (args[i] == "-unloadzones")
-					{
-						unload_zones();
-						i++;
-					}
-					else if (args[i] == "-quit")
-					{
-						do_exit = true;
-					}
-					else if (args[i] == "-help")
-					{
-						ZONETOOL_INFO("Usage: zonetool.exe [options]");
-						ZONETOOL_INFO("Options:");
-						ZONETOOL_INFO("-loadzone <zone> - Load a zone");
-						ZONETOOL_INFO("-buildzone <zone> - Build a zone");
-						ZONETOOL_INFO("-buildzones <file> - Build zones from a file");
-						ZONETOOL_INFO("-verifyzone <zone> - Verify a zone");
-						ZONETOOL_INFO("-dumpzone <zone> - Dump a zone");
-						ZONETOOL_INFO("-dumpcsv <zone> - Dump a csv");
-						ZONETOOL_INFO("-unloadzones - Unload all zones");
-						ZONETOOL_INFO("-quit - Quit the application");
-					}
+					do_exit = true;
+				}
+				else if (arg == "-dumpcsv")
+				{
+					dump_csv(param);
+					++i;
+
+					do_exit = true;
 				}
 			}
 
-			if (do_exit)
+			// Commands without parameters
+			if (arg == "-unloadzones")
 			{
-				std::quick_exit(EXIT_SUCCESS);
+				unload_zones();
+
+				do_exit = true;
 			}
+			else if (arg == "-help")
+			{
+				ZONETOOL_INFO("Usage: zonetool.exe [options]");
+				ZONETOOL_INFO("Options:");
+				ZONETOOL_INFO("  -loadzone <zone>     Load a zone");
+				ZONETOOL_INFO("  -buildzone <zone>    Build a zone");
+				ZONETOOL_INFO("  -buildzones <file>   Build zones from a file");
+				ZONETOOL_INFO("  -verifyzone <zone>   Verify a zone");
+				ZONETOOL_INFO("  -dumpzone <zone>     Dump a zone");
+				ZONETOOL_INFO("  -dumpcsv <zone>      Dump a CSV of a zone");
+				ZONETOOL_INFO("  -unloadzones         Unload all zones");
+
+				do_exit = true;
+			}
+		}
+
+		if (do_exit)
+		{
+			std::exit(EXIT_SUCCESS);
 		}
 	}
 

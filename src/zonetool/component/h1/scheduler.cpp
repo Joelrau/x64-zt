@@ -149,20 +149,19 @@ namespace h1
 						std::this_thread::sleep_for(10ms);
 					}
 				});
+				std::atexit([]()
+				{
+					kill = true;
+					if (thread.joinable())
+					{
+						thread.join();
+					}
+				});
 			}
 
 			void post_load() override
 			{
 				main_frame_hook.create(0x1400D8310, scheduler::main_frame_stub);
-			}
-
-			void pre_destroy() override
-			{
-				kill = true;
-				if (thread.joinable())
-				{
-					thread.join();
-				}
 			}
 		};
 	}
