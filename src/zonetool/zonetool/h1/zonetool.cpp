@@ -1619,6 +1619,7 @@ namespace zonetool::h1
 
 		if (do_exit)
 		{
+			wait_for_database();
 			std::exit(EXIT_SUCCESS);
 		}
 	}
