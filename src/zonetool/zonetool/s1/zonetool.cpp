@@ -667,9 +667,12 @@ namespace zonetool::s1
 		}
 
 		globals.dump = true;
+		globals.dump_csv = true;
 		if (!load_zone(name, DB_LOAD_ASYNC, false))
 		{
 			globals.dump = false;
+			globals.dump_csv = false;
+			return;
 		}
 
 		while (globals.dump)
@@ -1422,7 +1425,9 @@ namespace zonetool::s1
 
 	void on_exit(void)
 	{
+		globals.verify = false;
 		globals.dump = false;
+		globals.dump_csv = false;
 		globals.csv_file.close();
 	}
 

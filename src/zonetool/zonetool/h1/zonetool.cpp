@@ -1626,7 +1626,9 @@ namespace zonetool::h1
 
 	void on_exit(void)
 	{
+		globals.verify = false;
 		globals.dump = false;
+		globals.dump_csv = false;
 		globals.csv_file.close();
 	}
 
