@@ -474,13 +474,8 @@ namespace zonetool::s1
 		dump_func->second(asset);
 	}
 
-	void stop_dumping()
+	void dump_refs()
 	{
-		if (!globals.dump)
-		{
-			return;
-		}
-
 		// remove duplicates
 		std::sort(referenced_assets.begin(), referenced_assets.end());
 		referenced_assets.erase(std::unique(referenced_assets.begin(),
@@ -511,7 +506,7 @@ namespace zonetool::s1
 
 			//ZONETOOL_INFO("Dumping additional asset \"%s\" of type \"%s\"", asset_name, type_to_string(asset.first));
 
-			XAsset referenced_asset = 
+			XAsset referenced_asset =
 			{
 				asset.first,
 				asset_header
@@ -520,12 +515,28 @@ namespace zonetool::s1
 			dump_asset(&referenced_asset);
 		}
 
-		ZONETOOL_INFO("Zone \"%s\" dumped.", filesystem::get_fastfile().data());
-
 		referenced_assets.clear();
+	}
 
-		globals.csv_file.close();
-		globals.csv_file = {};
+	void stop_dumping()
+	{
+		globals.verify = false;
+
+		if (globals.dump_csv)
+		{
+			globals.csv_file.close();
+			globals.csv_file = {};
+			globals.dump_csv = false;
+		}
+
+		if (!globals.dump)
+		{
+			return;
+		}
+
+		dump_refs();
+
+		ZONETOOL_INFO("Zone \"%s\" dumped.", filesystem::get_fastfile().data());
 
 		globals.dump = false;
 	}
@@ -548,7 +559,6 @@ namespace zonetool::s1
 
 	void db_finish_load_x_file_stub()
 	{
-		globals.verify = false;
 		stop_dumping();
 		return db_finish_load_x_file_hook.invoke<void>();
 	}
