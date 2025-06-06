@@ -1780,11 +1780,11 @@ namespace zonetool::h1
 		WEAPON_SCRIPTSTRING_ARRAY(notetrackFXMapTagValues, 16);
 
 		WEAPON_SCRIPTSTRING_ARRAY(notetrackHideTagKeys, 16);
-		if (data->notetrackHideTagTagValues)
+		if (data->notetrackHideTagValues)
 		{
 			buf->align(0);
-			buf->write(data->notetrackHideTagTagValues, 16);
-			buf->clear_pointer(&dest->notetrackHideTagTagValues);
+			buf->write(data->notetrackHideTagValues, 16);
+			buf->clear_pointer(&dest->notetrackHideTagValues);
 		}
 		WEAPON_SCRIPTSTRING_ARRAY(notetrackHideTagTagValues, 16);
 
