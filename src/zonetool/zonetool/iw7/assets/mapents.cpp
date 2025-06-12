@@ -264,6 +264,10 @@ namespace zonetool::iw7
 		asset->dynEntGlobalIdList[1] = reader.read_array<DynEntityGlobalId>();
 
 		asset->unk2 = reader.read_array<unk_1453E4298>();
+		for (unsigned int i = 0; i < asset->unk2Count; i++)
+		{
+			asset->unk2[i].unk01 = reader.read_array<unk_1453E4280>();
+		}
 		asset->unk2_1[0] = reader.read_array<unk_1453E42A8>();
 		asset->unk2_1[1] = reader.read_array<unk_1453E42A8>();
 		asset->unk2_2[0] = reader.read_array<unk_1453E1130>();
@@ -1276,6 +1280,10 @@ namespace zonetool::iw7
 		dumper.dump_array(asset->dynEntGlobalIdList[1], asset->dynEntCountTotal);
 
 		dumper.dump_array(asset->unk2, asset->unk2Count);
+		for (unsigned int i = 0; i < asset->unk2Count; i++)
+		{
+			dumper.dump_array(asset->unk2[i].unk01, asset->unk2[i].unk01Count);
+		}
 		dumper.dump_array(asset->unk2_1[0], asset->unk2Count);
 		dumper.dump_array(asset->unk2_1[1], asset->unk2Count);
 		dumper.dump_array(asset->unk2_2[0], asset->unk2Count);
