@@ -471,6 +471,9 @@ namespace
 
 			try
 			{
+				setvbuf(stdout, NULL, _IONBF, 0);
+				setvbuf(stderr, NULL, _IONBF, 0);
+				
 				if (!component_loader::post_start())
 				{
 					return 0;
