@@ -145,7 +145,7 @@ namespace zonetool::iw7
 				}
 				else
 				{
-					__debugbreak();
+					compress_block_zlib();
 				}
 
 				// calc hash
@@ -568,6 +568,7 @@ namespace zonetool::iw7
 			ADD_ASSET(ASSET_TYPE_RETICLE, reticle);
 			ADD_ASSET(ASSET_TYPE_RUMBLE, rumble);
 			ADD_ASSET(ASSET_TYPE_RUMBLE_GRAPH, rumble_graph);
+			ADD_ASSET(ASSET_TYPE_SCRIPTABLE, scriptable_def);
 			ADD_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile);
 			ADD_ASSET(ASSET_TYPE_STREAMING_INFO, streaming_info);
 			ADD_ASSET(ASSET_TYPE_STRINGTABLE, string_table);

@@ -205,6 +205,7 @@ namespace zonetool::iw7
 			DUMP_ASSET(ASSET_TYPE_RETICLE, reticle, ReticleDef);
 			DUMP_ASSET(ASSET_TYPE_RUMBLE, rumble, RumbleInfo);
 			DUMP_ASSET(ASSET_TYPE_RUMBLE_GRAPH, rumble_graph, RumbleGraph);
+			DUMP_ASSET(ASSET_TYPE_SCRIPTABLE, scriptable_def, ScriptableDef);
 			DUMP_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile, ScriptFile);
 			DUMP_ASSET(ASSET_TYPE_STREAMING_INFO, streaming_info, StreamingInfo);
 			DUMP_ASSET(ASSET_TYPE_STRINGTABLE, string_table, StringTable);

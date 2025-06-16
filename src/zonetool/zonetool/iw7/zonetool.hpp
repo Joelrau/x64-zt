@@ -30,6 +30,7 @@
 #include "assets/reticle.hpp"
 #include "assets/rumble.hpp"
 #include "assets/rumble_graph.hpp"
+#include "assets/scriptabledef.hpp"
 #include "assets/scriptfile.hpp"
 #include "assets/streaming_info.hpp"
 #include "assets/stringtable.hpp"

@@ -10262,38 +10262,39 @@ namespace zonetool::iw7
 	struct unk_1453E1B90
 	{
 		const char* name;
-		char __pad0[8];
+		int flags;
+		char __pad0[4];
 	}; assert_sizeof(unk_1453E1B90, 0x10);
 
 	struct unk_1453E1BC0
 	{
-		const char* name;
+		unk_1453E1B90* base;
 	};
 
 	struct unk_1453E1C00
 	{
-		const char* name;
+		unk_1453E1B90* base;
 	};
 
 	struct unk_1453E1C20
 	{
-		const char* name;
+		unk_1453E1B90* base;
 		char __pad0[8];
 	};
 
 	struct unk_1453E1C70
 	{
-		const char* name;
+		unk_1453E1B90* base;
 		unsigned int count;
 		unsigned int* val;
 	};
 
 	union unk_1453E1C80
 	{
-		unk_1453E1BC0 __1;
-		unk_1453E1C00 __2;
-		unk_1453E1C20 __3;
-		unk_1453E1C70 __4;
+		unk_1453E1BC0 __0;
+		unk_1453E1C00 __1;
+		unk_1453E1C20 __2;
+		unk_1453E1C70 __3;
 	};
 
 	enum ScriptablePartReferenceType
@@ -10307,7 +10308,7 @@ namespace zonetool::iw7
 
 	struct ScriptablePartReference
 	{
-		unk_1453E1B90 unk01;
+		unk_1453E1B90 base;
 		int type;
 		unk_1453E1C80 u;
 	}; assert_sizeof(ScriptablePartReference, 0x30);
@@ -10495,11 +10496,12 @@ namespace zonetool::iw7
 	struct ScriptableEventSoundDef
 	{
 		ScriptableEventBaseDef* base;
-		char __pad0[8];
+		bool stateful;
+		char __pad0[7];
 		const char* tagName;
 		scr_string_t scrTagName;
 		const char* soundAlias;
-		const char* soundAliasCache;
+		SndAliasLookup soundAliasCache;
 		char __pad1[8];
 	}; assert_sizeof(ScriptableEventSoundDef, 56);
 	assert_offsetof(ScriptableEventSoundDef, tagName, 16);
@@ -10770,25 +10772,25 @@ namespace zonetool::iw7
 	union ScriptableEventDefUnion
 	{
 		ScriptableEventAnonymousDef anonymous;
-		ScriptableEventStateChangeDef stateChange; //
+		ScriptableEventStateChangeDef stateChange;
 		ScriptableEventWaitDef wait;
 		ScriptableEventRandomDef random;
-		ScriptableEventScriptDef script; //
+		ScriptableEventScriptDef script;
 		ScriptableEventModelDef model;
 		ScriptableEventCollisionDef collision;
 		ScriptableEventAnimationDef animation;
 		ScriptableEventHideShowBoneDef hideShowBone;
 		ScriptableEventNoteTrackDef noteTrack;
 		ScriptableEventChunkDynentDef chunkDynent;
-		ScriptableEventSpawnDynentDef spawnDynent; //
-		ScriptableEventPFXDef particleFX; //
-		ScriptableEventSoundDef sound; //
-		ScriptableEventExplosionDef explosion; //
-		ScriptableEventLightDef light; //
+		ScriptableEventSpawnDynentDef spawnDynent;
+		ScriptableEventPFXDef particleFX;
+		ScriptableEventSoundDef sound;
+		ScriptableEventExplosionDef explosion;
+		ScriptableEventLightDef light;
 		ScriptableEventSunDef sun;
 		ScriptableEventRumbleDef rumble;
 		ScriptableEventScreenshakeDef screenshake;
-		ScriptableEventPartDamageDef partDamage; //
+		ScriptableEventPartDamageDef partDamage;
 		ScriptableEventSetMayhemDef setMayhem;
 		ScriptableEventPlayMayhemDef playMayhem;
 		ScriptableEventViewmodelShaderParamDef viewmodelShaderParam;
@@ -10796,9 +10798,9 @@ namespace zonetool::iw7
 		ScriptableEventClientViewSelectorDef clientViewSelector;
 		ScriptableEventTeamSelectorDef teamSelector;
 		ScriptableEventAddModelDef addModel;
-		ScriptableEventApplyForceDef applyForce; //
+		ScriptableEventApplyForceDef applyForce;
 		ScriptableEventCompassIconDef compassIcon;
-		ScriptableEventMaterialOverrideDef materialOverride; //
+		ScriptableEventMaterialOverrideDef materialOverride;
 	};
 
 	struct ScriptableEventDef
@@ -10916,7 +10918,7 @@ namespace zonetool::iw7
 		unsigned short eventStreamSize;
 		unsigned int ffMemCost;
 		scr_string_t animationTreeName;
-		void* animationTreeDef[2];
+		void* animationTreeDef[2]; // XAnim_s* animationTreeDef[2];
 		unsigned int numXModels;
 		XModel** models;
 	}; assert_sizeof(ScriptableDef, 0x70);
