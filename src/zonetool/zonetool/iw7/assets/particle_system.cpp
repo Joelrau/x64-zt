@@ -3086,7 +3086,7 @@ namespace zonetool::iw7
 				if (data->moduleData.initCloud.curves[i].controlPoints)
 				{
 					buf->align(15);
-					buf->write(data->moduleData.initCloud.curves[i].controlPoints, data->moduleData.initCloud.curves->numControlPoints);
+					buf->write(data->moduleData.initCloud.curves[i].controlPoints, data->moduleData.initCloud.curves[i].numControlPoints);
 					buf->clear_pointer(&dest->moduleData.initCloud.curves[i].controlPoints);
 				}
 			}
