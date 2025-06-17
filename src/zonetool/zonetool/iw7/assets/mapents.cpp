@@ -515,15 +515,19 @@ namespace zonetool::iw7
 	{
 		if (dest->models)
 		{
-			TriggerModel* dest_model;
-			dest->models = buf->write_s(7, dest->models, dest->count, sizeof(TriggerModel), &dest_model);
-			if (reinterpret_cast<std::uint64_t>(dest_model) == buf->data_following)
+			TriggerModel* dest_models;
+			dest->models = buf->write_s(7, dest->models, dest->count, sizeof(TriggerModel), &dest_models);
+			if (reinterpret_cast<std::uint64_t>(dest->models) == buf->data_following)
 			{
-				if (dest_model->physicsAsset)
+				for (unsigned int i = 0; i < dest->count; i++)
 				{
-					dest_model->physicsAsset = reinterpret_cast<PhysicsAsset*>(
-						zone->get_asset_pointer(ASSET_TYPE_PHYSICSASSET, dest_model->physicsAsset->name));
+					if (dest_models[i].physicsAsset)
+					{
+						dest_models[i].physicsAsset = reinterpret_cast<PhysicsAsset*>(
+							zone->get_asset_pointer(ASSET_TYPE_PHYSICSASSET, dest_models[i].physicsAsset->name));
+					}
 				}
+				
 			}
 		}
 

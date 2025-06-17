@@ -2598,11 +2598,10 @@ namespace zonetool::iw7
 	enum SndAliasType
 	{
 		SAT_LOADED = 0x0,
-		SAT_REV_VEHICLE = 0x1,
-		SAT_HYBRID_PCM = 0x2,
-		SAT_STREAMED = 0x3,
-		SAT_PRIMED = 0x4,
-		SAT_COUNT = 0x5,
+		SAT_HYBRID_PCM = 0x1,
+		SAT_STREAMED = 0x2,
+		SAT_PRIMED = 0x3,
+		SAT_COUNT = 0x4,
 	};
 
 	struct SndAliasFlags
@@ -10511,6 +10510,7 @@ namespace zonetool::iw7
 	struct ScriptableEventExplosionDef
 	{
 		ScriptableEventBaseDef* base;
+		WeaponCompleteDef* weapon;
 		const char* tagName;
 		scr_string_t scrTagName;
 		float radius;
@@ -10519,7 +10519,6 @@ namespace zonetool::iw7
 		bool stateful;
 		bool allowMissingTag;
 		bool useRootOnMissingTag;
-		char __pad0[8];
 	}; assert_sizeof(ScriptableEventExplosionDef, 48);
 
 	struct ScriptableEventLightDef

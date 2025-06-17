@@ -84,6 +84,12 @@ namespace zonetool::iw7
 
 	void tracer::load_depending(zone_base* zone)
 	{
+		auto* data = this->asset_;
+
+		if (data->material)
+		{
+			zone->add_asset_of_type(ASSET_TYPE_MATERIAL, data->material->name);
+		}
 	}
 
 	std::string tracer::name()
@@ -106,7 +112,7 @@ namespace zonetool::iw7
 		dest->name = buf->write_str(this->name());
 		if (data->material)
 		{
-			dest->material = reinterpret_cast<Material*>(zone->get_asset_pointer(type(), name()));
+			dest->material = reinterpret_cast<Material*>(zone->get_asset_pointer(ASSET_TYPE_MATERIAL, data->material->name));
 		}
 
 		buf->pop_stream();

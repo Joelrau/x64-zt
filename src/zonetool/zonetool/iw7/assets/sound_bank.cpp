@@ -18,7 +18,6 @@ namespace zonetool::iw7
 		std::string LOAD_TYPES[] =
 		{
 			"loaded",
-			"rev_vehicle",
 			"hybrid_pcm",
 			"streamed",
 			"primed",
@@ -395,6 +394,7 @@ namespace zonetool::iw7
 				list.aliasName = mem->duplicate_string(aliases[i]->aliasName);
 				list.id = snd_hash_name(list.aliasName);
 				list.head = aliases[i];
+				const auto startIndex = i;
 				while (i + 1 < aliases.size())
 				{
 					if (!strcmp(aliases[i]->aliasName, aliases[i + 1]->aliasName))
@@ -404,6 +404,16 @@ namespace zonetool::iw7
 					}
 					else
 						break;
+				}
+				if (alias_count > 1)
+				{
+					auto* heads = mem->allocate<SndAlias>(alias_count);
+					for (unsigned int h = 0; h < alias_count; h++)
+					{
+						memcpy(&heads[h], aliases[startIndex + h], sizeof(SndAlias));
+						heads[h].aliasName = list.aliasName; // Deduplicate string pointer
+					}
+					list.head = heads;
 				}
 				list.count = alias_count;
 				list.sequence = 0;
@@ -431,6 +441,7 @@ namespace zonetool::iw7
 			memset(asset->aliasIndex, 0xFF, sizeof(SndIndexEntry) * asset->aliasCount);
 
 			const auto setAliasIndexList = std::make_unique<bool[]>(asset->aliasCount);
+			memset(setAliasIndexList.get(), false, asset->aliasCount);
 
 			for (unsigned short i = 0; i < asset->aliasCount; i++)
 			{
@@ -1764,12 +1775,12 @@ namespace zonetool::iw7
 
 			bool verify_marker(std::vector<uint8_t>& data)
 			{
-				const auto marker_len = MARKER_LEN;
-				if (data.size() < marker_len || strcmp(reinterpret_cast<const char*>(data.data()), MARKER))
+				if (data.size() < MARKER_LEN)
 				{
 					return false;
 				}
-				return true;
+
+				return std::memcmp(data.data(), MARKER, MARKER_LEN) == 0;
 			}
 
 			bool parse(std::string& path, SndAssetBankEntry* entry, filesystem::file& out_file, unsigned char* checksum, unsigned char* source_checksum)
@@ -2315,9 +2326,20 @@ namespace zonetool::iw7
 						continue;
 					}
 
-					if (alias->flags.type != SAT_STREAMED && streamed || alias->flags.type == SAT_STREAMED && !streamed)
+					if (streamed)
 					{
-						continue;
+						if (alias->flags.type != SAT_STREAMED && alias->flags.type != SAT_PRIMED && alias->flags.type != SAT_HYBRID_PCM)
+						{
+							continue;
+						}
+					}
+
+					if (!streamed)
+					{
+						if (alias->flags.type != SAT_LOADED)
+						{
+							continue;
+						}
 					}
 
 					SndAssetBankEntry entry{};

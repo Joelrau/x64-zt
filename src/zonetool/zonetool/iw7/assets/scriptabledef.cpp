@@ -29,6 +29,8 @@ namespace zonetool::iw7
 
 	void scriptable_def::parse_scriptable_event(assetmanager::reader& read, ScriptableEventDef* data)
 	{
+		data->base.name = read.read_string();
+
 		auto read_event_base = [&]()
 		{
 			data->data.anonymous.base = read.read_single<ScriptableEventBaseDef>();
@@ -127,6 +129,16 @@ namespace zonetool::iw7
 					parse_scriptable_event(read, &data->data.noteTrack.noteTracks[i].events[j]);
 				}
 			}
+			break;
+		case Scriptable_EventType_ChunkDynent:
+			read_event_base();
+			read_part_reference(&data->data.chunkDynent.partReference);
+			break;
+		case Scriptable_EventType_SpawnDynent:
+			read_event_base();
+			data->data.spawnDynent.model = read.read_asset<XModel>();
+			data->data.spawnDynent.tagName = read.read_string();
+			this->add_script_string(&data->data.spawnDynent.scrTagName, read.read_string());
 			break;
 		case Scriptable_EventType_PFX:
 			read_event_base();
@@ -347,6 +359,7 @@ namespace zonetool::iw7
 		asset->name = read.read_string();
 
 		asset->nextScriptableDef = read.read_asset<ScriptableDef>();
+		asset->nextScriptableDef = nullptr;
 
 		asset->parts = read.read_array<ScriptablePartDef>();
 		for (unsigned int i = 0; i < asset->numParts; i++)
@@ -430,6 +443,12 @@ namespace zonetool::iw7
 					prepare_scriptable_event(buf, &data->data.noteTrack.noteTracks[i].events[j]);
 				}
 			}
+			break;
+		case Scriptable_EventType_ChunkDynent:
+			break;
+		case Scriptable_EventType_SpawnDynent:
+			data->data.spawnDynent.scrTagName = static_cast<scr_string_t>(buf->write_scriptstring(
+				this->get_script_string(&data->data.spawnDynent.scrTagName)));
 			break;
 		case Scriptable_EventType_PFX:
 			for (unsigned i = 0; i < data->data.particleFX.scrTagCount; i++)
@@ -640,6 +659,14 @@ namespace zonetool::iw7
 				{
 					load_depending_scriptable_event(zone, &data->data.noteTrack.noteTracks[i].events[j]);
 				}
+			}
+			break;
+		case Scriptable_EventType_ChunkDynent:
+			break;
+		case Scriptable_EventType_SpawnDynent:
+			if (data->data.spawnDynent.model)
+			{
+				zone->add_asset_of_type(ASSET_TYPE_XMODEL, data->data.spawnDynent.model->name);
 			}
 			break;
 		case Scriptable_EventType_PFX:
@@ -912,6 +939,7 @@ namespace zonetool::iw7
 					buf->write(data_->u.__3.val, data_->u.__3.count);
 					buf->clear_pointer(&dest_->u.__3.val);
 				}
+				break;
 			}
 		};
 
@@ -929,13 +957,21 @@ namespace zonetool::iw7
 			if (data->data.random.eventsA)
 			{
 				buf->align(7);
-				buf->write(data->data.random.eventsA, data->data.random.eventACount);
+				dest->data.random.eventsA = buf->write(data->data.random.eventsA, data->data.random.eventACount);
+				for (unsigned i = 0; i < data->data.random.eventACount; i++)
+				{
+					write_scriptable_event(zone, buf, &data->data.random.eventsA[i], &dest->data.random.eventsA[i]);
+				}
 				buf->clear_pointer(&dest->data.random.eventsA);
 			}
 			if (data->data.random.eventsB)
 			{
 				buf->align(7);
-				buf->write(data->data.random.eventsB, data->data.random.eventBCount);
+				dest->data.random.eventsB = buf->write(data->data.random.eventsB, data->data.random.eventBCount);
+				for (unsigned i = 0; i < data->data.random.eventBCount; i++)
+				{
+					write_scriptable_event(zone, buf, &data->data.random.eventsB[i], &dest->data.random.eventsB[i]);
+				}
 				buf->clear_pointer(&dest->data.random.eventsB);
 			}
 			break;
@@ -943,7 +979,7 @@ namespace zonetool::iw7
 			write_event_base();
 			if (data->data.script.notification)
 			{
-				buf->write_str(data->data.script.notification);
+				dest->data.script.notification = buf->write_str(data->data.script.notification);
 			}
 			break;
 		case Scriptable_EventType_Model:
@@ -1444,6 +1480,8 @@ namespace zonetool::iw7
 
 	void scriptable_def::dump_scriptable_event(assetmanager::dumper& dump, ScriptableEventDef* data)
 	{
+		dump.dump_string(data->base.name);
+
 		const auto dump_event_base = [&]()
 		{
 			dump.dump_single(data->data.anonymous.base);
@@ -1476,6 +1514,7 @@ namespace zonetool::iw7
 			case 3:
 				dump_part_reference_base();
 				dump.dump_array(data_->u.__3.val, data_->u.__3.count);
+				break;
 			}
 		};
 
@@ -1538,7 +1577,7 @@ namespace zonetool::iw7
 				dump.dump_array(data->data.noteTrack.noteTracks[i].events, data->data.noteTrack.noteTracks[i].numEvents);
 				for (unsigned int j = 0; j < data->data.noteTrack.noteTracks[i].numEvents; j++)
 				{
-					dump_scriptable_event(dump, &data->data.noteTrack.noteTracks[i].events[i]);
+					dump_scriptable_event(dump, &data->data.noteTrack.noteTracks[i].events[j]);
 				}
 			}
 			break;

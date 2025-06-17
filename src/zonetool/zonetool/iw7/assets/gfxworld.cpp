@@ -98,6 +98,7 @@ namespace zonetool::iw7
 		asset->draw.volumetrics.volumetrics = read.read_array<GfxVolumetric>();
 		for (unsigned int i = 0; i < asset->draw.volumetrics.volumetricCount; i++)
 		{
+			asset->draw.volumetrics.volumetrics[i].livePath = read.read_string();
 			for (auto m = 0; m < 4; m++)
 			{
 				asset->draw.volumetrics.volumetrics[i].masks[m].image = read.read_asset<GfxImage>();
@@ -1685,6 +1686,7 @@ namespace zonetool::iw7
 		write.dump_array(asset->draw.volumetrics.volumetrics, asset->draw.volumetrics.volumetricCount);
 		for (unsigned int i = 0; i < asset->draw.volumetrics.volumetricCount; i++)
 		{
+			write.dump_string(asset->draw.volumetrics.volumetrics[i].livePath);
 			for (auto m = 0; m < 4; m++)
 			{
 				write.dump_asset(asset->draw.volumetrics.volumetrics[i].masks[m].image);
