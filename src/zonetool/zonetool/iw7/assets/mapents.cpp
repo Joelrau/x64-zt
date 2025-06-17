@@ -985,6 +985,11 @@ namespace zonetool::iw7
 					buf->write(data->scriptableMapEnts.instances[i].unk02[1].unk01.eventStreamBuffer, data->scriptableMapEnts.instances[i].unk02[1].unk01.eventStreamBufferSize);
 					buf->clear_pointer(&dest->scriptableMapEnts.instances[i].unk02[1].unk01.eventStreamBuffer);
 				}
+
+				if (data->scriptableMapEnts.instances[i].unk04)
+				{
+					dest->scriptableMapEnts.instances[i].unk04 = buf->write_str(data->scriptableMapEnts.instances[i].unk04);
+				}
 			}
 
 			if (data->scriptableMapEnts.unk.unk01)
