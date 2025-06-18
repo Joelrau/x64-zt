@@ -185,8 +185,11 @@ namespace zonetool::iw7
 			asset->heightfields[i].image = read.read_asset<GfxImage>();
 		}
 
-		asset->unk01.unk01 = read.read_array<unsigned int>();
-		asset->unk01.unk02 = read.read_array<unsigned int>();
+		asset->unk01.unk01 = nullptr;
+		asset->unk01.unk01Count = 0;
+		asset->unk01.unk02 = nullptr;
+		asset->unk01.unk02Count = 0;
+
 		asset->unk01.unk03 = read.read_array<unsigned short>();
 
 		asset->models = read.read_array<GfxBrushModel>();
@@ -1006,16 +1009,14 @@ namespace zonetool::iw7
 
 		if (data->unk01.unk01)
 		{
-			buf->align(3);
-			buf->write(data->unk01.unk01, data->unk01.unk01Count);
-			buf->clear_pointer(&dest->unk01.unk01);
+			dest->unk01.unk01 = nullptr;
+			dest->unk01.unk01Count = 0;
 		}
 
 		if (data->unk01.unk02)
 		{
-			buf->align(3);
-			buf->write(data->unk01.unk02, data->unk01.unk02Count);
-			buf->clear_pointer(&dest->unk01.unk02);
+			dest->unk01.unk02 = nullptr;
+			dest->unk01.unk02Count = 0;
 		}
 
 		if (data->unk01.unk03)
@@ -1753,8 +1754,6 @@ namespace zonetool::iw7
 			write.dump_asset(asset->heightfields[i].image);
 		}
 
-		write.dump_array(asset->unk01.unk01, asset->unk01.unk01Count);
-		write.dump_array(asset->unk01.unk02, asset->unk01.unk02Count);
 		write.dump_array(asset->unk01.unk03, asset->unk01.unk03Count);
 
 		write.dump_array(asset->models, asset->modelCount);
