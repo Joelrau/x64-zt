@@ -502,6 +502,7 @@ namespace zonetool::iw7
 		std::string SND_SENDEFFECT_FIELDS[] =
 		{
 			"name",
+			//"idString",
 			"smoothing",
 			"earlyTime",
 			"lateTime",
@@ -538,6 +539,7 @@ namespace zonetool::iw7
 		void write(SndSendEffectParams* asset, csv_writer& writer)
 		{
 			writer.write_column(reinterpret_cast<const char*>(asset->name));
+			//writer.write_column(asset->id);
 			writer.write_column(asset->smoothing);
 			writer.write_column(asset->earlyTime);
 			writer.write_column(asset->lateTime);
@@ -572,6 +574,83 @@ namespace zonetool::iw7
 
 			writer.save(get_path(asset));
 		}
+
+		void parse(SndBank* asset, zone_memory* mem, ordered_json& paths)
+		{
+			if (!paths.is_array() || !paths.size()) return;
+
+			assert(paths.size() == 1);
+			const std::string path = paths[0].get<std::string>();
+
+			ZONETOOL_INFO("Parsing SndSendEffectParams \"%s\"...", path.data());
+
+			const auto parse_path = filesystem::get_file_path(path) + path;
+			csv::parser parser(parse_path);
+
+			const auto row_count = parser.get_num_rows();
+			if (row_count <= 1) return; // has at least one entry
+
+			const auto max_fields = parser.get_max_columns();
+			if (max_fields != std::extent_v<decltype(SND_SENDEFFECT_FIELDS)>)
+			{
+				ZONETOOL_ERROR("Failed to parse file %s, csv doesn't have correct field count.", path.data());
+				return;
+			}
+
+			const auto rows = parser.get_rows();
+
+			asset->sendEffectCount = row_count - 1;
+			asset->sendEffects = mem->allocate<SndSendEffectParams>(asset->sendEffectCount);
+			auto* data = asset->sendEffects;
+
+			for (auto row_i = 1; row_i < row_count; row_i++)
+			{
+				auto field_idx = 0;
+				const auto get = [&]()
+				{
+					return rows[row_i]->fields[field_idx++];
+				};
+
+				const auto copy_str = [&](void* address, const std::uint32_t size)
+				{
+					const char* str = get();
+					const std::size_t len = std::min(std::strlen(str), static_cast<std::size_t>(size - 1));
+					std::memset(address, 0, size);
+					std::memcpy(address, str, len);
+				};
+
+				copy_str(data->name, sizeof(data->name));
+				//data->id = get_value<SndStringHash>(get());
+				if (!data->name || !*data->name)
+				{
+					ZONETOOL_WARNING("Parsed an empty name on line %d for file %s", row_i, path.data());
+				}
+				else
+				{
+					data->id = snd_hash_name(data->name);
+				}
+
+				data->smoothing = get_value<float>(get());
+				data->earlyTime = get_value<float>(get());
+				data->lateTime = get_value<float>(get());
+				data->earlyGain = get_value<float>(get());
+				data->lateGain = get_value<float>(get());
+				data->lateGainProx = get_value<float>(get());
+				data->returnGain = get_value<float>(get());
+				data->earlyLpf = get_value<float>(get());
+				data->lateLpf = get_value<float>(get());
+				data->inputLpf = get_value<float>(get());
+				data->dampLpf = get_value<float>(get());
+				data->wallReflect = get_value<float>(get());
+				data->dryGain = get_value<float>(get());
+				data->earlySize = get_value<float>(get());
+				data->lateSize = get_value<float>(get());
+				data->diffusion = get_value<float>(get());
+				data->rearLevel = get_value<float>(get());
+
+				data++;
+			}
+		}
 	}
 
 	namespace adsr_settings
@@ -579,6 +658,7 @@ namespace zonetool::iw7
 		std::string SND_TAB_ADSR_FIELDS[] =
 		{
 			"ADSR_Name",
+			//"idString",
 			"Att_Len",
 			"Att_Curve",
 			"Dec_Len",
@@ -615,6 +695,7 @@ namespace zonetool::iw7
 		void write(ADSRSetting* asset, csv_writer& writer)
 		{
 			writer.write_column(asset->name);
+			//writer.write_column(asset->id);
 			writer.write_column(asset->attackLength);
 			writer.write_column(ADSRCURVES[asset->attackCurve]);
 			writer.write_column(asset->decayLength);
@@ -640,6 +721,76 @@ namespace zonetool::iw7
 
 			writer.save(get_path(asset));
 		}
+
+		void parse(SndBank* asset, zone_memory* mem, ordered_json& paths)
+		{
+			if (!paths.is_array() || !paths.size()) return;
+
+			assert(paths.size() == 1);
+			const std::string path = paths[0].get<std::string>();
+
+			ZONETOOL_INFO("Parsing ADSRSetting \"%s\"...", path.data());
+
+			const auto parse_path = filesystem::get_file_path(path) + path;
+			csv::parser parser(parse_path);
+
+			const auto row_count = parser.get_num_rows();
+			if (row_count <= 1) return; // has at least one entry
+
+			const auto max_fields = parser.get_max_columns();
+			if (max_fields != std::extent_v<decltype(SND_TAB_ADSR_FIELDS)>)
+			{
+				ZONETOOL_ERROR("Failed to parse file %s, csv doesn't have correct field count.", path.data());
+				return;
+			}
+
+			const auto rows = parser.get_rows();
+
+			asset->soundTable.adsrCount = row_count - 1;
+			asset->soundTable.adsrSettings = mem->allocate<ADSRSetting>(asset->soundTable.adsrCount);
+			auto* data = asset->soundTable.adsrSettings;
+
+			for (auto row_i = 1; row_i < row_count; row_i++)
+			{
+				auto field_idx = 0;
+				const auto get = [&]()
+				{
+					return rows[row_i]->fields[field_idx++];
+				};
+
+				const auto get_str = [&]() -> const char*
+				{
+					auto str = get();
+					if (*str)
+					{
+						return mem->duplicate_string(str);
+					}
+					return nullptr;
+				};
+
+				data->name = get_str();
+				//data->id = get_value<SndStringHash>(get());
+				if (!data->name || !*data->name)
+				{
+					ZONETOOL_WARNING("Parsed an empty name on line %d for file %s", row_i, path.data());
+				}
+				else
+				{
+					data->id = snd_hash_name(data->name);
+				}
+
+				data->attackLength = get_value<float>(get());
+				data->attackCurve = get_value_index<ADSRCurve>(get(), ADSRCURVES, std::extent_v<decltype(ADSRCURVES)>, ADSR_CURVE_LINEAR);
+				data->decayLength = get_value<float>(get());
+				data->decayCurve = get_value_index<ADSRCurve>(get(), ADSRCURVES, std::extent_v<decltype(ADSRCURVES)>, ADSR_CURVE_LINEAR);
+				data->releaseLength = get_value<float>(get());
+				data->releaseCurve = get_value_index<ADSRCurve>(get(), ADSRCURVES, std::extent_v<decltype(ADSRCURVES)>, ADSR_CURVE_LINEAR);
+				data->sustainLevel = get_value<float>(get());
+				data->sustainLength = get_value<float>(get());
+
+				data++;
+			}
+		}
 	}
 
 	namespace ambient_def
@@ -647,6 +798,7 @@ namespace zonetool::iw7
 		std::string SND_TAB_AMB_DEF_FIELDS[] =
 		{
 			"ambient_name",
+			//"idString",
 			"Time_Min",
 			"Time_Max",
 			"EventIndex",
@@ -670,6 +822,7 @@ namespace zonetool::iw7
 		void write(AmbientDef* asset, csv_writer& writer)
 		{
 			writer.write_column(asset->name);
+			//writer.write_column(asset->id);
 			writer.write_column(asset->timeMin);
 			writer.write_column(asset->timeMax);
 			writer.write_column(asset->ambientEventIndex);
@@ -690,6 +843,72 @@ namespace zonetool::iw7
 			}
 
 			writer.save(get_path(asset));
+		}
+
+		void parse(SndBank* asset, zone_memory* mem, ordered_json& paths)
+		{
+			if (!paths.is_array() || !paths.size()) return;
+
+			assert(paths.size() == 1);
+			const std::string path = paths[0].get<std::string>();
+
+			ZONETOOL_INFO("Parsing AmbientDef \"%s\"...", path.data());
+
+			const auto parse_path = filesystem::get_file_path(path) + path;
+			csv::parser parser(parse_path);
+
+			const auto row_count = parser.get_num_rows();
+			if (row_count <= 1) return; // has at least one entry
+
+			const auto max_fields = parser.get_max_columns();
+			if (max_fields != std::extent_v<decltype(SND_TAB_AMB_DEF_FIELDS)>)
+			{
+				ZONETOOL_ERROR("Failed to parse file %s, csv doesn't have correct field count.", path.data());
+				return;
+			}
+
+			const auto rows = parser.get_rows();
+
+			asset->soundTable.ambientDefCount = row_count - 1;
+			asset->soundTable.ambientDefs = mem->allocate<AmbientDef>(asset->soundTable.ambientDefCount);
+			auto* data = asset->soundTable.ambientDefs;
+
+			for (auto row_i = 1; row_i < row_count; row_i++)
+			{
+				auto field_idx = 0;
+				const auto get = [&]()
+				{
+					return rows[row_i]->fields[field_idx++];
+				};
+
+				const auto get_str = [&]() -> const char*
+				{
+					auto str = get();
+					if (*str)
+					{
+						return mem->duplicate_string(str);
+					}
+					return nullptr;
+				};
+
+				data->name = get_str();
+				//data->id = get_value<SndStringHash>(get());
+				if (!data->name || !*data->name)
+				{
+					ZONETOOL_WARNING("Parsed an empty name on line %d for file %s", row_i, path.data());
+				}
+				else
+				{
+					data->id = snd_hash_name(data->name);
+				}
+
+				data->ambientEventIndex = get_value<unsigned short>(get());
+				data->numEvents = get_value<unsigned short>(get());
+				data->timeMin = get_value<float>(get());
+				data->timeMax = get_value<float>(get());
+
+				data++;
+			}
 		}
 	}
 
@@ -738,6 +957,50 @@ namespace zonetool::iw7
 
 			writer.save(get_path(asset));
 		}
+
+		void parse(SndBank* asset, zone_memory* mem, ordered_json& paths)
+		{
+			if (!paths.is_array() || !paths.size()) return;
+
+			assert(paths.size() == 1);
+			const std::string path = paths[0].get<std::string>();
+
+			ZONETOOL_INFO("Parsing AmbientEvent \"%s\"...", path.data());
+
+			const auto parse_path = filesystem::get_file_path(path) + path;
+			csv::parser parser(parse_path);
+
+			const auto row_count = parser.get_num_rows();
+			if (row_count <= 1) return; // has at least one entry
+
+			const auto max_fields = parser.get_max_columns();
+			if (max_fields != std::extent_v<decltype(SND_TAB_AMB_EVT_FIELDS)>)
+			{
+				ZONETOOL_ERROR("Failed to parse file %s, csv doesn't have correct field count.", path.data());
+				return;
+			}
+
+			const auto rows = parser.get_rows();
+
+			asset->soundTable.ambientEventCount = row_count - 1;
+			asset->soundTable.ambientEvents = mem->allocate<AmbientEvent>(asset->soundTable.ambientEventCount);
+			auto* data = asset->soundTable.ambientEvents;
+
+			for (auto row_i = 1; row_i < row_count; row_i++)
+			{
+				auto field_idx = 0;
+				const auto get = [&]()
+				{
+					return rows[row_i]->fields[field_idx++];
+				};
+
+				data->id = get_value<SndStringHash>(get());
+				data->ambientElementIndex = get_value<unsigned short>(get());
+				data->weight = get_value<float>(get());
+
+				data++;
+			}
+		}
 	}
 
 	namespace ambient_elem
@@ -745,6 +1008,7 @@ namespace zonetool::iw7
 		std::string SND_TAB_AMB_ELEM_FIELDS[] =
 		{
 			"ambient_element",
+			"Alias"
 			"Range_Min",
 			"Range_Max",
 			"Cone_Min",
@@ -768,6 +1032,7 @@ namespace zonetool::iw7
 		void write(AmbientElement* asset, csv_writer& writer)
 		{
 			writer.write_column(asset->id);
+			writer.write_column(asset->aliasName ? asset->aliasName : "");
 			writer.write_column(asset->rangeMin);
 			writer.write_column(asset->rangeMax);
 			writer.write_column(asset->coneMin);
@@ -788,6 +1053,64 @@ namespace zonetool::iw7
 			}
 
 			writer.save(get_path(asset));
+		}
+
+		void parse(SndBank* asset, zone_memory* mem, ordered_json& paths)
+		{
+			if (!paths.is_array() || !paths.size()) return;
+
+			assert(paths.size() == 1);
+			const std::string path = paths[0].get<std::string>();
+
+			ZONETOOL_INFO("Parsing AmbientElement \"%s\"...", path.data());
+
+			const auto parse_path = filesystem::get_file_path(path) + path;
+			csv::parser parser(parse_path);
+
+			const auto row_count = parser.get_num_rows();
+			if (row_count <= 1) return; // has at least one entry
+
+			const auto max_fields = parser.get_max_columns();
+			if (max_fields != std::extent_v<decltype(SND_TAB_AMB_ELEM_FIELDS)>)
+			{
+				ZONETOOL_ERROR("Failed to parse file %s, csv doesn't have correct field count.", path.data());
+				return;
+			}
+
+			const auto rows = parser.get_rows();
+
+			asset->soundTable.ambientElementsCount = row_count - 1;
+			asset->soundTable.ambientElements = mem->allocate<AmbientElement>(asset->soundTable.ambientElementsCount);
+			auto* data = asset->soundTable.ambientElements;
+
+			for (auto row_i = 1; row_i < row_count; row_i++)
+			{
+				auto field_idx = 0;
+				const auto get = [&]()
+				{
+					return rows[row_i]->fields[field_idx++];
+				};
+
+				const auto get_str = [&]() -> const char*
+				{
+					auto str = get();
+					if (*str)
+					{
+						return mem->duplicate_string(str);
+					}
+					return nullptr;
+				};
+
+				data->id = get_value<SndStringHash>(get());
+				data->unusedNameField = nullptr;
+				data->aliasName = get_str();
+				data->rangeMin = get_value<float>(get());
+				data->rangeMax = get_value<float>(get());
+				data->coneMin = get_value<float>(get());
+				data->coneMax = get_value<float>(get());
+
+				data++;
+			}
 		}
 	}
 
@@ -853,6 +1176,54 @@ namespace zonetool::iw7
 
 			writer.save(get_path(asset));
 		}
+
+		void parse(SndBank* asset, zone_memory* mem, ordered_json& paths)
+		{
+			if (!paths.is_array() || !paths.size()) return;
+
+			assert(paths.size() == 1);
+			const std::string path = paths[0].get<std::string>();
+
+			ZONETOOL_INFO("Parsing FilterDef \"%s\"...", path.data());
+
+			const auto parse_path = filesystem::get_file_path(path) + path;
+			csv::parser parser(parse_path);
+
+			const auto row_count = parser.get_num_rows();
+			if (row_count <= 1) return; // has at least one entry
+
+			const auto max_fields = parser.get_max_columns();
+			if (max_fields != std::extent_v<decltype(SND_TAB_FILTER_FIELDS)>)
+			{
+				ZONETOOL_ERROR("Failed to parse file %s, csv doesn't have correct field count.", path.data());
+				return;
+			}
+
+			const auto rows = parser.get_rows();
+
+			asset->soundTable.filterCount = row_count - 1;
+			asset->soundTable.filters = mem->allocate<FilterDef>(asset->soundTable.filterCount);
+			auto* data = asset->soundTable.filters;
+
+			for (auto row_i = 1; row_i < row_count; row_i++)
+			{
+				auto field_idx = 0;
+				const auto get = [&]()
+				{
+					return rows[row_i]->fields[field_idx++];
+				};
+
+				data->id = get_value<SndStringHash>(get());
+				data->entChannelIdx = get_value_index<unsigned char>(get(), ENTCHANNELS, std::extent_v<decltype(ENTCHANNELS)>);
+				data->band = get_value<unsigned char>(get());
+				data->type = get_value_index<SND_EQTYPE>(get(), snd_eqTypeStrings, std::extent_v<decltype(snd_eqTypeStrings)>, SND_EQTYPE_FIRST);
+				data->freq = get_value<float>(get());
+				data->gain = get_value<float>(get());
+				data->q = get_value<float>(get());
+
+				data++;
+			}
+		}
 	}
 
 	namespace mix
@@ -902,33 +1273,62 @@ namespace zonetool::iw7
 
 			writer.save(get_path(asset));
 		}
+
+		void parse(SndBank* asset, zone_memory* mem, ordered_json& paths)
+		{
+			if (!paths.is_array() || !paths.size()) return;
+
+			assert(paths.size() == 1);
+			const std::string path = paths[0].get<std::string>();
+
+			ZONETOOL_INFO("Parsing MixDef \"%s\"...", path.data());
+
+			const auto parse_path = filesystem::get_file_path(path) + path;
+			csv::parser parser(parse_path);
+
+			const auto row_count = parser.get_num_rows();
+			if (row_count <= 1) return; // has at least one entry
+
+			const auto max_fields = parser.get_max_columns();
+			if (max_fields != std::extent_v<decltype(SND_TAB_MIX_FIELDS)>)
+			{
+				ZONETOOL_ERROR("Failed to parse file %s, csv doesn't have correct field count.", path.data());
+				return;
+			}
+
+			const auto rows = parser.get_rows();
+
+			asset->soundTable.mixCount = row_count - 1;
+			asset->soundTable.mixes = mem->allocate<MixDef>(asset->soundTable.mixCount);
+			auto* data = asset->soundTable.mixes;
+
+			for (auto row_i = 1; row_i < row_count; row_i++)
+			{
+				auto field_idx = 0;
+				const auto get = [&]()
+				{
+					return rows[row_i]->fields[field_idx++];
+				};
+
+				data->id = get_value<SndStringHash>(get());
+				data->volModIndex = get_value_index<unsigned short>(get(), VOLMODS, std::extent_v<decltype(VOLMODS)>);
+				data->volume = get_value<float>(get());
+				data->fade = get_value<float>(get());
+
+				data++;
+			}
+		}
 	}
 
 	namespace adsr_zone
 	{
-		std::string lookup_hash_string(SndBank* bank, std::uint32_t hash)
-		{
-			for (auto i = 0u; i < bank->soundTable.zoneCount; i++)
-			{
-				if (snd_hash_name(bank->soundTable.zones[i].npcAdsrName) == hash)
-				{
-					return bank->soundTable.zones[i].npcAdsrName;
-				}
-				else if (snd_hash_name(bank->soundTable.zones[i].plrAdsrName) == hash)
-				{
-					return bank->soundTable.zones[i].plrAdsrName;
-				}
-			}
-			return "";
-		}
-
 		void write(SndBank* bank, AdsrZoneEntry* asset, csv_writer& writer)
 		{
-			writer.write_column(lookup_hash_string(bank, asset->id));
+			writer.write_column(asset->name);
 			writer.write_column(asset->id);
 			writer.write_column(asset->adsrIdx);
 			writer.write_column(asset->weaponName ? asset->weaponName : "");
-			writer.write_column(asset->weaponIdx);
+			//writer.write_column(asset->weaponIdx);
 
 			writer.increase_line();
 		}
@@ -941,7 +1341,7 @@ namespace zonetool::iw7
 				"idString",
 				"ADSRIndex",
 				"Weapon",
-				"WeaponIdx",
+				//"WeaponIdx",
 			};
 
 			std::string get_path(SndBank* asset)
@@ -971,6 +1371,63 @@ namespace zonetool::iw7
 
 				writer.save(get_path(asset));
 			}
+
+			void parse(SndBank* asset, zone_memory* mem, ordered_json& paths)
+			{
+				if (!paths.is_array() || !paths.size()) return;
+
+				assert(paths.size() == 1);
+				const std::string path = paths[0].get<std::string>();
+
+				ZONETOOL_INFO("Parsing AdsrZoneEntry \"%s\"...", path.data());
+
+				const auto parse_path = filesystem::get_file_path(path) + path;
+				csv::parser parser(parse_path);
+
+				const auto row_count = parser.get_num_rows();
+				if (row_count <= 1) return; // has at least one entry
+
+				const auto max_fields = parser.get_max_columns();
+				if (max_fields != std::extent_v<decltype(SND_TAB_ADSR_ZONE_NPC_FIELDS)>)
+				{
+					ZONETOOL_ERROR("Failed to parse file %s, csv doesn't have correct field count.", path.data());
+					return;
+				}
+
+				const auto rows = parser.get_rows();
+
+				asset->soundTable.npcADSRZoneCount = row_count - 1;
+				asset->soundTable.npcADSRZones = mem->allocate<AdsrZoneEntry>(asset->soundTable.npcADSRZoneCount);
+				auto* data = asset->soundTable.npcADSRZones;
+
+				for (auto row_i = 1; row_i < row_count; row_i++)
+				{
+					auto field_idx = 0;
+					const auto get = [&]()
+					{
+						return rows[row_i]->fields[field_idx++];
+					};
+
+					const auto get_str = [&]() -> const char*
+					{
+						auto str = get();
+						if (*str)
+						{
+							return mem->duplicate_string(str);
+						}
+						return nullptr;
+					};
+
+					data->name = get_str();
+					data->id = get_value<SndStringHash>(get());
+					
+					data->weaponName = get_str();
+					data->adsrIdx = get_value<int>(get());
+					//data->weaponIdx = get_value<unsigned int>(get());
+
+					data++;
+				}
+			}
 		}
 
 		namespace plr
@@ -981,7 +1438,7 @@ namespace zonetool::iw7
 				"idString",
 				"ADSRIndex",
 				"Weapon",
-				"WeaponIdx",
+				//"WeaponIdx", // remove me
 			};
 
 			std::string get_path(SndBank* asset)
@@ -1010,6 +1467,63 @@ namespace zonetool::iw7
 				}
 
 				writer.save(get_path(asset));
+			}
+
+			void parse(SndBank* asset, zone_memory* mem, ordered_json& paths)
+			{
+				if (!paths.is_array() || !paths.size()) return;
+
+				assert(paths.size() == 1);
+				const std::string path = paths[0].get<std::string>();
+
+				ZONETOOL_INFO("Parsing AdsrZoneEntry \"%s\"...", path.data());
+
+				const auto parse_path = filesystem::get_file_path(path) + path;
+				csv::parser parser(parse_path);
+
+				const auto row_count = parser.get_num_rows();
+				if (row_count <= 1) return; // has at least one entry
+
+				const auto max_fields = parser.get_max_columns();
+				if (max_fields != std::extent_v<decltype(SND_TAB_ADSR_ZONE_PLR_FIELDS)>)
+				{
+					ZONETOOL_ERROR("Failed to parse file %s, csv doesn't have correct field count.", path.data());
+					return;
+				}
+
+				const auto rows = parser.get_rows();
+
+				asset->soundTable.playerADSRZoneCount = row_count - 1;
+				asset->soundTable.playerADSRZones = mem->allocate<AdsrZoneEntry>(asset->soundTable.playerADSRZoneCount);
+				auto* data = asset->soundTable.playerADSRZones;
+
+				for (auto row_i = 1; row_i < row_count; row_i++)
+				{
+					auto field_idx = 0;
+					const auto get = [&]()
+					{
+						return rows[row_i]->fields[field_idx++];
+					};
+
+					const auto get_str = [&]() -> const char*
+					{
+						auto str = get();
+						if (*str)
+						{
+							return mem->duplicate_string(str);
+						}
+						return nullptr;
+					};
+
+					data->name = get_str();
+					data->id = get_value<SndStringHash>(get());
+
+					data->weaponName = get_str();
+					data->adsrIdx = get_value<int>(get());
+					data->weaponIdx = get_value<unsigned int>(get());
+
+					data++;
+				}
 			}
 		}
 	}
@@ -1072,6 +1586,57 @@ namespace zonetool::iw7
 			}
 
 			writer.save(get_path(asset));
+		}
+
+		void parse(SndBank* asset, zone_memory* mem, ordered_json& paths)
+		{
+			if (!paths.is_array() || !paths.size()) return;
+
+			assert(paths.size() == 1);
+			const std::string path = paths[0].get<std::string>();
+
+			ZONETOOL_INFO("Parsing OccludeDef \"%s\"...", path.data());
+
+			const auto parse_path = filesystem::get_file_path(path) + path;
+			csv::parser parser(parse_path);
+
+			const auto row_count = parser.get_num_rows();
+			if (row_count <= 1) return; // has at least one entry
+
+			const auto max_fields = parser.get_max_columns();
+			if (max_fields != std::extent_v<decltype(SND_TAB_OCCL_FIELDS)>)
+			{
+				ZONETOOL_ERROR("Failed to parse file %s, csv doesn't have correct field count.", path.data());
+				return;
+			}
+
+			const auto rows = parser.get_rows();
+
+			asset->soundTable.occlusionFilterCount = row_count - 1;
+			asset->soundTable.occlusionFilters = mem->allocate<OccludeDef>(asset->soundTable.occlusionFilterCount);
+			auto* data = asset->soundTable.occlusionFilters;
+
+			for (auto row_i = 1; row_i < row_count; row_i++)
+			{
+				auto field_idx = 0;
+				const auto get = [&]()
+				{
+					return rows[row_i]->fields[field_idx++];
+				};
+
+				data->id = get_value<SndStringHash>(get());
+				data->entChannelIdx = get_value_index<unsigned short>(get(), ENTCHANNELS, std::extent_v<decltype(ENTCHANNELS)>);
+				data->cutoffLevel1 = get_value<float>(get());
+				data->cutoffLevel2 = get_value<float>(get());
+				data->cutoffLevel3 = get_value<float>(get());
+				data->cutoffLevel4 = get_value<float>(get());
+				data->attnLevel1 = get_value<float>(get());
+				data->attnLevel2 = get_value<float>(get());
+				data->attnLevel3 = get_value<float>(get());
+				data->attnLevel4 = get_value<float>(get());
+
+				data++;
+			}
 		}
 	}
 
@@ -1138,6 +1703,78 @@ namespace zonetool::iw7
 
 			writer.save(get_path(asset));
 		}
+
+		void parse(SndBank* asset, zone_memory* mem, ordered_json& paths)
+		{
+			if (!paths.is_array() || !paths.size()) return;
+
+			assert(paths.size() == 1);
+			const std::string path = paths[0].get<std::string>();
+
+			ZONETOOL_INFO("Parsing ReverbDef \"%s\"...", path.data());
+
+			const auto parse_path = filesystem::get_file_path(path) + path;
+			csv::parser parser(parse_path);
+
+			const auto row_count = parser.get_num_rows();
+			if (row_count <= 1) return; // has at least one entry
+
+			const auto max_fields = parser.get_max_columns();
+			if (max_fields != std::extent_v<decltype(SND_TAB_REVERB_FIELDS)>)
+			{
+				ZONETOOL_ERROR("Failed to parse file %s, csv doesn't have correct field count.", path.data());
+				return;
+			}
+
+			const auto rows = parser.get_rows();
+
+			asset->soundTable.reverbCount = row_count - 1;
+			asset->soundTable.reverbs = mem->allocate<ReverbDef>(asset->soundTable.reverbCount);
+			auto* data = asset->soundTable.reverbs;
+
+			for (auto row_i = 1; row_i < row_count; row_i++)
+			{
+				auto field_idx = 0;
+				const auto get = [&]()
+				{
+					return rows[row_i]->fields[field_idx++];
+				};
+
+				const auto get_str = [&]() -> const char*
+				{
+					auto str = get();
+					if (*str)
+					{
+						return mem->duplicate_string(str);
+					}
+					return nullptr;
+				};
+
+				const auto copy_str = [&](void* address, const std::uint32_t size)
+				{
+					const char* str = get();
+					const std::size_t len = std::min(std::strlen(str), static_cast<std::size_t>(size - 1));
+					std::memset(address, 0, size);
+					std::memcpy(address, str, len);
+				};
+
+				auto name = get_str();
+				data->id = get_value<SndStringHash>(get());
+				if (name)
+				{
+					data->id = snd_hash_name(name);
+				}
+
+				copy_str(data->roomType, sizeof(data->roomType));
+				data->roomTypeId = snd_hash_name(data->roomType);
+
+				data->dryLevel = get_value<float>(get());
+				data->wetLevel = get_value<float>(get());
+				data->fadeTime = get_value<float>(get());
+
+				data++;
+			}
+		}
 	}
 
 	namespace timescale
@@ -1187,12 +1824,59 @@ namespace zonetool::iw7
 
 			writer.save(get_path(asset));
 		}
+
+		void parse(SndBank* asset, zone_memory* mem, ordered_json& paths)
+		{
+			if (!paths.is_array() || !paths.size()) return;
+
+			assert(paths.size() == 1);
+			const std::string path = paths[0].get<std::string>();
+
+			ZONETOOL_INFO("Parsing TimescaleEntry \"%s\"...", path.data());
+
+			const auto parse_path = filesystem::get_file_path(path) + path;
+			csv::parser parser(parse_path);
+
+			const auto row_count = parser.get_num_rows();
+			if (row_count <= 1) return; // has at least one entry
+
+			const auto max_fields = parser.get_max_columns();
+			if (max_fields != std::extent_v<decltype(SND_TAB_TIMESCALE_FIELDS)>)
+			{
+				ZONETOOL_ERROR("Failed to parse file %s, csv doesn't have correct field count.", path.data());
+				return;
+			}
+
+			const auto rows = parser.get_rows();
+
+			asset->soundTable.timeScaleSettingCount = row_count - 1;
+			asset->soundTable.timeScaleSettings = mem->allocate<TimescaleEntry>(asset->soundTable.timeScaleSettingCount);
+			auto* data = asset->soundTable.timeScaleSettings;
+
+			for (auto row_i = 1; row_i < row_count; row_i++)
+			{
+				auto field_idx = 0;
+				const auto get = [&]()
+				{
+					return rows[row_i]->fields[field_idx++];
+				};
+
+				data->id = get_value<SndStringHash>(get());
+				data->presetName = get_value<SndStringHash>(get());
+				data->entChannelIdx = get_value<int>(get());
+				data->scale = get_value<float>(get());
+
+				data++;
+			}
+		}
 	}
 
 	namespace zone
 	{
 		std::string SND_TAB_ZONE_FIELDS[] =
 		{
+			//"Zone_Name_IdString"
+			//"State_IdString"
 			"ReverbIndex",
 			"OcclusionIndex",
 			"NumOcclusion",
@@ -1210,7 +1894,7 @@ namespace zonetool::iw7
 			"NumDisableFullOcc",
 			"PlayerBreathStateIndex",
 			"NumPlayerBreathStates",
-			"Weapon_Reflection",
+			//"Weapon_Reflection_IdString",
 			//"Exterior",
 			"EntityContextType1",
 			"EntityContextValue1",
@@ -1252,6 +1936,8 @@ namespace zonetool::iw7
 
 		void write(ZoneDef* asset, csv_writer& writer)
 		{
+			// id
+			// stateId
 			writer.write_column(asset->reverbIndex);
 			writer.write_column(asset->startOcclusionIndex);
 			writer.write_column(asset->numOcclusion);
@@ -1269,7 +1955,7 @@ namespace zonetool::iw7
 			writer.write_column(asset->numDisableFullOcc);
 			writer.write_column(asset->startPlayerBreathStateIndex);
 			writer.write_column(asset->numPlayerBreathStates);
-			writer.write_column(asset->weapReflId);
+			// weapReflId
 			// exterior
 			writer.write_column(asset->contextType1);
 			writer.write_column(asset->contextValue1);
@@ -1279,7 +1965,7 @@ namespace zonetool::iw7
 			writer.write_column(asset->contextValue3);
 			writer.write_column(asset->contextType4);
 			writer.write_column(asset->contextValue4);
-			//duck
+			// duck
 			writer.write_column(asset->zoneName ? asset->zoneName : "");
 			writer.write_column(asset->stateName ? asset->stateName : "");
 			writer.write_column(asset->ambientStream ? asset->ambientStream : "");
@@ -1309,6 +1995,104 @@ namespace zonetool::iw7
 			}
 
 			writer.save(get_path(asset));
+		}
+
+		void parse(SndBank* asset, zone_memory* mem, ordered_json& paths)
+		{
+			if (!paths.is_array() || !paths.size()) return;
+
+			assert(paths.size() == 1);
+			const std::string path = paths[0].get<std::string>();
+
+			ZONETOOL_INFO("Parsing TimescaleEntry \"%s\"...", path.data());
+
+			const auto parse_path = filesystem::get_file_path(path) + path;
+			csv::parser parser(parse_path);
+
+			const auto row_count = parser.get_num_rows();
+			if (row_count <= 1) return; // has at least one entry
+
+			const auto max_fields = parser.get_max_columns();
+			if (max_fields != std::extent_v<decltype(SND_TAB_ZONE_FIELDS)>)
+			{
+				ZONETOOL_ERROR("Failed to parse file %s, csv doesn't have correct field count.", path.data());
+				return;
+			}
+
+			const auto rows = parser.get_rows();
+
+			asset->soundTable.zoneCount = row_count - 1;
+			asset->soundTable.zones = mem->allocate<ZoneDef>(asset->soundTable.zoneCount);
+			auto* data = asset->soundTable.zones;
+
+			for (auto row_i = 1; row_i < row_count; row_i++)
+			{
+				auto field_idx = 0;
+				const auto get = [&]()
+				{
+					return rows[row_i]->fields[field_idx++];
+				};
+
+				const auto get_str = [&]() -> const char*
+				{
+					auto str = get();
+					if (*str)
+					{
+						return mem->duplicate_string(str);
+					}
+					return nullptr;
+				};
+
+				data->reverbIndex = get_value<short>(get());
+				data->startOcclusionIndex = get_value<short>(get());
+				data->numOcclusion = get_value<short>(get());
+				data->startFilterIndex = get_value<short>(get());
+				data->numFilter = get_value<short>(get());
+				data->startMixIndex = get_value<short>(get());
+				data->numMix = get_value<short>(get());
+				data->startAdsrZoneIndex = get_value<short>(get());
+				data->numAdsrZone = get_value<short>(get());
+				data->startNPCAdsrZoneIndex = get_value<short>(get());
+				data->numNPCAdsrZone = get_value<short>(get());
+				data->ambientDefIndex = get_value<short>(get());
+				data->unkIndex = get_value<short>(get());
+				data->startFullOccIndex = get_value<short>(get());
+				data->numDisableFullOcc = get_value<short>(get());
+				data->startPlayerBreathStateIndex = get_value<short>(get());
+				data->numPlayerBreathStates = get_value<short>(get());
+
+				data->contextType1 = get_value<SndStringHash>(get());
+				data->contextValue1 = get_value<SndStringHash>(get());
+				data->contextType2 = get_value<SndStringHash>(get());
+				data->contextValue2 = get_value<SndStringHash>(get());
+				data->contextType3 = get_value<SndStringHash>(get());
+				data->contextValue3 = get_value<SndStringHash>(get());
+				data->contextType4 = get_value<SndStringHash>(get());
+				data->contextValue4 = get_value<SndStringHash>(get());
+
+				data->zoneName = get_str();
+				data->stateName = get_str();
+				data->ambientStream = get_str();
+				data->ambientName = get_str();
+				data->mixName = get_str();
+				data->reverbName = get_str();
+				data->filterName = get_str();
+				data->occlusionName = get_str();
+				data->plrAdsrName = get_str();
+				data->npcAdsrName = get_str();
+				data->weapReflName = get_str();
+				data->fullOccName = get_str();
+				data->playerBreathStateName = get_str();
+
+				if(data->zoneName)
+					data->id = snd_hash_name(data->zoneName);
+				if (data->stateName)
+					data->stateId = snd_hash_name(data->stateName);
+				if (data->weapReflName)
+					data->weapReflId = snd_hash_name(data->weapReflName);
+
+				data++;
+			}
 		}
 	}
 
@@ -1345,6 +2129,46 @@ namespace zonetool::iw7
 
 			file.write(data.dump(4));
 			file.close();
+		}
+
+		void parse(SndBank* asset, zone_memory* mem, ordered_json& paths)
+		{
+			if (!paths.is_array() || !paths.size()) return;
+
+			assert(paths.size() == 1);
+			const std::string path = paths[0].get<std::string>();
+
+			auto file = filesystem::file(path);
+			if (!file.exists())
+			{
+				ZONETOOL_FATAL("Could not find file %s", path.data());
+				return;
+			}
+
+			ZONETOOL_INFO("Parsing unk \"%s\"...", path.data());
+
+			// parse json file
+			file.open("rb");
+			ordered_json data = json::parse(file.read_bytes(file.size()));
+			file.close();
+
+			asset->soundTable.unkCount = static_cast<unsigned int>(data.size());
+			asset->soundTable.unk = mem->allocate<unk_1453E2FD8>(asset->soundTable.unkCount);
+			for (unsigned int i = 0; i < asset->soundTable.unkCount; i++)
+			{
+				asset->soundTable.unk[i].id = get_json_value<SndStringHash>(data[i]["id"]);
+				asset->soundTable.unk[i].name = mem->duplicate_string(get_json_value<std::string>(data[i]["name"]));
+				asset->soundTable.unk[i].unk3 = get_json_value<float>(data[i]["unk3"]);
+				asset->soundTable.unk[i].unk4 = get_json_value<float>(data[i]["unk4"]);
+				asset->soundTable.unk[i].unk5 = get_json_value<float>(data[i]["unk5"]);
+				asset->soundTable.unk[i].unk6 = get_json_value<float>(data[i]["unk6"]);
+				asset->soundTable.unk[i].unk7 = get_json_value<int>(data[i]["unk7"]);
+				asset->soundTable.unk[i].unk8 = get_json_value<int>(data[i]["unk8"]);
+				asset->soundTable.unk[i].unk9 = get_json_value<int>(data[i]["unk9"]);
+				asset->soundTable.unk[i].unk10 = get_json_value<float>(data[i]["unk10"]);
+				asset->soundTable.unk[i].unk11 = get_json_value<float>(data[i]["unk11"]);
+				asset->soundTable.unk[i].unk12 = get_json_value<int>(data[i]["unk12"]);
+			}
 		}
 	}
 
@@ -1392,6 +2216,50 @@ namespace zonetool::iw7
 			}
 
 			writer.save(get_path(asset));
+		}
+
+		void parse(SndBank* asset, zone_memory* mem, ordered_json& paths)
+		{
+			if (!paths.is_array() || !paths.size()) return;
+
+			assert(paths.size() == 1);
+			const std::string path = paths[0].get<std::string>();
+
+			ZONETOOL_INFO("Parsing FullOcclusionDef \"%s\"...", path.data());
+
+			const auto parse_path = filesystem::get_file_path(path) + path;
+			csv::parser parser(parse_path);
+
+			const auto row_count = parser.get_num_rows();
+			if (row_count <= 1) return; // has at least one entry
+
+			const auto max_fields = parser.get_max_columns();
+			if (max_fields != std::extent_v<decltype(SND_TAB_FULLOCC_FIELDS)>)
+			{
+				ZONETOOL_ERROR("Failed to parse file %s, csv doesn't have correct field count.", path.data());
+				return;
+			}
+
+			const auto rows = parser.get_rows();
+
+			asset->soundTable.fullOcclusionDefCount = row_count - 1;
+			asset->soundTable.fullOcclusionDefs = mem->allocate<FullOcclusionDef>(asset->soundTable.fullOcclusionDefCount);
+			auto* data = asset->soundTable.fullOcclusionDefs;
+
+			for (auto row_i = 1; row_i < row_count; row_i++)
+			{
+				auto field_idx = 0;
+				const auto get = [&]()
+				{
+					return rows[row_i]->fields[field_idx++];
+				};
+
+				data->id = get_value<SndStringHash>(get());
+				data->presetName = get_value<SndStringHash>(get());
+				data->entChannelIdx = get_value<int>(get());
+
+				data++;
+			}
 		}
 	}
 
@@ -1441,6 +2309,61 @@ namespace zonetool::iw7
 			}
 
 			writer.save(get_path(asset));
+		}
+
+		void parse(SndBank* asset, zone_memory* mem, ordered_json& paths)
+		{
+			if (!paths.is_array() || !paths.size()) return;
+
+			assert(paths.size() == 1);
+			const std::string path = paths[0].get<std::string>();
+
+			ZONETOOL_INFO("Parsing PlayerBreathStateDef \"%s\"...", path.data());
+
+			const auto parse_path = filesystem::get_file_path(path) + path;
+			csv::parser parser(parse_path);
+
+			const auto row_count = parser.get_num_rows();
+			if (row_count <= 1) return; // has at least one entry
+
+			const auto max_fields = parser.get_max_columns();
+			if (max_fields != std::extent_v<decltype(SND_TAB_PLRBREATHSTATE_FIELDS)>)
+			{
+				ZONETOOL_ERROR("Failed to parse file %s, csv doesn't have correct field count.", path.data());
+				return;
+			}
+
+			const auto rows = parser.get_rows();
+
+			asset->soundTable.plrBreathStateDefCount = row_count - 1;
+			asset->soundTable.plrBreathStateDefs = mem->allocate<PlayerBreathStateDef>(asset->soundTable.plrBreathStateDefCount);
+			auto* data = asset->soundTable.plrBreathStateDefs;
+
+			for (auto row_i = 1; row_i < row_count; row_i++)
+			{
+				auto field_idx = 0;
+				const auto get = [&]()
+				{
+					return rows[row_i]->fields[field_idx++];
+				};
+
+				const auto get_str = [&]() -> const char*
+				{
+					auto str = get();
+					if (*str)
+					{
+						return mem->duplicate_string(str);
+					}
+					return nullptr;
+				};
+
+				data->stateType = get_value<SndStringHash>(get());
+				data->inhaleAlias = get_str();
+				data->exhaleAlias = get_str();
+				data->minBreaths = get_value<int>(get());
+
+				data++;
+			}
 		}
 	}
 
@@ -2540,39 +3463,42 @@ namespace zonetool::iw7
 
 		aliases::parse(asset, mem, data["aliases"]);
 
-		// send_effect_params
+		send_effect_params::parse(asset, mem, data["sendEffectParams"]);
 
-		// adsr_settings
+		// sound table
+		adsr_settings::parse(asset, mem, data["ADSRSettings"]);
 
-		// ambient_def
+		ambient_def::parse(asset, mem, data["AmbientDefs"]);
 
-		// ambient_event
+		ambient_event::parse(asset, mem, data["AmbientEvents"]);
 
-		// ambient_elem
+		ambient_elem::parse(asset, mem, data["AmbientElements"]);
 
-		// filter
+		filter::parse(asset, mem, data["FilterDefs"]);
 
-		// mix
+		mix::parse(asset, mem, data["MixDefs"]);
 
-		// adsr_zone::npc
+		adsr_zone::npc::parse(asset, mem, data["NPCAdsrZoneEntry"]);
 
-		// adsr_zone::plr
+		adsr_zone::plr::parse(asset, mem, data["PLRAdsrZoneEntry"]);
 
-		// occlude_def
+		occlude_def::parse(asset, mem, data["OccludeDefs"]);
 
-		// reverb_def
+		reverb_def::parse(asset, mem, data["ReverbDefs"]);
 
-		// timescale
+		timescale::parse(asset, mem, data["TimescaleEntrys"]);
 
-		// zone
+		zone::parse(asset, mem, data["ZoneDefs"]);
 
-		// unk
+		unk::parse(asset, mem, data["Unks"]);
 
-		// full_occlusion_def
+		full_occlusion_def::parse(asset, mem, data["FullOcclusionDefs"]);
 
-		// plr_breath_state
+		plr_breath_state::parse(asset, mem, data["PlayerBreathStateDefs"]);
 
 		// ducks are parsed from alias list
+
+		// music todo...
 
 		// create sabl and sabs
 		sound_asset_bank::create(asset);
@@ -3033,7 +3959,7 @@ namespace zonetool::iw7
 		ducks::dump(asset);
 		// ducks are parsed from alias list
 
-		// music
+		// music todo...
 
 		sound_asset_bank::dump(asset->zone, asset->soundLanguage, asset->gameLanguage);
 

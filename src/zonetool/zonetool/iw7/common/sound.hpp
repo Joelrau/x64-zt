@@ -58,10 +58,10 @@ namespace zonetool::iw7
 		if (value.empty())
 			return default_value;
 
-		for (T i = 0; i < len; i++)
+		for (unsigned int i = 0; i < len; i++)
 		{
 			if (lookup_table[i] == value)
-				return i;
+				return static_cast<T>(i);
 		}
 
 		return default_value;
