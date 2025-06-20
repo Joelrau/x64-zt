@@ -197,6 +197,42 @@ namespace zonetool::iw7
 				std::string buffer;
 				buffer.resize(bound);
 
+				const auto compressed_size = LZ4_compress_default(data_ptr,
+					buffer.data(), block_size, bound);
+				buffer.resize(align_value(compressed_size, 4));
+
+				if (first_block)
+				{
+					XBlockCompressionDataHeader header{};
+					header.uncompressedSize = bytes_to_compress;
+					header.blockSizeAndType.blockSize = MAX_BLOCK_SIZE;
+					header.blockSizeAndType.compressionType = XBLOCK_COMPRESSION_LZ4;
+
+					write(&header, sizeof(header));
+				}
+
+				XBlockCompressionBlockHeader block_header{};
+				block_header.compressedSize = compressed_size;
+				block_header.uncompressedSize = block_size;
+
+				write(&block_header, sizeof(block_header));
+
+				write(buffer.data(), buffer.size());
+
+				first_block = false;
+
+				bytes_to_compress -= block_size;
+				data_ptr += block_size;
+			};
+
+			const auto compress_block_lz4hc = [&]()
+			{
+				const auto block_size = static_cast<unsigned int>(std::min(bytes_to_compress, MAX_BLOCK_SIZE));
+				const auto bound = LZ4_compressBound(block_size);
+
+				std::string buffer;
+				buffer.resize(bound);
+
 				const auto compressed_size = LZ4_compress_HC(data_ptr,
 					buffer.data(), block_size, bound, LZ4HC_CLEVEL_DEFAULT);
 				buffer.resize(align_value(compressed_size, 4));
@@ -206,7 +242,7 @@ namespace zonetool::iw7
 					XBlockCompressionDataHeader header{};
 					header.uncompressedSize = bytes_to_compress;
 					header.blockSizeAndType.blockSize = MAX_BLOCK_SIZE;
-					header.blockSizeAndType.compressionType = XBLOCK_COMPRESSION_LZ4;
+					header.blockSizeAndType.compressionType = XBLOCK_COMPRESSION_LZ4HC;
 
 					write(&header, sizeof(header));
 				}
@@ -295,6 +331,10 @@ namespace zonetool::iw7
 				if (type == XBLOCK_COMPRESSION_LZ4)
 				{
 					compress_block_lz4();
+				}
+				else if (type == XBLOCK_COMPRESSION_LZ4HC)
+				{
+					compress_block_lz4hc();
 				}
 				else if (type == XBLOCK_COMPRESSION_ZLIB_SIZE)
 				{
@@ -654,8 +694,8 @@ namespace zonetool::iw7
 
 			if (images.size() > 0)
 			{
-				//imagefile::generate(filesystem::get_fastfile(),
-				//	CUSTOM_IMAGEFILE_INDEX, FF_VERSION, FF_MAGIC_UNSIGNED, images, this->m_zonemem.get());
+				imagefile::generate(filesystem::get_fastfile(),
+					CUSTOM_IMAGEFILE_INDEX, FF_VERSION, FF_MAGIC_UNSIGNED, images, this->m_zonemem.get());
 			}
 		}
 
@@ -1005,8 +1045,8 @@ namespace zonetool::iw7
 			header.stream_data.block_size[XFILE_BLOCK_TEMP_PRELOAD] = header.stream_data.block_size[XFILE_BLOCK_TEMP];
 			total_block_size += header.stream_data.block_size[XFILE_BLOCK_TEMP_PRELOAD];
 
-			//header.stream_data.block_size[XFILE_BLOCK_TEMP_POSTLOAD] = header.stream_data.block_size[XFILE_BLOCK_TEMP];
-			//total_block_size += header.stream_data.block_size[XFILE_BLOCK_TEMP_POSTLOAD];
+			header.stream_data.block_size[XFILE_BLOCK_TEMP_POSTLOAD] = header.stream_data.block_size[XFILE_BLOCK_TEMP];
+			total_block_size += header.stream_data.block_size[XFILE_BLOCK_TEMP_POSTLOAD];
 
 			header.stream_data.size = total_block_size; // not correct
 			memset(header.stream_data.unk_arr, 0, sizeof(header.stream_data.unk_arr));
