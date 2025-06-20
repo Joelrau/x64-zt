@@ -67,14 +67,23 @@ namespace zonetool::iw7
 		return default_value;
 	}
 
-	template<typename T> T get_value(const std::string& value)
+	template<typename T>
+	T get_value(const std::string& value)
 	{
-		if (!value.empty())
+		if (value.empty()) return {};
+
+		T out{};
+
+		if constexpr (std::is_integral_v<T>)
+		{
+			auto [ptr, ec] = std::from_chars(value.data(), value.data() + value.size(), out);
+			if (ec == std::errc()) return out;
+		}
+		else
 		{
 			std::istringstream ss_(value);
-			T out{};
 			ss_ >> out;
-			return out;
+			if (ss_) return out;
 		}
 
 		return {};

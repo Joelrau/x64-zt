@@ -1421,8 +1421,8 @@ namespace zonetool::iw7
 					data->name = get_str();
 					data->id = get_value<SndStringHash>(get());
 					
-					data->weaponName = get_str();
 					data->adsrIdx = get_value<int>(get());
+					data->weaponName = get_str();
 					//data->weaponIdx = get_value<unsigned int>(get());
 
 					data++;
@@ -1518,9 +1518,9 @@ namespace zonetool::iw7
 					data->name = get_str();
 					data->id = get_value<SndStringHash>(get());
 
-					data->weaponName = get_str();
 					data->adsrIdx = get_value<int>(get());
-					data->weaponIdx = get_value<unsigned int>(get());
+					data->weaponName = get_str();
+					//data->weaponIdx = get_value<unsigned int>(get());
 
 					data++;
 				}
@@ -3198,7 +3198,10 @@ namespace zonetool::iw7
 			ZONETOOL_INFO("Creating sound asset bank %s", path.data());
 
 			auto file = filesystem::file(path);
-			file.open("ab", false, false);
+			if (file.open("ab", false, false) != 0)
+			{
+				ZONETOOL_FATAL("Failed to open file %s\nMake sure the file is not already being accessed?", path.data());
+			}
 
 			std::uint64_t data_offset = 0;
 
