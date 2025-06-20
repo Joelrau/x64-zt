@@ -126,15 +126,15 @@ namespace zonetool
 		return this->write_stream(data, size, 1);
 	}
 
+	char* zone_buffer::write_str(const char* str)
+	{
+		return const_cast<char*>(this->write_s(0, str, 1, strlen(str) + 1));
+	}
+
 	char* zone_buffer::write_str(const std::string& str)
 	{
 		this->write_stream(str.data(), str.size() + 1);
 		return reinterpret_cast<char*>(this->data_following);
-	}
-
-	void zone_buffer::write_str_raw(const std::string& str)
-	{
-		return write_stream(str.data(), str.size() + 1);
 	}
 
 	std::vector<std::uint8_t>* zone_buffer::buffer_raw()
@@ -176,7 +176,7 @@ namespace zonetool
 
 	void zone_buffer::align(const std::size_t alignment)
 	{
-		if (this->stream_count_ > 0)
+		if (alignment && this->stream_count_ > 0)
 		{
 			this->zone_streams_[this->stream_] = (~alignment & (alignment + this->zone_streams_[this->stream_]));
 		}

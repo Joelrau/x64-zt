@@ -132,7 +132,7 @@ namespace zonetool
 			if (this->stream_ != this->zone_stream_runtime)
 			{
 				this->insert_sub_buffer(data, count, size);
-				this->write<T>(data, count);
+				this->write_stream(data, size, count);
 			}
 
 			return reinterpret_cast<T*>(this->data_following);
@@ -143,8 +143,8 @@ namespace zonetool
 		void write_stream(const void* data, std::size_t size, std::size_t count);
 		void write_stream(const void* data, std::size_t size);
 
+		char* write_str(const char* _str);
 		char* write_str(const std::string& _str);
-		void write_str_raw(const std::string& _str);
 
 		template <typename T>
 		T* write(T* data, const std::size_t count = 1)
