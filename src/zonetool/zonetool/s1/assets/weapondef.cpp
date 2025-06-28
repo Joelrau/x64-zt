@@ -1485,10 +1485,9 @@ namespace zonetool::s1
 #define WEAPON_SOUND_CUSTOM(__field__) \
 		if (data->__field__) \
 		{ \
-			auto ptr = 0xFDFDFDFFFFFFFFFF; \
 			buf->align(7); \
-			buf->write(&ptr); \
-			buf->write_str(data->__field__->name); \
+			buf->write(&buf->data_following); \
+			buf->write_str_raw(data->__field__->name); \
 			buf->clear_pointer(&dest->__field__); \
 		}
 
@@ -1962,10 +1961,9 @@ namespace zonetool::s1
 #define HYDRAULIC_SOUND_CUSTOM(__data__, __dest__) \
 		if (__data__) \
 		{ \
-			auto ptr = 0xFDFDFDFFFFFFFFFF; \
 			buf->align(7); \
-			buf->write(&ptr); \
-			buf->write_str(__data__->name); \
+			buf->write(&buf->data_following); \
+			buf->write_str_raw(__data__->name); \
 			buf->clear_pointer(&__dest__); \
 		}
 

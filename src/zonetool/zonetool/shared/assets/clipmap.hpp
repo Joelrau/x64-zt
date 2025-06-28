@@ -132,7 +132,7 @@ namespace zonetool
 				ClipMaterial* clipmaterial;
 				dest->materials = buf->write_s(3, data->materials, data->numMaterials, sizeof(ClipMaterial), &clipmaterial);
 
-				if (dest->materials == reinterpret_cast<ClipMaterial*>(0xFDFDFDFFFFFFFFFF))
+				if (dest->materials == reinterpret_cast<ClipMaterial*>(buf->data_following))
 				{
 					for (unsigned int i = 0; i < data->numMaterials; i++)
 					{
@@ -150,7 +150,7 @@ namespace zonetool
 				dest->bCollisionTree.leafbrushNodes = buf->write_s(3, data->bCollisionTree.leafbrushNodes, data->bCollisionTree.leafbrushNodesCount,
 					sizeof(cLeafBrushNode_s), &leaf_brush_node);
 
-				if (dest->bCollisionTree.leafbrushNodes == reinterpret_cast<cLeafBrushNode_s*>(0xFDFDFDFFFFFFFFFF))
+				if (dest->bCollisionTree.leafbrushNodes == reinterpret_cast<cLeafBrushNode_s*>(buf->data_following))
 				{
 					for (unsigned int i = 0; i < data->bCollisionTree.leafbrushNodesCount; i++)
 					{
@@ -190,7 +190,7 @@ namespace zonetool
 				cbrush_t* brush = nullptr;
 				dest->bCollisionData.brushes = buf->write_s(127, data->bCollisionData.brushes, data->bCollisionData.numBrushes, sizeof(cbrush_t), &brush);
 
-				if (dest->bCollisionData.brushes == reinterpret_cast<cbrush_t*>(0xFDFDFDFFFFFFFFFF))
+				if (dest->bCollisionData.brushes == reinterpret_cast<cbrush_t*>(buf->data_following))
 				{
 					for (unsigned short i = 0; i < data->bCollisionData.numBrushes; i++)
 					{
@@ -238,7 +238,7 @@ namespace zonetool
 				dest->pCollisionData.partitions = buf->write_s(
 					3, data->pCollisionData.partitions, data->pCollisionData.partitionCount, sizeof(CollisionPartition), &partition);
 
-				if (dest->pCollisionData.partitions == reinterpret_cast<CollisionPartition*>(0xFDFDFDFFFFFFFFFF))
+				if (dest->pCollisionData.partitions == reinterpret_cast<CollisionPartition*>(buf->data_following))
 				{
 					for (int i = 0; i < data->pCollisionData.partitionCount; i++)
 					{
@@ -256,7 +256,7 @@ namespace zonetool
 				dest->sCollisionData.staticModelList = buf->write_s(
 					3, data->sCollisionData.staticModelList, data->sCollisionData.numStaticModels, sizeof(cStaticModel_s), &staticModelList);
 
-				if (dest->sCollisionData.staticModelList == reinterpret_cast<cStaticModel_s*>(0xFDFDFDFFFFFFFFFF))
+				if (dest->sCollisionData.staticModelList == reinterpret_cast<cStaticModel_s*>(buf->data_following))
 				{
 					for (unsigned int i = 0; i < data->sCollisionData.numStaticModels; i++)
 					{

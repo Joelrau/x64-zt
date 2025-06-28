@@ -1498,10 +1498,9 @@ namespace zonetool::h1
 #define WEAPON_SOUND_CUSTOM(__field__) \
 		if (data->__field__) \
 		{ \
-			auto ptr = 0xFDFDFDFFFFFFFFFF; \
 			buf->align(7); \
-			buf->write(&ptr); \
-			buf->write_str(data->__field__->name); \
+			auto* ptr = reinterpret_cast<const char**>(buf->write(&buf->data_following)); \
+			*ptr = buf->write_str(data->__field__->name); \
 			buf->clear_pointer(&dest->__field__); \
 		}
 
@@ -1996,10 +1995,9 @@ namespace zonetool::h1
 #define HYDRAULIC_SOUND_CUSTOM(__data__, __dest__) \
 		if (__data__) \
 		{ \
-			auto ptr = 0xFDFDFDFFFFFFFFFF; \
 			buf->align(7); \
-			buf->write(&ptr); \
-			buf->write_str(__data__->name); \
+			auto* ptr = reinterpret_cast<const char**>(buf->write(&buf->data_following)); \
+			*ptr = buf->write_str(__data__->name); \
 			buf->clear_pointer(&__dest__); \
 		}
 
@@ -2106,7 +2104,7 @@ namespace zonetool::h1
 	}
 
 #define WEAPON_DUMP_ASSET_ARR(__field__, __size__) \
-	if (asset->__field__) \
+	if (asset->__field__ && __size__) \
 	{ \
 		for (auto idx##__field__ = 0; idx##__field__ < __size__; idx##__field__++) \
 		{ \
@@ -2126,7 +2124,7 @@ namespace zonetool::h1
 	}
 
 #define WEAPON_DUMP_ANIM_ARR(__field__, __size__) \
-	if (asset->__field__) \
+	if (asset->__field__ && __size__) \
 	{ \
 		for (auto idx##__field__ = 0; idx##__field__ < __size__; idx##__field__++) \
 		{ \

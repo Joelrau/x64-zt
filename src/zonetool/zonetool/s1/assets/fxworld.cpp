@@ -188,26 +188,23 @@ namespace zonetool::s1
 
 				if (data->glassSys.defs[i].damagedSound)
 				{
-					auto ptr = 0xFDFDFDFFFFFFFFFF;
-					buf->write(&ptr);
+					buf->write(&buf->data_following);
 					buf->align(7);
-					buf->write_str(data->glassSys.defs[i].damagedSound->name);
+					buf->write_str_raw(data->glassSys.defs[i].damagedSound->name);
 					buf->clear_pointer(&glass_def[i].damagedSound);
 				}
 				if (data->glassSys.defs[i].destroyedSound)
 				{
-					auto ptr = 0xFDFDFDFFFFFFFFFF;
-					buf->write(&ptr);
+					buf->write(&buf->data_following);
 					buf->align(7);
-					buf->write_str(data->glassSys.defs[i].destroyedSound->name);
+					buf->write_str_raw(data->glassSys.defs[i].destroyedSound->name);
 					buf->clear_pointer(&glass_def[i].destroyedSound);
 				}
 				if (data->glassSys.defs[i].destroyedQuietSound)
 				{
-					auto ptr = 0xFDFDFDFFFFFFFFFF;
-					buf->write(&ptr);
+					buf->write(&buf->data_following);
 					buf->align(7);
-					buf->write_str(data->glassSys.defs[i].destroyedQuietSound->name);
+					buf->write_str_raw(data->glassSys.defs[i].destroyedQuietSound->name);
 					buf->clear_pointer(&glass_def[i].destroyedQuietSound);
 				}
 			}

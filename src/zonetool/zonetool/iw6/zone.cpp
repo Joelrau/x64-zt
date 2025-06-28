@@ -234,7 +234,6 @@ namespace zonetool::iw6
 		// write zone header
 		buf->write(&mem);
 
-		std::uintptr_t pad = 0xFDFDFDFFFFFFFFFF;
 		std::uintptr_t zero = 0;
 
 		// write asset types to header
@@ -246,15 +245,15 @@ namespace zonetool::iw6
 		// write scriptstring count
 		std::size_t stringcount = buf->scriptstring_count();
 		buf->write<std::uintptr_t>(&stringcount);
-		buf->write<std::uintptr_t>(stringcount > 0 ? (&pad) : (&zero)); // pointer to scriptstrings
+		buf->write<std::uintptr_t>(stringcount > 0 ? (&buf->data_following) : (&zero)); // pointer to scriptstrings
 
 		// write asset count
 		std::size_t asset_count = m_assets.size();
 		buf->write<std::uintptr_t>(&asset_count);
-		buf->write<std::uintptr_t>(asset_count > 0 ? (&pad) : (&zero)); // pointer to assets
+		buf->write<std::uintptr_t>(asset_count > 0 ? (&buf->data_following) : (&zero)); // pointer to assets
 
 		bool write_globals = (buf->depthstencilstatebit_count() + buf->blendstatebits_count()) > 0;
-		buf->write<std::uintptr_t>(write_globals ? (&pad) : (&zero)); // pointer to globals
+		buf->write<std::uintptr_t>(write_globals ? (&buf->data_following) : (&zero)); // pointer to globals
 
 		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 
@@ -272,7 +271,7 @@ namespace zonetool::iw6
 				}
 				else
 				{
-					buf->write<std::uintptr_t>(&pad);
+					buf->write<std::uintptr_t>(&buf->data_following);
 				}
 			}
 
@@ -291,7 +290,7 @@ namespace zonetool::iw6
 		// write globals
 		if (write_globals)
 		{
-			buf->write<std::uintptr_t>(&pad); // pointer to gfxglobals
+			buf->write<std::uintptr_t>(&buf->data_following); // pointer to gfxglobals
 
 			// parse gfxglobals
 			auto mem_ = this->m_zonemem.get();
@@ -478,7 +477,7 @@ namespace zonetool::iw6
 			auto type = static_cast<uintptr_t>(m_assets[i]->type());
 
 			buf->write(&type);
-			buf->write(&pad);
+			buf->write(&buf->data_following);
 		}
 
 		// write assets

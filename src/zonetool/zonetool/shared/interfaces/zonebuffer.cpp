@@ -129,12 +129,20 @@ namespace zonetool
 	char* zone_buffer::write_str(const char* str)
 	{
 		return const_cast<char*>(this->write_s(0, str, 1, strlen(str) + 1));
+
+		//this->write_stream(str, strlen(str) + 1);
+		//return reinterpret_cast<char*>(this->data_following);
 	}
 
 	char* zone_buffer::write_str(const std::string& str)
 	{
 		this->write_stream(str.data(), str.size() + 1);
 		return reinterpret_cast<char*>(this->data_following);
+	}
+
+	char* zone_buffer::write_str_raw(const std::string& str)
+	{
+		return write_str(str);
 	}
 
 	std::vector<std::uint8_t>* zone_buffer::buffer_raw()

@@ -145,6 +145,7 @@ namespace zonetool
 
 		char* write_str(const char* _str);
 		char* write_str(const std::string& _str);
+		char* write_str_raw(const std::string& _str);
 
 		template <typename T>
 		T* write(T* data, const std::size_t count = 1)

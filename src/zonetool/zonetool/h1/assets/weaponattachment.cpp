@@ -1297,12 +1297,11 @@ namespace zonetool::h1
 		{ \
 			buf->align(7); \
 			auto* dest_sounds = buf->write(data->__field__, __count__); \
-			auto ptr = 0xFDFDFDFFFFFFFFFF; \
 			for (auto i = 0; i < __count__; i++) \
 			{ \
 				buf->align(7); \
-				buf->write(&ptr); \
-				buf->write_str(data->__field__[i]->name); \
+				buf->write(&buf->data_following); \
+				buf->write_str_raw(data->__field__[i]->name); \
 				buf->clear_pointer(&dest_sounds[i]); \
 			} \
 			buf->clear_pointer(&dest->__field__); \

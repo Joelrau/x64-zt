@@ -750,10 +750,9 @@ namespace zonetool::h1
 #define VEHICLE_SOUND_CUSTOM(__field__) \
 		if (data->__field__) \
 		{ \
-			auto ptr = 0xFDFDFDFFFFFFFFFF; \
 			buf->align(7); \
-			buf->write(&ptr); \
-			buf->write_str(data->__field__->name); \
+			buf->write(&buf->data_following); \
+			buf->write_str_raw(data->__field__->name); \
 			buf->clear_pointer(&dest->__field__); \
 		}
 

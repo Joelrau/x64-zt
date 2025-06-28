@@ -325,10 +325,9 @@ namespace zonetool::h2
 		case SCRIPTABLE_EVENT_SOUND:
 			if (data->data.playSound.alias)
 			{
-				auto ptr = 0xFDFDFDFFFFFFFFFF;
 				buf->align(7);
-				buf->write(&ptr);
-				buf->write_str(data->data.playSound.alias->name);
+				buf->write(&buf->data_following);
+				buf->write_str_raw(data->data.playSound.alias->name);
 				buf->clear_pointer(&dest->data.playSound.alias);
 			}
 			break;
@@ -449,10 +448,9 @@ namespace zonetool::h2
 					{
 						if (data->notetracks[i].data.playSound.alias)
 						{
-							auto ptr = 0xFDFDFDFFFFFFFFFF;
 							buf->align(7);
-							buf->write(&ptr);
-							buf->write_str(data->notetracks[i].data.playSound.alias->name);
+							buf->write(&buf->data_following);
+							buf->write_str_raw(data->notetracks[i].data.playSound.alias->name);
 							buf->clear_pointer(&destnotetracks[i].data.playSound.alias);
 						}
 					}

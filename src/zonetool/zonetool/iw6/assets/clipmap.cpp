@@ -357,7 +357,7 @@ namespace zonetool::iw6
 			ClipMaterial* clipmaterial;
 			dest->materials = buf->write_s(3, data->materials, data->numMaterials, sizeof ClipMaterial, &clipmaterial);
 
-			if (dest->materials == reinterpret_cast<ClipMaterial*>(0xFDFDFDFFFFFFFFFF))
+			if (dest->materials == reinterpret_cast<ClipMaterial*>(buf->data_following))
 			{
 				for (std::uint32_t i = 0; i < data->numMaterials; i++)
 				{
@@ -375,7 +375,7 @@ namespace zonetool::iw6
 			dest->brushsides = buf->write_s(3, data->brushsides, data->numBrushSides, sizeof cbrushside_t,
 				&brush_side);
 
-			if (dest->brushsides == reinterpret_cast<cbrushside_t*>(0xFDFDFDFFFFFFFFFF))
+			if (dest->brushsides == reinterpret_cast<cbrushside_t*>(buf->data_following))
 			{
 				for (std::uint32_t i = 0; i < data->numBrushSides; i++)
 				{
@@ -398,7 +398,7 @@ namespace zonetool::iw6
 			dest->leafbrushNodes = buf->write_s(3, data->leafbrushNodes, data->leafbrushNodesCount,
 				sizeof cLeafBrushNode_s, &leaf_brush_node);
 
-			if (dest->leafbrushNodes == reinterpret_cast<cLeafBrushNode_s*>(0xFDFDFDFFFFFFFFFF))
+			if (dest->leafbrushNodes == reinterpret_cast<cLeafBrushNode_s*>(buf->data_following))
 			{
 				for (std::uint32_t i = 0; i < data->leafbrushNodesCount; i++)
 				{
@@ -421,7 +421,7 @@ namespace zonetool::iw6
 			cbrush_t* brush = nullptr;
 			dest->brushes = buf->write_s(127, data->brushes, data->numBrushes, sizeof cbrush_t, &brush);
 
-			if (dest->brushes == reinterpret_cast<cbrush_t*>(0xFDFDFDFFFFFFFFFF))
+			if (dest->brushes == reinterpret_cast<cbrush_t*>(buf->data_following))
 			{
 				for (int i = 0; i < data->numBrushes; i++)
 				{
@@ -430,7 +430,7 @@ namespace zonetool::iw6
 						cbrushside_t* side = nullptr;
 						brush[i].sides = buf->write_s(3, data->brushes[i].sides, 1, sizeof cbrushside_t, &side);
 
-						if (brush[i].sides == (cbrushside_t*)0xFDFDFDFFFFFFFFFF && side)
+						if (brush[i].sides == (cbrushside_t*)buf->data_following && side)
 						{
 							if (side->plane)
 							{
