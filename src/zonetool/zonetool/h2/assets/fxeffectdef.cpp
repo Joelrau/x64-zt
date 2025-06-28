@@ -344,6 +344,7 @@ namespace zonetool::h2
 		{
 			if (data->markArray)
 			{
+				buf->align(3);
 				auto destvisuals = buf->write(data->markArray, def->visualCount);
 
 				for (unsigned char i = 0; i < def->visualCount; i++)
@@ -361,15 +362,23 @@ namespace zonetool::h2
 							ASSET_TYPE_MATERIAL, data->markArray[i].materials[2]->name))
 						: nullptr;
 				}
+
+				buf->clear_pointer(&dest->markArray);
 			}
 		}
 		else if (def->visualCount > 1)
 		{
-			auto vis = buf->write(data->array, def->visualCount);
-
-			for (unsigned char i = 0; i < def->visualCount; i++)
+			if (data->array)
 			{
-				write_fx_elem_visuals(zone, buf, def, &vis[i]);
+				buf->align(3);
+				auto vis = buf->write(data->array, def->visualCount);
+
+				for (unsigned char i = 0; i < def->visualCount; i++)
+				{
+					write_fx_elem_visuals(zone, buf, def, &vis[i]);
+				}
+
+				buf->clear_pointer(&dest->array);
 			}
 		}
 		else
@@ -400,20 +409,17 @@ namespace zonetool::h2
 
 		if (data->effectOnImpact.handle)
 		{
-			buf->write_str(data->effectOnImpact.handle->name);
-			buf->clear_pointer(&dest->effectOnImpact);
+			dest->effectOnImpact.name = buf->write_str(data->effectOnImpact.handle->name);
 		}
 
 		if (data->effectOnDeath.handle)
 		{
-			buf->write_str(data->effectOnDeath.handle->name);
-			buf->clear_pointer(&dest->effectOnDeath);
+			dest->effectOnDeath.name = buf->write_str(data->effectOnDeath.handle->name);
 		}
 
 		if (data->effectEmitted.handle)
 		{
-			buf->write_str(data->effectEmitted.handle->name);
-			buf->clear_pointer(&dest->effectEmitted);
+			dest->effectEmitted.name = buf->write_str(data->effectEmitted.handle->name);
 		}
 
 		if (data->extended.trailDef)
@@ -423,18 +429,20 @@ namespace zonetool::h2
 				if (data->extended.trailDef)
 				{
 					buf->align(3);
-					buf->write(data->extended.trailDef);
+					auto* destTrail = buf->write(data->extended.trailDef);
 
 					if (data->extended.trailDef->verts)
 					{
 						buf->align(3);
 						buf->write(data->extended.trailDef->verts, data->extended.trailDef->vertCount);
+						buf->clear_pointer(&destTrail->verts);
 					}
 
 					if (data->extended.trailDef->inds)
 					{
 						buf->align(1);
 						buf->write(data->extended.trailDef->inds, data->extended.trailDef->indCount);
+						buf->clear_pointer(&destTrail->inds);
 					}
 
 					buf->clear_pointer(&dest->extended.trailDef);
@@ -470,35 +478,37 @@ namespace zonetool::h2
 			else if (data->elemType == FX_ELEM_TYPE_FLARE)
 			{
 				buf->align(3);
-				buf->write(data->extended.flareDef);
+				auto* destFlare = buf->write(data->extended.flareDef);
 
 				if (data->extended.flareDef->intensityX)
 				{
+					buf->align(3);
 					buf->write(data->extended.flareDef->intensityX, data->extended.flareDef->intensityXIntervalCount + 1);
+					buf->clear_pointer(&destFlare->intensityX);
 				}
 
 				if (data->extended.flareDef->intensityY)
 				{
+					buf->align(3);
 					buf->write(data->extended.flareDef->intensityY, data->extended.flareDef->intensityYIntervalCount + 1);
+					buf->clear_pointer(&destFlare->intensityY);
 				}
 
 				if (data->extended.flareDef->srcCosIntensity)
 				{
+					buf->align(3);
 					buf->write(data->extended.flareDef->srcCosIntensity, data->extended.flareDef->srcCosIntensityIntervalCount + 1);
+					buf->clear_pointer(&destFlare->srcCosIntensity);
 				}
 
 				if (data->extended.flareDef->srcCosScale)
 				{
+					buf->align(3);
 					buf->write(data->extended.flareDef->srcCosScale, data->extended.flareDef->srcCosScaleIntervalCount + 1);
+					buf->clear_pointer(&destFlare->srcCosScale);
 				}
 
 				buf->clear_pointer(&dest->extended.flareDef);
-			}
-			else if (data->elemType == FX_ELEM_TYPE_DECAL)
-			{
-				buf->align(0);
-				buf->write_stream(data->extended.decalDef, 3);
-				buf->clear_pointer(&dest->extended.decalDef);
 			}
 			else
 			{

@@ -386,20 +386,17 @@ namespace zonetool::iw7
 
 		if (data->effectOnImpact.handle)
 		{
-			buf->write_str(data->effectOnImpact.handle->name);
-			buf->clear_pointer(&dest->effectOnImpact);
+			dest->effectOnImpact.name = buf->write_str(data->effectOnImpact.handle->name);
 		}
 
 		if (data->effectOnDeath.handle)
 		{
-			buf->write_str(data->effectOnDeath.handle->name);
-			buf->clear_pointer(&dest->effectOnDeath);
+			dest->effectOnDeath.name = buf->write_str(data->effectOnDeath.handle->name);
 		}
 
 		if (data->effectEmitted.handle)
 		{
-			buf->write_str(data->effectEmitted.handle->name);
-			buf->clear_pointer(&dest->effectEmitted);
+			dest->effectEmitted.name = buf->write_str(data->effectEmitted.handle->name);
 		}
 
 		if (data->extended.unknownDef)
