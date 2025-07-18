@@ -44,4 +44,4 @@ namespace wmi
 	};
 }
 
-REGISTER_COMPONENT(wmi::component)
+REGISTER_COMPONENT_IW7(wmi::component)
