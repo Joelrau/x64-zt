@@ -515,9 +515,9 @@ namespace zonetool::iw6
 
 						buf->push_stream(XFILE_BLOCK_VIRTUAL);
 						buf->align(7);
-						ptr = 0xFDFDFDF300000000 + buf->stream_offset(3) + 1;
+						ptr = reinterpret_cast<std::uintptr_t>(buf->get_zone_pointer<MaterialVertexDeclaration>(buf->current_stream(), buf->stream_offset(XFILE_BLOCK_VIRTUAL)));
 						add_vertexdecl_pointer(technique_passes[pass].vertexDecl->name, ptr);
-						buf->inc_stream(3, 8);
+						buf->inc_stream(XFILE_BLOCK_VIRTUAL, 8);
 						buf->pop_stream();
 
 						auto vertexDecl = buf->write(data->techniques[technique]->passArray[pass].vertexDecl);
@@ -529,9 +529,9 @@ namespace zonetool::iw6
 						}
 						buf->pop_stream();
 
-						buf->pop_stream();
-
 						buf->insert_pointer(&technique_passes[pass].vertexDecl);
+
+						buf->pop_stream();
 					}
 				}
 
@@ -581,8 +581,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			buf->write_str(technique_header->name);
-			buf->clear_pointer(&technique_header->name);
+			technique_header->name = buf->write_str(technique_header->name);
 
 			buf->clear_pointer(&dest->techniques[technique]);
 		}

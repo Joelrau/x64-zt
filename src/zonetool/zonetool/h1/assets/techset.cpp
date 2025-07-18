@@ -326,10 +326,9 @@ namespace zonetool::h1
 		const auto path = "techsets\\" + name + ".techset";
 		assetmanager::reader reader(mem);
 		if (!reader.open(path))
-			if (!reader.open(path))
-			{
-				return nullptr;
-			}
+		{
+			return nullptr;
+		}
 #endif
 
 		ZONETOOL_INFO("Parsing techset \"%s\"...", name.data());
@@ -1089,8 +1088,7 @@ namespace zonetool::h1
 				}
 			}
 
-			buf->write_str(technique_header->name);
-			buf->clear_pointer(&technique_header->name);
+			technique_header->name = buf->write_str(technique_header->name);
 
 			buf->clear_pointer(&dest->techniques[technique]);
 		}
@@ -1199,7 +1197,7 @@ namespace zonetool::h1
 	{
 		std::uint32_t loadbits0 = 0;
 		std::uint32_t loadbits1 = 0;
-		std::uint32_t loadbits2 = 0; //0xFFFF;
+		std::uint32_t loadbits2 = 0xFFFF;
 		std::uint32_t loadbits3 = 0;
 		std::uint32_t loadbits4 = 0;
 		std::uint32_t loadbits5 = 0;
@@ -1240,7 +1238,7 @@ namespace zonetool::h1
 		READ_INT_LB_FROM_JSON(stencilBackFail);
 		READ_INT_LB_FROM_JSON(stencilBackZFail);
 		READ_INT_LB_FROM_JSON(stencilBackFunc);
-		READ_INT_LB_FROM_JSON(stencilRefBits);
+		//READ_INT_LB_FROM_JSON(stencilRefBits);
 
 		loadbits3 |= srcBlendRgb << GFXS3_SRCBLEND_RGB_SHIFT;
 		loadbits3 |= dstBlendRgb << GFXS3_DSTBLEND_RGB_SHIFT;
@@ -1378,7 +1376,7 @@ namespace zonetool::h1
 		loadbits1 |= stencilBackZFail << GFXS1_STENCIL_BACK_ZFAIL_SHIFT;
 		loadbits1 |= stencilBackFunc << GFXS1_STENCIL_BACK_FUNC_SHIFT;
 
-		loadbits2 |= stencilRefBits;
+		//loadbits2 |= stencilRefBits;
 
 		GfxStateBitsRaw bits{};
 		bits.loadBits[0] = loadbits0;
@@ -1709,7 +1707,7 @@ namespace zonetool::h1
 			add_ds_entry(zonetool::h1::GFX_DEPTH_STENCIL_MODE_HUD_OUTLINE_ZFAIL, zonetool::iw6::GFX_DEPTH_STENCIL_MODE_HUD_OUTLINE_ZFAIL);
 			add_ds_entry(zonetool::h1::GFX_DEPTH_STENCIL_MODE_MOTION_BLUR_HQ, zonetool::iw6::GFX_DEPTH_STENCIL_MODE_MOTION_BLUR_HQ);
 			add_ds_entry(zonetool::h1::GFX_DEPTH_STENCIL_MODE_DEPTH_HACK, zonetool::iw6::GFX_DEPTH_STENCIL_MODE_DEPTH_HACK);
-			add_ds_entry(zonetool::h1::GFX_DEPTH_STENCIL_MODE_UNK, zonetool::iw6::GFX_DEPTH_STENCIL_MODE_DEFAULT); // 19872279822925 default
+			add_ds_entry_val(zonetool::h1::GFX_DEPTH_STENCIL_MODE_UNK, 19872279822925); //add_ds_entry(zonetool::h1::GFX_DEPTH_STENCIL_MODE_UNK, zonetool::iw6::GFX_DEPTH_STENCIL_MODE_DEFAULT); // 19872279822925 default
 			add_ds_entry(zonetool::h1::GFX_DEPTH_STENCIL_MODE_FORCE_DEPTH_WRITE, zonetool::iw6::GFX_DEPTH_STENCIL_MODE_FORCE_DEPTH_WRITE);
 			add_ds_entry(zonetool::h1::GFX_DEPTH_STENCIL_MODE_FORCE_DEPTH_WRITE_HUD_OUTLINE_ZFAIL, zonetool::iw6::GFX_DEPTH_STENCIL_MODE_FORCE_DEPTH_WRITE_HUD_OUTLINE_ZFAIL);
 			add_ds_entry(zonetool::h1::GFX_DEPTH_STENCIL_MODE_CACHED_SPOT_STENCIL_INCR_SAT, zonetool::iw6::GFX_DEPTH_STENCIL_MODE_CACHED_SPOT_STENCIL_INCR_SAT);
@@ -1717,8 +1715,8 @@ namespace zonetool::h1
 			add_ds_entry(zonetool::h1::GFX_DEPTH_STENCIL_MODE_CACHED_SPOT_STENCIL_FULL_MASK, zonetool::iw6::GFX_DEPTH_STENCIL_MODE_CACHED_SPOT_STENCIL_FULL_MASK);
 
 			entry["blendStateBits"][0] = converted_bits.loadBits[3];
-			entry["blendStateBits"][1] = 0;
-			entry["blendStateBits"][2] = 0;
+			entry["blendStateBits"][1] = converted_bits.loadBits[4];
+			entry["blendStateBits"][2] = converted_bits.loadBits[5];
 
 			entry["rasterizerState"] = map[i].rasterizerState; // should be the same
 

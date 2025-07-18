@@ -584,8 +584,7 @@ namespace zonetool::s1
 				}
 			}
 
-			buf->write_str(technique_header->name);
-			buf->clear_pointer(&technique_header->name);
+			technique_header->name = buf->write_str(technique_header->name);
 
 			buf->clear_pointer(&dest->techniques[technique]);
 		}
