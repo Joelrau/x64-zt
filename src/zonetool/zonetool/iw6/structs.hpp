@@ -5847,18 +5847,18 @@ namespace zonetool::iw6
 		const char* projectileName;
 		XModel* projectileModel;
 		weapProjExposion_t projExplosionType;
-		const FxEffectDef* projExplosionEffect;
+		FxEffectDef* projExplosionEffect;
 		bool projExplosionEffectForceNormalUp;
 		snd_alias_list_t* projExplosionSound;
-		const FxEffectDef* projDudEffect;
+		FxEffectDef* projDudEffect;
 		snd_alias_list_t* projDudSound;
 		bool projImpactExplode;
 		float destabilizationRateTime;
 		float destabilizationCurvatureMax;
 		int destabilizeDistance;
-		const FxEffectDef* projTrailEffect;
+		FxEffectDef* projTrailEffect;
 		int projIgnitionDelay;
-		const FxEffectDef* projIgnitionEffect;
+		FxEffectDef* projIgnitionEffect;
 		snd_alias_list_t* projIgnitionSound;
 	};
 

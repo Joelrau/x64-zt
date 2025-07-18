@@ -478,6 +478,11 @@ namespace zonetool::h2
 
 			unsigned short convert_dest(unsigned short dest)
 			{
+				if (dest >= 0x7F)
+				{
+					return dest;
+				}
+
 				if (dest >= 65)
 				{
 					return dest - 3;

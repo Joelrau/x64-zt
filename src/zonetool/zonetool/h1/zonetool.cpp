@@ -1195,7 +1195,7 @@ namespace zonetool::h1
 	{
 		::h1::command::add("quit", []()
 		{
-			std::quick_exit(EXIT_SUCCESS);
+			std::exit(EXIT_SUCCESS);
 		});
 
 		::h1::command::add("buildzone", [](const ::h1::command::params& params)

@@ -170,7 +170,7 @@ namespace shader
 					const auto dest_offset = bit_buffer.total() / 8;
 					const auto dest = bit_buffer.read_bytes(4);
 
-					if (cb_index <= 4 && dest < 70) // workaround
+					if (cb_index <= 4 && dest < 0x7F) // workaround
 					{
 						offsets.push_back(dest_offset + offset);
 					}
