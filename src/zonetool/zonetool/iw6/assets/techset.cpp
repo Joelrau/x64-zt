@@ -7,6 +7,8 @@
 #include "domainshader.hpp"
 #include "pixelshader.hpp"
 
+#define DEEP_SEEK
+
 namespace zonetool::iw6
 {
 	std::unordered_map<std::string, std::uintptr_t> techset::vertexdecl_pointers;
@@ -29,7 +31,7 @@ namespace zonetool::iw6
 		}
 	}
 
-	MaterialTechnique* parse_technique(const std::string& name, zone_memory* mem, std::uint32_t index)
+	MaterialTechnique* parse_technique(const std::string& name, zone_memory* mem)
 	{
 		const auto path = "techsets\\" + name + ".technique";
 
@@ -98,17 +100,19 @@ namespace zonetool::iw6
 		return asset;
 	}
 
-	MaterialTechniqueSet* techset::parse(const std::string& name, zone_memory* mem)
+	MaterialTechniqueSet* parse(const std::string& name, zone_memory* mem, bool use_path = true, const std::string& ppath = "")
 	{
-		const auto path = "techsets\\" + name + ".techset";
+		auto path = "techsets\\" + name + ".techset";
+		if (!ppath.empty())
+		{
+			path = ppath + "\\" + path;
+		}
 
 		assetmanager::reader reader(mem);
-		if (!reader.open(path))
+		if (!reader.open(path, use_path))
 		{
 			return nullptr;
 		}
-
-		ZONETOOL_INFO("Parsing techset \"%s\"...", name.data());
 
 		const auto asset = reader.read_single<MaterialTechniqueSet>();
 		asset->name = reader.read_string();
@@ -117,7 +121,7 @@ namespace zonetool::iw6
 		{
 			if (asset->techniques[i])
 			{
-				asset->techniques[i] = parse_technique(reader.read_string(), mem, i);
+				asset->techniques[i] = parse_technique(reader.read_string(), mem);
 			}
 		}
 
@@ -129,6 +133,44 @@ namespace zonetool::iw6
 		reader.close();
 
 		return asset;
+	}
+
+	MaterialTechniqueSet* parse_deep_seek(const std::string& name, zone_memory* mem)
+	{
+		auto* asset_final = parse(name, mem, true);
+
+#ifdef DEEP_SEEK
+		if (!asset_final)
+			return nullptr;
+
+		static zone_memory deepseek_mem((1024ull * 1024ull) * 64ull);
+
+		const auto& search_paths = filesystem::get_search_paths();
+		for (auto& search_path : search_paths)
+		{
+			auto* asset = parse(name, &deepseek_mem, false, search_path);
+			if (asset)
+			{
+				for (auto i = 0; i < MaterialTechniqueType::TECHNIQUE_COUNT; i++)
+				{
+					if (asset_final->techniques[i] == nullptr && asset->techniques[i] != nullptr)
+					{
+						asset_final->techniques[i] = parse_technique(asset->techniques[i]->hdr.name, mem);
+					}
+				}
+			}
+		}
+
+		deepseek_mem.clear();
+#endif
+
+		return asset_final;
+	}
+
+	MaterialTechniqueSet* techset::parse(const std::string& name, zone_memory* mem)
+	{
+		ZONETOOL_INFO("Parsing techset \"%s\"...", name.data());
+		return parse_deep_seek(name, mem);
 	}
 
 	namespace material_data
@@ -211,6 +253,43 @@ namespace zonetool::iw6
 
 	void techset::parse_constant_buffer_indexes(const std::string& techset, const std::string& material, unsigned char* indexes, zone_memory* mem)
 	{
+#ifdef DEEP_SEEK
+		const std::string parent_path = utils::string::va("techsets\\constantbuffer\\%s", techset.data());
+		char index_buffer[MaterialTechniqueType::TECHNIQUE_COUNT]{};
+		const auto& search_paths = filesystem::get_search_paths();
+		bool found = false;
+		for (auto& search_path : search_paths)
+		{
+			const std::string dir = search_path + parent_path;
+			const auto first_file = material_data::find_first_file_with_extension_in_directory(dir, ".cbi");
+			if (first_file.has_value() && !first_file.value().empty())
+			{
+				std::string path = parent_path + "\\" + first_file.value();
+
+				auto file = filesystem::file(path);
+				file.open("rb");
+				auto fp = file.get_fp();
+
+				if (fp)
+				{
+					fread(index_buffer, MaterialTechniqueType::TECHNIQUE_COUNT, 1, fp);
+					file.close();
+					found = true;
+
+					for (auto i = 0; i < MaterialTechniqueType::TECHNIQUE_COUNT; i++)
+					{
+						if (indexes[i] == 0xFF && index_buffer[i] != 0xFF)
+						{
+							indexes[i] = index_buffer[i];
+						}
+					}
+				}
+			}
+		}
+
+		if (found)
+			return;
+#else
 		const auto path = material_data::get_parse_path("constantbuffer", ".cbi", techset, material);
 		auto file = filesystem::file(path);
 		file.open("rb");
@@ -222,7 +301,7 @@ namespace zonetool::iw6
 			file.close();
 			return;
 		}
-
+#endif
 		ZONETOOL_FATAL("constantbufferindexes for techset \"%s\", material \"%s\" are missing!", techset.data(), material.data());
 	}
 
@@ -302,6 +381,43 @@ namespace zonetool::iw6
 
 	void techset::parse_statebits(const std::string& techset, const std::string& material, unsigned char* statebits, zone_memory* mem)
 	{
+#ifdef DEEP_SEEK
+		const std::string parent_path = utils::string::va("techsets\\state\\%s", techset.data());
+		char index_buffer[MaterialTechniqueType::TECHNIQUE_COUNT]{};
+		const auto& search_paths = filesystem::get_search_paths();
+		bool found = false;
+		for (auto& search_path : search_paths)
+		{
+			const std::string dir = search_path + parent_path;
+			const auto first_file = material_data::find_first_file_with_extension_in_directory(dir, ".statebits");
+			if (first_file.has_value() && !first_file.value().empty())
+			{
+				std::string path = parent_path + "\\" + first_file.value();
+
+				auto file = filesystem::file(path);
+				file.open("rb");
+				auto fp = file.get_fp();
+
+				if (fp)
+				{
+					fread(index_buffer, MaterialTechniqueType::TECHNIQUE_COUNT, 1, fp);
+					file.close();
+					found = true;
+
+					for (auto i = 0; i < MaterialTechniqueType::TECHNIQUE_COUNT; i++)
+					{
+						if (statebits[i] == 0xFF && index_buffer[i] != 0xFF)
+						{
+							statebits[i] = index_buffer[i];
+						}
+					}
+				}
+			}
+		}
+
+		if (found)
+			return;
+#else
 		const auto path = material_data::get_parse_path("state", ".statebits", techset, material);
 		auto file = filesystem::file(path);
 		file.open("rb");
@@ -313,7 +429,7 @@ namespace zonetool::iw6
 			file.close();
 			return;
 		}
-
+#endif
 		ZONETOOL_FATAL("statebits for techset \"%s\", material \"%s\" are missing!", techset.data(), material.data());
 	}
 

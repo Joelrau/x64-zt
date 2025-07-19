@@ -80,6 +80,65 @@ namespace zonetool::iw6
 		}
 	}
 
+	void fixup_statebits_from_stateflags(Material* asset)
+	{
+		static constexpr int ignoredTechniques[] = {
+			TECHNIQUE_BUILD_SHADOWMAP_DEPTH,
+			TECHNIQUE_WIREFRAME_SOLID,
+			TECHNIQUE_WIREFRAME_SHADED
+		};
+
+		const unsigned int state_flags = asset->stateFlags & STATE_FLAG_CULL_MASK;
+
+		for (int i = 0; i < asset->stateBitsCount; ++i)
+		{
+			// Skip ignored technique indices
+			bool isIgnored = std::any_of(std::begin(ignoredTechniques), std::end(ignoredTechniques),
+				[&](int index) { return asset->stateBitsEntry[index] == i; });
+
+			if (isIgnored)
+				continue;
+
+			auto& stateEntry = asset->stateMap[i];
+
+			const unsigned int old_flags = stateEntry.loadBits[0] & GFXS0_CULL_MASK;
+			const unsigned char old_rasterizer_flags = stateEntry.rasterizerState & RASTERIZER_STATE_CULL_MASK;
+
+			unsigned int new_flags = 0;
+			unsigned char new_rasterizer_flags = 0;
+
+			if (state_flags == 0)
+			{
+				new_flags = GFXS0_CULL_NONE;
+				new_rasterizer_flags = RASTERIZER_STATE_CULL_NONE;
+			}
+			else if ((state_flags & STATE_FLAG_CULL_BACK) == STATE_FLAG_CULL_BACK)
+			{
+				new_flags = GFXS0_CULL_BACK;
+				new_rasterizer_flags = RASTERIZER_STATE_CULL_BACK;
+			}
+			else if ((state_flags & STATE_FLAG_CULL_FRONT) == STATE_FLAG_CULL_FRONT)
+			{
+				new_flags = GFXS0_CULL_FRONT;
+				new_rasterizer_flags = RASTERIZER_STATE_CULL_FRONT;
+			}
+			else
+			{
+				new_flags = GFXS0_CULL_NONE;
+				new_rasterizer_flags = RASTERIZER_STATE_CULL_NONE;
+				__debugbreak();
+			}
+
+			if (new_flags != old_flags || new_rasterizer_flags != old_rasterizer_flags)
+			{
+				//ZONETOOL_INFO("Corrected state flags for material %s (%d)", asset->name, i);
+
+				stateEntry.loadBits[0] = (stateEntry.loadBits[0] & ~GFXS0_CULL_MASK) | new_flags;
+				stateEntry.rasterizerState = (stateEntry.rasterizerState & ~RASTERIZER_STATE_CULL_MASK) | new_rasterizer_flags;
+			}
+		}
+	}
+
 	std::unordered_map<GfxImage*, std::string> material::fixed_nml_images_map;
 
 	MaterialTextureDef* material::parse_texture_table(json& matdata, zone_memory* mem)
@@ -95,7 +154,8 @@ namespace zonetool::iw6
 			mat[i].nameHash = matdata[i]["typeHash"].get<unsigned int>();
 
 			std::string img = matdata[i]["image"].get<std::string>();
-			mat[i].u.image = db_find_x_asset_header(ASSET_TYPE_IMAGE, img.data(), 1).image;
+			mat[i].u.image = mem->allocate<GfxImage>();
+			mat[i].u.image->name = mem->duplicate_string(img.data());
 		}
 
 		return mat;
@@ -136,7 +196,11 @@ namespace zonetool::iw6
 		mat->info.surfaceTypeBits = matdata["surfaceTypeBits"].get<unsigned int>();
 		//mat->info.hashIndex = matdata["hashIndex"].get<unsigned int>();
 
-		//mat->stateFlags = matdata["stateFlags"].get<unsigned char>();
+		if (!matdata["stateFlags"].is_null())
+		{
+			mat->stateFlags = matdata["stateFlags"].get<unsigned char>();
+		}
+
 		mat->cameraRegion = matdata["cameraRegion"].get<unsigned char>();
 		mat->materialType = matdata["materialType"].get<unsigned char>();
 		mat->assetFlags = matdata["assetFlags"].get<unsigned char>();
@@ -160,7 +224,8 @@ namespace zonetool::iw6
 		std::string techset = matdata["techniqueSet->name"];
 		if (!techset.empty())
 		{
-			mat->techniqueSet = db_find_x_asset_header(ASSET_TYPE_TECHNIQUE_SET, techset.data(), 1).techniqueSet;
+			mat->techniqueSet = mem->allocate<MaterialTechniqueSet>();
+			mat->techniqueSet->name = mem->duplicate_string(techset.data());
 		}
 
 		json textureTable = matdata["textureTable"];
@@ -171,6 +236,8 @@ namespace zonetool::iw6
 		mat->textureCount = static_cast<unsigned char>(textureTable.size());
 
 		json constantTable = matdata["constantTable"];
+		mat->constantTable = nullptr;
+		mat->constantCount = static_cast<unsigned char>(constantTable.size());
 		if (constantTable.size() > 0)
 		{
 			auto constant_def = mem->allocate<MaterialConstantDef>(constantTable.size());
@@ -185,15 +252,29 @@ namespace zonetool::iw6
 			}
 			mat->constantTable = constant_def;
 		}
-		else
+
+		json subMaterials = matdata["subMaterials"];
+		mat->subMaterials = nullptr;
+		mat->layerCount = static_cast<unsigned char>(subMaterials.size());
+		if (subMaterials.size() > 0)
 		{
-			mat->constantTable = nullptr;
+			mat->subMaterials = mem->allocate<const char*>(subMaterials.size());
+			for (int i = 0; i < subMaterials.size(); i++)
+			{
+				mat->subMaterials[i] = mem->duplicate_string(subMaterials[i].get<std::string>());
+			}
 		}
-		mat->constantCount = static_cast<unsigned char>(constantTable.size());
+
+		memset(mat->stateBitsEntry, 0xFF, TECHNIQUE_COUNT);
+		memset(mat->constantBufferIndex, 0xFF, TECHNIQUE_COUNT);
 
 		if (mat->techniqueSet)
 		{
-			techset::parse_stateinfo(mat->techniqueSet->name, c_name.data(), mat, mem);
+			if (matdata["stateFlags"].is_null())
+			{
+				techset::parse_stateinfo(techset, c_name.data(), mat, mem);
+			}
+
 			techset::parse_statebits(mat->techniqueSet->name, c_name.data(), mat->stateBitsEntry, mem);
 			techset::parse_statebitsmap(mat->techniqueSet->name, c_name.data(), &mat->stateMap, &mat->stateBitsCount,
 				&this->depth_stenchil_state_bits,
@@ -232,6 +313,8 @@ namespace zonetool::iw6
 			ZONETOOL_INFO("Material %s has %u statebits but only %u are used, removing unused statebits.", mat->name, mat->stateBitsCount, max_state_index + 1);
 			mat->stateBitsCount = static_cast<unsigned char>(max_state_index + 1);
 		}
+
+		fixup_statebits_from_stateflags(mat);
 
 		return mat;
 	}
@@ -477,8 +560,6 @@ namespace zonetool::iw6
 
 	void material::dump(Material* asset)
 	{
-		// TODO: maybe add subMaterials?
-
 		if (asset)
 		{
 			auto c_name = clean_name(asset->name);
@@ -593,6 +674,15 @@ namespace zonetool::iw6
 				material_images.push_back(image);
 			}
 			matdata["textureTable"] = material_images;
+
+			matdata["subMaterials"] = nullptr;
+			if (asset->subMaterials)
+			{
+				for (auto i = 0; i < asset->layerCount; i++)
+				{
+					matdata["subMaterials"][i] = asset->subMaterials[i];
+				}
+			}
 
 			auto str = matdata.dump(4);
 
