@@ -7,7 +7,7 @@
 #include "domainshader.hpp"
 #include "pixelshader.hpp"
 
-#define DEEP_SEEK
+#define DEEP_LOOK_TECHNIQUES
 
 namespace zonetool::iw6
 {
@@ -100,7 +100,7 @@ namespace zonetool::iw6
 		return asset;
 	}
 
-	MaterialTechniqueSet* parse(const std::string& name, zone_memory* mem, bool use_path = true, const std::string& ppath = "")
+	MaterialTechniqueSet* parse_internal(const std::string& name, zone_memory* mem, bool use_path = true, const std::string& ppath = "")
 	{
 		auto path = "techsets\\" + name + ".techset";
 		if (!ppath.empty())
@@ -135,20 +135,23 @@ namespace zonetool::iw6
 		return asset;
 	}
 
-	MaterialTechniqueSet* parse_deep_seek(const std::string& name, zone_memory* mem)
+	MaterialTechniqueSet* techset::parse(const std::string& name, zone_memory* mem)
 	{
-		auto* asset_final = parse(name, mem, true);
+		ZONETOOL_INFO("Parsing techset \"%s\"...", name.data());
 
-#ifdef DEEP_SEEK
+		auto* asset_final = parse_internal(name, mem, true);
+
+#ifdef DEEP_LOOK_TECHNIQUES
 		if (!asset_final)
 			return nullptr;
 
-		static zone_memory deepseek_mem((1024ull * 1024ull) * 64ull);
+		static zone_memory deeplook_mem((1024ull * 1024ull) * 16ull);
+		deeplook_mem.clear();
 
 		const auto& search_paths = filesystem::get_search_paths();
 		for (auto& search_path : search_paths)
 		{
-			auto* asset = parse(name, &deepseek_mem, false, search_path);
+			auto* asset = parse_internal(name, &deeplook_mem, false, search_path);
 			if (asset)
 			{
 				for (auto i = 0; i < MaterialTechniqueType::TECHNIQUE_COUNT; i++)
@@ -159,18 +162,11 @@ namespace zonetool::iw6
 					}
 				}
 			}
+			deeplook_mem.clear();
 		}
-
-		deepseek_mem.clear();
 #endif
 
 		return asset_final;
-	}
-
-	MaterialTechniqueSet* techset::parse(const std::string& name, zone_memory* mem)
-	{
-		ZONETOOL_INFO("Parsing techset \"%s\"...", name.data());
-		return parse_deep_seek(name, mem);
 	}
 
 	namespace material_data
@@ -240,20 +236,29 @@ namespace zonetool::iw6
 				}
 			}
 
-			// legacy
-			const auto legacy_path = get_legacy_parse_path(type, ext, techset);
-			if (filesystem::file(legacy_path).exists())
-			{
-				return legacy_path;
-			}
-
 			return path;
 		}
 	}
 
 	void techset::parse_constant_buffer_indexes(const std::string& techset, const std::string& material, unsigned char* indexes, zone_memory* mem)
 	{
-#ifdef DEEP_SEEK
+		{
+			const auto path = material_data::get_parse_path("constantbuffer", ".cbi", techset, material);
+			auto file = filesystem::file(path);
+			file.open("rb");
+			auto fp = file.get_fp();
+
+			if (fp)
+			{
+				fread(indexes, MaterialTechniqueType::TECHNIQUE_COUNT, 1, fp);
+				file.close();
+#ifndef DEEP_LOOK_TECHNIQUES
+				return;
+#endif
+			}
+		}
+
+#ifdef DEEP_LOOK_TECHNIQUES
 		const std::string parent_path = utils::string::va("techsets\\constantbuffer\\%s", techset.data());
 		char index_buffer[MaterialTechniqueType::TECHNIQUE_COUNT]{};
 		const auto& search_paths = filesystem::get_search_paths();
@@ -289,18 +294,6 @@ namespace zonetool::iw6
 
 		if (found)
 			return;
-#else
-		const auto path = material_data::get_parse_path("constantbuffer", ".cbi", techset, material);
-		auto file = filesystem::file(path);
-		file.open("rb");
-		auto fp = file.get_fp();
-
-		if (fp)
-		{
-			fread(indexes, MaterialTechniqueType::TECHNIQUE_COUNT, 1, fp);
-			file.close();
-			return;
-		}
 #endif
 		ZONETOOL_FATAL("constantbufferindexes for techset \"%s\", material \"%s\" are missing!", techset.data(), material.data());
 	}
@@ -381,7 +374,23 @@ namespace zonetool::iw6
 
 	void techset::parse_statebits(const std::string& techset, const std::string& material, unsigned char* statebits, zone_memory* mem)
 	{
-#ifdef DEEP_SEEK
+		{
+			const auto path = material_data::get_parse_path("state", ".statebits", techset, material);
+			auto file = filesystem::file(path);
+			file.open("rb");
+			auto fp = file.get_fp();
+
+			if (fp)
+			{
+				fread(statebits, MaterialTechniqueType::TECHNIQUE_COUNT, 1, fp);
+				file.close();
+#ifndef DEEP_LOOK_TECHNIQUES
+				return;
+#endif
+			}
+		}
+
+#ifdef DEEP_LOOK_TECHNIQUES
 		const std::string parent_path = utils::string::va("techsets\\state\\%s", techset.data());
 		char index_buffer[MaterialTechniqueType::TECHNIQUE_COUNT]{};
 		const auto& search_paths = filesystem::get_search_paths();
@@ -417,18 +426,6 @@ namespace zonetool::iw6
 
 		if (found)
 			return;
-#else
-		const auto path = material_data::get_parse_path("state", ".statebits", techset, material);
-		auto file = filesystem::file(path);
-		file.open("rb");
-		auto fp = file.get_fp();
-
-		if (fp)
-		{
-			fread(statebits, MaterialTechniqueType::TECHNIQUE_COUNT, 1, fp);
-			file.close();
-			return;
-		}
 #endif
 		ZONETOOL_FATAL("statebits for techset \"%s\", material \"%s\" are missing!", techset.data(), material.data());
 	}

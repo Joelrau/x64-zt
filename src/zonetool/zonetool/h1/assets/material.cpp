@@ -82,49 +82,60 @@ namespace zonetool::h1
 
 	void fixup_statebits_from_stateflags(Material* asset)
 	{
-		for (auto i = 0; i < asset->stateBitsCount; i++)
+		static constexpr int ignoredTechniques[] = {
+			TECHNIQUE_BUILD_SHADOWMAP_DEPTH,
+			TECHNIQUE_BUILD_SHADOWMAP_COLOR,
+			TECHNIQUE_WIREFRAME_SOLID,
+			TECHNIQUE_WIREFRAME_SHADED
+		};
+
+		const unsigned int state_flags = asset->stateFlags & STATE_FLAG_CULL_MASK;
+
+		for (int i = 0; i < asset->stateBitsCount; ++i)
 		{
-			// skip these
-			if (asset->stateBitsEntry[TECHNIQUE_BUILD_SHADOWMAP_DEPTH] == i ||
-				asset->stateBitsEntry[TECHNIQUE_BUILD_SHADOWMAP_COLOR] == i ||
-				asset->stateBitsEntry[TECHNIQUE_WIREFRAME_SOLID] == i ||
-				asset->stateBitsEntry[TECHNIQUE_WIREFRAME_SHADED] == i)
-			{
+			// Skip ignored technique indices
+			bool isIgnored = std::any_of(std::begin(ignoredTechniques), std::end(ignoredTechniques),
+				[&](int index) { return asset->stateBitsEntry[index] == i; });
+
+			if (isIgnored)
 				continue;
-			}
 
-			unsigned int old_flags = asset->stateBitsTable[i].loadBits[0] & GFXS0_CULL_MASK;
+			auto& stateEntry = asset->stateBitsTable[i];
+
+			const unsigned int old_flags = stateEntry.loadBits[0] & GFXS0_CULL_MASK;
+			const unsigned char old_rasterizer_flags = stateEntry.rasterizerState & RASTERIZER_STATE_CULL_MASK;
+
 			unsigned int new_flags = 0;
-			unsigned int state_flags = asset->stateFlags & 0x3;
+			unsigned char new_rasterizer_flags = 0;
 
-			[[maybe_unused]] unsigned int old_rasterizer_flags = asset->stateBitsTable[i].rasterizerState & RASTERIZER_STATE_CULL_MASK;
-			unsigned int new_rasterizer_flags = 0;
-
-			if ((state_flags & STATE_FLAG_CULL_MASK) == STATE_FLAG_CULL_BACK)
+			if (state_flags == 0)
 			{
-				new_flags |= GFXS0_CULL_BACK;
-				new_rasterizer_flags |= RASTERIZER_STATE_CULL_BACK;
+				new_flags = GFXS0_CULL_NONE;
+				new_rasterizer_flags = RASTERIZER_STATE_CULL_NONE;
 			}
-			else if (state_flags != 0)
+			else if ((state_flags & STATE_FLAG_CULL_BACK) == STATE_FLAG_CULL_BACK)
 			{
-				new_flags |= GFXS0_CULL_FRONT;
-				new_rasterizer_flags |= RASTERIZER_STATE_CULL_FRONT;
+				new_flags = GFXS0_CULL_BACK;
+				new_rasterizer_flags = RASTERIZER_STATE_CULL_BACK;
+			}
+			else if ((state_flags & STATE_FLAG_CULL_FRONT) == STATE_FLAG_CULL_FRONT)
+			{
+				new_flags = GFXS0_CULL_FRONT;
+				new_rasterizer_flags = RASTERIZER_STATE_CULL_FRONT;
 			}
 			else
 			{
-				new_flags |= GFXS0_CULL_NONE;
-				new_rasterizer_flags |= RASTERIZER_STATE_CULL_NONE;
+				new_flags = GFXS0_CULL_NONE;
+				new_rasterizer_flags = RASTERIZER_STATE_CULL_NONE;
+				__debugbreak();
 			}
 
-			if (new_flags != old_flags)
+			if (new_flags != old_flags || new_rasterizer_flags != old_rasterizer_flags)
 			{
 				//ZONETOOL_INFO("Corrected state flags for material %s (%d)", asset->name, i);
 
-				asset->stateBitsTable[i].loadBits[0] = asset->stateBitsTable[i].loadBits[0] & ~GFXS0_CULL_MASK;
-				asset->stateBitsTable[i].loadBits[0] |= new_flags;
-				
-				asset->stateBitsTable[i].rasterizerState = asset->stateBitsTable[i].rasterizerState & ~RASTERIZER_STATE_CULL_MASK;
-				asset->stateBitsTable[i].rasterizerState |= new_rasterizer_flags;
+				stateEntry.loadBits[0] = (stateEntry.loadBits[0] & ~GFXS0_CULL_MASK) | new_flags;
+				stateEntry.rasterizerState = (stateEntry.rasterizerState & ~RASTERIZER_STATE_CULL_MASK) | new_rasterizer_flags;
 			}
 		}
 	}
@@ -144,7 +155,8 @@ namespace zonetool::h1
 			mat[i].nameHash = matdata[i]["typeHash"].get<unsigned int>();
 
 			std::string img = matdata[i]["image"].get<std::string>();
-			mat[i].u.image = db_find_x_asset_header(ASSET_TYPE_IMAGE, img.data(), 1).image;
+			mat[i].u.image = mem->allocate<GfxImage>();
+			mat[i].u.image->name = mem->duplicate_string(img.data());
 		}
 
 		return mat;
@@ -213,7 +225,8 @@ namespace zonetool::h1
 		std::string techset = matdata["techniqueSet->name"];
 		if (!techset.empty())
 		{
-			mat->techniqueSet = db_find_x_asset_header(ASSET_TYPE_TECHNIQUE_SET, techset.data(), 1).techniqueSet;
+			mat->techniqueSet = mem->allocate<MaterialTechniqueSet>();
+			mat->techniqueSet->name = mem->duplicate_string(techset.data());
 		}
 
 		json textureTable = matdata["textureTable"];
@@ -302,7 +315,7 @@ namespace zonetool::h1
 			mat->stateBitsCount = static_cast<unsigned char>(max_state_index + 1);
 		}
 
-		//fixup_statebits_from_stateflags(mat);
+		fixup_statebits_from_stateflags(mat);
 
 		return mat;
 	}

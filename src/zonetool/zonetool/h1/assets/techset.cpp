@@ -15,102 +15,6 @@ namespace zonetool::h1
 {
 	namespace material_data
 	{
-#ifdef DEEP_LOOK_TECHNIQUES
-		namespace
-		{
-			struct mdata_s
-			{
-				std::string name;
-				bool has_dir;
-				bool has_spot;
-				bool has_omni;
-			};
-
-			bool is_better_option(mdata_s& first, mdata_s& second)
-			{
-				auto count1 = first.has_dir + first.has_spot + first.has_omni;
-				auto count2 = second.has_dir + second.has_spot + second.has_omni;
-				
-				return count1 > count2;
-			}
-
-			bool is_best_option(mdata_s& data)
-			{
-				return data.has_dir && data.has_spot && data.has_omni;
-			}
-
-			mdata_s get_file_info(const std::string& type, const std::string& file_path)
-			{
-				mdata_s info{};
-
-				std::filesystem::path file_ = file_path;
-
-				if (type == "state")
-				{
-					file_.replace_extension("statebits");
-				}
-				else if (type == "contantbuffer")
-				{
-					file_.replace_extension("cbi");
-				}
-
-				unsigned char data[MaterialTechniqueType::TECHNIQUE_COUNT]{};
-				//memset(data, 0xFF, MaterialTechniqueType::TECHNIQUE_COUNT);
-
-				auto file = filesystem::file(file_.string());
-				file.open("rb", false);
-				auto fp = file.get_fp();
-
-				if (fp)
-				{
-					fread(data, MaterialTechniqueType::TECHNIQUE_COUNT, 1, fp);
-					file.close();
-				}
-
-				info.name = file_path;
-				info.has_dir = data[MaterialTechniqueType::TECHNIQUE_LIT_DIR] != 0xFF;
-				info.has_spot = data[MaterialTechniqueType::TECHNIQUE_LIT_SPOT] != 0xFF;
-				info.has_omni = data[MaterialTechniqueType::TECHNIQUE_LIT_OMNI] != 0xFF;
-
-				return info;
-			}
-
-			std::optional<mdata_s> find_best_file_with_extension_in_directory(const std::string& directory, const std::string& extension, const std::string& type)
-			{
-				if (!std::filesystem::exists(directory))
-				{
-					return {};
-				}
-
-				mdata_s best_file{};
-				for (const auto& entry : std::filesystem::recursive_directory_iterator(directory))
-				{
-					if (std::filesystem::is_regular_file(entry) && entry.path().extension() == extension)
-					{
-						auto info = get_file_info(type, entry.path().string());
-
-						if (best_file.name.empty() || is_better_option(info, best_file))
-						{
-							best_file = info;
-						}
-
-						if (is_best_option(best_file))
-						{
-							return best_file;
-						}
-					}
-				}
-
-				if (!best_file.name.empty())
-				{
-					return best_file;
-				}
-
-				return {};
-			}
-		}
-#endif
-
 		namespace
 		{
 			std::optional<std::string> find_first_file_with_extension_in_directory(const std::string& directory, const std::string& extension)
@@ -146,7 +50,12 @@ namespace zonetool::h1
 			}
 		}
 
-		std::string get_parse_path(const std::string& type, const std::string& ext, const std::string& techset, const std::string& material, bool* use_path)
+		std::string get_legacy_parse_path(const std::string& type, const std::string& ext, const std::string& techset)
+		{
+			return utils::string::va("techsets\\%s\\%s%s", type.data(), techset.data(), ext.data());
+		}
+
+		std::string get_parse_path(const std::string& type, const std::string& ext, const std::string& techset, const std::string& material)
 		{
 			const std::string parent_path = utils::string::va("techsets\\%s\\%s", type.data(), techset.data());
 			const std::string file = utils::string::va("%s%s", material.data(), ext.data());
@@ -157,40 +66,6 @@ namespace zonetool::h1
 				return path;
 			}
 
-#ifdef DEEP_LOOK_TECHNIQUES
-			// get best one from the directories
-			{
-				mdata_s best_file{};
-				for (const auto& parse_path : filesystem::get_search_paths())
-				{
-					const std::string dir = parse_path + parent_path;
-					const auto best_file_in_dir = find_best_file_with_extension_in_directory(dir, ext, type);
-					if (best_file_in_dir.has_value())
-					{
-						auto best_file_ = best_file_in_dir.value();
-						if (best_file.name.empty() || is_better_option(best_file_, best_file))
-						{
-							best_file = best_file_;
-						}
-
-						if (is_best_option(best_file))
-						{
-							*use_path = false;
-							return best_file.name;
-						}
-					}
-				}
-				if (!best_file.name.empty())
-				{
-					if (!is_best_option(best_file))
-					{
-						//__debugbreak();
-					}
-					*use_path = false;
-					return best_file.name;
-				}
-			}
-#else
 			// get a random one from the directory
 			{
 				for (const auto& parse_path : filesystem::get_search_paths())
@@ -204,7 +79,6 @@ namespace zonetool::h1
 					}
 				}
 			}
-#endif
 
 			return path;
 		}
@@ -230,9 +104,9 @@ namespace zonetool::h1
 		}
 	}
 
-	MaterialTechnique* parse_technique_internal(const std::string& name, zone_memory* mem, std::uint32_t index, bool use_path = true)
+	MaterialTechnique* parse_technique(const std::string& name, zone_memory* mem, bool use_path = true)
 	{
-		const auto path = name;
+		const auto path = "techsets\\" + name + ".technique";
 
 		assetmanager::reader reader(mem);
 		if (!reader.open(path, use_path))
@@ -299,39 +173,19 @@ namespace zonetool::h1
 		return asset;
 	}
 
-	MaterialTechnique* parse_technique(const std::string& name, zone_memory* mem, std::uint32_t index)
+	MaterialTechniqueSet* parse_internal(const std::string& name, zone_memory* mem, bool use_path = true, const std::string& ppath = "")
 	{
-		const auto path = "techsets\\" + name + ".technique";
-		return parse_technique_internal(path, mem, index);
-	}
-
-	MaterialTechniqueSet* techset::parse(const std::string& name, zone_memory* mem)
-	{
-#ifdef DEEP_LOOK_TECHNIQUES
-		bool use_path = true;
-		auto spath = material_data::get_parse_path("state", ".statebits", name, "", &use_path);
-		std::string parent_path = spath.substr(0, spath.find("\\state"));
-		auto path = parent_path + "\\"s + name + ".techset"s;
+		auto path = "techsets\\" + name + ".techset";
+		if (!ppath.empty())
+		{
+			path = ppath + "\\" + path;
+		}
 
 		assetmanager::reader reader(mem);
 		if (!reader.open(path, use_path))
 		{
-			path = "techsets\\"s + name + ".techset"s;
-			if (!reader.open(path, true))
-			{
-				return nullptr;
-			}
-		}
-#else
-		const auto path = "techsets\\" + name + ".techset";
-		assetmanager::reader reader(mem);
-		if (!reader.open(path))
-		{
 			return nullptr;
 		}
-#endif
-
-		ZONETOOL_INFO("Parsing techset \"%s\"...", name.data());
 
 		const auto asset = reader.read_single<MaterialTechniqueSet>();
 		asset->name = reader.read_string();
@@ -340,149 +194,9 @@ namespace zonetool::h1
 		{
 			if (asset->techniques[i])
 			{
-				asset->techniques[i] = parse_technique(reader.read_string(), mem, i);
+				asset->techniques[i] = parse_technique(reader.read_string(), mem);
 			}
 		}
-
-#ifdef DEEP_LOOK_TECHNIQUES
-		const auto add = [&](MaterialTechniqueType type, MaterialTechniqueType a2, const std::string& str)
-		{
-			if (!asset->techniques[type])
-			{
-				if (!asset->techniques[a2])
-				{
-					return;
-				}
-
-				std::string technique_name = asset->techniques[a2]->hdr.name;
-
-				try
-				{
-					std::regex pattern("_l.0");  // '.' matches any single character between '_l' and '0'
-					std::smatch match;
-
-					if (std::regex_search(technique_name, match, pattern)) {
-						// If the pattern is found, get the position of the match
-						size_t pos = match.position(0);
-
-						// Replace the matched substring with the new string
-						technique_name.replace(pos, 4, str);  // '4' is the length of the pattern "_ln0"
-					}
-					else
-					{
-						//return;
-					}
-				}
-				catch (const std::runtime_error& err)
-				{
-					printf("%s", err.what());
-					return;
-				}
-
-				auto* technique = parse_technique(technique_name, mem, type);
-				if (technique)
-				{
-					asset->techniques[type] = technique;
-				}
-			}
-		};
-
-		// regular
-
-		add(MaterialTechniqueType::TECHNIQUE_LIT, MaterialTechniqueType::TECHNIQUE_LIT, "_ln0");
-		add(MaterialTechniqueType::TECHNIQUE_LIT_DIR, MaterialTechniqueType::TECHNIQUE_LIT, "_ld0");
-		add(MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT, "_ld1");
-
-		add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_LIT, "_ls0");
-		add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT, "_ls1");
-		add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_LIT, "_ls2");
-
-		add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_LIT, "_lo0");
-		add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT, "_lo1");
-
-		add(MaterialTechniqueType::TECHNIQUE_LIT_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DFOG, "_ln0");
-		add(MaterialTechniqueType::TECHNIQUE_LIT_DIR_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DFOG, "_ld0");
-		add(MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT_DFOG, "_ld1");
-
-		add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DFOG, "_ls0");
-		add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DFOG, "_ls1");
-		add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DFOG, "_ls2");
-
-		add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DFOG, "_lo0");
-		add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DFOG, "_lo1");
-
-		// instanced
-
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT, "_ln0");
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT, "_ld0");
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT, "_ld1");
-
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT, "_ls0");
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT, "_ls1");
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT, "_ls2");
-
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT, "_lo0");
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT, "_lo1");
-
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG, "_ln0");
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG, "_ld0");
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG, "_ld1");
-
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG, "_ls0");
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG, "_ls1");
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG, "_ls2");
-
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG, "_lo0");
-		add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG, "_lo1");
-
-		// subdiv
-
-		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT, "_ln0");
-		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT, "_ld0");
-		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT, "_ld1");
-
-		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT, "_ls0");
-		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT, "_ls1");
-		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT, "_ls2");
-
-		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT, "_lo0");
-		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT, "_lo1");
-
-		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG, "_ln0");
-		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG, "_ld0");
-		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG, "_ld1");
-
-		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG, "_ls0");
-		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG, "_ls1");
-		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG, "_ls2");
-
-		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG, "_lo0");
-		add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG, "_lo1");
-
-		// displacement
-
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT, "_ln0");
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT, "_ld0");
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT, "_ld1");
-
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT, "_ls0");
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT, "_ls1");
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT, "_ls2");
-
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT, "_lo0");
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT, "_lo1");
-
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG, "_ln0");
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG, "_ld0");
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG, "_ld1");
-
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG, "_ls0");
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG, "_ls1");
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG, "_ls2");
-
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG, "_lo0");
-		add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG, "_lo1");
-#endif
 
 		if (asset->techniques[0] && asset->techniques[0]->hdr.name == "textured_3d"s)
 		{
@@ -494,138 +208,104 @@ namespace zonetool::h1
 		return asset;
 	}
 
-	void techset::parse_constant_buffer_indexes(const std::string& techset, const std::string& material, unsigned char* indexes, zone_memory* mem)
+	MaterialTechniqueSet* techset::parse(const std::string& name, zone_memory* mem)
 	{
-		bool use_path = true;
-		const auto path = material_data::get_parse_path("constantbuffer", ".cbi", techset, material, &use_path);
-		auto file = filesystem::file(path);
-		file.open("rb", use_path);
-		auto fp = file.get_fp();
+		ZONETOOL_INFO("Parsing techset \"%s\"...", name.data());
 
-		if (fp)
-		{
-			fread(indexes, MaterialTechniqueType::TECHNIQUE_COUNT, 1, fp);
-			file.close();
+		auto* asset_final = parse_internal(name, mem, true);
 
 #ifdef DEEP_LOOK_TECHNIQUES
-			const auto add = [&](MaterialTechniqueType type, MaterialTechniqueType a2 = MaterialTechniqueType::TECHNIQUE_LIT_DIR)
+		if (!asset_final)
+			return nullptr;
+
+		static zone_memory deeplook_mem((1024ull * 1024ull) * 16ull);
+		deeplook_mem.clear();
+
+		const auto& search_paths = filesystem::get_search_paths();
+		for (auto& search_path : search_paths)
+		{
+			auto* asset = parse_internal(name, &deeplook_mem, false, search_path);
+			if (asset)
 			{
-				if (indexes[type] == 0xFF)
+				for (auto i = 0; i < MaterialTechniqueType::TECHNIQUE_COUNT; i++)
 				{
-					indexes[type] = indexes[a2];
+					if (asset_final->techniques[i] == nullptr && asset->techniques[i] != nullptr)
+					{
+						asset_final->techniques[i] = parse_technique(asset->techniques[i]->hdr.name, mem);
+					}
 				}
-			};
-
-			// regular
-
-			add(MaterialTechniqueType::TECHNIQUE_LIT, MaterialTechniqueType::TECHNIQUE_LIT);
-			add(MaterialTechniqueType::TECHNIQUE_LIT_DIR, MaterialTechniqueType::TECHNIQUE_LIT);
-			add(MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT_DIR);
-
-			add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_LIT_DIR);
-			add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW);
-			add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW);
-
-			add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_LIT_DIR);
-			add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW);
-
-			add(MaterialTechniqueType::TECHNIQUE_LIT_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_LIT_DIR_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_DFOG);
-
-			add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW_DFOG);
-
-			add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW_DFOG);
-
-			// instanced
-
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR);
-
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW);
-
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW);
-
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_DFOG);
-
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW_DFOG);
-
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW_DFOG);
-
-			// subdiv
-
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT);
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT);
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR);
-
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR);
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW);
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW);
-
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR);
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW);
-
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_DFOG);
-
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW_DFOG);
-
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW_DFOG);
-
-			// displacement
-
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR);
-
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW);
-
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW);
-
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_DFOG);
-
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW_DFOG);
-
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW_DFOG);
+			}
+			deeplook_mem.clear();
+		}
 #endif
 
-			return;
+		return asset_final;
+	}
+
+	void techset::parse_constant_buffer_indexes(const std::string& techset, const std::string& material, unsigned char* indexes, zone_memory* mem)
+	{
+		{
+			const auto path = material_data::get_parse_path("constantbuffer", ".cbi", techset, material);
+			auto file = filesystem::file(path);
+			file.open("rb");
+			auto fp = file.get_fp();
+
+			if (fp)
+			{
+				fread(indexes, MaterialTechniqueType::TECHNIQUE_COUNT, 1, fp);
+				file.close();
+#ifndef DEEP_LOOK_TECHNIQUES
+				return;
+#endif
+			}
 		}
 
+#ifdef DEEP_LOOK_TECHNIQUES
+		const std::string parent_path = utils::string::va("techsets\\constantbuffer\\%s", techset.data());
+		char index_buffer[MaterialTechniqueType::TECHNIQUE_COUNT]{};
+		const auto& search_paths = filesystem::get_search_paths();
+		bool found = false;
+		for (auto& search_path : search_paths)
+		{
+			const std::string dir = search_path + parent_path;
+			const auto first_file = material_data::find_first_file_with_extension_in_directory(dir, ".cbi");
+			if (first_file.has_value() && !first_file.value().empty())
+			{
+				std::string path = parent_path + "\\" + first_file.value();
+
+				auto file = filesystem::file(path);
+				file.open("rb");
+				auto fp = file.get_fp();
+
+				if (fp)
+				{
+					fread(index_buffer, MaterialTechniqueType::TECHNIQUE_COUNT, 1, fp);
+					file.close();
+					found = true;
+
+					for (auto i = 0; i < MaterialTechniqueType::TECHNIQUE_COUNT; i++)
+					{
+						if (indexes[i] == 0xFF && index_buffer[i] != 0xFF)
+						{
+							indexes[i] = index_buffer[i];
+						}
+					}
+				}
+			}
+		}
+
+		if (found)
+			return;
+#endif
 		ZONETOOL_FATAL("constantbufferindexes for techset \"%s\", material \"%s\" are missing!", techset.data(), material.data());
 	}
 
 	void techset::parse_constant_buffer_def_array(const std::string& techset, const std::string& material, 
 		MaterialConstantBufferDef** def_ptr, unsigned char* count, zone_memory* mem)
 	{
-		bool use_path = true;
-		const auto path = material_data::get_parse_path("constantbuffer", ".cbt", techset, material, &use_path);
+		const auto path = material_data::get_parse_path("constantbuffer", ".cbt", techset, material);
 		assetmanager::reader read(mem);
-		if (!read.open(path, use_path))
+		if (!read.open(path))
 		{
 			(*def_ptr) = nullptr;
 			return;
@@ -676,12 +356,11 @@ namespace zonetool::h1
 
 	void techset::parse_stateinfo(const std::string& techset, const std::string& material, Material* mat, zone_memory* mem)
 	{
-		bool use_path = true;
-		const auto path = material_data::get_parse_path("state", ".stateinfo", techset, material, &use_path);
+		const auto path = material_data::get_parse_path("state", ".stateinfo", techset, material);
 		filesystem::file file(path);
-		if (file.exists(use_path))
+		if (file.exists())
 		{
-			file.open("rb", use_path);
+			file.open("rb");
 			const auto size = file.size();
 			auto bytes = file.read_bytes(size);
 			file.close();
@@ -697,126 +376,59 @@ namespace zonetool::h1
 
 	void techset::parse_statebits(const std::string& techset, const std::string& material, unsigned char* statebits, zone_memory* mem)
 	{
-		bool use_path = true;
-		const auto path = material_data::get_parse_path("state", ".statebits", techset, material, &use_path);
-		auto file = filesystem::file(path);
-		file.open("rb", use_path);
-		auto fp = file.get_fp();
-
-		if (fp)
 		{
-			fread(statebits, MaterialTechniqueType::TECHNIQUE_COUNT, 1, fp);
-			file.close();
+			const auto path = material_data::get_parse_path("state", ".statebits", techset, material);
+			auto file = filesystem::file(path);
+			file.open("rb");
+			auto fp = file.get_fp();
 
-#ifdef DEEP_LOOK_TECHNIQUES
-			const auto add = [&](MaterialTechniqueType type, MaterialTechniqueType a2 = MaterialTechniqueType::TECHNIQUE_LIT_DIR)
+			if (fp)
 			{
-				if (statebits[type] == 0xFF)
-				{
-					statebits[type] = statebits[a2];
-				}
-			};
-
-			// regular
-
-			add(MaterialTechniqueType::TECHNIQUE_LIT, MaterialTechniqueType::TECHNIQUE_LIT);
-			add(MaterialTechniqueType::TECHNIQUE_LIT_DIR, MaterialTechniqueType::TECHNIQUE_LIT);
-			add(MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT_DIR);
-
-			add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_LIT_DIR);
-			add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW);
-			add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW);
-
-			add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_LIT_DIR);
-			add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW);
-
-			add(MaterialTechniqueType::TECHNIQUE_LIT_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_LIT_DIR_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_DFOG);
-
-			add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW_DFOG);
-
-			add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_LIT_DIR_SHADOW_DFOG);
-
-			// instanced
-
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR);
-
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW);
-
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW);
-
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_DFOG);
-
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW_DFOG);
-
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_INSTANCED_LIT_DIR_SHADOW_DFOG);
-
-			// subdiv
-
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT);
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT);
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR);
-
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR);
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW);
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW);
-
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR);
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW);
-
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_DFOG);
-
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW_DFOG);
-
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_SUBDIV_PATCH_LIT_DIR_SHADOW_DFOG);
-
-			// displacement
-
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR);
-
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_CUCOLORIS, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW);
-
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_SHADOW, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW);
-
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_DFOG);
-
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW_DFOG);
-
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_DFOG);
-			add(MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_OMNI_SHADOW_DFOG, MaterialTechniqueType::TECHNIQUE_NO_DISPLACEMENT_LIT_DIR_SHADOW_DFOG);
+				fread(statebits, MaterialTechniqueType::TECHNIQUE_COUNT, 1, fp);
+				file.close();
+#ifndef DEEP_LOOK_TECHNIQUES
+				return;
 #endif
-
-			return;
+			}
 		}
 
+#ifdef DEEP_LOOK_TECHNIQUES
+		const std::string parent_path = utils::string::va("techsets\\state\\%s", techset.data());
+		char index_buffer[MaterialTechniqueType::TECHNIQUE_COUNT]{};
+		const auto& search_paths = filesystem::get_search_paths();
+		bool found = false;
+		for (auto& search_path : search_paths)
+		{
+			const std::string dir = search_path + parent_path;
+			const auto first_file = material_data::find_first_file_with_extension_in_directory(dir, ".statebits");
+			if (first_file.has_value() && !first_file.value().empty())
+			{
+				std::string path = parent_path + "\\" + first_file.value();
+
+				auto file = filesystem::file(path);
+				file.open("rb");
+				auto fp = file.get_fp();
+
+				if (fp)
+				{
+					fread(index_buffer, MaterialTechniqueType::TECHNIQUE_COUNT, 1, fp);
+					file.close();
+					found = true;
+
+					for (auto i = 0; i < MaterialTechniqueType::TECHNIQUE_COUNT; i++)
+					{
+						if (statebits[i] == 0xFF && index_buffer[i] != 0xFF)
+						{
+							statebits[i] = index_buffer[i];
+						}
+					}
+				}
+			}
+		}
+
+		if (found)
+			return;
+#endif
 		ZONETOOL_FATAL("statebits for techset \"%s\", material \"%s\" are missing!", techset.data(), material.data());
 	}
 
@@ -825,12 +437,11 @@ namespace zonetool::h1
 		std::vector<std::array<std::uint32_t, 3>>* bsb,
 		zone_memory* mem)
 	{
-		bool use_path = true;
-		const auto path = material_data::get_parse_path("state", ".statebitsmap", techset, material, &use_path);
+		const auto path = material_data::get_parse_path("state", ".statebitsmap", techset, material);
 		filesystem::file file(path);
-		if (file.exists(use_path))
+		if (file.exists())
 		{
-			file.open("rb", use_path);
+			file.open("rb");
 			const auto size = file.size();
 			auto bytes = file.read_bytes(size);
 			file.close();
