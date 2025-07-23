@@ -745,14 +745,15 @@ namespace zonetool::iw6
 					}
 				}
 			}
-			else if (row->fields[0] == "addpath"s && row->num_fields >= 2)
+			// add paths
+			else if ((row->fields[0] == "addpath"s || row->fields[0] == "addpaths"s) && row->num_fields >= 2)
 			{
-				bool insert_at_beginning = false;
-				if (row->num_fields >= 3 && row->fields[2] == "true"s)
-				{
-					insert_at_beginning = true;
-				}
-				filesystem::add_paths_from_directory(row->fields[1], insert_at_beginning);
+				bool insert_at_beginning = row->num_fields >= 3 && row->fields[2] == "true"s;
+
+				if (row->fields[0] == "addpath"s)
+					filesystem::add_path(row->fields[1], insert_at_beginning);
+				else
+					filesystem::add_paths_from_directory(row->fields[1], insert_at_beginning);
 			}
 			// if entry is not an option, it should be an asset.
 			else
