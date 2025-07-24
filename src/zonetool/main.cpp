@@ -471,6 +471,12 @@ namespace
 
 			try
 			{
+				if(utils::flags::has_flag("unbuffered-io"))
+				{
+					setvbuf(stdout, NULL, _IONBF, 0);
+					setvbuf(stderr, NULL, _IONBF, 0);
+				}
+				
 				if (!component_loader::post_start())
 				{
 					return 0;
