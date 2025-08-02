@@ -598,6 +598,7 @@ namespace zonetool::iw7
 			ADD_ASSET(ASSET_TYPE_IMAGE, gfx_image);
 			ADD_ASSET(ASSET_TYPE_LIGHT_DEF, gfx_light_def);
 			ADD_ASSET(ASSET_TYPE_GFXLIGHTMAP, gfx_light_map);
+			ADD_ASSET(ASSET_TYPE_IMPACT_FX, impact_fx);
 			ADD_ASSET(ASSET_TYPE_LASER, laser);
 			ADD_ASSET(ASSET_TYPE_LOCALIZE_ENTRY, localize);
 			ADD_ASSET(ASSET_TYPE_LUA_FILE, lua_file);

@@ -195,6 +195,7 @@ namespace zonetool::iw7
 			DUMP_ASSET(ASSET_TYPE_IMAGE, gfx_image, GfxImage);
 			DUMP_ASSET(ASSET_TYPE_LIGHT_DEF, gfx_light_def, GfxLightDef);
 			DUMP_ASSET(ASSET_TYPE_GFXLIGHTMAP, gfx_light_map, GfxLightMap);
+			DUMP_ASSET(ASSET_TYPE_IMPACT_FX, impact_fx, FxImpactTable);
 			DUMP_ASSET(ASSET_TYPE_LASER, laser, LaserDef);
 			DUMP_ASSET(ASSET_TYPE_LOCALIZE_ENTRY, localize, LocalizeEntry);
 			DUMP_ASSET(ASSET_TYPE_LUA_FILE, lua_file, LuaFile);

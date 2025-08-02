@@ -20,6 +20,7 @@
 #include "assets/gfximage.hpp"
 #include "assets/gfxlightdef.hpp"
 #include "assets/gfxlightmap.hpp"
+#include "assets/impactfx.hpp"
 #include "assets/laser.hpp"
 #include "assets/localize.hpp"
 #include "assets/luafile.hpp"

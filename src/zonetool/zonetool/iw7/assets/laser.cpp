@@ -60,6 +60,7 @@ namespace zonetool::iw7
 		file.close();
 
 		auto asset = mem->allocate<LaserDef>();
+		asset->name = mem->duplicate_string(name);
 
 		PARSE_ASSET(laserMaterial);
 		PARSE_ASSET(laserLightMaterial);
@@ -152,9 +153,10 @@ namespace zonetool::iw7
 #define WRITE_FXCOMBINED(__field__) \
 	if (data->__field__.u.data) \
 	{ \
-		if(data->__field__.type == FX_COMBINED_VFX) dest->__field__.u.vfx =  \
-			reinterpret_cast<ParticleSystemDef*>(zone->get_asset_pointer(ASSET_TYPE_VFX, data->__field__.u.vfx->name)); \
-		else dest->__field__.u.fx = reinterpret_cast<FxEffectDef*>(zone->get_asset_pointer(ASSET_TYPE_VFX, data->__field__.u.fx->name)); \
+		if(data->__field__.type == FX_COMBINED_VFX) \
+			dest->__field__.u.vfx = reinterpret_cast<ParticleSystemDef*>(zone->get_asset_pointer(ASSET_TYPE_VFX, data->__field__.u.vfx->name)); \
+		else \
+			dest->__field__.u.fx = reinterpret_cast<FxEffectDef*>(zone->get_asset_pointer(ASSET_TYPE_FX, data->__field__.u.fx->name)); \
 	}
 
 	void laser::write(zone_base* zone, zone_buffer* buf)
