@@ -66,6 +66,7 @@
 #include "assets/vertexdecl.hpp"
 #include "assets/vertexshader.hpp"
 
+#include "assets/aipaths.hpp"
 #include "assets/clipmap.hpp"
 #include "assets/comworld.hpp"
 #include "assets/fxworld.hpp"

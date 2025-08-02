@@ -645,6 +645,7 @@ namespace zonetool::iw7
 
 			ADD_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset);
 
+			ADD_ASSET(ASSET_TYPE_PATHDATA, path_data);
 			ADD_ASSET(ASSET_TYPE_CLIPMAP, clip_map);
 			ADD_ASSET(ASSET_TYPE_COMWORLD, com_world);
 			ADD_ASSET(ASSET_TYPE_FXWORLD, fx_world);

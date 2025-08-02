@@ -242,6 +242,7 @@ namespace zonetool::iw7
 
 			DUMP_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset, MaterialTechniqueSet);
 
+			DUMP_ASSET(ASSET_TYPE_PATHDATA, path_data, PathData);
 			DUMP_ASSET(ASSET_TYPE_CLIPMAP, clip_map, clipMap_t);
 			DUMP_ASSET(ASSET_TYPE_COMWORLD, com_world, ComWorld);
 			DUMP_ASSET(ASSET_TYPE_FXWORLD, fx_world, FxWorld);
