@@ -60,50 +60,6 @@ namespace zonetool::iw7
 		}
 	}
 
-	void write_node_tree_children(zone_buffer* buf, pathnode_tree_t* data, pathnode_tree_t** dest)
-	{
-		buf->align(7);
-		const auto tree = buf->write(data);
-		buf->clear_pointer(dest);
-
-		if (data->axis < 0)
-		{
-			buf->align(1);
-			buf->write(data->u.s.nodes, data->u.s.nodeCount);
-			buf->clear_pointer(&tree->u.s.nodes);
-		}
-		else
-		{
-			for (auto i = 0; i < 2; i++)
-			{
-				if (data->u.child[i])
-				{
-					write_node_tree_children(buf, data->u.child[i], &tree->u.child[i]);
-				}
-			}
-		}
-	}
-
-	void write_node_tree(zone_buffer* buf, pathnode_tree_t* data, pathnode_tree_t* dest)
-	{
-		if (data->axis < 0)
-		{
-			buf->align(1);
-			buf->write(data->u.s.nodes, data->u.s.nodeCount);
-			buf->clear_pointer(&data->u.s.nodes);
-		}
-		else
-		{
-			for (auto i = 0; i < 2; i++)
-			{
-				if (data->u.child[i])
-				{
-					write_node_tree_children(buf, data->u.child[i], &dest->u.child[i]);
-				}
-			}
-		}
-	}
-
 #define ADD_SCRIPT_STRING(__field__) \
 	{ \
 		const auto script_string = read.read_string(); \
@@ -115,7 +71,6 @@ namespace zonetool::iw7
 		data->nodes[i].constant.__field__ = static_cast<scr_string_t>( \
 			buf->write_scriptstring(this->get_script_string(&data->nodes[i].constant.__field__))); \
 	} \
-
 
 	std::unordered_map<std::string, unsigned short> waypoint_types =
 	{
@@ -415,7 +370,7 @@ namespace zonetool::iw7
 
 	void path_data::init(const std::string& name, zone_memory* mem)
 	{
-		this->name_ = "maps/"s + (filesystem::get_fastfile().substr(0, 3) == "mp_" ? "mp/" : "") + filesystem::get_fastfile() + ".d3dbsp"; // name;
+		this->name_ = name;
 		this->asset_ = parse_from_botwarfare(name, this->name_, mem);
 		if (this->asset_)
 		{
@@ -461,6 +416,50 @@ namespace zonetool::iw7
 	std::int32_t path_data::type()
 	{
 		return ASSET_TYPE_PATHDATA;
+	}
+
+	void write_node_tree_children(zone_buffer* buf, pathnode_tree_t* data, pathnode_tree_t** dest)
+	{
+		buf->align(7);
+		const auto tree = buf->write(data);
+		buf->clear_pointer(dest);
+
+		if (data->axis < 0)
+		{
+			buf->align(1);
+			buf->write(data->u.s.nodes, data->u.s.nodeCount);
+			buf->clear_pointer(&tree->u.s.nodes);
+		}
+		else
+		{
+			for (auto i = 0; i < 2; i++)
+			{
+				if (data->u.child[i])
+				{
+					write_node_tree_children(buf, data->u.child[i], &tree->u.child[i]);
+				}
+			}
+		}
+	}
+
+	void write_node_tree(zone_buffer* buf, pathnode_tree_t* data, pathnode_tree_t* dest)
+	{
+		if (data->axis < 0)
+		{
+			buf->align(1);
+			buf->write(data->u.s.nodes, data->u.s.nodeCount);
+			buf->clear_pointer(&data->u.s.nodes);
+		}
+		else
+		{
+			for (auto i = 0; i < 2; i++)
+			{
+				if (data->u.child[i])
+				{
+					write_node_tree_children(buf, data->u.child[i], &dest->u.child[i]);
+				}
+			}
+		}
 	}
 
 	void path_data::write(zone_base* zone, zone_buffer* buf)

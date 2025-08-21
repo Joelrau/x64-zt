@@ -74,6 +74,7 @@
 #include "assets/gfxworld_tr.hpp"
 #include "assets/glassworld.hpp"
 #include "assets/mapents.hpp"
+#include "assets/navmesh.hpp"
 
 #include "zone.hpp"
 

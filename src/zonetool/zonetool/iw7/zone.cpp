@@ -592,6 +592,7 @@ namespace zonetool::iw7
 		try
 		{
 			// declare asset interfaces
+			ADD_ASSET(ASSET_TYPE_DDL, ddl);
 			ADD_ASSET(ASSET_TYPE_FX, fx_effect_def);
 			ADD_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, fx_particle_sim_animation);
 			ADD_ASSET(ASSET_TYPE_GESTURE, gesture);
@@ -653,6 +654,7 @@ namespace zonetool::iw7
 			ADD_ASSET(ASSET_TYPE_GFXWORLD_TRANSIENT_ZONE, gfx_world_tr);
 			ADD_ASSET(ASSET_TYPE_GLASSWORLD, glass_world);
 			ADD_ASSET(ASSET_TYPE_MAP_ENTS, map_ents);
+			ADD_ASSET(ASSET_TYPE_NAVMESH, nav_mesh);
 		}
 		catch (std::exception& ex)
 		{

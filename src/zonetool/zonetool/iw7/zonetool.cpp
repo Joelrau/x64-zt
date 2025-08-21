@@ -250,6 +250,7 @@ namespace zonetool::iw7
 			DUMP_ASSET(ASSET_TYPE_GFXWORLD_TRANSIENT_ZONE, gfx_world_tr, GfxWorldTransientZone);
 			DUMP_ASSET(ASSET_TYPE_GLASSWORLD, glass_world, GlassWorld);
 			DUMP_ASSET(ASSET_TYPE_MAP_ENTS, map_ents, MapEnts);
+			DUMP_ASSET(ASSET_TYPE_NAVMESH, nav_mesh, NavMeshData);
 		}
 		catch (const std::exception& e)
 		{
