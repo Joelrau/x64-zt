@@ -1,7 +1,7 @@
 #include <std_include.hpp>
 #include "ddl.hpp"
 
-//#define DUMP_JSON
+//#define DUMP_DDL_JSON
 
 namespace zonetool::iw7
 {
@@ -31,7 +31,6 @@ namespace zonetool::iw7
 	{
 		for (auto enum_index = 0; enum_index < def->enumCount; enum_index++)
 		{
-			// We can generate this ourselves.
 			def->enumList[enum_index].hashTable.max = 1024;
 			def->enumList[enum_index].hashTable.count = def->enumList[enum_index].memberCount;
 			def->enumList[enum_index].hashTable.list = mem->allocate<DDLHash>(def->enumList[enum_index].hashTable.count);
@@ -86,7 +85,6 @@ namespace zonetool::iw7
 			std::qsort(lower_hashes.data(),
 				lower_hashes.size(), sizeof(DDLHash), compare_hash);
 
-			// We can generate this ourselves.
 			struct_def.hashTableUpper.max = static_cast<int>(upper_hashes.size());
 			struct_def.hashTableUpper.count = static_cast<int>(upper_hashes.size());
 			struct_def.hashTableUpper.list = mem->allocate<DDLHash>(struct_def.hashTableUpper.count);
@@ -96,7 +94,6 @@ namespace zonetool::iw7
 				struct_def.hashTableUpper.list[list_index].hash = upper_hashes[list_index].hash;
 			}
 
-			// We can generate this ourselves.
 			struct_def.hashTableLower.max = static_cast<int>(lower_hashes.size() + pad_hashes.size());
 			struct_def.hashTableLower.count = static_cast<int>(lower_hashes.size() + pad_hashes.size());
 			struct_def.hashTableLower.list = mem->allocate<DDLHash>(struct_def.hashTableLower.count);
@@ -570,11 +567,6 @@ namespace zonetool::iw7
 		return n;
 	}
 
-	static inline bool regex_search_first(const std::string& text, const std::regex& re, std::smatch& m)
-	{
-		return std::regex_search(text, m, re);
-	}
-
 	DDLFile parseDDLFile(const std::string& input, const std::string& name, zone_memory* mem)
 	{
 		DDLFile out{};
@@ -748,7 +740,7 @@ namespace zonetool::iw7
 					else
 					{
 						structNameToIndex[kv.first + "_dup_"s + std::to_string(sidx)] = sidx++;
-						ZONETOOL_WARNING("Duplicate struct name: %s at line %d", kv.first.data(), def.version);
+						ZONETOOL_WARNING("Duplicate struct name: %s in version %d", kv.first.data(), def.version);
 					}
 				}
 
@@ -1056,7 +1048,10 @@ namespace zonetool::iw7
 	{
 		assert(asset && asset->ddlDef);
 
+#ifdef DUMP_DDL_JSON
 		dump_as_json(asset);
+		return;
+#endif
 
 		filesystem::file file(asset->name);
 		file.open("wb");
