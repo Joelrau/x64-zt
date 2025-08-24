@@ -9042,7 +9042,7 @@ namespace zonetool::h1
 	{
 		DDL_BYTE_TYPE = 0x0,
 		DDL_SHORT_TYPE = 0x1,
-		DDL_BOOL_TYPE = 0x2,
+		DDL_UINT_TYPE = 0x2,
 		DDL_INT_TYPE = 0x3,
 		DDL_UINT64_TYPE = 0x4,
 		DDL_FLOAT_TYPE = 0x5,

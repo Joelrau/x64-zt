@@ -138,15 +138,66 @@ namespace zonetool
 		return hash ? hash : 1;
 	}
 
-	int string_table_hash(const std::string& string)
+	std::uint32_t Com_HashString(const std::string& string)
 	{
-		int hash = 0;
-		const char* data = string.data();
+		std::uint32_t hash = 0;
 
-		while (*data != 0)
+		for (const char* p = string.data(); *p; ++p)
 		{
-			hash = tolower(*data) + (31 * hash);
-			data++;
+			int c = static_cast<unsigned char>(*p);
+			hash = hash * 31 + c;
+		}
+
+		return hash;
+	}
+
+	std::uint32_t Com_HashStringLower(const std::string& string)
+	{
+		std::uint32_t hash = 0;
+
+		for (const char* p = string.data(); *p; ++p)
+		{
+			int c = std::tolower(static_cast<unsigned char>(*p));
+			hash = hash * 31 + c;
+		}
+
+		return hash;
+	}
+
+	std::uint32_t Com_HashStringUpper(const std::string& string)
+	{
+		std::uint32_t hash = 0;
+
+		for (const char* p = string.data(); *p; ++p)
+		{
+			int c = std::toupper(static_cast<unsigned char>(*p));
+			hash = hash * 31 + c;
+		}
+
+		return hash;
+	}
+
+	std::uint32_t string_table_hash(const std::string& string)
+	{
+		return Com_HashStringLower(string);
+	}
+
+	std::uint32_t DDL_HashString(const char* str, int len)
+	{
+		if (!str)
+			return 0;
+
+		std::uint32_t hash = 0;
+		const char* p = str;
+		const char* end = (len > 0) ? str + len : nullptr;
+
+		while (*p)
+		{
+			if (end && p >= end)
+				break;
+
+			hash = hash * 31 + static_cast<unsigned char>(*p);
+			++p;
 		}
 
 		return hash;

@@ -133,7 +133,11 @@ namespace zonetool
 	}
 
 	std::uint32_t snd_hash_name(const char* name);
-	int string_table_hash(const std::string& string);
+	std::uint32_t string_table_hash(const std::string& string);
+	std::uint32_t Com_HashString(const std::string& string);
+	std::uint32_t Com_HashStringLower(const std::string& string);
+	std::uint32_t Com_HashStringUpper(const std::string& string);
+	std::uint32_t DDL_HashString(const char* str, int len = 0);
 
 	void AxisToAngles(const float axis[3][3], float angles[3]);
 
