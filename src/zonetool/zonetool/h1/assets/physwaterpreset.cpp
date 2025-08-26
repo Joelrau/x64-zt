@@ -42,7 +42,11 @@ namespace zonetool::h1
 			return;
 		}
 
-		this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).physWaterPreset;
+		this->asset_ = parse(name, mem);
+		if (!this->asset_)
+		{
+			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name().data()).physWaterPreset;
+		}
 	}
 
 	void phys_water_preset::prepare(zone_buffer* buf, zone_memory* mem)

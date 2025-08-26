@@ -74,12 +74,6 @@ namespace zonetool::h1
 
 	void virtual_leaderboard::load_depending(zone_base* zone)
 	{
-		auto* asset = this->asset_;
-
-		if (asset->leaderboardName)
-		{
-			zone->add_asset_of_type(ASSET_TYPE_LEADERBOARD, asset->leaderboardName);
-		}
 	}
 
 	std::string virtual_leaderboard::name()

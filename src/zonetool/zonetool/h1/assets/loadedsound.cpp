@@ -370,6 +370,21 @@ namespace zonetool::h1
 		{
 			return parse_flac(name, mem);
 		}
+		else if (name == "null")
+		{
+			auto* result = mem->allocate<LoadedSound>();
+			result->name = mem->duplicate_string(name);
+			result->info.data = nullptr;
+			result->info.loadedSize = 0;
+			result->info.dataByteCount = 0;
+			result->info.format = SND_FORMAT_PCM;
+			result->info.sampleRate = 0;
+			result->info.numBits = 0;
+			result->info.channels = 0;
+			result->info.blockAlign = 0;
+			result->info.numSamples = 0;
+			return result;
+		}
 
 		return nullptr;
 	}
