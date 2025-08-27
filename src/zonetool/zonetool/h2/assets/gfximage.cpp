@@ -572,18 +572,62 @@ namespace zonetool::h2
 			return;
 		}
 
-		DirectX::Image img = {};
-		img.pixels = image->pixelData;
-		img.width = image->width;
-		img.height = image->height;
-		img.format = DXGI_FORMAT(image->imageFormat);
+		auto* data = image->pixelData;
+		std::size_t data_used = 0;
 
-		size_t rowPitch;
-		size_t slicePitch;
-		DirectX::ComputePitch(img.format, img.width, img.height, rowPitch, slicePitch);
+		const auto sides = image->mapType == MAPTYPE_CUBE ? 6 : 1;
 
-		img.rowPitch = rowPitch;
-		img.slicePitch = slicePitch;
+		std::vector<DirectX::Image> images{};
+		for (int idx = 0; idx < image->numElements; idx++)
+		{
+			for (int s = 0; s < sides; s++)
+			{
+				for (int d = 0; d < image->depth; d++)
+				{
+					for (int i = 0; i < image->levelCount; i++)
+					{
+						DirectX::Image img{};
+						img.pixels = data;
+
+						img.width = std::max(1, image->width >> i);
+						img.height = std::max(1, image->height >> i);
+						img.format = DXGI_FORMAT(image->imageFormat);
+
+						size_t rowPitch = 0;
+						size_t slicePitch = 0;
+						DirectX::ComputePitch(img.format, img.width, img.height, rowPitch, slicePitch);
+
+						img.rowPitch = rowPitch;
+						img.slicePitch = slicePitch;
+
+						images.push_back(img);
+
+						data += slicePitch;
+						data_used += slicePitch;
+					}
+				}
+			}
+		}
+
+		if (data_used != image->dataLen1)
+		{
+			ZONETOOL_WARNING("Failed to dump image \"%s.dds\"", image->name);
+			return;
+		}
+
+		DirectX::TexMetadata mdata{};
+		mdata.width = image->width;
+		mdata.height = image->height;
+		mdata.depth = image->depth;
+		mdata.arraySize = image->numElements * sides;
+		mdata.mipLevels = image->levelCount;
+		mdata.format = DXGI_FORMAT(image->imageFormat);
+		mdata.dimension = image->mapType > 4 ? DirectX::TEX_DIMENSION::TEX_DIMENSION_TEXTURE2D : (DirectX::TEX_DIMENSION)image->mapType;
+
+		if (image->mapType == MAPTYPE_CUBE)
+		{
+			mdata.miscFlags |= DirectX::TEX_MISC_FLAG::TEX_MISC_TEXTURECUBE;
+		}
 
 		std::string parent_path = filesystem::get_dump_path() + "images\\";
 		std::string spath = parent_path + clean_name(image->name) + ".dds";
@@ -594,10 +638,10 @@ namespace zonetool::h2
 			std::filesystem::create_directories(parent_path);
 		}
 
-		auto result = DirectX::SaveToDDSFile(img, DirectX::DDS_FLAGS_NONE, wpath.data());
+		auto result = DirectX::SaveToDDSFile(images.data(), images.size(), mdata, DirectX::DDS_FLAGS_NONE, wpath.data());
 		if (FAILED(result))
 		{
-			ZONETOOL_WARNING("Failed to dump image \"%s.dds\"", image->name);
+			ZONETOOL_WARNING("Failed to dump image \"%s\"", spath.data());
 		}
 	}
 

@@ -582,23 +582,23 @@ namespace zonetool::h1
 		const auto sides = image->mapType == MAPTYPE_CUBE ? 6 : 1;
 
 		std::vector<DirectX::Image> images{};
-		for (auto idx = 0; idx < image->numElements; idx++)
+		for (int idx = 0; idx < image->numElements; idx++)
 		{
-			for (auto s = 0; s < sides; s++)
+			for (int s = 0; s < sides; s++)
 			{
-				for (auto d = 0; d < image->depth; d++)
+				for (int d = 0; d < image->depth; d++)
 				{
-					int divider = 1;
-					for (auto i = 0; i < image->levelCount; i++)
+					for (int i = 0; i < image->levelCount; i++)
 					{
 						DirectX::Image img{};
 						img.pixels = data;
-						img.width = image->width / divider;
-						img.height = image->height / divider;
+
+						img.width = std::max(1, image->width >> i);
+						img.height = std::max(1, image->height >> i);
 						img.format = DXGI_FORMAT(image->imageFormat);
 
-						size_t rowPitch;
-						size_t slicePitch;
+						size_t rowPitch = 0;
+						size_t slicePitch = 0;
 						DirectX::ComputePitch(img.format, img.width, img.height, rowPitch, slicePitch);
 
 						img.rowPitch = rowPitch;
@@ -608,7 +608,6 @@ namespace zonetool::h1
 
 						data += slicePitch;
 						data_used += slicePitch;
-						divider += divider;
 					}
 				}
 			}
@@ -616,7 +615,7 @@ namespace zonetool::h1
 
 		if (data_used != image->dataLen1)
 		{
-			ZONETOOL_WARNING("Failed to dump image \"%s\"", image->name);
+			ZONETOOL_WARNING("Failed to dump image \"%s.dds\"", image->name);
 			return;
 		}
 
