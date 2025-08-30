@@ -34,6 +34,7 @@ namespace zonetool::h1
 		{
 			this->asset_ = mem->allocate<typename std::remove_reference<decltype(*this->asset_)>::type>();
 			this->asset_->name = mem->duplicate_string(name);
+			return;
 		}
 
 		this->asset_ = this->parse(name, mem);

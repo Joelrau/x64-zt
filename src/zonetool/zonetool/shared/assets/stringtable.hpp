@@ -26,10 +26,10 @@ namespace zonetool
 			auto rows = table.get_rows();
 			for (int row = 0; row < table.get_num_rows(); row++)
 			{
-				for (int col = 0; col < rows[row]->num_fields; col++)
+				for (int col = 0; col < stringtable->columnCount; col++)
 				{
 					int entry = (row * stringtable->columnCount) + col;
-					stringtable->values[entry].string = mem->duplicate_string(rows[row]->fields[col]);
+					stringtable->values[entry].string = mem->duplicate_string(col >= rows[row]->num_fields ? "" : rows[row]->fields[col]);
 					stringtable->values[entry].hash = string_table_hash(stringtable->values[entry].string);
 				}
 			}

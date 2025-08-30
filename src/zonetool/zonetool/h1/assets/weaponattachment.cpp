@@ -901,10 +901,10 @@ namespace zonetool::h1
 		attachment->__field__ = data[__name__].get<__type__>(); \
 	}
 
-#define ATTACHMENT_READ_ASSET_ARR(__type__, __datafield__, __field__, __struct__, __size__) \
+#define ATTACHMENT_READ_ASSET_ARR(__type__, __field__, __size__) \
 	if (!data[#__field__].is_null()) \
 	{ \
-		attachment->__field__ = mem->allocate<__struct__*>(__size__); \
+		attachment->__field__ = mem->allocate<typename std::remove_reference<decltype(*attachment->__field__)>::type>(__size__); \
 		for (auto idx##__field__ = 0; idx##__field__ < __size__; idx##__field__++) \
 		{ \
 			auto asset##__field__ = data[#__field__][idx##__field__].get<std::string>(); \
@@ -914,7 +914,8 @@ namespace zonetool::h1
 			} \
 			else \
 			{ \
-				attachment->__field__[idx##__field__] = db_find_x_asset_header(XAssetType::__type__, asset##__field__.data(), 1).__datafield__; \
+				attachment->__field__[idx##__field__] = mem->manual_allocate<typename std::remove_reference<decltype(*attachment->__field__[idx##__field__])>::type>(sizeof(const char*)); \
+				attachment->__field__[idx##__field__]->name = mem->duplicate_string(asset##__field__); \
 			} \
 		} \
 	} \
@@ -992,12 +993,12 @@ namespace zonetool::h1
 		ATTACHMENT_READ_FIELD_RENAME(weapClass_t, weapClass, "weaponClass");
 		ATTACHMENT_READ_FIELD_RENAME(weapGreebleType_t, greebleType, "greebleType");
 
-		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_XMODEL, model, worldModels, XModel, 2);
-		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_XMODEL, model, viewModels, XModel, 2);
-		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_XMODEL, model, reticleViewModels, XModel, 64);
+		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_XMODEL, worldModels, 2);
+		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_XMODEL, viewModels, 2);
+		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_XMODEL, reticleViewModels, 64);
 
-		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_SOUND, sound, bounceSounds, snd_alias_list_t, 53);
-		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_SOUND, sound, rollingSounds, snd_alias_list_t, 53);
+		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_SOUND, bounceSounds, 53);
+		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_SOUND, rollingSounds, 53);
 
 		if (!data["chargeInfo"].is_null())
 		{

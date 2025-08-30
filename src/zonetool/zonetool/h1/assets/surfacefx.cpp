@@ -3,12 +3,24 @@
 
 namespace zonetool::h1
 {
+	namespace
+	{
+		std::string get_name(std::string name)
+		{
+			if (name.empty())
+			{
+				return "default";
+			}
+			return name;
+		}
+	}
+
 	constexpr int TABLE_SIZE = 6;
 	constexpr int SURFACE_EFFECT_SIZE = 53;
 
 	SurfaceFxTable* surface_fx::parse(const std::string& name, zone_memory* mem)
 	{
-		const auto path = "surfacefx\\"s + name + ".json"s;
+		const auto path = "surfacefx\\"s + get_name(name) + ".json"s;
 
 		auto file = filesystem::file(path);
 		if (!file.exists())
@@ -146,7 +158,7 @@ namespace zonetool::h1
 
 	void surface_fx::dump(SurfaceFxTable* asset)
 	{
-		const auto path = "surfacefx\\"s + asset->name + ".json"s;
+		const auto path = "surfacefx\\"s + get_name(asset->name) + ".json"s;
 		auto file = filesystem::file(path);
 		file.open("wb");
 

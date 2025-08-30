@@ -3,13 +3,25 @@
 
 namespace zonetool::h1
 {
+	namespace
+	{
+		std::string get_name(std::string name)
+		{
+			if (name.empty())
+			{
+				return "default";
+			}
+			return name;
+		}
+	}
+
 	constexpr int TABLE_SIZE = 19;
 	constexpr int NONFLESH_SIZE = 53;
 	constexpr int FLESH_SIZE = 7;
 
 	FxImpactTable* impact_fx::parse(const std::string& name, zone_memory* mem)
 	{
-		const auto path = "impactfx\\"s + name + ".json"s;
+		const auto path = "impactfx\\"s + get_name(name) + ".json"s;
 
 		auto file = filesystem::file(path);
 		if (!file.exists())
@@ -176,7 +188,7 @@ namespace zonetool::h1
 
 	void impact_fx::dump(FxImpactTable* asset)
 	{
-		const auto path = "impactfx\\"s + asset->name + ".json"s;
+		const auto path = "impactfx\\"s + get_name(asset->name) + ".json"s;
 		auto file = filesystem::file(path);
 		file.open("wb");
 

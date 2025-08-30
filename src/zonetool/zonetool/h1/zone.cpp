@@ -108,7 +108,9 @@ namespace zonetool::h1
 	{
 		std::string name = _name;
 
-		if (name.empty())
+		if (name.empty() && 
+			type != ASSET_TYPE_IMPACT_FX && 
+			type != ASSET_TYPE_SURFACE_FX)
 		{
 			return;
 		}
@@ -126,11 +128,6 @@ namespace zonetool::h1
 		if (get_asset_pointer(type, name))
 		{
 			return;
-		}
-
-		// if common asset: add as referenced?
-		{
-
 		}
 
 #define ADD_ASSET(__type__, ___) \

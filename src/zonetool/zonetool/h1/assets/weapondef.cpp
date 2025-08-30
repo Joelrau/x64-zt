@@ -69,9 +69,10 @@ namespace zonetool::h1
 	}
 
 #define WEAPON_READ_STRING(__field__) \
-	if (!data[#__field__].is_null()) weapon->__field__ = mem->duplicate_string(data[#__field__].get<std::string>())
+	static_assert(std::is_same_v<decltype(weapon->__field__), const char*>, "Field is not of type const char*"); \
+	!data[#__field__].is_null() ? weapon->__field__ = mem->duplicate_string(data[#__field__].get<std::string>()) : weapon->__field__ = nullptr;
 
-#define WEAPON_READ_ASSET(__type__, __datafield__, __field__) \
+#define WEAPON_READ_ASSET(__type__, __field__) \
 	if (!data[#__field__].is_null() && data[#__field__].is_string()) \
 	{ \
 		auto asset##__field__ = data[#__field__].get<std::string>(); \
@@ -81,7 +82,8 @@ namespace zonetool::h1
 		} \
 		else \
 		{ \
-			weapon->__field__ = db_find_x_asset_header(XAssetType::__type__, asset##__field__.data(), 1).__datafield__; \
+			weapon->__field__ = mem->manual_allocate<typename std::remove_reference<decltype(*weapon->__field__)>::type>(sizeof(const char*)); \
+			weapon->__field__->name = mem->duplicate_string(asset##__field__); \
 		} \
 	} \
 	else \
@@ -89,10 +91,10 @@ namespace zonetool::h1
 		weapon->__field__ = nullptr; \
 	}
 
-#define WEAPON_READ_ASSET_ARR(__type__, __datafield__, __field__, __struct__, __size__) \
+#define WEAPON_READ_ASSET_ARR(__type__, __field__, __size__) \
 	if (!data[#__field__].is_null()) \
 	{ \
-		weapon->__field__ = mem->allocate<__struct__*>(__size__); \
+		weapon->__field__ = mem->allocate<typename std::remove_reference<decltype(*weapon->__field__)>::type>(__size__); \
 		for (auto idx##__field__ = 0; idx##__field__ < __size__; idx##__field__++) \
 		{ \
 			auto asset##__field__ = data[#__field__][idx##__field__].get<std::string>(); \
@@ -102,7 +104,8 @@ namespace zonetool::h1
 			} \
 			else \
 			{ \
-				weapon->__field__[idx##__field__] = db_find_x_asset_header(XAssetType::__type__, asset##__field__.data(), 1).__datafield__; \
+				weapon->__field__[idx##__field__] = mem->manual_allocate<typename std::remove_reference<decltype(*weapon->__field__[idx##__field__])>::type>(sizeof(const char*)); \
+				weapon->__field__[idx##__field__]->name = mem->duplicate_string(asset##__field__); \
 			} \
 		} \
 	} \
@@ -124,7 +127,8 @@ namespace zonetool::h1
 			} \
 			else \
 			{ \
-				weapon->__field__[idx##__field__] = db_find_x_asset_header(XAssetType::ASSET_TYPE_XANIMPARTS, asset##__field__.data(), 1).parts; \
+				weapon->__field__[idx##__field__] = mem->manual_allocate<typename std::remove_reference<decltype(*weapon->__field__[idx##__field__])>::type>(sizeof(const char*)); \
+				weapon->__field__[idx##__field__]->name = mem->duplicate_string(asset##__field__); \
 			} \
 		} \
 	} \
@@ -143,7 +147,8 @@ namespace zonetool::h1
 		} \
 		else \
 		{ \
-			weapon->__field__ = db_find_x_asset_header(XAssetType::ASSET_TYPE_SOUND, asset##__field__.data(), 1).sound; \
+			weapon->__field__ = mem->manual_allocate<typename std::remove_reference<decltype(*weapon->__field__)>::type>(sizeof(const char*)); \
+			weapon->__field__->name = mem->duplicate_string(asset##__field__); \
 		} \
 	} \
 	else \
@@ -151,12 +156,12 @@ namespace zonetool::h1
 		weapon->__field__ = nullptr; \
 	}
 
-	void parse_overlay(ADSOverlay* weapon, json& data)
+	void parse_overlay(ADSOverlay* weapon, json& data, zone_memory* mem)
 	{
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, shader);
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, shaderLowRes);
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, shaderEMP);
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, shaderEMPLowRes);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, shader);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, shaderLowRes);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, shaderEMP);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, shaderEMPLowRes);
 		WEAPON_READ_FIELD(int, reticle);
 		WEAPON_READ_FIELD(float, width);
 		WEAPON_READ_FIELD(float, height);
@@ -350,17 +355,17 @@ namespace zonetool::h1
 		WEAPON_READ_STRING(szDisplayName);
 		WEAPON_READ_STRING(szAltWeaponName);
 
-		WEAPON_READ_ASSET_ARR(ASSET_TYPE_XMODEL, model, gunModel, XModel, 2);
-		WEAPON_READ_ASSET_ARR(ASSET_TYPE_XMODEL, model, worldModel, XModel, 2);
+		WEAPON_READ_ASSET_ARR(ASSET_TYPE_XMODEL, gunModel, 2);
+		WEAPON_READ_ASSET_ARR(ASSET_TYPE_XMODEL, worldModel, 2);
 
-		WEAPON_READ_ASSET_ARR(ASSET_TYPE_XMODEL, model, reticleViewModels, XModel, 64);
+		WEAPON_READ_ASSET_ARR(ASSET_TYPE_XMODEL, reticleViewModels, 64);
 
-		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, model, handModel);
-		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, model, persistentArmXModel);
-		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, model, worldClipModel);
-		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, model, rocketModel);
-		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, model, knifeModel);
-		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, model, worldKnifeModel);
+		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, handModel);
+		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, persistentArmXModel);
+		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, worldClipModel);
+		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, rocketModel);
+		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, knifeModel);
+		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, worldKnifeModel);
 
 		WEAPON_READ_ANIM_ARR(szXAnimsRightHanded, 190);
 		WEAPON_READ_ANIM_ARR(szXAnimsLeftHanded, 190);
@@ -395,12 +400,14 @@ namespace zonetool::h1
 				auto altmodeAnim = data["animOverrides"][i]["altmodeAnim"].get<std::string>();
 				if (!altmodeAnim.empty())
 				{
-					weapon->animOverrides[i].altmodeAnim = db_find_x_asset_header(ASSET_TYPE_XANIMPARTS, altmodeAnim.data(), 1).parts;
+					weapon->animOverrides[i].altmodeAnim = mem->manual_allocate<typename std::remove_reference<decltype(*weapon->animOverrides[i].altmodeAnim)>::type>(sizeof(const char*));
+					weapon->animOverrides[i].altmodeAnim->name = mem->duplicate_string(altmodeAnim);
 				}
 				auto overrideAnim = data["animOverrides"][i]["overrideAnim"].get<std::string>();
 				if (!overrideAnim.empty())
 				{
-					weapon->animOverrides[i].overrideAnim = db_find_x_asset_header(ASSET_TYPE_XANIMPARTS, overrideAnim.data(), 1).parts;
+					weapon->animOverrides[i].overrideAnim = mem->manual_allocate<typename std::remove_reference<decltype(*weapon->animOverrides[i].overrideAnim)>::type>(sizeof(const char*));
+					weapon->animOverrides[i].overrideAnim->name = mem->duplicate_string(overrideAnim);
 				}
 				weapon->animOverrides[i].attachment1 = data["animOverrides"][i]["attachment1"].get<unsigned char>();
 				weapon->animOverrides[i].attachment2 = data["animOverrides"][i]["attachment2"].get<unsigned char>();
@@ -420,12 +427,14 @@ namespace zonetool::h1
 				auto altmodeSound = data["soundOverrides"][i]["altmodeSound"].get<std::string>();
 				if (!altmodeSound.empty())
 				{
-					weapon->soundOverrides[i].altmodeSound = db_find_x_asset_header(ASSET_TYPE_SOUND, altmodeSound.data(), 1).sound;
+					weapon->soundOverrides[i].altmodeSound = mem->manual_allocate<typename std::remove_reference<decltype(*weapon->soundOverrides[i].altmodeSound)>::type>(sizeof(const char*));
+					weapon->soundOverrides[i].altmodeSound->name = mem->duplicate_string(altmodeSound);
 				}
 				auto overrideSound = data["soundOverrides"][i]["overrideSound"].get<std::string>();
 				if (!overrideSound.empty())
 				{
-					weapon->soundOverrides[i].overrideSound = db_find_x_asset_header(ASSET_TYPE_SOUND, overrideSound.data(), 1).sound;
+					weapon->soundOverrides[i].overrideSound = mem->manual_allocate<typename std::remove_reference<decltype(*weapon->soundOverrides[i].overrideSound)>::type>(sizeof(const char*));
+					weapon->soundOverrides[i].overrideSound->name = mem->duplicate_string(overrideSound);
 				}
 				weapon->soundOverrides[i].attachment1 = data["soundOverrides"][i]["attachment1"].get<unsigned char>();
 				weapon->soundOverrides[i].attachment2 = data["soundOverrides"][i]["attachment2"].get<unsigned char>();
@@ -442,12 +451,14 @@ namespace zonetool::h1
 				auto altmodeFX = data["fxOverrides"][i]["altmodeFX"].get<std::string>();
 				if (!altmodeFX.empty())
 				{
-					weapon->fxOverrides[i].altmodeFX = db_find_x_asset_header(ASSET_TYPE_FX, altmodeFX.data(), 1).fx;
+					weapon->fxOverrides[i].altmodeFX = mem->manual_allocate<typename std::remove_reference<decltype(*weapon->fxOverrides[i].altmodeFX)>::type>(sizeof(const char*));
+					weapon->fxOverrides[i].altmodeFX->name = mem->duplicate_string(altmodeFX);
 				}
 				auto overrideFX = data["fxOverrides"][i]["overrideFX"].get<std::string>();
 				if (!overrideFX.empty())
 				{
-					weapon->fxOverrides[i].overrideFX = db_find_x_asset_header(ASSET_TYPE_SOUND, overrideFX.data(), 1).fx;
+					weapon->fxOverrides[i].overrideFX = mem->manual_allocate<typename std::remove_reference<decltype(*weapon->fxOverrides[i].overrideFX)>::type>(sizeof(const char*));
+					weapon->fxOverrides[i].overrideFX->name = mem->duplicate_string(overrideFX);
 				}
 				weapon->fxOverrides[i].attachment1 = data["fxOverrides"][i]["attachment1"].get<unsigned char>();
 				weapon->fxOverrides[i].attachment2 = data["fxOverrides"][i]["attachment2"].get<unsigned char>();
@@ -519,8 +530,8 @@ namespace zonetool::h1
 			this->add_script_string(&weapon->notetrackFXMapTagValues[i], 
 				mem->duplicate_string(data["notetrackFXMap"][i]["Tag"].get<std::string>()));
 
-			weapon->notetrackFXMapValues[i] = db_find_x_asset_header(ASSET_TYPE_FX, 
-				data["notetrackFXMap"][i]["Value"].get<std::string>().data(), 1).fx;
+			weapon->notetrackFXMapValues[i] = mem->manual_allocate<typename std::remove_reference<decltype(*weapon->notetrackFXMapValues[i])>::type>(sizeof(const char*));
+			weapon->notetrackFXMapValues[i]->name = mem->duplicate_string(data["notetrackFXMap"][i]["Value"].get<std::string>());
 		}
 
 		weapon->notetrackHideTagKeys = mem->allocate<scr_string_t>(16);
@@ -543,18 +554,18 @@ namespace zonetool::h1
 		WEAPON_READ_STRING(szClipName);
 		WEAPON_READ_STRING(szSharedAmmoCapName);
 
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, viewFlashEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, viewBodyFlashEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, worldFlashEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, viewFlashADSEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, viewBodyFlashADSEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, signatureViewFlashEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, signatureViewBodyFlashEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, signatureWorldFlashEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, signatureViewFlashADSEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, signatureViewBodyFlashADSEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, meleeHitEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, meleeMissEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, viewFlashEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, viewBodyFlashEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, worldFlashEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, viewFlashADSEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, viewBodyFlashADSEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, signatureViewFlashEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, signatureViewBodyFlashEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, signatureWorldFlashEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, signatureViewFlashADSEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, signatureViewBodyFlashADSEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, meleeHitEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, meleeMissEffect);
 
 		WEAPON_READ_SOUND(pickupSound);
 		WEAPON_READ_SOUND(pickupSoundPlayer);
@@ -631,27 +642,27 @@ namespace zonetool::h1
 		WEAPON_READ_SOUND(adsDownSound);
 		WEAPON_READ_SOUND(adsCrosshairEnemySound);
 
-		WEAPON_READ_ASSET_ARR(ASSET_TYPE_SOUND, sound, bounceSound, snd_alias_list_t, 53);
-		WEAPON_READ_ASSET_ARR(ASSET_TYPE_SOUND, sound, rollingSound, snd_alias_list_t, 53);
+		WEAPON_READ_ASSET_ARR(ASSET_TYPE_SOUND, bounceSound, 53);
+		WEAPON_READ_ASSET_ARR(ASSET_TYPE_SOUND, rollingSound, 53);
 
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, viewShellEjectEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, worldShellEjectEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, viewLastShotEjectEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, worldLastShotEjectEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, viewMagEjectEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, viewShellEjectEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, worldShellEjectEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, viewLastShotEjectEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, worldLastShotEjectEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, viewMagEjectEffect);
 
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, reticleCenter);
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, reticleSide);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, reticleCenter);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, reticleSide);
 
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, hudIcon);
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, pickupIcon);
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, minimapIconFriendly);
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, minimapIconEnemy);
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, minimapIconNeutral);
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, ammoCounterIcon);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, hudIcon);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, pickupIcon);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, minimapIconFriendly);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, minimapIconEnemy);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, minimapIconNeutral);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, ammoCounterIcon);
 
-		WEAPON_READ_ASSET(ASSET_TYPE_PHYSCOLLMAP, physCollmap, physCollmap);
-		WEAPON_READ_ASSET(ASSET_TYPE_PHYSPRESET, physPreset, physPreset);
+		WEAPON_READ_ASSET(ASSET_TYPE_PHYSCOLLMAP, physCollmap);
+		WEAPON_READ_ASSET(ASSET_TYPE_PHYSPRESET, physPreset);
 
 		WEAPON_READ_STRING(szUseHintString);
 		WEAPON_READ_STRING(dropHintString);
@@ -663,21 +674,22 @@ namespace zonetool::h1
 		WEAPON_READ_STRING(fireHighRumble);
 		WEAPON_READ_STRING(meleeImpactRumble);
 
-		WEAPON_READ_ASSET(ASSET_TYPE_TRACER, tracerDef, tracerType);
-		WEAPON_READ_ASSET(ASSET_TYPE_TRACER, tracerDef, signatureTracerType);
+		WEAPON_READ_ASSET(ASSET_TYPE_TRACER, tracerType);
+		WEAPON_READ_ASSET(ASSET_TYPE_TRACER, signatureTracerType);
 
-		WEAPON_READ_ASSET(ASSET_TYPE_LASER, laser, laserType);
+		WEAPON_READ_ASSET(ASSET_TYPE_LASER, laserType);
 
-		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, sound, turretOverheatSound);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, turretOverheatEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, turretOverheatSound);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, turretOverheatEffect);
 		WEAPON_READ_STRING(turretBarrelSpinRumble);
-		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, sound, turretBarrelSpinMaxSnd);
+		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, turretBarrelSpinMaxSnd);
 		for (auto i = 0; i < 4; i++)
 		{
 			auto sound = data["turretBarrelSpinUpSnd"][i].get<std::string>();
 			if (!sound.empty())
 			{
-				weapon->turretBarrelSpinUpSnd[i] = db_find_x_asset_header(ASSET_TYPE_SOUND, sound.data(), 1).sound;
+				weapon->turretBarrelSpinUpSnd[i] = mem->manual_allocate<typename std::remove_reference<decltype(*weapon->turretBarrelSpinUpSnd[i])>::type>(sizeof(const char*));
+				weapon->turretBarrelSpinUpSnd[i]->name = mem->duplicate_string(sound);
 			}
 		}
 		for (auto i = 0; i < 4; i++)
@@ -685,28 +697,29 @@ namespace zonetool::h1
 			auto sound = data["turretBarrelSpinDownSnd"][i].get<std::string>();
 			if (!sound.empty())
 			{
-				weapon->turretBarrelSpinDownSnd[i] = db_find_x_asset_header(ASSET_TYPE_SOUND, sound.data(), 1).sound;
+				weapon->turretBarrelSpinDownSnd[i] = mem->manual_allocate<typename std::remove_reference<decltype(*weapon->turretBarrelSpinDownSnd[i])>::type>(sizeof(const char*));
+				weapon->turretBarrelSpinDownSnd[i]->name = mem->duplicate_string(sound);
 			}
 		}
-		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, sound, missileConeSoundAlias);
-		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, sound, missileConeSoundAliasAtBase);
+		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, missileConeSoundAlias);
+		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, missileConeSoundAliasAtBase);
 
-		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, model, stowOffsetModel);
+		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, stowOffsetModel);
 
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, killIcon);
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, dpadIcon);
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, hudProximityWarningIcon);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, killIcon);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, dpadIcon);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, hudProximityWarningIcon);
 
 		WEAPON_READ_STRING(projectileName);
-		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, model, projectileModel);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, projExplosionEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, projDudEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, sound, projExplosionSound);
-		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, sound, projDudSound);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, projTrailEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, projBeaconEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, projIgnitionEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, sound, projIgnitionSound);
+		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, projectileModel);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, projExplosionEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, projDudEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, projExplosionSound);
+		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, projDudSound);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, projTrailEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, projBeaconEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, projIgnitionEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, projIgnitionSound);
 
 		WEAPON_READ_STRING(szScript);
 
@@ -719,7 +732,7 @@ namespace zonetool::h1
 		parse_statetimers(&weapon->stateTimers, data["stateTimers"]);
 		parse_statetimers(&weapon->akimboStateTimers, data["stateTimersAkimbo"]);
 
-		parse_overlay(&weapon->overlay, data["overlay"]);
+		parse_overlay(&weapon->overlay, data["overlay"], mem);
 
 		parse_accuracy_graph(weapon, data["accuracy_graph"], mem);
 
@@ -1298,7 +1311,7 @@ namespace zonetool::h1
 		for (auto i = 0; i < 36; i++)
 		{
 			auto str = this->get_script_string(&weapon->notetrackSoundMapValues[i]);
-			if (str != nullptr)
+			if (str != nullptr && weapon->notetrackSoundMapValues[i] != 0)
 			{
 				zone->add_asset_of_type(ASSET_TYPE_SOUND, str);
 			}

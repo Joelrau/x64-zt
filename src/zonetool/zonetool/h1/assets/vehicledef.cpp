@@ -19,7 +19,7 @@ namespace zonetool::h1
 #define VEHICLE_READ_STRING(__field__) \
 	if (!data[#__field__].is_null()) vehicle->__field__ = mem->duplicate_string(data[#__field__].get<std::string>())
 
-#define VEHICLE_READ_ASSET(__type__, __datafield__, __field__) \
+#define VEHICLE_READ_ASSET(__type__, __field__) \
 	if (!data[#__field__].is_null() && data[#__field__].is_string()) \
 	{ \
 		auto asset##__field__ = data[#__field__].get<std::string>(); \
@@ -29,7 +29,8 @@ namespace zonetool::h1
 		} \
 		else \
 		{ \
-			vehicle->__field__ = db_find_x_asset_header(XAssetType::__type__, asset##__field__.data(), 1).__datafield__; \
+			vehicle->__field__ = mem->manual_allocate<typename std::remove_reference<decltype(*vehicle->__field__)>::type>(sizeof(const char*)); \
+			vehicle->__field__->name = mem->duplicate_string(asset##__field__); \
 		} \
 	} \
 	else \
@@ -37,7 +38,7 @@ namespace zonetool::h1
 		vehicle->__field__ = nullptr; \
 	}
 
-#define VEHICLE_READ_ASSET_ARR(__type__, __datafield__, __field__, __struct__, __size__) \
+#define VEHICLE_READ_ASSET_ARR(__type__, __field__, __size__) \
 	if (!data[#__field__].is_null()) \
 	{ \
 		for (auto idx##__field__ = 0; idx##__field__ < __size__; idx##__field__++) \
@@ -49,7 +50,8 @@ namespace zonetool::h1
 			} \
 			else \
 			{ \
-				vehicle->__field__[idx##__field__] = db_find_x_asset_header(XAssetType::__type__, asset##__field__.data(), 1).__datafield__; \
+				vehicle->__field__[idx##__field__] = mem->manual_allocate<typename std::remove_reference<decltype(*vehicle->__field__[idx##__field__])>::type>(sizeof(const char*)); \
+				vehicle->__field__[idx##__field__]->name = mem->duplicate_string(asset##__field__); \
 			} \
 		} \
 	} \
@@ -123,7 +125,7 @@ namespace zonetool::h1
 		{
 			VEHICLE_READ_FIELD(int, physicsEnabled);
 			VEHICLE_READ_STRING(physPresetName);
-			VEHICLE_READ_ASSET(ASSET_TYPE_PHYSPRESET, physPreset, physPreset);
+			VEHICLE_READ_ASSET(ASSET_TYPE_PHYSPRESET, physPreset);
 
 			VEHICLE_READ_STRING(physMassName);
 			parse_phys_mass(vehicle, data["physMass"], mem);
@@ -293,11 +295,11 @@ namespace zonetool::h1
 		VEHICLE_READ_FIELD(float, disableWheelsTurning);
 		//VEHICLE_READ_FIELD(float, pad2);
 
-		VEHICLE_READ_ASSET(ASSET_TYPE_FX, fx, treadDefaultFx);
-		VEHICLE_READ_ASSET(ASSET_TYPE_FX, fx, handBrakeDefaultFx);
-		VEHICLE_READ_ASSET(ASSET_TYPE_FX, fx, handBrakeLeftFx);
-		VEHICLE_READ_ASSET(ASSET_TYPE_FX, fx, handBrakeRightFx);
-		VEHICLE_READ_ASSET(ASSET_TYPE_FX, fx, boostFx);
+		VEHICLE_READ_ASSET(ASSET_TYPE_FX, treadDefaultFx);
+		VEHICLE_READ_ASSET(ASSET_TYPE_FX, handBrakeDefaultFx);
+		VEHICLE_READ_ASSET(ASSET_TYPE_FX, handBrakeLeftFx);
+		VEHICLE_READ_ASSET(ASSET_TYPE_FX, handBrakeRightFx);
+		VEHICLE_READ_ASSET(ASSET_TYPE_FX, boostFx);
 
 		VEHICLE_READ_FIELD(float, treadFxSlowestRepeatRate);
 		VEHICLE_READ_FIELD(float, treadFxFastestRepeatRate);
@@ -343,8 +345,8 @@ namespace zonetool::h1
 		VEHICLE_READ_FIELD(int, vehHelicopterSoftCollisions);
 		VEHICLE_READ_FIELD(int, vehHelicopterUseGroundFX);
 
-		VEHICLE_READ_ASSET(ASSET_TYPE_FX, fx, vehHelicopterGroundFx);
-		VEHICLE_READ_ASSET(ASSET_TYPE_FX, fx, vehHelicopterGroundWaterFx);
+		VEHICLE_READ_ASSET(ASSET_TYPE_FX, vehHelicopterGroundFx);
+		VEHICLE_READ_ASSET(ASSET_TYPE_FX, vehHelicopterGroundWaterFx);
 
 		VEHICLE_READ_FIELD(float, vehHelicopterGroundFxDefaultRepeatRate);
 		VEHICLE_READ_FIELD(float, vehHelicopterGroundFxSlowestRepeatRate);
@@ -511,7 +513,7 @@ namespace zonetool::h1
 		//VEHICLE_READ_FIELD(float, pad4);
 
 		VEHICLE_READ_STRING(turretWeaponName);
-		VEHICLE_READ_ASSET(ASSET_TYPE_WEAPON, weapon, turretWeapon);
+		VEHICLE_READ_ASSET(ASSET_TYPE_WEAPON, turretWeapon);
 
 		VEHICLE_READ_FIELD(float, turretHorizSpanLeft);
 		VEHICLE_READ_FIELD(float, turretHorizSpanRight);
@@ -524,8 +526,8 @@ namespace zonetool::h1
 		VEHICLE_READ_FIELD(float, turretRotRate);
 		VEHICLE_READ_FIELD(VehicleTurretFireType, turretFireType);
 
-		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, turretSpinSnd);
-		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, turretStopSnd);
+		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, turretSpinSnd);
+		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, turretStopSnd);
 
 		VEHICLE_READ_FIELD(int, trophyEnabled);
 		VEHICLE_READ_FIELD(float, trophyRadius);
@@ -541,22 +543,22 @@ namespace zonetool::h1
 			}
 		}
 
-		VEHICLE_READ_ASSET(ASSET_TYPE_FX, fx, trophyExplodeFx);
-		VEHICLE_READ_ASSET(ASSET_TYPE_FX, fx, trophyFlashFx);
+		VEHICLE_READ_ASSET(ASSET_TYPE_FX, trophyExplodeFx);
+		VEHICLE_READ_ASSET(ASSET_TYPE_FX, trophyFlashFx);
 
-		VEHICLE_READ_ASSET(ASSET_TYPE_MATERIAL, material, compassFriendlyIcon);
-		VEHICLE_READ_ASSET(ASSET_TYPE_MATERIAL, material, compassEnemyIcon);
-		VEHICLE_READ_ASSET(ASSET_TYPE_MATERIAL, material, compassFriendlyAltIcon);
-		VEHICLE_READ_ASSET(ASSET_TYPE_MATERIAL, material, compassEnemyAltIcon);
+		VEHICLE_READ_ASSET(ASSET_TYPE_MATERIAL, compassFriendlyIcon);
+		VEHICLE_READ_ASSET(ASSET_TYPE_MATERIAL, compassEnemyIcon);
+		VEHICLE_READ_ASSET(ASSET_TYPE_MATERIAL, compassFriendlyAltIcon);
+		VEHICLE_READ_ASSET(ASSET_TYPE_MATERIAL, compassEnemyAltIcon);
 
 		VEHICLE_READ_FIELD(int, compassIconWidth);
 		VEHICLE_READ_FIELD(int, compassIconHeight);
 
-		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, idleLowSnd);
-		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, idleHighSnd);
-		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, engineLowSnd);
-		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, engineHighSnd);
-		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, boostSnd);
+		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, idleLowSnd);
+		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, idleHighSnd);
+		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, engineLowSnd);
+		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, engineHighSnd);
+		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, boostSnd);
 
 		VEHICLE_READ_FIELD(float, engineSndSpeed);
 		if (!data["audioOriginTag"].empty())
@@ -564,10 +566,10 @@ namespace zonetool::h1
 			this->add_script_string(&vehicle->audioOriginTag, mem->duplicate_string(data["audioOriginTag"].get<std::string>()));
 		}
 
-		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, idleLowSndAlt);
-		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, idleHighSndAlt);
-		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, engineLowSndAlt);
-		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, engineHighSndAlt);
+		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, idleLowSndAlt);
+		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, idleHighSndAlt);
+		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, engineLowSndAlt);
+		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, engineHighSndAlt);
 
 		VEHICLE_READ_FIELD(float, engineSndSpeedAlt);
 		if (!data["audioOriginTagAlt"].empty())
@@ -575,35 +577,35 @@ namespace zonetool::h1
 			this->add_script_string(&vehicle->audioOriginTagAlt, mem->duplicate_string(data["audioOriginTagAlt"].get<std::string>()));
 		}
 
-		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, turretSpinSndAlt);
-		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, turretStopSndAlt);
-		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, engineStartUpSnd);
+		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, turretSpinSndAlt);
+		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, turretStopSndAlt);
+		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, engineStartUpSnd);
 		VEHICLE_READ_FIELD(int, engineStartUpLength);
 
-		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, engineShutdownSnd);
-		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, engineIdleSnd);
-		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, engineSustainSnd);
-		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, engineRampUpSnd);
+		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, engineShutdownSnd);
+		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, engineIdleSnd);
+		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, engineSustainSnd);
+		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, engineRampUpSnd);
 		VEHICLE_READ_FIELD(int, engineRampUpLength);
 
-		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, engineRampDownSnd);
+		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, engineRampDownSnd);
 		VEHICLE_READ_FIELD(int, engineRampDownLength);
 
-		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, suspensionSoftSnd);
+		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, suspensionSoftSnd);
 		VEHICLE_READ_FIELD(float, suspensionSoftCompression);
 
-		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, suspensionHardSnd);
+		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, suspensionHardSnd);
 		VEHICLE_READ_FIELD(float, suspensionHardCompression);
 
-		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, collisionSnd);
+		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, collisionSnd);
 		VEHICLE_READ_FIELD(float, collisionBlendSpeed);
 
-		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, sound, speedSnd);
+		VEHICLE_READ_ASSET(ASSET_TYPE_SOUND, speedSnd);
 		VEHICLE_READ_FIELD(float, speedSndBlendSpeed);
 
 		VEHICLE_READ_STRING(surfaceSndPrefix);
 
-		VEHICLE_READ_ASSET_ARR(ASSET_TYPE_SOUND, sound, surfaceSnds, snd_alias_list_t, 53);
+		VEHICLE_READ_ASSET_ARR(ASSET_TYPE_SOUND, surfaceSnds, 53);
 
 		VEHICLE_READ_FIELD(float, surfaceSndBlendSpeed);
 		VEHICLE_READ_FIELD(float, slideVolume);

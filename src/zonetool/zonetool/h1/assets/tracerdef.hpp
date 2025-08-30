@@ -17,6 +17,7 @@ namespace zonetool::h1
 		void load_depending(zone_base* zone) override;
 
 		void* pointer() override { return asset_; }
+		bool referenced() override { return name_.starts_with(","); }
 		std::string name() override;
 		std::int32_t type() override;
 		void write(zone_base* zone, zone_buffer* buffer) override;
