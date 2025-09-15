@@ -2075,6 +2075,65 @@ namespace zonetool::h1
 		SURFTYPE_BITS_CUSHION = 0x8000000000000,
 	};
 
+	enum materialSurfType_t
+	{
+		SURF_TYPE_DEFAULT,
+		SURF_TYPE_BARK,
+		SURF_TYPE_BRICK,
+		SURF_TYPE_CARPET,
+		SURF_TYPE_CLOTH,
+		SURF_TYPE_CONCRETE,
+		SURF_TYPE_DIRT,
+		SURF_TYPE_FLESH,
+		SURF_TYPE_FOLIAGE_DEBRIS,
+		SURF_TYPE_GLASS,
+		SURF_TYPE_GRASS,
+		SURF_TYPE_GRAVEL,
+		SURF_TYPE_ICE,
+		SURF_TYPE_METAL_SOLID,
+		SURF_TYPE_METAL_GRATE,
+		SURF_TYPE_MUD,
+		SURF_TYPE_PAPER,
+		SURF_TYPE_PLASTER,
+		SURF_TYPE_ROCK,
+		SURF_TYPE_SAND,
+		SURF_TYPE_SNOW,
+		SURF_TYPE_WATER_WAIST,
+		SURF_TYPE_WOOD_SOLID,
+		SURF_TYPE_ASPHALT,
+		SURF_TYPE_CERAMIC,
+		SURF_TYPE_PLASTIC_SOLID,
+		SURF_TYPE_RUBBER,
+		SURF_TYPE_FRUIT,
+		SURF_TYPE_PAINTEDMETAL,
+		SURF_TYPE_RIOTSHIELD,
+		SURF_TYPE_SLUSH,
+		SURF_TYPE_ASPHALT_WET,
+		SURF_TYPE_ASPHALT_DEBRIS,
+		SURF_TYPE_CONCRETE_WET,
+		SURF_TYPE_CONCRETE_DEBRIS,
+		SURF_TYPE_FOLIAGE_VEGETATION,
+		SURF_TYPE_FOLIAGE_LEAVES,
+		SURF_TYPE_GRASS_TALL,
+		SURF_TYPE_METAL_HOLLOW,
+		SURF_TYPE_METAL_VEHICLE,
+		SURF_TYPE_METAL_THIN,
+		SURF_TYPE_METAL_WET,
+		SURF_TYPE_METAL_DEBRIS,
+		SURF_TYPE_PLASTIC_HOLLOW,
+		SURF_TYPE_PLASTIC_TARP,
+		SURF_TYPE_ROCK_WET,
+		SURF_TYPE_ROCK_DEBRIS,
+		SURF_TYPE_WATER_ANKLE,
+		SURF_TYPE_WATER_KNEE,
+		SURF_TYPE_WOOD_HOLLOW,
+		SURF_TYPE_WOOD_WET,
+		SURF_TYPE_WOOD_DEBRIS,
+		SURF_TYPE_CUSHION,
+
+		SURF_TYPE_COUNT
+	};
+
 	struct MaterialInfo
 	{
 		const char* name;
@@ -4392,8 +4451,9 @@ namespace zonetool::h1
 	{
 		ATTACHMENT_SCOPE = 0x0,
 		ATTACHMENT_UNDERBARREL = 0x1,
-		ATTACHMENT_OTHER = 0x2,
-		ATTACHMENT_COUNT = 0x3,
+		ATTACHMENT_SIDERAIL = 0x2,
+		ATTACHMENT_OTHER = 0x3,
+		ATTACHMENT_COUNT = 0x4,
 	};
 
 	struct AttChargeInfo
@@ -4470,7 +4530,7 @@ namespace zonetool::h1
 	struct WAField
 	{
 		unsigned char index;
-		unsigned char type; //WAFieldType type;
+		unsigned char type; // WAFieldType type;
 		unsigned char code; // WAFieldCode code;
 		WAFieldParm parm;
 	}; assert_sizeof(WAField, 16);
@@ -4639,6 +4699,18 @@ namespace zonetool::h1
 		WEAPON_ICON_RATIO_2TO1 = 0x1,
 		WEAPON_ICON_RATIO_4TO1 = 0x2,
 		WEAPON_ICON_RATIO_COUNT = 0x3,
+	};
+
+	enum ammoCounterClipType_t : std::int32_t
+	{
+		AMMO_COUNTER_CLIP_NONE = 0x0,
+		AMMO_COUNTER_CLIP_MAGAZINE = 0x1,
+		AMMO_COUNTER_CLIP_SHORTMAGAZINE = 0x2,
+		AMMO_COUNTER_CLIP_SHOTGUN = 0x3,
+		AMMO_COUNTER_CLIP_ROCKET = 0x4,
+		AMMO_COUNTER_CLIP_BELTFED = 0x5,
+		AMMO_COUNTER_CLIP_ALTWEAPON = 0x6,
+		AMMO_COUNTER_CLIP_COUNT = 0x7,
 	};
 
 	enum WeapStickinessType : std::int32_t
@@ -4865,6 +4937,34 @@ namespace zonetool::h1
 		WEAP_ANIM_ADDITIVE_SCRIPTED_ROOT = 188,
 		WEAP_ANIM_ADDITIVE_SCRIPTED = 189,
 		NUM_WEAP_ANIMS = 190,
+	};
+
+	enum hitLocation_t
+	{
+		HITLOC_NONE = 0x0,
+		HITLOC_HELMET = 0x1,
+		HITLOC_HEAD = 0x2,
+		HITLOC_NECK = 0x3,
+		HITLOC_TORSO_UPR = 0x4,
+		HITLOC_TORSO_LWR = 0x5,
+		HITLOC_R_ARM_UPR = 0x6,
+		HITLOC_L_ARM_UPR = 0x7,
+		HITLOC_R_ARM_LWR = 0x8,
+		HITLOC_L_ARM_LWR = 0x9,
+		HITLOC_R_HAND = 0xA,
+		HITLOC_L_HAND = 0xB,
+		HITLOC_R_LEG_UPR = 0xC,
+		HITLOC_L_LEG_UPR = 0xD,
+		HITLOC_R_LEG_LWR = 0xE,
+		HITLOC_L_LEG_LWR = 0xF,
+		HITLOC_R_FOOT = 0x10,
+		HITLOC_L_FOOT = 0x11,
+		HITLOC_GUN = 0x12,
+		HITLOC_SHIELD = 0x13,
+		HITLOC_ARMOR = 0x14,
+		HITLOC_SOFT = 0x15,
+
+		HITLOC_COUNT
 	};
 
 	struct StateTimers
@@ -5172,7 +5272,7 @@ namespace zonetool::h1
 		weaponIconRatioType_t hudIconRatio; // 1564
 		weaponIconRatioType_t pickupIconRatio; // 1568
 		weaponIconRatioType_t ammoCounterIconRatio; // 1572
-		int ammoCounterClip; // 1576
+		ammoCounterClipType_t ammoCounterClip; // 1576
 		int startAmmo; // 1580
 		ammoindex_t iAmmoIndex; // 1584 (runtime variable)
 		clipindex_t iClipIndex; // 1592 (runtime variable)

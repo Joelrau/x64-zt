@@ -11,9 +11,9 @@
 #include "zonetool/utils/compression.hpp"
 #include <utils/io.hpp>
 #include <utils/cryptography.hpp>
+#include <utils/flags.hpp>
 
 //#define IMAGE_DECOMPRESS_DXT
-//#define IMAGE_DUMP_DDS
 
 namespace zonetool::h2
 {
@@ -647,9 +647,10 @@ namespace zonetool::h2
 
 	void gfx_image::dump(GfxImage* asset)
 	{
-#ifdef IMAGE_DUMP_DDS
-		dump_image_dds(asset);
-#endif
+		if (utils::flags::has_flag("dds"))
+		{
+			dump_image_dds(asset);
+		}
 
 		if (asset->streamed && stream_files[*stream_file_index].fileIndex == custom_imagefile_index)
 		{

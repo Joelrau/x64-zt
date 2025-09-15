@@ -9,7 +9,7 @@ namespace zonetool::h1
 		{
 			if (name.empty())
 			{
-				return "default";
+				return "_";
 			}
 			return name;
 		}

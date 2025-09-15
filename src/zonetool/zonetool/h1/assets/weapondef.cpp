@@ -2089,7 +2089,9 @@ namespace zonetool::h1
 #define WEAPON_DUMP_FIELD(__field__) \
 	data[#__field__] = asset->__field__
 
-#define WEAPON_DUMP_STRING WEAPON_DUMP_FIELD
+#define WEAPON_DUMP_STRING(__field__) \
+	static_assert(std::is_same_v<decltype(asset->__field__), const char*>, "Field is not of type const char*"); \
+	asset->__field__ ? data[#__field__] = asset->__field__ : data[#__field__] = nullptr;
 
 #define WEAPON_DUMP_FIELD_ARR(__field__, __size__) \
 	for (auto idx##__field__ = 0; idx##__field__ < __size__; idx##__field__++) \
