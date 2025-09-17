@@ -486,6 +486,8 @@ namespace zonetool::h1
 			for (auto i = 0u; i < weapon->numNotetrackOverrides; i++)
 			{
 				weapon->notetrackOverrides[i].attachment = data["notetrackOverrides"][i]["attachment"].get<int>();
+				weapon->notetrackOverrides[i].notetrackSoundMapKeys = mem->allocate<scr_string_t>(36);
+				weapon->notetrackOverrides[i].notetrackSoundMapValues = mem->allocate<scr_string_t>(36);
 				for (auto j = 0u; j < 36; j++)
 				{
 					this->add_script_string(&weapon->notetrackOverrides[i].notetrackSoundMapKeys[j], 
@@ -1305,6 +1307,21 @@ namespace zonetool::h1
 			{
 				WEAPON_SUBASSET_DEPENDING(fxOverrides[i].overrideFX, ASSET_TYPE_FX);
 				WEAPON_SUBASSET_DEPENDING(fxOverrides[i].altmodeFX, ASSET_TYPE_FX);
+			}
+		}
+
+		if (weapon->notetrackOverrides)
+		{
+			for (auto i = 0u; i < weapon->numNotetrackOverrides; i++)
+			{
+				for (auto j = 0; j < 36; j++)
+				{
+					auto str = this->get_script_string(&weapon->notetrackOverrides[i].notetrackSoundMapValues[j]);
+					if (str != nullptr && weapon->notetrackOverrides[i].notetrackSoundMapValues[j] != 0)
+					{
+						zone->add_asset_of_type(ASSET_TYPE_SOUND, str);
+					}
+				}
 			}
 		}
 
