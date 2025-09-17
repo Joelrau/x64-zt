@@ -1317,7 +1317,7 @@ namespace zonetool::h1
 				for (auto j = 0; j < 36; j++)
 				{
 					auto str = this->get_script_string(&weapon->notetrackOverrides[i].notetrackSoundMapValues[j]);
-					if (str != nullptr && weapon->notetrackOverrides[i].notetrackSoundMapValues[j] != 0)
+					if (str != nullptr && str[0] != '\0')
 					{
 						zone->add_asset_of_type(ASSET_TYPE_SOUND, str);
 					}
@@ -1328,7 +1328,7 @@ namespace zonetool::h1
 		for (auto i = 0; i < 36; i++)
 		{
 			auto str = this->get_script_string(&weapon->notetrackSoundMapValues[i]);
-			if (str != nullptr && weapon->notetrackSoundMapValues[i] != 0)
+			if (str != nullptr && str[0] != '\0')
 			{
 				zone->add_asset_of_type(ASSET_TYPE_SOUND, str);
 			}
