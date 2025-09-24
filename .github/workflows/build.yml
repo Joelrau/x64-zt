@@ -1,4 +1,6 @@
 name: Build
+permissions:
+  contents: write
 
 on:
   push:
@@ -43,3 +45,49 @@ jobs:
           name: ${{matrix.configuration}} binaries
           path: |
             build/bin/x64/${{matrix.configuration}}/zonetool.exe
+            build/bin/x64/${{matrix.configuration}}/zonetool.pdb
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Check out files
+        uses: actions/checkout@v4
+
+      - name: Download Debug artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: Debug zonetool
+          path: Debug
+
+      - name: Download Release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: Release zonetool
+          path: Release
+
+      - name: Zip Debug zonetool
+        run: |
+          cd Debug
+          zip -r ../"Debug zonetool.zip" .
+
+      - name: Zip Release zonetool
+        run: |
+          cd Release
+          zip -r ../"Release zonetool.zip" .
+
+      - name: Delete old release/tag if exists
+        run: |
+          gh release delete latest -y || true
+          git push origin :refs/tags/latest || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create new release
+        run: |
+          gh release create latest "Debug zonetool.zip" "Release zonetool.zip" \
+            --title "Latest Build" \
+            --notes "This build was automated from ${{ github.sha }}. If you are unsure which zonetool to use, download **Release zonetool.zip**. If you are crashing and need to debug, use **Debug zonetool.zip**."
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
