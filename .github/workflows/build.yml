@@ -36,13 +36,13 @@ jobs:
       - name: Set up problem matching
         uses: ammaraskar/msvc-problem-matcher@master
 
-      - name: Build ${{matrix.configuration}} binaries
+      - name: Build ${{matrix.configuration}} zonetool
         run: msbuild /m /v:minimal /p:Configuration=${{matrix.configuration}} /p:Platform=x64 build/x64-zt.sln
 
-      - name: Upload ${{matrix.configuration}} binaries
+      - name: Upload ${{matrix.configuration}} zonetool
         uses: actions/upload-artifact@v4
         with:
-          name: ${{matrix.configuration}} binaries
+          name: ${{matrix.configuration}} zonetool
           path: |
             build/bin/x64/${{matrix.configuration}}/zonetool.exe
             build/bin/x64/${{matrix.configuration}}/zonetool.pdb
