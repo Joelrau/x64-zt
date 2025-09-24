@@ -12,7 +12,7 @@ A fastfile unlinker and linker for various x64 Call of Duty titles.
 * **H2** (*Call of Duty: Modern Warfare 2 Campaign Remastered*)
 * **IW7** (*Call of Duty: Infinite Warfare*) ***[no custom maps]***
 
-## Wiki
+## How to use
 Check out the [Aurora Zonetool Basics](https://docs.auroramod.dev/zonetool-basics) for useful guides & information on how to port maps and use zonetool.
 
 ## Commands
