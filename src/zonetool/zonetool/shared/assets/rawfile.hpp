@@ -3,6 +3,7 @@
 #include <zlib.h>
 
 #define ZONETOOL_BRANDING "Compiled using x64 ZoneTool."
+#define RADIANTFIELDS_BIN "RadiantFields.bin"
 
 namespace zonetool
 {
@@ -60,7 +61,12 @@ namespace zonetool
 			}
 
 			this->asset_ = parse(name, mem);
-			if (name == filesystem::get_fastfile())
+			if (!this->asset_ && name == "*")
+			{
+				this->asset_ = parse(RADIANTFIELDS_BIN, mem);
+				this->asset_->name = mem->duplicate_string(name);
+			}
+			else if (!this->asset_ && name == filesystem::get_fastfile())
 			{
 				std::string str = ZONETOOL_BRANDING;
 				zone_buffer buf(std::vector<uint8_t>(str.begin(), str.end()));
@@ -122,7 +128,8 @@ namespace zonetool
 		template <typename S>
 		static void dump(S* asset)
 		{
-			auto file = filesystem::file(asset->name);
+			std::string name = asset->name == "*"s ? RADIANTFIELDS_BIN : asset->name;
+			auto file = filesystem::file(name);
 			file.open("wb");
 
 			if (asset->compressedLen > 0)
