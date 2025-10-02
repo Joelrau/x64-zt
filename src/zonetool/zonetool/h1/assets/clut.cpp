@@ -11,6 +11,23 @@
 
 namespace zonetool::h1
 {
+	void dump_clut_ass(Clut* asset)
+	{
+		const auto path = "clut\\"s + asset->name + ".clut";
+
+		assetmanager::dumper dumper;
+		if (!dumper.open(path))
+		{
+			return;
+		}
+
+		dumper.dump_single(asset);
+		dumper.dump_string(asset->name);
+		dumper.dump_array(asset->pixels, 4 * asset->width * asset->height * asset->depth);
+
+		dumper.close();
+	}
+
 	namespace directx
 	{
 		bool load_image(const std::string& name, DirectX::ScratchImage* image)
@@ -121,6 +138,7 @@ namespace zonetool::h1
 			if (data_used != dataLen)
 			{
 				ZONETOOL_WARNING("Failed to dump image \"%s.dds\"", asset->name);
+				dump_clut_ass(asset);
 				return;
 			}
 
@@ -146,6 +164,7 @@ namespace zonetool::h1
 			if (FAILED(result))
 			{
 				ZONETOOL_WARNING("Failed to dump image \"%s\"", spath.data());
+				dump_clut_ass(asset);
 			}
 		}
 	}
