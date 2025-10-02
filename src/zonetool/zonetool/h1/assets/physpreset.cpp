@@ -47,6 +47,17 @@ namespace zonetool::h1
 
 	void phys_preset::load_depending(zone_base* zone)
 	{
+		auto* asset = this->asset_;
+		if (asset->sndAliasPrefix)
+		{
+			const auto default_sound_name = asset->sndAliasPrefix + "_default"s;
+			const auto default_sound_path = "sounds/"s + default_sound_name + ".json";
+			filesystem::file default_sound(default_sound_path);
+			if (default_sound.exists())
+			{
+				zone->add_asset_of_type(ASSET_TYPE_SOUND, default_sound_name);
+			}
+		}
 	}
 
 	std::string phys_preset::name()
