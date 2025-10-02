@@ -3,6 +3,31 @@
 
 namespace zonetool::h1
 {
+	SndContext* parse_legacy(const std::string& name, zone_memory* mem)
+	{
+		if (name.empty())
+		{
+			return nullptr;
+		}
+
+		const auto path = "sndcontext\\"s + name;
+		auto file = filesystem::file(path);
+		if (file.exists())
+		{
+			auto* asset = mem->allocate<SndContext>();
+			asset->name = mem->duplicate_string(name);
+
+			file.open("rb");
+			auto bytes = file.read_bytes(file.size());
+			memcpy(asset->__pad0, bytes.data(), bytes.size());
+			file.close();
+
+			return asset;
+		}
+
+		return nullptr;
+	}
+
 	SndContext* sound_context::parse(const std::string& name, zone_memory* mem)
 	{
 		if (name.empty())
@@ -34,7 +59,7 @@ namespace zonetool::h1
 			return asset;
 		}
 
-		return nullptr;
+		return parse_legacy(name, mem);
 	}
 
 	void sound_context::init(const std::string& name, zone_memory* mem)
