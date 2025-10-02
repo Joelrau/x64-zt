@@ -884,7 +884,7 @@ namespace zonetool::s1
 	}
 
 #define ATTACHMENT_READ_FIELD_RENAME(__type__, __field__, __name__) \
-	if(!data[#__field__].is_null()) \
+	if(!data[__name__].is_null()) \
 	{ \
 		attachment->__field__ = data[__name__].get<__type__>(); \
 	}
