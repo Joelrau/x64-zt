@@ -123,6 +123,7 @@ namespace zonetool::t7
 
 					if (surf->shared && surf->shared->dataSize && data)
 					{
+#ifdef DEBUG
 						assert(surf->baseVertOffset == baseVertOffset);
 						assert(surf->baseIndexOffset == baseIndexOffset);
 
@@ -135,6 +136,7 @@ namespace zonetool::t7
 						assert(indices == indices_);
 						assert(positions == positions_);
 						assert(weights == weights_);
+#endif
 
 						new_surf->verts0.packedVerts0 = allocator.allocate_array<zonetool::h1::GfxPackedVertex>(new_surf->vertCount);
 
