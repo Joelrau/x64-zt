@@ -14,120 +14,44 @@ namespace zonetool::t7
 		{
 			void GenerateH1BlendVertsTable(zonetool::h1::XSurface* surf)
 			{
-				unsigned short a = 0;
-				unsigned short b = 0;
-				unsigned short index = 1;
-				for (short s = 0; s < (surf->blendVertCounts[0]); s++)
-				{
-					auto& table = surf->blendVertsTable[a];
+				size_t a = 0, b = 0;
 
-					table.b[0] = surf->blendVerts[b + 0] / 64;
-					table.b[1] = 0;
-					table.b[2] = 0;
-					table.b[3] = 0;
-					table.b[4] = 0;
-					table.b[5] = 0;
-					table.b[6] = 0;
-					table.b[7] = 0;
+				auto zero_row = [](zonetool::h1::BlendVertsUnknown& r) {
+					std::fill(std::begin(r.b), std::end(r.b), 0);
+				};
 
-					table.b[8] = 0;
-					table.b[9] = 0;
-					table.b[10] = 0;
-					table.b[11] = 0;
-					table.b[12] = 0;
-					table.b[13] = 0;
-					table.b[14] = 0;
-
-					table.blendVertCountIndex = index;
-
-					a++;
-					b += 1;
+				for (size_t s = 0; s < surf->blendVertCounts[0]; ++s, ++a, b += 1) {
+					auto& row = surf->blendVertsTable[a]; zero_row(row);
+					row.b[0] = static_cast<uint8_t>(surf->blendVerts[b + 0] / 64);
+					row.blendVertCountIndex = 1;
 				}
-				index++;
-
-				for (short s = 0; s < (surf->blendVertCounts[1]); s++)
-				{
-					auto& table = surf->blendVertsTable[a];
-
-					table.b[0] = surf->blendVerts[b + 0] / 64;
-					table.b[1] = surf->blendVerts[b + 1] / 64;
-					table.b[2] = 0;
-					table.b[3] = 0;
-					table.b[4] = 0;
-					table.b[5] = 0;
-					table.b[6] = 0;
-					table.b[7] = 0;
-
-					table.b[8] = surf->blendVerts[b + 2];
-					table.b[9] = 0;
-					table.b[10] = 0;
-					table.b[11] = 0;
-					table.b[12] = 0;
-					table.b[13] = 0;
-					table.b[14] = 0;
-
-					table.blendVertCountIndex = index;
-
-					a++;
-					b += 3;
+				for (size_t s = 0; s < surf->blendVertCounts[1]; ++s, ++a, b += 3) {
+					auto& row = surf->blendVertsTable[a]; zero_row(row);
+					row.b[0] = static_cast<uint8_t>(surf->blendVerts[b + 0] / 64);
+					row.b[1] = static_cast<uint8_t>(surf->blendVerts[b + 1] / 64);
+					row.b[8] = static_cast<uint8_t>(surf->blendVerts[b + 2]);
+					row.blendVertCountIndex = 2;
 				}
-				index++;
-
-				for (short s = 0; s < (surf->blendVertCounts[2]); s++)
-				{
-					auto& table = surf->blendVertsTable[a];
-
-					table.b[0] = surf->blendVerts[b + 0] / 64;
-					table.b[1] = surf->blendVerts[b + 1] / 64;
-					table.b[2] = surf->blendVerts[b + 3] / 64;
-					table.b[3] = 0;
-					table.b[4] = 0;
-					table.b[5] = 0;
-					table.b[6] = 0;
-					table.b[7] = 0;
-
-					table.b[8] = surf->blendVerts[b + 2];
-					table.b[9] = surf->blendVerts[b + 4];
-					table.b[10] = 0;
-					table.b[11] = 0;
-					table.b[12] = 0;
-					table.b[13] = 0;
-					table.b[14] = 0;
-
-					table.blendVertCountIndex = index;
-
-					a++;
-					b += 5;
+				for (size_t s = 0; s < surf->blendVertCounts[2]; ++s, ++a, b += 5) {
+					auto& row = surf->blendVertsTable[a]; zero_row(row);
+					row.b[0] = static_cast<uint8_t>(surf->blendVerts[b + 0] / 64);
+					row.b[1] = static_cast<uint8_t>(surf->blendVerts[b + 1] / 64);
+					row.b[2] = static_cast<uint8_t>(surf->blendVerts[b + 3] / 64);
+					row.b[8] = static_cast<uint8_t>(surf->blendVerts[b + 2]);
+					row.b[9] = static_cast<uint8_t>(surf->blendVerts[b + 4]);
+					row.blendVertCountIndex = 3;
 				}
-				index++;
-
-				for (short s = 0; s < (surf->blendVertCounts[3]); s++)
-				{
-					auto& table = surf->blendVertsTable[a];
-
-					table.b[0] = surf->blendVerts[b + 0] / 64;
-					table.b[1] = surf->blendVerts[b + 1] / 64;
-					table.b[2] = surf->blendVerts[b + 3] / 64;
-					table.b[3] = surf->blendVerts[b + 5] / 64;
-					table.b[4] = 0;
-					table.b[5] = 0;
-					table.b[6] = 0;
-					table.b[7] = 0;
-
-					table.b[8] = surf->blendVerts[b + 2];
-					table.b[9] = surf->blendVerts[b + 4];
-					table.b[10] = surf->blendVerts[b + 6];
-					table.b[11] = 0;
-					table.b[12] = 0;
-					table.b[13] = 0;
-					table.b[14] = 0;
-
-					table.blendVertCountIndex = index;
-
-					a++;
-					b += 7;
+				for (size_t s = 0; s < surf->blendVertCounts[3]; ++s, ++a, b += 7) {
+					auto& row = surf->blendVertsTable[a]; zero_row(row);
+					row.b[0] = static_cast<uint8_t>(surf->blendVerts[b + 0] / 64);
+					row.b[1] = static_cast<uint8_t>(surf->blendVerts[b + 1] / 64);
+					row.b[2] = static_cast<uint8_t>(surf->blendVerts[b + 3] / 64);
+					row.b[3] = static_cast<uint8_t>(surf->blendVerts[b + 5] / 64);
+					row.b[8] = static_cast<uint8_t>(surf->blendVerts[b + 2]);
+					row.b[9] = static_cast<uint8_t>(surf->blendVerts[b + 4]);
+					row.b[10] = static_cast<uint8_t>(surf->blendVerts[b + 6]);
+					row.blendVertCountIndex = 4;
 				}
-				index++;
 			}
 
 			zonetool::h1::XModelSurfs* convert(XModelMesh* asset, utils::memory::allocator& allocator)
@@ -160,14 +84,36 @@ namespace zonetool::t7
 				
 				new_asset->numsurfs = asset->numSurfs;
 				new_asset->surfs = allocator.allocate_array<zonetool::h1::XSurface>(new_asset->numsurfs);
-				for (auto i = 0; i < new_asset->numsurfs; i++)
+
+				GfxStreamVertex* verts = nullptr;
+				GfxStreamFace* indices = nullptr;
+				vec3_t* positions = nullptr;
+				GfxStreamWeight* weights = nullptr;
+
+				if (asset->shared)
+				{
+					verts = reinterpret_cast<GfxStreamVertex*>(data + asset->shared->vertsOffset);
+					indices = reinterpret_cast<GfxStreamFace*>(data + asset->shared->indicesOffset);
+					positions = reinterpret_cast<vec3_t*>(data + asset->shared->posOffset);
+					weights = reinterpret_cast<GfxStreamWeight*>(data + asset->shared->skinWeightsOffset);
+				}
+				else
+				{
+					__debugbreak();
+				}
+
+				unsigned int baseVertOffset = 0;
+				unsigned int baseIndexOffset = 0;
+				unsigned int skinVertCount = 0;
+
+				auto parse_surf = [&](const auto i)
 				{
 					auto* surf = &asset->surfs[i];
 					auto* new_surf = &new_asset->surfs[i];
 
 					new_surf->flags = 0;
 					new_surf->flags |= ((surf->flags & zonetool::t7::XSURFACE_FLAG_SKINNED) != 0) ? zonetool::h1::SURF_FLAG_SKINNED : 0;
-					new_surf->flags |= zonetool::h1::SURF_FLAG_VERTCOL_NONE;
+					//new_surf->flags |= zonetool::h1::SURF_FLAG_VERTCOL_NONE;
 
 					new_surf->vertCount = surf->vertCount;
 					new_surf->triCount = surf->triCount;
@@ -177,10 +123,18 @@ namespace zonetool::t7
 
 					if (surf->shared && surf->shared->dataSize && data)
 					{
-						auto* verts = reinterpret_cast<GfxStreamVertex*>(data + surf->shared->vertsOffset + surf->baseVertOffset * sizeof(GfxStreamVertex));
-						auto* indices = reinterpret_cast<GfxStreamFace*>(data + surf->shared->indicesOffset + surf->baseIndexOffset * 2);
-						auto* positions = reinterpret_cast<vec3_t*>(data + surf->shared->posOffset + surf->baseVertOffset * sizeof(vec3_t));
-						auto* weights = reinterpret_cast<GfxStreamWeight*>(data + surf->shared->skinWeightsOffset + surf->baseVertOffset * sizeof(GfxStreamWeight));
+						assert(surf->baseVertOffset == baseVertOffset);
+						assert(surf->baseIndexOffset == baseIndexOffset);
+
+						auto* verts_ = reinterpret_cast<GfxStreamVertex*>(data + surf->shared->vertsOffset + surf->baseVertOffset * sizeof(GfxStreamVertex));
+						auto* indices_ = reinterpret_cast<GfxStreamFace*>(data + surf->shared->indicesOffset + (surf->baseIndexOffset / 3) * sizeof(GfxStreamFace));
+						auto* positions_ = reinterpret_cast<vec3_t*>(data + surf->shared->posOffset + surf->baseVertOffset * sizeof(vec3_t));
+						auto* weights_ = reinterpret_cast<GfxStreamWeight*>(data + surf->shared->skinWeightsOffset + surf->baseVertOffset * sizeof(GfxStreamWeight));
+
+						assert(verts == verts_);
+						assert(indices == indices_);
+						assert(positions == positions_);
+						assert(weights == weights_);
 
 						new_surf->verts0.packedVerts0 = allocator.allocate_array<zonetool::h1::GfxPackedVertex>(new_surf->vertCount);
 
@@ -210,11 +164,17 @@ namespace zonetool::t7
 						}
 
 						new_surf->triIndices = reinterpret_cast<zonetool::h1::Face*>(indices);
-						new_surf->triIndices2 = reinterpret_cast<zonetool::h1::Face*>(indices);
+						new_surf->triIndices2 = allocator.allocate_array<zonetool::h1::Face>(surf->triCount);
+						for (unsigned short triIndex = 0; triIndex < surf->triCount; triIndex++)
+						{
+							memcpy(&new_surf->triIndices2[triIndex], &new_surf->triIndices[triIndex], sizeof(zonetool::h1::Face));
+						}
 
 						std::vector<GfxStreamWeight*> weights_arr[4];
-						if ((surf->flags & XSURFACE_FLAG_SKINNED) != 0)
+						if ((surf->flags & zonetool::t7::XSURFACE_FLAG_SKINNED) != 0)
 						{
+							std::memset(new_surf->blendVertCounts, 0, sizeof(new_surf->blendVertCounts));
+
 							// calc counts
 							for (auto j = 0u; j < surf->vertCount; j++)
 							{
@@ -252,7 +212,7 @@ namespace zonetool::t7
 
 							// generate
 							{
-								new_surf->blendVerts = allocator.manual_allocate<zonetool::h1::XBlendInfo>(2 * total_blend_verts);
+								new_surf->blendVerts = allocator.allocate_array<zonetool::h1::XBlendInfo>(total_blend_verts);
 								unsigned short b = 0;
 								for (short s = 0; s < (new_surf->blendVertCounts[0]); s++)
 								{
@@ -310,6 +270,10 @@ namespace zonetool::t7
 							}
 						}
 					}
+					else
+					{
+						__debugbreak();
+					}
 
 					// unknown
 					new_surf->unknown0 = allocator.allocate_array<zonetool::h1::UnknownXSurface0>(new_surf->vertCount); // related to indices2?
@@ -326,13 +290,50 @@ namespace zonetool::t7
 					static_assert(sizeof(zonetool::h1::XSurfaceCollisionNode) == sizeof(zonetool::t7::XSurfaceCollisionNode));
 					static_assert(sizeof(zonetool::h1::XSurfaceCollisionLeaf) == sizeof(zonetool::t7::XSurfaceCollisionLeaf));
 
-					new_surf->rigidVertLists = reinterpret_cast<zonetool::h1::XRigidVertList*>(surf->vertList);
+					//new_surf->rigidVertLists = reinterpret_cast<zonetool::h1::XRigidVertList*>(surf->vertList);
+					new_surf->rigidVertLists = allocator.allocate_array<zonetool::h1::XRigidVertList>(surf->vertListCount);
+					for (int vert_index = 0; vert_index < surf->vertListCount; vert_index++)
+					{
+						new_surf->rigidVertLists[vert_index].boneOffset = surf->vertList[vert_index].boneOffset << 6; // R_MarkFragments_AnimatedXModel
+						new_surf->rigidVertLists[vert_index].vertCount = surf->vertList[vert_index].vertCount;
+						new_surf->rigidVertLists[vert_index].triOffset = surf->vertList[vert_index].triOffset;
+						new_surf->rigidVertLists[vert_index].triCount = surf->vertList[vert_index].triCount;
 
-					memcpy(new_surf->partBits, surf->partBits, sizeof(float[8]));
+						new_surf->rigidVertLists[vert_index].collisionTree = reinterpret_cast<zonetool::h1::XSurfaceCollisionTree*>(surf->vertList[vert_index].collisionTree);
+					}
+
+					
+
+					verts += surf->vertCount;
+					indices += surf->triCount;
+					positions += surf->vertCount;
+					if ((surf->flags & zonetool::t7::XSURFACE_FLAG_SKINNED) != 0)
+					{
+						weights += surf->vertCount;
+						skinVertCount += surf->vertCount;
+					}
+
+					baseVertOffset += surf->vertCount;
+					baseIndexOffset += surf->triCount * 3;
+
+					std::memcpy(new_surf->partBits, surf->partBits, sizeof(uint32_t) * 8);
+				};
+
+				for (auto i = 0; i < asset->numSurfs; i++)
+				{
+					if((asset->surfs[i].flags & zonetool::t7::XSURFACE_FLAG_SKINNED) != 0)
+						parse_surf(i);
 				}
 
-				memcpy(new_asset->partBits, asset->partBits, sizeof(float[8]));
+				for (auto i = 0; i < asset->numSurfs; i++)
+				{
+					if ((asset->surfs[i].flags & zonetool::t7::XSURFACE_FLAG_SKINNED) == 0)
+						parse_surf(i);
+				}
 
+				assert(asset->shared->skinVertCount == skinVertCount);
+
+				std::memcpy(new_asset->partBits, asset->partBits, sizeof(uint32_t) * 8);
 				return new_asset;
 			}
 
