@@ -1067,6 +1067,8 @@ namespace zonetool::h1
 		CONST_SRC_CODE_INVERSE_TRANSPOSE_WORLD_VIEW_PROJECTION_MATRIX2,
 		CONST_SRC_TOTAL_COUNT,
 		CONST_SRC_NONE,
+
+		CONST_SRC_CODE_COUNT_FLOAT4 = 349
 	};
 
 	enum MaterialTextureSource : std::int32_t
@@ -6727,7 +6729,7 @@ namespace zonetool::h1
 		float origin[3];
 		unsigned short triggerIndex;
 		unsigned char sunPrimaryLightIndex;
-		unsigned int entityUID;
+		float radiometricScale;
 	}; assert_sizeof(Stage, 32);
 
 	enum DynEntityType : std::int32_t
@@ -8177,7 +8179,7 @@ namespace zonetool::h1
 	struct GfxHeroOnlyLight
 	{
 		unsigned char type;
-		unsigned char needsDynamicShadows;
+		unsigned char physicallyBased;
 		unsigned char unused[2];
 		float color[3];
 		float dir[3];

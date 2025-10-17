@@ -1,4 +1,4 @@
-#include <std_include.hpp>
+﻿#include <std_include.hpp>
 #include "zonetool/iw6/converter/h1/include.hpp"
 #include "techset.hpp"
 
@@ -13,6 +13,7 @@
 #include "vertexshader.hpp"
 
 #include "zonetool/h1/assets/vertexdecl.hpp"
+#include "zonetool/h1/assets/pixelshader.hpp"
 
 namespace zonetool::iw6
 {
@@ -1172,6 +1173,274 @@ namespace zonetool::iw6
 				{-112.810379f, -242.356049f, 232.554977f, 1.000000f}, //290
 			};
 
+			static inline bool starts_with(std::string_view s, std::string_view pfx) {
+				return s.size() >= pfx.size() && std::equal(pfx.begin(), pfx.end(), s.begin());
+			}
+			static inline std::string trim_left(std::string_view s) {
+				size_t i = 0; while (i < s.size() && (s[i] == ' ' || s[i] == '\t')) ++i;
+				return std::string(s.substr(i));
+			}
+
+			// Rewrites for cb1[5]/cb1[6]:
+			//   mov         DST, cb1[i]           -> div DST, cb1[i], l(1550,1550,1550,1550)
+			//   mov_sat     DST, cb1[i]           -> div DST, cb1[i], l(...); mov_sat DST, DST
+			//   add         DST, A,  cb1[i]       -> mad DST, cb1[i], l(1/1550,...), A
+			//   add_sat     DST, A,  cb1[i]       -> mad ...; mov_sat DST, DST
+			//   mul         DST, X,  cb1[i]       -> (orig); div DST, DST, l(1550,1550,1550,1)
+			//   mul_sat     DST, X,  cb1[i]       -> mul ...; div ...; mov_sat DST, DST
+			//   dp4         DST, A,  cb1[i]       -> (orig); div DST, DST, l(1550,1550,1550,1)
+			//   dp4_sat     DST, A,  cb1[i]       -> dp4 ...; div ...; mov_sat DST, DST
+			//
+			// Any line mentioning cb1[5|6] that we don't confidently transform is logged in `diagnostics`.
+			static std::string PatchAsmPixelShader(const std::string& asmText,
+				std::string* diagnostics /*= nullptr*/)
+			{
+				std::istringstream in(asmText);
+				std::ostringstream out;
+				std::string line;
+
+				// Literals
+				constexpr const char* L1550 = "l(1550.0, 1550.0, 1550.0, 1550.0)";
+				constexpr const char* L1550_1 = "l(1550.0, 1550.0, 1550.0, 1.0)";
+				constexpr const char* INV1550 = "l(0.00064516129, 0.00064516129, 0.00064516129, 0.00064516129)"; // 1/1550
+
+				// Regexes
+				std::regex rxHasCb(R"(cb1\[(5|6)\])", std::regex::icase);
+				std::regex rxMovCb(R"(^\s*mov\s+([ro]\d+(?:\.[xyzw]+)?)\s*,\s*(\-?\s*)cb1\[(5|6)\](?:\.[xyzw]+)?\s*$)", std::regex::icase);
+				std::regex rxMovSatCb(R"(^\s*mov_sat\s+([ro]\d+(?:\.[xyzw]+)?)\s*,\s*(\-?\s*)cb1\[(5|6)\](?:\.[xyzw]+)?\s*$)", std::regex::icase);
+
+				std::regex rxMulLine(R"(^\s*mul\s+)", std::regex::icase);
+				std::regex rxMulSatLine(R"(^\s*mul_sat\s+)", std::regex::icase);
+				std::regex rxDestToken(R"(^\s*\w+\s+([ro]\d+(?:\.[xyzw]+)?)\s*,)", std::regex::icase);
+
+				std::regex rxAddFull(R"(^\s*add\s+([ro]\d+(?:\.[xyzw]+)?)\s*,\s*(.+?)\s*,\s*(.+?)\s*$)", std::regex::icase);
+				std::regex rxAddSatFull(R"(^\s*add_sat\s+([ro]\d+(?:\.[xyzw]+)?)\s*,\s*(.+?)\s*,\s*(.+?)\s*$)", std::regex::icase);
+
+				std::regex rxDp4Full(R"(^\s*dp4\s+([ro]\d+(?:\.[xyzw]+)?)\s*,\s*(.+?)\s*,\s*(.+?)\s*$)", std::regex::icase);
+				std::regex rxDp4SatFull(R"(^\s*dp4_sat\s+([ro]\d+(?:\.[xyzw]+)?)\s*,\s*(.+?)\s*,\s*(.+?)\s*$)", std::regex::icase);
+
+				auto log_skip = [&](int lineNo, const std::string& text, const char* reason) {
+					if (!diagnostics) return;
+					*diagnostics += "[skip] line " + std::to_string(lineNo) + " (" + reason + "): " + text + "\n";
+				};
+
+				int lineNo = 0;
+				while (std::getline(in, line)) {
+					++lineNo;
+					std::string_view sv(line);
+					auto t = trim_left(sv);
+
+					// passthrough comments/decls
+					const bool isComment = starts_with(t, "//");
+					const bool isDecl = starts_with(t, "dcl_") || starts_with(t, "ps_") || starts_with(t, "vs_")
+						|| starts_with(t, "cs_") || starts_with(t, "gs_") || starts_with(t, "hs_")
+						|| starts_with(t, "ds_");
+					if (isComment || isDecl || t.empty()) { out << line << "\n"; continue; }
+
+					// ---------------- MOV / MOV_SAT (direct CB load) ----------------
+					{
+						std::smatch m;
+						if (std::regex_search(line, m, rxMovCb)) {
+							const std::string dst = m[1].str();
+							const std::string sign = m[2].str();
+							const std::string idx = m[3].str();
+							out << "div " << dst << ", " << (sign.empty() ? "" : sign) << "cb1[" << idx << "], " << L1550 << "\n";
+							continue;
+						}
+						if (std::regex_search(line, m, rxMovSatCb)) {
+							const std::string dst = m[1].str();
+							const std::string sign = m[2].str();
+							const std::string idx = m[3].str();
+							out << "div " << dst << ", " << (sign.empty() ? "" : sign) << "cb1[" << idx << "], " << L1550 << "\n";
+							out << "mov_sat " << dst << ", " << dst << "\n";
+							continue;
+						}
+					}
+
+					// ---------------- ADD / ADD_SAT (scale only CB term) ----------------
+					{
+						std::smatch m;
+						bool isSat = false;
+						if (std::regex_search(line, m, rxAddFull) || (isSat = std::regex_search(line, m, rxAddSatFull))) {
+							const std::string dst = m[1].str();
+							const std::string s0 = m[2].str();
+							const std::string s1 = m[3].str();
+
+							const bool s0_is_cb = std::regex_search(s0, rxHasCb);
+							const bool s1_is_cb = std::regex_search(s1, rxHasCb);
+
+							if (s0_is_cb ^ s1_is_cb) {
+								const std::string& cbSrc = s0_is_cb ? s0 : s1;
+								const std::string& other = s0_is_cb ? s1 : s0;
+								out << "mad " << dst << ", " << cbSrc << ", " << INV1550 << ", " << other << "\n";
+								if (isSat) out << "mov_sat " << dst << ", " << dst << "\n";
+								continue;
+							}
+							else if (s0_is_cb && s1_is_cb) {
+								log_skip(lineNo, line, "add-both-cb");
+								out << line << "\n";
+								continue;
+							}
+							// no cb -> passthrough
+						}
+					}
+
+					// ---------------- MUL (post-scale) ----------------
+					if (std::regex_search(line, rxMulLine) && std::regex_search(line, rxHasCb)) {
+						out << line << "\n";
+						std::smatch md;
+						if (std::regex_search(line, md, rxDestToken)) {
+							std::string dst = md[1].str();
+							std::string src = dst; if (auto dot = src.find('.'); dot != std::string::npos) src.push_back('x');
+							out << "div " << dst << ", " << src << ", " << L1550_1 << "\n";
+						}
+						else {
+							log_skip(lineNo, line, "mul-no-dest-parse");
+						}
+						continue;
+					}
+
+					// ---------------- MUL_SAT (mul -> div -> saturate) ----------------
+					if (std::regex_search(line, rxMulSatLine) && std::regex_search(line, rxHasCb)) {
+						std::string base = line;
+						// replace first "mul_sat" with "mul" (case-insensitive)
+						{
+							std::string low = base;
+							std::transform(low.begin(), low.end(), low.begin(), [](unsigned char c) { return (char)std::tolower(c); });
+							size_t pos = low.find("mul_sat");
+							if (pos != std::string::npos) base.replace(pos, 7, "mul");
+						}
+						out << base << "\n";
+
+						std::smatch md;
+						if (std::regex_search(base, md, rxDestToken)) {
+							std::string dst = md[1].str();
+							std::string src = dst; if (auto dot = src.find('.'); dot != std::string::npos) src.push_back('x');
+							out << "div " << dst << ", " << src << ", " << L1550_1 << "\n";
+							out << "mov_sat " << dst << ", " << dst << "\n";
+						}
+						else {
+							log_skip(lineNo, line, "mul_sat-no-dest-parse");
+						}
+						continue;
+					}
+
+					// ---------------- DP4 / DP4_SAT (factor out 1/1550) ----------------
+					{
+						std::smatch m;
+						bool isSat = false;
+						if (std::regex_search(line, m, rxDp4Full) || (isSat = std::regex_search(line, m, rxDp4SatFull))) {
+							const std::string dst = m[1].str();
+							const std::string s0 = m[2].str();
+							const std::string s1 = m[3].str();
+
+							const bool s0_is_cb = std::regex_search(s0, rxHasCb);
+							const bool s1_is_cb = std::regex_search(s1, rxHasCb);
+
+							if (s0_is_cb ^ s1_is_cb) {
+								// Keep dp4, then divide result (dot is linear -> scaling either input == scaling result)
+								out << line << "\n";
+								std::string src = dst; if (auto dot = src.find('.'); dot != std::string::npos) src.push_back('x');
+								out << "div " << dst << ", " << src << ", " << L1550_1 << "\n";
+								if (isSat) out << "mov_sat " << dst << ", " << dst << "\n";
+								continue;
+							}
+							else if (s0_is_cb && s1_is_cb) {
+								// both inputs reference cb1[5|6] -> ambiguous (would need 1/1550^2?). Log & keep.
+								log_skip(lineNo, line, "dp4-both-cb");
+								out << line << "\n";
+								continue;
+							}
+							// no cb -> passthrough
+						}
+					}
+
+					// ---------------- Unhandled references -> log ----------------
+					if (std::regex_search(line, rxHasCb)) {
+						log_skip(lineNo, line, "unsupported-op");
+					}
+
+					// default passthrough
+					out << line << "\n";
+				}
+
+				return out.str();
+			}
+
+			unsigned char* convert_shader_program(unsigned char* program, unsigned int& program_size,
+				utils::memory::allocator& allocator)
+			{
+				if (program == nullptr)
+				{
+					return program;
+				}
+
+				//bool patch_shader = false;
+				//const auto offsets = ::shader::get_dest_reference_offsets(program, program_size);
+				//for (const auto& offset : offsets)
+				//{
+				//	const auto dest = reinterpret_cast<unsigned int*>(program + offset);
+				//	const auto cb_index = dest - 1;
+				//	if (*cb_index == 1 && (*dest == 5 || *dest == 6)) // light diffuse / specular
+				//	{
+				//		patch_shader = true;
+				//		break;
+				//	}
+				//}
+				//
+				//if (!patch_shader)
+				//{
+				//	return program;
+				//}
+
+				const std::wstring fxcd_path = L"fxcd.exe";
+
+				std::string asm_data{};
+				std::string error{};
+				std::string log{};
+				if (!::shader::fxcd::DxbcToAsmWithFxcd(program, program_size, fxcd_path, L"--disassemble-ms", L"", asm_data, &error))
+				{
+					ZONETOOL_FATAL("Failed to disassemble DX11 shader program: %s\n", error.data());
+				}
+
+				std::string patch_log{};
+				asm_data = PatchAsmPixelShader(asm_data, &patch_log);
+
+				if (!patch_log.empty())
+				{
+					ZONETOOL_FATAL("Shader patch log:\n%s", patch_log.data());
+				}
+
+				std::vector<uint8_t> dxbc;
+				if (!::shader::fxcd::AsmToDxbcWithFxcd(asm_data, fxcd_path, L"", nullptr, 0, dxbc, &error))
+				{
+					ZONETOOL_FATAL("Failed to reassemble DX11 shader program: %s\n", error.data());
+				}
+
+				program_size = static_cast<unsigned int>(dxbc.size());
+				unsigned char* new_program = allocator.allocate_array<unsigned char>(program_size);
+				std::memcpy(new_program, dxbc.data(), program_size);
+			
+				const auto checksum = ::shader::generate_checksum(new_program, program_size);
+				const auto header = reinterpret_cast<::shader::dx11_shader_header*>(new_program);
+				std::memcpy(header->checksum, &checksum, sizeof(::shader::shader_checksum));
+			
+				return new_program;
+			}
+
+			zonetool::h1::MaterialPixelShader* convert_pixelshader(MaterialPixelShader* asset, utils::memory::allocator& allocator)
+			{
+				auto* new_asset = allocator.allocate<zonetool::h1::MaterialPixelShader>();
+
+				new_asset->prog.loadDef.program = asset->prog.loadDef.program;
+				new_asset->prog.loadDef.programSize = asset->prog.loadDef.programSize;
+				new_asset->prog.loadDef.program = convert_shader_program(new_asset->prog.loadDef.program, new_asset->prog.loadDef.programSize, allocator);
+				new_asset->prog.loadDef.microCodeCrc = ::shader::calc_crc32(new_asset->prog.loadDef.program, new_asset->prog.loadDef.programSize);
+				new_asset->name = allocator.duplicate_string(game::add_source_postfix(asset->name, game::iw6));
+
+				return new_asset;
+			}
+
 			zonetool::h1::MaterialTechniqueSet* convert(MaterialTechniqueSet* asset, utils::memory::allocator& allocator)
 			{
 				auto* new_asset = allocator.allocate<zonetool::h1::MaterialTechniqueSet>();
@@ -1233,125 +1502,194 @@ namespace zonetool::iw6
 								}
 								if (pass->pixelShader)
 								{
-									new_pass->pixelShader = converter::h1::pixelshader::convert(pass->pixelShader, allocator);
+									using Tech = zonetool::h1::MaterialTechniqueType;
+									using UT = std::underlying_type_t<Tech>;
+									
+									constexpr int kStride = 60;
+									constexpr int kVariants = 4;
+									
+									constexpr std::array<Tech, 22> kLightBases = {
+										Tech::TECHNIQUE_LIT_SPOT,
+										Tech::TECHNIQUE_LIT_SPOT_SHADOW,
+										Tech::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS,
+										Tech::TECHNIQUE_LIT_OMNI,
+										Tech::TECHNIQUE_LIT_OMNI_SHADOW,
+										Tech::TECHNIQUE_LIT_SPOT_DFOG,
+										Tech::TECHNIQUE_LIT_SPOT_SHADOW_DFOG,
+										Tech::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_DFOG,
+										Tech::TECHNIQUE_LIT_OMNI_DFOG,
+										Tech::TECHNIQUE_LIT_OMNI_SHADOW_DFOG,
+										Tech::TECHNIQUE_LIGHT_SPOT,
+										Tech::TECHNIQUE_LIGHT_OMNI,
+										Tech::TECHNIQUE_LIGHT_SPOT_SHADOW,
+										Tech::TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS,
+										Tech::TECHNIQUE_LIGHT_SPOT_STENCIL,
+										Tech::TECHNIQUE_LIGHT_OMNI_STENCIL,
+										Tech::TECHNIQUE_LIGHT_SPOT_DFOG,
+										Tech::TECHNIQUE_LIGHT_OMNI_DFOG,
+										Tech::TECHNIQUE_LIGHT_SPOT_SHADOW_DFOG,
+										Tech::TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG,
+										Tech::TECHNIQUE_LIGHT_SPOT_STENCIL_DFOG,
+										Tech::TECHNIQUE_LIGHT_OMNI_STENCIL_DFOG
+									};
+									
+									auto is_light_tech_variant = [](UT t) {
+										for (Tech base : kLightBases) {
+											UT d = t - static_cast<UT>(base);
+											if (d >= 0 && d % kStride == 0 && d / kStride < kVariants) {
+												return true;
+											}
+										}
+										return false;
+									};
+									
+									if (is_light_tech_variant(static_cast<UT>(new_tech_index))) 
+									{
+										new_pass->pixelShader = convert_pixelshader(pass->pixelShader, allocator);
+									}
+
+									//auto is_lit_dir_variant = [](int tech)
+									//{
+									//	constexpr int stride = 60;
+									//	constexpr int max_mul = 3;
+									//	constexpr std::array<int, 4> bases = {
+									//		zonetool::h1::TECHNIQUE_LIT_DIR,
+									//		zonetool::h1::TECHNIQUE_LIT_DIR_SHADOW,
+									//		zonetool::h1::TECHNIQUE_LIT_DIR_DFOG,
+									//		zonetool::h1::TECHNIQUE_LIT_DIR_SHADOW_DFOG,
+									//	};
+									//
+									//	for (int b : bases) 
+									//	{
+									//		const int d = tech - b;
+									//		// in same 60-step ladder and within 0..3 steps
+									//		if (d >= 0 && d % stride == 0 && d / stride <= max_mul)
+									//			return true;
+									//	}
+									//	return false;
+									//};
+									//
+									//if (!is_lit_dir_variant(new_tech_index))
+									//{
+									//	new_pass->pixelShader = convert_pixelshader(pass->pixelShader, allocator);
+									//}
+									else 
+									{
+										new_pass->pixelShader = converter::h1::pixelshader::convert(pass->pixelShader, allocator);
+									}
+									zonetool::h1::pixel_shader::dump(new_pass->pixelShader);
 								}
 
-								//new_pass->stableArgSize += 128;
+								new_pass->stableArgSize += 128;
 
 								if (pass->args)
 								{
-									auto arg_count = pass->perObjArgCount + pass->perPrimArgCount + pass->stableArgCount;
-									new_pass->args = allocator.allocate_array<zonetool::h1::MaterialShaderArgument>(arg_count);
-									std::memcpy(new_pass->args, pass->args, sizeof(MaterialShaderArgument) * arg_count); // same struct
+									const auto primCount = pass->perPrimArgCount;
+									const auto objCount = pass->perObjArgCount;
+									const auto stableCount = pass->stableArgCount;
+									auto arg_count = primCount + objCount + stableCount;
 
-									auto new_arg_index = 0;
-
-									std::vector<zonetool::h1::MaterialShaderArgument> literalized_args{};
-									const auto add_literalized_args = [&]()
-									{
-										for(auto& literal_arg : literalized_args)
-										{
-											auto* new_arg = &new_pass->args[new_arg_index];
-											std::memcpy(new_arg, &literal_arg, sizeof(MaterialShaderArgument));
-
-											new_arg_index++;
-										}
-										literalized_args.clear();
-									};
+									std::vector<zonetool::h1::MaterialShaderArgument> args{};
+									args.reserve(arg_count);
 									
 									for (auto arg_index = 0; arg_index < arg_count; arg_index++)
 									{
 										auto* arg = &pass->args[arg_index];
-										auto* new_arg = &new_pass->args[new_arg_index];
+										zonetool::h1::MaterialShaderArgument new_arg;
+										std::memcpy(&new_arg, arg, sizeof(zonetool::h1::MaterialShaderArgument));
 
-										[[maybe_unused]] const auto is_per_prim_arg = arg_index < pass->perPrimArgCount;
-										[[maybe_unused]] const auto is_per_obj_arg = !is_per_prim_arg && arg_index < (pass->perObjArgCount + pass->perPrimArgCount);
+										[[maybe_unused]] const auto is_per_prim_arg = arg_index < primCount;
+										[[maybe_unused]] const auto is_per_obj_arg = !is_per_prim_arg && arg_index < (objCount + primCount);
 										[[maybe_unused]] const auto is_stable_arg = !is_per_prim_arg && !is_per_obj_arg;
-
-										if (arg->type >= MTL_ARG_LITERAL_CONST)
-										{
-											add_literalized_args();
-											new_arg = &new_pass->args[new_arg_index];
-										}
-
-										std::memcpy(new_arg, arg, sizeof(MaterialShaderArgument));
 
 										if (arg->type == MTL_ARG_CODE_CONST)
 										{
 											if (const_src_code_map.contains(arg->u.codeConst.index))
 											{
-												auto new_index = const_src_code_map.at(arg->u.codeConst.index);
-												new_arg->u.codeConst.index = new_index;
-
-												assert(new_arg->u.codeConst.index < zonetool::h1::CONST_SRC_TOTAL_COUNT);
+												new_arg.u.codeConst.index = const_src_code_map.at(arg->u.codeConst.index);
+												assert(new_arg.u.codeConst.index < zonetool::h1::CONST_SRC_TOTAL_COUNT);
 											}
 											else
 											{
-												//ZONETOOL_ERROR("Unable to map code constant %d for technique '%s'!", arg->u.codeConst.index, asset->name);
-												//new_arg->u.codeConst.index = 0;
-												//new_arg->u.codeConst.firstRow = 0;
-												//new_arg->u.codeConst.rowCount = 0;
+												ZONETOOL_ERROR("Unable to map code constant %d for technique '%s'!", arg->u.codeConst.index, technique->hdr.name);
+												//new_arg.u.codeConst.index = 0;
+												//new_arg.u.codeConst.firstRow = 0;
+												//new_arg.u.codeConst.rowCount = 0;
 
-												new_arg->type = zonetool::h1::MTL_ARG_LITERAL_CONST;
-												new_arg->u.literalConst = allocator.allocate_array<float>(4);
-												std::memcpy(new_arg->u.literalConst, consts[arg->u.codeConst.index], sizeof(float[4]));
-
-												// add literalized arg to the list
-												literalized_args.push_back(std::move(*new_arg));
-
-												new_arg_index--;
+												new_arg.type = zonetool::h1::MTL_ARG_LITERAL_CONST;
+												new_arg.u.literalConst = allocator.allocate_array<float>(4);
+												//std::memset(new_arg.u.literalConst, 0, sizeof(float[4]));
+												std::memcpy(new_arg.u.literalConst, consts[arg->u.codeConst.index], sizeof(float[4]));
 											}
 										}
-										else if (arg->type == MTL_ARG_CODE_TEXTURE)
+										else if (arg->type == MTL_ARG_CODE_TEXTURE || arg->type == MTL_ARG_CODE_SAMPLER)
 										{
 											if (texture_src_code_map.contains(arg->u.codeConst.index))
 											{
-												auto new_index = texture_src_code_map.at(arg->u.codeConst.index);
-												new_arg->u.codeConst.index = new_index;
-
-												assert(new_arg->u.codeConst.index < zonetool::h1::TEXTURE_SRC_CODE_COUNT);
+												new_arg.u.codeConst.index = texture_src_code_map.at(arg->u.codeConst.index);
+												assert(new_arg.u.codeConst.index < zonetool::h1::TEXTURE_SRC_CODE_COUNT);
 											}
 											else
 											{
-												ZONETOOL_ERROR("Unable to map code sampler %d for technique '%s'!", arg->u.codeSampler, asset->name);
-												new_arg->u.codeConst.index = zonetool::h1::TEXTURE_SRC_CODE_BLACK;
+												ZONETOOL_ERROR("Unable to map code sampler %d for technique '%s'!", arg->u.codeSampler, technique->hdr.name);
+												new_arg.u.codeConst.index = zonetool::h1::TEXTURE_SRC_CODE_BLACK;
 											}
 										}
 
-										new_arg_index++;
+										if (arg->type == 4 && arg->shader == 16 && arg->dest == 1 &&
+											arg->u.literalConst[0] == 0.0f &&
+											arg->u.literalConst[1] == 0.0f &&
+											arg->u.literalConst[2] == 0.0f &&
+											arg->u.literalConst[3] == 0.0f)
+										{
+											new_arg.type = MTL_ARG_MATERIAL_CONST;
+											memset(&new_arg.u, 0, sizeof(MaterialArgumentDef));
+											new_arg.u.nameHash = 1033475292;
+										}
+
+										args.push_back(new_arg);
 									}
-									add_literalized_args();
+									// sort
+									auto comp = [](
+										const zonetool::h1::MaterialShaderArgument& a, 
+										const zonetool::h1::MaterialShaderArgument& b)
+									{
+										if (a.type != b.type)
+											return a.type < b.type;
+
+										if(a.type <= 4 && a.type != zonetool::h1::MTL_ARG_MATERIAL_CONST)
+											return a.dest < b.dest;
+
+										if (a.u.codeSampler != b.u.codeSampler)
+											return a.u.codeSampler < b.u.codeSampler;
+										
+										return a.dest < b.dest;
+									};
+
+									assert(static_cast<int>(args.size()) == arg_count);
+									auto first = args.begin();
+									auto mid1 = first + primCount;
+									auto mid2 = mid1 + objCount;
+									auto last = args.end();
+
+									// sort per-prim
+									std::sort(first, mid1, comp);
+									// sort per-obj
+									std::sort(mid1, mid2, comp);
+									// sort stable
+									std::sort(mid2, last, comp);
+
+									// allocate once and copy sorted results
+									new_pass->args = allocator.allocate_array<zonetool::h1::MaterialShaderArgument>(args.size());
+
+									// prefer std::copy over memcpy (works even if Arg stops being trivially copyable)
+									std::copy(args.begin(), args.end(), new_pass->args);
 								}
 							}
 							converted_asset_techniques[reinterpret_cast<std::uintptr_t>(asset->techniques[i])] = new_technique;
 						}
 					}
 				}
-
-				new_asset->techniques[zonetool::h1::TECHNIQUE_ZPREPASS_HIDIR] = new_asset->techniques[zonetool::h1::TECHNIQUE_ZPREPASS];
-				new_asset->techniques[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS_HIDIR] = new_asset->techniques[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS];
-				new_asset->techniques[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS_HIDIR] = new_asset->techniques[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS];
-				new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS_HIDIR] = new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS];
-
-				new_asset->techniques[zonetool::h1::TECHNIQUE_LIGHT_SPOT_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_LIGHT_SPOT];
-				new_asset->techniques[zonetool::h1::TECHNIQUE_LIGHT_OMNI_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_LIGHT_OMNI];
-				new_asset->techniques[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW];
-				new_asset->techniques[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS];
-
-				new_asset->techniques[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT];
-				new_asset->techniques[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_OMNI_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_OMNI];
-				new_asset->techniques[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW];
-				new_asset->techniques[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW_CUCOLORIS];
-
-				new_asset->techniques[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT];
-				new_asset->techniques[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_OMNI_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_OMNI];
-				new_asset->techniques[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW];
-				new_asset->techniques[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW_CUCOLORIS];
-
-				new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT];
-				new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_OMNI_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_OMNI];
-				new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW];
-				new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->techniques[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_CUCOLORIS];
 
 				return new_asset;
 			}

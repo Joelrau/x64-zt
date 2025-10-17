@@ -183,35 +183,141 @@ namespace zonetool::iw6
 						}
 					}
 				}
-				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_ZPREPASS];
-				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS];
-				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS];
-				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS];
-
-				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_SPOT_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_SPOT];
-				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_OMNI_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_OMNI];
-				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW];
-				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS];
-
-				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT];
-				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_OMNI_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_OMNI];
-				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW];
-				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW_CUCOLORIS];
-
-				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT];
-				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_OMNI_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_OMNI];
-				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW];
-				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW_CUCOLORIS];
-
-				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT];
-				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_OMNI_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_OMNI];
-				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW];
-				new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_CUCOLORIS];
+				//const auto addifnoexists1 = [&](unsigned int index, unsigned int index2)
+				//{
+				//	if (new_asset->stateBitsEntry[index] == 0xFF && asset->stateBitsEntry[index2] != 0xFF)
+				//	{
+				//		new_asset->stateBitsEntry[index] = asset->stateBitsEntry[index2];
+				//	}
+				//};
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_DIR, zonetool::iw6::TECHNIQUE_LIT_DIR_SPOT);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_DIR, zonetool::iw6::TECHNIQUE_LIT_DIR_OMNI);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_DIR, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_SPOT);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_DIR, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_OMNI);
+				//
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_DIR_SHADOW, zonetool::iw6::TECHNIQUE_LIT_DIR_SPOT_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_DIR_SHADOW, zonetool::iw6::TECHNIQUE_LIT_DIR_OMNI_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_DIR_SHADOW, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_SPOT);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_DIR_SHADOW, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_SPOT_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_DIR_SHADOW, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_OMNI_SHADOW);
+				//
+				//
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_DIR_SPOT);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_DIR_SPOT_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_DIR_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_SPOT);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_SPOT_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_SPOT);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_SPOT_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_OMNI);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_OMNI_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_SPOT);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_SPOT_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_OMNI);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_OMNI_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI_SHADOW);
+				//
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_DIR_SPOT_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_DIR_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_SPOT);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_SPOT_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SPOT_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_OMNI_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_SPOT);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_SPOT_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_OMNI);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_OMNI_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI_SHADOW);
+				//
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS, zonetool::iw6::TECHNIQUE_LIT_DIR_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS, zonetool::iw6::TECHNIQUE_LIT_SPOT_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI_SHADOW);
+				//
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_DIR_OMNI);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_DIR_OMNI_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_OMNI);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_OMNI_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_SPOT_OMNI);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_SPOT_OMNI_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_OMNI);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_OMNI_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_OMNI_OMNI);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_OMNI_OMNI_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_OMNI_SHADOW_OMNI);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_OMNI_SHADOW_OMNI_SHADOW);
+				//
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_OMNI_SHADOW, zonetool::iw6::TECHNIQUE_LIT_DIR_OMNI_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_OMNI_SHADOW, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_OMNI);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_OMNI_SHADOW, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_OMNI_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_OMNI_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_OMNI_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_OMNI_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_OMNI);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_OMNI_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_OMNI_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_OMNI_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_OMNI_SHADOW, zonetool::iw6::TECHNIQUE_LIT_OMNI_OMNI_SHADOW);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_OMNI_SHADOW, zonetool::iw6::TECHNIQUE_LIT_OMNI_SHADOW_OMNI);
+				//addifnoexists1(zonetool::h1::TECHNIQUE_LIT_OMNI_SHADOW, zonetool::iw6::TECHNIQUE_LIT_OMNI_SHADOW_OMNI_SHADOW);
+				//
+				//
+				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_ZPREPASS];
+				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS];
+				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS];
+				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS_HIDIR] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS];
+				//
+				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_SPOT_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_SPOT];
+				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_OMNI_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_OMNI];
+				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW];
+				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS];
+				//
+				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT];
+				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_OMNI_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_OMNI];
+				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW];
+				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW_CUCOLORIS];
+				//
+				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT];
+				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_OMNI_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_OMNI];
+				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW];
+				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW_CUCOLORIS];
+				//
+				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT];
+				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_OMNI_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_OMNI];
+				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW];
+				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_CUCOLORIS];
 
 				new_asset->textureCount = asset->textureCount;
 				new_asset->constantCount = asset->constantCount;
 				new_asset->stateBitsCount = asset->stateBitsCount;
-				new_asset->stateFlags = asset->stateFlags; // convert?
+				new_asset->stateFlags = asset->stateFlags;
+				if (game::get_mode() == game::game_mode::iw6)
+				{
+					if ((asset->stateFlags & 0x2) != 0) // stateflag 0x2 is different for iw4, iw5 and iw6. it's not cull front
+					{
+						// fix stateflags, we could check if the material has front cull from loadbits but thats too much work, lets just use "none" if front is used...
+						new_asset->stateFlags = asset->stateFlags & ~0x2;
+
+					}
+				}
 				new_asset->cameraRegion = convert_camera_region(asset->cameraRegion, asset->name);
 				new_asset->materialType = convert_material_type(asset->materialType, asset->name);
 				new_asset->layerCount = asset->layerCount;
@@ -220,7 +326,17 @@ namespace zonetool::iw6
 				new_asset->techniqueSet = allocator.allocate<zonetool::h1::MaterialTechniqueSet>();
 				new_asset->techniqueSet->name = allocator.duplicate_string(game::add_source_postfix(asset->techniqueSet->name, game::iw6));
 				REINTERPRET_CAST_SAFE(textureTable);
-				REINTERPRET_CAST_SAFE(constantTable);
+				//REINTERPRET_CAST_SAFE(constantTable);
+				new_asset->constantTable = allocator.allocate_array<zonetool::h1::MaterialConstantDef>(new_asset->constantCount);
+				for (auto i = 0; i < new_asset->constantCount; i++)
+				{
+					memcpy(&new_asset->constantTable[i], &asset->constantTable[i], sizeof(zonetool::h1::MaterialConstantDef));
+					//auto* constant = &new_asset->constantTable[i];
+					//if (constant->nameHash == 3733414975) // bloomParams
+					//{
+					//	constant->literal[0] = 0.0f;
+					//}
+				}
 				
 				// statemap
 				//new_asset->stateBitsTable = allocator.allocate_array<zonetool::h1::GfxStateBits>(asset->stateBitsCount); // don't convert, dump from old
@@ -239,30 +355,127 @@ namespace zonetool::iw6
 						}
 					}
 				}
-				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_ZPREPASS];
-				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS];
-				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS];
-				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS];
 
-				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_SPOT_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_SPOT];
-				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_OMNI_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_OMNI];
-				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW];
-				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS];
-
-				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT];
-				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_OMNI_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_OMNI];
-				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW];
-				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW_CUCOLORIS];
-
-				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT];
-				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_OMNI_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_OMNI];
-				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW];
-				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW_CUCOLORIS];
-
-				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT];
-				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_OMNI_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_OMNI];
-				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW];
-				new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_CUCOLORIS];
+				//const auto addifnoexists = [&](unsigned int index, unsigned int index2)
+				//{
+				//	if (new_asset->constantBufferIndex[index] == 0xFF && asset->constantBufferIndex[index2] != 0xFF)
+				//	{
+				//		new_asset->constantBufferIndex[index] = asset->constantBufferIndex[index2];
+				//	}
+				//};
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_DIR, zonetool::iw6::TECHNIQUE_LIT_DIR_SPOT);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_DIR, zonetool::iw6::TECHNIQUE_LIT_DIR_OMNI);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_DIR, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_SPOT);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_DIR, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_OMNI);
+				//
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_DIR_SHADOW, zonetool::iw6::TECHNIQUE_LIT_DIR_SPOT_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_DIR_SHADOW, zonetool::iw6::TECHNIQUE_LIT_DIR_OMNI_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_DIR_SHADOW, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_SPOT);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_DIR_SHADOW, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_SPOT_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_DIR_SHADOW, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_OMNI_SHADOW);
+				//
+				//
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_DIR_SPOT);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_DIR_SPOT_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_DIR_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_SPOT);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_SPOT_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_SPOT);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_SPOT_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_OMNI);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_OMNI_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_SPOT);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_SPOT_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_OMNI);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_OMNI_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI_SHADOW);
+				//
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_DIR_SPOT_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_DIR_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_SPOT);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_SPOT_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SPOT_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_OMNI_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_SPOT);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_SPOT_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_OMNI);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_OMNI_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI_SHADOW);
+				//
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS, zonetool::iw6::TECHNIQUE_LIT_DIR_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS, zonetool::iw6::TECHNIQUE_LIT_SPOT_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT_SHADOW_CUCOLORIS);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI_SHADOW);
+				//
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_DIR_OMNI);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_DIR_OMNI_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_OMNI);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_OMNI_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_SPOT_OMNI);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_SPOT_OMNI_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_OMNI);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_OMNI_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_OMNI_OMNI);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_OMNI_OMNI_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_OMNI_SHADOW_OMNI);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_OMNI, zonetool::iw6::TECHNIQUE_LIT_OMNI_SHADOW_OMNI_SHADOW);
+				//
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_OMNI_SHADOW, zonetool::iw6::TECHNIQUE_LIT_DIR_OMNI_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_OMNI_SHADOW, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_OMNI);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_OMNI_SHADOW, zonetool::iw6::TECHNIQUE_LIT_DIR_SHADOW_OMNI_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_OMNI_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_OMNI_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_OMNI_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_OMNI);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_OMNI_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_OMNI_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_OMNI_SHADOW, zonetool::iw6::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_OMNI_SHADOW, zonetool::iw6::TECHNIQUE_LIT_OMNI_OMNI_SHADOW);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_OMNI_SHADOW, zonetool::iw6::TECHNIQUE_LIT_OMNI_SHADOW_OMNI);
+				//addifnoexists(zonetool::h1::TECHNIQUE_LIT_OMNI_SHADOW, zonetool::iw6::TECHNIQUE_LIT_OMNI_SHADOW_OMNI_SHADOW);
+				//
+				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_ZPREPASS];
+				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_ZPREPASS];
+				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_ZPREPASS];
+				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS_HIDIR] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_ZPREPASS];
+				//
+				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_SPOT_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_SPOT];
+				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_OMNI_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_OMNI];
+				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW];
+				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS];
+				//
+				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT];
+				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_OMNI_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_OMNI];
+				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW];
+				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_INSTANCED_LIGHT_SPOT_SHADOW_CUCOLORIS];
+				//
+				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT];
+				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_OMNI_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_OMNI];
+				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW];
+				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_SUBDIV_PATCH_LIGHT_SPOT_SHADOW_CUCOLORIS];
+				//
+				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT];
+				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_OMNI_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_OMNI];
+				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW];
+				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_CUCOLORIS];
 
 				REINTERPRET_CAST_SAFE(constantBufferTable);
 				new_asset->constantBufferCount = asset->constantBufferCount;

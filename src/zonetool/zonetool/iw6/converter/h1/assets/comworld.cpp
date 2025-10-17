@@ -70,13 +70,20 @@ namespace zonetool::iw6
 						// idk why...
 						for (auto c = 0; c < 3; c++)
 						{
-							new_light->color[c] *= 10000.0f;
+							//new_light->color[c] *= 10000.0f;
 						}
 					}
 				}
 
 				COPY_VALUE(primaryLightEnvCount);
 				REINTERPRET_CAST_SAFE(primaryLightEnvs);
+
+				/*new_asset->primaryLightEnvs = allocator.allocate_array<zonetool::h1::ComPrimaryLightEnv>(new_asset->primaryLightEnvCount);
+				for (unsigned short i = 0; i < new_asset->primaryLightEnvCount; i++)
+				{
+					new_asset->primaryLightEnvs[i].numIndices = 1;
+					new_asset->primaryLightEnvs[i].primaryLightIndices[0] = asset->primaryLightEnvs[i].primaryLightIndices[0];
+				}*/
 
 				return new_asset;
 			}

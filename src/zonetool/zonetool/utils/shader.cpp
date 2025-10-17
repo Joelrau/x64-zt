@@ -9,6 +9,181 @@
 
 namespace shader
 {
+	namespace fxcd
+	{
+		// https://github.com/hellokenlee/fxcd
+
+		// Create a temp file path with a specific extension
+		inline std::wstring MakeTempPath(const wchar_t* ext) {
+			wchar_t dir[MAX_PATH]{};
+			GetTempPathW(MAX_PATH, dir);
+			wchar_t tmp[MAX_PATH]{};
+			GetTempFileNameW(dir, L"fxcd", 0, tmp);
+			std::wstring path = tmp;
+			// swap extension
+			size_t dot = path.find_last_of(L'.');
+			if (dot != std::wstring::npos) path.resize(dot);
+			path += ext;
+			return path;
+		}
+
+		// Run a command, capture combined stdout/stderr to `outLog`, return exit code (-1 on failure)
+		inline int RunProcessCapture(std::wstring cmd, std::string& outLog) {
+			SECURITY_ATTRIBUTES sa{ sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE };
+			HANDLE r = nullptr, w = nullptr;
+			if (!CreatePipe(&r, &w, &sa, 0)) return -1;
+			SetHandleInformation(r, HANDLE_FLAG_INHERIT, 0);
+
+			STARTUPINFOW si{};
+			si.cb = sizeof(si);
+			si.dwFlags = STARTF_USESTDHANDLES;
+			si.hStdOutput = w;
+			si.hStdError = w;
+			si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+
+			PROCESS_INFORMATION pi{};
+			std::vector<wchar_t> mutableCmd(cmd.begin(), cmd.end());
+			mutableCmd.push_back(L'\0');
+
+			BOOL ok = CreateProcessW(nullptr, mutableCmd.data(),
+				nullptr, nullptr, TRUE,
+				CREATE_NO_WINDOW, nullptr, nullptr,
+				&si, &pi);
+
+			CloseHandle(w);
+
+			if (!ok) {
+				CloseHandle(r);
+				outLog = "CreateProcessW failed";
+				return -1;
+			}
+
+			WaitForSingleObject(pi.hProcess, INFINITE);
+
+			char buf[4096];
+			DWORD got = 0;
+			while (ReadFile(r, buf, sizeof(buf), &got, nullptr) && got) {
+				outLog.append(buf, buf + got);
+			}
+
+			DWORD code = 0;
+			GetExitCodeProcess(pi.hProcess, &code);
+
+			CloseHandle(pi.hThread);
+			CloseHandle(pi.hProcess);
+			CloseHandle(r);
+
+			return static_cast<int>(code);
+		}
+
+		// --- Disassemble DXBC -> ASM file(s) with fxcd ---
+		// disMode: L"--disassemble-ms" (MS) or L"--disassemble" / L"--disassemble-flugan" / L"--decompile"
+		// extraFlags: e.g., L"-16" to patch CB offsets; L"-V" to validate
+		// Returns true and fills asmOut if either <in>.msasm or <in>.asm was produced.
+		bool DxbcToAsmWithFxcd(const void* dxbc, size_t size,
+			std::wstring fxcdPath,
+			std::wstring disMode,
+			std::wstring extraFlags,
+			std::string& asmOut,
+			std::string* logOut)
+		{
+			if (!dxbc || size < 4) return false;
+
+			const bool isMS = (disMode == L"--disassemble-ms");
+
+			// write input
+			std::wstring inPath = MakeTempPath(L".dxbc");
+			{
+				std::ofstream ofs(inPath, std::ios::binary);
+				if (!ofs) return false;
+				ofs.write(reinterpret_cast<const char*>(dxbc), static_cast<std::streamsize>(size));
+			}
+			std::wstring outPath = inPath;
+			outPath.replace(outPath.size() - 5, 5, isMS ? L".msasm" : L".asm");
+
+			// run fxcd
+			std::wstring cmd = L"\"" + fxcdPath + L"\" " + disMode + L" ";
+			if (!extraFlags.empty()) cmd += extraFlags + L" ";
+			cmd += L"\"" + inPath + L"\"";
+
+			std::string log;
+			int code = RunProcessCapture(cmd, log);
+			if (logOut) *logOut = log;
+
+			bool ok = false;
+			if (code == 0) {
+				std::ifstream ifs(outPath, std::ios::binary);
+				if (ifs) {
+					asmOut.assign(std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>());
+					ok = !asmOut.empty();
+				}
+			}
+
+			// cleanup
+			DeleteFileW(inPath.c_str());
+			DeleteFileW(outPath.c_str());
+			return ok;
+		}
+
+		// --- Assemble ASM -> DXBC using fxcd --assemble ---
+		// fxcd writes "<asmPath>.shdr". We read that back.
+		// If you want to preserve reflection/signatures, pass originalDxbc to use "--copy-reflection".
+		bool AsmToDxbcWithFxcd(const std::string& asmText,
+			std::wstring fxcdPath,
+			std::wstring extraAssembleFlags,   // e.g., L"-V"
+			const void* originalDxbc,
+			size_t originalDxbcSize,
+			std::vector<uint8_t>& outDxbc,
+			std::string* logOut)
+		{
+			// write asm
+			std::wstring asmPath = MakeTempPath(L".asm");
+			{
+				std::ofstream ofs(asmPath, std::ios::binary);
+				if (!ofs) return false;
+				ofs.write(asmText.data(), static_cast<std::streamsize>(asmText.size()));
+			}
+
+			// optional reflection
+			std::wstring reflPath;
+			if (originalDxbc && originalDxbcSize) {
+				reflPath = MakeTempPath(L".dxbc");
+				std::ofstream ofs(reflPath, std::ios::binary);
+				if (!ofs) { DeleteFileW(asmPath.c_str()); return false; }
+				ofs.write(reinterpret_cast<const char*>(originalDxbc), static_cast<std::streamsize>(originalDxbcSize));
+			}
+
+			// output is "<asm>.shdr"
+			std::wstring outPath = asmPath;
+			outPath.replace(outPath.size() - 4, 4, L".shdr");
+
+			// run fxcd
+			std::wstring cmd = L"\"" + fxcdPath + L"\" --assemble ";
+			if (!extraAssembleFlags.empty()) cmd += extraAssembleFlags + L" ";
+			if (!reflPath.empty())           cmd += L"--copy-reflection \"" + reflPath + L"\" ";
+			cmd += L"\"" + asmPath + L"\"";
+
+			std::string log;
+			int code = RunProcessCapture(cmd, log);
+			if (logOut) *logOut = log;
+
+			bool ok = false;
+			if (code == 0) {
+				std::ifstream ifs(outPath, std::ios::binary);
+				if (ifs) {
+					outDxbc.assign(std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>());
+					ok = !outDxbc.empty();
+				}
+			}
+
+			// cleanup
+			DeleteFileW(asmPath.c_str());
+			if (!reflPath.empty()) DeleteFileW(reflPath.c_str());
+			DeleteFileW(outPath.c_str());
+			return ok;
+		}
+	}
+
 	namespace
 	{
 		unsigned char* parse_shader_chunk(unsigned char* program, unsigned int program_size, unsigned int* chunk_size)

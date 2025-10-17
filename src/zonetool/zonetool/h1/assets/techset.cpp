@@ -1,4 +1,4 @@
-#include <std_include.hpp>
+﻿#include <std_include.hpp>
 #include "techset.hpp"
 
 #include "vertexshader.hpp"
@@ -1267,7 +1267,7 @@ namespace zonetool::h1
 
 			entry["loadBits"][0] = converted_bits.loadBits[0];
 			entry["loadBits"][1] = converted_bits.loadBits[1];
-			entry["loadBits"][2] = converted_bits.loadBits[2]; //0xFFFF;
+			entry["loadBits"][2] = converted_bits.loadBits[2]; // 0xFFFF;
 			entry["loadBits"][3] = converted_bits.loadBits[3]; // maybe wrong still (white flash)
 			entry["loadBits"][4] = converted_bits.loadBits[4];
 			entry["loadBits"][5] = converted_bits.loadBits[5];
@@ -1302,6 +1302,23 @@ namespace zonetool::h1
 				//convert_bit(zonetool::iw6::GFXS1_DEPTHTEST_MASK, zonetool::iw6::GFXS1_DEPTHTEST_MDAO, zonetool::h1::GFXS1_DEPTHTEST_MDAO);
 				convert_bit(0, zonetool::iw6::GFXS1_DEPTHTEST_DISABLE, zonetool::h1::GFXS1_DEPTHTEST_DISABLE);
 
+				// patches
+				if ((iw6_bits & (0xFFui64 << 12)) == (0x48ui64 << 12))
+				{
+					h1_bits = (h1_bits & ~(0xFFui64 << 12)) | (0xE0ui64 << 12);
+				}
+
+				if ((iw6_bits & (0xFFui64 << 28)) == (0x24ui64 << 28))
+				{
+					h1_bits = (h1_bits & ~(0xFFui64 << 28)) | (0xEui64 << 28);
+					h1_bits |= (0x1ui64 << 36);
+				}
+
+				if ((iw6_bits & (0xFui64 << 44)) == (0xEui64 << 44))
+				{
+					h1_bits = (h1_bits & ~(0xFui64 << 44)) | (0x1ui64 << 44);
+				}
+
 				return h1_bits;
 			};
 
@@ -1318,7 +1335,7 @@ namespace zonetool::h1
 			add_ds_entry(zonetool::h1::GFX_DEPTH_STENCIL_MODE_HUD_OUTLINE_ZFAIL, zonetool::iw6::GFX_DEPTH_STENCIL_MODE_HUD_OUTLINE_ZFAIL);
 			add_ds_entry(zonetool::h1::GFX_DEPTH_STENCIL_MODE_MOTION_BLUR_HQ, zonetool::iw6::GFX_DEPTH_STENCIL_MODE_MOTION_BLUR_HQ);
 			add_ds_entry(zonetool::h1::GFX_DEPTH_STENCIL_MODE_DEPTH_HACK, zonetool::iw6::GFX_DEPTH_STENCIL_MODE_DEPTH_HACK);
-			add_ds_entry_val(zonetool::h1::GFX_DEPTH_STENCIL_MODE_UNK, 19872279822925); //add_ds_entry(zonetool::h1::GFX_DEPTH_STENCIL_MODE_UNK, zonetool::iw6::GFX_DEPTH_STENCIL_MODE_DEFAULT); // 19872279822925 default
+			add_ds_entry_val(zonetool::h1::GFX_DEPTH_STENCIL_MODE_UNK, 19872279822919); //add_ds_entry(zonetool::h1::GFX_DEPTH_STENCIL_MODE_UNK, zonetool::iw6::GFX_DEPTH_STENCIL_MODE_DEFAULT); // 19872279822925 default
 			add_ds_entry(zonetool::h1::GFX_DEPTH_STENCIL_MODE_FORCE_DEPTH_WRITE, zonetool::iw6::GFX_DEPTH_STENCIL_MODE_FORCE_DEPTH_WRITE);
 			add_ds_entry(zonetool::h1::GFX_DEPTH_STENCIL_MODE_FORCE_DEPTH_WRITE_HUD_OUTLINE_ZFAIL, zonetool::iw6::GFX_DEPTH_STENCIL_MODE_FORCE_DEPTH_WRITE_HUD_OUTLINE_ZFAIL);
 			add_ds_entry(zonetool::h1::GFX_DEPTH_STENCIL_MODE_CACHED_SPOT_STENCIL_INCR_SAT, zonetool::iw6::GFX_DEPTH_STENCIL_MODE_CACHED_SPOT_STENCIL_INCR_SAT);

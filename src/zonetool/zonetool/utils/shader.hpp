@@ -2,6 +2,24 @@
 
 namespace shader
 {
+	namespace fxcd
+	{
+		bool DxbcToAsmWithFxcd(const void* dxbc, size_t size,
+			std::wstring fxcdPath,
+			std::wstring disassemblerMode,
+			std::wstring extraFlags,
+			std::string& asmOut,
+			std::string* logOut = nullptr);
+
+		bool AsmToDxbcWithFxcd(const std::string& asmText,
+			std::wstring fxcdPath,
+			std::wstring extraAssembleFlags,
+			const void* originalDxbc,
+			std::size_t originalDxbcSize,
+			std::vector<uint8_t>& outDxbc,
+			std::string* logOut = nullptr);
+	}
+
 	struct dx11_shader_header
 	{
 		unsigned char dxbc[4]; // "DXBC"
