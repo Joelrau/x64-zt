@@ -1192,22 +1192,51 @@ namespace zonetool::iw6
 			//   dp4_sat     DST, A,  cb1[i]       -> dp4 ...; div ...; mov_sat DST, DST
 			//
 			// Any line mentioning cb1[5|6] that we don't confidently transform is logged in `diagnostics`.
-			static std::string PatchAsmPixelShader(const std::string& asmText,
-				std::string* diagnostics /*= nullptr*/)
+			static std::string PatchAsmPixelShader(
+				const std::string& asmText,
+				std::string* diagnostics /*= nullptr*/,
+				const std::vector<int>& cb1Slots /*= {5, 6}*/)
 			{
 				std::istringstream in(asmText);
 				std::ostringstream out;
 				std::string line;
 
 				// Literals
-				constexpr const char* L1550 = "l(1550.0, 1550.0, 1550.0, 1550.0)";
+				constexpr const char* L1550 = "l(1550.0, 1550.0, 1550.0, 1.0)";
 				constexpr const char* L1550_1 = "l(1550.0, 1550.0, 1550.0, 1.0)";
-				constexpr const char* INV1550 = "l(0.00064516129, 0.00064516129, 0.00064516129, 0.00064516129)"; // 1/1550
+				constexpr const char* INV1550 = "l(0.00064516129, 0.00064516129, 0.00064516129, 1.0)"; // 1/1550
 
-				// Regexes
-				std::regex rxHasCb(R"(cb1\[(5|6)\])", std::regex::icase);
-				std::regex rxMovCb(R"(^\s*mov\s+([ro]\d+(?:\.[xyzw]+)?)\s*,\s*(\-?\s*)cb1\[(5|6)\](?:\.[xyzw]+)?\s*$)", std::regex::icase);
-				std::regex rxMovSatCb(R"(^\s*mov_sat\s+([ro]\d+(?:\.[xyzw]+)?)\s*,\s*(\-?\s*)cb1\[(5|6)\](?:\.[xyzw]+)?\s*$)", std::regex::icase);
+				// Build slot alternation like "(?:5|6|9)"
+				auto make_slot_alt = [](const std::vector<int>& v) -> std::string {
+					if (v.empty()) return "(?!)"; // matches nothing
+					std::string s = "(?:";
+					for (size_t i = 0; i < v.size(); ++i) {
+						if (i) s += "|";
+						s += std::to_string(v[i]);
+					}
+					s += ")";
+					return s;
+				};
+				const std::string slotAlt = make_slot_alt(cb1Slots);
+
+				// Helpers
+				auto ensure_scalar = [](std::string s) {
+					if (s.find('.') == std::string::npos) s += ".x";
+					return s;
+				};
+				auto log_skip = [&](int lineNo, const std::string& text, const char* reason) {
+					if (!diagnostics) return;
+					*diagnostics += "[skip] line " + std::to_string(lineNo) + " (" + reason + "): " + text + "\n";
+				};
+
+				// Regexes (generated from slotAlt)
+				const std::string patHasCb = "cb1\\[" + slotAlt + "\\]";
+				const std::string patMovCb = "^\\s*mov\\s+([ro]\\d+(?:\\.[xyzw]+)?)\\s*,\\s*(\\-?\\s*)cb1\\[(" + slotAlt + ")\\](?:\\.[xyzw]+)?\\s*$";
+				const std::string patMovSatCb = "^\\s*mov_sat\\s+([ro]\\d+(?:\\.[xyzw]+)?)\\s*,\\s*(\\-?\\s*)cb1\\[(" + slotAlt + ")\\](?:\\.[xyzw]+)?\\s*$";
+
+				std::regex rxHasCb(patHasCb, std::regex::icase);
+				std::regex rxMovCb(patMovCb, std::regex::icase);
+				std::regex rxMovSatCb(patMovSatCb, std::regex::icase);
 
 				std::regex rxMulLine(R"(^\s*mul\s+)", std::regex::icase);
 				std::regex rxMulSatLine(R"(^\s*mul_sat\s+)", std::regex::icase);
@@ -1218,11 +1247,6 @@ namespace zonetool::iw6
 
 				std::regex rxDp4Full(R"(^\s*dp4\s+([ro]\d+(?:\.[xyzw]+)?)\s*,\s*(.+?)\s*,\s*(.+?)\s*$)", std::regex::icase);
 				std::regex rxDp4SatFull(R"(^\s*dp4_sat\s+([ro]\d+(?:\.[xyzw]+)?)\s*,\s*(.+?)\s*,\s*(.+?)\s*$)", std::regex::icase);
-
-				auto log_skip = [&](int lineNo, const std::string& text, const char* reason) {
-					if (!diagnostics) return;
-					*diagnostics += "[skip] line " + std::to_string(lineNo) + " (" + reason + "): " + text + "\n";
-				};
 
 				int lineNo = 0;
 				while (std::getline(in, line)) {
@@ -1290,8 +1314,8 @@ namespace zonetool::iw6
 						out << line << "\n";
 						std::smatch md;
 						if (std::regex_search(line, md, rxDestToken)) {
-							std::string dst = md[1].str();
-							std::string src = dst; if (auto dot = src.find('.'); dot != std::string::npos) src.push_back('x');
+							const std::string dst = md[1].str();
+							const std::string src = ensure_scalar(dst);
 							out << "div " << dst << ", " << src << ", " << L1550_1 << "\n";
 						}
 						else {
@@ -1314,8 +1338,8 @@ namespace zonetool::iw6
 
 						std::smatch md;
 						if (std::regex_search(base, md, rxDestToken)) {
-							std::string dst = md[1].str();
-							std::string src = dst; if (auto dot = src.find('.'); dot != std::string::npos) src.push_back('x');
+							const std::string dst = md[1].str();
+							const std::string src = ensure_scalar(dst);
 							out << "div " << dst << ", " << src << ", " << L1550_1 << "\n";
 							out << "mov_sat " << dst << ", " << dst << "\n";
 						}
@@ -1340,13 +1364,13 @@ namespace zonetool::iw6
 							if (s0_is_cb ^ s1_is_cb) {
 								// Keep dp4, then divide result (dot is linear -> scaling either input == scaling result)
 								out << line << "\n";
-								std::string src = dst; if (auto dot = src.find('.'); dot != std::string::npos) src.push_back('x');
+								const std::string src = ensure_scalar(dst);
 								out << "div " << dst << ", " << src << ", " << L1550_1 << "\n";
 								if (isSat) out << "mov_sat " << dst << ", " << dst << "\n";
 								continue;
 							}
 							else if (s0_is_cb && s1_is_cb) {
-								// both inputs reference cb1[5|6] -> ambiguous (would need 1/1550^2?). Log & keep.
+								// both inputs reference cb1[slot] -> ambiguous (would need 1/1550^2?). Log & keep.
 								log_skip(lineNo, line, "dp4-both-cb");
 								out << line << "\n";
 								continue;
@@ -1367,8 +1391,8 @@ namespace zonetool::iw6
 				return out.str();
 			}
 
-			unsigned char* convert_shader_program(unsigned char* program, unsigned int& program_size,
-				utils::memory::allocator& allocator)
+			unsigned char* convert_ps_shader_program(unsigned char* program, unsigned int& program_size,
+				utils::memory::allocator& allocator, std::vector<int>& indices)
 			{
 				if (program == nullptr)
 				{
@@ -1404,7 +1428,7 @@ namespace zonetool::iw6
 				}
 
 				std::string patch_log{};
-				asm_data = PatchAsmPixelShader(asm_data, &patch_log);
+				asm_data = PatchAsmPixelShader(asm_data, &patch_log, indices);
 
 				if (!patch_log.empty())
 				{
@@ -1420,21 +1444,26 @@ namespace zonetool::iw6
 				program_size = static_cast<unsigned int>(dxbc.size());
 				unsigned char* new_program = allocator.allocate_array<unsigned char>(program_size);
 				std::memcpy(new_program, dxbc.data(), program_size);
-			
+
 				const auto checksum = ::shader::generate_checksum(new_program, program_size);
 				const auto header = reinterpret_cast<::shader::dx11_shader_header*>(new_program);
 				std::memcpy(header->checksum, &checksum, sizeof(::shader::shader_checksum));
-			
+
 				return new_program;
 			}
 
-			zonetool::h1::MaterialPixelShader* convert_pixelshader(MaterialPixelShader* asset, utils::memory::allocator& allocator)
+			zonetool::h1::MaterialPixelShader* convert_pixelshader(MaterialPixelShader* asset, utils::memory::allocator& allocator, std::vector<int>& indices)
 			{
 				auto* new_asset = allocator.allocate<zonetool::h1::MaterialPixelShader>();
 
 				new_asset->prog.loadDef.program = asset->prog.loadDef.program;
 				new_asset->prog.loadDef.programSize = asset->prog.loadDef.programSize;
-				new_asset->prog.loadDef.program = convert_shader_program(new_asset->prog.loadDef.program, new_asset->prog.loadDef.programSize, allocator);
+
+				if (!indices.empty())
+				{
+					new_asset->prog.loadDef.program = convert_ps_shader_program(new_asset->prog.loadDef.program, new_asset->prog.loadDef.programSize, allocator, indices);
+				}
+
 				new_asset->prog.loadDef.microCodeCrc = ::shader::calc_crc32(new_asset->prog.loadDef.program, new_asset->prog.loadDef.programSize);
 				new_asset->name = allocator.duplicate_string(game::add_source_postfix(asset->name, game::iw6));
 
@@ -1502,12 +1531,14 @@ namespace zonetool::iw6
 								}
 								if (pass->pixelShader)
 								{
+									const auto is_referenced = pass->pixelShader->prog.loadDef.program == nullptr;
+
 									using Tech = zonetool::h1::MaterialTechniqueType;
 									using UT = std::underlying_type_t<Tech>;
-									
+
 									constexpr int kStride = 60;
 									constexpr int kVariants = 4;
-									
+
 									constexpr std::array<Tech, 22> kLightBases = {
 										Tech::TECHNIQUE_LIT_SPOT,
 										Tech::TECHNIQUE_LIT_SPOT_SHADOW,
@@ -1532,7 +1563,7 @@ namespace zonetool::iw6
 										Tech::TECHNIQUE_LIGHT_SPOT_STENCIL_DFOG,
 										Tech::TECHNIQUE_LIGHT_OMNI_STENCIL_DFOG
 									};
-									
+
 									auto is_light_tech_variant = [](UT t) {
 										for (Tech base : kLightBases) {
 											UT d = t - static_cast<UT>(base);
@@ -1542,42 +1573,51 @@ namespace zonetool::iw6
 										}
 										return false;
 									};
-									
-									if (is_light_tech_variant(static_cast<UT>(new_tech_index))) 
-									{
-										new_pass->pixelShader = convert_pixelshader(pass->pixelShader, allocator);
-									}
 
-									//auto is_lit_dir_variant = [](int tech)
-									//{
-									//	constexpr int stride = 60;
-									//	constexpr int max_mul = 3;
-									//	constexpr std::array<int, 4> bases = {
-									//		zonetool::h1::TECHNIQUE_LIT_DIR,
-									//		zonetool::h1::TECHNIQUE_LIT_DIR_SHADOW,
-									//		zonetool::h1::TECHNIQUE_LIT_DIR_DFOG,
-									//		zonetool::h1::TECHNIQUE_LIT_DIR_SHADOW_DFOG,
-									//	};
-									//
-									//	for (int b : bases) 
-									//	{
-									//		const int d = tech - b;
-									//		// in same 60-step ladder and within 0..3 steps
-									//		if (d >= 0 && d % stride == 0 && d / stride <= max_mul)
-									//			return true;
-									//	}
-									//	return false;
-									//};
-									//
-									//if (!is_lit_dir_variant(new_tech_index))
-									//{
-									//	new_pass->pixelShader = convert_pixelshader(pass->pixelShader, allocator);
-									//}
-									else 
+									if (!is_referenced && is_light_tech_variant(static_cast<UT>(new_tech_index)))
+									{
+										std::vector<int> cb1_slots = {};
+										const auto primCount = pass->perPrimArgCount;
+										const auto objCount = pass->perObjArgCount;
+										const auto stableCount = pass->stableArgCount;
+										auto arg_count = primCount + objCount + stableCount;
+										for (auto arg_index = 0; arg_index < arg_count; arg_index++)
+										{
+											[[maybe_unused]] const auto is_per_prim_arg = arg_index < primCount;
+											[[maybe_unused]] const auto is_per_obj_arg = !is_per_prim_arg && arg_index < (objCount + primCount);
+											[[maybe_unused]] const auto is_stable_arg = !is_per_prim_arg && !is_per_obj_arg;
+
+											if (is_per_obj_arg)
+											{
+												auto* arg = &pass->args[arg_index];
+												const int index = static_cast<int>(arg->u.codeConst.index);
+												if (arg->type == MTL_ARG_CODE_CONST)
+												{
+													constexpr int kLightStride = 9;
+
+													for (int idx = 0; idx < 4; ++idx)
+													{
+														const int diffuseIdx = static_cast<int>(CONST_SRC_CODE_LIGHT_DIFFUSE) + (idx * kLightStride);
+														const int specularIdx = static_cast<int>(CONST_SRC_CODE_LIGHT_SPECULAR) + (idx * kLightStride);
+														if (index == diffuseIdx || index == specularIdx)
+														{
+															cb1_slots.push_back(arg->dest);
+														}
+													}
+												}
+											}
+										}
+
+										new_pass->pixelShader = convert_pixelshader(pass->pixelShader, allocator, cb1_slots);
+									}
+									else
 									{
 										new_pass->pixelShader = converter::h1::pixelshader::convert(pass->pixelShader, allocator);
 									}
-									zonetool::h1::pixel_shader::dump(new_pass->pixelShader);
+									if (!is_referenced)
+									{
+										zonetool::h1::pixel_shader::dump(new_pass->pixelShader);
+									}
 								}
 
 								new_pass->stableArgSize += 128;
@@ -1591,59 +1631,82 @@ namespace zonetool::iw6
 
 									std::vector<zonetool::h1::MaterialShaderArgument> args{};
 									args.reserve(arg_count);
-									
-									for (auto arg_index = 0; arg_index < arg_count; arg_index++)
+
+									for (size_t arg_index = 0; arg_index < static_cast<size_t>(arg_count); ++arg_index)
 									{
-										auto* arg = &pass->args[arg_index];
+										const auto* arg = &pass->args[arg_index];
+
 										zonetool::h1::MaterialShaderArgument new_arg;
 										std::memcpy(&new_arg, arg, sizeof(zonetool::h1::MaterialShaderArgument));
 
-										[[maybe_unused]] const auto is_per_prim_arg = arg_index < primCount;
-										[[maybe_unused]] const auto is_per_obj_arg = !is_per_prim_arg && arg_index < (objCount + primCount);
-										[[maybe_unused]] const auto is_stable_arg = !is_per_prim_arg && !is_per_obj_arg;
+										const bool is_per_prim_arg = arg_index < primCount;
+										const bool is_per_obj_arg = !is_per_prim_arg && arg_index < (primCount + objCount);
+										const bool is_stable_arg = !is_per_prim_arg && !is_per_obj_arg;
+										(void)is_per_prim_arg; (void)is_per_obj_arg; (void)is_stable_arg;
 
-										if (arg->type == MTL_ARG_CODE_CONST)
+										switch (arg->type)
 										{
-											if (const_src_code_map.contains(arg->u.codeConst.index))
+										case MTL_ARG_CODE_CONST:
+										{
+											const auto it = const_src_code_map.find(arg->u.codeConst.index);
+											if (it != const_src_code_map.end())
 											{
-												new_arg.u.codeConst.index = const_src_code_map.at(arg->u.codeConst.index);
+												new_arg.u.codeConst.index = it->second;
 												assert(new_arg.u.codeConst.index < zonetool::h1::CONST_SRC_TOTAL_COUNT);
 											}
 											else
 											{
-												ZONETOOL_ERROR("Unable to map code constant %d for technique '%s'!", arg->u.codeConst.index, technique->hdr.name);
-												//new_arg.u.codeConst.index = 0;
-												//new_arg.u.codeConst.firstRow = 0;
-												//new_arg.u.codeConst.rowCount = 0;
+												ZONETOOL_ERROR("Unable to map code constant %d for technique '%s'!",
+													arg->u.codeConst.index, technique->hdr.name);
 
 												new_arg.type = zonetool::h1::MTL_ARG_LITERAL_CONST;
 												new_arg.u.literalConst = allocator.allocate_array<float>(4);
-												//std::memset(new_arg.u.literalConst, 0, sizeof(float[4]));
-												std::memcpy(new_arg.u.literalConst, consts[arg->u.codeConst.index], sizeof(float[4]));
+
+												if (static_cast<size_t>(arg->u.codeConst.index) < std::size(consts))
+												{
+													std::memcpy(new_arg.u.literalConst,
+														consts[arg->u.codeConst.index],
+														sizeof(float) * 4);
+												}
+												else
+												{
+													new_arg.u.literalConst[0] = 0.0f;
+													new_arg.u.literalConst[1] = 0.0f;
+													new_arg.u.literalConst[2] = 0.0f;
+													new_arg.u.literalConst[3] = 0.0f;
+												}
 											}
-										}
-										else if (arg->type == MTL_ARG_CODE_TEXTURE || arg->type == MTL_ARG_CODE_SAMPLER)
+										} break;
+
+										case MTL_ARG_CODE_TEXTURE:
+										case MTL_ARG_CODE_SAMPLER:
 										{
-											if (texture_src_code_map.contains(arg->u.codeConst.index))
+											const auto it = texture_src_code_map.find(arg->u.codeConst.index);
+											if (it != texture_src_code_map.end())
 											{
-												new_arg.u.codeConst.index = texture_src_code_map.at(arg->u.codeConst.index);
+												new_arg.u.codeConst.index = it->second;
 												assert(new_arg.u.codeConst.index < zonetool::h1::TEXTURE_SRC_CODE_COUNT);
 											}
 											else
 											{
-												ZONETOOL_ERROR("Unable to map code sampler %d for technique '%s'!", arg->u.codeSampler, technique->hdr.name);
+												ZONETOOL_ERROR("Unable to map code sampler %d for technique '%s'!",
+													arg->u.codeConst.index, technique->hdr.name);
 												new_arg.u.codeConst.index = zonetool::h1::TEXTURE_SRC_CODE_BLACK;
 											}
+										} break;
+
+										default:
+											break;
 										}
 
-										if (arg->type == 4 && arg->shader == 16 && arg->dest == 1 &&
+										if (arg->type == MTL_ARG_LITERAL_CONST && arg->shader == 16 && arg->dest == 1 &&
 											arg->u.literalConst[0] == 0.0f &&
 											arg->u.literalConst[1] == 0.0f &&
 											arg->u.literalConst[2] == 0.0f &&
 											arg->u.literalConst[3] == 0.0f)
 										{
 											new_arg.type = MTL_ARG_MATERIAL_CONST;
-											memset(&new_arg.u, 0, sizeof(MaterialArgumentDef));
+											std::memset(&new_arg.u, 0, sizeof(new_arg.u));
 											new_arg.u.nameHash = 1033475292;
 										}
 
@@ -1651,18 +1714,18 @@ namespace zonetool::iw6
 									}
 									// sort
 									auto comp = [](
-										const zonetool::h1::MaterialShaderArgument& a, 
+										const zonetool::h1::MaterialShaderArgument& a,
 										const zonetool::h1::MaterialShaderArgument& b)
 									{
 										if (a.type != b.type)
 											return a.type < b.type;
 
-										if(a.type <= 4 && a.type != zonetool::h1::MTL_ARG_MATERIAL_CONST)
+										if (a.type <= 4 && a.type != zonetool::h1::MTL_ARG_MATERIAL_CONST)
 											return a.dest < b.dest;
 
 										if (a.u.codeSampler != b.u.codeSampler)
 											return a.u.codeSampler < b.u.codeSampler;
-										
+
 										return a.dest < b.dest;
 									};
 
@@ -1679,10 +1742,7 @@ namespace zonetool::iw6
 									// sort stable
 									std::sort(mid2, last, comp);
 
-									// allocate once and copy sorted results
 									new_pass->args = allocator.allocate_array<zonetool::h1::MaterialShaderArgument>(args.size());
-
-									// prefer std::copy over memcpy (works even if Arg stops being trivially copyable)
 									std::copy(args.begin(), args.end(), new_pass->args);
 								}
 							}
