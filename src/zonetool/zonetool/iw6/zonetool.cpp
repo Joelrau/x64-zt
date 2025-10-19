@@ -14,10 +14,19 @@
 
 namespace zonetool::iw6
 {
+	struct dump_params
+	{
+		game::game_mode target;
+		std::string zone;
+		bool valid;
+		std::unordered_set<XAssetType> filter;
+	};
+
 	zonetool_globals_t globals{};
 
 	std::vector<std::pair<XAssetType, std::string>> referenced_assets;
 	std::vector<std::pair<XAssetType, std::string>> common_assets;
+	std::unordered_set<XAssetType> asset_type_filter;
 
 	const char* get_asset_name(XAssetType type, void* pointer)
 	{
@@ -393,6 +402,11 @@ namespace zonetool::iw6
 			return;
 		}
 
+		if (asset_type_filter.size() > 0 && !asset_type_filter.contains(asset->type))
+		{
+			return;
+		}
+
 		if (globals.csv_file.get_fp() == nullptr)
 		{
 			globals.csv_file = filesystem::file(filesystem::get_fastfile() + ".csv");
@@ -567,6 +581,65 @@ namespace zonetool::iw6
 		DB_LoadXAssets(&zone, 1, DB_LOAD_ASYNC_FORCE_FREE);
 
 		ZONETOOL_INFO("Unloaded zones...");
+	}
+
+	dump_params get_dump_params(const ::iw6::command::params& params)
+	{
+		dump_params dump_params{};
+		dump_params.target = game::iw6;
+
+		const auto parse_params = [&]()
+		{
+			if (params.size() < 3)
+			{
+				dump_params.zone = params.get(1);
+				return true;
+			}
+
+			const auto mode = params.get(1);
+			dump_params.zone = params.get(2);
+			dump_params.target = game::get_mode_from_string(mode);
+
+			if (dump_params.target == game::none)
+			{
+				ZONETOOL_ERROR("Invalid dump target \"%s\"", mode);
+				return false;
+			}
+
+			if (!dump_functions.contains(dump_params.target))
+			{
+				ZONETOOL_ERROR("Unsupported dump target \"%s\" (%i)", mode, dump_params.target);
+				return false;
+			}
+
+			if (params.size() >= 4)
+			{
+				const auto asset_types_str = params.get(3);
+				if (asset_types_str == "_"s)
+				{
+					return true;
+				}
+
+				const auto asset_types = utils::string::split(asset_types_str, ',');
+
+				for (const auto& type_str : asset_types)
+				{
+					const auto type = type_to_int(type_str);
+					if (type == -1)
+					{
+						ZONETOOL_ERROR("Asset type \"%s\" does not exist", type_str.data());
+						return false;
+					}
+
+					dump_params.filter.insert(static_cast<XAssetType>(type));
+				}
+			}
+
+			return true;
+		};
+
+		dump_params.valid = parse_params();
+		return dump_params;
 	}
 
 	void dump_zone(const std::string& name, const game::game_mode target)
@@ -894,29 +967,14 @@ namespace zonetool::iw6
 				return;
 			}
 
-			if (params.size() >= 3)
+			const auto dump_params = get_dump_params(params);
+			if (!dump_params.valid)
 			{
-				const auto mode = params.get(1);
-				const auto dump_target = game::get_mode_from_string(mode);
-
-				if (dump_target == game::none)
-				{
-					ZONETOOL_ERROR("Invalid dump target \"%s\"", mode);
-					return;
-				}
-
-				if (!dump_functions.contains(dump_target))
-				{
-					ZONETOOL_ERROR("Unsupported dump target \"%s\" (%i)", mode, dump_target);
-					return;
-				}
-
-				dump_zone(params.get(2), dump_target);
+				return;
 			}
-			else
-			{
-				dump_zone(params.get(1), game::iw6);
-			}
+
+			asset_type_filter = dump_params.filter;
+			dump_zone(dump_params.zone, dump_params.target);
 		});
 
 		::iw6::command::add("dumpasset", [](const ::iw6::command::params& params)
