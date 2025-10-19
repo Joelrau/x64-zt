@@ -438,7 +438,7 @@ namespace shader
 		std::vector<operand_t> operands;
 	};
 
-	using instruction_cb = std::function<bool(instruction_t&, utils::bit_buffer_le&)>;
+	using instruction_cb = std::function<bool(utils::bit_buffer_le&, instruction_t&)>;
 
 	void print_instruction(const instruction_t& instruction);
 

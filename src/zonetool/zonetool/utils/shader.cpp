@@ -752,7 +752,7 @@ namespace shader
 					instruction.operands.emplace_back(read_operand(allocator, input_buffer));
 				}
 
-				const auto skip = callback(instruction, output_buffer);
+				const auto skip = callback(output_buffer, instruction);
 
 				input_buffer.set_bit(begin);
 				for (auto i = 0u; i < instruction.opcode.length; i++)
