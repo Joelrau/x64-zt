@@ -26,19 +26,19 @@ namespace utils
     {
     }
 
-    uint64_t bit_buffer_le::read_bits(const unsigned int num_bits)
+    std::uint32_t bit_buffer_le::read_bits(const unsigned int num_bits)
     {
-        uint64_t data{};
+        std::uint32_t data{};
         this->read_bits_internal(num_bits, &data);
         return data;
     }
 
-    uint64_t bit_buffer_le::read_bytes(const unsigned int num_bytes)
+    std::uint32_t bit_buffer_le::read_bytes(const unsigned int num_bytes)
     {
         return this->read_bits(8 * num_bytes);
     }
 
-    uint64_t bit_buffer_le::total()
+    std::uint64_t bit_buffer_le::total()
     {
         return this->current_bit_;
     }
