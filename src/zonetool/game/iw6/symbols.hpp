@@ -21,6 +21,9 @@ namespace iw6
 		WEAK symbol<void()> Sys_ShowConsole{ 0x140503130 };
 		WEAK symbol<bool()> Sys_IsDatabaseReady2{ 0x140423920 };
 
+		WEAK symbol<const char* ()> SEH_GetCurrentLanguageCode{ 0x1404A56E0 };
+		WEAK symbol<const char* ()> SEH_GetCurrentLanguageName{ 0x1404A5710 };
+
 		/***************************************************************
 		* Variables
 		**************************************************************/

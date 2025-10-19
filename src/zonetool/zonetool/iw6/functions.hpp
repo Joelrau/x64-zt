@@ -1,7 +1,6 @@
 #pragma once
 
 #include "game/iw6/game.hpp"
-#include "zonetool.hpp"
 
 namespace zonetool::iw6
 {

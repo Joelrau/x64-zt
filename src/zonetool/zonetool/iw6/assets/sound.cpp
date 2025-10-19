@@ -301,7 +301,7 @@ namespace zonetool::iw6
 			flags.packed.fullDryLevel = snddata["flags"]["fullDryLevel"].get<int>();
 			flags.packed.noWetLevel = snddata["flags"]["noWetLevel"].get<int>();
 			flags.packed.randomLooping = snddata["flags"]["randomLooping"].get<int>();
-			flags.packed.unknown2 = snddata["flags"]["unknown2"].get<int>();
+			flags.packed.spatialize = snddata["flags"]["spatialize"].get<int>();
 			flags.packed.type = snddata["flags"]["type"].get<int>();
 			flags.packed.channel = static_cast<SoundChannel>(get_channel_index_from_name(snddata["flags"]["channel"].get<std::string>().data()));
 		}
@@ -759,7 +759,7 @@ namespace zonetool::iw6
 		sound["flags"]["fullDryLevel"] = static_cast<int>(flags.packed.fullDryLevel);
 		sound["flags"]["noWetLevel"] = static_cast<int>(flags.packed.noWetLevel);
 		sound["flags"]["randomLooping"] = static_cast<int>(flags.packed.randomLooping);
-		sound["flags"]["unknown2"] = static_cast<int>(flags.packed.unknown2);
+		sound["flags"]["spatialize"] = static_cast<int>(flags.packed.spatialize);
 		sound["flags"]["type"] = static_cast<int>(flags.packed.type);
 		sound["flags"]["channel"] = get_channel_name(flags.packed.channel);
 

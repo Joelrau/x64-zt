@@ -157,7 +157,7 @@ namespace zonetool::s1
 						std::memset(&new_head->soundFile->u.streamSnd, 0, sizeof(new_head->soundFile->u.streamSnd));
 						new_head->soundFile->type = zonetool::h1::SAT_LOADED;
 
-						SoundAliasFlags flags{0};
+						zonetool::h1::SoundAliasFlags flags{0};
 						flags.intValue = new_head->flags;
 						flags.packed.type = zonetool::h1::SAT_LOADED;
 						new_head->flags = flags.intValue;
