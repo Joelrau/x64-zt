@@ -1,3 +1,5 @@
 .vs
 .vscode
 build/
+
+generate_custom.bat
