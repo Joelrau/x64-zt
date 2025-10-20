@@ -890,12 +890,12 @@ namespace shader
 						write_operand(output_buffer, *operand.extra_operand);
 						break;
 					case D3D10_SB_OPERAND_INDEX_IMMEDIATE32_PLUS_RELATIVE:
-						write_operand(output_buffer, *operand.extra_operand);
 						output_buffer.write_bytes(4, operand.indices[index].values[0].u32);
+						write_operand(output_buffer, *operand.extra_operand);
 						break;
 					case D3D10_SB_OPERAND_INDEX_IMMEDIATE64_PLUS_RELATIVE:
-						write_operand(output_buffer, *operand.extra_operand);
 						output_buffer.write_bytes(8, operand.indices[index].values[0].u64.value);
+						write_operand(output_buffer, *operand.extra_operand);
 						break;
 					}
 				};
@@ -1097,7 +1097,7 @@ namespace shader
 					if (op.extra_operand != nullptr)
 					{
 						print_operand(*op.extra_operand, true);
-						printf(" ");
+						printf(" + ");
 					}
 					printf("%i]", op.indices[1].values[0].u32);
 				}
@@ -1105,7 +1105,11 @@ namespace shader
 				if (op.type == D3D10_SB_OPERAND_TYPE_IMMEDIATE_CONSTANT_BUFFER)
 				{
 					printf("icb[");
-					print_operand(*op.extra_operand, true);
+					if (op.extra_operand != nullptr)
+					{
+						print_operand(*op.extra_operand, true);
+						printf(" + ");
+					}
 					printf("]");
 				}
 
