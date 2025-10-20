@@ -4,6 +4,8 @@
 
 #include "zonetool/h1/assets/vertexshader.hpp"
 
+#include "zonetool/utils/shader.hpp"
+
 namespace zonetool::iw6
 {
 	namespace converter::h1

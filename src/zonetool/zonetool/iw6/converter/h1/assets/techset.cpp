@@ -15,6 +15,8 @@
 #include "zonetool/h1/assets/vertexdecl.hpp"
 #include "zonetool/h1/assets/pixelshader.hpp"
 
+#include "zonetool/utils/shader.hpp"
+
 namespace zonetool::iw6
 {
 	namespace converter::h1

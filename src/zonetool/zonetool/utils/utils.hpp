@@ -7,7 +7,6 @@
 
 #include "csv.hpp"
 
-#include "shader.hpp"
 #include "game/mode.hpp"
 #include "game/shared.hpp"
 

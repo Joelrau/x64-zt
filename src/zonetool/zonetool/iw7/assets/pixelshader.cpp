@@ -1,6 +1,8 @@
 #include <std_include.hpp>
 #include "pixelshader.hpp"
 
+#include "zonetool/utils/shader.hpp"
+
 namespace zonetool::iw7
 {
 	MaterialPixelShader* pixel_shader::parse(const std::string& name, zone_memory* mem)

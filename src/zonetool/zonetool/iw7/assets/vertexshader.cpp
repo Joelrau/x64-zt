@@ -1,6 +1,8 @@
 #include <std_include.hpp>
 #include "vertexshader.hpp"
 
+#include "zonetool/utils/shader.hpp"
+
 namespace zonetool::iw7
 {
 	MaterialVertexShader* vertex_shader::parse(const std::string& name, zone_memory* mem)

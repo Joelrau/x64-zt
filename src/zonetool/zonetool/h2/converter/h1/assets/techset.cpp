@@ -10,6 +10,8 @@
 #include "zonetool/h1/assets/domainshader.hpp"
 #include "zonetool/h1/assets/pixelshader.hpp"
 
+#include "zonetool/utils/shader.hpp"
+
 #include <utils/io.hpp>
 
 namespace zonetool::h2
