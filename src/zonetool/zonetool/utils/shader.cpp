@@ -1370,12 +1370,12 @@ namespace shader
 				const auto desc = input_buffer.read_bytes(4);
 				const auto count = input_buffer.read_bytes(4);
 
-				input_buffer.write_bytes(4, desc);
-				input_buffer.write_bytes(4, count);
+				output_buffer.write_bytes(4, desc);
+				output_buffer.write_bytes(4, count);
 
 				for (auto i = 0u; i < count - 2; i++)
 				{
-					input_buffer.write_bytes(4, input_buffer.read_bytes(4));
+					output_buffer.write_bytes(4, input_buffer.read_bytes(4));
 				}
 			}
 			else if (allowed_opcodes.contains(opcode))
