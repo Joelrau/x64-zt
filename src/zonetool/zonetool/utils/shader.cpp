@@ -497,24 +497,24 @@ namespace shader
 				switch (operand.indices[index].representation)
 				{
 				case D3D10_SB_OPERAND_INDEX_IMMEDIATE32:
-					operand.indices[index].data[0] = bit_buffer.read_bytes(4);
+					operand.indices[index].values[0].u32 = bit_buffer.read_bytes(4);
 					break;
 				case D3D10_SB_OPERAND_INDEX_IMMEDIATE64:
-					operand.indices[index].data[0] = bit_buffer.read_bytes(4);
-					operand.indices[index].data[1] = bit_buffer.read_bytes(4);
+					operand.indices[index].values[0].u64.fields.low = bit_buffer.read_bytes(4);
+					operand.indices[index].values[0].u64.fields.high = bit_buffer.read_bytes(4);
 					break;
 				case D3D10_SB_OPERAND_INDEX_RELATIVE:
 					operand.extra_operand = allocator.allocate<operand_t>();
 					*operand.extra_operand = read_operand(allocator, bit_buffer);
 					break;
 				case D3D10_SB_OPERAND_INDEX_IMMEDIATE32_PLUS_RELATIVE:
-					operand.indices[index].data[0] = bit_buffer.read_bytes(4);
+					operand.indices[index].values[0].u32 = bit_buffer.read_bytes(4);
 					operand.extra_operand = allocator.allocate<operand_t>();
 					*operand.extra_operand = read_operand(allocator, bit_buffer);
 					break;
 				case D3D10_SB_OPERAND_INDEX_IMMEDIATE64_PLUS_RELATIVE:
-					operand.indices[index].data[0] = bit_buffer.read_bytes(4);
-					operand.indices[index].data[1] = bit_buffer.read_bytes(4);
+					operand.indices[index].values[0].u64.fields.low = bit_buffer.read_bytes(4);
+					operand.indices[index].values[0].u64.fields.high = bit_buffer.read_bytes(4);
 					operand.extra_operand = allocator.allocate<operand_t>();
 					*operand.extra_operand = read_operand(allocator, bit_buffer);
 					break;
@@ -540,21 +540,21 @@ namespace shader
 			{
 				if (operand.components.type == D3D10_SB_OPERAND_4_COMPONENT)
 				{
-					operand.indices[0].data[0] = bit_buffer.read_bytes(4);
-					operand.indices[0].data[1] = bit_buffer.read_bytes(4);
-					operand.indices[0].data[2] = bit_buffer.read_bytes(4);
-					operand.indices[0].data[3] = bit_buffer.read_bytes(4);
+					operand.indices[0].values[0].u32 = bit_buffer.read_bytes(4);
+					operand.indices[0].values[1].u32 = bit_buffer.read_bytes(4);
+					operand.indices[0].values[2].u32 = bit_buffer.read_bytes(4);
+					operand.indices[0].values[3].u32 = bit_buffer.read_bytes(4);
 				}
 				else
 				{
-					operand.indices[0].data[0] = bit_buffer.read_bytes(4);
+					operand.indices[0].values[0].u32 = bit_buffer.read_bytes(4);
 				}
 			}
 
 			if (operand.type == D3D10_SB_OPERAND_TYPE_IMMEDIATE64)
 			{
-				operand.indices[0].data[0] = bit_buffer.read_bytes(4);
-				operand.indices[0].data[1] = bit_buffer.read_bytes(4);
+				operand.indices[0].values[0].u64.fields.low = bit_buffer.read_bytes(4);
+				operand.indices[0].values[0].u64.fields.high = bit_buffer.read_bytes(4);
 			}
 
 			return operand;
@@ -564,33 +564,33 @@ namespace shader
 		{
 			if (op.type == D3D10_SB_OPERAND_TYPE_INPUT)
 			{
-				printf("v%i", op.indices[0].data[0]);
+				printf("v%i", op.indices[0].values[0].u32);
 			}
 
 			if (op.type == D3D10_SB_OPERAND_TYPE_OUTPUT)
 			{
-				printf("o%i", op.indices[0].data[0]);
+				printf("o%i", op.indices[0].values[0].u32);
 			}
 
 			if (op.type == D3D10_SB_OPERAND_TYPE_TEMP)
 			{
-				printf("r%i", op.indices[0].data[0]);
+				printf("r%i", op.indices[0].values[0].u32);
 			}
 
 			if (op.type == D3D10_SB_OPERAND_TYPE_SAMPLER)
 			{
-				printf("s%i", op.indices[0].data[0]);
+				printf("s%i", op.indices[0].values[0].u32);
 			}
 
 			if (op.type == D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER)
 			{
-				printf("cb%i[", op.indices[0].data[0]);
+				printf("cb%i[", op.indices[0].values[0].u32);
 				if (op.extra_operand != nullptr)
 				{
 					print_operand(*op.extra_operand, true);
 					printf(" ");
 				}
-				printf("%i]", op.indices[1].data[0]);
+				printf("%i]", op.indices[1].values[0].u32);
 			}
 
 			if (op.type == D3D10_SB_OPERAND_TYPE_IMMEDIATE_CONSTANT_BUFFER)
@@ -605,24 +605,22 @@ namespace shader
 				if (op.components.type == D3D10_SB_OPERAND_4_COMPONENT)
 				{
 					printf("l(%f, %f, %f, %f)",
-						*reinterpret_cast<const float*>(&op.indices[0].data[0]),
-						*reinterpret_cast<const float*>(&op.indices[0].data[1]),
-						*reinterpret_cast<const float*>(&op.indices[0].data[2]),
-						*reinterpret_cast<const float*>(&op.indices[0].data[3])
+						op.indices[0].values[0].f32,
+						op.indices[0].values[1].f32,
+						op.indices[0].values[2].f32,
+						op.indices[0].values[3].f32
 					);
 				}
 				else
 				{
-					printf("l(%f)",
-						*reinterpret_cast<const float*>(&op.indices[0].data[0])
-					);
+					printf("l(%f)", op.indices[0].values[0].f32);
 				}
 
 			}
 
 			if (op.type == D3D10_SB_OPERAND_TYPE_IMMEDIATE64)
 			{
-				printf("l(%i %i)", op.indices[0].data[0], op.indices[0].data[1]);
+				printf("l(%lli)", op.indices[0].values[0].u64.value);
 			}
 
 			const auto print_component = [&](const std::uint32_t component)
@@ -720,12 +718,12 @@ namespace shader
 				const auto desc = input_buffer.read_bytes(4);
 				const auto count = input_buffer.read_bytes(4);
 
-				input_buffer.write_bits(32, desc);
-				input_buffer.write_bits(32, count);
+				input_buffer.write_bytes(4, desc);
+				input_buffer.write_bytes(4, count);
 
 				for (auto i = 0u; i < count - 2; i++)
 				{
-					input_buffer.write_bits(32, input_buffer.read_bytes(4));
+					input_buffer.write_bytes(4, input_buffer.read_bytes(4));
 				}
 			}
 			else if (allowed_opcodes.contains(opcode))
@@ -746,7 +744,7 @@ namespace shader
 					extended = opcode_extended.extended;
 				}
 
-				const auto end = input_buffer.total() + (instruction.opcode.length - 1) * 8 * 4;
+				const auto end = input_buffer.total() + (instruction.opcode.length - 1u) * 8u * 4u;
 				while (input_buffer.total() < end)
 				{
 					instruction.operands.emplace_back(read_operand(allocator, input_buffer));
@@ -760,7 +758,7 @@ namespace shader
 					const auto value = input_buffer.read_bytes(4);
 					if (!skip)
 					{
-						output_buffer.write_bits(32, value);
+						output_buffer.write_bytes(4, value);
 					}
 				}
 			}
@@ -773,7 +771,7 @@ namespace shader
 				input_buffer.set_bit(begin);
 				for (auto i = 0u; i < length; i++)
 				{
-					output_buffer.write_bits(32, input_buffer.read_bytes(4));
+					output_buffer.write_bytes(4, input_buffer.read_bytes(4));
 				}
 			}
 		}
@@ -902,23 +900,21 @@ namespace shader
 			switch (operand.indices[index].representation)
 			{
 			case D3D10_SB_OPERAND_INDEX_IMMEDIATE32:
-				output_buffer.write_bits(32, operand.indices[index].data[0]);
+				output_buffer.write_bytes(4, operand.indices[index].values[0].u32);
 				break;
 			case D3D10_SB_OPERAND_INDEX_IMMEDIATE64:
-				output_buffer.write_bits(32, operand.indices[index].data[0]);
-				output_buffer.write_bits(32, operand.indices[index].data[1]);
+				output_buffer.write_bytes(8, operand.indices[index].values[0].u64.value);
 				break;
 			case D3D10_SB_OPERAND_INDEX_RELATIVE:
 				write_operand(output_buffer, *operand.extra_operand);
 				break;
 			case D3D10_SB_OPERAND_INDEX_IMMEDIATE32_PLUS_RELATIVE:
 				write_operand(output_buffer, *operand.extra_operand);
-				output_buffer.write_bits(32, operand.indices[index].data[0]);
+				output_buffer.write_bytes(4, operand.indices[index].values[0].u32);
 				break;
 			case D3D10_SB_OPERAND_INDEX_IMMEDIATE64_PLUS_RELATIVE:
 				write_operand(output_buffer, *operand.extra_operand);
-				output_buffer.write_bits(32, operand.indices[index].data[0]);
-				output_buffer.write_bits(32, operand.indices[index].data[1]);
+				output_buffer.write_bytes(8, operand.indices[index].values[0].u64.value);
 				break;
 			}
 		};
@@ -942,21 +938,20 @@ namespace shader
 		{
 			if (operand.components.type == D3D10_SB_OPERAND_4_COMPONENT)
 			{
-				output_buffer.write_bits(32, operand.indices[0].data[0]);
-				output_buffer.write_bits(32, operand.indices[0].data[1]);
-				output_buffer.write_bits(32, operand.indices[0].data[2]);
-				output_buffer.write_bits(32, operand.indices[0].data[3]);
+				output_buffer.write_bytes(4, operand.indices[0].values[0].u32);
+				output_buffer.write_bytes(4, operand.indices[0].values[1].u32);
+				output_buffer.write_bytes(4, operand.indices[0].values[2].u32);
+				output_buffer.write_bytes(4, operand.indices[0].values[3].u32);
 			}
 			else
 			{
-				output_buffer.write_bits(32, operand.indices[0].data[0]);
+				output_buffer.write_bytes(4, operand.indices[0].values[0].u32);
 			}
 		}
 
 		if (operand.type == D3D10_SB_OPERAND_TYPE_IMMEDIATE64)
 		{
-			output_buffer.write_bits(32, operand.indices[0].data[0]);
-			output_buffer.write_bits(32, operand.indices[0].data[1]);
+			output_buffer.write_bytes(8, operand.indices[0].values[0].u64);
 		}
 	}
 
@@ -1007,12 +1002,33 @@ namespace shader
 		operand.components.selection_mode = D3D10_SB_OPERAND_4_COMPONENT_MASK_MODE;
 		operand.components.mask = 0;
 
-		operand.indices[0].data[0] = *reinterpret_cast<const std::uint32_t*>(&x);
-		operand.indices[0].data[1] = *reinterpret_cast<const std::uint32_t*>(&y);
-		operand.indices[0].data[2] = *reinterpret_cast<const std::uint32_t*>(&z);
-		operand.indices[0].data[3] = *reinterpret_cast<const std::uint32_t*>(&w);
+		operand.indices[0].values[0].f32 = x;
+		operand.indices[0].values[1].f32 = y;
+		operand.indices[0].values[2].f32 = z;
+		operand.indices[0].values[3].f32 = w;
 
 		return operand;
+	}
+
+	std::optional<operand_t> find_operand(const instruction_t& instruction, const std::uint32_t beg, const std::uint32_t type, std::int32_t& index)
+	{
+		index = -1;
+
+		if (beg >= instruction.operands.size())
+		{
+			return {};
+		}
+
+		for (auto i = beg; i < instruction.operands.size(); i++)
+		{
+			if (instruction.operands[i].type == type)
+			{
+				index = i;
+				return {instruction.operands[i]};
+			}
+		}
+
+		return {};
 	}
 
 	std::string patch_shader(unsigned char* program, unsigned int program_size, const instruction_cb& callback)
@@ -1041,29 +1057,29 @@ namespace shader
 		const auto unk = input_buffer.read_bytes(2);
 		const auto num_dwords = input_buffer.read_bytes(4);
 
-		output_buffer.write_bits(32, type);
-		output_buffer.write_bits(32, len);
+		output_buffer.write_bytes(4, type);
+		output_buffer.write_bytes(4, len);
 		output_buffer.write_bits(4, minor_version);
 		output_buffer.write_bits(4, major_version);
-		output_buffer.write_bits(8, program_type);
-		output_buffer.write_bits(16, unk);
-		output_buffer.write_bits(32, num_dwords);
+		output_buffer.write_bytes(1, program_type);
+		output_buffer.write_bytes(2, unk);
+		output_buffer.write_bytes(4, num_dwords);
 
 		utils::memory::allocator allocator;
 
-		while (input_buffer.total() < chunk_size * 8)
+		while (input_buffer.total() < chunk_size * 8u)
 		{
 			process_instruction(allocator, input_buffer, output_buffer, callback);
 		}
 
-		const auto total_len = output_buffer.total() / 8;
-		const auto new_len = total_len - 8;
-		const auto new_num_dwords = (new_len / 4);
+		const auto total_len = output_buffer.total() / 8u;
+		const auto new_len = total_len - 8u;
+		const auto new_num_dwords = (new_len / 4u);
 
-		output_buffer.set_bit(32);
-		output_buffer.write_bits(32, new_len);
-		output_buffer.set_bit(96);
-		output_buffer.write_bits(32, new_num_dwords);
+		output_buffer.set_byte(4);
+		output_buffer.write_bytes(4, new_len);
+		output_buffer.set_byte(12);
+		output_buffer.write_bytes(4, new_num_dwords);
 
 		const auto buffer = output_buffer.get_buffer().data();
 		output_program.append(buffer, total_len);

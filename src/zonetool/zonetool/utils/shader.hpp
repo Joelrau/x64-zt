@@ -384,10 +384,29 @@ namespace shader
 		unsigned int cheksum[4];
 	};
 
-	struct operand_indices_t
+	union operand_index_value_t
+	{
+		struct u64_fields_t
+		{
+			std::uint32_t low;
+			std::uint32_t high;
+		};
+
+		union u64_t
+		{
+			u64_fields_t fields;
+			std::uint64_t value;
+		};
+
+		std::uint32_t u32;
+		float f32;
+		u64_t u64;
+	};
+
+	struct operand_index_t
 	{
 		std::uint32_t representation;
-		std::uint32_t data[4];
+		operand_index_value_t values[4];
 	};
 
 	struct operand_components_t
@@ -412,7 +431,7 @@ namespace shader
 		std::uint32_t dimension;
 		std::uint32_t extended;
 		std::vector<operand_extended_t> extensions;
-		operand_indices_t indices[3];
+		operand_index_t indices[3];
 		operand_components_t components;
 		operand_t* extra_operand;
 	};
@@ -448,6 +467,8 @@ namespace shader
 
 	opcode_t create_opcode(const std::uint32_t type, const std::uint32_t controls);
 	operand_t create_literal_operand(const float x, const float y, const float z, const float w);
+
+	std::optional<operand_t> find_operand(const instruction_t& instruction, const std::uint32_t beg, const std::uint32_t type, std::int32_t& index);
 
 	std::string patch_shader(unsigned char* program, unsigned int program_size, const instruction_cb& callback);
 

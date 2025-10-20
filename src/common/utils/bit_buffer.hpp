@@ -104,12 +104,21 @@ namespace utils
 
         std::uint32_t read_bits(const unsigned int num_bits);
         std::uint32_t read_bytes(const unsigned int num_bytes);
+
         std::uint64_t total();
-        void set_bit(std::uint64_t bit);
+
+        void set_bit(const std::uint64_t bit);
+        void set_byte(const std::uint64_t byte);
 
         std::string& get_buffer()
         {
             return this->buffer_;
+        }
+
+        template <typename T>
+        void write_bytes(const unsigned int num_bytes, const T& data)
+        {
+            this->write_bits_internal(num_bytes * 8, &data);
         }
 
         template <typename T>

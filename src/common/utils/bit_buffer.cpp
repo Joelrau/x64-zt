@@ -43,8 +43,13 @@ namespace utils
         return this->current_bit_;
     }
 
-    void bit_buffer_le::set_bit(std::uint64_t bit)
+    void bit_buffer_le::set_bit(const std::uint64_t bit)
     {
         this->current_bit_ = bit;
+    }
+
+    void bit_buffer_le::set_byte(const std::uint64_t byte)
+    {
+        this->current_bit_ = byte * 8;
     }
 }
