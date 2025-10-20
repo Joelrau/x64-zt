@@ -522,29 +522,43 @@ namespace zonetool::h2
 				return converted_args;
 			}
 
-			unsigned char* convert_shader_program(unsigned char* program, unsigned int program_size,
-				utils::memory::allocator& allocator)
+			bool patch_cb_index(utils::bit_buffer_le& output_buffer, ::shader::asm_::instruction_t instruction)
 			{
-				if (program == nullptr)
+				if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_CONSTANT_BUFFER ||
+					instruction.opcode.type == D3D10_SB_OPCODE_DCL_TEMPS)
 				{
-					return program;
+					return false;
 				}
 
-				const auto new_program = allocator.allocate_array<unsigned char>(program_size);
-				std::memcpy(new_program, program, program_size);
-
-				const auto offsets = ::shader::get_dest_reference_offsets(new_program, program_size);
-				for (const auto& offset : offsets)
+				::shader::asm_::writer::write_opcode(output_buffer, instruction.opcode);
+				for (auto& operand : instruction.operands)
 				{
-					const auto dest = reinterpret_cast<unsigned int*>(new_program + offset);
-					*dest = static_cast<unsigned int>(convert_dest(static_cast<unsigned short>(*dest)));
+					if (operand.type == D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER && operand.extra_operand == nullptr &&
+						operand.indices[0].values[0].u32 <= 4)
+					{
+						operand.indices[1].values[0].u32 = static_cast<std::uint32_t>(
+							convert_dest(static_cast<std::uint16_t>(operand.indices[1].values[0].u32)));
+					}
+
+					::shader::asm_::writer::write_operand(output_buffer, operand);
 				}
 
-				const auto checksum = ::shader::generate_checksum(new_program, program_size);
-				const auto header = reinterpret_cast<::shader::dx11_shader_header*>(new_program);
-				std::memcpy(header->checksum, &checksum, sizeof(::shader::shader_checksum));
+				return true;
+			}
 
-				return new_program;
+			void convert_shader_program(unsigned char** program, unsigned int* program_size, utils::memory::allocator& allocator)
+			{
+				if (*program == nullptr)
+				{
+					return;
+				}
+				
+				const auto data = ::shader::patch_shader(*program, *program_size, patch_cb_index);
+				const auto new_program = allocator.allocate_array<unsigned char>(data.size());
+				std::memcpy(new_program, data.data(), data.size());
+
+				*program = new_program;
+				*program_size = static_cast<std::uint32_t>(data.size());
 			}
 
 			template <shader_type ShaderType, typename T, typename S>
@@ -555,8 +569,7 @@ namespace zonetool::h2
 
 				if constexpr (ShaderType != none)
 				{
-					new_shader->prog.loadDef.program =
-						convert_shader_program(new_shader->prog.loadDef.program, new_shader->prog.loadDef.programSize, allocator);
+					convert_shader_program(&new_shader->prog.loadDef.program, &new_shader->prog.loadDef.programSize, allocator);
 
 					if constexpr (ShaderType == pixelshader || ShaderType == vertexshader)
 					{

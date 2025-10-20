@@ -73,170 +73,6 @@ namespace shader
 		return get_crc32(program, program_size);
 	}
 
-	std::vector<size_t> get_dest_reference_offsets(unsigned char* program, unsigned int program_size)
-	{
-		std::vector<size_t> offsets;
-
-		unsigned int chunk_size{};
-		auto chunk = parse_shader_chunk(program, program_size, &chunk_size);
-		const auto offset = chunk - program;
-
-		utils::bit_buffer_le bit_buffer({reinterpret_cast<char*>(chunk), chunk_size});
-
-		if (chunk_size == 0)
-		{
-			utils::io::write_file("shader.cso", std::string{(char*)program, program_size}, false);
-		}
-
-		[[maybe_unused]] const auto type = bit_buffer.read_bytes(4); // "SHEX"
-		assert(type == 'XEHS' || type == 'RDHS');
-		[[maybe_unused]] const auto len = bit_buffer.read_bytes(4);
-		[[maybe_unused]] const auto minor_version = bit_buffer.read_bits(4);
-		[[maybe_unused]] const auto major_version = bit_buffer.read_bits(4);
-		assert(major_version == 5);
-		[[maybe_unused]] const auto program_type = bit_buffer.read_bytes(1);
-		assert(program_type >= 0 && program_type <= 5);
-
-		bit_buffer.read_bytes(2);
-		[[maybe_unused]] const auto num_dwords = bit_buffer.read_bytes(4);
-
-		while (bit_buffer.total() < len * 8)
-		{
-			[[maybe_unused]] const auto opcode = bit_buffer.read_bits(10);
-			bit_buffer.read_bits(14);
-			[[maybe_unused]] const auto opcode_len = bit_buffer.read_bits(6);
-			auto extended = bit_buffer.read_bits(1);
-			bit_buffer.read_bits(1);
-
-			while (extended)
-			{
-				bit_buffer.read_bits(31);
-				extended = bit_buffer.read_bits(1);
-			}
-
-			std::function<void()> read_operand;
-
-			read_operand = [&]()
-			{
-				const auto num_components_type = bit_buffer.read_bits(1);
-				bit_buffer.read_bits(11);
-				const auto operand_type = bit_buffer.read_bits(7);
-				bit_buffer.read_bits(1);
-				[[maybe_unused]] const auto dimension = bit_buffer.read_bits(1);
-
-				auto num_components = 0;
-				switch (num_components_type)
-				{
-				case 0:
-					num_components = 0;
-					break;
-				case 1:
-					num_components = 1;
-					break;
-				case 2:
-					num_components = 4;
-					break;
-				case 3:
-					throw std::runtime_error("D3D10_SB_OPERAND_N_COMPONENT not supported");
-					break;
-				}
-
-				for (auto i = 0; i < 3; i++)
-				{
-					bit_buffer.read_bits(1);
-					bit_buffer.read_bits(2);
-				}
-
-				bit_buffer.read_bits(1);
-
-				const auto extended_operand = bit_buffer.read_bits(1);
-				if (extended_operand)
-				{
-					bit_buffer.read_bytes(4);
-				}
-
-				/*uint64_t values[3]{};
-				for (auto i = 0; i < dimension; i++)
-				{
-					switch (index_representations[i])
-					{
-					case 0:
-						values[i] = bit_buffer.read_bytes(4);
-						break;
-					case 1:
-						values[i] = bit_buffer.read_uint64();
-					case 2:
-						read_operand();
-						break;
-					case 3:
-						values[i] = bit_buffer.read_bytes(4);
-						read_operand();
-						break;
-					case 4:
-						values[i] = bit_buffer.read_uint64();
-						read_operand();
-						break;
-					default:
-						throw std::runtime_error("Invalid representation");
-					}
-					printf("%i ", values[i]);
-				}*/
-
-				if (operand_type == 8)
-				{
-					const auto cb_index = bit_buffer.read_bytes(4);
-					const auto dest_offset = bit_buffer.total() / 8;
-					const auto dest = bit_buffer.read_bytes(4);
-
-					if (cb_index <= 4 && dest < 0x7F) // workaround
-					{
-						offsets.push_back(dest_offset + offset);
-					}
-				}
-
-				switch (operand_type)
-				{
-				case (4):
-					for (auto i = 0; i < num_components; i++)
-					{
-						bit_buffer.read_bytes(4);
-					}
-					break;
-				case (5):
-					for (auto i = 0; i < num_components; i++)
-					{
-						bit_buffer.read_bytes(4);
-						bit_buffer.read_bytes(4);
-					}
-					break;
-				}
-			};
-
-			// parse operands
-			if (opcode_len > 0)
-			{
-				const auto bits_to_read = (4 * 8) * (opcode_len - 1);
-				const auto end = bit_buffer.total() + bits_to_read;
-				auto total = bit_buffer.total();
-
-				if (opcode == 120)
-				{
-					bit_buffer.read_bytes(4);
-				}
-
-				while (bit_buffer.total() < end)
-				{
-					read_operand();
-					total = bit_buffer.total();
-				}
-
-				bit_buffer.set_bit(end);
-			}
-		}
-
-		return offsets;
-	}
-
 	namespace fxcd
 	{
 		// https://github.com/hellokenlee/fxcd
@@ -617,6 +453,7 @@ namespace shader
 			D3D10_SB_OPCODE_XOR,
 
 			D3D10_SB_OPCODE_DCL_CONSTANT_BUFFER,
+			D3D10_SB_OPCODE_DCL_TEMPS,
 		};
 
 		namespace reader
@@ -823,11 +660,22 @@ namespace shader
 				instruction_t instruction{};
 				instruction.opcode = read_opcode(input_buffer);
 
-				const auto end = input_buffer.total() + (instruction.opcode.length - 1) * 8 * 4;
-				while (input_buffer.total() < end)
+				if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_TEMPS)
 				{
-					const auto operand = read_operand(allocator, input_buffer);
+					operand_t operand{};
+					operand.custom.is_custom = true;
+					operand.custom.type = D3D10_SB_OPCODE_DCL_TEMPS;
+					operand.custom.types.dcl_temps.size = input_buffer.read_bytes(4);
 					instruction.operands.emplace_back(operand);
+				}
+				else
+				{
+					const auto end = input_buffer.total() + (instruction.opcode.length - 1) * 8 * 4;
+					while (input_buffer.total() < end)
+					{
+						const auto operand = read_operand(allocator, input_buffer);
+						instruction.operands.emplace_back(operand);
+					}
 				}
 
 				return instruction;
@@ -836,8 +684,24 @@ namespace shader
 
 		namespace writer
 		{
+			void write_operand_custom(utils::bit_buffer_le& output_buffer, const operand_t& operand)
+			{
+				switch (operand.custom.type)
+				{
+				case D3D10_SB_OPCODE_DCL_TEMPS:
+					output_buffer.write_bytes(4, operand.custom.types.dcl_temps.size);
+					break;
+				}
+			}
+
 			void write_operand(utils::bit_buffer_le& output_buffer, const operand_t& operand)
 			{
+				if (operand.custom.is_custom)
+				{
+					write_operand_custom(output_buffer, operand);
+					return;
+				}
+
 				output_buffer.write_bits(2, operand.components.type);
 				output_buffer.write_bits(2, operand.components.selection_mode);
 
@@ -970,8 +834,8 @@ namespace shader
 
 			void write_opcode(utils::bit_buffer_le& output_buffer, const opcode_t& opcode)
 			{
-				output_buffer.write_bits(10, opcode.type);
-				output_buffer.write_bits(14, opcode.controls);
+				output_buffer.write_bits(11, opcode.type);
+				output_buffer.write_bits(13, opcode.controls);
 				output_buffer.write_bits(6, opcode.length);
 				output_buffer.write_bits(1, opcode.extended);
 				output_buffer.write_bits(1, 0);
@@ -1052,6 +916,18 @@ namespace shader
 		{
 			void print_operand(const operand_t& op, bool last)
 			{
+				if (op.custom.is_custom)
+				{
+					switch (op.custom.type)
+					{
+					case D3D10_SB_OPCODE_DCL_TEMPS:
+						printf("%i", op.custom.types.dcl_temps.size);
+						break;
+					}
+
+					return;
+				}
+
 				if (op.extended)
 				{
 					for (const auto& extension : op.extensions)
@@ -1241,7 +1117,7 @@ namespace shader
 
 				const auto name = opcode_names[instruction.opcode.type];
 
-				if (instruction.opcode.controls & 0x8)
+				if (instruction.opcode.controls & 4)
 				{
 					printf("%s_sat ", name);
 				}
