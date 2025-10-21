@@ -166,12 +166,31 @@ namespace shader
 		{
 			opcode_t create_opcode(const std::uint32_t type, const std::uint32_t controls);
 			operand_t create_literal_operand(const float x, const float y, const float z, const float w);
-			operand_t create_register_operand(const std::uint32_t type, const std::string& component_names, const std::vector<std::uint32_t>& indices);
 
+			operand_t create_src_operand_swizzle(const std::uint32_t type, const std::string& component_names, const std::vector<std::uint32_t>& indices);
 			template <typename ...Args>
-			operand_t create_register_operand(const std::uint32_t type, const std::string& component_names, Args&&... args)
+			operand_t create_src_operand_swizzle(const std::uint32_t type, const std::string& component_names, Args&&... args)
 			{
-				return create_register_operand(type, component_names, {std::forward<Args>(args)...});
+				return create_src_operand_swizzle(type, component_names, { std::forward<Args>(args)... });
+			}
+			operand_t create_src_operand_swizzle(const std::uint32_t type, const std::vector<std::uint32_t>& components, const std::vector<std::uint32_t>& indices);
+			template <typename ...Args>
+			operand_t create_src_operand_swizzle(const std::uint32_t type, const std::vector<std::uint32_t>& components, Args&&... args)
+			{
+				return create_src_operand_swizzle(type, components, { std::forward<Args>(args)... });
+			}
+			template <typename ...Args>
+			operand_t create_src_operand_swizzle(const std::uint32_t type, const std::uint32_t components[4], Args&&... args)
+			{
+				std::vector<std::uint32_t> components_ = { components[0], components[1], components[2], components[3] };
+				return create_src_operand_swizzle(type, components_, { std::forward<Args>(args)... });
+			}
+
+			operand_t create_dest_operand_mask(const std::uint32_t type, std::uint32_t writemask, const std::vector<std::uint32_t>& indices);
+			template <typename ...Args>
+			operand_t create_dest_operand_mask(const std::uint32_t type, std::uint32_t writemask, Args&&... args)
+			{
+				return create_dest_operand_mask(type, writemask, { std::forward<Args>(args)... });
 			}
 
 			std::vector<std::uint32_t> find_operands(const instruction_t& instruction, const std::uint32_t beg,

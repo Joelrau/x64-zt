@@ -174,7 +174,7 @@ namespace zonetool::iw6
 			DUMP_ASSET_CONVERT(ASSET_TYPE_COMPUTESHADER, computeshader, ComputeShader);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_DOMAINSHADER, domainshader, MaterialDomainShader);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_HULLSHADER, hullshader, MaterialHullShader);
-			DUMP_ASSET_CONVERT(ASSET_TYPE_PIXELSHADER, pixelshader, MaterialPixelShader); // dump this also from technique
+			DUMP_ASSET_CONVERT(ASSET_TYPE_PIXELSHADER, pixelshader, MaterialPixelShader);
 			//DUMP_ASSET_CONVERT(ASSET_TYPE_VERTEXDECL, vertexdecl, MaterialVertexDeclaration);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_VERTEXSHADER, vertexshader, MaterialVertexShader);
 

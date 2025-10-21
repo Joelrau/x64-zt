@@ -1175,295 +1175,138 @@ namespace zonetool::iw6
 				{-112.810379f, -242.356049f, 232.554977f, 1.000000f}, //290
 			};
 
-			static inline bool starts_with(std::string_view s, std::string_view pfx) {
-				return s.size() >= pfx.size() && std::equal(pfx.begin(), pfx.end(), s.begin());
-			}
-			static inline std::string trim_left(std::string_view s) {
-				size_t i = 0; while (i < s.size() && (s[i] == ' ' || s[i] == '\t')) ++i;
-				return std::string(s.substr(i));
-			}
+			constexpr float hdrMagicValue = 1.0f / 1550.0f;
+			std::uint32_t temp_index = 0;
 
-			// Rewrites for cb1[5]/cb1[6]:
-			//   mov         DST, cb1[i]           -> div DST, cb1[i], l(1550,1550,1550,1550)
-			//   mov_sat     DST, cb1[i]           -> div DST, cb1[i], l(...); mov_sat DST, DST
-			//   add         DST, A,  cb1[i]       -> mad DST, cb1[i], l(1/1550,...), A
-			//   add_sat     DST, A,  cb1[i]       -> mad ...; mov_sat DST, DST
-			//   mul         DST, X,  cb1[i]       -> (orig); div DST, DST, l(1550,1550,1550,1)
-			//   mul_sat     DST, X,  cb1[i]       -> mul ...; div ...; mov_sat DST, DST
-			//   dp4         DST, A,  cb1[i]       -> (orig); div DST, DST, l(1550,1550,1550,1)
-			//   dp4_sat     DST, A,  cb1[i]       -> dp4 ...; div ...; mov_sat DST, DST
-			//
-			// Any line mentioning cb1[5|6] that we don't confidently transform is logged in `diagnostics`.
-			static std::string PatchAsmPixelShader(
-				const std::string& asmText,
-				std::string* diagnostics /*= nullptr*/,
-				const std::vector<int>& cb1Slots /*= {5, 6}*/)
+			::shader::asm_::operand_t write_cb_mul_instruction(utils::bit_buffer_le& output_buffer, const ::shader::asm_::operand_t& cb_operand_orig, const std::uint32_t offset)
 			{
-				std::istringstream in(asmText);
-				std::ostringstream out;
-				std::string line;
+				assert(offset < 2);
 
-				// Literals
-				constexpr const char* L1550 = "l(1550.0, 1550.0, 1550.0, 1.0)";
-				constexpr const char* L1550_1 = "l(1550.0, 1550.0, 1550.0, 1.0)";
-				constexpr const char* INV1550 = "l(0.00064516129, 0.00064516129, 0.00064516129, 1.0)"; // 1/1550
+				auto mul = ::shader::asm_::tokens::create_opcode(D3D10_SB_OPCODE_MUL, 0);
 
-				// Build slot alternation like "(?:5|6|9)"
-				auto make_slot_alt = [](const std::vector<int>& v) -> std::string {
-					if (v.empty()) return "(?!)"; // matches nothing
-					std::string s = "(?:";
-					for (size_t i = 0; i < v.size(); ++i) {
-						if (i) s += "|";
-						s += std::to_string(v[i]);
-					}
-					s += ")";
-					return s;
-				};
-				const std::string slotAlt = make_slot_alt(cb1Slots);
+				constexpr std::uint32_t XYZW =
+					(1u << D3D10_SB_4_COMPONENT_X) |
+					(1u << D3D10_SB_4_COMPONENT_Y) |
+					(1u << D3D10_SB_4_COMPONENT_Z) |
+					(1u << D3D10_SB_4_COMPONENT_W);
 
-				// Helpers
-				auto ensure_scalar = [](std::string s) {
-					if (s.find('.') == std::string::npos) s += ".x";
-					return s;
-				};
-				auto log_skip = [&](int lineNo, const std::string& text, const char* reason) {
-					if (!diagnostics) return;
-					*diagnostics += "[skip] line " + std::to_string(lineNo) + " (" + reason + "): " + text + "\n";
-				};
+				const auto temp_register = ::shader::asm_::tokens::create_dest_operand_mask(D3D10_SB_OPERAND_TYPE_TEMP, XYZW, temp_index + offset);
+				const auto cb_operand = ::shader::asm_::tokens::create_src_operand_swizzle(D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER, "xyzw",
+						cb_operand_orig.indices[0].values[0].u32, cb_operand_orig.indices[1].values[0].u32);
 
-				// Regexes (generated from slotAlt)
-				const std::string patHasCb = "cb1\\[" + slotAlt + "\\]";
-				const std::string patMovCb = "^\\s*mov\\s+([ro]\\d+(?:\\.[xyzw]+)?)\\s*,\\s*(\\-?\\s*)cb1\\[(" + slotAlt + ")\\](?:\\.[xyzw]+)?\\s*$";
-				const std::string patMovSatCb = "^\\s*mov_sat\\s+([ro]\\d+(?:\\.[xyzw]+)?)\\s*,\\s*(\\-?\\s*)cb1\\[(" + slotAlt + ")\\](?:\\.[xyzw]+)?\\s*$";
+				const auto literal = ::shader::asm_::tokens::create_literal_operand(hdrMagicValue, hdrMagicValue, hdrMagicValue, hdrMagicValue);
 
-				std::regex rxHasCb(patHasCb, std::regex::icase);
-				std::regex rxMovCb(patMovCb, std::regex::icase);
-				std::regex rxMovSatCb(patMovSatCb, std::regex::icase);
+				mul.length += ::shader::asm_::writer::get_operand_length(temp_register);
+				mul.length += ::shader::asm_::writer::get_operand_length(cb_operand);
+				mul.length += ::shader::asm_::writer::get_operand_length(literal);
 
-				std::regex rxMulLine(R"(^\s*mul\s+)", std::regex::icase);
-				std::regex rxMulSatLine(R"(^\s*mul_sat\s+)", std::regex::icase);
-				std::regex rxDestToken(R"(^\s*\w+\s+([ro]\d+(?:\.[xyzw]+)?)\s*,)", std::regex::icase);
+				::shader::asm_::writer::write_opcode(output_buffer, mul);
+				::shader::asm_::writer::write_operand(output_buffer, temp_register);
+				::shader::asm_::writer::write_operand(output_buffer, cb_operand);
+				::shader::asm_::writer::write_operand(output_buffer, literal);
 
-				std::regex rxAddFull(R"(^\s*add\s+([ro]\d+(?:\.[xyzw]+)?)\s*,\s*(.+?)\s*,\s*(.+?)\s*$)", std::regex::icase);
-				std::regex rxAddSatFull(R"(^\s*add_sat\s+([ro]\d+(?:\.[xyzw]+)?)\s*,\s*(.+?)\s*,\s*(.+?)\s*$)", std::regex::icase);
+				return temp_register;
+			}
 
-				std::regex rxDp4Full(R"(^\s*dp4\s+([ro]\d+(?:\.[xyzw]+)?)\s*,\s*(.+?)\s*,\s*(.+?)\s*$)", std::regex::icase);
-				std::regex rxDp4SatFull(R"(^\s*dp4_sat\s+([ro]\d+(?:\.[xyzw]+)?)\s*,\s*(.+?)\s*,\s*(.+?)\s*$)", std::regex::icase);
-
-				int lineNo = 0;
-				while (std::getline(in, line)) {
-					++lineNo;
-					std::string_view sv(line);
-					auto t = trim_left(sv);
-
-					// passthrough comments/decls
-					const bool isComment = starts_with(t, "//");
-					const bool isDecl = starts_with(t, "dcl_") || starts_with(t, "ps_") || starts_with(t, "vs_")
-						|| starts_with(t, "cs_") || starts_with(t, "gs_") || starts_with(t, "hs_")
-						|| starts_with(t, "ds_");
-					if (isComment || isDecl || t.empty()) { out << line << "\n"; continue; }
-
-					// ---------------- MOV / MOV_SAT (direct CB load) ----------------
+			bool patch_instruction(utils::bit_buffer_le& output_buffer, ::shader::asm_::instruction_t instruction, const std::vector<MaterialShaderArgument*>& args)
+			{
+				const auto contains_arg = [&](const std::uint32_t index) -> bool
+				{
+					for (const auto& arg : args)
 					{
-						std::smatch m;
-						if (std::regex_search(line, m, rxMovCb)) {
-							const std::string dst = m[1].str();
-							const std::string sign = m[2].str();
-							const std::string idx = m[3].str();
-							out << "div " << dst << ", " << (sign.empty() ? "" : sign) << "cb1[" << idx << "], " << L1550 << "\n";
-							continue;
-						}
-						if (std::regex_search(line, m, rxMovSatCb)) {
-							const std::string dst = m[1].str();
-							const std::string sign = m[2].str();
-							const std::string idx = m[3].str();
-							out << "div " << dst << ", " << (sign.empty() ? "" : sign) << "cb1[" << idx << "], " << L1550 << "\n";
-							out << "mov_sat " << dst << ", " << dst << "\n";
-							continue;
-						}
-					}
-
-					// ---------------- ADD / ADD_SAT (scale only CB term) ----------------
-					{
-						std::smatch m;
-						bool isSat = false;
-						if (std::regex_search(line, m, rxAddFull) || (isSat = std::regex_search(line, m, rxAddSatFull))) {
-							const std::string dst = m[1].str();
-							const std::string s0 = m[2].str();
-							const std::string s1 = m[3].str();
-
-							const bool s0_is_cb = std::regex_search(s0, rxHasCb);
-							const bool s1_is_cb = std::regex_search(s1, rxHasCb);
-
-							if (s0_is_cb ^ s1_is_cb) {
-								const std::string& cbSrc = s0_is_cb ? s0 : s1;
-								const std::string& other = s0_is_cb ? s1 : s0;
-								out << "mad " << dst << ", " << cbSrc << ", " << INV1550 << ", " << other << "\n";
-								if (isSat) out << "mov_sat " << dst << ", " << dst << "\n";
-								continue;
-							}
-							else if (s0_is_cb && s1_is_cb) {
-								log_skip(lineNo, line, "add-both-cb");
-								out << line << "\n";
-								continue;
-							}
-							// no cb -> passthrough
-						}
-					}
-
-					// ---------------- MUL (post-scale) ----------------
-					if (std::regex_search(line, rxMulLine) && std::regex_search(line, rxHasCb)) {
-						out << line << "\n";
-						std::smatch md;
-						if (std::regex_search(line, md, rxDestToken)) {
-							const std::string dst = md[1].str();
-							const std::string src = ensure_scalar(dst);
-							out << "div " << dst << ", " << src << ", " << L1550_1 << "\n";
-						}
-						else {
-							log_skip(lineNo, line, "mul-no-dest-parse");
-						}
-						continue;
-					}
-
-					// ---------------- MUL_SAT (mul -> div -> saturate) ----------------
-					if (std::regex_search(line, rxMulSatLine) && std::regex_search(line, rxHasCb)) {
-						std::string base = line;
-						// replace first "mul_sat" with "mul" (case-insensitive)
+						if (arg->dest == index)
 						{
-							std::string low = base;
-							std::transform(low.begin(), low.end(), low.begin(), [](unsigned char c) { return (char)std::tolower(c); });
-							size_t pos = low.find("mul_sat");
-							if (pos != std::string::npos) base.replace(pos, 7, "mul");
-						}
-						out << base << "\n";
-
-						std::smatch md;
-						if (std::regex_search(base, md, rxDestToken)) {
-							const std::string dst = md[1].str();
-							const std::string src = ensure_scalar(dst);
-							out << "div " << dst << ", " << src << ", " << L1550_1 << "\n";
-							out << "mov_sat " << dst << ", " << dst << "\n";
-						}
-						else {
-							log_skip(lineNo, line, "mul_sat-no-dest-parse");
-						}
-						continue;
-					}
-
-					// ---------------- DP4 / DP4_SAT (factor out 1/1550) ----------------
-					{
-						std::smatch m;
-						bool isSat = false;
-						if (std::regex_search(line, m, rxDp4Full) || (isSat = std::regex_search(line, m, rxDp4SatFull))) {
-							const std::string dst = m[1].str();
-							const std::string s0 = m[2].str();
-							const std::string s1 = m[3].str();
-
-							const bool s0_is_cb = std::regex_search(s0, rxHasCb);
-							const bool s1_is_cb = std::regex_search(s1, rxHasCb);
-
-							if (s0_is_cb ^ s1_is_cb) {
-								// Keep dp4, then divide result (dot is linear -> scaling either input == scaling result)
-								out << line << "\n";
-								const std::string src = ensure_scalar(dst);
-								out << "div " << dst << ", " << src << ", " << L1550_1 << "\n";
-								if (isSat) out << "mov_sat " << dst << ", " << dst << "\n";
-								continue;
-							}
-							else if (s0_is_cb && s1_is_cb) {
-								// both inputs reference cb1[slot] -> ambiguous (would need 1/1550^2?). Log & keep.
-								log_skip(lineNo, line, "dp4-both-cb");
-								out << line << "\n";
-								continue;
-							}
-							// no cb -> passthrough
+							return true;
 						}
 					}
+					return false;
+				};
 
-					// ---------------- Unhandled references -> log ----------------
-					if (std::regex_search(line, rxHasCb)) {
-						log_skip(lineNo, line, "unsupported-op");
-					}
+				const auto cb_operand_indices = ::shader::asm_::tokens::find_operands(instruction, 1, [&](const ::shader::asm_::operand_t& operand)
+				{
+					return operand.type == D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER && contains_arg(operand.indices[1].values[0].u32);
+				});
 
-					// default passthrough
-					out << line << "\n";
+				if (cb_operand_indices.empty())
+				{
+					return false;
 				}
 
-				return out.str();
+				for (auto i = 0u; i < cb_operand_indices.size(); i++)
+				{
+					const auto index = cb_operand_indices[i];
+					const auto& cb_operand = instruction.operands[index];
+
+					auto pseudo_cb_operand = write_cb_mul_instruction(output_buffer, cb_operand, i);
+
+					pseudo_cb_operand.components = instruction.operands[index].components;
+					pseudo_cb_operand.extended = instruction.operands[index].extended;
+					pseudo_cb_operand.extensions = instruction.operands[index].extensions;
+					pseudo_cb_operand.extra_operand = instruction.operands[index].extra_operand;
+					instruction.operands[index] = pseudo_cb_operand;
+				}
+
+				instruction.opcode.length = 1;
+
+				for (const auto& operand : instruction.operands)
+				{
+					instruction.opcode.length += ::shader::asm_::writer::get_operand_length(operand);
+				}
+
+				::shader::asm_::writer::write_opcode(output_buffer, instruction.opcode);
+
+				for (const auto& operand : instruction.operands)
+				{
+					::shader::asm_::writer::write_operand(output_buffer, operand);
+				}
+
+				return true;
 			}
 
-			unsigned char* convert_ps_shader_program(unsigned char* program, unsigned int& program_size,
-				utils::memory::allocator& allocator, std::vector<int>& indices)
+			bool patch_instruction_dcl_temps(utils::bit_buffer_le& output_buffer, ::shader::asm_::instruction_t instruction)
 			{
-				if (program == nullptr)
-				{
-					return program;
-				}
-
-				//bool patch_shader = false;
-				//const auto offsets = ::shader::get_dest_reference_offsets(program, program_size);
-				//for (const auto& offset : offsets)
-				//{
-				//	const auto dest = reinterpret_cast<unsigned int*>(program + offset);
-				//	const auto cb_index = dest - 1;
-				//	if (*cb_index == 1 && (*dest == 5 || *dest == 6)) // light diffuse / specular
-				//	{
-				//		patch_shader = true;
-				//		break;
-				//	}
-				//}
-				//
-				//if (!patch_shader)
-				//{
-				//	return program;
-				//}
-
-				const std::wstring fxcd_path = L"fxcd.exe";
-
-				std::string asm_data{};
-				std::string error{};
-				std::string log{};
-				if (!::shader::fxcd::DxbcToAsmWithFxcd(program, program_size, fxcd_path, L"--disassemble-ms", L"", asm_data, &error))
-				{
-					ZONETOOL_FATAL("Failed to disassemble DX11 shader program: %s\n", error.data());
-				}
-
-				std::string patch_log{};
-				asm_data = PatchAsmPixelShader(asm_data, &patch_log, indices);
-
-				if (!patch_log.empty())
-				{
-					ZONETOOL_FATAL("Shader patch log:\n%s", patch_log.data());
-				}
-
-				std::vector<uint8_t> dxbc;
-				if (!::shader::fxcd::AsmToDxbcWithFxcd(asm_data, fxcd_path, L"", nullptr, 0, dxbc, &error))
-				{
-					ZONETOOL_FATAL("Failed to reassemble DX11 shader program: %s\n", error.data());
-				}
-
-				program_size = static_cast<unsigned int>(dxbc.size());
-				unsigned char* new_program = allocator.allocate_array<unsigned char>(program_size);
-				std::memcpy(new_program, dxbc.data(), program_size);
-
-				const auto checksum = ::shader::generate_checksum(new_program, program_size);
-				const auto header = reinterpret_cast<::shader::dx11_shader_header*>(new_program);
-				std::memcpy(header->checksum, &checksum, sizeof(::shader::shader_checksum));
-
-				return new_program;
+				temp_index = instruction.operands[0].custom.types.dcl_temps.size;
+				instruction.operands[0].custom.types.dcl_temps.size += 2;
+				::shader::asm_::writer::write_opcode(output_buffer, instruction.opcode);
+				::shader::asm_::writer::write_operand(output_buffer, instruction.operands[0]);
+				return true;
 			}
 
-			zonetool::h1::MaterialPixelShader* convert_pixelshader(MaterialPixelShader* asset, utils::memory::allocator& allocator, std::vector<int>& indices)
+			bool patch_shader_const(utils::bit_buffer_le& output_buffer, ::shader::asm_::instruction_t instruction, const std::vector<MaterialShaderArgument*>& args)
 			{
-				auto* new_asset = allocator.allocate<zonetool::h1::MaterialPixelShader>();
+				switch (instruction.opcode.type)
+				{
+				case D3D10_SB_OPCODE_MOV:
+				case D3D10_SB_OPCODE_MUL:
+				case D3D10_SB_OPCODE_ADD:
+				case D3D10_SB_OPCODE_DP4:
+					return patch_instruction(output_buffer, instruction, args);
+					break;
+				case D3D10_SB_OPCODE_DCL_TEMPS:
+					return patch_instruction_dcl_temps(output_buffer, instruction);
+					break;
+				}
+
+				return false;
+			}
+
+			template<typename T, typename S>
+			T* convert_shader(S* asset, utils::memory::allocator& allocator, std::vector<MaterialShaderArgument*>& indices)
+			{
+				auto* new_asset = allocator.allocate<T>();
 
 				new_asset->prog.loadDef.program = asset->prog.loadDef.program;
 				new_asset->prog.loadDef.programSize = asset->prog.loadDef.programSize;
 
 				if (!indices.empty())
 				{
-					new_asset->prog.loadDef.program = convert_ps_shader_program(new_asset->prog.loadDef.program, new_asset->prog.loadDef.programSize, allocator, indices);
+					const auto buffer = ::shader::patch_shader(asset->prog.loadDef.program, asset->prog.loadDef.programSize, [&](utils::bit_buffer_le& output_buffer, ::shader::asm_::instruction_t instruction) -> bool
+					{
+						return patch_shader_const(output_buffer, instruction, indices);
+					});
+					new_asset->prog.loadDef.programSize = static_cast<unsigned int>(buffer.size());
+					new_asset->prog.loadDef.program = allocator.allocate_array<unsigned char>(buffer.size());
+					std::memcpy(new_asset->prog.loadDef.program, buffer.data(), buffer.size());
 				}
 
 				new_asset->prog.loadDef.microCodeCrc = ::shader::calc_crc32(new_asset->prog.loadDef.program, new_asset->prog.loadDef.programSize);
@@ -1515,6 +1358,109 @@ namespace zonetool::iw6
 								auto* pass = &technique->passArray[pass_index];
 								auto* new_pass = &new_technique->passArray[pass_index];
 
+								using Tech = zonetool::h1::MaterialTechniqueType;
+								using UT = std::underlying_type_t<Tech>;
+
+								constexpr int kStride = 60;
+								constexpr int kVariants = 4;
+
+								constexpr std::array<Tech, 30> kLightBases = {
+									Tech::TECHNIQUE_LIT_SPOT,
+									Tech::TECHNIQUE_LIT_SPOT_SHADOW,
+									Tech::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS,
+									Tech::TECHNIQUE_LIT_OMNI,
+									Tech::TECHNIQUE_LIT_OMNI_SHADOW,
+									Tech::TECHNIQUE_LIT_SPOT_DFOG,
+									Tech::TECHNIQUE_LIT_SPOT_SHADOW_DFOG,
+									Tech::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_DFOG,
+									Tech::TECHNIQUE_LIT_OMNI_DFOG,
+									Tech::TECHNIQUE_LIT_OMNI_SHADOW_DFOG,
+									Tech::TECHNIQUE_LIGHT_SPOT,
+									Tech::TECHNIQUE_LIGHT_OMNI,
+									Tech::TECHNIQUE_LIGHT_SPOT_SHADOW,
+									Tech::TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS,
+									Tech::TECHNIQUE_LIGHT_SPOT_STENCIL,
+									Tech::TECHNIQUE_LIGHT_OMNI_STENCIL,
+									Tech::TECHNIQUE_LIGHT_SPOT_DFOG,
+									Tech::TECHNIQUE_LIGHT_OMNI_DFOG,
+									Tech::TECHNIQUE_LIGHT_SPOT_SHADOW_DFOG,
+									Tech::TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG,
+									Tech::TECHNIQUE_LIGHT_SPOT_STENCIL_DFOG,
+									Tech::TECHNIQUE_LIGHT_OMNI_STENCIL_DFOG,
+									Tech::TECHNIQUE_LIT_DYNAMIC_BRANCHING_CUCOLORIS,
+									Tech::TECHNIQUE_LIT_SUN_DYNAMIC_BRANCHING_CUCOLORIS, //
+									Tech::TECHNIQUE_LIT_DYNAMIC_BRANCHING,
+									Tech::TECHNIQUE_LIT_SUN_DYNAMIC_BRANCHING, //
+									Tech::TECHNIQUE_LIT_DYNAMIC_BRANCHING_CUCOLORIS_DFOG,
+									Tech::TECHNIQUE_LIT_SUN_DYNAMIC_BRANCHING_CUCOLORIS_DFOG, //
+									Tech::TECHNIQUE_LIT_DYNAMIC_BRANCHING_DFOG,
+									Tech::TECHNIQUE_LIT_SUN_DYNAMIC_BRANCHING_DFOG, //
+								};
+
+								auto is_light_tech_variant = [](UT t) {
+									for (Tech base : kLightBases) {
+										UT d = t - static_cast<UT>(base);
+										if (d >= 0 && d % kStride == 0 && d / kStride < kVariants) {
+											return true;
+										}
+									}
+									return false;
+								};
+
+								const auto get_cb_slots = [&]()
+								{
+									std::vector<MaterialShaderArgument*> cb1_slots = {};
+									const auto primCount = pass->perPrimArgCount;
+									const auto objCount = pass->perObjArgCount;
+									const auto stableCount = pass->stableArgCount;
+									auto arg_count = primCount + objCount + stableCount;
+									for (auto arg_index = 0; arg_index < arg_count; arg_index++)
+									{
+										[[maybe_unused]] const auto is_per_prim_arg = arg_index < primCount;
+										[[maybe_unused]] const auto is_per_obj_arg = !is_per_prim_arg && arg_index < (objCount + primCount);
+										[[maybe_unused]] const auto is_stable_arg = !is_per_prim_arg && !is_per_obj_arg;
+
+										auto* arg = &pass->args[arg_index];
+										const int index = static_cast<int>(arg->u.codeConst.index);
+										if (arg->type == MTL_ARG_CODE_CONST)
+										{
+											for (auto idx = 0; idx < 4; idx++)
+											{
+												if (index == (CONST_SRC_CODE_LIGHT_DIFFUSE_DB_ARRAY_0 + idx) ||
+													index == (CONST_SRC_CODE_LIGHT_SPECULAR_DB_ARRAY_0 + idx))
+												{
+													assert(is_per_obj_arg);
+													assert(arg->u.codeConst.firstRow == 0);
+													assert(arg->u.codeConst.rowCount == 1);
+
+													cb1_slots.push_back(arg);
+													break;
+												}
+											}
+
+											if (!cb1_slots.empty() && cb1_slots.at(cb1_slots.size() - 1) == arg)
+												continue;
+
+											constexpr int kLightStride = 7;
+											for (int idx = 0; idx < 4; ++idx)
+											{
+												const int diffuseIdx = static_cast<int>(CONST_SRC_CODE_LIGHT_DIFFUSE) + (idx * kLightStride);
+												const int specularIdx = static_cast<int>(CONST_SRC_CODE_LIGHT_SPECULAR) + (idx * kLightStride);
+												if (index == diffuseIdx || index == specularIdx)
+												{
+													assert(is_per_obj_arg);
+													assert(arg->u.codeConst.firstRow == 0);
+													assert(arg->u.codeConst.rowCount == 1);
+
+													cb1_slots.push_back(arg);
+													break;
+												}
+											}
+										}
+									}
+									return cb1_slots;
+								};
+
 								if (pass->vertexShader)
 								{
 									new_pass->vertexShader = converter::h1::vertexshader::convert(pass->vertexShader, allocator);
@@ -1534,91 +1480,15 @@ namespace zonetool::iw6
 								if (pass->pixelShader)
 								{
 									const auto is_referenced = pass->pixelShader->prog.loadDef.program == nullptr;
-
-									using Tech = zonetool::h1::MaterialTechniqueType;
-									using UT = std::underlying_type_t<Tech>;
-
-									constexpr int kStride = 60;
-									constexpr int kVariants = 4;
-
-									constexpr std::array<Tech, 22> kLightBases = {
-										Tech::TECHNIQUE_LIT_SPOT,
-										Tech::TECHNIQUE_LIT_SPOT_SHADOW,
-										Tech::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS,
-										Tech::TECHNIQUE_LIT_OMNI,
-										Tech::TECHNIQUE_LIT_OMNI_SHADOW,
-										Tech::TECHNIQUE_LIT_SPOT_DFOG,
-										Tech::TECHNIQUE_LIT_SPOT_SHADOW_DFOG,
-										Tech::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_DFOG,
-										Tech::TECHNIQUE_LIT_OMNI_DFOG,
-										Tech::TECHNIQUE_LIT_OMNI_SHADOW_DFOG,
-										Tech::TECHNIQUE_LIGHT_SPOT,
-										Tech::TECHNIQUE_LIGHT_OMNI,
-										Tech::TECHNIQUE_LIGHT_SPOT_SHADOW,
-										Tech::TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS,
-										Tech::TECHNIQUE_LIGHT_SPOT_STENCIL,
-										Tech::TECHNIQUE_LIGHT_OMNI_STENCIL,
-										Tech::TECHNIQUE_LIGHT_SPOT_DFOG,
-										Tech::TECHNIQUE_LIGHT_OMNI_DFOG,
-										Tech::TECHNIQUE_LIGHT_SPOT_SHADOW_DFOG,
-										Tech::TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG,
-										Tech::TECHNIQUE_LIGHT_SPOT_STENCIL_DFOG,
-										Tech::TECHNIQUE_LIGHT_OMNI_STENCIL_DFOG
-									};
-
-									auto is_light_tech_variant = [](UT t) {
-										for (Tech base : kLightBases) {
-											UT d = t - static_cast<UT>(base);
-											if (d >= 0 && d % kStride == 0 && d / kStride < kVariants) {
-												return true;
-											}
-										}
-										return false;
-									};
-
 									if (!is_referenced && is_light_tech_variant(static_cast<UT>(new_tech_index)))
 									{
-										std::vector<int> cb1_slots = {};
-										const auto primCount = pass->perPrimArgCount;
-										const auto objCount = pass->perObjArgCount;
-										const auto stableCount = pass->stableArgCount;
-										auto arg_count = primCount + objCount + stableCount;
-										for (auto arg_index = 0; arg_index < arg_count; arg_index++)
-										{
-											[[maybe_unused]] const auto is_per_prim_arg = arg_index < primCount;
-											[[maybe_unused]] const auto is_per_obj_arg = !is_per_prim_arg && arg_index < (objCount + primCount);
-											[[maybe_unused]] const auto is_stable_arg = !is_per_prim_arg && !is_per_obj_arg;
-
-											if (is_per_obj_arg)
-											{
-												auto* arg = &pass->args[arg_index];
-												const int index = static_cast<int>(arg->u.codeConst.index);
-												if (arg->type == MTL_ARG_CODE_CONST)
-												{
-													constexpr int kLightStride = 9;
-
-													for (int idx = 0; idx < 4; ++idx)
-													{
-														const int diffuseIdx = static_cast<int>(CONST_SRC_CODE_LIGHT_DIFFUSE) + (idx * kLightStride);
-														const int specularIdx = static_cast<int>(CONST_SRC_CODE_LIGHT_SPECULAR) + (idx * kLightStride);
-														if (index == diffuseIdx || index == specularIdx)
-														{
-															cb1_slots.push_back(arg->dest);
-														}
-													}
-												}
-											}
-										}
-
-										new_pass->pixelShader = convert_pixelshader(pass->pixelShader, allocator, cb1_slots);
+										auto cb1_slots = get_cb_slots();
+										new_pass->pixelShader = convert_shader<zonetool::h1::MaterialPixelShader, MaterialPixelShader>(pass->pixelShader, allocator, cb1_slots);
+										zonetool::h1::pixel_shader::dump(new_pass->pixelShader);
 									}
 									else
 									{
 										new_pass->pixelShader = converter::h1::pixelshader::convert(pass->pixelShader, allocator);
-									}
-									if (!is_referenced)
-									{
-										zonetool::h1::pixel_shader::dump(new_pass->pixelShader);
 									}
 								}
 
@@ -1631,6 +1501,8 @@ namespace zonetool::iw6
 									const auto stableCount = pass->stableArgCount;
 									auto arg_count = primCount + objCount + stableCount;
 
+									bool ssr = false;
+
 									std::vector<zonetool::h1::MaterialShaderArgument> args{};
 									args.reserve(arg_count);
 
@@ -1641,10 +1513,9 @@ namespace zonetool::iw6
 										zonetool::h1::MaterialShaderArgument new_arg;
 										std::memcpy(&new_arg, arg, sizeof(zonetool::h1::MaterialShaderArgument));
 
-										const bool is_per_prim_arg = arg_index < primCount;
-										const bool is_per_obj_arg = !is_per_prim_arg && arg_index < (primCount + objCount);
-										const bool is_stable_arg = !is_per_prim_arg && !is_per_obj_arg;
-										(void)is_per_prim_arg; (void)is_per_obj_arg; (void)is_stable_arg;
+										[[maybe_unused]] const auto is_per_prim_arg = arg_index < primCount;
+										[[maybe_unused]] const auto is_per_obj_arg = !is_per_prim_arg && arg_index < (objCount + primCount);
+										[[maybe_unused]] const auto is_stable_arg = !is_per_prim_arg && !is_per_obj_arg;
 
 										switch (arg->type)
 										{
@@ -1653,8 +1524,15 @@ namespace zonetool::iw6
 											const auto it = const_src_code_map.find(arg->u.codeConst.index);
 											if (it != const_src_code_map.end())
 											{
-												new_arg.u.codeConst.index = it->second;
-												assert(new_arg.u.codeConst.index < zonetool::h1::CONST_SRC_TOTAL_COUNT);
+												const auto index = it->second;
+												if (index >= zonetool::h1::CONST_SRC_CODE_SSR_PREV_FRAME_VIEWPROJECTION_MATRIX_R0 && index <= zonetool::h1::CONST_SRC_CODE_SSR_CLIP_TO_FADE_SCALE_OFFSET_PS &&
+													index != zonetool::h1::CONST_SRC_CODE_PREV_EYEPOSITION_TRANSFORM && index != zonetool::h1::CONST_SRC_CODE_CLIP_SPACE_LOOKUP_SCALE_AND_OFFSET)
+												{
+													ssr = true;
+												}
+
+												new_arg.u.codeConst.index = index;
+												assert(index < zonetool::h1::CONST_SRC_TOTAL_COUNT);
 											}
 											else
 											{
@@ -1686,8 +1564,15 @@ namespace zonetool::iw6
 											const auto it = texture_src_code_map.find(arg->u.codeConst.index);
 											if (it != texture_src_code_map.end())
 											{
-												new_arg.u.codeConst.index = it->second;
-												assert(new_arg.u.codeConst.index < zonetool::h1::TEXTURE_SRC_CODE_COUNT);
+												auto index = it->second;
+
+												if (index == zonetool::h1::TEXTURE_SRC_CODE_RESOLVED_SCENE && ssr)
+												{
+													index = zonetool::h1::TEXTURE_SRC_CODE_SSR_BUFFER;
+												}
+
+												new_arg.u.codeConst.index = index;
+												assert(index < zonetool::h1::TEXTURE_SRC_CODE_COUNT);
 											}
 											else
 											{
@@ -1707,7 +1592,7 @@ namespace zonetool::iw6
 											arg->u.literalConst[2] == 0.0f &&
 											arg->u.literalConst[3] == 0.0f)
 										{
-											new_arg.type = MTL_ARG_MATERIAL_CONST;
+											new_arg.type = zonetool::h1::MTL_ARG_MATERIAL_CONST;
 											std::memset(&new_arg.u, 0, sizeof(new_arg.u));
 											new_arg.u.nameHash = 1033475292;
 										}

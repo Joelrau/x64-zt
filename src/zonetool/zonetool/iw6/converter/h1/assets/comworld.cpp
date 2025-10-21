@@ -10,6 +10,36 @@ namespace zonetool::iw6
 	{
 		namespace comworld
 		{
+			namespace
+			{
+				float PhysicallyBasedLight_IntensityFromCandelas(float candelas)
+				{
+					return candelas * 1550.0f;
+				}
+
+				float PhysicallyBasedLight_FramebufferUnitsFromIntensity(float intensity, float radiometricScale)
+				{
+					return intensity * radiometricScale;
+				}
+
+				void convertColorToPhysicallyBased(float* color)
+				{
+					float extracted_intensity = std::max({ color[0], color[1], color[2] });
+					float normalized_color[3] = {
+						color[0] / extracted_intensity,
+						color[1] / extracted_intensity,
+						color[2] / extracted_intensity
+					};
+
+					auto intensity = PhysicallyBasedLight_IntensityFromCandelas(extracted_intensity * 1000.0f);
+					auto framebuffer_units = PhysicallyBasedLight_FramebufferUnitsFromIntensity(intensity, 0.001f);
+
+					color[0] = normalized_color[0] * framebuffer_units;
+					color[1] = normalized_color[1] * framebuffer_units;
+					color[2] = normalized_color[2] * framebuffer_units;
+				}
+			}
+
 			zonetool::h1::ComWorld* convert(ComWorld* asset, utils::memory::allocator& allocator)
 			{
 				const auto new_asset = allocator.allocate<zonetool::h1::ComWorld>();
@@ -67,11 +97,7 @@ namespace zonetool::iw6
 						new_light->fadeOffset[0] = 0.0f;
 						new_light->fadeOffset[1] = 0.0f;
 
-						// idk why...
-						for (auto c = 0; c < 3; c++)
-						{
-							//new_light->color[c] *= 10000.0f;
-						}
+						convertColorToPhysicallyBased(new_light->color);
 					}
 				}
 
