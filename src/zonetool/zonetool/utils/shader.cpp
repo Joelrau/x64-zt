@@ -1166,11 +1166,11 @@ namespace shader
 				return operand;
 			}
 
-			operand_t create_src_operand_swizzle(const std::uint32_t type, const std::string& component_names, const std::vector<std::uint32_t>& indices)
+			operand_t create_operand(const std::uint32_t type, const operand_components_t& operand_components, const std::vector<std::uint32_t>& indices)
 			{
-				if (indices.size() > 3 || component_names.size() > 4)
+				if (indices.size() > 3)
 				{
-					throw std::runtime_error("create_src_operand_swizzle: invalid args");
+					throw std::runtime_error("create_operand: invalid args");
 				}
 
 				operand_t operand{};
@@ -1180,9 +1180,42 @@ namespace shader
 				operand.dimension = static_cast<std::uint32_t>(indices.size());
 				operand.extended = 0;
 
-				operand.components.type = D3D10_SB_OPERAND_4_COMPONENT;
-				operand.components.selection_mode = D3D10_SB_OPERAND_4_COMPONENT_SWIZZLE_MODE;
-				operand.components.mask = 0;
+				operand.components = operand_components;
+
+				for (auto i = 0u; i < indices.size(); i++)
+				{
+					operand.indices[i].values[0].u32 = indices[i];
+				}
+
+				return operand;
+			}
+
+			operand_t create_operand(const std::uint32_t type, const std::vector<std::uint32_t>& components, const std::vector<std::uint32_t>& indices)
+			{
+				if (components.size() > 4)
+				{
+					throw std::runtime_error("create_src_operand_swizzle: invalid args");
+				}
+
+				operand_components_t operand_components{};
+				operand_components.type = D3D10_SB_OPERAND_4_COMPONENT;
+				operand_components.selection_mode = D3D10_SB_OPERAND_4_COMPONENT_SWIZZLE_MODE;
+				operand_components.mask = 0;
+
+				for (auto i = 0u; i < components.size(); i++)
+				{
+					operand_components.names[i] = components[i];
+				}
+
+				return create_operand(type, operand_components, indices);
+			}
+
+			operand_t create_operand(const std::uint32_t type, const std::string& component_names, const std::vector<std::uint32_t>& indices)
+			{
+				if (component_names.size() > 4)
+				{
+					throw std::runtime_error("create_swizzle_components: invalid args");
+				}
 
 				static std::unordered_map<char, std::uint32_t> component_name_map =
 				{
@@ -1196,6 +1229,11 @@ namespace shader
 					{'a', D3D10_SB_4_COMPONENT_A},
 				};
 
+				operand_components_t operand_components{};
+
+				operand_components.type = D3D10_SB_OPERAND_4_COMPONENT;
+				operand_components.selection_mode = D3D10_SB_OPERAND_4_COMPONENT_SWIZZLE_MODE;
+
 				for (auto i = 0u; i < component_names.size(); i++)
 				{
 					const auto iter = component_name_map.find(component_names[i]);
@@ -1204,70 +1242,20 @@ namespace shader
 						continue;
 					}
 
-					operand.components.names[i] = iter->second;
+					operand_components.names[i] = iter->second;
 				}
 
-				for (auto i = 0u; i < indices.size(); i++)
-				{
-					operand.indices[i].values[0].u32 = indices[i];
-				}
-
-				return operand;
+				return create_operand(type, operand_components, indices);
 			}
 
-			operand_t create_src_operand_swizzle(const std::uint32_t type, const std::vector<std::uint32_t>& components, const std::vector<std::uint32_t>& indices)
+			operand_t create_operand(const std::uint32_t type, const std::uint32_t component_mask, const std::vector<std::uint32_t>& indices)
 			{
-				if (indices.size() > 3 || components.size() > 4)
-				{
-					throw std::runtime_error("create_src_operand_swizzle: invalid args");
-				}
+				operand_components_t operand_components{};
+				operand_components.type = D3D10_SB_OPERAND_4_COMPONENT;
+				operand_components.selection_mode = D3D10_SB_OPERAND_4_COMPONENT_MASK_MODE;
+				operand_components.mask = component_mask; // e.g. X|Y|Z|W
 
-				operand_t operand{};
-
-				operand.type = type;
-
-				operand.dimension = static_cast<std::uint32_t>(indices.size());
-				operand.extended = 0;
-
-				operand.components.type = D3D10_SB_OPERAND_4_COMPONENT;
-				operand.components.selection_mode = D3D10_SB_OPERAND_4_COMPONENT_SWIZZLE_MODE;
-				operand.components.mask = 0;
-
-				for (auto i = 0u; i < components.size(); i++)
-				{
-					operand.components.names[i] = components[i];
-				}
-
-				for (auto i = 0u; i < indices.size(); i++)
-				{
-					operand.indices[i].values[0].u32 = indices[i];
-				}
-
-				return operand;
-			}
-			
-			operand_t create_dest_operand_mask(std::uint32_t type, std::uint32_t writemask, const std::vector<std::uint32_t>& indices)
-			{
-				if (indices.size() > 3)
-				{
-					throw std::runtime_error("create_dest_operand_mask: invalid args");
-				}
-
-				operand_t operand{};
-				operand.type = type;
-				operand.dimension = static_cast<std::uint32_t>(indices.size());
-				operand.extended = 0;
-
-				operand.components.type = D3D10_SB_OPERAND_4_COMPONENT;
-				operand.components.selection_mode = D3D10_SB_OPERAND_4_COMPONENT_MASK_MODE;
-				operand.components.mask = writemask; // e.g. X|Y|Z|W
-
-				for (size_t i = 0; i < indices.size(); i++)
-				{
-					operand.indices[i].values[0].u32 = indices[i];
-				}
-
-				return operand;
+				return create_operand(type, operand_components, indices);
 			}
 
 			std::vector<std::uint32_t> find_operands(const instruction_t& instruction, const std::uint32_t beg,
