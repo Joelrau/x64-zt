@@ -1176,13 +1176,73 @@ namespace zonetool::iw6
 			};
 
 			constexpr float hdrMagicValue = 1.0f / 1550.0f;
-			std::uint32_t temp_index = 0;
 
-			::shader::asm_::operand_t write_cb_mul_instruction(utils::bit_buffer_le& output_buffer, const ::shader::asm_::operand_t& cb_operand_orig, const std::uint32_t offset)
+			struct dynamciBranchingData
+			{
+				bool used;
+				std::uint32_t dynamicLightTypesDest;
+			};
+
+			struct pixelShaderPatchData
+			{
+				std::vector<MaterialShaderArgument*> args;
+				std::uint32_t tempIndex;
+				dynamciBranchingData db;
+			};
+
+			// Clone a CONSTANT_BUFFER operand but with a specific component selection.
+// Preserves: type, index dimension, index representations, relative address operand, immediate offsets, extensions.
+			::shader::asm_::operand_t clone_cb_with_swizzle(
+				const ::shader::asm_::operand_t& src,
+				const std::string& swz // e.g. "xyzw", "x", "y", ...
+			) {
+				assert(src.type == D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER);
+
+				::shader::asm_::operand_t dst = src; // start by copying everything
+
+				// Replace component selection only
+				if (swz.size() == 4) {
+					dst.components.type = D3D10_SB_OPERAND_4_COMPONENT;
+					dst.components.selection_mode = D3D10_SB_OPERAND_4_COMPONENT_MASK_MODE;
+					dst.components.mask =
+						(1u << D3D10_SB_4_COMPONENT_X) |
+						(1u << D3D10_SB_4_COMPONENT_Y) |
+						(1u << D3D10_SB_4_COMPONENT_Z) |
+						(1u << D3D10_SB_4_COMPONENT_W);
+				}
+				else if (swz.size() == 1) {
+					static const std::unordered_map<char, std::uint32_t> m = {
+						{'x', D3D10_SB_4_COMPONENT_X}, {'y', D3D10_SB_4_COMPONENT_Y},
+						{'z', D3D10_SB_4_COMPONENT_Z}, {'w', D3D10_SB_4_COMPONENT_W},
+						{'r', D3D10_SB_4_COMPONENT_R}, {'g', D3D10_SB_4_COMPONENT_G},
+						{'b', D3D10_SB_4_COMPONENT_B}, {'a', D3D10_SB_4_COMPONENT_A},
+					};
+					auto it = m.find(swz[0]);
+					if (it == m.end()) throw std::runtime_error("clone_cb_with_swizzle: bad component");
+
+					dst.components.type = D3D10_SB_OPERAND_4_COMPONENT;
+					dst.components.selection_mode = D3D10_SB_OPERAND_4_COMPONENT_SELECT_1_MODE;
+					dst.components.names[0] = it->second;
+					dst.components.mask = 0; // ignored in SELECT_1
+				}
+				else {
+					throw std::runtime_error("clone_cb_with_swizzle: invalid swizzle");
+				}
+
+				// IMPORTANT: do NOT touch dst.indices[*].representation / addr / values here.
+				// If src was cb1[rX.x + X], representation remains IMMEDIATE32_PLUS_RELATIVE,
+				// and addr stays the same (temp register + swizzle), along with the immediate offset X.
+
+				return dst;
+			}
+
+			::shader::asm_::operand_t write_cb_mul_instruction(
+				utils::bit_buffer_le& out,
+				const pixelShaderPatchData& patchData,
+				const ::shader::asm_::operand_t& cb_operand_orig,
+				std::uint32_t offset)
 			{
 				assert(offset < 2);
-
-				auto mul = ::shader::asm_::tokens::create_opcode(D3D10_SB_OPCODE_MUL, 0);
 
 				constexpr std::uint32_t XYZW =
 					(1u << D3D10_SB_4_COMPONENT_X) |
@@ -1190,119 +1250,406 @@ namespace zonetool::iw6
 					(1u << D3D10_SB_4_COMPONENT_Z) |
 					(1u << D3D10_SB_4_COMPONENT_W);
 
-				const auto temp_register = ::shader::asm_::tokens::create_dest_operand_mask(D3D10_SB_OPERAND_TYPE_TEMP, XYZW, temp_index + offset);
-				const auto cb_operand = ::shader::asm_::tokens::create_src_operand_swizzle(D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER, "xyzw",
-						cb_operand_orig.indices[0].values[0].u32, cb_operand_orig.indices[1].values[0].u32);
+				auto dst_temp = ::shader::asm_::tokens::create_operand(
+					D3D10_SB_OPERAND_TYPE_TEMP, XYZW, patchData.tempIndex + offset);
 
-				const auto literal = ::shader::asm_::tokens::create_literal_operand(hdrMagicValue, hdrMagicValue, hdrMagicValue, hdrMagicValue);
+				// ✅ preserves cb1[rX.x + X] or any addressing
+				auto cb_src_xyzw = clone_cb_with_swizzle(cb_operand_orig, "xyzw");
 
-				mul.length += ::shader::asm_::writer::get_operand_length(temp_register);
-				mul.length += ::shader::asm_::writer::get_operand_length(cb_operand);
-				mul.length += ::shader::asm_::writer::get_operand_length(literal);
+				auto lit = ::shader::asm_::tokens::create_literal_operand(
+					hdrMagicValue, hdrMagicValue, hdrMagicValue, 1.0f);
 
-				::shader::asm_::writer::write_opcode(output_buffer, mul);
-				::shader::asm_::writer::write_operand(output_buffer, temp_register);
-				::shader::asm_::writer::write_operand(output_buffer, cb_operand);
-				::shader::asm_::writer::write_operand(output_buffer, literal);
+				auto mul = ::shader::asm_::tokens::create_opcode(D3D10_SB_OPCODE_MUL, 0);
+				mul.length += ::shader::asm_::writer::get_operand_length(dst_temp);
+				mul.length += ::shader::asm_::writer::get_operand_length(cb_src_xyzw);
+				mul.length += ::shader::asm_::writer::get_operand_length(lit);
 
-				return temp_register;
+				::shader::asm_::writer::write_opcode(out, mul);
+				::shader::asm_::writer::write_operand(out, dst_temp);
+				::shader::asm_::writer::write_operand(out, cb_src_xyzw);
+				::shader::asm_::writer::write_operand(out, lit);
+
+				return dst_temp;
 			}
 
-			bool patch_instruction(utils::bit_buffer_le& output_buffer, ::shader::asm_::instruction_t instruction, const std::vector<MaterialShaderArgument*>& args)
+			::shader::asm_::operand_t create_single_literal_operand(const float x)
 			{
-				const auto contains_arg = [&](const std::uint32_t index) -> bool
+				::shader::asm_::operand_t operand{};
+
+				operand.type = D3D10_SB_OPERAND_TYPE_IMMEDIATE32;
+
+				operand.dimension = D3D10_SB_OPERAND_INDEX_0D;
+				operand.extended = 0;
+
+				operand.components.type = D3D10_SB_OPERAND_1_COMPONENT;
+				operand.components.selection_mode = D3D10_SB_OPERAND_4_COMPONENT_SELECT_1_MODE;
+				operand.components.mask = 0;
+
+				operand.indices[0].values[0].f32 = x;
+
+				return operand;
+			}
+
+			::shader::asm_::operand_t create_single_operand(const std::uint32_t type, std::uint32_t comp, const std::vector<std::uint32_t>& indices)
+			{
+				::shader::asm_::operand_components_t components{};
+				components.type = D3D10_SB_OPERAND_1_COMPONENT;
+				components.selection_mode = D3D10_SB_OPERAND_4_COMPONENT_MASK_MODE;
+				components.names[0] = comp;
+				components.mask = 0;
+				return ::shader::asm_::tokens::create_operand(type, components, indices);
+			}
+
+			::shader::asm_::operand_t create_single_operand(
+				const std::uint32_t type, std::string comp, const std::vector<std::uint32_t>& indices)
+			{
+				if (comp.size() != 1) throw std::runtime_error("create_single_operand: invalid comp");
+
+				static const std::unordered_map<char, std::uint32_t> m = {
+					{'x', D3D10_SB_4_COMPONENT_X},
+					{'y', D3D10_SB_4_COMPONENT_Y},
+					{'z', D3D10_SB_4_COMPONENT_Z},
+					{'w', D3D10_SB_4_COMPONENT_W},
+					{'r', D3D10_SB_4_COMPONENT_R},
+					{'g', D3D10_SB_4_COMPONENT_G},
+					{'b', D3D10_SB_4_COMPONENT_B},
+					{'a', D3D10_SB_4_COMPONENT_A},
+				};
+				const auto it = m.find(comp[0]);
+				if (it == m.end()) throw std::runtime_error("bad component");
+
+				::shader::asm_::operand_components_t c{};
+				c.type = D3D10_SB_OPERAND_4_COMPONENT;
+				c.selection_mode = D3D10_SB_OPERAND_4_COMPONENT_SELECT_1_MODE;
+				c.names[0] = it->second;   // select this single component
+				c.mask = 0;                // ignored in SELECT_1
+
+				return ::shader::asm_::tokens::create_operand(type, c, indices);
+			}
+
+			template <typename T, typename ...Args>
+			::shader::asm_::operand_t create_single_operand(const std::uint32_t type, T comp, Args&&... args)
+			{
+				return create_single_operand(type, comp, { std::forward<Args>(args)... });
+			}
+
+			static ::shader::asm_::operand_t emit_lighttype_gate(
+				utils::bit_buffer_le& out,
+				const pixelShaderPatchData& patchData,
+				std::uint32_t t,
+				const ::shader::asm_::operand_t& cb_types_orig,
+				const std::string& swz_types,
+				const ::shader::asm_::operand_t& cb_color_orig
+			)
+			{
+				constexpr std::uint32_t XYZW =
+					(1u << D3D10_SB_4_COMPONENT_X) |
+					(1u << D3D10_SB_4_COMPONENT_Y) |
+					(1u << D3D10_SB_4_COMPONENT_Z) |
+					(1u << D3D10_SB_4_COMPONENT_W);
+				constexpr std::uint32_t X_ONLY = (1u << D3D10_SB_4_COMPONENT_X);
+
+				// rT = output temp (vec4)
+				auto rT_xyzw = ::shader::asm_::tokens::create_operand(D3D10_SB_OPERAND_TYPE_TEMP, XYZW, patchData.tempIndex + t);
+				auto rT_x = ::shader::asm_::tokens::create_operand(D3D10_SB_OPERAND_TYPE_TEMP, X_ONLY, patchData.tempIndex + t);
+
+				// We'll also use two more temps:
+				auto rS_x = ::shader::asm_::tokens::create_operand(D3D10_SB_OPERAND_TYPE_TEMP, X_ONLY, patchData.tempIndex + t + 1);
+				auto rF_xyzw = ::shader::asm_::tokens::create_operand(D3D10_SB_OPERAND_TYPE_TEMP, XYZW, patchData.tempIndex + t + 2);
+
+				// FIX: you must ensure DCL_TEMPS covers (t + 2). Bump your dcl patch by +3 temps for this site.
+
+				// Helpers (clone-based; never mutate embedded operands in-place)
+				auto force_select1 = [](const ::shader::asm_::operand_t& src, std::uint32_t sel) {
+					::shader::asm_::operand_t dst = src;
+					dst.components.type = D3D10_SB_OPERAND_4_COMPONENT;
+					dst.components.selection_mode = D3D10_SB_OPERAND_4_COMPONENT_SELECT_1_MODE;
+					dst.components.names[0] = sel;            // D3D10_SB_4_COMPONENT_{X,Y,Z,W}
+					dst.components.mask = 0;
+					return dst;
+				};
+				auto splat_select1 = [](const ::shader::asm_::operand_t& srcSel1) {
+					::shader::asm_::operand_t dst = srcSel1;
+					dst.components.type = D3D10_SB_OPERAND_4_COMPONENT;
+					dst.components.selection_mode = D3D10_SB_OPERAND_4_COMPONENT_SWIZZLE_MODE;
+					// make .xxxx using whatever srcSel1 selected
+					dst.components.names[1] = dst.components.names[0];
+					dst.components.names[2] = dst.components.names[0];
+					dst.components.names[3] = dst.components.names[0];
+					dst.components.mask = 0;
+					return dst;
+				};
+
+				// Clone operands we’ll need
+				auto cb_color_xyzw = clone_cb_with_swizzle(cb_color_orig, "xyzw");
+
+				// Components of cb1[44] via swizzle clones
+				auto cb44_x = clone_cb_with_swizzle(cb_types_orig, "x");
+				auto cb44_y = clone_cb_with_swizzle(cb_types_orig, "y");
+				auto cb44_z = clone_cb_with_swizzle(cb_types_orig, "z");
+				auto cb44_w = clone_cb_with_swizzle(cb_types_orig, "w");
+
+				::shader::asm_::operand_t type_scalar; // rS.x after selection
+
+				if (cb_color_orig.extra_operand)
 				{
-					for (const auto& arg : args)
+					const auto rel_addr = *cb_color_orig.extra_operand;
+					auto rel_clone = rel_addr;
+					// Ensure SELECT_1 on its used component
+					auto rel_sel1 = force_select1(rel_clone, rel_clone.components.names[0]);
+					auto rel_xxxx = splat_select1(rel_sel1);
+
+					// eq rF.xyzw, rIdx.xxxx, l(0,1,2,3)
 					{
-						if (arg->dest == index)
-						{
-							return true;
-						}
+						auto lit0123 = ::shader::asm_::tokens::create_literal_operand(0.0f, 1.0f, 2.0f, 3.0f);
+						auto eq = ::shader::asm_::tokens::create_opcode(D3D10_SB_OPCODE_EQ, 0);
+						eq.length += ::shader::asm_::writer::get_operand_length(rF_xyzw);
+						eq.length += ::shader::asm_::writer::get_operand_length(rel_xxxx);
+						eq.length += ::shader::asm_::writer::get_operand_length(lit0123);
+						::shader::asm_::writer::write_opcode(out, eq);
+						::shader::asm_::writer::write_operand(out, rF_xyzw);
+						::shader::asm_::writer::write_operand(out, rel_xxxx);
+						::shader::asm_::writer::write_operand(out, lit0123);
 					}
+
+					// mov rS.x, cb1[44].x
+					{
+						auto mov = ::shader::asm_::tokens::create_opcode(D3D10_SB_OPCODE_MOV, 0);
+						mov.length += ::shader::asm_::writer::get_operand_length(rS_x);
+						mov.length += ::shader::asm_::writer::get_operand_length(cb44_x);
+						::shader::asm_::writer::write_opcode(out, mov);
+						::shader::asm_::writer::write_operand(out, rS_x);
+						::shader::asm_::writer::write_operand(out, cb44_x);
+					}
+
+					// movc rS.x, rF.yyyy, cb1[44].y, rS.x
+					auto rF_yyyy = force_select1(rF_xyzw, D3D10_SB_4_COMPONENT_Y);
+					auto rF_zzzz = force_select1(rF_xyzw, D3D10_SB_4_COMPONENT_Z);
+					auto rF_wwww = force_select1(rF_xyzw, D3D10_SB_4_COMPONENT_W);
+
+					{
+						auto movc = ::shader::asm_::tokens::create_opcode(D3D10_SB_OPCODE_MOVC, 0);
+						movc.length += ::shader::asm_::writer::get_operand_length(rS_x);
+						movc.length += ::shader::asm_::writer::get_operand_length(rF_yyyy);
+						movc.length += ::shader::asm_::writer::get_operand_length(cb44_y);
+						movc.length += ::shader::asm_::writer::get_operand_length(rS_x);
+						::shader::asm_::writer::write_opcode(out, movc);
+						::shader::asm_::writer::write_operand(out, rS_x);
+						::shader::asm_::writer::write_operand(out, rF_yyyy);
+						::shader::asm_::writer::write_operand(out, cb44_y);
+						::shader::asm_::writer::write_operand(out, rS_x);
+					}
+					{
+						auto movc = ::shader::asm_::tokens::create_opcode(D3D10_SB_OPCODE_MOVC, 0);
+						movc.length += ::shader::asm_::writer::get_operand_length(rS_x);
+						movc.length += ::shader::asm_::writer::get_operand_length(rF_zzzz);
+						movc.length += ::shader::asm_::writer::get_operand_length(cb44_z);
+						movc.length += ::shader::asm_::writer::get_operand_length(rS_x);
+						::shader::asm_::writer::write_opcode(out, movc);
+						::shader::asm_::writer::write_operand(out, rS_x);
+						::shader::asm_::writer::write_operand(out, rF_zzzz);
+						::shader::asm_::writer::write_operand(out, cb44_z);
+						::shader::asm_::writer::write_operand(out, rS_x);
+					}
+					{
+						auto movc = ::shader::asm_::tokens::create_opcode(D3D10_SB_OPCODE_MOVC, 0);
+						movc.length += ::shader::asm_::writer::get_operand_length(rS_x);
+						movc.length += ::shader::asm_::writer::get_operand_length(rF_wwww);
+						movc.length += ::shader::asm_::writer::get_operand_length(cb44_w);
+						movc.length += ::shader::asm_::writer::get_operand_length(rS_x);
+						::shader::asm_::writer::write_opcode(out, movc);
+						::shader::asm_::writer::write_operand(out, rS_x);
+						::shader::asm_::writer::write_operand(out, rF_wwww);
+						::shader::asm_::writer::write_operand(out, cb44_w);
+						::shader::asm_::writer::write_operand(out, rS_x);
+					}
+
+					type_scalar = rS_x; // selected component
+				}
+				else
+				{
+					type_scalar = ::shader::asm_::tokens::create_operand(
+						D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER, swz_types,
+						cb_color_orig.indices[0].values[0].u32, // same buffer slot as original CB
+						patchData.db.dynamicLightTypesDest // register index for LIGHT_DYN_TYPES
+					);
+				}
+
+				// lt rT.x, type_scalar, l(2.0)
+				{
+					auto lit_two = create_single_literal_operand(2.0f);
+					auto lt = ::shader::asm_::tokens::create_opcode(D3D10_SB_OPCODE_LT, 0);
+					lt.length += ::shader::asm_::writer::get_operand_length(rT_x);
+					lt.length += ::shader::asm_::writer::get_operand_length(type_scalar);
+					lt.length += ::shader::asm_::writer::get_operand_length(lit_two);
+					::shader::asm_::writer::write_opcode(out, lt);
+					::shader::asm_::writer::write_operand(out, rT_x);
+					::shader::asm_::writer::write_operand(out, type_scalar);
+					::shader::asm_::writer::write_operand(out, lit_two);
+				}
+
+				// if_z rT.x
+				{
+					auto ifop = ::shader::asm_::tokens::create_opcode(D3D10_SB_OPCODE_IF, 0);
+
+					ifop.length += ::shader::asm_::writer::get_operand_length(rT_x); // you still need a source operand
+					::shader::asm_::writer::write_opcode(out, ifop);
+
+					// supply rT.x as SELECT_1
+					::shader::asm_::operand_components_t sel{};
+					sel.type = D3D10_SB_OPERAND_4_COMPONENT;
+					sel.selection_mode = D3D10_SB_OPERAND_4_COMPONENT_SELECT_1_MODE;
+					sel.names[0] = D3D10_SB_4_COMPONENT_X;
+					auto rT_x_src = ::shader::asm_::tokens::create_operand(D3D10_SB_OPERAND_TYPE_TEMP, sel, patchData.tempIndex + t);
+					::shader::asm_::writer::write_operand(out, rT_x_src);
+				}
+
+				// THEN: mul rT.xyzw, cb_color.xyzw, l(hdrMagic, hdrMagic, hdrMagic, 1)
+				{
+					auto lit_hdr = ::shader::asm_::tokens::create_literal_operand(hdrMagicValue, hdrMagicValue, hdrMagicValue, 1.0f);
+					auto mul = ::shader::asm_::tokens::create_opcode(D3D10_SB_OPCODE_MUL, 0);
+					mul.length += ::shader::asm_::writer::get_operand_length(rT_xyzw);
+					mul.length += ::shader::asm_::writer::get_operand_length(cb_color_xyzw);
+					mul.length += ::shader::asm_::writer::get_operand_length(lit_hdr);
+					::shader::asm_::writer::write_opcode(out, mul);
+					::shader::asm_::writer::write_operand(out, rT_xyzw);
+					::shader::asm_::writer::write_operand(out, cb_color_xyzw);
+					::shader::asm_::writer::write_operand(out, lit_hdr);
+				}
+
+				// else
+				::shader::asm_::writer::write_opcode(out, ::shader::asm_::tokens::create_opcode(D3D10_SB_OPCODE_ELSE, 0));
+
+				// ELSE: mov rT.xyzw, cb_color.xyzw
+				{
+					auto mov = ::shader::asm_::tokens::create_opcode(D3D10_SB_OPCODE_MOV, 0);
+					mov.length += ::shader::asm_::writer::get_operand_length(rT_xyzw);
+					mov.length += ::shader::asm_::writer::get_operand_length(cb_color_xyzw);
+					::shader::asm_::writer::write_opcode(out, mov);
+					::shader::asm_::writer::write_operand(out, rT_xyzw);
+					::shader::asm_::writer::write_operand(out, cb_color_xyzw);
+				}
+
+				// endif
+				::shader::asm_::writer::write_opcode(out, ::shader::asm_::tokens::create_opcode(D3D10_SB_OPCODE_ENDIF, 0));
+
+				return rT_xyzw;
+			}
+
+			bool patch_instruction(utils::bit_buffer_le& output_buffer,
+				::shader::asm_::instruction_t instruction,
+				const pixelShaderPatchData& patchData)
+			{
+				const auto contains_arg = [&](const std::uint32_t index) -> bool {
+					for (const auto& arg : patchData.args) if (arg->dest == index) return true;
 					return false;
 				};
 
-				const auto cb_operand_indices = ::shader::asm_::tokens::find_operands(instruction, 1, [&](const ::shader::asm_::operand_t& operand)
+				const auto cb_operand_indices = ::shader::asm_::tokens::find_operands(
+					instruction, 1, [&](const ::shader::asm_::operand_t& operand)
 				{
-					return operand.type == D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER && contains_arg(operand.indices[1].values[0].u32);
+					return operand.type == D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER && operand.indices[0].values[0].u32 == 1
+						&& contains_arg(operand.indices[1].values[0].u32);
 				});
 
 				if (cb_operand_indices.empty())
-				{
 					return false;
-				}
 
 				for (auto i = 0u; i < cb_operand_indices.size(); i++)
 				{
-					const auto index = cb_operand_indices[i];
-					const auto& cb_operand = instruction.operands[index];
+					if (patchData.db.used)
+					{
+						const auto index = cb_operand_indices[i];
+						const auto& cb_operand = instruction.operands[index];
 
-					auto pseudo_cb_operand = write_cb_mul_instruction(output_buffer, cb_operand, i);
+						const auto get_light_index = [&](const std::uint32_t cb_index) -> std::uint32_t {
+							for (const auto& arg : patchData.args) {
+								if (arg->dest != cb_index) continue;
+								const auto idx = arg->u.codeConst.index;
+								if (idx >= CONST_SRC_CODE_LIGHT_DIFFUSE_DB_ARRAY_0 && idx <= CONST_SRC_CODE_LIGHT_DIFFUSE_DB_ARRAY_3)
+									return idx - CONST_SRC_CODE_LIGHT_DIFFUSE_DB_ARRAY_0;
+								if (idx >= CONST_SRC_CODE_LIGHT_SPECULAR_DB_ARRAY_0 && idx <= CONST_SRC_CODE_LIGHT_SPECULAR_DB_ARRAY_3)
+									return idx - CONST_SRC_CODE_LIGHT_SPECULAR_DB_ARRAY_0;
+							}
+							__debugbreak();
+							return 0;
+						};
 
-					pseudo_cb_operand.components = instruction.operands[index].components;
-					pseudo_cb_operand.extended = instruction.operands[index].extended;
-					pseudo_cb_operand.extensions = instruction.operands[index].extensions;
-					pseudo_cb_operand.extra_operand = instruction.operands[index].extra_operand;
-					instruction.operands[index] = pseudo_cb_operand;
+						auto cb_types_fixed = ::shader::asm_::tokens::create_operand(
+							D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER, "xyzw", 1u, patchData.db.dynamicLightTypesDest);
+
+						const auto light_index = get_light_index(cb_operand.indices[1].values[0].u32);
+						const char comp = (light_index == 0) ? 'x' : (light_index == 1) ? 'y' : (light_index == 2) ? 'z' : 'w';
+						std::string swz(1, comp);
+
+						auto pseudo_cb_operand = emit_lighttype_gate(output_buffer, patchData, i, cb_types_fixed, swz, cb_operand);
+						pseudo_cb_operand.components = instruction.operands[index].components;
+						pseudo_cb_operand.extended = instruction.operands[index].extended;
+						pseudo_cb_operand.extensions = instruction.operands[index].extensions;
+						pseudo_cb_operand.extra_operand = instruction.operands[index].extra_operand;
+						instruction.operands[index] = pseudo_cb_operand;
+					}
+					else
+					{
+						const auto index = cb_operand_indices[i];
+						const auto& cb_operand = instruction.operands[index];
+
+						auto pseudo_cb_operand = write_cb_mul_instruction(output_buffer, patchData, cb_operand, i);
+						pseudo_cb_operand.components = instruction.operands[index].components;
+						pseudo_cb_operand.extended = instruction.operands[index].extended;
+						pseudo_cb_operand.extensions = instruction.operands[index].extensions;
+						pseudo_cb_operand.extra_operand = instruction.operands[index].extra_operand;
+						instruction.operands[index] = pseudo_cb_operand;
+					}
 				}
 
 				instruction.opcode.length = 1;
-
-				for (const auto& operand : instruction.operands)
-				{
-					instruction.opcode.length += ::shader::asm_::writer::get_operand_length(operand);
-				}
+				for (const auto& op : instruction.operands)
+					instruction.opcode.length += ::shader::asm_::writer::get_operand_length(op);
 
 				::shader::asm_::writer::write_opcode(output_buffer, instruction.opcode);
-
-				for (const auto& operand : instruction.operands)
-				{
-					::shader::asm_::writer::write_operand(output_buffer, operand);
-				}
+				for (const auto& op : instruction.operands)
+					::shader::asm_::writer::write_operand(output_buffer, op);
 
 				return true;
 			}
 
-			bool patch_instruction_dcl_temps(utils::bit_buffer_le& output_buffer, ::shader::asm_::instruction_t instruction)
+			bool patch_instruction_dcl_temps(utils::bit_buffer_le& output_buffer, ::shader::asm_::instruction_t instruction, pixelShaderPatchData& patchData)
 			{
-				temp_index = instruction.operands[0].custom.types.dcl_temps.size;
-				instruction.operands[0].custom.types.dcl_temps.size += 2;
+				patchData.tempIndex = instruction.operands[0].custom.types.dcl_temps.size;
+				instruction.operands[0].custom.types.dcl_temps.size += patchData.db.used ? 5 : 2;
 				::shader::asm_::writer::write_opcode(output_buffer, instruction.opcode);
 				::shader::asm_::writer::write_operand(output_buffer, instruction.operands[0]);
 				return true;
 			}
 
-			bool patch_shader_const(utils::bit_buffer_le& output_buffer, ::shader::asm_::instruction_t instruction, const std::vector<MaterialShaderArgument*>& args)
+			bool patch_shader_const(utils::bit_buffer_le& output_buffer, ::shader::asm_::instruction_t instruction, pixelShaderPatchData& patchData)
 			{
-				switch (instruction.opcode.type)
+				if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_TEMPS)
 				{
-				case D3D10_SB_OPCODE_MOV:
-				case D3D10_SB_OPCODE_MUL:
-				case D3D10_SB_OPCODE_ADD:
-				case D3D10_SB_OPCODE_DP4:
-					return patch_instruction(output_buffer, instruction, args);
-					break;
-				case D3D10_SB_OPCODE_DCL_TEMPS:
-					return patch_instruction_dcl_temps(output_buffer, instruction);
-					break;
+					return patch_instruction_dcl_temps(output_buffer, instruction, patchData);
+				}
+				else if (instruction.opcode.type < 88)
+				{
+					return patch_instruction(output_buffer, instruction, patchData);
 				}
 
 				return false;
 			}
 
 			template<typename T, typename S>
-			T* convert_shader(S* asset, utils::memory::allocator& allocator, std::vector<MaterialShaderArgument*>& indices)
+			T* convert_shader(S* asset, utils::memory::allocator& allocator, pixelShaderPatchData& patchData)
 			{
 				auto* new_asset = allocator.allocate<T>();
 
 				new_asset->prog.loadDef.program = asset->prog.loadDef.program;
 				new_asset->prog.loadDef.programSize = asset->prog.loadDef.programSize;
 
-				if (!indices.empty())
+				if (!patchData.args.empty())
 				{
 					const auto buffer = ::shader::patch_shader(asset->prog.loadDef.program, asset->prog.loadDef.programSize, [&](utils::bit_buffer_le& output_buffer, ::shader::asm_::instruction_t instruction) -> bool
 					{
-						return patch_shader_const(output_buffer, instruction, indices);
+						return patch_shader_const(output_buffer, instruction, patchData);
 					});
 					new_asset->prog.loadDef.programSize = static_cast<unsigned int>(buffer.size());
 					new_asset->prog.loadDef.program = allocator.allocate_array<unsigned char>(buffer.size());
@@ -1407,9 +1754,9 @@ namespace zonetool::iw6
 									return false;
 								};
 
-								const auto get_cb_slots = [&]()
+								pixelShaderPatchData patchData{};
+								const auto& get_patch_args = [&]()
 								{
-									std::vector<MaterialShaderArgument*> cb1_slots = {};
 									const auto primCount = pass->perPrimArgCount;
 									const auto objCount = pass->perObjArgCount;
 									const auto stableCount = pass->stableArgCount;
@@ -1424,22 +1771,23 @@ namespace zonetool::iw6
 										const int index = static_cast<int>(arg->u.codeConst.index);
 										if (arg->type == MTL_ARG_CODE_CONST)
 										{
-											for (auto idx = 0; idx < 4; idx++)
+											if (arg->u.codeConst.index == CONST_SRC_CODE_LIGHT_DYN_TYPES)
 											{
-												if (index == (CONST_SRC_CODE_LIGHT_DIFFUSE_DB_ARRAY_0 + idx) ||
-													index == (CONST_SRC_CODE_LIGHT_SPECULAR_DB_ARRAY_0 + idx))
-												{
-													assert(is_per_obj_arg);
-													assert(arg->u.codeConst.firstRow == 0);
-													assert(arg->u.codeConst.rowCount == 1);
-
-													cb1_slots.push_back(arg);
-													break;
-												}
+												patchData.db.used = true;
+												patchData.db.dynamicLightTypesDest = arg->dest;
+												continue;
 											}
 
-											if (!cb1_slots.empty() && cb1_slots.at(cb1_slots.size() - 1) == arg)
+											if ((index >= CONST_SRC_CODE_LIGHT_DIFFUSE_DB_ARRAY_0 && index <= CONST_SRC_CODE_LIGHT_DIFFUSE_DB_ARRAY_3) ||
+												(index >= CONST_SRC_CODE_LIGHT_SPECULAR_DB_ARRAY_0 && index <= CONST_SRC_CODE_LIGHT_SPECULAR_DB_ARRAY_3))
+											{
+												assert(is_per_obj_arg);
+												assert(arg->u.codeConst.firstRow == 0);
+												assert(arg->u.codeConst.rowCount == 1);
+
+												patchData.args.push_back(arg);
 												continue;
+											}
 
 											constexpr int kLightStride = 7;
 											for (int idx = 0; idx < 4; ++idx)
@@ -1452,13 +1800,13 @@ namespace zonetool::iw6
 													assert(arg->u.codeConst.firstRow == 0);
 													assert(arg->u.codeConst.rowCount == 1);
 
-													cb1_slots.push_back(arg);
+													patchData.args.push_back(arg);
 													break;
 												}
 											}
 										}
 									}
-									return cb1_slots;
+									return patchData.args;
 								};
 
 								if (pass->vertexShader)
@@ -1482,8 +1830,8 @@ namespace zonetool::iw6
 									const auto is_referenced = pass->pixelShader->prog.loadDef.program == nullptr;
 									if (!is_referenced && is_light_tech_variant(static_cast<UT>(new_tech_index)))
 									{
-										auto cb1_slots = get_cb_slots();
-										new_pass->pixelShader = convert_shader<zonetool::h1::MaterialPixelShader, MaterialPixelShader>(pass->pixelShader, allocator, cb1_slots);
+										get_patch_args();
+										new_pass->pixelShader = convert_shader<zonetool::h1::MaterialPixelShader, MaterialPixelShader>(pass->pixelShader, allocator, patchData);
 										zonetool::h1::pixel_shader::dump(new_pass->pixelShader);
 									}
 									else
