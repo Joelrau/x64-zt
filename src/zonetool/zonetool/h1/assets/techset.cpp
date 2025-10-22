@@ -954,13 +954,13 @@ namespace zonetool::h1
 
 	void dump_json(MaterialTechniqueSet* asset)
 	{
-		json data = {};
+		ordered_json data = {};
 
 		data["name"] = asset->name;
 		data["flags"] = asset->flags;
 		data["worldVertFormat"] = asset->worldVertFormat;
 		data["preDisplacementOnlyCount"] = asset->preDisplacementOnlyCount;
-		data["techniques"] = json::object();
+		data["techniques"] = ordered_json::object();
 		for (auto technique = 0; technique < MaterialTechniqueType::TECHNIQUE_COUNT; technique++)
 		{
 			if (!asset->techniques[technique])
@@ -968,14 +968,14 @@ namespace zonetool::h1
 				data["techniques"][g_TechniqueNames[technique]];
 				continue;
 			}
-			json technique_data = {};
+			ordered_json technique_data = {};
 			technique_data["name"] = asset->techniques[technique]->hdr.name;
 			technique_data["flags"] = asset->techniques[technique]->hdr.flags;
-			technique_data["passes"] = json::array();
+			technique_data["passes"] = ordered_json::array();
 			for (unsigned short pass = 0; pass < asset->techniques[technique]->hdr.passCount; pass++)
 			{
 				auto& techniquePass = asset->techniques[technique]->passArray[pass];
-				json pass_data = {};
+				ordered_json pass_data = {};
 				pass_data["vertexShader"] = techniquePass.vertexShader ? techniquePass.vertexShader->name : "";
 				pass_data["vertexDecl"] = techniquePass.vertexDecl ? techniquePass.vertexDecl->name : "";
 				pass_data["hullShader"] = techniquePass.hullShader ? techniquePass.hullShader->name : "";
@@ -993,17 +993,19 @@ namespace zonetool::h1
 				pass_data["precompiledIndex"] = techniquePass.precompiledIndex;
 				pass_data["stageConfig"] = techniquePass.stageConfig;
 
-				pass_data["args"] = json::array();
+				pass_data["args"] = ordered_json::array();
 				for (auto arg = 0; arg <
 					techniquePass.perPrimArgCount +
 					techniquePass.perObjArgCount +
 					techniquePass.stableArgCount; arg++)
 				{
-					json arg_data = {};
+					ordered_json arg_data = {};
 					arg_data["type"] = techniquePass.args[arg].type;
+					arg_data["shader"] = techniquePass.args[arg].shader;
+					arg_data["dest"] = techniquePass.args[arg].dest;
 					if (techniquePass.args[arg].type == MTL_ARG_LITERAL_CONST)
 					{
-						arg_data["literalConst"] = json::array();
+						arg_data["literalConst"] = ordered_json::array();
 						for (auto i = 0; i < 4; i++)
 						{
 							arg_data["literalConst"].push_back(techniquePass.args[arg].u.literalConst[i]);
