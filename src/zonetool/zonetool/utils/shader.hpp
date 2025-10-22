@@ -45,6 +45,12 @@ namespace shader
 
 	namespace asm_
 	{
+		constexpr auto component_x = 1 << D3D10_SB_4_COMPONENT_X;
+		constexpr auto component_y = 1 << D3D10_SB_4_COMPONENT_Y;
+		constexpr auto component_z = 1 << D3D10_SB_4_COMPONENT_Z;
+		constexpr auto component_w = 1 << D3D10_SB_4_COMPONENT_W;
+		constexpr auto component_all = component_x | component_y | component_z | component_w;
+
 		union operand_index_data_t
 		{
 			struct u64_fields_t
@@ -152,7 +158,10 @@ namespace shader
 			void write_operand(utils::bit_buffer_le& output_buffer, const operand_t& operand);
 			void write_opcode_extended(utils::bit_buffer_le& output_buffer, const opcode_extended_t& opcode);
 			void write_opcode(utils::bit_buffer_le& output_buffer, const opcode_t& opcode);
+			void write_instructon(utils::bit_buffer_le& output_buffer, instruction_t& instruction);
+
 			std::uint32_t get_operand_length(const operand_t& operand);
+			void set_opcode_length(instruction_t& instruction);
 		}
 
 		namespace disassembler
@@ -164,8 +173,15 @@ namespace shader
 
 		namespace tokens
 		{
-			opcode_t create_opcode(const std::uint32_t type, const std::uint32_t controls);
+			opcode_t create_opcode(const std::uint32_t type, const std::uint32_t controls = 0u);
+			instruction_t create_instruction(const std::uint32_t type, const std::uint32_t controls = 0u);
+
+			void add_operand(instruction_t& instruction, const operand_t& operand);
+
+			operand_t create_literal_operand(const float value);
 			operand_t create_literal_operand(const float x, const float y, const float z, const float w);
+
+			std::uint32_t get_swizzle_component(const char c);
 
 			operand_t create_operand(const std::uint32_t type, const operand_components_t& operand_components, const std::vector<std::uint32_t>& indices);
 			operand_t create_operand(const std::uint32_t type, const std::vector<std::uint32_t>& components, const std::vector<std::uint32_t>& indices);
@@ -175,7 +191,7 @@ namespace shader
 			template <typename T, typename ...Args>
 			operand_t create_operand(const std::uint32_t type, const T& components, Args&&... args)
 			{
-				return create_operand(type, components, { std::forward<Args>(args)... });
+				return create_operand(type, components, {std::forward<Args>(args)...});
 			}
 
 			std::vector<std::uint32_t> find_operands(const instruction_t& instruction, const std::uint32_t beg,
