@@ -41,6 +41,7 @@ namespace zonetool::iw6
 		file.close();
 
 		auto asset = mem->allocate<ColorizationSet>();
+		asset->name = mem->duplicate_string(name);
 
 		PARSE_FIELD_ARR(lowAndHighEndPoints, 4);
 		PARSE_FIELD_ARR(midEndPoints, 4);

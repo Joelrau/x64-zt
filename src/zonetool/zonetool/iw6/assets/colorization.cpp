@@ -30,6 +30,7 @@ namespace zonetool::iw6
 		file.close();
 
 		auto asset = mem->allocate<Colorization>();
+		asset->name = mem->duplicate_string(name);
 
 		PARSE_FIELD_ARR(powerAndDesaturation, 4);
 		PARSE_FIELD_ARR(scale, 3);

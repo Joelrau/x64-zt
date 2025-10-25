@@ -30,6 +30,7 @@ namespace zonetool::iw6
 		file.close();
 
 		auto asset = mem->allocate<ToneMapping>();
+		asset->name = mem->duplicate_string(name);
 
 		PARSE_FIELD_ARR(toeStrength, 3);
 		PARSE_FIELD_ARR(toeAngleNumerator, 3);
