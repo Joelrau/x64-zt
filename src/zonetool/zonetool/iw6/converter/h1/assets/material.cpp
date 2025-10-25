@@ -36,7 +36,7 @@ namespace zonetool::iw6
 				{17, 19},	// Shadow
 				//{18, },	// ?
 				//{19, },	// ?
-				//{20, },	// ?
+				{20, 22},	// ?
 				//{21, },	// ?
 				//{22, },	// ?
 				{23, 25},	// ?
@@ -305,6 +305,19 @@ namespace zonetool::iw6
 				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW];
 				//new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->stateBitsEntry[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_CUCOLORIS];
 
+				const auto merge_techs = [&](const std::vector<MaterialTechniqueType>& source, const zonetool::h1::MaterialTechniqueType dest)
+				{
+					if (new_asset->stateBitsEntry[dest] == 0xFF)
+					{
+						new_asset->stateBitsEntry[dest] = asset->stateBitsEntry[source[0]];
+					}
+
+					if (new_asset->constantBufferIndex[dest] == 0xFF)
+					{
+						new_asset->constantBufferIndex[dest] = asset->constantBufferIndex[source[0]];
+					}
+				};
+
 				new_asset->textureCount = asset->textureCount;
 				new_asset->constantCount = asset->constantCount;
 				new_asset->stateBitsCount = asset->stateBitsCount;
@@ -476,6 +489,72 @@ namespace zonetool::iw6
 				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_OMNI_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_OMNI];
 				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW];
 				//new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG] = new_asset->constantBufferIndex[zonetool::h1::TECHNIQUE_NO_DISPLACEMENT_LIGHT_SPOT_SHADOW_CUCOLORIS];
+
+				// nofog
+				{
+					merge_techs(
+						{
+							TECHNIQUE_LIT_DIR_SHADOW_SPOT_SHADOW,
+							TECHNIQUE_LIT_DIR_SHADOW_OMNI_SHADOW
+						},
+						zonetool::h1::TECHNIQUE_LIT_SUN_DYNAMIC_BRANCHING);
+
+					merge_techs(
+						{
+							TECHNIQUE_LIT_DIR_SHADOW_SPOT_SHADOW_CUCOLORIS
+						},
+						zonetool::h1::TECHNIQUE_LIT_SUN_DYNAMIC_BRANCHING_CUCOLORIS);
+
+					merge_techs(
+						{
+							TECHNIQUE_LIT_SPOT_SHADOW_SPOT_SHADOW,
+							TECHNIQUE_LIT_SPOT_SHADOW_OMNI_SHADOW,
+							TECHNIQUE_LIT_OMNI_SHADOW_OMNI_SHADOW
+						},
+						zonetool::h1::TECHNIQUE_LIT_DYNAMIC_BRANCHING);
+
+					merge_techs(
+						{
+							TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI_SHADOW,
+							TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT_SHADOW_CUCOLORIS,
+							TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT_SHADOW,
+							TECHNIQUE_LIT_SPOT_SHADOW_SPOT_SHADOW_CUCOLORIS
+						},
+						zonetool::h1::TECHNIQUE_LIT_DYNAMIC_BRANCHING_CUCOLORIS);
+				}
+
+				// fog
+				{
+					merge_techs(
+						{
+							TECHNIQUE_LIT_DIR_SHADOW_SPOT_SHADOW_DFOG,
+							TECHNIQUE_LIT_DIR_SHADOW_OMNI_SHADOW_DFOG
+						},
+						zonetool::h1::TECHNIQUE_LIT_SUN_DYNAMIC_BRANCHING_DFOG);
+
+					merge_techs(
+						{
+							TECHNIQUE_LIT_DIR_SHADOW_SPOT_SHADOW_CUCOLORIS_DFOG
+						},
+						zonetool::h1::TECHNIQUE_LIT_SUN_DYNAMIC_BRANCHING_CUCOLORIS_DFOG);
+
+					merge_techs(
+						{
+							TECHNIQUE_LIT_SPOT_SHADOW_SPOT_SHADOW_DFOG,
+							TECHNIQUE_LIT_SPOT_SHADOW_OMNI_SHADOW_DFOG,
+							TECHNIQUE_LIT_OMNI_SHADOW_OMNI_SHADOW_DFOG
+						},
+						zonetool::h1::TECHNIQUE_LIT_DYNAMIC_BRANCHING_DFOG);
+
+					merge_techs(
+						{
+							TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI_SHADOW_DFOG,
+							TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT_SHADOW_CUCOLORIS_DFOG,
+							TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT_SHADOW_DFOG,
+							TECHNIQUE_LIT_SPOT_SHADOW_SPOT_SHADOW_CUCOLORIS_DFOG
+						},
+						zonetool::h1::TECHNIQUE_LIT_DYNAMIC_BRANCHING_CUCOLORIS_DFOG);
+				}
 
 				REINTERPRET_CAST_SAFE(constantBufferTable);
 				new_asset->constantBufferCount = asset->constantBufferCount;

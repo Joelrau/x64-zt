@@ -104,13 +104,6 @@ namespace zonetool::iw6
 				COPY_VALUE(primaryLightEnvCount);
 				REINTERPRET_CAST_SAFE(primaryLightEnvs);
 
-				/*new_asset->primaryLightEnvs = allocator.allocate_array<zonetool::h1::ComPrimaryLightEnv>(new_asset->primaryLightEnvCount);
-				for (unsigned short i = 0; i < new_asset->primaryLightEnvCount; i++)
-				{
-					new_asset->primaryLightEnvs[i].numIndices = 1;
-					new_asset->primaryLightEnvs[i].primaryLightIndices[0] = asset->primaryLightEnvs[i].primaryLightIndices[0];
-				}*/
-
 				return new_asset;
 			}
 
