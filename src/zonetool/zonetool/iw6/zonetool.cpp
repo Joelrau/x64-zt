@@ -349,6 +349,10 @@ namespace zonetool::iw6
 			DUMP_ASSET(ASSET_TYPE_XMODEL, xmodel, XModel);
 			DUMP_ASSET(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
 
+			DUMP_ASSET(ASSET_TYPE_COLORIZATION, colorization, Colorization);
+			DUMP_ASSET(ASSET_TYPE_COLORIZATIONSET, colorization_set, ColorizationSet);
+			DUMP_ASSET(ASSET_TYPE_TONEMAPPING, tonemapping, ToneMapping);
+
 			DUMP_ASSET(ASSET_TYPE_PHYSCOLLMAP, phys_collmap, PhysCollmap);
 			DUMP_ASSET(ASSET_TYPE_PHYSPRESET, phys_preset, PhysPreset);
 
@@ -581,6 +585,83 @@ namespace zonetool::iw6
 		DB_LoadXAssets(&zone, 1, DB_LOAD_ASYNC_FORCE_FREE);
 
 		ZONETOOL_INFO("Unloaded zones...");
+	}
+
+	static dump_params get_dump_params_from_args(const std::vector<std::string>& args, std::size_t start_index)
+	{
+		dump_params out{};
+		out.target = game::iw6;
+
+		auto is_flag = [](const std::string& s) { return !s.empty() && s[0] == '-'; };
+
+		// Need at least one token for <zone> or <mode>
+		if (start_index >= args.size())
+		{
+			ZONETOOL_ERROR("usage: -dumpzone <zone>\n       -dumpzone <mode> <zone> (optional)<asset_types>");
+			out.valid = false;
+			return out;
+		}
+
+		std::size_t j = start_index;
+
+		const std::string& t0 = args[j];
+		if (!is_flag(t0))
+		{
+			const auto maybe_mode = game::get_mode_from_string(t0);
+			if (maybe_mode != game::none && (j + 1) < args.size() && !is_flag(args[j + 1]))
+			{
+				out.target = maybe_mode;
+				++j;
+				out.zone = args[j++];
+			}
+			else
+			{
+				out.zone = args[j++];
+			}
+		}
+		else
+		{
+			ZONETOOL_ERROR("Missing <zone> after -dumpzone");
+			out.valid = false;
+			return out;
+		}
+
+		if (out.zone.empty())
+		{
+			ZONETOOL_ERROR("Missing <zone> after -dumpzone");
+			out.valid = false;
+			return out;
+		}
+
+		if (j < args.size() && !is_flag(args[j]))
+		{
+			const std::string& asset_types_str = args[j++];
+			if (asset_types_str != "_")
+			{
+				const auto asset_types = utils::string::split(asset_types_str, ',');
+				for (const auto& type_str : asset_types)
+				{
+					const auto type = type_to_int(type_str);
+					if (type == -1)
+					{
+						ZONETOOL_ERROR("Asset type \"%s\" does not exist", type_str.c_str());
+						out.valid = false;
+						return out;
+					}
+					out.filter.insert(static_cast<XAssetType>(type));
+				}
+			}
+		}
+
+		if (!dump_functions.contains(out.target))
+		{
+			ZONETOOL_ERROR("Unsupported dump target (%d)", static_cast<int>(out.target));
+			out.valid = false;
+			return out;
+		}
+
+		out.valid = true;
+		return out;
 	}
 
 	dump_params get_dump_params(const ::iw6::command::params& params)
@@ -1102,8 +1183,26 @@ namespace zonetool::iw6
 					}
 					else if (args[i] == "-dumpzone")
 					{
-						dump_zone(args[i + 1], game::iw6);
-						i++;
+						const auto dp = get_dump_params_from_args(args, i + 1);
+						if (!dp.valid)
+						{
+							do_exit = true;
+							while ((i + 1) < static_cast<int>(args.size()) && !args[i + 1].empty() && args[i + 1][0] != '-') ++i;
+							break;
+						}
+
+						asset_type_filter = dp.filter;
+						dump_zone(dp.zone, dp.target);
+
+						{
+							int skipped = 0;
+							int max_skip = 3; // mode, zone, asset_types
+							while (skipped < max_skip && (i + 1) < static_cast<int>(args.size()) && !args[i + 1].empty() && args[i + 1][0] != '-')
+							{
+								++i;
+								++skipped;
+							}
+						}
 
 						do_exit = true;
 					}

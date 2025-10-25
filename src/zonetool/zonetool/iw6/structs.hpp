@@ -6875,6 +6875,84 @@ namespace zonetool::iw6
 		bool soundTriggerOverrideADSR;
 	};
 
+	struct ExtentBounds
+	{
+		float mins[3];
+		float maxs[3];
+	};
+
+	enum VectorFieldType : std::int32_t
+	{
+		VECTOR_FIELD_TYPE_NONE = 0x0,
+		VECTOR_FIELD_TYPE_FORCE = 0x1,
+		VECTOR_FIELD_TYPE_VELOCITY = 0x2,
+		VECTOR_FIELD_NUM_TYPES = 0x3,
+	};
+
+	struct VectorField
+	{
+		const char* name;
+		float (*linearData)[4];
+		ExtentBounds worldBounds;
+		float ds[3];
+		unsigned int numEntries[3];
+		unsigned int flags;
+		VectorFieldType type;
+		unsigned int pad[1];
+	};
+
+	struct GfxColorization
+	{
+		float powerAndDesaturation[4];
+		float scale[3];
+		float bias[3];
+	};
+
+	struct Colorization : GfxColorization
+	{
+		const char* name;
+	};
+
+	enum ColorizationFlag : std::uint8_t
+	{
+		COLORIZATION_USE_ALTERNATE_DEPTH = 0x1,
+		COLORIZATION_USE_ALTERNATE_MASK = 0x2,
+		COLORIZATION_USE_LOW_MID_HIGH = 0x4,
+	};
+
+	struct ColorizationSet
+	{
+		const char* name;
+		float lowAndHighEndPoints[4];
+		float midEndPoints[4];
+		float alternateDepthScaleAndBias[2];
+		Colorization* colorization;
+		Colorization* colorizationAlternate;
+		Colorization* colorizationLow;
+		Colorization* colorizationMid;
+		Colorization* colorizationHigh;
+		Material* alternateMaskMaterial;
+		unsigned char flags;
+	};
+
+	struct GfxToneMapping
+	{
+		float toeStrength[3];
+		float toeAngleNumerator[3];
+		float toeAngleDenominator[3];
+		float linearStrength[3];
+		float linearAngle[3];
+		float shoulderStrength[3];
+		float whitePoint[3];
+		float exposure[3];
+		float adaptationRates[2];
+	};
+
+	struct ToneMapping : GfxToneMapping
+	{
+		const char* name;
+	};
+
 	union XAssetHeader
 	{
 		void* data;
@@ -6929,11 +7007,11 @@ namespace zonetool::iw6
 		//ReverbPreset* reverbPreset;
 		LuaFile* luaFile;
 		ScriptableDef* scriptable;
-		//Colorization* colorization;
-		//ColorizationSet* colorizationSet;
-		//ToneMapping* toneMapping;
+		Colorization* colorization;
+		ColorizationSet* colorizationSet;
+		ToneMapping* toneMapping;
 		//EquipmentSoundTable* equipSndTable;
-		//VectorField* vectorField;
+		VectorField* vectorField;
 		DopplerPreset* dopplerPreset;
 		FxParticleSimAnimation* particleSimAnimation;
 	};

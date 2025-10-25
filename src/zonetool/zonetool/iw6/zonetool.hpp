@@ -14,6 +14,8 @@
 #include "zonetool/shared/shared.hpp"
 
 #include "assets/clipmap.hpp"
+#include "assets/colorization.hpp"
+#include "assets/colorizationset.hpp"
 #include "assets/computeshader.hpp"
 #include "assets/comworld.hpp"
 #include "assets/domainshader.hpp"
@@ -46,6 +48,7 @@
 #include "assets/stringtable.hpp"
 #include "assets/structureddatadefset.hpp"
 #include "assets/techset.hpp"
+#include "assets/tonemapping.hpp"
 #include "assets/tracerdef.hpp"
 #include "assets/vertexdecl.hpp"
 #include "assets/vertexshader.hpp"
