@@ -569,6 +569,7 @@ namespace zonetool::iw6
 	enum MaterialGameFlags : std::uint8_t
 	{
 		MTL_GAMEFLAG_NONE = 0x0,
+		MTL_GAMEFLAG_EMISSIVE = 0x2,
 	};
 
 	enum MaterialSortKey : std::uint8_t
