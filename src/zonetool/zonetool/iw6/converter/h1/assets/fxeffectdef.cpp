@@ -67,60 +67,6 @@ namespace zonetool::iw6
 				return zonetool::h1::FX_ELEM_TYPE_SPRITE_BILLBOARD;
 			}
 
-			zonetool::h1::FxElemLitType generate_elem_lit_type(zonetool::iw6::FxElemType type)
-			{
-				switch (type)
-				{
-				case zonetool::iw6::FX_ELEM_TYPE_SPRITE_BILLBOARD:
-					return zonetool::h1::FX_ELEM_LIT_TYPE_LIGHTGRID_SPAWN_SINGLE;
-					break;
-				case zonetool::iw6::FX_ELEM_TYPE_SPRITE_ORIENTED:
-					return zonetool::h1::FX_ELEM_LIT_TYPE_LIGHTGRID_SPAWN_SINGLE;
-					break;
-				case zonetool::iw6::FX_ELEM_TYPE_TAIL:
-					return zonetool::h1::FX_ELEM_LIT_TYPE_LIGHTGRID_SPAWN_SINGLE;
-					break;
-				case zonetool::iw6::FX_ELEM_TYPE_TRAIL:
-					return zonetool::h1::FX_ELEM_LIT_TYPE_LIGHTGRID_FRAME_VERTEX;
-					break;
-				case zonetool::iw6::FX_ELEM_TYPE_FLARE:
-					return zonetool::h1::FX_ELEM_LIT_TYPE_LIGHTGRID_SPAWN_SINGLE;
-					break;
-				case zonetool::iw6::FX_ELEM_TYPE_PARTICLE_SIM_ANIMATION:
-					return zonetool::h1::FX_ELEM_LIT_TYPE_LIGHTGRID_SPAWN_SINGLE;
-					break;
-				case zonetool::iw6::FX_ELEM_TYPE_CLOUD:
-					return zonetool::h1::FX_ELEM_LIT_TYPE_LIGHTGRID_SPAWN_SINGLE;
-					break;
-				case zonetool::iw6::FX_ELEM_TYPE_SPARK_CLOUD:
-					return zonetool::h1::FX_ELEM_LIT_TYPE_LIGHTGRID_SPAWN_SINGLE;
-					break;
-				case zonetool::iw6::FX_ELEM_TYPE_SPARK_FOUNTAIN:
-					return zonetool::h1::FX_ELEM_LIT_TYPE_LIGHTGRID_SPAWN_SINGLE;
-					break;
-				case zonetool::iw6::FX_ELEM_TYPE_MODEL:
-					return zonetool::h1::FX_ELEM_LIT_TYPE_NONE;
-					break;
-				case zonetool::iw6::FX_ELEM_TYPE_OMNI_LIGHT:
-					return zonetool::h1::FX_ELEM_LIT_TYPE_LIGHTGRID_SPAWN_SINGLE;
-					break;
-				case zonetool::iw6::FX_ELEM_TYPE_SPOT_LIGHT:
-					return zonetool::h1::FX_ELEM_LIT_TYPE_LIGHTGRID_SPAWN_SINGLE;
-					break;
-				case zonetool::iw6::FX_ELEM_TYPE_SOUND:
-					return zonetool::h1::FX_ELEM_LIT_TYPE_NONE;
-					break;
-				case zonetool::iw6::FX_ELEM_TYPE_DECAL:
-					return zonetool::h1::FX_ELEM_LIT_TYPE_NONE;
-					break;
-				case zonetool::iw6::FX_ELEM_TYPE_RUNNER:
-					return zonetool::h1::FX_ELEM_LIT_TYPE_LIGHTGRID_SPAWN_SINGLE;
-					break;
-				}
-
-				return zonetool::h1::FX_ELEM_LIT_TYPE_NONE;
-			}
-
 			unsigned int convert_elem_flags(unsigned int flags)
 			{
 				unsigned int h1_flags = 0;
@@ -276,7 +222,8 @@ namespace zonetool::iw6
 					COPY_VALUE_CAST(elemDefs[elem_index].reflectionFactor);
 					COPY_VALUE_CAST(elemDefs[elem_index].atlas);
 					new_elem->elemType = convert_elem_type(elem->elemType);
-					new_elem->elemLitType = generate_elem_lit_type(elem->elemType); //COPY_VALUE_CAST(elemDefs[elem_index].elemLitType); // convert?
+					COPY_VALUE_CAST(elemDefs[elem_index].elemLitType);
+					//new_elem->elemLitType = generate_elem_lit_type(elem->elemType);
 					COPY_VALUE_CAST(elemDefs[elem_index].visualCount);
 					COPY_VALUE_CAST(elemDefs[elem_index].velIntervalCount);
 					COPY_VALUE_CAST(elemDefs[elem_index].visStateIntervalCount);
@@ -292,9 +239,9 @@ namespace zonetool::iw6
 							new_elem->visSamples[i].base.color[1] = elem->visSamples[i].base.color[1];
 							new_elem->visSamples[i].base.color[2] = elem->visSamples[i].base.color[2];
 							new_elem->visSamples[i].base.color[3] = elem->visSamples[i].base.color[3];
-							new_elem->visSamples[i].base.emissiveScale[0] = 1.0f;
-							new_elem->visSamples[i].base.emissiveScale[1] = 1.0f;
-							new_elem->visSamples[i].base.emissiveScale[2] = 1.0f;
+							new_elem->visSamples[i].base.emissiveScale[0] = 0.0f;
+							new_elem->visSamples[i].base.emissiveScale[1] = 0.0f;
+							new_elem->visSamples[i].base.emissiveScale[2] = 0.0f;
 							new_elem->visSamples[i].base.rotationDelta = elem->visSamples[i].base.rotationDelta;
 							new_elem->visSamples[i].base.rotationTotal = elem->visSamples[i].base.rotationTotal;
 							memcpy(&new_elem->visSamples[i].base.size, &elem->visSamples[i].base.size, sizeof(float[2]));
@@ -307,15 +254,43 @@ namespace zonetool::iw6
 							new_elem->visSamples[i].amplitude.color[1] = elem->visSamples[i].amplitude.color[1];
 							new_elem->visSamples[i].amplitude.color[2] = elem->visSamples[i].amplitude.color[2];
 							new_elem->visSamples[i].amplitude.color[3] = elem->visSamples[i].amplitude.color[3];
-							new_elem->visSamples[i].amplitude.emissiveScale[0] = 1.0f;
-							new_elem->visSamples[i].amplitude.emissiveScale[1] = 1.0f;
-							new_elem->visSamples[i].amplitude.emissiveScale[2] = 1.0f;
+							new_elem->visSamples[i].amplitude.emissiveScale[0] = 0.0f;
+							new_elem->visSamples[i].amplitude.emissiveScale[1] = 0.0f;
+							new_elem->visSamples[i].amplitude.emissiveScale[2] = 0.0f;
 							new_elem->visSamples[i].amplitude.rotationDelta = elem->visSamples[i].amplitude.rotationDelta;
 							new_elem->visSamples[i].amplitude.rotationTotal = elem->visSamples[i].amplitude.rotationTotal;
 							memcpy(&new_elem->visSamples[i].amplitude.size, &elem->visSamples[i].amplitude.size, sizeof(float[2]));
 							new_elem->visSamples[i].amplitude.scale = elem->visSamples[i].amplitude.scale;
 							new_elem->visSamples[i].amplitude.pivot[1] = 0.0f;
 							new_elem->visSamples[i].amplitude.pivot[1] = 0.0f;
+
+							if (emissive || new_elem->elemLitType == zonetool::h1::FxElemLitType::FX_ELEM_LIT_TYPE_NONE)
+							{
+								const auto convert_emissive = [&](const float* src, float* dst)
+								{
+									const float litScale = 1.0f * elem->litHDRScalar;
+									const float blend = elem->litUnlitBlendFactor;
+									const float unlitScale = (1.0f - blend) * 1.0f * elem->unlitHDRScalar;
+
+									// Original color components
+									const float r = src[0];
+									const float g = src[1];
+									const float b = src[2];
+
+									// Apply lit scaling
+									const float litR = litScale * r;
+									const float litG = litScale * g;
+									const float litB = litScale * b;
+
+									// Apply blended lighting
+									dst[0] = (blend * 1.0f * litR) + (r * unlitScale);
+									dst[1] = (blend * 1.0f * litG) + (g * unlitScale);
+									dst[2] = (blend * 1.0f * litB) + (b * unlitScale);
+								};
+
+								convert_emissive(elem->visSamples[i].base.color, new_elem->visSamples[i].base.emissiveScale);
+								convert_emissive(elem->visSamples[i].amplitude.color, new_elem->visSamples[i].amplitude.emissiveScale);
+							}
 						}
 					}
 
@@ -455,13 +430,14 @@ namespace zonetool::iw6
 					COPY_VALUE(elemDefs[elem_index].randomSeed);
 					
 					new_elem->emissiveScaleScale = 0.0f;
-					new_elem->hdrLightingFrac = elem->unlitHDRScalar; //new_elem->hdrLightingFrac = 1.0f;
+					new_elem->hdrLightingFrac = 1.0f;
 					new_elem->shadowDensityScale = 1.0f;
 					new_elem->scatterRatio = 0.0f;
 					new_elem->volumetricTrailFadeStart = -1.0f;
 
 					if (emissive)
 					{
+						new_elem->hdrLightingFrac = 0.0f;
 						new_elem->emissiveScaleScale = 1.0f;
 					}
 				}
