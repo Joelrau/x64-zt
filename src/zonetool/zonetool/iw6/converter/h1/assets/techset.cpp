@@ -1808,7 +1808,7 @@ namespace zonetool::iw6
 							return false;
 						}
 
-						::shader::asm_::disassembler::print_instruction(instruction);
+						//::shader::asm_::disassembler::print_instruction(instruction);
 
 						cb_operand.indices[1].values[0].u32 = new_dest;
 						::shader::asm_::writer::write_instructon(output_buffer, instruction);
@@ -1854,7 +1854,7 @@ namespace zonetool::iw6
 					}
 				}
 
-				ZONETOOL_INFO("Patching ocean technique %s (%i %i)\n", technique->hdr.name, original_dest, new_dest);
+				ZONETOOL_INFO("Patching ocean technique %s (%i %i)", technique->hdr.name, original_dest, new_dest);
 
 				if (original_dest != -1)
 				{
@@ -1929,8 +1929,6 @@ namespace zonetool::iw6
 						}
 					}
 
-					new_pass->stableArgSize += 128;
-
 					if (pass->args)
 					{
 						auto ssr = false; // screen space reflections
@@ -1993,19 +1991,40 @@ namespace zonetool::iw6
 							prim_args.size() + obj_args.size() + stable_args.size()
 						);
 
+						new_pass->perPrimArgCount = static_cast<std::uint8_t>(prim_args.size());
+						new_pass->perObjArgCount = static_cast<std::uint8_t>(obj_args.size());
+						new_pass->stableArgCount = static_cast<std::uint8_t>(stable_args.size());
+
+						const auto get_arg_offset_and_size = [&](const zonetool::h1::MaterialShaderArgument& arg)
+							-> std::uint16_t
+						{
+							switch (arg.type)
+							{
+							case MTL_ARG_CODE_CONST:
+								return (arg.dest + arg.u.codeConst.rowCount) * 16u;
+							case MTL_ARG_LITERAL_CONST:
+								return (arg.dest + 1) * 16u;
+							}
+
+							return 0u;
+						};
+
 						auto arg_index = 0u;
 						for (const auto& arg : prim_args)
 						{
+							new_pass->perPrimArgSize = std::max(new_pass->perPrimArgSize, get_arg_offset_and_size(arg));
 							std::memcpy(&new_pass->args[arg_index++], &arg, sizeof(zonetool::h1::MaterialShaderArgument));
 						}
 
 						for (const auto& arg : obj_args)
 						{
+							new_pass->perObjArgSize = std::max(new_pass->perObjArgSize, get_arg_offset_and_size(arg));
 							std::memcpy(&new_pass->args[arg_index++], &arg, sizeof(zonetool::h1::MaterialShaderArgument));
 						}
 
 						for (const auto& arg : stable_args)
 						{
+							new_pass->stableArgSize = std::max(new_pass->stableArgSize, get_arg_offset_and_size(arg));
 							std::memcpy(&new_pass->args[arg_index++], &arg, sizeof(zonetool::h1::MaterialShaderArgument));
 						}
 					}
