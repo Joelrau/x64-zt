@@ -1581,10 +1581,9 @@ namespace zonetool::iw6
 				return false;
 			}
 
-			template<typename T, typename S>
-			T* convert_shader(S* asset, utils::memory::allocator& allocator, pixelshader_patch_data_t& patch_data)
+			zonetool::h1::MaterialPixelShader* convert_pixelshader(MaterialPixelShader* asset, utils::memory::allocator& allocator, pixelshader_patch_data_t& patch_data)
 			{
-				auto* new_asset = allocator.allocate<T>();
+				auto* new_asset = allocator.allocate<zonetool::h1::MaterialPixelShader>();
 
 				new_asset->prog.loadDef.program = asset->prog.loadDef.program;
 				new_asset->prog.loadDef.programSize = asset->prog.loadDef.programSize;
@@ -1608,6 +1607,14 @@ namespace zonetool::iw6
 
 				return new_asset;
 			}
+
+			enum cb_index_t
+			{
+				primitive = 0,
+				object = 1,
+				stable = 2,
+				stable_material = 3,
+			};
 
 			bool is_light_tech_variant(const std::uint32_t tech)
 			{
@@ -1771,6 +1778,91 @@ namespace zonetool::iw6
 				return new_arg;
 			}
 
+			zonetool::h1::MaterialVertexShader* convert_ocean_vertexshader(MaterialVertexShader* asset, utils::memory::allocator& allocator,
+				std::uint32_t original_dest, std::uint32_t new_dest)
+			{
+				auto* new_asset = allocator.allocate<zonetool::h1::MaterialVertexShader>();
+
+				new_asset->prog.loadDef.program = asset->prog.loadDef.program;
+				new_asset->prog.loadDef.programSize = asset->prog.loadDef.programSize;
+
+				const auto buffer = ::shader::patch_shader(asset->prog.loadDef.program, asset->prog.loadDef.programSize,
+					[&](utils::bit_buffer_le& output_buffer, ::shader::asm_::instruction_t instruction) -> bool
+					{
+						if (instruction.opcode.type != D3D10_SB_OPCODE_ADD || instruction.operands.size() != 3 ||
+							instruction.operands[2].type != D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER)
+						{
+							return false;
+						}
+
+						auto& cb_operand = instruction.operands[2];
+
+						if (cb_operand.indices[0].values[0].u32 != stable ||
+							cb_operand.indices[1].values[0].u32 != original_dest)
+						{
+							return false;
+						}
+
+						if (cb_operand.components.selection_mode != D3D10_SB_OPERAND_4_COMPONENT_SWIZZLE_MODE)
+						{
+							return false;
+						}
+
+						::shader::asm_::disassembler::print_instruction(instruction);
+
+						cb_operand.indices[1].values[0].u32 = new_dest;
+						::shader::asm_::writer::write_instructon(output_buffer, instruction);
+						return true;
+					}
+				);
+
+				new_asset->prog.loadDef.programSize = static_cast<unsigned int>(buffer.size());
+				new_asset->prog.loadDef.program = allocator.allocate_array<unsigned char>(buffer.size());
+				std::memcpy(new_asset->prog.loadDef.program, buffer.data(), buffer.size());
+
+				new_asset->prog.loadDef.microCodeCrc = ::shader::calc_crc32(new_asset->prog.loadDef.program, new_asset->prog.loadDef.programSize);
+				new_asset->name = allocator.duplicate_string(game::add_source_postfix(asset->name, game::iw6));
+
+				return new_asset;
+			}
+
+			void patch_ocean_tech(utils::memory::allocator& allocator, MaterialTechnique* technique, MaterialPass* pass, zonetool::h1::MaterialPass* new_pass, 
+				std::vector<zonetool::h1::MaterialShaderArgument>& stable_args)
+			{
+				if (pass->vertexShader == nullptr || pass->vertexShader->prog.loadDef.program == nullptr)
+				{
+					return;
+				}
+
+				auto original_dest = -1;
+				auto new_dest = -1;
+
+				for (const auto& arg : stable_args)
+				{
+					if (arg.type == 0 && arg.u.codeConst.index == zonetool::h1::CONST_SRC_CODE_WORLD_MATRIX_EYE_OFFSET)
+					{
+						zonetool::h1::MaterialShaderArgument extra_arg{};
+						std::memcpy(&extra_arg, &arg, sizeof(zonetool::h1::MaterialShaderArgument));
+						extra_arg.u.codeConst.index = zonetool::h1::CONST_SRC_CODE_EYEOFFSET;
+
+						original_dest = arg.dest;
+						new_dest = arg.dest - 1;
+
+						extra_arg.dest = static_cast<unsigned short>(new_dest);
+						stable_args.emplace_back(extra_arg);
+						break;
+					}
+				}
+
+				ZONETOOL_INFO("Patching ocean technique %s (%i %i)\n", technique->hdr.name, original_dest, new_dest);
+
+				if (original_dest != -1)
+				{
+					new_pass->vertexShader = convert_ocean_vertexshader(pass->vertexShader, allocator, original_dest, new_dest);
+					zonetool::h1::vertex_shader::dump(new_pass->vertexShader);
+				}
+			}
+
 			void convert_tech(std::unordered_map<MaterialTechnique*, zonetool::h1::MaterialTechnique*>& converted_asset_techniques, MaterialTechniqueSet* asset,
 				zonetool::h1::MaterialTechniqueSet* new_asset, utils::memory::allocator& allocator, const std::int32_t tech_index, const std::int32_t new_tech_index)
 			{
@@ -1794,6 +1886,8 @@ namespace zonetool::iw6
 				std::memcpy(new_technique, technique, size); // same struct
 
 				new_technique->hdr.name = allocator.duplicate_string(game::add_source_postfix(technique->hdr.name, game::iw6));
+
+				const auto is_ocean_tech = std::strstr(technique->hdr.name, "ocean") != nullptr;
 
 				for (unsigned short pass_index = 0; pass_index < technique->hdr.passCount; pass_index++)
 				{
@@ -1826,7 +1920,7 @@ namespace zonetool::iw6
 						if (is_valid && is_light_tech_variant(new_tech_index))
 						{
 							auto patch_data = get_pixelshader_patch_data(pass);
-							new_pass->pixelShader = convert_shader<zonetool::h1::MaterialPixelShader, MaterialPixelShader>(pass->pixelShader, allocator, patch_data);
+							new_pass->pixelShader = convert_pixelshader(pass->pixelShader, allocator, patch_data);
 							zonetool::h1::pixel_shader::dump(new_pass->pixelShader);
 						}
 						else
@@ -1864,6 +1958,11 @@ namespace zonetool::iw6
 							const auto arg = &pass->args[pass->perPrimArgCount + pass->perObjArgCount + i];
 							const auto new_arg = convert_arg(technique, allocator, arg, ssr);
 							stable_args.emplace_back(new_arg);
+						}
+
+						if (is_ocean_tech && pass->vertexShader != nullptr && pass->vertexShader->prog.loadDef.program != nullptr)
+						{
+							patch_ocean_tech(allocator, technique, pass, new_pass, stable_args);
 						}
 
 						const auto compare_cb = [](const auto& a, const auto& b)
