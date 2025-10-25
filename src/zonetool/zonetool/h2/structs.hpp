@@ -3119,8 +3119,8 @@ namespace zonetool::h2
 		ID3D11ShaderResourceView* indexBufferView;
 		BlendShape* blendShapes;
 		unsigned int blendShapesCount;
-		unsigned int vertexLightingIndex;
 		char __pad0[4];
+		unsigned int vertexLightingIndex;
 		int partBits[8];
 		char __pad1[4];
 	}; static_assert(sizeof(XSurface) == 0x108);

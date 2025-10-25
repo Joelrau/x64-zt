@@ -3454,8 +3454,8 @@ namespace zonetool::s1
 		ID3D11ShaderResourceView* indexBufferView;
 		BlendShape* blendShapes;
 		unsigned int blendShapesCount;
+		char __pad0[4];
 		unsigned int vertexLightingIndex;
-		float quantizeScale;
 		int partBits[8];
 		char __pad1[4];
 	}; assert_sizeof(XSurface, 0x108);
