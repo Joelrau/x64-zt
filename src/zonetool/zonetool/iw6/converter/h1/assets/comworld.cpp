@@ -83,7 +83,6 @@ namespace zonetool::iw6
 					if (new_light->type == zonetool::h1::GFX_LIGHT_TYPE_SPOT || 
 						new_light->type == zonetool::h1::GFX_LIGHT_TYPE_OMNI)
 					{
-						new_light->canUseShadowMap = 1;
 						new_light->physicallyBased = 1;
 						new_light->lightingState = 0;
 
