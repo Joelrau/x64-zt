@@ -93,7 +93,7 @@ namespace shader
 
 		// Run a command, capture combined stdout/stderr to `outLog`, return exit code (-1 on failure)
 		inline int RunProcessCapture(std::wstring cmd, std::string& outLog) {
-			SECURITY_ATTRIBUTES sa{ sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE };
+			SECURITY_ATTRIBUTES sa{sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE};
 			HANDLE r = nullptr, w = nullptr;
 			if (!CreatePipe(&r, &w, &sa, 0)) return -1;
 			SetHandleInformation(r, HANDLE_FLAG_INHERIT, 0);
@@ -432,12 +432,12 @@ namespace shader
 			D3D10_SB_OPCODE_ROUND_PI,
 			D3D10_SB_OPCODE_ROUND_Z,
 			D3D10_SB_OPCODE_RSQ,
-			//D3D10_SB_OPCODE_SAMPLE,
-			//D3D10_SB_OPCODE_SAMPLE_C,
-			//D3D10_SB_OPCODE_SAMPLE_C_LZ,
-			//D3D10_SB_OPCODE_SAMPLE_L,
-			//D3D10_SB_OPCODE_SAMPLE_D,
-			//D3D10_SB_OPCODE_SAMPLE_B,
+			D3D10_SB_OPCODE_SAMPLE,
+			D3D10_SB_OPCODE_SAMPLE_C,
+			D3D10_SB_OPCODE_SAMPLE_C_LZ,
+			D3D10_SB_OPCODE_SAMPLE_L,
+			D3D10_SB_OPCODE_SAMPLE_D,
+			D3D10_SB_OPCODE_SAMPLE_B,
 			D3D10_SB_OPCODE_SQRT,
 			D3D10_SB_OPCODE_SWITCH,
 			D3D10_SB_OPCODE_SINCOS,
@@ -454,6 +454,7 @@ namespace shader
 
 			D3D10_SB_OPCODE_DCL_CONSTANT_BUFFER,
 			D3D10_SB_OPCODE_DCL_TEMPS,
+			D3D10_SB_OPCODE_DCL_RESOURCE,
 		};
 
 		namespace reader
@@ -660,22 +661,43 @@ namespace shader
 				instruction_t instruction{};
 				instruction.opcode = read_opcode(input_buffer);
 
-				if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_TEMPS)
+				switch (instruction.opcode.type)
+				{
+				case D3D10_SB_OPCODE_DCL_TEMPS:
 				{
 					operand_t operand{};
 					operand.custom.is_custom = true;
-					operand.custom.type = D3D10_SB_OPCODE_DCL_TEMPS;
+					operand.custom.type = operand_dcl_temps0;
 					operand.custom.types.dcl_temps.size = input_buffer.read_bytes(4);
 					instruction.operands.emplace_back(operand);
+					break;
 				}
-				else
+				case D3D10_SB_OPCODE_DCL_RESOURCE:
 				{
-					const auto end = input_buffer.total() + (instruction.opcode.length - 1) * 8 * 4;
+					instruction.operands.emplace_back(read_operand(allocator, input_buffer));
+
+					operand_t operand{};
+					operand.custom.is_custom = true;
+					operand.custom.type = operand_resource_return_type0;
+					operand.custom.types.resource_return_type.x = input_buffer.read_bits(4);
+					operand.custom.types.resource_return_type.y = input_buffer.read_bits(4);
+					operand.custom.types.resource_return_type.z = input_buffer.read_bits(4);
+					operand.custom.types.resource_return_type.w = input_buffer.read_bits(4);
+					input_buffer.read_bits(16);
+
+					instruction.operands.emplace_back(operand);
+					break;
+				}
+				default:
+				{
+					const auto opcode_op_len = 1 + instruction.opcode.extensions.size();
+					const auto end = input_buffer.total() + (instruction.opcode.length - opcode_op_len) * 8 * 4;
 					while (input_buffer.total() < end)
 					{
 						const auto operand = read_operand(allocator, input_buffer);
 						instruction.operands.emplace_back(operand);
 					}
+				}
 				}
 
 				return instruction;
@@ -688,8 +710,15 @@ namespace shader
 			{
 				switch (operand.custom.type)
 				{
-				case D3D10_SB_OPCODE_DCL_TEMPS:
+				case operand_dcl_temps0:
 					output_buffer.write_bytes(4, operand.custom.types.dcl_temps.size);
+					break;
+				case operand_resource_return_type0:
+					output_buffer.write_bits(4, operand.custom.types.resource_return_type.x);
+					output_buffer.write_bits(4, operand.custom.types.resource_return_type.y);
+					output_buffer.write_bits(4, operand.custom.types.resource_return_type.z);
+					output_buffer.write_bits(4, operand.custom.types.resource_return_type.w);
+					output_buffer.write_bits(16, 0);
 					break;
 				}
 			}
@@ -846,7 +875,7 @@ namespace shader
 				}
 			}
 
-			void write_instructon(utils::bit_buffer_le& output_buffer, instruction_t& instruction)
+			void write_instruction(utils::bit_buffer_le& output_buffer, instruction_t& instruction)
 			{
 				write_opcode(output_buffer, instruction.opcode);
 				for (const auto& operand : instruction.operands)
@@ -932,182 +961,251 @@ namespace shader
 
 		namespace disassembler
 		{
+			const char* get_resource_dimension_name(const std::uint32_t dimension)
+			{
+				switch (dimension)
+				{
+				case D3D10_SB_RESOURCE_DIMENSION_BUFFER:
+					return "buffer";
+				case D3D10_SB_RESOURCE_DIMENSION_TEXTURE1D:
+					return "texture1d";
+				case D3D10_SB_RESOURCE_DIMENSION_TEXTURE2D:
+					return "texture2d";
+				case D3D10_SB_RESOURCE_DIMENSION_TEXTURE2DMS:
+					return "texture2dms";
+				case D3D10_SB_RESOURCE_DIMENSION_TEXTURE3D:
+					return "texture3d";
+				case D3D10_SB_RESOURCE_DIMENSION_TEXTURECUBE:
+					return "texturecube";
+				case D3D10_SB_RESOURCE_DIMENSION_TEXTURE1DARRAY:
+					return "texture1darray";
+				case D3D10_SB_RESOURCE_DIMENSION_TEXTURE2DARRAY:
+					return "texture2darray";
+				case D3D10_SB_RESOURCE_DIMENSION_TEXTURE2DMSARRAY:
+					return "texture2dmsarray";
+				case D3D10_SB_RESOURCE_DIMENSION_TEXTURECUBEARRAY:
+					return "texturecubearray";
+				case D3D11_SB_RESOURCE_DIMENSION_RAW_BUFFER:
+					return "raw buffer";
+				case D3D11_SB_RESOURCE_DIMENSION_STRUCTURED_BUFFER:
+					return "sturctured buffer";
+				}
+
+				return "unknown";
+			}
+
+			const char* get_return_type_name(const std::uint32_t type)
+			{
+				switch (type)
+				{
+				case D3D10_SB_RETURN_TYPE_UNORM:
+					return "unorm";
+				case D3D10_SB_RETURN_TYPE_SNORM:
+					return "snorm";
+				case D3D10_SB_RETURN_TYPE_SINT:
+					return "sint";
+				case D3D10_SB_RETURN_TYPE_UINT:
+					return "uint";
+				case D3D10_SB_RETURN_TYPE_FLOAT:
+					return "float";
+				case D3D10_SB_RETURN_TYPE_MIXED:
+					return "mixed";
+				case D3D11_SB_RETURN_TYPE_DOUBLE:
+					return "double";
+				case D3D11_SB_RETURN_TYPE_CONTINUED:
+					return "continued";
+				}
+
+				return "unknown";
+			}
+
 			void print_operand(const operand_t& op, bool last)
 			{
 				if (op.custom.is_custom)
 				{
 					switch (op.custom.type)
 					{
-					case D3D10_SB_OPCODE_DCL_TEMPS:
+					case operand_dcl_temps0:
 						printf("%i", op.custom.types.dcl_temps.size);
 						break;
+					case operand_resource_return_type0:
+						printf("(%s,%s,%s,%s)", get_return_type_name(op.custom.types.resource_return_type.x),
+							get_return_type_name(op.custom.types.resource_return_type.w),
+							get_return_type_name(op.custom.types.resource_return_type.z),
+							get_return_type_name(op.custom.types.resource_return_type.w));
+						break;
 					}
-
-					return;
 				}
-
-				if (op.extended)
+				else
 				{
-					for (const auto& extension : op.extensions)
+					if (op.extended)
 					{
-						switch (extension.modifier)
+						for (const auto& extension : op.extensions)
 						{
-						case D3D10_SB_OPERAND_MODIFIER_NEG:
-							printf("-");
-							break;
-						case D3D10_SB_OPERAND_MODIFIER_ABS:
-							printf("abs(");
-							break;
-						case D3D10_SB_OPERAND_MODIFIER_ABSNEG:
-							printf("-abs(");
-							break;
+							switch (extension.modifier)
+							{
+							case D3D10_SB_OPERAND_MODIFIER_NEG:
+								printf("-");
+								break;
+							case D3D10_SB_OPERAND_MODIFIER_ABS:
+								printf("abs(");
+								break;
+							case D3D10_SB_OPERAND_MODIFIER_ABSNEG:
+								printf("-abs(");
+								break;
+							}
 						}
 					}
-				}
 
-				if (op.type == D3D10_SB_OPERAND_TYPE_INPUT)
-				{
-					printf("v%i", op.indices[0].values[0].u32);
-				}
-
-				if (op.type == D3D10_SB_OPERAND_TYPE_OUTPUT)
-				{
-					printf("o%i", op.indices[0].values[0].u32);
-				}
-
-				if (op.type == D3D10_SB_OPERAND_TYPE_TEMP)
-				{
-					printf("r%i", op.indices[0].values[0].u32);
-				}
-
-				if (op.type == D3D10_SB_OPERAND_TYPE_SAMPLER)
-				{
-					printf("s%i", op.indices[0].values[0].u32);
-				}
-
-				if (op.type == D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER)
-				{
-					printf("cb%i[", op.indices[0].values[0].u32);
-					if (op.extra_operand != nullptr)
+					if (op.type == D3D10_SB_OPERAND_TYPE_INPUT)
 					{
-						print_operand(*op.extra_operand, true);
-						printf(" + ");
-					}
-					printf("%i]", op.indices[1].values[0].u32);
-				}
-
-				if (op.type == D3D10_SB_OPERAND_TYPE_IMMEDIATE_CONSTANT_BUFFER)
-				{
-					printf("icb[");
-					if (op.extra_operand != nullptr)
-					{
-						print_operand(*op.extra_operand, true);
-						printf(" + ");
-					}
-					printf("]");
-				}
-
-				if (op.type == D3D10_SB_OPERAND_TYPE_IMMEDIATE32)
-				{
-					if (op.components.type == D3D10_SB_OPERAND_4_COMPONENT)
-					{
-						printf("l(%f, %f, %f, %f)",
-							op.indices[0].values[0].f32,
-							op.indices[0].values[1].f32,
-							op.indices[0].values[2].f32,
-							op.indices[0].values[3].f32
-						);
-					}
-					else
-					{
-						printf("l(%f)", op.indices[0].values[0].f32);
+						printf("v%i", op.indices[0].values[0].u32);
 					}
 
-				}
-
-				if (op.type == D3D10_SB_OPERAND_TYPE_IMMEDIATE64)
-				{
-					printf("l(%lli)", op.indices[0].values[0].u64.value);
-				}
-
-				const auto print_component = [&](const std::uint32_t component)
-				{
-					switch (component)
+					if (op.type == D3D10_SB_OPERAND_TYPE_OUTPUT)
 					{
-					case D3D10_SB_4_COMPONENT_X:
-						printf("x");
+						printf("o%i", op.indices[0].values[0].u32);
+					}
+
+					if (op.type == D3D10_SB_OPERAND_TYPE_TEMP)
+					{
+						printf("r%i", op.indices[0].values[0].u32);
+					}
+
+					if (op.type == D3D10_SB_OPERAND_TYPE_RESOURCE)
+					{
+						printf("t%i", op.indices[0].values[0].u32);
+					}
+
+					if (op.type == D3D10_SB_OPERAND_TYPE_SAMPLER)
+					{
+						printf("s%i", op.indices[0].values[0].u32);
+					}
+
+					if (op.type == D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER)
+					{
+						printf("cb%i[", op.indices[0].values[0].u32);
+						if (op.extra_operand != nullptr)
+						{
+							print_operand(*op.extra_operand, true);
+							printf(" + ");
+						}
+						printf("%i]", op.indices[1].values[0].u32);
+					}
+
+					if (op.type == D3D10_SB_OPERAND_TYPE_IMMEDIATE_CONSTANT_BUFFER)
+					{
+						printf("icb[");
+						if (op.extra_operand != nullptr)
+						{
+							print_operand(*op.extra_operand, true);
+							printf(" + ");
+						}
+						printf("]");
+					}
+
+					if (op.type == D3D10_SB_OPERAND_TYPE_IMMEDIATE32)
+					{
+						if (op.components.type == D3D10_SB_OPERAND_4_COMPONENT)
+						{
+							printf("l(%f, %f, %f, %f)",
+								op.indices[0].values[0].f32,
+								op.indices[0].values[1].f32,
+								op.indices[0].values[2].f32,
+								op.indices[0].values[3].f32
+							);
+						}
+						else
+						{
+							printf("l(%f)", op.indices[0].values[0].f32);
+						}
+
+					}
+
+					if (op.type == D3D10_SB_OPERAND_TYPE_IMMEDIATE64)
+					{
+						printf("l(%lli)", op.indices[0].values[0].u64.value);
+					}
+
+					const auto print_component = [&](const std::uint32_t component)
+					{
+						switch (component)
+						{
+						case D3D10_SB_4_COMPONENT_X:
+							printf("x");
+							break;
+						case D3D10_SB_4_COMPONENT_Y:
+							printf("y");
+							break;
+						case D3D10_SB_4_COMPONENT_Z:
+							printf("z");
+							break;
+						case D3D10_SB_4_COMPONENT_W:
+							printf("w");
+							break;
+						}
+					};
+
+					switch (op.components.selection_mode)
+					{
+					case D3D10_SB_OPERAND_4_COMPONENT_MASK_MODE:
+					{
+						const auto mask = (op.components.mask << D3D10_SB_OPERAND_4_COMPONENT_MASK_SHIFT);
+						if ((mask & D3D10_SB_OPERAND_4_COMPONENT_MASK_MASK) != 0)
+						{
+							printf(".");
+						}
+
+						if (mask & D3D10_SB_OPERAND_4_COMPONENT_MASK_X)
+						{
+							printf("x");
+						}
+
+						if (mask & D3D10_SB_OPERAND_4_COMPONENT_MASK_Y)
+						{
+							printf("y");
+						}
+
+						if (mask & D3D10_SB_OPERAND_4_COMPONENT_MASK_Z)
+						{
+							printf("z");
+						}
+
+						if (mask & D3D10_SB_OPERAND_4_COMPONENT_MASK_W)
+						{
+							printf("w");
+						}
+
 						break;
-					case D3D10_SB_4_COMPONENT_Y:
-						printf("y");
-						break;
-					case D3D10_SB_4_COMPONENT_Z:
-						printf("z");
-						break;
-					case D3D10_SB_4_COMPONENT_W:
-						printf("w");
-						break;
 					}
-				};
-
-				switch (op.components.selection_mode)
-				{
-				case D3D10_SB_OPERAND_4_COMPONENT_MASK_MODE:
-				{
-					const auto mask = (op.components.mask << D3D10_SB_OPERAND_4_COMPONENT_MASK_SHIFT);
-					if ((mask & D3D10_SB_OPERAND_4_COMPONENT_MASK_MASK) != 0)
+					case D3D10_SB_OPERAND_4_COMPONENT_SWIZZLE_MODE:
 					{
 						printf(".");
+						print_component(op.components.names[0]);
+						print_component(op.components.names[1]);
+						print_component(op.components.names[2]);
+						print_component(op.components.names[3]);
+						break;
+					}
+					case D3D10_SB_OPERAND_4_COMPONENT_SELECT_1_MODE:
+					{
+						printf(".");
+						print_component(op.components.names[0]);
+						break;
+					}
 					}
 
-					if (mask & D3D10_SB_OPERAND_4_COMPONENT_MASK_X)
+					if (op.extended)
 					{
-						printf("x");
-					}
-
-					if (mask & D3D10_SB_OPERAND_4_COMPONENT_MASK_Y)
-					{
-						printf("y");
-					}
-
-					if (mask & D3D10_SB_OPERAND_4_COMPONENT_MASK_Z)
-					{
-						printf("z");
-					}
-
-					if (mask & D3D10_SB_OPERAND_4_COMPONENT_MASK_W)
-					{
-						printf("w");
-					}
-
-					break;
-				}
-				case D3D10_SB_OPERAND_4_COMPONENT_SWIZZLE_MODE:
-				{
-					printf(".");
-					print_component(op.components.names[0]);
-					print_component(op.components.names[1]);
-					print_component(op.components.names[2]);
-					print_component(op.components.names[3]);
-					break;
-				}
-				case D3D10_SB_OPERAND_4_COMPONENT_SELECT_1_MODE:
-				{
-					printf(".");
-					print_component(op.components.names[0]);
-					break;
-				}
-				}
-
-				if (op.extended)
-				{
-					for (const auto& extension : op.extensions)
-					{
-						switch (extension.modifier)
+						for (const auto& extension : op.extensions)
 						{
-						case D3D10_SB_OPERAND_MODIFIER_ABS:
-						case D3D10_SB_OPERAND_MODIFIER_ABSNEG:
-							printf(")");
-							break;
+							switch (extension.modifier)
+							{
+							case D3D10_SB_OPERAND_MODIFIER_ABS:
+							case D3D10_SB_OPERAND_MODIFIER_ABSNEG:
+								printf(")");
+								break;
+							}
 						}
 					}
 				}
@@ -1126,6 +1224,27 @@ namespace shader
 				}
 			}
 
+			void print_opcode_extended(const opcode_extended_t& opcode)
+			{
+				switch (opcode.type)
+				{
+				case D3D10_SB_EXTENDED_OPCODE_SAMPLE_CONTROLS:
+					printf("(%i,%i,%i)", opcode.values[0], opcode.values[1], opcode.values[2]);
+					break;
+				case D3D11_SB_EXTENDED_OPCODE_RESOURCE_DIM:
+					printf("(%s)", get_resource_dimension_name(opcode.values[0]));
+					break;
+				case D3D11_SB_EXTENDED_OPCODE_RESOURCE_RETURN_TYPE:
+					printf("(%s,%s,%s,%s)",
+						get_return_type_name(opcode.values[0]),
+						get_return_type_name(opcode.values[1]),
+						get_return_type_name(opcode.values[2]),
+						get_return_type_name(opcode.values[3])
+					);
+					break;
+				}
+			}
+
 			void print_instruction(const instruction_t& instruction)
 			{
 				if (instruction.opcode.type >= opcode_names.size())
@@ -1137,12 +1256,19 @@ namespace shader
 
 				if (instruction.opcode.controls & 4)
 				{
-					printf("%s_sat ", name);
+					printf("%s_sat", name);
 				}
 				else
 				{
-					printf("%s ", name);
+					printf("%s", name);
 				}
+
+				for (const auto& ext : instruction.opcode.extensions)
+				{
+					print_opcode_extended(ext);
+				}
+
+				printf(" ");
 
 				print_operands(instruction.operands);
 
@@ -1234,7 +1360,7 @@ namespace shader
 				{
 					throw std::runtime_error("invalid swizzle component");
 				}
-				
+
 				return iter->second;
 			}
 

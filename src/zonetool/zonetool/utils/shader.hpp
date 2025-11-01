@@ -93,9 +93,23 @@ namespace shader
 
 		struct operand_t;
 
+		enum operand_custom_type
+		{
+			operand_dcl_temps0,
+			operand_resource_return_type0,
+		};
+
 		struct operand_dcl_temps_t
 		{
 			std::uint32_t size;
+		};
+
+		struct operand_resource_return_type
+		{
+			std::uint32_t x;
+			std::uint32_t y;
+			std::uint32_t z;
+			std::uint32_t w;
 		};
 
 		struct operand_custom_t
@@ -104,6 +118,7 @@ namespace shader
 			std::uint32_t type;
 			union
 			{
+				operand_resource_return_type resource_return_type;
 				operand_dcl_temps_t dcl_temps;
 			} types;
 		};
@@ -158,7 +173,7 @@ namespace shader
 			void write_operand(utils::bit_buffer_le& output_buffer, const operand_t& operand);
 			void write_opcode_extended(utils::bit_buffer_le& output_buffer, const opcode_extended_t& opcode);
 			void write_opcode(utils::bit_buffer_le& output_buffer, const opcode_t& opcode);
-			void write_instructon(utils::bit_buffer_le& output_buffer, instruction_t& instruction);
+			void write_instruction(utils::bit_buffer_le& output_buffer, instruction_t& instruction);
 
 			std::uint32_t get_operand_length(const operand_t& operand);
 			void set_opcode_length(instruction_t& instruction);
@@ -166,8 +181,11 @@ namespace shader
 
 		namespace disassembler
 		{
+			const char* get_resource_dimension_name(const std::uint32_t dimension);
+			const char* get_return_type_name(const std::uint32_t type);
 			void print_operand(const operand_t& op, bool last);
 			void print_operands(const std::vector<operand_t>& operands);
+			void print_opcode_extended(const opcode_extended_t& opcode);
 			void print_instruction(const instruction_t& instruction);
 		}
 
