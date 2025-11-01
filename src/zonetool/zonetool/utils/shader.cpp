@@ -865,9 +865,8 @@ namespace shader
 			{
 				output_buffer.write_bits(11, opcode.type);
 				output_buffer.write_bits(13, opcode.controls);
-				output_buffer.write_bits(6, opcode.length);
+				output_buffer.write_bits(7, opcode.length);
 				output_buffer.write_bits(1, opcode.extended);
-				output_buffer.write_bits(1, 0);
 
 				for (const auto& opcode_extended : opcode.extensions)
 				{
