@@ -212,8 +212,9 @@ namespace zonetool::h1
 		data[#__field__][idx##__field__] = asset->__field__[idx##__field__]; \
 	}
 
-	void dump(ComPrimaryLight* asset, ordered_json& data)
+	void dump(ComPrimaryLight* asset, ordered_json& data, std::uint32_t index)
 	{
+		data["primaryLightIndex"] = index;
 		DUMP_FIELD(type);
 		DUMP_FIELD(canUseShadowMap);
 		DUMP_FIELD(physicallyBased);
@@ -240,8 +241,9 @@ namespace zonetool::h1
 		DUMP_STRING(defName);
 	}
 
-	void dump(ComPrimaryLightEnv* asset, ordered_json& data)
+	void dump(ComPrimaryLightEnv* asset, ordered_json& data, std::uint32_t index)
 	{
+		data["envIndex"] = index;
 		DUMP_FIELD_ARR(primaryLightIndices, 4);
 		DUMP_FIELD(numIndices);
 	}
@@ -255,17 +257,17 @@ namespace zonetool::h1
 		ordered_json data;
 
 		DUMP_FIELD(isInUse);
-		
+
 		data["primaryLight"] = {};
 		for (auto i = 0u; i < asset->primaryLightCount; i++)
 		{
-			dump(&asset->primaryLights[i], data["primaryLight"][i]);
+			dump(&asset->primaryLights[i], data["primaryLight"][i], i);
 		}
 
 		data["primaryLightEnv"] = {};
 		for (auto i = 0u; i < asset->primaryLightEnvCount; i++)
 		{
-			dump(&asset->primaryLightEnvs[i], data["primaryLightEnv"][i]);
+			dump(&asset->primaryLightEnvs[i], data["primaryLightEnv"][i], i);
 		}
 
 		auto str = data.dump(4);

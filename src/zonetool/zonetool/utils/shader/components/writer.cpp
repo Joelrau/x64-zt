@@ -113,8 +113,8 @@ namespace shader::asm_::writer
 		case D3D10_SB_EXTENDED_OPCODE_SAMPLE_CONTROLS:
 			output_buffer.write_bits(3, 0);
 			output_buffer.write_bits(4, opcode.values[0]);
-			output_buffer.write_bits(4, opcode.values[0]);
-			output_buffer.write_bits(4, opcode.values[0]);
+			output_buffer.write_bits(4, opcode.values[1]);
+			output_buffer.write_bits(4, opcode.values[2]);
 			output_buffer.write_bits(10, 0);
 			break;
 		case D3D11_SB_EXTENDED_OPCODE_RESOURCE_DIM:

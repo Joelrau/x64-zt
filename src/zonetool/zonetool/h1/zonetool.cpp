@@ -447,10 +447,10 @@ namespace zonetool::h1
 
 			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_AIPATHS, path_data, PathData);
 			/*DUMP_ASSET(ASSET_TYPE_COL_MAP_MP, clip_map, clipMap_t);
-			DUMP_ASSET(ASSET_TYPE_COM_MAP, comworld, ComWorld);
-			DUMP_ASSET(ASSET_TYPE_FX_MAP, fxworld, FxWorld);
-			DUMP_ASSET(ASSET_TYPE_GFX_MAP, gfxworld, GfxWorld);
-			DUMP_ASSET(ASSET_TYPE_GLASS_MAP, glass_world, GlassWorld);*/
+			DUMP_ASSET(ASSET_TYPE_COMWORLD, comworld, ComWorld);
+			DUMP_ASSET(ASSET_TYPE_FXWORLD, fxworld, FxWorld);
+			DUMP_ASSET(ASSET_TYPE_GFXWORLD, gfxworld, GfxWorld);
+			DUMP_ASSET(ASSET_TYPE_GLASSWORLD, glass_world, GlassWorld);*/
 		}
 		catch (std::exception& ex)
 		{

@@ -229,7 +229,7 @@ namespace zonetool::h2
 
 	std::int32_t path_data::type()
 	{
-		return ASSET_TYPE_AIPATHS;
+		return ASSET_TYPE_PATHDATA;
 	}
 
 	void path_data::write(zone_base* zone, zone_buffer* buf)

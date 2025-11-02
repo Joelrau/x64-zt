@@ -120,7 +120,7 @@ namespace zonetool::h2
 #define ADD_ASSET(__type__, ___) \
 		if (type == __type__) \
 		{ \
-			auto asset = std::make_shared < ___ >(); \
+			auto asset = std::make_shared<___>(); \
 			asset->init(name, this->m_zonemem.get()); \
 			asset->load_depending(this); \
 			m_assets.push_back(asset); \
@@ -148,7 +148,7 @@ namespace zonetool::h2
 			ADD_ASSET(ASSET_TYPE_REVERB_CURVE, reverb_curve);
 			ADD_ASSET(ASSET_TYPE_SCRIPTABLE, scriptable_def);
 			ADD_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile);
-			ADD_ASSET(ASSET_TYPE_SKELETONSCRIPT, skeleton_script);
+			ADD_ASSET(ASSET_TYPE_SKELETON_SCRIPT, skeleton_script);
 			ADD_ASSET(ASSET_TYPE_SOUND, sound);
 			ADD_ASSET(ASSET_TYPE_SOUND_CONTEXT, sound_context);
 			ADD_ASSET(ASSET_TYPE_SOUND_CURVE, sound_curve);
@@ -179,12 +179,12 @@ namespace zonetool::h2
 			ADD_ASSET(ASSET_TYPE_MENU, zonetool::h1::menu_def);
 			ADD_ASSET(ASSET_TYPE_MENULIST, zonetool::h1::menu_list);
 
-			ADD_ASSET(ASSET_TYPE_AIPATHS, path_data);
-			ADD_ASSET(ASSET_TYPE_COL_MAP_SP, clip_map);
-			ADD_ASSET(ASSET_TYPE_COM_MAP, com_world);
-			ADD_ASSET(ASSET_TYPE_FX_MAP, fx_world);
-			ADD_ASSET(ASSET_TYPE_GFX_MAP, gfx_world);
-			ADD_ASSET(ASSET_TYPE_GLASS_MAP, glass_world);
+			ADD_ASSET(ASSET_TYPE_PATHDATA, path_data);
+			ADD_ASSET(ASSET_TYPE_CLIPMAP, clip_map);
+			ADD_ASSET(ASSET_TYPE_COMWORLD, com_world);
+			ADD_ASSET(ASSET_TYPE_FXWORLD, fx_world);
+			ADD_ASSET(ASSET_TYPE_GFXWORLD, gfx_world);
+			ADD_ASSET(ASSET_TYPE_GLASSWORLD, glass_world);
 		}
 		catch (std::exception& ex)
 		{

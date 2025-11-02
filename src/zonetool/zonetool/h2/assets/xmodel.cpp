@@ -241,7 +241,7 @@ namespace zonetool::h2
 		// SkeletonScript
 		if (data->skeletonScript)
 		{
-			zone->add_asset_of_type(ASSET_TYPE_SKELETONSCRIPT, data->skeletonScript->name);
+			zone->add_asset_of_type(ASSET_TYPE_SKELETON_SCRIPT, data->skeletonScript->name);
 		}
 
 		// Bone Physics
@@ -442,7 +442,7 @@ namespace zonetool::h2
 		if (data->skeletonScript)
 		{
 			dest->skeletonScript = reinterpret_cast<SkeletonScript*>(zone->get_asset_pointer(
-				ASSET_TYPE_SKELETONSCRIPT, data->skeletonScript->name));
+				ASSET_TYPE_SKELETON_SCRIPT, data->skeletonScript->name));
 		}
 
 		if (data->bonePhysics)

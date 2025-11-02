@@ -736,7 +736,7 @@ namespace zonetool::h2
 
 	std::int32_t gfx_world::type()
 	{
-		return ASSET_TYPE_GFX_MAP;
+		return ASSET_TYPE_GFXWORLD;
 	}
 
 	void gfx_world::write(zone_base* zone, zone_buffer* buf)

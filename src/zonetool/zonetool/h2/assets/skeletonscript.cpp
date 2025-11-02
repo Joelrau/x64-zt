@@ -102,7 +102,7 @@ namespace zonetool::h2
 
 	std::int32_t skeleton_script::type()
 	{
-		return ASSET_TYPE_SKELETONSCRIPT;
+		return ASSET_TYPE_SKELETON_SCRIPT;
 	}
 
 	void skeleton_script::write(zone_base* zone, zone_buffer* buf)
