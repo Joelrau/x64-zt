@@ -10,7 +10,7 @@
 #include "zonetool/h1/assets/domainshader.hpp"
 #include "zonetool/h1/assets/pixelshader.hpp"
 
-#include "zonetool/utils/shader.hpp"
+#include "zonetool/utils/shader/shader.hpp"
 
 #include <utils/io.hpp>
 
@@ -524,13 +524,11 @@ namespace zonetool::h2
 
 			bool patch_cb_index(utils::bit_buffer_le& output_buffer, ::shader::asm_::instruction_t instruction)
 			{
-				if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_CONSTANT_BUFFER ||
-					instruction.opcode.type == D3D10_SB_OPCODE_DCL_TEMPS)
+				if (instruction.opcode.type >= D3D10_SB_OPCODE_DCL_RESOURCE)
 				{
 					return false;
 				}
 
-				::shader::asm_::writer::write_opcode(output_buffer, instruction.opcode);
 				for (auto& operand : instruction.operands)
 				{
 					if (operand.type == D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER && operand.extra_operand == nullptr &&
@@ -539,10 +537,9 @@ namespace zonetool::h2
 						operand.indices[1].values[0].u32 = static_cast<std::uint32_t>(
 							convert_dest(static_cast<std::uint16_t>(operand.indices[1].values[0].u32)));
 					}
-
-					::shader::asm_::writer::write_operand(output_buffer, operand);
 				}
 
+				::shader::asm_::write_instruction(output_buffer, instruction);
 				return true;
 			}
 

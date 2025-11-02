@@ -1,7 +1,7 @@
 #include <std_include.hpp>
 #include "vertexshader.hpp"
 
-#include "zonetool/utils/shader.hpp"
+#include "zonetool/utils/shader/shader.hpp"
 
 namespace zonetool::iw7
 {

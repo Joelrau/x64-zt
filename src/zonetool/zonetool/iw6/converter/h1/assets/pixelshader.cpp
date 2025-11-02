@@ -4,7 +4,7 @@
 
 #include "zonetool/h1/assets/pixelshader.hpp"
 
-#include "zonetool/utils/shader.hpp"
+#include "zonetool/utils/shader/shader.hpp"
 
 namespace zonetool::iw6
 {
