@@ -201,26 +201,44 @@ namespace zonetool::s1
 		switch (event->type)
 		{
 		case SCRIPTABLE_EVENT_MODEL:
-			zone->add_asset_of_type(ASSET_TYPE_XMODEL, event->data.setModel.model->name);
+			if (event->data.setModel.model != nullptr)
+			{
+				zone->add_asset_of_type(ASSET_TYPE_XMODEL, event->data.setModel.model->name);
+			}
 			break;
 		case SCRIPTABLE_EVENT_FX:
-			zone->add_asset_of_type(ASSET_TYPE_FX, event->data.playFx.handle->name);
+			if (event->data.playFx.handle != nullptr)
+			{
+				zone->add_asset_of_type(ASSET_TYPE_FX, event->data.playFx.handle->name);
+			}
 			break;
 		case SCRIPTABLE_EVENT_STOP_FX:
-			zone->add_asset_of_type(ASSET_TYPE_FX, event->data.stopFx.handle->name);
+			if (event->data.stopFx.handle != nullptr)
+			{
+				zone->add_asset_of_type(ASSET_TYPE_FX, event->data.stopFx.handle->name);
+			}
 			break;
 		case SCRIPTABLE_EVENT_SOUND:
-			zone->add_asset_of_type(ASSET_TYPE_SOUND, event->data.playSound.alias->name);
+			if (event->data.playSound.alias != nullptr)
+			{
+				zone->add_asset_of_type(ASSET_TYPE_SOUND, event->data.playSound.alias->name);
+			}
 			break;
 		case SCRIPTABLE_EVENT_ANIMATION:
-			zone->add_asset_of_type(ASSET_TYPE_XANIMPARTS, event->data.playAnim.animName);
+			if (event->data.playAnim.animName != nullptr)
+			{
+				zone->add_asset_of_type(ASSET_TYPE_XANIMPARTS, event->data.playAnim.animName);
+			}
 			break;
 		case SCRIPTABLE_EVENT_EXPLODE:
 			break;
 		case SCRIPTABLE_EVENT_HEALTHDRAIN:
 			break;
 		case SCRIPTABLE_EVENT_PHYSICSLAUNCH:
-			zone->add_asset_of_type(ASSET_TYPE_XMODEL, event->data.physicsLaunch.model->name);
+			if (event->data.physicsLaunch.model != nullptr)
+			{
+				zone->add_asset_of_type(ASSET_TYPE_XMODEL, event->data.physicsLaunch.model->name);
+			}
 			break;
 		case SCRIPTABLE_EVENT_LIGHTSETTINGS:
 			break;
