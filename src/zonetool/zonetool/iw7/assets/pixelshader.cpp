@@ -1,7 +1,7 @@
 #include <std_include.hpp>
 #include "pixelshader.hpp"
 
-#include "zonetool/utils/shader/shader.hpp"
+#include <utils/cryptography.hpp>
 
 namespace zonetool::iw7
 {
@@ -26,7 +26,7 @@ namespace zonetool::iw7
 
 		std::memcpy(asset->prog.loadDef.program, buffer.data(), buffer_size);
 
-		asset->prog.loadDef.microCodeCrc = ::shader::calc_crc32(asset->prog.loadDef.program, asset->prog.loadDef.programSize);
+		asset->prog.loadDef.microCodeCrc = utils::cryptography::crc32::compute(asset->prog.loadDef.program, asset->prog.loadDef.programSize);
 
 		file.close();
 

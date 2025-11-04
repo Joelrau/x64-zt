@@ -102,6 +102,11 @@ namespace utils::cryptography
 		std::string encode(const std::string& data);
 		std::string decode(const std::string& data);
 	}
+	
+	namespace crc32
+	{
+		std::uint32_t compute(const uint8_t* data, size_t len);
+	}
 
 	namespace jenkins_one_at_a_time
 	{

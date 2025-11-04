@@ -37,3 +37,6 @@
 [submodule "deps/json"]
 	path = deps/json
 	url = https://github.com/nlohmann/json.git
+[submodule "deps/shader-tool"]
+	path = deps/shader-tool
+	url = https://github.com/alicealys/shader-tool.git

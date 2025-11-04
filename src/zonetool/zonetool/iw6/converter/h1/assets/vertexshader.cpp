@@ -4,7 +4,7 @@
 
 #include "zonetool/h1/assets/vertexshader.hpp"
 
-#include "zonetool/utils/shader/shader.hpp"
+#include <utils/cryptography.hpp>
 
 namespace zonetool::iw6
 {
@@ -18,7 +18,7 @@ namespace zonetool::iw6
 
 				new_asset->prog.loadDef.program = asset->prog.loadDef.program;
 				new_asset->prog.loadDef.programSize = asset->prog.loadDef.programSize;
-				new_asset->prog.loadDef.microCodeCrc = ::shader::calc_crc32(new_asset->prog.loadDef.program, new_asset->prog.loadDef.programSize);
+				new_asset->prog.loadDef.microCodeCrc = utils::cryptography::crc32::compute(new_asset->prog.loadDef.program, new_asset->prog.loadDef.programSize);
 				new_asset->name = allocator.duplicate_string(game::add_source_postfix(asset->name, game::iw6));
 
 				return new_asset;

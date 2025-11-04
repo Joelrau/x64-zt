@@ -2,6 +2,7 @@
 #include "cryptography.hpp"
 #include "nt.hpp"
 #include <gsl/gsl>
+#include <zlib.h>
 
 #undef max
 using namespace std::string_literals;
@@ -561,6 +562,18 @@ namespace utils::cryptography
 		if (!hex) return hash;
 
 		return string::dump_hex(hash, "");
+	}
+
+	std::uint32_t crc32::compute(const uint8_t* data, const size_t length)
+	{
+		if (data == nullptr)
+		{
+			return 0;
+		}
+
+		unsigned long crc = ::crc32(0L, Z_NULL, 0);
+		crc = ::crc32(crc, reinterpret_cast<const unsigned char*>(data), static_cast<std::uint32_t>(length));
+		return crc;
 	}
 
 	std::string base64::encode(const uint8_t* data, const size_t len)

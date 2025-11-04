@@ -1,5 +1,7 @@
 #pragma once
 
+#include <utils/cryptography.hpp>
+
 namespace zonetool
 {
 	enum shader_type
@@ -73,28 +75,6 @@ namespace zonetool
 
 			return asset;
 		}
-
-		unsigned long get_crc32(void* data_address, std::uint32_t data_len)
-		{
-			unsigned long crc = crc32(0L, Z_NULL, 0);
-			crc = crc32(crc, reinterpret_cast<const unsigned char*>(data_address), data_len);
-			return crc;
-		}
-
-		std::string get_crc32_str(void* data_address, std::uint32_t data_len)
-		{
-			return std::to_string(get_crc32(data_address, data_len));
-		}
-
-		unsigned int calc_crc32(unsigned char* program, unsigned int program_size)
-		{
-			if (program == nullptr)
-			{
-				return 0;
-			}
-
-			return get_crc32(program, program_size);
-		}
 	}
 
 	template <ASSET_TEMPLATE, shader_type ShaderType>
@@ -136,7 +116,7 @@ namespace zonetool
 
 			if constexpr (ShaderType == vertexshader || ShaderType == pixelshader)
 			{
-				asset->prog.loadDef.microCodeCrc = calc_crc32(asset->prog.loadDef.program, asset->prog.loadDef.programSize);
+				asset->prog.loadDef.microCodeCrc = utils::cryptography::crc32::compute(asset->prog.loadDef.program, asset->prog.loadDef.programSize);
 			}
 
 			file.close();

@@ -10,9 +10,10 @@
 #include "zonetool/h1/assets/domainshader.hpp"
 #include "zonetool/h1/assets/pixelshader.hpp"
 
-#include "zonetool/utils/shader/shader.hpp"
+#include <shader-tool/shader.hpp>
 
 #include <utils/io.hpp>
+#include <utils/cryptography.hpp>
 
 namespace zonetool::h2
 {
@@ -522,7 +523,7 @@ namespace zonetool::h2
 				return converted_args;
 			}
 
-			bool patch_cb_index(utils::bit_buffer_le& output_buffer, ::shader::asm_::instruction_t instruction)
+			bool patch_cb_index(alys::shader::shader_object::assembler& a, alys::shader::asm_::instruction_t& instruction)
 			{
 				if (instruction.opcode.type >= D3D10_SB_OPCODE_DCL_RESOURCE)
 				{
@@ -531,15 +532,15 @@ namespace zonetool::h2
 
 				for (auto& operand : instruction.operands)
 				{
-					if (operand.type == D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER && operand.extra_operand == nullptr &&
-						operand.indices[0].values[0].u32 <= 4)
+					if (operand.type == D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER && operand.indices[1].extra_operand == nullptr &&
+						operand.indices[0].value.uint32 <= 4)
 					{
-						operand.indices[1].values[0].u32 = static_cast<std::uint32_t>(
-							convert_dest(static_cast<std::uint16_t>(operand.indices[1].values[0].u32)));
+						operand.indices[1].value.uint32 = static_cast<std::uint32_t>(
+							convert_dest(static_cast<std::uint16_t>(operand.indices[1].value.uint32)));
 					}
 				}
 
-				::shader::asm_::write_instruction(output_buffer, instruction);
+				a(instruction);
 				return true;
 			}
 
@@ -550,12 +551,13 @@ namespace zonetool::h2
 					return;
 				}
 				
-				const auto data = ::shader::patch_shader(*program, *program_size, patch_cb_index);
-				const auto new_program = allocator.allocate_array<unsigned char>(data.size());
-				std::memcpy(new_program, data.data(), data.size());
+				const auto data = std::string{reinterpret_cast<const char*>(*program), *program_size};
+				const auto shader = alys::shader::patch_shader(data, patch_cb_index);
+				const auto new_program = allocator.allocate_array<unsigned char>(shader.size());
+				std::memcpy(new_program, shader.data(), shader.size());
 
 				*program = new_program;
-				*program_size = static_cast<std::uint32_t>(data.size());
+				*program_size = static_cast<std::uint32_t>(shader.size());
 			}
 
 			template <shader_type ShaderType, typename T, typename S>
@@ -570,7 +572,7 @@ namespace zonetool::h2
 
 					if constexpr (ShaderType == pixelshader || ShaderType == vertexshader)
 					{
-						new_shader->prog.loadDef.microCodeCrc = ::shader::calc_crc32(
+						new_shader->prog.loadDef.microCodeCrc = utils::cryptography::crc32::compute(
 							new_shader->prog.loadDef.program, new_shader->prog.loadDef.programSize);
 					}
 				}
