@@ -523,7 +523,7 @@ namespace zonetool::h2
 				return converted_args;
 			}
 
-			bool patch_cb_index(alys::shader::shader_object::assembler& a, alys::shader::asm_::instruction_t& instruction)
+			bool patch_cb_index(alys::shader::shader_object::assembler& a, alys::shader::detail::instruction_t& instruction)
 			{
 				if (instruction.opcode.type >= D3D10_SB_OPCODE_DCL_RESOURCE)
 				{
