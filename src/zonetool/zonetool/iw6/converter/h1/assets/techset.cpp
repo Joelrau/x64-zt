@@ -2246,6 +2246,11 @@ namespace zonetool::iw6
 					{
 						if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_CONSTANT_BUFFER)
 						{
+							if (instruction.operands[0].indices[0].value.uint32 >= cb_index_t::count)
+							{
+								return false;
+							}
+
 							if (inserted_cb)
 							{
 								return true;
@@ -2253,7 +2258,8 @@ namespace zonetool::iw6
 
 							inserted_cb = true;
 
-							for (std::uint32_t cb_index = primitive; cb_index < cb_index_t::count; cb_index++)
+							std::uint32_t cb_index = primitive;
+							for (cb_index; cb_index < cb_index_t::count; cb_index++)
 							{
 								if (max_cb[cb_index])
 								{
@@ -2584,6 +2590,21 @@ namespace zonetool::iw6
 								return;
 							}
 
+							if (arg.type == zonetool::h1::MTL_ARG_MATERIAL_SAMPLER)
+							{
+								const auto identifier2 = make_id_mat_tex(arg.u.nameHash);
+								if (auto it = added_resource_map.find(identifier2); it != added_resource_map.end())
+								{
+									arg.dest = it->second;
+									tech.sampler_map[old_dest] = arg.dest;
+									assert(arg.dest > 3);
+									added_sampler_map.emplace(identifier, arg.dest);
+									args.emplace_back(arg);
+									added_arg_map[cb_index][arg.type][identifier] = arg.dest;
+									return;
+								}
+							}
+
 							arg.dest = sampler_index++;
 							tech.sampler_map[old_dest] = arg.dest;
 							added_sampler_map.emplace(identifier, arg.dest);
@@ -2616,6 +2637,8 @@ namespace zonetool::iw6
 
 					new_pass->customSamplerFlags |= p->customSamplerFlags;
 					new_pass->customBufferFlags |= p->customBufferFlags;
+
+					merged_tech.hdr.flags |= tech.tech->hdr.flags;
 
 					for (auto i = 0u; i < p->perPrimArgCount; ++i)
 					{
@@ -2667,7 +2690,7 @@ namespace zonetool::iw6
 
 				std::uint8_t shader_flag = shader_flag_vertex_shader | shader_flag_pixel_shader;
 				if (pass->domainShader) shader_flag |= shader_flag_domain_shader;
-				if (pass->domainShader) shader_flag |= shader_flag_hull_shader;
+				if (pass->hullShader) shader_flag |= shader_flag_hull_shader;
 
 				add_obj_const_arg(shader_flag, LIGHT_DYN_TYPES_DEST, zonetool::h1::CONST_SRC_CODE_LIGHT_DYN_TYPES);
 				add_obj_const_arg(shader_flag, LIGHT_DYN_SHADOW_TYPES_DEST, zonetool::h1::CONST_SRC_CODE_LIGHT_DYN_SHADOW_TYPES);
@@ -2724,27 +2747,37 @@ namespace zonetool::iw6
 				};
 				calculate_cb_sizes();
 
+				std::uint16_t max_sampler = 0;
+				for (auto& arg : stable_args)
+				{
+					if (arg.type == zonetool::h1::MTL_ARG_MATERIAL_SAMPLER || arg.type == zonetool::h1::MTL_ARG_CODE_SAMPLER)
+					{
+						max_sampler = std::max(max_sampler, arg.dest);
+					}
+				}
+				max_sampler += 1;
+
 				assert(sampler_index < 16);
-				convert_merge_db_shader(new_pass, techs, asset, allocator, LIGHT_DYN_TYPES_DEST, LIGHT_DYN_SHADOW_TYPES_DEST, cb_sizes[shader_type_pixel_shader], resource_index, sampler_index, sampler_comparison_map, shader_type_pixel_shader);
+				convert_merge_db_shader(new_pass, techs, asset, allocator, LIGHT_DYN_TYPES_DEST, LIGHT_DYN_SHADOW_TYPES_DEST, cb_sizes[shader_type_pixel_shader], resource_index, max_sampler, sampler_comparison_map, shader_type_pixel_shader);
 				auto patch_data = get_pixelshader_patch_data(new_pass);
 				new_pass->pixelShader = convert_pixelshader((zonetool::iw6::MaterialPixelShader*)new_pass->pixelShader, allocator, patch_data);
 				new_pass->pixelShader->name = allocator.duplicate_string(ps_name);
 				zonetool::h1::pixel_shader::dump(new_pass->pixelShader);
 
-				convert_merge_db_shader(new_pass, techs, asset, allocator, LIGHT_DYN_TYPES_DEST, LIGHT_DYN_SHADOW_TYPES_DEST, cb_sizes[shader_type_vertex_shader], resource_index, sampler_index, sampler_comparison_map, shader_type_vertex_shader);
+				convert_merge_db_shader(new_pass, techs, asset, allocator, LIGHT_DYN_TYPES_DEST, LIGHT_DYN_SHADOW_TYPES_DEST, cb_sizes[shader_type_vertex_shader], resource_index, max_sampler, sampler_comparison_map, shader_type_vertex_shader);
 				new_pass->vertexShader->name = allocator.duplicate_string(vs_name);
 				zonetool::h1::vertex_shader::dump(new_pass->vertexShader);
 
 				if (new_pass->hullShader)
 				{
-					convert_merge_db_shader(new_pass, techs, asset, allocator, LIGHT_DYN_TYPES_DEST, LIGHT_DYN_SHADOW_TYPES_DEST, cb_sizes[shader_type_hull_shader], resource_index, sampler_index, sampler_comparison_map, shader_type_hull_shader);
+					convert_merge_db_shader(new_pass, techs, asset, allocator, LIGHT_DYN_TYPES_DEST, LIGHT_DYN_SHADOW_TYPES_DEST, cb_sizes[shader_type_hull_shader], resource_index, max_sampler, sampler_comparison_map, shader_type_hull_shader);
 					new_pass->hullShader->name = allocator.duplicate_string(hs_name);
 					zonetool::h1::hull_shader::dump(new_pass->hullShader);
 				}
 
 				if (new_pass->domainShader)
 				{
-					convert_merge_db_shader(new_pass, techs, asset, allocator, LIGHT_DYN_TYPES_DEST, LIGHT_DYN_SHADOW_TYPES_DEST, cb_sizes[shader_type_domain_shader], resource_index, sampler_index, sampler_comparison_map, shader_type_domain_shader);
+					convert_merge_db_shader(new_pass, techs, asset, allocator, LIGHT_DYN_TYPES_DEST, LIGHT_DYN_SHADOW_TYPES_DEST, cb_sizes[shader_type_domain_shader], resource_index, max_sampler, sampler_comparison_map, shader_type_domain_shader);
 					new_pass->domainShader->name = allocator.duplicate_string(ds_name);
 					zonetool::h1::domain_shader::dump(new_pass->domainShader);
 				}
