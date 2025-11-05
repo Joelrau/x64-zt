@@ -1527,7 +1527,7 @@ namespace zonetool::iw6
 				{
 				case MTL_ARG_CODE_CONST:
 				{
-					bool dobreak = false;
+					auto dobreak = false;
 					for (auto x = 0; x < 4; x++)
 					{
 						if ((tech_index >= (TECHNIQUE_LIT_DIR_SPOT + (x * 103)) && tech_index <= (TECHNIQUE_LIT_OMNI_SHADOW_OMNI_SHADOW + (x * 103))) ||
@@ -1579,12 +1579,12 @@ namespace zonetool::iw6
 								}
 							}
 						}
-						if (dobreak)
-							break;
 					}
 
 					if (dobreak)
+					{
 						break;
+					}
 
 					const auto it = const_src_code_map.find(arg->u.codeConst.index);
 					if (it != const_src_code_map.end())
