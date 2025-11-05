@@ -184,33 +184,6 @@ namespace zonetool::iw6
 					}
 				}
 
-				const auto merge_techs = [&](const std::vector<MaterialTechniqueType>& techs, const zonetool::h1::MaterialTechniqueType dest_tech)
-				{
-					if (new_asset->stateBitsEntry[dest_tech] == 0xFF)
-					{
-						for (const auto& tech : techs)
-						{
-							if (asset->stateBitsEntry[tech] != 0xFF)
-							{
-								new_asset->stateBitsEntry[dest_tech] = asset->stateBitsEntry[tech];
-								break;
-							}
-						}
-					}
-
-					if (new_asset->constantBufferIndex[dest_tech] == 0xFF)
-					{
-						for (const auto& tech : techs)
-						{
-							if (asset->constantBufferIndex[tech] != 0xFF)
-							{
-								new_asset->constantBufferIndex[dest_tech] = asset->constantBufferIndex[tech];
-								break;
-							}
-						}
-					}
-				};
-
 				new_asset->textureCount = asset->textureCount;
 				new_asset->constantCount = asset->constantCount;
 				new_asset->stateBitsCount = asset->stateBitsCount;
@@ -261,6 +234,47 @@ namespace zonetool::iw6
 						}
 					}
 				}
+
+				const auto merge_techs = [&](std::vector<MaterialTechniqueType> techs, zonetool::h1::MaterialTechniqueType dest_tech)
+				{
+					for (auto idx = 0; idx < 4; idx++)
+					{
+						const auto increase_type = [&]()
+						{
+							for (auto& s : techs)
+							{
+								s = zonetool::iw6::MaterialTechniqueType(s + 103);
+							}
+							dest_tech = zonetool::h1::MaterialTechniqueType(dest_tech + 60);
+						};
+
+						if (new_asset->stateBitsEntry[dest_tech] == 0xFF)
+						{
+							for (const auto& tech : techs)
+							{
+								if (asset->stateBitsEntry[tech] != 0xFF)
+								{
+									new_asset->stateBitsEntry[dest_tech] = asset->stateBitsEntry[tech];
+									break;
+								}
+							}
+						}
+
+						if (new_asset->constantBufferIndex[dest_tech] == 0xFF)
+						{
+							for (const auto& tech : techs)
+							{
+								if (asset->constantBufferIndex[tech] != 0xFF)
+								{
+									new_asset->constantBufferIndex[dest_tech] = asset->constantBufferIndex[tech];
+									break;
+								}
+							}
+						}
+
+						increase_type();
+					}
+				};
 
 				// nofog
 				{
