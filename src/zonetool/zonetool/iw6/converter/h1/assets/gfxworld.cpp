@@ -359,7 +359,7 @@ namespace zonetool::iw6
 					new_asset->dpvs.surfacesBounds = allocator.allocate_array<zonetool::h1::GfxSurfaceBounds>(asset->surfaceCount);
 					for (unsigned int i = 0; i < asset->surfaceCount; i++)
 					{
-						memcpy(&new_asset->dpvs.surfacesBounds[i].bounds, &asset->dpvs.surfacesBounds[i].bounds, sizeof(Bounds));
+						//memcpy(&new_asset->dpvs.surfacesBounds[i].bounds, &asset->dpvs.surfacesBounds[i].bounds, sizeof(Bounds));
 						// unk data
 						memcpy(&new_asset->dpvs.surfacesBounds[i].bounds, &asset->dpvs.surfacesBounds[i].bounds, sizeof(GfxSurfaceBounds));
 						assert(sizeof(zonetool::h1::GfxSurfaceBounds) == sizeof(zonetool::iw6::GfxSurfaceBounds));
@@ -385,19 +385,24 @@ namespace zonetool::iw6
 
 						// g_lodDistIndexToScale
 						new_asset->dpvs.smodelDrawInsts[i].flags |= zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_SCALE_9; // 1.0f
+
+						if ((new_asset->dpvs.smodelDrawInsts[i].flags & zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_REACTIVEMOTION) != 0)
+						{
+							new_asset->dpvs.smodelDrawInsts[i].reactiveMotionLOD = 6;
+						}
 					}
 
 					new_asset->dpvs.smodelLightingInsts = allocator.allocate_array<zonetool::h1::GfxStaticModelLighting>(asset->dpvs.smodelCount);
 					for (unsigned int i = 0; i < asset->dpvs.smodelCount; i++)
 					{
-						if ((new_asset->dpvs.smodelDrawInsts[i].flags & STATIC_MODEL_FLAG_VERTEXLIT_LIGHTING) != 0)
+						if ((new_asset->dpvs.smodelDrawInsts[i].flags & zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_VERTEXLIT_LIGHTING) != 0)
 						{
 							new_asset->dpvs.smodelLightingInsts[i].vertexLightingInfo.numLightingValues =
 								asset->dpvs.smodelDrawInsts[i].vertexLightingInfo.numLightingValues;
 							REINTERPRET_CAST_SAFE_TO_FROM(new_asset->dpvs.smodelLightingInsts[i].vertexLightingInfo.lightingValues,
 								asset->dpvs.smodelDrawInsts[i].vertexLightingInfo.lightingValues);
 						}
-						else if ((new_asset->dpvs.smodelDrawInsts[i].flags & STATIC_MODEL_FLAG_GROUND_LIGHTING) != 0)
+						else if ((new_asset->dpvs.smodelDrawInsts[i].flags & zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_GROUND_LIGHTING) != 0)
 						{
 							new_asset->dpvs.smodelLightingInsts[i].ambientLightingInfo.groundLighting.array[0] =
 								half_float::float_to_half(asset->dpvs.smodelDrawInsts[i].groundLighting[0]);
@@ -408,54 +413,87 @@ namespace zonetool::iw6
 							new_asset->dpvs.smodelLightingInsts[i].ambientLightingInfo.groundLighting.array[3] =
 								half_float::float_to_half(asset->dpvs.smodelDrawInsts[i].groundLighting[3]);
 						}
-						else if ((new_asset->dpvs.smodelDrawInsts[i].flags & STATIC_MODEL_FLAG_LIGHTMAP_LIGHTING) != 0)
+						else if ((new_asset->dpvs.smodelDrawInsts[i].flags & zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_LIGHTMAP_LIGHTING) != 0)
 						{
 							memcpy(&new_asset->dpvs.smodelLightingInsts[i].modelLightmapInfo,
 								&asset->dpvs.smodelDrawInsts[i].modelLightmapInfo, sizeof(GfxStaticModelLightmapInfo));
 						}
-						else if ((new_asset->dpvs.smodelDrawInsts[i].flags & STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING) != 0)
+						if ((new_asset->dpvs.smodelDrawInsts[i].flags & zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING))
 						{
-							
-						}
-
-						if (game::get_mode() == game::game_mode::iw6 &&
-							(new_asset->dpvs.smodelDrawInsts[i].flags & STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING) != 0 &&
-							(new_asset->dpvs.smodelDrawInsts[i].flags & STATIC_MODEL_FLAG_ANIMATED_VERTS) != 0)
-						{
-							if (asset->lightGrid.tableVersion != 0)
+							if (asset->dpvs.smodelDrawInsts[i].groundLighting[0] != 0 ||
+								asset->dpvs.smodelDrawInsts[i].groundLighting[1] != 0 ||
+								asset->dpvs.smodelDrawInsts[i].groundLighting[2] != 0 ||
+								asset->dpvs.smodelDrawInsts[i].groundLighting[3] != 0)
+							{
+								new_asset->dpvs.smodelLightingInsts[i].ambientLightingInfo.groundLighting.array[0] =
+									half_float::float_to_half(asset->dpvs.smodelDrawInsts[i].groundLighting[0]);
+								new_asset->dpvs.smodelLightingInsts[i].ambientLightingInfo.groundLighting.array[1] =
+									half_float::float_to_half(asset->dpvs.smodelDrawInsts[i].groundLighting[1]);
+								new_asset->dpvs.smodelLightingInsts[i].ambientLightingInfo.groundLighting.array[2] =
+									half_float::float_to_half(asset->dpvs.smodelDrawInsts[i].groundLighting[2]);
+								new_asset->dpvs.smodelLightingInsts[i].ambientLightingInfo.groundLighting.array[3] =
+									half_float::float_to_half(asset->dpvs.smodelDrawInsts[i].groundLighting[3]);
+							}
+							else if (game::get_mode() == game::game_mode::iw6)
 							{
 								auto smodel_inst = asset->dpvs.smodelInsts[i];
 								auto smodel_draw_inst = asset->dpvs.smodelDrawInsts[i];
 
-								// void R_LightGridCacheFlush(void)
-								utils::hook::invoke<void>(0x1405FBB50);
-
-								struct GfxLightGridRaw
 								{
-									unsigned int colorIndex;
-									unsigned short lightIndex;
-									unsigned char voxel;
-								};
+									// set gfxworld ptr
+									utils::hook::set(0x1480B68D8, reinterpret_cast<void*>(asset));
 
-								GfxLightGridRaw light_grid_raw{};
+									// void R_LightGridCacheFlush(void)
+									utils::hook::invoke<void>(0x1405FBB50);
 
-								auto sample_pos = smodel_inst.lightingOrigin;
-								short grid_pos[3]{};
-								grid_pos[0] = static_cast<short>((static_cast<int>(std::floor(sample_pos[0])) + 0x20000) / 32);
-								grid_pos[1] = static_cast<short>((static_cast<int>(std::floor(sample_pos[1])) + 0x20000) / 32);
-								grid_pos[2] = static_cast<short>((static_cast<int>(std::floor(sample_pos[2])) + 0x20000) / 64);
+									// R_IsValidLightGridSample
+									utils::hook::set(0x140638810, 0xC3);
 
-								// void R_GetLightGrid(const GfxLightGridTree *p_tree, const unsigned short *gridPos, GfxLightGridRaw *p_lightGrid, bool allowEmptyNode)
-								utils::hook::invoke<int>(0x1405FB6F0, &asset->lightGrid.tree, grid_pos, &light_grid_raw, 1);
+									// void R_RegisterNetworkDvars(const unsigned int flags)
+									utils::hook::invoke<void>(0x1405DE310, 0x8C);
 
-								new_asset->dpvs.smodelLightingInsts[i].ambientLightingInfo.colorIndex = light_grid_raw.colorIndex;
-								new_asset->dpvs.smodelLightingInsts[i].ambientLightingInfo.primaryLightWeight = 1.0f;
+									const auto sample_pos = smodel_inst.lightingOrigin;
+									float color_out[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+									// void R_GetAverageLightingAtPoint(float *samplePos, float *outColor)
+									utils::hook::invoke<void>(0x140636B00, sample_pos, color_out);
+
+									new_asset->dpvs.smodelLightingInsts[i].ambientLightingInfo.groundLighting.array[0] = half_float::float_to_half(color_out[0]);
+									new_asset->dpvs.smodelLightingInsts[i].ambientLightingInfo.groundLighting.array[1] = half_float::float_to_half(color_out[1]);
+									new_asset->dpvs.smodelLightingInsts[i].ambientLightingInfo.groundLighting.array[2] = half_float::float_to_half(color_out[2]);
+									new_asset->dpvs.smodelLightingInsts[i].ambientLightingInfo.groundLighting.array[3] = half_float::float_to_half(color_out[3]);
+								}
+
+								if ((new_asset->dpvs.smodelDrawInsts[i].flags & zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING) != 0 &&
+									(new_asset->dpvs.smodelDrawInsts[i].flags & zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_ANIMATED_VERTS) != 0)
+								{
+									struct GfxLightGridRaw
+									{
+										unsigned int colorIndex;
+										unsigned short lightIndex;
+										unsigned char voxel;
+									};
+
+									GfxLightGridRaw light_grid_raw{};
+
+									auto sample_pos = smodel_inst.lightingOrigin;
+									short grid_pos[3]{};
+									grid_pos[0] = static_cast<short>((static_cast<int>(std::floor(sample_pos[0])) + 0x20000) / 32);
+									grid_pos[1] = static_cast<short>((static_cast<int>(std::floor(sample_pos[1])) + 0x20000) / 32);
+									grid_pos[2] = static_cast<short>((static_cast<int>(std::floor(sample_pos[2])) + 0x20000) / 64);
+
+									// void R_GetLightGrid(const GfxLightGridTree *p_tree, const unsigned short *gridPos, GfxLightGridRaw *p_lightGrid, bool allowEmptyNode)
+									utils::hook::invoke<int>(0x1405FB6F0, &asset->lightGrid.tree, grid_pos, &light_grid_raw, 1);
+
+									new_asset->dpvs.smodelLightingInsts[i].ambientLightingInfo.colorIndex = light_grid_raw.colorIndex;
+									new_asset->dpvs.smodelLightingInsts[i].ambientLightingInfo.primaryLightWeight = 1.0f;
+								}
 							}
 						}
 					}
 					
 					new_asset->dpvs.surfaceMaterials = allocator.allocate_array<zonetool::h1::GfxDrawSurf>(asset->surfaceCount);
-					for (unsigned int i = 0; i < asset->surfaceCount; i++) // could be wrong
+					for (unsigned int i = 0; i < asset->surfaceCount; i++) // runtime data
 					{
 						new_asset->dpvs.surfaceMaterials[i].fields.objectId = asset->dpvs.surfaceMaterials[i].fields.objectId;
 						new_asset->dpvs.surfaceMaterials[i].fields.reflectionProbeIndex = asset->dpvs.surfaceMaterials[i].fields.reflectionProbeIndex;
@@ -476,9 +514,10 @@ namespace zonetool::iw6
 					COPY_VALUE(dpvs.sunShadowOptCount);
 					COPY_VALUE(dpvs.sunSurfVisDataCount);
 					REINTERPRET_CAST_SAFE(dpvs.surfaceCastsSunShadowOpt);
-					new_asset->dpvs.surfaceDeptAndSurf = allocator.allocate_array<zonetool::h1::GfxDepthAndSurf>(new_asset->dpvs.staticSurfaceCount); // todo?
+					new_asset->dpvs.surfaceDeptAndSurf = allocator.allocate_array<zonetool::h1::GfxDepthAndSurf>(new_asset->dpvs.staticSurfaceCount); // runtime data
 					REINTERPRET_CAST_SAFE(dpvs.constantBuffersLit);
 					REINTERPRET_CAST_SAFE(dpvs.constantBuffersAmbient);
+
 					COPY_VALUE(dpvs.usageCount);
 				}
 
@@ -500,15 +539,15 @@ namespace zonetool::iw6
 				COPY_VALUE(mapVtxChecksum);
 				COPY_VALUE(heroOnlyLightCount);
 				REINTERPRET_CAST_SAFE(heroOnlyLights);
-				COPY_VALUE(fogTypesAllowed);
+				new_asset->fogTypesAllowed = zonetool::h1::FOG_NORMAL | zonetool::h1::FOG_DFOG; //COPY_VALUE(fogTypesAllowed);
 				COPY_VALUE(umbraTomeSize);
 				REINTERPRET_CAST_SAFE(umbraTomeData);
 				COPY_VALUE_CAST(umbraTomePtr);
 				new_asset->mdaoVolumesCount = 0;
 				new_asset->mdaoVolumes = nullptr;
 
-				new_asset->useLightGridDefaultModelLightingLookup = false;
-				new_asset->useLightGridDefaultFXLightingLookup = false;
+				new_asset->useLightGridDefaultModelLightingLookup = true;
+				new_asset->useLightGridDefaultFXLightingLookup = true;
 				memset(&new_asset->lightGridDefaultModelLightingLookup, 0, sizeof(new_asset->lightGridDefaultModelLightingLookup));
 				memset(&new_asset->lightGridDefaultFXLightingLookup, 0, sizeof(new_asset->lightGridDefaultFXLightingLookup));
 
