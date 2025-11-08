@@ -98,6 +98,10 @@ namespace zonetool::iw6
 			//"code_post_gfx_mp",
 			//"ui_mp",
 			"common_mp",
+
+			"techsets_code_post_gfx_mp",
+			"techsets_common_mp",
+			"techsets_common_core_mp",
 		};
 
 		XZoneInfo zones[8]{ 0 };
