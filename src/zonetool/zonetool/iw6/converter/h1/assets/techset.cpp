@@ -21,6 +21,8 @@
 
 namespace _ = alys::shader::literals;
 
+//#define EXPERIMENTAL_DB_MERGE
+
 namespace zonetool::iw6
 {
 	namespace converter::h1
@@ -1214,6 +1216,32 @@ namespace zonetool::iw6
 
 			constexpr float hdr_to_ldr_scale = 1.0f / 1550.0f;
 
+			enum shader_type_flag_e : std::uint8_t
+			{
+				shader_flag_vertex_shader = 0x2,
+				shader_flag_hull_shader = 0x4,
+				shader_flag_domain_shader = 0x8,
+				shader_flag_pixel_shader = 0x10,
+			};
+
+			enum shader_type_e : std::uint32_t
+			{
+				shader_type_vertex_shader = 0,
+				shader_type_hull_shader = 2,
+				shader_type_domain_shader = 3,
+				shader_type_pixel_shader = 4,
+				shader_type_count,
+			};
+
+			enum cb_index_t
+			{
+				primitive = 0,
+				object = 1,
+				stable = 2,
+				stable_material = 3,
+				count
+			};
+
 			struct dynamic_branching_data_t
 			{
 				bool used;
@@ -1224,6 +1252,7 @@ namespace zonetool::iw6
 			{
 				std::vector<zonetool::h1::MaterialShaderArgument*> args;
 				std::uint32_t temp_index;
+				std::uint32_t cb_sizes[cb_index_t::count];
 				dynamic_branching_data_t db;
 			};
 
@@ -1390,11 +1419,29 @@ namespace zonetool::iw6
 				return true;
 			}
 
-			bool patch_shader_const(alys::shader::shader_object::assembler& a, alys::shader::detail::instruction_t& instruction, pixelshader_patch_data_t& patch_data)
+			bool patch_instruction_dcl_constant_buffer(alys::shader::shader_object::assembler& a, alys::shader::detail::instruction_t instruction, pixelshader_patch_data_t& patch_data)
+			{
+				for (std::uint32_t i = 0; i < cb_index_t::count; i++)
+				{
+					if (instruction.operands[0].indices[0].value.uint32 == i && patch_data.cb_sizes[i] != 0)
+					{
+						instruction.operands[0].indices[1].value.uint32 = patch_data.cb_sizes[i];
+					}
+				}
+
+				a(instruction);
+				return true;
+			}
+
+			bool patch_shader_const(alys::shader::shader_object::assembler& a, alys::shader::detail::instruction_t instruction, pixelshader_patch_data_t& patch_data)
 			{
 				if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_TEMPS)
 				{
 					return patch_instruction_dcl_temps(a, instruction, patch_data);
+				}
+				else if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_CONSTANT_BUFFER)
+				{
+					return patch_instruction_dcl_constant_buffer(a, instruction, patch_data);
 				}
 				else if (instruction.opcode.type < D3D10_SB_OPCODE_DCL_RESOURCE)
 				{
@@ -1432,32 +1479,6 @@ namespace zonetool::iw6
 				return new_asset;
 			}
 
-			enum shader_type_flag_e : std::uint8_t
-			{
-				shader_flag_vertex_shader = 0x2,
-				shader_flag_hull_shader = 0x4,
-				shader_flag_domain_shader = 0x8,
-				shader_flag_pixel_shader = 0x16,
-			};
-
-			enum shader_type_e : std::uint32_t
-			{
-				shader_type_vertex_shader = 0,
-				shader_type_hull_shader = 2,
-				shader_type_domain_shader = 3,
-				shader_type_pixel_shader = 4,
-				shader_type_count,
-			};
-
-			enum cb_index_t
-			{
-				primitive = 0,
-				object = 1,
-				stable = 2,
-				stable_material = 3,
-				count
-			};
-
 			bool is_light_tech_variant(const std::uint32_t tech)
 			{
 				constexpr auto stride = 60u;
@@ -1473,6 +1494,55 @@ namespace zonetool::iw6
 				}
 
 				return false;
+			}
+
+			std::uint16_t get_arg_rows(const zonetool::h1::MaterialShaderArgument& arg)
+			{
+				switch (arg.type)
+				{
+				case zonetool::h1::MTL_ARG_CODE_CONST:
+					return arg.u.codeConst.rowCount;
+				}
+
+				return 1;
+			}
+
+			void calculate_cb_sizes(zonetool::h1::MaterialPass* pass, std::uint32_t* cb_sizes, shader_type_flag_e shader_flag)
+			{
+				const auto cb_size = [&](zonetool::h1::MaterialShaderArgument& arg, cb_index_t cb_index, shader_type_flag_e shader_flag)
+				{
+					if ((arg.shader & shader_flag) != 0)
+						cb_sizes[cb_index] = std::max(cb_sizes[cb_index], static_cast<std::uint32_t>(arg.dest + get_arg_rows(arg)));
+				};
+
+				for (auto arg_i = 0; arg_i < pass->perPrimArgCount; arg_i++)
+				{
+					auto& arg = pass->args[arg_i];
+					if (arg.type == zonetool::h1::MTL_ARG_CODE_CONST || arg.type == zonetool::h1::MTL_ARG_LITERAL_CONST)
+					{
+						cb_size(arg, primitive, shader_flag);
+					}
+				}
+				for (auto arg_i = pass->perPrimArgCount; arg_i < pass->perPrimArgCount + pass->perObjArgCount; arg_i++)
+				{
+					auto& arg = pass->args[arg_i];
+					if (arg.type == zonetool::h1::MTL_ARG_CODE_CONST || arg.type == zonetool::h1::MTL_ARG_LITERAL_CONST)
+					{
+						cb_size(arg, object, shader_flag);
+					}
+				}
+				for (auto arg_i = pass->perObjArgCount + pass->perObjArgCount; arg_i < pass->perPrimArgCount + pass->perObjArgCount + pass->stableArgCount; arg_i++)
+				{
+					auto& arg = pass->args[arg_i];
+					if (arg.type == zonetool::h1::MTL_ARG_MATERIAL_CONST)
+					{
+						cb_size(arg, stable_material, shader_flag);
+					}
+					else if (arg.type == zonetool::h1::MTL_ARG_CODE_CONST || arg.type == zonetool::h1::MTL_ARG_LITERAL_CONST)
+					{
+						cb_size(arg, stable_material, shader_flag);
+					}
+				}
 			}
 
 			pixelshader_patch_data_t get_pixelshader_patch_data(zonetool::h1::MaterialPass* pass)
@@ -1531,153 +1601,9 @@ namespace zonetool::iw6
 					}
 				}
 
+				calculate_cb_sizes(pass, patch_data.cb_sizes, shader_flag_pixel_shader);
+
 				return patch_data;
-			}
-
-			zonetool::h1::MaterialShaderArgument convert_arg(MaterialTechnique* technique, utils::memory::allocator& allocator, MaterialShaderArgument* arg,
-				bool& ssr, const std::int32_t tech_index)
-			{
-				zonetool::h1::MaterialShaderArgument new_arg{};
-				std::memcpy(&new_arg, arg, sizeof(zonetool::h1::MaterialShaderArgument));
-
-				switch (arg->type)
-				{
-				case MTL_ARG_CODE_CONST:
-				{
-					auto dobreak = false;
-					for (auto x = 0; x < 4; x++)
-					{
-						if ((tech_index >= (TECHNIQUE_LIT_DIR_SPOT + (x * 103)) && tech_index <= (TECHNIQUE_LIT_OMNI_SHADOW_OMNI_SHADOW + (x * 103))) ||
-							(tech_index >= (TECHNIQUE_LIT_DIR_SPOT_DFOG + (x * 103))) && (tech_index <= (TECHNIQUE_LIT_OMNI_SHADOW_OMNI_SHADOW_DFOG + (x * 103))))
-						{
-							for (unsigned short i = 0; i < 4; i++)
-							{
-								if (arg->u.codeConst.index == (CONST_SRC_CODE_LIGHT_POSITION + (i * 7)))
-								{
-									new_arg.u.codeConst.index = zonetool::h1::CONST_SRC_CODE_LIGHT_POSITION_DB_ARRAY_0 + i;
-									dobreak = true;
-									break;
-								}
-								else if (arg->u.codeConst.index == (CONST_SRC_CODE_LIGHT_DIFFUSE + (i * 7)))
-								{
-									new_arg.u.codeConst.index = zonetool::h1::CONST_SRC_CODE_LIGHT_DIFFUSE_DB_ARRAY_0 + i;
-									dobreak = true;
-									break;
-								}
-								else if (arg->u.codeConst.index == (CONST_SRC_CODE_LIGHT_SPECULAR + (i * 7)))
-								{
-									new_arg.u.codeConst.index = zonetool::h1::CONST_SRC_CODE_LIGHT_SPECULAR_DB_ARRAY_0 + i;
-									dobreak = true;
-									break;
-								}
-								else if (arg->u.codeConst.index == (CONST_SRC_CODE_LIGHT_SPOTDIR + (i * 7)))
-								{
-									new_arg.u.codeConst.index = zonetool::h1::CONST_SRC_CODE_LIGHT_SPOTDIR_DB_ARRAY_0 + i;
-									dobreak = true;
-									break;
-								}
-								else if (arg->u.codeConst.index == (CONST_SRC_CODE_LIGHT_SPOTFACTORS + (i * 7)))
-								{
-									new_arg.u.codeConst.index = zonetool::h1::CONST_SRC_CODE_LIGHT_SPOTFACTORS_DB_ARRAY_0 + i;
-									dobreak = true;
-									break;
-								}
-								else if (arg->u.codeConst.index == (CONST_SRC_CODE_LIGHT_FALLOFF_PLACEMENT + (i * 7)))
-								{
-									new_arg.u.codeConst.index = zonetool::h1::CONST_SRC_CODE_LIGHT_FALLOFF_PLACEMENT_DB_ARRAY_0 + i;
-									dobreak = true;
-									break;
-								}
-								else if (arg->u.codeConst.index == (CONST_SRC_CODE_LIGHT_CUCOLORIS_ANIM + (i * 7)))
-								{
-									new_arg.u.codeConst.index = zonetool::h1::CONST_SRC_CODE_LIGHT_CUCOLORIS_ANIM_DB_ARRAY_0 + i;
-									dobreak = true;
-									break;
-								}
-							}
-						}
-					}
-
-					if (dobreak)
-					{
-						break;
-					}
-
-					const auto it = const_src_code_map.find(arg->u.codeConst.index);
-					if (it != const_src_code_map.end())
-					{
-						const auto index = it->second;
-						if (index >= zonetool::h1::CONST_SRC_CODE_SSR_PREV_FRAME_VIEWPROJECTION_MATRIX_R0 &&
-							index <= zonetool::h1::CONST_SRC_CODE_SSR_CLIP_TO_FADE_SCALE_OFFSET_PS &&
-							index != zonetool::h1::CONST_SRC_CODE_PREV_EYEPOSITION_TRANSFORM &&
-							index != zonetool::h1::CONST_SRC_CODE_CLIP_SPACE_LOOKUP_SCALE_AND_OFFSET)
-						{
-							ssr = true;
-						}
-
-						new_arg.u.codeConst.index = index;
-						assert(index < zonetool::h1::CONST_SRC_TOTAL_COUNT);
-					}
-					else
-					{
-						ZONETOOL_ERROR("Unable to map code constant %d for technique '%s'!",
-							arg->u.codeConst.index, technique->hdr.name);
-
-						new_arg.type = zonetool::h1::MTL_ARG_LITERAL_CONST;
-						new_arg.u.literalConst = allocator.allocate_array<float>(4);
-
-						if (const auto iter = hardcoded_consts.find(arg->u.codeConst.index); iter != hardcoded_consts.end())
-						{
-							std::memcpy(new_arg.u.literalConst, iter->second.data(), sizeof(float) * 4);
-						}
-						else
-						{
-							new_arg.u.literalConst[0] = 0.0f;
-							new_arg.u.literalConst[1] = 0.0f;
-							new_arg.u.literalConst[2] = 0.0f;
-							new_arg.u.literalConst[3] = 0.0f;
-						}
-					}
-					break;
-				}
-				case MTL_ARG_CODE_TEXTURE:
-				case MTL_ARG_CODE_SAMPLER:
-				{
-					const auto it = texture_src_code_map.find(arg->u.codeConst.index);
-					if (it != texture_src_code_map.end())
-					{
-						auto index = it->second;
-
-						if (index == zonetool::h1::TEXTURE_SRC_CODE_RESOLVED_SCENE && ssr)
-						{
-							index = zonetool::h1::TEXTURE_SRC_CODE_SSR_BUFFER;
-						}
-
-						new_arg.u.codeConst.index = index;
-						assert(index < zonetool::h1::TEXTURE_SRC_CODE_COUNT);
-					}
-					else
-					{
-						ZONETOOL_ERROR("Unable to map code sampler %d for technique '%s'!",
-							arg->u.codeConst.index, technique->hdr.name);
-						new_arg.u.codeConst.index = zonetool::h1::TEXTURE_SRC_CODE_BLACK;
-					}
-					break;
-				}
-				}
-
-				if (arg->type == MTL_ARG_LITERAL_CONST && arg->shader == 16 && arg->dest == 1 &&
-					arg->u.literalConst[0] == 0.0f &&
-					arg->u.literalConst[1] == 0.0f &&
-					arg->u.literalConst[2] == 0.0f &&
-					arg->u.literalConst[3] == 0.0f)
-				{
-					new_arg.type = zonetool::h1::MTL_ARG_MATERIAL_CONST;
-					std::memset(&new_arg.u, 0, sizeof(new_arg.u));
-					new_arg.u.nameHash = 1033475292;
-				}
-
-				return new_arg;
 			}
 
 			zonetool::h1::MaterialVertexShader* convert_ocean_vertexshader(MaterialVertexShader* asset, utils::memory::allocator& allocator,
@@ -1837,73 +1763,206 @@ namespace zonetool::iw6
 				}
 			}
 
-			void convert_tech(std::unordered_map<MaterialTechnique*, zonetool::h1::MaterialTechnique*>& converted_asset_techniques, MaterialTechniqueSet* asset,
-				zonetool::h1::MaterialTechniqueSet* new_asset, utils::memory::allocator& allocator, const std::int32_t tech_index, const std::int32_t new_tech_index)
+			zonetool::h1::MaterialShaderArgument convert_arg(MaterialTechnique* technique, utils::memory::allocator& allocator, MaterialShaderArgument* arg,
+				bool& ssr, const std::int32_t tech_index)
 			{
-				const auto technique = asset->techniques[tech_index];
-				if (technique == nullptr)
+				zonetool::h1::MaterialShaderArgument new_arg{};
+				std::memcpy(&new_arg, arg, sizeof(zonetool::h1::MaterialShaderArgument));
+
+				switch (arg->type)
 				{
-					return;
-				}
-
-				if (const auto iter = converted_asset_techniques.find(technique); iter != converted_asset_techniques.end())
+				case MTL_ARG_CODE_CONST:
 				{
-					new_asset->techniques[new_tech_index] = iter->second;
-					return;
-				}
-
-				const auto size = sizeof(MaterialTechniqueHeader) + sizeof(MaterialPass) * asset->techniques[tech_index]->hdr.passCount;
-				new_asset->techniques[new_tech_index] = allocator.manual_allocate<zonetool::h1::MaterialTechnique>(size);
-
-				const auto new_technique = new_asset->techniques[new_tech_index];
-
-				std::memcpy(new_technique, technique, size); // same struct
-
-				new_technique->hdr.name = allocator.duplicate_string(game::add_source_postfix(technique->hdr.name, game::iw6));
-
-				const auto is_ocean_tech = std::strstr(technique->hdr.name, "ocean") != nullptr;
-
-				for (unsigned short pass_index = 0; pass_index < technique->hdr.passCount; pass_index++)
-				{
-					const auto pass = &technique->passArray[pass_index];
-					const auto new_pass = &new_technique->passArray[pass_index];
-
-					if (pass->args)
+					auto dobreak = false;
+					for (auto x = 0; x < 4; x++)
 					{
-						auto ssr = false; // screen space reflections
-
-						std::vector<zonetool::h1::MaterialShaderArgument> prim_args;
-						std::vector<zonetool::h1::MaterialShaderArgument> obj_args;
-						std::vector<zonetool::h1::MaterialShaderArgument> stable_args;
-
-						for (auto i = 0u; i < pass->perPrimArgCount; ++i)
+						if ((tech_index >= (TECHNIQUE_LIT_DIR_SPOT + (x * 103)) && tech_index <= (TECHNIQUE_LIT_OMNI_SHADOW_OMNI_SHADOW + (x * 103))) ||
+							(tech_index >= (TECHNIQUE_LIT_DIR_SPOT_DFOG + (x * 103))) && (tech_index <= (TECHNIQUE_LIT_OMNI_SHADOW_OMNI_SHADOW_DFOG + (x * 103))))
 						{
-							const auto arg = &pass->args[i];
-							const auto new_arg = convert_arg(technique, allocator, arg, ssr, tech_index);
-							prim_args.emplace_back(new_arg);
+							for (unsigned short i = 0; i < 4; i++)
+							{
+								if (arg->u.codeConst.index == (CONST_SRC_CODE_LIGHT_POSITION + (i * 7)))
+								{
+									new_arg.u.codeConst.index = zonetool::h1::CONST_SRC_CODE_LIGHT_POSITION_DB_ARRAY_0 + i;
+									dobreak = true;
+									break;
+								}
+								else if (arg->u.codeConst.index == (CONST_SRC_CODE_LIGHT_DIFFUSE + (i * 7)))
+								{
+									new_arg.u.codeConst.index = zonetool::h1::CONST_SRC_CODE_LIGHT_DIFFUSE_DB_ARRAY_0 + i;
+									dobreak = true;
+									break;
+								}
+								else if (arg->u.codeConst.index == (CONST_SRC_CODE_LIGHT_SPECULAR + (i * 7)))
+								{
+									new_arg.u.codeConst.index = zonetool::h1::CONST_SRC_CODE_LIGHT_SPECULAR_DB_ARRAY_0 + i;
+									dobreak = true;
+									break;
+								}
+								else if (arg->u.codeConst.index == (CONST_SRC_CODE_LIGHT_SPOTDIR + (i * 7)))
+								{
+									new_arg.u.codeConst.index = zonetool::h1::CONST_SRC_CODE_LIGHT_SPOTDIR_DB_ARRAY_0 + i;
+									dobreak = true;
+									break;
+								}
+								else if (arg->u.codeConst.index == (CONST_SRC_CODE_LIGHT_SPOTFACTORS + (i * 7)))
+								{
+									new_arg.u.codeConst.index = zonetool::h1::CONST_SRC_CODE_LIGHT_SPOTFACTORS_DB_ARRAY_0 + i;
+									dobreak = true;
+									break;
+								}
+								else if (arg->u.codeConst.index == (CONST_SRC_CODE_LIGHT_FALLOFF_PLACEMENT + (i * 7)))
+								{
+									new_arg.u.codeConst.index = zonetool::h1::CONST_SRC_CODE_LIGHT_FALLOFF_PLACEMENT_DB_ARRAY_0 + i;
+									dobreak = true;
+									break;
+								}
+								else if (arg->u.codeConst.index == (CONST_SRC_CODE_LIGHT_CUCOLORIS_ANIM + (i * 7)))
+								{
+									new_arg.u.codeConst.index = zonetool::h1::CONST_SRC_CODE_LIGHT_CUCOLORIS_ANIM_DB_ARRAY_0 + i;
+									dobreak = true;
+									break;
+								}
+							}
 						}
-
-						for (auto i = 0u; i < pass->perObjArgCount; ++i)
-						{
-							const auto arg = &pass->args[pass->perPrimArgCount + i];
-							const auto new_arg = convert_arg(technique, allocator, arg, ssr, tech_index);
-							obj_args.emplace_back(new_arg);
-						}
-
-						for (auto i = 0u; i < pass->stableArgCount; ++i)
-						{
-							const auto arg = &pass->args[pass->perPrimArgCount + pass->perObjArgCount + i];
-							const auto new_arg = convert_arg(technique, allocator, arg, ssr, tech_index);
-							stable_args.emplace_back(new_arg);
-						}
-
-						if (is_ocean_tech && pass->vertexShader != nullptr && pass->vertexShader->prog.loadDef.program != nullptr)
-						{
-							patch_ocean_tech(allocator, technique, pass, new_pass, stable_args);
-						}
-
-						add_args_to_pass(new_pass, allocator, prim_args, obj_args, stable_args);
 					}
+
+					if (dobreak)
+					{
+						break;
+					}
+
+					const auto it = const_src_code_map.find(arg->u.codeConst.index);
+					if (it != const_src_code_map.end())
+					{
+						const auto index = it->second;
+						if (index >= zonetool::h1::CONST_SRC_CODE_SSR_PREV_FRAME_VIEWPROJECTION_MATRIX_R0 &&
+							index <= zonetool::h1::CONST_SRC_CODE_SSR_CLIP_TO_FADE_SCALE_OFFSET_PS &&
+							index != zonetool::h1::CONST_SRC_CODE_PREV_EYEPOSITION_TRANSFORM &&
+							index != zonetool::h1::CONST_SRC_CODE_CLIP_SPACE_LOOKUP_SCALE_AND_OFFSET)
+						{
+							ssr = true;
+						}
+
+						new_arg.u.codeConst.index = index;
+						assert(index < zonetool::h1::CONST_SRC_TOTAL_COUNT);
+					}
+					else
+					{
+						ZONETOOL_ERROR("Unable to map code constant %d for technique '%s'!",
+							arg->u.codeConst.index, technique->hdr.name);
+
+						new_arg.type = zonetool::h1::MTL_ARG_LITERAL_CONST;
+						new_arg.u.literalConst = allocator.allocate_array<float>(4);
+
+						if (const auto iter = hardcoded_consts.find(arg->u.codeConst.index); iter != hardcoded_consts.end())
+						{
+							std::memcpy(new_arg.u.literalConst, iter->second.data(), sizeof(float) * 4);
+						}
+						else
+						{
+							new_arg.u.literalConst[0] = 0.0f;
+							new_arg.u.literalConst[1] = 0.0f;
+							new_arg.u.literalConst[2] = 0.0f;
+							new_arg.u.literalConst[3] = 0.0f;
+						}
+					}
+					break;
+				}
+				case MTL_ARG_CODE_TEXTURE:
+				case MTL_ARG_CODE_SAMPLER:
+				{
+					const auto it = texture_src_code_map.find(arg->u.codeConst.index);
+					if (it != texture_src_code_map.end())
+					{
+						auto index = it->second;
+
+						if (index == zonetool::h1::TEXTURE_SRC_CODE_RESOLVED_SCENE && ssr)
+						{
+							index = zonetool::h1::TEXTURE_SRC_CODE_SSR_BUFFER;
+						}
+
+						new_arg.u.codeConst.index = index;
+						assert(index < zonetool::h1::TEXTURE_SRC_CODE_COUNT);
+					}
+					else
+					{
+						ZONETOOL_ERROR("Unable to map code sampler %d for technique '%s'!",
+							arg->u.codeConst.index, technique->hdr.name);
+						new_arg.u.codeConst.index = zonetool::h1::TEXTURE_SRC_CODE_BLACK;
+					}
+					break;
+				}
+				}
+
+				if (arg->type == MTL_ARG_LITERAL_CONST && arg->shader == 16 && arg->dest == 1 &&
+					arg->u.literalConst[0] == 0.0f &&
+					arg->u.literalConst[1] == 0.0f &&
+					arg->u.literalConst[2] == 0.0f &&
+					arg->u.literalConst[3] == 0.0f)
+				{
+					new_arg.type = zonetool::h1::MTL_ARG_MATERIAL_CONST;
+					std::memset(&new_arg.u, 0, sizeof(new_arg.u));
+					new_arg.u.nameHash = 1033475292;
+				}
+
+				return new_arg;
+			}
+
+			void convert_pass(MaterialTechnique* technique, bool is_ocean_tech, MaterialPass* pass,
+				zonetool::h1::MaterialPass* new_pass, utils::memory::allocator& allocator, const std::int32_t tech_index, const std::int32_t new_tech_index,
+				bool add_dyn_types_const)
+			{
+				if (pass->args)
+				{
+					auto ssr = false; // screen space reflections
+
+					std::vector<zonetool::h1::MaterialShaderArgument> prim_args;
+					std::vector<zonetool::h1::MaterialShaderArgument> obj_args;
+					std::vector<zonetool::h1::MaterialShaderArgument> stable_args;
+
+					for (auto i = 0u; i < pass->perPrimArgCount; ++i)
+					{
+						const auto arg = &pass->args[i];
+						const auto new_arg = convert_arg(technique, allocator, arg, ssr, tech_index);
+						prim_args.emplace_back(new_arg);
+					}
+
+					for (auto i = 0u; i < pass->perObjArgCount; ++i)
+					{
+						const auto arg = &pass->args[pass->perPrimArgCount + i];
+						const auto new_arg = convert_arg(technique, allocator, arg, ssr, tech_index);
+						obj_args.emplace_back(new_arg);
+					}
+
+					for (auto i = 0u; i < pass->stableArgCount; ++i)
+					{
+						const auto arg = &pass->args[pass->perPrimArgCount + pass->perObjArgCount + i];
+						const auto new_arg = convert_arg(technique, allocator, arg, ssr, tech_index);
+						stable_args.emplace_back(new_arg);
+					}
+
+					if (is_ocean_tech && pass->vertexShader != nullptr && pass->vertexShader->prog.loadDef.program != nullptr)
+					{
+						patch_ocean_tech(allocator, technique, pass, new_pass, stable_args);
+					}
+
+					if (add_dyn_types_const)
+					{
+						const auto cb1_size = pass->perObjArgSize / 16;
+						//ZONETOOL_INFO("adding light_dyn_types to %s %i", technique->hdr.name, cb1_size);
+
+						zonetool::h1::MaterialShaderArgument arg{};
+						arg.type = zonetool::h1::MTL_ARG_CODE_CONST;
+						arg.shader |= shader_flag_pixel_shader;
+						arg.dest = static_cast<std::uint16_t>(cb1_size);
+						arg.u.codeConst.firstRow = 0;
+						arg.u.codeConst.rowCount = 1;
+						arg.u.codeConst.index = zonetool::h1::CONST_SRC_CODE_LIGHT_DYN_TYPES;
+						obj_args.emplace_back(arg);
+					}
+
+					add_args_to_pass(new_pass, allocator, prim_args, obj_args, stable_args);
 
 					if (pass->vertexShader)
 					{
@@ -1940,10 +1999,47 @@ namespace zonetool::iw6
 						}
 					}
 				}
+			}
+
+			void convert_tech(std::unordered_map<MaterialTechnique*, zonetool::h1::MaterialTechnique*>& converted_asset_techniques, MaterialTechniqueSet* asset,
+				zonetool::h1::MaterialTechniqueSet* new_asset, utils::memory::allocator& allocator, const std::int32_t tech_index, const std::int32_t new_tech_index, 
+				bool add_dyn_types_const = false)
+			{
+				const auto technique = asset->techniques[tech_index];
+				if (technique == nullptr)
+				{
+					return;
+				}
+
+				if (const auto iter = converted_asset_techniques.find(technique); iter != converted_asset_techniques.end())
+				{
+					new_asset->techniques[new_tech_index] = iter->second;
+					return;
+				}
+
+				const auto size = sizeof(MaterialTechniqueHeader) + sizeof(MaterialPass) * asset->techniques[tech_index]->hdr.passCount;
+				new_asset->techniques[new_tech_index] = allocator.manual_allocate<zonetool::h1::MaterialTechnique>(size);
+
+				const auto new_technique = new_asset->techniques[new_tech_index];
+
+				std::memcpy(new_technique, technique, size); // same struct
+
+				new_technique->hdr.name = allocator.duplicate_string(game::add_source_postfix(technique->hdr.name, game::iw6));
+
+				const auto is_ocean_tech = std::strstr(technique->hdr.name, "ocean") != nullptr;
+
+				for (unsigned short pass_index = 0; pass_index < technique->hdr.passCount; pass_index++)
+				{
+					const auto pass = &technique->passArray[pass_index];
+					const auto new_pass = &new_technique->passArray[pass_index];
+
+					convert_pass(technique, is_ocean_tech, pass, new_pass, allocator, tech_index, new_tech_index, add_dyn_types_const);
+				}
 
 				converted_asset_techniques[technique] = new_technique;
 			}
 
+#ifdef EXPERIMENTAL_DB_MERGE
 			struct merge_data_t
 			{
 				MaterialTechniqueType type;
@@ -2248,11 +2344,6 @@ namespace zonetool::iw6
 									continue;
 								}
 
-								if (op.indices[1].representation != D3D10_SB_OPERAND_INDEX_IMMEDIATE32)
-								{
-									continue;
-								}
-
 								const auto cb_slot = op.indices[0].value.uint32;
 								size_t idx = static_cast<size_t>(cb_slot);
 
@@ -2415,11 +2506,11 @@ namespace zonetool::iw6
 
 									if (t == 1)
 									{
-										//decl.opcode.controls = D3D10_SB_RESOURCE_DIMENSION_TEXTURECUBE;
+										decl.opcode.controls = D3D10_SB_RESOURCE_DIMENSION_TEXTURECUBE;
 									}
 									else
 									{
-										//decl.opcode.controls = D3D10_SB_RESOURCE_DIMENSION_TEXTURE2D;
+										decl.opcode.controls = D3D10_SB_RESOURCE_DIMENSION_TEXTURE2D;
 									}
 
 									a(decl);
@@ -2460,14 +2551,13 @@ namespace zonetool::iw6
 												}
 											}
 										}
-										
 									}
 
 									decl.operands[0].indices[0].value.uint32 = t;
 
 									if (sampler_comparison_map.contains(static_cast<std::uint16_t>(t)))
 									{
-										//decl.opcode.controls = D3D10_SB_SAMPLER_MODE_COMPARISON;
+										decl.opcode.controls = D3D10_SB_SAMPLER_MODE_COMPARISON;
 									}
 
 									a(decl);
@@ -2569,9 +2659,6 @@ namespace zonetool::iw6
 			{
 				if (techs.empty()) return nullptr;
 
-				// use the best tech as base...
-				//std::swap(techs[0], techs[techs.size() - 1]);
-
 				auto* base_tech = techs[0].tech;
 				const auto technique_name = prefix + asset->name;
 				const auto ps_name = "ps_"s + prefix + asset->name;
@@ -2614,6 +2701,43 @@ namespace zonetool::iw6
 					new_pass->pixelShader = converter::h1::pixelshader::convert(pass->pixelShader, allocator);
 				}
 
+				bool uses_reflection_probe = false;
+				bool uses_lmap_primary = false;
+				bool uses_lmap_secondary = false;
+				std::uint32_t sampler_flags = 0;
+				for (auto& tech : techs)
+				{
+					sampler_flags |= tech.tech->passArray[0].customSamplerFlags;
+				}
+				if ((sampler_flags & 0x1) != 0)
+				{
+					uses_reflection_probe = true;
+				}
+				if ((sampler_flags & 0x2) != 0)
+				{
+					uses_lmap_primary = true;
+				}
+				if ((sampler_flags & 0x4) != 0)
+				{
+					uses_lmap_secondary = true;
+				}
+				const auto increase_sampler_index = [&](std::uint16_t& index)
+				{
+					if (uses_reflection_probe && index == 0)
+					{
+						++index;
+					}
+					if (uses_lmap_primary && index == 1)
+					{
+						++index;
+					}
+					if (uses_lmap_secondary && index == 2)
+					{
+						++index;
+					}
+					++index;
+				};
+
 				assert(pass->args);
 				std::vector<zonetool::h1::MaterialShaderArgument> prim_args;
 				std::vector<zonetool::h1::MaterialShaderArgument> obj_args;
@@ -2621,26 +2745,15 @@ namespace zonetool::iw6
 				bool ssr{};
 
 				std::unordered_map<std::uint32_t, std::uint16_t> added_resource_map{};
-				std::uint16_t resource_index = 0;
+				std::uint16_t resource_index = 4;
 
 				std::unordered_map<std::uint32_t, std::uint16_t> added_sampler_map{};
-				std::uint16_t sampler_index = 0;
+				std::uint16_t sampler_index = 4;
 
 				std::unordered_map<std::uint16_t, bool> sampler_comparison_map;
 
 				std::unordered_map<std::uint32_t, std::uint16_t> added_arg_map[cb_index_t::count][zonetool::h1::MTL_ARG_COUNT]; // <identifier, dest>
 				std::uint16_t dest_index[cb_index_t::count]{};
-
-				const auto get_arg_rows = [](const zonetool::h1::MaterialShaderArgument& arg) -> std::uint16_t
-				{
-					switch (arg.type)
-					{
-					case zonetool::h1::MTL_ARG_CODE_CONST:
-						return arg.u.codeConst.rowCount;
-					}
-
-					return 1;
-				};
 
 				const auto get_arg_identifier = [](const zonetool::h1::MaterialShaderArgument& arg) -> std::uint32_t
 				{
@@ -2666,15 +2779,9 @@ namespace zonetool::iw6
 					}
 				};
 
-				bool has_db_tech = false;
 				unsigned short tech_index = 0;
 				for (auto& tech : techs)
 				{
-					if (is_db_tech(tech.type))
-					{
-						has_db_tech = true;
-					}
-
 					const auto add_arg =
 						[&](zonetool::h1::MaterialShaderArgument& arg,
 							std::vector<zonetool::h1::MaterialShaderArgument>& args,
@@ -2725,14 +2832,10 @@ namespace zonetool::iw6
 							}
 
 							arg.dest = dest_index[cb_index];
-							const auto rows = get_arg_rows(arg);
-							dest_index[cb_index] = static_cast<std::uint16_t>(dest_index[cb_index] + rows);
-
-							for (std::uint16_t row = 0; row < rows; ++row)
-								tech.dest_map[cb_index][old_dest + row] = static_cast<std::uint16_t>(arg.dest + row);
+							dest_index[cb_index]++;
+							tech.dest_map[cb_index][old_dest] = arg.dest;
 
 							args.emplace_back(arg);
-							added_arg_map[cb_index][arg.type][identifier] = arg.dest;
 							return;
 						}
 
@@ -2741,13 +2844,16 @@ namespace zonetool::iw6
 							if (auto it = added_arg_map[cb_index][arg.type].find(identifier);
 								it != added_arg_map[cb_index][arg.type].end())
 							{
-								assert(arg.dest == it->second);
+								//assert(arg.dest == it->second);
 								combine_shader_flags(arg.shader, identifier, args);
 								tech.dest_map[cb_index][old_dest] = it->second;
 								return;
 							}
 
+							//arg.dest = dest_index[cb_index];
+							//dest_index[cb_index]++;
 							tech.dest_map[cb_index][old_dest] = arg.dest;
+
 							args.emplace_back(arg);
 							added_arg_map[cb_index][arg.type][identifier] = arg.dest;
 							return;
@@ -2766,8 +2872,7 @@ namespace zonetool::iw6
 							}
 
 							arg.dest = resource_index;
-							if (resource_index == 0) resource_index = 4;
-							else ++resource_index;
+							increase_sampler_index(resource_index);
 							tech.resource_map[old_dest] = arg.dest;
 							added_resource_map.emplace(identifier, arg.dest);
 							args.emplace_back(arg);
@@ -2788,8 +2893,7 @@ namespace zonetool::iw6
 							}
 
 							arg.dest = sampler_index;
-							if(sampler_index == 0) sampler_index = 4;
-							else ++sampler_index;
+							increase_sampler_index(sampler_index);
 							tech.sampler_map[old_dest] = arg.dest;
 							added_sampler_map.emplace(identifier, arg.dest);
 
@@ -2821,29 +2925,31 @@ namespace zonetool::iw6
 
 					if (p->pixelShader && (p->pixelShader->prog.loadDef.program == nullptr))
 					{
-						ZONETOOL_FATAL("Cannot dump this zone without having the following zones loaded: \ncode_post_gfx_mp, \ntechsets_code_post_gxf_mp, \ntechsets_common_mp, \ntechsets_common_core_mp");
+						ZONETOOL_FATAL("Cannot dump this zone without having the following zones loaded: \ncode_post_gfx_mp, \ntechsets_code_post_gfx_mp, \ntechsets_common_mp, \ntechsets_common_core_mp");
 					}
 					else if (p->vertexShader && (p->vertexShader->prog.loadDef.program == nullptr))
 					{
-						ZONETOOL_FATAL("Cannot dump this zone without having the following zones loaded: \ncode_post_gfx_mp, \ntechsets_code_post_gxf_mp, \ntechsets_common_mp, \ntechsets_common_core_mp");
+						ZONETOOL_FATAL("Cannot dump this zone without having the following zones loaded: \ncode_post_gfx_mp, \ntechsets_code_post_gfx_mp, \ntechsets_common_mp, \ntechsets_common_core_mp");
 					}
 					else if (p->domainShader && (p->domainShader->prog.loadDef.program == nullptr))
 					{
-						ZONETOOL_FATAL("Cannot dump this zone without having the following zones loaded: \ncode_post_gfx_mp, \ntechsets_code_post_gxf_mp, \ntechsets_common_mp, \ntechsets_common_core_mp");
+						ZONETOOL_FATAL("Cannot dump this zone without having the following zones loaded: \ncode_post_gfx_mp, \ntechsets_code_post_gfx_mp, \ntechsets_common_mp, \ntechsets_common_core_mp");
 					}
 					else if (p->hullShader && (p->hullShader->prog.loadDef.program == nullptr))
 					{
-						ZONETOOL_FATAL("Cannot dump this zone without having the following zones loaded: \ncode_post_gfx_mp, \ntechsets_code_post_gxf_mp, \ntechsets_common_mp, \ntechsets_common_core_mp");
+						ZONETOOL_FATAL("Cannot dump this zone without having the following zones loaded: \ncode_post_gfx_mp, \ntechsets_code_post_gfx_mp, \ntechsets_common_mp, \ntechsets_common_core_mp");
 					}
 
-					new_pass->pixelOutputMask |= p->pixelOutputMask;
+					assert(pass->vertexDecl == p->vertexDecl);
 
+					new_pass->pixelOutputMask |= p->pixelOutputMask;
+					
 					new_pass->customSamplerFlags |= p->customSamplerFlags;
 					new_pass->customBufferFlags |= p->customBufferFlags;
-
+					
 					assert(new_pass->stageConfig == p->stageConfig);
 					new_pass->stageConfig = p->stageConfig;
-
+					
 					assert(new_pass->precompiledIndex == p->precompiledIndex);
 					new_pass->precompiledIndex = p->precompiledIndex;
 
@@ -2908,24 +3014,21 @@ namespace zonetool::iw6
 					return dest;
 				};
 
-				if (has_db_tech)
+				for (auto& arg : obj_args)
 				{
-					for (auto& arg : obj_args)
+					if (arg.type == zonetool::h1::MTL_ARG_CODE_CONST)
 					{
-						if (arg.type == zonetool::h1::MTL_ARG_CODE_CONST)
+						if (arg.u.codeConst.index == zonetool::h1::CONST_SRC_CODE_LIGHT_DYN_TYPES)
 						{
-							if (arg.u.codeConst.index == zonetool::h1::CONST_SRC_CODE_LIGHT_DYN_TYPES)
-							{
-								LIGHT_DYN_TYPES_DEST = arg.dest;
-							}
-							else if (arg.u.codeConst.index == zonetool::h1::CONST_SRC_CODE_LIGHT_DYN_SHADOW_TYPES)
-							{
-								LIGHT_DYN_SHADOW_TYPES_DEST = arg.dest;
-							}
-							else if (arg.u.codeConst.index == zonetool::h1::CONST_SRC_CODE_LIGHT_DYN_COUNT)
-							{
-								LIGHT_DYN_COUNT_DEST = arg.dest;
-							}
+							LIGHT_DYN_TYPES_DEST = arg.dest;
+						}
+						else if (arg.u.codeConst.index == zonetool::h1::CONST_SRC_CODE_LIGHT_DYN_SHADOW_TYPES)
+						{
+							LIGHT_DYN_SHADOW_TYPES_DEST = arg.dest;
+						}
+						else if (arg.u.codeConst.index == zonetool::h1::CONST_SRC_CODE_LIGHT_DYN_COUNT)
+						{
+							LIGHT_DYN_COUNT_DEST = arg.dest;
 						}
 					}
 				}
@@ -2947,11 +3050,13 @@ namespace zonetool::iw6
 				assert(LIGHT_DYN_SHADOW_TYPES_DEST);
 				assert(LIGHT_DYN_COUNT_DEST);
 
+				const auto has_tessellation = new_pass->stageConfig == 1;
+
 				const auto add_db_shader_flags = [&](std::uint16_t index)
 				{
 					std::uint8_t shader_flags = shader_flag_pixel_shader | shader_flag_vertex_shader;
-					if (pass->hullShader) shader_flags |= shader_flag_hull_shader;
-					if (pass->domainShader) shader_flags |= shader_flag_domain_shader;
+					if (pass->hullShader || has_tessellation) shader_flags |= shader_flag_hull_shader;
+					if (pass->domainShader || has_tessellation) shader_flags |= shader_flag_domain_shader;
 					combine_shader_flags(shader_flags, make_id_code_const(index, 0, 1), obj_args);
 				};
 				add_db_shader_flags(zonetool::h1::CONST_SRC_CODE_LIGHT_DYN_TYPES);
@@ -2961,82 +3066,31 @@ namespace zonetool::iw6
 				add_args_to_pass(new_pass, allocator, prim_args, obj_args, stable_args);
 
 				std::uint32_t cb_sizes[shader_type_e::shader_type_count][cb_index_t::count]{};
-				const auto calculate_cb_sizes = [&]()
-				{
-					const auto cb_size = [&](zonetool::h1::MaterialShaderArgument& arg, cb_index_t cb_index, shader_type_e shader, shader_type_flag_e shader_flag)
-					{
-						if ((arg.shader & shader_flag) != 0)
-							cb_sizes[shader][cb_index] = std::max(cb_sizes[shader][cb_index], static_cast<std::uint32_t>(arg.dest + get_arg_rows(arg)));
-					};
+				calculate_cb_sizes(new_pass, cb_sizes[shader_type_vertex_shader], shader_flag_vertex_shader);
+				calculate_cb_sizes(new_pass, cb_sizes[shader_type_hull_shader], shader_flag_hull_shader);
+				calculate_cb_sizes(new_pass, cb_sizes[shader_type_domain_shader], shader_flag_domain_shader);
+				calculate_cb_sizes(new_pass, cb_sizes[shader_type_pixel_shader], shader_flag_pixel_shader);
 
-					for (auto& arg : prim_args)
-					{
-						if (arg.type == zonetool::h1::MTL_ARG_CODE_CONST || arg.type == zonetool::h1::MTL_ARG_LITERAL_CONST)
-						{
-							cb_size(arg, primitive, shader_type_vertex_shader, shader_flag_vertex_shader);
-							cb_size(arg, primitive, shader_type_hull_shader, shader_flag_hull_shader);
-							cb_size(arg, primitive, shader_type_domain_shader, shader_flag_domain_shader);
-							cb_size(arg, primitive, shader_type_pixel_shader, shader_flag_pixel_shader);
-						}
-					}
-					for (auto& arg : obj_args)
-					{
-						if (arg.type == zonetool::h1::MTL_ARG_CODE_CONST || arg.type == zonetool::h1::MTL_ARG_LITERAL_CONST)
-						{
-							cb_size(arg, object, shader_type_vertex_shader, shader_flag_vertex_shader);
-							cb_size(arg, object, shader_type_hull_shader, shader_flag_hull_shader);
-							cb_size(arg, object, shader_type_domain_shader, shader_flag_domain_shader);
-							cb_size(arg, object, shader_type_pixel_shader, shader_flag_pixel_shader);
-						}
-					}
-					for (auto& arg : stable_args)
-					{
-						if (arg.type == zonetool::h1::MTL_ARG_MATERIAL_CONST)
-						{
-							cb_size(arg, stable_material, shader_type_vertex_shader, shader_flag_vertex_shader);
-							cb_size(arg, stable_material, shader_type_hull_shader, shader_flag_hull_shader);
-							cb_size(arg, stable_material, shader_type_domain_shader, shader_flag_domain_shader);
-							cb_size(arg, stable_material, shader_type_pixel_shader, shader_flag_pixel_shader);
-						}
-						else if (arg.type == zonetool::h1::MTL_ARG_CODE_CONST || arg.type == zonetool::h1::MTL_ARG_LITERAL_CONST)
-						{
-							cb_size(arg, stable, shader_type_vertex_shader, shader_flag_vertex_shader);
-							cb_size(arg, stable, shader_type_hull_shader, shader_flag_hull_shader);
-							cb_size(arg, stable, shader_type_domain_shader, shader_flag_domain_shader);
-							cb_size(arg, stable, shader_type_pixel_shader, shader_flag_pixel_shader);
-						}
-					}
-				};
-				calculate_cb_sizes();
-
-				std::uint16_t max_sampler = 0;
-				for (auto& arg : stable_args)
-				{
-					if (arg.type == zonetool::h1::MTL_ARG_MATERIAL_SAMPLER || arg.type == zonetool::h1::MTL_ARG_CODE_SAMPLER)
-					{
-						max_sampler = std::max(max_sampler, arg.dest);
-					}
-				}
-				max_sampler += 1;
-				assert(max_sampler < 16);
+				assert(sampler_index < 16);
+				assert(resource_index < 128);
 
 				assert(new_pass->pixelShader);
 				assert(new_pass->vertexShader);
 
 				convert_merge_db_shader(new_pass, techs, asset, allocator, LIGHT_DYN_TYPES_DEST, LIGHT_DYN_SHADOW_TYPES_DEST, LIGHT_DYN_COUNT_DEST, 
-					cb_sizes[shader_type_pixel_shader], resource_index, max_sampler, sampler_comparison_map, shader_type_pixel_shader);
+					cb_sizes[shader_type_pixel_shader], resource_index, sampler_index, sampler_comparison_map, shader_type_pixel_shader);
 				auto patch_data = get_pixelshader_patch_data(new_pass);
 				new_pass->pixelShader = convert_pixelshader((zonetool::iw6::MaterialPixelShader*)new_pass->pixelShader, allocator, patch_data);
 				new_pass->pixelShader->name = allocator.duplicate_string(ps_name);
 				zonetool::h1::pixel_shader::dump(new_pass->pixelShader);
 
 				convert_merge_db_shader(new_pass, techs, asset, allocator, LIGHT_DYN_TYPES_DEST, LIGHT_DYN_SHADOW_TYPES_DEST, LIGHT_DYN_COUNT_DEST, 
-					cb_sizes[shader_type_vertex_shader], resource_index, max_sampler, sampler_comparison_map, shader_type_vertex_shader);
+					cb_sizes[shader_type_vertex_shader], resource_index, sampler_index, sampler_comparison_map, shader_type_vertex_shader);
 				new_pass->vertexShader->name = allocator.duplicate_string(vs_name);
 				zonetool::h1::vertex_shader::dump(new_pass->vertexShader);
 
 				convert_merge_db_shader(new_pass, techs, asset, allocator, LIGHT_DYN_TYPES_DEST, LIGHT_DYN_SHADOW_TYPES_DEST, LIGHT_DYN_COUNT_DEST,
-					cb_sizes[shader_type_hull_shader], resource_index, max_sampler, sampler_comparison_map, shader_type_hull_shader);
+					cb_sizes[shader_type_hull_shader], resource_index, sampler_index, sampler_comparison_map, shader_type_hull_shader);
 				if (new_pass->hullShader)
 				{
 					new_pass->hullShader->name = allocator.duplicate_string(hs_name);
@@ -3044,7 +3098,7 @@ namespace zonetool::iw6
 				}
 				
 				convert_merge_db_shader(new_pass, techs, asset, allocator, LIGHT_DYN_TYPES_DEST, LIGHT_DYN_SHADOW_TYPES_DEST, LIGHT_DYN_COUNT_DEST,
-					cb_sizes[shader_type_domain_shader], resource_index, max_sampler, sampler_comparison_map, shader_type_domain_shader);
+					cb_sizes[shader_type_domain_shader], resource_index, sampler_index, sampler_comparison_map, shader_type_domain_shader);
 				if (new_pass->domainShader)
 				{
 					new_pass->domainShader->name = allocator.duplicate_string(ds_name);
@@ -3103,6 +3157,7 @@ namespace zonetool::iw6
 				prefix += "_";
 				return prefix;
 			}
+#endif
 
 			zonetool::h1::MaterialTechniqueSet* convert(MaterialTechniqueSet* asset, utils::memory::allocator& allocator)
 			{
@@ -3126,6 +3181,7 @@ namespace zonetool::iw6
 					convert_tech(converted_asset_techniques, asset, new_asset, allocator, i, iter->second);
 				}
 
+#ifdef EXPERIMENTAL_DB_MERGE
 				const auto merge_techs = [&](std::vector<MaterialTechniqueType> source, zonetool::h1::MaterialTechniqueType dest)
 				{
 					for (auto idx = 0; idx < 4; idx++)
@@ -3138,12 +3194,6 @@ namespace zonetool::iw6
 							}
 							dest = zonetool::h1::MaterialTechniqueType(dest + 60);
 						};
-
-						//if (new_asset->techniques[dest] != nullptr)
-						//{
-						//	increase_type();
-						//	continue;
-						//}
 
 						std::vector<merge_data_t> techs_to_merge;
 						for (auto& techidx : source)
@@ -3287,6 +3337,128 @@ namespace zonetool::iw6
 					//	},
 					//	zonetool::h1::TECHNIQUE_LIT_DYNAMIC_BRANCHING_CUCOLORIS_DFOG);
 				}
+#else
+				const auto merge_techs = [&](const std::vector<MaterialTechniqueType>& techniques, const zonetool::h1::MaterialTechniqueType dest_tech)
+				{
+					if (new_asset->techniques[dest_tech] != nullptr)
+					{
+						return;
+					}
+
+					MaterialTechnique* first_valid_tech = nullptr;
+					auto first_valid_tech_type = 0;
+					for (const auto tech_index : techniques)
+					{
+						if (asset->techniques[tech_index] != nullptr)
+						{
+							first_valid_tech = asset->techniques[tech_index];
+							first_valid_tech_type = tech_index;
+							break;
+						}
+					}
+
+					if (first_valid_tech == nullptr || first_valid_tech->hdr.passCount != 1)
+					{
+						return;
+					}
+
+					const auto size = sizeof(MaterialTechniqueHeader) + sizeof(MaterialPass) * techniques.size();
+					new_asset->techniques[dest_tech] = allocator.manual_allocate<zonetool::h1::MaterialTechnique>(size);
+
+					const auto new_technique = new_asset->techniques[dest_tech];
+					std::memcpy(new_technique, first_valid_tech, sizeof(MaterialTechniqueHeader));
+					const std::string name = new_technique->hdr.name + "_to_db"s;
+					new_technique->hdr.name = allocator.duplicate_string(game::add_source_postfix(name, game::iw6));
+					new_technique->hdr.passCount = static_cast<std::uint16_t>(techniques.size());
+
+					for (auto i = 0ull; i < techniques.size(); i++)
+					{
+						const auto tech_index = techniques[i];
+						const auto technique = asset->techniques[tech_index];
+						const auto new_pass = &new_technique->passArray[i];
+						const auto base_pass = &first_valid_tech->passArray[0];
+
+						if (technique != nullptr)
+						{
+							const auto pass = &technique->passArray[0];
+							new_technique->hdr.flags |= technique->hdr.flags;
+							std::memcpy(new_pass, pass, sizeof(MaterialPass));
+							convert_pass(technique, false, pass, new_pass, allocator, tech_index, dest_tech, true);
+						}
+						else
+						{
+							std::memcpy(new_pass, base_pass, sizeof(MaterialPass));
+							convert_pass(first_valid_tech, false, base_pass, new_pass, allocator, first_valid_tech_type, dest_tech, true);
+						}
+					}
+				};
+
+				// nofog
+				{
+					merge_techs(
+						{
+							TECHNIQUE_LIT_DIR_SPOT,
+							TECHNIQUE_LIT_DIR_SPOT_SHADOW,
+							TECHNIQUE_LIT_DIR_OMNI,
+							TECHNIQUE_LIT_DIR_OMNI_SHADOW,
+							TECHNIQUE_LIT_DIR_SHADOW_SPOT,
+							TECHNIQUE_LIT_DIR_SHADOW_SPOT_SHADOW,
+							TECHNIQUE_LIT_DIR_SHADOW_OMNI,
+							TECHNIQUE_LIT_DIR_SHADOW_OMNI_SHADOW,
+						},
+						zonetool::h1::TECHNIQUE_LIT_SUN_DYNAMIC_BRANCHING);
+
+					merge_techs(
+						{
+							TECHNIQUE_LIT_SPOT_SPOT,
+							TECHNIQUE_LIT_SPOT_SPOT_SHADOW,
+							TECHNIQUE_LIT_SPOT_OMNI,
+							TECHNIQUE_LIT_SPOT_OMNI_SHADOW,
+							TECHNIQUE_LIT_SPOT_SHADOW_SPOT,
+							TECHNIQUE_LIT_SPOT_SHADOW_SPOT_SHADOW,
+							TECHNIQUE_LIT_SPOT_SHADOW_OMNI,
+							TECHNIQUE_LIT_SPOT_SHADOW_OMNI_SHADOW,
+							TECHNIQUE_LIT_OMNI_OMNI,
+							TECHNIQUE_LIT_OMNI_OMNI_SHADOW,
+							TECHNIQUE_LIT_OMNI_SHADOW_OMNI,
+							TECHNIQUE_LIT_OMNI_SHADOW_OMNI_SHADOW,
+						},
+						zonetool::h1::TECHNIQUE_LIT_DYNAMIC_BRANCHING);
+				}
+
+				// fog
+				{
+					merge_techs(
+						{
+							TECHNIQUE_LIT_DIR_SPOT_DFOG,
+							TECHNIQUE_LIT_DIR_SPOT_SHADOW_DFOG,
+							TECHNIQUE_LIT_DIR_OMNI_DFOG,
+							TECHNIQUE_LIT_DIR_OMNI_SHADOW_DFOG,
+							TECHNIQUE_LIT_DIR_SHADOW_SPOT_DFOG,
+							TECHNIQUE_LIT_DIR_SHADOW_SPOT_SHADOW_DFOG,
+							TECHNIQUE_LIT_DIR_SHADOW_OMNI_DFOG,
+							TECHNIQUE_LIT_DIR_SHADOW_OMNI_SHADOW_DFOG,
+						},
+						zonetool::h1::TECHNIQUE_LIT_SUN_DYNAMIC_BRANCHING_DFOG);
+
+					merge_techs(
+						{
+							TECHNIQUE_LIT_SPOT_SPOT_DFOG,
+							TECHNIQUE_LIT_SPOT_SPOT_SHADOW_DFOG,
+							TECHNIQUE_LIT_SPOT_OMNI_DFOG,
+							TECHNIQUE_LIT_SPOT_OMNI_SHADOW_DFOG,
+							TECHNIQUE_LIT_SPOT_SHADOW_SPOT_DFOG,
+							TECHNIQUE_LIT_SPOT_SHADOW_SPOT_SHADOW_DFOG,
+							TECHNIQUE_LIT_SPOT_SHADOW_OMNI_DFOG,
+							TECHNIQUE_LIT_SPOT_SHADOW_OMNI_SHADOW_DFOG,
+							TECHNIQUE_LIT_OMNI_OMNI_DFOG,
+							TECHNIQUE_LIT_OMNI_OMNI_SHADOW_DFOG,
+							TECHNIQUE_LIT_OMNI_SHADOW_OMNI_DFOG,
+							TECHNIQUE_LIT_OMNI_SHADOW_OMNI_SHADOW_DFOG,
+						},
+						zonetool::h1::TECHNIQUE_LIT_DYNAMIC_BRANCHING_DFOG);
+				}
+#endif
 
 				return new_asset;
 			}
