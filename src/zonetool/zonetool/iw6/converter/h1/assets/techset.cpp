@@ -21,7 +21,7 @@
 
 namespace _ = alys::shader::literals;
 
-//#define EXPERIMENTAL_DB_MERGE
+#define EXPERIMENTAL_DB_MERGE
 
 namespace zonetool::iw6
 {
@@ -1507,40 +1507,53 @@ namespace zonetool::iw6
 				return 1;
 			}
 
-			void calculate_cb_sizes(zonetool::h1::MaterialPass* pass, std::uint32_t* cb_sizes, shader_type_flag_e shader_flag)
+			void calculate_cb_sizes(const zonetool::h1::MaterialPass* pass, std::uint32_t* cb_sizes, shader_type_flag_e shader_flag)
 			{
-				const auto cb_size = [&](zonetool::h1::MaterialShaderArgument& arg, cb_index_t cb_index, shader_type_flag_e shader_flag)
+				const auto bump = [&](const zonetool::h1::MaterialShaderArgument& arg,
+					cb_index_t cb_index)
 				{
-					if ((arg.shader & shader_flag) != 0)
-						cb_sizes[cb_index] = std::max(cb_sizes[cb_index], static_cast<std::uint32_t>(arg.dest + get_arg_rows(arg)));
+					if (arg.shader & shader_flag)
+						cb_sizes[cb_index] = std::max(cb_sizes[cb_index],
+							static_cast<std::uint32_t>(arg.dest + get_arg_rows(arg)));
 				};
 
-				for (auto arg_i = 0; arg_i < pass->perPrimArgCount; arg_i++)
+				// prim
+				const std::size_t primStart = 0;
+				const std::size_t primEnd = pass->perPrimArgCount;
+				for (std::size_t i = primStart; i < primEnd; ++i)
 				{
-					auto& arg = pass->args[arg_i];
+					const auto& arg = pass->args[i];
 					if (arg.type == zonetool::h1::MTL_ARG_CODE_CONST || arg.type == zonetool::h1::MTL_ARG_LITERAL_CONST)
 					{
-						cb_size(arg, primitive, shader_flag);
+						bump(arg, primitive);
 					}
 				}
-				for (auto arg_i = pass->perPrimArgCount; arg_i < pass->perPrimArgCount + pass->perObjArgCount; arg_i++)
+
+				// obj
+				const std::size_t objStart = pass->perPrimArgCount;
+				const std::size_t objEnd = objStart + pass->perObjArgCount;
+				for (std::size_t i = objStart; i < objEnd; ++i)
 				{
-					auto& arg = pass->args[arg_i];
+					const auto& arg = pass->args[i];
 					if (arg.type == zonetool::h1::MTL_ARG_CODE_CONST || arg.type == zonetool::h1::MTL_ARG_LITERAL_CONST)
 					{
-						cb_size(arg, object, shader_flag);
+						bump(arg, object);
 					}
 				}
-				for (auto arg_i = pass->perObjArgCount + pass->perObjArgCount; arg_i < pass->perPrimArgCount + pass->perObjArgCount + pass->stableArgCount; arg_i++)
+
+				// stable
+				const std::size_t stableStart = objEnd;
+				const std::size_t stableEnd = stableStart + pass->stableArgCount;
+				for (std::size_t i = stableStart; i < stableEnd; ++i)
 				{
-					auto& arg = pass->args[arg_i];
-					if (arg.type == zonetool::h1::MTL_ARG_MATERIAL_CONST)
+					const auto& arg = pass->args[i];
+					if (arg.type == zonetool::h1::MTL_ARG_MATERIAL_CONST) 
 					{
-						cb_size(arg, stable_material, shader_flag);
+						bump(arg, stable_material);
 					}
 					else if (arg.type == zonetool::h1::MTL_ARG_CODE_CONST || arg.type == zonetool::h1::MTL_ARG_LITERAL_CONST)
 					{
-						cb_size(arg, stable_material, shader_flag);
+						bump(arg, stable);
 					}
 				}
 			}
@@ -2044,9 +2057,9 @@ namespace zonetool::iw6
 			{
 				MaterialTechniqueType type;
 				MaterialTechnique* tech;
-				std::unordered_map<std::uint16_t, std::uint16_t> dest_map[cb_index_t::count];
-				std::unordered_map<std::uint16_t, std::uint16_t> resource_map;
-				std::unordered_map<std::uint16_t, std::uint16_t> sampler_map;
+				std::unordered_map<std::uint16_t, std::uint16_t> dest_map[shader_type_e::shader_type_count][cb_index_t::count];
+				std::unordered_map<std::uint16_t, std::uint16_t> resource_map[shader_type_e::shader_type_count];
+				std::unordered_map<std::uint16_t, std::uint16_t> sampler_map[shader_type_e::shader_type_count];
 				std::vector<alys::shader::detail::instruction_t> instructions;
 				std::vector<alys::shader::detail::instruction_t> samplers;
 				std::vector<alys::shader::detail::instruction_t> resources;
@@ -2360,7 +2373,7 @@ namespace zonetool::iw6
 
 								const auto dest = static_cast<std::uint16_t>(dest_u32);
 
-								auto& map = tech.dest_map[idx];
+								auto& map = tech.dest_map[shader][idx];
 								auto it = map.find(dest);
 								if (it != map.end())
 								{
@@ -2380,7 +2393,7 @@ namespace zonetool::iw6
 								}
 
 								const auto resource_id = op.indices[0].value.uint32;
-								auto& map = tech.resource_map;
+								auto& map = tech.resource_map[shader];
 								auto it = map.find(static_cast<std::uint16_t>(resource_id));
 								if (it != map.end())
 								{
@@ -2400,7 +2413,7 @@ namespace zonetool::iw6
 								}
 
 								const auto sampler_id = op.indices[0].value.uint32;
-								auto& map = tech.sampler_map;
+								auto& map = tech.sampler_map[shader];
 								auto it = map.find(static_cast<std::uint16_t>(sampler_id));
 								if (it != map.end())
 								{
@@ -2487,7 +2500,7 @@ namespace zonetool::iw6
 
 									for (auto& tech : techs)
 									{
-										for (auto& resource : tech.resource_map)
+										for (auto& resource : tech.resource_map[shader])
 										{
 											if (resource.second == t)
 											{
@@ -2538,7 +2551,7 @@ namespace zonetool::iw6
 
 									for (auto& tech : techs)
 									{
-										for (auto& sampler : tech.sampler_map)
+										for (auto& sampler : tech.sampler_map[shader])
 										{
 											if (sampler.second == t)
 											{
@@ -2644,14 +2657,29 @@ namespace zonetool::iw6
 				return (std::uint32_t(zonetool::h1::MTL_ARG_CODE_SAMPLER) << 24) | code;
 			}
 
-			static inline std::uint32_t make_id_mat_tex(std::uint32_t nameHash) 
+			static inline std::uint32_t make_id_mat_tex(std::uint32_t nameHash, std::uint8_t shader)
 			{
-				return (std::uint32_t(zonetool::h1::MTL_ARG_MATERIAL_TEXTURE) << 24) | (nameHash & 0x00FFFFFF);
+				return (std::uint32_t(zonetool::h1::MTL_ARG_MATERIAL_TEXTURE) << 24) |
+					(std::uint32_t(shader) << 16) | nameHash;
 			}
 
-			static inline std::uint32_t make_id_mat_samp(std::uint32_t nameHash) 
+			static inline std::uint32_t make_id_mat_samp(std::uint32_t nameHash)
 			{
-				return (std::uint32_t(zonetool::h1::MTL_ARG_MATERIAL_SAMPLER) << 24) | (nameHash & 0x00FFFFFF);
+				return (std::uint32_t(zonetool::h1::MTL_ARG_MATERIAL_SAMPLER) << 24) | nameHash;
+			}
+
+			std::vector<std::uint32_t> get_shaders_for_arg(zonetool::h1::MaterialShaderArgument& arg)
+			{
+				std::vector<std::uint32_t> shaders;
+				if(arg.shader & shader_flag_vertex_shader)
+					shaders.push_back(shader_type_vertex_shader);
+				if (arg.shader & shader_flag_hull_shader)
+					shaders.push_back(shader_type_hull_shader);
+				if (arg.shader & shader_flag_domain_shader)
+					shaders.push_back(shader_type_domain_shader);
+				if (arg.shader & shader_flag_pixel_shader)
+					shaders.push_back(shader_type_pixel_shader);
+				return shaders;
 			}
 
 			zonetool::h1::MaterialTechnique* merge_db_techs(std::vector<merge_data_t> techs, MaterialTechniqueSet* asset, utils::memory::allocator& allocator,
@@ -2745,10 +2773,10 @@ namespace zonetool::iw6
 				bool ssr{};
 
 				std::unordered_map<std::uint32_t, std::uint16_t> added_resource_map{};
-				std::uint16_t resource_index = 4;
+				std::uint16_t resource_index = 0;
 
 				std::unordered_map<std::uint32_t, std::uint16_t> added_sampler_map{};
-				std::uint16_t sampler_index = 4;
+				std::uint16_t sampler_index = 0;
 
 				std::unordered_map<std::uint16_t, bool> sampler_comparison_map;
 
@@ -2762,7 +2790,7 @@ namespace zonetool::iw6
 					case zonetool::h1::MTL_ARG_CODE_CONST:    return make_id_code_const(arg.u.codeConst.index, arg.u.codeConst.firstRow, arg.u.codeConst.rowCount);
 					case zonetool::h1::MTL_ARG_CODE_TEXTURE:  return make_id_code_tex(arg.u.codeSampler);
 					case zonetool::h1::MTL_ARG_CODE_SAMPLER:  return make_id_code_samp(arg.u.codeSampler);
-					case zonetool::h1::MTL_ARG_MATERIAL_TEXTURE: return make_id_mat_tex(arg.u.nameHash);
+					case zonetool::h1::MTL_ARG_MATERIAL_TEXTURE: return make_id_mat_tex(arg.u.nameHash, arg.shader);
 					case zonetool::h1::MTL_ARG_MATERIAL_SAMPLER: return make_id_mat_samp(arg.u.nameHash);
 					default: return (std::uint32_t(arg.type) << 24) | (arg.u.nameHash & 0x00FFFFFF);
 					}
@@ -2798,8 +2826,14 @@ namespace zonetool::iw6
 								combine_shader_flags(arg.shader, identifier, args);
 								const auto base = it->second;
 								const auto rows = get_arg_rows(arg);
-								for (std::uint16_t row = 0; row < rows; ++row)
-									tech.dest_map[cb_index][old_dest + row] = static_cast<std::uint16_t>(base + row);
+
+								auto shaders = get_shaders_for_arg(arg);
+								for (auto shader : shaders)
+								{
+									for (std::uint16_t row = 0; row < rows; ++row)
+										tech.dest_map[shader][cb_index][old_dest + row] = static_cast<std::uint16_t>(base + row);
+								}
+
 								return;
 							}
 
@@ -2807,8 +2841,12 @@ namespace zonetool::iw6
 							const auto rows = get_arg_rows(arg);
 							dest_index[cb_index] = static_cast<std::uint16_t>(dest_index[cb_index] + rows);
 
-							for (std::uint16_t row = 0; row < rows; ++row)
-								tech.dest_map[cb_index][old_dest + row] = static_cast<std::uint16_t>(arg.dest + row);
+							auto shaders = get_shaders_for_arg(arg);
+							for (auto shader : shaders)
+							{
+								for (std::uint16_t row = 0; row < rows; ++row)
+									tech.dest_map[shader][cb_index][old_dest + row] = static_cast<std::uint16_t>(arg.dest + row);
+							}
 
 							args.emplace_back(arg);
 							added_arg_map[cb_index][arg.type][identifier] = arg.dest;
@@ -2826,14 +2864,25 @@ namespace zonetool::iw6
 									added_arg.u.literalConst[3] == arg.u.literalConst[3])
 								{
 									added_arg.shader |= arg.shader;
-									tech.dest_map[cb_index][old_dest] = added_arg.dest;
+
+									auto shaders = get_shaders_for_arg(arg);
+									for (auto shader : shaders)
+									{
+										tech.dest_map[shader][cb_index][old_dest] = added_arg.dest;
+									}
+
 									return;
 								}
 							}
 
 							arg.dest = dest_index[cb_index];
 							dest_index[cb_index]++;
-							tech.dest_map[cb_index][old_dest] = arg.dest;
+
+							auto shaders = get_shaders_for_arg(arg);
+							for (auto shader : shaders)
+							{
+								tech.dest_map[shader][cb_index][old_dest] = arg.dest;
+							}
 
 							args.emplace_back(arg);
 							return;
@@ -2846,13 +2895,24 @@ namespace zonetool::iw6
 							{
 								//assert(arg.dest == it->second);
 								combine_shader_flags(arg.shader, identifier, args);
-								tech.dest_map[cb_index][old_dest] = it->second;
+
+								auto shaders = get_shaders_for_arg(arg);
+								for (auto shader : shaders)
+								{
+									tech.dest_map[shader][cb_index][old_dest] = it->second;
+								}
+								
 								return;
 							}
 
 							//arg.dest = dest_index[cb_index];
 							//dest_index[cb_index]++;
-							tech.dest_map[cb_index][old_dest] = arg.dest;
+
+							auto shaders = get_shaders_for_arg(arg);
+							for (auto shader : shaders)
+							{
+								tech.dest_map[shader][cb_index][old_dest] = arg.dest;
+							}
 
 							args.emplace_back(arg);
 							added_arg_map[cb_index][arg.type][identifier] = arg.dest;
@@ -2864,16 +2924,29 @@ namespace zonetool::iw6
 							if (auto it = added_resource_map.find(identifier); it != added_resource_map.end())
 							{
 								arg.dest = it->second;
-								tech.resource_map[old_dest] = arg.dest;
+
+								auto shaders = get_shaders_for_arg(arg);
+								for (auto shader : shaders)
+								{
+									tech.resource_map[shader][old_dest] = arg.dest;
+								}
+
 								//assert(arg.dest > 3);
-								combine_shader_flags(arg.shader, identifier, args);
+								if (arg.type == zonetool::h1::MTL_ARG_CODE_TEXTURE)
+									combine_shader_flags(arg.shader, identifier, args);
 								added_arg_map[cb_index][arg.type][identifier] = arg.dest;
 								return;
 							}
-
+							
 							arg.dest = resource_index;
 							increase_sampler_index(resource_index);
-							tech.resource_map[old_dest] = arg.dest;
+							
+							auto shaders = get_shaders_for_arg(arg);
+							for (auto shader : shaders)
+							{
+								tech.resource_map[shader][old_dest] = arg.dest;
+							}
+
 							added_resource_map.emplace(identifier, arg.dest);
 							args.emplace_back(arg);
 							added_arg_map[cb_index][arg.type][identifier] = arg.dest;
@@ -2885,7 +2958,13 @@ namespace zonetool::iw6
 							if (auto it = added_sampler_map.find(identifier); it != added_sampler_map.end())
 							{
 								arg.dest = it->second;
-								tech.sampler_map[old_dest] = arg.dest;
+								
+								auto shaders = get_shaders_for_arg(arg);
+								for (auto shader : shaders)
+								{
+									tech.sampler_map[shader][old_dest] = arg.dest;
+								}
+
 								//assert(arg.dest > 3);
 								combine_shader_flags(arg.shader, identifier, args);
 								added_arg_map[cb_index][arg.type][identifier] = arg.dest;
@@ -2894,7 +2973,13 @@ namespace zonetool::iw6
 
 							arg.dest = sampler_index;
 							increase_sampler_index(sampler_index);
-							tech.sampler_map[old_dest] = arg.dest;
+							
+							auto shaders = get_shaders_for_arg(arg);
+							for (auto shader : shaders)
+							{
+								tech.sampler_map[shader][old_dest] = arg.dest;
+							}
+
 							added_sampler_map.emplace(identifier, arg.dest);
 
 							if (arg.type == zonetool::h1::MTL_ARG_CODE_SAMPLER)
@@ -3070,6 +3155,20 @@ namespace zonetool::iw6
 				calculate_cb_sizes(new_pass, cb_sizes[shader_type_hull_shader], shader_flag_hull_shader);
 				calculate_cb_sizes(new_pass, cb_sizes[shader_type_domain_shader], shader_flag_domain_shader);
 				calculate_cb_sizes(new_pass, cb_sizes[shader_type_pixel_shader], shader_flag_pixel_shader);
+
+				const auto calculate_max_sampler_index = [&](std::uint16_t& max_index,
+					const std::unordered_map<std::uint32_t, std::uint16_t>& added_map)
+				{
+					for (auto& pair : added_map)
+					{
+						if (pair.second >= max_index)
+						{
+							max_index = static_cast<std::uint16_t>(pair.second + 1);
+						}
+					}
+				};
+				calculate_max_sampler_index(resource_index, added_resource_map);
+				calculate_max_sampler_index(sampler_index, added_sampler_map);
 
 				assert(sampler_index < 16);
 				assert(resource_index < 128);
