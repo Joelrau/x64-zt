@@ -2063,6 +2063,8 @@ namespace zonetool::iw6
 				std::vector<alys::shader::detail::instruction_t> instructions;
 				std::vector<alys::shader::detail::instruction_t> samplers;
 				std::vector<alys::shader::detail::instruction_t> resources;
+				std::vector<alys::shader::detail::instruction_t> inputs;
+				std::vector<alys::shader::detail::instruction_t> outputs;
 			};
 
 			bool is_dcl_opcode(std::uint32_t opcode_type)
@@ -2288,6 +2290,10 @@ namespace zonetool::iw6
 				for (auto& tech : techs)
 				{
 					tech.instructions.clear();
+					tech.samplers.clear();
+					tech.resources.clear();
+					tech.inputs.clear();
+					tech.outputs.clear();
 				}
 
 				auto** fake_shader_array = &pass->vertexShader;
@@ -2303,289 +2309,63 @@ namespace zonetool::iw6
 					auto* shader_ptr = shader_array[shader];
 					if (!shader_ptr) continue;
 
-					const auto data = std::string{reinterpret_cast<char*>(shader_ptr->prog.loadDef.program),
-						shader_ptr->prog.loadDef.programSize};
+					const auto data = std::string{ reinterpret_cast<char*>(shader_ptr->prog.loadDef.program),
+						shader_ptr->prog.loadDef.programSize };
 
 					alys::shader::patch_shader(data,
-						[&](alys::shader::shader_object::assembler& a, alys::shader::detail::instruction_t& instruction) 
+						[&](alys::shader::shader_object::assembler& a, alys::shader::detail::instruction_t& instruction)
 						-> bool
+					{
+						if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_SAMPLER)
 						{
-							if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_SAMPLER)
-							{
-								tech.samplers.push_back(instruction);
-								return false;
-							}
-
-							else if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_RESOURCE)
-							{
-								tech.resources.push_back(instruction);
-								return false;
-							}
-
-							else if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_CONSTANT_BUFFER)
-							{
-								auto cb_index = instruction.operands[0].indices[0].value.uint32;
-								if (cb_index >= cb_index_t::count)
-								{
-									return false;
-								}
-
-								if (instruction.opcode.controls == D3D10_SB_CONSTANT_BUFFER_DYNAMIC_INDEXED)
-								{
-									dynamic_cb[cb_index] = true;
-								}
-
-								return false;
-							}
-
-							else if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_TEMPS)
-							{
-								temps_count = std::max(temps_count, instruction.operands[0].custom.u.value);
-							}
-
-							if (is_header_opcode(instruction))
-							{
-								return false;
-							}
-
-							//alys::shader::detail::print_instruction(instruction);
-
-							for (auto& op : instruction.operands)
-							{
-								if (op.type != D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER)
-								{
-									continue;
-								}
-
-								const auto cb_slot = op.indices[0].value.uint32;
-								size_t idx = static_cast<size_t>(cb_slot);
-
-								if (cb_slot >= cb_index_t::count)
-								{
-									continue;
-								}
-
-								const auto dest_u32 = op.indices[1].value.uint32;
-								if (dest_u32 > std::numeric_limits<std::uint16_t>::max())
-								{
-									continue;
-								}
-
-								const auto dest = static_cast<std::uint16_t>(dest_u32);
-
-								auto& map = tech.dest_map[shader][idx];
-								auto it = map.find(dest);
-								if (it != map.end())
-								{
-									op.indices[1].value.uint32 = static_cast<std::uint32_t>(it->second);
-								}
-								else
-								{
-									__debugbreak();
-								}
-							}
-
-							for (auto& op : instruction.operands)
-							{
-								if (op.type != D3D10_SB_OPERAND_TYPE_RESOURCE)
-								{
-									continue;
-								}
-
-								const auto resource_id = op.indices[0].value.uint32;
-								auto& map = tech.resource_map[shader];
-								auto it = map.find(static_cast<std::uint16_t>(resource_id));
-								if (it != map.end())
-								{
-									op.indices[0].value.uint32 = static_cast<std::uint32_t>(it->second);
-								}
-								else if (resource_id > 3)
-								{
-									__debugbreak();
-								}
-							}
-
-							for (auto& op : instruction.operands)
-							{
-								if (op.type != D3D10_SB_OPERAND_TYPE_SAMPLER)
-								{
-									continue;
-								}
-
-								const auto sampler_id = op.indices[0].value.uint32;
-								auto& map = tech.sampler_map[shader];
-								auto it = map.find(static_cast<std::uint16_t>(sampler_id));
-								if (it != map.end())
-								{
-									op.indices[0].value.uint32 = static_cast<std::uint32_t>(it->second);
-								}
-								else if (sampler_id > 3)
-								{
-									__debugbreak();
-								}
-							}
-
-							tech.instructions.push_back(instruction);
+							tech.samplers.push_back(instruction);
 							return false;
 						}
-					);
-				}
 
-				auto once = false;
-				auto inserted_cb = false;
-				auto inserted_resources = false;
-				auto inserted_samplers = false;
-
-				const auto data = std::string{reinterpret_cast<char*>(fake_shader->prog.loadDef.program), fake_shader->prog.loadDef.programSize};
-				const auto buffer = alys::shader::patch_shader(data,
-					[&](alys::shader::shader_object::assembler& a, alys::shader::detail::instruction_t& instruction) 
-					-> bool
-					{
-						if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_CONSTANT_BUFFER)
-						{
-							if (instruction.operands[0].indices[0].value.uint32 >= cb_index_t::count)
-							{
-								return false;
-							}
-
-							if (inserted_cb)
-							{
-								return true;
-							}
-
-							inserted_cb = true;
-
-							std::uint32_t cb_index = primitive;
-							for (cb_index; cb_index < cb_index_t::count; cb_index++)
-							{
-								if (max_cb[cb_index])
-								{
-									instruction.operands[0].indices[0].value.uint32 = cb_index;
-									instruction.operands[0].indices[1].value.uint32 = max_cb[cb_index];
-
-									if (dynamic_cb[cb_index])
-									{
-										instruction.opcode.controls = D3D10_SB_CONSTANT_BUFFER_DYNAMIC_INDEXED;
-									}
-									else
-									{
-										instruction.opcode.controls = D3D10_SB_CONSTANT_BUFFER_IMMEDIATE_INDEXED;
-									}
-
-									a(instruction);
-								}
-							}
-
-							return true;
-						}
 						else if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_RESOURCE)
 						{
-							if (instruction.operands.size() < 2)
+							tech.resources.push_back(instruction);
+							return false;
+						}
+
+						else if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_INPUT ||
+							instruction.opcode.type == D3D10_SB_OPCODE_DCL_INPUT_SGV ||
+							instruction.opcode.type == D3D10_SB_OPCODE_DCL_INPUT_SIV ||
+							instruction.opcode.type == D3D10_SB_OPCODE_DCL_INPUT_PS ||
+							instruction.opcode.type == D3D10_SB_OPCODE_DCL_INPUT_PS_SGV ||
+							instruction.opcode.type == D3D10_SB_OPCODE_DCL_INPUT_PS_SIV)
+						{
+							tech.inputs.push_back(instruction);
+							return false;
+						}
+
+						else if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_OUTPUT ||
+							instruction.opcode.type == D3D10_SB_OPCODE_DCL_OUTPUT_SGV ||
+							instruction.opcode.type == D3D10_SB_OPCODE_DCL_OUTPUT_SIV)
+						{
+							tech.outputs.push_back(instruction);
+							return false;
+						}
+
+						else if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_CONSTANT_BUFFER)
+						{
+							auto cb_index = instruction.operands[0].indices[0].value.uint32;
+							if (cb_index >= cb_index_t::count)
 							{
 								return false;
 							}
 
-							if (inserted_resources)
+							if (instruction.opcode.controls == D3D10_SB_CONSTANT_BUFFER_DYNAMIC_INDEXED)
 							{
-								return true;
-							}
-
-							if (!inserted_resources)
-							{
-								inserted_resources = true;
-
-								for (uint32_t t = 0; t < max_resources; ++t)
-								{
-									auto decl = instruction;
-
-									for (auto& tech : techs)
-									{
-										for (auto& resource : tech.resource_map[shader])
-										{
-											if (resource.second == t)
-											{
-												for (auto& ins : tech.resources)
-												{
-													if (ins.operands[0].indices[0].value.uint32 == resource.first)
-													{
-														decl = ins;
-													}
-												}
-											}
-										}
-									}
-
-									decl.operands[0].indices[0].value.uint32 = t;
-
-									if (t == 1)
-									{
-										decl.opcode.controls = D3D10_SB_RESOURCE_DIMENSION_TEXTURECUBE;
-									}
-									else
-									{
-										decl.opcode.controls = D3D10_SB_RESOURCE_DIMENSION_TEXTURE2D;
-									}
-
-									a(decl);
-								}
-
-								return true;
+								dynamic_cb[cb_index] = true;
 							}
 
 							return false;
 						}
-						else if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_SAMPLER)
-						{
-							if (inserted_samplers)
-							{
-								return true;
-							}
 
-							if (!inserted_samplers)
-							{
-								inserted_samplers = true;
-
-								for (auto t = 0u; t < max_samplers; ++t)
-								{
-									auto decl = instruction;
-
-									for (auto& tech : techs)
-									{
-										for (auto& sampler : tech.sampler_map[shader])
-										{
-											if (sampler.second == t)
-											{
-												for (auto& ins : tech.samplers)
-												{
-													if (ins.operands[0].indices[0].value.uint32 == sampler.first)
-													{
-														decl = ins;
-													}
-												}
-											}
-										}
-									}
-
-									decl.operands[0].indices[0].value.uint32 = t;
-
-									if (sampler_comparison_map.contains(static_cast<std::uint16_t>(t)))
-									{
-										decl.opcode.controls = D3D10_SB_SAMPLER_MODE_COMPARISON;
-									}
-
-									a(decl);
-								}
-
-								return true;
-							}
-
-							return false;
-						}
 						else if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_TEMPS)
 						{
-							instruction.operands[0].custom.u.value = temps_count;
-							a(instruction);
-							return true;
+							temps_count = std::max(temps_count, instruction.operands[0].custom.u.value);
 						}
 
 						if (is_header_opcode(instruction))
@@ -2593,34 +2373,369 @@ namespace zonetool::iw6
 							return false;
 						}
 
-						if (once)
+						//alys::shader::detail::print_instruction(instruction);
+
+						for (auto& op : instruction.operands)
+						{
+							if (op.type != D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER)
+							{
+								continue;
+							}
+
+							const auto cb_slot = op.indices[0].value.uint32;
+							size_t idx = static_cast<size_t>(cb_slot);
+
+							if (cb_slot >= cb_index_t::count)
+							{
+								continue;
+							}
+
+							const auto dest_u32 = op.indices[1].value.uint32;
+							if (dest_u32 > std::numeric_limits<std::uint16_t>::max())
+							{
+								continue;
+							}
+
+							const auto dest = static_cast<std::uint16_t>(dest_u32);
+
+							auto& map = tech.dest_map[shader][idx];
+							auto it = map.find(dest);
+							if (it != map.end())
+							{
+								op.indices[1].value.uint32 = static_cast<std::uint32_t>(it->second);
+							}
+							else
+							{
+								__debugbreak();
+							}
+						}
+
+						for (auto& op : instruction.operands)
+						{
+							if (op.type != D3D10_SB_OPERAND_TYPE_RESOURCE)
+							{
+								continue;
+							}
+
+							const auto resource_id = op.indices[0].value.uint32;
+							auto& map = tech.resource_map[shader];
+							auto it = map.find(static_cast<std::uint16_t>(resource_id));
+							if (it != map.end())
+							{
+								op.indices[0].value.uint32 = static_cast<std::uint32_t>(it->second);
+							}
+							else if (resource_id > 3)
+							{
+								__debugbreak();
+							}
+						}
+
+						for (auto& op : instruction.operands)
+						{
+							if (op.type != D3D10_SB_OPERAND_TYPE_SAMPLER)
+							{
+								continue;
+							}
+
+							const auto sampler_id = op.indices[0].value.uint32;
+							auto& map = tech.sampler_map[shader];
+							auto it = map.find(static_cast<std::uint16_t>(sampler_id));
+							if (it != map.end())
+							{
+								op.indices[0].value.uint32 = static_cast<std::uint32_t>(it->second);
+							}
+							else if (sampler_id > 3)
+							{
+								__debugbreak();
+							}
+						}
+
+						tech.instructions.push_back(instruction);
+						return false;
+					}
+					);
+				}
+
+				std::size_t max_inputs = 0;
+				std::size_t max_outputs = 0;
+
+				for (auto& tech : techs)
+				{
+					max_inputs = std::max(max_inputs, tech.inputs.size());
+					max_outputs = std::max(max_outputs, tech.outputs.size());
+				}
+
+				auto once = false;
+				auto inserted_cb = false;
+				auto inserted_resources = false;
+				auto inserted_samplers = false;
+				auto inserted_inputs = false;
+				auto inserted_outputs = false;
+
+				const auto data = std::string{ reinterpret_cast<char*>(fake_shader->prog.loadDef.program), fake_shader->prog.loadDef.programSize };
+				const auto buffer = alys::shader::patch_shader(data,
+					[&](alys::shader::shader_object::assembler& a, alys::shader::detail::instruction_t& instruction)
+					-> bool
+				{
+					auto get_component_count = [](const alys::shader::detail::operand_t& operand)
+					{
+						const auto mask = operand.components.mask;
+						return ((mask & (1 << D3D10_SB_4_COMPONENT_X)) ? 1 : 0) +
+							((mask & (1 << D3D10_SB_4_COMPONENT_Y)) ? 1 : 0) +
+							((mask & (1 << D3D10_SB_4_COMPONENT_Z)) ? 1 : 0) +
+							((mask & (1 << D3D10_SB_4_COMPONENT_W)) ? 1 : 0);
+					};
+
+#define ADD_INPUTS_OR_OUTPUTS(MAX_INPUTS_OR_OUTPUTS, FIELDNAME) \
+std::vector<alys::shader::detail::instruction_t> FIELDNAME = techs[0].FIELDNAME; \
+FIELDNAME.resize(MAX_INPUTS_OR_OUTPUTS); \
+for (auto& tech : techs) \
+{ \
+	for (auto ins_index = 0; ins_index < tech.FIELDNAME.size(); ins_index++) \
+	{ \
+		if (FIELDNAME[ins_index].opcode.type == 0) \
+		{ \
+			FIELDNAME[ins_index] = tech.FIELDNAME[ins_index]; \
+		} \
+		else \
+		{ \
+			const auto count_new = get_component_count(tech.FIELDNAME[ins_index].operands[0]); \
+			const auto count_old = get_component_count(FIELDNAME[ins_index].operands[0]); \
+			if (count_new > count_old) \
+				FIELDNAME[ins_index] = tech.FIELDNAME[ins_index]; \
+		} \
+	} \
+} \
+for (auto& ins : FIELDNAME) \
+{ \
+	a(ins); \
+}
+
+					if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_CONSTANT_BUFFER)
+					{
+						if (instruction.operands[0].indices[0].value.uint32 >= cb_index_t::count)
+						{
+							return false;
+						}
+
+						if (inserted_cb)
 						{
 							return true;
 						}
 
-						once = true;
+						inserted_cb = true;
 
-						//if (shader == shader_type_pixel_shader)
+						std::uint32_t cb_index = primitive;
+						for (cb_index; cb_index < cb_index_t::count; cb_index++)
 						{
-							for (auto& tech : techs)
+							if (max_cb[cb_index])
 							{
-								if (!tech.instructions.empty())
+								instruction.operands[0].indices[0].value.uint32 = cb_index;
+								instruction.operands[0].indices[1].value.uint32 = max_cb[cb_index];
+
+								if (dynamic_cb[cb_index])
 								{
-									write_if_for_tech(tech, a, light_type_dest, shadow_type_dest, light_count_dest);
+									instruction.opcode.controls = D3D10_SB_CONSTANT_BUFFER_DYNAMIC_INDEXED;
 								}
+								else
+								{
+									instruction.opcode.controls = D3D10_SB_CONSTANT_BUFFER_IMMEDIATE_INDEXED;
+								}
+
+								a(instruction);
 							}
 						}
-						//else
-						//{
-						//	auto& tech = techs[0];
-						//	for (auto& ins : tech.instructions)
-						//	{
-						//		a(ins);
-						//	}
-						//}
 
 						return true;
 					}
+					else if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_RESOURCE)
+					{
+						if (instruction.operands.size() < 2)
+						{
+							return false;
+						}
+
+						if (inserted_resources)
+						{
+							return true;
+						}
+
+						if (!inserted_resources)
+						{
+							inserted_resources = true;
+
+							for (uint32_t t = 0; t < max_resources; ++t)
+							{
+								auto decl = instruction;
+
+								for (auto& tech : techs)
+								{
+									for (auto& resource : tech.resource_map[shader])
+									{
+										if (resource.second == t)
+										{
+											for (auto& ins : tech.resources)
+											{
+												if (ins.operands[0].indices[0].value.uint32 == resource.first)
+												{
+													decl = ins;
+												}
+											}
+										}
+									}
+								}
+
+								decl.operands[0].indices[0].value.uint32 = t;
+
+								if (t == 1)
+								{
+									decl.opcode.controls = D3D10_SB_RESOURCE_DIMENSION_TEXTURECUBE;
+								}
+								else
+								{
+									decl.opcode.controls = D3D10_SB_RESOURCE_DIMENSION_TEXTURE2D;
+								}
+
+								a(decl);
+							}
+
+							return true;
+						}
+
+						return false;
+					}
+					else if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_SAMPLER)
+					{
+						if (inserted_samplers)
+						{
+							return true;
+						}
+
+						if (!inserted_samplers)
+						{
+							inserted_samplers = true;
+
+							for (auto t = 0u; t < max_samplers; ++t)
+							{
+								auto decl = instruction;
+
+								for (auto& tech : techs)
+								{
+									for (auto& sampler : tech.sampler_map[shader])
+									{
+										if (sampler.second == t)
+										{
+											for (auto& ins : tech.samplers)
+											{
+												if (ins.operands[0].indices[0].value.uint32 == sampler.first)
+												{
+													decl = ins;
+												}
+											}
+										}
+									}
+								}
+
+								decl.operands[0].indices[0].value.uint32 = t;
+
+								if (sampler_comparison_map.contains(static_cast<std::uint16_t>(t)))
+								{
+									decl.opcode.controls = D3D10_SB_SAMPLER_MODE_COMPARISON;
+								}
+
+								a(decl);
+							}
+
+							return true;
+						}
+
+						return false;
+					}
+					else if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_INPUT ||
+						instruction.opcode.type == D3D10_SB_OPCODE_DCL_INPUT_SGV ||
+						instruction.opcode.type == D3D10_SB_OPCODE_DCL_INPUT_SIV ||
+						instruction.opcode.type == D3D10_SB_OPCODE_DCL_INPUT_PS ||
+						instruction.opcode.type == D3D10_SB_OPCODE_DCL_INPUT_PS_SGV ||
+						instruction.opcode.type == D3D10_SB_OPCODE_DCL_INPUT_PS_SIV)
+					{
+						if (inserted_inputs)
+						{
+							return true;
+						}
+						inserted_inputs = true;
+
+						ADD_INPUTS_OR_OUTPUTS(max_inputs, inputs);
+
+						return true;
+					}
+					else if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_OUTPUT ||
+						instruction.opcode.type == D3D10_SB_OPCODE_DCL_OUTPUT_SGV ||
+						instruction.opcode.type == D3D10_SB_OPCODE_DCL_OUTPUT_SIV)
+					{
+						if (inserted_outputs)
+						{
+							return true;
+						}
+						inserted_outputs = true;
+
+						std::vector<alys::shader::detail::instruction_t> outputs = techs[0].outputs; outputs.resize(max_outputs); for (auto& tech : techs) {
+							for (auto ins_index = 0; ins_index < tech.outputs.size(); ins_index++) {
+								if (outputs[ins_index].opcode.type == 0) {
+									outputs[ins_index] = tech.outputs[ins_index];
+								}
+								else {
+									const auto count_new = get_component_count(tech.outputs[ins_index].operands[0]);
+									const auto count_old = get_component_count(outputs[ins_index].operands[0]);
+									if (count_new > count_old)
+										outputs[ins_index] = tech.outputs[ins_index];
+								}
+							}
+						} for (auto& ins : outputs) {
+							a(ins);
+						};
+
+						return true;
+					}
+					else if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_TEMPS)
+					{
+						instruction.operands[0].custom.u.value = temps_count;
+						a(instruction);
+						return true;
+					}
+
+					if (is_header_opcode(instruction))
+					{
+						return false;
+					}
+
+					if (once)
+					{
+						return true;
+					}
+
+					once = true;
+
+					//if (shader == shader_type_pixel_shader)
+					{
+						for (auto& tech : techs)
+						{
+							if (!tech.instructions.empty())
+							{
+								write_if_for_tech(tech, a, light_type_dest, shadow_type_dest, light_count_dest);
+							}
+						}
+					}
+					//else
+					//{
+					//	auto& tech = techs[0];
+					//	for (auto& ins : tech.instructions)
+					//	{
+					//		a(ins);
+					//	}
+					//}
+
+					return true;
+				}
 				);
 
 				auto* shader_ptr = allocator.allocate<zonetool::h1::MaterialVertexShader>();
