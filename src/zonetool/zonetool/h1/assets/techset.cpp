@@ -10,7 +10,7 @@
 #include "zonetool/iw6/zonetool.hpp"
 
 #define DEEP_LOOK_TECHNIQUES
-//#define DUMP_JSON
+#define DUMP_JSON
 
 namespace zonetool::h1
 {
@@ -1017,7 +1017,8 @@ namespace zonetool::h1
 						arg_data["codeConstFirstRow"] = techniquePass.args[arg].u.codeConst.firstRow;
 						arg_data["codeConstRowCount"] = techniquePass.args[arg].u.codeConst.rowCount;
 					}
-					else if (techniquePass.args[arg].type == MTL_ARG_MATERIAL_TEXTURE ||
+					else if (techniquePass.args[arg].type == MTL_ARG_MATERIAL_CONST ||
+						techniquePass.args[arg].type == MTL_ARG_MATERIAL_TEXTURE ||
 						techniquePass.args[arg].type == MTL_ARG_MATERIAL_SAMPLER)
 					{
 						arg_data["nameHash"] = techniquePass.args[arg].u.nameHash;

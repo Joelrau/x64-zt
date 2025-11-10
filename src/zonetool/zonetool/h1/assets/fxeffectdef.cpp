@@ -1287,8 +1287,6 @@ namespace zonetool::h1
 		}
 	}
 
-	
-
 	FxEffectDef* fx_effect_def::parse(const std::string& name, zone_memory* mem)
 	{
 		FxEffectDef* asset = fx::json::parse(name, mem);
@@ -1681,6 +1679,7 @@ namespace zonetool::h1
 		return;
 #else
 		fx::binary::dump(asset);
+		return;
 #endif
 	}
 }

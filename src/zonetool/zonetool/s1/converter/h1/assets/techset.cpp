@@ -669,7 +669,7 @@ namespace zonetool::s1
 											new_arg->u.codeConst.rowCount = 0;
 										}
 									}
-									else if (arg->type == MTL_ARG_CODE_TEXTURE)
+									else if (arg->type == MTL_ARG_CODE_TEXTURE || arg->type == MTL_ARG_CODE_SAMPLER)
 									{
 										if (texture_src_code_map.contains(arg->u.codeConst.index))
 										{

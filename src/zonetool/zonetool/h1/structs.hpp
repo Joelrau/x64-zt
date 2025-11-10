@@ -1571,6 +1571,37 @@ namespace zonetool::h1
 		MaterialVertexStreamRouting routing;
 	}; assert_sizeof(MaterialVertexDeclaration, 0x840);
 
+	enum CustomSamplerFlags : std::uint8_t
+	{
+		CUSTOM_SAMPLER_FLAG_USE_REFLECTION_PROBE = 0x1,
+		CUSTOM_SAMPLER_FLAG_USE_LIGHTMAP_PRIMARY = 0x2,
+		CUSTOM_SAMPLER_FLAG_USE_LIGHTMAP_SECONDARY = 0x4,
+	};
+
+	enum CustomBufferFlags : std::uint32_t
+	{
+		CUSTOM_BUFFER_PER_PRIM = 0x1,
+		CUSTOM_BUFFER_PER_OBJECT = 0x2,
+		CUSTOM_BUFFER_PER_STABLE = 0x4,
+		CUSTOM_BUFFER_MATERIAL = 0x8,
+		CUSTOM_BUFFER_SUBDOMAIN = 0x10,
+		CUSTOM_BUFFER_REACTIVE_MOTION = 0x20,
+		CUSTOM_BUFFER_REACTIVE_TURBULENCE_EFFECTORS = 0x40,
+		CUSTOM_BUFFER_SMODEL_WORLDMATRIX = 0x80,
+		CUSTOM_BUFFER_SMODEL_LIGHTING = 0x100,
+		CUSTOM_BUFFER_SMODEL_AMBIENT = 0x200,
+		CUSTOM_BUFFER_SKINNED_CACHED_PREV_FRAME = 0x400,
+	};
+
+	enum PrecompiledIndex : std::uint8_t
+	{
+		PRECOMPILED_INDEX_LIT = 1,
+		PRECOMPILED_INDEX_UNLIT = 2,
+		PRECOMPILED_INDEX_AMBIENT = 3,
+		PRECOMPILED_INDEX_VERTEX_LIT = 4,
+		PRECOMPILED_INDEX_MODEL_LMAP = 5,
+	};
+
 	struct MaterialPass
 	{
 		MaterialVertexShader* vertexShader;
@@ -4032,7 +4063,7 @@ namespace zonetool::h1
 		ID3D11ShaderResourceView* vb0View;
 		ID3D11Buffer* indexBuffer;
 		XRigidVertList* rigidVertLists;
-		UnknownXSurface0* unknown0;
+		UnknownXSurface0* unknown0; // GfxQuantizedNoColorVertex
 		XBlendInfo* blendVerts;
 		BlendVertsUnknown* blendVertsTable;
 		ID3D11Buffer* blendVertsBuffer;
@@ -8276,6 +8307,7 @@ namespace zonetool::h1
 		umbraTomePtr_t umbraTomePtr; // 2776
 		unsigned int mdaoVolumesCount; // 2784
 		MdaoVolume* mdaoVolumes; // 2792
+		char __pad2[2];
 		bool useLightGridDefaultModelLightingLookup;
 		bool useLightGridDefaultFXLightingLookup;
 		float lightGridDefaultModelLightingLookup[3];
