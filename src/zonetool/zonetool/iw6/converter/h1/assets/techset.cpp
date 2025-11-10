@@ -2685,16 +2685,11 @@ namespace zonetool::iw6
 				return shaders;
 			}
 
-			std::string make_technique_db_name(const std::string& base_name)
+			inline char* name_from_hash(std::uint32_t name_hash, utils::memory::allocator& allocator)
 			{
-				if (base_name.contains("_ldb")) return base_name;
-
-				std::string s = base_name;
-				static const std::regex re(R"(_l([A-Za-z])(\d)([A-Za-z])(\d))");
-				std::smatch m;
-				if (!std::regex_search(s, m, re)) return s;
-				const std::string rep = m[1].str() == "d" ? "_ldb_sun" : "_ldb";
-				return m.prefix().str() + rep + m.suffix().str();
+				char* buf = allocator.allocate_array<char>(9);
+				std::snprintf(buf, 9, "%08X", name_hash);
+				return buf;
 			}
 
 			inline char* hash_name_shader(const unsigned char* program,
@@ -2702,9 +2697,7 @@ namespace zonetool::iw6
 				utils::memory::allocator& allocator)
 			{
 				const auto hash = utils::cryptography::crc32::compute(program, program_len);
-				char* buf = allocator.allocate_array<char>(9);
-				std::snprintf(buf, 9, "%08X", hash);
-				return buf;
+				return name_from_hash(hash, allocator);
 			}
 
 			template <typename T>
@@ -2715,6 +2708,42 @@ namespace zonetool::iw6
 					static_cast<std::uint32_t>(asset->prog.loadDef.programSize),
 					allocator
 				);
+			}
+
+			template <typename T>
+			inline void hash_name_shader(T* asset, std::uint32_t hash, utils::memory::allocator& allocator)
+			{
+				asset->name = name_from_hash(hash, allocator);
+			}
+
+			void make_unique_technique_name(zonetool::h1::MaterialTechnique* tech, utils::memory::allocator& allocator)
+			{
+				assert(tech->hdr.passCount == 1);
+				auto* pass = &tech->passArray[0];
+				
+				std::uint8_t used_parts = 0;
+				std::uint32_t parts[5]{};
+
+				parts[used_parts++] = utils::cryptography::crc32::compute(reinterpret_cast<const unsigned char*>(tech->hdr.name), strlen(tech->hdr.name));
+				if (pass->vertexShader) { parts[used_parts++] = pass->vertexShader->prog.loadDef.microCodeCrc; }
+				if (pass->hullShader) { parts[used_parts++] = utils::cryptography::crc32::compute(reinterpret_cast<const unsigned char*>(pass->hullShader->prog.loadDef.program), pass->hullShader->prog.loadDef.programSize); }
+				if (pass->domainShader) { parts[used_parts++] = utils::cryptography::crc32::compute(reinterpret_cast<const unsigned char*>(pass->domainShader->prog.loadDef.program), pass->domainShader->prog.loadDef.programSize); }
+				if (pass->pixelShader) { parts[used_parts++] = pass->pixelShader->prog.loadDef.microCodeCrc; }
+
+				const std::uint32_t combined = utils::cryptography::crc32::compute(reinterpret_cast<std::uint8_t*>(parts), sizeof(std::uint32_t) * used_parts);
+				tech->hdr.name = name_from_hash(combined, allocator);
+			}
+
+			std::string make_technique_db_name(const std::string& base_name)
+			{
+				if (base_name.contains("_ldb")) return base_name;
+
+				std::string s = base_name;
+				static const std::regex re(R"(_l([A-Za-z])(\d)([A-Za-z])(\d))");
+				std::smatch m;
+				if (!std::regex_search(s, m, re)) return s;
+				const std::string rep = m[1].str() == "d" ? "_ldb_sun" : "_ldb";
+				return m.prefix().str() + rep + m.suffix().str();
 			}
 
 			zonetool::h1::MaterialTechnique* merge_db_techs(std::vector<merge_data_t> techs, MaterialTechniqueSet* asset, utils::memory::allocator& allocator)
@@ -3089,12 +3118,12 @@ namespace zonetool::iw6
 					cb_sizes[shader_type_pixel_shader], resource_index, sampler_index, sampler_comparison_map, shader_type_pixel_shader);
 				auto patch_data = get_pixelshader_patch_data(new_pass);
 				new_pass->pixelShader = convert_pixelshader((zonetool::iw6::MaterialPixelShader*)new_pass->pixelShader, allocator, patch_data);
-				hash_name_shader(new_pass->pixelShader, allocator);
+				hash_name_shader(new_pass->pixelShader, new_pass->pixelShader->prog.loadDef.microCodeCrc, allocator);
 				zonetool::h1::pixel_shader::dump(new_pass->pixelShader);
 
 				convert_merge_db_shader(new_pass, techs, asset, allocator, LIGHT_DYN_TYPES_DEST, LIGHT_DYN_SHADOW_TYPES_DEST, LIGHT_DYN_COUNT_DEST,
 					cb_sizes[shader_type_vertex_shader], resource_index, sampler_index, sampler_comparison_map, shader_type_vertex_shader);
-				hash_name_shader(new_pass->vertexShader, allocator);
+				hash_name_shader(new_pass->vertexShader, new_pass->vertexShader->prog.loadDef.microCodeCrc, allocator);
 				zonetool::h1::vertex_shader::dump(new_pass->vertexShader);
 
 				convert_merge_db_shader(new_pass, techs, asset, allocator, LIGHT_DYN_TYPES_DEST, LIGHT_DYN_SHADOW_TYPES_DEST, LIGHT_DYN_COUNT_DEST,
@@ -3112,6 +3141,8 @@ namespace zonetool::iw6
 					hash_name_shader(new_pass->domainShader, allocator);
 					zonetool::h1::domain_shader::dump(new_pass->domainShader);
 				}
+
+				make_unique_technique_name(&merged_tech, allocator);
 
 				auto* new_tech = allocator.allocate<zonetool::h1::MaterialTechnique>();
 				std::memcpy(&new_tech->hdr, &merged_tech.hdr, sizeof(zonetool::h1::MaterialTechniqueHeader));
