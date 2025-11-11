@@ -2587,15 +2587,6 @@ for (auto& ins : FIELDNAME) \
 
 								decl.operands[0].indices[0].value.uint32 = t;
 
-								if (t == 1)
-								{
-									decl.opcode.controls = D3D10_SB_RESOURCE_DIMENSION_TEXTURECUBE;
-								}
-								else
-								{
-									decl.opcode.controls = D3D10_SB_RESOURCE_DIMENSION_TEXTURE2D;
-								}
-
 								a(decl);
 							}
 
@@ -2678,21 +2669,7 @@ for (auto& ins : FIELDNAME) \
 						}
 						inserted_outputs = true;
 
-						std::vector<alys::shader::detail::instruction_t> outputs = techs[0].outputs; outputs.resize(max_outputs); for (auto& tech : techs) {
-							for (auto ins_index = 0; ins_index < tech.outputs.size(); ins_index++) {
-								if (outputs[ins_index].opcode.type == 0) {
-									outputs[ins_index] = tech.outputs[ins_index];
-								}
-								else {
-									const auto count_new = get_component_count(tech.outputs[ins_index].operands[0]);
-									const auto count_old = get_component_count(outputs[ins_index].operands[0]);
-									if (count_new > count_old)
-										outputs[ins_index] = tech.outputs[ins_index];
-								}
-							}
-						} for (auto& ins : outputs) {
-							a(ins);
-						};
+						ADD_INPUTS_OR_OUTPUTS(max_outputs, outputs);
 
 						return true;
 					}
