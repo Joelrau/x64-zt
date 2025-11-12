@@ -14,12 +14,23 @@ namespace zonetool::iw6
 		{
 			namespace
 			{
-				std::string remove_extension(const std::string& filename)
+				static inline std::string remove_extension(const std::string& filename)
 				{
 					size_t lastdot = filename.find_last_of(".");
 					if (lastdot == std::string::npos) return filename;
 					return filename.substr(0, lastdot);
 				};
+
+				static inline std::string sanitize_path(const std::string& path)
+				{
+					std::string fixed = path;
+					for (auto& c : fixed)
+					{
+						if (c == '\\')
+							c = '/';
+					}
+					return fixed;
+				}
 			}
 
 			bool channel_is_3d[zonetool::iw6::SoundChannel::SND_CHANNEL_COUNT]
@@ -379,11 +390,8 @@ namespace zonetool::iw6
 				{
 				case SAT_LOADED:
 				{
-					const std::string s_name = asset->soundFile->u.loadSnd->name;
-					const std::string s_name_no_ext = remove_extension(s_name);
-
 					new_asset->soundFile->u.loadSnd = mem.allocate<zonetool::h1::LoadedSound>();
-					new_asset->soundFile->u.loadSnd->name = mem.duplicate_string(s_name_no_ext);
+					new_asset->soundFile->u.loadSnd->name = mem.duplicate_string(remove_extension(sanitize_path(asset->soundFile->u.loadSnd->name)));
 					break;
 				}
 				}
@@ -592,6 +600,11 @@ namespace zonetool::iw6
 					}
 					loaded_name = utils::string::va("streamed/%s", loaded_name.data());
 
+					if (asset->soundFile->type == zonetool::h1::SAT_PRIMED && asset->soundFile->u.primedSnd.loadedPart)
+					{
+						loaded_name = remove_extension(sanitize_path(asset->soundFile->u.primedSnd.loadedPart->name));
+					}
+
 					const auto path = utils::string::va("loaded_sound/%s%s", loaded_name.data(), ".flac");
 
 					auto file = filesystem::file(path);
@@ -609,18 +622,18 @@ namespace zonetool::iw6
 					new_asset->flags = flags.intValue;
 
 					new_asset->soundFile->u.loadSnd = mem.allocate<zonetool::h1::LoadedSound>();
-					const auto new_loaded = new_asset->soundFile->u.loadSnd;
-					new_loaded->name = mem.duplicate_string(loaded_name);
+					new_asset->soundFile->u.loadSnd->name = mem.duplicate_string(loaded_name);
 
 					return true;
 				};
 
 				if (asset->soundFile)
 				{
-					if (asset->soundFile->type == SAT_STREAMED)
+					if (asset->soundFile->type == SAT_STREAMED || asset->soundFile->type == SAT_PRIMED)
 					{
 						if (!convert_and_dump_streamed())
 						{
+							ZONETOOL_WARNING("Could not dump STREAMED/PRIMED soundalias %s", asset->aliasName);
 							new_asset->soundFile = mem.allocate<zonetool::h1::SoundFile>();
 							new_asset->soundFile->exists = false;
 							new_asset->soundFile->type = zonetool::h1::SAT_STREAMED;
