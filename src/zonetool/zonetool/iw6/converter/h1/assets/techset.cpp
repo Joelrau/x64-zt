@@ -2302,6 +2302,8 @@ namespace zonetool::iw6
 
 				std::uint32_t temps_count = 0;
 				bool dynamic_cb[cb_index_t::count]{};
+				std::unordered_map<std::uint16_t, D3D10_SB_RESOURCE_DIMENSION> resource_type_map;
+				std::unordered_map<std::uint16_t, D3D10_SB_SAMPLER_MODE> sampler_type_map;
 
 				for (auto& tech : techs)
 				{
@@ -2428,6 +2430,24 @@ namespace zonetool::iw6
 							{
 								__debugbreak();
 							}
+							else
+							{
+								continue;
+							}
+
+							const auto resource_type = static_cast<D3D10_SB_RESOURCE_DIMENSION>(instruction.opcode.extensions[0].values[0]);
+							auto rt_it = resource_type_map.find(it->second);
+							if (rt_it != resource_type_map.end())
+							{
+								if (rt_it->second != resource_type)
+								{
+									__debugbreak();
+								}
+							}
+							else
+							{
+								resource_type_map[it->second] = resource_type;
+							}
 						}
 
 						for (auto& op : instruction.operands)
@@ -2447,6 +2467,27 @@ namespace zonetool::iw6
 							else if (sampler_id > 3)
 							{
 								__debugbreak();
+							}
+							else
+							{
+								continue;
+							}
+
+							const auto sampler_type = 
+								instruction.opcode.type == D3D10_SB_OPCODE_SAMPLE_C || instruction.opcode.type == D3D10_SB_OPCODE_SAMPLE_C_LZ ? 
+								D3D10_SB_SAMPLER_MODE_COMPARISON : 
+								D3D10_SB_SAMPLER_MODE_DEFAULT;
+							auto st_it = sampler_type_map.find(it->second);
+							if (st_it != sampler_type_map.end())
+							{
+								if (st_it->second != sampler_type)
+								{
+									__debugbreak();
+								}
+							}
+							else
+							{
+								sampler_type_map[it->second] = sampler_type;
 							}
 						}
 
@@ -2585,6 +2626,16 @@ for (auto& ins : FIELDNAME) \
 									}
 								}
 
+								if (t == 1 && shader == shader_type_pixel_shader)
+								{
+									decl.opcode.controls = D3D10_SB_RESOURCE_DIMENSION_TEXTURECUBE;
+								}
+								
+								if(resource_type_map.contains(static_cast<std::uint16_t>(t)))
+								{
+									decl.opcode.controls = resource_type_map[static_cast<std::uint16_t>(t)];
+								}
+
 								decl.operands[0].indices[0].value.uint32 = t;
 
 								a(decl);
@@ -2627,12 +2678,17 @@ for (auto& ins : FIELDNAME) \
 									}
 								}
 
-								decl.operands[0].indices[0].value.uint32 = t;
+								//if (sampler_comparison_map.contains(static_cast<std::uint16_t>(t)))
+								//{
+								//	decl.opcode.controls = D3D10_SB_SAMPLER_MODE_COMPARISON;
+								//}
 
-								if (sampler_comparison_map.contains(static_cast<std::uint16_t>(t)))
+								if (sampler_type_map.contains(static_cast<std::uint16_t>(t)))
 								{
-									decl.opcode.controls = D3D10_SB_SAMPLER_MODE_COMPARISON;
+									decl.opcode.controls = sampler_type_map[static_cast<std::uint16_t>(t)];
 								}
+
+								decl.operands[0].indices[0].value.uint32 = t;
 
 								a(decl);
 							}
@@ -2864,13 +2920,13 @@ for (auto& ins : FIELDNAME) \
 				std::uint32_t sampler_flags = 0;
 				for (auto& t : techs) sampler_flags |= t.tech->passArray[0].customSamplerFlags;
 
-				const bool uses_reflection_probe = (sampler_flags & 0x1) != 0;
+				//const bool uses_reflection_probe = (sampler_flags & 0x1) != 0;
 				const bool uses_lmap_primary = (sampler_flags & 0x2) != 0;
 				const bool uses_lmap_secondary = (sampler_flags & 0x4) != 0;
 
 				const auto increase_sampler_index = [&](std::uint16_t& index)
 				{
-					if (uses_reflection_probe && index == 0) ++index;
+					if(index == 0) ++index; //if (uses_reflection_probe && index == 0) ++index;
 					if (uses_lmap_primary && index == 1) ++index;
 					if (uses_lmap_secondary && index == 2) ++index;
 					++index;
