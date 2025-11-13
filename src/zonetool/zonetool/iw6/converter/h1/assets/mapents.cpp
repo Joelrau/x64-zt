@@ -175,33 +175,20 @@ namespace zonetool::iw6
 
 		namespace mapents
 		{
-			zonetool::h1::clientTriggerType_t type_flags_table[7]
-			{
-				zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_NONE,
-				zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_VISIONSET,
-				zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_AUDIO,
-				zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_BLEND_VISION,
-				zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_BLEND_AUDIO,
-				zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_BLEND_ALL,
-				zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_NPC,
-			};
-
 			std::int32_t convert_type(std::int32_t flags)
 			{
-				std::int32_t new_flags = type_flags_table[flags];
+				std::int32_t new_flags = 0;
 				auto convert = [&](zonetool::iw6::clientTriggerType_t a, zonetool::h1::clientTriggerType_t b)
 				{
-					new_flags |= ((flags & a) == a) ? b : 0;
+					if (flags & a)
+						new_flags |= b;
 				};
 
-				//convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_NONE, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_NONE);
 				convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_VISIONSET, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_VISIONSET);
 				convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_AUDIO, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_AUDIO);
 				convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_BLEND_VISION, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_BLEND_VISION);
 				convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_BLEND_AUDIO, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_BLEND_AUDIO);
-				convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_BLEND_ALL, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_BLEND_ALL);
-				convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_NONE, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_NONE);
-				convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_NONE, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_NONE);
+				convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_NPC, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_NPC);
 
 				return new_flags;
 			}

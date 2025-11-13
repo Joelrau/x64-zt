@@ -2457,6 +2457,11 @@ namespace zonetool::iw6
 								continue;
 							}
 
+							if (instruction.opcode.type == D3D10_1_SB_OPCODE_LOD)
+							{
+								continue;
+							}
+
 							const auto resource_type = static_cast<D3D10_SB_RESOURCE_DIMENSION>(instruction.opcode.extensions[0].values[0]);
 							auto rt_it = resource_type_map.find(it->second);
 							if (rt_it != resource_type_map.end())
@@ -2491,6 +2496,11 @@ namespace zonetool::iw6
 								__debugbreak();
 							}
 							else
+							{
+								continue;
+							}
+
+							if (instruction.opcode.type == D3D10_1_SB_OPCODE_LOD)
 							{
 								continue;
 							}
