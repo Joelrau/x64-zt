@@ -2063,8 +2063,8 @@ namespace zonetool::iw6
 				std::vector<alys::shader::detail::instruction_t> instructions;
 				std::vector<alys::shader::detail::instruction_t> samplers;
 				std::vector<alys::shader::detail::instruction_t> resources;
-				std::vector<alys::shader::detail::instruction_t> inputs;
-				std::vector<alys::shader::detail::instruction_t> outputs;
+				std::unordered_map<std::uint32_t, alys::shader::detail::instruction_t> inputs;
+				std::unordered_map<std::uint32_t, alys::shader::detail::instruction_t> outputs;
 			};
 
 			bool is_dcl_opcode(std::uint32_t opcode_type)
@@ -2302,6 +2302,10 @@ namespace zonetool::iw6
 
 				std::uint32_t temps_count = 0;
 				bool dynamic_cb[cb_index_t::count]{};
+
+				std::size_t max_inputs = 0;
+				std::size_t max_outputs = 0;
+
 				std::unordered_map<std::uint16_t, D3D10_SB_RESOURCE_DIMENSION> resource_type_map;
 				std::unordered_map<std::uint16_t, D3D10_SB_SAMPLER_MODE> sampler_type_map;
 
@@ -2337,7 +2341,16 @@ namespace zonetool::iw6
 							instruction.opcode.type == D3D10_SB_OPCODE_DCL_INPUT_PS_SGV ||
 							instruction.opcode.type == D3D10_SB_OPCODE_DCL_INPUT_PS_SIV)
 						{
-							tech.inputs.push_back(instruction);
+							const auto index = instruction.operands[0].indices[0].value.uint32;
+							max_inputs = std::max(max_inputs, static_cast<std::size_t>(index + 1));
+							if (tech.inputs.contains(index))
+							{
+								tech.inputs[index].operands[0].components.mask |= instruction.operands[0].components.mask;
+							}
+							else
+							{
+								tech.inputs[index] = instruction;
+							}
 							return false;
 						}
 
@@ -2345,7 +2358,16 @@ namespace zonetool::iw6
 							instruction.opcode.type == D3D10_SB_OPCODE_DCL_OUTPUT_SGV ||
 							instruction.opcode.type == D3D10_SB_OPCODE_DCL_OUTPUT_SIV)
 						{
-							tech.outputs.push_back(instruction);
+							const auto index = instruction.operands[0].indices[0].value.uint32;
+							max_outputs = std::max(max_outputs, static_cast<std::size_t>(index + 1));
+							if (tech.outputs.contains(index))
+							{
+								tech.outputs[index].operands[0].components.mask |= instruction.operands[0].components.mask;
+							}
+							else
+							{
+								tech.outputs[index] = instruction;
+							}
 							return false;
 						}
 
@@ -2497,15 +2519,6 @@ namespace zonetool::iw6
 					);
 				}
 
-				std::size_t max_inputs = 0;
-				std::size_t max_outputs = 0;
-
-				for (auto& tech : techs)
-				{
-					max_inputs = std::max(max_inputs, tech.inputs.size());
-					max_outputs = std::max(max_outputs, tech.outputs.size());
-				}
-
 				auto once = false;
 				auto inserted_cb = false;
 				auto inserted_resources = false;
@@ -2518,38 +2531,33 @@ namespace zonetool::iw6
 					[&](alys::shader::shader_object::assembler& a, alys::shader::detail::instruction_t& instruction)
 					-> bool
 				{
-					auto get_component_count = [](const alys::shader::detail::operand_t& operand)
-					{
-						const auto mask = operand.components.mask;
-						return ((mask & (1 << D3D10_SB_4_COMPONENT_X)) ? 1 : 0) +
-							((mask & (1 << D3D10_SB_4_COMPONENT_Y)) ? 1 : 0) +
-							((mask & (1 << D3D10_SB_4_COMPONENT_Z)) ? 1 : 0) +
-							((mask & (1 << D3D10_SB_4_COMPONENT_W)) ? 1 : 0);
-					};
-
-#define ADD_INPUTS_OR_OUTPUTS(MAX_INPUTS_OR_OUTPUTS, FIELDNAME) \
-std::vector<alys::shader::detail::instruction_t> FIELDNAME = techs[0].FIELDNAME; \
-FIELDNAME.resize(MAX_INPUTS_OR_OUTPUTS); \
-for (auto& tech : techs) \
-{ \
-	for (auto ins_index = 0; ins_index < tech.FIELDNAME.size(); ins_index++) \
-	{ \
-		if (FIELDNAME[ins_index].opcode.type == 0) \
-		{ \
-			FIELDNAME[ins_index] = tech.FIELDNAME[ins_index]; \
-		} \
-		else \
-		{ \
-			const auto count_new = get_component_count(tech.FIELDNAME[ins_index].operands[0]); \
-			const auto count_old = get_component_count(FIELDNAME[ins_index].operands[0]); \
-			if (count_new > count_old) \
-				FIELDNAME[ins_index] = tech.FIELDNAME[ins_index]; \
-		} \
-	} \
-} \
-for (auto& ins : FIELDNAME) \
-{ \
-	a(ins); \
+#define ADD_INPUTS_OR_OUTPUTS(MAX_INPUTS_OR_OUTPUTS, FIELDNAME)                                   \
+std::vector<alys::shader::detail::instruction_t> merged_##FIELDNAME(MAX_INPUTS_OR_OUTPUTS);      \
+for (auto& tech : techs)                                                                         \
+{                                                                                                \
+	for (std::uint32_t ins_index = 0; ins_index < (MAX_INPUTS_OR_OUTPUTS); ++ins_index)         \
+	{                                                                                            \
+		auto it = tech.FIELDNAME.find(ins_index);                                               \
+		if (it == tech.FIELDNAME.end())                                                         \
+			continue;                                                                           \
+                                                                                                 \
+		auto& dst = merged_##FIELDNAME[ins_index];                                              \
+		const auto& src = it->second;                                                           \
+                                                                                                 \
+		if (dst.opcode.type == 0)                                                               \
+		{                                                                                        \
+			dst = src;                                                                          \
+		}                                                                                        \
+		else                                                                                     \
+		{                                                                                        \
+			dst.operands[0].components.mask |= src.operands[0].components.mask;                 \
+		}                                                                                        \
+	}                                                                                            \
+}                                                                                                \
+for (auto& ins : merged_##FIELDNAME)                                                             \
+{                                                                                                \
+	if (ins.opcode.type != 0)                                                                   \
+		a(ins);                                                                                 \
 }
 
 					if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_CONSTANT_BUFFER)
