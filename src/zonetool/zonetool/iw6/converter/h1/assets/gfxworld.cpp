@@ -40,8 +40,8 @@ namespace zonetool::iw6
 						auto* surface_bounds = &asset->dpvs.surfacesBounds[index];
 						memcpy(&new_asset->skies[i].bounds, &surface_bounds->bounds, sizeof(surface_bounds->bounds));
 
-						if(1)
-						break;
+						if (1)
+							break;
 					}
 				}
 
@@ -117,14 +117,14 @@ namespace zonetool::iw6
 				new_asset->draw.reflectionProbeOrigins = allocator.allocate_array<zonetool::h1::GfxReflectionProbe>(asset->draw.reflectionProbeCount);
 				for (unsigned int i = 0; i < asset->draw.reflectionProbeCount; i++)
 				{
-					memcpy(new_asset->draw.reflectionProbeOrigins[i].origin, 
+					memcpy(new_asset->draw.reflectionProbeOrigins[i].origin,
 						asset->draw.reflectionProbeOrigins[i].origin,
 						sizeof(float[3]));
 
 					new_asset->draw.reflectionProbeOrigins[i].probeVolumeCount = 0;
 					new_asset->draw.reflectionProbeOrigins[i].probeVolumes = nullptr;
 				}
-				
+
 				new_asset->draw.reflectionProbeTextures = allocator.allocate_array<zonetool::h1::GfxRawTexture>(asset->draw.reflectionProbeCount); // todo?
 				COPY_VALUE(draw.reflectionProbeReferenceCount);
 				REINTERPRET_CAST_SAFE(draw.reflectionProbeReferenceOrigins);
@@ -297,7 +297,7 @@ namespace zonetool::iw6
 					COPY_VALUE(dpvs.emissiveSurfsEnd);
 					COPY_VALUE(dpvs.smodelVisDataCount);
 					COPY_VALUE(dpvs.surfaceVisDataCount);
-					
+
 					for (auto i = 0; i < 4; i++)
 					{
 						new_asset->dpvs.smodelVisData[i] = allocator.allocate_array<unsigned int>(new_asset->dpvs.smodelVisDataCount);
@@ -365,7 +365,9 @@ namespace zonetool::iw6
 						assert(sizeof(zonetool::h1::GfxSurfaceBounds) == sizeof(zonetool::iw6::GfxSurfaceBounds));
 					}
 
+					std::vector<zonetool::h1::GfxSubdivVertexLightingInfo> subdiv_vertex_lighting_infos;
 					new_asset->dpvs.smodelDrawInsts = allocator.allocate_array<zonetool::h1::GfxStaticModelDrawInst>(asset->dpvs.smodelCount);
+					new_asset->dpvs.smodelLightingInsts = allocator.allocate_array<zonetool::h1::GfxStaticModelLighting>(asset->dpvs.smodelCount);
 					for (unsigned int i = 0; i < asset->dpvs.smodelCount; i++)
 					{
 						memcpy(&new_asset->dpvs.smodelDrawInsts[i].placement, &asset->dpvs.smodelDrawInsts[i].placement, sizeof(zonetool::h1::GfxPackedPlacement));
@@ -390,9 +392,23 @@ namespace zonetool::iw6
 						{
 							new_asset->dpvs.smodelDrawInsts[i].reactiveMotionLOD = 6;
 						}
+
+						if (asset->dpvs.smodelDrawInsts[i].vertexLightingInfo.cache.size || asset->dpvs.smodelDrawInsts[i].vertexLightingInfo.flags)
+						{
+							new_asset->dpvs.smodelLightingInsts[i].vertexLightingInfo.subdivVertexLightingInfoIndex =
+								static_cast<int>(subdiv_vertex_lighting_infos.size());
+
+							zonetool::h1::GfxSubdivVertexLightingInfo subdiv_info{};
+							subdiv_info.vertexLightingIndex = static_cast<int>(i);
+							subdiv_info.flags = asset->dpvs.smodelDrawInsts[i].vertexLightingInfo.flags;
+							subdiv_info.cache.size = asset->dpvs.smodelDrawInsts[i].vertexLightingInfo.cache.size;
+							subdiv_vertex_lighting_infos.push_back(subdiv_info);
+
+							// waiting for a hit...
+							__debugbreak();
+						}
 					}
 
-					new_asset->dpvs.smodelLightingInsts = allocator.allocate_array<zonetool::h1::GfxStaticModelLighting>(asset->dpvs.smodelCount);
 					for (unsigned int i = 0; i < asset->dpvs.smodelCount; i++)
 					{
 						if ((new_asset->dpvs.smodelDrawInsts[i].flags & zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_VERTEXLIT_LIGHTING) != 0)
@@ -418,51 +434,12 @@ namespace zonetool::iw6
 							memcpy(&new_asset->dpvs.smodelLightingInsts[i].modelLightmapInfo,
 								&asset->dpvs.smodelDrawInsts[i].modelLightmapInfo, sizeof(GfxStaticModelLightmapInfo));
 						}
-						if ((new_asset->dpvs.smodelDrawInsts[i].flags & zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING))
+						if ((new_asset->dpvs.smodelDrawInsts[i].flags & zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING) != 0)
 						{
-							if (asset->dpvs.smodelDrawInsts[i].groundLighting[0] != 0 ||
-								asset->dpvs.smodelDrawInsts[i].groundLighting[1] != 0 ||
-								asset->dpvs.smodelDrawInsts[i].groundLighting[2] != 0 ||
-								asset->dpvs.smodelDrawInsts[i].groundLighting[3] != 0)
-							{
-								new_asset->dpvs.smodelLightingInsts[i].ambientLightingInfo.groundLighting.array[0] =
-									half_float::float_to_half(asset->dpvs.smodelDrawInsts[i].groundLighting[0]);
-								new_asset->dpvs.smodelLightingInsts[i].ambientLightingInfo.groundLighting.array[1] =
-									half_float::float_to_half(asset->dpvs.smodelDrawInsts[i].groundLighting[1]);
-								new_asset->dpvs.smodelLightingInsts[i].ambientLightingInfo.groundLighting.array[2] =
-									half_float::float_to_half(asset->dpvs.smodelDrawInsts[i].groundLighting[2]);
-								new_asset->dpvs.smodelLightingInsts[i].ambientLightingInfo.groundLighting.array[3] =
-									half_float::float_to_half(asset->dpvs.smodelDrawInsts[i].groundLighting[3]);
-							}
-							else if (game::get_mode() == game::game_mode::iw6)
+							if (game::get_mode() == game::game_mode::iw6)
 							{
 								auto smodel_inst = asset->dpvs.smodelInsts[i];
 								auto smodel_draw_inst = asset->dpvs.smodelDrawInsts[i];
-
-								{
-									// set gfxworld ptr
-									utils::hook::set(0x1480B68D8, reinterpret_cast<void*>(asset));
-
-									// void R_LightGridCacheFlush(void)
-									utils::hook::invoke<void>(0x1405FBB50);
-
-									// R_IsValidLightGridSample
-									utils::hook::set(0x140638810, 0xC3);
-
-									// void R_RegisterNetworkDvars(const unsigned int flags)
-									utils::hook::invoke<void>(0x1405DE310, 0x8C);
-
-									const auto sample_pos = smodel_inst.lightingOrigin;
-									float color_out[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-
-									// void R_GetAverageLightingAtPoint(float *samplePos, float *outColor)
-									utils::hook::invoke<void>(0x140636B00, sample_pos, color_out);
-
-									new_asset->dpvs.smodelLightingInsts[i].ambientLightingInfo.groundLighting.array[0] = half_float::float_to_half(color_out[0]);
-									new_asset->dpvs.smodelLightingInsts[i].ambientLightingInfo.groundLighting.array[1] = half_float::float_to_half(color_out[1]);
-									new_asset->dpvs.smodelLightingInsts[i].ambientLightingInfo.groundLighting.array[2] = half_float::float_to_half(color_out[2]);
-									new_asset->dpvs.smodelLightingInsts[i].ambientLightingInfo.groundLighting.array[3] = half_float::float_to_half(color_out[3]);
-								}
 
 								if ((new_asset->dpvs.smodelDrawInsts[i].flags & zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING) != 0 &&
 									(new_asset->dpvs.smodelDrawInsts[i].flags & zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_ANIMATED_VERTS) != 0)
@@ -483,7 +460,7 @@ namespace zonetool::iw6
 									grid_pos[2] = static_cast<short>((static_cast<int>(std::floor(sample_pos[2])) + 0x20000) / 64);
 
 									// void R_GetLightGrid(const GfxLightGridTree *p_tree, const unsigned short *gridPos, GfxLightGridRaw *p_lightGrid, bool allowEmptyNode)
-									utils::hook::invoke<int>(0x1405FB6F0, &asset->lightGrid.tree, grid_pos, &light_grid_raw, 1);
+									utils::hook::invoke<int>(0x1405FB6F0, &asset->lightGrid.tree, grid_pos, &light_grid_raw, 0);
 
 									new_asset->dpvs.smodelLightingInsts[i].ambientLightingInfo.colorIndex = light_grid_raw.colorIndex;
 									new_asset->dpvs.smodelLightingInsts[i].ambientLightingInfo.primaryLightWeight = 1.0f;
@@ -491,7 +468,14 @@ namespace zonetool::iw6
 							}
 						}
 					}
-					
+
+					new_asset->dpvs.subdivVertexLightingInfoCount = static_cast<unsigned int>(subdiv_vertex_lighting_infos.size());
+					new_asset->dpvs.subdivVertexLighting = allocator.allocate_array<zonetool::h1::GfxSubdivVertexLightingInfo>(new_asset->dpvs.subdivVertexLightingInfoCount);
+					for (unsigned int i = 0; i < new_asset->dpvs.subdivVertexLightingInfoCount; i++)
+					{
+						new_asset->dpvs.subdivVertexLighting[i] = subdiv_vertex_lighting_infos[i];
+					}
+
 					new_asset->dpvs.surfaceMaterials = allocator.allocate_array<zonetool::h1::GfxDrawSurf>(asset->surfaceCount);
 					for (unsigned int i = 0; i < asset->surfaceCount; i++) // runtime data
 					{

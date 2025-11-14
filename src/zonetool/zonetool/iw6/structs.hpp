@@ -2360,7 +2360,9 @@ namespace zonetool::iw6
 		XModelSurfs* modelSurfs;
 		int partBits[8];
 		XSurface* surfs;
-		char unknown[8];
+		int subdivLodValidMask;
+		char flags;
+		char pad[3];
 	};
 
 	struct XModelCollSurf_s
@@ -3635,9 +3637,7 @@ namespace zonetool::iw6
 		GfxStaticModelVertexLighting* lightingValues;
 		ID3D11Buffer* lightingValuesVb;
 		ID3D11Buffer* lightingValuesSb;
-		unsigned int subdiv_count_maybe;
-		ID3D11Buffer* subDivCacheBuffer;
-		ID3D11ShaderResourceView* subDivCacheViewBuffer;
+		GfxSubdivCache cache;
 		int flags;
 		unsigned int numLightingValues;
 	};

@@ -1964,11 +1964,11 @@ namespace zonetool::h1
 	enum MaterialGameFlags : std::uint8_t
 	{
 		MTL_GAMEFLAG_NONE = 0x0,
-		MTL_GAMEFLAG_1 = 0x1,
-		MTL_GAMEFLAG_2 = 0x2, // with this flag, the game will use precomputed primaryLightIndex instead of computed one for shadows
-		MTL_GAMEFLAG_4 = 0x4,
+		MTL_GAMEFLAG_NO_MARKS1 = 0x1,
+		MTL_GAMEFLAG_MARK_HAS_LIGHTMAP = 0x2, // with this flag, the game will use precomputed primaryLightIndex instead of computed one for shadows
+		MTL_GAMEFLAG_NO_MARKS2 = 0x4,
 		MTL_GAMEFLAG_8 = 0x8,
-		MTL_GAMEFLAG_10 = 0x10,
+		MTL_GAMEFLAG_MARK_HAS_REFLECTION = 0x10,
 		MTL_GAMEFLAG_20 = 0x20,
 		MTL_GAMEFLAG_CASTS_SHADOW = 0x40,
 		MTL_GAMEFLAG_CASTS_SHADOW_EFFECT = 0x80,
@@ -4110,7 +4110,7 @@ namespace zonetool::h1
 		XModelSurfs* modelSurfs;
 		int partBits[8];
 		XSurface* surfs;
-		int unk;
+		int subdivLodValidMask;
 		char flags;
 		char pad[3];
 	};
@@ -8110,6 +8110,7 @@ namespace zonetool::h1
 		GfxStaticModelVertexLighting* lightingValues;
 		ID3D11Buffer* lightingValuesVb;
 		int numLightingValues;
+		int subdivVertexLightingInfoIndex;
 	};
 
 	struct GfxStaticModelLightmapInfo
@@ -8137,6 +8138,7 @@ namespace zonetool::h1
 	struct GfxSubdivVertexLightingInfo
 	{
 		int vertexLightingIndex;
+		int flags;
 		ID3D11Buffer* vb;
 		GfxSubdivCache cache;
 	}; assert_sizeof(GfxSubdivVertexLightingInfo, 40);
