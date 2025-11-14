@@ -2061,8 +2061,8 @@ namespace zonetool::iw6
 				std::unordered_map<std::uint16_t, std::uint16_t> resource_map[shader_type_e::shader_type_count];
 				std::unordered_map<std::uint16_t, std::uint16_t> sampler_map[shader_type_e::shader_type_count];
 				std::vector<alys::shader::detail::instruction_t> instructions;
-				std::vector<alys::shader::detail::instruction_t> samplers;
-				std::vector<alys::shader::detail::instruction_t> resources;
+				std::unordered_map<std::uint32_t, alys::shader::detail::instruction_t> samplers;
+				std::unordered_map<std::uint32_t, alys::shader::detail::instruction_t> resources;
 				std::unordered_map<std::uint32_t, alys::shader::detail::instruction_t> inputs;
 				std::unordered_map<std::uint32_t, alys::shader::detail::instruction_t> outputs;
 			};
@@ -2284,8 +2284,8 @@ namespace zonetool::iw6
 			}
 
 			void convert_merge_db_shader(zonetool::h1::MaterialPass* pass, std::vector<merge_data_t>& techs, MaterialTechniqueSet* asset, utils::memory::allocator& allocator,
-				unsigned int light_type_dest, unsigned int shadow_type_dest, unsigned int light_count_dest, std::uint32_t max_cb[4], std::uint32_t max_resources,
-				std::uint32_t max_samplers, std::unordered_map<std::uint16_t, bool> sampler_comparison_map, std::size_t shader)
+				unsigned int light_type_dest, unsigned int shadow_type_dest, unsigned int light_count_dest, 
+				std::uint32_t max_cb[cb_index_t::count], std::uint32_t max_resources, std::uint32_t max_samplers, std::size_t shader)
 			{
 				for (auto& tech : techs)
 				{
@@ -2324,13 +2324,15 @@ namespace zonetool::iw6
 					{
 						if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_SAMPLER)
 						{
-							tech.samplers.push_back(instruction);
+							const auto index = instruction.operands[0].indices[0].value.uint32;
+							tech.samplers[index] = instruction;
 							return false;
 						}
 
 						else if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_RESOURCE)
 						{
-							tech.resources.push_back(instruction);
+							const auto index = instruction.operands[0].indices[0].value.uint32;
+							tech.resources[index] = instruction;
 							return false;
 						}
 
@@ -2625,28 +2627,25 @@ for (auto& ins : merged_##FIELDNAME)                                            
 
 							for (uint32_t t = 0; t < max_resources; ++t)
 							{
-								auto decl = instruction;
+								alys::shader::detail::instruction_t decl{};
 
 								for (auto& tech : techs)
 								{
+									// find remapped resource
 									for (auto& resource : tech.resource_map[shader])
 									{
 										if (resource.second == t)
 										{
-											for (auto& ins : tech.resources)
+											if (tech.resources.contains(resource.first))
 											{
-												if (ins.operands[0].indices[0].value.uint32 == resource.first)
-												{
-													decl = ins;
-												}
+												decl = tech.resources[resource.first];
 											}
 										}
 									}
 								}
-
-								if (t == 1 && shader == shader_type_pixel_shader)
+								if (decl.opcode.type == 0)
 								{
-									decl.opcode.controls = D3D10_SB_RESOURCE_DIMENSION_TEXTURECUBE;
+									continue;
 								}
 								
 								if(resource_type_map.contains(static_cast<std::uint16_t>(t)))
@@ -2677,29 +2676,26 @@ for (auto& ins : merged_##FIELDNAME)                                            
 
 							for (auto t = 0u; t < max_samplers; ++t)
 							{
-								auto decl = instruction;
+								alys::shader::detail::instruction_t decl{};
 
 								for (auto& tech : techs)
 								{
+									// find remapped sampler
 									for (auto& sampler : tech.sampler_map[shader])
 									{
 										if (sampler.second == t)
 										{
-											for (auto& ins : tech.samplers)
+											if (tech.samplers.contains(sampler.first))
 											{
-												if (ins.operands[0].indices[0].value.uint32 == sampler.first)
-												{
-													decl = ins;
-												}
+												decl = tech.samplers[sampler.first];
 											}
 										}
 									}
 								}
-
-								//if (sampler_comparison_map.contains(static_cast<std::uint16_t>(t)))
-								//{
-								//	decl.opcode.controls = D3D10_SB_SAMPLER_MODE_COMPARISON;
-								//}
+								if (decl.opcode.type == 0)
+								{
+									continue;
+								}
 
 								if (sampler_type_map.contains(static_cast<std::uint16_t>(t)))
 								{
@@ -2766,7 +2762,6 @@ for (auto& ins : merged_##FIELDNAME)                                            
 
 					once = true;
 
-					//if (shader == shader_type_pixel_shader)
 					{
 						for (auto& tech : techs)
 						{
@@ -2776,14 +2771,6 @@ for (auto& ins : merged_##FIELDNAME)                                            
 							}
 						}
 					}
-					//else
-					//{
-					//	auto& tech = techs[0];
-					//	for (auto& ins : tech.instructions)
-					//	{
-					//		a(ins);
-					//	}
-					//}
 
 					return true;
 				}
@@ -2938,17 +2925,35 @@ for (auto& ins : merged_##FIELDNAME)                                            
 				std::uint32_t sampler_flags = 0;
 				for (auto& t : techs) sampler_flags |= t.tech->passArray[0].customSamplerFlags;
 
-				//const bool uses_reflection_probe = (sampler_flags & 0x1) != 0;
+				const bool uses_reflection_probe = (sampler_flags & 0x1) != 0;
 				const bool uses_lmap_primary = (sampler_flags & 0x2) != 0;
 				const bool uses_lmap_secondary = (sampler_flags & 0x4) != 0;
 
 				const auto increase_sampler_index = [&](std::uint16_t& index)
 				{
-					if(index == 0) ++index; //if (uses_reflection_probe && index == 0) ++index;
+					if (uses_reflection_probe && index == 0) ++index;
 					if (uses_lmap_primary && index == 1) ++index;
 					if (uses_lmap_secondary && index == 2) ++index;
 					++index;
 				};
+
+				if (uses_reflection_probe)
+				{
+					techs[0].resource_map[shader_type_pixel_shader][1] = 1;
+					techs[0].sampler_map[shader_type_pixel_shader][1] = 1;
+				}
+
+				if (uses_lmap_primary)
+				{
+					techs[0].resource_map[shader_type_pixel_shader][2] = 2;
+					techs[0].sampler_map[shader_type_pixel_shader][2] = 2;
+				}
+
+				if (uses_lmap_secondary)
+				{
+					techs[0].resource_map[shader_type_pixel_shader][3] = 3;
+					techs[0].sampler_map[shader_type_pixel_shader][3] = 3;
+				}
 
 				assert(pass->args);
 				std::vector<zonetool::h1::MaterialShaderArgument> prim_args;
@@ -3269,31 +3274,34 @@ for (auto& ins : merged_##FIELDNAME)                                            
 				const auto calculate_max_sampler_index = [&](std::uint16_t& max_index,
 					const std::unordered_map<std::uint32_t, std::uint16_t>& added_map)
 				{
+					if (uses_reflection_probe) max_index = std::max(max_index, static_cast<std::uint16_t>(1 + 1));
+					if (uses_lmap_primary) max_index = std::max(max_index, static_cast<std::uint16_t>(2 + 1));
+					if (uses_lmap_secondary) max_index = std::max(max_index, static_cast<std::uint16_t>(3 + 1));
 					for (auto& pair : added_map) if (pair.second >= max_index) max_index = static_cast<std::uint16_t>(pair.second + 1);
 				};
 				calculate_max_sampler_index(resource_index, added_resource_map);
 				calculate_max_sampler_index(sampler_index, added_sampler_map);
 
-				assert(sampler_index < 16);
-				assert(resource_index < 128);
+				assert(sampler_index <= 16);
+				assert(resource_index <= 128);
 
 				assert(new_pass->pixelShader);
 				assert(new_pass->vertexShader);
 
 				convert_merge_db_shader(new_pass, techs, asset, allocator, LIGHT_DYN_TYPES_DEST, LIGHT_DYN_SHADOW_TYPES_DEST, LIGHT_DYN_COUNT_DEST,
-					cb_sizes[shader_type_pixel_shader], resource_index, sampler_index, sampler_comparison_map, shader_type_pixel_shader);
+					cb_sizes[shader_type_pixel_shader], resource_index, sampler_index, shader_type_pixel_shader);
 				auto patch_data = get_pixelshader_patch_data(new_pass);
 				new_pass->pixelShader = convert_pixelshader((zonetool::iw6::MaterialPixelShader*)new_pass->pixelShader, allocator, patch_data);
 				hash_name_shader(new_pass->pixelShader, new_pass->pixelShader->prog.loadDef.microCodeCrc, allocator);
 				zonetool::h1::pixel_shader::dump(new_pass->pixelShader);
 
 				convert_merge_db_shader(new_pass, techs, asset, allocator, LIGHT_DYN_TYPES_DEST, LIGHT_DYN_SHADOW_TYPES_DEST, LIGHT_DYN_COUNT_DEST,
-					cb_sizes[shader_type_vertex_shader], resource_index, sampler_index, sampler_comparison_map, shader_type_vertex_shader);
+					cb_sizes[shader_type_vertex_shader], resource_index, sampler_index, shader_type_vertex_shader);
 				hash_name_shader(new_pass->vertexShader, new_pass->vertexShader->prog.loadDef.microCodeCrc, allocator);
 				zonetool::h1::vertex_shader::dump(new_pass->vertexShader);
 
 				convert_merge_db_shader(new_pass, techs, asset, allocator, LIGHT_DYN_TYPES_DEST, LIGHT_DYN_SHADOW_TYPES_DEST, LIGHT_DYN_COUNT_DEST,
-					cb_sizes[shader_type_hull_shader], resource_index, sampler_index, sampler_comparison_map, shader_type_hull_shader);
+					cb_sizes[shader_type_hull_shader], resource_index, sampler_index, shader_type_hull_shader);
 				if (new_pass->hullShader)
 				{
 					hash_name_shader(new_pass->hullShader, allocator);
@@ -3301,7 +3309,7 @@ for (auto& ins : merged_##FIELDNAME)                                            
 				}
 
 				convert_merge_db_shader(new_pass, techs, asset, allocator, LIGHT_DYN_TYPES_DEST, LIGHT_DYN_SHADOW_TYPES_DEST, LIGHT_DYN_COUNT_DEST,
-					cb_sizes[shader_type_domain_shader], resource_index, sampler_index, sampler_comparison_map, shader_type_domain_shader);
+					cb_sizes[shader_type_domain_shader], resource_index, sampler_index, shader_type_domain_shader);
 				if (new_pass->domainShader)
 				{
 					hash_name_shader(new_pass->domainShader, allocator);
