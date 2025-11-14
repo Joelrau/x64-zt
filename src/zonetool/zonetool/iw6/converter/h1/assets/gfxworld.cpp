@@ -438,11 +438,11 @@ namespace zonetool::iw6
 						{
 							if (game::get_mode() == game::game_mode::iw6)
 							{
-								auto smodel_inst = asset->dpvs.smodelInsts[i];
-								auto smodel_draw_inst = asset->dpvs.smodelDrawInsts[i];
+								auto& smodel_inst = asset->dpvs.smodelInsts[i];
+								auto& smodel_draw_inst = asset->dpvs.smodelDrawInsts[i];
 
-								if ((new_asset->dpvs.smodelDrawInsts[i].flags & zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING) != 0 &&
-									(new_asset->dpvs.smodelDrawInsts[i].flags & zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_ANIMATED_VERTS) != 0)
+								if ((smodel_draw_inst.flags & zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING) != 0 &&
+									(smodel_draw_inst.flags & zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_ANIMATED_VERTS) != 0)
 								{
 									struct GfxLightGridRaw
 									{
