@@ -26,7 +26,6 @@ namespace zonetool::iw6
 
 					for (unsigned int i = 0; i < level.regularPatchCount; ++i)
 					{
-						[[maybe_unused]] unsigned int past_flags = level.regularPatchFlags[i];
 						unsigned int flags = level.regularPatchFlags[i] & 0x3FF;
 
 						if (flags & (1 << 8))
