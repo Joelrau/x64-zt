@@ -1922,10 +1922,48 @@ namespace zonetool::iw6
 				return new_arg;
 			}
 
+			unsigned int convert_custom_buffer_flags(unsigned int flags)
+			{
+				zonetool::h1::CUSTOM_BUFFER_MATERIAL;
+				unsigned int out_flags = 0;
+				const auto convert_flag = [&](unsigned int in_flag, unsigned int out_flag)
+				{
+					if (flags & in_flag)
+					{
+						out_flags |= out_flag;
+					}
+				};
+				convert_flag(CUSTOM_BUFFER_PER_PRIM, zonetool::h1::CUSTOM_BUFFER_PER_PRIM);
+				convert_flag(CUSTOM_BUFFER_PER_OBJECT, zonetool::h1::CUSTOM_BUFFER_PER_OBJECT);
+				convert_flag(CUSTOM_BUFFER_PER_STABLE, zonetool::h1::CUSTOM_BUFFER_PER_STABLE);
+				convert_flag(CUSTOM_BUFFER_MATERIAL, zonetool::h1::CUSTOM_BUFFER_MATERIAL);
+				convert_flag(CUSTOM_BUFFER_SUBDOMAIN, zonetool::h1::CUSTOM_BUFFER_SUBDOMAIN);
+				convert_flag(CUSTOM_BUFFER_REACTIVE_MOTION, zonetool::h1::CUSTOM_BUFFER_REACTIVE_MOTION);
+				convert_flag(CUSTOM_BUFFER_REACTIVE_TURBULENCE_EFFECTORS, zonetool::h1::CUSTOM_BUFFER_REACTIVE_TURBULENCE_EFFECTORS);
+				convert_flag(CUSTOM_BUFFER_SMODEL_WORLDMATRIX, zonetool::h1::CUSTOM_BUFFER_SMODEL_WORLDMATRIX);
+				convert_flag(CUSTOM_BUFFER_SMODEL_LIGHTING, zonetool::h1::CUSTOM_BUFFER_SMODEL_LIGHTING);
+				convert_flag(CUSTOM_BUFFER_SMODEL_AMBIENT, zonetool::h1::CUSTOM_BUFFER_SMODEL_AMBIENT);
+				convert_flag(CUSTOM_BUFFER_SKINNED_CACHED_PREV_FRAME, zonetool::h1::CUSTOM_BUFFER_SKINNED_CACHED_PREV_FRAME);
+				//convert_flag(CUSTOM_BUFFER_UNKNOWN800, );
+				convert_flag(CUSTOM_BUFFER_SUBDIV_PATCH, zonetool::h1::CUSTOM_BUFFER_SUBDIV_PATCH);
+				convert_flag(CUSTOM_BUFFER_REGULAR_PATCH_FLAGS, zonetool::h1::CUSTOM_BUFFER_REGULAR_PATCH_FLAGS);
+				convert_flag(CUSTOM_BUFFER_UNKNOWN4000, zonetool::h1::CUSTOM_BUFFER_UNKNOWN2000);
+				convert_flag(CUSTOM_BUFFER_UNKNOWN8000, zonetool::h1::CUSTOM_BUFFER_UNKNOWN4000);
+
+				if ((flags & (0x10000 | 0x20000 | 0x40000)) != 0)
+				{
+					__debugbreak();
+				}
+
+				return out_flags;
+			}
+
 			void convert_pass(MaterialTechnique* technique, bool is_ocean_tech, MaterialPass* pass,
 				zonetool::h1::MaterialPass* new_pass, utils::memory::allocator& allocator, const std::int32_t tech_index, const std::int32_t new_tech_index,
 				bool add_dyn_types_const)
 			{
+				new_pass->customBufferFlags = convert_custom_buffer_flags(pass->customBufferFlags);
+
 				if (pass->args)
 				{
 					auto ssr = false; // screen space reflections
@@ -3322,6 +3360,8 @@ namespace zonetool::iw6
 						else add_arg(new_arg, stable_args, stable);
 					}
 				}
+
+				new_pass->customBufferFlags = convert_custom_buffer_flags(new_pass->customBufferFlags);
 
 				std::uint16_t LIGHT_DYN_TYPES_DEST = 0;
 				std::uint16_t LIGHT_DYN_SHADOW_TYPES_DEST = 0;

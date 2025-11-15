@@ -70,7 +70,7 @@ namespace zonetool::iw6
 				new_asset->mdaoVolumeCount = 0;
 				new_asset->mdaoVolumes = nullptr;
 				new_asset->u3 = 0;
-				new_asset->u4 = 0;
+				new_asset->subdivRadius = asset->subdivRadius;
 				new_asset->u5 = 0;
 				new_asset->skeletonScript = nullptr;
 				new_asset->compositeModels = nullptr;

@@ -1591,6 +1591,10 @@ namespace zonetool::h1
 		CUSTOM_BUFFER_SMODEL_LIGHTING = 0x100,
 		CUSTOM_BUFFER_SMODEL_AMBIENT = 0x200,
 		CUSTOM_BUFFER_SKINNED_CACHED_PREV_FRAME = 0x400,
+		CUSTOM_BUFFER_SUBDIV_PATCH = 0x800,
+		CUSTOM_BUFFER_REGULAR_PATCH_FLAGS = 0x1000,
+		CUSTOM_BUFFER_UNKNOWN2000 = 0x2000,
+		CUSTOM_BUFFER_UNKNOWN4000 = 0x4000,
 	};
 
 	enum PrecompiledIndex : std::uint8_t
@@ -4007,10 +4011,12 @@ namespace zonetool::h1
 	struct XSurfaceSubdivInfo
 	{
 		XSurfaceSubdivLevel* levels;
-		int flags; // maybe
+		int flags;
 		int totalVertCount; // foreach level: vertCount + VertOffset
-		int totalPatchCount; // foreach level: regularPatchCount + regularPatchOffset
-		int unk[3];
+		int totalRegularPatchCount; // foreach level: regularPatchCount + regularPatchOffset
+		int unk1;
+		int unk2;
+		int unk3;
 		GfxSubdivCache cache;
 	}; assert_sizeof(XSurfaceSubdivInfo, 0x38);
 
@@ -4095,11 +4101,11 @@ namespace zonetool::h1
 		int partBits[8];
 	}; assert_sizeof(XModelSurfs, 0x38);
 
-	enum XModelLodFlags
+	enum XModelLodInfoFlags
 	{
-		XMODEL_LOD_FLAG_NONE = 0x0,
-		XMODEL_LOD_FLAG_SUBDIV = 0x1,
-		XMODEL_LOD_FLAG_SUBDIV_UNK = 0x2,
+		XMODEL_LODINFO_FLAG_NONE = 0x0,
+		XMODEL_LODINFO_FLAG_SUBDIV = 0x1,
+		XMODEL_LODINFO_FLAG_SUBDIV_NON_ADAPTIVE = 0x2,
 	};
 
 	struct XModelLodInfo
@@ -4270,7 +4276,7 @@ namespace zonetool::h1
 		short u3; // 634
 		float quantization; // 636
 		MdaoVolume* mdaoVolumes; // 640
-		int u4; // 648
+		float subdivRadius; // 648
 		int u5; // 652
 		SkeletonScript* skeletonScript; // 656
 		XModel** compositeModels; // 664

@@ -10,6 +10,38 @@ namespace zonetool::iw6
 	{
 		namespace xsurface
 		{
+			void R_FixSubdivRegularPatchFlags(zonetool::h1::XSurface* surf)
+			{
+				if (!surf || !surf->subdiv || !surf->subdivLevelCount)
+					return;
+
+				zonetool::h1::XSurfaceSubdivInfo* subdiv = surf->subdiv;
+
+				if (subdiv->flags & 4)
+					return;
+
+				for (unsigned int levelIndex = 0; levelIndex < static_cast<unsigned int>(surf->subdivLevelCount); ++levelIndex)
+				{
+					zonetool::h1::XSurfaceSubdivLevel& level = subdiv->levels[levelIndex];
+
+					for (unsigned int i = 0; i < level.regularPatchCount; ++i)
+					{
+						[[maybe_unused]] unsigned int past_flags = level.regularPatchFlags[i];
+						unsigned int flags = level.regularPatchFlags[i] & 0x3FF;
+
+						if (flags & (1 << 8))
+							flags |= 0x110000;
+
+						if (flags & (1 << 9))
+							flags |= 0x440000;
+
+						level.regularPatchFlags[i] = flags;
+					}
+				}
+
+				subdiv->flags |= 4;
+			}
+
 			zonetool::h1::XModelSurfs* convert(XModelSurfs* asset, utils::memory::allocator& allocator)
 			{
 				auto* new_asset = allocator.allocate<zonetool::h1::XModelSurfs>();
@@ -93,6 +125,8 @@ namespace zonetool::iw6
 					COPY_VALUE(surfs[i].vertexLightingIndex);
 
 					COPY_ARR(surfs[i].partBits);
+
+					R_FixSubdivRegularPatchFlags(new_surf);
 				}
 
 				COPY_ARR(partBits);

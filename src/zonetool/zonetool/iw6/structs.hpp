@@ -1465,6 +1465,42 @@ namespace zonetool::iw6
 		MaterialArgumentDef u;
 	};
 
+	enum CustomSamplerFlags : std::uint8_t
+	{
+		CUSTOM_SAMPLER_FLAG_USE_REFLECTION_PROBE = 0x1,
+		CUSTOM_SAMPLER_FLAG_USE_LIGHTMAP_PRIMARY = 0x2,
+		CUSTOM_SAMPLER_FLAG_USE_LIGHTMAP_SECONDARY = 0x4,
+	};
+
+	enum CustomBufferFlags : std::uint32_t
+	{
+		CUSTOM_BUFFER_PER_PRIM = 0x1,
+		CUSTOM_BUFFER_PER_OBJECT = 0x2,
+		CUSTOM_BUFFER_PER_STABLE = 0x4,
+		CUSTOM_BUFFER_MATERIAL = 0x8,
+		CUSTOM_BUFFER_SUBDOMAIN = 0x10,
+		CUSTOM_BUFFER_REACTIVE_MOTION = 0x20,
+		CUSTOM_BUFFER_REACTIVE_TURBULENCE_EFFECTORS = 0x40,
+		CUSTOM_BUFFER_SMODEL_WORLDMATRIX = 0x80,
+		CUSTOM_BUFFER_SMODEL_LIGHTING = 0x100,
+		CUSTOM_BUFFER_SMODEL_AMBIENT = 0x200,
+		CUSTOM_BUFFER_SKINNED_CACHED_PREV_FRAME = 0x400,
+		CUSTOM_BUFFER_UNKNOWN800 = 0x800,
+		CUSTOM_BUFFER_SUBDIV_PATCH = 0x1000,
+		CUSTOM_BUFFER_REGULAR_PATCH_FLAGS = 0x2000,
+		CUSTOM_BUFFER_UNKNOWN4000 = 0x4000,
+		CUSTOM_BUFFER_UNKNOWN8000 = 0x8000,
+	};
+
+	enum PrecompiledIndex : std::uint8_t
+	{
+		PRECOMPILED_INDEX_LIT = 1,
+		PRECOMPILED_INDEX_UNLIT = 2,
+		PRECOMPILED_INDEX_AMBIENT = 3,
+		PRECOMPILED_INDEX_VERTEX_LIT = 4,
+		PRECOMPILED_INDEX_MODEL_LMAP = 5,
+	};
+
 	struct MaterialPass
 	{
 		MaterialVertexShader* vertexShader;
@@ -2289,7 +2325,12 @@ namespace zonetool::iw6
 	struct XSurfaceSubdivInfo
 	{
 		XSurfaceSubdivLevel* levels;
-		char __pad0[24];
+		int flags;
+		int totalVertCount; // foreach level: vertCount + VertOffset
+		int totalRegularPatchCount; // foreach level: regularPatchCount + regularPatchOffset
+		int unk1;
+		int unk2;
+		int unk3;
 		GfxSubdivCache cache;
 	};
 
@@ -2493,7 +2534,7 @@ namespace zonetool::iw6
 		PhysPreset* physPreset; // 576
 		PhysCollmap* physCollmap; // 584
 		float quantization; // 592
-		float unk;
+		float subdivRadius;
 	};
 
 	enum SoundChannel : std::uint32_t

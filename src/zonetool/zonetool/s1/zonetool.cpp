@@ -174,7 +174,7 @@ namespace zonetool::s1
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
 
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_REVERB_PRESET, reverb_preset, ReverbPreset);
-			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SNDDRIVER_GLOBALS, sound_driver_globals, SndDriverGlobals);
+			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SNDDRIVER_GLOBALS, sound_driver_globals, SndDriverGlobals); // crashes
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SOUND_SUBMIX, sound_submix, SndSubmixList);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_SURFACE_FX, surface_fx, SurfaceFxTable);
 			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_VEHICLE, vehicle_def, VehicleDef);
