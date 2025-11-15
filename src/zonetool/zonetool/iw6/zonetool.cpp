@@ -168,8 +168,8 @@ namespace zonetool::iw6
 			DUMP_ASSET_CONVERT(ASSET_TYPE_XMODEL, xmodel, XModel);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
 
-			//DUMP_ASSET_CONVERT(ASSET_TYPE_PHYSCOLLMAP, physcollmap, PhysCollmap);
-			//DUMP_ASSET_CONVERT(ASSET_TYPE_PHYSPRESET, physpreset, PhysPreset);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_PHYSCOLLMAP, physcollmap, PhysCollmap);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_PHYSPRESET, physpreset, PhysPreset);
 
 			DUMP_ASSET_CONVERT(ASSET_TYPE_COMPUTESHADER, computeshader, ComputeShader);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_DOMAINSHADER, domainshader, MaterialDomainShader);
