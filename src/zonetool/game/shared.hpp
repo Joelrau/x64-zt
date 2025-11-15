@@ -139,7 +139,9 @@ namespace zonetool
 	std::uint32_t Com_HashStringUpper(const std::string& string);
 	std::uint32_t DDL_HashString(const char* str, int len = 0);
 
+	void VectorToAngles(const float* vec, float* angles);
 	void AxisToAngles(const float axis[3][3], float angles[3]);
+	void AngleVectors(const float* angles, float* forward, float* right, float* up);
 
 	namespace QuatInt16
 	{

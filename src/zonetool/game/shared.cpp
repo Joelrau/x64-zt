@@ -203,29 +203,42 @@ namespace zonetool
 		return hash;
 	}
 
-	void vectoangles(const float* vec, float* angles)
+	void VectorToAngles(const float* vec, float* angles)
 	{
-		float x = vec[0], y = vec[1], z = vec[2];
+		const float rad_to_deg = 57.295776f;
+		const float x = vec[0];
+		const float y = vec[1];
+		const float z = vec[2];
 
-		if (x == 0.0f && y == 0.0f) {
-			angles[0] = (z < 0.0f) ? 270.0f : 90.0f; // Pitch
-			angles[1] = 0.0f;  // Yaw
+		float pitch = 0.0f;
+		float yaw = 0.0f;
+
+		if (x == 0.0f && y == 0.0f)
+		{
+			yaw = 0.0f;
+			pitch = (z > 0.0f) ? 270.0f : 90.0f;
 		}
-		else {
-			angles[1] = atan2f(y, x) * 57.295776f; // Yaw (rad to deg)
-			if (angles[1] < 0.0f) angles[1] += 360.0f;
+		else
+		{
+			yaw = std::atan2f(y, x) * rad_to_deg;
+			if (yaw < 0.0f)
+				yaw += 360.0f;
 
-			float horizontalLength = sqrtf(x * x + y * y);
-			angles[0] = atan2f(z, horizontalLength) * -57.295776f; // Pitch
-			if (angles[0] < 0.0f) angles[0] += 360.0f;
+			const float forward = std::sqrtf(x * x + y * y);
+
+			pitch = std::atan2f(z, forward) * -rad_to_deg;
+			if (pitch < 0.0f)
+				pitch += 360.0f;
 		}
 
-		angles[2] = 0.0f; // Roll is always zero
+		angles[0] = pitch;
+		angles[1] = yaw;
+		angles[2] = 0.0f;
 	}
 
 	void AxisToAngles(const float axis[3][3], float angles[3])
 	{
-		vectoangles(reinterpret_cast<const float*>(axis), angles);
+		VectorToAngles(reinterpret_cast<const float*>(axis), angles);
 
 		float yawRad = angles[1] * -0.0174533f;
 		float sinYaw = sinf(yawRad), cosYaw = cosf(yawRad);
@@ -244,6 +257,46 @@ namespace zonetool
 			: atan2f(rotatedX, sqrtf(newY * newY + rotatedZ * rotatedZ)) * -57.295776f;
 
 		angles[2] = (newY >= 0.0f) ? -rollAngle : ((rollAngle >= 0.0f) ? (-180.0f + rollAngle) : (180.0f + rollAngle));
+	}
+
+	void AngleVectors(const float* angles, float* forward, float* right, float* up)
+	{
+		const float deg_to_rad = 0.017453292f;
+		const float pitch = angles[0] * deg_to_rad;
+		const float yaw = angles[1] * deg_to_rad;
+		const float roll = angles[2] * deg_to_rad;
+
+		const float sp = std::sinf(pitch);
+		const float cp = std::cosf(pitch);
+		const float sy = std::sinf(yaw);
+		const float cy = std::cosf(yaw);
+
+		if (forward)
+		{
+			forward[0] = cp * cy;
+			forward[1] = cp * sy;
+			forward[2] = -sp;
+		}
+
+		if (right || up)
+		{
+			const float sr = std::sinf(roll);
+			const float cr = std::cosf(roll);
+
+			if (right)
+			{
+				right[0] = cr * sy - sr * sp * cy;
+				right[1] = -cr * cy - sr * sp * sy;
+				right[2] = -sr * cp;
+			}
+
+			if (up)
+			{
+				up[0] = cr * sp * cy + sr * sy;
+				up[1] = cr * sp * sy - sr * cy;
+				up[2] = cr * cp;
+			}
+		}
 	}
 
 	namespace QuatInt16
