@@ -266,7 +266,7 @@ namespace zonetool::iw6
 
 							if (emissive || new_elem->elemLitType == zonetool::h1::FxElemLitType::FX_ELEM_LIT_TYPE_NONE)
 							{
-								const auto convert_emissive = [&](const float* src, float* dst)
+								const auto convert_emissive = [&](const float* src, float* dst, float* emissive_scale)
 								{
 									const float litScale = 1.0f * elem->litHDRScalar;
 									const float blend = elem->litUnlitBlendFactor;
@@ -286,10 +286,14 @@ namespace zonetool::iw6
 									dst[0] = (blend * 1.0f * litR) + (r * unlitScale);
 									dst[1] = (blend * 1.0f * litG) + (g * unlitScale);
 									dst[2] = (blend * 1.0f * litB) + (b * unlitScale);
+
+									emissive_scale[0] = 1.0f;
+									emissive_scale[1] = 1.0f;
+									emissive_scale[2] = 1.0f;
 								};
 
-								convert_emissive(elem->visSamples[i].base.color, new_elem->visSamples[i].base.emissiveScale);
-								convert_emissive(elem->visSamples[i].amplitude.color, new_elem->visSamples[i].amplitude.emissiveScale);
+								convert_emissive(elem->visSamples[i].base.color, new_elem->visSamples[i].base.color, new_elem->visSamples[i].base.emissiveScale);
+								convert_emissive(elem->visSamples[i].amplitude.color, new_elem->visSamples[i].amplitude.color, new_elem->visSamples[i].amplitude.emissiveScale);
 							}
 						}
 					}
