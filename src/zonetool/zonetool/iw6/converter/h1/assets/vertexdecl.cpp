@@ -22,11 +22,6 @@ namespace zonetool::iw6
 					new_asset->routing.data[i].source = asset->routing.data[i].source;
 					new_asset->routing.data[i].dest = asset->routing.data[i].dest;
 					new_asset->routing.data[i].mask = asset->routing.data[i].mask;
-
-					if (asset->routing.data[i].source > 8)
-					{
-						new_asset->routing.data[i].source += 1;
-					}
 				}
 
 				new_asset->name = allocator.duplicate_string(game::add_source_postfix(asset->name, game::iw6));
