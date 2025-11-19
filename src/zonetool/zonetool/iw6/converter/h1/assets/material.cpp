@@ -115,7 +115,7 @@ namespace zonetool::iw6
 				{zonetool::iw6::MTL_TYPE_DEFAULT, zonetool::h1::MTL_TYPE_DEFAULT},
 				{zonetool::iw6::MTL_TYPE_MODEL, zonetool::h1::MTL_TYPE_MODEL},
 				{zonetool::iw6::MTL_TYPE_MODEL_VERTCOL, zonetool::h1::MTL_TYPE_MODEL_VERTCOL},
-				{zonetool::iw6::MTL_TYPE_MODEL_VERTCOL_GREY, zonetool::h1::MTL_TYPE_MODEL_VERTCOL_GREY},
+				//{zonetool::iw6::MTL_TYPE_MODEL_VERTCOL_GREY, zonetool::h1::MTL_TYPE_MODEL_VERTCOL_GREY},
 				//{zonetool::iw6::MTL_TYPE_MODEL_QUANTIZED, zonetool::h1::MTL_TYPE_MODEL_QUANTIZED},
 				//{zonetool::iw6::MTL_TYPE_MODEL_QUANTIZED_VERTCOL, zonetool::h1::MTL_TYPE_MODEL_QUANTIZED_VERTCOL},
 				//{zonetool::iw6::MTL_TYPE_MODEL_QUANTIZED_VERTCOL_GREY, zonetool::h1::MTL_TYPE_MODEL_QUANTIZED_VERTCOL_GREY},
