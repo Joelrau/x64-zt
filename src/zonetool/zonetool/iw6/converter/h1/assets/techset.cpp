@@ -1922,6 +1922,130 @@ namespace zonetool::iw6
 				return new_arg;
 			}
 
+			void add_const_arg(std::uint8_t shader, std::uint16_t dest, std::uint16_t index, std::vector<zonetool::h1::MaterialShaderArgument>& args)
+			{
+				auto arg = zonetool::h1::MaterialShaderArgument{};
+				arg.type = zonetool::h1::MTL_ARG_CODE_CONST;
+				arg.shader = shader;
+				arg.dest = dest;
+				arg.u.codeConst.index = index;
+				arg.u.codeConst.firstRow = 0;
+				arg.u.codeConst.rowCount = 1;
+				args.push_back(arg);
+			};
+
+			void add_literal_arg(std::uint8_t shader, std::uint16_t dest, float* value, std::vector<zonetool::h1::MaterialShaderArgument>& args)
+			{
+				auto arg = zonetool::h1::MaterialShaderArgument{};
+				arg.type = zonetool::h1::MTL_ARG_LITERAL_CONST;
+				arg.shader = shader;
+				arg.dest = dest;
+				arg.u.literalConst = value;
+				args.push_back(arg);
+			};
+
+			template <typename T>
+			void add_missing_dests_to_args(
+				T* shader_def,
+				shader_type_flag_e shader_flags,
+				std::vector<zonetool::h1::MaterialShaderArgument>& prim_args,
+				std::vector<zonetool::h1::MaterialShaderArgument>& obj_args,
+				std::vector<zonetool::h1::MaterialShaderArgument>& stable_args)
+			{
+				if (!shader_def || !shader_def->prog.loadDef.program)
+					return;
+
+				constexpr std::size_t arg_set_count = 3;
+				constexpr std::array<std::uint32_t, arg_set_count> cb_slots = {
+					primitive,
+					object,
+					stable
+				};
+
+				std::array<std::vector<zonetool::h1::MaterialShaderArgument>*, arg_set_count> arg_sets = {
+					&prim_args,
+					&obj_args,
+					&stable_args
+				};
+
+				const auto resolve_set_index = [&](std::uint32_t slot) -> int
+				{
+					for (std::size_t i = 0; i < cb_slots.size(); ++i)
+					{
+						if (cb_slots[i] == slot)
+							return static_cast<int>(i);
+					}
+					return -1;
+				};
+
+				std::array<std::unordered_set<std::uint32_t>, arg_set_count> existing_dests{};
+				for (std::size_t set_index = 0; set_index < arg_set_count; ++set_index)
+				{
+					for (const auto& arg : *arg_sets[set_index])
+					{
+						if ((arg.shader & shader_flags) == 0)
+							continue;
+
+						if (arg.type != zonetool::h1::MTL_ARG_CODE_CONST &&
+							arg.type != zonetool::h1::MTL_ARG_LITERAL_CONST)
+						{
+							continue;
+						}
+
+						const auto rows = get_arg_rows(arg);
+						for (std::uint16_t row = 0; row < rows; ++row)
+						{
+							existing_dests[set_index].insert(arg.dest + row);
+						}
+					}
+				}
+
+				const std::string shader_data{
+					reinterpret_cast<char*>(shader_def->prog.loadDef.program),
+					shader_def->prog.loadDef.programSize
+				};
+				auto shader = alys::shader::shader_object::parse(shader_data);
+
+				std::array<std::unordered_set<std::uint32_t>, arg_set_count> shader_dests{};
+				for (const auto& inst : shader.get_instructions())
+				{
+					if (inst.opcode.type == D3D10_SB_OPCODE_DCL_CONSTANT_BUFFER)
+						continue;
+
+					for (const auto& op : inst.operands)
+					{
+						if (op.type != D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER)
+							continue;
+
+						const auto slot = op.indices[0].value.uint32;
+						const int set_index = resolve_set_index(slot);
+						if (set_index < 0)
+							continue;
+
+						const auto dest = op.indices[1].value.uint32;
+						shader_dests[static_cast<std::size_t>(set_index)].insert(dest);
+					}
+				}
+
+				static float zero4[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+				for (std::size_t set_index = 0; set_index < arg_set_count; ++set_index)
+				{
+					auto& dests = existing_dests[set_index];
+					auto& args = *arg_sets[set_index];
+
+					for (const auto shader_dest : shader_dests[set_index])
+					{
+						if (dests.contains(shader_dest))
+							continue;
+
+						const auto dest = static_cast<std::uint16_t>(shader_dest);
+						add_literal_arg(shader_flags, dest, zero4, args);
+						dests.insert(shader_dest);
+					}
+				}
+			}
+
 			unsigned int convert_custom_buffer_flags(unsigned int flags)
 			{
 				zonetool::h1::CUSTOM_BUFFER_MATERIAL;
@@ -2003,15 +2127,10 @@ namespace zonetool::iw6
 						const auto cb1_size = pass->perObjArgSize / 16;
 						//ZONETOOL_INFO("adding light_dyn_types to %s %i", technique->hdr.name, cb1_size);
 
-						zonetool::h1::MaterialShaderArgument arg{};
-						arg.type = zonetool::h1::MTL_ARG_CODE_CONST;
-						arg.shader |= shader_flag_pixel_shader;
-						arg.dest = static_cast<std::uint16_t>(cb1_size);
-						arg.u.codeConst.firstRow = 0;
-						arg.u.codeConst.rowCount = 1;
-						arg.u.codeConst.index = zonetool::h1::CONST_SRC_CODE_LIGHT_DYN_TYPES;
-						obj_args.emplace_back(arg);
+						add_const_arg(shader_flag_pixel_shader, static_cast<std::uint16_t>(cb1_size), zonetool::h1::CONST_SRC_CODE_LIGHT_DYN_TYPES, obj_args);
 					}
+
+					add_missing_dests_to_args(pass->pixelShader, shader_flag_pixel_shader, prim_args, obj_args, stable_args);
 
 					add_args_to_pass(new_pass, allocator, prim_args, obj_args, stable_args);
 
@@ -2493,13 +2612,13 @@ namespace zonetool::iw6
 						{
 							const auto index = instruction.operands[0].indices[0].value.uint32;
 							tech.samplers[index] = instruction;
-							return false;
+							return true;
 						}
 						else if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_RESOURCE)
 						{
 							const auto index = instruction.operands[0].indices[0].value.uint32;
 							tech.resources[index] = instruction;
-							return false;
+							return true;
 						}
 						else if (is_input_dcl(instruction.opcode.type))
 						{
@@ -2515,7 +2634,7 @@ namespace zonetool::iw6
 								tech.inputs[index] = instruction;
 							}
 
-							return false;
+							return true;
 						}
 						else if (is_output_dcl(instruction.opcode.type))
 						{
@@ -2531,19 +2650,19 @@ namespace zonetool::iw6
 								tech.outputs[index] = instruction;
 							}
 
-							return false;
+							return true;
 						}
 						else if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_CONSTANT_BUFFER)
 						{
 							const auto cb_index = instruction.operands[0].indices[0].value.uint32;
-							if (cb_index >= cb_index_t::count) return false;
+							if (cb_index >= cb_index_t::count) return true;
 
 							if (instruction.opcode.controls == D3D10_SB_CONSTANT_BUFFER_DYNAMIC_INDEXED)
 							{
 								dynamic_cb[cb_index] = true;
 							}
 
-							return false;
+							return true;
 						}
 						else if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_TEMPS)
 						{
@@ -2552,7 +2671,7 @@ namespace zonetool::iw6
 
 						if (is_header_opcode(instruction))
 						{
-							return false;
+							return true;
 						}
 
 						for (auto& op : instruction.operands)
@@ -2643,7 +2762,7 @@ namespace zonetool::iw6
 						}
 
 						tech.instructions.push_back(instruction);
-						return false;
+						return true;
 					}
 					);
 				}
@@ -2695,11 +2814,6 @@ namespace zonetool::iw6
 					}
 					else if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_RESOURCE)
 					{
-						if (instruction.operands.size() < 2)
-						{
-							__debugbreak(); // does this happen?
-							return false;
-						}
 						if (inserted_resources) return true;
 						inserted_resources = true;
 
@@ -3120,8 +3234,6 @@ namespace zonetool::iw6
 				std::unordered_map<std::uint32_t, std::uint16_t> added_sampler_map{};
 				std::uint16_t sampler_index = 0;
 
-				std::unordered_map<std::uint16_t, bool> sampler_comparison_map;
-
 				std::unordered_map<std::uint32_t, std::uint16_t> added_arg_map[cb_index_t::count][zonetool::h1::MTL_ARG_COUNT];
 				std::uint16_t dest_index[cb_index_t::count]{};
 
@@ -3287,15 +3399,6 @@ namespace zonetool::iw6
 
 							added_sampler_map.emplace(identifier, arg.dest);
 
-							if (arg.type == zonetool::h1::MTL_ARG_CODE_SAMPLER)
-							{
-								if (arg.u.codeSampler >= zonetool::h1::TEXTURE_SRC_CODE_SHADOWMAP_SUN &&
-									arg.u.codeSampler <= zonetool::h1::TEXTURE_SRC_CODE_SHADOWMAP_SPOT_3)
-								{
-									sampler_comparison_map[arg.dest] = true;
-								}
-							}
-
 							args.emplace_back(arg);
 							added_arg_map[cb_index][arg.type][identifier] = arg.dest;
 							return;
@@ -3367,23 +3470,11 @@ namespace zonetool::iw6
 				std::uint16_t LIGHT_DYN_SHADOW_TYPES_DEST = 0;
 				std::uint16_t LIGHT_DYN_COUNT_DEST = 0;
 
-				const auto add_obj_const_arg = [&](std::uint8_t shader, std::uint16_t dest, std::uint16_t index)
-				{
-					auto arg = zonetool::h1::MaterialShaderArgument{};
-					arg.type = zonetool::h1::MTL_ARG_CODE_CONST;
-					arg.shader = shader;
-					arg.dest = dest;
-					arg.u.codeConst.index = index;
-					arg.u.codeConst.firstRow = 0;
-					arg.u.codeConst.rowCount = 1;
-					obj_args.push_back(arg);
-				};
-
 				const auto add_light_arg = [&](std::uint16_t index)
 				{
 					const auto dest = dest_index[object]++;
 					const std::uint8_t shader_flag = shader_flag_pixel_shader | shader_flag_vertex_shader;
-					add_obj_const_arg(shader_flag, dest, index);
+					add_const_arg(shader_flag, dest, index, obj_args);
 					return dest;
 				};
 
