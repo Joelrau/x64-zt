@@ -1281,13 +1281,36 @@ namespace zonetool::iw6
 				{
 					alys::shader::detail::operand_proxy rel_addr = *cb_color_orig.indices[1].extra_operand;
 
-					a.eq(rf.xyzw(), rel_addr.xxxx(), asm_::l(0.f, 1.f, 2.f, 3.f));
+					a.eq(rt.x(), rel_addr, asm_::l(0.f));
+					a.if_nz(rt.x());
+					a.mov(rs.x(), asm_::cb(cb_color_orig.indices[0].value.uint32, patch_data.db.dynamic_light_types_dest).x());
+					a.endif();
 
-					a.mov(rs.x(), cb_types.x());
+					a.eq(rt.x(), rel_addr, asm_::l(1.f));
+					a.if_nz(rt.x());
+					a.mov(rs.x(), asm_::cb(cb_color_orig.indices[0].value.uint32, patch_data.db.dynamic_light_types_dest).y());
+					a.endif();
 
-					a.movc(rs.x(), rf.yyyy(), cb_types.y(), rs.x());
-					a.movc(rs.x(), rf.zzzz(), cb_types.z(), rs.x());
-					a.movc(rs.x(), rf.wwww(), cb_types.w(), rs.x());
+					a.eq(rt.x(), rel_addr, asm_::l(2.f));
+					a.if_nz(rt.x());
+					a.mov(rs.x(), asm_::cb(cb_color_orig.indices[0].value.uint32, patch_data.db.dynamic_light_types_dest).z());
+					a.endif();
+
+					a.eq(rt.x(), rel_addr, asm_::l(3.f));
+					a.if_nz(rt.x());
+					a.mov(rs.x(), asm_::cb(cb_color_orig.indices[0].value.uint32, patch_data.db.dynamic_light_types_dest).w());
+					a.endif();
+
+					//alys::shader::detail::operand_proxy rel_addr = *cb_color_orig.indices[1].extra_operand;
+					//auto component = cb_color_orig.indices[1].extra_operand.get()->components.names[0] + 1;
+					//
+					//a.eq(rf.xyzw(), rel_addr.select(component, component, component, component), asm_::l(0.f, 1.f, 2.f, 3.f));
+					//
+					//a.mov(rs.x(), cb_types.x());
+					//
+					//a.movc(rs.x(), rf.yyyy(), cb_types.y(), rs.x());
+					//a.movc(rs.x(), rf.zzzz(), cb_types.z(), rs.x());
+					//a.movc(rs.x(), rf.wwww(), cb_types.w(), rs.x());
 				}
 				else
 				{
@@ -1620,7 +1643,7 @@ namespace zonetool::iw6
 			}
 
 			zonetool::h1::MaterialVertexShader* convert_ocean_vertexshader(MaterialVertexShader* asset, utils::memory::allocator& allocator,
-				std::uint32_t original_dest, std::uint32_t new_dest)
+				std::uint32_t original_dest, std::uint32_t new_dest, bool add_postfix = true)
 			{
 				auto* new_asset = allocator.allocate<zonetool::h1::MaterialVertexShader>();
 
@@ -1663,12 +1686,19 @@ namespace zonetool::iw6
 				std::memcpy(new_asset->prog.loadDef.program, buffer.data(), buffer.size());
 
 				new_asset->prog.loadDef.microCodeCrc = utils::cryptography::crc32::compute(new_asset->prog.loadDef.program, new_asset->prog.loadDef.programSize);
-				new_asset->name = allocator.duplicate_string(game::add_source_postfix(asset->name, game::iw6));
+				if (add_postfix)
+				{
+					new_asset->name = allocator.duplicate_string(game::add_source_postfix(asset->name, game::iw6));
+				}
+				else
+				{
+					new_asset->name = allocator.duplicate_string(asset->name);
+				}
 
 				return new_asset;
 			}
 
-			void patch_ocean_tech(utils::memory::allocator& allocator, MaterialTechnique* technique, MaterialPass* pass, zonetool::h1::MaterialPass* new_pass,
+			void patch_ocean_tech(utils::memory::allocator& allocator, MaterialPass* pass, zonetool::h1::MaterialPass* new_pass,
 				std::vector<zonetool::h1::MaterialShaderArgument>& stable_args)
 			{
 				if (pass->vertexShader == nullptr || pass->vertexShader->prog.loadDef.program == nullptr)
@@ -1695,8 +1725,6 @@ namespace zonetool::iw6
 						break;
 					}
 				}
-
-				ZONETOOL_INFO("Patching ocean technique %s (%i %i)", technique->hdr.name, original_dest, new_dest);
 
 				if (original_dest != -1)
 				{
@@ -2117,9 +2145,9 @@ namespace zonetool::iw6
 						stable_args.emplace_back(new_arg);
 					}
 
-					if (is_ocean_tech && pass->vertexShader != nullptr && pass->vertexShader->prog.loadDef.program != nullptr)
+					if (is_ocean_tech)
 					{
-						patch_ocean_tech(allocator, technique, pass, new_pass, stable_args);
+						patch_ocean_tech(allocator, pass, new_pass, stable_args);
 					}
 
 					if (add_dyn_types_const)
@@ -2697,9 +2725,15 @@ namespace zonetool::iw6
 							}
 							case D3D10_SB_OPERAND_TYPE_RESOURCE:
 							{
-								if (instruction.opcode.extensions[0].values[0] == D3D11_SB_RESOURCE_DIMENSION_RAW_BUFFER ||
-									instruction.opcode.extensions[0].values[0] == D3D11_SB_RESOURCE_DIMENSION_STRUCTURED_BUFFER)
+								if (instruction.opcode.type == D3D11_SB_OPCODE_DCL_RESOURCE_RAW ||
+									instruction.opcode.type == D3D11_SB_OPCODE_DCL_RESOURCE_STRUCTURED ||
+									instruction.opcode.type == D3D11_SB_OPCODE_LD_RAW ||
+									instruction.opcode.type == D3D11_SB_OPCODE_STORE_RAW ||
+									instruction.opcode.type == D3D11_SB_OPCODE_LD_STRUCTURED ||
+									instruction.opcode.type == D3D11_SB_OPCODE_STORE_STRUCTURED)
+								{
 									continue;
+								}
 
 								const auto resource_id = op.indices[0].value.uint32;
 								auto& map = tech.resource_map[shader];
@@ -3197,6 +3231,8 @@ namespace zonetool::iw6
 				//if (pass->domainShader) new_pass->domainShader = converter::h1::domainshader::convert(pass->domainShader, allocator);
 				//if (pass->pixelShader) new_pass->pixelShader = converter::h1::pixelshader::convert(pass->pixelShader, allocator);
 
+				const auto is_ocean_tech = std::strstr(merged_tech.hdr.name, "ocean") != nullptr;
+
 				std::uint32_t sampler_flags = 0;
 				for (auto& t : techs) sampler_flags |= t.tech->passArray[0].customSamplerFlags;
 
@@ -3464,6 +3500,35 @@ namespace zonetool::iw6
 					}
 				}
 
+				std::optional<std::uint16_t> OCEAN_EO_MATRIX_DEST{};
+				std::optional<std::uint16_t> OCEAN_EO_DEST{};
+				if (is_ocean_tech)
+				{
+					for (const auto& arg : stable_args)
+					{
+						if (arg.type == zonetool::h1::MTL_ARG_CODE_CONST)
+						{
+							if (arg.u.codeConst.index == zonetool::h1::CONST_SRC_CODE_WORLD_MATRIX_EYE_OFFSET)
+							{
+								OCEAN_EO_MATRIX_DEST = arg.dest;
+							}
+							else if (arg.u.codeConst.index == zonetool::h1::CONST_SRC_CODE_EYEOFFSET)
+							{
+								OCEAN_EO_DEST = arg.dest;
+							}
+
+							if (OCEAN_EO_MATRIX_DEST && OCEAN_EO_DEST) break;
+						}
+					}
+
+					assert(OCEAN_EO_MATRIX_DEST.has_value());
+					if (!OCEAN_EO_DEST.has_value())
+					{
+						OCEAN_EO_DEST = dest_index[stable]++;
+						add_const_arg(shader_flag_vertex_shader, OCEAN_EO_DEST.value(), zonetool::h1::CONST_SRC_CODE_EYEOFFSET, stable_args);
+					}
+				}
+
 				new_pass->customBufferFlags = convert_custom_buffer_flags(new_pass->customBufferFlags);
 
 				std::uint16_t LIGHT_DYN_TYPES_DEST = 0;
@@ -3543,6 +3608,11 @@ namespace zonetool::iw6
 
 				convert_merge_db_shader(new_pass, techs, asset, allocator, LIGHT_DYN_TYPES_DEST, LIGHT_DYN_SHADOW_TYPES_DEST, LIGHT_DYN_COUNT_DEST,
 					cb_sizes[shader_type_vertex_shader], resource_index, sampler_index, shader_type_vertex_shader);
+				if (is_ocean_tech && OCEAN_EO_MATRIX_DEST.has_value() && OCEAN_EO_DEST.has_value())
+				{
+					new_pass->vertexShader = convert_ocean_vertexshader((zonetool::iw6::MaterialVertexShader*)new_pass->vertexShader, allocator, 
+						OCEAN_EO_MATRIX_DEST.value(), OCEAN_EO_DEST.value(), false);
+				}
 				hash_name_shader(new_pass->vertexShader, new_pass->vertexShader->prog.loadDef.microCodeCrc, allocator);
 				zonetool::h1::vertex_shader::dump(new_pass->vertexShader);
 
