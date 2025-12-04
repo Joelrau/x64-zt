@@ -168,6 +168,8 @@ namespace zonetool::iw6
 			DUMP_ASSET_CONVERT(ASSET_TYPE_XMODEL, xmodel, XModel);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
 
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_ANIMCLASS, anim_class, AnimationClass);
+
 			DUMP_ASSET_CONVERT(ASSET_TYPE_PHYSCOLLMAP, physcollmap, PhysCollmap);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_PHYSPRESET, physpreset, PhysPreset);
 

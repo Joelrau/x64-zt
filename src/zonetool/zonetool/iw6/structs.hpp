@@ -579,7 +579,37 @@ namespace zonetool::iw6
 
 	enum SurfaceTypeBits : std::uint32_t
 	{
-
+		SURFTYPE_BITS_BARK = 0x00000001,
+		SURFTYPE_BITS_BRICK = 0x00000002,
+		SURFTYPE_BITS_CARPET = 0x00000004,
+		SURFTYPE_BITS_CLOTH = 0x00000008,
+		SURFTYPE_BITS_CONCRETE = 0x00000010,
+		SURFTYPE_BITS_DIRT = 0x00000020,
+		SURFTYPE_BITS_FLESH = 0x00000040,
+		SURFTYPE_BITS_FOLIAGE = 0x00000080,
+		SURFTYPE_BITS_GLASS = 0x00000100,
+		SURFTYPE_BITS_GRASS = 0x00000200,
+		SURFTYPE_BITS_GRAVEL = 0x00000400,
+		SURFTYPE_BITS_ICE = 0x00000800,
+		SURFTYPE_BITS_METAL = 0x00001000,
+		SURFTYPE_BITS_METAL_GRATE = 0x00002000,
+		SURFTYPE_BITS_MUD = 0x00004000,
+		SURFTYPE_BITS_PAPER = 0x00008000,
+		SURFTYPE_BITS_PLASTER = 0x00010000,
+		SURFTYPE_BITS_ROCK = 0x00020000,
+		SURFTYPE_BITS_SAND = 0x00040000,
+		SURFTYPE_BITS_SNOW = 0x00080000,
+		SURFTYPE_BITS_WATER = 0x00100000,
+		SURFTYPE_BITS_WOOD = 0x00200000,
+		SURFTYPE_BITS_ASPHALT = 0x00400000,
+		SURFTYPE_BITS_CERAMIC = 0x00800000,
+		SURFTYPE_BITS_PLASTIC = 0x01000000,
+		SURFTYPE_BITS_RUBBER = 0x02000000,
+		SURFTYPE_BITS_FRUIT = 0x04000000,
+		SURFTYPE_BITS_PAINTEDMETAL = 0x08000000,
+		SURFTYPE_BITS_RIOTSHIELD = 0x10000000,
+		SURFTYPE_BITS_SLUSH = 0x20000000,
+		SURFTYPE_BITS_CUSHION = 0x40000000,
 	};
 
 	struct MaterialInfo
@@ -7008,6 +7038,71 @@ namespace zonetool::iw6
 		const char* name;
 	};
 
+	struct AnimationAimSet
+	{
+		scr_string_t name;
+		scr_string_t rootName;
+		scr_string_t animName[8];
+		unsigned __int64 rootIndex;
+		unsigned __int64 animIndices[8];
+	};
+
+	struct AnimationEntry
+	{
+		scr_string_t alias;
+		scr_string_t animName;
+	};
+
+	struct AnimationState
+	{
+		scr_string_t name;
+		scr_string_t notify;
+		float blendTime;
+		unsigned char flags;
+		unsigned char entryCount;
+		AnimationAimSet* aimSet;
+		AnimationEntry* animEntries;
+		unsigned __int64* animIndices;
+	};
+
+	struct AnimationStateMachine
+	{
+		scr_string_t name;
+		unsigned short stateCount;
+		unsigned short aimSetCount;
+		AnimationState* states;
+		AnimationAimSet* aimSets;
+	};
+
+	enum AnimationController : std::int32_t
+	{
+		ANIMCTRL_NONE = 0x0,
+		ANIMCTRL_PLAYER = 0x1,
+		ANIMCTRL_DOG = 0x2,
+		ANIMCTRL_NUM = 0x3,
+	};
+
+	struct AnimationClass
+	{
+		union
+		{
+			const char* className;
+			const char* name;
+		};
+		AnimationStateMachine* stateMachine;
+		AnimationController animCtrl;
+		scr_string_t animTree;
+		ScriptableDef* scriptable;
+		unsigned short soundCount;
+		unsigned short effectCount;
+		scr_string_t* soundNotes;
+		scr_string_t* soundNames;
+		scr_string_t* soundOptions;
+		scr_string_t* effectNotes;
+		FxEffectDef** effectDefs;
+		scr_string_t* effectTags;
+	};
+
 	union XAssetHeader
 	{
 		void* data;
@@ -7042,7 +7137,7 @@ namespace zonetool::iw6
 		Font_s* font;
 		//MenuList* menuList;
 		//menuDef_t* menu;
-		//AnimationClass* animClass;
+		AnimationClass* animClass;
 		LocalizeEntry* localize;
 		WeaponAttachment* attachment;
 		WeaponCompleteDef* weapon;
