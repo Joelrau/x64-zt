@@ -1256,8 +1256,8 @@ namespace zonetool::iw6
 				dynamic_branching_data_t db;
 			};
 
-			alys::shader::detail::operand_t write_cb_mul_instruction(alys::shader::shader_object::assembler& a, const pixelshader_patch_data_t& patch_data,
-				alys::shader::detail::operand_proxy cb, const std::uint32_t offset)
+			alys::shader::detail::operand_t write_cb_mul_instruction(alys::shader::assembler& a, const pixelshader_patch_data_t& patch_data,
+				alys::shader::operand_proxy cb, const std::uint32_t offset)
 			{
 				assert(offset < 2);
 
@@ -1267,19 +1267,19 @@ namespace zonetool::iw6
 				return tmp;
 			}
 
-			alys::shader::detail::operand_t emit_lighttype_gate(alys::shader::shader_object::assembler& a, const pixelshader_patch_data_t& patch_data,
-				const std::uint32_t t, alys::shader::detail::operand_proxy& cb_types, const std::string& swz_types, const alys::shader::detail::operand_t& cb_color_orig)
+			alys::shader::detail::operand_t emit_lighttype_gate(alys::shader::assembler& a, const pixelshader_patch_data_t& patch_data,
+				const std::uint32_t t, alys::shader::operand_proxy& cb_types, const std::string& swz_types, const alys::shader::detail::operand_t& cb_color_orig)
 			{
 				auto rt = asm_::r(patch_data.temp_index + t);
 				auto rs = asm_::r(patch_data.temp_index + t + 1);
 				auto rf = asm_::r(patch_data.temp_index + t + 2);
 
-				alys::shader::detail::operand_proxy cb_color = cb_color_orig;
+				alys::shader::operand_proxy cb_color = cb_color_orig;
 				auto selected_op = rs.x();
 
 				if (cb_color_orig.indices[1].extra_operand != nullptr)
 				{
-					alys::shader::detail::operand_proxy rel_addr = *cb_color_orig.indices[1].extra_operand;
+					alys::shader::operand_proxy rel_addr = *cb_color_orig.indices[1].extra_operand;
 
 					a.eq(rt.x(), rel_addr, asm_::l(0.f));
 					a.if_nz(rt.x());
@@ -1301,7 +1301,7 @@ namespace zonetool::iw6
 					a.mov(rs.x(), asm_::cb(cb_color_orig.indices[0].value.uint32, patch_data.db.dynamic_light_types_dest).w());
 					a.endif();
 
-					//alys::shader::detail::operand_proxy rel_addr = *cb_color_orig.indices[1].extra_operand;
+					//alys::shader::operand_proxy rel_addr = *cb_color_orig.indices[1].extra_operand;
 					//auto component = cb_color_orig.indices[1].extra_operand.get()->components.names[0] + 1;
 					//
 					//a.eq(rf.xyzw(), rel_addr.select(component, component, component, component), asm_::l(0.f, 1.f, 2.f, 3.f));
@@ -1327,7 +1327,7 @@ namespace zonetool::iw6
 				return rt.xyzw();
 			}
 
-			bool patch_instruction(alys::shader::shader_object::assembler& a, alys::shader::detail::instruction_t instruction,
+			bool patch_instruction(alys::shader::assembler& a, alys::shader::detail::instruction_t instruction,
 				const pixelshader_patch_data_t& patch_data)
 			{
 				const auto contains_arg = [&](const std::uint32_t index)
@@ -1434,7 +1434,7 @@ namespace zonetool::iw6
 				return true;
 			}
 
-			bool patch_instruction_dcl_temps(alys::shader::shader_object::assembler& a, alys::shader::detail::instruction_t instruction, pixelshader_patch_data_t& patch_data)
+			bool patch_instruction_dcl_temps(alys::shader::assembler& a, alys::shader::detail::instruction_t instruction, pixelshader_patch_data_t& patch_data)
 			{
 				patch_data.temp_index = instruction.operands[0].custom.u.value;
 				instruction.operands[0].custom.u.value += patch_data.db.used ? 5 : 2;
@@ -1442,7 +1442,7 @@ namespace zonetool::iw6
 				return true;
 			}
 
-			bool patch_instruction_dcl_constant_buffer(alys::shader::shader_object::assembler& a, alys::shader::detail::instruction_t instruction, pixelshader_patch_data_t& patch_data)
+			bool patch_instruction_dcl_constant_buffer(alys::shader::assembler& a, alys::shader::detail::instruction_t instruction, pixelshader_patch_data_t& patch_data)
 			{
 				for (std::uint32_t i = 0; i < cb_index_t::count; i++)
 				{
@@ -1456,7 +1456,7 @@ namespace zonetool::iw6
 				return true;
 			}
 
-			bool patch_shader_const(alys::shader::shader_object::assembler& a, alys::shader::detail::instruction_t instruction, pixelshader_patch_data_t& patch_data)
+			bool patch_shader_const(alys::shader::assembler& a, alys::shader::detail::instruction_t instruction, pixelshader_patch_data_t& patch_data)
 			{
 				if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_TEMPS)
 				{
@@ -1485,7 +1485,7 @@ namespace zonetool::iw6
 				{
 					const auto data = std::string{ reinterpret_cast<const char*>(asset->prog.loadDef.program), asset->prog.loadDef.programSize };
 					const auto buffer = alys::shader::patch_shader(data,
-						[&](alys::shader::shader_object::assembler& a, alys::shader::detail::instruction_t& instruction) -> bool
+						[&](alys::shader::assembler& a, alys::shader::detail::instruction_t& instruction) -> bool
 					{
 						return patch_shader_const(a, instruction, patch_data);
 					}
@@ -1652,7 +1652,7 @@ namespace zonetool::iw6
 
 				const auto data = std::string{ reinterpret_cast<char*>(asset->prog.loadDef.program), asset->prog.loadDef.programSize };
 				const auto buffer = alys::shader::patch_shader(data,
-					[&](alys::shader::shader_object::assembler& a, alys::shader::detail::instruction_t instruction) -> bool
+					[&](alys::shader::assembler& a, alys::shader::detail::instruction_t instruction) -> bool
 				{
 					if (instruction.opcode.type != D3D10_SB_OPCODE_ADD || instruction.operands.size() != 3 ||
 						instruction.operands[2].type != D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER)
@@ -2319,7 +2319,7 @@ namespace zonetool::iw6
 			{
 				if (ins.opcode.type == D3D10_SB_OPCODE_CUSTOMDATA)
 				{
-					if (ins.customdata.data_class == D3D10_SB_CUSTOMDATA_DCL_IMMEDIATE_CONSTANT_BUFFER)
+					if (ins.operands[0].custom.u.value == D3D10_SB_CUSTOMDATA_DCL_IMMEDIATE_CONSTANT_BUFFER)
 					{
 						return true;
 					}
@@ -2370,7 +2370,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			void write_if_for_tech(merge_data_t& tech, alys::shader::shader_object::assembler& a,
+			void write_if_for_tech(merge_data_t& tech, alys::shader::assembler& a,
 				std::uint32_t light_type_dest, std::uint32_t shadow_type_dest, std::uint32_t light_count_dest)
 			{
 				std::uint32_t tech_type = tech.type % 103u;
@@ -2563,7 +2563,7 @@ namespace zonetool::iw6
 						const auto it = type_map.find(static_cast<std::uint16_t>(slot));
 						if (it != type_map.end())
 						{
-							decl.opcode.controls = it->second;
+							decl.opcode.controls = static_cast<std::uint16_t>(it->second);
 						}
 					}
 
@@ -2634,7 +2634,7 @@ namespace zonetool::iw6
 
 					alys::shader::patch_shader(
 						data,
-						[&](alys::shader::shader_object::assembler& a, alys::shader::detail::instruction_t& instruction) -> bool
+						[&](alys::shader::assembler& a, alys::shader::detail::instruction_t& instruction) -> bool
 					{
 						if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_SAMPLER)
 						{
@@ -2819,7 +2819,7 @@ namespace zonetool::iw6
 					fake_shader->prog.loadDef.programSize
 				};
 
-				const auto buffer = alys::shader::patch_shader(data, [&](alys::shader::shader_object::assembler& a, alys::shader::detail::instruction_t& instruction) -> bool
+				const auto buffer = alys::shader::patch_shader(data, [&](alys::shader::assembler& a, alys::shader::detail::instruction_t& instruction) -> bool
 				{
 					if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_CONSTANT_BUFFER)
 					{
@@ -2838,8 +2838,8 @@ namespace zonetool::iw6
 							decl.operands[0].indices[0].value.uint32 = cb_index;
 							decl.operands[0].indices[1].value.uint32 = max_cb[cb_index];
 							decl.opcode.controls = dynamic_cb[cb_index]
-								? D3D10_SB_CONSTANT_BUFFER_DYNAMIC_INDEXED
-								: D3D10_SB_CONSTANT_BUFFER_IMMEDIATE_INDEXED;
+								? static_cast<std::uint16_t>(D3D10_SB_CONSTANT_BUFFER_DYNAMIC_INDEXED)
+								: static_cast<std::uint16_t>(D3D10_SB_CONSTANT_BUFFER_IMMEDIATE_INDEXED);
 
 							a(decl);
 						}
@@ -2971,7 +2971,7 @@ namespace zonetool::iw6
 
 					alys::shader::patch_shader(
 						data,
-						[&](alys::shader::shader_object::assembler& a, alys::shader::detail::instruction_t& instruction) -> bool
+						[&](alys::shader::assembler& a, alys::shader::detail::instruction_t& instruction) -> bool
 					{
 						if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_SAMPLER)
 						{
@@ -3069,7 +3069,7 @@ namespace zonetool::iw6
 
 				bool once = false;
 
-				const auto buffer = alys::shader::patch_shader(data, [&](alys::shader::shader_object::assembler& a, alys::shader::detail::instruction_t& instruction) -> bool
+				const auto buffer = alys::shader::patch_shader(data, [&](alys::shader::assembler& a, alys::shader::detail::instruction_t& instruction) -> bool
 				{
 					if (once) return true;
 					once = true;

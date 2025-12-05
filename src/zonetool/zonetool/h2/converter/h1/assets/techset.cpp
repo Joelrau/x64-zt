@@ -523,16 +523,17 @@ namespace zonetool::h2
 				return converted_args;
 			}
 
-			bool patch_cb_index(alys::shader::shader_object::assembler& a, alys::shader::detail::instruction_t& instruction)
+			bool patch_cb_index(alys::shader::assembler& a, alys::shader::detail::instruction_t& instruction)
 			{
-				if (instruction.opcode.type >= D3D10_SB_OPCODE_DCL_RESOURCE)
+				const auto flags = alys::shader::detail::get_instruction_flags(instruction);
+				if ((flags & alys::shader::detail::flag_declaration) != 0)
 				{
 					return false;
 				}
 
 				for (auto& operand : instruction.operands)
 				{
-					if (operand.type == D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER && operand.indices[1].extra_operand == nullptr &&
+					if (operand.type == D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER && operand.indices[1].representation == D3D10_SB_OPERAND_INDEX_IMMEDIATE32 &&
 						operand.indices[0].value.uint32 <= 4)
 					{
 						operand.indices[1].value.uint32 = static_cast<std::uint32_t>(
