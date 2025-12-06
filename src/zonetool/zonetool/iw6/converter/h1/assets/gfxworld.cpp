@@ -509,9 +509,6 @@ namespace zonetool::iw6
 							subdiv_info.flags = asset->dpvs.smodelDrawInsts[i].vertexLightingInfo.flags;
 							subdiv_info.cache.size = asset->dpvs.smodelDrawInsts[i].vertexLightingInfo.cache.size;
 							subdiv_vertex_lighting_infos.push_back(subdiv_info);
-
-							// waiting for a hit...
-							__debugbreak();
 						}
 					}
 
