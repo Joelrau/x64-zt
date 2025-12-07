@@ -99,7 +99,7 @@ namespace zonetool::iw6
 		return zonetool::db_find_x_asset_header_safe<XAssetHeader, XAssetEntry>(type, name);
 	}
 
-	void DB_EnumXAssets(const XAssetType type,
+	void db_enum_assets(const XAssetType type,
 		const std::function<void(XAssetHeader)>& callback, const bool includeOverride)
 	{
 		DB_EnumXAssets_Internal(type, static_cast<void(*)(XAssetHeader, void*)>([](XAssetHeader header, void* data)
@@ -182,6 +182,8 @@ namespace zonetool::iw6
 
 			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENU, menu_def, menuDef_t);
 			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENULIST, menu_list, MenuList);
+
+			DUMP_ASSET_CONVERT(ASSET_TYPE_TONEMAPPING, tonemapping, ToneMapping);
 
 			DUMP_ASSET_CONVERT(ASSET_TYPE_PATHDATA, aipaths, PathData);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_CLIPMAP, clipmap, clipMap_t);

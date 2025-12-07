@@ -118,7 +118,14 @@ namespace zonetool::iw6
 
 				const auto write_value = [&](const std::string& name, const std::string& default_value, bool override_ = false)
 				{
-					const auto iter = values.find(name);
+					const auto new_gen = name + "_NG";
+					auto iter = values.find(new_gen);
+
+					if (iter == values.end())
+					{
+						iter = values.find(name);
+					}
+
 					if (override_ || iter == values.end())
 					{
 						buffer.append(utils::string::va("%s \"%s\"\r\n", name.data(), default_value.data()));
@@ -235,7 +242,7 @@ namespace zonetool::iw6
 				return buffer;
 			}
 
-			using convert_cb_t = std::function<std::string(const std::string& name, const std::string&, utils::memory::allocator&)>;
+			using convert_cb_t = std::function<std::string(const std::string&, const std::string&, utils::memory::allocator&)>;
 
 			zonetool::h1::RawFile* convert(RawFile* asset, utils::memory::allocator& allocator)
 			{

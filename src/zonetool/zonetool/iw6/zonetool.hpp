@@ -78,6 +78,8 @@ namespace zonetool::iw6
 		return header;
 	}
 
+	void db_enum_assets(const XAssetType type, const std::function<void(XAssetHeader)>& callback, const bool includeOverride);
+
 	void initialize();
 	void start();
 }

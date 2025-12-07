@@ -17,6 +17,7 @@
 #include "assets/scriptabledef.hpp"
 #include "assets/scriptfile.hpp"
 #include "assets/sound.hpp"
+#include "assets/tonemapping.hpp"
 #include "assets/tracerdef.hpp"
 #include "assets/xanim.hpp"
 #include "assets/xmodel.hpp"
