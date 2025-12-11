@@ -12,10 +12,91 @@ namespace zonetool::iw6
 	{
 		namespace aipaths
 		{
-			std::uint16_t convert_type(std::uint16_t type)
+			std::unordered_map<std::uint32_t, const char*> node_type_names =
 			{
-				if (type > 7) type += 2;
-				return type;
+				{NODE_ERROR, "NODE_ERROR"},
+				{NODE_PATHNODE, "NODE_PATHNODE"},
+				{NODE_COVER_STAND, "NODE_COVER_STAND"},
+				{NODE_COVER_CROUCH, "NODE_COVER_CROUCH"},
+				{NODE_COVER_CROUCH_WINDOW, "NODE_COVER_CROUCH_WINDOW"},
+				{NODE_COVER_PRONE, "NODE_COVER_PRONE"},
+				{NODE_COVER_RIGHT, "NODE_COVER_RIGHT"},
+				{NODE_COVER_LEFT, "NODE_COVER_LEFT"},
+				{NODE_COVER_MULTI, "NODE_COVER_MULTI"},
+				{NODE_AMBUSH, "NODE_AMBUSH"},
+				{NODE_EXPOSED, "NODE_EXPOSED"},
+				{NODE_CONCEALMENT_STAND, "NODE_CONCEALMENT_STAND"},
+				{NODE_CONCEALMENT_CROUCH, "NODE_CONCEALMENT_CROUCH"},
+				{NODE_CONCEALMENT_PRONE, "NODE_CONCEALMENT_PRONE"},
+				{NODE_DOOR, "NODE_DOOR"},
+				{NODE_DOOR_INTERIOR, "NODE_DOOR_INTERIOR"},
+				{NODE_SCRIPTED, "NODE_SCRIPTED"},
+				{NODE_NEGOTIATION_BEGIN, "NODE_NEGOTIATION_BEGIN"},
+				{NODE_NEGOTIATION_END, "NODE_NEGOTIATION_END"},
+				{NODE_TURRET, "NODE_TURRET"},
+				{NODE_GUARD, "NODE_GUARD"},
+				{NODE_PATHNODE_3D, "NODE_PATHNODE_3D"},
+				{NODE_COVER_UP_3D, "NODE_COVER_UP_3D"},
+				{NODE_COVER_RIGHT_3D, "NODE_COVER_RIGHT_3D"},
+				{NODE_COVER_LEFT_3D, "NODE_COVER_LEFT_3D"},
+				{NODE_EXPOSED_3D, "NODE_EXPOSED_3D"},
+				{NODE_SCRIPTED_3D, "NODE_SCRIPTED_3D"},
+				{NODE_NEGOTIATION_BEGIN_3D, "NODE_NEGOTIATION_BEGIN_3D"},
+				{NODE_NEGOTIATION_END_3D, "NODE_NEGOTIATION_END_3D"},
+				{NODE_JUMP, "NODE_JUMP"},
+				{NODE_JUMP_ATTACK, "NODE_JUMP_ATTACK"},
+				{NODE_NUMTYPES, "NODE_NUMTYPES"},
+				{NODE_DONTLINK, "NODE_DONTLINK"},
+			};
+
+			std::unordered_map<std::uint16_t, std::uint16_t> mapped_node_types =
+			{
+				{NODE_ERROR, zonetool::h1::NODE_ERROR},
+				{NODE_PATHNODE, zonetool::h1::NODE_PATHNODE},
+				{NODE_COVER_STAND, zonetool::h1::NODE_COVER_STAND},
+				{NODE_COVER_CROUCH, zonetool::h1::NODE_COVER_CROUCH},
+				{NODE_COVER_CROUCH_WINDOW, zonetool::h1::NODE_COVER_CROUCH_WINDOW},
+				{NODE_COVER_PRONE, zonetool::h1::NODE_COVER_PRONE},
+				{NODE_COVER_RIGHT, zonetool::h1::NODE_COVER_RIGHT},
+				{NODE_COVER_LEFT, zonetool::h1::NODE_COVER_LEFT},
+				{NODE_COVER_MULTI, zonetool::h1::NODE_COVER_MULTI},
+				{NODE_AMBUSH, zonetool::h1::NODE_AMBUSH},
+				{NODE_EXPOSED, zonetool::h1::NODE_EXPOSED},
+				{NODE_CONCEALMENT_STAND, zonetool::h1::NODE_CONCEALMENT_STAND},
+				{NODE_CONCEALMENT_CROUCH, zonetool::h1::NODE_CONCEALMENT_CROUCH},
+				{NODE_CONCEALMENT_PRONE, zonetool::h1::NODE_CONCEALMENT_PRONE},
+				{NODE_DOOR, zonetool::h1::NODE_DOOR},
+				{NODE_DOOR_INTERIOR, zonetool::h1::NODE_DOOR_INTERIOR},
+				{NODE_SCRIPTED, zonetool::h1::NODE_SCRIPTED},
+				{NODE_NEGOTIATION_BEGIN, zonetool::h1::NODE_NEGOTIATION_BEGIN},
+				{NODE_NEGOTIATION_END, zonetool::h1::NODE_NEGOTIATION_END},
+				{NODE_TURRET, zonetool::h1::NODE_TURRET},
+				{NODE_GUARD, zonetool::h1::NODE_GUARD},
+				{NODE_PATHNODE_3D, zonetool::h1::NODE_PATHNODE_3D},
+				{NODE_COVER_UP_3D, zonetool::h1::NODE_COVER_UP_3D},
+				{NODE_COVER_RIGHT_3D, zonetool::h1::NODE_COVER_RIGHT_3D},
+				{NODE_COVER_LEFT_3D, zonetool::h1::NODE_COVER_LEFT_3D},
+				{NODE_EXPOSED_3D, zonetool::h1::NODE_EXPOSED_3D},
+				{NODE_SCRIPTED_3D, zonetool::h1::NODE_SCRIPTED_3D},
+				{NODE_NEGOTIATION_BEGIN_3D, zonetool::h1::NODE_NEGOTIATION_BEGIN_3D},
+				{NODE_NEGOTIATION_END_3D, zonetool::h1::NODE_NEGOTIATION_END_3D},
+				//{NODE_JUMP, zonetool::h1::NODE_JUMP},
+				//{NODE_JUMP_ATTACK, zonetool::h1::NODE_JUMP_ATTACK},
+				{NODE_DONTLINK, zonetool::h1::NODE_DONTLINK},
+			};
+
+			std::uint16_t convert_type(const std::uint16_t type)
+			{
+				const auto iter = mapped_node_types.find(type);
+				if (iter == mapped_node_types.end())
+				{
+					ZONETOOL_ERROR("Unable to map pathnode type %s, using NODE_PATHNODE", node_type_names[type]);
+					return static_cast<std::uint16_t>(zonetool::h1::NODE_PATHNODE);
+				}
+				else
+				{
+					return iter->second;
+				}
 			}
 
 			void convert_node(pathnode_t* node, zonetool::h1::pathnode_t* dest, PathData* asset, zonetool::h1::PathData* new_asset, 
@@ -26,7 +107,6 @@ namespace zonetool::iw6
 					return;
 				}
 				pathnode_map[node] = dest;
-
 				dest->constant.type = convert_type(node->constant.type);
 				dest->constant.spawnflags = node->constant.spawnflags;
 				std::memcpy(&dest->constant.targetname, &node->constant.targetname, sizeof(scr_string_t) * 5); // copy strings
