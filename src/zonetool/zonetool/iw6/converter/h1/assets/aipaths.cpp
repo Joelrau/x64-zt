@@ -80,8 +80,8 @@ namespace zonetool::iw6
 				{NODE_SCRIPTED_3D, zonetool::h1::NODE_SCRIPTED_3D},
 				{NODE_NEGOTIATION_BEGIN_3D, zonetool::h1::NODE_NEGOTIATION_BEGIN_3D},
 				{NODE_NEGOTIATION_END_3D, zonetool::h1::NODE_NEGOTIATION_END_3D},
-				//{NODE_JUMP, zonetool::h1::NODE_JUMP},
-				//{NODE_JUMP_ATTACK, zonetool::h1::NODE_JUMP_ATTACK},
+				{NODE_JUMP, 32u}, // from h1-mod
+				{NODE_JUMP_ATTACK, 33u}, // ^
 				{NODE_DONTLINK, zonetool::h1::NODE_DONTLINK},
 			};
 
