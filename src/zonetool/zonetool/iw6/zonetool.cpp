@@ -182,6 +182,7 @@ namespace zonetool::iw6
 
 			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENU, menu_def, menuDef_t);
 			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENULIST, menu_list, MenuList);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_VEHICLE, vehicledef, VehicleDef);
 
 			DUMP_ASSET_CONVERT(ASSET_TYPE_TONEMAPPING, tonemapping, ToneMapping);
 
@@ -366,6 +367,8 @@ namespace zonetool::iw6
 			DUMP_ASSET(ASSET_TYPE_PIXELSHADER, pixel_shader, MaterialPixelShader);
 			//DUMP_ASSET(ASSET_TYPE_VERTEXDECL, vertex_decl, MaterialVertexDeclaration);
 			DUMP_ASSET(ASSET_TYPE_VERTEXSHADER, vertex_shader, MaterialVertexShader);
+
+			DUMP_ASSET(ASSET_TYPE_VEHICLE, vehicle_def, VehicleDef);
 
 			//DUMP_ASSET(ASSET_TYPE_MENU, menu_def, menuDef_t);
 			//DUMP_ASSET(ASSET_TYPE_MENULIST, menu_list, MenuList);

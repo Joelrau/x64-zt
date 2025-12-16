@@ -8806,7 +8806,7 @@ namespace zonetool::h1
 		float steeringLerpCentering;
 		float minSteeringScale;
 		float minSteeringSpeed;
-		float disableWheelsTurning;
+		int disableWheelsTurning;
 		float pad2;
 		FxEffectDef* treadDefaultFx;
 		FxEffectDef* handBrakeDefaultFx;

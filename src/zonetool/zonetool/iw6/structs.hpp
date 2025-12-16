@@ -6905,8 +6905,8 @@ namespace zonetool::iw6
 		int trophyAmmoCount;
 		float trophyReloadTime;
 		scr_string_t trophyTags[4];
-		const FxEffectDef* trophyExplodeFx;
-		const FxEffectDef* trophyFlashFx;
+		FxEffectDef* trophyExplodeFx;
+		FxEffectDef* trophyFlashFx;
 		Material* compassFriendlyIcon;
 		Material* compassEnemyIcon;
 		Material* compassFriendlyAltIcon;

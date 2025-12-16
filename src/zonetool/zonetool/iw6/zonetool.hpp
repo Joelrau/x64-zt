@@ -50,6 +50,7 @@
 #include "assets/techset.hpp"
 #include "assets/tonemapping.hpp"
 #include "assets/tracerdef.hpp"
+#include "assets/vehicledef.hpp"
 #include "assets/vertexdecl.hpp"
 #include "assets/vertexshader.hpp"
 #include "assets/weaponattachment.hpp"
