@@ -20,6 +20,7 @@
 #include "assets/tonemapping.hpp"
 #include "assets/tracerdef.hpp"
 #include "assets/vehicledef.hpp"
+#include "assets/weapondef.hpp"
 #include "assets/xanim.hpp"
 #include "assets/xmodel.hpp"
 #include "assets/xsurface.hpp"

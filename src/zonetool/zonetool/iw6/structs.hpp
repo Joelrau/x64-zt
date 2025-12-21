@@ -612,6 +612,42 @@ namespace zonetool::iw6
 		SURFTYPE_BITS_CUSHION = 0x40000000,
 	};
 
+	enum materialSurfType_t
+	{
+		SURF_TYPE_BARK,
+		SURF_TYPE_BRICK,
+		SURF_TYPE_CARPET,
+		SURF_TYPE_CLOTH,
+		SURF_TYPE_CONCRETE,
+		SURF_TYPE_DIRT,
+		SURF_TYPE_FLESH,
+		SURF_TYPE_FOLIAGE,
+		SURF_TYPE_GLASS,
+		SURF_TYPE_GRASS,
+		SURF_TYPE_GRAVEL,
+		SURF_TYPE_ICE,
+		SURF_TYPE_METAL,
+		SURF_TYPE_METAL_GRATE,
+		SURF_TYPE_MUD,
+		SURF_TYPE_PAPER,
+		SURF_TYPE_PLASTER,
+		SURF_TYPE_ROCK,
+		SURF_TYPE_SAND,
+		SURF_TYPE_SNOW,
+		SURF_TYPE_WATER,
+		SURF_TYPE_WOOD,
+		SURF_TYPE_ASPHALT,
+		SURF_TYPE_CERAMIC,
+		SURF_TYPE_PLASTIC,
+		SURF_TYPE_RUBBER,
+		SURF_TYPE_FRUIT,
+		SURF_TYPE_PAINTEDMETAL,
+		SURF_TYPE_RIOTSHIELD,
+		SURF_TYPE_SLUSH,
+		SURF_TYPE_CUSHION,
+		SURF_TYPE_COUNT,
+	};
+
 	struct MaterialInfo
 	{
 		const char* name; // 0
@@ -4952,6 +4988,40 @@ namespace zonetool::iw6
 		IMPACT_TYPE_COUNT = 0xB,
 	};
 
+	enum playerAnimType_t : std::int32_t
+	{
+		PLAYERANIMTYPE_NONE = 0x0,
+		PLAYERANIMTYPE_OTHER = 0x1,
+		PLAYERANIMTYPE_PISTOL = 0x2,
+		PLAYERANIMTYPE_SMG = 0x3,
+		PLAYERANIMTYPE_AUTORIFLE = 0x4,
+		PLAYERANIMTYPE_MG = 0x5,
+		PLAYERANIMTYPE_SNIPER = 0x6,
+		PLAYERANIMTYPE_ROCKETLAUNCHER = 0x7,
+		PLAYERANIMTYPE_EXPLOSIVE = 0x8,
+		PLAYERANIMTYPE_GRENADE = 0x9,
+		PLAYERANIMTYPE_TURRET = 0xA,
+		PLAYERANIMTYPE_C4 = 0xB,
+		PLAYERANIMTYPE_M203 = 0xC,
+		PLAYERANIMTYPE_HOLD = 0xD,
+		PLAYERANIMTYPE_BRIEFCASE = 0xE,
+		PLAYERANIMTYPE_RIOTSHIELD = 0xF,
+		PLAYERANIMTYPE_LAPTOP = 0x10,
+		PLAYERANIMTYPE_THROWINGKNIFE = 0x11,
+		PLAYERANIMTYPE_MORTAR = 0x12,
+		PLAYERANIMTYPE_JUGGERNAUTMANIAC = 0x13,
+		PLAYERANIMTYPE_CLAYMORE = 0x14,
+		PLAYERANIMTYPE_MINIGUN = 0x15,
+		PLAYERANIMTYPE_DRILL = 0x16,
+		PLAYERANIMTYPE_DOGWHISTLE = 0x17,
+		PLAYERANIMTYPE_SMG_BULLPUP = 0x18,
+		PLAYERANIMTYPE_AUTORIFLE_BULLPUP = 0x19,
+		PLAYERANIMTYPE_SNIPER_BULLPUP = 0x1A,
+		PLAYERANIMTYPE_KILLSTREAKTRIGGER = 0x1B,
+		PLAYERANIMTYPE_TROPHYSYSTEM = 0x1C,
+		PLAYERANIMTYPE_NUM = 0x1D,
+	};
+
 	enum weapType_t : std::int32_t
 	{
 		WEAPTYPE_NONE = 0x0,
@@ -5278,9 +5348,9 @@ namespace zonetool::iw6
 		OffhandClass offhandClass;
 		weapStance_t stance;
 		unsigned char rattleSoundType;
-		const FxEffectDef* viewFlashEffect;
-		const FxEffectDef* worldFlashEffect;
-		const FxEffectDef* viewFlashADSEffect;
+		FxEffectDef* viewFlashEffect;
+		FxEffectDef* worldFlashEffect;
+		FxEffectDef* viewFlashADSEffect;
 		snd_alias_list_t* pickupSound;
 		snd_alias_list_t* pickupSoundPlayer;
 		snd_alias_list_t* ammoPickupSound;
@@ -5331,11 +5401,11 @@ namespace zonetool::iw6
 		snd_alias_list_t* changeVariableZoomSound;
 		snd_alias_list_t** bounceSound;
 		snd_alias_list_t** rollingSound;
-		const FxEffectDef* viewShellEjectEffect;
-		const FxEffectDef* worldShellEjectEffect;
-		const FxEffectDef* viewLastShotEjectEffect;
-		const FxEffectDef* worldLastShotEjectEffect;
-		const FxEffectDef* viewMagEjectEffect;
+		FxEffectDef* viewShellEjectEffect;
+		FxEffectDef* worldShellEjectEffect;
+		FxEffectDef* viewLastShotEjectEffect;
+		FxEffectDef* worldLastShotEjectEffect;
+		FxEffectDef* viewMagEjectEffect;
 		Material* reticleCenter;
 		Material* reticleSide;
 		int iReticleCenterSize;
@@ -5475,8 +5545,8 @@ namespace zonetool::iw6
 		const char* projectileName;
 		XModel* projectileModel;
 		weapProjExposion_t projExplosion;
-		const FxEffectDef* projExplosionEffect;
-		const FxEffectDef* projDudEffect;
+		FxEffectDef* projExplosionEffect;
+		FxEffectDef* projDudEffect;
 		snd_alias_list_t* projExplosionSound;
 		snd_alias_list_t* projDudSound;
 		WeapStickinessType stickiness;
@@ -5487,13 +5557,13 @@ namespace zonetool::iw6
 		float riotShieldDamageMult;
 		float* parallelBounce;
 		float* perpendicularBounce;
-		const FxEffectDef* projTrailEffect;
-		const FxEffectDef* projBeaconEffect;
+		FxEffectDef* projTrailEffect;
+		FxEffectDef* projBeaconEffect;
 		float vProjectileColor[3];
 		guidedMissileType_t guidedMissileType;
 		float maxSteeringAccel;
 		int projIgnitionDelay;
-		const FxEffectDef* projIgnitionEffect;
+		FxEffectDef* projIgnitionEffect;
 		snd_alias_list_t* projIgnitionSound;
 		float fAdsAimPitch;
 		float fAdsCrosshairInFrac;
@@ -5590,7 +5660,7 @@ namespace zonetool::iw6
 		float turretOverheatDownRate;
 		float turretOverheatPenalty;
 		snd_alias_list_t* turretOverheatSound;
-		const FxEffectDef* turretOverheatEffect;
+		FxEffectDef* turretOverheatEffect;
 		const char* turretBarrelSpinRumble;
 		float turretBarrelSpinSpeed;
 		float turretBarrelSpinUpTime;
@@ -6028,8 +6098,8 @@ namespace zonetool::iw6
 	{
 		unsigned short attachment1;
 		unsigned short attachment2;
-		const FxEffectDef* overrideFX;
-		const FxEffectDef* altmodeFX;
+		FxEffectDef* overrideFX;
+		FxEffectDef* altmodeFX;
 		unsigned int fxType;
 	};
 
