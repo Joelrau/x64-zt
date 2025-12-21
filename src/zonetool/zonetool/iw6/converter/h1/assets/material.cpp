@@ -34,11 +34,11 @@ namespace zonetool::iw6
 				{15, 16},	// Decal top 2
 				{16, 17},	// Decal top 3
 				{17, 19},	// Shadow
-				//{18, },	// ?
-				//{19, },	// ?
+				{18, 20},	// ?
+				{19, 21},	// ?
 				{20, 22},	// ?
-				//{21, },	// ?
-				//{22, },	// ?
+				{21, 23},	// ?
+				{22, 24},	// ?
 				{23, 25},	// ?
 				{24, 26},	// Window inside
 				{25, 27},	// Window outside
@@ -49,8 +49,8 @@ namespace zonetool::iw6
 				{30, 32},	// Blend 2
 				{31, 33},	// Blend 3
 				//{32, },	// ?
-				{33, 35},	// ?
-				{34, 38},	// Cloud dust?
+				{33, 36},	// Gun blend?
+				{34, 38},	// Shadow Caster
 				//{35, 35},	// Opaque
 				//{36, },	// ?
 				//{37, },	// ?
@@ -73,9 +73,21 @@ namespace zonetool::iw6
 				{54, 60},	// 2D
 			};
 
-			std::uint8_t convert_sortkey(std::uint8_t sortkey, std::string matname)
+			std::unordered_map<std::string, std::uint8_t> mapped_sortkeys_by_techset =
 			{
-				if (mapped_sortkeys.contains(sortkey))
+				{"2d", 60},
+				{"wc_shadowcaster", 38},
+				{"m_reflexsight", 37},
+			};
+
+			std::uint8_t convert_sortkey(std::uint8_t sortkey, const std::string& matname, const std::string& techset)
+			{
+				if (mapped_sortkeys_by_techset.contains(techset))
+				{
+					return mapped_sortkeys_by_techset[techset];
+				}
+
+				else if (mapped_sortkeys.contains(sortkey))
 				{
 					return mapped_sortkeys[sortkey];
 				}
@@ -93,14 +105,26 @@ namespace zonetool::iw6
 				{zonetool::iw6::CAMERA_REGION_EMISSIVE, zonetool::h1::CAMERA_REGION_EMISSIVE},
 				{zonetool::iw6::CAMERA_REGION_DEPTH_HACK, zonetool::h1::CAMERA_REGION_DEPTH_HACK},
 				{zonetool::iw6::CAMERA_REGION_LIGHT_MAP_OPAQUE, zonetool::h1::CAMERA_REGION_LIT_OPAQUE},
-				{zonetool::iw6::CAMERA_REGION_HUD_OUTLINE, 0},
-				{zonetool::iw6::CAMERA_REGION_MOTIONBLUR, 0},
+				{zonetool::iw6::CAMERA_REGION_HUD_OUTLINE, zonetool::h1::CAMERA_REGION_NONE},
+				{zonetool::iw6::CAMERA_REGION_MOTIONBLUR, zonetool::h1::CAMERA_REGION_NONE},
 				{zonetool::iw6::CAMERA_REGION_NONE, zonetool::h1::CAMERA_REGION_NONE},
 			};
 
-			std::uint8_t convert_camera_region(std::uint8_t camera_region, std::string matname)
+			std::unordered_map<std::string, std::uint8_t> mapped_camera_regions_by_techset =
 			{
-				if (mapped_camera_regions.contains(camera_region))
+				{"2d", zonetool::h1::CAMERA_REGION_NONE},
+				{"wc_shadowcaster", zonetool::h1::CAMERA_REGION_NONE},
+				{"m_reflexsight", zonetool::h1::CAMERA_REGION_DEPTH_HACK},
+			};
+
+			std::uint8_t convert_camera_region(std::uint8_t camera_region, std::string matname, const std::string& techset)
+			{
+				if (mapped_camera_regions_by_techset.contains(techset))
+				{
+					return mapped_camera_regions_by_techset[techset];
+				}
+
+				else if (mapped_camera_regions.contains(camera_region))
 				{
 					return mapped_camera_regions[camera_region];
 				}
@@ -154,21 +178,72 @@ namespace zonetool::iw6
 				//return material_type;
 			}
 
+			namespace
+			{
+				std::uint64_t convert_surf_bits(std::uint64_t flags)
+				{
+					std::uint64_t new_flags = zonetool::h1::SURFTYPE_BITS_DEFAULT;
+
+					auto convert = [&](std::uint64_t a, std::uint64_t b)
+					{
+						if (flags & a)
+							new_flags |= b;
+					};
+
+					convert(zonetool::iw6::SURFTYPE_BITS_BARK, zonetool::h1::SURFTYPE_BITS_BARK);
+					convert(zonetool::iw6::SURFTYPE_BITS_BRICK, zonetool::h1::SURFTYPE_BITS_BRICK);
+					convert(zonetool::iw6::SURFTYPE_BITS_CARPET, zonetool::h1::SURFTYPE_BITS_CARPET);
+					convert(zonetool::iw6::SURFTYPE_BITS_CLOTH, zonetool::h1::SURFTYPE_BITS_CLOTH);
+					convert(zonetool::iw6::SURFTYPE_BITS_CONCRETE, zonetool::h1::SURFTYPE_BITS_CONCRETE);
+					convert(zonetool::iw6::SURFTYPE_BITS_DIRT, zonetool::h1::SURFTYPE_BITS_DIRT);
+					convert(zonetool::iw6::SURFTYPE_BITS_FLESH, zonetool::h1::SURFTYPE_BITS_FLESH);
+					convert(zonetool::iw6::SURFTYPE_BITS_FOLIAGE, zonetool::h1::SURFTYPE_BITS_FOLIAGE_DEBRIS);
+					convert(zonetool::iw6::SURFTYPE_BITS_GLASS, zonetool::h1::SURFTYPE_BITS_GLASS);
+					convert(zonetool::iw6::SURFTYPE_BITS_GRASS, zonetool::h1::SURFTYPE_BITS_GRASS);
+					convert(zonetool::iw6::SURFTYPE_BITS_GRAVEL, zonetool::h1::SURFTYPE_BITS_GRAVEL);
+					convert(zonetool::iw6::SURFTYPE_BITS_ICE, zonetool::h1::SURFTYPE_BITS_ICE);
+					convert(zonetool::iw6::SURFTYPE_BITS_METAL, zonetool::h1::SURFTYPE_BITS_METAL_SOLID);
+					convert(zonetool::iw6::SURFTYPE_BITS_METAL_GRATE, zonetool::h1::SURFTYPE_BITS_METAL_GRATE);
+					convert(zonetool::iw6::SURFTYPE_BITS_MUD, zonetool::h1::SURFTYPE_BITS_MUD);
+					convert(zonetool::iw6::SURFTYPE_BITS_PAPER, zonetool::h1::SURFTYPE_BITS_PAPER);
+					convert(zonetool::iw6::SURFTYPE_BITS_PLASTER, zonetool::h1::SURFTYPE_BITS_PLASTER);
+					convert(zonetool::iw6::SURFTYPE_BITS_ROCK, zonetool::h1::SURFTYPE_BITS_ROCK);
+					convert(zonetool::iw6::SURFTYPE_BITS_SAND, zonetool::h1::SURFTYPE_BITS_SAND);
+					convert(zonetool::iw6::SURFTYPE_BITS_SNOW, zonetool::h1::SURFTYPE_BITS_SNOW);
+					convert(zonetool::iw6::SURFTYPE_BITS_WATER, zonetool::h1::SURFTYPE_BITS_WATER_WAIST);
+					convert(zonetool::iw6::SURFTYPE_BITS_WOOD, zonetool::h1::SURFTYPE_BITS_WOOD_SOLID);
+					convert(zonetool::iw6::SURFTYPE_BITS_ASPHALT, zonetool::h1::SURFTYPE_BITS_ASPHALT);
+					convert(zonetool::iw6::SURFTYPE_BITS_CERAMIC, zonetool::h1::SURFTYPE_BITS_CERAMIC);
+					convert(zonetool::iw6::SURFTYPE_BITS_PLASTIC, zonetool::h1::SURFTYPE_BITS_PLASTIC_SOLID);
+					convert(zonetool::iw6::SURFTYPE_BITS_RUBBER, zonetool::h1::SURFTYPE_BITS_RUBBER);
+					convert(zonetool::iw6::SURFTYPE_BITS_FRUIT, zonetool::h1::SURFTYPE_BITS_FRUIT);
+					convert(zonetool::iw6::SURFTYPE_BITS_PAINTEDMETAL, zonetool::h1::SURFTYPE_BITS_PAINTEDMETAL);
+					convert(zonetool::iw6::SURFTYPE_BITS_RIOTSHIELD, zonetool::h1::SURFTYPE_BITS_RIOTSHIELD);
+					convert(zonetool::iw6::SURFTYPE_BITS_SLUSH, zonetool::h1::SURFTYPE_BITS_SLUSH);
+					convert(zonetool::iw6::SURFTYPE_BITS_CUSHION, zonetool::h1::SURFTYPE_BITS_CUSHION);
+
+					return new_flags;
+				}
+			}
+
 			zonetool::h1::Material* convert(Material* asset, utils::memory::allocator& allocator)
 			{
 				auto* new_asset = allocator.allocate<zonetool::h1::Material>();
 
+				std::string name = asset->name;
 				REINTERPRET_CAST_SAFE(name);
 
+				const std::string techset_name = asset->techniqueSet->name;
+
 				new_asset->info.gameFlags = asset->info.gameFlags; // convert?
-				new_asset->info.sortKey = convert_sortkey(asset->info.sortKey, asset->name);
+				new_asset->info.sortKey = convert_sortkey(asset->info.sortKey, asset->name, techset_name);
 				new_asset->info.textureAtlasRowCount = asset->info.textureAtlasRowCount;
 				new_asset->info.textureAtlasColumnCount = asset->info.textureAtlasColumnCount;
 				new_asset->info.textureAtlasFrameBlend = asset->info.textureAtlasFrameBlend;
 				new_asset->info.textureAtlasAsArray = asset->info.textureAtlasAsArray;
 				new_asset->info.renderFlags = asset->info.renderFlags; // convert?
 				COPY_VALUE_CAST(info.drawSurf); // todo?
-				new_asset->info.surfaceTypeBits = zonetool::h1::SURFTYPE_BITS_DEFAULT; // todo
+				new_asset->info.surfaceTypeBits = static_cast<zonetool::h1::SurfaceTypeBits>(convert_surf_bits(asset->info.surfaceTypeBits));
 				new_asset->info.hashIndex = asset->info.hashIndex;
 
 				std::memset(new_asset->stateBitsEntry, 0xFF, zonetool::h1::MaterialTechniqueType::TECHNIQUE_COUNT);
@@ -197,7 +272,7 @@ namespace zonetool::iw6
 
 					}
 				}
-				new_asset->cameraRegion = convert_camera_region(asset->cameraRegion, asset->name);
+				new_asset->cameraRegion = convert_camera_region(asset->cameraRegion, asset->name, techset_name);
 				new_asset->materialType = convert_material_type(asset->materialType, asset->name);
 				new_asset->layerCount = asset->layerCount;
 				new_asset->assetFlags = asset->assetFlags; // convert?
@@ -216,7 +291,7 @@ namespace zonetool::iw6
 					//	constant->literal[0] = 0.0f;
 					//}
 				}
-				
+
 				// statemap
 				//new_asset->stateBitsTable = allocator.allocate_array<zonetool::h1::GfxStateBits>(asset->stateBitsCount); // don't convert, dump from old
 				new_asset->stateBitsTable = (zonetool::h1::GfxStateBits*)asset->stateMap;
@@ -234,6 +309,11 @@ namespace zonetool::iw6
 						}
 					}
 				}
+
+				//REINTERPRET_CAST_SAFE(constantBufferTable);
+				new_asset->constantBufferCount = asset->constantBufferCount;
+				new_asset->constantBufferTable = allocator.allocate_array<zonetool::h1::MaterialConstantBufferDef>(new_asset->constantBufferCount);
+				std::memcpy(new_asset->constantBufferTable, asset->constantBufferTable, sizeof(zonetool::h1::MaterialConstantBufferDef) * new_asset->constantBufferCount);
 
 				const auto merge_techs = [&](std::vector<MaterialTechniqueType> techs, zonetool::h1::MaterialTechniqueType dest_tech)
 				{
@@ -383,9 +463,6 @@ namespace zonetool::iw6
 					//	},
 					//	zonetool::h1::TECHNIQUE_LIT_DYNAMIC_BRANCHING_CUCOLORIS_DFOG);
 				}
-
-				REINTERPRET_CAST_SAFE(constantBufferTable);
-				new_asset->constantBufferCount = asset->constantBufferCount;
 
 				REINTERPRET_CAST_SAFE(subMaterials);
 
