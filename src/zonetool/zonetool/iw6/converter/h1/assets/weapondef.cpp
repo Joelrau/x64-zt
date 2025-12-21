@@ -356,11 +356,11 @@ namespace zonetool::iw6
 				COPY_FIELD(dropTime, iDropTime);
 				COPY_FIELD(raiseTime, iRaiseTime);
 				COPY_FIELD(altDropTime, iAltDropTime);
-				h1_asset->altRaiseTime = akimbo ? def->iAltRaiseTime : def->iAltRaiseTimeAkimbo;
+				h1_asset->altRaiseTime = akimbo ? def->iAltRaiseTimeAkimbo : def->iAltRaiseTime;
 
 				COPY_FIELD(quickDropTime, quickDropTime);
 				COPY_FIELD(quickRaiseTime, quickRaiseTime);
-				h1_asset->firstRaiseTime = akimbo ? def->iFirstRaiseTime : def->iFirstRaiseTimeAkimbo;
+				h1_asset->firstRaiseTime = akimbo ? def->iFirstRaiseTimeAkimbo : def->iFirstRaiseTime;
 				COPY_FIELD(breachRaiseTime, iBreachRaiseTime);
 				COPY_FIELD(emptyRaiseTime, iEmptyRaiseTime);
 				COPY_FIELD(emptyDropTime, iEmptyDropTime);
@@ -578,24 +578,6 @@ namespace zonetool::iw6
 					getScopes(def, attachmentsOut);
 					getUnderBarrels(def, attachmentsOut);
 					getOthers(def, attachmentsOut);
-				};
-				const auto getNumScopes = [&](WeaponCompleteDef* def)
-				{
-					std::vector <WeaponAttachment*> attachments;
-					getScopes(def, attachments);
-					return attachments.size();
-				};
-				const auto getNumUnderBarrels = [&](WeaponCompleteDef* def)
-				{
-					std::vector <WeaponAttachment*> attachments;
-					getUnderBarrels(def, attachments);
-					return attachments.size();
-				};
-				const auto getNumOthers = [&](WeaponCompleteDef* def)
-				{
-					std::vector <WeaponAttachment*> attachments;
-					getOthers(def, attachments);
-					return attachments.size();
 				};
 
 				std::vector<WeaponAttachment*> attachments;
