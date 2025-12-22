@@ -77,7 +77,6 @@ namespace zonetool::iw6
 			{
 				{"2d", 60},
 				{"wc_shadowcaster", 38},
-				{"m_reflexsight", 37},
 			};
 
 			std::uint8_t convert_sortkey(std::uint8_t sortkey, const std::string& matname, const std::string& techset)
@@ -114,7 +113,6 @@ namespace zonetool::iw6
 			{
 				{"2d", zonetool::h1::CAMERA_REGION_NONE},
 				{"wc_shadowcaster", zonetool::h1::CAMERA_REGION_NONE},
-				{"m_reflexsight", zonetool::h1::CAMERA_REGION_DEPTH_HACK},
 			};
 
 			std::uint8_t convert_camera_region(std::uint8_t camera_region, std::string matname, const std::string& techset)
@@ -355,6 +353,19 @@ namespace zonetool::iw6
 						increase_type();
 					}
 				};
+
+				// fix gun sortkey
+				if (new_asset->info.sortKey == 36)
+				{
+					if (new_asset->cameraRegion == zonetool::h1::CAMERA_REGION_DEPTH_HACK)
+					{
+						new_asset->info.sortKey = 37;
+					}
+					else if (new_asset->cameraRegion == zonetool::h1::CAMERA_REGION_EMISSIVE)
+					{
+						new_asset->info.sortKey = 35;
+					}
+				}
 
 				// nofog
 				{
