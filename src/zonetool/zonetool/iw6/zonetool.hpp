@@ -35,6 +35,8 @@
 #include "assets/luafile.hpp"
 #include "assets/mapents.hpp"
 #include "assets/material.hpp"
+#include "assets/menudef.hpp"
+#include "assets/menulist.hpp"
 #include "assets/netconststrings.hpp"
 #include "assets/physcollmap.hpp"
 #include "assets/physpreset.hpp"

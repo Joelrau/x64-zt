@@ -6160,7 +6160,7 @@ namespace zonetool::h1
 		Operand lastResult[4];
 	};
 
-	struct __declspec(align(8)) Statement_s
+	struct Statement_s
 	{
 		int numEntries;
 		expressionEntry* entries;
@@ -6200,7 +6200,7 @@ namespace zonetool::h1
 		EVENT_COUNT = 0x7,
 	};
 
-	struct __declspec(align(8)) MenuEventHandler
+	struct MenuEventHandler
 	{
 		EventData eventData;
 		EventType eventType;
@@ -6229,7 +6229,7 @@ namespace zonetool::h1
 		int endTriggerType;
 	};
 
-	struct __declspec(align(8)) menuData_t
+	struct menuData_t
 	{
 		int fullScreen;
 		int fadeCycle;
@@ -6263,14 +6263,14 @@ namespace zonetool::h1
 		unsigned char priority;
 	};
 
-	struct __declspec(align(4)) rectDef_s
+	struct rectDef_s
 	{
 		float x;
 		float y;
 		float w;
 		float h;
-		unsigned __int8 horzAlign;
-		unsigned __int8 vertAlign;
+		unsigned char horzAlign;
+		unsigned char vertAlign;
 	};
 
 	struct windowDef_t
@@ -6368,7 +6368,7 @@ namespace zonetool::h1
 		void* data;
 	};
 
-	enum ItemFloatExpressionTarget
+	enum ItemFloatExpressionTarget : std::int32_t
 	{
 		ITEM_FLOATEXP_TGT_RECT_X = 0x0,
 		ITEM_FLOATEXP_TGT_RECT_Y = 0x1,
