@@ -64,7 +64,7 @@ namespace zonetool::iw6
 #define MEMBER_SPAN_SIZE_T(T, first, last) \
 	(offsetof(T, last) + sizeof(((T*)0)->last) - offsetof(T, first))
 
-			zonetool::h1::weapAnimFiles_t getAnim(weapAnimFiles_t iw5_anim)
+			zonetool::h1::weapAnimFiles_t get_anim(weapAnimFiles_t iw5_anim)
 			{
 				static std::unordered_map<weapAnimFiles_t, zonetool::h1::weapAnimFiles_t> mapped_anims =
 				{
@@ -203,12 +203,12 @@ namespace zonetool::iw6
 				return zonetool::h1::WEAP_ANIM_INVALID;
 			}
 
-			void convertAnims(zonetool::h1::XAnimParts** h1_anims, XAnimParts** anims, utils::memory::allocator& mem)
+			void convert_anims(zonetool::h1::XAnimParts** h1_anims, XAnimParts** anims, utils::memory::allocator& mem)
 			{
 				for (auto i = 0; i < NUM_WEAP_ANIMS; i++)
 				{
 					const auto iw5_anim = static_cast<weapAnimFiles_t>(i);
-					const auto h1_anim = getAnim(iw5_anim);
+					const auto h1_anim = get_anim(iw5_anim);
 
 					if (anims[iw5_anim] && h1_anim != zonetool::h1::WEAP_ANIM_INVALID)
 					{
@@ -218,7 +218,7 @@ namespace zonetool::iw6
 				}
 			}
 
-			zonetool::h1::PhysPreset* getPhysPreset(weapClass_t weapon_class, utils::memory::allocator& mem)
+			zonetool::h1::PhysPreset* get_phys_preset(weapClass_t weapon_class, utils::memory::allocator& mem)
 			{
 				std::string phys_preset_name = "default";
 				switch (weapon_class)
@@ -248,7 +248,7 @@ namespace zonetool::iw6
 				return asset;
 			}
 
-			zonetool::h1::playerAnimType_t convertPlayerAnim(int animType)
+			zonetool::h1::playerAnimType_t convert_playeranim(int animType)
 			{
 				static std::unordered_map<int, zonetool::h1::playerAnimType_t> mapped_anims =
 				{
@@ -292,7 +292,7 @@ namespace zonetool::iw6
 				return zonetool::h1::PLAYERANIMTYPE_NONE;
 			}
 
-			zonetool::h1::OffhandClass convertOffhandClass(OffhandClass offhandClass)
+			zonetool::h1::OffhandClass convert_offhand_class(OffhandClass offhandClass)
 			{
 				static std::unordered_map< OffhandClass, zonetool::h1::OffhandClass> mapped =
 				{
@@ -313,7 +313,7 @@ namespace zonetool::iw6
 				return zonetool::h1::OFFHAND_CLASS_NONE;
 			}
 
-			void copyStateTimer(zonetool::h1::StateTimers* h1_asset, StateTimers* asset, WeaponCompleteDef* def, bool akimbo)
+			void copy_state_timer(zonetool::h1::StateTimers* h1_asset, StateTimers* asset, WeaponCompleteDef* def, bool akimbo)
 			{
 				COPY_FIELD(fireDelay, iFireDelay);
 				COPY_FIELD(meleeDelay, iMeleeDelay);
@@ -416,25 +416,32 @@ namespace zonetool::iw6
 				h1_asset->overheatOutReadyTime = 500;
 			}
 
-			bool isGun(weapClass_t weaponClass)
+			bool is_gun(weapClass_t weapon_class)
 			{
-				if (weaponClass <= WEAPCLASS_PISTOL || weaponClass == WEAPCLASS_ROCKETLAUNCHER) // is a gun
+				if (weapon_class <= WEAPCLASS_PISTOL || weapon_class == WEAPCLASS_ROCKETLAUNCHER)
 				{
 					return true;
 				}
+
 				return false;
 			}
 
-			bool isExplosive(weapClass_t weaponClass)
+			bool is_explosive(weapClass_t weapon_class)
 			{
-				if (weaponClass == WEAPCLASS_GRENADE || weaponClass == WEAPCLASS_ROCKETLAUNCHER) // is explosive
+				if (weapon_class == WEAPCLASS_GRENADE || weapon_class == WEAPCLASS_ROCKETLAUNCHER)
 				{
 					return true;
 				}
+
 				return false;
 			}
 
-			void convertSurfaceSounds(zonetool::h1::snd_alias_list_t** h1_sounds, snd_alias_list_t** sounds, utils::memory::allocator& mem)
+			bool is_sniper(weapClass_t weapon_class)
+			{
+				return weapon_class == WEAPCLASS_SNIPER;
+			}
+
+			void convert_surf_sounds(zonetool::h1::snd_alias_list_t** h1_sounds, snd_alias_list_t** sounds, utils::memory::allocator& mem)
 			{
 				static std::unordered_map<zonetool::h1::materialSurfType_t, materialSurfType_t> mapped =
 				{
@@ -524,12 +531,12 @@ namespace zonetool::iw6
 				if (asset->weapDef->szXAnimsRightHanded)
 				{
 					h1_asset->szXAnimsRightHanded = mem.allocate_array<zonetool::h1::XAnimParts*>(zonetool::h1::NUM_WEAP_ANIMS);
-					convertAnims(h1_asset->szXAnimsRightHanded, asset->weapDef->szXAnimsRightHanded, mem);
+					convert_anims(h1_asset->szXAnimsRightHanded, asset->weapDef->szXAnimsRightHanded, mem);
 				}
 				if (asset->weapDef->szXAnimsLeftHanded)
 				{
 					h1_asset->szXAnimsLeftHanded = mem.allocate_array<zonetool::h1::XAnimParts*>(zonetool::h1::NUM_WEAP_ANIMS);
-					convertAnims(h1_asset->szXAnimsLeftHanded, asset->weapDef->szXAnimsLeftHanded, mem);
+					convert_anims(h1_asset->szXAnimsLeftHanded, asset->weapDef->szXAnimsLeftHanded, mem);
 				}
 				REINTERPRET_CAST(hideTags);
 
@@ -595,7 +602,7 @@ namespace zonetool::iw6
 				if (asset->szXAnims)
 				{
 					h1_asset->szXAnims = mem.allocate_array<zonetool::h1::XAnimParts*>(zonetool::h1::NUM_WEAP_ANIMS);
-					convertAnims(h1_asset->szXAnims, asset->szXAnims, mem);
+					convert_anims(h1_asset->szXAnims, asset->szXAnims, mem);
 				}
 
 				const auto convertAttachmentValue = [&](int value) -> unsigned char
@@ -612,7 +619,7 @@ namespace zonetool::iw6
 					h1_asset->animOverrides[i].attachment1 = convertAttachmentValue(asset->animOverrides[i].attachment1);
 					h1_asset->animOverrides[i].attachment2 = convertAttachmentValue(asset->animOverrides[i].attachment2);
 
-					const auto anim = getAnim(static_cast<weapAnimFiles_t>(asset->animOverrides[i].animTreeType));
+					const auto anim = get_anim(static_cast<weapAnimFiles_t>(asset->animOverrides[i].animTreeType));
 					assert(anim != zonetool::h1::WEAP_ANIM_INVALID);
 					h1_asset->animOverrides[i].animTreeType = static_cast<unsigned char>(anim);
 
@@ -799,12 +806,12 @@ namespace zonetool::iw6
 				if (asset->weapDef->bounceSound)
 				{
 					h1_asset->bounceSound = mem.allocate_array<zonetool::h1::snd_alias_list_t*>(53);
-					convertSurfaceSounds(h1_asset->bounceSound, asset->weapDef->bounceSound, mem);
+					convert_surf_sounds(h1_asset->bounceSound, asset->weapDef->bounceSound, mem);
 				}
 				if (asset->weapDef->rollingSound)
 				{
 					h1_asset->rollingSound = mem.allocate_array<zonetool::h1::snd_alias_list_t*>(53);
-					convertSurfaceSounds(h1_asset->rollingSound, asset->weapDef->rollingSound, mem);
+					convert_surf_sounds(h1_asset->rollingSound, asset->weapDef->rollingSound, mem);
 				}
 
 				REINTERPRET_CAST(viewShellEjectEffect, weapDef->viewShellEjectEffect);
@@ -834,7 +841,7 @@ namespace zonetool::iw6
 				REINTERPRET_CAST(szClipName, weapDef->szClipName);
 				REINTERPRET_CAST(szSharedAmmoCapName, weapDef->szSharedAmmoCapName);
 				REINTERPRET_CAST(physCollmap, weapDef->physCollmap);
-				h1_asset->physPreset = getPhysPreset(asset->weapDef->weapClass, mem);
+				h1_asset->physPreset = get_phys_preset(asset->weapDef->weapClass, mem);
 				REINTERPRET_CAST(szUseHintString, weapDef->szUseHintString);
 				REINTERPRET_CAST(dropHintString, weapDef->dropHintString);
 
@@ -858,8 +865,8 @@ namespace zonetool::iw6
 				REINTERPRET_CAST(turretOverheatEffect, weapDef->turretOverheatEffect);
 				REINTERPRET_CAST(turretBarrelSpinRumble, weapDef->turretBarrelSpinRumble);
 				REINTERPRET_CAST(turretBarrelSpinMaxSnd, weapDef->turretBarrelSpinMaxSnd);
-				memcpy(h1_asset->turretBarrelSpinUpSnd, asset->weapDef->turretBarrelSpinUpSnd, sizeof(asset->weapDef->turretBarrelSpinUpSnd));
-				memcpy(h1_asset->turretBarrelSpinDownSnd, asset->weapDef->turretBarrelSpinDownSnd, sizeof(asset->weapDef->turretBarrelSpinDownSnd));
+				std::memcpy(h1_asset->turretBarrelSpinUpSnd, asset->weapDef->turretBarrelSpinUpSnd, sizeof(asset->weapDef->turretBarrelSpinUpSnd));
+				std::memcpy(h1_asset->turretBarrelSpinDownSnd, asset->weapDef->turretBarrelSpinDownSnd, sizeof(asset->weapDef->turretBarrelSpinDownSnd));
 				REINTERPRET_CAST(missileConeSoundAlias, weapDef->missileConeSoundAlias);
 				REINTERPRET_CAST(missileConeSoundAliasAtBase, weapDef->missileConeSoundAliasAtBase);
 				REINTERPRET_CAST(stowOffsetModel, weapDef->stowOffsetModel);
@@ -873,7 +880,7 @@ namespace zonetool::iw6
 				// numReloadStateTimerOverrides
 				// numNotetrackOverrides
 
-				h1_asset->playerAnimType = convertPlayerAnim(asset->weapDef->playerAnimType);
+				h1_asset->playerAnimType = convert_playeranim(asset->weapDef->playerAnimType);
 				COPY_FIELD_CAST(weapType, weapDef->weapType); // same enum values
 				COPY_FIELD_CAST(weapClass, weapDef->weapClass); // same enum values up to a certain point
 				COPY_FIELD_CAST(penetrateType, weapDef->penetrateType); // same enum values
@@ -888,7 +895,7 @@ namespace zonetool::iw6
 				h1_asset->greebleType = zonetool::h1::WEAPON_GREEBLE_NONE;
 				h1_asset->autoReloadType = zonetool::h1::WEAPON_AUTORELOAD_ALWAYS;
 				h1_asset->autoHolsterType = zonetool::h1::WEAPON_AUTOHOLSTER_ALWAYS;
-				h1_asset->offhandClass = convertOffhandClass(asset->weapDef->offhandClass);
+				h1_asset->offhandClass = convert_offhand_class(asset->weapDef->offhandClass);
 				COPY_FIELD_CAST(stance, weapDef->stance); // same enum values
 
 				COPY_FIELD(reticleCenterSize, weapDef->iReticleCenterSize);
@@ -917,8 +924,8 @@ namespace zonetool::iw6
 				COPY_FIELD(meleeDamage, weapDef->iMeleeDamage);
 				COPY_FIELD(damageType, weapDef->iDamageType);
 
-				copyStateTimer(&h1_asset->stateTimers, &asset->weapDef->stateTimers, asset, false);
-				copyStateTimer(&h1_asset->akimboStateTimers, &asset->weapDef->stateTimers, asset, true);
+				copy_state_timer(&h1_asset->stateTimers, &asset->weapDef->stateTimers, asset, false);
+				copy_state_timer(&h1_asset->akimboStateTimers, &asset->weapDef->stateTimers, asset, true);
 
 				COPY_FIELD(autoAimRange, weapDef->autoAimRange);
 				COPY_FIELD(aimAssistRange, weapDef->aimAssistRange);
@@ -932,7 +939,7 @@ namespace zonetool::iw6
 				COPY_FIELD(adsZoomInFrac, weapDef->fAdsZoomInFrac);
 				COPY_FIELD(adsZoomOutFrac, weapDef->fAdsZoomOutFrac);
 				h1_asset->adsSceneBlurStrength = 0.0f;
-				if (isGun(asset->weapDef->weapClass))
+				if (is_gun(asset->weapDef->weapClass))
 				{
 					h1_asset->adsSceneBlurPhysicalScale = 1.0f;
 				}
@@ -995,7 +1002,7 @@ namespace zonetool::iw6
 				COPY_FIELD(adsViewErrorMin, weapDef->adsFireRateScale);
 				COPY_FIELD(adsViewErrorMax, weapDef->adsDamageRangeScale);
 				COPY_FIELD(dualWieldViewModelOffset, weapDef->dualWieldViewModelOffset);
-				if (isGun(asset->weapDef->weapClass))
+				if (is_gun(asset->weapDef->weapClass))
 				{
 					h1_asset->adsFireAnimFrac = 0.75f;
 					h1_asset->scopeDriftDelay = 0.5f;
@@ -1009,7 +1016,7 @@ namespace zonetool::iw6
 				h1_asset->bobHorizontalFactor = 1.0f;
 				h1_asset->bobViewVerticalFactor = 1.0f;
 				h1_asset->bobViewHorizontalFactor = 1.0f;
-				if (isGun(asset->weapDef->weapClass))
+				if (is_gun(asset->weapDef->weapClass))
 				{
 					h1_asset->stationaryZoomFov = 0.0f;
 					h1_asset->stationaryZoomDelay = 1.0f;
@@ -1223,7 +1230,7 @@ namespace zonetool::iw6
 				COPY_FIELD(adsViewKickYawMin, weapDef->fAdsViewKickYawMin);
 				COPY_FIELD(adsViewKickYawMax, weapDef->fAdsViewKickYawMax);
 				h1_asset->adsViewKickMagMin = 0.0f;
-				if (isGun(asset->weapDef->weapClass))
+				if (is_gun(asset->weapDef->weapClass))
 				{
 					h1_asset->adsViewKickCenterSpeed = 1500.0f;
 				}
@@ -1246,13 +1253,13 @@ namespace zonetool::iw6
 				COPY_FIELD(hipViewKickYawMin, weapDef->fHipViewKickYawMin);
 				COPY_FIELD(hipViewKickYawMax, weapDef->fHipViewKickYawMax);
 				h1_asset->hipViewKickMagMin = 0.0f;
-				if (isGun(asset->weapDef->weapClass))
+				if (is_gun(asset->weapDef->weapClass))
 				{
 					h1_asset->hipViewKickCenterSpeed = 1500.0f;
 				}
 				COPY_FIELD(hipViewScatterMin, weapDef->fHipViewScatterMin);
 				COPY_FIELD(hipViewScatterMax, weapDef->fHipViewScatterMax);
-				if (isGun(asset->weapDef->weapClass))
+				if (is_gun(asset->weapDef->weapClass))
 				{
 					h1_asset->viewKickScale = 1.0f;
 				}
@@ -1297,7 +1304,7 @@ namespace zonetool::iw6
 				COPY_FIELD(maxDamageRange, weapDef->fMaxDamageRange);
 				COPY_FIELD(minDamageRange, weapDef->fMinDamageRange);
 				h1_asset->signatureAmmoInClip = 0;
-				if (isGun(asset->weapDef->weapClass))
+				if (is_gun(asset->weapDef->weapClass))
 				{
 					h1_asset->signatureDamage = 30;
 					h1_asset->signatureMidDamage = 30;
@@ -1347,7 +1354,7 @@ namespace zonetool::iw6
 				h1_asset->fireTimeInterpolationType = zonetool::h1::WEAPON_FIRETIME_INTERPOLATION_NONE;
 				h1_asset->generateAmmo = 0;
 				h1_asset->ammoPerShot = 1;
-				if (isExplosive(asset->weapDef->weapClass))
+				if (is_explosive(asset->weapDef->weapClass))
 				{
 					h1_asset->explodeCount = 1;
 				}
@@ -1436,7 +1443,7 @@ namespace zonetool::iw6
 				h1_asset->reloadStopsAlt = false;
 				h1_asset->useScopeDrift = false;
 				h1_asset->alwaysShatterGlassOnImpact = false;
-				h1_asset->oldWeapon = false; // true or false? what does this even do?
+				h1_asset->oldWeapon = false; // sp -> oldWeapon = true
 				h1_asset->raiseToHold = false;
 				h1_asset->notifyOnPlayerImpact = false;
 				h1_asset->decreasingKick = false;
@@ -1450,11 +1457,23 @@ namespace zonetool::iw6
 				h1_asset->projKillBeaconEffectOnDeath = false;
 				h1_asset->reticleDetonateHide = false;
 				h1_asset->cloaked = false;
-				h1_asset->adsHideWeapon = false; // should we hide these for snipers?
-				h1_asset->adsHideHands = false; // should we hide these for snipers?
+
+				if (is_sniper(asset->weapDef->weapClass))
+				{
+					h1_asset->adsHideWeapon = true;
+					h1_asset->adsHideHands = true;
+					h1_asset->adsSceneBlur = true;
+					h1_asset->usesSniperScope = true;
+				}
+				else
+				{
+					h1_asset->adsHideWeapon = false;
+					h1_asset->adsHideHands = false;
+					h1_asset->adsSceneBlur = false;
+					h1_asset->usesSniperScope = false;
+				}
+
 				h1_asset->bU_108 = false;
-				h1_asset->adsSceneBlur = false; // should we enable this for snipers?
-				h1_asset->usesSniperScope = false; // should we enable this for snipers?
 				h1_asset->hasTransientModels = false; // modify this later if needed
 				h1_asset->signatureAmmoAlternate = false;
 				h1_asset->useScriptCallbackForHit = false;

@@ -1350,6 +1350,11 @@ namespace zonetool::iw6
 	{
 		auto data = this->asset_;
 
+		if (data->szDisplayName)
+		{
+			zone->add_asset_of_type(ASSET_TYPE_LOCALIZE_ENTRY, data->szDisplayName);
+		}
+
 		if (data->scopes)
 		{
 			for (auto i = 0u; i < 6; i++)

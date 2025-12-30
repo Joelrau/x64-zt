@@ -1307,6 +1307,11 @@ namespace zonetool::h2
 			zone->add_asset_of_type(__type__, weapon->__field__->name); \
 		}
 
+		if (weapon->szDisplayName)
+		{
+			zone->add_asset_of_type(ASSET_TYPE_LOCALIZE_ENTRY, weapon->szDisplayName);
+		}
+
 		for (int i = 0; i < 2; i++)
 		{
 			if (weapon->gunModel)

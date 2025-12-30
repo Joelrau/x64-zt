@@ -1165,6 +1165,11 @@ namespace zonetool::s1
 	{
 		auto* data = this->asset_;
 
+		if (data->szDisplayName)
+		{
+			zone->add_asset_of_type(ASSET_TYPE_LOCALIZE_ENTRY, data->szDisplayName); \
+		}
+
 		if (data->worldModels)
 		{
 			for (auto i = 0; i < 2; i++)
