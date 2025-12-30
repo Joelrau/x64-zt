@@ -180,8 +180,8 @@ namespace zonetool::iw6
 			//DUMP_ASSET_CONVERT(ASSET_TYPE_VERTEXDECL, vertexdecl, MaterialVertexDeclaration);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_VERTEXSHADER, vertexshader, MaterialVertexShader);
 
-			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENU, menu_def, menuDef_t);
-			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENULIST, menu_list, MenuList);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENU, menu_def, menuDef_t);
+			DUMP_ASSET_NO_CONVERT(ASSET_TYPE_MENULIST, menu_list, MenuList);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_VEHICLE, vehicledef, VehicleDef);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_WEAPON, weapondef, WeaponCompleteDef);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_ATTACHMENT, weaponattachment, WeaponAttachment);

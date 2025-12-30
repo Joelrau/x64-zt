@@ -1,7 +1,7 @@
 #include <std_include.hpp>
 #include "menulist.hpp"
 
-//#define VER_1_4
+#define VER_1_4
 
 // trash code, ignore all warnings
 #pragma warning( push )
