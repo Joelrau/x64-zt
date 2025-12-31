@@ -1259,12 +1259,16 @@ namespace zonetool::iw6
 				COPY_FIELD(maxDist, weapDef->maxDist);
 				REINTERPRET_CAST(accuracyGraphName[0], weapDef->accuracyGraphName[0]);
 				REINTERPRET_CAST(accuracyGraphName[1], weapDef->accuracyGraphName[1]);
+
 				REINTERPRET_CAST(accuracyGraphKnots[0], weapDef->originalAccuracyGraphKnots[0]);
 				REINTERPRET_CAST(accuracyGraphKnots[1], weapDef->originalAccuracyGraphKnots[1]);
-				h1_asset->originalAccuracyGraphKnots[0] = h1_asset->accuracyGraphKnots[0];
-				h1_asset->originalAccuracyGraphKnots[1] = h1_asset->accuracyGraphKnots[1];
+				REINTERPRET_CAST(originalAccuracyGraphKnots[0], weapDef->originalAccuracyGraphKnots[0]);
+				REINTERPRET_CAST(originalAccuracyGraphKnots[1], weapDef->originalAccuracyGraphKnots[1]);
+
 				COPY_FIELD(accuracyGraphKnotCount[0], weapDef->originalAccuracyGraphKnotCount[0]);
 				COPY_FIELD(accuracyGraphKnotCount[1], weapDef->originalAccuracyGraphKnotCount[1]);
+				COPY_FIELD(originalAccuracyGraphKnotCount[0], weapDef->originalAccuracyGraphKnotCount[0]);
+				COPY_FIELD(originalAccuracyGraphKnotCount[1], weapDef->originalAccuracyGraphKnotCount[1]);
 				COPY_FIELD(leftArc, weapDef->leftArc);
 				COPY_FIELD(rightArc, weapDef->rightArc);
 				COPY_FIELD(topArc, weapDef->topArc);

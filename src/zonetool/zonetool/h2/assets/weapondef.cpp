@@ -3106,10 +3106,10 @@ namespace zonetool::h2
 		WEAPON_DUMP_FIELD(turretScopeZoomRate);
 		WEAPON_DUMP_FIELD(turretScopeZoomMin);
 		WEAPON_DUMP_FIELD(turretScopeZoomMax);
-		//WEAPON_DUMP_FIELD(xU_056);
-		//WEAPON_DUMP_FIELD(xU_057);
-		//WEAPON_DUMP_FIELD(xU_058);
-		//WEAPON_DUMP_FIELD(xU_059);
+		WEAPON_DUMP_FIELD(xU_056);
+		WEAPON_DUMP_FIELD(xU_057);
+		WEAPON_DUMP_FIELD(xU_058);
+		WEAPON_DUMP_FIELD(xU_059);
 		WEAPON_DUMP_FIELD(turretBarrelSpinSpeed);
 		WEAPON_DUMP_FIELD(turretBarrelSpinUpTime);
 		WEAPON_DUMP_FIELD(turretBarrelSpinDownTime);

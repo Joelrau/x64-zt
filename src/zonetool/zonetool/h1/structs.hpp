@@ -5519,6 +5519,7 @@ namespace zonetool::h1
 		vec2_t* accuracyGraphKnots[2]; // 3088
 		vec2_t* originalAccuracyGraphKnots[2]; // 3104
 		short accuracyGraphKnotCount[2]; // 3120
+		short originalAccuracyGraphKnotCount[2]; // 3120
 		float leftArc; // 3128
 		float rightArc; // 3132
 		float topArc; // 3136

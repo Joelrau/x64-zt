@@ -240,7 +240,7 @@ namespace zonetool::h1
 			{
 				const auto count = data["originalAccuracyGraphKnots"][i].size();
 				def->originalAccuracyGraphKnots[i] = mem->allocate<vec2_t>(count);
-				def->accuracyGraphKnotCount[i] = static_cast<short>(count);
+				def->originalAccuracyGraphKnotCount[i] = static_cast<short>(count);
 
 				for (auto o = 0; o < count; o++)
 				{
@@ -2098,7 +2098,7 @@ namespace zonetool::h1
 			if (data->originalAccuracyGraphKnots[i])
 			{
 				buf->align(3);
-				buf->write(data->originalAccuracyGraphKnots[i], data->accuracyGraphKnotCount[i]);
+				buf->write(data->originalAccuracyGraphKnots[i], data->originalAccuracyGraphKnotCount[i]);
 				buf->clear_pointer(&dest->originalAccuracyGraphKnots[i]);
 			}
 		}
@@ -2249,6 +2249,19 @@ namespace zonetool::h1
 					data["accuracyGraphKnots"] = nullptr;
 				}
 				if (asset->accuracyGraphKnots[i])
+				{
+					data["originalAccuracyGraphKnots"][i][o][0] = asset->originalAccuracyGraphKnots[i][o][0];
+					data["originalAccuracyGraphKnots"][i][o][1] = asset->originalAccuracyGraphKnots[i][o][1];
+				}
+				else
+				{
+					data["originalAccuracyGraphKnots"] = nullptr;
+				}
+			}
+
+			for (auto o = 0; o < asset->originalAccuracyGraphKnotCount[i]; o++)
+			{
+				if (asset->originalAccuracyGraphKnots[i])
 				{
 					data["originalAccuracyGraphKnots"][i][o][0] = asset->originalAccuracyGraphKnots[i][o][0];
 					data["originalAccuracyGraphKnots"][i][o][1] = asset->originalAccuracyGraphKnots[i][o][1];
