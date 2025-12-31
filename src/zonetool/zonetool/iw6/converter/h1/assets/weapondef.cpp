@@ -1448,22 +1448,10 @@ namespace zonetool::iw6
 				h1_asset->projKillBeaconEffectOnDeath = false;
 				h1_asset->reticleDetonateHide = false;
 				h1_asset->cloaked = false;
-
-				if (is_sniper(asset->weapDef->weapClass))
-				{
-					h1_asset->adsHideWeapon = true;
-					h1_asset->adsHideHands = true;
-					h1_asset->adsSceneBlur = true;
-					h1_asset->usesSniperScope = true;
-				}
-				else
-				{
-					h1_asset->adsHideWeapon = false;
-					h1_asset->adsHideHands = false;
-					h1_asset->adsSceneBlur = false;
-					h1_asset->usesSniperScope = false;
-				}
-
+				h1_asset->adsHideWeapon = false;
+				h1_asset->adsHideHands = false;
+				h1_asset->adsSceneBlur = false;
+				h1_asset->usesSniperScope = false;
 				h1_asset->bU_108 = false;
 				h1_asset->hasTransientModels = false; // modify this later if needed
 				h1_asset->signatureAmmoAlternate = false;
