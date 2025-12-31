@@ -716,11 +716,11 @@ namespace zonetool::iw6
 				// notetrackHideTagKeys
 				// notetrackHideTagValues
 				// notetrackHideTagTagValues
-				h1_asset->szAdsrBaseSetting = nullptr;
+				h1_asset->szAdsrBaseSetting = asset->szAdsrBaseSetting;
 				REINTERPRET_CAST(viewFlashEffect, weapDef->viewFlashEffect);
 				h1_asset->viewBodyFlashEffect = nullptr;
 				REINTERPRET_CAST(worldFlashEffect, weapDef->worldFlashEffect);
-				h1_asset->viewFlashADSEffect = nullptr;
+				REINTERPRET_CAST(viewFlashADSEffect, weapDef->viewFlashADSEffect);
 				// signatureViewFlashEffect
 				// signatureViewBodyFlashEffect
 				// signatureWorldFlashEffect
@@ -891,7 +891,7 @@ namespace zonetool::iw6
 				h1_asset->fireType = static_cast<zonetool::h1::weapFireType_t>(asset->weapDef->fireType > 4 ? asset->weapDef->fireType + 1 : asset->weapDef->fireType);
 				h1_asset->fireBarrels = asset->weapDef->fireType == WEAPON_FIRETYPE_DOUBLEBARREL ? zonetool::h1::WEAPON_FIREBARREL_DOUBLE : zonetool::h1::WEAPON_FIREBARREL_SINGLE;
 				h1_asset->adsFireMode = zonetool::h1::WEAPADSFIREMODE_DEFAULT;
-				h1_asset->burstFireCooldown = asset->weapDef->fireType == WEAPON_FIRETYPE_BURSTFIRE2 || asset->weapDef->fireType == WEAPON_FIRETYPE_BURSTFIRE3 || asset->weapDef->fireType == WEAPON_FIRETYPE_BURSTFIRE4 ? 200.0f : 0.0f;
+				h1_asset->burstFireCooldown = asset->weapDef->burstFireCooldown;
 				h1_asset->greebleType = zonetool::h1::WEAPON_GREEBLE_NONE;
 				h1_asset->autoReloadType = zonetool::h1::WEAPON_AUTORELOAD_ALWAYS;
 				h1_asset->autoHolsterType = zonetool::h1::WEAPON_AUTOHOLSTER_ALWAYS;
@@ -985,7 +985,7 @@ namespace zonetool::iw6
 				COPY_FIELD(adsTransInTime, iAdsTransInTime);
 				h1_asset->adsTransInFromSprintTime = asset->iAdsTransInTime;
 				COPY_FIELD(adsTransOutTime, iAdsTransOutTime);
-				h1_asset->swayMaxAngleSteadyAim = 1.0f;
+				COPY_FIELD(swayMaxAngleSteadyAim, weapDef->swayMaxAngleSteadyAim);
 				COPY_FIELD(swayMaxAngle, weapDef->swayMaxAngle);
 				COPY_FIELD(swayLerpSpeed, weapDef->swayLerpSpeed);
 				COPY_FIELD(swayPitchScale, weapDef->swayPitchScale);
@@ -1002,16 +1002,13 @@ namespace zonetool::iw6
 				COPY_FIELD(adsViewErrorMin, weapDef->adsFireRateScale);
 				COPY_FIELD(adsViewErrorMax, weapDef->adsDamageRangeScale);
 				COPY_FIELD(dualWieldViewModelOffset, weapDef->dualWieldViewModelOffset);
-				if (is_gun(asset->weapDef->weapClass))
-				{
-					h1_asset->adsFireAnimFrac = 0.75f;
-					h1_asset->scopeDriftDelay = 0.5f;
-					h1_asset->scopeDriftLerpInTime = 1.5f;
-					h1_asset->scopeDriftSteadyTime = 8.0f;
-					h1_asset->scopeDriftLerpOutTime = 1.5f;
-					h1_asset->scopeDriftSteadyFactor = 0.5f;
-					h1_asset->scopeDriftUnsteadyFactor = 1.5f;
-				}
+				COPY_FIELD(adsFireAnimFrac, weapDef->adsFireAnimFrac);
+				COPY_FIELD(scopeDriftDelay, weapDef->fScopeDriftDelay);
+				COPY_FIELD(scopeDriftLerpInTime, weapDef->fScopeDriftLerpInTime);
+				COPY_FIELD(scopeDriftSteadyTime, weapDef->fScopeDriftSteadyTime);
+				COPY_FIELD(scopeDriftLerpOutTime, weapDef->fScopeDriftLerpOutTime);
+				COPY_FIELD(scopeDriftSteadyFactor, weapDef->fScopeDriftSteadyFactor);
+				COPY_FIELD(scopeDriftUnsteadyFactor, weapDef->fScopeDriftUnsteadyFactor);
 				h1_asset->bobVerticalFactor = 1.0f;
 				h1_asset->bobHorizontalFactor = 1.0f;
 				h1_asset->bobViewVerticalFactor = 1.0f;
@@ -1220,7 +1217,7 @@ namespace zonetool::iw6
 				COPY_FIELD(adsGunKickPitchMax, weapDef->fAdsGunKickPitchMax);
 				COPY_FIELD(adsGunKickYawMin, weapDef->fAdsGunKickYawMin);
 				COPY_FIELD(adsGunKickYawMax, weapDef->fAdsGunKickYawMax);
-				h1_asset->adsGunKickMagMin = 0.0f;
+				COPY_FIELD(adsGunKickMagMin, weapDef->fAdsGunKickMagMin);
 				COPY_FIELD(adsGunKickAccel, weapDef->fAdsGunKickAccel);
 				COPY_FIELD(adsGunKickSpeedMax, weapDef->fAdsGunKickSpeedMax);
 				COPY_FIELD(adsGunKickSpeedDecay, weapDef->fAdsGunKickSpeedDecay);
@@ -1229,11 +1226,8 @@ namespace zonetool::iw6
 				COPY_FIELD(adsViewKickPitchMax, weapDef->fAdsViewKickPitchMax);
 				COPY_FIELD(adsViewKickYawMin, weapDef->fAdsViewKickYawMin);
 				COPY_FIELD(adsViewKickYawMax, weapDef->fAdsViewKickYawMax);
-				h1_asset->adsViewKickMagMin = 0.0f;
-				if (is_gun(asset->weapDef->weapClass))
-				{
-					h1_asset->adsViewKickCenterSpeed = 1500.0f;
-				}
+				COPY_FIELD(adsViewKickMagMin, weapDef->fAdsViewKickMagMin);
+				COPY_FIELD(adsViewKickCenterSpeed, fAdsViewKickCenterSpeed);
 				COPY_FIELD(adsViewScatterMin, weapDef->fAdsViewScatterMin);
 				COPY_FIELD(adsViewScatterMax, weapDef->fAdsViewScatterMax);
 				COPY_FIELD(adsSpread, weapDef->fAdsSpread);
@@ -1243,7 +1237,7 @@ namespace zonetool::iw6
 				COPY_FIELD(hipGunKickPitchMax, weapDef->fHipGunKickPitchMax);
 				COPY_FIELD(hipGunKickYawMin, weapDef->fHipGunKickYawMin);
 				COPY_FIELD(hipGunKickYawMax, weapDef->fHipGunKickYawMax);
-				h1_asset->hipGunKickMagMin = 0.0f;
+				COPY_FIELD(hipGunKickMagMin, weapDef->fHipGunKickMagMin);
 				COPY_FIELD(hipGunKickAccel, weapDef->fHipGunKickAccel);
 				COPY_FIELD(hipGunKickSpeedMax, weapDef->fHipGunKickSpeedMax);
 				COPY_FIELD(hipGunKickSpeedDecay, weapDef->fHipGunKickSpeedDecay);
@@ -1252,11 +1246,8 @@ namespace zonetool::iw6
 				COPY_FIELD(hipViewKickPitchMax, weapDef->fHipViewKickPitchMax);
 				COPY_FIELD(hipViewKickYawMin, weapDef->fHipViewKickYawMin);
 				COPY_FIELD(hipViewKickYawMax, weapDef->fHipViewKickYawMax);
-				h1_asset->hipViewKickMagMin = 0.0f;
-				if (is_gun(asset->weapDef->weapClass))
-				{
-					h1_asset->hipViewKickCenterSpeed = 1500.0f;
-				}
+				COPY_FIELD(hipViewKickMagMin, weapDef->fHipViewKickMagMin);
+				COPY_FIELD(hipViewKickCenterSpeed, fHipViewKickCenterSpeed);
 				COPY_FIELD(hipViewScatterMin, weapDef->fHipViewScatterMin);
 				COPY_FIELD(hipViewScatterMax, weapDef->fHipViewScatterMax);
 				if (is_gun(asset->weapDef->weapClass))
@@ -1342,13 +1333,13 @@ namespace zonetool::iw6
 				COPY_FIELD(missileConeSoundPitchBottomSize, weapDef->missileConeSoundPitchBottomSize);
 				COPY_FIELD(missileConeSoundCrossfadeTopSize, weapDef->missileConeSoundCrossfadeTopSize);
 				COPY_FIELD(missileConeSoundCrossfadeBottomSize, weapDef->missileConeSoundCrossfadeBottomSize);
-				h1_asset->aim_automelee_lerp = 40.0f;
-				h1_asset->aim_automelee_range = 128.0f;
-				h1_asset->aim_automelee_region_height = 240.0f;
-				h1_asset->aim_automelee_region_width = 320.0f;
-				h1_asset->player_meleeHeight = 10.0f;
-				h1_asset->player_meleeRange = 64.0f;
-				h1_asset->player_meleeWidth = 10.0f;
+				COPY_FIELD(aim_automelee_lerp, weapDef->aim_automelee_lerp);
+				COPY_FIELD(aim_automelee_range, weapDef->aim_automelee_range);
+				COPY_FIELD(aim_automelee_region_height, weapDef->aim_automelee_region_height);
+				COPY_FIELD(aim_automelee_region_width, weapDef->aim_automelee_region_width);
+				COPY_FIELD(player_meleeHeight, weapDef->player_meleeHeight);
+				COPY_FIELD(player_meleeRange, weapDef->player_meleeRange);
+				COPY_FIELD(player_meleeWidth, weapDef->player_meleeWidth);
 				h1_asset->changedFireTime = 0.0f;
 				h1_asset->changedFireTimeNumBullets = 0;
 				h1_asset->fireTimeInterpolationType = zonetool::h1::WEAPON_FIRETIME_INTERPOLATION_NONE;
@@ -1363,13 +1354,13 @@ namespace zonetool::iw6
 				h1_asset->bulletsPerTag = 0;
 				h1_asset->maxTags = 1;
 				COPY_FIELD_CAST(stowTag, weapDef->stowTag);
-				h1_asset->rattleSoundType = 0;
-				h1_asset->adsShouldShowCrosshair = false;
+				COPY_FIELD_CAST(rattleSoundType, weapDef->rattleSoundType);
+				COPY_FIELD_CAST(adsShouldShowCrosshair, weapDef->adsShouldShowCrosshair);
 				h1_asset->adsCrosshairShouldScale = true;
 				COPY_FIELD(turretADSEnabled, weapDef->turretADSEnabled);
 				h1_asset->knifeAttachTagLeft = false;
-				h1_asset->knifeAlwaysAttached = false;
-				h1_asset->meleeOverrideValues = false;
+				COPY_FIELD(knifeAlwaysAttached, weapDef->knifeAlwaysAttached);
+				COPY_FIELD(meleeOverrideValues, weapDef->meleeOverrideValues);
 				COPY_FIELD(riotShieldEnableDamage, weapDef->riotShieldEnableDamage);
 				h1_asset->allowPrimaryWeaponPickup = false;
 				COPY_FIELD(sharedAmmo, weapDef->sharedAmmo);
@@ -1386,7 +1377,7 @@ namespace zonetool::iw6
 				COPY_FIELD(boltAction, weapDef->bBoltAction);
 				COPY_FIELD(aimDownSight, weapDef->aimDownSight);
 				COPY_FIELD(canHoldBreath, weapDef->canHoldBreath);
-				h1_asset->meleeOnly = false;
+				COPY_FIELD(meleeOnly, weapDef->meleeOnly);
 				h1_asset->quickMelee = false;
 				h1_asset->bU_086 = false;
 				COPY_FIELD(canVariableZoom, weapDef->canVariableZoom);
@@ -1406,19 +1397,19 @@ namespace zonetool::iw6
 				h1_asset->actionSlotShowAmmo = true;
 				COPY_FIELD(noPartialReload, weapDef->bNoPartialReload);
 				COPY_FIELD(segmentedReload, weapDef->bSegmentedReload);
-				h1_asset->multipleReload = false;
+				COPY_FIELD(multipleReload, weapDef->bMultipleReload);
 				COPY_FIELD(blocksProne, weapDef->blocksProne);
 				COPY_FIELD(silenced, weapDef->silenced);
 				COPY_FIELD(isRollingGrenade, weapDef->isRollingGrenade);
 				COPY_FIELD(projExplosionEffectForceNormalUp, weapDef->projExplosionEffectForceNormalUp);
-				h1_asset->projExplosionEffectInheritParentDirection = false;
+				COPY_FIELD(projExplosionEffectInheritParentDirection, weapDef->projExplosionEffectInheritParentDirection);
 				COPY_FIELD(projImpactExplode, weapDef->bProjImpactExplode);
-				h1_asset->projTrajectoryEvents = false;
-				h1_asset->projWhizByEnabled = false;
+				COPY_FIELD(projTrajectoryEvents, weapDef->bProjTrajectoryEvents);
+				COPY_FIELD(projWhizByEnabled, weapDef->bProjWhizByEnabled);
 				COPY_FIELD(stickToPlayers, weapDef->stickToPlayers);
 				COPY_FIELD(stickToVehicles, weapDef->stickToVehicles);
 				COPY_FIELD(stickToTurrets, weapDef->stickToTurrets);
-				h1_asset->thrownSideways = false;
+				COPY_FIELD(thrownSideways, weapDef->thrownSideways);
 				h1_asset->hasDetonatorEmptyThrow = false; // figure this out? should be true for c4
 				h1_asset->hasDetonatorDoubleTap = false; // figure this out? should be true for c4
 				COPY_FIELD(disableFiring, weapDef->disableFiring);
@@ -1429,8 +1420,8 @@ namespace zonetool::iw6
 				COPY_FIELD(holdButtonToThrow, weapDef->holdButtonToThrow);
 				COPY_FIELD(freezeMovementWhenFiring, weapDef->freezeMovementWhenFiring);
 				COPY_FIELD(thermalScope, weapDef->thermalScope);
-				h1_asset->thermalToggle = false;
-				h1_asset->outlineEnemies = false;
+				COPY_FIELD(thermalToggle, weapDef->thermalToggle);
+				COPY_FIELD(outlineEnemies, weapDef->outlineEnemies);
 				COPY_FIELD(altModeSameWeapon, weapDef->altModeSameWeapon);
 				COPY_FIELD(turretBarrelSpinEnabled, weapDef->turretBarrelSpinEnabled);
 				COPY_FIELD(missileConeSoundEnabled, weapDef->missileConeSoundEnabled);
@@ -1438,12 +1429,12 @@ namespace zonetool::iw6
 				COPY_FIELD(missileConeSoundCrossfadeEnabled, weapDef->missileConeSoundCrossfadeEnabled);
 				COPY_FIELD(offhandHoldIsCancelable, weapDef->offhandHoldIsCancelable);
 				COPY_FIELD(doNotAllowAttachmentsToOverrideSpread, weapDef->doNotAllowAttachmentsToOverrideSpread);
-				h1_asset->useFastReloadAnims = false;
+				COPY_FIELD(useFastReloadAnims, weapDef->useFastReloadAnims);
 				h1_asset->dualMagReloadSupported = false;
 				h1_asset->reloadStopsAlt = false;
-				h1_asset->useScopeDrift = false;
-				h1_asset->alwaysShatterGlassOnImpact = false;
-				h1_asset->oldWeapon = false; // sp -> oldWeapon = true
+				COPY_FIELD(useScopeDrift, weapDef->useScopeDrift);
+				COPY_FIELD(alwaysShatterGlassOnImpact, weapDef->alwaysShatterGlassOnImpact);
+				COPY_FIELD(oldWeapon, weapDef->oldWeapon);
 				h1_asset->raiseToHold = false;
 				h1_asset->notifyOnPlayerImpact = false;
 				h1_asset->decreasingKick = false;
