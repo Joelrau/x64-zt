@@ -5,26 +5,26 @@ namespace gsc
 {
 	namespace iw7
 	{
-		std::unique_ptr<xsk::gsc::iw7::context> gsc_ctx = std::make_unique<xsk::gsc::iw7::context>();
+		std::unique_ptr<xsk::gsc::iw7::context> gsc_ctx = std::make_unique<xsk::gsc::iw7::context>(xsk::gsc::instance::server);
 	}
 
 	namespace iw6
 	{
-		std::unique_ptr<xsk::gsc::iw6_pc::context> gsc_ctx = std::make_unique<xsk::gsc::iw6_pc::context>();
+		std::unique_ptr<xsk::gsc::iw6_pc::context> gsc_ctx = std::make_unique<xsk::gsc::iw6_pc::context>(xsk::gsc::instance::server);
 	}
 
 	namespace s1
 	{
-		std::unique_ptr<xsk::gsc::s1_pc::context> gsc_ctx = std::make_unique<xsk::gsc::s1_pc::context>();
+		std::unique_ptr<xsk::gsc::s1_pc::context> gsc_ctx = std::make_unique<xsk::gsc::s1_pc::context>(xsk::gsc::instance::server);
 	}
 
 	namespace h1
 	{
-		std::unique_ptr<xsk::gsc::h1::context> gsc_ctx = std::make_unique<xsk::gsc::h1::context>();
+		std::unique_ptr<xsk::gsc::h1::context> gsc_ctx = std::make_unique<xsk::gsc::h1::context>(xsk::gsc::instance::server);
 	}
 
 	namespace h2
 	{
-		std::unique_ptr<xsk::gsc::h2::context> gsc_ctx = std::make_unique<xsk::gsc::h2::context>();
+		std::unique_ptr<xsk::gsc::h2::context> gsc_ctx = std::make_unique<xsk::gsc::h2::context>(xsk::gsc::instance::server);
 	}
 }

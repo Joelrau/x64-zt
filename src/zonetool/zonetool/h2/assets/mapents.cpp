@@ -1,7 +1,7 @@
 #include <std_include.hpp>
 #include "mapents.hpp"
 
-#include <xsk/gsc/engine/h2.hpp>
+#include <zonetool/utils/gsc.hpp>
 
 namespace zonetool::h2
 {
@@ -116,9 +116,7 @@ namespace zonetool::h2
 				}
 
 				const auto key_ = key.substr(1, key.size() - 2);
-
-				static auto gsc_ctx = xsk::gsc::h2::context();
-				const auto id = gsc_ctx.token_id(key_);
+				const auto id = gsc::h2::gsc_ctx->token_id(key_);
 
 				if (id == 0)
 				{
