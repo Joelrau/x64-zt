@@ -377,59 +377,18 @@ namespace zonetool::h1
 
 	void techset::parse_statebits(const std::string& techset, const std::string& material, unsigned char* statebits, zone_memory* mem)
 	{
+		const auto path = material_data::get_parse_path("state", ".statebits", techset, material);
+		auto file = filesystem::file(path);
+		file.open("rb");
+		auto fp = file.get_fp();
+
+		if (fp)
 		{
-			const auto path = material_data::get_parse_path("state", ".statebits", techset, material);
-			auto file = filesystem::file(path);
-			file.open("rb");
-			auto fp = file.get_fp();
-
-			if (fp)
-			{
-				fread(statebits, MaterialTechniqueType::TECHNIQUE_COUNT, 1, fp);
-				file.close();
-#ifndef DEEP_LOOK_TECHNIQUES
-				return;
-#endif
-			}
-		}
-
-#ifdef DEEP_LOOK_TECHNIQUES
-		const std::string parent_path = utils::string::va("techsets\\state\\%s", techset.data());
-		char index_buffer[MaterialTechniqueType::TECHNIQUE_COUNT]{};
-		const auto& search_paths = filesystem::get_search_paths();
-		bool found = false;
-		for (auto& search_path : search_paths)
-		{
-			const std::string dir = search_path + parent_path;
-			const auto first_file = material_data::find_first_file_with_extension_in_directory(dir, ".statebits");
-			if (first_file.has_value() && !first_file.value().empty())
-			{
-				std::string path = parent_path + "\\" + first_file.value();
-
-				auto file = filesystem::file(path);
-				file.open("rb");
-				auto fp = file.get_fp();
-
-				if (fp)
-				{
-					fread(index_buffer, MaterialTechniqueType::TECHNIQUE_COUNT, 1, fp);
-					file.close();
-					found = true;
-
-					for (auto i = 0; i < MaterialTechniqueType::TECHNIQUE_COUNT; i++)
-					{
-						if (statebits[i] == 0xFF && index_buffer[i] != 0xFF)
-						{
-							statebits[i] = index_buffer[i];
-						}
-					}
-				}
-			}
-		}
-
-		if (found)
+			fread(statebits, MaterialTechniqueType::TECHNIQUE_COUNT, 1, fp);
+			file.close();
 			return;
-#endif
+		}
+
 		ZONETOOL_FATAL("statebits for techset \"%s\", material \"%s\" are missing!", techset.data(), material.data());
 	}
 
