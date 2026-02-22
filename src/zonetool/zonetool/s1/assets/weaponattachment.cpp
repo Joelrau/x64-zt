@@ -1167,7 +1167,7 @@ namespace zonetool::s1
 
 		if (data->szDisplayName)
 		{
-			zone->add_asset_of_type(ASSET_TYPE_LOCALIZE_ENTRY, data->szDisplayName); \
+			zone->add_asset_of_type(ASSET_TYPE_LOCALIZE_ENTRY, data->szDisplayName);
 		}
 
 		if (data->worldModels)
