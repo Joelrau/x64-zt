@@ -240,7 +240,7 @@ targetdir "%{wks.location}/bin/%{cfg.platform}/%{cfg.buildcfg}"
 configurations {"Debug", "Release"}
 
 language "C++"
-cppdialect "C++20"
+cppdialect "C++23"
 
 architecture "x86_64"
 platforms "x64"
@@ -256,7 +256,11 @@ if os.getenv("CI") then
 	defines {"CI"}
 end
 
-flags {"NoIncrementalLink", "NoMinimalRebuild", "MultiProcessorCompile", "No64BitChecks"}
+incrementallink "Off"
+minimalrebuild "Off"
+multiprocessorcompile "On"
+omitframepointer "On"
+enable64bitchecks "Off"
 
 filter "platforms:x64"
 	defines {"_WINDOWS", "WIN32"}
@@ -267,7 +271,7 @@ filter "configurations:Release"
 	buildoptions {"/bigobj"}
 	linkoptions { "/IGNORE:4702" }
 	defines {"NDEBUG"}
-	flags {"FatalCompileWarnings"}
+	fatalwarnings { "All" }
 filter {}
 
 filter "configurations:Debug"
