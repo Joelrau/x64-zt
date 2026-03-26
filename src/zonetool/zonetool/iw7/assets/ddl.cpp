@@ -567,14 +567,70 @@ namespace zonetool::iw7
 		return n;
 	}
 
+	std::string strip_comments(const std::string& input)
+	{
+		std::string out;
+		out.reserve(input.size());
+
+		bool in_line_comment = false;
+		bool in_block_comment = false;
+
+		for (size_t i = 0; i < input.size(); ++i)
+		{
+			const char c = input[i];
+			const char n = (i + 1 < input.size()) ? input[i + 1] : '\0';
+
+			if (in_line_comment)
+			{
+				if (c == '\n')
+				{
+					in_line_comment = false;
+					out += c;
+				}
+				continue;
+			}
+
+			if (in_block_comment)
+			{
+				if (c == '*' && n == '/')
+				{
+					in_block_comment = false;
+					++i;
+				}
+				continue;
+			}
+
+			if (c == '/' && n == '/')
+			{
+				in_line_comment = true;
+				++i;
+				continue;
+			}
+
+			if (c == '/' && n == '*')
+			{
+				in_block_comment = true;
+				++i;
+				continue;
+			}
+
+			out += c;
+		}
+
+		return out;
+	}
+
 	DDLFile parseDDLFile(const std::string& input, const std::string& name, zone_memory* mem)
 	{
 		DDLFile out{};
 		out.name = mem->duplicate_string(name);
 		std::vector<DDLDef> defs;
 
+		// Strip all comments from the input
+		const std::string clean_input = strip_comments(input);
+
 		// Split input into lines
-		std::istringstream iss(input);
+		std::istringstream iss(clean_input);
 		std::vector<std::string> lines;
 		std::string line;
 		while (std::getline(iss, line)) lines.push_back(line);
@@ -766,11 +822,25 @@ namespace zonetool::iw7
 					std::vector<DDLMember> members;
 					int offset = 0, index = 0;
 
-					std::regex fieldRe(R"(^\s*([\w]+)(?::(\d+))?(?:\((\d+)\))?\s+(\w+)(?:\[\s*(\w+)\s*\])?;)");
+					std::regex fieldRe(R"(\s*([\w]+)(?::(\d+))?(?:\((\d+)\))?\s+(\w+)(?:\[\s*(\w+)\s*\])?\s*;)");
 					std::string& body = itBody->second;
-					for (std::sregex_iterator fit(body.begin(), body.end(), fieldRe), fend; fit != fend; ++fit)
+					std::istringstream bodyStream(body);
+					std::string fieldLine;
+
+					while (std::getline(bodyStream, fieldLine))
 					{
-						auto fm = *fit;
+						fieldLine = trim(fieldLine);
+						if (fieldLine.empty())
+						{
+							continue;
+						}
+
+						std::smatch fm;
+						if (!std::regex_match(fieldLine, fm, fieldRe))
+						{
+							continue;
+						}
+
 						std::string rawType = fm[1].str();
 						std::string rawBits = fm[2].matched ? fm[2].str() : "";
 						std::string rawLimit = fm[3].matched ? fm[3].str() : "";
@@ -890,7 +960,7 @@ namespace zonetool::iw7
 							}
 						}
 
-						if (!sizeOverride && 
+						if (!sizeOverride &&
 							dtype != DDLType::DDL_FLOAT_TYPE &&
 							dtype != DDLType::DDL_STRUCT_TYPE &&
 							dtype != DDLType::DDL_ENUM_TYPE &&
@@ -917,7 +987,7 @@ namespace zonetool::iw7
 						member.enumIndex = 0;
 						member.permission = 3;
 
-						member.type = 
+						member.type =
 							dtype == DDL_BOOL_TYPE_FIXUP ? DDLType::DDL_UINT_TYPE :
 							dtype == DDL_INT8_TYPE_FIXUP ? DDLType::DDL_UINT_TYPE :
 							dtype == DDL_UINT8_TYPE_FIXUP ? DDLType::DDL_UINT_TYPE :
