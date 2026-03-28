@@ -207,6 +207,7 @@ namespace zonetool::h1
 					}
 				}
 			}
+
 			if (asset->stateMachine->aimSets)
 			{
 				for (auto i = 0; i < asset->stateMachine->aimSetCount; i++)
@@ -235,6 +236,7 @@ namespace zonetool::h1
 					this->get_script_string(&asset->soundNotes[i])));
 			}
 		}
+
 		if (asset->soundNames)
 		{
 			for (auto i = 0; i < asset->soundCount; i++)
@@ -243,6 +245,7 @@ namespace zonetool::h1
 					this->get_script_string(&asset->soundNames[i])));
 			}
 		}
+
 		if (asset->soundOptions)
 		{
 			for (auto i = 0; i < asset->soundCount; i++)
@@ -251,7 +254,8 @@ namespace zonetool::h1
 					this->get_script_string(&asset->soundOptions[i])));
 			}
 		}
-		if(asset->effectNotes)
+
+		if (asset->effectNotes)
 		{
 			for (auto i = 0; i < asset->effectCount; i++)
 			{
@@ -259,6 +263,7 @@ namespace zonetool::h1
 					this->get_script_string(&asset->effectNotes[i])));
 			}
 		}
+
 		if (asset->effectTags)
 		{
 			for (auto i = 0; i < asset->effectCount; i++)
@@ -283,6 +288,87 @@ namespace zonetool::h1
 			if (asset->effectDefs[i])
 			{
 				zone->add_asset_of_type(ASSET_TYPE_FX, asset->effectDefs[i]->name);
+			}
+		}
+
+		if (asset->soundOptions)
+		{
+			for (auto i = 0; i < asset->soundCount; i++)
+			{
+				const auto snd = this->get_script_string(&asset->soundOptions[i]);
+				if (snd != nullptr)
+				{
+					zone->add_asset_of_type(ASSET_TYPE_SOUND, snd);
+				}
+			}
+		}
+
+		if (asset->soundNotes)
+		{
+			for (auto i = 0; i < asset->soundCount; i++)
+			{
+				const auto snd = this->get_script_string(&asset->soundNotes[i]);
+				if (snd != nullptr)
+				{
+					zone->add_asset_of_type(ASSET_TYPE_SOUND, snd);
+				}
+			}
+		}
+
+		if (asset->soundNames)
+		{
+			for (auto i = 0; i < asset->soundCount; i++)
+			{
+				const auto snd = this->get_script_string(&asset->soundNames[i]);
+				if (snd != nullptr)
+				{
+					zone->add_asset_of_type(ASSET_TYPE_SOUND, snd);
+				}
+			}
+		}
+
+		if (asset->stateMachine && asset->stateMachine->states)
+		{
+			for (auto i = 0; i < asset->stateMachine->stateCount; i++)
+			{
+				if (asset->stateMachine->states[i].aimSet)
+				{
+					for (auto anim_index = 0; anim_index < 8; anim_index++)
+					{
+						const auto anim = this->get_script_string(&asset->stateMachine->states[i].aimSet->animName[anim_index]);
+						if (anim != nullptr)
+						{
+							zone->add_asset_of_type(ASSET_TYPE_XANIMPARTS, anim);
+						}
+					}
+				}
+
+				if (asset->stateMachine->states[i].animEntries)
+				{
+					for (auto entry_index = 0; entry_index < asset->stateMachine->states[i].entryCount; entry_index++)
+					{
+						const auto anim = this->get_script_string(&asset->stateMachine->states[i].animEntries[entry_index].animName);
+						if (anim != nullptr)
+						{
+							zone->add_asset_of_type(ASSET_TYPE_XANIMPARTS, anim);
+						}
+					}
+				}
+			}
+
+			if (asset->stateMachine->aimSets)
+			{
+				for (auto i = 0; i < asset->stateMachine->aimSetCount; i++)
+				{
+					for (auto anim_index = 0; anim_index < 8; anim_index++)
+					{
+						const auto anim = this->get_script_string(&asset->stateMachine->aimSets[i].animName[anim_index]);
+						if (anim != nullptr)
+						{
+							zone->add_asset_of_type(ASSET_TYPE_XANIMPARTS, anim);
+						}
+					}
+				}
 			}
 		}
 	}
