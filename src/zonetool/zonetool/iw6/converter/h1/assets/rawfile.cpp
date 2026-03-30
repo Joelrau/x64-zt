@@ -128,7 +128,15 @@ namespace zonetool::iw6
 
 					if (override_ || iter == values.end())
 					{
-						buffer.append(utils::string::va("%s \"%s\"\r\n", name.data(), default_value.data()));
+						buffer.append(utils::string::va("%s \"%s\"", name.data(), default_value.data()));
+						if (iter != values.end())
+						{
+							buffer.append(utils::string::va(" // \"%s\"\r\n", iter->second.data()));
+						}
+						else
+						{
+							buffer.append("\r\n");
+						}
 					}
 					else
 					{
