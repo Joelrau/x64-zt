@@ -53,9 +53,17 @@ namespace zonetool::iw6
 				return {decomp_data.begin(), decomp_data.end()};
 			}
 
+			void fixup_script(std::string& data)
+			{
+				data = std::regex_replace(data, std::regex("common_scripts\\\\utility::waitframe"), "waitframe");
+				data = std::regex_replace(data, std::regex("common_scripts\\\\utility::exploder"), "common_scripts\\_exploder::exploder");
+			}
+
 			void dump_as_gsc(ScriptFile* asset)
 			{
-				const auto decompiled_data = decompile_script(asset);
+				auto decompiled_data = decompile_script(asset);
+
+				fixup_script(decompiled_data);
 
 				filesystem::file file(convert_name(asset->name));
 				file.open("wb");
