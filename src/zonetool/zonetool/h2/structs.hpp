@@ -2633,7 +2633,7 @@ namespace zonetool::h2
 		char __pad0[4];
 		FxFloatRange spawnOffsetRadius;
 		FxFloatRange spawnOffsetHeight;
-		char __pad1[8];
+		FxFloatRange unkRange;
 		FxFloatRange spawnAngles[3];
 		FxFloatRange angularVelocity[3];
 		FxFloatRange initialRotation;

@@ -510,6 +510,12 @@ namespace zonetool::h2
 
 				buf->clear_pointer(&dest->extended.flareDef);
 			}
+			else if (data->elemType == FX_ELEM_TYPE_DECAL)
+			{
+				buf->align(0);
+				buf->write_stream(data->extended.decalDef, 3);
+				buf->clear_pointer(&dest->extended.decalDef);
+			}
 			else
 			{
 				buf->align(0);
