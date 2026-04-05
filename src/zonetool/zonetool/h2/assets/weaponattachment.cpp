@@ -958,7 +958,8 @@ namespace zonetool::h2
 				} \
 				else \
 				{ \
-					attachment->__field__[idx##__field__] = db_find_x_asset_header(XAssetType::__type__, asset##__field__.data(), 1).__datafield__; \
+					attachment->__field__[idx##__field__] = mem->manual_allocate<typename std::remove_reference<decltype(*attachment->__field__[idx##__field__])>::type>(sizeof(const char*)); \
+					attachment->__field__[idx##__field__]->name = mem->duplicate_string(asset##__field__); \
 				} \
 			} \
 			else \
@@ -998,7 +999,7 @@ namespace zonetool::h2
 		WeaponAttachment* baseAsset = nullptr;
 		if (!base.empty())
 		{
-			baseAsset = db_find_x_asset_header(ASSET_TYPE_ATTACHMENT, base.data(), 1).attachment;
+			baseAsset = db_find_x_asset_header_safe(ASSET_TYPE_ATTACHMENT, base.data()).attachment;
 			if (baseAsset == nullptr)
 			{
 				ZONETOOL_FATAL("Could not load base asset \"%s\" into memory...", base.data());

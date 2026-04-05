@@ -29,7 +29,8 @@ namespace zonetool::h2
 		} \
 		else \
 		{ \
-			vehicle->__field__ = db_find_x_asset_header(XAssetType::__type__, asset##__field__.data(), 1).__datafield__; \
+			vehicle->__field__ = mem->manual_allocate<typename std::remove_reference<decltype(*vehicle->__field__)>::type>(sizeof(const char*)); \
+			vehicle->__field__->name = mem->duplicate_string(asset##__field__); \
 		} \
 	} \
 	else \
@@ -49,7 +50,8 @@ namespace zonetool::h2
 			} \
 			else \
 			{ \
-				vehicle->__field__[idx##__field__] = db_find_x_asset_header(XAssetType::__type__, asset##__field__.data(), 1).__datafield__; \
+				vehicle->__field__[idx##__field__] = mem->manual_allocate<typename std::remove_reference<decltype(*vehicle->__field__[idx##__field__])>::type>(sizeof(const char*)); \
+				vehicle->__field__[idx##__field__]->name = mem->duplicate_string(asset##__field__); \
 			} \
 		} \
 	} \
@@ -157,7 +159,7 @@ namespace zonetool::h2
 		VehicleDef* baseAsset = nullptr;
 		if (!base.empty())
 		{
-			baseAsset = db_find_x_asset_header(ASSET_TYPE_VEHICLE, base.data(), 0).vehicle;
+			baseAsset = db_find_x_asset_header_safe(ASSET_TYPE_VEHICLE, base.data()).vehicle;
 			if (baseAsset == nullptr || DB_IsXAssetDefault(ASSET_TYPE_VEHICLE, base.data()))
 			{
 				ZONETOOL_WARNING("Could not load base asset \"%s\" into memory...", base.data());

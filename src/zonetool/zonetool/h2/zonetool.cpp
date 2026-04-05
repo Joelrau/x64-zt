@@ -748,12 +748,22 @@ namespace zonetool::h2
 		return ptr;
 	}
 
+	void clear_asset_fields()
+	{
+		material::fixed_nml_images_map.clear();
+		techset::vertexdecl_pointers.clear();
+		xanim_parts::secondary_anims.clear();
+
+		map_ents::clear_entity_strings();
+	}
+
 	void build_zone(const std::string& fastfile)
 	{
 		// make sure FS is correct.
 		filesystem::set_fastfile(fastfile);
 
 		ZONETOOL_INFO("Building fastfile \"%s\"", fastfile.data());
+		clear_asset_fields();
 
 		auto zone = alloc_zone(fastfile);
 		if (zone == nullptr)
@@ -777,10 +787,7 @@ namespace zonetool::h2
 
 		zonetool::taskbar::clear();
 
-		// clear asset shit
-		material::fixed_nml_images_map.clear();
-		techset::vertexdecl_pointers.clear();
-		xanim_parts::secondary_anims.clear();
+		clear_asset_fields();
 	}
 
 	dump_params get_dump_params(const ::h2::command::params& params)

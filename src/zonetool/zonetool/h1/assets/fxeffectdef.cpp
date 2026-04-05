@@ -1529,7 +1529,7 @@ namespace zonetool::h1
 		{
 			buf->align(3);
 			buf->write(data->visSamples, data->visStateIntervalCount + 1);
-			buf->clear_pointer(&dest->velSamples);
+			buf->clear_pointer(&dest->visSamples);
 		}
 
 		write_fx_elem_def_visuals(zone, buf, data, &dest->visuals);

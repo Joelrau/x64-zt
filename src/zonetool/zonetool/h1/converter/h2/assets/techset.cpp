@@ -533,8 +533,6 @@ namespace zonetool::h1
 
 					std::memcpy(new_pass, pass, sizeof(zonetool::h1::MaterialPass));
 
-					new_pass->stableArgSize += 16;
-
 					convert_shader(&new_pass->vertexShader, pass->vertexShader, allocator);
 					convert_shader(&new_pass->vertexDecl, pass->vertexDecl, allocator);
 					convert_shader(&new_pass->hullShader, pass->hullShader, allocator);
@@ -551,7 +549,7 @@ namespace zonetool::h1
 			{
 				const auto new_asset = allocator.allocate<zonetool::h2::MaterialTechniqueSet>();
 
-				new_asset->name = allocator.duplicate_string(asset->name);
+				new_asset->name = allocator.duplicate_string(game::add_source_postfix(asset->name, game::h1));
 				COPY_VALUE(flags);
 				COPY_VALUE(worldVertFormat);
 				COPY_VALUE(preDisplacementOnlyCount);

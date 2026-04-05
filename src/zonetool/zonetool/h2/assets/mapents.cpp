@@ -120,7 +120,6 @@ namespace zonetool::h2
 
 				if (id == 0)
 				{
-					ZONETOOL_WARNING("Key '%s' not found, on line %i (%s)", key_.data(), i, line.data());
 					continue;
 				}
 

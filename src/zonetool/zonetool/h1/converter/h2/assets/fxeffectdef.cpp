@@ -41,6 +41,8 @@ namespace zonetool::h1
 			{
 				const auto new_asset = allocator.allocate<zonetool::h2::FxEffectDef>();
 
+				auto warnings = 0;
+
 				REINTERPRET_CAST_SAFE(name);
 				COPY_VALUE(flags);
 				COPY_VALUE(totalSize);
@@ -175,6 +177,19 @@ namespace zonetool::h1
 						new_asset->elemDefs[i].extended.decalDef = allocator.allocate<zonetool::h2::FxDecalDef>();
 					}
 
+					// atlas looping fx is broken
+					if (new_asset->elemDefs[i].elemType <= zonetool::h2::FX_ELEM_TYPE_SPRITE_ROTATED &&
+						i < new_asset->elemDefCountLooping &&
+						(new_asset->elemDefs[i].atlas.rowIndexBits > 1 ||
+							new_asset->elemDefs[i].atlas.colIndexBits > 1) &&
+						(new_asset->elemDefs[i].atlas.behavior & 16) != 0)
+					{
+						new_asset->elemDefs[i].atlas.behavior &= ~4;
+						new_asset->elemDefs[i].atlas.behavior |= 8;
+						new_asset->elemDefs[i].atlas.loopCount = 0;
+						warnings |= 1;
+					}
+
 					COPY_VALUE_FX(sortOrder);
 					COPY_VALUE_FX(lightingFrac);
 					COPY_VALUE_FX(fadeInfo);
@@ -202,6 +217,11 @@ namespace zonetool::h1
 				std::memcpy(reordered_elems_emission, elems_emission, asset->elemDefCountEmission * sizeof(zonetool::h2::FxElemDef));
 
 				new_asset->elemDefs = reordered_elems;
+
+				if ((warnings & 1) != 0)
+				{
+					ZONETOOL_WARNING("fx \"%s\" has elems that use atlas textures which probably not work properly", new_asset->name);
+				}
 
 				return new_asset;
 			}
