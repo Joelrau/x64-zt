@@ -7,8 +7,6 @@
 #include "domainshader.hpp"
 #include "pixelshader.hpp"
 
-#include "zonetool/iw6/zonetool.hpp"
-
 #define DEEP_LOOK_TECHNIQUES
 #define DUMP_JSON
 

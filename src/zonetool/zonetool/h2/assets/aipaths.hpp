@@ -26,5 +26,7 @@ namespace zonetool::h2
 		void write(zone_base* zone, zone_buffer* buffer) override;
 
 		static void dump(PathData* asset);
+
+		void fixup_nodes(PathData* asset);
 	};
 }

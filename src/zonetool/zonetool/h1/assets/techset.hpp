@@ -1,8 +1,12 @@
 #pragma once
 #include "../zonetool.hpp"
 
+#include "zonetool/iw6/zonetool.hpp"
+
 namespace zonetool::h1
 {
+	void dump_statebits_map_iw6(const std::string& techset, const std::string& material, zonetool::iw6::GfxStateBits* map, unsigned char count);
+
 	class techset : public asset_interface
 	{
 	private:

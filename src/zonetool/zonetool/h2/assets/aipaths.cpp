@@ -1,6 +1,8 @@
 #include "std_include.hpp"
 #include "aipaths.hpp"
 
+#include <utils/flags.hpp>
+
 namespace zonetool::h2
 {
 	void path_data::add_script_string(scr_string_t* ptr, const char* str)
@@ -119,6 +121,59 @@ namespace zonetool::h2
 			buf->write_scriptstring(this->get_script_string(&data->nodes[i].constant.__field__))); \
 	} \
 
+	void path_data::fixup_nodes(PathData* asset)
+	{
+		// mp pathnodes contain bad traverse nodes
+
+		const auto keep_traverse_nodes = utils::flags::has_flag("keep_mp_traverse_nodes");
+		const auto is_mp = std::strstr(asset->name, "maps/mp/");
+		if (!is_mp || keep_traverse_nodes)
+		{
+			return;
+		}
+
+		auto warnings = 0;
+
+		for (auto i = 0u; i < asset->nodeCount; i++)
+		{
+			if (asset->nodes[i].constant.type == NODE_NEGOTIATION_BEGIN || 
+				asset->nodes[i].constant.type == NODE_NEGOTIATION_END)
+			{
+				asset->nodes[i].constant.type = NODE_INVALID;
+				asset->nodes[i].constant.animscript = 0;
+				asset->nodes[i].constant.totalLinkCount = 0;
+				asset->nodes[i].constant.Links = nullptr;
+				warnings |= 1;
+			}
+		}
+
+		for (auto i = 0u; i < asset->nodeCount; i++)
+		{
+			if (asset->nodes[i].constant.totalLinkCount == 0)
+			{
+				continue;
+			}
+
+			std::vector<pathlink_s> new_links;
+
+			for (auto o = 0u; o < asset->nodes[i].constant.totalLinkCount; o++)
+			{
+				if (asset->nodes[asset->nodes[i].constant.Links[o].nodeNum].constant.type != NODE_INVALID)
+				{
+					new_links.emplace_back(asset->nodes[i].constant.Links[o]);
+				}
+			}
+
+			asset->nodes[i].constant.totalLinkCount = static_cast<unsigned short>(new_links.size());
+			std::memcpy(asset->nodes[i].constant.Links, new_links.data(), new_links.size() * sizeof(pathlink_s));
+		}
+
+		if ((warnings & 1) != 0)
+		{
+			ZONETOOL_WARNING("invalid mp traverse nodes have been removed, use -keep_mp_traverse_nodes to disable this");
+		}
+	}
+
 	PathData* path_data::parse(const std::string& name, zone_memory* mem)
 	{
 		assetmanager::reader read(mem);
@@ -175,6 +230,8 @@ namespace zonetool::h2
 		asset->pathNoPeekVis = read.read_array<unsigned char>();
 		asset->pathZones = read.read_array<unsigned char>();
 		asset->pathDynStates = read.read_array<unsigned char>();
+
+		this->fixup_nodes(asset);
 
 		return asset;
 	}
