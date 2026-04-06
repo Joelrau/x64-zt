@@ -69,9 +69,10 @@ namespace zonetool::h2
 	}
 
 #define WEAPON_READ_STRING(__field__) \
-	if (!data[#__field__].is_null()) weapon->__field__ = mem->duplicate_string(data[#__field__].get<std::string>())
+	static_assert(std::is_same_v<decltype(weapon->__field__), const char*>, "Field is not of type const char*"); \
+	!data[#__field__].is_null() ? weapon->__field__ = mem->duplicate_string(data[#__field__].get<std::string>()) : weapon->__field__ = nullptr;
 
-#define WEAPON_READ_ASSET(__type__, __datafield__, __field__) \
+#define WEAPON_READ_ASSET(__type__, __field__) \
 	if (!data[#__field__].is_null() && data[#__field__].is_string()) \
 	{ \
 		auto asset##__field__ = data[#__field__].get<std::string>(); \
@@ -90,10 +91,10 @@ namespace zonetool::h2
 		weapon->__field__ = nullptr; \
 	}
 
-#define WEAPON_READ_ASSET_ARR(__type__, __datafield__, __field__, __struct__, __size__) \
+#define WEAPON_READ_ASSET_ARR(__type__, __field__, __size__) \
 	if (!data[#__field__].is_null()) \
 	{ \
-		weapon->__field__ = mem->allocate<__struct__*>(__size__); \
+		weapon->__field__ = mem->allocate<typename std::remove_reference<decltype(*weapon->__field__)>::type>(__size__); \
 		for (auto idx##__field__ = 0; idx##__field__ < __size__; idx##__field__++) \
 		{ \
 			auto asset##__field__ = data[#__field__][idx##__field__].get<std::string>(); \
@@ -119,23 +120,15 @@ namespace zonetool::h2
 		weapon->__field__ = mem->allocate<XAnimParts*>(__size__); \
 		for (auto idx##__field__ = 0; idx##__field__ < __size__; idx##__field__++) \
 		{ \
-			auto asset##__field__ = data[#__field__][get_anim_name_from_index(idx##__field__)]; \
-			if (asset##__field__.is_null()) \
+			auto asset##__field__ = data[#__field__][get_anim_name_from_index(idx##__field__)].get<std::string>(); \
+			if (asset##__field__.empty()) \
 			{ \
 				weapon->__field__[idx##__field__] = nullptr; \
 			} \
 			else \
 			{ \
-				const auto asset_str_##__field__ = asset##__field__.get<std::string>(); \
-				if (asset_str_##__field__.empty()) \
-				{ \
-					weapon->__field__[idx##__field__] = nullptr; \
-				} \
-				else \
-				{ \
-					weapon->__field__[idx##__field__] = mem->manual_allocate<typename std::remove_reference<decltype(*weapon->__field__[idx##__field__])>::type>(sizeof(const char*)); \
-					weapon->__field__[idx##__field__]->name = mem->duplicate_string(asset##__field__); \
-				} \
+				weapon->__field__[idx##__field__] = mem->manual_allocate<typename std::remove_reference<decltype(*weapon->__field__[idx##__field__])>::type>(sizeof(const char*)); \
+				weapon->__field__[idx##__field__]->name = mem->duplicate_string(asset##__field__); \
 			} \
 		} \
 	} \
@@ -147,23 +140,15 @@ namespace zonetool::h2
 #define WEAPON_READ_SOUND(__field__) \
 	if (!data["sounds"][#__field__].is_null() && data["sounds"][#__field__].is_string()) \
 	{ \
-		auto asset##__field__ = data["sounds"][#__field__]; \
-		if (asset##__field__.is_null()) \
+		auto asset##__field__ = data["sounds"][#__field__].get<std::string>(); \
+		if (asset##__field__.empty()) \
 		{ \
 			weapon->__field__ = nullptr; \
 		} \
 		else \
 		{ \
-			const auto asset_str_##__field__ = asset##__field__.get<std::string>(); \
-			if (asset_str_##__field__.empty()) \
-			{ \
-				weapon->__field__ = nullptr; \
-			} \
-			else \
-			{ \
-				weapon->__field__ = mem->manual_allocate<typename std::remove_reference<decltype(*weapon->__field__)>::type>(sizeof(const char*)); \
-				weapon->__field__->name = mem->duplicate_string(asset##__field__); \
-			} \
+			weapon->__field__ = mem->manual_allocate<typename std::remove_reference<decltype(*weapon->__field__)>::type>(sizeof(const char*)); \
+			weapon->__field__->name = mem->duplicate_string(asset##__field__); \
 		} \
 	} \
 	else \
@@ -173,10 +158,10 @@ namespace zonetool::h2
 
 	void parse_overlay(ADSOverlay * weapon, json & data, zone_memory * mem)
 	{
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, shader);
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, shaderLowRes);
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, shaderEMP);
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, shaderEMPLowRes);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, shader);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, shaderLowRes);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, shaderEMP);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, shaderEMPLowRes);		
 		WEAPON_READ_FIELD(int, reticle);
 		WEAPON_READ_FIELD(float, xU_01);
 		WEAPON_READ_FIELD(float, xU_02);
@@ -239,7 +224,7 @@ namespace zonetool::h2
 			def->accuracyGraphName[i] = data["accuracyGraphName"][i].is_string()
 				? mem->duplicate_string(data["accuracyGraphName"][i].get<std::string>())
 				: nullptr;
-			
+
 			if (data["accuracyGraphKnots"][i].is_array())
 			{
 				const auto count = data["accuracyGraphKnots"][i].size();
@@ -252,12 +237,16 @@ namespace zonetool::h2
 					def->accuracyGraphKnots[i][o][1] = data["accuracyGraphKnots"][i][o][1].get<float>();
 				}
 			}
-			
+
 			if (data["originalAccuracyGraphKnots"][i].is_array())
 			{
 				const auto count = data["originalAccuracyGraphKnots"][i].size();
 				def->originalAccuracyGraphKnots[i] = mem->allocate<vec2_t>(count);
-				def->accuracyGraphKnotCount[i] = static_cast<short>(count);
+
+				if (def->accuracyGraphKnotCount[i] != count)
+				{
+					ZONETOOL_FATAL("accuracyGraphKnots and originalAccuracyGraphKnots arrays must be the same size");
+				}
 
 				for (auto o = 0; o < count; o++)
 				{
@@ -295,8 +284,8 @@ namespace zonetool::h2
 		WEAPON_READ_FIELD(int, reloadAddTimeDualWield);
 		WEAPON_READ_FIELD(int, reloadEmptyDualMag);
 		WEAPON_READ_FIELD(int, reloadEmptyAddTimeDualMag);
-		//WEAPON_READ_FIELD(int, u25);
-		//WEAPON_READ_FIELD(int, u26);
+		WEAPON_READ_FIELD(int, speedReloadTime);
+		WEAPON_READ_FIELD(int, speedReloadAddTime);
 		WEAPON_READ_FIELD(int, dropTime);
 		WEAPON_READ_FIELD(int, raiseTime);
 		WEAPON_READ_FIELD(int, altDropTime);
@@ -328,23 +317,27 @@ namespace zonetool::h2
 		WEAPON_READ_FIELD(int, blastRightTime);
 		WEAPON_READ_FIELD(int, blastBackTime);
 		WEAPON_READ_FIELD(int, blastLeftTime);
-		//WEAPON_READ_FIELD(int, u58);
-		//WEAPON_READ_FIELD(int, u59);
-		//WEAPON_READ_FIELD(int, u60);
-		//WEAPON_READ_FIELD(int, u61);
-		//WEAPON_READ_FIELD(int, u62);
-		//WEAPON_READ_FIELD(int, u63);
-		//WEAPON_READ_FIELD(int, u64);
-		//WEAPON_READ_FIELD(int, u65);
-		//WEAPON_READ_FIELD(int, u66);
-		//WEAPON_READ_FIELD(int, u67);
-		//WEAPON_READ_FIELD(int, u68);
+		WEAPON_READ_FIELD(int, slideInTime);
+		WEAPON_READ_FIELD(int, slideLoopTime);
+		WEAPON_READ_FIELD(int, slideOutTime);
+		WEAPON_READ_FIELD(int, highJumpInTime);
+		WEAPON_READ_FIELD(int, highJumpDropInTime);
+		WEAPON_READ_FIELD(int, highJumpDropLoopTime);
+		WEAPON_READ_FIELD(int, highJumpDropLandTime);
+		WEAPON_READ_FIELD(int, dodgeTime);
+		WEAPON_READ_FIELD(int, landDipTime);
+		WEAPON_READ_FIELD(int, hybridSightInTime);
+		WEAPON_READ_FIELD(int, hybridSightOutTime);
 		WEAPON_READ_FIELD(int, offhandSwitchTime);
-		//WEAPON_READ_FIELD(int, u70);
-		//WEAPON_READ_FIELD(int, u71);
-		//WEAPON_READ_FIELD(int, u72);
-		//WEAPON_READ_FIELD(int, u73);
-		//WEAPON_READ_FIELD(int, u74);
+		WEAPON_READ_FIELD(int, heatCooldownInTime);
+		WEAPON_READ_FIELD(int, heatCooldownOutTime);
+		WEAPON_READ_FIELD(int, heatCooldownOutReadyTime);
+		WEAPON_READ_FIELD(int, overheatOutTime);
+		WEAPON_READ_FIELD(int, overheatOutReadyTime);
+		WEAPON_READ_FIELD(int, u75);
+		WEAPON_READ_FIELD(int, u76);
+		WEAPON_READ_FIELD(int, u77);
+		WEAPON_READ_FIELD(int, u78);
 	}
 
 	WeaponDef* weapon_def::parse(const std::string& name, zone_memory* mem)
@@ -368,49 +361,23 @@ namespace zonetool::h2
 
 		auto* weapon = mem->allocate<WeaponDef>();
 
-		std::vector<std::uint8_t> base_asset_bytes;
-
-		// base asset
-		auto base = data["baseAsset"].get<std::string>();
-
-		char* baseAsset = nullptr;
-		if (!base.empty())
-		{
-			baseAsset = reinterpret_cast<char*>(db_find_x_asset_header(ASSET_TYPE_WEAPON, base.data(), 1).weapon);
-			if (baseAsset == nullptr)
-			{
-				ZONETOOL_FATAL("Could not load base asset \"%s\" into memory...", base.data());
-			}
-
-			if (DB_IsXAssetDefault(ASSET_TYPE_WEAPON, base.data()))
-			{
-				ZONETOOL_WARNING("Using default weapon base asset for weapon \"%s\"", name.data());
-			}
-
-			std::memcpy(weapon, baseAsset, sizeof(WeaponDef));
-		}
-		else
-		{
-			ZONETOOL_WARNING("No base asset is defined for weapon \"%s\", stuff might go wrong!", name.data());
-		}
-
 		WEAPON_READ_STRING(szInternalName);
 		WEAPON_READ_STRING(szDisplayName);
 		WEAPON_READ_STRING(szOverlayName);
 		WEAPON_READ_STRING(szAttachmentName);
-		WEAPON_READ_STRING(szUnknownName);
+		WEAPON_READ_STRING(szAltWeaponName);
 
-		WEAPON_READ_ASSET_ARR(ASSET_TYPE_XMODEL, model, gunModel, XModel, 2);
-		WEAPON_READ_ASSET_ARR(ASSET_TYPE_XMODEL, model, worldModel, XModel, 2);
+		WEAPON_READ_ASSET_ARR(ASSET_TYPE_XMODEL, gunModel, 2);
+		WEAPON_READ_ASSET_ARR(ASSET_TYPE_XMODEL, worldModel, 2);
 
-		WEAPON_READ_ASSET_ARR(ASSET_TYPE_XMODEL, model, reticleViewModels, XModel, 64);
+		WEAPON_READ_ASSET_ARR(ASSET_TYPE_XMODEL, reticleViewModels, 64);
 
-		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, model, handModel);
-		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, model, unknownModel);
-		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, model, worldClipModel);
-		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, model, rocketModel);
-		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, model, knifeModel);
-		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, model, worldKnifeModel);
+		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, handModel);
+		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, persistentArmXModel);
+		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, worldClipModel);
+		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, rocketModel);
+		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, knifeModel);
+		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, worldKnifeModel);
 
 		WEAPON_READ_ANIM_ARR(szXAnimsRightHanded, NUM_WEAP_ANIMS);
 		WEAPON_READ_ANIM_ARR(szXAnimsLeftHanded, NUM_WEAP_ANIMS);
@@ -422,11 +389,11 @@ namespace zonetool::h2
 			this->add_script_string(&weapon->hideTags[i], mem->duplicate_string(data["hideTags"][i].get<std::string>()));
 		}
 
-		weapon->numWeaponAttachments = static_cast<unsigned char>(data["attachments"].size());
-		if (weapon->numWeaponAttachments)
+		weapon->numAttachments = static_cast<unsigned char>(data["attachments"].size());
+		if (weapon->numAttachments)
 		{
-			weapon->attachments = mem->allocate<WeaponAttachment*>(weapon->numWeaponAttachments);
-			for (auto i = 0; i < weapon->numWeaponAttachments; i++)
+			weapon->attachments = mem->allocate<WeaponAttachment*>(weapon->numAttachments);
+			for (auto i = 0; i < weapon->numAttachments; i++)
 			{
 				if (!data["attachments"][i].is_null())
 				{
@@ -454,13 +421,15 @@ namespace zonetool::h2
 					weapon->animOverrides[i].overrideAnim = mem->manual_allocate<typename std::remove_reference<decltype(*weapon->animOverrides[i].overrideAnim)>::type>(sizeof(const char*));
 					weapon->animOverrides[i].overrideAnim->name = mem->duplicate_string(overrideAnim);
 				}
-				weapon->animOverrides[i].attachment1 = data["animOverrides"][i]["attachment1"].get<unsigned short>();
-				weapon->animOverrides[i].attachment2 = data["animOverrides"][i]["attachment2"].get<unsigned short>();
+				weapon->animOverrides[i].attachment1 = data["animOverrides"][i]["attachment1"].get<unsigned char>();
+				weapon->animOverrides[i].attachment2 = data["animOverrides"][i]["attachment2"].get<unsigned char>();
 				weapon->animOverrides[i].altTime = data["animOverrides"][i]["altTime"].get<int>();
 				weapon->animOverrides[i].animTime = data["animOverrides"][i]["animTime"].get<int>();
-				//weapon->animOverrides[i].animTreeType = data["animOverrides"][i]["animTreeType"].get<unsigned int>();
+				//weapon->animOverrides[i].animTreeType = data["animOverrides"][i]["animTreeType"].get<unsigned char>();
+				//weapon->animOverrides[i].animHand = data["animOverrides"][i]["animHand"].get<unsigned char>();
 			}
 		}
+
 
 		weapon->numSoundOverrides = static_cast<unsigned char>(data["soundOverrides"].size());
 		if (weapon->numSoundOverrides)
@@ -480,9 +449,9 @@ namespace zonetool::h2
 					weapon->soundOverrides[i].overrideSound = mem->manual_allocate<typename std::remove_reference<decltype(*weapon->soundOverrides[i].overrideSound)>::type>(sizeof(const char*));
 					weapon->soundOverrides[i].overrideSound->name = mem->duplicate_string(overrideSound);
 				}
-				weapon->soundOverrides[i].attachment1 = data["soundOverrides"][i]["attachment1"].get<unsigned short>();
-				weapon->soundOverrides[i].attachment2 = data["soundOverrides"][i]["attachment2"].get<unsigned short>();
-				//weapon->soundOverrides[i].soundType = data["soundOverrides"][i]["soundType"].get<unsigned int>();
+				weapon->soundOverrides[i].attachment1 = data["soundOverrides"][i]["attachment1"].get<unsigned char>();
+				weapon->soundOverrides[i].attachment2 = data["soundOverrides"][i]["attachment2"].get<unsigned char>();
+				//weapon->soundOverrides[i].soundType = data["soundOverrides"][i]["soundType"].get<unsigned char>();
 			}
 		}
 
@@ -504,9 +473,9 @@ namespace zonetool::h2
 					weapon->fxOverrides[i].overrideFX = mem->manual_allocate<typename std::remove_reference<decltype(*weapon->fxOverrides[i].overrideFX)>::type>(sizeof(const char*));
 					weapon->fxOverrides[i].overrideFX->name = mem->duplicate_string(overrideFX);
 				}
-				weapon->fxOverrides[i].attachment1 = data["fxOverrides"][i]["attachment1"].get<unsigned short>();
-				weapon->fxOverrides[i].attachment2 = data["fxOverrides"][i]["attachment2"].get<unsigned short>();
-				//weapon->fxOverrides[i].fxType = data["fxOverrides"][i]["fxType"].get<unsigned int>();
+				weapon->fxOverrides[i].attachment1 = data["fxOverrides"][i]["attachment1"].get<unsigned char>();
+				weapon->fxOverrides[i].attachment2 = data["fxOverrides"][i]["attachment2"].get<unsigned char>();
+				//weapon->fxOverrides[i].fxType = data["fxOverrides"][i]["fxType"].get<unsigned char>();
 			}
 		}
 
@@ -530,18 +499,15 @@ namespace zonetool::h2
 			for (auto i = 0u; i < weapon->numNotetrackOverrides; i++)
 			{
 				weapon->notetrackOverrides[i].attachment = data["notetrackOverrides"][i]["attachment"].get<int>();
+				weapon->notetrackOverrides[i].notetrackSoundMapKeys = mem->allocate<scr_string_t>(36);
+				weapon->notetrackOverrides[i].notetrackSoundMapValues = mem->allocate<scr_string_t>(36);
 				for (auto j = 0u; j < 36; j++)
 				{
-					auto notetrackSoundMapKey = data["notetrackOverrides"][i]["notetrackSoundMapKeys"][j].get<std::string>();
-					if (!notetrackSoundMapKey.empty())
-					{
-						this->add_script_string(&weapon->notetrackOverrides[i].notetrackSoundMapKeys[j], mem->duplicate_string(notetrackSoundMapKey));
-					}
-					auto notetrackSoundMapValue = data["notetrackOverrides"][i]["notetrackSoundMapValues"][j].get<std::string>();
-					if (!notetrackSoundMapValue.empty())
-					{
-						this->add_script_string(&weapon->notetrackOverrides[i].notetrackSoundMapValues[j], mem->duplicate_string(notetrackSoundMapValue));
-					}
+					this->add_script_string(&weapon->notetrackOverrides[i].notetrackSoundMapKeys[j],
+						mem->duplicate_string(data["notetrackOverrides"][i]["notetrackSoundMap"][j]["Key"].get<std::string>()));
+
+					this->add_script_string(&weapon->notetrackOverrides[i].notetrackSoundMapValues[j],
+						mem->duplicate_string(data["notetrackOverrides"][i]["notetrackSoundMap"][j]["Value"].get<std::string>()));
 				}
 			}
 		}
@@ -550,97 +516,71 @@ namespace zonetool::h2
 		weapon->notetrackSoundMapValues = mem->allocate<scr_string_t>(36);
 		for (auto i = 0; i < 36; i++)
 		{
-			auto notetrack = data["notetrackSoundMapKeys"][i].get<std::string>();
-			this->add_script_string(&weapon->notetrackSoundMapKeys[i], mem->duplicate_string(notetrack));
-		}
-		for (auto i = 0; i < 36; i++)
-		{
-			auto notetrack = data["notetrackSoundMapValues"][i].get<std::string>();
-			this->add_script_string(&weapon->notetrackSoundMapValues[i], mem->duplicate_string(notetrack));
+			this->add_script_string(&weapon->notetrackSoundMapKeys[i],
+				mem->duplicate_string(data["notetrackSoundMap"][i]["Key"].get<std::string>()));
+
+			this->add_script_string(&weapon->notetrackSoundMapValues[i],
+				mem->duplicate_string(data["notetrackSoundMap"][i]["Value"].get<std::string>()));
 		}
 
 		weapon->notetrackRumbleMapKeys = mem->allocate<scr_string_t>(16);
 		weapon->notetrackRumbleMapValues = mem->allocate<scr_string_t>(16);
 		for (auto i = 0; i < 16; i++)
 		{
-			auto notetrack = data["notetrackRumbleMapKeys"][i].get<std::string>();
-			this->add_script_string(&weapon->notetrackRumbleMapKeys[i], mem->duplicate_string(notetrack));
-		}
-		for (auto i = 0; i < 16; i++)
-		{
-			auto notetrack = data["notetrackRumbleMapValues"][i].get<std::string>();
-			this->add_script_string(&weapon->notetrackRumbleMapValues[i], mem->duplicate_string(notetrack));
+			this->add_script_string(&weapon->notetrackRumbleMapKeys[i],
+				mem->duplicate_string(data["notetrackRumbleMap"][i]["Key"].get<std::string>()));
+
+			this->add_script_string(&weapon->notetrackRumbleMapValues[i],
+				mem->duplicate_string(data["notetrackRumbleMap"][i]["Value"].get<std::string>()));
 		}
 
 		weapon->notetrackFXMapKeys = mem->allocate<scr_string_t>(16);
 		weapon->notetrackFXMapTagValues = mem->allocate<scr_string_t>(16);
-		for (auto i = 0; i < 16; i++)
-		{
-			auto notetrack = data["notetrackFXMapKeys"][i].get<std::string>();
-			this->add_script_string(&weapon->notetrackFXMapKeys[i], mem->duplicate_string(notetrack));
-		}
-		for (auto i = 0; i < 16; i++)
-		{
-			auto notetrack = data["notetrackFXMapTagValues"][i].get<std::string>();
-			this->add_script_string(&weapon->notetrackFXMapTagValues[i], mem->duplicate_string(notetrack));
-		}
-
 		weapon->notetrackFXMapValues = mem->allocate<FxEffectDef*>(16);
 		for (auto i = 0; i < 16; i++)
 		{
+			this->add_script_string(&weapon->notetrackFXMapKeys[i],
+				mem->duplicate_string(data["notetrackFXMap"][i]["Key"].get<std::string>()));
+
+			this->add_script_string(&weapon->notetrackFXMapTagValues[i],
+				mem->duplicate_string(data["notetrackFXMap"][i]["Tag"].get<std::string>()));
+
 			weapon->notetrackFXMapValues[i] = mem->manual_allocate<typename std::remove_reference<decltype(*weapon->notetrackFXMapValues[i])>::type>(sizeof(const char*));
 			weapon->notetrackFXMapValues[i]->name = mem->duplicate_string(data["notetrackFXMap"][i]["Value"].get<std::string>());
 		}
 
-		weapon->notetrackUnknownKeys = mem->allocate<scr_string_t>(16);
-		weapon->notetrackUnknownValues = mem->allocate<scr_string_t>(16);
-
-		if (!data["notetrackUnknownKeys"].is_null())
+		weapon->notetrackHideTagKeys = mem->allocate<scr_string_t>(16);
+		weapon->notetrackHideTagTagValues = mem->allocate<scr_string_t>(16);
+		weapon->notetrackHideTagValues = mem->allocate<bool>(16);
+		for (auto i = 0; i < 16; i++)
 		{
-			for (auto i = 0; i < 16; i++)
-			{
-				auto notetrack = data["notetrackUnknownKeys"][i].get<std::string>();
-				this->add_script_string(&weapon->notetrackUnknownKeys[i], mem->duplicate_string(notetrack));
-			}
+			this->add_script_string(&weapon->notetrackHideTagKeys[i],
+				mem->duplicate_string(data["notetrackHideTag"][i]["Key"].get<std::string>()));
+
+			this->add_script_string(&weapon->notetrackHideTagTagValues[i],
+				mem->duplicate_string(data["notetrackHideTag"][i]["Tag"].get<std::string>()));
+
+			weapon->notetrackHideTagValues[i] = data["notetrackHideTag"][i]["Value"].get<bool>();
 		}
 
-		if (!data["notetrackUnknownValues"].is_null())
-		{
-			for (auto i = 0; i < 16; i++)
-			{
-				auto notetrack = data["notetrackUnknownValues"][i].get<std::string>();
-				this->add_script_string(&weapon->notetrackUnknownValues[i], mem->duplicate_string(notetrack));
-			}
-		}
-
-		if (!data["notetrackUnknown"].is_null())
-		{
-			weapon->notetrackUnknown = mem->allocate<char>(16);
-			for (auto i = 0; i < 16; i++)
-			{
-				auto value = data["notetrackUnknown"][i].get<char>();
-				weapon->notetrackUnknown[i] = value;
-			}
-		}
-
-		WEAPON_READ_STRING(szModeName);
-		WEAPON_READ_STRING(szAltWeaponName);
+		WEAPON_READ_STRING(lobWorldModelName);
+		WEAPON_READ_STRING(szAdsrBaseSetting);
 		WEAPON_READ_STRING(szAmmoName);
 		WEAPON_READ_STRING(szClipName);
 		WEAPON_READ_STRING(szSharedAmmoCapName);
 
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, viewFlashEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, viewBodyFlashEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, worldFlashEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, viewFlashADSEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, viewBodyFlashADSEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, effect06);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, effect07);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, effect08);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, effect09);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, effect10);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, effect11);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, effect12);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, viewFlashEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, viewBodyFlashEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, worldFlashEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, viewFlashADSEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, viewBodyFlashADSEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, signatureViewFlashEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, signatureViewBodyFlashEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, signatureWorldFlashEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, signatureViewFlashADSEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, signatureViewBodyFlashADSEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, meleeHitEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, meleeMissEffect);
 
 		WEAPON_READ_SOUND(pickupSound);
 		WEAPON_READ_SOUND(pickupSoundPlayer);
@@ -733,27 +673,27 @@ namespace zonetool::h2
 		WEAPON_READ_SOUND(adsLeaveSoundPlayer);
 		WEAPON_READ_SOUND(adsCrosshairEnemySound);
 
-		WEAPON_READ_ASSET_ARR(ASSET_TYPE_SOUND, sound, bounceSound, snd_alias_list_t, 53);
-		WEAPON_READ_ASSET_ARR(ASSET_TYPE_SOUND, sound, rollingSound, snd_alias_list_t, 53);
+		WEAPON_READ_ASSET_ARR(ASSET_TYPE_SOUND, bounceSound, 53);
+		WEAPON_READ_ASSET_ARR(ASSET_TYPE_SOUND, rollingSound, 53);
 
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, viewShellEjectEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, worldShellEjectEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, viewLastShotEjectEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, worldLastShotEjectEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, viewMagEjectEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, viewShellEjectEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, worldShellEjectEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, viewLastShotEjectEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, worldLastShotEjectEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, viewMagEjectEffect);
 
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, reticleCenter);
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, reticleSide);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, reticleCenter);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, reticleSide);
 
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, hudIcon);
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, pickupIcon);
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, unknownIcon2);
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, unknownIcon3);
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, unknownIcon4);
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, ammoCounterIcon);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, hudIcon);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, pickupIcon);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, minimapIconFriendly);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, minimapIconEnemy);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, minimapIconNeutral);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, ammoCounterIcon);
 
-		WEAPON_READ_ASSET(ASSET_TYPE_PHYSCOLLMAP, physCollmap, physCollmap);
-		WEAPON_READ_ASSET(ASSET_TYPE_PHYSPRESET, physPreset, physPreset);
+		WEAPON_READ_ASSET(ASSET_TYPE_PHYSCOLLMAP, physCollmap);
+		WEAPON_READ_ASSET(ASSET_TYPE_PHYSPRESET, physPreset);
 
 		WEAPON_READ_STRING(szUseHintString);
 		WEAPON_READ_STRING(dropHintString);
@@ -765,15 +705,15 @@ namespace zonetool::h2
 		WEAPON_READ_STRING(fireHighRumble);
 		WEAPON_READ_STRING(meleeImpactRumble);
 
-		WEAPON_READ_ASSET(ASSET_TYPE_TRACER, tracerDef, tracer1);
-		WEAPON_READ_ASSET(ASSET_TYPE_TRACER, tracerDef, tracer2);
+		WEAPON_READ_ASSET(ASSET_TYPE_TRACER, tracerType);
+		WEAPON_READ_ASSET(ASSET_TYPE_TRACER, signatureTracerType);
 
-		WEAPON_READ_ASSET(ASSET_TYPE_LASER, laser, laser);
+		WEAPON_READ_ASSET(ASSET_TYPE_LASER, laserType);
 
-		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, sound, turretOverheatSound);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, turretOverheatEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, turretOverheatSound);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, turretOverheatEffect);
 		WEAPON_READ_STRING(turretBarrelSpinRumble);
-		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, sound, turretBarrelSpinMaxSnd);
+		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, turretBarrelSpinMaxSnd);
 		for (auto i = 0; i < 4; i++)
 		{
 			auto sound = data["turretBarrelSpinUpSnd"][i].get<std::string>();
@@ -792,25 +732,25 @@ namespace zonetool::h2
 				weapon->turretBarrelSpinDownSnd[i]->name = mem->duplicate_string(sound);
 			}
 		}
-		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, sound, missileConeSoundAlias);
-		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, sound, missileConeSoundAliasAtBase);
+		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, missileConeSoundAlias);
+		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, missileConeSoundAliasAtBase);
 
-		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, model, stowOffsetModel);
+		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, stowOffsetModel);
 
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, killIcon);
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, dpadIcon);
-		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, material, hudProximityWarningIcon);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, killIcon);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, dpadIcon);
+		WEAPON_READ_ASSET(ASSET_TYPE_MATERIAL, hudProximityWarningIcon);
 
 		WEAPON_READ_STRING(projectileName);
-		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, model, projectileModel);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, projExplosionEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, projDudEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, sound, projExplosionSound);
-		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, sound, projDudSound);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, projTrailEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, projBeaconEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_FX, fx, projIgnitionEffect);
-		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, sound, projIgnitionSound);
+		WEAPON_READ_ASSET(ASSET_TYPE_XMODEL, projectileModel);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, projExplosionEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, projDudEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, projExplosionSound);
+		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, projDudSound);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, projTrailEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, projBeaconEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_FX, projIgnitionEffect);
+		WEAPON_READ_ASSET(ASSET_TYPE_SOUND, projIgnitionSound);
 
 		WEAPON_READ_STRING(szScript);
 
@@ -848,7 +788,7 @@ namespace zonetool::h2
 		WEAPON_READ_FIELD(float, burstFireCooldown);
 		WEAPON_READ_FIELD(weapGreebleType_t, greebleType);
 		WEAPON_READ_FIELD(weapAutoReloadType_t, autoReloadType);
-		WEAPON_READ_FIELD(WeaponSlotRestriction, slotRestriction);
+		WEAPON_READ_FIELD(weapAutoHolsterType_t, autoHolsterType);
 		WEAPON_READ_FIELD(OffhandClass, offhandClass);
 		WEAPON_READ_FIELD(weapStance_t, stance);
 		WEAPON_READ_FIELD(int, reticleCenterSize);
@@ -879,13 +819,13 @@ namespace zonetool::h2
 		WEAPON_READ_FIELD(weaponIconRatioType_t, ammoCounterIconRatio);
 		WEAPON_READ_FIELD(int, ammoCounterClip);
 		WEAPON_READ_FIELD(int, startAmmo);
-		WEAPON_READ_FIELD(int, ammoIndex);
-		WEAPON_READ_FIELD(int, clipIndex);
+		//WEAPON_READ_FIELD(int, ammoIndex);
+		//WEAPON_READ_FIELD(int, clipIndex);
 		WEAPON_READ_FIELD(int, maxAmmo);
 		WEAPON_READ_FIELD(int, minAmmoReq);
 		WEAPON_READ_FIELD(int, clipSize);
 		WEAPON_READ_FIELD(int, shotCount);
-		WEAPON_READ_FIELD(int, sharedAmmoCapIndex);
+		//WEAPON_READ_FIELD(int, sharedAmmoCapIndex);
 		WEAPON_READ_FIELD(int, sharedAmmoCap);
 		WEAPON_READ_FIELD(int, damage);
 		WEAPON_READ_FIELD(int, playerDamage);
@@ -902,17 +842,17 @@ namespace zonetool::h2
 		WEAPON_READ_FIELD(float, adsZoomFov);
 		WEAPON_READ_FIELD(float, adsZoomInFrac);
 		WEAPON_READ_FIELD(float, adsZoomOutFrac);
-		WEAPON_READ_FIELD(float, adsSceneBlur);
-		//WEAPON_READ_FIELD(float, fU_007);
-		//WEAPON_READ_FIELD(float, xU_008);
+		WEAPON_READ_FIELD(float, adsSceneBlurStrength);
+		WEAPON_READ_FIELD(float, adsSceneBlurPhysicalScale);
+		//WEAPON_READ_FIELD(float, pad3);
 		WEAPON_READ_FIELD(float, adsBobFactor);
 		WEAPON_READ_FIELD(float, adsViewBobMult);
 		WEAPON_READ_FIELD(float, hipSpreadStandMin);
 		WEAPON_READ_FIELD(float, hipSpreadDuckedMin);
 		WEAPON_READ_FIELD(float, hipSpreadProneMin);
 		WEAPON_READ_FIELD(float, hipSpreadStandMax);
-		//WEAPON_READ_FIELD(float, xU_009);
-		//WEAPON_READ_FIELD(float, xU_010);
+		WEAPON_READ_FIELD(float, hipSpreadSprintMax);
+		WEAPON_READ_FIELD(float, hipSpreadSlideMax);
 		WEAPON_READ_FIELD(float, hipSpreadDuckedMax);
 		WEAPON_READ_FIELD(float, hipSpreadProneMax);
 		WEAPON_READ_FIELD(float, hipSpreadDecayRate);
@@ -933,9 +873,9 @@ namespace zonetool::h2
 		WEAPON_READ_FIELD(float, adsIdleLerpStartTime);
 		WEAPON_READ_FIELD(float, adsIdleLerpTime);
 		WEAPON_READ_FIELD(int, adsTransInTime);
-		//WEAPON_READ_FIELD(int, xU_011);
+		WEAPON_READ_FIELD(int, adsTransInFromSprintTime);
 		WEAPON_READ_FIELD(int, adsTransOutTime);
-		//WEAPON_READ_FIELD(int, xU_012);
+		WEAPON_READ_FIELD(int, swayMaxAngleSteadyAim);
 		WEAPON_READ_FIELD(float, swayMaxAngle);
 		WEAPON_READ_FIELD(float, swayLerpSpeed);
 		WEAPON_READ_FIELD(float, swayPitchScale);
@@ -1050,11 +990,10 @@ namespace zonetool::h2
 		WEAPON_READ_FIELD(float, hipViewKickCenterSpeed);
 		WEAPON_READ_FIELD(float, hipViewScatterMin);
 		WEAPON_READ_FIELD(float, hipViewScatterMax);
-		//WEAPON_READ_FIELD(float, xU_043);
-		WEAPON_READ_FIELD(int, adsReloadTransTime);
+		WEAPON_READ_FIELD(float, viewKickScale);
+		WEAPON_READ_FIELD(int, positionReloadTransTime);
 		WEAPON_READ_FIELD(float, fightDist);
 		WEAPON_READ_FIELD(float, maxDist);
-		WEAPON_READ_FIELD(int, positionReloadTransTime);
 		WEAPON_READ_FIELD(float, leftArc);
 		WEAPON_READ_FIELD(float, rightArc);
 		WEAPON_READ_FIELD(float, topArc);
@@ -1083,13 +1022,12 @@ namespace zonetool::h2
 		WEAPON_READ_FIELD(int, midPlayerDamage);
 		WEAPON_READ_FIELD(float, maxDamageRange);
 		WEAPON_READ_FIELD(float, minDamageRange);
-		WEAPON_READ_FIELD_ARR(char, __pad, 12);
-		//WEAPON_READ_FIELD(int, iU_045);
-		//WEAPON_READ_FIELD(int, iU_046);
-		//WEAPON_READ_FIELD(int, iU_047);
-		//WEAPON_READ_FIELD(int, iU_048);
-		//WEAPON_READ_FIELD(float, fU_049);
-		//WEAPON_READ_FIELD(float, fU_050);
+		WEAPON_READ_FIELD(int, signatureAmmoInClip);
+		WEAPON_READ_FIELD(int, signatureDamage);
+		WEAPON_READ_FIELD(int, signatureMidDamage);
+		WEAPON_READ_FIELD(int, signatureMinDamage);
+		WEAPON_READ_FIELD(float, signatureMaxDamageRange);
+		WEAPON_READ_FIELD(float, signatureMinDamageRange);
 		WEAPON_READ_FIELD(float, destabilizationRateTime);
 		WEAPON_READ_FIELD(float, destabilizationCurvatureMax);
 		WEAPON_READ_FIELD(int, destabilizeDistance);
@@ -1099,10 +1037,10 @@ namespace zonetool::h2
 		WEAPON_READ_FIELD(float, turretScopeZoomRate);
 		WEAPON_READ_FIELD(float, turretScopeZoomMin);
 		WEAPON_READ_FIELD(float, turretScopeZoomMax);
-		//WEAPON_READ_FIELD(float, xU_056);
-		//WEAPON_READ_FIELD(float, xU_057);
-		//WEAPON_READ_FIELD(float, xU_058);
-		//WEAPON_READ_FIELD(float, xU_059);
+		WEAPON_READ_FIELD(float, overheatUpRate);
+		WEAPON_READ_FIELD(float, overheatDownRate);
+		WEAPON_READ_FIELD(float, overheatCooldownRate);
+		WEAPON_READ_FIELD(float, overheatPenalty);
 		WEAPON_READ_FIELD(float, turretBarrelSpinSpeed);
 		WEAPON_READ_FIELD(float, turretBarrelSpinUpTime);
 		WEAPON_READ_FIELD(float, turretBarrelSpinDownTime);
@@ -1126,25 +1064,25 @@ namespace zonetool::h2
 		WEAPON_READ_FIELD(float, player_meleeHeight);
 		WEAPON_READ_FIELD(float, player_meleeRange);
 		WEAPON_READ_FIELD(float, player_meleeWidth);
-		WEAPON_READ_FIELD(float ,signatureFireTime);
-		WEAPON_READ_FIELD(int, signatureNumBullets);
+		WEAPON_READ_FIELD(float, changedFireTime);
+		WEAPON_READ_FIELD(int, changedFireTimeNumBullets);
 		WEAPON_READ_FIELD(weapFireTimeInterpolation_t, fireTimeInterpolationType);
-		//WEAPON_READ_FIELD(int, xU_075);
-		WEAPON_READ_FIELD(int, ammoUsedPerShot);
-		//WEAPON_READ_FIELD(int, xU_076);
-		//WEAPON_READ_FIELD(int, xU_077);
-		//WEAPON_READ_FIELD(int, xU_078);
-		//WEAPON_READ_FIELD(int, iU_079);
-		//WEAPON_READ_FIELD(int, iU_080);
-		//WEAPON_READ_FIELD(bool, bU_081);
-		//WEAPON_READ_FIELD(bool, unknownReticleBooleanValue1);
-		//WEAPON_READ_FIELD(bool, unknownReticleBooleanValue2);
+		WEAPON_READ_FIELD(int, generateAmmo);
+		WEAPON_READ_FIELD(int, ammoPerShot);
+		WEAPON_READ_FIELD(int, explodeCount);
+		WEAPON_READ_FIELD(int, batteryDischargeRate);
+		WEAPON_READ_FIELD(int, extendedBattery);
+		WEAPON_READ_FIELD(int, bulletsPerTag);
+		WEAPON_READ_FIELD(int, maxTags);
+		WEAPON_READ_FIELD(unsigned char, rattleSoundType);
+		WEAPON_READ_FIELD(bool, adsShouldShowCrosshair);
+		WEAPON_READ_FIELD(bool, adsCrosshairShouldScale);
 		WEAPON_READ_FIELD(bool, turretADSEnabled);
 		WEAPON_READ_FIELD(bool, knifeAttachTagLeft);
 		WEAPON_READ_FIELD(bool, knifeAlwaysAttached);
 		WEAPON_READ_FIELD(bool, meleeOverrideValues);
-		//WEAPON_READ_FIELD(bool, bU_083);
-		//WEAPON_READ_FIELD(bool, bU_084);
+		WEAPON_READ_FIELD(bool, riotShieldEnableDamage);
+		WEAPON_READ_FIELD(bool, allowPrimaryWeaponPickup);
 		WEAPON_READ_FIELD(bool, sharedAmmo);
 		WEAPON_READ_FIELD(bool, lockonSupported);
 		WEAPON_READ_FIELD(bool, requireLockonToFire);
@@ -1160,20 +1098,20 @@ namespace zonetool::h2
 		WEAPON_READ_FIELD(bool, aimDownSight);
 		WEAPON_READ_FIELD(bool, canHoldBreath);
 		WEAPON_READ_FIELD(bool, meleeOnly);
-		//WEAPON_READ_FIELD(bool, bU_085);
-		//WEAPON_READ_FIELD(bool, bU_086);
+		WEAPON_READ_FIELD(bool, quickMelee);
+		WEAPON_READ_FIELD(bool, bU_086);
 		WEAPON_READ_FIELD(bool, canVariableZoom);
 		WEAPON_READ_FIELD(bool, rechamberWhileAds);
 		WEAPON_READ_FIELD(bool, bulletExplosiveDamage);
 		WEAPON_READ_FIELD(bool, cookOffHold);
+		WEAPON_READ_FIELD(bool, useBattery);
 		WEAPON_READ_FIELD(bool, reticleSpin45);
-		WEAPON_READ_FIELD(bool, reticleSideEnabled);
 		WEAPON_READ_FIELD(bool, clipOnly);
 		WEAPON_READ_FIELD(bool, noAmmoPickup);
 		WEAPON_READ_FIELD(bool, disableSwitchToWhenEmpty);
-		//WEAPON_READ_FIELD(bool, bU_088);
-		WEAPON_READ_FIELD(bool, hasMotionTracker);
-		//WEAPON_READ_FIELD(bool, bU_089);
+		WEAPON_READ_FIELD(bool, suppressAmmoReserveDisplay);
+		WEAPON_READ_FIELD(bool, motionTracker);
+		WEAPON_READ_FIELD(bool, markableViewmodel);
 		WEAPON_READ_FIELD(bool, noDualWield);
 		WEAPON_READ_FIELD(bool, flipKillIcon);
 		WEAPON_READ_FIELD(bool, actionSlotShowAmmo);
@@ -1196,8 +1134,8 @@ namespace zonetool::h2
 		WEAPON_READ_FIELD(bool, hasDetonatorDoubleTap);
 		WEAPON_READ_FIELD(bool, disableFiring);
 		WEAPON_READ_FIELD(bool, timedDetonation);
-		//WEAPON_READ_FIELD(bool, bU_090);
-		//WEAPON_READ_FIELD(bool, bU_091);
+		WEAPON_READ_FIELD(bool, noCrumpleMissile);
+		WEAPON_READ_FIELD(bool, fuseLitAfterImpact);
 		WEAPON_READ_FIELD(bool, rotate);
 		WEAPON_READ_FIELD(bool, holdButtonToThrow);
 		WEAPON_READ_FIELD(bool, freezeMovementWhenFiring);
@@ -1214,36 +1152,41 @@ namespace zonetool::h2
 		WEAPON_READ_FIELD(bool, useFastReloadAnims);
 		WEAPON_READ_FIELD(bool, dualMagReloadSupported);
 		WEAPON_READ_FIELD(bool, reloadStopsAlt);
-		//WEAPON_READ_FIELD(bool, bU_092);
+		WEAPON_READ_FIELD(bool, useScopeDrift);
 		WEAPON_READ_FIELD(bool, alwaysShatterGlassOnImpact);
 		WEAPON_READ_FIELD(bool, oldWeapon);
-		//WEAPON_READ_FIELD(bool, bU_093);
-		//WEAPON_READ_FIELD(bool, bU_094);
-		//WEAPON_READ_FIELD(bool, bU_095);
-		WEAPON_READ_FIELD(bool, hasCounterSilencer);
-		//WEAPON_READ_FIELD(bool, xU_097);
-		//WEAPON_READ_FIELD(bool, xU_098);
-		WEAPON_READ_FIELD(bool, disableVariableAutosimRate);
-		//WEAPON_READ_FIELD(bool, bU_100);
-		//WEAPON_READ_FIELD(bool, bU_101);
-		//WEAPON_READ_FIELD(bool, bU_102);
-		//WEAPON_READ_FIELD(bool, bU_103);
-		//WEAPON_READ_FIELD(bool, bU_104);
-		WEAPON_READ_FIELD(bool, cloakedWeapon);
+		WEAPON_READ_FIELD(bool, raiseToHold);
+		WEAPON_READ_FIELD(bool, notifyOnPlayerImpact);
+		WEAPON_READ_FIELD(bool, decreasingKick);
+		WEAPON_READ_FIELD(bool, counterSilencer);
+		WEAPON_READ_FIELD(bool, projSuppressedByEMP);
+		WEAPON_READ_FIELD(bool, projDisabledByEMP);
+		WEAPON_READ_FIELD(bool, autosimDisableVariableRate);
+		WEAPON_READ_FIELD(bool, projPlayTrailEffectForOwnerOnly);
+		WEAPON_READ_FIELD(bool, projPlayBeaconEffectForOwnerOnly);
+		WEAPON_READ_FIELD(bool, projKillTrailEffectOnDeath);
+		WEAPON_READ_FIELD(bool, projKillBeaconEffectOnDeath);
+		WEAPON_READ_FIELD(bool, reticleDetonateHide);
+		WEAPON_READ_FIELD(bool, cloaked);
 		WEAPON_READ_FIELD(bool, adsHideWeapon);
 		WEAPON_READ_FIELD(bool, adsHideHands);
-		//WEAPON_READ_FIELD(bool, bU_108);
-		WEAPON_READ_FIELD(bool, adsBlurSceneEnabled);
+		WEAPON_READ_FIELD(bool, bU_108);
+		WEAPON_READ_FIELD(bool, adsSceneBlur);
 		WEAPON_READ_FIELD(bool, usesSniperScope);
-		//WEAPON_READ_FIELD(bool, bU_111);
-		//WEAPON_READ_FIELD(bool, bU_112);
-		//WEAPON_READ_FIELD(bool, bU_113);
-		//WEAPON_READ_FIELD(bool, bU_114);
-		//WEAPON_READ_FIELD(bool, bU_115);
-		WEAPON_READ_FIELD(float, adsDofPhysicalFStop);
+		WEAPON_READ_FIELD(bool, hasTransientModels);
+		WEAPON_READ_FIELD(bool, signatureAmmoAlternate);
+		WEAPON_READ_FIELD(bool, useScriptCallbackForHit);
+		WEAPON_READ_FIELD(bool, useBulletTagSystem);
+		WEAPON_READ_FIELD(bool, hideBulletTags);
+		WEAPON_READ_FIELD(float, adsDofPhysicalFstop);
 		WEAPON_READ_FIELD(float, adsDofPhysicalFocusDistance);
-		WEAPON_READ_FIELD(float, autosimSpeedScalar);
-		WEAPON_READ_FIELD_ARR(float, explosionReactiveMotionParts, 5);
+		WEAPON_READ_FIELD(float, autosimSpeedScale);
+		WEAPON_READ_FIELD(float, reactiveMotionRadiusScale);
+		WEAPON_READ_FIELD(float, reactiveMotionFrequencyScale);
+		WEAPON_READ_FIELD(float, reactiveMotionAmplitudeScale);
+		WEAPON_READ_FIELD(float, reactiveMotionFalloff);
+		WEAPON_READ_FIELD(float, reactiveMotionLifetime);
+		WEAPON_READ_FIELD_ARR(float, fU_3604, 3);
 
 		return weapon;
 	}
@@ -1303,8 +1246,8 @@ namespace zonetool::h2
 		WEAPON_SCRIPTSTRING_ARRAY_PREPARE(notetrackRumbleMapValues, 16);
 		WEAPON_SCRIPTSTRING_ARRAY_PREPARE(notetrackFXMapKeys, 16);
 		WEAPON_SCRIPTSTRING_ARRAY_PREPARE(notetrackFXMapTagValues, 16);
-		WEAPON_SCRIPTSTRING_ARRAY_PREPARE(notetrackUnknownKeys, 16);
-		WEAPON_SCRIPTSTRING_ARRAY_PREPARE(notetrackUnknownValues, 16);
+		WEAPON_SCRIPTSTRING_ARRAY_PREPARE(notetrackHideTagKeys, 16);
+		WEAPON_SCRIPTSTRING_ARRAY_PREPARE(notetrackHideTagTagValues, 16);
 
 		weapon->stowTag = static_cast<scr_string_t>(buf->write_scriptstring(
 			this->get_script_string(&weapon->stowTag)));
@@ -1345,7 +1288,7 @@ namespace zonetool::h2
 		}
 
 		WEAPON_SUBASSET_DEPENDING(handModel, ASSET_TYPE_XMODEL);
-		WEAPON_SUBASSET_DEPENDING(unknownModel, ASSET_TYPE_XMODEL);
+		WEAPON_SUBASSET_DEPENDING(persistentArmXModel, ASSET_TYPE_XMODEL);
 		WEAPON_SUBASSET_DEPENDING(worldClipModel, ASSET_TYPE_XMODEL);
 		WEAPON_SUBASSET_DEPENDING(rocketModel, ASSET_TYPE_XMODEL);
 		WEAPON_SUBASSET_DEPENDING(knifeModel, ASSET_TYPE_XMODEL);
@@ -1367,7 +1310,7 @@ namespace zonetool::h2
 			}
 		}
 
-		for (auto i = 0; i < weapon->numWeaponAttachments; i++)
+		for (auto i = 0; i < weapon->numAttachments; i++)
 		{
 			if (weapon->attachments)
 			{
@@ -1402,10 +1345,25 @@ namespace zonetool::h2
 			}
 		}
 
+		if (weapon->notetrackOverrides)
+		{
+			for (auto i = 0u; i < weapon->numNotetrackOverrides; i++)
+			{
+				for (auto j = 0; j < 36; j++)
+				{
+					auto str = this->get_script_string(&weapon->notetrackOverrides[i].notetrackSoundMapValues[j]);
+					if (str != nullptr && str[0] != '\0')
+					{
+						zone->add_asset_of_type(ASSET_TYPE_SOUND, str);
+					}
+				}
+			}
+		}
+
 		for (auto i = 0; i < 36; i++)
 		{
 			auto str = this->get_script_string(&weapon->notetrackSoundMapValues[i]);
-			if (str != nullptr)
+			if (str != nullptr && str[0] != '\0')
 			{
 				zone->add_asset_of_type(ASSET_TYPE_SOUND, str);
 			}
@@ -1424,14 +1382,14 @@ namespace zonetool::h2
 		WEAPON_SUBASSET_DEPENDING(worldFlashEffect, ASSET_TYPE_FX);
 		WEAPON_SUBASSET_DEPENDING(viewFlashADSEffect, ASSET_TYPE_FX);
 		WEAPON_SUBASSET_DEPENDING(viewBodyFlashADSEffect, ASSET_TYPE_FX);
-		WEAPON_SUBASSET_DEPENDING(effect06, ASSET_TYPE_FX);
-		WEAPON_SUBASSET_DEPENDING(effect07, ASSET_TYPE_FX);
-		WEAPON_SUBASSET_DEPENDING(effect08, ASSET_TYPE_FX);
-		WEAPON_SUBASSET_DEPENDING(effect09, ASSET_TYPE_FX);
-		WEAPON_SUBASSET_DEPENDING(effect10, ASSET_TYPE_FX);
-		WEAPON_SUBASSET_DEPENDING(effect11, ASSET_TYPE_FX);
-		WEAPON_SUBASSET_DEPENDING(effect12, ASSET_TYPE_FX);
-		
+		WEAPON_SUBASSET_DEPENDING(signatureViewFlashEffect, ASSET_TYPE_FX);
+		WEAPON_SUBASSET_DEPENDING(signatureViewBodyFlashEffect, ASSET_TYPE_FX);
+		WEAPON_SUBASSET_DEPENDING(signatureWorldFlashEffect, ASSET_TYPE_FX);
+		WEAPON_SUBASSET_DEPENDING(signatureViewFlashADSEffect, ASSET_TYPE_FX);
+		WEAPON_SUBASSET_DEPENDING(signatureViewBodyFlashADSEffect, ASSET_TYPE_FX);
+		WEAPON_SUBASSET_DEPENDING(meleeHitEffect, ASSET_TYPE_FX);
+		WEAPON_SUBASSET_DEPENDING(meleeMissEffect, ASSET_TYPE_FX);
+
 		WEAPON_SUBASSET_DEPENDING(pickupSound, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(pickupSoundPlayer, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(ammoPickupSound, ASSET_TYPE_SOUND);
@@ -1547,18 +1505,18 @@ namespace zonetool::h2
 
 		WEAPON_SUBASSET_DEPENDING(hudIcon, ASSET_TYPE_MATERIAL);
 		WEAPON_SUBASSET_DEPENDING(pickupIcon, ASSET_TYPE_MATERIAL);
-		WEAPON_SUBASSET_DEPENDING(unknownIcon2, ASSET_TYPE_MATERIAL);
-		WEAPON_SUBASSET_DEPENDING(unknownIcon3, ASSET_TYPE_MATERIAL);
-		WEAPON_SUBASSET_DEPENDING(unknownIcon4, ASSET_TYPE_MATERIAL);
+		WEAPON_SUBASSET_DEPENDING(minimapIconFriendly, ASSET_TYPE_MATERIAL);
+		WEAPON_SUBASSET_DEPENDING(minimapIconEnemy, ASSET_TYPE_MATERIAL);
+		WEAPON_SUBASSET_DEPENDING(minimapIconNeutral, ASSET_TYPE_MATERIAL);
 		WEAPON_SUBASSET_DEPENDING(ammoCounterIcon, ASSET_TYPE_MATERIAL);
-		
+
 		WEAPON_SUBASSET_DEPENDING(physCollmap, ASSET_TYPE_PHYSCOLLMAP);
 		WEAPON_SUBASSET_DEPENDING(physPreset, ASSET_TYPE_PHYSPRESET);
 
-		WEAPON_SUBASSET_DEPENDING(tracer1, ASSET_TYPE_TRACER);
-		WEAPON_SUBASSET_DEPENDING(tracer2, ASSET_TYPE_TRACER);
+		WEAPON_SUBASSET_DEPENDING(tracerType, ASSET_TYPE_TRACER);
+		WEAPON_SUBASSET_DEPENDING(signatureTracerType, ASSET_TYPE_TRACER);
 
-		WEAPON_SUBASSET_DEPENDING(laser, ASSET_TYPE_LASER);
+		WEAPON_SUBASSET_DEPENDING(laserType, ASSET_TYPE_LASER);
 
 		WEAPON_SUBASSET_DEPENDING(turretOverheatSound, ASSET_TYPE_SOUND);
 		WEAPON_SUBASSET_DEPENDING(turretOverheatEffect, ASSET_TYPE_FX);
@@ -1624,8 +1582,8 @@ namespace zonetool::h2
 		if (data->__field__) \
 		{ \
 			buf->align(7); \
-			buf->write(&buf->data_following); \
-			buf->write_str_raw(data->__field__->name); \
+			auto* ptr = reinterpret_cast<const char**>(buf->write(&buf->data_following)); \
+			*ptr = buf->write_str(data->__field__->name); \
 			buf->clear_pointer(&dest->__field__); \
 		}
 
@@ -1644,7 +1602,7 @@ namespace zonetool::h2
 		WEAPON_STRING(szDisplayName);
 		WEAPON_STRING(szOverlayName);
 		WEAPON_STRING(szAttachmentName);
-		WEAPON_STRING(szUnknownName);
+		WEAPON_STRING(szAltWeaponName);
 
 		if (data->gunModel)
 		{
@@ -1671,10 +1629,10 @@ namespace zonetool::h2
 				);
 		}
 
-		if (data->unknownModel)
+		if (data->persistentArmXModel)
 		{
-			dest->unknownModel = reinterpret_cast<XModel*>(
-				zone->get_asset_pointer(ASSET_TYPE_XMODEL, data->unknownModel->name)
+			dest->persistentArmXModel = reinterpret_cast<XModel*>(
+				zone->get_asset_pointer(ASSET_TYPE_XMODEL, data->persistentArmXModel->name)
 				);
 		}
 
@@ -1696,7 +1654,7 @@ namespace zonetool::h2
 			buf->clear_pointer(&dest->reticleViewModels);
 		}
 
-		WEAPON_STRING(szModeName);
+		WEAPON_STRING(lobWorldModelName);
 
 		if (data->szXAnimsRightHanded)
 		{
@@ -1744,9 +1702,9 @@ namespace zonetool::h2
 		if (data->attachments)
 		{
 			buf->align(7);
-			auto destAttachments = buf->write(data->attachments, data->numWeaponAttachments);
+			auto destAttachments = buf->write(data->attachments, data->numAttachments);
 
-			for (auto i = 0; i < data->numWeaponAttachments; i++)
+			for (auto i = 0; i < data->numAttachments; i++)
 			{
 				if (destAttachments[i])
 				{
@@ -1905,30 +1863,29 @@ namespace zonetool::h2
 		}
 		WEAPON_SCRIPTSTRING_ARRAY(notetrackFXMapTagValues, 16);
 
-		WEAPON_SCRIPTSTRING_ARRAY(notetrackUnknownKeys, 16);
-		if (data->notetrackUnknown)
+		WEAPON_SCRIPTSTRING_ARRAY(notetrackHideTagKeys, 16);
+		if (data->notetrackHideTagValues)
 		{
 			buf->align(0);
-			buf->write(data->notetrackUnknown, 16);
-			buf->clear_pointer(&dest->notetrackUnknown);
+			buf->write(data->notetrackHideTagValues, 16);
+			buf->clear_pointer(&dest->notetrackHideTagValues);
 		}
-		WEAPON_SCRIPTSTRING_ARRAY(notetrackUnknownValues, 16);
+		WEAPON_SCRIPTSTRING_ARRAY(notetrackHideTagTagValues, 16);
 
-		WEAPON_STRING(szAltWeaponName);
+		WEAPON_STRING(szAdsrBaseSetting);
 
 		WEAPON_SUBASSET(viewFlashEffect, ASSET_TYPE_FX, FxEffectDef);
 		WEAPON_SUBASSET(viewBodyFlashEffect, ASSET_TYPE_FX, FxEffectDef);
 		WEAPON_SUBASSET(worldFlashEffect, ASSET_TYPE_FX, FxEffectDef);
 		WEAPON_SUBASSET(viewFlashADSEffect, ASSET_TYPE_FX, FxEffectDef);
 		WEAPON_SUBASSET(viewBodyFlashADSEffect, ASSET_TYPE_FX, FxEffectDef);
-		WEAPON_SUBASSET(effect06, ASSET_TYPE_FX, FxEffectDef);
-		WEAPON_SUBASSET(effect07, ASSET_TYPE_FX, FxEffectDef);
-		WEAPON_SUBASSET(effect08, ASSET_TYPE_FX, FxEffectDef);
-		WEAPON_SUBASSET(effect09, ASSET_TYPE_FX, FxEffectDef);
-		WEAPON_SUBASSET(effect10, ASSET_TYPE_FX, FxEffectDef);
-		WEAPON_SUBASSET(effect11, ASSET_TYPE_FX, FxEffectDef);
-		WEAPON_SUBASSET(effect12, ASSET_TYPE_FX, FxEffectDef);
-		
+		WEAPON_SUBASSET(signatureViewFlashEffect, ASSET_TYPE_FX, FxEffectDef);
+		WEAPON_SUBASSET(signatureViewBodyFlashEffect, ASSET_TYPE_FX, FxEffectDef);
+		WEAPON_SUBASSET(signatureWorldFlashEffect, ASSET_TYPE_FX, FxEffectDef);
+		WEAPON_SUBASSET(signatureViewFlashADSEffect, ASSET_TYPE_FX, FxEffectDef);
+		WEAPON_SUBASSET(signatureViewBodyFlashADSEffect, ASSET_TYPE_FX, FxEffectDef);
+		WEAPON_SUBASSET(meleeHitEffect, ASSET_TYPE_FX, FxEffectDef);
+		WEAPON_SUBASSET(meleeMissEffect, ASSET_TYPE_FX, FxEffectDef);
 
 		WEAPON_SOUND_CUSTOM(pickupSound);
 		WEAPON_SOUND_CUSTOM(pickupSoundPlayer);
@@ -2081,9 +2038,9 @@ namespace zonetool::h2
 		
 		WEAPON_SUBASSET(hudIcon, ASSET_TYPE_MATERIAL, Material);
 		WEAPON_SUBASSET(pickupIcon, ASSET_TYPE_MATERIAL, Material);
-		WEAPON_SUBASSET(unknownIcon2, ASSET_TYPE_MATERIAL, Material);
-		WEAPON_SUBASSET(unknownIcon3, ASSET_TYPE_MATERIAL, Material);
-		WEAPON_SUBASSET(unknownIcon4, ASSET_TYPE_MATERIAL, Material);
+		WEAPON_SUBASSET(minimapIconFriendly, ASSET_TYPE_MATERIAL, Material);
+		WEAPON_SUBASSET(minimapIconEnemy, ASSET_TYPE_MATERIAL, Material);
+		WEAPON_SUBASSET(minimapIconNeutral, ASSET_TYPE_MATERIAL, Material);
 		WEAPON_SUBASSET(ammoCounterIcon, ASSET_TYPE_MATERIAL, Material);
 
 		WEAPON_STRING(szAmmoName);
@@ -2108,10 +2065,10 @@ namespace zonetool::h2
 		WEAPON_STRING(fireHighRumble);
 		WEAPON_STRING(meleeImpactRumble);
 		
-		WEAPON_SUBASSET(tracer1, ASSET_TYPE_TRACER, TracerDef);
-		WEAPON_SUBASSET(tracer2, ASSET_TYPE_TRACER, TracerDef);
+		WEAPON_SUBASSET(tracerType, ASSET_TYPE_TRACER, TracerDef);
+		WEAPON_SUBASSET(signatureTracerType, ASSET_TYPE_TRACER, TracerDef);
 
-		WEAPON_SUBASSET(laser, ASSET_TYPE_LASER, LaserDef);
+		WEAPON_SUBASSET(laserType, ASSET_TYPE_LASER, LaserDef);
 
 		WEAPON_SOUND_CUSTOM(turretOverheatSound);
 		WEAPON_SUBASSET(turretOverheatEffect, ASSET_TYPE_FX, FxEffectDef);
@@ -2140,8 +2097,8 @@ namespace zonetool::h2
 		if (__data__) \
 		{ \
 			buf->align(7); \
-			buf->write(&buf->data_following); \
-			buf->write_str_raw(__data__->name); \
+			auto* ptr = reinterpret_cast<const char**>(buf->write(&buf->data_following)); \
+			*ptr = buf->write_str(__data__->name); \
 			buf->clear_pointer(&__dest__); \
 		}
 
@@ -2248,7 +2205,7 @@ namespace zonetool::h2
 	}
 
 #define WEAPON_DUMP_ASSET_ARR(__field__, __size__) \
-	if (asset->__field__) \
+	if (asset->__field__ && __size__) \
 	{ \
 		for (auto idx##__field__ = 0; idx##__field__ < __size__; idx##__field__++) \
 		{ \
@@ -2268,7 +2225,7 @@ namespace zonetool::h2
 	}
 
 #define WEAPON_DUMP_ANIM_ARR(__field__, __size__) \
-	if (asset->__field__) \
+	if (asset->__field__ && __size__) \
 	{ \
 		for (auto idx##__field__ = 0; idx##__field__ < __size__; idx##__field__++) \
 		{ \
@@ -2357,7 +2314,7 @@ namespace zonetool::h2
 				{
 					data["accuracyGraphKnots"] = nullptr;
 				}
-				if (asset->accuracyGraphKnots[i])
+				if (asset->originalAccuracyGraphKnots[i])
 				{
 					data["originalAccuracyGraphKnots"][i][o][0] = asset->originalAccuracyGraphKnots[i][o][0];
 					data["originalAccuracyGraphKnots"][i][o][1] = asset->originalAccuracyGraphKnots[i][o][1];
@@ -2401,8 +2358,8 @@ namespace zonetool::h2
 		WEAPON_DUMP_FIELD(reloadAddTimeDualWield);
 		WEAPON_DUMP_FIELD(reloadEmptyDualMag);
 		WEAPON_DUMP_FIELD(reloadEmptyAddTimeDualMag);
-		//WEAPON_DUMP_FIELD(u25);
-		//WEAPON_DUMP_FIELD(u26);
+		WEAPON_DUMP_FIELD(speedReloadTime);
+		WEAPON_DUMP_FIELD(speedReloadAddTime);
 		WEAPON_DUMP_FIELD(dropTime);
 		WEAPON_DUMP_FIELD(raiseTime);
 		WEAPON_DUMP_FIELD(altDropTime);
@@ -2434,23 +2391,27 @@ namespace zonetool::h2
 		WEAPON_DUMP_FIELD(blastRightTime);
 		WEAPON_DUMP_FIELD(blastBackTime);
 		WEAPON_DUMP_FIELD(blastLeftTime);
-		//WEAPON_DUMP_FIELD(u58);
-		//WEAPON_DUMP_FIELD(u59);
-		//WEAPON_DUMP_FIELD(u60);
-		//WEAPON_DUMP_FIELD(u61);
-		//WEAPON_DUMP_FIELD(u62);
-		//WEAPON_DUMP_FIELD(u63);
-		//WEAPON_DUMP_FIELD(u64);
-		//WEAPON_DUMP_FIELD(u65);
-		//WEAPON_DUMP_FIELD(u66);
-		//WEAPON_DUMP_FIELD(u67);
-		//WEAPON_DUMP_FIELD(u68);
+		WEAPON_DUMP_FIELD(slideInTime);
+		WEAPON_DUMP_FIELD(slideLoopTime);
+		WEAPON_DUMP_FIELD(slideOutTime);
+		WEAPON_DUMP_FIELD(highJumpInTime);
+		WEAPON_DUMP_FIELD(highJumpDropInTime);
+		WEAPON_DUMP_FIELD(highJumpDropLoopTime);
+		WEAPON_DUMP_FIELD(highJumpDropLandTime);
+		WEAPON_DUMP_FIELD(dodgeTime);
+		WEAPON_DUMP_FIELD(landDipTime);
+		WEAPON_DUMP_FIELD(hybridSightInTime);
+		WEAPON_DUMP_FIELD(hybridSightOutTime);
 		WEAPON_DUMP_FIELD(offhandSwitchTime);
-		//WEAPON_DUMP_FIELD(u70);
-		//WEAPON_DUMP_FIELD(u71);
-		//WEAPON_DUMP_FIELD(u72);
-		//WEAPON_DUMP_FIELD(u73);
-		//WEAPON_DUMP_FIELD(u74);
+		WEAPON_DUMP_FIELD(heatCooldownInTime);
+		WEAPON_DUMP_FIELD(heatCooldownOutTime);
+		WEAPON_DUMP_FIELD(heatCooldownOutReadyTime);
+		WEAPON_DUMP_FIELD(overheatOutTime);
+		WEAPON_DUMP_FIELD(overheatOutReadyTime);
+		WEAPON_DUMP_FIELD(u75);
+		WEAPON_DUMP_FIELD(u76);
+		WEAPON_DUMP_FIELD(u77);
+		WEAPON_DUMP_FIELD(u78);
 
 		return data;
 	}
@@ -2461,13 +2422,11 @@ namespace zonetool::h2
 
 		ordered_json data;
 
-		data["baseAsset"] = asset->szInternalName;
-
 		WEAPON_DUMP_STRING(szInternalName);
 		WEAPON_DUMP_STRING(szDisplayName);
 		WEAPON_DUMP_STRING(szOverlayName);
 		WEAPON_DUMP_STRING(szAttachmentName);
-		WEAPON_DUMP_STRING(szUnknownName);
+		WEAPON_DUMP_STRING(szAltWeaponName);
 
 		WEAPON_DUMP_ASSET_ARR(gunModel, 2);
 		WEAPON_DUMP_ASSET_ARR(worldModel, 2);
@@ -2475,7 +2434,7 @@ namespace zonetool::h2
 		WEAPON_DUMP_ASSET_ARR(reticleViewModels, 64);
 
 		WEAPON_DUMP_ASSET(handModel);
-		WEAPON_DUMP_ASSET(unknownModel);
+		WEAPON_DUMP_ASSET(persistentArmXModel);
 		WEAPON_DUMP_ASSET(worldClipModel);
 		WEAPON_DUMP_ASSET(rocketModel);
 		WEAPON_DUMP_ASSET(knifeModel);
@@ -2497,7 +2456,7 @@ namespace zonetool::h2
 			}
 		}
 
-		WEAPON_DUMP_ASSET_ARR(attachments, asset->numWeaponAttachments);
+		WEAPON_DUMP_ASSET_ARR(attachments, asset->numAttachments);
 
 		for (auto i = 0u; i < asset->numAnimOverrides; i++)
 		{
@@ -2554,11 +2513,11 @@ namespace zonetool::h2
 
 			for (auto j = 0u; j < 36; j++)
 			{
-				data["notetrackOverrides"][i]["notetrackSoundMapKeys"][j] = (asset->notetrackOverrides[i].notetrackSoundMapKeys[j])
+				data["notetrackOverrides"][i]["notetrackSoundMap"][j]["Key"] = (asset->notetrackOverrides[i].notetrackSoundMapKeys[j])
 					? SL_ConvertToString(asset->notetrackOverrides[i].notetrackSoundMapKeys[j])
 					: "";
 
-				data["notetrackOverrides"][i]["notetrackSoundMapValues"][j] = (asset->notetrackOverrides[i].notetrackSoundMapValues[j])
+				data["notetrackOverrides"][i]["notetrackSoundMap"][j]["Value"] = (asset->notetrackOverrides[i].notetrackSoundMapValues[j])
 					? SL_ConvertToString(asset->notetrackOverrides[i].notetrackSoundMapValues[j])
 					: "";
 			}
@@ -2566,108 +2525,58 @@ namespace zonetool::h2
 
 		for (auto i = 0; i < 36; i++)
 		{
-			if (asset->notetrackSoundMapKeys && asset->notetrackSoundMapKeys[i])
-			{
-				data["notetrackSoundMapKeys"][i] = SL_ConvertToString(asset->notetrackSoundMapKeys[i]);
-			}
-			else
-			{
-				data["notetrackSoundMapKeys"][i] = "";
-			}
+			data["notetrackSoundMap"][i]["Key"] = asset->notetrackSoundMapKeys && asset->notetrackSoundMapKeys[i]
+				? SL_ConvertToString(asset->notetrackSoundMapKeys[i])
+				: "";
 
-			if (asset->notetrackSoundMapValues && asset->notetrackSoundMapValues[i])
-			{
-				data["notetrackSoundMapValues"][i] = SL_ConvertToString(asset->notetrackSoundMapValues[i]);
-			}
-			else
-			{
-				data["notetrackSoundMapValues"][i] = "";
-			}
+			data["notetrackSoundMap"][i]["Value"] = asset->notetrackSoundMapValues && asset->notetrackSoundMapValues[i]
+				? SL_ConvertToString(asset->notetrackSoundMapValues[i])
+				: "";
 		}
 
 		for (auto i = 0; i < 16; i++)
 		{
-			if (asset->notetrackRumbleMapKeys && asset->notetrackRumbleMapKeys[i])
-			{
-				data["notetrackRumbleMapKeys"][i] = SL_ConvertToString(asset->notetrackRumbleMapKeys[i]);
-			}
-			else
-			{
-				data["notetrackRumbleMapKeys"][i] = "";
-			}
+			data["notetrackRumbleMap"][i]["Key"] = asset->notetrackRumbleMapKeys && asset->notetrackRumbleMapKeys[i]
+				? SL_ConvertToString(asset->notetrackRumbleMapKeys[i])
+				: "";
 
-			if (asset->notetrackRumbleMapValues && asset->notetrackRumbleMapValues[i])
-			{
-				data["notetrackRumbleMapValues"][i] = SL_ConvertToString(asset->notetrackRumbleMapValues[i]);
-			}
-			else
-			{
-				data["notetrackRumbleMapValues"][i] = "";
-			}
+			data["notetrackRumbleMap"][i]["Value"] = asset->notetrackRumbleMapValues && asset->notetrackRumbleMapValues[i]
+				? SL_ConvertToString(asset->notetrackRumbleMapValues[i])
+				: "";
 		}
 
 		for (auto i = 0; i < 16; i++)
 		{
-			if (asset->notetrackFXMapKeys && asset->notetrackFXMapKeys[i])
-			{
-				data["notetrackFXMapKeys"][i] = SL_ConvertToString(asset->notetrackFXMapKeys[i]);
-			}
-			else
-			{
-				data["notetrackFXMapKeys"][i] = "";
-			}
+			data["notetrackFXMap"][i]["Key"] = asset->notetrackFXMapKeys && asset->notetrackFXMapKeys[i]
+				? SL_ConvertToString(asset->notetrackFXMapKeys[i])
+				: "";
 
-			if (asset->notetrackFXMapValues && asset->notetrackFXMapValues[i])
-			{
-				data["notetrackFXMapValues"][i] = asset->notetrackFXMapValues[i]->name;
-			}
-			else
-			{
-				data["notetrackFXMapValues"][i] = "";
-			}
+			data["notetrackFXMap"][i]["Value"] = asset->notetrackFXMapValues && asset->notetrackFXMapValues[i]
+				? asset->notetrackFXMapValues[i]->name
+				: "";
 
-			if (asset->notetrackFXMapTagValues && asset->notetrackFXMapTagValues[i])
-			{
-				data["notetrackFXMapTagValues"][i] = SL_ConvertToString(asset->notetrackFXMapTagValues[i]);
-			}
-			else
-			{
-				data["notetrackFXMapTagValues"][i] = "";
-			}
+			data["notetrackFXMap"][i]["Tag"] = asset->notetrackFXMapTagValues && asset->notetrackFXMapTagValues[i]
+				? SL_ConvertToString(asset->notetrackFXMapTagValues[i])
+				: "";
 		}
 
 		for (auto i = 0; i < 16; i++)
 		{
-			if (asset->notetrackUnknownKeys && asset->notetrackUnknownKeys[i])
-			{
-				data["notetrackUnknownKeys"][i] = SL_ConvertToString(asset->notetrackUnknownKeys[i]);
-			}
-			else
-			{
-				data["notetrackUnknownKeys"][i] = "";
-			}
+			data["notetrackHideTag"][i]["Key"] = asset->notetrackHideTagKeys && asset->notetrackHideTagKeys[i]
+				? SL_ConvertToString(asset->notetrackHideTagKeys[i])
+				: "";
 
-			if (asset->notetrackUnknown && asset->notetrackUnknown[i])
-			{
-				data["notetrackUnknown"][i] = asset->notetrackUnknown[i];
-			}
-			else
-			{
-				data["notetrackUnknown"][i] = 0;
-			}
+			data["notetrackHideTag"][i]["Value"] = asset->notetrackHideTagValues && asset->notetrackHideTagValues[i]
+				? asset->notetrackHideTagValues[i]
+				: false;
 
-			if (asset->notetrackUnknownValues && asset->notetrackUnknownValues[i])
-			{
-				data["notetrackUnknownValues"][i] = SL_ConvertToString(asset->notetrackUnknownValues[i]);
-			}
-			else
-			{
-				data["notetrackUnknownValues"][i] = "";
-			}
+			data["notetrackHideTag"][i]["Tag"] = asset->notetrackHideTagTagValues && asset->notetrackHideTagTagValues[i]
+				? SL_ConvertToString(asset->notetrackHideTagTagValues[i])
+				: "";
 		}
 
-		WEAPON_DUMP_STRING(szModeName);
-		WEAPON_DUMP_STRING(szAltWeaponName);
+		WEAPON_DUMP_STRING(lobWorldModelName);
+		WEAPON_DUMP_STRING(szAdsrBaseSetting);
 		WEAPON_DUMP_STRING(szAmmoName);
 		WEAPON_DUMP_STRING(szClipName);
 		WEAPON_DUMP_STRING(szSharedAmmoCapName);
@@ -2677,13 +2586,13 @@ namespace zonetool::h2
 		WEAPON_DUMP_ASSET(worldFlashEffect);
 		WEAPON_DUMP_ASSET(viewFlashADSEffect);
 		WEAPON_DUMP_ASSET(viewBodyFlashADSEffect);
-		WEAPON_DUMP_ASSET(effect06);
-		WEAPON_DUMP_ASSET(effect07);
-		WEAPON_DUMP_ASSET(effect08);
-		WEAPON_DUMP_ASSET(effect09);
-		WEAPON_DUMP_ASSET(effect10);
-		WEAPON_DUMP_ASSET(effect11);
-		WEAPON_DUMP_ASSET(effect12);
+		WEAPON_DUMP_ASSET(signatureViewFlashEffect);
+		WEAPON_DUMP_ASSET(signatureViewBodyFlashEffect);
+		WEAPON_DUMP_ASSET(signatureWorldFlashEffect);
+		WEAPON_DUMP_ASSET(signatureViewFlashADSEffect);
+		WEAPON_DUMP_ASSET(signatureViewBodyFlashADSEffect);
+		WEAPON_DUMP_ASSET(meleeHitEffect);
+		WEAPON_DUMP_ASSET(meleeMissEffect);
 
 		WEAPON_DUMP_SOUND(pickupSound);
 		WEAPON_DUMP_SOUND(pickupSoundPlayer);
@@ -2790,9 +2699,9 @@ namespace zonetool::h2
 
 		WEAPON_DUMP_ASSET(hudIcon);
 		WEAPON_DUMP_ASSET(pickupIcon);
-		WEAPON_DUMP_ASSET(unknownIcon2);
-		WEAPON_DUMP_ASSET(unknownIcon3);
-		WEAPON_DUMP_ASSET(unknownIcon4);
+		WEAPON_DUMP_ASSET(minimapIconFriendly);
+		WEAPON_DUMP_ASSET(minimapIconEnemy);
+		WEAPON_DUMP_ASSET(minimapIconNeutral);
 		WEAPON_DUMP_ASSET(ammoCounterIcon);
 
 		WEAPON_DUMP_ASSET(physCollmap);
@@ -2808,10 +2717,10 @@ namespace zonetool::h2
 		WEAPON_DUMP_STRING(fireHighRumble);
 		WEAPON_DUMP_STRING(meleeImpactRumble);
 
-		WEAPON_DUMP_ASSET(tracer1);
-		WEAPON_DUMP_ASSET(tracer2);
+		WEAPON_DUMP_ASSET(tracerType);
+		WEAPON_DUMP_ASSET(signatureTracerType);
 
-		WEAPON_DUMP_ASSET(laser);
+		WEAPON_DUMP_ASSET(laserType);
 
 		WEAPON_DUMP_ASSET(turretOverheatSound);
 		WEAPON_DUMP_ASSET(turretOverheatEffect);
@@ -2869,7 +2778,7 @@ namespace zonetool::h2
 		WEAPON_DUMP_FIELD(burstFireCooldown);
 		WEAPON_DUMP_FIELD(greebleType);
 		WEAPON_DUMP_FIELD(autoReloadType);
-		WEAPON_DUMP_FIELD(slotRestriction);
+		WEAPON_DUMP_FIELD(autoHolsterType);
 		WEAPON_DUMP_FIELD(offhandClass);
 		WEAPON_DUMP_FIELD(stance);
 		WEAPON_DUMP_FIELD(reticleCenterSize);
@@ -2898,13 +2807,13 @@ namespace zonetool::h2
 		WEAPON_DUMP_FIELD(ammoCounterIconRatio);
 		WEAPON_DUMP_FIELD(ammoCounterClip);
 		WEAPON_DUMP_FIELD(startAmmo);
-		WEAPON_DUMP_FIELD(ammoIndex);
-		WEAPON_DUMP_FIELD(clipIndex);
+		//WEAPON_DUMP_FIELD(ammoIndex); // runtime
+		//WEAPON_DUMP_FIELD(clipIndex); // runtime
 		WEAPON_DUMP_FIELD(maxAmmo);
 		WEAPON_DUMP_FIELD(minAmmoReq);
 		WEAPON_DUMP_FIELD(clipSize);
 		WEAPON_DUMP_FIELD(shotCount);
-		WEAPON_DUMP_FIELD(sharedAmmoCapIndex);
+		//WEAPON_DUMP_FIELD(sharedAmmoCapIndex); // runtime
 		WEAPON_DUMP_FIELD(sharedAmmoCap);
 		WEAPON_DUMP_FIELD(damage);
 		WEAPON_DUMP_FIELD(playerDamage);
@@ -2921,17 +2830,17 @@ namespace zonetool::h2
 		WEAPON_DUMP_FIELD(adsZoomFov);
 		WEAPON_DUMP_FIELD(adsZoomInFrac);
 		WEAPON_DUMP_FIELD(adsZoomOutFrac);
-		WEAPON_DUMP_FIELD(adsSceneBlur);
-		//WEAPON_DUMP_FIELD(fU_007);
-		//WEAPON_DUMP_FIELD(xU_008);
+		WEAPON_DUMP_FIELD(adsSceneBlurStrength);
+		WEAPON_DUMP_FIELD(adsSceneBlurPhysicalScale);
+		//WEAPON_DUMP_FIELD(pad3);
 		WEAPON_DUMP_FIELD(adsBobFactor);
 		WEAPON_DUMP_FIELD(adsViewBobMult);
 		WEAPON_DUMP_FIELD(hipSpreadStandMin);
 		WEAPON_DUMP_FIELD(hipSpreadDuckedMin);
 		WEAPON_DUMP_FIELD(hipSpreadProneMin);
 		WEAPON_DUMP_FIELD(hipSpreadStandMax);
-		//WEAPON_DUMP_FIELD(xU_009);
-		//WEAPON_DUMP_FIELD(xU_010);
+		WEAPON_DUMP_FIELD(hipSpreadSprintMax);
+		WEAPON_DUMP_FIELD(hipSpreadSlideMax);
 		WEAPON_DUMP_FIELD(hipSpreadDuckedMax);
 		WEAPON_DUMP_FIELD(hipSpreadProneMax);
 		WEAPON_DUMP_FIELD(hipSpreadDecayRate);
@@ -2952,9 +2861,9 @@ namespace zonetool::h2
 		WEAPON_DUMP_FIELD(adsIdleLerpStartTime);
 		WEAPON_DUMP_FIELD(adsIdleLerpTime);
 		WEAPON_DUMP_FIELD(adsTransInTime);
-		//WEAPON_DUMP_FIELD(xU_011);
+		WEAPON_DUMP_FIELD(adsTransInFromSprintTime);
 		WEAPON_DUMP_FIELD(adsTransOutTime);
-		//WEAPON_DUMP_FIELD(xU_012);
+		WEAPON_DUMP_FIELD(swayMaxAngleSteadyAim);
 		WEAPON_DUMP_FIELD(swayMaxAngle);
 		WEAPON_DUMP_FIELD(swayLerpSpeed);
 		WEAPON_DUMP_FIELD(swayPitchScale);
@@ -3069,11 +2978,10 @@ namespace zonetool::h2
 		WEAPON_DUMP_FIELD(hipViewKickCenterSpeed);
 		WEAPON_DUMP_FIELD(hipViewScatterMin);
 		WEAPON_DUMP_FIELD(hipViewScatterMax);
-		//WEAPON_DUMP_FIELD(xU_043);
-		WEAPON_DUMP_FIELD(adsReloadTransTime);
+		WEAPON_DUMP_FIELD(viewKickScale);
+		WEAPON_DUMP_FIELD(positionReloadTransTime);
 		WEAPON_DUMP_FIELD(fightDist);
 		WEAPON_DUMP_FIELD(maxDist);
-		WEAPON_DUMP_FIELD(positionReloadTransTime);
 		WEAPON_DUMP_FIELD(leftArc);
 		WEAPON_DUMP_FIELD(rightArc);
 		WEAPON_DUMP_FIELD(topArc);
@@ -3102,13 +3010,12 @@ namespace zonetool::h2
 		WEAPON_DUMP_FIELD(midPlayerDamage);
 		WEAPON_DUMP_FIELD(maxDamageRange);
 		WEAPON_DUMP_FIELD(minDamageRange);
-		WEAPON_DUMP_FIELD_ARR(__pad, 12);
-		//WEAPON_DUMP_FIELD(iU_045);
-		//WEAPON_DUMP_FIELD(iU_046);
-		//WEAPON_DUMP_FIELD(iU_047);
-		//WEAPON_DUMP_FIELD(iU_048);
-		//WEAPON_DUMP_FIELD(fU_049);
-		//WEAPON_DUMP_FIELD(fU_050);
+		WEAPON_DUMP_FIELD(signatureAmmoInClip);
+		WEAPON_DUMP_FIELD(signatureDamage);
+		WEAPON_DUMP_FIELD(signatureMidDamage);
+		WEAPON_DUMP_FIELD(signatureMinDamage);
+		WEAPON_DUMP_FIELD(signatureMaxDamageRange);
+		WEAPON_DUMP_FIELD(signatureMinDamageRange);
 		WEAPON_DUMP_FIELD(destabilizationRateTime);
 		WEAPON_DUMP_FIELD(destabilizationCurvatureMax);
 		WEAPON_DUMP_FIELD(destabilizeDistance);
@@ -3118,10 +3025,10 @@ namespace zonetool::h2
 		WEAPON_DUMP_FIELD(turretScopeZoomRate);
 		WEAPON_DUMP_FIELD(turretScopeZoomMin);
 		WEAPON_DUMP_FIELD(turretScopeZoomMax);
-		WEAPON_DUMP_FIELD(xU_056);
-		WEAPON_DUMP_FIELD(xU_057);
-		WEAPON_DUMP_FIELD(xU_058);
-		WEAPON_DUMP_FIELD(xU_059);
+		WEAPON_DUMP_FIELD(overheatUpRate);
+		WEAPON_DUMP_FIELD(overheatDownRate);
+		WEAPON_DUMP_FIELD(overheatCooldownRate);
+		WEAPON_DUMP_FIELD(overheatPenalty);
 		WEAPON_DUMP_FIELD(turretBarrelSpinSpeed);
 		WEAPON_DUMP_FIELD(turretBarrelSpinUpTime);
 		WEAPON_DUMP_FIELD(turretBarrelSpinDownTime);
@@ -3145,25 +3052,25 @@ namespace zonetool::h2
 		WEAPON_DUMP_FIELD(player_meleeHeight);
 		WEAPON_DUMP_FIELD(player_meleeRange);
 		WEAPON_DUMP_FIELD(player_meleeWidth);
-		WEAPON_DUMP_FIELD(signatureFireTime);
-		WEAPON_DUMP_FIELD(signatureNumBullets);
+		WEAPON_DUMP_FIELD(changedFireTime);
+		WEAPON_DUMP_FIELD(changedFireTimeNumBullets);
 		WEAPON_DUMP_FIELD(fireTimeInterpolationType);
-		//WEAPON_DUMP_FIELD(xU_075);
-		WEAPON_DUMP_FIELD(ammoUsedPerShot);
-		//WEAPON_DUMP_FIELD(xU_076);
-		//WEAPON_DUMP_FIELD(xU_077);
-		//WEAPON_DUMP_FIELD(xU_078);
-		//WEAPON_DUMP_FIELD(ixU_079);
-		//WEAPON_DUMP_FIELD(iU_080);
-		//WEAPON_DUMP_FIELD(bU_081);
-		//WEAPON_DUMP_FIELD(unknownReticleBooleanValue1);
-		//WEAPON_DUMP_FIELD(unknownReticleBooleanValue2);
+		WEAPON_DUMP_FIELD(generateAmmo);
+		WEAPON_DUMP_FIELD(ammoPerShot);
+		WEAPON_DUMP_FIELD(explodeCount);
+		WEAPON_DUMP_FIELD(batteryDischargeRate);
+		WEAPON_DUMP_FIELD(extendedBattery);
+		WEAPON_DUMP_FIELD(bulletsPerTag);
+		WEAPON_DUMP_FIELD(maxTags);
+		WEAPON_DUMP_FIELD(rattleSoundType);
+		WEAPON_DUMP_FIELD(adsShouldShowCrosshair);
+		WEAPON_DUMP_FIELD(adsCrosshairShouldScale);
 		WEAPON_DUMP_FIELD(turretADSEnabled);
 		WEAPON_DUMP_FIELD(knifeAttachTagLeft);
 		WEAPON_DUMP_FIELD(knifeAlwaysAttached);
 		WEAPON_DUMP_FIELD(meleeOverrideValues);
-		//WEAPON_DUMP_FIELD(bU_083);
-		//WEAPON_DUMP_FIELD(bU_084);
+		WEAPON_DUMP_FIELD(riotShieldEnableDamage);
+		WEAPON_DUMP_FIELD(allowPrimaryWeaponPickup);
 		WEAPON_DUMP_FIELD(sharedAmmo);
 		WEAPON_DUMP_FIELD(lockonSupported);
 		WEAPON_DUMP_FIELD(requireLockonToFire);
@@ -3179,20 +3086,20 @@ namespace zonetool::h2
 		WEAPON_DUMP_FIELD(aimDownSight);
 		WEAPON_DUMP_FIELD(canHoldBreath);
 		WEAPON_DUMP_FIELD(meleeOnly);
-		//WEAPON_DUMP_FIELD(bU_085);
-		//WEAPON_DUMP_FIELD(bU_086);
+		WEAPON_DUMP_FIELD(quickMelee);
+		WEAPON_DUMP_FIELD(bU_086);
 		WEAPON_DUMP_FIELD(canVariableZoom);
 		WEAPON_DUMP_FIELD(rechamberWhileAds);
 		WEAPON_DUMP_FIELD(bulletExplosiveDamage);
 		WEAPON_DUMP_FIELD(cookOffHold);
+		WEAPON_DUMP_FIELD(useBattery);
 		WEAPON_DUMP_FIELD(reticleSpin45);
-		WEAPON_DUMP_FIELD(reticleSideEnabled);
 		WEAPON_DUMP_FIELD(clipOnly);
 		WEAPON_DUMP_FIELD(noAmmoPickup);
 		WEAPON_DUMP_FIELD(disableSwitchToWhenEmpty);
-		//WEAPON_DUMP_FIELD(bU_088);
-		WEAPON_DUMP_FIELD(hasMotionTracker);
-		//WEAPON_DUMP_FIELD(bU_089);
+		WEAPON_DUMP_FIELD(suppressAmmoReserveDisplay);
+		WEAPON_DUMP_FIELD(motionTracker);
+		WEAPON_DUMP_FIELD(markableViewmodel);
 		WEAPON_DUMP_FIELD(noDualWield);
 		WEAPON_DUMP_FIELD(flipKillIcon);
 		WEAPON_DUMP_FIELD(actionSlotShowAmmo);
@@ -3215,8 +3122,8 @@ namespace zonetool::h2
 		WEAPON_DUMP_FIELD(hasDetonatorDoubleTap);
 		WEAPON_DUMP_FIELD(disableFiring);
 		WEAPON_DUMP_FIELD(timedDetonation);
-		//WEAPON_DUMP_FIELD(bU_090);
-		//WEAPON_DUMP_FIELD(bU_091);
+		WEAPON_DUMP_FIELD(noCrumpleMissile);
+		WEAPON_DUMP_FIELD(fuseLitAfterImpact);
 		WEAPON_DUMP_FIELD(rotate);
 		WEAPON_DUMP_FIELD(holdButtonToThrow);
 		WEAPON_DUMP_FIELD(freezeMovementWhenFiring);
@@ -3233,36 +3140,42 @@ namespace zonetool::h2
 		WEAPON_DUMP_FIELD(useFastReloadAnims);
 		WEAPON_DUMP_FIELD(dualMagReloadSupported);
 		WEAPON_DUMP_FIELD(reloadStopsAlt);
-		//WEAPON_DUMP_FIELD(bU_092);
+		WEAPON_DUMP_FIELD(useScopeDrift);
 		WEAPON_DUMP_FIELD(alwaysShatterGlassOnImpact);
 		WEAPON_DUMP_FIELD(oldWeapon);
-		//WEAPON_DUMP_FIELD(bU_093);
-		//WEAPON_DUMP_FIELD(bU_094);
-		//WEAPON_DUMP_FIELD(bU_095);
-		WEAPON_DUMP_FIELD(hasCounterSilencer);
-		//WEAPON_DUMP_FIELD(xU_097);
-		//WEAPON_DUMP_FIELD(xU_098);
-		WEAPON_DUMP_FIELD(disableVariableAutosimRate);
-		//WEAPON_DUMP_FIELD(bU_100);
-		//WEAPON_DUMP_FIELD(bU_101);
-		//WEAPON_DUMP_FIELD(bU_102);
-		//WEAPON_DUMP_FIELD(bU_103);
-		//WEAPON_DUMP_FIELD(bU_104);
-		WEAPON_DUMP_FIELD(cloakedWeapon);
+		WEAPON_DUMP_FIELD(raiseToHold);
+		WEAPON_DUMP_FIELD(notifyOnPlayerImpact);
+		WEAPON_DUMP_FIELD(decreasingKick);
+		WEAPON_DUMP_FIELD(counterSilencer);
+		WEAPON_DUMP_FIELD(projSuppressedByEMP);
+		WEAPON_DUMP_FIELD(projDisabledByEMP);
+		WEAPON_DUMP_FIELD(autosimDisableVariableRate);
+		WEAPON_DUMP_FIELD(projPlayTrailEffectForOwnerOnly);
+		WEAPON_DUMP_FIELD(projPlayBeaconEffectForOwnerOnly);
+		WEAPON_DUMP_FIELD(projKillTrailEffectOnDeath);
+		WEAPON_DUMP_FIELD(projKillBeaconEffectOnDeath);
+		WEAPON_DUMP_FIELD(reticleDetonateHide);
+		WEAPON_DUMP_FIELD(cloaked);
 		WEAPON_DUMP_FIELD(adsHideWeapon);
 		WEAPON_DUMP_FIELD(adsHideHands);
-		//WEAPON_DUMP_FIELD(bU_108);
-		WEAPON_DUMP_FIELD(adsBlurSceneEnabled);
+		WEAPON_DUMP_FIELD(bU_108);
+		WEAPON_DUMP_FIELD(adsSceneBlur);
 		WEAPON_DUMP_FIELD(usesSniperScope);
-		//WEAPON_DUMP_FIELD(bU_111);
-		//WEAPON_DUMP_FIELD(bU_112);
-		//WEAPON_DUMP_FIELD(bU_113);
-		//WEAPON_DUMP_FIELD(bU_114);
-		//WEAPON_DUMP_FIELD(bU_115);
-		WEAPON_DUMP_FIELD(adsDofPhysicalFStop);
+		WEAPON_DUMP_FIELD(hasTransientModels);
+		WEAPON_DUMP_FIELD(signatureAmmoAlternate);
+		WEAPON_DUMP_FIELD(useScriptCallbackForHit);
+		WEAPON_DUMP_FIELD(useBulletTagSystem);
+		WEAPON_DUMP_FIELD(hideBulletTags);
+		WEAPON_DUMP_FIELD(adsDofPhysicalFstop);
 		WEAPON_DUMP_FIELD(adsDofPhysicalFocusDistance);
-		WEAPON_DUMP_FIELD(autosimSpeedScalar);
-		WEAPON_DUMP_FIELD_ARR(explosionReactiveMotionParts, 5);
+		WEAPON_DUMP_FIELD(autosimSpeedScale);
+		WEAPON_DUMP_FIELD(reactiveMotionRadiusScale);
+		WEAPON_DUMP_FIELD(reactiveMotionFrequencyScale);
+		WEAPON_DUMP_FIELD(reactiveMotionAmplitudeScale);
+		WEAPON_DUMP_FIELD(reactiveMotionFalloff);
+		WEAPON_DUMP_FIELD(reactiveMotionLifetime);
+
+		WEAPON_DUMP_FIELD_ARR(fU_3604, 3);
 
 		// TODO: name and dump rest
 

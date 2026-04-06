@@ -139,10 +139,7 @@ namespace zonetool::h2
 			if (asset->nodes[i].constant.type == NODE_NEGOTIATION_BEGIN || 
 				asset->nodes[i].constant.type == NODE_NEGOTIATION_END)
 			{
-				asset->nodes[i].constant.type = NODE_INVALID;
-				asset->nodes[i].constant.animscript = 0;
-				asset->nodes[i].constant.totalLinkCount = 0;
-				asset->nodes[i].constant.Links = nullptr;
+				std::memset(&asset->nodes[i], 0, sizeof(pathnode_t));
 				warnings |= 1;
 			}
 		}
