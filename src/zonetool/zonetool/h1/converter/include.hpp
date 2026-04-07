@@ -24,7 +24,21 @@
 			new_asset->__name__ = allocator.allocate<typename std::remove_reference<decltype(*new_asset->__name__)>::type>(); \
 			new_asset->__name__->name = asset->__name__->name; \
 		}
-		
+
+#define COPY_ASSET_ARR(__name__, __count__) \
+		if(asset->__name__) \
+		{ \
+			new_asset->__name__ = allocator.allocate_array<typename std::remove_reference<decltype(*new_asset->__name__)>::type>(__count__); \
+			for (auto i = 0; i < __count__; i++) \
+			{ \
+				if (asset->__name__[i] != nullptr) \
+				{ \
+					new_asset->__name__[i] = allocator.allocate<typename std::remove_reference<decltype(**new_asset->__name__)>::type>(); \
+					new_asset->__name__[i]->name = asset->__name__[i]->name; \
+				} \
+			} \
+		} \
+
 
 #define REINTERPRET_CAST_SAFE(__name__) \
 		static_assert(sizeof(*new_asset->__name__) == sizeof(*asset->__name__)); \

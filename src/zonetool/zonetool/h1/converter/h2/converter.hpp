@@ -13,4 +13,5 @@
 #include "assets/scriptfile.hpp"
 #include "assets/sound.hpp"
 #include "assets/techset.hpp"
+#include "assets/weapondef.hpp"
 #include "assets/xmodel.hpp"

@@ -425,8 +425,8 @@ namespace zonetool::h2
 				weapon->animOverrides[i].attachment2 = data["animOverrides"][i]["attachment2"].get<unsigned char>();
 				weapon->animOverrides[i].altTime = data["animOverrides"][i]["altTime"].get<int>();
 				weapon->animOverrides[i].animTime = data["animOverrides"][i]["animTime"].get<int>();
-				//weapon->animOverrides[i].animTreeType = data["animOverrides"][i]["animTreeType"].get<unsigned char>();
-				//weapon->animOverrides[i].animHand = data["animOverrides"][i]["animHand"].get<unsigned char>();
+				weapon->animOverrides[i].animTreeType = data["animOverrides"][i]["animTreeType"].get<unsigned char>();
+				weapon->animOverrides[i].animHand = data["animOverrides"][i]["animHand"].get<unsigned char>();
 			}
 		}
 
@@ -451,7 +451,7 @@ namespace zonetool::h2
 				}
 				weapon->soundOverrides[i].attachment1 = data["soundOverrides"][i]["attachment1"].get<unsigned char>();
 				weapon->soundOverrides[i].attachment2 = data["soundOverrides"][i]["attachment2"].get<unsigned char>();
-				//weapon->soundOverrides[i].soundType = data["soundOverrides"][i]["soundType"].get<unsigned char>();
+				weapon->soundOverrides[i].soundType = data["soundOverrides"][i]["soundType"].get<unsigned char>();
 			}
 		}
 
@@ -475,7 +475,7 @@ namespace zonetool::h2
 				}
 				weapon->fxOverrides[i].attachment1 = data["fxOverrides"][i]["attachment1"].get<unsigned char>();
 				weapon->fxOverrides[i].attachment2 = data["fxOverrides"][i]["attachment2"].get<unsigned char>();
-				//weapon->fxOverrides[i].fxType = data["fxOverrides"][i]["fxType"].get<unsigned char>();
+				weapon->fxOverrides[i].fxType = data["fxOverrides"][i]["fxType"].get<unsigned char>();
 			}
 		}
 
@@ -2177,7 +2177,9 @@ namespace zonetool::h2
 #define WEAPON_DUMP_FIELD(__field__) \
 	data[#__field__] = asset->__field__
 
-#define WEAPON_DUMP_STRING WEAPON_DUMP_FIELD
+#define WEAPON_DUMP_STRING(__field__) \
+	static_assert(std::is_same_v<decltype(asset->__field__), const char*>, "Field is not of type const char*"); \
+	asset->__field__ ? data[#__field__] = asset->__field__ : data[#__field__] = nullptr;
 
 #define WEAPON_DUMP_FIELD_ARR(__field__, __size__) \
 	for (auto idx##__field__ = 0; idx##__field__ < __size__; idx##__field__++) \
@@ -2470,7 +2472,8 @@ namespace zonetool::h2
 			data["animOverrides"][i]["attachment2"] = asset->animOverrides[i].attachment2;
 			data["animOverrides"][i]["altTime"] = asset->animOverrides[i].altTime;
 			data["animOverrides"][i]["animTime"] = asset->animOverrides[i].animTime;
-			//data["animOverrides"][i]["animTreeType"] = asset->animOverrides[i].animTreeType;
+			data["animOverrides"][i]["animTreeType"] = asset->animOverrides[i].animTreeType;
+			data["animOverrides"][i]["animHand"] = asset->animOverrides[i].animHand;
 		}
 
 		for (auto i = 0u; i < asset->numSoundOverrides; i++)
@@ -2483,7 +2486,7 @@ namespace zonetool::h2
 			data["soundOverrides"][i]["overrideSound"] = (asset->soundOverrides[i].overrideSound)
 				? asset->soundOverrides[i].overrideSound->name
 				: "";
-			//data["soundOverrides"][i]["soundType"] = asset->soundOverrides[i].soundType;
+			data["soundOverrides"][i]["soundType"] = asset->soundOverrides[i].soundType;
 		}
 
 		for (auto i = 0u; i < asset->numFXOverrides; i++)
@@ -2493,7 +2496,7 @@ namespace zonetool::h2
 				: "";
 			data["fxOverrides"][i]["attachment1"] = asset->fxOverrides[i].attachment1;
 			data["fxOverrides"][i]["attachment2"] = asset->fxOverrides[i].attachment2;
-			//data["fxOverrides"][i]["fxType"] = asset->fxOverrides[i].fxType;
+			data["fxOverrides"][i]["fxType"] = asset->fxOverrides[i].fxType;
 			data["fxOverrides"][i]["overrideFX"] = (asset->fxOverrides[i].overrideFX)
 				? asset->fxOverrides[i].overrideFX->name
 				: "";

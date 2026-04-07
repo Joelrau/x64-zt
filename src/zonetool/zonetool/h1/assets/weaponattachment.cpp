@@ -901,7 +901,7 @@ namespace zonetool::h1
 		attachment->__field__ = data[__name__].get<__type__>(); \
 	}
 
-#define ATTACHMENT_READ_ASSET_ARR(__type__, __field__, __size__) \
+#define ATTACHMENT_READ_ASSET_ARR(__type__, __field__, __size__, __optional__) \
 	if (!data[#__field__].is_null()) \
 	{ \
 		attachment->__field__ = mem->allocate<typename std::remove_reference<decltype(*attachment->__field__)>::type>(__size__); \
@@ -921,8 +921,11 @@ namespace zonetool::h1
 	} \
 	else \
 	{ \
-		attachment->__field__ = nullptr; \
-	}
+		if (!__optional__) \
+		{ \
+			attachment->__field__ = mem->allocate<typename std::remove_reference<decltype(*attachment->__field__)>::type>(__size__); \
+		} \
+	} \
 
 	void parse_charge_info(AttChargeInfo* attachment, ordered_json& data, zone_memory* mem)
 	{
@@ -993,12 +996,12 @@ namespace zonetool::h1
 		ATTACHMENT_READ_FIELD_RENAME(weapClass_t, weapClass, "weaponClass");
 		ATTACHMENT_READ_FIELD_RENAME(weapGreebleType_t, greebleType, "greebleType");
 
-		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_XMODEL, worldModels, 2);
-		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_XMODEL, viewModels, 2);
-		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_XMODEL, reticleViewModels, 64);
+		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_XMODEL, worldModels, 2, false);
+		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_XMODEL, viewModels, 2, false);
+		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_XMODEL, reticleViewModels, 64, false);
 
-		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_SOUND, bounceSounds, 53);
-		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_SOUND, rollingSounds, 53);
+		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_SOUND, bounceSounds, 53, true);
+		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_SOUND, rollingSounds, 53, true);
 
 		if (!data["chargeInfo"].is_null())
 		{
