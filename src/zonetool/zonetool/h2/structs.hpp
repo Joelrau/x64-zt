@@ -4285,6 +4285,7 @@ namespace zonetool::h2
 		float rightArc; // 3132
 		float topArc; // 3136
 		float bottomArc; // 3140
+		char __pad[16];
 		float accuracy; // 3144
 		float aiSpread; // 3148
 		float playerSpread; // 3152
@@ -4303,7 +4304,6 @@ namespace zonetool::h2
 		float scanSpeed; // 3212
 		float scanAccel; // 3216
 		int scanPauseTime; // 3220
-		char __pad[16];
 		const char* szScript; // 3224
 		int minDamage; // 3232
 		int midDamage; // 3236
@@ -4480,6 +4480,7 @@ namespace zonetool::h2
 		float fU_3604[3]; // 3604
 	}; static_assert(sizeof(WeaponDef) == 0xF08);
 	
+	static_assert(offsetof(WeaponDef, accuracy) == 3368);
 	static_assert(offsetof(WeaponDef, viewFlashEffect) == 248);
 	static_assert(offsetof(WeaponDef, usesSniperScope) == 3791);
 	static_assert(offsetof(WeaponDef, adsHideWeapon) == 3787);
