@@ -89,42 +89,55 @@ namespace zonetool::h1
 					COPY_VALUE_FX(velIntervalCount);
 					COPY_VALUE_FX(visStateIntervalCount);
 
-					const auto convert_flags = [](int flags)
+					new_asset->elemDefs[i].flags = asset->elemDefs[i].flags;
+
+					new_asset->elemDefs[i].flags &= ~zonetool::h2::FX_ELEM_SPAWN_OFFSET_MASK;
+					new_asset->elemDefs[i].flags &= ~zonetool::h2::FX_ELEM_RUN_MASK;
+
+					switch (asset->elemDefs[i].flags & FX_ELEM_SPAWN_OFFSET_MASK)
 					{
-						if ((flags & 0x100) != 0)
-						{
-							flags &= ~0x100;
-							flags |= 0x80;
-						}
+					case FX_ELEM_SPAWN_OFFSET_SPHERE:
+						new_asset->elemDefs[i].flags |= zonetool::h2::FX_ELEM_SPAWN_OFFSET_SPHERE;
+						break;
+					case FX_ELEM_SPAWN_OFFSET_CYLINDER:
+					case FX_ELEM_SPAWN_OFFSET_MASK:
+						new_asset->elemDefs[i].flags |= zonetool::h2::FX_ELEM_SPAWN_OFFSET_CYLINDER;
+						break;
+					}
 
-						if ((flags & 0x80) != 0 && (flags & 0x40) != 0)
-						{
-							flags &= ~0xC0;
-						}
-						else if (((flags & 0x80) != 0) && ((flags & 0x40) == 0))
-						{
-							flags &= ~0x80;
-							flags |= 0x40;
-						}
-						else if (((flags & 0x80) == 0) && ((flags & 0x40) != 0))
-						{
-							flags &= ~0x40;
-						}
+					switch (asset->elemDefs[i].flags & FX_ELEM_RUN_MASK)
+					{
+					case FX_ELEM_RUN_RELATIVE_TO_WORLD:
+						new_asset->elemDefs[i].flags |= zonetool::h2::FX_ELEM_RUN_RELATIVE_TO_WORLD;
+						break;
+					case FX_ELEM_RUN_RELATIVE_TO_SPAWN:
+						new_asset->elemDefs[i].flags |= zonetool::h2::FX_ELEM_RUN_RELATIVE_TO_EFFECT;
+						new_asset->elemDefs[i].flags |= zonetool::h2::FX_ELEM_RUN_RELATIVE_TO_CAMERA;
+						break;
+					case FX_ELEM_RUN_RELATIVE_TO_EFFECT:
+						new_asset->elemDefs[i].flags |= zonetool::h2::FX_ELEM_RUN_RELATIVE_TO_EFFECT;
+						break;
+					case FX_ELEM_RUN_RELATIVE_TO_OFFSET:
+						new_asset->elemDefs[i].flags2 |= zonetool::h2::FX_ELEM2_RUN_RELATIVE_TO_OFFSET;
+						break;
+					case FX_ELEM_RUN_RELATIVE_TO_CAMERA:
+						new_asset->elemDefs[i].flags |= zonetool::h2::FX_ELEM_RUN_RELATIVE_TO_CAMERA;
+						break;
+					}
 
-						if ((flags & 0x20000))
-						{
-							flags &= ~0x20000;
-						}
-
-						return flags;
-					};
-
-					new_asset->elemDefs[i].flags = convert_flags(new_asset->elemDefs[i].flags);
+					if (asset->elemDefs[i].useItemClip)
+					{
+						new_asset->elemDefs[i].flags2 |= zonetool::h2::FX_ELEM2_USE_ITEM_CLIP;
+					}
 
 					if ((((new_asset->elemDefs[i].flags & 0x30) - 16) & 0xFFFFFFEF) != 0)
 					{
 						std::memset(&new_asset->elemDefs[i].spawnOffsetRadius, 0, sizeof(zonetool::h2::FxFloatRange));
-						std::memset(&new_asset->elemDefs[i].spawnOffsetHeight, 0, sizeof(zonetool::h2::FxFloatRange));
+					}
+					else
+					{
+						new_asset->elemDefs[i].unkRange.amplitude = 6.2831855f;
+						new_asset->elemDefs[i].unkRange.base = 0.f;
 					}
 
 					const auto vel_count = new_asset->elemDefs[i].velIntervalCount + 1;
@@ -220,7 +233,7 @@ namespace zonetool::h1
 
 				if ((warnings & 1) != 0)
 				{
-					ZONETOOL_WARNING("fx \"%s\" has elems that use atlas textures which probably not work properly", new_asset->name);
+					ZONETOOL_WARNING("fx \"%s\" has elems that use atlas textures which probably wont work properly", new_asset->name);
 				}
 
 				return new_asset;

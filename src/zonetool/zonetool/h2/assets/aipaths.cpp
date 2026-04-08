@@ -137,7 +137,8 @@ namespace zonetool::h2
 		for (auto i = 0u; i < asset->nodeCount; i++)
 		{
 			if (asset->nodes[i].constant.type == NODE_NEGOTIATION_BEGIN || 
-				asset->nodes[i].constant.type == NODE_NEGOTIATION_END)
+				asset->nodes[i].constant.type == NODE_NEGOTIATION_END ||
+				asset->nodes[i].constant.type > NODE_DONTLINK)
 			{
 				std::memset(&asset->nodes[i], 0, sizeof(pathnode_t));
 				warnings |= 1;
