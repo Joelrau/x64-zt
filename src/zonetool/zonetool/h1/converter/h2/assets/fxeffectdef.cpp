@@ -29,12 +29,22 @@ namespace zonetool::h1
 
 			unsigned char convert_fx_elem_lit_type(unsigned char type)
 			{
-				if (type >= 2)
+				static std::unordered_map<unsigned char, unsigned char> type_map =
 				{
-					return type + 1;
+					{FX_ELEM_LIT_TYPE_NONE, zonetool::h2::FX_ELEM_LIT_TYPE_NONE},
+					{FX_ELEM_LIT_TYPE_LIGHTGRID_SPAWN_SINGLE, zonetool::h2::FX_ELEM_LIT_TYPE_LIGHTGRID_SPAWN_SINGLE},
+					{FX_ELEM_LIT_TYPE_LIGHTGRID_FRAME_SINGLE, zonetool::h2::FX_ELEM_LIT_TYPE_LIGHTGRID_FRAME_SINGLE},
+					{FX_ELEM_LIT_TYPE_LIGHTGRID_FRAME_SPRITE, zonetool::h2::FX_ELEM_LIT_TYPE_LIGHTGRID_FRAME_SPRITE},
+					{FX_ELEM_LIT_TYPE_LIGHTGRID_FRAME_VERTEX, zonetool::h2::FX_ELEM_LIT_TYPE_LIGHTGRID_FRAME_VERTEX},
+				};
+
+				const auto iter = type_map.find(type);
+				if (iter == type_map.end())
+				{
+					ZONETOOL_FATAL("invalid FxElem elemLitType %i", type);
 				}
 
-				return type;
+				return iter->second;
 			}
 
 			zonetool::h2::FxEffectDef* convert(zonetool::h1::FxEffectDef* asset, utils::memory::allocator& allocator)
