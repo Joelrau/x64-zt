@@ -121,8 +121,7 @@ namespace zonetool::h1
 						new_asset->elemDefs[i].flags |= zonetool::h2::FX_ELEM_RUN_RELATIVE_TO_WORLD;
 						break;
 					case FX_ELEM_RUN_RELATIVE_TO_SPAWN:
-						new_asset->elemDefs[i].flags |= zonetool::h2::FX_ELEM_RUN_RELATIVE_TO_EFFECT;
-						new_asset->elemDefs[i].flags |= zonetool::h2::FX_ELEM_RUN_RELATIVE_TO_CAMERA;
+						new_asset->elemDefs[i].flags |= zonetool::h2::FX_ELEM_RUN_RELATIVE_TO_SPAWN;
 						break;
 					case FX_ELEM_RUN_RELATIVE_TO_EFFECT:
 						new_asset->elemDefs[i].flags |= zonetool::h2::FX_ELEM_RUN_RELATIVE_TO_EFFECT;
@@ -142,7 +141,7 @@ namespace zonetool::h1
 
 					if ((((new_asset->elemDefs[i].flags & 0x30) - 16) & 0xFFFFFFEF) != 0)
 					{
-						std::memset(&new_asset->elemDefs[i].spawnOffsetRadius, 0, sizeof(zonetool::h2::FxFloatRange));
+						new_asset->elemDefs[i].spawnOffsetRadius.unk = nullptr;
 					}
 					else
 					{
@@ -185,6 +184,9 @@ namespace zonetool::h1
 							COPY_VALUE_FX(extended.trailDef->scrollTimeMsec);
 							COPY_VALUE_FX(extended.trailDef->repeatDist);
 							COPY_VALUE_FX(extended.trailDef->invSplitDist);
+							COPY_VALUE_FX(extended.trailDef->headFadingFactor);
+							COPY_VALUE_FX(extended.trailDef->tailFadingFactor);
+							new_asset->elemDefs[i].extended.trailDef->unk_float = 0.f;
 							COPY_VALUE_FX(extended.trailDef->vertCount);
 							REINTERPRET_CAST_SAFE_FX(extended.trailDef->verts);
 							COPY_VALUE_FX(extended.trailDef->indCount);

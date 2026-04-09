@@ -122,6 +122,8 @@ namespace zonetool::h2
 							COPY_VALUE_FX(extended.trailDef->repeatDist);
 							COPY_VALUE_FX(extended.trailDef->invSplitDist);
 							COPY_VALUE_FX(extended.trailDef->vertCount);
+							COPY_VALUE_FX(extended.trailDef->headFadingFactor);
+							COPY_VALUE_FX(extended.trailDef->tailFadingFactor);
 							REINTERPRET_CAST_SAFE_FX(extended.trailDef->verts);
 							COPY_VALUE_FX(extended.trailDef->indCount);
 							REINTERPRET_CAST_SAFE_FX(extended.trailDef->inds);
@@ -166,7 +168,6 @@ namespace zonetool::h2
 						case FX_ELEM_RUN_RELATIVE_TO_WORLD:
 							new_asset->elemDefs[i].flags = (zonetool::h1::FxElemDefFlags)(new_asset->elemDefs[i].flags | zonetool::h1::FX_ELEM_RUN_RELATIVE_TO_WORLD);
 							break;
-						case FX_ELEM_RUN_RELATIVE_TO_UNK:
 						case FX_ELEM_RUN_RELATIVE_TO_SPAWN:
 							new_asset->elemDefs[i].flags = (zonetool::h1::FxElemDefFlags)(new_asset->elemDefs[i].flags | zonetool::h1::FX_ELEM_RUN_RELATIVE_TO_SPAWN);
 							break;

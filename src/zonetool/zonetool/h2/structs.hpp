@@ -2368,10 +2368,9 @@ namespace zonetool::h2
 		FX_ELEM_SPAWN_OFFSET_SPHERE = 0x10,
 		FX_ELEM_SPAWN_OFFSET_CYLINDER = 0x20,
 		FX_ELEM_SPAWN_OFFSET_MASK = 0x30,
-		FX_ELEM_RUN_RELATIVE_TO_SPAWN = 0x0,
 		FX_ELEM_RUN_RELATIVE_TO_EFFECT = 0x40,
 		FX_ELEM_RUN_RELATIVE_TO_CAMERA = 0x80,
-		FX_ELEM_RUN_RELATIVE_TO_UNK = 0xC0,
+		FX_ELEM_RUN_RELATIVE_TO_SPAWN = 0xC0,
 		FX_ELEM_RUN_RELATIVE_TO_WORLD = 0x100,
 		FX_ELEM_RUN_MASK = 0x1C0,
 		FX_ELEM_DIE_ON_TOUCH = 0x200,
@@ -2557,7 +2556,9 @@ namespace zonetool::h2
 		float invSplitDist;
 		float invSplitArcDist;
 		float invSplitTime;
-		char __pad0[12];
+		float headFadingFactor;
+		float tailFadingFactor;
+		float unk_float;
 		int vertCount;
 		FxTrailVertex* verts;
 		int indCount;
@@ -2647,6 +2648,12 @@ namespace zonetool::h2
 		FxDecalDef* decalDef;
 	};
 
+	union FxElemUnk
+	{
+		FxFloatRange range;
+		char* unk;
+	};
+
 	struct FxElemDef
 	{
 		int flags;
@@ -2659,8 +2666,7 @@ namespace zonetool::h2
 		FxIntRange spawnDelayMsec;
 		FxIntRange lifeSpanMsec;
 		FxFloatRange spawnOrigin[3];
-		char __pad0[4];
-		FxFloatRange spawnOffsetRadius;
+		FxElemUnk spawnOffsetRadius;
 		FxFloatRange spawnOffsetHeight;
 		FxFloatRange unkRange;
 		FxFloatRange spawnAngles[3];

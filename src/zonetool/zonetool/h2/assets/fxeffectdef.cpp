@@ -58,6 +58,11 @@ namespace zonetool::h2
 		{
 			auto def = &asset->elemDefs[i];
 
+			if ((((def->flags & 0x30) - 16) & 0xFFFFFFEF) != 0 && def->spawnOffsetRadius.unk != nullptr)
+			{
+				def->spawnOffsetRadius.unk = read.read_single<char>();
+			}
+
 			def->velSamples = read.read_array<FxElemVelStateSample>();
 			def->visSamples = read.read_array<FxElemVisStateSample>();
 
@@ -391,6 +396,13 @@ namespace zonetool::h2
 	{
 		auto data = dest;
 
+		if ((((data->flags & 0x30) - 16) & 0xFFFFFFEF) != 0 && data->spawnOffsetRadius.unk != nullptr)
+		{
+			buf->align(0);
+			buf->write(data->spawnOffsetRadius.unk, 1);
+			buf->clear_pointer(&data->spawnOffsetRadius.unk);
+		}
+
 		if (data->velSamples)
 		{
 			buf->align(3);
@@ -605,6 +617,11 @@ namespace zonetool::h2
 		for (auto i = 0; i < asset->elemDefCountLooping + asset->elemDefCountOneShot + asset->elemDefCountEmission; i++)
 		{
 			auto def = &asset->elemDefs[i];
+
+			if ((((def->flags & 0x30) - 16) & 0xFFFFFFEF) != 0 && def->spawnOffsetRadius.unk != nullptr)
+			{
+				dump.dump_single(def->spawnOffsetRadius.unk);
+			}
 
 			// dump elem samples
 			dump.dump_array(def->velSamples, def->velIntervalCount + 1);
