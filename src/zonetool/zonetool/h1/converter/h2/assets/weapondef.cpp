@@ -15,7 +15,6 @@ namespace zonetool::h1
 			{
 				std::unordered_map<std::uint32_t, std::uint32_t> anim_type_map =
 				{
-					{zonetool::h1::WEAP_ANIM_INVALID, zonetool::h2::WEAP_ANIM_INVALID},
 					{zonetool::h1::WEAP_ANIM_ROOT, zonetool::h2::WEAP_ANIM_ROOT},
 					{zonetool::h1::WEAP_ANIM_IDLE, zonetool::h2::WEAP_ANIM_IDLE},
 					{zonetool::h1::WEAP_ANIM_EMPTY_IDLE, zonetool::h2::WEAP_ANIM_EMPTY_IDLE},
@@ -256,7 +255,17 @@ namespace zonetool::h1
 					COPY_VALUE(animOverrides[i].animHand);
 					COPY_VALUE(animOverrides[i].attachment1);
 					COPY_VALUE(animOverrides[i].attachment2);
-					COPY_VALUE(animOverrides[i].animTreeType);
+
+					const auto iter = anim_type_map.find(asset->animOverrides[i].animTreeType);
+					if (iter != anim_type_map.end())
+					{
+						new_asset->animOverrides[i].animTreeType = static_cast<unsigned char>(iter->second);
+					}
+					else
+					{
+						new_asset->animOverrides[i].animTreeType = 0;
+					}
+
 					COPY_ASSET(animOverrides[i].overrideAnim);
 					COPY_ASSET(animOverrides[i].altmodeAnim);
 					COPY_VALUE(animOverrides[i].animTime);

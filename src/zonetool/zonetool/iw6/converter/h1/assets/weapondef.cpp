@@ -587,16 +587,36 @@ namespace zonetool::iw6
 					getOthers(def, attachmentsOut);
 				};
 
+				const auto getNumScopes = [&](WeaponCompleteDef* def)
+				{
+					std::vector <WeaponAttachment*> attachments;
+					getScopes(def, attachments);
+					return attachments.size();
+				};
+				const auto getNumUnderBarrels = [&](WeaponCompleteDef* def)
+				{
+					std::vector <WeaponAttachment*> attachments;
+					getUnderBarrels(def, attachments);
+					return attachments.size();
+				};
+				const auto getNumOthers = [&](WeaponCompleteDef* def)
+				{
+					std::vector <WeaponAttachment*> attachments;
+					getOthers(def, attachments);
+					return attachments.size();
+				};
+
 				std::vector<WeaponAttachment*> attachments;
 				getAllAttachments(asset, attachments);
 				assert(attachments.size() < 0xFF);
 
 				h1_asset->numAttachments = static_cast<unsigned char>(attachments.size());
 				h1_asset->attachments = mem.allocate_array<zonetool::h1::WeaponAttachment*>(h1_asset->numAttachments);
+
 				for (auto i = 0; i < h1_asset->numAttachments; i++)
 				{
 					h1_asset->attachments[i] = mem.manual_allocate<zonetool::h1::WeaponAttachment>(sizeof(const char*));
-					h1_asset->attachments[i]->szInternalName = mem.duplicate_string(attachments[i]->szInternalName);
+					h1_asset->attachments[i]->szInternalName = mem.duplicate_string(attachments[i]->szInternalName + "iw6"s);
 				}
 
 				if (asset->szXAnims)
@@ -605,38 +625,86 @@ namespace zonetool::iw6
 					convert_anims(h1_asset->szXAnims, asset->szXAnims, mem);
 				}
 
-				const auto convertAttachmentValue = [&](int value) -> unsigned char
+				union WeaponAttachmentCombination
 				{
-					return static_cast<unsigned char>(value);
+					struct
+					{
+						unsigned short scope : 3;
+						unsigned short underBarrel : 4;
+						unsigned short other : 8;
+					} fields;
+
+					unsigned short packed;
 				};
 
-				h1_asset->numAnimOverrides = static_cast<unsigned char>(asset->numAnimOverrides);
-				h1_asset->animOverrides = mem.allocate_array<zonetool::h1::AnimOverrideEntry>(h1_asset->numAnimOverrides);
-				for (auto i = 0; i < h1_asset->numAnimOverrides; i++)
+				const auto convertAttachmentValue = [&](unsigned short attach) -> unsigned char
 				{
-					h1_asset->animOverrides[i].animHand = 0;
+					WeaponAttachmentCombination value{};
+					value.packed = attach;
 
-					h1_asset->animOverrides[i].attachment1 = convertAttachmentValue(asset->animOverrides[i].attachment1);
-					h1_asset->animOverrides[i].attachment2 = convertAttachmentValue(asset->animOverrides[i].attachment2);
+					if (value.packed == 0)
+					{
+						return 0; // unused
+					}
 
+					if (value.fields.scope)
+					{
+						return static_cast<unsigned char>(value.fields.scope);
+					}
+					else if (value.fields.underBarrel)
+					{
+						return static_cast<unsigned char>(value.fields.underBarrel + static_cast<unsigned short>(getNumScopes(asset)));
+					}
+					else if (value.fields.other)
+					{
+						return static_cast<unsigned char>(
+							value.fields.other + static_cast<unsigned short>(getNumScopes(asset)) + static_cast<unsigned short>(getNumUnderBarrels(asset)));
+					}
+
+					__debugbreak();
+					return 0;
+				};
+
+				std::vector<zonetool::h1::AnimOverrideEntry> anim_overrides;
+				for (auto i = 0u; i < asset->numAnimOverrides; i++)
+				{
 					const auto anim = get_anim(static_cast<weapAnimFiles_t>(asset->animOverrides[i].animTreeType));
-					assert(anim != zonetool::h1::WEAP_ANIM_INVALID);
-					h1_asset->animOverrides[i].animTreeType = static_cast<unsigned char>(anim);
+					if (anim == zonetool::h1::WEAP_ANIM_INVALID)
+					{
+						continue;
+					}
+
+					zonetool::h1::AnimOverrideEntry anim_override{};
+
+					anim_override.animHand = 0;
+					anim_override.attachment1 = convertAttachmentValue(asset->animOverrides[i].attachment1);
+					anim_override.attachment2 = convertAttachmentValue(asset->animOverrides[i].attachment2);
+					anim_override.animTreeType = static_cast<unsigned char>(anim);
 
 					if (asset->animOverrides[i].overrideAnim)
 					{
-						h1_asset->animOverrides[i].overrideAnim = mem.allocate_array<zonetool::h1::XAnimParts>(sizeof(const char*));
-						h1_asset->animOverrides[i].overrideAnim->name = asset->animOverrides[i].overrideAnim->name;
+						anim_override.overrideAnim = mem.allocate_array<zonetool::h1::XAnimParts>(sizeof(const char*));
+						anim_override.overrideAnim->name = asset->animOverrides[i].overrideAnim->name;
 					}
 
 					if (asset->animOverrides[i].altmodeAnim)
 					{
-						h1_asset->animOverrides[i].altmodeAnim = mem.allocate_array<zonetool::h1::XAnimParts>(sizeof(const char*));
-						h1_asset->animOverrides[i].altmodeAnim->name = asset->animOverrides[i].altmodeAnim->name;
+						anim_override.altmodeAnim = mem.allocate_array<zonetool::h1::XAnimParts>(sizeof(const char*));
+						anim_override.altmodeAnim->name = asset->animOverrides[i].altmodeAnim->name;
 					}
 
-					COPY_FIELD_CAST(animOverrides[i].animTime);
-					COPY_FIELD_CAST(animOverrides[i].altTime);
+					anim_override.animTime = asset->animOverrides[i].animTime;
+					anim_override.altTime = asset->animOverrides[i].altTime;
+
+					anim_overrides.emplace_back(anim_override);
+				}
+
+				h1_asset->numAnimOverrides = static_cast<unsigned char>(anim_overrides.size());
+				h1_asset->animOverrides = mem.allocate_array<zonetool::h1::AnimOverrideEntry>(h1_asset->numAnimOverrides);
+
+				for (auto i = 0u; i < anim_overrides.size(); i++)
+				{
+					std::memcpy(&h1_asset->animOverrides[i], &anim_overrides[i], sizeof(zonetool::h1::AnimOverrideEntry));
 				}
 
 				h1_asset->numSoundOverrides = static_cast<unsigned char>(asset->numSoundOverrides);
@@ -665,7 +733,7 @@ namespace zonetool::iw6
 				h1_asset->reloadOverrides = mem.allocate_array<zonetool::h1::ReloadStateTimerEntry>(h1_asset->numReloadStateTimerOverrides);
 				for (auto i = 0; i < h1_asset->numReloadStateTimerOverrides; i++)
 				{
-					h1_asset->reloadOverrides[i].attachment = convertAttachmentValue(asset->reloadOverrides[i].attachment);
+					h1_asset->reloadOverrides[i].attachment = convertAttachmentValue(static_cast<unsigned short>(asset->reloadOverrides[i].attachment));
 					COPY_FIELD(reloadOverrides[i].reloadAddTime);
 					h1_asset->reloadOverrides[i].reloadEmptyAddTime = 0;
 					COPY_FIELD(reloadOverrides[i].reloadStartAddTime);
@@ -675,7 +743,7 @@ namespace zonetool::iw6
 				h1_asset->notetrackOverrides = mem.allocate_array<zonetool::h1::NoteTrackToSoundEntry>(h1_asset->numNotetrackOverrides);
 				for (auto i = 0; i < h1_asset->numNotetrackOverrides; i++)
 				{
-					h1_asset->notetrackOverrides[i].attachment = convertAttachmentValue(asset->notetrackOverrides[i].attachment);
+					h1_asset->notetrackOverrides[i].attachment = convertAttachmentValue(static_cast<unsigned short>(asset->notetrackOverrides[i].attachment));
 					h1_asset->notetrackOverrides[i].notetrackSoundMapKeys = mem.allocate_array<zonetool::h1::scr_string_t>(36);
 					h1_asset->notetrackOverrides[i].notetrackSoundMapValues = mem.allocate_array<zonetool::h1::scr_string_t>(36);
 					for (auto j = 0; j < 24; j++)

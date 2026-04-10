@@ -60,6 +60,7 @@ namespace zonetool::iw6
 				const auto h1_asset = mem.allocate<zonetool::h1::WeaponAttachment>();
 
 				REINTERPRET_CAST(szInternalName);
+				h1_asset->szInternalName = mem.duplicate_string(asset->szInternalName + "iw6"s);
 				REINTERPRET_CAST(szDisplayName);
 				h1_asset->type = static_cast<zonetool::h1::AttachmentType>(asset->type > ATTACHMENT_UNDERBARREL ? asset->type + 1 : asset->type);
 				COPY_FIELD_CAST(weaponType); // same enum values
