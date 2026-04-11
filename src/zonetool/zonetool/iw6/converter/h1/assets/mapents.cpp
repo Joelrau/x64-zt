@@ -252,7 +252,7 @@ namespace zonetool::iw6
 					COPY_VALUE_CAST(spawnList.spawns[i].name);
 					COPY_VALUE_CAST(spawnList.spawns[i].target);
 					COPY_VALUE_CAST(spawnList.spawns[i].script_noteworthy);
-					new_asset->spawnList.spawns[i].unknown = static_cast<zonetool::h1::scr_string_t>(SL_AllocString("", 1));
+					new_asset->spawnList.spawns[i].targetname = static_cast<zonetool::h1::scr_string_t>(SL_AllocString("", 1));
 					COPY_ARR(spawnList.spawns[i].origin);
 					COPY_ARR(spawnList.spawns[i].angles);
 				}

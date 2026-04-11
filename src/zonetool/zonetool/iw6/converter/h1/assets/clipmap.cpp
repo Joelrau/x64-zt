@@ -58,7 +58,6 @@ namespace zonetool::iw6
 					{
 						new_flags |= ((flags & a) == a) ? b : 0;
 					};
-					//convert(zonetool::iw6::CSurfaceFlags::SURF_FLAG_OPAQUEGLASS, zonetool::h1::CSurfaceFlags::SURF_FLAG_DEFAULT);
 					convert(zonetool::iw6::CSurfaceFlags::SURF_FLAG_CLIPMISSILE, zonetool::h1::CSurfaceFlags::SURF_FLAG_CLIPMISSILE);
 					convert(zonetool::iw6::CSurfaceFlags::SURF_FLAG_AI_NOSIGHT, zonetool::h1::CSurfaceFlags::SURF_FLAG_AI_NOSIGHT);
 					convert(zonetool::iw6::CSurfaceFlags::SURF_FLAG_CLIPSHOT, zonetool::h1::CSurfaceFlags::SURF_FLAG_CLIPSHOT);
@@ -315,7 +314,7 @@ namespace zonetool::iw6
 						h1_asset->dynEntDefList[i][j].sound = nullptr;
 						h1_asset->dynEntDefList[i][j].physPreset = reinterpret_cast<zonetool::h1::PhysPreset*>(asset->dynEntDefList[i][j].physPreset);
 						h1_asset->dynEntDefList[i][j].hinge = reinterpret_cast<zonetool::h1::DynEntityHingeDef*>(asset->dynEntDefList[i][j].hinge);
-						h1_asset->dynEntDefList[i][j].linkTo = nullptr;
+						h1_asset->dynEntDefList[i][j].linkTo = reinterpret_cast<zonetool::h1::DynEntityLinkToDef*>(asset->dynEntDefList[i][j].linkTo);
 						memcpy(&h1_asset->dynEntDefList[i][j].mass, &asset->dynEntDefList[i][j].mass, sizeof(PhysMass));
 						h1_asset->dynEntDefList[i][j].contents = asset->dynEntDefList[i][j].contents;
 						if (1) // check
@@ -362,14 +361,13 @@ namespace zonetool::iw6
 					dest_instance->targetData = nullptr; // new
 					memcpy(dest_instance->origin, instance->origin, sizeof(float[3]));
 					memcpy(dest_instance->angles, instance->angles, sizeof(float[3]));
-					//dest_instance->startOrigin; // new
-					//dest_instance->startAngles;
+					memcpy(dest_instance->startOrigin, dest_instance->origin, sizeof(float[3])); // new
+					memcpy(dest_instance->startOrigin, dest_instance->angles, sizeof(float[3])); // new
 					dest_instance->targetname = static_cast<zonetool::h1::scr_string_t>(instance->targetname);
 					dest_instance->preBrushModel = instance->preBrushModel;
 					dest_instance->postBrushModel = instance->postBrushModel;
 					dest_instance->flags = instance->flags; // convert?
 					dest_instance->targetCount = 0; // new
-					//dest_instance->__pad1; // new
 					dest_instance->currentModel = reinterpret_cast<zonetool::h1::XModel*>(instance->currentModel);
 					REINTERPRET_CAST_SAFE_TO_FROM(dest_instance->partStates, instance->partStates);
 					dest_instance->eventStreamBuf = instance->eventStreamBuf;

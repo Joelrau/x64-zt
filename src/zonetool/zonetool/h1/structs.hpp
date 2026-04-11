@@ -137,7 +137,7 @@ namespace zonetool::h1
 		float bulletForceScale;
 		float explosiveForceScale;
 		float explosiveSpinScale;
-		int unk2; // 42001553
+		int contents; // 42001553
 		const char* sndAliasPrefix;
 		float piecesSpreadFraction;
 		float piecesUpwardVelocity;
@@ -2965,12 +2965,15 @@ namespace zonetool::h1
 	{
 		CLIENT_TRIGGER_NONE = 0x0,
 		CLIENT_TRIGGER_VISIONSET = 0x1,
-		CLIENT_TRIGGER_REVERB = 0x2,
+		CLIENT_TRIGGER_LIGHTSET = 0x2,
 		CLIENT_TRIGGER_AUDIO = 0x4,
 		CLIENT_TRIGGER_BLEND_VISION = 0x8,
 		CLIENT_TRIGGER_BLEND_AUDIO = 0x10,
-		CLIENT_TRIGGER_BLEND_ALL = 0x12,
+		CLIENT_TRIGGER_BLEND_ALL = CLIENT_TRIGGER_BLEND_VISION | CLIENT_TRIGGER_BLEND_AUDIO,
 		CLIENT_TRIGGER_NPC = 0x20,
+		CLIENT_TRIGGER_CLUT = 0x40,
+		CLIENT_TRIGGER_CONTEXT = 0x80,
+		CLIENT_TRIGGER_WATER = 0x100,
 	};
 
 	struct ClientTriggers
@@ -2988,10 +2991,10 @@ namespace zonetool::h1
 		float* scriptDelay;
 		short* audioTriggers;
 		short* blendLookup;
-		short* unkTriggers;
-		short* npcTriggers; // could be wrong
+		short* npcTriggers;
 		short* contextTriggers;
 		short* waterTriggers;
+		short* unkTriggers;
 	}; assert_sizeof(ClientTriggers, 0xB0);
 
 	struct ClientTriggerBlendNode
@@ -3014,7 +3017,7 @@ namespace zonetool::h1
 		scr_string_t name;
 		scr_string_t target;
 		scr_string_t script_noteworthy;
-		scr_string_t unknown;
+		scr_string_t targetname;
 		float origin[3];
 		float angles[3];
 	};

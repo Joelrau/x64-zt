@@ -22,7 +22,7 @@ namespace zonetool::iw6
 				COPY_VALUE(bulletForceScale);
 				COPY_VALUE(explosiveForceScale);
 				new_asset->explosiveSpinScale = 0.0f;
-				new_asset->unk2 = 42001553;
+				new_asset->contents = 42001553;
 				COPY_VALUE(sndAliasPrefix);
 				COPY_VALUE(piecesSpreadFraction);
 				COPY_VALUE(piecesUpwardVelocity);
