@@ -188,12 +188,12 @@ namespace zonetool::iw6
 
 				if (asset->ammogeneral)
 				{
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = asset->ammogeneral->penetrateType}, offsetof(zonetool::h1::WeaponDef, penetrateType));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = static_cast<float>(asset->ammogeneral->penetrateType)}, offsetof(zonetool::h1::WeaponDef, penetrateType));
 					addField(zonetool::h1::FIELD_OP_NUMBER_MULTIPLY, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->ammogeneral->penetrateMultiplier}, offsetof(zonetool::h1::WeaponDef, penetrateDepth));
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT,
-						{.p_int = asset->ammogeneral->impactType > 6 ? asset->ammogeneral->impactType + 1 : asset->ammogeneral->impactType}, offsetof(zonetool::h1::WeaponDef, impactType));
+						{.p_float = static_cast<float>(asset->ammogeneral->impactType > 6 ? asset->ammogeneral->impactType + 1 : asset->ammogeneral->impactType)}, offsetof(zonetool::h1::WeaponDef, impactType));
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT,
-						{.p_int = asset->ammogeneral->fireType > 4 ? asset->ammogeneral->fireType + 1 : asset->ammogeneral->fireType}, offsetof(zonetool::h1::WeaponDef, fireType));
+						{.p_float = static_cast<float>(asset->ammogeneral->fireType > 4 ? asset->ammogeneral->fireType + 1 : asset->ammogeneral->fireType)}, offsetof(zonetool::h1::WeaponDef, fireType));
 					if (asset->ammogeneral->tracerType)
 					{
 						addField(zonetool::h1::FIELD_OP_STRING_SET, zonetool::h1::WAFIELD_TYPE_TRACER, {.string = asset->ammogeneral->tracerType->name}, offsetof(zonetool::h1::WeaponDef, tracerType));
@@ -239,8 +239,8 @@ namespace zonetool::iw6
 					{
 						addField(zonetool::h1::FIELD_OP_STRING_SET, zonetool::h1::WAFIELD_TYPE_MATERIAL, {.string = asset->general->reticleSide->name}, offsetof(zonetool::h1::WeaponDef, reticleSide));
 					}
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = asset->general->reticleCenterSize}, offsetof(zonetool::h1::WeaponDef, reticleCenterSize));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = asset->general->reticleSideSize}, offsetof(zonetool::h1::WeaponDef, reticleSideSize));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = static_cast<float>(asset->general->reticleCenterSize)}, offsetof(zonetool::h1::WeaponDef, reticleCenterSize));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = static_cast<float>(asset->general->reticleSideSize)}, offsetof(zonetool::h1::WeaponDef, reticleSideSize));
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->general->moveSpeedScale}, offsetof(zonetool::h1::WeaponDef, moveSpeedScale));
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->general->adsMoveSpeedScale}, offsetof(zonetool::h1::WeaponDef, adsMoveSpeedScale));
 				}
@@ -254,23 +254,23 @@ namespace zonetool::iw6
 
 				if (asset->ammunition)
 				{
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = (int)std::round(asset->ammunition->maxAmmo * ammunitionScale)}, offsetof(zonetool::h1::WeaponDef, maxAmmo));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = (int)std::round(asset->ammunition->startAmmo * ammunitionScale)}, offsetof(zonetool::h1::WeaponDef, startAmmo));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = (int)std::round(asset->ammunition->clipSize * ammunitionScale)}, offsetof(zonetool::h1::WeaponDef, clipSize));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = asset->ammunition->shotCount}, offsetof(zonetool::h1::WeaponDef, shotCount));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = (int)std::round(asset->ammunition->reloadAmmoAdd * ammunitionScale)}, offsetof(zonetool::h1::WeaponDef, reloadAmmoAdd));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = asset->ammunition->reloadStartAdd}, offsetof(zonetool::h1::WeaponDef, reloadStartAdd));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = std::round(asset->ammunition->maxAmmo * ammunitionScale)}, offsetof(zonetool::h1::WeaponDef, maxAmmo));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = std::round(asset->ammunition->startAmmo * ammunitionScale)}, offsetof(zonetool::h1::WeaponDef, startAmmo));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = std::round(asset->ammunition->clipSize * ammunitionScale)}, offsetof(zonetool::h1::WeaponDef, clipSize));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = static_cast<float>(asset->ammunition->shotCount)}, offsetof(zonetool::h1::WeaponDef, shotCount));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = std::round(asset->ammunition->reloadAmmoAdd * ammunitionScale)}, offsetof(zonetool::h1::WeaponDef, reloadAmmoAdd));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = static_cast<float>(asset->ammunition->reloadStartAdd)}, offsetof(zonetool::h1::WeaponDef, reloadStartAdd));
 				}
 
 				if (asset->damage)
 				{
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = asset->damage->damage}, offsetof(zonetool::h1::WeaponDef, damage));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = asset->damage->minDamage}, offsetof(zonetool::h1::WeaponDef, minDamage));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = asset->damage->meleeDamage}, offsetof(zonetool::h1::WeaponDef, meleeDamage));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = static_cast<float>(asset->damage->damage)}, offsetof(zonetool::h1::WeaponDef, damage));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = static_cast<float>(asset->damage->minDamage)}, offsetof(zonetool::h1::WeaponDef, minDamage));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = static_cast<float>(asset->damage->meleeDamage)}, offsetof(zonetool::h1::WeaponDef, meleeDamage));
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->damage->maxDamageRange * damageScale}, offsetof(zonetool::h1::WeaponDef, maxDamageRange));
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->damage->minDamageRange * damageScaleMin}, offsetof(zonetool::h1::WeaponDef, minDamageRange));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = asset->damage->playerDamage}, offsetof(zonetool::h1::WeaponDef, playerDamage));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = asset->damage->minPlayerDamage}, offsetof(zonetool::h1::WeaponDef, minPlayerDamage));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = static_cast<float>(asset->damage->playerDamage)}, offsetof(zonetool::h1::WeaponDef, playerDamage));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = static_cast<float>(asset->damage->minPlayerDamage)}, offsetof(zonetool::h1::WeaponDef, minPlayerDamage));
 				}
 
 				if (asset->locationDamage)
@@ -314,7 +314,7 @@ namespace zonetool::iw6
 						addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->adsSettings->adsAimPitch * adsSettingsScaleMain}, offsetof(zonetool::h1::WeaponDef, adsAimPitch));
 						addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT32, {.p_float = asset->adsSettings->adsTransInTime * adsSettingsScaleMain}, offsetof(zonetool::h1::WeaponDef, adsTransInTime));
 						addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT32, {.p_float = asset->adsSettings->adsTransOutTime * adsSettingsScaleMain}, offsetof(zonetool::h1::WeaponDef, adsTransOutTime));
-						addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = (int)std::round(asset->adsSettings->adsReloadTransTime * adsSettingsScaleMain)}, offsetof(zonetool::h1::WeaponDef, positionReloadTransTime));
+						addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = std::round(asset->adsSettings->adsReloadTransTime * adsSettingsScaleMain)}, offsetof(zonetool::h1::WeaponDef, positionReloadTransTime));
 						addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->adsSettings->adsCrosshairInFrac}, offsetof(zonetool::h1::WeaponDef, adsCrosshairInFrac));
 						addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->adsSettings->adsCrosshairOutFrac}, offsetof(zonetool::h1::WeaponDef, adsCrosshairOutFrac));
 						addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->adsSettings->adsZoomFov * adsSettingsScaleMain}, offsetof(zonetool::h1::WeaponDef, adsZoomFov));
@@ -334,7 +334,7 @@ namespace zonetool::iw6
 						addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->adsSettingsMain->adsAimPitch * adsSettingsScaleMain}, offsetof(zonetool::h1::WeaponDef, adsAimPitch));
 						addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->adsSettingsMain->adsTransInTime * adsSettingsScaleMain}, offsetof(zonetool::h1::WeaponDef, adsTransInTime));
 						addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->adsSettingsMain->adsTransOutTime * adsSettingsScaleMain}, offsetof(zonetool::h1::WeaponDef, adsTransOutTime));
-						addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = (int)std::round(asset->adsSettingsMain->adsReloadTransTime * adsSettingsScaleMain)}, offsetof(zonetool::h1::WeaponDef, positionReloadTransTime));
+						addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = static_cast<float>((int)std::round(asset->adsSettingsMain->adsReloadTransTime * adsSettingsScaleMain))}, offsetof(zonetool::h1::WeaponDef, positionReloadTransTime));
 						addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->adsSettingsMain->adsCrosshairInFrac}, offsetof(zonetool::h1::WeaponDef, adsCrosshairInFrac));
 						addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->adsSettingsMain->adsCrosshairOutFrac}, offsetof(zonetool::h1::WeaponDef, adsCrosshairOutFrac));
 						addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->adsSettingsMain->adsZoomFov * adsSettingsScaleMain}, offsetof(zonetool::h1::WeaponDef, adsZoomFov));
@@ -365,7 +365,7 @@ namespace zonetool::iw6
 
 				if (asset->gunKick)
 				{
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = (int)std::round(asset->gunKick->hipGunKickReducedKickBullets * gunKickScale)}, offsetof(zonetool::h1::WeaponDef, hipGunKickReducedKickBullets));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = std::round(asset->gunKick->hipGunKickReducedKickBullets * gunKickScale)}, offsetof(zonetool::h1::WeaponDef, hipGunKickReducedKickBullets));
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->gunKick->hipGunKickReducedKickPercent * gunKickScale}, offsetof(zonetool::h1::WeaponDef, hipGunKickReducedKickPercent));
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->gunKick->hipGunKickPitchMin * gunKickScale}, offsetof(zonetool::h1::WeaponDef, hipGunKickPitchMin));
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->gunKick->hipGunKickPitchMax * gunKickScale}, offsetof(zonetool::h1::WeaponDef, hipGunKickPitchMax));
@@ -375,7 +375,7 @@ namespace zonetool::iw6
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->gunKick->hipGunKickSpeedMax * gunKickScale}, offsetof(zonetool::h1::WeaponDef, hipGunKickSpeedMax));
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->gunKick->hipGunKickSpeedDecay * gunKickScale}, offsetof(zonetool::h1::WeaponDef, hipGunKickSpeedDecay));
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->gunKick->hipGunKickStaticDecay * gunKickScale}, offsetof(zonetool::h1::WeaponDef, hipGunKickStaticDecay));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = (int)std::round(asset->gunKick->adsGunKickReducedKickBullets * gunKickScale)}, offsetof(zonetool::h1::WeaponDef, adsGunKickReducedKickBullets));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = std::round(asset->gunKick->adsGunKickReducedKickBullets * gunKickScale)}, offsetof(zonetool::h1::WeaponDef, adsGunKickReducedKickBullets));
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->gunKick->adsGunKickReducedKickPercent * gunKickScale}, offsetof(zonetool::h1::WeaponDef, adsGunKickReducedKickPercent));
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->gunKick->adsGunKickPitchMin * gunKickScale}, offsetof(zonetool::h1::WeaponDef, adsGunKickPitchMin));
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->gunKick->adsGunKickPitchMax * gunKickScale}, offsetof(zonetool::h1::WeaponDef, adsGunKickPitchMax));
@@ -419,7 +419,7 @@ namespace zonetool::iw6
 					{
 						addField(zonetool::h1::FIELD_OP_STRING_SET, zonetool::h1::WAFIELD_TYPE_MATERIAL, {.string = asset->adsOverlay->overlay.shaderEMPLowRes->name}, offsetof(zonetool::h1::WeaponDef, overlay.shaderEMPLowRes));
 					}
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = asset->adsOverlay->overlay.reticle}, offsetof(zonetool::h1::WeaponDef, overlay.reticle));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = static_cast<float>(asset->adsOverlay->overlay.reticle)}, offsetof(zonetool::h1::WeaponDef, overlay.reticle));
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->adsOverlay->overlay.width}, offsetof(zonetool::h1::WeaponDef, overlay.width));
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->adsOverlay->overlay.height}, offsetof(zonetool::h1::WeaponDef, overlay.height));
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->adsOverlay->overlay.widthSplitscreen}, offsetof(zonetool::h1::WeaponDef, overlay.widthSplitscreen));
@@ -437,9 +437,9 @@ namespace zonetool::iw6
 					{
 						addField(zonetool::h1::FIELD_OP_STRING_SET, zonetool::h1::WAFIELD_TYPE_MATERIAL, {.string = asset->ui->ammoCounterIcon->name}, offsetof(zonetool::h1::WeaponDef, ammoCounterIcon));
 					}
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = asset->ui->dpadIconRatio}, offsetof(zonetool::h1::WeaponDef, dpadIconRatio));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = asset->ui->ammoCounterIconRatio}, offsetof(zonetool::h1::WeaponDef, ammoCounterIconRatio));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = asset->ui->ammoCounterClip}, offsetof(zonetool::h1::WeaponDef, ammoCounterClip));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = static_cast<float>(asset->ui->dpadIconRatio)}, offsetof(zonetool::h1::WeaponDef, dpadIconRatio));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = static_cast<float>(asset->ui->ammoCounterIconRatio)}, offsetof(zonetool::h1::WeaponDef, ammoCounterIconRatio));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = static_cast<float>(asset->ui->ammoCounterClip)}, offsetof(zonetool::h1::WeaponDef, ammoCounterClip));
 				}
 
 				if (asset->rumbles)
@@ -456,19 +456,19 @@ namespace zonetool::iw6
 
 				if (asset->projectile)
 				{
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = asset->projectile->explosionRadius}, offsetof(zonetool::h1::WeaponDef, explosionRadius));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = asset->projectile->explosionInnerDamage}, offsetof(zonetool::h1::WeaponDef, explosionInnerDamage));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = asset->projectile->explosionOuterDamage}, offsetof(zonetool::h1::WeaponDef, explosionOuterDamage));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = static_cast<float>(asset->projectile->explosionRadius)}, offsetof(zonetool::h1::WeaponDef, explosionRadius));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = static_cast<float>(asset->projectile->explosionInnerDamage)}, offsetof(zonetool::h1::WeaponDef, explosionInnerDamage));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = static_cast<float>(asset->projectile->explosionOuterDamage)}, offsetof(zonetool::h1::WeaponDef, explosionOuterDamage));
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->projectile->damageConeAngle}, offsetof(zonetool::h1::WeaponDef, damageConeAngle));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = asset->projectile->projectileSpeed}, offsetof(zonetool::h1::WeaponDef, projectileSpeed));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = asset->projectile->projectileSpeedUp}, offsetof(zonetool::h1::WeaponDef, projectileSpeedUp));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = asset->projectile->projectileActivateDist}, offsetof(zonetool::h1::WeaponDef, projectileActivateDist));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = static_cast<float>(asset->projectile->projectileSpeed)}, offsetof(zonetool::h1::WeaponDef, projectileSpeed));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = static_cast<float>(asset->projectile->projectileSpeedUp)}, offsetof(zonetool::h1::WeaponDef, projectileSpeedUp));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = static_cast<float>(asset->projectile->projectileActivateDist)}, offsetof(zonetool::h1::WeaponDef, projectileActivateDist));
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->projectile->projectileLifetime}, offsetof(zonetool::h1::WeaponDef, projLifetime));
 					if (asset->projectile->projectileModel)
 					{
 						addField(zonetool::h1::FIELD_OP_STRING_SET, zonetool::h1::WAFIELD_TYPE_MODEL, {.string = asset->projectile->projectileModel->name}, offsetof(zonetool::h1::WeaponDef, projectileModel));
 					}
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = asset->projectile->projExplosionType}, offsetof(zonetool::h1::WeaponDef, projExplosion));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = static_cast<float>(asset->projectile->projExplosionType)}, offsetof(zonetool::h1::WeaponDef, projExplosion));
 					if (asset->projectile->projExplosionEffect)
 					{
 						addField(zonetool::h1::FIELD_OP_STRING_SET, zonetool::h1::WAFIELD_TYPE_FX, {.string = asset->projectile->projExplosionEffect->name}, offsetof(zonetool::h1::WeaponDef, projExplosionEffect));
@@ -489,12 +489,12 @@ namespace zonetool::iw6
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, {.p_bool = asset->projectile->projImpactExplode}, offsetof(zonetool::h1::WeaponDef, projImpactExplode));
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->projectile->destabilizationRateTime}, offsetof(zonetool::h1::WeaponDef, destabilizationRateTime));
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->projectile->destabilizationCurvatureMax}, offsetof(zonetool::h1::WeaponDef, destabilizationCurvatureMax));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = asset->projectile->destabilizeDistance}, offsetof(zonetool::h1::WeaponDef, destabilizeDistance));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = static_cast<float>(asset->projectile->destabilizeDistance)}, offsetof(zonetool::h1::WeaponDef, destabilizeDistance));
 					if (asset->projectile->projTrailEffect)
 					{
 						addField(zonetool::h1::FIELD_OP_STRING_SET, zonetool::h1::WAFIELD_TYPE_FX, {.string = asset->projectile->projTrailEffect->name}, offsetof(zonetool::h1::WeaponDef, projTrailEffect));
 					}
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_int = asset->projectile->projIgnitionDelay}, offsetof(zonetool::h1::WeaponDef, projIgnitionDelay));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = static_cast<float>(asset->projectile->projIgnitionDelay)}, offsetof(zonetool::h1::WeaponDef, projIgnitionDelay));
 					if (asset->projectile->projIgnitionEffect)
 					{
 						addField(zonetool::h1::FIELD_OP_STRING_SET, zonetool::h1::WAFIELD_TYPE_FX, {.string = asset->projectile->projIgnitionEffect->name}, offsetof(zonetool::h1::WeaponDef, projIgnitionEffect));
