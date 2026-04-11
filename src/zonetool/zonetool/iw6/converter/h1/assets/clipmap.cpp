@@ -362,7 +362,7 @@ namespace zonetool::iw6
 					memcpy(dest_instance->origin, instance->origin, sizeof(float[3]));
 					memcpy(dest_instance->angles, instance->angles, sizeof(float[3]));
 					memcpy(dest_instance->startOrigin, dest_instance->origin, sizeof(float[3])); // new
-					memcpy(dest_instance->startOrigin, dest_instance->angles, sizeof(float[3])); // new
+					memcpy(dest_instance->startAngles, dest_instance->angles, sizeof(float[3])); // new
 					dest_instance->targetname = static_cast<zonetool::h1::scr_string_t>(instance->targetname);
 					dest_instance->preBrushModel = instance->preBrushModel;
 					dest_instance->postBrushModel = instance->postBrushModel;
