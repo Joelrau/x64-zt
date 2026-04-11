@@ -2324,6 +2324,15 @@ namespace zonetool::h2
 		FX_EFFECT_NEEDS_EMISSIVE_DRAW = 0x10,
 		FX_EFFECT_LINK_TO_SUN = 0x40,
 		FX_EFFECT_HAS_CAMERA_RELATIVE_ELEM = 0x80,
+		FX_EFFECT_UNK_8 = 0x100,
+		FX_EFFECT_UNK_9 = 0x200,
+		FX_EFFECT_NEEDS_BOLT_UPDATE = 0x400,
+		FX_EFFECT_HAS_SPOTLIGHT_ELEM = 0x800,
+		FX_EFFECT_DISABLE_SORT = 0x1000,
+		FX_EFFECT_UNK_13 = 0x20000,
+		FX_EFFECT_UNK_14 = 0x40000,
+		FX_EFFECT_UNK_15 = 0x80000,
+		FX_EFFECT_UNK_16 = 0x100000,
 	};
 
 	enum FxElemType : std::uint8_t
@@ -2730,7 +2739,7 @@ namespace zonetool::h2
 		int totalSize;
 		int msecLoopingLife;
 		int elemDefCountLooping;
-		int elemDefCountEmission;
+		int elemDefCountUnk;
 		int elemDefCountOneShot;
 		float elemMaxRadius;
 		float occlusionQueryDepthBias;
@@ -2743,8 +2752,8 @@ namespace zonetool::h2
 
 	static_assert(offsetof(FxEffectDef, elemDefs) == 0x40);
 	static_assert(offsetof(FxEffectDef, elemDefCountLooping) == 0x14);
-	//static_assert(offsetof(FxEffectDef, elemDefCountOneShot) == 0x18);
-	//static_assert(offsetof(FxEffectDef, elemDefCountEmission) == 0x1C);
+	static_assert(offsetof(FxEffectDef, elemDefCountUnk) == 0x18);
+	static_assert(offsetof(FxEffectDef, elemDefCountOneShot) == 0x1C);
 
 	struct XModelIKData
 	{

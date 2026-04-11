@@ -54,7 +54,7 @@ namespace zonetool::h2
 		asset->name = read.read_string();
 		asset->elemDefs = read.read_array<FxElemDef>();
 
-		for (int i = 0; i < asset->elemDefCountLooping + asset->elemDefCountOneShot + asset->elemDefCountEmission; i++)
+		for (int i = 0; i < asset->elemDefCountLooping + asset->elemDefCountUnk + asset->elemDefCountOneShot; i++)
 		{
 			auto def = &asset->elemDefs[i];
 
@@ -272,7 +272,7 @@ namespace zonetool::h2
 		};
 
 		// Loop through frames
-		for (int i = 0; i < data->elemDefCountLooping + data->elemDefCountOneShot + data->elemDefCountEmission; i++)
+		for (int i = 0; i < data->elemDefCountLooping + data->elemDefCountUnk + data->elemDefCountOneShot; i++)
 		{
 			auto& def = data->elemDefs[i];
 
@@ -550,9 +550,9 @@ namespace zonetool::h2
 		{
 			buf->align(3);
 			auto destdef = buf->write(data->elemDefs,
-				data->elemDefCountLooping + data->elemDefCountOneShot + data->elemDefCountEmission);
+				data->elemDefCountLooping + data->elemDefCountUnk + data->elemDefCountOneShot);
 
-			for (int i = 0; i < (data->elemDefCountLooping + data->elemDefCountOneShot + data->elemDefCountEmission); i++)
+			for (int i = 0; i < (data->elemDefCountLooping + data->elemDefCountUnk + data->elemDefCountOneShot); i++)
 			{
 				write_fx_elem_def(zone, buf, &destdef[i]);
 			}
@@ -611,10 +611,10 @@ namespace zonetool::h2
 		dump.dump_single(asset);
 		dump.dump_string(asset->name);
 		dump.dump_array(asset->elemDefs,
-			asset->elemDefCountLooping + asset->elemDefCountOneShot + asset->elemDefCountEmission);
+			asset->elemDefCountLooping + asset->elemDefCountUnk + asset->elemDefCountOneShot);
 
 		// dump elemDefs
-		for (auto i = 0; i < asset->elemDefCountLooping + asset->elemDefCountOneShot + asset->elemDefCountEmission; i++)
+		for (auto i = 0; i < asset->elemDefCountLooping + asset->elemDefCountUnk + asset->elemDefCountOneShot; i++)
 		{
 			auto def = &asset->elemDefs[i];
 

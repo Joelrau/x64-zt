@@ -37,7 +37,9 @@ namespace zonetool::h2
 				COPY_VALUE(msecLoopingLife);
 				COPY_VALUE(elemDefCountLooping);
 				COPY_VALUE(elemDefCountOneShot);
-				COPY_VALUE(elemDefCountEmission);
+				new_asset->elemDefCountLooping = asset->elemDefCountLooping + asset->elemDefCountUnk;
+				new_asset->elemDefCountOneShot = asset->elemDefCountOneShot;
+				new_asset->elemDefCountEmission = 0;
 				COPY_VALUE(elemMaxRadius);
 				COPY_VALUE(occlusionQueryDepthBias);
 				COPY_VALUE(occlusionQueryFadeIn);
@@ -174,22 +176,6 @@ namespace zonetool::h2
 						}
 					}
 				}
-
-				const auto reordered_elems = allocator.allocate_array<zonetool::h1::FxElemDef>(elem_count);
-
-				const auto reordered_elems_looping = &reordered_elems[0];
-				const auto reordered_elems_emission = &reordered_elems[new_asset->elemDefCountLooping];
-				const auto reordered_elems_oneshot = &reordered_elems[new_asset->elemDefCountLooping + new_asset->elemDefCountEmission];
-
-				const auto elems_looping = &new_asset->elemDefs[0];
-				const auto elems_oneshot = &new_asset->elemDefs[asset->elemDefCountLooping];
-				const auto elems_emission = &new_asset->elemDefs[asset->elemDefCountLooping + new_asset->elemDefCountOneShot];
-
-				std::memcpy(reordered_elems_looping, elems_looping, asset->elemDefCountLooping * sizeof(zonetool::h1::FxElemDef));
-				std::memcpy(reordered_elems_oneshot, elems_oneshot, asset->elemDefCountOneShot * sizeof(zonetool::h1::FxElemDef));
-				std::memcpy(reordered_elems_emission, elems_emission, asset->elemDefCountEmission * sizeof(zonetool::h1::FxElemDef));
-
-				new_asset->elemDefs = reordered_elems;
 
 				return new_asset;
 			}

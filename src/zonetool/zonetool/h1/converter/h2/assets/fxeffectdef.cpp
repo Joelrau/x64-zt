@@ -57,9 +57,6 @@ namespace zonetool::h1
 				COPY_VALUE(flags);
 				COPY_VALUE(totalSize);
 				COPY_VALUE(msecLoopingLife);
-				COPY_VALUE(elemDefCountLooping);
-				COPY_VALUE(elemDefCountOneShot);
-				COPY_VALUE(elemDefCountEmission);
 				COPY_VALUE(elemMaxRadius);
 				COPY_VALUE(occlusionQueryDepthBias);
 				COPY_VALUE(occlusionQueryFadeIn);
@@ -67,10 +64,27 @@ namespace zonetool::h1
 				COPY_VALUE(occlusionQueryScaleRange.base);
 				COPY_VALUE(occlusionQueryScaleRange.amplitude);
 
-				const auto elem_count = new_asset->elemDefCountLooping + new_asset->elemDefCountOneShot + new_asset->elemDefCountEmission;
+				new_asset->elemDefCountLooping = asset->elemDefCountLooping;
+				new_asset->elemDefCountUnk = 0;
+				new_asset->elemDefCountOneShot = asset->elemDefCountOneShot + asset->elemDefCountEmission;
+
+				const auto elem_count = new_asset->elemDefCountLooping + new_asset->elemDefCountUnk + new_asset->elemDefCountOneShot;
 				new_asset->elemDefs = allocator.allocate_array<zonetool::h2::FxElemDef>(elem_count);
 
-				//asset->flags |= 0x400;
+				for (auto i = 0; i < asset->elemDefCountLooping + asset->elemDefCountOneShot; i++)
+				{
+					if (asset->elemDefs[i].elemType == FX_ELEM_TYPE_TRAIL || 
+						(asset->elemDefs[i].flags & FX_ELEM_RUN_MASK) == FX_ELEM_RUN_RELATIVE_TO_EFFECT)
+					{
+						new_asset->flags |= zonetool::h2::FX_EFFECT_NEEDS_BOLT_UPDATE;
+					}
+
+					if (asset->elemDefs[i].elemType == FX_ELEM_TYPE_SPOT_LIGHT)
+					{
+						new_asset->flags |= zonetool::h2::FX_EFFECT_HAS_SPOTLIGHT_ELEM;
+					}
+				}
+
 				new_asset->xU_01 = 1.f;
 
 				for (auto i = 0; i < elem_count; i++)
@@ -226,22 +240,6 @@ namespace zonetool::h1
 					COPY_VALUE_FX(hdrLightingFrac);
 					COPY_VALUE_FX(shadowDensityScale);
 				}
-
-				const auto reordered_elems = allocator.allocate_array<zonetool::h2::FxElemDef>(elem_count);
-
-				const auto reordered_elems_looping = &reordered_elems[0];
-				const auto reordered_elems_emission = &reordered_elems[new_asset->elemDefCountLooping];
-				const auto reordered_elems_oneshot = &reordered_elems[new_asset->elemDefCountLooping + new_asset->elemDefCountEmission];
-
-				const auto elems_looping = &new_asset->elemDefs[0];
-				const auto elems_oneshot = &new_asset->elemDefs[asset->elemDefCountLooping];
-				const auto elems_emission = &new_asset->elemDefs[asset->elemDefCountLooping + new_asset->elemDefCountOneShot];
-
-				std::memcpy(reordered_elems_looping, elems_looping, asset->elemDefCountLooping * sizeof(zonetool::h2::FxElemDef));
-				std::memcpy(reordered_elems_oneshot, elems_oneshot, asset->elemDefCountOneShot * sizeof(zonetool::h2::FxElemDef));
-				std::memcpy(reordered_elems_emission, elems_emission, asset->elemDefCountEmission * sizeof(zonetool::h2::FxElemDef));
-
-				new_asset->elemDefs = reordered_elems;
 
 				if ((warnings & 1) != 0)
 				{

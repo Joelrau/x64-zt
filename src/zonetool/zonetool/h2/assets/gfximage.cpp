@@ -483,7 +483,7 @@ namespace zonetool::h2
 				return;
 			}
 
-			write.dump_asset(image);
+			write.dump_single(image);
 			write.dump_string(image->name);
 			write.close();
 		}
