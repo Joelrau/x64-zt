@@ -282,11 +282,13 @@ filter "configurations:Debug"
 filter {}
 
 include "src/zonetool.lua"
+include "src/zonetool-iw8.lua"
 include "src/common.lua"
 include "src/tlsdll.lua"
 
 common:project()
 zonetool:project()
+zonetool_iw8:project()
 tlsdll:project()
 
 group "Dependencies"
