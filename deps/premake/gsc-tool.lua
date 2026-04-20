@@ -3,7 +3,7 @@ gsc_tool = {
 }
 
 function gsc_tool.import()
-    links {"xsk-gsc-iw7", "xsk-gsc-iw6", "xsk-gsc-s1", "xsk-gsc-h1", "xsk-gsc-h2", "xsk-gsc-utils"}
+    links {"xsk-gsc-iw8", "xsk-gsc-iw7", "xsk-gsc-iw6", "xsk-gsc-s1", "xsk-gsc-h1", "xsk-gsc-h2", "xsk-gsc-utils"}
     gsc_tool.includes()
 end
 
@@ -29,6 +29,36 @@ function gsc_tool.project()
 		}
 
 		zlib.includes()
+
+	project "xsk-gsc-iw8"
+		kind "StaticLib"
+		language "C++"
+        warnings "Off"
+
+		filter "action:vs*"
+			buildoptions "/Zc:__cplusplus"
+		filter {}
+
+		files {
+			path.join(gsc_tool.source, "include/xsk/stdinc.hpp"),
+
+			path.join(gsc_tool.source, "include/xsk/gsc/engine/iw8.hpp"),
+			path.join(gsc_tool.source, "src/gsc/engine/iw8.cpp"),
+
+			path.join(gsc_tool.source, "src/gsc/engine/iw8_code.cpp"),
+			path.join(gsc_tool.source, "src/gsc/engine/iw8_func.cpp"),
+			path.join(gsc_tool.source, "src/gsc/engine/iw8_meth.cpp"),
+			path.join(gsc_tool.source, "src/gsc/engine/iw8_token.cpp"),
+
+			path.join(gsc_tool.source, "src/gsc/*.cpp"),
+
+			path.join(gsc_tool.source, "src/gsc/common/*.cpp"),
+			path.join(gsc_tool.source, "include/xsk/gsc/common/*.hpp"),
+		}
+
+		includedirs {
+			path.join(gsc_tool.source, "include"),
+		}
 
 	project "xsk-gsc-iw7"
 		kind "StaticLib"

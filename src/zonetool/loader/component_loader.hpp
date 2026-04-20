@@ -98,6 +98,12 @@ namespace \
 	static component_loader::installer<name> __component = component_loader::installer<name>(game::game_mode::iw7, #name); \
 }
 
+#define REGISTER_COMPONENT_IW8(name) \
+namespace \
+{ \
+	static component_loader::installer<name> __component = component_loader::installer<name>(game::game_mode::iw8, #name); \
+}
+
 #define REGISTER_COMPONENT_T7(name) \
 namespace \
 { \
