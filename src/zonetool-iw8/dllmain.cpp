@@ -1,6 +1,11 @@
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-#include <string>
+#include <std_include.hpp>
+
+#include "game/mode.hpp"
+#include "game/iw8/game.hpp"
+#include "loader/component_loader.hpp"
+
+#include <utils/hook.hpp>
+#include <utils/nt.hpp>
 
 namespace
 {
@@ -15,6 +20,58 @@ namespace
 		if (!lib) return nullptr;
 
 		return reinterpret_cast<T>(GetProcAddress(lib, export_name));
+	}
+
+	BOOL WINAPI system_parameters_info_a(const UINT uiAction, const UINT uiParam, const PVOID pvParam, const UINT fWinIni)
+	{
+		static bool has_ran_unpack = false;
+		if (!has_ran_unpack)
+		{
+			try
+			{
+				component_loader::post_unpack();
+			}
+			catch (const std::exception& e)
+			{
+				MessageBoxA(nullptr, e.what(), "ERROR", MB_ICONERROR);
+				std::exit(1);
+			}
+
+			has_ran_unpack = true;
+		}
+
+		return SystemParametersInfoA(uiAction, uiParam, pvParam, fWinIni);
+	}
+
+	DWORD WINAPI init_thread(LPVOID)
+	{
+		::iw8::game::load_base_address();
+
+		game::set_mode(game::iw8);
+
+		component_loader::sort();
+
+		if (!component_loader::post_start())
+		{
+			return 0;
+		}
+
+		auto* system_parameters_info = utils::nt::library{}.get_iat_entry("user32.dll", "SystemParametersInfoA");
+		if (!system_parameters_info)
+		{
+			MessageBoxA(nullptr, "could not find import SystemParametersInfoA", "ERROR", MB_ICONERROR);
+		}
+		else
+		{
+			utils::hook::set(system_parameters_info, system_parameters_info_a);
+		}
+
+		if (!component_loader::post_load())
+		{
+			return 0;
+		}
+
+		return 0;
 	}
 }
 
@@ -48,7 +105,7 @@ BOOL WINAPI DllMain(HMODULE, DWORD reason, LPVOID)
 {
 	if (reason == DLL_PROCESS_ATTACH)
 	{
-		// TODO: re-enable zonetool init once we know the proxy DLL loads.
+		CreateThread(nullptr, 0, init_thread, nullptr, 0, nullptr);
 	}
 	return TRUE;
 }

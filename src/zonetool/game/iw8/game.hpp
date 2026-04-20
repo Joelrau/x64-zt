@@ -6,6 +6,9 @@ namespace iw8
 {
 	namespace game
 	{
+		extern uint64_t base_address;
+		void load_base_address();
+
 		template <typename T>
 		class symbol
 		{
@@ -17,7 +20,7 @@ namespace iw8
 
 			T* get() const
 			{
-				return reinterpret_cast<T*>(reinterpret_cast<uint64_t>(address_));
+				return reinterpret_cast<T*>((uint64_t)address_ + base_address);
 			}
 
 			operator T* () const
@@ -44,5 +47,9 @@ namespace iw8
 		const char* Com_GameMode_GetGameModeStr(GameModeType gameMode);
 	}
 }
+
+size_t operator""_b(const size_t ptr);
+size_t reverse_b(const size_t ptr);
+size_t reverse_b(const void* ptr);
 
 #include "symbols.hpp"

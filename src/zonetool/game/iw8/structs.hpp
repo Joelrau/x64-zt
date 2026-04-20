@@ -154,20 +154,31 @@ namespace iw8
 			$251C2428A496074035CACA7AAF3D55BD vector;
 		};
 
+		struct BbConstUsageFlags
+		{
+			bool initialized;
+			DvarValue codeValue;
+		};
+
 		struct dvar_t
 		{
-			unsigned int checksum;
-			unsigned int flags;
-			char level;
-			DvarType type;
-			bool modified;
-			DvarValue current;
-			DvarValue latched;
-			DvarValue reset;
-			DvarLimits domain;
-			bool(__fastcall* domainFunc)(dvar_t*, DvarValue);
-			dvar_t* hashNext;
-		}; static_assert(sizeof(dvar_t) == 96);
+			const char* name;			// 0
+			unsigned int checksum;		// 8
+			char __pad[4];				// 12
+			const char* description;	// 16
+			unsigned int flags;			// 24
+			char level[1];				// 28
+			unsigned __int8 type;		// 29
+			bool modified;				// 30
+			char __pad2[1];				// 31
+			unsigned __int16 hashNext;	// 32
+			char __pad3[6];				// 34
+			DvarValue current;			// 40
+			DvarValue latched;			// 56
+			DvarValue reset;			// 72
+			char domain[0x10];			// 88
+			BbConstUsageFlags BbConstUsageFlags; // 104
+		}; // 128
 
 		enum svscmd_type
 		{

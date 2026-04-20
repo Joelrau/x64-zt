@@ -155,7 +155,7 @@ namespace iw8
 
 			if (sync)
 			{
-				game::Cmd_ExecuteSingleCommand(0, 0, command.data());
+				game::Cmd_ExecuteSingleCommand(command.data());
 			}
 			else
 			{
@@ -169,4 +169,4 @@ namespace iw8
 	}
 }
 
-//REGISTER_COMPONENT_IW8(iw8::command::component)
+REGISTER_COMPONENT_IW8(iw8::command::component)

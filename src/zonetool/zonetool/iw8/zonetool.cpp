@@ -472,7 +472,7 @@ namespace zonetool::iw8
 
 		zonetool::taskbar::set_indeterminate();
 		XZoneInfo zone = { name.data(), DB_ZONE_GAME | DB_ZONE_CUSTOM };
-		DB_LoadXAssets(&zone, 1, mode);
+		DB_LoadXAssets(&zone, 1, mode, 0);
 		return true;
 	}
 

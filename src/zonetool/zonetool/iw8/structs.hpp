@@ -12131,7 +12131,7 @@ namespace zonetool::iw8
 	{
 		const char* name;
 		int allocFlags;
-		int freeFlags;
+		//int freeFlags;
 	};
 
 	struct DBFile
