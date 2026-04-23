@@ -6,6 +6,8 @@
 #include <utils/flags.hpp>
 #include <utils/io.hpp>
 
+#include <utils/compression.hpp>
+
 #include "game/mode.hpp"
 
 #define H1_BINARY "h1_mp64_ship.exe"
@@ -179,13 +181,14 @@ namespace
 					binary.data()));
 			}
 
-			data = utils::nt::load_resource(GAME_BINARY_EXE);
+			data = utils::nt::load_resource(H1_GAME_BINARY_COMPRESSED);
 			if (data.empty())
 			{
 				throw std::runtime_error("Something went terribly wrong while loading the game binary...");
 			}
+			auto data_uncompressed = utils::compression::zlib::decompress(data);
 
-			get_old_exe(&binary, &data);
+			get_old_exe(&binary, &data_uncompressed);
 			return loader.load_library(binary);
 		}
 

@@ -93,14 +93,14 @@ END
 // Binary Data
 //
 
-ID_ICON               ICON   "resources/icon.ico"
+ID_ICON                    ICON   "resources/icon.ico"
 
-GAME_BINARY_EXE       RCDATA "resources/h1_mp64_ship.exe"
+H1_GAME_BINARY_COMPRESSED  RCDATA "resources/h1_mp64_zt"
 
 #ifdef _DEBUG
-TLS_DLL               RCDATA "../../build/bin/x64/Debug/tlsdll.dll"
+TLS_DLL                    RCDATA "../../build/bin/x64/Debug/tlsdll.dll"
 #else
-TLS_DLL               RCDATA "../../build/bin/x64/Release/tlsdll.dll"
+TLS_DLL                    RCDATA "../../build/bin/x64/Release/tlsdll.dll"
 #endif
 
 #endif    // English (United States) resources
