@@ -1,8 +1,6 @@
 #include <std_include.hpp>
 #include "zonetool.hpp"
 
-#include "converter/converter.hpp"
-
 #include "../utils/gsc.hpp"
 #include "../utils/csv_generator.hpp"
 
@@ -129,52 +127,6 @@ namespace zonetool::iw7
 		return (techSet->techniqueMask[techniqueIndex] & techniqueBit) != 0;
 	}
 
-	void dump_asset_h1(XAsset* asset)
-	{
-		utils::memory::allocator allocator;
-
-#define DUMP_ASSET_REGULAR(__type__,___,__struct__) \
-		if (asset->type == __type__) \
-		{ \
-			if(IS_DEBUG) ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
-			auto asset_ptr = reinterpret_cast<__struct__*>(asset->header.data); \
-			___::dump(asset_ptr); \
-		}
-
-#define DUMP_ASSET_NO_CONVERT(__type__,___,__struct__) \
-		if (asset->type == __type__) \
-		{ \
-			if(IS_DEBUG) ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
-			auto asset_ptr = reinterpret_cast<zonetool::h1::__struct__*>(asset->header.data); \
-			zonetool::h1::___::dump(asset_ptr); \
-		}
-
-#define DUMP_ASSET_CONVERT(__type__,__namespace__,__struct__) \
-		if (asset->type == __type__) \
-		{ \
-			if(IS_DEBUG) ZONETOOL_INFO("Converting and dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
-			auto asset_ptr = reinterpret_cast<__struct__*>(asset->header.data); \
-			converter::h1::__namespace__::dump(asset_ptr); \
-		}
-
-		try
-		{
-			DUMP_ASSET_CONVERT(ASSET_TYPE_IMAGE, gfximage, GfxImage);
-			DUMP_ASSET_CONVERT(ASSET_TYPE_MATERIAL, material, Material);
-			//DUMP_ASSET_CONVERT(ASSET_TYPE_XANIMPARTS, xanim, XAnimParts);
-			DUMP_ASSET_CONVERT(ASSET_TYPE_XMODEL, xmodel, XModel);
-			DUMP_ASSET_CONVERT(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
-		}
-		catch (std::exception& ex)
-		{
-			ZONETOOL_FATAL("A fatal exception occured while dumping zone \"%s\", exception was: \n%s", filesystem::get_fastfile().data(), ex.what());
-		}
-
-#undef DUMP_ASSET_CONVERT
-#undef DUMP_ASSET_NO_CONVERT
-#undef DUMP_ASSET_REGULAR
-	}
-
 	void dump_asset_iw7(XAsset* asset)
 	{
 #define DUMP_ASSET(__type__,___,__struct__) \
@@ -264,7 +216,6 @@ namespace zonetool::iw7
 	std::unordered_map<game::game_mode, std::function<void(XAsset*)>> dump_functions =
 	{
 		{game::iw7, dump_asset_iw7},
-		{game::h1, dump_asset_h1},
 	};
 
 	void dump_asset(XAsset* asset)

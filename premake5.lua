@@ -82,6 +82,7 @@ addcopyopt("s1-copy-to")
 addcopyopt("h1-copy-to")
 addcopyopt("h2-copy-to")
 addcopyopt("iw7-copy-to")
+addcopyopt("iw8-copy-to")
 
 newoption {
 	trigger = "target-project",
@@ -281,11 +282,13 @@ filter "configurations:Debug"
 filter {}
 
 include "src/zonetool.lua"
+include "src/zonetool-iw8.lua"
 include "src/common.lua"
 include "src/tlsdll.lua"
 
 common:project()
 zonetool:project()
+zonetool_iw8:project()
 tlsdll:project()
 
 group "Dependencies"

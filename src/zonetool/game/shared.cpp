@@ -81,6 +81,17 @@ namespace zonetool
 			}
 		}
 
+		namespace iw8
+		{
+			void initialize()
+			{
+				DB_FindXAssetHeader.set(0x1411AA890);
+				DB_IsXAssetDefault.set(0x1411AC4A0);
+
+				SL_ConvertToString.set(0x14131AA20);
+			}
+		}
+
 		namespace t7
 		{
 			void initialize()
@@ -468,7 +479,7 @@ namespace zonetool
 	public:
 		void post_start() override
 		{
-			select(iw6::initialize, s1::initialize, h1::initialize, h2::initialize, iw7::initialize, t7::initialize)();
+			select(iw6::initialize, s1::initialize, h1::initialize, h2::initialize, iw7::initialize, iw8::initialize, t7::initialize)();
 		}
 	};
 
