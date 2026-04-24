@@ -43,7 +43,7 @@ namespace csv_generator
 		}
 	}
 
-	void generate_map_csv(const std::string& map, const mapents::token_name_callback& get_token_name, bool is_sp)
+	void generate_map_csv(const std::string& map, const mapents::token_name_callback& get_token_name, bool is_sp, game::game_mode game)
 	{
 		const auto root_dir = "zonetool/" + map;
 		if (!utils::io::directory_exists(root_dir))
@@ -90,31 +90,36 @@ namespace csv_generator
 
 		if (!is_sp)
 		{
+			const char* ncs_arr_h1[] = {
+				"mdl", "mat", "rmb", "veh", "vfx", "loc", "snd", "sbx", "snl", "shk",
+				"mnu", "tag", "hic", "nps", "mic", "sel", "wep", "att", "hnt",
+				"anm", "fxt", "acl", "lui", "lsr"
+			};
+
+			const char* ncs_arr_iw6[] = {
+				"mdl", "mat", "rmb", "veh", "vfx", "loc", "snd", "snl", "shk",
+				"mnu", "tag", "hic", "sic", "nps", "mic", "sel", "wep", "hnt",
+				"anm", "fxt", "acl", "lui"
+			};
+
 			add_line("// netconststrings");
-			add_asset("netconststrings", utils::string::va("ncs_%s_level", "mdl"));
-			add_asset("netconststrings", utils::string::va("ncs_%s_level", "mat"));
-			add_asset("netconststrings", utils::string::va("ncs_%s_level", "rmb"));
-			add_asset("netconststrings", utils::string::va("ncs_%s_level", "veh"));
-			add_asset("netconststrings", utils::string::va("ncs_%s_level", "vfx"));
-			add_asset("netconststrings", utils::string::va("ncs_%s_level", "loc"));
-			add_asset("netconststrings", utils::string::va("ncs_%s_level", "snd"));
-			add_asset("netconststrings", utils::string::va("ncs_%s_level", "sbx"));
-			add_asset("netconststrings", utils::string::va("ncs_%s_level", "snl"));
-			add_asset("netconststrings", utils::string::va("ncs_%s_level", "shk"));
-			add_asset("netconststrings", utils::string::va("ncs_%s_level", "mnu"));
-			add_asset("netconststrings", utils::string::va("ncs_%s_level", "tag"));
-			add_asset("netconststrings", utils::string::va("ncs_%s_level", "hic"));
-			add_asset("netconststrings", utils::string::va("ncs_%s_level", "nps"));
-			add_asset("netconststrings", utils::string::va("ncs_%s_level", "mic"));
-			add_asset("netconststrings", utils::string::va("ncs_%s_level", "sel"));
-			add_asset("netconststrings", utils::string::va("ncs_%s_level", "wep"));
-			add_asset("netconststrings", utils::string::va("ncs_%s_level", "att"));
-			add_asset("netconststrings", utils::string::va("ncs_%s_level", "hnt"));
-			add_asset("netconststrings", utils::string::va("ncs_%s_level", "anm"));
-			add_asset("netconststrings", utils::string::va("ncs_%s_level", "fxt"));
-			add_asset("netconststrings", utils::string::va("ncs_%s_level", "acl"));
-			add_asset("netconststrings", utils::string::va("ncs_%s_level", "lui"));
-			add_asset("netconststrings", utils::string::va("ncs_%s_level", "lsr"));
+
+			if (game == game::game_mode::iw6)
+			{
+				for (const auto& str : ncs_arr_iw6)
+				{
+					add_asset("netconststrings", utils::string::va("ncs_%s_level", str));
+				}
+
+			}
+			else if (game == game::game_mode::h1)
+			{
+				for (const auto& str : ncs_arr_h1)
+				{
+					add_asset("netconststrings", utils::string::va("ncs_%s_level", str));
+				}
+			}
+
 			add_line("");
 		}
 
