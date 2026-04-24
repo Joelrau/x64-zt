@@ -27,6 +27,18 @@ namespace zonetool::iw6
 		return nullptr;
 	}
 
+	std::string extra_entity_strings;
+
+	void map_ents::add_entity_string(const std::string& line)
+	{
+		extra_entity_strings.append(line);
+	}
+
+	void map_ents::clear_entity_strings()
+	{
+		extra_entity_strings.clear();
+	}
+
 	void map_ents::parse_spline_list(zone_memory* mem, std::string name, SplineRecordList* splineList)
 	{
 		assetmanager::reader reader(mem);
@@ -52,7 +64,7 @@ namespace zonetool::iw6
 
 	void map_ents::parse_spawn_list(zone_memory* mem, std::string name, SpawnPointRecordList* spawnList)
 	{
-		const auto path = name + ".ents.spawnList"s;
+		const auto path = name + ".ents.spawnList.json"s;
 		filesystem::file file(path);
 		file.open("rb");
 		if (!file.get_fp())
@@ -164,6 +176,19 @@ namespace zonetool::iw6
 
 		fread(*entityStrings, *numEntityChars, 1, file.get_fp());
 		(*entityStrings)[*numEntityChars] = '\0';
+
+		if (!extra_entity_strings.empty())
+		{
+			std::string entity_string = *entityStrings;
+			if (!entity_string.ends_with("\n"))
+			{
+				entity_string.append("\n");
+			}
+
+			entity_string.append(extra_entity_strings);
+			*entityStrings = mem->duplicate_string(entity_string);
+			*numEntityChars = static_cast<int>(entity_string.size());
+		}
 
 		file.close();
 	}
@@ -413,7 +438,7 @@ namespace zonetool::iw6
 
 	void map_ents::dump_spawn_list(const std::string& name, SpawnPointRecordList* spawnList)
 	{
-		const auto path = name + ".ents.spawnList"s;
+		const auto path = name + ".ents.spawnList.json"s;
 		auto file = filesystem::file(path);
 		file.open("wb");
 

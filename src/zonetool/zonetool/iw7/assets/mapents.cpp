@@ -43,7 +43,7 @@ namespace zonetool::iw7
 
 	void map_ents::parse_spawn_list(zone_memory* mem, std::string name, SpawnPointRecordList* spawnList)
 	{
-		const auto path = name + ".ents.spawnList"s;
+		const auto path = name + ".ents.spawnList.json"s;
 		filesystem::file file(path);
 		file.open("rb");
 		if (!file.get_fp())
@@ -1102,7 +1102,7 @@ namespace zonetool::iw7
 
 	void map_ents::dump_spawn_list(const std::string& name, SpawnPointRecordList* spawnList)
 	{
-		const auto path = name + ".ents.spawnList"s;
+		const auto path = name + ".ents.spawnList.json"s;
 		auto file = filesystem::file(path);
 		file.open("wb");
 

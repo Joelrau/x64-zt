@@ -981,12 +981,22 @@ namespace zonetool::iw6
 		return ptr;
 	}
 
+	void clear_asset_fields()
+	{
+		material::fixed_nml_images_map.clear();
+		techset::vertexdecl_pointers.clear();
+
+		map_ents::clear_entity_strings();
+	}
+
 	void build_zone(const std::string& fastfile)
 	{
 		// make sure FS is correct.
 		filesystem::set_fastfile(fastfile);
 
 		ZONETOOL_INFO("Building fastfile \"%s\"", fastfile.data());
+
+		clear_asset_fields();
 
 		auto zone = alloc_zone(fastfile);
 		if (zone == nullptr)
@@ -1017,9 +1027,7 @@ namespace zonetool::iw6
 
 		zonetool::taskbar::clear();
 
-		// clear asset shit
-		material::fixed_nml_images_map.clear();
-		techset::vertexdecl_pointers.clear();
+		clear_asset_fields();
 	}
 
 	void register_commands()
@@ -1185,7 +1193,7 @@ namespace zonetool::iw6
 			<::iw6::command::params>([](const uint32_t id)
 		{
 			return gsc::iw6::gsc_ctx->token_name(id);
-		}));
+		}, game::game_mode::iw6));
 	}
 
 	std::vector<std::string> get_command_line_arguments()
