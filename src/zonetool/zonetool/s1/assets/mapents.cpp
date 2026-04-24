@@ -75,7 +75,7 @@ namespace zonetool::s1
 			add_script_string(&spawnList->spawns[i].name, mem->duplicate_string(data[i]["name"].get<std::string>()));
 			add_script_string(&spawnList->spawns[i].target, mem->duplicate_string(data[i]["target"].get<std::string>()));
 			add_script_string(&spawnList->spawns[i].script_noteworthy, mem->duplicate_string(data[i]["script_noteworthy"].get<std::string>()));
-			add_script_string(&spawnList->spawns[i].unknown, mem->duplicate_string(data[i]["unknown"].get<std::string>()));
+			add_script_string(&spawnList->spawns[i].targetname, mem->duplicate_string(data[i]["targetname"].get<std::string>()));
 			for (auto j = 0; j < 3; j++)
 			{
 				spawnList->spawns[i].origin[j] = data[i]["origin"][j].get<float>();
@@ -256,8 +256,8 @@ namespace zonetool::s1
 				data->spawnList.spawns[i].script_noteworthy = static_cast<scr_string_t>(buf->write_scriptstring(
 					this->get_script_string(&data->spawnList.spawns[i].script_noteworthy)));
 
-				data->spawnList.spawns[i].unknown = static_cast<scr_string_t>(buf->write_scriptstring(
-					this->get_script_string(&data->spawnList.spawns[i].unknown)));
+				data->spawnList.spawns[i].targetname = static_cast<scr_string_t>(buf->write_scriptstring(
+					this->get_script_string(&data->spawnList.spawns[i].targetname)));
 			}
 		}
 	}
@@ -486,7 +486,7 @@ namespace zonetool::s1
 			data[i]["name"] = SL_ConvertToString(spawnList->spawns[i].name);
 			data[i]["target"] = SL_ConvertToString(spawnList->spawns[i].target);
 			data[i]["script_noteworthy"] = SL_ConvertToString(spawnList->spawns[i].script_noteworthy);
-			data[i]["unknown"] = SL_ConvertToString(spawnList->spawns[i].unknown);
+			data[i]["targetname"] = SL_ConvertToString(spawnList->spawns[i].targetname);
 			for (auto j = 0; j < 3; j++)
 			{
 				data[i]["origin"][j] = spawnList->spawns[i].origin[j];

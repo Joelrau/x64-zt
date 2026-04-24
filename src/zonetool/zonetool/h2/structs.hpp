@@ -1710,17 +1710,17 @@ namespace zonetool::h2
 		unsigned int triggerStringLength;
 		char* triggerString;
 		short* visionSetTriggers;
-		short* unk1;
-		short* unk2;
+		short* lightSetTriggers;
+		short* clutTriggers;
 		short* triggerType;
 		vec3_t* origins;
 		float* scriptDelay;
 		short* audioTriggers;
 		short* blendLookup;
-		short* unk3;
-		short* unk4;
-		short* unk5;
-		short* unk6;
+		short* npcTriggers;
+		short* contextTriggers;
+		short* waterTriggers;
+		short* unkTriggers;
 	}; static_assert(sizeof(ClientTriggers) == 0xB0);
 
 	struct ClientTriggerBlendNode
@@ -1743,7 +1743,7 @@ namespace zonetool::h2
 		scr_string_t name;
 		scr_string_t target;
 		scr_string_t script_noteworthy;
-		scr_string_t unknown;
+		scr_string_t targetname;
 		float origin[3];
 		float angles[3];
 	};

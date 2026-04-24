@@ -227,7 +227,17 @@ namespace zonetool::h2
 			add_script_string(&spawnList->spawns[i].name, mem->duplicate_string(data[i]["name"].get<std::string>()));
 			add_script_string(&spawnList->spawns[i].target, mem->duplicate_string(data[i]["target"].get<std::string>()));
 			add_script_string(&spawnList->spawns[i].script_noteworthy, mem->duplicate_string(data[i]["script_noteworthy"].get<std::string>()));
-			add_script_string(&spawnList->spawns[i].unknown, mem->duplicate_string(data[i]["script_noteworthy"].get<std::string>()));
+
+			// add support for "unknown" since we didn't know this before and old data doesn't have it. remove at some point.
+			if (data[i]["targetname"].is_null())
+			{
+				add_script_string(&spawnList->spawns[i].targetname, mem->duplicate_string(data[i]["unknown"].get<std::string>()));
+			}
+			else
+			{
+				add_script_string(&spawnList->spawns[i].targetname, mem->duplicate_string(data[i]["targetname"].get<std::string>()));
+			}
+
 			for (auto j = 0; j < 3; j++)
 			{
 				spawnList->spawns[i].origin[j] = data[i]["origin"][j].get<float>();
@@ -270,17 +280,17 @@ namespace zonetool::h2
 			clientTrigger->triggerString = reader.read_array<char>();
 
 			clientTrigger->visionSetTriggers = reader.read_array<short>();
-			clientTrigger->unk1 = reader.read_array<short>();
-			clientTrigger->unk2 = reader.read_array<short>();
+			clientTrigger->lightSetTriggers = reader.read_array<short>();
+			clientTrigger->clutTriggers = reader.read_array<short>();
 			clientTrigger->triggerType = reader.read_array<short>();
 			clientTrigger->origins = reader.read_array<vec3_t>();
 			clientTrigger->scriptDelay = reader.read_array<float>();
 			clientTrigger->audioTriggers = reader.read_array<short>();
 			clientTrigger->blendLookup = reader.read_array<short>();
-			clientTrigger->unk3 = reader.read_array<short>();
-			clientTrigger->unk4 = reader.read_array<short>();
-			clientTrigger->unk5 = reader.read_array<short>();
-			clientTrigger->unk6 = reader.read_array<short>();
+			clientTrigger->npcTriggers = reader.read_array<short>();
+			clientTrigger->contextTriggers = reader.read_array<short>();
+			clientTrigger->waterTriggers = reader.read_array<short>();
+			clientTrigger->unkTriggers = reader.read_array<short>();
 
 			reader.close();
 		}
@@ -399,8 +409,8 @@ namespace zonetool::h2
 				data->spawnList.spawns[i].script_noteworthy = static_cast<scr_string_t>(buf->write_scriptstring(
 					this->get_script_string(&data->spawnList.spawns[i].script_noteworthy)));
 
-				data->spawnList.spawns[i].unknown = static_cast<scr_string_t>(buf->write_scriptstring(
-					this->get_script_string(&data->spawnList.spawns[i].unknown)));
+				data->spawnList.spawns[i].targetname = static_cast<scr_string_t>(buf->write_scriptstring(
+					this->get_script_string(&data->spawnList.spawns[i].targetname)));
 			}
 		}
 	}
@@ -477,18 +487,18 @@ namespace zonetool::h2
 			buf->clear_pointer(&dest->clientTrigger.visionSetTriggers);
 		}
 
-		if (data->clientTrigger.unk1)
+		if (data->clientTrigger.lightSetTriggers)
 		{
 			buf->align(1);
-			buf->write(data->clientTrigger.unk1, data->clientTrigger.trigger.count);
-			buf->clear_pointer(&dest->clientTrigger.unk1);
+			buf->write(data->clientTrigger.lightSetTriggers, data->clientTrigger.trigger.count);
+			buf->clear_pointer(&dest->clientTrigger.lightSetTriggers);
 		}
 
-		if (data->clientTrigger.unk2)
+		if (data->clientTrigger.clutTriggers)
 		{
 			buf->align(1);
-			buf->write(data->clientTrigger.unk2, data->clientTrigger.trigger.count);
-			buf->clear_pointer(&dest->clientTrigger.unk2);
+			buf->write(data->clientTrigger.clutTriggers, data->clientTrigger.trigger.count);
+			buf->clear_pointer(&dest->clientTrigger.clutTriggers);
 		}
 
 		if (data->clientTrigger.triggerType)
@@ -526,32 +536,32 @@ namespace zonetool::h2
 			buf->clear_pointer(&dest->clientTrigger.blendLookup);
 		}
 
-		if (data->clientTrigger.unk3)
+		if (data->clientTrigger.npcTriggers)
 		{
 			buf->align(1);
-			buf->write(data->clientTrigger.unk3, data->clientTrigger.trigger.count);
-			buf->clear_pointer(&dest->clientTrigger.unk3);
+			buf->write(data->clientTrigger.npcTriggers, data->clientTrigger.trigger.count);
+			buf->clear_pointer(&dest->clientTrigger.npcTriggers);
 		}
 
-		if (data->clientTrigger.unk4)
+		if (data->clientTrigger.contextTriggers)
 		{
 			buf->align(1);
-			buf->write(data->clientTrigger.unk4, data->clientTrigger.trigger.count);
-			buf->clear_pointer(&dest->clientTrigger.unk4);
+			buf->write(data->clientTrigger.contextTriggers, data->clientTrigger.trigger.count);
+			buf->clear_pointer(&dest->clientTrigger.contextTriggers);
 		}
 
-		if (data->clientTrigger.unk5)
+		if (data->clientTrigger.waterTriggers)
 		{
 			buf->align(1);
-			buf->write(data->clientTrigger.unk5, data->clientTrigger.trigger.count);
-			buf->clear_pointer(&dest->clientTrigger.unk5);
+			buf->write(data->clientTrigger.waterTriggers, data->clientTrigger.trigger.count);
+			buf->clear_pointer(&dest->clientTrigger.waterTriggers);
 		}
 
-		if (data->clientTrigger.unk6)
+		if (data->clientTrigger.unkTriggers)
 		{
 			buf->align(1);
-			buf->write(data->clientTrigger.unk6, data->clientTrigger.trigger.count);
-			buf->clear_pointer(&dest->clientTrigger.unk6);
+			buf->write(data->clientTrigger.unkTriggers, data->clientTrigger.trigger.count);
+			buf->clear_pointer(&dest->clientTrigger.unkTriggers);
 		}
 
 		if (data->clientTriggerBlend.blendNodes)
@@ -648,7 +658,7 @@ namespace zonetool::h2
 			data[i]["name"] = spawnList->spawns[i].name ? SL_ConvertToString(spawnList->spawns[i].name) : "";
 			data[i]["target"] = spawnList->spawns[i].target ? SL_ConvertToString(spawnList->spawns[i].target) : "";
 			data[i]["script_noteworthy"] = spawnList->spawns[i].script_noteworthy ? SL_ConvertToString(spawnList->spawns[i].script_noteworthy) : "";
-			data[i]["unknown"] = spawnList->spawns[i].unknown ? SL_ConvertToString(spawnList->spawns[i].unknown) : "";
+			data[i]["targetname"] = spawnList->spawns[i].targetname ? SL_ConvertToString(spawnList->spawns[i].targetname) : "";
 			for (auto j = 0; j < 3; j++)
 			{
 				data[i]["origin"][j] = spawnList->spawns[i].origin[j];
@@ -694,17 +704,17 @@ namespace zonetool::h2
 			dumper.dump_array(clientTrigger->triggerString, clientTrigger->triggerStringLength);
 
 			dumper.dump_array(clientTrigger->visionSetTriggers, clientTrigger->trigger.count);
-			dumper.dump_array(clientTrigger->unk1, clientTrigger->trigger.count);
-			dumper.dump_array(clientTrigger->unk2, clientTrigger->trigger.count);
+			dumper.dump_array(clientTrigger->lightSetTriggers, clientTrigger->trigger.count);
+			dumper.dump_array(clientTrigger->clutTriggers, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->triggerType, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->origins, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->scriptDelay, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->audioTriggers, clientTrigger->trigger.count);
 			dumper.dump_array(clientTrigger->blendLookup, clientTrigger->trigger.count);
-			dumper.dump_array(clientTrigger->unk3, clientTrigger->trigger.count);
-			dumper.dump_array(clientTrigger->unk4, clientTrigger->trigger.count);
-			dumper.dump_array(clientTrigger->unk5, clientTrigger->trigger.count);
-			dumper.dump_array(clientTrigger->unk6, clientTrigger->trigger.count);
+			dumper.dump_array(clientTrigger->npcTriggers, clientTrigger->trigger.count);
+			dumper.dump_array(clientTrigger->contextTriggers, clientTrigger->trigger.count);
+			dumper.dump_array(clientTrigger->waterTriggers, clientTrigger->trigger.count);
+			dumper.dump_array(clientTrigger->unkTriggers, clientTrigger->trigger.count);
 
 			dumper.close();
 		}
