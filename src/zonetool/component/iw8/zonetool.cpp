@@ -180,7 +180,7 @@ namespace iw8
 			}
 			if (!utils::flags::has_flag("no_common"))
 			{
-				defaultzones.push_back("common");
+				defaultzones.push_back("comms_mp");
 			}
 
 			::zonetool::iw8::XZoneInfo zones[8]{ 0 };
@@ -189,7 +189,8 @@ namespace iw8
 			for (std::size_t i = 0; i < defaultzones.size(); i++)
 			{
 				zones[i].name = defaultzones[i];
-				zones[i].allocFlags = ::zonetool::iw8::DB_ZONE_PERMANENT;
+				zones[i].allocFlags = 1;
+				zones[i].priority = 0xFFF;
 			}
 
 			::zonetool::iw8::DB_LoadXAssets(zones, static_cast<unsigned int>(defaultzones.size()), ::zonetool::iw8::DB_LOAD_SYNC, 0);
