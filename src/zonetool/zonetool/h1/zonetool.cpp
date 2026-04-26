@@ -435,8 +435,8 @@ namespace zonetool::h1
 			//DUMP_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment, WeaponAttachment);
 			//DUMP_ASSET(ASSET_TYPE_WEAPON, weapon_def, WeaponDef);
 			//DUMP_ASSET(ASSET_TYPE_XANIM, xanim_parts, XAnimParts);
-			//DUMP_ASSET(ASSET_TYPE_XMODEL, xmodel, XModel);
-			//DUMP_ASSET(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
+			DUMP_ASSET(ASSET_TYPE_XMODEL, xmodel, XModel);
+			DUMP_ASSET(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
 
 			//DUMP_ASSET(ASSET_TYPE_COMPUTESHADER, techset, ComputeShader);
 			//DUMP_ASSET(ASSET_TYPE_DOMAINSHADER, techset, MaterialDomainShader);
