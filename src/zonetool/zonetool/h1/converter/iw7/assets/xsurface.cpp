@@ -147,8 +147,8 @@ namespace zonetool::h1
 						new_surf->lmapUnwrap = allocator.allocate_array<float[2]>(surf->vertCount);
 						for (int j = 0; j < surf->vertCount; j++)
 						{
-							new_surf->lmapUnwrap[j][0] = static_cast<float>(surf->lmapUnwrap[j][0]);
-							new_surf->lmapUnwrap[j][1] = static_cast<float>(surf->lmapUnwrap[j][1]);
+							new_surf->lmapUnwrap[j][0] = half_float::half_to_float(surf->lmapUnwrap[j][0]);
+							new_surf->lmapUnwrap[j][1] = half_float::half_to_float(surf->lmapUnwrap[j][1]);
 						}
 					}
 					else
