@@ -10,6 +10,23 @@ namespace zonetool::h1
 	{
 		namespace mapents
 		{
+			std::uint8_t convert_trigger_type(std::int32_t flags)
+			{
+				std::uint8_t new_flags = 0;
+				auto convert = [&](zonetool::h1::clientTriggerType_t a, zonetool::iw7::clientTriggerType_t b)
+				{
+					if (flags & a)
+						new_flags |= b;
+				};
+
+				convert(zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_VISIONSET, zonetool::iw7::clientTriggerType_t::CLIENT_TRIGGER_VISIONSET);
+				convert(zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_AUDIO, zonetool::iw7::clientTriggerType_t::CLIENT_TRIGGER_AUDIO);
+				convert(zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_BLEND_VISION, zonetool::iw7::clientTriggerType_t::CLIENT_TRIGGER_BLEND_VISION);
+				convert(zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_BLEND_AUDIO, zonetool::iw7::clientTriggerType_t::CLIENT_TRIGGER_BLEND_AUDIO);
+				convert(zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_NPC, zonetool::iw7::clientTriggerType_t::CLIENT_TRIGGER_AUDIO_NPC);
+				return new_flags;
+			}
+
 			zonetool::iw7::MapEnts* generate_mapents(clipMap_t* clipmap, utils::memory::allocator& allocator)
 			{
 				const auto* asset = clipmap->mapEnts;
@@ -76,20 +93,19 @@ namespace zonetool::h1
 				new_asset->clientTrigger.triggerType = allocator.allocate_array<unsigned char>(asset->clientTrigger.trigger.count);
 				for (unsigned int i = 0; i < asset->clientTrigger.trigger.count; i++)
 				{
-					new_asset->clientTrigger.triggerType[i] = static_cast<unsigned char>(asset->clientTrigger.triggerType[i]); // convert?
+					new_asset->clientTrigger.triggerType[i] = convert_trigger_type(asset->clientTrigger.triggerType[i]);
 				}
 
 				REINTERPRET_CAST_SAFE(clientTrigger.origins);
 				REINTERPRET_CAST_SAFE(clientTrigger.scriptDelay);
 				REINTERPRET_CAST_SAFE(clientTrigger.audioTriggers);
 				REINTERPRET_CAST_SAFE(clientTrigger.blendLookup);
-				new_asset->clientTrigger.npcTriggers = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
+				REINTERPRET_CAST_SAFE(clientTrigger.npcTriggers);
 				new_asset->clientTrigger.audioStateIds = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
 				new_asset->clientTrigger.audioRvbPanInfo = allocator.allocate_array<zonetool::iw7::CTAudRvbPanInfo>(asset->clientTrigger.trigger.count);
 				new_asset->clientTrigger.transientIndex = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
 				for (unsigned int i = 0; i < asset->clientTrigger.trigger.count; i++)
 				{
-					new_asset->clientTrigger.npcTriggers[i] = -1;
 					new_asset->clientTrigger.audioStateIds[i] = -1;
 
 					new_asset->clientTrigger.audioRvbPanInfo[i].hasCustomPosition = false;
@@ -98,7 +114,11 @@ namespace zonetool::h1
 					new_asset->clientTrigger.transientIndex[i] = 0;
 				}
 
-				new_asset->clientTrigger.linkTo = nullptr;
+				new_asset->clientTrigger.linkTo = allocator.allocate_array<zonetool::iw7::ClientEntityLinkToDef*>(asset->clientTrigger.trigger.count);
+				for (unsigned int i = 0; i < asset->clientTrigger.trigger.count; i++)
+				{
+					new_asset->clientTrigger.linkTo[i] = nullptr;
+				}
 
 				COPY_VALUE(clientTriggerBlend.numClientTriggerBlendNodes);
 				REINTERPRET_CAST_SAFE(clientTriggerBlend.blendNodes);
@@ -127,10 +147,10 @@ namespace zonetool::h1
 				{
 					memcpy(&new_asset->cmodels[i].bounds, &clipmap->cmodels[i].bounds, sizeof(Bounds));
 					new_asset->cmodels[i].radius = clipmap->cmodels[i].radius;
-					new_asset->cmodels[i].info = reinterpret_cast<zonetool::iw7::ClipInfo*>(clipmap->cmodels[i].info);
+					new_asset->cmodels[i].info = nullptr; //reinterpret_cast<zonetool::iw7::ClipInfo*>(clipmap->cmodels[i].info);
 					new_asset->cmodels[i].physicsAsset = nullptr;
-					//new_asset->cmodels[i].physicsShapeOverrideIdx = 0;
-					//new_asset->cmodels[i].navObstacleIdx = 0;
+					new_asset->cmodels[i].physicsShapeOverrideIdx = 0;
+					new_asset->cmodels[i].navObstacleIdx = 0;
 					//new_asset->cmodels[i].edgeFirstIndex = 0;
 				}
 
@@ -162,65 +182,86 @@ namespace zonetool::h1
 				{
 					auto* dyn = &new_asset->dynEntDefList[0][i];
 					dyn->type = zonetool::iw7::DYNENT_TYPE_SCRIPTABLEINST;
-					dyn->instanceIndex = 500;
+					dyn->scriptableMapIndex = 500;
 					dyn->unk2 = true;
 				}
 
-				for (auto i = reserved_dynents; i < new_asset->dynEntCount[0]; i++)
+				const auto copy_dynents = [&](const auto index)
 				{
-					const auto idx = i - reserved_dynents;
-
+					for (auto i = reserved_dynents; i < new_asset->dynEntCount[index]; i++)
 					{
-						auto* new_dynent_def = &new_asset->dynEntDefList[0][i];
-						auto* dynent_def = &clipmap->dynEntDefList[0][idx];
+						const auto idx = i - reserved_dynents;
 
-						const auto convert_type = [](DynEntityType type) -> zonetool::iw7::DynEntityType
 						{
-							switch (type)
+							auto* new_dynent_def = &new_asset->dynEntDefList[index][i];
+							auto* dynent_def = &clipmap->dynEntDefList[index][idx];
+
+							const auto convert_type = [](DynEntityType type) -> zonetool::iw7::DynEntityType
 							{
-							case DYNENT_TYPE_INVALID:
+								switch (type)
+								{
+								case DYNENT_TYPE_INVALID:
+									return zonetool::iw7::DYNENT_TYPE_INVALID;
+									break;
+								case DYNENT_TYPE_CLUTTER:
+									return zonetool::iw7::DYNENT_TYPE_CLUTTER;
+									break;
+								case DYNENT_TYPE_DESTRUCT:
+									return zonetool::iw7::DYNENT_TYPE_INVALID;
+									break;
+								case DYNENT_TYPE_HINGE:
+									return zonetool::iw7::DYNENT_TYPE_HINGE;
+									break;
+								case DYNENT_TYPE_SCRIPTABLEINST:
+									return zonetool::iw7::DYNENT_TYPE_INVALID; //zonetool::iw7::DYNENT_TYPE_SCRIPTABLEINST;
+									break;
+								case DYNENT_TYPE_SCRIPTABLEPHYSICS:
+									return zonetool::iw7::DYNENT_TYPE_SCRIPTABLEPHYSICS;
+									break;
+								case DYNENT_TYPE_LINKED:
+									return zonetool::iw7::DYNENT_TYPE_LINKED;
+									break;
+								case DYNENT_TYPE_LINKED_NOSHADOW:
+									return zonetool::iw7::DYNENT_TYPE_LINKED_NOSHADOW;
+									break;
+								}
 								return zonetool::iw7::DYNENT_TYPE_INVALID;
-								break;
-							case DYNENT_TYPE_CLUTTER:
-								return zonetool::iw7::DYNENT_TYPE_CLUTTER;
-								break;
-							case DYNENT_TYPE_DESTRUCT:
-								return zonetool::iw7::DYNENT_TYPE_INVALID;
-								break;
-							case DYNENT_TYPE_HINGE:
-								return zonetool::iw7::DYNENT_TYPE_HINGE;
-								break;
-							case DYNENT_TYPE_SCRIPTABLEINST:
-								return zonetool::iw7::DYNENT_TYPE_SCRIPTABLEINST;
-								break;
-							case DYNENT_TYPE_SCRIPTABLEPHYSICS:
-								return zonetool::iw7::DYNENT_TYPE_SCRIPTABLEPHYSICS;
-								break;
-							case DYNENT_TYPE_LINKED:
-								return zonetool::iw7::DYNENT_TYPE_LINKED;
-								break;
-							case DYNENT_TYPE_LINKED_NOSHADOW:
-								return zonetool::iw7::DYNENT_TYPE_LINKED_NOSHADOW;
-								break;
-							}
-							return zonetool::iw7::DYNENT_TYPE_INVALID;
-						};
+							};
 
-						new_dynent_def->type = convert_type(dynent_def->type);
-						memcpy(&new_dynent_def->pose, &dynent_def->pose, sizeof(GfxPlacement));
-						new_dynent_def->baseModel = reinterpret_cast<zonetool::iw7::XModel*>(dynent_def->baseModel);
-						new_dynent_def->brushModel = dynent_def->brushModel;
-						new_dynent_def->linkTo = reinterpret_cast<zonetool::iw7::DynEntityLinkToDef*>(dynent_def->linkTo);
-						new_dynent_def->instanceIndex = dynent_def->scriptableIndex;
-						new_dynent_def->unk2 = true;
-					}
+							new_dynent_def->type = convert_type(dynent_def->type);
+							memcpy(&new_dynent_def->pose, &dynent_def->pose, sizeof(GfxPlacement));
+							new_dynent_def->baseModel = reinterpret_cast<zonetool::iw7::XModel*>(dynent_def->baseModel);
+							new_dynent_def->brushModel = dynent_def->brushModel;
+							new_dynent_def->linkTo = reinterpret_cast<zonetool::iw7::DynEntityLinkToDef*>(dynent_def->linkTo);
+							new_dynent_def->scriptableMapIndex = dynent_def->scriptableIndex;
+							new_dynent_def->unk2 = true;
 
-					{
-						//auto* new_dynent_pos = &new_asset->dynEntPoseList[0][i];
-						//auto* dynent_posf = &clipmap->dynEntPoseList[0][idx];
-						// todo...
+							new_dynent_def->scriptableMapIndex = 0; // remove this for now
+						}
+
+						{
+							auto* dynent_pose_model = &new_asset->dynEntPoseList[zonetool::iw7::DynEntityBasis::DYNENT_BASIS_MODEL][index][i];
+							auto* dynent_pose_brush = &new_asset->dynEntPoseList[zonetool::iw7::DynEntityBasis::DYNENT_BASIS_BRUSH][index][i];
+							auto* dynent_pose = &clipmap->dynEntPoseList[index][idx];
+
+							// model
+							memcpy(&dynent_pose_model->pose, &dynent_pose->pose, sizeof(zonetool::iw7::GfxPlacement));
+							dynent_pose_model->numPoses = 1;
+							dynent_pose_model->poses = allocator.allocate_array<zonetool::iw7::GfxPlacement>(1);
+							memcpy(&dynent_pose_model->poses[0], &dynent_pose_model->pose, sizeof(zonetool::iw7::GfxPlacement));
+							dynent_pose_model->radius = dynent_pose->radius;
+
+							// brush
+							memcpy(&dynent_pose_brush->pose, &dynent_pose->pose, sizeof(zonetool::iw7::GfxPlacement));
+							dynent_pose_brush->numPoses = 1;
+							dynent_pose_brush->poses = allocator.allocate_array<zonetool::iw7::GfxPlacement>(1);
+							memcpy(&dynent_pose_brush->poses[0], &dynent_pose_brush->pose, sizeof(zonetool::iw7::GfxPlacement));
+							dynent_pose_brush->radius = dynent_pose->radius;
+						}
 					}
-				}
+				};
+				copy_dynents(0);
+				copy_dynents(1);
 
 				for (auto i = 0; i < new_asset->dynEntCountTotal; i++)
 				{
@@ -249,7 +290,7 @@ namespace zonetool::h1
 				new_asset->clientEntAnchors = allocator.allocate_array<zonetool::iw7::ClientEntAnchor>(new_asset->clientEntAnchorCount);
 				for (unsigned int i = 0; i < new_asset->clientEntAnchorCount; i++)
 				{
-					new_asset->clientEntAnchors[i].entNum = 0;
+					new_asset->clientEntAnchors[i].entNum = 0; // runtime data
 					new_asset->clientEntAnchors[i].name = static_cast<zonetool::iw7::scr_string_t>(clipmap->dynEntAnchorNames[i]);
 				}
 
@@ -259,11 +300,13 @@ namespace zonetool::h1
 
 				new_asset->scriptableMapEnts.instances = allocator.allocate_array<zonetool::iw7::ScriptableInstance>(new_asset->scriptableMapEnts.totalInstanceCount);
 
-				new_asset->scriptableMapEnts.reservedDynents[0].numReservedDynents = 64;
+				// these are runtime data
+				new_asset->scriptableMapEnts.reservedDynents[0].numReservedDynents = reserved_dynents;
 				new_asset->scriptableMapEnts.reservedDynents[0].reservedDynents = 
 					allocator.allocate_array<zonetool::iw7::ScriptableReservedDynent>(new_asset->scriptableMapEnts.reservedDynents[0].numReservedDynents);
 
-				new_asset->scriptableMapEnts.reservedDynents[1].numReservedDynents = 64;
+				// these are runtime data
+				new_asset->scriptableMapEnts.reservedDynents[1].numReservedDynents = reserved_dynents;
 				new_asset->scriptableMapEnts.reservedDynents[1].reservedDynents =
 					allocator.allocate_array<zonetool::iw7::ScriptableReservedDynent>(new_asset->scriptableMapEnts.reservedDynents[1].numReservedDynents);
 
@@ -339,16 +382,8 @@ namespace zonetool::h1
 					iw7_asset->stages[i].sunPrimaryLightIndex = asset->stages[i].sunPrimaryLightIndex;
 					iw7_asset->stages[i].entityUID = 0x3A83126F;
 				}
-				iw7_asset->stageTrigger.count = asset->stageTrigger.count;
-				iw7_asset->stageTrigger.models = reinterpret_cast<zonetool::iw7::TriggerModel*>(asset->stageTrigger.models);
-				iw7_asset->stageTrigger.hullCount = asset->stageTrigger.hullCount;
-				iw7_asset->stageTrigger.hulls = reinterpret_cast<zonetool::iw7::TriggerHull*>(asset->stageTrigger.hulls);
-				iw7_asset->stageTrigger.slabCount = asset->stageTrigger.slabCount;
-				iw7_asset->stageTrigger.slabs = reinterpret_cast<zonetool::iw7::TriggerSlab*>(asset->stageTrigger.slabs);
-				iw7_asset->stageTrigger.windingCount = 0;
-				iw7_asset->stageTrigger.windings = nullptr;
-				iw7_asset->stageTrigger.windingPointCount = 0;
-				iw7_asset->stageTrigger.windingPoints = nullptr;
+
+				//memcpy(&iw7_asset->stageTrigger, &mapents_converted_asset->trigger, sizeof(MapTriggers));
 
 				iw7_asset->broadphaseMin[0] = -131072.f;
 				iw7_asset->broadphaseMin[1] = -131072.f;
@@ -381,11 +416,11 @@ namespace zonetool::h1
 			{
 				utils::memory::allocator allocator;
 
-				const auto converted_asset = convert(asset, allocator);
-				zonetool::iw7::clip_map::dump(converted_asset);
-
 				const auto mapents_converted_asset = mapents::convert(asset, allocator);
 				zonetool::iw7::map_ents::dump(mapents_converted_asset);
+
+				const auto converted_asset = convert(asset, allocator);
+				zonetool::iw7::clip_map::dump(converted_asset);
 			}
 		}
 	}
