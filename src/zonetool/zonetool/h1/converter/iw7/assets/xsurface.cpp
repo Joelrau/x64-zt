@@ -4,6 +4,8 @@
 
 #include "zonetool/iw7/assets/xsurface.hpp"
 
+#include "game/shared.hpp"
+
 namespace zonetool::h1
 {
 	namespace converter::iw7
@@ -90,7 +92,14 @@ namespace zonetool::h1
 					auto* new_surf = &new_asset->surfs[i];
 					auto* surf = &asset->surfs[i];
 
-					COPY_VALUE(surfs[i].flags);
+					unsigned short remapped_flags = surf->flags & 0x1Fu; // VERTCOL_GREY/NONE, SKINNED, REACTIVE_MOTION, LIGHTMAP_COORDS
+					if (surf->flags & zonetool::h1::SURF_FLAG_TENSION)
+					{
+						remapped_flags |= zonetool::iw7::SURF_FLAG_TENSION; // 0x40
+					}
+					remapped_flags |= zonetool::iw7::SURF_FLAG_SELF_VISIBILITY; // 0x80
+					new_surf->flags = remapped_flags;
+
 					COPY_VALUE(surfs[i].vertCount);
 					COPY_VALUE(surfs[i].triCount);
 					COPY_VALUE(surfs[i].rigidVertListCount);
@@ -101,13 +110,31 @@ namespace zonetool::h1
 						new_surf->blendVertCounts[j] = static_cast<unsigned short>(surf->blendVertCounts[j]);
 					}
 
-					if ((surf->flags & 8) != 0)
+					if ((surf->flags & zonetool::h1::SURF_FLAG_REACTIVE_MOTION) != 0)
 					{
+						// h1::GfxPackedMotionVertex == iw7::GfxPackedMotionVertex (no selfVisibility on this path)
 						REINTERPRET_CAST_SAFE(surfs[i].verts0.packedMotionVerts0);
 					}
 					else
 					{
-						REINTERPRET_CAST_SAFE(surfs[i].verts0.packedVerts0);
+						new_surf->verts0.packedVerts0 = allocator.allocate_array<zonetool::iw7::GfxPackedVertex>(surf->vertCount);
+						for (unsigned short j = 0; j < surf->vertCount; ++j)
+						{
+							const auto& src = surf->verts0.packedVerts0[j];
+							auto& dst = new_surf->verts0.packedVerts0[j];
+
+							dst.xyz[0] = src.xyz[0];
+							dst.xyz[1] = src.xyz[1];
+							dst.xyz[2] = src.xyz[2];
+
+							dst.color.packed = src.color.packed;
+							dst.texCoord.packed = src.texCoord.packed;
+							dst.normal.packed = src.normal.packed;
+							dst.tangent.packed = src.tangent.packed;
+
+							float default_visibility[4] = { 0.0f, 0.0f, 1.0f, 0.0f };
+							dst.selfVisibility.packed = self_visibility::XSurfacePackSelfVisibility(default_visibility);
+						}
 					}
 
 					REINTERPRET_CAST_SAFE(surfs[i].triIndices);
