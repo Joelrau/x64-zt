@@ -2076,7 +2076,6 @@ namespace zonetool::iw6
 
 			unsigned int convert_custom_buffer_flags(unsigned int flags)
 			{
-				zonetool::h1::CUSTOM_BUFFER_MATERIAL;
 				unsigned int out_flags = 0;
 				const auto convert_flag = [&](unsigned int in_flag, unsigned int out_flag)
 				{
@@ -3449,19 +3448,10 @@ namespace zonetool::iw6
 
 					auto* p = &tech.tech->passArray[0];
 
-					if (p->pixelShader && (p->pixelShader->prog.loadDef.program == nullptr))
-					{
-						ZONETOOL_FATAL("Cannot dump this zone without having the following zones loaded: \ncode_post_gfx_mp, \ntechsets_code_post_gfx_mp, \ntechsets_common_mp, \ntechsets_common_core_mp");
-					}
-					else if (p->vertexShader && (p->vertexShader->prog.loadDef.program == nullptr))
-					{
-						ZONETOOL_FATAL("Cannot dump this zone without having the following zones loaded: \ncode_post_gfx_mp, \ntechsets_code_post_gfx_mp, \ntechsets_common_mp, \ntechsets_common_core_mp");
-					}
-					else if (p->domainShader && (p->domainShader->prog.loadDef.program == nullptr))
-					{
-						ZONETOOL_FATAL("Cannot dump this zone without having the following zones loaded: \ncode_post_gfx_mp, \ntechsets_code_post_gfx_mp, \ntechsets_common_mp, \ntechsets_common_core_mp");
-					}
-					else if (p->hullShader && (p->hullShader->prog.loadDef.program == nullptr))
+					if ((p->pixelShader && p->pixelShader->prog.loadDef.program == nullptr) ||
+						(p->vertexShader && p->vertexShader->prog.loadDef.program == nullptr) ||
+						(p->domainShader && p->domainShader->prog.loadDef.program == nullptr) || 
+						(p->hullShader && p->hullShader->prog.loadDef.program == nullptr))
 					{
 						ZONETOOL_FATAL("Cannot dump this zone without having the following zones loaded: \ncode_post_gfx_mp, \ntechsets_code_post_gfx_mp, \ntechsets_common_mp, \ntechsets_common_core_mp");
 					}
