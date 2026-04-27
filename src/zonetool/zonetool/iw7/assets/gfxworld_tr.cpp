@@ -111,7 +111,7 @@ namespace zonetool::iw7
 
 					buf->push_stream(XFILE_BLOCK_TEMP);
 					buf->align(3);
-					buf->write_stream(&data->aabbTreeCounts[i].aabbTreeCount, 4);
+					buf->write(&data->aabbTreeCounts[i].aabbTreeCount);
 					buf->pop_stream();
 
 					auto gfx_aabb_tree = buf->write(data->aabbTrees[i].aabbTree,

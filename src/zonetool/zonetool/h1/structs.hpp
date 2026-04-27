@@ -4,6 +4,79 @@
 
 namespace zonetool::h1
 {
+	namespace Umbra
+	{
+		struct Vector3
+		{
+			float x;
+			float y;
+			float z;
+		};
+
+		struct DataPtr
+		{
+			unsigned int m_offset;
+		};
+
+		struct SerializedTreeData
+		{
+			unsigned int m_nodeCount_mapWidth;
+			DataPtr m_treeData;
+			DataPtr m_map;
+			unsigned int m_numSplitValues;
+			DataPtr m_splitValues;
+		};
+
+		struct ImpTome
+		{
+			unsigned int m_versionMagic;
+			unsigned int m_crc32;
+			unsigned int m_size;
+			float m_lodBaseDistance;
+			unsigned int m_flags;
+			Vector3 m_treeMin;
+			Vector3 m_treeMax;
+			SerializedTreeData m_tileTree;
+			int m_numObjects;
+			DataPtr m_objBounds;
+			DataPtr m_objDistances;
+			DataPtr m_userIDStarts;
+			DataPtr m_userIDs;
+			unsigned int m_listWidths;
+			DataPtr m_objectLists;
+			int m_objectListSize;
+			DataPtr m_clusterLists;
+			int m_clusterListSize;
+			int m_numGates;
+			DataPtr m_gateIndexMap;
+			DataPtr m_gateVertices;
+			int m_numGateVertices;
+			DataPtr m_gateIndices;
+			int m_numClusters;
+			DataPtr m_clusters;
+			DataPtr m_clusterPortals;
+			DataPtr m_cellStarts;
+			int m_numLeafTiles;
+			int m_numTiles;
+			int m_bitsPerSlotPath;
+			DataPtr m_slotPaths;
+			DataPtr m_tileLodLevels;
+			DataPtr m_tiles;
+			DataPtr m_tileMatchingData;
+			DataPtr m_matchingTrees;
+			int m_numMatchingTrees;
+			int m_numTomes;
+			DataPtr m_tomeClusterStarts;
+			DataPtr m_tomeClusterPortalStarts;
+			char m_computationString[128];
+			DataPtr m_objectDepthmaps;
+			DataPtr m_depthmapFaces;
+			DataPtr m_depthmapPalettes;
+			int m_numFaces;
+			DataPtr m_tilePortalExpands;
+		};
+	}
+
 	typedef float vec_t;
 	typedef vec_t vec2_t[2];
 	typedef vec_t vec3_t[3];
@@ -2911,9 +2984,9 @@ namespace zonetool::h1
 			const char* name;
 		};
 		snd_alias_t* head;
-		snd_alias_context_list* contextList;
+		snd_alias_context_list* contextList; // contexts
 		unsigned char count;
-		unsigned char contextListCount;
+		unsigned char contextListCount; // contextCount
 	}; assert_sizeof(snd_alias_list_t, 0x20);
 
 	struct LocalizeEntry
@@ -3227,6 +3300,10 @@ namespace zonetool::h1
 		NETCONSTSTRINGTYPE_ANIMCLASS = 21, // acl
 		NETCONSTSTRINGTYPE_LUI = 22, // lui
 		NETCONSTSTRINGTYPE_LASER = 23, // lsr
+		NETCONSTSTRINGTYPE_ASSET_COUNT = 24,
+		NETCONSTSTRINGTYPE_CODINFO_DVAR = 24,
+		NETCONSTSTRINGTYPE_CODINFOVALUE_DVAR = 25,
+		NETCONSTSTRINGTYPE_NETWORK_DVAR = 26,
 		NETCONSTSTRINGTYPE_COUNT = 27,
 		NETCONSTSTRINGTYPE_NONE = 27,
 	};
@@ -3837,7 +3914,7 @@ namespace zonetool::h1
 		unsigned int randomDataShortCount; // 36
 		unsigned int randomDataIntCount; // 40
 		unsigned int indexCount; // 44
-		float framerate;  // 48
+		float framerate; // 48
 		float frequency; // 56
 		scr_string_t* names; // 56
 		char* dataByte; // 64
@@ -5522,7 +5599,7 @@ namespace zonetool::h1
 		vec2_t* accuracyGraphKnots[2]; // 3088
 		vec2_t* originalAccuracyGraphKnots[2]; // 3104
 		short accuracyGraphKnotCount[2]; // 3120
-		short originalAccuracyGraphKnotCount[2]; // 3120
+		short originalAccuracyGraphKnotCount[2]; // 3124
 		float leftArc; // 3128
 		float rightArc; // 3132
 		float topArc; // 3136
@@ -9534,7 +9611,7 @@ namespace zonetool::h1
 	{
 		const char* name;
 		SndGlobalSettings_t settings;
-		XaReverbSettings* reverbSettings;  // array: 26
+		XaReverbSettings* reverbSettings; // array: 26
 	}; assert_sizeof(SndDriverGlobals, 0x38);
 	assert_offsetof(SndDriverGlobals, reverbSettings, 48);
 

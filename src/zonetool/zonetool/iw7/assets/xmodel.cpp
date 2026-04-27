@@ -381,7 +381,7 @@ namespace zonetool::iw7
 
 		if (data->unknown03)
 		{
-			buf->align(3);
+			buf->align(0);
 			buf->write(data->unknown03, data->unknown03Count);
 			buf->clear_pointer(&dest->unknown03);
 		}

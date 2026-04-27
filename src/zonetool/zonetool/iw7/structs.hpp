@@ -26,6 +26,39 @@ namespace zonetool::iw7
 			DataPtr m_splitValues;
 		};
 
+		struct ImpTile
+		{
+			struct BSPData33
+			{
+				int m_numBspNodes;
+				unsigned int m_planesOffset;
+				int m_numPlanes;
+			};
+
+			struct CoordinateSystem34
+			{
+				float m_scaleFactor;
+				float m_invScaleFactor;
+				unsigned __int16 m_tileBounds[6];
+				int m_pad[2];
+			};
+
+			Vector3 m_treeMin;
+			Vector3 m_treeMax;
+			SerializedTreeData m_viewTree;
+			int m_sizeAndFlags;
+			float m_portalExpand;
+			int m_numCellsAndClusters;
+			DataPtr m_cells;
+			DataPtr m_portals;
+			DataPtr m_cellIndices;
+			union
+			{
+				BSPData33 bsp;
+				CoordinateSystem34 coordSys;
+			} u_;
+		};
+
 		struct ImpTome
 		{
 			unsigned int m_versionMagic;
@@ -1833,6 +1866,14 @@ namespace zonetool::iw7
 		ID3D11Buffer* hsConstantBuffer;
 		ID3D11Buffer* dsConstantBuffer;
 		ID3D11Buffer* psConstantBuffer;
+	};
+
+	enum GfxCameraRegionType : std::uint8_t
+	{
+		CAMERA_REGION_LIT_OPAQUE = 0,
+		CAMERA_REGION_LIT_DECAL = 2,
+		CAMERA_REGION_LIT_TRANS = 3,
+		CAMERA_REGION_NONE = 4,
 	};
 
 	struct Material
@@ -3785,6 +3826,18 @@ namespace zonetool::iw7
 		vec3_t angleOffset;
 	};
 
+	enum clientTriggerType_t : std::uint8_t
+	{
+		CLIENT_TRIGGER_VISIONSET = 0x1,
+		CLIENT_TRIGGER_AUDIO = 0x2,
+		CLIENT_TRIGGER_BLEND_VISION = 0x4,
+		CLIENT_TRIGGER_BLEND_AUDIO = 0x8,
+		CLIENT_TRIGGER_BLEND_ALL = 0xC,
+		CLIENT_TRIGGER_AUDIO_NPC = 0x10,
+		CLIENT_TRIGGER_AUDIO_OCCLUDER = 0x20,
+		CLIENT_TRIGGER_AUDIO_PROPAGATE = 0x40,
+	};
+
 	struct ClientTriggers
 	{
 		MapTriggers trigger;
@@ -3921,8 +3974,9 @@ namespace zonetool::iw7
 		unsigned short brushModel;
 		bool spawnActive;
 		char __pad2[1];
-		short instanceIndex;
-		char __pad3[10];
+		unsigned short scriptableMapIndex;
+		unsigned short scriptableSubIndex;
+		char __pad3[8];
 		DynEntityLinkToDef* linkTo;
 		bool noPhysics;
 		bool unk1;
@@ -4022,9 +4076,15 @@ namespace zonetool::iw7
 	struct unk_1453E2510
 	{
 		ScriptableDef* def;
-		char __pad0[52];
-		short entityId;
-		char __pad1[10];
+		char __pad0[28];
+		short r00; // runtime data
+		char __pad4[22];
+		short r01; // runtime data
+		char __pad1[6];
+		char r02; // runtime data
+		char r03; // runtime data
+		char r04; // runtime data
+		char __pad3[1];
 		unk_1453E24B0 unk01;
 		unsigned int eventStreamBufferSize;
 		char* eventStreamBuffer;

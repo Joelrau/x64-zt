@@ -9,6 +9,37 @@
 #include <DirectXTex.h>
 #pragma warning( pop )
 
+#include <nmmintrin.h>
+
+namespace
+{
+	uint32_t crc32c_hw(const void* data, size_t len)
+	{
+		const uint8_t* p = (const uint8_t*)data;
+		uint32_t crc = 0xFFFFFFFF;
+
+		while (len--)
+			crc = _mm_crc32_u8(crc, *p++);
+
+		return ~crc;
+	}
+
+	static inline uint32_t crc32Hash(const char* ptr, uint32_t length)
+	{
+		return crc32c_hw(ptr, length);
+	}
+
+	static inline uint32_t crc32Hash(const uint32_t* ptr, uint32_t length)
+	{
+		return crc32c_hw(ptr, length);
+	}
+
+	static inline uint32_t computeCRC32(zonetool::h1::Umbra::ImpTome* tome)
+	{
+		return crc32Hash(&tome->m_size, tome->m_size - 8);
+	}
+}
+
 namespace zonetool::h1
 {
 	namespace converter::iw7
@@ -141,7 +172,7 @@ namespace zonetool::h1
 
 				if (!std::filesystem::exists(parent_path))
 				{
-					std::filesystem::create_directories(parent_path);//
+					std::filesystem::create_directories(parent_path);
 				}
 
 #ifdef COMPRESS
@@ -292,7 +323,9 @@ namespace zonetool::h1
 						new_asset->draw.lightMaps[i]->textures[1] = allocator.allocate<zonetool::iw7::GfxImage>();
 						new_asset->draw.lightMaps[i]->textures[1]->name = asset->draw.lightmaps[i].secondary->name;
 					}
-					new_asset->draw.lightMaps[i]->textures[2] = nullptr; // secondunorm
+					//new_asset->draw.lightMaps[i]->textures[2] = nullptr; // secondunorm
+					new_asset->draw.lightMaps[i]->textures[2] = allocator.allocate<zonetool::iw7::GfxImage>();
+					new_asset->draw.lightMaps[i]->textures[2]->name = allocator.duplicate_string(utils::string::va("*lightmap%d_secondunorm", i));
 				}
 				new_asset->draw.lightmapTextures = nullptr; // runtime data, allocated elsewhere
 
@@ -480,15 +513,6 @@ namespace zonetool::h1
 				COPY_ASSET(outdoorImage);
 				new_asset->dustMaterial = nullptr;
 				new_asset->materialLod0SizeThreshold = 0.5f;
-				
-				new_asset->primaryLightMotionDetectBitsEntries = 0;
-				new_asset->entityMotionBitsEntries = 134;
-				new_asset->staticSpotOmniPrimaryLightCountAligned = 0;
-				new_asset->numPrimaryLightEntityShadowVisEntries = 0;
-				new_asset->dynEntMotionBitsEntries[0] = 0;
-				new_asset->dynEntMotionBitsEntries[1] = 0;
-				new_asset->numPrimaryLightDynEntShadowVisEntries[0] = 0;
-				new_asset->numPrimaryLightDynEntShadowVisEntries[1] = 0;
 
 				REINTERPRET_CAST_SAFE(shadowGeomOptimized);
 				REINTERPRET_CAST_SAFE(lightRegion);
@@ -510,12 +534,12 @@ namespace zonetool::h1
 					COPY_VALUE(dpvs.litTransSurfsEnd);
 					COPY_VALUE(dpvs.emissiveSurfsBegin);
 					COPY_VALUE(dpvs.emissiveSurfsEnd);
-					COPY_VALUE(dpvs.smodelVisDataCount);
-					COPY_VALUE(dpvs.surfaceVisDataCount);
-					new_asset->dpvs.primaryLightVisDataCount = (new_asset->primaryLightCount + 31) >> 5;
-					new_asset->dpvs.reflectionProbeVisDataCount = (new_asset->draw.reflectionProbeData.reflectionProbeInstanceCount + 31) >> 5;
-					new_asset->dpvs.volumetricVisDataCount = (new_asset->draw.volumetrics.volumetricCount + 31) >> 5;
-					new_asset->dpvs.decalVisDataCount = (new_asset->draw.decalVolumeCollectionCount + 31) >> 5;
+					new_asset->dpvs.smodelVisDataCount = (new_asset->dpvs.smodelCount + 0x1F) >> 5;
+					new_asset->dpvs.surfaceVisDataCount = (new_asset->surfaceCount + 0x1F) >> 5;
+					new_asset->dpvs.primaryLightVisDataCount = (new_asset->primaryLightCount + 0x1F) >> 5;
+					new_asset->dpvs.reflectionProbeVisDataCount = (new_asset->draw.reflectionProbeData.reflectionProbeInstanceCount + 0x1F) >> 5;
+					new_asset->dpvs.volumetricVisDataCount = (new_asset->draw.volumetrics.volumetricCount + 0x1F) >> 5;
+					new_asset->dpvs.decalVisDataCount = (new_asset->draw.decalVolumeCollectionCount + 0x1F) >> 5;
 					REINTERPRET_CAST_SAFE(dpvs.lodData);
 					REINTERPRET_CAST_SAFE(dpvs.sortedSurfIndex);
 					REINTERPRET_CAST_SAFE(dpvs.smodelInsts);
@@ -533,6 +557,11 @@ namespace zonetool::h1
 						new_asset->dpvs.surfaces[i].lightmapIndex = asset->dpvs.surfaces[i].laf.fields.lightmapIndex;
 						new_asset->dpvs.surfaces[i].flags = asset->dpvs.surfaces[i].laf.fields.flags;
 
+						new_asset->dpvs.surfaces[i].unk1 = 0;
+						new_asset->dpvs.surfaces[i].unk2 = 0;
+						new_asset->dpvs.surfaces[i].unk3 = 0;
+						new_asset->dpvs.surfaces[i].unk4 = 0;
+
 						new_asset->dpvs.surfaces[i].transientZone = 0;
 					}
 
@@ -547,11 +576,25 @@ namespace zonetool::h1
 					{
 						COPY_VALUE_CAST(dpvs.smodelDrawInsts[i].placement);
 
-						new_asset->dpvs.smodelDrawInsts[i].vertexLightingInfo.numLightingValues = asset->dpvs.smodelLightingInsts[i].vertexLightingInfo.numLightingValues;
-						new_asset->dpvs.smodelDrawInsts[i].vertexLightingInfo.lightingValues = 
-							reinterpret_cast<zonetool::iw7::GfxStaticModelVertexLighting*>(asset->dpvs.smodelLightingInsts[i].vertexLightingInfo.lightingValues);
+						new_asset->dpvs.smodelDrawInsts[i].model = 
+							reinterpret_cast<zonetool::iw7::XModel*>(asset->dpvs.smodelDrawInsts[i].model);
+
+						auto& src_draw_inst = asset->dpvs.smodelDrawInsts[i];
 
 						new_asset->dpvs.smodelDrawInsts[i].modelLightmapInfo.lightmapIndex = -1;
+
+						if ((src_draw_inst.flags & STATIC_MODEL_FLAG_VERTEXLIT_LIGHTING) != 0)
+						{
+							new_asset->dpvs.smodelDrawInsts[i].vertexLightingInfo.numLightingValues = asset->dpvs.smodelLightingInsts[i].vertexLightingInfo.numLightingValues;
+							new_asset->dpvs.smodelDrawInsts[i].vertexLightingInfo.lightingValues =
+								reinterpret_cast<zonetool::iw7::GfxStaticModelVertexLighting*>(asset->dpvs.smodelLightingInsts[i].vertexLightingInfo.lightingValues);
+						}
+						else if ((src_draw_inst.flags & STATIC_MODEL_FLAG_LIGHTMAP_LIGHTING) != 0)
+						{
+							new_asset->dpvs.smodelDrawInsts[i].modelLightmapInfo.lightmapIndex = asset->dpvs.smodelLightingInsts[i].modelLightmapInfo.lightmapIndex;
+							memcpy(&new_asset->dpvs.smodelDrawInsts[i].modelLightmapInfo.offset, &asset->dpvs.smodelLightingInsts[i].modelLightmapInfo.offset, sizeof(float[2]));
+							memcpy(&new_asset->dpvs.smodelDrawInsts[i].modelLightmapInfo.scale, &asset->dpvs.smodelLightingInsts[i].modelLightmapInfo.scale, sizeof(float[2]));
+						}
 
 						new_asset->dpvs.smodelDrawInsts[i].lightingHandle = asset->dpvs.smodelDrawInsts[i].lightingHandle;
 						new_asset->dpvs.smodelDrawInsts[i].cullDist = asset->dpvs.smodelDrawInsts[i].cullDist;
@@ -576,11 +619,22 @@ namespace zonetool::h1
 
 				COPY_ARR(dpvsDyn.dynEntClientWordCount);
 				COPY_ARR(dpvsDyn.dynEntClientCount);
-				COPY_ARR(dpvsDyn.dynEntCellBits);
-				//dynEntVisData
+				//COPY_ARR(dpvsDyn.dynEntCellBits);
 
-				new_asset->dpvsDyn.dynEntClientWordCount[0] = 2;
-				new_asset->dpvsDyn.dynEntClientCount[0] = 64;
+				new_asset->dpvsDyn.dynEntClientCount[0] += 64; // reserve_dynents
+				new_asset->dpvsDyn.dynEntClientWordCount[0] += 2; // reserve_dynents ( 64 >> 5 )
+
+				new_asset->dpvsDyn.dynEntCellBits[0] = allocator.allocate_array<unsigned int>(new_asset->dpvsDyn.dynEntClientCount[0] * new_asset->dpvsPlanes.cellCount); // runtime
+				new_asset->dpvsDyn.dynEntCellBits[1] = allocator.allocate_array<unsigned int>(new_asset->dpvsDyn.dynEntClientCount[1] * new_asset->dpvsPlanes.cellCount); // runtime
+
+				// 0 - 3 are valid.
+				new_asset->dpvsDyn.dynEntVisData[0][0] = allocator.allocate_array<unsigned char>(32 * new_asset->dpvsDyn.dynEntClientWordCount[0]); // runtime
+				new_asset->dpvsDyn.dynEntVisData[0][1] = allocator.allocate_array<unsigned char>(32 * new_asset->dpvsDyn.dynEntClientWordCount[0]); // runtime
+				new_asset->dpvsDyn.dynEntVisData[0][2] = allocator.allocate_array<unsigned char>(32 * new_asset->dpvsDyn.dynEntClientWordCount[0]); // runtime
+
+				new_asset->dpvsDyn.dynEntVisData[1][0] = allocator.allocate_array<unsigned char>(32 * new_asset->dpvsDyn.dynEntClientWordCount[1]); // runtime
+				new_asset->dpvsDyn.dynEntVisData[1][1] = allocator.allocate_array<unsigned char>(32 * new_asset->dpvsDyn.dynEntClientWordCount[1]); // runtime
+				new_asset->dpvsDyn.dynEntVisData[1][2] = allocator.allocate_array<unsigned char>(32 * new_asset->dpvsDyn.dynEntClientWordCount[1]); // runtime
 
 				COPY_VALUE(mapVtxChecksum);
 				COPY_VALUE(heroOnlyLightCount);
@@ -600,6 +654,143 @@ namespace zonetool::h1
 				new_asset->umbraTomePtr2 = nullptr;
 				new_asset->umbraUnkSize = 0;
 				new_asset->umbraUnkData = nullptr;
+
+				// umbra gates might not be needed?
+				// generate umbra gates from cells
+				//new_asset->numUmbraGates = new_asset->dpvsPlanes.cellCount;
+				//new_asset->umbraGates = allocator.allocate_array<zonetool::iw7::UmbraGate>(new_asset->numUmbraGates);
+				//for (auto i = 0; i < new_asset->numUmbraGates; i++)
+				//{
+				//	// just use the cell bounds for the gate bounds, not sure if this is correct but it should work
+				//	memcpy(&new_asset->umbraGates[i].bounds, &asset->cells[i].bounds, sizeof(float[2][3]));
+				//	new_asset->umbraGates[i].objID = i;
+				//	new_asset->umbraGates[i].closeDistance = 0;
+				//}
+
+				// generate umbra tome
+				//if (asset->umbraTomeData) // for old tome data we just need to add bounds
+				//{
+				//  // i think this is not correct yet, also it seems to work even though new data is garbage.
+				//	constexpr auto extra_data_size = sizeof(zonetool::iw7::Umbra::ImpTome) - sizeof(zonetool::h1::Umbra::ImpTome);
+				//	const auto* old_tome = reinterpret_cast<const zonetool::h1::Umbra::ImpTome*>(asset->umbraTomeData);
+				//
+				//	new_asset->umbraTomeSize = asset->umbraTomeSize + extra_data_size;
+				//	new_asset->umbraTomeData = allocator.manual_allocate<char>(new_asset->umbraTomeSize);
+				//
+				//	auto* new_tome = reinterpret_cast<zonetool::iw7::Umbra::ImpTome*>(new_asset->umbraTomeData);
+				//
+				//	// copy old data
+				//	memcpy(new_asset->umbraTomeData, asset->umbraTomeData, sizeof(zonetool::h1::Umbra::ImpTome));
+				//	memcpy(new_asset->umbraTomeData + sizeof(zonetool::iw7::Umbra::ImpTome), 
+				//		asset->umbraTomeData + sizeof(zonetool::h1::Umbra::ImpTome), 
+				//		asset->umbraTomeSize - sizeof(zonetool::h1::Umbra::ImpTome));
+				//
+				//	// add new data
+				//	new_tome->m_boundsMin.x = new_asset->bounds.midPoint[0] - new_asset->bounds.halfSize[0];
+				//	new_tome->m_boundsMin.y = new_asset->bounds.midPoint[1] - new_asset->bounds.halfSize[1];
+				//	new_tome->m_boundsMin.z = new_asset->bounds.midPoint[2] - new_asset->bounds.halfSize[2];
+				//	new_tome->m_boundsMax.x = new_asset->bounds.midPoint[0] + new_asset->bounds.halfSize[0];
+				//	new_tome->m_boundsMax.y = new_asset->bounds.midPoint[1] + new_asset->bounds.halfSize[1];
+				//	new_tome->m_boundsMax.z = new_asset->bounds.midPoint[2] + new_asset->bounds.halfSize[2];
+				//
+				//	new_tome->m_clusterCoordScale = 8.0f;
+				//
+				//	// fix offsets in tome data
+				//	auto fix_offset = [&](std::uint32_t& offset)
+				//	{
+				//		if (offset > sizeof(zonetool::h1::Umbra::ImpTome))
+				//			offset += extra_data_size;
+				//	};
+				//	fix_offset(new_tome->m_tileTree.m_treeData.m_offset);
+				//	fix_offset(new_tome->m_tileTree.m_map.m_offset);
+				//	fix_offset(new_tome->m_tileTree.m_splitValues.m_offset);
+				//	fix_offset(new_tome->m_objBounds.m_offset);
+				//	fix_offset(new_tome->m_objDistances.m_offset);
+				//	fix_offset(new_tome->m_userIDStarts.m_offset);
+				//	fix_offset(new_tome->m_userIDs.m_offset);
+				//	fix_offset(new_tome->m_objectLists.m_offset);
+				//	fix_offset(new_tome->m_clusterLists.m_offset);
+				//	fix_offset(new_tome->m_gateIndexMap.m_offset);
+				//	fix_offset(new_tome->m_gateVertices.m_offset);
+				//	fix_offset(new_tome->m_gateIndices.m_offset);
+				//	fix_offset(new_tome->m_clusters.m_offset);
+				//	fix_offset(new_tome->m_clusterPortals.m_offset);
+				//	fix_offset(new_tome->m_cellStarts.m_offset);
+				//	fix_offset(new_tome->m_slotPaths.m_offset);
+				//	fix_offset(new_tome->m_tileLodLevels.m_offset);
+				//	fix_offset(new_tome->m_tiles.m_offset);
+				//	fix_offset(new_tome->m_tileMatchingData.m_offset);
+				//	fix_offset(new_tome->m_matchingTrees.m_offset);
+				//	fix_offset(new_tome->m_tomeClusterStarts.m_offset);
+				//	fix_offset(new_tome->m_tomeClusterPortalStarts.m_offset);
+				//	fix_offset(new_tome->m_objectDepthmaps.m_offset);
+				//	fix_offset(new_tome->m_depthmapFaces.m_offset);
+				//	fix_offset(new_tome->m_depthmapPalettes.m_offset);
+				//	fix_offset(new_tome->m_tilePortalExpands.m_offset);
+				//
+				//	auto fix_tree = [&](auto&& self, std::uint32_t offset) -> void
+				//	{
+				//		auto* tree = reinterpret_cast<zonetool::iw7::Umbra::ImpTile*>(new_asset->umbraTomeData + offset);
+				//
+				//		fix_offset(tree->m_viewTree.m_treeData.m_offset);
+				//		fix_offset(tree->m_viewTree.m_map.m_offset);
+				//		fix_offset(tree->m_viewTree.m_splitValues.m_offset);
+				//		fix_offset(tree->m_cells.m_offset);
+				//		fix_offset(tree->m_portals.m_offset);
+				//		fix_offset(tree->m_cellIndices.m_offset);
+				//		fix_offset(tree->u_.bsp.m_planesOffset); // let's hope coord system isn't used...
+				//
+				//		if (tree->m_viewTree.m_treeData.m_offset)
+				//			self(self, tree->m_viewTree.m_treeData.m_offset);
+				//	};
+				//	if (new_tome->m_tileTree.m_treeData.m_offset)
+				//		fix_tree(fix_tree, new_tome->m_tileTree.m_treeData.m_offset);
+				//
+				//	// update data
+				//	new_tome->m_size = new_asset->umbraTomeSize;
+				//	new_tome->m_crc32 = crc32Hash(&new_tome->m_size, new_tome->m_size - 8);
+				//	assert(old_tome->m_crc32 == crc32Hash(&old_tome->m_size, old_tome->m_size - 8));
+				//}
+				//else
+				//{
+				//	// Todo...
+				//}
+
+				// re-calculate values
+				auto AlignUp = [](auto value, auto alignment)
+				{
+					return (value + (alignment - 1)) & ~(alignment - 1);
+				};
+
+				const auto lights = new_asset->primaryLightCount
+					- new_asset->lastSunPrimaryLightIndex
+					- new_asset->movingScriptablePrimaryLightCount
+					- 1;
+
+				new_asset->staticSpotOmniPrimaryLightCountAligned = AlignUp(lights, 32);
+
+				new_asset->primaryLightMotionDetectBitsEntries = new_asset->staticSpotOmniPrimaryLightCountAligned >> 4;;
+				new_asset->primaryLightMotionDetectBits = allocator.allocate_array<unsigned int>(new_asset->primaryLightMotionDetectBitsEntries); // runtime
+
+				new_asset->entityMotionBitsEntries = 134; // idk (seems to always be 134)
+				new_asset->entityMotionBits = allocator.allocate_array<unsigned int>(new_asset->entityMotionBitsEntries); // runtime
+
+				new_asset->numPrimaryLightEntityShadowVisEntries = new_asset->staticSpotOmniPrimaryLightCountAligned * 0x86;
+				new_asset->primaryLightEntityShadowVis = allocator.allocate_array<unsigned int>(new_asset->numPrimaryLightEntityShadowVisEntries); // runtime
+
+				new_asset->dynEntMotionBitsEntries[0] =
+					((new_asset->dpvsDyn.dynEntClientCount[0] + 31) >> 5) * 2;
+				new_asset->dynEntMotionBits[0] = allocator.allocate_array<unsigned int>(new_asset->dynEntMotionBitsEntries[0]); // runtime
+				new_asset->dynEntMotionBitsEntries[1] =
+					((new_asset->dpvsDyn.dynEntClientCount[1] + 31) >> 5) * 2;
+				new_asset->dynEntMotionBits[1] = allocator.allocate_array<unsigned int>(new_asset->dynEntMotionBitsEntries[1]); // runtime
+
+				new_asset->numPrimaryLightDynEntShadowVisEntries[0] =
+					(new_asset->staticSpotOmniPrimaryLightCountAligned * new_asset->dpvsDyn.dynEntClientCount[0]) >> 4;
+				new_asset->primaryLightDynEntShadowVis[0] = allocator.allocate_array<unsigned int>(new_asset->numPrimaryLightDynEntShadowVisEntries[0]); // runtime
+				new_asset->numPrimaryLightDynEntShadowVisEntries[1] =
+					(new_asset->staticSpotOmniPrimaryLightCountAligned * new_asset->dpvsDyn.dynEntClientCount[1]) >> 4;
+				new_asset->primaryLightDynEntShadowVis[1] = allocator.allocate_array<unsigned int>(new_asset->numPrimaryLightDynEntShadowVisEntries[1]); // runtime
 
 				return new_asset;
 			}

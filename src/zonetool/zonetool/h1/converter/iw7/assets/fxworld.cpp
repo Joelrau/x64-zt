@@ -56,11 +56,12 @@ namespace zonetool::h1
 					COPY_ASSET(glassSys.defs[i].material);
 					COPY_ASSET(glassSys.defs[i].materialShattered);
 
-					if (asset->glassSys.defs[i].physPreset)
-					{
-						new_asset->glassSys.defs[i].physicsAsset = allocator.allocate<zonetool::iw7::PhysicsAsset>();
-						new_asset->glassSys.defs[i].physicsAsset->name = asset->glassSys.defs[i].physPreset->name;
-					}
+					//if (asset->glassSys.defs[i].physPreset)
+					//{
+					//	new_asset->glassSys.defs[i].physicsAsset = allocator.allocate<zonetool::iw7::PhysicsAsset>();
+					//	new_asset->glassSys.defs[i].physicsAsset->name = asset->glassSys.defs[i].physPreset->name;
+					//}
+					new_asset->glassSys.defs[i].physicsAsset = nullptr;
 
 					COPY_EFFECT(glassSys.defs[i].pieceBreakEffect);
 					COPY_EFFECT(glassSys.defs[i].shatterEffect);

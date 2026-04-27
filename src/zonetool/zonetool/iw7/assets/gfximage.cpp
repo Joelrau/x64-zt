@@ -17,16 +17,6 @@ namespace zonetool::iw7
 {
 	namespace
 	{
-		bool is_map_image(const std::string& name)
-		{
-			return (name.size() >= 6)
-				? ((name.substr(0, 6) == "*light" || name.substr(0, 6) == "*refle" ||
-					name == "$outdoor")
-					? true
-					: false)
-				: false;
-		}
-
 		std::string clean_name(const std::string& name)
 		{
 			auto new_name = name;

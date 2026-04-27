@@ -1186,7 +1186,7 @@ namespace zonetool::iw7
 			{
 				if (data->lightRegion[i].hulls)
 				{
-					buf->align(3);
+					buf->align(7);
 					auto light_region_hull = buf->write(data->lightRegion[i].hulls, data->lightRegion[i].hullCount);
 
 					for (unsigned int i2 = 0; i2 < data->lightRegion[i].hullCount; i2++)
