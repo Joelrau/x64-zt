@@ -385,7 +385,8 @@ namespace zonetool::h1
 
 				new_asset->draw.volumetrics.volumetricCount = 0;
 				new_asset->draw.volumetrics.volumetrics = nullptr;
-				new_asset->lightGrid.unk;
+				constexpr int unk_values[] = {0, 0, 5, 5, 6, 32, 32, 64, 0};
+				memcpy(new_asset->lightGrid.unk, unk_values, sizeof(unk_values));
 				COPY_VALUE(lightGrid.tableVersion);
 				COPY_VALUE(lightGrid.paletteVersion);
 				COPY_VALUE(lightGrid.rangeExponent8BitsEncoding);
@@ -399,21 +400,19 @@ namespace zonetool::h1
 				COPY_VALUE(lightGrid.paletteBitstream);
 				for (unsigned int j = 0; j < 56; j++)
 				{
-					// fixme?...
-					//auto& rgb = asset->lightGrid.skyLightGridColors.rgb[j];
-					//auto& dest_rgb = new_asset->lightGrid.skyLightGridColors.rgb[j];
-					//dest_rgb[0] = half_to_float(rgb[0]);
-					//dest_rgb[1] = half_to_float(rgb[1]);
-					//dest_rgb[2] = half_to_float(rgb[2]);
+					auto& rgb = asset->lightGrid.skyLightGridColors.rgb[j];
+					auto& dest_rgb = new_asset->lightGrid.skyLightGridColors.rgb[j];
+					dest_rgb[0] = half_float::half_to_float(rgb[0]);
+					dest_rgb[1] = half_float::half_to_float(rgb[1]);
+					dest_rgb[2] = half_float::half_to_float(rgb[2]);
 				}
 				for (unsigned int j = 0; j < 56; j++)
 				{
-					// fixme?...
-					//auto& rgb = asset->lightGrid.defaultLightGridColors.rgb[j];
-					//auto& dest_rgb = new_asset->lightGrid.defaultLightGridColors.rgb[j];
-					//dest_rgb[0] = half_to_float(rgb[0]);
-					//dest_rgb[1] = half_to_float(rgb[1]);
-					//dest_rgb[2] = half_to_float(rgb[2]);
+					auto& rgb = asset->lightGrid.defaultLightGridColors.rgb[j];
+					auto& dest_rgb = new_asset->lightGrid.defaultLightGridColors.rgb[j];
+					dest_rgb[0] = half_float::half_to_float(rgb[0]);
+					dest_rgb[1] = half_float::half_to_float(rgb[1]);
+					dest_rgb[2] = half_float::half_to_float(rgb[2]);
 				}
 				new_asset->lightGrid.tree.maxDepth = asset->lightGrid.tree[0].maxDepth;
 				new_asset->lightGrid.tree.nodeCount = asset->lightGrid.tree[0].nodeCount;

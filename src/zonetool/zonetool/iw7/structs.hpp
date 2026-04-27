@@ -1874,6 +1874,7 @@ namespace zonetool::iw7
 		CAMERA_REGION_LIT_DECAL = 2,
 		CAMERA_REGION_LIT_TRANS = 3,
 		CAMERA_REGION_NONE = 4,
+		CAMERA_REGION_NONE_2 = 11,
 	};
 
 	struct Material
@@ -3413,7 +3414,7 @@ namespace zonetool::iw7
 	struct ComChangeListInfo
 	{
 		unsigned int changeListNumber;
-		int time;
+		int time; // std::time_t t = static_cast<std::time_t>(time);
 		const char* userName;
 	}; assert_sizeof(ComChangeListInfo, 16);
 
@@ -3422,7 +3423,7 @@ namespace zonetool::iw7
 		const char* name;
 		int isInUse;
 		int useForwardPlus;
-		unsigned int bakeQuality;
+		unsigned int bakeQuality; // 0 = unknown, 1 = fast, 2 = full, 3 = extra
 		unsigned int primaryLightCount;
 		ComPrimaryLight* primaryLights;
 		unsigned int scriptablePrimaryLightCount;
