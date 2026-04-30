@@ -329,9 +329,38 @@ namespace zonetool::s1
 		else if (asset->soundFile->type == SAT_PRIMED)
 		{
 			ZONETOOL_FATAL("SAT_PRIMED parsing is not supported yet.");
+			asset->soundFile->exists = false;
 		}
 
-		SOUND_READ_FIELD(flags);
+		if (snddata["flags"].is_object())
+		{
+			SoundAliasFlags flags{ 0 };
+
+			flags.packed.looping = snddata["flags"]["looping"].get<int>();
+			flags.packed.isMaster = snddata["flags"]["isMaster"].get<int>();
+			flags.packed.isSlave = snddata["flags"]["isSlave"].get<int>();
+			flags.packed.fullDryLevel = snddata["flags"]["fullDryLevel"].get<int>();
+			flags.packed.noWetLevel = snddata["flags"]["noWetLevel"].get<int>();
+			flags.packed.randomLooping = snddata["flags"]["randomLooping"].get<int>();
+			flags.packed.spatializedRangeCheck = snddata["flags"]["spatializedRangeCheck"].get<int>();
+			flags.packed.spatializedIs3D = snddata["flags"]["spatializedIs3D"].get<int>();
+			flags.packed.unk9 = snddata["flags"]["unk9"].get<int>();
+			flags.packed.inheritPitch = snddata["flags"]["inheritPitch"].get<int>();
+			flags.packed.inheritVolume = snddata["flags"]["inheritVolume"].get<int>();
+			flags.packed.useContextList = snddata["flags"]["useContextList"].get<int>();
+			flags.packed.useNoPanning2D = snddata["flags"]["useNoPanning2D"].get<int>();
+			flags.packed.useOldPanning = snddata["flags"]["useOldPanning"].get<int>();
+			flags.packed.useNoPanning3D = snddata["flags"]["useNoPanning3D"].get<int>();
+			flags.packed.type = snddata["flags"]["type"].get<int>();
+			flags.packed.unused = snddata["flags"]["unused"].get<int>();
+
+			asset->flags = flags.intValue;
+		}
+		else if (snddata["flags"].is_number_integer())
+		{
+			asset->flags = snddata["flags"].get<int>();
+		}
+
 		SOUND_READ_FIELD(variationType);
 		SOUND_READ_FIELD(priority);
 		asset->dspBusIndex = get_dsp_bus_index_from_name(snddata["dspBus"].get<std::string>().data()); //SOUND_CHAR(dspBusIndex);
@@ -830,7 +859,27 @@ namespace zonetool::s1
 			}
 		}
 
-		SOUND_DUMP_FIELD(flags);
+		//SOUND_DUMP_INT(flags);
+		SoundAliasFlags flags{};
+		flags.intValue = asset->flags;
+		sound["flags"]["looping"] = static_cast<int>(flags.packed.looping);
+		sound["flags"]["isMaster"] = static_cast<int>(flags.packed.isMaster);
+		sound["flags"]["isSlave"] = static_cast<int>(flags.packed.isSlave);
+		sound["flags"]["fullDryLevel"] = static_cast<int>(flags.packed.fullDryLevel);
+		sound["flags"]["noWetLevel"] = static_cast<int>(flags.packed.noWetLevel);
+		sound["flags"]["randomLooping"] = static_cast<int>(flags.packed.randomLooping);
+		sound["flags"]["spatializedRangeCheck"] = static_cast<int>(flags.packed.spatializedRangeCheck);
+		sound["flags"]["spatializedIs3D"] = static_cast<int>(flags.packed.spatializedIs3D);
+		sound["flags"]["unk9"] = static_cast<int>(flags.packed.unk9);
+		sound["flags"]["inheritPitch"] = static_cast<int>(flags.packed.inheritPitch);
+		sound["flags"]["inheritVolume"] = static_cast<int>(flags.packed.inheritVolume);
+		sound["flags"]["useContextList"] = static_cast<int>(flags.packed.useContextList);
+		sound["flags"]["useNoPanning2D"] = static_cast<int>(flags.packed.useNoPanning2D);
+		sound["flags"]["useOldPanning"] = static_cast<int>(flags.packed.useOldPanning);
+		sound["flags"]["useNoPanning3D"] = static_cast<int>(flags.packed.useNoPanning3D);
+		sound["flags"]["type"] = static_cast<int>(flags.packed.type);
+		sound["flags"]["unused"] = static_cast<int>(flags.packed.unused);
+
 		SOUND_DUMP_FIELD(variationType);
 		SOUND_DUMP_FIELD(priority);
 		sound["dspBus"] = get_dsp_bus_name(asset->dspBusIndex); //SOUND_DUMP_CHAR(dspBusIndex);
