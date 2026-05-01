@@ -5,11 +5,16 @@ permissions:
 on:
   push:
     branches:
-      - "*"
+      - main
   pull_request:
     branches:
       - "*"
     types: [opened, synchronize, reopened]
+
+concurrency:
+  group: release-latest
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build binaries
@@ -19,6 +24,7 @@ jobs:
         configuration:
           - Debug
           - Release
+
     steps:
       - name: Check out files
         uses: actions/checkout@v4
@@ -36,21 +42,24 @@ jobs:
       - name: Set up problem matching
         uses: ammaraskar/msvc-problem-matcher@master
 
-      - name: Build ${{matrix.configuration}} zonetool
-        run: msbuild /m /v:minimal /p:Configuration=${{matrix.configuration}} /p:Platform=x64 build/x64-zt.sln
+      - name: Build ${{ matrix.configuration }} zonetool
+        run: msbuild /m /v:minimal /p:Configuration=${{ matrix.configuration }} /p:Platform=x64 build/x64-zt.sln
 
-      - name: Upload ${{matrix.configuration}} zonetool
+      - name: Upload ${{ matrix.configuration }} zonetool
         uses: actions/upload-artifact@v4
         with:
-          name: ${{matrix.configuration}} zonetool
+          name: ${{ matrix.configuration }} zonetool
           path: |
-            build/bin/x64/${{matrix.configuration}}/zonetool.exe
-            build/bin/x64/${{matrix.configuration}}/zonetool.pdb
+            build/bin/x64/${{ matrix.configuration }}/zonetool.exe
+            build/bin/x64/${{ matrix.configuration }}/zonetool.pdb
 
   release:
     name: Create Release
     runs-on: ubuntu-latest
     needs: build
+
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
     steps:
       - name: Check out files
         uses: actions/checkout@v4

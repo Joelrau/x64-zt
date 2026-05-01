@@ -4,10 +4,51 @@
 #include "clipmap.hpp"
 #include "zonetool/iw7/assets/clipmap.hpp"
 
+#include "zonetool/utils/gsc.hpp"
+
 namespace zonetool::h1
 {
 	namespace converter::iw7
 	{
+		namespace
+		{
+			std::string convert_mapents_ids(const std::string& source)
+			{
+				std::string out_buffer;
+
+				const auto lines = utils::string::split(source, '\n');
+
+				for (auto i = 0; i < lines.size(); i++)
+				{
+					const auto _0 = gsl::finally([&]
+					{
+						out_buffer.append("\n");
+					});
+
+					const auto& line = lines[i];
+
+					std::regex expr(R"~((.+) "(.*)")~");
+					std::smatch match{};
+					if (!line.starts_with("0 ") && std::regex_search(line, match, expr))
+					{
+						const auto id = std::atoi(match[1].str().data());
+						const auto value = match[2].str();
+
+						std::string key = gsc::h1::gsc_ctx->token_name(
+							static_cast<std::uint16_t>(id));
+						if (!key.starts_with("_id_"))
+						{
+							out_buffer.append(utils::string::va("\"%s\" \"%s\"", key.data(), value.data()));
+							continue;
+						}
+					}
+					out_buffer.append(line);
+				}
+
+				return out_buffer;
+			}
+		}
+
 		namespace mapents
 		{
 			std::uint8_t convert_trigger_type(std::int32_t flags)
@@ -33,9 +74,10 @@ namespace zonetool::h1
 				auto* new_asset = allocator.allocate<zonetool::iw7::MapEnts>();
 				COPY_VALUE(name);
 
-				// this is irrelevant
-				REINTERPRET_CAST_SAFE(entityString);
-				COPY_VALUE(numEntityChars);
+				const auto str = convert_mapents_ids(
+					std::string{ asset->entityString, static_cast<size_t>(asset->numEntityChars) });
+				new_asset->entityString = allocator.duplicate_string(str);
+				new_asset->numEntityChars = static_cast<int>(str.size());
 
 				COPY_VALUE(trigger.count);
 				new_asset->trigger.models = allocator.allocate_array<zonetool::iw7::TriggerModel>(asset->trigger.count);
@@ -48,7 +90,7 @@ namespace zonetool::h1
 					new_asset->trigger.models[i].firstWinding = 0;
 					new_asset->trigger.models[i].flags = 0;
 					new_asset->trigger.models[i].physicsAsset = nullptr;
-					new_asset->trigger.models[i].physicsShapeOverrideIdx = 0;
+					new_asset->trigger.models[i].physicsShapeOverrideIdx = 0xFFFF;
 				}
 
 				COPY_VALUE(trigger.hullCount);
@@ -72,7 +114,7 @@ namespace zonetool::h1
 					new_asset->clientTrigger.trigger.models[i].firstWinding = 0;
 					new_asset->clientTrigger.trigger.models[i].flags = 0;
 					new_asset->clientTrigger.trigger.models[i].physicsAsset = nullptr;
-					new_asset->clientTrigger.trigger.models[i].physicsShapeOverrideIdx = 0;
+					new_asset->clientTrigger.trigger.models[i].physicsShapeOverrideIdx = 0xFFFF;
 				}
 
 				COPY_VALUE(clientTrigger.trigger.hullCount);
@@ -149,7 +191,7 @@ namespace zonetool::h1
 					new_asset->cmodels[i].radius = clipmap->cmodels[i].radius;
 					new_asset->cmodels[i].info = nullptr; //reinterpret_cast<zonetool::iw7::ClipInfo*>(clipmap->cmodels[i].info);
 					new_asset->cmodels[i].physicsAsset = nullptr;
-					new_asset->cmodels[i].physicsShapeOverrideIdx = 0;
+					new_asset->cmodels[i].physicsShapeOverrideIdx = 0xFFFF;
 					new_asset->cmodels[i].navObstacleIdx = 0;
 					//new_asset->cmodels[i].edgeFirstIndex = 0;
 				}
