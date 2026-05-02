@@ -8,3 +8,6 @@
 #include "assets/gfximage.hpp"
 #include "assets/gfxworld.hpp"
 #include "assets/glassworld.hpp"
+#include "assets/material.hpp"
+#include "assets/xmodel.hpp"
+#include "assets/xsurface.hpp"

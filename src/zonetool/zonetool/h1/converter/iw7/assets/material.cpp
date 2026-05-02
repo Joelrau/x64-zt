@@ -1,12 +1,10 @@
 #include <std_include.hpp>
-#include "zonetool/iw7/converter/h1/include.hpp"
+#include "zonetool/h1/converter/iw7/include.hpp"
 #include "material.hpp"
 
-//#include "zonetool/h1/assets/material.hpp"
-
-namespace zonetool::iw7
+namespace zonetool::h1
 {
-	namespace converter::h1
+	namespace converter::iw7
 	{
 		namespace material
 		{
@@ -31,17 +29,6 @@ namespace zonetool::iw7
 
 				std::unordered_map<std::uint8_t, std::uint8_t> mapped_camera_regions =
 				{
-					/*
-					{zonetool::iw7::CAMERA_REGION_LIT_OPAQUE, zonetool::h1::CAMERA_REGION_LIT_OPAQUE},
-					{zonetool::iw7::CAMERA_REGION_LIT_DECAL, zonetool::h1::CAMERA_REGION_LIT_DECAL},
-					{zonetool::iw7::CAMERA_REGION_LIT_TRANS, zonetool::h1::CAMERA_REGION_LIT_TRANS},
-					{zonetool::iw7::CAMERA_REGION_EMISSIVE, zonetool::h1::CAMERA_REGION_EMISSIVE},
-					{zonetool::iw7::CAMERA_REGION_DEPTH_HACK, zonetool::h1::CAMERA_REGION_DEPTH_HACK},
-					{zonetool::iw7::CAMERA_REGION_LIGHT_MAP_OPAQUE, zonetool::h1::CAMERA_REGION_LIT_OPAQUE},
-					{zonetool::iw7::CAMERA_REGION_HUD_OUTLINE, zonetool::h1::CAMERA_REGION_NONE},
-					{zonetool::iw7::CAMERA_REGION_MOTIONBLUR, zonetool::h1::CAMERA_REGION_NONE},
-					{zonetool::iw7::CAMERA_REGION_NONE, zonetool::h1::CAMERA_REGION_NONE},
-					*/
 				};
 
 				std::unordered_map<std::uint8_t, std::uint8_t> mapped_sort_keys =
@@ -92,7 +79,7 @@ namespace zonetool::iw7
 #define MATERIAL_DUMP_INFO(entry) \
 	matdata[#entry] = asset->info.entry;
 
-			void dump_json(zonetool::iw7::Material* asset)
+			void dump_json(zonetool::h1::Material* asset)
 			{
 				auto c_name = clean_name(asset->name);
 
@@ -104,23 +91,25 @@ namespace zonetool::iw7
 				MATERIAL_DUMP_STRING(name);
 
 				std::string techset;
-				std::string h1_techset;
+				std::string iw7_techset;
 				if (asset->techniqueSet)
 				{
 					techset = asset->techniqueSet->name;
+					iw7_techset = game::add_source_postfix(techset, game::h1);
 
-					matdata["techniqueSet->name"] = h1_techset;
+					matdata["techniqueSet->name"] = iw7_techset;
 					matdata["techniqueSet->og_name"] = techset;
 				}
 
 				matdata["gameFlags"] = asset->info.gameFlags; // convert
+				matdata["unkFlags"] = 0; // h1 has no unkFlags
 				matdata["sortKey"] = convert_sortkey(asset->info.sortKey);
-				matdata["renderFlags"] = 0; // idk
+				matdata["renderFlags"] = asset->info.renderFlags;
 
 				matdata["textureAtlasRowCount"] = asset->info.textureAtlasRowCount;
 				matdata["textureAtlasColumnCount"] = asset->info.textureAtlasColumnCount;
-				matdata["textureAtlasFrameBlend"] = 0;
-				matdata["textureAtlasAsArray"] = 0;
+				matdata["textureAtlasFrameBlend"] = asset->info.textureAtlasFrameBlend;
+				matdata["textureAtlasAsArray"] = asset->info.textureAtlasAsArray;
 
 				matdata["surfaceTypeBits"] = asset->info.surfaceTypeBits; // convert
 				// hashIndex;
@@ -129,14 +118,13 @@ namespace zonetool::iw7
 
 				matdata["cameraRegion"] = convert_camera_region(asset->cameraRegion);
 				matdata["materialType"] = convert_material_type(asset->materialType);
-				matdata["assetFlags"] = zonetool::h1::MTL_ASSETFLAG_NONE;
+				matdata["assetFlags"] = asset->assetFlags;
 
 				ordered_json constant_table = json::array();
 				for (int i = 0; i < asset->constantCount && techset != "2d"; i++)
 				{
 					ordered_json table;
 					std::string constant_name = asset->constantTable[i].name;
-					//const auto constant_hash = asset->constantTable[i].nameHash;
 
 					if (constant_name.size() > 12)
 					{
@@ -194,9 +182,9 @@ namespace zonetool::iw7
 				for (auto i = 0; i < asset->textureCount; i++)
 				{
 					ordered_json image;
-					if (asset->textureTable[i].image && asset->textureTable[i].image->name)
+					if (asset->textureTable[i].u.image && asset->textureTable[i].u.image->name)
 					{
-						image["image"] = asset->textureTable[i].image->name;
+						image["image"] = asset->textureTable[i].u.image->name;
 					}
 					else
 					{
@@ -244,6 +232,16 @@ namespace zonetool::iw7
 
 				matdata["textureTable"] = material_images;
 
+				ordered_json sub_materials = json::array();
+				for (auto i = 0; i < asset->layerCount; i++)
+				{
+					if (asset->subMaterials && asset->subMaterials[i])
+					{
+						sub_materials.push_back(asset->subMaterials[i]);
+					}
+				}
+				matdata["subMaterials"] = sub_materials;
+
 				auto str = matdata.dump(4, ' ', true, nlohmann::detail::error_handler_t::replace);
 
 				matdata.clear();
@@ -253,7 +251,7 @@ namespace zonetool::iw7
 				file.close();
 			}
 
-			void dump(zonetool::iw7::Material* asset)
+			void dump(zonetool::h1::Material* asset)
 			{
 				dump_json(asset);
 			}
