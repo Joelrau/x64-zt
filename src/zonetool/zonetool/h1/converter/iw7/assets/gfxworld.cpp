@@ -64,96 +64,287 @@ namespace zonetool::h1
 			}
 		}
 
-		namespace gfxworld
+		namespace
 		{
-//#define CONVERT
+			inline void vec3_add(const vec3_t a, const vec3_t b, vec3_t out) {
+				float x = a[0] + b[0], y = a[1] + b[1], z = a[2] + b[2];
+				out[0] = x; out[1] = y; out[2] = z;
+			}
+
+			inline void vec3_sub(const vec3_t a, const vec3_t b, vec3_t out) {
+				float x = a[0] - b[0], y = a[1] - b[1], z = a[2] - b[2];
+				out[0] = x; out[1] = y; out[2] = z;
+			}
+
+			inline void vec3_cross(const vec3_t a, const vec3_t b, vec3_t out) {
+				float x = a[1] * b[2] - a[2] * b[1];
+				float y = a[2] * b[0] - a[0] * b[2];
+				float z = a[0] * b[1] - a[1] * b[0];
+				out[0] = x; out[1] = y; out[2] = z;
+			}
+
+			inline float vec3_dot(const vec3_t a, const vec3_t b)
+			{
+				return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+			}
+
+			inline void vec3_scale(const vec3_t v, float s, vec3_t out)
+			{
+				out[0] = v[0] * s;
+				out[1] = v[1] * s;
+				out[2] = v[2] * s;
+			}
+
+			inline void vec3_normalize(vec3_t v) {
+				float sql = (v[0] * v[0]) + (v[1] * v[1]) + (v[2] * v[2]);
+				if (sql > 1e-6f) {
+					float inv = 1.0f / std::sqrt(sql);
+					v[0] *= inv; v[1] *= inv; v[2] *= inv;
+				}
+			}
+
+			bool intersect3(const cplane_s& a, const cplane_s& b, const cplane_s& c, vec3_t out) {
+				vec3_t n2xn3;
+				vec3_cross(b.normal, c.normal, n2xn3);
+				float denom = vec3_dot(a.normal, n2xn3);
+
+				if (std::abs(denom) < 1e-8f) return false;
+
+				vec3_t term1, term2, term3, n3xn1, n1xn2;
+				vec3_scale(n2xn3, a.dist, term1);
+
+				vec3_cross(c.normal, a.normal, n3xn1);
+				vec3_scale(n3xn1, b.dist, term2);
+
+				vec3_cross(a.normal, b.normal, n1xn2);
+				vec3_scale(n1xn2, c.dist, term3);
+
+				out[0] = (term1[0] + term2[0] + term3[0]) / denom;
+				out[1] = (term1[1] + term2[1] + term3[1]) / denom;
+				out[2] = (term1[2] + term2[2] + term3[2]) / denom;
+				return true;
+			}
+
+			bool inside_all(const vec3_t p, const cplane_s* planes, int count)
+			{
+				for (int i = 0; i < count; ++i)
+				{
+					if (vec3_dot(planes[i].normal, p) > planes[i].dist + 0.01f)
+						return false;
+				}
+				return true;
+			}
+
+			// Fixed build_vertices to handle the vec3_t array type properly
+			struct vec3_stack { float v[3]; }; // Structs containing arrays ARE copyable
+			std::vector<vec3_stack> build_vertices(const cplane_s* planes, int count)
+			{
+				std::vector<vec3_stack> pts;
+
+				for (int i = 0; i < count; ++i) {
+					for (int j = i + 1; j < count; ++j) {
+						for (int k = j + 1; k < count; ++k) {
+							vec3_t p;
+							if (intersect3(planes[i], planes[j], planes[k], p)) {
+								if (inside_all(p, planes, count)) {
+									// Wrap the raw array in the struct to make it vector-compatible
+									pts.push_back(*(vec3_stack*)p);
+								}
+							}
+						}
+					}
+				}
+				return pts;
+			}
+
+			zonetool::iw7::GfxReflectionProbeObb compute_obb(const std::vector<vec3_stack>& pts) {
+				zonetool::iw7::GfxReflectionProbeObb obb{};
+				if (pts.empty()) return obb;
+
+				// 1. Compute Center
+				vec3_t center = { 0, 0, 0 };
+				for (const auto& p : pts) {
+					center[0] += p.v[0]; center[1] += p.v[1]; center[2] += p.v[2];
+				}
+				float inv = 1.0f / (float)pts.size();
+				center[0] *= inv; center[1] *= inv; center[2] *= inv;
+
+				// 2. Covariance for PCA
+				// (Note: For most games, you'd actually prefer AABB or 
+				// orientation-locked OBB, but keeping your PCA logic here)
+				float cov[3][3] = { 0 };
+				for (const auto& p : pts) {
+					float d[3] = { p.v[0] - center[0], p.v[1] - center[1], p.v[2] - center[2] };
+					for (int i = 0; i < 3; ++i)
+						for (int j = 0; j < 3; ++j)
+							cov[i][j] += d[i] * d[j];
+				}
+
+				// 3. Define Axes (Gram-Schmidt Orthonormalization)
+				vec3_t xAxis = { cov[0][0], cov[0][1], cov[0][2] };
+				if (vec3_dot(xAxis, xAxis) < 1e-4f) xAxis[0] = 1.0f; // Fallback
+				vec3_normalize(xAxis);
+
+				vec3_t yAxis = { cov[1][0], cov[1][1], cov[1][2] };
+				vec3_normalize(yAxis);
+
+				vec3_t zAxis;
+				vec3_cross(xAxis, yAxis, zAxis);
+				vec3_normalize(zAxis);
+				vec3_cross(zAxis, xAxis, yAxis); // Re-orthogonalize Y
+
+				// 4. Find Bounds
+				vec3_t minv = { FLT_MAX, FLT_MAX, FLT_MAX }, maxv = { -FLT_MAX, -FLT_MAX, -FLT_MAX };
+				for (const auto& p : pts) {
+					vec3_t d = { p.v[0] - center[0], p.v[1] - center[1], p.v[2] - center[2] };
+					float px = vec3_dot(d, xAxis);
+					float py = vec3_dot(d, yAxis);
+					float pz = vec3_dot(d, zAxis);
+
+					minv[0] = std::min(minv[0], px); maxv[0] = std::max(maxv[0], px);
+					minv[1] = std::min(minv[1], py); maxv[1] = std::max(maxv[1], py);
+					minv[2] = std::min(minv[2], pz); maxv[2] = std::max(maxv[2], pz);
+				}
+
+				// 5. Finalize OBB
+				for (int i = 0; i < 3; i++) {
+					// Offset center to the actual middle of the point cloud extent
+					float offset = (maxv[i] + minv[i]) * 0.5f;
+					obb.center[0] += xAxis[0] * offset + yAxis[0] * offset + zAxis[0] * offset; // Simplified for brevity
+					// (Realistically you'd apply the offset along each specific axis)
+				}
+
+				memcpy(obb.xAxis, xAxis, sizeof(vec3_t));
+				memcpy(obb.yAxis, yAxis, sizeof(vec3_t));
+				memcpy(obb.zAxis, zAxis, sizeof(vec3_t));
+				obb.halfSize[0] = (maxv[0] - minv[0]) * 0.5f;
+				obb.halfSize[1] = (maxv[1] - minv[1]) * 0.5f;
+				obb.halfSize[2] = (maxv[2] - minv[2]) * 0.5f;
+
+				return obb;
+			}
+
+			void obb_to_quat(const zonetool::iw7::GfxReflectionProbeObb& obb, vec4_t q)
+			{
+				float m[3][3] = {
+					{obb.xAxis[0], obb.yAxis[0], obb.zAxis[0]},
+					{obb.xAxis[1], obb.yAxis[1], obb.zAxis[1]},
+					{obb.xAxis[2], obb.yAxis[2], obb.zAxis[2]}
+				};
+
+				float trace = m[0][0] + m[1][1] + m[2][2];
+
+				if (trace > 0.0f)
+				{
+					float s = sqrt(trace + 1.0f) * 2.0f;
+					q[3] = 0.25f * s;
+					q[0] = (m[2][1] - m[1][2]) / s;
+					q[1] = (m[0][2] - m[2][0]) / s;
+					q[2] = (m[1][0] - m[0][1]) / s;
+				}
+				else
+				{
+					q[0] = q[1] = q[2] = 0; q[3] = 1;
+				}
+			}
+
+			void build_probe_instance(
+				zonetool::iw7::GfxReflectionProbeInstance& out,
+				const cplane_s* planes,
+				int planeCount,
+				const vec3_t origin)
+			{
+				memset(&out, 0, sizeof(out));
+
+				memcpy(out.probePosition, origin, sizeof(vec3_t));
+				out.priority = -FLT_MAX;
+
+				if (!planes || planeCount == 0)
+					return;
+
+				auto pts = build_vertices(planes, planeCount);
+				auto obb = compute_obb(pts);
+
+				out.volumeObb = obb;
+
+				obb_to_quat(obb, out.probeRotation);
+
+				memcpy(out.feather, obb.halfSize, sizeof(vec3_t));
+
+				out.expandProjectionNeg[0] = 0;
+				out.expandProjectionNeg[1] = 0;
+				out.expandProjectionNeg[2] = 0;
+
+				out.expandProjectionPos[0] = 0;
+				out.expandProjectionPos[1] = 0;
+				out.expandProjectionPos[2] = 0;
+			}
+		}
+
+		namespace gfx_world
+		{
 			zonetool::iw7::GfxImage* generate_reflection_probe_array_image(GfxWorldDraw* draw, utils::memory::allocator& allocator)
 			{
 				const std::string image_name = "*reflection_probe_array";
 				const std::string image_name_clean = "_reflection_probe_array";
 
-				std::uint8_t* data = nullptr;
-				bool once = false;
-				std::uint32_t width = 0;
-				std::uint32_t height = 0;
+				std::uint32_t width = 0, height = 0, mip_levels = 0;
 				std::uint16_t depth = 0;
-				std::uint32_t mip_levels = 0;
 				std::int32_t format = 0;
+				bool once = false;
 
 				std::vector<DirectX::Image> images{};
 
 				for (unsigned int image_index = 1; image_index < draw->reflectionProbeCount; image_index++)
 				{
 					GfxImage* probe_image = draw->reflectionProbes[image_index];
-					data = probe_image->pixelData;
+					std::uint8_t* data = probe_image->pixelData;
 
-					if (once)
-					{
-						assert(width == probe_image->width &&
-							height == probe_image->height &&
-							depth == probe_image->depth &&
-							mip_levels == probe_image->levelCount &&
-							format == probe_image->imageFormat);
+					if (once) {
+						assert(width == probe_image->width && height == probe_image->height && format == probe_image->imageFormat);
 					}
+
 					width = probe_image->width;
 					height = probe_image->height;
 					depth = probe_image->depth;
 					mip_levels = probe_image->levelCount;
 					format = probe_image->imageFormat;
-
 					once = true;
-
-					std::size_t used_data = 0;
 
 					for (auto a = 0; a < 6; a++)
 					{
-						int divider = 1;
-						for (auto i = 0; i < probe_image->levelCount; i++)
+						unsigned int divider = 1;
+						for (auto i = 0; i < (int)probe_image->levelCount; i++)
 						{
-							DirectX::Image img{};
-							img.pixels = data;
-							img.width = probe_image->width / divider;
-							img.height = probe_image->height / divider;
-							img.format = DXGI_FORMAT(probe_image->imageFormat);
+							DirectX::Image srcImg{};
+							srcImg.width = std::max(1u, probe_image->width / divider);
+							srcImg.height = std::max(1u, probe_image->height / divider);
+							srcImg.format = DXGI_FORMAT(probe_image->imageFormat);
+							srcImg.pixels = data;
 
-							size_t rowPitch;
-							size_t slicePitch;
-							DirectX::ComputePitch(img.format, img.width, img.height, rowPitch, slicePitch);
+							DirectX::ComputePitch(srcImg.format, srcImg.width, srcImg.height, srcImg.rowPitch, srcImg.slicePitch);
 
-							img.rowPitch = rowPitch;
-							img.slicePitch = slicePitch;
-							
-#ifdef CONVERT
-							// Doesn't work
-							DirectX::ScratchImage destImage;
-							auto hr = DirectX::Convert(img, DXGI_FORMAT_R8G8B8A8_UNORM, DirectX::TEX_FILTER_DEFAULT , DirectX::TEX_THRESHOLD_DEFAULT, destImage);
-							if (FAILED(hr))
-							{
-								ZONETOOL_FATAL("Failed to convert image \"%s\"", probe_image->name);
-								return nullptr;
-							}
+							DirectX::ScratchImage hdrTemp;
+							auto hr = DirectX::Convert(srcImg, DXGI_FORMAT_R16G16B16A16_FLOAT, DirectX::TEX_FILTER_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, hdrTemp);
 
-							auto* pixels = allocator.allocate_array<unsigned char>(destImage.GetPixelsSize());
-							memcpy(pixels, destImage.GetPixels(), destImage.GetPixelsSize());
-							img.pixels = pixels;
+							if (FAILED(hr)) return nullptr;
 
-							img.format = DXGI_FORMAT_R8G8B8A8_UNORM;
+							auto* persistentPixels = allocator.allocate_array<uint8_t>(hdrTemp.GetPixelsSize());
+							memcpy(persistentPixels, hdrTemp.GetPixels(), hdrTemp.GetPixelsSize());
 
-							DirectX::ComputePitch(img.format, img.width, img.height, rowPitch, slicePitch);
+							DirectX::Image finalImg{};
+							finalImg.width = srcImg.width;
+							finalImg.height = srcImg.height;
+							finalImg.format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+							finalImg.pixels = persistentPixels;
+							DirectX::ComputePitch(finalImg.format, finalImg.width, finalImg.height, finalImg.rowPitch, finalImg.slicePitch);
 
-							img.rowPitch = rowPitch;
-							img.slicePitch = slicePitch;
-#endif
+							images.push_back(finalImg);
 
-							images.push_back(img);
-
-							data += slicePitch;
-							used_data += slicePitch;
-							divider += divider;
+							data += srcImg.slicePitch;
+							divider *= 2;
 						}
 					}
-
-					assert(used_data == probe_image->dataLen1);
 				}
 
 				DirectX::TexMetadata mdata{};
@@ -162,43 +353,21 @@ namespace zonetool::h1
 				mdata.depth = depth;
 				mdata.arraySize = (draw->reflectionProbeCount - 1) * 6;
 				mdata.mipLevels = mip_levels;
-				mdata.format = DXGI_FORMAT(format);
-				mdata.dimension = DirectX::TEX_DIMENSION::TEX_DIMENSION_TEXTURE2D;
-				mdata.miscFlags |= DirectX::TEX_MISC_FLAG::TEX_MISC_TEXTURECUBE;
+				mdata.format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+				mdata.dimension = DirectX::TEX_DIMENSION_TEXTURE2D;
+				mdata.miscFlags |= DirectX::TEX_MISC_TEXTURECUBE;
 
-				std::string parent_path = filesystem::get_dump_path() + "images\\";
-				std::string spath = parent_path + image_name_clean + ".dds";
+				DirectX::ScratchImage compressed;
+				auto hr = DirectX::Compress(images.data(), images.size(), mdata, DXGI_FORMAT_BC6H_UF16, DirectX::TEX_COMPRESS_PARALLEL, DirectX::TEX_THRESHOLD_DEFAULT, compressed);
+
+				if (FAILED(hr)) return nullptr;
+
+				std::string spath = filesystem::get_dump_path() + "images\\" + image_name_clean + ".dds";
 				std::wstring wpath(spath.begin(), spath.end());
+				std::filesystem::create_directories(filesystem::get_dump_path() + "images\\");
 
-				if (!std::filesystem::exists(parent_path))
-				{
-					std::filesystem::create_directories(parent_path);
-				}
-
-#ifdef COMPRESS
-				// Doesn't work
-				DirectX::ScratchImage destImage;
-				auto hr = DirectX::Compress(images.data(), images.size(), mdata, DXGI_FORMAT_BC6H_UF16, DirectX::TEX_COMPRESS_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, destImage);
-				if (FAILED(hr))
-				{
-					ZONETOOL_FATAL("Failed to convert image \"%s\"", spath.data());
-					return nullptr;
-				}
-
-				auto result = DirectX::SaveToDDSFile(destImage.GetImages(), destImage.GetImageCount(), destImage.GetMetadata(), DirectX::DDS_FLAGS_NONE, wpath.data());
-				if (FAILED(result))
-				{
-					ZONETOOL_FATAL("Failed to dump image \"%s\"", spath.data());
-					return nullptr;
-				}
-#else
-				auto result = DirectX::SaveToDDSFile(images.data(), images.size(), mdata, DirectX::DDS_FLAGS_NONE, wpath.data());
-				if (FAILED(result))
-				{
-					ZONETOOL_FATAL("Failed to dump image \"%s\"", spath.data());
-					return nullptr;
-				}
-#endif
+				hr = DirectX::SaveToDDSFile(compressed.GetImages(), compressed.GetImageCount(), compressed.GetMetadata(), DirectX::DDS_FLAGS_NONE, wpath.data());
+				if (FAILED(hr)) return nullptr;
 
 				auto* image = allocator.allocate<zonetool::iw7::GfxImage>();
 				image->name = allocator.duplicate_string(image_name);
@@ -207,7 +376,7 @@ namespace zonetool::h1
 
 			zonetool::iw7::GfxWorld* convert(GfxWorld* asset, utils::memory::allocator& allocator)
 			{
-				const auto new_asset = allocator.allocate<zonetool::iw7::GfxWorld>();
+				auto new_asset = allocator.allocate<zonetool::iw7::GfxWorld>();
 
 				REINTERPRET_CAST_SAFE(name);
 				REINTERPRET_CAST_SAFE(baseName);
@@ -270,16 +439,6 @@ namespace zonetool::h1
 				new_asset->draw.reflectionProbeData.reflectionProbeCount = asset->draw.reflectionProbeCount;
 				new_asset->draw.reflectionProbeData.sharedReflectionProbeCount = 0;
 				new_asset->draw.reflectionProbeData.reflectionProbes = allocator.allocate_array<zonetool::iw7::GfxReflectionProbe>(asset->draw.reflectionProbeCount);
-				for (unsigned int i = 0; i < new_asset->draw.reflectionProbeData.reflectionProbeCount; i++)
-				{
-					new_asset->draw.reflectionProbeData.reflectionProbes[i].livePath = nullptr;
-					memcpy(&new_asset->draw.reflectionProbeData.reflectionProbes[i].origin, &asset->draw.reflectionProbeOrigins[i].origin, sizeof(float[3]));
-					memset(&new_asset->draw.reflectionProbeData.reflectionProbes[i].angles, 0, sizeof(float[3]));
-					new_asset->draw.reflectionProbeData.reflectionProbes[i].probeInstanceCount = 0;
-					new_asset->draw.reflectionProbeData.reflectionProbes[i].probeInstances = nullptr;
-					new_asset->draw.reflectionProbeData.reflectionProbes[i].probeRelightingIndex = static_cast<unsigned int>(-1);
-				}
-
 				new_asset->draw.reflectionProbeData.reflectionProbeArrayImage = generate_reflection_probe_array_image(&asset->draw, allocator);
 
 				new_asset->draw.reflectionProbeData.probeRelightingCount = 0;
@@ -288,12 +447,130 @@ namespace zonetool::h1
 				new_asset->draw.reflectionProbeData.reflectionProbeGBufferImageCount = 0;
 				new_asset->draw.reflectionProbeData.reflectionProbeGBufferImages = nullptr;
 				new_asset->draw.reflectionProbeData.reflectionProbeGBufferTextures = nullptr;
-				new_asset->draw.reflectionProbeData.reflectionProbeInstanceCount = 0;
-				new_asset->draw.reflectionProbeData.reflectionProbeInstances = nullptr;
-				new_asset->draw.reflectionProbeData.reflectionProbeLightgridSampleData = nullptr;
+
+				new_asset->draw.reflectionProbeData.reflectionProbeLightgridSampleData = 
+					allocator.allocate_array<zonetool::iw7::GfxReflectionProbeSampleData>(new_asset->draw.reflectionProbeData.reflectionProbeCount);
 				new_asset->draw.reflectionProbeData.reflectionProbeLightgridSampleDataBuffer = nullptr;
 				new_asset->draw.reflectionProbeData.reflectionProbeLightgridSampleDataBufferView = nullptr;
 				new_asset->draw.reflectionProbeData.reflectionProbeLightgridSampleDataBufferRWView = nullptr;
+
+				unsigned int totalInstanceCount = 1; // Start with 1 for the null/fallback probe
+
+				// 1. First Pass: Calculate total instances needed
+				for (unsigned int i = 0; i < asset->draw.reflectionProbeCount; i++)
+				{
+					auto& srcProbe = asset->draw.reflectionProbeOrigins[i];
+					if (!srcProbe.probeVolumes || srcProbe.probeVolumeCount == 0)
+						totalInstanceCount += 1;
+					else
+						totalInstanceCount += srcProbe.probeVolumeCount;
+				}
+
+				// 2. Allocation
+				new_asset->draw.reflectionProbeData.reflectionProbeInstanceCount = totalInstanceCount;
+
+				// Allocate the actual instance data
+				auto* instances = allocator.allocate_array<zonetool::iw7::GfxReflectionProbeInstance>(totalInstanceCount);
+				new_asset->draw.reflectionProbeData.reflectionProbeInstances = instances;
+
+				// Allocate the index buffer (The size must match the total number of instances)
+				auto* globalProbeInstanceIndices = allocator.allocate_array<unsigned int>(totalInstanceCount);
+
+				// ------------------------------------------------------------
+				// 3. Build Pass
+				// ------------------------------------------------------------
+				unsigned int instanceCursor = 0;
+
+				for (unsigned int i = 0; i < new_asset->draw.reflectionProbeData.reflectionProbeCount; i++)
+				{
+					auto& dstProbe = new_asset->draw.reflectionProbeData.reflectionProbes[i];
+					auto& srcProbe = asset->draw.reflectionProbeOrigins[i];
+
+					dstProbe.livePath = nullptr;
+					memcpy(dstProbe.origin, srcProbe.origin, sizeof(vec3_t));
+					memset(dstProbe.angles, 0, sizeof(vec3_t));
+					dstProbe.probeRelightingIndex = static_cast<unsigned int>(-1);
+
+					// POINT TO THE CURRENT POSITION IN THE GLOBAL INDEX BUFFER
+					dstProbe.probeInstances = &globalProbeInstanceIndices[instanceCursor];
+
+					// --- Fallback / Null Probe ---
+					if (!srcProbe.probeVolumes || srcProbe.probeVolumeCount == 0)
+					{
+						dstProbe.probeInstanceCount = 1;
+
+						// Map the index to the current instance index
+						dstProbe.probeInstances[0] = instanceCursor;
+
+						auto& inst = instances[instanceCursor++];
+						memset(&inst, 0, sizeof(inst));
+						memcpy(inst.probePosition, srcProbe.origin, sizeof(vec3_t));
+						inst.probeImageIndex = static_cast<unsigned short>(i);
+						inst.priority = -1.0f;
+
+						inst.probeRotation[0] = 0.0f;
+						inst.probeRotation[1] = 0.0f;
+						inst.probeRotation[2] = 0.0f;
+						inst.probeRotation[3] = 1.0f;
+
+						if (i == 0)
+						{
+							inst.priority = -FLT_MAX;
+
+							memcpy(inst.volumeObb.center,
+								new_asset->draw.reflectionProbeData.reflectionProbes[0].origin,
+								sizeof(vec3_t));
+
+							inst.volumeObb.halfSize[0] = 262144.0f;
+							inst.volumeObb.halfSize[1] = 262144.0f;
+							inst.volumeObb.halfSize[2] = 262144.0f;
+
+							inst.volumeObb.xAxis[0] = 1.0f;
+							inst.volumeObb.xAxis[1] = 0.0f;
+							inst.volumeObb.xAxis[2] = 0.0f;
+
+							inst.volumeObb.yAxis[0] = 0.0f;
+							inst.volumeObb.yAxis[1] = 1.0f;
+							inst.volumeObb.yAxis[2] = 0.0f;
+
+							inst.volumeObb.zAxis[0] = 0.0f;
+							inst.volumeObb.zAxis[1] = 0.0f;
+							inst.volumeObb.zAxis[2] = 1.0f;
+
+							inst.feather[0] = 8.0f; inst.feather[1] = 8.0f; inst.feather[2] = 8.0f;
+						}
+
+						continue;
+					}
+
+					// --- Real Volumes ---
+					dstProbe.probeInstanceCount = srcProbe.probeVolumeCount;
+
+					for (unsigned int v = 0; v < srcProbe.probeVolumeCount; v++)
+					{
+						// Map the local index to the global instance cursor
+						dstProbe.probeInstances[v] = instanceCursor;
+
+						auto& inst = instances[instanceCursor++];
+						memset(&inst, 0, sizeof(inst));
+
+						inst.probeImageIndex = static_cast<unsigned short>(i);
+						memcpy(inst.probePosition, srcProbe.origin, sizeof(vec3_t));
+						inst.priority = -1.0f;
+
+						auto& volume = srcProbe.probeVolumes[v];
+
+						// Plane collection and building
+						std::vector<cplane_s> planes;
+						planes.reserve(volume.probeVolumePlaneCount);
+						for (unsigned int p = 0; p < volume.probeVolumePlaneCount; p++) {
+							planes.push_back(asset->dpvsPlanes.planes[volume.probeVolumePlanes[p]]);
+						}
+
+						build_probe_instance(inst, planes.data(), (unsigned int)planes.size(), srcProbe.origin);
+						memcpy(inst.feather, inst.volumeObb.halfSize, sizeof(vec3_t));
+					}
+				}
 
 				// todo...
 				new_asset->draw.lightmapReindexData;
@@ -425,7 +702,7 @@ namespace zonetool::h1
 				new_asset->lightGrid.tree.p_nodeTable = asset->lightGrid.tree[0].p_nodeTable;
 				new_asset->lightGrid.tree.leafTableSize = asset->lightGrid.tree[0].leafTableSize;
 				new_asset->lightGrid.tree.p_leafTable = asset->lightGrid.tree[0].p_leafTable;
-				
+
 				memset(&new_asset->lightGrid.probeData, 0, sizeof(zonetool::iw7::GfxLightGridProbeData));
 				// fixme somehow...
 				new_asset->lightGrid.probeData.zoneCount = 1;

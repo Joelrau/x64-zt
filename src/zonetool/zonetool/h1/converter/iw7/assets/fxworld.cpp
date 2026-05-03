@@ -8,7 +8,7 @@ namespace zonetool::h1
 {
 	namespace converter::iw7
 	{
-		namespace fxworld
+		namespace fx_world
 		{
 #define COPY_SOUND(__name__) \
 			if(asset->__name__) \

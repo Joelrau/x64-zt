@@ -27,7 +27,7 @@ namespace zonetool::h1
 
 				COPY_VALUE(numBones);
 				COPY_VALUE(numRootBones);
-				new_asset->numReactiveMotionParts = 0; // h1 has the data, but need to check again
+				new_asset->numReactiveMotionParts = asset->numReactiveMotionParts;
 				new_asset->numsurfs = asset->numsurfs;
 
 				COPY_VALUE(scale);
@@ -56,8 +56,8 @@ namespace zonetool::h1
 				REINTERPRET_CAST_SAFE(tagPositions);
 				REINTERPRET_CAST_SAFE(partClassification);
 				REINTERPRET_CAST_SAFE(baseMat);
-				REINTERPRET_CAST_SAFE(reactiveMotionParts);		// i think this is okay
-				REINTERPRET_CAST_SAFE(reactiveMotionTweaks);	// ^
+				REINTERPRET_CAST_SAFE(reactiveMotionParts);
+				REINTERPRET_CAST_SAFE(reactiveMotionTweaks);
 
 				new_asset->materialHandles = allocator.allocate_array<zonetool::iw7::Material*>(asset->numsurfs);
 				for (auto i = 0; i < asset->numsurfs; i++)
@@ -70,11 +70,11 @@ namespace zonetool::h1
 					}
 				}
 
-				for (auto i = 0; i < 6; i++)
-				{
-					std::memset(&new_asset->lodInfo[i], 0, sizeof(new_asset->lodInfo[i]));
-					new_asset->lodInfo[i].dist = 1000000.0f;
-				}
+				//for (auto i = 0; i < 6; i++)
+				//{
+				//	std::memset(&new_asset->lodInfo[i], 0, sizeof(new_asset->lodInfo[i]));
+				//	new_asset->lodInfo[i].dist = 1000000.0f;
+				//}
 
 				for (auto i = 0; i < asset->numLods; i++)
 				{
@@ -84,15 +84,19 @@ namespace zonetool::h1
 					new_asset->lodInfo[i].modelSurfs = allocator.allocate<zonetool::iw7::XModelSurfs>();
 					new_asset->lodInfo[i].modelSurfs->name = allocator.duplicate_string(asset->lodInfo[i].modelSurfs->name);
 					std::memcpy(new_asset->lodInfo[i].partBits, asset->lodInfo[i].partBits, sizeof(new_asset->lodInfo[i].partBits));
+
+					new_asset->lodInfo[i].subdivLodValidMask = asset->lodInfo[i].subdivLodValidMask;
+					new_asset->lodInfo[i].flags = asset->lodInfo[i].flags;
 				}
 
 				REINTERPRET_CAST_SAFE(boneInfo);
 
-				new_asset->invHighMipRadius = allocator.allocate_array<unsigned short>(asset->numsurfs);
-				for (unsigned char i = 0; i < asset->numsurfs; i++)
-				{
-					new_asset->invHighMipRadius[i] = 0xFFFF;
-				}
+				//new_asset->invHighMipRadius = allocator.allocate_array<unsigned short>(asset->numsurfs);
+				//for (unsigned char i = 0; i < asset->numsurfs; i++)
+				//{
+				//	new_asset->invHighMipRadius[i] = 0xFFFF;
+				//}
+				REINTERPRET_CAST_SAFE(invHighMipRadius);
 
 				new_asset->physicsAsset = nullptr;
 				new_asset->physicsFXShape = nullptr;

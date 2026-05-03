@@ -8,7 +8,7 @@ namespace zonetool::h1
 {
 	namespace converter::iw7
 	{
-		namespace comworld
+		namespace com_world
 		{
 #define COPY_VALUE_COMWORLD(name) \
 		lights[i].name = h1_lights[i].name; \

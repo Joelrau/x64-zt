@@ -445,12 +445,12 @@ namespace zonetool::h1
 			////DUMP_ASSET(ASSET_TYPE_VERTEXDECL, techset, MaterialVertexDeclaration);
 			//DUMP_ASSET(ASSET_TYPE_VERTEXSHADER, techset, MaterialVertexShader);
 
-			//DUMP_ASSET_NO_CONVERT(ASSET_TYPE_AIPATHS, path_data, PathData);
-			/*DUMP_ASSET(ASSET_TYPE_COL_MAP_MP, clip_map, clipMap_t);
-			DUMP_ASSET(ASSET_TYPE_COMWORLD, comworld, ComWorld);
-			DUMP_ASSET(ASSET_TYPE_FXWORLD, fxworld, FxWorld);
-			DUMP_ASSET(ASSET_TYPE_GFXWORLD, gfxworld, GfxWorld);
-			DUMP_ASSET(ASSET_TYPE_GLASSWORLD, glass_world, GlassWorld);*/
+			DUMP_ASSET(ASSET_TYPE_PATHDATA, path_data, PathData);
+			DUMP_ASSET(ASSET_TYPE_CLIPMAP, clip_map, clipMap_t);
+			DUMP_ASSET(ASSET_TYPE_COMWORLD, com_world, ComWorld);
+			DUMP_ASSET(ASSET_TYPE_FXWORLD, fx_world, FxWorld);
+			DUMP_ASSET(ASSET_TYPE_GFXWORLD, gfx_world, GfxWorld);
+			DUMP_ASSET(ASSET_TYPE_GLASSWORLD, glass_world, GlassWorld);
 		}
 		catch (std::exception& ex)
 		{

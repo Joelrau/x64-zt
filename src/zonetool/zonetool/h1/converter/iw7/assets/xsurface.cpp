@@ -92,13 +92,19 @@ namespace zonetool::h1
 					auto* new_surf = &new_asset->surfs[i];
 					auto* surf = &asset->surfs[i];
 
-					unsigned short remapped_flags = surf->flags & 0x1Fu; // VERTCOL_GREY/NONE, SKINNED, REACTIVE_MOTION, LIGHTMAP_COORDS
-					if (surf->flags & zonetool::h1::SURF_FLAG_TENSION)
+					new_surf->flags = 0;
+					new_surf->flags |= ((surf->flags & zonetool::h1::SURF_FLAG_VERTCOL_GREY) != 0) ? zonetool::iw7::SURF_FLAG_VERTCOL_GREY : 0;
+					new_surf->flags |= ((surf->flags & zonetool::h1::SURF_FLAG_VERTCOL_NONE) != 0) ? zonetool::iw7::SURF_FLAG_VERTCOL_NONE : 0;
+					new_surf->flags |= ((surf->flags & zonetool::h1::SURF_FLAG_SKINNED) != 0) ? zonetool::iw7::SURF_FLAG_SKINNED : 0;
+					new_surf->flags |= ((surf->flags & zonetool::h1::SURF_FLAG_REACTIVE_MOTION) != 0) ? zonetool::iw7::SURF_FLAG_REACTIVE_MOTION : 0;
+					new_surf->flags |= ((surf->flags & zonetool::h1::SURF_FLAG_LIGHTMAP_COORDS) != 0) ? zonetool::iw7::SURF_FLAG_LIGHTMAP_COORDS : 0;
+					new_surf->flags |= ((surf->flags & zonetool::h1::SURF_FLAG_TENSION) != 0) ? zonetool::iw7::SURF_FLAG_TENSION : 0;
+					new_surf->flags |= zonetool::iw7::SURF_FLAG_SELF_VISIBILITY;
+
+					if (new_surf->subdivLevelCount)
 					{
-						remapped_flags |= zonetool::iw7::SURF_FLAG_TENSION; // 0x40
+						new_surf->flags |= zonetool::iw7::SURF_FLAG_SUBDIV;
 					}
-					remapped_flags |= zonetool::iw7::SURF_FLAG_SELF_VISIBILITY; // 0x80
-					new_surf->flags = remapped_flags;
 
 					COPY_VALUE(surfs[i].vertCount);
 					COPY_VALUE(surfs[i].triCount);
@@ -160,7 +166,7 @@ namespace zonetool::h1
 					REINTERPRET_CAST_SAFE(surfs[i].tensionData);
 					REINTERPRET_CAST_SAFE(surfs[i].tensionAccumTable);
 
-					new_surf->unk = 0; // vertexLightingIndex?
+					new_surf->unk = surf->vertexLightingIndex; // vertexLightingIndex?
 					new_surf->pad = 0;
 					std::memset(&new_surf->shProbeSimplexVertData, 0, sizeof(new_surf->shProbeSimplexVertData));
 

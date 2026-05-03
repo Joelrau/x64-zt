@@ -116,57 +116,64 @@ namespace zonetool::h1
 
 			void dump_streamed_image(GfxImage* image)
 			{
-				for (auto i = 0u; i < 4; i++)
+				const auto name = clean_name(image->name);
+
+				try
 				{
-					const auto stream_file = &stream_files[*stream_file_index + i];
-
-					const char* filename = nullptr;
-					if (stream_file->fileIndex == 96)
+					for (auto i = 0u; i < 4; i++)
 					{
-						const auto& fastfile = filesystem::get_fastfile();
-						filename = utils::string::va("%s.pak", fastfile.data());
-					}
-					else
-					{
-						filename = utils::string::va("imagefile%d.pak", stream_file->fileIndex);
-					}
-
-					const auto folder = filesystem::get_zone_path(filename);
-
-					const auto imagefile_path = utils::string::va("%s%s", folder.data(), filename);
-					std::ifstream imagefile;
-					imagefile.open(imagefile_path, std::ios::binary);
-
-					if (!imagefile.is_open() || stream_file->offset == 0 || stream_file->offsetEnd == 0)
-					{
-						continue;
-					}
-
-					std::string buffer;
-					const auto size = stream_file->offsetEnd - stream_file->offset;
-					buffer.resize(size);
-					imagefile.seekg(stream_file->offset);
-					imagefile.read(buffer.data(), size);
-
-					try
-					{
-						auto pixel_data = compression::lz4::decompress_lz4_block(buffer);
-						const auto name = clean_name(image->name);
-
 						std::string parent_path = filesystem::get_dump_path() + "streamed_images\\";
 						std::string raw_path = utils::string::va("%s%s_stream%i.pixels", parent_path.data(), name.data(), i);
+						if(utils::io::file_exists(raw_path))
+						{
+							// already dumped this stream, skip it to speedup the process
+							continue;
+						}
+
+						const auto stream_file = &stream_files[*stream_file_index + i];
+
+						const char* filename = nullptr;
+						if (stream_file->fileIndex == 96)
+						{
+							const auto& fastfile = filesystem::get_fastfile();
+							filename = utils::string::va("%s.pak", fastfile.data());
+						}
+						else
+						{
+							filename = utils::string::va("imagefile%d.pak", stream_file->fileIndex);
+						}
+
+						const auto folder = filesystem::get_zone_path(filename);
+
+						const auto imagefile_path = utils::string::va("%s%s", folder.data(), filename);
+						std::ifstream imagefile;
+						imagefile.open(imagefile_path, std::ios::binary);
+
+						if (!imagefile.is_open() || stream_file->offset == 0 || stream_file->offsetEnd == 0)
+						{
+							continue;
+						}
+
+						std::string buffer;
+						const auto size = stream_file->offsetEnd - stream_file->offset;
+						buffer.resize(size);
+						imagefile.seekg(stream_file->offset);
+						imagefile.read(buffer.data(), size);
+
+						auto pixel_data = compression::lz4::decompress_lz4_block(buffer);
 						utils::io::write_file(raw_path, pixel_data, false);
+
 					}
-					catch (...)
-					{
-						ZONETOOL_ERROR("Failed to dump streamed image \"%s\"", image->name);
-					}
+				}
+				catch (...)
+				{
+					ZONETOOL_ERROR("Failed to dump streamed image \"%s\"", image->name);
 				}
 
 				utils::memory::allocator allocator;
 				auto* new_asset = convert(image, allocator);
 
-				const auto path = "streamed_images\\"s + clean_name(new_asset->name) + ".iw7Image"s;
+				const auto path = "streamed_images\\"s + name + ".iw7Image"s;
 				assetmanager::dumper write;
 				if (!write.open(path))
 				{
