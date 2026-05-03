@@ -2,6 +2,8 @@
 
 #include "zonetool/h1/converter/iw7/include.hpp"
 #include "clipmap.hpp"
+#ifdef EXPERIMENTAL_IW7
+
 #include "zonetool/iw7/assets/clipmap.hpp"
 
 #include "zonetool/utils/gsc.hpp"
@@ -467,3 +469,4 @@ namespace zonetool::h1
 		}
 	}
 }
+#endif

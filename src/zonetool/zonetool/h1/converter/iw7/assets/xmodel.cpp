@@ -1,6 +1,8 @@
 #include <std_include.hpp>
+
 #include "zonetool/h1/converter/iw7/include.hpp"
 #include "xmodel.hpp"
+#ifdef EXPERIMENTAL_IW7
 
 #include "zonetool/iw7/assets/xmodel.hpp"
 
@@ -116,3 +118,4 @@ namespace zonetool::h1
 		}
 	}
 }
+#endif

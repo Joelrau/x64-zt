@@ -2,6 +2,8 @@
 
 #include "zonetool/h1/converter/iw7/include.hpp"
 #include "techset.hpp"
+#ifdef EXPERIMENTAL_IW7
+
 #include "zonetool/iw7/assets/techset.hpp"
 #include "zonetool/iw7/assets/computeshader.hpp"
 #include "zonetool/iw7/assets/vertexshader.hpp"
@@ -11,7 +13,6 @@
 #include "zonetool/iw7/assets/pixelshader.hpp"
 
 #include <utils/io.hpp>
-
 namespace zonetool::h1
 {
 	namespace converter::iw7
@@ -909,3 +910,4 @@ namespace zonetool::h1
 		}
 	}
 }
+#endif

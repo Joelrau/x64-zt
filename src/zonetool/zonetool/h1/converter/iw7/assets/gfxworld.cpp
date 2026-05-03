@@ -2,6 +2,8 @@
 
 #include "zonetool/h1/converter/iw7/include.hpp"
 #include "gfxworld.hpp"
+#ifdef EXPERIMENTAL_IW7
+
 #include "zonetool/iw7/assets/gfxworld.hpp"
 
 #pragma warning( push )
@@ -1087,3 +1089,4 @@ namespace zonetool::h1
 		}
 	}
 }
+#endif

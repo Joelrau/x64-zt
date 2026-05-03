@@ -2,6 +2,8 @@
 
 #include "zonetool/h1/converter/iw7/include.hpp"
 #include "glassworld.hpp"
+#ifdef EXPERIMENTAL_IW7
+
 #include "zonetool/iw7/assets/glassworld.hpp"
 
 namespace zonetool::h1
@@ -24,3 +26,4 @@ namespace zonetool::h1
 		}
 	}
 }
+#endif

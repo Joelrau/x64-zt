@@ -2,6 +2,7 @@
 
 #include "zonetool/h1/converter/iw7/include.hpp"
 #include "gfximage.hpp"
+#ifdef EXPERIMENTAL_IW7
 
 #include <utils/io.hpp>
 #include <utils/string.hpp>
@@ -216,3 +217,4 @@ namespace zonetool::h1
 		}
 	}
 }
+#endif

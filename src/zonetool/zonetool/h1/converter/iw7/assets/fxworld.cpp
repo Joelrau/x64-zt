@@ -2,6 +2,8 @@
 
 #include "zonetool/h1/converter/iw7/include.hpp"
 #include "fxworld.hpp"
+#ifdef EXPERIMENTAL_IW7
+
 #include "zonetool/iw7/assets/fxworld.hpp"
 
 namespace zonetool::h1
@@ -105,3 +107,4 @@ namespace zonetool::h1
 		}
 	}
 }
+#endif

@@ -389,6 +389,7 @@ namespace zonetool::h1
 
 	void dump_asset_iw7(XAsset* asset)
 	{
+#ifdef EXPERIMENTAL_IW7
 #define DUMP_ASSET_NO_CONVERT(__type__,___,__struct__) \
 		if (asset->type == __type__) \
 		{ \
@@ -459,6 +460,7 @@ namespace zonetool::h1
 
 #undef DUMP_ASSET_NO_CONVERT
 #undef DUMP_ASSET
+#endif
 	}
 
 	std::unordered_map<game::game_mode, std::function<void(XAsset*)>> dump_functions =
