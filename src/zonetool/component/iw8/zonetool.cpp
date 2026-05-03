@@ -165,15 +165,18 @@ namespace iw8
 
 		void load_code_pre_gfx_zone()
 		{
-			::zonetool::iw8::XZoneInfo zone{};
-			zone.name = "code_pre_gfx";
-			zone.allocFlags = ::zonetool::iw8::DB_ZONE_PERMANENT;
-			return ::zonetool::iw8::DB_LoadXAssets(&zone, 1, ::zonetool::iw8::DB_LOAD_SYNC, 0);
+			::zonetool::iw8::DB_FastfileInfo zoneInfo[1];
+			zoneInfo[0].name = "code_pre_gfx";
+			zoneInfo[0].zoneFlags = 1;
+			zoneInfo[0].failureMode = ::zonetool::iw8::DB_FastFileFailureMode::REQUIRED;
+			zoneInfo[0].priority = 0xFFFF;
+			::zonetool::iw8::DB_LoadFastfiles(zoneInfo, 1u, 1, false);
 		}
 
 		void load_common_zones()
 		{
 			std::vector<const char*> defaultzones;
+
 			if (!utils::flags::has_flag("no_code_post_gfx"))
 			{
 				defaultzones.push_back("code_post_gfx");
@@ -183,22 +186,22 @@ namespace iw8
 				defaultzones.push_back("comms_mp");
 			}
 
-			::zonetool::iw8::XZoneInfo zones[8]{ 0 };
-
-			// Load our custom zones
+			::zonetool::iw8::DB_FastfileInfo zoneInfo[2];
 			for (std::size_t i = 0; i < defaultzones.size(); i++)
 			{
-				zones[i].name = defaultzones[i];
-				zones[i].allocFlags = 1;
-				zones[i].priority = 0xFFF;
+				zoneInfo[i].name = defaultzones[i];
+				zoneInfo[i].zoneFlags = 1;
+				zoneInfo[i].failureMode = ::zonetool::iw8::DB_FastFileFailureMode::REQUIRED;
+				zoneInfo[i].priority = 0xFFFF;
 			}
 
-			::zonetool::iw8::DB_LoadXAssets(zones, static_cast<unsigned int>(defaultzones.size()), ::zonetool::iw8::DB_LOAD_SYNC, 0);
+			::zonetool::iw8::DB_LoadFastfiles(zoneInfo, static_cast<unsigned int>(defaultzones.size()), 1, false);
 		}
 
 		void load_init_zones_stub()
 		{
 			printf("load_init_zones_stub\n");
+
 			if (!*reinterpret_cast<uint32_t*>(0xD44EB90_b))
 			{
 				utils::hook::set<uint32_t>(0xD44EB90_b, 1); // initialized
@@ -243,7 +246,7 @@ namespace iw8
 			{
 				printf("yo\n");
 
-				//remove_renderer();
+				remove_renderer();
 
 				utils::hook::set(0x13FF110_b, 0xC300000001B8);
 

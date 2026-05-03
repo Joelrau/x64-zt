@@ -12127,11 +12127,25 @@ namespace zonetool::iw8
 		DB_ZONE_CUSTOM = 0x1000000, // added for custom zone loading
 	};
 
-	struct XZoneInfo
+	struct XZoneInfo // old
 	{
 		const char* name;
 		int allocFlags;
 		//int freeFlags;
+	};
+
+	enum DB_FastFileFailureMode
+	{
+		REQUIRED = 0x0,
+		ALLOW_MISSING = 0x1,
+	};
+
+	struct DB_FastfileInfo
+	{
+		const char* name;
+		unsigned int zoneFlags;
+		DB_FastFileFailureMode failureMode;
+		unsigned int priority;
 	};
 
 	struct DBFile

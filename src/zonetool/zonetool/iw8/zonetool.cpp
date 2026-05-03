@@ -471,8 +471,13 @@ namespace zonetool::iw8
 		}
 
 		zonetool::taskbar::set_indeterminate();
-		XZoneInfo zone = { name.data(), DB_ZONE_GAME | DB_ZONE_CUSTOM };
-		DB_LoadXAssets(&zone, 1, mode, 0);
+		//XZoneInfo zone = { name.data(), DB_ZONE_GAME | DB_ZONE_CUSTOM };
+
+		DB_FastfileInfo zoneInfo[1];
+		zoneInfo[0].name = name.data();
+		zoneInfo[0].zoneFlags = 1 | DB_ZONE_CUSTOM;
+
+		DB_LoadFastfiles(zoneInfo, 1, mode, false);
 		return true;
 	}
 
