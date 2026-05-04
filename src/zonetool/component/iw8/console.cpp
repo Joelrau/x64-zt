@@ -14,10 +14,15 @@ namespace iw8
 
 		DWORD WINAPI console(LPVOID)
 		{
-			AllocConsole();
-			freopen("CONIN$", "r", stdin);
-			freopen("CONOUT$", "w", stdout);
-			freopen("CONOUT$", "w", stderr);
+			if (GetConsoleWindow() == nullptr)
+			{
+				AllocConsole();
+				freopen("CONIN$", "r", stdin);
+				freopen("CONOUT$", "w", stdout);
+				freopen("CONOUT$", "w", stderr);
+				SetConsoleCP(CP_UTF8);
+				SetConsoleOutputCP(CP_UTF8);
+			}
 
 			ShowWindow(GetConsoleWindow(), SW_SHOW);
 			SetConsoleTitleA("IW8-ZoneTool");

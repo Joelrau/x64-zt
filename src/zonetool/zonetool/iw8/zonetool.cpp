@@ -79,7 +79,7 @@ namespace zonetool::iw8
 	void wait_for_database()
 	{
 		// wait for database to be ready
-		while (!WaitForSingleObject(*reinterpret_cast<HANDLE*>(0x14602BD40), 0) == 0)
+		while (!WaitForSingleObject(*reinterpret_cast<HANDLE*>(0xD57FA40_b), 0) == 0)
 		{
 			Sleep(5);
 		}
@@ -87,7 +87,7 @@ namespace zonetool::iw8
 
 	XAssetEntry* db_find_x_asset_entry(XAssetType type, const char* name)
 	{
-		return utils::hook::invoke<XAssetEntry*>(0x1403B57F0, reinterpret_cast<void*>(0x1453E7370), name, type);
+		return utils::hook::invoke<XAssetEntry*>(0xF5E010_b, reinterpret_cast<void*>(0xC815C60_b), name, type);
 	}
 
 	XAssetHeader db_find_x_asset_header(XAssetType type, const char* name, int create_default)
@@ -398,24 +398,24 @@ namespace zonetool::iw8
 		return db_add_xasset_hook.invoke<XAssetHeader>(type, header);
 	}
 
-	utils::hook::detour db_finish_load_x_file_hook;
-	void db_finish_load_x_file_stub()
+	utils::hook::detour db_try_load_xfile_internal_hook;
+	void db_try_load_xfile_internal_stub(
+		char* Str,
+		int a2,
+		int zoneFlags,
+		unsigned __int8 a4,
+		unsigned __int8 a5,
+		unsigned __int8 a6,
+		int a7)
 	{
-		if (std::string(g_load->file->name) == filesystem::get_fastfile() &&
-			reinterpret_cast<std::uintptr_t>(_ReturnAddress()) == 0x1409E7745ui64)
+		db_try_load_xfile_internal_hook.invoke<void>(Str, a2, zoneFlags, a4, a5, a6, a7);
+
+		printf("ff: %s, current ff: %s\n", Str, filesystem::get_fastfile().data());
+
+		if (std::string(Str) == filesystem::get_fastfile())
 		{
 			stop_dumping();
 		}
-		return db_finish_load_x_file_hook.invoke<void>();
-	}
-
-	utils::hook::detour load_x_gfx_globals_hook;
-	void load_x_gfx_globals_stub(bool atStreamStart)
-	{
-		load_x_gfx_globals_hook.invoke<void>(atStreamStart);
-
-		const auto var_x_gfx_globals = *reinterpret_cast<XGfxGlobals**>(0x1453E4490);
-		insert_x_gfx_globals_for_zone(*g_zoneIndex, var_x_gfx_globals);
 	}
 
 	void reallocate_asset_pool(const XAssetType type, const unsigned int new_size)
@@ -476,7 +476,8 @@ namespace zonetool::iw8
 		DB_FastfileInfo zoneInfo[1];
 		zoneInfo[0].name = name.data();
 		zoneInfo[0].zoneFlags = 1 | DB_ZONE_CUSTOM;
-
+		zoneInfo[0].failureMode = DB_FastFileFailureMode::REQUIRED;
+		zoneInfo[0].priority = 0xFFFF;
 		DB_LoadFastfiles(zoneInfo, 1, mode, false);
 		return true;
 	}
@@ -1265,21 +1266,18 @@ namespace zonetool::iw8
 		reallocate_asset_pool_multiplier(ASSET_TYPE_VERTEXDECL, 6);
 		reallocate_asset_pool_multiplier(ASSET_TYPE_COMPUTESHADER, 4);
 		reallocate_asset_pool_multiplier(ASSET_TYPE_IMPACT_FX, 2);
+		*/
 
 		// enable dumping
-		db_add_xasset_hook.create(0x140A76520, &db_add_xasset_stub);
+		db_add_xasset_hook.create(0x11A9C90_b, &db_add_xasset_stub);
 
 		// stop dumping
-		db_finish_load_x_file_hook.create(0x1409E8B20, &db_finish_load_x_file_stub);
+		db_try_load_xfile_internal_hook.create(0x11B0260_b, &db_try_load_xfile_internal_stub);
 
-		// store xGfxGlobals pointers
-		load_x_gfx_globals_hook.create(0x140A16710, &load_x_gfx_globals_stub);
-
-		doexit_hook.create(0x1412D7348, doexit);
+		doexit_hook.create(0x22244B8_b, doexit);
 		atexit(on_exit);
 
 		DB_FindXAssetEntry.set((std::uintptr_t)db_find_x_asset_entry);
-		*/
 	}
 
 	void finalize()

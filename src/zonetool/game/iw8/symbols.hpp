@@ -32,15 +32,15 @@ namespace iw8
 
 		WEAK symbol<void(const char* finalmsg)> Com_Shutdown{ 0x140BAFEA0 };
 
-		WEAK symbol<void(const char* text)> Cbuf_AddText{ 0x141298F50 };
+		WEAK symbol<void(const char* text)> Cbuf_AddText{ 0x1298F50 };
 		WEAK symbol<void(int localClientNum, void(*))> Cbuf_AddCall{ 0x140B7C220 };
 		WEAK symbol<void(int localClientNum, int controllerIndex, const char* buffer)> Cbuf_ExecuteBuffer{ 0x140B7C3B0 };
 		WEAK symbol<void(int localClientNum, int controllerIndex, const char* buffer, void(int, int, const char*))> Cbuf_ExecuteBufferInternal{ 0x140B7C3C0 };
 
 		WEAK symbol<void(int localClientNum, int andMask)> CL_Keys_RemoveCatcher{ 0x1409A9B00 };
 
-		WEAK symbol<void(const char* text)> Cmd_ExecuteSingleCommand{ 0x141298590 };
-		WEAK symbol<void(const char* cmdName, void(), cmd_function_s* allocedCmd)> Cmd_AddCommandInternal{ 0x1412965F0 };
+		WEAK symbol<void(const char* text)> Cmd_ExecuteSingleCommand{ 0x1298590 };
+		WEAK symbol<void(const char* cmdName, void(), cmd_function_s* allocedCmd)> Cmd_AddCommandInternal{ 0x12965F0 };
 		WEAK symbol<void(const char* cmdName)> Cmd_RemoveCommand{ 0x140B7D630 };
 		WEAK symbol<void(const char* text_in)> Cmd_TokenizeString{ 0x140B7D850 };
 		WEAK symbol<void()> Cmd_EndTokenizeString{ 0x140B7CC90 };
@@ -121,8 +121,8 @@ namespace iw8
 		 * Variables
 		 **************************************************************/
 
-		WEAK symbol<CmdArgs> sv_cmd_args{ 0x14D211CA0 };
-		WEAK symbol<CmdArgs> cmd_args{ 0x14D20CBD0 };
+		WEAK symbol<CmdArgs> sv_cmd_args{ 0xD211CA0 };
+		WEAK symbol<CmdArgs> cmd_args{ 0xD211CA0 };
 		WEAK symbol<cmd_function_s*> cmd_functions{ 0x145D65CC8 };
 		WEAK symbol<const char*> command_whitelist{ 0x1414D1B70 };
 

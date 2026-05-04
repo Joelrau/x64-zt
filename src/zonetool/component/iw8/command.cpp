@@ -120,14 +120,12 @@ namespace iw8
 
 		void add(const char* name, const std::function<void(const params&)>& callback)
 		{
-			/*
 			const auto command = utils::string::to_lower(name);
 
 			if (handlers.find(command) == handlers.end())
 				add_raw(name, main_handler);
 
 			handlers[command] = callback;
-			*/
 		}
 
 		void add(const char* name, const std::function<void()>& callback)
