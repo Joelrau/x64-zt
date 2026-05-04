@@ -350,6 +350,7 @@ namespace zonetool::iw8
 		}
 	}
 
+	/*
 	namespace imagefile
 	{
 		void compress_images(const std::vector<gfx_image*>& images)
@@ -470,6 +471,7 @@ namespace zonetool::iw8
 			write_image_file();
 		}
 	}
+	*/
 
 	asset_interface* zone_interface::find_asset(std::int32_t type, const std::string& name)
 	{
@@ -547,7 +549,7 @@ namespace zonetool::iw8
 		try
 		{
 			// declare asset interfaces
-			ADD_ASSET_PTR(ASSET_TYPE_LOCALIZE_ENTRY, localize);
+			//ADD_ASSET_PTR(ASSET_TYPE_LOCALIZE_ENTRY, localize);
 		}
 		catch (std::exception& ex)
 		{
@@ -592,69 +594,12 @@ namespace zonetool::iw8
 		try
 		{
 			// declare asset interfaces
-			ADD_ASSET(ASSET_TYPE_DDL, ddl);
-			ADD_ASSET(ASSET_TYPE_FX, fx_effect_def);
-			ADD_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, fx_particle_sim_animation);
-			ADD_ASSET(ASSET_TYPE_GESTURE, gesture);
-			ADD_ASSET(ASSET_TYPE_IMAGE, gfx_image);
-			ADD_ASSET(ASSET_TYPE_LIGHT_DEF, gfx_light_def);
-			ADD_ASSET(ASSET_TYPE_GFXLIGHTMAP, gfx_light_map);
-			ADD_ASSET(ASSET_TYPE_IMPACT_FX, impact_fx);
-			ADD_ASSET(ASSET_TYPE_LASER, laser);
-			ADD_ASSET(ASSET_TYPE_LOCALIZE_ENTRY, localize);
-			ADD_ASSET(ASSET_TYPE_LUA_FILE, lua_file);
-			ADD_ASSET(ASSET_TYPE_MATERIAL, material);
-			ADD_ASSET(ASSET_TYPE_NET_CONST_STRINGS, net_const_strings);
-			ADD_ASSET(ASSET_TYPE_VFX, particle_system);
-			ADD_ASSET(ASSET_TYPE_RAWFILE, rawfile);
-			ADD_ASSET(ASSET_TYPE_RETICLE, reticle);
-			ADD_ASSET(ASSET_TYPE_RUMBLE, rumble);
-			ADD_ASSET(ASSET_TYPE_RUMBLE_GRAPH, rumble_graph);
-			ADD_ASSET(ASSET_TYPE_SCRIPTABLE, scriptable_def);
-			ADD_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile);
-			ADD_ASSET(ASSET_TYPE_STREAMING_INFO, streaming_info);
-			ADD_ASSET(ASSET_TYPE_STRINGTABLE, string_table);
-			ADD_ASSET(ASSET_TYPE_TRACER, tracer);
-			ADD_ASSET(ASSET_TYPE_TTF, ttf_def);
-			ADD_ASSET(ASSET_TYPE_VECTORFIELD, vector_field);
-			ADD_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment);
-			ADD_ASSET(ASSET_TYPE_ANIM_PACKAGE, weapon_anim_package);
-			ADD_ASSET(ASSET_TYPE_SFX_PACKAGE, weapon_sfx_package);
-			ADD_ASSET(ASSET_TYPE_VFX_PACKAGE, weapon_vfx_package);
-			ADD_ASSET(ASSET_TYPE_WEAPON, weapon_def);
-			ADD_ASSET(ASSET_TYPE_XANIMPARTS, xanim_parts);
-			ADD_ASSET(ASSET_TYPE_XMODEL, xmodel);
-			ADD_ASSET(ASSET_TYPE_XMODEL_SURFS, xsurface);
 			
-			//ADD_ASSET(ASSET_TYPE_SOUND_GLOBALS, sound_globals);
-			ADD_ASSET(ASSET_TYPE_SOUND_BANK, sound_bank);
-			//ADD_ASSET(ASSET_TYPE_SOUND_BANK_TRANSIENT, sound_bank_transient);
-
-			ADD_ASSET(ASSET_TYPE_PHYSICSASSET, physics_asset);
-			ADD_ASSET(ASSET_TYPE_PHYSICS_FX_PIPELINE, physics_fx_pipeline);
-			ADD_ASSET(ASSET_TYPE_PHYSICS_FX_SHAPE, physics_fx_shape);
-			ADD_ASSET(ASSET_TYPE_PHYSICSLIBRARY, physics_library);
-			ADD_ASSET(ASSET_TYPE_PHYSICS_SFX_EVENT_ASSET, physics_sfx_event);
-			ADD_ASSET(ASSET_TYPE_PHYSICS_VFX_EVENT_ASSET, physics_vfx_event);
-
-			ADD_ASSET(ASSET_TYPE_COMPUTESHADER, compute_shader);
-			ADD_ASSET(ASSET_TYPE_DOMAINSHADER, domain_shader);
-			ADD_ASSET(ASSET_TYPE_HULLSHADER, hull_shader);
-			ADD_ASSET(ASSET_TYPE_PIXELSHADER, pixel_shader);
-			//ADD_ASSET(ASSET_TYPE_VERTEXDECL, vertex_decl);
-			ADD_ASSET(ASSET_TYPE_VERTEXSHADER, vertex_shader);
-
-			ADD_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset);
-
-			ADD_ASSET(ASSET_TYPE_PATHDATA, path_data);
-			ADD_ASSET(ASSET_TYPE_CLIPMAP, clip_map);
-			ADD_ASSET(ASSET_TYPE_COMWORLD, com_world);
-			ADD_ASSET(ASSET_TYPE_FXWORLD, fx_world);
-			ADD_ASSET(ASSET_TYPE_GFXWORLD, gfx_world);
-			ADD_ASSET(ASSET_TYPE_GFXWORLD_TRANSIENT_ZONE, gfx_world_tr);
-			ADD_ASSET(ASSET_TYPE_GLASSWORLD, glass_world);
-			ADD_ASSET(ASSET_TYPE_MAP_ENTS, map_ents);
-			ADD_ASSET(ASSET_TYPE_NAVMESH, nav_mesh);
+			ADD_ASSET(ASSET_TYPE_RAWFILE, rawfile);
+			
+			//ADD_ASSET(ASSET_TYPE_XANIMPARTS, xanim_parts);
+			//ADD_ASSET(ASSET_TYPE_XMODEL, xmodel);
+			//ADD_ASSET(ASSET_TYPE_XMODEL_SURFS, xsurface);
 		}
 		catch (std::exception& ex)
 		{
@@ -683,6 +628,7 @@ namespace zonetool::iw8
 		ZONETOOL_INFO("Compiling fastfile \"%s\"...", this->name_.data());
 
 		{
+			/*
 			std::vector<gfx_image*> images;
 			for (std::size_t i = 0; i < m_assets.size(); i++)
 			{
@@ -701,6 +647,7 @@ namespace zonetool::iw8
 				imagefile::generate(filesystem::get_fastfile(),
 					CUSTOM_IMAGEFILE_INDEX, FF_VERSION, FF_MAGIC_UNSIGNED, images, this->m_zonemem.get());
 			}
+			*/
 		}
 
 		std::uintptr_t following = static_cast<std::uintptr_t>(buf->data_following);

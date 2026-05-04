@@ -180,7 +180,7 @@ namespace zonetool::iw8
 #define DUMP_ASSET(__type__,___,__struct__) \
 		if (asset->type == __type__) \
 		{ \
-			if(IS_DEBUG) ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
+			if (IS_DEBUG) ZONETOOL_INFO("Dumping asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type)); \
 			auto asset_ptr = reinterpret_cast<__struct__*>(asset->header.data); \
 			___::dump(asset_ptr); \
 		}
@@ -254,6 +254,7 @@ namespace zonetool::iw8
 			*/
 
 			DUMP_ASSET(ASSET_TYPE_RAWFILE, rawfile, RawFile);
+			DUMP_ASSET(ASSET_TYPE_XMODEL, xmodel, XModel);
 		}
 		catch (const std::exception& e)
 		{
@@ -783,6 +784,8 @@ namespace zonetool::iw8
 				else
 					filesystem::add_paths_from_directory(row->fields[1], insert_at_beginning);
 			}
+
+			/*
 			// if entry is not an option, it should be an asset.
 			else
 			{
@@ -826,6 +829,7 @@ namespace zonetool::iw8
 					}
 				}
 			}
+			*/
 		}
 	}
 
@@ -902,10 +906,12 @@ namespace zonetool::iw8
 		return dump_params;
 	}
 
+	// TODO
 	void clear_asset_fields()
 	{
-		material::fixed_nml_images_map.clear();
-		techset::vertexdecl_pointers.clear();
+		//material::fixed_nml_images_map.clear();
+		//techset::vertexdecl_pointers.clear();
+		
 		//xanim_parts::secondary_anims.clear();
 	}
 

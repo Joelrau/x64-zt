@@ -42,8 +42,18 @@ namespace zonetool::iw8
 		// asset
 		auto* asset = read.read_single<XModel>();
 		asset->name = read.read_string();
+		
+		asset->scriptableMoverDef = read.read_asset<ScriptableDef>();
+		asset->proceduralBones = read.read_asset<XAnimProceduralBones>();
+		asset->dynamicBones = read.read_asset<XAnimDynamicBones>();
 
 		// tags
+		asset->aimAssistBones = mem->allocate<scr_string_t>(asset->numAimAssistBones);
+		for (auto i = 0; i < asset->numAimAssistBones; i++)
+		{
+			this->add_script_string(&asset->aimAssistBones[i], read.read_string());
+		}
+
 		asset->boneNames = mem->allocate<scr_string_t>(asset->numBones + asset->numClientBones);
 		for (auto i = 0; i < asset->numBones + asset->numClientBones; i++)
 		{
@@ -51,16 +61,17 @@ namespace zonetool::iw8
 		}
 
 		// basic info
-		asset->parentList = read.read_array<unsigned char>();
-		asset->tagAngles = read.read_array<XModelAngle>();
-		asset->tagPositions = read.read_array<XModelTagPos>();
-		asset->partClassification = read.read_array<unsigned char>();
+		asset->parentList = read.read_array<char>();
+		asset->quats = read.read_array<__int16>();
+		asset->trans = read.read_array<float>();
+
+		asset->partClassification = read.read_array<char>();
 		asset->baseMat = read.read_array<DObjAnimMat>();
-		asset->reactiveMotionParts = read.read_array<ReactiveMotionModelPart>();
-		asset->reactiveMotionTweaks = read.read_single<ReactiveMotionModelTweaks>();
-		asset->collSurfs = read.read_array<XModelCollSurf_s>();
-		asset->boneInfo = read.read_array<XBoneInfo>();
-		asset->invHighMipRadius = read.read_array<unsigned short>();
+		asset->ikHingeAxis = read.read_array<vec3_t>();
+
+		asset->reactiveMotionInfo = read.read_single<ReactiveMotionModelInfo>();
+		asset->reactiveMotionInfo->modelPartTweaks = read.read_array<ReactiveMotionModelPartTweaks>();
+		asset->reactiveMotionInfo->modelParts = read.read_array<ReactiveMotionModelPart>();
 
 		// surfaces
 		asset->materialHandles = read.read_array<Material*>();
@@ -72,34 +83,59 @@ namespace zonetool::iw8
 		// lods
 		for (auto i = 0; i < 6; i++)
 		{
-			asset->lodInfo[i].modelSurfs = read.read_asset<XModelSurfs>();
+			asset->lodInfo[i].modelSurfsStaging = read.read_asset<XModelSurfs>();
 		}
+
+		asset->boneInfo = read.read_array<XBoneInfo>();
+		asset->himipRadiusInvSq = read.read_array<float>();
 
 		// physics
 		asset->physicsAsset = read.read_asset<PhysicsAsset>();
 		asset->physicsFXShape = read.read_asset<PhysicsFXShape>();
 
-		// unknown
-		asset->physicsLODData = read.read_array<char>();
-
-		asset->physicsLODDataNames = mem->allocate<scr_string_t>(asset->physicsLODDataNameCount);
-		for (unsigned int i = 0; i < asset->physicsLODDataNameCount; i++)
+		asset->detailCollision = read.read_single<XModelDetailCollision>();
+		asset->detailCollision->physicsLODData = read.read_array<char>();
+		for (auto i = 0u; i < asset->detailCollision->physicsLODDataNameCount; i++)
 		{
-			this->add_script_string(&asset->physicsLODDataNames[i], read.read_string());
+			this->add_script_string(&asset->detailCollision->physicsLODDataNames[i], read.read_string());
 		}
 
-		asset->scriptableMoverDef = read.read_asset<ScriptableDef>();
-		asset->proceduralBones = read.read_asset<XAnimProceduralBones>();
-
-		asset->aimAssistBones = mem->allocate<scr_string_t>(asset->numAimAssistBones);
-		for (unsigned int i = 0; i < asset->numAimAssistBones; i++)
+		asset->clothAssets = read.read_array<ClothAsset*>();
+		for (auto i = 0; i < asset->numClothAssets; i++)
 		{
-			this->add_script_string(&asset->aimAssistBones[i], read.read_string());
+			asset->clothAssets[i] = read.read_asset<ClothAsset>();
 		}
 
-		asset->unknown03 = read.read_array<char>();
-		asset->unknownVec3 = read.read_array<vec3_t>();
-		asset->unknown04 = read.read_array<unk_1453E14D8>();
+		asset->blendShapeInfo = read.read_single<XModelBlendShapeInfo>();
+		for (auto i = 0; i < asset->blendShapeInfo->numberOfWeights; i++)
+		{
+			this->add_script_string(&asset->blendShapeInfo->weightNames[i], read.read_string());
+		}
+		asset->blendShapeInfo->weightMaps = read.read_array<BlendShapeWeightMap>();
+
+		asset->mdaoVolumes = read.read_array<MdaoVolume>();
+		for (auto i = 0; i < asset->mdaoVolumeCount; i++)
+		{
+			asset->mdaoVolumes[i].volumeData = read.read_asset<GfxImage>();
+		}
+
+		asset->decalVolumesInfo = read.read_single<XModelDecalVolumesInfo>();
+		asset->decalVolumesInfo->decalVolumes = read.read_array<XModelDecalVolume>();
+		for (auto i = 0; i < asset->decalVolumesInfo->numDecalVolumes; i++)
+		{
+			if (asset->decalVolumesInfo->decalVolumes[i].material)
+			{
+				asset->decalVolumesInfo->decalVolumes[i].material = read.read_asset<Material>();
+			}
+			if (asset->decalVolumesInfo->decalVolumes[i].blendMapOverride->name)
+			{
+				asset->decalVolumesInfo->decalVolumes[i].blendMapOverride->name = read.read_string();
+			}
+			if (asset->decalVolumesInfo->decalVolumes[i].blendMapOverride->blendMap)
+			{
+				asset->decalVolumesInfo->decalVolumes[i].blendMapOverride->blendMap = read.read_asset<GfxImage>();
+			}
+		}
 
 		read.close();
 
@@ -124,25 +160,25 @@ namespace zonetool::iw8
 
 			auto* asset = this->asset_;
 
-			auto* original_scriptstrings = asset->boneNames;
+			auto* original_scriptstrings = asset->aimAssistBones;
+			asset->aimAssistBones = mem->allocate<scr_string_t>(asset->numAimAssistBones);
+			for (unsigned int i = 0; i < asset->numAimAssistBones; i++)
+			{
+				this->add_script_string(&asset->aimAssistBones[i], SL_ConvertToString(original_scriptstrings[i]));
+			}
+
+			original_scriptstrings = asset->boneNames;
 			asset->boneNames = mem->allocate<scr_string_t>(asset->numBones + asset->numClientBones);
 			for (auto i = 0; i < asset->numBones + asset->numClientBones; i++)
 			{
 				this->add_script_string(&asset->boneNames[i], SL_ConvertToString(original_scriptstrings[i]));
 			}
 
-			original_scriptstrings = asset->physicsLODDataNames;
-			asset->physicsLODDataNames = mem->allocate<scr_string_t>(asset->physicsLODDataNameCount);
-			for (unsigned int i = 0; i < asset->physicsLODDataNameCount; i++)
+			original_scriptstrings = asset->blendShapeInfo->weightNames;
+			asset->blendShapeInfo->weightNames = mem->allocate<scr_string_t>(asset->blendShapeInfo->numberOfWeights);
+			for (auto i = 0; i < asset->blendShapeInfo->numberOfWeights; i++)
 			{
-				this->add_script_string(&asset->physicsLODDataNames[i], SL_ConvertToString(original_scriptstrings[i]));
-			}
-
-			original_scriptstrings = asset->aimAssistBones;
-			asset->aimAssistBones = mem->allocate<scr_string_t>(asset->numAimAssistBones);
-			for (unsigned int i = 0; i < asset->numAimAssistBones; i++)
-			{
-				this->add_script_string(&asset->aimAssistBones[i], SL_ConvertToString(original_scriptstrings[i]));
+				this->add_script_string(&asset->blendShapeInfo->weightNames[i], SL_ConvertToString(original_scriptstrings[i]));
 			}
 		}
 	}
@@ -152,7 +188,15 @@ namespace zonetool::iw8
 		// fixup scriptstrings
 		auto* xmodel = this->asset_;
 
-		// name bonenames
+		if (xmodel->aimAssistBones)
+		{
+			for (auto i = 0; i < xmodel->numAimAssistBones; i++)
+			{
+				xmodel->aimAssistBones[i] = static_cast<scr_string_t>(buf->write_scriptstring(
+					this->get_script_string(&xmodel->aimAssistBones[i])));
+			}
+		}
+
 		if (xmodel->boneNames)
 		{
 			for (auto i = 0; i < xmodel->numBones + xmodel->numClientBones; i++)
@@ -160,17 +204,14 @@ namespace zonetool::iw8
 				xmodel->boneNames[i] = static_cast<scr_string_t>(buf->write_scriptstring(
 					this->get_script_string(&xmodel->boneNames[i])));
 			}
+		}
 
-			for (unsigned int i = 0; i < xmodel->physicsLODDataNameCount; i++)
+		if (xmodel->blendShapeInfo->weightNames)
+		{
+			for (auto i = 0; i < xmodel->blendShapeInfo->numberOfWeights; i++)
 			{
-				xmodel->physicsLODDataNames[i] = static_cast<scr_string_t>(buf->write_scriptstring(
-					this->get_script_string(&xmodel->physicsLODDataNames[i])));
-			}
-
-			for (unsigned int i = 0; i < xmodel->numAimAssistBones; i++)
-			{
-				xmodel->aimAssistBones[i] = static_cast<scr_string_t>(buf->write_scriptstring(
-					this->get_script_string(&xmodel->aimAssistBones[i])));
+				xmodel->blendShapeInfo->weightNames[i] = static_cast<scr_string_t>(buf->write_scriptstring(
+					this->get_script_string(&xmodel->blendShapeInfo->weightNames[i])));
 			}
 		}
 	}
@@ -178,6 +219,22 @@ namespace zonetool::iw8
 	void xmodel::load_depending(zone_base* zone)
 	{
 		auto* data = this->asset_;
+
+		//
+		if (data->scriptableMoverDef)
+		{
+			zone->add_asset_of_type(ASSET_TYPE_SCRIPTABLE, data->scriptableMoverDef->name);
+		}
+
+		if (data->proceduralBones)
+		{
+			zone->add_asset_of_type(ASSET_TYPE_XANIM_PROCEDURALBONES, data->proceduralBones->name);
+		}
+
+		if (data->dynamicBones)
+		{
+			zone->add_asset_of_type(ASSET_TYPE_XANIM_DYNAMICBONES, data->dynamicBones->name);
+		}
 
 		// materials
 		for (unsigned int i = 0; i < data->numsurfs; i++)
@@ -191,9 +248,9 @@ namespace zonetool::iw8
 		// surfaces
 		for (auto i = 0; i < 6; i++)
 		{
-			if (data->lodInfo[i].modelSurfs)
+			if (data->lodInfo[i].modelSurfsStaging)
 			{
-				zone->add_asset_of_type(ASSET_TYPE_XMODEL_SURFS, data->lodInfo[i].modelSurfs->name);
+				zone->add_asset_of_type(ASSET_TYPE_XMODEL_SURFS, data->lodInfo[i].modelSurfsStaging->name);
 			}
 		}
 
@@ -207,15 +264,41 @@ namespace zonetool::iw8
 			zone->add_asset_of_type(ASSET_TYPE_PHYSICS_FX_SHAPE, data->physicsFXShape->name);
 		}
 
-		//
-		if (data->scriptableMoverDef)
+		if (data->clothAssets)
 		{
-			zone->add_asset_of_type(ASSET_TYPE_SCRIPTABLE, data->scriptableMoverDef->name);
+			for (auto i = 0; i < data->numClothAssets; i++)
+			{
+				if (data->clothAssets[i])
+				{
+					zone->add_asset_of_type(ASSET_TYPE_CLOTH_ASSET, data->clothAssets[i]->name);
+				}
+			}
 		}
 
-		if (data->proceduralBones)
+		if (data->mdaoVolumes)
 		{
-			zone->add_asset_of_type(ASSET_TYPE_XANIM_PROCEDURALBONES, data->proceduralBones->name);
+			for (auto i = 0; i < data->mdaoVolumeCount; i++)
+			{
+				if (data->mdaoVolumes[i].volumeData)
+				{
+					zone->add_asset_of_type(ASSET_TYPE_IMAGE, data->mdaoVolumes[i].volumeData->name);
+				}
+			}
+		}
+
+		if (data->decalVolumesInfo)
+		{
+			for (auto i = 0; i < data->decalVolumesInfo->numDecalVolumes; i++)
+			{
+				if (data->decalVolumesInfo->decalVolumes[i].material)
+				{
+					zone->add_asset_of_type(ASSET_TYPE_MATERIAL, data->decalVolumesInfo->decalVolumes[i].material->name);
+				}
+				if (data->decalVolumesInfo->decalVolumes[i].blendMapOverride->blendMap)
+				{
+					zone->add_asset_of_type(ASSET_TYPE_IMAGE, data->decalVolumesInfo->decalVolumes[i].blendMapOverride->blendMap->name);
+				}
+			}
 		}
 	}
 
@@ -234,9 +317,34 @@ namespace zonetool::iw8
 		auto data = this->asset_;
 		auto dest = buf->write(data);
 
-		buf->push_stream(XFILE_BLOCK_VIRTUAL);
+		buf->push_stream(5);
 
 		dest->name = buf->write_str(this->name());
+
+		if (data->scriptableMoverDef)
+		{
+			dest->scriptableMoverDef = reinterpret_cast<ScriptableDef*>(zone->get_asset_pointer(
+				ASSET_TYPE_SCRIPTABLE, data->scriptableMoverDef->name));
+		}
+
+		if (data->proceduralBones)
+		{
+			dest->proceduralBones = reinterpret_cast<XAnimProceduralBones*>(zone->get_asset_pointer(
+				ASSET_TYPE_XANIM_PROCEDURALBONES, data->proceduralBones->name));
+		}
+
+		if (data->dynamicBones)
+		{
+			dest->dynamicBones = reinterpret_cast<XAnimDynamicBones*>(zone->get_asset_pointer(
+				ASSET_TYPE_XANIM_DYNAMICBONES, data->dynamicBones->name));
+		}
+
+		if (data->aimAssistBones)
+		{
+			buf->align(3);
+			buf->write(data->aimAssistBones, data->numAimAssistBones);
+			buf->clear_pointer(&dest->aimAssistBones);
+		}
 
 		if (data->boneNames)
 		{
@@ -252,18 +360,25 @@ namespace zonetool::iw8
 			buf->clear_pointer(&dest->parentList);
 		}
 
-		if (data->tagAngles)
+		if (data->quats)
 		{
 			buf->align(1);
-			buf->write(data->tagAngles, (data->numBones + data->numClientBones - data->numRootBones));
-			buf->clear_pointer(&dest->tagAngles);
+			buf->write(data->quats, (data->numBones + data->numClientBones - data->numRootBones));
+			buf->clear_pointer(&dest->quats);
 		}
 
-		if (data->tagPositions)
+		if (data->trans)
 		{
 			buf->align(3);
-			buf->write(data->tagPositions, (data->numBones + data->numClientBones - data->numRootBones));
-			buf->clear_pointer(&dest->tagPositions);
+			buf->write(data->trans, (data->numBones + data->numClientBones - data->numRootBones));
+			buf->clear_pointer(&dest->trans);
+		}
+
+		if (data->trans)
+		{
+			buf->align(3);
+			buf->write(data->trans, (data->numBones + data->numClientBones - data->numRootBones));
+			buf->clear_pointer(&dest->trans);
 		}
 
 		if (data->partClassification)
@@ -280,21 +395,21 @@ namespace zonetool::iw8
 			buf->clear_pointer(&dest->baseMat);
 		}
 
-		if (data->reactiveMotionParts)
+		if (data->ikHingeAxis)
 		{
-			buf->align(15);
-			buf->write(data->reactiveMotionParts, data->numReactiveMotionParts);
-			buf->clear_pointer(&dest->reactiveMotionParts);
+			buf->align(3);
+			buf->write(data->ikHingeAxis, 4);
+			buf->clear_pointer(&dest->ikHingeAxis);
 		}
 
-		if (data->reactiveMotionTweaks)
+		if (data->reactiveMotionInfo)
 		{
 			buf->align(15);
-			buf->write(data->reactiveMotionTweaks);
-			buf->clear_pointer(&dest->reactiveMotionTweaks);
+			buf->write(data->reactiveMotionInfo);
+			buf->clear_pointer(&dest->reactiveMotionInfo);
 		}
 
-		buf->inc_stream(XFILE_BLOCK_CALLBACK, 4 * data->numsurfs);
+		//buf->inc_stream(XFILE_BLOCK_CALLBACK, 4 * data->numsurfs); // DB_CreateMaterialStream doesnt exist in IW8
 		if (data->materialHandles)
 		{
 			buf->align(7);
@@ -308,16 +423,9 @@ namespace zonetool::iw8
 
 		for (auto i = 0; i < 6; i++)
 		{
-			if (!data->lodInfo[i].modelSurfs) continue;
-			dest->lodInfo[i].modelSurfs = reinterpret_cast<XModelSurfs*>(zone->get_asset_pointer(
-				ASSET_TYPE_XMODEL_SURFS, data->lodInfo[i].modelSurfs->name));
-		}
-
-		if (data->collSurfs)
-		{
-			buf->align(3);
-			buf->write(data->collSurfs, data->numCollSurfs);
-			buf->clear_pointer(&dest->collSurfs);
+			if (!data->lodInfo[i].modelSurfsStaging) continue;
+			dest->lodInfo[i].modelSurfsStaging = reinterpret_cast<XModelSurfs*>(zone->get_asset_pointer(
+				ASSET_TYPE_XMODEL_SURFS, data->lodInfo[i].modelSurfsStaging->name));
 		}
 
 		if (data->boneInfo)
@@ -327,11 +435,11 @@ namespace zonetool::iw8
 			buf->clear_pointer(&dest->boneInfo);
 		}
 
-		if (data->invHighMipRadius)
+		if (data->himipRadiusInvSq)
 		{
-			buf->align(1);
-			buf->write(data->invHighMipRadius, data->numsurfs);
-			buf->clear_pointer(&dest->invHighMipRadius);
+			buf->align(3);
+			buf->write(data->himipRadiusInvSq, data->numsurfs);
+			buf->clear_pointer(&dest->himipRadiusInvSq);
 		}
 
 		if (data->physicsAsset)
@@ -346,58 +454,43 @@ namespace zonetool::iw8
 				ASSET_TYPE_PHYSICS_FX_SHAPE, data->physicsFXShape->name));
 		}
 
-		if (data->physicsLODData)
+		if (data->detailCollision)
 		{
-			buf->align(15);
-			buf->write(data->physicsLODData, data->physicsLODDataSize);
-			buf->clear_pointer(&dest->physicsLODData);
+			dest->detailCollision = reinterpret_cast<XModelDetailCollision*>(zone->get_asset_pointer(
+				ASSET_TYPE_XMODEL_DETAIL_COLLISION, data->detailCollision->name));
 		}
 
-		if (data->physicsLODDataNames)
+		if (data->clothAssets)
 		{
-			buf->align(3);
-			buf->write(data->physicsLODDataNames, data->physicsLODDataNameCount);
-			buf->clear_pointer(&dest->physicsLODDataNames);
+			buf->align(7);
+			buf->write(data->clothAssets, data->numClothAssets);
+			buf->clear_pointer(&dest->clothAssets);
 		}
 
-		if (data->scriptableMoverDef)
+		if (data->blendShapeInfo)
 		{
-			dest->scriptableMoverDef = reinterpret_cast<ScriptableDef*>(zone->get_asset_pointer(
-				ASSET_TYPE_SCRIPTABLE, data->scriptableMoverDef->name));
+			buf->align(7);
+			buf->write(data->blendShapeInfo);
+			buf->clear_pointer(&dest->blendShapeInfo);
 		}
 
-		if (data->proceduralBones)
+		if (data->mdaoVolumes)
 		{
-			dest->proceduralBones = reinterpret_cast<XAnimProceduralBones*>(zone->get_asset_pointer(
-				ASSET_TYPE_XANIM_PROCEDURALBONES, data->proceduralBones->name));
+			buf->align(7);
+			auto* dest_mdaoVolumes = buf->write(data->mdaoVolumes, data->mdaoVolumeCount);
+			for (unsigned short i = 0; i < data->mdaoVolumeCount; i++)
+			{
+				dest_mdaoVolumes[i].volumeData = reinterpret_cast<GfxImage*>(zone->get_asset_pointer(
+					ASSET_TYPE_IMAGE, data->mdaoVolumes[i].volumeData->name));
+			}
+			buf->clear_pointer(&dest->mdaoVolumes);
 		}
 
-		if (data->aimAssistBones)
+		if (data->decalVolumesInfo)
 		{
-			buf->align(3);
-			buf->write(data->aimAssistBones, data->numAimAssistBones);
-			buf->clear_pointer(&dest->aimAssistBones);
-		}
-
-		if (data->unknown03)
-		{
-			buf->align(3);
-			buf->write(data->unknown03, data->unknown03Count);
-			buf->clear_pointer(&dest->unknown03);
-		}
-
-		if (data->unknownVec3)
-		{
-			buf->align(3);
-			buf->write(data->unknownVec3, data->unknownVec3Count);
-			buf->clear_pointer(&dest->unknownVec3);
-		}
-
-		if (data->unknown04)
-		{
-			buf->align(3);
-			buf->write(data->unknown04, data->unknown04Count);
-			buf->clear_pointer(&dest->unknown04);
+			buf->align(7);
+			buf->write(data->decalVolumesInfo);
+			buf->clear_pointer(&dest->decalVolumesInfo);
 		}
 
 		buf->pop_stream();
@@ -417,23 +510,32 @@ namespace zonetool::iw8
 		dump.dump_single(asset);
 		dump.dump_string(asset->name);
 
+		dump.dump_asset(asset->scriptableMoverDef);
+		dump.dump_asset(asset->proceduralBones);
+		dump.dump_asset(asset->dynamicBones);
+
 		// tags
+		for (auto i = 0; i < asset->numAimAssistBones; i++)
+		{
+			dump.dump_string(SL_ConvertToString(asset->aimAssistBones[i]));
+		}
+
 		for (auto i = 0; i < asset->numBones + asset->numClientBones; i++)
 		{
 			dump.dump_string(SL_ConvertToString(asset->boneNames[i]));
 		}
 
-		// basic info
 		dump.dump_array(asset->parentList, asset->numBones + asset->numClientBones - asset->numRootBones);
-		dump.dump_array(asset->tagAngles, asset->numBones + asset->numClientBones - asset->numRootBones);
-		dump.dump_array(asset->tagPositions, asset->numBones + asset->numClientBones - asset->numRootBones);
+		dump.dump_array(asset->quats, asset->numBones + asset->numClientBones - asset->numRootBones);
+		dump.dump_array(asset->trans, asset->numBones + asset->numClientBones - asset->numRootBones);
+
 		dump.dump_array(asset->partClassification, asset->numBones);
 		dump.dump_array(asset->baseMat, asset->numBones + asset->numClientBones);
-		dump.dump_array(asset->reactiveMotionParts, asset->numReactiveMotionParts);
-		dump.dump_single(asset->reactiveMotionTweaks);
-		dump.dump_array(asset->collSurfs, asset->numCollSurfs);
-		dump.dump_array(asset->boneInfo, asset->numBones + asset->numClientBones);
-		dump.dump_array(asset->invHighMipRadius, asset->numsurfs);
+		dump.dump_array(asset->ikHingeAxis, 4); // Load_vec3_tArray(0, 4LL);
+
+		dump.dump_single(asset->reactiveMotionInfo);
+		dump.dump_single(asset->reactiveMotionInfo->modelPartTweaks);
+		dump.dump_single(asset->reactiveMotionInfo->modelParts);
 
 		// surfaces
 		dump.dump_array(asset->materialHandles, asset->numsurfs);
@@ -445,32 +547,51 @@ namespace zonetool::iw8
 		// lods
 		for (auto i = 0; i < 6; i++)
 		{
-			dump.dump_asset(asset->lodInfo[i].modelSurfs);
+			dump.dump_asset(asset->lodInfo[i].modelSurfsStaging);
+			//dump.dump_asset(asset->lodInfo[i].surfs);
 		}
+
+		dump.dump_array(asset->boneInfo, asset->numBones + asset->numClientBones);
+		dump.dump_array(asset->himipRadiusInvSq, asset->numsurfs);
 
 		// physics
 		dump.dump_asset(asset->physicsAsset);
 		dump.dump_asset(asset->physicsFXShape);
 
-		// unknown
-		dump.dump_array(asset->physicsLODData, asset->physicsLODDataSize);
-
-		for (unsigned int i = 0; i < asset->physicsLODDataNameCount; i++)
+		dump.dump_single(asset->detailCollision); // Load_XModelDetailCollisionPtr
+		dump.dump_array(asset->detailCollision->physicsLODData, asset->detailCollision->physicsLODDataSize);
+		for (unsigned int i = 0; i < asset->detailCollision->physicsLODDataNameCount; i++)
 		{
-			dump.dump_string(SL_ConvertToString(asset->physicsLODDataNames[i]));
+			dump.dump_string(SL_ConvertToString(asset->detailCollision->physicsLODDataNames[i]));
 		}
 
-		dump.dump_asset(asset->scriptableMoverDef);
-		dump.dump_asset(asset->proceduralBones);
-
-		for (unsigned int i = 0; i < asset->numAimAssistBones; i++)
+		dump.dump_array(asset->clothAssets, asset->numClothAssets);
+		for (auto i = 0; i < asset->numClothAssets; i++)
 		{
-			dump.dump_string(SL_ConvertToString(asset->aimAssistBones[i]));
+			dump.dump_asset(asset->clothAssets[i]);
 		}
 
-		dump.dump_array(asset->unknown03, asset->unknown03Count);
-		dump.dump_array(asset->unknownVec3, asset->unknownVec3Count);
-		dump.dump_array(asset->unknown04, asset->unknown04Count);
+		dump.dump_single(asset->blendShapeInfo);
+		for (auto i = 0; i < asset->blendShapeInfo->numberOfWeights; i++)
+		{
+			dump.dump_string(SL_ConvertToString(asset->blendShapeInfo->weightNames[i]));
+		}
+		dump.dump_array(asset->blendShapeInfo->weightMaps, asset->blendShapeInfo->numberOfWeightMaps);
+
+		dump.dump_array(asset->mdaoVolumes, asset->mdaoVolumeCount);
+		for (auto i = 0; i < asset->mdaoVolumeCount; i++)
+		{
+			dump.dump_asset(asset->mdaoVolumes[i].volumeData);
+		}
+
+		dump.dump_single(asset->decalVolumesInfo);
+		dump.dump_array(asset->decalVolumesInfo->decalVolumes, asset->decalVolumesInfo->numDecalVolumes);
+		for (auto i = 0; i < asset->decalVolumesInfo->numDecalVolumes; i++)
+		{
+			dump.dump_asset(asset->decalVolumesInfo->decalVolumes[i].material);
+			dump.dump_string(asset->decalVolumesInfo->decalVolumes[i].blendMapOverride->name);
+			dump.dump_asset(asset->decalVolumesInfo->decalVolumes[i].blendMapOverride->blendMap);
+		}
 
 		dump.close();
 	}

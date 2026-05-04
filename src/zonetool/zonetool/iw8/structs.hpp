@@ -1,10 +1,58 @@
 #pragma once
-#include <d3d11.h>
 
-namespace zonetool::iw8
+#ifndef __cplusplus
+#define IDA
+#endif
+
+#ifdef IDA
+typedef void ID3D11Buffer;
+typedef void ID3D11ShaderResourceView;
+typedef void ID3D11ComputeShader;
+typedef void ID3D11PixelShader;
+typedef void ID3D11VertexShader;
+typedef void ID3D11HullShader;
+typedef void ID3D11DomainShader;
+typedef void ID3D11GeometryShader;
+typedef void ID3D11Resource;
+typedef void ID3D11Texture1D;
+typedef void ID3D11Texture2D;
+typedef void ID3D11Texture3D;
+typedef void ID3D11RenderTargetView;
+typedef void ID3D11DepthStencilView;
+typedef void ID3D11UnorderedAccessView;
+typedef void ID3D11InputLayout;
+typedef void ID3D11SamplerState;
+typedef void ID3D11BlendState;
+typedef void ID3D11DepthStencilState;
+typedef void ID3D11RasterizerState;
+typedef void ID3D11Query;
+
+struct std 
+{
+	typedef signed char         int8_t;
+	typedef short               int16_t;
+	typedef int                 int32_t;
+	typedef long long           int64_t;
+	typedef unsigned char       uint8_t;
+	typedef unsigned short      uint16_t;
+	typedef unsigned int        uint32_t;
+	typedef unsigned long long  uint64_t;
+};
+
+#define assert_sizeof(a, b)
+#define assert_offsetof(a, b, c)
+#define static_assert(a)
+#else
+#include <d3d11.h>
+#include <d3d12.h>
+#endif
+
+#ifndef IDA
+namespace zonetool { namespace iw8
 {
 	namespace Umbra
 	{
+#endif
 		struct Vector3
 		{
 			float x;
@@ -78,16 +126,31 @@ namespace zonetool::iw8
 			float m_clusterCoordScale;
 			int m_pad[1];
 		};
+#ifndef IDA
 	}
+#endif
 
 	typedef float vec_t;
 	typedef vec_t vec2_t[2];
 	typedef vec_t vec3_t[3];
 	typedef vec_t vec4_t[4];
 
+	struct tmat33_t 
+	{
+		union {
+			vec3_t m[3];
+			struct data 
+			{
+				vec3_t row0; // forward
+				vec3_t row1; // left
+				vec3_t row2; // up
+			};
+		};
+	};
+
 	typedef std::int32_t scr_string_t;
 
-	enum XAssetType : std::int32_t
+	enum XAssetType : int
 	{
 		ASSET_TYPE_PHYSICSLIBRARY = 0,
 		ASSET_TYPE_PHYSICS_SFX_EVENT_ASSET = 1,
@@ -95,107 +158,122 @@ namespace zonetool::iw8
 		ASSET_TYPE_PHYSICSASSET = 3,
 		ASSET_TYPE_PHYSICS_FX_PIPELINE = 4,
 		ASSET_TYPE_PHYSICS_FX_SHAPE = 5,
-		ASSET_TYPE_XANIMPARTS = 6,
-		ASSET_TYPE_XMODEL_SURFS = 7,
-		//ASSET_TYPE_XMODEL = 8,
-		ASSET_TYPE_MAYHEM = 9,
-		ASSET_TYPE_MATERIAL = 10,
-		ASSET_TYPE_COMPUTESHADER = 11,
-		ASSET_TYPE_VERTEXSHADER = 12,
-		ASSET_TYPE_HULLSHADER = 13,
-		ASSET_TYPE_DOMAINSHADER = 14,
-		ASSET_TYPE_PIXELSHADER = 15,
-		ASSET_TYPE_VERTEXDECL = 16,
-		ASSET_TYPE_TECHNIQUE_SET = 17,
-		ASSET_TYPE_IMAGE = 18,
-		ASSET_TYPE_SOUND_GLOBALS = 19,
-		ASSET_TYPE_SOUND_BANK = 20,
-		ASSET_TYPE_SOUND_BANK_TRANSIENT = 21,
-		ASSET_TYPE_CLIPMAP = 22,
-		ASSET_TYPE_COMWORLD = 23,
-		ASSET_TYPE_GLASSWORLD = 24,
-		ASSET_TYPE_PATHDATA = 25,
-		ASSET_TYPE_NAVMESH = 26,
-		ASSET_TYPE_MAP_ENTS = 27,
-		ASSET_TYPE_FXWORLD = 28,
-		//ASSET_TYPE_GFXWORLD = 29,
-		ASSET_TYPE_GFXWORLD_TRANSIENT_ZONE = 30,
-		ASSET_TYPE_IESPROFILE = 31, // unused
-		ASSET_TYPE_LIGHT_DEF = 32,
-		ASSET_TYPE_UI_MAP = 33, // unused
-		ASSET_TYPE_ANIMCLASS = 34,
-		ASSET_TYPE_PLAYERANIM = 35,
-		ASSET_TYPE_GESTURE = 36,
-		ASSET_TYPE_LOCALIZE_ENTRY = 37,
-		ASSET_TYPE_ATTACHMENT = 38,
-		//ASSET_TYPE_WEAPON = 39,
-		ASSET_TYPE_VFX = 40,
-		ASSET_TYPE_FX = 41,
-		ASSET_TYPE_IMPACT_FX = 42,
-		ASSET_TYPE_SURFACE_FX = 43,
-		ASSET_TYPE_AITYPE = 44, // unused
-		ASSET_TYPE_MPTYPE = 45, // unused
-		ASSET_TYPE_CHARACTER = 46, // unused
-		ASSET_TYPE_XMODELALIAS = 47, // unused
-		//ASSET_TYPE_RAWFILE = 48,
-		//ASSET_TYPE_SCRIPTFILE = 49,
-		ASSET_TYPE_STRINGTABLE = 50,
-		ASSET_TYPE_LEADERBOARD = 51,
-		ASSET_TYPE_VIRTUAL_LEADERBOARD = 52,
-		ASSET_TYPE_STRUCTURED_DATA_DEF = 53,
-		ASSET_TYPE_DDL = 54,
-		ASSET_TYPE_TRACER = 55,
-		ASSET_TYPE_VEHICLE = 56,
-		ASSET_TYPE_ADDON_MAP_ENTS = 57,
-		ASSET_TYPE_NET_CONST_STRINGS = 58,
-		//ASSET_TYPE_LUA_FILE = 59,
-		ASSET_TYPE_SCRIPTABLE = 60,
-		ASSET_TYPE_EQUIPMENT_SND_TABLE = 61,
-		ASSET_TYPE_VECTORFIELD = 62,
-		ASSET_TYPE_PARTICLE_SIM_ANIMATION = 63,
-		ASSET_TYPE_STREAMING_INFO = 64,
-		ASSET_TYPE_LASER = 65,
-		ASSET_TYPE_TTF = 66,
-		ASSET_TYPE_SUIT = 67,
-		ASSET_TYPE_SUITANIMPACKAGE = 68,
-		ASSET_TYPE_SPACESHIPTARGET = 69,
-		ASSET_TYPE_RUMBLE = 70,
-		ASSET_TYPE_RUMBLE_GRAPH = 71,
-		ASSET_TYPE_ANIM_PACKAGE = 72,
-		ASSET_TYPE_SFX_PACKAGE = 73,
-		ASSET_TYPE_VFX_PACKAGE = 74,
-		ASSET_TYPE_BEHAVIOR_TREE = 75,
-		ASSET_TYPE_XANIM_ARCHETYPE = 76,
-		ASSET_TYPE_XANIM_PROCEDURALBONES = 77,
-		ASSET_TYPE_RETICLE = 78,
-		ASSET_TYPE_GFXLIGHTMAP = 79,
-
-		// IW8 fixups - will do this later
+		ASSET_TYPE_PHYSICS_DEBUG_DATA = 6,
+		ASSET_TYPE_XANIMPARTS = 7,
+		ASSET_TYPE_XMODEL_SURFS = 8,
 		ASSET_TYPE_XMODEL = 9,
+		ASSET_TYPE_MAYHEM = 10,
+		ASSET_TYPE_MATERIAL = 11,
+		ASSET_TYPE_COMPUTESHADER = 12,
+		ASSET_TYPE_LIBSHADER = 13,
+		ASSET_TYPE_VERTEXSHADER = 14,
+		ASSET_TYPE_HULLSHADER = 15,
+		ASSET_TYPE_DOMAINSHADER = 16,
+		ASSET_TYPE_PIXELSHADER = 17,
+		ASSET_TYPE_TECHNIQUE_SET = 18,
+		ASSET_TYPE_IMAGE = 19,
+		ASSET_TYPE_SOUND_GLOBALS = 20,
+		ASSET_TYPE_SOUND_BANK = 21,
+		ASSET_TYPE_SOUND_BANK_TRANSIENT = 22,
+		ASSET_TYPE_CLIPMAP = 23,
+		ASSET_TYPE_COMWORLD = 24,
+		ASSET_TYPE_GLASSWORLD = 25,
+		ASSET_TYPE_PATHDATA = 26,
+		ASSET_TYPE_NAVMESH = 27,
+		ASSET_TYPE_TACGRAPH = 28,
+		ASSET_TYPE_MAP_ENTS = 29,
+		ASSET_TYPE_FXWORLD = 30,
+
 		ASSET_TYPE_GFXWORLD = 31,
-		ASSET_TYPE_WEAPON = 0x2B,			// 0x27 maybe? (weapon???)
-		ASSET_TYPE_RAWFILE = 0x33,			// 0x2F
-		ASSET_TYPE_SCRIPTFILE = 0x34,		// 0x30 on PDB
+		ASSET_TYPE_GFXWORLD_TRANSIENT_ZONE = 32,
+		ASSET_TYPE_IESPROFILE = 33, // unused (was in iw7)
+		ASSET_TYPE_LIGHT_DEF = 34,
+		ASSET_TYPE_GRADING_CLUT = 35, // new
+		ASSET_TYPE_UI_MAP = 36, // unused (was in iw7)
+		ASSET_TYPE_FOG_SPLINE = 37, // new
+		ASSET_TYPE_ANIMCLASS = 38,
+		ASSET_TYPE_PLAYERANIM = 39,
+		ASSET_TYPE_GESTURE = 40,
+		ASSET_TYPE_LOCALIZE_ENTRY = 41,
+		ASSET_TYPE_ATTACHMENT = 42,
+		ASSET_TYPE_WEAPON = 43,
+		ASSET_TYPE_VFX = 44,
+		ASSET_TYPE_IMPACT_FX = 45,
+		ASSET_TYPE_SURFACE_FX = 46,
+		ASSET_TYPE_AITYPE = 47, // unused
+		ASSET_TYPE_MPTYPE = 48, // unused
+		ASSET_TYPE_CHARACTER = 49, // unused
+		ASSET_TYPE_XMODELALIAS = 50, // unused
+		ASSET_TYPE_RAWFILE = 51,
+		ASSET_TYPE_SCRIPTFILE = 52,
+		ASSET_TYPE_SCRIPT_DEBUG_DATA = 53,
+		ASSET_TYPE_STRINGTABLE = 54,
+		ASSET_TYPE_LEADERBOARD = 55,
+		ASSET_TYPE_VIRTUAL_LEADERBOARD = 56,
+		ASSET_TYPE_DDL = 57,
+		ASSET_TYPE_TRACER = 58,
+		ASSET_TYPE_VEHICLE = 59,
+		ASSET_TYPE_ADDON_MAP_ENTS = 60,
+		ASSET_TYPE_NET_CONST_STRINGS = 61,
+		ASSET_TYPE_LUA_FILE = 62,
+		ASSET_TYPE_SCRIPTABLE = 63,
+		ASSET_TYPE_EQUIPMENT_SND_TABLE = 64,
+		ASSET_TYPE_VECTORFIELD = 65,
+		ASSET_TYPE_PARTICLE_SIM_ANIMATION = 66,
+		ASSET_TYPE_STREAMING_INFO = 67,
+		ASSET_TYPE_LASER = 68,
+		ASSET_TYPE_TTF = 69,
+		ASSET_TYPE_SUIT = 70,
+		ASSET_TYPE_SUITANIMPACKAGE = 71,
+		ASSET_TYPE_CAMERA = 72, // new
+		ASSET_TYPE_HUD_OUTLINE = 73, // new
+		ASSET_TYPE_SPACESHIPTARGET = 74,
+		ASSET_TYPE_RUMBLE = 75,
+		ASSET_TYPE_RUMBLE_GRAPH = 76,
+		ASSET_TYPE_ANIM_PACKAGE = 77,
+		ASSET_TYPE_SFX_PACKAGE = 78,
+		ASSET_TYPE_VFX_PACKAGE = 79,
+		ASSET_TYPE_FOOTSTEP_VFX = 80,
+		ASSET_TYPE_BEHAVIOR_TREE = 81,
+		ASSET_TYPE_AI_ANIMSET = 82,
+		ASSET_TYPE_AI_ASM = 83,
+		ASSET_TYPE_XANIM_PROCEDURALBONES = 84,
+		ASSET_TYPE_XANIM_DYNAMICBONES = 85,
+		ASSET_TYPE_RETICLE = 86,
 
-		ASSET_TYPE_LUA_FILE = 62,			// 0x3A
-		//ASSET_TYPE_STREAMING_INFO = 67,	// educated guess
-
-		ASSET_TYPE_COUNT = 117				// 1.20.4-replay
+		// all new to IW8
+		ASSET_TYPE_XANIM_CURVE = 87,
+		ASSET_TYPE_COVER_SELECTOR = 88,
+		ASSET_TYPE_ENEMY_SELECTOR = 89,
+		ASSET_TYPE_CLIENT_CHARACTER = 90,
+		ASSET_TYPE_CLOTH_ASSET = 91,
+		ASSET_TYPE_CINEMATIC_MOTION = 92,
+		ASSET_TYPE_ACCESSORY = 93,
+		ASSET_TYPE_LOC_DMG_TABLE = 94,
+		ASSET_TYPE_BULLET_PENETRATION = 95,
+		ASSET_TYPE_SCRIPT_BUNDLE = 96,
+		ASSET_TYPE_BLEND_SPACE_2D = 97,
+		ASSET_TYPE_XCAM = 98,
+		ASSET_TYPE_CAMO = 99,
+		ASSET_TYPE_XCOMPOSITEMODEL = 100,
+		ASSET_TYPE_XMODEL_DETAIL_COLLISION = 101,
+		ASSET_TYPE_STREAM_KEY = 102,
+		ASSET_TYPE_STREAM_TREE_OVERRIDE = 103,
+		ASSET_TYPE_KEY_VALUE_PAIRS = 104,
+		ASSET_TYPE_ST_TERRAIN = 105,
+		ASSET_TYPE_NATIVE_SCRIPT_PATCH = 106,
+		ASSET_TYPE_COLLISION_TILE = 107,
+		ASSET_TYPE_EXECUTION = 108,
+		ASSET_TYPE_CARRY_OBJECT = 109,
+		ASSET_TYPE_SOUND_BANK_LIST = 110,
+		ASSET_TYPE_DECAL_VOLUME_MATERIAL = 111,
+		ASSET_TYPE_DECAL_VOLUME_MASK = 112,
+		ASSET_TYPE_DYN_ENTITY_LIST = 113,
+		ASSET_TYPE_FX_MAP_TRANSIENTZONE = 114,
+		ASSET_TYPE_DLOGSCHEMA = 115,
+		ASSET_TYPE_EDGELIST = 116,
+		ASSET_TYPE_COUNT = 117, // end
 	};
-
-	/*
-	enum XAssetType : __int32
-		{
-			ASSET_TYPE_XMODEL = 9,
-			ASSET_TYPE_GFXWORLD = 31,
-			ASSET_TYPE_WEAPON = 0x2B,		// 0x27 maybe? (weapon???)
-			ASSET_TYPE_RAWFILE = 0x33,		// 0x2F
-			ASSET_TYPE_SCRIPTFILE = 0x34,	// 0x30 on PDB
-
-			ASSET_TYPE_LUA_FILE = 62,		// 0x3A
-			ASSET_TYPE_STREAMING_INFO = 67	// educated guess
-		};
-	*/
 
 	struct PhysicsLibrary;
 	struct PhysicsSFXEventAsset;
@@ -277,6 +355,24 @@ namespace zonetool::iw8
 	struct XAnimProceduralBones;
 	struct ReticleDef;
 	struct GfxLightMap;
+
+	// idk
+	struct __declspec(align(8)) GfxShaderView
+	{
+		ID3D12Resource* resource;
+		unsigned int view;
+	};
+
+	struct GfxShaderBufferView : GfxShaderView
+	{
+
+	};
+
+	struct GfxWrappedBaseBuffer
+	{
+		ID3D12Resource* buffer;
+		GfxShaderBufferView view;
+	};
 
 	struct Bounds
 	{
@@ -1068,13 +1164,55 @@ namespace zonetool::iw8
 		int partBits[8];
 	}; assert_sizeof(XSurface, 0x100);
 
-	struct XModelSurfs
+	struct XPakEntryInfo
+	{
+		unsigned __int64 key;
+		__int64 offset;
+		unsigned __int64 size;
+		unsigned __int64 xpakIndex : 8;
+		unsigned __int64 compressed : 1;
+		unsigned __int64 valid : 1;
+		unsigned __int64 adjacentLeftType : 3;
+		unsigned __int64 adjacentRightType : 3;
+		unsigned __int64 adjacentLeft : 19;
+		unsigned __int64 adjacentRight : 19;
+		unsigned __int64 padding : 10;
+	};
+
+	struct streamer_handle_t
+	{
+		unsigned __int64 data;
+	};
+
+	union XSurfaceSharedData
+	{
+		streamer_handle_t streamedDataHandle;
+		char* residentData;
+	};
+
+	// TODO IW8
+	enum XSurfaceSharedFlags : int
+	{
+
+	};
+
+	struct XSurfaceShared
+	{
+		XSurfaceSharedData data;
+		unsigned int dataSize;
+		XSurfaceSharedFlags flags;
+	};
+
+	struct __declspec(align(8)) XModelSurfs
 	{
 		const char* name;
 		XSurface* surfs;
-		unsigned short numsurfs;
+		XPakEntryInfo xpakEntry;
+		XSurfaceShared* shared;
+		unsigned __int16 numsurfs;
+		char ugbState;
 		int partBits[8];
-	}; assert_sizeof(XModelSurfs, 0x38);
+	};
 
 	struct XModelAngle
 	{
@@ -1118,15 +1256,15 @@ namespace zonetool::iw8
 
 	struct XModelLodInfo
 	{
-		float dist;
-		unsigned short numsurfs;
-		unsigned short surfIndex;
-		XModelSurfs* modelSurfs;
-		int partBits[8];
+		XModelSurfs* modelSurfsStaging;
 		XSurface* surfs;
-		int subdivLodValidMask;
+		float dist;
+		unsigned __int16 numsurfs;
+		unsigned __int16 surfIndex;
+		int partBits[8];
+		volatile int subdivLodValidMask;
 		char flags;
-	}; assert_sizeof(XModelLodInfo, 0x40);
+	}; assert_sizeof(XModelLodInfo, 64);
 
 	enum SurfaceFlags : std::uint32_t
 	{
@@ -1431,68 +1569,355 @@ namespace zonetool::iw8
 		int dynEnt;
 	};
 
-	struct XModel
+	// IW8
+	struct XAnimRotationalSpringProperties
+	{
+		float swingStrength;
+		float twistStrength;
+	};
+
+	struct XAnimTranslationalSpringProperties
+	{
+		vec3_t strength;
+		vec3_t damping;
+		vec3_t minLimit;
+		vec3_t maxLimit;
+	};
+
+	struct XAnimCurve
+	{
+		// entirely different asset in IW8
+	};
+
+	struct __declspec(align(8)) XAnimDynamicBoneNoiseAxis
+	{
+		XAnimCurve* curve;
+		float strength;
+		float rate;
+		float start;
+	};
+
+	struct XAnimDynamicBoneNoiseProperties
+	{
+		char relative;
+		XAnimDynamicBoneNoiseAxis axis[3];
+	};
+
+	struct XAnimDynamicBoneNoise
+	{
+		bool enable;
+		XAnimDynamicBoneNoiseProperties translation;
+		XAnimDynamicBoneNoiseProperties rotation;
+	};
+
+	struct XAnimDynamicBoneProperties
+	{
+		scr_string_t boneName;
+		int parentDynamicBoneIndex;
+		int dynamicBoneChainRootIndex;
+		float chainLength;
+		float invMass;
+		vec3_t centerOfMass;
+		float invInertiaTensor;
+		vec3_t twistAxis;
+		float minTwistAngle;
+		float maxTwistAngle;
+		float damping;
+		float gravityScale;
+		float cosMaxSwingAngle;
+		vec4_t localBasePoseQuat;
+		vec3_t localBasePoseTrans;
+		unsigned int firstCollisionShapeIndex;
+		unsigned int numCollisionShapes;
+		SndAliasLookup lightHitSound;
+		SndAliasLookup heavyHitSound;
+		float lightHitThreshold;
+		float heavyHitThreshold;
+		bool enableSwingLimit;
+		bool enableTwistLimit;
+		bool enableRotationalSpring;
+		bool enableTranslationalSpring;
+		XAnimRotationalSpringProperties rotationalSpring;
+		XAnimTranslationalSpringProperties translationalSpring;
+		XAnimDynamicBoneNoise noise;
+	};
+
+	struct XAnimCollidableBone
+	{
+		scr_string_t boneName;
+		unsigned int firstCollisionShapeIndex;
+		unsigned int numCollisionShapes;
+	};
+
+	struct XAnimSphereCollisionShape
+	{
+		vec3_t center;
+		float radius;
+	};
+
+	struct XAnimCapsuleCollisionShape
+	{
+		vec3_t start;
+		vec3_t end;
+		float radius;
+	};
+
+	struct XAnimBoxCollisionShape
+	{
+		vec3_t center;
+		vec3_t extents;
+	};
+
+	union XAnimCollisionShapeUnion
+	{
+		XAnimSphereCollisionShape sphere;
+		XAnimCapsuleCollisionShape capsule;
+		XAnimBoxCollisionShape box;
+	};
+
+	struct XAnimCollisionShape
+	{
+		char type;
+		XAnimCollisionShapeUnion u;
+	};
+
+	struct XAnimCustomPinConstraint
+	{
+		int dynamicBoneIndexA;
+		int dynamicBoneIndexB;
+		int boneNameIndexA;
+		vec3_t localTranslationA;
+		vec3_t localTranslationB;
+		float distance;
+		float stiffness;
+	};
+
+	struct XAnimDynamicBones
 	{
 		const char* name;
-		char unused01;
-		bool hasLods;
-		unsigned char maxLoadedLod;
-		unsigned char numLods;
-		unsigned char collLod;
-		unsigned char shadowCutoffLod;
-		unsigned char characterCollBoundsType;
-		int flags;
-		unsigned char numBones;
-		unsigned char numRootBones;
-		unsigned char numReactiveMotionParts;
-		unsigned short numClientBones;
-		unsigned short numsurfs;
-		float scale;
-		unsigned short numCollSurfs;
-		int contents;
-		float radius;
-		Bounds bounds;
-		int memUsage;
+		unsigned int numDynamicBones;
+		XAnimDynamicBoneProperties* dynamicBoneProperties;
+		unsigned int numCollidableBones;
+		XAnimCollidableBone* collidableBones;
+		unsigned int numCollidableBoneCollisionShapes;
+		unsigned int numCollisionShapes;
+		XAnimCollisionShape* collisionShapes;
+		unsigned int numCustomPinConstraints;
+		XAnimCustomPinConstraint* customPinConstraints;
+		unsigned int numPinConstraintBoneNames;
+		scr_string_t* pinConstraintBoneNames;
+	};
+
+	struct ReactiveMotionWindParams
+	{
+		float windAreaScale;
+		float windAmplitudeScale;
+		float windFrequencyScale;
+		float unused0;
+	};
+
+	struct ReactiveMotionModelPartTweaks
+	{
+		vec4_t ampScale;
+		vec4_t freqScale;
+	};
+
+	// ReactiveMotionModelInfoPtr
+	struct __declspec(align(8)) ReactiveMotionModelInfo
+	{
+		ReactiveMotionWindParams windParams;				// 0
+		ReactiveMotionModelPartTweaks* modelPartTweaks;		// 16
+		ReactiveMotionModelPart* modelParts;				// 24
+		GfxWrappedBaseBuffer modelPartsBuffer;				// 32
+
+		char idk[24]; // 56
+
+		char numParts; // 80
+		char flags;
+		char pad[2];
+	};
+
+	struct XModelDetailCollision
+	{
+		const char* name;
 		unsigned int physicsLODDataSize;
-		XModelPhysicsUsageCounter physicsUsageCounter;
-		ScriptableDef* scriptableMoverDef;
-		XAnimProceduralBones* proceduralBones;
-		scr_string_t* aimAssistBones;
-		unsigned char numAimAssistBones;
-		float edgeLength;
-		unsigned int noScalePartBits[8];
-		scr_string_t* boneNames;
-		unsigned char* parentList;
-		XModelAngle* tagAngles;
-		XModelTagPos* tagPositions;
-		unsigned char* partClassification;
-		DObjAnimMat* baseMat;
-		ReactiveMotionModelPart* reactiveMotionParts;
-		ReactiveMotionModelTweaks* reactiveMotionTweaks;
-		Material** materialHandles;
-		XModelLodInfo lodInfo[6];
-		XModelCollSurf_s* collSurfs;
-		XBoneInfo* boneInfo;
-		unsigned short* invHighMipRadius;
-		PhysicsAsset* physicsAsset;
-		PhysicsFXShape* physicsFXShape;
 		char* physicsLODData;
 		unsigned int physicsLODDataNameCount;
 		scr_string_t* physicsLODDataNames;
-		unsigned char impactType;
-		char unk_03[15]; // unknown data
-		unsigned char unknown03Count;
-		char* unknown03;
-		unsigned char unknownIndex;
-		unsigned char unknownVec3Count;
-		char unk_04[6]; // unknown data
-		vec3_t* unknownVec3;
-		unsigned char unknownIndex2;
-		unsigned char unknown04Count;
-		char unk_05[6]; // unknown data
-		unk_1453E14D8* unknown04;
-	}; assert_sizeof(XModel, 0x2E0); // 736
+	};
+
+	struct __declspec(align(8)) ClothAssetBoneMapping
+	{
+		scr_string_t* scrTagNames;
+		unsigned int scrTagCount;
+	};
+
+	struct __declspec(align(8)) ClothAssetBoneMappingSet
+	{
+		ClothAssetBoneMapping* boneMappings;
+		unsigned int boneMappingCount;
+	};
+
+	struct __declspec(align(8)) ClothAssetSimulationLOD
+	{
+		float maxDistanceSq;
+		float hkMaxDistanceSq;
+		const char* stateName;
+		unsigned int stateIdx;
+	};
+
+	struct ClothAssetSound
+	{
+		float minSpeed;
+		float maxSpeed;
+		float pitchMinSpeed;
+		float pitchMaxSpeed;
+		float volumeMinSpeed;
+		float volumeMaxSpeed;
+		const char* soundAlias;
+	};
+
+	// ClothAssetPtr ?
+	struct __declspec(align(8)) ClothAsset
+	{
+		const char* name;
+		bool standAlone;
+		unsigned int havokDataSize;
+		char* havokData;
+		ClothAssetBoneMappingSet* boneMappingSets;
+		unsigned int boneMappingSetCount;
+		const char* animationStateName;
+		unsigned int animationStateIdx;
+		ClothAssetSimulationLOD* simulationLods;
+		unsigned int simulationLodCount;
+		int surfaceTypeIndex;
+		bool vectorFieldSupport;
+		float vectorFieldDrag;
+		bool bulletSupport;
+		int bulletProxyUpdateRate;
+		float bulletForce;
+		float defaultSpeed;
+		float speedBlendSpeed;
+		float soundIWMaxDistanceSq;
+		float soundHKMaxDistanceSq;
+		ClothAssetSound* sounds;
+		unsigned int soundCount;
+	};
+
+	struct BlendShapeWeightMap
+	{
+		unsigned __int16 weightIndex;
+		unsigned __int16 targetIndex;
+		float fullWeight;
+	};
+
+	struct XModelBlendShapeInfo
+	{
+		unsigned __int16 targetCount;
+		unsigned __int16 numberOfWeights;
+		unsigned __int16 numberOfWeightMaps;
+		// 6 gets aligned to 8
+		scr_string_t* weightNames;
+		BlendShapeWeightMap* weightMaps;
+	};
+
+	// MdaoVolumePtr
+	struct MdaoVolume
+	{
+		ExtentBounds bounds;
+		unsigned __int16 cellCount[3];
+		unsigned __int16 parentBoneIndex;
+		GfxImage* volumeData;
+	};
+
+	struct GfxDecalVolumeObb
+	{
+		vec3_t center;
+		tmat33_t axes;
+		vec3_t halfSize;
+	};
+
+	struct GfxDecalVolumeMask
+	{
+		const char* name;
+		GfxImage* blendMap;
+	};
+
+	struct __declspec(align(8)) XModelDecalVolume
+	{
+		GfxDecalVolumeObb obb;
+		Material* material;
+		GfxDecalVolumeMask* blendMapOverride;
+		int boneIndex;
+		vec2_t uvOffset;
+		vec4_t uvMatrix;
+	};
+
+	// XModelDecalVolumesInfoPtr
+	struct __declspec(align(8)) XModelDecalVolumesInfo
+	{
+		XModelDecalVolume* decalVolumes;
+		unsigned int numDecalVolumes;
+	};
+
+	// XModelPtr
+	struct XModel
+	{
+		const char* name;
+		unsigned __int16 numsurfs;
+		char numLods;
+		char collLod;
+		unsigned __int16 mdaoVolumeCount;
+		char shadowCutoffLod;
+		char physicsUseCategory;
+		char characterCollBoundsType;
+		char numAimAssistBones;
+		char impactType;
+		char mdaoType;
+		char numBones;
+		char numRootBones;
+		unsigned __int16 numClientBones;
+		char numClothAssets;
+		unsigned int flags;
+		int contents;
+		float scale;
+		float radius;
+		Bounds bounds;
+		float edgeLength;
+		unsigned int lgvData;
+		XModelPhysicsUsageCounter physicsUsageCounter;
+		unsigned int noScalePartBits[8];
+		ScriptableDef* scriptableMoverDef;
+		XAnimProceduralBones* proceduralBones;
+		XAnimDynamicBones* dynamicBones;
+		scr_string_t* aimAssistBones;
+		scr_string_t* boneNames;
+		char* parentList;
+		__int16* quats;
+		float* trans;
+		char* partClassification;
+		DObjAnimMat* baseMat;
+		vec3_t* ikHingeAxis;
+		ReactiveMotionModelInfo* reactiveMotionInfo;
+		Material** materialHandles;
+		XModelLodInfo lodInfo[6];
+		XBoneInfo* boneInfo;
+		float* himipRadiusInvSq;
+		PhysicsAsset* physicsAsset;
+		PhysicsFXShape* physicsFXShape;
+		XModelDetailCollision* detailCollision;
+		ClothAsset** clothAssets;
+		XModelBlendShapeInfo* blendShapeInfo;
+		void* unk_wut;
+		MdaoVolume* mdaoVolumes;
+		XModelDecalVolumesInfo* decalVolumesInfo;
+	}; assert_sizeof(XModel, 688);
+
+	assert_offsetof(XModel, scriptableMoverDef, 120);
 	assert_offsetof(XModel, lodInfo, 224);
+	assert_offsetof(XModel, blendShapeInfo, 656);
+	assert_offsetof(XModel, mdaoVolumes, 672);
+	assert_offsetof(XModel, decalVolumesInfo, 680);
 
 	struct MayhemModel
 	{
@@ -1503,12 +1928,6 @@ namespace zonetool::iw8
 	{
 		vec3_t mins;
 		vec3_t size;
-	};
-
-	struct GfxWrappedBaseBuffer
-	{
-		ID3D11Resource* buffer;
-		//ID3D11ShaderResourceView* view;
 	};
 
 	struct MayhemAnimFramesSplineCompressed
@@ -1526,7 +1945,7 @@ namespace zonetool::iw8
 		unsigned int posStride;
 		unsigned int totalCompressedQuatFrames;
 		unsigned int totalCompressedPosFrames;
-	}; assert_sizeof(MayhemAnimFramesSplineCompressed, 0x58);
+	}; //assert_sizeof(MayhemAnimFramesSplineCompressed, 0x58);
 
 	struct MayhemAnimFramesUncompressed
 	{
@@ -1537,7 +1956,7 @@ namespace zonetool::iw8
 		GfxWrappedBaseBuffer pos;
 		unsigned int quatStride;
 		unsigned int posStride;
-	}; assert_sizeof(MayhemAnimFramesUncompressed, 0x30);
+	}; //assert_sizeof(MayhemAnimFramesUncompressed, 0x30);
 
 	union MayhemFramesUnion
 	{
@@ -11021,12 +11440,98 @@ namespace zonetool::iw8
 		unsigned short eventStreamSize;
 	}; assert_sizeof(ScriptablePartDef, 104);
 
-	struct ScriptableDef // unchecked
+	struct __declspec(align(4)) XAnimDynamicBinding
+	{
+		scr_string_t fieldName;
+		unsigned __int16 sourceParameterIndex;
+	};
+
+	/* 19954 */
+	union __declspec(align(8)) XAnimConstant
+	{
+		bool boolValue;
+		float floatValue;
+		unsigned int uint32Value;
+		int int32Value;
+		void* pointerValue;
+		vec3_t vec3Value;
+		char rawBytes[12];
+	};
+
+	union $21B5B2324A2AFD50A7F974C00D42E0F0
+	{
+		XAnimDynamicBinding dynamic;
+		XAnimConstant constant;
+	};
+
+	struct XAnimParameterBinding
+	{
+		char type;
+		unsigned __int16 destAnimIndex;
+		unsigned __int16 destParameterOffset;
+		unsigned __int16 destParameterSize;
+		$21B5B2324A2AFD50A7F974C00D42E0F0 ___u4;
+	};
+
+	struct __declspec(align(8)) XAnimPublicNode
+	{
+		const scr_string_t* name;
+		unsigned __int16 nodeIndex;
+		char nodeType;
+	};
+
+	struct XAnimParent
+	{
+		unsigned int flags;
+		unsigned __int16 children;
+		char syncGroup;
+	};
+
+	union $F8E94A00F93B437FA06178475B4E431B
+	{
+		XAnimParts* parts;
+		XAnimParent animParent;
+	};
+
+	// XAnimEntry
+	struct XAnimEntry
+	{
+		char nodeType;
+		char lod;
+		unsigned __int16 numAnims;
+		unsigned __int16 parent;
+		unsigned __int16 bindingIndex;
+		$F8E94A00F93B437FA06178475B4E431B ___u5;
+	};
+
+	// XAnim_sPtr
+	struct XAnim_s
+	{
+		unsigned int size;
+		bool initialized;
+		bool dirtyBindings;
+		char* debugName;
+		char** debugAnimNames;
+		unsigned __int16 numGameParameters;
+		unsigned __int16 maxGameParameters;
+		unsigned __int16 numBindings;
+		unsigned __int16 maxBindings;
+		const scr_string_t** gameParameterNames;
+		XAnimParameterBinding* bindings;
+		XAnimPublicNode* publicNodes;
+		unsigned __int16 numPublicNodes;
+		unsigned __int16 maxPublicNodes;
+		char subTreeID[2];
+		char numLods;
+		float lodDistances[4];
+		XAnimEntry entries[1];
+	};
+
+	struct ScriptableDef // 112
 	{
 		const char* name;
-		int flags;
-		int type;
 		ScriptableDef* nextScriptableDef;
+		int flags;
 		unsigned int numParts;
 		ScriptablePartDef* parts;
 		unsigned int maxNumDynEntsRequired;
@@ -11037,13 +11542,17 @@ namespace zonetool::iw8
 		unsigned int maxNumDynEntPartsForSpawning;
 		unsigned short eventStreamSizeRequiredServer;
 		unsigned short eventStreamSizeRequiredClient;
-		unsigned short eventStreamSize;
+		unsigned int usablePartCount;
 		unsigned int ffMemCost;
 		scr_string_t animationTreeName;
-		void* animationTreeDef[2]; // XAnim_s* animationTreeDef[2];
+		XAnim_s* animationTreeDef[2];
+		float viewRadius;
+		bool networkLODRangeOverride;
+		float networkLODRangeOverrideDistance;
 		unsigned int numXModels;
 		XModel** models;
-	}; assert_sizeof(ScriptableDef, 0x70);
+		char spatialActivationMode;
+	}; assert_sizeof(ScriptableDef, 120);
 
 	struct EquipmentClothData
 	{
@@ -12529,4 +13038,6 @@ namespace zonetool::iw8
 		char BlocksizeKB;
 	}; static_assert(sizeof(SndAssetBankEntry) == 44);
 #pragma pack(pop)
-}
+#ifndef IDA
+}}
+#endif
