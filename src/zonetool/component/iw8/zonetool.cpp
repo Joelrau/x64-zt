@@ -244,8 +244,6 @@ namespace iw8
 		public:
 			void post_unpack() override
 			{
-				printf("yo\n");
-
 				remove_renderer();
 
 				utils::hook::set(0x13FF110_b, 0xC300000001B8);

@@ -52,6 +52,35 @@ namespace iw8
 		{
 			return G_GAME_MODE_STRINGS[gameMode];
 		}
+
+		// IW8
+		void Cbuf_AddText(int clientNum, const char* cmd_text)
+		{
+			auto& buf = game::s_cmd_textArray[clientNum];
+			constexpr int CRITSECT_CBUF = 35;
+
+			const int len = (int)strlen(cmd_text);
+			const bool needsNewline = (len == 0 || cmd_text[len - 1] != '\n');
+			const int total = len + (needsNewline ? 1 : 0);
+
+			game::Sys_EnterCriticalSection(CRITSECT_CBUF);
+
+			if (buf.cmdsize + total <= buf.maxsize)
+			{
+				char* dst = (char*)buf.data + buf.cmdsize;
+				memcpy(dst, cmd_text, len);
+
+				if (needsNewline) dst[len] = '\n';
+
+				buf.cmdsize += total;
+			}
+			else
+			{
+				printf("Cbuf_AddText: overflow (adding '%s')\n", cmd_text);
+			}
+
+			game::Sys_LeaveCriticalSection(CRITSECT_CBUF);
+		}
 	}
 }
 

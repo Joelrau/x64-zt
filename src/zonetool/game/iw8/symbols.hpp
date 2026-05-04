@@ -32,7 +32,6 @@ namespace iw8
 
 		WEAK symbol<void(const char* finalmsg)> Com_Shutdown{ 0x140BAFEA0 };
 
-		WEAK symbol<void(const char* text)> Cbuf_AddText{ 0x1298F50 };
 		WEAK symbol<void(int localClientNum, void(*))> Cbuf_AddCall{ 0x140B7C220 };
 		WEAK symbol<void(int localClientNum, int controllerIndex, const char* buffer)> Cbuf_ExecuteBuffer{ 0x140B7C3B0 };
 		WEAK symbol<void(int localClientNum, int controllerIndex, const char* buffer, void(int, int, const char*))> Cbuf_ExecuteBufferInternal{ 0x140B7C3C0 };
@@ -117,12 +116,16 @@ namespace iw8
 		WEAK symbol<void(void* stream, void* memory, int size)> DB_Zip_InitThreadMemory{ 0x140E78290 };
 		WEAK symbol<void(void* stream)> DB_Zip_ShutdownThreadMemory{ 0x140E782D0 };
 
+		WEAK symbol<void(int critSect)> Sys_EnterCriticalSection{ 0x13F54F0 };
+		WEAK symbol<void(int critSect)> Sys_LeaveCriticalSection{ 0x13F55F0 };
+		WEAK symbol<CmdText> s_cmd_textArray{ 0xD216D70 };
+
 		/***************************************************************
 		 * Variables
 		 **************************************************************/
 
 		WEAK symbol<CmdArgs> sv_cmd_args{ 0xD211CA0 };
-		WEAK symbol<CmdArgs> cmd_args{ 0xD211CA0 };
+		WEAK symbol<CmdArgs> cmd_args{ 0xD20CBD0 };
 		WEAK symbol<cmd_function_s*> cmd_functions{ 0x145D65CC8 };
 		WEAK symbol<const char*> command_whitelist{ 0x1414D1B70 };
 

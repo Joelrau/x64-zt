@@ -45,6 +45,8 @@ namespace iw8
 
 		const char* Com_GameMode_GetActiveGameModeStr();
 		const char* Com_GameMode_GetGameModeStr(GameModeType gameMode);
+
+		void Cbuf_AddText(int clientNum, const char* cmd_text);
 	}
 }
 

@@ -64,7 +64,8 @@ namespace zonetool::iw8
 
 	bool zone_exists(const std::string& zone)
 	{
-		return DB_FileExists(zone.data(), 0);
+		// TODO: DB_FileExists no longer exists, we need something else
+		return true; // DB_FileExists(zone.data(), 0);
 	}
 
 	bool is_referenced_asset(XAsset* asset)
@@ -470,8 +471,7 @@ namespace zonetool::iw8
 			ZONETOOL_INFO("Loading zone \"%s\"...", name.data());
 		}
 
-		zonetool::taskbar::set_indeterminate();
-		//XZoneInfo zone = { name.data(), DB_ZONE_GAME | DB_ZONE_CUSTOM };
+		//zonetool::taskbar::set_indeterminate();
 
 		DB_FastfileInfo zoneInfo[1];
 		zoneInfo[0].name = name.data();

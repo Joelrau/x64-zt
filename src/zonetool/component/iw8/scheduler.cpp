@@ -184,8 +184,8 @@ namespace iw8
 
 			void post_unpack() override
 			{
-				main_frame_hook.create(0x140B8E2D0, scheduler::main_frame_stub);
-				db_thread_hook.create(0x140A7ABA0, scheduler::db_thread_stub);
+				main_frame_hook.create(0xF192E0_b, scheduler::main_frame_stub);
+				db_thread_hook.create(0x11AF910_b, scheduler::db_thread_stub);
 			}
 
 			void pre_destroy() override
@@ -200,4 +200,4 @@ namespace iw8
 	}
 }
 
-//REGISTER_COMPONENT_IW8(iw8::scheduler::component)
+REGISTER_COMPONENT_IW8(iw8::scheduler::component)

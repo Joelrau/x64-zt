@@ -51,13 +51,22 @@ namespace iw8
 			int localClientNum[8];
 			int controllerIndex[8];
 			int argc[8];
+			char pad_0064[0x0004];
 			const char** argv[8];
+			char textpool[0x4000];
+			char argv_pool[0x200];
+			int used_text_pool_[8];
+			int total_used_argv_pool_;
+			int total_used_text_pool_;
 		};
 
 		struct cmd_function_s
 		{
 			cmd_function_s* next;
 			const char* name;
+			const char* autoCompleteList;
+			unsigned int autoCompleteListCount;
+			char pad_001C[0x0004];
 			void(__fastcall* function)();
 		};
 
@@ -738,6 +747,13 @@ namespace iw8
 
 			ASSET_TYPE_LUA_FILE = 62,		// 0x3A
 			ASSET_TYPE_STREAMING_INFO = 67	// educated guess
+		};
+
+		struct CmdText
+		{
+			char* data;
+			int maxsize;
+			int cmdsize;
 		};
 	}
 }

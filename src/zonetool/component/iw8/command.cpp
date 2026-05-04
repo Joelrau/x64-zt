@@ -147,18 +147,10 @@ namespace iw8
 				handlers_sv[command] = std::move(callback);
 		}
 
-		void execute(std::string command, const bool sync)
+		void execute(std::string command)
 		{
 			command += "\n";
-
-			if (sync)
-			{
-				game::Cmd_ExecuteSingleCommand(command.data());
-			}
-			else
-			{
-				game::Cbuf_AddText(command.data());
-			}
+			game::Cbuf_AddText(0, command.data());
 		}
 
 		class component final : public component_interface
