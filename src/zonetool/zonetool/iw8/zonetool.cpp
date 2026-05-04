@@ -33,7 +33,7 @@ namespace zonetool::iw8
 
 	const char* get_asset_name(XAsset* asset)
 	{
-		return DB_GetXAssetHeaderName(asset->type, asset->header);
+		return asset->header.rawfile->name; // basically does this -> DB_GetXAssetHeaderName(asset->type, asset->header);
 	}
 
 	void set_asset_name(XAsset* asset, const char* name)
@@ -159,11 +159,11 @@ namespace zonetool::iw8
 
 		try
 		{
-			DUMP_ASSET_CONVERT(ASSET_TYPE_IMAGE, gfximage, GfxImage);
-			DUMP_ASSET_CONVERT(ASSET_TYPE_MATERIAL, material, Material);
-			//DUMP_ASSET_CONVERT(ASSET_TYPE_XANIMPARTS, xanim, XAnimParts);
-			DUMP_ASSET_CONVERT(ASSET_TYPE_XMODEL, xmodel, XModel);
-			DUMP_ASSET_CONVERT(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
+			//DUMP_ASSET_CONVERT(ASSET_TYPE_IMAGE, gfximage, GfxImage);
+			//DUMP_ASSET_CONVERT(ASSET_TYPE_MATERIAL, material, Material);
+			// --- DUMP_ASSET_CONVERT(ASSET_TYPE_XANIMPARTS, xanim, XAnimParts);
+			//DUMP_ASSET_CONVERT(ASSET_TYPE_XMODEL, xmodel, XModel);
+			//DUMP_ASSET_CONVERT(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
 		}
 		catch (std::exception& ex)
 		{
@@ -188,6 +188,7 @@ namespace zonetool::iw8
 		try
 		{
 			// dump assets
+			/*
 			DUMP_ASSET(ASSET_TYPE_DDL, ddl, DDLFile);
 			DUMP_ASSET(ASSET_TYPE_FX, fx_effect_def, FxEffectDef);
 			DUMP_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, fx_particle_sim_animation, FxParticleSimAnimation);
@@ -202,7 +203,6 @@ namespace zonetool::iw8
 			DUMP_ASSET(ASSET_TYPE_MATERIAL, material, Material);
 			DUMP_ASSET(ASSET_TYPE_NET_CONST_STRINGS, net_const_strings, NetConstStrings);
 			DUMP_ASSET(ASSET_TYPE_VFX, particle_system, ParticleSystemDef);
-			DUMP_ASSET(ASSET_TYPE_RAWFILE, rawfile, RawFile);
 			DUMP_ASSET(ASSET_TYPE_RETICLE, reticle, ReticleDef);
 			DUMP_ASSET(ASSET_TYPE_RUMBLE, rumble, RumbleInfo);
 			DUMP_ASSET(ASSET_TYPE_RUMBLE_GRAPH, rumble_graph, RumbleGraph);
@@ -251,6 +251,9 @@ namespace zonetool::iw8
 			DUMP_ASSET(ASSET_TYPE_GLASSWORLD, glass_world, GlassWorld);
 			DUMP_ASSET(ASSET_TYPE_MAP_ENTS, map_ents, MapEnts);
 			DUMP_ASSET(ASSET_TYPE_NAVMESH, nav_mesh, NavMeshData);
+			*/
+
+			DUMP_ASSET(ASSET_TYPE_RAWFILE, rawfile, RawFile);
 		}
 		catch (const std::exception& e)
 		{
@@ -409,11 +412,11 @@ namespace zonetool::iw8
 		unsigned __int8 a6,
 		int a7)
 	{
+		const auto current_ff = std::string(Str);
+
 		db_try_load_xfile_internal_hook.invoke<void>(Str, a2, zoneFlags, a4, a5, a6, a7);
 
-		printf("ff: %s, current ff: %s\n", Str, filesystem::get_fastfile().data());
-
-		if (std::string(Str) == filesystem::get_fastfile())
+		if (current_ff == filesystem::get_fastfile())
 		{
 			stop_dumping();
 		}
@@ -475,7 +478,7 @@ namespace zonetool::iw8
 
 		DB_FastfileInfo zoneInfo[1];
 		zoneInfo[0].name = name.data();
-		zoneInfo[0].zoneFlags = 1 | DB_ZONE_CUSTOM;
+		zoneInfo[0].zoneFlags = DB_ZONE_PERMANENT | DB_ZONE_CUSTOM;
 		zoneInfo[0].failureMode = DB_FastFileFailureMode::REQUIRED;
 		zoneInfo[0].priority = 0xFFFF;
 		DB_LoadFastfiles(zoneInfo, 1, mode, false);

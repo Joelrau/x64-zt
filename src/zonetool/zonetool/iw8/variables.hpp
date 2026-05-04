@@ -4,7 +4,7 @@
 
 namespace zonetool::iw8
 {
-	WEAK::iw8::game::symbol<const char*> g_assetNames{ 0x141BAAC20 };
+	WEAK::iw8::game::symbol<const char*> g_assetNames{ 0x2457A00 };
 
 	WEAK::iw8::game::symbol<void*> g_assetPool{ 0x1414663D0 };
 	WEAK::iw8::game::symbol<int> g_poolSize{ 0x141466290 };

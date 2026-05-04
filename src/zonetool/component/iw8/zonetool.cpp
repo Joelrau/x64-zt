@@ -251,7 +251,7 @@ namespace iw8
 				// stop the game after loading init zones
 				utils::hook::call(0x1941A54_b, load_init_zones_stub);
 
-				com_message_hook.create(0x12B0660_b, com_message_stub);
+				//com_message_hook.create(0x12B0660_b, com_message_stub);
 
 				// disable splash
 				//utils::hook::set<uint8_t>(0x0D58240_b, 0xC3); // Sys_CreateSplashWindow
