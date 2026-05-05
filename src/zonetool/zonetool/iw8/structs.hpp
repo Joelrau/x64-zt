@@ -148,6 +148,16 @@ namespace zonetool { namespace iw8
 		};
 	};
 
+	struct PackedLmapCoords
+	{
+		unsigned int packed;
+	};
+
+	struct DObjPartBits
+	{
+		unsigned int array[8];
+	};
+
 	typedef std::int32_t scr_string_t;
 
 	enum XAssetType : int
@@ -356,6 +366,9 @@ namespace zonetool { namespace iw8
 	struct ReticleDef;
 	struct GfxLightMap;
 
+	// extra
+	struct XSurfaceShared;
+
 	// idk
 	struct __declspec(align(8)) GfxShaderView
 	{
@@ -372,6 +385,28 @@ namespace zonetool { namespace iw8
 	{
 		ID3D12Resource* buffer;
 		GfxShaderBufferView view;
+	};
+
+	struct GfxWrappedBuffer : GfxWrappedBaseBuffer
+	{
+		void* data;
+	};
+
+	struct GfxShaderRWView
+	{
+		ID3D12Resource* rwResource;
+		ID3D12Resource* rwCounterResource;
+		unsigned int rwView;
+		unsigned int rwSubresourceToTransition;
+	};
+
+	struct GfxShaderBufferRWView : GfxShaderRWView
+	{
+	};
+
+	struct GfxWrappedRWBuffer : GfxWrappedBuffer
+	{
+		GfxShaderBufferRWView rwView;
 	};
 
 	struct Bounds
@@ -943,7 +978,6 @@ namespace zonetool { namespace iw8
 		unsigned short vertCount;
 		unsigned short triOffset;
 		unsigned short triCount;
-		XSurfaceCollisionTree* collisionTree;
 	};
 
 	union PackedUnitVec
@@ -1031,8 +1065,8 @@ namespace zonetool { namespace iw8
 		unsigned int transitionPointCount;
 		unsigned int vertCount;
 		unsigned int vertOffset;
-		unsigned short* faceIndices;
-		unsigned short* regularPatchIndices;
+		unsigned __int16* faceIndices;
+		unsigned __int16* regularPatchIndices;
 		unsigned int* regularPatchFlags;
 		unsigned int* facePoints;
 		unsigned int* edgePoints;
@@ -1040,32 +1074,42 @@ namespace zonetool { namespace iw8
 		unsigned int* normals;
 		unsigned int* transitionPoints;
 		float* regularPatchCones;
-		ID3D11Buffer* regularPatchIndexBuffer;
-		ID3D11Buffer* faceIndexBuffer;
-		ID3D11ShaderResourceView* regularPatchIndexBufferView;
-		ID3D11ShaderResourceView* regularPatchFlagsView;
-		ID3D11ShaderResourceView* facePointsView;
-		ID3D11ShaderResourceView* edgePointsView;
-		ID3D11ShaderResourceView* vertexPointsView;
-		ID3D11ShaderResourceView* normalsView;
-		ID3D11ShaderResourceView* transitionPointsView;
-		ID3D11ShaderResourceView* regularPatchConesView;
-	}; assert_sizeof(XSurfaceSubdivLevel, 0xE8);
+
+		// idk what any of this is on replay yet :P (pdb 296 -> 568)
+		/*
+		ID3D12Resource* regularPatchIndexBuffer;
+		ID3D12Resource* faceIndexBuffer;
+		GfxShaderBufferView regularPatchIndexBufferView;
+		GfxShaderBufferView regularPatchFlagsView;
+		GfxShaderBufferView facePointsView;
+		GfxShaderBufferView edgePointsView;
+		GfxShaderBufferView vertexPointsView;
+		GfxShaderBufferView normalsView;
+		GfxShaderBufferView transitionPointsView;
+		GfxShaderBufferView regularPatchConesView;
+		*/
+	}; //assert_sizeof(XSurfaceSubdivLevel, 0xE8);
+	assert_offsetof(XSurfaceSubdivLevel, faceIndices, 80);
+	assert_offsetof(XSurfaceSubdivLevel, regularPatchIndices, 88);
+	assert_offsetof(XSurfaceSubdivLevel, regularPatchFlags, 96);
+	assert_offsetof(XSurfaceSubdivLevel, facePoints, 104);
+	assert_offsetof(XSurfaceSubdivLevel, edgePoints, 112);
 
 	struct GfxSubdivCache
 	{
 		unsigned int size;
-		ID3D11Buffer* subdivCacheBuffer;
-		ID3D11ShaderResourceView* subdivCacheView;
-	}; assert_sizeof(GfxSubdivCache, 0x18);
+		char* vertexData;
+		GfxWrappedRWBuffer vertexBuffer;
+	};
 
 	struct XSurfaceSubdivInfo
 	{
 		XSurfaceSubdivLevel* levels;
 		unsigned int flags;
-		char __pad0[20];
+		unsigned int totalVertCount;
+		unsigned int totalRegularPatchCount;
 		GfxSubdivCache cache;
-	}; assert_sizeof(XSurfaceSubdivInfo, 0x38);
+	};
 
 	struct SHProbeSimplexData2
 	{
@@ -1126,43 +1170,56 @@ namespace zonetool { namespace iw8
 		SURF_FLAG_UNK800 = 0x800, // R_SkinDObjModels
 	};
 
+	struct BlendShapesPerVert
+	{
+		unsigned __int64* perVertBlendShapeData;
+		unsigned __int16* surfBlendShapesData;
+		unsigned int perVertBlendShapeDataSize;
+		unsigned __int16 surfBlendShapeCount;
+		unsigned __int16 modelWeightsCount;
+		unsigned __int16 tangentVertCount;
+		unsigned __int16 noTangentVertCount;
+		unsigned __int16 blendMapVertCount;
+		unsigned __int16 surfFirstBlendMapShapeIndex;
+	};
+
+	struct BlendShapesRecalcTangentFrameData
+	{
+		unsigned int bufferSize;
+		unsigned short* topologicalData;
+	};
+
 	struct XSurface
 	{
-		unsigned short flags;
-		unsigned short vertCount;
-		unsigned short triCount;
-		unsigned char rigidVertListCount;
-		unsigned char subdivLevelCount;
-		unsigned short blendVertCounts[8];
+		unsigned __int16 flags;
+		unsigned __int16 vertCount;
+		unsigned __int16 triCount;
+		unsigned __int16 blendShapeTargetCount;
+		char rigidVertListCount;
+		char subdivLevelCount;
+		unsigned __int16 ugbID;
+		unsigned int hash;
+		unsigned __int16 blendVertCounts[8];
 		unsigned int blendVertSize;
-		char __pad0[4];
-		GfxVertexUnion0 verts0;
-		Face* triIndices;
-		ID3D11Buffer* vb0;
-		ID3D11ShaderResourceView* vb0View;
-		ID3D11Buffer* indexBuffer;
+		unsigned int sharedVertDataOffset;
+		unsigned int sharedIndexDataOffset;
+		unsigned int sharedTriClusterDataOffset;
+		unsigned int sharedColorDataOffset;
+		unsigned int sharedSecondUVDataOffset;
+		unsigned int sharedNormalTransformDataOffset;
+		unsigned int sharedTensionAccumTableOffset;
+		unsigned int sharedTensionDataOffset;
+		XSurfaceShared* shared;
+		PackedLmapCoords* lmapCoords;
 		XRigidVertList* rigidVertLists;
-		XBlendInfo* blendVerts;
-		ID3D11Buffer* blendVertsBuffer;
-		ID3D11ShaderResourceView* blendVertsView;
-		float(*lmapUnwrap)[2];
-		ID3D11Buffer* vblmapBuffer;
-		ID3D11ShaderResourceView* vblmapView;
-		XSurfaceSubdivInfo* subdiv;
-		float* tensionData;
-		unsigned short* tensionAccumTable;
-		ID3D11Buffer* tensionAccumTableBuffer;
-		ID3D11ShaderResourceView* tensionAccumTableView;
-		ID3D11Buffer* tensionDataBuffer;
-		ID3D11ShaderResourceView* tensionDataView;
-		ID3D11ShaderResourceView* indexBufferView;
-		int unk; // vertexLightingIndex
-		int pad;
-		SHProbeSimplexDataUnion shProbeSimplexVertData;
-		ID3D11Buffer* shProbeSimplexVertBuffer;
-		ID3D11ShaderResourceView* shProbeSimplexVertBufferView;
-		int partBits[8];
-	}; assert_sizeof(XSurface, 0x100);
+		unsigned __int16* blendVerts;
+		XSurfaceSubdivInfo* subdiv;	// 104
+		DObjPartBits partBits;		// 112
+		Bounds surfBounds;			// 144
+		Bounds* childBounds;		// 168
+		BlendShapesPerVert* blendShapesPerVert;
+		BlendShapesRecalcTangentFrameData* blendShapesRecalcTangentFrameData;
+	};
 
 	struct XPakEntryInfo
 	{
@@ -1190,18 +1247,49 @@ namespace zonetool { namespace iw8
 		char* residentData;
 	};
 
-	// TODO IW8
+	// TODO IW8 idk this is made up from this, idk if im doing it right. idk how & works
+	/*
+	void Load_XSurfaceSharedData()
+	{
+	  void *v0; // rbx
+	  XSurfaceSharedData *v1; // rsi
+	  unsigned __int64 data; // rdi
+	  __int64 v3; // rbx
+
+	  if ( (*(varXSurfaceShared + 12) & 1) != 0 )
+	  {
+		v0 = varstreamer_handle_t;
+		varstreamer_handle_t = varXSurfaceSharedData;
+		Load_streamer_handle_t();
+		varstreamer_handle_t = v0;
+		return;
+	  }
+	  v1 = varXSurfaceSharedData;
+	  data = varXSurfaceSharedData->streamedDataHandle.data;
+	  if ( varXSurfaceSharedData->streamedDataHandle.data )
+	  {
+		if ( data == -1LL )
+		{
+		  DB_PushSharedData();
+		}
+		else if ( data != -2LL )
+		{
+		  DB_ResolvePackedOffsetAddress(&varXSurfaceSharedData->streamedDataHandle.data);
+		  return;
+		}
+	*/
 	enum XSurfaceSharedFlags : int
 	{
-
+		NONE = 0,
+		STREAMER_HANDLE = 1,
 	};
 
 	struct XSurfaceShared
 	{
-		XSurfaceSharedData data;
-		unsigned int dataSize;
-		XSurfaceSharedFlags flags;
-	};
+		XSurfaceSharedData data;	// 0
+		unsigned int dataSize;		// 8
+		XSurfaceSharedFlags flags;	// 12
+	}; // 16
 
 	struct __declspec(align(8)) XModelSurfs
 	{
@@ -5406,23 +5494,6 @@ namespace zonetool { namespace iw8
 		float scale;
 	};
 
-	struct GfxStaticModelVertexLighting
-	{
-		unsigned char visibility[4];
-		unsigned short ambientColorFloat16[4];
-		unsigned short highlightColorFloat16[4];
-	};
-
-	struct GfxStaticModelVertexLightingInfo
-	{
-		GfxStaticModelVertexLighting* lightingValues;
-		ID3D11Buffer* smodelLightingVb;
-		ID3D11Buffer* lightingValuesVb;
-		GfxSubdivCache cache;
-		int flags;
-		unsigned int numLightingValues;
-	}; assert_sizeof(GfxStaticModelVertexLightingInfo, 56);
-
 	struct GfxStaticModelLightmapInfo
 	{
 		float offset[2];
@@ -5480,7 +5551,6 @@ namespace zonetool { namespace iw8
 	{
 		GfxPackedPlacement placement;
 		XModel* model;
-		GfxStaticModelVertexLightingInfo vertexLightingInfo;
 		GfxStaticModelLightmapInfo modelLightmapInfo;
 		unsigned short unk0;
 		unsigned short unk1;
@@ -5503,10 +5573,16 @@ namespace zonetool { namespace iw8
 		unsigned char sunShadowFlags;
 		unsigned char transientZone;
 		unsigned char unk21;
-	}; assert_sizeof(GfxStaticModelDrawInst, 184);
-	assert_offsetof(GfxStaticModelDrawInst, model, 56);
-	assert_offsetof(GfxStaticModelDrawInst, vertexLightingInfo, 64);
-	assert_offsetof(GfxStaticModelDrawInst, cullDist, 160);
+	};
+
+	// IW8 version of GfxStaticModelDrawInst
+	struct GfxStaticModel
+	{
+		XModel* model;
+		char flags; // unsigned char in IW7?
+		char firstMtlSkinIndex;
+		unsigned char firstStaticModelSurfaceIndex;
+	};
 
 	struct GfxSurfaceBounds
 	{
@@ -5535,10 +5611,10 @@ namespace zonetool { namespace iw8
 		unsigned int* smodelVisData[30];
 		unsigned int* surfaceVisData[30];
 		unsigned int* lodData;
-		unsigned int* primaryLightVisData[1];
-		unsigned int* reflectionProbeVisData[1];
-		unsigned int* volumetricVisData[1];
-		unsigned int* decalVisData[1];
+		unsigned int* primaryLightVisData;
+		unsigned int* reflectionProbeVisData;
+		unsigned int* volumetricVisData;
+		unsigned int* decalVisData;
 		unsigned int* tessellationCutoffVisData[30]; // only [0] used
 		unsigned int* sortedSurfIndex;
 		GfxStaticModelInst* smodelInsts;
@@ -12843,6 +12919,9 @@ namespace zonetool { namespace iw8
 		XFILE_BLOCK_UNK7 = 0x7,
 		XFILE_BLOCK_VIRTUAL = 0x8,
 		XFILE_BLOCK_SCRIPT = 0x9,
+
+		//XFILE_BLOCK_VIRTUAL = 0x5, // pretty sure on replay..
+
 		MAX_XFILE_COUNT = 0xA,
 	};
 

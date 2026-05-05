@@ -600,7 +600,7 @@ namespace zonetool::iw8
 			
 			//ADD_ASSET(ASSET_TYPE_XANIMPARTS, xanim_parts);
 			//ADD_ASSET(ASSET_TYPE_XMODEL, xmodel);
-			//ADD_ASSET(ASSET_TYPE_XMODEL_SURFS, xsurface);
+			ADD_ASSET(ASSET_TYPE_XMODEL_SURFS, xsurface);
 		}
 		catch (std::exception& ex)
 		{

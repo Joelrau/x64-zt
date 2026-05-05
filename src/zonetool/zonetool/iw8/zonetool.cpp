@@ -253,7 +253,8 @@ namespace zonetool::iw8
 			*/
 
 			DUMP_ASSET(ASSET_TYPE_RAWFILE, rawfile, RawFile);
-			DUMP_ASSET(ASSET_TYPE_SCRIPTABLE, scriptable_def, ScriptableDef);
+			DUMP_ASSET(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
+			//DUMP_ASSET(ASSET_TYPE_SCRIPTABLE, scriptable_def, ScriptableDef);
 		}
 		catch (const std::exception& e)
 		{

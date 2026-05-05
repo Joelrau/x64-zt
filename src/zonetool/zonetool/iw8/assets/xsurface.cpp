@@ -33,22 +33,6 @@ namespace zonetool::iw8
 		}
 	}
 
-	void parse_shprobesimplexdata(XSurface* surf, assetmanager::reader& reader)
-	{
-		if ((surf->flags & 0x500) == 0x500)
-		{
-			surf->shProbeSimplexVertData.data0 = reader.read_array<SHProbeSimplexData0>();
-		}
-		else if ((surf->flags & 0x100) != 0)
-		{
-			surf->shProbeSimplexVertData.data1 = reader.read_array<SHProbeSimplexData1>();
-		}
-		else if ((surf->flags & 0x400) != 0)
-		{
-			surf->shProbeSimplexVertData.data2 = reader.read_array<SHProbeSimplexData2>();
-		}
-	}
-
 	XModelSurfs* xsurface::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = "xsurface\\" + name + ".xsb";
@@ -67,18 +51,16 @@ namespace zonetool::iw8
 		asset->surfs = read.read_array<XSurface>();
 		for (unsigned short i = 0; i < asset->numsurfs; i++)
 		{
-			if ((asset->surfs[i].flags & 8) != 0)
+			asset->surfs[i].shared = read.read_single<XSurfaceShared>();
+			if (asset->surfs[i].shared->data.residentData)
 			{
-				asset->surfs[i].verts0.packedMotionVerts0 = read.read_array<GfxPackedMotionVertex>();
-			}
-			else
-			{
-				asset->surfs[i].verts0.packedVerts0 = read.read_array<GfxPackedVertex>();
+				asset->surfs[i].shared->data.residentData = read.read_array<char>();
 			}
 
-			asset->surfs[i].triIndices = read.read_array<Face>();
+			asset->surfs[i].lmapCoords = read.read_array<PackedLmapCoords>();
 
 			asset->surfs[i].rigidVertLists = read.read_array<XRigidVertList>();
+			/*
 			for (unsigned char vert = 0; vert < asset->surfs[i].rigidVertListCount; vert++)
 			{
 				if (asset->surfs[i].rigidVertLists[vert].collisionTree)
@@ -95,16 +77,34 @@ namespace zonetool::iw8
 					}
 				}
 			}
+			*/
 
 			asset->surfs[i].blendVerts = read.read_raw<XBlendInfo>();
 
-			asset->surfs[i].lmapUnwrap = read.read_raw<float[2]>();
-
-			asset->surfs[i].tensionData = read.read_raw<float>();
-			asset->surfs[i].tensionAccumTable = read.read_raw<unsigned short>();
-
 			parse_subdiv(&asset->surfs[i], read);
-			parse_shprobesimplexdata(&asset->surfs[i], read);
+
+			if (asset->surfs[i].childBounds)
+				asset->surfs[i].childBounds = read.read_array<Bounds>();
+
+			if (asset->surfs[i].blendShapesPerVert)
+			{
+				asset->surfs[i].blendShapesPerVert = read.read_array<BlendShapesPerVert>();
+
+				asset->surfs[i].blendShapesPerVert->perVertBlendShapeData = read.read_array<unsigned __int64>();
+				asset->surfs[i].blendShapesPerVert->surfBlendShapesData = read.read_array<unsigned short>();
+			}
+
+			if (asset->surfs[i].blendShapesRecalcTangentFrameData)
+			{
+				asset->surfs[i].blendShapesRecalcTangentFrameData = read.read_single<BlendShapesRecalcTangentFrameData>();
+				asset->surfs[i].blendShapesRecalcTangentFrameData->topologicalData = read.read_array<unsigned short>();
+			}
+		}
+
+		asset->shared = read.read_single<XSurfaceShared>();
+		if (asset->shared->data.residentData)
+		{
+			asset->shared->data.residentData = read.read_array<char>();
 		}
 
 		read.close();
@@ -150,21 +150,7 @@ namespace zonetool::iw8
 
 	void write_xsurface(zone_base* zone, zone_buffer* buf, XSurface* dest, XSurface* data)
 	{
-		dest->vb0 = nullptr;
-		dest->vb0View = nullptr;
-		dest->indexBuffer = nullptr;
-		dest->blendVertsBuffer = nullptr;
-		dest->blendVertsView = nullptr;
-		dest->vblmapBuffer = nullptr;
-		dest->vblmapView = nullptr;
-		dest->tensionAccumTableBuffer = nullptr;
-		dest->tensionAccumTableView = nullptr;
-		dest->tensionDataBuffer = nullptr;
-		dest->tensionDataView = nullptr;
-		dest->indexBufferView = nullptr;
-		dest->shProbeSimplexVertBuffer = nullptr;
-		dest->shProbeSimplexVertBufferView = nullptr;
-
+		/*
 		if (data->verts0.verts0)
 		{
 			buf->align(15);
@@ -185,6 +171,21 @@ namespace zonetool::iw8
 			buf->align(15);
 			buf->write(data->triIndices, data->triCount);
 			buf->clear_pointer(&dest->triIndices);
+		}
+		*/
+
+		/*
+		// TODO
+		if (data->shared)
+		{
+			buf->align(7);
+			dest->shared = buf->write(data->shared);
+			//
+
+			if ( (dest->shared->flags & 1) != 0 )
+			{
+
+			}
 		}
 
 		if (data->rigidVertLists)
@@ -372,20 +373,23 @@ namespace zonetool::iw8
 			buf->write_stream(data->shProbeSimplexVertData.data2, 24, data->vertCount);
 			buf->clear_pointer(&dest->shProbeSimplexVertData.data2);
 		}
+		*/
 	}
 
 	void xsurface::write(zone_base* zone, zone_buffer* buf)
 	{
+		printf(__FUNCTION__ ": todo\n");
+		/*
 		auto* data = this->asset_;
 		auto* dest = buf->write(data);
 
-		buf->push_stream(XFILE_BLOCK_VIRTUAL);
+		buf->push_stream(XFILE_BLOCK_VIRTUAL); // 5
 
 		dest->name = buf->write_str(this->name());
 
 		if (data->surfs)
 		{
-			buf->align(3);
+			buf->align(3); // TODO: are we sure its not 15?? even IW7 is
 			dest->surfs = buf->write(data->surfs, data->numsurfs);
 			for (unsigned short surf = 0; surf < data->numsurfs; surf++)
 			{
@@ -394,6 +398,7 @@ namespace zonetool::iw8
 		}
 
 		buf->pop_stream();
+		*/
 	}
 
 	void dump_subdiv(XSurface* surf, assetmanager::dumper& dumper)
@@ -426,22 +431,6 @@ namespace zonetool::iw8
 		}
 	}
 
-	void dump_shprobesimplexdata(XSurface* surf, assetmanager::dumper& dumper)
-	{
-		if ((surf->flags & 0x500) == 0x500)
-		{
-			dumper.dump_array(surf->shProbeSimplexVertData.data0, surf->vertCount);
-		}
-		else if ((surf->flags & 0x100) != 0)
-		{
-			dumper.dump_array(surf->shProbeSimplexVertData.data1, surf->vertCount);
-		}
-		else if ((surf->flags & 0x400) != 0)
-		{
-			dumper.dump_array(surf->shProbeSimplexVertData.data2, surf->vertCount);
-		}
-	}
-
 	void xsurface::dump(XModelSurfs* asset)
 	{
 		const auto path = "xsurface\\"s + asset->name + ".xsb";
@@ -458,18 +447,15 @@ namespace zonetool::iw8
 		dump.dump_array(asset->surfs, asset->numsurfs);
 		for (unsigned short i = 0; i < asset->numsurfs; i++)
 		{
-			if ((asset->surfs[i].flags & 8) != 0)
-			{
-				dump.dump_array(asset->surfs[i].verts0.packedMotionVerts0, asset->surfs[i].vertCount);
-			}
-			else
-			{
-				dump.dump_array(asset->surfs[i].verts0.packedVerts0, asset->surfs[i].vertCount);
-			}
+			dump.dump_single(asset->surfs[i].shared);
+			if (asset->surfs[i].shared->data.residentData)
+				dump.dump_array(asset->surfs[i].shared->data.residentData, asset->surfs[i].shared->dataSize);
 
-			dump.dump_array(asset->surfs[i].triIndices, asset->surfs[i].triCount);
+			if (asset->surfs[i].lmapCoords)
+				dump.dump_array(asset->surfs[i].lmapCoords, asset->surfs[i].vertCount);
 
 			dump.dump_array(asset->surfs[i].rigidVertLists, asset->surfs[i].rigidVertListCount);
+			/*
 			for (unsigned char vert = 0; vert < asset->surfs[i].rigidVertListCount; vert++)
 			{
 				if (asset->surfs[i].rigidVertLists)
@@ -491,23 +477,35 @@ namespace zonetool::iw8
 					}
 				}
 			}
+			*/
 
 			dump.dump_raw(asset->surfs[i].blendVerts, asset->surfs[i].blendVertSize & 0xFFFFFFFE);
 
-			dump.dump_raw(asset->surfs[i].lmapUnwrap, 8 * asset->surfs[i].vertCount);
-
-			dump.dump_raw(asset->surfs[i].tensionData, 4 * (asset->surfs[i].blendVertCounts[0]
-				+ asset->surfs[i].blendVertCounts[1]
-				+ asset->surfs[i].blendVertCounts[2]
-				+ asset->surfs[i].blendVertCounts[3]
-				+ asset->surfs[i].blendVertCounts[4]
-				+ asset->surfs[i].blendVertCounts[5]
-				+ asset->surfs[i].blendVertCounts[6]
-				+ asset->surfs[i].blendVertCounts[7]));
-			dump.dump_raw(asset->surfs[i].tensionAccumTable, 32 * asset->surfs[i].vertCount);
-
 			dump_subdiv(&asset->surfs[i], dump);
-			dump_shprobesimplexdata(&asset->surfs[i], dump);
+
+			if (asset->surfs[i].childBounds)
+				dump.dump_array(asset->surfs[i].childBounds, asset->surfs[i].rigidVertListCount);
+
+			if (asset->surfs[i].blendShapesPerVert)
+			{
+				dump.dump_array(asset->surfs[i].blendShapesPerVert, asset->surfs[i].vertCount);
+
+				dump.dump_array(asset->surfs[i].blendShapesPerVert->perVertBlendShapeData, (unsigned __int64)asset->surfs[i].blendShapesPerVert->perVertBlendShapeDataSize >> 3);
+				dump.dump_array(asset->surfs[i].blendShapesPerVert->surfBlendShapesData, asset->surfs[i].blendShapesPerVert->surfBlendShapeCount);
+			}
+
+			if (asset->surfs[i].blendShapesRecalcTangentFrameData)
+			{
+				dump.dump_single(asset->surfs[i].blendShapesRecalcTangentFrameData);
+
+				dump.dump_raw(asset->surfs[i].blendShapesRecalcTangentFrameData->topologicalData, asset->surfs[i].blendShapesRecalcTangentFrameData->bufferSize);
+			}
+		}
+
+		dump.dump_single(asset->shared);
+		if (asset->shared->data.residentData)
+		{
+			dump.dump_array(asset->shared->data.residentData, asset->shared->dataSize);
 		}
 
 		dump.close();
