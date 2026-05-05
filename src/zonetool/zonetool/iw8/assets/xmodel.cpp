@@ -69,9 +69,12 @@ namespace zonetool::iw8
 		asset->baseMat = read.read_array<DObjAnimMat>();
 		asset->ikHingeAxis = read.read_array<vec3_t>();
 
-		asset->reactiveMotionInfo = read.read_single<ReactiveMotionModelInfo>();
-		asset->reactiveMotionInfo->modelPartTweaks = read.read_array<ReactiveMotionModelPartTweaks>();
-		asset->reactiveMotionInfo->modelParts = read.read_array<ReactiveMotionModelPart>();
+		if (asset->reactiveMotionInfo)
+		{
+			asset->reactiveMotionInfo = read.read_single<ReactiveMotionModelInfo>();
+			asset->reactiveMotionInfo->modelPartTweaks = read.read_array<ReactiveMotionModelPartTweaks>();
+			asset->reactiveMotionInfo->modelParts = read.read_array<ReactiveMotionModelPart>();
+		}
 
 		// surfaces
 		asset->materialHandles = read.read_array<Material*>();
@@ -93,47 +96,62 @@ namespace zonetool::iw8
 		asset->physicsAsset = read.read_asset<PhysicsAsset>();
 		asset->physicsFXShape = read.read_asset<PhysicsFXShape>();
 
-		asset->detailCollision = read.read_single<XModelDetailCollision>();
-		asset->detailCollision->physicsLODData = read.read_array<char>();
-		for (auto i = 0u; i < asset->detailCollision->physicsLODDataNameCount; i++)
+		if (asset->detailCollision)
 		{
-			this->add_script_string(&asset->detailCollision->physicsLODDataNames[i], read.read_string());
-		}
-
-		asset->clothAssets = read.read_array<ClothAsset*>();
-		for (auto i = 0; i < asset->numClothAssets; i++)
-		{
-			asset->clothAssets[i] = read.read_asset<ClothAsset>();
-		}
-
-		asset->blendShapeInfo = read.read_single<XModelBlendShapeInfo>();
-		for (auto i = 0; i < asset->blendShapeInfo->numberOfWeights; i++)
-		{
-			this->add_script_string(&asset->blendShapeInfo->weightNames[i], read.read_string());
-		}
-		asset->blendShapeInfo->weightMaps = read.read_array<BlendShapeWeightMap>();
-
-		asset->mdaoVolumes = read.read_array<MdaoVolume>();
-		for (auto i = 0; i < asset->mdaoVolumeCount; i++)
-		{
-			asset->mdaoVolumes[i].volumeData = read.read_asset<GfxImage>();
-		}
-
-		asset->decalVolumesInfo = read.read_single<XModelDecalVolumesInfo>();
-		asset->decalVolumesInfo->decalVolumes = read.read_array<XModelDecalVolume>();
-		for (auto i = 0u; i < asset->decalVolumesInfo->numDecalVolumes; i++)
-		{
-			if (asset->decalVolumesInfo->decalVolumes[i].material)
+			asset->detailCollision = read.read_single<XModelDetailCollision>();
+			asset->detailCollision->physicsLODData = read.read_array<char>();
+			for (auto i = 0u; i < asset->detailCollision->physicsLODDataNameCount; i++)
 			{
-				asset->decalVolumesInfo->decalVolumes[i].material = read.read_asset<Material>();
+				this->add_script_string(&asset->detailCollision->physicsLODDataNames[i], read.read_string());
 			}
-			if (asset->decalVolumesInfo->decalVolumes[i].blendMapOverride->name)
+		}
+
+		if (asset->clothAssets)
+		{
+			asset->clothAssets = read.read_array<ClothAsset*>();
+			for (auto i = 0; i < asset->numClothAssets; i++)
 			{
-				asset->decalVolumesInfo->decalVolumes[i].blendMapOverride->name = read.read_string();
+				asset->clothAssets[i] = read.read_asset<ClothAsset>();
 			}
-			if (asset->decalVolumesInfo->decalVolumes[i].blendMapOverride->blendMap)
+		}
+
+		if (asset->blendShapeInfo)
+		{
+			asset->blendShapeInfo = read.read_single<XModelBlendShapeInfo>();
+			for (auto i = 0; i < asset->blendShapeInfo->numberOfWeights; i++)
 			{
-				asset->decalVolumesInfo->decalVolumes[i].blendMapOverride->blendMap = read.read_asset<GfxImage>();
+				this->add_script_string(&asset->blendShapeInfo->weightNames[i], read.read_string());
+			}
+			asset->blendShapeInfo->weightMaps = read.read_array<BlendShapeWeightMap>();
+		}
+
+		if (asset->mdaoVolumes)
+		{
+			asset->mdaoVolumes = read.read_array<MdaoVolume>();
+			for (auto i = 0; i < asset->mdaoVolumeCount; i++)
+			{
+				asset->mdaoVolumes[i].volumeData = read.read_asset<GfxImage>();
+			}
+		}
+
+		if (asset->decalVolumesInfo)
+		{
+			asset->decalVolumesInfo = read.read_single<XModelDecalVolumesInfo>();
+			asset->decalVolumesInfo->decalVolumes = read.read_array<XModelDecalVolume>();
+			for (auto i = 0u; i < asset->decalVolumesInfo->numDecalVolumes; i++)
+			{
+				if (asset->decalVolumesInfo->decalVolumes[i].material)
+				{
+					asset->decalVolumesInfo->decalVolumes[i].material = read.read_asset<Material>();
+				}
+				if (asset->decalVolumesInfo->decalVolumes[i].blendMapOverride->name)
+				{
+					asset->decalVolumesInfo->decalVolumes[i].blendMapOverride->name = read.read_string();
+				}
+				if (asset->decalVolumesInfo->decalVolumes[i].blendMapOverride->blendMap)
+				{
+					asset->decalVolumesInfo->decalVolumes[i].blendMapOverride->blendMap = read.read_asset<GfxImage>();
+				}
 			}
 		}
 
@@ -533,9 +551,12 @@ namespace zonetool::iw8
 		dump.dump_array(asset->baseMat, asset->numBones + asset->numClientBones);
 		dump.dump_array(asset->ikHingeAxis, 4); // Load_vec3_tArray(0, 4LL);
 
-		dump.dump_single(asset->reactiveMotionInfo);
-		dump.dump_single(asset->reactiveMotionInfo->modelPartTweaks);
-		dump.dump_single(asset->reactiveMotionInfo->modelParts);
+		if (asset->reactiveMotionInfo)
+		{
+			dump.dump_single(asset->reactiveMotionInfo);
+			dump.dump_single(asset->reactiveMotionInfo->modelPartTweaks);
+			dump.dump_single(asset->reactiveMotionInfo->modelParts);
+		}
 
 		// surfaces
 		dump.dump_array(asset->materialHandles, asset->numsurfs);
@@ -558,39 +579,54 @@ namespace zonetool::iw8
 		dump.dump_asset(asset->physicsAsset);
 		dump.dump_asset(asset->physicsFXShape);
 
-		dump.dump_single(asset->detailCollision); // Load_XModelDetailCollisionPtr
-		dump.dump_array(asset->detailCollision->physicsLODData, asset->detailCollision->physicsLODDataSize);
-		for (unsigned int i = 0; i < asset->detailCollision->physicsLODDataNameCount; i++)
+		if (asset->detailCollision)
 		{
-			dump.dump_string(SL_ConvertToString(asset->detailCollision->physicsLODDataNames[i]));
+			dump.dump_single(asset->detailCollision); // Load_XModelDetailCollisionPtr
+			dump.dump_array(asset->detailCollision->physicsLODData, asset->detailCollision->physicsLODDataSize);
+			for (unsigned int i = 0; i < asset->detailCollision->physicsLODDataNameCount; i++)
+			{
+				dump.dump_string(SL_ConvertToString(asset->detailCollision->physicsLODDataNames[i]));
+			}
 		}
 
-		dump.dump_array(asset->clothAssets, asset->numClothAssets);
-		for (auto i = 0; i < asset->numClothAssets; i++)
+		if (asset->clothAssets)
 		{
-			dump.dump_asset(asset->clothAssets[i]);
+			dump.dump_array(asset->clothAssets, asset->numClothAssets);
+			for (auto i = 0; i < asset->numClothAssets; i++)
+			{
+				dump.dump_asset(asset->clothAssets[i]);
+			}
 		}
 
-		dump.dump_single(asset->blendShapeInfo);
-		for (auto i = 0; i < asset->blendShapeInfo->numberOfWeights; i++)
+		if (asset->blendShapeInfo)
 		{
-			dump.dump_string(SL_ConvertToString(asset->blendShapeInfo->weightNames[i]));
-		}
-		dump.dump_array(asset->blendShapeInfo->weightMaps, asset->blendShapeInfo->numberOfWeightMaps);
-
-		dump.dump_array(asset->mdaoVolumes, asset->mdaoVolumeCount);
-		for (auto i = 0; i < asset->mdaoVolumeCount; i++)
-		{
-			dump.dump_asset(asset->mdaoVolumes[i].volumeData);
+			dump.dump_single(asset->blendShapeInfo);
+			for (auto i = 0; i < asset->blendShapeInfo->numberOfWeights; i++)
+			{
+				dump.dump_string(SL_ConvertToString(asset->blendShapeInfo->weightNames[i]));
+			}
+			dump.dump_array(asset->blendShapeInfo->weightMaps, asset->blendShapeInfo->numberOfWeightMaps);
 		}
 
-		dump.dump_single(asset->decalVolumesInfo);
-		dump.dump_array(asset->decalVolumesInfo->decalVolumes, asset->decalVolumesInfo->numDecalVolumes);
-		for (auto i = 0u; i < asset->decalVolumesInfo->numDecalVolumes; i++)
+		if (asset->mdaoVolumes)
 		{
-			dump.dump_asset(asset->decalVolumesInfo->decalVolumes[i].material);
-			dump.dump_string(asset->decalVolumesInfo->decalVolumes[i].blendMapOverride->name);
-			dump.dump_asset(asset->decalVolumesInfo->decalVolumes[i].blendMapOverride->blendMap);
+			dump.dump_array(asset->mdaoVolumes, asset->mdaoVolumeCount);
+			for (auto i = 0; i < asset->mdaoVolumeCount; i++)
+			{
+				dump.dump_asset(asset->mdaoVolumes[i].volumeData);
+			}
+		}
+
+		if (asset->decalVolumesInfo)
+		{
+			dump.dump_single(asset->decalVolumesInfo);
+			dump.dump_array(asset->decalVolumesInfo->decalVolumes, asset->decalVolumesInfo->numDecalVolumes);
+			for (auto i = 0u; i < asset->decalVolumesInfo->numDecalVolumes; i++)
+			{
+				dump.dump_asset(asset->decalVolumesInfo->decalVolumes[i].material);
+				dump.dump_string(asset->decalVolumesInfo->decalVolumes[i].blendMapOverride->name);
+				dump.dump_asset(asset->decalVolumesInfo->decalVolumes[i].blendMapOverride->blendMap);
+			}
 		}
 
 		dump.close();

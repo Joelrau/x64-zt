@@ -1672,9 +1672,20 @@ namespace zonetool { namespace iw8
 		vec3_t maxLimit;
 	};
 
+	struct XAnimCurveControlPoint
+	{
+		float time;
+		float value;
+		float invTimeDelta;
+	};
+
 	struct XAnimCurve
 	{
-		// entirely different asset in IW8
+		const char* name;
+		XAnimCurveControlPoint* controlPoints;
+		int numControlPoints;
+		char curveType;
+		float duration;
 	};
 
 	struct __declspec(align(8)) XAnimDynamicBoneNoiseAxis
@@ -3227,15 +3238,16 @@ namespace zonetool { namespace iw8
 		const char* aliasName;
 		const char* subtitle;
 		const char* secondaryAliasName;
-		const char* stopAliasName;
 		const char* assetFileName;
-		SndStringHash id;
-		SndStringHash secondaryId;
-		SndStringHash stopAliasID;
-		SndStringHash assetId;
-		SndStringHash contextType;
-		SndStringHash contextValue;
-		SndStringHash duck;
+		unsigned int id;
+		unsigned int secondaryId;
+		unsigned int assetId;
+		unsigned int contextType;
+		unsigned int contextValue;
+		unsigned int context2Type;
+		unsigned int context2Value;
+		unsigned int duck;
+		unsigned __int64 surfaceFlags;
 		int sequence;
 		float volMin;
 		float volMax;
@@ -3246,37 +3258,37 @@ namespace zonetool { namespace iw8
 		float distMin;
 		float distMax;
 		float velocityMin;
-		SndAliasFlags flags;
-		int masterPriority;
-		float masterPercentage;
-		float slavePercentage;
+		int flags;
 		float probability;
 		float lfePercentage;
 		float centerPercentage;
 		int startDelay;
-		unsigned char volumeFalloffCurveIndex;
-		unsigned char lpfCurveIndex;
-		unsigned char hpfCurveIndex;
-		unsigned char reverbSendCurveIndex;
+		int startDelayMax;
+		unsigned int volumeFalloffCurve;
+		unsigned int lpfCurve;
+		unsigned int hpfCurve;
+		unsigned int reverbSendCurve;
 		float envelopMin;
 		float envelopMax;
 		float envelopPercentage;
-		unsigned char speakerMapIndex;
-		char pad1[3];
+		unsigned int speakerMap;
 		float reverbMultiplier;
 		float farReverbMultiplier;
-		unsigned char occlusionShapeIndex;
-		unsigned char dopplerPresetIndex;
-		char pad2[2];
+		unsigned int occlusionShape;
+		unsigned int dopplerPreset;
 		float smartPanDistance2d;
 		float smartPanDistance3d;
 		float smartPanAttenuation2d;
 		float stereoSpreadMinDist;
 		float stereoSpreadMaxDist;
 		float stereoSpreadMidPoint;
-		int stereoSpreadMaxAngle;
-	}; assert_sizeof(SndAlias, 200);
-	assert_offsetof(SndAlias, flags, 108);
+		char stereoSpreadMaxAngle;
+		char masterPriority;
+		float masterPercentage;
+		float masterSlavePercentage;
+		float masterThreshold;
+		__int16 maxDuration_dsec;
+	}; //assert_sizeof(SndAlias, 200);
 
 	struct SndAliasList
 	{
@@ -10846,28 +10858,46 @@ namespace zonetool { namespace iw8
 		Scriptable_EventType_Collision = 0x5,
 		Scriptable_EventType_Animation = 0x6,
 		Scriptable_EventType_HideShowBone = 0x7,
-		Scriptable_EventType_NoteTrack = 0x8,
-		Scriptable_EventType_ChunkDynent = 0x9,
-		Scriptable_EventType_SpawnDynent = 0xA,
-		Scriptable_EventType_PFX = 0xB,
-		Scriptable_EventType_Sound = 0xC,
-		Scriptable_EventType_Explosion = 0xD,
-		Scriptable_EventType_Light = 0xE,
-		Scriptable_EventType_Sun = 0xF,
-		Scriptable_EventType_Rumble = 0x10,
-		Scriptable_EventType_Screenshake = 0x11,
-		Scriptable_EventType_PartDamage = 0x12,
-		Scriptable_EventType_SetMayhem = 0x13,
-		Scriptable_EventType_PlayMayhem = 0x14,
-		Scriptable_EventType_ViewmodelShaderParam = 0x15,
-		Scriptable_EventType_ViewmodelChangeImage = 0x16,
-		Scriptable_EventType_ClientViewSelector = 0x17,
-		Scriptable_EventType_TeamSelector = 0x18,
-		Scriptable_EventType_AddModel = 0x19,
-		Scriptable_EventType_ApplyForce = 0x1A,
-		Scriptable_EventType_CompassIcon = 0x1B,
-		Scriptable_EventType_MaterialOverride = 0x1C,
-		Scriptable_EventType_Count = 0x1D,
+		Scriptable_EventType_DisablePhysicsSubShape = 0x8,
+		Scriptable_EventType_NoteTrack = 0x9,
+		Scriptable_EventType_ChunkDynent = 0xA,
+		Scriptable_EventType_SpawnDynent = 0xB,
+		Scriptable_EventType_PFX = 0xC,
+		Scriptable_EventType_Sound = 0xD,
+		Scriptable_EventType_Explosion = 0xE,
+		Scriptable_EventType_Light = 0xF,
+		Scriptable_EventType_Sun = 0x10,
+		Scriptable_EventType_Rumble = 0x11,
+		Scriptable_EventType_Screenshake = 0x12,
+		Scriptable_EventType_PartDamage = 0x13,
+		Scriptable_EventType_SetMayhem = 0x14,
+		Scriptable_EventType_PlayMayhem = 0x15,
+		Scriptable_EventType_ViewmodelShaderParam = 0x16,
+		Scriptable_EventType_ViewmodelChangeImage = 0x17,
+		Scriptable_EventType_ClientViewSelector = 0x18,
+		Scriptable_EventType_TeamSelector = 0x19,
+		Scriptable_EventType_AddModel = 0x1A,
+		Scriptable_EventType_ApplyForce = 0x1B,
+
+		Scriptable_EventType_ApplyAngularForce = 0x1C,
+		Scriptable_EventType_ApplyConstantForce = 0x1D,
+		Scriptable_EventType_ApplyConstantAngularForce = 0x1E,
+
+		Scriptable_EventType_CompassIcon = 0x1F,
+		Scriptable_EventType_MaterialOverride = 0x20,
+
+		Scriptable_EventType_DynamicBoneNoiseCurve = 0x21,
+		Scriptable_EventType_Move = 0x22,
+		Scriptable_EventType_Footstep = 0x23,
+		Scriptable_EventType_GravityArc = 0x24,
+		Scriptable_EventType_ViewTrigger = 0x25,
+		Scriptable_EventType_Objective = 0x26,
+		Scriptable_EventType_SpatialDisable = 0x27,
+		Scriptable_EventType_Hover = 0x28,
+		Scriptable_EventType_VehicleBlowUpTire = 0x29,
+		Scriptable_EventType_Dlc1 = 0x2A,
+		Scriptable_EventType_ScriptDamage = 0x2B,
+		Scriptable_EventType_Count = 0x2C,
 	};
 
 	struct ScriptableEventAnonymousDef
@@ -10876,66 +10906,20 @@ namespace zonetool { namespace iw8
 		char buffer[144];
 	};
 
-	struct unk_1453E1B90
-	{
-		const char* name;
-		int flags;
-		char __pad0[4];
-	}; assert_sizeof(unk_1453E1B90, 0x10);
-
-	struct unk_1453E1BC0
-	{
-		unk_1453E1B90* base;
-	};
-
-	struct unk_1453E1C00
-	{
-		unk_1453E1B90* base;
-	};
-
-	struct unk_1453E1C20
-	{
-		unk_1453E1B90* base;
-		char __pad0[8];
-	};
-
-	struct unk_1453E1C70
-	{
-		unk_1453E1B90* base;
-		unsigned int count;
-		unsigned int* val;
-	};
-
-	union unk_1453E1C80
-	{
-		unk_1453E1BC0 __0;
-		unk_1453E1C00 __1;
-		unk_1453E1C20 __2;
-		unk_1453E1C70 __3;
-	};
-
-	enum ScriptablePartReferenceType
-	{
-		type_1453E1BC0,
-		type_1453E1C00,
-		type_1453E1C20,
-		type_1453E1C70,
-		unk_1453E1CC8_type_count,
-	};
-
+	
 	struct ScriptablePartReference
 	{
-		unk_1453E1B90 base;
-		int type;
-		unk_1453E1C80 u;
-	}; assert_sizeof(ScriptablePartReference, 0x30);
+		unsigned int flatId;
+		unsigned int partStringHash;
+	};
 
 	struct ScriptableEventStateChangeDef
 	{
 		ScriptableEventBaseDef* base;
 		ScriptablePartReference partReference;
+		unsigned int stateIdx;
 		ScriptablePartDef* part;
-	}; assert_sizeof(ScriptableEventStateChangeDef, 64);
+	};
 
 	struct ScriptableEventWaitDef
 	{
@@ -10964,20 +10948,27 @@ namespace zonetool { namespace iw8
 		const char* notification;
 		scr_string_t scrNotification;
 		int param;
-		//bool doNotifyCallback;
-	}; assert_sizeof(ScriptableEventScriptDef, 24);
+		bool doNotifyCallback;
+	}; assert_sizeof(ScriptableEventScriptDef, 32);
+
+	union ScriptableModelUnion
+	{
+		//XCompositeModelDef* compositeModel;
+		XModel* model;
+	};
 
 	struct ScriptableEventModelDef
 	{
 		ScriptableEventBaseDef* base;
-		XModel* model;
+		char dataType;
+		ScriptableModelUnion model;
 		char hudOutlineColor;
 		bool hudOutlineActive;
 		bool hudOutlineFill;
 		bool neverMoves;
 		bool dynamicSimulation;
 		bool activatePhysics;
-	}; assert_sizeof(ScriptableEventModelDef, 24);
+	}; assert_sizeof(ScriptableEventModelDef, 32);
 
 	struct ScriptableEventCollisionDef
 	{
@@ -10989,7 +10980,8 @@ namespace zonetool { namespace iw8
 		bool canPush;
 		bool canTouch;
 		bool destroyOnExit;
-	}; assert_sizeof(ScriptableEventCollisionDef, 32);
+		ScriptableModelUnion model;
+	}; assert_sizeof(ScriptableEventCollisionDef, 40);
 
 	struct $6CB7272563F4458FB40A4A5E123C4ABA
 	{
@@ -11039,6 +11031,14 @@ namespace zonetool { namespace iw8
 		bool hideShowChildren;
 	}; assert_sizeof(ScriptableEventHideShowBoneDef, 24);
 
+	struct ScriptableEventDisablePhysicsSubShapeDef
+	{
+		ScriptableEventBaseDef* base;
+		const char* mutableShapeName;
+		unsigned __int64 mutableShapeHash;
+		bool allowMissingShape;
+	}; assert_sizeof(ScriptableEventDisablePhysicsSubShapeDef, 32);
+
 	struct ScriptableNoteTrackDef
 	{
 		int flags;
@@ -11062,7 +11062,7 @@ namespace zonetool { namespace iw8
 		vec3_t launchLinVel;
 		vec3_t launchAngVel;
 		ScriptablePartDef* part;
-	}; assert_sizeof(ScriptableEventChunkDynentDef, 88);
+	}; assert_sizeof(ScriptableEventChunkDynentDef, 48);
 
 	struct ScriptableEventSpawnDynentDef
 	{
@@ -11114,30 +11114,33 @@ namespace zonetool { namespace iw8
 	{
 		ScriptableEventBaseDef* base;
 		bool stateful;
-		char __pad0[7];
 		const char* tagName;
 		scr_string_t scrTagName;
 		const char* soundAlias;
-		SndAliasLookup soundAliasCache;
-		char __pad1[8];
-	}; assert_sizeof(ScriptableEventSoundDef, 56);
-	assert_offsetof(ScriptableEventSoundDef, tagName, 16);
-	assert_offsetof(ScriptableEventSoundDef, soundAlias, 32);
-	assert_offsetof(ScriptableEventSoundDef, soundAliasCache, 40);
+		bool looping;
+		bool externalPlay;
+		bool allowMissingTag;
+		bool useRootOnMissingTag;
+		const char* explosionReflClass;
+		bool doGroundTrace;
+		float groundTraceLength;
+		vec3_t worldOffset;
+		SndAliasList* soundAliasCache;
+	}; assert_sizeof(ScriptableEventSoundDef, 88);
 
 	struct ScriptableEventExplosionDef
 	{
 		ScriptableEventBaseDef* base;
-		WeaponCompleteDef* weapon;
 		const char* tagName;
 		scr_string_t scrTagName;
+		WeaponCompleteDef* weapon;
 		float radius;
 		float dmgOuter;
 		float dmgInner;
 		bool stateful;
 		bool allowMissingTag;
 		bool useRootOnMissingTag;
-	}; assert_sizeof(ScriptableEventExplosionDef, 48);
+	};
 
 	struct ScriptableEventLightDef
 	{
@@ -11214,13 +11217,13 @@ namespace zonetool { namespace iw8
 		ScriptableEventBaseDef* base;
 		ScriptablePartReference partReference;
 		float amount;
-		//bool destroy;
+		bool destroy;
 		float amountDoT;
 		float intervalDoT;
 		unsigned short eventStreamBufferOffsetServer;
 		unsigned short eventStreamBufferOffsetClient;
 		ScriptablePartDef* part;
-	}; assert_sizeof(ScriptableEventPartDamageDef, 80);
+	}; assert_sizeof(ScriptableEventPartDamageDef, 48);
 
 	struct ScriptableEventSetMayhemDef
 	{
@@ -11344,6 +11347,39 @@ namespace zonetool { namespace iw8
 		vec3_t forceVector;
 	}; assert_sizeof(ScriptableEventApplyForceDef, 32);
 
+	struct ScriptableEventApplyAngularForceDef
+	{
+		ScriptableEventBaseDef* base;
+		bool worldSpace;
+		bool randomRange;
+		vec3_t forceVector;
+		vec3_t forceVector2;
+	};
+
+	struct ScriptableEventApplyConstantForceDef
+	{
+		ScriptableEventBaseDef* base;
+		bool worldSpace;
+		bool randomRange;
+		vec3_t forcePos;
+		vec3_t forceVector;
+		vec3_t forcePos2;
+		vec3_t forceVector2;
+		unsigned __int16 eventStreamBufferOffsetServer;
+		unsigned __int16 eventStreamBufferOffsetClient;
+	};
+
+	struct ScriptableEventApplyConstantAngularForceDef
+	{
+		ScriptableEventBaseDef* base;
+		bool worldSpace;
+		bool randomRange;
+		vec3_t forceVector;
+		vec3_t forceVector2;
+		unsigned __int16 eventStreamBufferOffsetServer;
+		unsigned __int16 eventStreamBufferOffsetClient;
+	};
+
 	struct ScriptableEventCompassIconDef
 	{
 		ScriptableEventBaseDef* base;
@@ -11386,6 +11422,137 @@ namespace zonetool { namespace iw8
 		char __pad1[8];
 	}; assert_sizeof(ScriptableEventMaterialOverrideDef, 40);
 
+	struct __declspec(align(8)) ScriptableEventDynamicBoneNoiseCurveDef
+	{
+		ScriptableEventBaseDef* base;
+		bool stateful;
+		XAnimCurve* curve;
+		float strengthMultiplier;
+		float rateMultiplier;
+		bool isViewmodel;
+	};
+
+	struct ScriptableEventMoveDef
+	{
+		ScriptableEventBaseDef* base;
+		vec3_t originOffset;
+		vec3_t angleOffset;
+		float seconds;
+		float secondsAccel;
+		float secondsDecel;
+		unsigned __int16 eventStreamBufferOffsetServer;
+		unsigned __int16 eventStreamBufferOffsetClient;
+	};
+
+	struct FootstepVFX
+	{
+		const char* name;
+		FxCombinedDef footstepVFX[64];
+		FxCombinedDef smallFootstepVFX[64];
+	};
+
+	/* 19934 */
+	struct ScriptableEventFootstepDef
+	{
+		ScriptableEventBaseDef* base;
+		const char* tagName;
+		scr_string_t scrTagName;
+		const char* soundAlias;
+		bool allowMissingTag;
+		bool useRootOnMissingTag;
+		char flags;
+		FootstepVFX* rightFootstepVFX;
+		FootstepVFX* leftFootstepVFX;
+	};
+
+	/* 19935 */
+	struct __declspec(align(8)) ScriptableEventGravityArcDef
+	{
+		ScriptableEventBaseDef* base;
+		vec3_t angleOffset;
+		float gravityScale;
+		float upwardVelocity;
+		float yawOffsetForXYDirection;
+		bool endAtInitialPose;
+		bool randomSpin;
+		bool playLootTrailFX;
+		unsigned int eventAtEndCount;
+		ScriptableEventDef* eventsAtEnd;
+		unsigned __int16 eventStreamBufferOffsetServer;
+		unsigned __int16 eventStreamBufferOffsetClient;
+	};
+
+	struct ScriptableEventViewTriggerDef
+	{
+		ScriptableEventBaseDef* base;
+		float triggerDistanceSq;
+		float triggerFOVCosHalfAngle;
+		unsigned __int16 eventStreamBufferOffsetClient;
+	};
+
+	struct ObjectiveSettings
+	{
+		char flags[2];
+		char state;
+		char background;
+		int zOffset;
+		bool cached;
+		bool alwaysShowInWorld;
+		bool alwaysSnapToScreenEdge;
+		char size;
+		unsigned int label;
+		unsigned int description;
+		unsigned int icon;
+	};
+
+	struct ScriptableEventObjectiveDef
+	{
+		ScriptableEventBaseDef* base;
+		ObjectiveSettings settings;
+		const char* description;
+		const char* icon;
+		const char* label;
+		GfxImage* iconImage;
+	};
+
+	struct __declspec(align(8)) ScriptableEventSpatialDisableDef
+	{
+		ScriptableEventBaseDef* base;
+		bool disabled;
+	};
+
+	struct ScriptableEventHoverDef
+	{
+		ScriptableEventBaseDef* base;
+		float amplitudeUpDown;
+		float frequencyUpDown;
+		float frequencyPitch;
+		float frequencyYaw;
+	};
+
+	struct __declspec(align(8)) ScriptableEventVehicleBlowUpTireDef
+	{
+		ScriptableEventBaseDef* base;
+		int tireIndex;
+	};
+
+	struct ScriptableEventDlc1Def
+	{
+		ScriptableEventBaseDef* base;
+		float dlcFloat0;
+		float dlcFloat1;
+		float dlcFloat2;
+		float dlcFloat3;
+	};
+
+	struct ScriptableEventScriptDamageDef
+	{
+		ScriptableEventBaseDef* base;
+		const char* notification;
+		scr_string_t scrNotification;
+		int param;
+	};
+
 	union ScriptableEventDefUnion
 	{
 		ScriptableEventAnonymousDef anonymous;
@@ -11397,6 +11564,7 @@ namespace zonetool { namespace iw8
 		ScriptableEventCollisionDef collision;
 		ScriptableEventAnimationDef animation;
 		ScriptableEventHideShowBoneDef hideShowBone;
+		ScriptableEventDisablePhysicsSubShapeDef disablePhysicsSubShape;
 		ScriptableEventNoteTrackDef noteTrack;
 		ScriptableEventChunkDynentDef chunkDynent;
 		ScriptableEventSpawnDynentDef spawnDynent;
@@ -11416,8 +11584,22 @@ namespace zonetool { namespace iw8
 		ScriptableEventTeamSelectorDef teamSelector;
 		ScriptableEventAddModelDef addModel;
 		ScriptableEventApplyForceDef applyForce;
+		ScriptableEventApplyAngularForceDef applyAngularForce;
+		ScriptableEventApplyConstantForceDef applyConstantForce;
+		ScriptableEventApplyConstantAngularForceDef applyConstantAngularForce;
 		ScriptableEventCompassIconDef compassIcon;
 		ScriptableEventMaterialOverrideDef materialOverride;
+		ScriptableEventDynamicBoneNoiseCurveDef dynamicBoneNoiseCurve;
+		ScriptableEventMoveDef move;
+		ScriptableEventFootstepDef footstep;
+		ScriptableEventGravityArcDef gravityArc;
+		ScriptableEventViewTriggerDef viewTrigger;
+		ScriptableEventObjectiveDef objective;
+		ScriptableEventSpatialDisableDef spatialDisable;
+		ScriptableEventHoverDef hover;
+		ScriptableEventVehicleBlowUpTireDef vehicleBlowUpTire;
+		ScriptableEventDlc1Def dlc1;
+		ScriptableEventScriptDamageDef scriptDamage;
 	};
 
 	struct ScriptableEventDef
@@ -12920,7 +13102,7 @@ namespace zonetool { namespace iw8
 		XFILE_BLOCK_VIRTUAL = 0x8,
 		XFILE_BLOCK_SCRIPT = 0x9,
 
-		//XFILE_BLOCK_VIRTUAL = 0x5, // pretty sure on replay..
+		XFILE_BLOCK_VIRTUAL_IW8REPLAY = 0x5, // pretty sure on replay..
 
 		MAX_XFILE_COUNT = 0xA,
 	};

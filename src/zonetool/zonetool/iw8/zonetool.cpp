@@ -188,73 +188,11 @@ namespace zonetool::iw8
 		try
 		{
 			// dump assets
-			/*
-			DUMP_ASSET(ASSET_TYPE_DDL, ddl, DDLFile);
-			DUMP_ASSET(ASSET_TYPE_FX, fx_effect_def, FxEffectDef);
-			DUMP_ASSET(ASSET_TYPE_PARTICLE_SIM_ANIMATION, fx_particle_sim_animation, FxParticleSimAnimation);
-			DUMP_ASSET(ASSET_TYPE_GESTURE, gesture, Gesture);
-			DUMP_ASSET(ASSET_TYPE_IMAGE, gfx_image, GfxImage);
-			DUMP_ASSET(ASSET_TYPE_LIGHT_DEF, gfx_light_def, GfxLightDef);
-			DUMP_ASSET(ASSET_TYPE_GFXLIGHTMAP, gfx_light_map, GfxLightMap);
-			DUMP_ASSET(ASSET_TYPE_IMPACT_FX, impact_fx, FxImpactTable);
-			DUMP_ASSET(ASSET_TYPE_LASER, laser, LaserDef);
-			DUMP_ASSET(ASSET_TYPE_LOCALIZE_ENTRY, localize, LocalizeEntry);
-			DUMP_ASSET(ASSET_TYPE_LUA_FILE, lua_file, LuaFile);
-			DUMP_ASSET(ASSET_TYPE_MATERIAL, material, Material);
-			DUMP_ASSET(ASSET_TYPE_NET_CONST_STRINGS, net_const_strings, NetConstStrings);
-			DUMP_ASSET(ASSET_TYPE_VFX, particle_system, ParticleSystemDef);
-			DUMP_ASSET(ASSET_TYPE_RETICLE, reticle, ReticleDef);
-			DUMP_ASSET(ASSET_TYPE_RUMBLE, rumble, RumbleInfo);
-			DUMP_ASSET(ASSET_TYPE_RUMBLE_GRAPH, rumble_graph, RumbleGraph);
-			DUMP_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile, ScriptFile);
-			DUMP_ASSET(ASSET_TYPE_STREAMING_INFO, streaming_info, StreamingInfo);
-			DUMP_ASSET(ASSET_TYPE_STRINGTABLE, string_table, StringTable);
-			DUMP_ASSET(ASSET_TYPE_TRACER, tracer, TracerDef);
-			DUMP_ASSET(ASSET_TYPE_TTF, ttf_def, TTFDef);
-			DUMP_ASSET(ASSET_TYPE_VECTORFIELD, vector_field, VectorField);
-			DUMP_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment, WeaponAttachment);
-			DUMP_ASSET(ASSET_TYPE_ANIM_PACKAGE, weapon_anim_package, WeaponAnimPackage);
-			DUMP_ASSET(ASSET_TYPE_SFX_PACKAGE, weapon_sfx_package, WeaponSFXPackage);
-			DUMP_ASSET(ASSET_TYPE_VFX_PACKAGE, weapon_vfx_package, WeaponVFXPackage);
-			DUMP_ASSET(ASSET_TYPE_WEAPON, weapon_def, WeaponCompleteDef);
-			DUMP_ASSET(ASSET_TYPE_XANIMPARTS, xanim_parts, XAnimParts);
+			
+			DUMP_ASSET(ASSET_TYPE_RAWFILE, rawfile, RawFile);
 			DUMP_ASSET(ASSET_TYPE_XMODEL, xmodel, XModel);
 			DUMP_ASSET(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
-
-			DUMP_ASSET(ASSET_TYPE_SOUND_GLOBALS, sound_globals, SndGlobals);
-			DUMP_ASSET(ASSET_TYPE_SOUND_BANK, sound_bank, SndBank);
-			//DUMP_ASSET(ASSET_TYPE_SOUND_BANK_TRANSIENT, sound_bank_transient, SndBankTransient);
-
-			DUMP_ASSET(ASSET_TYPE_PHYSICSASSET, physics_asset, PhysicsAsset);
-			DUMP_ASSET(ASSET_TYPE_PHYSICS_FX_PIPELINE, physics_fx_pipeline, PhysicsFXPipeline);
-			DUMP_ASSET(ASSET_TYPE_PHYSICS_FX_SHAPE, physics_fx_shape, PhysicsFXShape);
-			DUMP_ASSET(ASSET_TYPE_PHYSICSLIBRARY, physics_library, PhysicsLibrary);
-			DUMP_ASSET(ASSET_TYPE_PHYSICS_SFX_EVENT_ASSET, physics_sfx_event, PhysicsSFXEventAsset);
-			DUMP_ASSET(ASSET_TYPE_PHYSICS_VFX_EVENT_ASSET, physics_vfx_event, PhysicsVFXEventAsset);
-
-			DUMP_ASSET(ASSET_TYPE_COMPUTESHADER, compute_shader, ComputeShader);
-			DUMP_ASSET(ASSET_TYPE_DOMAINSHADER, domain_shader, MaterialDomainShader);
-			DUMP_ASSET(ASSET_TYPE_HULLSHADER, hull_shader, MaterialHullShader);
-			DUMP_ASSET(ASSET_TYPE_PIXELSHADER, pixel_shader, MaterialPixelShader);
-			//DUMP_ASSET(ASSET_TYPE_VERTEXDECL, vertex_decl, MaterialVertexDeclaration);
-			DUMP_ASSET(ASSET_TYPE_VERTEXSHADER, vertex_shader, MaterialVertexShader);
-
-			DUMP_ASSET(ASSET_TYPE_TECHNIQUE_SET, techset, MaterialTechniqueSet);
-
-			DUMP_ASSET(ASSET_TYPE_PATHDATA, path_data, PathData);
-			DUMP_ASSET(ASSET_TYPE_CLIPMAP, clip_map, clipMap_t);
-			DUMP_ASSET(ASSET_TYPE_COMWORLD, com_world, ComWorld);
-			DUMP_ASSET(ASSET_TYPE_FXWORLD, fx_world, FxWorld);
-			DUMP_ASSET(ASSET_TYPE_GFXWORLD, gfx_world, GfxWorld);
-			DUMP_ASSET(ASSET_TYPE_GFXWORLD_TRANSIENT_ZONE, gfx_world_tr, GfxWorldTransientZone);
-			DUMP_ASSET(ASSET_TYPE_GLASSWORLD, glass_world, GlassWorld);
-			DUMP_ASSET(ASSET_TYPE_MAP_ENTS, map_ents, MapEnts);
-			DUMP_ASSET(ASSET_TYPE_NAVMESH, nav_mesh, NavMeshData);
-			*/
-
-			DUMP_ASSET(ASSET_TYPE_RAWFILE, rawfile, RawFile);
-			DUMP_ASSET(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
-			//DUMP_ASSET(ASSET_TYPE_SCRIPTABLE, scriptable_def, ScriptableDef);
+			DUMP_ASSET(ASSET_TYPE_SCRIPTABLE, scriptable_def, ScriptableDef);
 		}
 		catch (const std::exception& e)
 		{
@@ -1285,6 +1223,10 @@ namespace zonetool::iw8
 
 		doexit_hook.create(0x22244B8_b, doexit);
 		atexit(on_exit);
+
+		DB_FindXAssetHeader.set(0x11AA890_b);
+		DB_IsXAssetDefault.set(0x11AC4A0_b);
+		SL_ConvertToString.set(0x131AA20_b);
 
 		DB_FindXAssetEntry.set((std::uintptr_t)db_find_x_asset_entry);
 	}

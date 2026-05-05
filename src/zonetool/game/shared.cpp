@@ -81,17 +81,6 @@ namespace zonetool
 			}
 		}
 
-		namespace iw8
-		{
-			void initialize()
-			{
-				DB_FindXAssetHeader.set(0x1411AA890);
-				DB_IsXAssetDefault.set(0x1411AC4A0);
-
-				SL_ConvertToString.set(0x14131AA20);
-			}
-		}
-
 		namespace t7
 		{
 			void initialize()
@@ -99,6 +88,14 @@ namespace zonetool
 				DB_IsXAssetDefault.set(0x1401D7260);
 
 				SL_ConvertToString.set(0x1401632C0);
+			}
+		}
+
+		namespace iw8
+		{
+			void initialize()
+			{
+				// blank
 			}
 		}
 	}

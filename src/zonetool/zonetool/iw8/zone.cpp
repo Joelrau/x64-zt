@@ -491,6 +491,7 @@ namespace zonetool::iw8
 		return nullptr;
 	}
 
+	// TODO: verify this works for IW8
 	void* zone_interface::get_asset_pointer(std::int32_t type, const std::string& name)
 	{
 		if (name.empty())
@@ -510,7 +511,7 @@ namespace zonetool::iw8
 		{
 			if (m_assets[idx]->type() == type && (m_assets[idx]->name() == name || m_assets[idx]->name() == ref_name))
 			{
-				auto ptr = mask | (static_cast<std::uint64_t>(XFILE_BLOCK_VIRTUAL) & 0x0F) << 32; // add stream index
+				auto ptr = mask | (static_cast<std::uint64_t>(XFILE_BLOCK_VIRTUAL_IW8REPLAY) & 0x0F) << 32; // add stream index
 				ptr = (ptr + static_cast<std::uint32_t>((this->m_assetbase + ((16 * idx) + 8) + 1))); // add offset
 				return reinterpret_cast<void*>(ptr);
 			}

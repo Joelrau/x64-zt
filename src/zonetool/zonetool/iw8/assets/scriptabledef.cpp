@@ -29,6 +29,7 @@ namespace zonetool::iw8
 
 	void scriptable_def::parse_scriptable_event(assetmanager::reader& read, ScriptableEventDef* data)
 	{
+		/*
 		data->base.name = read.read_string();
 
 		auto read_event_base = [&]()
@@ -266,6 +267,7 @@ namespace zonetool::iw8
 			data->data.materialOverride.material = read.read_asset<Material>();
 			break;
 		}
+		*/
 	}
 
 	void scriptable_def::parse_state_base(assetmanager::reader& read, ScriptableStateBaseDef* data)
@@ -280,6 +282,7 @@ namespace zonetool::iw8
 
 	void scriptable_def::parse_state(assetmanager::reader& read, ScriptableStateDef* data)
 	{
+		/*
 		parse_state_base(read, &data->base);
 
 		switch (data->type) {
@@ -324,6 +327,7 @@ namespace zonetool::iw8
 		default:
 			break;
 		}
+		*/
 	}
 
 	void scriptable_def::parse_part(assetmanager::reader& read, ScriptablePartDef* data)
@@ -409,6 +413,7 @@ namespace zonetool::iw8
 
 	void scriptable_def::prepare_scriptable_event(zone_buffer* buf, ScriptableEventDef* data)
 	{
+		/*
 		switch (data->type)
 		{
 		case Scriptable_EventType_StateChange:
@@ -535,6 +540,7 @@ namespace zonetool::iw8
 		case Scriptable_EventType_MaterialOverride:
 			break;
 		}
+		*/
 	}
 
 	void scriptable_def::prepare_state_base(zone_buffer* buf, ScriptableStateBaseDef* data)
@@ -547,6 +553,7 @@ namespace zonetool::iw8
 
 	void scriptable_def::prepare_state(zone_buffer* buf, ScriptableStateDef* data)
 	{
+		/*
 		prepare_state_base(buf, &data->base);
 
 		switch (data->type) {
@@ -586,6 +593,7 @@ namespace zonetool::iw8
 		default:
 			break;
 		}
+		*/
 	}
 
 	void scriptable_def::prepare_part(zone_buffer* buf, ScriptablePartDef* data)
@@ -628,6 +636,7 @@ namespace zonetool::iw8
 
 	void scriptable_def::load_depending_scriptable_event(zone_base* zone, ScriptableEventDef* data)
 	{
+		/*
 		switch (data->type)
 		{
 		case Scriptable_EventType_StateChange:
@@ -819,6 +828,7 @@ namespace zonetool::iw8
 			}
 			break;
 		}
+		*/
 	}
 
 	void scriptable_def::load_depending_state_base(zone_base* zone, ScriptableStateBaseDef* data)
@@ -831,6 +841,7 @@ namespace zonetool::iw8
 
 	void scriptable_def::load_depending_state(zone_base* zone, ScriptableStateDef* data)
 	{
+		/*
 		if (data->type == Scriptable_StateType_Simple)
 		{
 			if (data->data.simple.base)
@@ -859,6 +870,7 @@ namespace zonetool::iw8
 				load_depending_state_base(zone, data->data.usable.base);
 			}
 		}
+		*/
 	}
 
 	void scriptable_def::load_depending_part(zone_base* zone, ScriptablePartDef* data)
@@ -909,6 +921,7 @@ namespace zonetool::iw8
 
 	void write_scriptable_event(zone_base* zone, zone_buffer* buf, ScriptableEventDef* data, ScriptableEventDef* dest)
 	{
+		/*
 		if (data->base.name)
 		{
 			dest->base.name = buf->write_str(data->base.name);
@@ -1339,6 +1352,7 @@ namespace zonetool::iw8
 			}
 			break;
 		}
+		*/
 	}
 
 	void write_state_base(zone_base* zone, zone_buffer* buf, ScriptableStateBaseDef* data, ScriptableStateBaseDef* dest)
@@ -1531,38 +1545,11 @@ namespace zonetool::iw8
 			}
 		};
 
-		const auto dump_part_reference = [&](ScriptablePartReference* data_)
-		{
-			dump.dump_string(data_->base.name);
-
-			const auto dump_part_reference_base = [&]()
-			{
-				dump.dump_single(data_->u.__0.base);
-				if (data_->u.__0.base)
-				{
-					dump.dump_string(data_->u.__0.base->name);
-				}
-			};
-
-			switch (data_->type)
-			{
-			case 0:
-			case 1:
-			case 2:
-				dump_part_reference_base();
-				break;
-			case 3:
-				dump_part_reference_base();
-				dump.dump_array(data_->u.__3.val, data_->u.__3.count);
-				break;
-			}
-		};
-
 		switch (data->type)
 		{
 		case Scriptable_EventType_StateChange:
 			dump_event_base();
-			dump_part_reference(&data->data.stateChange.partReference);
+			//dump_part_reference(&data->data.stateChange.partReference);
 			break;
 		case Scriptable_EventType_Wait:
 			dump_event_base();
@@ -1587,11 +1574,12 @@ namespace zonetool::iw8
 			break;
 		case Scriptable_EventType_Model:
 			dump_event_base();
-			dump.dump_asset(data->data.model.model);
+			dump.dump_asset(data->data.model.model.model);
 			break;
 		case Scriptable_EventType_Collision:
 			dump_event_base();
 			dump.dump_string(data->data.collision.collmapName);
+			dump.dump_asset(data->data.collision.model.model);
 			break;
 		case Scriptable_EventType_Animation:
 			dump_event_base();
@@ -1606,6 +1594,10 @@ namespace zonetool::iw8
 			dump_event_base();
 			dump.dump_string(data->data.hideShowBone.tagName);
 			dump.dump_string(SL_ConvertToString(data->data.hideShowBone.scrTagName));
+			break;
+		case Scriptable_EventType_DisablePhysicsSubShape:
+			dump_event_base();
+			dump.dump_string(data->data.disablePhysicsSubShape.mutableShapeName);
 			break;
 		case Scriptable_EventType_NoteTrack:
 			dump_event_base();
@@ -1623,7 +1615,7 @@ namespace zonetool::iw8
 			break;
 		case Scriptable_EventType_ChunkDynent:
 			dump_event_base();
-			dump_part_reference(&data->data.chunkDynent.partReference);
+			//dump_part_reference(&data->data.chunkDynent.partReference);
 			break;
 		case Scriptable_EventType_SpawnDynent:
 			dump_event_base();
@@ -1651,7 +1643,16 @@ namespace zonetool::iw8
 			dump.dump_string(data->data.sound.tagName);
 			dump.dump_string(SL_ConvertToString(data->data.sound.scrTagName));
 			dump.dump_string(data->data.sound.soundAlias);
-			dump.dump_string(data->data.sound.soundAliasCache);
+
+			if (data->data.sound.soundAliasCache)
+			{
+				dump.dump_single(data->data.sound.soundAliasCache);
+				dump.dump_string(data->data.sound.soundAliasCache->aliasName);
+				dump.dump_string(data->data.sound.soundAliasCache->head->aliasName);
+				dump.dump_string(data->data.sound.soundAliasCache->head->subtitle);
+				dump.dump_string(data->data.sound.soundAliasCache->head->secondaryAliasName);
+				dump.dump_string(data->data.sound.soundAliasCache->head->assetFileName);
+			}
 			break;
 		case Scriptable_EventType_Explosion:
 			dump_event_base();
@@ -1680,7 +1681,7 @@ namespace zonetool::iw8
 			break;
 		case Scriptable_EventType_PartDamage:
 			dump_event_base();
-			dump_part_reference(&data->data.partDamage.partReference);
+			//dump_part_reference(&data->data.partDamage.partReference);
 			break;
 		case Scriptable_EventType_SetMayhem:
 			dump_event_base();
@@ -1728,6 +1729,9 @@ namespace zonetool::iw8
 			dump.dump_asset(data->data.addModel.model);
 			break;
 		case Scriptable_EventType_ApplyForce:
+		case Scriptable_EventType_ApplyAngularForce:
+		case Scriptable_EventType_ApplyConstantForce:
+		case Scriptable_EventType_ApplyConstantAngularForce:
 			dump_event_base();
 			break;
 		case Scriptable_EventType_CompassIcon:
@@ -1755,6 +1759,51 @@ namespace zonetool::iw8
 		case Scriptable_EventType_MaterialOverride:
 			dump_event_base();
 			dump.dump_asset(data->data.materialOverride.material);
+			break;
+
+		// all new to iw8
+		case Scriptable_EventType_DynamicBoneNoiseCurve:
+			dump_event_base();
+			dump.dump_single(data->data.dynamicBoneNoiseCurve.curve);
+			dump.dump_single(data->data.dynamicBoneNoiseCurve.curve->controlPoints);
+			break;
+		case Scriptable_EventType_Move:
+			dump_event_base();
+			break;
+		case Scriptable_EventType_Footstep:
+			dump_event_base();
+			dump.dump_string(data->data.footstep.tagName);
+			dump.dump_string(data->data.footstep.soundAlias);
+			dump.dump_asset(data->data.footstep.rightFootstepVFX);
+			dump.dump_asset(data->data.footstep.leftFootstepVFX);
+			break;
+		case Scriptable_EventType_GravityArc:
+			dump_event_base();
+			dump.dump_array(data->data.gravityArc.eventsAtEnd, data->data.gravityArc.eventAtEndCount);
+			for (unsigned int i = 0; i < data->data.gravityArc.eventAtEndCount; i++)
+			{
+				dump_scriptable_event(dump, &data->data.gravityArc.eventsAtEnd[i]);
+			}
+		case Scriptable_EventType_ViewTrigger:
+			dump_event_base();
+			break;
+		case Scriptable_EventType_Objective:
+			dump_event_base();
+			dump.dump_string(data->data.objective.description);
+			dump.dump_string(data->data.objective.icon);
+			dump.dump_string(data->data.objective.label);
+			dump.dump_asset(data->data.objective.iconImage);
+			break;
+		case Scriptable_EventType_SpatialDisable:
+		case Scriptable_EventType_Hover:
+		case Scriptable_EventType_VehicleBlowUpTire:
+		case Scriptable_EventType_Dlc1:
+			dump_event_base();
+			break;
+		case Scriptable_EventType_ScriptDamage:
+			dump_event_base();
+			dump.dump_string(data->data.scriptDamage.notification);
+			dump.dump_string(SL_ConvertToString(data->data.scriptDamage.scrNotification));
 			break;
 		}
 	}
