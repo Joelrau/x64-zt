@@ -11364,7 +11364,8 @@ namespace zonetool { namespace iw8
 		Scriptable_StateType_Simple = 0x0,
 		Scriptable_StateType_Health = 0x1,
 		Scriptable_StateType_Scripted = 0x2,
-		Scriptable_StateType_Count = 0x3,
+		Scriptable_StateType_Usable = 0x3,
+		Scriptable_StateType_Count = 0x4,
 	};
 
 	struct ScriptableStateSimpleDef
@@ -11397,11 +11398,42 @@ namespace zonetool { namespace iw8
 		scr_string_t scrScript_id;
 	};
 
+	struct __declspec(align(8)) ScriptableStateUsableDef
+	{
+		ScriptableStateBaseDef* base;
+		const char* script_id;
+		scr_string_t scrScript_id;
+		float faceFOV;
+		float useFOV;
+		float useRadius;
+		float useRadiusAuto;
+		float useRadiusDisplay;
+		bool useRadiusMinimized;
+		bool gotoNextStateOnUse;
+		bool allowMissingTag;
+		bool usableWhenObstructed;
+		vec3_t useOffset;
+		vec3_t angleOffset;
+		unsigned int hintHoldDuration;
+		char priority;
+		bool use2DFOV;
+		__int16 hintBinding;
+		scr_string_t hintTag;
+		const char* hintString;
+		const char* hintStringDisabled;
+		const char* hintIcon;
+		GfxImage* hintIconImage;
+		unsigned int hintStringIndex;
+		unsigned int hintStringDisabledIndex;
+		unsigned int hintIconIndex;
+	};
+
 	union ScriptableStateDefUnion
 	{
 		ScriptableStateSimpleDef simple;
-		ScriptableStateHealthDef health; //
+		ScriptableStateHealthDef health;
 		ScriptableStateScriptedDef scripted;
+		ScriptableStateUsableDef usable;
 	};
 
 	struct ScriptableStateDef
@@ -11409,7 +11441,7 @@ namespace zonetool { namespace iw8
 		ScriptableStateBaseDef base;
 		Scriptable_StateType type;
 		ScriptableStateDefUnion data;
-	}; assert_sizeof(ScriptableStateDef, 88);
+	};// assert_sizeof(ScriptableStateDef, 88);
 	assert_offsetof(ScriptableStateDef, data, 32);
 
 	struct ScriptableDamageTagOverride

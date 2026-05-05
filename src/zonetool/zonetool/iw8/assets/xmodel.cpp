@@ -121,7 +121,7 @@ namespace zonetool::iw8
 
 		asset->decalVolumesInfo = read.read_single<XModelDecalVolumesInfo>();
 		asset->decalVolumesInfo->decalVolumes = read.read_array<XModelDecalVolume>();
-		for (auto i = 0; i < asset->decalVolumesInfo->numDecalVolumes; i++)
+		for (auto i = 0u; i < asset->decalVolumesInfo->numDecalVolumes; i++)
 		{
 			if (asset->decalVolumesInfo->decalVolumes[i].material)
 			{
@@ -162,7 +162,7 @@ namespace zonetool::iw8
 
 			auto* original_scriptstrings = asset->aimAssistBones;
 			asset->aimAssistBones = mem->allocate<scr_string_t>(asset->numAimAssistBones);
-			for (unsigned int i = 0; i < asset->numAimAssistBones; i++)
+			for (char i = 0; i < asset->numAimAssistBones; i++)
 			{
 				this->add_script_string(&asset->aimAssistBones[i], SL_ConvertToString(original_scriptstrings[i]));
 			}
@@ -288,7 +288,7 @@ namespace zonetool::iw8
 
 		if (data->decalVolumesInfo)
 		{
-			for (auto i = 0; i < data->decalVolumesInfo->numDecalVolumes; i++)
+			for (auto i = 0u; i < data->decalVolumesInfo->numDecalVolumes; i++)
 			{
 				if (data->decalVolumesInfo->decalVolumes[i].material)
 				{
@@ -586,7 +586,7 @@ namespace zonetool::iw8
 
 		dump.dump_single(asset->decalVolumesInfo);
 		dump.dump_array(asset->decalVolumesInfo->decalVolumes, asset->decalVolumesInfo->numDecalVolumes);
-		for (auto i = 0; i < asset->decalVolumesInfo->numDecalVolumes; i++)
+		for (auto i = 0u; i < asset->decalVolumesInfo->numDecalVolumes; i++)
 		{
 			dump.dump_asset(asset->decalVolumesInfo->decalVolumes[i].material);
 			dump.dump_string(asset->decalVolumesInfo->decalVolumes[i].blendMapOverride->name);

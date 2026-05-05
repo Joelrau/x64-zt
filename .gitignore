@@ -3,3 +3,6 @@
 build/
 
 generate_custom.bat
+
+gsclsp.config.json
+.claude

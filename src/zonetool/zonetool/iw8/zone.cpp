@@ -596,6 +596,7 @@ namespace zonetool::iw8
 			// declare asset interfaces
 			
 			ADD_ASSET(ASSET_TYPE_RAWFILE, rawfile);
+			ADD_ASSET(ASSET_TYPE_SCRIPTABLE, scriptable_def);
 			
 			//ADD_ASSET(ASSET_TYPE_XANIMPARTS, xanim_parts);
 			//ADD_ASSET(ASSET_TYPE_XMODEL, xmodel);

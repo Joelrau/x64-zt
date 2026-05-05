@@ -15,6 +15,7 @@
 
 // assets
 #include "assets/rawfile.hpp"
+#include "assets/scriptabledef.hpp"
 #include "assets/xanim.hpp"
 #include "assets/xmodel.hpp"
 #include "assets/xsurface.hpp"
