@@ -193,6 +193,7 @@ namespace zonetool::iw8
 			
 			DUMP_ASSET(ASSET_TYPE_RAWFILE, rawfile, RawFile);
 			DUMP_ASSET(ASSET_TYPE_XMODEL, xmodel, XModel);
+			DUMP_ASSET(ASSET_TYPE_XMODEL_DETAIL_COLLISION, xmodel_detail_collision, XModelDetailCollision);
 			DUMP_ASSET(ASSET_TYPE_XMODEL_SURFS, xsurface, XModelSurfs);
 			DUMP_ASSET(ASSET_TYPE_SCRIPTABLE, scriptable_def, ScriptableDef);
 			DUMP_ASSET(ASSET_TYPE_SCRIPTFILE, scriptfile, ScriptFile);

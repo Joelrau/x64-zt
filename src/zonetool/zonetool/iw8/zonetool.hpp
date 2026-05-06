@@ -21,6 +21,7 @@
 #include "assets/scriptfile.hpp"
 #include "assets/xanim.hpp"
 #include "assets/xmodel.hpp"
+#include "assets/xmodel_detail_collision.hpp"
 #include "assets/xsurface.hpp"
 
 #include "zone.hpp"
