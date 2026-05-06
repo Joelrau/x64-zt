@@ -46,6 +46,7 @@ namespace
 	DWORD WINAPI init_thread(LPVOID)
 	{
 		::iw8::game::load_base_address();
+		printf("base address is: 0x%p\n", ::iw8::game::base_address);
 
 		game::set_mode(game::iw8);
 

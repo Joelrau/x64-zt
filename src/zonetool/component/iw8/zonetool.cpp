@@ -14,26 +14,45 @@ namespace iw8
 {
 	namespace zonetool
 	{
+		void load_init_zones_stub();
+
 		utils::hook::detour sync_gpu_hook;
 		void sync_gpu_stub()
 		{
 			std::this_thread::sleep_for(1ms);
 		}
 
+		utils::hook::detour init_no_renderer_hook;
 		void init_no_renderer()
 		{
-			// R_RegisterDvarsAndCmds
-			utils::hook::invoke<void>(0x1942C90_b);
-
-			// RB_Tonemap_RegisterDvars
-			//utils::hook::invoke<void>(0x04B1320_b);
+ 			utils::hook::invoke<void>(0x13F2F10_b); // Swap_Init
+			utils::hook::invoke<void>(0x1942C90_b); // R_RegisterDvarsAndCmds
 
 			static bool initialized = false;
 			if (initialized) return;
 			initialized = true;
 
+			utils::hook::invoke<void>(0x12AF550_b); // Com_InitXAssets
+
+			load_init_zones_stub();
+
 			// R_LoadGraphicsAssets
-			utils::hook::invoke<void>(0x1941A50_b); // -> 0x1941A50_b
+			//utils::hook::invoke<void>(0x1941A50_b); // -> 0x1941A50_b
+		}
+
+		bool ret_true()
+		{
+			return true;
+		}
+
+		bool ret_false()
+		{
+			return false;
+		}
+
+		int CL_GetLocalClientActiveCount()
+		{
+			return 0;
 		}
 
 		void remove_renderer()
@@ -43,25 +62,74 @@ namespace iw8
 			utils::hook::set<uint8_t>(0x10B29C0_b, 0xC3); // Com_FastFile_Frame_FrontEnd
 
 			// Disable shader preload
-			dvars::override::register_bool("r_preloadShaders", false, game::DVAR_FLAG_READ);
+			//dvars::override::register_bool("r_preloadShaders", false, game::DVAR_FLAG_READ);
 
 			// Disable load for renderer
 			//dvars::override::register_bool("r_loadForRenderer", false, game::DVAR_FLAG_READ);
 
-			dvars::override::register_bool("intro", false, game::DVAR_FLAG_READ);
+			//dvars::override::register_bool("intro", false, game::DVAR_FLAG_READ);
+
+			/*
+			
+				these work for getting rid of renderer, but it crashes later on..
+
+			*/
+			// utils::hook::nop(0x12B0142_b, 5); // R_InitOnce
+			// init_no_renderer_hook.create(0x15C35C0_b, init_no_renderer); // CL_Main_InitRenderer
+			// utils::hook::set<uint8_t>(0x15C56B0_b, 0xC3); // CL_Main_StartHunkUsers
+
+			// renderer crashes being nopped out!
+			// utils::hook::set<uint64_t>(0x10B3260_b, 0x31C0C3);		// some alt fastfile loading dvar that doesnt check nullptr
+			// utils::hook::set<uint8_t>(0x10B6660_b, 0xC3);			// Com_FontEnd_EnterFrontend
+			// utils::hook::nop(0x10B2D3A_b, 4);						// alt ff dvar again bruh
+			// utils::hook::set<uint8_t>(0x12D08B0_b, 0xC3);			// directx call error from here (null device)
+			// now we are crashing in 0x18DBB40 on CreatePredicate (using a dead DX device)
+
+			// Com_Frame_Try_Block_Function
+			{
+				// R_VidReconfig
+				//utils::hook::set<uint8_t>(0x34054D0_b, 0xC3);
+
+				// CL_Screen_Update
+				utils::hook::set<uint8_t>(0x15CAA50_b, 0xC3);
+
+				// Com_FrontEndScene_Frame
+				utils::hook::set<uint8_t>(0x10C6950_b, 0xC3);
+			}
+
+			// SND_Init
+			utils::hook::nop(0x12B0156_b, 5);
+			utils::hook::set<uint32_t>(0x12B015B_b + 6, 0); // cls.soundStarted = 0
+
+			// PlayercardCache_InitAssetCache
+			utils::hook::set<uint8_t>(0x1B97670_b, 0xC3);
+
+			// LiveStorage_Init
+			// utils::hook::set<uint8_t>(0x12A4190_b, 0xC3);
+
+			// R_Texture_CreateResident (crashes)
+			//utils::hook::set<uint8_t>(0x223B9C0_b, 0xC3);
+
+			// R_Texture_CreateStreamedDefault
+			//utils::hook::set<uint8_t>(0x223BAF0_b, 0xC3);
+
+			// R_DecalVolumes_CreateGfxImageAssetInternal
+			// utils::hook::set<uint8_t>(0x1881750_b, 0xC3);
+
+			// Material_CreateConstantBuffer
+			// utils::hook::set<uint8_t>(0x18DA380_b, 0xC3);
+
+			/////////////// END
 
 			// Hook R_SyncGpu
 			sync_gpu_hook.create(0x15C5940_b, sync_gpu_stub);
 
-			utils::hook::jump(0x15C35C0_b, init_no_renderer, true);
-			utils::hook::nop(0x193E33B_b, 5); // R_CreateWindow
+			//utils::hook::set<uint8_t>(0x1941120_b, 0xC3); // R_CreateWindow
 
-			/*
-			utils::hook::nop(0x13DAC88_b, 5);			// don't load config file
+			//utils::hook::nop(0x13DAC88_b, 5);			// don't load config file
 			//utils::hook::nop(0xB7CE46_b, 5);			// ^
-			utils::hook::call(0x1297644_b, ret_true);	// ^ (new version of above)
-			utils::hook::set<uint8_t>(0x12B58D0_b, 0xC3); // don't save config file
-			*/
+			//utils::hook::call(0x1297644_b, ret_true);	// ^ (new version of above)
+			//utils::hook::set<uint8_t>(0x12B58D0_b, 0xC3); // don't save config file
 
 			utils::hook::set<uint8_t>(0x11977A0_b, 0xC3); // disable self-registration (PartyHost_AddLocalPlayer)
 			utils::hook::set<uint8_t>(0x199B830_b, 0xC3); // render thread
@@ -200,17 +268,13 @@ namespace iw8
 
 		void load_init_zones_stub()
 		{
-			printf("load_init_zones_stub\n");
-
 			if (!*reinterpret_cast<uint32_t*>(0xD44EB90_b))
 			{
 				utils::hook::set<uint32_t>(0xD44EB90_b, 1); // initialized
 				//utils::hook::invoke<void>(0x0E75750_b); // idk
-				printf("load_code_pre_gfx_zone\n");
 				load_code_pre_gfx_zone();
 			}
 
-			printf("load_common_zones\n");
 			load_common_zones();
 
 			::zonetool::iw8::start();
@@ -222,6 +286,8 @@ namespace iw8
 			}
 
 			utils::hook::invoke<void>(0x10B2D50_b); // Com_FastFile_Init
+			utils::hook::invoke<void>(0x10B2E30_b); // crashes w/o ^
+			utils::hook::invoke<void>(0x10B27A0_b); // idk but prob same deal ^
 
 			while (1)
 			{
@@ -242,10 +308,13 @@ namespace iw8
 		class component final : public component_interface
 		{
 		public:
-			void post_unpack() override
+			void post_load() override
 			{
 				remove_renderer();
+			}
 
+			void post_unpack() override
+			{
 				utils::hook::set(0x13FF110_b, 0xC300000001B8);
 
 				// stop the game after loading init zones
@@ -270,7 +339,7 @@ namespace iw8
 				// don't fatal error on misc model error
 				//utils::hook::nop(0x0571ECF_b, 5);
 
-				::zonetool::iw8::initialize();
+				//::zonetool::iw8::initialize();
 			}
 		};
 	}
