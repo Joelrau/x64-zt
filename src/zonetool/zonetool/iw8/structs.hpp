@@ -3725,10 +3725,27 @@ namespace zonetool { namespace iw8
 		int pad;
 	}; assert_sizeof(cStaticModel_s, 0x40);
 
+	struct StaticModelCollisionInstance
+	{
+		vec3_t origin;
+		vec3_t angles;
+		float scale;
+	};
+
+	struct StaticModelCollisionModel
+	{
+		scr_string_t name;
+		PhysicsAsset* physicsAsset;
+		XModelDetailCollision* detailCollision;
+		unsigned int numInstances;
+		StaticModelCollisionInstance* instances;
+	};
+
 	struct StaticModelCollisionModelList
 	{
 		unsigned int numModels;
-		int* staticModelIndex;
+		StaticModelCollisionModel* models;
+		unsigned int structureMemoryCost;
 	};
 
 	struct Stage
@@ -3838,16 +3855,11 @@ namespace zonetool { namespace iw8
 	{
 		const char* name;
 		int isInUse;
-		ClipInfo info;
-		ClipInfo* pInfo;
-		unsigned int numStaticModels;
-		cStaticModel_s* staticModelList;
-		StaticModelCollisionModelList staticModelCollisionModelList; // all collision models
 		unsigned int numStaticModelCollisionModelLists;
 		StaticModelCollisionModelList* staticModelCollisionModelLists; // transient collision models
 		MapEnts* mapEnts;
 		Stage* stages;
-		unsigned char stageCount;
+		unsigned char stageCount; // char rly
 		MapTriggers stageTrigger;
 		vec3_t broadphaseMin;
 		vec3_t broadphaseMax;
@@ -3856,10 +3868,12 @@ namespace zonetool { namespace iw8
 		char* havokWorldShapeData;
 		unsigned int numCollisionHeatmapEntries;
 		CollisionHeatmapEntry* collisionHeatmap;
+		unsigned int totalGlassInitPieceCount;
+		unsigned int totalGlassPieceLimit;
 		TopDownMapData* topDownMapData;
+		const char* visionSetName;
 		unsigned int checksum;
-		char padding[88]; // alignment pad
-	}; assert_sizeof(clipMap_t, 0x180);
+	}; // 248
 
 	enum GfxLightType : std::uint8_t
 	{

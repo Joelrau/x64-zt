@@ -15,6 +15,7 @@
 
 // assets
 #include "assets/aipaths.hpp"
+#include "assets/clipmap.hpp"
 #include "assets/rawfile.hpp"
 #include "assets/scriptabledef.hpp"
 #include "assets/scriptfile.hpp"
