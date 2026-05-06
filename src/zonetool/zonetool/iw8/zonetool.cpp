@@ -188,6 +188,7 @@ namespace zonetool::iw8
 		try
 		{
 			// dump assets
+			DUMP_ASSET(ASSET_TYPE_PATHDATA, path_data, PathData);
 			
 			DUMP_ASSET(ASSET_TYPE_RAWFILE, rawfile, RawFile);
 			DUMP_ASSET(ASSET_TYPE_XMODEL, xmodel, XModel);

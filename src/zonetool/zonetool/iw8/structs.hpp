@@ -3992,28 +3992,6 @@ namespace zonetool { namespace iw8
 		unsigned short index;
 	};
 
-	enum PathNodeErrorCode
-	{
-		PNERR_NONE = 0x0,
-		PNERR_INSOLID = 0x1,
-		PNERR_FLOATING = 0x2,
-		PNERR_NOLINK = 0x3,
-		PNERR_DUPLICATE = 0x4,
-		PNERR_NOSTANCE = 0x5,
-		PNERR_INVALIDDOOR = 0x6,
-		PNERR_NOANGLES = 0x7,
-		PNERR_NOPEEKOUT = 0x8,
-		PNERR_NEARSOLID = 0x9,
-		PNERR_NOCOVER = 0xA,
-		NUM_PATH_NODE_ERRORS = 0xB,
-	};
-
-	union $96C58BBB7F3ED2CCC5F07A7E763FE6AE
-	{
-		float minUseDistSq;
-		PathNodeErrorCode error;
-	};
-
 	struct pathlink_s
 	{
 		float fDist;
@@ -4061,9 +4039,36 @@ namespace zonetool { namespace iw8
 		NODE_NUMTYPES = 0x20,
 	};
 
+	enum PathNodeErrorCode
+	{
+		PNERR_NONE = 0x0,
+		PNERR_INSOLID = 0x1,
+		PNERR_FLOATING = 0x2,
+		PNERR_NOLINK = 0x3,
+		PNERR_DUPLICATE = 0x4,
+		PNERR_NOSTANCE = 0x5,
+		PNERR_INVALIDDOOR = 0x6,
+		PNERR_NOANGLES = 0x7,
+		PNERR_NOPEEKOUT = 0x8,
+		PNERR_NEARSOLID = 0x9,
+		PNERR_NOCOVER = 0xA,
+		NUM_PATH_NODE_ERRORS = 0xB,
+	};
+
+	union $C8940DDD382E4D47E5830444CF5FFEAD
+	{
+		float minUseDistSq;
+		PathNodeErrorCode error;
+	};
+
+	struct __declspec(align(2)) tacpoint_ref_t
+	{
+		unsigned __int16 m_PointID;
+		char m_GraphIDPlusOne;
+	};
+
 	struct pathnode_constant_t
 	{
-		unsigned short type;
 		unsigned int spawnflags;
 		scr_string_t targetname;
 		scr_string_t script_linkName;
@@ -4071,17 +4076,18 @@ namespace zonetool { namespace iw8
 		scr_string_t target;
 		scr_string_t animscript;
 		int animscriptfunc;
+		scr_string_t interactable;
 		vec3_t vLocalOrigin;
 		PathNodeOrientationUnion orientation;
 		PathNodeParentUnion parent;
-		$96C58BBB7F3ED2CCC5F07A7E763FE6AE ___u11;
-		unsigned short wOverlapNode[2];
-		unsigned short totalLinkCount;
+		$C8940DDD382E4D47E5830444CF5FFEAD ___u11;
+		unsigned __int16 wOverlapNode[2];
+		tacpoint_ref_t tacpointRef;
 		pathlink_s* Links;
-	}; assert_sizeof(pathnode_constant_t, 80);
-	assert_offsetof(pathnode_constant_t, parent, 56);
-	assert_offsetof(pathnode_constant_t, animscript, 24);
-	assert_offsetof(pathnode_constant_t, Links, 72);
+		unsigned __int16 totalLinkCount;
+		unsigned __int16 type;
+	};
+	assert_offsetof(pathnode_constant_t, targetname, 4);
 
 	struct SentientHandle
 	{
@@ -4089,29 +4095,42 @@ namespace zonetool { namespace iw8
 		unsigned short infoIndex;
 	};
 
-	struct pathnode_dynamic_t
+	struct PathnodeDynamicActors
 	{
-		SentientHandle pOwner;
-		int iFreeTime;
-		int iValidTime[3];
-		short wLinkCount;
-		short wOverlapCount;
-		short turretEntNumber;
-		unsigned char userCount;
-		unsigned char hasBadPlaceLink;
-		int spreadUsedTime[2];
-		short flags;
-		short dangerousCount;
-		int recentUseProxTime;
+		int dangerousNodeTime[3];
+		int inPlayerLOSTime;
 	};
 
+	struct PathnodeDynamicBots
+	{
+		int recentUseProxTimes[2];
+		short flags;
+		char hasGlobalBadPlaceLink;
+	};
+
+	struct pathnode_dynamic_t
+	{
+		SentientHandle pOwners[2];
+		int iFreeTime[2];
+		int iValidTime[3];
+		__int16 wLinkCount;
+		short turretEntNumber;
+		unsigned short coverMultiType;
+		char bInactive;
+		char wOverlapCount[2];
+		PathnodeDynamicActors actors;
+		PathnodeDynamicBots bots;
+	};
+
+	/* 20125 */
 	union $73F238679C0419BE2C31C6559E8604FC
 	{
 		float nodeCost;
 		int linkIndex;
 	};
 
-	struct pathnode_transient_t
+	/* 20126 */
+	struct __declspec(align(8)) pathnode_transient_t
 	{
 		int iSearchFrame;
 		pathnode_t* pNextOpen;
@@ -4122,12 +4141,16 @@ namespace zonetool { namespace iw8
 		$73F238679C0419BE2C31C6559E8604FC ___u6;
 	};
 
+	// TODO: this is coming out to 208 bytes when its 192 in IDA, but constant is right...
 	struct pathnode_t
 	{
 		pathnode_constant_t constant;
-		pathnode_dynamic_t dynamic;
-		pathnode_transient_t transient;
-	}; assert_sizeof(pathnode_t, 176);
+		char pad[104]; // need pad for the iteration loop
+
+		// TODO: this is coming out to 208 bytes when its 192 in IDA, but constant is right...
+		//pathnode_dynamic_t dynamic;
+		//pathnode_transient_t transient;
+	}; //assert_sizeof(pathnode_t, 176);
 
 	struct pathnode_tree_nodes_t
 	{
@@ -4161,13 +4184,14 @@ namespace zonetool { namespace iw8
 		unsigned int nodeCount;
 		pathnode_t* nodes;
 		bool parentIndexResolved;
-		unsigned short version;
+		unsigned __int16 version;
 		int visBytes;
 		char* pathVis;
 		int nodeTreeCount;
 		pathnode_tree_t* nodeTree;
 		int dynamicNodeGroupCount;
 		PathDynamicNodeGroup* dynamicNodeGroups;
+		bool usePathExtraData;
 		int exposureBytes;
 		char* pathExposure;
 		int noPeekVisBytes;
@@ -4179,7 +4203,9 @@ namespace zonetool { namespace iw8
 		int maxDynamicSpawnedNodeCount;
 		int dynStatesBytes;
 		char* pathDynStates;
-	}; assert_sizeof(PathData, 0x90);
+		int visDistDataSize;
+	}; assert_sizeof(PathData, 152); // 144 iw7 -> 152 replay
+	assert_offsetof(PathData, nodes, 16);
 
 	struct nav_resource_s;
 
@@ -13102,7 +13128,7 @@ namespace zonetool { namespace iw8
 		XFILE_BLOCK_VIRTUAL = 0x8,
 		XFILE_BLOCK_SCRIPT = 0x9,
 
-		XFILE_BLOCK_VIRTUAL_IW8REPLAY = 0x5, // pretty sure on replay..
+		XFILE_BLOCK_VIRTUAL_IW8REPLAY = 0x5, // pretty sure on replay, so switch out later
 
 		MAX_XFILE_COUNT = 0xA,
 	};

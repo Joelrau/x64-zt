@@ -14,6 +14,7 @@
 #include "zonetool/shared/shared.hpp"
 
 // assets
+#include "assets/aipaths.hpp"
 #include "assets/rawfile.hpp"
 #include "assets/scriptabledef.hpp"
 #include "assets/scriptfile.hpp"
