@@ -55,6 +55,15 @@ namespace iw8
 			return 0;
 		}
 
+		void resize_stub(void* a1, void* a2, void* a3, tagRECT* a4)
+		{
+			utils::hook::invoke<void>(0x19405E0_b, a1, a2, a3, a4);
+			a4->right = 2;
+			a4->left = 1;
+			a4->bottom = 2;
+			a4->top = 1;
+		}
+
 		void remove_renderer()
 		{
 			// Disable frontend
@@ -103,6 +112,8 @@ namespace iw8
 
 			// PlayercardCache_InitAssetCache
 			utils::hook::set<uint8_t>(0x1B97670_b, 0xC3);
+
+			utils::hook::call(0x193E6B7_b, resize_stub);
 
 			// LiveStorage_Init
 			// utils::hook::set<uint8_t>(0x12A4190_b, 0xC3);
