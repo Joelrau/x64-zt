@@ -89,6 +89,8 @@ namespace zonetool::iw6
 			// declare asset interfaces
 			//ADD_ASSET_PTR(ASSET_TYPE_MENU, menu_def);
 			ADD_ASSET_PTR(ASSET_TYPE_LOCALIZE_ENTRY, localize);
+			ADD_ASSET_PTR(ASSET_TYPE_IMAGE, gfx_image);
+			ADD_ASSET_PTR(ASSET_TYPE_MATERIAL, material);
 		}
 		catch (std::exception& ex)
 		{

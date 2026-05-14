@@ -40,3 +40,6 @@
 [submodule "deps/shader-tool"]
 	path = deps/shader-tool
 	url = https://github.com/alicealys/shader-tool.git
+[submodule "deps/stb"]
+	path = deps/stb
+	url = https://github.com/nothings/stb

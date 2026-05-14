@@ -292,7 +292,7 @@ namespace zonetool::iw6
 
 				// statemap
 				//new_asset->stateBitsTable = allocator.allocate_array<zonetool::h1::GfxStateBits>(asset->stateBitsCount); // don't convert, dump from old
-				new_asset->stateBitsTable = (zonetool::h1::GfxStateBits*)asset->stateMap;
+				new_asset->stateBitsTable = (zonetool::h1::GfxStateBits*)asset->stateBitsTable;
 				new_asset->stateBitsCount = asset->stateBitsCount;
 
 				std::memset(new_asset->constantBufferIndex, 0xFF, zonetool::h1::MaterialTechniqueType::TECHNIQUE_COUNT);

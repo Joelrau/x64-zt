@@ -22,7 +22,6 @@
 #include "../shared/assets/stringtable.hpp"
 #include "../shared/assets/localize.hpp"
 #include "../shared/assets/ttfdef.hpp"
-#include "../shared/assets/fontdef.hpp"
 
 #include "../shared/assets/shader.hpp"
 #include "../shared/assets/vertexdecl.hpp"

@@ -3,5 +3,31 @@
 
 namespace zonetool::s1
 {
-	REGISTER_TEMPLATED_ASSET(font_def, Font_s, ASSET_TYPE_FONT);
+	class font_def : public asset_interface
+	{
+	private:
+		std::string name_;
+		Font_s* asset_ = nullptr;
+
+		bool ttfFont = false;
+
+	public:
+
+		Font_s* parse_ttf(const std::string& name, zone_memory* mem);
+		Font_s* parse(const std::string& name, zone_memory* mem);
+
+		void init(const std::string& name, zone_memory* mem) override;
+		void prepare(zone_buffer* buf, zone_memory* mem) override;
+
+		void load_depending(zone_base* zone) override;
+		void* pointer() override { return asset_; }
+		bool referenced() override { return name_.starts_with(","); }
+
+		std::string name() override;
+		std::int32_t type() override;
+
+		void write(zone_base* zone, zone_buffer* buf) override;
+
+		static void dump(Font_s* asset);
+	};
 }

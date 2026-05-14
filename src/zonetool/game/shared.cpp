@@ -314,10 +314,10 @@ namespace zonetool
 
 	namespace half_float
 	{
-		uint as_uint(const float x) {
+		static uint as_uint(const float x) {
 			return *(uint*)&x;
 		}
-		float as_float(const uint x) {
+		static float as_float(const uint x) {
 			return *(float*)&x;
 		}
 
@@ -441,7 +441,7 @@ namespace zonetool
 			uint32_t packedValue = in;
 
 			// Apply mask and convert to float
-			float unpacked[3];
+			float unpacked[3]{};
 			unpacked[0] = static_cast<float>(packedValue & 0x3FF);
 			unpacked[1] = static_cast<float>((packedValue >> 10) & 0x3FF);
 			unpacked[2] = static_cast<float>((packedValue >> 20) & 0x3FF);

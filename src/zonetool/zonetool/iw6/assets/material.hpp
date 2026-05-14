@@ -20,6 +20,7 @@ namespace zonetool::iw6
 		Material* parse(std::string name, zone_memory* mem);
 
 		void init(const std::string& name, zone_memory* mem) override;
+		void init(void* asset, zone_memory* mem) override;
 		void prepare(zone_buffer* buf, zone_memory* mem) override;
 		void load_depending(zone_base* zone) override;
 

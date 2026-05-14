@@ -279,6 +279,32 @@ namespace zonetool::s1
 		}
 	}
 
+	void material::init(void* asset, zone_memory* mem)
+	{
+		this->asset_ = reinterpret_cast<Material*>(asset);
+		this->name_ = this->asset_->name;
+
+		auto material = this->asset_;
+		for (auto i = 0; i < material->stateBitsCount; i++)
+		{
+			const auto var_x_gfx_globals = get_x_gfx_globals_for_zone<XGfxGlobals>(material->stateBitsTable[i].zone);
+
+			std::array<std::uint64_t, 10> temp_bits;
+			for (auto j = 0; j < 10; j++)
+			{
+				temp_bits[j] = var_x_gfx_globals->depthStencilStateBits[material->stateBitsTable[i].depthStencilState[j]];
+			}
+			this->depth_stenchil_state_bits.push_back(temp_bits);
+
+			std::array<std::uint32_t, 3> temp_bits2;
+			for (auto j = 0; j < 3; j++)
+			{
+				temp_bits2[j] = var_x_gfx_globals->blendStateBits[material->stateBitsTable[i].blendState][j];
+			}
+			this->blend_state_bits.push_back(temp_bits2);
+		}
+	}
+
 	void material::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 		auto material = this->asset_;

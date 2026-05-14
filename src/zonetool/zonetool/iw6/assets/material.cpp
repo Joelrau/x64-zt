@@ -99,7 +99,7 @@ namespace zonetool::iw6
 			if (isIgnored)
 				continue;
 
-			auto& stateEntry = asset->stateMap[i];
+			auto& stateEntry = asset->stateBitsTable[i];
 
 			const unsigned int old_flags = stateEntry.loadBits[0] & GFXS0_CULL_MASK;
 			const unsigned char old_rasterizer_flags = stateEntry.rasterizerState & RASTERIZER_STATE_CULL_MASK;
@@ -276,7 +276,7 @@ namespace zonetool::iw6
 			}
 
 			techset::parse_statebits(mat->techniqueSet->name, c_name.data(), mat->stateBitsEntry, mem);
-			techset::parse_statebitsmap(mat->techniqueSet->name, c_name.data(), &mat->stateMap, &mat->stateBitsCount,
+			techset::parse_statebitsmap(mat->techniqueSet->name, c_name.data(), &mat->stateBitsTable, &mat->stateBitsCount,
 				&this->depth_stenchil_state_bits,
 				&this->blend_state_bits,
 				mem);
@@ -343,22 +343,48 @@ namespace zonetool::iw6
 			auto material = this->asset_;
 			for (auto i = 0; i < material->stateBitsCount; i++)
 			{
-				const auto var_x_gfx_globals = get_x_gfx_globals_for_zone<XGfxGlobals>(material->stateMap[i].zone);
+				const auto var_x_gfx_globals = get_x_gfx_globals_for_zone<XGfxGlobals>(material->stateBitsTable[i].zone);
 
 				std::array<std::uint64_t, 11> temp_bits;
 				for (auto j = 0; j < 11; j++)
 				{
-					temp_bits[j] = var_x_gfx_globals->depthStencilStateBits[material->stateMap[i].depthStencilState[j]];
+					temp_bits[j] = var_x_gfx_globals->depthStencilStateBits[material->stateBitsTable[i].depthStencilState[j]];
 				}
 				this->depth_stenchil_state_bits.push_back(temp_bits);
 
 				std::array<std::uint32_t, 1> temp_bits2;
 				for (auto j = 0; j < 1; j++)
 				{
-					temp_bits2[j] = var_x_gfx_globals->blendStateBits[material->stateMap[i].blendState][j];
+					temp_bits2[j] = var_x_gfx_globals->blendStateBits[material->stateBitsTable[i].blendState][j];
 				}
 				this->blend_state_bits.push_back(temp_bits2);
 			}
+		}
+	}
+
+	void material::init(void* asset, zone_memory* mem)
+	{
+		this->asset_ = reinterpret_cast<Material*>(asset);
+		this->name_ = this->asset_->name;
+
+		auto material = this->asset_;
+		for (auto i = 0; i < material->stateBitsCount; i++)
+		{
+			const auto var_x_gfx_globals = get_x_gfx_globals_for_zone<XGfxGlobals>(material->stateBitsTable[i].zone);
+
+			std::array<std::uint64_t, 11> temp_bits;
+			for (auto j = 0; j < 11; j++)
+			{
+				temp_bits[j] = var_x_gfx_globals->depthStencilStateBits[material->stateBitsTable[i].depthStencilState[j]];
+			}
+			this->depth_stenchil_state_bits.push_back(temp_bits);
+
+			std::array<std::uint32_t, 1> temp_bits2;
+			for (auto j = 0; j < 1; j++)
+			{
+				temp_bits2[j] = var_x_gfx_globals->blendStateBits[material->stateBitsTable[i].blendState][j];
+			}
+			this->blend_state_bits.push_back(temp_bits2);
 		}
 	}
 
@@ -370,11 +396,11 @@ namespace zonetool::iw6
 		{
 			for (auto j = 0; j < 11; j++)
 			{
-				material->stateMap[i].depthStencilState[j] = buf->write_depthstencilstatebit(this->depth_stenchil_state_bits[i][j]);
+				material->stateBitsTable[i].depthStencilState[j] = buf->write_depthstencilstatebit(this->depth_stenchil_state_bits[i][j]);
 			}
 
 			std::array<std::uint32_t, 4> temp_bits{this->blend_state_bits[i][0], 0, 0, 0};
-			material->stateMap[i].blendState = buf->write_blendstatebits(temp_bits);
+			material->stateBitsTable[i].blendState = buf->write_blendstatebits(temp_bits);
 		}
 	}
 
@@ -493,9 +519,9 @@ namespace zonetool::iw6
 			dest->constantTable = buf->write_s(15, data->constantTable, data->constantCount);
 		}
 
-		if (data->stateMap)
+		if (data->stateBitsTable)
 		{
-			dest->stateMap = buf->write_s(3, data->stateMap, data->stateBitsCount);
+			dest->stateBitsTable = buf->write_s(3, data->stateBitsTable, data->stateBitsCount);
 		}
 
 		if (data->constantBufferTable)
@@ -572,7 +598,7 @@ namespace zonetool::iw6
 			{
 				techset::dump_stateinfo(asset->techniqueSet->name, c_name.data(), asset);
 				techset::dump_statebits(asset->techniqueSet->name, c_name.data(), asset->stateBitsEntry);
-				techset::dump_statebits_map(asset->techniqueSet->name, c_name.data(), asset->stateMap, asset->stateBitsCount);
+				techset::dump_statebits_map(asset->techniqueSet->name, c_name.data(), asset->stateBitsTable, asset->stateBitsCount);
 
 				techset::dump_constant_buffer_indexes(asset->techniqueSet->name, c_name.data(), asset->constantBufferIndex);
 				techset::dump_constant_buffer_def_array(asset->techniqueSet->name, c_name.data(), asset->constantBufferCount, asset->constantBufferTable);
