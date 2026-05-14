@@ -21,8 +21,8 @@ namespace iw6
 
 			void skip_extra_zones_stub(utils::hook::assembler& a)
 			{
-				const auto skip = a.newLabel();
-				const auto original = a.newLabel();
+				const auto skip = a.new_label();
+				const auto original = a.new_label();
 
 				a.pushad64();
 				a.test(ebp, 0x80); // allocFlags

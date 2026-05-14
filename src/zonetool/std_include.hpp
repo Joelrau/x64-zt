@@ -90,9 +90,6 @@ using json = nlohmann::json;
 using ordered_json = nlohmann::ordered_json;
 #pragma warning(pop)
 
-#include <asmjit/core/jitruntime.h>
-#include <asmjit/x86/x86assembler.h>
-
 #pragma warning(pop)
 #pragma warning(disable: 4100)
 

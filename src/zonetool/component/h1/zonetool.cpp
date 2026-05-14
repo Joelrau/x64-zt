@@ -42,8 +42,8 @@ namespace zonetool::h1
 
 	void load_proto_unknown_stub(utils::hook::assembler& a)
 	{
-		auto is_proto_valid = a.newLabel();
-		auto is_true = a.newLabel();
+		auto is_proto_valid = a.new_label();
+		auto is_true = a.new_label();
 
 		a.cmp(qword_ptr(rcx), 0);
 		a.jnz(is_proto_valid);

@@ -18,7 +18,7 @@
 Mem seg_ptr(const SReg& segment, const uint64_t off)
 {
 	auto mem = ptr_abs(off);
-	mem.setSegment(segment);
+	mem.set_segment(segment);
 	return mem;
 }
 
@@ -230,8 +230,8 @@ namespace utils::hook
 
 	void assembler::prepare_stack_for_call()
 	{
-		const auto reserve_callee_space = this->newLabel();
-		const auto stack_unaligned = this->newLabel();
+		const auto reserve_callee_space = this->new_label();
+		const auto stack_unaligned = this->new_label();
 
 		this->test(rsp, 0xF);
 		this->jnz(stack_unaligned);
@@ -543,9 +543,9 @@ namespace utils::hook
 		void* result = nullptr;
 		auto err_result = runtime.add(&result, &code);
 
-		if (err_result != asmjit::ErrorCode::kErrorOk)
+		if (err_result != asmjit::Error::kOk)
 		{
-			printf("ASMJIT ERROR: %s\n", asmjit::DebugUtils::errorAsString(err_result));
+			printf("ASMJIT ERROR: %s\n", asmjit::DebugUtils::error_as_string(err_result));
 		}
 
 		return result;

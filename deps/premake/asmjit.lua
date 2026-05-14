@@ -9,7 +9,7 @@ end
 
 function asmjit.includes()
 	includedirs {
-		path.join(asmjit.source, "src")
+		asmjit.source
 	}
 	
 	defines {
@@ -24,7 +24,8 @@ function asmjit.project()
 		asmjit.includes()
 
 		files {
-			path.join(asmjit.source, "src/**.cpp"),
+			path.join(asmjit.source, "**.cpp"),
+			path.join(asmjit.source, "**.h"),
 		}
 
 		warnings "Off"

@@ -65,8 +65,8 @@ namespace h2
 
 			void db_create_gfx_image_stream_stub(utils::hook::assembler& a)
 			{
-				const auto check_image_file_handle = a.newLabel();
-				const auto handle_is_open = a.newLabel();
+				const auto check_image_file_handle = a.new_label();
+				const auto handle_is_open = a.new_label();
 
 				a.movzx(eax, cx);
 				a.push(rax);

@@ -49,7 +49,7 @@ namespace zonetool::iw6
 				const auto disasm = disassembler.disassemble(bytecode, stack);
 				const auto decomp = decompiler.decompile(*disasm);
 
-				const auto decomp_data = gsc::iw6::gsc_ctx->source().dump(*decomp);
+				const auto decomp_data = gsc::iw6::gsc_ctx->printer().print(*decomp);
 				return {decomp_data.begin(), decomp_data.end()};
 			}
 

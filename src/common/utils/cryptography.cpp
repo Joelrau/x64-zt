@@ -283,27 +283,28 @@ namespace utils::cryptography
 
 	std::string ecc::sign_message(const key& key, const std::string& message)
 	{
-		if (!key.is_valid()) return "";
+		if (!key.is_valid())
+			return "";
 
 		uint8_t buffer[512];
 		unsigned long length = sizeof(buffer);
 
-		ecc_sign_hash(cs(message.data()), ul(message.size()), buffer, &length, prng_.get_state(), prng_.get_id(),
-		              &key.get());
+		ltc_ecc_sig_opts opts{};
+		opts.type = LTC_ECCSIG_ANSIX962; // set this to the ECC signature type you actually use
+
+		const int err = ecc_sign_hash_v2(
+			cs(message.data()),
+			ul(message.size()),
+			buffer,
+			&length,
+			&opts,
+			&key.get()
+		);
+
+		if (err != 0)
+			return "";
 
 		return std::string(cs(buffer), length);
-	}
-
-	bool ecc::verify_message(const key& key, const std::string& message, const std::string& signature)
-	{
-		if (!key.is_valid()) return false;
-
-		auto result = 0;
-		return (ecc_verify_hash(cs(signature.data()),
-		                        ul(signature.size()),
-		                        cs(message.data()),
-		                        ul(message.size()), &result,
-		                        &key.get()) == CRYPT_OK && result != 0);
 	}
 
 	bool ecc::encrypt(const key& key, std::string& data)
@@ -369,23 +370,44 @@ namespace utils::cryptography
 	{
 		rsa_key new_key;
 		rsa_import(cs(key.data()), ul(key.size()), &new_key);
+
 		const auto _ = gsl::finally([&]()
 		{
 			rsa_free(&new_key);
 		});
 
-
 		std::string out_data{};
 		out_data.resize(std::max(ul(data.size() * 3), ul(0x100)));
 
-		auto out_len = ul(out_data.size());
-		auto crypt = [&]()
+		unsigned long out_len = ul(out_data.size());
+
+		ltc_rsa_op_parameters params{};
+		std::memset(&params, 0, sizeof(params));
+
+		// --- core config ---
+		params.padding = LTC_PKCS_1_OAEP;
+		params.wprng = prng_.get_id();
+		params.prng = prng_.get_state();
+
+		params.params.hash_idx = find_hash(hash.c_str());
+
+		// optional OAEP label (equivalent to old lparam)
+		params.u.crypt.lparam = nullptr;
+		params.u.crypt.lparamlen = 0;
+
+		auto crypt = [&]() -> int
 		{
-			return rsa_encrypt_key(cs(data.data()), ul(data.size()), cs(out_data.data()), &out_len, cs(hash.data()),
-			                       ul(hash.size()), prng_.get_state(), prng_.get_id(), find_hash("sha512"), &new_key);
+			return rsa_encrypt_key_v2(
+				cs(data.data()),
+				ul(data.size()),
+				cs(out_data.data()),
+				&out_len,
+				&params,
+				&new_key
+			);
 		};
 
-		auto res = crypt();
+		int res = crypt();
 
 		if (res == CRYPT_BUFFER_OVERFLOW)
 		{

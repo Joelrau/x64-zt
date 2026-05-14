@@ -1,5 +1,6 @@
 directxtex = {
 	source = path.join(dependencies.basePath, "DirectXTex/DirectXTex"),
+	common = path.join(dependencies.basePath, "DirectXTex/Common")
 }
 
 function directxtex.import()
@@ -9,7 +10,8 @@ end
 
 function directxtex.includes()
 	includedirs {
-		directxtex.source
+		directxtex.source,
+		directxtex.common
 	}
 end
 
@@ -20,6 +22,7 @@ function directxtex.project()
 		directxtex.includes()
 
 		files {
+			path.join(directxtex.common, "*.h"),
 			path.join(directxtex.source, "*.h"),
 			path.join(directxtex.source, "*.cpp"),
 			path.join(directxtex.source, "*.inl"),
