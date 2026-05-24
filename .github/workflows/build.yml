@@ -12,7 +12,7 @@ on:
     types: [opened, synchronize, reopened]
 
 concurrency:
-  group: release-latest
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
