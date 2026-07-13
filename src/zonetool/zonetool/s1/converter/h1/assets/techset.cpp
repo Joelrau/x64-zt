@@ -534,32 +534,9 @@ namespace zonetool::s1
 				{zonetool::s1::MTL_WORLDVERT_T4N1, zonetool::h1::MTL_WORLDVERT_T4N1D0},
 				{zonetool::s1::MTL_WORLDVERT_T4N2, zonetool::h1::MTL_WORLDVERT_T4N2D0},
 				{zonetool::s1::MTL_WORLDVERT_T4N3, zonetool::h1::MTL_WORLDVERT_T4N3D0},
-				{zonetool::s1::MTL_WORLDVERT_T4N4, zonetool::h1::MTL_WORLDVERT_T4N4D0},
 				{zonetool::s1::MTL_WORLDVERT_T5N1, zonetool::h1::MTL_WORLDVERT_T5N1D0},
 				{zonetool::s1::MTL_WORLDVERT_T5N2, zonetool::h1::MTL_WORLDVERT_T5N2D0},
 				{zonetool::s1::MTL_WORLDVERT_T5N3, zonetool::h1::MTL_WORLDVERT_T5N3D0},
-				{zonetool::s1::MTL_WORLDVERT_T5N4, zonetool::h1::MTL_WORLDVERT_T5N4D0},
-				{zonetool::s1::MTL_WORLDVERT_T5N5, zonetool::h1::MTL_WORLDVERT_T5N5D0},
-				{zonetool::s1::MTL_WORLDVERT_T6N1, zonetool::h1::MTL_WORLDVERT_T6N1D0},
-				{zonetool::s1::MTL_WORLDVERT_T6N2, zonetool::h1::MTL_WORLDVERT_T6N2D0},
-				{zonetool::s1::MTL_WORLDVERT_T6N3, zonetool::h1::MTL_WORLDVERT_T6N3D0},
-				{zonetool::s1::MTL_WORLDVERT_T6N4, zonetool::h1::MTL_WORLDVERT_T6N4D0},
-				{zonetool::s1::MTL_WORLDVERT_T6N5, zonetool::h1::MTL_WORLDVERT_T6N5D0},
-				{zonetool::s1::MTL_WORLDVERT_T7N1, zonetool::h1::MTL_WORLDVERT_T7N1D0},
-				{zonetool::s1::MTL_WORLDVERT_T7N2, zonetool::h1::MTL_WORLDVERT_T7N2D0},
-				{zonetool::s1::MTL_WORLDVERT_T7N3, zonetool::h1::MTL_WORLDVERT_T7N3D0},
-				{zonetool::s1::MTL_WORLDVERT_T7N4, zonetool::h1::MTL_WORLDVERT_T7N4D0},
-				{zonetool::s1::MTL_WORLDVERT_T7N5, zonetool::h1::MTL_WORLDVERT_T7N5D0},
-				{zonetool::s1::MTL_WORLDVERT_T8N1, zonetool::h1::MTL_WORLDVERT_T8N1D0},
-				{zonetool::s1::MTL_WORLDVERT_T8N2, zonetool::h1::MTL_WORLDVERT_T8N2D0},
-				{zonetool::s1::MTL_WORLDVERT_T8N3, zonetool::h1::MTL_WORLDVERT_T8N3D0},
-				{zonetool::s1::MTL_WORLDVERT_T8N4, zonetool::h1::MTL_WORLDVERT_T8N4D0},
-				{zonetool::s1::MTL_WORLDVERT_T8N5, zonetool::h1::MTL_WORLDVERT_T8N5D0},
-				{zonetool::s1::MTL_WORLDVERT_T9N1, zonetool::h1::MTL_WORLDVERT_T9N1D0},
-				{zonetool::s1::MTL_WORLDVERT_T9N2, zonetool::h1::MTL_WORLDVERT_T9N2D0},
-				{zonetool::s1::MTL_WORLDVERT_T9N3, zonetool::h1::MTL_WORLDVERT_T9N3D0},
-				{zonetool::s1::MTL_WORLDVERT_T9N4, zonetool::h1::MTL_WORLDVERT_T9N4D0},
-				{zonetool::s1::MTL_WORLDVERT_T9N5, zonetool::h1::MTL_WORLDVERT_T9N5D0},
 			};
 
 			template <typename T, typename S>
@@ -595,7 +572,7 @@ namespace zonetool::s1
 				}
 				else
 				{
-					ZONETOOL_ERROR("Unable to map worldVertFormat %d for technique '%s'!", asset->worldVertFormat, asset->name);
+					ZONETOOL_FATAL("Unable to map worldVertFormat %d for technique '%s'!", asset->worldVertFormat, asset->name);
 					new_asset->worldVertFormat = 0;
 				}
 

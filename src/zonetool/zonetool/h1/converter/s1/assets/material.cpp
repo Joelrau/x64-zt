@@ -14,6 +14,15 @@ namespace zonetool::h1
 	{
 		namespace material
 		{
+			std::uint8_t convert_material_type(std::uint8_t material_type)
+			{
+				if (material_type == CAMERA_REGION_NONE)
+				{
+					return zonetool::s1::CAMERA_REGION_NONE;
+				}
+				return material_type;
+			}
+
 			zonetool::s1::Material* convert(Material* asset, utils::memory::allocator& allocator)
 			{
 				const auto new_asset = allocator.allocate<zonetool::s1::Material>();
@@ -39,7 +48,7 @@ namespace zonetool::h1
 				new_asset->stateBitsCount = asset->stateBitsCount;
 				new_asset->stateFlags = asset->stateFlags; // convert?
 				new_asset->cameraRegion = asset->cameraRegion; // convert?
-				new_asset->materialType = asset->materialType; // convert?
+				new_asset->materialType = convert_material_type(asset->materialType);
 				new_asset->layerCount = asset->layerCount;
 				new_asset->assetFlags = asset->assetFlags; // convert?
 

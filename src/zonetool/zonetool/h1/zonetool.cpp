@@ -1151,6 +1151,8 @@ namespace zonetool::h1
 
 		zonetool::taskbar::set_indeterminate();
 
+		std::vector<std::string> paths = filesystem::get_search_paths();
+
 		try
 		{
 			parse_csv_file(zone.get(), fastfile, fastfile);
@@ -1160,6 +1162,8 @@ namespace zonetool::h1
 			ZONETOOL_ERROR("%s", ex.what());
 			return;
 		}
+
+		filesystem::get_search_paths() = paths;
 
 		// allocate zone buffer
 		auto buffer = alloc_buffer();

@@ -23,12 +23,8 @@ namespace zonetool::h1
 					new_asset->routing.data[i].dest = asset->routing.data[i].dest;
 					new_asset->routing.data[i].mask = asset->routing.data[i].mask;
 
-					if (asset->routing.data[i].source > 18)
-					{
-						//memset(&new_asset->routing.data[i], 0x0, sizeof(zonetool::s1::MaterialStreamRouting));
-						//new_asset->streamCount--;
-					}
-					else if (asset->routing.data[i].source > 9)
+					// need to fix source and dest...
+					if (new_asset->routing.data[i].source > 9)
 					{
 						new_asset->routing.data[i].source -= 2;
 					}
