@@ -33,18 +33,23 @@ Check out the [Aurora Zonetool Basics](https://docs.auroramod.dev/zonetool-basic
   * `skip common`: Skips common zones when dumping a map, can be `true` or `false`.
   * `target game`: The game to convert the assets to.
 
-## Conversion support
-The conversions for how assets can translate is showed on a table below:
+## Asset Conversion Support
 
-- ✔️ = Fully supported
-- ⚠️ = Partial (experimental)
-- ❌ = Not supported
+The table below shows which asset conversions are currently supported.
 
-|            | **IW6** | **S1** | **H1** | **H2** | **T7** | **IW7** |
-| ---------- | ------ | ------ | ------ | ------ | ------ | ------ |
-| **IW6**    | ✔️     | ❌     | ✔️     | ✔️     | ❌     | ✔️     |
-| **S1**     | ❌     | ✔️     | ✔️     | ✔️     | ❌     | ❌     |
-| **H1**     | ❌     | ⚠️     | ✔️     | ✔️     | ❌     | ⚠️     |
-| **H2**     | ❌     | ❌     | ✔️     | ✔️     | ❌     | ❌     |
-| **T7**     | ❌     | ❌     | ⚠️     | ❌     | ❌ | ⚠️     |
-| **IW7**    | ❌     | ❌     | ✔️     | ❌     | ❌     | ✔️ |  
+- **Rows** = Source game
+- **Columns** = Target game
+
+Legend:
+- ✔️ Fully supported
+- ⚠️ Partially supported (experimental)
+- ❌ Not supported
+
+| **From ↓ / To →** | **IW6** | **S1** | **H1** | **H2** | **T7** | **IW7** |
+|-------------------|:-------:|:------:|:------:|:------:|:------:|:-------:|
+| **IW6** | ✔️ | ❌ | ✔️ | ✔️ | ❌ | ❌ |
+| **S1**  | ❌ | ✔️ | ✔️ | ✔️ | ❌ | ❌ |
+| **H1**  | ❌ | ⚠️ | ✔️ | ✔️ | ❌ | ⚠️ |
+| **H2**  | ❌ | ❌ | ✔️ | ✔️ | ❌ | ❌ |
+| **T7**  | ❌ | ❌ | ⚠️ | ❌ | ✔️ | ⚠️ |
+| **IW7** | ❌ | ❌ | ❌ | ❌ | ❌ | ✔️ |
