@@ -66,6 +66,7 @@ namespace iwi
 	}
 	using namespace shared;
 
+	// iw4/iw5/codo file header (versions 8 and 9)
 	namespace iw5
 	{
 		enum GfxImageFlags : std::uint32_t
@@ -86,6 +87,7 @@ namespace iwi
 			IMG_FLAG_MAPTYPE_CUBE = 0x10000,
 			IMG_FLAG_MAPTYPE_3D = 0x20000,
 			IMG_FLAG_MAPTYPE_1D = 0x30000,
+			IMG_FLAG_MAPTYPE_MASK = 0x30000,
 			IMG_FLAG_NORMALMAP = 0x40000,
 			IMG_FLAG_INTENSITY_TO_ALPHA = 0x80000,
 			IMG_FLAG_DYNAMIC = 0x1000000,
@@ -105,6 +107,7 @@ namespace iwi
 		};
 	}
 
+	// iw3 file header (version 6)
 	namespace iw3
 	{
 		enum GfxImageFlags : std::uint8_t
@@ -117,9 +120,6 @@ namespace iwi
 			IMG_FLAG_LEGACY_NORMALS = 0x20,
 			IMG_FLAG_CLAMP_U = 0x40,
 			IMG_FLAG_CLAMP_V = 0x80,
-			//IMG_FLAG_DYNAMIC = 0x10000,
-			//IMG_FLAG_RENDER_TARGET = 0x20000,
-			//IMG_FLAG_SYSTEMMEM = 0x40000,
 		};
 
 		struct GfxImageFileHeader
@@ -133,6 +133,7 @@ namespace iwi
 		};
 	}
 
+	// normalized in-memory header every supported version is converted to before parsing
 	namespace iwx
 	{
 		enum GfxImageFlags : std::uint32_t
@@ -147,6 +148,7 @@ namespace iwi
 			IMG_FLAG_MAPTYPE_CUBE = 0x10000,
 			IMG_FLAG_MAPTYPE_3D = 0x20000,
 			IMG_FLAG_MAPTYPE_1D = 0x30000,
+			IMG_FLAG_MAPTYPE_MASK = 0x30000,
 			IMG_FLAG_NORMALMAP = 0x40000,
 		};
 
@@ -160,7 +162,9 @@ namespace iwi
 		};
 	}
 
-	bool fixup_normal_map(GfxImage* img_);
+	// converts a parsed DXT5 normal map (normal in g/a) to BC5_SNORM (normal in r/g) in place
+	bool fixup_normal_map(GfxImage* image);
 
-	GfxImage* parse_iwi(const std::string& name, void* mem, GfxImage* img_, bool is_normal_map = false);
+	// parses "images\<name>.iwi"; mem must be a zonetool::zone_memory*
+	GfxImage* parse_iwi(const std::string& name, void* mem, GfxImage* image, bool is_normal_map = false);
 }

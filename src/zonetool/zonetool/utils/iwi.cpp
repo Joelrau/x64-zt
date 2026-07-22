@@ -1,5 +1,6 @@
 #include <std_include.hpp>
 #include "iwi.hpp"
+#include "iwi_wavelet.hpp"
 
 #include "utils.hpp"
 
@@ -10,258 +11,126 @@
 #include <DirectXTex.h>
 #pragma warning( pop )
 
-#include <utils/io.hpp>
 #include <utils/string.hpp>
 
 using namespace zonetool;
 
-namespace
-{
-	std::string clean_name(const std::string& name)
-	{
-		auto new_name = name;
-
-		for (auto i = 0u; i < name.size(); i++)
-		{
-			switch (new_name[i])
-			{
-			case '*':
-				new_name[i] = '_';
-				break;
-			}
-		}
-
-		return new_name;
-	}
-}
-
 namespace iwi
 {
-	DXGI_FORMAT dxgi_format_from_iwi(GfxImageFileFormat format)
+	namespace
 	{
-		switch (format)
+		std::string clean_name(const std::string& name)
 		{
-		case IMG_FORMAT_DXT1:
-			return DXGI_FORMAT_BC1_UNORM; // D3DFMT_DXT1
-			break;
-		case IMG_FORMAT_DXT3:
-			return DXGI_FORMAT_BC2_UNORM; // D3DFMT_DXT3
-			break;
-		case IMG_FORMAT_DXT5:
-			return DXGI_FORMAT_BC3_UNORM; // D3DFMT_DXT5
-			break;
-		case IMG_FORMAT_BITMAP_RGBA:
-			return DXGI_FORMAT_R8G8B8A8_UNORM; // DXGI_FORMAT_B8G8R8A8_UNORM // D3DFMT_A8R8G8B8
-			break;
-		case IMG_FORMAT_BITMAP_RGB:
-			return DXGI_FORMAT_R8G8B8A8_UNORM; // DXGI_FORMAT_B8G8R8X8_UNORM // D3DFMT_X8R8G8B8
-			break;
-		case IMG_FORMAT_BITMAP_LUMINANCE_ALPHA:
-			return DXGI_FORMAT_R8G8B8A8_UNORM; //DXGI_FORMAT_R8_UNORM; // Not available // D3DFMT_A8L8
-			break;
-		case IMG_FORMAT_BITMAP_LUMINANCE:
-			return DXGI_FORMAT_R8G8B8A8_UNORM; //DXGI_FORMAT_R8_UNORM; // D3DFMT_L8
-			break;
-		case IMG_FORMAT_BITMAP_ALPHA:
-			return DXGI_FORMAT_A8_UNORM; // D3DFMT_A8
-			break;
-		}
-		return DXGI_FORMAT_UNKNOWN;
-	}
-
-	unsigned int image_count_mipmaps(unsigned int width, unsigned int height, unsigned int depth)
-	{
-		unsigned int mipRes;
-		unsigned int mipCount;
-
-		mipCount = 1;
-		for (mipRes = 1; mipRes < width || mipRes < height || mipRes < depth; mipRes *= 2)
-			++mipCount;
-		return mipCount;
-	}
-
-	inline std::uint32_t from_argb(std::uint32_t argb)
-	{
-		return
-			((argb & 0x00FF0000) >> 16) |
-			((argb & 0x0000FF00)) |
-			((argb & 0x000000FF) << 16) |
-			((argb & 0xFF000000));
-	}
-
-	bool fixup_normal_map(GfxImage* img_)
-	{
-		if (img_ == nullptr)
-		{
-			return false;
+			auto new_name = name;
+			std::replace(new_name.begin(), new_name.end(), '*', '_');
+			return new_name;
 		}
 
-		if (img_->pixelData == nullptr)
+		DXGI_FORMAT dxgi_format_from_iwi(const GfxImageFileFormat format)
 		{
-			return false;
-		}
-
-		const auto original_size = img_->dataLen;
-		const auto original_pixels = img_->pixelData;
-
-		auto name = img_->name;
-
-		[[maybe_unused]] auto dxgi_format = img_->imageFormat;
-		int width = img_->width;
-		int height = img_->height;
-		[[maybe_unused]] int level_count = img_->levelCount;
-		[[maybe_unused]] bool has_levels = img_->levelCount > 1;
-
-		std::uint8_t* pixel_data = original_pixels;
-		std::size_t pixel_data_size = original_size;
-
-		std::vector<std::uint8_t> new_pixels;
-		new_pixels.resize(original_size);
-
-		unsigned int total_size = static_cast<unsigned int>(pixel_data_size);
-
-		unsigned int w = width;
-		unsigned int h = height;
-
-		unsigned int data_left = total_size;
-		unsigned int data_offset = 0;
-		unsigned int i = 0;
-		unsigned int x = static_cast<unsigned int>(std::pow<int, int>(2, level_count - 1));
-		while (data_left)
-		{
-			w = std::max(1u, width / x);
-			h = std::max(1u, height / x);
-
-			unsigned int compressed_block_size = 0;
-			switch (img_->imageFormat)
+			switch (format)
 			{
-			case DXGI_FORMAT_BC3_UNORM:
-				compressed_block_size = CompressedBlockSizeDXT5(w, h);
-				break;
+			case IMG_FORMAT_DXT1:
+				return DXGI_FORMAT_BC1_UNORM;
+			case IMG_FORMAT_DXT3:
+				return DXGI_FORMAT_BC2_UNORM;
+			case IMG_FORMAT_DXT5:
+				return DXGI_FORMAT_BC3_UNORM;
+			case IMG_FORMAT_BITMAP_RGBA:
+			case IMG_FORMAT_BITMAP_RGB:
+			case IMG_FORMAT_BITMAP_LUMINANCE_ALPHA:
+			case IMG_FORMAT_BITMAP_LUMINANCE:
+			case IMG_FORMAT_WAVELET_RGBA:
+			case IMG_FORMAT_WAVELET_RGB:
+			case IMG_FORMAT_WAVELET_LUMINANCE_ALPHA:
+			case IMG_FORMAT_WAVELET_LUMINANCE:
+				return DXGI_FORMAT_R8G8B8A8_UNORM;
+			case IMG_FORMAT_BITMAP_ALPHA:
+			case IMG_FORMAT_WAVELET_ALPHA:
+				return DXGI_FORMAT_A8_UNORM;
 			default:
-				ZONETOOL_FATAL("Normalmap has to be in a compressed format! (%s)", name);
-				break;
+				return DXGI_FORMAT_UNKNOWN;
 			}
+		}
 
-			unsigned int data_to_skip_size = data_offset;
+		bool is_dxt_format(const GfxImageFileFormat format)
+		{
+			return format == IMG_FORMAT_DXT1 || format == IMG_FORMAT_DXT3 || format == IMG_FORMAT_DXT5;
+		}
 
-			if (data_to_skip_size >= total_size)
+		bool is_bitmap_format(const GfxImageFileFormat format)
+		{
+			return format >= IMG_FORMAT_BITMAP_RGBA && format <= IMG_FORMAT_BITMAP_ALPHA;
+		}
+
+		bool is_wavelet_format(const GfxImageFileFormat format)
+		{
+			return format >= IMG_FORMAT_WAVELET_RGBA && format <= IMG_FORMAT_WAVELET_ALPHA;
+		}
+
+		// IMG_FORMAT_WAVELET_* mirror IMG_FORMAT_BITMAP_* with the same channel layout
+		GfxImageFileFormat wavelet_to_bitmap_format(const GfxImageFileFormat format)
+		{
+			return static_cast<GfxImageFileFormat>(format - (IMG_FORMAT_WAVELET_RGBA - IMG_FORMAT_BITMAP_RGBA));
+		}
+
+		unsigned int bitmap_channel_count(const GfxImageFileFormat format)
+		{
+			switch (format)
 			{
-				ZONETOOL_FATAL("Something went horribly wrong converting normalmap \"%s\"", name);
-			}
-
-			auto pixels_block = pixel_data + data_to_skip_size;
-
-			// uncompress pixels
-			unsigned int uncompressed_size = 4 * w * h;
-			std::vector<std::uint8_t> uncompressed_pixels;
-			uncompressed_pixels.resize(uncompressed_size * 16); // piece of shit
-			memset(uncompressed_pixels.data(), 0, uncompressed_pixels.size());
-
-			switch (img_->imageFormat)
-			{
-			case DXGI_FORMAT_BC3_UNORM:
-				BlockDecompressImageDXT5(w, h, pixels_block, reinterpret_cast<unsigned int*>(uncompressed_pixels.data()));
-				break;
+			case IMG_FORMAT_BITMAP_RGBA:
+				return 4;
+			case IMG_FORMAT_BITMAP_RGB:
+				return 3;
+			case IMG_FORMAT_BITMAP_LUMINANCE_ALPHA:
+				return 2;
 			default:
-				ZONETOOL_FATAL("Normalmap has to be in a compressed format! (%s)", name);
-				break;
+				return 1;
 			}
+		}
 
-			auto uncomp_pixels = uncompressed_pixels.data();
-
-			// swap channels
+		unsigned int count_mipmaps(const unsigned int width, const unsigned int height, const unsigned int depth)
+		{
+			unsigned int count = 1;
+			for (unsigned int res = 1; res < width || res < height || res < depth; res *= 2)
 			{
-				for (auto pixel_index = 0u; pixel_index < uncompressed_size; pixel_index += 4)
-				{
-					[[maybe_unused]] auto r = uncomp_pixels[pixel_index + 0];
-					[[maybe_unused]] auto g = uncomp_pixels[pixel_index + 1];
-					[[maybe_unused]] auto b = uncomp_pixels[pixel_index + 2];
-					[[maybe_unused]] auto a = uncomp_pixels[pixel_index + 3];
-
-					std::uint8_t xy[2] = { g, a };
-
-					uncomp_pixels[pixel_index + 0] = xy[0];
-					uncomp_pixels[pixel_index + 1] = xy[1];
-					uncomp_pixels[pixel_index + 2] = 128ui8;
-					uncomp_pixels[pixel_index + 3] = 255ui8;
-				}
+				++count;
 			}
-
-			// re_compress
-			DirectX::Image img = {};
-
-			img.width = w;
-			img.height = h;
-			img.pixels = uncomp_pixels;
-			img.format = DXGI_FORMAT_R8G8B8A8_UNORM;
-
-			size_t row_pitch{};
-			size_t slice_pitch{};
-
-			DirectX::ComputePitch(img.format, img.width, img.height, row_pitch, slice_pitch);
-
-			img.rowPitch = row_pitch;
-			img.slicePitch = slice_pitch;
-
-			DirectX::ScratchImage sc_img{};
-			DirectX::Compress(img, DXGI_FORMAT_BC5_SNORM, DirectX::TEX_COMPRESS_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, sc_img);
-
-			// copy data
-			assert(sc_img.GetPixelsSize() == compressed_block_size);
-			memcpy(new_pixels.data() + data_offset, sc_img.GetPixels(), compressed_block_size);
-
-			// continue
-			data_left -= compressed_block_size;
-			data_offset += compressed_block_size;
-			i++;
-			x = x / 2;
+			return count;
 		}
 
-		pixel_data = new_pixels.data();
-		pixel_data_size = new_pixels.size();
-
-		assert(original_size >= pixel_data_size);
-
-		std::memset(img_->pixelData, 0, pixel_data_size);
-		std::memcpy(img_->pixelData, pixel_data, pixel_data_size);
-		img_->dataLen = static_cast<unsigned int>(pixel_data_size);
-
-		img_->imageFormat = DXGI_FORMAT_BC5_SNORM;
-
-		return true;
-	}
-
-	GfxImage* parse_iwi(const std::string& name, void* meme, GfxImage* img_, bool is_normal_map)
-	{
-		if (img_ == nullptr)
+		unsigned int compressed_size_for_level(const GfxImageFileFormat format, const unsigned int width, const unsigned int height)
 		{
-			return nullptr;
+			return format == IMG_FORMAT_DXT1
+				? CompressedBlockSizeDXT1(width, height)
+				: CompressedBlockSizeDXT5(width, height); // dxt3 and dxt5 both use 16 bytes per 4x4 block
 		}
 
-		zone_memory* mem = reinterpret_cast<zone_memory*>(meme);
-
-		const auto path = utils::string::va("images\\%s.iwi", clean_name(name).data());
-		auto file = filesystem::file(path);
-		file.open("rb");
-		if (file.get_fp())
+		bool convert_header(const std::string& name, const std::vector<std::uint8_t>& bytes, iwx::GfxImageFileHeader& header)
 		{
-			auto size = file.size();
-			auto bytes = file.read_bytes(size);
-			file.close();
+			if (bytes.size() < 4 || std::memcmp(bytes.data(), "IWi", 3) != 0)
+			{
+				ZONETOOL_ERROR("\"%s.iwi\" is not a valid IWI file", name.data());
+				return false;
+			}
 
 			const auto version = bytes[3];
-
-			// convert header
-			iwx::GfxImageFileHeader iwx_header{};
-			if (version == 8 || version == 9) // iw4, iw5, codo
+			switch (version)
 			{
-				const auto iwi_header = reinterpret_cast<iw5::GfxImageFileHeader*>(bytes.data());
+			case 8: // iw4
+			case 9: // iw5, codo
+			{
+				if (bytes.size() < sizeof(iw5::GfxImageFileHeader))
+				{
+					ZONETOOL_ERROR("IWI file \"%s.iwi\" is too small", name.data());
+					return false;
+				}
 
-				iwx_header.format = iwi_header->format;
+				const auto* iwi_header = reinterpret_cast<const iw5::GfxImageFileHeader*>(bytes.data());
 
-				std::uint32_t flags = 0;
-				const auto convert_flag = [&](const iw5::GfxImageFlags iwi_flag, const iwx::GfxImageFlags iwx_flag) -> void
+				// the map type bits use the same encoding as iwx
+				std::uint32_t flags = iwi_header->flags & iw5::IMG_FLAG_MAPTYPE_MASK;
+				const auto convert_flag = [&](const iw5::GfxImageFlags iwi_flag, const iwx::GfxImageFlags iwx_flag)
 				{
 					if ((iwi_header->flags & iwi_flag) != 0)
 					{
@@ -274,36 +143,27 @@ namespace iwi
 				convert_flag(iw5::IMG_FLAG_LEGACY_NORMALS, iwx::IMG_FLAG_LEGACY_NORMALS);
 				convert_flag(iw5::IMG_FLAG_CLAMP_U, iwx::IMG_FLAG_CLAMP_U);
 				convert_flag(iw5::IMG_FLAG_CLAMP_V, iwx::IMG_FLAG_CLAMP_V);
-				//convert_flag(iw5::IMG_FLAG_ALPHA_WEIGHTED_COLORS, iwx::IMG_FLAG_ALPHA_WEIGHTED_COLORS);
-				//convert_flag(iw5::IMG_FLAG_DXTC_APPROX_WEIGHTS, iwx::IMG_FLAG_DXTC_APPROX_WEIGHTS);
-				//convert_flag(iw5::IMG_FLAG_GAMMA_NONE, iwx::IMG_FLAG_GAMMA_NONE);
-				//convert_flag(iw5::IMG_FLAG_GAMMA_SRGB, iwx::IMG_FLAG_GAMMA_SRGB);
-				//convert_flag(iw5::IMG_FLAG_GAMMA_PWL, iwx::IMG_FLAG_GAMMA_PWL);
-				//convert_flag(iw5::IMG_FLAG_GAMMA_2, iwx::IMG_FLAG_GAMMA_2);
-				convert_flag(iw5::IMG_FLAG_MAPTYPE_2D, iwx::IMG_FLAG_MAPTYPE_2D);
-				convert_flag(iw5::IMG_FLAG_MAPTYPE_CUBE, iwx::IMG_FLAG_MAPTYPE_CUBE);
-				convert_flag(iw5::IMG_FLAG_MAPTYPE_3D, iwx::IMG_FLAG_MAPTYPE_3D);
-				convert_flag(iw5::IMG_FLAG_MAPTYPE_1D, iwx::IMG_FLAG_MAPTYPE_1D);
 				convert_flag(iw5::IMG_FLAG_NORMALMAP, iwx::IMG_FLAG_NORMALMAP);
-				//convert_flag(iw5::IMG_FLAG_INTENSITY_TO_ALPHA, iwx::IMG_FLAG_INTENSITY_TO_ALPHA);
-				//convert_flag(iw5::IMG_FLAG_DYNAMIC, iwx::IMG_FLAG_DYNAMIC);
-				//convert_flag(iw5::IMG_FLAG_RENDER_TARGET, iwx::IMG_FLAG_RENDER_TARGET);
-				//convert_flag(iw5::IMG_FLAG_SYSTEMMEM, iwx::IMG_FLAG_SYSTEMMEM);
-				iwx_header.flags = static_cast<iwx::GfxImageFlags>(flags);
 
-				memcpy(&iwx_header.dimensions, &iwi_header->dimensions, sizeof(short[3]));
-				memcpy(&iwx_header.fileSizeForPicmip, &iwi_header->fileSizeForPicmip, sizeof(int[4]));
-
-				iwx_header.size = sizeof(iw5::GfxImageFileHeader);
+				header.format = iwi_header->format;
+				header.flags = static_cast<iwx::GfxImageFlags>(flags);
+				std::memcpy(&header.dimensions, &iwi_header->dimensions, sizeof(header.dimensions));
+				std::memcpy(&header.fileSizeForPicmip, &iwi_header->fileSizeForPicmip, sizeof(header.fileSizeForPicmip));
+				header.size = sizeof(iw5::GfxImageFileHeader);
+				return true;
 			}
-			else if (version == 6) // iw3
+			case 6: // iw3
 			{
-				const auto iwi_header = reinterpret_cast<iw3::GfxImageFileHeader*>(bytes.data());
+				if (bytes.size() < sizeof(iw3::GfxImageFileHeader))
+				{
+					ZONETOOL_ERROR("IWI file \"%s.iwi\" is too small", name.data());
+					return false;
+				}
 
-				iwx_header.format = iwi_header->format;
+				const auto* iwi_header = reinterpret_cast<const iw3::GfxImageFileHeader*>(bytes.data());
 
 				std::uint32_t flags = 0;
-				const auto convert_flag = [&](const iw3::GfxImageFlags iwi_flag, const iwx::GfxImageFlags iwx_flag) -> void
+				const auto convert_flag = [&](const iw3::GfxImageFlags iwi_flag, const iwx::GfxImageFlags iwx_flag)
 				{
 					if ((iwi_header->flags & iwi_flag) != 0)
 					{
@@ -313,317 +173,351 @@ namespace iwi
 				convert_flag(iw3::IMG_FLAG_NOPICMIP, iwx::IMG_FLAG_NOPICMIP);
 				convert_flag(iw3::IMG_FLAG_NOMIPMAPS, iwx::IMG_FLAG_NOMIPMAPS);
 				convert_flag(iw3::IMG_FLAG_CUBEMAP, iwx::IMG_FLAG_MAPTYPE_CUBE);
-				//convert_flag(iw3::IMG_FLAG_VOLMAP, iwx::IMG_FLAG_VOLMAP);
+				convert_flag(iw3::IMG_FLAG_VOLMAP, iwx::IMG_FLAG_MAPTYPE_3D);
 				convert_flag(iw3::IMG_FLAG_STREAMING, iwx::IMG_FLAG_STREAMING);
 				convert_flag(iw3::IMG_FLAG_LEGACY_NORMALS, iwx::IMG_FLAG_LEGACY_NORMALS);
 				convert_flag(iw3::IMG_FLAG_CLAMP_U, iwx::IMG_FLAG_CLAMP_U);
 				convert_flag(iw3::IMG_FLAG_CLAMP_V, iwx::IMG_FLAG_CLAMP_V);
-				//convert_flag(iw3::IMG_FLAG_DYNAMIC, iwx::IMG_FLAG_DYNAMIC);
-				//convert_flag(iw3::IMG_FLAG_RENDER_TARGET, iwx::IMG_FLAG_RENDER_TARGET);
-				//convert_flag(iw3::IMG_FLAG_SYSTEMMEM, iwx::IMG_FLAG_SYSTEMMEM);
-				iwx_header.flags = static_cast<iwx::GfxImageFlags>(flags);
 
-				memcpy(&iwx_header.dimensions, &iwi_header->dimensions, sizeof(short[3]));
-				memcpy(&iwx_header.fileSizeForPicmip, &iwi_header->fileSizeForPicmip, sizeof(int[4]));
-
-				iwx_header.size = sizeof(iw3::GfxImageFileHeader);
+				header.format = iwi_header->format;
+				header.flags = static_cast<iwx::GfxImageFlags>(flags);
+				std::memcpy(&header.dimensions, &iwi_header->dimensions, sizeof(header.dimensions));
+				std::memcpy(&header.fileSizeForPicmip, &iwi_header->fileSizeForPicmip, sizeof(header.fileSizeForPicmip));
+				header.size = sizeof(iw3::GfxImageFileHeader);
+				return true;
 			}
-			else
-			{
+			default:
 				ZONETOOL_ERROR("Unknown IWI version (%i) for image \"%s.iwi\"", static_cast<int>(version), name.data());
-				return nullptr;
-			}
-
-			ZONETOOL_INFO("Parsing IWI image \"%s\", version (%i)", name.data(), version);
-
-			const auto iwi_header = &iwx_header;
-
-			bool has_mipmaps = (iwi_header->flags & iwx::IMG_FLAG_NOMIPMAPS) == 0;
-
-			const unsigned int width = iwi_header->dimensions[0];
-			const unsigned int height = iwi_header->dimensions[1];
-			const unsigned int depth = iwi_header->dimensions[2];
-
-			unsigned int mipmaps_count = has_mipmaps ? image_count_mipmaps(width, height, depth) : 1;
-
-			auto dxgi_format = dxgi_format_from_iwi(iwi_header->format);
-
-			if ((iwi_header->flags & iwx::IMG_FLAG_MAPTYPE_CUBE) != 0) // parse cube
-			{
-				if (iwi_header->format != IMG_FORMAT_DXT1 &&
-					iwi_header->format != IMG_FORMAT_DXT3 &&
-					iwi_header->format != IMG_FORMAT_DXT5)
-				{
-					ZONETOOL_ERROR("IWI format (%d) is not supported for CUBE image \"%s.iwi\"", iwi_header->format, name.data());
-					return nullptr;
-				}
-
-				std::uint8_t* pixel_data;
-				std::size_t pixel_data_size = 0;
-
-				// skip mipmaps
-				if (has_mipmaps)
-				{
-					unsigned int size_for_best_level = 0;
-					switch (iwi_header->format)
-					{
-					case IMG_FORMAT_DXT1:
-						size_for_best_level = CompressedBlockSizeDXT1(width, height) * 6;
-						break;
-					case IMG_FORMAT_DXT3:
-					case IMG_FORMAT_DXT5:
-						size_for_best_level = CompressedBlockSizeDXT5(width, height) * 6;
-						break;
-					}
-					unsigned int data_to_skip_size = iwi_header->fileSizeForPicmip[0] - size_for_best_level - iwi_header->size;
-
-					if (data_to_skip_size >= bytes.size() - iwi_header->size)
-					{
-						ZONETOOL_FATAL("Something went horribly wrong parsing IWI file \"%s.iwi\"", name.data());
-					}
-
-					pixel_data = bytes.data() + iwi_header->size + data_to_skip_size;
-					pixel_data_size = bytes.size() - iwi_header->size - data_to_skip_size;
-				}
-				else
-				{
-					pixel_data = bytes.data() + iwi_header->size;
-					pixel_data_size = bytes.size() - iwi_header->size;
-				}
-
-				const unsigned int total_len = static_cast<unsigned int>(pixel_data_size);
-
-				// zone image
-				auto* image = img_;
-				image->name = mem->duplicate_string(name);
-				image->imageFormat = dxgi_format;
-				image->mapType = MAPTYPE_CUBE;
-				image->flags = iwi_header->flags;
-				image->width = static_cast<unsigned short>(width);
-				image->height = static_cast<unsigned short>(height);
-				image->depth = static_cast<unsigned short>(depth);
-				image->dataLen = total_len;
-				image->numElements = 1;
-				image->levelCount = 1;
-
-				image->pixelData = mem->allocate<unsigned char>(total_len);
-				memcpy(image->pixelData, pixel_data, total_len);
-
-				return image;
-			}
-			else if ((iwi_header->flags & iwx::IMG_FLAG_MAPTYPE_3D) != 0) // parse 3d
-			{
-				ZONETOOL_ERROR("3D IWI files are not supported yet! (%s.iwi)", name.data());
-				return nullptr;
-			}
-			else if ((iwi_header->flags & iwx::IMG_FLAG_MAPTYPE_1D) != 0) // parse 1d
-			{
-				ZONETOOL_ERROR("1D IWI files are not supported yet! (%s.iwi)", name.data());
-				return nullptr;
-			}
-			else // parse 2d
-			{
-				if (iwi_header->format != IMG_FORMAT_DXT1 &&
-					iwi_header->format != IMG_FORMAT_DXT3 &&
-					iwi_header->format != IMG_FORMAT_DXT5 &&
-					iwi_header->format != IMG_FORMAT_BITMAP_RGBA &&
-					iwi_header->format != IMG_FORMAT_BITMAP_RGB &&
-					iwi_header->format != IMG_FORMAT_BITMAP_LUMINANCE_ALPHA &&
-					iwi_header->format != IMG_FORMAT_BITMAP_LUMINANCE &&
-					iwi_header->format != IMG_FORMAT_BITMAP_ALPHA)
-				{
-					ZONETOOL_ERROR("IWI format (%d) is not supported for 2D image \"%s.iwi\"", iwi_header->format, name.data());
-					return nullptr;
-				}
-
-				std::uint8_t* pixel_data;
-				std::size_t pixel_data_size = 0;
-				{
-					pixel_data = bytes.data() + iwi_header->size;
-					pixel_data_size = bytes.size() - iwi_header->size;
-				}
-
-				if (iwi_header->format == IMG_FORMAT_BITMAP_RGBA ||
-					iwi_header->format == IMG_FORMAT_BITMAP_RGB ||
-					iwi_header->format == IMG_FORMAT_BITMAP_LUMINANCE_ALPHA ||
-					iwi_header->format == IMG_FORMAT_BITMAP_LUMINANCE ||
-					iwi_header->format == IMG_FORMAT_BITMAP_ALPHA)
-				{
-					const auto get_from_channels = [](GfxImageFileFormat from)
-					{
-						unsigned int channels = 0;
-						switch (from)
-						{
-						case IMG_FORMAT_BITMAP_RGBA:
-							channels = 4;
-							break;
-						case IMG_FORMAT_BITMAP_RGB:
-							channels = 3;
-							break;
-						case IMG_FORMAT_BITMAP_LUMINANCE_ALPHA:
-							channels = 2;
-							break;
-						case IMG_FORMAT_BITMAP_LUMINANCE:
-						case IMG_FORMAT_BITMAP_ALPHA:
-							channels = 1;
-							break;
-						}
-						return channels;
-					};
-
-					const auto get_to_channels = [](DXGI_FORMAT to)
-					{
-						unsigned int channels = 0;
-						switch (to)
-						{
-						case DXGI_FORMAT_R8G8B8A8_UNORM:
-							channels = 4;
-							break;
-						case DXGI_FORMAT_A8_UNORM:
-							channels = 1;
-							break;
-						}
-						return channels;
-					};
-
-					const unsigned int from_channels = get_from_channels(iwi_header->format);
-					const unsigned int to_channels = get_to_channels(dxgi_format);
-					const unsigned int total_len = to_channels * width * height;
-					const unsigned int size_for_best_level = from_channels * width * height;
-
-					// zone image
-					auto* image = img_;
-					image->name = mem->duplicate_string(name);
-					image->imageFormat = dxgi_format;
-					image->mapType = MAPTYPE_2D;
-					image->flags = iwi_header->flags;
-					image->width = static_cast<unsigned short>(width);
-					image->height = static_cast<unsigned short>(height);
-					image->depth = static_cast<unsigned short>(depth);
-					image->dataLen = total_len;
-					image->numElements = 1;
-					image->levelCount = 1;
-
-					// skip mipmaps
-					if (has_mipmaps)
-					{
-						unsigned int data_to_skip_size = iwi_header->fileSizeForPicmip[0] - size_for_best_level - iwi_header->size;
-						pixel_data += data_to_skip_size;
-					}
-
-					image->pixelData = mem->allocate<unsigned char>(total_len);
-					unsigned int j = 0;
-					switch (iwi_header->format)
-					{
-					case IMG_FORMAT_BITMAP_RGBA:
-					case IMG_FORMAT_BITMAP_RGB:
-						// RGBA
-						for (unsigned int i = 0; i < total_len; i += 4)
-						{
-							image->pixelData[i + 0] = pixel_data[j + 0];
-							image->pixelData[i + 1] = from_channels > 1 ? pixel_data[j + 1] : pixel_data[j + 0];
-							image->pixelData[i + 2] = from_channels > 2 ? pixel_data[j + 2] : pixel_data[j + 0];
-							image->pixelData[i + 3] = from_channels > 3 ? pixel_data[j + 3] : 255;
-							j += from_channels;
-
-							// convert
-							auto argb = *(unsigned int*)(&image->pixelData[i]);
-							auto rgba = from_argb(argb);
-							*(unsigned int*)&image->pixelData[i] = rgba;
-						}
-						break;
-					case IMG_FORMAT_BITMAP_LUMINANCE_ALPHA:
-					case IMG_FORMAT_BITMAP_LUMINANCE:
-						// RGBA
-						for (unsigned int i = 0; i < total_len; i += 4)
-						{
-							image->pixelData[i + 0] = pixel_data[j + 0];
-							image->pixelData[i + 1] = pixel_data[j + 0];
-							image->pixelData[i + 2] = pixel_data[j + 0];
-							image->pixelData[i + 3] = from_channels > 1 ? pixel_data[j + 1] : 255;
-							j += from_channels;
-						}
-						break;
-					case IMG_FORMAT_BITMAP_ALPHA:
-						// A
-						image->pixelData = mem->allocate<unsigned char>(total_len);
-						memcpy(image->pixelData, pixel_data, total_len);
-						break;
-					}
-
-					return image;
-				}
-
-				const unsigned int total_len = static_cast<unsigned int>(pixel_data_size);
-
-				// zone image
-				auto* image = img_;
-				image->name = mem->duplicate_string(name);
-				image->imageFormat = dxgi_format;
-				image->mapType = MAPTYPE_2D;
-				image->flags = iwi_header->flags;
-				image->width = static_cast<unsigned short>(width);
-				image->height = static_cast<unsigned short>(height);
-				image->depth = static_cast<unsigned short>(depth);
-				image->dataLen = total_len;
-				image->numElements = 1;
-				image->levelCount = static_cast<unsigned char>(mipmaps_count);
-
-				image->pixelData = mem->allocate<unsigned char>(total_len);
-				if (has_mipmaps)
-				{
-					unsigned int w = width;
-					unsigned int h = height;
-
-					unsigned int data_left = total_len;
-					unsigned int data_offset = 0;
-					unsigned int i = 0;
-					unsigned int x = 1;
-					while (data_left)
-					{
-						w = std::max(1u, width / x);
-						h = std::max(1u, height / x);
-
-						unsigned int size_for_level = 0;
-						switch (iwi_header->format)
-						{
-						case IMG_FORMAT_DXT1:
-							size_for_level = CompressedBlockSizeDXT1(w, h);
-							break;
-						case IMG_FORMAT_DXT3:
-						case IMG_FORMAT_DXT5:
-							size_for_level = CompressedBlockSizeDXT5(w, h);
-							break;
-						}
-						switch (dxgi_format)
-						{
-						case DXGI_FORMAT_R8G8B8A8_UNORM:
-							size_for_level = 4 * width * height;
-							break;
-						}
-
-						unsigned int data_to_skip_size = total_len - size_for_level - data_offset;
-
-						if (data_to_skip_size >= pixel_data_size)
-						{
-							ZONETOOL_FATAL("Something went horribly wrong parsing IWI file \"%s.iwi\"", name.data());
-						}
-
-						memcpy(image->pixelData + data_offset, pixel_data + data_to_skip_size, size_for_level);
-						data_left -= size_for_level;
-						data_offset += size_for_level;
-						i++;
-						x = x * 2;
-					}
-				}
-				else
-				{
-					memcpy(image->pixelData, pixel_data, total_len);
-				}
-
-				return image;
+				return false;
 			}
 		}
-		return nullptr;
+
+		GfxImage* make_image(GfxImage* image, zone_memory* mem, const std::string& name, const iwx::GfxImageFileHeader& header,
+			const MapType map_type, const unsigned int data_len, const unsigned int level_count)
+		{
+			image->name = mem->duplicate_string(name);
+			image->imageFormat = dxgi_format_from_iwi(header.format);
+			image->mapType = map_type;
+			image->flags = header.flags;
+			image->width = static_cast<unsigned short>(header.dimensions[0]);
+			image->height = static_cast<unsigned short>(header.dimensions[1]);
+			image->depth = static_cast<unsigned short>(header.dimensions[2]);
+			image->numElements = 1;
+			image->levelCount = static_cast<unsigned char>(level_count);
+			image->dataLen = data_len;
+			image->pixelData = mem->allocate<unsigned char>(data_len);
+			return image;
+		}
+
+		GfxImage* parse_cube(const std::string& name, const iwx::GfxImageFileHeader& header,
+			const std::vector<std::uint8_t>& bytes, zone_memory* mem, GfxImage* image)
+		{
+			if (!is_dxt_format(header.format))
+			{
+				ZONETOOL_ERROR("IWI format (%d) is not supported for CUBE image \"%s.iwi\"", header.format, name.data());
+				return nullptr;
+			}
+
+			const unsigned int width = header.dimensions[0];
+			const unsigned int height = header.dimensions[1];
+
+			const auto* pixel_data = bytes.data() + header.size;
+			auto pixel_data_size = static_cast<unsigned int>(bytes.size()) - header.size;
+
+			// iwi files store mip levels from smallest to largest; keep only the best level (all 6 faces)
+			if ((header.flags & iwx::IMG_FLAG_NOMIPMAPS) == 0)
+			{
+				const unsigned int size_for_best_level = compressed_size_for_level(header.format, width, height) * 6;
+				const unsigned int data_to_skip = header.fileSizeForPicmip[0] - size_for_best_level - header.size;
+
+				if (data_to_skip >= pixel_data_size)
+				{
+					ZONETOOL_FATAL("Something went horribly wrong parsing IWI file \"%s.iwi\"", name.data());
+				}
+
+				pixel_data += data_to_skip;
+				pixel_data_size -= data_to_skip;
+			}
+
+			make_image(image, mem, name, header, MAPTYPE_CUBE, pixel_data_size, 1);
+			std::memcpy(image->pixelData, pixel_data, pixel_data_size);
+			return image;
+		}
+
+		// expands bgr(a)-ordered channel data into rgba8 (or copies a8 through)
+		void convert_bitmap_pixels(const GfxImageFileFormat format, const std::uint8_t* src, std::uint8_t* dst,
+			const unsigned int pixel_count)
+		{
+			const unsigned int src_channels = bitmap_channel_count(format);
+
+			switch (format)
+			{
+			case IMG_FORMAT_BITMAP_RGBA:
+			case IMG_FORMAT_BITMAP_RGB:
+				for (unsigned int i = 0; i < pixel_count; i++, src += src_channels, dst += 4)
+				{
+					dst[0] = src[2];
+					dst[1] = src[1];
+					dst[2] = src[0];
+					dst[3] = src_channels == 4 ? src[3] : 255ui8;
+				}
+				break;
+			case IMG_FORMAT_BITMAP_LUMINANCE_ALPHA:
+			case IMG_FORMAT_BITMAP_LUMINANCE:
+				for (unsigned int i = 0; i < pixel_count; i++, src += src_channels, dst += 4)
+				{
+					dst[0] = src[0];
+					dst[1] = src[0];
+					dst[2] = src[0];
+					dst[3] = src_channels == 2 ? src[1] : 255ui8;
+				}
+				break;
+			case IMG_FORMAT_BITMAP_ALPHA:
+			default:
+				std::memcpy(dst, src, pixel_count);
+				break;
+			}
+		}
+
+		GfxImage* parse_2d_bitmap(const std::string& name, const iwx::GfxImageFileHeader& header,
+			const std::vector<std::uint8_t>& bytes, zone_memory* mem, GfxImage* image)
+		{
+			const unsigned int width = header.dimensions[0];
+			const unsigned int height = header.dimensions[1];
+
+			const unsigned int src_channels = bitmap_channel_count(header.format);
+			const unsigned int dst_channels = header.format == IMG_FORMAT_BITMAP_ALPHA ? 1 : 4;
+
+			const auto* src = bytes.data() + header.size;
+			const auto pixel_data_size = static_cast<unsigned int>(bytes.size()) - header.size;
+
+			// iwi files store mip levels from smallest to largest; keep only the best level
+			if ((header.flags & iwx::IMG_FLAG_NOMIPMAPS) == 0)
+			{
+				const unsigned int size_for_best_level = src_channels * width * height;
+				const unsigned int data_to_skip = header.fileSizeForPicmip[0] - size_for_best_level - header.size;
+
+				if (data_to_skip >= pixel_data_size)
+				{
+					ZONETOOL_FATAL("Something went horribly wrong parsing IWI file \"%s.iwi\"", name.data());
+				}
+
+				src += data_to_skip;
+			}
+
+			const unsigned int total_len = dst_channels * width * height;
+			make_image(image, mem, name, header, MAPTYPE_2D, total_len, 1);
+			convert_bitmap_pixels(header.format, src, image->pixelData, width * height);
+			return image;
+		}
+
+		GfxImage* parse_2d_wavelet(const std::string& name, const iwx::GfxImageFileHeader& header,
+			const std::vector<std::uint8_t>& bytes, zone_memory* mem, GfxImage* image)
+		{
+			const unsigned int width = header.dimensions[0];
+			const unsigned int height = header.dimensions[1];
+			const unsigned int depth = header.dimensions[2];
+
+			const auto bitmap_format = wavelet_to_bitmap_format(header.format);
+			const unsigned int channels = bitmap_channel_count(bitmap_format);
+			const unsigned int dst_channels = bitmap_format == IMG_FORMAT_BITMAP_ALPHA ? 1 : 4;
+
+			const bool has_mipmaps = (header.flags & iwx::IMG_FLAG_NOMIPMAPS) == 0;
+			const unsigned int mip_count = has_mipmaps ? count_mipmaps(width, height, depth) : 1;
+
+			const auto pixels = wavelet::decode_image(bytes.data() + header.size, bytes.size() - header.size,
+				width, height, channels, mip_count);
+			if (pixels.empty())
+			{
+				ZONETOOL_ERROR("Failed to decode wavelet IWI file \"%s.iwi\"", name.data());
+				return nullptr;
+			}
+
+			const unsigned int total_len = dst_channels * width * height;
+			make_image(image, mem, name, header, MAPTYPE_2D, total_len, 1);
+			convert_bitmap_pixels(bitmap_format, pixels.data(), image->pixelData, width * height);
+			return image;
+		}
+
+		GfxImage* parse_2d(const std::string& name, const iwx::GfxImageFileHeader& header,
+			const std::vector<std::uint8_t>& bytes, zone_memory* mem, GfxImage* image)
+		{
+			if (is_bitmap_format(header.format))
+			{
+				return parse_2d_bitmap(name, header, bytes, mem, image);
+			}
+
+			if (is_wavelet_format(header.format))
+			{
+				return parse_2d_wavelet(name, header, bytes, mem, image);
+			}
+
+			if (!is_dxt_format(header.format))
+			{
+				ZONETOOL_ERROR("IWI format (%d) is not supported for 2D image \"%s.iwi\"", header.format, name.data());
+				return nullptr;
+			}
+
+			const unsigned int width = header.dimensions[0];
+			const unsigned int height = header.dimensions[1];
+			const unsigned int depth = header.dimensions[2];
+
+			const bool has_mipmaps = (header.flags & iwx::IMG_FLAG_NOMIPMAPS) == 0;
+			const unsigned int level_count = has_mipmaps ? count_mipmaps(width, height, depth) : 1;
+
+			const auto* pixel_data = bytes.data() + header.size;
+			const auto total_len = static_cast<unsigned int>(bytes.size()) - header.size;
+
+			make_image(image, mem, name, header, MAPTYPE_2D, total_len, level_count);
+
+			if (!has_mipmaps)
+			{
+				std::memcpy(image->pixelData, pixel_data, total_len);
+				return image;
+			}
+
+			// iwi files store mip levels from smallest to largest; flip them to largest first
+			unsigned int data_offset = 0;
+			for (unsigned int level = 0; data_offset < total_len; level++)
+			{
+				const unsigned int w = std::max(1u, width >> level);
+				const unsigned int h = std::max(1u, height >> level);
+
+				const unsigned int size_for_level = compressed_size_for_level(header.format, w, h);
+				const unsigned int src_offset = total_len - size_for_level - data_offset;
+
+				if (src_offset >= total_len)
+				{
+					ZONETOOL_FATAL("Something went horribly wrong parsing IWI file \"%s.iwi\"", name.data());
+				}
+
+				std::memcpy(image->pixelData + data_offset, pixel_data + src_offset, size_for_level);
+				data_offset += size_for_level;
+			}
+
+			return image;
+		}
+	}
+
+	bool fixup_normal_map(GfxImage* image)
+	{
+		if (image == nullptr || image->pixelData == nullptr)
+		{
+			return false;
+		}
+
+		const auto* name = image->name;
+
+		if (image->imageFormat != DXGI_FORMAT_BC3_UNORM)
+		{
+			ZONETOOL_FATAL("Normalmap has to be in a compressed format! (%s)", name);
+		}
+
+		const unsigned int width = image->width;
+		const unsigned int height = image->height;
+		const unsigned int total_size = image->dataLen;
+		const unsigned int level_count = std::max(1u, static_cast<unsigned int>(image->levelCount));
+
+		std::vector<std::uint8_t> new_pixels(total_size);
+
+		// dxt5 and bc5 both use 16 bytes per 4x4 block, so the converted data has the same size and layout.
+		// mip levels are stored largest to smallest after parsing; cube maps repeat the best level once per face.
+		unsigned int data_offset = 0;
+		for (unsigned int i = 0; data_offset < total_size; i++)
+		{
+			const unsigned int level = std::min(i, level_count - 1);
+			const unsigned int w = std::max(1u, width >> level);
+			const unsigned int h = std::max(1u, height >> level);
+
+			const unsigned int compressed_size = CompressedBlockSizeDXT5(w, h);
+			if (data_offset + compressed_size > total_size)
+			{
+				ZONETOOL_FATAL("Something went horribly wrong converting normalmap \"%s\"", name);
+			}
+
+			// decompress the level; block decompression writes whole rows of 4x4 blocks,
+			// so pad the buffer height to the next multiple of 4
+			const unsigned int padded_height = (h + 3) & ~3u;
+			std::vector<std::uint8_t> rgba(4 * w * padded_height);
+			BlockDecompressImageDXT5(w, h, image->pixelData + data_offset, reinterpret_cast<unsigned int*>(rgba.data()));
+
+			// dxt5 normal maps store the normal in (g, a); bc5 expects it in (r, g)
+			for (unsigned int pixel = 0; pixel < 4 * w * h; pixel += 4)
+			{
+				const auto x = rgba[pixel + 1];
+				const auto y = rgba[pixel + 3];
+
+				rgba[pixel + 0] = x;
+				rgba[pixel + 1] = y;
+				rgba[pixel + 2] = 128ui8;
+				rgba[pixel + 3] = 255ui8;
+			}
+
+			DirectX::Image dx_image{};
+			dx_image.width = w;
+			dx_image.height = h;
+			dx_image.format = DXGI_FORMAT_R8G8B8A8_UNORM;
+			dx_image.pixels = rgba.data();
+			DirectX::ComputePitch(dx_image.format, dx_image.width, dx_image.height, dx_image.rowPitch, dx_image.slicePitch);
+
+			DirectX::ScratchImage compressed{};
+			if (FAILED(DirectX::Compress(dx_image, DXGI_FORMAT_BC5_SNORM, DirectX::TEX_COMPRESS_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, compressed)))
+			{
+				ZONETOOL_FATAL("Failed to compress normalmap \"%s\" to BC5", name);
+			}
+
+			assert(compressed.GetPixelsSize() == compressed_size);
+			std::memcpy(new_pixels.data() + data_offset, compressed.GetPixels(), compressed_size);
+
+			data_offset += compressed_size;
+		}
+
+		std::memcpy(image->pixelData, new_pixels.data(), total_size);
+		image->imageFormat = DXGI_FORMAT_BC5_SNORM;
+
+		return true;
+	}
+
+	GfxImage* parse_iwi(const std::string& name, void* mem, GfxImage* image, [[maybe_unused]] bool is_normal_map)
+	{
+		if (image == nullptr)
+		{
+			return nullptr;
+		}
+
+		auto* memory = reinterpret_cast<zone_memory*>(mem);
+
+		const auto path = utils::string::va("images\\%s.iwi", clean_name(name).data());
+		auto file = filesystem::file(path);
+		file.open("rb");
+		if (!file.get_fp())
+		{
+			return nullptr;
+		}
+
+		const auto bytes = file.read_bytes(file.size());
+		file.close();
+
+		iwx::GfxImageFileHeader header{};
+		if (!convert_header(name, bytes, header))
+		{
+			return nullptr;
+		}
+
+		ZONETOOL_INFO("Parsing IWI image \"%s\", version (%i)", name.data(), static_cast<int>(bytes[3]));
+
+		switch (header.flags & iwx::IMG_FLAG_MAPTYPE_MASK)
+		{
+		case iwx::IMG_FLAG_MAPTYPE_CUBE:
+			return parse_cube(name, header, bytes, memory, image);
+		case iwx::IMG_FLAG_MAPTYPE_3D:
+			ZONETOOL_ERROR("3D IWI files are not supported yet! (%s.iwi)", name.data());
+			return nullptr;
+		case iwx::IMG_FLAG_MAPTYPE_1D:
+			ZONETOOL_ERROR("1D IWI files are not supported yet! (%s.iwi)", name.data());
+			return nullptr;
+		default:
+			return parse_2d(name, header, bytes, memory, image);
+		}
 	}
 }
