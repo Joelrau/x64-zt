@@ -2,7 +2,7 @@
 #include "iwi.hpp"
 #include "iwi_wavelet.hpp"
 
-#include "utils.hpp"
+#include "..\utils.hpp"
 
 #include "s3tc.hpp"
 

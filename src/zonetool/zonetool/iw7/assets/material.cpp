@@ -3,7 +3,7 @@
 
 #include "techset.hpp"
 
-#include "zonetool/utils/iwi.hpp"
+#include "zonetool/utils/iwi/iwi.hpp"
 
 #define MATERIAL_DUMP_STRING(entry) \
 	matdata[#entry] = std::string(asset->entry);
@@ -254,6 +254,7 @@ namespace zonetool::iw7
 		}
 
 		this->asset_ = this->parse(name, mem);
+
 		if (!this->asset_)
 		{
 			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name_.data()).material;

@@ -3,7 +3,7 @@
 
 #include "techset.hpp"
 
-#include "zonetool/utils/iwi.hpp"
+#include "zonetool/utils/iwi/iwi.hpp"
 
 #define MATERIAL_DUMP_STRING(entry) \
 	matdata[#entry] = std::string(asset->entry);

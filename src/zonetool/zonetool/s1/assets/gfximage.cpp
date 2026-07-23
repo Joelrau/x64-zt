@@ -6,7 +6,7 @@
 #include <DirectXTex.h>
 #pragma warning( pop )
 
-#include "zonetool/utils/iwi.hpp"
+#include "zonetool/utils/iwi/iwi.hpp"
 
 #include "zonetool/utils/compression.hpp"
 
