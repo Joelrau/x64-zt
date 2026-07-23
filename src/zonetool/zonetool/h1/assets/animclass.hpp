@@ -14,7 +14,9 @@ namespace zonetool::h1
 		const char* get_script_string(scr_string_t* ptr);
 
 	public:
+		AnimationClass* parse_json(const std::string& name, zone_memory* mem);
 		AnimationClass* parse(const std::string& name, zone_memory* mem);
+
 		void init(const std::string& name, zone_memory* mem) override;
 		void prepare(zone_buffer* buf, zone_memory* mem) override;
 		void load_depending(zone_base* zone) override;
