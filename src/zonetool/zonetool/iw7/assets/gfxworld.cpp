@@ -112,12 +112,12 @@ namespace zonetool::iw7
 		asset->lightGrid.tree.p_leafTable = read.read_array<unsigned char>();
 
 		asset->lightGrid.probeData.gpuVisibleProbePositions = read.read_array<GfxGpuLightGridProbePosition>();
-		asset->lightGrid.probeData.gpuVisibleProbesData = read.read_array<GfxProbeData>();
+		asset->lightGrid.probeData.gpuVisibleProbesData = read.read_array<GfxSHProbeData>();
 		asset->lightGrid.probeData.gpuVisibleProbesBuffer = nullptr;
 		asset->lightGrid.probeData.gpuVisibleProbesView = nullptr;
 		asset->lightGrid.probeData.gpuVisibleProbesRWView = nullptr;
 
-		asset->lightGrid.probeData.probes = read.read_array<GfxProbeData>();
+		asset->lightGrid.probeData.probes = read.read_array<GfxSHProbeData>();
 		asset->lightGrid.probeData.probesBuffer = nullptr;
 		asset->lightGrid.probeData.probesView = nullptr;
 		asset->lightGrid.probeData.probesRWView = nullptr;

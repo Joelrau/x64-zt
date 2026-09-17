@@ -359,7 +359,7 @@ namespace zonetool::iw7
 		asset->name = read.read_string();
 
 		asset->nextScriptableDef = read.read_asset<ScriptableDef>();
-		asset->nextScriptableDef = nullptr;
+		//asset->nextScriptableDef = nullptr;
 
 		asset->parts = read.read_array<ScriptablePartDef>();
 		for (unsigned int i = 0; i < asset->numParts; i++)
@@ -1236,59 +1236,59 @@ namespace zonetool::iw7
 			if (data->data.compassIcon.friendlyArrow)
 			{
 				dest->data.compassIcon.friendlyArrow = reinterpret_cast<Material*>(
-					zone->get_asset_pointer(ASSET_TYPE_XMODEL, data->data.compassIcon.friendlyArrow->name));
+					zone->get_asset_pointer(ASSET_TYPE_MATERIAL, data->data.compassIcon.friendlyArrow->name));
 			}
 			if (data->data.compassIcon.friendlyFiring)
 			{
 				dest->data.compassIcon.friendlyFiring = reinterpret_cast<Material*>(
-					zone->get_asset_pointer(ASSET_TYPE_XMODEL, data->data.compassIcon.friendlyFiring->name));
+					zone->get_asset_pointer(ASSET_TYPE_MATERIAL, data->data.compassIcon.friendlyFiring->name));
 			}
 			if (data->data.compassIcon.friendlyChatting)
 			{
 				dest->data.compassIcon.friendlyChatting = reinterpret_cast<Material*>(
-					zone->get_asset_pointer(ASSET_TYPE_XMODEL, data->data.compassIcon.friendlyChatting->name));
+					zone->get_asset_pointer(ASSET_TYPE_MATERIAL, data->data.compassIcon.friendlyChatting->name));
 			}
 			if (data->data.compassIcon.friendlyYelling)
 			{
 				dest->data.compassIcon.friendlyYelling = reinterpret_cast<Material*>(
-					zone->get_asset_pointer(ASSET_TYPE_XMODEL, data->data.compassIcon.friendlyYelling->name));
+					zone->get_asset_pointer(ASSET_TYPE_MATERIAL, data->data.compassIcon.friendlyYelling->name));
 			}
 			if (data->data.compassIcon.partyArrow)
 			{
 				dest->data.compassIcon.partyArrow = reinterpret_cast<Material*>(
-					zone->get_asset_pointer(ASSET_TYPE_XMODEL, data->data.compassIcon.partyArrow->name));
+					zone->get_asset_pointer(ASSET_TYPE_MATERIAL, data->data.compassIcon.partyArrow->name));
 			}
 			if (data->data.compassIcon.partyFiring)
 			{
 				dest->data.compassIcon.partyFiring = reinterpret_cast<Material*>(
-					zone->get_asset_pointer(ASSET_TYPE_XMODEL, data->data.compassIcon.partyFiring->name));
+					zone->get_asset_pointer(ASSET_TYPE_MATERIAL, data->data.compassIcon.partyFiring->name));
 			}
 			if (data->data.compassIcon.partyChatting)
 			{
 				dest->data.compassIcon.partyChatting = reinterpret_cast<Material*>(
-					zone->get_asset_pointer(ASSET_TYPE_XMODEL, data->data.compassIcon.partyChatting->name));
+					zone->get_asset_pointer(ASSET_TYPE_MATERIAL, data->data.compassIcon.partyChatting->name));
 			}
 			if (data->data.compassIcon.partyYelling)
 			{
 				dest->data.compassIcon.partyYelling = reinterpret_cast<Material*>(
-					zone->get_asset_pointer(ASSET_TYPE_XMODEL, data->data.compassIcon.partyYelling->name));
+					zone->get_asset_pointer(ASSET_TYPE_MATERIAL, data->data.compassIcon.partyYelling->name));
 			}
 			if (data->data.compassIcon.squadArrow)
 			{
 				dest->data.compassIcon.squadArrow = reinterpret_cast<Material*>(
-					zone->get_asset_pointer(ASSET_TYPE_XMODEL, data->data.compassIcon.squadArrow->name));
+					zone->get_asset_pointer(ASSET_TYPE_MATERIAL, data->data.compassIcon.squadArrow->name));
 			}
 			if (data->data.compassIcon.squadFiring)
 			{
 				dest->data.compassIcon.squadFiring = reinterpret_cast<Material*>(
-					zone->get_asset_pointer(ASSET_TYPE_XMODEL, data->data.compassIcon.squadFiring->name));
+					zone->get_asset_pointer(ASSET_TYPE_MATERIAL, data->data.compassIcon.squadFiring->name));
 			}
 			for (auto i = 0; i < 3; i++)
 			{
 				if (data->data.compassIcon.enemyCompassIconQuiet[i])
 				{
 					dest->data.compassIcon.enemyCompassIconQuiet[i] = reinterpret_cast<Material*>(
-						zone->get_asset_pointer(ASSET_TYPE_XMODEL, data->data.compassIcon.enemyCompassIconQuiet[i]->name));
+						zone->get_asset_pointer(ASSET_TYPE_MATERIAL, data->data.compassIcon.enemyCompassIconQuiet[i]->name));
 				}
 			}
 			for (auto i = 0; i < 3; i++)
@@ -1296,13 +1296,13 @@ namespace zonetool::iw7
 				if (data->data.compassIcon.enemyCompassIconFiring[i])
 				{
 					dest->data.compassIcon.enemyCompassIconFiring[i] = reinterpret_cast<Material*>(
-						zone->get_asset_pointer(ASSET_TYPE_XMODEL, data->data.compassIcon.enemyCompassIconFiring[i]->name));
+						zone->get_asset_pointer(ASSET_TYPE_MATERIAL, data->data.compassIcon.enemyCompassIconFiring[i]->name));
 				}
 			}
 			if (data->data.compassIcon.enemyCompassIconDirectional)
 			{
 				dest->data.compassIcon.enemyCompassIconDirectional = reinterpret_cast<Material*>(
-					zone->get_asset_pointer(ASSET_TYPE_XMODEL, data->data.compassIcon.enemyCompassIconDirectional->name));
+					zone->get_asset_pointer(ASSET_TYPE_MATERIAL, data->data.compassIcon.enemyCompassIconDirectional->name));
 			}
 			break;
 		case Scriptable_EventType_MaterialOverride:
@@ -1310,7 +1310,7 @@ namespace zonetool::iw7
 			if (data->data.materialOverride.material)
 			{
 				dest->data.materialOverride.material = reinterpret_cast<Material*>(
-					zone->get_asset_pointer(ASSET_TYPE_XMODEL, data->data.materialOverride.material->name));
+					zone->get_asset_pointer(ASSET_TYPE_MATERIAL, data->data.materialOverride.material->name));
 			}
 			break;
 		}
@@ -1745,7 +1745,7 @@ namespace zonetool::iw7
 			dump.dump_single(data->data.health.base);
 			if (data->data.health.base)
 			{
-				dump_state_base(dump, data->data.scripted.base);
+				dump_state_base(dump, data->data.health.base);
 			}
 			dump.dump_string(data->data.health.script_id);
 			dump.dump_string(SL_ConvertToString(data->data.health.scrScript_id));

@@ -1,6 +1,8 @@
 #include "std_include.hpp"
 #include "xmodel.hpp"
 
+#include "../common/havok.hpp"
+
 namespace zonetool::iw7
 {
 	void xmodel::add_script_string(scr_string_t* ptr, const char* str)
@@ -79,8 +81,8 @@ namespace zonetool::iw7
 		asset->physicsAsset = read.read_asset<PhysicsAsset>();
 		asset->physicsFXShape = read.read_asset<PhysicsFXShape>();
 
-		// unknown
-		asset->physicsLODData = read.read_array<char>();
+		const auto havok_data_path = "xmodel\\"s + name + "_lod";
+		asset->physicsLODData = havok::binary::parse_havok_data(havok_data_path, &asset->physicsLODDataSize, mem);
 
 		asset->physicsLODDataNames = mem->allocate<scr_string_t>(asset->physicsLODDataNameCount);
 		for (unsigned int i = 0; i < asset->physicsLODDataNameCount; i++)
@@ -452,8 +454,8 @@ namespace zonetool::iw7
 		dump.dump_asset(asset->physicsAsset);
 		dump.dump_asset(asset->physicsFXShape);
 
-		// unknown
-		dump.dump_array(asset->physicsLODData, asset->physicsLODDataSize);
+		const auto havok_data_path = "xmodel\\"s + asset->name + "_lod";
+		havok::binary::dump_havok_data(havok_data_path, asset->physicsLODData, asset->physicsLODDataSize);
 
 		for (unsigned int i = 0; i < asset->physicsLODDataNameCount; i++)
 		{

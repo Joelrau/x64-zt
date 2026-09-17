@@ -256,47 +256,51 @@ namespace zonetool::iw7
 		for (unsigned short i = 0; i < asset->dynEntCount[0]; i++)
 		{
 			asset->dynEntPoseList[0][0][i].poses = reader.read_array<GfxPlacement>();
-			asset->dynEntPoseList[0][0][i].unk = reader.read_array<char>();
+			asset->dynEntPoseList[0][0][i].detailBodyToBoneMap = reader.read_array<char>();
 		}
 
 		asset->dynEntPoseList[1][0] = reader.read_array<DynEntityPose>();
 		for (unsigned short i = 0; i < asset->dynEntCount[0]; i++)
 		{
 			asset->dynEntPoseList[1][0][i].poses = reader.read_array<GfxPlacement>();
-			asset->dynEntPoseList[1][0][i].unk = reader.read_array<char>();
+			asset->dynEntPoseList[1][0][i].detailBodyToBoneMap = reader.read_array<char>();
 		}
 
 		asset->dynEntPoseList[0][1] = reader.read_array<DynEntityPose>();
 		for (unsigned short i = 0; i < asset->dynEntCount[1]; i++)
 		{
 			asset->dynEntPoseList[0][1][i].poses = reader.read_array<GfxPlacement>();
-			asset->dynEntPoseList[0][1][i].unk = reader.read_array<char>();
+			asset->dynEntPoseList[0][1][i].detailBodyToBoneMap = reader.read_array<char>();
 		}
 
 		asset->dynEntPoseList[1][1] = reader.read_array<DynEntityPose>();
 		for (unsigned short i = 0; i < asset->dynEntCount[1]; i++)
 		{
 			asset->dynEntPoseList[1][1][i].poses = reader.read_array<GfxPlacement>();
-			asset->dynEntPoseList[1][1][i].unk = reader.read_array<char>();
+			asset->dynEntPoseList[1][1][i].detailBodyToBoneMap = reader.read_array<char>();
 		}
 
-		asset->dynEntClientList[0][0] = mem->allocate<DynEntityClient>(asset->dynEntCount[0]);
-		asset->dynEntClientList[1][0] = mem->allocate<DynEntityClient>(asset->dynEntCount[0]);
-		asset->dynEntClientList[0][1] = mem->allocate<DynEntityClient>(asset->dynEntCount[1]);
-		asset->dynEntClientList[1][1] = mem->allocate<DynEntityClient>(asset->dynEntCount[1]);
+		//asset->dynEntClientList[0][0] = mem->allocate<DynEntityClient>(asset->dynEntCount[0]);
+		//asset->dynEntClientList[1][0] = mem->allocate<DynEntityClient>(asset->dynEntCount[0]);
+		//asset->dynEntClientList[0][1] = mem->allocate<DynEntityClient>(asset->dynEntCount[1]);
+		//asset->dynEntClientList[1][1] = mem->allocate<DynEntityClient>(asset->dynEntCount[1]);
+		asset->dynEntClientList[0][0] = reader.read_array<DynEntityClient>();
+		asset->dynEntClientList[1][0] = reader.read_array<DynEntityClient>();
+		asset->dynEntClientList[0][1] = reader.read_array<DynEntityClient>();
+		asset->dynEntClientList[1][1] = reader.read_array<DynEntityClient>();
 
 		asset->dynEntGlobalIdList[0] = reader.read_array<DynEntityGlobalId>();
 		asset->dynEntGlobalIdList[1] = reader.read_array<DynEntityGlobalId>();
 
-		asset->unk2 = reader.read_array<unk_1453E4298>();
-		for (unsigned int i = 0; i < asset->unk2Count; i++)
+		asset->dynEntTransientGroups = reader.read_array<DynEntityTransientGroup>();
+		for (unsigned int i = 0; i < asset->dynEntTransientGroupCount; i++)
 		{
-			asset->unk2[i].unk01 = reader.read_array<unk_1453E4280>();
+			asset->dynEntTransientGroups[i].dynEnts = reader.read_array<DynEntityTransientEntry>();
 		}
-		asset->unk2_1[0] = reader.read_array<unk_1453E42A8>();
-		asset->unk2_1[1] = reader.read_array<unk_1453E42A8>();
-		asset->unk2_2[0] = reader.read_array<unk_1453E1130>();
-		asset->unk2_2[1] = reader.read_array<unk_1453E1130>();
+		asset->dynEntTransientGroupRuntime[0] = reader.read_array<DynEntityTransientGroupRuntime>();
+		asset->dynEntTransientGroupRuntime[1] = reader.read_array<DynEntityTransientGroupRuntime>();
+		asset->dynEntTransientGroupState[0] = reader.read_array<DynEntityTransientGroupState>();
+		asset->dynEntTransientGroupState[1] = reader.read_array<DynEntityTransientGroupState>();
 
 		asset->unk3 = reader.read_array<unsigned int>();
 
@@ -309,26 +313,26 @@ namespace zonetool::iw7
 		asset->scriptableMapEnts.instances = reader.read_array<ScriptableInstance>();
 		for (unsigned int i = 0; i < asset->scriptableMapEnts.totalInstanceCount; i++)
 		{
-			asset->scriptableMapEnts.instances[i].unk01.unk01.def = reader.read_asset<ScriptableDef>();
-			asset->scriptableMapEnts.instances[i].unk01.unk01.unk01.model = reader.read_asset<XModel>();
-			asset->scriptableMapEnts.instances[i].unk01.unk01.eventStreamBuffer = reader.read_array<char>();
+			asset->scriptableMapEnts.instances[i].contextHeader.context.def = reader.read_asset<ScriptableDef>();
+			asset->scriptableMapEnts.instances[i].contextHeader.context.modelData.model = reader.read_asset<XModel>();
+			asset->scriptableMapEnts.instances[i].contextHeader.context.eventStreamBuffer = reader.read_array<char>();
 
-			asset->scriptableMapEnts.instances[i].unk02[0].unk01.def = reader.read_asset<ScriptableDef>();
-			asset->scriptableMapEnts.instances[i].unk02[0].unk01.unk01.model = reader.read_asset<XModel>();
-			asset->scriptableMapEnts.instances[i].unk02[0].unk01.eventStreamBuffer = reader.read_array<char>();
+			asset->scriptableMapEnts.instances[i].contextHeaderLocalClient[0].context.def = reader.read_asset<ScriptableDef>();
+			asset->scriptableMapEnts.instances[i].contextHeaderLocalClient[0].context.modelData.model = reader.read_asset<XModel>();
+			asset->scriptableMapEnts.instances[i].contextHeaderLocalClient[0].context.eventStreamBuffer = reader.read_array<char>();
 
-			asset->scriptableMapEnts.instances[i].unk02[1].unk01.def = reader.read_asset<ScriptableDef>();
-			asset->scriptableMapEnts.instances[i].unk02[1].unk01.unk01.model = reader.read_asset<XModel>();
-			asset->scriptableMapEnts.instances[i].unk02[1].unk01.eventStreamBuffer = reader.read_array<char>();
+			asset->scriptableMapEnts.instances[i].contextHeaderLocalClient[1].context.def = reader.read_asset<ScriptableDef>();
+			asset->scriptableMapEnts.instances[i].contextHeaderLocalClient[1].context.modelData.model = reader.read_asset<XModel>();
+			asset->scriptableMapEnts.instances[i].contextHeaderLocalClient[1].context.eventStreamBuffer = reader.read_array<char>();
 
-			add_script_string(&asset->scriptableMapEnts.instances[i].unk03, reader.read_string());
-			asset->scriptableMapEnts.instances[i].unk04 = reader.read_string();
 			add_script_string(&asset->scriptableMapEnts.instances[i].targetname, reader.read_string());
+			asset->scriptableMapEnts.instances[i].debugName = reader.read_string();
+			add_script_string(&asset->scriptableMapEnts.instances[i].debugNameScr, reader.read_string());
 		}
 
-		asset->scriptableMapEnts.unk.unk01 = reader.read_array<unk_1453E2558>();
-		asset->scriptableMapEnts.unk.unk02_1 = reader.read_array<unk_1453E2558>();
-		asset->scriptableMapEnts.unk.unk02_2 = reader.read_array<unk_1453E2558>();
+		asset->scriptableMapEnts.runtimeData.partRuntime = reader.read_array<ScriptablePartRuntime>();
+		asset->scriptableMapEnts.runtimeData.partRuntimeLocalClient[0] = reader.read_array<ScriptablePartRuntime>();
+		asset->scriptableMapEnts.runtimeData.partRuntimeLocalClient[1] = reader.read_array<ScriptablePartRuntime>();
 
 		asset->scriptableMapEnts.reservedDynents[0].reservedDynents = reader.read_array<ScriptableReservedDynent>();
 		asset->scriptableMapEnts.reservedDynents[1].reservedDynents = reader.read_array<ScriptableReservedDynent>();
@@ -421,10 +425,10 @@ namespace zonetool::iw7
 
 		for (unsigned int i = 0; i < data->scriptableMapEnts.totalInstanceCount; i++)
 		{
-			data->scriptableMapEnts.instances[i].unk03 = static_cast<scr_string_t>(buf->write_scriptstring(
-				this->get_script_string(&data->scriptableMapEnts.instances[i].unk03)));
 			data->scriptableMapEnts.instances[i].targetname = static_cast<scr_string_t>(buf->write_scriptstring(
 				this->get_script_string(&data->scriptableMapEnts.instances[i].targetname)));
+			data->scriptableMapEnts.instances[i].debugNameScr = static_cast<scr_string_t>(buf->write_scriptstring(
+				this->get_script_string(&data->scriptableMapEnts.instances[i].debugNameScr)));
 		}
 
 		for (unsigned int i = 0; i < data->numMayhemScenes; i++)
@@ -486,34 +490,34 @@ namespace zonetool::iw7
 
 		for (unsigned int i = 0; i < data->scriptableMapEnts.totalInstanceCount; i++)
 		{
-			if (data->scriptableMapEnts.instances[i].unk01.unk01.def)
+			if (data->scriptableMapEnts.instances[i].contextHeader.context.def)
 			{
-				zone->add_asset_of_type(ASSET_TYPE_SCRIPTABLE, data->scriptableMapEnts.instances[i].unk01.unk01.def->name);
+				zone->add_asset_of_type(ASSET_TYPE_SCRIPTABLE, data->scriptableMapEnts.instances[i].contextHeader.context.def->name);
 			}
 
-			if (data->scriptableMapEnts.instances[i].unk01.unk01.unk01.model)
+			if (data->scriptableMapEnts.instances[i].contextHeader.context.modelData.model)
 			{
-				zone->add_asset_of_type(ASSET_TYPE_XMODEL, data->scriptableMapEnts.instances[i].unk01.unk01.unk01.model->name);
+				zone->add_asset_of_type(ASSET_TYPE_XMODEL, data->scriptableMapEnts.instances[i].contextHeader.context.modelData.model->name);
 			}
 
-			if (data->scriptableMapEnts.instances[i].unk02[0].unk01.def)
+			if (data->scriptableMapEnts.instances[i].contextHeaderLocalClient[0].context.def)
 			{
-				zone->add_asset_of_type(ASSET_TYPE_SCRIPTABLE, data->scriptableMapEnts.instances[i].unk02[0].unk01.def->name);
+				zone->add_asset_of_type(ASSET_TYPE_SCRIPTABLE, data->scriptableMapEnts.instances[i].contextHeaderLocalClient[0].context.def->name);
 			}
 
-			if (data->scriptableMapEnts.instances[i].unk02[0].unk01.unk01.model)
+			if (data->scriptableMapEnts.instances[i].contextHeaderLocalClient[0].context.modelData.model)
 			{
-				zone->add_asset_of_type(ASSET_TYPE_XMODEL, data->scriptableMapEnts.instances[i].unk02[0].unk01.unk01.model->name);
+				zone->add_asset_of_type(ASSET_TYPE_XMODEL, data->scriptableMapEnts.instances[i].contextHeaderLocalClient[0].context.modelData.model->name);
 			}
 
-			if (data->scriptableMapEnts.instances[i].unk02[1].unk01.def)
+			if (data->scriptableMapEnts.instances[i].contextHeaderLocalClient[1].context.def)
 			{
-				zone->add_asset_of_type(ASSET_TYPE_SCRIPTABLE, data->scriptableMapEnts.instances[i].unk02[1].unk01.def->name);
+				zone->add_asset_of_type(ASSET_TYPE_SCRIPTABLE, data->scriptableMapEnts.instances[i].contextHeaderLocalClient[1].context.def->name);
 			}
 
-			if (data->scriptableMapEnts.instances[i].unk02[1].unk01.unk01.model)
+			if (data->scriptableMapEnts.instances[i].contextHeaderLocalClient[1].context.modelData.model)
 			{
-				zone->add_asset_of_type(ASSET_TYPE_XMODEL, data->scriptableMapEnts.instances[i].unk02[1].unk01.unk01.model->name);
+				zone->add_asset_of_type(ASSET_TYPE_XMODEL, data->scriptableMapEnts.instances[i].contextHeaderLocalClient[1].context.modelData.model->name);
 			}
 		}
 
@@ -786,11 +790,11 @@ namespace zonetool::iw7
 					buf->write(data->dynEntPoseList[0][0][i].poses, data->dynEntPoseList[0][0][i].numPoses);
 					buf->clear_pointer(&dest->dynEntPoseList[0][0][i].poses);
 				}
-				if (data->dynEntPoseList[0][0][i].unk)
+				if (data->dynEntPoseList[0][0][i].detailBodyToBoneMap)
 				{
 					buf->align(0);
-					buf->write(data->dynEntPoseList[0][0][i].unk, data->dynEntPoseList[0][0][i].numPoses);
-					buf->clear_pointer(&dest->dynEntPoseList[0][0][i].unk);
+					buf->write(data->dynEntPoseList[0][0][i].detailBodyToBoneMap, data->dynEntPoseList[0][0][i].numPoses);
+					buf->clear_pointer(&dest->dynEntPoseList[0][0][i].detailBodyToBoneMap);
 				}
 			}
 			buf->clear_pointer(&dest->dynEntPoseList[0][0]);
@@ -807,11 +811,11 @@ namespace zonetool::iw7
 					buf->write(data->dynEntPoseList[1][0][i].poses, data->dynEntPoseList[1][0][i].numPoses);
 					buf->clear_pointer(&dest->dynEntPoseList[1][0][i].poses);
 				}
-				if (data->dynEntPoseList[1][0][i].unk)
+				if (data->dynEntPoseList[1][0][i].detailBodyToBoneMap)
 				{
 					buf->align(0);
-					buf->write(data->dynEntPoseList[1][0][i].unk, data->dynEntPoseList[1][0][i].numPoses);
-					buf->clear_pointer(&dest->dynEntPoseList[1][0][i].unk);
+					buf->write(data->dynEntPoseList[1][0][i].detailBodyToBoneMap, data->dynEntPoseList[1][0][i].numPoses);
+					buf->clear_pointer(&dest->dynEntPoseList[1][0][i].detailBodyToBoneMap);
 				}
 			}
 			buf->clear_pointer(&dest->dynEntPoseList[1][0]);
@@ -828,11 +832,11 @@ namespace zonetool::iw7
 					buf->write(data->dynEntPoseList[0][1][i].poses, data->dynEntPoseList[0][1][i].numPoses);
 					buf->clear_pointer(&dest->dynEntPoseList[0][1][i].poses);
 				}
-				if (data->dynEntPoseList[0][1][i].unk)
+				if (data->dynEntPoseList[0][1][i].detailBodyToBoneMap)
 				{
 					buf->align(0);
-					buf->write(data->dynEntPoseList[0][1][i].unk, data->dynEntPoseList[0][1][i].numPoses);
-					buf->clear_pointer(&dest->dynEntPoseList[0][1][i].unk);
+					buf->write(data->dynEntPoseList[0][1][i].detailBodyToBoneMap, data->dynEntPoseList[0][1][i].numPoses);
+					buf->clear_pointer(&dest->dynEntPoseList[0][1][i].detailBodyToBoneMap);
 				}
 			}
 			buf->clear_pointer(&dest->dynEntPoseList[0][1]);
@@ -849,11 +853,11 @@ namespace zonetool::iw7
 					buf->write(data->dynEntPoseList[1][1][i].poses, data->dynEntPoseList[1][1][i].numPoses);
 					buf->clear_pointer(&dest->dynEntPoseList[1][1][i].poses);
 				}
-				if (data->dynEntPoseList[1][1][i].unk)
+				if (data->dynEntPoseList[1][1][i].detailBodyToBoneMap)
 				{
 					buf->align(0);
-					buf->write(data->dynEntPoseList[1][1][i].unk, data->dynEntPoseList[1][1][i].numPoses);
-					buf->clear_pointer(&dest->dynEntPoseList[1][1][i].unk);
+					buf->write(data->dynEntPoseList[1][1][i].detailBodyToBoneMap, data->dynEntPoseList[1][1][i].numPoses);
+					buf->clear_pointer(&dest->dynEntPoseList[1][1][i].detailBodyToBoneMap);
 				}
 			}
 			buf->clear_pointer(&dest->dynEntPoseList[1][1]);
@@ -899,45 +903,45 @@ namespace zonetool::iw7
 			buf->clear_pointer(&dest->dynEntGlobalIdList[1]);
 		}
 
-		if (data->unk2)
+		if (data->dynEntTransientGroups)
 		{
 			buf->align(7);
-			dest->unk2 = buf->write(data->unk2, data->unk2Count);
-			for (unsigned int i = 0; i < data->unk2Count; i++)
+			dest->dynEntTransientGroups = buf->write(data->dynEntTransientGroups, data->dynEntTransientGroupCount);
+			for (unsigned int i = 0; i < data->dynEntTransientGroupCount; i++)
 			{
-				if (data->unk2[i].unk01)
+				if (data->dynEntTransientGroups[i].dynEnts)
 				{
 					buf->align(3);
-					buf->write(data->unk2[i].unk01, data->unk2[i].unk01Count);
-					buf->clear_pointer(&dest->unk2[i].unk01);
+					buf->write(data->dynEntTransientGroups[i].dynEnts, data->dynEntTransientGroups[i].dynEntCount);
+					buf->clear_pointer(&dest->dynEntTransientGroups[i].dynEnts);
 				}
 			}
-			buf->clear_pointer(&dest->unk2);
+			buf->clear_pointer(&dest->dynEntTransientGroups);
 		}
 
-		if (data->unk2_1[0])
+		if (data->dynEntTransientGroupRuntime[0])
 		{
 			buf->align(3);
-			buf->write(data->unk2_1[0], data->unk2Count);
-			buf->clear_pointer(&dest->unk2_1[0]);
+			buf->write(data->dynEntTransientGroupRuntime[0], data->dynEntTransientGroupCount);
+			buf->clear_pointer(&dest->dynEntTransientGroupRuntime[0]);
 		}
-		if (data->unk2_1[1])
+		if (data->dynEntTransientGroupRuntime[1])
 		{
 			buf->align(3);
-			buf->write(data->unk2_1[1], data->unk2Count);
-			buf->clear_pointer(&dest->unk2_1[1]);
+			buf->write(data->dynEntTransientGroupRuntime[1], data->dynEntTransientGroupCount);
+			buf->clear_pointer(&dest->dynEntTransientGroupRuntime[1]);
 		}
-		if (data->unk2_2[0])
+		if (data->dynEntTransientGroupState[0])
 		{
 			buf->align(3);
-			buf->write(data->unk2_2[0], data->unk2Count);
-			buf->clear_pointer(&dest->unk2_2[0]);
+			buf->write(data->dynEntTransientGroupState[0], data->dynEntTransientGroupCount);
+			buf->clear_pointer(&dest->dynEntTransientGroupState[0]);
 		}
-		if (data->unk2_2[1])
+		if (data->dynEntTransientGroupState[1])
 		{
 			buf->align(3);
-			buf->write(data->unk2_2[1], data->unk2Count);
-			buf->clear_pointer(&dest->unk2_2[1]);
+			buf->write(data->dynEntTransientGroupState[1], data->dynEntTransientGroupCount);
+			buf->clear_pointer(&dest->dynEntTransientGroupState[1]);
 		}
 
 		if (data->unk3)
@@ -960,80 +964,80 @@ namespace zonetool::iw7
 			dest->scriptableMapEnts.instances = buf->write(data->scriptableMapEnts.instances, data->scriptableMapEnts.totalInstanceCount);
 			for (unsigned int i = 0; i < data->scriptableMapEnts.totalInstanceCount; i++)
 			{
-				if (data->scriptableMapEnts.instances[i].unk01.unk01.def)
+				if (data->scriptableMapEnts.instances[i].contextHeader.context.def)
 				{
-					dest->scriptableMapEnts.instances[i].unk01.unk01.def = reinterpret_cast<ScriptableDef*>(
-						zone->get_asset_pointer(ASSET_TYPE_SCRIPTABLE, data->scriptableMapEnts.instances[i].unk01.unk01.def->name));
+					dest->scriptableMapEnts.instances[i].contextHeader.context.def = reinterpret_cast<ScriptableDef*>(
+						zone->get_asset_pointer(ASSET_TYPE_SCRIPTABLE, data->scriptableMapEnts.instances[i].contextHeader.context.def->name));
 				}
-				if (data->scriptableMapEnts.instances[i].unk01.unk01.unk01.model)
+				if (data->scriptableMapEnts.instances[i].contextHeader.context.modelData.model)
 				{
-					dest->scriptableMapEnts.instances[i].unk01.unk01.unk01.model = reinterpret_cast<XModel*>(
-						zone->get_asset_pointer(ASSET_TYPE_XMODEL, data->scriptableMapEnts.instances[i].unk01.unk01.unk01.model->name));
+					dest->scriptableMapEnts.instances[i].contextHeader.context.modelData.model = reinterpret_cast<XModel*>(
+						zone->get_asset_pointer(ASSET_TYPE_XMODEL, data->scriptableMapEnts.instances[i].contextHeader.context.modelData.model->name));
 				}
-				if (data->scriptableMapEnts.instances[i].unk01.unk01.eventStreamBuffer)
+				if (data->scriptableMapEnts.instances[i].contextHeader.context.eventStreamBuffer)
 				{
 					buf->align(0);
-					buf->write(data->scriptableMapEnts.instances[i].unk01.unk01.eventStreamBuffer, data->scriptableMapEnts.instances[i].unk01.unk01.eventStreamBufferSize);
-					buf->clear_pointer(&dest->scriptableMapEnts.instances[i].unk01.unk01.eventStreamBuffer);
+					buf->write(data->scriptableMapEnts.instances[i].contextHeader.context.eventStreamBuffer, data->scriptableMapEnts.instances[i].contextHeader.context.eventStreamBufferSize);
+					buf->clear_pointer(&dest->scriptableMapEnts.instances[i].contextHeader.context.eventStreamBuffer);
 				}
 				//
-				if (data->scriptableMapEnts.instances[i].unk02[0].unk01.def)
+				if (data->scriptableMapEnts.instances[i].contextHeaderLocalClient[0].context.def)
 				{
-					dest->scriptableMapEnts.instances[i].unk02[0].unk01.def = reinterpret_cast<ScriptableDef*>(
-						zone->get_asset_pointer(ASSET_TYPE_SCRIPTABLE, data->scriptableMapEnts.instances[i].unk02[0].unk01.def->name));
+					dest->scriptableMapEnts.instances[i].contextHeaderLocalClient[0].context.def = reinterpret_cast<ScriptableDef*>(
+						zone->get_asset_pointer(ASSET_TYPE_SCRIPTABLE, data->scriptableMapEnts.instances[i].contextHeaderLocalClient[0].context.def->name));
 				}
-				if (data->scriptableMapEnts.instances[i].unk02[0].unk01.unk01.model)
+				if (data->scriptableMapEnts.instances[i].contextHeaderLocalClient[0].context.modelData.model)
 				{
-					dest->scriptableMapEnts.instances[i].unk02[0].unk01.unk01.model = reinterpret_cast<XModel*>(
-						zone->get_asset_pointer(ASSET_TYPE_XMODEL, data->scriptableMapEnts.instances[i].unk02[0].unk01.unk01.model->name));
+					dest->scriptableMapEnts.instances[i].contextHeaderLocalClient[0].context.modelData.model = reinterpret_cast<XModel*>(
+						zone->get_asset_pointer(ASSET_TYPE_XMODEL, data->scriptableMapEnts.instances[i].contextHeaderLocalClient[0].context.modelData.model->name));
 				}
-				if (data->scriptableMapEnts.instances[i].unk02[0].unk01.eventStreamBuffer)
+				if (data->scriptableMapEnts.instances[i].contextHeaderLocalClient[0].context.eventStreamBuffer)
 				{
 					buf->align(0);
-					buf->write(data->scriptableMapEnts.instances[i].unk02[0].unk01.eventStreamBuffer, data->scriptableMapEnts.instances[i].unk02[0].unk01.eventStreamBufferSize);
-					buf->clear_pointer(&dest->scriptableMapEnts.instances[i].unk02[0].unk01.eventStreamBuffer);
+					buf->write(data->scriptableMapEnts.instances[i].contextHeaderLocalClient[0].context.eventStreamBuffer, data->scriptableMapEnts.instances[i].contextHeaderLocalClient[0].context.eventStreamBufferSize);
+					buf->clear_pointer(&dest->scriptableMapEnts.instances[i].contextHeaderLocalClient[0].context.eventStreamBuffer);
 				}
 				//
-				if (data->scriptableMapEnts.instances[i].unk02[1].unk01.def)
+				if (data->scriptableMapEnts.instances[i].contextHeaderLocalClient[1].context.def)
 				{
-					dest->scriptableMapEnts.instances[i].unk02[1].unk01.def = reinterpret_cast<ScriptableDef*>(
-						zone->get_asset_pointer(ASSET_TYPE_SCRIPTABLE, data->scriptableMapEnts.instances[i].unk02[1].unk01.def->name));
+					dest->scriptableMapEnts.instances[i].contextHeaderLocalClient[1].context.def = reinterpret_cast<ScriptableDef*>(
+						zone->get_asset_pointer(ASSET_TYPE_SCRIPTABLE, data->scriptableMapEnts.instances[i].contextHeaderLocalClient[1].context.def->name));
 				}
-				if (data->scriptableMapEnts.instances[i].unk02[1].unk01.unk01.model)
+				if (data->scriptableMapEnts.instances[i].contextHeaderLocalClient[1].context.modelData.model)
 				{
-					dest->scriptableMapEnts.instances[i].unk02[1].unk01.unk01.model = reinterpret_cast<XModel*>(
-						zone->get_asset_pointer(ASSET_TYPE_XMODEL, data->scriptableMapEnts.instances[i].unk02[1].unk01.unk01.model->name));
+					dest->scriptableMapEnts.instances[i].contextHeaderLocalClient[1].context.modelData.model = reinterpret_cast<XModel*>(
+						zone->get_asset_pointer(ASSET_TYPE_XMODEL, data->scriptableMapEnts.instances[i].contextHeaderLocalClient[1].context.modelData.model->name));
 				}
-				if (data->scriptableMapEnts.instances[i].unk02[1].unk01.eventStreamBuffer)
+				if (data->scriptableMapEnts.instances[i].contextHeaderLocalClient[1].context.eventStreamBuffer)
 				{
 					buf->align(0);
-					buf->write(data->scriptableMapEnts.instances[i].unk02[1].unk01.eventStreamBuffer, data->scriptableMapEnts.instances[i].unk02[1].unk01.eventStreamBufferSize);
-					buf->clear_pointer(&dest->scriptableMapEnts.instances[i].unk02[1].unk01.eventStreamBuffer);
+					buf->write(data->scriptableMapEnts.instances[i].contextHeaderLocalClient[1].context.eventStreamBuffer, data->scriptableMapEnts.instances[i].contextHeaderLocalClient[1].context.eventStreamBufferSize);
+					buf->clear_pointer(&dest->scriptableMapEnts.instances[i].contextHeaderLocalClient[1].context.eventStreamBuffer);
 				}
 
-				if (data->scriptableMapEnts.instances[i].unk04)
+				if (data->scriptableMapEnts.instances[i].debugName)
 				{
-					dest->scriptableMapEnts.instances[i].unk04 = buf->write_str(data->scriptableMapEnts.instances[i].unk04);
+					dest->scriptableMapEnts.instances[i].debugName = buf->write_str(data->scriptableMapEnts.instances[i].debugName);
 				}
 			}
 
-			if (data->scriptableMapEnts.unk.unk01)
+			if (data->scriptableMapEnts.runtimeData.partRuntime)
 			{
 				buf->align(3);
-				buf->write(data->scriptableMapEnts.unk.unk01, data->scriptableMapEnts.unk.unk01Count);
-				buf->clear_pointer(&dest->scriptableMapEnts.unk.unk01);
+				buf->write(data->scriptableMapEnts.runtimeData.partRuntime, data->scriptableMapEnts.runtimeData.partRuntimeCount);
+				buf->clear_pointer(&dest->scriptableMapEnts.runtimeData.partRuntime);
 			}
-			if (data->scriptableMapEnts.unk.unk02_1)
+			if (data->scriptableMapEnts.runtimeData.partRuntimeLocalClient[0])
 			{
 				buf->align(3);
-				buf->write(data->scriptableMapEnts.unk.unk02_1, data->scriptableMapEnts.unk.unk02Count);
-				buf->clear_pointer(&dest->scriptableMapEnts.unk.unk02_1);
+				buf->write(data->scriptableMapEnts.runtimeData.partRuntimeLocalClient[0], data->scriptableMapEnts.runtimeData.partRuntimeLocalClientCount);
+				buf->clear_pointer(&dest->scriptableMapEnts.runtimeData.partRuntimeLocalClient[0]);
 			}
-			if (data->scriptableMapEnts.unk.unk02_2)
+			if (data->scriptableMapEnts.runtimeData.partRuntimeLocalClient[1])
 			{
 				buf->align(3);
-				buf->write(data->scriptableMapEnts.unk.unk02_2, data->scriptableMapEnts.unk.unk02Count);
-				buf->clear_pointer(&dest->scriptableMapEnts.unk.unk02_2);
+				buf->write(data->scriptableMapEnts.runtimeData.partRuntimeLocalClient[1], data->scriptableMapEnts.runtimeData.partRuntimeLocalClientCount);
+				buf->clear_pointer(&dest->scriptableMapEnts.runtimeData.partRuntimeLocalClient[1]);
 			}
 
 			if (data->scriptableMapEnts.reservedDynents[0].reservedDynents)
@@ -1286,42 +1290,42 @@ namespace zonetool::iw7
 		for (unsigned short i = 0; i < asset->dynEntCount[0]; i++)
 		{
 			dumper.dump_array(asset->dynEntPoseList[0][0][i].poses, asset->dynEntPoseList[0][0][i].numPoses);
-			dumper.dump_array(asset->dynEntPoseList[0][0][i].unk, asset->dynEntPoseList[0][0][i].numPoses);
+			dumper.dump_array(asset->dynEntPoseList[0][0][i].detailBodyToBoneMap, asset->dynEntPoseList[0][0][i].numPoses);
 		}
 
 		dumper.dump_array(asset->dynEntPoseList[1][0], asset->dynEntCount[0]);
 		for (unsigned short i = 0; i < asset->dynEntCount[0]; i++)
 		{
 			dumper.dump_array(asset->dynEntPoseList[1][0][i].poses, asset->dynEntPoseList[1][0][i].numPoses);
-			dumper.dump_array(asset->dynEntPoseList[1][0][i].unk, asset->dynEntPoseList[1][0][i].numPoses);
+			dumper.dump_array(asset->dynEntPoseList[1][0][i].detailBodyToBoneMap, asset->dynEntPoseList[1][0][i].numPoses);
 		}
 
 		dumper.dump_array(asset->dynEntPoseList[0][1], asset->dynEntCount[1]);
 		for (unsigned short i = 0; i < asset->dynEntCount[1]; i++)
 		{
 			dumper.dump_array(asset->dynEntPoseList[0][1][i].poses, asset->dynEntPoseList[0][1][i].numPoses);
-			dumper.dump_array(asset->dynEntPoseList[0][1][i].unk, asset->dynEntPoseList[0][1][i].numPoses);
+			dumper.dump_array(asset->dynEntPoseList[0][1][i].detailBodyToBoneMap, asset->dynEntPoseList[0][1][i].numPoses);
 		}
 
 		dumper.dump_array(asset->dynEntPoseList[1][1], asset->dynEntCount[1]);
 		for (unsigned short i = 0; i < asset->dynEntCount[1]; i++)
 		{
 			dumper.dump_array(asset->dynEntPoseList[1][1][i].poses, asset->dynEntPoseList[1][1][i].numPoses);
-			dumper.dump_array(asset->dynEntPoseList[1][1][i].unk, asset->dynEntPoseList[1][1][i].numPoses);
+			dumper.dump_array(asset->dynEntPoseList[1][1][i].detailBodyToBoneMap, asset->dynEntPoseList[1][1][i].numPoses);
 		}
 
 		dumper.dump_array(asset->dynEntGlobalIdList[0], asset->dynEntCountTotal);
 		dumper.dump_array(asset->dynEntGlobalIdList[1], asset->dynEntCountTotal);
 
-		dumper.dump_array(asset->unk2, asset->unk2Count);
-		for (unsigned int i = 0; i < asset->unk2Count; i++)
+		dumper.dump_array(asset->dynEntTransientGroups, asset->dynEntTransientGroupCount);
+		for (unsigned int i = 0; i < asset->dynEntTransientGroupCount; i++)
 		{
-			dumper.dump_array(asset->unk2[i].unk01, asset->unk2[i].unk01Count);
+			dumper.dump_array(asset->dynEntTransientGroups[i].dynEnts, asset->dynEntTransientGroups[i].dynEntCount);
 		}
-		dumper.dump_array(asset->unk2_1[0], asset->unk2Count);
-		dumper.dump_array(asset->unk2_1[1], asset->unk2Count);
-		dumper.dump_array(asset->unk2_2[0], asset->unk2Count);
-		dumper.dump_array(asset->unk2_2[1], asset->unk2Count);
+		dumper.dump_array(asset->dynEntTransientGroupRuntime[0], asset->dynEntTransientGroupCount);
+		dumper.dump_array(asset->dynEntTransientGroupRuntime[1], asset->dynEntTransientGroupCount);
+		dumper.dump_array(asset->dynEntTransientGroupState[0], asset->dynEntTransientGroupCount);
+		dumper.dump_array(asset->dynEntTransientGroupState[1], asset->dynEntTransientGroupCount);
 
 		dumper.dump_array(asset->unk3, asset->unk3Count);
 
@@ -1334,26 +1338,26 @@ namespace zonetool::iw7
 		dumper.dump_array(asset->scriptableMapEnts.instances, asset->scriptableMapEnts.totalInstanceCount);
 		for (unsigned int i = 0; i < asset->scriptableMapEnts.totalInstanceCount; i++)
 		{
-			dumper.dump_asset(asset->scriptableMapEnts.instances[i].unk01.unk01.def);
-			dumper.dump_asset(asset->scriptableMapEnts.instances[i].unk01.unk01.unk01.model);
-			dumper.dump_array(asset->scriptableMapEnts.instances[i].unk01.unk01.eventStreamBuffer, asset->scriptableMapEnts.instances[i].unk01.unk01.eventStreamBufferSize);
+			dumper.dump_asset(asset->scriptableMapEnts.instances[i].contextHeader.context.def);
+			dumper.dump_asset(asset->scriptableMapEnts.instances[i].contextHeader.context.modelData.model);
+			dumper.dump_array(asset->scriptableMapEnts.instances[i].contextHeader.context.eventStreamBuffer, asset->scriptableMapEnts.instances[i].contextHeader.context.eventStreamBufferSize);
 
-			dumper.dump_asset(asset->scriptableMapEnts.instances[i].unk02[0].unk01.def);
-			dumper.dump_asset(asset->scriptableMapEnts.instances[i].unk02[0].unk01.unk01.model);
-			dumper.dump_array(asset->scriptableMapEnts.instances[i].unk02[0].unk01.eventStreamBuffer, asset->scriptableMapEnts.instances[i].unk02[0].unk01.eventStreamBufferSize);
+			dumper.dump_asset(asset->scriptableMapEnts.instances[i].contextHeaderLocalClient[0].context.def);
+			dumper.dump_asset(asset->scriptableMapEnts.instances[i].contextHeaderLocalClient[0].context.modelData.model);
+			dumper.dump_array(asset->scriptableMapEnts.instances[i].contextHeaderLocalClient[0].context.eventStreamBuffer, asset->scriptableMapEnts.instances[i].contextHeaderLocalClient[0].context.eventStreamBufferSize);
 
-			dumper.dump_asset(asset->scriptableMapEnts.instances[i].unk02[1].unk01.def);
-			dumper.dump_asset(asset->scriptableMapEnts.instances[i].unk02[1].unk01.unk01.model);
-			dumper.dump_array(asset->scriptableMapEnts.instances[i].unk02[1].unk01.eventStreamBuffer, asset->scriptableMapEnts.instances[i].unk02[1].unk01.eventStreamBufferSize);
+			dumper.dump_asset(asset->scriptableMapEnts.instances[i].contextHeaderLocalClient[1].context.def);
+			dumper.dump_asset(asset->scriptableMapEnts.instances[i].contextHeaderLocalClient[1].context.modelData.model);
+			dumper.dump_array(asset->scriptableMapEnts.instances[i].contextHeaderLocalClient[1].context.eventStreamBuffer, asset->scriptableMapEnts.instances[i].contextHeaderLocalClient[1].context.eventStreamBufferSize);
 
-			dumper.dump_string(SL_ConvertToString(asset->scriptableMapEnts.instances[i].unk03));
-			dumper.dump_string(asset->scriptableMapEnts.instances[i].unk04);
 			dumper.dump_string(SL_ConvertToString(asset->scriptableMapEnts.instances[i].targetname));
+			dumper.dump_string(asset->scriptableMapEnts.instances[i].debugName);
+			dumper.dump_string(SL_ConvertToString(asset->scriptableMapEnts.instances[i].debugNameScr));
 		}
 
-		dumper.dump_array(asset->scriptableMapEnts.unk.unk01, asset->scriptableMapEnts.unk.unk01Count);
-		dumper.dump_array(asset->scriptableMapEnts.unk.unk02_1, asset->scriptableMapEnts.unk.unk02Count);
-		dumper.dump_array(asset->scriptableMapEnts.unk.unk02_2, asset->scriptableMapEnts.unk.unk02Count);
+		dumper.dump_array(asset->scriptableMapEnts.runtimeData.partRuntime, asset->scriptableMapEnts.runtimeData.partRuntimeCount);
+		dumper.dump_array(asset->scriptableMapEnts.runtimeData.partRuntimeLocalClient[0], asset->scriptableMapEnts.runtimeData.partRuntimeLocalClientCount);
+		dumper.dump_array(asset->scriptableMapEnts.runtimeData.partRuntimeLocalClient[1], asset->scriptableMapEnts.runtimeData.partRuntimeLocalClientCount);
 
 		dumper.dump_array(asset->scriptableMapEnts.reservedDynents[0].reservedDynents, asset->scriptableMapEnts.reservedDynents[0].numReservedDynents);
 		dumper.dump_array(asset->scriptableMapEnts.reservedDynents[1].reservedDynents, asset->scriptableMapEnts.reservedDynents[1].numReservedDynents);
