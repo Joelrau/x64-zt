@@ -5414,15 +5414,15 @@ namespace zonetool::iw7
 		GfxImage* image;
 	}; assert_sizeof(GfxHeightfield, 96);
 
-	struct unk_1453E4B08
+	struct GfxWorldLightLists
 	{
-		unsigned int unk01Count;
-		unsigned int* unk01; // unused
-		unsigned int unk02Count;
-		unsigned int* unk02; // unused
-		unsigned int unk03Count;
-		unsigned short* unk03;
-	}; assert_sizeof(unk_1453E4B08, 48);
+		unsigned int surfaceListOffsetCount;
+		unsigned int* surfaceListOffsets;
+		unsigned int smodelListOffsetCount;
+		unsigned int* smodelListOffsets;
+		unsigned int listsSize;
+		unsigned short* lists;
+	}; assert_sizeof(GfxWorldLightLists, 48);
 
 	struct GfxBrushModelWritable
 	{
@@ -5806,7 +5806,7 @@ namespace zonetool::iw7
 		GfxVoxelTree* voxelTree;
 		int heightfieldCount;
 		GfxHeightfield* heightfields;
-		unk_1453E4B08 unk01; // something related to surfaces
+		GfxWorldLightLists lightLists;
 		int modelCount;
 		GfxBrushModel* models;
 		Bounds bounds;

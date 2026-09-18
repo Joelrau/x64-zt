@@ -764,12 +764,12 @@ namespace zonetool::h1
 				new_asset->heightfieldCount = 0;
 				new_asset->heightfields = nullptr;
 
-				new_asset->unk01.unk01Count = 0;
-				new_asset->unk01.unk01 = nullptr;
-				new_asset->unk01.unk02Count = 0;
-				new_asset->unk01.unk02 = nullptr;
-				new_asset->unk01.unk03Count = 0;
-				new_asset->unk01.unk03 = nullptr;
+				new_asset->lightLists.surfaceListOffsetCount = 0;
+				new_asset->lightLists.surfaceListOffsets = nullptr;
+				new_asset->lightLists.smodelListOffsetCount = 0;
+				new_asset->lightLists.smodelListOffsets = nullptr;
+				new_asset->lightLists.listsSize = 0;
+				new_asset->lightLists.lists = nullptr;
 				
 				COPY_VALUE(modelCount);
 				new_asset->models = allocator.allocate_array<zonetool::iw7::GfxBrushModel>(asset->modelCount);
