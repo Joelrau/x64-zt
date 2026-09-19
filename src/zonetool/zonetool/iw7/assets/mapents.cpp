@@ -280,14 +280,10 @@ namespace zonetool::iw7
 			asset->dynEntPoseList[1][1][i].detailBodyToBoneMap = reader.read_array<char>();
 		}
 
-		//asset->dynEntClientList[0][0] = mem->allocate<DynEntityClient>(asset->dynEntCount[0]);
-		//asset->dynEntClientList[1][0] = mem->allocate<DynEntityClient>(asset->dynEntCount[0]);
-		//asset->dynEntClientList[0][1] = mem->allocate<DynEntityClient>(asset->dynEntCount[1]);
-		//asset->dynEntClientList[1][1] = mem->allocate<DynEntityClient>(asset->dynEntCount[1]);
-		asset->dynEntClientList[0][0] = reader.read_array<DynEntityClient>();
-		asset->dynEntClientList[1][0] = reader.read_array<DynEntityClient>();
-		asset->dynEntClientList[0][1] = reader.read_array<DynEntityClient>();
-		asset->dynEntClientList[1][1] = reader.read_array<DynEntityClient>();
+		asset->dynEntClientList[0][0] = mem->allocate<DynEntityClient>(asset->dynEntCount[0]);
+		asset->dynEntClientList[1][0] = mem->allocate<DynEntityClient>(asset->dynEntCount[0]);
+		asset->dynEntClientList[0][1] = mem->allocate<DynEntityClient>(asset->dynEntCount[1]);
+		asset->dynEntClientList[1][1] = mem->allocate<DynEntityClient>(asset->dynEntCount[1]);
 
 		asset->dynEntGlobalIdList[0] = reader.read_array<DynEntityGlobalId>();
 		asset->dynEntGlobalIdList[1] = reader.read_array<DynEntityGlobalId>();
