@@ -672,7 +672,8 @@ namespace zonetool::iw7
 		case Scriptable_EventType_PFX:
 			if (data->data.particleFX.effectDef.u.vfx)
 			{
-				zone->add_asset_of_type(ASSET_TYPE_VFX, data->data.particleFX.effectDef.u.vfx->name);
+				if (data->data.particleFX.effectDef.type == FX_COMBINED_VFX) zone->add_asset_of_type(ASSET_TYPE_VFX, data->data.particleFX.effectDef.u.vfx->name);
+				else zone->add_asset_of_type(ASSET_TYPE_FX, data->data.particleFX.effectDef.u.fx->name);
 			}
 			break;
 		case Scriptable_EventType_Sound:

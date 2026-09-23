@@ -573,7 +573,7 @@ namespace zonetool::s1
 				else
 				{
 					ZONETOOL_FATAL("Unable to map worldVertFormat %d for technique '%s'!", asset->worldVertFormat, asset->name);
-					new_asset->worldVertFormat = 0;
+					//new_asset->worldVertFormat = 0;
 				}
 
 				new_asset->preDisplacementOnlyCount = asset->preDisplacementOnlyCount;

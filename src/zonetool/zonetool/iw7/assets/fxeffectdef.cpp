@@ -77,6 +77,10 @@ namespace zonetool::iw7
 						{
 							def->visuals.markArray[j].materials[1] = read.read_asset<Material>();
 						}
+						if (def->visuals.markArray[j].materials[2])
+						{
+							def->visuals.markArray[j].materials[2] = read.read_asset<Material>();
+						}
 					}
 				}
 			}
@@ -236,6 +240,8 @@ namespace zonetool::iw7
 							zone->add_asset_of_type(ASSET_TYPE_MATERIAL, vis->markArray[i].materials[0]->name);
 						if (vis->markArray[i].materials[1])
 							zone->add_asset_of_type(ASSET_TYPE_MATERIAL, vis->markArray[i].materials[1]->name);
+						if (vis->markArray[i].materials[2])
+							zone->add_asset_of_type(ASSET_TYPE_MATERIAL, vis->markArray[i].materials[2]->name);
 					}
 				}
 			}
@@ -342,6 +348,10 @@ namespace zonetool::iw7
 					destvisuals[i].materials[1] = (data->markArray[i].materials[1])
 						? reinterpret_cast<Material*>(zone->get_asset_pointer(
 							ASSET_TYPE_MATERIAL, data->markArray[i].materials[1]->name))
+						: nullptr;
+					destvisuals[i].materials[2] = (data->markArray[i].materials[2])
+						? reinterpret_cast<Material*>(zone->get_asset_pointer(
+							ASSET_TYPE_MATERIAL, data->markArray[i].materials[2]->name))
 						: nullptr;
 				}
 			}
@@ -588,6 +598,10 @@ namespace zonetool::iw7
 						if (def->visuals.markArray[a].materials[1])
 						{
 							dump.dump_asset(def->visuals.markArray[a].materials[1]);
+						}
+						if (def->visuals.markArray[a].materials[2])
+						{
+							dump.dump_asset(def->visuals.markArray[a].materials[2]);
 						}
 					}
 				}
