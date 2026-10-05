@@ -2708,7 +2708,29 @@ namespace zonetool::iw7
 				return std::memcmp(data.data(), MARKER, MARKER_LEN) == 0;
 			}
 
-			bool parse(std::string& path, SndAssetBankEntry* entry, filesystem::file& out_file, unsigned char* checksum, unsigned char* source_checksum)
+			// primed sounds keep their first 48 frames (max 128kb, cut mid-frame) in the loaded bank,
+			// the rest is streamed from the .sabs
+			size_t get_prime_size(const std::string& frames)
+			{
+				constexpr std::uint8_t prime_frame_count = 48;
+				constexpr size_t prime_max_size = 0x20000;
+
+				const auto* data = reinterpret_cast<const std::uint8_t*>(frames.data());
+				const auto max_size = frames.size() < prime_max_size ? frames.size() : prime_max_size;
+
+				// fixed blocksize frame headers: sync code, same blocksize/sample rate byte, frame number in byte 4
+				for (size_t pos = 1; pos < max_size && pos + 4 < frames.size(); pos++)
+				{
+					if (data[pos] == 0xFF && data[pos + 1] == 0xF8 && data[pos + 2] == data[2] && data[pos + 4] == prime_frame_count)
+					{
+						return pos;
+					}
+				}
+
+				return max_size;
+			}
+
+			bool parse(std::string& path, SndAssetBankEntry* entry, std::string& out_data, unsigned char* checksum, unsigned char* source_checksum)
 			{
 				auto file = filesystem::file(path);
 
@@ -2808,8 +2830,8 @@ namespace zonetool::iw7
 				md5_process(&md, reinterpret_cast<const unsigned char*>(buffer.data()), static_cast<unsigned int>(buffer.size()));
 				md5_done(&md, checksum);
 
-				out_file.write(buffer.data(), buffer.size());
 				entry->size = static_cast<unsigned int>(buffer.size() - entry->seekTableSize);
+				out_data = std::move(buffer);
 
 				return true;
 			}
@@ -3381,11 +3403,13 @@ namespace zonetool::iw7
 
 					if (!streamed)
 					{
-						if (alias->flags.type != SAT_LOADED)
+						if (alias->flags.type != SAT_LOADED && alias->flags.type != SAT_PRIMED)
 						{
 							continue;
 						}
 					}
+
+					const auto is_prime = !streamed && alias->flags.type == SAT_PRIMED;
 
 					SndAssetBankEntry entry{};
 					entry.id = alias->assetId;
@@ -3401,13 +3425,23 @@ namespace zonetool::iw7
 
 					checksum128_s checksum{};
 					checksum128_s source_checksum{};
+					std::string asset_data{};
 
 					switch (entry.format)
 					{
 					case SND_ASSET_FORMAT_FLAC:
-						if (!flac::parse(asset_file, &entry, file, checksum.md5, source_checksum.md5))
+						if (!flac::parse(asset_file, &entry, asset_data, checksum.md5, source_checksum.md5))
 						{
 							continue;
+						}
+
+						if (is_prime)
+						{
+							// the prime entry matches the streamed one (checksums included), minus the seektable
+							asset_data = asset_data.substr(entry.seekTableSize);
+							asset_data.resize(flac::get_prime_size(asset_data));
+							entry.size = static_cast<unsigned int>(asset_data.size());
+							entry.seekTableSize = 0;
 						}
 						break;
 					case SND_ASSET_FORMAT_PCMS16:
@@ -3423,6 +3457,8 @@ namespace zonetool::iw7
 					default:
 						__debugbreak();
 					}
+
+					file.write(asset_data.data(), asset_data.size());
 
 					assets.push_back(alias->assetFileName);
 					checksums.push_back(checksum);
