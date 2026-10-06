@@ -66,7 +66,7 @@ end
 
 newoption {
 	trigger = "games",
-	description = "Comma-separated games to build (or \"all\")",
+	description = "Games to build, separated by \"+\" or \",\" (or \"all\")",
 	value = "LIST",
 	default = "h1",
 }
@@ -275,7 +275,9 @@ filter "configurations:Debug"
 	defines {"DEBUG", "_DEBUG"}
 filter {}
 
-games.write_enabled_header()
+if _ACTION and _ACTION:startswith("vs") then
+	games.write_enabled_header()
+end
 
 include "src/common.lua"
 include "src/core.lua"

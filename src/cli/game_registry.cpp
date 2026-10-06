@@ -7,6 +7,10 @@
 ZONETOOL_GAMES(DECLARE_GAME)
 #undef DECLARE_GAME
 
+#define DECLARE_CONVERTER(source, target) namespace zonetool::convert::source##_##target { const converter& definition(); }
+ZONETOOL_CONVERTERS(DECLARE_CONVERTER)
+#undef DECLARE_CONVERTER
+
 namespace zonetool::cli
 {
 	std::span<const game* const> enabled_games()
@@ -24,6 +28,23 @@ namespace zonetool::cli
 			if (game->name == name)
 			{
 				return game;
+			}
+		}
+
+		return nullptr;
+	}
+
+	const converter* find_converter(const std::string_view source, const std::string_view target)
+	{
+#define CONVERTER_ENTRY(source, target) &convert::source##_##target::definition(),
+		static const std::vector<const converter*> converters{ZONETOOL_CONVERTERS(CONVERTER_ENTRY)};
+#undef CONVERTER_ENTRY
+
+		for (const auto* converter : converters)
+		{
+			if (converter->source == source && converter->target == target)
+			{
+				return converter;
 			}
 		}
 

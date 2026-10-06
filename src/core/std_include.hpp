@@ -43,6 +43,7 @@
 #include <chrono>
 #include <cstdint>
 #include <cstring>
+#include <deque>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -60,6 +61,7 @@
 #include <string>
 #include <string_view>
 #include <thread>
+#include <typeindex>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>

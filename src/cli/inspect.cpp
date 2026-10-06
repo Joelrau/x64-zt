@@ -17,9 +17,6 @@ namespace zonetool::cli
 		struct zone_summary
 		{
 			xfile::fastfile file;
-			std::uint64_t size;
-			std::uint64_t external_size;
-			std::vector<std::uint64_t> block_sizes;
 			XAssetList asset_list;
 		};
 
@@ -29,42 +26,28 @@ namespace zonetool::cli
 			summary.file = xfile::read(path, game.format);
 
 			const auto& payload = summary.file.payload;
-			const auto memory_size = sizeof(std::uint64_t) * (2 + game.block_count);
-			if (payload.size() < memory_size + sizeof(XAssetList))
+			if (payload.size() < sizeof(XAssetList))
 			{
-				throw std::runtime_error("zone is smaller than its headers");
+				throw std::runtime_error("zone is smaller than its asset list");
 			}
 
-			std::memcpy(&summary.size, payload.data(), sizeof(summary.size));
-			std::memcpy(&summary.external_size, payload.data() + 8, sizeof(summary.external_size));
-
-			summary.block_sizes.resize(game.block_count);
-			std::memcpy(summary.block_sizes.data(), payload.data() + 16, game.block_count * sizeof(std::uint64_t));
-			std::memcpy(&summary.asset_list, payload.data() + memory_size, sizeof(XAssetList));
-
-			if (summary.size != payload.size() - memory_size)
-			{
-				throw std::runtime_error(std::format("zone size 0x{:X} does not match data size 0x{:X}",
-					summary.size, payload.size() - memory_size));
-			}
-
+			std::memcpy(&summary.asset_list, payload.data(), sizeof(XAssetList));
 			return summary;
 		}
 
 		void print_summary(const zone_summary& summary)
 		{
-			const auto& header = summary.file.header;
-			std::cout << std::format("magic:          {}\n", std::string_view(header.header, sizeof(header.header)));
-			std::cout << std::format("version:        {}\n", header.version);
-			std::cout << std::format("signed:         {}\n", summary.file.is_signed);
-			std::cout << std::format("compress type:  {}\n", header.compressType);
-			std::cout << std::format("stream files:   {}\n", summary.file.stream_files.size());
-			std::cout << std::format("data size:      0x{:X}\n", summary.size);
-			std::cout << std::format("external size:  0x{:X}\n", summary.external_size);
+			const auto& file = summary.file;
+			std::cout << std::format("magic:          {}\n", file.magic);
+			std::cout << std::format("version:        {}\n", file.version);
+			std::cout << std::format("signed:         {}\n", file.is_signed);
+			std::cout << std::format("stream files:   {}\n", file.stream_files.size());
+			std::cout << std::format("shared streams: {}\n", file.shared_stream_files.size());
+			std::cout << std::format("data size:      0x{:X}\n", file.payload.size());
 
-			for (std::size_t block = 0; block < summary.block_sizes.size(); block++)
+			for (std::size_t block = 0; block < file.block_sizes.size(); block++)
 			{
-				std::cout << std::format("block {}:        0x{:X}\n", block, summary.block_sizes[block]);
+				std::cout << std::format("block {}:        0x{:X}\n", block, file.block_sizes[block]);
 			}
 
 			std::cout << std::format("script strings: {}\n", summary.asset_list.stringCount);

@@ -8,6 +8,9 @@ namespace zonetool::cli
 		static const std::array list
 		{
 			command{"inspect", "inspect <zone> | inspect --all", inspect},
+			command{"dumpzone", "dumpzone <zone> [--target <game>]", dump_zone},
+			command{"verifyzone", "verifyzone <zone> | verifyzone --all", verify_zone},
+			command{"buildzone", "buildzone <zone>", build_zone},
 		};
 
 		return list;

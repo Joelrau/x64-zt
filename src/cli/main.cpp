@@ -1,6 +1,7 @@
 #include <std_include.hpp>
 #include "commands.hpp"
 #include "game_registry.hpp"
+#include "crash.hpp"
 
 namespace zonetool::cli
 {
@@ -84,5 +85,6 @@ namespace zonetool::cli
 
 int main(const int argc, char** argv)
 {
+	zonetool::cli::install_crash_handler();
 	return zonetool::cli::main(argc, argv);
 }

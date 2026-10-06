@@ -20,7 +20,7 @@ local function select_games()
 	end
 
 	local selected = {}
-	for name in requested:gmatch("[^,%s]+") do
+	for name in requested:gmatch("[^,+%s]+") do
 		if not table.contains(games.known, name) then
 			error("Unknown game \"" .. name .. "\". Known games: " .. table.concat(games.known, ", "))
 		end

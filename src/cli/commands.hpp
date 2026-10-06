@@ -17,4 +17,7 @@ namespace zonetool::cli
 	bool execute(const settings& settings, std::span<const std::string> args);
 
 	void inspect(const settings& settings, std::span<const std::string> args);
+	void dump_zone(const settings& settings, std::span<const std::string> args);
+	void verify_zone(const settings& settings, std::span<const std::string> args);
+	void build_zone(const settings& settings, std::span<const std::string> args);
 }
