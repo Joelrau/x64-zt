@@ -68,7 +68,7 @@ newoption {
 	trigger = "games",
 	description = "Games to build, separated by \"+\" or \",\" (or \"all\")",
 	value = "LIST",
-	default = "h1",
+	default = "all",
 }
 
 newoption {
