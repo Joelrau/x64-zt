@@ -6,6 +6,7 @@ namespace game
 	{
 		none = -1,
 		h1,
+		h2,
 		iw7,
 		count,
 	};

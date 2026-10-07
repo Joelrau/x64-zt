@@ -1,5 +1,6 @@
 #pragma once
 
+#include "io/game_files.hpp"
 #include "xfile/xfile.hpp"
 
 namespace zonetool
@@ -14,6 +15,7 @@ namespace zonetool
 		std::string_view name;
 		std::string_view display_name;
 		std::string_view steam_folder;
+		game_files::opener open_files;
 		xfile::format format;
 		dump_command dump_zone;
 		zone_command verify_zone;

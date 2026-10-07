@@ -15,10 +15,10 @@ namespace zonetool::cli
 				return {};
 			}
 
-			auto path = settings.find_zone(args.front());
+			auto path = game_files::find_zone(args.front());
 			if (!path)
 			{
-				std::cout << std::format("zone \"{}\" not found in {}\n", args.front(), settings.zone_folder().string());
+				std::cout << std::format("zone \"{}\" not found in {}\n", args.front(), game_files::get().description());
 			}
 
 			return path;
@@ -26,14 +26,7 @@ namespace zonetool::cli
 
 		void verify_all(const settings& settings)
 		{
-			std::vector<std::filesystem::path> zones;
-			for (const auto& entry : std::filesystem::recursive_directory_iterator(settings.zone_folder()))
-			{
-				if (entry.is_regular_file() && entry.path().extension() == ".ff")
-				{
-					zones.emplace_back(entry.path());
-				}
-			}
+			const auto zones = game_files::list_zones();
 
 			std::size_t failed{};
 			for (const auto& zone : zones)

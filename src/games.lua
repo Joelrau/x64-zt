@@ -1,13 +1,22 @@
 games = {
-	known = {"h1", "iw7"},
+	known = {"h1", "h2", "iw7"},
 	enabled = {},
 	dependencies = {
 		h1 = function()
 			dependencies.use(directxtex)
 			gsc_tool.import_engine("h1")
 		end,
+		h2 = function()
+			dependencies.use(directxtex)
+			gsc_tool.import_engine("h2")
+		end,
 		iw7 = function()
 			dependencies.use(directxtex)
+		end,
+	},
+	converter_dependencies = {
+		h2_h1 = function()
+			dependencies.use(shader_tool)
 		end,
 	},
 }
@@ -125,6 +134,10 @@ local function converter_project(converter)
 		core.includes()
 		games.dependencies[converter.source]()
 		games.dependencies[converter.target]()
+
+		if games.converter_dependencies[name] then
+			games.converter_dependencies[name]()
+		end
 end
 
 function games.projects()

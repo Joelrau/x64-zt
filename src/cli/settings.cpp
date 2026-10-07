@@ -75,6 +75,11 @@ namespace zonetool::cli
 				return executable_folder();
 			}
 
+			if (game.steam_folder.empty())
+			{
+				throw std::runtime_error(std::format("set the {} game folder with -path or zonetool.json", game.name));
+			}
+
 			return std::filesystem::path(steam_common) / game.steam_folder;
 		}
 
@@ -104,32 +109,6 @@ namespace zonetool::cli
 		return this->game_path / "zone";
 	}
 
-	std::optional<std::filesystem::path> settings::find_zone(const std::string_view name) const
-	{
-		const auto file_name = std::filesystem::path(name).replace_extension(".ff");
-
-		if (std::filesystem::is_regular_file(file_name))
-		{
-			return file_name;
-		}
-
-		const auto direct = this->zone_folder() / file_name;
-		if (std::filesystem::is_regular_file(direct))
-		{
-			return direct;
-		}
-
-		for (const auto& entry : std::filesystem::recursive_directory_iterator(this->zone_folder()))
-		{
-			if (entry.is_regular_file() && entry.path().filename() == file_name)
-			{
-				return entry.path();
-			}
-		}
-
-		return {};
-	}
-
 	settings load_settings(std::vector<std::string>& args)
 	{
 		const auto config = read_config();
@@ -150,6 +129,11 @@ namespace zonetool::cli
 		}
 
 		result.game_path = select_game_path(*result.game, requested_path).make_preferred();
+
+		game_files::set(result.game->open_files
+			? result.game->open_files(result.game_path)
+			: game_files::open_folder(result.zone_folder()));
+
 		return result;
 	}
 }

@@ -1,7 +1,7 @@
 #include <std_include.hpp>
 #include "xfile.hpp"
 
-#include <utils/io.hpp>
+#include <io/game_files.hpp>
 
 #include <zlib.h>
 #include <lz4.h>
@@ -395,7 +395,7 @@ namespace zonetool::xfile
 	fastfile read(const std::filesystem::path& path, const format& format)
 	{
 		std::string data;
-		if (!utils::io::read_file(path.string(), &data))
+		if (!game_files::read(path, data))
 		{
 			throw std::runtime_error("cannot read file");
 		}
