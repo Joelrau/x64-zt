@@ -3,3 +3,7 @@
 build/
 
 generate_custom.bat
+
+docs/
+re_reference/
+dump/

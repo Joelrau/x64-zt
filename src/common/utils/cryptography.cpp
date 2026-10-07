@@ -1,6 +1,6 @@
 #include "string.hpp"
 #include "cryptography.hpp"
-#include "nt.hpp"
+#include "win_include.hpp"
 #include <gsl/gsl>
 #include <zlib.h>
 

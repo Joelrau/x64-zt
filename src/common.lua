@@ -1,20 +1,18 @@
 common = {}
+
 function common:project()
-    project "common"
+	project "common"
 		kind "StaticLib"
 		language "C++"
 
 		files {
-			"./src/common/**.hpp", 
-			"./src/common/**.cpp"
+			"./src/common/**.hpp",
+			"./src/common/**.cpp",
 		}
 
 		includedirs {
-			"./src/common", 
-			"%{prj.location}/src"
+			"./src/common",
 		}
 
-		resincludedirs {"$(ProjectDir)src"}
-
-		dependencies.imports()
+		dependencies.use(gsl, zlib, minizip, libtomcrypt, libtommath)
 end
