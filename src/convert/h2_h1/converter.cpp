@@ -134,6 +134,15 @@ namespace zonetool::convert::h2_h1
 			case source::ASSET_TYPE_WEAPON:
 				source::weapon_def::dump(header_as<source::WeaponDef>(header));
 				break;
+			case source::ASSET_TYPE_VEHICLE:
+				source::vehicle_def::dump(header_as<source::VehicleDef>(header));
+				break;
+			case source::ASSET_TYPE_SOUNDSUBMIX:
+				source::sound_submix::dump(header_as<source::SndSubmixList>(header));
+				break;
+			case source::ASSET_TYPE_REVERB_PRESET:
+				source::reverb_preset::dump(header_as<source::ReverbPreset>(header));
+				break;
 			case source::ASSET_TYPE_XANIM:
 				source::xanim_parts::dump(header_as<source::XAnimParts>(header));
 				break;

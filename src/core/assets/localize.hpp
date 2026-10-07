@@ -298,6 +298,10 @@ namespace zonetool
 		{
 		}
 
+		void* pointer() override { return asset_; }
+
+		bool referenced() override { return name_.starts_with(","); }
+
 		std::string name()
 		{
 			return this->name_;
@@ -329,7 +333,10 @@ namespace zonetool
 				name = utils::string::to_lower(name);
 			}
 
-			dest->value = buf->write_str(data->value);
+			if (data->value)
+			{
+				dest->value = buf->write_str(data->value);
+			}
 			dest->name = buf->write_str(name);
 
 			buf->pop_stream();

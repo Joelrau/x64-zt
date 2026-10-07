@@ -162,6 +162,7 @@ namespace zonetool::h1
 			ADD_ASSET(ASSET_TYPE_MAP_ENTS, map_ents);
 			ADD_ASSET(ASSET_TYPE_MATERIAL, material);
 			ADD_ASSET(ASSET_TYPE_NET_CONST_STRINGS, net_const_strings);
+			ADD_ASSET(ASSET_TYPE_PROTO, proto);
 			ADD_ASSET(ASSET_TYPE_RAWFILE, rawfile);
 			ADD_ASSET(ASSET_TYPE_REVERB_CURVE, reverb_curve);
 			ADD_ASSET(ASSET_TYPE_REVERB_PRESET, reverb_preset);

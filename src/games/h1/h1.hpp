@@ -57,6 +57,7 @@
 	x(ASSET_TYPE_TRACER, tracer_def, TracerDef) \
 	x(ASSET_TYPE_VEHICLE, vehicle_def, VehicleDef) \
 	x(ASSET_TYPE_NET_CONST_STRINGS, net_const_strings, NetConstStrings) \
+	x(ASSET_TYPE_PROTO, proto, Proto) \
 	x(ASSET_TYPE_REVERB_PRESET, reverb_preset, ReverbPreset) \
 	x(ASSET_TYPE_LUA_FILE, lua_file, LuaFile) \
 	x(ASSET_TYPE_SCRIPTABLE, scriptable_def, ScriptableDef) \
@@ -71,7 +72,6 @@
 
 #define H1_READ_ONLY_ASSETS(x) \
 	x(ASSET_TYPE_VEHICLE_TRACK, vehicle_track, VehicleTrack) \
-	x(ASSET_TYPE_PROTO, proto, Proto) \
 	x(ASSET_TYPE_ADDON_MAP_ENTS, addon_map_ents, AddonMapEnts)
 
 #include <assets/shared.hpp>

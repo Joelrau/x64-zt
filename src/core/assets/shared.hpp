@@ -23,6 +23,7 @@
 #include "stringtable.hpp"
 #include "localize.hpp"
 #include "ttfdef.hpp"
+#include "proto.hpp"
 
 #include "shader.hpp"
 #include "vertexdecl.hpp"

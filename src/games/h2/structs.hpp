@@ -7988,109 +7988,89 @@ namespace zonetool::h2
 	using namespace ddl_structs;
 	using DDLRoot = DDLFile;
 
-	struct Proto;
-	struct Proto_B;
-	struct Proto_A_A_A;
-	struct Proto_A_A_B_A;
-	struct Proto_A_A_B;
-	struct Proto_A_A;
-	struct Proto_A_B_A;
-	struct Proto_A_B;
-	struct Proto_A;
-	struct Proto_C;
-
-	struct Proto_B
+	enum ProtoFieldType : int
 	{
-		Proto_A_B_A* unk1;
-		int unk1_count;
-		int unk2;
-	}; assert_sizeof(Proto_B, 16);
+		PROTO_FIELD_FLOAT = 1,
+		PROTO_FIELD_VARINT = 5,
+		PROTO_FIELD_ZIGZAG = 7,
+		PROTO_FIELD_BOOL = 12,
+		PROTO_FIELD_STRING = 13,
+		PROTO_FIELD_BYTES = 14,
+		PROTO_FIELD_MESSAGE = 15,
+	};
 
-	struct Proto_A_A_A
+	struct ProtoMessage;
+	struct ProtoEnum;
+
+	struct ProtoNameIndexEntry
 	{
-		const char* unk1;
-		Proto_A_A* unk2;
-		int unk2_count;
-		Proto_B unk3;
-	}; assert_sizeof(Proto_A_A_A, 40);
-	assert_offsetof(Proto_A_A_A, unk2, 8);
-	assert_offsetof(Proto_A_A_A, unk2_count, 16);
+		unsigned int name_hash;
+		int index;
+	}; assert_sizeof(ProtoNameIndexEntry, 8);
 
-	struct Proto_A_A_B_A
+	struct ProtoNameIndex
 	{
-		int __pad0[2];
-		const char* unk1;
-	}; assert_sizeof(Proto_A_A_B_A, 16);
+		ProtoNameIndexEntry* entries;
+		int count;
+		int capacity;
+	}; assert_sizeof(ProtoNameIndex, 16);
 
-	struct Proto_A_A_B
-	{
-		const char* unk1;
-		Proto_A_A_B_A* unk2;
-		int unk2_count;
-	}; assert_sizeof(Proto_A_A_B, 24);
-	assert_offsetof(Proto_A_A_B, unk2, 8);
-	assert_offsetof(Proto_A_A_B, unk2_count, 16);
-
-	struct Proto_A_A
-	{
-		const char* unk1;
-		int __pad0[4];
-		Proto_A_A_A* unk2;
-		Proto_A_A_B* unk3;
-	}; assert_sizeof(Proto_A_A, 40);
-	assert_offsetof(Proto_A_A, unk2, 24);
-	assert_offsetof(Proto_A_A, unk3, 32);
-
-	struct Proto_A_B_A
+	struct ProtoEnumValue
 	{
 		int __pad0[2];
-	}; assert_sizeof(Proto_A_B_A, 8);
+		const char* name;
+	}; assert_sizeof(ProtoEnumValue, 16);
 
-	struct Proto_A_B
+	struct ProtoEnum
 	{
-		Proto_A_B_A* unk1;
-		int unk1_count;
-	}; assert_sizeof(Proto_A_B, 16);
-	assert_offsetof(Proto_A_B, unk1, 0);
-	assert_offsetof(Proto_A_B, unk1_count, 8);
+		const char* name;
+		ProtoEnumValue* values;
+		int value_count;
+	}; assert_sizeof(ProtoEnum, 24);
+	assert_offsetof(ProtoEnum, values, 8);
+	assert_offsetof(ProtoEnum, value_count, 16);
 
-	struct Proto_A
+	struct ProtoField
 	{
-		const char* unk1;
-		Proto_A_A* unk2;
-		int unk2_count;
-		Proto_A_B unk3;
-	}; assert_sizeof(Proto_A, 40);
-	assert_offsetof(Proto_A, unk2, 8);
-	assert_offsetof(Proto_A, unk2_count, 16);
-	assert_offsetof(Proto_A, unk3, 24);
+		const char* name;
+		int type;
+		int number;
+		int repeated;
+		int __pad0;
+		ProtoMessage* message;
+		ProtoEnum* enum_type;
+	}; assert_sizeof(ProtoField, 40);
+	assert_offsetof(ProtoField, message, 24);
+	assert_offsetof(ProtoField, enum_type, 32);
 
-	struct Proto_C
+	struct ProtoMessage
 	{
-		const char* unk1;
-		Proto_A_A_B_A* unk2;
-		int unk2_count;
-	}; assert_sizeof(Proto_C, 24);
-	assert_offsetof(Proto_A, unk2, 8);
-	assert_offsetof(Proto_A, unk2_count, 16);
+		const char* name;
+		ProtoField* fields;
+		int field_count;
+		ProtoNameIndex field_index;
+	}; assert_sizeof(ProtoMessage, 40);
+	assert_offsetof(ProtoMessage, fields, 8);
+	assert_offsetof(ProtoMessage, field_count, 16);
+	assert_offsetof(ProtoMessage, field_index, 24);
 
 	struct Proto
 	{
 		const char* name;
 		const char* checksum;
-		Proto_A* unk2;
-		int unk2_count;
-		Proto_B unk3;
-		Proto_C* unk4;
-		int unk4_count;
-		Proto_B unk5;
+		ProtoMessage* messages;
+		int message_count;
+		ProtoNameIndex message_index;
+		ProtoEnum* enums;
+		int enum_count;
+		ProtoNameIndex enum_index;
 	}; assert_sizeof(Proto, 0x50);
-	assert_offsetof(Proto, unk2, 16);
-	assert_offsetof(Proto, unk2_count, 24);
-	assert_offsetof(Proto, unk3, 32);
-	assert_offsetof(Proto, unk4, 48);
-	assert_offsetof(Proto, unk4_count, 56);
-	assert_offsetof(Proto, unk5, 64);
+	assert_offsetof(Proto, messages, 16);
+	assert_offsetof(Proto, message_count, 24);
+	assert_offsetof(Proto, message_index, 32);
+	assert_offsetof(Proto, enums, 48);
+	assert_offsetof(Proto, enum_count, 56);
+	assert_offsetof(Proto, enum_index, 64);
 
 	struct SndSubmix
 	{

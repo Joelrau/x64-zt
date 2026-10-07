@@ -3,6 +3,7 @@
 #include "zone/loader.hpp"
 
 #include <formats/csv.hpp>
+#include <utils/flags.hpp>
 
 namespace zonetool::h1
 {
@@ -302,7 +303,8 @@ namespace zonetool::h1
 
 		zone->add_asset_of_type("rawfile", name);
 
-		zone_buffer buffer;
+		const auto buffer_size = utils::flags::has_flag("more_memory") ? max_zone_size * 2 : max_zone_size;
+		zone_buffer buffer(buffer_size);
 		zone->build(&buffer);
 	}
 }

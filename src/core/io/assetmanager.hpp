@@ -759,7 +759,7 @@ namespace zonetool
 						return nullptr;
 					}
 
-					T* data = memory->allocate<T>(size);
+					T* data = memory->manual_allocate<T>(size);
 					read_internal(data, size, 1);
 
 					dump_entry entry{ 0 };

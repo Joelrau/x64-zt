@@ -2,6 +2,9 @@
 #include "commands.hpp"
 #include "game_registry.hpp"
 
+#include <formats/csv_generator.hpp>
+#include <game_mode.hpp>
+
 namespace zonetool::cli
 {
 	namespace
@@ -98,5 +101,37 @@ namespace zonetool::cli
 		}
 
 		settings.game->build_zone(settings.zone_folder(), args.front());
+	}
+
+	void generate_csv(const settings& settings, const std::span<const std::string> args)
+	{
+		if (args.empty())
+		{
+			std::cout << "usage: generatecsv <map> [sp]\n";
+			return;
+		}
+
+		const auto token_name = settings.game->token_name;
+		const auto get_token_name = [token_name](const std::uint32_t id)
+		{
+			return token_name ? token_name(id) : std::to_string(id);
+		};
+
+		auto is_sp = false;
+		std::vector<std::string> extra_paths;
+		for (auto i = 1u; i < args.size(); ++i)
+		{
+			if (args[i] == "sp")
+			{
+				is_sp = true;
+			}
+			else if (args[i] == "--path" && i + 1 < args.size())
+			{
+				extra_paths.emplace_back(args[++i]);
+			}
+		}
+
+		csv_generator::generate_map_csv(args.front(), get_token_name, is_sp,
+			::game::get_mode_from_string(std::string(settings.game->name)), extra_paths);
 	}
 }

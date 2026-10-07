@@ -9,6 +9,7 @@ namespace zonetool
 	using dump_command = void(*)(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path, asset_dumper converter);
 	using zone_command = void(*)(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path);
 	using build_command = void(*)(const std::filesystem::path& zone_folder, const std::string& name);
+	using token_name_resolver = std::string(*)(std::uint32_t id);
 
 	struct game
 	{
@@ -20,6 +21,7 @@ namespace zonetool
 		dump_command dump_zone;
 		zone_command verify_zone;
 		build_command build_zone;
+		token_name_resolver token_name;
 	};
 
 	struct converter

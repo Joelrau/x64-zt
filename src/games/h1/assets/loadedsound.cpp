@@ -212,14 +212,12 @@ namespace zonetool::h1
 		auto* result = mem->allocate<LoadedSound>();
 		result->name = mem->duplicate_string(name);
 
-		const auto size = static_cast<int>(file.size());
-		const auto data = mem->allocate<char>(size);
-		file.read(data, size, 1);
+		std::string data_str(file.size(), '\0');
+		file.read(data_str.data(), data_str.size(), 1);
 
 		result->info.blockAlign = 0;
 		result->info.format = SND_FORMAT_FLAC;
 
-		std::string data_str{data, static_cast<size_t>(size)};
 		const auto converted = convert_flac(data_str, &result->info);
 
 		result->info.data = mem->allocate<char>(converted.size());

@@ -3,9 +3,5 @@
 
 namespace zonetool::h1
 {
-	class proto
-	{
-	public:
-		static void read(zone_reader& reader, Proto* asset);
-	};
+	REGISTER_TEMPLATED_ASSET(proto, Proto, ASSET_TYPE_PROTO);
 }
