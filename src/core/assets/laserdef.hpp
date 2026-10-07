@@ -136,6 +136,7 @@ namespace zonetool
 			reader.read_asset(Types::ASSET_TYPE_MATERIAL, asset->laserLightMaterial);
 			reader.read_asset(Types::ASSET_TYPE_FX, asset->laserEndEffect);
 			reader.read_asset(Types::ASSET_TYPE_LASER, asset->friendlyTeamLaser);
+			reader.read_script_string(asset->laserTag);
 			reader.pop_stream();
 		}
 

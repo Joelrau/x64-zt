@@ -16,7 +16,12 @@ namespace zonetool
 
 			std::filesystem::path long_path(const std::filesystem::path& path)
 			{
-				return LR"(\\?\)" +std::filesystem::absolute(path).lexically_normal().wstring();
+				return LR"(\\?\)" + std::filesystem::absolute(path).lexically_normal().wstring();
+			}
+
+			errno_t open_long_path(FILE*& fp, const std::filesystem::path& path, const std::string& mode)
+			{
+				return _wfopen_s(&fp, long_path(path).c_str(), std::wstring(mode.begin(), mode.end()).data());
 			}
 		}
 
@@ -112,7 +117,7 @@ namespace zonetool
 					auto path = get_file_path(this->filepath.string());
 					if (!path.empty())
 					{
-						return fopen_s(&this->fp, (path + this->filepath.string()).data(), mode.data());
+						return open_long_path(this->fp, path + this->filepath.string(), mode);
 					}
 				}
 				if (mode[0] == 'w' || mode[0] == 'a')
@@ -120,8 +125,7 @@ namespace zonetool
 					auto path = get_dump_path();
 					auto dir = path + this->parent_path;
 					create_directory(dir);
-					return _wfopen_s(&this->fp, long_path(path + this->filepath.string()).c_str(),
-						std::wstring(mode.begin(), mode.end()).data());
+					return open_long_path(this->fp, path + this->filepath.string(), mode);
 				}
 			}
 			if (is_zone)
@@ -131,16 +135,16 @@ namespace zonetool
 					auto path = get_zone_path(this->filepath.string());
 					if (!path.empty())
 					{
-						return fopen_s(&this->fp, (path + this->filepath.string()).data(), mode.data());
+						return open_long_path(this->fp, path + this->filepath.string(), mode);
 					}
 				}
 				if (mode[0] == 'w' || mode[0] == 'a')
 				{
 					auto path = get_zone_path();
-					return fopen_s(&this->fp, (path + this->filepath.string()).data(), mode.data());
+					return open_long_path(this->fp, path + this->filepath.string(), mode);
 				}
 			}
-			return fopen_s(&this->fp, this->filepath.string().data(), mode.data());
+			return open_long_path(this->fp, this->filepath.string(), mode);
 		}
 
 		size_t file::write_string(const std::string& str)
@@ -378,7 +382,7 @@ namespace zonetool
 			for (const auto& search_path : search_paths)
 			{
 				const auto full_path = search_path + "\\"s + name;
-				if (std::filesystem::exists(full_path))
+				if (std::filesystem::exists(long_path(full_path)))
 				{
 					return search_path + "\\"s;
 				}

@@ -883,6 +883,27 @@ namespace zonetool::iw7
 		return ASSET_TYPE_SCRIPTABLE;
 	}
 
+	void write_scriptable_event(zone_base* zone, zone_buffer* buf, ScriptableEventDef* data, ScriptableEventDef* dest);
+
+	void write_events(zone_base* zone, zone_buffer* buf, ScriptableEventDef* data, const unsigned int count, ScriptableEventDef** dest)
+	{
+		if (const auto written_events = buf->find_sub_buffer(data))
+		{
+			*dest = written_events;
+			return;
+		}
+
+		buf->align(7);
+		buf->insert_sub_buffer(data, count);
+		auto* dest_events = buf->write(data, count);
+		for (auto i = 0u; i < count; i++)
+		{
+			write_scriptable_event(zone, buf, &data[i], &dest_events[i]);
+		}
+
+		buf->clear_pointer(dest);
+	}
+
 	void write_scriptable_event(zone_base* zone, zone_buffer* buf, ScriptableEventDef* data, ScriptableEventDef* dest)
 	{
 		if (data->base.name)
@@ -892,7 +913,11 @@ namespace zonetool::iw7
 
 		const auto write_event_base = [&]()
 		{
-			if (data->data.anonymous.base)
+			if (const auto written_base = buf->find_sub_buffer(data->data.anonymous.base))
+			{
+				dest->data.anonymous.base = written_base;
+			}
+			else if (data->data.anonymous.base)
 			{
 				buf->align(7);
 				dest->data.anonymous.base = buf->write(data->data.anonymous.base);
@@ -913,7 +938,11 @@ namespace zonetool::iw7
 
 			const auto write_part_reference_base = [&]()
 			{
-				if (data_->u.__0.base)
+				if (const auto written_base = buf->find_sub_buffer(data_->u.__0.base))
+				{
+					dest_->u.__0.base = written_base;
+				}
+				else if (data_->u.__0.base)
 				{
 					buf->align(7);
 					dest_->u.__0.base = buf->write(data_->u.__0.base);
@@ -957,23 +986,11 @@ namespace zonetool::iw7
 			write_event_base();
 			if (data->data.random.eventsA)
 			{
-				buf->align(7);
-				dest->data.random.eventsA = buf->write(data->data.random.eventsA, data->data.random.eventACount);
-				for (unsigned i = 0; i < data->data.random.eventACount; i++)
-				{
-					write_scriptable_event(zone, buf, &data->data.random.eventsA[i], &dest->data.random.eventsA[i]);
-				}
-				buf->clear_pointer(&dest->data.random.eventsA);
+				write_events(zone, buf, data->data.random.eventsA, data->data.random.eventACount, &dest->data.random.eventsA);
 			}
 			if (data->data.random.eventsB)
 			{
-				buf->align(7);
-				dest->data.random.eventsB = buf->write(data->data.random.eventsB, data->data.random.eventBCount);
-				for (unsigned i = 0; i < data->data.random.eventBCount; i++)
-				{
-					write_scriptable_event(zone, buf, &data->data.random.eventsB[i], &dest->data.random.eventsB[i]);
-				}
-				buf->clear_pointer(&dest->data.random.eventsB);
+				write_events(zone, buf, data->data.random.eventsB, data->data.random.eventBCount, &dest->data.random.eventsB);
 			}
 			break;
 		case Scriptable_EventType_Script:
@@ -1007,13 +1024,7 @@ namespace zonetool::iw7
 			}
 			if (data->data.animation.eventsAtEnd)
 			{
-				buf->align(7);
-				dest->data.animation.eventsAtEnd = buf->write(data->data.animation.eventsAtEnd, data->data.animation.eventAtEndCount);
-				for (unsigned int i = 0; i < data->data.animation.eventAtEndCount; i++)
-				{
-					write_scriptable_event(zone, buf, &data->data.animation.eventsAtEnd[i], &dest->data.animation.eventsAtEnd[i]);
-				}
-				buf->clear_pointer(&dest->data.animation.eventsAtEnd);
+				write_events(zone, buf, data->data.animation.eventsAtEnd, data->data.animation.eventAtEndCount, &dest->data.animation.eventsAtEnd);
 			}
 			break;
 		case Scriptable_EventType_HideShowBone:
@@ -1038,13 +1049,7 @@ namespace zonetool::iw7
 					}
 					if (data->data.noteTrack.noteTracks[i].events)
 					{
-						buf->align(7);
-						dest->data.noteTrack.noteTracks[i].events = buf->write(data->data.noteTrack.noteTracks[i].events, data->data.noteTrack.noteTracks[i].numEvents);
-						for (unsigned int j = 0; j < data->data.noteTrack.noteTracks[i].numEvents; j++)
-						{
-							write_scriptable_event(zone, buf, &data->data.noteTrack.noteTracks[i].events[j], &dest->data.noteTrack.noteTracks[i].events[j]);
-						}
-						buf->clear_pointer(&dest->data.noteTrack.noteTracks[i].events);
+						write_events(zone, buf, data->data.noteTrack.noteTracks[i].events, data->data.noteTrack.noteTracks[i].numEvents, &dest->data.noteTrack.noteTracks[i].events);
 					}
 				}
 
@@ -1171,50 +1176,22 @@ namespace zonetool::iw7
 			write_event_base();
 			if (data->data.clientViewSelector.events1p)
 			{
-				buf->align(7);
-				auto* destEvents1p = buf->write(data->data.clientViewSelector.events1p, data->data.clientViewSelector.event1pCount);
-				auto* dataEvents1p = data->data.clientViewSelector.events1p;
-				for (unsigned int i = 0; i < data->data.clientViewSelector.event1pCount; i++)
-				{
-					write_scriptable_event(zone, buf, &dataEvents1p[i], &destEvents1p[i]);
-				}
-				buf->clear_pointer(&dest->data.clientViewSelector.events1p);
+				write_events(zone, buf, data->data.clientViewSelector.events1p, data->data.clientViewSelector.event1pCount, &dest->data.clientViewSelector.events1p);
 			}
 			if (data->data.clientViewSelector.events3p)
 			{
-				buf->align(7);
-				auto* destEvents3p = buf->write(data->data.clientViewSelector.events3p, data->data.clientViewSelector.event3pCount);
-				auto* dataEvents3p = data->data.clientViewSelector.events3p;
-				for (unsigned int i = 0; i < data->data.clientViewSelector.event3pCount; i++)
-				{
-					write_scriptable_event(zone, buf, &dataEvents3p[i], &destEvents3p[i]);
-				}
-				buf->clear_pointer(&dest->data.clientViewSelector.events3p);
+				write_events(zone, buf, data->data.clientViewSelector.events3p, data->data.clientViewSelector.event3pCount, &dest->data.clientViewSelector.events3p);
 			}
 			break;
 		case Scriptable_EventType_TeamSelector:
 			write_event_base();
 			if (data->data.teamSelector.eventsPass)
 			{
-				buf->align(7);
-				auto* destEvents = buf->write(data->data.teamSelector.eventsPass, data->data.teamSelector.eventPassCount);
-				auto* dataEvents = data->data.teamSelector.eventsPass;
-				for (unsigned int i = 0; i < data->data.teamSelector.eventPassCount; i++)
-				{
-					write_scriptable_event(zone, buf, &dataEvents[i], &destEvents[i]);
-				}
-				buf->clear_pointer(&dest->data.teamSelector.eventsPass);
+				write_events(zone, buf, data->data.teamSelector.eventsPass, data->data.teamSelector.eventPassCount, &dest->data.teamSelector.eventsPass);
 			}
 			if (data->data.teamSelector.eventsFail)
 			{
-				buf->align(7);
-				auto* destEvents = buf->write(data->data.teamSelector.eventsFail, data->data.teamSelector.eventFailCount);
-				auto* dataEvents = data->data.teamSelector.eventsFail;
-				for (unsigned int i = 0; i < data->data.teamSelector.eventFailCount; i++)
-				{
-					write_scriptable_event(zone, buf, &dataEvents[i], &destEvents[i]);
-				}
-				buf->clear_pointer(&dest->data.teamSelector.eventsFail);
+				write_events(zone, buf, data->data.teamSelector.eventsFail, data->data.teamSelector.eventFailCount, &dest->data.teamSelector.eventsFail);
 			}
 			break;
 		case Scriptable_EventType_AddModel:
@@ -1326,20 +1303,22 @@ namespace zonetool::iw7
 
 		if (data->events)
 		{
-			buf->align(7);
-
-			auto* destEvents = buf->write(data->events, data->numEvents);
-			auto* dataEvents = data->events;
-			for (unsigned int i = 0; i < data->numEvents; i++)
-			{
-				auto* destEvent = &destEvents[i];
-				auto* dataEvent = &dataEvents[i];
-				
-				write_scriptable_event(zone, buf, dataEvent, destEvent);
-			}
-
-			buf->clear_pointer(&dest->events);
+			write_events(zone, buf, data->events, data->numEvents, &dest->events);
 		}
+	}
+
+	void write_state_base_pointer(zone_base* zone, zone_buffer* buf, ScriptableStateBaseDef* data, ScriptableStateBaseDef** dest)
+	{
+		if (const auto written_base = buf->find_sub_buffer(data))
+		{
+			*dest = written_base;
+			return;
+		}
+
+		buf->align(7);
+		*dest = buf->write(data);
+		write_state_base(zone, buf, data, *dest);
+		buf->clear_pointer(dest);
 	}
 
 	void write_state(zone_base* zone, zone_buffer* buf, ScriptableStateDef* data, ScriptableStateDef* dest)
@@ -1350,20 +1329,14 @@ namespace zonetool::iw7
 		{
 			if (data->data.simple.base)
 			{
-				buf->align(7);
-				dest->data.simple.base = buf->write(data->data.simple.base);
-				write_state_base(zone, buf, data->data.simple.base, dest->data.simple.base);
-				buf->clear_pointer(&dest->data.simple.base);
+				write_state_base_pointer(zone, buf, data->data.simple.base, &dest->data.simple.base);
 			}
 		}
 		else if (data->type == Scriptable_StateType_Health)
 		{
 			if (data->data.health.base)
 			{
-				buf->align(7);
-				dest->data.health.base = buf->write(data->data.health.base);
-				write_state_base(zone, buf, data->data.health.base, dest->data.health.base);
-				buf->clear_pointer(&dest->data.health.base);
+				write_state_base_pointer(zone, buf, data->data.health.base, &dest->data.health.base);
 			}
 
 			if (data->data.health.script_id)
@@ -1375,10 +1348,7 @@ namespace zonetool::iw7
 		{
 			if (data->data.scripted.base)
 			{
-				buf->align(7);
-				dest->data.scripted.base = buf->write(data->data.scripted.base);
-				write_state_base(zone, buf, data->data.scripted.base, dest->data.scripted.base);
-				buf->clear_pointer(&dest->data.scripted.base);
+				write_state_base_pointer(zone, buf, data->data.scripted.base, &dest->data.scripted.base);
 			}
 
 			if (data->data.scripted.script_id)
@@ -1401,7 +1371,7 @@ namespace zonetool::iw7
 		if (data->states)
 		{
 			buf->align(7);
-
+			buf->insert_sub_buffer(data->states, data->numStates);
 			dest->states = buf->write(data->states, data->numStates);
 			for (unsigned int i = 0; i < data->numStates; i++)
 			{
@@ -1413,7 +1383,7 @@ namespace zonetool::iw7
 		if (data->childParts)
 		{
 			buf->align(7);
-
+			buf->insert_sub_buffer(data->childParts, data->numChildParts);
 			dest->childParts = buf->write(data->childParts, data->numChildParts);
 			for (unsigned int i = 0; i < data->numChildParts; i++)
 			{
@@ -1727,7 +1697,7 @@ namespace zonetool::iw7
 
 		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 
-		dest->name = buf->write_str(this->name());
+		dest->name = buf->write_str(data->name);
 
 		if (data->nextScriptableDef)
 		{
@@ -1738,6 +1708,7 @@ namespace zonetool::iw7
 		if (data->parts)
 		{
 			buf->align(7);
+			buf->insert_sub_buffer(data->parts, data->numParts);
 			dest->parts = buf->write(data->parts, data->numParts);
 
 			for (unsigned int i = 0; i < data->numParts; i++)

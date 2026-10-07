@@ -659,12 +659,30 @@ namespace zonetool::iw7
 		}
 
 		reader.read_array(asset->clientTriggerBlend.blendNodes, 3, asset->clientTriggerBlend.numClientTriggerBlendNodes);
-		reader.read_array(asset->spawnList.spawns, 3, asset->spawnList.spawnsCount);
+		if (const auto spawns = reader.read_array(asset->spawnList.spawns, 3, asset->spawnList.spawnsCount))
+		{
+			for (auto i = 0; i < asset->spawnList.spawnsCount; i++)
+			{
+				reader.read_script_string(spawns[i].name);
+				reader.read_script_string(spawns[i].target);
+				reader.read_script_string(spawns[i].script_noteworthy);
+			}
+		}
+
 		if (const auto splines = reader.read_array(asset->splineList.splines, 7, asset->splineList.splineCount))
 		{
 			for (auto i = 0u; i < asset->splineList.splineCount; i++)
 			{
-				reader.read_array(splines[i].splinePoints, 3, splines[i].splinePointCount);
+				if (const auto points = reader.read_array(splines[i].splinePoints, 3, splines[i].splinePointCount))
+				{
+					for (auto j = 0; j < splines[i].splinePointCount; j++)
+					{
+						reader.read_script_string(points[j].splineNodeLabel);
+						reader.read_script_string(points[j].targetname);
+						reader.read_script_string(points[j].target);
+						reader.read_script_string(points[j].string);
+					}
+				}
 			}
 		}
 
@@ -709,7 +727,13 @@ namespace zonetool::iw7
 		reader.read_array(asset->dynEntTransientGroupState[0], 0, asset->dynEntTransientGroupCount);
 		reader.read_array(asset->dynEntTransientGroupState[1], 0, asset->dynEntTransientGroupCount);
 		reader.read_array(asset->unk3, 3, asset->unk3Count);
-		reader.read_array(asset->clientEntAnchors, 3, asset->clientEntAnchorCount);
+		if (const auto anchors = reader.read_array(asset->clientEntAnchors, 3, asset->clientEntAnchorCount))
+		{
+			for (auto i = 0u; i < asset->clientEntAnchorCount; i++)
+			{
+				reader.read_script_string(anchors[i].name);
+			}
+		}
 
 		auto& scriptables = asset->scriptableMapEnts;
 		if (const auto instances = reader.read_array(scriptables.instances, 7, scriptables.totalInstanceCount))
@@ -719,7 +743,9 @@ namespace zonetool::iw7
 				read_scriptable_context(reader, instances[i].contextHeader.context);
 				read_scriptable_context(reader, instances[i].contextHeaderLocalClient[0].context);
 				read_scriptable_context(reader, instances[i].contextHeaderLocalClient[1].context);
+				reader.read_script_string(instances[i].targetname);
 				reader.read_string(instances[i].debugName);
+				reader.read_script_string(instances[i].debugNameScr);
 			}
 		}
 
@@ -738,6 +764,7 @@ namespace zonetool::iw7
 			{
 				reader.read_asset(ASSET_TYPE_MAYHEM, scenes[i].mayhem);
 				reader.read_single(scenes[i].linkTo, 3);
+				reader.read_script_string(scenes[i].scriptName);
 			}
 		}
 
@@ -745,7 +772,16 @@ namespace zonetool::iw7
 		{
 			for (auto i = 0u; i < asset->spawners.spawnerCount; i++)
 			{
-				reader.read_array(spawners[i].fields, 3, spawners[i].numFields);
+				reader.read_script_string(spawners[i].targetname);
+				reader.read_script_string(spawners[i].classname);
+				if (const auto fields = reader.read_array(spawners[i].fields, 3, spawners[i].numFields))
+				{
+					for (auto j = 0u; j < spawners[i].numFields; j++)
+					{
+						reader.read_script_string(fields[j].key);
+						reader.read_script_string(fields[j].value);
+					}
+				}
 			}
 		}
 
@@ -1105,13 +1141,11 @@ namespace zonetool::iw7
 		}
 		if (data->dynEntTransientGroupState[0])
 		{
-			buf->align(3);
 			buf->write(data->dynEntTransientGroupState[0], data->dynEntTransientGroupCount);
 			buf->clear_pointer(&dest->dynEntTransientGroupState[0]);
 		}
 		if (data->dynEntTransientGroupState[1])
 		{
-			buf->align(3);
 			buf->write(data->dynEntTransientGroupState[1], data->dynEntTransientGroupCount);
 			buf->clear_pointer(&dest->dynEntTransientGroupState[1]);
 		}
@@ -1193,39 +1227,39 @@ namespace zonetool::iw7
 				}
 			}
 
-			if (data->scriptableMapEnts.runtimeData.partRuntime)
-			{
-				buf->align(3);
-				buf->write(data->scriptableMapEnts.runtimeData.partRuntime, data->scriptableMapEnts.runtimeData.partRuntimeCount);
-				buf->clear_pointer(&dest->scriptableMapEnts.runtimeData.partRuntime);
-			}
-			if (data->scriptableMapEnts.runtimeData.partRuntimeLocalClient[0])
-			{
-				buf->align(3);
-				buf->write(data->scriptableMapEnts.runtimeData.partRuntimeLocalClient[0], data->scriptableMapEnts.runtimeData.partRuntimeLocalClientCount);
-				buf->clear_pointer(&dest->scriptableMapEnts.runtimeData.partRuntimeLocalClient[0]);
-			}
-			if (data->scriptableMapEnts.runtimeData.partRuntimeLocalClient[1])
-			{
-				buf->align(3);
-				buf->write(data->scriptableMapEnts.runtimeData.partRuntimeLocalClient[1], data->scriptableMapEnts.runtimeData.partRuntimeLocalClientCount);
-				buf->clear_pointer(&dest->scriptableMapEnts.runtimeData.partRuntimeLocalClient[1]);
-			}
-
-			if (data->scriptableMapEnts.reservedDynents[0].reservedDynents)
-			{
-				buf->align(3);
-				buf->write(data->scriptableMapEnts.reservedDynents[0].reservedDynents, data->scriptableMapEnts.reservedDynents[0].numReservedDynents);
-				buf->clear_pointer(&dest->scriptableMapEnts.reservedDynents[0].reservedDynents);
-			}
-			if (data->scriptableMapEnts.reservedDynents[1].reservedDynents)
-			{
-				buf->align(3);
-				buf->write(data->scriptableMapEnts.reservedDynents[1].reservedDynents, data->scriptableMapEnts.reservedDynents[1].numReservedDynents);
-				buf->clear_pointer(&dest->scriptableMapEnts.reservedDynents[1].reservedDynents);
-			}
-
 			buf->clear_pointer(&dest->scriptableMapEnts.instances);
+		}
+
+		if (data->scriptableMapEnts.runtimeData.partRuntime)
+		{
+			buf->align(3);
+			buf->write(data->scriptableMapEnts.runtimeData.partRuntime, data->scriptableMapEnts.runtimeData.partRuntimeCount);
+			buf->clear_pointer(&dest->scriptableMapEnts.runtimeData.partRuntime);
+		}
+		if (data->scriptableMapEnts.runtimeData.partRuntimeLocalClient[0])
+		{
+			buf->align(3);
+			buf->write(data->scriptableMapEnts.runtimeData.partRuntimeLocalClient[0], data->scriptableMapEnts.runtimeData.partRuntimeLocalClientCount);
+			buf->clear_pointer(&dest->scriptableMapEnts.runtimeData.partRuntimeLocalClient[0]);
+		}
+		if (data->scriptableMapEnts.runtimeData.partRuntimeLocalClient[1])
+		{
+			buf->align(3);
+			buf->write(data->scriptableMapEnts.runtimeData.partRuntimeLocalClient[1], data->scriptableMapEnts.runtimeData.partRuntimeLocalClientCount);
+			buf->clear_pointer(&dest->scriptableMapEnts.runtimeData.partRuntimeLocalClient[1]);
+		}
+
+		if (data->scriptableMapEnts.reservedDynents[0].reservedDynents)
+		{
+			buf->align(3);
+			buf->write(data->scriptableMapEnts.reservedDynents[0].reservedDynents, data->scriptableMapEnts.reservedDynents[0].numReservedDynents);
+			buf->clear_pointer(&dest->scriptableMapEnts.reservedDynents[0].reservedDynents);
+		}
+		if (data->scriptableMapEnts.reservedDynents[1].reservedDynents)
+		{
+			buf->align(3);
+			buf->write(data->scriptableMapEnts.reservedDynents[1].reservedDynents, data->scriptableMapEnts.reservedDynents[1].numReservedDynents);
+			buf->clear_pointer(&dest->scriptableMapEnts.reservedDynents[1].reservedDynents);
 		}
 
 		if (data->mayhemScenes)

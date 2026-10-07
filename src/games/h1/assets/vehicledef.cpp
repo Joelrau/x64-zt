@@ -774,6 +774,9 @@ namespace zonetool::h1
 		reader.push_stream(XFILE_BLOCK_VIRTUAL);
 		reader.read_string(asset->name);
 		reader.read_string(asset->useHintString);
+		reader.read_script_strings(asset->trophyTags, std::size(asset->trophyTags));
+		reader.read_script_string(asset->audioOriginTag);
+		reader.read_script_string(asset->audioOriginTagAlt);
 		read_physics(reader, &asset->vehPhysDef);
 		reader.read_asset(ASSET_TYPE_FX, asset->treadDefaultFx);
 		reader.read_asset(ASSET_TYPE_FX, asset->handBrakeDefaultFx);

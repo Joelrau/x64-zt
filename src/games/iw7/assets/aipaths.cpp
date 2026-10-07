@@ -425,6 +425,12 @@ namespace zonetool::iw7
 
 	void write_node_tree_children(zone_buffer* buf, pathnode_tree_t* data, pathnode_tree_t** dest)
 	{
+		if (const auto written_tree = buf->find_sub_buffer(data))
+		{
+			*dest = written_tree;
+			return;
+		}
+
 		buf->align(7);
 		const auto tree = buf->write(data);
 		buf->clear_pointer(dest);
@@ -453,7 +459,7 @@ namespace zonetool::iw7
 		{
 			buf->align(1);
 			buf->write(data->u.s.nodes, data->u.s.nodeCount);
-			buf->clear_pointer(&data->u.s.nodes);
+			buf->clear_pointer(&dest->u.s.nodes);
 		}
 		else
 		{
@@ -581,6 +587,7 @@ namespace zonetool::iw7
 		if (data->nodeTree)
 		{
 			buf->align(7);
+			buf->insert_sub_buffer(data->nodeTree, data->nodeTreeCount);
 			const auto dest_trees = buf->write(data->nodeTree, data->nodeTreeCount);
 
 			for (auto i = 0; i < data->nodeTreeCount; i++)
@@ -594,20 +601,21 @@ namespace zonetool::iw7
 		if (data->dynamicNodeGroups)
 		{
 			buf->align(7);
-			buf->write(data->dynamicNodeGroups, data->dynamicNodeGroupCount);
+			const auto dest_groups = buf->write(data->dynamicNodeGroups, data->dynamicNodeGroupCount);
 
 			for (auto i = 0; i < data->dynamicNodeGroupCount; i++)
 			{
 				if (data->dynamicNodeGroups[i].nodeTree)
 				{
 					buf->align(7);
+					buf->insert_sub_buffer(data->dynamicNodeGroups[i].nodeTree, data->dynamicNodeGroups[i].nodeTreeCount);
 					const auto dest_trees = buf->write(data->dynamicNodeGroups[i].nodeTree,
 						data->dynamicNodeGroups[i].nodeTreeCount);
 					for (auto o = 0; o < data->dynamicNodeGroups[i].nodeTreeCount; o++)
 					{
 						write_node_tree(buf, &data->dynamicNodeGroups[i].nodeTree[o], &dest_trees[o]);
 					}
-					buf->clear_pointer(dest->dynamicNodeGroups[i].nodeTree);
+					buf->clear_pointer(&dest_groups[i].nodeTree);
 				}
 			}
 
@@ -618,28 +626,28 @@ namespace zonetool::iw7
 		{
 			buf->align(0);
 			buf->write(data->pathExposure, data->exposureBytes);
-			buf->clear_pointer(dest->pathExposure);
+			buf->clear_pointer(&dest->pathExposure);
 		}
 
 		if (data->pathNoPeekVis)
 		{
 			buf->align(0);
 			buf->write(data->pathNoPeekVis, data->noPeekVisBytes);
-			buf->clear_pointer(dest->pathNoPeekVis);
+			buf->clear_pointer(&dest->pathNoPeekVis);
 		}
 
 		if (data->pathZones)
 		{
 			buf->align(0);
 			buf->write(data->pathZones, data->zonesBytes);
-			buf->clear_pointer(dest->pathZones);
+			buf->clear_pointer(&dest->pathZones);
 		}
 
 		if (data->pathDynStates)
 		{
 			buf->align(0);
 			buf->write(data->pathDynStates, data->dynStatesBytes);
-			buf->clear_pointer(dest->pathDynStates);
+			buf->clear_pointer(&dest->pathDynStates);
 		}
 
 		buf->pop_stream();

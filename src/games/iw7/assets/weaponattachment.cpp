@@ -1130,6 +1130,8 @@ namespace zonetool::iw7
 		reader.push_stream(XFILE_BLOCK_VIRTUAL);
 		reader.read_string(asset->szInternalName);
 		reader.read_string(asset->szDisplayName);
+		reader.read_script_string(asset->internalName);
+		reader.read_script_string(asset->attachPoint);
 
 		reader.read_asset(ASSET_TYPE_XMODEL, asset->worldModelCamo);
 		reader.read_asset(ASSET_TYPE_XMODEL, asset->viewModelCamo);

@@ -181,6 +181,7 @@ namespace zonetool::iw7
 			for (auto i = 0; i < asset->numNavResources; i++)
 			{
 				auto& resource = resources[i];
+				reader.read_script_string(resource.targetName);
 				reader.read_array(resource.pGraphBuffer, 3, resource.graphSize);
 				if (resource.bDockable)
 				{
@@ -199,7 +200,21 @@ namespace zonetool::iw7
 
 		read_boundary_lists(reader, asset->glassBounds, asset->numGlassBounds);
 		read_boundary_lists(reader, asset->modifiers, asset->numModifiers);
-		reader.read_array(asset->linkCreationData, 3, asset->numLinkCreationData);
+		for (auto i = 0; asset->modifiers && i < asset->numModifiers; i++)
+		{
+			reader.read_script_string(asset->modifiers[i].m_TargetName);
+		}
+
+		if (const auto links = reader.read_array(asset->linkCreationData, 3, asset->numLinkCreationData))
+		{
+			for (auto i = 0; i < asset->numLinkCreationData; i++)
+			{
+				reader.read_script_string(links[i].m_Animscript);
+				reader.read_script_string(links[i].m_Target);
+				reader.read_script_string(links[i].m_Parent);
+			}
+		}
+
 		reader.read_array(asset->volumeSeeds, 3, asset->numVolumeSeeds);
 		reader.read_array(asset->rawVolumes, 3, asset->numRawVolumes);
 

@@ -621,6 +621,7 @@ namespace zonetool::iw7
 			ADD_ASSET(ASSET_TYPE_TRACER, tracer);
 			ADD_ASSET(ASSET_TYPE_TTF, ttf_def);
 			ADD_ASSET(ASSET_TYPE_VECTORFIELD, vector_field);
+			ADD_ASSET(ASSET_TYPE_XANIM_PROCEDURALBONES, xanim_procedural_bones);
 			ADD_ASSET(ASSET_TYPE_ATTACHMENT, weapon_attachment);
 			ADD_ASSET(ASSET_TYPE_ANIM_PACKAGE, weapon_anim_package);
 			ADD_ASSET(ASSET_TYPE_SFX_PACKAGE, weapon_sfx_package);

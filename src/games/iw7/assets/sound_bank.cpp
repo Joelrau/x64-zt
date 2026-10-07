@@ -3305,17 +3305,8 @@ namespace zonetool::iw7
 			{
 				if (path.find(filesystem::get_fastfile()) == std::string::npos)
 				{
-					const int result = MessageBoxA(NULL, utils::string::va("You are about to overwrite file %s\nAre you sure?", path.data()), "WARNING", MB_YESNOCANCEL);
-
-					switch (result)
-					{
-					case IDYES:
-						break;
-					case IDNO:
-					case IDCANCEL:
-						return;
-						break;
-					}
+					ZONETOOL_ERROR("Sound bank %s belongs to another zone and is not overwritten", path.data());
+					return;
 				}
 
 				utils::io::remove_file(path);

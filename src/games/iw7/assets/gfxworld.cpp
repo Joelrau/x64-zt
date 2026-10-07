@@ -23,7 +23,8 @@ namespace zonetool::iw7
 
 		MaterialTechnique* Material_GetTechnique(const Material* material, int techType, zone_base* zone)
 		{
-			return get_asset<MaterialTechniqueSet>(ASSET_TYPE_TECHNIQUE_SET, material->techniqueSet->name, zone)->techniques[techType];
+			const auto techset = get_asset<MaterialTechniqueSet>(ASSET_TYPE_TECHNIQUE_SET, material->techniqueSet->name, zone);
+			return techset ? techset->techniques[techType] : nullptr;
 		}
 
 		bool Material_IsEmissive(Material* material, zone_base* zone)
@@ -69,7 +70,7 @@ namespace zonetool::iw7
 					auto& surf = asset->dpvs.surfaces[surf_idx];
 					auto* surf_material = get_asset<Material>(ASSET_TYPE_MATERIAL, surf.material->name, zone);
 
-					if (Material_IsOpaque(surf_material, zone))
+					if (!surf_material || Material_IsOpaque(surf_material, zone))
 						opaque.push_back(surf_idx);
 					else if (Material_IsDecal(surf_material, zone))
 						decal.push_back(surf_idx);
@@ -180,6 +181,11 @@ namespace zonetool::iw7
 					constexpr unsigned char SURF_PER_LOD_HARD_LIMIT = 16;
 					bool model_has_more_surfs_than_allowed = false;
 					auto* model = get_asset<XModel>(ASSET_TYPE_XMODEL, smodel_draw_inst->model->name, zone);
+					if (!model)
+					{
+						continue;
+					}
+
 					for (auto lod_index = 0; lod_index < model->numLods; lod_index++)
 					{
 						auto* lod = &model->lodInfo[lod_index];
