@@ -142,20 +142,6 @@ Run these after a change to a reader, writer or the container code:
 
 Good round-trip zones: H1 `mp_shipment`, `mp_crash`. IW7 `mp_frontend`, `mp_afghan`.
 
-## Research material
-
-Two folders are local only and gitignored. They are not on every machine.
-
-- `docs/`: v2 design, format notes, the v2 checklist and log. Start at `docs/README.md`. `docs/v2_codebase.md` holds the current state and the known dump and round-trip differences.
-- `re_reference/`: IDA text dumps of the game binaries (H1 MP 1.15, H1 MP 1.4, IW7 ship). See `re_reference/README.md`.
-
-Rules for the IDA dumps:
-
-- Do not read `ship_asm.txt` or `h1_asm.txt` in full. Each file is 100 to 330 MB.
-- Find the function in `func_index.txt` (`line:; FUNC start end name`). Read only that line range with `sed -n`.
-- Function names are often wrong because of identical code folding. Start at `Load_XAssetHeader`, find the `cmp edx, <type>` case, and follow the call targets.
-- `tools/asm_slice.py <name regex> -g h1|h1_1.4|iw7` prints functions by name. It needs Python.
-
 ## Code style
 
 - lowercase snake_case for functions, variables, classes and files. Engine structs keep their engine names (`XModel`, `GfxImage`).
