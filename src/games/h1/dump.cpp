@@ -1,6 +1,5 @@
 #include <std_include.hpp>
 #include "h1.hpp"
-#include "asset_list.hpp"
 #include "zone/loader.hpp"
 
 #include <game.hpp>

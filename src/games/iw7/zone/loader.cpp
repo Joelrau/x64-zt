@@ -1,6 +1,5 @@
 #include <std_include.hpp>
 #include "iw7.hpp"
-#include "asset_list.hpp"
 #include "loader.hpp"
 
 #include <game.hpp>

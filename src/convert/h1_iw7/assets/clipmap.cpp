@@ -5,7 +5,7 @@
 
 #include <iw7/assets/clipmap.hpp>
 
-#include <h1/gsc.hpp>
+#include <xsk/gsc/engine/h1.hpp>
 
 namespace zonetool::h1
 {
@@ -13,6 +13,8 @@ namespace zonetool::h1
 	{
 		namespace
 		{
+			const xsk::gsc::h1::context gsc_ctx{xsk::gsc::instance::server};
+
 			std::string convert_mapents_ids(const std::string& source)
 			{
 				std::string out_buffer;
@@ -35,7 +37,7 @@ namespace zonetool::h1
 						const auto id = std::atoi(match[1].str().data());
 						const auto value = match[2].str();
 
-						std::string key = gsc::h1::gsc_ctx->token_name(
+						std::string key = gsc_ctx.token_name(
 							static_cast<std::uint16_t>(id));
 						if (!key.starts_with("_id_"))
 						{
