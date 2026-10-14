@@ -9,6 +9,7 @@ local engine_sources = {
 	iw6 = "iw6_pc",
 	iw7 = "iw7",
 	s1 = "s1_pc",
+	s2 = "s2",
 }
 
 function gsc_tool.import()

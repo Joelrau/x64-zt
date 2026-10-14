@@ -177,7 +177,7 @@ namespace zonetool::h2
 		return zonetool::db_find_x_asset_header_safe<XAssetHeader, XAssetEntry>(type, name);
 	}
 
-	void dump_zone(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path, const asset_dumper converter)
+	void dump_zone(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path, const converter* converter)
 	{
 		const auto _ = gsl::finally(db_clear);
 
@@ -197,7 +197,7 @@ namespace zonetool::h2
 			{
 				if (converter)
 				{
-					converter(asset.type, asset.header);
+					converter->dump_asset(asset.type, asset.header);
 				}
 				else
 				{
@@ -212,6 +212,10 @@ namespace zonetool::h2
 		}
 
 		write_asset_csv(*zone);
+		if (converter && converter->finish)
+		{
+			converter->finish(zone->name);
+		}
 		ZONETOOL_INFO("Zone \"%s\" dumped to %s", zone->name.data(), filesystem::get_dump_path().data());
 	}
 

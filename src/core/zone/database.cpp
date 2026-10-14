@@ -3,20 +3,43 @@
 
 namespace zonetool
 {
+	struct database
+	{
+		std::unordered_map<std::string, void*> assets[256];
+		std::unordered_map<int, void*> gfx_globals;
+		std::unordered_map<const void*, std::span<const XStreamFile>> image_stream_files;
+		std::unordered_map<const void*, std::span<const XStreamFileKey>> image_stream_keys;
+	};
+
 	namespace
 	{
-		struct database
+		database*& active_database()
 		{
-			std::unordered_map<std::string, void*> assets[256];
-			std::unordered_map<int, void*> gfx_globals;
-			std::unordered_map<const void*, std::span<const XStreamFile>> image_stream_files;
-		};
+			static database db;
+			static database* active = &db;
+			return active;
+		}
 
 		database& get_database()
 		{
-			static database db;
-			return db;
+			return *active_database();
 		}
+	}
+
+	std::shared_ptr<database> db_create()
+	{
+		return std::make_shared<database>();
+	}
+
+	db_scope::db_scope(database& db)
+		: previous_(active_database())
+	{
+		active_database() = &db;
+	}
+
+	db_scope::~db_scope()
+	{
+		active_database() = this->previous_;
 	}
 
 	void* db_find_asset(const std::int32_t type, const std::string& name)
@@ -46,6 +69,7 @@ namespace zonetool
 
 		db.gfx_globals.clear();
 		db.image_stream_files.clear();
+		db.image_stream_keys.clear();
 	}
 
 	void* get_x_gfx_globals_for_zone(const int zone)
@@ -70,5 +94,17 @@ namespace zonetool
 	void set_image_stream_files(const void* image, const std::span<const XStreamFile> files)
 	{
 		get_database().image_stream_files[image] = files;
+	}
+
+	std::span<const XStreamFileKey> get_image_stream_keys(const void* image)
+	{
+		const auto& keys = get_database().image_stream_keys;
+		const auto entry = keys.find(image);
+		return entry != keys.end() ? entry->second : std::span<const XStreamFileKey>{};
+	}
+
+	void set_image_stream_keys(const void* image, const std::span<const XStreamFileKey> keys)
+	{
+		get_database().image_stream_keys[image] = keys;
 	}
 }

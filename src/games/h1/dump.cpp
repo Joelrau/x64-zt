@@ -3,6 +3,7 @@
 #include "zone/loader.hpp"
 
 #include <game.hpp>
+#include "debug_probe_h1.inl"
 
 namespace zonetool::h1
 {
@@ -89,6 +90,10 @@ namespace zonetool::h1
 
 		void dump_asset(const loaded_asset& asset)
 		{
+			if (asset.type == ASSET_TYPE_GFXWORLD && std::getenv("ZT_PROBE_H1")) probe_h1_world(static_cast<GfxWorld*>(asset.header));
+			if (asset.type == ASSET_TYPE_CLIPMAP && std::getenv("ZT_PROBE_H1")) probe_h1_clip(static_cast<clipMap_t*>(asset.header));
+			if (asset.type == ASSET_TYPE_CLIPMAP && std::getenv("ZT_PROBE_GROUND")) probe_h1_ground(static_cast<clipMap_t*>(asset.header));
+			if (asset.type == ASSET_TYPE_COMWORLD && std::getenv("ZT_PROBE_H1")) probe_h1_com(static_cast<ComWorld*>(asset.header));
 			switch (asset.type)
 			{
 #define DUMP_ASSET(type, asset_class, struct_name) \
@@ -166,7 +171,7 @@ namespace zonetool::h1
 		return zonetool::db_find_x_asset_header_safe<XAssetHeader, XAssetEntry>(type, name);
 	}
 
-	void dump_zone(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path, const asset_dumper converter)
+	void dump_zone(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path, const converter* converter)
 	{
 		const auto _ = gsl::finally(db_clear);
 
@@ -186,7 +191,7 @@ namespace zonetool::h1
 			{
 				if (converter)
 				{
-					converter(asset.type, asset.header);
+					converter->dump_asset(asset.type, asset.header);
 				}
 				else
 				{
@@ -201,6 +206,10 @@ namespace zonetool::h1
 		}
 
 		write_asset_csv(*zone);
+		if (converter && converter->finish)
+		{
+			converter->finish(zone->name);
+		}
 		ZONETOOL_INFO("Zone \"%s\" dumped to %s", zone->name.data(), filesystem::get_dump_path().data());
 	}
 

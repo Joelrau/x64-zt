@@ -8,6 +8,7 @@ namespace zonetool::xfile
 	{
 		s1,
 		iw7,
+		s2,
 	};
 
 	struct format
@@ -17,6 +18,7 @@ namespace zonetool::xfile
 		std::string_view signed_magic;
 		std::uint32_t version;
 		std::size_t block_count;
+		std::string (*zone_key)();
 	};
 
 	struct fastfile
@@ -27,8 +29,12 @@ namespace zonetool::xfile
 		std::vector<std::uint64_t> block_sizes;
 		std::vector<XStreamFile> stream_files;
 		std::vector<XStreamFile> shared_stream_files;
+		std::vector<XStreamFileKey> stream_keys;
+		std::vector<XStreamFileKey> shared_stream_keys;
 		std::string payload;
 	};
 
 	fastfile read(const std::filesystem::path& path, const format& format);
+
+	std::string decompress_s2_stream(std::string_view data);
 }

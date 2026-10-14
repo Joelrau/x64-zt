@@ -2,6 +2,7 @@
 #include "xfile.hpp"
 
 #include <io/game_files.hpp>
+#include <utils/cryptography.hpp>
 
 #include <zlib.h>
 #include <lz4.h>
@@ -390,6 +391,143 @@ namespace zonetool::xfile
 
 			file.payload = decompress_iwc(read_signed_data(reader, file.is_signed));
 		}
+
+		constexpr std::size_t s2_header_version = 5;
+		constexpr std::size_t s2_rsa_block_size = 256;
+		constexpr std::size_t s2_aes_key_size = 24;
+		constexpr std::size_t s2_aes_iv_size = 16;
+		constexpr std::size_t s2_master_hash_offset = 0x150;
+		constexpr std::string_view s2_master_magic = "S1ffs100";
+
+#pragma pack(push, 1)
+		struct s2_file_header
+		{
+			char magic[8];
+			std::uint32_t header_version;
+			std::uint32_t version;
+			std::uint8_t compress;
+			std::uint8_t compress_type;
+			std::uint8_t unknown[2];
+			std::uint32_t unknown2;
+			std::uint32_t file_time_high;
+			std::uint32_t file_time_low;
+			std::uint32_t stream_key_count;
+		};
+#pragma pack(pop)
+
+		static_assert(sizeof(s2_file_header) == 0x24);
+
+		std::string decrypt_s2_block(const std::string_view block, const std::string_view key, const std::string_view hash)
+		{
+			return utils::cryptography::aes::crypt_ctr_little_endian(block, hash.substr(0, s2_aes_iv_size), key);
+		}
+
+		std::string decrypt_s2_auth_blocks(byte_reader& reader, const format& format)
+		{
+			if (!format.zone_key)
+			{
+				throw std::runtime_error("signed zones need a zone key");
+			}
+
+			const auto rsa_key = format.zone_key();
+			if (rsa_key.empty())
+			{
+				throw std::runtime_error("cannot find the zone key");
+			}
+
+			const auto key_data = utils::cryptography::rsa::decrypt(std::string(reader.read_view(s2_rsa_block_size)), "sha256", rsa_key);
+			if (key_data.size() != s2_aes_key_size + s2_aes_iv_size)
+			{
+				throw std::runtime_error("cannot decrypt the zone key");
+			}
+
+			const std::string_view key(key_data.data(), s2_aes_key_size);
+			const auto master = decrypt_s2_block(reader.read_view(std::min(auth_block_size, reader.remaining())), key, std::string_view(key_data).substr(s2_aes_key_size));
+			if (!master.starts_with(s2_master_magic))
+			{
+				throw std::runtime_error("auth header has the wrong magic");
+			}
+
+			std::string result;
+			result.reserve(reader.remaining());
+
+			for (std::size_t group = 0; reader.remaining(); group++)
+			{
+				const auto group_hash_offset = s2_master_hash_offset + group * sizeof(DB_AuthHash);
+				if (group_hash_offset + sizeof(DB_AuthHash) > master.size())
+				{
+					throw std::runtime_error("zone has too many auth groups");
+				}
+
+				const auto hashes = decrypt_s2_block(reader.read_view(std::min(auth_block_size, reader.remaining())), key, std::string_view(master).substr(group_hash_offset));
+				for (std::size_t block = 0; block < auth_blocks_per_group && reader.remaining(); block++)
+				{
+					const auto data = reader.read_view(std::min(auth_block_size, reader.remaining()));
+					result.append(decrypt_s2_block(data, key, std::string_view(hashes).substr(block * sizeof(DB_AuthHash))));
+				}
+			}
+
+			return result;
+		}
+
+		std::uint8_t s2_block_codec(const std::uint8_t codec)
+		{
+			switch (codec)
+			{
+			case 1:
+				return codec_zlib_size;
+			case 2:
+			case 3:
+				return codec_lz4;
+			}
+
+			throw std::runtime_error(std::format("block codec {} is Oodle, which is not supported", codec));
+		}
+
+		void read_s2(byte_reader& reader, const format& format, fastfile& file)
+		{
+			const auto header = reader.read<s2_file_header>();
+			if (header.header_version != s2_header_version)
+			{
+				throw std::runtime_error(std::format("header version {} is not {}", header.header_version, s2_header_version));
+			}
+
+			file.stream_keys.resize(header.stream_key_count);
+			reader.read(file.stream_keys.data(), file.stream_keys.size() * sizeof(XStreamFileKey));
+			file.shared_stream_keys.resize(reader.read<std::uint32_t>());
+			reader.read(file.shared_stream_keys.data(), file.shared_stream_keys.size() * sizeof(XStreamFileKey));
+			reader.skip(2 * sizeof(std::uint64_t));
+
+			const auto size = reader.read<std::uint64_t>();
+			reader.skip(sizeof(std::uint64_t));
+			const auto block_count = reader.read<std::uint64_t>();
+			if (block_count != format.block_count)
+			{
+				throw std::runtime_error(std::format("zone has {} blocks, not {}", block_count, format.block_count));
+			}
+
+			file.block_sizes.resize(block_count);
+			reader.read(file.block_sizes.data(), file.block_sizes.size() * sizeof(std::uint64_t));
+
+			const auto data = file.is_signed ? decrypt_s2_auth_blocks(reader, format) : std::string(reader.rest());
+			byte_reader container(data);
+			const auto total_size = container.read<std::uint64_t>();
+			const auto flags = container.read<std::array<std::uint8_t, 4>>();
+			file.payload = decompress_blocks<std::uint32_t>(container, total_size, s2_block_codec(flags[3]));
+
+			if (size != file.payload.size())
+			{
+				throw std::runtime_error(std::format("zone size 0x{:X} does not match data size 0x{:X}", size, file.payload.size()));
+			}
+		}
+	}
+
+	std::string decompress_s2_stream(const std::string_view data)
+	{
+		byte_reader reader(data);
+		const auto total_size = reader.read<std::uint64_t>();
+		const auto flags = reader.read<std::array<std::uint8_t, 4>>();
+		return decompress_blocks<std::uint32_t>(reader, total_size, s2_block_codec(flags[3]));
 	}
 
 	fastfile read(const std::filesystem::path& path, const format& format)
@@ -404,12 +542,13 @@ namespace zonetool::xfile
 		{
 			char magic[8];
 			std::uint32_t version;
+			std::uint32_t s2_version;
 		} identity{};
 		byte_reader(data).read(&identity, sizeof(identity));
 
 		fastfile file{};
 		file.magic = std::string(identity.magic, sizeof(identity.magic));
-		file.version = identity.version;
+		file.version = format.container == container::s2 ? identity.s2_version : identity.version;
 
 		if (file.magic == format.signed_magic)
 		{
@@ -433,6 +572,9 @@ namespace zonetool::xfile
 			break;
 		case container::iw7:
 			read_iw7(reader, format, file);
+			break;
+		case container::s2:
+			read_s2(reader, format, file);
 			break;
 		}
 

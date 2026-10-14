@@ -335,6 +335,10 @@ namespace zonetool::h1
 		if (!this->asset_)
 		{
 			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name_.data()).material;
+			if (!this->asset_)
+			{
+				return;
+			}
 
 			if (DB_IsXAssetDefault(XAssetType(this->type()), this->name_.data()))
 			{

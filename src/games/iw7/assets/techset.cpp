@@ -156,21 +156,22 @@ namespace zonetool::iw7
 		{
 			std::optional<std::string> find_first_file_with_extension_in_directory(const std::string& directory, const std::string& extension)
 			{
-				if (!std::filesystem::exists(directory))
+				const auto root = filesystem::long_path(directory);
+				if (!std::filesystem::exists(root))
 				{
 					return {};
 				}
 
 				std::string stored_path{};
-				for (const auto& entry : std::filesystem::recursive_directory_iterator(directory))
+				for (const auto& entry : std::filesystem::recursive_directory_iterator(root))
 				{
 					if (std::filesystem::is_regular_file(entry) && entry.path().extension() == extension)
 					{
 						std::string file_path = entry.path().filename().string();
 						auto parent_path = entry.path().parent_path();
-						if (parent_path != directory)
+						if (parent_path != root)
 						{
-							file_path = std::filesystem::relative(parent_path, directory).string() + "\\" + file_path;
+							file_path = std::filesystem::relative(parent_path, root).string() + "\\" + file_path;
 						}
 						if (file_path.starts_with("$") || file_path.contains("default"))
 						{

@@ -107,9 +107,9 @@ namespace zonetool
 		const auto state = this->stream_stack_.back();
 		this->stream_stack_.pop_back();
 
-		if (this->current_block_ == XFILE_BLOCK_TEMP)
+		if (this->current_block_ == this->layout_.temp_block)
 		{
-			this->blocks_[XFILE_BLOCK_TEMP].position = state.position_at_push;
+			this->blocks_[this->layout_.temp_block].position = state.position_at_push;
 		}
 		else if (this->current_block_ == this->layout_.pop_aligned_block)
 		{
@@ -171,7 +171,7 @@ namespace zonetool
 	void* zone_reader::read_bytes(const std::size_t size)
 	{
 		auto& block = this->current_block();
-		const auto is_runtime = this->current_block_ == this->layout_.runtime_block;
+		const auto is_runtime = this->current_block_ == this->layout_.runtime_block || this->current_block_ == this->layout_.unread_block;
 		if (block.position + size > block.size)
 		{
 			// Runtime data holds no file bytes, and some loaders size it differently from the game.
@@ -360,13 +360,13 @@ namespace zonetool
 
 	void zone_reader::read_asset_pointer(const std::int32_t type, void** field)
 	{
-		this->push_stream(XFILE_BLOCK_TEMP);
+		this->push_stream(this->layout_.temp_block);
 
 		if (*field)
 		{
 			if (this->is_inline(*field))
 			{
-				this->align(3);
+				this->align(this->layout_.asset_alignment);
 				const auto slot = this->is_insert(*field) ? this->insert_pointer() : nullptr;
 				this->inline_asset_loader_(type, field, slot);
 			}

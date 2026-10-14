@@ -71,13 +71,14 @@ namespace zonetool
 				std::string str = ZONETOOL_BRANDING;
 				zone_buffer buf(std::vector<uint8_t>(str.begin(), str.end()));
 				auto compressed = buf.compress_zlib();
-				std::string buffer(compressed.begin(), compressed.end());
+				const auto buffer = mem->allocate<char>(compressed.size());
+				std::memcpy(buffer, compressed.data(), compressed.size());
 
 				this->asset_ = mem->allocate<S>();
 				this->asset_->name = mem->duplicate_string(name);
-				this->asset_->buffer = mem->duplicate_string(buffer.data());
+				this->asset_->buffer = buffer;
 				this->asset_->len = static_cast<int>(str.size());
-				this->asset_->compressedLen = static_cast<int>(buffer.size());
+				this->asset_->compressedLen = static_cast<int>(compressed.size());
 			}
 			else if (!this->asset_)
 			{

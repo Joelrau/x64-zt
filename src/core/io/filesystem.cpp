@@ -14,15 +14,15 @@ namespace zonetool
 			std::string language_name = "english";
 			std::string language_code = "en";
 
-			std::filesystem::path long_path(const std::filesystem::path& path)
-			{
-				return LR"(\\?\)" + std::filesystem::absolute(path).lexically_normal().wstring();
-			}
-
 			errno_t open_long_path(FILE*& fp, const std::filesystem::path& path, const std::string& mode)
 			{
 				return _wfopen_s(&fp, long_path(path).c_str(), std::wstring(mode.begin(), mode.end()).data());
 			}
+		}
+
+		std::filesystem::path long_path(const std::filesystem::path& path)
+		{
+			return LR"(\\?\)" + std::filesystem::absolute(path).lexically_normal().wstring();
 		}
 
 		file::file(const std::string& filepath_)
@@ -226,7 +226,9 @@ namespace zonetool
 		{
 			if (this->fp)
 			{
-				return fclose(this->fp);
+				const auto result = fclose(this->fp);
+				this->fp = nullptr;
+				return result;
 			}
 			return -1;
 		}

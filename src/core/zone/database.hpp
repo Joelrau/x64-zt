@@ -4,6 +4,23 @@
 
 namespace zonetool
 {
+	struct database;
+
+	std::shared_ptr<database> db_create();
+
+	class db_scope
+	{
+	public:
+		explicit db_scope(database& db);
+		~db_scope();
+
+		db_scope(const db_scope&) = delete;
+		db_scope& operator=(const db_scope&) = delete;
+
+	private:
+		database* previous_;
+	};
+
 	void* db_find_asset(std::int32_t type, const std::string& name);
 	void db_add_asset(std::int32_t type, const std::string& name, void* header);
 	void db_remove_asset(std::int32_t type, const std::string& name);
@@ -37,4 +54,7 @@ namespace zonetool
 
 	std::span<const XStreamFile> get_image_stream_files(const void* image);
 	void set_image_stream_files(const void* image, std::span<const XStreamFile> files);
+
+	std::span<const XStreamFileKey> get_image_stream_keys(const void* image);
+	void set_image_stream_keys(const void* image, std::span<const XStreamFileKey> keys);
 }

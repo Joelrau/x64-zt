@@ -424,6 +424,38 @@ namespace utils::cryptography
 		return {};
 	}
 
+	std::string rsa::decrypt(const std::string& data, const std::string& hash, const std::string& key)
+	{
+		rsa_key new_key;
+		if (rsa_import(cs(key.data()), ul(key.size()), &new_key) != CRYPT_OK)
+		{
+			return {};
+		}
+
+		const auto _ = gsl::finally([&]()
+		{
+			rsa_free(&new_key);
+		});
+
+		std::string out_data{};
+		out_data.resize(data.size());
+		unsigned long out_len = ul(out_data.size());
+
+		ltc_rsa_op_parameters params{};
+		params.padding = LTC_PKCS_1_OAEP;
+		params.params.hash_idx = find_hash(hash.c_str());
+		params.params.mgf1_hash_idx = params.params.hash_idx;
+
+		auto status = 0;
+		if (rsa_decrypt_key_v2(cs(data.data()), ul(data.size()), cs(out_data.data()), &out_len, &params, &status, &new_key) != CRYPT_OK || !status)
+		{
+			return {};
+		}
+
+		out_data.resize(out_len);
+		return out_data;
+	}
+
 	std::string des3::encrypt(const std::string& data, const std::string& iv, const std::string& key)
 	{
 		std::string enc_data;
@@ -508,6 +540,19 @@ namespace utils::cryptography
 		cbc_done(&cbc);
 
 		return dec_data;
+	}
+
+	std::string aes::crypt_ctr_little_endian(const std::string_view data, const std::string_view iv, const std::string_view key)
+	{
+		std::string result;
+		result.resize(data.size());
+
+		symmetric_CTR ctr;
+		ctr_start(find_cipher("aes"), cs(iv.data()), cs(key.data()), static_cast<int>(key.size()), 0, CTR_COUNTER_LITTLE_ENDIAN, &ctr);
+		ctr_decrypt(cs(data.data()), cs(result.data()), ul(data.size()), &ctr);
+		ctr_done(&ctr);
+
+		return result;
 	}
 
 	std::string hmac_sha1::compute(const std::string& data, const std::string& key)

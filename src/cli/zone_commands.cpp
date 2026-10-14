@@ -71,10 +71,25 @@ namespace zonetool::cli
 			}
 		}
 
-		if (const auto path = require_zone(settings, args, usage))
+		const auto path = require_zone(settings, args, usage);
+		if (!path)
 		{
-			settings.game->dump_zone(settings.zone_folder(), *path, converter ? converter->dump_asset : nullptr);
+			return;
 		}
+
+		if (converter && converter->setup)
+		{
+			const auto* target = find_game(converter->target);
+			if (!target)
+			{
+				std::cout << std::format("game {} is not in this build\n", converter->target);
+				return;
+			}
+
+			converter->setup(settings.game_folder(*target));
+		}
+
+		settings.game->dump_zone(settings.zone_folder(), *path, converter);
 	}
 
 	void verify_zone(const settings& settings, const std::span<const std::string> args)

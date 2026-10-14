@@ -35,6 +35,14 @@ namespace zonetool
 		std::uint64_t offsetEnd;
 	};
 
+	struct XStreamFileKey
+	{
+		std::uint64_t hash;
+		std::uint16_t index;
+		std::uint16_t unknown[2];
+		std::uint16_t slot;
+	};
+
 	struct DB_AuthSignature
 	{
 		unsigned char bytes[256];

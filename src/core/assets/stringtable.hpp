@@ -83,7 +83,7 @@ namespace zonetool
 			reader.read_string(asset->name);
 
 			const auto count = asset->columnCount * asset->rowCount;
-			if (const auto values = reader.read_array(asset->values, reader.mode == game::iw7 ? 7 : 3, count))
+			if (const auto values = reader.read_array(asset->values, reader.mode == game::iw7 || reader.mode == game::s2 ? 7 : 3, count))
 			{
 				for (auto i = 0; i < count; i++)
 				{

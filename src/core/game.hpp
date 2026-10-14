@@ -5,8 +5,12 @@
 
 namespace zonetool
 {
+	struct converter;
+
 	using asset_dumper = void(*)(std::int32_t type, void* header);
-	using dump_command = void(*)(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path, asset_dumper converter);
+	using converter_setup = void(*)(const std::filesystem::path& target_game_path);
+	using converter_finish = void(*)(const std::string& zone_name);
+	using dump_command = void(*)(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path, const converter* converter);
 	using zone_command = void(*)(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path);
 	using build_command = void(*)(const std::filesystem::path& zone_folder, const std::string& name);
 	using token_name_resolver = std::string(*)(std::uint32_t id);
@@ -29,5 +33,7 @@ namespace zonetool
 		std::string_view source;
 		std::string_view target;
 		asset_dumper dump_asset;
+		converter_setup setup;
+		converter_finish finish;
 	};
 }
