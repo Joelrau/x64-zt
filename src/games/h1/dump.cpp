@@ -98,7 +98,9 @@ namespace zonetool::h1
 			if (asset.type == ASSET_TYPE_GFXWORLD && std::getenv("ZT_PROBE_PORTALS")) probe_h1_skies(static_cast<GfxWorld*>(asset.header));
 			if (asset.type == ASSET_TYPE_GFXWORLD && std::getenv("ZT_PROBE_VCOL")) probe_h1_world_vcol(static_cast<GfxWorld*>(asset.header));
 			if (asset.type == ASSET_TYPE_XMODEL_SURFS && std::getenv("ZT_PROBE_VCOL")) probe_h1_vcol(static_cast<XModelSurfs*>(asset.header));
-			if (std::getenv("ZT_PROBE_PORTALS") || std::getenv("ZT_PROBE_VCOL")) return;
+			if (asset.type == ASSET_TYPE_GFXWORLD && std::getenv("ZT_PROBE_LIGHT")) probe_h1_lighting(static_cast<GfxWorld*>(asset.header));
+			if (asset.type == ASSET_TYPE_COMWORLD && std::getenv("ZT_PROBE_LIGHT")) probe_h1_com(static_cast<ComWorld*>(asset.header));
+			if (std::getenv("ZT_PROBE_PORTALS") || std::getenv("ZT_PROBE_VCOL") || std::getenv("ZT_PROBE_LIGHT")) return;
 			switch (asset.type)
 			{
 #define DUMP_ASSET(type, asset_class, struct_name) \

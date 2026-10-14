@@ -1,7 +1,9 @@
 #include <std_include.hpp>
 #include "compression.hpp"
 
+#include <atomic>
 #include <stdexcept>
+#include <thread>
 
 #include <zstd.h>
 #include <zlib.h>
@@ -212,12 +214,108 @@ namespace compression
 		return compression::lz4::compress_lz4_block(data, size);
 	}
 
+	namespace
+	{
+		constexpr std::size_t zlib_chunk_size = 0x400000;
+		constexpr std::size_t zlib_window_size = 0x8000;
+		constexpr std::uint8_t zlib_header[] = {0x78, 0xDA};
+
+		std::vector<std::uint8_t> deflate_raw_chunk(const std::uint8_t* data, const std::size_t size, const std::size_t dictionary_size, const bool last)
+		{
+			z_stream stream{};
+			if (deflateInit2(&stream, ZLIB_COMPRESSION, Z_DEFLATED, -MAX_WBITS, 8, Z_DEFAULT_STRATEGY) != Z_OK)
+			{
+				return {};
+			}
+
+			if (dictionary_size != 0)
+			{
+				deflateSetDictionary(&stream, data - dictionary_size, static_cast<uInt>(dictionary_size));
+			}
+
+			std::vector<std::uint8_t> result(deflateBound(&stream, static_cast<uLong>(size)) + 16);
+			stream.next_in = const_cast<Bytef*>(data);
+			stream.avail_in = static_cast<uInt>(size);
+			stream.next_out = result.data();
+			stream.avail_out = static_cast<uInt>(result.size());
+
+			const auto status = deflate(&stream, last ? Z_FINISH : Z_SYNC_FLUSH);
+			const auto complete = last
+				? status == Z_STREAM_END
+				: status == Z_OK && stream.avail_in == 0 && stream.avail_out != 0;
+
+			result.resize(stream.total_out);
+			deflateEnd(&stream);
+
+			if (!complete)
+			{
+				return {};
+			}
+
+			return result;
+		}
+
+		std::vector<std::uint8_t> compress_zlib_parallel(const std::uint8_t* data, const std::size_t size)
+		{
+			const auto chunk_count = (size + zlib_chunk_size - 1) / zlib_chunk_size;
+			std::vector<std::vector<std::uint8_t>> chunks(chunk_count);
+			std::atomic_size_t next_chunk{};
+
+			const auto compress_chunks = [&]
+			{
+				for (auto index = next_chunk++; index < chunk_count; index = next_chunk++)
+				{
+					const auto offset = index * zlib_chunk_size;
+					const auto chunk_size = std::min(zlib_chunk_size, size - offset);
+					const auto dictionary_size = std::min(offset, zlib_window_size);
+					chunks[index] = deflate_raw_chunk(data + offset, chunk_size, dictionary_size, index + 1 == chunk_count);
+				}
+			};
+
+			const auto thread_count = std::min<std::size_t>(std::max(1u, std::thread::hardware_concurrency()), chunk_count);
+			std::vector<std::thread> threads;
+			for (auto i = 0ull; i < thread_count; i++)
+			{
+				threads.emplace_back(compress_chunks);
+			}
+
+			for (auto& thread : threads)
+			{
+				thread.join();
+			}
+
+			std::vector<std::uint8_t> result(std::begin(zlib_header), std::end(zlib_header));
+			for (const auto& chunk : chunks)
+			{
+				if (chunk.empty())
+				{
+					throw std::runtime_error("An error occured while compressing the fastfile with zlib");
+				}
+
+				result.insert(result.end(), chunk.begin(), chunk.end());
+			}
+
+			const auto checksum = adler32_z(1, data, size);
+			for (auto shift = 24; shift >= 0; shift -= 8)
+			{
+				result.push_back(static_cast<std::uint8_t>(checksum >> shift));
+			}
+
+			return result;
+		}
+	}
+
 	std::vector<std::uint8_t> compress_zlib(const std::uint8_t* data, const std::size_t size, bool compress_blocks)
 	{
 		auto compressBound = [](unsigned long sourceLen)
 		{
 			return static_cast<unsigned long>((ceil(sourceLen * 1.001)) + 12);
 		};
+
+		if (compress_blocks == false && size >= zlib_chunk_size * 2)
+		{
+			return compress_zlib_parallel(data, size);
+		}
 
 		if (compress_blocks == false)
 		{

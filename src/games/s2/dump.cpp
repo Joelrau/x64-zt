@@ -3,6 +3,7 @@
 #include "zone/loader.hpp"
 
 #include <game.hpp>
+#include <io/output_cache.hpp>
 
 namespace zonetool::s2
 {
@@ -260,6 +261,7 @@ namespace zonetool::s2
 		const auto _ = gsl::finally(db_clear);
 
 		prepare_paths(zone_folder, zone_path);
+		const dump_cache_scope cache(filesystem::get_dump_path());
 		ZONETOOL_INFO("Loading zone \"%s\"...", zone_path.stem().string().data());
 		const auto zone = load_zone(zone_path);
 

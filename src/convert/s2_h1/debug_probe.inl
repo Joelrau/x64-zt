@@ -702,6 +702,127 @@
 				fprintf(fp, " light:");
 				for (auto k = 0; k < 24; k++) fprintf(fp, "%s%02X", (k % 4) ? "" : " ", lighting[24ull * i + k]);
 				fprintf(fp, "\n");
+}
+			fclose(fp);
+		}
+
+		inline void probe_grid_hex(FILE* fp, const char* tag, const std::uint8_t* data, std::size_t stride, std::size_t count, std::size_t shown)
+		{
+			fprintf(fp, "%s count %zu stride %zu\n", tag, count, stride);
+			if (!data) return;
+			for (auto i = 0ull; i < std::min(count, shown); i++)
+			{
+				const auto e = data + stride * i;
+				fprintf(fp, "  %llu:", i);
+				for (auto k = 0ull; k < stride; k += 4) fprintf(fp, " %08X", *reinterpret_cast<const std::uint32_t*>(e + k));
+				fprintf(fp, " |f");
+				for (auto k = 0ull; k + 4 <= stride; k += 4) fprintf(fp, " %g", *reinterpret_cast<const float*>(e + k));
+				fprintf(fp, "\n");
 			}
+		}
+
+		inline void probe_light_grid(source::GfxWorld* asset)
+		{
+			const auto w = reinterpret_cast<std::uint8_t*>(asset);
+			const auto p = w + 992 + 1080;
+			const auto fp = fopen("probe_lightgrid.txt", "wb");
+			if (!fp) return;
+			fprintf(fp, "probe grid header:");
+			for (auto k = 0; k < 232; k += 4) fprintf(fp, "%s %08X", (k % 32) ? "" : "\n ", *reinterpret_cast<std::uint32_t*>(p + k));
+			fprintf(fp, "\n");
+			const auto u32 = [&](std::size_t o) { return *reinterpret_cast<std::uint32_t*>(p + o); };
+			const auto ptr = [&](std::size_t o) { return *reinterpret_cast<std::uint8_t**>(p + o); };
+			probe_grid_hex(fp, "@8", ptr(8), 64, u32(0), 6);
+			probe_grid_hex(fp, "@40", ptr(40), 12, u32(0), 6);
+			probe_grid_hex(fp, "@72", ptr(72), 92, u32(64), 4);
+			probe_grid_hex(fp, "@88", ptr(88), 16, u32(80), 6);
+			probe_grid_hex(fp, "@112", ptr(112), 16, u32(80), 6);
+			probe_grid_hex(fp, "@136", ptr(136), 64, u32(84), 6);
+			probe_grid_hex(fp, "@168", ptr(168), 4, u32(160), 16);
+			probe_grid_hex(fp, "@200", ptr(200), 64, u32(192), 6);
+			probe_grid_hex(fp, "@216", ptr(216), 64, u32(208), 6);
+			const auto dpvs = w + 3240;
+			const auto count = *reinterpret_cast<unsigned int*>(dpvs + 0);
+			const auto insts = *reinterpret_cast<std::uint8_t**>(dpvs + 784);
+			const auto lighting = *reinterpret_cast<std::uint8_t**>(dpvs + 800);
+			auto max_index = 0u, min_index = ~0u, grid = 0u;
+			std::map<int, int> diff_hist;
+			for (auto i = 0u; i < count; i++)
+			{
+				const auto flags = *reinterpret_cast<std::uint16_t*>(insts + 128ull * i + 0x54);
+				if (!(flags & 0x40)) continue;
+				const auto index = *reinterpret_cast<std::uint32_t*>(lighting + 24ull * i);
+				const auto id = *reinterpret_cast<std::uint16_t*>(insts + 128ull * i + 0x58);
+				grid++;
+				max_index = std::max(max_index, index);
+				min_index = std::min(min_index, index);
+				diff_hist[static_cast<int>(id) - static_cast<int>(index)]++;
+			}
+			fprintf(fp, "grid smodels %u index min %u max %u\n", grid, min_index, max_index);
+			auto shown = 0;
+			for (const auto& [d, n] : diff_hist) if (shown++ < 20) fprintf(fp, "  id-index %d: %d\n", d, n);
+			fclose(fp);
+		}
+
+		inline float probe_half_s2(std::uint16_t h)
+		{
+			const auto e = (h >> 10) & 31, m = h & 1023;
+			const auto v = e == 0 ? m / 1024.0f * std::pow(2.0f, -14.0f) : (1.0f + m / 1024.0f) * std::pow(2.0f, static_cast<float>(e) - 15.0f);
+			return (h & 0x8000) ? -v : v;
+		}
+
+		inline void probe_smodel_sh(source::GfxWorld* asset)
+		{
+			const auto w = reinterpret_cast<std::uint8_t*>(asset);
+			const auto p = w + 992 + 1080;
+			const auto fp = fopen("probe_smodel_sh.txt", "wb");
+			if (!fp) return;
+			const auto volume_count = *reinterpret_cast<std::uint32_t*>(p + 192);
+			const auto volumes = *reinterpret_cast<std::uint8_t**>(p + 200);
+			const auto sh_count = *reinterpret_cast<std::uint32_t*>(p + 208);
+			const auto sh = *reinterpret_cast<std::uint8_t**>(p + 216);
+			std::map<std::string, int> dims;
+			auto max_end = 0ull;
+			for (auto i = 0u; i < volume_count; i++)
+			{
+				const auto v = volumes + 64ull * i;
+				const auto dx = *reinterpret_cast<std::uint16_t*>(v + 4), dy = *reinterpret_cast<std::uint16_t*>(v + 6);
+				const auto dz = *reinterpret_cast<std::uint32_t*>(v + 8), off = *reinterpret_cast<std::uint32_t*>(v + 12);
+				dims[std::format("{}x{}x{}", dx, dy, dz)]++;
+				max_end = std::max<std::uint64_t>(max_end, off + 1ull * dx * dy * dz);
+			}
+			fprintf(fp, "volumes %u sh %u max end %llu\n", volume_count, sh_count, max_end);
+			auto shown = 0;
+			for (const auto& [d, n] : dims) if (shown++ < 30) fprintf(fp, "dims %s: %d\n", d.data(), n);
+			const auto dpvs = w + 3240;
+			const auto count = *reinterpret_cast<unsigned int*>(dpvs + 0);
+			const auto insts = *reinterpret_cast<std::uint8_t**>(dpvs + 784);
+			const auto lighting = *reinterpret_cast<std::uint8_t**>(dpvs + 800);
+			std::map<int, int> lum_hist;
+			std::map<std::string, int> shown_models;
+			for (auto i = 0u; i < count; i++)
+			{
+				const auto inst = insts + 128ull * i;
+				const auto flags = *reinterpret_cast<std::uint16_t*>(inst + 0x54);
+				if (!(flags & 0x40)) continue;
+				const auto index = *reinterpret_cast<std::uint32_t*>(lighting + 24ull * i);
+				if (index >= volume_count) continue;
+				const auto v = volumes + 64ull * index;
+				const auto off = *reinterpret_cast<std::uint32_t*>(v + 12);
+				const auto c = reinterpret_cast<std::uint16_t*>(sh + 64ull * off);
+				const auto r = probe_half_s2(c[0]), g = probe_half_s2(c[9]), b = probe_half_s2(c[18]);
+				lum_hist[static_cast<int>(std::floor(std::log2(std::max(1e-4f, (r + g + b) / 3.0f))))]++;
+				const auto model = *reinterpret_cast<source::XModel**>(inst + 0x48);
+				const std::string name = model ? model->name : "null";
+				const auto origin = reinterpret_cast<const float*>(inst);
+				if (shown_models[name]++ < 2 && (name.find("cup") != std::string::npos || name.find("bowl") != std::string::npos || name.find("rock") != std::string::npos || name.find("mug") != std::string::npos || i < 3 || name.find("sandbag") != std::string::npos || name.find("locker") != std::string::npos))
+				{
+					fprintf(fp, "smodel %u %s pos %g %g %g index %u dims %u %u %u off %u sh:", i, name.data(), origin[0], origin[1], origin[2], index,
+						*reinterpret_cast<std::uint16_t*>(v + 4), *reinterpret_cast<std::uint16_t*>(v + 6), *reinterpret_cast<std::uint32_t*>(v + 8), off);
+					for (auto k = 0; k < 28; k++) fprintf(fp, " %.3f", probe_half_s2(c[k]));
+					fprintf(fp, "\n");
+				}
+			}
+			for (const auto& [l, n] : lum_hist) fprintf(fp, "dc log2 %d: %d\n", l, n);
 			fclose(fp);
 		}

@@ -741,4 +741,73 @@ inline void probe_h1_skies(GfxWorld* asset)
 		}
 		std::fclose(fp);
 	}
+inline float probe_half(unsigned short h)
+	{
+		const auto e = (h >> 10) & 31, m = h & 1023;
+		const auto v = e == 0 ? m / 1024.0f * std::pow(2.0f, -14.0f) : (1.0f + m / 1024.0f) * std::pow(2.0f, e - 15.0f);
+		return (h & 0x8000) ? -v : v;
+	}
+
+	inline void probe_h1_lighting(GfxWorld* w)
+	{
+		const auto fp = fopen("probe_h1light.txt", "wb");
+		if (!fp) return;
+		const auto& g = w->lightGrid;
+		const auto& lp = w->draw.lightmapParameters;
+		fprintf(fp, "world %s lightmaps %d params %d %d %d %d %d probes %u\n", w->name, w->draw.lightmapCount, lp.lightmapWidthPrimary, lp.lightmapHeightPrimary,
+			lp.lightmapWidthSecondary, lp.lightmapHeightSecondary, lp.lightmapModelUnitsPerTexel, w->draw.reflectionProbeCount);
+		fprintf(fp, "grid regions %d lowz %d lastSun %u mins %u %u %u maxs %u %u %u entries %u colors %u missing %u table %d palette %d enc %d %d %d stages %u palEntries %u palBits %u\n",
+			g.hasLightRegions, g.useSkyForLowZ, g.lastSunPrimaryLightIndex, g.mins[0], g.mins[1], g.mins[2], g.maxs[0], g.maxs[1], g.maxs[2], g.entryCount, g.colorCount,
+			g.missingGridColorIndex, g.tableVersion, g.paletteVersion, g.rangeExponent8BitsEncoding, g.rangeExponent12BitsEncoding, g.rangeExponent16BitsEncoding,
+			g.stageCount, g.paletteEntryCount, g.paletteBitstreamSize);
+		for (auto i = 0u; i < g.stageCount; i++) fprintf(fp, "stage %u gain %g\n", i, g.stageLightingContrastGain[i]);
+		fprintf(fp, "skyavg %g %g %g\n", g.cachedSkyLightEntryAverageColor[0], g.cachedSkyLightEntryAverageColor[1], g.cachedSkyLightEntryAverageColor[2]);
+		for (auto i = 0; i < 56; i += 11) fprintf(fp, "sky %d %g %g %g default %g %g %g\n", i, probe_half(g.skyLightGridColors.rgb[i][0]), probe_half(g.skyLightGridColors.rgb[i][1]),
+			probe_half(g.skyLightGridColors.rgb[i][2]), probe_half(g.defaultLightGridColors.rgb[i][0]), probe_half(g.defaultLightGridColors.rgb[i][1]), probe_half(g.defaultLightGridColors.rgb[i][2]));
+		for (auto t = 0; t < 3; t++) fprintf(fp, "tree %d state %u depth %u nodes %d leafs %d min %d %d %d max %d %d %d\n", t, g.tree[t].index, g.tree[t].maxDepth, g.tree[t].nodeCount,
+			g.tree[t].leafCount, g.tree[t].coordMinGridSpace[0], g.tree[t].coordMinGridSpace[1], g.tree[t].coordMinGridSpace[2], g.tree[t].coordMaxGridSpace[0],
+			g.tree[t].coordMaxGridSpace[1], g.tree[t].coordMaxGridSpace[2]);
+		if (g.colors) for (auto c = 0u; c < std::min(g.colorCount, 4u); c++) fprintf(fp, "color %u %u %u %u\n", c, g.colors[c].rgb[0][0], g.colors[c].rgb[0][1], g.colors[c].rgb[0][2]);
+		std::map<unsigned, unsigned> flag_counts;
+		for (auto i = 0u; i < w->dpvs.smodelCount; i++) flag_counts[w->dpvs.smodelDrawInsts[i].flags & 0x1E0]++;
+		for (const auto& [f, c] : flag_counts) fprintf(fp, "smodel flags %X count %u\n", f, c);
+		auto shown = 0;
+		for (auto i = 0u; i < w->dpvs.smodelCount && shown < 12; i++)
+		{
+			const auto& d = w->dpvs.smodelDrawInsts[i];
+			const auto& l = w->dpvs.smodelLightingInsts[i];
+			if (d.flags & 0x20)
+			{
+				shown++;
+				const auto& a = l.ambientLightingInfo;
+				fprintf(fp, "ground %u %s ground %g %g %g %g colorIndex %u weight %g env %u\n", i, d.model ? d.model->name : "null", probe_half(a.groundLighting.array[0]),
+					probe_half(a.groundLighting.array[1]), probe_half(a.groundLighting.array[2]), probe_half(a.groundLighting.array[3]), a.colorIndex, a.primaryLightWeight, d.primaryLightEnvIndex);
+			}
+		}
+		shown = 0;
+		for (auto i = 0u; i < w->dpvs.smodelCount && shown < 6; i++)
+		{
+			const auto& d = w->dpvs.smodelDrawInsts[i];
+			if (d.flags & 0x40)
+			{
+				shown++;
+				const auto& a = w->dpvs.smodelLightingInsts[i].ambientLightingInfo;
+				fprintf(fp, "grid %u %s raw %llX colorIndex %u weight %g\n", i, d.model ? d.model->name : "null", a.groundLighting.packed, a.colorIndex, a.primaryLightWeight);
+			}
+		}
+		shown = 0;
+		for (auto i = 0u; i < w->dpvs.smodelCount && shown < 6; i++)
+		{
+			const auto& d = w->dpvs.smodelDrawInsts[i];
+			if (d.flags & 0x100)
+			{
+				shown++;
+				const auto& m = w->dpvs.smodelLightingInsts[i].modelLightmapInfo;
+				fprintf(fp, "lmap %u %s off %g %g scale %g %g index %u\n", i, d.model ? d.model->name : "null", m.offset[0], m.offset[1], m.scale[0], m.scale[1], m.lightmapIndex);
+			}
+		}
+		fprintf(fp, "sun valid %d sprite %s flare %s\n", w->sun.hasValidData, w->sun.spriteMaterial ? w->sun.spriteMaterial->name : "null", w->sun.flareMaterial ? w->sun.flareMaterial->name : "null");
+		std::fclose(fp);
+	}
 }
+

@@ -3,6 +3,7 @@
 #include "../include.hpp"
 #include "techset.hpp"
 
+#include <io/output_cache.hpp>
 #include <utils/io.hpp>
 
 namespace zonetool::s2::converter::h1::techset
@@ -104,6 +105,9 @@ namespace zonetool::s2::converter::h1::techset
 
 		std::vector<shader_key> missing_shaders;
 		std::unordered_set<std::string> missing_shader_keys;
+		std::unordered_set<std::string> dumped_shader_keys;
+
+		std::vector<std::pair<std::string, std::uint64_t>> pending_techset_outputs;
 
 		std::filesystem::path h1_folder;
 
@@ -383,7 +387,7 @@ namespace zonetool::s2::converter::h1::techset
 
 		std::string zone_signature(const std::vector<std::filesystem::path>& zones)
 		{
-			std::string result = "version 2\n";
+			auto result = std::format("version {}\n", cache_revision::s2_h1_techset_catalog);
 			for (const auto& zone : zones)
 			{
 				if (std::filesystem::exists(zone))
@@ -503,13 +507,18 @@ namespace zonetool::s2::converter::h1::techset
 				return;
 			}
 
+			const auto key = get_shader_key(type, shader->name);
 			if (shader->prog.loadDef.program)
 			{
-				asset_class::dump(shader);
+				if (dumped_shader_keys.insert(key).second)
+				{
+					asset_class::dump(shader);
+				}
+
 				return;
 			}
 
-			if (missing_shader_keys.insert(get_shader_key(type, shader->name)).second)
+			if (missing_shader_keys.insert(key).second)
 			{
 				missing_shaders.emplace_back(type, shader->name);
 			}
@@ -668,6 +677,11 @@ namespace zonetool::s2::converter::h1::techset
 		for (const auto& [type, name] : missing_shaders)
 		{
 			const auto key = get_shader_key(type, name);
+			if (dumped_shader_keys.contains(key))
+			{
+				continue;
+			}
+
 			const auto& sources = get_catalog().shader_sources;
 			const auto source = sources.find(key);
 			if (source == sources.end())
@@ -688,12 +702,26 @@ namespace zonetool::s2::converter::h1::techset
 			dump_zone_shaders(zone, keys);
 		}
 
+		for (const auto& [output, stamp] : pending_techset_outputs)
+		{
+			update_dump_cache(output, stamp);
+		}
+
 		missing_shaders.clear();
 		missing_shader_keys.clear();
+		dumped_shader_keys.clear();
+		pending_techset_outputs.clear();
 	}
 
-	void dump(zonetool::h1::MaterialTechniqueSet* asset)
+	void dump(zonetool::h1::MaterialTechniqueSet* asset, const std::filesystem::path& zone_path)
 	{
+		const auto output = filesystem::get_dump_path() + "techsets\\" + asset->name + ".techset";
+		const auto stamp = fingerprint().add_value(cache_revision::s2_h1_techset).add_file_stamp(zone_path).add(asset->name).value();
+		if (is_dump_current(output, stamp))
+		{
+			return;
+		}
+
 		zonetool::h1::techset::dump(asset);
 
 		for (const auto technique : asset->techniques)
@@ -703,5 +731,7 @@ namespace zonetool::s2::converter::h1::techset
 				dump_technique_shaders(technique);
 			}
 		}
+
+		pending_techset_outputs.emplace_back(output, stamp);
 	}
 }

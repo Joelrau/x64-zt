@@ -10,6 +10,7 @@
 #include "assets/glassworld.hpp"
 #include "assets/physworld.hpp"
 #include "assets/mapents.hpp"
+#include "assets/lightsets.hpp"
 #include "assets/material.hpp"
 #include "assets/techset.hpp"
 #include "assets/xsurface.hpp"

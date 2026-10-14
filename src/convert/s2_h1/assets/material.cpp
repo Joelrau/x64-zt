@@ -236,14 +236,18 @@ namespace zonetool::s2::converter::h1::material
 			return result;
 		}
 
+		void dump_with_zone_globals(const techset::h1_zone& zone, zonetool::h1::Material* material)
+		{
+			const db_scope _(zone.db());
+			zonetool::h1::material::dump(material);
+		}
+
 		void convert_zone_materials(const std::filesystem::path& zone_path, const std::vector<std::pair<Material*, std::string>>& materials,
 			conversion_stats& stats)
 		{
 			ZONETOOL_INFO("Converting %zu materials with \"%s\"...", materials.size(), zone_path.stem().string().data());
 
 			const techset::h1_zone zone(zone_path);
-			// The H1 material dump resolves state bits through the gfx globals of the active database
-			const db_scope _(zone.db());
 			std::unordered_set<std::string> dumped_techsets;
 
 			for (const auto& [asset, h1_techset] : materials)
@@ -260,14 +264,14 @@ namespace zonetool::s2::converter::h1::material
 				{
 					if (const auto techniques = zone.find_techset(h1_techset))
 					{
-						techset::dump(techniques);
+						techset::dump(techniques, zone_path);
 					}
 				}
 
 				add_csv_row("techset", h1_techset, source->global);
 
 				const auto converted = convert(asset, donor, stats);
-				zonetool::h1::material::dump(&converted->material);
+				dump_with_zone_globals(zone, &converted->material);
 				camera_regions[asset->name] = converted->material.cameraRegion;
 				add_csv_row("material", asset->name);
 

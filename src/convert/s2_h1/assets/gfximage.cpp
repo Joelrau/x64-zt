@@ -3,6 +3,7 @@
 #include "../include.hpp"
 #include "gfximage.hpp"
 
+#include <io/output_cache.hpp>
 #include <utils/io.hpp>
 
 #include <DirectXTex.h>
@@ -67,6 +68,21 @@ namespace zonetool::s2::converter::h1::gfximage
 		constexpr std::uint8_t h1_known_image_flags = 0x7F;
 
 		std::unordered_set<std::string> dumped_images;
+
+		fingerprint get_image_fingerprint(const GfxImage* asset)
+		{
+			fingerprint result;
+			result.add_value(cache_revision::s2_h1_image).add(asset->name).add_value(asset->imageFormat).add_value(asset->mapType)
+				.add_value(asset->semantic).add_value(asset->category).add_value(asset->flags).add_value(asset->width)
+				.add_value(asset->height).add_value(asset->depth).add_value(asset->numElements).add_value(asset->levelCount)
+				.add_value(asset->streams);
+			for (const auto& key : get_image_stream_keys(asset))
+			{
+				result.add_value(key);
+			}
+
+			return result;
+		}
 
 		std::string clean_name(std::string name)
 		{
@@ -241,6 +257,74 @@ namespace zonetool::s2::converter::h1::gfximage
 			return result;
 		}
 
+		std::optional<DirectX::ScratchImage> compress_bc6h_cube(const DirectX::ScratchImage& cube, const std::size_t face_size)
+		{
+			constexpr std::size_t strip_height = 16;
+
+			DirectX::ScratchImage compressed;
+			if (FAILED(compressed.InitializeCube(DXGI_FORMAT_BC6H_UF16, face_size, face_size, 1, 1)))
+			{
+				return {};
+			}
+
+			struct strip
+			{
+				std::size_t face;
+				std::size_t y;
+				std::size_t height;
+			};
+
+			std::vector<strip> strips;
+			for (auto face = 0u; face < 6; face++)
+			{
+				for (auto y = 0ull; y < face_size; y += strip_height)
+				{
+					strips.emplace_back(face, y, std::min(strip_height, face_size - y));
+				}
+			}
+
+			std::atomic_size_t next_strip{};
+			std::atomic_bool failed{};
+			const auto compress_strips = [&]
+			{
+				for (auto index = next_strip++; index < strips.size(); index = next_strip++)
+				{
+					const auto& [face, y, height] = strips[index];
+					const auto& source = *cube.GetImage(0, face, 0);
+					const DirectX::Image part{face_size, height, source.format, source.rowPitch, source.rowPitch * height,
+						source.pixels + y * source.rowPitch};
+
+					DirectX::ScratchImage result;
+					if (FAILED(DirectX::Compress(part, DXGI_FORMAT_BC6H_UF16, DirectX::TEX_COMPRESS_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, result)))
+					{
+						failed = true;
+						continue;
+					}
+
+					const auto& target = *compressed.GetImage(0, face, 0);
+					std::memcpy(target.pixels + y / 4 * target.rowPitch, result.GetPixels(), result.GetPixelsSize());
+				}
+			};
+
+			std::vector<std::thread> threads;
+			for (auto i = 0u; i < std::max(1u, std::thread::hardware_concurrency()); i++)
+			{
+				threads.emplace_back(compress_strips);
+			}
+
+			for (auto& thread : threads)
+			{
+				thread.join();
+			}
+
+			if (failed)
+			{
+				return {};
+			}
+
+			return compressed;
+		}
+
 		std::array<float, 3> cube_direction(const std::size_t face, const float u, const float v)
 		{
 			switch (face)
@@ -290,37 +374,7 @@ namespace zonetool::s2::converter::h1::gfximage
 				}
 			}
 
-			// DirectXTex is built without OpenMP, so TEX_COMPRESS_PARALLEL fails. BC6H is slow, compress the faces on separate threads.
-			std::array<DirectX::ScratchImage, 6> faces;
-			std::array<HRESULT, 6> results{};
-			std::vector<std::thread> threads;
-			for (auto face = 0u; face < 6; face++)
-			{
-				threads.emplace_back([&, face]
-				{
-					results[face] = DirectX::Compress(*cube.GetImage(0, face, 0), DXGI_FORMAT_BC6H_UF16, DirectX::TEX_COMPRESS_DEFAULT,
-						DirectX::TEX_THRESHOLD_DEFAULT, faces[face]);
-				});
-			}
-
-			for (auto& thread : threads)
-			{
-				thread.join();
-			}
-
-			DirectX::ScratchImage compressed;
-			if (std::any_of(results.begin(), results.end(), [](const HRESULT hr) { return FAILED(hr); })
-				|| FAILED(compressed.InitializeCube(DXGI_FORMAT_BC6H_UF16, face_size, face_size, 1, 1)))
-			{
-				return {};
-			}
-
-			for (auto face = 0u; face < 6; face++)
-			{
-				std::memcpy(compressed.GetImage(0, face, 0)->pixels, faces[face].GetPixels(), faces[face].GetPixelsSize());
-			}
-
-			return compressed;
+			return compress_bc6h_cube(cube, face_size);
 		}
 
 		zonetool::h1::GfxImage convert(GfxImage* asset)
@@ -460,8 +514,17 @@ namespace zonetool::s2::converter::h1::gfximage
 
 		if (image.streamed)
 		{
+			const auto path = "streamed_images\\" + name + ".h1Image";
+			const auto output = filesystem::get_dump_path() + path;
+			const auto fingerprint = get_image_fingerprint(asset).value();
+			if (is_dump_current(output, fingerprint))
+			{
+				return;
+			}
+
 			dump_streams(asset, &image);
-			dump_header("streamed_images\\" + name + ".h1Image", &image);
+			dump_header(path, &image);
+			update_dump_cache(output, fingerprint);
 			return;
 		}
 
@@ -486,6 +549,17 @@ namespace zonetool::s2::converter::h1::gfximage
 		const auto name = std::format("{}_cube{}", clean_name(asset->name), rotation_degrees);
 		if (dumped_images.contains(name))
 		{
+			return name;
+		}
+
+		const auto path = "images\\" + name + ".h1Image";
+		const auto output = filesystem::get_dump_path() + path;
+		const auto fingerprint = get_image_fingerprint(asset).add_value(rotation_cos).add_value(rotation_sin).value();
+		if (is_dump_current(output, fingerprint))
+		{
+			dumped_images.insert(name);
+			sky_cubes.emplace(asset->name, name);
+			add_csv_row("image", name);
 			return name;
 		}
 
@@ -519,7 +593,8 @@ namespace zonetool::s2::converter::h1::gfximage
 		image.pixelData = cube->GetPixels();
 		image.name = name.data();
 
-		dump_header("images\\" + name + ".h1Image", &image);
+		dump_header(path, &image);
+		update_dump_cache(output, fingerprint);
 		dumped_images.insert(name);
 		sky_cubes.emplace(asset->name, name);
 		add_csv_row("image", name);

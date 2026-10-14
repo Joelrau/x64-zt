@@ -39,7 +39,6 @@ namespace zonetool::s2::converter::h1::comworld
 		static_assert(offsetof(s2_primary_light, radius) == 0x58);
 		static_assert(offsetof(s2_primary_light, defName) == 0xA0);
 
-		// S2 stores a normalized color, H1 stores physical light units (stock mp_crash: sun about 34, spot lights 1.5e4 to 1.4e6)
 		constexpr float sun_intensity_scale = 10.0f;
 		constexpr float spot_intensity = 20000.0f;
 
@@ -53,7 +52,6 @@ namespace zonetool::s2::converter::h1::comworld
 
 			const auto scale = light.type == target::GFX_LIGHT_TYPE_DIR ? light.intensity * sun_intensity_scale : spot_intensity;
 			
-			// hub has 129 shadowed spot lights (h1 has 20)
 			new_light.canUseShadowMap = 0;
 			
 			new_light.physicallyBased = light.type != target::GFX_LIGHT_TYPE_DIR;

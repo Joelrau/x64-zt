@@ -32,6 +32,6 @@ namespace zonetool::s2::converter::h1::techset
 	const h1_techset_source* find_source(const std::string& h1_techset);
 	bool is_global_image(const std::string& name);
 
-	void dump(zonetool::h1::MaterialTechniqueSet* asset);
+	void dump(zonetool::h1::MaterialTechniqueSet* asset, const std::filesystem::path& zone_path);
 	void dump_missing_shaders();
 }

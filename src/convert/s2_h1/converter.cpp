@@ -150,6 +150,9 @@ namespace zonetool::convert::s2_h1
 			case source::ASSET_TYPE_PHYSWORLDMAP:
 				target::physworld::dump(header_as<source::PhysWorld>(header));
 				break;
+			case source::ASSET_TYPE_STRINGTABLE:
+				target::lightsets::dump(header_as<source::StringTable>(header));
+				break;
 			case source::ASSET_TYPE_MAP_ENTS:
 				target::mapents::dump(header_as<source::MapEnts>(header));
 				break;
@@ -161,7 +164,7 @@ namespace zonetool::convert::s2_h1
 				target::clipmap::add_transient_zone(header_as<source::ClipMapTrZone>(header));
 				break;
 			case source::ASSET_TYPE_GFXWORLD:
-				if (std::getenv("ZT_PROBE_ONLY")) { probe_surface_bytes(header_as<source::GfxWorld>(header)); probe_smodel_flags(header_as<source::GfxWorld>(header)); probe_surface_env(header_as<source::GfxWorld>(header)); }
+				if (std::getenv("ZT_PROBE_ONLY")) { probe_surface_bytes(header_as<source::GfxWorld>(header)); probe_smodel_flags(header_as<source::GfxWorld>(header)); probe_light_grid(header_as<source::GfxWorld>(header)); probe_smodel_sh(header_as<source::GfxWorld>(header)); probe_surface_env(header_as<source::GfxWorld>(header)); }
 				target::gfxworld::dump(header_as<source::GfxWorld>(header));
 				break;
 			case source::ASSET_TYPE_GFXWORLD_TRANSIENT_ZONE:

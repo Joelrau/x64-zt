@@ -39,6 +39,17 @@ Without a command, `zonetool.exe` opens an interactive console.
 - Flags for `dumpzone`: `-dds` writes DDS images. `-dump_streamed_image` reads `imagefile*.pak` and writes streamed images.
 - The `require` row in a build CSV loads another zone into the asset database. There is no `loadzone` command.
 - `buildzone` never writes to the game folder.
+- `-no_cache` writes every output again and ignores the build cache.
+
+## Build cache
+
+The cache makes a second `dumpzone` or `buildzone` of the same zone faster. It does not change the asset files, so v1 and tools without the cache read the output.
+
+- `dump/<zone>/.zonetool_cache` records a fingerprint and a file stamp (size and write time) for each cached dump file. If both match, the dumper skips the file.
+- `zonetool_cache/<zone>.pak.streams` records the stream offsets of the last `.pak`. If the streamed image files and the `.pak` did not change, `buildzone` reuses the `.pak`.
+- `zonetool_cache/h1_techsets.txt` holds the H1 techset catalog of the S2 to H1 converter.
+- Zlib zones of 8 MB or more compress in 4 MB chunks on all threads. The result is one valid zlib stream.
+- The revision values are in `cache_revision` in `src/core/io/output_cache.hpp`. If you change the output of a cached asset, increment its revision.
 
 ## Source layout
 
