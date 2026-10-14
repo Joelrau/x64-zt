@@ -13,7 +13,8 @@ namespace zonetool::s2::converter::h1::clipmap
 		namespace target = zonetool::h1;
 
 		constexpr auto transient_zone_count = 16u;
-		// Partition vertex segments: S2 uses verts + seg * 4096, H1 uses verts + seg * 1024 (seg * 3 << 0Ch bytes)
+
+		// S2 uses verts + seg * 4096 while H1 uses verts + seg * 1024 (seg * 3 << 0Ch bytes)
 		constexpr auto source_vertex_segment_size = 4096u;
 		constexpr auto vertex_segment_size = 1024u;
 		constexpr auto smodel_leaf_size = 16u;
@@ -157,9 +158,9 @@ namespace zonetool::s2::converter::h1::clipmap
 			}
 		}
 
-		// S2 has no stages, H1 reads stage 0 without a count check. The values match stock H1 maps
 		target::Stage* default_stage(utils::memory::allocator& allocator)
 		{
+			// S2 has no stages
 			const auto stage = allocator.allocate<target::Stage>();
 			stage->name = "stage 0";
 			stage->triggerIndex = 0x400;

@@ -2,6 +2,7 @@
 
 #include "../include.hpp"
 #include "gfxworld.hpp"
+#include "comworld.hpp"
 #include "gfximage.hpp"
 #include "material.hpp"
 
@@ -25,15 +26,17 @@ namespace zonetool::s2::converter::h1::gfxworld
 			Material* material;
 			std::uint8_t lightmapIndex;
 			std::uint8_t reflectionProbeIndex;
-			std::uint16_t primaryLightEnvIndex;
 			std::uint8_t flags;
-			char __pad2[3];
+			char __pad2[1];
+			std::uint16_t lightListOffset;
+			char __pad3[2];
 			std::uint32_t transientZone;
-			char __pad3[4];
+			char __pad4[4];
 		};
 		static_assert(sizeof(s2_surface) == 56);
 		static_assert(offsetof(s2_surface, baseIndex) == 24);
 		static_assert(offsetof(s2_surface, material) == 32);
+		static_assert(offsetof(s2_surface, lightListOffset) == 44);
 		static_assert(offsetof(s2_surface, transientZone) == 48);
 
 		struct s2_static_model_draw_inst
@@ -45,7 +48,9 @@ namespace zonetool::s2::converter::h1::gfxworld
 			std::uint16_t flags;
 			char __pad2[2];
 			std::uint16_t staticModelId;
-			char __pad3[22];
+			char __pad3[16];
+			std::uint16_t lightListOffset;
+			char __pad5[4];
 			std::uint8_t reflectionProbeIndex;
 			char __pad4[15];
 		};
@@ -53,6 +58,7 @@ namespace zonetool::s2::converter::h1::gfxworld
 		static_assert(offsetof(s2_static_model_draw_inst, model) == 0x48);
 		static_assert(offsetof(s2_static_model_draw_inst, flags) == 0x54);
 		static_assert(offsetof(s2_static_model_draw_inst, staticModelId) == 0x58);
+		static_assert(offsetof(s2_static_model_draw_inst, lightListOffset) == 0x6A);
 		static_assert(offsetof(s2_static_model_draw_inst, reflectionProbeIndex) == 0x70);
 
 		struct s2_surface_bounds
@@ -89,6 +95,8 @@ namespace zonetool::s2::converter::h1::gfxworld
 		constexpr std::size_t world_anchors = 176;
 		constexpr std::size_t world_draw = 192;
 		constexpr std::size_t world_light_grid = 992;
+		constexpr std::size_t world_light_list_size = 2872;
+		constexpr std::size_t world_light_lists = 2880;
 		constexpr std::size_t world_model_count = 2888;
 		constexpr std::size_t world_models = 2896;
 		constexpr std::size_t world_bounds = 2904;
@@ -141,9 +149,10 @@ namespace zonetool::s2::converter::h1::gfxworld
 			target::STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING | target::STATIC_MODEL_FLAG_LIGHTMAP_LIGHTING | target::STATIC_MODEL_FLAG_ALLOW_FXMARK;
 		constexpr std::uint16_t smodel_scale_one = target::STATIC_MODEL_FLAG_SCALE_9;
 		constexpr float smodel_ground_lighting = 0.6f;
+		constexpr std::uint16_t sun_primary_light_index = 1;
 
-		// unk bytes 2..10 are per image slot stream distances (0xFF is far), byte 11 is a distance cull flag
-		constexpr std::size_t surface_image_stream_distance_size = 11;
+		// unk bytes 2..10 are per image slot stream distances (0xFF is far)
+		constexpr std::size_t surface_image_stream_distance_size = 11; // distance cull flag
 
 		enum surface_range
 		{
@@ -322,7 +331,35 @@ namespace zonetool::s2::converter::h1::gfxworld
 			return max_length;
 		}
 
-		target::GfxSurface convert_surface(const target::GfxWorld* world, const s2_surface& surface, utils::memory::allocator& allocator)
+		// S2 surfaces and static models store an offset into a counted list of primary lights, H1 stores an index into the ComWorld light envs
+		std::uint16_t get_light_env(GfxWorld* asset, const target::GfxWorld* world, const std::uint16_t list_offset)
+		{
+			const auto lists = field<std::uint16_t*>(asset, world_light_lists);
+			const auto list_size = field<std::uint32_t>(asset, world_light_list_size);
+			if (!lists || list_offset >= list_size)
+			{
+				return 0;
+			}
+
+			std::vector<std::uint16_t> lights;
+			const auto count = std::min<std::uint32_t>(lists[list_offset], list_size - list_offset - 1);
+			for (auto i = 0u; i < count; i++)
+			{
+				const auto light = lists[list_offset + 1 + i];
+				const auto is_extra_sun = light > sun_primary_light_index && light <= world->lastSunPrimaryLightIndex;
+				if (light >= world->primaryLightCount || is_extra_sun)
+				{
+					continue;
+				}
+
+				lights.push_back(light);
+			}
+
+			std::sort(lights.begin(), lights.end());
+			return comworld::get_light_env(std::move(lights));
+		}
+
+		target::GfxSurface convert_surface(const target::GfxWorld* world, const s2_surface& surface, const std::uint16_t light_env, utils::memory::allocator& allocator)
 		{
 			target::GfxSurface new_surface{};
 			const auto zone = surface.transientZone < draw_transient_zone_count ? surface.transientZone : 0;
@@ -336,7 +373,7 @@ namespace zonetool::s2::converter::h1::gfxworld
 			new_surface.material = make_stub<target::Material>(surface.material ? surface.material->name : "$default", allocator);
 			new_surface.laf.fields.lightmapIndex = surface.lightmapIndex;
 			new_surface.laf.fields.reflectionProbeIndex = surface.reflectionProbeIndex;
-			new_surface.laf.fields.primaryLightEnvIndex = surface.primaryLightEnvIndex;
+			new_surface.laf.fields.primaryLightEnvIndex = light_env;
 			new_surface.laf.fields.flags = target::GFX_SURFACE_CASTS_SUN_SHADOW;
 
 			return new_surface;
@@ -391,7 +428,7 @@ namespace zonetool::s2::converter::h1::gfxworld
 			dpvs.surfacesBounds = allocator.allocate_array<target::GfxSurfaceBounds>(world->surfaceCount);
 			for (auto i = 0u; i < world->surfaceCount; i++)
 			{
-				dpvs.surfaces[new_index[i]] = convert_surface(world, surfaces[i], allocator);
+				dpvs.surfaces[new_index[i]] = convert_surface(world, surfaces[i], get_light_env(asset, world, surfaces[i].lightListOffset), allocator);
 				dpvs.surfacesBounds[new_index[i]].bounds = bounds[i].bounds;
 				std::memset(&dpvs.surfacesBounds[new_index[i]].unk, 0xFF, surface_image_stream_distance_size);
 			}
@@ -455,6 +492,8 @@ namespace zonetool::s2::converter::h1::gfxworld
 				new_inst.flags = (inst.flags & smodel_flags_kept) | smodel_scale_one;
 				new_inst.staticModelId = inst.staticModelId;
 				new_inst.reflectionProbeIndex = inst.reflectionProbeIndex;
+				new_inst.primaryLightEnvIndex = get_light_env(asset, world, inst.lightListOffset);
+				new_inst.sunShadowFlags = (new_inst.flags & target::STATIC_MODEL_FLAG_NO_CAST_SHADOW) ? 0 : 1;
 
 				dpvs.smodelLightingInsts[i] = lighting[i];
 				if (new_inst.flags & target::STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING)
@@ -682,9 +721,9 @@ namespace zonetool::s2::converter::h1::gfxworld
 			}
 		}
 
-		// S2 lights models with a probe grid that H1 cannot read. Stock H1 maps use these half-float ambient colors and one stage
 		void set_neutral_light_grid(target::GfxLightGrid& grid, utils::memory::allocator& allocator)
 		{
+			// S2 lights models with a probe grid that H1 cannot read, so stock H1 maps use these half-float ambient colors and one stage
 			constexpr unsigned short neutral_color[3]{0x4173, 0x41FE, 0x426E};
 			for (auto i = 0u; i < std::size(grid.defaultLightGridColors.rgb); i++)
 			{
@@ -745,7 +784,8 @@ namespace zonetool::s2::converter::h1::gfxworld
 			convert_images(asset, world, allocator);
 
 			world->lightRegion = field<target::GfxLightRegion*>(asset, world_light_region);
-			// The converted col_map has no dyn ents, H1 walks dynEntClientCount entries of the clip dyn ent list
+			
+			// H1 walks dynEntClientCount entries of the clip dyn ent list
 			world->dpvsDyn = {};
 			convert_dpvs(asset, world, allocator);
 			allocate_runtime_data(world, allocator);

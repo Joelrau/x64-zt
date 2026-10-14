@@ -90,7 +90,7 @@ namespace zonetool::s2::converter::h1::material
 		{
 			const auto source_texture = find_texture(asset, donor_texture.nameHash);
 			const auto source_image = source_texture && source_texture->u.image ? source_texture->u.image->name : nullptr;
-			if (source_image && gfximage::is_dumped(source_image))
+			if (source_image && (gfximage::is_dumped(source_image) || techset::is_global_image(source_image)))
 			{
 				stats.source_images++;
 				return source_image;
@@ -102,7 +102,7 @@ namespace zonetool::s2::converter::h1::material
 			}
 
 			const auto donor_image = donor_texture.u.image && donor_texture.u.image->name ? donor_texture.u.image->name : "";
-			if (techset::is_global_image(donor_image))
+			if (donor_texture.semantic != zonetool::h1::TS_COLOR_MAP && techset::is_global_image(donor_image))
 			{
 				stats.global_images++;
 				return donor_image;
@@ -115,6 +115,12 @@ namespace zonetool::s2::converter::h1::material
 		bool is_sky(const Material* asset)
 		{
 			return asset->techniqueSet && asset->techniqueSet->name && std::strstr(asset->techniqueSet->name, "_sky");
+		}
+
+		// The S2 ui3d color map is a placeholder for a menu render target that H1 does not draw
+		bool is_ui3d_screen(const Material* asset)
+		{
+			return asset->techniqueSet && asset->techniqueSet->name && std::strstr(asset->techniqueSet->name, "_ui3d");
 		}
 
 		std::optional<std::string> convert_sky_image(const Material* asset, const zonetool::h1::MaterialTextureDef& donor_texture)
@@ -181,6 +187,10 @@ namespace zonetool::s2::converter::h1::material
 				{
 					result->image_names[i] = *sky_cube;
 				}
+				else if (is_ui3d_screen(asset) && texture.semantic == zonetool::h1::TS_COLOR_MAP)
+				{
+					result->image_names[i] = "$black";
+				}
 
 				result->images[i].name = result->image_names[i].data();
 				texture.u.image = &result->images[i];
@@ -232,6 +242,8 @@ namespace zonetool::s2::converter::h1::material
 			ZONETOOL_INFO("Converting %zu materials with \"%s\"...", materials.size(), zone_path.stem().string().data());
 
 			const techset::h1_zone zone(zone_path);
+			// The H1 material dump resolves state bits through the gfx globals of the active database
+			const db_scope _(zone.db());
 			std::unordered_set<std::string> dumped_techsets;
 
 			for (const auto& [asset, h1_techset] : materials)

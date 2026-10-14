@@ -589,11 +589,37 @@
 			fclose(fp);
 		}
 
+		void probe_surface_env(source::GfxWorld* asset)
+		{
+			const auto w = reinterpret_cast<std::uint8_t*>(asset);
+			const auto dpvs = w + 3240;
+			const auto surface_count = *reinterpret_cast<unsigned int*>(w + 28);
+			const auto surfaces = *reinterpret_cast<std::uint8_t**>(dpvs + 752);
+			const auto bounds = *reinterpret_cast<float**>(dpvs + 760);
+			const auto fp = fopen("probe_surfenv.txt", "wb");
+			const auto lists = *reinterpret_cast<std::uint16_t**>(w + 2880);
+			const auto list_size = *reinterpret_cast<std::uint32_t*>(w + 2872);
+			fprintf(fp, "listsize %u\n", list_size);
+			for (auto i = 0u; i < surface_count; i++)
+			{
+				const auto s = surfaces + i * 56;
+				const auto b = bounds + i * 16;
+				const auto mat = *reinterpret_cast<source::Material**>(s + 32);
+				fprintf(fp, "%u %u %u %u %u %u %u %u %.1f %.1f %.1f %.1f %.1f %.1f %s\n", i, s[40], s[41], s[42], s[43], s[44], s[45], s[46],
+					b[0], b[1], b[2], b[3], b[4], b[5], mat ? mat->name : "null");
+				const auto off = *reinterpret_cast<std::uint16_t*>(s + 44);
+				fprintf(fp, "L");
+				if (off < list_size) for (auto k = 0u; k < lists[off] && off + 1 + k < list_size; k++) fprintf(fp, " %u", lists[off + 1 + k]);
+				fprintf(fp, "\n");
+			}
+			fclose(fp);
+		}
+
 		void probe_sky_shaders(source::Material* material)
 		{
-			if (material->techniqueSet && std::strstr(material->techniqueSet->name, "_sky"))
+			if (material->techniqueSet)
 			{
-				const auto fp = std::fopen("probe_sky_consts.txt", "ab");
+				const auto fp = std::fopen("probe_mats.txt", "ab");
 				std::fprintf(fp, "%s %s tex %u const %u\n", material->info.name, material->techniqueSet->name, material->textureCount, material->constantCount);
 				for (auto i = 0; i < material->constantCount && material->constantTable; i++)
 				{
@@ -636,4 +662,46 @@
 			}
 
 			utils::io::write_file("probe_sky_techset.txt", material->techniqueSet->name, false);
+		}
+
+		inline void probe_smodel_flags(source::GfxWorld* asset)
+		{
+			const auto w = reinterpret_cast<std::uint8_t*>(asset);
+			const auto dpvs = w + 3240;
+			const auto count = *reinterpret_cast<unsigned int*>(dpvs + 0);
+			const auto insts = *reinterpret_cast<std::uint8_t**>(dpvs + 784);
+			const auto lighting = *reinterpret_cast<std::uint8_t**>(dpvs + 800);
+			const auto fp = fopen("probe_smodel_flags.txt", "wb");
+			std::map<int, int> hist;
+			std::map<std::string, std::map<int, int>> by_model;
+			for (auto i = 0u; i < count; i++)
+			{
+				const auto inst = insts + 128ull * i;
+				const auto flags = *reinterpret_cast<std::uint16_t*>(inst + 0x54);
+				const auto model = *reinterpret_cast<source::XModel**>(inst + 0x48);
+				hist[flags]++;
+				by_model[model ? model->name : "null"][flags]++;
+			}
+			fprintf(fp, "smodels %u\n", count);
+			for (const auto& [f, n] : hist) fprintf(fp, "flags %04X: %d\n", f, n);
+			for (const auto& [name, h] : by_model)
+			{
+				fprintf(fp, "%s:", name.data());
+				for (const auto& [f, n] : h) fprintf(fp, " %04X:%d", f, n);
+				fprintf(fp, "\n");
+			}
+			auto shown = std::map<int, int>{};
+			for (auto i = 0u; i < count; i++)
+			{
+				const auto inst = insts + 128ull * i;
+				const auto flags = *reinterpret_cast<std::uint16_t*>(inst + 0x54);
+				if (shown[flags]++ >= 3) continue;
+				const auto model = *reinterpret_cast<source::XModel**>(inst + 0x48);
+				fprintf(fp, "inst %u flags %04X %s inst:", i, flags, model ? model->name : "null");
+				for (auto k = 0x40; k < 0x80; k++) fprintf(fp, "%s%02X", (k % 4) ? "" : " ", inst[k]);
+				fprintf(fp, " light:");
+				for (auto k = 0; k < 24; k++) fprintf(fp, "%s%02X", (k % 4) ? "" : " ", lighting[24ull * i + k]);
+				fprintf(fp, "\n");
+			}
+			fclose(fp);
 		}

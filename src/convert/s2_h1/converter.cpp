@@ -33,7 +33,7 @@ namespace zonetool::s2::converter::h1
 			csv_keys.clear();
 		}
 
-		// S2 table read from the exe at 0x140FB0DE0, H1 order from materialSurfType_t.
+		// S2 table read from the exe at 0x140FB0DE0
 		constexpr std::array<std::string_view, 62> s2_surface_types
 		{
 			"default", "asphalt", "asphalt_debris", "asphalt_wet", "bark", "brick_dark", "brick_light", "brick_red",
@@ -161,7 +161,7 @@ namespace zonetool::convert::s2_h1
 				target::clipmap::add_transient_zone(header_as<source::ClipMapTrZone>(header));
 				break;
 			case source::ASSET_TYPE_GFXWORLD:
-				if (std::getenv("ZT_PROBE_ONLY")) probe_surface_bytes(header_as<source::GfxWorld>(header));
+				if (std::getenv("ZT_PROBE_ONLY")) { probe_surface_bytes(header_as<source::GfxWorld>(header)); probe_smodel_flags(header_as<source::GfxWorld>(header)); probe_surface_env(header_as<source::GfxWorld>(header)); }
 				target::gfxworld::dump(header_as<source::GfxWorld>(header));
 				break;
 			case source::ASSET_TYPE_GFXWORLD_TRANSIENT_ZONE:
@@ -194,6 +194,7 @@ namespace zonetool::convert::s2_h1
 		{
 			target::material::finish();
 			target::gfxworld::finish();
+			target::comworld::finish();
 			target::clipmap::finish();
 			target::write_csv(zone_name);
 		}

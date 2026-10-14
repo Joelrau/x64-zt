@@ -461,4 +461,284 @@ namespace zonetool::h1
 		}
 		fclose(fp);
 	}
+
+	inline void probe_h1_portals(GfxWorld* w)
+	{
+		const auto fp = fopen("probe_h1portals.txt", "wb");
+		if (!fp) return;
+		const auto cell_count = w->dpvsPlanes.cellCount;
+		fprintf(fp, "world %s cells %d nodes %d planes %d\n", w->name, cell_count, w->nodeCount, w->planeCount);
+		auto total = 0u, bad_index = 0u, no_reverse = 0u, plus_d = 0u, minus_d = 0u, neither = 0u;
+		auto wind_pos = 0u, wind_neg = 0u;
+		auto own_pos = 0u, own_neg = 0u, tgt_pos = 0u, tgt_neg = 0u, hull_bad = 0u, zero_hull = 0u, verts_small = 0u;
+		std::map<int, int> close_hist;
+		const auto center = [&](int c) { return w->cells[c].bounds.midPoint; };
+		for (auto c = 0; c < cell_count; c++)
+		{
+			const auto& cell = w->cells[c];
+			const auto m = cell.bounds.midPoint;
+			const auto h = cell.bounds.halfSize;
+			if (c < 40) fprintf(fp, "cell %d mid %.0f %.0f %.0f half %.0f %.0f %.0f portals %u probes %u refs %u trees %d\n", c, m[0], m[1], m[2], h[0], h[1], h[2], cell.portalCount, cell.reflectionProbeCount, cell.reflectionProbeReferenceCount, w->aabbTreeCounts[c].aabbTreeCount);
+			for (auto pi = 0u; pi < cell.portalCount; pi++)
+			{
+				const auto& p = cell.portals[pi];
+				total++;
+				const auto n = p.plane.coeffs;
+				float r_plus = 0.0f, r_minus = 0.0f;
+				for (auto vi = 0; vi < p.vertexCount; vi++)
+				{
+					const auto v = p.vertices[vi];
+					const auto dot = n[0] * v[0] + n[1] * v[1] + n[2] * v[2];
+					r_plus = std::max(r_plus, std::fabs(dot + n[3]));
+					r_minus = std::max(r_minus, std::fabs(dot - n[3]));
+				}
+				if (r_plus < 1.0f) plus_d++; else if (r_minus < 1.0f) minus_d++; else neither++;
+				if (p.vertexCount < 3) verts_small++;
+				else
+				{
+					float area[3]{};
+					for (auto vi = 1; vi + 1 < p.vertexCount; vi++)
+					{
+						const auto a = p.vertices[0]; const auto b = p.vertices[vi]; const auto cc = p.vertices[vi + 1];
+						const float e1[3]{b[0] - a[0], b[1] - a[1], b[2] - a[2]}; const float e2[3]{cc[0] - a[0], cc[1] - a[1], cc[2] - a[2]};
+						area[0] += e1[1] * e2[2] - e1[2] * e2[1]; area[1] += e1[2] * e2[0] - e1[0] * e2[2]; area[2] += e1[0] * e2[1] - e1[1] * e2[0];
+					}
+					const auto wn = area[0] * n[0] + area[1] * n[1] + area[2] * n[2];
+					(wn >= 0 ? wind_pos : wind_neg)++;
+				}
+				const auto side = [&](const float* x) { return n[0] * x[0] + n[1] * x[1] + n[2] * x[2] + (r_plus < 1.0f ? n[3] : -n[3]); };
+				const auto s_own = side(m);
+				(s_own >= 0 ? own_pos : own_neg)++;
+				auto s_tgt = 0.0f;
+				if (p.cellIndex >= cell_count) bad_index++;
+				else
+				{
+					s_tgt = side(center(p.cellIndex));
+					(s_tgt >= 0 ? tgt_pos : tgt_neg)++;
+					const auto& t = w->cells[p.cellIndex];
+					auto found = false;
+					for (auto k = 0u; k < t.portalCount; k++) if (t.portals[k].cellIndex == c) found = true;
+					if (!found) no_reverse++;
+				}
+				const auto a0 = p.hullAxis[0];
+				const auto a1 = p.hullAxis[1];
+				const auto len0 = std::sqrt(a0[0] * a0[0] + a0[1] * a0[1] + a0[2] * a0[2]);
+				const auto len1 = std::sqrt(a1[0] * a1[0] + a1[1] * a1[1] + a1[2] * a1[2]);
+				const auto dn0 = a0[0] * n[0] + a0[1] * n[1] + a0[2] * n[2];
+				const auto dn1 = a1[0] * n[0] + a1[1] * n[1] + a1[2] * n[2];
+				const auto d01 = a0[0] * a1[0] + a0[1] * a1[1] + a0[2] * a1[2];
+				if (len0 == 0.0f && len1 == 0.0f) zero_hull++;
+				else if (std::fabs(len0 - 1) > 0.01f || std::fabs(len1 - 1) > 0.01f || std::fabs(dn0) > 0.01f || std::fabs(dn1) > 0.01f || std::fabs(d01) > 0.01f) hull_bad++;
+				close_hist[p.closeDistance]++;
+				if (total <= 60)
+				{
+					fprintf(fp, "  portal %u of cell %d -> %u verts %u close %u plane %.3f %.3f %.3f %.1f r+ %.2f r- %.2f own %.1f tgt %.1f hull |%.3f| |%.3f| n.a %.3f %.3f a.a %.3f writable",
+						pi, c, p.cellIndex, p.vertexCount, p.closeDistance, n[0], n[1], n[2], n[3], r_plus, r_minus, s_own, s_tgt, len0, len1, dn0, dn1, d01);
+					const auto wb = reinterpret_cast<const std::uint32_t*>(&p.writable);
+					for (auto k = 0; k < 6; k++) fprintf(fp, " %08X", wb[k]);
+					fprintf(fp, "\n");
+				}
+			}
+		}
+		fprintf(fp, "\ntotal %u bad_index %u no_reverse %u plane+d %u plane-d %u neither %u verts<3 %u\n", total, bad_index, no_reverse, plus_d, minus_d, neither, verts_small);
+		fprintf(fp, "own center side +%u -%u, target center side +%u -%u, hull bad %u zero %u, winding +%u -%u\n", own_pos, own_neg, tgt_pos, tgt_neg, hull_bad, zero_hull, wind_pos, wind_neg);
+		fprintf(fp, "closeDistance:");
+		auto shown = 0;
+		for (const auto& [k, v] : close_hist) { if (shown++ < 30) fprintf(fp, " %d:%d", k, v); }
+		fprintf(fp, "\nanchors %u\n", w->portalDistanceAnchorCount);
+		for (auto i = 0u; i < std::min(w->portalDistanceAnchorCount, 8u); i++)
+		{
+			const auto a = w->portalDistanceAnchorsAndCloseDistSquared[i];
+			fprintf(fp, "  anchor %u %.1f %.1f %.1f %.1f\n", i, a[0], a[1], a[2], a[3]);
+		}
+
+		const auto cell_for_point = [&](const float* p) -> int
+		{
+			const auto cell_count1 = static_cast<int>(cell_count) + 1;
+			auto node = w->dpvsPlanes.nodes;
+			auto v = static_cast<int>(node[0]);
+			while (v - cell_count1 >= 0)
+			{
+				const auto& plane = w->dpvsPlanes.planes[v - cell_count1];
+				const auto d = p[0] * plane.normal[0] + p[1] * plane.normal[1] + p[2] * plane.normal[2] - plane.dist;
+				const auto side = d <= 0.0f ? 1 : 0;
+				node = node + side * (static_cast<int>(node[1]) - 2) + 2;
+				v = node[0];
+			}
+			return v - 1;
+		};
+		float lo[3] = {1e30f, 1e30f, 1e30f}, hi[3] = {-1e30f, -1e30f, -1e30f};
+		for (auto c = 0; c < cell_count; c++)
+		{
+			for (auto k = 0; k < 3; k++)
+			{
+				lo[k] = std::min(lo[k], w->cells[c].bounds.midPoint[k] - w->cells[c].bounds.halfSize[k]);
+				hi[k] = std::max(hi[k], w->cells[c].bounds.midPoint[k] + w->cells[c].bounds.halfSize[k]);
+			}
+		}
+		fprintf(fp, "cell union %.0f %.0f %.0f .. %.0f %.0f %.0f\n", lo[0], lo[1], lo[2], hi[0], hi[1], hi[2]);
+		const auto inside = [&](int c, const float* p, float eps)
+		{
+			const auto& b = w->cells[c].bounds;
+			for (auto k = 0; k < 3; k++) if (std::fabs(p[k] - b.midPoint[k]) > b.halfSize[k] + eps) return false;
+			return true;
+		};
+		auto n_none = 0u, n_ok = 0u, n_out = 0u, n_none_in_some = 0u, n_bad_cell = 0u, n_multi = 0u;
+		float worst = 0.0f;
+		std::map<int, int> out_by_cell;
+		constexpr auto steps = 40;
+		for (auto ix = 0; ix < steps; ix++) for (auto iy = 0; iy < steps; iy++) for (auto iz = 0; iz < steps; iz++)
+		{
+			const float p[3] = {lo[0] + (hi[0] - lo[0]) * (ix + 0.5f) / steps, lo[1] + (hi[1] - lo[1]) * (iy + 0.5f) / steps, lo[2] + (hi[2] - lo[2]) * (iz + 0.5f) / steps};
+			const auto c = cell_for_point(p);
+			auto containing = 0;
+			for (auto k = 0; k < cell_count; k++) if (inside(k, p, 0.0f)) containing++;
+			if (containing > 1) n_multi++;
+			if (c < 0)
+			{
+				n_none++;
+				if (containing) n_none_in_some++;
+				continue;
+			}
+			if (c >= cell_count) { n_bad_cell++; continue; }
+			if (inside(c, p, 1.0f)) { n_ok++; continue; }
+			n_out++;
+			out_by_cell[c]++;
+			const auto& b = w->cells[c].bounds;
+			for (auto k = 0; k < 3; k++) worst = std::max(worst, std::fabs(p[k] - b.midPoint[k]) - b.halfSize[k]);
+		}
+		fprintf(fp, "cellForPoint grid %d^3: none %u (inside some cell bounds %u) ok %u outside own bounds %u (worst %.0f) bad %u multi %u\n", steps, n_none, n_none_in_some, n_ok, n_out, worst, n_bad_cell, n_multi);
+		for (const auto& [c, v] : out_by_cell) fprintf(fp, "  out cell %d: %d\n", c, v);
+
+		for (auto c = 0; c < cell_count; c++)
+		{
+			const auto& b = w->cells[c].bounds;
+			auto self = 0, overlap = 0, wrong = 0, none = 0;
+			std::map<int, int> wrong_cells;
+			constexpr auto n = 12;
+			for (auto ix = 0; ix < n; ix++) for (auto iy = 0; iy < n; iy++) for (auto iz = 0; iz < n; iz++)
+			{
+				const float p[3] = {b.midPoint[0] + b.halfSize[0] * (2.0f * (ix + 0.5f) / n - 1.0f), b.midPoint[1] + b.halfSize[1] * (2.0f * (iy + 0.5f) / n - 1.0f), b.midPoint[2] + b.halfSize[2] * (2.0f * (iz + 0.5f) / n - 1.0f)};
+				const auto r = cell_for_point(p);
+				if (r == c) self++;
+				else if (r < 0) none++;
+				else if (inside(r, p, 1.0f)) { overlap++; wrong_cells[r]++; }
+				else wrong++;
+			}
+			fprintf(fp, "cell %d half %.0f %.0f %.0f: self %d overlap %d wrong %d none %d |", c, b.halfSize[0], b.halfSize[1], b.halfSize[2], self, overlap, wrong, none);
+			auto shown_cells = 0;
+			for (const auto& [k, v] : wrong_cells) if (shown_cells++ < 8) fprintf(fp, " %d:%d", k, v);
+			fprintf(fp, "\n");
+		}
+		fclose(fp);
+	}
+inline void probe_h1_vcol(XModelSurfs* asset)
+	{
+		static FILE* fp = std::fopen("probe_h1_vcol.txt", "w");
+		for (auto s = 0; s < asset->numsurfs; s++)
+		{
+			const auto surf = &asset->surfs[s];
+			if (!surf->verts0.packedVerts0) continue;
+			double sum[4]{}; int mn[4]{255,255,255,255}; int mx[4]{};
+			for (auto i = 0; i < surf->vertCount; i++)
+			{
+				const auto c = surf->verts0.packedVerts0[i].color.packed;
+				for (auto k = 0; k < 4; k++) { const int b = (c >> (k * 8)) & 0xFF; sum[k] += b; mn[k] = std::min(mn[k], b); mx[k] = std::max(mx[k], b); }
+			}
+			const auto n = std::max(1, static_cast<int>(surf->vertCount));
+			std::fprintf(fp, "%s flags %04X verts %d avg %.0f %.0f %.0f %.0f min %d %d %d %d max %d %d %d %d\n", asset->name, surf->flags, surf->vertCount,
+				sum[0] / n, sum[1] / n, sum[2] / n, sum[3] / n, mn[0], mn[1], mn[2], mn[3], mx[0], mx[1], mx[2], mx[3]);
+		}
+		std::fflush(fp);
+	}
+inline void probe_h1_world_vcol(GfxWorld* asset)
+	{
+		FILE* fp = std::fopen("probe_h1_world_vcol.txt", "w");
+		std::map<std::uint32_t, int> counts;
+		for (auto i = 0u; i < asset->draw.vertexCount; i++) counts[asset->draw.vd.vertices[i].color.packed]++;
+		std::vector<std::pair<int, std::uint32_t>> sorted;
+		for (const auto& [c, n] : counts) sorted.emplace_back(n, c);
+		std::sort(sorted.rbegin(), sorted.rend());
+		std::fprintf(fp, "verts %u distinct %zu:", asset->draw.vertexCount, sorted.size());
+		for (auto k = 0u; k < std::min<std::size_t>(40, sorted.size()); k++) std::fprintf(fp, " %08X:%d", sorted[k].second, sorted[k].first);
+		std::fprintf(fp, "\n");
+		std::fclose(fp);
+	}
+inline void probe_h1_skies(GfxWorld* asset)
+	{
+		FILE* fp = std::fopen("probe_h1_skies.txt", "w");
+		const auto& d = asset->dpvs;
+		std::fprintf(fp, "static %u total %u ranges opaque %u-%u unk %u-%u decal %u-%u trans %u-%u caster %u-%u emissive %u-%u\n", d.staticSurfaceCount, asset->surfaceCount,
+			d.litOpaqueSurfsBegin, d.litOpaqueSurfsEnd, d.unkSurfsBegin, d.unkSurfsEnd, d.litDecalSurfsBegin, d.litDecalSurfsEnd,
+			d.litTransSurfsBegin, d.litTransSurfsEnd, d.shadowCasterSurfsBegin, d.shadowCasterSurfsEnd, d.emissiveSurfsBegin, d.emissiveSurfsEnd);
+		{
+			std::map<std::string, int> hist;
+			for (auto i = 0u; i < d.staticSurfaceCount; i++)
+			{
+				const auto& sf = d.surfaces[i];
+				const auto range = i < d.litOpaqueSurfsEnd ? "opaque" : i < d.litDecalSurfsEnd ? "decal" : i < d.litTransSurfsEnd ? "trans" : "other";
+				char key[96];
+				std::snprintf(key, sizeof(key), "%s flags %02X unused %02X%02X%02X unk %d lmap %s", range, sf.laf.fields.flags, sf.laf.fields.unused[0], sf.laf.fields.unused[1], sf.laf.fields.unused[2], sf.tris.unk, sf.laf.fields.lightmapIndex == 31 ? "31" : sf.laf.fields.lightmapIndex == 255 ? "255" : "n");
+				hist[key]++;
+			}
+			for (const auto& [k, v] : hist) std::fprintf(fp, "laf %s: %d\n", k.data(), v);
+			std::map<int, int> env, probe, lmap, senv, sprobe;
+			for (auto i = 0u; i < d.staticSurfaceCount; i++)
+			{
+				env[d.surfaces[i].laf.fields.primaryLightEnvIndex]++;
+				probe[d.surfaces[i].laf.fields.reflectionProbeIndex]++;
+				lmap[d.surfaces[i].laf.fields.lightmapIndex]++;
+			}
+			for (auto i = 0u; i < d.smodelCount; i++)
+			{
+				senv[d.smodelDrawInsts[i].primaryLightEnvIndex]++;
+				sprobe[d.smodelDrawInsts[i].reflectionProbeIndex]++;
+			}
+			std::fprintf(fp, "probes %u lightmaps %u primaryLights %u lastSun %u\n", asset->draw.reflectionProbeCount, asset->draw.lightmapCount, asset->primaryLightCount, asset->lastSunPrimaryLightIndex);
+			std::map<int, int> cull, handle, sunflags, rml;
+			for (auto i = 0u; i < d.smodelCount; i++)
+			{
+				cull[d.smodelDrawInsts[i].cullDist]++;
+				handle[d.smodelDrawInsts[i].lightingHandle]++;
+				sunflags[d.smodelDrawInsts[i].sunShadowFlags]++;
+				rml[d.smodelDrawInsts[i].reactiveMotionCullDist]++;
+			}
+			probe_hist_h1(fp, "smodel cullDist", cull, 30);
+			probe_hist_h1(fp, "smodel lightingHandle", handle, 10);
+			probe_hist_h1(fp, "smodel sunShadowFlags", sunflags, 30);
+			probe_hist_h1(fp, "smodel reactiveMotionCullDist", rml, 30);
+			probe_hist_h1(fp, "surf env", env, 200);
+			probe_hist_h1(fp, "surf probe", probe, 200);
+			probe_hist_h1(fp, "surf lmap", lmap, 200);
+			probe_hist_h1(fp, "smodel env", senv, 200);
+			probe_hist_h1(fp, "smodel probe", sprobe, 200);
+		}
+		for (auto i = 0; i < asset->skyCount; i++)
+		{
+			const auto& sky = asset->skies[i];
+			std::fprintf(fp, "sky %d count %d image %s bounds %.0f %.0f %.0f half %.0f %.0f %.0f\n", i, sky.skySurfCount, sky.skyImage ? sky.skyImage->name : "null",
+				sky.bounds.midPoint[0], sky.bounds.midPoint[1], sky.bounds.midPoint[2], sky.bounds.halfSize[0], sky.bounds.halfSize[1], sky.bounds.halfSize[2]);
+			for (auto k = 0; k < sky.skySurfCount; k++)
+			{
+				const auto idx = d.sortedSurfIndex[sky.skyStartSurfs[k]];
+				const auto& surf = d.surfaces[idx];
+				std::fprintf(fp, "  %d -> %u %s tris %u laf %016llX unk %d\n", sky.skyStartSurfs[k], idx, surf.material ? surf.material->name : "null", surf.tris.triCount, surf.laf.packed, surf.tris.unk);
+				const auto pos = sky.skyStartSurfs[k];
+				auto root_cells = 0, leaf_cells = 0;
+				for (auto c = 0; c < asset->dpvsPlanes.cellCount; c++)
+				{
+					const auto trees = asset->aabbTrees[c].aabbTree;
+					const auto count = asset->aabbTreeCounts[c].aabbTreeCount;
+					if (!trees || !count) continue;
+					if (pos >= trees[0].startSurfIndex && pos < trees[0].startSurfIndex + trees[0].surfaceCount) root_cells++;
+					for (auto t = 0; t < count; t++)
+					{
+						if (!trees[t].childCount && pos >= trees[t].startSurfIndex && pos < trees[t].startSurfIndex + trees[t].surfaceCount) { leaf_cells++; break; }
+					}
+				}
+				std::fprintf(fp, "    cells %d: root %d leaf %d\n", asset->dpvsPlanes.cellCount, root_cells, leaf_cells);
+			}
+		}
+		std::fclose(fp);
+	}
 }

@@ -52,7 +52,10 @@ namespace zonetool::s2::converter::h1::comworld
 			}
 
 			const auto scale = light.type == target::GFX_LIGHT_TYPE_DIR ? light.intensity * sun_intensity_scale : spot_intensity;
-			new_light.canUseShadowMap = light.canUseShadowMap;
+			
+			// hub has 129 shadowed spot lights (h1 has 20)
+			new_light.canUseShadowMap = 0;
+			
 			new_light.physicallyBased = light.type != target::GFX_LIGHT_TYPE_DIR;
 			new_light.exponent = light.type != target::GFX_LIGHT_TYPE_DIR;
 			for (auto i = 0; i < 3; i++)
@@ -76,6 +79,18 @@ namespace zonetool::s2::converter::h1::comworld
 			new_light.defName = light.defName;
 		}
 
+		constexpr std::uint16_t env_table_end_light = 2047;
+		constexpr std::size_t max_env_lights = 4;
+
+		ComWorld* pending_world = nullptr;
+		std::vector<target::ComPrimaryLightEnv> envs;
+		std::map<std::vector<std::uint16_t>, std::uint16_t> env_lookup;
+
+		std::vector<std::uint16_t> get_env_lights(const target::ComPrimaryLightEnv& env)
+		{
+			return {env.primaryLightIndices, env.primaryLightIndices + std::min<std::size_t>(env.numIndices, max_env_lights)};
+		}
+
 		target::ComWorld* convert(ComWorld* asset, utils::memory::allocator& allocator)
 		{
 			const auto new_asset = allocator.allocate<target::ComWorld>();
@@ -89,17 +104,61 @@ namespace zonetool::s2::converter::h1::comworld
 				convert_light(lights[i], new_asset->primaryLights[i]);
 			}
 
-			new_asset->primaryLightEnvCount = asset->primaryLightEnvCount;
-			new_asset->primaryLightEnvs = reinterpret_cast<target::ComPrimaryLightEnv*>(asset->primaryLightEnvs);
+			auto final_envs = envs;
+			final_envs.push_back({{env_table_end_light}, 1});
+			new_asset->primaryLightEnvCount = static_cast<unsigned int>(final_envs.size());
+			new_asset->primaryLightEnvs = allocator.allocate_array<target::ComPrimaryLightEnv>(final_envs.size());
+			std::memcpy(new_asset->primaryLightEnvs, final_envs.data(), final_envs.size() * sizeof(target::ComPrimaryLightEnv));
 			return new_asset;
 		}
 	}
 
 	void dump(ComWorld* asset)
 	{
+		pending_world = asset;
+		envs.assign(reinterpret_cast<const target::ComPrimaryLightEnv*>(asset->primaryLightEnvs),
+			reinterpret_cast<const target::ComPrimaryLightEnv*>(asset->primaryLightEnvs) + asset->primaryLightEnvCount);
+		env_lookup.clear();
+		for (auto i = 0u; i < envs.size(); i++)
+		{
+			env_lookup.try_emplace(get_env_lights(envs[i]), static_cast<std::uint16_t>(i));
+		}
+	}
+
+	std::uint16_t get_light_env(std::vector<std::uint16_t> lights)
+	{
+		if (lights.size() > max_env_lights)
+		{
+			lights.resize(max_env_lights);
+		}
+
+		if (const auto itr = env_lookup.find(lights); itr != env_lookup.end())
+		{
+			return itr->second;
+		}
+
+		target::ComPrimaryLightEnv env{};
+		std::copy(lights.begin(), lights.end(), env.primaryLightIndices);
+		env.numIndices = static_cast<unsigned char>(lights.size());
+		const auto index = static_cast<std::uint16_t>(envs.size());
+		envs.push_back(env);
+		env_lookup.emplace(std::move(lights), index);
+		return index;
+	}
+
+	void finish()
+	{
+		if (!pending_world)
+		{
+			return;
+		}
+
 		utils::memory::allocator allocator;
-		const auto new_asset = convert(asset, allocator);
+		const auto new_asset = convert(pending_world, allocator);
 		target::com_world::dump(new_asset);
 		add_csv_row("com_map", new_asset->name);
+		pending_world = nullptr;
+		envs.clear();
+		env_lookup.clear();
 	}
 }

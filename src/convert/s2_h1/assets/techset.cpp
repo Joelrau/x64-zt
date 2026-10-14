@@ -53,6 +53,11 @@ namespace zonetool::s2::converter::h1::techset
 			{"wc", ""},
 		};
 
+		const std::unordered_set<std::string_view> model_screen_kinds
+		{
+			"ui3d", "2d",
+		};
+
 		const std::unordered_set<std::string_view> blend_tokens
 		{
 			"add", "blend", "replace", "atest",
@@ -71,6 +76,8 @@ namespace zonetool::s2::converter::h1::techset
 			{"frt", 3.0f},
 			{"aat", 4.0f},
 			{"cltrans", 6.0f},
+			{"flag", 15.0f},
+			{"flagext", 15.0f},
 		};
 
 		struct techset_name
@@ -152,9 +159,28 @@ namespace zonetool::s2::converter::h1::techset
 				result.kind = tokens.front();
 			}
 
+			// S2 model ui3d and 2d techsets draw an opaque world screen. The H1 techsets of these kinds are code UI techsets without a depth test.
+			if (is_s2 && result.prefix.starts_with('m') && model_screen_kinds.contains(result.kind))
+			{
+				result.kind = "unlit";
+				result.features.insert({"unlit", "replace", "lin", "nfwpf"});
+				tokens.erase(tokens.begin());
+			}
+
+			static const std::regex wave_token(R"(^(wv[0-9])+$)");
 			static const std::regex layer_feature(R"([a-z]+[0-9]+)");
 			for (const auto& token : tokens)
 			{
+				if (std::regex_match(token, wave_token))
+				{
+					for (auto i = 0u; i < token.size(); i += 3)
+					{
+						result.features.insert("W:" + token.substr(i, 3));
+					}
+
+					continue;
+				}
+
 				if (!is_layer_token(token))
 				{
 					result.features.insert(token);
@@ -176,6 +202,11 @@ namespace zonetool::s2::converter::h1::techset
 			if (const auto weight = token_weights.find(token); weight != token_weights.end())
 			{
 				return weight->second;
+			}
+
+			if (token.starts_with("W:"))
+			{
+				return 6.0f;
 			}
 
 			if (token.starts_with("L:"))
@@ -576,6 +607,11 @@ namespace zonetool::s2::converter::h1::techset
 	{
 		const auto entry = this->techsets_.find(techset);
 		return entry != this->techsets_.end() ? entry->second : nullptr;
+	}
+
+	database& h1_zone::db() const
+	{
+		return *this->database_;
 	}
 
 	void set_h1_folder(const std::filesystem::path& folder)

@@ -11,7 +11,7 @@ namespace zonetool::s2::converter::h1::gfximage
 {
 	namespace
 	{
-		// H1 stores no _SRGB formats, Create2DTexture fails on them
+		// H1 stores no _SRGB formats
 		constexpr DXGI_FORMAT image_formats[]
 		{
 			DXGI_FORMAT_UNKNOWN,
@@ -60,6 +60,7 @@ namespace zonetool::s2::converter::h1::gfximage
 
 		constexpr std::uint8_t s2_emissive_semantic = 17;
 		constexpr std::uint8_t s2_specular_semantic = 8;
+
 		// S2 specular maps pack R = reflectance, G = occlusion, B = gloss. H1 specular maps are BC3 with RGB = specular color, A = gloss.
 		// S2 dielectrics store R = 49, stock H1 dielectrics use specular color 32.
 		constexpr float specular_color_scale = 32.0f / 49.0f;
@@ -253,8 +254,8 @@ namespace zonetool::s2::converter::h1::gfximage
 			}
 		}
 
-		// S2 sky_c.hlsl: rotates the view direction by skyRotationParms, then samples a 2D image with
-		// uv = 0.5 + 0.5 * dir.xy / (1 + |0.080169 + 0.919831 * dir.z|). H1 sky_cso_hss.hlsl samples a cube with the world direction.
+		// S2 sky_c.hlsl rotates the view direction by skyRotationParms, then samples a 2D image with: uv = 0.5 + 0.5 * dir.xy / (1 + |0.080169 + 0.919831 * dir.z|). 
+		// H1 sky_cso_hss.hlsl samples a cube with the world direction
 		std::optional<DirectX::ScratchImage> make_sky_cube(const DirectX::ScratchImage& source, const float rotation_cos, const float rotation_sin)
 		{
 			const auto& image = *source.GetImage(0, 0, 0);
@@ -330,7 +331,6 @@ namespace zonetool::s2::converter::h1::gfximage
 			image.semantic = convert_semantic(asset->semantic);
 			image.category = asset->category;
 			image.flags = asset->flags & h1_known_image_flags;
-			// picmip stays 0 like all stock H1 images, the S2 values make H1 drop every mip and Create2DTexture fails
 			image.width = asset->width;
 			image.height = asset->height;
 			image.depth = asset->depth;
@@ -380,7 +380,7 @@ namespace zonetool::s2::converter::h1::gfximage
 			write.close();
 		}
 
-		// Stream pixelSize is cumulative over the streams, dataLen2 is the total
+		// stream pixelSize is cumulative over the streams, dataLen2 is the total
 		template <std::size_t N>
 		void convert_specular_streams(GfxImage* asset, zonetool::h1::GfxImage* image, std::array<std::optional<std::string>, N>& streams)
 		{

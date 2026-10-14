@@ -17,6 +17,7 @@ namespace zonetool::s2::converter::h1::techset
 
 		zonetool::h1::Material* find_donor(const std::string& techset) const;
 		zonetool::h1::MaterialTechniqueSet* find_techset(const std::string& techset) const;
+		database& db() const;
 
 	private:
 		std::shared_ptr<database> database_;

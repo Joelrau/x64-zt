@@ -110,10 +110,9 @@ namespace zonetool::s2::converter::h1::xsurface
 		}
 
 		void convert_vertices(const XSurface* surface, const vertex_streams& streams, zonetool::h1::XSurface* new_surface,
-			utils::memory::allocator& allocator)
+			const bool keep_colors, utils::memory::allocator& allocator)
 		{
-			const auto vertex_color_none = (surface->flags & s2_surf_flag_vertcol_none) != 0;
-
+			const auto use_colors = keep_colors && (surface->flags & s2_surf_flag_vertcol_none) == 0;
 			new_surface->verts0.packedVerts0 = allocator.allocate_array<zonetool::h1::GfxPackedVertex>(surface->vertCount);
 			new_surface->unknown0 = allocator.allocate_array<zonetool::h1::UnknownXSurface0>(surface->vertCount);
 
@@ -122,7 +121,7 @@ namespace zonetool::s2::converter::h1::xsurface
 				auto& vertex = new_surface->verts0.packedVerts0[i];
 				std::memcpy(vertex.xyz, &streams.positions[i * 3], sizeof(vertex.xyz));
 				vertex.binormalSign = binormal_sign(streams.tangents[i]);
-				vertex.color.packed = vertex_color_none ? 0xFFFFFFFF : streams.colors[i];
+				vertex.color.packed = use_colors ? streams.colors[i] : 0xFFFFFFFF;
 				vertex.texCoord.packed = streams.tex_coords[i];
 				vertex.normal.packed = streams.normals[i];
 				vertex.tangent.packed = streams.tangents[i];
@@ -229,7 +228,8 @@ namespace zonetool::s2::converter::h1::xsurface
 			}
 		}
 
-		bool convert_surface(const char* name, const XSurface* surface, zonetool::h1::XSurface* new_surface, utils::memory::allocator& allocator)
+		bool convert_surface(const char* name, const XSurface* surface, const bool keep_colors, zonetool::h1::XSurface* new_surface,
+			utils::memory::allocator& allocator)
 		{
 			const auto data = read_vertex_data(surface->shared);
 			if (!data)
@@ -245,7 +245,10 @@ namespace zonetool::s2::converter::h1::xsurface
 				return false;
 			}
 
-			new_surface->flags = surface->flags & (zonetool::h1::SURF_FLAG_VERTCOL_GREY | zonetool::h1::SURF_FLAG_VERTCOL_NONE | zonetool::h1::SURF_FLAG_SKINNED);
+			// S2 lit model vertex colors hold shader parameters such as foliage wind and layer blend, but H1 multiplies albedo by them
+			const auto vertex_color_flags = zonetool::h1::SURF_FLAG_VERTCOL_GREY | zonetool::h1::SURF_FLAG_VERTCOL_NONE;
+			new_surface->flags = (keep_colors ? surface->flags & vertex_color_flags : zonetool::h1::SURF_FLAG_VERTCOL_NONE)
+				| (surface->flags & zonetool::h1::SURF_FLAG_SKINNED);
 			new_surface->vertCount = surface->vertCount;
 			new_surface->triCount = surface->triCount;
 
@@ -255,7 +258,7 @@ namespace zonetool::s2::converter::h1::xsurface
 			std::memcpy(new_surface->triIndices, tri_indices, surface->triCount * sizeof(zonetool::h1::Face));
 			std::memcpy(new_surface->triIndices2, tri_indices, surface->triCount * sizeof(zonetool::h1::Face));
 
-			convert_vertices(surface, *streams, new_surface, allocator);
+			convert_vertices(surface, *streams, new_surface, keep_colors, allocator);
 			convert_rigid_vert_lists(surface, new_surface, allocator);
 
 			if (streams->skin)
@@ -276,7 +279,8 @@ namespace zonetool::s2::converter::h1::xsurface
 		}
 	}
 
-	zonetool::h1::XModelSurfs* convert(const XModelSurfs* asset, utils::memory::allocator& allocator)
+	zonetool::h1::XModelSurfs* convert(const XModelSurfs* asset, const std::unordered_set<int>& vertex_color_surfs,
+		utils::memory::allocator& allocator)
 	{
 		const auto new_asset = allocator.allocate<zonetool::h1::XModelSurfs>();
 		new_asset->name = asset->name;
@@ -286,7 +290,7 @@ namespace zonetool::s2::converter::h1::xsurface
 
 		for (auto i = 0; i < asset->numsurfs; i++)
 		{
-			if (!convert_surface(asset->name, &asset->surfs[i], &new_asset->surfs[i], allocator))
+			if (!convert_surface(asset->name, &asset->surfs[i], vertex_color_surfs.contains(i), &new_asset->surfs[i], allocator))
 			{
 				return nullptr;
 			}
@@ -295,10 +299,10 @@ namespace zonetool::s2::converter::h1::xsurface
 		return new_asset;
 	}
 
-	void dump(XModelSurfs* asset)
+	void dump(XModelSurfs* asset, const std::unordered_set<int>& vertex_color_surfs)
 	{
 		utils::memory::allocator allocator;
-		if (const auto converted = convert(asset, allocator))
+		if (const auto converted = convert(asset, vertex_color_surfs, allocator))
 		{
 			zonetool::h1::xsurface::dump(converted);
 			dumped_surfs.insert(asset->name);

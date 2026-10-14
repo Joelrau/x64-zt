@@ -101,6 +101,40 @@ namespace zonetool::s2::converter::h1::xmodel
 			return values;
 		}
 
+		// Effect techsets use the vertex color as tint, wind techsets use it as wave weight and anchor
+		bool uses_vertex_colors(const Material* material)
+		{
+			if (!material || !material->techniqueSet || !material->techniqueSet->name)
+			{
+				return false;
+			}
+
+			const auto techset = material->techniqueSet->name;
+			return std::strstr(techset, "_effect") || std::strstr(techset, "_flag") || std::strstr(techset, "_fwa");
+		}
+
+		void dump_vertex_color_surfs(const XModel* asset)
+		{
+			const auto source = resolve_variant(asset);
+			for (auto i = 0; i < source->base->numLods && i < 6; i++)
+			{
+				const auto& lod = source->base->lodInfo[i];
+				std::unordered_set<int> vertex_color_surfs;
+				for (auto j = 0; j < lod.numsurfs; j++)
+				{
+					if (source->materialHandles && uses_vertex_colors(source->materialHandles[lod.surfIndex + j]))
+					{
+						vertex_color_surfs.insert(j);
+					}
+				}
+
+				if (!vertex_color_surfs.empty())
+				{
+					xsurface::dump(lod.modelSurfs, vertex_color_surfs);
+				}
+			}
+		}
+
 		zonetool::h1::XModel* convert(const XModel* asset, utils::memory::allocator& allocator)
 		{
 			const auto source = resolve_variant(asset);
@@ -189,6 +223,7 @@ namespace zonetool::s2::converter::h1::xmodel
 		if (const auto converted = convert(asset, allocator))
 		{
 			zonetool::h1::xmodel::dump(converted);
+			dump_vertex_color_surfs(asset);
 			add_csv_row("xmodel", asset->name);
 			dumped_models.insert(asset->name);
 		}
