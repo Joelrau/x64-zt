@@ -16,6 +16,8 @@ namespace zonetool::h1::converter::s2::material
 		// S2 dielectric reflectance 49, full occlusion, medium gloss
 		constexpr std::array<std::uint8_t, 4> default_specular{49, 255, 128, 255};
 		constexpr std::array<std::uint8_t, 4> white{255, 255, 255, 255};
+		// the sky shader scales the flow vector by blue, zero keeps the converted sky still
+		constexpr std::array<std::uint8_t, 4> still_flow{128, 128, 0, 255};
 
 		struct converted_material
 		{
@@ -61,6 +63,16 @@ namespace zonetool::h1::converter::s2::material
 			const auto& zone = techset::donor_zone();
 			const auto source_texture = find_texture(asset, donor_texture.nameHash);
 			const auto source_image = source_texture && source_texture->u.image ? source_texture->u.image->name : nullptr;
+
+			// H1 skies are cubemaps, S2 sky shaders read a 2D color map
+			if (source_image && donor_texture.semantic == s2_semantic_color_map && source_texture->u.image->mapType == MAPTYPE_CUBE)
+			{
+				if (const auto sky = gfximage::dump_sky(source_texture->u.image))
+				{
+					return *sky;
+				}
+			}
+
 			if (source_image && gfximage::is_dumped(source_image))
 			{
 				return source_image;
@@ -117,6 +129,21 @@ namespace zonetool::h1::converter::s2::material
 				result->image_names[i] = select_image(asset, texture);
 				result->images[i].name = result->image_names[i].data();
 				texture.u.image = &result->images[i];
+			}
+
+			// H1 skies are static, replace the donor flow map so the converted sky does not move
+			const auto is_sky = std::ranges::any_of(result->image_names, [](const std::string& name)
+			{
+				return name.ends_with("_s2sky");
+			});
+			for (auto i = 0u; is_sky && i < result->textures.size(); i++)
+			{
+				const auto donor_image = donor->textureTable[i].u.image;
+				if (donor_image && donor_image->name && std::string_view{donor_image->name}.ends_with("_flow"))
+				{
+					result->image_names[i] = gfximage::dump_solid("h1_s2_sky_still_flow", result->textures[i].semantic, still_flow);
+					result->images[i].name = result->image_names[i].data();
+				}
 			}
 
 			material.textureTable = result->textures.data();

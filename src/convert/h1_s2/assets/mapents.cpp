@@ -96,36 +96,45 @@ namespace zonetool::h1::converter::s2::mapents
 			new_trigger.waterTriggers = trigger.waterTriggers;
 		}
 
-		std::string convert_key(const std::string& name)
+		std::optional<std::string> convert_key(const std::string& name)
 		{
 			if (const auto id = s2_context().token_id(name); id && !name.starts_with("_id_"))
 			{
 				return std::to_string(id);
 			}
 
-			return "\"" + name + "\"";
+			ZONETOOL_WARNING("map_ents: S2 does not know key \"%s\", dropping it", name.data());
+			return {};
 		}
 
-		std::string convert_key(const std::uint32_t h1_id)
+		std::optional<std::string> convert_key(const std::uint32_t h1_id)
 		{
-			const auto name = h1_context().token_name(h1_id);
-			if (name.starts_with("_id_"))
+			return convert_key(h1_context().token_name(h1_id));
+		}
+
+		std::optional<std::string> convert_line(const std::string& line)
+		{
+			if (line.starts_with("\""))
 			{
-				ZONETOOL_WARNING("map_ents: H1 key %u has no name, S2 does not know it", h1_id);
+				const auto key_end = line.find('"', 1);
+				if (key_end == std::string::npos)
+				{
+					return line;
+				}
+
+				const auto key = convert_key(line.substr(1, key_end - 1));
+				return key ? std::optional{*key + line.substr(key_end + 1)} : std::nullopt;
 			}
 
-			return convert_key(name);
-		}
-
-		std::string convert_quoted_key(const std::string& line)
-		{
-			const auto key_end = line.find('"', 1);
-			if (key_end == std::string::npos)
+			const auto first_space = line.find_first_of(' ');
+			const auto id = static_cast<std::uint32_t>(std::atoi(line.data()));
+			if (line.starts_with("{") || line.starts_with("}") || first_space == std::string::npos || id == 0)
 			{
 				return line;
 			}
 
-			return convert_key(line.substr(1, key_end - 1)) + line.substr(key_end + 1);
+			const auto key = convert_key(id);
+			return key ? std::optional{*key + line.substr(first_space)} : std::nullopt;
 		}
 
 		std::string replace_entity_keys(const std::string& data)
@@ -133,25 +142,18 @@ namespace zonetool::h1::converter::s2::mapents
 			std::string buffer{};
 			for (const auto& line : utils::string::split(data.substr(0, data.find('\0')), '\n'))
 			{
+				const auto new_line = convert_line(line);
+				if (!new_line)
+				{
+					continue;
+				}
+
 				if (!buffer.empty())
 				{
 					buffer.append("\n");
 				}
 
-				const auto first_space = line.find_first_of(' ');
-				const auto id = static_cast<std::uint32_t>(std::atoi(line.data()));
-				if (line.starts_with("\""))
-				{
-					buffer.append(convert_quoted_key(line));
-				}
-				else if (line.starts_with("{") || line.starts_with("}") || first_space == std::string::npos || id == 0)
-				{
-					buffer.append(line);
-				}
-				else
-				{
-					buffer.append(convert_key(id) + line.substr(first_space));
-				}
+				buffer.append(*new_line);
 			}
 
 			return buffer;

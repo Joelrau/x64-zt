@@ -307,6 +307,125 @@ namespace zonetool::h1::converter::s2::gfximage
 			image->dataLen1 = static_cast<unsigned int>(pixels.size());
 			zonetool::s2::gfx_image::dump(image);
 		}
+
+		// S2 sky shaders read a 2D texture: uv = 0.5 + 0.5 * dir.xy / (len + |0.919831 * dir.z + 0.080169 * len|)
+		constexpr auto sky_z_scale = 0.919831f;
+		constexpr auto sky_z_bias = 0.080169f;
+		constexpr auto sky_size = 1024u;
+
+		std::array<float, 3> sky_direction(const float px, const float py)
+		{
+			// solve r^2 * (c + a * z)^2 + z^2 = 1 for the upper root, with c = 1 + b
+			const auto r2 = std::min(px * px + py * py, 1.0f);
+			const auto c = 1.0f + sky_z_bias;
+			const auto qa = r2 * sky_z_scale * sky_z_scale + 1.0f;
+			const auto qb = 2.0f * r2 * sky_z_scale * c;
+			const auto qc = r2 * c * c - 1.0f;
+			const auto z = (-qb + std::sqrt(std::max(0.0f, qb * qb - 4.0f * qa * qc))) / (2.0f * qa);
+			const auto d = c + sky_z_scale * z;
+			return {px * d, py * d, z};
+		}
+
+		// D3D cube face selection and face coordinates
+		std::tuple<std::size_t, float, float> cube_face(const std::array<float, 3>& dir)
+		{
+			const auto [x, y, z] = dir;
+			const auto ax = std::abs(x);
+			const auto ay = std::abs(y);
+			const auto az = std::abs(z);
+			std::size_t face{};
+			float sc{}, tc{}, ma{};
+			if (ax >= ay && ax >= az)
+			{
+				face = x >= 0.0f ? 0 : 1;
+				sc = x >= 0.0f ? -z : z;
+				tc = -y;
+				ma = ax;
+			}
+			else if (ay >= az)
+			{
+				face = y >= 0.0f ? 2 : 3;
+				sc = x;
+				tc = y >= 0.0f ? z : -z;
+				ma = ay;
+			}
+			else
+			{
+				face = z >= 0.0f ? 4 : 5;
+				sc = z >= 0.0f ? x : -x;
+				tc = -y;
+				ma = az;
+			}
+
+			return {face, (sc / ma + 1.0f) * 0.5f, (tc / ma + 1.0f) * 0.5f};
+		}
+
+		std::optional<std::string> bake_sky(const GfxImage* asset, image_pixels& pixels)
+		{
+			const auto format = static_cast<DXGI_FORMAT>(asset->imageFormat);
+			std::size_t row_pitch{};
+			std::size_t slice_pitch{};
+			if (FAILED(DirectX::ComputePitch(format, pixels.width, pixels.height, row_pitch, slice_pitch)) || slice_pitch * 6 > pixels.data.size())
+			{
+				return {};
+			}
+
+			std::vector<DirectX::ScratchImage> faces(6);
+			for (auto i = 0u; i < faces.size(); i++)
+			{
+				const DirectX::Image source{pixels.width, pixels.height, format, row_pitch, slice_pitch,
+					reinterpret_cast<std::uint8_t*>(pixels.data.data() + slice_pitch * i)};
+				const auto hr = DirectX::IsCompressed(format)
+					? DirectX::Decompress(source, DXGI_FORMAT_R32G32B32A32_FLOAT, faces[i])
+					: DirectX::Convert(source, DXGI_FORMAT_R32G32B32A32_FLOAT, DirectX::TEX_FILTER_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, faces[i]);
+				if (FAILED(hr))
+				{
+					return {};
+				}
+			}
+
+			DirectX::ScratchImage sky;
+			if (FAILED(sky.Initialize2D(DXGI_FORMAT_R32G32B32A32_FLOAT, sky_size, sky_size, 1, 1)))
+			{
+				return {};
+			}
+
+			const auto& target = *sky.GetImage(0, 0, 0);
+			for (auto y = 0u; y < sky_size; y++)
+			{
+				const auto row = reinterpret_cast<float*>(target.pixels + y * target.rowPitch);
+				for (auto x = 0u; x < sky_size; x++)
+				{
+					const auto px = (x + 0.5f) / sky_size * 2.0f - 1.0f;
+					const auto py = (y + 0.5f) / sky_size * 2.0f - 1.0f;
+					const auto [face, u, v] = cube_face(sky_direction(px, py));
+
+					const auto& source = *faces[face].GetImage(0, 0, 0);
+					const auto sx = std::min(static_cast<std::size_t>(u * source.width), source.width - 1);
+					const auto sy = std::min(static_cast<std::size_t>(v * source.height), source.height - 1);
+					const auto texel = reinterpret_cast<const float*>(source.pixels + sy * source.rowPitch) + sx * 4;
+					std::copy_n(texel, 4, row + x * 4);
+				}
+			}
+
+			DirectX::ScratchImage mips;
+			if (FAILED(DirectX::GenerateMipMaps(target, DirectX::TEX_FILTER_DEFAULT, 0, mips)))
+			{
+				return {};
+			}
+
+			DirectX::ScratchImage compressed;
+			if (FAILED(DirectX::Compress(mips.GetImages(), mips.GetImageCount(), mips.GetMetadata(), DXGI_FORMAT_BC1_UNORM,
+				DirectX::TEX_COMPRESS_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, compressed)))
+			{
+				return {};
+			}
+
+			pixels.width = sky_size;
+			pixels.height = sky_size;
+			pixels.levels = compressed.GetMetadata().mipLevels;
+			return std::string{reinterpret_cast<const char*>(compressed.GetPixels()), compressed.GetPixelsSize()};
+		}
 	}
 
 	void dump(GfxImage* asset)
@@ -403,6 +522,40 @@ namespace zonetool::h1::converter::s2::gfximage
 		image.levelCount = 1;
 
 		dump_image(&image, pixels);
+		dumped_images.insert(name);
+		add_csv_row("image", name);
+		return name;
+	}
+
+	std::optional<std::string> dump_sky(GfxImage* asset)
+	{
+		const auto name = clean_name(asset->name) + "_s2sky";
+		if (dumped_images.contains(name))
+		{
+			return name;
+		}
+
+		auto pixels = read_pixels(asset);
+		const auto data = pixels ? bake_sky(asset, *pixels) : std::nullopt;
+		if (!data)
+		{
+			ZONETOOL_WARNING("Failed to convert sky cubemap \"%s\"", asset->name);
+			return {};
+		}
+
+		zonetool::s2::GfxImage image{};
+		image.name = name.data();
+		image.imageFormat = static_cast<DXGI_FORMAT>(*s2_format_index(DXGI_FORMAT_BC1_UNORM_SRGB));
+		image.width = static_cast<unsigned short>(pixels->width);
+		image.height = static_cast<unsigned short>(pixels->height);
+		image.depth = 1;
+		image.numElements = 1;
+		image.mapType = zonetool::s2::MAPTYPE_2D;
+		image.semantic = TS_COLOR_MAP;
+		image.category = asset->category;
+		image.levelCount = static_cast<unsigned char>(pixels->levels);
+
+		dump_image(&image, *data);
 		dumped_images.insert(name);
 		add_csv_row("image", name);
 		return name;
