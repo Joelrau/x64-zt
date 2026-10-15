@@ -82,6 +82,7 @@ namespace zonetool
 		const std::string& get_language_code();
 		std::filesystem::path long_path(const std::filesystem::path& path);
 		std::string get_file_path(const std::string& name);
+		void set_dump_folder(const std::string& name);
 		std::string get_dump_path();
 		std::string get_output_path();
 		bool create_directory(const std::string& name);

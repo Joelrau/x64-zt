@@ -29,16 +29,18 @@ zonetool.exe -game h1 dumpzone mp_shipment
 | `inspect <zone>`, `inspect --all` | Quick inspect a fastfile container and its data |
 | `verifyzone <zone>`, `verifyzone --all` | Reads every asset and checks that the reader consumed the zone exactly |
 | `dumpzone <zone> [--target <game>]` | Writes `dump/<zone>/` and `dump/<zone>/<zone>.csv`. `--target` converts the assets |
-| `buildzone <zone>` | Reads `zone_source/<zone>.csv` and the files in `zonetool/<zone>/`, then writes `output/<zone>.ff` |
+| `dumpasset <type> <name> <zone> [--target <game>]` | Reads `<zone>` and writes one asset to `dump/assets/`. `--target` converts the asset |
+| `buildzone <zone>` | Reads `zone_source/<zone>.csv` and the files in `zonetool/<zone>/`, then writes `<game folder>/zone/<zone>.ff` |
 
 Without a command, `zonetool.exe` opens an interactive console.
 
 - Game selection: `-game <name>`, then `zonetool.json` `game`.
 - Game folder: `-path <folder>`, then `zonetool.json` `paths.<game>`, then the exe folder if it has `zone/`, then the Steam default folder.
 - `zonetool.json` example: `{"game": "h1", "paths": {"h1": "D:/Games/MWR"}}`.
+- `dumpasset` finds only assets that the zone holds, not referenced ones (`type,,name` rows in the CSV). Type names are the CSV type names.
 - Flags for `dumpzone`: `-dds` writes DDS images. `-dump_streamed_image` reads `imagefile*.pak` and writes streamed images.
 - The `require` row in a build CSV loads another zone into the asset database. There is no `loadzone` command.
-- `buildzone` never writes to the game folder.
+- `buildzone` writes `<zone>.ff` and `<zone>.pak` to the `zone/` folder of the game folder. It replaces a zone of the same name.
 - `-no_cache` writes every output again and ignores the build cache.
 
 ## Build cache
@@ -139,7 +141,7 @@ Stream facts:
 - Keep working v1 logic. x64-zt asset code is studied and tested since 2021. If it works, do not change it.
 - Keep the v1 dump formats. A dump from v1 must parse in v2. Change a format only when it is necessary, and tell the user.
 - v2 has no game runtime. A database lookup can return null where v1 got a game default asset. Add a null check, not a fake default.
-- Known v2 differences from v1: `dumpzone <zone> --target <game>` replaces `dumpzone <target> <zone>`, IW7 `proceduralbones` has a dump format, built zones share arrays the way stock zones do, and output goes to `output/`.
+- Known v2 differences from v1: `dumpzone <zone> --target <game>` replaces `dumpzone <target> <zone>`, IW7 `proceduralbones` has a dump format, built zones share arrays the way stock zones do, and output goes to the `zone/` folder of the game folder.
 
 ## Verification
 

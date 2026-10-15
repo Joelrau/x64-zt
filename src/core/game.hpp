@@ -11,6 +11,8 @@ namespace zonetool
 	using converter_setup = void(*)(const std::filesystem::path& target_game_path);
 	using converter_finish = void(*)(const std::string& zone_name);
 	using dump_command = void(*)(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path, const converter* converter);
+	using asset_dump_command = void(*)(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path,
+		const std::string& type, const std::string& name, const converter* converter);
 	using zone_command = void(*)(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path);
 	using build_command = void(*)(const std::filesystem::path& zone_folder, const std::string& name);
 	using token_name_resolver = std::string(*)(std::uint32_t id);
@@ -23,6 +25,7 @@ namespace zonetool
 		game_files::opener open_files;
 		xfile::format format;
 		dump_command dump_zone;
+		asset_dump_command dump_asset;
 		zone_command verify_zone;
 		build_command build_zone;
 		token_name_resolver token_name;

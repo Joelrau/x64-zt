@@ -10,6 +10,7 @@ namespace zonetool
 		namespace
 		{
 			std::string fastfile;
+			std::string dump_folder;
 			std::string zone_folder = "zone\\";
 			std::string language_name = "english";
 			std::string language_code = "en";
@@ -335,6 +336,7 @@ namespace zonetool
 			add_paths_from_directory("zonetool_paths");
 
 			fastfile = ff;
+			dump_folder.clear();
 		}
 
 		const std::string& get_fastfile()
@@ -393,10 +395,19 @@ namespace zonetool
 			return "";
 		}
 
+		void set_dump_folder(const std::string& name)
+		{
+			dump_folder = name;
+		}
+
 		std::string get_dump_path()
 		{
 			auto fastfile_dir = fastfile;
-			if (fastfile.starts_with("mp_wm_") || fastfile.starts_with("mp_vm_"))
+			if (!dump_folder.empty())
+			{
+				fastfile_dir = dump_folder;
+			}
+			else if (fastfile.starts_with("mp_wm_") || fastfile.starts_with("mp_vm_"))
 			{
 				fastfile_dir = "weapon_models";
 			}
@@ -416,9 +427,8 @@ namespace zonetool
 
 		std::string get_output_path()
 		{
-			const std::string path = "output\\";
-			create_directory(path);
-			return path;
+			create_directory(zone_folder);
+			return zone_folder;
 		}
 
 		bool create_directory(const std::string& name)

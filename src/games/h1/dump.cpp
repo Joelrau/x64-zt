@@ -223,6 +223,47 @@ namespace zonetool::h1
 		ZONETOOL_INFO("Zone \"%s\" dumped to %s", zone->name.data(), filesystem::get_dump_path().data());
 	}
 
+	void dump_asset(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path, const std::string& type_name,
+		const std::string& name, const converter* converter)
+	{
+		const auto type = type_to_int(type_name);
+		if (type < 0)
+		{
+			throw std::runtime_error(std::format("unknown asset type \"{}\"", type_name));
+		}
+
+		const auto _ = gsl::finally(db_clear);
+
+		prepare_paths(zone_folder, zone_path);
+		const auto zone = load_zone(zone_path);
+
+		const auto asset = std::ranges::find_if(zone->assets, [&](const loaded_asset& entry)
+		{
+			return entry.type == type && !entry.referenced && name == get_asset_name(entry.type, entry.header);
+		});
+
+		if (asset == zone->assets.end())
+		{
+			throw std::runtime_error(std::format("{} \"{}\" is not in zone \"{}\"", type_name, name, zone->name));
+		}
+
+		filesystem::set_dump_folder("assets");
+		if (converter)
+		{
+			converter->dump_asset(asset->type, asset->header);
+			if (converter->finish)
+			{
+				converter->finish(zone->name);
+			}
+		}
+		else
+		{
+			dump_asset(*asset);
+		}
+
+		ZONETOOL_INFO("%s \"%s\" dumped to %s", type_name.data(), name.data(), filesystem::get_dump_path().data());
+	}
+
 	void verify_zone(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path)
 	{
 		const auto _ = gsl::finally(db_clear);
