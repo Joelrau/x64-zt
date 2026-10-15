@@ -214,7 +214,7 @@ namespace zonetool::s2
 
 			void add_stream_keys(const XAssetType type, const void* header)
 			{
-				if (type != ASSET_TYPE_IMAGE || !static_cast<const GfxImage*>(header)->streams[0].width)
+				if (type != ASSET_TYPE_IMAGE || !static_cast<const GfxImage*>(header)->streamed)
 				{
 					return;
 				}

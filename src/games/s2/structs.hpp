@@ -508,11 +508,6 @@ namespace zonetool::s2
 		MAPTYPE_COUNT = 0x7,
 	};
 
-	struct PicMip
-	{
-		unsigned char platform[2];
-	};
-
 	struct GfxImageStreamLevelCountAndSize
 	{
 		int pixelSize : 26;
@@ -548,9 +543,12 @@ namespace zonetool::s2
 		unsigned char category;
 		unsigned char flags;
 		unsigned char levelCount;
-		PicMip picmip;
+		unsigned char picmip;
+		unsigned char streamed; // the engine reads 4 stream keys for each image that has this set
+		char __pad0[1];
 	};
 	static_assert(sizeof(GfxImage) == 0x60);
+	static_assert(offsetof(GfxImage, streamed) == 94);
 	static_assert(offsetof(GfxImage, pixelData) == 32);
 	static_assert(offsetof(GfxImage, dataLen1) == 84);
 	static_assert(offsetof(GfxImage, semantic) == 89);

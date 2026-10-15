@@ -70,6 +70,72 @@ namespace zonetool::s2
 			}
 		}
 
+		// the game fills XFILE_BLOCK_CALLBACK after the zone is read (0x4D5EC0)
+		std::uint64_t get_callback_block_size(const auto& assets)
+		{
+			std::uint64_t size = 0;
+			const auto allocate = [&](const std::uint64_t bytes, const std::uint64_t alignment)
+			{
+				size = ((size + alignment - 1) & ~(alignment - 1)) + bytes;
+			};
+
+			for (const auto& asset : assets)
+			{
+				if (asset->referenced() || !asset->pointer())
+				{
+					continue;
+				}
+
+				switch (asset->type())
+				{
+				case ASSET_TYPE_MATERIAL:
+				{
+					// Image index per texture (0x4DA970)
+					const auto* material = static_cast<const Material*>(asset->pointer());
+					if (material->textureCount)
+					{
+						allocate(4ull * material->textureCount, 4);
+					}
+					break;
+				}
+				case ASSET_TYPE_XMODEL_BASE:
+				{
+					// Index per lod surface (0x4DAAA0), sized from the count at 0x26C
+					const auto* base = static_cast<const XModelBase*>(asset->pointer());
+					if (!base->numLods)
+					{
+						break;
+					}
+
+					std::uint64_t count = *reinterpret_cast<const std::uint16_t*>(
+						reinterpret_cast<const std::uint8_t*>(base) + 0x26C);
+					std::uint64_t surf_count = 0;
+					for (auto i = 0; i < base->numLods && i < 6; i++)
+					{
+						surf_count += base->lodInfo[i].numsurfs;
+					}
+
+					allocate(2ull * std::max(count, surf_count), 2);
+					break;
+				}
+				case ASSET_TYPE_XMODEL:
+				{
+					// Index per material for models that are not variants (0x4DAC30)
+					const auto* model = static_cast<const XModel*>(asset->pointer());
+					if (!(model->flags & 0x200) && model->numMaterials)
+					{
+						allocate(4ull * model->numMaterials, 2);
+					}
+					break;
+				}
+				default:
+					break;
+				}
+			}
+
+			return size ? size + 3 : 0;
+		}
+
 		bool has_gfx_globals(zone_buffer* buf)
 		{
 			return buf->depthstencilstatebit_count() + buf->blendstatebits_count() + buf->ppas_count()
@@ -296,7 +362,7 @@ namespace zonetool::s2
 			}
 
 			const auto* header = static_cast<const GfxImage*>(asset->pointer());
-			if (!header->streams[0].width)
+			if (!header->streamed)
 			{
 				continue;
 			}
@@ -377,6 +443,11 @@ namespace zonetool::s2
 		for (std::size_t index = 0; index < format.block_count; index++)
 		{
 			file.block_sizes[index] = buf->stream_offset(static_cast<std::uint8_t>(index));
+		}
+
+		if (XFILE_BLOCK_CALLBACK < file.block_sizes.size())
+		{
+			file.block_sizes[XFILE_BLOCK_CALLBACK] += get_callback_block_size(this->m_assets);
 		}
 
 		const auto output = xfile::write_s2(format, file,

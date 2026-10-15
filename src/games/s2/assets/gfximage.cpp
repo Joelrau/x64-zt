@@ -222,7 +222,7 @@ namespace zonetool::s2
 
 		bool is_streamed_image(const GfxImage* image)
 		{
-			return image->streams[0].width != 0;
+			return image->streamed != 0;
 		}
 
 		std::optional<DirectX::ScratchImage> load_image_file(const std::string& name)
@@ -472,6 +472,13 @@ namespace zonetool::s2
 			auto* asset = read.read_single<GfxImage>();
 			asset->name = read.read_string();
 			asset->pixelData = asset->pixelData && asset->dataLen1 ? read.read_array<unsigned char>() : nullptr;
+
+			// backwards compatibility with older h1_s2 images that copied the second H1 picmip byte into streamed
+			if (asset->streamed && !asset->streams[0].width)
+			{
+				asset->streamed = 0;
+			}
+
 			if (is_streamed_image(asset))
 			{
 				for (auto& key : this->parsed_stream_keys_)
