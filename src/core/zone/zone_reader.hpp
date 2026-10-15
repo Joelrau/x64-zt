@@ -18,6 +18,7 @@ namespace zonetool
 		// S2 reserves the memory of this block but reads no file bytes and does not clear it.
 		std::optional<std::uint8_t> unread_block;
 		std::size_t asset_alignment = 3;
+		bool untagged_offsets = true;
 	};
 
 	class zone_reader

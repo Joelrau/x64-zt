@@ -219,7 +219,7 @@ namespace zonetool
 		// Stock zones leave the bits above the block index clear, and zonetool sets them to the pointer mask.
 		// Any other value is a raw heap pointer that the game ignores.
 		const auto tag = pointer_value(pointer) >> offset_tag_shift;
-		if (tag != 0 && tag != this->layout_.offset_tag)
+		if (tag != this->layout_.offset_tag && (tag != 0 || !this->layout_.untagged_offsets))
 		{
 			return false;
 		}

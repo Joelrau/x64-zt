@@ -1,5 +1,5 @@
 games = {
-	known = {"h1", "h2", "iw7", "s2"},
+	known = {"h1", "h2", "iw7", "s1", "s2"},
 	enabled = {},
 	dependencies = {
 		h1 = function()
@@ -10,6 +10,10 @@ games = {
 			dependencies.use(directxtex)
 			gsc_tool.import_engine("h2")
 		end,
+		s1 = function()
+			dependencies.use(directxtex)
+			gsc_tool.import_engine("s1")
+		end,
 		s2 = function()
 			dependencies.use(directxtex)
 			gsc_tool.import_engine("s2")
@@ -17,6 +21,9 @@ games = {
 		iw7 = function()
 			dependencies.use(directxtex)
 		end,
+	},
+	converter_requires = {
+		s1_h2 = {"h1"},
 	},
 	converter_dependencies = {
 		h2_h1 = function()
@@ -43,6 +50,15 @@ end
 
 games.enabled = select_games()
 
+function games.requirements_met(name)
+	for _, required in ipairs(games.converter_requires[name] or {}) do
+		if not table.contains(games.enabled, required) then
+			return false
+		end
+	end
+	return true
+end
+
 function games.converters()
 	if _OPTIONS["no-convert"] then
 		return {}
@@ -51,7 +67,7 @@ function games.converters()
 	local converters = {}
 	for _, dir in ipairs(os.matchdirs("src/convert/*")) do
 		local source, target = path.getname(dir):match("^(%w+)_(%w+)$")
-		if source and table.contains(games.enabled, source) and table.contains(games.enabled, target) then
+		if source and table.contains(games.enabled, source) and table.contains(games.enabled, target) and games.requirements_met(source .. "_" .. target) then
 			table.insert(converters, {source = source, target = target})
 		end
 	end
