@@ -10,6 +10,7 @@ namespace zonetool::h1::converter::s2
 
 	const std::filesystem::path& s2_folder();
 	void set_s2_folder(const std::filesystem::path& folder);
+	void finish(const std::string& zone_name);
 
 	std::uint32_t convert_surface_type(std::uint32_t h1_type);
 	std::uint32_t convert_surface_flags(std::uint32_t h1_flags);

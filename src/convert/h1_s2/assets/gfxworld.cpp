@@ -194,7 +194,6 @@ namespace zonetool::h1::converter::s2::gfxworld
 		constexpr std::size_t dpvs_sun_shadow_opt_count = 824;
 		constexpr std::size_t dpvs_sun_surf_vis_data_count = 828;
 
-		constexpr std::size_t dpvs_dynamic_count_size = 16;
 		constexpr std::size_t s2_smodel_lighting_size = 24;
 		constexpr std::size_t s2_cell_unk144_size = 24;
 
@@ -386,6 +385,13 @@ namespace zonetool::h1::converter::s2::gfxworld
 			{
 				probes[i] = image_stub(source.reflectionProbes[i], allocator);
 			}
+
+			// probe 0 is the solid red default probe. Models outside every probe volume use it and reflect red,
+			// so give it the cubemap of the first real probe
+			if (probes && source.reflectionProbeCount > 1)
+			{
+				probes[0] = probes[1];
+			}
 			field<void**>(draw, draw_reflection_probes) = probes;
 			field<GfxReflectionProbe*>(draw, draw_reflection_probe_origins) = source.reflectionProbeOrigins;
 			field<unsigned int>(draw, draw_reflection_probe_reference_count) = source.reflectionProbeReferenceCount;
@@ -551,7 +557,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 				const auto& inst = source.smodelDrawInsts[i];
 				auto& new_inst = insts[i];
 				new_inst.placement = inst.placement;
-				std::fill_n(new_inst.unk34, 3, 1.0f);
+				std::fill_n(new_inst.unk34, 3, inst.placement.scale);
 				new_inst.model = inst.model;
 				new_inst.flags = smodel_flags_default | (inst.flags & STATIC_MODEL_FLAG_NO_CAST_SHADOW);
 				new_inst.staticModelId = inst.staticModelId;
@@ -563,7 +569,14 @@ namespace zonetool::h1::converter::s2::gfxworld
 			}
 
 			field<s2_static_model_draw_inst*>(dpvs, dpvs_smodel_draw_insts) = insts;
-			field<std::uint8_t*>(dpvs, dpvs_smodel_lighting) = zero_bytes(s2_smodel_lighting_size * count, allocator);
+			// light grid models need a unique lighting slot each, stock maps never share one
+			const auto lighting = zero_bytes(s2_smodel_lighting_size * count, allocator);
+			for (auto i = 0u; i < count; i++)
+			{
+				field<std::uint32_t>(lighting, s2_smodel_lighting_size * i) = i;
+			}
+
+			field<std::uint8_t*>(dpvs, dpvs_smodel_lighting) = lighting;
 			field<std::uint8_t*>(dpvs, dpvs_smodel_unk816) = zero_bytes(sizeof(std::uint16_t) * count, allocator);
 		}
 
@@ -584,15 +597,118 @@ namespace zonetool::h1::converter::s2::gfxworld
 			convert_static_models(asset, dpvs, lists, allocator);
 		}
 
-		void convert_tail(GfxWorld* asset, void* world)
+		// same layout as S2, the runtime buffers are only reserved when the pointers are set
+		void convert_dpvs_dynamic(GfxWorld* asset, void* world, utils::memory::allocator& allocator)
 		{
-			std::memset(&field<std::uint8_t>(world, world_dpvs_dynamic), 0, dpvs_dynamic_count_size);
+			auto dpvs = asset->dpvsDyn;
+			for (auto i = 0; i < 2; i++)
+			{
+				if (!dpvs.dynEntClientCount[i])
+				{
+					continue;
+				}
+
+				dpvs.dynEntCellBits[i] = dpvs.dynEntCellBits[i] ? dpvs.dynEntCellBits[i] : allocator.allocate<unsigned int>();
+				for (auto& vis_data : dpvs.dynEntVisData[i])
+				{
+					vis_data = vis_data ? vis_data : allocator.allocate<unsigned char>();
+				}
+			}
+
+			field<GfxWorldDpvsDynamic>(world, world_dpvs_dynamic) = dpvs;
+		}
+
+		template <typename T>
+		void reserve_runtime_buffer(T*& buffer, const unsigned int count, utils::memory::allocator& allocator)
+		{
+			if (count && !buffer)
+			{
+				buffer = allocator.allocate<T>();
+			}
+		}
+
+		// the donor map can have no dynents of a list, so its pointers are null and the game reserves no buffer (crash at 0x1408B4EC9)
+		void convert_dyn_ent_scene_buffers(GfxWorld* asset, void* world, utils::memory::allocator& allocator)
+		{
+			auto& target = *static_cast<zonetool::s2::GfxWorld*>(world);
+			const auto model_count = asset->dpvsDyn.dynEntClientCount[0];
+			const auto brush_count = asset->dpvsDyn.dynEntClientCount[1];
+			reserve_runtime_buffer(target.sceneDynModel, model_count, allocator);
+			reserve_runtime_buffer(target.sceneDynBrush, brush_count, allocator);
+			reserve_runtime_buffer(target.primaryLightDynEntShadowVis[0], model_count, allocator);
+			reserve_runtime_buffer(target.primaryLightDynEntShadowVis[1], brush_count, allocator);
+			reserve_runtime_buffer(target.nonSunPrimaryLightForModelDynEnt, model_count, allocator);
+		}
+
+		void convert_tail(GfxWorld* asset, void* world, utils::memory::allocator& allocator)
+		{
+			convert_dpvs_dynamic(asset, world, allocator);
+			convert_dyn_ent_scene_buffers(asset, world, allocator);
 			field<unsigned int>(world, world_map_vtx_checksum) = asset->mapVtxChecksum;
 			field<unsigned int>(world, world_hero_only_light_count) = 0;
 			field<void*>(world, world_hero_only_lights) = nullptr;
 			field<unsigned int>(world, world_mdao_volume_count) = 0;
 			field<void*>(world, world_mdao_volumes) = nullptr;
 			field<GfxBuildInfo>(world, world_build_info) = asset->buildInfo;
+		}
+
+		// the donor probes light models by their position in the donor map, so fires and interiors there tint our models
+		// give every probe the same lighting, taken from the donor fallback probe or else the highest probe (open sky)
+		void flatten_probes(zonetool::s2::GfxWorld* world, utils::memory::allocator& allocator)
+		{
+			auto& data = world->probeData;
+			if (!data.probeCount || !data.probes)
+			{
+				return;
+			}
+
+			const zonetool::s2::GfxSHProbeData* source = nullptr;
+			if (data.zoneCount && data.zones)
+			{
+				const auto& fallback = data.zones[0].fallbackProbeData;
+				if (std::any_of(std::begin(fallback.coeffs), std::end(fallback.coeffs), [](const auto c) { return c != 0; }))
+				{
+					source = &fallback;
+				}
+			}
+
+			if (!source && data.probePositions)
+			{
+				auto highest = 0u;
+				for (auto i = 1u; i < data.probeCount; i++)
+				{
+					if (data.probePositions[i].origin[2] > data.probePositions[highest].origin[2])
+					{
+						highest = i;
+					}
+				}
+				source = &data.probes[highest];
+			}
+
+			if (!source)
+			{
+				return;
+			}
+
+			const auto from_fallback = data.zoneCount && data.zones && source == &data.zones[0].fallbackProbeData;
+			const auto probe = *source;
+			const auto probes = allocator.allocate_array<zonetool::s2::GfxSHProbeData>(data.probeCount);
+			std::fill_n(probes, data.probeCount, probe);
+			data.probes = probes;
+
+			if (data.zoneCount && data.zones)
+			{
+				const auto zones = allocator.allocate_array<zonetool::s2::GfxGpuLightGridZone>(data.zoneCount);
+				std::copy_n(data.zones, data.zoneCount, zones);
+				for (auto i = 0u; i < data.zoneCount; i++)
+				{
+					zones[i].fallbackProbeData = probe;
+				}
+				data.zones = zones;
+			}
+
+			ZONETOOL_INFO("GfxWorld: %u donor light probes flattened to the %s probe", data.probeCount,
+				from_fallback ? "fallback" : "highest");
 		}
 
 		// the light grid, the probe grid and the unknown draw fields come from the donor map, so lighting does not match the source map
@@ -610,7 +726,8 @@ namespace zonetool::h1::converter::s2::gfxworld
 			convert_primary_lights(asset, world, lists, allocator);
 			convert_models(asset, world, allocator);
 			convert_dpvs(asset, world, lists, allocator);
-			convert_tail(asset, world);
+			convert_tail(asset, world, allocator);
+			flatten_probes(world, allocator);
 			return world;
 		}
 

@@ -5,376 +5,483 @@ namespace zonetool::s2
 {
 	namespace
 	{
-		template <typename V>
-		void visit_sun(const V& world, const V& sun)
+		constexpr std::size_t align_1 = 0;
+		constexpr std::size_t align_2 = 1;
+		constexpr std::size_t align_4 = 3;
+		constexpr std::size_t align_8 = 7;
+		constexpr std::size_t align_16 = 15;
+		constexpr std::size_t align_64 = 63;
+		constexpr std::size_t align_128 = 127;
+		constexpr std::size_t align_256 = 255;
+
+		constexpr std::size_t dyn_ent_vis_bytes_per_word = 32;
+		constexpr std::size_t shadow_vis_light_shift = 13;
+		constexpr std::uint32_t shadow_vis_sun_bias = 0x2000;
+		constexpr std::size_t unknown_vis_per_view = 9;
+		constexpr std::size_t unknown_vis_view_count = 3;
+
+		constexpr std::size_t pointer_offset(const std::size_t array_offset, const std::size_t index)
 		{
-			sun.bytes(8, 3, 20 * world.template at<int>(20));
-			sun.bytes(16, 3, 4 * world.template at<int>(24));
-			sun.runtime_bytes(24, 3, 4ull * (sun.template at<std::uint32_t>(0) << 9));
-			sun.runtime_bytes(32, 3, 4ull * (8 * sun.template at<std::uint32_t>(0)));
+			return array_offset + index * sizeof(void*);
 		}
 
 		template <typename V>
-		void visit_cells(const V& w)
+		void visit_skies(const V& w)
 		{
-			const auto cell_count = w.template at<std::uint32_t>(88);
-			w.bytes(128, 3, 4ull * cell_count);
-			const auto portal_counts = w.template at<int*>(128);
-
-			w.aligned_entries(136, 127, 8, cell_count, [&](const auto& cell, const std::size_t index)
+			const auto& world = w.template as<GfxWorld>();
+			w.entries(offsetof(GfxWorld, skies), sizeof(GfxSky), world.skyCount, [](const auto& e, std::size_t)
 			{
-				cell.aligned_entries(0, 7, 48, portal_counts[index], [](const auto& portal, std::size_t)
-				{
-					portal.bytes(32, 1, 2ull * portal.template at<std::uint16_t>(30));
-				});
+				const auto& sky = e.template as<GfxSky>();
+				e.array(S2_ARRAY_FIELD(GfxSky, skyStartSurfs), align_4, sky.skySurfCount);
+				e.asset(ASSET_TYPE_IMAGE, offsetof(GfxSky, skyImage));
 			});
-
-			w.entries(144, 24, cell_count, [](const auto& e, std::size_t)
-			{
-				e.bytes(8, 1, 2ull * e.template at<std::uint16_t>(0));
-			});
-
-			w.entries(152, 56, cell_count, [](const auto& e, std::size_t)
-			{
-				e.entries(32, 80, e.template at<std::uint16_t>(24), [](const auto& child, std::size_t)
-				{
-					child.bytes(40, 3, 12ull * child.template at<std::uint8_t>(52));
-				});
-				e.bytes(40, 0, e.template at<std::uint8_t>(26));
-				e.bytes(48, 0, e.template at<std::uint8_t>(27));
-			});
-		}
-
-		template <typename V>
-		void visit_draw(const V& d)
-		{
-			const auto reflection_probe_count = d.template at<std::uint32_t>(0);
-			d.asset_array(ASSET_TYPE_IMAGE, 8, reflection_probe_count);
-			d.entries(16, 32, reflection_probe_count, [](const auto& probe, std::size_t)
-			{
-				probe.entries(16, 16, probe.template at<std::uint32_t>(24), [](const auto& e, std::size_t)
-				{
-					e.bytes(0, 1, 2ull * e.template at<std::uint32_t>(8));
-				});
-			});
-			d.runtime_bytes(24, 7, 24ull * reflection_probe_count);
-			d.bytes(40, 3, 12ull * d.template at<std::uint32_t>(32));
-			d.bytes(48, 0, d.template at<std::uint32_t>(32));
-
-			const auto lightmap_count = d.template at<std::uint32_t>(56);
-			d.asset_array(ASSET_TYPE_IMAGE, 64, lightmap_count);
-			d.bytes(72, 3, 116ull * lightmap_count);
-			d.asset(ASSET_TYPE_IMAGE, 80);
-
-			const auto lightmap_override_count = d.template at<std::uint32_t>(156);
-			d.entries(160, 16, lightmap_override_count, [](const auto& e, std::size_t)
-			{
-				e.asset(ASSET_TYPE_IMAGE, 0);
-				e.asset(ASSET_TYPE_IMAGE, 8);
-			});
-			d.runtime_bytes(168, 7, 24ull * lightmap_override_count);
-			d.runtime_bytes(176, 7, 24ull * lightmap_override_count);
-			d.asset(ASSET_TYPE_IMAGE, 184);
-			d.asset(ASSET_TYPE_IMAGE, 192);
-			d.asset_array(ASSET_TYPE_IMAGE, 208, d.template at<std::uint32_t>(200));
-			d.assets(ASSET_TYPE_GFXWORLD_TRANSIENT_ZONE, 640, 16);
-			d.entries(768, 16, d.template at<std::uint32_t>(632), [](const auto& e, std::size_t)
-			{
-				e.asset_array(ASSET_TYPE_MATERIAL, 8, e.template at<std::uint32_t>(0));
-			});
-			d.bytes(784, 3, 2ull * d.template at<std::uint32_t>(776));
-		}
-
-		template <typename V>
-		void visit_probe_grid(const V& p)
-		{
-			const auto probe_count = p.template at<std::uint32_t>(0);
-			p.bytes(8, 63, 64ull * probe_count);
-			p.bytes(40, 3, 12ull * probe_count);
-			p.bytes(72, 3, 92ull * p.template at<std::uint32_t>(64));
-			p.bytes(88, 63, 16ull * p.template at<std::uint32_t>(80));
-			p.bytes(112, 63, 16ull * p.template at<std::uint32_t>(80));
-			p.bytes(136, 63, 64ull * p.template at<std::uint32_t>(84));
-			p.bytes(168, 63, 4ull * p.template at<std::uint32_t>(160));
-			p.bytes(200, 3, 64ull * p.template at<std::uint32_t>(192));
-			p.bytes(216, 63, 64ull * p.template at<std::uint32_t>(208));
-		}
-
-		template <typename V>
-		void visit_light_grid(const V& g)
-		{
-			const auto row_axis = g.template at<std::uint32_t>(20);
-			const auto min = g.template at<std::uint16_t>(8 + 2 * row_axis);
-			const auto max = g.template at<std::uint16_t>(14 + 2 * row_axis);
-			g.bytes(32, 1, 2ull * (max - min + 1));
-			g.bytes(48, 0, g.template at<std::uint32_t>(40));
-			g.bytes(64, 3, 8ull * g.template at<std::uint32_t>(56));
-			g.bytes(80, 1, 336ull * g.template at<std::uint32_t>(72));
-			g.bytes(128, 3, 4ull * g.template at<std::uint8_t>(123));
-			g.bytes(144, 3, 4ull * g.template at<std::uint32_t>(136));
-			g.bytes(160, 0, g.template at<std::uint32_t>(152));
-
-			for (auto i = 0u; i < 3; i++)
-			{
-				const auto volume = g.sub(840 + i * 80);
-				volume.bytes(56, 3, 4ull * volume.template at<int>(4));
-				volume.bytes(72, 0, volume.template at<int>(64));
-			}
-
-			visit_probe_grid(g.sub(1080));
-		}
-
-		template <typename V>
-		void visit_vertex_data(const V& v)
-		{
-			constexpr std::size_t element_sizes[] = {32, 28, 16, 20, 16, 16, 16, 16, 16, 16};
-			for (auto i = 0u; i < std::size(element_sizes); i++)
-			{
-				const auto offset = 8 + i * 16;
-				v.bytes(offset, 3, element_sizes[i] * v.template at<std::uint32_t>(offset - 8));
-			}
-
-			v.asset(ASSET_TYPE_IMAGE, 168);
-			v.bytes(184, 3, 4ull * v.template at<std::uint32_t>(176));
-			v.asset(ASSET_TYPE_IMAGE, 200);
-			v.bytes(216, 1, 2ull * v.template at<std::uint32_t>(208));
-			v.bytes(240, 63, 64ull * v.template at<std::uint32_t>(236));
-			v.bytes(272, 63, 64ull * v.template at<std::uint32_t>(264));
-			v.bytes(296, 3, 4ull * v.template at<std::uint32_t>(268));
-			v.bytes(328, 63, 64ull * v.template at<std::uint32_t>(324));
-			v.bytes(360, 63, 64ull * v.template at<std::uint32_t>(352));
-			v.bytes(384, 3, 4ull * v.template at<std::uint32_t>(356));
-			v.bytes(416, 63, 64ull * v.template at<std::uint32_t>(412));
-			v.bytes(448, 63, 64ull * v.template at<std::uint32_t>(440));
-			v.bytes(472, 3, 4ull * v.template at<std::uint32_t>(444));
-		}
-
-		template <typename V>
-		void visit_models(const V& w)
-		{
-			w.entries(2832, 112, w.template at<int>(2824), [](const auto& e, std::size_t)
-			{
-				e.bytes(40, 15, 0x40);
-				e.bytes(48, 3, 12ull * e.template at<int>(24));
-				e.bytes(56, 3, 16ull * e.template at<int>(28));
-				e.bytes(64, 1, 2ull * e.template at<int>(32));
-				e.bytes(72, 3, 2ull * e.template at<int>(36));
-				e.runtime_bytes(80, 3, 8ull * e.template at<std::uint32_t>(28));
-			});
-
-			const auto shadow_geometry = w.sub(2840);
-			shadow_geometry.bytes(8, 1, 0);
-			shadow_geometry.bytes(24, 1, 0);
-			shadow_geometry.bytes(40, 1, 2ull * shadow_geometry.template at<std::uint32_t>(32));
 		}
 
 		template <typename V>
 		void visit_dpvs_planes(const V& w)
 		{
-			const auto cell_count = w.template at<std::uint32_t>(88);
-			const auto cell_words = (cell_count + 31) >> 5;
-			const auto node_count = w.template at<std::uint32_t>(56) - w.template at<std::uint32_t>(52);
-			const auto light_count = w.template at<std::uint32_t>(4112);
-			const auto shadow_count = w.template at<std::uint32_t>(4116);
+			const auto& world = w.template as<GfxWorld>();
+			const auto planes = w.sub(offsetof(GfxWorld, dpvsPlanes));
+			const auto cell_count = planes.template as<GfxWorldDpvsPlanes>().cellCount;
 
-			w.runtime_bytes(3152, 3, 4ull * cell_count * cell_words);
-			w.runtime_bytes(3160, 3, 4ull * cell_words);
-			w.runtime_bytes(3168, 3, 12ull * light_count);
-			w.runtime_bytes(3176, 3, 8ull * shadow_count);
-			w.runtime_bytes(3184, 3, 4ull * static_cast<std::uint32_t>((node_count << 13) - 0x2000));
-			w.runtime_bytes(3192, 3, 4ull * static_cast<std::uint32_t>(light_count * (node_count - 1)));
-			w.runtime_bytes(3200, 3, 4ull * static_cast<std::uint32_t>(shadow_count * (node_count - 1)));
-			w.runtime_bytes(3208, 1, 2ull * light_count);
+			planes.array(S2_ARRAY_FIELD(GfxWorldDpvsPlanes, planes), align_4, world.planeCount);
+			planes.array(S2_ARRAY_FIELD(GfxWorldDpvsPlanes, nodes), align_4, world.nodeCount);
+			planes.runtime_array(S2_ARRAY_FIELD(GfxWorldDpvsPlanes, sceneEntCellBits), align_4, cell_count << 9);
+			planes.runtime_array(S2_ARRAY_FIELD(GfxWorldDpvsPlanes, unk_0x20), align_4, 8 * cell_count);
 		}
 
 		template <typename V>
-		void visit_aabb_trees(const V& w)
+		void visit_cells(const V& w)
 		{
-			const auto tree_count = w.template at<std::uint32_t>(56);
-			const auto visit_tree = [](const auto& e, std::size_t)
+			const auto& world = w.template as<GfxWorld>();
+			const auto cell_count = world.dpvsPlanes.cellCount;
+
+			w.array(S2_ARRAY_FIELD(GfxWorld, aabbTreeCounts), align_4, cell_count);
+			const auto tree_counts = world.aabbTreeCounts;
+
+			w.aligned_entries(offsetof(GfxWorld, aabbTrees), align_128, sizeof(GfxCellTree), cell_count, [&](const auto& cell_tree, const std::size_t cell_index)
 			{
-				e.bytes(8, 3, 4ull * e.template at<std::uint16_t>(0));
-				e.bytes(16, 1, 2ull * e.template at<std::uint16_t>(2));
-			};
-			w.entries(3216, 24, tree_count, visit_tree);
-			w.entries(3224, 24, tree_count, visit_tree);
-			w.entries(3232, 16, tree_count, [](const auto& e, std::size_t)
-			{
-				e.entries(8, 88, e.template at<std::uint32_t>(0), [](const auto& child, std::size_t)
+				cell_tree.aligned_entries(offsetof(GfxCellTree, aabbTree), align_8, sizeof(GfxAabbTree), tree_counts[cell_index].aabbTreeCount, [](const auto& e, std::size_t)
 				{
-					child.bytes(80, 3, 20ull * child.template at<std::uint32_t>(72));
+					const auto& tree = e.template as<GfxAabbTree>();
+					e.array(S2_ARRAY_FIELD(GfxAabbTree, smodelIndexes), align_2, tree.smodelIndexCount);
+				});
+			});
+
+			w.entries(offsetof(GfxWorld, cellTransientInfos), sizeof(GfxCellTransientInfo), cell_count, [](const auto& e, std::size_t)
+			{
+				const auto& info = e.template as<GfxCellTransientInfo>();
+				e.array(S2_ARRAY_FIELD(GfxCellTransientInfo, indices), align_2, info.indexCount);
+			});
+
+			w.entries(offsetof(GfxWorld, cells), sizeof(GfxCell), cell_count, [](const auto& e, std::size_t)
+			{
+				const auto& cell = e.template as<GfxCell>();
+				e.entries(offsetof(GfxCell, portals), sizeof(GfxPortal), cell.portalCount, [](const auto& p, std::size_t)
+				{
+					const auto& portal = p.template as<GfxPortal>();
+					p.array(S2_ARRAY_FIELD(GfxPortal, vertices), align_4, portal.vertexCount);
+				});
+				e.array(S2_ARRAY_FIELD(GfxCell, reflectionProbes), align_1, cell.reflectionProbeCount);
+				e.array(S2_ARRAY_FIELD(GfxCell, reflectionProbeReferences), align_1, cell.reflectionProbeReferenceCount);
+			});
+		}
+
+		template <typename V>
+		void visit_portal_groups(const V& w)
+		{
+			const auto& world = w.template as<GfxWorld>();
+			w.entries(offsetof(GfxWorld, portalGroup), sizeof(GfxPortalGroup), world.portalGroupCount, [](const auto& e, std::size_t)
+			{
+				const auto& group = e.template as<GfxPortalGroup>();
+				e.string(offsetof(GfxPortalGroup, targetName));
+				e.array(S2_ARRAY_FIELD(GfxPortalGroup, gfxPortalArray), align_2, group.numPortals);
+			});
+			w.array(S2_ARRAY_FIELD(GfxWorld, portalDistanceAnchorsAndCloseDistSquared), align_4, world.portalDistanceAnchorCount);
+		}
+
+		template <typename V>
+		void visit_draw(const V& d)
+		{
+			const auto& draw = d.template as<GfxWorldDraw>();
+
+			d.asset_array(ASSET_TYPE_IMAGE, offsetof(GfxWorldDraw, reflectionProbes), draw.reflectionProbeCount);
+			d.entries(offsetof(GfxWorldDraw, reflectionProbeOrigins), sizeof(GfxReflectionProbe), draw.reflectionProbeCount, [](const auto& e, std::size_t)
+			{
+				const auto& probe = e.template as<GfxReflectionProbe>();
+				e.entries(offsetof(GfxReflectionProbe, probeVolumes), sizeof(GfxReflectionProbeVolume), probe.probeVolumeCount, [](const auto& v, std::size_t)
+				{
+					const auto& volume = v.template as<GfxReflectionProbeVolume>();
+					v.array(S2_ARRAY_FIELD(GfxReflectionProbeVolume, probeVolumePlanes), align_2, volume.probeVolumePlaneCount);
+				});
+			});
+			d.runtime_array(S2_ARRAY_FIELD(GfxWorldDraw, reflectionProbeTextures), align_8, draw.reflectionProbeCount);
+			d.array(S2_ARRAY_FIELD(GfxWorldDraw, reflectionProbeReferenceOrigins), align_4, draw.reflectionProbeReferenceCount);
+			d.array(S2_ARRAY_FIELD(GfxWorldDraw, reflectionProbeReferences), align_1, draw.reflectionProbeReferenceCount);
+
+			d.asset_array(ASSET_TYPE_IMAGE, offsetof(GfxWorldDraw, fogSplineImages), draw.fogSplineCount);
+			d.array(S2_ARRAY_FIELD(GfxWorldDraw, fogSplineInfo), align_4, draw.fogSplineCount);
+			d.asset(ASSET_TYPE_IMAGE, offsetof(GfxWorldDraw, iesLookup));
+
+			d.entries(offsetof(GfxWorldDraw, lightmapOverrides), sizeof(GfxLightmapArray), draw.lightmapOverrideCount, [](const auto& e, std::size_t)
+			{
+				e.asset(ASSET_TYPE_IMAGE, offsetof(GfxLightmapArray, primary));
+				e.asset(ASSET_TYPE_IMAGE, offsetof(GfxLightmapArray, secondary));
+			});
+			d.runtime_array(S2_ARRAY_FIELD(GfxWorldDraw, lightmapPrimaryTextures), align_8, draw.lightmapOverrideCount);
+			d.runtime_array(S2_ARRAY_FIELD(GfxWorldDraw, lightmapSecondaryTextures), align_8, draw.lightmapOverrideCount);
+			d.asset(ASSET_TYPE_IMAGE, offsetof(GfxWorldDraw, lightmapOverridePrimary));
+			d.asset(ASSET_TYPE_IMAGE, offsetof(GfxWorldDraw, lightmapOverrideSecondary));
+			d.asset_array(ASSET_TYPE_IMAGE, offsetof(GfxWorldDraw, images), draw.imageCount);
+
+			d.assets(ASSET_TYPE_GFXWORLD_TRANSIENT_ZONE, offsetof(GfxWorldDraw, transientZones), std::size(draw.transientZones));
+			d.entries(offsetof(GfxWorldDraw, transientZoneMaterials), sizeof(GfxTransientZoneMaterials), draw.transientZoneCount, [](const auto& e, std::size_t)
+			{
+				const auto& zone = e.template as<GfxTransientZoneMaterials>();
+				e.asset_array(ASSET_TYPE_MATERIAL, offsetof(GfxTransientZoneMaterials, materials), zone.materialCount);
+			});
+			d.array(S2_ARRAY_FIELD(GfxWorldDraw, indices), align_4, draw.indexCount);
+		}
+
+		template <typename V>
+		void visit_light_grid(const V& g)
+		{
+			const auto& grid = g.template as<GfxLightGrid>();
+			const auto row_min = grid.mins[grid.rowAxis];
+			const auto row_max = grid.maxs[grid.rowAxis];
+
+			g.array(S2_ARRAY_FIELD(GfxLightGrid, rowDataStart), align_2, row_max - row_min + 1);
+			g.array(S2_ARRAY_FIELD(GfxLightGrid, rawRowData), align_1, grid.rawRowDataSize);
+			g.array(S2_ARRAY_FIELD(GfxLightGrid, entries), align_4, grid.entryCount);
+			g.array(S2_ARRAY_FIELD(GfxLightGrid, colors), align_2, grid.colorCount);
+			g.array(S2_ARRAY_FIELD(GfxLightGrid, stageLightingContrastGain), align_4, grid.stageCount);
+			g.array(S2_ARRAY_FIELD(GfxLightGrid, paletteEntryAddress), align_4, grid.paletteEntryCount);
+			g.array(S2_ARRAY_FIELD(GfxLightGrid, paletteBitstream), align_1, grid.paletteBitstreamSize);
+
+			for (auto i = 0u; i < std::size(grid.tree); i++)
+			{
+				const auto tree_visitor = g.sub(offsetof(GfxLightGrid, tree) + i * sizeof(GfxLightGridTree));
+				const auto& tree = tree_visitor.template as<GfxLightGridTree>();
+				tree_visitor.array(S2_ARRAY_FIELD(GfxLightGridTree, p_nodeTable), align_4, tree.nodeCount);
+				tree_visitor.array(S2_ARRAY_FIELD(GfxLightGridTree, p_leafTable), align_1, tree.leafTableSize);
+			}
+		}
+
+		template <typename V>
+		void visit_probe_data(const V& p)
+		{
+			const auto& probes = p.template as<GfxLightGridProbeData>();
+
+			p.array(S2_ARRAY_FIELD(GfxLightGridProbeData, probes), align_64, probes.probeCount);
+			p.array(S2_ARRAY_FIELD(GfxLightGridProbeData, probePositions), align_4, probes.probeCount);
+			p.array(S2_ARRAY_FIELD(GfxLightGridProbeData, zones), align_4, probes.zoneCount);
+			p.array(S2_ARRAY_FIELD(GfxLightGridProbeData, tetrahedrons), align_64, probes.tetrahedronCount);
+			p.array(S2_ARRAY_FIELD(GfxLightGridProbeData, tetrahedronNeighbors), align_64, probes.tetrahedronCount);
+			p.array(S2_ARRAY_FIELD(GfxLightGridProbeData, tetrahedronVisibility), align_64, probes.tetrahedronCountVisible);
+			p.array(S2_ARRAY_FIELD(GfxLightGridProbeData, voxelStartTetrahedron), align_64, probes.voxelStartTetrahedronCount);
+			p.array(S2_ARRAY_FIELD(GfxLightGridProbeData, unk_0xC8), align_4, probes.unkCount_0xC0);
+			p.array(S2_ARRAY_FIELD(GfxLightGridProbeData, unk_0xD8), align_64, probes.unkCount_0xD0);
+		}
+
+		template <typename V>
+		void visit_unknown_data(const V& u)
+		{
+			const auto& data = u.template as<GfxWorldUnknownData>();
+
+			const auto visit_array = [&](const std::size_t array_offset, const auto& unknown_array)
+			{
+				using array_type = std::remove_cvref_t<decltype(unknown_array)>;
+				u.array(array_offset + offsetof(array_type, data), sizeof(*unknown_array.data), align_4, unknown_array.count);
+			};
+
+			visit_array(offsetof(GfxWorldUnknownData, array0), data.array0);
+			visit_array(offsetof(GfxWorldUnknownData, array1), data.array1);
+			visit_array(offsetof(GfxWorldUnknownData, array2), data.array2);
+			visit_array(offsetof(GfxWorldUnknownData, array3), data.array3);
+			visit_array(offsetof(GfxWorldUnknownData, array4), data.array4);
+			visit_array(offsetof(GfxWorldUnknownData, array5), data.array5);
+			visit_array(offsetof(GfxWorldUnknownData, array6), data.array6);
+			visit_array(offsetof(GfxWorldUnknownData, array7), data.array7);
+			visit_array(offsetof(GfxWorldUnknownData, array8), data.array8);
+			visit_array(offsetof(GfxWorldUnknownData, array9), data.array9);
+
+			u.asset(ASSET_TYPE_IMAGE, offsetof(GfxWorldUnknownData, image0));
+			u.array(S2_ARRAY_FIELD(GfxWorldUnknownData, image0Data), align_4, data.image0DataCount);
+			u.asset(ASSET_TYPE_IMAGE, offsetof(GfxWorldUnknownData, image1));
+			u.array(S2_ARRAY_FIELD(GfxWorldUnknownData, image1Data), align_2, data.image1DataCount);
+
+			for (auto i = 0u; i < std::size(data.groups); i++)
+			{
+				const auto group_visitor = u.sub(offsetof(GfxWorldUnknownData, groups) + i * sizeof(GfxWorldUnknownBufferGroup));
+				const auto& group = group_visitor.template as<GfxWorldUnknownBufferGroup>();
+				group_visitor.array(S2_ARRAY_FIELD(GfxWorldUnknownBufferGroup, data), align_64, group.count);
+				group_visitor.array(S2_ARRAY_FIELD(GfxWorldUnknownBufferGroup, dataA), align_64, group.countA);
+				group_visitor.array(S2_ARRAY_FIELD(GfxWorldUnknownBufferGroup, dataB), align_4, group.countB);
+			}
+		}
+
+		template <typename V>
+		void visit_light_view_frustums(const V& w)
+		{
+			const auto& world = w.template as<GfxWorld>();
+			w.entries(offsetof(GfxWorld, lightViewFrustums), sizeof(GfxLightViewFrustum), world.lightViewFrustumCount, [](const auto& e, std::size_t)
+			{
+				const auto& frustum = e.template as<GfxLightViewFrustum>();
+				e.array(S2_ARRAY_FIELD(GfxLightViewFrustum, matrix), align_16, 1);
+				e.array(S2_ARRAY_FIELD(GfxLightViewFrustum, vertices), align_4, frustum.vertexCount);
+				e.array(S2_ARRAY_FIELD(GfxLightViewFrustum, planes), align_4, frustum.planeCount);
+				e.array(S2_ARRAY_FIELD(GfxLightViewFrustum, indices), align_2, frustum.indexCount);
+				e.array(S2_ARRAY_FIELD(GfxLightViewFrustum, unkIndices), align_4, frustum.unkIndexCount);
+				e.runtime_array(S2_ARRAY_FIELD(GfxLightViewFrustum, unkRuntime), align_4, frustum.planeCount);
+			});
+		}
+
+		template <typename V>
+		void visit_light_lists(const V& l)
+		{
+			const auto& lists = l.template as<GfxWorldLightLists>();
+			l.array(S2_ARRAY_FIELD(GfxWorldLightLists, surfaceListOffsets), align_2, 0);
+			l.array(S2_ARRAY_FIELD(GfxWorldLightLists, smodelListOffsets), align_2, 0);
+			l.array(S2_ARRAY_FIELD(GfxWorldLightLists, lists), align_2, lists.listsSize);
+		}
+
+		template <typename V>
+		void visit_frustum_lights(const V& w)
+		{
+			const auto& world = w.template as<GfxWorld>();
+			w.aligned_entries(offsetof(GfxWorld, frustumLights), align_16, sizeof(GfxFrustumLights), world.primaryLightCount, [](const auto& e, std::size_t)
+			{
+				const auto& lights = e.template as<GfxFrustumLights>();
+				e.array(S2_ARRAY_FIELD(GfxFrustumLights, indices), align_4, lights.indexCount);
+				e.array(S2_ARRAY_FIELD(GfxFrustumLights, vertices), align_4, lights.vertexCount);
+			});
+		}
+
+		template <typename V>
+		void visit_scene_runtime_arrays(const V& w)
+		{
+			const auto& world = w.template as<GfxWorld>();
+			const auto cell_count = world.dpvsPlanes.cellCount;
+			const auto cell_words = (cell_count + 31) >> 5;
+			const auto non_sun_light_count = world.primaryLightCount - world.lastSunPrimaryLightIndex;
+			const auto dyn_model_count = world.dpvsDyn.dynEntClientCount[0];
+			const auto dyn_brush_count = world.dpvsDyn.dynEntClientCount[1];
+
+			w.runtime_array(S2_ARRAY_FIELD(GfxWorld, cellCasterBits), align_4, static_cast<std::size_t>(cell_count) * cell_words);
+			w.runtime_array(S2_ARRAY_FIELD(GfxWorld, cellHasSunLitSurfsBits), align_4, cell_words);
+			w.runtime_array(S2_ARRAY_FIELD(GfxWorld, sceneDynModel), align_4, dyn_model_count);
+			w.runtime_array(S2_ARRAY_FIELD(GfxWorld, sceneDynBrush), align_4, dyn_brush_count);
+			w.runtime_array(S2_ARRAY_FIELD(GfxWorld, primaryLightEntityShadowVis), align_4,
+				static_cast<std::uint32_t>((non_sun_light_count << shadow_vis_light_shift) - shadow_vis_sun_bias));
+			w.runtime_array(pointer_offset(offsetof(GfxWorld, primaryLightDynEntShadowVis), 0), sizeof(unsigned int), align_4,
+				static_cast<std::uint32_t>(dyn_model_count * (non_sun_light_count - 1)));
+			w.runtime_array(pointer_offset(offsetof(GfxWorld, primaryLightDynEntShadowVis), 1), sizeof(unsigned int), align_4,
+				static_cast<std::uint32_t>(dyn_brush_count * (non_sun_light_count - 1)));
+			w.runtime_array(S2_ARRAY_FIELD(GfxWorld, nonSunPrimaryLightForModelDynEnt), align_2, dyn_model_count);
+		}
+
+		template <typename V>
+		void visit_shadow_geometry_and_light_region(const V& w)
+		{
+			const auto& world = w.template as<GfxWorld>();
+			const auto visit_shadow_geometry = [](const auto& e, std::size_t)
+			{
+				const auto& geometry = e.template as<GfxShadowGeometry>();
+				e.array(S2_ARRAY_FIELD(GfxShadowGeometry, sortedSurfIndex), align_4, geometry.surfaceCount);
+				e.array(S2_ARRAY_FIELD(GfxShadowGeometry, smodelIndex), align_2, geometry.smodelCount);
+			};
+			w.entries(offsetof(GfxWorld, shadowGeom), sizeof(GfxShadowGeometry), world.primaryLightCount, visit_shadow_geometry);
+			w.entries(offsetof(GfxWorld, shadowGeomOptimized), sizeof(GfxShadowGeometry), world.primaryLightCount, visit_shadow_geometry);
+			w.entries(offsetof(GfxWorld, lightRegion), sizeof(GfxLightRegion), world.primaryLightCount, [](const auto& e, std::size_t)
+			{
+				const auto& region = e.template as<GfxLightRegion>();
+				e.entries(offsetof(GfxLightRegion, hulls), sizeof(GfxLightRegionHull), region.hullCount, [](const auto& h, std::size_t)
+				{
+					const auto& hull = h.template as<GfxLightRegionHull>();
+					h.array(S2_ARRAY_FIELD(GfxLightRegionHull, axis), align_4, hull.axisCount);
 				});
 			});
 		}
 
 		template <typename V>
-		void visit_dpvs_runtime(const V& d)
+		void visit_dpvs_primary_vis_data(const V& d)
 		{
-			const auto smodel_count = d.template at<std::uint32_t>(72);
-			const auto surface_count = d.template at<std::uint32_t>(76);
-			const auto smodel_visibility = [&](const std::size_t offset)
+			const auto& dpvs = d.template as<GfxWorldDpvsStatic>();
+
+			const auto visit_vis_array = [&](const std::size_t array_offset, const std::size_t index, const std::size_t count)
 			{
-				d.runtime_bytes(offset, 127, 4ull * smodel_count);
-			};
-			const auto surface_visibility = [&](const std::size_t offset)
-			{
-				d.runtime_bytes(offset, 127, 4ull * surface_count);
+				d.runtime_array(pointer_offset(array_offset, index), sizeof(unsigned int), align_128, count);
 			};
 
-			smodel_visibility(88);
-			smodel_visibility(96);
-			smodel_visibility(104);
-			surface_visibility(400);
-			surface_visibility(408);
-			surface_visibility(416);
-			for (auto offset = 120u; offset <= 176; offset += 8)
+			for (auto i = 0u; i < 3; i++)
 			{
-				d.runtime_bytes(offset, 127, 0);
+				visit_vis_array(offsetof(GfxWorldDpvsStatic, smodelVisData), i, dpvs.smodelVisDataCount);
 			}
-			for (auto offset = 432u; offset <= 488; offset += 8)
+			for (auto i = 0u; i < 3; i++)
 			{
-				d.runtime_bytes(offset, 127, 0);
+				visit_vis_array(offsetof(GfxWorldDpvsStatic, surfaceVisData), i, dpvs.surfaceVisDataCount);
 			}
-			d.runtime_bytes(712, 127, 4ull * 2 * surface_count);
+			for (auto i = 0u; i < std::size(dpvs.smodelVisDataUnused); i++)
+			{
+				visit_vis_array(offsetof(GfxWorldDpvsStatic, smodelVisDataUnused), i, 0);
+			}
+			for (auto i = 0u; i < std::size(dpvs.surfaceVisDataUnused); i++)
+			{
+				visit_vis_array(offsetof(GfxWorldDpvsStatic, surfaceVisDataUnused), i, 0);
+			}
+			d.runtime_array(S2_ARRAY_FIELD(GfxWorldDpvsStatic, unk_0x2C8), align_128, 2ull * dpvs.surfaceVisDataCount);
 		}
 
 		template <typename V>
-		void visit_dpvs_visibility(const V& d)
+		void visit_dpvs_secondary_vis_data(const V& d)
 		{
-			const auto smodel_count = d.template at<std::uint32_t>(72);
-			const auto surface_count = d.template at<std::uint32_t>(76);
-			d.runtime_bytes(112, 127, 4ull * smodel_count);
-			d.runtime_bytes(424, 127, 4ull * surface_count);
-			for (auto view = 0u; view < 3; view++)
+			const auto& dpvs = d.template as<GfxWorldDpvsStatic>();
+
+			d.runtime_array(pointer_offset(offsetof(GfxWorldDpvsStatic, smodelVisData), 3), sizeof(unsigned int), align_128, dpvs.smodelVisDataCount);
+			d.runtime_array(pointer_offset(offsetof(GfxWorldDpvsStatic, surfaceVisData), 3), sizeof(unsigned int), align_128, dpvs.surfaceVisDataCount);
+
+			for (auto view = 0u; view < unknown_vis_view_count; view++)
 			{
-				for (auto i = 0u; i < 9; i++)
+				for (auto i = 0u; i < unknown_vis_per_view; i++)
 				{
-					d.runtime_bytes(184 + view * 72 + i * 8, 127, 4ull * smodel_count);
+					d.runtime_array(pointer_offset(offsetof(GfxWorldDpvsStatic, smodelUnknownVisData), view * unknown_vis_per_view + i),
+						sizeof(unsigned int), align_128, dpvs.smodelVisDataCount);
 				}
-				for (auto i = 0u; i < 9; i++)
+				for (auto i = 0u; i < unknown_vis_per_view; i++)
 				{
-					d.runtime_bytes(496 + view * 72 + i * 8, 127, 4ull * surface_count);
+					d.runtime_array(pointer_offset(offsetof(GfxWorldDpvsStatic, surfaceUnknownVisData), view * unknown_vis_per_view + i),
+						sizeof(unsigned int), align_128, dpvs.surfaceVisDataCount);
 				}
 			}
-			d.runtime_bytes(720, 127, 4ull * d.template at<std::uint32_t>(80));
-			d.runtime_bytes(728, 127, 4ull * smodel_count);
-			d.runtime_bytes(736, 127, 4ull * surface_count);
+
+			d.runtime_array(S2_ARRAY_FIELD(GfxWorldDpvsStatic, primaryLightVisData), align_128, dpvs.primaryLightVisDataCount);
+			d.runtime_array(S2_ARRAY_FIELD(GfxWorldDpvsStatic, unk_0x2D8), align_128, dpvs.smodelVisDataCount);
+			d.runtime_array(S2_ARRAY_FIELD(GfxWorldDpvsStatic, unk_0x2E0), align_128, dpvs.surfaceVisDataCount);
 		}
 
 		template <typename V>
-		void visit_surface_buffers(const V& e)
+		void visit_surface(const V& e)
 		{
-			e.aligned_entries(16, 7, 0x100, 1, [](const auto& buffer, std::size_t)
+			e.aligned_entries(offsetof(GfxSurface, buffer), align_8, sizeof(GfxSurfaceBuffer), 1, [](const auto& b, std::size_t)
 			{
-				buffer.unread_bytes(64, 255, buffer.template at<std::uint32_t>(16));
+				const auto& buffer = b.template as<GfxSurfaceBuffer>();
+				b.unread_bytes(offsetof(GfxSurfaceBuffer, data), align_256, buffer.dataSize);
 			});
-			e.asset(ASSET_TYPE_MATERIAL, 32);
+			e.asset(ASSET_TYPE_MATERIAL, offsetof(GfxSurface, material));
 		}
 
 		template <typename V>
-		void visit_dpvs(const V& world, const V& d)
+		void visit_dpvs_static(const V& w, const V& d)
 		{
-			visit_dpvs_runtime(d);
-			d.bytes(792, 127, 4ull * 2 * d.template at<std::uint32_t>(72));
-			visit_dpvs_visibility(d);
+			const auto& world = w.template as<GfxWorld>();
+			const auto& dpvs = d.template as<GfxWorldDpvsStatic>();
 
-			d.bytes(744, 3, 4ull * d.template at<std::uint32_t>(4));
+			visit_dpvs_primary_vis_data(d);
+			d.array(S2_ARRAY_FIELD(GfxWorldDpvsStatic, unk_0x318), align_128, 2ull * dpvs.smodelVisDataCount);
+			visit_dpvs_secondary_vis_data(d);
 
-			const auto surface_material_count = world.template at<std::uint32_t>(28);
-			d.entries(752, 56, surface_material_count, [](const auto& e, std::size_t)
+			d.array(S2_ARRAY_FIELD(GfxWorldDpvsStatic, sortedSurfIndex), align_4, dpvs.staticSurfaceCount);
+			d.entries(offsetof(GfxWorldDpvsStatic, surfaces), sizeof(GfxSurface), world.surfaceCount, [](const auto& e, std::size_t)
 			{
-				visit_surface_buffers(e);
+				visit_surface(e);
 			});
-			d.bytes(760, 3, 64ull * surface_material_count);
-			d.runtime_bytes(768, 1, 8ull * surface_material_count);
+			d.array(S2_ARRAY_FIELD(GfxWorldDpvsStatic, surfacesBounds), align_4, world.surfaceCount);
+			d.runtime_array(S2_ARRAY_FIELD(GfxWorldDpvsStatic, unk_0x300), align_2, world.surfaceCount);
 
-			const auto smodel_inst_count = d.template at<std::uint32_t>(0);
-			d.bytes(776, 3, 36ull * smodel_inst_count);
-			d.entries(784, 128, smodel_inst_count, [](const auto& e, std::size_t)
+			d.array(S2_ARRAY_FIELD(GfxWorldDpvsStatic, smodelInsts), align_4, dpvs.smodelCount);
+			d.entries(offsetof(GfxWorldDpvsStatic, smodelDrawInsts), sizeof(GfxStaticModelDrawInst), dpvs.smodelCount, [](const auto& e, std::size_t)
 			{
-				e.asset(ASSET_TYPE_XMODEL, 72);
+				e.asset(ASSET_TYPE_XMODEL, offsetof(GfxStaticModelDrawInst, model));
 			});
-			const auto smodel_insts = d.template at<std::uint8_t*>(784);
-			d.entries(800, 24, smodel_inst_count, [&](const auto& e, const std::size_t index)
+			d.entries(offsetof(GfxWorldDpvsStatic, smodelLightingInsts), sizeof(GfxStaticModelLighting), dpvs.smodelCount, [&](const auto& e, const std::size_t index)
 			{
-				const auto flags = *reinterpret_cast<std::uint16_t*>(smodel_insts + index * 128 + 84);
-				if ((flags & 0x180) != 0 && (flags & 0x80) != 0)
+				const auto flags = dpvs.smodelDrawInsts[index].flags;
+				if ((flags & STATIC_MODEL_FLAG_VERTEXLIT_LIGHTING) != 0)
 				{
-					e.bytes(0, 1, 20ull * e.template at<std::uint32_t>(16));
+					const auto& lighting = e.template as<GfxStaticModelLighting>().vertexLightingInfo;
+					e.array(S2_ARRAY_FIELD(GfxStaticModelLighting, vertexLightingInfo.lightingValues), align_2, lighting.numLightingValues);
 				}
 			});
-			d.runtime_bytes(808, 127, 4ull * d.template at<std::uint32_t>(76));
-			d.bytes(816, 1, 2ull * smodel_inst_count);
-			d.runtime_bytes(832, 127, 4ull * static_cast<std::uint32_t>(d.template at<std::uint32_t>(824) * d.template at<std::uint32_t>(828)));
-			d.runtime_bytes(840, 3, 8ull * d.template at<std::uint32_t>(4));
-			d.runtime_bytes(848, 7, 8ull * smodel_inst_count);
+			d.runtime_array(S2_ARRAY_FIELD(GfxWorldDpvsStatic, unk_0x328), align_128, dpvs.surfaceVisDataCount);
+			d.array(S2_ARRAY_FIELD(GfxWorldDpvsStatic, sortedSmodelIndices), align_2, dpvs.smodelCount);
+			d.runtime_array(S2_ARRAY_FIELD(GfxWorldDpvsStatic, surfaceCastsSunShadowOpt), align_128,
+				static_cast<std::uint32_t>(dpvs.sunShadowOptCount * dpvs.sunSurfVisDataCount));
+			d.runtime_array(S2_ARRAY_FIELD(GfxWorldDpvsStatic, surfaceMaterials), align_4, dpvs.staticSurfaceCount);
+			d.runtime_array(S2_ARRAY_FIELD(GfxWorldDpvsStatic, unk_0x350), align_8, dpvs.smodelCount);
 		}
 
 		template <typename V>
-		void visit_globals(const V& world, const V& g)
+		void visit_dpvs_dynamic(const V& w, const V& d)
 		{
-			const auto cell_count = world.template at<std::uint32_t>(88);
-			const auto count0 = g.template at<std::uint32_t>(0);
-			const auto count1 = g.template at<std::uint32_t>(4);
-			g.runtime_bytes(16, 3, 4ull * static_cast<std::uint32_t>(count0 * cell_count));
-			g.runtime_bytes(24, 3, 4ull * static_cast<std::uint32_t>(count1 * cell_count));
-			for (const auto offset : {32u, 40u, 48u})
+			const auto& world = w.template as<GfxWorld>();
+			const auto& dyn = d.template as<GfxWorldDpvsDynamic>();
+			const auto cell_count = world.dpvsPlanes.cellCount;
+
+			const auto visit_vis_data = [&](const std::size_t set, const std::size_t index)
 			{
-				g.runtime_bytes(offset, 15, 32ull * count0);
-			}
-			for (const auto offset : {64u, 72u, 80u})
+				d.runtime_array(pointer_offset(offsetof(GfxWorldDpvsDynamic, dynEntVisData), set * std::size(dyn.dynEntVisData[0]) + index),
+					sizeof(unsigned char), align_16, dyn_ent_vis_bytes_per_word * dyn.dynEntClientWordCount[set]);
+			};
+
+			for (auto set = 0u; set < std::size(dyn.dynEntCellBits); set++)
 			{
-				g.runtime_bytes(offset, 15, 32ull * count1);
+				d.runtime_array(pointer_offset(offsetof(GfxWorldDpvsDynamic, dynEntCellBits), set), sizeof(unsigned int), align_4,
+					static_cast<std::uint32_t>(dyn.dynEntClientWordCount[set] * cell_count));
 			}
-			g.runtime_bytes(56, 15, 32ull * count0);
-			g.runtime_bytes(88, 15, 32ull * count1);
+			for (auto set = 0u; set < std::size(dyn.dynEntVisData); set++)
+			{
+				for (auto index = 0u; index < 3; index++)
+				{
+					visit_vis_data(set, index);
+				}
+			}
+			for (auto set = 0u; set < std::size(dyn.dynEntVisData); set++)
+			{
+				visit_vis_data(set, 3);
+			}
 		}
 	}
 
 	template <typename V>
 	void gfx_world_layout::visit(const V& w)
 	{
-		w.strings({0, 8});
-		w.entries(40, 56, w.template at<int>(32), [](const auto& sky, std::size_t)
-		{
-			sky.bytes(8, 3, 4ull * sky.template at<int>(0));
-			sky.asset(ASSET_TYPE_IMAGE, 16);
-		});
-		visit_sun(w, w.sub(88));
-		visit_cells(w);
-		w.entries(160, 24, w.template at<int>(48), [](const auto& e, std::size_t)
-		{
-			e.string(0);
-			e.bytes(8, 1, 4ull * e.template at<std::uint16_t>(20));
-		});
-		w.bytes(176, 3, 16ull * w.template at<std::uint32_t>(168));
-		visit_draw(w.sub(192));
-		visit_light_grid(w.sub(992));
-		visit_vertex_data(w.sub(2320));
-		visit_models(w);
-		w.aligned_entries(2816, 15, 64, w.template at<std::uint32_t>(56), [](const auto& e, std::size_t)
-		{
-			e.bytes(32, 3, 2ull * e.template at<std::uint32_t>(28));
-			e.bytes(40, 3, 32ull * e.template at<std::uint32_t>(24));
-		});
-		w.bytes(2896, 3, 96ull * w.template at<int>(2888));
-		w.aligned_entries(2960, 15, 16, w.template at<int>(2956), [](const auto& e, std::size_t)
-		{
-			e.asset(ASSET_TYPE_MATERIAL, 0);
-		});
-		w.asset(ASSET_TYPE_MATERIAL, 2976);
-		w.asset(ASSET_TYPE_MATERIAL, 2984);
-		w.asset(ASSET_TYPE_IMAGE, 3144);
+		const auto& world = w.template as<GfxWorld>();
+
+		w.strings({offsetof(GfxWorld, name), offsetof(GfxWorld, baseName)});
+		visit_skies(w);
 		visit_dpvs_planes(w);
-		visit_aabb_trees(w);
-		visit_dpvs(w, w.sub(3240));
-		visit_globals(w, w.sub(4104));
-		w.bytes(4208, 3, 72ull * w.template at<std::uint32_t>(4204));
-		w.entries(4224, 40, w.template at<std::uint32_t>(4220), [](const auto& e, std::size_t)
+		visit_cells(w);
+		visit_portal_groups(w);
+		visit_draw(w.sub(offsetof(GfxWorld, draw)));
+		visit_light_grid(w.sub(offsetof(GfxWorld, lightGrid)));
+		visit_probe_data(w.sub(offsetof(GfxWorld, probeData)));
+		visit_unknown_data(w.sub(offsetof(GfxWorld, unknownData)));
+		visit_light_view_frustums(w);
+		visit_light_lists(w.sub(offsetof(GfxWorld, lightLists)));
+		visit_frustum_lights(w);
+		w.array(S2_ARRAY_FIELD(GfxWorld, models), align_4, world.modelCount);
+		w.aligned_entries(offsetof(GfxWorld, materialMemory), align_16, sizeof(MaterialMemory), world.materialMemoryCount, [](const auto& e, std::size_t)
 		{
-			e.asset(ASSET_TYPE_IMAGE, 32);
+			e.asset(ASSET_TYPE_MATERIAL, offsetof(MaterialMemory, material));
 		});
-		w.strings({4264, 4272, 4280, 4288});
+		w.asset(ASSET_TYPE_MATERIAL, offsetof(GfxWorld, sun) + offsetof(sunflare_t, spriteMaterial));
+		w.asset(ASSET_TYPE_MATERIAL, offsetof(GfxWorld, sun) + offsetof(sunflare_t, flareMaterial));
+		w.asset(ASSET_TYPE_IMAGE, offsetof(GfxWorld, outdoorImage));
+		visit_scene_runtime_arrays(w);
+		visit_shadow_geometry_and_light_region(w);
+		visit_dpvs_static(w, w.sub(offsetof(GfxWorld, dpvs)));
+		visit_dpvs_dynamic(w, w.sub(offsetof(GfxWorld, dpvsDyn)));
+		w.array(S2_ARRAY_FIELD(GfxWorld, heroOnlyLights), align_4, world.heroOnlyLightCount);
+		w.entries(offsetof(GfxWorld, mdaoVolumes), sizeof(MdaoVolume), world.mdaoVolumesCount, [](const auto& e, std::size_t)
+		{
+			e.asset(ASSET_TYPE_IMAGE, offsetof(MdaoVolume, volumeData));
+		});
+		w.strings({
+			offsetof(GfxWorld, buildInfo) + offsetof(GfxBuildInfo, bspCommandline),
+			offsetof(GfxWorld, buildInfo) + offsetof(GfxBuildInfo, lightCommandline),
+			offsetof(GfxWorld, buildInfo) + offsetof(GfxBuildInfo, bspTimestamp),
+			offsetof(GfxWorld, buildInfo) + offsetof(GfxBuildInfo, lightTimestamp),
+		});
 	}
 
 	template void gfx_world_layout::visit(const field_reader&);

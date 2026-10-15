@@ -155,6 +155,17 @@ Run these after a change to a reader, writer or the container code:
 
 Good round-trip zones: H1 `mp_shipment`, `mp_crash`. IW7 `mp_frontend`, `mp_afghan`.
 
+## Strict ground rules to follow
+
+These rules apply to agents more than humans, but it is good practice for humans to also do the following if you advice them or do the code:
+
+- Do not write hacky or sloppy shortcut code. Fix the cause, not the symptom.
+- Put engine structs in the game `structs.hpp`. Do not declare structs inline in an asset file or a converter file, as that makes it hacky and less ideal to maintain overall in the codebase.
+- Keep code readable for humans. x64-zt was a human project before AI, and code that only a machine can follow is not accepted at all. Furthermore, comments do not fix sloppy or weird code. Use named struct fields, not raw offsets and byte casts.
+- To add onto comments, they should be inlined and short summaries and not over-yapped to keep explaining something. The code itself explains the logic and what we do with it, so a comment used in the codebase is for something we are unsure about, TODO, or could cause issues later. Even "hacky" code contains comments for the future, but it's there because a human most likely tested it at one point and deemed it necessary to note down for other contributors.
+- Trust `re_reference/` as the source of truth. Its `ship_asm.txt` and `.asm` files show what each game does that this project supports. When the code and the asm disagree, the asm decides as assembly will show everything truly happening.
+- During the process, you may want to test launch the game, receive crashdumps, or even take screenshots. Focus on only screenshotting a game window itself and nothing else to give away stuff you don't need to know. Most Call of Duty clients have `map` and `devmap` available in order to get you in game to test, and you may need to select a team & class in order to also keep going. And in order to receive crashdumps, look for a `minidumps` folder inside of the game folder(s) that may contain the crash you're looking for. It has a .dmp file usually, and a .info txt file to quickly figure out what's going on. The .dmp file is extremely helpful as to figuring out what went wrong, and the info.txt will also do wonders. If no crashdump is found, your last fallback is to find a process minidump Windows generates in %CRASHDUMPS%.
+
 ## Code style
 
 - lowercase snake_case for functions, variables, classes and files. Engine structs keep their engine names (`XModel`, `GfxImage`).
@@ -171,6 +182,9 @@ Default: no comment. Code must explain itself through naming and structure. A co
 - a deliberate deviation that a reader would want to "fix" back;
 - a hack or workaround that can break later, with the reason;
 - a reference that saves a research session.
+- multiple lines that are single commented trying to express something
+- comments showing above function definitions (put them in the function body - we dont need functions explained as comments unless the code cannot explain itself)
+- comments showing above variable definitions (put them to the side as one liners, short and sweet unless you absolutely need to explain more and the definition doesn't explain itself)
 
 Never write restatements, section banners, edit narration or commented-out code. If unsure whether a comment qualifies, it does not. Example of a valid comment: the raw heap pointer note in `zone_reader::read_array`.
 
@@ -195,3 +209,4 @@ Docs, commit messages and user-facing text use ASD-STE100 style:
 - If Python is not installed on the main dev machine, use shell tools, node, or the edit tools.
 - `core.autocrlf` is `true`. Some files are CRLF in the working tree. Keep the line endings of the file you edit.
 - To test H1 in the game, copy `zonetool.exe` to the user's MWR 1.15 folder (if you don't know where it is, prompt a question and ask the user so you know - this will help save so much time), or build with `--copy-to`.
+- Anything you don't know how to do, but is listed in this file as advice for you, ask the user for questions and try to figure out how to get there if you are lost. This is mainly for non-Claude models that may get stuck easier.

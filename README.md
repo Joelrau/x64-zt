@@ -20,7 +20,7 @@ Rows are the source game. Columns are the target game.
 
 | From ↓ / To → | S1 | H1 | H2 | S2 | IW7 |
 |---|:-:|:-:|:-:|:-:|:-:|
-| **S1**  | ✅ | ✅ | ✅ | ❌ | ❌ |
+| **S1**  | ✅ | ✅ | ✅ | ⚠️ | ❌ |
 | **H1**  | ❌ | ✅ | ✅ | ⚠️ | ⚠️ |
 | **H2**  | ❌ | ✅ | ✅ | ❌ | ❌ |
 | **S2**  | ❌ | ⚠️ | ❌ | ✅ | ❌ |
@@ -31,6 +31,9 @@ Rows are the source game. Columns are the target game.
 - **S1 → H2** uses H1 conversion on the fly for convenience
 - **H1 → S1** has been purposely left out (wrote iffy techset/material data since backporting is harder)
 - **IW7 → H1** converts images, materials and models only
+- **H1 → S2** and **S1 → S2** are experimental. They convert maps (world, collision, map ents), models, materials and images. Effects, sounds, animations, scriptables and weapons are not converted
+- **S1 → S2** reads the S1 assets directly and gives them to the H1 → S2 writers. It does not use the S1 → H1 techset conversion
+- S2 techsets come from a stock S2 zone (`mp_aachen_v2`). The converter selects the techset with the nearest name, so some materials can look different from the source game
 
 <details>
 <summary>v1 legend (<code>main</code>), for comparison</summary>

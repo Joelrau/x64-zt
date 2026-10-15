@@ -3,6 +3,8 @@
 #include "../include.hpp"
 #include "xsurface.hpp"
 
+#include <utils/cryptography.hpp>
+
 namespace zonetool::h1::converter::s2::xsurface
 {
 	namespace
@@ -10,6 +12,10 @@ namespace zonetool::h1::converter::s2::xsurface
 		constexpr std::uint16_t s2_surf_flag_vertcol_none = 0x2;
 		constexpr std::uint16_t s2_surf_flag_skinned = 0x4;
 		constexpr std::uint16_t s2_surf_flag_default = 0x20;
+
+		// the shared flags say which vertex streams are in data, the engine only creates buffers for those
+		constexpr std::uint16_t s2_shared_streams_default = 0x7E0;
+		constexpr std::uint16_t s2_shared_stream_skin = 0x1000;
 
 		constexpr std::uint32_t h1_bone_offset_scale = 64;
 		constexpr std::uint32_t max_blend_bones = 4;
@@ -44,12 +50,18 @@ namespace zonetool::h1::converter::s2::xsurface
 		{
 		public:
 			template <typename T>
-			T* take(const std::size_t count)
+			std::size_t take(const std::size_t count)
 			{
 				this->data_.resize((this->data_.size() + 7) & ~7ull);
 				const auto start = this->data_.size();
 				this->data_.resize(start + count * sizeof(T));
-				return reinterpret_cast<T*>(this->data_.data() + start);
+				return start;
+			}
+
+			template <typename T>
+			T* at(const std::size_t offset)
+			{
+				return reinterpret_cast<T*>(this->data_.data() + offset);
 			}
 
 			std::string& data()
@@ -70,6 +82,37 @@ namespace zonetool::h1::converter::s2::xsurface
 		{
 			constexpr auto sign_bits = 0xC0000000u;
 			return (vertex.tangent.packed & ~sign_bits) | (vertex.binormalSign < 0.0f ? 0u : sign_bits);
+		}
+
+		// the lit model shaders scale light grid lighting by this, bits 0-17 are the octahedral bent normal (9 bits each),
+		// 18-24 the visibility and 25-31 the cone aperture, stock models mostly use full visibility and no aperture
+		std::uint32_t pack_sky_visibility(const std::uint32_t packed_normal)
+		{
+			constexpr auto full_visibility = 127u;
+
+			float n[3]{};
+			for (auto i = 0; i < 3; i++)
+			{
+				n[i] = static_cast<float>((packed_normal >> (10 * i)) & 1023) / 1023.0f * 2.0f - 1.0f;
+			}
+
+			const auto sum = std::abs(n[0]) + std::abs(n[1]) + std::abs(n[2]);
+			auto x = sum > 0.0f ? n[0] / sum : 0.0f;
+			auto y = sum > 0.0f ? n[1] / sum : 0.0f;
+			if (n[2] < 0.0f)
+			{
+				const auto folded_x = (1.0f - std::abs(y)) * (x >= 0.0f ? 1.0f : -1.0f);
+				const auto folded_y = (1.0f - std::abs(x)) * (y >= 0.0f ? 1.0f : -1.0f);
+				x = folded_x;
+				y = folded_y;
+			}
+
+			const auto quantize = [](const float value)
+			{
+				return static_cast<std::uint32_t>(std::lround(std::clamp(value * 0.5f + 0.5f, 0.0f, 1.0f) * 511.0f));
+			};
+
+			return quantize(x) | (quantize(y) << 9) | (full_visibility << 18);
 		}
 
 		std::vector<skin_vertex> convert_skin(const XSurface* surface)
@@ -104,14 +147,23 @@ namespace zonetool::h1::converter::s2::xsurface
 			const auto use_color = has_vertex_color(surface);
 
 			stream_writer writer;
-			std::memcpy(writer.take<Face>(surface->triCount), surface->triIndices, surface->triCount * sizeof(Face));
+			const auto faces_offset = writer.take<Face>(surface->triCount);
+			const auto positions_offset = writer.take<float>(vert_count * 3);
+			const auto sky_visibility_offset = writer.take<std::uint32_t>(vert_count);
+			const auto colors_offset = writer.take<std::uint32_t>(vert_count);
+			const auto tex_coords_offset = writer.take<std::uint32_t>(vert_count);
+			const auto normals_offset = writer.take<std::uint32_t>(vert_count);
+			const auto tangents_offset = writer.take<std::uint32_t>(vert_count);
+			const auto skin_offset = (surface->flags & SURF_FLAG_SKINNED) ? std::optional{writer.take<skin_vertex>(vert_count)} : std::nullopt;
 
-			auto* positions = writer.take<float>(vert_count * 3);
-			writer.take<std::uint32_t>(vert_count);
-			auto* colors = writer.take<std::uint32_t>(vert_count);
-			auto* tex_coords = writer.take<std::uint32_t>(vert_count);
-			auto* normals = writer.take<std::uint32_t>(vert_count);
-			auto* tangents = writer.take<std::uint32_t>(vert_count);
+			std::memcpy(writer.at<Face>(faces_offset), surface->triIndices, surface->triCount * sizeof(Face));
+
+			auto* positions = writer.at<float>(positions_offset);
+			auto* sky_visibility = writer.at<std::uint32_t>(sky_visibility_offset);
+			auto* colors = writer.at<std::uint32_t>(colors_offset);
+			auto* tex_coords = writer.at<std::uint32_t>(tex_coords_offset);
+			auto* normals = writer.at<std::uint32_t>(normals_offset);
+			auto* tangents = writer.at<std::uint32_t>(tangents_offset);
 			for (auto i = 0u; i < vert_count; i++)
 			{
 				std::memcpy(&positions[i * 3], verts[i].xyz, sizeof(verts[i].xyz));
@@ -119,12 +171,13 @@ namespace zonetool::h1::converter::s2::xsurface
 				tex_coords[i] = verts[i].texCoord.packed;
 				normals[i] = verts[i].normal.packed;
 				tangents[i] = pack_tangent(verts[i]);
+				sky_visibility[i] = pack_sky_visibility(verts[i].normal.packed);
 			}
 
-			if (surface->flags & SURF_FLAG_SKINNED)
+			if (skin_offset)
 			{
 				const auto skin = convert_skin(surface);
-				std::memcpy(writer.take<skin_vertex>(vert_count), skin.data(), vert_count * sizeof(skin_vertex));
+				std::memcpy(writer.at<skin_vertex>(*skin_offset), skin.data(), vert_count * sizeof(skin_vertex));
 			}
 
 			return std::move(writer.data());
@@ -197,6 +250,12 @@ namespace zonetool::h1::converter::s2::xsurface
 			result.data = build_vertex_data(surface);
 			auto& shared = result.shared;
 			std::memset(&shared, 0, sizeof(shared));
+			const auto streams = static_cast<std::uint16_t>(s2_shared_streams_default | (skinned ? s2_shared_stream_skin : 0));
+			shared.flags = static_cast<std::uint8_t>(streams);
+			shared.__pad0 = static_cast<std::uint8_t>(streams >> 8);
+			// the game links shareds by hash, so equal hashes make every surface use the first one loaded
+			const auto hash = utils::cryptography::sha256::compute(result.data, true);
+			std::memcpy(shared.hash, hash.data(), sizeof(shared.hash));
 			shared.indexCount = surface->triCount * 3u;
 			shared.vertCount = surface->vertCount;
 			shared.dataSize = static_cast<std::uint32_t>(result.data.size());

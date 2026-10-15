@@ -24,8 +24,12 @@ games = {
 	},
 	converter_requires = {
 		s1_h2 = {"h1"},
+		s1_s2 = {"h1"},
 	},
 	converter_dependencies = {
+		s1_s2 = function()
+			games.dependencies.h1()
+		end,
 		h2_h1 = function()
 			dependencies.use(shader_tool)
 		end,

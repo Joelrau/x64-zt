@@ -249,6 +249,12 @@ namespace zonetool::s2
 			return *reinterpret_cast<T*>(this->base_ + offset);
 		}
 
+		template <typename T>
+		T& as() const
+		{
+			return *reinterpret_cast<T*>(this->base_);
+		}
+
 		void strings(const std::initializer_list<std::size_t> offsets) const
 		{
 			for (const auto offset : offsets)

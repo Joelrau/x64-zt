@@ -38,6 +38,7 @@ namespace zonetool::h1::converter::s2::techset
 			{"b0", 10.0f},
 			{"r0", 10.0f},
 			{"t0", 10.0f},
+			{"ct0", 6.0f},
 			{"cltrans", 6.0f},
 		};
 
@@ -58,10 +59,48 @@ namespace zonetool::h1::converter::s2::techset
 		std::unordered_set<std::string> dumped_techsets;
 		std::unordered_set<std::string> dumped_shaders;
 
-		bool is_layer_token(const std::string_view token)
+		enum class draw_kind
 		{
-			static const std::regex layer(R"(^([a-z][0-9])+$)");
-			return std::regex_match(std::string(token), layer);
+			hidden,
+			sky,
+			translucent,
+			opaque,
+		};
+
+		// the S2 tools techsets are not drawn, so a drawn source must not map to them
+		const std::unordered_set<std::string_view> hidden_tokens
+		{
+			"tools",
+			"shadowcaster",
+			"distortion",
+		};
+
+		// "ndw" is no depth write, "b0" and "ba0" are blended layers
+		const std::unordered_set<std::string_view> translucent_tokens
+		{
+			"ndw",
+			"add",
+			"blend",
+			"multiply",
+			"b0",
+			"ba0",
+		};
+
+		// layer groups mix one and two letter layers, for example "t0c0n0om0" or "b0hb0c0"
+		void add_layer_tokens(const std::string& part, std::vector<std::string>& tokens)
+		{
+			static const std::regex layer_group(R"(^([a-z]+[0-9])+$)");
+			static const std::regex layer(R"([a-z]+[0-9])");
+			if (!std::regex_match(part, layer_group))
+			{
+				tokens.emplace_back(part);
+				return;
+			}
+
+			for (std::sregex_iterator i(part.begin(), part.end(), layer), end; i != end; ++i)
+			{
+				tokens.emplace_back(i->str());
+			}
 		}
 
 		techset_name parse_name(std::string name, const bool from_h1)
@@ -93,20 +132,45 @@ namespace zonetool::h1::converter::s2::techset
 
 			for (const auto& part : parts)
 			{
-				if (is_layer_token(part))
-				{
-					for (auto i = 0u; i + 1 < part.size(); i += 2)
-					{
-						result.tokens.emplace_back(part.substr(i, 2));
-					}
-				}
-				else
-				{
-					result.tokens.emplace_back(part);
-				}
+				add_layer_tokens(part, result.tokens);
 			}
 
 			return result;
+		}
+
+		bool has_any_token(const techset_name& name, const std::unordered_set<std::string_view>& tokens)
+		{
+			return std::ranges::any_of(name.tokens, [&](const std::string& token)
+			{
+				return tokens.contains(token);
+			});
+		}
+
+		draw_kind get_draw_kind(const techset_name& name)
+		{
+			if (hidden_tokens.contains(name.prefix) || has_any_token(name, hidden_tokens))
+			{
+				return draw_kind::hidden;
+			}
+
+			if (has_any_token(name, {"sky"}))
+			{
+				return draw_kind::sky;
+			}
+
+			return has_any_token(name, translucent_tokens) ? draw_kind::translucent : draw_kind::opaque;
+		}
+
+		bool is_model_prefix(const std::string& prefix)
+		{
+			return prefix.starts_with('m');
+		}
+
+		// an unlit world surface has lightmap index 31, which is not a lightmap. The game binds that
+		// lightmap for an lmpb techset (crash in PSSetShaderResources, called at 0x1408CC0F6)
+		bool lightmap_allowed(const techset_name& source, const techset_name& candidate)
+		{
+			return !has_any_token(source, {"unlit"}) || !has_any_token(candidate, {"lmpb"});
 		}
 
 		float token_weight(const std::string& token)
@@ -133,6 +197,29 @@ namespace zonetool::h1::converter::s2::techset
 			}
 
 			return result;
+		}
+
+		std::optional<std::string> find_best(const techset_name& source, const std::function<bool(const techset_name&)>& accept)
+		{
+			std::optional<std::string> best;
+			auto best_score = -std::numeric_limits<float>::infinity();
+			for (const auto& name : donor_zone().donor_techsets())
+			{
+				const auto candidate = parse_name(name, false);
+				if (!accept(candidate))
+				{
+					continue;
+				}
+
+				const auto value = score(source, candidate);
+				if (value > best_score)
+				{
+					best_score = value;
+					best = name;
+				}
+			}
+
+			return best;
 		}
 
 		template <typename T>
@@ -287,30 +374,40 @@ namespace zonetool::h1::converter::s2::techset
 
 	std::string select(const std::string& h1_techset)
 	{
-		const auto& zone = donor_zone();
 		const auto source = parse_name(h1_techset, true);
-
-		std::optional<std::string> best;
-		auto best_score = -std::numeric_limits<float>::infinity();
-		for (const auto& name : zone.donor_techsets())
+		const auto source_kind = get_draw_kind(source);
+		const auto same_kind_and_prefix = [&](const techset_name& candidate)
 		{
-			const auto candidate = parse_name(name, false);
-			if (candidate.prefix != source.prefix)
-			{
-				continue;
-			}
+			return get_draw_kind(candidate) == source_kind && candidate.prefix == source.prefix && lightmap_allowed(source, candidate);
+		};
 
-			const auto value = score(source, candidate);
-			if (value > best_score)
-			{
-				best_score = value;
-				best = name;
-			}
-		}
-
-		if (best)
+		// hidden techsets have only debug techniques, so a hidden source can use the hidden techset of another prefix
+		const auto hidden_same_geometry = [&](const techset_name& candidate)
 		{
-			return *best;
+			return get_draw_kind(candidate) == draw_kind::hidden && is_model_prefix(candidate.prefix) == is_model_prefix(source.prefix);
+		};
+		const auto hidden = [&](const techset_name& candidate)
+		{
+			return get_draw_kind(candidate) == draw_kind::hidden;
+		};
+
+		const auto drawn_same_prefix = [&](const techset_name& candidate)
+		{
+			const auto kind = get_draw_kind(candidate);
+			return kind != draw_kind::hidden && kind != draw_kind::sky && candidate.prefix == source.prefix && lightmap_allowed(source, candidate);
+		};
+
+		using filter = std::function<bool(const techset_name&)>;
+		const auto filters = source_kind == draw_kind::hidden
+			? std::vector<filter>{same_kind_and_prefix, hidden_same_geometry, hidden}
+			: std::vector<filter>{same_kind_and_prefix, drawn_same_prefix};
+
+		for (const auto& accept : filters)
+		{
+			if (const auto best = find_best(source, accept))
+			{
+				return *best;
+			}
 		}
 
 		const auto fallback = default_techsets.find(source.prefix);

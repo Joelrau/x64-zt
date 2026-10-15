@@ -49,7 +49,7 @@ namespace zonetool::s2
 		std::string find_zone_key()
 		{
 			const auto game_folder = zone_key_folder.empty()
-				? std::filesystem::absolute(game_files::get().path(".")).parent_path().parent_path()
+				? std::filesystem::absolute(game_files::get().path("..")).lexically_normal()
 				: zone_key_folder;
 
 			for (const auto& folder : {std::filesystem::current_path(), game_folder})

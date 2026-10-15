@@ -96,11 +96,25 @@ namespace zonetool::h1::converter::s2::mapents
 			new_trigger.waterTriggers = trigger.waterTriggers;
 		}
 
+		const std::unordered_map<std::string, std::uint32_t> s2_unnamed_keys
+		{
+			{"animscript", 30},
+			{"height", 189},
+			{"script_exploder", 33158},
+			{"script_gameobjectname", 33214},
+			{"script_label", 33256},
+		};
+
 		std::optional<std::string> convert_key(const std::string& name)
 		{
 			if (const auto id = s2_context().token_id(name); id && !name.starts_with("_id_"))
 			{
 				return std::to_string(id);
+			}
+
+			if (const auto entry = s2_unnamed_keys.find(name); entry != s2_unnamed_keys.end())
+			{
+				return std::to_string(entry->second);
 			}
 
 			ZONETOOL_WARNING("map_ents: S2 does not know key \"%s\", dropping it", name.data());

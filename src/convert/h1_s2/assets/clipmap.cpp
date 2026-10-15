@@ -12,7 +12,7 @@ namespace zonetool::h1::converter::s2::clipmap
 
 		// H1 uses verts + seg * 1024 while S2 uses verts + seg * 4096
 		constexpr auto h1_vertex_segment_size = 1024u;
-		constexpr auto segment_ratio = 4u;
+		constexpr auto s2_vertex_segment_size = 4096u;
 		constexpr std::uint8_t transient_zone = 0;
 		constexpr std::uint8_t no_transient_zone = 0xFF;
 		constexpr auto transient_zone_table_offset = 0x60;
@@ -132,8 +132,10 @@ namespace zonetool::h1::converter::s2::clipmap
 		{
 			std::uint32_t brushStart;
 			std::uint32_t brushEnd;
-			std::uint32_t __unknown[5];
+			std::uint32_t __unknown[4];
+			std::uint32_t partitionCount; // the game allocates the partition visited array of each thread from this count (asm at 0x140642970)
 		};
+		static_assert(sizeof(s2_transient_zone_record) == 0x1C);
 
 		struct s2_transient_zone_table
 		{
@@ -141,6 +143,38 @@ namespace zonetool::h1::converter::s2::clipmap
 			s2_transient_zone_record records[16];
 		};
 		static_assert(transient_zone_table_offset + sizeof(s2_transient_zone_table) <= offsetof(target::ClipInfo, trZones));
+
+		struct s2_dyn_entity_def
+		{
+			DynEntityType type;
+			GfxPlacement pose;
+			XModel* xModel;
+			std::uint16_t brushModel;
+			std::uint16_t physicsBrushModel;
+			std::uint16_t scriptableIndex;
+			std::uint16_t health;
+			FxEffectDef* destroyFx;
+			snd_alias_list_t* sound;
+			target::PhysPreset* physPreset;
+			DynEntityHingeDef* hinge;
+			DynEntityLinkToDef* linkTo;
+			char __pad0[16];
+			std::uint64_t contents;
+			float unk[2];
+		};
+		static_assert(sizeof(s2_dyn_entity_def) == sizeof(target::DynEntityDef));
+		static_assert(offsetof(s2_dyn_entity_def, xModel) == offsetof(target::DynEntityDef, xModel));
+		static_assert(offsetof(s2_dyn_entity_def, physPreset) == offsetof(target::DynEntityDef, physPreset));
+		static_assert(offsetof(s2_dyn_entity_def, contents) == 0x68);
+
+		// physpresets the S2 common zones provide, anything else falls back to default
+		const std::unordered_set<std::string> s2_global_phys_presets
+		{
+			"default", "phys_brick", "phys_cloth", "phys_flesh", "phys_fruit", "phys_glass", "phys_metal_chain",
+			"phys_metal_hollow", "phys_metal_hollow_sml", "phys_metal_solid", "phys_metal_thin", "phys_metal_vehicle",
+			"phys_metal_weapon", "phys_plastic_hollow", "phys_plastic_solid", "phys_wood_debris", "phys_wood_solid",
+			"phys_wood_solid_donotcollide",
+		};
 
 		static_assert(sizeof(cplane_s) == sizeof(target::cplane_s));
 		static_assert(sizeof(cbrushside_t) == sizeof(std::uint64_t));
@@ -156,6 +190,17 @@ namespace zonetool::h1::converter::s2::clipmap
 			auto base = clip_name.substr(clip_name.find_last_of('/') + 1);
 			base = base.substr(0, base.find(".d3dbsp"));
 			return base + "_000";
+		}
+
+		std::uint32_t lowest_vertex(const PatchesCollisionData& data, const int first_tri, const int end_tri, const std::uint32_t vertex_base)
+		{
+			auto lowest = std::numeric_limits<std::uint16_t>::max() + vertex_base;
+			for (auto index = 3 * first_tri; index < 3 * end_tri; index++)
+			{
+				lowest = std::min(lowest, data.triIndices[index] + vertex_base);
+			}
+
+			return lowest;
 		}
 
 		class converter
@@ -185,6 +230,7 @@ namespace zonetool::h1::converter::s2::clipmap
 				table.count = 1;
 				table.records[0].brushStart = 0;
 				table.records[0].brushEnd = this->info.bCollisionData.numBrushes;
+				table.records[0].partitionCount = this->info.pCollisionData.partitionCount;
 
 				new_info.trZones[0] = this->convert_transient_zone();
 
@@ -197,11 +243,7 @@ namespace zonetool::h1::converter::s2::clipmap
 				new_asset->mapEnts = reinterpret_cast<target::MapEnts*>(this->asset->mapEnts);
 				field<std::uint32_t>(new_asset, checksum_offset) = this->asset->checksum;
 
-				if (this->asset->dynEntCount[0] || this->asset->dynEntCount[1])
-				{
-					ZONETOOL_WARNING("clipMap \"%s\": %u dynamic entities are not converted", this->asset->name,
-						this->asset->dynEntCount[0] + this->asset->dynEntCount[1]);
-				}
+				this->convert_dyn_ents(new_asset);
 
 				return new_asset;
 			}
@@ -211,6 +253,72 @@ namespace zonetool::h1::converter::s2::clipmap
 			ClipInfo& info;
 			utils::memory::allocator& allocator;
 			std::vector<std::uint32_t> partition_materials;
+			std::unordered_map<std::string, target::PhysPreset*> phys_presets;
+
+			target::PhysPreset* convert_phys_preset(const PhysPreset* preset)
+			{
+				const std::string name = preset && preset->name && s2_global_phys_presets.contains(preset->name) ? preset->name : "default";
+				auto& result = this->phys_presets[name];
+				if (!result)
+				{
+					result = this->allocator.allocate<target::PhysPreset>();
+					result->name = this->allocator.duplicate_string(name);
+					add_csv_row("physpreset", name, true);
+				}
+
+				return result;
+			}
+
+			// scriptable dynents index the scriptable instances of the map (asm at 0x140678250)
+			// scriptables are not converted, so the game reads a null instance array
+			static DynEntityType convert_dyn_ent_type(const DynEntityType type)
+			{
+				if (type == DYNENT_TYPE_SCRIPTABLEINST || type == DYNENT_TYPE_SCRIPTABLEPHYSICS)
+				{
+					return DYNENT_TYPE_CLUTTER;
+				}
+
+				return type;
+			}
+
+			void convert_dyn_ents(target::clipMap_t* new_asset)
+			{
+				for (auto i = 0; i < 2; i++)
+				{
+					const auto count = this->asset->dynEntCount[i];
+					new_asset->dynEntCount[i] = count;
+					if (!count)
+					{
+						continue;
+					}
+
+					const auto defs = this->allocator.allocate_array<s2_dyn_entity_def>(count);
+					for (auto j = 0u; j < count; j++)
+					{
+						const auto& def = this->asset->dynEntDefList[i][j];
+						auto& new_def = defs[j];
+						new_def.type = convert_dyn_ent_type(def.type);
+						new_def.pose = def.pose;
+						new_def.xModel = def.baseModel;
+						new_def.brushModel = def.brushModel;
+						new_def.physicsBrushModel = def.physicsBrushModel;
+						new_def.scriptableIndex = def.scriptableIndex;
+						new_def.health = def.health;
+						new_def.physPreset = this->convert_phys_preset(def.physPreset);
+						new_def.hinge = def.hinge;
+						new_def.linkTo = def.linkTo;
+						new_def.contents = static_cast<std::uint32_t>(def.contents);
+						std::memcpy(new_def.unk, def.unk, sizeof(new_def.unk));
+					}
+
+					new_asset->dynEntDefList[i] = reinterpret_cast<target::DynEntityDef*>(defs);
+
+					// runtime lists, the zone only reserves them when the pointer is set
+					new_asset->dynEntPoseList[i] = this->allocator.allocate_array<char[60]>(count);
+					new_asset->dynEntClientList[i] = this->allocator.allocate_array<char[48]>(count);
+					new_asset->dynEntCollList[i] = this->allocator.allocate_array<char[20]>(count);
+				}
+			}
 
 			void convert_materials(target::ClipInfo& new_info) const
 			{
@@ -382,38 +490,50 @@ namespace zonetool::h1::converter::s2::clipmap
 				const auto tri_indices = this->allocator.allocate_array<std::uint16_t>(3ull * data.triCount);
 				std::memcpy(tri_indices, data.triIndices, sizeof(std::uint16_t) * 3 * data.triCount);
 
-				std::vector<bool> converted_tris(data.triCount);
+				std::vector<std::optional<std::uint32_t>> tri_segments(data.triCount);
 				auto overflow_count = 0u;
+				auto shared_tri_conflicts = 0u;
 				const auto partitions = this->allocator.allocate_array<s2_partition>(data.partitionCount);
 				for (auto i = 0; i < data.partitionCount; i++)
 				{
 					const auto& partition = data.partitions[i];
+					const auto first_tri = partition.firstTri;
+					const auto end_tri = std::min(partition.firstTri + partition.triCount, data.triCount);
+					const auto h1_vertex_base = partition.firstVertSegment * h1_vertex_segment_size;
+					const auto s2_segment = lowest_vertex(data, first_tri, end_tri, h1_vertex_base) / s2_vertex_segment_size;
+					const auto s2_vertex_base = s2_segment * s2_vertex_segment_size;
+
 					auto& new_partition = partitions[i];
 					new_partition.triCount = partition.triCount;
 					new_partition.borderCount = partition.borderCount;
-					new_partition.firstVertSegment = static_cast<std::uint8_t>(partition.firstVertSegment / segment_ratio);
+					new_partition.firstVertSegment = static_cast<std::uint8_t>(s2_segment);
 					new_partition.firstTri = partition.firstTri;
 					new_partition.materialIndex = this->partition_materials[i];
 
 					const auto border = partition.borders ? partition.borders - data.borders : -1;
 					new_partition.firstBorder = border >= 0 && border < data.borderCount ? static_cast<std::int32_t>(border) : -1;
 
-					const auto index_offset = (partition.firstVertSegment % segment_ratio) * h1_vertex_segment_size;
-					for (auto tri = partition.firstTri; tri < partition.firstTri + partition.triCount && tri < data.triCount; tri++)
+					for (auto tri = first_tri; tri < end_tri; tri++)
 					{
-						if (converted_tris[tri])
+						if (tri_segments[tri])
 						{
+							shared_tri_conflicts += *tri_segments[tri] != s2_segment;
 							continue;
 						}
 
-						converted_tris[tri] = true;
+						tri_segments[tri] = s2_segment;
 						for (auto corner = 0; corner < 3; corner++)
 						{
-							const auto index = tri_indices[3 * tri + corner] + index_offset;
+							const auto index = data.triIndices[3 * tri + corner] + h1_vertex_base - s2_vertex_base;
 							overflow_count += index > std::numeric_limits<std::uint16_t>::max();
 							tri_indices[3 * tri + corner] = static_cast<std::uint16_t>(index);
 						}
 					}
+				}
+
+				if (shared_tri_conflicts)
+				{
+					ZONETOOL_WARNING("clipMap \"%s\": %u shared collision tris need two vertex segments", this->asset->name, shared_tri_conflicts);
 				}
 
 				if (overflow_count)
