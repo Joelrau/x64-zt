@@ -5,210 +5,202 @@ namespace zonetool::s2
 {
 	namespace
 	{
-		void read_triggers(zone_reader& reader, MapTriggers* trigger)
+		template <typename V>
+		void visit_triggers(const V& trigger)
 		{
-			reader.read_array(trigger->models, 7, trigger->count);
-			reader.read_array(trigger->hulls, 7, trigger->hullCount);
-			reader.read_array(trigger->slabs, 3, trigger->slabCount);
+			const auto count = [&](const std::size_t offset)
+			{
+				return trigger.template at<unsigned int>(offset);
+			};
+
+			trigger.array(S2_ARRAY_FIELD(MapTriggers, models), 7, count(offsetof(MapTriggers, count)));
+			trigger.array(S2_ARRAY_FIELD(MapTriggers, hulls), 7, count(offsetof(MapTriggers, hullCount)));
+			trigger.array(S2_ARRAY_FIELD(MapTriggers, slabs), 3, count(offsetof(MapTriggers, slabCount)));
 		}
 
-		void read_client_triggers(zone_reader& reader, ClientTriggers* trigger)
+		template <typename V>
+		void visit_client_triggers(const V& trigger)
 		{
-			read_triggers(reader, &trigger->trigger);
+			visit_triggers(trigger.sub(offsetof(ClientTriggers, trigger)));
 
-			const auto count = trigger->trigger.count;
-			reader.read_array(trigger->clientTriggerAabbTree, 3, trigger->numClientTriggerNodes);
-			reader.read_array(trigger->triggerString, 0, trigger->triggerStringLength);
-			reader.read_array(trigger->visionSetTriggers, 1, count);
-			reader.read_array(trigger->lightSetTriggers, 1, count);
-			reader.read_array(trigger->clutTriggers, 1, count);
-			reader.read_array(trigger->triggerType, 1, count);
-			reader.read_array(trigger->origins, 3, count);
-			reader.read_array(trigger->scriptDelay, 3, count);
-			reader.read_array(trigger->audioTriggers, 1, count);
-			reader.read_array(trigger->blendLookup, 1, count);
-			reader.read_array(trigger->npcTriggers, 1, count);
-			reader.read_array(trigger->contextTriggers, 1, count);
-			reader.read_array(trigger->waterTriggers, 1, count);
-
-			if (const auto lists = reader.read_array(trigger->leafLists, 7, count))
+			const auto count = trigger.template at<unsigned int>(offsetof(ClientTriggers, trigger) + offsetof(MapTriggers, count));
+			trigger.array(S2_ARRAY_FIELD(ClientTriggers, clientTriggerAabbTree), 3, trigger.template at<unsigned short>(offsetof(ClientTriggers, numClientTriggerNodes)));
+			trigger.bytes(offsetof(ClientTriggers, triggerString), 0, trigger.template at<unsigned int>(offsetof(ClientTriggers, triggerStringLength)));
+			trigger.array(S2_ARRAY_FIELD(ClientTriggers, visionSetTriggers), 1, count);
+			trigger.array(S2_ARRAY_FIELD(ClientTriggers, lightSetTriggers), 1, count);
+			trigger.array(S2_ARRAY_FIELD(ClientTriggers, clutTriggers), 1, count);
+			trigger.array(S2_ARRAY_FIELD(ClientTriggers, triggerType), 1, count);
+			trigger.array(S2_ARRAY_FIELD(ClientTriggers, origins), 3, count);
+			trigger.array(S2_ARRAY_FIELD(ClientTriggers, scriptDelay), 3, count);
+			trigger.array(S2_ARRAY_FIELD(ClientTriggers, audioTriggers), 1, count);
+			trigger.array(S2_ARRAY_FIELD(ClientTriggers, blendLookup), 1, count);
+			trigger.array(S2_ARRAY_FIELD(ClientTriggers, npcTriggers), 1, count);
+			trigger.array(S2_ARRAY_FIELD(ClientTriggers, contextTriggers), 1, count);
+			trigger.array(S2_ARRAY_FIELD(ClientTriggers, waterTriggers), 1, count);
+			trigger.entries(offsetof(ClientTriggers, leafLists), sizeof(ClientTriggerLeafList), count, [](const auto& list, std::size_t)
 			{
-				for (auto i = 0u; i < count; i++)
-				{
-					reader.read_array(lists[i].leafs, 3, lists[i].leafCount);
-				}
-			}
+				list.array(S2_ARRAY_FIELD(ClientTriggerLeafList, leafs), 3, list.template at<unsigned int>(offsetof(ClientTriggerLeafList, leafCount)));
+			});
 		}
 
-		void read_spawn_list(zone_reader& reader, SpawnPointRecordList* list)
+		template <typename V>
+		void visit_spawn_list(const V& list)
 		{
-			if (const auto spawns = reader.read_array(list->spawns, 3, list->spawnsCount))
+			list.aligned_entries(offsetof(SpawnPointRecordList, spawns), 3, sizeof(SpawnPointEntityRecord),
+				list.template at<unsigned short>(offsetof(SpawnPointRecordList, spawnsCount)), [](const auto& spawn, std::size_t)
 			{
-				for (auto i = 0; i < list->spawnsCount; i++)
-				{
-					reader.read_script_string(spawns[i].name);
-					reader.read_script_string(spawns[i].target);
-					reader.read_script_string(spawns[i].script_noteworthy);
-					reader.read_script_string(spawns[i].targetname);
-				}
-			}
+				spawn.script_string(offsetof(SpawnPointEntityRecord, name));
+				spawn.script_string(offsetof(SpawnPointEntityRecord, target));
+				spawn.script_string(offsetof(SpawnPointEntityRecord, script_noteworthy));
+				spawn.script_string(offsetof(SpawnPointEntityRecord, targetname));
+			});
 		}
 
-		void read_spline_list(zone_reader& reader, SplineRecordList* list)
+		template <typename V>
+		void visit_spline_list(const V& list)
 		{
-			const auto splines = reader.read_array(list->splines, 7, list->splineCount);
-			if (!splines)
+			list.entries(offsetof(SplineRecordList, splines), sizeof(SplinePointRecordList),
+				list.template at<unsigned short>(offsetof(SplineRecordList, splineCount)), [](const auto& spline, std::size_t)
 			{
-				return;
-			}
-
-			for (auto i = 0; i < list->splineCount; i++)
-			{
-				const auto points = reader.read_array(splines[i].splinePoints, 7, splines[i].splinePointCount);
-				if (!points)
+				spline.entries(offsetof(SplinePointRecordList, splinePoints), sizeof(SplinePointEntityRecord),
+					spline.template at<unsigned short>(offsetof(SplinePointRecordList, splinePointCount)), [](const auto& point, std::size_t)
 				{
-					continue;
-				}
-
-				for (auto j = 0; j < splines[i].splinePointCount; j++)
-				{
-					reader.read_array(points[j].splineNodeLabel, 0, 64);
-					reader.read_array(points[j].positionCubic, 3, 4);
-					reader.read_array(points[j].tangentQuadratic, 3, 3);
-				}
-			}
+					point.bytes(offsetof(SplinePointEntityRecord, splineNodeLabel), 0, 64);
+					point.array(S2_ARRAY_FIELD(SplinePointEntityRecord, positionCubic), 3, 4);
+					point.array(S2_ARRAY_FIELD(SplinePointEntityRecord, tangentQuadratic), 3, 3);
+				});
+			});
 		}
 
-		void read_scriptable_instance(zone_reader& reader, ScriptableInstance* instance)
+		template <typename V>
+		void visit_scriptable_instance(const V& instance)
 		{
-			reader.read_asset(ASSET_TYPE_SCRIPTABLE, instance->def);
+			instance.asset(ASSET_TYPE_SCRIPTABLE, offsetof(ScriptableInstance, def));
 
-			const auto def = instance->def;
+			// The def sizes come from the real def asset, because a parsed def is a name stub.
+			const auto* def = instance.template header<ScriptableDef>(ASSET_TYPE_SCRIPTABLE, offsetof(ScriptableInstance, def));
 			const auto part_count = def ? def->partCount : 0;
 			const auto event_stream_size = def ? def->eventStreamSize : 0;
 			const auto flags_size = def ? def->flagsSize : 0;
 			const auto part_stream_count = def ? def->partStreamCount : 0;
 			const auto model_tag_count = def ? def->modelTagCount : 0;
 
-			reader.read_array(instance->flags, 0, flags_size);
-			if (const auto states = reader.read_array(instance->partStates, 3, instance->partStateCount))
+			instance.bytes(offsetof(ScriptableInstance, flags), 0, flags_size);
+			instance.aligned_entries(offsetof(ScriptableInstance, partStates), 3, sizeof(ScriptableInstancePartState),
+				instance.template at<unsigned char>(offsetof(ScriptableInstance, partStateCount)), [](const auto& state, std::size_t)
 			{
-				for (auto i = 0; i < instance->partStateCount; i++)
-				{
-					reader.read_script_string(states[i].name);
-				}
-			}
-			reader.read_script_string(instance->name);
-
-			reader.push_stream(XFILE_BLOCK_RUNTIME);
-			reader.read_stream(instance->partRuntime, 1, 4, part_count);
-			reader.pop_stream();
-
-			reader.push_stream(XFILE_BLOCK_RUNTIME);
-			reader.read_array(instance->eventStreamBuffer, 0, event_stream_size);
-			reader.pop_stream();
-
-			reader.push_stream(XFILE_BLOCK_RUNTIME);
-			reader.read_array(instance->modelTagRuntime, 0, model_tag_count);
-			reader.pop_stream();
-
-			reader.read_array(instance->partStreams, 1, part_stream_count);
-			reader.read_array(instance->linkedObjects, 1, instance->linkedObjectCount);
+				state.script_string(offsetof(ScriptableInstancePartState, name));
+			});
+			instance.script_string(offsetof(ScriptableInstance, name));
+			instance.runtime_bytes(offsetof(ScriptableInstance, partRuntime), 1, 4 * part_count);
+			instance.runtime_bytes(offsetof(ScriptableInstance, eventStreamBuffer), 0, event_stream_size);
+			instance.runtime_bytes(offsetof(ScriptableInstance, modelTagRuntime), 0, model_tag_count);
+			instance.array(S2_ARRAY_FIELD(ScriptableInstance, partStreams), 1, part_stream_count);
+			instance.array(S2_ARRAY_FIELD(ScriptableInstance, linkedObjects), 1, instance.template at<unsigned char>(offsetof(ScriptableInstance, linkedObjectCount)));
 		}
 
-		void read_scriptable_map_ents(zone_reader& reader, ScriptableMapEnts* ents)
+		template <typename V>
+		void visit_scriptable_map_ents(const V& ents)
 		{
-			if (const auto instances = reader.read_array(ents->instances, 7, ents->instanceCount))
+			ents.entries(offsetof(ScriptableMapEnts, instances), sizeof(ScriptableInstance),
+				ents.template at<unsigned int>(offsetof(ScriptableMapEnts, instanceCount)), [](const auto& instance, std::size_t)
 			{
-				for (auto i = 0u; i < ents->instanceCount; i++)
-				{
-					read_scriptable_instance(reader, &instances[i]);
-				}
-			}
+				visit_scriptable_instance(instance);
+			});
+			ents.entries(offsetof(ScriptableMapEnts, reservedDefs), sizeof(ScriptableReservedDef),
+				ents.template at<unsigned int>(offsetof(ScriptableMapEnts, reservedDefCount)), [](const auto& reserved, std::size_t)
+			{
+				reserved.string(offsetof(ScriptableReservedDef, name));
+			});
+		}
 
-			if (const auto reserved = reader.read_array(ents->reservedDefs, 7, ents->reservedDefCount))
+		template <typename V>
+		void visit_clip_info(const V& w, const std::size_t offset)
+		{
+			w.entries(offset, sizeof(ClipInfo), 1, [](const auto& info, std::size_t)
 			{
-				for (auto i = 0u; i < ents->reservedDefCount; i++)
-				{
-					reader.read_string(reserved[i].name);
-				}
-			}
+				clip_info_layout::visit(info);
+			});
 		}
 	}
 
-	void map_ents::read(zone_reader& reader, MapEnts* asset)
+	template <typename V>
+	void map_ents_layout::visit(const V& w)
 	{
-		reader.push_stream(XFILE_BLOCK_VIRTUAL);
-		reader.read_string(asset->name);
-		reader.read_array(asset->entityString, 0, asset->numEntityChars);
-		read_triggers(reader, &asset->trigger);
-		read_client_triggers(reader, &asset->clientTrigger);
-		reader.read_array(asset->clientTriggerBlend.blendNodes, 3, asset->clientTriggerBlend.numClientTriggerBlendNodes);
-		read_spawn_list(reader, &asset->spawnList);
-		read_spline_list(reader, &asset->splineList);
-		read_scriptable_map_ents(reader, &asset->scriptableMapEnts);
+		w.string(offsetof(MapEnts, name));
+		w.bytes(offsetof(MapEnts, entityString), 0, w.template at<int>(offsetof(MapEnts, numEntityChars)));
+		visit_triggers(w.sub(offsetof(MapEnts, trigger)));
+		visit_client_triggers(w.sub(offsetof(MapEnts, clientTrigger)));
 
-		if (const auto entries = reader.read_array(asset->unk344.entries, 3, asset->unk344.count))
+		const auto blend = w.sub(offsetof(MapEnts, clientTriggerBlend));
+		blend.array(S2_ARRAY_FIELD(ClientTriggerBlend, blendNodes), 3, blend.template at<unsigned short>(offsetof(ClientTriggerBlend, numClientTriggerBlendNodes)));
+
+		visit_spawn_list(w.sub(offsetof(MapEnts, spawnList)));
+		visit_spline_list(w.sub(offsetof(MapEnts, splineList)));
+		visit_scriptable_map_ents(w.sub(offsetof(MapEnts, scriptableMapEnts)));
+
+		const auto unk344 = w.sub(offsetof(MapEnts, unk344));
+		unk344.aligned_entries(offsetof(MapEntsUnk344, entries), 3, sizeof(MapEntsUnk344Entry),
+			unk344.template at<unsigned short>(offsetof(MapEntsUnk344, count)), [](const auto& entry, std::size_t)
 		{
-			for (auto i = 0; i < asset->unk344.count; i++)
+			for (auto i = 0u; i < std::size(MapEntsUnk344Entry{}.names); i++)
 			{
-				reader.read_script_strings(entries[i].names, 4);
+				entry.script_string(offsetof(MapEntsUnk344Entry, names) + i * sizeof(scr_string_t));
 			}
-		}
+		});
 
-		reader.read_array(asset->unk360.entries, 3, asset->unk360.count);
-		reader.pop_stream();
+		const auto unk360 = w.sub(offsetof(MapEnts, unk360));
+		unk360.array(S2_ARRAY_FIELD(MapEntsUnk360, entries), 3, unk360.template at<unsigned int>(offsetof(MapEntsUnk360, count)));
 	}
 
-	void addon_map_ents::read(zone_reader& reader, AddonMapEnts* asset)
+	template <typename V>
+	void addon_map_ents_layout::visit(const V& w)
 	{
-		reader.push_stream(XFILE_BLOCK_VIRTUAL);
-		reader.read_string(asset->name);
-		reader.read_array(asset->entityString, 0, asset->numEntityChars);
-		read_triggers(reader, &asset->trigger);
-
-		if (const auto info = reader.read_single(asset->info, 7))
+		const auto count = [&](const std::size_t offset)
 		{
-			clip_map::read_info(reader, info);
-		}
+			return w.template at<unsigned int>(offset);
+		};
 
-		if (const auto cmodels = reader.read_array(asset->cmodels, 7, asset->numSubModels))
+		w.string(offsetof(AddonMapEnts, name));
+		w.bytes(offsetof(AddonMapEnts, entityString), 0, w.template at<int>(offsetof(AddonMapEnts, numEntityChars)));
+		visit_triggers(w.sub(offsetof(AddonMapEnts, trigger)));
+		visit_clip_info(w, offsetof(AddonMapEnts, info));
+
+		const auto sub_model_count = count(offsetof(AddonMapEnts, numSubModels));
+		w.entries(offsetof(AddonMapEnts, cmodels), sizeof(cmodel_t), sub_model_count, [](const auto& model, std::size_t)
 		{
-			for (auto i = 0u; i < asset->numSubModels; i++)
-			{
-				if (const auto info = reader.read_single(cmodels[i].info, 7))
-				{
-					clip_map::read_info(reader, info);
-				}
-			}
-		}
+			visit_clip_info(model, offsetof(cmodel_t, info));
+		});
+		w.array(S2_ARRAY_FIELD(AddonMapEnts, models), 3, sub_model_count);
+		w.array(S2_ARRAY_FIELD(AddonMapEnts, modelBounds), 3, sub_model_count);
 
-		reader.read_array(asset->models, 3, asset->numSubModels);
-		reader.read_array(asset->modelBounds, 3, asset->numSubModels);
-
-		if (const auto collisions = reader.read_array(asset->collisions, 7, asset->collisionCount))
+		w.entries(offsetof(AddonMapEnts, collisions), sizeof(AddonMapEntsCollision), count(offsetof(AddonMapEnts, collisionCount)), [](const auto& collision, std::size_t)
 		{
-			for (auto i = 0u; i < asset->collisionCount; i++)
-			{
-				auto& collision = collisions[i];
-				reader.read_array(collision.vertices, 15, collision.vertexCount);
-				reader.read_array(collision.normals, 15, collision.normalCount);
-				reader.read_array(collision.indices, 0, collision.indexCount);
-				reader.read_array(collision.data, 0, collision.normalCount);
-			}
-		}
-
-		if (const auto shapes = reader.read_array(asset->shapes, 7, asset->shapeCount))
+			const auto normal_count = collision.template at<int>(offsetof(AddonMapEntsCollision, normalCount));
+			collision.array(S2_ARRAY_FIELD(AddonMapEntsCollision, vertices), 15, collision.template at<int>(offsetof(AddonMapEntsCollision, vertexCount)));
+			collision.array(S2_ARRAY_FIELD(AddonMapEntsCollision, normals), 15, normal_count);
+			collision.array(S2_ARRAY_FIELD(AddonMapEntsCollision, indices), 0, collision.template at<int>(offsetof(AddonMapEntsCollision, indexCount)));
+			collision.array(S2_ARRAY_FIELD(AddonMapEntsCollision, data), 0, normal_count);
+		});
+		w.entries(offsetof(AddonMapEnts, shapes), sizeof(AddonMapEntsShape), count(offsetof(AddonMapEnts, shapeCount)), [](const auto& shape, std::size_t)
 		{
-			for (auto i = 0u; i < asset->shapeCount; i++)
-			{
-				auto& shape = shapes[i];
-				reader.read_array(shape.planes, 15, shape.planeCount);
-				reader.read_array(shape.points, 15, shape.pointCount);
-				reader.read_array(shape.edges, 3, shape.edgeCount);
-			}
-		}
-
-		reader.pop_stream();
+			shape.array(S2_ARRAY_FIELD(AddonMapEntsShape, planes), 15, shape.template at<int>(offsetof(AddonMapEntsShape, planeCount)));
+			shape.array(S2_ARRAY_FIELD(AddonMapEntsShape, points), 15, shape.template at<int>(offsetof(AddonMapEntsShape, pointCount)));
+			shape.array(S2_ARRAY_FIELD(AddonMapEntsShape, edges), 3, shape.template at<int>(offsetof(AddonMapEntsShape, edgeCount)));
+		});
 	}
+
+	template void map_ents_layout::visit(const field_reader&);
+	template void map_ents_layout::visit(const field_writer&);
+	template void map_ents_layout::visit(const field_dumper&);
+	template void map_ents_layout::visit(const field_parser&);
+	template void map_ents_layout::visit(const field_dependencies&);
+	template void map_ents_layout::visit(const field_preparer&);
+
+	template void addon_map_ents_layout::visit(const field_reader&);
+	template void addon_map_ents_layout::visit(const field_writer&);
+	template void addon_map_ents_layout::visit(const field_dumper&);
+	template void addon_map_ents_layout::visit(const field_parser&);
+	template void addon_map_ents_layout::visit(const field_dependencies&);
+	template void addon_map_ents_layout::visit(const field_preparer&);
 }

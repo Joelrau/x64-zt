@@ -6,13 +6,19 @@ namespace zonetool::s2
 	namespace
 	{
 		constexpr std::size_t xanim_count = 188;
+
+		static_assert(offsetof(XModel, name) == 0);
+		static_assert(offsetof(XAnimParts, name) == 0);
+		static_assert(offsetof(Material, name) == 0);
+		static_assert(offsetof(PhysCollmap, name) == 0);
+		static_assert(offsetof(PhysPreset, name) == 0);
+		static_assert(offsetof(TracerDef, name) == 0);
+		static_assert(offsetof(snd_alias_list_t, name) == 0);
 	}
 
-	void weapon_def::read(zone_reader& reader, WeaponCompleteDef* asset)
+	template <typename V>
+	void weapon_layout::visit(const V& w)
 	{
-		reader.push_stream(XFILE_BLOCK_VIRTUAL);
-
-		const field_reader w(reader, asset);
 		w.strings({0, 8});
 		w.asset_array(ASSET_TYPE_XMODEL, 16, 2);
 		w.asset_array(ASSET_TYPE_XMODEL, 24, 2);
@@ -23,20 +29,20 @@ namespace zonetool::s2
 		w.script_strings(64, 32);
 		w.asset_array(ASSET_TYPE_ATTACHMENT, 72, w.at<std::uint8_t>(1232));
 		w.asset_array(ASSET_TYPE_XANIM, 88, xanim_count);
-		w.entries(96, 32, w.at<std::uint8_t>(1233), [](const field_reader& entry, std::size_t)
+		w.entries(96, 32, w.at<std::uint8_t>(1233), [](const auto& entry, std::size_t)
 		{
 			entry.assets(ASSET_TYPE_XANIM, 8, 2);
 		});
-		w.entries(104, 24, w.at<std::uint8_t>(1234), [](const field_reader& entry, std::size_t)
+		w.entries(104, 24, w.at<std::uint8_t>(1234), [](const auto& entry, std::size_t)
 		{
 			entry.sounds(8, 2);
 		});
-		w.entries(112, 24, w.at<std::uint8_t>(1235), [](const field_reader& entry, std::size_t)
+		w.entries(112, 24, w.at<std::uint8_t>(1235), [](const auto& entry, std::size_t)
 		{
 			entry.assets(ASSET_TYPE_FX, 8, 2);
 		});
 		w.bytes(120, 3, 16 * w.at<std::uint8_t>(1236));
-		w.entries(128, 24, w.at<std::uint8_t>(1237), [](const field_reader& entry, std::size_t)
+		w.entries(128, 24, w.at<std::uint8_t>(1237), [](const auto& entry, std::size_t)
 		{
 			entry.script_strings(8, 36);
 			entry.script_strings(16, 36);
@@ -76,7 +82,7 @@ namespace zonetool::s2
 		w.sounds(1168, 4);
 		w.sounds(1200, 2);
 		w.asset(ASSET_TYPE_XMODEL, 1216);
-		w.entries(1224, 0x48, 1, [](const field_reader& entry, std::size_t)
+		w.entries(1224, 0x48, 1, [](const auto& entry, std::size_t)
 		{
 			entry.sounds(16, 4);
 			entry.assets(ASSET_TYPE_SOUND, 48, 2);
@@ -102,7 +108,12 @@ namespace zonetool::s2
 		w.script_string(3820);
 		w.script_string(3944);
 		w.script_string(3948);
-
-		reader.pop_stream();
 	}
+
+	template void weapon_layout::visit(const field_reader&);
+	template void weapon_layout::visit(const field_writer&);
+	template void weapon_layout::visit(const field_dumper&);
+	template void weapon_layout::visit(const field_parser&);
+	template void weapon_layout::visit(const field_dependencies&);
+	template void weapon_layout::visit(const field_preparer&);
 }

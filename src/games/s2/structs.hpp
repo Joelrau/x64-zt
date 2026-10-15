@@ -324,15 +324,24 @@ namespace zonetool::s2
 		unsigned char pixelOutputMask;
 		unsigned char perPrimArgCount;
 		unsigned char perObjArgCount;
+		unsigned char volatileArgCount;
 		unsigned char stableArgCount;
-		unsigned char perViewArgCount;
-		char __pad0[9];
+		char __pad0;
+		unsigned short perPrimArgSize;
+		unsigned short perObjArgSize;
+		unsigned short volatileArgSize;
+		unsigned short stableArgSize;
 		unsigned short zone;
-		char __pad1[24];
+		unsigned char perPrimConstantBuffer;
+		unsigned char perObjConstantBuffer;
+		unsigned char volatileConstantBuffer;
+		unsigned char stableConstantBuffer;
+		char __pad1[20];
 		MaterialShaderArgument* args;
 	};
 	static_assert(sizeof(MaterialPass) == 0x58);
-	static_assert(offsetof(MaterialPass, zone) == 54);
+	static_assert(offsetof(MaterialPass, zone) == 0x36);
+	static_assert(offsetof(MaterialPass, perPrimConstantBuffer) == 0x38);
 
 	struct MaterialTechniqueHeader
 	{
@@ -801,12 +810,12 @@ namespace zonetool::s2
 	{
 		unsigned int loadBits[6];
 		unsigned short zone;
-		unsigned char depthStencilState[10];
+		unsigned char depthStencilState[12];
 		unsigned char blendState;
 		unsigned char rasterizerState;
-		char __pad0[2];
 	};
 	static_assert(sizeof(GfxStateBits) == 0x28);
+	static_assert(offsetof(GfxStateBits, blendState) == 0x26);
 
 	struct MaterialConstantBufferDef
 	{
@@ -1156,7 +1165,10 @@ namespace zonetool::s2
 		float radius;
 		float boundsMidPoint[3];
 		float boundsHalfSize[3];
-		char __pad4[54];
+		char __pad4[4];
+		float lodDistScale;
+		float lodDistSq[6];
+		char __pad10[22];
 		unsigned short extraBoneNameCount;
 		unsigned short extraDataCount;
 		char __pad5[2];
@@ -1185,6 +1197,7 @@ namespace zonetool::s2
 	static_assert(offsetof(XModelBase, numLods) == 616);
 	static_assert(offsetof(XModelBase, collSurfCount) == 622);
 	static_assert(offsetof(XModelBase, radius) == 648);
+	static_assert(offsetof(XModelBase, lodDistSq) == 684);
 	static_assert(offsetof(XModelBase, boneInfo) == 640);
 	static_assert(offsetof(XModelBase, extraBoneNameCount) == 730);
 	static_assert(offsetof(XModelBase, extraBoneNames) == 736);

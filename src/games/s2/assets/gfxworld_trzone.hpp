@@ -2,26 +2,29 @@
 
 namespace zonetool::s2
 {
-	class gfx_map_trzone
+	struct gfx_map_trzone_layout
 	{
-	public:
-		static void read(zone_reader& reader, GfxMapTrZone* asset)
+		template <typename V>
+		static void visit(const V& w)
 		{
-			reader.push_stream(XFILE_BLOCK_VIRTUAL);
-			reader.read_string(asset->name);
+			w.string(offsetof(GfxMapTrZone, name));
 
-			auto& data = asset->vertices.data;
-			const auto count = asset->vertexCount;
-			reader.read_array(data.positions, 3, count);
-			reader.read_array(data.data0, 3, count);
-			reader.read_array(data.data1, 3, count);
-			reader.read_array(data.data2, 3, count);
-			reader.read_array(data.data3, 3, count);
-			reader.read_array(data.data4, 3, count);
-			reader.read_array(data.data5, 3, count);
+			const auto count = w.template at<unsigned int>(offsetof(GfxMapTrZone, vertexCount));
+			const auto data = w.sub(offsetof(GfxMapTrZone, vertices) + offsetof(GfxMapTrZoneVertexBuffer, data));
+			data.array(S2_ARRAY_FIELD(GfxMapTrZoneData, positions), 3, count);
+			data.array(S2_ARRAY_FIELD(GfxMapTrZoneData, data0), 3, count);
+			data.array(S2_ARRAY_FIELD(GfxMapTrZoneData, data1), 3, count);
+			data.array(S2_ARRAY_FIELD(GfxMapTrZoneData, data2), 3, count);
+			data.array(S2_ARRAY_FIELD(GfxMapTrZoneData, data3), 3, count);
+			data.array(S2_ARRAY_FIELD(GfxMapTrZoneData, data4), 3, count);
+			data.array(S2_ARRAY_FIELD(GfxMapTrZoneData, data5), 3, count);
 
-			reader.read_array(asset->indices.data, 3, asset->indexDataSize);
-			reader.pop_stream();
+			w.bytes(offsetof(GfxMapTrZone, indices) + offsetof(GfxMapTrZoneIndexBuffer, data), 3,
+				w.template at<unsigned int>(offsetof(GfxMapTrZone, indexDataSize)));
 		}
+	};
+
+	class gfx_map_trzone : public field_layout_asset<GfxMapTrZone, ASSET_TYPE_GFXWORLD_TRANSIENT_ZONE, gfx_map_trzone_layout>
+	{
 	};
 }

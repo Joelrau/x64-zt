@@ -2,41 +2,41 @@
 
 namespace zonetool::s2
 {
-	class leaderboard
+	struct leaderboard_layout
 	{
-	public:
-		static void read(zone_reader& reader, LeaderboardDef* asset)
+		template <typename V>
+		static void visit(const V& w)
 		{
-			reader.push_stream(XFILE_BLOCK_VIRTUAL);
-			reader.read_string(asset->name);
-			if (const auto columns = reader.read_array(asset->columns, 7, asset->columnCount))
+			w.string(offsetof(LeaderboardDef, name));
+			w.entries(offsetof(LeaderboardDef, columns), sizeof(LeaderboardColumnDef),
+				w.template at<int>(offsetof(LeaderboardDef, columnCount)), [](const auto& column, std::size_t)
 			{
-				for (auto i = 0; i < asset->columnCount; i++)
-				{
-					reader.read_string(columns[i].name);
-					reader.read_string(columns[i].statName);
-				}
-			}
-			reader.pop_stream();
+				column.string(offsetof(LeaderboardColumnDef, name));
+				column.string(offsetof(LeaderboardColumnDef, statName));
+			});
 		}
 	};
 
-	class virtual_leaderboard
+	class leaderboard : public field_layout_asset<LeaderboardDef, ASSET_TYPE_LEADERBOARDDEF, leaderboard_layout>
 	{
-	public:
-		static void read(zone_reader& reader, VirtualLeaderboardDef* asset)
+	};
+
+	struct virtual_leaderboard_layout
+	{
+		template <typename V>
+		static void visit(const V& w)
 		{
-			reader.push_stream(XFILE_BLOCK_VIRTUAL);
-			reader.read_string(asset->name);
-			reader.read_string(asset->sourceName);
-			if (const auto columns = reader.read_array(asset->columns, 7, asset->columnCount))
+			w.string(offsetof(VirtualLeaderboardDef, name));
+			w.string(offsetof(VirtualLeaderboardDef, sourceName));
+			w.entries(offsetof(VirtualLeaderboardDef, columns), sizeof(VirtualLeaderboardColumnDef),
+				w.template at<int>(offsetof(VirtualLeaderboardDef, columnCount)), [](const auto& column, std::size_t)
 			{
-				for (auto i = 0; i < asset->columnCount; i++)
-				{
-					reader.read_string(columns[i].name);
-				}
-			}
-			reader.pop_stream();
+				column.string(offsetof(VirtualLeaderboardColumnDef, name));
+			});
 		}
+	};
+
+	class virtual_leaderboard : public field_layout_asset<VirtualLeaderboardDef, ASSET_TYPE_VIRTUAL_LEADERBOARD, virtual_leaderboard_layout>
+	{
 	};
 }

@@ -6,6 +6,7 @@
 
 #include <zlib.h>
 #include <lz4.h>
+#include <lz4hc.h>
 
 namespace zonetool::xfile
 {
@@ -580,4 +581,123 @@ namespace zonetool::xfile
 
 		return file;
 	}
+	namespace
+	{
+		constexpr std::size_t s2_block_size = 0x10000;
+		constexpr std::uint8_t s2_write_codec = 3;
+		constexpr int s2_lz4_level = 9;
+
+		std::vector<std::string> compress_s2_blocks(const std::string_view payload)
+		{
+			const auto block_count = (payload.size() + s2_block_size - 1) / s2_block_size;
+			std::vector<std::string> blocks(block_count);
+
+			const auto worker_count = std::max(1u, std::min<unsigned>(std::thread::hardware_concurrency(), static_cast<unsigned>(block_count)));
+			std::atomic_size_t next{};
+
+			const auto work = [&]
+			{
+				for (auto index = next++; index < block_count; index = next++)
+				{
+					const auto source = payload.substr(index * s2_block_size, s2_block_size);
+					auto& block = blocks[index];
+					block.resize(LZ4_compressBound(static_cast<int>(source.size())));
+
+					const auto size = LZ4_compress_HC(source.data(), block.data(), static_cast<int>(source.size()),
+						static_cast<int>(block.size()), s2_lz4_level);
+					if (size <= 0)
+					{
+						throw std::runtime_error("lz4 compression failed");
+					}
+
+					block.resize(size);
+				}
+			};
+
+			std::vector<std::thread> workers;
+			for (auto i = 1u; i < worker_count; i++)
+			{
+				workers.emplace_back(work);
+			}
+
+			work();
+			for (auto& worker : workers)
+			{
+				worker.join();
+			}
+
+			return blocks;
+		}
+
+		template <typename T>
+		void append(std::string& output, const T& value)
+		{
+			output.append(reinterpret_cast<const char*>(&value), sizeof(T));
+		}
+
+		void append_stream_keys(std::string& output, const std::vector<XStreamFileKey>& keys)
+		{
+			output.append(reinterpret_cast<const char*>(keys.data()), keys.size() * sizeof(XStreamFileKey));
+		}
+	}
+
+	std::string write_s2(const format& format, const fastfile& file, const std::string_view payload)
+	{
+		if (format.container != container::s2)
+		{
+			throw std::runtime_error("write_s2 needs the s2 container");
+		}
+
+		if (file.is_signed)
+		{
+			throw std::runtime_error("signed s2 zones are not supported");
+		}
+
+		const auto blocks = compress_s2_blocks(payload);
+
+		std::string container(sizeof(std::uint64_t), '\0');
+		*reinterpret_cast<std::uint64_t*>(container.data()) = payload.size();
+		container.append({0, 0, 1, static_cast<char>(s2_write_codec)});
+		for (std::size_t i = 0; i < blocks.size(); i++)
+		{
+			const auto decompressed_size = std::min(s2_block_size, payload.size() - i * s2_block_size);
+			append(container, static_cast<std::uint32_t>(blocks[i].size()));
+			append(container, static_cast<std::uint32_t>(decompressed_size));
+			container.append(blocks[i]);
+			container.append(((blocks[i].size() + 3) & ~std::size_t(3)) - blocks[i].size(), '\0');
+		}
+
+		s2_file_header header{};
+		std::memcpy(header.magic, format.unsigned_magic.data(), sizeof(header.magic));
+		header.header_version = s2_header_version;
+		header.version = format.version;
+		header.compress = 1;
+		header.compress_type = 2;
+		header.unknown[0] = 1;
+		header.unknown[1] = 0;
+		header.unknown2 = static_cast<std::uint32_t>(s2_block_size);
+		header.stream_key_count = static_cast<std::uint32_t>(file.stream_keys.size());
+
+		std::string output;
+		append(output, header);
+		append_stream_keys(output, file.stream_keys);
+		append(output, static_cast<std::uint32_t>(file.shared_stream_keys.size()));
+		append_stream_keys(output, file.shared_stream_keys);
+
+		const auto file_size = output.size() + 2 * sizeof(std::uint64_t) + 3 * sizeof(std::uint64_t)
+			+ format.block_count * sizeof(std::uint64_t) + container.size();
+		append(output, static_cast<std::uint64_t>(file_size));
+		append(output, static_cast<std::uint64_t>(file_size));
+		append(output, static_cast<std::uint64_t>(payload.size()));
+		append(output, std::uint64_t{});
+		append(output, static_cast<std::uint64_t>(format.block_count));
+		for (std::size_t i = 0; i < format.block_count; i++)
+		{
+			append(output, i < file.block_sizes.size() ? file.block_sizes[i] : std::uint64_t{});
+		}
+
+		output.append(container);
+		return output;
+	}
+
 }

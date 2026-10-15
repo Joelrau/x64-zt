@@ -17,6 +17,8 @@ namespace zonetool::s2
 	{
 		constexpr std::string_view zone_key_file = "s2_zone_key.der";
 		constexpr std::size_t zone_key_size = 0x4A7;
+
+		std::filesystem::path zone_key_folder;
 		constexpr std::string_view zone_key_prefix = "\x30\x82\x04\xA3\x02\x01\x00\x02\x82\x01\x01\x00"sv;
 
 		std::string read_key_file(const std::filesystem::path& path)
@@ -44,7 +46,9 @@ namespace zonetool::s2
 
 		std::string find_zone_key()
 		{
-			const auto game_folder = std::filesystem::absolute(game_files::get().path(".")).parent_path().parent_path();
+			const auto game_folder = zone_key_folder.empty()
+				? std::filesystem::absolute(game_files::get().path(".")).parent_path().parent_path()
+				: zone_key_folder;
 
 			for (const auto& folder : {std::filesystem::current_path(), game_folder})
 			{
@@ -73,6 +77,11 @@ namespace zonetool::s2
 
 			return {};
 		}
+	}
+
+	void set_zone_key_folder(const std::filesystem::path& folder)
+	{
+		zone_key_folder = folder;
 	}
 
 	std::string zone_key()

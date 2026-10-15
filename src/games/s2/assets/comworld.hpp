@@ -2,46 +2,46 @@
 
 namespace zonetool::s2
 {
-	class com_world
+	struct com_world_layout
 	{
-	public:
-		static void read(zone_reader& reader, ComWorld* asset)
+		template <typename V>
+		static void visit(const V& w)
 		{
-			reader.push_stream(XFILE_BLOCK_VIRTUAL);
-			reader.read_string(asset->name);
-			if (const auto lights = reader.read_array(asset->primaryLights, 7, asset->primaryLightCount))
+			w.string(offsetof(ComWorld, name));
+			w.entries(offsetof(ComWorld, primaryLights), sizeof(ComPrimaryLight),
+				w.template at<unsigned int>(offsetof(ComWorld, primaryLightCount)), [](const auto& light, std::size_t)
 			{
-				for (auto i = 0u; i < asset->primaryLightCount; i++)
-				{
-					reader.read_string(lights[i].defName);
-				}
-			}
-			reader.read_array(asset->primaryLightEnvs, 1, asset->primaryLightEnvCount);
-			reader.pop_stream();
+				light.string(offsetof(ComPrimaryLight, defName));
+			});
+			w.array(S2_ARRAY_FIELD(ComWorld, primaryLightEnvs), 1, w.template at<unsigned int>(offsetof(ComWorld, primaryLightEnvCount)));
 		}
 	};
 
-	class glass_world
+	class com_world : public field_layout_asset<ComWorld, ASSET_TYPE_COMWORLD, com_world_layout>
 	{
-	public:
-		static void read(zone_reader& reader, GlassWorld* asset)
+	};
+
+	struct glass_world_layout
+	{
+		template <typename V>
+		static void visit(const V& w)
 		{
-			reader.push_stream(XFILE_BLOCK_VIRTUAL);
-			reader.read_string(asset->name);
-			if (const auto data = reader.read_single(asset->g_glassData, 7))
+			w.string(offsetof(GlassWorld, name));
+			w.entries(offsetof(GlassWorld, g_glassData), sizeof(G_GlassData), 1, [](const auto& data, std::size_t)
 			{
-				reader.read_array(data->glassPieces, 3, data->pieceCount);
-				if (const auto names = reader.read_array(data->glassNames, 7, data->glassNameCount))
+				data.array(S2_ARRAY_FIELD(G_GlassData, glassPieces), 3, data.template at<unsigned int>(offsetof(G_GlassData, pieceCount)));
+				data.entries(offsetof(G_GlassData, glassNames), sizeof(GlassDef),
+					data.template at<unsigned int>(offsetof(G_GlassData, glassNameCount)), [](const auto& glass, std::size_t)
 				{
-					for (auto i = 0u; i < data->glassNameCount; i++)
-					{
-						reader.read_string(names[i].name);
-						reader.read_script_string(names[i].targetName);
-						reader.read_array(names[i].indices, 1, names[i].indexCount);
-					}
-				}
-			}
-			reader.pop_stream();
+					glass.string(offsetof(GlassDef, name));
+					glass.script_string(offsetof(GlassDef, targetName));
+					glass.array(S2_ARRAY_FIELD(GlassDef, indices), 1, glass.template at<unsigned short>(offsetof(GlassDef, indexCount)));
+				});
+			});
 		}
+	};
+
+	class glass_world : public field_layout_asset<GlassWorld, ASSET_TYPE_GLASSWORLD, glass_world_layout>
+	{
 	};
 }

@@ -2,23 +2,22 @@
 
 namespace zonetool::s2
 {
-	class splines
+	struct splines_layout
 	{
-	public:
-		static void read(zone_reader& reader, Spline* asset)
+		template <typename V>
+		static void visit(const V& w)
 		{
-			reader.push_stream(XFILE_BLOCK_VIRTUAL);
-			reader.read_string(asset->name);
-			if (const auto defs = reader.read_array(asset->splines, 7, asset->splineCount))
+			w.string(offsetof(Spline, name));
+			w.entries(offsetof(Spline, splines), sizeof(SplineDef), w.template at<unsigned char>(offsetof(Spline, splineCount)), [](const auto& spline, std::size_t)
 			{
-				for (auto i = 0; i < asset->splineCount; i++)
-				{
-					reader.read_array(defs[i].points, 3, defs[i].pointCount);
-					reader.read_array(defs[i].data, 0, defs[i].dataSize);
-					reader.read_script_string(defs[i].name);
-				}
-			}
-			reader.pop_stream();
+				spline.bytes(offsetof(SplineDef, points), 3, sizeof(SplinePoint) * spline.template at<unsigned char>(offsetof(SplineDef, pointCount)));
+				spline.bytes(offsetof(SplineDef, data), 0, spline.template at<unsigned int>(offsetof(SplineDef, dataSize)));
+				spline.script_string(offsetof(SplineDef, name));
+			});
 		}
+	};
+
+	class splines : public field_layout_asset<Spline, ASSET_TYPE_SPLINES, splines_layout>
+	{
 	};
 }

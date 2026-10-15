@@ -13,6 +13,9 @@ namespace zonetool::s2::converter::h1::xmodel
 		std::unordered_set<std::string> dumped_models;
 
 		constexpr unsigned int s2_xmodel_flag_variants = 0x200;
+		constexpr unsigned int s2_xmodel_flag_no_last_lod = 0x8000;
+		constexpr auto s2_lod_view_scale = 565.087f;
+		constexpr auto h1_no_cull_lod_dist = 1000000.0f;
 		constexpr std::uint16_t s2_surf_flag_skinned = 0x4;
 
 		struct s2_coll_surf
@@ -101,38 +104,69 @@ namespace zonetool::s2::converter::h1::xmodel
 			return values;
 		}
 
-		// Effect techsets use the vertex color as tint, wind techsets use it as wave weight and anchor
-		bool uses_vertex_colors(const Material* material)
+		constexpr std::uint32_t vertex_color_rgb_bits = 0x00FFFFFF;
+
+		std::optional<std::uint32_t> get_forced_vertex_color_bits(const Material* material)
 		{
 			if (!material || !material->techniqueSet || !material->techniqueSet->name)
 			{
-				return false;
+				return {};
 			}
 
 			const auto techset = material->techniqueSet->name;
-			return std::strstr(techset, "_effect") || std::strstr(techset, "_flag") || std::strstr(techset, "_fwa");
+			if (std::strstr(techset, "_fwa"))
+			{
+				return vertex_color_rgb_bits;
+			}
+
+			if (std::strstr(techset, "_effect") || std::strstr(techset, "_flag"))
+			{
+				return 0u;
+			}
+
+			return {};
 		}
 
-		void dump_vertex_color_surfs(const XModel* asset)
+		int get_lod_count(const XModel* asset, const XModelBase* base)
+		{
+			const auto skip_last = (asset->flags & s2_xmodel_flag_no_last_lod) && base->numLods > 1;
+			return std::min(base->numLods - (skip_last ? 1 : 0), 6);
+		}
+
+		void dump_lod_surfs(const XModel* asset)
 		{
 			const auto source = resolve_variant(asset);
-			for (auto i = 0; i < source->base->numLods && i < 6; i++)
+			const auto lod_count = get_lod_count(asset, source->base);
+			auto vertex_lighting_index = 0u;
+			for (auto i = 0; i < lod_count; i++)
 			{
 				const auto& lod = source->base->lodInfo[i];
-				std::unordered_set<int> vertex_color_surfs;
+				std::unordered_map<int, std::uint32_t> vertex_color_surfs;
 				for (auto j = 0; j < lod.numsurfs; j++)
 				{
-					if (source->materialHandles && uses_vertex_colors(source->materialHandles[lod.surfIndex + j]))
+					const auto forced_bits = source->materialHandles ? get_forced_vertex_color_bits(source->materialHandles[lod.surfIndex + j]) : std::nullopt;
+					if (forced_bits)
 					{
-						vertex_color_surfs.insert(j);
+						vertex_color_surfs.emplace(j, *forced_bits);
 					}
 				}
 
-				if (!vertex_color_surfs.empty())
+				xsurface::dump(lod.modelSurfs, vertex_color_surfs, vertex_lighting_index);
+				for (auto j = 0; j < lod.modelSurfs->numsurfs; j++)
 				{
-					xsurface::dump(lod.modelSurfs, vertex_color_surfs);
+					vertex_lighting_index += lod.modelSurfs->surfs[j].vertCount;
 				}
 			}
+		}
+
+		float get_lod_dist(const XModelBase* base, const int lod, const int lod_count)
+		{
+			if (lod >= lod_count - 1)
+			{
+				return h1_no_cull_lod_dist;
+			}
+
+			return std::sqrt(std::max(0.0f, base->lodDistScale * base->lodDistSq[lod])) * s2_lod_view_scale + base->radius;
 		}
 
 		zonetool::h1::XModel* convert(const XModel* asset, utils::memory::allocator& allocator)
@@ -180,11 +214,12 @@ namespace zonetool::s2::converter::h1::xmodel
 				new_asset->materialHandles[i] = make_stub<zonetool::h1::Material>(material ? material->name : "$default", allocator);
 			}
 
-			for (auto i = 0; i < base->numLods && i < 6; i++)
+			const auto lod_count = get_lod_count(asset, base);
+			for (auto i = 0; i < lod_count; i++)
 			{
 				const auto& lod = base->lodInfo[i];
 				auto& new_lod = new_asset->lodInfo[i];
-				new_lod.dist = lod.dist;
+				new_lod.dist = get_lod_dist(base, i, lod_count);
 				new_lod.numsurfs = lod.numsurfs;
 				new_lod.surfIndex = lod.surfIndex;
 				if (!lod.modelSurfs || !xsurface::is_dumped(lod.modelSurfs->name))
@@ -197,7 +232,7 @@ namespace zonetool::s2::converter::h1::xmodel
 				new_lod.modelSurfs = make_stub<zonetool::h1::XModelSurfs>(lod.modelSurfs->name, allocator);
 			}
 
-			new_asset->numLods = static_cast<char>(base->numLods);
+			new_asset->numLods = static_cast<char>(lod_count);
 			new_asset->collLod = base->collLod;
 			new_asset->numCollSurfs = base->collSurfCount;
 			new_asset->collSurfs = convert_coll_surfs(base, allocator);
@@ -223,7 +258,7 @@ namespace zonetool::s2::converter::h1::xmodel
 		if (const auto converted = convert(asset, allocator))
 		{
 			zonetool::h1::xmodel::dump(converted);
-			dump_vertex_color_surfs(asset);
+			dump_lod_surfs(asset);
 			add_csv_row("xmodel", asset->name);
 			dumped_models.insert(asset->name);
 		}

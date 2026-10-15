@@ -116,16 +116,10 @@ namespace zonetool::s2
 				dump_if_supported<asset_class>(static_cast<struct_name*>(asset.header)); \
 				break;
 				S2_ASSETS(DUMP_ASSET)
-				S2_READ_ONLY_ASSETS(DUMP_ASSET)
 #undef DUMP_ASSET
 			default:
 				break;
 			}
-		}
-
-		bool is_dumped_type(const XAssetType type)
-		{
-			return type != ASSET_TYPE_VERTEXDECL;
 		}
 
 		void write_asset_csv(const loaded_zone& zone)
@@ -135,6 +129,11 @@ namespace zonetool::s2
 
 			for (const auto& asset : zone.assets)
 			{
+				if (asset.type == ASSET_TYPE_XSURFACE_SHARED)
+				{
+					continue;
+				}
+
 				csv.write(std::format("{},{}{}\n", type_to_string(asset.type),
 					asset.referenced ? "," : "", get_asset_name(asset.type, asset.header)));
 			}
@@ -191,7 +190,7 @@ namespace zonetool::s2
 		{
 			for (const auto& asset : zone.assets)
 			{
-				if (asset.referenced || !is_dumped_type(asset.type))
+				if (asset.referenced)
 				{
 					continue;
 				}

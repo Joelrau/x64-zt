@@ -5,78 +5,84 @@ namespace zonetool::s2
 {
 	namespace
 	{
-		void read_node_tree(zone_reader& reader, pathnode_tree_t* tree)
+		template <typename V>
+		void visit_node_tree(const V& tree)
 		{
-			if (tree->axis < 0)
+			if (tree.template at<int>(offsetof(pathnode_tree_t, axis)) < 0)
 			{
-				reader.read_array(tree->u.s.nodes, 1, tree->u.s.nodeCount);
+				constexpr auto nodes = offsetof(pathnode_tree_t, u) + offsetof(pathnode_tree_info_t, s);
+				tree.array(nodes + offsetof(pathnode_tree_nodes_t, nodes), sizeof(unsigned short), 1,
+					tree.template at<int>(nodes + offsetof(pathnode_tree_nodes_t, nodeCount)));
 				return;
 			}
 
-			for (auto& child : tree->u.child)
+			for (auto i = 0u; i < 2; i++)
 			{
-				if (const auto child_tree = reader.read_single(child, 7))
+				tree.entries(offsetof(pathnode_tree_t, u) + i * sizeof(pathnode_tree_t*), sizeof(pathnode_tree_t), 1, [](const auto& child, std::size_t)
 				{
-					read_node_tree(reader, child_tree);
-				}
+					visit_node_tree(child);
+				});
 			}
 		}
 
-		void read_node_trees(zone_reader& reader, pathnode_tree_t*& field, const int count)
+		template <typename V>
+		void visit_node_trees(const V& parent, const std::size_t offset, const int count)
 		{
-			if (const auto trees = reader.read_array(field, 7, count))
+			parent.entries(offset, sizeof(pathnode_tree_t), count, [](const auto& tree, std::size_t)
 			{
-				for (auto i = 0; i < count; i++)
-				{
-					read_node_tree(reader, &trees[i]);
-				}
-			}
+				visit_node_tree(tree);
+			});
 		}
 
-		void read_node_constant(zone_reader& reader, pathnode_constant_t& node, const bool parent_index_resolved)
+		template <typename V>
+		void visit_node_constant(const V& node, const bool parent_index_resolved)
 		{
-			reader.read_script_string(node.targetname);
-			reader.read_script_string(node.script_linkName);
-			reader.read_script_string(node.script_noteworthy);
-			reader.read_script_string(node.target);
-			reader.read_script_string(node.animscript);
+			node.script_string(offsetof(pathnode_constant_t, targetname));
+			node.script_string(offsetof(pathnode_constant_t, script_linkName));
+			node.script_string(offsetof(pathnode_constant_t, script_noteworthy));
+			node.script_string(offsetof(pathnode_constant_t, target));
+			node.script_string(offsetof(pathnode_constant_t, animscript));
 			if (!parent_index_resolved)
 			{
-				reader.read_script_string(node.parentName);
+				node.script_string(offsetof(pathnode_constant_t, parentName));
 			}
 
-			reader.read_array(node.Links, 3, node.totalLinkCount);
+			node.array(S2_ARRAY_FIELD(pathnode_constant_t, Links), 3, node.template at<unsigned short>(offsetof(pathnode_constant_t, totalLinkCount)));
 		}
 	}
 
-	void path_data::read(zone_reader& reader, PathData* asset)
+	template <typename V>
+	void path_data_layout::visit(const V& w)
 	{
-		reader.push_stream(XFILE_BLOCK_VIRTUAL);
-		reader.read_string(asset->name);
-
-		if (const auto nodes = reader.read_array(asset->nodes, 7, asset->nodeCount))
+		const auto count = [&](const std::size_t offset)
 		{
-			for (auto i = 0u; i < asset->nodeCount; i++)
-			{
-				read_node_constant(reader, nodes[i].constant, asset->parentIndexResolved);
-			}
-		}
+			return w.template at<int>(offset);
+		};
 
-		reader.read_array(asset->pathVis, 0, asset->visBytes);
-		read_node_trees(reader, asset->nodeTree, asset->nodeTreeCount);
+		const auto node_count = w.template at<unsigned int>(offsetof(PathData, nodeCount));
+		const auto parent_index_resolved = w.template at<bool>(offsetof(PathData, parentIndexResolved));
 
-		if (const auto groups = reader.read_array(asset->dynamicNodeGroups, 7, asset->dynamicNodeGroupCount))
+		w.string(offsetof(PathData, name));
+		w.entries(offsetof(PathData, nodes), sizeof(pathnode_t), node_count, [&](const auto& node, std::size_t)
 		{
-			for (auto i = 0; i < asset->dynamicNodeGroupCount; i++)
-			{
-				read_node_trees(reader, groups[i].nodeTree, groups[i].nodeTreeCount);
-			}
-		}
-
-		reader.read_array(asset->pathExposure, 0, asset->exposureBytes);
-		reader.read_array(asset->pathNoPeekVis, 0, asset->noPeekVisBytes);
-		reader.read_array(asset->pathZones, 1, asset->zoneCount ? asset->nodeCount : 0);
-		reader.read_array(asset->pathDynStates, 0, asset->dynStatesBytes);
-		reader.pop_stream();
+			visit_node_constant(node.sub(offsetof(pathnode_t, constant)), parent_index_resolved);
+		});
+		w.bytes(offsetof(PathData, pathVis), 0, w.template at<unsigned int>(offsetof(PathData, visBytes)));
+		visit_node_trees(w, offsetof(PathData, nodeTree), count(offsetof(PathData, nodeTreeCount)));
+		w.entries(offsetof(PathData, dynamicNodeGroups), sizeof(PathDynamicNodeGroup), count(offsetof(PathData, dynamicNodeGroupCount)), [](const auto& group, std::size_t)
+		{
+			visit_node_trees(group, offsetof(PathDynamicNodeGroup, nodeTree), group.template at<int>(offsetof(PathDynamicNodeGroup, nodeTreeCount)));
+		});
+		w.bytes(offsetof(PathData, pathExposure), 0, count(offsetof(PathData, exposureBytes)));
+		w.bytes(offsetof(PathData, pathNoPeekVis), 0, count(offsetof(PathData, noPeekVisBytes)));
+		w.array(S2_ARRAY_FIELD(PathData, pathZones), 1, count(offsetof(PathData, zoneCount)) ? node_count : 0);
+		w.bytes(offsetof(PathData, pathDynStates), 0, count(offsetof(PathData, dynStatesBytes)));
 	}
+
+	template void path_data_layout::visit(const field_reader&);
+	template void path_data_layout::visit(const field_writer&);
+	template void path_data_layout::visit(const field_dumper&);
+	template void path_data_layout::visit(const field_parser&);
+	template void path_data_layout::visit(const field_dependencies&);
+	template void path_data_layout::visit(const field_preparer&);
 }

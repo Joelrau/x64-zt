@@ -70,6 +70,21 @@ namespace zonetool
 		return mask | data | (static_cast<std::size_t>(stream) & 0x0F) << 32;
 	}
 
+	void zone_buffer::set_unread_stream(const std::uint8_t stream)
+	{
+		this->unread_stream_ = stream;
+	}
+
+	bool zone_buffer::writes_file_bytes() const
+	{
+		return this->stream_ != this->zone_stream_runtime && this->stream_ != this->unread_stream_;
+	}
+
+	void zone_buffer::set_temp_stream(const std::uint8_t stream)
+	{
+		this->temp_stream_ = stream;
+	}
+
 	void zone_buffer::init_streams(const std::size_t streams)
 	{
 		this->stream_count_ = streams;
@@ -106,7 +121,7 @@ namespace zonetool
 
 	void zone_buffer::write_stream(const void* data, const std::size_t size, const std::size_t count)
 	{
-		if (this->stream_ == this->zone_stream_runtime)
+		if (!this->writes_file_bytes())
 		{
 			if (this->stream_count_ > 0)
 			{
@@ -178,8 +193,13 @@ namespace zonetool
 		this->blend_state_bits_.clear();
 		this->ppas_.clear();
 		this->poas_.clear();
+		this->vas_.clear();
 		this->sas_.clear();
 		this->stream_files_.clear();
+		this->temp_stream_.reset();
+		this->unread_stream_.reset();
+		this->temp_peak_ = 0;
+		this->temp_saved_positions_.clear();
 
 		this->buffer_.clear();
 		this->buffer_.shrink_to_fit();
@@ -200,12 +220,25 @@ namespace zonetool
 
 	void zone_buffer::push_stream(const std::uint8_t stream)
 	{
+		if (this->temp_stream_ && stream == *this->temp_stream_)
+		{
+			this->temp_saved_positions_.push_back(this->zone_streams_[stream]);
+		}
+
 		this->stream_stack_.push(this->stream_);
 		this->stream_ = stream;
 	}
 
 	void zone_buffer::pop_stream()
 	{
+		if (this->temp_stream_ && this->stream_ == *this->temp_stream_)
+		{
+			auto& position = this->zone_streams_[this->stream_];
+			this->temp_peak_ = std::max(this->temp_peak_, position);
+			position = this->temp_saved_positions_.back();
+			this->temp_saved_positions_.pop_back();
+		}
+
 		this->stream_ = this->stream_stack_.top();
 		this->stream_stack_.pop();
 	}
@@ -222,6 +255,11 @@ namespace zonetool
 
 	std::uint32_t zone_buffer::stream_offset(const std::uint8_t stream)
 	{
+		if (this->temp_stream_ && stream == *this->temp_stream_)
+		{
+			return static_cast<std::uint32_t>(std::max(this->temp_peak_, this->zone_streams_[stream]));
+		}
+
 		return static_cast<std::uint32_t>(this->zone_streams_[stream]);
 	}
 
@@ -354,6 +392,30 @@ namespace zonetool
 	std::size_t zone_buffer::poas_count()
 	{
 		return this->poas_.size();
+	}
+
+	std::uint8_t zone_buffer::write_vas(const std::uint32_t sz)
+	{
+		for (auto i = 0; i < this->vas_.size(); i++)
+		{
+			if (this->vas_[i] == sz)
+			{
+				return static_cast<std::uint8_t>(i);
+			}
+		}
+
+		this->vas_.push_back(sz);
+		return static_cast<std::uint8_t>(this->vas_.size() - 1);
+	}
+
+	std::uint32_t zone_buffer::get_vas(const std::size_t idx)
+	{
+		return this->vas_[idx];
+	}
+
+	std::size_t zone_buffer::vas_count()
+	{
+		return this->vas_.size();
 	}
 
 	std::uint8_t zone_buffer::write_sas(const std::uint32_t sz)

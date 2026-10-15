@@ -2,9 +2,13 @@
 
 namespace zonetool::s2
 {
-	class scriptable_def
+	struct scriptable_layout
 	{
-	public:
-		static void read(zone_reader& reader, ScriptableDef* asset);
+		template <typename V>
+		static void visit(const V& w);
+	};
+
+	class scriptable_def : public field_layout_asset<ScriptableDef, ASSET_TYPE_SCRIPTABLE, scriptable_layout>
+	{
 	};
 }

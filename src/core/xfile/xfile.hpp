@@ -36,5 +36,7 @@ namespace zonetool::xfile
 
 	fastfile read(const std::filesystem::path& path, const format& format);
 
+	std::string write_s2(const format& format, const fastfile& file, std::string_view payload);
+
 	std::string decompress_s2_stream(std::string_view data);
 }

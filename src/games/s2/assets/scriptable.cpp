@@ -27,129 +27,126 @@ namespace zonetool::s2
 			SCRIPTABLE_EVENT_NONE_17 = 17,
 		};
 
-		void read_event(zone_reader& reader, ScriptableEventDef* event)
+		template <typename V>
+		void visit_event(const V& event)
 		{
-			auto& data = event->data;
-			switch (event->type)
+			constexpr auto data = offsetof(ScriptableEventDef, data);
+			switch (event.template at<int>(offsetof(ScriptableEventDef, type)))
 			{
 			case SCRIPTABLE_EVENT_STATE_MODEL:
-				reader.read_asset(ASSET_TYPE_XMODEL, data.stateModel.model);
-				reader.read_string(data.stateModel.name);
+				event.asset(ASSET_TYPE_XMODEL, data + offsetof(ScriptableEventDataUnion, stateModel.model));
+				event.string(data + offsetof(ScriptableEventDataUnion, stateModel.name));
 				break;
 			case SCRIPTABLE_EVENT_MODEL:
 			case SCRIPTABLE_EVENT_PHYSICSLAUNCH:
-				reader.read_asset(ASSET_TYPE_XMODEL, data.model);
+				event.asset(ASSET_TYPE_XMODEL, data + offsetof(ScriptableEventDataUnion, model));
 				break;
 			case SCRIPTABLE_EVENT_FX:
 			case SCRIPTABLE_EVENT_STOP_FX:
-				reader.read_asset(ASSET_TYPE_FX, data.fx.effect);
-				reader.read_script_string(data.fx.tag);
+				event.asset(ASSET_TYPE_FX, data + offsetof(ScriptableEventDataUnion, fx.effect));
+				event.script_string(data + offsetof(ScriptableEventDataUnion, fx.tag));
 				break;
 			case SCRIPTABLE_EVENT_SOUND:
-				reader.read_name_reference(data.sound.alias);
+				event.sound(data + offsetof(ScriptableEventDataUnion, sound.alias));
 				break;
 			case SCRIPTABLE_EVENT_ANIMATION:
 			case SCRIPTABLE_EVENT_STRING_11:
 			case SCRIPTABLE_EVENT_STRING_15:
-				reader.read_string(data.string.name);
+				event.string(data + offsetof(ScriptableEventDataUnion, string.name));
 				break;
 			case SCRIPTABLE_EVENT_NAMED_SPLINE:
-				reader.read_string(data.namedSpline.name);
-				reader.read_asset(ASSET_TYPE_SPLINES, data.namedSpline.spline);
+				event.string(data + offsetof(ScriptableEventDataUnion, namedSpline.name));
+				event.asset(ASSET_TYPE_SPLINES, data + offsetof(ScriptableEventDataUnion, namedSpline.spline));
 				break;
 			case SCRIPTABLE_EVENT_LATE_SPLINE:
-				reader.read_asset(ASSET_TYPE_SPLINES, data.lateSpline.spline);
+				event.asset(ASSET_TYPE_SPLINES, data + offsetof(ScriptableEventDataUnion, lateSpline.spline));
 				break;
 			case SCRIPTABLE_EVENT_LATE_STRING_12:
 			case SCRIPTABLE_EVENT_LATE_STRING_13:
-				reader.read_string(data.lateString.name);
+				event.string(data + offsetof(ScriptableEventDataUnion, lateString.name));
 				break;
 			case SCRIPTABLE_EVENT_MAYHEM:
-				reader.read_asset(ASSET_TYPE_MAYHEM, data.mayhem.mayhem);
+				event.asset(ASSET_TYPE_MAYHEM, data + offsetof(ScriptableEventDataUnion, mayhem.mayhem));
 				break;
 			case SCRIPTABLE_EVENT_SPLINE:
-				reader.read_asset(ASSET_TYPE_SPLINES, data.spline.spline);
+				event.asset(ASSET_TYPE_SPLINES, data + offsetof(ScriptableEventDataUnion, spline.spline));
 				break;
 			default:
 				break;
 			}
 		}
 
-		void read_state(zone_reader& reader, ScriptableStateDef* state)
+		template <typename V>
+		void visit_state(const V& state)
 		{
-			reader.read_script_string(state->name);
-			reader.read_script_string(state->tagName);
-			if (const auto events = reader.read_array(state->events, 7, state->eventCount))
+			state.script_string(offsetof(ScriptableStateDef, name));
+			state.script_string(offsetof(ScriptableStateDef, tagName));
+			state.entries(offsetof(ScriptableStateDef, events), sizeof(ScriptableEventDef),
+				state.template at<unsigned char>(offsetof(ScriptableStateDef, eventCount)), [](const auto& event, std::size_t)
 			{
-				for (auto i = 0; i < state->eventCount; i++)
-				{
-					read_event(reader, &events[i]);
-				}
-			}
+				visit_event(event);
+			});
 		}
 
-		void read_part(zone_reader& reader, ScriptablePartDef* part)
+		template <typename V>
+		void visit_part(const V& part)
 		{
-			if (const auto states = reader.read_array(part->states, 7, part->stateCount))
+			part.entries(offsetof(ScriptablePartDef, states), sizeof(ScriptableStateDef),
+				part.template at<unsigned char>(offsetof(ScriptablePartDef, stateCount)), [](const auto& state, std::size_t)
 			{
-				for (auto i = 0; i < part->stateCount; i++)
-				{
-					read_state(reader, &states[i]);
-				}
-			}
-			reader.read_script_string(part->name);
-			reader.read_array(part->flags, 0, part->flagCount);
+				visit_state(state);
+			});
+			part.script_string(offsetof(ScriptablePartDef, name));
+			part.bytes(offsetof(ScriptablePartDef, flags), 0, part.template at<unsigned char>(offsetof(ScriptablePartDef, flagCount)));
 		}
 
-		void read_notetrack(zone_reader& reader, ScriptableNotetrackDef* notetrack)
+		template <typename V>
+		void visit_notetrack(const V& notetrack)
 		{
-			reader.read_script_string(notetrack->name);
-			if (notetrack->type == 0)
+			notetrack.script_string(offsetof(ScriptableNotetrackDef, name));
+			constexpr auto data = offsetof(ScriptableNotetrackDef, data);
+			const auto type = notetrack.template at<int>(offsetof(ScriptableNotetrackDef, type));
+			if (type == 0)
 			{
-				reader.read_asset(ASSET_TYPE_FX, notetrack->data.fx.effect);
-				reader.read_script_string(notetrack->data.fx.tag);
+				notetrack.asset(ASSET_TYPE_FX, data + offsetof(ScriptableNotetrackDataUnion, fx.effect));
+				notetrack.script_string(data + offsetof(ScriptableNotetrackDataUnion, fx.tag));
 			}
-			else if (notetrack->type == 1)
+			else if (type == 1)
 			{
-				reader.read_name_reference(notetrack->data.sound.alias);
+				notetrack.sound(data + offsetof(ScriptableNotetrackDataUnion, sound.alias));
 			}
 		}
 	}
 
-	void scriptable_def::read(zone_reader& reader, ScriptableDef* asset)
+	template <typename V>
+	void scriptable_layout::visit(const V& w)
 	{
-		reader.push_stream(XFILE_BLOCK_VIRTUAL);
-		reader.read_string(asset->name);
-		reader.read_asset(ASSET_TYPE_XMODEL, asset->baseModel);
-		reader.read_string(asset->baseCollision);
-
-		if (const auto parts = reader.read_array(asset->parts, 7, asset->partCount))
+		w.string(offsetof(ScriptableDef, name));
+		w.asset(ASSET_TYPE_XMODEL, offsetof(ScriptableDef, baseModel));
+		w.string(offsetof(ScriptableDef, baseCollision));
+		w.entries(offsetof(ScriptableDef, parts), sizeof(ScriptablePartDef),
+			w.template at<unsigned short>(offsetof(ScriptableDef, partCount)), [](const auto& part, std::size_t)
 		{
-			for (auto i = 0; i < asset->partCount; i++)
-			{
-				read_part(reader, &parts[i]);
-			}
-		}
-
-		if (const auto notetracks = reader.read_array(asset->notetracks, 7, asset->notetrackCount))
+			visit_part(part);
+		});
+		w.entries(offsetof(ScriptableDef, notetracks), sizeof(ScriptableNotetrackDef),
+			w.template at<unsigned char>(offsetof(ScriptableDef, notetrackCount)), [](const auto& notetrack, std::size_t)
 		{
-			for (auto i = 0; i < asset->notetrackCount; i++)
-			{
-				read_notetrack(reader, &notetracks[i]);
-			}
-		}
-
-		reader.read_asset_array(ASSET_TYPE_XMODEL, asset->models, asset->modelCount);
-
-		if (const auto tags = reader.read_array(asset->modelTags, 7, asset->modelTagCount))
+			visit_notetrack(notetrack);
+		});
+		w.asset_array(ASSET_TYPE_XMODEL, offsetof(ScriptableDef, models), w.template at<unsigned char>(offsetof(ScriptableDef, modelCount)));
+		w.entries(offsetof(ScriptableDef, modelTags), sizeof(ScriptableModelTag),
+			w.template at<unsigned char>(offsetof(ScriptableDef, modelTagCount)), [](const auto& tag, std::size_t)
 		{
-			for (auto i = 0; i < asset->modelTagCount; i++)
-			{
-				reader.read_asset(ASSET_TYPE_XMODEL, tags[i].model);
-				reader.read_script_string(tags[i].tag);
-			}
-		}
-
-		reader.pop_stream();
+			tag.asset(ASSET_TYPE_XMODEL, offsetof(ScriptableModelTag, model));
+			tag.script_string(offsetof(ScriptableModelTag, tag));
+		});
 	}
+
+	template void scriptable_layout::visit(const field_reader&);
+	template void scriptable_layout::visit(const field_writer&);
+	template void scriptable_layout::visit(const field_dumper&);
+	template void scriptable_layout::visit(const field_parser&);
+	template void scriptable_layout::visit(const field_dependencies&);
+	template void scriptable_layout::visit(const field_preparer&);
 }

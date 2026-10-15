@@ -34,9 +34,9 @@ namespace zonetool::s2
 		template <typename S>
 		const char** asset_name_field(void* asset)
 		{
-			if constexpr (requires(S* data) { data->name; })
+			if constexpr (requires(S* data) { data->name; } || requires(S* data) { data->szInternalName; })
 			{
-				return const_cast<const char**>(&static_cast<S*>(asset)->name);
+				return const_cast<const char**>(&asset_name(static_cast<S*>(asset)));
 			}
 			else
 			{
@@ -67,7 +67,6 @@ namespace zonetool::s2
 				std::array<asset_loader, ASSET_TYPE_COUNT> list{};
 #define ADD_LOADER(type, asset, struct_name) list[type] = make_loader<asset, struct_name>();
 				S2_ASSETS(ADD_LOADER)
-				S2_READ_ONLY_ASSETS(ADD_LOADER)
 #undef ADD_LOADER
 				return list;
 			}();

@@ -2,39 +2,38 @@
 
 namespace zonetool::s2
 {
-	class weapon_attachment
+	struct attachment_layout
 	{
-	public:
 		static bool is_string_field(const AttachmentField& field)
 		{
 			return static_cast<std::uint8_t>(field.type - 4) > 5;
 		}
 
-		static void read(zone_reader& reader, WeaponAttachment* asset)
+		template <typename V>
+		static void visit(const V& w)
 		{
-			reader.push_stream(XFILE_BLOCK_VIRTUAL);
-			reader.read_string(asset->szInternalName);
-			reader.read_string(asset->szDisplayName);
-			reader.read_asset_array(ASSET_TYPE_XMODEL, asset->worldModels, 2);
-			reader.read_asset_array(ASSET_TYPE_XMODEL, asset->viewModels, 12);
-			reader.read_asset_array(ASSET_TYPE_XMODEL, asset->worldModelsAdditional, 2);
-			reader.read_asset_array(ASSET_TYPE_XMODEL, asset->viewModelsAdditional, 12);
-			reader.read_asset_array(ASSET_TYPE_XMODEL, asset->reticleViewModels, 255);
-			reader.read_script_string(asset->knifeAttachTagOverride);
-			reader.read_array(asset->unkStruct80, 3);
-			reader.read_array(asset->fieldOffsets, 1, asset->fieldCount);
+			w.strings({offsetof(WeaponAttachment, szInternalName), offsetof(WeaponAttachment, szDisplayName)});
+			w.asset_array(ASSET_TYPE_XMODEL, offsetof(WeaponAttachment, worldModels), 2);
+			w.asset_array(ASSET_TYPE_XMODEL, offsetof(WeaponAttachment, viewModels), 12);
+			w.asset_array(ASSET_TYPE_XMODEL, offsetof(WeaponAttachment, worldModelsAdditional), 2);
+			w.asset_array(ASSET_TYPE_XMODEL, offsetof(WeaponAttachment, viewModelsAdditional), 12);
+			w.asset_array(ASSET_TYPE_XMODEL, offsetof(WeaponAttachment, reticleViewModels), 255);
+			w.script_string(offsetof(WeaponAttachment, knifeAttachTagOverride));
+			w.bytes(offsetof(WeaponAttachment, unkStruct80), 3, sizeof(*WeaponAttachment{}.unkStruct80));
 
-			if (const auto fields = reader.read_array(asset->fields, 7, asset->fieldCount))
+			const auto field_count = w.template at<int>(offsetof(WeaponAttachment, fieldCount));
+			w.bytes(offsetof(WeaponAttachment, fieldOffsets), 1, sizeof(unsigned short) * field_count);
+			w.entries(offsetof(WeaponAttachment, fields), sizeof(AttachmentField), field_count, [](const auto& field, std::size_t)
 			{
-				for (auto i = 0; i < asset->fieldCount; i++)
+				if (is_string_field(field.template at<AttachmentField>(0)))
 				{
-					if (is_string_field(fields[i]))
-					{
-						reader.read_string(fields[i].value.string);
-					}
+					field.string(offsetof(AttachmentField, value));
 				}
-			}
-			reader.pop_stream();
+			});
 		}
+	};
+
+	class weapon_attachment : public field_layout_asset<WeaponAttachment, ASSET_TYPE_ATTACHMENT, attachment_layout>
+	{
 	};
 }

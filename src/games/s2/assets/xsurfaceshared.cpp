@@ -3,6 +3,7 @@
 
 #include <io/game_files.hpp>
 #include <xfile/xfile.hpp>
+#include <utils/cryptography.hpp>
 
 namespace zonetool::s2
 {
@@ -134,5 +135,64 @@ namespace zonetool::s2
 		}
 
 		return xfile::decompress_s2_stream(data);
+	}
+
+	std::string surface_shared_key(const XSurfaceShared* shared)
+	{
+		const std::string hash(shared->hash, strnlen(shared->hash, sizeof(shared->hash)));
+		if (!hash.empty())
+		{
+			return hash;
+		}
+
+		auto key = utils::cryptography::sha1::compute(std::string(shared->data, shared->data ? shared->dataSize : 0)
+			+ std::string(shared->subdivData, shared->subdivData ? shared->subdivCount * surface_subdiv_size : 0), true);
+		return "data_" + key;
+	}
+
+	void xsurface_shared::init(const std::string& name, zone_memory* mem)
+	{
+		throw std::runtime_error(std::format("xsurfshared \"{}\" cannot be added by name, add its xmodelsurfs", name));
+	}
+
+	void xsurface_shared::init(void* asset, zone_memory* mem)
+	{
+		this->asset_ = static_cast<XSurfaceShared*>(asset);
+		this->name_ = surface_shared_key(this->asset_);
+	}
+
+	void xsurface_shared::write(zone_base* zone, zone_buffer* buf)
+	{
+		auto* data = this->asset_;
+		auto* dest = buf->write(data);
+
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
+
+		if (data->flags & XSURFACE_SHARED_STREAMED)
+		{
+			if (data->dataSize)
+			{
+				buf->push_stream(XFILE_BLOCK_RUNTIME_UNREAD);
+				buf->align(255);
+				buf->write_stream(data->data, data->dataSize);
+				buf->clear_pointer(&dest->data);
+				buf->pop_stream();
+			}
+		}
+		else if (data->data)
+		{
+			buf->align(255);
+			buf->write(data->data, data->dataSize);
+			buf->clear_pointer(&dest->data);
+		}
+
+		if (data->subdivData)
+		{
+			buf->align(15);
+			buf->write(data->subdivData, data->subdivCount * surface_subdiv_size);
+			buf->clear_pointer(&dest->subdivData);
+		}
+
+		buf->pop_stream();
 	}
 }

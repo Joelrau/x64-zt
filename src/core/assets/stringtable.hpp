@@ -105,7 +105,7 @@ namespace zonetool
 
 			if (data->values)
 			{
-				buf->align(buf->mode == game::iw7 ? 7 : 3);
+				buf->align(buf->mode == game::iw7 || buf->mode == game::s2 ? 7 : 3);
 				const auto destStrings = buf->write(data->values, data->columnCount * data->rowCount);
 
 				if (data->columnCount * data->rowCount > 0)

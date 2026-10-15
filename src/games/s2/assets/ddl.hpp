@@ -2,68 +2,61 @@
 
 namespace zonetool::s2
 {
-	class ddl
+	struct ddl_layout
 	{
-	public:
-		static void read_hash_table(zone_reader& reader, DDLHashTable& table)
+		template <typename V>
+		static void visit(const V& w)
 		{
-			reader.read_array(table.list, 3, table.count);
+			w.string(offsetof(DDLRoot, name));
+			w.entries(offsetof(DDLRoot, ddlDef), sizeof(DDLDef), 1, [](const auto& def, std::size_t)
+			{
+				ddl_layout::visit_def(def);
+			});
 		}
 
-		static void read_def(zone_reader& reader, DDLDef* def)
+	private:
+		template <typename V>
+		static void visit_hash_table(const V& table)
 		{
-			reader.read_string(def->name);
+			table.bytes(offsetof(DDLHashTable, list), 3, sizeof(*DDLHashTable{}.list) * table.template at<int>(offsetof(DDLHashTable, count)));
+		}
 
-			if (const auto structs = reader.read_array(def->structList, 7, def->structCount))
+		template <typename V>
+		static void visit_def(const V& def)
+		{
+			def.string(offsetof(DDLDef, name));
+			def.entries(offsetof(DDLDef, structList), sizeof(DDLStruct), def.template at<int>(offsetof(DDLDef, structCount)), [](const auto& ddl_struct, std::size_t)
 			{
-				for (auto i = 0; i < def->structCount; i++)
+				ddl_struct.string(offsetof(DDLStruct, name));
+				ddl_struct.entries(offsetof(DDLStruct, members), sizeof(DDLMember),
+					ddl_struct.template at<int>(offsetof(DDLStruct, memberCount)), [](const auto& member, std::size_t)
 				{
-					auto& ddl_struct = structs[i];
-					reader.read_string(ddl_struct.name);
-					if (const auto members = reader.read_array(ddl_struct.members, 7, ddl_struct.memberCount))
-					{
-						for (auto j = 0; j < ddl_struct.memberCount; j++)
-						{
-							reader.read_string(members[j].name);
-							reader.read_stream(members[j].parent, 7, 1);
-						}
-					}
-					read_hash_table(reader, ddl_struct.hashTableUpper);
-					read_hash_table(reader, ddl_struct.hashTableLower);
-				}
-			}
+					member.string(offsetof(DDLMember, name));
+					member.bytes(offsetof(DDLMember, parent), 7, 1);
+				});
+				ddl_layout::visit_hash_table(ddl_struct.sub(offsetof(DDLStruct, hashTableUpper)));
+				ddl_layout::visit_hash_table(ddl_struct.sub(offsetof(DDLStruct, hashTableLower)));
+			});
 
-			if (const auto enums = reader.read_array(def->enumList, 7, def->enumCount))
+			def.entries(offsetof(DDLDef, enumList), sizeof(DDLEnum), def.template at<int>(offsetof(DDLDef, enumCount)), [](const auto& ddl_enum, std::size_t)
 			{
-				for (auto i = 0; i < def->enumCount; i++)
+				ddl_enum.string(offsetof(DDLEnum, name));
+				ddl_enum.entries(offsetof(DDLEnum, members), sizeof(const char*),
+					ddl_enum.template at<int>(offsetof(DDLEnum, memberCount)), [](const auto& member, std::size_t)
 				{
-					reader.read_string(enums[i].name);
-					if (const auto members = reader.read_array(enums[i].members, 7, enums[i].memberCount))
-					{
-						for (auto j = 0; j < enums[i].memberCount; j++)
-						{
-							reader.read_string(members[j]);
-						}
-					}
-					read_hash_table(reader, enums[i].hashTable);
-				}
-			}
+					member.string(0);
+				});
+				ddl_layout::visit_hash_table(ddl_enum.sub(offsetof(DDLEnum, hashTable)));
+			});
 
-			if (const auto next = reader.read_single(def->next, 7))
+			def.entries(offsetof(DDLDef, next), sizeof(DDLDef), 1, [](const auto& next, std::size_t)
 			{
-				read_def(reader, next);
-			}
+				ddl_layout::visit_def(next);
+			});
 		}
+	};
 
-		static void read(zone_reader& reader, DDLRoot* asset)
-		{
-			reader.push_stream(XFILE_BLOCK_VIRTUAL);
-			reader.read_string(asset->name);
-			if (const auto def = reader.read_single(asset->ddlDef, 7))
-			{
-				read_def(reader, def);
-			}
-			reader.pop_stream();
-		}
+	class ddl : public field_layout_asset<DDLRoot, ASSET_TYPE_DDL, ddl_layout>
+	{
 	};
 }

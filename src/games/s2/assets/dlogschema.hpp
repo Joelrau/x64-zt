@@ -2,93 +2,78 @@
 
 namespace zonetool::s2
 {
-	class dlog_schema
+	struct dlog_schema_layout
 	{
-	public:
-		static void read_hash_table(zone_reader& reader, DLogHashTable& table)
+		template <typename V>
+		static void visit(const V& w)
 		{
-			reader.read_stream(table.list, 3, 8, table.count);
-		}
-
-		static void read_field(zone_reader& reader, DLogField* field)
-		{
-			reader.read_string(field->name);
-			reader.read_string(field->typeName);
-			if (const auto values = reader.read_array(field->values, 7, field->valueCount))
+			w.string(offsetof(DLogSchema, name));
+			w.entries(offsetof(DLogSchema, events), sizeof(DLogEvent), w.template at<int>(offsetof(DLogSchema, eventCount)), [](const auto& event, std::size_t)
 			{
-				for (auto i = 0; i < field->valueCount; i++)
+				event.string(offsetof(DLogEvent, name));
+				event.entries(offsetof(DLogEvent, fields), sizeof(DLogField), event.template at<int>(offsetof(DLogEvent, fieldCount)), [](const auto& field, std::size_t)
 				{
-					reader.read_string(values[i].name);
-				}
-			}
-			read_hash_table(reader, field->hashTable);
-		}
-
-		static void read(zone_reader& reader, DLogSchema* asset)
-		{
-			reader.push_stream(XFILE_BLOCK_VIRTUAL);
-			reader.read_string(asset->name);
-			if (const auto events = reader.read_array(asset->events, 7, asset->eventCount))
-			{
-				for (auto i = 0; i < asset->eventCount; i++)
-				{
-					reader.read_string(events[i].name);
-					if (const auto fields = reader.read_array(events[i].fields, 7, events[i].fieldCount))
+					field.string(offsetof(DLogField, name));
+					field.string(offsetof(DLogField, typeName));
+					field.entries(offsetof(DLogField, values), sizeof(DLogEnumValue),
+						field.template at<int>(offsetof(DLogField, valueCount)), [](const auto& value, std::size_t)
 					{
-						for (auto j = 0; j < events[i].fieldCount; j++)
-						{
-							read_field(reader, &fields[j]);
-						}
-					}
-					read_hash_table(reader, events[i].hashTable);
-				}
-			}
-			read_hash_table(reader, asset->hashTable);
-			reader.pop_stream();
+						value.string(offsetof(DLogEnumValue, name));
+					});
+					dlog_schema_layout::visit_hash_table(field.sub(offsetof(DLogField, hashTable)));
+				});
+				dlog_schema_layout::visit_hash_table(event.sub(offsetof(DLogEvent, hashTable)));
+			});
+			visit_hash_table(w.sub(offsetof(DLogSchema, hashTable)));
+		}
+
+	private:
+		template <typename V>
+		static void visit_hash_table(const V& table)
+		{
+			table.bytes(offsetof(DLogHashTable, list), 3, 8 * table.template at<int>(offsetof(DLogHashTable, count)));
 		}
 	};
 
-	class dlog_routes
+	class dlog_schema : public field_layout_asset<DLogSchema, ASSET_TYPE_DLOG_SCHEMA, dlog_schema_layout>
 	{
-	public:
-		static void read_destination(zone_reader& reader, DLogDestination* destination)
-		{
-			reader.read_string(destination->name);
-			reader.read_string(destination->type);
-			reader.read_string(destination->address);
-		}
+	};
 
-		static void read(zone_reader& reader, DLogRoutes* asset)
+	struct dlog_routes_layout
+	{
+		template <typename V>
+		static void visit(const V& w)
 		{
-			reader.push_stream(XFILE_BLOCK_VIRTUAL);
-			reader.read_string(asset->name);
-			if (const auto destinations = reader.read_array(asset->destinations, 7, asset->destinationCount))
+			w.string(offsetof(DLogRoutes, name));
+			w.entries(offsetof(DLogRoutes, destinations), sizeof(DLogDestination),
+				w.template at<int>(offsetof(DLogRoutes, destinationCount)), [](const auto& destination, std::size_t)
 			{
-				for (auto i = 0; i < asset->destinationCount; i++)
-				{
-					read_destination(reader, &destinations[i]);
-				}
-			}
-
-			if (const auto routes = reader.read_array(asset->routes, 7, asset->routeCount))
+				dlog_routes_layout::visit_destination(destination);
+			});
+			w.entries(offsetof(DLogRoutes, routes), sizeof(DLogRoute), w.template at<int>(offsetof(DLogRoutes, routeCount)), [](const auto& route, std::size_t)
 			{
-				for (auto i = 0; i < asset->routeCount; i++)
+				route.string(offsetof(DLogRoute, name));
+				route.entries(offsetof(DLogRoute, entries), sizeof(DLogRouteEntry),
+					route.template at<int>(offsetof(DLogRoute, entryCount)), [](const auto& entry, std::size_t)
 				{
-					reader.read_string(routes[i].name);
-					if (const auto entries = reader.read_array(routes[i].entries, 7, routes[i].entryCount))
+					entry.entries(offsetof(DLogRouteEntry, destination), sizeof(DLogDestination), 1, [](const auto& destination, std::size_t)
 					{
-						for (auto j = 0; j < routes[i].entryCount; j++)
-						{
-							if (const auto destination = reader.read_single(entries[j].destination, 7))
-							{
-								read_destination(reader, destination);
-							}
-							reader.read_string(entries[j].name);
-						}
-					}
-				}
-			}
-			reader.pop_stream();
+						dlog_routes_layout::visit_destination(destination);
+					});
+					entry.string(offsetof(DLogRouteEntry, name));
+				});
+			});
 		}
+
+	private:
+		template <typename V>
+		static void visit_destination(const V& destination)
+		{
+			destination.strings({offsetof(DLogDestination, name), offsetof(DLogDestination, type), offsetof(DLogDestination, address)});
+		}
+	};
+
+	class dlog_routes : public field_layout_asset<DLogRoutes, ASSET_TYPE_DLOG_ROUTES, dlog_routes_layout>
+	{
 	};
 }

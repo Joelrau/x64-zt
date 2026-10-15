@@ -5,148 +5,99 @@ namespace zonetool::s2
 {
 	namespace
 	{
-		void read_brushes(zone_reader& reader, ClipBrushInfo* brushes)
+		template <typename V>
+		void visit_shared_info(const V& w, const std::size_t offset)
 		{
-			if (const auto sides = reader.read_array(brushes->sides, 7, brushes->sideCount))
+			w.in_stream(XFILE_BLOCK_TEMP, [&]
 			{
-				for (auto i = 0u; i < brushes->sideCount; i++)
+				w.shared_entry(offset, 7, sizeof(ClipInfo), [](const auto& info, std::size_t)
 				{
-					if (sides[i].indexCount > 0)
-					{
-						reader.read_array(sides[i].indices, 3, sides[i].indexCount);
-					}
-				}
-			}
-
-			reader.read_array(brushes->indices, 3, brushes->indexCount);
+					clip_info_layout::visit(info);
+				});
+			});
 		}
 
-		void read_shared_info(zone_reader& reader, ClipInfo*& field)
+		template <typename V>
+		void visit_dyn_entity_defs(const V& w, const std::size_t index)
 		{
-			reader.push_stream(XFILE_BLOCK_TEMP);
-			if (const auto info = reader.read_single(field, 7))
+			const auto count = w.template at<unsigned short>(offsetof(clipMap_t, dynEntCount) + index * sizeof(unsigned short));
+			w.entries(offsetof(clipMap_t, dynEntDefList) + index * sizeof(void*), sizeof(DynEntityDef), count, [](const auto& def, std::size_t)
 			{
-				clip_map::read_info(reader, info);
-			}
-			reader.pop_stream();
+				def.asset(ASSET_TYPE_XMODEL, offsetof(DynEntityDef, xModel));
+				def.asset(ASSET_TYPE_FX, offsetof(DynEntityDef, destroyFx));
+				def.asset(ASSET_TYPE_SOUND, offsetof(DynEntityDef, sound));
+				def.asset(ASSET_TYPE_PHYSPRESET, offsetof(DynEntityDef, physPreset));
+				def.array(S2_ARRAY_FIELD(DynEntityDef, hinge), 3, 1);
+				def.array(S2_ARRAY_FIELD(DynEntityDef, linkTo), 3, 1);
+			});
 		}
 
-		void read_dyn_entity_defs(zone_reader& reader, DynEntityDef*& field, const std::uint16_t count)
+		template <typename V>
+		void visit_runtime_lists(const V& w, const std::size_t offset, const std::size_t element_size, const std::size_t alignment)
 		{
-			if (const auto defs = reader.read_array(field, 7, count))
+			for (auto i = 0u; i < 2; i++)
 			{
-				for (auto i = 0u; i < count; i++)
-				{
-					reader.read_asset(ASSET_TYPE_XMODEL, defs[i].xModel);
-					reader.read_asset(ASSET_TYPE_FX, defs[i].destroyFx);
-					reader.read_asset(ASSET_TYPE_SOUND, defs[i].sound);
-					reader.read_asset(ASSET_TYPE_PHYSPRESET, defs[i].physPreset);
-					reader.read_array(defs[i].hinge, 3);
-					reader.read_array(defs[i].linkTo, 3);
-				}
-			}
-		}
-
-		template <typename T>
-		void read_runtime_lists(zone_reader& reader, T* (&lists)[2], const std::size_t alignment, const std::uint16_t* counts)
-		{
-			for (auto i = 0; i < 2; i++)
-			{
-				reader.push_stream(XFILE_BLOCK_RUNTIME);
-				reader.read_array(lists[i], alignment, counts[i]);
-				reader.pop_stream();
+				const auto count = w.template at<unsigned short>(offsetof(clipMap_t, dynEntCount) + i * sizeof(unsigned short));
+				w.runtime_array(offset + i * sizeof(void*), element_size, alignment, count);
 			}
 		}
 	}
 
-	void clip_map::read_info(zone_reader& reader, ClipInfo* info)
+	template <typename V>
+	void clip_map_layout::visit(const V& w)
 	{
-		reader.read_array(info->planes, 3, info->planeCount);
-
-		if (const auto materials = reader.read_array(info->materials, 7, info->numMaterials))
+		const auto count = [&](const std::size_t offset)
 		{
-			for (auto i = 0u; i < info->numMaterials; i++)
-			{
-				reader.read_string(materials[i].name);
-			}
-		}
+			return w.template at<unsigned int>(offset);
+		};
 
-		read_brushes(reader, &info->brushes);
-		reader.read_array(info->brushBounds.data, 15, info->brushBounds.count);
-		reader.read_array(info->leafBrushes.data, 3, info->leafBrushes.count);
+		w.string(offsetof(clipMap_t, name));
+		clip_info_layout::visit(w.sub(offsetof(clipMap_t, info)));
+		visit_shared_info(w, offsetof(clipMap_t, pInfo));
 
-		for (auto& tr_zone : info->trZones)
+		w.entries(offsetof(clipMap_t, nodes), sizeof(cNode_t), count(offsetof(clipMap_t, numNodes)), [](const auto& node, std::size_t)
 		{
-			reader.read_asset(ASSET_TYPE_CLIPMAP_TRANSIENT_ZONE, tr_zone);
-		}
+			node.array(S2_ARRAY_FIELD(cNode_t, plane), 3, 1);
+		});
+		w.array(S2_ARRAY_FIELD(clipMap_t, leafs), 7, count(offsetof(clipMap_t, numLeafs)));
+		w.entries(offsetof(clipMap_t, cmodels), sizeof(cmodel_t), count(offsetof(clipMap_t, numSubModels)), [](const auto& model, std::size_t)
+		{
+			visit_shared_info(model, offsetof(cmodel_t, info));
+		});
+		w.asset(ASSET_TYPE_MAP_ENTS, offsetof(clipMap_t, mapEnts));
+		w.entries(offsetof(clipMap_t, staticModelNames), sizeof(ClipStaticModelName), w.template at<unsigned char>(offsetof(clipMap_t, staticModelNameCount)), [](const auto& name, std::size_t)
+		{
+			name.string(offsetof(ClipStaticModelName, name));
+		});
+
+		const auto static_models = w.sub(offsetof(clipMap_t, staticModelData));
+		static_models.array(S2_ARRAY_FIELD(ClipStaticModelData, nodes), 7, static_models.template at<unsigned int>(offsetof(ClipStaticModelData, nodeCount)));
+		static_models.array(S2_ARRAY_FIELD(ClipStaticModelData, leafs), 7, static_models.template at<unsigned int>(offsetof(ClipStaticModelData, leafCount)));
+		static_models.array(S2_ARRAY_FIELD(ClipStaticModelData, bounds), 3, static_models.template at<unsigned int>(offsetof(ClipStaticModelData, boundsCount)));
+
+		visit_dyn_entity_defs(w, 0);
+		visit_dyn_entity_defs(w, 1);
+		visit_runtime_lists(w, offsetof(clipMap_t, dynEntPoseList), sizeof(*clipMap_t{}.dynEntPoseList[0]), 3);
+		visit_runtime_lists(w, offsetof(clipMap_t, dynEntClientList), sizeof(*clipMap_t{}.dynEntClientList[0]), 7);
+		visit_runtime_lists(w, offsetof(clipMap_t, dynEntCollList), sizeof(*clipMap_t{}.dynEntCollList[0]), 3);
+
+		w.script_strings(offsetof(clipMap_t, scrStrings), count(offsetof(clipMap_t, scrStringCount)));
+		w.aligned_entries(offsetof(clipMap_t, scrEntries), 3, sizeof(ClipMapScrEntry), count(offsetof(clipMap_t, scrEntryCount)), [](const auto& entry, std::size_t)
+		{
+			entry.script_string(offsetof(ClipMapScrEntry, name));
+		});
+		w.entries(offsetof(clipMap_t, mayhems), sizeof(ClipMayhemInstance), count(offsetof(clipMap_t, mayhemCount)), [](const auto& mayhem, std::size_t)
+		{
+			mayhem.asset(ASSET_TYPE_MAYHEM, offsetof(ClipMayhemInstance, mayhem));
+			mayhem.array(S2_ARRAY_FIELD(ClipMayhemInstance, transform), 3, 1);
+			mayhem.script_string(offsetof(ClipMayhemInstance, name));
+		});
 	}
 
-	void clip_map::read(zone_reader& reader, clipMap_t* asset)
-	{
-		reader.push_stream(XFILE_BLOCK_VIRTUAL);
-		reader.read_string(asset->name);
-		read_info(reader, &asset->info);
-		read_shared_info(reader, asset->pInfo);
-
-		if (const auto nodes = reader.read_array(asset->nodes, 7, asset->numNodes))
-		{
-			for (auto i = 0u; i < asset->numNodes; i++)
-			{
-				reader.read_single(nodes[i].plane, 3);
-			}
-		}
-
-		reader.read_array(asset->leafs, 7, asset->numLeafs);
-
-		if (const auto cmodels = reader.read_array(asset->cmodels, 7, asset->numSubModels))
-		{
-			for (auto i = 0u; i < asset->numSubModels; i++)
-			{
-				read_shared_info(reader, cmodels[i].info);
-			}
-		}
-
-		reader.read_asset(ASSET_TYPE_MAP_ENTS, asset->mapEnts);
-
-		if (const auto names = reader.read_array(asset->staticModelNames, 7, asset->staticModelNameCount))
-		{
-			for (auto i = 0; i < asset->staticModelNameCount; i++)
-			{
-				reader.read_string(names[i].name);
-			}
-		}
-
-		auto& static_models = asset->staticModelData;
-		reader.read_array(static_models.nodes, 7, static_models.nodeCount);
-		reader.read_array(static_models.leafs, 7, static_models.leafCount);
-		reader.read_array(static_models.bounds, 3, static_models.boundsCount);
-
-		read_dyn_entity_defs(reader, asset->dynEntDefList[0], asset->dynEntCount[0]);
-		read_dyn_entity_defs(reader, asset->dynEntDefList[1], asset->dynEntCount[1]);
-		read_runtime_lists(reader, asset->dynEntPoseList, 3, asset->dynEntCount);
-		read_runtime_lists(reader, asset->dynEntClientList, 7, asset->dynEntCount);
-		read_runtime_lists(reader, asset->dynEntCollList, 3, asset->dynEntCount);
-
-		reader.read_script_string_array(asset->scrStrings, asset->scrStringCount);
-
-		if (const auto entries = reader.read_array(asset->scrEntries, 3, asset->scrEntryCount))
-		{
-			for (auto i = 0u; i < asset->scrEntryCount; i++)
-			{
-				reader.read_script_string(entries[i].name);
-			}
-		}
-
-		if (const auto mayhems = reader.read_array(asset->mayhems, 7, asset->mayhemCount))
-		{
-			for (auto i = 0u; i < asset->mayhemCount; i++)
-			{
-				reader.read_asset(ASSET_TYPE_MAYHEM, mayhems[i].mayhem);
-				reader.read_array(mayhems[i].transform, 3);
-				reader.read_script_string(mayhems[i].name);
-			}
-		}
-
-		reader.pop_stream();
-	}
+	template void clip_map_layout::visit(const field_reader&);
+	template void clip_map_layout::visit(const field_writer&);
+	template void clip_map_layout::visit(const field_dumper&);
+	template void clip_map_layout::visit(const field_parser&);
+	template void clip_map_layout::visit(const field_dependencies&);
+	template void clip_map_layout::visit(const field_preparer&);
 }

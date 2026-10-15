@@ -44,7 +44,8 @@ namespace zonetool::s2::converter::h1::gfxworld
 			target::GfxPackedPlacement placement;
 			char __pad0[20];
 			XModel* model;
-			char __pad1[4];
+			char __pad1[2];
+			std::uint16_t cullDist;
 			std::uint16_t flags;
 			char __pad2[2];
 			std::uint16_t staticModelId;
@@ -56,6 +57,7 @@ namespace zonetool::s2::converter::h1::gfxworld
 		};
 		static_assert(sizeof(s2_static_model_draw_inst) == 128);
 		static_assert(offsetof(s2_static_model_draw_inst, model) == 0x48);
+		static_assert(offsetof(s2_static_model_draw_inst, cullDist) == 0x52);
 		static_assert(offsetof(s2_static_model_draw_inst, flags) == 0x54);
 		static_assert(offsetof(s2_static_model_draw_inst, staticModelId) == 0x58);
 		static_assert(offsetof(s2_static_model_draw_inst, lightListOffset) == 0x6A);
@@ -73,25 +75,6 @@ namespace zonetool::s2::converter::h1::gfxworld
 			GfxImage* primary;
 			GfxImage* secondary;
 		};
-
-		struct s2_smodel_light_volume
-		{
-			std::uint32_t lightingIndex;
-			std::uint16_t width;
-			std::uint16_t height;
-			std::uint32_t depth;
-			std::uint32_t firstProbe;
-			float worldToVolume[12];
-		};
-		static_assert(sizeof(s2_smodel_light_volume) == 64);
-
-		struct s2_smodel_probe
-		{
-			std::uint16_t sh[3][9];
-			std::uint16_t sunVisibility;
-			char __pad0[8];
-		};
-		static_assert(sizeof(s2_smodel_probe) == 64);
 
 		constexpr std::size_t world_bsp_version = 16;
 		constexpr std::size_t world_plane_count = 20;
@@ -114,7 +97,6 @@ namespace zonetool::s2::converter::h1::gfxworld
 		constexpr std::size_t world_anchors = 176;
 		constexpr std::size_t world_draw = 192;
 		constexpr std::size_t world_light_grid = 992;
-		constexpr std::size_t world_probe_grid = 2072;
 		constexpr std::size_t world_light_list_size = 2872;
 		constexpr std::size_t world_light_lists = 2880;
 		constexpr std::size_t world_model_count = 2888;
@@ -152,11 +134,6 @@ namespace zonetool::s2::converter::h1::gfxworld
 		constexpr std::size_t draw_index_count = 776;
 		constexpr std::size_t draw_indices = 784;
 
-		constexpr std::size_t probe_grid_smodel_volume_count = 192;
-		constexpr std::size_t probe_grid_smodel_volumes = 200;
-		constexpr std::size_t probe_grid_smodel_probe_count = 208;
-		constexpr std::size_t probe_grid_smodel_probes = 216;
-
 		constexpr std::size_t dpvs_smodel_count = 0;
 		constexpr std::size_t dpvs_static_surface_count = 4;
 		constexpr std::size_t dpvs_smodel_vis_data_count = 72;
@@ -166,13 +143,13 @@ namespace zonetool::s2::converter::h1::gfxworld
 		constexpr std::size_t dpvs_surfaces_bounds = 760;
 		constexpr std::size_t dpvs_smodel_insts = 776;
 		constexpr std::size_t dpvs_smodel_draw_insts = 784;
-		constexpr std::size_t dpvs_smodel_lighting = 800;
 		constexpr std::size_t dpvs_sun_shadow_opt_count = 824;
 		constexpr std::size_t dpvs_sun_surf_vis_data_count = 828;
 
-		constexpr std::uint16_t smodel_flags_kept = target::STATIC_MODEL_FLAG_NO_CAST_SHADOW | target::STATIC_MODEL_FLAG_GROUND_LIGHTING |
-			target::STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING | target::STATIC_MODEL_FLAG_LIGHTMAP_LIGHTING | target::STATIC_MODEL_FLAG_ALLOW_FXMARK;
-		constexpr std::uint16_t smodel_scale_one = target::STATIC_MODEL_FLAG_SCALE_9;
+		constexpr auto smodel_cull_dist_scale = 100.0f;
+		constexpr auto smodel_cull_dist_min = 1500.0f;
+		constexpr auto smodel_cull_dist_max = 30000.0f;
+		constexpr std::uint16_t smodel_scale_one = target::STATIC_MODEL_FLAG_SCALE_6;
 		constexpr std::uint16_t sun_primary_light_index = 1;
 
 		// unk bytes 2..10 are per image slot stream distances (0xFF is far)
@@ -495,90 +472,33 @@ namespace zonetool::s2::converter::h1::gfxworld
 			return new_geometry;
 		}
 
-		std::optional<target::GfxColorHdr> get_smodel_ground_lighting(GfxWorld* asset, const target::GfxStaticModelLighting& lighting)
+		std::uint16_t get_smodel_cull_dist(const target::GfxStaticModelInst& inst)
 		{
-			const auto volume_count = field<std::uint32_t>(asset, world_probe_grid + probe_grid_smodel_volume_count);
-			const auto volumes = field<s2_smodel_light_volume*>(asset, world_probe_grid + probe_grid_smodel_volumes);
-			const auto probe_count = field<std::uint32_t>(asset, world_probe_grid + probe_grid_smodel_probe_count);
-			const auto probes = field<s2_smodel_probe*>(asset, world_probe_grid + probe_grid_smodel_probes);
-
-			std::uint32_t lighting_index;
-			std::memcpy(&lighting_index, &lighting, sizeof(lighting_index));
-			if (!volumes || !probes || lighting_index >= volume_count)
-			{
-				return {};
-			}
-
-			const auto& volume = volumes[lighting_index];
-			const auto count = static_cast<std::uint64_t>(volume.width) * volume.height * volume.depth;
-			if (!count || volume.firstProbe + count > probe_count)
-			{
-				return {};
-			}
-
-			std::array<float, 4> sum{};
-			for (auto i = 0ull; i < count; i++)
-			{
-				const auto& probe = probes[volume.firstProbe + i];
-				for (auto channel = 0; channel < 3; channel++)
-				{
-					sum[channel] += half_float::half_to_float(probe.sh[channel][0]);
-				}
-
-				sum[3] += half_float::half_to_float(probe.sunVisibility);
-			}
-
-			target::GfxColorHdr color{};
-			for (auto channel = 0u; channel < sum.size(); channel++)
-			{
-				color.array[channel] = half_float::float_to_half(std::max(0.0f, sum[channel] / static_cast<float>(count)));
-			}
-
-			return color;
+			const auto half_extent = 0.5f * std::hypot(inst.maxs[0] - inst.mins[0], inst.maxs[1] - inst.mins[1], inst.maxs[2] - inst.mins[2]);
+			return static_cast<std::uint16_t>(std::clamp(half_extent * smodel_cull_dist_scale, smodel_cull_dist_min, smodel_cull_dist_max));
 		}
 
 		void convert_static_models(GfxWorld* asset, target::GfxWorld* world, utils::memory::allocator& allocator)
 		{
 			auto& dpvs = world->dpvs;
 			const auto draw_insts = field<s2_static_model_draw_inst*>(asset, world_dpvs + dpvs_smodel_draw_insts);
-			const auto lighting = field<target::GfxStaticModelLighting*>(asset, world_dpvs + dpvs_smodel_lighting);
 
 			dpvs.smodelInsts = field<target::GfxStaticModelInst*>(asset, world_dpvs + dpvs_smodel_insts);
 			dpvs.smodelDrawInsts = allocate_zeroed<target::GfxStaticModelDrawInst>(allocator, dpvs.smodelCount);
 			dpvs.smodelLightingInsts = allocate_zeroed<target::GfxStaticModelLighting>(allocator, dpvs.smodelCount);
 
-			auto missing_ground_lighting = 0u;
 			for (auto i = 0u; i < dpvs.smodelCount; i++)
 			{
 				const auto& inst = draw_insts[i];
 				auto& new_inst = dpvs.smodelDrawInsts[i];
 				new_inst.placement = inst.placement;
 				new_inst.model = make_stub<target::XModel>(inst.model ? inst.model->name : "void", allocator);
-				new_inst.flags = (inst.flags & smodel_flags_kept) | smodel_scale_one;
+				new_inst.flags = target::STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING | (inst.flags & target::STATIC_MODEL_FLAG_NO_CAST_SHADOW) | smodel_scale_one;
+				new_inst.cullDist = inst.cullDist ? inst.cullDist : get_smodel_cull_dist(dpvs.smodelInsts[i]);
 				new_inst.staticModelId = inst.staticModelId;
 				new_inst.reflectionProbeIndex = inst.reflectionProbeIndex;
 				new_inst.primaryLightEnvIndex = get_light_env(asset, world, inst.lightListOffset);
 				new_inst.sunShadowFlags = (new_inst.flags & target::STATIC_MODEL_FLAG_NO_CAST_SHADOW) ? 0 : 1;
-
-				dpvs.smodelLightingInsts[i] = lighting[i];
-				if (new_inst.flags & target::STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING)
-				{
-					new_inst.flags = (new_inst.flags & ~target::STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING) | target::STATIC_MODEL_FLAG_GROUND_LIGHTING;
-					dpvs.smodelLightingInsts[i] = {};
-					if (const auto ground_lighting = get_smodel_ground_lighting(asset, lighting[i]))
-					{
-						dpvs.smodelLightingInsts[i].ambientLightingInfo.groundLighting = *ground_lighting;
-					}
-					else
-					{
-						missing_ground_lighting++;
-					}
-				}
-			}
-
-			if (missing_ground_lighting)
-			{
-				ZONETOOL_WARNING("GfxWorld \"%s\" has %u light grid static models without probe lighting", asset->name, missing_ground_lighting);
 			}
 
 			dpvs.lodData = allocator.allocate_array<unsigned int>(dpvs.smodelCount + 1);

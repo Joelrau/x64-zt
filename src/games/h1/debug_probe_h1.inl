@@ -809,5 +809,245 @@ inline float probe_half(unsigned short h)
 		fprintf(fp, "sun valid %d sprite %s flare %s\n", w->sun.hasValidData, w->sun.spriteMaterial ? w->sun.spriteMaterial->name : "null", w->sun.flareMaterial ? w->sun.flareMaterial->name : "null");
 		std::fclose(fp);
 	}
-}
 
+	inline void probe_h1_smodel_bounds(GfxWorld* w)
+	{
+		const auto fp = fopen("probe_h1_smodel_bounds.txt", "wb");
+		for (auto i = 0u; i < w->dpvs.smodelCount; i++)
+		{
+			const auto& d = w->dpvs.smodelDrawInsts[i];
+			const auto& s = w->dpvs.smodelInsts[i];
+			fprintf(fp, "%5u %-40s o(%.1f %.1f %.1f) cull %u b(%.1f %.1f %.1f | %.1f %.1f %.1f | %.1f %.1f %.1f)\n", i, d.model ? d.model->name : "null",
+				d.placement.origin[0], d.placement.origin[1], d.placement.origin[2], d.cullDist,
+				s.mins[0], s.mins[1], s.mins[2], s.maxs[0], s.maxs[1], s.maxs[2], s.lightingOrigin[0], s.lightingOrigin[1], s.lightingOrigin[2]);
+			fprintf(fp, "      fl %x lh %u env %u rmcd %u rmlod %u probe %u skin %u sun %u scale %g\n", d.flags, d.lightingHandle, d.primaryLightEnvIndex, d.reactiveMotionCullDist, d.reactiveMotionLOD, d.reflectionProbeIndex, d.firstMtlSkinIndex, d.sunShadowFlags, d.placement.scale);
+		}
+		fclose(fp);
+	}
+	inline bool probe_inside(const Bounds& outer, const float* p, float slack)
+	{
+		for (auto k = 0; k < 3; k++) if (std::fabs(p[k] - outer.midPoint[k]) > outer.halfSize[k] + slack) return false;
+		return true;
+	}
+
+	inline void probe_h1_cellref(GfxWorld* w)
+	{
+		const auto fp = fopen("probe_h1_cellref.txt", "wb");
+		const auto& dpvs = w->dpvs;
+		const auto cell_count = w->dpvsPlanes.cellCount;
+		std::vector<std::vector<int>> refs(dpvs.smodelCount);
+		for (auto c = 0; c < cell_count; c++)
+		{
+			const auto trees = w->aabbTrees[c].aabbTree;
+			for (auto t = 0; t < w->aabbTreeCounts[c].aabbTreeCount; t++)
+			{
+				for (auto i = 0; i < trees[t].smodelIndexCount; i++)
+				{
+					const auto idx = trees[t].smodelIndexes[i];
+					if (idx < dpvs.smodelCount && (refs[idx].empty() || refs[idx].back() != c)) refs[idx].push_back(c);
+				}
+			}
+		}
+		auto ref_out_mm = 0u, ref_out_mh = 0u, ref_total = 0u;
+		for (auto i = 0u; i < dpvs.smodelCount; i++)
+		{
+			const auto& s = dpvs.smodelInsts[i];
+			for (auto c : refs[i])
+			{
+				const auto& b = w->cells[c].bounds;
+				auto ov_mm = true, ov_mh = true;
+				for (auto k = 0; k < 3; k++)
+				{
+					if (s.maxs[k] < b.midPoint[k] - b.halfSize[k] - 1 || s.mins[k] > b.midPoint[k] + b.halfSize[k] + 1) ov_mm = false;
+					if (s.mins[k] + s.maxs[k] < b.midPoint[k] - b.halfSize[k] - 1 || s.mins[k] - s.maxs[k] > b.midPoint[k] + b.halfSize[k] + 1) ov_mh = false;
+				}
+				ref_total++;
+				if (!ov_mm) ref_out_mm++;
+				if (!ov_mh) ref_out_mh++;
+			}
+			if (i == 10129 || i == 15331) fprintf(fp, "inst %u a %.0f %.0f %.0f b %.0f %.0f %.0f l %.0f %.0f %.0f\n", i, s.mins[0], s.mins[1], s.mins[2], s.maxs[0], s.maxs[1], s.maxs[2], s.lightingOrigin[0], s.lightingOrigin[1], s.lightingOrigin[2]);
+		}
+		fprintf(fp, "ref pairs %u not overlapping as minmax %u as midhalf %u\n", ref_total, ref_out_mm, ref_out_mh);
+		for (auto c = 0; c < cell_count; c++)
+		{
+			const auto& b = w->cells[c].bounds;
+			fprintf(fp, "cell %d mid %.0f %.0f %.0f half %.0f %.0f %.0f portals %u trees %d\n", c, b.midPoint[0], b.midPoint[1], b.midPoint[2], b.halfSize[0], b.halfSize[1], b.halfSize[2], w->cells[c].portalCount, w->aabbTreeCounts[c].aabbTreeCount);
+		}
+		fclose(fp);
+	}
+
+	inline void probe_h1_vis(GfxWorld* w)
+	{
+		const auto fp = fopen("probe_h1_vis.txt", "wb");
+		const auto& dpvs = w->dpvs;
+		const auto cell_count = w->dpvsPlanes.cellCount;
+		fprintf(fp, "cells %d nodes %d planes %d surfaces %u static %u smodels %u\n", cell_count, w->nodeCount, w->planeCount, w->surfaceCount, dpvs.staticSurfaceCount, dpvs.smodelCount);
+		std::vector<int> smodel_refs(dpvs.smodelCount), surf_refs(w->surfaceCount), sorted_refs(w->surfaceCount);
+		auto sm_out = 0u, sm_total = 0u, sorted_out = 0u, direct_out = 0u, surf_total = 0u, sm_cell_out = 0u, bad_idx = 0u;
+		for (auto c = 0; c < cell_count; c++)
+		{
+			const auto count = w->aabbTreeCounts[c].aabbTreeCount;
+			const auto trees = w->aabbTrees[c].aabbTree;
+			for (auto t = 0; t < count; t++)
+			{
+				const auto& tree = trees[t];
+				for (auto i = 0; i < tree.smodelIndexCount; i++)
+				{
+					const auto idx = tree.smodelIndexes[i];
+					if (idx >= dpvs.smodelCount) { bad_idx++; continue; }
+					sm_total++;
+					smodel_refs[idx]++;
+					if (!probe_inside(tree.bounds, dpvs.smodelInsts[idx].mins, 1.0f)) sm_out++;
+					if (!probe_inside(w->cells[c].bounds, dpvs.smodelInsts[idx].mins, 1.0f)) sm_cell_out++;
+				}
+				for (auto i = 0; i < tree.surfaceCount; i++)
+				{
+					const auto pos = tree.startSurfIndex + i;
+					if (pos >= static_cast<int>(dpvs.staticSurfaceCount)) { bad_idx++; continue; }
+					surf_total++;
+					const auto sorted = dpvs.sortedSurfIndex[pos];
+					sorted_refs[sorted]++;
+					surf_refs[pos]++;
+					if (!probe_inside(tree.bounds, dpvs.surfacesBounds[sorted].bounds.midPoint, 1.0f)) sorted_out++;
+					if (!probe_inside(tree.bounds, dpvs.surfacesBounds[pos].bounds.midPoint, 1.0f)) direct_out++;
+				}
+			}
+		}
+		auto sm_unref = 0u, sorted_unref = 0u, direct_unref = 0u;
+		for (auto i = 0u; i < dpvs.smodelCount; i++) if (!smodel_refs[i])
+		{
+			sm_unref++;
+			if (sm_unref < 20) fprintf(fp, "unref smodel %u %s\n", i, dpvs.smodelDrawInsts[i].model ? dpvs.smodelDrawInsts[i].model->name : "null");
+		}
+		for (auto i = 0u; i < dpvs.staticSurfaceCount; i++) { if (!sorted_refs[i]) sorted_unref++; if (!surf_refs[i]) direct_unref++; }
+		fprintf(fp, "tree smodel refs %u outside tree %u outside cell %u unref %u bad %u\n", sm_total, sm_out, sm_cell_out, sm_unref, bad_idx);
+		fprintf(fp, "tree surf refs %u outside(sorted) %u outside(direct) %u unref(sorted) %u unref(direct) %u\n", surf_total, sorted_out, direct_out, sorted_unref, direct_unref);
+
+		{
+			const char* interp_names[3] = { "byte_from_node", "index", "byte_from_base" };
+			unsigned int bad_range[3]{}, child_out[3]{}, sm_not_subset[3]{}, surf_not_subset[3]{}, ok[3]{};
+			auto parents = 0u, root_missing_sm = 0u, root_missing_surf = 0u, reach_missing = 0u, leaf_sm = 0u, max_children = 0u, max_depth = 0u;
+			for (auto c = 0; c < cell_count; c++)
+			{
+				const auto count = w->aabbTreeCounts[c].aabbTreeCount;
+				const auto trees = w->aabbTrees[c].aabbTree;
+				if (count <= 0) continue;
+				std::unordered_set<unsigned short> root_set, cell_set;
+				for (auto i = 0; i < trees[0].smodelIndexCount; i++) root_set.insert(trees[0].smodelIndexes[i]);
+				for (auto t = 0; t < count; t++)
+				{
+					const auto& node = trees[t];
+					for (auto i = 0; i < node.smodelIndexCount; i++) cell_set.insert(node.smodelIndexes[i]);
+					if (node.childCount == 0) { leaf_sm += node.smodelIndexCount; continue; }
+					parents++;
+					max_children = std::max<unsigned int>(max_children, node.childCount);
+					std::unordered_set<unsigned short> parent_set(node.smodelIndexes, node.smodelIndexes + node.smodelIndexCount);
+					for (auto k = 0; k < 3; k++)
+					{
+						const GfxAabbTree* first = nullptr;
+						if (k == 0) first = reinterpret_cast<const GfxAabbTree*>(reinterpret_cast<const char*>(&node) + node.childrenOffset);
+						if (k == 1) first = trees + node.childrenOffset;
+						if (k == 2) first = reinterpret_cast<const GfxAabbTree*>(reinterpret_cast<const char*>(trees) + node.childrenOffset);
+						const auto first_index = first - trees;
+						if (first_index < 0 || first_index + node.childCount > count) { bad_range[k]++; continue; }
+						auto good = true;
+						for (auto i = 0; i < node.childCount; i++)
+						{
+							const auto& child = first[i];
+							for (auto a = 0; a < 3; a++)
+							{
+								if (std::fabs(child.bounds.midPoint[a] - node.bounds.midPoint[a]) + child.bounds.halfSize[a] > node.bounds.halfSize[a] + 1.0f) { child_out[k]++; good = false; break; }
+							}
+							for (auto i2 = 0; i2 < child.smodelIndexCount; i2++) if (!parent_set.contains(child.smodelIndexes[i2])) { sm_not_subset[k]++; good = false; break; }
+							if (child.startSurfIndex < node.startSurfIndex || child.startSurfIndex + child.surfaceCount > node.startSurfIndex + node.surfaceCount) { surf_not_subset[k]++; good = false; }
+						}
+						if (good) ok[k]++;
+					}
+				}
+				for (const auto s : cell_set) if (!root_set.contains(s)) root_missing_sm++;
+				for (auto t = 1; t < count; t++)
+				{
+					const auto& node = trees[t];
+					if (node.startSurfIndex < trees[0].startSurfIndex || node.startSurfIndex + node.surfaceCount > trees[0].startSurfIndex + trees[0].surfaceCount) root_missing_surf++;
+				}
+				std::vector<char> reached(count, 0);
+				std::vector<std::pair<int, unsigned int>> stack{ { 0, 0u } };
+				while (!stack.empty())
+				{
+					const auto [t, depth] = stack.back(); stack.pop_back();
+					if (t < 0 || t >= count || reached[t]) continue;
+					reached[t] = 1;
+					max_depth = std::max(max_depth, depth);
+					const auto& node = trees[t];
+					if (!node.childCount) continue;
+					const auto first = reinterpret_cast<const GfxAabbTree*>(reinterpret_cast<const char*>(&node) + node.childrenOffset) - trees;
+					for (auto i = 0; i < node.childCount; i++) stack.push_back({ static_cast<int>(first + i), depth + 1 });
+				}
+				for (auto t = 0; t < count; t++) if (!reached[t]) reach_missing++;
+			}
+			fprintf(fp, "aabb parents %u max children %u max depth %u leaf smodel refs %u root missing smodels %u root missing surf nodes %u unreachable nodes %u\n",
+				parents, max_children, max_depth, leaf_sm, root_missing_sm, root_missing_surf, reach_missing);
+			for (auto k = 0; k < 3; k++) fprintf(fp, "aabb %s ok %u bad range %u child outside %u smodel not subset %u surf not subset %u\n",
+				interp_names[k], ok[k], bad_range[k], child_out[k], sm_not_subset[k], surf_not_subset[k]);
+		}
+
+		auto portal_total = 0u, off_plane = 0u, bad_cell = 0u, no_back = 0u, plane_faces_out = 0u;
+		for (auto c = 0; c < cell_count; c++)
+		{
+			const auto& cell = w->cells[c];
+			for (auto p = 0; p < cell.portalCount; p++)
+			{
+				const auto& portal = cell.portals[p];
+				portal_total++;
+				auto max_d = 0.0f;
+				float centroid[3]{};
+				for (auto v = 0; v < portal.vertexCount; v++)
+				{
+					const auto* x = portal.vertices[v];
+					const auto d = x[0] * portal.plane.coeffs[0] + x[1] * portal.plane.coeffs[1] + x[2] * portal.plane.coeffs[2] + portal.plane.coeffs[3];
+					max_d = std::max(max_d, std::fabs(d));
+					for (auto k = 0; k < 3; k++) centroid[k] += x[k] / portal.vertexCount;
+				}
+				if (max_d > 1.0f) off_plane++;
+				if (portal.cellIndex >= cell_count) { bad_cell++; continue; }
+				const auto cd = cell.bounds.midPoint[0] * portal.plane.coeffs[0] + cell.bounds.midPoint[1] * portal.plane.coeffs[1] + cell.bounds.midPoint[2] * portal.plane.coeffs[2] + portal.plane.coeffs[3];
+				const auto& target = w->cells[portal.cellIndex];
+				const auto td = target.bounds.midPoint[0] * portal.plane.coeffs[0] + target.bounds.midPoint[1] * portal.plane.coeffs[1] + target.bounds.midPoint[2] * portal.plane.coeffs[2] + portal.plane.coeffs[3];
+				if (td > cd) plane_faces_out++;
+				auto back = false;
+				for (auto q = 0; q < target.portalCount; q++) if (target.portals[q].cellIndex == c) back = true;
+				if (!back) no_back++;
+				if (portal_total < 12)
+				{
+					fprintf(fp, "portal cell %d -> %u verts %u plane %.3f %.3f %.3f %.1f maxd %.2f cd %.1f td %.1f close %u hull %.2f %.2f %.2f / %.2f %.2f %.2f\n", c, portal.cellIndex, portal.vertexCount,
+						portal.plane.coeffs[0], portal.plane.coeffs[1], portal.plane.coeffs[2], portal.plane.coeffs[3], max_d, cd, td, portal.closeDistance,
+						portal.hullAxis[0][0], portal.hullAxis[0][1], portal.hullAxis[0][2], portal.hullAxis[1][0], portal.hullAxis[1][1], portal.hullAxis[1][2]);
+				}
+			}
+		}
+		fprintf(fp, "portals %u off_plane %u bad_cell %u no_back %u target_on_positive_side %u\n", portal_total, off_plane, bad_cell, no_back, plane_faces_out);
+
+		auto samples = 0u, outside = 0u, nocell = 0u;
+		const auto& wb = w->bounds;
+		for (auto x = 0; x < 40; x++) for (auto y = 0; y < 40; y++) for (auto z = 0; z < 10; z++)
+		{
+			const float p[3]{ wb.midPoint[0] + wb.halfSize[0] * (x / 19.5f - 1.0f), wb.midPoint[1] + wb.halfSize[1] * (y / 19.5f - 1.0f), wb.midPoint[2] + wb.halfSize[2] * (z / 4.5f - 1.0f) };
+			auto node = w->dpvsPlanes.nodes;
+			auto v = static_cast<int>(node[0]) - (cell_count + 1);
+			while (v >= 0)
+			{
+				const auto& plane = w->dpvsPlanes.planes[v];
+				const auto d = p[0] * plane.normal[0] + p[1] * plane.normal[1] + p[2] * plane.normal[2] - plane.dist;
+				const auto side = d <= 0.0f ? 1 : 0;
+				node += side * (node[1] - 2) + 2;
+				v = static_cast<int>(node[0]) - (cell_count + 1);
+			}
+			const auto cell = static_cast<int>(node[0]) - 1;
+			samples++;
+			if (cell < 0) { nocell++; continue; }
+			if (!probe_inside(w->cells[cell].bounds, p, 1.0f)) outside++;
+		}
+		fprintf(fp, "bsp samples %u nocell %u outside_cell_bounds %u\n", samples, nocell, outside);
+		fclose(fp);
+	}
+}

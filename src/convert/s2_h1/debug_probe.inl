@@ -826,3 +826,48 @@
 			for (const auto& [l, n] : lum_hist) fprintf(fp, "dc log2 %d: %d\n", l, n);
 			fclose(fp);
 		}
+
+		inline void probe_smodel_bounds(source::GfxWorld* asset)
+		{
+			const auto w = reinterpret_cast<std::uint8_t*>(asset);
+			const auto dpvs = w + 3240;
+			const auto count = *reinterpret_cast<unsigned int*>(dpvs + 0);
+			const auto bounds = *reinterpret_cast<float**>(dpvs + 776);
+			const auto insts = *reinterpret_cast<std::uint8_t**>(dpvs + 784);
+			const auto fp = fopen("probe_smodel_bounds.txt", "wb");
+			for (auto i = 0u; i < count && i < 4000; i += 97)
+			{
+				const auto inst = insts + 128ull * i;
+				const auto origin = reinterpret_cast<float*>(inst);
+				const auto model = *reinterpret_cast<source::XModel**>(inst + 0x48);
+				const auto b = bounds + 9ull * i;
+				fprintf(fp, "%5u %-40s o(%.1f %.1f %.1f) s %.2f b(%.1f %.1f %.1f | %.1f %.1f %.1f | %.1f %.1f %.1f) raw:", i, model ? model->name : "null",
+					origin[0], origin[1], origin[2], origin[12], b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8]);
+				for (auto o = 0x34u; o < 0x80u; o += 2)
+				{
+					if (o >= 0x48 && o < 0x50) continue;
+					fprintf(fp, " %02X:%04X", o, *reinterpret_cast<std::uint16_t*>(inst + o));
+				}
+				fprintf(fp, "\n");
+			}
+			fclose(fp);
+		}
+
+		inline void probe_xmodel_lods(source::XModel* asset)
+		{
+			static FILE* fp = fopen("probe_xmodel_lods.txt", "wb");
+			const auto base = asset->base;
+			if (!base) return;
+			const auto b = reinterpret_cast<const std::uint8_t*>(base);
+			fprintf(fp, "%s flags %X lods %d radius %.1f b26a %u b26b %u f2a8 %g lodf", asset->name, asset->flags, base->numLods, base->radius, b[0x26A], b[0x26B], *reinterpret_cast<const float*>(b + 0x2A8));
+			for (auto i = 0; i < 6; i++) fprintf(fp, " %g", *reinterpret_cast<const float*>(b + 0x2AC + i * 4));
+			fprintf(fp, "\n");
+			for (auto l = 0; l < base->numLods; l++)
+			{
+				const auto lb = reinterpret_cast<const std::uint8_t*>(&base->lodInfo[l]);
+				fprintf(fp, "  lod%d dist %g surfs %u:", l, base->lodInfo[l].dist, base->lodInfo[l].numsurfs);
+				for (auto k = 16; k < 0x50; k += 4) fprintf(fp, " %g", *reinterpret_cast<const float*>(lb + k));
+				fprintf(fp, "\n");
+			}
+			fflush(fp);
+		}

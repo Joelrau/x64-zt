@@ -2,14 +2,11 @@
 
 namespace zonetool::s2
 {
-	class vehicle_def
+	struct vehicle_layout
 	{
-	public:
-		static void read(zone_reader& reader, VehicleDef* asset)
+		template <typename V>
+		static void visit(const V& v)
 		{
-			reader.push_stream(XFILE_BLOCK_VIRTUAL);
-
-			const field_reader v(reader, asset);
 			v.strings({0, 16, 32});
 			for (auto i = 0u; i < 18; i++)
 			{
@@ -47,8 +44,10 @@ namespace zonetool::s2
 			v.string(2512);
 			v.sounds(2520, 62);
 			v.string(3032);
-
-			reader.pop_stream();
 		}
+	};
+
+	class vehicle_def : public field_layout_asset<VehicleDef, ASSET_TYPE_VEHICLE, vehicle_layout>
+	{
 	};
 }

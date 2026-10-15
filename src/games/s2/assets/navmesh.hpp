@@ -2,77 +2,57 @@
 
 namespace zonetool::s2
 {
-	class nav_mesh
+	struct nav_mesh_layout
 	{
-	public:
-		static void read(zone_reader& reader, NavMeshData* asset)
+		template <typename V>
+		static void visit(const V& w)
 		{
-			reader.push_stream(XFILE_BLOCK_VIRTUAL);
-			reader.read_string(asset->name);
-
-			if (const auto regions = reader.read_array(asset->regions, 7, asset->regionCount))
+			const auto count = [&](const std::size_t offset)
 			{
-				for (auto i = 0; i < asset->regionCount; i++)
-				{
-					auto& region = regions[i];
-					reader.read_script_string(region.name);
-					reader.read_array(region.data, 3, region.dataSize);
-					reader.read_array(region.extraData, 3, region.hasExtraData ? region.dataSize : 0);
-				}
-			}
+				return w.template at<int>(offset);
+			};
 
-			if (const auto edge_lists = reader.read_array(asset->edgeLists, 7, asset->edgeListCount))
+			w.string(offsetof(NavMeshData, name));
+			w.entries(offsetof(NavMeshData, regions), sizeof(NavMeshRegion), count(offsetof(NavMeshData, regionCount)), [](const auto& region, std::size_t)
 			{
-				for (auto i = 0; i < asset->edgeListCount; i++)
-				{
-					auto& list = edge_lists[i];
-					if (const auto edges = reader.read_array(list.edges, 7, list.edgeCount))
-					{
-						for (auto j = 0; j < list.edgeCount; j++)
-						{
-							reader.read_array(edges[j].points, 3, edges[j].pointCount);
-						}
-					}
-				}
-			}
-
-			if (const auto polygons = reader.read_array(asset->polygons, 7, asset->polygonCount))
+				const auto data_size = region.template at<int>(offsetof(NavMeshRegion, dataSize));
+				region.script_string(offsetof(NavMeshRegion, name));
+				region.bytes(offsetof(NavMeshRegion, data), 3, data_size);
+				region.bytes(offsetof(NavMeshRegion, extraData), 3, region.template at<bool>(offsetof(NavMeshRegion, hasExtraData)) ? data_size : 0);
+			});
+			w.entries(offsetof(NavMeshData, edgeLists), sizeof(NavMeshEdgeList), count(offsetof(NavMeshData, edgeListCount)), [](const auto& list, std::size_t)
 			{
-				for (auto i = 0; i < asset->polygonCount; i++)
+				list.entries(offsetof(NavMeshEdgeList, edges), sizeof(NavMeshEdge), list.template at<int>(offsetof(NavMeshEdgeList, edgeCount)), [](const auto& edge, std::size_t)
 				{
-					reader.read_array(polygons[i].points, 3, polygons[i].pointCount);
-				}
-			}
-
-			if (const auto volumes = reader.read_array(asset->volumes, 7, asset->volumeCount))
+					edge.array(S2_ARRAY_FIELD(NavMeshEdge, points), 3, edge.template at<int>(offsetof(NavMeshEdge, pointCount)));
+				});
+			});
+			w.entries(offsetof(NavMeshData, polygons), sizeof(NavMeshPolygon), count(offsetof(NavMeshData, polygonCount)), [](const auto& polygon, std::size_t)
 			{
-				for (auto i = 0; i < asset->volumeCount; i++)
-				{
-					reader.read_array(volumes[i].points, 3, volumes[i].pointCount);
-					reader.read_script_string(volumes[i].name);
-				}
-			}
-
-			if (const auto links = reader.read_array(asset->links, 3, asset->linkCount))
+				polygon.array(S2_ARRAY_FIELD(NavMeshPolygon, points), 3, polygon.template at<int>(offsetof(NavMeshPolygon, pointCount)));
+			});
+			w.entries(offsetof(NavMeshData, volumes), sizeof(NavMeshVolume), count(offsetof(NavMeshData, volumeCount)), [](const auto& volume, std::size_t)
 			{
-				for (auto i = 0; i < asset->linkCount; i++)
-				{
-					reader.read_script_strings(links[i].names, 3);
-				}
-			}
-
-			reader.read_array(asset->nodes, 3, asset->nodeCount);
-			reader.read_array(asset->faces, 3, asset->faceCount);
-
-			if (const auto clusters = reader.read_array(asset->clusters, 7, asset->clusterCount))
+				volume.array(S2_ARRAY_FIELD(NavMeshVolume, points), 3, volume.template at<int>(offsetof(NavMeshVolume, pointCount)));
+				volume.script_string(offsetof(NavMeshVolume, name));
+			});
+			w.aligned_entries(offsetof(NavMeshData, links), 3, sizeof(NavMeshLink), count(offsetof(NavMeshData, linkCount)), [](const auto& link, std::size_t)
 			{
-				for (auto i = 0; i < asset->clusterCount; i++)
+				for (auto i = 0u; i < std::size(NavMeshLink{}.names); i++)
 				{
-					reader.read_array(clusters[i].data, 3, clusters[i].count);
+					link.script_string(offsetof(NavMeshLink, names) + i * sizeof(scr_string_t));
 				}
-			}
-
-			reader.pop_stream();
+			});
+			w.array(S2_ARRAY_FIELD(NavMeshData, nodes), 3, count(offsetof(NavMeshData, nodeCount)));
+			w.array(S2_ARRAY_FIELD(NavMeshData, faces), 3, count(offsetof(NavMeshData, faceCount)));
+			w.entries(offsetof(NavMeshData, clusters), sizeof(NavMeshCluster), count(offsetof(NavMeshData, clusterCount)), [](const auto& cluster, std::size_t)
+			{
+				cluster.array(S2_ARRAY_FIELD(NavMeshCluster, data), 3, cluster.template at<int>(offsetof(NavMeshCluster, count)));
+			});
 		}
+	};
+
+	class nav_mesh : public field_layout_asset<NavMeshData, ASSET_TYPE_NAVMESH, nav_mesh_layout>
+	{
 	};
 }

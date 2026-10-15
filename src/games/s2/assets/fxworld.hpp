@@ -2,60 +2,58 @@
 
 namespace zonetool::s2
 {
-	class fx_world
+	struct fx_world_layout
 	{
-	public:
-		static void read(zone_reader& reader, FxWorld* asset)
+		template <typename V>
+		static void visit(const V& w)
 		{
-			reader.push_stream(XFILE_BLOCK_VIRTUAL);
-			reader.read_string(asset->name);
-			read_glass_system(reader, &asset->glassSys);
-			reader.pop_stream();
+			w.string(offsetof(FxWorld, name));
+			visit_glass_system(w.sub(offsetof(FxWorld, glassSys)));
 		}
 
 	private:
-		template <typename T>
-		static void read_runtime(zone_reader& reader, T*& field, const std::size_t alignment, const std::size_t count)
+		template <typename V>
+		static void visit_glass_system(const V& glass)
 		{
-			reader.push_stream(XFILE_BLOCK_RUNTIME);
-			reader.read_array(field, alignment, count);
-			reader.pop_stream();
-		}
-
-		static void read_glass_system(zone_reader& reader, FxGlassSystem* glass)
-		{
-			if (const auto defs = reader.read_array(glass->defs, 7, glass->defCount))
+			glass.entries(offsetof(FxGlassSystem, defs), sizeof(FxGlassDef),
+				glass.template at<unsigned int>(offsetof(FxGlassSystem, defCount)), [](const auto& def, std::size_t)
 			{
-				for (auto i = 0u; i < glass->defCount; i++)
-				{
-					auto& def = defs[i];
-					reader.read_asset(ASSET_TYPE_PHYSPRESET, def.physPreset);
-					reader.read_asset(ASSET_TYPE_MATERIAL, def.material);
-					reader.read_asset(ASSET_TYPE_MATERIAL, def.materialShattered);
-					reader.read_asset(ASSET_TYPE_FX, def.pieceBreakEffect);
-					reader.read_asset(ASSET_TYPE_FX, def.shatterEffect);
-					reader.read_asset(ASSET_TYPE_FX, def.shatterSmallEffect);
-					reader.read_asset(ASSET_TYPE_FX, def.crackDecalEffect);
-					reader.read_name_reference(def.damagedSound);
-					reader.read_name_reference(def.destroyedSound);
-					reader.read_name_reference(def.destroyedQuietSound);
-				}
-			}
+				def.asset(ASSET_TYPE_PHYSPRESET, offsetof(FxGlassDef, physPreset));
+				def.asset(ASSET_TYPE_MATERIAL, offsetof(FxGlassDef, material));
+				def.asset(ASSET_TYPE_MATERIAL, offsetof(FxGlassDef, materialShattered));
+				def.asset(ASSET_TYPE_FX, offsetof(FxGlassDef, pieceBreakEffect));
+				def.asset(ASSET_TYPE_FX, offsetof(FxGlassDef, shatterEffect));
+				def.asset(ASSET_TYPE_FX, offsetof(FxGlassDef, shatterSmallEffect));
+				def.asset(ASSET_TYPE_FX, offsetof(FxGlassDef, crackDecalEffect));
+				def.sound(offsetof(FxGlassDef, damagedSound));
+				def.sound(offsetof(FxGlassDef, destroyedSound));
+				def.sound(offsetof(FxGlassDef, destroyedQuietSound));
+			});
 
-			const auto piece_limit = glass->pieceLimit;
-			read_runtime(reader, glass->piecePlaces, 3, piece_limit);
-			read_runtime(reader, glass->pieceStates, 3, piece_limit);
-			read_runtime(reader, glass->pieceDynamics, 7, piece_limit);
-			read_runtime(reader, glass->geoData, 1, glass->geoDataLimit);
-			read_runtime(reader, glass->isInUse, 3, glass->pieceWordCount);
-			read_runtime(reader, glass->cellBits, 3, glass->pieceWordCount * glass->cellCount);
-			read_runtime(reader, glass->visData, 15, (piece_limit + 15) & ~15u);
-			read_runtime(reader, glass->linkOrg, 3, piece_limit);
-			read_runtime(reader, glass->halfThickness, 15, (piece_limit + 3) & ~3u);
+			const auto count = [&](const std::size_t offset)
+			{
+				return glass.template at<unsigned int>(offset);
+			};
+			const auto piece_limit = count(offsetof(FxGlassSystem, pieceLimit));
+			const auto piece_word_count = count(offsetof(FxGlassSystem, pieceWordCount));
+			glass.runtime_array(S2_ARRAY_FIELD(FxGlassSystem, piecePlaces), 3, piece_limit);
+			glass.runtime_array(S2_ARRAY_FIELD(FxGlassSystem, pieceStates), 3, piece_limit);
+			glass.runtime_array(S2_ARRAY_FIELD(FxGlassSystem, pieceDynamics), 7, piece_limit);
+			glass.runtime_array(S2_ARRAY_FIELD(FxGlassSystem, geoData), 1, count(offsetof(FxGlassSystem, geoDataLimit)));
+			glass.runtime_array(S2_ARRAY_FIELD(FxGlassSystem, isInUse), 3, piece_word_count);
+			glass.runtime_array(S2_ARRAY_FIELD(FxGlassSystem, cellBits), 3, piece_word_count * count(offsetof(FxGlassSystem, cellCount)));
+			glass.runtime_array(S2_ARRAY_FIELD(FxGlassSystem, visData), 15, (piece_limit + 15) & ~15u);
+			glass.runtime_array(S2_ARRAY_FIELD(FxGlassSystem, linkOrg), 3, piece_limit);
+			glass.runtime_array(S2_ARRAY_FIELD(FxGlassSystem, halfThickness), 15, (piece_limit + 3) & ~3u);
 
-			reader.read_array(glass->lightingHandles, 1, glass->initPieceCount);
-			reader.read_array(glass->initGeoData, 1, glass->initGeoDataCount);
-			reader.read_array(glass->initPieceStates, 3, glass->initPieceCount);
+			const auto init_piece_count = count(offsetof(FxGlassSystem, initPieceCount));
+			glass.array(S2_ARRAY_FIELD(FxGlassSystem, lightingHandles), 1, init_piece_count);
+			glass.array(S2_ARRAY_FIELD(FxGlassSystem, initGeoData), 1, count(offsetof(FxGlassSystem, initGeoDataCount)));
+			glass.array(S2_ARRAY_FIELD(FxGlassSystem, initPieceStates), 3, init_piece_count);
 		}
+	};
+
+	class fx_world : public field_layout_asset<FxWorld, ASSET_TYPE_FXWORLD, fx_world_layout>
+	{
 	};
 }
