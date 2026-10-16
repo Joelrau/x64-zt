@@ -7,6 +7,7 @@ namespace game
 		none = -1,
 		h1,
 		h2,
+		iw6,
 		iw7,
 		s1,
 		s2,

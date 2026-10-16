@@ -179,8 +179,8 @@ namespace zonetool::s2
 			p.array(S2_ARRAY_FIELD(GfxLightGridProbeData, tetrahedronNeighbors), align_64, probes.tetrahedronCount);
 			p.array(S2_ARRAY_FIELD(GfxLightGridProbeData, tetrahedronVisibility), align_64, probes.tetrahedronCountVisible);
 			p.array(S2_ARRAY_FIELD(GfxLightGridProbeData, voxelStartTetrahedron), align_64, probes.voxelStartTetrahedronCount);
-			p.array(S2_ARRAY_FIELD(GfxLightGridProbeData, unk_0xC8), align_4, probes.unkCount_0xC0);
-			p.array(S2_ARRAY_FIELD(GfxLightGridProbeData, unk_0xD8), align_64, probes.unkCount_0xD0);
+			p.array(S2_ARRAY_FIELD(GfxLightGridProbeData, smodelProbeGrids), align_4, probes.smodelProbeGridCount);
+			p.array(S2_ARRAY_FIELD(GfxLightGridProbeData, smodelProbes), align_64, probes.smodelProbeCount);
 		}
 
 		template <typename V>
@@ -221,18 +221,18 @@ namespace zonetool::s2
 		}
 
 		template <typename V>
-		void visit_light_view_frustums(const V& w)
+		void visit_voxel_trees(const V& w)
 		{
 			const auto& world = w.template as<GfxWorld>();
-			w.entries(offsetof(GfxWorld, lightViewFrustums), sizeof(GfxLightViewFrustum), world.lightViewFrustumCount, [](const auto& e, std::size_t)
+			w.entries(offsetof(GfxWorld, voxelTree), sizeof(GfxVoxelTree), world.voxelTreeCount, [](const auto& e, std::size_t)
 			{
-				const auto& frustum = e.template as<GfxLightViewFrustum>();
-				e.array(S2_ARRAY_FIELD(GfxLightViewFrustum, matrix), align_16, 1);
-				e.array(S2_ARRAY_FIELD(GfxLightViewFrustum, vertices), align_4, frustum.vertexCount);
-				e.array(S2_ARRAY_FIELD(GfxLightViewFrustum, planes), align_4, frustum.planeCount);
-				e.array(S2_ARRAY_FIELD(GfxLightViewFrustum, indices), align_2, frustum.indexCount);
-				e.array(S2_ARRAY_FIELD(GfxLightViewFrustum, unkIndices), align_4, frustum.unkIndexCount);
-				e.runtime_array(S2_ARRAY_FIELD(GfxLightViewFrustum, unkRuntime), align_4, frustum.planeCount);
+				const auto& tree = e.template as<GfxVoxelTree>();
+				e.array(S2_ARRAY_FIELD(GfxVoxelTree, voxelTreeHeader), align_16, 1);
+				e.array(S2_ARRAY_FIELD(GfxVoxelTree, voxelTopDownViewNodeArray), align_4, tree.voxelTopDownViewNodeCount);
+				e.array(S2_ARRAY_FIELD(GfxVoxelTree, voxelInternalNodeArray), align_4, tree.voxelInternalNodeCount);
+				e.array(S2_ARRAY_FIELD(GfxVoxelTree, voxelLeafNodeArray), align_2, tree.voxelLeafNodeCount);
+				e.array(S2_ARRAY_FIELD(GfxVoxelTree, lightListArray), align_4, tree.lightListArraySize);
+				e.runtime_array(S2_ARRAY_FIELD(GfxVoxelTree, voxelInternalNodeDynamicLightList), align_4, tree.voxelInternalNodeCount);
 			});
 		}
 
@@ -456,7 +456,7 @@ namespace zonetool::s2
 		visit_light_grid(w.sub(offsetof(GfxWorld, lightGrid)));
 		visit_probe_data(w.sub(offsetof(GfxWorld, probeData)));
 		visit_unknown_data(w.sub(offsetof(GfxWorld, unknownData)));
-		visit_light_view_frustums(w);
+		visit_voxel_trees(w);
 		visit_light_lists(w.sub(offsetof(GfxWorld, lightLists)));
 		visit_frustum_lights(w);
 		w.array(S2_ARRAY_FIELD(GfxWorld, models), align_4, world.modelCount);

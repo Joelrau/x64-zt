@@ -166,10 +166,9 @@ namespace zonetool::h1::converter::s2::techset
 			return prefix.starts_with('m');
 		}
 
-		// an unlit world surface has lightmap index 31, which is not a lightmap. The game binds that
-		// lightmap for an lmpb techset (crash in PSSetShaderResources, called at 0x1408CC0F6)
 		bool lightmap_allowed(const techset_name& source, const techset_name& candidate)
 		{
+			// unlit world surfaces have lightmap index 31, an lmpb techset binds it (crash in PSSetShaderResources at 0x1408CC0F6)
 			return !has_any_token(source, {"unlit"}) || !has_any_token(candidate, {"lmpb"});
 		}
 

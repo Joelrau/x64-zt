@@ -77,7 +77,7 @@ namespace zonetool
 		}
 	}
 
-	template <ASSET_TEMPLATE, shader_type ShaderType>
+	template <ASSET_TEMPLATE, shader_type ShaderType, bool ProgramInTempBlock = ShaderType != vertexshader>
 	class shader : public asset_interface
 	{
 	static_assert(ShaderType < shader_count);
@@ -175,7 +175,7 @@ namespace zonetool
 			reader.push_stream(Streams::XFILE_BLOCK_VIRTUAL);
 			reader.read_string(asset->name);
 
-			if constexpr (ShaderType != vertexshader)
+			if constexpr (ProgramInTempBlock)
 			{
 				reader.push_stream(Streams::XFILE_BLOCK_TEMP);
 			}
@@ -186,7 +186,7 @@ namespace zonetool
 				program = reader.duplicate(data, asset->prog.loadDef.programSize);
 			}
 
-			if constexpr (ShaderType != vertexshader)
+			if constexpr (ProgramInTempBlock)
 			{
 				reader.pop_stream();
 			}
@@ -203,7 +203,7 @@ namespace zonetool
 
 			dest->name = buf->write_str(this->name());
 
-			if constexpr (ShaderType != vertexshader)
+			if constexpr (ProgramInTempBlock)
 			{
 				buf->push_stream(Streams::XFILE_BLOCK_TEMP);
 			}
@@ -215,7 +215,7 @@ namespace zonetool
 				buf->clear_pointer(&dest->prog.loadDef.program);
 			}
 
-			if constexpr (ShaderType != vertexshader)
+			if constexpr (ProgramInTempBlock)
 			{
 				buf->pop_stream();
 			}

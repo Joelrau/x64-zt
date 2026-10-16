@@ -38,5 +38,6 @@ namespace zonetool
 		asset_dumper dump_asset;
 		converter_setup setup;
 		converter_finish finish;
+		std::span<const std::string_view> required_zones;
 	};
 }

@@ -7,12 +7,17 @@
 
 namespace zonetool
 {
-	template <ASSET_TEMPLATE>
+	template <ASSET_TEMPLATE, bool compressed_only = false>
 	class rawfile : public asset_interface
 	{
 	private:
 		std::string name_;
 		S* asset_ = nullptr;
+
+		static int buffer_size(const S* asset)
+		{
+			return asset->compressedLen || compressed_only ? asset->compressedLen : asset->len + 1;
+		}
 
 	public:
 		S* parse(const std::string& name, zone_memory* mem)
@@ -112,7 +117,7 @@ namespace zonetool
 		{
 			reader.push_stream(Streams::XFILE_BLOCK_VIRTUAL);
 			reader.read_string(asset->name);
-			reader.read_array(asset->buffer, 0, asset->compressedLen ? asset->compressedLen : asset->len + 1);
+			reader.read_array(asset->buffer, 0, buffer_size(asset));
 			reader.pop_stream();
 		}
 
@@ -127,7 +132,7 @@ namespace zonetool
 
 			if (data->buffer)
 			{
-				buf->write(data->buffer, data->compressedLen ? data->compressedLen : data->len + 1);
+				buf->write(data->buffer, buffer_size(data));
 				buf->clear_pointer(&dest->buffer);
 			}
 

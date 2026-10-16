@@ -19,6 +19,8 @@ namespace zonetool::xfile
 		std::uint32_t version;
 		std::size_t block_count;
 		std::string (*zone_key)();
+		std::size_t auth_block_size = 0x4000;
+		std::size_t auth_blocks_per_group = 512;
 	};
 
 	struct fastfile

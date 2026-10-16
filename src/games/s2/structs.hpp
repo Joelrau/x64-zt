@@ -3210,6 +3210,17 @@ namespace zonetool::s2
 	};
 	assert_sizeof(GfxGpuLightGridProbePosition, 12);
 
+	struct GfxStaticModelProbeGrid
+	{
+		unsigned int firstProbe;
+		unsigned short probeCountX;
+		unsigned short probeCountY;
+		unsigned int probeCountZ;
+		unsigned int averageProbe; // firstProbe for one probe, else the slot after the grid
+		float worldToGrid[3][4]; // world to unit cube over the model bounds
+	};
+	assert_sizeof(GfxStaticModelProbeGrid, 64);
+
 	struct GfxLightGridProbeData
 	{
 		unsigned int probeCount; // 0
@@ -3237,13 +3248,13 @@ namespace zonetool::s2
 		GfxGpuLightGridVoxelStartTetrahedron* voxelStartTetrahedron; // 168
 		ID3D11Buffer* voxelStartTetrahedronBuffer; // 176
 		ID3D11ShaderResourceView* voxelStartTetrahedronView; // 184
-		unsigned int unkCount_0xC0; // 192
-		char (*unk_0xC8)[64]; // 200
-		unsigned int unkCount_0xD0; // 208
-		char (*unk_0xD8)[64]; // 216
-		ID3D11Buffer* unk_0xE0Buffer; // 224
-		ID3D11ShaderResourceView* unk_0xE8View; // 232
-		ID3D11UnorderedAccessView* unk_0xF0RWView; // 240
+		unsigned int smodelProbeGridCount; // 192
+		GfxStaticModelProbeGrid* smodelProbeGrids; // 200
+		unsigned int smodelProbeCount; // 208
+		GfxSHProbeData* smodelProbes; // 216
+		ID3D11Buffer* smodelProbesBuffer; // 224
+		ID3D11ShaderResourceView* smodelProbesView; // 232
+		ID3D11UnorderedAccessView* smodelProbesRWView; // 240
 	};
 	assert_sizeof(GfxLightGridProbeData, 248);
 	assert_offsetof(GfxLightGridProbeData, probes, 8);
@@ -3257,11 +3268,11 @@ namespace zonetool::s2
 	assert_offsetof(GfxLightGridProbeData, tetrahedronVisibility, 136);
 	assert_offsetof(GfxLightGridProbeData, voxelStartTetrahedronCount, 160);
 	assert_offsetof(GfxLightGridProbeData, voxelStartTetrahedron, 168);
-	assert_offsetof(GfxLightGridProbeData, unkCount_0xC0, 192);
-	assert_offsetof(GfxLightGridProbeData, unk_0xC8, 200);
-	assert_offsetof(GfxLightGridProbeData, unkCount_0xD0, 208);
-	assert_offsetof(GfxLightGridProbeData, unk_0xD8, 216);
-	assert_offsetof(GfxLightGridProbeData, unk_0xF0RWView, 240);
+	assert_offsetof(GfxLightGridProbeData, smodelProbeGridCount, 192);
+	assert_offsetof(GfxLightGridProbeData, smodelProbeGrids, 200);
+	assert_offsetof(GfxLightGridProbeData, smodelProbeCount, 208);
+	assert_offsetof(GfxLightGridProbeData, smodelProbes, 216);
+	assert_offsetof(GfxLightGridProbeData, smodelProbesRWView, 240);
 
 	template <std::size_t Stride>
 	struct GfxWorldUnknownArray
@@ -3343,32 +3354,62 @@ namespace zonetool::s2
 	assert_offsetof(GfxFrustumLights, indices, 32);
 	assert_offsetof(GfxFrustumLights, vertices, 40);
 
-	struct GfxLightViewFrustum
+	struct GfxVoxelTreeHeader
 	{
-		char unk_0x0[24]; // 0
-		unsigned int vertexCount; // 24
-		unsigned int planeCount; // 28
-		unsigned int indexCount; // 32
-		unsigned int unkIndexCount; // 36
-		float (*matrix)[16]; // 40
-		vec3_t* vertices; // 48
-		vec4_t* planes; // 56
-		unsigned short* indices; // 64
-		unsigned short* unkIndices; // 72
-		char (*unkRuntime)[8]; // 80
+		int rootNodeDimension[4];
+		int nodeCoordBitShift[4];
+		vec4_t boundMin;
+		vec4_t boundMax;
+	};
+	assert_sizeof(GfxVoxelTreeHeader, 64);
+
+	struct GfxVoxelTopDownViewNode
+	{
+		int firstNodeIndex;
+		int zMin;
+		int zMax;
+	};
+	assert_sizeof(GfxVoxelTopDownViewNode, 12);
+
+	struct GfxVoxelInternalNode
+	{
+		int firstNodeIndex[2]; // one base per mask half, bit 31 set when the children are leaves
+		unsigned int childNodeMask[2];
+	};
+	assert_sizeof(GfxVoxelInternalNode, 16);
+
+	struct GfxVoxelLeafNode
+	{
+		unsigned short lightListAddress;
+	};
+	assert_sizeof(GfxVoxelLeafNode, 2);
+
+	struct GfxVoxelTree
+	{
+		Bounds zoneBound; // 0
+		unsigned int voxelTopDownViewNodeCount; // 24
+		unsigned int voxelInternalNodeCount; // 28
+		unsigned int voxelLeafNodeCount; // 32
+		unsigned int lightListArraySize; // 36
+		GfxVoxelTreeHeader* voxelTreeHeader; // 40
+		GfxVoxelTopDownViewNode* voxelTopDownViewNodeArray; // 48
+		GfxVoxelInternalNode* voxelInternalNodeArray; // 56
+		GfxVoxelLeafNode* voxelLeafNodeArray; // 64
+		unsigned short* lightListArray; // 72
+		unsigned int (*voxelInternalNodeDynamicLightList)[2]; // 80
 		char unk_0x58[24]; // 88
 	};
-	assert_sizeof(GfxLightViewFrustum, 112);
-	assert_offsetof(GfxLightViewFrustum, vertexCount, 24);
-	assert_offsetof(GfxLightViewFrustum, planeCount, 28);
-	assert_offsetof(GfxLightViewFrustum, indexCount, 32);
-	assert_offsetof(GfxLightViewFrustum, unkIndexCount, 36);
-	assert_offsetof(GfxLightViewFrustum, matrix, 40);
-	assert_offsetof(GfxLightViewFrustum, vertices, 48);
-	assert_offsetof(GfxLightViewFrustum, planes, 56);
-	assert_offsetof(GfxLightViewFrustum, indices, 64);
-	assert_offsetof(GfxLightViewFrustum, unkIndices, 72);
-	assert_offsetof(GfxLightViewFrustum, unkRuntime, 80);
+	assert_sizeof(GfxVoxelTree, 112);
+	assert_offsetof(GfxVoxelTree, voxelTopDownViewNodeCount, 24);
+	assert_offsetof(GfxVoxelTree, voxelInternalNodeCount, 28);
+	assert_offsetof(GfxVoxelTree, voxelLeafNodeCount, 32);
+	assert_offsetof(GfxVoxelTree, lightListArraySize, 36);
+	assert_offsetof(GfxVoxelTree, voxelTreeHeader, 40);
+	assert_offsetof(GfxVoxelTree, voxelTopDownViewNodeArray, 48);
+	assert_offsetof(GfxVoxelTree, voxelInternalNodeArray, 56);
+	assert_offsetof(GfxVoxelTree, voxelLeafNodeArray, 64);
+	assert_offsetof(GfxVoxelTree, lightListArray, 72);
+	assert_offsetof(GfxVoxelTree, voxelInternalNodeDynamicLightList, 80);
 
 	struct GfxWorldLightLists
 	{
@@ -3479,8 +3520,7 @@ namespace zonetool::s2
 
 	struct GfxStaticModelInst
 	{
-		float mins[3];
-		float maxs[3];
+		Bounds bounds;
 		float lightingOrigin[3];
 	};
 	assert_sizeof(GfxStaticModelInst, 36);
@@ -3715,8 +3755,8 @@ namespace zonetool::s2
 		GfxLightGridProbeData probeData; // 2072
 		GfxWorldUnknownData unknownData; // 2320
 		GfxFrustumLights* frustumLights; // 2816
-		int lightViewFrustumCount; // 2824
-		GfxLightViewFrustum* lightViewFrustums; // 2832
+		int voxelTreeCount; // 2824
+		GfxVoxelTree* voxelTree; // 2832
 		GfxWorldLightLists lightLists; // 2840
 		int modelCount; // 2888
 		GfxBrushModel* models; // 2896
@@ -3777,8 +3817,8 @@ namespace zonetool::s2
 	assert_offsetof(GfxWorld, probeData, 2072);
 	assert_offsetof(GfxWorld, unknownData, 2320);
 	assert_offsetof(GfxWorld, frustumLights, 2816);
-	assert_offsetof(GfxWorld, lightViewFrustumCount, 2824);
-	assert_offsetof(GfxWorld, lightViewFrustums, 2832);
+	assert_offsetof(GfxWorld, voxelTreeCount, 2824);
+	assert_offsetof(GfxWorld, voxelTree, 2832);
 	assert_offsetof(GfxWorld, lightLists, 2840);
 	assert_offsetof(GfxWorld, modelCount, 2888);
 	assert_offsetof(GfxWorld, models, 2896);

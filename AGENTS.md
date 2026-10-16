@@ -6,7 +6,7 @@ Guide for humans and agents who work on x64-zt. Read it before you change code.
 
 x64-zt is a fastfile unlinker and linker for x64 Call of Duty titles. It reads `.ff` zones that every Call of Duty game uses, dumps their assets to disk, and enables building new zones from those dumps or adding new assets into it no problem. It can dual-purpose convert assets from one game to another as well.
 
-The `v2` branch is a standalone rewrite of x64-zt with the assistance of AI to help add new games and keep a cleaner codebase. It reads fastfiles directly, and never loads a game exe via runtime methodology anymore like the main branch. v1 (`main`) loaded the game binary and hooked its zone loader. v2 keeps the v1 asset logic and the v1 dump formats. Current scope is H1 (MWR 1.15) and IW7. Other games are currently not supported as they need to be re-added, but can be done with due time easily.
+The `v2` branch is a standalone rewrite of x64-zt with the assistance of AI to help add new games and keep a cleaner codebase. It reads fastfiles directly, and never loads a game exe via runtime methodology anymore like the main branch. v1 (`main`) loaded the game binary and hooked its zone loader. v2 keeps the v1 asset logic and the v1 dump formats. Current scope is H1 (MWR 1.15), IW6 and IW7. See `docs/IW6_SUPPORT.md` for IW6. Other games are currently not supported as they need to be re-added, but can be done with due time easily.
 
 ## Build
 
@@ -150,10 +150,10 @@ Run these after a change to a reader, writer or the container code:
 | Check | Command | Pass condition |
 |---|---|---|
 | Container | `inspect --all` | Every zone passes |
-| Reader | `verifyzone --all` | H1: 6991 of 6991. IW7: 686 of 687 (`mp_vlobby_room` on disk is a modified file) |
+| Reader | `verifyzone --all` | H1: 6991 of 6991. IW6: 878 of 878. IW7: 686 of 687 (`mp_vlobby_room` on disk is a modified file) |
 | Writer | `dumpzone X`, `buildzone X`, `verifyzone X`, then `dumpzone` the built zone | The two dumps are equal, except pointer values and the known differences |
 
-Good round-trip zones: H1 `mp_shipment`, `mp_crash`. IW7 `mp_frontend`, `mp_afghan`.
+Good round-trip zones: H1 `mp_shipment`, `mp_crash`. IW6 `mp_battery3`. IW7 `mp_frontend`, `mp_afghan`.
 
 ## Strict ground rules to follow
 

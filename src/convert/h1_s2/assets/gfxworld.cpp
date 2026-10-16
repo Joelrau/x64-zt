@@ -6,6 +6,9 @@
 #include "gfximage.hpp"
 #include "techset.hpp"
 
+#include <formats/light_grid.hpp>
+#include <formats/probe_volume.hpp>
+
 namespace zonetool::h1::converter::s2::gfxworld
 {
 	namespace
@@ -62,7 +65,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 			std::uint32_t unk5C;
 			char __pad4[10];
 			std::uint16_t lightListOffset;
-			float unk6C;
+			float radius;
 			std::uint8_t reflectionProbeIndex;
 			char __pad5[1];
 			std::uint8_t unk72;
@@ -78,7 +81,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 		static_assert(offsetof(s2_static_model_draw_inst, staticModelId) == 0x58);
 		static_assert(offsetof(s2_static_model_draw_inst, unk5C) == 0x5C);
 		static_assert(offsetof(s2_static_model_draw_inst, lightListOffset) == 0x6A);
-		static_assert(offsetof(s2_static_model_draw_inst, unk6C) == 0x6C);
+		static_assert(offsetof(s2_static_model_draw_inst, radius) == 0x6C);
 		static_assert(offsetof(s2_static_model_draw_inst, reflectionProbeIndex) == 0x70);
 		static_assert(offsetof(s2_static_model_draw_inst, unk72) == 0x72);
 		static_assert(offsetof(s2_static_model_draw_inst, unk74) == 0x74);
@@ -123,8 +126,6 @@ namespace zonetool::h1::converter::s2::gfxworld
 		constexpr std::size_t world_draw = 192;
 		constexpr std::size_t world_vertex_data = 2320;
 		constexpr std::size_t world_primary_light_bounds = 2816;
-		constexpr std::size_t world_voxel_count = 2824;
-		constexpr std::size_t world_voxels = 2832;
 		constexpr std::size_t world_shadow_surface_count = 2840;
 		constexpr std::size_t world_shadow_surfaces = 2848;
 		constexpr std::size_t world_shadow_smodel_count = 2856;
@@ -215,6 +216,14 @@ namespace zonetool::h1::converter::s2::gfxworld
 			const auto result = allocator.allocate_array<T>(count);
 			std::memcpy(result, data, sizeof(T) * count);
 			return result;
+		}
+
+		Bounds smodel_bounds(const GfxStaticModelInst& inst)
+		{
+			Bounds bounds{};
+			std::memcpy(bounds.midPoint, inst.mins, sizeof(bounds.midPoint)); // the H1 struct names center and half size mins and maxs
+			std::memcpy(bounds.halfSize, inst.maxs, sizeof(bounds.halfSize));
+			return bounds;
 		}
 
 		std::uint8_t* zero_bytes(const std::size_t size, utils::memory::allocator& allocator)
@@ -444,9 +453,6 @@ namespace zonetool::h1::converter::s2::gfxworld
 			}
 			field<s2_primary_light_bounds*>(world, world_primary_light_bounds) = bounds;
 
-			field<unsigned int>(world, world_voxel_count) = 0;
-			field<void*>(world, world_voxels) = nullptr;
-
 			field<unsigned int>(world, world_shadow_surface_count) = asset->surfaceCount;
 			field<std::uint8_t*>(world, world_shadow_surfaces) = zero_bytes(0, allocator);
 			field<unsigned int>(world, world_shadow_smodel_count) = asset->dpvs.smodelCount;
@@ -562,7 +568,8 @@ namespace zonetool::h1::converter::s2::gfxworld
 				new_inst.flags = smodel_flags_default | (inst.flags & STATIC_MODEL_FLAG_NO_CAST_SHADOW);
 				new_inst.staticModelId = inst.staticModelId;
 				new_inst.lightListOffset = lists.offset(inst.primaryLightEnvIndex);
-				new_inst.unk6C = 25.5f;
+				const auto& half_size = smodel_bounds(source.smodelInsts[i]).halfSize;
+				new_inst.radius = std::hypot(half_size[0], half_size[1], half_size[2]);
 				new_inst.reflectionProbeIndex = inst.reflectionProbeIndex;
 				new_inst.unk72 = 1;
 				new_inst.unk74 = 1.0f;
@@ -652,66 +659,549 @@ namespace zonetool::h1::converter::s2::gfxworld
 			field<GfxBuildInfo>(world, world_build_info) = asset->buildInfo;
 		}
 
-		// the donor probes light models by their position in the donor map, so fires and interiors there tint our models
-		// give every probe the same lighting, taken from the donor fallback probe or else the highest probe (open sky)
-		void flatten_probes(zonetool::s2::GfxWorld* world, utils::memory::allocator& allocator)
+		constexpr auto probe_sun_visibility = light_grid::probe_sh_count;
+		using probe_values = std::array<float, light_grid::probe_sh_count + 1>;
+
+		constexpr float light_grid_cell_size[3] = {32.0f, 32.0f, 64.0f};
+		constexpr int light_grid_bias[3] = {4096, 4096, 2048};
+
+		constexpr std::uint16_t voxel_light_list[] = {16384, 1, 0}; // stock preamble, the empty light list is at address 2
+		constexpr std::uint16_t empty_voxel_light_list = 2;
+
+		int light_grid_cell(const float position, const int axis)
 		{
-			auto& data = world->probeData;
-			if (!data.probeCount || !data.probes)
-			{
-				return;
-			}
-
-			const zonetool::s2::GfxSHProbeData* source = nullptr;
-			if (data.zoneCount && data.zones)
-			{
-				const auto& fallback = data.zones[0].fallbackProbeData;
-				if (std::any_of(std::begin(fallback.coeffs), std::end(fallback.coeffs), [](const auto c) { return c != 0; }))
-				{
-					source = &fallback;
-				}
-			}
-
-			if (!source && data.probePositions)
-			{
-				auto highest = 0u;
-				for (auto i = 1u; i < data.probeCount; i++)
-				{
-					if (data.probePositions[i].origin[2] > data.probePositions[highest].origin[2])
-					{
-						highest = i;
-					}
-				}
-				source = &data.probes[highest];
-			}
-
-			if (!source)
-			{
-				return;
-			}
-
-			const auto from_fallback = data.zoneCount && data.zones && source == &data.zones[0].fallbackProbeData;
-			const auto probe = *source;
-			const auto probes = allocator.allocate_array<zonetool::s2::GfxSHProbeData>(data.probeCount);
-			std::fill_n(probes, data.probeCount, probe);
-			data.probes = probes;
-
-			if (data.zoneCount && data.zones)
-			{
-				const auto zones = allocator.allocate_array<zonetool::s2::GfxGpuLightGridZone>(data.zoneCount);
-				std::copy_n(data.zones, data.zoneCount, zones);
-				for (auto i = 0u; i < data.zoneCount; i++)
-				{
-					zones[i].fallbackProbeData = probe;
-				}
-				data.zones = zones;
-			}
-
-			ZONETOOL_INFO("GfxWorld: %u donor light probes flattened to the %s probe", data.probeCount,
-				from_fallback ? "fallback" : "highest");
+			return static_cast<int>(std::floor(position / light_grid_cell_size[axis])) + light_grid_bias[axis];
 		}
 
-		// the light grid, the probe grid and the unknown draw fields come from the donor map, so lighting does not match the source map
+		zonetool::s2::GfxSHProbeData pack_probe(const probe_values& values)
+		{
+			zonetool::s2::GfxSHProbeData probe{};
+			for (auto i = 0u; i < values.size(); i++)
+			{
+				probe.coeffs[i] = half_float::float_to_half(values[i]);
+			}
+			return probe;
+		}
+
+		class probe_average
+		{
+		public:
+			void add(const probe_values& values)
+			{
+				for (auto i = 0u; i < values.size(); i++)
+				{
+					this->sum_[i] += values[i];
+				}
+				this->count_++;
+			}
+
+			unsigned int count() const
+			{
+				return this->count_;
+			}
+
+			std::optional<probe_values> value() const
+			{
+				if (!this->count_)
+				{
+					return {};
+				}
+
+				auto result = this->sum_;
+				for (auto& value : result)
+				{
+					value /= static_cast<float>(this->count_);
+				}
+				result[probe_sun_visibility] = 1.0f;
+				return result;
+			}
+
+		private:
+			probe_values sum_{};
+			unsigned int count_ = 0;
+		};
+
+		class light_grid_sampler
+		{
+		public:
+			light_grid_sampler(const GfxLightGrid& grid, const ComWorld* com_world)
+				: grid_(grid)
+				, tree_(light_grid::make_tree_view(grid.tree[0], h1_leaf_size_bit_count))
+				, config_{grid.rangeExponent8BitsEncoding, grid.rangeExponent12BitsEncoding, grid.rangeExponent16BitsEncoding}
+			{
+				if (!com_world)
+				{
+					return;
+				}
+
+				this->sun_envs_.resize(com_world->primaryLightEnvCount);
+				for (auto i = 0u; i < com_world->primaryLightEnvCount; i++)
+				{
+					const auto& env = com_world->primaryLightEnvs[i];
+					for (auto j = 0u; j < std::min<std::uint32_t>(env.numIndices, 4); j++)
+					{
+						const auto light = env.primaryLightIndices[j];
+						if (light < com_world->primaryLightCount && com_world->primaryLights[light].type == GFX_LIGHT_TYPE_DIR)
+						{
+							this->sun_envs_[i] = true;
+						}
+					}
+				}
+			}
+
+			bool valid() const
+			{
+				return this->tree_.node_table && this->grid_.paletteBitstream && this->grid_.paletteEntryAddress;
+			}
+
+			const light_grid::tree_view& tree() const
+			{
+				return this->tree_;
+			}
+
+			std::optional<probe_values> sample(const float origin[3])
+			{
+				// trilinear over the 8 grid points around the origin, empty points do not count
+				int base[3];
+				float fraction[3];
+				for (auto axis = 0; axis < 3; axis++)
+				{
+					const auto position = origin[axis] / light_grid_cell_size[axis];
+					base[axis] = light_grid_cell(origin[axis], axis);
+					fraction[axis] = position - std::floor(position);
+				}
+
+				probe_values result{};
+				auto total_weight = 0.0f;
+				for (auto corner = 0; corner < 8; corner++)
+				{
+					auto weight = 1.0f;
+					int cell[3];
+					for (auto axis = 0; axis < 3; axis++)
+					{
+						const auto upper = (corner >> axis) & 1;
+						cell[axis] = base[axis] + upper;
+						weight *= upper ? fraction[axis] : 1.0f - fraction[axis];
+					}
+
+					const auto values = this->cell_values(cell);
+					if (!values || weight <= 0.0f)
+					{
+						continue;
+					}
+
+					for (auto i = 0u; i < result.size(); i++)
+					{
+						result[i] += (*values)[i] * weight;
+					}
+					total_weight += weight;
+				}
+
+				if (total_weight > 0.0f)
+				{
+					for (auto& value : result)
+					{
+						value /= total_weight;
+					}
+					return result;
+				}
+
+				return this->nearest(base);
+			}
+
+		private:
+			static constexpr auto h1_leaf_size_bit_count = 7;
+			static constexpr auto search_radius_xy = 4;
+			static constexpr auto search_radius_z = 2;
+
+			const GfxLightGrid& grid_;
+			light_grid::tree_view tree_;
+			light_grid::palette_config config_;
+			std::vector<bool> sun_envs_;
+			std::unordered_map<unsigned int, probe_values> palette_cache_;
+
+			std::optional<probe_values> nearest(const int base[3])
+			{
+				std::optional<probe_values> best;
+				auto best_distance = std::numeric_limits<int>::max();
+				for (auto dz = -search_radius_z; dz <= search_radius_z; dz++)
+				{
+					for (auto dy = -search_radius_xy; dy <= search_radius_xy; dy++)
+					{
+						for (auto dx = -search_radius_xy; dx <= search_radius_xy; dx++)
+						{
+							const auto distance = dx * dx + dy * dy + 4 * dz * dz;
+							if (distance >= best_distance)
+							{
+								continue;
+							}
+
+							const int cell[3] = {base[0] + dx, base[1] + dy, base[2] + dz};
+							if (const auto values = this->cell_values(cell))
+							{
+								best = values;
+								best_distance = distance;
+							}
+						}
+					}
+				}
+				return best;
+			}
+
+			std::optional<probe_values> cell_values(const int cell[3])
+			{
+				const unsigned short grid_pos[3] =
+				{
+					static_cast<unsigned short>(cell[0]), static_cast<unsigned short>(cell[1]), static_cast<unsigned short>(cell[2]),
+				};
+
+				light_grid::voxel voxel{};
+				if (!light_grid::find_voxel(this->tree_, grid_pos, voxel) || voxel.color_index >= this->grid_.paletteEntryCount)
+				{
+					return {};
+				}
+
+				auto values = this->palette_values(voxel.color_index);
+				const auto is_sun = voxel.light_index < this->sun_envs_.size() && this->sun_envs_[voxel.light_index];
+				values[probe_sun_visibility] = is_sun ? 1.0f : 0.0f;
+				return values;
+			}
+
+			probe_values palette_values(const unsigned int color_index)
+			{
+				const auto cached = this->palette_cache_.find(color_index);
+				if (cached != this->palette_cache_.end())
+				{
+					return cached->second;
+				}
+
+				light_grid::palette_sh sh{};
+				light_grid::decode_palette_entry(this->config_, this->grid_.paletteBitstream + this->grid_.paletteEntryAddress[color_index], sh);
+
+				float radiance[light_grid::basis_dir_count][3];
+				light_grid::evaluate(sh, radiance);
+
+				probe_values values{};
+				light_grid::project_probe_sh(radiance, values.data());
+				return this->palette_cache_.emplace(color_index, values).first->second;
+			}
+		};
+
+		class light_grid_occupancy
+		{
+		public:
+			explicit light_grid_occupancy(const light_grid::tree_view& tree)
+			{
+				for (auto axis = 0; axis < 3; axis++)
+				{
+					this->min_[axis] = tree.coord_min_grid_space[axis];
+					this->size_[axis] = std::max(tree.coord_max_grid_space[axis] - tree.coord_min_grid_space[axis] + 1, 0);
+				}
+
+				this->occupied_.resize(static_cast<std::size_t>(this->size_[0]) * this->size_[1] * this->size_[2]);
+				for (auto z = 0; z < this->size_[2]; z++)
+				{
+					for (auto y = 0; y < this->size_[1]; y++)
+					{
+						for (auto x = 0; x < this->size_[0]; x++)
+						{
+							const unsigned short grid_pos[3] =
+							{
+								static_cast<unsigned short>(this->min_[0] + x),
+								static_cast<unsigned short>(this->min_[1] + y),
+								static_cast<unsigned short>(this->min_[2] + z),
+							};
+
+							light_grid::voxel voxel{};
+							if (!light_grid::find_voxel(tree, grid_pos, voxel))
+							{
+								continue;
+							}
+
+							this->occupied_[this->index(x, y, z)] = true;
+							const int cell[3] = {x, y, z};
+							for (auto axis = 0; axis < 3; axis++)
+							{
+								this->occupied_min_[axis] = std::min(this->occupied_min_[axis], cell[axis]);
+								this->occupied_max_[axis] = std::max(this->occupied_max_[axis], cell[axis]);
+							}
+						}
+					}
+				}
+			}
+
+			void clip_to_voxels(float bounds_min[3], float bounds_max[3]) const
+			{
+				if (this->occupied_min_[0] > this->occupied_max_[0])
+				{
+					return;
+				}
+
+				for (auto axis = 0; axis < 3; axis++)
+				{
+					const auto first_cell = this->min_[axis] + this->occupied_min_[axis] - 1 - light_grid_bias[axis];
+					const auto end_cell = this->min_[axis] + this->occupied_max_[axis] + 2 - light_grid_bias[axis];
+					bounds_min[axis] = std::max(bounds_min[axis], static_cast<float>(first_cell) * light_grid_cell_size[axis]);
+					bounds_max[axis] = std::min(bounds_max[axis], static_cast<float>(end_cell) * light_grid_cell_size[axis]);
+				}
+			}
+
+			bool has_voxel_near(const float min[3], const float size) const
+			{
+				int first[3];
+				int last[3];
+				for (auto axis = 0; axis < 3; axis++)
+				{
+					first[axis] = std::max(light_grid_cell(min[axis], axis) - 1 - this->min_[axis], 0);
+					last[axis] = std::min(light_grid_cell(min[axis] + size, axis) + 1 - this->min_[axis], this->size_[axis] - 1);
+					if (first[axis] > last[axis])
+					{
+						return false;
+					}
+				}
+
+				for (auto z = first[2]; z <= last[2]; z++)
+				{
+					for (auto y = first[1]; y <= last[1]; y++)
+					{
+						for (auto x = first[0]; x <= last[0]; x++)
+						{
+							if (this->occupied_[this->index(x, y, z)])
+							{
+								return true;
+							}
+						}
+					}
+				}
+				return false;
+			}
+
+		private:
+			int min_[3]{};
+			int size_[3]{};
+			int occupied_min_[3]{INT_MAX, INT_MAX, INT_MAX};
+			int occupied_max_[3]{INT_MIN, INT_MIN, INT_MIN};
+			std::vector<bool> occupied_;
+
+			std::size_t index(const int x, const int y, const int z) const
+			{
+				return (static_cast<std::size_t>(z) * this->size_[1] + y) * this->size_[0] + x;
+			}
+		};
+
+		zonetool::s2::GfxStaticModelProbeGrid make_single_probe_grid(const unsigned int probe, const Bounds& bounds)
+		{
+			zonetool::s2::GfxStaticModelProbeGrid grid{};
+			grid.firstProbe = probe;
+			grid.probeCountX = 1;
+			grid.probeCountY = 1;
+			grid.probeCountZ = 1;
+			grid.averageProbe = probe;
+			for (auto axis = 0; axis < 3; axis++)
+			{
+				const auto size = std::max(2.0f * bounds.halfSize[axis], 1.0f);
+				const auto min = bounds.midPoint[axis] - 0.5f * size;
+				grid.worldToGrid[axis][axis] = 1.0f / size;
+				grid.worldToGrid[axis][3] = -min / size;
+			}
+			return grid;
+		}
+
+		void convert_static_model_probes(GfxWorld* asset, zonetool::s2::GfxWorld* world, light_grid_sampler& sampler, utils::memory::allocator& allocator)
+		{
+			auto& data = world->probeData;
+			const auto count = asset->dpvs.smodelCount;
+			if (!count || !sampler.valid())
+			{
+				ZONETOOL_WARNING("GfxWorld: the source map has no light grid, static models keep the donor probes");
+				return;
+			}
+
+			const auto grids = allocator.allocate_array<zonetool::s2::GfxStaticModelProbeGrid>(count);
+			const auto probes = allocator.allocate_array<zonetool::s2::GfxSHProbeData>(count);
+			std::vector<std::optional<probe_values>> samples(count);
+			probe_average average;
+			for (auto i = 0u; i < count; i++)
+			{
+				const auto& inst = asset->dpvs.smodelInsts[i];
+				grids[i] = make_single_probe_grid(i, smodel_bounds(inst));
+
+				samples[i] = sampler.sample(inst.lightingOrigin);
+				if (samples[i])
+				{
+					average.add(*samples[i]);
+				}
+			}
+
+			const auto fallback = average.value();
+			if (!fallback)
+			{
+				ZONETOOL_WARNING("GfxWorld: no static model is inside the source light grid, static models keep the donor probes");
+				return;
+			}
+
+			for (auto i = 0u; i < count; i++)
+			{
+				probes[i] = pack_probe(samples[i] ? *samples[i] : *fallback);
+			}
+
+			data.smodelProbeGridCount = count;
+			data.smodelProbeGrids = grids;
+			data.smodelProbeCount = count;
+			data.smodelProbes = probes;
+
+			ZONETOOL_INFO("GfxWorld: %u of %u static model probes sampled from the light grid", average.count(), count);
+		}
+
+		zonetool::s2::GfxVoxelTree* make_voxel_tree(const probe_volume::volume& volume, utils::memory::allocator& allocator)
+		{
+			const auto header = allocator.allocate<zonetool::s2::GfxVoxelTreeHeader>();
+			const auto tree = allocator.allocate<zonetool::s2::GfxVoxelTree>();
+			for (auto axis = 0; axis < 3; axis++)
+			{
+				header->rootNodeDimension[axis] = volume.root_node_dimension[axis];
+				header->nodeCoordBitShift[axis] = volume.node_coord_bit_shift[axis];
+				header->boundMin[axis] = volume.bound_min[axis];
+				header->boundMax[axis] = volume.bound_max[axis];
+				tree->zoneBound.midPoint[axis] = 0.5f * (volume.bound_min[axis] + volume.bound_max[axis]);
+				tree->zoneBound.halfSize[axis] = 0.5f * (volume.bound_max[axis] - volume.bound_min[axis]);
+			}
+
+			const auto top_down_count = static_cast<unsigned int>(volume.top_down_nodes.size());
+			const auto top_down = allocator.allocate_array<zonetool::s2::GfxVoxelTopDownViewNode>(top_down_count);
+			for (auto i = 0u; i < top_down_count; i++)
+			{
+				const auto& node = volume.top_down_nodes[i];
+				top_down[i] = {node.first_node_index, node.z_min, node.z_max};
+			}
+
+			const auto internal_count = static_cast<unsigned int>(volume.internal_nodes.size());
+			const auto internal = allocator.allocate_array<zonetool::s2::GfxVoxelInternalNode>(internal_count);
+			for (auto i = 0u; i < internal_count; i++)
+			{
+				const auto& node = volume.internal_nodes[i];
+				for (auto half = 0; half < 2; half++)
+				{
+					internal[i].firstNodeIndex[half] = static_cast<int>(node.first_node_index[half]);
+					internal[i].childNodeMask[half] = node.child_node_mask[half];
+				}
+			}
+
+			const auto leaves = allocator.allocate_array<zonetool::s2::GfxVoxelLeafNode>(volume.leaf_count);
+			for (auto i = 1u; i < volume.leaf_count; i++)
+			{
+				leaves[i].lightListAddress = empty_voxel_light_list;
+			}
+
+			tree->voxelTopDownViewNodeCount = top_down_count;
+			tree->voxelInternalNodeCount = internal_count;
+			tree->voxelLeafNodeCount = volume.leaf_count;
+			tree->lightListArraySize = static_cast<unsigned int>(std::size(voxel_light_list));
+			tree->voxelTreeHeader = header;
+			tree->voxelTopDownViewNodeArray = top_down;
+			tree->voxelInternalNodeArray = internal;
+			tree->voxelLeafNodeArray = leaves;
+			tree->lightListArray = copy_array(voxel_light_list, std::size(voxel_light_list), allocator);
+			tree->voxelInternalNodeDynamicLightList = allocator.allocate_array<unsigned int[2]>(internal_count);
+			return tree;
+		}
+
+		void convert_probe_volume(GfxWorld* asset, zonetool::s2::GfxWorld* world, light_grid_sampler& sampler, utils::memory::allocator& allocator)
+		{
+			float bounds_min[3];
+			float bounds_max[3];
+			for (auto axis = 0; axis < 3; axis++)
+			{
+				bounds_min[axis] = asset->bounds.midPoint[axis] - asset->bounds.halfSize[axis];
+				bounds_max[axis] = asset->bounds.midPoint[axis] + asset->bounds.halfSize[axis];
+			}
+
+			std::optional<light_grid_occupancy> occupancy;
+			probe_volume::cell_test cell_occupied;
+			if (sampler.valid())
+			{
+				occupancy.emplace(sampler.tree());
+				occupancy->clip_to_voxels(bounds_min, bounds_max);
+				cell_occupied = [&occupancy](const float min[3], const float size)
+				{
+					return occupancy->has_voxel_near(min, size);
+				};
+			}
+
+			const auto volume = probe_volume::build(bounds_min, bounds_max, cell_occupied);
+			if (!volume)
+			{
+				ZONETOOL_WARNING("GfxWorld: the light probe volume does not fit the map, models use the donor light probes");
+				return;
+			}
+
+			auto& data = world->probeData;
+			const auto probe_count = static_cast<unsigned int>(volume->probe_positions.size());
+			const auto positions = allocator.allocate_array<zonetool::s2::GfxGpuLightGridProbePosition>(probe_count);
+			std::vector<std::optional<probe_values>> samples(probe_count);
+			probe_average average;
+			for (auto i = 0u; i < probe_count; i++)
+			{
+				std::memcpy(positions[i].origin, volume->probe_positions[i].data(), sizeof(positions[i].origin));
+				samples[i] = sampler.sample(positions[i].origin);
+				if (samples[i])
+				{
+					average.add(*samples[i]);
+				}
+			}
+
+			const auto average_values = average.value();
+			const auto fallback = average_values ? pack_probe(*average_values)
+				: data.zoneCount && data.zones ? data.zones[0].fallbackProbeData : zonetool::s2::GfxSHProbeData{};
+			const auto probes = allocator.allocate_array<zonetool::s2::GfxSHProbeData>(probe_count);
+			for (auto i = 0u; i < probe_count; i++)
+			{
+				probes[i] = samples[i] ? pack_probe(*samples[i]) : fallback;
+			}
+
+			const auto tetrahedron_count = static_cast<unsigned int>(volume->tetrahedrons.size());
+			const auto tetrahedrons = allocator.allocate_array<zonetool::s2::GfxGpuLightGridTetrahedron>(tetrahedron_count);
+			const auto neighbors = allocator.allocate_array<zonetool::s2::GfxGpuLightGridTetrahedronNeighbors>(tetrahedron_count);
+			for (auto i = 0u; i < tetrahedron_count; i++)
+			{
+				std::copy_n(volume->tetrahedrons[i].data(), 4, tetrahedrons[i].indexFlags);
+				std::copy_n(volume->tetrahedron_neighbors[i].data(), 4, neighbors[i].neighbors);
+			}
+
+			const auto start_count = static_cast<unsigned int>(volume->voxel_start_tetrahedron.size());
+			const auto starts = allocator.allocate_array<zonetool::s2::GfxGpuLightGridVoxelStartTetrahedron>(start_count);
+			for (auto i = 0u; i < start_count; i++)
+			{
+				starts[i].index = volume->voxel_start_tetrahedron[i];
+			}
+
+			const auto zone = allocator.allocate<zonetool::s2::GfxGpuLightGridZone>();
+			zone->numProbes = probe_count;
+			zone->numTetrahedrons = tetrahedron_count;
+			zone->voxelTetrahedronInternalNodeShift = volume->leaf_count;
+			zone->numVoxelTetrahedronIndices = start_count;
+			zone->fallbackProbeData = fallback;
+
+			data.probeCount = probe_count;
+			data.probes = probes;
+			data.probePositions = positions;
+			data.zoneCount = 1;
+			data.zones = zone;
+			data.tetrahedronCount = tetrahedron_count;
+			data.tetrahedronCountVisible = 0;
+			data.tetrahedrons = tetrahedrons;
+			data.tetrahedronNeighbors = neighbors;
+			data.tetrahedronVisibility = nullptr;
+			data.voxelStartTetrahedronCount = start_count;
+			data.voxelStartTetrahedron = starts;
+
+			world->voxelTreeCount = 1;
+			world->voxelTree = make_voxel_tree(*volume, allocator);
+
+			ZONETOOL_INFO("GfxWorld: light probe volume with %u probes (%u sampled from the light grid), %u tetrahedrons, %u voxel leaves of %d units",
+				probe_count, average.count(), tetrahedron_count, volume->leaf_count, 1 << volume->node_coord_bit_shift[2]);
+		}
+
 		zonetool::s2::GfxWorld* convert(GfxWorld* asset, const zonetool::s2::GfxWorld* donor, const char* transient_zone,
 			utils::memory::allocator& allocator)
 		{
@@ -727,7 +1217,10 @@ namespace zonetool::h1::converter::s2::gfxworld
 			convert_models(asset, world, allocator);
 			convert_dpvs(asset, world, lists, allocator);
 			convert_tail(asset, world, allocator);
-			flatten_probes(world, allocator);
+
+			light_grid_sampler sampler(asset->lightGrid, comworld::source_world());
+			convert_static_model_probes(asset, world, sampler, allocator);
+			convert_probe_volume(asset, world, sampler, allocator);
 			return world;
 		}
 

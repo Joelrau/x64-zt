@@ -59,6 +59,14 @@ namespace zonetool
 		get_database().assets[type & 0xFF].erase(name);
 	}
 
+	void db_enum_assets(const std::int32_t type, const std::function<void(void*)>& callback)
+	{
+		for (const auto& [name, header] : get_database().assets[type & 0xFF])
+		{
+			callback(header);
+		}
+	}
+
 	void db_clear()
 	{
 		auto& db = get_database();

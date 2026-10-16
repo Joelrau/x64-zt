@@ -472,9 +472,10 @@ namespace zonetool::s2::converter::h1::gfxworld
 			return new_geometry;
 		}
 
-		std::uint16_t get_smodel_cull_dist(const target::GfxStaticModelInst& inst)
+		std::uint16_t get_smodel_cull_dist(const GfxStaticModelInst& inst)
 		{
-			const auto half_extent = 0.5f * std::hypot(inst.maxs[0] - inst.mins[0], inst.maxs[1] - inst.mins[1], inst.maxs[2] - inst.mins[2]);
+			const auto& half_size = inst.bounds.halfSize;
+			const auto half_extent = std::hypot(half_size[0], half_size[1], half_size[2]);
 			return static_cast<std::uint16_t>(std::clamp(half_extent * smodel_cull_dist_scale, smodel_cull_dist_min, smodel_cull_dist_max));
 		}
 
@@ -482,8 +483,10 @@ namespace zonetool::s2::converter::h1::gfxworld
 		{
 			auto& dpvs = world->dpvs;
 			const auto draw_insts = field<s2_static_model_draw_inst*>(asset, world_dpvs + dpvs_smodel_draw_insts);
+			const auto insts = field<GfxStaticModelInst*>(asset, world_dpvs + dpvs_smodel_insts);
 
-			dpvs.smodelInsts = field<target::GfxStaticModelInst*>(asset, world_dpvs + dpvs_smodel_insts);
+			// both games store center and half size, the H1 struct names them mins and maxs
+			dpvs.smodelInsts = reinterpret_cast<target::GfxStaticModelInst*>(insts);
 			dpvs.smodelDrawInsts = allocate_zeroed<target::GfxStaticModelDrawInst>(allocator, dpvs.smodelCount);
 			dpvs.smodelLightingInsts = allocate_zeroed<target::GfxStaticModelLighting>(allocator, dpvs.smodelCount);
 
@@ -494,7 +497,7 @@ namespace zonetool::s2::converter::h1::gfxworld
 				new_inst.placement = inst.placement;
 				new_inst.model = make_stub<target::XModel>(inst.model ? inst.model->name : "void", allocator);
 				new_inst.flags = target::STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING | (inst.flags & target::STATIC_MODEL_FLAG_NO_CAST_SHADOW) | smodel_scale_one;
-				new_inst.cullDist = inst.cullDist ? inst.cullDist : get_smodel_cull_dist(dpvs.smodelInsts[i]);
+				new_inst.cullDist = inst.cullDist ? inst.cullDist : get_smodel_cull_dist(insts[i]);
 				new_inst.staticModelId = inst.staticModelId;
 				new_inst.reflectionProbeIndex = inst.reflectionProbeIndex;
 				new_inst.primaryLightEnvIndex = get_light_env(asset, world, inst.lightListOffset);

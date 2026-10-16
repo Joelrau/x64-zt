@@ -14,6 +14,7 @@ namespace game
 				{none, "none"},
 				{h1, "h1"},
 				{h2, "h2"},
+				{iw6, "iw6"},
 				{iw7, "iw7"},
 				{s1, "s1"},
 				{s2, "s2"},

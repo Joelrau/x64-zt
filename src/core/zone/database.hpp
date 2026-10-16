@@ -24,6 +24,7 @@ namespace zonetool
 	void* db_find_asset(std::int32_t type, const std::string& name);
 	void db_add_asset(std::int32_t type, const std::string& name, void* header);
 	void db_remove_asset(std::int32_t type, const std::string& name);
+	void db_enum_assets(std::int32_t type, const std::function<void(void*)>& callback);
 	void db_clear();
 
 	template <typename H>

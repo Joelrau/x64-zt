@@ -17,6 +17,7 @@ namespace zonetool::xfile
 
 		enum class s1_compression : std::uint8_t
 		{
+			iw6_zlib = 0,
 			zlib = 1,
 			none = 3,
 			block_container = 4,
@@ -84,21 +85,21 @@ namespace zonetool::xfile
 			std::size_t offset_{};
 		};
 
-		std::string strip_auth_blocks(const std::string_view data)
+		std::string strip_auth_blocks(const std::string_view data, const format& format)
 		{
 			std::string result;
 			result.reserve(data.size());
 
 			byte_reader reader(data);
-			reader.skip(std::min(auth_block_size, reader.remaining()));
+			reader.skip(std::min(format.auth_block_size, reader.remaining()));
 
 			while (reader.remaining())
 			{
-				reader.skip(std::min(auth_block_size, reader.remaining()));
+				reader.skip(std::min(format.auth_block_size, reader.remaining()));
 
-				for (std::size_t block = 0; block < auth_blocks_per_group && reader.remaining(); block++)
+				for (std::size_t block = 0; block < format.auth_blocks_per_group && reader.remaining(); block++)
 				{
-					result.append(reader.read_view(std::min(auth_block_size, reader.remaining())));
+					result.append(reader.read_view(std::min(format.auth_block_size, reader.remaining())));
 				}
 			}
 
@@ -253,6 +254,7 @@ namespace zonetool::xfile
 
 			switch (static_cast<s1_compression>(header.compressType))
 			{
+			case s1_compression::iw6_zlib:
 			case s1_compression::zlib:
 				return inflate_zlib(data, MAX_WBITS, 0);
 			case s1_compression::none:
@@ -264,9 +266,9 @@ namespace zonetool::xfile
 			throw std::runtime_error(std::format("unknown compression type {}", header.compressType));
 		}
 
-		std::string read_signed_data(byte_reader& reader, const bool is_signed)
+		std::string read_signed_data(byte_reader& reader, const format& format, const bool is_signed)
 		{
-			return is_signed ? strip_auth_blocks(reader.rest()) : std::string(reader.rest());
+			return is_signed ? strip_auth_blocks(reader.rest(), format) : std::string(reader.rest());
 		}
 
 		void read_s1(byte_reader& reader, const format& format, fastfile& file)
@@ -278,7 +280,7 @@ namespace zonetool::xfile
 			reader.read(file.stream_files.data(), file.stream_files.size() * sizeof(XStreamFile));
 			reader.read(&header.baseFileLen, file_length_fields_size);
 
-			const auto zone = decompress(header, read_signed_data(reader, file.is_signed));
+			const auto zone = decompress(header, read_signed_data(reader, format, file.is_signed));
 
 			byte_reader zone_reader(zone);
 			const auto size = zone_reader.read<std::uint64_t>();
@@ -390,7 +392,7 @@ namespace zonetool::xfile
 			file.stream_files = read_iw7_stream_files(reader, header.image_stream_count);
 			reader.skip(3 * sizeof(std::uint64_t));
 
-			file.payload = decompress_iwc(read_signed_data(reader, file.is_signed));
+			file.payload = decompress_iwc(read_signed_data(reader, format, file.is_signed));
 		}
 
 		constexpr std::size_t s2_header_version = 5;

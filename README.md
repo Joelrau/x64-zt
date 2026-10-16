@@ -6,34 +6,35 @@ Standalone fastfile unlinker and linker for next-generation Call of Duty titles.
 
 | Game | Title | Notes |
 |---|---|---|
+| **IW6** | Ghosts | |
 | **S1** | Advanced Warfare | |
 | **H1** | Modern Warfare Remastered | |
 | **H2** | Modern Warfare 2 Campaign Remastered | Battle.net CASC |
 | **S2** | WWII | Signed zones. The key comes from `s2_zone_key.der` or the game executable |
 | **IW7** | Infinite Warfare | |
 
-IW6 and T7 were in v1 (`main`). They are not ported to v2 yet.
+T7 was in v1 (`main`). It is not ported to v2 yet.
 
 ## Asset conversion
 
 Rows are the source game. Columns are the target game.
 
-| From ↓ / To → | S1 | H1 | H2 | S2 | IW7 |
-|---|:-:|:-:|:-:|:-:|:-:|
-| **S1**  | ✅ | ✅ | ✅ | ⚠️ | ❌ |
-| **H1**  | ❌ | ✅ | ✅ | ⚠️ | ⚠️ |
-| **H2**  | ❌ | ✅ | ✅ | ❌ | ❌ |
-| **S2**  | ❌ | ⚠️ | ❌ | ✅ | ❌ |
-| **IW7** | ❌ | ⚠️ | ❌ | ❌ | ✅ |
+| From ↓ / To → | IW6 | S1 | H1 | H2 | S2 | IW7 |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|
+| **IW6** | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |
+| **S1**  | ❌ | ✅ | ✅ | ✅ | ⚠️ | ❌ |
+| **H1**  | ❌ | ❌ | ✅ | ✅ | ⚠️ | ⚠️ |
+| **H2**  | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ |
+| **S2**  | ❌ | ❌ | ⚠️ | ❌ | ✅ | ❌ |
+| **IW7** | ❌ | ❌ | ⚠️ | ❌ | ❌ | ✅ |
 
 ✅ supported &nbsp; ⚠️ partial or experimental &nbsp; ❌ not supported
 
-- **S1 → H2** uses H1 conversion on the fly for convenience
-- **H1 → S1** has been purposely left out (wrote iffy techset/material data since backporting is harder)
+- **IW6 → H1** uses IW6 techsets instead of remapping
+- **S1 → H2** converts through H1
+- **H1 → S1** has been purposely left out for now
 - **IW7 → H1** converts images, materials and models only
-- **H1 → S2** and **S1 → S2** are experimental. They convert maps (world, collision, map ents), models, materials and images. Effects, sounds, animations, scriptables and weapons are not converted
-- **S1 → S2** reads the S1 assets directly and gives them to the H1 → S2 writers. It does not use the S1 → H1 techset conversion
-- S2 techsets come from a stock S2 zone (`mp_aachen_v2`). The converter selects the techset with the nearest name, so some materials can look different from the source game
+- **H1 → S2** and **S1 → S2** are experiments done for map assets (world, collision, map ents), models, materials and images. effects, sounds, animations, scriptables and weapons are not converted yet
 
 <details>
 <summary>v1 legend (<code>main</code>), for comparison</summary>

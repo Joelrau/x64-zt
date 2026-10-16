@@ -98,8 +98,7 @@ namespace zonetool::h1::converter::s2::comworld
 			const auto lights = allocator.allocate_array<s2_primary_light>(count);
 			for (auto i = 0u; i < count; i++)
 			{
-				convert_light(asset->primaryLights[i], lights[i]);
-			}
+				convert_light(asset->primaryLights[i], lights[i]);			}
 
 			// S2 envs hold one light each, the GfxWorld light lists hold the light sets
 			const auto envs = allocator.allocate_array<s2_light_env>(count);

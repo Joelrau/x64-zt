@@ -666,8 +666,13 @@ namespace zonetool
 			}
 
 			template <typename T>
-			T* read_array()
+			T* read_array(std::uint32_t* count = nullptr)
 			{
+				if (count)
+				{
+					*count = 0;
+				}
+
 				dump_type type;
 				read_type(&type);
 
@@ -691,6 +696,10 @@ namespace zonetool
 
 					T* array_ = memory->allocate<T>(array_size);
 					read_array_internal(array_, array_size);
+					if (count)
+					{
+						*count = array_size;
+					}
 
 					dump_entry entry{ 0 };
 					entry.start = reinterpret_cast<std::uintptr_t>(array_);
