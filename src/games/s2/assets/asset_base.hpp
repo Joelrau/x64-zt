@@ -119,6 +119,47 @@ namespace zonetool::s2
 		return read.read_int() ? read_script_strings(read, mem, count) : nullptr;
 	}
 
+	inline void dump_script_string(ordered_json& data, const scr_string_t id)
+	{
+		const auto* string = SL_ConvertToString(id);
+		data = string ? ordered_json(string) : ordered_json(nullptr);
+	}
+
+	inline scr_string_t parse_script_string(const json& data)
+	{
+		return data.is_string() ? static_cast<scr_string_t>(SL_GetString(data.get_ref<const std::string&>().data())) : 0;
+	}
+
+	inline void dump_script_string_array(ordered_json& data, const scr_string_t* ids, const std::size_t count)
+	{
+		if (!ids)
+		{
+			data = nullptr;
+			return;
+		}
+
+		for (std::size_t i = 0; i < count; i++)
+		{
+			dump_script_string(data[i], ids[i]);
+		}
+	}
+
+	inline scr_string_t* parse_script_string_array(const json& data, zone_memory* mem, const std::size_t count)
+	{
+		if (!data.is_array())
+		{
+			return nullptr;
+		}
+
+		const auto ids = mem->allocate<scr_string_t>(count);
+		for (std::size_t i = 0; i < count && i < data.size(); i++)
+		{
+			ids[i] = parse_script_string(data[i]);
+		}
+
+		return ids;
+	}
+
 	class script_string_preparer
 	{
 	public:

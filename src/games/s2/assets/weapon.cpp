@@ -1,6 +1,7 @@
 #include <std_include.hpp>
 #include "s2.hpp"
-#include "json_fields.hpp"
+
+#include "io/json_reflect.hpp"
 
 namespace zonetool::s2
 {
@@ -206,627 +207,781 @@ namespace zonetool::s2
 			"ADDITIVE_SCRIPTED",
 		};
 
-#define ENTRY_FIELD(field) #field, entry.field
-		template <typename J>
-		void visit_state_timers(const J& j, StateTimers& entry)
+		constexpr auto overlay_fields = glz::tuple
 		{
-			j.value(ENTRY_FIELD(fireDelay));
-			j.value(ENTRY_FIELD(meleeDelay));
-			j.value(ENTRY_FIELD(meleeChargeDelay));
-			j.value(ENTRY_FIELD(unknown12));
-			j.value(ENTRY_FIELD(detonateDelay));
-			j.value(ENTRY_FIELD(fireTime));
-			j.value(ENTRY_FIELD(unknown24));
-			j.value(ENTRY_FIELD(rechamberTime));
-			j.value(ENTRY_FIELD(rechamberTimeOneHanded));
-			j.value(ENTRY_FIELD(rechamberBoltTime));
-			j.value(ENTRY_FIELD(unknown40));
-			j.value(ENTRY_FIELD(holdFireTime));
-			j.value(ENTRY_FIELD(grenadePrimeReadyToThrowTime));
-			j.value(ENTRY_FIELD(detonateTime));
-			j.value(ENTRY_FIELD(meleeTime));
-			j.value(ENTRY_FIELD(meleeChargeTime));
-			j.value(ENTRY_FIELD(unknown64));
-			j.value(ENTRY_FIELD(reloadTime));
-			j.value(ENTRY_FIELD(unknown72));
-			j.value(ENTRY_FIELD(reloadShowRocketTime));
-			j.value(ENTRY_FIELD(reloadEmptyTime));
-			j.value(ENTRY_FIELD(reloadAddTime));
-			j.value(ENTRY_FIELD(reloadEmptyAddTime));
-			j.value(ENTRY_FIELD(reloadStartTime));
-			j.value(ENTRY_FIELD(reloadStartAddTime));
-			j.value(ENTRY_FIELD(reloadEndTime));
-			j.value(ENTRY_FIELD(reloadTimeDualWield));
-			j.value(ENTRY_FIELD(reloadAddTimeDualWield));
-			j.value(ENTRY_FIELD(reloadEmptyDualMag));
-			j.value(ENTRY_FIELD(reloadEmptyAddTimeDualMag));
-			j.value(ENTRY_FIELD(speedReloadTime));
-			j.value(ENTRY_FIELD(speedReloadAddTime));
-			j.value(ENTRY_FIELD(dropTime));
-			j.value(ENTRY_FIELD(raiseTime));
-			j.value(ENTRY_FIELD(unknown152));
-			j.value(ENTRY_FIELD(quickDropTime));
-			j.value(ENTRY_FIELD(quickRaiseTime));
-			j.value(ENTRY_FIELD(firstRaiseTime));
-			j.value(ENTRY_FIELD(breachRaiseTime));
-			j.value(ENTRY_FIELD(emptyRaiseTime));
-			j.value(ENTRY_FIELD(emptyDropTime));
-			j.value(ENTRY_FIELD(sprintInTime));
-			j.value(ENTRY_FIELD(sprintLoopTime));
-			j.value(ENTRY_FIELD(sprintOutTime));
-			j.value(ENTRY_FIELD(unknown208));
-			j.value(ENTRY_FIELD(stunnedTimeBegin));
-			j.value(ENTRY_FIELD(stunnedTimeLoop));
-			j.value(ENTRY_FIELD(stunnedTimeEnd));
-			j.value(ENTRY_FIELD(nightVisionWearTime));
-			j.value(ENTRY_FIELD(nightVisionWearTimeFadeOutEnd));
-			j.value(ENTRY_FIELD(nightVisionWearTimePowerUp));
-			j.value(ENTRY_FIELD(nightVisionRemoveTime));
-			j.value(ENTRY_FIELD(nightVisionRemoveTimePowerDown));
-			j.value(ENTRY_FIELD(nightVisionRemoveTimeFadeInStart));
-			j.value(ENTRY_FIELD(aiFuseTime));
-			j.value(ENTRY_FIELD(fuseTime));
-			j.value(ENTRY_FIELD(missileTime));
-			j.value(ENTRY_FIELD(primeTime));
-			j.value(ENTRY_FIELD(bHoldFullPrime));
-			j.value(ENTRY_FIELD(blastFrontTime));
-			j.value(ENTRY_FIELD(blastRightTime));
-			j.value(ENTRY_FIELD(blastBackTime));
-			j.value(ENTRY_FIELD(blastLeftTime));
-			j.value(ENTRY_FIELD(slideInTime));
-			j.value(ENTRY_FIELD(slideLoopTime));
-			j.value(ENTRY_FIELD(slideOutTime));
-			j.value(ENTRY_FIELD(unknown300));
-		}
+			&ADSOverlay::shader,
+			&ADSOverlay::shaderLowRes,
+			&ADSOverlay::shaderEMP,
+			&ADSOverlay::shaderEMPLowRes,
+			&ADSOverlay::reticle,
+			&ADSOverlay::width,
+			&ADSOverlay::height,
+			&ADSOverlay::widthSplitscreen,
+			&ADSOverlay::heightSplitscreen,
+		};
 
-#define WEAPON_FIELD(field) #field, w.field
-		template <typename J>
-		void visit_weapon_json(const J& j, WeaponCompleteDef& w)
+		constexpr auto turret_hydraulic_fields = glz::tuple
 		{
-			j.string(WEAPON_FIELD(szInternalName));
-			j.string(WEAPON_FIELD(szDisplayName));
-			j.asset_array(WEAPON_FIELD(gunModel), model_count);
-			j.asset_array(WEAPON_FIELD(unknown24), model_count);
-			j.asset(WEAPON_FIELD(handModel));
-			j.string(WEAPON_FIELD(lobWorldModelName));
-			j.named_assets(WEAPON_FIELD(szXAnimsRightHanded), anim_names);
-			j.named_assets(WEAPON_FIELD(szXAnimsLeftHanded), anim_names);
-			j.script_strings(WEAPON_FIELD(hideTags), hide_tag_count);
-			j.asset_list(WEAPON_FIELD(attachments), w.numAttachments);
-			j.value(WEAPON_FIELD(unknown80));
-			j.named_assets(WEAPON_FIELD(szXAnims), anim_names);
-			j.entries(WEAPON_FIELD(animOverrides), w.numAnimOverrides, [](const auto& e, AnimOverrideEntry& entry)
-			{
-				e.value(ENTRY_FIELD(animHand));
-				e.value(ENTRY_FIELD(attachment1));
-				e.value(ENTRY_FIELD(attachment2));
-				e.value(ENTRY_FIELD(animTreeType));
-				e.asset(ENTRY_FIELD(overrideAnim));
-				e.asset(ENTRY_FIELD(altmodeAnim));
-				e.value(ENTRY_FIELD(animTime));
-				e.value(ENTRY_FIELD(altTime));
-			});
-			j.entries(WEAPON_FIELD(soundOverrides), w.numSoundOverrides, [](const auto& e, SoundOverrideEntry& entry)
-			{
-				e.value(ENTRY_FIELD(attachment1));
-				e.value(ENTRY_FIELD(attachment2));
-				e.value(ENTRY_FIELD(soundType));
-				e.asset(ENTRY_FIELD(overrideSound));
-				e.asset(ENTRY_FIELD(altmodeSound));
-			});
-			j.entries(WEAPON_FIELD(fxOverrides), w.numFXOverrides, [](const auto& e, FXOverrideEntry& entry)
-			{
-				e.value(ENTRY_FIELD(attachment1));
-				e.value(ENTRY_FIELD(attachment2));
-				e.value(ENTRY_FIELD(fxType));
-				e.asset(ENTRY_FIELD(overrideFX));
-				e.asset(ENTRY_FIELD(altmodeFX));
-			});
-			j.entries(WEAPON_FIELD(reloadOverrides), w.numReloadStateTimerOverrides, [](const auto& e, ReloadStateTimerEntry& entry)
-			{
-				e.value(ENTRY_FIELD(attachment));
-				e.value(ENTRY_FIELD(reloadAddTime));
-				e.value(ENTRY_FIELD(reloadEmptyAddTime));
-				e.value(ENTRY_FIELD(reloadStartAddTime));
-			});
-			j.entries(WEAPON_FIELD(notetrackOverrides), w.numNotetrackOverrides, [](const auto& e, NoteTrackToSoundEntry& entry)
-			{
-				e.value(ENTRY_FIELD(attachment));
-				e.script_strings(ENTRY_FIELD(notetrackSoundMapKeys), notetrack_sound_count);
-				e.script_strings(ENTRY_FIELD(notetrackSoundMapValues), notetrack_sound_count);
-			});
-			j.script_strings(WEAPON_FIELD(notetrackSoundMapKeys), notetrack_sound_count);
-			j.script_strings(WEAPON_FIELD(notetrackSoundMapValues), notetrack_sound_count);
-			j.script_strings(WEAPON_FIELD(notetrackRumbleMapKeys), notetrack_map_count);
-			j.script_strings(WEAPON_FIELD(notetrackRumbleMapValues), notetrack_map_count);
-			j.script_strings(WEAPON_FIELD(notetrackFXMapKeys), notetrack_map_count);
-			j.asset_array(WEAPON_FIELD(notetrackFXMapValues), notetrack_map_count);
-			j.script_strings(WEAPON_FIELD(notetrackFXMapTagValues), notetrack_map_count);
-			j.string(WEAPON_FIELD(szAdsrBaseSetting));
-			j.asset(WEAPON_FIELD(viewFlashEffect));
-			j.asset(WEAPON_FIELD(viewBodyFlashEffect));
-			j.asset(WEAPON_FIELD(worldFlashEffect));
-			j.asset(WEAPON_FIELD(viewFlashADSEffect));
-			j.asset(WEAPON_FIELD(viewBodyFlashADSEffect));
-			j.asset(WEAPON_FIELD(signatureViewFlashEffect));
-			j.asset(WEAPON_FIELD(signatureViewBodyFlashEffect));
-			j.asset(WEAPON_FIELD(signatureWorldFlashEffect));
-			j.asset(WEAPON_FIELD(signatureViewFlashADSEffect));
-			j.asset(WEAPON_FIELD(signatureViewBodyFlashADSEffect));
-			j.asset(WEAPON_FIELD(unknownEffect280));
-			j.asset(WEAPON_FIELD(meleeHitEffect));
-			j.asset(WEAPON_FIELD(meleeMissEffect));
-			j.asset(WEAPON_FIELD(pickupSound));
-			j.asset(WEAPON_FIELD(pickupSoundPlayer));
-			j.asset(WEAPON_FIELD(ammoPickupSound));
-			j.asset(WEAPON_FIELD(ammoPickupSoundPlayer));
-			j.asset(WEAPON_FIELD(projectileSound));
-			j.asset(WEAPON_FIELD(pullbackSound));
-			j.asset(WEAPON_FIELD(pullbackSoundPlayer));
-			j.asset(WEAPON_FIELD(throwbackSound));
-			j.asset(WEAPON_FIELD(throwbackSoundPlayer));
-			j.asset(WEAPON_FIELD(fireSound));
-			j.asset(WEAPON_FIELD(fireSoundPlayer));
-			j.asset(WEAPON_FIELD(fireSoundPlayerAkimbo));
-			j.asset(WEAPON_FIELD(fireLoopSound));
-			j.asset(WEAPON_FIELD(fireLoopSoundPlayer));
-			j.asset(WEAPON_FIELD(fireLoopEndPointSound));
-			j.asset(WEAPON_FIELD(fireLoopEndPointSoundPlayer));
-			j.asset(WEAPON_FIELD(fireStopSound));
-			j.asset(WEAPON_FIELD(fireStopSoundPlayer));
-			j.asset(WEAPON_FIELD(fireLastSound));
-			j.asset(WEAPON_FIELD(fireLastSoundPlayer));
-			j.asset(WEAPON_FIELD(fireFirstSound));
-			j.asset(WEAPON_FIELD(fireFirstSoundPlayer));
-			j.asset(WEAPON_FIELD(fireCustomSound));
-			j.asset(WEAPON_FIELD(fireCustomSoundPlayer));
-			j.asset(WEAPON_FIELD(emptyFireSound));
-			j.asset(WEAPON_FIELD(emptyFireSoundPlayer));
-			j.asset(WEAPON_FIELD(adsRequiredFireSoundPlayer));
-			j.asset(WEAPON_FIELD(meleeSwipeSound));
-			j.asset(WEAPON_FIELD(meleeSwipeSoundPlayer));
-			j.asset(WEAPON_FIELD(meleeHitSound));
-			j.asset(WEAPON_FIELD(meleeMissSound));
-			j.asset(WEAPON_FIELD(meleeHitSoundPlayer));
-			j.asset(WEAPON_FIELD(meleeMissSoundPlayer));
-			j.asset(WEAPON_FIELD(rechamberSound));
-			j.asset(WEAPON_FIELD(rechamberSoundPlayer));
-			j.asset(WEAPON_FIELD(reloadSound));
-			j.asset(WEAPON_FIELD(reloadSoundPlayer));
-			j.asset(WEAPON_FIELD(reloadEmptySound));
-			j.asset(WEAPON_FIELD(reloadEmptySoundPlayer));
-			j.asset(WEAPON_FIELD(reloadStartSound));
-			j.asset(WEAPON_FIELD(reloadStartSoundPlayer));
-			j.asset(WEAPON_FIELD(reloadEndSound));
-			j.asset(WEAPON_FIELD(reloadEndSoundPlayer));
-			j.asset(WEAPON_FIELD(detonateSound));
-			j.asset(WEAPON_FIELD(detonateSoundPlayer));
-			j.asset(WEAPON_FIELD(nightVisionWearSound));
-			j.asset(WEAPON_FIELD(nightVisionWearSoundPlayer));
-			j.asset(WEAPON_FIELD(nightVisionRemoveSound));
-			j.asset(WEAPON_FIELD(nightVisionRemoveSoundPlayer));
-			j.asset(WEAPON_FIELD(altSwitchSound));
-			j.asset(WEAPON_FIELD(altSwitchSoundPlayer));
-			j.asset(WEAPON_FIELD(raiseSound));
-			j.asset(WEAPON_FIELD(raiseSoundPlayer));
-			j.asset(WEAPON_FIELD(firstRaiseSound));
-			j.asset(WEAPON_FIELD(firstRaiseSoundPlayer));
-			j.asset(WEAPON_FIELD(putawaySound));
-			j.asset(WEAPON_FIELD(putawaySoundPlayer));
-			j.asset(WEAPON_FIELD(scanSound));
-			j.asset(WEAPON_FIELD(changeVariableZoomSound));
-			j.asset(WEAPON_FIELD(adsUpSound));
-			j.asset(WEAPON_FIELD(adsDownSound));
-			j.asset(WEAPON_FIELD(adsCrosshairEnemySound));
-			j.asset(WEAPON_FIELD(unknownSound800));
-			j.asset(WEAPON_FIELD(unknownSound808));
-			j.asset(WEAPON_FIELD(unknownSound816));
-			j.asset_array(WEAPON_FIELD(bounceSound), surface_type_count);
-			j.asset_array(WEAPON_FIELD(rollingSound), surface_type_count);
-			j.asset(WEAPON_FIELD(viewShellEjectEffect));
-			j.asset(WEAPON_FIELD(worldShellEjectEffect));
-			j.asset(WEAPON_FIELD(viewLastShotEjectEffect));
-			j.asset(WEAPON_FIELD(worldLastShotEjectEffect));
-			j.asset(WEAPON_FIELD(viewMagEjectEffect));
-			j.asset(WEAPON_FIELD(reticleCenter));
-			j.asset(WEAPON_FIELD(unknownMaterial888));
-			j.asset(WEAPON_FIELD(reticleSide));
-			j.asset_array(WEAPON_FIELD(worldModel), model_count);
-			j.asset_array(WEAPON_FIELD(unknown912), model_count);
-			j.asset(WEAPON_FIELD(worldClipModel));
-			j.asset(WEAPON_FIELD(rocketModel));
-			j.asset(WEAPON_FIELD(hudIcon));
-			j.asset(WEAPON_FIELD(pickupIcon));
-			j.asset(WEAPON_FIELD(unknownMaterial952));
-			j.asset(WEAPON_FIELD(ammoCounterIcon));
-			j.string(WEAPON_FIELD(szAmmoName));
-			j.string(WEAPON_FIELD(szClipName));
-			j.string(WEAPON_FIELD(szSharedAmmoCapName));
-			j.asset(WEAPON_FIELD(physCollmap));
-			j.asset(WEAPON_FIELD(physPreset));
-			j.string(WEAPON_FIELD(szUseHintString));
-			j.string(WEAPON_FIELD(dropHintString));
-			j.array(WEAPON_FIELD(locationDamageMultipliers), location_damage_count);
-			j.string(WEAPON_FIELD(fireRumble));
-			j.string(WEAPON_FIELD(unknownRumble1040));
-			j.string(WEAPON_FIELD(meleeImpactRumble));
-			j.asset(WEAPON_FIELD(tracerType));
-			j.asset(WEAPON_FIELD(signatureTracerType));
-			j.asset(WEAPON_FIELD(unknownTracer1072));
-			j.asset(WEAPON_FIELD(laserType));
-			j.assets(WEAPON_FIELD(beamType));
-			j.asset(WEAPON_FIELD(turretOverheatSound));
-			j.asset(WEAPON_FIELD(turretOverheatEffect));
-			j.string(WEAPON_FIELD(turretBarrelSpinRumble));
-			j.asset(WEAPON_FIELD(turretBarrelSpinMaxSnd));
-			j.assets(WEAPON_FIELD(turretBarrelSpinUpSnd));
-			j.assets(WEAPON_FIELD(turretBarrelSpinDownSnd));
-			j.asset(WEAPON_FIELD(missileConeSoundAlias));
-			j.asset(WEAPON_FIELD(missileConeSoundAliasAtBase));
-			j.asset(WEAPON_FIELD(stowOffsetModel));
-			j.optional_object(WEAPON_FIELD(turretHydraulicSettings), [](const auto& e, TurretHydraulicSettings& entry)
-			{
-				e.value(ENTRY_FIELD(unknown0));
-				e.value(ENTRY_FIELD(unknown4));
-				e.value(ENTRY_FIELD(minVelocity));
-				e.value(ENTRY_FIELD(unknown12));
-				e.asset(ENTRY_FIELD(verticalSound));
-				e.asset(ENTRY_FIELD(verticalStopSound));
-				e.asset(ENTRY_FIELD(horizontalSound));
-				e.asset(ENTRY_FIELD(horizontalStopSound));
-				e.assets(ENTRY_FIELD(movementSounds));
-				e.value(ENTRY_FIELD(unknown64));
-				e.value(ENTRY_FIELD(unknown68));
-			});
-			j.value(WEAPON_FIELD(playerAnimType));
-			j.value(WEAPON_FIELD(unknown1239));
-			j.value(WEAPON_FIELD(weapType));
-			j.value(WEAPON_FIELD(weapClass));
-			j.value(WEAPON_FIELD(penetrateType));
-			j.value(WEAPON_FIELD(penetrateDepth));
-			j.value(WEAPON_FIELD(impactType));
-			j.value(WEAPON_FIELD(unknown1260));
-			j.value(WEAPON_FIELD(inventoryType));
-			j.value(WEAPON_FIELD(fireType));
-			j.value(WEAPON_FIELD(fireBarrels));
-			j.value(WEAPON_FIELD(adsFireMode));
-			j.value(WEAPON_FIELD(burstFireCooldown));
-			j.value(WEAPON_FIELD(greebleType));
-			j.value(WEAPON_FIELD(autoReloadType));
-			j.value(WEAPON_FIELD(autoHolsterType));
-			j.value(WEAPON_FIELD(offhandClass));
-			j.value(WEAPON_FIELD(stance));
-			j.value(WEAPON_FIELD(reticleCenterSize));
-			j.value(WEAPON_FIELD(unknown1308));
-			j.value(WEAPON_FIELD(reticleSideSize));
-			j.value(WEAPON_FIELD(reticleMinOfs));
-			j.value(WEAPON_FIELD(activeReticleType));
-			j.value(WEAPON_FIELD(standMove));
-			j.value(WEAPON_FIELD(standRot));
-			j.value(WEAPON_FIELD(strafeMove));
-			j.value(WEAPON_FIELD(strafeRot));
-			j.value(WEAPON_FIELD(duckedOfs));
-			j.value(WEAPON_FIELD(duckedMove));
-			j.value(WEAPON_FIELD(duckedRot));
-			j.value(WEAPON_FIELD(proneOfs));
-			j.value(WEAPON_FIELD(proneMove));
-			j.value(WEAPON_FIELD(proneRot));
-			j.value(WEAPON_FIELD(posMoveRate));
-			j.value(WEAPON_FIELD(posProneMoveRate));
-			j.value(WEAPON_FIELD(standMoveMinSpeed));
-			j.value(WEAPON_FIELD(duckedMoveMinSpeed));
-			j.value(WEAPON_FIELD(proneMoveMinSpeed));
-			j.value(WEAPON_FIELD(posRotRate));
-			j.value(WEAPON_FIELD(posProneRotRate));
-			j.value(WEAPON_FIELD(hudIconRatio));
-			j.value(WEAPON_FIELD(pickupIconRatio));
-			j.value(WEAPON_FIELD(ammoCounterIconRatio));
-			j.value(WEAPON_FIELD(ammoCounterClip));
-			j.value(WEAPON_FIELD(unknown1488));
-			j.value(WEAPON_FIELD(maxAmmo));
-			j.value(WEAPON_FIELD(unknown1528));
-			j.value(WEAPON_FIELD(minAmmoReq));
-			j.value(WEAPON_FIELD(startAmmo));
-			j.value(WEAPON_FIELD(unknown1540));
-			j.value(WEAPON_FIELD(clipSize));
-			j.value(WEAPON_FIELD(shotCount));
-			j.value(WEAPON_FIELD(sharedAmmoCapIndex));
-			j.value(WEAPON_FIELD(sharedAmmoCap));
-			j.value(WEAPON_FIELD(unknown1560));
-			j.value(WEAPON_FIELD(unknown1564));
-			j.value(WEAPON_FIELD(meleeDamage));
-			j.value(WEAPON_FIELD(damageType));
-			j.object(WEAPON_FIELD(stateTimers), visit_state_timers<J>);
-			j.object(WEAPON_FIELD(akimboStateTimers), visit_state_timers<J>);
-			j.value(WEAPON_FIELD(unknown2216));
-			j.value(WEAPON_FIELD(autoAimRange));
-			j.value(WEAPON_FIELD(aimAssistRange));
-			j.value(WEAPON_FIELD(aimAssistRangeAds));
-			j.value(WEAPON_FIELD(aimPadding));
-			j.value(WEAPON_FIELD(unknown2240));
-			j.value(WEAPON_FIELD(unknown2244));
-			j.value(WEAPON_FIELD(unknown2248));
-			j.value(WEAPON_FIELD(unknown2252));
-			j.value(WEAPON_FIELD(enemyCrosshairRange));
-			j.value(WEAPON_FIELD(moveSpeedScale));
-			j.value(WEAPON_FIELD(adsMoveSpeedScale));
-			j.value(WEAPON_FIELD(sprintDurationScale));
-			j.value(WEAPON_FIELD(unknown2276));
-			j.value(WEAPON_FIELD(adsZoomFov));
-			j.value(WEAPON_FIELD(adsZoomInFrac));
-			j.value(WEAPON_FIELD(adsZoomOutFrac));
-			j.value(WEAPON_FIELD(adsSceneBlur));
-			j.object(WEAPON_FIELD(overlay), [](const auto& e, ADSOverlay& entry)
-			{
-				e.asset(ENTRY_FIELD(shader));
-				e.asset(ENTRY_FIELD(shaderLowRes));
-				e.asset(ENTRY_FIELD(shaderEMP));
-				e.asset(ENTRY_FIELD(shaderEMPLowRes));
-				e.value(ENTRY_FIELD(reticle));
-				e.value(ENTRY_FIELD(width));
-				e.value(ENTRY_FIELD(height));
-				e.value(ENTRY_FIELD(widthSplitscreen));
-				e.value(ENTRY_FIELD(heightSplitscreen));
-			});
-			j.value(WEAPON_FIELD(overlayInterface));
-			j.value(WEAPON_FIELD(adsBobFactor));
-			j.value(WEAPON_FIELD(adsViewBobMult));
-			j.value(WEAPON_FIELD(hipSpreadDecayRate));
-			j.value(WEAPON_FIELD(hipSpreadStandMin));
-			j.value(WEAPON_FIELD(hipSpreadStandMax));
-			j.value(WEAPON_FIELD(hipSpreadStandDecay));
-			j.value(WEAPON_FIELD(hipSpreadDuckedMin));
-			j.value(WEAPON_FIELD(hipSpreadDuckedMax));
-			j.value(WEAPON_FIELD(hipSpreadDuckedDecay));
-			j.value(WEAPON_FIELD(hipSpreadProneMin));
-			j.value(WEAPON_FIELD(hipSpreadProneMax));
-			j.value(WEAPON_FIELD(hipSpreadProneDecay));
-			j.value(WEAPON_FIELD(hipSpreadSprintMin));
-			j.value(WEAPON_FIELD(hipSpreadSprintMax));
-			j.value(WEAPON_FIELD(hipSpreadSprintDecay));
-			j.value(WEAPON_FIELD(hipSpreadSlideMin));
-			j.value(WEAPON_FIELD(hipSpreadSlideMax));
-			j.value(WEAPON_FIELD(hipSpreadSlideDecay));
-			j.value(WEAPON_FIELD(hipSpreadMoveAdd));
-			j.value(WEAPON_FIELD(hipSpreadTurnAdd));
-			j.value(WEAPON_FIELD(hipSpreadFireAdd));
-			j.value(WEAPON_FIELD(hipReticleSidePos));
-			j.value(WEAPON_FIELD(adsIdleAmount));
-			j.value(WEAPON_FIELD(hipIdleAmount));
-			j.value(WEAPON_FIELD(adsIdleSpeed));
-			j.value(WEAPON_FIELD(hipIdleSpeed));
-			j.value(WEAPON_FIELD(unknown2500));
-			j.value(WEAPON_FIELD(idleCrouchFactor));
-			j.value(WEAPON_FIELD(idleProneFactor));
-			j.value(WEAPON_FIELD(gunMaxPitch));
-			j.value(WEAPON_FIELD(gunMaxYaw));
-			j.value(WEAPON_FIELD(adsTransInTime));
-			j.value(WEAPON_FIELD(adsTransInFromSprintTime));
-			j.value(WEAPON_FIELD(adsTransOutTime));
-			j.value(WEAPON_FIELD(unknown2532));
-			j.value(WEAPON_FIELD(unknown2540));
-			j.value(WEAPON_FIELD(swayMaxAngle));
-			j.value(WEAPON_FIELD(swayMaxAngleSteadyAim));
-			j.value(WEAPON_FIELD(swayLerpSpeed));
-			j.value(WEAPON_FIELD(swayPitchScale));
-			j.value(WEAPON_FIELD(swayYawScale));
-			j.value(WEAPON_FIELD(swayHorizScale));
-			j.value(WEAPON_FIELD(swayVertScale));
-			j.value(WEAPON_FIELD(swayShellShockScale));
-			j.value(WEAPON_FIELD(adsSwayMaxAngle));
-			j.value(WEAPON_FIELD(adsSwayLerpSpeed));
-			j.value(WEAPON_FIELD(adsSwayPitchScale));
-			j.value(WEAPON_FIELD(adsSwayYawScale));
-			j.value(WEAPON_FIELD(adsSwayHorizScale));
-			j.value(WEAPON_FIELD(adsSwayVertScale));
-			j.value(WEAPON_FIELD(adsViewErrorMin));
-			j.value(WEAPON_FIELD(adsViewErrorMax));
-			j.value(WEAPON_FIELD(adsFireAnimFrac));
-			j.value(WEAPON_FIELD(unknown2612));
-			j.value(WEAPON_FIELD(bobVerticalFactor));
-			j.value(WEAPON_FIELD(bobHorizontalFactor));
-			j.value(WEAPON_FIELD(bobViewVerticalFactor));
-			j.value(WEAPON_FIELD(bobViewHorizontalFactor));
-			j.value(WEAPON_FIELD(stationaryZoomFov));
-			j.value(WEAPON_FIELD(stationaryZoomDelay));
-			j.value(WEAPON_FIELD(stationaryZoomLerpInTime));
-			j.value(WEAPON_FIELD(stationaryZoomLerpOutTime));
-			j.value(WEAPON_FIELD(adsDofStart));
-			j.value(WEAPON_FIELD(adsDofEnd));
-			j.value(WEAPON_FIELD(unknown2676));
-			j.asset(WEAPON_FIELD(killIcon));
-			j.asset(WEAPON_FIELD(dpadIcon));
-			j.asset(WEAPON_FIELD(hudProximityWarningIcon));
-			j.value(WEAPON_FIELD(killIconRatio));
-			j.value(WEAPON_FIELD(dpadIconRatio));
-			j.value(WEAPON_FIELD(fireAnimLength));
-			j.value(WEAPON_FIELD(fireAnimLengthAkimbo));
-			j.value(WEAPON_FIELD(reloadAmmoAdd));
-			j.value(WEAPON_FIELD(reloadStartAdd));
-			j.value(WEAPON_FIELD(ammoDropStockMin));
-			j.value(WEAPON_FIELD(ammoDropStockMax));
-			j.value(WEAPON_FIELD(ammoDropClipPercentMin));
-			j.value(WEAPON_FIELD(ammoDropClipPercentMax));
-			j.value(WEAPON_FIELD(explosionRadius));
-			j.value(WEAPON_FIELD(explosionRadiusMin));
-			j.value(WEAPON_FIELD(explosionInnerDamage));
-			j.value(WEAPON_FIELD(explosionOuterDamage));
-			j.value(WEAPON_FIELD(unknown2760));
-			j.value(WEAPON_FIELD(damageConeAngle));
-			j.value(WEAPON_FIELD(unknown2772));
-			j.value(WEAPON_FIELD(projectileSpeed));
-			j.value(WEAPON_FIELD(projectileSpeedUp));
-			j.value(WEAPON_FIELD(projectileSpeedForward));
-			j.value(WEAPON_FIELD(unknown2796));
-			j.value(WEAPON_FIELD(projectileActivateDist));
-			j.value(WEAPON_FIELD(projLifetime));
-			j.value(WEAPON_FIELD(timeToAccelerate));
-			j.value(WEAPON_FIELD(projectileCurvature));
-			j.value(WEAPON_FIELD(unknown2816));
-			j.string(WEAPON_FIELD(projectileName));
-			j.asset(WEAPON_FIELD(projectileModel));
-			j.asset(WEAPON_FIELD(projExplosionEffect));
-			j.asset(WEAPON_FIELD(projDudEffect));
-			j.asset(WEAPON_FIELD(unknownEffect2880));
-			j.asset(WEAPON_FIELD(projExplosionSound));
-			j.asset(WEAPON_FIELD(projDudSound));
-			j.asset(WEAPON_FIELD(unknownSound2904));
-			j.value(WEAPON_FIELD(projExplosion));
-			j.value(WEAPON_FIELD(stickiness));
-			j.value(WEAPON_FIELD(unknown2920));
-			j.value(WEAPON_FIELD(lowAmmoWarningThreshold));
-			j.value(WEAPON_FIELD(ricochetChance));
-			j.value(WEAPON_FIELD(riotShieldHealth));
-			j.value(WEAPON_FIELD(riotShieldDamageMult));
-			j.value(WEAPON_FIELD(unknown2940));
-			j.array(WEAPON_FIELD(parallelBounce), surface_type_count);
-			j.array(WEAPON_FIELD(perpendicularBounce), surface_type_count);
-			j.asset(WEAPON_FIELD(projTrailEffect));
-			j.asset(WEAPON_FIELD(projBeaconEffect));
-			j.value(WEAPON_FIELD(projectileColor));
-			j.value(WEAPON_FIELD(guidedMissileType));
-			j.value(WEAPON_FIELD(maxSteeringAccel));
-			j.value(WEAPON_FIELD(unknown2996));
-			j.asset(WEAPON_FIELD(projIgnitionEffect));
-			j.asset(WEAPON_FIELD(projIgnitionSound));
-			j.value(WEAPON_FIELD(adsAimPitch));
-			j.value(WEAPON_FIELD(adsCrosshairInFrac));
-			j.value(WEAPON_FIELD(adsCrosshairOutFrac));
-			j.value(WEAPON_FIELD(adsGunKickPitchMin));
-			j.value(WEAPON_FIELD(adsGunKickPitchMax));
-			j.value(WEAPON_FIELD(adsGunKickYawMin));
-			j.value(WEAPON_FIELD(adsGunKickYawMax));
-			j.value(WEAPON_FIELD(adsGunKickMagMin));
-			j.value(WEAPON_FIELD(adsGunKickAccel));
-			j.value(WEAPON_FIELD(adsGunKickSpeedMax));
-			j.value(WEAPON_FIELD(adsGunKickSpeedDecay));
-			j.value(WEAPON_FIELD(adsGunKickStaticDecay));
-			j.value(WEAPON_FIELD(adsGunKickReducedKickBullets));
-			j.value(WEAPON_FIELD(adsGunKickReducedKickPercent));
-			j.value(WEAPON_FIELD(adsViewKickPitchMin));
-			j.value(WEAPON_FIELD(adsViewKickPitchMax));
-			j.value(WEAPON_FIELD(adsViewKickYawMin));
-			j.value(WEAPON_FIELD(adsViewKickYawMax));
-			j.value(WEAPON_FIELD(adsViewKickMagMin));
-			j.value(WEAPON_FIELD(adsViewKickCenterSpeed));
-			j.value(WEAPON_FIELD(adsViewScatterMin));
-			j.value(WEAPON_FIELD(adsViewScatterMax));
-			j.value(WEAPON_FIELD(unknown3136));
-			j.value(WEAPON_FIELD(unknown3140));
-			j.value(WEAPON_FIELD(unknown3204));
-			j.value(WEAPON_FIELD(unknown3208));
-			j.value(WEAPON_FIELD(hipGunKickPitchMin));
-			j.value(WEAPON_FIELD(hipGunKickPitchMax));
-			j.value(WEAPON_FIELD(hipGunKickYawMin));
-			j.value(WEAPON_FIELD(hipGunKickYawMax));
-			j.value(WEAPON_FIELD(hipGunKickMagMin));
-			j.value(WEAPON_FIELD(hipGunKickAccel));
-			j.value(WEAPON_FIELD(hipGunKickSpeedMax));
-			j.value(WEAPON_FIELD(hipGunKickSpeedDecay));
-			j.value(WEAPON_FIELD(hipGunKickStaticDecay));
-			j.value(WEAPON_FIELD(hipGunKickReducedKickBullets));
-			j.value(WEAPON_FIELD(hipGunKickReducedKickPercent));
-			j.value(WEAPON_FIELD(hipViewKickPitchMin));
-			j.value(WEAPON_FIELD(hipViewKickPitchMax));
-			j.value(WEAPON_FIELD(hipViewKickYawMin));
-			j.value(WEAPON_FIELD(hipViewKickYawMax));
-			j.value(WEAPON_FIELD(hipViewKickMagMin));
-			j.value(WEAPON_FIELD(hipViewKickCenterSpeed));
-			j.value(WEAPON_FIELD(hipViewScatterMin));
-			j.value(WEAPON_FIELD(hipViewScatterMax));
-			j.value(WEAPON_FIELD(unknown3304));
-			j.value(WEAPON_FIELD(unknown3308));
-			j.value(WEAPON_FIELD(positionReloadTransTime));
-			j.value(WEAPON_FIELD(unknown3388));
-			j.value(WEAPON_FIELD(unknown3392));
-			j.strings(WEAPON_FIELD(accuracyGraphName));
-			j.graph_knots(WEAPON_FIELD(accuracyGraphKnots), WEAPON_FIELD(originalAccuracyGraphKnots), w.accuracyGraphKnotCount);
-			j.value(WEAPON_FIELD(originalAccuracyGraphKnotCount));
-			j.value(WEAPON_FIELD(unknown3456));
-			j.string(WEAPON_FIELD(szScript));
-			j.value(WEAPON_FIELD(unknown3568));
-			j.value(WEAPON_FIELD(damage));
-			j.value(WEAPON_FIELD(unknown3576));
-			j.value(WEAPON_FIELD(unknown3580));
-			j.value(WEAPON_FIELD(unknown3584));
-			j.value(WEAPON_FIELD(unknown3588));
-			j.value(WEAPON_FIELD(unknown3592));
-			j.value(WEAPON_FIELD(unknown3596));
-			j.value(WEAPON_FIELD(unknown3600));
-			j.value(WEAPON_FIELD(unknown3604));
-			j.value(WEAPON_FIELD(playerDamage));
-			j.value(WEAPON_FIELD(maxDamageRange));
-			j.value(WEAPON_FIELD(minDamage));
-			j.value(WEAPON_FIELD(minPlayerDamage));
-			j.value(WEAPON_FIELD(unknown3624));
-			j.value(WEAPON_FIELD(unknown3628));
-			j.value(WEAPON_FIELD(midDamage));
-			j.value(WEAPON_FIELD(midPlayerDamage));
-			j.value(WEAPON_FIELD(minDamageRange));
-			j.value(WEAPON_FIELD(unknown3648));
-			j.value(WEAPON_FIELD(unknown3652));
-			j.value(WEAPON_FIELD(signatureDamage));
-			j.value(WEAPON_FIELD(signatureMinDamage));
-			j.value(WEAPON_FIELD(signatureMidDamage));
-			j.value(WEAPON_FIELD(signatureMaxDamageRange));
-			j.value(WEAPON_FIELD(signatureMinDamageRange));
-			j.value(WEAPON_FIELD(destabilizationRateTime));
-			j.value(WEAPON_FIELD(destabilizationCurvatureMax));
-			j.value(WEAPON_FIELD(destabilizeDistance));
-			j.value(WEAPON_FIELD(turretADSTime));
-			j.value(WEAPON_FIELD(turretFov));
-			j.value(WEAPON_FIELD(turretFovADS));
-			j.value(WEAPON_FIELD(turretScopeZoomRate));
-			j.value(WEAPON_FIELD(turretScopeZoomMin));
-			j.value(WEAPON_FIELD(turretScopeZoomMax));
-			j.value(WEAPON_FIELD(overheatUpRate));
-			j.value(WEAPON_FIELD(overheatDownRate));
-			j.value(WEAPON_FIELD(overheatCooldownRate));
-			j.value(WEAPON_FIELD(overheatPenalty));
-			j.value(WEAPON_FIELD(turretBarrelSpinSpeed));
-			j.value(WEAPON_FIELD(turretBarrelSpinUpTime));
-			j.value(WEAPON_FIELD(missileConeSoundRadiusAtTop));
-			j.value(WEAPON_FIELD(missileConeSoundRadiusAtBase));
-			j.value(WEAPON_FIELD(missileConeSoundHeight));
-			j.value(WEAPON_FIELD(missileConeSoundOriginOffset));
-			j.value(WEAPON_FIELD(missileConeSoundVolumescaleAtCore));
-			j.value(WEAPON_FIELD(missileConeSoundVolumescaleAtEdge));
-			j.value(WEAPON_FIELD(missileConeSoundVolumescaleCoreSize));
-			j.value(WEAPON_FIELD(missileConeSoundPitchAtTop));
-			j.value(WEAPON_FIELD(missileConeSoundPitchAtBottom));
-			j.value(WEAPON_FIELD(missileConeSoundPitchTopSize));
-			j.value(WEAPON_FIELD(missileConeSoundPitchBottomSize));
-			j.value(WEAPON_FIELD(missileConeSoundCrossfadeTopSize));
-			j.value(WEAPON_FIELD(missileConeSoundCrossfadeBottomSize));
-			j.script_string(WEAPON_FIELD(knifeAttachTagOverride));
-			j.value(WEAPON_FIELD(unknown3824));
-			j.value(WEAPON_FIELD(unknown3892));
-			j.value(WEAPON_FIELD(unknown3928));
-			j.script_string(WEAPON_FIELD(stowTag));
-			j.script_string(WEAPON_FIELD(unknownTag3948));
-			j.value(WEAPON_FIELD(unknown3952));
-			j.value(WEAPON_FIELD(unknown3953));
-			j.value(WEAPON_FIELD(adsDofPhysicalFstop));
-			j.value(WEAPON_FIELD(adsDofPhysicalFocusDistance));
-			j.value(WEAPON_FIELD(unknown4064));
-			j.value(WEAPON_FIELD(unknown4072));
-			j.value(WEAPON_FIELD(unknown4076));
-			j.value(WEAPON_FIELD(unknown4092));
-			j.value(WEAPON_FIELD(unknown4096));
-			j.value(WEAPON_FIELD(unknown4100));
-			j.value(WEAPON_FIELD(unknown4104));
-			j.value(WEAPON_FIELD(unknown4200));
-			j.value(WEAPON_FIELD(unknown4208));
-			j.value(WEAPON_FIELD(unknown4224));
-			j.value(WEAPON_FIELD(unknown4228));
-			j.value(WEAPON_FIELD(unknown4232));
-		}
-#undef WEAPON_FIELD
-#undef ENTRY_FIELD
+			&TurretHydraulicSettings::unknown0,
+			&TurretHydraulicSettings::unknown4,
+			&TurretHydraulicSettings::minVelocity,
+			&TurretHydraulicSettings::unknown12,
+			&TurretHydraulicSettings::verticalSound,
+			&TurretHydraulicSettings::verticalStopSound,
+			&TurretHydraulicSettings::horizontalSound,
+			&TurretHydraulicSettings::horizontalStopSound,
+			&TurretHydraulicSettings::movementSounds,
+			&TurretHydraulicSettings::unknown64,
+			&TurretHydraulicSettings::unknown68,
+		};
+
+		constexpr auto anim_override_fields = glz::tuple
+		{
+			&AnimOverrideEntry::animHand,
+			&AnimOverrideEntry::attachment1,
+			&AnimOverrideEntry::attachment2,
+			&AnimOverrideEntry::animTreeType,
+			&AnimOverrideEntry::overrideAnim,
+			&AnimOverrideEntry::altmodeAnim,
+			&AnimOverrideEntry::animTime,
+			&AnimOverrideEntry::altTime,
+		};
+
+		constexpr auto sound_override_fields = glz::tuple
+		{
+			&SoundOverrideEntry::attachment1,
+			&SoundOverrideEntry::attachment2,
+			&SoundOverrideEntry::soundType,
+			&SoundOverrideEntry::overrideSound,
+			&SoundOverrideEntry::altmodeSound,
+		};
+
+		constexpr auto fx_override_fields = glz::tuple
+		{
+			&FXOverrideEntry::attachment1,
+			&FXOverrideEntry::attachment2,
+			&FXOverrideEntry::fxType,
+			&FXOverrideEntry::overrideFX,
+			&FXOverrideEntry::altmodeFX,
+		};
+
+		constexpr auto reload_override_fields = glz::tuple
+		{
+			&ReloadStateTimerEntry::attachment,
+			&ReloadStateTimerEntry::reloadAddTime,
+			&ReloadStateTimerEntry::reloadEmptyAddTime,
+			&ReloadStateTimerEntry::reloadStartAddTime,
+		};
+
+		constexpr auto weapon_sound_fields = glz::tuple
+		{
+			&WeaponCompleteDef::pickupSound,
+			&WeaponCompleteDef::pickupSoundPlayer,
+			&WeaponCompleteDef::ammoPickupSound,
+			&WeaponCompleteDef::ammoPickupSoundPlayer,
+			&WeaponCompleteDef::projectileSound,
+			&WeaponCompleteDef::pullbackSound,
+			&WeaponCompleteDef::pullbackSoundPlayer,
+			&WeaponCompleteDef::throwbackSound,
+			&WeaponCompleteDef::throwbackSoundPlayer,
+			&WeaponCompleteDef::fireSound,
+			&WeaponCompleteDef::fireSoundPlayer,
+			&WeaponCompleteDef::fireSoundPlayerAkimbo,
+			&WeaponCompleteDef::fireLoopSound,
+			&WeaponCompleteDef::fireLoopSoundPlayer,
+			&WeaponCompleteDef::fireLoopEndPointSound,
+			&WeaponCompleteDef::fireLoopEndPointSoundPlayer,
+			&WeaponCompleteDef::fireStopSound,
+			&WeaponCompleteDef::fireStopSoundPlayer,
+			&WeaponCompleteDef::fireLastSound,
+			&WeaponCompleteDef::fireLastSoundPlayer,
+			&WeaponCompleteDef::fireFirstSound,
+			&WeaponCompleteDef::fireFirstSoundPlayer,
+			&WeaponCompleteDef::fireCustomSound,
+			&WeaponCompleteDef::fireCustomSoundPlayer,
+			&WeaponCompleteDef::emptyFireSound,
+			&WeaponCompleteDef::emptyFireSoundPlayer,
+			&WeaponCompleteDef::adsRequiredFireSoundPlayer,
+			&WeaponCompleteDef::meleeSwipeSound,
+			&WeaponCompleteDef::meleeSwipeSoundPlayer,
+			&WeaponCompleteDef::meleeHitSound,
+			&WeaponCompleteDef::meleeMissSound,
+			&WeaponCompleteDef::meleeHitSoundPlayer,
+			&WeaponCompleteDef::meleeMissSoundPlayer,
+			&WeaponCompleteDef::rechamberSound,
+			&WeaponCompleteDef::rechamberSoundPlayer,
+			&WeaponCompleteDef::reloadSound,
+			&WeaponCompleteDef::reloadSoundPlayer,
+			&WeaponCompleteDef::reloadEmptySound,
+			&WeaponCompleteDef::reloadEmptySoundPlayer,
+			&WeaponCompleteDef::reloadStartSound,
+			&WeaponCompleteDef::reloadStartSoundPlayer,
+			&WeaponCompleteDef::reloadEndSound,
+			&WeaponCompleteDef::reloadEndSoundPlayer,
+			&WeaponCompleteDef::detonateSound,
+			&WeaponCompleteDef::detonateSoundPlayer,
+			&WeaponCompleteDef::nightVisionWearSound,
+			&WeaponCompleteDef::nightVisionWearSoundPlayer,
+			&WeaponCompleteDef::nightVisionRemoveSound,
+			&WeaponCompleteDef::nightVisionRemoveSoundPlayer,
+			&WeaponCompleteDef::altSwitchSound,
+			&WeaponCompleteDef::altSwitchSoundPlayer,
+			&WeaponCompleteDef::raiseSound,
+			&WeaponCompleteDef::raiseSoundPlayer,
+			&WeaponCompleteDef::firstRaiseSound,
+			&WeaponCompleteDef::firstRaiseSoundPlayer,
+			&WeaponCompleteDef::putawaySound,
+			&WeaponCompleteDef::putawaySoundPlayer,
+			&WeaponCompleteDef::scanSound,
+			&WeaponCompleteDef::changeVariableZoomSound,
+			&WeaponCompleteDef::adsUpSound,
+			&WeaponCompleteDef::adsDownSound,
+			&WeaponCompleteDef::adsCrosshairEnemySound,
+			&WeaponCompleteDef::unknownSound800,
+			&WeaponCompleteDef::unknownSound808,
+			&WeaponCompleteDef::unknownSound816,
+		};
+
+		constexpr auto weapon_fields = glz::tuple
+		{
+			&WeaponCompleteDef::szInternalName,
+			&WeaponCompleteDef::szDisplayName,
+			json_reflect::counted(&WeaponCompleteDef::gunModel, model_count),
+			json_reflect::counted(&WeaponCompleteDef::unknown24, model_count),
+			&WeaponCompleteDef::handModel,
+			&WeaponCompleteDef::lobWorldModelName,
+			json_reflect::manual("szXAnimsRightHanded"),
+			json_reflect::manual("szXAnimsLeftHanded"),
+			json_reflect::manual("hideTags"),
+			json_reflect::manual("attachments"),
+			&WeaponCompleteDef::unknown80,
+			json_reflect::manual("szXAnims"),
+			json_reflect::counted(&WeaponCompleteDef::animOverrides, &WeaponCompleteDef::numAnimOverrides, anim_override_fields),
+			json_reflect::counted(&WeaponCompleteDef::soundOverrides, &WeaponCompleteDef::numSoundOverrides, sound_override_fields),
+			json_reflect::counted(&WeaponCompleteDef::fxOverrides, &WeaponCompleteDef::numFXOverrides, fx_override_fields),
+			json_reflect::counted(&WeaponCompleteDef::reloadOverrides, &WeaponCompleteDef::numReloadStateTimerOverrides, reload_override_fields),
+			json_reflect::manual("notetrackOverrides"),
+			json_reflect::manual("notetrackSoundMap"),
+			json_reflect::manual("notetrackRumbleMap"),
+			json_reflect::manual("notetrackFXMap"),
+			&WeaponCompleteDef::szAdsrBaseSetting,
+			&WeaponCompleteDef::viewFlashEffect,
+			&WeaponCompleteDef::viewBodyFlashEffect,
+			&WeaponCompleteDef::worldFlashEffect,
+			&WeaponCompleteDef::viewFlashADSEffect,
+			&WeaponCompleteDef::viewBodyFlashADSEffect,
+			&WeaponCompleteDef::signatureViewFlashEffect,
+			&WeaponCompleteDef::signatureViewBodyFlashEffect,
+			&WeaponCompleteDef::signatureWorldFlashEffect,
+			&WeaponCompleteDef::signatureViewFlashADSEffect,
+			&WeaponCompleteDef::signatureViewBodyFlashADSEffect,
+			&WeaponCompleteDef::unknownEffect280,
+			&WeaponCompleteDef::meleeHitEffect,
+			&WeaponCompleteDef::meleeMissEffect,
+			json_reflect::group("sounds", weapon_sound_fields),
+			json_reflect::counted(&WeaponCompleteDef::bounceSound, surface_type_count),
+			json_reflect::counted(&WeaponCompleteDef::rollingSound, surface_type_count),
+			&WeaponCompleteDef::viewShellEjectEffect,
+			&WeaponCompleteDef::worldShellEjectEffect,
+			&WeaponCompleteDef::viewLastShotEjectEffect,
+			&WeaponCompleteDef::worldLastShotEjectEffect,
+			&WeaponCompleteDef::viewMagEjectEffect,
+			&WeaponCompleteDef::reticleCenter,
+			&WeaponCompleteDef::unknownMaterial888,
+			&WeaponCompleteDef::reticleSide,
+			json_reflect::counted(&WeaponCompleteDef::worldModel, model_count),
+			json_reflect::counted(&WeaponCompleteDef::unknown912, model_count),
+			&WeaponCompleteDef::worldClipModel,
+			&WeaponCompleteDef::rocketModel,
+			&WeaponCompleteDef::hudIcon,
+			&WeaponCompleteDef::pickupIcon,
+			&WeaponCompleteDef::unknownMaterial952,
+			&WeaponCompleteDef::ammoCounterIcon,
+			&WeaponCompleteDef::szAmmoName,
+			&WeaponCompleteDef::szClipName,
+			&WeaponCompleteDef::szSharedAmmoCapName,
+			&WeaponCompleteDef::physCollmap,
+			&WeaponCompleteDef::physPreset,
+			&WeaponCompleteDef::szUseHintString,
+			&WeaponCompleteDef::dropHintString,
+			json_reflect::counted(&WeaponCompleteDef::locationDamageMultipliers, location_damage_count),
+			&WeaponCompleteDef::fireRumble,
+			&WeaponCompleteDef::unknownRumble1040,
+			&WeaponCompleteDef::meleeImpactRumble,
+			&WeaponCompleteDef::tracerType,
+			&WeaponCompleteDef::signatureTracerType,
+			&WeaponCompleteDef::unknownTracer1072,
+			&WeaponCompleteDef::laserType,
+			&WeaponCompleteDef::beamType,
+			&WeaponCompleteDef::turretOverheatSound,
+			&WeaponCompleteDef::turretOverheatEffect,
+			&WeaponCompleteDef::turretBarrelSpinRumble,
+			&WeaponCompleteDef::turretBarrelSpinMaxSnd,
+			&WeaponCompleteDef::turretBarrelSpinUpSnd,
+			&WeaponCompleteDef::turretBarrelSpinDownSnd,
+			&WeaponCompleteDef::missileConeSoundAlias,
+			&WeaponCompleteDef::missileConeSoundAliasAtBase,
+			&WeaponCompleteDef::stowOffsetModel,
+			json_reflect::nested(&WeaponCompleteDef::turretHydraulicSettings, turret_hydraulic_fields),
+			&WeaponCompleteDef::playerAnimType,
+			&WeaponCompleteDef::unknown1239,
+			&WeaponCompleteDef::weapType,
+			&WeaponCompleteDef::weapClass,
+			&WeaponCompleteDef::penetrateType,
+			&WeaponCompleteDef::penetrateDepth,
+			&WeaponCompleteDef::impactType,
+			&WeaponCompleteDef::unknown1260,
+			&WeaponCompleteDef::inventoryType,
+			&WeaponCompleteDef::fireType,
+			&WeaponCompleteDef::fireBarrels,
+			&WeaponCompleteDef::adsFireMode,
+			&WeaponCompleteDef::burstFireCooldown,
+			&WeaponCompleteDef::greebleType,
+			&WeaponCompleteDef::autoReloadType,
+			&WeaponCompleteDef::autoHolsterType,
+			&WeaponCompleteDef::offhandClass,
+			&WeaponCompleteDef::stance,
+			&WeaponCompleteDef::reticleCenterSize,
+			&WeaponCompleteDef::unknown1308,
+			&WeaponCompleteDef::reticleSideSize,
+			&WeaponCompleteDef::reticleMinOfs,
+			&WeaponCompleteDef::activeReticleType,
+			&WeaponCompleteDef::standMove,
+			&WeaponCompleteDef::standRot,
+			&WeaponCompleteDef::strafeMove,
+			&WeaponCompleteDef::strafeRot,
+			&WeaponCompleteDef::duckedOfs,
+			&WeaponCompleteDef::duckedMove,
+			&WeaponCompleteDef::duckedRot,
+			&WeaponCompleteDef::proneOfs,
+			&WeaponCompleteDef::proneMove,
+			&WeaponCompleteDef::proneRot,
+			&WeaponCompleteDef::posMoveRate,
+			&WeaponCompleteDef::posProneMoveRate,
+			&WeaponCompleteDef::standMoveMinSpeed,
+			&WeaponCompleteDef::duckedMoveMinSpeed,
+			&WeaponCompleteDef::proneMoveMinSpeed,
+			&WeaponCompleteDef::posRotRate,
+			&WeaponCompleteDef::posProneRotRate,
+			&WeaponCompleteDef::hudIconRatio,
+			&WeaponCompleteDef::pickupIconRatio,
+			&WeaponCompleteDef::ammoCounterIconRatio,
+			&WeaponCompleteDef::ammoCounterClip,
+			&WeaponCompleteDef::unknown1488,
+			&WeaponCompleteDef::maxAmmo,
+			&WeaponCompleteDef::unknown1528,
+			&WeaponCompleteDef::minAmmoReq,
+			&WeaponCompleteDef::startAmmo,
+			&WeaponCompleteDef::unknown1540,
+			&WeaponCompleteDef::clipSize,
+			&WeaponCompleteDef::shotCount,
+			&WeaponCompleteDef::sharedAmmoCapIndex,
+			&WeaponCompleteDef::sharedAmmoCap,
+			&WeaponCompleteDef::unknown1560,
+			&WeaponCompleteDef::unknown1564,
+			&WeaponCompleteDef::meleeDamage,
+			&WeaponCompleteDef::damageType,
+			json_reflect::nested(&WeaponCompleteDef::stateTimers),
+			json_reflect::nested(&WeaponCompleteDef::akimboStateTimers),
+			&WeaponCompleteDef::unknown2216,
+			&WeaponCompleteDef::autoAimRange,
+			&WeaponCompleteDef::aimAssistRange,
+			&WeaponCompleteDef::aimAssistRangeAds,
+			&WeaponCompleteDef::aimPadding,
+			&WeaponCompleteDef::unknown2240,
+			&WeaponCompleteDef::unknown2244,
+			&WeaponCompleteDef::unknown2248,
+			&WeaponCompleteDef::unknown2252,
+			&WeaponCompleteDef::enemyCrosshairRange,
+			&WeaponCompleteDef::moveSpeedScale,
+			&WeaponCompleteDef::adsMoveSpeedScale,
+			&WeaponCompleteDef::sprintDurationScale,
+			&WeaponCompleteDef::unknown2276,
+			&WeaponCompleteDef::adsZoomFov,
+			&WeaponCompleteDef::adsZoomInFrac,
+			&WeaponCompleteDef::adsZoomOutFrac,
+			&WeaponCompleteDef::adsSceneBlur,
+			json_reflect::nested(&WeaponCompleteDef::overlay, overlay_fields),
+			&WeaponCompleteDef::overlayInterface,
+			&WeaponCompleteDef::adsBobFactor,
+			&WeaponCompleteDef::adsViewBobMult,
+			&WeaponCompleteDef::hipSpreadDecayRate,
+			&WeaponCompleteDef::hipSpreadStandMin,
+			&WeaponCompleteDef::hipSpreadStandMax,
+			&WeaponCompleteDef::hipSpreadStandDecay,
+			&WeaponCompleteDef::hipSpreadDuckedMin,
+			&WeaponCompleteDef::hipSpreadDuckedMax,
+			&WeaponCompleteDef::hipSpreadDuckedDecay,
+			&WeaponCompleteDef::hipSpreadProneMin,
+			&WeaponCompleteDef::hipSpreadProneMax,
+			&WeaponCompleteDef::hipSpreadProneDecay,
+			&WeaponCompleteDef::hipSpreadSprintMin,
+			&WeaponCompleteDef::hipSpreadSprintMax,
+			&WeaponCompleteDef::hipSpreadSprintDecay,
+			&WeaponCompleteDef::hipSpreadSlideMin,
+			&WeaponCompleteDef::hipSpreadSlideMax,
+			&WeaponCompleteDef::hipSpreadSlideDecay,
+			&WeaponCompleteDef::hipSpreadMoveAdd,
+			&WeaponCompleteDef::hipSpreadTurnAdd,
+			&WeaponCompleteDef::hipSpreadFireAdd,
+			&WeaponCompleteDef::hipReticleSidePos,
+			&WeaponCompleteDef::adsIdleAmount,
+			&WeaponCompleteDef::hipIdleAmount,
+			&WeaponCompleteDef::adsIdleSpeed,
+			&WeaponCompleteDef::hipIdleSpeed,
+			&WeaponCompleteDef::unknown2500,
+			&WeaponCompleteDef::idleCrouchFactor,
+			&WeaponCompleteDef::idleProneFactor,
+			&WeaponCompleteDef::gunMaxPitch,
+			&WeaponCompleteDef::gunMaxYaw,
+			&WeaponCompleteDef::adsTransInTime,
+			&WeaponCompleteDef::adsTransInFromSprintTime,
+			&WeaponCompleteDef::adsTransOutTime,
+			&WeaponCompleteDef::unknown2532,
+			&WeaponCompleteDef::unknown2540,
+			&WeaponCompleteDef::swayMaxAngle,
+			&WeaponCompleteDef::swayMaxAngleSteadyAim,
+			&WeaponCompleteDef::swayLerpSpeed,
+			&WeaponCompleteDef::swayPitchScale,
+			&WeaponCompleteDef::swayYawScale,
+			&WeaponCompleteDef::swayHorizScale,
+			&WeaponCompleteDef::swayVertScale,
+			&WeaponCompleteDef::swayShellShockScale,
+			&WeaponCompleteDef::adsSwayMaxAngle,
+			&WeaponCompleteDef::adsSwayLerpSpeed,
+			&WeaponCompleteDef::adsSwayPitchScale,
+			&WeaponCompleteDef::adsSwayYawScale,
+			&WeaponCompleteDef::adsSwayHorizScale,
+			&WeaponCompleteDef::adsSwayVertScale,
+			&WeaponCompleteDef::adsViewErrorMin,
+			&WeaponCompleteDef::adsViewErrorMax,
+			&WeaponCompleteDef::adsFireAnimFrac,
+			&WeaponCompleteDef::unknown2612,
+			&WeaponCompleteDef::bobVerticalFactor,
+			&WeaponCompleteDef::bobHorizontalFactor,
+			&WeaponCompleteDef::bobViewVerticalFactor,
+			&WeaponCompleteDef::bobViewHorizontalFactor,
+			&WeaponCompleteDef::stationaryZoomFov,
+			&WeaponCompleteDef::stationaryZoomDelay,
+			&WeaponCompleteDef::stationaryZoomLerpInTime,
+			&WeaponCompleteDef::stationaryZoomLerpOutTime,
+			&WeaponCompleteDef::adsDofStart,
+			&WeaponCompleteDef::adsDofEnd,
+			&WeaponCompleteDef::unknown2676,
+			&WeaponCompleteDef::killIcon,
+			&WeaponCompleteDef::dpadIcon,
+			&WeaponCompleteDef::hudProximityWarningIcon,
+			&WeaponCompleteDef::killIconRatio,
+			&WeaponCompleteDef::dpadIconRatio,
+			&WeaponCompleteDef::fireAnimLength,
+			&WeaponCompleteDef::fireAnimLengthAkimbo,
+			&WeaponCompleteDef::reloadAmmoAdd,
+			&WeaponCompleteDef::reloadStartAdd,
+			&WeaponCompleteDef::ammoDropStockMin,
+			&WeaponCompleteDef::ammoDropStockMax,
+			&WeaponCompleteDef::ammoDropClipPercentMin,
+			&WeaponCompleteDef::ammoDropClipPercentMax,
+			&WeaponCompleteDef::explosionRadius,
+			&WeaponCompleteDef::explosionRadiusMin,
+			&WeaponCompleteDef::explosionInnerDamage,
+			&WeaponCompleteDef::explosionOuterDamage,
+			&WeaponCompleteDef::unknown2760,
+			&WeaponCompleteDef::damageConeAngle,
+			&WeaponCompleteDef::unknown2772,
+			&WeaponCompleteDef::projectileSpeed,
+			&WeaponCompleteDef::projectileSpeedUp,
+			&WeaponCompleteDef::projectileSpeedForward,
+			&WeaponCompleteDef::unknown2796,
+			&WeaponCompleteDef::projectileActivateDist,
+			&WeaponCompleteDef::projLifetime,
+			&WeaponCompleteDef::timeToAccelerate,
+			&WeaponCompleteDef::projectileCurvature,
+			&WeaponCompleteDef::unknown2816,
+			&WeaponCompleteDef::projectileName,
+			&WeaponCompleteDef::projectileModel,
+			&WeaponCompleteDef::projExplosionEffect,
+			&WeaponCompleteDef::projDudEffect,
+			&WeaponCompleteDef::unknownEffect2880,
+			&WeaponCompleteDef::projExplosionSound,
+			&WeaponCompleteDef::projDudSound,
+			&WeaponCompleteDef::unknownSound2904,
+			&WeaponCompleteDef::projExplosion,
+			&WeaponCompleteDef::stickiness,
+			&WeaponCompleteDef::unknown2920,
+			&WeaponCompleteDef::lowAmmoWarningThreshold,
+			&WeaponCompleteDef::ricochetChance,
+			&WeaponCompleteDef::riotShieldHealth,
+			&WeaponCompleteDef::riotShieldDamageMult,
+			&WeaponCompleteDef::unknown2940,
+			json_reflect::counted(&WeaponCompleteDef::parallelBounce, surface_type_count),
+			json_reflect::counted(&WeaponCompleteDef::perpendicularBounce, surface_type_count),
+			&WeaponCompleteDef::projTrailEffect,
+			&WeaponCompleteDef::projBeaconEffect,
+			&WeaponCompleteDef::projectileColor,
+			&WeaponCompleteDef::guidedMissileType,
+			&WeaponCompleteDef::maxSteeringAccel,
+			&WeaponCompleteDef::unknown2996,
+			&WeaponCompleteDef::projIgnitionEffect,
+			&WeaponCompleteDef::projIgnitionSound,
+			&WeaponCompleteDef::adsAimPitch,
+			&WeaponCompleteDef::adsCrosshairInFrac,
+			&WeaponCompleteDef::adsCrosshairOutFrac,
+			&WeaponCompleteDef::adsGunKickPitchMin,
+			&WeaponCompleteDef::adsGunKickPitchMax,
+			&WeaponCompleteDef::adsGunKickYawMin,
+			&WeaponCompleteDef::adsGunKickYawMax,
+			&WeaponCompleteDef::adsGunKickMagMin,
+			&WeaponCompleteDef::adsGunKickAccel,
+			&WeaponCompleteDef::adsGunKickSpeedMax,
+			&WeaponCompleteDef::adsGunKickSpeedDecay,
+			&WeaponCompleteDef::adsGunKickStaticDecay,
+			&WeaponCompleteDef::adsGunKickReducedKickBullets,
+			&WeaponCompleteDef::adsGunKickReducedKickPercent,
+			&WeaponCompleteDef::adsViewKickPitchMin,
+			&WeaponCompleteDef::adsViewKickPitchMax,
+			&WeaponCompleteDef::adsViewKickYawMin,
+			&WeaponCompleteDef::adsViewKickYawMax,
+			&WeaponCompleteDef::adsViewKickMagMin,
+			&WeaponCompleteDef::adsViewKickCenterSpeed,
+			&WeaponCompleteDef::adsViewScatterMin,
+			&WeaponCompleteDef::adsViewScatterMax,
+			&WeaponCompleteDef::unknown3136,
+			&WeaponCompleteDef::unknown3140,
+			&WeaponCompleteDef::unknown3204,
+			&WeaponCompleteDef::unknown3208,
+			&WeaponCompleteDef::hipGunKickPitchMin,
+			&WeaponCompleteDef::hipGunKickPitchMax,
+			&WeaponCompleteDef::hipGunKickYawMin,
+			&WeaponCompleteDef::hipGunKickYawMax,
+			&WeaponCompleteDef::hipGunKickMagMin,
+			&WeaponCompleteDef::hipGunKickAccel,
+			&WeaponCompleteDef::hipGunKickSpeedMax,
+			&WeaponCompleteDef::hipGunKickSpeedDecay,
+			&WeaponCompleteDef::hipGunKickStaticDecay,
+			&WeaponCompleteDef::hipGunKickReducedKickBullets,
+			&WeaponCompleteDef::hipGunKickReducedKickPercent,
+			&WeaponCompleteDef::hipViewKickPitchMin,
+			&WeaponCompleteDef::hipViewKickPitchMax,
+			&WeaponCompleteDef::hipViewKickYawMin,
+			&WeaponCompleteDef::hipViewKickYawMax,
+			&WeaponCompleteDef::hipViewKickMagMin,
+			&WeaponCompleteDef::hipViewKickCenterSpeed,
+			&WeaponCompleteDef::hipViewScatterMin,
+			&WeaponCompleteDef::hipViewScatterMax,
+			&WeaponCompleteDef::unknown3304,
+			&WeaponCompleteDef::unknown3308,
+			&WeaponCompleteDef::positionReloadTransTime,
+			&WeaponCompleteDef::unknown3388,
+			&WeaponCompleteDef::unknown3392,
+			json_reflect::manual("accuracyGraphs"),
+			&WeaponCompleteDef::originalAccuracyGraphKnotCount,
+			&WeaponCompleteDef::unknown3456,
+			&WeaponCompleteDef::szScript,
+			&WeaponCompleteDef::unknown3568,
+			&WeaponCompleteDef::damage,
+			&WeaponCompleteDef::unknown3576,
+			&WeaponCompleteDef::unknown3580,
+			&WeaponCompleteDef::unknown3584,
+			&WeaponCompleteDef::unknown3588,
+			&WeaponCompleteDef::unknown3592,
+			&WeaponCompleteDef::unknown3596,
+			&WeaponCompleteDef::unknown3600,
+			&WeaponCompleteDef::unknown3604,
+			&WeaponCompleteDef::playerDamage,
+			&WeaponCompleteDef::maxDamageRange,
+			&WeaponCompleteDef::minDamage,
+			&WeaponCompleteDef::minPlayerDamage,
+			&WeaponCompleteDef::unknown3624,
+			&WeaponCompleteDef::unknown3628,
+			&WeaponCompleteDef::midDamage,
+			&WeaponCompleteDef::midPlayerDamage,
+			&WeaponCompleteDef::minDamageRange,
+			&WeaponCompleteDef::unknown3648,
+			&WeaponCompleteDef::unknown3652,
+			&WeaponCompleteDef::signatureDamage,
+			&WeaponCompleteDef::signatureMinDamage,
+			&WeaponCompleteDef::signatureMidDamage,
+			&WeaponCompleteDef::signatureMaxDamageRange,
+			&WeaponCompleteDef::signatureMinDamageRange,
+			&WeaponCompleteDef::destabilizationRateTime,
+			&WeaponCompleteDef::destabilizationCurvatureMax,
+			&WeaponCompleteDef::destabilizeDistance,
+			&WeaponCompleteDef::turretADSTime,
+			&WeaponCompleteDef::turretFov,
+			&WeaponCompleteDef::turretFovADS,
+			&WeaponCompleteDef::turretScopeZoomRate,
+			&WeaponCompleteDef::turretScopeZoomMin,
+			&WeaponCompleteDef::turretScopeZoomMax,
+			&WeaponCompleteDef::overheatUpRate,
+			&WeaponCompleteDef::overheatDownRate,
+			&WeaponCompleteDef::overheatCooldownRate,
+			&WeaponCompleteDef::overheatPenalty,
+			&WeaponCompleteDef::turretBarrelSpinSpeed,
+			&WeaponCompleteDef::turretBarrelSpinUpTime,
+			&WeaponCompleteDef::missileConeSoundRadiusAtTop,
+			&WeaponCompleteDef::missileConeSoundRadiusAtBase,
+			&WeaponCompleteDef::missileConeSoundHeight,
+			&WeaponCompleteDef::missileConeSoundOriginOffset,
+			&WeaponCompleteDef::missileConeSoundVolumescaleAtCore,
+			&WeaponCompleteDef::missileConeSoundVolumescaleAtEdge,
+			&WeaponCompleteDef::missileConeSoundVolumescaleCoreSize,
+			&WeaponCompleteDef::missileConeSoundPitchAtTop,
+			&WeaponCompleteDef::missileConeSoundPitchAtBottom,
+			&WeaponCompleteDef::missileConeSoundPitchTopSize,
+			&WeaponCompleteDef::missileConeSoundPitchBottomSize,
+			&WeaponCompleteDef::missileConeSoundCrossfadeTopSize,
+			&WeaponCompleteDef::missileConeSoundCrossfadeBottomSize,
+			json_reflect::manual("knifeAttachTagOverride"),
+			&WeaponCompleteDef::unknown3824,
+			&WeaponCompleteDef::unknown3892,
+			&WeaponCompleteDef::unknown3928,
+			json_reflect::manual("stowTag"),
+			json_reflect::manual("unknownTag3948"),
+			&WeaponCompleteDef::unknown3952,
+			&WeaponCompleteDef::unknown3953,
+			&WeaponCompleteDef::adsDofPhysicalFstop,
+			&WeaponCompleteDef::adsDofPhysicalFocusDistance,
+			&WeaponCompleteDef::unknown4064,
+			&WeaponCompleteDef::unknown4072,
+			&WeaponCompleteDef::unknown4076,
+			&WeaponCompleteDef::unknown4092,
+			&WeaponCompleteDef::unknown4096,
+			&WeaponCompleteDef::unknown4100,
+			&WeaponCompleteDef::unknown4104,
+			&WeaponCompleteDef::unknown4200,
+			&WeaponCompleteDef::unknown4208,
+			&WeaponCompleteDef::unknown4224,
+			&WeaponCompleteDef::unknown4228,
+			&WeaponCompleteDef::unknown4232,
+		};
+
+		constexpr json_reflect::options json_options{.strings = json_reflect::null_string::null};
 
 		std::string json_path(const std::string& name)
 		{
 			return "weapons\\" + name + ".json";
+		}
+
+		std::size_t anim_index(const std::string& name)
+		{
+			for (auto i = 0u; i < xanim_count; i++)
+			{
+				if (!_stricmp(anim_names[i], name.data()))
+				{
+					return i;
+				}
+			}
+
+			ZONETOOL_FATAL("Unknown weapon anim \"%s\"", name.data());
+		}
+
+		void read_anim_array(json& data, XAnimParts**& anims, zone_memory* mem)
+		{
+			if (!data.is_object())
+			{
+				return;
+			}
+
+			anims = mem->allocate<XAnimParts*>(xanim_count);
+			for (const auto& [name, anim] : data.items())
+			{
+				json_reflect::read(anim, anims[anim_index(name)], mem);
+			}
+		}
+
+		void write_anim_array(ordered_json& data, XAnimParts* const* anims)
+		{
+			if (!anims)
+			{
+				data = nullptr;
+				return;
+			}
+
+			data = ordered_json::object();
+			for (auto i = 0u; i < xanim_count; i++)
+			{
+				if (anims[i])
+				{
+					json_reflect::write(data[anim_names[i]], anims[i]);
+				}
+			}
+		}
+
+		void read_attachments(json& data, WeaponCompleteDef& weapon, zone_memory* mem)
+		{
+			if (!data.is_array() || data.empty())
+			{
+				return;
+			}
+
+			weapon.numAttachments = static_cast<unsigned char>(data.size());
+			weapon.attachments = mem->allocate<WeaponAttachment*>(data.size());
+			for (auto i = 0u; i < data.size(); i++)
+			{
+				const auto name = data[i].get<std::string>();
+				if (!name.empty())
+				{
+					weapon.attachments[i] = mem->allocate<WeaponAttachment>();
+					weapon.attachments[i]->szInternalName = mem->duplicate_string(name);
+				}
+			}
+		}
+
+		void write_attachments(ordered_json& data, const WeaponCompleteDef& weapon)
+		{
+			for (auto i = 0u; weapon.attachments && i < weapon.numAttachments; i++)
+			{
+				json_reflect::write(data[i], weapon.attachments[i] ? asset_name(weapon.attachments[i]) : nullptr);
+			}
+		}
+
+		void read_notetrack_map(json& data, scr_string_t*& keys, scr_string_t*& values, const std::size_t count, zone_memory* mem)
+		{
+			if (!data.is_array())
+			{
+				return;
+			}
+
+			keys = mem->allocate<scr_string_t>(count);
+			values = mem->allocate<scr_string_t>(count);
+			for (auto i = 0u; i < count && i < data.size(); i++)
+			{
+				keys[i] = parse_script_string(data[i]["Key"]);
+				values[i] = parse_script_string(data[i]["Value"]);
+			}
+		}
+
+		void write_notetrack_map(ordered_json& data, const scr_string_t* keys, const scr_string_t* values, const std::size_t count)
+		{
+			if (!keys || !values)
+			{
+				data = nullptr;
+				return;
+			}
+
+			for (auto i = 0u; i < count; i++)
+			{
+				dump_script_string(data[i]["Key"], keys[i]);
+				dump_script_string(data[i]["Value"], values[i]);
+			}
+		}
+
+		void read_notetrack_fx_map(json& data, WeaponCompleteDef& weapon, zone_memory* mem)
+		{
+			if (!data.is_array())
+			{
+				return;
+			}
+
+			weapon.notetrackFXMapKeys = mem->allocate<scr_string_t>(notetrack_map_count);
+			weapon.notetrackFXMapValues = mem->allocate<FxEffectDef*>(notetrack_map_count);
+			weapon.notetrackFXMapTagValues = mem->allocate<scr_string_t>(notetrack_map_count);
+			for (auto i = 0u; i < notetrack_map_count && i < data.size(); i++)
+			{
+				weapon.notetrackFXMapKeys[i] = parse_script_string(data[i]["Key"]);
+				json_reflect::read(data[i]["Value"], weapon.notetrackFXMapValues[i], mem);
+				weapon.notetrackFXMapTagValues[i] = parse_script_string(data[i]["Tag"]);
+			}
+		}
+
+		void write_notetrack_fx_map(ordered_json& data, const WeaponCompleteDef& weapon)
+		{
+			if (!weapon.notetrackFXMapKeys || !weapon.notetrackFXMapValues || !weapon.notetrackFXMapTagValues)
+			{
+				data = nullptr;
+				return;
+			}
+
+			for (auto i = 0u; i < notetrack_map_count; i++)
+			{
+				dump_script_string(data[i]["Key"], weapon.notetrackFXMapKeys[i]);
+				json_reflect::write(data[i]["Value"], weapon.notetrackFXMapValues[i]);
+				dump_script_string(data[i]["Tag"], weapon.notetrackFXMapTagValues[i]);
+			}
+		}
+
+		void read_notetrack_overrides(json& data, WeaponCompleteDef& weapon, zone_memory* mem)
+		{
+			if (!data.is_array() || data.empty())
+			{
+				return;
+			}
+
+			weapon.numNotetrackOverrides = static_cast<unsigned char>(data.size());
+			weapon.notetrackOverrides = mem->allocate<NoteTrackToSoundEntry>(data.size());
+			for (auto i = 0u; i < data.size(); i++)
+			{
+				auto& entry = weapon.notetrackOverrides[i];
+				entry.attachment = data[i]["attachment"].get<int>();
+				read_notetrack_map(data[i]["notetrackSoundMap"], entry.notetrackSoundMapKeys, entry.notetrackSoundMapValues, notetrack_sound_count, mem);
+			}
+		}
+
+		void write_notetrack_overrides(ordered_json& data, const WeaponCompleteDef& weapon)
+		{
+			for (auto i = 0u; weapon.notetrackOverrides && i < weapon.numNotetrackOverrides; i++)
+			{
+				const auto& entry = weapon.notetrackOverrides[i];
+				data[i]["attachment"] = entry.attachment;
+				write_notetrack_map(data[i]["notetrackSoundMap"], entry.notetrackSoundMapKeys, entry.notetrackSoundMapValues, notetrack_sound_count);
+			}
+		}
+
+		vec2_t* read_knots(json& data, const std::size_t count, zone_memory* mem)
+		{
+			if (!data.is_array() || !count)
+			{
+				return nullptr;
+			}
+
+			auto* knots = mem->allocate<vec2_t>(count);
+			for (auto i = 0u; i < count; i++)
+			{
+				json_reflect::read(data[i], knots[i], mem);
+			}
+
+			return knots;
+		}
+
+		void write_knots(ordered_json& data, const vec2_t* knots, const std::size_t count)
+		{
+			for (auto i = 0u; knots && i < count; i++)
+			{
+				json_reflect::write(data[i], knots[i]);
+			}
+		}
+
+		void read_accuracy_graphs(json& data, WeaponCompleteDef& weapon, zone_memory* mem)
+		{
+			for (auto i = 0u; i < std::size(weapon.accuracyGraphName) && i < data.size(); i++)
+			{
+				auto& graph = data[i];
+				const auto count = graph["knots"].size();
+				if (graph["originalKnots"].is_array() && graph["originalKnots"].size() != count)
+				{
+					ZONETOOL_FATAL("Accuracy graph %u of weapon \"%s\" has a different original knot count", i, weapon.szInternalName);
+				}
+
+				if (graph["name"].is_string())
+				{
+					json_reflect::read(graph["name"], weapon.accuracyGraphName[i], mem, json_options);
+				}
+
+				weapon.accuracyGraphKnotCount[i] = static_cast<unsigned short>(count);
+				weapon.accuracyGraphKnots[i] = read_knots(graph["knots"], count, mem);
+				weapon.originalAccuracyGraphKnots[i] = read_knots(graph["originalKnots"], count, mem);
+			}
+		}
+
+		void write_accuracy_graphs(ordered_json& data, const WeaponCompleteDef& weapon)
+		{
+			for (auto i = 0u; i < std::size(weapon.accuracyGraphName); i++)
+			{
+				auto& graph = data[i];
+				json_reflect::write(graph["name"], weapon.accuracyGraphName[i], json_options);
+				write_knots(graph["knots"], weapon.accuracyGraphKnots[i], weapon.accuracyGraphKnotCount[i]);
+				write_knots(graph["originalKnots"], weapon.originalAccuracyGraphKnots[i], weapon.accuracyGraphKnotCount[i]);
+			}
 		}
 
 		template <typename T>
@@ -859,161 +1014,127 @@ namespace zonetool::s2
 			}
 		}
 
-		void share_equal_arrays(WeaponCompleteDef& w)
+		void share_equal_arrays(WeaponCompleteDef& weapon)
 		{
-			share_if_equal(w.szXAnimsLeftHanded, w.szXAnimsRightHanded, xanim_count);
-			share_if_equal(w.szXAnims, w.szXAnimsRightHanded, xanim_count);
-			share_if_equal(w.worldModel, w.gunModel, model_count);
-			share_if_equal(w.perpendicularBounce, w.parallelBounce, surface_type_count);
-			for (auto i = 0u; i < std::size(w.accuracyGraphKnots); i++)
+			share_if_equal(weapon.szXAnimsLeftHanded, weapon.szXAnimsRightHanded, xanim_count);
+			share_if_equal(weapon.szXAnims, weapon.szXAnimsRightHanded, xanim_count);
+			share_if_equal(weapon.worldModel, weapon.gunModel, model_count);
+			share_if_equal(weapon.perpendicularBounce, weapon.parallelBounce, surface_type_count);
+			for (auto i = 0u; i < std::size(weapon.accuracyGraphKnots); i++)
 			{
-				share_if_equal(w.originalAccuracyGraphKnots[i], w.accuracyGraphKnots[i], w.accuracyGraphKnotCount[i]);
+				share_if_equal(weapon.originalAccuracyGraphKnots[i], weapon.accuracyGraphKnots[i], weapon.accuracyGraphKnotCount[i]);
 			}
 		}
 
-		struct weapon_field_names
+		template <typename T>
+		void add_field_offset(std::unordered_map<std::string, std::uint16_t>& offsets, const std::string& name, const T& field, const WeaponCompleteDef& weapon)
 		{
-			std::unordered_map<std::uint16_t, std::string> by_offset;
-			std::unordered_map<std::string, std::uint16_t> by_name;
-		};
-
-		class json_field_namer
-		{
-		public:
-			json_field_namer(const WeaponCompleteDef& weapon, std::string prefix, weapon_field_names& names)
-				: weapon_(weapon)
-				, prefix_(std::move(prefix))
-				, names_(names)
+			if constexpr (std::is_array_v<T>)
 			{
-			}
-
-			template <typename T>
-			void value(const char* name, const T& field) const
-			{
-				this->add(name, field);
-			}
-
-			template <typename T>
-			void string(const char* name, const T& field) const
-			{
-				this->add(name, field);
-			}
-
-			template <typename T>
-			void strings(const char* name, const T& field) const
-			{
-				this->add(name, field);
-			}
-
-			template <typename T>
-			void asset(const char* name, const T& field) const
-			{
-				this->add(name, field);
-			}
-
-			template <typename T>
-			void assets(const char* name, const T& field) const
-			{
-				this->add(name, field);
-			}
-
-			template <typename T, typename C>
-			void asset_array(const char* name, const T& field, const C&) const
-			{
-				this->add(name, field);
-			}
-
-			template <typename T, typename C>
-			void asset_list(const char* name, const T& field, const C&) const
-			{
-				this->add(name, field);
-			}
-
-			template <typename T, typename N>
-			void named_assets(const char* name, const T& field, const N&) const
-			{
-				this->add(name, field);
-			}
-
-			template <typename T>
-			void script_string(const char* name, const T& field) const
-			{
-				this->add(name, field);
-			}
-
-			template <typename T, typename C>
-			void script_strings(const char* name, const T& field, const C&) const
-			{
-				this->add(name, field);
-			}
-
-			template <typename T, typename C>
-			void array(const char* name, const T& field, const C&) const
-			{
-				this->add(name, field);
-			}
-
-			template <typename T, typename C>
-			void graph_knots(const char* knots_name, const T& knots, const char* original_name, const T& original, const C&) const
-			{
-				this->add(knots_name, knots);
-				this->add(original_name, original);
-			}
-
-			template <typename T, typename C, typename F>
-			void entries(const char* name, const T& field, const C&, F&&) const
-			{
-				this->add(name, field);
-			}
-
-			template <typename T, typename F>
-			void object(const char* name, T& field, F&& callback) const
-			{
-				callback(json_field_namer(this->weapon_, this->prefix_ + name + ".", this->names_), field);
-			}
-
-			template <typename T, typename F>
-			void optional_object(const char* name, const T& field, F&&) const
-			{
-				this->add(name, field);
-			}
-
-		private:
-			template <typename T>
-			void add(const std::string& name, const T& field) const
-			{
-				if constexpr (std::is_array_v<T>)
+				for (auto i = 0u; i < std::extent_v<T>; i++)
 				{
-					for (auto i = 0u; i < std::extent_v<T>; i++)
-					{
-						this->add(name + "[" + std::to_string(i) + "]", field[i]);
-					}
+					add_field_offset(offsets, name + "[" + std::to_string(i) + "]", field[i], weapon);
+				}
+			}
+			else
+			{
+				const auto offset = reinterpret_cast<const char*>(&field) - reinterpret_cast<const char*>(&weapon);
+				offsets.emplace(name, static_cast<std::uint16_t>(offset));
+			}
+		}
+
+		template <typename T>
+		void add_reflected_offsets(std::unordered_map<std::string, std::uint16_t>& offsets, const T& object, const std::string& prefix, const WeaponCompleteDef& weapon)
+		{
+			constexpr auto keys = glz::reflect<T>::keys;
+			[&]<std::size_t... index>(std::index_sequence<index...>)
+			{
+				(add_field_offset(offsets, prefix + std::string(keys[index]), glz::get_member(object, glz::get<index>(glz::to_tie(object))), weapon), ...);
+			}(std::make_index_sequence<keys.size()>{});
+		}
+
+		template <const auto& fields>
+		void add_member_offsets(std::unordered_map<std::string, std::uint16_t>& offsets, const auto& object, const std::string& prefix, const WeaponCompleteDef& weapon);
+
+		template <const auto& fields, std::size_t index>
+		void add_member_offset(std::unordered_map<std::string, std::uint16_t>& offsets, const auto& object, const std::string& prefix, const WeaponCompleteDef& weapon)
+		{
+			constexpr auto& field = glz::get<index>(fields);
+			using field_type = std::remove_cvref_t<decltype(field)>;
+			if constexpr (json_reflect::group_entry<field_type>)
+			{
+				add_member_offsets<*field.fields>(offsets, object, prefix, weapon);
+			}
+			else if constexpr (!std::is_same_v<field_type, json_reflect::manual_field>)
+			{
+				const auto name = prefix + std::string(json_reflect::detail::field_key<fields, index>());
+				const auto& member = object.*json_reflect::detail::field_member<fields, index>();
+				if constexpr (!json_reflect::nested_entry<field_type> || std::is_pointer_v<std::remove_cvref_t<decltype(member)>>)
+				{
+					add_field_offset(offsets, name, member, weapon);
+				}
+				else if constexpr (field_type::has_fields)
+				{
+					add_member_offsets<*field.fields>(offsets, member, name + ".", weapon);
 				}
 				else
 				{
-					const auto offset = static_cast<std::uint16_t>(reinterpret_cast<const char*>(&field) - reinterpret_cast<const char*>(&this->weapon_));
-					const auto full_name = this->prefix_ + name;
-					this->names_.by_offset.emplace(offset, full_name);
-					this->names_.by_name.emplace(full_name, offset);
+					add_reflected_offsets(offsets, member, name + ".", weapon);
 				}
 			}
+		}
 
-			const WeaponCompleteDef& weapon_;
-			std::string prefix_;
-			weapon_field_names& names_;
+		template <const auto& fields>
+		void add_member_offsets(std::unordered_map<std::string, std::uint16_t>& offsets, const auto& object, const std::string& prefix, const WeaponCompleteDef& weapon)
+		{
+			[&]<std::size_t... index>(std::index_sequence<index...>)
+			{
+				(add_member_offset<fields, index>(offsets, object, prefix, weapon), ...);
+			}(std::make_index_sequence<glz::tuple_size_v<std::remove_cvref_t<decltype(fields)>>>{});
+		}
+
+		constexpr auto manual_weapon_fields = glz::tuple
+		{
+			&WeaponCompleteDef::szXAnimsRightHanded,
+			&WeaponCompleteDef::szXAnimsLeftHanded,
+			&WeaponCompleteDef::hideTags,
+			&WeaponCompleteDef::attachments,
+			&WeaponCompleteDef::szXAnims,
+			&WeaponCompleteDef::notetrackOverrides,
+			&WeaponCompleteDef::notetrackSoundMapKeys,
+			&WeaponCompleteDef::notetrackSoundMapValues,
+			&WeaponCompleteDef::notetrackRumbleMapKeys,
+			&WeaponCompleteDef::notetrackRumbleMapValues,
+			&WeaponCompleteDef::notetrackFXMapKeys,
+			&WeaponCompleteDef::notetrackFXMapValues,
+			&WeaponCompleteDef::notetrackFXMapTagValues,
+			&WeaponCompleteDef::numAttachments,
+			&WeaponCompleteDef::numAnimOverrides,
+			&WeaponCompleteDef::numSoundOverrides,
+			&WeaponCompleteDef::numFXOverrides,
+			&WeaponCompleteDef::numReloadStateTimerOverrides,
+			&WeaponCompleteDef::numNotetrackOverrides,
+			&WeaponCompleteDef::accuracyGraphName,
+			&WeaponCompleteDef::accuracyGraphKnots,
+			&WeaponCompleteDef::originalAccuracyGraphKnots,
+			&WeaponCompleteDef::accuracyGraphKnotCount,
+			&WeaponCompleteDef::knifeAttachTagOverride,
+			&WeaponCompleteDef::stowTag,
+			&WeaponCompleteDef::unknownTag3948,
 		};
 
-		const weapon_field_names& get_weapon_field_names()
+		const std::unordered_map<std::string, std::uint16_t>& weapon_field_offsets()
 		{
-			static const auto names = []
+			static const auto offsets = []
 			{
-				weapon_field_names result;
+				std::unordered_map<std::string, std::uint16_t> result;
 				const auto weapon = std::make_unique<WeaponCompleteDef>();
-				visit_weapon_json(json_field_namer(*weapon, "", result), *weapon);
+				add_member_offsets<weapon_fields>(result, *weapon, "", *weapon);
+				add_member_offsets<manual_weapon_fields>(result, *weapon, "", *weapon);
 				return result;
 			}();
 
-			return names;
+			return offsets;
 		}
 
 		template <typename T>
@@ -1463,11 +1584,26 @@ namespace zonetool::s2
 		ZONETOOL_INFO("Parsing weapon \"%s\"...", name.data());
 
 		file.open("rb");
-		const auto data = json::parse(file.read_bytes(file.size()));
+		auto data = json::parse(file.read_bytes(file.size()));
 		file.close();
 
 		auto* asset = mem->allocate<WeaponCompleteDef>();
-		visit_weapon_json(json_field_parser(data, mem), *asset);
+		json_reflect::read<weapon_fields>(data, *asset, mem, json_options);
+
+		read_anim_array(data["szXAnimsRightHanded"], asset->szXAnimsRightHanded, mem);
+		read_anim_array(data["szXAnimsLeftHanded"], asset->szXAnimsLeftHanded, mem);
+		asset->hideTags = parse_script_string_array(data["hideTags"], mem, hide_tag_count);
+		read_attachments(data["attachments"], *asset, mem);
+		read_anim_array(data["szXAnims"], asset->szXAnims, mem);
+		read_notetrack_overrides(data["notetrackOverrides"], *asset, mem);
+		read_notetrack_map(data["notetrackSoundMap"], asset->notetrackSoundMapKeys, asset->notetrackSoundMapValues, notetrack_sound_count, mem);
+		read_notetrack_map(data["notetrackRumbleMap"], asset->notetrackRumbleMapKeys, asset->notetrackRumbleMapValues, notetrack_map_count, mem);
+		read_notetrack_fx_map(data["notetrackFXMap"], *asset, mem);
+		read_accuracy_graphs(data["accuracyGraphs"], *asset, mem);
+		asset->knifeAttachTagOverride = parse_script_string(data["knifeAttachTagOverride"]);
+		asset->stowTag = parse_script_string(data["stowTag"]);
+		asset->unknownTag3948 = parse_script_string(data["unknownTag3948"]);
+
 		share_equal_arrays(*asset);
 		return asset;
 	}
@@ -1475,9 +1611,23 @@ namespace zonetool::s2
 	void weapon_def::dump(WeaponCompleteDef* asset)
 	{
 		ordered_json data;
-		visit_weapon_json(json_field_dumper(data), *asset);
-		const auto str = data.dump(4);
+		json_reflect::write<weapon_fields>(data, *asset, json_options);
 
+		write_anim_array(data["szXAnimsRightHanded"], asset->szXAnimsRightHanded);
+		write_anim_array(data["szXAnimsLeftHanded"], asset->szXAnimsLeftHanded);
+		dump_script_string_array(data["hideTags"], asset->hideTags, hide_tag_count);
+		write_attachments(data["attachments"], *asset);
+		write_anim_array(data["szXAnims"], asset->szXAnims);
+		write_notetrack_overrides(data["notetrackOverrides"], *asset);
+		write_notetrack_map(data["notetrackSoundMap"], asset->notetrackSoundMapKeys, asset->notetrackSoundMapValues, notetrack_sound_count);
+		write_notetrack_map(data["notetrackRumbleMap"], asset->notetrackRumbleMapKeys, asset->notetrackRumbleMapValues, notetrack_map_count);
+		write_notetrack_fx_map(data["notetrackFXMap"], *asset);
+		write_accuracy_graphs(data["accuracyGraphs"], *asset);
+		dump_script_string(data["knifeAttachTagOverride"], asset->knifeAttachTagOverride);
+		dump_script_string(data["stowTag"], asset->stowTag);
+		dump_script_string(data["unknownTag3948"], asset->unknownTag3948);
+
+		const auto str = data.dump(4);
 		auto file = filesystem::file(json_path(asset->szInternalName));
 		file.open("wb");
 		file.write(str.data(), str.size(), 1);
@@ -1486,14 +1636,20 @@ namespace zonetool::s2
 
 	std::optional<std::string> weapon_field_name(const std::uint16_t offset)
 	{
-		const auto& names = get_weapon_field_names().by_offset;
-		const auto name = names.find(offset);
-		return name != names.end() ? std::optional(name->second) : std::nullopt;
+		for (const auto& [name, field_offset] : weapon_field_offsets())
+		{
+			if (field_offset == offset)
+			{
+				return name;
+			}
+		}
+
+		return std::nullopt;
 	}
 
 	std::optional<std::uint16_t> weapon_field_offset(const std::string& name)
 	{
-		const auto& offsets = get_weapon_field_names().by_name;
+		const auto& offsets = weapon_field_offsets();
 		const auto offset = offsets.find(name);
 		return offset != offsets.end() ? std::optional(offset->second) : std::nullopt;
 	}

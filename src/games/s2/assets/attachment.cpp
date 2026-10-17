@@ -1,6 +1,7 @@
 #include <std_include.hpp>
 #include "s2.hpp"
-#include "json_fields.hpp"
+
+#include "io/json_reflect.hpp"
 
 namespace zonetool::s2
 {
@@ -10,197 +11,192 @@ namespace zonetool::s2
 		constexpr std::size_t view_model_count = 12;
 		constexpr std::size_t reticle_view_model_count = 255;
 
-		bool is_string_field(const AttachmentField& field)
+		constexpr auto attachment_fields = glz::tuple
 		{
-			return static_cast<std::uint8_t>(field.type - 4) > 5;
-		}
+			&WeaponAttachment::szInternalName,
+			&WeaponAttachment::szDisplayName,
+			&WeaponAttachment::type,
+			&WeaponAttachment::weaponType,
+			&WeaponAttachment::weapClass,
+			&WeaponAttachment::greebleType,
+			&WeaponAttachment::unknown32,
+			&WeaponAttachment::unknown36,
+			json_reflect::counted(&WeaponAttachment::worldModels, world_model_count),
+			json_reflect::counted(&WeaponAttachment::viewModels, view_model_count),
+			json_reflect::counted(&WeaponAttachment::worldModelsAdditional, world_model_count),
+			json_reflect::counted(&WeaponAttachment::viewModelsAdditional, view_model_count),
+			json_reflect::counted(&WeaponAttachment::reticleViewModels, reticle_view_model_count),
+			json_reflect::manual("unkStruct80"),
+			json_reflect::manual("fields"),
+			&WeaponAttachment::loadIndex,
+			&WeaponAttachment::adsSettingsMode,
+			&WeaponAttachment::adsSceneBlurStrength,
+			json_reflect::manual("knifeAttachTagOverride"),
+			&WeaponAttachment::unknown124,
+		};
+
+		constexpr json_reflect::options json_options{.strings = json_reflect::null_string::null};
 
 		std::string json_path(const std::string& name)
 		{
 			return "attachments\\" + name + ".json";
 		}
 
-#define ATTACHMENT_FIELD(field) #field, a.field
-		template <typename J>
-		void visit_attachment_json(const J& j, WeaponAttachment& a)
+		bool is_string_field(const AttachmentField& field)
 		{
-			j.string(ATTACHMENT_FIELD(szInternalName));
-			j.string(ATTACHMENT_FIELD(szDisplayName));
-			j.value(ATTACHMENT_FIELD(type));
-			j.value(ATTACHMENT_FIELD(weaponType));
-			j.value(ATTACHMENT_FIELD(weapClass));
-			j.value(ATTACHMENT_FIELD(greebleType));
-			j.value(ATTACHMENT_FIELD(unknown32));
-			j.value(ATTACHMENT_FIELD(unknown36));
-			j.asset_array(ATTACHMENT_FIELD(worldModels), world_model_count);
-			j.asset_array(ATTACHMENT_FIELD(viewModels), view_model_count);
-			j.asset_array(ATTACHMENT_FIELD(worldModelsAdditional), world_model_count);
-			j.asset_array(ATTACHMENT_FIELD(viewModelsAdditional), view_model_count);
-			j.asset_array(ATTACHMENT_FIELD(reticleViewModels), reticle_view_model_count);
-			j.value(ATTACHMENT_FIELD(loadIndex));
-			j.value(ATTACHMENT_FIELD(adsSettingsMode));
-			j.value(ATTACHMENT_FIELD(adsSceneBlurStrength));
-			j.script_string(ATTACHMENT_FIELD(knifeAttachTagOverride));
-			j.value(ATTACHMENT_FIELD(unknown124));
+			return field.type < WAFIELD_TYPE_INT || field.type > WAFIELD_TYPE_MILLISECONDS;
 		}
-#undef ATTACHMENT_FIELD
 
 		bool is_float_value(const AttachmentField& field)
 		{
 			return field.type == WAFIELD_TYPE_FLOAT || (field.type != WAFIELD_TYPE_BOOL && field.code != WAFIELD_CODE_SET);
 		}
 
-		ordered_json dump_field_value(const AttachmentField& field)
+		void read_field_value(const json& data, AttachmentField& field, zone_memory* mem)
 		{
 			if (is_string_field(field))
 			{
-				return field.value.string ? ordered_json(field.value.string) : ordered_json(nullptr);
-			}
-
-			if (is_float_value(field))
-			{
-				return field.value.floatValue;
-			}
-
-			if (field.type == WAFIELD_TYPE_BOOL)
-			{
-				return field.value.intValue != 0;
-			}
-
-			return field.value.intValue;
-		}
-
-		void parse_field_value(const json& value, AttachmentField& field, zone_memory* mem)
-		{
-			if (is_string_field(field))
-			{
-				field.value.string = value.is_null() ? nullptr : mem->duplicate_string(value.get<std::string>());
+				field.value.string = data.is_string() ? mem->duplicate_string(data.get<std::string>()) : nullptr;
 			}
 			else if (is_float_value(field))
 			{
-				field.value.floatValue = value.get<float>();
+				field.value.floatValue = data.get<float>();
 			}
 			else if (field.type == WAFIELD_TYPE_BOOL)
 			{
-				field.value.intValue = value.get<bool>();
+				field.value.intValue = data.get<bool>();
 			}
 			else
 			{
-				field.value.intValue = value.get<int>();
+				field.value.intValue = data.get<int>();
 			}
 		}
 
-		ordered_json dump_fields(const WeaponAttachment& a)
+		void write_field_value(ordered_json& data, const AttachmentField& field)
 		{
-			if (!a.fields)
+			if (is_string_field(field))
 			{
-				return nullptr;
+				json_reflect::write(data, field.value.string, json_options);
 			}
-
-			auto out = ordered_json::array();
-			for (auto i = 0; i < a.fieldCount; i++)
+			else if (is_float_value(field))
 			{
-				const auto& field = a.fields[i];
-				auto entry = ordered_json::object();
-				if (const auto name = weapon_field_name(a.fieldOffsets[i]))
-				{
-					entry["name"] = *name;
-				}
-				else
-				{
-					entry["offset"] = a.fieldOffsets[i];
-				}
-
-				entry["index"] = field.index;
-				entry["type"] = field.type;
-				entry["code"] = field.code;
-				entry["value"] = dump_field_value(field);
-				out.push_back(std::move(entry));
+				data = field.value.floatValue;
 			}
-
-			return out;
+			else if (field.type == WAFIELD_TYPE_BOOL)
+			{
+				data = field.value.intValue != 0;
+			}
+			else
+			{
+				data = field.value.intValue;
+			}
 		}
 
-		std::uint16_t parse_field_offset(const json& entry, const std::string& attachment)
+		std::uint16_t read_field_offset(const json& data, const WeaponAttachment& attachment)
 		{
-			if (entry.contains("offset"))
+			if (data.contains("offset"))
 			{
-				return entry["offset"].get<std::uint16_t>();
+				return data["offset"].get<std::uint16_t>();
 			}
 
-			const auto& name = entry["name"].get_ref<const std::string&>();
+			const auto& name = data["name"].get_ref<const std::string&>();
 			const auto offset = weapon_field_offset(name);
 			if (!offset)
 			{
-				ZONETOOL_FATAL("Unknown weapon field \"%s\" in attachment \"%s\"", name.data(), attachment.data());
+				ZONETOOL_FATAL("Unknown weapon field \"%s\" in attachment \"%s\"", name.data(), attachment.szInternalName);
 			}
 
 			return *offset;
 		}
 
-		void parse_fields(const json& data, WeaponAttachment& a, zone_memory* mem)
+		void read_fields(const json& data, WeaponAttachment& attachment, zone_memory* mem)
 		{
-			const auto node = data.find("fields");
-			if (node == data.end() || node->is_null())
+			if (!data.is_array())
 			{
 				return;
 			}
 
-			struct parsed_field
+			std::vector<std::pair<std::uint16_t, AttachmentField>> fields;
+			for (const auto& entry : data)
 			{
-				std::uint16_t offset;
-				AttachmentField field;
-			};
-
-			std::vector<parsed_field> fields;
-			for (const auto& entry : *node)
-			{
-				auto& parsed = fields.emplace_back();
-				parsed.offset = parse_field_offset(entry, a.szInternalName);
-				parsed.field.index = entry.value("index", std::uint8_t(0));
-				parsed.field.type = entry["type"].get<std::uint8_t>();
-				parsed.field.code = entry["code"].get<std::uint8_t>();
-				parse_field_value(entry["value"], parsed.field, mem);
+				auto& [offset, field] = fields.emplace_back();
+				offset = read_field_offset(entry, attachment);
+				field.index = entry.value("index", std::uint8_t(0));
+				field.type = entry["type"].get<std::uint8_t>();
+				field.code = entry["code"].get<std::uint8_t>();
+				read_field_value(entry["value"], field, mem);
 			}
 
 			// the game expects the fields sorted by offset and index, the same as stock zones
-			std::stable_sort(fields.begin(), fields.end(), [](const parsed_field& left, const parsed_field& right)
+			std::ranges::stable_sort(fields, [](const auto& left, const auto& right)
 			{
-				return std::tie(left.offset, left.field.index) < std::tie(right.offset, right.field.index);
+				return std::tie(left.first, left.second.index) < std::tie(right.first, right.second.index);
 			});
 
-			a.fieldCount = static_cast<int>(fields.size());
-			a.fieldOffsets = mem->allocate<unsigned short>(std::max<std::size_t>(fields.size(), 1));
-			a.fields = mem->allocate<AttachmentField>(std::max<std::size_t>(fields.size(), 1));
+			attachment.fieldCount = static_cast<int>(fields.size());
+			attachment.fieldOffsets = mem->allocate<unsigned short>(std::max<std::size_t>(fields.size(), 1));
+			attachment.fields = mem->allocate<AttachmentField>(std::max<std::size_t>(fields.size(), 1));
 			for (auto i = 0u; i < fields.size(); i++)
 			{
-				a.fieldOffsets[i] = fields[i].offset;
-				a.fields[i] = fields[i].field;
+				attachment.fieldOffsets[i] = fields[i].first;
+				attachment.fields[i] = fields[i].second;
 			}
 		}
 
-		ordered_json dump_unk_struct80(const WeaponAttachment& a)
+		void write_fields(ordered_json& data, const WeaponAttachment& attachment)
 		{
-			if (!a.unkStruct80)
+			if (!attachment.fields)
 			{
-				return nullptr;
+				data = nullptr;
+				return;
 			}
 
-			return std::vector<std::uint8_t>(std::begin(*a.unkStruct80), std::end(*a.unkStruct80));
+			data = ordered_json::array();
+			for (auto i = 0; i < attachment.fieldCount; i++)
+			{
+				const auto& field = attachment.fields[i];
+				auto& entry = data.emplace_back();
+				if (const auto name = weapon_field_name(attachment.fieldOffsets[i]))
+				{
+					entry["name"] = *name;
+				}
+				else
+				{
+					entry["offset"] = attachment.fieldOffsets[i];
+				}
+
+				entry["index"] = field.index;
+				entry["type"] = field.type;
+				entry["code"] = field.code;
+				write_field_value(entry["value"], field);
+			}
 		}
 
-		void parse_unk_struct80(const json& data, WeaponAttachment& a, zone_memory* mem)
+		void read_unk_struct80(const json& data, WeaponAttachment& attachment, zone_memory* mem)
 		{
-			const auto node = data.find("unkStruct80");
-			if (node == data.end() || node->is_null())
+			if (!data.is_array())
 			{
 				return;
 			}
 
-			a.unkStruct80 = mem->allocate<std::remove_pointer_t<decltype(a.unkStruct80)>>();
-			for (auto i = 0u; i < std::size(*a.unkStruct80) && i < node->size(); i++)
+			attachment.unkStruct80 = mem->allocate<char[72]>();
+			for (auto i = 0u; i < std::size(*attachment.unkStruct80) && i < data.size(); i++)
 			{
-				(*a.unkStruct80)[i] = static_cast<char>((*node)[i].get<std::uint8_t>());
+				(*attachment.unkStruct80)[i] = static_cast<char>(data[i].get<std::uint8_t>());
+			}
+		}
+
+		void write_unk_struct80(ordered_json& data, const WeaponAttachment& attachment)
+		{
+			if (!attachment.unkStruct80)
+			{
+				data = nullptr;
+				return;
+			}
+
+			for (auto i = 0u; i < std::size(*attachment.unkStruct80); i++)
+			{
+				data[i] = static_cast<std::uint8_t>((*attachment.unkStruct80)[i]);
 			}
 		}
 	}
@@ -288,24 +284,26 @@ namespace zonetool::s2
 		ZONETOOL_INFO("Parsing attachment \"%s\"...", name.data());
 
 		file.open("rb");
-		const auto data = json::parse(file.read_bytes(file.size()));
+		auto data = json::parse(file.read_bytes(file.size()));
 		file.close();
 
 		auto* asset = mem->allocate<WeaponAttachment>();
-		visit_attachment_json(json_field_parser(data, mem), *asset);
-		parse_unk_struct80(data, *asset, mem);
-		parse_fields(data, *asset, mem);
+		json_reflect::read<attachment_fields>(data, *asset, mem, json_options);
+		read_unk_struct80(data["unkStruct80"], *asset, mem);
+		read_fields(data["fields"], *asset, mem);
+		asset->knifeAttachTagOverride = parse_script_string(data["knifeAttachTagOverride"]);
 		return asset;
 	}
 
 	void weapon_attachment::dump(WeaponAttachment* asset)
 	{
 		ordered_json data;
-		visit_attachment_json(json_field_dumper(data), *asset);
-		data["unkStruct80"] = dump_unk_struct80(*asset);
-		data["fields"] = dump_fields(*asset);
-		const auto str = data.dump(4);
+		json_reflect::write<attachment_fields>(data, *asset, json_options);
+		write_unk_struct80(data["unkStruct80"], *asset);
+		write_fields(data["fields"], *asset);
+		dump_script_string(data["knifeAttachTagOverride"], asset->knifeAttachTagOverride);
 
+		const auto str = data.dump(4);
 		auto file = filesystem::file(json_path(asset->szInternalName));
 		file.open("wb");
 		file.write(str.data(), str.size(), 1);
