@@ -6,6 +6,15 @@ namespace zonetool::s2
 {
 	namespace
 	{
+		constexpr std::size_t world_model_count = 2;
+		constexpr std::size_t view_model_count = 12;
+		constexpr std::size_t reticle_view_model_count = 255;
+
+		bool is_string_field(const AttachmentField& field)
+		{
+			return static_cast<std::uint8_t>(field.type - 4) > 5;
+		}
+
 		std::string json_path(const std::string& name)
 		{
 			return "attachments\\" + name + ".json";
@@ -23,11 +32,11 @@ namespace zonetool::s2
 			j.value(ATTACHMENT_FIELD(greebleType));
 			j.value(ATTACHMENT_FIELD(unknown32));
 			j.value(ATTACHMENT_FIELD(unknown36));
-			j.asset_array(ATTACHMENT_FIELD(worldModels), attachment_layout::world_model_count);
-			j.asset_array(ATTACHMENT_FIELD(viewModels), attachment_layout::view_model_count);
-			j.asset_array(ATTACHMENT_FIELD(worldModelsAdditional), attachment_layout::world_model_count);
-			j.asset_array(ATTACHMENT_FIELD(viewModelsAdditional), attachment_layout::view_model_count);
-			j.asset_array(ATTACHMENT_FIELD(reticleViewModels), attachment_layout::reticle_view_model_count);
+			j.asset_array(ATTACHMENT_FIELD(worldModels), world_model_count);
+			j.asset_array(ATTACHMENT_FIELD(viewModels), view_model_count);
+			j.asset_array(ATTACHMENT_FIELD(worldModelsAdditional), world_model_count);
+			j.asset_array(ATTACHMENT_FIELD(viewModelsAdditional), view_model_count);
+			j.asset_array(ATTACHMENT_FIELD(reticleViewModels), reticle_view_model_count);
 			j.value(ATTACHMENT_FIELD(loadIndex));
 			j.value(ATTACHMENT_FIELD(adsSettingsMode));
 			j.value(ATTACHMENT_FIELD(adsSceneBlurStrength));
@@ -43,7 +52,7 @@ namespace zonetool::s2
 
 		ordered_json dump_field_value(const AttachmentField& field)
 		{
-			if (attachment_layout::is_string_field(field))
+			if (is_string_field(field))
 			{
 				return field.value.string ? ordered_json(field.value.string) : ordered_json(nullptr);
 			}
@@ -63,7 +72,7 @@ namespace zonetool::s2
 
 		void parse_field_value(const json& value, AttachmentField& field, zone_memory* mem)
 		{
-			if (attachment_layout::is_string_field(field))
+			if (is_string_field(field))
 			{
 				field.value.string = value.is_null() ? nullptr : mem->duplicate_string(value.get<std::string>());
 			}
@@ -196,12 +205,84 @@ namespace zonetool::s2
 		}
 	}
 
+	void weapon_attachment::read(zone_reader& reader, WeaponAttachment* asset)
+	{
+		reader.push_stream(XFILE_BLOCK_VIRTUAL);
+		reader.read_string(asset->szInternalName);
+		reader.read_string(asset->szDisplayName);
+		reader.read_asset_array(ASSET_TYPE_XMODEL, asset->worldModels, world_model_count);
+		reader.read_asset_array(ASSET_TYPE_XMODEL, asset->viewModels, view_model_count);
+		reader.read_asset_array(ASSET_TYPE_XMODEL, asset->worldModelsAdditional, world_model_count);
+		reader.read_asset_array(ASSET_TYPE_XMODEL, asset->viewModelsAdditional, view_model_count);
+		reader.read_asset_array(ASSET_TYPE_XMODEL, asset->reticleViewModels, reticle_view_model_count);
+		reader.read_script_string(asset->knifeAttachTagOverride);
+		reader.read_array(asset->unkStruct80, 3);
+		reader.read_array(asset->fieldOffsets, 1, asset->fieldCount);
+		if (const auto fields = reader.read_array(asset->fields, 7, asset->fieldCount))
+		{
+			for (auto i = 0; i < asset->fieldCount; i++)
+			{
+				if (is_string_field(fields[i]))
+				{
+					reader.read_string(fields[i].value.string);
+				}
+			}
+		}
+		reader.pop_stream();
+	}
+
+	void weapon_attachment::prepare(zone_buffer* buf, zone_memory* mem)
+	{
+		script_string_preparer prepare(buf);
+		prepare(this->asset_->knifeAttachTagOverride);
+	}
+
+	void weapon_attachment::load_depending(zone_base* zone)
+	{
+		auto* data = this->asset_;
+		add_dependencies(zone, ASSET_TYPE_XMODEL, data->worldModels, world_model_count);
+		add_dependencies(zone, ASSET_TYPE_XMODEL, data->viewModels, view_model_count);
+		add_dependencies(zone, ASSET_TYPE_XMODEL, data->worldModelsAdditional, world_model_count);
+		add_dependencies(zone, ASSET_TYPE_XMODEL, data->viewModelsAdditional, view_model_count);
+		add_dependencies(zone, ASSET_TYPE_XMODEL, data->reticleViewModels, reticle_view_model_count);
+	}
+
+	void weapon_attachment::write(zone_base* zone, zone_buffer* buf)
+	{
+		auto* data = this->asset_;
+		auto* dest = buf->write(data);
+
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
+
+		dest->szInternalName = this->write_name(buf);
+		write_string(buf, data->szDisplayName, dest->szDisplayName);
+		write_asset_array(zone, buf, ASSET_TYPE_XMODEL, data->worldModels, world_model_count, dest->worldModels);
+		write_asset_array(zone, buf, ASSET_TYPE_XMODEL, data->viewModels, view_model_count, dest->viewModels);
+		write_asset_array(zone, buf, ASSET_TYPE_XMODEL, data->worldModelsAdditional, world_model_count, dest->worldModelsAdditional);
+		write_asset_array(zone, buf, ASSET_TYPE_XMODEL, data->viewModelsAdditional, view_model_count, dest->viewModelsAdditional);
+		write_asset_array(zone, buf, ASSET_TYPE_XMODEL, data->reticleViewModels, reticle_view_model_count, dest->reticleViewModels);
+		write_array(buf, 3, data->unkStruct80, 1, dest->unkStruct80);
+		write_array(buf, 1, data->fieldOffsets, data->fieldCount, dest->fieldOffsets);
+		if (auto* fields = write_array(buf, 7, data->fields, data->fieldCount, dest->fields))
+		{
+			for (auto i = 0; i < data->fieldCount; i++)
+			{
+				if (is_string_field(data->fields[i]))
+				{
+					write_string(buf, data->fields[i].value.string, fields[i].value.string);
+				}
+			}
+		}
+
+		buf->pop_stream();
+	}
+
 	WeaponAttachment* weapon_attachment::parse(const std::string& name, zone_memory* mem)
 	{
 		auto file = filesystem::file(json_path(name));
 		if (!file.exists())
 		{
-			return field_layout_asset::parse(name, mem);
+			return nullptr;
 		}
 
 		ZONETOOL_INFO("Parsing attachment \"%s\"...", name.data());

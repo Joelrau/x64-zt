@@ -2,53 +2,186 @@
 
 namespace zonetool::s2
 {
-	struct clip_map_trzone_layout
+	class clip_map_trzone : public asset_base<ClipMapTrZone, ASSET_TYPE_CLIPMAP_TRANSIENT_ZONE>
 	{
-		template <typename V>
-		static void visit(const V& w)
+	public:
+		static void read(zone_reader& reader, ClipMapTrZone* asset)
 		{
-			w.string(offsetof(ClipMapTrZone, name));
-			visit_brushes(w.sub(offsetof(ClipMapTrZone, bCollisionData)));
-			visit_patches(w.sub(offsetof(ClipMapTrZone, pCollisionData)));
+			reader.push_stream(XFILE_BLOCK_VIRTUAL);
+			reader.read_string(asset->name);
 
-			const auto models = w.sub(offsetof(ClipMapTrZone, staticModels));
-			models.entries(offsetof(ClipMapTrZoneStaticModels, models), sizeof(ClipMapTrZoneStaticModel),
-				models.template at<unsigned int>(offsetof(ClipMapTrZoneStaticModels, count)), [](const auto& model, std::size_t)
+			auto* brushes = &asset->bCollisionData;
+			reader.read_array(brushes->brushSides, 3, brushes->numBrushSides);
+			if (const auto brush_list = reader.read_array(brushes->brushes, 127, brushes->numBrushes))
 			{
-				model.asset(ASSET_TYPE_XMODEL, offsetof(ClipMapTrZoneStaticModel, model));
-			});
+				for (auto i = 0u; i < brushes->numBrushes; i++)
+				{
+					reader.read_array(brush_list[i].sides, 3);
+				}
+			}
+			reader.read_array(brushes->brushBounds, 127, brushes->numBrushes);
+			reader.read_array(brushes->brushContents, 7, brushes->numBrushes);
+
+			auto* patches = &asset->pCollisionData;
+			reader.read_array(patches->verts, 3, patches->vertCount);
+			reader.read_array(patches->triIndices, 1, tri_index_count(patches));
+			reader.read_array(patches->triEdgeIsWalkable, 0, walkable_size(patches));
+			reader.read_array(patches->borders, 3, patches->borderCount);
+			reader.read_array(patches->partitions, 3, patches->partitionCount);
+
+			auto* models = &asset->staticModels;
+			if (const auto model_list = reader.read_array(models->models, 7, models->count))
+			{
+				for (auto i = 0u; i < models->count; i++)
+				{
+					reader.read_asset(ASSET_TYPE_XMODEL, model_list[i].model);
+				}
+			}
+
+			reader.pop_stream();
 		}
 
-		template <typename V>
-		static void visit_brushes(const V& data)
+		ClipMapTrZone* parse(const std::string& name, zone_memory* mem) override
 		{
-			const auto brush_count = data.template at<unsigned int>(offsetof(BrushesCollisionData, numBrushes));
-			data.array(S2_ARRAY_FIELD(BrushesCollisionData, brushSides), 3, data.template at<unsigned int>(offsetof(BrushesCollisionData, numBrushSides)));
-			data.aligned_entries(offsetof(BrushesCollisionData, brushes), 127, sizeof(cbrush_t), brush_count, [](const auto& brush, std::size_t)
+			assetmanager::reader read(mem);
+			if (!read.open(dump_path(ASSET_TYPE_CLIPMAP_TRANSIENT_ZONE, name.data())))
 			{
-				brush.bytes(offsetof(cbrush_t, sides), 3, sizeof(cbrushside_t));
-			});
-			data.array(S2_ARRAY_FIELD(BrushesCollisionData, brushBounds), 127, brush_count);
-			data.array(S2_ARRAY_FIELD(BrushesCollisionData, brushContents), 7, brush_count);
+				return nullptr;
+			}
+
+			ZONETOOL_INFO("Parsing clipmap_trzone \"%s\"...", name.data());
+
+			auto* asset = read.read_single<ClipMapTrZone>();
+			asset->name = read.read_string();
+
+			auto* brushes = &asset->bCollisionData;
+			parse_array(read, mem, brushes->brushSides, brushes->numBrushSides);
+			if (const auto brush_list = parse_array(read, mem, brushes->brushes, brushes->numBrushes))
+			{
+				for (auto i = 0u; i < brushes->numBrushes; i++)
+				{
+					parse_array(read, mem, brush_list[i].sides, 1);
+				}
+			}
+			parse_array(read, mem, brushes->brushBounds, brushes->numBrushes);
+			parse_array(read, mem, brushes->brushContents, brushes->numBrushes);
+
+			auto* patches = &asset->pCollisionData;
+			parse_array(read, mem, patches->verts, patches->vertCount);
+			parse_array(read, mem, patches->triIndices, tri_index_count(patches));
+			parse_array(read, mem, patches->triEdgeIsWalkable, walkable_size(patches));
+			parse_array(read, mem, patches->borders, patches->borderCount);
+			parse_array(read, mem, patches->partitions, patches->partitionCount);
+
+			auto* models = &asset->staticModels;
+			if (const auto model_list = parse_array(read, mem, models->models, models->count))
+			{
+				for (auto i = 0u; i < models->count; i++)
+				{
+					model_list[i].model = read.read_asset<XModel>();
+				}
+			}
+			read.close();
+
+			return asset;
 		}
 
-		template <typename V>
-		static void visit_patches(const V& data)
+		void load_depending(zone_base* zone) override
 		{
-			const auto count = [&](const std::size_t offset)
+			const auto* models = &this->asset_->staticModels;
+			for (auto i = 0u; models->models && i < models->count; i++)
 			{
-				return data.template at<unsigned int>(offset);
-			};
-			const auto tri_count = count(offsetof(PatchesCollisionData, triCount));
-			data.array(S2_ARRAY_FIELD(PatchesCollisionData, verts), 3, count(offsetof(PatchesCollisionData, vertCount)));
-			data.array(S2_ARRAY_FIELD(PatchesCollisionData, triIndices), 1, 3 * tri_count);
-			data.bytes(offsetof(PatchesCollisionData, triEdgeIsWalkable), 0, ((3ull * tri_count + 31) >> 3) & ~3ull);
-			data.array(S2_ARRAY_FIELD(PatchesCollisionData, borders), 3, count(offsetof(PatchesCollisionData, borderCount)));
-			data.array(S2_ARRAY_FIELD(PatchesCollisionData, partitions), 3, count(offsetof(PatchesCollisionData, partitionCount)));
+				add_dependency(zone, ASSET_TYPE_XMODEL, models->models[i].model);
+			}
 		}
-	};
 
-	class clip_map_trzone : public field_layout_asset<ClipMapTrZone, ASSET_TYPE_CLIPMAP_TRANSIENT_ZONE, clip_map_trzone_layout>
-	{
+		void write(zone_base* zone, zone_buffer* buf) override
+		{
+			auto* data = this->asset_;
+			auto* dest = buf->write(data);
+
+			buf->push_stream(XFILE_BLOCK_VIRTUAL);
+			dest->name = this->write_name(buf);
+
+			auto* brushes = &data->bCollisionData;
+			auto* dest_brushes = &dest->bCollisionData;
+			write_array(buf, 3, brushes->brushSides, brushes->numBrushSides, dest_brushes->brushSides);
+			if (const auto dest_brush_list = write_array(buf, 127, brushes->brushes, brushes->numBrushes, dest_brushes->brushes))
+			{
+				for (auto i = 0u; i < brushes->numBrushes; i++)
+				{
+					write_array(buf, 3, brushes->brushes[i].sides, 1, dest_brush_list[i].sides);
+				}
+			}
+			write_array(buf, 127, brushes->brushBounds, brushes->numBrushes, dest_brushes->brushBounds);
+			write_array(buf, 7, brushes->brushContents, brushes->numBrushes, dest_brushes->brushContents);
+
+			auto* patches = &data->pCollisionData;
+			auto* dest_patches = &dest->pCollisionData;
+			write_array(buf, 3, patches->verts, patches->vertCount, dest_patches->verts);
+			write_array(buf, 1, patches->triIndices, tri_index_count(patches), dest_patches->triIndices);
+			write_array(buf, 0, patches->triEdgeIsWalkable, walkable_size(patches), dest_patches->triEdgeIsWalkable);
+			write_array(buf, 3, patches->borders, patches->borderCount, dest_patches->borders);
+			write_array(buf, 3, patches->partitions, patches->partitionCount, dest_patches->partitions);
+
+			auto* models = &data->staticModels;
+			if (const auto dest_models = write_array(buf, 7, models->models, models->count, dest->staticModels.models))
+			{
+				for (auto i = 0u; i < models->count; i++)
+				{
+					dest_models[i].model = asset_reference(zone, ASSET_TYPE_XMODEL, models->models[i].model);
+				}
+			}
+
+			buf->pop_stream();
+		}
+
+		static void dump(ClipMapTrZone* asset)
+		{
+			assetmanager::dumper write;
+			if (!write.open(dump_path(ASSET_TYPE_CLIPMAP_TRANSIENT_ZONE, asset->name)))
+			{
+				return;
+			}
+
+			write.dump_single(asset);
+			write.dump_string(asset->name);
+
+			auto* brushes = &asset->bCollisionData;
+			write.dump_array(brushes->brushSides, brushes->numBrushSides);
+			write.dump_array(brushes->brushes, brushes->numBrushes);
+			for (auto i = 0u; brushes->brushes && i < brushes->numBrushes; i++)
+			{
+				write.dump_single(brushes->brushes[i].sides);
+			}
+			write.dump_array(brushes->brushBounds, brushes->numBrushes);
+			write.dump_array(brushes->brushContents, brushes->numBrushes);
+
+			auto* patches = &asset->pCollisionData;
+			write.dump_array(patches->verts, patches->vertCount);
+			write.dump_array(patches->triIndices, tri_index_count(patches));
+			write.dump_array(patches->triEdgeIsWalkable, walkable_size(patches));
+			write.dump_array(patches->borders, patches->borderCount);
+			write.dump_array(patches->partitions, patches->partitionCount);
+
+			auto* models = &asset->staticModels;
+			write.dump_array(models->models, models->count);
+			for (auto i = 0u; models->models && i < models->count; i++)
+			{
+				write.dump_asset(models->models[i].model);
+			}
+			write.close();
+		}
+
+	private:
+		static unsigned int tri_index_count(const PatchesCollisionData* patches)
+		{
+			return 3 * patches->triCount;
+		}
+
+		static unsigned int walkable_size(const PatchesCollisionData* patches)
+		{
+			return ((3 * patches->triCount + 31) >> 3) & ~3u;
+		}
 	};
 }

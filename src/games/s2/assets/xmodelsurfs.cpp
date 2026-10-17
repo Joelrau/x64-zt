@@ -129,7 +129,6 @@ namespace zonetool::s2
 			const auto* surface = &surfaces[i];
 			const auto* shared = surface->shared;
 
-			// the dumper de-duplicates strings by address, so every key needs its own storage
 			const auto& key = keys.emplace_back(shared ? surface_shared_key(shared) : std::string{});
 			write.dump_string(key.data());
 			if (shared && dumped_shared.insert(key).second)

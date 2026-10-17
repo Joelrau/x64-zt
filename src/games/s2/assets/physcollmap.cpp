@@ -240,40 +240,172 @@ namespace zonetool::s2
 		write.close();
 	}
 
-	template <typename V>
-	void phys_world_layout::visit(const V& w)
+	void phys_worldmap::read(zone_reader& reader, PhysWorld* asset)
 	{
-		w.string(offsetof(PhysWorld, name));
-		w.array(S2_ARRAY_FIELD(PhysWorld, models), 3, w.template at<unsigned int>(offsetof(PhysWorld, modelCount)));
-		w.entries(offsetof(PhysWorld, polytopes), sizeof(dmPolytopeData), w.template at<unsigned int>(offsetof(PhysWorld, polytopeCount)), [](const auto& polytope, std::size_t)
+		reader.push_stream(XFILE_BLOCK_VIRTUAL);
+		reader.read_string(asset->name);
+		reader.read_array(asset->models, 3, asset->modelCount);
+		if (const auto polytopes = reader.read_array(asset->polytopes, 7, asset->polytopeCount))
 		{
-			const auto count = [&](const std::size_t offset)
+			for (auto i = 0u; i < asset->polytopeCount; i++)
 			{
-				return polytope.template at<int>(offset);
-			};
-
-			polytope.array(S2_ARRAY_FIELD(dmPolytopeData, vec4_array0), 15, count(offsetof(dmPolytopeData, vec4_array0_count)));
-			polytope.array(S2_ARRAY_FIELD(dmPolytopeData, vec4_array1), 15, count(offsetof(dmPolytopeData, vec4_array1_count)));
-			polytope.array(S2_ARRAY_FIELD(dmPolytopeData, uint_array), 0, count(offsetof(dmPolytopeData, uint_array_count)));
-			polytope.array(S2_ARRAY_FIELD(dmPolytopeData, byte_array), 0, count(offsetof(dmPolytopeData, vec4_array1_count)));
-		});
-		w.entries(offsetof(PhysWorld, meshes), sizeof(PhysMeshData), w.template at<unsigned int>(offsetof(PhysWorld, meshCount)), [](const auto& mesh, std::size_t)
+				phys_collmap::read_polytope(reader, &polytopes[i]);
+			}
+		}
+		if (const auto meshes = reader.read_array(asset->meshes, 7, asset->meshCount))
 		{
-			mesh.array(S2_ARRAY_FIELD(PhysMeshData, nodes), 15, mesh.template at<int>(offsetof(PhysMeshData, nodeCount)));
-			mesh.array(S2_ARRAY_FIELD(PhysMeshData, vertices), 15, mesh.template at<int>(offsetof(PhysMeshData, vertexCount)));
-			mesh.array(S2_ARRAY_FIELD(PhysMeshData, triangles), 3, mesh.template at<int>(offsetof(PhysMeshData, triangleCount)));
-		});
-		w.entries(offsetof(PhysWorld, waters), sizeof(PhysWaterVolumeDef), w.template at<unsigned int>(offsetof(PhysWorld, waterCount)), [](const auto& water, std::size_t)
+			for (auto i = 0u; i < asset->meshCount; i++)
+			{
+				reader.read_array(meshes[i].nodes, 15, meshes[i].nodeCount);
+				reader.read_array(meshes[i].vertices, 15, meshes[i].vertexCount);
+				reader.read_array(meshes[i].triangles, 3, meshes[i].triangleCount);
+			}
+		}
+		if (const auto waters = reader.read_array(asset->waters, 7, asset->waterCount))
 		{
-			water.asset(ASSET_TYPE_PHYSWATERPRESET, offsetof(PhysWaterVolumeDef, preset));
-			water.script_string(offsetof(PhysWaterVolumeDef, name));
-		});
+			for (auto i = 0u; i < asset->waterCount; i++)
+			{
+				reader.read_asset(ASSET_TYPE_PHYSWATERPRESET, waters[i].preset);
+				reader.read_script_string(waters[i].name);
+			}
+		}
+		reader.pop_stream();
 	}
 
-	template void phys_world_layout::visit(const field_reader&);
-	template void phys_world_layout::visit(const field_writer&);
-	template void phys_world_layout::visit(const field_dumper&);
-	template void phys_world_layout::visit(const field_parser&);
-	template void phys_world_layout::visit(const field_dependencies&);
-	template void phys_world_layout::visit(const field_preparer&);
+	PhysWorld* phys_worldmap::parse(const std::string& name, zone_memory* mem)
+	{
+		assetmanager::reader read(mem);
+		if (!read.open(dump_path(ASSET_TYPE_PHYSWORLDMAP, name.data())))
+		{
+			return nullptr;
+		}
+
+		ZONETOOL_INFO("Parsing phys_worldmap \"%s\"...", name.data());
+
+		auto* asset = read.read_single<PhysWorld>();
+		asset->name = read.read_string();
+		parse_array(read, mem, asset->models, asset->modelCount);
+		if (const auto polytopes = parse_array(read, mem, asset->polytopes, asset->polytopeCount))
+		{
+			for (auto i = 0u; i < asset->polytopeCount; i++)
+			{
+				auto* polytope = &polytopes[i];
+				parse_array(read, mem, polytope->vec4_array0, polytope->vec4_array0_count);
+				parse_array(read, mem, polytope->vec4_array1, polytope->vec4_array1_count);
+				parse_array(read, mem, polytope->uint_array, polytope->uint_array_count);
+				parse_array(read, mem, polytope->byte_array, polytope->vec4_array1_count);
+			}
+		}
+		if (const auto meshes = parse_array(read, mem, asset->meshes, asset->meshCount))
+		{
+			for (auto i = 0u; i < asset->meshCount; i++)
+			{
+				parse_array(read, mem, meshes[i].nodes, meshes[i].nodeCount);
+				parse_array(read, mem, meshes[i].vertices, meshes[i].vertexCount);
+				parse_array(read, mem, meshes[i].triangles, meshes[i].triangleCount);
+			}
+		}
+		if (const auto waters = parse_array(read, mem, asset->waters, asset->waterCount))
+		{
+			for (auto i = 0u; i < asset->waterCount; i++)
+			{
+				waters[i].preset = read.read_asset<PhysWaterPreset>();
+				waters[i].name = parse_script_string(read);
+			}
+		}
+		read.close();
+
+		return asset;
+	}
+
+	void phys_worldmap::prepare(zone_buffer* buf, zone_memory* mem)
+	{
+		auto* data = this->asset_;
+		script_string_preparer prepare(buf);
+		for (auto i = 0u; data->waters && i < data->waterCount; i++)
+		{
+			prepare(data->waters[i].name);
+		}
+	}
+
+	void phys_worldmap::load_depending(zone_base* zone)
+	{
+		auto* data = this->asset_;
+		for (auto i = 0u; data->waters && i < data->waterCount; i++)
+		{
+			add_dependency(zone, ASSET_TYPE_PHYSWATERPRESET, data->waters[i].preset);
+		}
+	}
+
+	void phys_worldmap::write(zone_base* zone, zone_buffer* buf)
+	{
+		auto* data = this->asset_;
+		auto* dest = buf->write(data);
+
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
+		dest->name = this->write_name(buf);
+		write_array(buf, 3, data->models, data->modelCount, dest->models);
+		if (const auto dest_polytopes = write_array(buf, 7, data->polytopes, data->polytopeCount, dest->polytopes))
+		{
+			for (auto i = 0u; i < data->polytopeCount; i++)
+			{
+				auto* polytope = &data->polytopes[i];
+				auto* dest_polytope = &dest_polytopes[i];
+				write_array(buf, 15, polytope->vec4_array0, polytope->vec4_array0_count, dest_polytope->vec4_array0);
+				write_array(buf, 15, polytope->vec4_array1, polytope->vec4_array1_count, dest_polytope->vec4_array1);
+				write_array(buf, 0, polytope->uint_array, polytope->uint_array_count, dest_polytope->uint_array);
+				write_array(buf, 0, polytope->byte_array, polytope->vec4_array1_count, dest_polytope->byte_array);
+			}
+		}
+		if (const auto dest_meshes = write_array(buf, 7, data->meshes, data->meshCount, dest->meshes))
+		{
+			for (auto i = 0u; i < data->meshCount; i++)
+			{
+				auto* mesh = &data->meshes[i];
+				write_array(buf, 15, mesh->nodes, mesh->nodeCount, dest_meshes[i].nodes);
+				write_array(buf, 15, mesh->vertices, mesh->vertexCount, dest_meshes[i].vertices);
+				write_array(buf, 3, mesh->triangles, mesh->triangleCount, dest_meshes[i].triangles);
+			}
+		}
+		if (const auto dest_waters = write_array(buf, 7, data->waters, data->waterCount, dest->waters))
+		{
+			for (auto i = 0u; i < data->waterCount; i++)
+			{
+				dest_waters[i].preset = asset_reference(zone, ASSET_TYPE_PHYSWATERPRESET, data->waters[i].preset);
+			}
+		}
+		buf->pop_stream();
+	}
+
+	void phys_worldmap::dump(PhysWorld* asset)
+	{
+		assetmanager::dumper write;
+		if (!write.open(dump_path(ASSET_TYPE_PHYSWORLDMAP, asset->name)))
+		{
+			return;
+		}
+
+		write.dump_single(asset);
+		write.dump_string(asset->name);
+		write.dump_array(asset->models, asset->modelCount);
+		write.dump_array(asset->polytopes, asset->polytopeCount);
+		for (auto i = 0u; asset->polytopes && i < asset->polytopeCount; i++)
+		{
+			phys_collmap::dump_polytope(write, &asset->polytopes[i]);
+		}
+		write.dump_array(asset->meshes, asset->meshCount);
+		for (auto i = 0u; asset->meshes && i < asset->meshCount; i++)
+		{
+			write.dump_array(asset->meshes[i].nodes, asset->meshes[i].nodeCount);
+			write.dump_array(asset->meshes[i].vertices, asset->meshes[i].vertexCount);
+			write.dump_array(asset->meshes[i].triangles, asset->meshes[i].triangleCount);
+		}
+		write.dump_array(asset->waters, asset->waterCount);
+		for (auto i = 0u; asset->waters && i < asset->waterCount; i++)
+		{
+			write.dump_asset(asset->waters[i].preset);
+			dump_script_string(write, asset->waters[i].name);
+		}
+		write.close();
+	}
 }

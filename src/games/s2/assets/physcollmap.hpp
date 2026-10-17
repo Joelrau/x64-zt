@@ -18,13 +18,14 @@ namespace zonetool::s2
 		static void dump(PhysCollmap* asset);
 	};
 
-	struct phys_world_layout
+	class phys_worldmap : public asset_base<PhysWorld, ASSET_TYPE_PHYSWORLDMAP>
 	{
-		template <typename V>
-		static void visit(const V& w);
-	};
-
-	class phys_worldmap : public field_layout_asset<PhysWorld, ASSET_TYPE_PHYSWORLDMAP, phys_world_layout>
-	{
+	public:
+		static void read(zone_reader& reader, PhysWorld* asset);
+		PhysWorld* parse(const std::string& name, zone_memory* mem) override;
+		void prepare(zone_buffer* buf, zone_memory* mem) override;
+		void load_depending(zone_base* zone) override;
+		void write(zone_base* zone, zone_buffer* buf) override;
+		static void dump(PhysWorld* asset);
 	};
 }

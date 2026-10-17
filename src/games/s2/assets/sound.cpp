@@ -429,4 +429,363 @@ namespace zonetool::s2
 		file.write(str.data(), str.size(), 1);
 		file.close();
 	}
+
+	namespace
+	{
+		void read_sound_set(zone_reader& reader, EquipmentSoundSet* set)
+		{
+			reader.read_name_reference(set->unk_0x0);
+			reader.read_name_reference(set->unk_0x8);
+		}
+
+		void read_sound_sets(zone_reader& reader, EquipmentSoundSet*& field, const unsigned int count)
+		{
+			if (const auto sets = reader.read_array(field, 7, count))
+			{
+				for (auto i = 0u; i < count; i++)
+				{
+					read_sound_set(reader, &sets[i]);
+				}
+			}
+		}
+
+		void read_sound_set_lists(zone_reader& reader, EquipmentSoundSet**& field, const unsigned int list_count, const unsigned int sound_count)
+		{
+			if (const auto lists = reader.read_array(field, 7, list_count))
+			{
+				for (auto i = 0u; i < list_count; i++)
+				{
+					read_sound_sets(reader, lists[i], sound_count);
+				}
+			}
+		}
+
+		void read_weights(zone_reader& reader, vec3_t***& field, const EquipmentSndTable* table)
+		{
+			if (const auto surfaces = reader.read_array(field, 7, table->surfaceCount))
+			{
+				for (auto i = 0u; i < table->surfaceCount; i++)
+				{
+					if (const auto equipment = reader.read_array(surfaces[i], 7, table->equipmentCount))
+					{
+						for (auto j = 0u; j < table->equipmentCount; j++)
+						{
+							reader.read_array(equipment[j], 3, table->soundCount);
+						}
+					}
+				}
+			}
+		}
+
+		void write_sound_set(zone_buffer* buf, const EquipmentSoundSet* set, EquipmentSoundSet* dest)
+		{
+			write_sound(buf, set->unk_0x0, dest->unk_0x0);
+			write_sound(buf, set->unk_0x8, dest->unk_0x8);
+		}
+
+		void write_sound_sets(zone_buffer* buf, EquipmentSoundSet* sets, const unsigned int count, EquipmentSoundSet*& dest_field)
+		{
+			if (const auto dest = write_array(buf, 7, sets, count, dest_field))
+			{
+				for (auto i = 0u; i < count; i++)
+				{
+					write_sound_set(buf, &sets[i], &dest[i]);
+				}
+			}
+		}
+
+		void write_sound_set_lists(zone_buffer* buf, EquipmentSoundSet** lists, const unsigned int list_count, const unsigned int sound_count, EquipmentSoundSet**& dest_field)
+		{
+			if (const auto dest = write_array(buf, 7, lists, list_count, dest_field))
+			{
+				for (auto i = 0u; i < list_count; i++)
+				{
+					write_sound_sets(buf, lists[i], sound_count, dest[i]);
+				}
+			}
+		}
+
+		void write_weights(zone_buffer* buf, vec3_t*** weights, const EquipmentSndTable* table, vec3_t***& dest_field)
+		{
+			if (const auto dest_surfaces = write_array(buf, 7, weights, table->surfaceCount, dest_field))
+			{
+				for (auto i = 0u; i < table->surfaceCount; i++)
+				{
+					if (const auto dest_equipment = write_array(buf, 7, weights[i], table->equipmentCount, dest_surfaces[i]))
+					{
+						for (auto j = 0u; j < table->equipmentCount; j++)
+						{
+							write_array(buf, 3, weights[i][j], table->soundCount, dest_equipment[j]);
+						}
+					}
+				}
+			}
+		}
+
+		void parse_sound_set(assetmanager::reader& read, EquipmentSoundSet* set)
+		{
+			set->unk_0x0 = read.read_asset<snd_alias_list_t>();
+			set->unk_0x8 = read.read_asset<snd_alias_list_t>();
+		}
+
+		void parse_sound_sets(assetmanager::reader& read, zone_memory* mem, EquipmentSoundSet*& field, const unsigned int count)
+		{
+			if (const auto sets = parse_array(read, mem, field, count))
+			{
+				for (auto i = 0u; i < count; i++)
+				{
+					parse_sound_set(read, &sets[i]);
+				}
+			}
+		}
+
+		void parse_sound_set_lists(assetmanager::reader& read, zone_memory* mem, EquipmentSoundSet**& field, const unsigned int list_count, const unsigned int sound_count)
+		{
+			if (const auto lists = parse_array(read, mem, field, list_count))
+			{
+				for (auto i = 0u; i < list_count; i++)
+				{
+					parse_sound_sets(read, mem, lists[i], sound_count);
+				}
+			}
+		}
+
+		void parse_weights(assetmanager::reader& read, zone_memory* mem, vec3_t***& field, const EquipmentSndTable* table)
+		{
+			if (const auto surfaces = parse_array(read, mem, field, table->surfaceCount))
+			{
+				for (auto i = 0u; i < table->surfaceCount; i++)
+				{
+					if (const auto equipment = parse_array(read, mem, surfaces[i], table->equipmentCount))
+					{
+						for (auto j = 0u; j < table->equipmentCount; j++)
+						{
+							parse_array(read, mem, equipment[j], table->soundCount);
+						}
+					}
+				}
+			}
+		}
+
+		void dump_sound_set(assetmanager::dumper& write, const EquipmentSoundSet* set)
+		{
+			write.dump_asset(set->unk_0x0);
+			write.dump_asset(set->unk_0x8);
+		}
+
+		void dump_sound_sets(assetmanager::dumper& write, EquipmentSoundSet* sets, const unsigned int count)
+		{
+			write.dump_array(sets, count);
+			for (auto i = 0u; sets && i < count; i++)
+			{
+				dump_sound_set(write, &sets[i]);
+			}
+		}
+
+		void dump_sound_set_lists(assetmanager::dumper& write, EquipmentSoundSet** lists, const unsigned int list_count, const unsigned int sound_count)
+		{
+			write.dump_array(lists, list_count);
+			for (auto i = 0u; lists && i < list_count; i++)
+			{
+				dump_sound_sets(write, lists[i], sound_count);
+			}
+		}
+
+		void dump_weights(assetmanager::dumper& write, vec3_t*** weights, const EquipmentSndTable* table)
+		{
+			write.dump_array(weights, table->surfaceCount);
+			for (auto i = 0u; weights && i < table->surfaceCount; i++)
+			{
+				write.dump_array(weights[i], table->equipmentCount);
+				for (auto j = 0u; weights[i] && j < table->equipmentCount; j++)
+				{
+					write.dump_array(weights[i][j], table->soundCount);
+				}
+			}
+		}
+
+		void add_sound_set_dependencies(zone_base* zone, const EquipmentSoundSet* sets, const std::size_t count)
+		{
+			for (std::size_t i = 0; sets && i < count; i++)
+			{
+				add_dependency(zone, ASSET_TYPE_SOUND, sets[i].unk_0x0);
+				add_dependency(zone, ASSET_TYPE_SOUND, sets[i].unk_0x8);
+			}
+		}
+	}
+
+	void equipment_snd_table::read(zone_reader& reader, EquipmentSndTable* asset)
+	{
+		reader.push_stream(XFILE_BLOCK_VIRTUAL);
+		reader.read_string(asset->name);
+		if (const auto names = reader.read_array(asset->surfaceNames, 7, asset->surfaceCount))
+		{
+			for (auto i = 0u; i < asset->surfaceCount; i++)
+			{
+				reader.read_string(names[i]);
+			}
+		}
+		if (const auto equipment = reader.read_array(asset->equipment, 7, asset->equipmentCount))
+		{
+			for (auto i = 0u; i < asset->equipmentCount; i++)
+			{
+				reader.read_string(equipment[i].name);
+			}
+		}
+		read_weights(reader, asset->unk_0x28, asset);
+		read_weights(reader, asset->unk_0x30, asset);
+		read_sound_set_lists(reader, asset->surfaceSounds, asset->surfaceCount, asset->soundCount);
+		read_sound_set_lists(reader, asset->equipmentSounds, asset->equipmentCount, asset->soundCount);
+		read_sound_sets(reader, asset->sounds, asset->soundCount);
+		if (const auto surface_sounds = reader.read_array(asset->unk_0x50, 7, asset->surfaceCount))
+		{
+			for (auto i = 0u; i < asset->surfaceCount; i++)
+			{
+				for (auto& set : surface_sounds[i].sets)
+				{
+					read_sound_set(reader, &set);
+				}
+			}
+		}
+		reader.pop_stream();
+	}
+
+	EquipmentSndTable* equipment_snd_table::parse(const std::string& name, zone_memory* mem)
+	{
+		assetmanager::reader read(mem);
+		if (!read.open(dump_path(ASSET_TYPE_EQUIPMENT_SND_TABLE, name.data())))
+		{
+			return nullptr;
+		}
+
+		ZONETOOL_INFO("Parsing equipmentsndtable \"%s\"...", name.data());
+
+		auto* asset = read.read_single<EquipmentSndTable>();
+		asset->name = read.read_string();
+		if (const auto names = parse_array(read, mem, asset->surfaceNames, asset->surfaceCount))
+		{
+			for (auto i = 0u; i < asset->surfaceCount; i++)
+			{
+				names[i] = read.read_string();
+			}
+		}
+		if (const auto equipment = parse_array(read, mem, asset->equipment, asset->equipmentCount))
+		{
+			for (auto i = 0u; i < asset->equipmentCount; i++)
+			{
+				equipment[i].name = read.read_string();
+			}
+		}
+		parse_weights(read, mem, asset->unk_0x28, asset);
+		parse_weights(read, mem, asset->unk_0x30, asset);
+		parse_sound_set_lists(read, mem, asset->surfaceSounds, asset->surfaceCount, asset->soundCount);
+		parse_sound_set_lists(read, mem, asset->equipmentSounds, asset->equipmentCount, asset->soundCount);
+		parse_sound_sets(read, mem, asset->sounds, asset->soundCount);
+		if (const auto surface_sounds = parse_array(read, mem, asset->unk_0x50, asset->surfaceCount))
+		{
+			for (auto i = 0u; i < asset->surfaceCount; i++)
+			{
+				for (auto& set : surface_sounds[i].sets)
+				{
+					parse_sound_set(read, &set);
+				}
+			}
+		}
+		read.close();
+
+		return asset;
+	}
+
+	void equipment_snd_table::load_depending(zone_base* zone)
+	{
+		auto* data = this->asset_;
+		for (auto i = 0u; data->surfaceSounds && i < data->surfaceCount; i++)
+		{
+			add_sound_set_dependencies(zone, data->surfaceSounds[i], data->soundCount);
+		}
+		for (auto i = 0u; data->equipmentSounds && i < data->equipmentCount; i++)
+		{
+			add_sound_set_dependencies(zone, data->equipmentSounds[i], data->soundCount);
+		}
+		add_sound_set_dependencies(zone, data->sounds, data->soundCount);
+		for (auto i = 0u; data->unk_0x50 && i < data->surfaceCount; i++)
+		{
+			add_sound_set_dependencies(zone, data->unk_0x50[i].sets, std::size(data->unk_0x50[i].sets));
+		}
+	}
+
+	void equipment_snd_table::write(zone_base* zone, zone_buffer* buf)
+	{
+		auto* data = this->asset_;
+		auto* dest = buf->write(data);
+
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
+		dest->name = this->write_name(buf);
+		if (const auto dest_names = write_array(buf, 7, data->surfaceNames, data->surfaceCount, dest->surfaceNames))
+		{
+			for (auto i = 0u; i < data->surfaceCount; i++)
+			{
+				write_string(buf, data->surfaceNames[i], dest_names[i]);
+			}
+		}
+		if (const auto dest_equipment = write_array(buf, 7, data->equipment, data->equipmentCount, dest->equipment))
+		{
+			for (auto i = 0u; i < data->equipmentCount; i++)
+			{
+				write_string(buf, data->equipment[i].name, dest_equipment[i].name);
+			}
+		}
+		write_weights(buf, data->unk_0x28, data, dest->unk_0x28);
+		write_weights(buf, data->unk_0x30, data, dest->unk_0x30);
+		write_sound_set_lists(buf, data->surfaceSounds, data->surfaceCount, data->soundCount, dest->surfaceSounds);
+		write_sound_set_lists(buf, data->equipmentSounds, data->equipmentCount, data->soundCount, dest->equipmentSounds);
+		write_sound_sets(buf, data->sounds, data->soundCount, dest->sounds);
+		if (const auto dest_surface_sounds = write_array(buf, 7, data->unk_0x50, data->surfaceCount, dest->unk_0x50))
+		{
+			for (auto i = 0u; i < data->surfaceCount; i++)
+			{
+				for (auto j = 0u; j < std::size(data->unk_0x50[i].sets); j++)
+				{
+					write_sound_set(buf, &data->unk_0x50[i].sets[j], &dest_surface_sounds[i].sets[j]);
+				}
+			}
+		}
+		buf->pop_stream();
+	}
+
+	void equipment_snd_table::dump(EquipmentSndTable* asset)
+	{
+		assetmanager::dumper write;
+		if (!write.open(dump_path(ASSET_TYPE_EQUIPMENT_SND_TABLE, asset->name)))
+		{
+			return;
+		}
+
+		write.dump_single(asset);
+		write.dump_string(asset->name);
+		write.dump_array(asset->surfaceNames, asset->surfaceCount);
+		for (auto i = 0u; asset->surfaceNames && i < asset->surfaceCount; i++)
+		{
+			write.dump_string(asset->surfaceNames[i]);
+		}
+		write.dump_array(asset->equipment, asset->equipmentCount);
+		for (auto i = 0u; asset->equipment && i < asset->equipmentCount; i++)
+		{
+			write.dump_string(asset->equipment[i].name);
+		}
+		dump_weights(write, asset->unk_0x28, asset);
+		dump_weights(write, asset->unk_0x30, asset);
+		dump_sound_set_lists(write, asset->surfaceSounds, asset->surfaceCount, asset->soundCount);
+		dump_sound_set_lists(write, asset->equipmentSounds, asset->equipmentCount, asset->soundCount);
+		dump_sound_sets(write, asset->sounds, asset->soundCount);
+		write.dump_array(asset->unk_0x50, asset->surfaceCount);
+		for (auto i = 0u; asset->unk_0x50 && i < asset->surfaceCount; i++)
+		{
+			for (auto& set : asset->unk_0x50[i].sets)
+			{
+				dump_sound_set(write, &set);
+			}
+		}
+		write.close();
+	}
 }

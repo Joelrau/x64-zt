@@ -1615,6 +1615,7 @@ namespace zonetool::s2
 		unsigned char smallTrans;
 		XAnimPartTransData u;
 	};
+	static_assert(offsetof(XAnimPartTrans, u) == 8);
 
 	struct XAnimDeltaPartQuatDataFrames2
 	{
@@ -1633,6 +1634,7 @@ namespace zonetool::s2
 		unsigned short size;
 		XAnimDeltaPartQuatData2 u;
 	};
+	static_assert(offsetof(XAnimDeltaPartQuat2, u) == 8);
 
 	struct XAnimDeltaPartQuatDataFrames
 	{
@@ -1651,6 +1653,7 @@ namespace zonetool::s2
 		unsigned short size;
 		XAnimDeltaPartQuatData u;
 	};
+	static_assert(offsetof(XAnimDeltaPartQuat, u) == 8);
 
 	struct XAnimDeltaPart
 	{
@@ -1718,7 +1721,7 @@ namespace zonetool::s2
 	{
 		const char* name;
 		int index;
-		void* parent;
+		unsigned char* parent;
 		int bitSize;
 		int limitSize;
 		int offset;
@@ -1844,7 +1847,13 @@ namespace zonetool::s2
 	static_assert(offsetof(GfxMapTrZone, indexDataSize) == 128);
 	static_assert(offsetof(GfxMapTrZone, indices) == 136);
 
-	struct Mayhem;
+	struct Mayhem
+	{
+		const char* name;
+		char __pad0[0x48];
+	};
+	static_assert(sizeof(Mayhem) == 0x50);
+
 	struct Spline;
 
 	struct ScriptableEventModelDef
@@ -2025,9 +2034,16 @@ namespace zonetool::s2
 	};
 	static_assert(sizeof(PhysWaterPreset) == 0x88);
 
+	struct DLogHash
+	{
+		unsigned int hash;
+		int index;
+	};
+	static_assert(sizeof(DLogHash) == 0x8);
+
 	struct DLogHashTable
 	{
-		unsigned int* list;
+		DLogHash* list;
 		int count;
 		int max;
 	};
@@ -2315,7 +2331,7 @@ namespace zonetool::s2
 		char __pad1[6];
 		unsigned char partStateCount;
 		char __pad2[5];
-		void* partRuntime;
+		char (*partRuntime)[4];
 		unsigned char* eventStreamBuffer;
 		char __pad3[67];
 		unsigned char linkedObjectCount;
@@ -5101,10 +5117,78 @@ namespace zonetool::s2
 	};
 	static_assert(sizeof(VirtualLeaderboardDef) == 0x30);
 
+	struct PhysMass
+	{
+		float centerOfMass[3];
+		float momentsOfInertia[3];
+		float productsOfInertia[3];
+	};
+	static_assert(sizeof(PhysMass) == 0x24);
+
+	struct VehiclePhysDef
+	{
+		int physicsEnabled;
+		PhysPreset* physPreset;
+		const char* unk_0x10;
+		PhysMass* physMass;
+		const char* unk_0x20;
+		char __pad0[0x140];
+	};
+	static_assert(sizeof(VehiclePhysDef) == 0x168);
+
+	struct VehicleSoundEntry
+	{
+		snd_alias_list_t* sound;
+		char __pad0[0x8];
+	};
+	static_assert(sizeof(VehicleSoundEntry) == 0x10);
+
 	struct VehicleDef
 	{
 		const char* name;
-		char __pad0[0xBE0];
+		char __pad0[0x8];
+		const char* unk_0x10;
+		char __pad1[0x8];
+		const char* unk_0x20;
+		char __pad2[0x12C];
+		scr_string_t unk_0x154[18];
+		char __pad3[0x4];
+		VehiclePhysDef vehPhysDef;
+		char __pad4[0x40];
+		FxEffectDef* unk_0x348[5];
+		char __pad5[0xA8];
+		FxEffectDef* unk_0x418[2];
+		char __pad6[0x138];
+		const char* unk_0x560;
+		char __pad7[0x288];
+		const char* unk_0x7F0;
+		WeaponCompleteDef* unk_0x7F8;
+		char __pad8[0x68];
+		snd_alias_list_t* unk_0x868[2];
+		char __pad9[0x14];
+		scr_string_t unk_0x88C[4];
+		char __pad10[0x4];
+		FxEffectDef* unk_0x8A0[2];
+		Material* unk_0x8B0[2];
+		char __pad11[0x8];
+		XAnimParts* unk_0x8C8[2];
+		char __pad12[0x8];
+		snd_alias_list_t* unk_0x8E0[5];
+		char __pad13[0x4];
+		scr_string_t unk_0x90C;
+		snd_alias_list_t* unk_0x910[4];
+		char __pad14[0x4];
+		scr_string_t unk_0x934;
+		snd_alias_list_t* unk_0x938[3];
+		char __pad15[0x8];
+		snd_alias_list_t* unk_0x958[4];
+		char __pad16[0x8];
+		VehicleSoundEntry unk_0x980[5];
+		const char* unk_0x9D0;
+		snd_alias_list_t* unk_0x9D8[62];
+		char __pad17[0x10];
+		const char* unk_0xBD8;
+		char __pad18[0x8];
 	};
 	static_assert(sizeof(VehicleDef) == 0xBE8);
 
@@ -5121,10 +5205,41 @@ namespace zonetool::s2
 	};
 	static_assert(sizeof(Clut) == 0x38);
 
+	struct EquipmentSoundSet
+	{
+		snd_alias_list_t* unk_0x0;
+		snd_alias_list_t* unk_0x8;
+	};
+	static_assert(sizeof(EquipmentSoundSet) == 0x10);
+
+	struct EquipmentSndEquipment
+	{
+		const char* name;
+		char __pad0[0x8];
+	};
+	static_assert(sizeof(EquipmentSndEquipment) == 0x10);
+
+	struct EquipmentSndSurfaceSounds
+	{
+		EquipmentSoundSet sets[14];
+	};
+	static_assert(sizeof(EquipmentSndSurfaceSounds) == 0xE0);
+
 	struct EquipmentSndTable
 	{
 		const char* name;
-		char __pad0[0x50];
+		unsigned int surfaceCount;
+		unsigned int equipmentCount;
+		unsigned int soundCount;
+		char __pad0[0x4];
+		const char** surfaceNames;
+		EquipmentSndEquipment* equipment;
+		vec3_t*** unk_0x28;
+		vec3_t*** unk_0x30;
+		EquipmentSoundSet** surfaceSounds;
+		EquipmentSoundSet** equipmentSounds;
+		EquipmentSoundSet* sounds;
+		EquipmentSndSurfaceSounds* unk_0x50;
 	};
 	static_assert(sizeof(EquipmentSndTable) == 0x58);
 

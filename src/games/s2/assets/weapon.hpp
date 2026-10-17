@@ -2,16 +2,15 @@
 
 namespace zonetool::s2
 {
-	struct weapon_layout
-	{
-		template <typename V>
-		static void visit(const V& w);
-	};
-
-	class weapon_def : public field_layout_asset<WeaponCompleteDef, ASSET_TYPE_WEAPON, weapon_layout>
+	class weapon_def : public asset_base<WeaponCompleteDef, ASSET_TYPE_WEAPON>
 	{
 	public:
+		static void read(zone_reader& reader, WeaponCompleteDef* asset);
+
 		WeaponCompleteDef* parse(const std::string& name, zone_memory* mem) override;
+		void prepare(zone_buffer* buf, zone_memory* mem) override;
+		void load_depending(zone_base* zone) override;
+		void write(zone_base* zone, zone_buffer* buf) override;
 		static void dump(WeaponCompleteDef* asset);
 	};
 
@@ -109,23 +108,145 @@ namespace zonetool::s2
 		}
 	};
 
-	struct beam_layout
+	class beam_def : public asset_base<BeamDef, ASSET_TYPE_BEAM>
 	{
-		template <typename V>
-		static void visit(const V& w)
+	public:
+		static void read(zone_reader& reader, BeamDef* asset)
 		{
-			w.string(offsetof(BeamDef, name));
-			w.asset(ASSET_TYPE_MATERIAL, offsetof(BeamDef, beamMaterial));
-			w.asset(ASSET_TYPE_MATERIAL, offsetof(BeamDef, beamMaterial2));
-			w.assets(ASSET_TYPE_FX, offsetof(BeamDef, effects), std::size(BeamDef{}.effects));
-			w.assets(ASSET_TYPE_XMODEL, offsetof(BeamDef, models), std::size(BeamDef{}.models));
-			w.strings({offsetof(BeamDef, string664), offsetof(BeamDef, string672)});
-			w.sounds(offsetof(BeamDef, sounds), std::size(BeamDef{}.sounds));
-			w.sounds(offsetof(BeamDef, sounds2), std::size(BeamDef{}.sounds2));
+			reader.push_stream(XFILE_BLOCK_VIRTUAL);
+			reader.read_string(asset->name);
+			reader.read_asset(ASSET_TYPE_MATERIAL, asset->beamMaterial);
+			reader.read_asset(ASSET_TYPE_MATERIAL, asset->beamMaterial2);
+			for (auto& effect : asset->effects)
+			{
+				reader.read_asset(ASSET_TYPE_FX, effect);
+			}
+			for (auto& model : asset->models)
+			{
+				reader.read_asset(ASSET_TYPE_XMODEL, model);
+			}
+			reader.read_string(asset->string664);
+			reader.read_string(asset->string672);
+			for (auto& sound : asset->sounds)
+			{
+				reader.read_name_reference(sound);
+			}
+			for (auto& sound : asset->sounds2)
+			{
+				reader.read_name_reference(sound);
+			}
+			reader.pop_stream();
 		}
-	};
 
-	class beam_def : public field_layout_asset<BeamDef, ASSET_TYPE_BEAM, beam_layout>
-	{
+		BeamDef* parse(const std::string& name, zone_memory* mem) override
+		{
+			assetmanager::reader read(mem);
+			if (!read.open(dump_path(ASSET_TYPE_BEAM, name.data())))
+			{
+				return nullptr;
+			}
+
+			ZONETOOL_INFO("Parsing beam \"%s\"...", name.data());
+
+			auto* asset = read.read_single<BeamDef>();
+			asset->name = read.read_string();
+			asset->beamMaterial = read.read_asset<Material>();
+			asset->beamMaterial2 = read.read_asset<Material>();
+			for (auto& effect : asset->effects)
+			{
+				effect = read.read_asset<FxEffectDef>();
+			}
+			for (auto& model : asset->models)
+			{
+				model = read.read_asset<XModel>();
+			}
+			asset->string664 = read.read_string();
+			asset->string672 = read.read_string();
+			for (auto& sound : asset->sounds)
+			{
+				sound = read.read_asset<snd_alias_list_t>();
+			}
+			for (auto& sound : asset->sounds2)
+			{
+				sound = read.read_asset<snd_alias_list_t>();
+			}
+			read.close();
+
+			return asset;
+		}
+
+		void load_depending(zone_base* zone) override
+		{
+			auto* data = this->asset_;
+			add_dependency(zone, ASSET_TYPE_MATERIAL, data->beamMaterial);
+			add_dependency(zone, ASSET_TYPE_MATERIAL, data->beamMaterial2);
+			add_dependencies(zone, ASSET_TYPE_FX, data->effects, std::size(data->effects));
+			add_dependencies(zone, ASSET_TYPE_XMODEL, data->models, std::size(data->models));
+			add_dependencies(zone, ASSET_TYPE_SOUND, data->sounds, std::size(data->sounds));
+			add_dependencies(zone, ASSET_TYPE_SOUND, data->sounds2, std::size(data->sounds2));
+		}
+
+		void write(zone_base* zone, zone_buffer* buf) override
+		{
+			auto* data = this->asset_;
+			auto* dest = buf->write(data);
+
+			buf->push_stream(XFILE_BLOCK_VIRTUAL);
+			dest->name = this->write_name(buf);
+			dest->beamMaterial = asset_reference(zone, ASSET_TYPE_MATERIAL, data->beamMaterial);
+			dest->beamMaterial2 = asset_reference(zone, ASSET_TYPE_MATERIAL, data->beamMaterial2);
+			for (auto i = 0u; i < std::size(data->effects); i++)
+			{
+				dest->effects[i] = asset_reference(zone, ASSET_TYPE_FX, data->effects[i]);
+			}
+			for (auto i = 0u; i < std::size(data->models); i++)
+			{
+				dest->models[i] = asset_reference(zone, ASSET_TYPE_XMODEL, data->models[i]);
+			}
+			write_string(buf, data->string664, dest->string664);
+			write_string(buf, data->string672, dest->string672);
+			for (auto i = 0u; i < std::size(data->sounds); i++)
+			{
+				write_sound(buf, data->sounds[i], dest->sounds[i]);
+			}
+			for (auto i = 0u; i < std::size(data->sounds2); i++)
+			{
+				write_sound(buf, data->sounds2[i], dest->sounds2[i]);
+			}
+			buf->pop_stream();
+		}
+
+		static void dump(BeamDef* asset)
+		{
+			assetmanager::dumper write;
+			if (!write.open(dump_path(ASSET_TYPE_BEAM, asset->name)))
+			{
+				return;
+			}
+
+			write.dump_single(asset);
+			write.dump_string(asset->name);
+			write.dump_asset(asset->beamMaterial);
+			write.dump_asset(asset->beamMaterial2);
+			for (auto* effect : asset->effects)
+			{
+				write.dump_asset(effect);
+			}
+			for (auto* model : asset->models)
+			{
+				write.dump_asset(model);
+			}
+			write.dump_string(asset->string664);
+			write.dump_string(asset->string672);
+			for (auto* sound : asset->sounds)
+			{
+				write.dump_asset(sound);
+			}
+			for (auto* sound : asset->sounds2)
+			{
+				write.dump_asset(sound);
+			}
+			write.close();
+		}
 	};
 }

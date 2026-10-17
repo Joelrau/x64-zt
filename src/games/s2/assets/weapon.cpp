@@ -14,19 +14,6 @@ namespace zonetool::s2
 		constexpr std::size_t location_damage_count = 22;
 		constexpr std::size_t surface_type_count = 62;
 
-		static_assert(offsetof(XModel, name) == 0);
-		static_assert(offsetof(XAnimParts, name) == 0);
-		static_assert(offsetof(Material, name) == 0);
-		static_assert(offsetof(PhysCollmap, name) == 0);
-		static_assert(offsetof(PhysPreset, name) == 0);
-		static_assert(offsetof(TracerDef, name) == 0);
-		static_assert(offsetof(snd_alias_list_t, name) == 0);
-
-		constexpr std::size_t pointer_count(const std::size_t first, const std::size_t last)
-		{
-			return (last - first) / sizeof(void*) + 1;
-		}
-
 		constexpr const char* anim_names[xanim_count] =
 		{
 			"ROOT",
@@ -872,7 +859,6 @@ namespace zonetool::s2
 			}
 		}
 
-		// json has no pointer identity, so restore the arrays that stock weapons share
 		void share_equal_arrays(WeaponCompleteDef& w)
 		{
 			share_if_equal(w.szXAnimsLeftHanded, w.szXAnimsRightHanded, xanim_count);
@@ -1029,119 +1015,449 @@ namespace zonetool::s2
 
 			return names;
 		}
-	}
 
-	template <typename V>
-	void weapon_layout::visit(const V& w)
-	{
-		using W = WeaponCompleteDef;
-
-		w.strings({offsetof(W, szInternalName), offsetof(W, szDisplayName)});
-		w.asset_array(ASSET_TYPE_XMODEL, offsetof(W, gunModel), model_count);
-		w.asset_array(ASSET_TYPE_XMODEL, offsetof(W, unknown24), model_count);
-		w.asset(ASSET_TYPE_XMODEL, offsetof(W, handModel));
-		w.string(offsetof(W, lobWorldModelName));
-		w.asset_array(ASSET_TYPE_XANIM, offsetof(W, szXAnimsRightHanded), xanim_count);
-		w.asset_array(ASSET_TYPE_XANIM, offsetof(W, szXAnimsLeftHanded), xanim_count);
-		w.script_strings(offsetof(W, hideTags), hide_tag_count);
-		w.asset_array(ASSET_TYPE_ATTACHMENT, offsetof(W, attachments), w.at<std::uint8_t>(offsetof(W, numAttachments)));
-		w.asset_array(ASSET_TYPE_XANIM, offsetof(W, szXAnims), xanim_count);
-		w.entries(offsetof(W, animOverrides), sizeof(AnimOverrideEntry), w.at<std::uint8_t>(offsetof(W, numAnimOverrides)), [](const auto& entry, std::size_t)
+		template <typename T>
+		std::span<T*> pointer_run(T*& first, T*& last)
 		{
-			entry.assets(ASSET_TYPE_XANIM, offsetof(AnimOverrideEntry, overrideAnim), 2);
-		});
-		w.entries(offsetof(W, soundOverrides), sizeof(SoundOverrideEntry), w.at<std::uint8_t>(offsetof(W, numSoundOverrides)), [](const auto& entry, std::size_t)
-		{
-			entry.sounds(offsetof(SoundOverrideEntry, overrideSound), 2);
-		});
-		w.entries(offsetof(W, fxOverrides), sizeof(FXOverrideEntry), w.at<std::uint8_t>(offsetof(W, numFXOverrides)), [](const auto& entry, std::size_t)
-		{
-			entry.assets(ASSET_TYPE_FX, offsetof(FXOverrideEntry, overrideFX), 2);
-		});
-		w.bytes(offsetof(W, reloadOverrides), 3, sizeof(ReloadStateTimerEntry) * w.at<std::uint8_t>(offsetof(W, numReloadStateTimerOverrides)));
-		w.entries(offsetof(W, notetrackOverrides), sizeof(NoteTrackToSoundEntry), w.at<std::uint8_t>(offsetof(W, numNotetrackOverrides)), [](const auto& entry, std::size_t)
-		{
-			entry.script_strings(offsetof(NoteTrackToSoundEntry, notetrackSoundMapKeys), notetrack_sound_count);
-			entry.script_strings(offsetof(NoteTrackToSoundEntry, notetrackSoundMapValues), notetrack_sound_count);
-		});
-		w.script_strings(offsetof(W, notetrackSoundMapKeys), notetrack_sound_count);
-		w.script_strings(offsetof(W, notetrackSoundMapValues), notetrack_sound_count);
-		w.script_strings(offsetof(W, notetrackRumbleMapKeys), notetrack_map_count);
-		w.script_strings(offsetof(W, notetrackRumbleMapValues), notetrack_map_count);
-		w.script_strings(offsetof(W, notetrackFXMapKeys), notetrack_map_count);
-		w.asset_array(ASSET_TYPE_FX, offsetof(W, notetrackFXMapValues), notetrack_map_count);
-		w.script_strings(offsetof(W, notetrackFXMapTagValues), notetrack_map_count);
-		w.string(offsetof(W, szAdsrBaseSetting));
-		w.assets(ASSET_TYPE_FX, offsetof(W, viewFlashEffect), pointer_count(offsetof(W, viewFlashEffect), offsetof(W, meleeMissEffect)));
-		w.sounds(offsetof(W, pickupSound), pointer_count(offsetof(W, pickupSound), offsetof(W, unknownSound816)));
-		w.sound_array(offsetof(W, bounceSound), surface_type_count);
-		w.sound_array(offsetof(W, rollingSound), surface_type_count);
-		w.assets(ASSET_TYPE_FX, offsetof(W, viewShellEjectEffect), pointer_count(offsetof(W, viewShellEjectEffect), offsetof(W, viewMagEjectEffect)));
-		w.assets(ASSET_TYPE_MATERIAL, offsetof(W, reticleCenter), pointer_count(offsetof(W, reticleCenter), offsetof(W, reticleSide)));
-		w.asset_array(ASSET_TYPE_XMODEL, offsetof(W, worldModel), model_count);
-		w.asset_array(ASSET_TYPE_XMODEL, offsetof(W, unknown912), model_count);
-		w.asset(ASSET_TYPE_XMODEL, offsetof(W, worldClipModel));
-		w.asset(ASSET_TYPE_XMODEL, offsetof(W, rocketModel));
-		w.assets(ASSET_TYPE_MATERIAL, offsetof(W, hudIcon), pointer_count(offsetof(W, hudIcon), offsetof(W, ammoCounterIcon)));
-		w.strings({offsetof(W, szAmmoName), offsetof(W, szClipName), offsetof(W, szSharedAmmoCapName)});
-		w.asset(ASSET_TYPE_PHYSCOLLMAP, offsetof(W, physCollmap));
-		w.asset(ASSET_TYPE_PHYSPRESET, offsetof(W, physPreset));
-		w.strings({offsetof(W, szUseHintString), offsetof(W, dropHintString)});
-		w.bytes(offsetof(W, locationDamageMultipliers), 3, sizeof(float) * location_damage_count);
-		w.strings({offsetof(W, fireRumble), offsetof(W, unknownRumble1040), offsetof(W, meleeImpactRumble)});
-		w.assets(ASSET_TYPE_TRACER, offsetof(W, tracerType), pointer_count(offsetof(W, tracerType), offsetof(W, unknownTracer1072)));
-		w.asset(ASSET_TYPE_LASER, offsetof(W, laserType));
-		w.assets(ASSET_TYPE_BEAM, offsetof(W, beamType), std::size(W{}.beamType));
-		w.sound(offsetof(W, turretOverheatSound));
-		w.asset(ASSET_TYPE_FX, offsetof(W, turretOverheatEffect));
-		w.string(offsetof(W, turretBarrelSpinRumble));
-		w.sound(offsetof(W, turretBarrelSpinMaxSnd));
-		w.sounds(offsetof(W, turretBarrelSpinUpSnd), std::size(W{}.turretBarrelSpinUpSnd));
-		w.sounds(offsetof(W, turretBarrelSpinDownSnd), std::size(W{}.turretBarrelSpinDownSnd));
-		w.sounds(offsetof(W, missileConeSoundAlias), pointer_count(offsetof(W, missileConeSoundAlias), offsetof(W, missileConeSoundAliasAtBase)));
-		w.asset(ASSET_TYPE_XMODEL, offsetof(W, stowOffsetModel));
-		w.entries(offsetof(W, turretHydraulicSettings), sizeof(TurretHydraulicSettings), 1, [](const auto& entry, std::size_t)
-		{
-			entry.sounds(offsetof(TurretHydraulicSettings, verticalSound), pointer_count(offsetof(TurretHydraulicSettings, verticalSound), offsetof(TurretHydraulicSettings, horizontalStopSound)));
-			entry.assets(ASSET_TYPE_SOUND, offsetof(TurretHydraulicSettings, movementSounds), std::size(TurretHydraulicSettings{}.movementSounds));
-		});
-		w.assets(ASSET_TYPE_MATERIAL, offsetof(W, overlay.shader), pointer_count(offsetof(W, overlay.shader), offsetof(W, overlay.shaderEMPLowRes)));
-		w.assets(ASSET_TYPE_MATERIAL, offsetof(W, killIcon), pointer_count(offsetof(W, killIcon), offsetof(W, hudProximityWarningIcon)));
-		w.string(offsetof(W, projectileName));
-		w.asset(ASSET_TYPE_XMODEL, offsetof(W, projectileModel));
-		w.assets(ASSET_TYPE_FX, offsetof(W, projExplosionEffect), pointer_count(offsetof(W, projExplosionEffect), offsetof(W, unknownEffect2880)));
-		w.sounds(offsetof(W, projExplosionSound), pointer_count(offsetof(W, projExplosionSound), offsetof(W, unknownSound2904)));
-		w.bytes(offsetof(W, parallelBounce), 3, sizeof(float) * surface_type_count);
-		w.bytes(offsetof(W, perpendicularBounce), 3, sizeof(float) * surface_type_count);
-		w.assets(ASSET_TYPE_FX, offsetof(W, projTrailEffect), pointer_count(offsetof(W, projTrailEffect), offsetof(W, projBeaconEffect)));
-		w.asset(ASSET_TYPE_FX, offsetof(W, projIgnitionEffect));
-		w.sound(offsetof(W, projIgnitionSound));
-		for (auto i = 0u; i < std::size(W{}.accuracyGraphName); i++)
-		{
-			const auto knot_bytes = sizeof(vec2_t) * w.at<std::uint16_t>(offsetof(W, accuracyGraphKnotCount) + i * sizeof(std::uint16_t));
-			w.string(offsetof(W, accuracyGraphName) + i * sizeof(void*));
-			w.bytes(offsetof(W, accuracyGraphKnots) + i * sizeof(void*), 3, knot_bytes);
-			w.bytes(offsetof(W, originalAccuracyGraphKnots) + i * sizeof(void*), 3, knot_bytes);
+			return {&first, &last + 1};
 		}
-		w.string(offsetof(W, szScript));
-		w.script_string(offsetof(W, knifeAttachTagOverride));
-		w.script_string(offsetof(W, stowTag));
-		w.script_string(offsetof(W, unknownTag3948));
+
+		template <typename R>
+		void read_assets(zone_reader& reader, const XAssetType type, R&& assets)
+		{
+			for (auto& asset : assets)
+			{
+				reader.read_asset(type, asset);
+			}
+		}
+
+		template <typename R>
+		void read_sounds(zone_reader& reader, R&& sounds)
+		{
+			for (auto& sound : sounds)
+			{
+				reader.read_name_reference(sound);
+			}
+		}
+
+		template <typename R, typename T>
+		void write_assets(zone_base* zone, const XAssetType type, R&& assets, T** dest)
+		{
+			for (std::size_t i = 0; i < std::size(assets); i++)
+			{
+				dest[i] = asset_reference(zone, type, assets[i]);
+			}
+		}
+
+		template <typename R>
+		void write_sounds(zone_buffer* buf, R&& sounds, snd_alias_list_t** dest)
+		{
+			for (std::size_t i = 0; i < std::size(sounds); i++)
+			{
+				write_sound(buf, sounds[i], dest[i]);
+			}
+		}
+
+		template <typename R>
+		void add_dependencies(zone_base* zone, const XAssetType type, R&& assets)
+		{
+			for (auto* asset : assets)
+			{
+				add_dependency(zone, type, asset);
+			}
+		}
+
+		void read_overrides(zone_reader& reader, WeaponCompleteDef* asset)
+		{
+			if (const auto anims = reader.read_array(asset->animOverrides, 7, asset->numAnimOverrides))
+			{
+				for (auto i = 0; i < asset->numAnimOverrides; i++)
+				{
+					reader.read_asset(ASSET_TYPE_XANIM, anims[i].overrideAnim);
+					reader.read_asset(ASSET_TYPE_XANIM, anims[i].altmodeAnim);
+				}
+			}
+
+			if (const auto sounds = reader.read_array(asset->soundOverrides, 7, asset->numSoundOverrides))
+			{
+				for (auto i = 0; i < asset->numSoundOverrides; i++)
+				{
+					reader.read_name_reference(sounds[i].overrideSound);
+					reader.read_name_reference(sounds[i].altmodeSound);
+				}
+			}
+
+			if (const auto effects = reader.read_array(asset->fxOverrides, 7, asset->numFXOverrides))
+			{
+				for (auto i = 0; i < asset->numFXOverrides; i++)
+				{
+					reader.read_asset(ASSET_TYPE_FX, effects[i].overrideFX);
+					reader.read_asset(ASSET_TYPE_FX, effects[i].altmodeFX);
+				}
+			}
+
+			reader.read_array(asset->reloadOverrides, 3, asset->numReloadStateTimerOverrides);
+
+			if (const auto notetracks = reader.read_array(asset->notetrackOverrides, 7, asset->numNotetrackOverrides))
+			{
+				for (auto i = 0; i < asset->numNotetrackOverrides; i++)
+				{
+					reader.read_script_string_array(notetracks[i].notetrackSoundMapKeys, notetrack_sound_count);
+					reader.read_script_string_array(notetracks[i].notetrackSoundMapValues, notetrack_sound_count);
+				}
+			}
+		}
+
+		void read_notetrack_maps(zone_reader& reader, WeaponCompleteDef* asset)
+		{
+			reader.read_script_string_array(asset->notetrackSoundMapKeys, notetrack_sound_count);
+			reader.read_script_string_array(asset->notetrackSoundMapValues, notetrack_sound_count);
+			reader.read_script_string_array(asset->notetrackRumbleMapKeys, notetrack_map_count);
+			reader.read_script_string_array(asset->notetrackRumbleMapValues, notetrack_map_count);
+			reader.read_script_string_array(asset->notetrackFXMapKeys, notetrack_map_count);
+			reader.read_asset_array(ASSET_TYPE_FX, asset->notetrackFXMapValues, notetrack_map_count);
+			reader.read_script_string_array(asset->notetrackFXMapTagValues, notetrack_map_count);
+		}
+
+		void read_turret(zone_reader& reader, WeaponCompleteDef* asset)
+		{
+			reader.read_name_reference(asset->turretOverheatSound);
+			reader.read_asset(ASSET_TYPE_FX, asset->turretOverheatEffect);
+			reader.read_string(asset->turretBarrelSpinRumble);
+			reader.read_name_reference(asset->turretBarrelSpinMaxSnd);
+			read_sounds(reader, asset->turretBarrelSpinUpSnd);
+			read_sounds(reader, asset->turretBarrelSpinDownSnd);
+			reader.read_name_reference(asset->missileConeSoundAlias);
+			reader.read_name_reference(asset->missileConeSoundAliasAtBase);
+			reader.read_asset(ASSET_TYPE_XMODEL, asset->stowOffsetModel);
+
+			if (const auto hydraulics = reader.read_array(asset->turretHydraulicSettings, 7))
+			{
+				read_sounds(reader, pointer_run(hydraulics->verticalSound, hydraulics->horizontalStopSound));
+				read_assets(reader, ASSET_TYPE_SOUND, hydraulics->movementSounds);
+			}
+		}
+
+		void read_projectile(zone_reader& reader, WeaponCompleteDef* asset)
+		{
+			reader.read_string(asset->projectileName);
+			reader.read_asset(ASSET_TYPE_XMODEL, asset->projectileModel);
+			read_assets(reader, ASSET_TYPE_FX, pointer_run(asset->projExplosionEffect, asset->unknownEffect2880));
+			read_sounds(reader, pointer_run(asset->projExplosionSound, asset->unknownSound2904));
+			reader.read_array(asset->parallelBounce, 3, surface_type_count);
+			reader.read_array(asset->perpendicularBounce, 3, surface_type_count);
+			read_assets(reader, ASSET_TYPE_FX, pointer_run(asset->projTrailEffect, asset->projBeaconEffect));
+			reader.read_asset(ASSET_TYPE_FX, asset->projIgnitionEffect);
+			reader.read_name_reference(asset->projIgnitionSound);
+		}
+
+		void write_overrides(zone_base* zone, zone_buffer* buf, WeaponCompleteDef* data, WeaponCompleteDef* dest)
+		{
+			if (auto* anims = write_array(buf, 7, data->animOverrides, data->numAnimOverrides, dest->animOverrides))
+			{
+				for (auto i = 0; i < data->numAnimOverrides; i++)
+				{
+					anims[i].overrideAnim = asset_reference(zone, ASSET_TYPE_XANIM, data->animOverrides[i].overrideAnim);
+					anims[i].altmodeAnim = asset_reference(zone, ASSET_TYPE_XANIM, data->animOverrides[i].altmodeAnim);
+				}
+			}
+
+			if (auto* sounds = write_array(buf, 7, data->soundOverrides, data->numSoundOverrides, dest->soundOverrides))
+			{
+				for (auto i = 0; i < data->numSoundOverrides; i++)
+				{
+					write_sound(buf, data->soundOverrides[i].overrideSound, sounds[i].overrideSound);
+					write_sound(buf, data->soundOverrides[i].altmodeSound, sounds[i].altmodeSound);
+				}
+			}
+
+			if (auto* effects = write_array(buf, 7, data->fxOverrides, data->numFXOverrides, dest->fxOverrides))
+			{
+				for (auto i = 0; i < data->numFXOverrides; i++)
+				{
+					effects[i].overrideFX = asset_reference(zone, ASSET_TYPE_FX, data->fxOverrides[i].overrideFX);
+					effects[i].altmodeFX = asset_reference(zone, ASSET_TYPE_FX, data->fxOverrides[i].altmodeFX);
+				}
+			}
+
+			write_array(buf, 3, data->reloadOverrides, data->numReloadStateTimerOverrides, dest->reloadOverrides);
+
+			if (auto* notetracks = write_array(buf, 7, data->notetrackOverrides, data->numNotetrackOverrides, dest->notetrackOverrides))
+			{
+				for (auto i = 0; i < data->numNotetrackOverrides; i++)
+				{
+					const auto& notetrack = data->notetrackOverrides[i];
+					write_array(buf, 3, notetrack.notetrackSoundMapKeys, notetrack_sound_count, notetracks[i].notetrackSoundMapKeys);
+					write_array(buf, 3, notetrack.notetrackSoundMapValues, notetrack_sound_count, notetracks[i].notetrackSoundMapValues);
+				}
+			}
+		}
+
+		void write_notetrack_maps(zone_base* zone, zone_buffer* buf, WeaponCompleteDef* data, WeaponCompleteDef* dest)
+		{
+			write_array(buf, 3, data->notetrackSoundMapKeys, notetrack_sound_count, dest->notetrackSoundMapKeys);
+			write_array(buf, 3, data->notetrackSoundMapValues, notetrack_sound_count, dest->notetrackSoundMapValues);
+			write_array(buf, 3, data->notetrackRumbleMapKeys, notetrack_map_count, dest->notetrackRumbleMapKeys);
+			write_array(buf, 3, data->notetrackRumbleMapValues, notetrack_map_count, dest->notetrackRumbleMapValues);
+			write_array(buf, 3, data->notetrackFXMapKeys, notetrack_map_count, dest->notetrackFXMapKeys);
+			write_asset_array(zone, buf, ASSET_TYPE_FX, data->notetrackFXMapValues, notetrack_map_count, dest->notetrackFXMapValues);
+			write_array(buf, 3, data->notetrackFXMapTagValues, notetrack_map_count, dest->notetrackFXMapTagValues);
+		}
+
+		void write_turret(zone_base* zone, zone_buffer* buf, WeaponCompleteDef* data, WeaponCompleteDef* dest)
+		{
+			write_sound(buf, data->turretOverheatSound, dest->turretOverheatSound);
+			dest->turretOverheatEffect = asset_reference(zone, ASSET_TYPE_FX, data->turretOverheatEffect);
+			write_string(buf, data->turretBarrelSpinRumble, dest->turretBarrelSpinRumble);
+			write_sound(buf, data->turretBarrelSpinMaxSnd, dest->turretBarrelSpinMaxSnd);
+			write_sounds(buf, data->turretBarrelSpinUpSnd, dest->turretBarrelSpinUpSnd);
+			write_sounds(buf, data->turretBarrelSpinDownSnd, dest->turretBarrelSpinDownSnd);
+			write_sound(buf, data->missileConeSoundAlias, dest->missileConeSoundAlias);
+			write_sound(buf, data->missileConeSoundAliasAtBase, dest->missileConeSoundAliasAtBase);
+			dest->stowOffsetModel = asset_reference(zone, ASSET_TYPE_XMODEL, data->stowOffsetModel);
+
+			if (auto* hydraulics = write_array(buf, 7, data->turretHydraulicSettings, 1, dest->turretHydraulicSettings))
+			{
+				auto* settings = data->turretHydraulicSettings;
+				write_sounds(buf, pointer_run(settings->verticalSound, settings->horizontalStopSound), &hydraulics->verticalSound);
+				write_assets(zone, ASSET_TYPE_SOUND, settings->movementSounds, hydraulics->movementSounds);
+			}
+		}
+
+		void write_projectile(zone_base* zone, zone_buffer* buf, WeaponCompleteDef* data, WeaponCompleteDef* dest)
+		{
+			write_string(buf, data->projectileName, dest->projectileName);
+			dest->projectileModel = asset_reference(zone, ASSET_TYPE_XMODEL, data->projectileModel);
+			write_assets(zone, ASSET_TYPE_FX, pointer_run(data->projExplosionEffect, data->unknownEffect2880), &dest->projExplosionEffect);
+			write_sounds(buf, pointer_run(data->projExplosionSound, data->unknownSound2904), &dest->projExplosionSound);
+			write_array(buf, 3, data->parallelBounce, surface_type_count, dest->parallelBounce);
+			write_array(buf, 3, data->perpendicularBounce, surface_type_count, dest->perpendicularBounce);
+			write_assets(zone, ASSET_TYPE_FX, pointer_run(data->projTrailEffect, data->projBeaconEffect), &dest->projTrailEffect);
+			dest->projIgnitionEffect = asset_reference(zone, ASSET_TYPE_FX, data->projIgnitionEffect);
+			write_sound(buf, data->projIgnitionSound, dest->projIgnitionSound);
+		}
 	}
 
-	template void weapon_layout::visit(const field_reader&);
-	template void weapon_layout::visit(const field_writer&);
-	template void weapon_layout::visit(const field_dumper&);
-	template void weapon_layout::visit(const field_parser&);
-	template void weapon_layout::visit(const field_dependencies&);
-	template void weapon_layout::visit(const field_preparer&);
+	void weapon_def::read(zone_reader& reader, WeaponCompleteDef* asset)
+	{
+		reader.push_stream(XFILE_BLOCK_VIRTUAL);
+		reader.read_string(asset->szInternalName);
+		reader.read_string(asset->szDisplayName);
+		reader.read_asset_array(ASSET_TYPE_XMODEL, asset->gunModel, model_count);
+		reader.read_asset_array(ASSET_TYPE_XMODEL, asset->unknown24, model_count);
+		reader.read_asset(ASSET_TYPE_XMODEL, asset->handModel);
+		reader.read_string(asset->lobWorldModelName);
+		reader.read_asset_array(ASSET_TYPE_XANIM, asset->szXAnimsRightHanded, xanim_count);
+		reader.read_asset_array(ASSET_TYPE_XANIM, asset->szXAnimsLeftHanded, xanim_count);
+		reader.read_script_string_array(asset->hideTags, hide_tag_count);
+		reader.read_asset_array(ASSET_TYPE_ATTACHMENT, asset->attachments, asset->numAttachments);
+		reader.read_asset_array(ASSET_TYPE_XANIM, asset->szXAnims, xanim_count);
+		read_overrides(reader, asset);
+		read_notetrack_maps(reader, asset);
+		reader.read_string(asset->szAdsrBaseSetting);
+		read_assets(reader, ASSET_TYPE_FX, pointer_run(asset->viewFlashEffect, asset->meleeMissEffect));
+		read_sounds(reader, pointer_run(asset->pickupSound, asset->unknownSound816));
+		reader.read_name_reference_array(asset->bounceSound, surface_type_count);
+		reader.read_name_reference_array(asset->rollingSound, surface_type_count);
+		read_assets(reader, ASSET_TYPE_FX, pointer_run(asset->viewShellEjectEffect, asset->viewMagEjectEffect));
+		read_assets(reader, ASSET_TYPE_MATERIAL, pointer_run(asset->reticleCenter, asset->reticleSide));
+		reader.read_asset_array(ASSET_TYPE_XMODEL, asset->worldModel, model_count);
+		reader.read_asset_array(ASSET_TYPE_XMODEL, asset->unknown912, model_count);
+		reader.read_asset(ASSET_TYPE_XMODEL, asset->worldClipModel);
+		reader.read_asset(ASSET_TYPE_XMODEL, asset->rocketModel);
+		read_assets(reader, ASSET_TYPE_MATERIAL, pointer_run(asset->hudIcon, asset->ammoCounterIcon));
+		reader.read_string(asset->szAmmoName);
+		reader.read_string(asset->szClipName);
+		reader.read_string(asset->szSharedAmmoCapName);
+		reader.read_asset(ASSET_TYPE_PHYSCOLLMAP, asset->physCollmap);
+		reader.read_asset(ASSET_TYPE_PHYSPRESET, asset->physPreset);
+		reader.read_string(asset->szUseHintString);
+		reader.read_string(asset->dropHintString);
+		reader.read_array(asset->locationDamageMultipliers, 3, location_damage_count);
+		reader.read_string(asset->fireRumble);
+		reader.read_string(asset->unknownRumble1040);
+		reader.read_string(asset->meleeImpactRumble);
+		read_assets(reader, ASSET_TYPE_TRACER, pointer_run(asset->tracerType, asset->unknownTracer1072));
+		reader.read_asset(ASSET_TYPE_LASER, asset->laserType);
+		read_assets(reader, ASSET_TYPE_BEAM, asset->beamType);
+		read_turret(reader, asset);
+		read_assets(reader, ASSET_TYPE_MATERIAL, pointer_run(asset->overlay.shader, asset->overlay.shaderEMPLowRes));
+		read_assets(reader, ASSET_TYPE_MATERIAL, pointer_run(asset->killIcon, asset->hudProximityWarningIcon));
+		read_projectile(reader, asset);
+
+		for (auto i = 0u; i < std::size(asset->accuracyGraphName); i++)
+		{
+			reader.read_string(asset->accuracyGraphName[i]);
+			reader.read_array(asset->accuracyGraphKnots[i], 3, asset->accuracyGraphKnotCount[i]);
+			reader.read_array(asset->originalAccuracyGraphKnots[i], 3, asset->accuracyGraphKnotCount[i]);
+		}
+
+		reader.read_string(asset->szScript);
+		reader.read_script_string(asset->knifeAttachTagOverride);
+		reader.read_script_string(asset->stowTag);
+		reader.read_script_string(asset->unknownTag3948);
+		reader.pop_stream();
+	}
+
+	void weapon_def::prepare(zone_buffer* buf, zone_memory* mem)
+	{
+		auto* data = this->asset_;
+		script_string_preparer prepare(buf);
+		prepare(data->hideTags, hide_tag_count);
+		for (auto i = 0; data->notetrackOverrides && i < data->numNotetrackOverrides; i++)
+		{
+			prepare(data->notetrackOverrides[i].notetrackSoundMapKeys, notetrack_sound_count);
+			prepare(data->notetrackOverrides[i].notetrackSoundMapValues, notetrack_sound_count);
+		}
+		prepare(data->notetrackSoundMapKeys, notetrack_sound_count);
+		prepare(data->notetrackSoundMapValues, notetrack_sound_count);
+		prepare(data->notetrackRumbleMapKeys, notetrack_map_count);
+		prepare(data->notetrackRumbleMapValues, notetrack_map_count);
+		prepare(data->notetrackFXMapKeys, notetrack_map_count);
+		prepare(data->notetrackFXMapTagValues, notetrack_map_count);
+		prepare(data->knifeAttachTagOverride);
+		prepare(data->stowTag);
+		prepare(data->unknownTag3948);
+	}
+
+	void weapon_def::load_depending(zone_base* zone)
+	{
+		auto* data = this->asset_;
+		add_dependencies(zone, ASSET_TYPE_XMODEL, data->gunModel, model_count);
+		add_dependencies(zone, ASSET_TYPE_XMODEL, data->unknown24, model_count);
+		add_dependency(zone, ASSET_TYPE_XMODEL, data->handModel);
+		add_dependencies(zone, ASSET_TYPE_XANIM, data->szXAnimsRightHanded, xanim_count);
+		add_dependencies(zone, ASSET_TYPE_XANIM, data->szXAnimsLeftHanded, xanim_count);
+		add_dependencies(zone, ASSET_TYPE_ATTACHMENT, data->attachments, data->numAttachments);
+		add_dependencies(zone, ASSET_TYPE_XANIM, data->szXAnims, xanim_count);
+
+		for (auto i = 0; data->animOverrides && i < data->numAnimOverrides; i++)
+		{
+			add_dependency(zone, ASSET_TYPE_XANIM, data->animOverrides[i].overrideAnim);
+			add_dependency(zone, ASSET_TYPE_XANIM, data->animOverrides[i].altmodeAnim);
+		}
+		for (auto i = 0; data->soundOverrides && i < data->numSoundOverrides; i++)
+		{
+			add_dependency(zone, ASSET_TYPE_SOUND, data->soundOverrides[i].overrideSound);
+			add_dependency(zone, ASSET_TYPE_SOUND, data->soundOverrides[i].altmodeSound);
+		}
+		for (auto i = 0; data->fxOverrides && i < data->numFXOverrides; i++)
+		{
+			add_dependency(zone, ASSET_TYPE_FX, data->fxOverrides[i].overrideFX);
+			add_dependency(zone, ASSET_TYPE_FX, data->fxOverrides[i].altmodeFX);
+		}
+
+		add_dependencies(zone, ASSET_TYPE_FX, data->notetrackFXMapValues, notetrack_map_count);
+		add_dependencies(zone, ASSET_TYPE_FX, pointer_run(data->viewFlashEffect, data->meleeMissEffect));
+		add_dependencies(zone, ASSET_TYPE_SOUND, pointer_run(data->pickupSound, data->unknownSound816));
+		add_dependencies(zone, ASSET_TYPE_SOUND, data->bounceSound, surface_type_count);
+		add_dependencies(zone, ASSET_TYPE_SOUND, data->rollingSound, surface_type_count);
+		add_dependencies(zone, ASSET_TYPE_FX, pointer_run(data->viewShellEjectEffect, data->viewMagEjectEffect));
+		add_dependencies(zone, ASSET_TYPE_MATERIAL, pointer_run(data->reticleCenter, data->reticleSide));
+		add_dependencies(zone, ASSET_TYPE_XMODEL, data->worldModel, model_count);
+		add_dependencies(zone, ASSET_TYPE_XMODEL, data->unknown912, model_count);
+		add_dependency(zone, ASSET_TYPE_XMODEL, data->worldClipModel);
+		add_dependency(zone, ASSET_TYPE_XMODEL, data->rocketModel);
+		add_dependencies(zone, ASSET_TYPE_MATERIAL, pointer_run(data->hudIcon, data->ammoCounterIcon));
+		add_dependency(zone, ASSET_TYPE_PHYSCOLLMAP, data->physCollmap);
+		add_dependency(zone, ASSET_TYPE_PHYSPRESET, data->physPreset);
+		add_dependencies(zone, ASSET_TYPE_TRACER, pointer_run(data->tracerType, data->unknownTracer1072));
+		add_dependency(zone, ASSET_TYPE_LASER, data->laserType);
+		add_dependencies(zone, ASSET_TYPE_BEAM, data->beamType);
+
+		add_dependency(zone, ASSET_TYPE_SOUND, data->turretOverheatSound);
+		add_dependency(zone, ASSET_TYPE_FX, data->turretOverheatEffect);
+		add_dependency(zone, ASSET_TYPE_SOUND, data->turretBarrelSpinMaxSnd);
+		add_dependencies(zone, ASSET_TYPE_SOUND, data->turretBarrelSpinUpSnd);
+		add_dependencies(zone, ASSET_TYPE_SOUND, data->turretBarrelSpinDownSnd);
+		add_dependency(zone, ASSET_TYPE_SOUND, data->missileConeSoundAlias);
+		add_dependency(zone, ASSET_TYPE_SOUND, data->missileConeSoundAliasAtBase);
+		add_dependency(zone, ASSET_TYPE_XMODEL, data->stowOffsetModel);
+		if (auto* settings = data->turretHydraulicSettings)
+		{
+			add_dependencies(zone, ASSET_TYPE_SOUND, pointer_run(settings->verticalSound, settings->horizontalStopSound));
+			add_dependencies(zone, ASSET_TYPE_SOUND, settings->movementSounds);
+		}
+
+		add_dependencies(zone, ASSET_TYPE_MATERIAL, pointer_run(data->overlay.shader, data->overlay.shaderEMPLowRes));
+		add_dependencies(zone, ASSET_TYPE_MATERIAL, pointer_run(data->killIcon, data->hudProximityWarningIcon));
+		add_dependency(zone, ASSET_TYPE_XMODEL, data->projectileModel);
+		add_dependencies(zone, ASSET_TYPE_FX, pointer_run(data->projExplosionEffect, data->unknownEffect2880));
+		add_dependencies(zone, ASSET_TYPE_SOUND, pointer_run(data->projExplosionSound, data->unknownSound2904));
+		add_dependencies(zone, ASSET_TYPE_FX, pointer_run(data->projTrailEffect, data->projBeaconEffect));
+		add_dependency(zone, ASSET_TYPE_FX, data->projIgnitionEffect);
+		add_dependency(zone, ASSET_TYPE_SOUND, data->projIgnitionSound);
+	}
+
+	void weapon_def::write(zone_base* zone, zone_buffer* buf)
+	{
+		auto* data = this->asset_;
+		auto* dest = buf->write(data);
+
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
+
+		dest->szInternalName = this->write_name(buf);
+		write_string(buf, data->szDisplayName, dest->szDisplayName);
+		write_asset_array(zone, buf, ASSET_TYPE_XMODEL, data->gunModel, model_count, dest->gunModel);
+		write_asset_array(zone, buf, ASSET_TYPE_XMODEL, data->unknown24, model_count, dest->unknown24);
+		dest->handModel = asset_reference(zone, ASSET_TYPE_XMODEL, data->handModel);
+		write_string(buf, data->lobWorldModelName, dest->lobWorldModelName);
+		write_asset_array(zone, buf, ASSET_TYPE_XANIM, data->szXAnimsRightHanded, xanim_count, dest->szXAnimsRightHanded);
+		write_asset_array(zone, buf, ASSET_TYPE_XANIM, data->szXAnimsLeftHanded, xanim_count, dest->szXAnimsLeftHanded);
+		write_array(buf, 3, data->hideTags, hide_tag_count, dest->hideTags);
+		write_asset_array(zone, buf, ASSET_TYPE_ATTACHMENT, data->attachments, data->numAttachments, dest->attachments);
+		write_asset_array(zone, buf, ASSET_TYPE_XANIM, data->szXAnims, xanim_count, dest->szXAnims);
+		write_overrides(zone, buf, data, dest);
+		write_notetrack_maps(zone, buf, data, dest);
+		write_string(buf, data->szAdsrBaseSetting, dest->szAdsrBaseSetting);
+		write_assets(zone, ASSET_TYPE_FX, pointer_run(data->viewFlashEffect, data->meleeMissEffect), &dest->viewFlashEffect);
+		write_sounds(buf, pointer_run(data->pickupSound, data->unknownSound816), &dest->pickupSound);
+		write_sound_array(buf, data->bounceSound, surface_type_count, dest->bounceSound);
+		write_sound_array(buf, data->rollingSound, surface_type_count, dest->rollingSound);
+		write_assets(zone, ASSET_TYPE_FX, pointer_run(data->viewShellEjectEffect, data->viewMagEjectEffect), &dest->viewShellEjectEffect);
+		write_assets(zone, ASSET_TYPE_MATERIAL, pointer_run(data->reticleCenter, data->reticleSide), &dest->reticleCenter);
+		write_asset_array(zone, buf, ASSET_TYPE_XMODEL, data->worldModel, model_count, dest->worldModel);
+		write_asset_array(zone, buf, ASSET_TYPE_XMODEL, data->unknown912, model_count, dest->unknown912);
+		dest->worldClipModel = asset_reference(zone, ASSET_TYPE_XMODEL, data->worldClipModel);
+		dest->rocketModel = asset_reference(zone, ASSET_TYPE_XMODEL, data->rocketModel);
+		write_assets(zone, ASSET_TYPE_MATERIAL, pointer_run(data->hudIcon, data->ammoCounterIcon), &dest->hudIcon);
+		write_string(buf, data->szAmmoName, dest->szAmmoName);
+		write_string(buf, data->szClipName, dest->szClipName);
+		write_string(buf, data->szSharedAmmoCapName, dest->szSharedAmmoCapName);
+		dest->physCollmap = asset_reference(zone, ASSET_TYPE_PHYSCOLLMAP, data->physCollmap);
+		dest->physPreset = asset_reference(zone, ASSET_TYPE_PHYSPRESET, data->physPreset);
+		write_string(buf, data->szUseHintString, dest->szUseHintString);
+		write_string(buf, data->dropHintString, dest->dropHintString);
+		write_array(buf, 3, data->locationDamageMultipliers, location_damage_count, dest->locationDamageMultipliers);
+		write_string(buf, data->fireRumble, dest->fireRumble);
+		write_string(buf, data->unknownRumble1040, dest->unknownRumble1040);
+		write_string(buf, data->meleeImpactRumble, dest->meleeImpactRumble);
+		write_assets(zone, ASSET_TYPE_TRACER, pointer_run(data->tracerType, data->unknownTracer1072), &dest->tracerType);
+		dest->laserType = asset_reference(zone, ASSET_TYPE_LASER, data->laserType);
+		write_assets(zone, ASSET_TYPE_BEAM, data->beamType, dest->beamType);
+		write_turret(zone, buf, data, dest);
+		write_assets(zone, ASSET_TYPE_MATERIAL, pointer_run(data->overlay.shader, data->overlay.shaderEMPLowRes), &dest->overlay.shader);
+		write_assets(zone, ASSET_TYPE_MATERIAL, pointer_run(data->killIcon, data->hudProximityWarningIcon), &dest->killIcon);
+		write_projectile(zone, buf, data, dest);
+
+		for (auto i = 0u; i < std::size(data->accuracyGraphName); i++)
+		{
+			write_string(buf, data->accuracyGraphName[i], dest->accuracyGraphName[i]);
+			write_array(buf, 3, data->accuracyGraphKnots[i], data->accuracyGraphKnotCount[i], dest->accuracyGraphKnots[i]);
+			write_array(buf, 3, data->originalAccuracyGraphKnots[i], data->accuracyGraphKnotCount[i], dest->originalAccuracyGraphKnots[i]);
+		}
+
+		write_string(buf, data->szScript, dest->szScript);
+
+		buf->pop_stream();
+	}
 
 	WeaponCompleteDef* weapon_def::parse(const std::string& name, zone_memory* mem)
 	{
 		auto file = filesystem::file(json_path(name));
 		if (!file.exists())
 		{
-			return field_layout_asset::parse(name, mem);
+			return nullptr;
 		}
 
 		ZONETOOL_INFO("Parsing weapon \"%s\"...", name.data());

@@ -2,13 +2,13 @@
 
 namespace zonetool::s2
 {
-	struct gfx_world_layout
+	class gfx_world : public asset_base<GfxWorld, ASSET_TYPE_GFXWORLD>
 	{
-		template <typename V>
-		static void visit(const V& w);
-	};
-
-	class gfx_world : public field_layout_asset<GfxWorld, ASSET_TYPE_GFXWORLD, gfx_world_layout>
-	{
+	public:
+		static void read(zone_reader& reader, GfxWorld* asset);
+		GfxWorld* parse(const std::string& name, zone_memory* mem) override;
+		void load_depending(zone_base* zone) override;
+		void write(zone_base* zone, zone_buffer* buf) override;
+		static void dump(GfxWorld* asset);
 	};
 }

@@ -97,10 +97,6 @@ namespace zonetool::s2
 
 	namespace
 	{
-		static_assert(offsetof(XAnimPartTrans, u) == delta_part_header_size);
-		static_assert(offsetof(XAnimDeltaPartQuat, u) == delta_part_header_size);
-		static_assert(offsetof(XAnimDeltaPartQuat2, u) == delta_part_header_size);
-
 		std::size_t trans_frame_size(const XAnimPartTrans* trans)
 		{
 			return trans->smallTrans ? sizeof(*trans->u.frames.frames._1) : sizeof(*trans->u.frames.frames._2);
@@ -167,7 +163,6 @@ namespace zonetool::s2
 			buf->clear_pointer(&dest_field);
 		}
 
-		// a delta part is dumped as one block: the zone layout, then the frames that the frames pointer selects
 		std::string pack_delta_trans(const XAnimPartTrans* trans, const std::size_t index_size)
 		{
 			std::string data(reinterpret_cast<const char*>(trans), delta_part_header_size);

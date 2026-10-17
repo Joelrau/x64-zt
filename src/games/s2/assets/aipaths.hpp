@@ -2,13 +2,13 @@
 
 namespace zonetool::s2
 {
-	struct path_data_layout
+	class path_data : public asset_base<PathData, ASSET_TYPE_PATHDATA>
 	{
-		template <typename V>
-		static void visit(const V& w);
-	};
-
-	class path_data : public field_layout_asset<PathData, ASSET_TYPE_PATHDATA, path_data_layout>
-	{
+	public:
+		static void read(zone_reader& reader, PathData* asset);
+		PathData* parse(const std::string& name, zone_memory* mem) override;
+		void prepare(zone_buffer* buf, zone_memory* mem) override;
+		void write(zone_base* zone, zone_buffer* buf) override;
+		static void dump(PathData* asset);
 	};
 }

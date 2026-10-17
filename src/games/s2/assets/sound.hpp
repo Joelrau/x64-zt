@@ -217,65 +217,13 @@ namespace zonetool::s2
 		}
 	};
 
-	struct equipment_snd_table_layout
+	class equipment_snd_table : public asset_base<EquipmentSndTable, ASSET_TYPE_EQUIPMENT_SND_TABLE>
 	{
-		template <typename V>
-		static void visit(const V& table)
-		{
-			const auto surface_count = table.template at<std::uint32_t>(8);
-			const auto equipment_count = table.template at<std::uint32_t>(12);
-			const auto sound_count = table.template at<std::uint32_t>(16);
-
-			const auto visit_sounds = [&](const auto& parent, const std::size_t offset)
-			{
-				parent.entries(offset, 16, sound_count, [](const auto& e, std::size_t)
-				{
-					e.sounds(0, 2);
-				});
-			};
-			const auto visit_sound_lists = [&](const std::size_t offset, const std::size_t count)
-			{
-				table.entries(offset, 8, count, [&](const auto& e, std::size_t)
-				{
-					visit_sounds(e, 0);
-				});
-			};
-			const auto visit_weights = [&](const std::size_t offset)
-			{
-				table.entries(offset, 8, surface_count, [&](const auto& surface, std::size_t)
-				{
-					surface.entries(0, 8, equipment_count, [&](const auto& e, std::size_t)
-					{
-						e.bytes(0, 3, 12ull * sound_count);
-					});
-				});
-			};
-
-			table.string(0);
-			table.entries(24, 8, surface_count, [](const auto& e, std::size_t)
-			{
-				e.string(0);
-			});
-			table.entries(32, 16, equipment_count, [](const auto& e, std::size_t)
-			{
-				e.string(0);
-			});
-			visit_weights(40);
-			visit_weights(48);
-			visit_sound_lists(56, surface_count);
-			visit_sound_lists(64, equipment_count);
-			visit_sounds(table, 72);
-			table.entries(80, 224, surface_count, [](const auto& e, std::size_t)
-			{
-				for (auto i = 0u; i < 14; i++)
-				{
-					e.sounds(i * 16, 2);
-				}
-			});
-		}
-	};
-
-	class equipment_snd_table : public field_layout_asset<EquipmentSndTable, ASSET_TYPE_EQUIPMENT_SND_TABLE, equipment_snd_table_layout>
-	{
+	public:
+		static void read(zone_reader& reader, EquipmentSndTable* asset);
+		EquipmentSndTable* parse(const std::string& name, zone_memory* mem) override;
+		void load_depending(zone_base* zone) override;
+		void write(zone_base* zone, zone_buffer* buf) override;
+		static void dump(EquipmentSndTable* asset);
 	};
 }

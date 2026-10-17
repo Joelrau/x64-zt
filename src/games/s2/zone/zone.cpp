@@ -12,9 +12,9 @@ namespace zonetool::s2
 
 	namespace
 	{
-		// stock common.ff holds one impactfx and one surfacefx table with an empty name
 		bool allows_empty_name(const std::int32_t type)
 		{
+			// no clue why but common.ff has empty tables
 			return type == ASSET_TYPE_IMPACT_FX || type == ASSET_TYPE_SURFACE_FX;
 		}
 
@@ -90,7 +90,7 @@ namespace zonetool::s2
 				{
 				case ASSET_TYPE_MATERIAL:
 				{
-					// Image index per texture (0x4DA970)
+					// image index per texture (0x4DA970)
 					const auto* material = static_cast<const Material*>(asset->pointer());
 					if (material->textureCount)
 					{
@@ -100,7 +100,7 @@ namespace zonetool::s2
 				}
 				case ASSET_TYPE_XMODEL_BASE:
 				{
-					// Index per lod surface (0x4DAAA0), sized from the count at 0x26C
+					// index per lod surface (using count at 0x26C) (0x4DAAA0)
 					const auto* base = static_cast<const XModelBase*>(asset->pointer());
 					if (!base->numLods)
 					{
@@ -120,7 +120,7 @@ namespace zonetool::s2
 				}
 				case ASSET_TYPE_XMODEL:
 				{
-					// Index per material for models that are not variants (0x4DAC30)
+					// index per material for models that are not variants (0x4DAC30)
 					const auto* model = static_cast<const XModel*>(asset->pointer());
 					if (!(model->flags & 0x200) && model->numMaterials)
 					{
