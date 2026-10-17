@@ -1,15 +1,6 @@
 [submodule "deps/GSL"]
 	path = deps/GSL
 	url = https://github.com/Microsoft/GSL.git
-[submodule "deps/asmjit"]
-	path = deps/asmjit
-	url = https://github.com/asmjit/asmjit.git
-[submodule "deps/udis86"]
-	path = deps/udis86
-	url = https://github.com/vmt/udis86.git
-[submodule "deps/minhook"]
-	path = deps/minhook
-	url = https://github.com/TsudaKageyu/minhook.git
 [submodule "deps/libtommath"]
 	path = deps/libtommath
 	url = https://github.com/libtom/libtommath.git
@@ -43,3 +34,6 @@
 [submodule "deps/stb"]
 	path = deps/stb
 	url = https://github.com/nothings/stb
+[submodule "deps/CascLib"]
+	path = deps/CascLib
+	url = https://github.com/ladislav-zezula/CascLib

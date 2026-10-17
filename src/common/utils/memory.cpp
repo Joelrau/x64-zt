@@ -1,5 +1,4 @@
 #include "memory.hpp"
-#include "nt.hpp"
 
 namespace utils
 {
@@ -115,62 +114,6 @@ namespace utils
 		}
 
 		return true;
-	}
-
-	bool memory::is_bad_read_ptr(const void* ptr)
-	{
-		MEMORY_BASIC_INFORMATION mbi = {};
-		if (VirtualQuery(ptr, &mbi, sizeof(mbi)))
-		{
-			const DWORD mask = (PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READ |
-				PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY);
-			auto b = !(mbi.Protect & mask);
-			// check the page is not a guard page
-			if (mbi.Protect & (PAGE_GUARD | PAGE_NOACCESS)) b = true;
-
-			return b;
-		}
-		return true;
-	}
-
-	bool memory::is_bad_code_ptr(const void* ptr)
-	{
-		MEMORY_BASIC_INFORMATION mbi = {};
-		if (VirtualQuery(ptr, &mbi, sizeof(mbi)))
-		{
-			const DWORD mask = (PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY);
-			auto b = !(mbi.Protect & mask);
-			// check the page is not a guard page
-			if (mbi.Protect & (PAGE_GUARD | PAGE_NOACCESS)) b = true;
-
-			return b;
-		}
-		return true;
-	}
-
-	bool memory::is_rdata_ptr(void* pointer)
-	{
-		const std::string rdata = ".rdata";
-		const auto pointer_lib = utils::nt::library::get_by_address(pointer);
-
-		for (const auto& section : pointer_lib.get_section_headers())
-		{
-			const auto size = sizeof(section->Name);
-			char name[size + 1];
-			name[size] = 0;
-			std::memcpy(name, section->Name, size);
-
-			if (name == rdata)
-			{
-				const auto target = size_t(pointer);
-				const size_t source_start = size_t(pointer_lib.get_ptr()) + section->PointerToRawData;
-				const size_t source_end = source_start + section->SizeOfRawData;
-
-				return target >= source_start && target <= source_end;
-			}
-		}
-
-		return false;
 	}
 
 	memory::allocator* memory::get_allocator()
