@@ -6,13 +6,11 @@
 
 namespace zonetool::h1::converter::s2::fxworld
 {
-	namespace target = zonetool::s2;
-
-	// TODO: glass is not converted, the donor world keeps the S2 runtime glass limits
+	// TODO glass is not converted
 	void dump(FxWorld* asset)
 	{
-		target::FxWorld new_asset{};
-		if (const auto donor = static_cast<target::FxWorld*>(techset::donor_zone().find_asset(target::ASSET_TYPE_FXWORLD)))
+		zonetool::s2::FxWorld new_asset{};
+		if (const auto donor = static_cast<zonetool::s2::FxWorld*>(techset::donor_zone().find_asset(zonetool::s2::ASSET_TYPE_FXWORLD)))
 		{
 			new_asset = *donor;
 		}
@@ -32,7 +30,7 @@ namespace zonetool::h1::converter::s2::fxworld
 		glass.initPieceStates = nullptr;
 		glass.lightingHandles = nullptr;
 
-		target::fx_world::dump(&new_asset);
+		zonetool::s2::fx_world::dump(&new_asset);
 		add_csv_row("fx_map", new_asset.name);
 	}
 }

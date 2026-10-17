@@ -28,6 +28,8 @@ namespace zonetool
 
 	struct XStreamFile
 	{
+		static constexpr std::uint16_t zone_pak_file_index = 96;
+
 		std::uint16_t isLocalized;
 		std::uint16_t fileIndex;
 		char pad[4];

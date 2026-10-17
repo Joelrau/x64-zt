@@ -13,20 +13,20 @@ namespace zonetool::s2
 				material.string(offsetof(ClipMaterial, name));
 			});
 
-			const auto brushes = w.sub(offsetof(ClipInfo, brushes));
-			brushes.entries(offsetof(ClipBrushInfo, sides), sizeof(cbrushside_t), brushes.template at<unsigned int>(offsetof(ClipBrushInfo, sideCount)), [](const auto& side, std::size_t)
+			const auto brush_tree = w.sub(offsetof(ClipInfo, bCollisionTree));
+			brush_tree.entries(offsetof(BrushesCollisionTree, leafbrushNodes), sizeof(cLeafBrushNode_s), brush_tree.template at<unsigned int>(offsetof(BrushesCollisionTree, leafbrushNodesCount)), [](const auto& node, std::size_t)
 			{
-				if (const auto index_count = side.template at<int>(offsetof(cbrushside_t, indexCount)); index_count > 0)
+				if (const auto brush_count = node.template at<int>(offsetof(cLeafBrushNode_s, leafBrushCount)); brush_count > 0)
 				{
-					side.array(S2_ARRAY_FIELD(cbrushside_t, indices), 3, index_count);
+					node.array(S2_ARRAY_FIELD(cLeafBrushNode_s, data.leaf.brushes), 3, brush_count);
 				}
 			});
-			brushes.array(S2_ARRAY_FIELD(ClipBrushInfo, indices), 3, brushes.template at<unsigned int>(offsetof(ClipBrushInfo, indexCount)));
+			brush_tree.array(S2_ARRAY_FIELD(BrushesCollisionTree, leafbrushes), 3, brush_tree.template at<unsigned int>(offsetof(BrushesCollisionTree, numLeafBrushes)));
 
-			const auto bounds = w.sub(offsetof(ClipInfo, brushBounds));
-			bounds.array(S2_ARRAY_FIELD(ClipBrushBounds, data), 15, bounds.template at<int>(offsetof(ClipBrushBounds, count)));
-			const auto leaf_brushes = w.sub(offsetof(ClipInfo, leafBrushes));
-			leaf_brushes.array(S2_ARRAY_FIELD(ClipLeafBrushes, data), 3, leaf_brushes.template at<unsigned short>(offsetof(ClipLeafBrushes, count)));
+			const auto patch_tree = w.sub(offsetof(ClipInfo, pCollisionTree));
+			patch_tree.array(S2_ARRAY_FIELD(PatchesCollisionTree, aabbTrees), 15, patch_tree.template at<int>(offsetof(PatchesCollisionTree, aabbTreeCount)));
+			const auto smodel_tree = w.sub(offsetof(ClipInfo, sCollisionTree));
+			smodel_tree.array(S2_ARRAY_FIELD(SModelsCollisionTree, smodelNodes), 3, smodel_tree.template at<unsigned short>(offsetof(SModelsCollisionTree, smodelNodeCount)));
 
 			w.assets(ASSET_TYPE_CLIPMAP_TRANSIENT_ZONE, offsetof(ClipInfo, trZones), std::size(ClipInfo{}.trZones));
 		}

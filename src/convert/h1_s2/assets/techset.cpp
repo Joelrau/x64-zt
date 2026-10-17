@@ -67,7 +67,6 @@ namespace zonetool::h1::converter::s2::techset
 			opaque,
 		};
 
-		// the S2 tools techsets are not drawn, so a drawn source must not map to them
 		const std::unordered_set<std::string_view> hidden_tokens
 		{
 			"tools",
@@ -168,7 +167,6 @@ namespace zonetool::h1::converter::s2::techset
 
 		bool lightmap_allowed(const techset_name& source, const techset_name& candidate)
 		{
-			// unlit world surfaces have lightmap index 31, an lmpb techset binds it (crash in PSSetShaderResources at 0x1408CC0F6)
 			return !has_any_token(source, {"unlit"}) || !has_any_token(candidate, {"lmpb"});
 		}
 
@@ -380,7 +378,6 @@ namespace zonetool::h1::converter::s2::techset
 			return get_draw_kind(candidate) == source_kind && candidate.prefix == source.prefix && lightmap_allowed(source, candidate);
 		};
 
-		// hidden techsets have only debug techniques, so a hidden source can use the hidden techset of another prefix
 		const auto hidden_same_geometry = [&](const techset_name& candidate)
 		{
 			return get_draw_kind(candidate) == draw_kind::hidden && is_model_prefix(candidate.prefix) == is_model_prefix(source.prefix);
@@ -396,10 +393,9 @@ namespace zonetool::h1::converter::s2::techset
 			return kind != draw_kind::hidden && kind != draw_kind::sky && candidate.prefix == source.prefix && lightmap_allowed(source, candidate);
 		};
 
-		using filter = std::function<bool(const techset_name&)>;
 		const auto filters = source_kind == draw_kind::hidden
-			? std::vector<filter>{same_kind_and_prefix, hidden_same_geometry, hidden}
-			: std::vector<filter>{same_kind_and_prefix, drawn_same_prefix};
+			? std::vector<std::function<bool(const techset_name&)>>{same_kind_and_prefix, hidden_same_geometry, hidden}
+			: std::vector<std::function<bool(const techset_name&)>>{same_kind_and_prefix, drawn_same_prefix};
 
 		for (const auto& accept : filters)
 		{

@@ -9,33 +9,7 @@ namespace zonetool::h1::converter::s2::xsurface
 {
 	namespace
 	{
-		constexpr std::uint16_t s2_surf_flag_vertcol_none = 0x2;
-		constexpr std::uint16_t s2_surf_flag_skinned = 0x4;
-		constexpr std::uint16_t s2_surf_flag_default = 0x20;
-
-		// the shared flags say which vertex streams are in data, the engine only creates buffers for those
-		constexpr std::uint16_t s2_shared_streams_default = 0x7E0;
-		constexpr std::uint16_t s2_shared_stream_skin = 0x1000;
-
-		constexpr std::uint32_t h1_bone_offset_scale = 64;
-		constexpr std::uint32_t max_blend_bones = 4;
-		constexpr std::uint32_t max_h1_blend_bones = 8;
-
-		// every stock S2 surface has 1 here, it is probably the uv set count
-		constexpr std::size_t s2_surface_uv_set_count_offset = 8;
-
-		// nonzero in every stock S2 zone, maybe the total triangle area?
-		constexpr std::size_t s2_surfs_area_offset = 0x48;
-
 		std::unordered_set<std::string> dumped_surfs;
-
-		struct skin_vertex
-		{
-			std::uint16_t bones[4];
-			std::uint16_t weights[3];
-			std::uint16_t count;
-		};
-		static_assert(sizeof(skin_vertex) == 16);
 
 		struct converted_surface
 		{
@@ -80,16 +54,12 @@ namespace zonetool::h1::converter::s2::xsurface
 
 		std::uint32_t pack_tangent(const GfxPackedVertex& vertex)
 		{
-			constexpr auto sign_bits = 0xC0000000u;
-			return (vertex.tangent.packed & ~sign_bits) | (vertex.binormalSign < 0.0f ? 0u : sign_bits);
+			return (vertex.tangent.packed & ~0xC0000000u) | (vertex.binormalSign < 0.0f ? 0u : 0xC0000000u);
 		}
 
-		// the lit model shaders scale light grid lighting by this, bits 0-17 are the octahedral bent normal (9 bits each),
-		// 18-24 the visibility and 25-31 the cone aperture, stock models mostly use full visibility and no aperture
 		std::uint32_t pack_sky_visibility(const std::uint32_t packed_normal)
 		{
-			constexpr auto full_visibility = 127u;
-
+			// bits 0-17 hold the octahedral bent normal, 18-24 the visibility and 25-31 the cone aperture
 			float n[3]{};
 			for (auto i = 0; i < 3; i++)
 			{
@@ -112,20 +82,23 @@ namespace zonetool::h1::converter::s2::xsurface
 				return static_cast<std::uint32_t>(std::lround(std::clamp(value * 0.5f + 0.5f, 0.0f, 1.0f) * 511.0f));
 			};
 
-			return quantize(x) | (quantize(y) << 9) | (full_visibility << 18);
+			return quantize(x) | (quantize(y) << 9) | (127u << 18);
 		}
 
-		std::vector<skin_vertex> convert_skin(const XSurface* surface)
+		std::vector<zonetool::s2::XSurfaceSkinVertex> convert_skin(const XSurface* surface)
 		{
-			std::vector<skin_vertex> result(surface->vertCount);
+			std::vector<zonetool::s2::XSurfaceSkinVertex> result(surface->vertCount);
+
 			const auto* blend = surface->blendVerts;
 			auto vertex = 0u;
-			for (auto bone_count = 1u; bone_count <= max_h1_blend_bones; bone_count++)
+			static const std::uint32_t h1_bone_offset_scale = 64;
+
+			for (auto bone_count = 1u; bone_count <= 8; bone_count++)
 			{
 				for (auto i = 0; i < surface->blendVertCounts[bone_count - 1] && vertex < result.size(); i++)
 				{
 					auto& skin = result[vertex++];
-					skin.count = static_cast<std::uint16_t>(std::min(bone_count, max_blend_bones));
+					skin.count = static_cast<std::uint16_t>(std::min(bone_count, 4u));
 					skin.bones[0] = static_cast<std::uint16_t>(blend[0] / h1_bone_offset_scale);
 					for (auto bone = 1u; bone < skin.count; bone++)
 					{
@@ -154,7 +127,7 @@ namespace zonetool::h1::converter::s2::xsurface
 			const auto tex_coords_offset = writer.take<std::uint32_t>(vert_count);
 			const auto normals_offset = writer.take<std::uint32_t>(vert_count);
 			const auto tangents_offset = writer.take<std::uint32_t>(vert_count);
-			const auto skin_offset = (surface->flags & SURF_FLAG_SKINNED) ? std::optional{writer.take<skin_vertex>(vert_count)} : std::nullopt;
+			const auto skin_offset = (surface->flags & SURF_FLAG_SKINNED) ? std::optional{writer.take<zonetool::s2::XSurfaceSkinVertex>(vert_count)} : std::nullopt;
 
 			std::memcpy(writer.at<Face>(faces_offset), surface->triIndices, surface->triCount * sizeof(Face));
 
@@ -177,7 +150,7 @@ namespace zonetool::h1::converter::s2::xsurface
 			if (skin_offset)
 			{
 				const auto skin = convert_skin(surface);
-				std::memcpy(writer.at<skin_vertex>(*skin_offset), skin.data(), vert_count * sizeof(skin_vertex));
+				std::memcpy(writer.at<zonetool::s2::XSurfaceSkinVertex>(*skin_offset), skin.data(), vert_count * sizeof(zonetool::s2::XSurfaceSkinVertex));
 			}
 
 			return std::move(writer.data());
@@ -240,20 +213,19 @@ namespace zonetool::h1::converter::s2::xsurface
 			const auto skinned = (surface->flags & SURF_FLAG_SKINNED) != 0;
 
 			std::memset(new_surface, 0, sizeof(zonetool::s2::XSurface));
-			new_surface->flags = s2_surf_flag_default
-				| (has_vertex_color(surface) ? 0 : s2_surf_flag_vertcol_none)
-				| (skinned ? s2_surf_flag_skinned : 0);
+			new_surface->flags = zonetool::s2::XSURFACE_FLAG_UNK_0x20
+				| (has_vertex_color(surface) ? 0 : zonetool::s2::XSURFACE_FLAG_VERTCOL_NONE)
+				| (skinned ? zonetool::s2::XSURFACE_FLAG_SKINNED : 0);
 			new_surface->vertCount = surface->vertCount;
 			new_surface->triCount = surface->triCount;
-			reinterpret_cast<std::uint8_t*>(new_surface)[s2_surface_uv_set_count_offset] = 1;
+			new_surface->uvSetCount = 1;
 
 			result.data = build_vertex_data(surface);
 			auto& shared = result.shared;
 			std::memset(&shared, 0, sizeof(shared));
-			const auto streams = static_cast<std::uint16_t>(s2_shared_streams_default | (skinned ? s2_shared_stream_skin : 0));
+			const auto streams = static_cast<std::uint16_t>(0x7E0 | (skinned ? 0x1000 : 0));
 			shared.flags = static_cast<std::uint8_t>(streams);
 			shared.__pad0 = static_cast<std::uint8_t>(streams >> 8);
-			// the game links shareds by hash, so equal hashes make every surface use the first one loaded
 			const auto hash = utils::cryptography::sha256::compute(result.data, true);
 			std::memcpy(shared.hash, hash.data(), sizeof(shared.hash));
 			shared.indexCount = surface->triCount * 3u;
@@ -317,7 +289,7 @@ namespace zonetool::h1::converter::s2::xsurface
 		new_asset.surfs = surfaces.data();
 		new_asset.numsurfs = asset->numsurfs;
 		std::memcpy(new_asset.partBits, asset->partBits, sizeof(new_asset.partBits));
-		std::memcpy(reinterpret_cast<std::uint8_t*>(&new_asset) + s2_surfs_area_offset, &area, sizeof(area));
+		new_asset.surfaceArea = area;
 
 		zonetool::s2::xmodel_surfs::dump(&new_asset);
 		dumped_surfs.insert(asset->name);

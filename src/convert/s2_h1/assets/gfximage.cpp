@@ -12,7 +12,6 @@ namespace zonetool::s2::converter::h1::gfximage
 {
 	namespace
 	{
-		// H1 stores no _SRGB formats
 		constexpr DXGI_FORMAT image_formats[]
 		{
 			DXGI_FORMAT_UNKNOWN,
@@ -59,13 +58,6 @@ namespace zonetool::s2::converter::h1::gfximage
 			DXGI_FORMAT_R32G32B32A32_UINT,
 		};
 
-		constexpr std::uint8_t s2_emissive_semantic = 17;
-		constexpr std::uint8_t s2_specular_semantic = 8;
-
-		// S2 specular maps pack R = reflectance, G = occlusion, B = gloss. H1 specular maps are BC3 with RGB = specular color, A = gloss.
-		// S2 dielectrics store R = 49, stock H1 dielectrics use specular color 32.
-		constexpr float specular_color_scale = 32.0f / 49.0f;
-		constexpr std::uint8_t h1_known_image_flags = 0x7F;
 
 		std::unordered_set<std::string> dumped_images;
 
@@ -98,7 +90,7 @@ namespace zonetool::s2::converter::h1::gfximage
 
 		zonetool::h1::IMG_TS convert_semantic(const std::uint8_t semantic)
 		{
-			if (semantic == s2_emissive_semantic)
+			if (semantic == TS_EMISSIVE_MAP)
 			{
 				return zonetool::h1::TS_COLOR_MAP;
 			}
@@ -113,7 +105,7 @@ namespace zonetool::s2::converter::h1::gfximage
 
 		bool is_packed_specular(const GfxImage* asset)
 		{
-			return asset->semantic == s2_specular_semantic && DirectX::IsCompressed(convert_format(asset->imageFormat));
+			return asset->semantic == TS_SPECULAR_MAP && DirectX::IsCompressed(convert_format(asset->imageFormat));
 		}
 
 		void unpack_specular(const DirectX::Image& image)
@@ -125,7 +117,7 @@ namespace zonetool::s2::converter::h1::gfximage
 				{
 					const auto pixel = row + x * 4;
 					const auto occlusion = pixel[1] / 255.0f;
-					const auto color = static_cast<std::uint8_t>(std::min(255.0f, pixel[0] * specular_color_scale * occlusion + 0.5f));
+					const auto color = static_cast<std::uint8_t>(std::min(255.0f, pixel[0] * (32.0f / 49.0f) * occlusion + 0.5f));
 					pixel[3] = pixel[2];
 					pixel[0] = color;
 					pixel[1] = color;
@@ -179,10 +171,6 @@ namespace zonetool::s2::converter::h1::gfximage
 		}
 
 		std::unordered_map<std::string, std::string> sky_cubes;
-
-		constexpr std::uint8_t sky_cube_category = 3;
-		constexpr std::uint8_t sky_cube_flags = 2;
-		constexpr std::size_t max_sky_face_size = 1024;
 
 		std::optional<DirectX::ScratchImage> read_sky_pixels(GfxImage* asset)
 		{
@@ -338,12 +326,11 @@ namespace zonetool::s2::converter::h1::gfximage
 			}
 		}
 
-		// S2 sky_c.hlsl rotates the view direction by skyRotationParms, then samples a 2D image with: uv = 0.5 + 0.5 * dir.xy / (1 + |0.080169 + 0.919831 * dir.z|). 
-		// H1 sky_cso_hss.hlsl samples a cube with the world direction
+		// S2 sky_c.hlsl rotates the view direction by skyRotationParms, then samples a 2D image with uv = 0.5 + 0.5 * dir.xy / (1 + |0.080169 + 0.919831 * dir.z|)
 		std::optional<DirectX::ScratchImage> make_sky_cube(const DirectX::ScratchImage& source, const float rotation_cos, const float rotation_sin)
 		{
 			const auto& image = *source.GetImage(0, 0, 0);
-			const auto face_size = std::min(max_sky_face_size, std::max<std::size_t>(1, image.width / 2));
+			const auto face_size = std::min<std::size_t>(1024, std::max<std::size_t>(1, image.width / 2));
 
 			DirectX::ScratchImage cube;
 			if (FAILED(cube.InitializeCube(DXGI_FORMAT_R32G32B32A32_FLOAT, face_size, face_size, 1, 1)))
@@ -384,7 +371,7 @@ namespace zonetool::s2::converter::h1::gfximage
 			image.mapType = static_cast<zonetool::h1::MapType>(asset->mapType);
 			image.semantic = convert_semantic(asset->semantic);
 			image.category = asset->category;
-			image.flags = asset->flags & h1_known_image_flags;
+			image.flags = asset->flags & 0x7F;
 			image.width = asset->width;
 			image.height = asset->height;
 			image.depth = asset->depth;
@@ -581,8 +568,8 @@ namespace zonetool::s2::converter::h1::gfximage
 		image.imageFormat = DXGI_FORMAT_BC6H_UF16;
 		image.mapType = zonetool::h1::MAPTYPE_CUBE;
 		image.semantic = zonetool::h1::TS_COLOR_MAP;
-		image.category = sky_cube_category;
-		image.flags = sky_cube_flags;
+		image.category = 3;
+		image.flags = 2;
 		image.width = static_cast<unsigned short>(cube->GetMetadata().width);
 		image.height = static_cast<unsigned short>(cube->GetMetadata().height);
 		image.depth = 1;

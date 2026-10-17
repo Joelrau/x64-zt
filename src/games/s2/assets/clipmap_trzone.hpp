@@ -8,8 +8,8 @@ namespace zonetool::s2
 		static void visit(const V& w)
 		{
 			w.string(offsetof(ClipMapTrZone, name));
-			visit_tree(w.sub(offsetof(ClipMapTrZone, tree)));
-			visit_mesh(w.sub(offsetof(ClipMapTrZone, mesh)));
+			visit_brushes(w.sub(offsetof(ClipMapTrZone, bCollisionData)));
+			visit_patches(w.sub(offsetof(ClipMapTrZone, pCollisionData)));
 
 			const auto models = w.sub(offsetof(ClipMapTrZone, staticModels));
 			models.entries(offsetof(ClipMapTrZoneStaticModels, models), sizeof(ClipMapTrZoneStaticModel),
@@ -20,31 +20,31 @@ namespace zonetool::s2
 		}
 
 		template <typename V>
-		static void visit_tree(const V& tree)
+		static void visit_brushes(const V& data)
 		{
-			const auto node_count = tree.template at<unsigned int>(offsetof(ClipMapTrZoneTree, nodeCount));
-			tree.array(S2_ARRAY_FIELD(ClipMapTrZoneTree, nodeRefs), 3, tree.template at<unsigned int>(offsetof(ClipMapTrZoneTree, nodeRefCount)));
-			tree.aligned_entries(offsetof(ClipMapTrZoneTree, nodes), 127, sizeof(ClipMapTrZoneNode), node_count, [](const auto& node, std::size_t)
+			const auto brush_count = data.template at<unsigned int>(offsetof(BrushesCollisionData, numBrushes));
+			data.array(S2_ARRAY_FIELD(BrushesCollisionData, brushSides), 3, data.template at<unsigned int>(offsetof(BrushesCollisionData, numBrushSides)));
+			data.aligned_entries(offsetof(BrushesCollisionData, brushes), 127, sizeof(cbrush_t), brush_count, [](const auto& brush, std::size_t)
 			{
-				node.bytes(offsetof(ClipMapTrZoneNode, data), 3, 8);
+				brush.bytes(offsetof(cbrush_t, sides), 3, sizeof(cbrushside_t));
 			});
-			tree.array(S2_ARRAY_FIELD(ClipMapTrZoneTree, bounds), 127, node_count);
-			tree.array(S2_ARRAY_FIELD(ClipMapTrZoneTree, nodeData), 7, node_count);
+			data.array(S2_ARRAY_FIELD(BrushesCollisionData, brushBounds), 127, brush_count);
+			data.array(S2_ARRAY_FIELD(BrushesCollisionData, brushContents), 7, brush_count);
 		}
 
 		template <typename V>
-		static void visit_mesh(const V& mesh)
+		static void visit_patches(const V& data)
 		{
 			const auto count = [&](const std::size_t offset)
 			{
-				return mesh.template at<unsigned int>(offset);
+				return data.template at<unsigned int>(offset);
 			};
-			const auto tri_count = count(offsetof(ClipMapTrZoneMesh, triCount));
-			mesh.array(S2_ARRAY_FIELD(ClipMapTrZoneMesh, verts), 3, count(offsetof(ClipMapTrZoneMesh, vertCount)));
-			mesh.array(S2_ARRAY_FIELD(ClipMapTrZoneMesh, triIndices), 1, 3 * tri_count);
-			mesh.bytes(offsetof(ClipMapTrZoneMesh, triEdgeIsWalkable), 0, ((3ull * tri_count + 31) >> 3) & ~3ull);
-			mesh.array(S2_ARRAY_FIELD(ClipMapTrZoneMesh, partitions), 3, count(offsetof(ClipMapTrZoneMesh, partitionCount)));
-			mesh.array(S2_ARRAY_FIELD(ClipMapTrZoneMesh, aabbs), 3, count(offsetof(ClipMapTrZoneMesh, aabbCount)));
+			const auto tri_count = count(offsetof(PatchesCollisionData, triCount));
+			data.array(S2_ARRAY_FIELD(PatchesCollisionData, verts), 3, count(offsetof(PatchesCollisionData, vertCount)));
+			data.array(S2_ARRAY_FIELD(PatchesCollisionData, triIndices), 1, 3 * tri_count);
+			data.bytes(offsetof(PatchesCollisionData, triEdgeIsWalkable), 0, ((3ull * tri_count + 31) >> 3) & ~3ull);
+			data.array(S2_ARRAY_FIELD(PatchesCollisionData, borders), 3, count(offsetof(PatchesCollisionData, borderCount)));
+			data.array(S2_ARRAY_FIELD(PatchesCollisionData, partitions), 3, count(offsetof(PatchesCollisionData, partitionCount)));
 		}
 	};
 

@@ -1,58 +1,52 @@
 #include <std_include.hpp>
 #include "comworld.hpp"
 
+#include "io/json_reflect.hpp"
+
 #define DUMP_JSON
 
 namespace zonetool::h1
 {
-#define PARSE_STRING(__field__) \
-	static_assert(std::is_same_v<decltype(asset->__field__), const char*>, "Field is not of type const char*"); \
-	!data[#__field__].is_null() && !data[#__field__].empty() ? asset->__field__ = mem->duplicate_string(data[#__field__].get<std::string>()) : asset->__field__ = nullptr;
-
-#define PARSE_FIELD(__field__) \
-	if (!data[#__field__].is_null()) asset->__field__ = data[#__field__].get<decltype(asset->__field__)>();
-
-#define PARSE_FIELD_ARR(__field__, __size__) \
-	if(!data[#__field__].is_null()) \
-	{ \
-		for (auto idx##__field__ = 0u; idx##__field__ < (unsigned int)__size__; idx##__field__++) \
-		{ \
-			asset->__field__[idx##__field__] = data[#__field__][idx##__field__].get<typename std::remove_reference<decltype(asset->__field__[idx##__field__])>::type>(); \
-		} \
-	}
-
-	void parse(ComPrimaryLight* asset, ordered_json& data, zone_memory* mem)
+	namespace
 	{
-		PARSE_FIELD(type);
-		PARSE_FIELD(canUseShadowMap);
-		PARSE_FIELD(physicallyBased);
-		PARSE_FIELD(exponent);
-		PARSE_FIELD(lightingState);
-		PARSE_FIELD_ARR(color, 3);
-		PARSE_FIELD_ARR(dir, 3);
-		PARSE_FIELD_ARR(up, 3);
-		PARSE_FIELD_ARR(origin, 3);
-		PARSE_FIELD_ARR(fadeOffset, 2);
-		PARSE_FIELD(bulbRadius);
-		PARSE_FIELD_ARR(bulbLength, 3);
-		PARSE_FIELD(radius);
-		PARSE_FIELD(cosHalfFovOuter);
-		PARSE_FIELD(cosHalfFovInner);
-		PARSE_FIELD(cosHalfFovExpanded);
-		PARSE_FIELD(rotationLimit);
-		PARSE_FIELD(translationLimit);
-		PARSE_FIELD(cucRotationOffsetRad);
-		PARSE_FIELD(cucRotationSpeedRad);
-		PARSE_FIELD_ARR(cucScrollVector, 2);
-		PARSE_FIELD_ARR(cucScaleVector, 2);
-		PARSE_FIELD_ARR(cucTransVector, 2);
-		PARSE_STRING(defName);
-	}
+		constexpr auto com_world_fields = glz::tuple
+		{
+			&ComWorld::isInUse,
+		};
 
-	void parse(ComPrimaryLightEnv* asset, ordered_json& data, zone_memory* mem)
-	{
-		PARSE_FIELD_ARR(primaryLightIndices, 4);
-		PARSE_FIELD(numIndices);
+		constexpr auto primary_light_fields = glz::tuple
+		{
+			&ComPrimaryLight::type,
+			&ComPrimaryLight::canUseShadowMap,
+			&ComPrimaryLight::physicallyBased,
+			&ComPrimaryLight::exponent,
+			&ComPrimaryLight::lightingState,
+			&ComPrimaryLight::color,
+			&ComPrimaryLight::dir,
+			&ComPrimaryLight::up,
+			&ComPrimaryLight::origin,
+			&ComPrimaryLight::fadeOffset,
+			&ComPrimaryLight::bulbRadius,
+			&ComPrimaryLight::bulbLength,
+			&ComPrimaryLight::radius,
+			&ComPrimaryLight::cosHalfFovOuter,
+			&ComPrimaryLight::cosHalfFovInner,
+			&ComPrimaryLight::cosHalfFovExpanded,
+			&ComPrimaryLight::rotationLimit,
+			&ComPrimaryLight::translationLimit,
+			&ComPrimaryLight::cucRotationOffsetRad,
+			&ComPrimaryLight::cucRotationSpeedRad,
+			&ComPrimaryLight::cucScrollVector,
+			&ComPrimaryLight::cucScaleVector,
+			&ComPrimaryLight::cucTransVector,
+			&ComPrimaryLight::defName,
+		};
+
+		constexpr auto primary_light_env_fields = glz::tuple
+		{
+			&ComPrimaryLightEnv::primaryLightIndices,
+			&ComPrimaryLightEnv::numIndices,
+		};
 	}
 
 	ComWorld* parse_json(const std::string& name, zone_memory* mem)
@@ -75,20 +69,20 @@ namespace zonetool::h1
 		auto asset = mem->allocate<ComWorld>();
 		asset->name = mem->duplicate_string(name);
 
-		PARSE_FIELD(isInUse);
+		json_reflect::read<com_world_fields>(data, *asset, mem);
 
 		asset->primaryLightCount = static_cast<unsigned int>(data["primaryLight"].size());
 		asset->primaryLights = mem->allocate<ComPrimaryLight>(asset->primaryLightCount);
 		for (auto i = 0u; i < asset->primaryLightCount; i++)
 		{
-			parse(&asset->primaryLights[i], data["primaryLight"][i], mem);
+			json_reflect::read<primary_light_fields>(data["primaryLight"][i], asset->primaryLights[i], mem);
 		}
 
 		asset->primaryLightEnvCount = static_cast<unsigned int>(data["primaryLightEnv"].size());
 		asset->primaryLightEnvs = mem->allocate<ComPrimaryLightEnv>(asset->primaryLightEnvCount);
 		for (auto i = 0u; i < asset->primaryLightEnvCount; i++)
 		{
-			parse(&asset->primaryLightEnvs[i], data["primaryLightEnv"][i], mem);
+			json_reflect::read<primary_light_env_fields>(data["primaryLightEnv"][i], asset->primaryLightEnvs[i], mem);
 		}
 
 		return asset;
@@ -214,55 +208,6 @@ namespace zonetool::h1
 		buf->pop_stream();
 	}
 
-#define DUMP_STRING(__field__) \
-	static_assert(std::is_same_v<decltype(asset->__field__), const char*>, "Field is not of type const char*"); \
-	asset->__field__ ? data[#__field__] = asset->__field__ : data[#__field__] = "";
-
-#define DUMP_FIELD(__field__) \
-	data[#__field__] = asset->__field__;
-
-#define DUMP_FIELD_ARR(__field__, __size__) \
-	for (auto idx##__field__ = 0u; idx##__field__ < (unsigned int)__size__; idx##__field__++) \
-	{ \
-		data[#__field__][idx##__field__] = asset->__field__[idx##__field__]; \
-	}
-
-	void dump(ComPrimaryLight* asset, ordered_json& data, std::uint32_t index)
-	{
-		data["primaryLightIndex"] = index;
-		DUMP_FIELD(type);
-		DUMP_FIELD(canUseShadowMap);
-		DUMP_FIELD(physicallyBased);
-		DUMP_FIELD(exponent);
-		DUMP_FIELD(lightingState);
-		DUMP_FIELD_ARR(color, 3);
-		DUMP_FIELD_ARR(dir, 3);
-		DUMP_FIELD_ARR(up, 3);
-		DUMP_FIELD_ARR(origin, 3);
-		DUMP_FIELD_ARR(fadeOffset, 2);
-		DUMP_FIELD(bulbRadius);
-		DUMP_FIELD_ARR(bulbLength, 3);
-		DUMP_FIELD(radius);
-		DUMP_FIELD(cosHalfFovOuter);
-		DUMP_FIELD(cosHalfFovInner);
-		DUMP_FIELD(cosHalfFovExpanded);
-		DUMP_FIELD(rotationLimit);
-		DUMP_FIELD(translationLimit);
-		DUMP_FIELD(cucRotationOffsetRad);
-		DUMP_FIELD(cucRotationSpeedRad);
-		DUMP_FIELD_ARR(cucScrollVector, 2);
-		DUMP_FIELD_ARR(cucScaleVector, 2);
-		DUMP_FIELD_ARR(cucTransVector, 2);
-		DUMP_STRING(defName);
-	}
-
-	void dump(ComPrimaryLightEnv* asset, ordered_json& data, std::uint32_t index)
-	{
-		data["envIndex"] = index;
-		DUMP_FIELD_ARR(primaryLightIndices, 4);
-		DUMP_FIELD(numIndices);
-	}
-
 	void dump_json(ComWorld* asset)
 	{
 		const auto path = asset->name + ".commap"s + ".json";
@@ -271,18 +216,20 @@ namespace zonetool::h1
 
 		ordered_json data;
 
-		DUMP_FIELD(isInUse);
+		json_reflect::write<com_world_fields>(data, *asset);
 
 		data["primaryLight"] = {};
 		for (auto i = 0u; i < asset->primaryLightCount; i++)
 		{
-			dump(&asset->primaryLights[i], data["primaryLight"][i], i);
+			data["primaryLight"][i]["primaryLightIndex"] = i;
+			json_reflect::write<primary_light_fields>(data["primaryLight"][i], asset->primaryLights[i]);
 		}
 
 		data["primaryLightEnv"] = {};
 		for (auto i = 0u; i < asset->primaryLightEnvCount; i++)
 		{
-			dump(&asset->primaryLightEnvs[i], data["primaryLightEnv"][i], i);
+			data["primaryLightEnv"][i]["envIndex"] = i;
+			json_reflect::write<primary_light_env_fields>(data["primaryLightEnv"][i], asset->primaryLightEnvs[i]);
 		}
 
 		auto str = data.dump(4);

@@ -1,6 +1,8 @@
 #include <std_include.hpp>
 #include "sound.hpp"
 
+#include "io/json_reflect.hpp"
+
 namespace zonetool::h1
 {
 	std::array<const char*, SND_VOLMOD_COUNT> volume_mod_groups =
@@ -274,33 +276,80 @@ namespace zonetool::h1
 		return -1;
 	}
 
-#define SOUND_DUMP_SUBASSET(entry) \
-	if (asset->entry) sound[#entry] = asset->entry->name;	\
-	else sound[#entry] = nullptr;
-#define SOUND_DUMP_STRING(entry) \
-	if (asset->entry) sound[#entry] = std::string(asset->entry); \
-	else sound[#entry] = nullptr;
-#define SOUND_DUMP_FIELD(entry) \
-	sound[#entry] = asset->entry;
+	namespace
+	{
+		constexpr auto alias_fields = glz::tuple
+		{
+			&snd_alias_t::aliasName,
+			&snd_alias_t::secondaryAliasName,
+			&snd_alias_t::chainAliasName,
+			&snd_alias_t::subtitle,
+			&snd_alias_t::squelchName,
+			json_reflect::manual("soundfile"),
+			json_reflect::manual("flags"),
+			&snd_alias_t::variationType,
+			&snd_alias_t::priority,
+			json_reflect::converted("dspBus", &snd_alias_t::dspBusIndex, sound::get_dsp_bus_name, sound::get_dsp_bus_index_from_name),
+			json_reflect::converted("volMod", &snd_alias_t::volModIndex, sound::get_vol_mod_name, sound::get_vol_mod_index_from_name),
+			&snd_alias_t::volMin,
+			&snd_alias_t::volMax,
+			&snd_alias_t::pitchMin,
+			&snd_alias_t::pitchMax,
+			&snd_alias_t::distMin,
+			&snd_alias_t::distMax,
+			&snd_alias_t::velocityMin,
+			&snd_alias_t::probability,
+			&snd_alias_t::sequence,
+			&snd_alias_t::startDelay,
+			&snd_alias_t::masterPriority,
+			&snd_alias_t::masterPercentage,
+			&snd_alias_t::slavePercentage,
+			&snd_alias_t::playbackPercentage,
+			&snd_alias_t::lfePercentage,
+			&snd_alias_t::centerPercentage,
+			&snd_alias_t::polyCount,
+			&snd_alias_t::polyGlobalCount,
+			&snd_alias_t::polyEntityType,
+			&snd_alias_t::polyGlobalType,
+			&snd_alias_t::polyClass,
+			&snd_alias_t::playCount,
+			&snd_alias_t::unk,
+			&snd_alias_t::envelopMin,
+			&snd_alias_t::envelopMax,
+			&snd_alias_t::wetMixOverride,
+			&snd_alias_t::focusPercentage,
+			&snd_alias_t::smartpanDistance2d,
+			&snd_alias_t::smartpanDistance3d,
+			&snd_alias_t::smartpanAttenuation3d,
+			&snd_alias_t::minSmartpan2dContribution,
+			&snd_alias_t::stereo3DAngle,
+			&snd_alias_t::stereo3DStart,
+			&snd_alias_t::stereo3DEnd,
+			&snd_alias_t::threshold,
+			&snd_alias_t::lockedLoopTime,
+			&snd_alias_t::sndContext,
+			&snd_alias_t::volumeFalloffCurve,
+			&snd_alias_t::lpfCurve,
+			&snd_alias_t::reverbSendCurve,
+			json_reflect::manual("speakerMap"),
+			&snd_alias_t::allowDoppler,
+			&snd_alias_t::dopplerPreset,
+		};
 
-#define SOUND_READ_SUBASSET(entry, __type__) \
-	if (!snddata[#entry].is_null()) { \
-		asset->entry = mem->allocate<__type__>(); \
-		asset->entry->name = mem->duplicate_string(snddata[#entry].get<std::string>().data()); }
-#define SOUND_READ_STRING(entry) \
-	if (!snddata[#entry].is_null()) { \
-		asset->entry = mem->duplicate_string(snddata[#entry].get<std::string>().data()); \
-	} else { asset->entry = nullptr; }
-#define SOUND_READ_FIELD(entry) \
-	asset->entry = snddata[#entry].get<decltype(asset->entry)>()
+		constexpr auto alias_list_fields = glz::tuple
+		{
+			&snd_alias_list_t::aliasName,
+			&snd_alias_list_t::count,
+			json_reflect::manual("head"),
+			json_reflect::counted(&snd_alias_list_t::contextList, &snd_alias_list_t::contextListCount),
+		};
+
+		constexpr json_reflect::options json_options{.strings = json_reflect::null_string::null, .assets = json_reflect::null_string::null};
+	}
 
 	void sound::json_parse_snd_alias(snd_alias_t* asset, nlohmann::json snddata, zone_memory* mem)
 	{
-		SOUND_READ_STRING(aliasName);
-		SOUND_READ_STRING(secondaryAliasName);
-		SOUND_READ_STRING(chainAliasName);
-		SOUND_READ_STRING(subtitle);
-		SOUND_READ_STRING(squelchName);
+		json_reflect::read<alias_fields>(snddata, *asset, mem, json_options);
 
 		asset->soundFile = mem->allocate<SoundFile>();
 		asset->soundFile->type = snddata["soundfile"]["type"].get<snd_alias_type_t>();
@@ -363,60 +412,6 @@ namespace zonetool::h1
 			asset->flags = snddata["flags"].get<int>();
 		}
 
-		SOUND_READ_FIELD(variationType);
-		SOUND_READ_FIELD(priority);
-		asset->dspBusIndex = get_dsp_bus_index_from_name(snddata["dspBus"].get<std::string>().data()); //SOUND_CHAR(dspBusIndex);
-		asset->volModIndex = get_vol_mod_index_from_name(snddata["volMod"].get<std::string>().data()); //SOUND_SHORT(volModIndex);
-		SOUND_READ_FIELD(volMin);
-		SOUND_READ_FIELD(volMax);
-		SOUND_READ_FIELD(pitchMin);
-		SOUND_READ_FIELD(pitchMax);
-		SOUND_READ_FIELD(distMin);
-		SOUND_READ_FIELD(distMax);
-		SOUND_READ_FIELD(velocityMin);
-		SOUND_READ_FIELD(probability);
-		SOUND_READ_FIELD(sequence);
-		SOUND_READ_FIELD(startDelay);
-
-		SOUND_READ_FIELD(masterPriority);
-		SOUND_READ_FIELD(masterPercentage);
-		SOUND_READ_FIELD(slavePercentage);
-		SOUND_READ_FIELD(playbackPercentage);
-
-		SOUND_READ_FIELD(lfePercentage);
-		SOUND_READ_FIELD(centerPercentage);
-
-		SOUND_READ_FIELD(polyCount);
-		SOUND_READ_FIELD(polyGlobalCount);
-		SOUND_READ_FIELD(polyEntityType);
-		SOUND_READ_FIELD(polyGlobalType);
-		SOUND_READ_FIELD(polyClass);
-		SOUND_READ_FIELD(playCount);
-		SOUND_READ_FIELD(unk);
-
-		SOUND_READ_FIELD(envelopMin);
-		SOUND_READ_FIELD(envelopMax);
-
-		SOUND_READ_FIELD(wetMixOverride);
-		SOUND_READ_FIELD(focusPercentage);
-
-		SOUND_READ_FIELD(smartpanDistance2d);
-		SOUND_READ_FIELD(smartpanDistance3d);
-		SOUND_READ_FIELD(smartpanAttenuation3d);
-		SOUND_READ_FIELD(minSmartpan2dContribution);
-
-		SOUND_READ_FIELD(stereo3DAngle);
-		SOUND_READ_FIELD(stereo3DStart);
-		SOUND_READ_FIELD(stereo3DEnd);
-
-		SOUND_READ_FIELD(threshold);
-		SOUND_READ_FIELD(lockedLoopTime);
-
-		SOUND_READ_SUBASSET(sndContext, SndContext);
-		SOUND_READ_SUBASSET(volumeFalloffCurve, SndCurve);
-		SOUND_READ_SUBASSET(lpfCurve, SndCurve);
-		SOUND_READ_SUBASSET(reverbSendCurve, SndCurve);
-
 		if (!snddata["speakerMap"].is_null())
 		{
 			asset->speakerMap = mem->allocate<SpeakerMap>();
@@ -464,9 +459,6 @@ namespace zonetool::h1
 				}
 			}
 		}
-
-		SOUND_READ_FIELD(allowDoppler);
-		SOUND_READ_SUBASSET(dopplerPreset, DopplerPreset);
 	}
 
 	snd_alias_list_t* sound::json_parse(const std::string& name, zone_memory* mem)
@@ -487,8 +479,7 @@ namespace zonetool::h1
 
 			snd_alias_list_t* asset = mem->allocate<snd_alias_list_t>();
 
-			SOUND_READ_STRING(aliasName);
-			SOUND_READ_FIELD(count);
+			json_reflect::read<alias_list_fields>(snddata, *asset, mem, json_options);
 
 			asset->head = mem->allocate<snd_alias_t>(asset->count);
 
@@ -496,19 +487,6 @@ namespace zonetool::h1
 			for (unsigned char i = 0; i < asset->count; i++)
 			{
 				json_parse_snd_alias(&asset->head[i], heads[i], mem);
-			}
-
-			auto context_list = snddata["contextList"];
-			if (context_list.is_array())
-			{
-				asset->contextListCount = static_cast<unsigned char>(context_list.size());
-				asset->contextList = mem->allocate<snd_alias_context_list>(asset->contextListCount);
-
-				for (unsigned char i = 0; i < asset->contextListCount; i++)
-				{
-					asset->contextList[i].aliasOffset = context_list[i]["aliasOffset"].get<unsigned char>();
-					asset->contextList[i].count = context_list[i]["count"].get<unsigned char>();
-				}
 			}
 
 			return asset;
@@ -835,11 +813,7 @@ namespace zonetool::h1
 
 	void sound::json_dump_snd_alias(ordered_json& sound, snd_alias_t* asset)
 	{
-		SOUND_DUMP_STRING(aliasName);
-		SOUND_DUMP_STRING(secondaryAliasName);
-		SOUND_DUMP_STRING(chainAliasName);
-		SOUND_DUMP_STRING(subtitle);
-		SOUND_DUMP_STRING(squelchName);
+		json_reflect::write<alias_fields>(sound, *asset, json_options);
 
 		// soundfile shit
 		if (asset->soundFile)
@@ -934,7 +908,6 @@ namespace zonetool::h1
 			}
 		}
 
-		//SOUND_DUMP_INT(flags);
 		SoundAliasFlags flags{};
 		flags.intValue = asset->flags;
 		sound["flags"]["looping"] = static_cast<int>(flags.packed.looping);
@@ -955,61 +928,6 @@ namespace zonetool::h1
 		sound["flags"]["type"] = static_cast<int>(flags.packed.type);
 		sound["flags"]["unused"] = static_cast<int>(flags.packed.unused);
 
-		SOUND_DUMP_FIELD(variationType);
-		SOUND_DUMP_FIELD(priority);
-		sound["dspBus"] = get_dsp_bus_name(asset->dspBusIndex); //SOUND_DUMP_CHAR(dspBusIndex);
-		sound["volMod"] = get_vol_mod_name(asset->volModIndex); //SOUND_DUMP_SHORT(volModIndex);
-		SOUND_DUMP_FIELD(volMin);
-		SOUND_DUMP_FIELD(volMax);
-		SOUND_DUMP_FIELD(pitchMin);
-		SOUND_DUMP_FIELD(pitchMax);
-		SOUND_DUMP_FIELD(distMin);
-		SOUND_DUMP_FIELD(distMax);
-		SOUND_DUMP_FIELD(velocityMin);
-		SOUND_DUMP_FIELD(probability);
-		SOUND_DUMP_FIELD(sequence);
-		SOUND_DUMP_FIELD(startDelay);
-
-		SOUND_DUMP_FIELD(masterPriority);
-		SOUND_DUMP_FIELD(masterPercentage);
-		SOUND_DUMP_FIELD(slavePercentage);
-		SOUND_DUMP_FIELD(playbackPercentage);
-
-		SOUND_DUMP_FIELD(lfePercentage);
-		SOUND_DUMP_FIELD(centerPercentage);
-
-		SOUND_DUMP_FIELD(polyCount);
-		SOUND_DUMP_FIELD(polyGlobalCount);
-		SOUND_DUMP_FIELD(polyEntityType);
-		SOUND_DUMP_FIELD(polyGlobalType);
-		SOUND_DUMP_FIELD(polyClass);
-		SOUND_DUMP_FIELD(playCount);
-		SOUND_DUMP_FIELD(unk);
-
-		SOUND_DUMP_FIELD(envelopMin);
-		SOUND_DUMP_FIELD(envelopMax);
-
-		SOUND_DUMP_FIELD(wetMixOverride);
-		SOUND_DUMP_FIELD(focusPercentage);
-
-		SOUND_DUMP_FIELD(smartpanDistance2d);
-		SOUND_DUMP_FIELD(smartpanDistance3d);
-		SOUND_DUMP_FIELD(smartpanAttenuation3d);
-		SOUND_DUMP_FIELD(minSmartpan2dContribution);
-
-		SOUND_DUMP_FIELD(stereo3DAngle);
-		SOUND_DUMP_FIELD(stereo3DStart);
-		SOUND_DUMP_FIELD(stereo3DEnd);
-
-		SOUND_DUMP_FIELD(threshold);
-		SOUND_DUMP_FIELD(lockedLoopTime);
-
-		SOUND_DUMP_SUBASSET(sndContext);
-		SOUND_DUMP_SUBASSET(volumeFalloffCurve);
-		SOUND_DUMP_SUBASSET(lpfCurve);
-		SOUND_DUMP_SUBASSET(reverbSendCurve);
-
-		sound["speakerMap"] = nullptr;
 		if (asset->speakerMap)
 		{
 			json speakerMap;
@@ -1048,9 +966,6 @@ namespace zonetool::h1
 
 			sound["speakerMap"] = speakerMap;
 		}
-
-		SOUND_DUMP_FIELD(allowDoppler);
-		SOUND_DUMP_SUBASSET(dopplerPreset);
 	}
 
 	void sound::json_dump(snd_alias_list_t* asset)
@@ -1058,23 +973,14 @@ namespace zonetool::h1
 		const auto path = "sounds\\"s + asset->name + ".json"s;
 
 		ordered_json sound;
-		ordered_json aliases;
-		ordered_json unknownArray;
 
-		SOUND_DUMP_STRING(aliasName);
-		SOUND_DUMP_FIELD(count);
+		json_reflect::write<alias_list_fields>(sound, *asset, json_options);
 
 		for (unsigned char i = 0; i < asset->count; i++)
 		{
 			ordered_json alias;
 			json_dump_snd_alias(alias, &asset->head[i]);
 			sound["head"][i] = alias;
-		}
-
-		for (unsigned char i = 0; i < asset->contextListCount; i++)
-		{
-			sound["contextList"][i]["aliasOffset"] = asset->contextList[i].aliasOffset;
-			sound["contextList"][i]["count"] = asset->contextList[i].count;
 		}
 
 		std::string assetstr = sound.dump(4);

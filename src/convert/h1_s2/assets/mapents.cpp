@@ -13,33 +13,6 @@ namespace zonetool::h1::converter::s2::mapents
 {
 	namespace
 	{
-		namespace target = zonetool::s2;
-
-		struct s2_trigger_model
-		{
-			std::uint64_t contents;
-			std::uint16_t hullCount;
-			std::uint16_t firstHull;
-			char __pad0[4];
-		};
-		static_assert(sizeof(s2_trigger_model) == sizeof(target::TriggerModel));
-
-		struct s2_trigger_hull
-		{
-			Bounds bounds;
-			std::uint64_t contents;
-			std::uint16_t slabCount;
-			std::uint16_t firstSlab;
-			char __pad0[4];
-		};
-		static_assert(sizeof(s2_trigger_hull) == sizeof(target::TriggerHull));
-		static_assert(sizeof(TriggerSlab) == sizeof(target::TriggerSlab));
-		static_assert(sizeof(ClientTriggerAabbNode) == sizeof(target::ClientTriggerAabbNode));
-		static_assert(sizeof(ClientTriggerBlendNode) == sizeof(target::ClientTriggerBlendNode));
-		static_assert(sizeof(SpawnPointEntityRecord) == sizeof(target::SpawnPointEntityRecord));
-		static_assert(sizeof(SplinePointRecordList) == sizeof(target::SplinePointRecordList));
-		static_assert(sizeof(SplinePointEntityRecord) == sizeof(target::SplinePointEntityRecord));
-
 		const xsk::gsc::h1::context& h1_context()
 		{
 			static const xsk::gsc::h1::context context{xsk::gsc::instance::server};
@@ -74,20 +47,20 @@ namespace zonetool::h1::converter::s2::mapents
 			return array;
 		}
 
-		void convert_client_triggers(const ClientTriggers& trigger, target::ClientTriggers& new_trigger, utils::memory::allocator& allocator)
+		void convert_client_triggers(const ClientTriggers& trigger, zonetool::s2::ClientTriggers& new_trigger, utils::memory::allocator& allocator)
 		{
 			new_trigger.trigger = convert_triggers(trigger.trigger, allocator);
 
 			const auto count = trigger.trigger.count;
 			new_trigger.numClientTriggerNodes = trigger.numClientTriggerNodes;
-			new_trigger.clientTriggerAabbTree = reinterpret_cast<target::ClientTriggerAabbNode*>(trigger.clientTriggerAabbTree);
+			new_trigger.clientTriggerAabbTree = reinterpret_cast<zonetool::s2::ClientTriggerAabbNode*>(trigger.clientTriggerAabbTree);
 			new_trigger.triggerStringLength = trigger.triggerStringLength;
 			new_trigger.triggerString = trigger.triggerString;
 			new_trigger.visionSetTriggers = widen_array(trigger.visionSetTriggers, count, allocator);
 			new_trigger.lightSetTriggers = widen_array(trigger.lightSetTriggers, count, allocator);
 			new_trigger.clutTriggers = widen_array(trigger.clutTriggers, count, allocator);
 			new_trigger.triggerType = trigger.triggerType;
-			new_trigger.origins = reinterpret_cast<target::vec3_t*>(trigger.origins);
+			new_trigger.origins = reinterpret_cast<zonetool::s2::vec3_t*>(trigger.origins);
 			new_trigger.scriptDelay = trigger.scriptDelay;
 			new_trigger.audioTriggers = trigger.audioTriggers;
 			new_trigger.blendLookup = trigger.blendLookup;
@@ -173,9 +146,9 @@ namespace zonetool::h1::converter::s2::mapents
 			return buffer;
 		}
 
-		target::MapEnts* convert(MapEnts* asset, utils::memory::allocator& allocator)
+		zonetool::s2::MapEnts* convert(MapEnts* asset, utils::memory::allocator& allocator)
 		{
-			const auto new_asset = allocator.allocate<target::MapEnts>();
+			const auto new_asset = allocator.allocate<zonetool::s2::MapEnts>();
 			new_asset->name = asset->name;
 
 			const auto entity_string = replace_entity_keys({asset->entityString, static_cast<std::size_t>(asset->numEntityChars)});
@@ -187,13 +160,13 @@ namespace zonetool::h1::converter::s2::mapents
 			convert_client_triggers(asset->clientTrigger, new_asset->clientTrigger, allocator);
 
 			new_asset->clientTriggerBlend.numClientTriggerBlendNodes = asset->clientTriggerBlend.numClientTriggerBlendNodes;
-			new_asset->clientTriggerBlend.blendNodes = reinterpret_cast<target::ClientTriggerBlendNode*>(asset->clientTriggerBlend.blendNodes);
+			new_asset->clientTriggerBlend.blendNodes = reinterpret_cast<zonetool::s2::ClientTriggerBlendNode*>(asset->clientTriggerBlend.blendNodes);
 
 			new_asset->spawnList.spawnsCount = asset->spawnList.spawnsCount;
-			new_asset->spawnList.spawns = reinterpret_cast<target::SpawnPointEntityRecord*>(asset->spawnList.spawns);
+			new_asset->spawnList.spawns = reinterpret_cast<zonetool::s2::SpawnPointEntityRecord*>(asset->spawnList.spawns);
 
 			new_asset->splineList.splineCount = asset->splineList.splineCount;
-			new_asset->splineList.splines = reinterpret_cast<target::SplinePointRecordList*>(asset->splineList.splines);
+			new_asset->splineList.splines = reinterpret_cast<zonetool::s2::SplinePointRecordList*>(asset->splineList.splines);
 			return new_asset;
 		}
 
@@ -202,8 +175,6 @@ namespace zonetool::h1::converter::s2::mapents
 			return ents_name.substr(0, ents_name.find(".d3dbsp"));
 		}
 
-		// TODO: H1 map scripts do not run on S2, this stub only calls the S2 map loader.
-		// S2 knows maps/mp/_load only by its script id 1155 (0x483), which gsc-tool has no name for.
 		void dump_map_script(const std::string& script_name)
 		{
 			std::string source =
@@ -229,7 +200,7 @@ namespace zonetool::h1::converter::s2::mapents
 
 			const auto compressed_stack = utils::compression::zlib::compress({reinterpret_cast<const char*>(stack.data), stack.size});
 
-			target::ScriptFile script{};
+			zonetool::s2::ScriptFile script{};
 			script.name = script_name.data();
 			script.compressedLen = static_cast<int>(compressed_stack.size());
 			script.len = static_cast<int>(stack.size);
@@ -237,24 +208,22 @@ namespace zonetool::h1::converter::s2::mapents
 			script.buffer = compressed_stack.data();
 			script.bytecode = reinterpret_cast<char*>(const_cast<std::uint8_t*>(bytecode.data));
 
-			target::scriptfile::dump(&script);
+			zonetool::s2::scriptfile::dump(&script);
 			add_csv_row("scriptfile", script_name);
 		}
 
-		// S2 needs all 24 ncs_<tag>_level assets in the map zone
 		void dump_level_net_const_strings()
 		{
-			for (const auto header : techset::donor_zone().find_assets(target::ASSET_TYPE_NET_CONST_STRINGS))
+			for (const auto header : techset::donor_zone().find_assets(zonetool::s2::ASSET_TYPE_NET_CONST_STRINGS))
 			{
-				auto asset = *static_cast<target::NetConstStrings*>(header);
+				auto asset = *static_cast<zonetool::s2::NetConstStrings*>(header);
 				asset.entryCount = 0;
 				asset.stringList = nullptr;
-				target::net_const_strings::dump(&asset);
+				zonetool::s2::net_const_strings::dump(&asset);
 				add_csv_row("netconststrings", asset.name);
 			}
 		}
 
-		// TODO: the sun, vision, lightset and clut settings come from the donor map, they do not match the source map
 		void dump_donor_map_settings(const std::string& map_name)
 		{
 			utils::memory::allocator allocator;
@@ -265,28 +234,28 @@ namespace zonetool::h1::converter::s2::mapents
 				return allocator.duplicate_string(utils::string::replace(name, donor_name, map_name));
 			};
 
-			for (const auto header : zone.find_assets(target::ASSET_TYPE_RAWFILE))
+			for (const auto header : zone.find_assets(zonetool::s2::ASSET_TYPE_RAWFILE))
 			{
-				auto asset = *static_cast<target::RawFile*>(header);
+				auto asset = *static_cast<zonetool::s2::RawFile*>(header);
 				const std::string_view name = asset.name;
 				if (name.starts_with("sun/" + donor_name) || name.starts_with("vision/" + donor_name))
 				{
 					asset.name = rename(asset.name);
-					target::rawfile::dump(&asset);
+					zonetool::s2::rawfile::dump(&asset);
 					add_csv_row("rawfile", asset.name);
 				}
 			}
 
-			for (const auto header : zone.find_assets(target::ASSET_TYPE_STRINGTABLE))
+			for (const auto header : zone.find_assets(zonetool::s2::ASSET_TYPE_STRINGTABLE))
 			{
-				auto asset = *static_cast<target::StringTable*>(header);
+				auto asset = *static_cast<zonetool::s2::StringTable*>(header);
 				if (asset.name != "maps/createart/" + donor_name + "_lightsets_hdr.csv")
 				{
 					continue;
 				}
 
 				const auto count = asset.rowCount * asset.columnCount;
-				const auto values = allocator.allocate_array<target::StringTableCell>(count);
+				const auto values = allocator.allocate_array<zonetool::s2::StringTableCell>(count);
 				for (auto i = 0; i < count; i++)
 				{
 					values[i] = asset.values[i];
@@ -298,59 +267,55 @@ namespace zonetool::h1::converter::s2::mapents
 
 				asset.name = rename(asset.name);
 				asset.values = values;
-				target::string_table::dump(&asset);
+				zonetool::s2::string_table::dump(&asset);
 				add_csv_row("stringtable", asset.name);
 			}
 
-			for (const auto header : zone.find_assets(target::ASSET_TYPE_CLUT))
+			for (const auto header : zone.find_assets(zonetool::s2::ASSET_TYPE_CLUT))
 			{
-				auto asset = *static_cast<target::Clut*>(header);
+				auto asset = *static_cast<zonetool::s2::Clut*>(header);
 				if (asset.image && asset.image->name)
 				{
 					const auto is_global = zone.is_global_image(asset.image->name);
 					if (!is_global)
 					{
 						db_scope _(zone.db());
-						target::gfx_image::dump(asset.image);
+						zonetool::s2::gfx_image::dump(asset.image);
 					}
 					add_csv_row("image", asset.image->name, is_global);
 				}
 
 				asset.name = rename(asset.name);
-				target::clut::dump(&asset);
+				zonetool::s2::clut::dump(&asset);
 				add_csv_row("clut", asset.name);
 			}
 		}
 	}
 
-	target::MapTriggers convert_triggers(const MapTriggers& trigger, utils::memory::allocator& allocator)
+	zonetool::s2::MapTriggers convert_triggers(const MapTriggers& trigger, utils::memory::allocator& allocator)
 	{
-		target::MapTriggers new_trigger{};
+		zonetool::s2::MapTriggers new_trigger{};
 		new_trigger.count = trigger.count;
-		const auto models = allocate_zeroed<s2_trigger_model>(allocator, trigger.count);
+		new_trigger.models = allocate_zeroed<zonetool::s2::TriggerModel>(allocator, trigger.count);
 		for (auto i = 0u; i < trigger.count; i++)
 		{
-			models[i].contents = static_cast<std::uint32_t>(trigger.models[i].contents);
-			models[i].hullCount = trigger.models[i].hullCount;
-			models[i].firstHull = trigger.models[i].firstHull;
+			new_trigger.models[i].contents = static_cast<std::uint32_t>(trigger.models[i].contents);
+			new_trigger.models[i].hullCount = trigger.models[i].hullCount;
+			new_trigger.models[i].firstHull = trigger.models[i].firstHull;
 		}
-
-		new_trigger.models = reinterpret_cast<target::TriggerModel*>(models);
 
 		new_trigger.hullCount = trigger.hullCount;
-		const auto hulls = allocate_zeroed<s2_trigger_hull>(allocator, trigger.hullCount);
+		new_trigger.hulls = allocate_zeroed<zonetool::s2::TriggerHull>(allocator, trigger.hullCount);
 		for (auto i = 0u; i < trigger.hullCount; i++)
 		{
-			hulls[i].bounds = trigger.hulls[i].bounds;
-			hulls[i].contents = static_cast<std::uint32_t>(trigger.hulls[i].contents);
-			hulls[i].slabCount = trigger.hulls[i].slabCount;
-			hulls[i].firstSlab = trigger.hulls[i].firstSlab;
+			new_trigger.hulls[i].bounds = std::bit_cast<zonetool::s2::Bounds>(trigger.hulls[i].bounds);
+			new_trigger.hulls[i].contents = static_cast<std::uint32_t>(trigger.hulls[i].contents);
+			new_trigger.hulls[i].slabCount = trigger.hulls[i].slabCount;
+			new_trigger.hulls[i].firstSlab = trigger.hulls[i].firstSlab;
 		}
 
-		new_trigger.hulls = reinterpret_cast<target::TriggerHull*>(hulls);
-
 		new_trigger.slabCount = trigger.slabCount;
-		new_trigger.slabs = reinterpret_cast<target::TriggerSlab*>(trigger.slabs);
+		new_trigger.slabs = reinterpret_cast<zonetool::s2::TriggerSlab*>(trigger.slabs);
 		return new_trigger;
 	}
 
@@ -358,11 +323,13 @@ namespace zonetool::h1::converter::s2::mapents
 	{
 		utils::memory::allocator allocator;
 		const auto new_asset = convert(asset, allocator);
-		target::map_ents::dump(new_asset);
+		zonetool::s2::map_ents::dump(new_asset);
 		add_csv_row("map_ents", new_asset->name);
 		const auto script_name = map_script_name(new_asset->name);
 		dump_map_script(script_name);
 		dump_level_net_const_strings();
+
+		// TODO remove this and port actual values, this is meme
 		dump_donor_map_settings(std::filesystem::path(script_name).filename().string());
 	}
 }

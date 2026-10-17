@@ -1,8 +1,19 @@
 #include <std_include.hpp>
 #include "netconststrings.hpp"
 
+#include "io/json_reflect.hpp"
+
 namespace zonetool::iw7
 {
+	namespace
+	{
+		constexpr auto net_const_strings_fields = glz::tuple
+		{
+			&NetConstStrings::stringType,
+			&NetConstStrings::sourceType,
+		};
+	}
+
 	NetConstStrings* net_const_strings::parse(std::string name, zone_memory* mem)
 	{
 		const auto path = "netconststrings\\"s + name + ".json"s;
@@ -22,17 +33,8 @@ namespace zonetool::iw7
 			auto data = json::parse(bytes);
 
 			asset->name = mem->duplicate_string(name);
-			asset->stringType = data["stringType"].get<NetConstStringType>();
-			asset->sourceType = data["sourceType"].get<NetConstStringSource>();
-			asset->entryCount = static_cast<unsigned int>(data["stringList"].size());
-			if (asset->entryCount)
-			{
-				asset->stringList = mem->allocate<const char*>(asset->entryCount);
-				for (unsigned int i = 0; i < asset->entryCount; i++)
-				{
-					asset->stringList[i] = mem->duplicate_string(data["stringList"][i].get<std::string>());
-				}
-			}
+			json_reflect::read<net_const_strings_fields>(data, *asset, mem);
+			json_reflect::read_array(data["stringList"], asset->stringList, asset->entryCount, mem);
 			
 			return asset;
 		}
@@ -124,13 +126,8 @@ namespace zonetool::iw7
 
 		ordered_json j;
 
-		j["stringType"] = asset->stringType;
-		j["sourceType"] = asset->sourceType;
-		j["stringList"] = {};
-		for (unsigned int i = 0; i < asset->entryCount; i++)
-		{
-			j["stringList"][i] = asset->stringList[i];
-		}
+		json_reflect::write<net_const_strings_fields>(j, *asset);
+		json_reflect::write_array(j["stringList"], asset->stringList, asset->entryCount);
 
 		auto str = j.dump(4);
 

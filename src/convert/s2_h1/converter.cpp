@@ -100,8 +100,7 @@ namespace zonetool::s2::converter::h1
 
 	std::uint32_t convert_surface_flags(const std::uint32_t s2_flags)
 	{
-		constexpr auto type_mask = 0x3Fu << 20;
-		return (s2_flags & ~type_mask) | (convert_surface_type(s2_flags >> 20) << 20);
+		return (s2_flags & ~(0x3Fu << 20)) | (convert_surface_type(s2_flags >> 20) << 20);
 	}
 
 	void add_csv_row(const std::string_view type, const std::string_view name, const bool referenced)

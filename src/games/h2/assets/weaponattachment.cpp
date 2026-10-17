@@ -1,6 +1,8 @@
 #include <std_include.hpp>
 #include "weaponattachment.hpp"
 
+#include "io/json_reflect.hpp"
+
 namespace zonetool::h2
 {
 	namespace
@@ -911,6 +913,34 @@ namespace zonetool::h2
 				}
 			}
 		} _;
+
+		constexpr auto attachment_fields = glz::tuple
+		{
+			json_reflect::renamed("internalName", &WeaponAttachment::szInternalName),
+			json_reflect::renamed("displayName", &WeaponAttachment::szDisplayName),
+			&WeaponAttachment::type,
+			&WeaponAttachment::weaponType,
+			json_reflect::renamed("weaponClass", &WeaponAttachment::weapClass),
+			&WeaponAttachment::greebleType,
+			json_reflect::counted(&WeaponAttachment::worldModels, 2),
+			json_reflect::counted(&WeaponAttachment::viewModels, 2),
+			json_reflect::counted(&WeaponAttachment::reticleViewModels, 64),
+			json_reflect::counted(&WeaponAttachment::bounceSounds, 53),
+			json_reflect::counted(&WeaponAttachment::rollingSounds, 53),
+			json_reflect::nested(&WeaponAttachment::chargeInfo),
+			json_reflect::nested(&WeaponAttachment::hybridSettings),
+			json_reflect::manual("hideTags"),
+			json_reflect::manual("showTags"),
+			json_reflect::manual("fields"),
+			&WeaponAttachment::isAlternateAmmo,
+			&WeaponAttachment::hideIronSightsWithThisAttachment,
+			&WeaponAttachment::showMasterRail,
+			&WeaponAttachment::showSideRail,
+			&WeaponAttachment::shareAmmoWithAlt,
+			&WeaponAttachment::knifeAlwaysAttached,
+			&WeaponAttachment::riotShield,
+			&WeaponAttachment::automaticAttachment,
+		};
 	}
 
 	void weapon_attachment::add_script_string(scr_string_t* ptr, const char* str)
@@ -937,77 +967,6 @@ namespace zonetool::h2
 		return nullptr;
 	}
 
-#define ATTACHMENT_READ_FIELD(__type__, __field__) \
-	if(!data[#__field__].is_null()) \
-	{ \
-		attachment->__field__ = data[#__field__].get<__type__>(); \
-	}
-
-#define ATTACHMENT_READ_FIELD_RENAME(__type__, __field__, __name__) \
-	if(!data[__name__].is_null()) \
-	{ \
-		attachment->__field__ = data[__name__].get<__type__>(); \
-	}
-
-#define ATTACHMENT_READ_ASSET_ARR(__type__, __field__, __size__, __optional__) \
-	if (!data[#__field__].is_null()) \
-	{ \
-		attachment->__field__ = mem->allocate<typename std::remove_reference<decltype(*attachment->__field__)>::type>(__size__); \
-		for (auto idx##__field__ = 0; idx##__field__ < __size__; idx##__field__++) \
-		{ \
-			auto asset##__field__ = data[#__field__][idx##__field__].get<std::string>(); \
-			if (asset##__field__.empty()) \
-			{ \
-				attachment->__field__[idx##__field__] = nullptr; \
-			} \
-			else \
-			{ \
-				attachment->__field__[idx##__field__] = mem->manual_allocate<typename std::remove_reference<decltype(*attachment->__field__[idx##__field__])>::type>(sizeof(const char*)); \
-				attachment->__field__[idx##__field__]->name = mem->duplicate_string(asset##__field__); \
-			} \
-		} \
-	} \
-	else \
-	{ \
-		if (!__optional__) \
-		{ \
-			attachment->__field__ = mem->allocate<typename std::remove_reference<decltype(*attachment->__field__)>::type>(__size__); \
-		} \
-	} \
-
-	void parse_charge_info(AttChargeInfo* attachment, ordered_json& data, zone_memory* mem)
-	{
-		ATTACHMENT_READ_FIELD(float, minChargeTime);
-		ATTACHMENT_READ_FIELD(float, overChargeTime);
-		ATTACHMENT_READ_FIELD(float, timePerChargeShot);
-		ATTACHMENT_READ_FIELD(int, maxChargeShots);
-		ATTACHMENT_READ_FIELD(float, minChargeAngle);
-		ATTACHMENT_READ_FIELD(float, maxChargeAngle);
-		ATTACHMENT_READ_FIELD(bool, autoFireOnMaxCharge);
-	}
-
-	void parse_hybrid_settings(AttHybridSettings* attachment, ordered_json& data, zone_memory* mem)
-	{
-		ATTACHMENT_READ_FIELD(float, adsSpread);
-		ATTACHMENT_READ_FIELD(float, adsAimPitch);
-		ATTACHMENT_READ_FIELD(float, adsTransInTime);
-		ATTACHMENT_READ_FIELD(float, adsTransInFromSprintTime);
-		ATTACHMENT_READ_FIELD(float, adsTransOutTime);
-		ATTACHMENT_READ_FIELD(int, adsReloadTransTime);
-		ATTACHMENT_READ_FIELD(float, adsCrosshairInFrac);
-		ATTACHMENT_READ_FIELD(float, adsCrosshairOutFrac);
-		ATTACHMENT_READ_FIELD(float, adsZoomFov);
-		ATTACHMENT_READ_FIELD(float, adsZoomInFrac);
-		ATTACHMENT_READ_FIELD(float, adsZoomOutFrac);
-		ATTACHMENT_READ_FIELD(float, adsFovLerpInTime);
-		ATTACHMENT_READ_FIELD(float, adsFovLerpOutTime);
-		ATTACHMENT_READ_FIELD(float, adsBobFactor);
-		ATTACHMENT_READ_FIELD(float, adsViewBobMult);
-		ATTACHMENT_READ_FIELD(float, adsViewErrorMin);
-		ATTACHMENT_READ_FIELD(float, adsViewErrorMax);
-		ATTACHMENT_READ_FIELD(float, adsFireAnimFrac);
-	}
-
 	WeaponAttachment* weapon_attachment::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = "attachments\\"s + name + ".json"s;
@@ -1028,47 +987,22 @@ namespace zonetool::h2
 		ordered_json data = json::parse(bytes);
 
 		auto* attachment = mem->allocate<WeaponAttachment>();
+		json_reflect::read<attachment_fields>(data, *attachment, mem);
 
-		if (!data["internalName"].is_null())
+		// v1 never leaves the model arrays null
+		if (!attachment->worldModels)
 		{
-			attachment->szInternalName = mem->duplicate_string(data["internalName"].get<std::string>());
+			attachment->worldModels = mem->allocate<XModel*>(2);
 		}
 
-		if (!data["displayName"].is_null())
+		if (!attachment->viewModels)
 		{
-			attachment->szDisplayName = mem->duplicate_string(data["displayName"].get<std::string>());
+			attachment->viewModels = mem->allocate<XModel*>(2);
 		}
 
-		ATTACHMENT_READ_FIELD(AttachmentType, type);
-		ATTACHMENT_READ_FIELD_RENAME(weapType_t, weaponType, "weaponType");
-		ATTACHMENT_READ_FIELD_RENAME(weapClass_t, weapClass, "weaponClass");
-		ATTACHMENT_READ_FIELD_RENAME(weapGreebleType_t, greebleType, "greebleType");
-
-		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_XMODEL, worldModels, 2, false);
-		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_XMODEL, viewModels, 2, false);
-		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_XMODEL, reticleViewModels, 64, false);
-
-		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_SOUND, bounceSounds, 53, true);
-		ATTACHMENT_READ_ASSET_ARR(ASSET_TYPE_SOUND, rollingSounds, 53, true);
-
-		if (!data["chargeInfo"].is_null())
+		if (!attachment->reticleViewModels)
 		{
-			attachment->chargeInfo = mem->allocate<AttChargeInfo>();
-			parse_charge_info(attachment->chargeInfo, data["chargeInfo"], mem);
-		}
-		else
-		{
-			attachment->chargeInfo = nullptr;
-		}
-
-		if (!data["hybridSettings"].is_null())
-		{
-			attachment->hybridSettings = mem->allocate<AttHybridSettings>();
-			parse_hybrid_settings(attachment->hybridSettings, data["hybridSettings"], mem);
-		}
-		else
-		{
-			attachment->hybridSettings = nullptr;
+			attachment->reticleViewModels = mem->allocate<XModel*>(64);
 		}
 
 		attachment->hideTags = mem->allocate<scr_string_t>(4);
@@ -1182,25 +1116,6 @@ namespace zonetool::h2
 				}
 			}
 		}
-		else
-		{
-			attachment->fieldOffsets = nullptr;
-			attachment->fields = nullptr;
-			attachment->numFields = 0;
-		}
-
-		//ATTACHMENT_READ_FIELD(int, loadIndex); // runtime data, most likely
-
-		//ATTACHMENT_READ_FIELD(int, unused1);
-		ATTACHMENT_READ_FIELD(bool, isAlternateAmmo);
-		ATTACHMENT_READ_FIELD(bool, hideIronSightsWithThisAttachment);
-		ATTACHMENT_READ_FIELD(bool, showMasterRail);
-		ATTACHMENT_READ_FIELD(bool, showSideRail);
-		ATTACHMENT_READ_FIELD(bool, shareAmmoWithAlt);
-		ATTACHMENT_READ_FIELD(bool, knifeAlwaysAttached);
-		ATTACHMENT_READ_FIELD(bool, riotShield);
-		ATTACHMENT_READ_FIELD(bool, automaticAttachment);
-		//ATTACHMENT_READ_FIELD(int, unused3);
 
 		return attachment;
 	}
@@ -1551,103 +1466,12 @@ namespace zonetool::h2
 		buf->pop_stream();
 	}
 
-#define ATTACHMENT_DUMP_FIELD(__field__) \
-	data[#__field__] = asset->__field__;
-
-#define ATTACHMENT_DUMP_FIELD_RENAME(__field__, __name__) \
-	data[__name__] = asset->__field__;
-
-#define ATTACHMENT_DUMP_ASSET_ARR(__field__, __size__) \
-	if (asset->__field__) \
-	{ \
-		for (auto idx##__field__ = 0; idx##__field__ < __size__; idx##__field__++) \
-		{ \
-			if (asset->__field__[idx##__field__]) \
-			{ \
-				data[#__field__][idx##__field__] = asset->__field__[idx##__field__]->name; \
-			} \
-			else \
-			{ \
-				data[#__field__][idx##__field__] = ""; \
-			} \
-		} \
-	} \
-	else \
-	{ \
-		data[#__field__] = nullptr; \
-	}
-
-	void dump_charge_info(AttChargeInfo* asset, ordered_json& data)
-	{
-		ATTACHMENT_DUMP_FIELD(minChargeTime);
-		ATTACHMENT_DUMP_FIELD(overChargeTime);
-		ATTACHMENT_DUMP_FIELD(timePerChargeShot);
-		ATTACHMENT_DUMP_FIELD(maxChargeShots);
-		ATTACHMENT_DUMP_FIELD(minChargeAngle);
-		ATTACHMENT_DUMP_FIELD(maxChargeAngle);
-		ATTACHMENT_DUMP_FIELD(autoFireOnMaxCharge);
-	}
-
-	void dump_hybrid_settings(AttHybridSettings* asset, ordered_json& data)
-	{
-		ATTACHMENT_DUMP_FIELD(adsSpread);
-		ATTACHMENT_DUMP_FIELD(adsAimPitch);
-		ATTACHMENT_DUMP_FIELD(adsTransInTime);
-		ATTACHMENT_DUMP_FIELD(adsTransInFromSprintTime);
-		ATTACHMENT_DUMP_FIELD(adsTransOutTime);
-		ATTACHMENT_DUMP_FIELD(adsReloadTransTime);
-		ATTACHMENT_DUMP_FIELD(adsCrosshairInFrac);
-		ATTACHMENT_DUMP_FIELD(adsCrosshairOutFrac);
-		ATTACHMENT_DUMP_FIELD(adsZoomFov);
-		ATTACHMENT_DUMP_FIELD(adsZoomInFrac);
-		ATTACHMENT_DUMP_FIELD(adsZoomOutFrac);
-		ATTACHMENT_DUMP_FIELD(adsFovLerpInTime);
-		ATTACHMENT_DUMP_FIELD(adsFovLerpOutTime);
-		ATTACHMENT_DUMP_FIELD(adsBobFactor);
-		ATTACHMENT_DUMP_FIELD(adsViewBobMult);
-		ATTACHMENT_DUMP_FIELD(adsViewErrorMin);
-		ATTACHMENT_DUMP_FIELD(adsViewErrorMax);
-		ATTACHMENT_DUMP_FIELD(adsFireAnimFrac);
-	}
-
 	void weapon_attachment::dump(WeaponAttachment* asset)
 	{
 		const auto path = "attachments\\"s + asset->name + ".json"s;
 
 		ordered_json data;
-
-		data["internalName"] = asset->szInternalName;
-		data["displayName"] = asset->szDisplayName ? asset->szDisplayName : "";
-
-		ATTACHMENT_DUMP_FIELD(type);
-		ATTACHMENT_DUMP_FIELD_RENAME(weaponType, "weaponType");
-		ATTACHMENT_DUMP_FIELD_RENAME(weapClass, "weaponClass");
-		ATTACHMENT_DUMP_FIELD_RENAME(greebleType, "greebleType");
-
-		ATTACHMENT_DUMP_ASSET_ARR(worldModels, 2);
-		ATTACHMENT_DUMP_ASSET_ARR(viewModels, 2);
-		ATTACHMENT_DUMP_ASSET_ARR(reticleViewModels, 64);
-
-		ATTACHMENT_DUMP_ASSET_ARR(bounceSounds, 53);
-		ATTACHMENT_DUMP_ASSET_ARR(rollingSounds, 53);
-
-		if (asset->chargeInfo)
-		{
-			dump_charge_info(asset->chargeInfo, data["chargeInfo"]);
-		}
-		else
-		{
-			data["chargeInfo"] = nullptr;
-		}
-
-		if (asset->hybridSettings)
-		{
-			dump_hybrid_settings(asset->hybridSettings, data["hybridSettings"]);
-		}
-		else
-		{
-			data["hybridSettings"] = nullptr;
-		}
+		json_reflect::write<attachment_fields>(data, *asset);
 
 		for (auto i = 0; i < 4; i++)
 		{
@@ -1735,23 +1559,6 @@ namespace zonetool::h2
 				}
 			}
 		}
-		else
-		{
-			data["fields"] = nullptr;
-		}
-
-		//ATTACHMENT_DUMP_FIELD(loadIndex); // runtime data, most likely
-
-		//ATTACHMENT_DUMP_FIELD(unused1);
-		ATTACHMENT_DUMP_FIELD(isAlternateAmmo);
-		ATTACHMENT_DUMP_FIELD(hideIronSightsWithThisAttachment);
-		ATTACHMENT_DUMP_FIELD(showMasterRail);
-		ATTACHMENT_DUMP_FIELD(showSideRail);
-		ATTACHMENT_DUMP_FIELD(shareAmmoWithAlt);
-		ATTACHMENT_DUMP_FIELD(knifeAlwaysAttached);
-		ATTACHMENT_DUMP_FIELD(riotShield);
-		ATTACHMENT_DUMP_FIELD(automaticAttachment);
-		//ATTACHMENT_DUMP_FIELD(unused3);
 
 		std::string json = data.dump(4);
 

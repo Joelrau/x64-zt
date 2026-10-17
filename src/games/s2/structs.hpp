@@ -523,7 +523,11 @@ namespace zonetool::s2
 
 	enum TextureSemantic : std::uint8_t
 	{
+		TS_COLOR_MAP = 0x2,
+		TS_NORMAL_MAP = 0x5,
+		TS_SPECULAR_MAP = 0x8,
 		TS_RESIDENT = 0xC,
+		TS_EMISSIVE_MAP = 0x11,
 	};
 
 	struct GfxImage
@@ -1088,21 +1092,41 @@ namespace zonetool::s2
 	};
 	static_assert(sizeof(XRigidVertList) == 0x10);
 
+	enum XSurfaceFlags : unsigned short
+	{
+		XSURFACE_FLAG_VERTCOL_NONE = 0x2,
+		XSURFACE_FLAG_SKINNED = 0x4,
+		XSURFACE_FLAG_LIGHTMAP_UV = 0x8,
+		XSURFACE_FLAG_UNK_0x20 = 0x20,
+		XSURFACE_FLAG_EXTRA_STREAM = 0x40,
+	};
+
+	struct XSurfaceSkinVertex
+	{
+		unsigned short bones[4];
+		unsigned short weights[3];
+		unsigned short count;
+	};
+	static_assert(sizeof(XSurfaceSkinVertex) == 16);
+
 	struct XSurface
 	{
 		unsigned short flags;
 		unsigned short vertCount;
 		unsigned short triCount;
 		unsigned char rigidVertListCount;
-		char __pad0[9];
+		char __pad0[1];
+		unsigned char uvSetCount;
+		char __pad1[7];
 		XSurfaceShared* shared;
 		unsigned short* triIndices;
 		XRigidVertList* rigidVertLists;
 		vec4_t* verts;
 		unsigned int partBits[8];
-		char __pad1[24];
+		char __pad2[24];
 	};
 	static_assert(sizeof(XSurface) == 0x68);
+	static_assert(offsetof(XSurface, uvSetCount) == 8);
 	static_assert(offsetof(XSurface, shared) == 16);
 
 	struct XModelSurfs
@@ -1112,9 +1136,12 @@ namespace zonetool::s2
 		unsigned short numsurfs;
 		char __pad0[2];
 		unsigned int partBits[8];
-		char __pad1[28];
+		char __pad1[20];
+		float surfaceArea;
+		char __pad2[4];
 	};
 	static_assert(sizeof(XModelSurfs) == 0x50);
+	static_assert(offsetof(XModelSurfs, surfaceArea) == 0x48);
 
 	struct SkeletonScriptCode
 	{
@@ -1353,6 +1380,31 @@ namespace zonetool::s2
 	};
 	static_assert(sizeof(XModelVariant) == 0x30);
 
+	struct Bounds
+	{
+		vec3_t midPoint;
+		vec3_t halfSize;
+	};
+	assert_sizeof(Bounds, 24);
+
+	struct XModelCollSurf
+	{
+		Bounds bounds;
+		int boneIdx;
+		char __pad0[4];
+		unsigned long long contents;
+		unsigned int surfFlags;
+		char __pad1[4];
+	};
+	static_assert(sizeof(XModelCollSurf) == 48);
+
+	enum XModelFlags : unsigned int
+	{
+		XMODEL_FLAG_VARIANTS = 0x200,
+		XMODEL_FLAG_UNK_0x800 = 0x800,
+		XMODEL_FLAG_NO_LAST_LOD = 0x8000,
+	};
+
 	struct XModel
 	{
 		const char* name;
@@ -1364,7 +1416,8 @@ namespace zonetool::s2
 		Material** materialHandles;
 		unsigned short* materialIndices;
 		unsigned int flags;
-		char __pad0[6];
+		unsigned short runtimeSize;
+		char __pad0[4];
 		unsigned char variantCount;
 		unsigned char numMaterials;
 		char __pad1[4];
@@ -2016,24 +2069,57 @@ namespace zonetool::s2
 	};
 	static_assert(sizeof(DLogSchema) == 0x28);
 
-	struct ClipMapTrZoneNode
+	struct cbrushside_t
 	{
-		unsigned int* data;
-		char __pad0[16];
+		unsigned int planeIndex;
+		unsigned short materialNum;
+		unsigned char firstAdjacentSideOffset;
+		unsigned char edgeCount;
 	};
+	static_assert(sizeof(cbrushside_t) == 8);
 
-	struct ClipMapTrZoneTree
+	struct cbrush_t
 	{
-		std::uint64_t* nodeRefs;
-		unsigned int nodeRefCount;
-		unsigned int nodeCount;
-		ClipMapTrZoneNode* nodes;
-		char (*bounds)[24];
-		std::uint64_t* nodeData;
+		cbrushside_t* sides;
+		unsigned int numsides;
+		short axialMaterialNum[2][3];
 	};
-	static_assert(sizeof(ClipMapTrZoneTree) == 0x28);
+	static_assert(sizeof(cbrush_t) == 24);
 
-	struct ClipMapTrZoneMesh
+	struct BrushesCollisionData
+	{
+		cbrushside_t* brushSides;
+		unsigned int numBrushSides;
+		unsigned int numBrushes;
+		cbrush_t* brushes;
+		Bounds* brushBounds;
+		unsigned long long* brushContents;
+	};
+	static_assert(sizeof(BrushesCollisionData) == 0x28);
+
+	struct CollisionBorder
+	{
+		float distEq[3];
+		float zBase;
+		float zSlope;
+		float start;
+		float length;
+	};
+	static_assert(sizeof(CollisionBorder) == 28);
+
+	struct CollisionPartition
+	{
+		unsigned char triCount;
+		unsigned char borderCount;
+		unsigned char firstVertSegment;
+		char __pad0[1];
+		int firstTri;
+		int firstBorder;
+		unsigned int materialIndex;
+	};
+	static_assert(sizeof(CollisionPartition) == 16);
+
+	struct PatchesCollisionData
 	{
 		unsigned int vertCount;
 		char __pad0[4];
@@ -2042,14 +2128,14 @@ namespace zonetool::s2
 		char __pad1[4];
 		unsigned short* triIndices;
 		unsigned char* triEdgeIsWalkable;
-		unsigned int partitionCount;
+		unsigned int borderCount;
 		char __pad2[4];
-		char (*partitions)[28];
-		unsigned int aabbCount;
+		CollisionBorder* borders;
+		unsigned int partitionCount;
 		char __pad3[4];
-		char (*aabbs)[16];
+		CollisionPartition* partitions;
 	};
-	static_assert(sizeof(ClipMapTrZoneMesh) == 0x48);
+	static_assert(sizeof(PatchesCollisionData) == 0x48);
 
 	struct ClipMapTrZoneStaticModel
 	{
@@ -2068,9 +2154,10 @@ namespace zonetool::s2
 	struct ClipMapTrZone
 	{
 		const char* name;
-		char __pad0[8];
-		ClipMapTrZoneTree tree;
-		ClipMapTrZoneMesh mesh;
+		unsigned int index;
+		char __pad0[4];
+		BrushesCollisionData bCollisionData;
+		PatchesCollisionData pCollisionData;
 		ClipMapTrZoneStaticModels staticModels;
 	};
 	static_assert(sizeof(ClipMapTrZone) == 0x90);
@@ -2078,17 +2165,22 @@ namespace zonetool::s2
 
 	struct TriggerModel
 	{
-		int contents;
+		unsigned long long contents;
 		unsigned short hullCount;
 		unsigned short firstHull;
-		char __pad0[8];
+		char __pad0[4];
 	};
 	static_assert(sizeof(TriggerModel) == 16);
 
 	struct TriggerHull
 	{
-		char __pad0[40];
+		Bounds bounds;
+		unsigned long long contents;
+		unsigned short slabCount;
+		unsigned short firstSlab;
+		char __pad0[4];
 	};
+	static_assert(sizeof(TriggerHull) == 40);
 
 	struct TriggerSlab
 	{
@@ -2096,6 +2188,7 @@ namespace zonetool::s2
 		float midPoint;
 		float halfSize;
 	};
+	static_assert(sizeof(TriggerSlab) == 20);
 
 	struct MapTriggers
 	{
@@ -2112,6 +2205,7 @@ namespace zonetool::s2
 	{
 		char __pad0[28];
 	};
+	static_assert(sizeof(ClientTriggerAabbNode) == 28);
 
 	struct ClientTriggerLeafList
 	{
@@ -2149,6 +2243,7 @@ namespace zonetool::s2
 		unsigned short triggerA;
 		unsigned short triggerB;
 	};
+	static_assert(sizeof(ClientTriggerBlendNode) == 28);
 
 	struct ClientTriggerBlend
 	{
@@ -2195,6 +2290,7 @@ namespace zonetool::s2
 		float splineLength;
 		SplinePointEntityRecord* splinePoints;
 	};
+	static_assert(sizeof(SplinePointRecordList) == 16);
 
 	struct SplineRecordList
 	{
@@ -2291,17 +2387,65 @@ namespace zonetool::s2
 	static_assert(offsetof(MapEnts, scriptableMapEnts) == 296);
 	static_assert(offsetof(MapEnts, unk360) == 360);
 
+	union PhysMeshNodeIndex
+	{
+		unsigned int firstTriangle;
+		unsigned int rightChildOffset;
+	};
+
+	struct PhysMeshNode
+	{
+		float mins[3];
+		float maxs[3];
+		PhysMeshNodeIndex u;
+		unsigned int flags : 16;
+		unsigned int axis : 8;
+		unsigned int triangleCount : 8;
+	};
+	static_assert(sizeof(PhysMeshNode) == 32);
+
+	struct dmFloat4
+	{
+		float x;
+		float y;
+		float z;
+		float w;
+	};
+
+	struct dmMeshTriangle
+	{
+		int i1;
+		int i2;
+		int i3;
+		int w1;
+		int w2;
+		int w3;
+		int materialIndex;
+		int collisionFlags;
+	};
+	static_assert(sizeof(dmMeshTriangle) == 32);
+
 	struct PhysMeshData
 	{
-		char (*vertices)[32];
-		char (*normals)[16];
-		char (*triangles)[32];
+		PhysMeshNode* nodes;
+		dmFloat4* vertices;
+		dmMeshTriangle* triangles;
+		int nodeCount;
 		int vertexCount;
-		int normalCount;
 		int triangleCount;
-		char __pad0[12];
+		int treeHeight;
+		float surfaceArea;
+		int unused;
 	};
 	static_assert(sizeof(PhysMeshData) == 0x30);
+
+	struct PhysBrushModel
+	{
+		int polytopeStart;
+		unsigned short polytopeCount;
+		unsigned short meshIndex;
+	};
+	static_assert(sizeof(PhysBrushModel) == 8);
 
 	struct PhysWaterVolumeDef
 	{
@@ -2315,7 +2459,7 @@ namespace zonetool::s2
 	struct PhysWorld
 	{
 		const char* name;
-		std::uint64_t* models;
+		PhysBrushModel* models;
 		dmPolytopeData* polytopes;
 		PhysMeshData* meshes;
 		PhysWaterVolumeDef* waters;
@@ -3232,45 +3376,108 @@ namespace zonetool::s2
 	struct ClipMaterial
 	{
 		const char* name;
-		char __pad0[0x10];
+		unsigned int surfaceFlags;
+		char __pad0[4];
+		unsigned long long contents;
 	};
 	static_assert(sizeof(ClipMaterial) == 0x18);
 
-	struct cbrushside_t
+	struct cLeafBrushNodeLeaf_t
 	{
-		char __pad0[0x4];
-		int indexCount;
-		char __pad1[0x8];
-		int* indices;
-		char __pad2[0x8];
+		unsigned int* brushes;
 	};
-	static_assert(sizeof(cbrushside_t) == 0x20);
 
-	struct ClipBrushInfo
+	struct cLeafBrushNodeChildren_t
 	{
-		unsigned int sideCount;
-		cbrushside_t* sides;
-		unsigned int indexCount;
-		int* indices;
+		float dist;
+		float range;
+		unsigned short childOffset[2];
 	};
-	static_assert(sizeof(ClipBrushInfo) == 0x20);
 
-	struct ClipBrushBounds
+	union cLeafBrushNodeData_t
 	{
-		int count;
-		char __pad0[0x4];
-		char (*data)[32];
+		cLeafBrushNodeLeaf_t leaf;
+		cLeafBrushNodeChildren_t children;
 	};
-	static_assert(sizeof(ClipBrushBounds) == 0x10);
 
-	struct ClipLeafBrushes
+	struct cLeafBrushNode_s
 	{
-		char __pad0[0x2];
-		unsigned short count;
-		char __pad1[0x4];
-		char (*data)[32];
+		unsigned char axis;
+		unsigned char transientZone;
+		char __pad0[2];
+		int leafBrushCount;
+		unsigned long long contents;
+		cLeafBrushNodeData_t data;
 	};
-	static_assert(sizeof(ClipLeafBrushes) == 0x10);
+	static_assert(sizeof(cLeafBrushNode_s) == 0x20);
+
+	struct BrushesCollisionTree
+	{
+		unsigned int leafbrushNodesCount;
+		cLeafBrushNode_s* leafbrushNodes;
+		unsigned int numLeafBrushes;
+		unsigned int* leafbrushes;
+	};
+	static_assert(sizeof(BrushesCollisionTree) == 0x20);
+
+	union CollisionAabbTreeIndex
+	{
+		unsigned int firstChildIndex;
+		unsigned int partitionIndex;
+	};
+
+	struct CollisionAabbTree
+	{
+		float midPoint[3];
+		unsigned char childCount;
+		unsigned char transientZone;
+		char __pad0[2];
+		float halfSize[3];
+		CollisionAabbTreeIndex u;
+	};
+	static_assert(sizeof(CollisionAabbTree) == 32);
+
+	struct PatchesCollisionTree
+	{
+		int aabbTreeCount;
+		char __pad0[4];
+		CollisionAabbTree* aabbTrees;
+	};
+	static_assert(sizeof(PatchesCollisionTree) == 0x10);
+
+	struct SModelAabbNode
+	{
+		Bounds bounds;
+		unsigned int firstChild;
+		unsigned char childCount;
+		unsigned char transientZone;
+		char __pad0[2];
+	};
+	static_assert(sizeof(SModelAabbNode) == 32);
+
+	struct SModelsCollisionTree
+	{
+		unsigned short numStaticModels;
+		unsigned short smodelNodeCount;
+		char __pad0[4];
+		SModelAabbNode* smodelNodes;
+	};
+	static_assert(sizeof(SModelsCollisionTree) == 0x10);
+
+	struct ClipTransientZoneInfo
+	{
+		unsigned int brushStart;
+		unsigned int brushEnd;
+		char __pad0[16];
+		unsigned int partitionCount;
+	};
+	static_assert(sizeof(ClipTransientZoneInfo) == 0x1C);
+
+	struct ClipTransientZoneTable
+	{
+		unsigned int count;
+		ClipTransientZoneInfo zones[16];
+	};
 
 	struct ClipInfo
 	{
@@ -3278,60 +3485,124 @@ namespace zonetool::s2
 		cplane_s* planes;
 		unsigned int numMaterials;
 		ClipMaterial* materials;
-		ClipBrushInfo brushes;
-		ClipBrushBounds brushBounds;
-		ClipLeafBrushes leafBrushes;
-		char __pad0[0x1C8];
+		BrushesCollisionTree bCollisionTree;
+		PatchesCollisionTree pCollisionTree;
+		SModelsCollisionTree sCollisionTree;
+		ClipTransientZoneTable transientZones;
+		char __pad0[4];
 		ClipMapTrZone* trZones[16];
 	};
 	static_assert(sizeof(ClipInfo) == 0x2A8);
+	static_assert(offsetof(ClipInfo, transientZones) == 0x60);
+	static_assert(offsetof(ClipInfo, trZones) == 0x228);
 
 	struct cNode_t
 	{
 		cplane_s* plane;
-		char __pad0[0x8];
+		short children[2];
+		unsigned char transientZone;
+		char __pad0[3];
 	};
 	static_assert(sizeof(cNode_t) == 0x10);
 
+	struct cLeaf_t
+	{
+		unsigned int firstCollAabbIndex;
+		unsigned int collAabbCount;
+		unsigned long long brushContents;
+		unsigned long long terrainContents;
+		Bounds bounds;
+		int leafBrushNode;
+		unsigned char brushTransientZone;
+		unsigned char aabbTransientZone;
+		char __pad0[2];
+	};
+	static_assert(sizeof(cLeaf_t) == 56);
+
 	struct cmodel_t
 	{
-		char __pad0[0x20];
+		Bounds bounds;
+		float radius;
+		char __pad0[4];
 		ClipInfo* info;
-		char __pad1[0x40];
+		cLeaf_t leaf;
+		unsigned short unk_0x60;
+		char __pad1[6];
 	};
 	static_assert(sizeof(cmodel_t) == 0x68);
 
-	struct ClipStaticModelName
+	struct Stage
 	{
 		const char* name;
-		char __pad0[0x18];
+		float origin[3];
+		unsigned short triggerIndex;
+		unsigned char sunPrimaryLightIndex;
+		char __pad0[1];
+		float radiometricScale;
+		char __pad1[4];
 	};
-	static_assert(sizeof(ClipStaticModelName) == 0x20);
+	static_assert(sizeof(Stage) == 0x20);
 
-	struct ClipStaticModelData
+	enum DynEntityType : std::int32_t
 	{
-		unsigned int nodeCount;
-		char (*nodes)[16];
-		unsigned int leafCount;
-		char (*leafs)[40];
-		unsigned int boundsCount;
-		char (*bounds)[20];
+		DYNENT_TYPE_INVALID = 0x0,
+		DYNENT_TYPE_CLUTTER = 0x1,
+		DYNENT_TYPE_DESTRUCT = 0x2,
+		DYNENT_TYPE_HINGE = 0x3,
+		DYNENT_TYPE_SCRIPTABLEINST = 0x4,
+		DYNENT_TYPE_SCRIPTABLEPHYSICS = 0x5,
+		DYNENT_TYPE_LINKED = 0x6,
+		DYNENT_TYPE_LINKED_NOSHADOW = 0x7,
+		DYNENT_TYPE_COUNT = 0x8,
 	};
-	static_assert(sizeof(ClipStaticModelData) == 0x30);
+
+	struct GfxPlacement
+	{
+		float quat[4];
+		float origin[3];
+	};
+
+	struct DynEntityHingeDef
+	{
+		float axisOrigin[3];
+		float axisDir[3];
+		bool isLimited;
+		float angleMin;
+		float angleMax;
+		float momentOfInertia;
+		float friction;
+	};
+	static_assert(sizeof(DynEntityHingeDef) == 44);
+
+	struct DynEntityLinkToDef
+	{
+		int anchorIndex;
+		float originOffset[3];
+		float angleOffset[3];
+	};
+	static_assert(sizeof(DynEntityLinkToDef) == 28);
 
 	struct DynEntityDef
 	{
-		char __pad0[0x20];
+		DynEntityType type;
+		GfxPlacement pose;
 		XModel* xModel;
-		char __pad1[0x8];
+		unsigned short brushModel;
+		unsigned short physicsBrushModel;
+		unsigned short scriptableIndex;
+		unsigned short health;
 		FxEffectDef* destroyFx;
 		snd_alias_list_t* sound;
 		PhysPreset* physPreset;
-		char (*hinge)[44];
-		char (*linkTo)[28];
-		char __pad2[0x20];
+		DynEntityHingeDef* hinge;
+		DynEntityLinkToDef* linkTo;
+		char __pad0[16];
+		unsigned long long contents;
+		float unk_0x70[2];
 	};
 	static_assert(sizeof(DynEntityDef) == 0x78);
+	static_assert(offsetof(DynEntityDef, xModel) == 0x20);
+	static_assert(offsetof(DynEntityDef, contents) == 0x68);
 
 	struct ClipMapScrEntry
 	{
@@ -3358,14 +3629,14 @@ namespace zonetool::s2
 		unsigned int numNodes;
 		cNode_t* nodes;
 		unsigned int numLeafs;
-		char (*leafs)[56];
+		cLeaf_t* leafs;
 		unsigned int numSubModels;
 		cmodel_t* cmodels;
 		MapEnts* mapEnts;
-		ClipStaticModelName* staticModelNames;
-		unsigned char staticModelNameCount;
+		Stage* stages;
+		unsigned char stageCount;
 		char __pad1[0x7];
-		ClipStaticModelData staticModelData;
+		MapTriggers stageTrigger;
 		unsigned short dynEntCount[2];
 		char __pad2[0x4];
 		DynEntityDef* dynEntDefList[2];
@@ -3378,9 +3649,11 @@ namespace zonetool::s2
 		ClipMapScrEntry* scrEntries;
 		unsigned int mayhemCount;
 		ClipMayhemInstance* mayhems;
-		char __pad3[0x50];
+		unsigned int checksum;
+		char __pad3[0x4C];
 	};
 	static_assert(sizeof(clipMap_t) == 0x400);
+	static_assert(offsetof(clipMap_t, checksum) == 0x3B0);
 
 	struct FxImpactEntry
 	{
@@ -3408,19 +3681,46 @@ namespace zonetool::s2
 
 	struct ComPrimaryLight
 	{
-		char __pad0[0xA0];
-		const char* defName;
+		unsigned char type; // 0
+		unsigned char canUseShadowMap; // 1
+		char __pad0[10]; // 2
+		float color[3]; // 12
+		float intensity; // 24
+		float dir[3]; // 28
+		float up[3]; // 40
+		float origin[3]; // 52
+		float fadeOffset[2]; // 64
+		float bulbRadius; // 72
+		float bulbLength[3]; // 76
+		float radius; // 88
+		float cosHalfFovOuter; // 92
+		float cosHalfFovInner; // 96
+		float cosHalfFovExpanded; // 100
+		float rotationLimit; // 104
+		float translationLimit; // 108
+		char __pad1[44]; // 112
+		int unk_0x9C; // 156
+		const char* defName; // 160
 	};
 	static_assert(sizeof(ComPrimaryLight) == 0xA8);
+
+	struct ComPrimaryLightEnv
+	{
+		unsigned short primaryLightIndices[4];
+		unsigned char numIndices;
+		char __pad0[1];
+	};
+	static_assert(sizeof(ComPrimaryLightEnv) == 10);
 
 	struct ComWorld
 	{
 		const char* name;
-		char __pad0[0x8];
+		unsigned int isInUse;
+		unsigned int unk_0xC;
 		unsigned int primaryLightCount;
 		ComPrimaryLight* primaryLights;
 		unsigned int primaryLightEnvCount;
-		char (*primaryLightEnvs)[10];
+		ComPrimaryLightEnv* primaryLightEnvs;
 	};
 	static_assert(sizeof(ComWorld) == 0x30);
 
@@ -3623,13 +3923,6 @@ namespace zonetool::s2
 		FxGlassSystem glassSys;
 	};
 	static_assert(sizeof(FxWorld) == 0xB0);
-
-	struct Bounds
-	{
-		vec3_t midPoint;
-		vec3_t halfSize;
-	};
-	assert_sizeof(Bounds, 24);
 
 	struct ExtentBounds
 	{
@@ -4156,7 +4449,7 @@ namespace zonetool::s2
 
 	struct GfxFrustumLights
 	{
-		char unk_0x0[24]; // 0
+		Bounds bounds; // 0
 		unsigned int vertexCount; // 24
 		unsigned int indexCount; // 28
 		unsigned short* indices; // 32
@@ -4347,17 +4640,49 @@ namespace zonetool::s2
 		STATIC_MODEL_FLAG_LIGHTMAP_LIGHTING = 0x100,
 	};
 
+	struct GfxPackedPlacement
+	{
+		float origin[3];
+		float axis[3][3];
+		float scale;
+	};
+	assert_sizeof(GfxPackedPlacement, 52);
+
 	struct GfxStaticModelDrawInst
 	{
-		char unk_0x0[72]; // 0
+		GfxPackedPlacement placement; // 0
+		float unk_0x34[3]; // 52
+		char unk_0x40[8]; // 64
 		XModel* model; // 72
-		unsigned int unk_0x50; // 80
+		char unk_0x50[2]; // 80
+		unsigned short cullDist; // 82
 		unsigned short flags; // 84
-		char unk_0x56[42]; // 86
+		char unk_0x56[2]; // 86
+		unsigned short staticModelId; // 88
+		char unk_0x5A[2]; // 90
+		unsigned int unk_0x5C; // 92
+		char unk_0x60[10]; // 96
+		unsigned short lightListOffset; // 106
+		float radius; // 108
+		unsigned char reflectionProbeIndex; // 112
+		char unk_0x71[1]; // 113
+		unsigned char unk_0x72; // 114
+		char unk_0x73[1]; // 115
+		float unk_0x74; // 116
+		char unk_0x78[8]; // 120
 	};
 	assert_sizeof(GfxStaticModelDrawInst, 128);
+	assert_offsetof(GfxStaticModelDrawInst, unk_0x34, 52);
 	assert_offsetof(GfxStaticModelDrawInst, model, 72);
+	assert_offsetof(GfxStaticModelDrawInst, cullDist, 82);
 	assert_offsetof(GfxStaticModelDrawInst, flags, 84);
+	assert_offsetof(GfxStaticModelDrawInst, staticModelId, 88);
+	assert_offsetof(GfxStaticModelDrawInst, unk_0x5C, 92);
+	assert_offsetof(GfxStaticModelDrawInst, lightListOffset, 106);
+	assert_offsetof(GfxStaticModelDrawInst, radius, 108);
+	assert_offsetof(GfxStaticModelDrawInst, reflectionProbeIndex, 112);
+	assert_offsetof(GfxStaticModelDrawInst, unk_0x72, 114);
+	assert_offsetof(GfxStaticModelDrawInst, unk_0x74, 116);
 
 	struct GfxStaticModelVertexLighting
 	{
@@ -4389,8 +4714,15 @@ namespace zonetool::s2
 		float primaryLightWeight;
 	};
 
+	struct GfxStaticModelLightGridInfo
+	{
+		unsigned int slot;
+		char unk_0x4[20];
+	};
+
 	union GfxStaticModelLighting
 	{
+		GfxStaticModelLightGridInfo lightGridInfo;
 		GfxStaticModelAmbientLightingInfo ambientLightingInfo;
 		GfxStaticModelVertexLightingInfo vertexLightingInfo;
 		GfxStaticModelLightmapInfo modelLightmapInfo;
@@ -4409,17 +4741,55 @@ namespace zonetool::s2
 	assert_offsetof(GfxSurfaceBuffer, dataSize, 16);
 	assert_offsetof(GfxSurfaceBuffer, data, 64);
 
+	enum GfxSurfaceFlag : std::uint8_t
+	{
+		GFX_SURFACE_FLAG_DEFAULT = 0x01,
+		GFX_SURFACE_FLAG_CASTS_SUN_SHADOW = 0x10,
+	};
+
 	struct GfxSurface
 	{
-		char unk_0x0[16]; // 0
+		unsigned int vertexLayerData; // 0
+		unsigned int firstVertex; // 4
+		unsigned short vertexCount; // 8
+		unsigned short triCount; // 10
+		char unk_0xC[4]; // 12
 		GfxSurfaceBuffer* buffer; // 16
-		char unk_0x18[8]; // 24
+		unsigned int baseIndex; // 24
+		char unk_0x1C[4]; // 28
 		Material* material; // 32
-		char unk_0x28[16]; // 40
+		unsigned char lightmapIndex; // 40
+		unsigned char reflectionProbeIndex; // 41
+		unsigned char flags; // 42
+		char unk_0x2B[1]; // 43
+		unsigned short lightListOffset; // 44
+		char unk_0x2E[2]; // 46
+		unsigned int transientZone; // 48
+		char unk_0x34[4]; // 52
 	};
 	assert_sizeof(GfxSurface, 56);
+	assert_offsetof(GfxSurface, vertexCount, 8);
 	assert_offsetof(GfxSurface, buffer, 16);
+	assert_offsetof(GfxSurface, baseIndex, 24);
 	assert_offsetof(GfxSurface, material, 32);
+	assert_offsetof(GfxSurface, lightmapIndex, 40);
+	assert_offsetof(GfxSurface, flags, 42);
+	assert_offsetof(GfxSurface, lightListOffset, 44);
+	assert_offsetof(GfxSurface, transientZone, 48);
+
+	struct GfxSurfaceBounds
+	{
+		Bounds bounds; // 0
+		float midPoint[3]; // 24
+		char unk_0x24[12]; // 36
+		float unk_0x30; // 48
+		unsigned char unk_0x34[5]; // 52
+		char unk_0x39[7]; // 57
+	};
+	assert_sizeof(GfxSurfaceBounds, 64);
+	assert_offsetof(GfxSurfaceBounds, midPoint, 24);
+	assert_offsetof(GfxSurfaceBounds, unk_0x30, 48);
+	assert_offsetof(GfxSurfaceBounds, unk_0x34, 52);
 
 	struct GfxWorldDpvsStatic
 	{
@@ -4443,7 +4813,7 @@ namespace zonetool::s2
 		unsigned int* unk_0x2E0; // 736
 		unsigned int* sortedSurfIndex; // 744
 		GfxSurface* surfaces; // 752
-		char (*surfacesBounds)[64]; // 760
+		GfxSurfaceBounds* surfacesBounds; // 760
 		unsigned long long* unk_0x300; // 768
 		GfxStaticModelInst* smodelInsts; // 776
 		GfxStaticModelDrawInst* smodelDrawInsts; // 784

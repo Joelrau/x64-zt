@@ -1,8 +1,18 @@
 #include <std_include.hpp>
 #include "soundcontext.hpp"
 
+#include "io/json_reflect.hpp"
+
 namespace zonetool::s1
 {
+	namespace
+	{
+		constexpr auto sound_context_fields = glz::tuple
+		{
+			&SndContext::priority,
+		};
+	}
+
 	SndContext* sound_context::parse(const std::string& name, zone_memory* mem)
 	{
 		if (name.empty())
@@ -25,11 +35,7 @@ namespace zonetool::s1
 
 			auto asset = mem->allocate<SndContext>();
 
-			auto priority = data["priority"];
-			if (!priority.is_null())
-			{
-				asset->priority = priority.get<unsigned char>();
-			}
+			json_reflect::read<sound_context_fields>(data, *asset, mem);
 
 			return asset;
 		}
@@ -100,7 +106,7 @@ namespace zonetool::s1
 
 		ordered_json j;
 
-		j["priority"] = asset->priority;
+		json_reflect::write<sound_context_fields>(j, *asset);
 
 		auto str = j.dump(4);
 		j.clear();

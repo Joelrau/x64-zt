@@ -7,13 +7,6 @@
 
 namespace zonetool::s2::converter::h1::fxworld
 {
-	namespace
-	{
-		namespace target = zonetool::h1;
-
-		constexpr auto no_free_piece = 0xFFFFu;
-	}
-
 	void dump(FxWorld* asset)
 	{
 		if (asset->glassSys.defCount)
@@ -21,10 +14,10 @@ namespace zonetool::s2::converter::h1::fxworld
 			ZONETOOL_WARNING("fx_map \"%s\": %u glass defs are not converted", asset->name, asset->glassSys.defCount);
 		}
 
-		target::FxWorld new_asset{};
+		zonetool::h1::FxWorld new_asset{};
 		new_asset.name = asset->name;
-		new_asset.glassSys.firstFreePiece = no_free_piece;
-		target::fx_world::dump(&new_asset);
+		new_asset.glassSys.firstFreePiece = 0xFFFF;
+		zonetool::h1::fx_world::dump(&new_asset);
 		add_csv_row("fx_map", new_asset.name);
 	}
 }

@@ -8,25 +8,7 @@ namespace zonetool::h1::converter::s2::xmodel
 {
 	namespace
 	{
-		constexpr unsigned int s2_xmodel_flag_default = 0x800;
-		constexpr std::uint16_t s2_no_material_index = 0xFFFF;
-		constexpr auto s2_lod_view_scale = 565.087f;
-		constexpr auto s2_no_cull_lod_dist = 1000000.0f;
-
-		// u16 in XModel::__pad0, stock values are the runtime size of the model and its material arrays
-		constexpr std::size_t s2_model_size_offset = 0x24;
-
-		struct s2_coll_surf
-		{
-			float midPoint[3];
-			float halfSize[3];
-			int boneIdx;
-			int __pad0;
-			std::uint64_t contents;
-			std::uint32_t surfFlags;
-			int __pad1;
-		};
-		static_assert(sizeof(s2_coll_surf) == 48);
+		constexpr auto no_cull_lod_dist = 1000000.0f; // TODO
 
 		struct converted_model
 		{
@@ -34,7 +16,7 @@ namespace zonetool::h1::converter::s2::xmodel
 			zonetool::s2::XModelBase base;
 			zonetool::s2::XModel model;
 			std::vector<std::uint16_t> parent_list;
-			std::vector<s2_coll_surf> coll_surfs;
+			std::vector<zonetool::s2::XModelCollSurf> coll_surfs;
 			std::deque<zonetool::s2::XModelSurfs> surfs;
 			std::deque<zonetool::s2::Material> materials;
 			std::vector<zonetool::s2::Material*> material_handles;
@@ -43,8 +25,8 @@ namespace zonetool::h1::converter::s2::xmodel
 
 		float lod_dist_sq(const float dist, const float radius)
 		{
-			const auto view_dist = dist <= 0.0f || dist >= s2_no_cull_lod_dist ? s2_no_cull_lod_dist : dist;
-			const auto scaled = std::max(0.0f, view_dist - radius) / s2_lod_view_scale;
+			const auto view_dist = dist <= 0.0f || dist >= no_cull_lod_dist ? no_cull_lod_dist : dist;
+			const auto scaled = std::max(0.0f, view_dist - radius) / 565.087f;
 			return scaled * scaled;
 		}
 
@@ -101,7 +83,7 @@ namespace zonetool::h1::converter::s2::xmodel
 			{
 				const auto& lod = asset->lodInfo[i];
 				auto& new_lod = base.lodInfo[i];
-				new_lod.dist = s2_no_cull_lod_dist;
+				new_lod.dist = no_cull_lod_dist;
 				new_lod.numsurfs = lod.numsurfs;
 				new_lod.surfIndex = lod.surfIndex;
 				if (lod.modelSurfs)
@@ -112,7 +94,7 @@ namespace zonetool::h1::converter::s2::xmodel
 				}
 
 				const auto is_last = i == lod_count - 1;
-				base.lodDistSq[i] = lod_dist_sq(is_last ? s2_no_cull_lod_dist : lod.dist, asset->radius);
+				base.lodDistSq[i] = lod_dist_sq(is_last ? no_cull_lod_dist : lod.dist, asset->radius);
 			}
 
 			base.numLods = static_cast<unsigned char>(lod_count);
@@ -129,8 +111,7 @@ namespace zonetool::h1::converter::s2::xmodel
 				const auto& surf = asset->collSurfs[i];
 				auto& new_surf = result.coll_surfs[i];
 				std::memset(&new_surf, 0, sizeof(new_surf));
-				std::memcpy(new_surf.midPoint, surf.bounds.midPoint, sizeof(new_surf.midPoint));
-				std::memcpy(new_surf.halfSize, surf.bounds.halfSize, sizeof(new_surf.halfSize));
+				new_surf.bounds = std::bit_cast<zonetool::s2::Bounds>(surf.bounds);
 				new_surf.boneIdx = surf.boneIdx;
 				new_surf.contents = static_cast<std::uint32_t>(surf.contents);
 				new_surf.surfFlags = convert_surface_flags(static_cast<std::uint32_t>(surf.surfFlags));
@@ -144,7 +125,7 @@ namespace zonetool::h1::converter::s2::xmodel
 		{
 			auto& model = result.model;
 			result.material_handles.resize(asset->numsurfs);
-			result.material_indices.assign(asset->numsurfs, s2_no_material_index);
+			result.material_indices.assign(asset->numsurfs, std::uint16_t{0xFFFF});
 			for (auto i = 0; i < asset->numsurfs; i++)
 			{
 				const auto material = asset->materialHandles ? asset->materialHandles[i] : nullptr;
@@ -157,9 +138,8 @@ namespace zonetool::h1::converter::s2::xmodel
 			model.materialHandles = result.material_handles.empty() ? nullptr : result.material_handles.data();
 			model.materialIndices = result.material_indices.empty() ? nullptr : result.material_indices.data();
 
-			const auto model_size = static_cast<std::uint16_t>(sizeof(zonetool::s2::XModel)
+			model.runtimeSize = static_cast<std::uint16_t>(sizeof(zonetool::s2::XModel)
 				+ asset->numsurfs * (sizeof(zonetool::s2::Material*) + sizeof(std::uint16_t)));
-			std::memcpy(reinterpret_cast<std::uint8_t*>(&model) + s2_model_size_offset, &model_size, sizeof(model_size));
 		}
 
 		std::unique_ptr<converted_model> convert(const XModel* asset, const zonetool::s2::XModelBase* donor)
@@ -184,7 +164,7 @@ namespace zonetool::h1::converter::s2::xmodel
 			std::memset(&model, 0, sizeof(model));
 			model.name = asset->name;
 			model.base = &base;
-			model.flags = s2_xmodel_flag_default;
+			model.flags = zonetool::s2::XMODEL_FLAG_UNK_0x800;
 			convert_materials(asset, *result);
 
 			return result;

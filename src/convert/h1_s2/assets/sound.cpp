@@ -8,7 +8,6 @@ namespace zonetool::h1::converter::s2::sound
 {
 	namespace
 	{
-		// sounddata/volumemodgroups.def of code_post_gfx_mp
 		constexpr std::array<std::string_view, 145> s2_volume_mod_groups
 		{
 			"default", "hud", "frontend_sfx", "frontend_music", "frontend_music_force", "sp_hit_alert_npc", "music_big",
@@ -36,7 +35,6 @@ namespace zonetool::h1::converter::s2::sound
 			"mp_splash_notify", "mp_hit_marker", "zmb_grondo", "zmb_horror_audio_vignette", "mp_perk_quiet", "mw3_legacy",
 		};
 
-		// sounddata/dspbuses.csv of common
 		constexpr std::array<std::string_view, 35> s2_dsp_buses
 		{
 			"default", "weapons", "turret_weapons", "weapons_dist", "ambience", "emitters", "quads", "music", "foley",
@@ -51,21 +49,6 @@ namespace zonetool::h1::converter::s2::sound
 			{"explosions_critical", "explosions"},
 			{"notimescale", "unocclu_no_timescale"},
 		};
-
-		constexpr std::string_view h1_legacy_volume_mod_prefix = "mw3_";
-		constexpr std::string_view s2_legacy_volume_mod = "mw3_legacy";
-
-		constexpr std::uint32_t h1_shared_flags = 0x701BF; // bits 0-5, 7, 8 and the sound file type have the same meaning in S2
-		constexpr std::uint32_t h1_shifted_flags = 0xFC00; // H1 bits 10-15 are S2 bits 9-14
-		constexpr auto sound_file_type_shift = 16;
-
-		constexpr auto h1_surround_channel_map = 1; // H1 maps inputs to a stereo and a 5.1 output
-		constexpr auto s2_speaker_count = 8;
-		constexpr auto front_left = 0;
-		constexpr auto front_right = 1;
-
-		constexpr auto default_curve_name = "$default";
-		constexpr auto unknown232_default = 1.0f; // idk tbh
 
 		const char* alias_name(const snd_alias_t& alias)
 		{
@@ -89,7 +72,7 @@ namespace zonetool::h1::converter::s2::sound
 			if (alias.volModIndex >= 0 && alias.volModIndex < SND_VOLMOD_COUNT)
 			{
 				const std::string_view name = zonetool::h1::sound::get_vol_mod_name(alias.volModIndex);
-				const auto s2_name = name.starts_with(h1_legacy_volume_mod_prefix) ? s2_legacy_volume_mod : name;
+				const auto s2_name = name.starts_with("mw3_") ? std::string_view("mw3_legacy") : name;
 				if (const auto index = find_name(s2_volume_mod_groups, s2_name))
 				{
 					return static_cast<short>(*index);
@@ -123,13 +106,15 @@ namespace zonetool::h1::converter::s2::sound
 		int convert_flags(const int h1_flags, const zonetool::s2::SoundFile* file)
 		{
 			const auto source = static_cast<std::uint32_t>(h1_flags);
-			auto flags = (source & h1_shared_flags) | ((source & h1_shifted_flags) >> 1);
+			
+			// bits 0-5, 7, 8 and the sound file type match S2, H1 bits 10-15 are S2 bits 9-14
+			auto flags = (source & 0x701BF) | ((source & 0xFC00) >> 1);
 			flags &= ~zonetool::s2::SND_ALIAS_FLAG_USE_CONTEXT_LIST;
 
 			if (file)
 			{
 				flags &= ~zonetool::s2::SND_ALIAS_FLAG_TYPE_MASK;
-				flags |= file->type << sound_file_type_shift;
+				flags |= file->type << 16;
 			}
 
 			return static_cast<int>(flags);
@@ -137,25 +122,26 @@ namespace zonetool::h1::converter::s2::sound
 
 		int convert_speaker(const int h1_speaker)
 		{
-			return h1_speaker < 4 ? h1_speaker : h1_speaker + 2; // the H1 5.1 back speakers (4, 5) are the S2 slots 6 and 7
+			return h1_speaker < 4 ? h1_speaker : h1_speaker + 2;
 		}
 
 		void set_default_speaker_levels(zonetool::s2::SpeakerMap& map)
 		{
-			map.channelMaps[0][front_left].levels[0] = 0.5f;
-			map.channelMaps[0][front_right].levels[0] = 0.5f;
-			map.channelMaps[1][front_left].levels[0] = 1.0f;
-			map.channelMaps[1][front_right].levels[1] = 1.0f;
+			map.channelMaps[0][0].levels[0] = 0.5f;
+			map.channelMaps[0][1].levels[0] = 0.5f;
+			map.channelMaps[1][0].levels[0] = 1.0f;
+			map.channelMaps[1][1].levels[1] = 1.0f;
 		}
 
 		zonetool::s2::SpeakerMap* convert_speaker_map(const SpeakerMap* asset, utils::memory::allocator& allocator)
 		{
 			auto* map = allocator.allocate<zonetool::s2::SpeakerMap>();
 			map->name = asset && asset->name ? asset->name : "";
+			const auto speaker_count = static_cast<int>(std::size(map->channelMaps[0]));
 
 			for (auto input = 0; input < 2; input++)
 			{
-				for (auto speaker = 0; speaker < s2_speaker_count; speaker++)
+				for (auto speaker = 0; speaker < speaker_count; speaker++)
 				{
 					map->channelMaps[input][speaker].speaker = static_cast<unsigned char>(speaker);
 					map->channelMaps[input][speaker].numLevels = static_cast<unsigned char>(input + 1);
@@ -170,12 +156,12 @@ namespace zonetool::h1::converter::s2::sound
 
 			for (auto input = 0; input < 2; input++)
 			{
-				const auto& source = asset->channelMaps[input][h1_surround_channel_map];
+				const auto& source = asset->channelMaps[input][1];
 				for (auto i = 0; i < source.speakerCount && i < static_cast<int>(std::size(source.speakers)); i++)
 				{
 					const auto& h1_levels = source.speakers[i];
 					const auto speaker = convert_speaker(h1_levels.speaker);
-					if (speaker < 0 || speaker >= s2_speaker_count)
+					if (speaker < 0 || speaker >= speaker_count)
 					{
 						continue;
 					}
@@ -276,7 +262,7 @@ namespace zonetool::h1::converter::s2::sound
 			}
 
 			auto* file = allocator.allocate<zonetool::s2::SoundFile>();
-			file->type = zonetool::s2::SAT_LOADED; // S2 streams only from its own soundfile paks, so the zone loads all converted audio
+			file->type = zonetool::s2::SAT_LOADED;
 			file->exists = source->exists;
 
 			const auto* loaded = find_loaded_sound(source);
@@ -349,13 +335,13 @@ namespace zonetool::h1::converter::s2::sound
 			result.playbackPercentage = alias.playbackPercentage;
 			result.probability = alias.probability;
 			result.variationType = static_cast<zonetool::s2::SndVariationType>(alias.variationType);
-			result.sndContext = nullptr; // the S2 context format is not known
+			result.sndContext = nullptr;
 			result.sequence = static_cast<unsigned char>(alias.sequence);
 			result.lfePercentage = alias.lfePercentage;
 			result.centerPercentage = alias.centerPercentage;
 			result.startDelay = alias.startDelay;
 			result.volumeFalloffCurve = named_asset<zonetool::s2::SndCurve>(curve_name(alias.volumeFalloffCurve), allocator);
-			result.lpfCurve = named_asset<zonetool::s2::DistCurve>(default_curve_name, allocator); // S2 uses a different curve format
+			result.lpfCurve = named_asset<zonetool::s2::DistCurve>("$default", allocator);
 			result.reverbSendCurve = named_asset<zonetool::s2::SndCurve>(curve_name(alias.reverbSendCurve), allocator);
 			result.speakerMap = convert_speaker_map(alias.speakerMap, allocator);
 			result.wetMixOverride = alias.wetMixOverride;
@@ -368,10 +354,10 @@ namespace zonetool::h1::converter::s2::sound
 			result.stereo3DStart = alias.stereo3DStart;
 			result.stereo3DEnd = alias.stereo3DEnd;
 			result.threshold = alias.threshold;
-			result.unknown232 = unknown232_default;
+			result.unknown232 = 1.0f;
 			result.lockedLoopTime = alias.lockedLoopTime;
 			std::fill(std::begin(result.parameterModifierOps), std::end(result.parameterModifierOps) - 1, zonetool::s2::SND_MODIFIER_OP_NONE);
-			result.parameterModifierOps[7] = zonetool::s2::SND_MODIFIER_OP_ADD; // the stock op of the playbackPercentage slot
+			result.parameterModifierOps[7] = zonetool::s2::SND_MODIFIER_OP_ADD;
 			result.length = sound_length_msec(alias.soundFile);
 		}
 

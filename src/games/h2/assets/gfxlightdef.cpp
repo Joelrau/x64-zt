@@ -1,22 +1,25 @@
 #include <std_include.hpp>
 #include "gfxlightdef.hpp"
 
+#include "io/json_reflect.hpp"
+
 namespace zonetool::h2
 {
-	void parseLightImage(GfxLightImage* image, json& data, zone_memory* mem)
+	namespace
 	{
-		if (data["image"].is_string())
+		constexpr auto light_image_fields = glz::tuple
 		{
-			const auto image_name = data["image"].get<std::string>();
+			&GfxLightImage::image,
+			&GfxLightImage::samplerState,
+		};
 
-			if (image_name.size())
-			{
-				image->image = mem->allocate<GfxImage>();
-				image->image->name = mem->duplicate_string(image_name);
-			}
-		}
-
-		image->samplerState = data["samplerState"].get<char>();
+		constexpr auto light_def_fields = glz::tuple
+		{
+			&GfxLightDef::name,
+			json_reflect::nested(&GfxLightDef::attenuation, light_image_fields),
+			json_reflect::nested(&GfxLightDef::cucoloris, light_image_fields),
+			&GfxLightDef::lmapLookupStart,
+		};
 	}
 
 	GfxLightDef* gfx_light_def::parse(const std::string& name, zone_memory* mem)
@@ -36,13 +39,7 @@ namespace zonetool::h2
 
 			auto data = json::parse(bytes);
 
-			asset->name = mem->duplicate_string(data["name"].get<std::string>());
-
-			// parse light images
-			parseLightImage(&asset->attenuation, data["attenuation"], mem);
-			parseLightImage(&asset->cucoloris, data["cucoloris"], mem);
-
-			asset->lmapLookupStart = data["lmapLookupStart"].get<int>();
+			json_reflect::read<light_def_fields>(data, *asset, mem);
 
 			return asset;
 		}
@@ -137,17 +134,7 @@ namespace zonetool::h2
 
 		ordered_json data;
 
-		data["name"] = asset->name;
-
-		data["attenuation"] = {};
-		data["attenuation"]["image"] = asset->attenuation.image ? asset->attenuation.image->name : "";
-		data["attenuation"]["samplerState"] = asset->attenuation.samplerState;
-
-		data["cucoloris"] = {};
-		data["cucoloris"]["image"] = asset->cucoloris.image ? asset->cucoloris.image->name : "";
-		data["cucoloris"]["samplerState"] = asset->cucoloris.samplerState;
-
-		data["lmapLookupStart"] = asset->lmapLookupStart;
+		json_reflect::write<light_def_fields>(data, *asset);
 
 		const auto json = data.dump(4);
 

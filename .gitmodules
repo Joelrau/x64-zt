@@ -37,3 +37,6 @@
 [submodule "deps/CascLib"]
 	path = deps/CascLib
 	url = https://github.com/ladislav-zezula/CascLib
+[submodule "deps/glaze"]
+	path = deps/glaze
+	url = https://github.com/stephenberry/glaze.git

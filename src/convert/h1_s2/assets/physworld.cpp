@@ -5,49 +5,16 @@
 
 namespace zonetool::h1::converter::s2::physworld
 {
-	namespace target = zonetool::s2;
-
-	// stock S2 models are {int polytope_start, u16 polytope_count, u16 mesh}. A model without a shape has
-	// polytope_start -1, polytope_count 0 and mesh 0xffff. The engine reads all polytopes of model 0 (0x631F89).
-	constexpr std::uint64_t empty_model = 0xFFFF0000FFFFFFFF;
-
 	namespace
 	{
-		// stock S2 mesh node: float bounds[6], then a and b.
-		// leaf: a = first triangle, b = count << 24 | 3 << 16 | flags.
-		// internal: a = offset to the right child (the left child is the next node), b = axis << 16 | flags.
-		// flags is the union of the low 16 bits of the collision flags of the triangles under the node.
-		struct s2_mesh_node
-		{
-			float mins[3];
-			float maxs[3];
-			std::uint32_t a;
-			std::uint32_t b;
-		};
-		static_assert(sizeof(s2_mesh_node) == 32);
-
-		// stock S2 meshes store the tree height, the surface area and a zero after the counts
-		struct s2_mesh_tail
-		{
-			int height;
-			float area;
-			int unused;
-		};
-		static_assert(sizeof(s2_mesh_tail) == sizeof(target::PhysMeshData::__pad0));
-
-		// stock leaf bounds are padded by 1/2.54 units
-		constexpr auto node_padding = 0.3937008f;
-		constexpr auto leaf_axis = 3u;
-		constexpr auto max_leaf_triangles = 4u;
-
-		// H1 world triangles all have collision flags 1, most stock S2 world triangles have 0xffff (collide with everything)
+		constexpr auto node_padding = 1.0f / 2.54f;
 		constexpr auto world_collision_flags = 0xFFFF;
 
 		struct mesh_builder
 		{
 			const dmMeshData& source;
-			std::vector<dmMeshTriangle> triangles;
-			std::vector<s2_mesh_node> nodes;
+			std::vector<zonetool::s2::dmMeshTriangle> triangles;
+			std::vector<zonetool::s2::PhysMeshNode> nodes;
 			std::vector<std::array<float, 3>> centers;
 			std::vector<std::size_t> order;
 			int height = 0;
@@ -87,7 +54,7 @@ namespace zonetool::h1::converter::s2::physworld
 				const auto index = nodes.size();
 				nodes.emplace_back();
 
-				s2_mesh_node node{};
+				zonetool::s2::PhysMeshNode node{};
 				std::fill_n(node.mins, 3, std::numeric_limits<float>::max());
 				std::fill_n(node.maxs, 3, -std::numeric_limits<float>::max());
 
@@ -115,13 +82,15 @@ namespace zonetool::h1::converter::s2::physworld
 				}
 
 				const auto count = end - begin;
-				if (count <= max_leaf_triangles)
+				if (count <= 4)
 				{
-					node.a = static_cast<std::uint32_t>(triangles.size());
-					node.b = static_cast<std::uint32_t>(count) << 24 | leaf_axis << 16 | flags;
+					node.u.firstTriangle = static_cast<unsigned int>(triangles.size());
+					node.flags = flags;
+					node.axis = 3;
+					node.triangleCount = static_cast<unsigned int>(count);
 					for (auto i = begin; i < end; i++)
 					{
-						auto& tri = triangles.emplace_back(source.m_aTriangles[order[i]]);
+						auto& tri = triangles.emplace_back(std::bit_cast<zonetool::s2::dmMeshTriangle>(source.m_aTriangles[order[i]]));
 						tri.collisionFlags = world_collision_flags;
 					}
 
@@ -147,8 +116,9 @@ namespace zonetool::h1::converter::s2::physworld
 				build(begin, middle, depth + 1);
 				const auto right = build(middle, end, depth + 1);
 
-				node.a = static_cast<std::uint32_t>(right - index);
-				node.b = axis << 16 | flags;
+				node.u.rightChildOffset = static_cast<unsigned int>(right - index);
+				node.flags = flags;
+				node.axis = axis;
 				nodes[index] = node;
 				return index;
 			}
@@ -178,50 +148,44 @@ namespace zonetool::h1::converter::s2::physworld
 			}
 		};
 
-		// H1 stores the tree as quantized nodes and S2 as float nodes, so the tree is rebuilt from the triangles
-		target::PhysMeshData convert_mesh(const dmMeshData& mesh, utils::memory::allocator& allocator)
+		zonetool::s2::PhysMeshData convert_mesh(const dmMeshData& mesh, utils::memory::allocator& allocator)
 		{
 			const mesh_builder builder(mesh);
 
-			target::PhysMeshData result{};
-			result.vertexCount = static_cast<int>(builder.nodes.size());
-			result.normalCount = mesh.m_vertexCount;
+			zonetool::s2::PhysMeshData result{};
+			result.nodeCount = static_cast<int>(builder.nodes.size());
+			result.vertexCount = mesh.m_vertexCount;
 			result.triangleCount = static_cast<int>(builder.triangles.size());
 
-			// THIS CAN BE CONFUSING, but vertices holds the nodes and normals holds the vertices for s2
-			const auto nodes = allocator.allocate_array<char[32]>(builder.nodes.size());
-			std::memcpy(nodes, builder.nodes.data(), builder.nodes.size() * sizeof(s2_mesh_node));
-			result.vertices = nodes;
+			result.nodes = allocator.allocate_array<zonetool::s2::PhysMeshNode>(builder.nodes.size());
+			std::memcpy(result.nodes, builder.nodes.data(), builder.nodes.size() * sizeof(zonetool::s2::PhysMeshNode));
+			result.vertices = allocator.allocate_array<zonetool::s2::dmFloat4>(mesh.m_vertexCount);
+			std::memcpy(result.vertices, mesh.m_aVertices, mesh.m_vertexCount * sizeof(zonetool::s2::dmFloat4));
+			result.triangles = allocator.allocate_array<zonetool::s2::dmMeshTriangle>(builder.triangles.size());
+			std::memcpy(result.triangles, builder.triangles.data(), builder.triangles.size() * sizeof(zonetool::s2::dmMeshTriangle));
 
-			const auto vertices = allocator.allocate_array<char[16]>(mesh.m_vertexCount);
-			std::memcpy(vertices, mesh.m_aVertices, mesh.m_vertexCount * sizeof(dmFloat4));
-			result.normals = vertices;
-
-			const auto triangles = allocator.allocate_array<char[32]>(builder.triangles.size());
-			std::memcpy(triangles, builder.triangles.data(), builder.triangles.size() * sizeof(dmMeshTriangle));
-			result.triangles = triangles;
-
-			const s2_mesh_tail tail{builder.height, builder.area(), 0};
-			std::memcpy(result.__pad0, &tail, sizeof(tail));
+			result.treeHeight = builder.height;
+			result.surfaceArea = builder.area();
 
 			ZONETOOL_INFO("PhysWorld mesh: %d vertices, %d triangles, %d nodes, height %d", mesh.m_vertexCount,
-				result.triangleCount, result.vertexCount, builder.height);
+				result.triangleCount, result.nodeCount, builder.height);
 			return result;
 		}
 
-		std::uint64_t convert_model(const PhysBrushModel& model, const std::size_t mesh_count)
+		zonetool::s2::PhysBrushModel convert_model(const PhysBrushModel& model, const std::size_t mesh_count)
 		{
+			zonetool::s2::PhysBrushModel new_model{-1, 0, 0xFFFF}; // 0x631F89
 			const auto mesh = model.fields.meshIndex;
-			if (mesh < 0 || static_cast<std::size_t>(mesh) >= mesh_count)
+			if (mesh >= 0 && static_cast<std::size_t>(mesh) < mesh_count)
 			{
-				return empty_model;
+				new_model.meshIndex = static_cast<unsigned short>(mesh);
 			}
 
-			return static_cast<std::uint64_t>(static_cast<std::uint16_t>(mesh)) << 48 | 0x0000FFFFFFFFull;
+			return new_model;
 		}
 	}
 
-	// TODO: polytopes and water volumes are not converted
+	// TODO polytopes and water volumes are not converted
 	void dump(PhysWorld* asset)
 	{
 		if (asset->polytopeCount || asset->waterVolumeDefCount)
@@ -232,25 +196,25 @@ namespace zonetool::h1::converter::s2::physworld
 
 		utils::memory::allocator allocator;
 
-		std::vector<target::PhysMeshData> meshes;
+		std::vector<zonetool::s2::PhysMeshData> meshes;
 		for (auto i = 0u; asset->meshDatas && i < asset->meshDataCount; i++)
 		{
 			meshes.push_back(convert_mesh(asset->meshDatas[i], allocator));
 		}
 
-		std::vector<std::uint64_t> models(asset->brushModelCount, empty_model);
+		std::vector<zonetool::s2::PhysBrushModel> models(asset->brushModelCount);
 		for (auto i = 0u; asset->brushModels && i < asset->brushModelCount; i++)
 		{
 			models[i] = convert_model(asset->brushModels[i], meshes.size());
 		}
 
-		target::PhysWorld new_asset{};
+		zonetool::s2::PhysWorld new_asset{};
 		new_asset.name = asset->name;
 		new_asset.modelCount = asset->brushModelCount;
 		new_asset.models = models.empty() ? nullptr : models.data();
 		new_asset.meshCount = static_cast<unsigned int>(meshes.size());
 		new_asset.meshes = meshes.empty() ? nullptr : meshes.data();
-		target::phys_worldmap::dump(&new_asset);
+		zonetool::s2::phys_worldmap::dump(&new_asset);
 		add_csv_row("phys_worldmap", new_asset.name);
 	}
 }

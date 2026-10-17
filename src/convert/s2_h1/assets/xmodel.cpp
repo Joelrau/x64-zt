@@ -12,24 +12,6 @@ namespace zonetool::s2::converter::h1::xmodel
 	{
 		std::unordered_set<std::string> dumped_models;
 
-		constexpr unsigned int s2_xmodel_flag_variants = 0x200;
-		constexpr unsigned int s2_xmodel_flag_no_last_lod = 0x8000;
-		constexpr auto s2_lod_view_scale = 565.087f;
-		constexpr auto h1_no_cull_lod_dist = 1000000.0f;
-		constexpr std::uint16_t s2_surf_flag_skinned = 0x4;
-
-		struct s2_coll_surf
-		{
-			float midPoint[3];
-			float halfSize[3];
-			int boneIdx;
-			int __pad0;
-			std::uint64_t contents;
-			std::uint32_t surfFlags;
-			int __pad1;
-		};
-		static_assert(sizeof(s2_coll_surf) == 48);
-
 		template <typename T>
 		T* make_stub(const char* name, utils::memory::allocator& allocator)
 		{
@@ -40,7 +22,7 @@ namespace zonetool::s2::converter::h1::xmodel
 
 		const XModel* resolve_variant(const XModel* asset)
 		{
-			if (!(asset->flags & s2_xmodel_flag_variants))
+			if (!(asset->flags & XMODEL_FLAG_VARIANTS))
 			{
 				return asset;
 			}
@@ -64,7 +46,7 @@ namespace zonetool::s2::converter::h1::xmodel
 
 				for (auto i = 0; i < lod.modelSurfs->numsurfs; i++)
 				{
-					if (lod.modelSurfs->surfs[i].flags & s2_surf_flag_skinned)
+					if (lod.modelSurfs->surfs[i].flags & XSURFACE_FLAG_SKINNED)
 					{
 						return true;
 					}
@@ -81,13 +63,12 @@ namespace zonetool::s2::converter::h1::xmodel
 				return nullptr;
 			}
 
-			const auto coll_surfs = reinterpret_cast<const s2_coll_surf*>(base->collSurfs);
+			const auto coll_surfs = reinterpret_cast<const XModelCollSurf*>(base->collSurfs);
 			const auto new_coll_surfs = allocator.allocate_array<zonetool::h1::XModelCollSurf_s>(base->collSurfCount);
 			for (auto i = 0; i < base->collSurfCount; i++)
 			{
 				auto& surf = new_coll_surfs[i];
-				std::memcpy(surf.bounds.midPoint, coll_surfs[i].midPoint, sizeof(surf.bounds.midPoint));
-				std::memcpy(surf.bounds.halfSize, coll_surfs[i].halfSize, sizeof(surf.bounds.halfSize));
+				surf.bounds = std::bit_cast<zonetool::h1::Bounds>(coll_surfs[i].bounds);
 				surf.boneIdx = coll_surfs[i].boneIdx;
 				surf.contents = static_cast<int>(coll_surfs[i].contents);
 				surf.surfFlags = static_cast<int>(convert_surface_flags(coll_surfs[i].surfFlags));
@@ -104,8 +85,6 @@ namespace zonetool::s2::converter::h1::xmodel
 			return values;
 		}
 
-		constexpr std::uint32_t vertex_color_rgb_bits = 0x00FFFFFF;
-
 		std::optional<std::uint32_t> get_forced_vertex_color_bits(const Material* material)
 		{
 			if (!material || !material->techniqueSet || !material->techniqueSet->name)
@@ -116,7 +95,7 @@ namespace zonetool::s2::converter::h1::xmodel
 			const auto techset = material->techniqueSet->name;
 			if (std::strstr(techset, "_fwa"))
 			{
-				return vertex_color_rgb_bits;
+				return 0x00FFFFFFu;
 			}
 
 			if (std::strstr(techset, "_effect") || std::strstr(techset, "_flag"))
@@ -129,7 +108,7 @@ namespace zonetool::s2::converter::h1::xmodel
 
 		int get_lod_count(const XModel* asset, const XModelBase* base)
 		{
-			const auto skip_last = (asset->flags & s2_xmodel_flag_no_last_lod) && base->numLods > 1;
+			const auto skip_last = (asset->flags & XMODEL_FLAG_NO_LAST_LOD) && base->numLods > 1;
 			return std::min(base->numLods - (skip_last ? 1 : 0), 6);
 		}
 
@@ -163,10 +142,10 @@ namespace zonetool::s2::converter::h1::xmodel
 		{
 			if (lod >= lod_count - 1)
 			{
-				return h1_no_cull_lod_dist;
+				return 1000000.0f;
 			}
 
-			return std::sqrt(std::max(0.0f, base->lodDistScale * base->lodDistSq[lod])) * s2_lod_view_scale + base->radius;
+			return std::sqrt(std::max(0.0f, base->lodDistScale * base->lodDistSq[lod])) * 565.087f + base->radius;
 		}
 
 		zonetool::h1::XModel* convert(const XModel* asset, utils::memory::allocator& allocator)

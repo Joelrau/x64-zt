@@ -9,10 +9,6 @@ namespace zonetool::s2::converter::h1::material
 {
 	namespace
 	{
-		constexpr std::uint8_t h1_semantic_normal_map = 5;
-		constexpr std::uint8_t h1_semantic_specular_map = 8;
-		constexpr std::uint8_t h1_semantic_water_map = 11;
-		constexpr std::uint32_t sky_rotation_hash = 0xBC8EB53C;
 
 		struct converted_material
 		{
@@ -77,9 +73,9 @@ namespace zonetool::s2::converter::h1::material
 		{
 			switch (semantic)
 			{
-			case h1_semantic_normal_map:
+			case zonetool::h1::TS_NORMAL_MAP:
 				return "$identitynormalmap";
-			case h1_semantic_specular_map:
+			case zonetool::h1::TS_SPECULAR_MAP:
 				return "$black";
 			default:
 				return "$white";
@@ -117,7 +113,6 @@ namespace zonetool::s2::converter::h1::material
 			return asset->techniqueSet && asset->techniqueSet->name && std::strstr(asset->techniqueSet->name, "_sky");
 		}
 
-		// The S2 ui3d color map is a placeholder for a menu render target that H1 does not draw
 		bool is_ui3d_screen(const Material* asset)
 		{
 			return asset->techniqueSet && asset->techniqueSet->name && std::strstr(asset->techniqueSet->name, "_ui3d");
@@ -136,7 +131,7 @@ namespace zonetool::s2::converter::h1::material
 				return {};
 			}
 
-			const auto rotation = find_constant(asset, sky_rotation_hash);
+			const auto rotation = find_constant(asset, 0xBC8EB53C);
 			const auto rotation_cos = rotation ? rotation->literal[0] : 1.0f;
 			const auto rotation_sin = rotation ? rotation->literal[1] : 0.0f;
 			const auto rotation_degrees = rotation ? static_cast<int>(std::lround(rotation->literal[2])) : 0;
@@ -177,7 +172,7 @@ namespace zonetool::s2::converter::h1::material
 			for (auto i = 0u; i < result->textures.size(); i++)
 			{
 				auto& texture = result->textures[i];
-				if (texture.semantic == h1_semantic_water_map)
+				if (texture.semantic == zonetool::h1::TS_WATER_MAP)
 				{
 					continue;
 				}

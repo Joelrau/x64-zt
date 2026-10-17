@@ -2,305 +2,153 @@
 #include "weaponattachment.hpp"
 #include "weapondef.hpp"
 
+#include "io/json_reflect.hpp"
+
 namespace zonetool::iw6
 {
-#define PARSE_STRING(__field__) \
-	static_assert(std::is_same_v<decltype(asset->__field__), const char*>, "Field is not of type const char*"); \
-	!data[#__field__].is_null() && !data[#__field__].get<std::string>().empty() ? asset->__field__ = mem->duplicate_string(data[#__field__].get<std::string>()) : asset->__field__ = nullptr;
-
-#define PARSE_FIELD(__field__) \
-	if (!data[#__field__].is_null()) asset->__field__ = data[#__field__].get<decltype(asset->__field__)>();
-
-#define PARSE_FIELD_ARR(__field__, __size__) \
-	if(!data[#__field__].is_null()) \
-	{ \
-		for (auto idx##__field__ = 0u; idx##__field__ < (unsigned int)__size__; idx##__field__++) \
-		{ \
-			asset->__field__[idx##__field__] = data[#__field__][idx##__field__].get<typename std::remove_reference<decltype(asset->__field__[idx##__field__])>::type>(); \
-		} \
-	}
-
-#define PARSE_FIELD_RENAME(__field__, __name__) \
-	if (!data[__name__].is_null()) asset->__field__ = data[__name__].get<decltype(asset->__field__)>();
-
-#define PARSE_ASSET_ARR(__field__, __size__) \
-	if (!data[#__field__].is_null()) \
-	{ \
-		asset->__field__ = mem->allocate<typename std::remove_reference<decltype(*asset->__field__)>::type>(__size__); \
-		for (auto idx##__field__ = 0u; idx##__field__ < (unsigned int)__size__; idx##__field__++) \
-		{ \
-			if (!data[#__field__][idx##__field__].is_null() && !data[#__field__][idx##__field__].get<std::string>().empty()) \
-			{ \
-				asset->__field__[idx##__field__] = mem->manual_allocate<typename std::remove_reference<decltype(*asset->__field__[idx##__field__])>::type>(sizeof(const char*)); \
-				asset->__field__[idx##__field__]->name = mem->duplicate_string(data[#__field__][idx##__field__].get<std::string>()); \
-			} \
-			else \
-			{ \
-				asset->__field__[idx##__field__] = nullptr; \
-			} \
-		} \
-	} \
-	else \
-	{ \
-		asset->__field__ = nullptr; \
-	}
-
-#define PARSE_ASSET(__field__) \
-	if (!data[#__field__].is_null() && !data[#__field__].get<std::string>().empty()) \
-	{ \
-		asset->__field__ = mem->manual_allocate<typename std::remove_reference<decltype(*asset->__field__)>::type>(sizeof(const char*)); \
-		asset->__field__->name = mem->duplicate_string(data[#__field__].get<std::string>()); \
-	} \
-	else \
-	{ \
-		asset->__field__ = nullptr; \
-	}
-
-	void parse_att(AttAmmoGeneral* asset, ordered_json& data, zone_memory* mem)
+	namespace
 	{
-		PARSE_FIELD(penetrateType);
-		PARSE_FIELD(penetrateMultiplier);
-		PARSE_FIELD(impactType);
-		PARSE_FIELD(fireType);
-		PARSE_ASSET(tracerType);
-		PARSE_FIELD(rifleBullet);
-		PARSE_FIELD(armorPiercing);
-	}
+		constexpr auto ads_overlay_fields = glz::tuple
+		{
+			&AttADSOverlay::hybridToggle,
+			&AttADSOverlay::thermalScope,
+			&AttADSOverlay::thermalToggle,
+			&AttADSOverlay::outlineEnemies,
+		};
 
-	void parse_att(AttSight* asset, ordered_json& data, zone_memory* mem)
-	{
-		PARSE_FIELD(aimDownSight);
-		PARSE_FIELD(adsFire);
-		PARSE_FIELD(rechamberWhileAds);
-		PARSE_FIELD(noAdsWhenMagEmpty);
-		PARSE_FIELD(canHoldBreath);
-		PARSE_FIELD(canVariableZoom);
-		PARSE_FIELD(hideRailWithThisScope);
-		PARSE_FIELD(useScopeDrift);
-		PARSE_FIELD(useDualFOV);
-	}
+		constexpr auto rumbles_fields = glz::tuple
+		{
+			&AttRumbles::fireRumble,
+			&AttRumbles::meleeImpactRumble,
+		};
 
-	void parse_att(AttReload* asset, ordered_json& data, zone_memory* mem)
-	{
-		PARSE_FIELD(noPartialReload);
-		PARSE_FIELD(segmentedReload);
-	}
+		constexpr auto projectile_fields = glz::tuple
+		{
+			&AttProjectile::explosionRadius,
+			&AttProjectile::explosionInnerDamage,
+			&AttProjectile::explosionOuterDamage,
+			&AttProjectile::damageConeAngle,
+			&AttProjectile::projectileSpeed,
+			&AttProjectile::projectileSpeedUp,
+			&AttProjectile::projectileActivateDist,
+			&AttProjectile::projectileLifetime,
+			&AttProjectile::projectileModel,
+			&AttProjectile::projExplosionType,
+			&AttProjectile::projExplosionEffect,
+			&AttProjectile::projExplosionEffectForceNormalUp,
+			&AttProjectile::projExplosionSound,
+			&AttProjectile::projDudEffect,
+			&AttProjectile::projDudSound,
+			&AttProjectile::projImpactExplode,
+			&AttProjectile::destabilizationRateTime,
+			&AttProjectile::destabilizationCurvatureMax,
+			&AttProjectile::destabilizeDistance,
+			&AttProjectile::projTrailEffect,
+			&AttProjectile::projIgnitionDelay,
+			&AttProjectile::projIgnitionEffect,
+			&AttProjectile::projIgnitionSound,
+		};
 
-	void parse_att(AttAddOns* asset, ordered_json& data, zone_memory* mem)
-	{
-		PARSE_FIELD(motionTracker);
-		PARSE_FIELD(silenced);
-		PARSE_FIELD(riotShield);
-	}
+		constexpr auto attachment_fields = glz::tuple
+		{
+			&WeaponAttachment::szInternalName,
+			&WeaponAttachment::szDisplayName,
+			&WeaponAttachment::type,
+			&WeaponAttachment::weaponType,
+			json_reflect::renamed("weaponClass", &WeaponAttachment::weapClass),
+			json_reflect::counted(&WeaponAttachment::worldModels, 64),
+			json_reflect::counted(&WeaponAttachment::viewModels, 64),
+			json_reflect::counted(&WeaponAttachment::reticleViewModels, 16),
+			json_reflect::nested(&WeaponAttachment::ammogeneral),
+			json_reflect::nested(&WeaponAttachment::sight),
+			json_reflect::nested(&WeaponAttachment::reload),
+			json_reflect::nested(&WeaponAttachment::addOns),
+			json_reflect::nested(&WeaponAttachment::general),
+			json_reflect::nested(&WeaponAttachment::aimAssist),
+			json_reflect::nested(&WeaponAttachment::ammunition),
+			json_reflect::nested(&WeaponAttachment::damage),
+			json_reflect::nested(&WeaponAttachment::locationDamage),
+			json_reflect::nested(&WeaponAttachment::idleSettings),
+			json_reflect::nested(&WeaponAttachment::adsSettings),
+			json_reflect::nested(&WeaponAttachment::adsSettingsMain),
+			json_reflect::nested(&WeaponAttachment::scopeDriftSettings),
+			json_reflect::nested(&WeaponAttachment::scopeDriftSettingsMain),
+			json_reflect::nested(&WeaponAttachment::hipSpread),
+			json_reflect::nested(&WeaponAttachment::gunKick),
+			json_reflect::nested(&WeaponAttachment::viewKick),
+			json_reflect::manual("adsOverlay"),
+			json_reflect::nested(&WeaponAttachment::ui),
+			json_reflect::nested(&WeaponAttachment::rumbles, rumbles_fields),
+			json_reflect::nested(&WeaponAttachment::projectile, projectile_fields), // projectileName is not in the zone
+			&WeaponAttachment::ammunitionScale,
+			&WeaponAttachment::damageScale,
+			&WeaponAttachment::damageScaleMin,
+			&WeaponAttachment::stateTimersScale,
+			&WeaponAttachment::fireTimersScale,
+			&WeaponAttachment::idleSettingsScale,
+			&WeaponAttachment::adsSettingsScale,
+			&WeaponAttachment::adsSettingsScaleMain,
+			&WeaponAttachment::hipSpreadScale,
+			&WeaponAttachment::gunKickScale,
+			&WeaponAttachment::viewKickScale,
+			&WeaponAttachment::viewCenterScale,
+			&WeaponAttachment::loadIndex,
+			&WeaponAttachment::hideIronSightsWithThisAttachment,
+			&WeaponAttachment::shareAmmoWithAlt,
+		};
 
-	void parse_att(AttGeneral* asset, ordered_json& data, zone_memory* mem)
-	{
-		PARSE_FIELD(boltAction);
-		PARSE_FIELD(inheritsPerks);
-		PARSE_FIELD(reticleSpin45);
-		PARSE_FIELD(enemyCrosshairRange);
-		PARSE_ASSET(reticleCenter);
-		PARSE_ASSET(reticleSide);
-		PARSE_FIELD(reticleCenterSize);
-		PARSE_FIELD(reticleSideSize);
-		PARSE_FIELD(moveSpeedScale);
-		PARSE_FIELD(adsMoveSpeedScale);
-	}
+		constexpr json_reflect::options dump_options{.strings = json_reflect::null_string::null};
 
-	void parse_att(AttAimAssist* asset, ordered_json& data, zone_memory* mem)
-	{
-		PARSE_FIELD(autoAimRange);
-		PARSE_FIELD(aimAssistRange);
-		PARSE_FIELD(aimAssistRangeAds);
-	}
+		// v1 writes the overlay members as "overlay.<member>" keys of the adsOverlay object
+		void read_ads_overlay(const ordered_json& data, AttADSOverlay*& asset, zone_memory* mem)
+		{
+			if (data.is_null())
+			{
+				return;
+			}
 
-	void parse_att(AttAmmunition* asset, ordered_json& data, zone_memory* mem)
-	{
-		PARSE_FIELD(maxAmmo);
-		PARSE_FIELD(startAmmo);
-		PARSE_FIELD(clipSize);
-		PARSE_FIELD(shotCount);
-		PARSE_FIELD(reloadAmmoAdd);
-		PARSE_FIELD(reloadStartAdd);
-	}
+			asset = mem->allocate<AttADSOverlay>();
+			auto& overlay = asset->overlay;
+			const auto read_overlay_field = [&](const char* key, auto& member)
+			{
+				const auto entry = data.find(key);
+				if (entry != data.end() && !entry->is_null())
+				{
+					json_reflect::read(*entry, member, mem);
+				}
+			};
 
-	void parse_att(AttDamage* asset, ordered_json& data, zone_memory* mem)
-	{
-		PARSE_FIELD(damage);
-		PARSE_FIELD(minDamage);
-		PARSE_FIELD(meleeDamage);
-		PARSE_FIELD(maxDamageRange);
-		PARSE_FIELD(minDamageRange);
-		PARSE_FIELD(playerDamage);
-		PARSE_FIELD(minPlayerDamage);
-	}
+			read_overlay_field("overlay.shader", overlay.shader);
+			read_overlay_field("overlay.shaderLowRes", overlay.shaderLowRes);
+			read_overlay_field("overlay.shaderEMP", overlay.shaderEMP);
+			read_overlay_field("overlay.shaderEMPLowRes", overlay.shaderEMPLowRes);
+			read_overlay_field("overlay.reticle", overlay.reticle);
+			read_overlay_field("overlay.width", overlay.width);
+			read_overlay_field("overlay.height", overlay.height);
+			read_overlay_field("overlay.widthSplitscreen", overlay.widthSplitscreen);
+			read_overlay_field("overlay.heightSplitscreen", overlay.heightSplitscreen);
+			json_reflect::read<ads_overlay_fields>(data, *asset, mem);
+		}
 
-	void parse_att(AttIdleSettings* asset, ordered_json& data, zone_memory* mem)
-	{
-		PARSE_FIELD(hipIdleAmount);
-		PARSE_FIELD(hipIdleSpeed);
-		PARSE_FIELD(idleCrouchFactor);
-		PARSE_FIELD(idleProneFactor);
-		PARSE_FIELD(adsIdleLerpStartTime);
-		PARSE_FIELD(adsIdleLerpTime);
-	}
+		void write_ads_overlay(ordered_json& data, const AttADSOverlay* asset)
+		{
+			if (!asset)
+			{
+				return;
+			}
 
-	void parse_att(AttADSSettings* asset, ordered_json& data, zone_memory* mem)
-	{
-		PARSE_FIELD(adsSpread);
-		PARSE_FIELD(adsAimPitch);
-		PARSE_FIELD(adsTransInTime);
-		PARSE_FIELD(adsTransOutTime);
-		PARSE_FIELD(adsReloadTransTime);
-		PARSE_FIELD(adsCrosshairInFrac);
-		PARSE_FIELD(adsCrosshairOutFrac);
-		PARSE_FIELD(adsZoomFov);
-		PARSE_FIELD(adsZoomInFrac);
-		PARSE_FIELD(adsZoomOutFrac);
-		PARSE_FIELD(adsFovLerpTime);
-		PARSE_FIELD(adsBobFactor);
-		PARSE_FIELD(adsViewBobMult);
-		PARSE_FIELD(adsFireRateScale);
-		PARSE_FIELD(adsDamageRangeScale);
-		PARSE_FIELD(adsFireAnimFrac);
-	}
-
-	void parse_att(AttScopeDriftSettings* asset, ordered_json& data, zone_memory* mem)
-	{
-		PARSE_FIELD(fScopeDriftDelay);
-		PARSE_FIELD(fScopeDriftLerpInTime);
-		PARSE_FIELD(fScopeDriftSteadyTime);
-		PARSE_FIELD(fScopeDriftLerpOutTime);
-		PARSE_FIELD(fScopeDriftSteadyFactor);
-		PARSE_FIELD(fScopeDriftUnsteadyFactor);
-	}
-
-	void parse_att(AttHipSpread* asset, ordered_json& data, zone_memory* mem)
-	{
-		PARSE_FIELD(hipSpreadStandMin);
-		PARSE_FIELD(hipSpreadDuckedMin);
-		PARSE_FIELD(hipSpreadProneMin);
-		PARSE_FIELD(hipSpreadMax);
-		PARSE_FIELD(hipSpreadDuckedMax);
-		PARSE_FIELD(hipSpreadProneMax);
-		PARSE_FIELD(hipSpreadFireAdd);
-		PARSE_FIELD(hipSpreadTurnAdd);
-		PARSE_FIELD(hipSpreadMoveAdd);
-		PARSE_FIELD(hipSpreadDecayRate);
-		PARSE_FIELD(hipSpreadDuckedDecay);
-		PARSE_FIELD(hipSpreadProneDecay);
-	}
-
-	void parse_att(AttGunKick* asset, ordered_json& data, zone_memory* mem)
-	{
-		PARSE_FIELD(hipGunKickReducedKickBullets);
-		PARSE_FIELD(hipGunKickReducedKickPercent);
-		PARSE_FIELD(hipGunKickPitchMin);
-		PARSE_FIELD(hipGunKickPitchMax);
-		PARSE_FIELD(hipGunKickYawMin);
-		PARSE_FIELD(hipGunKickYawMax);
-		PARSE_FIELD(hipGunKickMagMin);
-		PARSE_FIELD(hipGunKickAccel);
-		PARSE_FIELD(hipGunKickSpeedMax);
-		PARSE_FIELD(hipGunKickSpeedDecay);
-		PARSE_FIELD(hipGunKickStaticDecay);
-		PARSE_FIELD(adsGunKickReducedKickBullets);
-		PARSE_FIELD(adsGunKickReducedKickPercent);
-		PARSE_FIELD(adsGunKickPitchMin);
-		PARSE_FIELD(adsGunKickPitchMax);
-		PARSE_FIELD(adsGunKickYawMin);
-		PARSE_FIELD(adsGunKickYawMax);
-		PARSE_FIELD(adsGunKickMagMin);
-		PARSE_FIELD(adsGunKickAccel);
-		PARSE_FIELD(adsGunKickSpeedMax);
-		PARSE_FIELD(adsGunKickSpeedDecay);
-		PARSE_FIELD(adsGunKickStaticDecay);
-	}
-
-	void parse_att(AttViewKick* asset, ordered_json& data, zone_memory* mem)
-	{
-		PARSE_FIELD(hipViewKickPitchMin);
-		PARSE_FIELD(hipViewKickPitchMax);
-		PARSE_FIELD(hipViewKickYawMin);
-		PARSE_FIELD(hipViewKickYawMax);
-		PARSE_FIELD(hipViewKickMagMin);
-		PARSE_FIELD(hipViewKickCenterSpeed);
-		PARSE_FIELD(adsViewKickPitchMin);
-		PARSE_FIELD(adsViewKickPitchMax);
-		PARSE_FIELD(adsViewKickYawMin);
-		PARSE_FIELD(adsViewKickYawMax);
-		PARSE_FIELD(adsViewKickMagMin);
-		PARSE_FIELD(adsViewKickCenterSpeed);
-	}
-
-	void parse_att(AttADSOverlay* asset, ordered_json& data, zone_memory* mem)
-	{
-		PARSE_ASSET(overlay.shader);
-		PARSE_ASSET(overlay.shaderLowRes);
-		PARSE_ASSET(overlay.shaderEMP);
-		PARSE_ASSET(overlay.shaderEMPLowRes);
-		PARSE_FIELD(overlay.reticle);
-		PARSE_FIELD(overlay.width);
-		PARSE_FIELD(overlay.height);
-		PARSE_FIELD(overlay.widthSplitscreen);
-		PARSE_FIELD(overlay.heightSplitscreen);
-		PARSE_FIELD(hybridToggle);
-		PARSE_FIELD(thermalScope);
-		PARSE_FIELD(thermalToggle);
-		PARSE_FIELD(outlineEnemies);
-	}
-
-	void parse_att(AttUI* asset, ordered_json& data, zone_memory* mem)
-	{
-		PARSE_ASSET(dpadIcon);
-		PARSE_ASSET(ammoCounterIcon);
-		PARSE_FIELD(dpadIconRatio);
-		PARSE_FIELD(ammoCounterIconRatio);
-		PARSE_FIELD(ammoCounterClip);
-	}
-
-	void parse_att(AttRumbles* asset, ordered_json& data, zone_memory* mem)
-	{
-		PARSE_STRING(fireRumble);
-		PARSE_STRING(meleeImpactRumble);
-	}
-
-	void parse_att(AttProjectile* asset, ordered_json& data, zone_memory* mem)
-	{
-		PARSE_FIELD(explosionRadius);
-		PARSE_FIELD(explosionInnerDamage);
-		PARSE_FIELD(explosionOuterDamage);
-		PARSE_FIELD(damageConeAngle);
-		PARSE_FIELD(projectileSpeed);
-		PARSE_FIELD(projectileSpeedUp);
-		PARSE_FIELD(projectileActivateDist);
-		PARSE_FIELD(projectileLifetime);
-		PARSE_ASSET(projectileModel);
-		PARSE_FIELD(projExplosionType);
-		PARSE_ASSET(projExplosionEffect);
-		PARSE_FIELD(projExplosionEffectForceNormalUp);
-		PARSE_ASSET(projExplosionSound);
-		PARSE_ASSET(projDudEffect);
-		PARSE_ASSET(projDudSound);
-		PARSE_FIELD(projImpactExplode);
-		PARSE_FIELD(destabilizationRateTime);
-		PARSE_FIELD(destabilizationCurvatureMax);
-		PARSE_FIELD(destabilizeDistance);
-		PARSE_ASSET(projTrailEffect);
-		PARSE_FIELD(projIgnitionDelay);
-		PARSE_ASSET(projIgnitionEffect);
-		PARSE_ASSET(projIgnitionSound);
-	}
-
-#define PARSE_ATT(__att__) \
-	if (!data[#__att__].is_null()) \
-	{ \
-		asset->__att__ = mem->allocate<typename std::remove_reference<decltype(*asset->__att__)>::type>(); \
-		parse_att(asset->__att__, data[#__att__], mem);  \
-	} \
-	else \
-	{ \
-		 asset->__att__ = nullptr; \
+			const auto& overlay = asset->overlay;
+			json_reflect::write(data["overlay.shader"], overlay.shader);
+			json_reflect::write(data["overlay.shaderLowRes"], overlay.shaderLowRes);
+			json_reflect::write(data["overlay.shaderEMP"], overlay.shaderEMP);
+			json_reflect::write(data["overlay.shaderEMPLowRes"], overlay.shaderEMPLowRes);
+			json_reflect::write(data["overlay.reticle"], overlay.reticle);
+			json_reflect::write(data["overlay.width"], overlay.width);
+			json_reflect::write(data["overlay.height"], overlay.height);
+			json_reflect::write(data["overlay.widthSplitscreen"], overlay.widthSplitscreen);
+			json_reflect::write(data["overlay.heightSplitscreen"], overlay.heightSplitscreen);
+			json_reflect::write<ads_overlay_fields>(data, *asset);
+		}
 	}
 
 	WeaponAttachment* weapon_attachment::parse(const std::string& name, zone_memory* mem)
@@ -323,49 +171,8 @@ namespace zonetool::iw6
 		ordered_json data = json::parse(bytes);
 
 		auto* asset = mem->allocate<WeaponAttachment>();
-
-		PARSE_STRING(szInternalName);
-		PARSE_STRING(szDisplayName);
-		PARSE_FIELD(type);
-		PARSE_FIELD(weaponType);
-		PARSE_FIELD_RENAME(weapClass, "weaponClass");
-		PARSE_ASSET_ARR(worldModels, 64);
-		PARSE_ASSET_ARR(viewModels, 64);
-		PARSE_ASSET_ARR(reticleViewModels, 16);
-		PARSE_ATT(ammogeneral);
-		PARSE_ATT(sight);
-		PARSE_ATT(reload);
-		PARSE_ATT(addOns);
-		PARSE_ATT(general);
-		PARSE_ATT(aimAssist);
-		PARSE_ATT(ammunition);
-		PARSE_ATT(damage);
-		PARSE_ATT(idleSettings);
-		PARSE_ATT(adsSettings);
-		PARSE_ATT(adsSettingsMain);
-		PARSE_ATT(scopeDriftSettings);
-		PARSE_ATT(scopeDriftSettingsMain);
-		PARSE_ATT(hipSpread);
-		PARSE_ATT(gunKick);
-		PARSE_ATT(viewKick);
-		PARSE_ATT(adsOverlay);
-		PARSE_ATT(ui);
-		PARSE_ATT(rumbles);
-		PARSE_ATT(projectile);
-		PARSE_FIELD(ammunitionScale);
-		PARSE_FIELD(damageScale);
-		PARSE_FIELD(damageScaleMin);
-		PARSE_FIELD(stateTimersScale);
-		PARSE_FIELD(fireTimersScale);
-		PARSE_FIELD(adsSettingsScale);
-		PARSE_FIELD(adsSettingsScaleMain);
-		PARSE_FIELD(hipSpreadScale);
-		PARSE_FIELD(gunKickScale);
-		PARSE_FIELD(viewKickScale);
-		PARSE_FIELD(viewCenterScale);
-		PARSE_FIELD(loadIndex); // probably runtime data
-		PARSE_FIELD(hideIronSightsWithThisAttachment);
-		PARSE_FIELD(shareAmmoWithAlt);
+		json_reflect::read<attachment_fields>(data, *asset, mem);
+		read_ads_overlay(data["adsOverlay"], asset->adsOverlay, mem);
 
 		return asset;
 	}
@@ -859,339 +666,13 @@ namespace zonetool::iw6
 		buf->pop_stream();
 	}
 
-#define DUMP_STRING(__field__) \
-	static_assert(std::is_same_v<decltype(asset->__field__), const char*>, "Field is not of type const char*"); \
-	asset->__field__ ? data[#__field__] = asset->__field__ : data[#__field__] = nullptr;
-
-#define DUMP_FIELD(__field__) \
-	data[#__field__] = asset->__field__;
-
-#define DUMP_FIELD_ARR(__field__, __size__) \
-	for (auto idx##__field__ = 0u; idx##__field__ < (unsigned int)__size__; idx##__field__++) \
-	{ \
-		data[#__field__][idx##__field__] = asset->__field__[idx##__field__]; \
-	}
-
-#define DUMP_FIELD_RENAME(__field__, __name__) \
-	data[__name__] = asset->__field__;
-
-#define DUMP_ASSET_ARR(__field__, __size__) \
-	if (asset->__field__ && __size__) \
-	{ \
-		for (auto idx##__field__ = 0u; idx##__field__ < (unsigned int)__size__; idx##__field__++) \
-		{ \
-			if (asset->__field__[idx##__field__]) \
-			{ \
-				data[#__field__][idx##__field__] = asset->__field__[idx##__field__]->name; \
-			} \
-			else \
-			{ \
-				data[#__field__][idx##__field__] = ""; \
-			} \
-		} \
-	} \
-	else \
-	{ \
-		data[#__field__] = nullptr; \
-	}
-
-#define DUMP_ASSET(__field__) \
-	if (asset->__field__) \
-	{ \
-		data[#__field__] = asset->__field__->name; \
-	} \
-	else \
-	{ \
-		data[#__field__] = ""; \
-	}
-
-	void dump_att(AttAmmoGeneral* asset, ordered_json& data)
-	{
-		DUMP_FIELD(penetrateType);
-		DUMP_FIELD(penetrateMultiplier);
-		DUMP_FIELD(impactType);
-		DUMP_FIELD(fireType);
-		DUMP_ASSET(tracerType);
-		DUMP_FIELD(rifleBullet);
-		DUMP_FIELD(armorPiercing);
-	}
-
-	void dump_att(AttSight* asset, ordered_json& data)
-	{
-		DUMP_FIELD(aimDownSight);
-		DUMP_FIELD(adsFire);
-		DUMP_FIELD(rechamberWhileAds);
-		DUMP_FIELD(noAdsWhenMagEmpty);
-		DUMP_FIELD(canHoldBreath);
-		DUMP_FIELD(canVariableZoom);
-		DUMP_FIELD(hideRailWithThisScope);
-		DUMP_FIELD(useScopeDrift);
-		DUMP_FIELD(useDualFOV);
-	}
-
-	void dump_att(AttReload* asset, ordered_json& data)
-	{
-		DUMP_FIELD(noPartialReload);
-		DUMP_FIELD(segmentedReload);
-	}
-
-	void dump_att(AttAddOns* asset, ordered_json& data)
-	{
-		DUMP_FIELD(motionTracker);
-		DUMP_FIELD(silenced);
-		DUMP_FIELD(riotShield);
-	}
-
-	void dump_att(AttGeneral* asset, ordered_json& data)
-	{
-		DUMP_FIELD(boltAction);
-		DUMP_FIELD(inheritsPerks);
-		DUMP_FIELD(reticleSpin45);
-		DUMP_FIELD(enemyCrosshairRange);
-		DUMP_ASSET(reticleCenter);
-		DUMP_ASSET(reticleSide);
-		DUMP_FIELD(reticleCenterSize);
-		DUMP_FIELD(reticleSideSize);
-		DUMP_FIELD(moveSpeedScale);
-		DUMP_FIELD(adsMoveSpeedScale);
-	}
-
-	void dump_att(AttAimAssist* asset, ordered_json& data)
-	{
-		DUMP_FIELD(autoAimRange);
-		DUMP_FIELD(aimAssistRange);
-		DUMP_FIELD(aimAssistRangeAds);
-	}
-
-	void dump_att(AttAmmunition* asset, ordered_json& data)
-	{
-		DUMP_FIELD(maxAmmo);
-		DUMP_FIELD(startAmmo);
-		DUMP_FIELD(clipSize);
-		DUMP_FIELD(shotCount);
-		DUMP_FIELD(reloadAmmoAdd);
-		DUMP_FIELD(reloadStartAdd);
-	}
-
-	void dump_att(AttDamage* asset, ordered_json& data)
-	{
-		DUMP_FIELD(damage);
-		DUMP_FIELD(minDamage);
-		DUMP_FIELD(meleeDamage);
-		DUMP_FIELD(maxDamageRange);
-		DUMP_FIELD(minDamageRange);
-		DUMP_FIELD(playerDamage);
-		DUMP_FIELD(minPlayerDamage);
-	}
-
-	void dump_att(AttIdleSettings* asset, ordered_json& data)
-	{
-		DUMP_FIELD(hipIdleAmount);
-		DUMP_FIELD(hipIdleSpeed);
-		DUMP_FIELD(idleCrouchFactor);
-		DUMP_FIELD(idleProneFactor);
-		DUMP_FIELD(adsIdleLerpStartTime);
-		DUMP_FIELD(adsIdleLerpTime);
-	}
-
-	void dump_att(AttADSSettings* asset, ordered_json& data)
-	{
-		DUMP_FIELD(adsSpread);
-		DUMP_FIELD(adsAimPitch);
-		DUMP_FIELD(adsTransInTime);
-		DUMP_FIELD(adsTransOutTime);
-		DUMP_FIELD(adsReloadTransTime);
-		DUMP_FIELD(adsCrosshairInFrac);
-		DUMP_FIELD(adsCrosshairOutFrac);
-		DUMP_FIELD(adsZoomFov);
-		DUMP_FIELD(adsZoomInFrac);
-		DUMP_FIELD(adsZoomOutFrac);
-		DUMP_FIELD(adsFovLerpTime);
-		DUMP_FIELD(adsBobFactor);
-		DUMP_FIELD(adsViewBobMult);
-		DUMP_FIELD(adsFireRateScale);
-		DUMP_FIELD(adsDamageRangeScale);
-		DUMP_FIELD(adsFireAnimFrac);
-	}
-
-	void dump_att(AttScopeDriftSettings* asset, ordered_json& data)
-	{
-		DUMP_FIELD(fScopeDriftDelay);
-		DUMP_FIELD(fScopeDriftLerpInTime);
-		DUMP_FIELD(fScopeDriftSteadyTime);
-		DUMP_FIELD(fScopeDriftLerpOutTime);
-		DUMP_FIELD(fScopeDriftSteadyFactor);
-		DUMP_FIELD(fScopeDriftUnsteadyFactor);
-	}
-
-	void dump_att(AttHipSpread* asset, ordered_json& data)
-	{
-		DUMP_FIELD(hipSpreadStandMin);
-		DUMP_FIELD(hipSpreadDuckedMin);
-		DUMP_FIELD(hipSpreadProneMin);
-		DUMP_FIELD(hipSpreadMax);
-		DUMP_FIELD(hipSpreadDuckedMax);
-		DUMP_FIELD(hipSpreadProneMax);
-		DUMP_FIELD(hipSpreadFireAdd);
-		DUMP_FIELD(hipSpreadTurnAdd);
-		DUMP_FIELD(hipSpreadMoveAdd);
-		DUMP_FIELD(hipSpreadDecayRate);
-		DUMP_FIELD(hipSpreadDuckedDecay);
-		DUMP_FIELD(hipSpreadProneDecay);
-	}
-
-	void dump_att(AttGunKick* asset, ordered_json& data)
-	{
-		DUMP_FIELD(hipGunKickReducedKickBullets);
-		DUMP_FIELD(hipGunKickReducedKickPercent);
-		DUMP_FIELD(hipGunKickPitchMin);
-		DUMP_FIELD(hipGunKickPitchMax);
-		DUMP_FIELD(hipGunKickYawMin);
-		DUMP_FIELD(hipGunKickYawMax);
-		DUMP_FIELD(hipGunKickMagMin);
-		DUMP_FIELD(hipGunKickAccel);
-		DUMP_FIELD(hipGunKickSpeedMax);
-		DUMP_FIELD(hipGunKickSpeedDecay);
-		DUMP_FIELD(hipGunKickStaticDecay);
-		DUMP_FIELD(adsGunKickReducedKickBullets);
-		DUMP_FIELD(adsGunKickReducedKickPercent);
-		DUMP_FIELD(adsGunKickPitchMin);
-		DUMP_FIELD(adsGunKickPitchMax);
-		DUMP_FIELD(adsGunKickYawMin);
-		DUMP_FIELD(adsGunKickYawMax);
-		DUMP_FIELD(adsGunKickMagMin);
-		DUMP_FIELD(adsGunKickAccel);
-		DUMP_FIELD(adsGunKickSpeedMax);
-		DUMP_FIELD(adsGunKickSpeedDecay);
-		DUMP_FIELD(adsGunKickStaticDecay);
-	}
-
-	void dump_att(AttViewKick* asset, ordered_json& data)
-	{
-		DUMP_FIELD(hipViewKickPitchMin);
-		DUMP_FIELD(hipViewKickPitchMax);
-		DUMP_FIELD(hipViewKickYawMin);
-		DUMP_FIELD(hipViewKickYawMax);
-		DUMP_FIELD(hipViewKickMagMin);
-		DUMP_FIELD(hipViewKickCenterSpeed);
-		DUMP_FIELD(adsViewKickPitchMin);
-		DUMP_FIELD(adsViewKickPitchMax);
-		DUMP_FIELD(adsViewKickYawMin);
-		DUMP_FIELD(adsViewKickYawMax);
-		DUMP_FIELD(adsViewKickMagMin);
-		DUMP_FIELD(adsViewKickCenterSpeed);
-	}
-
-	void dump_att(AttADSOverlay* asset, ordered_json& data)
-	{
-		DUMP_ASSET(overlay.shader);
-		DUMP_ASSET(overlay.shaderLowRes);
-		DUMP_ASSET(overlay.shaderEMP);
-		DUMP_ASSET(overlay.shaderEMPLowRes);
-		DUMP_FIELD(overlay.reticle);
-		DUMP_FIELD(overlay.width);
-		DUMP_FIELD(overlay.height);
-		DUMP_FIELD(overlay.widthSplitscreen);
-		DUMP_FIELD(overlay.heightSplitscreen);
-		DUMP_FIELD(hybridToggle);
-		DUMP_FIELD(thermalScope);
-		DUMP_FIELD(thermalToggle);
-		DUMP_FIELD(outlineEnemies);
-	}
-
-	void dump_att(AttUI* asset, ordered_json& data)
-	{
-		DUMP_ASSET(dpadIcon);
-		DUMP_ASSET(ammoCounterIcon);
-		DUMP_FIELD(dpadIconRatio);
-		DUMP_FIELD(ammoCounterIconRatio);
-		DUMP_FIELD(ammoCounterClip);
-	}
-
-	void dump_att(AttRumbles* asset, ordered_json& data)
-	{
-		DUMP_STRING(fireRumble);
-		DUMP_STRING(meleeImpactRumble);
-	}
-
-	void dump_att(AttProjectile* asset, ordered_json& data)
-	{
-		DUMP_FIELD(explosionRadius);
-		DUMP_FIELD(explosionInnerDamage);
-		DUMP_FIELD(explosionOuterDamage);
-		DUMP_FIELD(damageConeAngle);
-		DUMP_FIELD(projectileSpeed);
-		DUMP_FIELD(projectileSpeedUp);
-		DUMP_FIELD(projectileActivateDist);
-		DUMP_FIELD(projectileLifetime);
-		DUMP_ASSET(projectileModel);
-		DUMP_FIELD(projExplosionType);
-		DUMP_ASSET(projExplosionEffect);
-		DUMP_FIELD(projExplosionEffectForceNormalUp);
-		DUMP_ASSET(projExplosionSound);
-		DUMP_ASSET(projDudEffect);
-		DUMP_ASSET(projDudSound);
-		DUMP_FIELD(projImpactExplode);
-		DUMP_FIELD(destabilizationRateTime);
-		DUMP_FIELD(destabilizationCurvatureMax);
-		DUMP_FIELD(destabilizeDistance);
-		DUMP_ASSET(projTrailEffect);
-		DUMP_FIELD(projIgnitionDelay);
-		DUMP_ASSET(projIgnitionEffect);
-		DUMP_ASSET(projIgnitionSound);
-	}
-
-#define DUMP_ATT(__att__) \
-	if (asset->__att__) dump_att(asset->__att__, data[#__att__]); else data[#__att__] = nullptr;
-
 	void weapon_attachment::dump(WeaponAttachment* asset)
 	{
 		const auto path = "attachments\\"s + asset->name + ".json"s;
 
 		ordered_json data;
-
-		DUMP_STRING(szInternalName);
-		DUMP_STRING(szDisplayName);
-		DUMP_FIELD(type);
-		DUMP_FIELD(weaponType);
-		DUMP_FIELD_RENAME(weapClass, "weaponClass");
-		DUMP_ASSET_ARR(worldModels, 64);
-		DUMP_ASSET_ARR(viewModels, 64);
-		DUMP_ASSET_ARR(reticleViewModels, 16);
-		DUMP_ATT(ammogeneral);
-		DUMP_ATT(sight);
-		DUMP_ATT(reload);
-		DUMP_ATT(addOns);
-		DUMP_ATT(general);
-		DUMP_ATT(aimAssist);
-		DUMP_ATT(ammunition);
-		DUMP_ATT(damage);
-		DUMP_ATT(idleSettings);
-		DUMP_ATT(adsSettings);
-		DUMP_ATT(adsSettingsMain);
-		DUMP_ATT(scopeDriftSettings);
-		DUMP_ATT(scopeDriftSettingsMain);
-		DUMP_ATT(hipSpread);
-		DUMP_ATT(gunKick);
-		DUMP_ATT(viewKick);
-		DUMP_ATT(adsOverlay);
-		DUMP_ATT(ui);
-		DUMP_ATT(rumbles);
-		DUMP_ATT(projectile);
-		DUMP_FIELD(ammunitionScale);
-		DUMP_FIELD(damageScale);
-		DUMP_FIELD(damageScaleMin);
-		DUMP_FIELD(stateTimersScale);
-		DUMP_FIELD(fireTimersScale);
-		DUMP_FIELD(adsSettingsScale);
-		DUMP_FIELD(adsSettingsScaleMain);
-		DUMP_FIELD(hipSpreadScale);
-		DUMP_FIELD(gunKickScale);
-		DUMP_FIELD(viewKickScale);
-		DUMP_FIELD(viewCenterScale);
-		DUMP_FIELD(loadIndex); // probably runtime data
-		DUMP_FIELD(hideIronSightsWithThisAttachment);
-		DUMP_FIELD(shareAmmoWithAlt);
+		json_reflect::write<attachment_fields>(data, *asset, dump_options);
+		write_ads_overlay(data["adsOverlay"], asset->adsOverlay);
 
 		std::string json = data.dump(4);
 

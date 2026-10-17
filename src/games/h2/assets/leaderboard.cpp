@@ -1,8 +1,41 @@
 #include <std_include.hpp>
 #include "leaderboard.hpp"
 
+#include "io/json_reflect.hpp"
+
 namespace zonetool::h2
 {
+	namespace
+	{
+		constexpr auto column_fields = glz::tuple
+		{
+			&LbColumnDef::name,
+			&LbColumnDef::id,
+			&LbColumnDef::propertyId,
+			&LbColumnDef::hidden,
+			&LbColumnDef::statsGroup,
+			&LbColumnDef::statName,
+			&LbColumnDef::type,
+			&LbColumnDef::precision,
+			&LbColumnDef::agg,
+			&LbColumnDef::uiCalColX,
+			&LbColumnDef::uiCalColY,
+		};
+
+		constexpr auto leaderboard_fields = glz::tuple
+		{
+			&LeaderboardDef::name,
+			&LeaderboardDef::id,
+			&LeaderboardDef::id2,
+			&LeaderboardDef::xpColId,
+			&LeaderboardDef::prestigeColId,
+			&LeaderboardDef::updateType,
+			&LeaderboardDef::trackTypes,
+			json_reflect::counted(&LeaderboardDef::columns, &LeaderboardDef::columnCount, column_fields),
+			&LeaderboardDef::pad,
+		};
+	}
+
 	LeaderboardDef* leaderboard::parse(const std::string& name, zone_memory* mem)
 	{
 		auto file = filesystem::file("leaderboard\\"s + name + ".json"s);
@@ -19,38 +52,7 @@ namespace zonetool::h2
 			auto data = json::parse(bytes);
 
 			auto asset = mem->allocate<LeaderboardDef>();
-			asset->name = mem->duplicate_string(data["name"].get<std::string>());
-			asset->id = data["id"].get<int>();
-			asset->id = data["id2"].get<int>();
-			asset->id = data["xpColId"].get<int>();
-			asset->id = data["prestigeColId"].get<int>();
-			asset->id = data["updateType"].get<LbUpdateType>();
-			asset->id = data["trackTypes"].get<LbTrackTypes>();
-
-			auto columns = data["columns"];
-			auto columns_count = static_cast<int>(data["columns"].size());
-			if (columns_count)
-			{
-				asset->columns = mem->allocate<LbColumnDef>(columns_count);
-				asset->columnCount = columns_count;
-
-				for (auto i = 0; i < columns_count; i++)
-				{
-					asset->columns[i].name = mem->duplicate_string(columns[i]["name"].get<std::string>());
-					asset->columns[i].id = columns[i]["id"].get<int>();
-					asset->columns[i].propertyId = columns[i]["propertyId"].get<int>();
-					asset->columns[i].hidden = columns[i]["hidden"].get<bool>();
-					asset->columns[i].statsGroup = columns[i]["statsGroup"].get<StatsGroup>();
-					asset->columns[i].statName = mem->duplicate_string(columns[i]["statName"].get<std::string>());
-					asset->columns[i].type = columns[i]["type"].get<LbColType>();
-					asset->columns[i].precision = columns[i]["precision"].get<int>();
-					asset->columns[i].agg = columns[i]["agg"].get<LbAggType>();
-					asset->columns[i].uiCalColX = columns[i]["uiCalColX"].get<int>();
-					asset->columns[i].uiCalColY = columns[i]["uiCalColY"].get<int>();
-				}
-			}
-
-			asset->pad = data["pad"].get<int>();
+			json_reflect::read<leaderboard_fields>(data, *asset, mem);
 
 			return asset;
 		}
@@ -149,37 +151,7 @@ namespace zonetool::h2
 		file.open("wb");
 
 		ordered_json lb;
-		lb["name"] = asset->name;
-		lb["id"] = asset->id;
-		lb["id2"] = asset->id2;
-
-		lb["xpColId"] = asset->xpColId;
-		lb["prestigeColId"] = asset->prestigeColId;
-
-		lb["updateType"] = asset->updateType;
-		lb["trackTypes"] = asset->trackTypes;
-
-		lb["columns"] = {};
-		for (auto i = 0; i < asset->columnCount; i++)
-		{
-			auto* col = &asset->columns[i];
-			ordered_json column;
-			column["name"] = col->name;
-			column["id"] = col->id;
-			column["propertyId"] = col->propertyId;
-			column["hidden"] = col->hidden;
-			column["statsGroup"] = col->statsGroup;
-			column["statName"] = col->statName;
-			column["type"] = col->type;
-			column["precision"] = col->precision;
-			column["agg"] = col->agg;
-			column["uiCalColX"] = col->uiCalColX;
-			column["uiCalColY"] = col->uiCalColY;
-
-			lb["columns"][i] = column;
-		}
-
-		lb["pad"] = asset->pad;
+		json_reflect::write<leaderboard_fields>(lb, *asset);
 
 		auto str = lb.dump(4);
 		file.write(str);

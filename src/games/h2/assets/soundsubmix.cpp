@@ -3,6 +3,8 @@
 
 #include "sound.hpp"
 
+#include "io/json_reflect.hpp"
+
 namespace zonetool::h2
 {
 	const std::unordered_map<short, const char*> volmod_map =
@@ -33,6 +35,18 @@ namespace zonetool::h2
 		return sound::get_vol_mod_index_from_name(name);
 	}
 
+	namespace
+	{
+		constexpr auto submix_fields = glz::tuple
+		{
+			&SndSubmix::name,
+			json_reflect::converted(&SndSubmix::volModIndex, get_vol_mod_name, get_vol_mod_index_from_name),
+			json_reflect::renamed("volume", &SndSubmix::value),
+			&SndSubmix::fadeInTime,
+			&SndSubmix::fadeOutTime,
+		};
+	}
+
 	SndSubmixList* sound_submix::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = "sndsubmix\\"s + name + ".json"s;
@@ -54,22 +68,7 @@ namespace zonetool::h2
 
 		auto asset = mem->allocate<SndSubmixList>();
 		asset->name = mem->duplicate_string(data["name"].get<std::string>());
-
-		if (data["list"].is_object())
-		{
-			const auto submix_count = data["list"].size();
-			asset->count = static_cast<int>(submix_count);
-			asset->head = mem->allocate<SndSubmix>(submix_count);
-
-			for (auto i = 0; i < asset->count; i++)
-			{
-				asset->head[i].name = mem->duplicate_string(data["list"][i]["name"].get<std::string>());
-				asset->head[i].volModIndex = get_vol_mod_index_from_name(mem->duplicate_string(data["list"][i]["volModIndex"].get<std::string>().data()));
-				asset->head[i].value = data["list"][i]["volume"].get<float>();
-				asset->head[i].fadeInTime = data["list"][i]["fadeInTime"].get<int>();
-				asset->head[i].fadeOutTime = data["list"][i]["fadeOutTime"].get<int>();
-			}
-		}
+		json_reflect::read_array<submix_fields>(data["list"], asset->head, asset->count, mem);
 
 		return asset;
 	}
@@ -165,16 +164,7 @@ namespace zonetool::h2
 		data["name"] = asset->name;
 		if (asset->head)
 		{
-			data["list"] = {};
-
-			for (auto i = 0; i < asset->count; i++)
-			{
-				data["list"][i]["name"] = asset->head[i].name ? asset->head[i].name : "";
-				data["list"][i]["volModIndex"] = get_vol_mod_name(asset->head[i].volModIndex);
-				data["list"][i]["volume"] = asset->head[i].value;
-				data["list"][i]["fadeInTime"] = asset->head[i].fadeInTime;
-				data["list"][i]["fadeOutTime"] = asset->head[i].fadeOutTime;
-			}
+			json_reflect::write_array<submix_fields>(data["list"], asset->head, asset->count);
 		}
 
 		auto str = data.dump(4);

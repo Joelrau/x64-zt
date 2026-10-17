@@ -1,8 +1,34 @@
 #include <std_include.hpp>
 #include "reverbpreset.hpp"
 
+#include "io/json_reflect.hpp"
+
 namespace zonetool::h2
 {
+	namespace
+	{
+		constexpr auto reverb_preset_fields = glz::tuple
+		{
+			&ReverbPreset::name,
+			&ReverbPreset::earlyTime,
+			&ReverbPreset::lateTime,
+			&ReverbPreset::earlyGain,
+			&ReverbPreset::lateGain,
+			&ReverbPreset::lateGainProx,
+			&ReverbPreset::returnGain,
+			&ReverbPreset::earlyLpf,
+			&ReverbPreset::lateLpf,
+			&ReverbPreset::inputLpf,
+			&ReverbPreset::dampLpf,
+			&ReverbPreset::wallReflect,
+			&ReverbPreset::dryGain,
+			&ReverbPreset::earlySize,
+			&ReverbPreset::lateSize,
+			&ReverbPreset::diffusion,
+			&ReverbPreset::rearLevel,
+		};
+	}
+
 	ReverbPreset* reverb_preset::parse(const std::string& name, zone_memory* mem)
 	{
 		auto file = filesystem::file("reverbpreset\\"s + name + ".json"s);
@@ -20,24 +46,7 @@ namespace zonetool::h2
 
 			auto asset = mem->allocate<ReverbPreset>();
 
-			asset->name = mem->duplicate_string(json_data["name"].get<std::string>());
-			
-			asset->earlyTime = json_data["earlyTime"].get<float>();
-			asset->lateTime = json_data["lateTime"].get<float>();
-			asset->earlyGain = json_data["earlyGain"].get<float>();
-			asset->lateGain = json_data["lateGain"].get<float>();
-			asset->lateGainProx = json_data["lateGainProx"].get<float>();
-			asset->returnGain = json_data["returnGain"].get<float>();
-			asset->earlyLpf = json_data["earlyLpf"].get<float>();
-			asset->lateLpf = json_data["lateLpf"].get<float>();
-			asset->inputLpf = json_data["inputLpf"].get<float>();
-			asset->dampLpf = json_data["dampLpf"].get<float>();
-			asset->wallReflect = json_data["wallReflect"].get<float>();
-			asset->dryGain = json_data["dryGain"].get<float>();
-			asset->earlySize = json_data["earlySize"].get<float>();
-			asset->lateSize = json_data["lateSize"].get<float>();
-			asset->diffusion = json_data["diffusion"].get<float>();
-			asset->rearLevel = json_data["rearLevel"].get<float>();
+			json_reflect::read<reverb_preset_fields>(json_data, *asset, mem);
 
 			return asset;
 		}
@@ -107,24 +116,7 @@ namespace zonetool::h2
 		file.open("wb");
 
 		ordered_json json_data;
-		json_data["name"] = asset->name;
-
-		json_data["earlyTime"] = asset->earlyTime;
-		json_data["lateTime"] = asset->lateTime;
-		json_data["earlyGain"] = asset->earlyGain;
-		json_data["lateGain"] = asset->lateGain;
-		json_data["lateGainProx"] = asset->lateGainProx;
-		json_data["returnGain"] = asset->returnGain;
-		json_data["earlyLpf"] = asset->earlyLpf;
-		json_data["lateLpf"] = asset->lateLpf;
-		json_data["inputLpf"] = asset->inputLpf;
-		json_data["dampLpf"] = asset->dampLpf;
-		json_data["wallReflect"] = asset->wallReflect;
-		json_data["dryGain"] = asset->dryGain;
-		json_data["earlySize"] = asset->earlySize;
-		json_data["lateSize"] = asset->lateSize;
-		json_data["diffusion"] = asset->diffusion;
-		json_data["rearLevel"] = asset->rearLevel;
+		json_reflect::write<reverb_preset_fields>(json_data, *asset);
 
 		auto str = json_data.dump(4);
 		file.write(str);

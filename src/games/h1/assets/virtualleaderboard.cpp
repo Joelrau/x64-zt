@@ -1,8 +1,32 @@
 #include <std_include.hpp>
 #include "virtualleaderboard.hpp"
 
+#include "io/json_reflect.hpp"
+
 namespace zonetool::h1
 {
+	namespace
+	{
+		constexpr auto column_fields = glz::tuple
+		{
+			&VLbColumnDef::name,
+			&VLbColumnDef::id,
+			&VLbColumnDef::unk1,
+			&VLbColumnDef::unk2,
+			&VLbColumnDef::unk3,
+		};
+
+		constexpr auto virtual_leaderboard_fields = glz::tuple
+		{
+			&VirtualLeaderboardDef::name,
+			&VirtualLeaderboardDef::leaderboardName,
+			&VirtualLeaderboardDef::id,
+			&VirtualLeaderboardDef::leaderboardId,
+			json_reflect::counted(&VirtualLeaderboardDef::columns, &VirtualLeaderboardDef::columnCount, column_fields),
+			&VirtualLeaderboardDef::pad,
+		};
+	}
+
 	VirtualLeaderboardDef* virtual_leaderboard::parse(const std::string& name, zone_memory* mem)
 	{
 		auto file = filesystem::file("virtualleaderboard\\"s + name + ".json"s);
@@ -20,29 +44,7 @@ namespace zonetool::h1
 
 			auto asset = mem->allocate<VirtualLeaderboardDef>();
 
-			asset->name = mem->duplicate_string(data["name"].get<std::string>());
-			asset->leaderboardName = mem->duplicate_string(data["leaderboardName"].get<std::string>());
-			asset->id = data["id"].get<int>();
-			asset->leaderboardId = data["leaderboardId"].get<int>();
-
-			auto columns = data["columns"];
-			auto columns_count = static_cast<int>(data["columns"].size());
-			if (columns_count)
-			{
-				asset->columns = mem->allocate<VLbColumnDef>(columns_count);
-				asset->columnCount = columns_count;
-
-				for (auto i = 0; i < columns_count; i++)
-				{
-					asset->columns[i].name = mem->duplicate_string(columns[i]["name"].get<std::string>());
-					asset->columns[i].id = columns[i]["id"].get<int>();
-					asset->columns[i].unk1 = columns[i]["unk1"].get<int>();
-					asset->columns[i].unk2 = columns[i]["unk2"].get<int>();
-					asset->columns[i].unk3 = columns[i]["unk3"].get<int>();
-				}
-			}
-
-			asset->pad = data["pad"].get<int>();
+			json_reflect::read<virtual_leaderboard_fields>(data, *asset, mem);
 
 			return asset;
 		}
@@ -138,26 +140,7 @@ namespace zonetool::h1
 		file.open("wb");
 
 		ordered_json vlb;
-		vlb["name"] = asset->name;
-		vlb["leaderboardName"] = asset->leaderboardName;
-		vlb["id"] = asset->id;
-		vlb["leaderboardId"] = asset->leaderboardId;
-
-		vlb["columns"] = {};
-		for (auto i = 0; i < asset->columnCount; i++)
-		{
-			auto* col = &asset->columns[i];
-			ordered_json column;
-			column["name"] = col->name;
-			column["id"] = col->id;
-			column["unk1"] = col->unk1;
-			column["unk2"] = col->unk2;
-			column["unk3"] = col->unk3;
-
-			vlb["columns"][i] = column;
-		}
-
-		vlb["pad"] = asset->pad;
+		json_reflect::write<virtual_leaderboard_fields>(vlb, *asset);
 
 		auto str = vlb.dump(4);
 		file.write(str);

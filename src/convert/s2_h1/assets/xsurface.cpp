@@ -9,25 +9,11 @@ namespace zonetool::s2::converter::h1::xsurface
 {
 	namespace
 	{
-		constexpr std::uint16_t s2_surf_flag_vertcol_none = 0x2;
-		constexpr std::uint16_t s2_surf_flag_skinned = 0x4;
-		constexpr std::uint16_t s2_surf_flag_lightmap_uv = 0x8;
-		constexpr std::uint16_t s2_surf_flag_extra_stream = 0x40;
-
 		constexpr std::uint32_t h1_bone_offset_scale = 64;
 		constexpr std::size_t max_blend_bones = 4;
 
 		std::unordered_set<std::string> dumped_surfs;
 
-		struct skin_vertex
-		{
-			std::uint16_t bones[4];
-			std::uint16_t weights[3];
-			std::uint16_t count;
-		};
-		static_assert(sizeof(skin_vertex) == 16);
-
-		// Shared data: indices, then 8-byte aligned SoA streams in this order.
 		struct vertex_streams
 		{
 			const std::uint16_t* indices;
@@ -36,7 +22,7 @@ namespace zonetool::s2::converter::h1::xsurface
 			const std::uint32_t* tex_coords;
 			const std::uint32_t* normals;
 			const std::uint32_t* tangents;
-			const skin_vertex* skin;
+			const XSurfaceSkinVertex* skin;
 		};
 
 		std::optional<vertex_streams> map_vertex_streams(const XSurface* surface, const std::string& data)
@@ -61,19 +47,19 @@ namespace zonetool::s2::converter::h1::xsurface
 			streams.normals = reinterpret_cast<const std::uint32_t*>(take(vert_count * 4));
 			streams.tangents = reinterpret_cast<const std::uint32_t*>(take(vert_count * 4));
 
-			if (surface->flags & s2_surf_flag_lightmap_uv)
+			if (surface->flags & XSURFACE_FLAG_LIGHTMAP_UV)
 			{
 				take(vert_count * 4);
 			}
 
-			if (surface->flags & s2_surf_flag_extra_stream)
+			if (surface->flags & XSURFACE_FLAG_EXTRA_STREAM)
 			{
 				take(vert_count * 4);
 			}
 
-			if (surface->flags & s2_surf_flag_skinned)
+			if (surface->flags & XSURFACE_FLAG_SKINNED)
 			{
-				streams.skin = reinterpret_cast<const skin_vertex*>(take(vert_count * sizeof(skin_vertex)));
+				streams.skin = reinterpret_cast<const XSurfaceSkinVertex*>(take(vert_count * sizeof(XSurfaceSkinVertex)));
 			}
 
 			if (offset > data.size())
@@ -112,7 +98,7 @@ namespace zonetool::s2::converter::h1::xsurface
 		void convert_vertices(const XSurface* surface, const vertex_streams& streams, zonetool::h1::XSurface* new_surface,
 			const bool keep_colors, const std::uint32_t forced_color_bits, utils::memory::allocator& allocator)
 		{
-			const auto use_colors = keep_colors && (surface->flags & s2_surf_flag_vertcol_none) == 0;
+			const auto use_colors = keep_colors && (surface->flags & XSURFACE_FLAG_VERTCOL_NONE) == 0;
 			new_surface->verts0.packedVerts0 = allocator.allocate_array<zonetool::h1::GfxPackedVertex>(surface->vertCount);
 			new_surface->unknown0 = allocator.allocate_array<zonetool::h1::UnknownXSurface0>(surface->vertCount);
 

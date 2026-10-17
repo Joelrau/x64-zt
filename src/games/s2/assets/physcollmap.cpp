@@ -259,8 +259,8 @@ namespace zonetool::s2
 		});
 		w.entries(offsetof(PhysWorld, meshes), sizeof(PhysMeshData), w.template at<unsigned int>(offsetof(PhysWorld, meshCount)), [](const auto& mesh, std::size_t)
 		{
+			mesh.array(S2_ARRAY_FIELD(PhysMeshData, nodes), 15, mesh.template at<int>(offsetof(PhysMeshData, nodeCount)));
 			mesh.array(S2_ARRAY_FIELD(PhysMeshData, vertices), 15, mesh.template at<int>(offsetof(PhysMeshData, vertexCount)));
-			mesh.array(S2_ARRAY_FIELD(PhysMeshData, normals), 15, mesh.template at<int>(offsetof(PhysMeshData, normalCount)));
 			mesh.array(S2_ARRAY_FIELD(PhysMeshData, triangles), 3, mesh.template at<int>(offsetof(PhysMeshData, triangleCount)));
 		});
 		w.entries(offsetof(PhysWorld, waters), sizeof(PhysWaterVolumeDef), w.template at<unsigned int>(offsetof(PhysWorld, waterCount)), [](const auto& water, std::size_t)

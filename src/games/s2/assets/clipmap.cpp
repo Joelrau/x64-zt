@@ -65,15 +65,15 @@ namespace zonetool::s2
 			visit_shared_info(model, offsetof(cmodel_t, info));
 		});
 		w.asset(ASSET_TYPE_MAP_ENTS, offsetof(clipMap_t, mapEnts));
-		w.entries(offsetof(clipMap_t, staticModelNames), sizeof(ClipStaticModelName), w.template at<unsigned char>(offsetof(clipMap_t, staticModelNameCount)), [](const auto& name, std::size_t)
+		w.entries(offsetof(clipMap_t, stages), sizeof(Stage), w.template at<unsigned char>(offsetof(clipMap_t, stageCount)), [](const auto& stage, std::size_t)
 		{
-			name.string(offsetof(ClipStaticModelName, name));
+			stage.string(offsetof(Stage, name));
 		});
 
-		const auto static_models = w.sub(offsetof(clipMap_t, staticModelData));
-		static_models.array(S2_ARRAY_FIELD(ClipStaticModelData, nodes), 7, static_models.template at<unsigned int>(offsetof(ClipStaticModelData, nodeCount)));
-		static_models.array(S2_ARRAY_FIELD(ClipStaticModelData, leafs), 7, static_models.template at<unsigned int>(offsetof(ClipStaticModelData, leafCount)));
-		static_models.array(S2_ARRAY_FIELD(ClipStaticModelData, bounds), 3, static_models.template at<unsigned int>(offsetof(ClipStaticModelData, boundsCount)));
+		const auto stage_trigger = w.sub(offsetof(clipMap_t, stageTrigger));
+		stage_trigger.array(S2_ARRAY_FIELD(MapTriggers, models), 7, stage_trigger.template at<unsigned int>(offsetof(MapTriggers, count)));
+		stage_trigger.array(S2_ARRAY_FIELD(MapTriggers, hulls), 7, stage_trigger.template at<unsigned int>(offsetof(MapTriggers, hullCount)));
+		stage_trigger.array(S2_ARRAY_FIELD(MapTriggers, slabs), 3, stage_trigger.template at<unsigned int>(offsetof(MapTriggers, slabCount)));
 
 		visit_dyn_entity_defs(w, 0);
 		visit_dyn_entity_defs(w, 1);

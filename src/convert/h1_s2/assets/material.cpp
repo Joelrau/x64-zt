@@ -9,16 +9,6 @@ namespace zonetool::h1::converter::s2::material
 {
 	namespace
 	{
-		constexpr std::uint8_t s2_semantic_color_map = 2;
-		constexpr std::uint8_t s2_semantic_normal_map = 5;
-		constexpr std::uint8_t s2_semantic_specular_map = 8;
-
-		// S2 dielectric reflectance 49, full occlusion, medium gloss
-		constexpr std::array<std::uint8_t, 4> default_specular{49, 255, 128, 255};
-		constexpr std::array<std::uint8_t, 4> white{255, 255, 255, 255};
-		// the sky shader scales the flow vector by blue, zero keeps the converted sky still
-		constexpr std::array<std::uint8_t, 4> still_flow{128, 128, 0, 255};
-
 		struct converted_material
 		{
 			zonetool::s2::Material material;
@@ -47,12 +37,12 @@ namespace zonetool::h1::converter::s2::material
 		{
 			switch (semantic)
 			{
-			case s2_semantic_color_map:
-				return gfximage::dump_solid("h1_s2_white", s2_semantic_color_map, white);
-			case s2_semantic_normal_map:
+			case zonetool::s2::TS_COLOR_MAP:
+				return gfximage::dump_solid("h1_s2_white", zonetool::s2::TS_COLOR_MAP, {255, 255, 255, 255});
+			case zonetool::s2::TS_NORMAL_MAP:
 				return "$identitynormalmap";
-			case s2_semantic_specular_map:
-				return gfximage::dump_solid("h1_s2_specular", s2_semantic_specular_map, default_specular);
+			case zonetool::s2::TS_SPECULAR_MAP:
+				return gfximage::dump_solid("h1_s2_specular", zonetool::s2::TS_SPECULAR_MAP, {49, 255, 128, 255});
 			default:
 				return "$black";
 			}
@@ -64,8 +54,7 @@ namespace zonetool::h1::converter::s2::material
 			const auto source_texture = find_texture(asset, donor_texture.nameHash);
 			const auto source_image = source_texture && source_texture->u.image ? source_texture->u.image->name : nullptr;
 
-			// H1 skies are cubemaps, S2 sky shaders read a 2D color map
-			if (source_image && donor_texture.semantic == s2_semantic_color_map && source_texture->u.image->mapType == MAPTYPE_CUBE)
+			if (source_image && donor_texture.semantic == zonetool::s2::TS_COLOR_MAP && source_texture->u.image->mapType == MAPTYPE_CUBE)
 			{
 				if (const auto sky = gfximage::dump_sky(source_texture->u.image))
 				{
@@ -86,9 +75,9 @@ namespace zonetool::h1::converter::s2::material
 			const auto donor_image = donor_texture.u.image;
 			if (donor_image && donor_image->name)
 			{
-				const auto is_core_semantic = donor_texture.semantic == s2_semantic_color_map
-					|| donor_texture.semantic == s2_semantic_normal_map
-					|| donor_texture.semantic == s2_semantic_specular_map;
+				const auto is_core_semantic = donor_texture.semantic == zonetool::s2::TS_COLOR_MAP
+					|| donor_texture.semantic == zonetool::s2::TS_NORMAL_MAP
+					|| donor_texture.semantic == zonetool::s2::TS_SPECULAR_MAP;
 				if (zone.is_global_image(donor_image->name))
 				{
 					return donor_image->name;
@@ -131,7 +120,6 @@ namespace zonetool::h1::converter::s2::material
 				texture.u.image = &result->images[i];
 			}
 
-			// H1 skies are static, replace the donor flow map so the converted sky does not move
 			const auto is_sky = std::ranges::any_of(result->image_names, [](const std::string& name)
 			{
 				return name.ends_with("_s2sky");
@@ -141,7 +129,7 @@ namespace zonetool::h1::converter::s2::material
 				const auto donor_image = donor->textureTable[i].u.image;
 				if (donor_image && donor_image->name && std::string_view{donor_image->name}.ends_with("_flow"))
 				{
-					result->image_names[i] = gfximage::dump_solid("h1_s2_sky_still_flow", result->textures[i].semantic, still_flow);
+					result->image_names[i] = gfximage::dump_solid("h1_s2_sky_still_flow", result->textures[i].semantic, {128, 128, 0, 255});
 					result->images[i].name = result->image_names[i].data();
 				}
 			}

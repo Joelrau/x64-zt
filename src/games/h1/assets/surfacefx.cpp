@@ -1,6 +1,8 @@
 #include <std_include.hpp>
 #include "surfacefx.hpp"
 
+#include "io/json_reflect.hpp"
+
 namespace zonetool::h1
 {
 	namespace
@@ -16,7 +18,15 @@ namespace zonetool::h1
 	}
 
 	constexpr int TABLE_SIZE = 6;
-	constexpr int SURFACE_EFFECT_SIZE = 53;
+	namespace
+	{
+		constexpr auto surface_entry_fields = glz::tuple
+		{
+			&SurfaceFxEntry::surfaceEffect,
+		};
+	}
+
+	constexpr int SURFACE_EFFECT_SIZE =  53;
 
 	SurfaceFxTable* surface_fx::parse(const std::string& name, zone_memory* mem)
 	{
@@ -42,28 +52,12 @@ namespace zonetool::h1
 		auto asset_name = data["name"];
 		asset->name = (!asset_name.is_null()) ? mem->duplicate_string(asset_name.get<std::string>()) : nullptr;
 
-		if (!data["table"].is_null()) 
+		if (!data["table"].is_null())
 		{
-			auto tables = data["table"];
 			asset->table = mem->allocate<SurfaceFxEntry>(TABLE_SIZE);
-
-			for (int table_i = 0; table_i < TABLE_SIZE; table_i++) 
+			for (int table_i = 0; table_i < TABLE_SIZE; table_i++)
 			{
-				auto table = tables[table_i];
-
-				for (int effect_i = 0; effect_i < SURFACE_EFFECT_SIZE; effect_i++)
-				{
-					auto non_flesh = table["surfaceEffect"][effect_i].get<std::string>();
-					if (!non_flesh.empty()) 
-					{
-						asset->table[table_i].surfaceEffect[effect_i] = mem->allocate<FxEffectDef>(1);
-						asset->table[table_i].surfaceEffect[effect_i]->name = mem->duplicate_string(non_flesh);
-					}
-					else 
-					{
-						asset->table[table_i].surfaceEffect[effect_i] = nullptr;
-					}
-				}
+				json_reflect::read<surface_entry_fields>(data["table"][table_i], asset->table[table_i], mem);
 			}
 		}
 
@@ -186,21 +180,7 @@ namespace zonetool::h1
 
 		if (data->table)
 		{
-			auto& data_tables = data->table;
-			auto& json_tables = json_data["table"];
-
-			for (int table_i = 0; table_i < TABLE_SIZE; table_i++) 
-			{
-				auto& data_table = data_tables[table_i];
-				auto& json_table = json_tables[table_i];
-
-				for (int effect_i = 0; effect_i < SURFACE_EFFECT_SIZE; effect_i++)
-				{
-					json_table["surfaceEffect"][effect_i] = (data_table.surfaceEffect[effect_i])
-						? data_table.surfaceEffect[effect_i]->name
-						: "";
-				}
-			}
+			json_reflect::write_array<surface_entry_fields>(json_data["table"], data->table, TABLE_SIZE);
 		}
 		else 
 		{

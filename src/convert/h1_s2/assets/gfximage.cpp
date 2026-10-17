@@ -14,7 +14,6 @@ namespace zonetool::h1::converter::s2::gfximage
 {
 	namespace
 	{
-		// S2 format table at 0x140B53120, the same table as zonetool::s2::gfx_image
 		constexpr DXGI_FORMAT s2_image_formats[]
 		{
 			DXGI_FORMAT_UNKNOWN,
@@ -61,9 +60,6 @@ namespace zonetool::h1::converter::s2::gfximage
 			DXGI_FORMAT_R32G32B32A32_UINT,
 		};
 
-		constexpr std::uint8_t s2_resident_semantic_limit = TS_SPECULAR_MAP;
-		constexpr std::uint16_t self_pak_file_index = 96;
-
 		std::unordered_set<std::string> dumped_images;
 
 		std::string clean_name(std::string name)
@@ -85,7 +81,6 @@ namespace zonetool::h1::converter::s2::gfximage
 			return {};
 		}
 
-		// stock S2 color maps use the _SRGB formats, H1 has no _SRGB formats and does the conversion in the shader
 		DXGI_FORMAT srgb_format(const DXGI_FORMAT format)
 		{
 			switch (format)
@@ -101,7 +96,7 @@ namespace zonetool::h1::converter::s2::gfximage
 
 		std::uint8_t convert_semantic(const std::uint8_t semantic)
 		{
-			return semantic <= s2_resident_semantic_limit ? semantic : TS_2D;
+			return semantic <= TS_SPECULAR_MAP ? semantic : TS_2D;
 		}
 
 		struct image_pixels
@@ -119,7 +114,7 @@ namespace zonetool::h1::converter::s2::gfximage
 				return {};
 			}
 
-			const auto filename = stream_file.fileIndex == self_pak_file_index
+			const auto filename = stream_file.fileIndex == XStreamFile::zone_pak_file_index
 				? std::format("{}.pak", filesystem::get_fastfile())
 				: std::format("imagefile{}.pak", stream_file.fileIndex);
 
@@ -275,7 +270,6 @@ namespace zonetool::h1::converter::s2::gfximage
 			});
 		}
 
-		// inverse of the S2 to H1 specular repack: S2 packs R = reflectance, G = occlusion, B = gloss
 		bool convert_specular_map(image_pixels& pixels, const DXGI_FORMAT format)
 		{
 			return transform_levels(pixels, format, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_BC1_UNORM, [](const DirectX::Image& image)
@@ -308,16 +302,14 @@ namespace zonetool::h1::converter::s2::gfximage
 			zonetool::s2::gfx_image::dump(image);
 		}
 
-		// S2 sky shaders read a 2D texture: uv = 0.5 + 0.5 * dir.xy / (len + |0.919831 * dir.z + 0.080169 * len|)
+		// S2 sky shaders read a 2D texture with uv = 0.5 + 0.5 * dir.xy / (len + |0.919831 * dir.z + 0.080169 * len|)
 		constexpr auto sky_z_scale = 0.919831f;
-		constexpr auto sky_z_bias = 0.080169f;
 		constexpr auto sky_size = 1024u;
 
 		std::array<float, 3> sky_direction(const float px, const float py)
 		{
-			// solve r^2 * (c + a * z)^2 + z^2 = 1 for the upper root, with c = 1 + b
 			const auto r2 = std::min(px * px + py * py, 1.0f);
-			const auto c = 1.0f + sky_z_bias;
+			const auto c = 1.0f + 0.080169f;
 			const auto qa = r2 * sky_z_scale * sky_z_scale + 1.0f;
 			const auto qb = 2.0f * r2 * sky_z_scale * c;
 			const auto qc = r2 * c * c - 1.0f;
@@ -326,7 +318,6 @@ namespace zonetool::h1::converter::s2::gfximage
 			return {px * d, py * d, z};
 		}
 
-		// D3D cube face selection and face coordinates
 		std::tuple<std::size_t, float, float> cube_face(const std::array<float, 3>& dir)
 		{
 			const auto [x, y, z] = dir;
@@ -430,7 +421,6 @@ namespace zonetool::h1::converter::s2::gfximage
 
 	void dump(GfxImage* asset)
 	{
-		// S2 has its own engine images, and an H1 copy can replace them with a different semantic
 		if (asset->name[0] == '$')
 		{
 			return;

@@ -1,8 +1,19 @@
 #include <std_include.hpp>
 #include "soundcurve.hpp"
 
+#include "io/json_reflect.hpp"
+
 namespace zonetool::h1
 {
+	namespace
+	{
+		constexpr auto sound_curve_fields = glz::tuple
+		{
+			&SndCurve::isDefault,
+			&SndCurve::filename,
+		};
+	}
+
 	SndCurve* sound_curve::parse(const std::string& name, const std::string& type, zone_memory* mem)
 	{
 		if (name.empty() || type.empty())
@@ -25,34 +36,13 @@ namespace zonetool::h1
 
 			auto asset = mem->allocate<SndCurve>();
 
-			auto isDefault = data["isDefault"];
-			if (!isDefault.is_null())
-			{
-				asset->isDefault = isDefault.get<bool>();
-			}
+			json_reflect::read<sound_curve_fields>(data, *asset, mem);
 
-			auto filename = data["filename"];
-			if (!filename.is_null() && !filename.empty())
+			const auto& knots = data["knots"];
+			if (knots.is_array())
 			{
-				asset->filename = mem->duplicate_string(filename.get<std::string>().data());
-			}
-
-			auto knots = data["knots"];
-			if (!knots.is_null())
-			{
-				asset->knotCount = static_cast<unsigned short>(knots.size());
-
-				for (unsigned short i = 0; i < asset->knotCount; i++)
-				{
-					for (unsigned char e = 0; e < 2; e++)
-					{
-						auto knot = knots[i][e];
-						if (!knot.is_null())
-						{
-							asset->knots[i][e] = knot.get<float>();
-						}
-					}
-				}
+				json_reflect::read(knots, asset->knots, mem);
+				asset->knotCount = static_cast<unsigned short>(std::min(knots.size(), std::size(asset->knots)));
 			}
 			return asset;
 		}
@@ -128,16 +118,8 @@ namespace zonetool::h1
 
 		ordered_json j;
 
-		j["isDefault"] = asset->isDefault;
-		j["filename"] = asset->filename;
-		j["knots"] = {};
-		for (unsigned short i = 0; i < asset->knotCount; i++)
-		{
-			for (unsigned char e = 0; e < 2; e++)
-			{
-				j["knots"][i][e] = asset->knots[i][e];
-			}
-		}
+		json_reflect::write<sound_curve_fields>(j, *asset);
+		json_reflect::write_array(j["knots"], asset->knots, asset->knotCount);
 
 		auto str = j.dump(4);
 		j.clear();

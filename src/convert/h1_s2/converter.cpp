@@ -33,7 +33,6 @@ namespace zonetool::h1::converter::s2
 			csv_keys.clear();
 		}
 
-		// S2 table read from the exe at 0x140FB0DE0
 		constexpr std::array<std::string_view, 62> s2_surface_types
 		{
 			"default", "asphalt", "asphalt_debris", "asphalt_wet", "bark", "brick_dark", "brick_light", "brick_red",
@@ -91,8 +90,7 @@ namespace zonetool::h1::converter::s2
 
 	std::uint32_t convert_surface_flags(const std::uint32_t h1_flags)
 	{
-		constexpr auto type_mask = 0x3Fu << 20;
-		return (h1_flags & ~type_mask) | (convert_surface_type(h1_flags >> 20) << 20);
+		return (h1_flags & ~(0x3Fu << 20)) | (convert_surface_type(h1_flags >> 20) << 20);
 	}
 
 	std::uint64_t convert_surface_type_bits(const std::uint64_t h1_bits)

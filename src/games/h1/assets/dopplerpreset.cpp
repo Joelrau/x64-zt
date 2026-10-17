@@ -1,8 +1,23 @@
 #include <std_include.hpp>
 #include "dopplerpreset.hpp"
 
+#include "io/json_reflect.hpp"
+
 namespace zonetool::h1
 {
+	namespace
+	{
+		constexpr auto doppler_preset_fields = glz::tuple
+		{
+			&DopplerPreset::name,
+			&DopplerPreset::speedOfSound,
+			&DopplerPreset::playerVelocityScale,
+			&DopplerPreset::minPitch,
+			&DopplerPreset::maxPitch,
+			&DopplerPreset::smoothing,
+		};
+	}
+
 	DopplerPreset* doppler_preset::parse(const std::string& name, zone_memory* mem)
 	{
 		if (name.empty())
@@ -25,41 +40,7 @@ namespace zonetool::h1
 
 			auto asset = mem->allocate<DopplerPreset>();
 
-			auto p_name = data["name"];
-			if (!p_name.is_null() && !p_name.empty())
-			{
-				asset->name = mem->duplicate_string(p_name.get<std::string>().data());
-			}
-
-			auto speedOfSound = data["speedOfSound"];
-			if (!speedOfSound.is_null())
-			{
-				asset->speedOfSound = speedOfSound.get<float>();
-			}
-
-			auto playerVelocityScale = data["playerVelocityScale"];
-			if (!playerVelocityScale.is_null())
-			{
-				asset->playerVelocityScale = playerVelocityScale.get<float>();
-			}
-
-			auto minPitch = data["minPitch"];
-			if (!minPitch.is_null())
-			{
-				asset->minPitch = minPitch.get<float>();
-			}
-
-			auto maxPitch = data["maxPitch"];
-			if (!maxPitch.is_null())
-			{
-				asset->maxPitch = maxPitch.get<float>();
-			}
-
-			auto smoothing = data["smoothing"];
-			if (!smoothing.is_null())
-			{
-				asset->smoothing = smoothing.get<float>();
-			}
+			json_reflect::read<doppler_preset_fields>(data, *asset, mem);
 
 			return asset;
 		}
@@ -130,12 +111,7 @@ namespace zonetool::h1
 
 		ordered_json j;
 
-		j["name"] = asset->name;
-		j["speedOfSound"] = asset->speedOfSound;
-		j["playerVelocityScale"] = asset->playerVelocityScale;
-		j["minPitch"] = asset->minPitch;
-		j["maxPitch"] = asset->maxPitch;
-		j["smoothing"] = asset->smoothing;
+		json_reflect::write<doppler_preset_fields>(j, *asset);
 
 		auto str = j.dump(4);
 		j.clear();

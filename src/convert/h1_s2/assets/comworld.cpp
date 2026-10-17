@@ -7,54 +7,12 @@ namespace zonetool::h1::converter::s2::comworld
 {
 	namespace
 	{
-		struct s2_primary_light
-		{
-			std::uint8_t type;
-			std::uint8_t canUseShadowMap;
-			char __pad0[10];
-			float color[3];
-			float intensity;
-			float dir[3];
-			float up[3];
-			float origin[3];
-			float fadeOffset[2];
-			float bulbRadius;
-			float bulbLength[3];
-			float radius;
-			float cosHalfFovOuter;
-			float cosHalfFovInner;
-			float cosHalfFovExpanded;
-			float rotationLimit;
-			float translationLimit;
-			char __pad1[44];
-			std::int32_t unk9C;
-			const char* defName;
-		};
-		static_assert(sizeof(s2_primary_light) == sizeof(zonetool::s2::ComPrimaryLight));
-		static_assert(offsetof(s2_primary_light, color) == 0xC);
-		static_assert(offsetof(s2_primary_light, origin) == 0x34);
-		static_assert(offsetof(s2_primary_light, radius) == 0x58);
-		static_assert(offsetof(s2_primary_light, unk9C) == 0x9C);
-		static_assert(offsetof(s2_primary_light, defName) == 0xA0);
-
-		struct s2_light_env
-		{
-			std::uint16_t primaryLightIndices[4];
-			std::uint8_t numIndices;
-			char __pad0[1];
-		};
-		static_assert(sizeof(s2_light_env) == 10);
-
-		// inverse of the S2 to H1 light conversion
-		constexpr float sun_intensity_scale = 10.0f;
-		constexpr float spot_intensity = 20000.0f;
-
 		ComWorld* pending_world = nullptr;
 
-		void convert_light(const ComPrimaryLight& light, s2_primary_light& new_light)
+		void convert_light(const ComPrimaryLight& light, zonetool::s2::ComPrimaryLight& new_light)
 		{
 			new_light.type = static_cast<std::uint8_t>(light.type);
-			new_light.unk9C = -1;
+			new_light.unk_0x9C = -1;
 			if (light.type == GFX_LIGHT_TYPE_NONE)
 			{
 				return;
@@ -62,8 +20,8 @@ namespace zonetool::h1::converter::s2::comworld
 
 			const auto max_color = std::max({light.color[0], light.color[1], light.color[2]});
 			const auto is_sun = light.type == GFX_LIGHT_TYPE_DIR;
-			new_light.intensity = is_sun ? (max_color > 0.0f ? max_color / sun_intensity_scale : 1.0f) : 1.0f;
-			const auto scale = is_sun ? new_light.intensity * sun_intensity_scale : spot_intensity;
+			new_light.intensity = is_sun ? (max_color > 0.0f ? max_color / 10.0f : 1.0f) : 1.0f;
+			const auto scale = is_sun ? new_light.intensity * 10.0f : 20000.0f;
 
 			new_light.canUseShadowMap = light.canUseShadowMap;
 			for (auto i = 0; i < 3; i++)
@@ -91,17 +49,17 @@ namespace zonetool::h1::converter::s2::comworld
 		{
 			const auto new_asset = allocator.allocate<zonetool::s2::ComWorld>();
 			new_asset->name = asset->name;
-			field<std::uint32_t>(new_asset, 8) = 1;
-			field<std::uint32_t>(new_asset, 12) = 1;
+			new_asset->isInUse = 1;
+			new_asset->unk_0xC = 1;
 
 			const auto count = asset->primaryLightCount;
-			const auto lights = allocator.allocate_array<s2_primary_light>(count);
+			const auto lights = allocator.allocate_array<zonetool::s2::ComPrimaryLight>(count);
 			for (auto i = 0u; i < count; i++)
 			{
-				convert_light(asset->primaryLights[i], lights[i]);			}
+				convert_light(asset->primaryLights[i], lights[i]);
+			}
 
-			// S2 envs hold one light each, the GfxWorld light lists hold the light sets
-			const auto envs = allocator.allocate_array<s2_light_env>(count);
+			const auto envs = allocator.allocate_array<zonetool::s2::ComPrimaryLightEnv>(count);
 			for (auto i = 1u; i < count; i++)
 			{
 				envs[i].primaryLightIndices[0] = static_cast<std::uint16_t>(i);
@@ -109,9 +67,9 @@ namespace zonetool::h1::converter::s2::comworld
 			}
 
 			new_asset->primaryLightCount = count;
-			new_asset->primaryLights = reinterpret_cast<zonetool::s2::ComPrimaryLight*>(lights);
+			new_asset->primaryLights = lights;
 			new_asset->primaryLightEnvCount = count;
-			new_asset->primaryLightEnvs = reinterpret_cast<char(*)[10]>(envs);
+			new_asset->primaryLightEnvs = envs;
 			return new_asset;
 		}
 	}

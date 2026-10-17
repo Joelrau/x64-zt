@@ -3114,7 +3114,7 @@ namespace zonetool::h1
 		scr_string_t targetname;
 		float origin[3];
 		float angles[3];
-	};
+	}; assert_sizeof(SpawnPointEntityRecord, 44);
 
 	struct SpawnPointRecordList
 	{
@@ -3134,14 +3134,14 @@ namespace zonetool::h1
 		float distToNextNode;
 		vec3_t* positionCubic;
 		vec3_t* tangentQuadratic;
-	};
+	}; assert_sizeof(SplinePointEntityRecord, 72);
 
 	struct SplinePointRecordList
 	{
 		unsigned short splinePointCount;
 		float splineLength;
 		SplinePointEntityRecord* splinePoints;
-	};
+	}; assert_sizeof(SplinePointRecordList, 16);
 
 	struct SplineRecordList
 	{

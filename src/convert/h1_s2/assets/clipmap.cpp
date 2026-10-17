@@ -8,166 +8,9 @@ namespace zonetool::h1::converter::s2::clipmap
 {
 	namespace
 	{
-		namespace target = zonetool::s2;
-
-		// H1 uses verts + seg * 1024 while S2 uses verts + seg * 4096
-		constexpr auto h1_vertex_segment_size = 1024u;
-		constexpr auto s2_vertex_segment_size = 4096u;
 		constexpr std::uint8_t transient_zone = 0;
 		constexpr std::uint8_t no_transient_zone = 0xFF;
-		constexpr auto transient_zone_table_offset = 0x60;
-		constexpr auto smodel_tree_offset = 0x50;
-		constexpr auto checksum_offset = 0x3B0;
 
-		struct s2_material
-		{
-			const char* name;
-			std::uint32_t surfaceFlags;
-			char __pad0[4];
-			std::uint64_t contents;
-		};
-		static_assert(sizeof(s2_material) == sizeof(target::ClipMaterial));
-
-		struct s2_leaf_brush_node
-		{
-			std::uint8_t axis;
-			std::uint8_t transientZone;
-			char __pad0[2];
-			std::int32_t leafBrushCount;
-			std::uint64_t contents;
-			union
-			{
-				std::uint32_t* brushes;
-				cLeafBrushNodeChildren_t children;
-			} data;
-		};
-		static_assert(sizeof(s2_leaf_brush_node) == sizeof(target::cbrushside_t));
-
-		struct s2_aabb_node
-		{
-			float midPoint[3];
-			std::uint8_t childCount;
-			std::uint8_t transientZone;
-			char __pad0[2];
-			float halfSize[3];
-			std::uint32_t index;
-		};
-		static_assert(sizeof(s2_aabb_node) == 32);
-
-		struct s2_smodel_node
-		{
-			Bounds bounds;
-			std::uint32_t first;
-			std::uint8_t count;
-			std::uint8_t transientZone;
-			char __pad0[2];
-		};
-		static_assert(sizeof(s2_smodel_node) == 32);
-
-		struct s2_smodel_tree
-		{
-			std::uint16_t numStaticModels;
-			std::uint16_t nodeCount;
-			char __pad0[4];
-			s2_smodel_node* nodes;
-		};
-		static_assert(sizeof(s2_smodel_tree) == sizeof(target::ClipLeafBrushes));
-
-		struct s2_node
-		{
-			cplane_s* plane;
-			std::int16_t children[2];
-			std::uint8_t transientZone;
-			char __pad0[3];
-		};
-		static_assert(sizeof(s2_node) == sizeof(target::cNode_t));
-
-		struct s2_leaf
-		{
-			std::uint32_t firstCollAabbIndex;
-			std::uint32_t collAabbCount;
-			std::uint64_t brushContents;
-			std::uint64_t terrainContents;
-			Bounds bounds;
-			std::uint32_t leafBrushNode;
-			std::uint8_t brushTransientZone;
-			std::uint8_t aabbTransientZone;
-			char __pad0[2];
-		};
-		static_assert(sizeof(s2_leaf) == 56);
-
-		struct s2_cmodel
-		{
-			Bounds bounds;
-			float radius;
-			char __pad0[4];
-			target::ClipInfo* info;
-			s2_leaf leaf;
-			std::uint16_t unk60;
-			char __pad1[6];
-		};
-		static_assert(sizeof(s2_cmodel) == sizeof(target::cmodel_t));
-
-		struct s2_brush
-		{
-			cbrushside_t* sides;
-			std::uint32_t numSides;
-			short axialMaterialNum[2][3];
-		};
-		static_assert(sizeof(s2_brush) == sizeof(target::ClipMapTrZoneNode));
-
-		struct s2_partition
-		{
-			std::uint8_t triCount;
-			std::uint8_t borderCount;
-			std::uint8_t firstVertSegment;
-			char __pad0;
-			std::int32_t firstTri;
-			std::int32_t firstBorder;
-			std::uint32_t materialIndex;
-		};
-		static_assert(sizeof(s2_partition) == 16);
-
-		struct s2_transient_zone_record
-		{
-			std::uint32_t brushStart;
-			std::uint32_t brushEnd;
-			std::uint32_t __unknown[4];
-			std::uint32_t partitionCount; // the game allocates the partition visited array of each thread from this count (asm at 0x140642970)
-		};
-		static_assert(sizeof(s2_transient_zone_record) == 0x1C);
-
-		struct s2_transient_zone_table
-		{
-			std::uint32_t count;
-			s2_transient_zone_record records[16];
-		};
-		static_assert(transient_zone_table_offset + sizeof(s2_transient_zone_table) <= offsetof(target::ClipInfo, trZones));
-
-		struct s2_dyn_entity_def
-		{
-			DynEntityType type;
-			GfxPlacement pose;
-			XModel* xModel;
-			std::uint16_t brushModel;
-			std::uint16_t physicsBrushModel;
-			std::uint16_t scriptableIndex;
-			std::uint16_t health;
-			FxEffectDef* destroyFx;
-			snd_alias_list_t* sound;
-			target::PhysPreset* physPreset;
-			DynEntityHingeDef* hinge;
-			DynEntityLinkToDef* linkTo;
-			char __pad0[16];
-			std::uint64_t contents;
-			float unk[2];
-		};
-		static_assert(sizeof(s2_dyn_entity_def) == sizeof(target::DynEntityDef));
-		static_assert(offsetof(s2_dyn_entity_def, xModel) == offsetof(target::DynEntityDef, xModel));
-		static_assert(offsetof(s2_dyn_entity_def, physPreset) == offsetof(target::DynEntityDef, physPreset));
-		static_assert(offsetof(s2_dyn_entity_def, contents) == 0x68);
-
-		// physpresets the S2 common zones provide, anything else falls back to default
 		const std::unordered_set<std::string> s2_global_phys_presets
 		{
 			"default", "phys_brick", "phys_cloth", "phys_flesh", "phys_fruit", "phys_glass", "phys_metal_chain",
@@ -175,13 +18,6 @@ namespace zonetool::h1::converter::s2::clipmap
 			"phys_metal_weapon", "phys_plastic_hollow", "phys_plastic_solid", "phys_wood_debris", "phys_wood_solid",
 			"phys_wood_solid_donotcollide",
 		};
-
-		static_assert(sizeof(cplane_s) == sizeof(target::cplane_s));
-		static_assert(sizeof(cbrushside_t) == sizeof(std::uint64_t));
-		static_assert(sizeof(CollisionBorder) == 28);
-		static_assert(sizeof(cStaticModel_s) == sizeof(target::ClipMapTrZoneStaticModel));
-		static_assert(sizeof(Stage) == sizeof(target::ClipStaticModelName));
-		static_assert(sizeof(MapTriggers) == sizeof(target::ClipStaticModelData));
 
 		clipMap_t* pending_clip_map = nullptr;
 
@@ -213,35 +49,33 @@ namespace zonetool::h1::converter::s2::clipmap
 			{
 			}
 
-			target::clipMap_t* convert()
+			zonetool::s2::clipMap_t* convert()
 			{
-				const auto new_asset = this->allocator.allocate<target::clipMap_t>();
+				const auto new_asset = this->allocator.allocate<zonetool::s2::clipMap_t>();
 				new_asset->name = this->asset->name;
 
 				auto& new_info = new_asset->info;
 				new_info.planeCount = this->info.planeCount;
-				new_info.planes = reinterpret_cast<target::cplane_s*>(this->info.planes);
+				new_info.planes = reinterpret_cast<zonetool::s2::cplane_s*>(this->info.planes);
 				this->convert_materials(new_info);
 				this->convert_leaf_brush_nodes(new_info);
 				this->convert_aabb_trees(new_info);
 				this->convert_smodel_tree(new_info);
 
-				auto& table = field<s2_transient_zone_table>(&new_info, transient_zone_table_offset);
-				table.count = 1;
-				table.records[0].brushStart = 0;
-				table.records[0].brushEnd = this->info.bCollisionData.numBrushes;
-				table.records[0].partitionCount = this->info.pCollisionData.partitionCount;
-
+				new_info.transientZones.count = 1;
+				new_info.transientZones.zones[0].brushStart = 0;
+				new_info.transientZones.zones[0].brushEnd = this->info.bCollisionData.numBrushes;
+				new_info.transientZones.zones[0].partitionCount = this->info.pCollisionData.partitionCount;
 				new_info.trZones[0] = this->convert_transient_zone();
 
-				new_asset->pInfo = this->allocator.allocate<target::ClipInfo>();
+				new_asset->pInfo = this->allocator.allocate<zonetool::s2::ClipInfo>();
 				*new_asset->pInfo = new_info;
 
 				this->convert_nodes(new_asset);
 				this->convert_leafs(new_asset);
 				this->convert_stages(new_asset);
-				new_asset->mapEnts = reinterpret_cast<target::MapEnts*>(this->asset->mapEnts);
-				field<std::uint32_t>(new_asset, checksum_offset) = this->asset->checksum;
+				new_asset->mapEnts = reinterpret_cast<zonetool::s2::MapEnts*>(this->asset->mapEnts);
+				new_asset->checksum = this->asset->checksum;
 
 				this->convert_dyn_ents(new_asset);
 
@@ -253,15 +87,15 @@ namespace zonetool::h1::converter::s2::clipmap
 			ClipInfo& info;
 			utils::memory::allocator& allocator;
 			std::vector<std::uint32_t> partition_materials;
-			std::unordered_map<std::string, target::PhysPreset*> phys_presets;
+			std::unordered_map<std::string, zonetool::s2::PhysPreset*> phys_presets;
 
-			target::PhysPreset* convert_phys_preset(const PhysPreset* preset)
+			zonetool::s2::PhysPreset* convert_phys_preset(const PhysPreset* preset)
 			{
 				const std::string name = preset && preset->name && s2_global_phys_presets.contains(preset->name) ? preset->name : "default";
 				auto& result = this->phys_presets[name];
 				if (!result)
 				{
-					result = this->allocator.allocate<target::PhysPreset>();
+					result = this->allocator.allocate<zonetool::s2::PhysPreset>();
 					result->name = this->allocator.duplicate_string(name);
 					add_csv_row("physpreset", name, true);
 				}
@@ -269,19 +103,18 @@ namespace zonetool::h1::converter::s2::clipmap
 				return result;
 			}
 
-			// scriptable dynents index the scriptable instances of the map (asm at 0x140678250)
-			// scriptables are not converted, so the game reads a null instance array
-			static DynEntityType convert_dyn_ent_type(const DynEntityType type)
+			static zonetool::s2::DynEntityType convert_dyn_ent_type(const DynEntityType type)
 			{
+				// scriptable dynents index the scriptable instances of the map (0x140678250)
 				if (type == DYNENT_TYPE_SCRIPTABLEINST || type == DYNENT_TYPE_SCRIPTABLEPHYSICS)
 				{
-					return DYNENT_TYPE_CLUTTER;
+					return zonetool::s2::DYNENT_TYPE_CLUTTER;
 				}
 
-				return type;
+				return static_cast<zonetool::s2::DynEntityType>(type);
 			}
 
-			void convert_dyn_ents(target::clipMap_t* new_asset)
+			void convert_dyn_ents(zonetool::s2::clipMap_t* new_asset)
 			{
 				for (auto i = 0; i < 2; i++)
 				{
@@ -292,37 +125,35 @@ namespace zonetool::h1::converter::s2::clipmap
 						continue;
 					}
 
-					const auto defs = this->allocator.allocate_array<s2_dyn_entity_def>(count);
+					const auto defs = this->allocator.allocate_array<zonetool::s2::DynEntityDef>(count);
 					for (auto j = 0u; j < count; j++)
 					{
 						const auto& def = this->asset->dynEntDefList[i][j];
 						auto& new_def = defs[j];
 						new_def.type = convert_dyn_ent_type(def.type);
-						new_def.pose = def.pose;
-						new_def.xModel = def.baseModel;
+						new_def.pose = std::bit_cast<zonetool::s2::GfxPlacement>(def.pose);
+						new_def.xModel = reinterpret_cast<zonetool::s2::XModel*>(def.baseModel);
 						new_def.brushModel = def.brushModel;
 						new_def.physicsBrushModel = def.physicsBrushModel;
 						new_def.scriptableIndex = def.scriptableIndex;
 						new_def.health = def.health;
 						new_def.physPreset = this->convert_phys_preset(def.physPreset);
-						new_def.hinge = def.hinge;
-						new_def.linkTo = def.linkTo;
+						new_def.hinge = reinterpret_cast<zonetool::s2::DynEntityHingeDef*>(def.hinge);
+						new_def.linkTo = reinterpret_cast<zonetool::s2::DynEntityLinkToDef*>(def.linkTo);
 						new_def.contents = static_cast<std::uint32_t>(def.contents);
-						std::memcpy(new_def.unk, def.unk, sizeof(new_def.unk));
+						std::memcpy(new_def.unk_0x70, def.unk, sizeof(new_def.unk_0x70));
 					}
 
-					new_asset->dynEntDefList[i] = reinterpret_cast<target::DynEntityDef*>(defs);
-
-					// runtime lists, the zone only reserves them when the pointer is set
+					new_asset->dynEntDefList[i] = defs;
 					new_asset->dynEntPoseList[i] = this->allocator.allocate_array<char[60]>(count);
 					new_asset->dynEntClientList[i] = this->allocator.allocate_array<char[48]>(count);
 					new_asset->dynEntCollList[i] = this->allocator.allocate_array<char[20]>(count);
 				}
 			}
 
-			void convert_materials(target::ClipInfo& new_info) const
+			void convert_materials(zonetool::s2::ClipInfo& new_info) const
 			{
-				const auto materials = this->allocator.allocate_array<s2_material>(this->info.numMaterials);
+				const auto materials = this->allocator.allocate_array<zonetool::s2::ClipMaterial>(this->info.numMaterials);
 				for (auto i = 0u; i < this->info.numMaterials; i++)
 				{
 					const auto& material = this->info.materials[i];
@@ -332,19 +163,19 @@ namespace zonetool::h1::converter::s2::clipmap
 				}
 
 				new_info.numMaterials = this->info.numMaterials;
-				new_info.materials = reinterpret_cast<target::ClipMaterial*>(materials);
+				new_info.materials = materials;
 			}
 
-			void convert_leaf_brush_nodes(target::ClipInfo& new_info) const
+			void convert_leaf_brush_nodes(zonetool::s2::ClipInfo& new_info) const
 			{
 				const auto& tree = this->info.bCollisionTree;
-				const auto indices = this->allocator.allocate_array<std::uint32_t>(tree.numLeafBrushes);
+				const auto leaf_brushes = this->allocator.allocate_array<unsigned int>(tree.numLeafBrushes);
 				for (auto i = 0u; i < tree.numLeafBrushes; i++)
 				{
-					indices[i] = tree.leafbrushes[i];
+					leaf_brushes[i] = tree.leafbrushes[i];
 				}
 
-				const auto nodes = this->allocator.allocate_array<s2_leaf_brush_node>(tree.leafbrushNodesCount);
+				const auto nodes = this->allocator.allocate_array<zonetool::s2::cLeafBrushNode_s>(tree.leafbrushNodesCount);
 				for (auto i = 0u; i < tree.leafbrushNodesCount; i++)
 				{
 					const auto& node = tree.leafbrushNodes[i];
@@ -355,22 +186,21 @@ namespace zonetool::h1::converter::s2::clipmap
 					new_node.contents = static_cast<std::uint32_t>(node.contents);
 					if (node.leafBrushCount > 0)
 					{
-						new_node.data.brushes = this->convert_leaf_brushes(node.data.leaf.brushes, node.leafBrushCount, indices);
+						new_node.data.leaf.brushes = this->convert_leaf_brushes(node.data.leaf.brushes, node.leafBrushCount, leaf_brushes);
 					}
 					else
 					{
-						new_node.data.children = node.data.children;
+						new_node.data.children = std::bit_cast<zonetool::s2::cLeafBrushNodeChildren_t>(node.data.children);
 					}
 				}
 
-				new_info.brushes.sideCount = tree.leafbrushNodesCount;
-				new_info.brushes.sides = reinterpret_cast<target::cbrushside_t*>(nodes);
-				new_info.brushes.indexCount = tree.numLeafBrushes;
-				new_info.brushes.indices = reinterpret_cast<int*>(indices);
+				new_info.bCollisionTree.leafbrushNodesCount = tree.leafbrushNodesCount;
+				new_info.bCollisionTree.leafbrushNodes = nodes;
+				new_info.bCollisionTree.numLeafBrushes = tree.numLeafBrushes;
+				new_info.bCollisionTree.leafbrushes = leaf_brushes;
 			}
 
-			// Zones load the brushes of each leaf node inline, so they do not always point into leafbrushes
-			std::uint32_t* convert_leaf_brushes(const LeafBrush* brushes, const std::int32_t count, std::uint32_t* indices) const
+			unsigned int* convert_leaf_brushes(const LeafBrush* brushes, const std::int32_t count, unsigned int* leaf_brushes) const
 			{
 				if (!brushes)
 				{
@@ -380,10 +210,10 @@ namespace zonetool::h1::converter::s2::clipmap
 				const auto& tree = this->info.bCollisionTree;
 				if (brushes >= tree.leafbrushes && brushes + count <= tree.leafbrushes + tree.numLeafBrushes)
 				{
-					return &indices[brushes - tree.leafbrushes];
+					return &leaf_brushes[brushes - tree.leafbrushes];
 				}
 
-				const auto result = this->allocator.allocate_array<std::uint32_t>(count);
+				const auto result = this->allocator.allocate_array<unsigned int>(count);
 				for (auto i = 0; i < count; i++)
 				{
 					result[i] = brushes[i];
@@ -392,12 +222,12 @@ namespace zonetool::h1::converter::s2::clipmap
 				return result;
 			}
 
-			void convert_aabb_trees(target::ClipInfo& new_info)
+			void convert_aabb_trees(zonetool::s2::ClipInfo& new_info)
 			{
 				const auto& tree = this->info.pCollisionTree;
 				this->partition_materials.assign(this->info.pCollisionData.partitionCount, 0);
 
-				const auto nodes = this->allocator.allocate_array<s2_aabb_node>(tree.aabbTreeCount);
+				const auto nodes = this->allocator.allocate_array<zonetool::s2::CollisionAabbTree>(tree.aabbTreeCount);
 				for (auto i = 0; i < tree.aabbTreeCount; i++)
 				{
 					const auto& node = tree.aabbTrees[i];
@@ -405,7 +235,7 @@ namespace zonetool::h1::converter::s2::clipmap
 					std::memcpy(new_node.midPoint, node.midPoint, sizeof(new_node.midPoint));
 					std::memcpy(new_node.halfSize, node.halfSize, sizeof(new_node.halfSize));
 					new_node.transientZone = transient_zone;
-					new_node.index = static_cast<std::uint32_t>(node.u.firstChildIndex);
+					new_node.u.firstChildIndex = static_cast<unsigned int>(node.u.firstChildIndex);
 					if (node.childCount > std::numeric_limits<std::uint8_t>::max())
 					{
 						ZONETOOL_WARNING("clipMap \"%s\": aabb node %d has %u children, S2 allows 255", this->asset->name, i, node.childCount);
@@ -418,38 +248,37 @@ namespace zonetool::h1::converter::s2::clipmap
 					}
 				}
 
-				new_info.brushBounds.count = tree.aabbTreeCount;
-				new_info.brushBounds.data = reinterpret_cast<char(*)[32]>(nodes);
+				new_info.pCollisionTree.aabbTreeCount = tree.aabbTreeCount;
+				new_info.pCollisionTree.aabbTrees = nodes;
 			}
 
-			void convert_smodel_tree(target::ClipInfo& new_info) const
+			void convert_smodel_tree(zonetool::s2::ClipInfo& new_info) const
 			{
 				const auto& tree = this->info.sCollisionTree;
-				const auto nodes = this->allocator.allocate_array<s2_smodel_node>(tree.smodelNodeCount);
+				const auto nodes = this->allocator.allocate_array<zonetool::s2::SModelAabbNode>(tree.smodelNodeCount);
 				for (auto i = 0u; i < tree.smodelNodeCount; i++)
 				{
 					const auto& node = tree.smodelNodes[i];
-					nodes[i].bounds = node.bounds;
-					nodes[i].first = node.firstChild;
-					nodes[i].count = static_cast<std::uint8_t>(node.childCount);
+					nodes[i].bounds = std::bit_cast<zonetool::s2::Bounds>(node.bounds);
+					nodes[i].firstChild = node.firstChild;
+					nodes[i].childCount = static_cast<std::uint8_t>(node.childCount);
 					nodes[i].transientZone = transient_zone;
 				}
 
-				auto& new_tree = field<s2_smodel_tree>(&new_info, smodel_tree_offset);
-				new_tree.numStaticModels = tree.numStaticModels;
-				new_tree.nodeCount = tree.smodelNodeCount;
-				new_tree.nodes = nodes;
+				new_info.sCollisionTree.numStaticModels = tree.numStaticModels;
+				new_info.sCollisionTree.smodelNodeCount = tree.smodelNodeCount;
+				new_info.sCollisionTree.smodelNodes = nodes;
 			}
 
-			target::ClipMapTrZone* convert_transient_zone()
+			zonetool::s2::ClipMapTrZone* convert_transient_zone()
 			{
-				const auto zone = this->allocator.allocate<target::ClipMapTrZone>();
+				const auto zone = this->allocator.allocate<zonetool::s2::ClipMapTrZone>();
 				zone->name = this->allocator.duplicate_string(transient_zone_name(this->asset->name));
-				this->convert_brushes(zone->tree);
-				this->convert_mesh(zone->mesh);
+				this->convert_brushes(zone->bCollisionData);
+				this->convert_patches(zone->pCollisionData);
 
 				const auto& models = this->info.sCollisionData;
-				const auto new_models = this->allocator.allocate_array<target::ClipMapTrZoneStaticModel>(models.numStaticModels);
+				const auto new_models = this->allocator.allocate_array<zonetool::s2::ClipMapTrZoneStaticModel>(models.numStaticModels);
 				for (auto i = 0u; i < models.numStaticModels; i++)
 				{
 					auto model = models.staticModelList[i];
@@ -462,29 +291,29 @@ namespace zonetool::h1::converter::s2::clipmap
 				return zone;
 			}
 
-			void convert_brushes(target::ClipMapTrZoneTree& tree) const
+			void convert_brushes(zonetool::s2::BrushesCollisionData& new_data) const
 			{
 				const auto& data = this->info.bCollisionData;
-				const auto brushes = this->allocator.allocate_array<s2_brush>(data.numBrushes);
-				const auto contents = this->allocator.allocate_array<std::uint64_t>(data.numBrushes);
+				const auto brushes = this->allocator.allocate_array<zonetool::s2::cbrush_t>(data.numBrushes);
+				const auto contents = this->allocator.allocate_array<unsigned long long>(data.numBrushes);
 				for (auto i = 0u; i < data.numBrushes; i++)
 				{
 					const auto& brush = data.brushes[i];
-					brushes[i].sides = brush.numsides ? brush.sides : nullptr;
-					brushes[i].numSides = brush.numsides;
+					brushes[i].sides = brush.numsides ? reinterpret_cast<zonetool::s2::cbrushside_t*>(brush.sides) : nullptr;
+					brushes[i].numsides = brush.numsides;
 					std::memcpy(brushes[i].axialMaterialNum, brush.axialMaterialNum, sizeof(brush.axialMaterialNum));
 					contents[i] = static_cast<std::uint32_t>(data.brushContents[i]);
 				}
 
-				tree.nodeRefs = reinterpret_cast<std::uint64_t*>(data.brushSides);
-				tree.nodeRefCount = data.numBrushSides;
-				tree.nodeCount = data.numBrushes;
-				tree.nodes = reinterpret_cast<target::ClipMapTrZoneNode*>(brushes);
-				tree.bounds = reinterpret_cast<char(*)[24]>(data.brushBounds);
-				tree.nodeData = contents;
+				new_data.brushSides = reinterpret_cast<zonetool::s2::cbrushside_t*>(data.brushSides);
+				new_data.numBrushSides = data.numBrushSides;
+				new_data.numBrushes = data.numBrushes;
+				new_data.brushes = brushes;
+				new_data.brushBounds = reinterpret_cast<zonetool::s2::Bounds*>(data.brushBounds);
+				new_data.brushContents = contents;
 			}
 
-			void convert_mesh(target::ClipMapTrZoneMesh& mesh) const
+			void convert_patches(zonetool::s2::PatchesCollisionData& new_data) const
 			{
 				const auto& data = this->info.pCollisionData;
 				const auto tri_indices = this->allocator.allocate_array<std::uint16_t>(3ull * data.triCount);
@@ -493,15 +322,15 @@ namespace zonetool::h1::converter::s2::clipmap
 				std::vector<std::optional<std::uint32_t>> tri_segments(data.triCount);
 				auto overflow_count = 0u;
 				auto shared_tri_conflicts = 0u;
-				const auto partitions = this->allocator.allocate_array<s2_partition>(data.partitionCount);
+				const auto partitions = this->allocator.allocate_array<zonetool::s2::CollisionPartition>(data.partitionCount);
 				for (auto i = 0; i < data.partitionCount; i++)
 				{
 					const auto& partition = data.partitions[i];
 					const auto first_tri = partition.firstTri;
 					const auto end_tri = std::min(partition.firstTri + partition.triCount, data.triCount);
-					const auto h1_vertex_base = partition.firstVertSegment * h1_vertex_segment_size;
-					const auto s2_segment = lowest_vertex(data, first_tri, end_tri, h1_vertex_base) / s2_vertex_segment_size;
-					const auto s2_vertex_base = s2_segment * s2_vertex_segment_size;
+					const auto h1_vertex_base = partition.firstVertSegment * 1024u;
+					const auto s2_segment = lowest_vertex(data, first_tri, end_tri, h1_vertex_base) / 4096u;
+					const auto s2_vertex_base = s2_segment * 4096u;
 
 					auto& new_partition = partitions[i];
 					new_partition.triCount = partition.triCount;
@@ -541,79 +370,77 @@ namespace zonetool::h1::converter::s2::clipmap
 					ZONETOOL_WARNING("clipMap \"%s\": %u collision tri indices do not fit 16 bits", this->asset->name, overflow_count);
 				}
 
-				mesh.vertCount = data.vertCount;
-				mesh.verts = reinterpret_cast<target::vec3_t*>(data.verts);
-				mesh.triCount = data.triCount;
-				mesh.triIndices = tri_indices;
-				mesh.triEdgeIsWalkable = data.triEdgeIsWalkable;
-				mesh.partitionCount = data.borderCount;
-				mesh.partitions = reinterpret_cast<char(*)[28]>(data.borders);
-				mesh.aabbCount = data.partitionCount;
-				mesh.aabbs = reinterpret_cast<char(*)[16]>(partitions);
+				new_data.vertCount = data.vertCount;
+				new_data.verts = reinterpret_cast<zonetool::s2::vec3_t*>(data.verts);
+				new_data.triCount = data.triCount;
+				new_data.triIndices = tri_indices;
+				new_data.triEdgeIsWalkable = data.triEdgeIsWalkable;
+				new_data.borderCount = data.borderCount;
+				new_data.borders = reinterpret_cast<zonetool::s2::CollisionBorder*>(data.borders);
+				new_data.partitionCount = data.partitionCount;
+				new_data.partitions = partitions;
 			}
 
-			void convert_nodes(target::clipMap_t* new_asset) const
+			void convert_nodes(zonetool::s2::clipMap_t* new_asset) const
 			{
-				const auto nodes = this->allocator.allocate_array<s2_node>(this->asset->numNodes);
+				const auto nodes = this->allocator.allocate_array<zonetool::s2::cNode_t>(this->asset->numNodes);
 				for (auto i = 0u; i < this->asset->numNodes; i++)
 				{
-					nodes[i].plane = this->asset->nodes[i].plane;
+					nodes[i].plane = reinterpret_cast<zonetool::s2::cplane_s*>(this->asset->nodes[i].plane);
 					nodes[i].children[0] = this->asset->nodes[i].children[0];
 					nodes[i].children[1] = this->asset->nodes[i].children[1];
 					nodes[i].transientZone = no_transient_zone;
 				}
 
 				new_asset->numNodes = this->asset->numNodes;
-				new_asset->nodes = reinterpret_cast<target::cNode_t*>(nodes);
+				new_asset->nodes = nodes;
 			}
 
-			static s2_leaf convert_leaf(const cLeaf_t& leaf)
+			static zonetool::s2::cLeaf_t convert_leaf(const cLeaf_t& leaf)
 			{
-				s2_leaf new_leaf{};
+				zonetool::s2::cLeaf_t new_leaf{};
 				new_leaf.firstCollAabbIndex = leaf.firstCollAabbIndex;
 				new_leaf.collAabbCount = leaf.collAabbCount;
 				new_leaf.brushContents = static_cast<std::uint32_t>(leaf.brushContents);
 				new_leaf.terrainContents = static_cast<std::uint32_t>(leaf.terrainContents);
-				new_leaf.bounds = leaf.bounds;
-				new_leaf.leafBrushNode = static_cast<std::uint32_t>(leaf.leafBrushNode);
+				new_leaf.bounds = std::bit_cast<zonetool::s2::Bounds>(leaf.bounds);
+				new_leaf.leafBrushNode = leaf.leafBrushNode;
 				new_leaf.brushTransientZone = leaf.brushContents ? transient_zone : no_transient_zone;
 				new_leaf.aabbTransientZone = leaf.collAabbCount ? transient_zone : no_transient_zone;
 				return new_leaf;
 			}
 
-			void convert_leafs(target::clipMap_t* new_asset) const
+			void convert_leafs(zonetool::s2::clipMap_t* new_asset) const
 			{
-				const auto leafs = this->allocator.allocate_array<s2_leaf>(this->asset->numLeafs);
+				const auto leafs = this->allocator.allocate_array<zonetool::s2::cLeaf_t>(this->asset->numLeafs);
 				for (auto i = 0u; i < this->asset->numLeafs; i++)
 				{
 					leafs[i] = convert_leaf(this->asset->leafs[i]);
 				}
 
 				new_asset->numLeafs = this->asset->numLeafs;
-				new_asset->leafs = reinterpret_cast<char(*)[56]>(leafs);
+				new_asset->leafs = leafs;
 
-				const auto cmodels = this->allocator.allocate_array<s2_cmodel>(this->asset->numSubModels);
+				const auto cmodels = this->allocator.allocate_array<zonetool::s2::cmodel_t>(this->asset->numSubModels);
 				for (auto i = 0u; i < this->asset->numSubModels; i++)
 				{
 					const auto& cmodel = this->asset->cmodels[i];
-					cmodels[i].bounds = cmodel.bounds;
+					cmodels[i].bounds = std::bit_cast<zonetool::s2::Bounds>(cmodel.bounds);
 					cmodels[i].radius = cmodel.radius;
 					cmodels[i].info = new_asset->pInfo;
 					cmodels[i].leaf = convert_leaf(cmodel.leaf);
-					cmodels[i].unk60 = i ? 0xFFFF : 0;
+					cmodels[i].unk_0x60 = i ? 0xFFFF : 0;
 				}
 
 				new_asset->numSubModels = this->asset->numSubModels;
-				new_asset->cmodels = reinterpret_cast<target::cmodel_t*>(cmodels);
+				new_asset->cmodels = cmodels;
 			}
 
-			void convert_stages(target::clipMap_t* new_asset) const
+			void convert_stages(zonetool::s2::clipMap_t* new_asset) const
 			{
-				new_asset->staticModelNameCount = this->asset->stageCount;
-				new_asset->staticModelNames = reinterpret_cast<target::ClipStaticModelName*>(this->asset->stages);
-
-				const auto trigger = mapents::convert_triggers(this->asset->stageTrigger, this->allocator);
-				std::memcpy(&new_asset->staticModelData, &trigger, sizeof(trigger));
+				new_asset->stageCount = this->asset->stageCount;
+				new_asset->stages = reinterpret_cast<zonetool::s2::Stage*>(this->asset->stages);
+				new_asset->stageTrigger = mapents::convert_triggers(this->asset->stageTrigger, this->allocator);
 			}
 		};
 	}
@@ -633,9 +460,9 @@ namespace zonetool::h1::converter::s2::clipmap
 		utils::memory::allocator allocator;
 		const auto new_asset = converter(pending_clip_map, allocator).convert();
 		const auto zone = new_asset->info.trZones[0];
-		target::clip_map_trzone::dump(zone);
+		zonetool::s2::clip_map_trzone::dump(zone);
 		add_csv_row("col_map_trzone", zone->name);
-		target::clip_map::dump(new_asset);
+		zonetool::s2::clip_map::dump(new_asset);
 		add_csv_row("col_map_mp", new_asset->name);
 		pending_clip_map = nullptr;
 	}

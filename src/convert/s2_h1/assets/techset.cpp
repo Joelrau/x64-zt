@@ -163,7 +163,7 @@ namespace zonetool::s2::converter::h1::techset
 				result.kind = tokens.front();
 			}
 
-			// S2 model ui3d and 2d techsets draw an opaque world screen. The H1 techsets of these kinds are code UI techsets without a depth test.
+			// S2 model ui3d and 2d techsets draw an opaque world screen, the H1 techsets of these kinds are code UI techsets without a depth test
 			if (is_s2 && result.prefix.starts_with('m') && model_screen_kinds.contains(result.kind))
 			{
 				result.kind = "unlit";

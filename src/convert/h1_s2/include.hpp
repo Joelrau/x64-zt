@@ -16,13 +16,6 @@ namespace zonetool::h1::converter::s2
 	std::uint32_t convert_surface_flags(std::uint32_t h1_flags);
 	std::uint64_t convert_surface_type_bits(std::uint64_t h1_bits);
 
-	template <typename T>
-	T& field(void* base, const std::size_t offset)
-	{
-		return *reinterpret_cast<T*>(static_cast<std::uint8_t*>(base) + offset);
-	}
-
-	// the S2 dumper writes an asset reference from the name pointer at offset 0
 	inline void* name_stub(const char* name, utils::memory::allocator& allocator)
 	{
 		const auto stub = allocator.allocate<const char*>();

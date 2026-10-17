@@ -1,6 +1,8 @@
 #include <std_include.hpp>
 #include "impactfx.hpp"
 
+#include "io/json_reflect.hpp"
+
 namespace zonetool::h2
 {
 	namespace
@@ -18,6 +20,15 @@ namespace zonetool::h2
 	constexpr int TABLE_SIZE = 19;
 	constexpr int NONFLESH_SIZE = 53;
 	constexpr int FLESH_SIZE = 7;
+
+	namespace
+	{
+		constexpr auto impact_entry_fields = glz::tuple
+		{
+			&FxImpactEntry::nonflesh,
+			&FxImpactEntry::flesh,
+		};
+	}
 
 	FxImpactTable* impact_fx::parse(const std::string& name, zone_memory* mem)
 	{
@@ -43,42 +54,12 @@ namespace zonetool::h2
 		auto asset_name = data["name"];
 		asset->name = (!asset_name.is_null()) ? mem->duplicate_string(asset_name.get<std::string>()) : nullptr;
 
-		if (!data["table"].is_null()) 
+		if (!data["table"].is_null())
 		{
-			auto tables = data["table"];
 			asset->table = mem->allocate<FxImpactEntry>(TABLE_SIZE);
-
-			for (int table_i = 0; table_i < TABLE_SIZE; table_i++) 
+			for (int table_i = 0; table_i < TABLE_SIZE; table_i++)
 			{
-				auto table = tables[table_i];
-
-				for (int nonflesh_i = 0; nonflesh_i < NONFLESH_SIZE; nonflesh_i++) 
-				{
-					auto non_flesh = table["nonflesh"][nonflesh_i].get<std::string>();
-					if (!non_flesh.empty()) 
-					{
-						asset->table[table_i].nonflesh[nonflesh_i] = mem->allocate<FxEffectDef>(1);
-						asset->table[table_i].nonflesh[nonflesh_i]->name = mem->duplicate_string(non_flesh);
-					}
-					else 
-					{
-						asset->table[table_i].nonflesh[nonflesh_i] = nullptr;
-					}
-				}
-
-				for (int flesh_i = 0; flesh_i < FLESH_SIZE; flesh_i++) 
-				{
-					auto flesh = table["flesh"][flesh_i].get<std::string>();
-					if (!flesh.empty()) 
-					{
-						asset->table[table_i].flesh[flesh_i] = mem->allocate<FxEffectDef>(1);
-						asset->table[table_i].flesh[flesh_i]->name = mem->duplicate_string(flesh);
-					}
-					else 
-					{
-						asset->table[table_i].flesh[flesh_i] = nullptr;
-					}
-				}
+				json_reflect::read<impact_entry_fields>(data["table"][table_i], asset->table[table_i], mem);
 			}
 		}
 
@@ -221,28 +202,7 @@ namespace zonetool::h2
 
 		if (data->table)
 		{
-			auto& data_tables = data->table;
-			auto& json_tables = json_data["table"];
-
-			for (int table_i = 0; table_i < TABLE_SIZE; table_i++) 
-			{
-				auto& data_table = data_tables[table_i];
-				auto& json_table = json_tables[table_i];
-
-				for (int nonflesh_i = 0; nonflesh_i < NONFLESH_SIZE; nonflesh_i++) 
-				{
-					json_table["nonflesh"][nonflesh_i] = (data_table.nonflesh[nonflesh_i])
-						? data_table.nonflesh[nonflesh_i]->name
-						: "";
-				}
-
-				for (int flesh_i = 0; flesh_i < FLESH_SIZE; flesh_i++) 
-				{
-					json_table["flesh"][flesh_i] = (data_table.flesh[flesh_i])
-						? data_table.flesh[flesh_i]->name
-						: "";
-				}
-			}
+			json_reflect::write_array<impact_entry_fields>(json_data["table"], data->table, TABLE_SIZE);
 		}
 		else 
 		{
