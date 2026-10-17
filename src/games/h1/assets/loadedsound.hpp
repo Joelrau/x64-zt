@@ -25,7 +25,8 @@ namespace zonetool::h1
 		static void read(zone_reader& reader, LoadedSound* asset);
 		void write(zone_base* zone, zone_buffer* buffer) override;
 
-		static void dump_data(LoadedSound* asset, char* data, size_t size, const std::string& extension = "");
+		static std::optional<std::string> read_stream_file(const StreamFileName& filename);
+		static void dump_data(LoadedSound* asset, const char* data, size_t size, const std::string& extension = "");
 		static void dump(LoadedSound* asset);
 	};
 }

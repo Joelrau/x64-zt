@@ -12,7 +12,11 @@ namespace zonetool::iw6::converter::h1
 
 	void add_csv_row(const std::string_view type, const std::string_view name)
 	{
-		csv_rows.emplace_back(std::format("{},{}", type, name));
+		auto row = std::format("{},{}", type, name);
+		if (std::ranges::find(csv_rows, row) == csv_rows.end())
+		{
+			csv_rows.emplace_back(std::move(row));
+		}
 	}
 
 	void append_csv_rows(const std::string& zone_name)

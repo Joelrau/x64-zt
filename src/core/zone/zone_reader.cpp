@@ -86,6 +86,27 @@ namespace zonetool
 		return this->zone_index_;
 	}
 
+	void zone_reader::set_shared_stream_keys(const std::span<const XStreamFileKey> keys)
+	{
+		this->shared_stream_keys_ = keys;
+		this->shared_stream_key_index_ = 0;
+	}
+
+	XStreamFileKey zone_reader::next_shared_stream_key()
+	{
+		if (this->shared_stream_key_index_ >= this->shared_stream_keys_.size())
+		{
+			throw std::runtime_error("the zone has no shared stream key left");
+		}
+
+		return this->shared_stream_keys_[this->shared_stream_key_index_++];
+	}
+
+	std::size_t zone_reader::shared_stream_keys_read() const
+	{
+		return this->shared_stream_key_index_;
+	}
+
 	void zone_reader::push_stream(const std::uint8_t block)
 	{
 		if (block >= this->blocks_.size())

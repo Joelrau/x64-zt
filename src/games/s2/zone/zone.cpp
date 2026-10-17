@@ -439,6 +439,7 @@ namespace zonetool::s2
 		xfile::fastfile file{};
 		file.version = format.version;
 		file.stream_keys = this->collect_image_stream_keys();
+		file.shared_stream_keys = buf->shared_stream_keys();
 		file.block_sizes.resize(format.block_count);
 		for (std::size_t index = 0; index < format.block_count; index++)
 		{

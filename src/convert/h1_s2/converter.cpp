@@ -194,6 +194,18 @@ namespace zonetool::convert::h1_s2
 			case source::ASSET_TYPE_PHYSWORLDMAP:
 				target::physworld::dump(header_as<source::PhysWorld>(header));
 				break;
+			case source::ASSET_TYPE_SOUND:
+				target::sound::dump(header_as<source::snd_alias_list_t>(header));
+				break;
+			case source::ASSET_TYPE_SOUND_CURVE:
+				target::sound::dump_curve(header_as<source::SndCurve>(header));
+				break;
+			case source::ASSET_TYPE_REVERB_CURVE:
+				target::sound::dump_reverb_curve(header_as<source::SndCurve>(header));
+				break;
+			case source::ASSET_TYPE_LOADED_SOUND:
+				target::loaded_sound::dump(header_as<source::LoadedSound>(header));
+				break;
 			default:
 				break;
 			}

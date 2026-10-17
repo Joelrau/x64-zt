@@ -196,6 +196,7 @@ namespace zonetool
 		this->vas_.clear();
 		this->sas_.clear();
 		this->stream_files_.clear();
+		this->shared_stream_keys_.clear();
 		this->temp_stream_.reset();
 		this->unread_stream_.reset();
 		this->temp_peak_ = 0;
@@ -455,6 +456,16 @@ namespace zonetool
 	std::size_t zone_buffer::streamfile_count()
 	{
 		return this->stream_files_.size();
+	}
+
+	void zone_buffer::write_shared_stream_key(const XStreamFileKey& key)
+	{
+		this->shared_stream_keys_.push_back(key);
+	}
+
+	const std::vector<XStreamFileKey>& zone_buffer::shared_stream_keys() const
+	{
+		return this->shared_stream_keys_;
 	}
 
 	void zone_buffer::save(const std::string& filename, bool use_zone_path)

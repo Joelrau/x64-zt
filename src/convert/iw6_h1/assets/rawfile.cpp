@@ -245,6 +245,7 @@ namespace zonetool::iw6
 				new_asset->len = static_cast<int>(buffer.size());
 				new_asset->compressedLen = 0;
 				zonetool::h1::rawfile::dump(new_asset);
+				add_csv_row("rawfile", hdr_name); // H1 reads the fog of the map from this file
 
 				return buffer;
 			}

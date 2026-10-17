@@ -204,6 +204,7 @@ namespace zonetool::iw6
 				utils::memory::allocator allocator;
 				const auto converted_asset = convert(asset, allocator);
 				zonetool::h1::string_table::dump(converted_asset);
+				add_csv_row("stringtable", converted_asset->name); // H1 applies no tonemap without the lightset of the map
 			}
 		}
 	}

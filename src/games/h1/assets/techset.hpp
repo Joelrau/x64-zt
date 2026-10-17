@@ -24,6 +24,7 @@ namespace zonetool::h1
 			std::vector<std::array<std::uint64_t, 10>>*,
 			std::vector<std::array<std::uint32_t, 3>>*,
 			zone_memory* mem);
+		static GfxStateBitsRaw parse_statebits_raw_data(const ordered_json& data, const std::string& name);
 		static void parse_constant_buffer_indexes(const std::string& techset, const std::string& material, unsigned char* indexes, zone_memory* mem);
 		static void parse_constant_buffer_def_array(const std::string& techset, const std::string& material, 
 			MaterialConstantBufferDef** def_ptr, unsigned char* count, zone_memory* mem);

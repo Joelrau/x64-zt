@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../game_mode.hpp"
+#include "../xfile/structs.hpp"
 
 namespace zonetool
 {
@@ -38,6 +39,9 @@ namespace zonetool
 		void set_script_strings(std::vector<std::uint32_t> ids);
 		void set_zone_index(std::uint16_t index);
 		std::uint16_t zone_index() const;
+		void set_shared_stream_keys(std::span<const XStreamFileKey> keys);
+		XStreamFileKey next_shared_stream_key();
+		std::size_t shared_stream_keys_read() const;
 		void set_block_base(std::uint8_t block, std::size_t base);
 		std::size_t end_anchored_data_start() const;
 		std::size_t end_anchored_alignment() const;
@@ -299,6 +303,8 @@ namespace zonetool
 
 		std::vector<std::uint32_t> script_strings_;
 		std::uint16_t zone_index_{};
+		std::span<const XStreamFileKey> shared_stream_keys_;
+		std::size_t shared_stream_key_index_{};
 		inline_asset_loader inline_asset_loader_;
 
 		std::vector<std::unique_ptr<std::uint8_t[]>> allocations_;

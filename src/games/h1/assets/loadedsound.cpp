@@ -467,7 +467,7 @@ namespace zonetool::h1
 		buf->pop_stream();
 	}
 
-	void loaded_sound::dump_data(LoadedSound* asset, char* data, size_t size, const std::string& extension)
+	void loaded_sound::dump_data(LoadedSound* asset, const char* data, size_t size, const std::string& extension)
 	{
 		const auto path = "loaded_sound\\"s + asset->name + extension;
 		auto file = filesystem::file(path);
@@ -478,75 +478,63 @@ namespace zonetool::h1
 		file.close();
 	}
 
+	std::optional<std::string> loaded_sound::read_stream_file(const StreamFileName& filename)
+	{
+		std::string soundfile_path = utils::string::va("soundfile%d.pak", filename.fileIndex);
+		if (filename.isLocalized)
+		{
+			soundfile_path = utils::string::va("%s/%s_%s",
+				filesystem::get_language_name().data(),
+				filesystem::get_language_code().data(),
+				soundfile_path.data());
+		}
+
+		auto soundfile = filesystem::file(soundfile_path);
+		soundfile.open("rb", false, true);
+		auto* fp = soundfile.get_fp();
+		if (!fp)
+		{
+			return {};
+		}
+
+		const auto read_at = [fp](const std::uint64_t offset, const std::uint64_t size)
+		{
+			std::string data(size, 0);
+			_fseeki64(fp, static_cast<std::int64_t>(offset), SEEK_SET);
+			fread(data.data(), data.size(), 1, fp);
+			return data;
+		};
+
+		const auto offset = filename.info.packed.offset;
+		const auto length = filename.info.packed.length;
+		auto data = read_at(offset, length);
+		if (!data.starts_with("fLaC"))
+		{
+			data = read_at(offset - SIZEOF_SNDFILE_WAVE_HEADER, length + SIZEOF_SNDFILE_WAVE_HEADER); // the riff header is before the wave data
+			if (!data.starts_with("RIFF"))
+			{
+				return {};
+			}
+		}
+
+		return data;
+	}
+
 	void loaded_sound::dump(LoadedSound* asset)
 	{
 		// H1 loaded sound is a hybrid between loaded and streamed sound.
 		if (asset)
 		{
-			// dump data from soundfile
 			if (asset->filename.fileIndex)
 			{
-				std::string soundfile_path = utils::string::va("soundfile%d.pak", asset->filename.fileIndex);
-				if (asset->filename.isLocalized)
+				const auto data = read_stream_file(asset->filename);
+				if (!data)
 				{
-					soundfile_path = utils::string::va("%s/%s_%s",
-						filesystem::get_language_name().data(),
-						filesystem::get_language_code().data(),
-						soundfile_path.data());
+					ZONETOOL_FATAL("%s: failed to read soundfile %u, offset: %llu",
+						asset->name, asset->filename.fileIndex, asset->filename.info.packed.offset);
 				}
-				auto soundfile = filesystem::file(soundfile_path);
-				soundfile.open("rb", false, true);
 
-				auto* fp = soundfile.get_fp();
-				if (fp)
-				{
-					// get data from sound pak
-
-					bool flac_data = true;
-
-					size_t snd_data_offset = asset->filename.info.packed.offset;
-					size_t snd_data_size = asset->filename.info.packed.length;
-
-					std::vector<std::uint8_t> snd_data;
-					snd_data.resize(snd_data_size);
-
-					// get data from offset
-					fseek(fp, static_cast<long>(snd_data_offset), SEEK_SET);
-					fread(snd_data.data(), snd_data_size, 1, fp);
-
-					// check if data is in fLaC format, otherwise it's in WAVE format
-					if (!strncmp(reinterpret_cast<char*>(snd_data.data()), "fLaC", 4))
-					{
-						flac_data = true;
-					}
-					else
-					{
-						flac_data = false;
-
-						// get riff header data too
-						snd_data_offset -= SIZEOF_SNDFILE_WAVE_HEADER;
-						snd_data_size += SIZEOF_SNDFILE_WAVE_HEADER;
-
-						snd_data.resize(snd_data_size);
-
-						// get data from offset
-						fseek(fp, static_cast<long>(snd_data_offset), SEEK_SET);
-						fread(snd_data.data(), snd_data_size, 1, fp);
-
-						if (strncmp(reinterpret_cast<char*>(snd_data.data()), "RIFF", 4))
-						{
-							ZONETOOL_FATAL("%s: failed to get wave header from soundfile: %s, offset: %llu",
-								asset->name, soundfile_path.data(), asset->filename.info.packed.offset);
-						}
-					}
-
-					// save data
-					dump_data(asset, reinterpret_cast<char*>(snd_data.data()), snd_data_size, flac_data ? ".flac" : ".wav");
-				}
-				else
-				{
-					ZONETOOL_FATAL("%s: failed to open soundfile: %s", asset->name, soundfile_path.data());
-				}
+				dump_data(asset, data->data(), data->size(), data->starts_with("fLaC") ? ".flac" : ".wav");
 			}
 			else
 			{

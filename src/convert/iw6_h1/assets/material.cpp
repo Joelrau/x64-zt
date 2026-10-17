@@ -287,9 +287,7 @@ namespace zonetool::iw6
 					//}
 				}
 
-				// statemap
-				//new_asset->stateBitsTable = allocator.allocate_array<zonetool::h1::GfxStateBits>(asset->stateBitsCount); // don't convert, dump from old
-				new_asset->stateBitsTable = (zonetool::h1::GfxStateBits*)asset->stateBitsTable;
+				new_asset->stateBitsTable = allocator.allocate_array<zonetool::h1::GfxStateBits>(asset->stateBitsCount); // dump() writes the statebitsmap from the iw6 table
 				new_asset->stateBitsCount = asset->stateBitsCount;
 
 				std::memset(new_asset->constantBufferIndex, 0xFF, zonetool::h1::MaterialTechniqueType::TECHNIQUE_COUNT);
@@ -482,6 +480,13 @@ namespace zonetool::iw6
 				utils::memory::allocator allocator;
 				const auto converted_asset = convert(asset, allocator);
 				zonetool::h1::material::dump(converted_asset);
+
+				if (converted_asset->techniqueSet)
+				{
+					std::string material_name = converted_asset->name;
+					std::ranges::replace(material_name, '*', '_');
+					techset::dump_statebits_map(converted_asset->techniqueSet->name, material_name, asset->stateBitsTable, asset->stateBitsCount);
+				}
 			}
 		}
 	}

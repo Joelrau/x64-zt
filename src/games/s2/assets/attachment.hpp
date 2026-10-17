@@ -4,6 +4,10 @@ namespace zonetool::s2
 {
 	struct attachment_layout
 	{
+		static constexpr std::size_t world_model_count = 2;
+		static constexpr std::size_t view_model_count = 12;
+		static constexpr std::size_t reticle_view_model_count = 255;
+
 		static bool is_string_field(const AttachmentField& field)
 		{
 			return static_cast<std::uint8_t>(field.type - 4) > 5;
@@ -13,11 +17,11 @@ namespace zonetool::s2
 		static void visit(const V& w)
 		{
 			w.strings({offsetof(WeaponAttachment, szInternalName), offsetof(WeaponAttachment, szDisplayName)});
-			w.asset_array(ASSET_TYPE_XMODEL, offsetof(WeaponAttachment, worldModels), 2);
-			w.asset_array(ASSET_TYPE_XMODEL, offsetof(WeaponAttachment, viewModels), 12);
-			w.asset_array(ASSET_TYPE_XMODEL, offsetof(WeaponAttachment, worldModelsAdditional), 2);
-			w.asset_array(ASSET_TYPE_XMODEL, offsetof(WeaponAttachment, viewModelsAdditional), 12);
-			w.asset_array(ASSET_TYPE_XMODEL, offsetof(WeaponAttachment, reticleViewModels), 255);
+			w.asset_array(ASSET_TYPE_XMODEL, offsetof(WeaponAttachment, worldModels), world_model_count);
+			w.asset_array(ASSET_TYPE_XMODEL, offsetof(WeaponAttachment, viewModels), view_model_count);
+			w.asset_array(ASSET_TYPE_XMODEL, offsetof(WeaponAttachment, worldModelsAdditional), world_model_count);
+			w.asset_array(ASSET_TYPE_XMODEL, offsetof(WeaponAttachment, viewModelsAdditional), view_model_count);
+			w.asset_array(ASSET_TYPE_XMODEL, offsetof(WeaponAttachment, reticleViewModels), reticle_view_model_count);
 			w.script_string(offsetof(WeaponAttachment, knifeAttachTagOverride));
 			w.bytes(offsetof(WeaponAttachment, unkStruct80), 3, sizeof(*WeaponAttachment{}.unkStruct80));
 
@@ -35,5 +39,8 @@ namespace zonetool::s2
 
 	class weapon_attachment : public field_layout_asset<WeaponAttachment, ASSET_TYPE_ATTACHMENT, attachment_layout>
 	{
+	public:
+		WeaponAttachment* parse(const std::string& name, zone_memory* mem) override;
+		static void dump(WeaponAttachment* asset);
 	};
 }

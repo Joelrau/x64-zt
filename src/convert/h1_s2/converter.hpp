@@ -14,3 +14,5 @@
 #include "assets/glassworld.hpp"
 #include "assets/mapents.hpp"
 #include "assets/physworld.hpp"
+#include "assets/sound.hpp"
+#include "assets/loadedsound.hpp"

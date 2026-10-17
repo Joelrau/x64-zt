@@ -1436,7 +1436,7 @@ namespace zonetool::h1
 		}
 	}
 
-	GfxStateBitsRaw parse_statebits_raw_data(const ordered_json& data, const std::string& name)
+	GfxStateBitsRaw techset::parse_statebits_raw_data(const ordered_json& data, const std::string& name)
 	{
 		std::uint32_t loadbits0 = 0;
 		std::uint32_t loadbits1 = 0;

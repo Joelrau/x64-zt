@@ -574,18 +574,56 @@ namespace zonetool::s2
 
 	struct LoadedSoundStreamInfo
 	{
-		char __pad0[8];
+		unsigned long long unknown0;
 		const char* name;
 		const char* fileName;
-		char __pad1[16];
+		XStreamFileKey streamKey;
 	};
 	static_assert(sizeof(LoadedSoundStreamInfo) == 0x28);
+
+	enum SndAudioFormatType : std::uint8_t
+	{
+		SND_FORMAT_PCM = 0x1,
+		SND_FORMAT_FLAC = 0x6,
+	};
+
+	struct SndAudioFormat
+	{
+		unsigned int dataLength;
+		unsigned int sampleCount;
+		unsigned short sampleRate;
+		unsigned char channelCount;
+		unsigned char bitsPerSample;
+		unsigned short blockSize;
+		SndAudioFormatType format;
+		unsigned char unknown15;
+	};
+	static_assert(sizeof(SndAudioFormat) == 0x10);
+
+#pragma pack(push, 1)
+	struct SoundFileTocHeader
+	{
+		char magic[8];
+		unsigned int version;
+		unsigned int entryCount;
+	};
+	static_assert(sizeof(SoundFileTocHeader) == 0x10);
+
+	struct SoundFileTocEntry
+	{
+		unsigned long long hash[2]; // the game uses only hash[0]
+		unsigned long long offset;
+		unsigned int size;
+		unsigned short fileIndex;
+	};
+	static_assert(sizeof(SoundFileTocEntry) == 0x1E);
+#pragma pack(pop)
 
 	struct LoadedSound
 	{
 		const char* name;
 		LoadedSoundStreamInfo info;
-		char __pad0[16];
+		SndAudioFormat audioFormat;
 		char* data;
 		int dataSize;
 		unsigned short seekTableCount;
@@ -604,7 +642,7 @@ namespace zonetool::s2
 	struct StreamedSound
 	{
 		LoadedSoundStreamInfo info;
-		char __pad0[16];
+		SndAudioFormat audioFormat;
 	};
 	static_assert(sizeof(StreamedSound) == 0x38);
 
@@ -612,7 +650,7 @@ namespace zonetool::s2
 	{
 		LoadedSound* loadedPart;
 		LoadedSoundStreamInfo streamedPart;
-		char __pad0[8];
+		unsigned long long unknown48;
 	};
 	static_assert(sizeof(PrimedSound) == 0x38);
 
@@ -626,52 +664,151 @@ namespace zonetool::s2
 	struct SoundFile
 	{
 		SoundFileType type;
-		char __pad0[7];
+		bool exists;
 		SoundFileRef u;
 	};
 	static_assert(sizeof(SoundFile) == 0x40);
 
-	struct SndAliasDuck
+	struct SpeakerLevels
+	{
+		float levels[2];
+		unsigned char speaker;
+		unsigned char numLevels;
+	};
+	static_assert(sizeof(SpeakerLevels) == 0xC);
+
+	struct SpeakerMap
 	{
 		const char* name;
-		char __pad0[0xC0];
+		SpeakerLevels channelMaps[2][8];
 	};
-	static_assert(sizeof(SndAliasDuck) == 0xC8);
+	static_assert(sizeof(SpeakerMap) == 0xC8);
+
+	enum SndAliasFlags : std::uint32_t
+	{
+		SND_ALIAS_FLAG_LOOPING = 0x1,
+		SND_ALIAS_FLAG_LFE_PERCENTAGE = 0x4,
+		SND_ALIAS_FLAG_FULL_DRY_LEVEL = 0x8,
+		SND_ALIAS_FLAG_WET_MIX_OVERRIDE = 0x10,
+		SND_ALIAS_FLAG_RANDOM_LOOPING = 0x20,
+		SND_ALIAS_FLAG_2D = 0x80,
+		SND_ALIAS_FLAG_PAUSABLE = 0x100,
+		SND_ALIAS_FLAG_USE_CONTEXT_LIST = 0x800,
+		SND_ALIAS_FLAG_DMONO = 0x1000,
+		SND_ALIAS_FLAG_TYPE_MASK = 0x70000, // SoundFileType << 16
+	};
+
+	enum SndVariationType : std::uint8_t
+	{
+		SND_VARIATION_STICKY = 0x0,
+		SND_VARIATION_PICKY = 0x1,
+		SND_VARIATION_ORDERED = 0x2,
+		SND_VARIATION_SHUFFLE = 0x3,
+		SND_VARIATION_WEIGHTED = 0x4,
+	};
+
+	enum SndParameterModifierOp : std::uint8_t
+	{
+		SND_MODIFIER_OP_ADD = 0x0,
+		SND_MODIFIER_OP_REVERSE_SUBTRACT = 0x1,
+		SND_MODIFIER_OP_SUBTRACT = 0x2,
+		SND_MODIFIER_OP_MULTIPLY = 0x3,
+		SND_MODIFIER_OP_REVERSE_DIVIDE = 0x4,
+		SND_MODIFIER_OP_DIVIDE = 0x5,
+		SND_MODIFIER_OP_NONE = 0x6,
+	};
 
 	struct snd_alias_t
 	{
 		const char* aliasName;
 		const char* subtitle;
+		const char* mixerGroup;
 		const char* secondaryAliasName;
 		const char* chainAliasName;
-		const char* mixerGroup;
 		SoundFile* soundFile;
 		const char* squelchName;
-		char __pad0[80];
+		int unknown56;
+		short polyCount;
+		unsigned char dspBusIndex;
+		unsigned char priority;
+		int playCount;
+		int polyClass;
+		float volMin;
+		float volMax;
+		short volModIndex;
+		float pitchMin;
+		float pitchMax;
+		float distMin;
+		float distMax;
+		float velocityMin;
+		int flags; // SndAliasFlags
+		unsigned char masterPriority;
+		float masterPercentage;
+		float slavePercentage;
+		float playbackPercentage;
+		float probability;
+		SndVariationType variationType;
 		SndContext* sndContext;
-		char __pad1[16];
+		unsigned char sequence;
+		float lfePercentage;
+		float centerPercentage;
+		int startDelay;
 		SndCurve* volumeFalloffCurve;
-		DistCurve* distCurve;
+		DistCurve* lpfCurve;
 		SndCurve* reverbSendCurve;
-		SndAliasDuck* duck;
-		char __pad2[56];
-		SndAliasParameterModifier* parameterModifiers[8];
-		char __pad3[16];
+		SpeakerMap* speakerMap;
+		float wetMixOverride;
+		float focusPercentage;
+		float smartpanDistance2d;
+		float smartpanDistance3d;
+		float smartpanAttenuation3d;
+		float minSmartpan2dContribution;
+		short stereo3DAngle;
+		float stereo3DStart;
+		float stereo3DEnd;
+		float threshold;
+		float unknown232;
+		int unknown236;
+		int lockedLoopTime;
+		int unknown244;
+		SndAliasParameterModifier* parameterModifiers[8]; // 0-5 vol, pitch and dist min and max, 6 position offset, 7 playbackPercentage
+		SndParameterModifierOp parameterModifierOps[8]; // the op of slot 6 is not used
+		int length;
+		int unknown324;
 		SndAliasCombatCone* combatCone;
 	};
 	static_assert(sizeof(snd_alias_t) == 0x150);
+	static_assert(offsetof(snd_alias_t, unknown56) == 56);
+	static_assert(offsetof(snd_alias_t, volModIndex) == 80);
+	static_assert(offsetof(snd_alias_t, pitchMin) == 84);
+	static_assert(offsetof(snd_alias_t, flags) == 104);
+	static_assert(offsetof(snd_alias_t, masterPercentage) == 112);
+	static_assert(offsetof(snd_alias_t, variationType) == 128);
 	static_assert(offsetof(snd_alias_t, sndContext) == 136);
-	static_assert(offsetof(snd_alias_t, duck) == 184);
+	static_assert(offsetof(snd_alias_t, lfePercentage) == 148);
+	static_assert(offsetof(snd_alias_t, speakerMap) == 184);
+	static_assert(offsetof(snd_alias_t, stereo3DAngle) == 216);
+	static_assert(offsetof(snd_alias_t, stereo3DStart) == 220);
+	static_assert(offsetof(snd_alias_t, lockedLoopTime) == 240);
 	static_assert(offsetof(snd_alias_t, parameterModifiers) == 248);
+	static_assert(offsetof(snd_alias_t, parameterModifierOps) == 312);
+	static_assert(offsetof(snd_alias_t, length) == 320);
 	static_assert(offsetof(snd_alias_t, combatCone) == 328);
+
+	struct snd_alias_context_list
+	{
+		unsigned char aliasOffset;
+		unsigned char count;
+	};
+	static_assert(sizeof(snd_alias_context_list) == 2);
 
 	struct snd_alias_list_t
 	{
 		const char* name;
 		snd_alias_t* head;
-		unsigned short* sortedIndices;
+		snd_alias_context_list* contextList;
 		unsigned char count;
-		unsigned char sortedIndexCount;
+		unsigned char contextListCount;
 		char __pad0[6];
 	};
 	static_assert(sizeof(snd_alias_list_t) == 0x20);
@@ -2228,6 +2365,28 @@ namespace zonetool::s2
 	};
 	static_assert(sizeof(DLogRoutes) == 0x28);
 
+	enum WAFieldType : std::uint8_t
+	{
+		WAFIELD_TYPE_STRING = 0,
+		WAFIELD_TYPE_INT = 4,
+		WAFIELD_TYPE_BOOL = 6,
+		WAFIELD_TYPE_FLOAT = 7,
+		WAFIELD_TYPE_MILLISECONDS = 9,
+		WAFIELD_TYPE_FX = 10,
+		WAFIELD_TYPE_MODEL = 11,
+		WAFIELD_TYPE_ANIM = 12,
+		WAFIELD_TYPE_MATERIAL = 13,
+		WAFIELD_TYPE_SOUND = 15,
+		WAFIELD_TYPE_TRACER = 16,
+	};
+
+	enum WAFieldCode : std::uint8_t
+	{
+		WAFIELD_CODE_NONE = 0,
+		WAFIELD_CODE_SET = 3,
+		WAFIELD_CODE_MULTIPLY = 4,
+	};
+
 	union AttachmentFieldValue
 	{
 		const char* string;
@@ -2239,7 +2398,8 @@ namespace zonetool::s2
 	{
 		unsigned char index;
 		unsigned char type;
-		char __pad0[6];
+		unsigned char code;
+		char __pad0[5];
 		AttachmentFieldValue value;
 	};
 	static_assert(sizeof(AttachmentField) == 0x10);
@@ -2248,7 +2408,12 @@ namespace zonetool::s2
 	{
 		const char* szInternalName;
 		const char* szDisplayName;
-		char __pad0[24];
+		int type;
+		int weaponType;
+		int weapClass;
+		int greebleType;
+		int unknown32;
+		int unknown36;
 		XModel** worldModels;
 		XModel** viewModels;
 		XModel** worldModelsAdditional;
@@ -2258,21 +2423,15 @@ namespace zonetool::s2
 		unsigned short* fieldOffsets;
 		AttachmentField* fields;
 		int fieldCount;
-		char __pad1[12];
+		int loadIndex;
+		int adsSettingsMode;
+		float adsSceneBlurStrength;
 		scr_string_t knifeAttachTagOverride;
-		char __pad2[20];
+		bool unknown124[20];
 	};
 	static_assert(sizeof(WeaponAttachment) == 0x90);
 	static_assert(offsetof(WeaponAttachment, fieldCount) == 104);
 	static_assert(offsetof(WeaponAttachment, knifeAttachTagOverride) == 120);
-
-	struct WeaponCompleteDef
-	{
-		const char* szInternalName;
-		const char* szDisplayName;
-		char __pad0[0x1080];
-	};
-	static_assert(sizeof(WeaponCompleteDef) == 0x1090);
 
 	struct LaserDef
 	{
@@ -2303,6 +2462,663 @@ namespace zonetool::s2
 		char __pad3[0x8];
 	};
 	static_assert(sizeof(BeamDef) == 0x2E8);
+
+	struct AnimOverrideEntry
+	{
+		unsigned char animHand;
+		unsigned char attachment1;
+		unsigned char attachment2;
+		unsigned char animTreeType;
+		XAnimParts* overrideAnim;
+		XAnimParts* altmodeAnim;
+		int animTime;
+		int altTime;
+	};
+	static_assert(sizeof(AnimOverrideEntry) == 32);
+
+	struct SoundOverrideEntry
+	{
+		unsigned char attachment1;
+		unsigned char attachment2;
+		unsigned char soundType;
+		snd_alias_list_t* overrideSound;
+		snd_alias_list_t* altmodeSound;
+	};
+	static_assert(sizeof(SoundOverrideEntry) == 24);
+
+	struct FXOverrideEntry
+	{
+		unsigned char attachment1;
+		unsigned char attachment2;
+		unsigned char fxType;
+		FxEffectDef* overrideFX;
+		FxEffectDef* altmodeFX;
+	};
+	static_assert(sizeof(FXOverrideEntry) == 24);
+
+	struct ReloadStateTimerEntry
+	{
+		int attachment;
+		int reloadAddTime;
+		int reloadEmptyAddTime;
+		int reloadStartAddTime;
+	};
+	static_assert(sizeof(ReloadStateTimerEntry) == 16);
+
+	struct NoteTrackToSoundEntry
+	{
+		int attachment;
+		scr_string_t* notetrackSoundMapKeys;
+		scr_string_t* notetrackSoundMapValues;
+	};
+	static_assert(sizeof(NoteTrackToSoundEntry) == 24);
+
+	struct TurretHydraulicSettings
+	{
+		int unknown0;
+		int unknown4;
+		float minVelocity;
+		float unknown12;
+		snd_alias_list_t* verticalSound;
+		snd_alias_list_t* verticalStopSound;
+		snd_alias_list_t* horizontalSound;
+		snd_alias_list_t* horizontalStopSound;
+		snd_alias_list_t* movementSounds[2];
+		float unknown64;
+		float unknown68;
+	};
+	static_assert(sizeof(TurretHydraulicSettings) == 0x48);
+
+	struct ADSOverlay
+	{
+		Material* shader;
+		Material* shaderLowRes;
+		Material* shaderEMP;
+		Material* shaderEMPLowRes;
+		int reticle;
+		float width;
+		float height;
+		float widthSplitscreen;
+		float heightSplitscreen;
+	};
+	static_assert(sizeof(ADSOverlay) == 0x38);
+
+	struct StateTimers
+	{
+		int fireDelay;
+		int meleeDelay;
+		int meleeChargeDelay;
+		int unknown12;
+		int detonateDelay;
+		int fireTime;
+		int unknown24;
+		int rechamberTime;
+		int rechamberTimeOneHanded;
+		int rechamberBoltTime;
+		int unknown40;
+		int holdFireTime;
+		int grenadePrimeReadyToThrowTime;
+		int detonateTime;
+		int meleeTime;
+		int meleeChargeTime;
+		int unknown64;
+		int reloadTime;
+		int unknown72[5];
+		int reloadShowRocketTime;
+		int reloadEmptyTime;
+		int reloadAddTime;
+		int reloadEmptyAddTime;
+		int reloadStartTime;
+		int reloadStartAddTime;
+		int reloadEndTime;
+		int reloadTimeDualWield;
+		int reloadAddTimeDualWield;
+		int reloadEmptyDualMag;
+		int reloadEmptyAddTimeDualMag;
+		int speedReloadTime;
+		int speedReloadAddTime;
+		int dropTime;
+		int raiseTime;
+		int unknown152[5];
+		int quickDropTime;
+		int quickRaiseTime;
+		int firstRaiseTime;
+		int breachRaiseTime;
+		int emptyRaiseTime;
+		int emptyDropTime;
+		int sprintInTime;
+		int sprintLoopTime;
+		int sprintOutTime;
+		int unknown208[2];
+		int stunnedTimeBegin;
+		int stunnedTimeLoop;
+		int stunnedTimeEnd;
+		int nightVisionWearTime;
+		int nightVisionWearTimeFadeOutEnd;
+		int nightVisionWearTimePowerUp;
+		int nightVisionRemoveTime;
+		int nightVisionRemoveTimePowerDown;
+		int nightVisionRemoveTimeFadeInStart;
+		int aiFuseTime;
+		int fuseTime;
+		int missileTime;
+		int primeTime;
+		bool bHoldFullPrime;
+		int blastFrontTime;
+		int blastRightTime;
+		int blastBackTime;
+		int blastLeftTime;
+		int slideInTime;
+		int slideLoopTime;
+		int slideOutTime;
+		int unknown300[5];
+	};
+	static_assert(sizeof(StateTimers) == 320);
+	static_assert(offsetof(StateTimers, bHoldFullPrime) == 268);
+	static_assert(offsetof(StateTimers, slideInTime) == 288);
+
+	struct WeaponCompleteDef
+	{
+		const char* szInternalName;
+		const char* szDisplayName;
+		XModel** gunModel;
+		XModel** unknown24;
+		XModel* handModel;
+		const char* lobWorldModelName;
+		XAnimParts** szXAnimsRightHanded;
+		XAnimParts** szXAnimsLeftHanded;
+		scr_string_t* hideTags;
+		WeaponAttachment** attachments;
+		unsigned char unknown80[8];
+		XAnimParts** szXAnims;
+		AnimOverrideEntry* animOverrides;
+		SoundOverrideEntry* soundOverrides;
+		FXOverrideEntry* fxOverrides;
+		ReloadStateTimerEntry* reloadOverrides;
+		NoteTrackToSoundEntry* notetrackOverrides;
+		scr_string_t* notetrackSoundMapKeys;
+		scr_string_t* notetrackSoundMapValues;
+		scr_string_t* notetrackRumbleMapKeys;
+		scr_string_t* notetrackRumbleMapValues;
+		scr_string_t* notetrackFXMapKeys;
+		FxEffectDef** notetrackFXMapValues;
+		scr_string_t* notetrackFXMapTagValues;
+		const char* szAdsrBaseSetting;
+		FxEffectDef* viewFlashEffect;
+		FxEffectDef* viewBodyFlashEffect;
+		FxEffectDef* worldFlashEffect;
+		FxEffectDef* viewFlashADSEffect;
+		FxEffectDef* viewBodyFlashADSEffect;
+		FxEffectDef* signatureViewFlashEffect;
+		FxEffectDef* signatureViewBodyFlashEffect;
+		FxEffectDef* signatureWorldFlashEffect;
+		FxEffectDef* signatureViewFlashADSEffect;
+		FxEffectDef* signatureViewBodyFlashADSEffect;
+		FxEffectDef* unknownEffect280;
+		FxEffectDef* meleeHitEffect;
+		FxEffectDef* meleeMissEffect;
+		snd_alias_list_t* pickupSound;
+		snd_alias_list_t* pickupSoundPlayer;
+		snd_alias_list_t* ammoPickupSound;
+		snd_alias_list_t* ammoPickupSoundPlayer;
+		snd_alias_list_t* projectileSound;
+		snd_alias_list_t* pullbackSound;
+		snd_alias_list_t* pullbackSoundPlayer;
+		snd_alias_list_t* throwbackSound;
+		snd_alias_list_t* throwbackSoundPlayer;
+		snd_alias_list_t* fireSound;
+		snd_alias_list_t* fireSoundPlayer;
+		snd_alias_list_t* fireSoundPlayerAkimbo;
+		snd_alias_list_t* fireLoopSound;
+		snd_alias_list_t* fireLoopSoundPlayer;
+		snd_alias_list_t* fireLoopEndPointSound;
+		snd_alias_list_t* fireLoopEndPointSoundPlayer;
+		snd_alias_list_t* fireStopSound;
+		snd_alias_list_t* fireStopSoundPlayer;
+		snd_alias_list_t* fireLastSound;
+		snd_alias_list_t* fireLastSoundPlayer;
+		snd_alias_list_t* fireFirstSound;
+		snd_alias_list_t* fireFirstSoundPlayer;
+		snd_alias_list_t* fireCustomSound;
+		snd_alias_list_t* fireCustomSoundPlayer;
+		snd_alias_list_t* emptyFireSound;
+		snd_alias_list_t* emptyFireSoundPlayer;
+		snd_alias_list_t* adsRequiredFireSoundPlayer;
+		snd_alias_list_t* meleeSwipeSound;
+		snd_alias_list_t* meleeSwipeSoundPlayer;
+		snd_alias_list_t* meleeHitSound;
+		snd_alias_list_t* meleeMissSound;
+		snd_alias_list_t* meleeHitSoundPlayer;
+		snd_alias_list_t* meleeMissSoundPlayer;
+		snd_alias_list_t* rechamberSound;
+		snd_alias_list_t* rechamberSoundPlayer;
+		snd_alias_list_t* reloadSound;
+		snd_alias_list_t* reloadSoundPlayer;
+		snd_alias_list_t* reloadEmptySound;
+		snd_alias_list_t* reloadEmptySoundPlayer;
+		snd_alias_list_t* reloadStartSound;
+		snd_alias_list_t* reloadStartSoundPlayer;
+		snd_alias_list_t* reloadEndSound;
+		snd_alias_list_t* reloadEndSoundPlayer;
+		snd_alias_list_t* detonateSound;
+		snd_alias_list_t* detonateSoundPlayer;
+		snd_alias_list_t* nightVisionWearSound;
+		snd_alias_list_t* nightVisionWearSoundPlayer;
+		snd_alias_list_t* nightVisionRemoveSound;
+		snd_alias_list_t* nightVisionRemoveSoundPlayer;
+		snd_alias_list_t* altSwitchSound;
+		snd_alias_list_t* altSwitchSoundPlayer;
+		snd_alias_list_t* raiseSound;
+		snd_alias_list_t* raiseSoundPlayer;
+		snd_alias_list_t* firstRaiseSound;
+		snd_alias_list_t* firstRaiseSoundPlayer;
+		snd_alias_list_t* putawaySound;
+		snd_alias_list_t* putawaySoundPlayer;
+		snd_alias_list_t* scanSound;
+		snd_alias_list_t* changeVariableZoomSound;
+		snd_alias_list_t* adsUpSound;
+		snd_alias_list_t* adsDownSound;
+		snd_alias_list_t* adsCrosshairEnemySound;
+		snd_alias_list_t* unknownSound800;
+		snd_alias_list_t* unknownSound808;
+		snd_alias_list_t* unknownSound816;
+		snd_alias_list_t** bounceSound;
+		snd_alias_list_t** rollingSound;
+		FxEffectDef* viewShellEjectEffect;
+		FxEffectDef* worldShellEjectEffect;
+		FxEffectDef* viewLastShotEjectEffect;
+		FxEffectDef* worldLastShotEjectEffect;
+		FxEffectDef* viewMagEjectEffect;
+		Material* reticleCenter;
+		Material* unknownMaterial888;
+		Material* reticleSide;
+		XModel** worldModel;
+		XModel** unknown912;
+		XModel* worldClipModel;
+		XModel* rocketModel;
+		Material* hudIcon;
+		Material* pickupIcon;
+		Material* unknownMaterial952;
+		Material* ammoCounterIcon;
+		const char* szAmmoName;
+		const char* szClipName;
+		const char* szSharedAmmoCapName;
+		PhysCollmap* physCollmap;
+		PhysPreset* physPreset;
+		const char* szUseHintString;
+		const char* dropHintString;
+		float* locationDamageMultipliers;
+		const char* fireRumble;
+		const char* unknownRumble1040;
+		const char* meleeImpactRumble;
+		TracerDef* tracerType;
+		TracerDef* signatureTracerType;
+		TracerDef* unknownTracer1072;
+		LaserDef* laserType;
+		BeamDef* beamType[2];
+		snd_alias_list_t* turretOverheatSound;
+		FxEffectDef* turretOverheatEffect;
+		const char* turretBarrelSpinRumble;
+		snd_alias_list_t* turretBarrelSpinMaxSnd;
+		snd_alias_list_t* turretBarrelSpinUpSnd[4];
+		snd_alias_list_t* turretBarrelSpinDownSnd[4];
+		snd_alias_list_t* missileConeSoundAlias;
+		snd_alias_list_t* missileConeSoundAliasAtBase;
+		XModel* stowOffsetModel;
+		TurretHydraulicSettings* turretHydraulicSettings;
+		unsigned char numAttachments;
+		unsigned char numAnimOverrides;
+		unsigned char numSoundOverrides;
+		unsigned char numFXOverrides;
+		unsigned char numReloadStateTimerOverrides;
+		unsigned char numNotetrackOverrides;
+		unsigned char playerAnimType;
+		unsigned char unknown1239;
+		int weapType;
+		int weapClass;
+		int penetrateType;
+		float penetrateDepth;
+		int impactType;
+		int unknown1260;
+		int inventoryType;
+		int fireType;
+		int fireBarrels;
+		int adsFireMode;
+		float burstFireCooldown;
+		int greebleType;
+		int autoReloadType;
+		int autoHolsterType;
+		int offhandClass;
+		int stance;
+		int reticleCenterSize;
+		int unknown1308;
+		int reticleSideSize;
+		int reticleMinOfs;
+		int activeReticleType;
+		float standMove[3];
+		float standRot[3];
+		float strafeMove[3];
+		float strafeRot[3];
+		float duckedOfs[3];
+		float duckedMove[3];
+		float duckedRot[3];
+		float proneOfs[3];
+		float proneMove[3];
+		float proneRot[3];
+		float posMoveRate;
+		float posProneMoveRate;
+		float standMoveMinSpeed;
+		float duckedMoveMinSpeed;
+		float proneMoveMinSpeed;
+		float posRotRate;
+		float posProneRotRate;
+		int hudIconRatio;
+		int pickupIconRatio;
+		int ammoCounterIconRatio;
+		int ammoCounterClip;
+		int unknown1488[9];
+		int maxAmmo;
+		int unknown1528;
+		int minAmmoReq;
+		int startAmmo;
+		int unknown1540;
+		int clipSize;
+		int shotCount;
+		int sharedAmmoCapIndex;
+		int sharedAmmoCap;
+		int unknown1560; // 95 in all stock weapons, the game reads the damage at 3572
+		int unknown1564;
+		int meleeDamage;
+		int damageType;
+		StateTimers stateTimers;
+		StateTimers akimboStateTimers;
+		bool unknown2216[8];
+		float autoAimRange;
+		float aimAssistRange;
+		float aimAssistRangeAds;
+		float aimPadding;
+		int unknown2240;
+		float unknown2244;
+		int unknown2248;
+		float unknown2252[2];
+		float enemyCrosshairRange;
+		float moveSpeedScale;
+		float adsMoveSpeedScale;
+		float sprintDurationScale;
+		float unknown2276[11];
+		float adsZoomFov;
+		float adsZoomInFrac;
+		float adsZoomOutFrac;
+		float adsSceneBlur;
+		ADSOverlay overlay;
+		int overlayInterface;
+		float adsBobFactor;
+		float adsViewBobMult;
+		float hipSpreadDecayRate;
+		float hipSpreadStandMin;
+		float hipSpreadStandMax;
+		float hipSpreadStandDecay;
+		float hipSpreadDuckedMin;
+		float hipSpreadDuckedMax;
+		float hipSpreadDuckedDecay;
+		float hipSpreadProneMin;
+		float hipSpreadProneMax;
+		float hipSpreadProneDecay;
+		float hipSpreadSprintMin;
+		float hipSpreadSprintMax;
+		float hipSpreadSprintDecay;
+		float hipSpreadSlideMin;
+		float hipSpreadSlideMax;
+		float hipSpreadSlideDecay;
+		float hipSpreadMoveAdd;
+		float hipSpreadTurnAdd;
+		float hipSpreadFireAdd;
+		float hipReticleSidePos;
+		float adsIdleAmount;
+		float hipIdleAmount;
+		float adsIdleSpeed;
+		float hipIdleSpeed;
+		int unknown2500;
+		float idleCrouchFactor;
+		float idleProneFactor;
+		float gunMaxPitch;
+		float gunMaxYaw;
+		int adsTransInTime;
+		int adsTransInFromSprintTime;
+		int adsTransOutTime;
+		float unknown2532[2];
+		int unknown2540;
+		float swayMaxAngle;
+		float swayMaxAngleSteadyAim;
+		float swayLerpSpeed;
+		float swayPitchScale;
+		float swayYawScale;
+		float swayHorizScale;
+		float swayVertScale;
+		float swayShellShockScale;
+		float adsSwayMaxAngle;
+		float adsSwayLerpSpeed;
+		float adsSwayPitchScale;
+		float adsSwayYawScale;
+		float adsSwayHorizScale;
+		float adsSwayVertScale;
+		float adsViewErrorMin;
+		float adsViewErrorMax;
+		float adsFireAnimFrac;
+		float unknown2612[6];
+		float bobVerticalFactor;
+		float bobHorizontalFactor;
+		float bobViewVerticalFactor;
+		float bobViewHorizontalFactor;
+		float stationaryZoomFov;
+		float stationaryZoomDelay;
+		float stationaryZoomLerpInTime;
+		float stationaryZoomLerpOutTime;
+		float adsDofStart;
+		float adsDofEnd;
+		float unknown2676;
+		Material* killIcon;
+		Material* dpadIcon;
+		Material* hudProximityWarningIcon;
+		int killIconRatio;
+		int dpadIconRatio;
+		int fireAnimLength;
+		int fireAnimLengthAkimbo;
+		int reloadAmmoAdd;
+		int reloadStartAdd;
+		int ammoDropStockMin;
+		int ammoDropStockMax;
+		int ammoDropClipPercentMin;
+		int ammoDropClipPercentMax;
+		int explosionRadius;
+		int explosionRadiusMin;
+		int explosionInnerDamage;
+		int explosionOuterDamage;
+		int unknown2760[2];
+		float damageConeAngle;
+		int unknown2772[3];
+		int projectileSpeed;
+		int projectileSpeedUp;
+		int projectileSpeedForward;
+		int unknown2796;
+		int projectileActivateDist;
+		float projLifetime;
+		float timeToAccelerate;
+		float projectileCurvature;
+		float unknown2816[8];
+		const char* projectileName;
+		XModel* projectileModel;
+		FxEffectDef* projExplosionEffect;
+		FxEffectDef* projDudEffect;
+		FxEffectDef* unknownEffect2880;
+		snd_alias_list_t* projExplosionSound;
+		snd_alias_list_t* projDudSound;
+		snd_alias_list_t* unknownSound2904;
+		int projExplosion;
+		int stickiness;
+		int unknown2920;
+		float lowAmmoWarningThreshold;
+		float ricochetChance;
+		int riotShieldHealth;
+		float riotShieldDamageMult;
+		int unknown2940;
+		float* parallelBounce;
+		float* perpendicularBounce;
+		FxEffectDef* projTrailEffect;
+		FxEffectDef* projBeaconEffect;
+		float projectileColor[3];
+		int guidedMissileType;
+		float maxSteeringAccel;
+		float unknown2996[9];
+		FxEffectDef* projIgnitionEffect;
+		snd_alias_list_t* projIgnitionSound;
+		float adsAimPitch;
+		float adsCrosshairInFrac;
+		float adsCrosshairOutFrac;
+		float adsGunKickPitchMin;
+		float adsGunKickPitchMax;
+		float adsGunKickYawMin;
+		float adsGunKickYawMax;
+		float adsGunKickMagMin;
+		float adsGunKickAccel;
+		float adsGunKickSpeedMax;
+		float adsGunKickSpeedDecay;
+		float adsGunKickStaticDecay;
+		int adsGunKickReducedKickBullets;
+		float adsGunKickReducedKickPercent;
+		float adsViewKickPitchMin;
+		float adsViewKickPitchMax;
+		float adsViewKickYawMin;
+		float adsViewKickYawMax;
+		float adsViewKickMagMin;
+		float adsViewKickCenterSpeed;
+		float adsViewScatterMin;
+		float adsViewScatterMax;
+		int unknown3136;
+		float unknown3140[16];
+		bool unknown3204[4];
+		float unknown3208[5];
+		float hipGunKickPitchMin;
+		float hipGunKickPitchMax;
+		float hipGunKickYawMin;
+		float hipGunKickYawMax;
+		float hipGunKickMagMin;
+		float hipGunKickAccel;
+		float hipGunKickSpeedMax;
+		float hipGunKickSpeedDecay;
+		float hipGunKickStaticDecay;
+		int hipGunKickReducedKickBullets;
+		float hipGunKickReducedKickPercent;
+		float hipViewKickPitchMin;
+		float hipViewKickPitchMax;
+		float hipViewKickYawMin;
+		float hipViewKickYawMax;
+		float hipViewKickMagMin;
+		float hipViewKickCenterSpeed;
+		float hipViewScatterMin;
+		float hipViewScatterMax;
+		int unknown3304;
+		float unknown3308[19];
+		int positionReloadTransTime;
+		int unknown3388;
+		float unknown3392[2];
+		const char* accuracyGraphName[2];
+		vec2_t* accuracyGraphKnots[2];
+		vec2_t* originalAccuracyGraphKnots[2];
+		unsigned short accuracyGraphKnotCount[2];
+		unsigned short originalAccuracyGraphKnotCount[2];
+		float unknown3456[26];
+		const char* szScript;
+		unsigned char unknown3568[4];
+		int damage;
+		float unknown3576;
+		int unknown3580;
+		float unknown3584;
+		int unknown3588;
+		float unknown3592;
+		int unknown3596;
+		float unknown3600;
+		int unknown3604;
+		int playerDamage;
+		float maxDamageRange;
+		int minDamage;
+		int minPlayerDamage;
+		float unknown3624;
+		int unknown3628[2];
+		int midDamage;
+		int midPlayerDamage;
+		float minDamageRange;
+		float unknown3648;
+		int unknown3652[9];
+		int signatureDamage;
+		int signatureMinDamage;
+		int signatureMidDamage;
+		float signatureMaxDamageRange;
+		float signatureMinDamageRange;
+		float destabilizationRateTime;
+		float destabilizationCurvatureMax;
+		int destabilizeDistance;
+		float turretADSTime;
+		float turretFov;
+		float turretFovADS;
+		float turretScopeZoomRate;
+		float turretScopeZoomMin;
+		float turretScopeZoomMax;
+		float overheatUpRate;
+		float overheatDownRate;
+		float overheatCooldownRate;
+		float overheatPenalty;
+		float turretBarrelSpinSpeed;
+		float turretBarrelSpinUpTime;
+		float missileConeSoundRadiusAtTop;
+		float missileConeSoundRadiusAtBase;
+		float missileConeSoundHeight;
+		float missileConeSoundOriginOffset;
+		float missileConeSoundVolumescaleAtCore;
+		float missileConeSoundVolumescaleAtEdge;
+		float missileConeSoundVolumescaleCoreSize;
+		float missileConeSoundPitchAtTop;
+		float missileConeSoundPitchAtBottom;
+		float missileConeSoundPitchTopSize;
+		float missileConeSoundPitchBottomSize;
+		float missileConeSoundCrossfadeTopSize;
+		float missileConeSoundCrossfadeBottomSize;
+		scr_string_t knifeAttachTagOverride;
+		float unknown3824[17];
+		int unknown3892[9];
+		float unknown3928[4];
+		scr_string_t stowTag;
+		scr_string_t unknownTag3948;
+		unsigned char unknown3952;
+		bool unknown3953[103];
+		float adsDofPhysicalFstop;
+		float adsDofPhysicalFocusDistance;
+		float unknown4064[2];
+		int unknown4072;
+		float unknown4076[4];
+		int unknown4092;
+		float unknown4096;
+		int unknown4100;
+		float unknown4104[24];
+		int unknown4200[2];
+		float unknown4208[4];
+		int unknown4224;
+		unsigned char unknown4228[4];
+		int unknown4232[2];
+	};
+	static_assert(sizeof(WeaponCompleteDef) == 0x1090);
+	static_assert(offsetof(WeaponCompleteDef, numAttachments) == 1232);
+	static_assert(offsetof(WeaponCompleteDef, weapType) == 1240);
+	static_assert(offsetof(WeaponCompleteDef, stateTimers) == 1576);
+	static_assert(offsetof(WeaponCompleteDef, akimboStateTimers) == 1896);
+	static_assert(offsetof(WeaponCompleteDef, overlay) == 2336);
+	static_assert(offsetof(WeaponCompleteDef, killIcon) == 2680);
+	static_assert(offsetof(WeaponCompleteDef, projectileName) == 2848);
+	static_assert(offsetof(WeaponCompleteDef, accuracyGraphName) == 3400);
+	static_assert(offsetof(WeaponCompleteDef, accuracyGraphKnotCount) == 3448);
+	static_assert(offsetof(WeaponCompleteDef, szScript) == 3560);
+	static_assert(offsetof(WeaponCompleteDef, knifeAttachTagOverride) == 3820);
+	static_assert(offsetof(WeaponCompleteDef, stowTag) == 3944);
 
 	struct SoundSubmixEntry
 	{

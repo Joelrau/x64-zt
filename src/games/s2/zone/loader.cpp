@@ -247,6 +247,7 @@ namespace zonetool::s2
 		auto& reader = *zone->reader;
 		reader.mode = ::game::s2;
 		reader.set_zone_index(next_zone_index());
+		reader.set_shared_stream_keys(zone->file.shared_stream_keys);
 
 		asset_list_reader assets(*zone);
 		reader.set_inline_asset_loader([&](const std::int32_t type, void** field, void** insert_slot)
@@ -278,6 +279,11 @@ namespace zonetool::s2
 		if (assets.stream_key_count() != zone->file.stream_keys.size())
 		{
 			throw std::runtime_error(std::format("{} of {} stream keys belong to images", assets.stream_key_count(), zone->file.stream_keys.size()));
+		}
+
+		if (reader.shared_stream_keys_read() != zone->file.shared_stream_keys.size())
+		{
+			throw std::runtime_error(std::format("{} of {} shared stream keys belong to sounds", reader.shared_stream_keys_read(), zone->file.shared_stream_keys.size()));
 		}
 
 		if (reader.remaining())

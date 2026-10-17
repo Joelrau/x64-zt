@@ -1,5 +1,6 @@
 #pragma once
 #include "../game_mode.hpp"
+#include "../xfile/structs.hpp"
 
 #include <stack>
 #include <bitset>
@@ -204,6 +205,9 @@ namespace zonetool
 		std::size_t get_streamfile(const std::size_t idx);
 		std::size_t streamfile_count();
 
+		void write_shared_stream_key(const XStreamFileKey& key);
+		const std::vector<XStreamFileKey>& shared_stream_keys() const;
+
 		std::uint8_t write_ppas(const std::uint32_t sz);
 		std::uint32_t get_ppas(const std::size_t idx);
 		std::size_t ppas_count();
@@ -266,6 +270,7 @@ namespace zonetool
 		std::vector<std::uint32_t> sas_;
 
 		std::vector<std::size_t> stream_files_;
+		std::vector<XStreamFileKey> shared_stream_keys_;
 
 		void write_data(const void* data, const std::size_t size, const std::size_t count);
 		void write_data(const void* data, const std::size_t size);

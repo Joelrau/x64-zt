@@ -10,7 +10,13 @@ namespace zonetool::s2
 
 	class weapon_def : public field_layout_asset<WeaponCompleteDef, ASSET_TYPE_WEAPON, weapon_layout>
 	{
+	public:
+		WeaponCompleteDef* parse(const std::string& name, zone_memory* mem) override;
+		static void dump(WeaponCompleteDef* asset);
 	};
+
+	std::optional<std::string> weapon_field_name(std::uint16_t offset);
+	std::optional<std::uint16_t> weapon_field_offset(const std::string& name);
 
 	class laser_def : public asset_base<LaserDef, ASSET_TYPE_LASER>
 	{

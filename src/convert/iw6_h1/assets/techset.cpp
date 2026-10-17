@@ -1079,15 +1079,15 @@ namespace zonetool::iw6
 				{zonetool::iw6::CONST_SRC_CODE_MCOLOR_BIAS2_AND_RANGE_SCALE, {0.000000f, 0.000000f, 0.000000f, 0.000000f}}, //190
 				{zonetool::iw6::CONST_SRC_CODE_MCOLOR_CONTRAST_SCALE2, {0.000000f, 0.000000f, 0.000000f, 0.000000f}}, //191
 				{zonetool::iw6::CONST_SRC_CODE_MCOLOR_CONTRAST_POW_AND_SAT2, {0.000000f, 0.000000f, 0.000000f, 0.000000f}}, //192
-				{zonetool::iw6::CONST_SRC_CODE_COLORIZATION_POWER_AND_DESATURATION, {1.000000f, 1.000000f, 1.000000f, 0.300000f}}, //193
-				{zonetool::iw6::CONST_SRC_CODE_COLORIZATION_SCALE, {0.262745f, 0.325490f, 0.396078f, 0.000000f}}, //194
+				{zonetool::iw6::CONST_SRC_CODE_COLORIZATION_POWER_AND_DESATURATION, {1.000000f, 1.000000f, 1.000000f, 0.000000f}}, //193, identity: H1 does not colorize the world, so effects must not colorize
+				{zonetool::iw6::CONST_SRC_CODE_COLORIZATION_SCALE, {1.000000f, 1.000000f, 1.000000f, 0.000000f}}, //194
 				{zonetool::iw6::CONST_SRC_CODE_COLORIZATION_BIAS, {0.000000f, 0.000000f, 0.000000f, 0.000000f}}, //195
 				{zonetool::iw6::CONST_SRC_CODE_COLORIZATION_POWER_AND_DESATURATION_ARRAY, {0.000000f, 0.000000f, 0.000000f, 0.000000f}}, //196
 				{zonetool::iw6::CONST_SRC_CODE_COLORIZATION_SCALE_ARRAY, {0.000000f, 0.000000f, 0.000000f, 0.000000f}}, //197
 				{zonetool::iw6::CONST_SRC_CODE_COLORIZATION_BIAS_ARRAY, {0.000000f, 0.000000f, 0.000000f, 0.000000f}}, //198
 				{zonetool::iw6::CONST_SRC_CODE_COLORIZATION_DEPTH_SCALE_AND_BIAS, {0.000000f, 0.000000f, 0.000000f, 0.000000f}}, //199
-				{zonetool::iw6::CONST_SRC_CODE_COLORIZATION_POWER_AND_DESATURATION_ALTERNATE, {1.000000f, 1.000000f, 1.000000f, 0.300000f}}, //200
-				{zonetool::iw6::CONST_SRC_CODE_COLORIZATION_SCALE_ALTERNATE, {0.262745f, 0.325490f, 0.396078f, 0.000000f}}, //201
+				{zonetool::iw6::CONST_SRC_CODE_COLORIZATION_POWER_AND_DESATURATION_ALTERNATE, {1.000000f, 1.000000f, 1.000000f, 0.000000f}}, //200
+				{zonetool::iw6::CONST_SRC_CODE_COLORIZATION_SCALE_ALTERNATE, {1.000000f, 1.000000f, 1.000000f, 0.000000f}}, //201
 				{zonetool::iw6::CONST_SRC_CODE_COLORIZATION_BIAS_ALTERNATE, {0.000000f, 0.000000f, 0.000000f, 0.000000f}}, //202
 				{zonetool::iw6::CONST_SRC_CODE_COLORIZATION_POWER_AND_DESATURATION_ALTERNATE_ARRAY, {0.000000f, 0.000000f, 0.000000f, 0.000000f}}, //203
 				{zonetool::iw6::CONST_SRC_CODE_COLORIZATION_SCALE_ALTERNATE_ARRAY, {0.000000f, 0.000000f, 0.000000f, 0.000000f}}, //204
@@ -3932,6 +3932,171 @@ namespace zonetool::iw6
 #endif
 
 				return new_asset;
+			}
+
+			namespace
+			{
+				ordered_json generate_statebits_raw_data(const GfxStateBits& statebits)
+				{
+					const auto loadbit0 = statebits.loadBits[GFXS_RAWBITS_CULL_INDEX];
+					const auto loadbit1 = statebits.loadBits[GFXS_RAWBITS_DEPTH_STENCIL_INDEX];
+					const auto loadbit2 = statebits.loadBits[GFXS_RAWBITS_BLEND_INDEX];
+
+					const auto* depth_test = "disable";
+					if ((loadbit1 & GFXS1_DEPTHTEST_DISABLE) == 0)
+					{
+						depth_test = "always";
+						switch (loadbit1 & GFXS1_DEPTHTEST_MASK)
+						{
+						case GFXS1_DEPTHTEST_LESS: depth_test = "less"; break;
+						case GFXS1_DEPTHTEST_EQUAL: depth_test = "equal"; break;
+						case GFXS1_DEPTHTEST_LESSEQUAL: depth_test = "lessequal"; break;
+						}
+					}
+
+					const auto* alpha_test = "disable";
+					switch (loadbit0 & GFXS0_ATEST_MASK)
+					{
+					case GFXS0_ATEST_GE_128: alpha_test = ">=128"; break;
+					case GFXS0_ATEST_GT_0: alpha_test = ">0"; break;
+					case GFXS0_ATEST_LT_128: alpha_test = "<128"; break;
+					}
+
+					const auto* cull_face = "none";
+					switch (loadbit0 & GFXS0_CULL_MASK)
+					{
+					case GFXS0_CULL_BACK: cull_face = "back"; break;
+					case GFXS0_CULL_FRONT: cull_face = "front"; break;
+					}
+
+					ordered_json data;
+					data["alphaTest"] = alpha_test;
+					data["blendOpAlpha"] = (loadbit2 & GFXS_BLENDOP_ALPHA_MASK) >> GFXS_BLENDOP_ALPHA_SHIFT;
+					data["blendOpRgb"] = (loadbit2 & GFXS_BLENDOP_RGB_MASK) >> GFXS_BLENDOP_RGB_SHIFT;
+					data["colorWriteAlpha"] = (loadbit2 & GFXS_BLEND_COLORWRITE_A) != 0;
+					data["colorWriteR"] = (loadbit2 & GFXS_BLEND_COLORWRITE_R) != 0;
+					data["colorWriteG"] = (loadbit2 & GFXS_BLEND_COLORWRITE_G) != 0;
+					data["colorWriteB"] = (loadbit2 & GFXS_BLEND_COLORWRITE_B) != 0;
+					data["cullFace"] = cull_face;
+					data["depthTest"] = depth_test;
+					data["depthWrite"] = (loadbit1 & GFXS1_DEPTHWRITE) != 0;
+					data["depthWriteOpaque"] = (loadbit2 & GFXS2_DEPTHWRITE_OPAQUE) != 0;
+					data["dstBlendAlpha"] = (loadbit2 & GFXS_DSTBLEND_ALPHA_MASK) >> GFXS_DSTBLEND_ALPHA_SHIFT;
+					data["dstBlendRgb"] = (loadbit2 & GFXS_DSTBLEND_RGB_MASK) >> GFXS_DSTBLEND_RGB_SHIFT;
+					data["gammaWrite"] = (loadbit0 & GFXS0_GAMMAWRITE) != 0;
+					data["polygonOffset"] = loadbit1 & GFXS1_POLYGON_OFFSET_MASK;
+					data["polymodeLine"] = (loadbit0 & GFXS0_POLYMODE_LINE) != 0;
+					data["srcBlendAlpha"] = (loadbit2 & GFXS_SRCBLEND_ALPHA_MASK) >> GFXS_SRCBLEND_ALPHA_SHIFT;
+					data["srcBlendRgb"] = (loadbit2 & GFXS_SRCBLEND_RGB_MASK) >> GFXS_SRCBLEND_RGB_SHIFT;
+					data["stencilBackEnabled"] = (loadbit1 & GFXS1_STENCIL_BACK_ENABLE) != 0;
+					data["stencilBackFail"] = (loadbit1 >> GFXS1_STENCIL_BACK_FAIL_SHIFT) & GFXS_STENCILOP_MASK;
+					data["stencilBackFunc"] = (loadbit1 >> GFXS1_STENCIL_BACK_FUNC_SHIFT) & GFXS_STENCILFUNC_MASK;
+					data["stencilBackPass"] = (loadbit1 >> GFXS1_STENCIL_BACK_PASS_SHIFT) & GFXS_STENCILOP_MASK;
+					data["stencilBackZFail"] = (loadbit1 >> GFXS1_STENCIL_BACK_ZFAIL_SHIFT) & GFXS_STENCILOP_MASK;
+					data["stencilFrontEnabled"] = (loadbit1 & GFXS1_STENCIL_FRONT_ENABLE) != 0;
+					data["stencilFrontFail"] = (loadbit1 >> GFXS1_STENCIL_FRONT_FAIL_SHIFT) & GFXS_STENCILOP_MASK;
+					data["stencilFrontFunc"] = (loadbit1 >> GFXS1_STENCIL_FRONT_FUNC_SHIFT) & GFXS_STENCILFUNC_MASK;
+					data["stencilFrontPass"] = (loadbit1 >> GFXS1_STENCIL_FRONT_PASS_SHIFT) & GFXS_STENCILOP_MASK;
+					data["stencilFrontZFail"] = (loadbit1 >> GFXS1_STENCIL_FRONT_ZFAIL_SHIFT) & GFXS_STENCILOP_MASK;
+					data["stencilRefBits"] = loadbit0 & GFXS0_STENCIL_REF_MASK;
+					return data;
+				}
+
+				std::uint64_t convert_depth_stencil_state_bits(const std::uint64_t iw6_bits)
+				{
+					auto h1_bits = iw6_bits & ~0xFull;
+
+					const auto convert_bit = [&](std::uint64_t mask, const std::uint64_t iw6_bit, const std::uint64_t h1_bit)
+					{
+						if (mask == 0)
+						{
+							mask = iw6_bit;
+						}
+
+						if ((iw6_bits & mask) == iw6_bit)
+						{
+							h1_bits |= h1_bit;
+						}
+					};
+
+					convert_bit(0, GFXS1_DEPTHWRITE, zonetool::h1::GFXS1_DEPTHWRITE);
+					convert_bit(GFXS1_DEPTHTEST_MASK, GFXS1_DEPTHTEST_ALWAYS, zonetool::h1::GFXS1_DEPTHTEST_ALWAYS);
+					convert_bit(GFXS1_DEPTHTEST_MASK, GFXS1_DEPTHTEST_LESS, zonetool::h1::GFXS1_DEPTHTEST_LESS);
+					convert_bit(GFXS1_DEPTHTEST_MASK, GFXS1_DEPTHTEST_EQUAL, zonetool::h1::GFXS1_DEPTHTEST_EQUAL);
+					convert_bit(GFXS1_DEPTHTEST_MASK, GFXS1_DEPTHTEST_LESSEQUAL, zonetool::h1::GFXS1_DEPTHTEST_LESSEQUAL);
+					convert_bit(0, GFXS1_DEPTHTEST_DISABLE, zonetool::h1::GFXS1_DEPTHTEST_DISABLE);
+
+					// stencil patches from v1, tested in game
+					if ((iw6_bits & (0xFFull << 12)) == (0x48ull << 12))
+					{
+						h1_bits = (h1_bits & ~(0xFFull << 12)) | (0xE0ull << 12);
+					}
+
+					if ((iw6_bits & (0xFFull << 28)) == (0x24ull << 28))
+					{
+						h1_bits = (h1_bits & ~(0xFFull << 28)) | (0xEull << 28);
+						h1_bits |= 0x1ull << 36;
+					}
+
+					if ((iw6_bits & (0xFull << 44)) == (0xEull << 44))
+					{
+						h1_bits = (h1_bits & ~(0xFull << 44)) | (0x1ull << 44);
+					}
+
+					return h1_bits;
+				}
+			}
+
+			void dump_statebits_map(const std::string& techset, const std::string& material, GfxStateBits* map, const unsigned char count)
+			{
+				constexpr std::array<std::pair<zonetool::h1::GfxDepthStencilMode, GfxDepthStencilMode>, 9> depth_stencil_modes
+				{{
+					{zonetool::h1::GFX_DEPTH_STENCIL_MODE_DEFAULT, GFX_DEPTH_STENCIL_MODE_DEFAULT},
+					{zonetool::h1::GFX_DEPTH_STENCIL_MODE_HUD_OUTLINE_ZFAIL, GFX_DEPTH_STENCIL_MODE_HUD_OUTLINE_ZFAIL},
+					{zonetool::h1::GFX_DEPTH_STENCIL_MODE_MOTION_BLUR_HQ, GFX_DEPTH_STENCIL_MODE_MOTION_BLUR_HQ},
+					{zonetool::h1::GFX_DEPTH_STENCIL_MODE_DEPTH_HACK, GFX_DEPTH_STENCIL_MODE_DEPTH_HACK},
+					{zonetool::h1::GFX_DEPTH_STENCIL_MODE_FORCE_DEPTH_WRITE, GFX_DEPTH_STENCIL_MODE_FORCE_DEPTH_WRITE},
+					{zonetool::h1::GFX_DEPTH_STENCIL_MODE_FORCE_DEPTH_WRITE_HUD_OUTLINE_ZFAIL, GFX_DEPTH_STENCIL_MODE_FORCE_DEPTH_WRITE_HUD_OUTLINE_ZFAIL},
+					{zonetool::h1::GFX_DEPTH_STENCIL_MODE_CACHED_SPOT_STENCIL_INCR_SAT, GFX_DEPTH_STENCIL_MODE_CACHED_SPOT_STENCIL_INCR_SAT},
+					{zonetool::h1::GFX_DEPTH_STENCIL_MODE_CACHED_SPOT_STENCIL_INCR_SAT_CLEAR_DEPTH, GFX_DEPTH_STENCIL_MODE_CACHED_SPOT_STENCIL_INCR_SAT_CLEAR_DEPTH},
+					{zonetool::h1::GFX_DEPTH_STENCIL_MODE_CACHED_SPOT_STENCIL_FULL_MASK, GFX_DEPTH_STENCIL_MODE_CACHED_SPOT_STENCIL_FULL_MASK},
+				}};
+
+				constexpr std::uint64_t h1_unk_depth_stencil_bits = 19872279822919; // v1 value, IW6 has no such mode
+
+				ordered_json json_data = ordered_json::array();
+				for (auto i = 0; i < count; i++)
+				{
+					const auto* globals = get_x_gfx_globals_for_zone<XGfxGlobals>(map[i].zone);
+					const auto h1_bits = zonetool::h1::techset::parse_statebits_raw_data(generate_statebits_raw_data(map[i]), material);
+
+					ordered_json entry;
+					for (auto j = 0; j < 6; j++)
+					{
+						entry["loadBits"][j] = h1_bits.loadBits[j];
+					}
+
+					entry["depthStencilStateBits"][zonetool::h1::GFX_DEPTH_STENCIL_MODE_UNK] = h1_unk_depth_stencil_bits;
+					for (const auto& [h1_mode, iw6_mode] : depth_stencil_modes)
+					{
+						entry["depthStencilStateBits"][h1_mode] = globals
+							? convert_depth_stencil_state_bits(globals->depthStencilStateBits[map[i].depthStencilState[iw6_mode]])
+							: 0;
+					}
+
+					for (auto j = 0; j < 3; j++)
+					{
+						entry["blendStateBits"][j] = h1_bits.loadBits[3 + j];
+					}
+
+					entry["rasterizerState"] = map[i].rasterizerState;
+					json_data.push_back(entry);
+				}
+
+				filesystem::file file(std::format("techsets\\state\\{}\\{}.statebitsmap", techset, material));
+				file.open("wb");
+				file.write(json_data.dump(4));
+				file.close();
 			}
 
 			void dump(MaterialTechniqueSet* asset)
