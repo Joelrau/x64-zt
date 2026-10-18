@@ -201,7 +201,7 @@ namespace zonetool::h1::converter::s2::xsurface
 					std::memcpy(new_tree.scale, tree->scale, sizeof(new_tree.scale));
 					new_tree.nodeCount = tree->nodeCount;
 					new_tree.leafCount = tree->leafCount;
-					new_tree.nodes = reinterpret_cast<zonetool::s2::vec4_t*>(tree->nodes);
+					new_tree.nodes = reinterpret_cast<zonetool::s2::XSurfaceCollisionNode*>(tree->nodes);
 					new_tree.leafs = reinterpret_cast<unsigned short*>(tree->leafs);
 					new_list.collisionTree = &new_tree;
 				}
@@ -249,7 +249,7 @@ namespace zonetool::h1::converter::s2::xsurface
 			}
 			new_surface->verts = reinterpret_cast<zonetool::s2::vec4_t*>(result.verts.data());
 
-			std::memcpy(new_surface->partBits, surface->partBits, sizeof(new_surface->partBits));
+			std::memcpy(new_surface->partBits, surface->partBits, sizeof(surface->partBits));
 		}
 
 		bool has_vertex_data(const XSurface& surface)
@@ -288,7 +288,7 @@ namespace zonetool::h1::converter::s2::xsurface
 		new_asset.name = asset->name;
 		new_asset.surfs = surfaces.data();
 		new_asset.numsurfs = asset->numsurfs;
-		std::memcpy(new_asset.partBits, asset->partBits, sizeof(new_asset.partBits));
+		std::memcpy(new_asset.partBits, asset->partBits, sizeof(asset->partBits));
 		new_asset.surfaceArea = area;
 
 		zonetool::s2::xmodel_surfs::dump(&new_asset);

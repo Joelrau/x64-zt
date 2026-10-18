@@ -39,7 +39,7 @@ Without a command, `zonetool.exe` opens an interactive console.
 - Game folder: `-path <folder>`, then `zonetool.json` `paths.<game>`, then the exe folder if it has `zone/`, then the Steam default folder.
 - `zonetool.json` example: `{"game": "h1", "paths": {"h1": "D:/Games/MWR"}}`.
 - `dumpasset` finds only assets that the zone holds, not referenced ones (`type,,name` rows in the CSV). Type names are the CSV type names.
-- Flags for `dumpzone`: `-dds` writes DDS images. `-dump_streamed_image` reads `imagefile*.pak` and writes streamed images.
+- Flags for `dumpzone`: `-dds` writes DDS images. `-dump_streamed_image` reads `imagefile*.pak` and writes streamed images. `-castdump` (S2) writes a `.cast` file next to each xmodel and xanim. See `docs/S2_SUPPORT.md`.
 - The `require` row in a build CSV loads another zone into the asset database. There is no `loadzone` command.
 - `buildzone` writes `<zone>.ff` and `<zone>.pak` to the `zone/` folder of the game folder. It replaces a zone of the same name.
 - `-no_cache` writes every output again and ignores the build cache.

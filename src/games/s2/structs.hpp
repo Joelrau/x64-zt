@@ -1071,13 +1071,22 @@ namespace zonetool::s2
 	};
 	static_assert(sizeof(PhysCollmap) == 0x40);
 
+	struct XSurfaceCollisionNode
+	{
+		unsigned short mins[3];
+		unsigned short maxs[3];
+		unsigned short childBeginIndex;
+		unsigned short childCount; // 0x8000 marks leaf children
+	};
+	static_assert(sizeof(XSurfaceCollisionNode) == 16);
+
 	struct XSurfaceCollisionLeaf
 	{
 		float trans[3];
 		float scale[3];
 		unsigned int nodeCount;
 		unsigned int leafCount;
-		vec4_t* nodes;
+		XSurfaceCollisionNode* nodes;
 		unsigned short* leafs;
 	};
 	static_assert(sizeof(XSurfaceCollisionLeaf) == 0x30);
@@ -1122,8 +1131,8 @@ namespace zonetool::s2
 		unsigned short* triIndices;
 		XRigidVertList* rigidVertLists;
 		vec4_t* verts;
-		unsigned int partBits[8];
-		char __pad2[24];
+		unsigned int partBits[13];
+		unsigned int baseVertIndex; // running sum of even-rounded vertCount over all surfaces of all lods
 	};
 	static_assert(sizeof(XSurface) == 0x68);
 	static_assert(offsetof(XSurface, uvSetCount) == 8);
@@ -1135,8 +1144,7 @@ namespace zonetool::s2
 		XSurface* surfs;
 		unsigned short numsurfs;
 		char __pad0[2];
-		unsigned int partBits[8];
-		char __pad1[20];
+		unsigned int partBits[13];
 		float surfaceArea;
 		char __pad2[4];
 	};
@@ -1179,6 +1187,38 @@ namespace zonetool::s2
 		char __pad0[8];
 	};
 	static_assert(sizeof(PhysClothTuning) == 0x18);
+
+	struct DObjAnimMat
+	{
+		float quat[4];
+		float trans[3];
+		float transWeight;
+	};
+	static_assert(sizeof(DObjAnimMat) == 32);
+
+	struct XModelAngle
+	{
+		short x;
+		short y;
+		short z;
+		short base;
+	};
+	static_assert(sizeof(XModelAngle) == 8);
+
+	struct XModelTagPos
+	{
+		float x;
+		float y;
+		float z;
+	};
+	static_assert(sizeof(XModelTagPos) == 12);
+
+	struct XBoneInfo
+	{
+		float bounds[2][3]; // midPoint, halfSize
+		float radiusSquared;
+	};
+	static_assert(sizeof(XBoneInfo) == 28);
 
 	struct XModelLodInfo
 	{
@@ -1306,7 +1346,8 @@ namespace zonetool::s2
 		const char* name;
 		unsigned short numBones;
 		unsigned short numRootBones;
-		char __pad0[4];
+		unsigned char lodRampType;
+		char __pad0[3];
 		unsigned short numClientBones;
 		char __pad1[70];
 		scr_string_t* boneNames;
@@ -1318,7 +1359,9 @@ namespace zonetool::s2
 		XModelLodInfo lodInfo[6];
 		unsigned char numLods;
 		char collLod;
-		char __pad2[4];
+		unsigned char forcedLod; // 0xFE is automatic
+		unsigned char lodForMaxViewDist;
+		char __pad2[2];
 		unsigned short collSurfCount;
 		char* collSurfs;
 		int contents;
@@ -1327,10 +1370,12 @@ namespace zonetool::s2
 		float radius;
 		float boundsMidPoint[3];
 		float boundsHalfSize[3];
-		char __pad4[4];
+		float cullSizeScale;
 		float lodDistScale;
 		float lodDistSq[6];
-		char __pad10[22];
+		float boundsRadius; // length of boundsHalfSize
+		unsigned char useLodInfoDist;
+		char __pad10[17];
 		unsigned short extraBoneNameCount;
 		unsigned short extraDataCount;
 		char __pad5[2];
@@ -1361,6 +1406,10 @@ namespace zonetool::s2
 	static_assert(offsetof(XModelBase, radius) == 648);
 	static_assert(offsetof(XModelBase, lodDistSq) == 684);
 	static_assert(offsetof(XModelBase, boneInfo) == 640);
+	static_assert(offsetof(XModelBase, lodRampType) == 12);
+	static_assert(offsetof(XModelBase, forcedLod) == 618);
+	static_assert(offsetof(XModelBase, cullSizeScale) == 676);
+	static_assert(offsetof(XModelBase, boundsRadius) == 708);
 	static_assert(offsetof(XModelBase, extraBoneNameCount) == 730);
 	static_assert(offsetof(XModelBase, extraBoneNames) == 736);
 	static_assert(offsetof(XModelBase, physPreset) == 752);
@@ -1669,6 +1718,33 @@ namespace zonetool::s2
 		void* data;
 	};
 
+	enum XAnimPartType : std::size_t
+	{
+		PART_TYPE_NO_QUAT = 0,
+		PART_TYPE_HALF_QUAT = 1,
+		PART_TYPE_FULL_QUAT = 2,
+		PART_TYPE_HALF_QUAT_NO_SIZE = 3,
+		PART_TYPE_FULL_QUAT_NO_SIZE = 4,
+		PART_TYPE_SMALL_TRANS = 5,
+		PART_TYPE_TRANS = 6,
+		PART_TYPE_TRANS_NO_SIZE = 7,
+		PART_TYPE_NO_TRANS = 8,
+		PART_TYPE_ALL = 9,
+	};
+
+	enum XAnimPartsFlags : unsigned short
+	{
+		ANIM_LOOP = 0x1,
+		ANIM_DELTA = 0x2,
+	};
+
+	enum XAnimAssetType : unsigned char
+	{
+		XANIM_ASSET_TYPE_ABSOLUTE = 1,
+		XANIM_ASSET_TYPE_DELTA = 2,
+		XANIM_ASSET_TYPE_ADDITIVE = 6,
+	};
+
 	struct XAnimNotifyInfo
 	{
 		scr_string_t name;
@@ -1682,15 +1758,19 @@ namespace zonetool::s2
 		unsigned short dataShortCount;
 		unsigned short dataIntCount;
 		unsigned short numframes;
-		char __pad0[20];
-		unsigned short boneCount;
+		unsigned short flags;
+		unsigned short boneCount[10];
 		unsigned char notifyCount;
-		char __pad1[5];
+		unsigned char assetType;
+		unsigned char ikType;
+		char __pad1[3];
 		unsigned int randomDataByteCount;
 		unsigned int randomDataShortCount;
 		unsigned int randomDataIntCount;
 		unsigned int indexCount;
-		char __pad2[12];
+		float framerate;
+		float frequency;
+		char __pad2[4];
 		scr_string_t* names;
 		char* dataByte;
 		short* dataShort;
@@ -1710,7 +1790,9 @@ namespace zonetool::s2
 		char __pad5[8];
 	};
 	static_assert(sizeof(XAnimParts) == 0xC0);
-	static_assert(offsetof(XAnimParts, boneCount) == 36);
+	static_assert(offsetof(XAnimParts, boneCount) == 18);
+	static_assert(offsetof(XAnimParts, notifyCount) == 38);
+	static_assert(offsetof(XAnimParts, framerate) == 60);
 	static_assert(offsetof(XAnimParts, randomDataByteCount) == 44);
 	static_assert(offsetof(XAnimParts, names) == 72);
 	static_assert(offsetof(XAnimParts, secondaryName) == 152);

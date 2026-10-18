@@ -1,6 +1,8 @@
 #include <std_include.hpp>
 #include "s2.hpp"
 
+#include <utils/flags.hpp>
+
 namespace zonetool::s2
 {
 	namespace
@@ -391,7 +393,7 @@ namespace zonetool::s2
 		assetmanager::reader read(mem);
 		if (!read.open(dump_path(ASSET_TYPE_XMODEL_BASE, name.data())))
 		{
-			return nullptr;
+			return cast_xmodel::find_base(name, mem);
 		}
 
 		ZONETOOL_INFO("Parsing xmodelbase \"%s\"...", name.data());
@@ -700,7 +702,7 @@ namespace zonetool::s2
 		assetmanager::reader read(mem);
 		if (!read.open(dump_path(ASSET_TYPE_XMODEL, name.data())))
 		{
-			return nullptr;
+			return cast_xmodel::parse(name, mem);
 		}
 
 		ZONETOOL_INFO("Parsing xmodel \"%s\"...", name.data());
@@ -812,6 +814,11 @@ namespace zonetool::s2
 
 	void xmodel::dump(XModel* asset)
 	{
+		if (utils::flags::has_flag("castdump"))
+		{
+			cast_xmodel::dump(asset);
+		}
+
 		assetmanager::dumper write;
 		if (!write.open(dump_path(ASSET_TYPE_XMODEL, asset->name)))
 		{

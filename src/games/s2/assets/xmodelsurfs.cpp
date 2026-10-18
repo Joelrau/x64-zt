@@ -187,7 +187,7 @@ namespace zonetool::s2
 				auto* tree = read.read_single<XSurfaceCollisionLeaf>();
 				if (tree)
 				{
-					tree->nodes = read.read_array<vec4_t>();
+					tree->nodes = read.read_array<XSurfaceCollisionNode>();
 					tree->leafs = read.read_array<unsigned short>();
 				}
 				surface->rigidVertLists[j].collisionTree = tree;
@@ -201,7 +201,7 @@ namespace zonetool::s2
 		assetmanager::reader read(mem);
 		if (!read.open(dump_path(ASSET_TYPE_XMODEL_SURFS, name.data())))
 		{
-			return nullptr;
+			return cast_xmodel::find_surfs(name, mem);
 		}
 
 		ZONETOOL_INFO("Parsing xmodelsurfs \"%s\"...", name.data());

@@ -1,6 +1,8 @@
 #include <std_include.hpp>
 #include "s2.hpp"
 
+#include <utils/flags.hpp>
+
 namespace zonetool::s2
 {
 	namespace
@@ -64,7 +66,7 @@ namespace zonetool::s2
 	{
 		reader.push_stream(XFILE_BLOCK_VIRTUAL);
 		reader.read_string(asset->name);
-		reader.read_script_string_array(asset->names, asset->boneCount);
+		reader.read_script_string_array(asset->names, asset->boneCount[PART_TYPE_ALL]);
 
 		if (const auto notify = reader.read_array(asset->notify, 3, asset->notifyCount))
 		{
@@ -234,14 +236,14 @@ namespace zonetool::s2
 		assetmanager::reader read(mem);
 		if (!read.open(dump_path(ASSET_TYPE_XANIM, name.data())))
 		{
-			return nullptr;
+			return cast_xanim::parse(name, mem);
 		}
 
 		ZONETOOL_INFO("Parsing xanim \"%s\"...", name.data());
 
 		auto* asset = read.read_single<XAnimParts>();
 		asset->name = read.read_string();
-		asset->names = parse_script_string_array(read, mem, asset->boneCount);
+		asset->names = parse_script_string_array(read, mem, asset->boneCount[PART_TYPE_ALL]);
 
 		asset->notify = read.read_array<XAnimNotifyInfo>();
 		for (auto i = 0; asset->notify && i < asset->notifyCount; i++)
@@ -292,7 +294,7 @@ namespace zonetool::s2
 		auto* asset = this->asset_;
 		script_string_preparer prepare(buf);
 
-		prepare(asset->names, asset->boneCount);
+		prepare(asset->names, asset->boneCount[PART_TYPE_ALL]);
 		for (auto i = 0; asset->notify && i < asset->notifyCount; i++)
 		{
 			prepare(asset->notify[i].name);
@@ -308,7 +310,7 @@ namespace zonetool::s2
 		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 
 		dest->name = this->write_name(buf);
-		write_inline(buf, 3, data->names, data->boneCount, dest->names);
+		write_inline(buf, 3, data->names, data->boneCount[PART_TYPE_ALL], dest->names);
 		write_inline(buf, 3, data->notify, data->notifyCount, dest->notify);
 
 		const auto index_size = frame_index_size(data);
@@ -341,6 +343,11 @@ namespace zonetool::s2
 
 	void xanim_parts::dump(XAnimParts* asset)
 	{
+		if (utils::flags::has_flag("castdump"))
+		{
+			cast_xanim::dump(asset);
+		}
+
 		assetmanager::dumper write;
 		if (!write.open(dump_path(ASSET_TYPE_XANIM, asset->name)))
 		{
@@ -352,7 +359,7 @@ namespace zonetool::s2
 
 		write.dump_single(asset);
 		write.dump_string(asset->name);
-		dump_script_string_array(write, asset->names, asset->boneCount);
+		dump_script_string_array(write, asset->names, asset->boneCount[PART_TYPE_ALL]);
 
 		write.dump_array(asset->notify, asset->notifyCount);
 		for (auto i = 0; asset->notify && i < asset->notifyCount; i++)

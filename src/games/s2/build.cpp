@@ -3,7 +3,9 @@
 #include "zone/loader.hpp"
 
 #include <formats/csv.hpp>
+#include <formats/cast/cast.hpp>
 #include <utils/flags.hpp>
+#include <utils/string.hpp>
 
 namespace zonetool::s2
 {
@@ -32,8 +34,35 @@ namespace zonetool::s2
 			{"fx", "effects", ".fxe"},
 			{"material", "materials", ""},
 			{"xmodel", "xmodel", ".xmb"},
+			{"xmodel", "xmodel", ".cast"},
 			{"xanim", "xanim", ".xab"},
+			{"xanim", "xanim", ".cast"},
 		};
+
+		std::optional<std::string> cast_asset_name(std::string name)
+		{
+			constexpr std::string_view lod_suffix = "_lod";
+			const auto suffix_size = lod_suffix.size() + 1;
+			if (name.size() <= suffix_size)
+			{
+				return name;
+			}
+
+			const auto suffix = utils::string::to_lower(name.substr(name.size() - suffix_size));
+			const auto lod = suffix.back();
+			if (!suffix.starts_with(lod_suffix) || lod < '0' || lod > '5')
+			{
+				return name;
+			}
+
+			if (lod != '0')
+			{
+				return {};
+			}
+
+			name.resize(name.size() - suffix_size);
+			return name;
+		}
 
 		std::vector<csv::row*> read_csv_rows(csv::parser& parser)
 		{
@@ -124,8 +153,12 @@ namespace zonetool::s2
 
 				if (!folder.extension.empty() && filename.ends_with(folder.extension))
 				{
-					context.zone->add_asset_of_type(std::string(folder.type),
-						filename.substr(0, filename.size() - folder.extension.size()));
+					const auto name = filename.substr(0, filename.size() - folder.extension.size());
+					const auto asset_name = folder.extension == ".cast" ? cast_asset_name(name) : name;
+					if (asset_name)
+					{
+						context.zone->add_asset_of_type(std::string(folder.type), *asset_name);
+					}
 				}
 				else if (!file.path().has_extension())
 				{
@@ -224,6 +257,19 @@ namespace zonetool::s2
 			}
 		}
 
+		void set_cast_scale(const std::string_view value)
+		{
+			const auto scale = cast::parse_import_scale(std::string(value));
+			if (scale <= 0.0f)
+			{
+				ZONETOOL_ERROR("castscale \"%s\" is not a positive factor or a known unit (inch, cm, mm, m)", std::string(value).data());
+				return;
+			}
+
+			cast::set_import_scale(scale);
+			ZONETOOL_INFO("Cast files import at a scale of %g", scale);
+		}
+
 		void parse_csv(build_context& context, const std::string& csv_name)
 		{
 			auto parser = open_csv(csv_name);
@@ -260,6 +306,20 @@ namespace zonetool::s2
 				{
 					iterate_assets(context, argument);
 				}
+				else if (command == "castscale")
+				{
+					set_cast_scale(argument);
+				}
+				else if (command == "castroot")
+				{
+					cast::set_import_root(std::string(argument));
+					ZONETOOL_INFO("Stray cast root bones go under \"%s\"", std::string(argument).data());
+				}
+				else if (command == "castignorebone")
+				{
+					cast::add_ignored_bone(std::string(argument));
+					ZONETOOL_INFO("Cast animations do not drive \"%s\"", std::string(argument).data());
+				}
 				else if (command == "addpath")
 				{
 					filesystem::add_path(std::string(argument), field(row, 2) == "true");
@@ -279,6 +339,8 @@ namespace zonetool::s2
 		{
 			ignore_assets.clear();
 			db_clear();
+			cast::reset_import_settings();
+			cast_xmodel::reset();
 		}
 	}
 
