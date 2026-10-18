@@ -14,6 +14,7 @@ namespace zonetool
 	using asset_dump_command = void(*)(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path,
 		const std::string& type, const std::string& name, const converter* converter);
 	using zone_command = void(*)(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path);
+	using listing_command = std::string(*)(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path);
 	using build_command = void(*)(const std::filesystem::path& zone_folder, const std::string& name);
 	using token_name_resolver = std::string(*)(std::uint32_t id);
 
@@ -27,6 +28,7 @@ namespace zonetool
 		dump_command dump_zone;
 		asset_dump_command dump_asset;
 		zone_command verify_zone;
+		listing_command list_zone;
 		build_command build_zone;
 		token_name_resolver token_name;
 	};

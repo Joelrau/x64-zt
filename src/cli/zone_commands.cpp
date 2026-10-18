@@ -4,6 +4,7 @@
 
 #include <formats/csv_generator.hpp>
 #include <game_mode.hpp>
+#include <utils/io.hpp>
 
 namespace zonetool::cli
 {
@@ -91,6 +92,49 @@ namespace zonetool::cli
 
 			std::cout << std::format("{} of {} zones passed\n", zones.size() - failed, zones.size());
 		}
+
+		std::filesystem::path listing_path(const settings& settings, const std::filesystem::path& zone_path)
+		{
+			auto relative = zone_path.lexically_relative(game_files::get().path("").parent_path());
+			if (relative.empty() || *relative.begin() == "..")
+			{
+				relative = zone_path.filename();
+			}
+
+			return std::filesystem::path("asset_listing") / settings.game->name / relative.replace_extension(".zone");
+		}
+
+		void write_listing(const settings& settings, const std::filesystem::path& zone_path)
+		{
+			const auto path = listing_path(settings, zone_path);
+			if (!utils::io::write_file(path.string(), settings.game->list_zone(settings.zone_folder(), zone_path)))
+			{
+				throw std::runtime_error(std::format("failed to write {}", path.string()));
+			}
+
+			std::cout << std::format("{}\n", path.string());
+		}
+
+		void list_all(const settings& settings)
+		{
+			const auto zones = game_files::list_zones();
+
+			std::size_t failed{};
+			for (const auto& zone : zones)
+			{
+				try
+				{
+					write_listing(settings, zone);
+				}
+				catch (const std::exception& e)
+				{
+					failed++;
+					std::cout << std::format("{}: {}\n", zone.string(), e.what());
+				}
+			}
+
+			std::cout << std::format("{} of {} zones listed\n", zones.size() - failed, zones.size());
+		}
 	}
 
 	void dump_zone(const settings& settings, const std::span<const std::string> args)
@@ -157,6 +201,26 @@ namespace zonetool::cli
 		{
 			settings.game->verify_zone(settings.zone_folder(), *path);
 			std::cout << std::format("zone \"{}\" passed\n", args.front());
+		}
+	}
+
+	void list_zone(const settings& settings, const std::span<const std::string> args)
+	{
+		if (!settings.game->list_zone)
+		{
+			std::cout << std::format("listzone is not supported for {}\n", settings.game->name);
+			return;
+		}
+
+		if (!args.empty() && args.front() == "--all")
+		{
+			list_all(settings);
+			return;
+		}
+
+		if (const auto path = require_zone(settings, args, "listzone <zone> | listzone --all"))
+		{
+			write_listing(settings, *path);
 		}
 	}
 

@@ -125,16 +125,8 @@ namespace zonetool::convert::s2_h1
 			return static_cast<S*>(header);
 		}
 
-#include "debug_probe.inl"
-
 		void dump_asset(const std::int32_t type, void* header)
 		{
-			if (std::getenv("ZT_PROBE_ONLY") && type != source::ASSET_TYPE_CLIPMAP && type != source::ASSET_TYPE_GFXWORLD && type != source::ASSET_TYPE_GFXWORLD_TRANSIENT_ZONE && type != source::ASSET_TYPE_COMWORLD && type != source::ASSET_TYPE_MAP_ENTS && type != source::ASSET_TYPE_CLIPMAP_TRANSIENT_ZONE && type != source::ASSET_TYPE_XMODEL && type != source::ASSET_TYPE_XMODEL_SURFS && type != source::ASSET_TYPE_FXWORLD && type != source::ASSET_TYPE_GLASSWORLD && type != source::ASSET_TYPE_PHYSWORLDMAP) return;
-			if (std::getenv("ZT_PROBE_SKY"))
-			{
-				if (type == source::ASSET_TYPE_MATERIAL) probe_sky_shaders(header_as<source::Material>(header));
-				return;
-			}
 			switch (type)
 			{
 			case source::ASSET_TYPE_COMWORLD:
@@ -156,21 +148,18 @@ namespace zonetool::convert::s2_h1
 				target::mapents::dump(header_as<source::MapEnts>(header));
 				break;
 			case source::ASSET_TYPE_CLIPMAP:
-				if (std::getenv("ZT_PROBE_ONLY")) { probe_clipmap(header_as<source::clipMap_t>(header)); probe_clip_trees(header_as<source::clipMap_t>(header)); probe_clip_facts(header_as<source::clipMap_t>(header)); }
 				target::clipmap::dump(header_as<source::clipMap_t>(header));
 				break;
 			case source::ASSET_TYPE_CLIPMAP_TRANSIENT_ZONE:
 				target::clipmap::add_transient_zone(header_as<source::ClipMapTrZone>(header));
 				break;
 			case source::ASSET_TYPE_GFXWORLD:
-				if (std::getenv("ZT_PROBE_ONLY")) { probe_surface_bytes(header_as<source::GfxWorld>(header)); probe_smodel_flags(header_as<source::GfxWorld>(header)); probe_smodel_bounds(header_as<source::GfxWorld>(header)); probe_light_grid(header_as<source::GfxWorld>(header)); probe_smodel_sh(header_as<source::GfxWorld>(header)); probe_surface_env(header_as<source::GfxWorld>(header)); }
 				target::gfxworld::dump(header_as<source::GfxWorld>(header));
 				break;
 			case source::ASSET_TYPE_GFXWORLD_TRANSIENT_ZONE:
 				target::gfxworld::add_transient_zone(header_as<source::GfxMapTrZone>(header));
 				break;
 			case source::ASSET_TYPE_XMODEL:
-				if (std::getenv("ZT_PROBE_LODS")) probe_xmodel_lods(header_as<source::XModel>(header));
 				target::xmodel::dump(header_as<source::XModel>(header));
 				break;
 			case source::ASSET_TYPE_XMODEL_SURFS:

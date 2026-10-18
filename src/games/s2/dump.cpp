@@ -122,11 +122,9 @@ namespace zonetool::s2
 			}
 		}
 
-		void write_asset_csv(const loaded_zone& zone)
+		std::string asset_csv(const loaded_zone& zone)
 		{
-			filesystem::file csv(zone.name + ".csv");
-			csv.open("wb");
-
+			std::string csv;
 			for (const auto& asset : zone.assets)
 			{
 				if (asset.type == ASSET_TYPE_XSURFACE_SHARED)
@@ -134,10 +132,18 @@ namespace zonetool::s2
 					continue;
 				}
 
-				csv.write(std::format("{},{}{}\n", type_to_string(asset.type),
-					asset.referenced ? "," : "", get_asset_name(asset.type, asset.header)));
+				csv += std::format("{},{}{}\n", type_to_string(asset.type),
+					asset.referenced ? "," : "", get_asset_name(asset.type, asset.header));
 			}
 
+			return csv;
+		}
+
+		void write_asset_csv(const loaded_zone& zone)
+		{
+			filesystem::file csv(zone.name + ".csv");
+			csv.open("wb");
+			csv.write(asset_csv(zone));
 			csv.close();
 		}
 
@@ -334,5 +340,13 @@ namespace zonetool::s2
 
 		prepare_paths(zone_folder, zone_path);
 		load_zone(zone_path);
+	}
+
+	std::string list_zone(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path)
+	{
+		const auto _ = gsl::finally(db_clear);
+
+		prepare_paths(zone_folder, zone_path);
+		return asset_csv(*load_zone(zone_path));
 	}
 }
