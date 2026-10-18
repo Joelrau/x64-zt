@@ -33,6 +33,11 @@ namespace zonetool::s2
 			&WeaponAttachment::adsSceneBlurStrength,
 			json_reflect::manual("knifeAttachTagOverride"),
 			&WeaponAttachment::unknown124,
+			&WeaponAttachment::extendedMag,
+			&WeaponAttachment::unknown134,
+			&WeaponAttachment::treatAsAltWeapon,
+			&WeaponAttachment::tacticalKnife,
+			&WeaponAttachment::unknown138,
 		};
 
 		constexpr json_reflect::options json_options{.strings = json_reflect::null_string::null};
