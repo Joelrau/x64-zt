@@ -617,7 +617,7 @@ namespace zonetool::h1::converter::s2::gfximage
 		}
 
 		unused_images.erase(name);
-		const auto asset = db_find_x_asset_header_safe(ASSET_TYPE_IMAGE, name).image; // the map zone or a required zone, common_mp holds the shared map images
+		const auto asset = db_find_x_asset_header_safe(ASSET_TYPE_IMAGE, name).image;
 		if (!asset || !dump_zone_image(asset))
 		{
 			return {};
@@ -703,7 +703,7 @@ namespace zonetool::h1::converter::s2::gfximage
 		}
 
 		constexpr auto width = 128u;
-		const std::string pixels(width * sizeof(std::uint32_t), '\xFF'); // full visibility, like *fog_spline0 of stock maps
+		const std::string pixels(width * sizeof(std::uint32_t), '\xFF'); // full visibility
 
 		zonetool::s2::GfxImage image{};
 		image.name = name.data();

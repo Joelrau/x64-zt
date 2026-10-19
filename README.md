@@ -81,7 +81,7 @@ Run `zonetool.exe` without a command to open the interactive console.
 If a flag is not set, x64-zt can read `zonetool.json` next to the executable:
 
 ```json
-{ "game": "h1", "paths": { "h1": "D:/Games/MWR", "s2": "D:/Games/WWII" } }
+{ "game": "h1", "paths": { "h1": "path/to/mwr", "s2": "path/to/wwii" } }
 ```
 
 ## Building

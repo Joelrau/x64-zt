@@ -37,7 +37,7 @@ Without a command, `zonetool.exe` opens an interactive console.
 
 - Game selection: `-game <name>`, then `zonetool.json` `game`.
 - Game folder: `-path <folder>`, then `zonetool.json` `paths.<game>`, then the exe folder if it has `zone/`, then the Steam default folder.
-- `zonetool.json` example: `{"game": "h1", "paths": {"h1": "D:/Games/MWR"}}`.
+- `zonetool.json` example: `{"game": "h1", "paths": {"h1": "path/to/mwr"}}`.
 - `dumpasset` finds only assets that the zone holds, not referenced ones (`type,,name` rows in the CSV). Type names are the CSV type names.
 - Flags for `dumpzone`: `-dds` writes DDS images. `-dump_streamed_image` reads `imagefile*.pak` and writes streamed images. `-castdump` (S2) writes a `.cast` file next to each xmodel and xanim. See `docs/S2_SUPPORT.md`.
 - The `require` row in a build CSV loads another zone into the asset database. There is no `loadzone` command.
@@ -207,7 +207,6 @@ Docs, commit messages and user-facing text use ASD-STE100 style:
 - Never co-author yourself as whatever agent you are, just the person who wants to commit.
 - Do implementation work in the main session.
 - Put temporary files in a session scratchpad, not in the repository or `/tmp`.
-- If Python is not installed on the main dev machine, use shell tools, node, or the edit tools.
 - `core.autocrlf` is `true`. Some files are CRLF in the working tree. Keep the line endings of the file you edit.
-- To test H1 in the game, copy `zonetool.exe` to the user's MWR 1.15 folder (if you don't know where it is, prompt a question and ask the user so you know - this will help save so much time), or build with `--copy-to`.
+- To test H1 in the game, copy `zonetool.exe` to the MWR 1.15 game folder, or build with `--copy-to`.
 - Anything you don't know how to do, but is listed in this file as advice for you, ask the user for questions and try to figure out how to get there if you are lost. This is mainly for non-Claude models that may get stuck easier.

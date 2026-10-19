@@ -847,6 +847,13 @@ namespace zonetool::h1::converter::s2::gfxworld
 			return grid;
 		}
 
+		std::optional<std::array<float, light_grid::probe_sh_count + 1>> static_model_lighting(GfxWorld* asset, light_grid_sampler& sampler, const unsigned int index)
+		{
+			if (asset->dpvs.smodelDrawInsts[index].flags & STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING)
+			{
+				if (const auto baked = sampler.baked(asset->dpvs.smodelLightingInsts[index].ambientLightingInfo))
+				{
+					return baked;
 				}
 			}
 
