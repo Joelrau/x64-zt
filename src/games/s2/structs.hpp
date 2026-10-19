@@ -270,17 +270,41 @@ namespace zonetool::s2
 	};
 	static_assert(sizeof(MaterialDomainShader) == 0x20);
 
+	enum MaterialStreamRoutingSource : std::uint8_t
+	{
+		STREAM_SRC_POSITION = 0,
+		STREAM_SRC_COLOR = 1,
+		STREAM_SRC_TEXCOORD_0 = 2,
+		STREAM_SRC_NORMAL = 3,
+		STREAM_SRC_TANGENT = 4,
+		STREAM_SRC_LIGHTMAP = 6,
+		STREAM_SRC_VERTEX_LIGHTING_VISIBILITY = 13,
+		STREAM_SRC_VERTEX_LIGHTING_AMBIENT = 14,
+		STREAM_SRC_VERTEX_LIGHTING_HIGHLIGHT = 15,
+		STREAM_SRC_COUNT = 32,
+	};
+
+	enum MaterialStreamRoutingDestination : std::uint8_t
+	{
+		STREAM_DST_POSITION = 0,
+		STREAM_DST_NORMAL = 1,
+		STREAM_DST_COLOR_0 = 2,
+		STREAM_DST_TEXCOORD_0 = 6,
+		STREAM_DST_TEXCOORD_15 = 21,
+	};
+
 	struct MaterialStreamRouting
 	{
 		unsigned char source;
 		unsigned char dest;
 		unsigned char mask;
+		unsigned char slot; // stock decls store the routing index here, no reader found
 	};
 
 	struct MaterialVertexStreamRouting
 	{
 		MaterialStreamRouting data[32];
-		ID3D11InputLayout* decl[280];
+		ID3D11InputLayout* decl[276];
 	};
 
 	struct MaterialVertexDeclaration
@@ -288,19 +312,223 @@ namespace zonetool::s2
 		const char* name;
 		unsigned char streamCount;
 		bool hasOptionalSource;
+		char __pad0[6];
 		MaterialVertexStreamRouting routing;
 	};
 	static_assert(sizeof(MaterialVertexDeclaration) == 0x930);
+	static_assert(offsetof(MaterialVertexDeclaration, routing) == 0x10);
 
 	enum MaterialShaderArgumentType : std::uint8_t
 	{
+		MTL_ARG_CODE_CONST = 0x0,
+		MTL_ARG_CODE_TEXTURE = 0x1,
+		MTL_ARG_CODE_SAMPLER = 0x2,
+		MTL_ARG_CODE_UAV = 0x3, // pixel shader only, binds with the pending counter value
+		MTL_ARG_CODE_BUFFER_UAV = 0x4, // pixel shader only, binds the UAV of a code buffer
+		MTL_ARG_MATERIAL_CONST = 0x5,
 		MTL_ARG_LITERAL_CONST = 0x6,
+		MTL_ARG_MATERIAL_TEXTURE = 0x7,
+		MTL_ARG_MATERIAL_SAMPLER = 0x8,
+		MTL_ARG_COUNT = 0x9,
+	};
+
+	enum MaterialConstSource : std::int32_t
+	{
+		CONST_SRC_CODE_GAMETIME = 0,
+		CONST_SRC_CODE_GENERIC_MATERIAL_DATA = 2,
+		CONST_SRC_CODE_EYEOFFSET = 3,
+		CONST_SRC_CODE_WORLD_MATRIX_EYE_OFFSET = 6,
+		CONST_SRC_CODE_SUN_DIRECTION = 11,
+		CONST_SRC_CODE_SUN_COLOR = 12,
+		CONST_SRC_CODE_SCRIPT_PARMS = 26,
+		CONST_SRC_CODE_EFFECT_MODEL_COLOR = 29,
+		CONST_SRC_CODE_EFFECT_MODEL_COLOR_EMISSIVE = 30,
+		CONST_SRC_CODE_RENDER_TARGET_SIZE = 47,
+		CONST_SRC_CODE_NEARPLANE_ORG = 56,
+		CONST_SRC_CODE_NEARPLANE_DX = 57,
+		CONST_SRC_CODE_NEARPLANE_DY = 58,
+		CONST_SRC_CODE_SSS_MRT_OFF_SHADER_OFF = 113,
+		CONST_SRC_CODE_PREV_FRAME_WORLD_MATRIX_EYE_OFFSET = 138,
+		CONST_SRC_CODE_SHADOWMAP_SWITCH_PARTITION_ARRAY_0 = 140, // 140..146 and 241..244 are the sun shadow args of wc_l_sm_lmpb_ndw_b0c0n0s0_nfwpf
+		CONST_SRC_CODE_SHADOWMAP_SWITCH_PARTITION_ARRAY_1 = 141,
+		CONST_SRC_CODE_SHADOWMAP_DISTANCE_BIAS = 142,
+		CONST_SRC_CODE_SHADOWMAP_SCALE = 143,
+		CONST_SRC_CODE_SHADOWMAP_PARTITION_UV_OFFSET = 144,
+		CONST_SRC_CODE_SHADOWMAP_CASCADE_MASK = 145,
+		CONST_SRC_CODE_SHADOWMAP_DISTANCE_BLEND = 146,
+		CONST_SRC_CODE_MATERIAL_COLOR = 161, // tools_cso_hss_b0c0ct0 binds it where the identical h1 pixel shader binds h1 MATERIAL_COLOR
+		CONST_SRC_CODE_HDR_STAGE_PARMS = 218,
+		CONST_SRC_CODE_SUN_SHADOWMAP_PIXEL_ADJUST_ARRAY_0 = 241,
+		CONST_SRC_CODE_SUN_SHADOWMAP_PIXEL_ADJUST_ARRAY_1 = 242,
+		CONST_SRC_CODE_SUN_SHADOWMAP_PIXEL_ADJUST_ARRAY_2 = 243,
+		CONST_SRC_CODE_SUN_SHADOWMAP_CASCADE_V_CLAMP = 244,
+		CONST_SRC_CODE_CLIP_SPACE_LOOKUP_SCALE = 317,
+		CONST_SRC_CODE_CLIP_SPACE_LOOKUP_OFFSET = 318,
+		CONST_SRC_CODE_DEPTH_FROM_CLIP = 331,
+
+		CONST_SRC_CODE_COUNT_FLOAT4 = 338,
+		CONST_SRC_FIRST_CODE_MATRIX = 338,
+		CONST_SRC_CODE_VIEW_MATRIX = 338,
+		CONST_SRC_CODE_INVERSE_VIEW_MATRIX = 339,
+		CONST_SRC_CODE_TRANSPOSE_VIEW_MATRIX = 340,
+		CONST_SRC_CODE_INVERSE_TRANSPOSE_VIEW_MATRIX = 341,
+		CONST_SRC_CODE_PROJECTION_MATRIX = 342,
+		CONST_SRC_CODE_INVERSE_PROJECTION_MATRIX = 343,
+		CONST_SRC_CODE_TRANSPOSE_PROJECTION_MATRIX = 344,
+		CONST_SRC_CODE_INVERSE_TRANSPOSE_PROJECTION_MATRIX = 345,
+		CONST_SRC_CODE_VIEW_PROJECTION_MATRIX = 346,
+		CONST_SRC_CODE_INVERSE_VIEW_PROJECTION_MATRIX = 347,
+		CONST_SRC_CODE_TRANSPOSE_VIEW_PROJECTION_MATRIX = 348,
+		CONST_SRC_CODE_INVERSE_TRANSPOSE_VIEW_PROJECTION_MATRIX = 349,
+		CONST_SRC_CODE_SHADOW_LOOKUP_MATRIX = 350,
+		CONST_SRC_CODE_INVERSE_SHADOW_LOOKUP_MATRIX = 351,
+		CONST_SRC_CODE_TRANSPOSE_SHADOW_LOOKUP_MATRIX = 352,
+		CONST_SRC_CODE_INVERSE_TRANSPOSE_SHADOW_LOOKUP_MATRIX = 353,
+		CONST_SRC_CODE_PREV_FRAME_WORLD_MATRIX = 358,
+		CONST_SRC_CODE_PREV_FRAME_INVERSE_WORLD_MATRIX = 359,
+		CONST_SRC_CODE_PREV_FRAME_TRANSPOSE_WORLD_MATRIX = 360,
+		CONST_SRC_CODE_PREV_FRAME_INVERSE_TRANSPOSE_WORLD_MATRIX = 361,
+		CONST_SRC_CODE_WORLD_MATRIX0 = 362,
+		CONST_SRC_CODE_INVERSE_WORLD_MATRIX0 = 363,
+		CONST_SRC_CODE_TRANSPOSE_WORLD_MATRIX0 = 364,
+		CONST_SRC_CODE_INVERSE_TRANSPOSE_WORLD_MATRIX0 = 365,
+		CONST_SRC_CODE_WORLD_VIEW_MATRIX0 = 366,
+		CONST_SRC_CODE_INVERSE_WORLD_VIEW_MATRIX0 = 367,
+		CONST_SRC_CODE_TRANSPOSE_WORLD_VIEW_MATRIX0 = 368,
+		CONST_SRC_CODE_INVERSE_TRANSPOSE_WORLD_VIEW_MATRIX0 = 369,
+		CONST_SRC_CODE_WORLD_VIEW_PROJECTION_MATRIX0 = 370,
+		CONST_SRC_CODE_INVERSE_WORLD_VIEW_PROJECTION_MATRIX0 = 371,
+		CONST_SRC_CODE_TRANSPOSE_WORLD_VIEW_PROJECTION_MATRIX0 = 372,
+		CONST_SRC_CODE_INVERSE_TRANSPOSE_WORLD_VIEW_PROJECTION_MATRIX0 = 373,
+		CONST_SRC_CODE_WORLD_MATRIX1 = 374,
+		CONST_SRC_CODE_INVERSE_WORLD_MATRIX1 = 375,
+		CONST_SRC_CODE_TRANSPOSE_WORLD_MATRIX1 = 376,
+		CONST_SRC_CODE_INVERSE_TRANSPOSE_WORLD_MATRIX1 = 377,
+		CONST_SRC_CODE_WORLD_VIEW_MATRIX1 = 378,
+		CONST_SRC_CODE_INVERSE_WORLD_VIEW_MATRIX1 = 379,
+		CONST_SRC_CODE_TRANSPOSE_WORLD_VIEW_MATRIX1 = 380,
+		CONST_SRC_CODE_INVERSE_TRANSPOSE_WORLD_VIEW_MATRIX1 = 381,
+		CONST_SRC_CODE_WORLD_VIEW_PROJECTION_MATRIX1 = 382,
+		CONST_SRC_CODE_INVERSE_WORLD_VIEW_PROJECTION_MATRIX1 = 383,
+		CONST_SRC_CODE_TRANSPOSE_WORLD_VIEW_PROJECTION_MATRIX1 = 384,
+		CONST_SRC_CODE_INVERSE_TRANSPOSE_WORLD_VIEW_PROJECTION_MATRIX1 = 385,
+		CONST_SRC_CODE_WORLD_MATRIX2 = 386,
+		CONST_SRC_CODE_INVERSE_WORLD_MATRIX2 = 387,
+		CONST_SRC_CODE_TRANSPOSE_WORLD_MATRIX2 = 388,
+		CONST_SRC_CODE_INVERSE_TRANSPOSE_WORLD_MATRIX2 = 389,
+		CONST_SRC_CODE_WORLD_VIEW_MATRIX2 = 390,
+		CONST_SRC_CODE_INVERSE_WORLD_VIEW_MATRIX2 = 391,
+		CONST_SRC_CODE_TRANSPOSE_WORLD_VIEW_MATRIX2 = 392,
+		CONST_SRC_CODE_INVERSE_TRANSPOSE_WORLD_VIEW_MATRIX2 = 393,
+		CONST_SRC_CODE_WORLD_VIEW_PROJECTION_MATRIX2 = 394,
+		CONST_SRC_CODE_INVERSE_WORLD_VIEW_PROJECTION_MATRIX2 = 395,
+		CONST_SRC_CODE_TRANSPOSE_WORLD_VIEW_PROJECTION_MATRIX2 = 396,
+		CONST_SRC_CODE_INVERSE_TRANSPOSE_WORLD_VIEW_PROJECTION_MATRIX2 = 397,
+		CONST_SRC_TOTAL_COUNT = 398,
+	};
+
+	enum MaterialTextureSource : std::int32_t
+	{
+		TEXTURE_SRC_CODE_BLACK = 0,
+		TEXTURE_SRC_CODE_WHITE = 1,
+		TEXTURE_SRC_CODE_IDENTITY_NORMAL_MAP = 2,
+		TEXTURE_SRC_CODE_IES_LOOKUP = 3,
+		TEXTURE_SRC_CODE_SHADOWMAP_SUN = 6,
+		TEXTURE_SRC_CODE_TRANS_SHADOWMAP_SUN = 7,
+		TEXTURE_SRC_CODE_SHADOWMAP_SPOT = 8,
+		TEXTURE_SRC_CODE_SHADOWMAP_SPOT_1 = 9,
+		TEXTURE_SRC_CODE_SHADOWMAP_SPOT_2 = 10,
+		TEXTURE_SRC_CODE_SHADOWMAP_SPOT_3 = 11,
+		TEXTURE_SRC_CODE_DEFERRED_SUN_SHADOW_VISIBILITY = 12,
+		TEXTURE_SRC_CODE_SHADOWMAP_SPOT_CACHE = 13,
+		TEXTURE_SRC_CODE_FEEDBACK = 14,
+		TEXTURE_SRC_CODE_RESOLVED_POST_SUN = 15,
+		TEXTURE_SRC_CODE_SSR_BUFFER = 16,
+		TEXTURE_SRC_CODE_HQ_SSR_DEPTH = 17,
+		TEXTURE_SRC_CODE_BLUR_DISTORTION_BUFFER = 18,
+		TEXTURE_SRC_CODE_RESOLVED_SCENE = 19,
+		TEXTURE_SRC_CODE_POST_EFFECT_0 = 20,
+		TEXTURE_SRC_CODE_POST_EFFECT_1 = 21,
+		TEXTURE_SRC_CODE_OUTDOOR = 22,
+		TEXTURE_SRC_CODE_FLOATZ = 23,
+		TEXTURE_SRC_CODE_PROCESSED_FLOATZ = 24,
+		TEXTURE_SRC_CODE_FLOATZ_STENCIL = 26,
+		TEXTURE_SRC_CODE_CINEMATIC_Y = 31,
+		TEXTURE_SRC_CODE_CINEMATIC_CR = 32,
+		TEXTURE_SRC_CODE_CINEMATIC_CB = 33,
+		TEXTURE_SRC_CODE_CINEMATIC_A = 34,
+		TEXTURE_SRC_CODE_CINEMATIC_CBCR = 35,
+		TEXTURE_SRC_CODE_DALTONIZE_CLUT = 37,
+		TEXTURE_SRC_CODE_CLUT = 38,
+		TEXTURE_SRC_CODE_HDR_CLUT = 39,
+		TEXTURE_SRC_CODE_LINEAR_WRAP_MIPLINEAR = 40,
+		TEXTURE_SRC_CODE_LINEAR_CLAMP = 41,
+		TEXTURE_SRC_CODE_POINT_CLAMP = 42,
+		TEXTURE_SRC_CODE_RANDOM_ROTATIONS = 43,
+		TEXTURE_SRC_CODE_SSAO = 44,
+		TEXTURE_SRC_CODE_SSAO_PREV_FRAME = 45,
+		TEXTURE_SRC_CODE_SSAO_PREV_PREV_FRAME = 46,
+		TEXTURE_SRC_CODE_DEPTH_CUR_FRAME = 47,
+		TEXTURE_SRC_CODE_DEPTH_PREV_FRAME = 48,
+		TEXTURE_SRC_CODE_DEPTH_PREV_PREV_FRAME = 49,
+		TEXTURE_SRC_CODE_VELOCITY_CUR_FRAME = 50,
+		TEXTURE_SRC_CODE_VELOCITY_PREV_FRAME = 51,
+		TEXTURE_SRC_CODE_MSAA_SCENE = 52,
+		TEXTURE_SRC_CODE_DEPTH_BLUR_0 = 53,
+		TEXTURE_SRC_CODE_DEPTH_BLUR_1 = 54,
+		TEXTURE_SRC_CODE_DEFAULT_DEPTH = 55,
+		TEXTURE_SRC_CODE_MBLUR_VELOCITY = 56,
+		TEXTURE_SRC_CODE_MBLUR_VELOCITY_TILE0 = 57,
+		TEXTURE_SRC_CODE_MBLUR_VELOCITY_TILE1 = 58,
+		TEXTURE_SRC_CODE_DOF_HALF_PREPASS = 59,
+		TEXTURE_SRC_CODE_DOF_HALF_COLOR = 60,
+		TEXTURE_SRC_CODE_DOF_HALF_ALPHA = 61,
+		TEXTURE_SRC_CODE_DOF_TILE0 = 62,
+		TEXTURE_SRC_CODE_DOF_TILE1 = 63,
+		TEXTURE_SRC_CODE_SMAA_LUMA = 64,
+		TEXTURE_SRC_CODE_SMAA_EDGES = 65,
+		TEXTURE_SRC_CODE_SMAA_BLEND = 66,
+		TEXTURE_SRC_CODE_SMAA_TEMPORAL_COLOR_0 = 67,
+		TEXTURE_SRC_CODE_SMAA_TEMPORAL_COLOR_1 = 68,
+		TEXTURE_SRC_CODE_SMAA_TEMPORAL_LUMA_1 = 69,
+		TEXTURE_SRC_CODE_SMAA_TEMPORAL_LUMA_2 = 70,
+		TEXTURE_SRC_CODE_SMAA_TEMPORAL_LUMA_3 = 71,
+		TEXTURE_SRC_CODE_SMAA_FILMIC_HISTORY = 72,
+		TEXTURE_SRC_CODE_SMAA_VELOCITY = 73,
+		TEXTURE_SRC_CODE_SMAA_TEMPORAL_FILTER_MASK_0 = 74,
+		TEXTURE_SRC_CODE_SMAA_TEMPORAL_FILTER_MASK_1 = 75,
+		TEXTURE_SRC_CODE_SCENE_SPECULAR = 76,
+		TEXTURE_SRC_CODE_SCENE_ALBEDO = 77,
+		TEXTURE_SRC_CODE_GENERIC_FLOAT_DATA = 78,
+		TEXTURE_SRC_CODE_UI3D = 79,
+		TEXTURE_SRC_CODE_FONT_CACHE = 88,
+		TEXTURE_SRC_CODE_FOG_SPLINE = 89,
+		TEXTURE_SRC_CODE_FOG_SPLINE_BLEND_FROM = 90,
+		TEXTURE_SRC_CODE_AIR_LIGHT_F_TABLE = 91,
+		TEXTURE_SRC_CODE_AIR_LIGHT_LOW_RES = 92,
+		TEXTURE_SRC_CODE_AIR_LIGHT_LOW_RES_DEPTH = 93,
+		TEXTURE_SRC_CODE_LIGHT_GRID_VOLUME_DATA_2D = 94,
+		TEXTURE_SRC_CODE_LIGHT_GRID_VOLUME_DATA_3D = 95,
+		TEXTURE_SRC_CODE_LIGHT_GRID_VOLUME_PRIMARY_VIS_DATA_2D = 96,
+		TEXTURE_SRC_CODE_LIGHT_GRID_VOLUME_PRIMARY_VIS_DATA_3D = 97,
+		TEXTURE_SRC_CODE_EFFECT_LIGHTMAP = 98,
+		TEXTURE_SRC_CODE_PROCEDURAL_EMULATOR = 99,
+		TEXTURE_SRC_CODE_DOF_HALF_PREVIOUS_PREPASS = 100,
+		TEXTURE_SRC_CODE_DOF_HALF_PREVIOUS_COLOR = 101,
+		TEXTURE_SRC_CODE_COUNT = 102,
+	};
+
+	struct MaterialArgumentCodeConst
+	{
+		unsigned short index;
+		unsigned char firstRow;
+		unsigned char rowCount;
 	};
 
 	union MaterialArgumentDef
 	{
 		float* literalConst;
-		unsigned int codeConst;
+		MaterialArgumentCodeConst codeConst;
 		unsigned int codeSampler;
 		unsigned int nameHash;
 	};
@@ -313,6 +541,31 @@ namespace zonetool::s2
 		MaterialArgumentDef u;
 	};
 	static_assert(sizeof(MaterialShaderArgument) == 0x10);
+
+	enum CustomBufferFlags : std::uint64_t
+	{
+		CUSTOM_BUFFER_PER_PRIM = 0x1,
+		CUSTOM_BUFFER_PER_OBJECT = 0x2,
+		CUSTOM_BUFFER_PER_STABLE = 0x8,
+		CUSTOM_BUFFER_MATERIAL = 0x10,
+		CUSTOM_BUFFER_INSTANCE_MATRICES = 0x8000, // 8 cb7 rows for each instance and rows 0..3 are the world matrix (sub_140181FA0)
+		CUSTOM_BUFFER_SLF = 0x40000, // binds cb5 for the "slf" techsets
+	};
+
+	enum CustomSamplerFlags : std::uint8_t
+	{
+		CUSTOM_SAMPLER_FLAG_USE_REFLECTION_PROBE = 0x1, // pixel shader t1, sub_14082DCD0
+		CUSTOM_SAMPLER_FLAG_USE_LIGHTMAP_PRIMARY = 0x2, // pixel shader t2, sub_14082D640
+		CUSTOM_SAMPLER_FLAG_USE_LIGHTMAP_SECONDARY = 0x4, // pixel shader t3, sub_14082D640
+	};
+
+	enum MaterialPassModelVertexType : unsigned char // selects the vertex type of a model surface (sub_14083A5E0 callers)
+	{
+		MODEL_VERTEX_TYPE_SURFACE = 0,
+		MODEL_VERTEX_TYPE_VERTEX_LIGHTING = 2,
+		MODEL_VERTEX_TYPE_LIGHTMAP = 3,
+		MODEL_VERTEX_TYPE_SELF_VISIBILITY = 4,
+	};
 
 	struct MaterialPass
 	{
@@ -336,12 +589,18 @@ namespace zonetool::s2
 		unsigned char perObjConstantBuffer;
 		unsigned char volatileConstantBuffer;
 		unsigned char stableConstantBuffer;
-		char __pad1[20];
+		char __pad1[4];
+		std::uint64_t customBufferFlags; // binds pixel shader t16..t22 and cb11
+		unsigned char customSamplerFlags;
+		MaterialPassModelVertexType modelVertexType;
+		char __pad2[6];
 		MaterialShaderArgument* args;
 	};
 	static_assert(sizeof(MaterialPass) == 0x58);
+	static_assert(offsetof(MaterialPass, modelVertexType) == 0x49);
 	static_assert(offsetof(MaterialPass, zone) == 0x36);
 	static_assert(offsetof(MaterialPass, perPrimConstantBuffer) == 0x38);
+	static_assert(offsetof(MaterialPass, customBufferFlags) == 0x40);
 
 	struct MaterialTechniqueHeader
 	{
@@ -357,7 +616,34 @@ namespace zonetool::s2
 		MaterialPass passArray[1];
 	};
 
+	enum MaterialTechniqueType : std::int32_t
+	{
+		TECHNIQUE_ZPREPASS = 0,
+		TECHNIQUE_ZPREPASS_VELOCITY_RIGID = 1,
+		TECHNIQUE_ZPREPASS_VELOCITY_SKINNED = 2,
+		TECHNIQUE_ZPREPASS_HIDIR = 3,
+		TECHNIQUE_ZPREPASS_HIDIR_VELOCITY_RIGID = 4,
+		TECHNIQUE_ZPREPASS_HIDIR_VELOCITY_SKINNED = 5,
+		TECHNIQUE_BUILD_SHADOWMAP_DEPTH = 6,
+		TECHNIQUE_UNLIT = 8,
+		TECHNIQUE_EMISSIVE = 11,
+		TECHNIQUE_EMISSIVE_DFOG = 12,
+		TECHNIQUE_EMISSIVE_SHADOW = 13,
+		TECHNIQUE_EMISSIVE_SHADOW_DFOG = 14,
+		TECHNIQUE_LIT_BEGIN = 15, // 12 lit variants selected in sub_1407E7170, the even slots use dfog
+		TECHNIQUE_LIT_END = 27,
+		TECHNIQUE_WIREFRAME_SOLID = 32,
+		TECHNIQUE_VELOCITY_RIGID = 36,
+		TECHNIQUE_VELOCITY_SKINNED = 37,
+
+		TECHNIQUE_GROUP_SIZE = 38,
+		TECHNIQUE_STANDARD_BEGIN = 0,
+		TECHNIQUE_INSTANCED_BEGIN = 38,
+		TECHNIQUE_NO_TESS_BEGIN = 76,
+	};
+
 	constexpr auto technique_count = 114;
+	constexpr auto world_vert_format_count = 234;
 
 	struct MaterialTechniqueSet
 	{
@@ -527,6 +813,7 @@ namespace zonetool::s2
 		TS_NORMAL_MAP = 0x5,
 		TS_SPECULAR_MAP = 0x8,
 		TS_RESIDENT = 0xC,
+		TS_ENV_BRDF_LUT = 0xF,
 		TS_EMISSIVE_MAP = 0x11,
 	};
 
@@ -903,22 +1190,59 @@ namespace zonetool::s2
 	static_assert(offsetof(PathData, visBytes) == 28);
 	static_assert(offsetof(PathData, zoneCount) == 104);
 
+	enum MaterialStateFlags : std::uint8_t
+	{
+		STATE_FLAG_CULL_BACK = 0x1,
+		STATE_FLAG_DECAL = 0x2,
+		STATE_FLAG_WRITES_DEPTH = 0x4,
+		STATE_FLAG_USES_DEPTH_BUFFER = 0x8,
+		STATE_FLAG_USES_STENCIL_BUFFER = 0x10,
+	};
+
+	enum GfxCameraRegionType : std::uint8_t
+	{
+		CAMERA_REGION_LIT_OPAQUE = 0x0,
+		CAMERA_REGION_LIT_OPAQUE_SSS = 0x1,
+		CAMERA_REGION_LIT_DECAL = 0x2,
+		CAMERA_REGION_LIT_TRANS = 0x4,
+		CAMERA_REGION_EMISSIVE = 0x5,
+		CAMERA_REGION_POST_TAA = 0x8, // weapon reticles
+		CAMERA_REGION_NONE = 0x9,
+	};
+
+	struct GfxMaterialDrawSurfFields
+	{
+		unsigned __int64 objectBits;
+		unsigned __int64 materialBits : 8;
+		unsigned __int64 primarySortKey : 6; // always MaterialInfo::sortKey
+		unsigned __int64 unused : 18;
+		unsigned __int64 techsetHash : 32;
+	};
+
+	union GfxMaterialDrawSurf
+	{
+		GfxMaterialDrawSurfFields fields;
+		std::uint64_t packed[2];
+	};
+
 	struct MaterialInfo
 	{
 		const char* name;
 		unsigned char gameFlags;
+		unsigned char unkFlags; // 0 world, 1 model, 2 decal and effect in the stock zones
 		unsigned char sortKey;
+		char __pad0;
 		unsigned char textureAtlasRowCount;
 		unsigned char textureAtlasColumnCount;
 		unsigned char textureAtlasFrameBlend;
 		unsigned char textureAtlasAsArray;
-		unsigned char renderFlags;
-		char __pad0;
-		std::uint64_t drawSurf[2];
+		GfxMaterialDrawSurf drawSurf;
 		std::uint64_t surfaceTypeBits;
 		unsigned int hashIndex;
 	};
 	static_assert(sizeof(MaterialInfo) == 0x30);
+	static_assert(offsetof(MaterialInfo, sortKey) == 10);
+	static_assert(offsetof(MaterialInfo, textureAtlasRowCount) == 12);
 
 	union MaterialTextureDefInfo
 	{
@@ -2019,21 +2343,33 @@ namespace zonetool::s2
 		scr_string_t tagName;
 		ScriptableEventDef* events;
 		unsigned char eventCount;
-		char __pad0[7];
+		char __pad0;
+		unsigned short damageFlags;
+		char __pad1[2];
+		unsigned short maxHealth;
 	};
 	static_assert(sizeof(ScriptableStateDef) == 0x18);
+	static_assert(offsetof(ScriptableStateDef, damageFlags) == 18);
+
+	enum ScriptablePartFlags : unsigned char
+	{
+		SCRIPTABLE_PART_FLAG_SERVER_INSTANCE = 0x1,
+		SCRIPTABLE_PART_FLAG_SERVER_CONTROLLED = 0x4, 
+	};
 
 	struct ScriptablePartDef
 	{
 		ScriptableStateDef* states;
 		scr_string_t name;
 		unsigned char stateCount;
-		char __pad0[3];
+		unsigned char partFlags;
+		char __pad0[2];
 		unsigned char flagCount;
 		char __pad1[7];
 		unsigned char* flags;
 	};
 	static_assert(sizeof(ScriptablePartDef) == 0x20);
+	static_assert(offsetof(ScriptablePartDef, partFlags) == 13);
 	static_assert(offsetof(ScriptablePartDef, flagCount) == 16);
 
 	union ScriptableNotetrackDataUnion
@@ -2066,7 +2402,8 @@ namespace zonetool::s2
 		ScriptableNotetrackDef* notetracks;
 		char __pad0[6];
 		unsigned short partCount;
-		char __pad1[4];
+		unsigned short serverInstancePartCount;
+		unsigned short serverControlledPartCount;
 		unsigned char notetrackCount;
 		unsigned char eventStreamSize;
 		unsigned char flagsSize;
@@ -2079,6 +2416,7 @@ namespace zonetool::s2
 	};
 	static_assert(sizeof(ScriptableDef) == 0x50);
 	static_assert(offsetof(ScriptableDef, partCount) == 46);
+	static_assert(offsetof(ScriptableDef, serverInstancePartCount) == 48);
 	static_assert(offsetof(ScriptableDef, notetrackCount) == 52);
 	static_assert(offsetof(ScriptableDef, models) == 64);
 
@@ -2408,44 +2746,55 @@ namespace zonetool::s2
 		ScriptableDef* def;
 		unsigned char* flags;
 		ScriptableInstancePartState* partStates;
-		char __pad0[48];
+		float origin[3];
+		float angles[3];
+		float startOrigin[3];
+		float startAngles[3];
 		scr_string_t name;
-		char __pad1[6];
+		char __pad0[6];
 		unsigned char partStateCount;
-		char __pad2[5];
+		char __pad1[5];
 		char (*partRuntime)[4];
 		unsigned char* eventStreamBuffer;
-		char __pad3[67];
+		char __pad2[56];
+		unsigned short updateNextInstance;
+		char __pad3[4];
+		short currentModelIndex;
+		char __pad4[3];
 		unsigned char linkedObjectCount;
-		char __pad4[4];
+		char __pad5[4];
 		unsigned char* modelTagRuntime;
 		unsigned short* partStreams;
 		unsigned short* linkedObjects;
 	};
 	static_assert(sizeof(ScriptableInstance) == 200);
+	static_assert(offsetof(ScriptableInstance, origin) == 24);
 	static_assert(offsetof(ScriptableInstance, name) == 72);
+	static_assert(offsetof(ScriptableInstance, updateNextInstance) == 160);
+	static_assert(offsetof(ScriptableInstance, currentModelIndex) == 166);
 	static_assert(offsetof(ScriptableInstance, partRuntime) == 88);
 	static_assert(offsetof(ScriptableInstance, partStateCount) == 82);
 	static_assert(offsetof(ScriptableInstance, linkedObjectCount) == 171);
 
-	struct ScriptableReservedDef
+	struct ScriptableAnimationEntry
 	{
-		const char* name;
-		void* runtime;
+		const char* animName;
+		void* runtimeBuf;
 	};
 
 	struct ScriptableMapEnts
 	{
-		unsigned int __pad0;
+		unsigned int instanceStateSize;
 		unsigned int instanceCount;
-		char __pad1[8];
+		unsigned int reservedInstanceCount;
 		ScriptableInstance* instances;
-		unsigned int reservedDefCount;
-		char __pad2[4];
-		ScriptableReservedDef* reservedDefs;
-		char __pad3[8];
+		unsigned int animEntryCount;
+		ScriptableAnimationEntry* animEntries;
+		unsigned int replicatedInstanceCount;
 	};
 	static_assert(sizeof(ScriptableMapEnts) == 0x30);
+	static_assert(offsetof(ScriptableMapEnts, instances) == 16);
+	static_assert(offsetof(ScriptableMapEnts, animEntries) == 32);
 
 	struct MapEntsUnk344Entry
 	{
@@ -4952,6 +5301,7 @@ namespace zonetool::s2
 
 	enum StaticModelFlag : std::uint16_t
 	{
+		STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING = 0x40,
 		STATIC_MODEL_FLAG_VERTEXLIT_LIGHTING = 0x80,
 		STATIC_MODEL_FLAG_LIGHTMAP_LIGHTING = 0x100,
 	};

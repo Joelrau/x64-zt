@@ -137,6 +137,7 @@ namespace zonetool::h1::converter::s2
 		comworld::finish();
 		gfxworld::finish();
 		clipmap::finish();
+		gfximage::finish();
 		comworld::clear();
 		write_csv(zone_name);
 	}
@@ -189,6 +190,9 @@ namespace zonetool::convert::h1_s2
 			case source::ASSET_TYPE_MAP_ENTS:
 				target::mapents::dump(header_as<source::MapEnts>(header));
 				break;
+			case source::ASSET_TYPE_SCRIPTABLE:
+				target::scriptable::dump(header_as<source::ScriptableDef>(header));
+				break;
 			case source::ASSET_TYPE_PHYSWORLDMAP:
 				target::physworld::dump(header_as<source::PhysWorld>(header));
 				break;
@@ -218,6 +222,12 @@ namespace zonetool::convert::h1_s2
 		{
 			target::finish(zone_name);
 		}
+
+		std::vector<std::string> required_zones(const std::string& zone_name)
+		{
+			return {"code_post_gfx_mp", "patch_code_post_gfx_mp", "techsets_common_core_mp", "techsets_common_mp", "common_mp", "techsets_" + zone_name,
+				"patch_" + zone_name};
+		}
 	}
 
 	const converter& definition()
@@ -229,6 +239,7 @@ namespace zonetool::convert::h1_s2
 			.dump_asset = dump_asset,
 			.setup = setup,
 			.finish = finish,
+			.required_zones = required_zones,
 		};
 
 		return h1_s2;

@@ -1633,10 +1633,18 @@ namespace zonetool::h1
 		MTL_ARG_COUNT = 0x7,
 	};
 
+	enum MaterialShaderStage : unsigned char
+	{
+		MTL_SHADER_STAGE_VERTEX = 0x2,
+		MTL_SHADER_STAGE_HULL = 0x4,
+		MTL_SHADER_STAGE_DOMAIN = 0x8,
+		MTL_SHADER_STAGE_PIXEL = 0x10,
+	};
+
 	struct MaterialShaderArgument
 	{
 		unsigned char type;
-		unsigned char shader;
+		unsigned char shader; // MaterialShaderStage bits
 		unsigned short dest;
 		MaterialArgumentDef u;
 	}; assert_sizeof(MaterialShaderArgument, 0x10);
@@ -1686,6 +1694,7 @@ namespace zonetool::h1
 		CUSTOM_BUFFER_REGULAR_PATCH_FLAGS = 0x1000,
 		CUSTOM_BUFFER_UNKNOWN2000 = 0x2000,
 		CUSTOM_BUFFER_UNKNOWN4000 = 0x4000,
+		CUSTOM_BUFFER_SLF = 0x20000, // binds cb4 for the "slf" techsets
 	};
 
 	enum PrecompiledIndex : std::uint8_t

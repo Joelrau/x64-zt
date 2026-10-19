@@ -116,14 +116,15 @@ namespace zonetool::iw6
 		std::vector<std::unique_ptr<loaded_zone>> load_required_zones(const converter* converter, const std::filesystem::path& zone_path)
 		{
 			std::vector<std::unique_ptr<loaded_zone>> zones;
-			if (!converter)
+			if (!converter || !converter->required_zones)
 			{
 				return zones;
 			}
 
-			for (const auto& name : converter->required_zones)
+			const auto zone_name = zone_path.stem().string();
+			for (const auto& name : converter->required_zones(zone_name))
 			{
-				if (name == zone_path.stem().string())
+				if (name == zone_name)
 				{
 					continue;
 				}
@@ -131,11 +132,11 @@ namespace zonetool::iw6
 				const auto path = game_files::find_zone(name);
 				if (!path)
 				{
-					ZONETOOL_WARNING("Required zone \"%.*s\" not found", static_cast<int>(name.size()), name.data());
+					ZONETOOL_WARNING("Required zone \"%s\" not found", name.data());
 					continue;
 				}
 
-				ZONETOOL_INFO("Loading required zone \"%.*s\"...", static_cast<int>(name.size()), name.data());
+				ZONETOOL_INFO("Loading required zone \"%s\"...", name.data());
 				zones.emplace_back(load_zone(*path));
 			}
 

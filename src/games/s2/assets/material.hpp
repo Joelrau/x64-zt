@@ -17,7 +17,7 @@ namespace zonetool::s2
 		void prepare(zone_buffer* buf, zone_memory* mem) override;
 		void load_depending(zone_base* zone) override;
 		void write(zone_base* zone, zone_buffer* buf) override;
-		static void dump(Material* asset);
+		static void dump(Material* asset, const material_state* states = nullptr);
 
 	private:
 		material_state* states_{};

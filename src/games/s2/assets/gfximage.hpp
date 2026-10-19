@@ -6,6 +6,8 @@ namespace zonetool::s2
 
 	constexpr std::size_t image_stream_count = 4;
 
+	void dump_image_stream(const GfxImage* image, std::size_t stream, std::string_view pixels);
+
 	class gfx_image : public asset_base<GfxImage, ASSET_TYPE_IMAGE>
 	{
 	public:
@@ -37,10 +39,17 @@ namespace zonetool::s2
 
 		std::span<const XStreamFileKey> stream_keys() const;
 
+		const std::array<std::optional<std::string>, image_stream_count>& stream_pixel_paths() const
+		{
+			return this->stream_pixel_paths_;
+		}
+
 	private:
 		GfxImage* parse_custom(const std::string& name, zone_memory* mem);
+		void find_stream_pixels(const GfxImage* asset);
 
 		std::array<XStreamFileKey, image_stream_count> parsed_stream_keys_{};
+		std::array<std::optional<std::string>, image_stream_count> stream_pixel_paths_{};
 		bool has_parsed_stream_keys_ = false;
 	};
 

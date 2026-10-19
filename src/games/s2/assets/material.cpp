@@ -268,7 +268,7 @@ namespace zonetool::s2
 		buf->pop_stream();
 	}
 
-	void material::dump(Material* asset)
+	void material::dump(Material* asset, const material_state* states)
 	{
 		assetmanager::dumper write;
 		if (!write.open(dump_path(ASSET_TYPE_MATERIAL, asset->name)))
@@ -298,9 +298,11 @@ namespace zonetool::s2
 				entry.blendState = 0;
 			}
 
-			auto states = get_states(asset);
+			const auto resolved_states = states
+				? std::vector<material_state>(states, states + asset->stateBitsCount)
+				: get_states(asset);
 			write.dump_array(state_bits.data(), asset->stateBitsCount);
-			write.dump_array(states.data(), asset->stateBitsCount);
+			write.dump_array(resolved_states.data(), asset->stateBitsCount);
 		}
 		else
 		{

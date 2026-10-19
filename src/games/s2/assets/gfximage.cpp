@@ -98,8 +98,28 @@ namespace zonetool::s2
 			return entries;
 		}
 
+		std::optional<image_stream_location> find_fastfile_stream(const XStreamFileLocation& location)
+		{
+			if (!location.size || location.fileIndex != XStreamFileLocation::fastfile_index)
+			{
+				return {};
+			}
+
+			return image_stream_location
+			{
+				.pak = filesystem::get_zone_folder() + filesystem::get_fastfile() + ".ff",
+				.offset = location.offset,
+				.size = location.size,
+			};
+		}
+
 		std::optional<image_stream_location> find_image_stream(const XStreamFileKey& key)
 		{
+			if (key.slot != XStreamFileKey::unresolved_slot)
+			{
+				return find_fastfile_stream(std::bit_cast<XStreamFileLocation>(key));
+			}
+
 			const auto& entries = image_stream_entries();
 			const auto entry = entries.find(key.hash);
 			if (entry == entries.end() || key.index >= std::size(entry->second.entry.streams))
@@ -124,11 +144,6 @@ namespace zonetool::s2
 
 	std::optional<std::string> read_image_stream(const XStreamFileKey& key)
 	{
-		if (!key.hash)
-		{
-			return {};
-		}
-
 		const auto location = find_image_stream(key);
 		if (!location)
 		{
@@ -304,6 +319,19 @@ namespace zonetool::s2
 			return std::format("streamed_images\\{}_stream{}.pixels", clean_image_name(name), stream);
 		}
 
+		bool is_toc_stream(const XStreamFileKey& key)
+		{
+			return key.slot == XStreamFileKey::unresolved_slot;
+		}
+
+		bool has_fastfile_streams(const GfxImage* image)
+		{
+			return std::ranges::any_of(get_image_stream_keys(image), [](const XStreamFileKey& key)
+			{
+				return !is_toc_stream(key) && find_fastfile_stream(std::bit_cast<XStreamFileLocation>(key));
+			});
+		}
+
 		bool save_dds(const std::string& relative_path, const DirectX::Image* images, const std::size_t count, const DirectX::TexMetadata& metadata)
 		{
 			const auto full_path = filesystem::get_dump_path() + relative_path;
@@ -388,7 +416,7 @@ namespace zonetool::s2
 
 				if (!dump_dds)
 				{
-					utils::io::write_file(filesystem::get_dump_path() + streamed_image_path(image->name, i), *pixels, false);
+					dump_image_stream(image, i, *pixels);
 					continue;
 				}
 
@@ -450,6 +478,11 @@ namespace zonetool::s2
 		}
 	}
 
+	void dump_image_stream(const GfxImage* image, const std::size_t stream, const std::string_view pixels)
+	{
+		utils::io::write_file(filesystem::get_dump_path() + streamed_image_path(image->name, stream), std::string(pixels), false);
+	}
+
 	GfxImage* gfx_image::parse_custom(const std::string& name, zone_memory* mem)
 	{
 		const auto source = load_image_file(name);
@@ -486,6 +519,7 @@ namespace zonetool::s2
 					key = *read.read_single<XStreamFileKey>();
 				}
 				this->has_parsed_stream_keys_ = true;
+				this->find_stream_pixels(asset);
 			}
 			read.close();
 
@@ -494,6 +528,28 @@ namespace zonetool::s2
 		}
 
 		return this->parse_custom(name, mem);
+	}
+
+	void gfx_image::find_stream_pixels(const GfxImage* asset)
+	{
+		for (auto i = 0u; i < image_stream_count; i++)
+		{
+			if (!asset->streams[i].width || is_toc_stream(this->parsed_stream_keys_[i]))
+			{
+				continue;
+			}
+
+			this->parsed_stream_keys_[i] = {};
+
+			const auto path = streamed_image_path(asset->name, i);
+			if (!filesystem::file(path).exists())
+			{
+				ZONETOOL_WARNING("Stream %u of image \"%s\" has no \"%s\"", i, asset->name, path.data());
+				continue;
+			}
+
+			this->stream_pixel_paths_[i] = filesystem::get_file_path(path) + path;
+		}
 	}
 
 	std::span<const XStreamFileKey> gfx_image::stream_keys() const
@@ -547,9 +603,10 @@ namespace zonetool::s2
 	void gfx_image::dump(GfxImage* asset)
 	{
 		const auto streamed = is_streamed_image(asset);
-		const auto dump_streams = utils::flags::has_flag("dump_streamed_image");
+		const auto dump_dds = utils::flags::has_flag("dds");
+		const auto dump_pixels = streamed && (has_fastfile_streams(asset) || (!dump_dds && utils::flags::has_flag("dump_streamed_image")));
 
-		if (utils::flags::has_flag("dds"))
+		if (dump_dds)
 		{
 			if (streamed)
 			{
@@ -560,7 +617,8 @@ namespace zonetool::s2
 				dump_loaded_image_dds(asset);
 			}
 		}
-		else if (streamed && dump_streams)
+
+		if (dump_pixels)
 		{
 			dump_streamed_image_pixels(asset, false);
 		}

@@ -36,9 +36,16 @@ namespace zonetool::xfile
 		std::string payload;
 	};
 
+	struct stream_source
+	{
+		std::size_t key_index;
+		std::filesystem::path path;
+	};
+
 	fastfile read(const std::filesystem::path& path, const format& format);
 
-	std::string write_s2(const format& format, const fastfile& file, std::string_view payload);
+	void write_s2(const std::filesystem::path& path, const format& format, fastfile& file, std::string_view payload,
+		std::span<const stream_source> streams);
 
 	std::string decompress_s2_stream(std::string_view data);
 }

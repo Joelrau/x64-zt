@@ -34,6 +34,9 @@ games = {
 		s1_s2 = function()
 			games.dependencies.h1()
 		end,
+		h1_s2 = function()
+			dependencies.use(shader_tool)
+		end,
 		h2_h1 = function()
 			dependencies.use(shader_tool)
 		end,

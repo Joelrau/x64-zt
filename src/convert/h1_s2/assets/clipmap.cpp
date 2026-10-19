@@ -103,17 +103,6 @@ namespace zonetool::h1::converter::s2::clipmap
 				return result;
 			}
 
-			static zonetool::s2::DynEntityType convert_dyn_ent_type(const DynEntityType type)
-			{
-				// scriptable dynents index the scriptable instances of the map (0x140678250)
-				if (type == DYNENT_TYPE_SCRIPTABLEINST || type == DYNENT_TYPE_SCRIPTABLEPHYSICS)
-				{
-					return zonetool::s2::DYNENT_TYPE_CLUTTER;
-				}
-
-				return static_cast<zonetool::s2::DynEntityType>(type);
-			}
-
 			void convert_dyn_ents(zonetool::s2::clipMap_t* new_asset)
 			{
 				for (auto i = 0; i < 2; i++)
@@ -130,7 +119,7 @@ namespace zonetool::h1::converter::s2::clipmap
 					{
 						const auto& def = this->asset->dynEntDefList[i][j];
 						auto& new_def = defs[j];
-						new_def.type = convert_dyn_ent_type(def.type);
+						new_def.type = static_cast<zonetool::s2::DynEntityType>(def.type); // the scriptable types index the scriptable instances that mapents converts
 						new_def.pose = std::bit_cast<zonetool::s2::GfxPlacement>(def.pose);
 						new_def.xModel = reinterpret_cast<zonetool::s2::XModel*>(def.baseModel);
 						new_def.brushModel = def.brushModel;

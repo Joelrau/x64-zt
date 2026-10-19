@@ -391,11 +391,11 @@ namespace zonetool::s2
 				read_scriptable_instance(reader, &instances[i]);
 			}
 		}
-		if (const auto reserved = reader.read_array(scriptable->reservedDefs, 7, scriptable->reservedDefCount))
+		if (const auto entries = reader.read_array(scriptable->animEntries, 7, scriptable->animEntryCount))
 		{
-			for (auto i = 0u; i < scriptable->reservedDefCount; i++)
+			for (auto i = 0u; i < scriptable->animEntryCount; i++)
 			{
-				reader.read_string(reserved[i].name);
+				reader.read_string(entries[i].animName);
 			}
 		}
 
@@ -449,11 +449,11 @@ namespace zonetool::s2
 				parse_scriptable_instance(read, mem, &instances[i]);
 			}
 		}
-		if (const auto reserved = parse_array(read, mem, scriptable->reservedDefs, scriptable->reservedDefCount))
+		if (const auto entries = parse_array(read, mem, scriptable->animEntries, scriptable->animEntryCount))
 		{
-			for (auto i = 0u; i < scriptable->reservedDefCount; i++)
+			for (auto i = 0u; i < scriptable->animEntryCount; i++)
 			{
-				reserved[i].name = read.read_string();
+				entries[i].animName = read.read_string();
 			}
 		}
 
@@ -537,11 +537,11 @@ namespace zonetool::s2
 				write_scriptable_instance(zone, buf, &scriptable->instances[i], &dest_instances[i]);
 			}
 		}
-		if (const auto dest_reserved = write_array(buf, 7, scriptable->reservedDefs, scriptable->reservedDefCount, dest_scriptable->reservedDefs))
+		if (const auto dest_entries = write_array(buf, 7, scriptable->animEntries, scriptable->animEntryCount, dest_scriptable->animEntries))
 		{
-			for (auto i = 0u; i < scriptable->reservedDefCount; i++)
+			for (auto i = 0u; i < scriptable->animEntryCount; i++)
 			{
-				write_string(buf, scriptable->reservedDefs[i].name, dest_reserved[i].name);
+				write_string(buf, scriptable->animEntries[i].animName, dest_entries[i].animName);
 			}
 		}
 
@@ -583,10 +583,10 @@ namespace zonetool::s2
 		{
 			dump_scriptable_instance(write, &scriptable->instances[i]);
 		}
-		write.dump_array(scriptable->reservedDefs, scriptable->reservedDefCount);
-		for (auto i = 0u; scriptable->reservedDefs && i < scriptable->reservedDefCount; i++)
+		write.dump_array(scriptable->animEntries, scriptable->animEntryCount);
+		for (auto i = 0u; scriptable->animEntries && i < scriptable->animEntryCount; i++)
 		{
-			write.dump_string(scriptable->reservedDefs[i].name);
+			write.dump_string(scriptable->animEntries[i].animName);
 		}
 
 		write.dump_array(asset->unk344.entries, asset->unk344.count);

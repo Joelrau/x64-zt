@@ -2,6 +2,7 @@
 
 #include "../include.hpp"
 #include "mapents.hpp"
+#include "scriptable.hpp"
 #include "techset.hpp"
 
 #include <utils/compression.hpp>
@@ -13,10 +14,15 @@ namespace zonetool::h1::converter::s2::mapents
 {
 	namespace
 	{
-		const xsk::gsc::h1::context& h1_context()
+		xsk::gsc::h1::context& h1_context()
 		{
-			static const xsk::gsc::h1::context context{xsk::gsc::instance::server};
-			return context;
+			static auto context = []
+			{
+				auto result = std::make_unique<xsk::gsc::h1::context>(xsk::gsc::instance::server);
+				result->init(xsk::gsc::build::prod, {});
+				return result;
+			}();
+			return *context;
 		}
 
 		xsk::gsc::s2::context& s2_context()
@@ -167,6 +173,12 @@ namespace zonetool::h1::converter::s2::mapents
 
 			new_asset->splineList.splineCount = asset->splineList.splineCount;
 			new_asset->splineList.splines = reinterpret_cast<zonetool::s2::SplinePointRecordList*>(asset->splineList.splines);
+
+			if (const auto* clip_map = zonetool::h1::db_find_x_asset_header_safe(ASSET_TYPE_CLIPMAP, asset->name).clipMap)
+			{
+				new_asset->scriptableMapEnts = scriptable::convert_map_ents(clip_map->scriptableMapEnts, allocator);
+			}
+			
 			return new_asset;
 		}
 
@@ -175,13 +187,50 @@ namespace zonetool::h1::converter::s2::mapents
 			return ents_name.substr(0, ents_name.find(".d3dbsp"));
 		}
 
+		std::string find_minimap_material(const std::string& script_name)
+		{
+			const auto* script = zonetool::h1::db_find_x_asset_header_safe(ASSET_TYPE_SCRIPTFILE, script_name).scriptfile;
+			if (!script || !script->buffer || !script->bytecode)
+			{
+				return {};
+			}
+
+			const auto stack = utils::compression::zlib::decompress({script->buffer, static_cast<std::size_t>(script->compressedLen)});
+			const auto assembly = h1_context().disassembler().disassemble(
+				std::vector<std::uint8_t>{script->bytecode, script->bytecode + script->bytecodeLen},
+				std::vector<std::uint8_t>{stack.begin(), stack.end()});
+
+			for (const auto& function : assembly->functions)
+			{
+				for (const auto& instruction : function->instructions)
+				{
+					if (instruction->opcode == xsk::gsc::opcode::OP_GetString && instruction->data[0].starts_with("compass_map_"))
+					{
+						return instruction->data[0];
+					}
+				}
+			}
+
+			return {};
+		}
+
 		void dump_map_script(const std::string& script_name)
 		{
 			std::string source =
 				"main()\n"
 				"{\n"
-				"\t_id_483::main();\n"
-				"}\n";
+				"\t_id_483::main();\n";
+
+			if (const auto minimap = find_minimap_material(script_name); !minimap.empty())
+			{
+				source += "\t_id_472::_id_8A2F(\"" + minimap + "\");\n"; // setupminimap
+			}
+			else
+			{
+				ZONETOOL_WARNING("script \"%s\" sets no minimap, the compass shows no map", script_name.data());
+			}
+
+			source += "}\n";
 
 			auto& context = s2_context();
 			static auto initialized = false;
@@ -224,6 +273,187 @@ namespace zonetool::h1::converter::s2::mapents
 			}
 		}
 
+		std::string read_rawfile(const RawFile& asset)
+		{
+			if (!asset.compressedLen)
+			{
+				return {asset.buffer, static_cast<std::size_t>(asset.len)};
+			}
+
+			return utils::compression::zlib::decompress({asset.buffer, static_cast<std::size_t>(asset.compressedLen)});
+		}
+
+		constexpr std::string_view s2_fog_keys = // sub_1403D9200 does not reset these, so a missing key keeps the value of the last fog file
+			"\n\tent.atmosFogEntityScale = 1;"
+			"\n\tent.atmosFogSplineEnabled = 0;";
+
+		void dump_fog(const std::string& map_name)
+		{
+			const auto name = "maps/createart/" + map_name + "_fog_hdr.gsc";
+			const auto* fog = zonetool::h1::db_find_x_asset_header_safe(ASSET_TYPE_RAWFILE, name).rawfile;
+			if (!fog || !fog->buffer)
+			{
+				ZONETOOL_WARNING("rawfile \"%s\" not found, the map has no fog", name.data());
+				return;
+			}
+
+			constexpr std::string_view fog_entry = "create_vision_set_fog(";
+			auto text = read_rawfile(*fog);
+			for (auto entry = text.find(fog_entry); entry != std::string::npos; entry = text.find(fog_entry, entry))
+			{
+				const auto line_end = text.find(';', entry);
+				if (line_end == std::string::npos)
+				{
+					break;
+				}
+
+				text.insert(line_end + 1, s2_fog_keys);
+				entry = line_end + 1 + s2_fog_keys.size();
+			}
+
+			zonetool::s2::RawFile asset{name.data(), 0, static_cast<int>(text.size()), text.data()};
+			zonetool::s2::rawfile::dump(&asset);
+			add_csv_row("rawfile", asset.name);
+		}
+
+		struct lightset_value
+		{
+			const char* key;
+			const char* value;
+		};
+
+		constexpr lightset_value h1_lightset[] = // H1 MP maps ship no lightsets table, so H1 uses the registration defaults of these dvars (sub_69AD0)
+		{
+			{"sunenable", "1"},
+			{"sunshadowscale", "1"},
+			{"spotupdatelimit", "4"},
+			{"usedsuncascadecount", "2"},
+			{"sunsamplesizenear", "0.25"},
+			{"sunfilterradius", "4"},
+			{"spotfilterradius", "4"},
+			{"veil", "0"},
+			{"veilstrength", "0.087"},
+			{"veilbackgroundstrength", "0.913"},
+			{"tonemap", "3"},
+			{"tonemapauto", "1"},
+			{"tonemapblend", "1"},
+			{"tonemaplockautoexposureadjust", "1"},
+			{"tonemapautoexposureadjust", "0"},
+			{"tonemapexposure", "10"},
+			{"tonemapexposureadjust", "0"},
+			{"tonemapmaxexposure", "-10"},
+			{"tonemapadaptspeed", "0.02"},
+			{"tonemapdarkev", "2.84"},
+			{"tonemapmidev", "7.823"},
+			{"tonemaplightev", "12.81"},
+			{"tonemapdarkexposureadjust", "-3.17"},
+			{"tonemapmidexposureadjust", "-0.0651"},
+			{"tonemaplightexposureadjust", "1.47"},
+			{"tonemapminexposureadjust", "-3.17"},
+			{"tonemapmaxexposureadjust", "2.3"},
+			{"tonemapwhite", "512"},
+			{"tonemapshoulder", "0.95"},
+			{"tonemapcrossover", "2"},
+			{"tonemaptoe", "0.2"},
+			{"tonemapblack", "0"},
+			{"hemiaostrength", "0.5"},
+			{"hemiaopower", "1"},
+			{"hemiaorejectionfalloff", "0.5"},
+			{"mdao", "0"},
+			{"mdaooccluderculldistance", "1000"},
+			{"mdaooccluderfadeoutstartdistance", "900"},
+			{"mdaocapsulestrength", "1"},
+			{"mdaovolumestrength", "1"},
+			{"wbMethod", "0"}, // H1 has no white balance, and the S2 default method shifts the colors
+		};
+
+		void dump_lightsets(const std::string& map_name)
+		{
+			utils::memory::allocator allocator;
+			const auto name = "maps/createart/" + map_name + "_lightsets_hdr.csv";
+
+			zonetool::s2::StringTable asset{};
+			asset.name = name.data();
+			asset.columnCount = 2;
+			asset.rowCount = 1 + static_cast<int>(std::size(h1_lightset));
+			asset.values = allocator.allocate_array<zonetool::s2::StringTableCell>(asset.rowCount * asset.columnCount);
+			asset.values[0].string = "name";
+			asset.values[1].string = map_name.data();
+			for (auto i = 0u; i < std::size(h1_lightset); i++)
+			{
+				asset.values[2 + i * 2].string = h1_lightset[i].key;
+				asset.values[3 + i * 2].string = h1_lightset[i].value;
+			}
+
+			zonetool::s2::string_table::dump(&asset);
+			add_csv_row("stringtable", asset.name);
+		}
+
+		const std::unordered_map<std::string, std::string> s2_sun_dvars = // S2 sun files name each dvar by its id in the S2 exe
+		{
+			{"r_sunsprite_shader", "4843"},
+			{"r_sunsprite_size", "4337"},
+			{"r_sunflare_shader", "5654"},
+			{"r_sunflare_min_size", "2938"},
+			{"r_sunflare_min_angle", "1834"},
+			{"r_sunflare_max_size", "89"},
+			{"r_sunflare_max_angle", "3627"},
+			{"r_sunflare_max_alpha", "2957"},
+			{"r_sunflare_fadein", "371"},
+			{"r_sunflare_fadeout", "1615"},
+			{"r_sunblind_min_angle", "5397"},
+			{"r_sunblind_max_angle", "3858"},
+			{"r_sunblind_max_darken", "1590"},
+			{"r_sunblind_fadein", "4939"},
+			{"r_sunblind_fadeout", "407"},
+			{"r_sunglare_min_angle", "3682"},
+			{"r_sunglare_max_angle", "970"},
+			{"r_sunglare_max_lighten", "4772"},
+			{"r_sunglare_fadein", "3538"},
+			{"r_sunglare_fadeout", "438"},
+			{"r_sun_fx_position", "3196"},
+		};
+
+		void dump_sun(const std::string& map_name)
+		{
+			const auto name = "sun/" + map_name + ".sun";
+			const auto* sun = zonetool::h1::db_find_x_asset_header_safe(ASSET_TYPE_RAWFILE, name).rawfile;
+			if (!sun || !sun->buffer)
+			{
+				ZONETOOL_WARNING("rawfile \"%s\" not found, the map has no sun sprite", name.data());
+				return;
+			}
+
+			std::string text;
+			for (auto line : utils::string::split(read_rawfile(*sun), '\n'))
+			{
+				if (line.ends_with('\r'))
+				{
+					line.pop_back();
+				}
+
+				const auto separator = line.find(' ');
+				const auto dvar = line.substr(0, separator);
+				if (dvar.empty())
+				{
+					continue;
+				}
+
+				const auto id = s2_sun_dvars.find(dvar);
+				if (id == s2_sun_dvars.end() || separator == std::string::npos)
+				{
+					ZONETOOL_WARNING("sun file \"%s\": S2 does not know dvar \"%s\", dropping it", name.data(), dvar.data());
+					continue;
+				}
+
+				text += id->second + line.substr(separator) + "\n";
+			}
+
+			zonetool::s2::RawFile asset{name.data(), 0, static_cast<int>(text.size()), text.data()};
+			zonetool::s2::rawfile::dump(&asset);
+			add_csv_row("rawfile", asset.name);
+		}
+
 		void dump_donor_map_settings(const std::string& map_name)
 		{
 			utils::memory::allocator allocator;
@@ -237,38 +467,12 @@ namespace zonetool::h1::converter::s2::mapents
 			for (const auto header : zone.find_assets(zonetool::s2::ASSET_TYPE_RAWFILE))
 			{
 				auto asset = *static_cast<zonetool::s2::RawFile*>(header);
-				const std::string_view name = asset.name;
-				if (name.starts_with("sun/" + donor_name) || name.starts_with("vision/" + donor_name))
+				if (std::string_view(asset.name).starts_with("vision/" + donor_name))
 				{
 					asset.name = rename(asset.name);
 					zonetool::s2::rawfile::dump(&asset);
 					add_csv_row("rawfile", asset.name);
 				}
-			}
-
-			for (const auto header : zone.find_assets(zonetool::s2::ASSET_TYPE_STRINGTABLE))
-			{
-				auto asset = *static_cast<zonetool::s2::StringTable*>(header);
-				if (asset.name != "maps/createart/" + donor_name + "_lightsets_hdr.csv")
-				{
-					continue;
-				}
-
-				const auto count = asset.rowCount * asset.columnCount;
-				const auto values = allocator.allocate_array<zonetool::s2::StringTableCell>(count);
-				for (auto i = 0; i < count; i++)
-				{
-					values[i] = asset.values[i];
-					if (values[i].string)
-					{
-						values[i].string = rename(values[i].string);
-					}
-				}
-
-				asset.name = rename(asset.name);
-				asset.values = values;
-				zonetool::s2::string_table::dump(&asset);
-				add_csv_row("stringtable", asset.name);
 			}
 
 			for (const auto header : zone.find_assets(zonetool::s2::ASSET_TYPE_CLUT))
@@ -330,6 +534,10 @@ namespace zonetool::h1::converter::s2::mapents
 		dump_level_net_const_strings();
 
 		// TODO remove this and port actual values, this is meme
-		dump_donor_map_settings(std::filesystem::path(script_name).filename().string());
+		const auto map_name = std::filesystem::path(script_name).filename().string();
+		dump_donor_map_settings(map_name);
+		dump_lightsets(map_name);
+		dump_sun(map_name);
+		dump_fog(map_name);
 	}
 }

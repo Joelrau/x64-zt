@@ -15,6 +15,7 @@ namespace zonetool::h1::converter::s2::techset
 		zonetool::s2::MaterialTechniqueSet* find_techset(const std::string& techset) const;
 		bool is_global_techset(const std::string& techset) const;
 		bool is_global_image(const std::string& image) const;
+		bool is_global_asset(const void* header) const;
 		std::vector<std::string> donor_techsets() const;
 		zonetool::s2::XModelBase* model_base_donor() const;
 		void* find_asset(zonetool::s2::XAssetType type) const;
@@ -28,11 +29,19 @@ namespace zonetool::h1::converter::s2::techset
 		std::unordered_map<std::string, zonetool::s2::MaterialTechniqueSet*> techsets_;
 		std::unordered_set<std::string> global_techsets_;
 		std::unordered_set<std::string> global_images_;
+		std::unordered_set<const void*> global_assets_;
 		zonetool::s2::XModelBase* model_base_donor_{};
 		std::unordered_map<std::int32_t, std::vector<void*>> assets_;
 	};
 
+	struct native_techset
+	{
+		zonetool::s2::MaterialTechniqueSet* techset;
+		std::array<std::int32_t, zonetool::s2::technique_count> sources;
+	};
+
 	const s2_zone& donor_zone();
 	std::string select(const std::string& h1_techset);
+	const native_techset* convert_native(const std::string& h1_techset);
 	void dump(zonetool::s2::MaterialTechniqueSet* asset);
 }

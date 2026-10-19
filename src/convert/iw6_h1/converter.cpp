@@ -198,24 +198,22 @@ namespace zonetool::convert::iw6_h1
 			zonetool::iw6::converter::h1::net_const_strings::add_missing_level_strings();
 			zonetool::iw6::converter::h1::append_csv_rows(zone_name);
 		}
+
+		std::vector<std::string> required_zones(const std::string&)
+		{
+			return {"code_post_gfx_mp", "techsets_code_post_gfx_mp", "techsets_common_core_mp"};
+		}
 	}
 
 	const converter& definition()
 	{
-		static constexpr std::array<std::string_view, 3> shader_zones
-		{
-			"code_post_gfx_mp",
-			"techsets_code_post_gfx_mp",
-			"techsets_common_core_mp",
-		};
-
 		static const converter iw6_h1
 		{
 			.source = "iw6",
 			.target = "h1",
 			.dump_asset = dump_asset,
 			.finish = finish,
-			.required_zones = shader_zones,
+			.required_zones = required_zones,
 		};
 
 		return iw6_h1;

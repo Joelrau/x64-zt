@@ -76,7 +76,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 				return nullptr;
 			}
 
-			if (!gfximage::is_dumped(image->name))
+			if (!gfximage::dump_used(image->name))
 			{
 				ZONETOOL_WARNING("GfxWorld image \"%s\" is not converted", image->name);
 			}
@@ -246,9 +246,11 @@ namespace zonetool::h1::converter::s2::gfxworld
 			draw.reflectionProbeReferenceOrigins = retype<zonetool::s2::GfxReflectionProbeReferenceOrigin>(source.reflectionProbeReferenceOrigins);
 			draw.reflectionProbeReferences = retype<zonetool::s2::GfxReflectionProbeReference>(source.reflectionProbeReferences);
 
-			draw.fogSplineCount = 0;
-			draw.fogSplineImages = nullptr;
-			draw.fogSplineInfo = nullptr;
+			const auto fog_spline = gfximage::dump_fog_spline("*fog_spline0");
+			draw.fogSplineCount = 1; // fogSplineImages[0] 0x1402044C0
+			draw.fogSplineImages = allocator.allocate_array<zonetool::s2::GfxImage*>(1);
+			draw.fogSplineImages[0] = static_cast<zonetool::s2::GfxImage*>(name_stub(allocator.duplicate_string(fog_spline), allocator));
+			draw.fogSplineInfo = allocator.allocate_array<char[116]>(1); // stock spline 0 info is all zero
 
 			const auto lightmap_count = static_cast<unsigned int>(std::max(source.lightmapCount, 0));
 			draw.lightmapOverrideCount = lightmap_count;
@@ -383,6 +385,11 @@ namespace zonetool::h1::converter::s2::gfxworld
 			dpvs.sortedSurfIndex = source.sortedSurfIndex;
 		}
 
+		bool has_vertex_lighting(const GfxStaticModelDrawInst& inst, const GfxStaticModelLighting& lighting)
+		{
+			return (inst.flags & STATIC_MODEL_FLAG_VERTEXLIT_LIGHTING) && lighting.vertexLightingInfo.lightingValues;
+		}
+
 		void convert_static_models(GfxWorld* asset, zonetool::s2::GfxWorldDpvsStatic& dpvs, const light_lists& lists, utils::memory::allocator& allocator)
 		{
 			const auto& source = asset->dpvs;
@@ -404,7 +411,10 @@ namespace zonetool::h1::converter::s2::gfxworld
 				new_inst.placement = std::bit_cast<zonetool::s2::GfxPackedPlacement>(inst.placement);
 				std::ranges::fill(new_inst.unk_0x34, inst.placement.scale);
 				new_inst.model = asset_reference<zonetool::s2::XModel>(inst.model);
-				new_inst.flags = 0x240 | (inst.flags & STATIC_MODEL_FLAG_NO_CAST_SHADOW); // default S2 static model flags
+				const auto lighting_flag = has_vertex_lighting(inst, source.smodelLightingInsts[i])
+					? zonetool::s2::STATIC_MODEL_FLAG_VERTEXLIT_LIGHTING
+					: zonetool::s2::STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING;
+				new_inst.flags = 0x200 | lighting_flag | (inst.flags & STATIC_MODEL_FLAG_NO_CAST_SHADOW); // 0x200 comes from stock zones
 				new_inst.staticModelId = inst.staticModelId;
 				new_inst.lightListOffset = lists.offset(inst.primaryLightEnvIndex);
 				const auto& half_size = smodel_bounds(source.smodelInsts[i]).halfSize;
@@ -418,7 +428,17 @@ namespace zonetool::h1::converter::s2::gfxworld
 			dpvs.smodelLightingInsts = allocator.allocate_array<zonetool::s2::GfxStaticModelLighting>(count);
 			for (auto i = 0u; i < count; i++)
 			{
-				dpvs.smodelLightingInsts[i].lightGridInfo.slot = i;
+				auto& lighting = dpvs.smodelLightingInsts[i];
+				if (has_vertex_lighting(source.smodelDrawInsts[i], source.smodelLightingInsts[i]))
+				{
+					const auto& vertex_lighting = source.smodelLightingInsts[i].vertexLightingInfo;
+					lighting.vertexLightingInfo.lightingValues = retype<zonetool::s2::GfxStaticModelVertexLighting>(vertex_lighting.lightingValues);
+					lighting.vertexLightingInfo.numLightingValues = vertex_lighting.numLightingValues;
+				}
+				else
+				{
+					lighting.lightGridInfo.slot = i;
+				}
 			}
 			dpvs.sortedSmodelIndices = allocator.allocate_array<unsigned short>(count);
 		}
@@ -621,6 +641,18 @@ namespace zonetool::h1::converter::s2::gfxworld
 				return this->nearest(base);
 			}
 
+			std::optional<std::array<float, light_grid::probe_sh_count + 1>> baked(const GfxStaticModelAmbientLightingInfo& lighting)
+			{
+				if (lighting.colorIndex >= this->grid_.paletteEntryCount || lighting.colorIndex == this->grid_.missingGridColorIndex)
+				{
+					return {};
+				}
+
+				auto values = this->palette_values(lighting.colorIndex);
+				values.back() = lighting.primaryLightWeight;
+				return values;
+			}
+
 		private:
 			const GfxLightGrid& grid_;
 			light_grid::tree_view tree_;
@@ -815,6 +847,12 @@ namespace zonetool::h1::converter::s2::gfxworld
 			return grid;
 		}
 
+				}
+			}
+
+			return sampler.sample(asset->dpvs.smodelInsts[index].lightingOrigin); // fallback only, the voxel at the lighting origin is often inside the ground
+		}
+
 		void convert_static_model_probes(GfxWorld* asset, zonetool::s2::GfxWorld& world, light_grid_sampler& sampler, utils::memory::allocator& allocator)
 		{
 			auto& data = world.probeData;
@@ -834,7 +872,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 				const auto& inst = asset->dpvs.smodelInsts[i];
 				grids[i] = make_single_probe_grid(i, smodel_bounds(inst));
 
-				samples[i] = sampler.sample(inst.lightingOrigin);
+				samples[i] = static_model_lighting(asset, sampler, i);
 				if (samples[i])
 				{
 					average.add(*samples[i]);

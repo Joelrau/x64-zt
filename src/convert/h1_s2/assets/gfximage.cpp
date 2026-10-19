@@ -60,6 +60,7 @@ namespace zonetool::h1::converter::s2::gfximage
 			DXGI_FORMAT_R32G32B32A32_UINT,
 		};
 
+		std::unordered_set<std::string> unused_images;
 		std::unordered_set<std::string> dumped_images;
 
 		std::string clean_name(std::string name)
@@ -105,6 +106,12 @@ namespace zonetool::h1::converter::s2::gfximage
 			std::size_t width;
 			std::size_t height;
 			std::size_t levels;
+		};
+
+		struct image_data
+		{
+			bool streamed;
+			std::vector<image_pixels> chains;
 		};
 
 		std::optional<std::string> read_stream(const XStreamFile& stream_file)
@@ -207,6 +214,57 @@ namespace zonetool::h1::converter::s2::gfximage
 			return {};
 		}
 
+		bool is_2d(const GfxImage* asset)
+		{
+			return asset->mapType == MAPTYPE_2D && asset->depth <= 1 && asset->numElements <= 1;
+		}
+
+		std::vector<image_pixels> read_streams(const GfxImage* asset)
+		{
+			const auto format = static_cast<DXGI_FORMAT>(asset->imageFormat);
+			const auto files = get_image_stream_files(asset);
+
+			std::vector<image_pixels> streams;
+			std::size_t level_count{};
+			for (auto i = 0u; i < std::min(files.size(), std::size(asset->streams)) && asset->streams[i].width; i++)
+			{
+				const auto& stream = asset->streams[i];
+				const auto stream_level_count = static_cast<std::size_t>(stream.levelCountAndSize.levelCount);
+				auto data = read_stream(files[i]);
+				if (!data || stream_level_count <= level_count
+					|| count_levels(format, stream.width, stream.height, data->size(), 1) < stream_level_count - level_count)
+				{
+					return {};
+				}
+
+				streams.push_back({std::move(*data), stream.width, stream.height, stream_level_count - level_count});
+				level_count = stream_level_count;
+			}
+
+			return streams;
+		}
+
+		std::optional<image_data> read_image(const GfxImage* asset)
+		{
+			if (asset->streamed && is_2d(asset))
+			{
+				if (auto streams = read_streams(asset); !streams.empty())
+				{
+					return image_data{true, std::move(streams)};
+				}
+			}
+
+			auto pixels = read_pixels(asset);
+			if (!pixels)
+			{
+				return {};
+			}
+
+			image_data result{false};
+			result.chains.push_back(std::move(*pixels));
+			return result;
+		}
+
 		template <typename Transform>
 		bool transform_levels(image_pixels& pixels, const DXGI_FORMAT source_format, const DXGI_FORMAT work_format,
 			const DXGI_FORMAT target_format, Transform&& transform)
@@ -290,16 +348,117 @@ namespace zonetool::h1::converter::s2::gfximage
 			});
 		}
 
-		bool is_2d(const GfxImage* asset)
+		template <typename Convert>
+		bool convert_chains(std::vector<image_pixels>& chains, Convert&& convert)
 		{
-			return asset->mapType == MAPTYPE_2D && asset->depth <= 1 && asset->numElements <= 1;
+			auto converted = chains;
+			if (!std::ranges::all_of(converted, convert))
+			{
+				return false;
+			}
+
+			chains = std::move(converted);
+			return true;
 		}
 
-		void dump_image(zonetool::s2::GfxImage* image, const std::string& pixels)
+		DXGI_FORMAT convert_pixels(const GfxImage* asset, std::vector<image_pixels>& chains)
+		{
+			const auto format = static_cast<DXGI_FORMAT>(asset->imageFormat);
+			if (asset->semantic == TS_NORMAL_MAP && format == DXGI_FORMAT_BC5_UNORM && is_2d(asset))
+			{
+				if (convert_chains(chains, [&](image_pixels& pixels) { return convert_normal_map(pixels, format); }))
+				{
+					return DXGI_FORMAT_BC5_SNORM;
+				}
+
+				ZONETOOL_WARNING("Failed to convert normal map \"%s\"", asset->name);
+			}
+			else if (asset->semantic == TS_SPECULAR_MAP && is_2d(asset))
+			{
+				if (convert_chains(chains, [&](image_pixels& pixels) { return convert_specular_map(pixels, format); }))
+				{
+					return DXGI_FORMAT_BC1_UNORM;
+				}
+
+				ZONETOOL_WARNING("Failed to convert specular map \"%s\"", asset->name);
+			}
+			else if (asset->semantic == TS_COLOR_MAP)
+			{
+				return srgb_format(format);
+			}
+
+			return format;
+		}
+
+		zonetool::s2::GfxImage convert_header(const GfxImage* asset, const image_pixels& pixels, const std::uint32_t format_index)
+		{
+			zonetool::s2::GfxImage image{};
+			image.imageFormat = static_cast<DXGI_FORMAT>(format_index);
+			image.width = static_cast<unsigned short>(pixels.width);
+			image.height = static_cast<unsigned short>(pixels.height);
+			image.depth = asset->depth;
+			image.numElements = asset->numElements;
+			image.mapType = static_cast<zonetool::s2::MapType>(asset->mapType);
+			image.semantic = convert_semantic(asset->semantic);
+			image.category = asset->category;
+			image.levelCount = static_cast<unsigned char>(pixels.levels);
+			image.picmip = asset->picmip.platform[0];
+			return image;
+		}
+
+		void dump_loaded_image(zonetool::s2::GfxImage* image, const std::string& pixels)
 		{
 			image->pixelData = reinterpret_cast<unsigned char*>(const_cast<char*>(pixels.data()));
 			image->dataLen1 = static_cast<unsigned int>(pixels.size());
 			zonetool::s2::gfx_image::dump(image);
+		}
+
+		void dump_streamed_image(const GfxImage* asset, const std::string& name, const std::vector<image_pixels>& streams, const std::uint32_t format_index)
+		{
+			zonetool::s2::GfxImage image{};
+			image.name = name.data();
+			image.imageFormat = static_cast<DXGI_FORMAT>(format_index);
+			image.width = 1;
+			image.height = 1;
+			image.depth = 1;
+			image.numElements = 1;
+			image.mapType = zonetool::s2::MAPTYPE_2D;
+			image.semantic = convert_semantic(asset->semantic);
+			image.category = asset->category;
+			image.levelCount = 1;
+			image.picmip = asset->picmip.platform[0];
+			image.streamed = 1;
+
+			std::size_t level_count{};
+			std::size_t pixel_size{};
+			for (auto i = 0u; i < streams.size(); i++)
+			{
+				level_count += streams[i].levels;
+				pixel_size += streams[i].data.size();
+
+				auto& stream = image.streams[i];
+				stream.width = static_cast<unsigned short>(streams[i].width);
+				stream.height = static_cast<unsigned short>(streams[i].height);
+				stream.levelCountAndSize.levelCount = static_cast<int>(level_count);
+				stream.levelCountAndSize.pixelSize = static_cast<int>(pixel_size);
+				zonetool::s2::dump_image_stream(&image, i, streams[i].data);
+			}
+
+			zonetool::s2::gfx_image::dump(&image);
+		}
+
+		void dump_converted_image(const GfxImage* asset, const std::string& name, const image_data& data, const std::uint32_t format_index)
+		{
+			if (data.streamed)
+			{
+				dump_streamed_image(asset, name, data.chains, format_index);
+				return;
+			}
+
+			const auto& pixels = data.chains.front();
+			auto image = convert_header(asset, pixels, format_index);
+			image.name = name.data();
+			dump_loaded_image(&image, pixels.data);
 		}
 
 		// S2 sky shaders read a 2D texture with uv = 0.5 + 0.5 * dir.xy / (len + |0.919831 * dir.z + 0.080169 * len|)
@@ -417,73 +576,92 @@ namespace zonetool::h1::converter::s2::gfximage
 			pixels.levels = compressed.GetMetadata().mipLevels;
 			return std::string{reinterpret_cast<const char*>(compressed.GetPixels()), compressed.GetPixelsSize()};
 		}
+
+		bool dump_zone_image(GfxImage* asset)
+		{
+			auto data = read_image(asset);
+			if (!data)
+			{
+				ZONETOOL_WARNING("Image \"%s\" has no pixel data", asset->name);
+				return false;
+			}
+
+			const auto format = convert_pixels(asset, data->chains);
+			const auto format_index = s2_format_index(format);
+			if (!format_index)
+			{
+				ZONETOOL_WARNING("Image \"%s\" has a format that S2 does not support (%d)", asset->name, format);
+				return false;
+			}
+
+			dump_converted_image(asset, asset->name, *data, *format_index);
+			dumped_images.insert(clean_name(asset->name));
+			add_csv_row("image", asset->name);
+			return true;
+		}
 	}
 
 	void dump(GfxImage* asset)
 	{
+		if (asset->name[0] != '$')
+		{
+			unused_images.emplace(asset->name);
+		}
+	}
+
+	std::optional<std::string> dump_used(const std::string& name)
+	{
+		if (dumped_images.contains(clean_name(name)))
+		{
+			return name;
+		}
+
+		unused_images.erase(name);
+		const auto asset = db_find_x_asset_header_safe(ASSET_TYPE_IMAGE, name).image; // the map zone or a required zone, common_mp holds the shared map images
+		if (!asset || !dump_zone_image(asset))
+		{
+			return {};
+		}
+
+		return name;
+	}
+
+	void finish()
+	{
+		if (!unused_images.empty())
+		{
+			ZONETOOL_INFO("Skipped %zu images that no converted asset uses", unused_images.size());
+		}
+
+		unused_images.clear();
+		dumped_images.clear();
+	}
+
+	std::optional<std::string> dump_native(GfxImage* asset)
+	{
 		if (asset->name[0] == '$')
 		{
-			return;
+			return asset->name;
 		}
 
-		auto pixels = read_pixels(asset);
-		if (!pixels)
+		const auto name = ::game::add_source_postfix(clean_name(asset->name), ::game::h1);
+		if (dumped_images.contains(name))
 		{
-			ZONETOOL_WARNING("Image \"%s\" has no pixel data", asset->name);
-			return;
+			return name;
 		}
 
-		auto format = static_cast<DXGI_FORMAT>(asset->imageFormat);
-		if (asset->semantic == TS_NORMAL_MAP && format == DXGI_FORMAT_BC5_UNORM && is_2d(asset))
+		const auto data = read_image(asset);
+		const auto format_index = s2_format_index(static_cast<DXGI_FORMAT>(asset->imageFormat));
+		if (!data || !format_index)
 		{
-			if (convert_normal_map(*pixels, format))
-			{
-				format = DXGI_FORMAT_BC5_SNORM;
-			}
-			else
-			{
-				ZONETOOL_WARNING("Failed to convert normal map \"%s\"", asset->name);
-			}
-		}
-		else if (asset->semantic == TS_SPECULAR_MAP && is_2d(asset))
-		{
-			if (convert_specular_map(*pixels, format))
-			{
-				format = DXGI_FORMAT_BC1_UNORM;
-			}
-			else
-			{
-				ZONETOOL_WARNING("Failed to convert specular map \"%s\"", asset->name);
-			}
-		}
-		else if (asset->semantic == TS_COLOR_MAP)
-		{
-			format = srgb_format(format);
+			ZONETOOL_WARNING("Image \"%s\" cannot keep its H1 encoding", asset->name);
+			return {};
 		}
 
-		const auto format_index = s2_format_index(format);
-		if (!format_index)
-		{
-			ZONETOOL_WARNING("Image \"%s\" has a format that S2 does not support (%d)", asset->name, format);
-			return;
-		}
-
-		zonetool::s2::GfxImage image{};
-		image.name = asset->name;
-		image.imageFormat = static_cast<DXGI_FORMAT>(*format_index);
-		image.width = static_cast<unsigned short>(pixels->width);
-		image.height = static_cast<unsigned short>(pixels->height);
-		image.depth = asset->depth;
-		image.numElements = asset->numElements;
-		image.mapType = static_cast<zonetool::s2::MapType>(asset->mapType);
-		image.semantic = convert_semantic(asset->semantic);
-		image.category = asset->category;
-		image.levelCount = static_cast<unsigned char>(pixels->levels);
-		image.picmip = asset->picmip.platform[0];
-
-		dump_image(&image, pixels->data);
-		dumped_images.insert(clean_name(asset->name));
-		add_csv_row("image", asset->name);
+		dump_converted_image(asset, name, *data, *format_index);
+		dumped_images.insert(name);
+		add_csv_row("image", name);
+		return name;
 	}
 
 	std::string dump_solid(const std::string& name, const std::uint8_t semantic, const std::array<std::uint8_t, 4>& color)
@@ -511,7 +689,35 @@ namespace zonetool::h1::converter::s2::gfximage
 		image.semantic = semantic;
 		image.levelCount = 1;
 
-		dump_image(&image, pixels);
+		dump_loaded_image(&image, pixels);
+		dumped_images.insert(name);
+		add_csv_row("image", name);
+		return name;
+	}
+
+	std::string dump_fog_spline(const std::string& name)
+	{
+		if (dumped_images.contains(name))
+		{
+			return name;
+		}
+
+		constexpr auto width = 128u;
+		const std::string pixels(width * sizeof(std::uint32_t), '\xFF'); // full visibility, like *fog_spline0 of stock maps
+
+		zonetool::s2::GfxImage image{};
+		image.name = name.data();
+		image.imageFormat = static_cast<DXGI_FORMAT>(*s2_format_index(DXGI_FORMAT_R10G10B10A2_UNORM));
+		image.width = width;
+		image.height = 1;
+		image.depth = 1;
+		image.numElements = 1;
+		image.mapType = zonetool::s2::MAPTYPE_2D;
+		image.semantic = TS_FUNCTION;
+		image.category = IMG_CATEGORY_AUTO_GENERATED;
+		image.levelCount = 1;
+
+		dump_loaded_image(&image, pixels);
 		dumped_images.insert(name);
 		add_csv_row("image", name);
 		return name;
@@ -545,7 +751,7 @@ namespace zonetool::h1::converter::s2::gfximage
 		image.category = asset->category;
 		image.levelCount = static_cast<unsigned char>(pixels->levels);
 
-		dump_image(&image, *data);
+		dump_loaded_image(&image, *data);
 		dumped_images.insert(name);
 		add_csv_row("image", name);
 		return name;

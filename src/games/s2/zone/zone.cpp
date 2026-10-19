@@ -4,7 +4,6 @@
 #include "loader.hpp"
 
 #include <game.hpp>
-#include <utils/io.hpp>
 
 namespace zonetool::s2
 {
@@ -351,7 +350,7 @@ namespace zonetool::s2
 		this->add_asset_of_type(type_to_int(type), name);
 	}
 
-	std::vector<XStreamFileKey> zone_interface::collect_image_stream_keys() const
+	std::vector<XStreamFileKey> zone_interface::collect_image_stream_keys(std::vector<xfile::stream_source>& streams) const
 	{
 		std::vector<XStreamFileKey> keys;
 		for (const auto& asset : this->m_assets)
@@ -367,10 +366,20 @@ namespace zonetool::s2
 				continue;
 			}
 
-			const auto image_keys = static_cast<const gfx_image*>(asset.get())->stream_keys();
+			const auto* image = static_cast<const gfx_image*>(asset.get());
+			const auto image_keys = image->stream_keys();
 			if (image_keys.size() != image_stream_count)
 			{
 				throw std::runtime_error(std::format("streamed image \"{}\" has no stream keys", asset->name()));
+			}
+
+			const auto& pixel_paths = image->stream_pixel_paths();
+			for (auto i = 0u; i < image_stream_count; i++)
+			{
+				if (pixel_paths[i])
+				{
+					streams.emplace_back(keys.size() + i, *pixel_paths[i]);
+				}
 			}
 
 			keys.insert(keys.end(), image_keys.begin(), image_keys.end());
@@ -436,9 +445,10 @@ namespace zonetool::s2
 		}
 		buf->pop_stream();
 
+		std::vector<xfile::stream_source> streams;
 		xfile::fastfile file{};
 		file.version = format.version;
-		file.stream_keys = this->collect_image_stream_keys();
+		file.stream_keys = this->collect_image_stream_keys(streams);
 		file.shared_stream_keys = buf->shared_stream_keys();
 		file.block_sizes.resize(format.block_count);
 		for (std::size_t index = 0; index < format.block_count; index++)
@@ -451,14 +461,13 @@ namespace zonetool::s2
 			file.block_sizes[XFILE_BLOCK_CALLBACK] += get_callback_block_size(this->m_assets);
 		}
 
-		const auto output = xfile::write_s2(format, file,
-			std::string_view(reinterpret_cast<const char*>(buf->buffer()), buf->size()));
+		if (!streams.empty())
+		{
+			ZONETOOL_INFO("Compressing %zu image streams...", streams.size());
+		}
 
 		const auto path = filesystem::get_output_path() + this->name_ + ".ff";
-		if (!utils::io::write_file(path, output))
-		{
-			throw std::runtime_error(std::format("cannot write \"{}\"", path));
-		}
+		xfile::write_s2(path, format, file, std::string_view(reinterpret_cast<const char*>(buf->buffer()), buf->size()), streams);
 
 		ZONETOOL_INFO("Fastfile \"%s\" written to %s", this->name_.data(), path.data());
 		ZONETOOL_INFO("Compiling took %llu msec.", GetTickCount64() - start_time);

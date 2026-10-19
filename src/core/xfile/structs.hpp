@@ -39,11 +39,26 @@ namespace zonetool
 
 	struct XStreamFileKey
 	{
+		static constexpr std::uint16_t unresolved_slot = 0xFFFF;
+
 		std::uint64_t hash;
 		std::uint16_t index;
 		std::uint16_t unknown[2];
 		std::uint16_t slot;
 	};
+
+	struct XStreamFileLocation
+	{
+		static constexpr std::uint16_t fastfile_index = 0;
+
+		std::uint64_t offset;
+		std::uint32_t size;
+		std::uint8_t isLocalized;
+		char pad;
+		std::uint16_t fileIndex;
+	};
+
+	static_assert(sizeof(XStreamFileLocation) == sizeof(XStreamFileKey));
 
 	struct DB_AuthSignature
 	{

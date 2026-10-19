@@ -136,6 +136,61 @@ namespace zonetool::h1
 			csv.close();
 		}
 
+		std::vector<std::unique_ptr<loaded_zone>> load_required_zones(const converter* converter, const std::filesystem::path& zone_path)
+		{
+			std::vector<std::unique_ptr<loaded_zone>> zones;
+			if (!converter || !converter->required_zones)
+			{
+				return zones;
+			}
+
+			const auto zone_name = zone_path.stem().string();
+			for (const auto& name : converter->required_zones(zone_name))
+			{
+				if (name == zone_name)
+				{
+					continue;
+				}
+
+				const auto path = game_files::find_zone(name);
+				if (!path)
+				{
+					ZONETOOL_WARNING("Required zone \"%s\" not found", name.data());
+					continue;
+				}
+
+				ZONETOOL_INFO("Loading required zone \"%s\"...", name.data());
+				zones.emplace_back(load_zone(*path));
+			}
+
+			return zones;
+		}
+
+		std::unordered_set<const void*> collect_techset_zone_headers(const std::vector<std::unique_ptr<loaded_zone>>& zones,
+			const std::filesystem::path& zone_path)
+		{
+			std::unordered_set<const void*> headers;
+			const auto techset_zone = std::ranges::find(zones, "techsets_" + zone_path.stem().string(), [](const auto& zone)
+			{
+				return zone->name;
+			});
+
+			if (techset_zone == zones.end())
+			{
+				return headers;
+			}
+
+			for (const auto& asset : (*techset_zone)->assets)
+			{
+				if (!asset.referenced)
+				{
+					headers.insert(asset.header);
+				}
+			}
+
+			return headers;
+		}
+
 		void prepare_paths(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path)
 		{
 			filesystem::set_zone_folder(zone_folder);
@@ -186,13 +241,15 @@ namespace zonetool::h1
 		const auto _ = gsl::finally(db_clear);
 
 		prepare_paths(zone_folder, zone_path);
+		const auto required_zones = load_required_zones(converter, zone_path);
+		const auto techset_zone_headers = collect_techset_zone_headers(required_zones, zone_path);
 		ZONETOOL_INFO("Loading zone \"%s\"...", zone_path.stem().string().data());
 		const auto zone = load_zone(zone_path);
 
 		ZONETOOL_INFO("Dumping %zu assets...", zone->assets.size());
 		for (const auto& asset : zone->assets)
 		{
-			if (asset.referenced || !is_dumped_type(asset.type))
+			if ((asset.referenced && !techset_zone_headers.contains(asset.header)) || !is_dumped_type(asset.type))
 			{
 				continue;
 			}
@@ -235,11 +292,14 @@ namespace zonetool::h1
 		const auto _ = gsl::finally(db_clear);
 
 		prepare_paths(zone_folder, zone_path);
+		const auto required_zones = load_required_zones(converter, zone_path);
+		const auto techset_zone_headers = collect_techset_zone_headers(required_zones, zone_path);
 		const auto zone = load_zone(zone_path);
 
 		const auto asset = std::ranges::find_if(zone->assets, [&](const loaded_asset& entry)
 		{
-			return entry.type == type && !entry.referenced && name == get_asset_name(entry.type, entry.header);
+			const auto held = !entry.referenced || techset_zone_headers.contains(entry.header);
+			return entry.type == type && held && name == get_asset_name(entry.type, entry.header);
 		});
 
 		if (asset == zone->assets.end())
