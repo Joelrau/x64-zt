@@ -1297,6 +1297,8 @@ namespace zonetool::h1::converter::s2::techset
 			case zonetool::s2::TECHNIQUE_BUILD_SHADOWMAP_DEPTH:
 				return {TECHNIQUE_BUILD_SHADOWMAP_DEPTH};
 			case zonetool::s2::TECHNIQUE_UNLIT:
+			case zonetool::s2::TECHNIQUE_UNLIT_SRGB_GAMMA:
+			case zonetool::s2::TECHNIQUE_UNLIT_BT2020_PQ:
 				return {TECHNIQUE_UNLIT};
 			case zonetool::s2::TECHNIQUE_WIREFRAME_SOLID:
 				return {TECHNIQUE_WIREFRAME_SOLID};
