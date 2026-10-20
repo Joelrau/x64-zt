@@ -4,6 +4,7 @@
 #include "gfxworld.hpp"
 #include "comworld.hpp"
 #include "gfximage.hpp"
+#include "material.hpp"
 #include "techset.hpp"
 
 #include <formats/light_grid.hpp>
@@ -390,6 +391,69 @@ namespace zonetool::h1::converter::s2::gfxworld
 			return (inst.flags & STATIC_MODEL_FLAG_VERTEXLIT_LIGHTING) && lighting.vertexLightingInfo.lightingValues;
 		}
 
+		// "ml" models sample a world lightmap at their own uvs, the lightmaps convert 1:1 so the index carries over
+		bool has_model_lightmap(const GfxWorld* asset, const GfxStaticModelDrawInst& inst, const GfxStaticModelLighting& lighting)
+		{
+			return (inst.flags & STATIC_MODEL_FLAG_LIGHTMAP_LIGHTING) && asset->draw.lightmaps
+				&& lighting.modelLightmapInfo.lightmapIndex < static_cast<unsigned int>(std::max(asset->draw.lightmapCount, 0));
+		}
+
+		float determinant(const float (&axis)[3][3])
+		{
+			return axis[0][0] * (axis[1][1] * axis[2][2] - axis[1][2] * axis[2][1])
+				- axis[0][1] * (axis[1][0] * axis[2][2] - axis[1][2] * axis[2][0])
+				+ axis[0][2] * (axis[1][0] * axis[2][1] - axis[1][1] * axis[2][0]);
+		}
+
+		void convert_placement(const GfxPackedPlacement& placement, zonetool::s2::GfxStaticModelDrawInst& inst)
+		{
+			inst.placement = std::bit_cast<zonetool::s2::GfxPackedPlacement>(placement);
+			inst.axisScale[0] = placement.scale;
+			inst.axisScale[1] = placement.scale;
+			inst.maxScale = std::abs(placement.scale);
+
+			// s2 keeps the axes right handed and mirrors through the y scale
+			if (determinant(placement.axis) < 0.0f)
+			{
+				for (auto& value : inst.placement.axis[1])
+				{
+					value = -value;
+				}
+				inst.axisScale[0] = -inst.axisScale[0];
+				inst.mirrored = 1;
+			}
+		}
+
+		std::uint8_t sort_material_index(const XModel* model)
+		{
+			if (!model || !model->materialHandles)
+			{
+				return 0;
+			}
+
+			// stock picks the lowest (sortKey, techset, material name), the techset order is not reversed so it is skipped
+			const auto sort_order = [&](const int index)
+			{
+				const auto handle = model->materialHandles[index];
+				return std::make_tuple(material::convert_sort_key(handle->info.sortKey), std::string_view(handle->name));
+			};
+
+			auto best = -1;
+			for (auto i = 0; i < model->numsurfs; i++)
+			{
+				if (model->materialHandles[i] && (best < 0 || sort_order(i) < sort_order(best)))
+				{
+					best = i;
+				}
+			}
+			return static_cast<std::uint8_t>(std::max(best, 0));
+		}
+
+		// h1 g_lodDistIndexToScale (h1_mp64_ship .rdata), the smodel flags index it and the lod distance is divided by it; s2 stores
+		// the scale itself, the stock mp_aachen_v2 instances use the same values
+		constexpr std::array<float, 16> lod_dist_scales{0.25f, 0.375f, 0.5f, 0.625f, 0.75f, 0.875f, 1.0f, 1.125f, 1.25f, 1.5f, 1.75f, 2.0f,
+			2.5f, 3.0f, 3.5f, 4.0f};
+
 		void convert_static_models(GfxWorld* asset, zonetool::s2::GfxWorldDpvsStatic& dpvs, const light_lists& lists, utils::memory::allocator& allocator)
 		{
 			const auto& source = asset->dpvs;
@@ -408,10 +472,12 @@ namespace zonetool::h1::converter::s2::gfxworld
 			{
 				const auto& inst = source.smodelDrawInsts[i];
 				auto& new_inst = insts[i];
-				new_inst.placement = std::bit_cast<zonetool::s2::GfxPackedPlacement>(inst.placement);
-				std::ranges::fill(new_inst.unk_0x34, inst.placement.scale);
+				convert_placement(inst.placement, new_inst);
 				new_inst.model = asset_reference<zonetool::s2::XModel>(inst.model);
-				const auto lighting_flag = has_vertex_lighting(inst, source.smodelLightingInsts[i])
+				new_inst.cullDist = inst.cullDist;
+				const auto lighting_flag = has_model_lightmap(asset, inst, source.smodelLightingInsts[i])
+					? zonetool::s2::STATIC_MODEL_FLAG_LIGHTMAP_LIGHTING
+					: has_vertex_lighting(inst, source.smodelLightingInsts[i])
 					? zonetool::s2::STATIC_MODEL_FLAG_VERTEXLIT_LIGHTING
 					: zonetool::s2::STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING;
 				new_inst.flags = 0x200 | lighting_flag | (inst.flags & STATIC_MODEL_FLAG_NO_CAST_SHADOW); // 0x200 comes from stock zones
@@ -420,8 +486,9 @@ namespace zonetool::h1::converter::s2::gfxworld
 				const auto& half_size = smodel_bounds(source.smodelInsts[i]).halfSize;
 				new_inst.radius = std::hypot(half_size[0], half_size[1], half_size[2]);
 				new_inst.reflectionProbeIndex = inst.reflectionProbeIndex;
-				new_inst.unk_0x72 = 1;
-				new_inst.unk_0x74 = 1.0f;
+				new_inst.sortMaterialIndex = sort_material_index(inst.model);
+				new_inst.sunShadowFlags = inst.sunShadowFlags;
+				new_inst.lodScale = lod_dist_scales[inst.flags & STATIC_MODEL_FLAG_SCALE_MODIFIER_MASK];
 			}
 			dpvs.smodelDrawInsts = insts;
 
@@ -429,7 +496,11 @@ namespace zonetool::h1::converter::s2::gfxworld
 			for (auto i = 0u; i < count; i++)
 			{
 				auto& lighting = dpvs.smodelLightingInsts[i];
-				if (has_vertex_lighting(source.smodelDrawInsts[i], source.smodelLightingInsts[i]))
+				if (has_model_lightmap(asset, source.smodelDrawInsts[i], source.smodelLightingInsts[i]))
+				{
+					lighting.modelLightmapInfo = std::bit_cast<zonetool::s2::GfxStaticModelLightmapInfo>(source.smodelLightingInsts[i].modelLightmapInfo);
+				}
+				else if (has_vertex_lighting(source.smodelDrawInsts[i], source.smodelLightingInsts[i]))
 				{
 					const auto& vertex_lighting = source.smodelLightingInsts[i].vertexLightingInfo;
 					lighting.vertexLightingInfo.lightingValues = retype<zonetool::s2::GfxStaticModelVertexLighting>(vertex_lighting.lightingValues);

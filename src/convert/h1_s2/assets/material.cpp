@@ -346,7 +346,8 @@ namespace zonetool::h1::converter::s2::material
 			std::ranges::fill(material.stateBitsEntry, no_entry);
 			std::ranges::fill(material.constantBufferIndex, no_entry);
 
-			std::map<std::pair<std::uint8_t, std::uint32_t>, std::uint8_t> entries;
+			// pass p of a technique uses stateBitsEntry[slot] + p, so multi pass techniques get a run of entries
+			std::map<std::tuple<std::uint8_t, std::uint32_t, std::uint32_t>, std::uint8_t> entries;
 			for (auto slot = 0; slot < zonetool::s2::technique_count; slot++)
 			{
 				const auto source = native.sources[slot];
@@ -363,17 +364,22 @@ namespace zonetool::h1::converter::s2::material
 					continue;
 				}
 
-				if (!asset->stateBitsTable || h1_entry >= asset->stateBitsCount)
+				const auto* technique = native.techset->techniques[slot];
+				const auto pass_count = technique ? std::max<std::uint32_t>(technique->hdr.passCount, 1u) : 1u;
+				if (!asset->stateBitsTable || h1_entry + pass_count > asset->stateBitsCount)
 				{
 					throw std::runtime_error(std::format("technique {} has no state bits", source));
 				}
 
-				const auto key = std::make_pair(h1_entry, blend_class(slot));
+				const auto key = std::make_tuple(h1_entry, blend_class(slot), pass_count);
 				const auto [entry, inserted] = entries.try_emplace(key, static_cast<std::uint8_t>(result.state_bits.size()));
 				if (inserted)
 				{
-					result.state_bits.emplace_back(convert_state_bits(asset->stateBitsTable[h1_entry], key.second));
-					result.states.emplace_back(convert_state(result.state_bits.back()));
+					for (auto pass = 0u; pass < pass_count; pass++)
+					{
+						result.state_bits.emplace_back(convert_state_bits(asset->stateBitsTable[h1_entry + pass], std::get<1>(key)));
+						result.states.emplace_back(convert_state(result.state_bits.back()));
+					}
 				}
 
 				material.stateBitsEntry[slot] = entry->second;
@@ -409,46 +415,6 @@ namespace zonetool::h1::converter::s2::material
 			}
 
 			return result;
-		}
-
-		std::uint8_t convert_sort_key(const std::uint8_t sort_key)
-		{
-			constexpr auto h1_opaque = 2;
-			constexpr auto h1_sky = 3;
-			constexpr auto h1_decal_end = 17;
-			constexpr auto h1_trans_end = 36;
-			constexpr auto h1_2d = 60;
-			constexpr auto s2_opaque = 4;
-			constexpr auto s2_sky = 6;
-			constexpr auto s2_trans_begin = 22;
-			constexpr auto max_sort_key = 63;
-
-			switch (sort_key)
-			{
-			case h1_opaque:
-				return s2_opaque;
-			case h1_sky:
-				return s2_sky;
-			default:
-				break;
-			}
-
-			if (sort_key <= h1_decal_end)
-			{
-				return static_cast<std::uint8_t>(sort_key + 3); // s2 decals are 10 to 20
-			}
-
-			if (sort_key <= h1_trans_end)
-			{
-				return static_cast<std::uint8_t>(std::max(+sort_key, s2_trans_begin)); // keys below 22 are s2 decals
-			}
-
-			if (sort_key >= h1_2d)
-			{
-				return static_cast<std::uint8_t>(std::min(sort_key + 2, max_sort_key));
-			}
-
-			return static_cast<std::uint8_t>(sort_key + 1); // shadow caster 38 to 39, effect auto 53 to 54
 		}
 
 		std::uint8_t convert_camera_region(const std::uint8_t camera_region)
@@ -595,6 +561,46 @@ namespace zonetool::h1::converter::s2::material
 			add_csv_row("material", asset->name);
 			add_image_rows(*converted);
 		}
+	}
+
+	std::uint8_t convert_sort_key(const std::uint8_t sort_key)
+	{
+		constexpr auto h1_opaque = 2;
+		constexpr auto h1_sky = 3;
+		constexpr auto h1_decal_end = 17;
+		constexpr auto h1_trans_end = 36;
+		constexpr auto h1_2d = 60;
+		constexpr auto s2_opaque = 4;
+		constexpr auto s2_sky = 6;
+		constexpr auto s2_trans_begin = 22;
+		constexpr auto max_sort_key = 63;
+
+		switch (sort_key)
+		{
+		case h1_opaque:
+			return s2_opaque;
+		case h1_sky:
+			return s2_sky;
+		default:
+			break;
+		}
+
+		if (sort_key <= h1_decal_end)
+		{
+			return static_cast<std::uint8_t>(sort_key + 3); // s2 decals are 10 to 20
+		}
+
+		if (sort_key <= h1_trans_end)
+		{
+			return static_cast<std::uint8_t>(std::max(+sort_key, s2_trans_begin)); // keys below 22 are s2 decals
+		}
+
+		if (sort_key >= h1_2d)
+		{
+			return static_cast<std::uint8_t>(std::min(sort_key + 2, max_sort_key));
+		}
+
+		return static_cast<std::uint8_t>(sort_key + 1); // shadow caster 38 to 39, effect auto 53 to 54
 	}
 
 	void dump(Material* asset)

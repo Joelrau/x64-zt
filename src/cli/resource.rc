@@ -94,6 +94,7 @@ END
 //
 
 ID_ICON                    ICON   "resources/icon.ico"
+S2_ZONE_KEY                RCDATA "resources/s2_zone_key.der"
 
 #endif    // English (United States) resources
 /////////////////////////////////////////////////////////////////////////////

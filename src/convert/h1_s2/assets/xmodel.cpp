@@ -2,13 +2,49 @@
 
 #include "../include.hpp"
 #include "xmodel.hpp"
-#include "techset.hpp"
+#include "xsurface.hpp"
+
+// 1: switch lods at the h1 lodInfo[].dist (useLodInfoDist, read as plain world distances by sub_14074D7B0)
+// 0: switch lods at the lodDistSq the s2 linker bakes from triangle sizes like stock models
+#ifndef H1_S2_USE_LOD_INFO_DIST
+#define H1_S2_USE_LOD_INFO_DIST 1
+#endif
 
 namespace zonetool::h1::converter::s2::xmodel
 {
 	namespace
 	{
-		constexpr auto no_cull_lod_dist = 1000000.0f; // TODO
+		// the values every stock model without its own tuning has (mp_aachen_v2, 958 xmodelbases)
+		constexpr auto no_cull_lod_dist = 1000000.0f; // lodInfo[].dist of all 6 lods when useLodInfoDist is 0
+		constexpr auto automatic_forced_lod = 0xFE;
+		constexpr auto default_cull_size_scale = 15.0f;
+		constexpr auto default_unk_0x374 = 96.0f;
+		constexpr auto lightmap_uv_model_flags = 0x6000u; // stock models with lightmap uv surfs (0x6800 instead of 0x800)
+
+		// the sway of stock s2 weeds (foliage_s2_cob_weeds_07), h1 reactive motion grass gets it with the "fwa" wind techsets
+		constexpr std::array<float, 4> grass_sway_params{2000.0f, 40.0f, 0.055f, 1.5f};
+
+		bool has_surface_flag(const XModel* asset, const unsigned int flag)
+		{
+			for (auto lod = 0; lod < std::min(static_cast<int>(asset->numLods), 6); lod++)
+			{
+				const auto* surfs = asset->lodInfo[lod].modelSurfs;
+				for (auto i = 0; surfs && surfs->surfs && i < surfs->numsurfs; i++)
+				{
+					if (surfs->surfs[i].flags & flag)
+					{
+						return true;
+					}
+				}
+			}
+
+			return false;
+		}
+
+		bool has_lightmap_uv_surfaces(const XModel* asset)
+		{
+			return has_surface_flag(asset, SURF_FLAG_LIGHTMAP_COORDS);
+		}
 
 		struct converted_model
 		{
@@ -22,32 +58,6 @@ namespace zonetool::h1::converter::s2::xmodel
 			std::vector<zonetool::s2::Material*> material_handles;
 			std::vector<std::uint16_t> material_indices;
 		};
-
-		float lod_dist_sq(const float dist, const float radius)
-		{
-			const auto view_dist = dist <= 0.0f || dist >= no_cull_lod_dist ? no_cull_lod_dist : dist;
-			const auto scaled = std::max(0.0f, view_dist - radius) / 565.087f;
-			return scaled * scaled;
-		}
-
-		void clear_donor_data(zonetool::s2::XModelBase& base)
-		{
-			base.extraBoneNameCount = 0;
-			base.extraDataCount = 0;
-			base.extraBoneNames = nullptr;
-			base.extraData = nullptr;
-			base.physPreset = nullptr;
-			base.physCollmap = nullptr;
-			base.physRigCount = 0;
-			base.physRigNames = nullptr;
-			base.physRigs = nullptr;
-			base.physClothTuning = nullptr;
-			base.cloth = nullptr;
-			base.rig = nullptr;
-			base.imageRefCount = 0;
-			base.imageRefs = nullptr;
-			std::fill(std::begin(base.skeletonScripts), std::end(base.skeletonScripts), nullptr);
-		}
 
 		void convert_bones(const XModel* asset, converted_model& result)
 		{
@@ -75,15 +85,19 @@ namespace zonetool::h1::converter::s2::xmodel
 		void convert_lods(const XModel* asset, converted_model& result)
 		{
 			auto& base = result.base;
-			std::memset(base.lodInfo, 0, sizeof(base.lodInfo));
-			std::fill(std::begin(base.lodDistSq), std::end(base.lodDistSq), 0.0f);
+			for (auto& lod : base.lodInfo)
+			{
+				lod.dist = no_cull_lod_dist;
+			}
 
 			const auto lod_count = std::clamp(static_cast<int>(asset->numLods), 0, 6);
 			for (auto i = 0; i < lod_count; i++)
 			{
 				const auto& lod = asset->lodInfo[i];
 				auto& new_lod = base.lodInfo[i];
-				new_lod.dist = no_cull_lod_dist;
+#if H1_S2_USE_LOD_INFO_DIST
+				new_lod.dist = lod.dist > 0.0f ? lod.dist : no_cull_lod_dist;
+#endif
 				new_lod.numsurfs = lod.numsurfs;
 				new_lod.surfIndex = lod.surfIndex;
 				if (lod.modelSurfs)
@@ -92,14 +106,24 @@ namespace zonetool::h1::converter::s2::xmodel
 					surfs.name = lod.modelSurfs->name;
 					new_lod.modelSurfs = &surfs;
 				}
+			}
 
-				const auto is_last = i == lod_count - 1;
-				base.lodDistSq[i] = lod_dist_sq(is_last ? no_cull_lod_dist : lod.dist, asset->radius);
+			// what the s2 linker bakes (867 of 867 multi lod mp_aachen_v2 models): the lod 0 triangle size, scaled by how many triangles each lod drops
+			const auto* lod0 = lod_count ? asset->lodInfo[0].modelSurfs : nullptr;
+			const auto lod0_area = xsurface::surface_area(lod0);
+			const auto lod0_tris = static_cast<float>(xsurface::triangle_count(lod0));
+			for (auto i = 0; i < lod_count; i++)
+			{
+				const auto tris = xsurface::triangle_count(asset->lodInfo[i].modelSurfs);
+				base.lodDistSq[i] = tris ? lod0_area * lod0_tris / static_cast<float>(tris) : 0.0f;
 			}
 
 			base.numLods = static_cast<unsigned char>(lod_count);
 			base.collLod = asset->collLod;
+			base.forcedLod = automatic_forced_lod;
+			base.lodRampType = asset->lodRampType;
 			base.lodDistScale = 1.0f;
+			base.useLodInfoDist = H1_S2_USE_LOD_INFO_DIST;
 		}
 
 		void convert_coll_surfs(const XModel* asset, converted_model& result)
@@ -142,15 +166,16 @@ namespace zonetool::h1::converter::s2::xmodel
 				+ asset->numsurfs * (sizeof(zonetool::s2::Material*) + sizeof(std::uint16_t)));
 		}
 
-		std::unique_ptr<converted_model> convert(const XModel* asset, const zonetool::s2::XModelBase* donor)
+		std::unique_ptr<converted_model> convert(const XModel* asset)
 		{
 			auto result = std::make_unique<converted_model>();
 			result->base_name = std::string(asset->name) + "_h1base";
 
 			auto& base = result->base;
-			base = *donor;
+			std::memset(&base, 0, sizeof(base));
 			base.name = result->base_name.data();
-			clear_donor_data(base);
+			base.scale = asset->scale;
+			std::ranges::fill(base.unkScale, 1.0f);
 			convert_bones(asset, *result);
 			convert_lods(asset, *result);
 			convert_coll_surfs(asset, *result);
@@ -159,12 +184,24 @@ namespace zonetool::h1::converter::s2::xmodel
 			base.radius = asset->radius;
 			std::memcpy(base.boundsMidPoint, asset->bounds.midPoint, sizeof(base.boundsMidPoint));
 			std::memcpy(base.boundsHalfSize, asset->bounds.halfSize, sizeof(base.boundsHalfSize));
+			base.boundsRadius = std::hypot(base.boundsHalfSize[0], base.boundsHalfSize[1], base.boundsHalfSize[2]);
+			base.cullSizeScale = default_cull_size_scale;
+			base.memUsage = static_cast<unsigned int>(asset->memUsage);
+			base.unk_0x301 = -1;
+			base.unk_0x372 = -1;
+			base.unk_0x374 = default_unk_0x374;
+			const auto sways = has_surface_flag(asset, SURF_FLAG_REACTIVE_MOTION);
+			if (sways)
+			{
+				std::ranges::copy(grass_sway_params, base.swayParams);
+			}
 
 			auto& model = result->model;
 			std::memset(&model, 0, sizeof(model));
 			model.name = asset->name;
 			model.base = &base;
-			model.flags = zonetool::s2::XMODEL_FLAG_UNK_0x800;
+			model.flags = zonetool::s2::XMODEL_FLAG_UNK_0x800 | (has_lightmap_uv_surfaces(asset) ? lightmap_uv_model_flags : 0u)
+				| (sways ? zonetool::s2::XMODEL_FLAG_SWAY : 0u);
 			convert_materials(asset, *result);
 
 			return result;
@@ -173,14 +210,8 @@ namespace zonetool::h1::converter::s2::xmodel
 
 	void dump(XModel* asset)
 	{
-		const auto donor = techset::donor_zone().model_base_donor();
-		if (!donor)
-		{
-			ZONETOOL_WARNING("No S2 xmodelbase donor for XModel \"%s\"", asset->name);
-			return;
-		}
-
-		const auto converted = convert(asset, donor);
+		xsurface::assign_base_vert_indices(asset);
+		const auto converted = convert(asset);
 		zonetool::s2::xmodel_base::dump(&converted->base);
 		zonetool::s2::xmodel::dump(&converted->model);
 		add_csv_row("xmodel", asset->name);

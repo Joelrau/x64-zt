@@ -17,7 +17,6 @@ namespace zonetool::h1::converter::s2::techset
 		bool is_global_image(const std::string& image) const;
 		bool is_global_asset(const void* header) const;
 		std::vector<std::string> donor_techsets() const;
-		zonetool::s2::XModelBase* model_base_donor() const;
 		void* find_asset(zonetool::s2::XAssetType type) const;
 		const std::vector<void*>& find_assets(zonetool::s2::XAssetType type) const;
 		database& db() const;
@@ -30,7 +29,6 @@ namespace zonetool::h1::converter::s2::techset
 		std::unordered_set<std::string> global_techsets_;
 		std::unordered_set<std::string> global_images_;
 		std::unordered_set<const void*> global_assets_;
-		zonetool::s2::XModelBase* model_base_donor_{};
 		std::unordered_map<std::int32_t, std::vector<void*>> assets_;
 	};
 

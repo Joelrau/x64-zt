@@ -728,25 +728,25 @@ namespace zonetool::xfile
 			return output;
 		}
 
-		std::size_t next_stream_batch(const std::span<const stream_source> streams, std::size_t index)
+		std::size_t next_stream_batch(const std::span<const std::filesystem::path> streams, std::size_t index)
 		{
 			std::uintmax_t size{};
 			while (index < streams.size() && size < s2_stream_batch_size)
 			{
-				size += std::filesystem::file_size(streams[index++].path);
+				size += std::filesystem::file_size(streams[index++]);
 			}
 
 			return index;
 		}
 
-		std::vector<std::string> read_stream_batch(const std::span<const stream_source> streams)
+		std::vector<std::string> read_stream_batch(const std::span<const std::filesystem::path> streams)
 		{
 			std::vector<std::string> data(streams.size());
 			for (std::size_t i = 0; i < streams.size(); i++)
 			{
-				if (!utils::io::read_file(streams[i].path.string(), &data[i]))
+				if (!utils::io::read_file(streams[i].string(), &data[i]))
 				{
-					throw std::runtime_error(std::format("cannot read \"{}\"", streams[i].path.string()));
+					throw std::runtime_error(std::format("cannot read \"{}\"", streams[i].string()));
 				}
 			}
 
@@ -754,8 +754,7 @@ namespace zonetool::xfile
 		}
 	}
 
-	void write_s2(const std::filesystem::path& path, const format& format, fastfile& file, const std::string_view payload,
-		const std::span<const stream_source> streams)
+	void write_s2(const std::filesystem::path& path, const format& format, const fastfile& file, const std::string_view payload)
 	{
 		if (format.container != container::s2)
 		{
@@ -767,13 +766,24 @@ namespace zonetool::xfile
 			throw std::runtime_error("signed s2 zones are not supported");
 		}
 
-		const auto zone = make_s2_zone(format, file, payload);
+		std::filesystem::create_directories(path.parent_path());
+		if (!utils::io::write_file(path.string(), make_s2_zone(format, file, payload)))
+		{
+			throw std::runtime_error(std::format("cannot write \"{}\"", path.string()));
+		}
+	}
 
+	std::vector<stream_location> write_s2_pak(const std::filesystem::path& path, const std::string_view header,
+		const std::span<const std::filesystem::path> streams)
+	{
 		std::filesystem::create_directories(path.parent_path());
 		std::ofstream output(path, std::ios::binary | std::ios::trunc);
-		output.write(zone.data(), zone.size());
+		output.write(header.data(), header.size());
 
-		std::uint64_t offset = zone.size();
+		std::vector<stream_location> locations;
+		locations.reserve(streams.size());
+
+		std::uint64_t offset = header.size();
 		for (std::size_t first = 0; first < streams.size();)
 		{
 			const auto batch = streams.subspan(first, next_stream_batch(streams, first) - first);
@@ -785,28 +795,21 @@ namespace zonetool::xfile
 				entries[index] = compress_s2_stream(data[index]);
 			});
 
-			for (std::size_t i = 0; i < batch.size(); i++)
+			for (const auto& entry : entries)
 			{
-				const XStreamFileLocation location
-				{
-					.offset = offset,
-					.size = static_cast<std::uint32_t>(entries[i].size()),
-					.fileIndex = XStreamFileLocation::fastfile_index,
-				};
-				file.stream_keys.at(batch[i].key_index) = std::bit_cast<XStreamFileKey>(location);
-
-				output.write(entries[i].data(), entries[i].size());
-				offset += entries[i].size();
+				locations.emplace_back(offset, static_cast<std::uint32_t>(entry.size()));
+				output.write(entry.data(), entry.size());
+				offset += entry.size();
 			}
 
 			first += batch.size();
 		}
 
-		output.seekp(sizeof(s2_file_header));
-		output.write(reinterpret_cast<const char*>(file.stream_keys.data()), file.stream_keys.size() * sizeof(XStreamFileKey));
 		if (!output)
 		{
 			throw std::runtime_error(std::format("cannot write \"{}\"", path.string()));
 		}
+
+		return locations;
 	}
 }

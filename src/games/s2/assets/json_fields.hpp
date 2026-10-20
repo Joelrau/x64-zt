@@ -31,6 +31,27 @@ namespace zonetool::s2
 			}
 		}
 
+		void string_array(const char* name, const char** field, const std::size_t count) const
+		{
+			if (!field)
+			{
+				this->data_[name] = nullptr;
+				return;
+			}
+
+			auto& out = this->data_[name] = ordered_json::array();
+			for (auto i = 0u; i < count; i++)
+			{
+				out.push_back(string_value(field[i]));
+			}
+		}
+
+		template <std::size_t N>
+		void fixed_string(const char* name, const char (&field)[N]) const
+		{
+			this->data_[name] = std::string(field, strnlen(field, N)); // can use every byte, without a null terminator
+		}
+
 		template <typename T>
 		void asset(const char* name, T* field) const
 		{
@@ -229,6 +250,27 @@ namespace zonetool::s2
 			for (auto i = 0u; i < N; i++)
 			{
 				field[i] = this->parse_string(element(node, i));
+			}
+		}
+
+		void string_array(const char* name, const char**& field, const std::size_t count) const
+		{
+			const auto* node = this->find(name);
+			field = node ? this->allocate<const char*>(count) : nullptr;
+			for (auto i = 0u; field && i < count; i++)
+			{
+				field[i] = this->parse_string(element(node, i));
+			}
+		}
+
+		template <std::size_t N>
+		void fixed_string(const char* name, char (&field)[N]) const
+		{
+			if (const auto* node = this->find(name))
+			{
+				const auto& str = node->get_ref<const std::string&>();
+				std::memset(field, 0, N);
+				std::memcpy(field, str.data(), std::min(str.size(), N));
 			}
 		}
 

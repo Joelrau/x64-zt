@@ -128,7 +128,6 @@ namespace zonetool::h1::converter::s2
 	void set_s2_folder(const std::filesystem::path& folder)
 	{
 		target_folder = folder;
-		zonetool::s2::set_zone_key_folder(folder);
 	}
 
 	void finish(const std::string& zone_name)
@@ -138,6 +137,7 @@ namespace zonetool::h1::converter::s2
 		gfxworld::finish();
 		clipmap::finish();
 		gfximage::finish();
+		xsurface::finish();
 		comworld::clear();
 		write_csv(zone_name);
 	}

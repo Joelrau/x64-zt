@@ -1,5 +1,6 @@
 #include <std_include.hpp>
 #include "s2.hpp"
+#include "json_fields.hpp"
 
 namespace zonetool::s2
 {
@@ -88,18 +89,6 @@ namespace zonetool::s2
 			write_inline_array(buf, dest.psOffsetData, source.psOffsetData, 1, source.psOffsetDataSize);
 		}
 
-		void dump_constant_buffer(assetmanager::dumper& write, const MaterialConstantBufferDef& buffer)
-		{
-			write.dump_array(buffer.vsData, buffer.vsDataSize);
-			write.dump_array(buffer.hsData, buffer.hsDataSize);
-			write.dump_array(buffer.dsData, buffer.dsDataSize);
-			write.dump_array(buffer.psData, buffer.psDataSize);
-			write.dump_array(buffer.vsOffsetData, buffer.vsOffsetDataSize);
-			write.dump_array(buffer.hsOffsetData, buffer.hsOffsetDataSize);
-			write.dump_array(buffer.dsOffsetData, buffer.dsOffsetDataSize);
-			write.dump_array(buffer.psOffsetData, buffer.psOffsetDataSize);
-		}
-
 		void parse_constant_buffer(assetmanager::reader& read, MaterialConstantBufferDef& buffer)
 		{
 			buffer.vsData = read.read_array<unsigned char>();
@@ -139,10 +128,119 @@ namespace zonetool::s2
 
 			return states;
 		}
+
+		std::string json_path(const std::string& name)
+		{
+			return dump_path(ASSET_TYPE_MATERIAL, name.data(), ".json");
+		}
+
+#define MATERIAL_FIELD(field) #field, value.field
+		template <typename J>
+		void visit_texture_json(const J& j, MaterialTextureDef& value)
+		{
+			j.asset("image", value.u.image);
+			j.value(MATERIAL_FIELD(nameHash));
+			j.value(MATERIAL_FIELD(nameStart));
+			j.value(MATERIAL_FIELD(nameEnd));
+			j.value(MATERIAL_FIELD(samplerState));
+			j.value(MATERIAL_FIELD(semantic));
+		}
+
+		template <typename J>
+		void visit_constant_json(const J& j, MaterialConstantDef& value)
+		{
+			j.fixed_string(MATERIAL_FIELD(name));
+			j.value(MATERIAL_FIELD(nameHash));
+			j.value(MATERIAL_FIELD(literal));
+		}
+
+		template <typename J>
+		void visit_state_bits_json(const J& j, state_bits_entry& value)
+		{
+			j.value("loadBits", value.bits.loadBits);
+			j.value("rasterizerState", value.bits.rasterizerState);
+			j.value("depthStencilState", value.state.depth_stencil);
+			j.value("blendState", value.state.blend);
+		}
+
+		template <typename J>
+		void visit_constant_buffer_json(const J& j, MaterialConstantBufferDef& value)
+		{
+			j.array_list(MATERIAL_FIELD(vsData), value.vsDataSize);
+			j.array_list(MATERIAL_FIELD(hsData), value.hsDataSize);
+			j.array_list(MATERIAL_FIELD(dsData), value.dsDataSize);
+			j.array_list(MATERIAL_FIELD(psData), value.psDataSize);
+			j.array_list(MATERIAL_FIELD(vsOffsetData), value.vsOffsetDataSize);
+			j.array_list(MATERIAL_FIELD(hsOffsetData), value.hsOffsetDataSize);
+			j.array_list(MATERIAL_FIELD(dsOffsetData), value.dsOffsetDataSize);
+			j.array_list(MATERIAL_FIELD(psOffsetData), value.psOffsetDataSize);
+		}
+
+		template <typename J>
+		void visit_material_json(const J& j, Material& value)
+		{
+			j.string(MATERIAL_FIELD(name));
+			j.asset(MATERIAL_FIELD(techniqueSet));
+			j.asset(MATERIAL_FIELD(parentMaterial));
+
+			j.value("gameFlags", value.info.gameFlags);
+			j.value("unkFlags", value.info.unkFlags);
+			j.value("sortKey", value.info.sortKey);
+			j.value("textureAtlasRowCount", value.info.textureAtlasRowCount);
+			j.value("textureAtlasColumnCount", value.info.textureAtlasColumnCount);
+			j.value("textureAtlasFrameBlend", value.info.textureAtlasFrameBlend);
+			j.value("textureAtlasAsArray", value.info.textureAtlasAsArray);
+			j.value("surfaceTypeBits", value.info.surfaceTypeBits);
+
+			j.value(MATERIAL_FIELD(stateFlags));
+			j.value(MATERIAL_FIELD(cameraRegion));
+			j.value(MATERIAL_FIELD(materialType));
+			j.value(MATERIAL_FIELD(assetFlags));
+			j.value(MATERIAL_FIELD(stateBitsEntry));
+			j.value(MATERIAL_FIELD(constantBufferIndex));
+
+			j.entries(MATERIAL_FIELD(textureTable), value.textureCount, visit_texture_json<J>);
+			j.entries(MATERIAL_FIELD(constantTable), value.constantCount, visit_constant_json<J>);
+			j.entries(MATERIAL_FIELD(constantBufferTable), value.constantBufferCount, visit_constant_buffer_json<J>);
+
+			j.value(MATERIAL_FIELD(layerCount));
+			j.string_array(MATERIAL_FIELD(subMaterials), value.layerCount);
+		}
+#undef MATERIAL_FIELD
 	}
 
 	Material* material::parse(const std::string& name, zone_memory* mem)
 	{
+		auto file = filesystem::file(json_path(name));
+		if (file.exists())
+		{
+			ZONETOOL_INFO("Parsing material \"%s\"...", name.data());
+
+			file.open("rb");
+			const auto data = json::parse(file.read_bytes(file.size()));
+			file.close();
+
+			auto* asset = mem->allocate<Material>();
+			const json_field_parser j(data, mem);
+			visit_material_json(j, *asset);
+
+			state_bits_entry* entries{};
+			j.entries("stateBitsTable", entries, asset->stateBitsCount, visit_state_bits_json<json_field_parser>);
+			if (entries)
+			{
+				const auto count = std::max<std::size_t>(asset->stateBitsCount, 1);
+				asset->stateBitsTable = mem->allocate<GfxStateBits>(count);
+				this->states_ = mem->allocate<material_state>(count);
+				for (auto i = 0u; i < asset->stateBitsCount; i++)
+				{
+					asset->stateBitsTable[i] = entries[i].bits;
+					this->states_[i] = entries[i].state;
+				}
+			}
+
+			return asset;
+		}
+
 		assetmanager::reader read(mem);
 		if (!read.open(dump_path(ASSET_TYPE_MATERIAL, name.data())))
 		{
@@ -270,56 +368,35 @@ namespace zonetool::s2
 
 	void material::dump(Material* asset, const material_state* states)
 	{
-		assetmanager::dumper write;
-		if (!write.open(dump_path(ASSET_TYPE_MATERIAL, asset->name)))
-		{
-			return;
-		}
+		ordered_json data;
+		const json_field_dumper j(data);
+		visit_material_json(j, *asset);
 
-		write.dump_single(asset);
-		write.dump_string(asset->name);
-		write.dump_asset(asset->techniqueSet);
-
-		write.dump_array(asset->textureTable, asset->textureCount);
-		for (auto i = 0; asset->textureTable && i < asset->textureCount; i++)
-		{
-			write.dump_asset(asset->textureTable[i].u.image);
-		}
-
-		write.dump_array(asset->constantTable, asset->constantCount);
 		if (asset->stateBitsTable)
 		{
-			// the indices are local to the zone globals, so the resolved states follow the table
-			std::vector<GfxStateBits> state_bits(asset->stateBitsTable, asset->stateBitsTable + asset->stateBitsCount);
-			for (auto& entry : state_bits)
-			{
-				entry.zone = 0;
-				std::ranges::fill(entry.depthStencilState, 0);
-				entry.blendState = 0;
-			}
-
 			const auto resolved_states = states
 				? std::vector<material_state>(states, states + asset->stateBitsCount)
 				: get_states(asset);
-			write.dump_array(state_bits.data(), asset->stateBitsCount);
-			write.dump_array(resolved_states.data(), asset->stateBitsCount);
+
+			std::vector<state_bits_entry> entries(std::max<std::size_t>(asset->stateBitsCount, 1)); // keeps an empty table non-null
+			for (auto i = 0u; i < asset->stateBitsCount; i++)
+			{
+				entries[i].bits = asset->stateBitsTable[i];
+				entries[i].state = resolved_states[i];
+			}
+
+			j.entries("stateBitsTable", entries.data(), asset->stateBitsCount, visit_state_bits_json<json_field_dumper>);
 		}
 		else
 		{
-			write.dump_array(asset->stateBitsTable, asset->stateBitsCount);
-		}
-		write.dump_asset(asset->parentMaterial);
-
-		write.dump_array(asset->constantBufferTable, asset->constantBufferCount);
-		for (auto i = 0; asset->constantBufferTable && i < asset->constantBufferCount; i++)
-		{
-			dump_constant_buffer(write, asset->constantBufferTable[i]);
+			data["stateBitsTable"] = nullptr;
 		}
 
-		for (auto i = 0; asset->subMaterials && i < asset->layerCount; i++)
-		{
-			write.dump_string(asset->subMaterials[i]);
-		}
-		write.close();
+		const auto str = data.dump(4);
+
+		auto file = filesystem::file(json_path(asset->name));
+		file.open("wb");
+		file.write(str.data(), str.size(), 1);
+		file.close();
 	}
 }

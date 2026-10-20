@@ -50,8 +50,13 @@ namespace zonetool
 	struct XStreamFileLocation
 	{
 		static constexpr std::uint16_t fastfile_index = 0;
+		// s2 marks imagefile paks with 0x8000 (0x4000 is imagestream) and keeps the pak index in the low 13 bits (sub_14007FCC0);
+		// a client opens the zone's own <zone>.pak for this index like h1-mod does for XStreamFile::zone_pak_file_index
+		static constexpr std::uint16_t imagefile_pak_flag = 0x8000;
+		static constexpr std::uint16_t pak_index_mask = 0x1FFF;
+		static constexpr std::uint16_t zone_pak_index = imagefile_pak_flag | XStreamFile::zone_pak_file_index;
 
-		std::uint64_t offset;
+		std::uint64_t offset; // the game packs offset into 36 bits and size into 28
 		std::uint32_t size;
 		std::uint8_t isLocalized;
 		char pad;

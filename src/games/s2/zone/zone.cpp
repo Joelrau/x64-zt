@@ -350,7 +350,7 @@ namespace zonetool::s2
 		this->add_asset_of_type(type_to_int(type), name);
 	}
 
-	std::vector<XStreamFileKey> zone_interface::collect_image_stream_keys(std::vector<xfile::stream_source>& streams) const
+	std::vector<XStreamFileKey> zone_interface::collect_image_stream_keys(std::vector<image_pak::image_streams>& images) const
 	{
 		std::vector<XStreamFileKey> keys;
 		for (const auto& asset : this->m_assets)
@@ -374,11 +374,15 @@ namespace zonetool::s2
 			}
 
 			const auto& pixel_paths = image->stream_pixel_paths();
-			for (auto i = 0u; i < image_stream_count; i++)
+			if (std::ranges::any_of(pixel_paths, [](const auto& path) { return path.has_value(); }))
 			{
-				if (pixel_paths[i])
+				auto& streams = images.emplace_back(keys.size());
+				for (auto i = 0u; i < image_stream_count; i++)
 				{
-					streams.emplace_back(keys.size() + i, *pixel_paths[i]);
+					if (pixel_paths[i])
+					{
+						streams.pixels[i] = *pixel_paths[i];
+					}
 				}
 			}
 
@@ -445,10 +449,10 @@ namespace zonetool::s2
 		}
 		buf->pop_stream();
 
-		std::vector<xfile::stream_source> streams;
+		std::vector<image_pak::image_streams> images;
 		xfile::fastfile file{};
 		file.version = format.version;
-		file.stream_keys = this->collect_image_stream_keys(streams);
+		file.stream_keys = this->collect_image_stream_keys(images);
 		file.shared_stream_keys = buf->shared_stream_keys();
 		file.block_sizes.resize(format.block_count);
 		for (std::size_t index = 0; index < format.block_count; index++)
@@ -461,13 +465,11 @@ namespace zonetool::s2
 			file.block_sizes[XFILE_BLOCK_CALLBACK] += get_callback_block_size(this->m_assets);
 		}
 
-		if (!streams.empty())
-		{
-			ZONETOOL_INFO("Compressing %zu image streams...", streams.size());
-		}
+		const auto folder = filesystem::get_output_path();
+		image_pak::write(this->name_, folder, images, file.stream_keys);
 
-		const auto path = filesystem::get_output_path() + this->name_ + ".ff";
-		xfile::write_s2(path, format, file, std::string_view(reinterpret_cast<const char*>(buf->buffer()), buf->size()), streams);
+		const auto path = folder + this->name_ + ".ff";
+		xfile::write_s2(path, format, file, std::string_view(reinterpret_cast<const char*>(buf->buffer()), buf->size()));
 
 		ZONETOOL_INFO("Fastfile \"%s\" written to %s", this->name_.data(), path.data());
 		ZONETOOL_INFO("Compiling took %llu msec.", GetTickCount64() - start_time);

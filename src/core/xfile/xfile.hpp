@@ -36,16 +36,19 @@ namespace zonetool::xfile
 		std::string payload;
 	};
 
-	struct stream_source
+	struct stream_location
 	{
-		std::size_t key_index;
-		std::filesystem::path path;
+		std::uint64_t offset;
+		std::uint32_t size;
 	};
 
 	fastfile read(const std::filesystem::path& path, const format& format);
 
-	void write_s2(const std::filesystem::path& path, const format& format, fastfile& file, std::string_view payload,
-		std::span<const stream_source> streams);
+	void write_s2(const std::filesystem::path& path, const format& format, const fastfile& file, std::string_view payload);
+
+	// compresses every stream like the fastfile streams and writes them after header, in order
+	std::vector<stream_location> write_s2_pak(const std::filesystem::path& path, std::string_view header,
+		std::span<const std::filesystem::path> streams);
 
 	std::string decompress_s2_stream(std::string_view data);
 }

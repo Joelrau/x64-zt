@@ -344,9 +344,17 @@ namespace zonetool::s2
 		CONST_SRC_CODE_EFFECT_MODEL_COLOR = 29,
 		CONST_SRC_CODE_EFFECT_MODEL_COLOR_EMISSIVE = 30,
 		CONST_SRC_CODE_RENDER_TARGET_SIZE = 47,
+		CONST_SRC_CODE_MODEL_LIGHTMAP_PARAMS = 55, // per prim cb0[10] of the "ml" passes: xy lightmap uv scale, zw offset (lmdl_fplus_l VS)
 		CONST_SRC_CODE_NEARPLANE_ORG = 56,
 		CONST_SRC_CODE_NEARPLANE_DX = 57,
 		CONST_SRC_CODE_NEARPLANE_DY = 58,
+		// 105..110 are bound and used like h1 159..164 by the stock "ssr" shaders (lw_fplus_..._ssr reprojection and mip select)
+		CONST_SRC_CODE_SSR_PREV_FRAME_VIEWPROJECTION_MATRIX_R0 = 105,
+		CONST_SRC_CODE_SSR_PREV_FRAME_VIEWPROJECTION_MATRIX_R1 = 106,
+		CONST_SRC_CODE_SSR_PREV_FRAME_VIEWPROJECTION_MATRIX_R2 = 107,
+		CONST_SRC_CODE_SSR_PREV_FRAME_VIEWPROJECTION_MATRIX_R3 = 108,
+		CONST_SRC_CODE_PREV_EYEPOSITION_TRANSFORM = 109,
+		CONST_SRC_CODE_SCREEN_SPACE_REFLECTION_PARAMETERS = 110,
 		CONST_SRC_CODE_SSS_MRT_OFF_SHADER_OFF = 113,
 		CONST_SRC_CODE_PREV_FRAME_WORLD_MATRIX_EYE_OFFSET = 138,
 		CONST_SRC_CODE_SHADOWMAP_SWITCH_PARTITION_ARRAY_0 = 140, // 140..146 and 241..244 are the sun shadow args of wc_l_sm_lmpb_ndw_b0c0n0s0_nfwpf
@@ -356,6 +364,7 @@ namespace zonetool::s2
 		CONST_SRC_CODE_SHADOWMAP_PARTITION_UV_OFFSET = 144,
 		CONST_SRC_CODE_SHADOWMAP_CASCADE_MASK = 145,
 		CONST_SRC_CODE_SHADOWMAP_DISTANCE_BLEND = 146,
+		CONST_SRC_CODE_ZNEAR = 147, // .x near plane, decodes FLOATZ like h1 (stock zfeather particles)
 		CONST_SRC_CODE_MATERIAL_COLOR = 161, // tools_cso_hss_b0c0ct0 binds it where the identical h1 pixel shader binds h1 MATERIAL_COLOR
 		CONST_SRC_CODE_HDR_STAGE_PARMS = 218,
 		CONST_SRC_CODE_SUN_SHADOWMAP_PIXEL_ADJUST_ARRAY_0 = 241,
@@ -364,6 +373,16 @@ namespace zonetool::s2
 		CONST_SRC_CODE_SUN_SHADOWMAP_CASCADE_V_CLAMP = 244,
 		CONST_SRC_CODE_CLIP_SPACE_LOOKUP_SCALE = 317,
 		CONST_SRC_CODE_CLIP_SPACE_LOOKUP_OFFSET = 318,
+		CONST_SRC_CODE_MODEL_LIGHTING_INDEX = 319, // per prim, .x indexes the t5 light grid volume table of the "lmdl" vertex shaders
+		// 320..327 are bound like h1 316..323 by the stock particle_cloud vertex shaders (atlas 320, velocity 321, matrix0 322, spark color0 325)
+		CONST_SRC_CODE_PARTICLE_CLOUD_TEXTURE_ATLAS_SETTINGS = 320,
+		CONST_SRC_CODE_PARTICLE_CLOUD_VEL_WORLD = 321,
+		CONST_SRC_CODE_PARTICLE_CLOUD_MATRIX0 = 322,
+		CONST_SRC_CODE_PARTICLE_CLOUD_MATRIX1 = 323,
+		CONST_SRC_CODE_PARTICLE_CLOUD_MATRIX2 = 324,
+		CONST_SRC_CODE_PARTICLE_CLOUD_SPARK_COLOR0 = 325,
+		CONST_SRC_CODE_PARTICLE_CLOUD_SPARK_COLOR1 = 326,
+		CONST_SRC_CODE_PARTICLE_CLOUD_SPARK_COLOR2 = 327,
 		CONST_SRC_CODE_DEPTH_FROM_CLIP = 331,
 
 		CONST_SRC_CODE_COUNT_FLOAT4 = 338,
@@ -384,6 +403,11 @@ namespace zonetool::s2
 		CONST_SRC_CODE_INVERSE_SHADOW_LOOKUP_MATRIX = 351,
 		CONST_SRC_CODE_TRANSPOSE_SHADOW_LOOKUP_MATRIX = 352,
 		CONST_SRC_CODE_INVERSE_TRANSPOSE_SHADOW_LOOKUP_MATRIX = 353,
+		// the outdoor particle_cloud vertex shaders bind 356 where h1 binds TRANSPOSE_WORLD_OUTDOOR_LOOKUP_MATRIX
+		CONST_SRC_CODE_WORLD_OUTDOOR_LOOKUP_MATRIX = 354,
+		CONST_SRC_CODE_INVERSE_WORLD_OUTDOOR_LOOKUP_MATRIX = 355,
+		CONST_SRC_CODE_TRANSPOSE_WORLD_OUTDOOR_LOOKUP_MATRIX = 356,
+		CONST_SRC_CODE_INVERSE_TRANSPOSE_WORLD_OUTDOOR_LOOKUP_MATRIX = 357,
 		CONST_SRC_CODE_PREV_FRAME_WORLD_MATRIX = 358,
 		CONST_SRC_CODE_PREV_FRAME_INVERSE_WORLD_MATRIX = 359,
 		CONST_SRC_CODE_PREV_FRAME_TRANSPOSE_WORLD_MATRIX = 360,
@@ -549,7 +573,13 @@ namespace zonetool::s2
 		CUSTOM_BUFFER_PER_STABLE = 0x8,
 		CUSTOM_BUFFER_MATERIAL = 0x10,
 		CUSTOM_BUFFER_INSTANCE_MATRICES = 0x8000, // 8 cb7 rows for each instance and rows 0..3 are the world matrix (sub_140181FA0)
+		CUSTOM_BUFFER_INSTANCE_MATRICES_LIGHTING = 0x10000, // 9 cb7 rows for each instance, row 8 .x is the model lighting index
 		CUSTOM_BUFFER_SLF = 0x40000, // binds cb5 for the "slf" techsets
+
+		// bit groups copied from the stock "lmdl" lit passes, every stock pass that declares the resources has all of them
+		CUSTOM_BUFFER_FORWARD_LIGHTING = 0x5000C0, // pixel shader t7 light grid volumes and the forward lights; 2d/3d light grid textures are stable code textures 94..97
+		CUSTOM_BUFFER_LIGHT_GRID_VOLUME = 0x3800000, // vertex shader t5 index table, t6 world to volume transforms, t7 volumes
+		CUSTOM_BUFFER_LIGHT_GRID_PROBES = 0xC000000, // probe buffer t8 for the single probe "lgv0d" passes
 	};
 
 	enum CustomSamplerFlags : std::uint8_t
@@ -562,9 +592,11 @@ namespace zonetool::s2
 	enum MaterialPassModelVertexType : unsigned char // selects the vertex type of a model surface (sub_14083A5E0 callers)
 	{
 		MODEL_VERTEX_TYPE_SURFACE = 0,
+		MODEL_VERTEX_TYPE_INSTANCE_DATA = 1, // stock shadow, unlit and instanced passes, sub_1407E87B0 writes their 8 row instance data
 		MODEL_VERTEX_TYPE_VERTEX_LIGHTING = 2,
 		MODEL_VERTEX_TYPE_LIGHTMAP = 3,
-		MODEL_VERTEX_TYPE_SELF_VISIBILITY = 4,
+		MODEL_VERTEX_TYPE_SELF_VISIBILITY = 4, // also selects the light grid volume per prim constants of the "plit_lgv" passes (0x1407E7F40)
+		MODEL_VERTEX_TYPE_PREV_FRAME = 5, // stock zprepass passes, sub_1407E9AE0 also uploads the previous frame world matrix
 	};
 
 	struct MaterialPass
@@ -1675,7 +1707,10 @@ namespace zonetool::s2
 		unsigned char lodRampType;
 		char __pad0[3];
 		unsigned short numClientBones;
-		char __pad1[70];
+		char __pad1[2];
+		float scale;
+		float unkScale[2]; // 1.0 in every mp_aachen_v2 model
+		char __pad11[56];
 		scr_string_t* boneNames;
 		unsigned short* parentList;
 		short* tagAngles;
@@ -1696,12 +1731,18 @@ namespace zonetool::s2
 		float radius;
 		float boundsMidPoint[3];
 		float boundsHalfSize[3];
-		float cullSizeScale;
+		float cullSizeScale; // 15 for most stock models
 		float lodDistScale;
+		// lod switch at sqrt(lodDistScale * lodDistSq * r_lod dvar) * S + boundsRadius, S = sqrt(518400 / (tanX * tanY * 4) + 1/pi) = 565.087
+		// at the clamped fov (sub_14074D5F0, sub_14074DE00), the linker bakes lodDistSq[i] = lod0 surfaceArea * lod0 tris / lod i tris
 		float lodDistSq[6];
 		float boundsRadius; // length of boundsHalfSize
-		unsigned char useLodInfoDist;
-		char __pad10[17];
+		unsigned char useLodInfoDist; // the lod switches at lodInfo[].dist instead
+		char __pad10[3];
+		unsigned int memUsage; // varies per model, not read by the renderer
+		char __pad12[8];
+		unsigned char unk_0x2D8; // 4 on vehicles
+		char __pad13[1];
 		unsigned short extraBoneNameCount;
 		unsigned short extraDataCount;
 		char __pad5[2];
@@ -1709,7 +1750,8 @@ namespace zonetool::s2
 		char* extraData;
 		PhysPreset* physPreset;
 		PhysCollmap* physCollmap;
-		char __pad6[2];
+		unsigned char unk_0x300; // 1 with physics rigs
+		signed char unk_0x301; // -1 without physics rigs
 		unsigned char physRigCount;
 		char __pad7[5];
 		scr_string_t* physRigNames;
@@ -1721,9 +1763,17 @@ namespace zonetool::s2
 		char __pad8[6];
 		XModelImageRef* imageRefs;
 		SkeletonScript* skeletonScripts[4];
-		char __pad9[24];
+		float swayParams[4]; // only set on wires and trees, for example 100000, 10000, 0.1, 1
+		char __pad9[2];
+		short unk_0x372; // -1 in every mp_aachen_v2 model
+		float unk_0x374; // 96 for most stock models
 	};
 	static_assert(sizeof(XModelBase) == 0x378);
+	static_assert(offsetof(XModelBase, scale) == 0x14);
+	static_assert(offsetof(XModelBase, memUsage) == 0x2CC);
+	static_assert(offsetof(XModelBase, unk_0x300) == 0x300);
+	static_assert(offsetof(XModelBase, swayParams) == 0x360);
+	static_assert(offsetof(XModelBase, unk_0x374) == 0x374);
 	static_assert(offsetof(XModelBase, numClientBones) == 16);
 	static_assert(offsetof(XModelBase, boneNames) == 88);
 	static_assert(offsetof(XModelBase, lodInfo) == 136);
@@ -1777,6 +1827,7 @@ namespace zonetool::s2
 	{
 		XMODEL_FLAG_VARIANTS = 0x200,
 		XMODEL_FLAG_UNK_0x800 = 0x800,
+		XMODEL_FLAG_SWAY = 0x1000, // every stock model with swayParams (foliage, trees, wires)
 		XMODEL_FLAG_NO_LAST_LOD = 0x8000,
 	};
 
@@ -5318,29 +5369,33 @@ namespace zonetool::s2
 
 	struct GfxStaticModelDrawInst
 	{
-		GfxPackedPlacement placement; // 0
-		float unk_0x34[3]; // 52
-		char unk_0x40[8]; // 64
+		GfxPackedPlacement placement; // 0, placement.scale is the x axis scale (instance matrix, sub_1407E87B0)
+		float axisScale[2]; // 52, y and z axis scales, mirrored instances have a negative y scale
+		float maxScale; // 60, max of the absolute axis scales, scales the LOD distance (sub_1407C3240)
+		unsigned char mirrored; // 64, axis scales flip handedness, bit 0 of the draw surface key (sub_1407C3240)
+		char unk_0x41[7]; // 65
 		XModel* model; // 72
 		char unk_0x50[2]; // 80
-		unsigned short cullDist; // 82
+		unsigned short cullDist; // 82, 0 is no distance cull (sub_14074D820)
 		unsigned short flags; // 84
 		char unk_0x56[2]; // 86
 		unsigned short staticModelId; // 88
 		char unk_0x5A[2]; // 90
-		unsigned int unk_0x5C; // 92
+		unsigned int unk_0x5C; // 92, unique per instance in stock zones, never read by the game
 		char unk_0x60[10]; // 96
 		unsigned short lightListOffset; // 106
 		float radius; // 108
 		unsigned char reflectionProbeIndex; // 112
-		char unk_0x71[1]; // 113
-		unsigned char unk_0x72; // 114
-		char unk_0x73[1]; // 115
-		float unk_0x74; // 116
+		unsigned char sortMaterialIndex; // 113, model material that sorts the instance batch (sub_1407C6540)
+		unsigned char sunShadowFlags; // 114, bit per sunShadowOptCount partition (sub_1407C4560, sub_1407C7C70)
+		unsigned char minLod; // 115, lowest LOD index the instance may use (sub_14074D820)
+		float lodScale; // 116, divides the LOD and cull distance (sub_14074D820)
 		char unk_0x78[8]; // 120
 	};
 	assert_sizeof(GfxStaticModelDrawInst, 128);
-	assert_offsetof(GfxStaticModelDrawInst, unk_0x34, 52);
+	assert_offsetof(GfxStaticModelDrawInst, axisScale, 52);
+	assert_offsetof(GfxStaticModelDrawInst, maxScale, 60);
+	assert_offsetof(GfxStaticModelDrawInst, mirrored, 64);
 	assert_offsetof(GfxStaticModelDrawInst, model, 72);
 	assert_offsetof(GfxStaticModelDrawInst, cullDist, 82);
 	assert_offsetof(GfxStaticModelDrawInst, flags, 84);
@@ -5349,8 +5404,10 @@ namespace zonetool::s2
 	assert_offsetof(GfxStaticModelDrawInst, lightListOffset, 106);
 	assert_offsetof(GfxStaticModelDrawInst, radius, 108);
 	assert_offsetof(GfxStaticModelDrawInst, reflectionProbeIndex, 112);
-	assert_offsetof(GfxStaticModelDrawInst, unk_0x72, 114);
-	assert_offsetof(GfxStaticModelDrawInst, unk_0x74, 116);
+	assert_offsetof(GfxStaticModelDrawInst, sortMaterialIndex, 113);
+	assert_offsetof(GfxStaticModelDrawInst, sunShadowFlags, 114);
+	assert_offsetof(GfxStaticModelDrawInst, minLod, 115);
+	assert_offsetof(GfxStaticModelDrawInst, lodScale, 116);
 
 	struct GfxStaticModelVertexLighting
 	{

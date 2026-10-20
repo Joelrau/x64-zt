@@ -761,10 +761,12 @@ namespace zonetool::iw7
 
 		if (asset->streamed)
 		{
-			for (auto i = 0u; i < 4; i++)
+			// separate storage per stream, the dumper writes a pointer it has seen before as a reference to the first one
+			std::array<XStreamFile, 4> stream_files{};
+			for (auto i = 0u; i < stream_files.size(); i++)
 			{
-				const auto stream_file = image_stream_file(asset, i);
-				write.dump_single(&stream_file);
+				stream_files[i] = image_stream_file(asset, i);
+				write.dump_single(&stream_files[i]);
 			}
 		}
 		write.close();

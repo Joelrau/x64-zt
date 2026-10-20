@@ -3,6 +3,7 @@
 
 #include <io/game_files.hpp>
 #include <xfile/xfile.hpp>
+#include "../zone/image_pak.hpp"
 #include <utils/flags.hpp>
 #include <utils/io.hpp>
 
@@ -15,33 +16,7 @@ namespace zonetool::s2
 {
 	namespace
 	{
-#pragma pack(push, 1)
-		struct toc_header
-		{
-			char magic[8];
-			std::uint32_t version;
-			std::uint32_t hash_size;
-			std::uint32_t entry_count;
-		};
-
-		struct toc_stream
-		{
-			std::uint64_t offset;
-			std::uint32_t size;
-			std::uint16_t file_index;
-		};
-
-		struct toc_entry
-		{
-			std::uint64_t hash[2];
-			toc_stream streams[4];
-		};
-#pragma pack(pop)
-
-		static_assert(sizeof(toc_header) == 20);
-		static_assert(sizeof(toc_entry) == 72);
-
-		constexpr std::string_view toc_magic = "S2ffi100";
+		using image_pak::toc_entry;
 
 		struct image_stream_location
 		{
@@ -59,23 +34,21 @@ namespace zonetool::s2
 		void read_toc(const std::filesystem::path& path, std::unordered_map<std::uint64_t, image_stream_entry>& entries)
 		{
 			std::string data;
-			if (!game_files::read(path, data) || data.size() < sizeof(toc_header))
+			if (!game_files::read(path, data) || data.empty())
 			{
 				return;
 			}
 
-			const auto header = reinterpret_cast<const toc_header*>(data.data());
-			if (std::string_view(header->magic, sizeof(header->magic)) != toc_magic
-				|| sizeof(toc_header) + header->entry_count * sizeof(toc_entry) > data.size())
+			const auto toc = image_pak::parse_toc(data);
+			if (!toc)
 			{
 				ZONETOOL_WARNING("Image toc \"%s\" is not valid", path.string().data());
 				return;
 			}
 
-			const auto toc = reinterpret_cast<const toc_entry*>(data.data() + sizeof(toc_header));
-			for (auto i = 0u; i < header->entry_count; i++)
+			for (const auto& entry : *toc)
 			{
-				entries.try_emplace(toc[i].hash[0], path.parent_path(), toc[i]);
+				entries.try_emplace(entry.hash[0], path.parent_path(), entry);
 			}
 		}
 
@@ -98,16 +71,18 @@ namespace zonetool::s2
 			return entries;
 		}
 
-		std::optional<image_stream_location> find_fastfile_stream(const XStreamFileLocation& location)
+		std::optional<image_stream_location> find_zone_stream(const XStreamFileLocation& location)
 		{
-			if (!location.size || location.fileIndex != XStreamFileLocation::fastfile_index)
+			const auto in_fastfile = location.fileIndex == XStreamFileLocation::fastfile_index;
+			if (!location.size || (!in_fastfile && location.fileIndex != XStreamFileLocation::zone_pak_index))
 			{
 				return {};
 			}
 
 			return image_stream_location
 			{
-				.pak = filesystem::get_zone_folder() + filesystem::get_fastfile() + ".ff",
+				.pak = filesystem::get_zone_folder() + (in_fastfile
+					? filesystem::get_fastfile() + ".ff" : image_pak::get_pak_name(filesystem::get_fastfile())),
 				.offset = location.offset,
 				.size = location.size,
 			};
@@ -117,7 +92,7 @@ namespace zonetool::s2
 		{
 			if (key.slot != XStreamFileKey::unresolved_slot)
 			{
-				return find_fastfile_stream(std::bit_cast<XStreamFileLocation>(key));
+				return find_zone_stream(std::bit_cast<XStreamFileLocation>(key));
 			}
 
 			const auto& entries = image_stream_entries();
@@ -328,7 +303,7 @@ namespace zonetool::s2
 		{
 			return std::ranges::any_of(get_image_stream_keys(image), [](const XStreamFileKey& key)
 			{
-				return !is_toc_stream(key) && find_fastfile_stream(std::bit_cast<XStreamFileLocation>(key));
+				return !is_toc_stream(key) && find_zone_stream(std::bit_cast<XStreamFileLocation>(key));
 			});
 		}
 
@@ -462,14 +437,11 @@ namespace zonetool::s2
 
 			if (is_streamed_image(image))
 			{
-				const auto keys = get_image_stream_keys(image);
-				for (auto i = 0u; i < image_stream_count; i++)
+				// separate storage per key, the dumper writes a pointer it has seen before as a reference to the first one
+				std::array<XStreamFileKey, image_stream_count> keys{};
+				std::ranges::copy(get_image_stream_keys(image) | std::views::take(image_stream_count), keys.begin());
+				for (auto& key : keys)
 				{
-					XStreamFileKey key{};
-					if (i < keys.size())
-					{
-						key = keys[i];
-					}
 					write.dump_single(&key);
 				}
 			}
@@ -514,9 +486,16 @@ namespace zonetool::s2
 
 			if (is_streamed_image(asset))
 			{
-				for (auto& key : this->parsed_stream_keys_)
+				for (auto i = 0u; i < image_stream_count; i++)
 				{
+					auto& key = this->parsed_stream_keys_[i];
 					key = *read.read_single<XStreamFileKey>();
+
+					// older dumps wrote keys 1-3 as references to key 0, a toc key always looks up its own stream of the entry
+					if (is_toc_stream(key))
+					{
+						key.index = static_cast<std::uint16_t>(i);
+					}
 				}
 				this->has_parsed_stream_keys_ = true;
 				this->find_stream_pixels(asset);
