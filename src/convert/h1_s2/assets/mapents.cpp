@@ -2,6 +2,7 @@
 
 #include "../include.hpp"
 #include "mapents.hpp"
+#include "material.hpp"
 #include "scriptable.hpp"
 #include "techset.hpp"
 
@@ -224,6 +225,7 @@ namespace zonetool::h1::converter::s2::mapents
 			if (const auto minimap = find_minimap_material(script_name); !minimap.empty())
 			{
 				source += "\t_id_472::_id_8A2F(\"" + minimap + "\");\n"; // setupminimap
+				material::dump_minimap(minimap);
 			}
 			else
 			{

@@ -20,8 +20,8 @@ namespace zonetool::h1::converter::s2::comworld
 
 			const auto max_color = std::max({light.color[0], light.color[1], light.color[2]});
 			const auto is_sun = light.type == GFX_LIGHT_TYPE_DIR;
-			new_light.intensity = is_sun ? (max_color > 0.0f ? max_color / 10.0f : 1.0f) : 1.0f;
-			const auto scale = is_sun ? new_light.intensity * 10.0f : 20000.0f;
+			new_light.intensity = is_sun && max_color > 0.0f ? max_color : 1.0f;
+			const auto scale = is_sun ? new_light.intensity : 20000.0f;
 
 			new_light.canUseShadowMap = light.canUseShadowMap;
 			for (auto i = 0; i < 3; i++)

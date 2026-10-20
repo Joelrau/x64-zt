@@ -23,6 +23,7 @@ namespace zonetool::h1::converter::s2::material
 
 		std::vector<Material*> pending_materials;
 		std::unordered_set<std::string> dumped_donor_images;
+		std::unordered_set<std::string> minimap_materials;
 
 		const MaterialTextureDef* find_texture(const Material* asset, const std::uint32_t hash)
 		{
@@ -455,7 +456,7 @@ namespace zonetool::h1::converter::s2::material
 			switch (camera_region)
 			{
 			case CAMERA_REGION_LIT_OPAQUE:
-			case CAMERA_REGION_DEPTH_HACK: // s2 stock zones use no depth hack regions
+			case CAMERA_REGION_DEPTH_HACK:
 			case CAMERA_REGION_PRE_DEPTH_HACK:
 			case CAMERA_REGION_PRE_OPAQUE:
 				return zonetool::s2::CAMERA_REGION_LIT_OPAQUE;
@@ -601,11 +602,74 @@ namespace zonetool::h1::converter::s2::material
 		pending_materials.emplace_back(asset);
 	}
 
+	void dump_minimap(const std::string& minimap)
+	{
+		const auto* h1_material = db_find_x_asset_header_safe(ASSET_TYPE_MATERIAL, minimap).material;
+		const auto* h1_texture = h1_material && h1_material->textureCount ? &h1_material->textureTable[0] : nullptr;
+		const auto map_image = h1_texture ? select_native_image(*h1_texture) : std::string{};
+		if (map_image.empty())
+		{
+			ZONETOOL_WARNING("Minimap material \"%s\" has no image", minimap.data());
+			return;
+		}
+
+		const auto& zone = techset::donor_zone();
+		const auto donor_minimap = "compass_map_" + std::string(techset::donor_zone_name);
+		for (const auto suffix : {"", "_circular", "_ui3d"})
+		{
+			const auto donor_name = donor_minimap + suffix;
+			const auto& donors = zone.find_assets(zonetool::s2::ASSET_TYPE_MATERIAL);
+			const auto donor = std::ranges::find_if(donors, [&](void* header)
+			{
+				return static_cast<zonetool::s2::Material*>(header)->info.name == donor_name;
+			});
+			if (donor == donors.end())
+			{
+				ZONETOOL_WARNING("Material \"%s\" is not in the donor zone", donor_name.data());
+				continue;
+			}
+
+			const auto name = minimap + suffix;
+			auto material = *static_cast<zonetool::s2::Material*>(*donor);
+			material.info.name = name.data();
+
+			std::vector<zonetool::s2::MaterialTextureDef> textures(material.textureTable, material.textureTable + material.textureCount);
+			std::vector<zonetool::s2::GfxImage> images(textures.size());
+			for (auto i = 0u; i < textures.size(); i++)
+			{
+				const auto image = textures[i].u.image;
+				const auto is_global = image && image->name && zone.is_global_image(image->name);
+				images[i].name = is_global ? image->name : map_image.data();
+				textures[i].u.image = &images[i];
+				add_csv_row("image", images[i].name, is_global);
+			}
+			material.textureTable = textures.data();
+
+			const auto techset = material.techniqueSet->name;
+			add_csv_row("techset", techset, zone.is_global_techset(techset));
+			{
+				db_scope _(zone.db());
+				if (!zone.is_global_techset(techset))
+				{
+					techset::dump(material.techniqueSet);
+				}
+				zonetool::s2::material::dump(&material);
+			}
+			add_csv_row("material", name);
+			minimap_materials.insert(name);
+		}
+	}
+
 	void finish()
 	{
 		std::unordered_map<std::string, std::string> selected;
 		for (const auto asset : pending_materials)
 		{
+			if (minimap_materials.contains(asset->name))
+			{
+				continue;
+			}
+
 			try
 			{
 				convert_material(asset, selected);
@@ -617,5 +681,6 @@ namespace zonetool::h1::converter::s2::material
 		}
 
 		pending_materials.clear();
+		minimap_materials.clear();
 	}
 }
