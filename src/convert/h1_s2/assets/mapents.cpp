@@ -32,12 +32,6 @@ namespace zonetool::h1::converter::s2::mapents
 			return context;
 		}
 
-		template <typename T>
-		T* allocate_zeroed(utils::memory::allocator& allocator, const std::size_t count)
-		{
-			return count ? allocator.allocate_array<T>(count) : nullptr;
-		}
-
 		int* widen_array(const short* source, const std::size_t count, utils::memory::allocator& allocator)
 		{
 			if (!source || !count)
@@ -179,7 +173,7 @@ namespace zonetool::h1::converter::s2::mapents
 			{
 				new_asset->scriptableMapEnts = scriptable::convert_map_ents(clip_map->scriptableMapEnts, allocator);
 			}
-			
+
 			return new_asset;
 		}
 
@@ -285,7 +279,7 @@ namespace zonetool::h1::converter::s2::mapents
 			return utils::compression::zlib::decompress({asset.buffer, static_cast<std::size_t>(asset.compressedLen)});
 		}
 
-		constexpr std::string_view s2_fog_keys = // sub_1403D9200 does not reset these, so a missing key keeps the value of the last fog file
+		constexpr std::string_view s2_fog_keys = // sub_1403D9200 keeps the last fog file values for missing keys
 			"\n\tent.atmosFogEntityScale = 1;"
 			"\n\tent.atmosFogSplineEnabled = 0;";
 
@@ -324,7 +318,7 @@ namespace zonetool::h1::converter::s2::mapents
 			const char* value;
 		};
 
-		constexpr lightset_value h1_lightset[] = // H1 MP maps ship no lightsets table, so H1 uses the registration defaults of these dvars (sub_69AD0)
+		constexpr lightset_value h1_lightset[] = // h1 registration defaults (sub_69AD0), h1 mp maps have no lightsets table
 		{
 			{"sunenable", "1"},
 			{"sunshadowscale", "1"},
@@ -336,7 +330,7 @@ namespace zonetool::h1::converter::s2::mapents
 			{"veil", "0"},
 			{"veilstrength", "0.087"},
 			{"veilbackgroundstrength", "0.913"},
-			{"tonemap", "0"}, // the H1 Linear operator with the H1 exposure defaults overexposes in S2, so the operator and exposure use the stock S2 values
+			{"tonemap", "0"}, // the h1 linear operator overexposes in s2, the operator and exposure keep the stock s2 values
 			{"tonemapauto", "1"},
 			{"tonemapblend", "1"},
 			{"tonemaplockautoexposureadjust", "0"},
@@ -366,7 +360,7 @@ namespace zonetool::h1::converter::s2::mapents
 			{"mdaooccluderfadeoutstartdistance", "900"},
 			{"mdaocapsulestrength", "1"},
 			{"mdaovolumestrength", "1"},
-			{"wbMethod", "0"}, // H1 has no white balance, and the S2 default method shifts the colors
+			{"wbMethod", "0"}, // the s2 default white balance shifts the colors
 		};
 
 		void dump_lightsets(const std::string& map_name)
@@ -391,7 +385,7 @@ namespace zonetool::h1::converter::s2::mapents
 			add_csv_row("stringtable", asset.name);
 		}
 
-		const std::unordered_map<std::string, std::string> s2_sun_dvars = // S2 sun files name each dvar by its id in the S2 exe
+		const std::unordered_map<std::string, std::string> s2_sun_dvars = // s2 sun files name each dvar by its id
 		{
 			{"r_sunsprite_shader", "4843"},
 			{"r_sunsprite_size", "4337"},
@@ -502,7 +496,7 @@ namespace zonetool::h1::converter::s2::mapents
 	{
 		zonetool::s2::MapTriggers new_trigger{};
 		new_trigger.count = trigger.count;
-		new_trigger.models = allocate_zeroed<zonetool::s2::TriggerModel>(allocator, trigger.count);
+		new_trigger.models = allocator.allocate_array<zonetool::s2::TriggerModel>(trigger.count);
 		for (auto i = 0u; i < trigger.count; i++)
 		{
 			new_trigger.models[i].contents = static_cast<std::uint32_t>(trigger.models[i].contents);
@@ -511,7 +505,7 @@ namespace zonetool::h1::converter::s2::mapents
 		}
 
 		new_trigger.hullCount = trigger.hullCount;
-		new_trigger.hulls = allocate_zeroed<zonetool::s2::TriggerHull>(allocator, trigger.hullCount);
+		new_trigger.hulls = allocator.allocate_array<zonetool::s2::TriggerHull>(trigger.hullCount);
 		for (auto i = 0u; i < trigger.hullCount; i++)
 		{
 			new_trigger.hulls[i].bounds = std::bit_cast<zonetool::s2::Bounds>(trigger.hulls[i].bounds);
@@ -535,7 +529,7 @@ namespace zonetool::h1::converter::s2::mapents
 		dump_map_script(script_name);
 		dump_level_net_const_strings();
 
-		// TODO remove this and port actual values, this is meme
+		// TODO port the real values
 		const auto map_name = std::filesystem::path(script_name).filename().string();
 		dump_donor_map_settings(map_name);
 		dump_lightsets(map_name);

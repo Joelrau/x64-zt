@@ -6,9 +6,9 @@
 
 namespace zonetool::h1::converter::s2::fxworld
 {
-	// TODO glass is not converted
 	void dump(FxWorld* asset)
 	{
+		// TODO glass is not converted
 		zonetool::s2::FxWorld new_asset{};
 		if (const auto donor = static_cast<zonetool::s2::FxWorld*>(techset::donor_zone().find_asset(zonetool::s2::ASSET_TYPE_FXWORLD)))
 		{

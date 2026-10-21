@@ -461,8 +461,7 @@ namespace zonetool::h1::converter::s2::gfximage
 			dump_loaded_image(&image, pixels.data);
 		}
 
-		// S2 sky shaders read a 2D texture with uv = 0.5 + 0.5 * dir.xy / (len + |0.919831 * dir.z + 0.080169 * len|)
-		constexpr auto sky_z_scale = 0.919831f;
+		constexpr auto sky_z_scale = 0.919831f; // s2 sky uv = 0.5 + 0.5 * dir.xy / (len + |0.919831 * dir.z + 0.080169 * len|)
 		constexpr auto sky_size = 1024u;
 
 		std::array<float, 3> sky_direction(const float px, const float py)

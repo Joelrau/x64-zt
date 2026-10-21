@@ -2,15 +2,18 @@
 
 #include "../include.hpp"
 #include "techset.hpp"
-
-#include <shader-tool/shader.hpp>
-
-namespace asm_ = alys::shader::literals;
+#include "shader.hpp"
 
 namespace zonetool::h1::converter::s2::techset
 {
 	namespace
 	{
+		using shader::light_grid;
+		using shader::model_lighting;
+		using shader::program_patch;
+		using shader::stable_literal_row;
+		using shader::sun_shadow_lookup;
+
 		const std::unordered_map<std::string_view, std::string_view> s2_prefixes
 		{
 			{"m", "mo"},
@@ -79,7 +82,6 @@ namespace zonetool::h1::converter::s2::techset
 			"distortion",
 		};
 
-		// "ndw" is no depth write, "b0" and "ba0" are blended layers
 		const std::unordered_set<std::string_view> translucent_tokens
 		{
 			"ndw",
@@ -90,7 +92,6 @@ namespace zonetool::h1::converter::s2::techset
 			"ba0",
 		};
 
-		// layer groups mix one and two letter layers, for example "t0c0n0om0" or "b0hb0c0"
 		void add_layer_tokens(const std::string& part, std::vector<std::string>& tokens)
 		{
 			static const std::regex layer_group(R"(^([a-z]+[0-9])+$)");
@@ -282,7 +283,7 @@ namespace zonetool::h1::converter::s2::techset
 				return;
 			}
 
-			const auto global = donor_zone().is_global_asset(shader); // the donor zone holds only the name, common_mp holds the program
+			const auto global = donor_zone().is_global_asset(shader);
 			if (!global)
 			{
 				dump_shader_file(shader);
@@ -293,29 +294,9 @@ namespace zonetool::h1::converter::s2::techset
 
 		constexpr auto h1_per_prim_constant_buffer = 0u;
 		constexpr auto h1_per_object_constant_buffer = 1u;
-		constexpr auto h1_stable_constant_buffer = 2u;
-		constexpr auto h1_constant_buffer_count = 5u; // cb4 is the slf buffer
-		constexpr auto h1_instance_matrix_buffer = 6u;
-		constexpr auto s2_instance_matrix_buffer = 7u;
-		constexpr auto h1_instance_row_shift = 2u; // 4 rows for each instance
-		constexpr auto s2_instance_row_shift = 3u; // 8 rows for each instance
 		constexpr auto h1_first_shifted_stream_source = 6u;
 		constexpr auto s2_stream_source_shift = 3u;
-		constexpr auto h1_model_lighting_buffer = 7u; // instanced passes read the lighting coords from cb7[instance]
-		constexpr auto h1_instance_probe_ambient_flag = 0x400u; // the instanced "amb" passes bind their cb7 probe ambient colors with it
-		constexpr auto s2_lit_instance_rows = 9u; // lit instanced passes add the model lighting index row
-		constexpr auto s2_lit_instance_lighting_row = 8u;
-		// static models drawn through the cached path (sub_1407E8F90) bind a per prim buffer built at load with the stock layout:
-		// cb0[0..3] world matrix, cb0[4] const 329, cb0[6..9] previous world matrix, cb0[10] MODEL_LIGHTING_INDEX
-		constexpr auto s2_model_lighting_index_dest = 10u;
-		// the "ml" passes (vertex type 3) have MODEL_LIGHTMAP_PARAMS in the same row of that buffer
-		constexpr auto s2_model_lightmap_params_dest = 10u;
-		constexpr auto light_grid_direction_count = 12u;
-		constexpr auto light_grid_volume_slot = 7u; // pixel shader t7 of the stock "lmdl" shaders, bound by the custom buffers
-		// pixel shader slots of the 2d/3d light grid colors and primary visibility, bound by stable code textures like the stock passes
-		constexpr auto light_grid_colors_slot = 19u;
-		constexpr auto light_grid_visibility_slot = 20u;
-		constexpr auto ambient_light_grid_sampler = 0u; // the stock "plit_lgv" passes sample the 2d/3d light grid with s0 = LINEAR_CLAMP
+		constexpr auto h1_instance_probe_ambient_flag = 0x400u; // cb7 probe ambient of the instanced "amb" passes
 
 		utils::memory::allocator native_allocator;
 
@@ -325,7 +306,7 @@ namespace zonetool::h1::converter::s2::techset
 			{
 				{CONST_SRC_CODE_GAMETIME, zonetool::s2::CONST_SRC_CODE_GAMETIME},
 				{CONST_SRC_CODE_MODEL_LIGHTMAP_PARAMS, zonetool::s2::CONST_SRC_CODE_MODEL_LIGHTMAP_PARAMS},
-				{CONST_SRC_CODE_ZNEAR, zonetool::s2::CONST_SRC_CODE_ZNEAR}, // the ocean depth fade divides by it
+				{CONST_SRC_CODE_ZNEAR, zonetool::s2::CONST_SRC_CODE_ZNEAR},
 				{CONST_SRC_CODE_SSR_PREV_FRAME_VIEWPROJECTION_MATRIX_R0, zonetool::s2::CONST_SRC_CODE_SSR_PREV_FRAME_VIEWPROJECTION_MATRIX_R0},
 				{CONST_SRC_CODE_SSR_PREV_FRAME_VIEWPROJECTION_MATRIX_R1, zonetool::s2::CONST_SRC_CODE_SSR_PREV_FRAME_VIEWPROJECTION_MATRIX_R1},
 				{CONST_SRC_CODE_SSR_PREV_FRAME_VIEWPROJECTION_MATRIX_R2, zonetool::s2::CONST_SRC_CODE_SSR_PREV_FRAME_VIEWPROJECTION_MATRIX_R2},
@@ -384,7 +365,7 @@ namespace zonetool::h1::converter::s2::techset
 			{TEXTURE_SRC_CODE_WHITE, zonetool::s2::TEXTURE_SRC_CODE_WHITE},
 			{TEXTURE_SRC_CODE_IDENTITY_NORMAL_MAP, zonetool::s2::TEXTURE_SRC_CODE_IDENTITY_NORMAL_MAP},
 			{TEXTURE_SRC_CODE_SHADOWMAP_SUN, zonetool::s2::TEXTURE_SRC_CODE_SHADOWMAP_SUN},
-			{TEXTURE_SRC_CODE_TRANS_SHADOWMAP_SUN, zonetool::s2::TEXTURE_SRC_CODE_WHITE}, // h1 shadow = saturate(sun + trans - 1), white keeps the sun term
+			{TEXTURE_SRC_CODE_TRANS_SHADOWMAP_SUN, zonetool::s2::TEXTURE_SRC_CODE_WHITE}, // h1 shadow is saturate(sun + trans - 1), white keeps the sun term
 			{TEXTURE_SRC_CODE_SHADOWMAP_SPOT, zonetool::s2::TEXTURE_SRC_CODE_SHADOWMAP_SPOT},
 			{TEXTURE_SRC_CODE_SHADOWMAP_SPOT_1, zonetool::s2::TEXTURE_SRC_CODE_SHADOWMAP_SPOT_1},
 			{TEXTURE_SRC_CODE_SHADOWMAP_SPOT_2, zonetool::s2::TEXTURE_SRC_CODE_SHADOWMAP_SPOT_2},
@@ -433,40 +414,12 @@ namespace zonetool::h1::converter::s2::techset
 		{
 			{CONST_SRC_CODE_FOG_HEIGHT_FOG, {0.0f, 0.0f, fog_off_height_falloff, 0.0f}},
 			{CONST_SRC_CODE_ATMOS_FOG_PARMS_5, {0.0f, 0.0f, fog_off_height_falloff, 0.0f}},
-			{CONST_SRC_CODE_LIGHTING_LOOKUP_SCALE, {1.0f, 1.0f, 1.0f, 0.0f}}, // the patched pixel shaders only need the lookup direction
-			// h1 script parms, w desaturates the model lighting in the lit pixel shaders, s2 code const 26 holds other data that flickers it
-			{CONST_SRC_CODE_SCRIPT_PARMS, {0.0f, 0.0f, 0.0f, 0.0f}},
-			// s2 has no code mesh args; the h1 "trailfade" vertex shaders fade the trail ends by saturate((x - u) * z) * saturate((u - y) * w)
-			// of CODE_MESH_ARG_0, an open window keeps the whole trail
-			{CONST_SRC_CODE_CODE_MESH_ARG_0, {65504.0f, -65504.0f, 1.0f, 1.0f}},
+			{CONST_SRC_CODE_LIGHTING_LOOKUP_SCALE, {1.0f, 1.0f, 1.0f, 0.0f}},
+			{CONST_SRC_CODE_SCRIPT_PARMS, {0.0f, 0.0f, 0.0f, 0.0f}}, // s2 const 26 holds other data that flickers the model lighting
+			{CONST_SRC_CODE_CODE_MESH_ARG_0, {65504.0f, -65504.0f, 1.0f, 1.0f}}, // open fade window of the "trailfade" vertex shaders
 			{CONST_SRC_CODE_CODE_MESH_ARG_1, {0.0f, 0.0f, 0.0f, 0.0f}},
 			{CONST_SRC_CODE_CODE_MESH_ARG_3, {0.0f, 0.0f, 0.0f, 0.0f}},
 			{CONST_SRC_CODE_CODE_MESH_ARG_4, {0.0f, 0.0f, 0.0f, 0.0f}},
-		};
-
-		// s2 model lighting, the icosahedron directions of the 12 probe colors (sub_1407E7170 "plit_lgv" shaders)
-		constexpr std::array<std::array<float, 3>, light_grid_direction_count> light_grid_directions
-		{{
-			{0.850651f, 0.525731f, 0.0f},
-			{-0.850651f, 0.525731f, 0.0f},
-			{0.850651f, -0.525731f, 0.0f},
-			{-0.850651f, -0.525731f, 0.0f},
-			{0.0f, 0.850651f, 0.525731f},
-			{0.0f, -0.850651f, 0.525731f},
-			{0.0f, 0.850651f, -0.525731f},
-			{0.0f, -0.850651f, -0.525731f},
-			{0.525731f, 0.0f, 0.850651f},
-			{-0.525731f, 0.0f, 0.850651f},
-			{0.525731f, 0.0f, -0.850651f},
-			{-0.525731f, 0.0f, -0.850651f},
-		}};
-
-		// the s2 lit slots come in groups of 4 for each light grid volume layout
-		enum class light_grid
-		{
-			probe_buffer, // "lgv0d", probe index from x, 12 colors in buffer t8 and the sun visibility in buffer t9
-			array_2d, // "lgv1d2d", Texture2DArray t19 with a slice for each direction, sun visibility in Texture2D t20
-			volume_3d, // "lgv3d", Texture3D t19 with the directions stacked along z, sun visibility in Texture3D t20
 		};
 
 		light_grid slot_light_grid(const std::int32_t slot)
@@ -503,16 +456,6 @@ namespace zonetool::h1::converter::s2::techset
 				return "_lgv0d";
 			}
 		}
-
-		// h1 models sample their own cube of TEXTURE_SRC_CODE_MODEL_LIGHTING at BASE_LIGHTING_COORDS, s2 has no such atlas
-		struct model_lighting
-		{
-			bool instanced;
-			std::uint16_t coords_dest; // per prim row of BASE_LIGHTING_COORDS when not instanced
-			std::uint16_t eye_offset_dest; // stable row of the vertex shader WORLD_MATRIX_EYE_OFFSET
-			std::uint16_t texture; // pixel shader slot of the model lighting volume
-			bool ambient; // the vertex shader passes the per prim LIGHT_PROBE_AMBIENT color, the pixel shader reads it as an input
-		};
 
 		constexpr std::array<zonetool::s2::MaterialShaderArgumentType, MTL_ARG_COUNT> argument_types
 		{
@@ -563,7 +506,7 @@ namespace zonetool::h1::converter::s2::techset
 			zonetool::s2::MaterialShaderArgument result{zonetool::s2::MTL_ARG_CODE_CONST, arg.shader, arg.dest};
 			if (code_const.index == CONST_SRC_CODE_MODEL_LIGHTMAP_PARAMS)
 			{
-				result.dest = s2_model_lightmap_params_dest; // the patched vertex shader reads it from the stock per prim row
+				result.dest = shader::s2_model_lightmap_params_dest;
 			}
 
 			if (const auto entry = code_consts.find(code_const.index); entry != code_consts.end())
@@ -605,8 +548,7 @@ namespace zonetool::h1::converter::s2::techset
 			if (model_lighting && arg.type == MTL_ARG_CODE_CONST
 				&& (arg.u.codeConst.index == CONST_SRC_CODE_BASE_LIGHTING_COORDS || arg.u.codeConst.index == CONST_SRC_CODE_LIGHT_PROBE_AMBIENT))
 			{
-				// the patched vertex shader reads the s2 light grid volume index from the stock per prim row
-				zonetool::s2::MaterialShaderArgument result{zonetool::s2::MTL_ARG_CODE_CONST, arg.shader, s2_model_lighting_index_dest};
+				zonetool::s2::MaterialShaderArgument result{zonetool::s2::MTL_ARG_CODE_CONST, arg.shader, shader::s2_model_lighting_index_dest};
 				result.u.codeConst = {zonetool::s2::CONST_SRC_CODE_MODEL_LIGHTING_INDEX, 0, 1};
 				args.emplace_back(result);
 				return;
@@ -614,7 +556,7 @@ namespace zonetool::h1::converter::s2::techset
 
 			if (model_lighting && arg.type == MTL_ARG_CODE_TEXTURE && arg.u.codeSampler == TEXTURE_SRC_CODE_MODEL_LIGHTING)
 			{
-				return; // the light grid volumes come from the custom buffers
+				return;
 			}
 
 			if (arg.type == MTL_ARG_CODE_CONST)
@@ -665,7 +607,6 @@ namespace zonetool::h1::converter::s2::techset
 		{
 			if (lighting)
 			{
-				// lit instances get the 9 row layout with the model lighting index instead of the h1 lighting coords
 				const auto instance = flags & CUSTOM_BUFFER_SMODEL_LIGHTING ? zonetool::s2::CUSTOM_BUFFER_INSTANCE_MATRICES_LIGHTING : 0;
 				const auto rest = flags & ~(CUSTOM_BUFFER_SMODEL_LIGHTING | CUSTOM_BUFFER_SMODEL_AMBIENT | h1_instance_probe_ambient_flag);
 				return convert_custom_buffer_flags(rest, {}, grid) | instance | light_grid_buffer_flags(grid);
@@ -689,144 +630,6 @@ namespace zonetool::h1::converter::s2::techset
 
 			return result;
 		}
-
-		// moves the reads of one constant buffer row, the s2 cached per prim buffers have a fixed layout
-		void relocate_constant_row(alys::shader::detail::operand_t& operand, const std::uint32_t buffer, const std::uint32_t from, const std::uint32_t to,
-			const std::optional<std::uint32_t> to_buffer = {})
-		{
-			for (auto& index : operand.indices)
-			{
-				if (index.extra_operand)
-				{
-					relocate_constant_row(*index.extra_operand, buffer, from, to, to_buffer);
-				}
-			}
-
-			if (operand.type == D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER && operand.indices[0].value.uint32 == buffer
-				&& operand.indices[1].representation == D3D10_SB_OPERAND_INDEX_IMMEDIATE32 && operand.indices[1].value.uint32 == from)
-			{
-				operand.indices[0].value.uint32 = to_buffer.value_or(buffer);
-				operand.indices[1].value.uint32 = to;
-			}
-		}
-
-		void remap_constant_buffers(alys::shader::detail::operand_t& operand)
-		{
-			for (auto& index : operand.indices)
-			{
-				if (index.extra_operand)
-				{
-					remap_constant_buffers(*index.extra_operand);
-				}
-			}
-
-			if (operand.type != D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER)
-			{
-				return;
-			}
-
-			auto& slot = operand.indices[0].value.uint32;
-			if (slot == h1_instance_matrix_buffer)
-			{
-				slot = s2_instance_matrix_buffer;
-				return;
-			}
-
-			if (slot >= h1_constant_buffer_count)
-			{
-				throw std::runtime_error(utils::string::va("constant buffer cb%u has no s2 slot", slot));
-			}
-
-			if (slot >= h1_stable_constant_buffer)
-			{
-				slot++;
-			}
-		}
-
-		void redirect_input(alys::shader::detail::operand_t& operand, const std::uint32_t input, const std::uint32_t temp)
-		{
-			for (auto& index : operand.indices)
-			{
-				if (index.extra_operand)
-				{
-					redirect_input(*index.extra_operand, input, temp);
-				}
-			}
-
-			if (operand.type != D3D10_SB_OPERAND_TYPE_INPUT)
-			{
-				return;
-			}
-
-			if (operand.indices[0].representation != D3D10_SB_OPERAND_INDEX_IMMEDIATE32)
-			{
-				throw std::runtime_error("vertex shader indexes its inputs");
-			}
-
-			if (operand.indices[0].value.uint32 == input)
-			{
-				operand.type = D3D10_SB_OPERAND_TYPE_TEMP;
-				operand.indices[0].value.uint32 = temp;
-			}
-		}
-
-		bool is_declaration(const alys::shader::detail::instruction_t& instruction)
-		{
-			return instruction.opcode.type == D3D10_SB_OPCODE_CUSTOMDATA
-				|| (alys::shader::detail::get_instruction_flags(instruction) & alys::shader::detail::flag_declaration);
-		}
-
-		bool is_input_declaration(const alys::shader::detail::instruction_t& instruction)
-		{
-			return instruction.opcode.type == D3D10_SB_OPCODE_DCL_INPUT
-				|| instruction.opcode.type == D3D10_SB_OPCODE_DCL_INPUT_SGV
-				|| instruction.opcode.type == D3D10_SB_OPCODE_DCL_INPUT_SIV;
-		}
-
-		struct lightmap_input
-		{
-			std::uint32_t texcoord;
-			std::uint32_t lightmap;
-		};
-
-		std::optional<lightmap_input> add_lightmap_input(alys::shader::shader_object::signature& inputs)
-		{
-			// h1 world vertex shaders read the lightmap uv from texcoord0.zw, s2 streams it as texcoord15
-			const auto texcoord = std::ranges::find_if(inputs, [](const alys::shader::shader_object::signature_element& element)
-			{
-				return element.name == "TEXCOORD" && element.semantic_index == 0 && (element.rw_mask & 0xC);
-			});
-
-			if (texcoord == inputs.end())
-			{
-				return {};
-			}
-
-			const auto last = std::ranges::max(inputs, {}, &alys::shader::shader_object::signature_element::register_);
-			const lightmap_input result{texcoord->register_, last.register_ + 1};
-
-			// the converted decl only streams uv in texcoord0, declaring zw too is a d3d11 input layout linkage error
-			texcoord->mask &= 0x3;
-			texcoord->rw_mask &= 0x3;
-
-			alys::shader::shader_object::signature_element lightmap{};
-			lightmap.name = "TEXCOORD";
-			lightmap.semantic_index = zonetool::s2::STREAM_DST_TEXCOORD_15 - zonetool::s2::STREAM_DST_TEXCOORD_0;
-			lightmap.system_value_type = alys::shader::NONE;
-			lightmap.component_type = alys::shader::format_float;
-			lightmap.register_ = result.lightmap;
-			lightmap.mask = 0x3;
-			lightmap.rw_mask = 0x3;
-			inputs.emplace_back(lightmap);
-
-			return result;
-		}
-
-		struct sun_shadow_lookup
-		{
-			std::optional<std::uint32_t> texture;
-			std::unordered_map<std::uint32_t, float> cascade_slices;
-		};
 
 		sun_shadow_lookup find_sun_shadow_lookup(const MaterialPass& pass)
 		{
@@ -860,919 +663,10 @@ namespace zonetool::h1::converter::s2::techset
 			return result;
 		}
 
-		bool is_destination(const alys::shader::detail::operand_t& operand)
-		{
-			return operand.type == D3D10_SB_OPERAND_TYPE_NULL || (operand.type != D3D10_SB_OPERAND_TYPE_IMMEDIATE32
-				&& operand.components.type == D3D10_SB_OPERAND_4_COMPONENT && operand.components.selection_mode == D3D10_SB_OPERAND_4_COMPONENT_MASK_MODE);
-		}
-
-		bool is_resource(const alys::shader::detail::operand_t& operand, const std::uint32_t texture)
-		{
-			return operand.type == D3D10_SB_OPERAND_TYPE_RESOURCE && operand.indices[0].value.uint32 == texture;
-		}
-
-		bool is_sample(const alys::shader::detail::instruction_t& instruction, const std::uint32_t texture)
-		{
-			switch (instruction.opcode.type)
-			{
-			case D3D10_SB_OPCODE_SAMPLE:
-			case D3D10_SB_OPCODE_SAMPLE_C:
-			case D3D10_SB_OPCODE_SAMPLE_C_LZ:
-			case D3D10_SB_OPCODE_SAMPLE_L:
-			case D3D10_SB_OPCODE_SAMPLE_D:
-			case D3D10_SB_OPCODE_SAMPLE_B:
-			case D3D10_1_SB_OPCODE_GATHER4:
-			case D3D11_SB_OPCODE_GATHER4_C:
-				return is_resource(instruction.operands[2], texture);
-			default:
-				return false;
-			}
-		}
-
-		std::uint8_t read_components(const alys::shader::detail::operand_t& source, const std::uint8_t written, const std::uint32_t opcode)
-		{
-			if (source.components.type != D3D10_SB_OPERAND_4_COMPONENT)
-			{
-				return 0;
-			}
-
-			if (source.components.selection_mode == D3D10_SB_OPERAND_4_COMPONENT_SELECT_1_MODE)
-			{
-				return static_cast<std::uint8_t>(1 << source.components.names[0]);
-			}
-
-			const auto dot_size = opcode == D3D10_SB_OPCODE_DP2 ? 2 : opcode == D3D10_SB_OPCODE_DP3 ? 3 : opcode == D3D10_SB_OPCODE_DP4 ? 4 : 0;
-			std::uint8_t result{};
-			for (auto component = 0; component < 4; component++)
-			{
-				const auto used = dot_size ? component < dot_size : (written >> component) & 1;
-				if (used)
-				{
-					result |= static_cast<std::uint8_t>(1 << source.components.names[component]);
-				}
-			}
-
-			return result;
-		}
-
-		std::optional<float> read_cascade_slice(const alys::shader::detail::operand_t& operand, const sun_shadow_lookup& sun_shadow)
-		{
-			if (operand.type != D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER || operand.indices[0].value.uint32 != h1_stable_constant_buffer
-				|| operand.indices[1].representation != D3D10_SB_OPERAND_INDEX_IMMEDIATE32)
-			{
-				return {};
-			}
-
-			const auto entry = sun_shadow.cascade_slices.find(operand.indices[1].value.uint32);
-			return entry != sun_shadow.cascade_slices.end() ? std::optional(entry->second) : std::nullopt;
-		}
-
-		std::optional<float> trace_cascade_slice(const std::vector<alys::shader::detail::instruction_t>& instructions, const std::size_t sample,
-			const sun_shadow_lookup& sun_shadow)
-		{
-			std::unordered_map<std::uint32_t, std::uint8_t> wanted;
-			const auto& uv = instructions[sample].operands[1];
-			if (uv.type == D3D10_SB_OPERAND_TYPE_TEMP)
-			{
-				wanted[uv.indices[0].value.uint32] = read_components(uv, 0x3, instructions[sample].opcode.type);
-			}
-
-			for (auto i = sample; i-- > 0 && !wanted.empty();)
-			{
-				const auto& operands = instructions[i].operands;
-				const auto first_source = static_cast<std::size_t>(std::ranges::find_if_not(operands, is_destination) - operands.begin());
-				for (auto dest = 0u; dest < first_source; dest++)
-				{
-					const auto entry = operands[dest].type == D3D10_SB_OPERAND_TYPE_TEMP ? wanted.find(operands[dest].indices[0].value.uint32) : wanted.end();
-					const auto written = static_cast<std::uint8_t>(entry != wanted.end() ? entry->second & operands[dest].components.mask : 0);
-					if (!written)
-					{
-						continue;
-					}
-
-					entry->second &= ~written;
-					if (!entry->second)
-					{
-						wanted.erase(entry);
-					}
-
-					for (auto source = first_source; source < operands.size(); source++)
-					{
-						if (const auto slice = read_cascade_slice(operands[source], sun_shadow))
-						{
-							return *slice;
-						}
-
-						if (operands[source].type == D3D10_SB_OPERAND_TYPE_TEMP)
-						{
-							wanted[operands[source].indices[0].value.uint32] |= read_components(operands[source], written, instructions[i].opcode.type);
-						}
-					}
-				}
-			}
-
-			return {};
-		}
-
-		float find_cascade_slice(const std::vector<alys::shader::detail::instruction_t>& instructions, const std::size_t sample, const sun_shadow_lookup& sun_shadow)
-		{
-			if (const auto slice = trace_cascade_slice(instructions, sample, sun_shadow))
-			{
-				return *slice;
-			}
-
-			// the "sst" translucency reads the unfiltered depth of the cascade right after its filtered samples, which have the pixel adjust row
-			for (auto i = sample; i-- > 0;)
-			{
-				if (is_sample(instructions[i], *sun_shadow.texture))
-				{
-					if (const auto slice = trace_cascade_slice(instructions, i, sun_shadow))
-					{
-						return *slice;
-					}
-				}
-			}
-
-			throw std::runtime_error("sun shadow sample has no cascade");
-		}
-
-		void set_resource_dimension(alys::shader::detail::instruction_t& instruction, const std::uint16_t dimension)
-		{
-			for (auto& extension : instruction.opcode.extensions)
-			{
-				if (extension.type == D3D11_SB_EXTENDED_OPCODE_RESOURCE_DIM)
-				{
-					extension.values[0] = dimension;
-				}
-			}
-		}
-
-		bool declares_instance_matrices(const std::vector<alys::shader::detail::instruction_t>& instructions)
-		{
-			return std::ranges::any_of(instructions, [](const alys::shader::detail::instruction_t& instruction)
-			{
-				return instruction.opcode.type == D3D10_SB_OPCODE_DCL_CONSTANT_BUFFER && instruction.operands[0].indices[0].value.uint32 == h1_instance_matrix_buffer;
-			});
-		}
-
-		std::optional<std::uint32_t> find_instance_input(const std::vector<alys::shader::detail::instruction_t>& instructions)
-		{
-			const auto input = std::ranges::find_if(instructions, [](const alys::shader::detail::instruction_t& instruction)
-			{
-				return instruction.opcode.type == D3D10_SB_OPCODE_DCL_INPUT_SGV && instruction.operands[1].custom.u.value == D3D10_SB_NAME_INSTANCE_ID;
-			});
-
-			return input != instructions.end() ? std::optional(input->operands[0].indices[0].value.uint32) : std::nullopt;
-		}
-
-		bool reads_instance_matrices(const alys::shader::detail::operand_t& operand)
-		{
-			return operand.type == D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER && operand.indices[0].value.uint32 == s2_instance_matrix_buffer;
-		}
-
-		std::uint32_t temp_component(const std::uint32_t temp, const std::uint32_t component)
-		{
-			return temp * 4 + component;
-		}
-
-		bool reads_instance_row(const alys::shader::detail::operand_t& operand, const std::unordered_set<std::uint32_t>& instance_rows)
-		{
-			const auto& row = operand.indices[1];
-			const auto is_relative = row.representation == D3D10_SB_OPERAND_INDEX_RELATIVE;
-			const auto offset = is_relative ? 0u : row.value.uint32;
-			if ((!is_relative && row.representation != D3D10_SB_OPERAND_INDEX_IMMEDIATE32_PLUS_RELATIVE) || offset >= (1u << h1_instance_row_shift)
-				|| !row.extra_operand || row.extra_operand->type != D3D10_SB_OPERAND_TYPE_TEMP)
-			{
-				return false;
-			}
-
-			const auto& temp = *row.extra_operand;
-			return instance_rows.contains(temp_component(temp.indices[0].value.uint32, temp.components.names[0]));
-		}
-
-		bool is_instance_row(const alys::shader::detail::instruction_t& instruction, const std::uint32_t instance_input)
-		{
-			const auto& operands = instruction.operands;
-			return instruction.opcode.type == D3D10_SB_OPCODE_ISHL && operands[0].type == D3D10_SB_OPERAND_TYPE_TEMP
-				&& operands[1].type == D3D10_SB_OPERAND_TYPE_INPUT && operands[1].indices[0].value.uint32 == instance_input
-				&& operands[2].type == D3D10_SB_OPERAND_TYPE_IMMEDIATE32 && operands[2].immediate_values[0].uint32 == h1_instance_row_shift;
-		}
-
-		void patch_instance_rows(alys::shader::detail::instruction_t& instruction, const std::uint32_t instance_input, const bool lit_rows,
-			std::unordered_set<std::uint32_t>& instance_rows)
-		{
-			const auto reads_without_row = std::ranges::any_of(instruction.operands, [&](const alys::shader::detail::operand_t& operand)
-			{
-				return reads_instance_matrices(operand) && !reads_instance_row(operand, instance_rows);
-			});
-
-			if (reads_without_row)
-			{
-				throw std::runtime_error("shader reads the instance matrices without the instance row");
-			}
-
-			const auto& operands = instruction.operands;
-			const auto first_source = std::ranges::find_if_not(operands, is_destination) - operands.begin();
-			for (auto dest = 0; dest < first_source; dest++)
-			{
-				for (auto component = 0u; operands[dest].type == D3D10_SB_OPERAND_TYPE_TEMP && component < 4; component++)
-				{
-					if ((operands[dest].components.mask >> component) & 1)
-					{
-						instance_rows.erase(temp_component(operands[dest].indices[0].value.uint32, component));
-					}
-				}
-			}
-
-			if (!is_instance_row(instruction, instance_input))
-			{
-				return;
-			}
-
-			if (lit_rows)
-			{
-				// 9 rows is no shift, the row becomes instance * 9 + 0
-				instruction.opcode.type = D3D10_SB_OPCODE_IMAD;
-				instruction.operands[2].immediate_values[0].uint32 = s2_lit_instance_rows;
-				auto zero = instruction.operands[2];
-				zero.immediate_values[0].uint32 = 0;
-				instruction.operands.emplace_back(zero);
-			}
-			else
-			{
-				instruction.operands[2].immediate_values[0].uint32 = s2_instance_row_shift;
-			}
-
-			for (auto component = 0u; component < 4; component++)
-			{
-				if ((operands[0].components.mask >> component) & 1)
-				{
-					instance_rows.insert(temp_component(operands[0].indices[0].value.uint32, component));
-				}
-			}
-		}
-
-		// a vertex shader row of the h1 per prim or per object buffer that the converted pass binds as a stable literal
-		struct stable_literal_row
-		{
-			std::uint32_t buffer;
-			std::uint32_t from;
-			std::uint32_t to;
-		};
-
-		struct program_patch
-		{
-			sun_shadow_lookup sun_shadow;
-			std::optional<model_lighting> lighting;
-			light_grid grid{};
-			std::uint32_t lighting_semantic{}; // pixel shaders only, from the vertex shader of the pass
-			std::optional<std::uint32_t> lightmap_params_dest; // vertex shaders only, h1 per prim row of MODEL_LIGHTMAP_PARAMS
-			std::vector<stable_literal_row> stable_literal_rows; // vertex shaders only
-		};
-
-		struct patched_program
-		{
-			std::string data;
-			bool reads_lightmap;
-			std::optional<std::uint32_t> lighting_semantic;
-			std::map<std::uint32_t, std::uint32_t> texture_slots; // pixel shader textures moved off the s2 light grid slots
-		};
-
-		using signature_element = alys::shader::shader_object::signature_element;
-
-		alys::shader::detail::operand_t uint_literal(const std::uint32_t value)
-		{
-			auto result = asm_::l(0.0f);
-			result.immediate_values[0].uint32 = value;
-			return result;
-		}
-
-		signature_element& find_signature_element(alys::shader::shader_object& shader, const std::uint32_t chunk,
-			const std::function<bool(const signature_element&)>& accept, const char* what)
-		{
-			auto& signatures = shader.get_signatures();
-			if (const auto elements = signatures.find(chunk); elements != signatures.end())
-			{
-				if (const auto element = std::ranges::find_if(elements->second, accept); element != elements->second.end())
-				{
-					return *element;
-				}
-			}
-
-			throw std::runtime_error(utils::string::va("shader has no %s", what));
-		}
-
-		bool declares_resource(const std::vector<alys::shader::detail::instruction_t>& instructions, const std::uint32_t slot)
-		{
-			return std::ranges::any_of(instructions, [&](const alys::shader::detail::instruction_t& instruction)
-			{
-				return is_declaration(instruction) && !instruction.operands.empty() && is_resource(instruction.operands[0], slot);
-			});
-		}
-
-		bool declares_sampler(const std::vector<alys::shader::detail::instruction_t>& instructions, const std::uint32_t slot)
-		{
-			return std::ranges::any_of(instructions, [&](const alys::shader::detail::instruction_t& instruction)
-			{
-				return instruction.opcode.type == D3D10_SB_OPCODE_DCL_SAMPLER && instruction.operands[0].indices[0].value.uint32 == slot;
-			});
-		}
-
-		// the lit custom buffers bind pixel shader t7..t9 and t16..t25, the h1 textures there go to free slots
-		bool is_light_grid_slot(const std::uint32_t slot)
-		{
-			return (slot >= 7 && slot <= 9) || (slot >= 16 && slot <= 25);
-		}
-
-		std::map<std::uint32_t, std::uint32_t> relocate_textures(const std::vector<alys::shader::detail::instruction_t>& instructions, const std::uint32_t lighting_texture)
-		{
-			constexpr auto texture_slot_count = 16u;
-
-			std::set<std::uint32_t> used;
-			for (const auto& instruction : instructions)
-			{
-				if (is_declaration(instruction) && !instruction.operands.empty() && instruction.operands[0].type == D3D10_SB_OPERAND_TYPE_RESOURCE)
-				{
-					used.insert(instruction.operands[0].indices[0].value.uint32);
-				}
-			}
-
-			used.erase(lighting_texture);
-
-			std::vector<std::uint32_t> free;
-			for (auto slot = 0u; slot < texture_slot_count; slot++)
-			{
-				if (!is_light_grid_slot(slot) && !used.contains(slot))
-				{
-					free.emplace_back(slot);
-				}
-			}
-
-			std::map<std::uint32_t, std::uint32_t> result;
-			auto next = free.begin();
-			for (const auto slot : used)
-			{
-				if (!is_light_grid_slot(slot))
-				{
-					continue;
-				}
-
-				if (next == free.end())
-				{
-					throw std::runtime_error(utils::string::va("pixel shader has no free slot for t%u", slot));
-				}
-
-				result.emplace(slot, *next++);
-			}
-
-			return result;
-		}
-
-		struct vertex_lighting
-		{
-			std::size_t coords_write; // mov oN.xyz, cb0[coords] or cb7[instance]
-			std::size_t position_write; // last dp4 oPosition, rWorld.xyzw, cb1[n]
-			std::uint32_t output;
-			std::uint32_t semantic;
-		};
-
-		vertex_lighting find_vertex_lighting(alys::shader::shader_object& shader, const model_lighting& lighting)
-		{
-			const auto& instructions = shader.get_instructions();
-			const auto writes_coords = [&](const alys::shader::detail::instruction_t& instruction)
-			{
-				if (instruction.opcode.type != D3D10_SB_OPCODE_MOV || instruction.operands[0].type != D3D10_SB_OPERAND_TYPE_OUTPUT
-					|| instruction.operands[1].type != D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER)
-				{
-					return false;
-				}
-
-				const auto& source = instruction.operands[1];
-				if (lighting.instanced)
-				{
-					return source.indices[0].value.uint32 == h1_model_lighting_buffer;
-				}
-
-				return source.indices[0].value.uint32 == 0 && source.indices[1].representation == D3D10_SB_OPERAND_INDEX_IMMEDIATE32
-					&& source.indices[1].value.uint32 == lighting.coords_dest;
-			};
-
-			const auto coords_write = std::ranges::find_if(instructions, writes_coords);
-			if (coords_write == instructions.end() || std::find_if(coords_write + 1, instructions.end(), writes_coords) != instructions.end())
-			{
-				throw std::runtime_error("vertex shader does not write the model lighting coords once");
-			}
-
-			vertex_lighting result{static_cast<std::size_t>(coords_write - instructions.begin())};
-			result.output = coords_write->operands[0].indices[0].value.uint32;
-			result.semantic = find_signature_element(shader, alys::shader::chunk_osgn, [&](const signature_element& element)
-			{
-				return element.register_ == result.output;
-			}, "model lighting output").semantic_index;
-
-			const auto position = find_signature_element(shader, alys::shader::chunk_osgn, [](const signature_element& element)
-			{
-				return element.system_value_type == alys::shader::POS;
-			}, "position output").register_;
-
-			// the clip position is 4 dp4 of the eye relative world position (w = 1) with the view projection rows
-			std::optional<std::size_t> position_write;
-			for (auto i = 0u; i < result.coords_write; i++)
-			{
-				const auto& operands = instructions[i].operands;
-				if (instructions[i].opcode.type == D3D10_SB_OPCODE_DP4 && operands[0].type == D3D10_SB_OPERAND_TYPE_OUTPUT
-					&& operands[0].indices[0].value.uint32 == position && operands[1].type == D3D10_SB_OPERAND_TYPE_TEMP)
-				{
-					position_write = i;
-				}
-			}
-
-			if (!position_write)
-			{
-				throw std::runtime_error("vertex shader writes no clip position before the model lighting coords");
-			}
-
-			result.position_write = *position_write;
-			return result;
-		}
-
-		// computes the s2 light grid volume coords like the stock "lmdl" vertex shaders, xyz = t6[volume] * world position, w = volume
-		void emit_vertex_lighting(alys::shader::assembler& a, const alys::shader::detail::operand_t& position, const model_lighting& lighting,
-			const std::optional<std::uint32_t> instance_input, const std::uint32_t temp)
-		{
-			const auto world = temp;
-			const auto volume = temp + 1;
-			const auto coords = temp + 2;
-
-			a.add(asm_::r(world).xyz(), position, asm_::cb(h1_stable_constant_buffer + 1, lighting.eye_offset_dest).select("xyzx"));
-			a.mov(asm_::r(world).w(), asm_::l(1.0f));
-
-			if (lighting.instanced)
-			{
-				a.imad(asm_::r(volume).x(), asm_::v(*instance_input).x(), uint_literal(s2_lit_instance_rows), uint_literal(s2_lit_instance_lighting_row));
-				alys::shader::detail::operand_t index = asm_::cb(s2_instance_matrix_buffer, 0).select("xxxx").swz();
-				index.indices[1].representation = D3D10_SB_OPERAND_INDEX_RELATIVE;
-				index.indices[1].value.uint32 = 0;
-				index.indices[1].extra_operand = std::make_shared<alys::shader::detail::operand_t>(asm_::r(volume).x().scalar());
-				a.ftou(asm_::r(volume).x(), index);
-			}
-			else
-			{
-				a.ftou(asm_::r(volume).x(), asm_::cb(0, s2_model_lighting_index_dest).select("xxxx").swz());
-			}
-
-			a.ld_structured(asm_::r(volume).x(), asm_::r(volume).x(), uint_literal(0), asm_::t(5).select("xxxx"));
-			for (auto row = 0u; row < 3; row++)
-			{
-				a.ld_structured(asm_::r(coords).select("xyzw"), asm_::r(volume).x(), uint_literal(row * 16), asm_::t(6).select("xyzw"));
-				a.dp4(asm_::r(volume).select(alys::shader::component_y + row), asm_::r(coords).select("xyzw"), asm_::r(world).select("xyzw"));
-			}
-
-			a.mov(asm_::r(coords).xyz(), asm_::r(volume).select("yzwy"));
-			a.utof(asm_::r(coords).w(), asm_::r(volume).x());
-		}
-
-		// sums the 12 s2 probe colors of the light grid voxel at the input coords into r(temp + 5), w is the sun visibility; directional
-		// lookups weight them by the unit direction in r(temp), ambient ones give each the mean weight of a directional lookup over all normals
-		void emit_light_grid_lookup(alys::shader::assembler& a, const program_patch& patch, const alys::shader::detail::operand_t& sampler,
-			const std::uint32_t input, const std::uint32_t temp, const bool directional)
-		{
-			// mean of 0.7 * saturate(cos)^2 + 0.3 * saturate(cos)^4 over the sphere
-			constexpr auto ambient_weight = 0.7f / 6.0f + 0.3f / 10.0f;
-
-			const auto dir = temp;
-			const auto volume = temp + 1;
-			const auto coords = temp + 2;
-			const auto probe = temp + 3;
-			const auto weight = temp + 4;
-			const auto color = temp + 5;
-			const auto texture = light_grid_volume_slot;
-
-			a.add(asm_::r(volume).x(), asm_::v(input).w(), asm_::l(0.5f));
-			a.ftou(asm_::r(volume).x(), asm_::r(volume).x());
-			a.ld_structured(asm_::r(coords).xyz(), asm_::r(volume).x(), uint_literal(0), asm_::t(texture).select("xyzx"));
-			a.ld_structured(asm_::r(probe).xyz(), asm_::r(volume).x(), uint_literal(16), asm_::t(texture).select("xyzx"));
-			a.mov_sat(asm_::r(weight).xyz(), asm_::v(input).select("xyzx"));
-			a.mad(asm_::r(coords).xyz(), asm_::r(weight).select("xyzx"), asm_::r(coords).select("xyzx"), asm_::r(probe).select("xyzx"));
-			if (patch.grid == light_grid::probe_buffer)
-			{
-				a.add(asm_::r(coords).x(), asm_::r(coords).x(), asm_::l(0.5f));
-				a.ftoi(asm_::r(coords).x(), asm_::r(coords).x());
-			}
-
-			a.mov(asm_::r(color).select("xyzw"), asm_::l(0.0f, 0.0f, 0.0f, 0.0f));
-			for (auto i = 0u; i < light_grid_direction_count; i++)
-			{
-				const auto& direction = light_grid_directions[i];
-				if (directional)
-				{
-					a.dp3_sat(asm_::r(weight).x(), asm_::r(dir).select("xyzx"), asm_::l(direction[0], direction[1], direction[2], 0.0f));
-					a.mul(asm_::r(weight).x(), asm_::r(weight).x(), asm_::r(weight).x());
-					a.mul(asm_::r(weight).y(), asm_::r(weight).x(), asm_::r(weight).x());
-					a.mul(asm_::r(weight).y(), asm_::r(weight).y(), asm_::l(0.3f));
-					a.mad(asm_::r(weight).x(), asm_::r(weight).x(), asm_::l(0.7f), asm_::r(weight).y());
-				}
-				else
-				{
-					a.mov(asm_::r(weight).x(), asm_::l(ambient_weight));
-				}
-
-				switch (patch.grid)
-				{
-				case light_grid::probe_buffer:
-					a.imad(asm_::r(probe).x(), asm_::r(coords).x(), uint_literal(light_grid_direction_count), uint_literal(i));
-					a.ld_indexable(asm_::r(probe).xyz(), asm_::r(probe).select("xxxx"), asm_::t(8).select("xyzw"));
-					break;
-				case light_grid::array_2d:
-					a.mov(asm_::r(probe).xy(), asm_::r(coords).select("xyxx"));
-					a.mov(asm_::r(probe).z(), asm_::l(static_cast<float>(i)));
-					a.sample_l_indexable(asm_::r(probe).xyz(), asm_::r(probe).select("xyzx"), asm_::t(light_grid_colors_slot).select("xyzw"), sampler, asm_::l(0.0f));
-					break;
-				case light_grid::volume_3d:
-					a.mov(asm_::r(probe).xy(), asm_::r(coords).select("xyxx"));
-					a.mad(asm_::r(probe).z(), asm_::r(coords).z(), asm_::l(1.0f / light_grid_direction_count),
-						asm_::l(static_cast<float>(i) / light_grid_direction_count));
-					a.sample_l_indexable(asm_::r(probe).xyz(), asm_::r(probe).select("xyzx"), asm_::t(light_grid_colors_slot).select("xyzw"), sampler, asm_::l(0.0f));
-					break;
-				}
-
-				a.mad(asm_::r(color).xyz(), asm_::r(probe).select("xyzx"), asm_::r(weight).select("xxxx"), asm_::r(color).select("xyzx"));
-			}
-
-			switch (patch.grid)
-			{
-			case light_grid::probe_buffer:
-				a.ld_indexable(asm_::r(probe).x(), asm_::r(coords).select("xxxx"), asm_::t(9).select("xyzw"));
-				break;
-			case light_grid::array_2d:
-				a.sample_l_indexable(asm_::r(probe).x(), asm_::r(coords).select("xyxx"), asm_::t(light_grid_visibility_slot).select("xyzw"), sampler, asm_::l(0.0f));
-				break;
-			case light_grid::volume_3d:
-				a.sample_l_indexable(asm_::r(probe).x(), asm_::r(coords).select("xyzx"), asm_::t(light_grid_visibility_slot).select("xyzw"), sampler, asm_::l(0.0f));
-				break;
-			}
-
-			a.mov(asm_::r(color).w(), asm_::r(probe).x());
-		}
-
-		// replaces a sample of the h1 model lighting cube with the 12 s2 probe colors of the same direction, w is the sun visibility
-		void emit_probe_lookup(alys::shader::assembler& a, const alys::shader::detail::instruction_t& sample, const program_patch& patch,
-			const std::uint32_t input, const std::uint32_t temp)
-		{
-			const auto dir = temp;
-			const auto color = temp + 5;
-
-			// the h1 lookup is coords + dir * scale / max(|dir|), scale is 1 now
-			a.mad(asm_::r(dir).xyz(), asm_::v(input).select("xyzx"), asm_::l(-1.0f), sample.operands[1]);
-			a.dp3(asm_::r(dir).w(), asm_::r(dir).select("xyzx"), asm_::r(dir).select("xyzx"));
-			a.rsq(asm_::r(dir).w(), asm_::r(dir).w());
-			a.mul(asm_::r(dir).xyz(), asm_::r(dir).select("xyzx"), asm_::r(dir).select("wwww"));
-
-			emit_light_grid_lookup(a, patch, sample.operands[3], input, temp, true);
-
-			alys::shader::detail::operand_t result = asm_::r(color).select("xyzw").swz();
-			std::ranges::copy(sample.operands[2].components.names, result.components.names);
-			a.mov(sample.operands[0], result);
-		}
-
-		void declare_light_grid(alys::shader::assembler& a, const program_patch& patch)
-		{
-			constexpr std::array<std::uint8_t, 4> float4{asm_::t_float, asm_::t_float, asm_::t_float, asm_::t_float};
-
-			a.dcl_resource_structured(asm_::t(light_grid_volume_slot), 32u);
-			switch (patch.grid)
-			{
-			case light_grid::probe_buffer:
-				a.dcl_resource(asm_::t(8), asm_::buffer, float4);
-				a.dcl_resource(asm_::t(9), asm_::buffer, float4);
-				break;
-			case light_grid::array_2d:
-				a.dcl_resource(asm_::t(light_grid_colors_slot), asm_::texture2darray, float4);
-				a.dcl_resource(asm_::t(light_grid_visibility_slot), asm_::texture2d, float4);
-				break;
-			case light_grid::volume_3d:
-				a.dcl_resource(asm_::t(light_grid_colors_slot), asm_::texture3d, float4);
-				a.dcl_resource(asm_::t(light_grid_visibility_slot), asm_::texture3d, float4);
-				break;
-			}
-		}
-
-		patched_program patch_program(const unsigned char* program, const unsigned int size, const bool is_vertex_shader, const program_patch& patch)
-		{
-			auto shader = alys::shader::shader_object::parse({reinterpret_cast<const char*>(program), size});
-			const auto& sun_shadow = patch.sun_shadow;
-
-			alys::shader::shader_object result;
-			result.get_info() = shader.get_info();
-			result.get_signatures() = shader.get_signatures();
-			result.get_unknown_chunks() = shader.get_unknown_chunks();
-
-			auto& signatures = result.get_signatures();
-			const auto inputs = signatures.find(alys::shader::chunk_isgn);
-			const auto lightmap = is_vertex_shader && inputs != signatures.end() ? add_lightmap_input(inputs->second) : std::nullopt;
-
-			const auto& instructions = shader.get_instructions();
-			const auto first_code = std::ranges::find_if_not(instructions, is_declaration) - instructions.begin();
-			const auto last_input = std::find_if(instructions.rbegin(), instructions.rend(), is_input_declaration);
-			if (lightmap && (last_input == instructions.rend() || first_code == static_cast<std::ptrdiff_t>(instructions.size())))
-			{
-				throw std::runtime_error("vertex shader has no input declarations or code");
-			}
-
-			const auto instance_matrices = declares_instance_matrices(instructions);
-			const auto instance_input = instance_matrices ? find_instance_input(instructions) : std::nullopt;
-			if (instance_matrices && !instance_input)
-			{
-				throw std::runtime_error("shader reads the instance matrices without the instance id");
-			}
-
-			const auto vs_lighting = is_vertex_shader && patch.lighting ? std::optional(find_vertex_lighting(shader, *patch.lighting)) : std::nullopt;
-			const auto pixel_lighting = !is_vertex_shader && patch.lighting;
-			const auto pixel_ambient = pixel_lighting && patch.lighting->ambient;
-			if (pixel_ambient && patch.grid != light_grid::probe_buffer && declares_sampler(instructions, ambient_light_grid_sampler))
-			{
-				throw std::runtime_error(utils::string::va("pixel shader already uses the light grid sampler s%u", ambient_light_grid_sampler));
-			}
-			if (vs_lighting && (declares_resource(instructions, 5) || declares_resource(instructions, 6)))
-			{
-				throw std::runtime_error("vertex shader already uses the light grid volume slots");
-			}
-
-			if (vs_lighting && patch.lighting->instanced && !instance_input)
-			{
-				throw std::runtime_error("instanced model lighting without the instance id");
-			}
-
-			std::optional<std::uint32_t> lighting_input;
-			if (vs_lighting)
-			{
-				auto& output = find_signature_element(result, alys::shader::chunk_osgn, [&](const signature_element& element)
-				{
-					return element.register_ == vs_lighting->output;
-				}, "model lighting output");
-				output.mask = 0xF;
-				output.rw_mask = 0;
-			}
-			else if (pixel_lighting)
-			{
-				auto& input = find_signature_element(result, alys::shader::chunk_isgn, [&](const signature_element& element)
-				{
-					return element.name == "TEXCOORD" && element.semantic_index == patch.lighting_semantic;
-				}, "model lighting input");
-				input.mask = 0xF;
-				input.rw_mask = 0xF;
-				lighting_input = input.register_;
-			}
-
-			const auto texture_slots = pixel_lighting ? relocate_textures(instructions, patch.lighting->texture) : std::map<std::uint32_t, std::uint32_t>{};
-
-			std::unordered_set<std::uint32_t> instance_rows;
-			const auto lit_instance_rows = vs_lighting && patch.lighting->instanced;
-
-			const auto last_input_index = instructions.rend() - last_input - 1;
-			const auto base_temps = lightmap.has_value() || sun_shadow.texture.has_value() ? 1u : 0u;
-			const auto lighting_temps = vs_lighting ? 3u : pixel_lighting ? 6u : 0u;
-			const auto temp_count = base_temps + lighting_temps;
-			std::optional<std::uint32_t> first_temp;
-			std::optional<std::uint32_t> temp;
-
-			const auto reads_sun_shadow = [&](const alys::shader::detail::instruction_t& instruction)
-			{
-				return std::ranges::any_of(instruction.operands, [&](const alys::shader::detail::operand_t& operand)
-				{
-					return is_resource(operand, *sun_shadow.texture);
-				});
-			};
-
-			const auto reads_model_lighting = [&](const alys::shader::detail::instruction_t& instruction)
-			{
-				return pixel_lighting && std::ranges::any_of(instruction.operands, [&](const alys::shader::detail::operand_t& operand)
-				{
-					return is_resource(operand, patch.lighting->texture);
-				});
-			};
-
-			const auto writes_operand = [](const alys::shader::detail::instruction_t& instruction, const std::uint32_t type, const std::uint32_t index)
-			{
-				return !instruction.operands.empty() && instruction.operands[0].type == type && instruction.operands[0].indices[0].value.uint32 == index;
-			};
-
-			auto a = result.get_assembler();
-			for (auto i = 0; i < static_cast<std::ptrdiff_t>(instructions.size()); i++)
-			{
-				auto instruction = instructions[i];
-
-				if (lit_instance_rows && instruction.opcode.type == D3D10_SB_OPCODE_DCL_CONSTANT_BUFFER
-					&& instruction.operands[0].indices[0].value.uint32 == h1_model_lighting_buffer)
-				{
-					continue; // the lighting coords buffer, the patched shader reads the index from the instance rows
-				}
-
-				if (vs_lighting && i == static_cast<std::ptrdiff_t>(vs_lighting->coords_write))
-				{
-					a.mov(asm_::o(vs_lighting->output).select("xyzw"), asm_::r(*first_temp + base_temps + 2).select("xyzw"));
-					continue;
-				}
-
-				if (i >= first_code)
-				{
-					for (const auto& [buffer, from, to] : patch.stable_literal_rows)
-					{
-						for (auto& operand : instruction.operands)
-						{
-							relocate_constant_row(operand, buffer, from, to, h1_stable_constant_buffer);
-						}
-					}
-				}
-
-				if (!patch.stable_literal_rows.empty() && instruction.opcode.type == D3D10_SB_OPCODE_DCL_CONSTANT_BUFFER
-					&& instruction.operands[0].indices[0].value.uint32 == h1_stable_constant_buffer)
-				{
-					auto& rows = instruction.operands[0].indices[1].value.uint32;
-					for (const auto& row : patch.stable_literal_rows)
-					{
-						rows = std::max(rows, row.to + 1);
-					}
-				}
-
-				for (auto& operand : instruction.operands)
-				{
-					remap_constant_buffers(operand);
-				}
-
-				if (patch.lightmap_params_dest && i >= first_code)
-				{
-					for (auto& operand : instruction.operands)
-					{
-						relocate_constant_row(operand, 0, *patch.lightmap_params_dest, s2_model_lightmap_params_dest);
-					}
-				}
-
-				const auto per_prim_rows = vs_lighting && !patch.lighting->instanced ? s2_model_lighting_index_dest + 1
-					: patch.lightmap_params_dest ? s2_model_lightmap_params_dest + 1 : 0u;
-				if (per_prim_rows && instruction.opcode.type == D3D10_SB_OPCODE_DCL_CONSTANT_BUFFER
-					&& instruction.operands[0].indices[0].value.uint32 == 0)
-				{
-					auto& rows = instruction.operands[0].indices[1].value.uint32;
-					rows = std::max(rows, per_prim_rows);
-				}
-
-				if (instance_input && instruction.opcode.type == D3D10_SB_OPCODE_DCL_CONSTANT_BUFFER && reads_instance_matrices(instruction.operands[0]))
-				{
-					auto& rows = instruction.operands[0].indices[1].value.uint32;
-					rows = lit_instance_rows ? (rows >> h1_instance_row_shift) * s2_lit_instance_rows : rows >> h1_instance_row_shift << s2_instance_row_shift;
-				}
-				else if (instance_input && i >= first_code)
-				{
-					patch_instance_rows(instruction, *instance_input, lit_instance_rows, instance_rows);
-				}
-
-				if (temp_count && instruction.opcode.type == D3D10_SB_OPCODE_DCL_TEMPS)
-				{
-					first_temp = instruction.operands[0].custom.u.value;
-					instruction.operands[0].custom.u.value += temp_count;
-				}
-
-				if (temp_count && i == first_code && !first_temp)
-				{
-					first_temp = 0;
-					a.dcl_temps(temp_count);
-				}
-
-				if (i == first_code && first_temp && base_temps)
-				{
-					temp = *first_temp;
-				}
-
-				if (vs_lighting && i == first_code)
-				{
-					a.dcl_resource_structured(asm_::t(5), 4u);
-					a.dcl_resource_structured(asm_::t(6), 64u);
-				}
-
-				if (pixel_ambient && i == first_code)
-				{
-					declare_light_grid(a, patch);
-					if (patch.grid != light_grid::probe_buffer)
-					{
-						a.dcl_sampler(asm_::s(ambient_light_grid_sampler));
-					}
-
-					emit_light_grid_lookup(a, patch, asm_::s(ambient_light_grid_sampler), *lighting_input, *first_temp + base_temps, false);
-				}
-
-				if (pixel_ambient && i >= first_code)
-				{
-					for (auto& operand : instruction.operands)
-					{
-						redirect_input(operand, *lighting_input, *first_temp + base_temps + 5);
-					}
-				}
-
-				if (vs_lighting && instruction.opcode.type == D3D10_SB_OPCODE_DCL_OUTPUT
-					&& writes_operand(instruction, D3D10_SB_OPERAND_TYPE_OUTPUT, vs_lighting->output))
-				{
-					instruction.operands[0].components.mask = 0xF;
-				}
-
-				if (pixel_lighting && instruction.opcode.type == D3D10_SB_OPCODE_DCL_INPUT_PS
-					&& writes_operand(instruction, D3D10_SB_OPERAND_TYPE_INPUT, *lighting_input))
-				{
-					instruction.operands[0].components.mask = 0xF;
-				}
-
-				if (lightmap && instruction.opcode.type == D3D10_SB_OPCODE_DCL_INPUT
-					&& writes_operand(instruction, D3D10_SB_OPERAND_TYPE_INPUT, lightmap->texcoord))
-				{
-					instruction.operands[0].components.mask &= 0x3;
-				}
-
-				if (lightmap && i == first_code)
-				{
-					a.mov(asm_::r(*temp).xy(), asm_::v(lightmap->texcoord).xyxx());
-					a.mov(asm_::r(*temp).zw(), asm_::v(lightmap->lightmap).xxxy());
-				}
-
-				if (lightmap && i >= first_code)
-				{
-					for (auto& operand : instruction.operands)
-					{
-						redirect_input(operand, lightmap->texcoord, *temp);
-					}
-				}
-
-				if (pixel_lighting && reads_model_lighting(instruction))
-				{
-					if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_RESOURCE)
-					{
-						if (instruction.opcode.controls != D3D10_SB_RESOURCE_DIMENSION_TEXTURE3D)
-						{
-							throw std::runtime_error("model lighting is not a texture3d");
-						}
-
-						declare_light_grid(a, patch);
-						continue;
-					}
-
-					if (instruction.opcode.type != D3D10_SB_OPCODE_SAMPLE || !is_sample(instruction, patch.lighting->texture))
-					{
-						throw std::runtime_error("pixel shader reads the model lighting without a sample");
-					}
-
-					emit_probe_lookup(a, instruction, patch, *lighting_input, *first_temp + base_temps);
-					continue;
-				}
-
-				if (sun_shadow.texture && instruction.opcode.type == D3D10_SB_OPCODE_DCL_RESOURCE && reads_sun_shadow(instruction))
-				{
-					if (instruction.opcode.controls != D3D10_SB_RESOURCE_DIMENSION_TEXTURE2D)
-					{
-						throw std::runtime_error("sun shadowmap is not a texture2d");
-					}
-
-					instruction.opcode.controls = D3D10_SB_RESOURCE_DIMENSION_TEXTURE2DARRAY; // s2 keeps each sun cascade in its own slice
-				}
-				else if (sun_shadow.texture && is_sample(instruction, *sun_shadow.texture))
-				{
-					a.mov(asm_::r(*temp).xy(), instruction.operands[1]);
-					a.mov(asm_::r(*temp).z(), asm_::l(find_cascade_slice(instructions, i, sun_shadow)));
-					instruction.operands[1] = asm_::r(*temp).xyzx().swz();
-					set_resource_dimension(instruction, D3D10_SB_RESOURCE_DIMENSION_TEXTURE2DARRAY);
-				}
-				else if (sun_shadow.texture && reads_sun_shadow(instruction))
-				{
-					throw std::runtime_error("pixel shader reads the sun shadowmap without a sample");
-				}
-
-				for (auto& operand : instruction.operands)
-				{
-					const auto slot = operand.type == D3D10_SB_OPERAND_TYPE_RESOURCE ? texture_slots.find(operand.indices[0].value.uint32) : texture_slots.end();
-					if (slot != texture_slots.end())
-					{
-						operand.indices[0].value.uint32 = slot->second;
-					}
-				}
-
-				a(instruction);
-
-				if (lightmap && i == last_input_index)
-				{
-					a.dcl_input(asm_::v(lightmap->lightmap).xy());
-				}
-
-				if (vs_lighting && i == static_cast<std::ptrdiff_t>(vs_lighting->position_write))
-				{
-					emit_vertex_lighting(a, instruction.operands[1], *patch.lighting, instance_input, *first_temp + base_temps);
-				}
-			}
-
-			return {result.serialize(), lightmap.has_value(), vs_lighting ? std::optional(vs_lighting->semantic) : std::nullopt, texture_slots};
-		}
-
 		template <typename S2Shader, typename H1Shader>
-		S2Shader* convert_shader(const H1Shader* shader, const program_patch& patch = {})
+		S2Shader* convert_shader(const H1Shader* source, const program_patch& patch = {})
 		{
-			if (!shader)
+			if (!source)
 			{
 				return nullptr;
 			}
@@ -1787,17 +681,17 @@ namespace zonetool::h1::converter::s2::techset
 			{
 				suffix += utils::string::va("_sl%u_%u_%u", buffer, from, to);
 			}
-			const auto key = std::make_pair(static_cast<const void*>(shader), suffix);
+			const auto key = std::make_pair(static_cast<const void*>(source), suffix);
 			if (const auto entry = converted_shaders.find(key); entry != converted_shaders.end())
 			{
 				return static_cast<S2Shader*>(entry->second);
 			}
 
 			auto* result = native_allocator.allocate<S2Shader>();
-			result->name = native_allocator.duplicate_string(::game::add_source_postfix(shader->name + key.second, ::game::h1));
-			if (shader->prog.loadDef.program) // 0x14080B9F0
+			result->name = native_allocator.duplicate_string(::game::add_source_postfix(source->name + key.second, ::game::h1));
+			if (source->prog.loadDef.program)
 			{
-				const auto patched = patch_program(shader->prog.loadDef.program, shader->prog.loadDef.programSize, is_vertex_shader, patch);
+				const auto patched = shader::patch_program(source->prog.loadDef.program, source->prog.loadDef.programSize, is_vertex_shader, patch);
 				result->prog.loadDef.programSize = static_cast<unsigned int>(patched.data.size());
 				result->prog.loadDef.program = native_allocator.allocate_array<unsigned char>(patched.data.size());
 				std::memcpy(result->prog.loadDef.program, patched.data.data(), patched.data.size());
@@ -1835,7 +729,6 @@ namespace zonetool::h1::converter::s2::techset
 
 		std::vector<std::string> parse_decl_tokens(const MaterialVertexDeclaration* decl)
 		{
-			// "pp.ft0t0.3nn.ftt2.f"
 			const auto pieces = utils::string::split(decl->name, '.');
 			std::vector<std::string> tokens;
 			for (auto i = 0u; i + 1 < pieces.size(); i++)
@@ -1974,7 +867,6 @@ namespace zonetool::h1::converter::s2::techset
 			}
 		}
 
-		// the h1 per prim row of the model lightmap uv scale and offset ("ml" techsets)
 		std::optional<std::uint32_t> find_model_lightmap_params(const MaterialPass& pass)
 		{
 			for (auto i = 0; pass.args && i < pass.perPrimArgCount; i++)
@@ -2013,7 +905,6 @@ namespace zonetool::h1::converter::s2::techset
 
 			const auto per_prim = args.first(pass.perPrimArgCount);
 			const auto stable = args.subspan(pass.perPrimArgCount + pass.perObjArgCount);
-			// the h1 "amb" passes give the pixel shader the probe ambient color, per prim or from the instance buffer cb7 like the lighting coords
 			const auto ambient = std::ranges::find_if(per_prim, is_code_const(CONST_SRC_CODE_LIGHT_PROBE_AMBIENT, MTL_SHADER_STAGE_VERTEX));
 			const auto instance_flag = texture != args.end() ? CUSTOM_BUFFER_SMODEL_AMBIENT : h1_instance_probe_ambient_flag;
 			const auto instanced = (pass.customBufferFlags & instance_flag) != 0;
@@ -2050,10 +941,9 @@ namespace zonetool::h1::converter::s2::techset
 			return result;
 		}
 
-		// every stock 2d/3d "plit_lgv" pass binds the light grid textures as stable code textures (the 0d probe buffers come
-		// from the custom buffers), without them the slots keep whatever the previous draw bound and the lighting flickers
 		void add_light_grid_textures(std::vector<zonetool::s2::MaterialShaderArgument>& stable, const light_grid grid, const bool sampler)
 		{
+			// the stock 2d/3d passes bind these as stable code textures, without them the slots keep the previous draw and the lighting flickers
 			if (grid == light_grid::probe_buffer)
 			{
 				return;
@@ -2061,11 +951,10 @@ namespace zonetool::h1::converter::s2::techset
 
 			if (sampler)
 			{
-				// the h1 ambient passes sample nothing in the light grid, the patched pixel shader samples it with the stock sampler
 				zonetool::s2::MaterialShaderArgument arg{};
 				arg.type = zonetool::s2::MTL_ARG_CODE_SAMPLER;
 				arg.shader = MTL_SHADER_STAGE_PIXEL;
-				arg.dest = ambient_light_grid_sampler;
+				arg.dest = shader::ambient_light_grid_sampler;
 				arg.u.codeSampler = zonetool::s2::TEXTURE_SRC_CODE_LINEAR_CLAMP;
 				stable.emplace_back(arg);
 			}
@@ -2073,9 +962,9 @@ namespace zonetool::h1::converter::s2::techset
 			const auto volume_3d = grid == light_grid::volume_3d;
 			const std::array<std::pair<std::uint16_t, std::uint32_t>, 2> textures
 			{{
-				{light_grid_colors_slot, volume_3d ? zonetool::s2::TEXTURE_SRC_CODE_LIGHT_GRID_VOLUME_DATA_3D
+				{shader::light_grid_colors_slot, volume_3d ? zonetool::s2::TEXTURE_SRC_CODE_LIGHT_GRID_VOLUME_DATA_3D
 					: zonetool::s2::TEXTURE_SRC_CODE_LIGHT_GRID_VOLUME_DATA_2D},
-				{light_grid_visibility_slot, volume_3d ? zonetool::s2::TEXTURE_SRC_CODE_LIGHT_GRID_VOLUME_PRIMARY_VIS_DATA_3D
+				{shader::light_grid_visibility_slot, volume_3d ? zonetool::s2::TEXTURE_SRC_CODE_LIGHT_GRID_VOLUME_PRIMARY_VIS_DATA_3D
 					: zonetool::s2::TEXTURE_SRC_CODE_LIGHT_GRID_VOLUME_PRIMARY_VIS_DATA_2D},
 			}};
 
@@ -2089,7 +978,6 @@ namespace zonetool::h1::converter::s2::techset
 				stable.emplace_back(arg);
 			}
 
-			// stock orders the code textures by stage and slot
 			std::ranges::stable_sort(stable, {}, [](const zonetool::s2::MaterialShaderArgument& arg)
 			{
 				const auto is_code_texture = arg.type == zonetool::s2::MTL_ARG_CODE_TEXTURE;
@@ -2102,7 +990,6 @@ namespace zonetool::h1::converter::s2::techset
 			}
 		}
 
-		// the model vertex type of the stock passes in each slot that are neither lit nor vertex lit, it selects the model draw path
 		zonetool::s2::MaterialPassModelVertexType stock_model_vertex_type(const std::int32_t slot)
 		{
 			if (slot >= zonetool::s2::TECHNIQUE_INSTANCED_BEGIN && slot < zonetool::s2::TECHNIQUE_NO_TESS_BEGIN)
@@ -2131,7 +1018,6 @@ namespace zonetool::h1::converter::s2::techset
 			const auto lighting = find_model_lighting(pass);
 			const auto lightmap_params = find_model_lightmap_params(pass);
 
-			// per prim and per object code consts that s2 has no source for become stable literals, in rows after the h1 stable ones
 			const MaterialShaderArgument* per_prim_args = pass.args;
 			const auto* per_obj_args = per_prim_args ? per_prim_args + pass.perPrimArgCount : nullptr;
 			const auto* stable_args = per_prim_args ? per_obj_args + pass.perObjArgCount : nullptr;
@@ -2209,11 +1095,11 @@ namespace zonetool::h1::converter::s2::techset
 			result.perPrimArgSize = pass.perPrimArgSize;
 			if (lighting && !lighting->instanced)
 			{
-				result.perPrimArgSize = static_cast<unsigned short>(std::max(static_cast<std::uint32_t>(result.perPrimArgSize), (s2_model_lighting_index_dest + 1) * row_size));
+				result.perPrimArgSize = static_cast<unsigned short>(std::max(static_cast<std::uint32_t>(result.perPrimArgSize), (shader::s2_model_lighting_index_dest + 1) * row_size));
 			}
 			if (lightmap_params)
 			{
-				result.perPrimArgSize = static_cast<unsigned short>(std::max(static_cast<std::uint32_t>(result.perPrimArgSize), (s2_model_lightmap_params_dest + 1) * row_size));
+				result.perPrimArgSize = static_cast<unsigned short>(std::max(static_cast<std::uint32_t>(result.perPrimArgSize), (shader::s2_model_lightmap_params_dest + 1) * row_size));
 			}
 			result.perObjArgSize = pass.perObjArgSize;
 			result.stableArgSize = static_cast<unsigned short>(std::max(static_cast<std::uint32_t>(pass.stableArgSize), next_stable_row * row_size));
@@ -2222,12 +1108,11 @@ namespace zonetool::h1::converter::s2::techset
 			result.modelVertexType = stock_model_vertex_type(slot);
 			if (lightmap_params)
 			{
-				// model lightmap draws bind the lightmap uv stream, the lightmaps and the per prim lightmap params (sub_1407E95E0)
 				result.modelVertexType = zonetool::s2::MODEL_VERTEX_TYPE_LIGHTMAP;
 			}
 			else if (lighting)
 			{
-				// the model draw only uploads the light grid volume constants for this type (0x1407E7F40), the stock "plit_lgv" passes use it
+				// the model draw uploads the light grid constants only for this type (0x1407E7F40)
 				result.modelVertexType = zonetool::s2::MODEL_VERTEX_TYPE_SELF_VISIBILITY;
 			}
 			else if (has_vertex_lighting_stream(result.vertexDecl))
@@ -2377,7 +1262,7 @@ namespace zonetool::h1::converter::s2::techset
 				}
 			}
 
-			// the wireframe debug view is not worth a donor, the displacement ones use custom buffers s2 lacks
+			// the wireframe view is not worth a donor
 			const auto optional = slot % zonetool::s2::TECHNIQUE_GROUP_SIZE == zonetool::s2::TECHNIQUE_WIREFRAME_SOLID;
 			if (!error.empty() && !optional)
 			{
@@ -2387,8 +1272,6 @@ namespace zonetool::h1::converter::s2::techset
 
 		native_techset build_native(const std::string& name)
 		{
-			// h1 never instances the reactive motion models, their techsets lack the instanced techniques s2 draws repeated
-			// static models with, and s2 has no reactive motion (cb9) either; the stock donor techsets cover them
 			if (name.find("_reactivemotion") != std::string::npos)
 			{
 				throw std::runtime_error("reactive motion uses a donor");
@@ -2564,14 +1447,13 @@ namespace zonetool::h1::converter::s2::techset
 			return kind != draw_kind::hidden && kind != draw_kind::sky && candidate.prefix == source.prefix && lightmap_allowed(source, candidate);
 		};
 
-		// world and model techsets have different vertex types, s2 has no input layout for the other one ("816" fatal error)
+		// mixing world and model vertex types is the "816" fatal error
 		const auto drawn_same_geometry = [&](const techset_name& candidate)
 		{
 			const auto kind = get_draw_kind(candidate);
 			return kind == source_kind && is_model_prefix(candidate.prefix) == is_model_prefix(source.prefix) && lightmap_allowed(source, candidate);
 		};
 
-		// h1 grass bends with reactive motion, s2 foliage sways with the "fwa" wind techsets that read the wind stream these surfaces get
 		if (h1_techset.find("_reactivemotion") != std::string::npos)
 		{
 			const auto wind = find_best(source, [&](const techset_name& candidate)

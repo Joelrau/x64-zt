@@ -9,21 +9,28 @@ namespace zonetool::h1::converter::s2::material
 {
 	namespace
 	{
-		struct converted_material
-		{
-			zonetool::s2::Material material;
-			std::vector<zonetool::s2::MaterialTextureDef> textures;
-			std::vector<zonetool::s2::GfxImage> images;
-			std::vector<std::string> image_names;
-			std::vector<zonetool::s2::MaterialConstantDef> constants;
-			std::vector<zonetool::s2::GfxStateBits> state_bits;
-			std::vector<zonetool::s2::material_state> states;
-			std::vector<zonetool::s2::MaterialConstantBufferDef> constant_buffers;
-		};
+		constexpr std::uint8_t no_entry = 0xFF;
+		constexpr std::uint32_t h1_polygon_offset_shift = 4;
+		constexpr std::uint32_t h1_polygon_offset_mask = 3u << h1_polygon_offset_shift;
+		constexpr std::uint32_t s2_polygon_offset_shift = 27;
+		constexpr std::uint32_t blend_class_shift = 26;
+		constexpr std::uint32_t blend_word_count = 3;
+		constexpr auto depth_stencil_mode_count = std::extent_v<decltype(zonetool::s2::material_state::depth_stencil)>;
 
 		std::vector<Material*> pending_materials;
 		std::unordered_set<std::string> dumped_donor_images;
 		std::unordered_set<std::string> minimap_materials;
+
+		struct native_material
+		{
+			zonetool::s2::Material* material;
+			zonetool::s2::material_state* states;
+		};
+
+		zonetool::s2::GfxImage* make_image_stub(const std::string& name, utils::memory::allocator& allocator)
+		{
+			return make_stub<zonetool::s2::GfxImage>(allocator.duplicate_string(name), allocator);
+		}
 
 		const MaterialTextureDef* find_texture(const Material* asset, const std::uint32_t hash)
 		{
@@ -106,51 +113,56 @@ namespace zonetool::h1::converter::s2::material
 			return fallback_image(donor_texture.semantic);
 		}
 
-		std::unique_ptr<converted_material> convert(const Material* asset, const zonetool::s2::Material* donor)
+		bool uses_sky_image(const zonetool::s2::Material* material)
 		{
-			auto result = std::make_unique<converted_material>();
-			auto& material = result->material;
-			material = *donor;
-
-			material.info.name = asset->name;
-			material.info.surfaceTypeBits = convert_surface_type_bits(static_cast<std::uint64_t>(asset->info.surfaceTypeBits));
-			material.parentMaterial = nullptr;
-
-			result->images.resize(donor->textureCount);
-			result->image_names.resize(donor->textureCount);
-			result->textures.assign(donor->textureTable, donor->textureTable + donor->textureCount);
-			for (auto i = 0u; i < result->textures.size(); i++)
+			for (auto i = 0; i < material->textureCount; i++)
 			{
-				auto& texture = result->textures[i];
-				result->image_names[i] = select_image(asset, texture);
-				result->images[i].name = result->image_names[i].data();
-				texture.u.image = &result->images[i];
-			}
-
-			const auto is_sky = std::ranges::any_of(result->image_names, [](const std::string& name)
-			{
-				return name.ends_with("_s2sky");
-			});
-			for (auto i = 0u; is_sky && i < result->textures.size(); i++)
-			{
-				const auto donor_image = donor->textureTable[i].u.image;
-				if (donor_image && donor_image->name && std::string_view{donor_image->name}.ends_with("_flow"))
+				const auto image = material->textureTable[i].u.image;
+				if (image && image->name && std::string_view(image->name).ends_with("_s2sky"))
 				{
-					result->image_names[i] = gfximage::dump_solid("h1_s2_sky_still_flow", result->textures[i].semantic, {128, 128, 0, 255});
-					result->images[i].name = result->image_names[i].data();
+					return true;
 				}
 			}
 
-			material.textureTable = result->textures.data();
-			return result;
+			return false;
 		}
 
-		constexpr std::uint8_t no_entry = 0xFF;
-		constexpr std::uint32_t h1_polygon_offset_shift = 4;
-		constexpr std::uint32_t h1_polygon_offset_mask = 3u << h1_polygon_offset_shift;
-		constexpr std::uint32_t s2_polygon_offset_shift = 27;
-		constexpr std::uint32_t blend_class_shift = 26;
-		constexpr std::uint32_t blend_word_count = 3;
+		void convert_donor_textures(const Material* asset, const zonetool::s2::Material* donor, zonetool::s2::Material* material,
+			utils::memory::allocator& allocator)
+		{
+			material->textureTable = copy_array(donor->textureTable, donor->textureCount, allocator);
+			for (auto i = 0; i < donor->textureCount; i++)
+			{
+				auto& texture = material->textureTable[i];
+				texture.u.image = make_image_stub(select_image(asset, texture), allocator);
+			}
+
+			if (!uses_sky_image(material))
+			{
+				return;
+			}
+
+			for (auto i = 0; i < donor->textureCount; i++)
+			{
+				const auto donor_image = donor->textureTable[i].u.image;
+				if (donor_image && donor_image->name && std::string_view(donor_image->name).ends_with("_flow"))
+				{
+					auto& texture = material->textureTable[i];
+					texture.u.image = make_image_stub(gfximage::dump_solid("h1_s2_sky_still_flow", texture.semantic, {128, 128, 0, 255}), allocator);
+				}
+			}
+		}
+
+		zonetool::s2::Material* convert_donor(const Material* asset, const zonetool::s2::Material* donor, utils::memory::allocator& allocator)
+		{
+			const auto material = allocator.allocate<zonetool::s2::Material>();
+			*material = *donor;
+			material->info.name = asset->name;
+			material->info.surfaceTypeBits = convert_surface_type_bits(static_cast<std::uint64_t>(asset->info.surfaceTypeBits));
+			material->parentMaterial = nullptr;
+			convert_donor_textures(asset, donor, material, allocator);
+			return material;
+		}
 
 		std::uint32_t convert_blend_word(const std::uint32_t h1_word)
 		{
@@ -184,8 +196,6 @@ namespace zonetool::h1::converter::s2::material
 			result.rasterizerState = rasterizer_index(result.loadBits[0], result.loadBits[2]);
 			return result;
 		}
-
-		constexpr auto depth_stencil_mode_count = std::extent_v<decltype(zonetool::s2::material_state::depth_stencil)>;
 
 		std::array<std::uint64_t, depth_stencil_mode_count> depth_stencil_states(const std::uint32_t load_bits1, const std::uint32_t load_bits2)
 		{
@@ -285,68 +295,15 @@ namespace zonetool::h1::converter::s2::material
 			return result;
 		}
 
-		void convert_native_textures(const Material* asset, converted_material& result)
+		zonetool::s2::material_state* convert_native_states(const Material* asset, const techset::native_techset& native, zonetool::s2::Material* material,
+			utils::memory::allocator& allocator)
 		{
-			const auto textures = std::span{asset->textureTable, asset->textureTable ? asset->textureCount : 0u};
-			if (std::ranges::any_of(textures, [](const MaterialTextureDef& texture) { return texture.semantic == TS_WATER_MAP; }))
-			{
-				throw std::runtime_error("water textures are not converted");
-			}
-
-			result.textures.resize(textures.size());
-			result.images.resize(textures.size());
-			result.image_names.resize(textures.size());
-			for (auto i = 0u; i < textures.size(); i++)
-			{
-				const auto& source = textures[i];
-				auto& texture = result.textures[i];
-				texture.nameHash = source.nameHash;
-				texture.nameStart = source.nameStart;
-				texture.nameEnd = source.nameEnd;
-				texture.samplerState = source.samplerState;
-				texture.semantic = source.semantic;
-
-				result.image_names[i] = select_native_image(source);
-				result.images[i].name = result.image_names[i].data();
-				texture.u.image = &result.images[i];
-			}
-
-			result.material.textureCount = static_cast<unsigned char>(textures.size());
-			result.material.textureTable = result.textures.empty() ? nullptr : result.textures.data();
-		}
-
-		void convert_native_constants(const Material* asset, converted_material& result)
-		{
-			result.constants.resize(asset->constantTable ? asset->constantCount : 0);
-			for (auto i = 0u; i < result.constants.size(); i++)
-			{
-				const auto& source = asset->constantTable[i];
-				auto& constant = result.constants[i];
-				constant.nameHash = source.nameHash;
-				std::ranges::copy(source.name, constant.name);
-				std::ranges::copy(source.literal, constant.literal);
-			}
-
-			result.material.constantCount = static_cast<unsigned char>(result.constants.size());
-			result.material.constantTable = result.constants.empty() ? nullptr : result.constants.data();
-
-			result.constant_buffers.resize(asset->constantBufferTable ? asset->constantBufferCount : 0);
-			for (auto i = 0u; i < result.constant_buffers.size(); i++)
-			{
-				result.constant_buffers[i] = convert_constant_buffer(asset->constantBufferTable[i]);
-			}
-
-			result.material.constantBufferCount = static_cast<unsigned char>(result.constant_buffers.size());
-			result.material.constantBufferTable = result.constant_buffers.empty() ? nullptr : result.constant_buffers.data();
-		}
-
-		void convert_native_states(const Material* asset, const techset::native_techset& native, converted_material& result)
-		{
-			auto& material = result.material;
-			std::ranges::fill(material.stateBitsEntry, no_entry);
-			std::ranges::fill(material.constantBufferIndex, no_entry);
+			std::ranges::fill(material->stateBitsEntry, no_entry);
+			std::ranges::fill(material->constantBufferIndex, no_entry);
 
 			// pass p of a technique uses stateBitsEntry[slot] + p, so multi pass techniques get a run of entries
+			std::vector<zonetool::s2::GfxStateBits> state_bits;
+			std::vector<zonetool::s2::material_state> states;
 			std::map<std::tuple<std::uint8_t, std::uint32_t, std::uint32_t>, std::uint8_t> entries;
 			for (auto slot = 0; slot < zonetool::s2::technique_count; slot++)
 			{
@@ -356,7 +313,7 @@ namespace zonetool::h1::converter::s2::material
 					continue;
 				}
 
-				material.constantBufferIndex[slot] = asset->constantBufferIndex[source];
+				material->constantBufferIndex[slot] = asset->constantBufferIndex[source];
 
 				const auto h1_entry = asset->stateBitsEntry[source];
 				if (h1_entry == no_entry)
@@ -372,26 +329,76 @@ namespace zonetool::h1::converter::s2::material
 				}
 
 				const auto key = std::make_tuple(h1_entry, blend_class(slot), pass_count);
-				const auto [entry, inserted] = entries.try_emplace(key, static_cast<std::uint8_t>(result.state_bits.size()));
+				const auto [entry, inserted] = entries.try_emplace(key, static_cast<std::uint8_t>(state_bits.size()));
 				if (inserted)
 				{
 					for (auto pass = 0u; pass < pass_count; pass++)
 					{
-						result.state_bits.emplace_back(convert_state_bits(asset->stateBitsTable[h1_entry + pass], std::get<1>(key)));
-						result.states.emplace_back(convert_state(result.state_bits.back()));
+						state_bits.emplace_back(convert_state_bits(asset->stateBitsTable[h1_entry + pass], std::get<1>(key)));
+						states.emplace_back(convert_state(state_bits.back()));
 					}
 				}
 
-				material.stateBitsEntry[slot] = entry->second;
+				material->stateBitsEntry[slot] = entry->second;
 			}
 
-			if (result.state_bits.size() >= no_entry)
+			if (state_bits.size() >= no_entry)
 			{
 				throw std::runtime_error("too many state bits");
 			}
 
-			material.stateBitsCount = static_cast<unsigned char>(result.state_bits.size());
-			material.stateBitsTable = result.state_bits.empty() ? nullptr : result.state_bits.data();
+			material->stateBitsCount = static_cast<unsigned char>(state_bits.size());
+			material->stateBitsTable = copy_array(state_bits.data(), state_bits.size(), allocator);
+			return copy_array(states.data(), states.size(), allocator);
+		}
+
+		void convert_native_constants(const Material* asset, zonetool::s2::Material* material, utils::memory::allocator& allocator)
+		{
+			const auto count = asset->constantTable ? asset->constantCount : 0;
+			material->constantCount = static_cast<unsigned char>(count);
+			material->constantTable = allocator.allocate_array<zonetool::s2::MaterialConstantDef>(count);
+			for (auto i = 0; i < count; i++)
+			{
+				const auto& source = asset->constantTable[i];
+				auto& constant = material->constantTable[i];
+				constant.nameHash = source.nameHash;
+				std::ranges::copy(source.name, constant.name);
+				std::ranges::copy(source.literal, constant.literal);
+			}
+
+			const auto buffer_count = asset->constantBufferTable ? asset->constantBufferCount : 0;
+			material->constantBufferCount = static_cast<unsigned char>(buffer_count);
+			material->constantBufferTable = allocator.allocate_array<zonetool::s2::MaterialConstantBufferDef>(buffer_count);
+			for (auto i = 0; i < buffer_count; i++)
+			{
+				material->constantBufferTable[i] = convert_constant_buffer(asset->constantBufferTable[i]);
+			}
+		}
+
+		void convert_native_textures(const Material* asset, zonetool::s2::Material* material, utils::memory::allocator& allocator)
+		{
+			const auto count = asset->textureTable ? asset->textureCount : 0;
+			for (auto i = 0; i < count; i++)
+			{
+				if (asset->textureTable[i].semantic == TS_WATER_MAP)
+				{
+					throw std::runtime_error("water textures are not converted");
+				}
+			}
+
+			material->textureCount = static_cast<unsigned char>(count);
+			material->textureTable = allocator.allocate_array<zonetool::s2::MaterialTextureDef>(count);
+			for (auto i = 0; i < count; i++)
+			{
+				const auto& source = asset->textureTable[i];
+				auto& texture = material->textureTable[i];
+				texture.nameHash = source.nameHash;
+				texture.nameStart = source.nameStart;
+				texture.nameEnd = source.nameEnd;
+				texture.samplerState = source.samplerState;
+				texture.semantic = source.semantic;
+				texture.u.image = make_image_stub(select_native_image(source), allocator);
+			}
 		}
 
 		std::uint8_t convert_state_flags(const std::uint8_t h1_flags)
@@ -443,51 +450,31 @@ namespace zonetool::h1::converter::s2::material
 			}
 		}
 
-		std::unique_ptr<converted_material> convert_native(const Material* asset, const zonetool::s2::Material* donor, const techset::native_techset& native)
+		native_material convert_native(const Material* asset, const zonetool::s2::Material* donor, const techset::native_techset& native,
+			utils::memory::allocator& allocator)
 		{
-			auto result = std::make_unique<converted_material>();
-			auto& material = result->material;
-			material = *donor;
+			const auto material = allocator.allocate<zonetool::s2::Material>();
+			*material = *donor;
+			material->info.name = asset->name;
+			material->info.gameFlags = asset->info.gameFlags;
+			material->info.sortKey = convert_sort_key(asset->info.sortKey);
+			material->info.drawSurf.fields.primarySortKey = material->info.sortKey;
+			material->cameraRegion = convert_camera_region(asset->cameraRegion);
+			material->info.textureAtlasRowCount = asset->info.textureAtlasRowCount;
+			material->info.textureAtlasColumnCount = asset->info.textureAtlasColumnCount;
+			material->info.textureAtlasFrameBlend = asset->info.textureAtlasFrameBlend;
+			material->info.textureAtlasAsArray = asset->info.textureAtlasAsArray;
+			material->info.surfaceTypeBits = convert_surface_type_bits(static_cast<std::uint64_t>(asset->info.surfaceTypeBits));
+			material->stateFlags = convert_state_flags(asset->stateFlags);
+			material->techniqueSet = native.techset;
+			material->parentMaterial = nullptr;
+			material->layerCount = asset->subMaterials ? asset->layerCount : 0;
+			material->subMaterials = asset->subMaterials;
 
-			material.info.name = asset->name;
-			material.info.gameFlags = asset->info.gameFlags;
-			material.info.sortKey = convert_sort_key(asset->info.sortKey);
-			material.info.drawSurf.fields.primarySortKey = material.info.sortKey;
-			material.cameraRegion = convert_camera_region(asset->cameraRegion);
-			material.info.textureAtlasRowCount = asset->info.textureAtlasRowCount;
-			material.info.textureAtlasColumnCount = asset->info.textureAtlasColumnCount;
-			material.info.textureAtlasFrameBlend = asset->info.textureAtlasFrameBlend;
-			material.info.textureAtlasAsArray = asset->info.textureAtlasAsArray;
-			material.info.surfaceTypeBits = convert_surface_type_bits(static_cast<std::uint64_t>(asset->info.surfaceTypeBits));
-			material.stateFlags = convert_state_flags(asset->stateFlags);
-			material.techniqueSet = native.techset;
-			material.parentMaterial = nullptr;
-			material.layerCount = asset->subMaterials ? asset->layerCount : 0;
-			material.subMaterials = asset->subMaterials;
-
-			convert_native_states(asset, native, *result);
-			convert_native_constants(asset, *result);
-			convert_native_textures(asset, *result);
-			return result;
-		}
-
-		std::unique_ptr<converted_material> try_convert_native(const Material* asset, const zonetool::s2::Material* donor, const std::string& h1_techset)
-		{
-			const auto native = techset::convert_native(h1_techset);
-			if (!native)
-			{
-				return {};
-			}
-
-			try
-			{
-				return convert_native(asset, donor, *native);
-			}
-			catch (const std::exception& e)
-			{
-				ZONETOOL_WARNING("Material \"%s\" needs a donor: %s", asset->name, e.what());
-				return {};
-			}
+			const auto states = convert_native_states(asset, native, material, allocator);
+			convert_native_constants(asset, material, allocator);
+			convert_native_textures(asset, material, allocator);
+			return {material, states};
 		}
 
 		std::string get_techset_name(const Material* asset)
@@ -495,15 +482,66 @@ namespace zonetool::h1::converter::s2::material
 			return asset->techniqueSet && asset->techniqueSet->name ? asset->techniqueSet->name : "";
 		}
 
-		void add_image_rows(const converted_material& converted)
+		void add_image_rows(const zonetool::s2::Material* material)
 		{
-			for (const auto& image : converted.images)
+			for (auto i = 0; i < material->textureCount; i++)
 			{
-				if (image.name && !gfximage::is_dumped(image.name) && !dumped_donor_images.contains(image.name))
+				const auto image = material->textureTable[i].u.image;
+				if (image && image->name && !gfximage::is_dumped(image->name) && !dumped_donor_images.contains(image->name))
 				{
-					add_csv_row("image", image.name, true);
+					add_csv_row("image", image->name, true);
 				}
 			}
+		}
+
+		bool dump_native(Material* asset, const zonetool::s2::Material* donor, const std::string& h1_techset, utils::memory::allocator& allocator)
+		{
+			const auto native = techset::convert_native(h1_techset);
+			if (!native)
+			{
+				return false;
+			}
+
+			native_material converted{};
+			try
+			{
+				converted = convert_native(asset, donor, *native, allocator);
+			}
+			catch (const std::exception& e)
+			{
+				ZONETOOL_WARNING("Material \"%s\" needs a donor: %s", asset->name, e.what());
+				return false;
+			}
+
+			techset::dump(native->techset);
+			add_csv_row("techset", native->techset->name);
+			zonetool::s2::material::dump(converted.material, converted.states);
+			add_csv_row("material", asset->name);
+			add_image_rows(converted.material);
+			return true;
+		}
+
+		void dump_with_donor(Material* asset, const zonetool::s2::Material* donor, const std::string& s2_techset, utils::memory::allocator& allocator)
+		{
+			const auto& zone = techset::donor_zone();
+			const auto global = zone.is_global_techset(s2_techset);
+			if (!global)
+			{
+				if (const auto techniques = zone.find_techset(s2_techset))
+				{
+					db_scope _(zone.db());
+					techset::dump(techniques);
+				}
+			}
+			add_csv_row("techset", s2_techset, global);
+
+			const auto material = convert_donor(asset, donor, allocator);
+			{
+				db_scope _(zone.db());
+				zonetool::s2::material::dump(material);
+			}
+			add_csv_row("material", asset->name);
+			add_image_rows(material);
 		}
 
 		void convert_material(Material* asset, std::unordered_map<std::string, std::string>& selected)
@@ -523,43 +561,18 @@ namespace zonetool::h1::converter::s2::material
 			}
 
 			const auto& s2_techset = entry->second;
-			const auto& zone = techset::donor_zone();
-			const auto donor = zone.find_donor(s2_techset);
+			const auto donor = techset::donor_zone().find_donor(s2_techset);
 			if (!donor)
 			{
 				ZONETOOL_WARNING("No S2 material uses techset \"%s\"", s2_techset.data());
 				return;
 			}
 
-			if (const auto converted = try_convert_native(asset, donor, h1_techset))
+			utils::memory::allocator allocator;
+			if (!dump_native(asset, donor, h1_techset, allocator))
 			{
-				const auto native = converted->material.techniqueSet;
-				techset::dump(native);
-				add_csv_row("techset", native->name);
-				zonetool::s2::material::dump(&converted->material, converted->states.data());
-				add_csv_row("material", asset->name);
-				add_image_rows(*converted);
-				return;
+				dump_with_donor(asset, donor, s2_techset, allocator);
 			}
-
-			const auto global = zone.is_global_techset(s2_techset);
-			if (!global)
-			{
-				if (const auto techniques = zone.find_techset(s2_techset))
-				{
-					db_scope _(zone.db());
-					techset::dump(techniques);
-				}
-			}
-			add_csv_row("techset", s2_techset, global);
-
-			const auto converted = convert(asset, donor);
-			{
-				db_scope _(zone.db());
-				zonetool::s2::material::dump(&converted->material);
-			}
-			add_csv_row("material", asset->name);
-			add_image_rows(*converted);
 		}
 	}
 
@@ -619,6 +632,7 @@ namespace zonetool::h1::converter::s2::material
 			return;
 		}
 
+		utils::memory::allocator allocator;
 		const auto& zone = techset::donor_zone();
 		const auto donor_minimap = "compass_map_" + std::string(techset::donor_zone_name);
 		for (const auto suffix : {"", "_circular", "_ui3d"})
@@ -635,34 +649,31 @@ namespace zonetool::h1::converter::s2::material
 				continue;
 			}
 
-			const auto name = minimap + suffix;
-			auto material = *static_cast<zonetool::s2::Material*>(*donor);
-			material.info.name = name.data();
-
-			std::vector<zonetool::s2::MaterialTextureDef> textures(material.textureTable, material.textureTable + material.textureCount);
-			std::vector<zonetool::s2::GfxImage> images(textures.size());
-			for (auto i = 0u; i < textures.size(); i++)
+			const auto material = allocator.allocate<zonetool::s2::Material>();
+			*material = *static_cast<zonetool::s2::Material*>(*donor);
+			material->info.name = allocator.duplicate_string(minimap + suffix);
+			material->textureTable = copy_array(material->textureTable, material->textureCount, allocator);
+			for (auto i = 0; i < material->textureCount; i++)
 			{
-				const auto image = textures[i].u.image;
+				auto& texture = material->textureTable[i];
+				const auto image = texture.u.image;
 				const auto is_global = image && image->name && zone.is_global_image(image->name);
-				images[i].name = is_global ? image->name : map_image.data();
-				textures[i].u.image = &images[i];
-				add_csv_row("image", images[i].name, is_global);
+				texture.u.image = make_image_stub(is_global ? image->name : map_image, allocator);
+				add_csv_row("image", texture.u.image->name, is_global);
 			}
-			material.textureTable = textures.data();
 
-			const auto techset = material.techniqueSet->name;
+			const auto techset = material->techniqueSet->name;
 			add_csv_row("techset", techset, zone.is_global_techset(techset));
 			{
 				db_scope _(zone.db());
 				if (!zone.is_global_techset(techset))
 				{
-					techset::dump(material.techniqueSet);
+					techset::dump(material->techniqueSet);
 				}
-				zonetool::s2::material::dump(&material);
+				zonetool::s2::material::dump(material);
 			}
-			add_csv_row("material", name);
-			minimap_materials.insert(name);
+			add_csv_row("material", material->info.name);
+			minimap_materials.insert(material->info.name);
 		}
 	}
 

@@ -28,25 +28,6 @@ namespace zonetool::h1::converter::s2::gfxworld
 			return reinterpret_cast<To*>(data);
 		}
 
-		template <typename To, typename From>
-		To* asset_reference(From* asset)
-		{
-			return reinterpret_cast<To*>(asset);
-		}
-
-		template <typename T>
-		T* copy_array(const T* data, const std::size_t count, utils::memory::allocator& allocator)
-		{
-			if (!data || !count)
-			{
-				return nullptr;
-			}
-
-			const auto result = allocator.allocate_array<T>(count);
-			std::memcpy(result, data, sizeof(T) * count);
-			return result;
-		}
-
 		template <typename T>
 		T* non_null_array(const std::size_t count, utils::memory::allocator& allocator)
 		{
@@ -60,6 +41,31 @@ namespace zonetool::h1::converter::s2::gfxworld
 			{
 				buffer = allocator.allocate<T>();
 			}
+		}
+
+		template <typename T>
+		std::unordered_map<std::string, T*>& stubs()
+		{
+			static std::unordered_map<std::string, T*> stubs;
+			return stubs;
+		}
+
+		template <typename T>
+		T* shared_stub(const char* name, utils::memory::allocator& allocator)
+		{
+			auto& stub = stubs<T>()[name];
+			if (!stub)
+			{
+				stub = make_stub<T>(name, allocator);
+			}
+
+			return stub;
+		}
+
+		void clear_stubs()
+		{
+			stubs<zonetool::s2::Material>().clear();
+			stubs<zonetool::s2::XModel>().clear();
 		}
 
 		Bounds smodel_bounds(const GfxStaticModelInst& inst)
@@ -82,7 +88,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 				ZONETOOL_WARNING("GfxWorld image \"%s\" is not converted", image->name);
 			}
 
-			return static_cast<zonetool::s2::GfxImage*>(name_stub(image->name, allocator));
+			return make_stub<zonetool::s2::GfxImage>(image->name, allocator);
 		}
 
 		std::vector<std::uint16_t> env_light_indices(const ComWorld& com_world, const ComPrimaryLightEnv& env)
@@ -250,8 +256,8 @@ namespace zonetool::h1::converter::s2::gfxworld
 			const auto fog_spline = gfximage::dump_fog_spline("*fog_spline0");
 			draw.fogSplineCount = 1; // fogSplineImages[0] 0x1402044C0
 			draw.fogSplineImages = allocator.allocate_array<zonetool::s2::GfxImage*>(1);
-			draw.fogSplineImages[0] = static_cast<zonetool::s2::GfxImage*>(name_stub(allocator.duplicate_string(fog_spline), allocator));
-			draw.fogSplineInfo = allocator.allocate_array<char[116]>(1); // stock spline 0 info is all zero
+			draw.fogSplineImages[0] = make_stub<zonetool::s2::GfxImage>(allocator.duplicate_string(fog_spline), allocator);
+			draw.fogSplineInfo = allocator.allocate_array<char[116]>(1);
 
 			const auto lightmap_count = static_cast<unsigned int>(std::max(source.lightmapCount, 0));
 			draw.lightmapOverrideCount = lightmap_count;
@@ -269,7 +275,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 			draw.lightmapParameters = std::bit_cast<zonetool::s2::GfxLightmapParameters>(source.lightmapParameters);
 
 			std::ranges::fill(draw.transientZones, nullptr);
-			draw.transientZones[0] = static_cast<zonetool::s2::GfxMapTrZone*>(name_stub(transient_zone, allocator));
+			draw.transientZones[0] = make_stub<zonetool::s2::GfxMapTrZone>(transient_zone, allocator);
 			draw.transientZoneMaterials = nullptr;
 
 			draw.indexCount = source.indexCount;
@@ -364,7 +370,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 				new_surface.vertexCount = surface.tris.vertexCount;
 				new_surface.triCount = surface.tris.triCount;
 				new_surface.baseIndex = surface.tris.baseIndex;
-				new_surface.material = asset_reference<zonetool::s2::Material>(surface.material);
+				new_surface.material = surface.material ? shared_stub<zonetool::s2::Material>(surface.material->name, allocator) : nullptr;
 				new_surface.lightmapIndex = surface.laf.fields.lightmapIndex;
 				new_surface.reflectionProbeIndex = surface.laf.fields.reflectionProbeIndex;
 				new_surface.flags = zonetool::s2::GFX_SURFACE_FLAG_DEFAULT;
@@ -391,7 +397,6 @@ namespace zonetool::h1::converter::s2::gfxworld
 			return (inst.flags & STATIC_MODEL_FLAG_VERTEXLIT_LIGHTING) && lighting.vertexLightingInfo.lightingValues;
 		}
 
-		// "ml" models sample a world lightmap at their own uvs, the lightmaps convert 1:1 so the index carries over
 		bool has_model_lightmap(const GfxWorld* asset, const GfxStaticModelDrawInst& inst, const GfxStaticModelLighting& lighting)
 		{
 			return (inst.flags & STATIC_MODEL_FLAG_LIGHTMAP_LIGHTING) && asset->draw.lightmaps
@@ -431,7 +436,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 				return 0;
 			}
 
-			// stock picks the lowest (sortKey, techset, material name), the techset order is not reversed so it is skipped
+			// stock also orders by the techset, that order is not reversed
 			const auto sort_order = [&](const int index)
 			{
 				const auto handle = model->materialHandles[index];
@@ -449,10 +454,8 @@ namespace zonetool::h1::converter::s2::gfxworld
 			return static_cast<std::uint8_t>(std::max(best, 0));
 		}
 
-		// h1 g_lodDistIndexToScale (h1_mp64_ship .rdata), the smodel flags index it and the lod distance is divided by it; s2 stores
-		// the scale itself, the stock mp_aachen_v2 instances use the same values
 		constexpr std::array<float, 16> lod_dist_scales{0.25f, 0.375f, 0.5f, 0.625f, 0.75f, 0.875f, 1.0f, 1.125f, 1.25f, 1.5f, 1.75f, 2.0f,
-			2.5f, 3.0f, 3.5f, 4.0f};
+			2.5f, 3.0f, 3.5f, 4.0f}; // h1 g_lodDistIndexToScale
 
 		void convert_static_models(GfxWorld* asset, zonetool::s2::GfxWorldDpvsStatic& dpvs, const light_lists& lists, utils::memory::allocator& allocator)
 		{
@@ -473,7 +476,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 				const auto& inst = source.smodelDrawInsts[i];
 				auto& new_inst = insts[i];
 				convert_placement(inst.placement, new_inst);
-				new_inst.model = asset_reference<zonetool::s2::XModel>(inst.model);
+				new_inst.model = inst.model ? shared_stub<zonetool::s2::XModel>(inst.model->name, allocator) : nullptr;
 				new_inst.cullDist = inst.cullDist;
 				const auto lighting_flag = has_model_lightmap(asset, inst, source.smodelLightingInsts[i])
 					? zonetool::s2::STATIC_MODEL_FLAG_LIGHTMAP_LIGHTING
@@ -928,7 +931,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 				}
 			}
 
-			return sampler.sample(asset->dpvs.smodelInsts[index].lightingOrigin); // fallback only, the voxel at the lighting origin is often inside the ground
+			return sampler.sample(asset->dpvs.smodelInsts[index].lightingOrigin); // the voxel at the lighting origin is often inside the ground
 		}
 
 		void convert_static_model_probes(GfxWorld* asset, zonetool::s2::GfxWorld& world, light_grid_sampler& sampler, utils::memory::allocator& allocator)
@@ -1194,6 +1197,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 		const auto world = convert(pending_world, donor, transient_zone, allocator);
 		dump_donor_image(*world);
 		zonetool::s2::gfx_world::dump(world);
+		clear_stubs();
 		add_csv_row("gfx_map", pending_world->name);
 
 		ZONETOOL_INFO("GfxWorld \"%s\": %u surfaces, %u static models, %u primary lights", pending_world->name,

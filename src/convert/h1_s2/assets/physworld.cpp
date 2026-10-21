@@ -23,36 +23,36 @@ namespace zonetool::h1::converter::s2::physworld
 				: source(mesh)
 			{
 				const auto count = static_cast<std::size_t>(mesh.m_triangleCount);
-				centers.resize(count);
-				order.resize(count);
+				this->centers.resize(count);
+				this->order.resize(count);
 				for (auto i = 0u; i < count; i++)
 				{
-					order[i] = i;
+					this->order[i] = i;
 					const auto& tri = mesh.m_aTriangles[i];
 					for (auto axis = 0; axis < 3; axis++)
 					{
-						centers[i][axis] = (vertex(tri.i1, axis) + vertex(tri.i2, axis) + vertex(tri.i3, axis)) / 3.0f;
+						this->centers[i][axis] = (this->vertex(tri.i1, axis) + this->vertex(tri.i2, axis) + this->vertex(tri.i3, axis)) / 3.0f;
 					}
 				}
 
 				if (count)
 				{
-					build(0, count, 1);
+					this->build(0, count, 1);
 				}
 			}
 
 			float vertex(const int index, const int axis) const
 			{
-				const auto& v = source.m_aVertices[index];
+				const auto& v = this->source.m_aVertices[index];
 				return axis == 0 ? v.x : axis == 1 ? v.y : v.z;
 			}
 
 			std::size_t build(const std::size_t begin, const std::size_t end, const int depth)
 			{
-				height = std::max(height, depth);
+				this->height = std::max(this->height, depth);
 
-				const auto index = nodes.size();
-				nodes.emplace_back();
+				const auto index = this->nodes.size();
+				this->nodes.emplace_back();
 
 				zonetool::s2::PhysMeshNode node{};
 				std::fill_n(node.mins, 3, std::numeric_limits<float>::max());
@@ -66,35 +66,35 @@ namespace zonetool::h1::converter::s2::physworld
 
 				for (auto i = begin; i < end; i++)
 				{
-					const auto& tri = source.m_aTriangles[order[i]];
+					const auto& tri = this->source.m_aTriangles[this->order[i]];
 					flags |= world_collision_flags;
 					for (auto axis = 0; axis < 3; axis++)
 					{
 						for (const auto vert : {tri.i1, tri.i2, tri.i3})
 						{
-							node.mins[axis] = std::min(node.mins[axis], vertex(vert, axis) - node_padding);
-							node.maxs[axis] = std::max(node.maxs[axis], vertex(vert, axis) + node_padding);
+							node.mins[axis] = std::min(node.mins[axis], this->vertex(vert, axis) - node_padding);
+							node.maxs[axis] = std::max(node.maxs[axis], this->vertex(vert, axis) + node_padding);
 						}
 
-						center_mins[axis] = std::min(center_mins[axis], centers[order[i]][axis]);
-						center_maxs[axis] = std::max(center_maxs[axis], centers[order[i]][axis]);
+						center_mins[axis] = std::min(center_mins[axis], this->centers[this->order[i]][axis]);
+						center_maxs[axis] = std::max(center_maxs[axis], this->centers[this->order[i]][axis]);
 					}
 				}
 
 				const auto count = end - begin;
 				if (count <= 4)
 				{
-					node.u.firstTriangle = static_cast<unsigned int>(triangles.size());
+					node.u.firstTriangle = static_cast<unsigned int>(this->triangles.size());
 					node.flags = flags;
 					node.axis = 3;
 					node.triangleCount = static_cast<unsigned int>(count);
 					for (auto i = begin; i < end; i++)
 					{
-						auto& tri = triangles.emplace_back(std::bit_cast<zonetool::s2::dmMeshTriangle>(source.m_aTriangles[order[i]]));
+						auto& tri = this->triangles.emplace_back(std::bit_cast<zonetool::s2::dmMeshTriangle>(this->source.m_aTriangles[this->order[i]]));
 						tri.collisionFlags = world_collision_flags;
 					}
 
-					nodes[index] = node;
+					this->nodes[index] = node;
 					return index;
 				}
 
@@ -108,31 +108,31 @@ namespace zonetool::h1::converter::s2::physworld
 				}
 
 				const auto middle = begin + count / 2;
-				std::nth_element(order.begin() + begin, order.begin() + middle, order.begin() + end, [&](const auto lhs, const auto rhs)
+				std::nth_element(this->order.begin() + begin, this->order.begin() + middle, this->order.begin() + end, [&](const auto lhs, const auto rhs)
 				{
-					return centers[lhs][axis] < centers[rhs][axis];
+					return this->centers[lhs][axis] < this->centers[rhs][axis];
 				});
 
-				build(begin, middle, depth + 1);
-				const auto right = build(middle, end, depth + 1);
+				this->build(begin, middle, depth + 1);
+				const auto right = this->build(middle, end, depth + 1);
 
 				node.u.rightChildOffset = static_cast<unsigned int>(right - index);
 				node.flags = flags;
 				node.axis = axis;
-				nodes[index] = node;
+				this->nodes[index] = node;
 				return index;
 			}
 
 			float area() const
 			{
 				auto total = 0.0f;
-				for (const auto& tri : triangles)
+				for (const auto& tri : this->triangles)
 				{
 					float edge[2][3]{};
 					for (auto axis = 0; axis < 3; axis++)
 					{
-						edge[0][axis] = vertex(tri.i2, axis) - vertex(tri.i1, axis);
-						edge[1][axis] = vertex(tri.i3, axis) - vertex(tri.i1, axis);
+						edge[0][axis] = this->vertex(tri.i2, axis) - this->vertex(tri.i1, axis);
+						edge[1][axis] = this->vertex(tri.i3, axis) - this->vertex(tri.i1, axis);
 					}
 
 					const float cross[3] =
@@ -185,9 +185,9 @@ namespace zonetool::h1::converter::s2::physworld
 		}
 	}
 
-	// TODO polytopes and water volumes are not converted
 	void dump(PhysWorld* asset)
 	{
+		// TODO polytopes and water volumes are not converted
 		if (asset->polytopeCount || asset->waterVolumeDefCount)
 		{
 			ZONETOOL_WARNING("PhysWorld \"%s\": %u polytopes and %u water volumes are not converted",
