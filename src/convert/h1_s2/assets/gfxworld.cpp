@@ -69,14 +69,14 @@ namespace zonetool::h1::converter::s2::gfxworld
 			stubs<zonetool::s2::XModel>().clear();
 		}
 
-		// h1 cullDist is world units (lod out * scale * lod scale), s2 compares it with distance / (lodScale * maxScale) or size culls the last lod (2.5 sub_14074DED0)
+		// h1 cullDist is world units (lod out * scale * lod scale), s2 2.20 sub_140864F70/sub_1408661B0 compare it with distance / maxScale (no lodScale)
 		unsigned short convert_cull_dist(const GfxStaticModelDrawInst& inst, const zonetool::s2::GfxStaticModelDrawInst& new_inst)
 		{
-			const auto scale = new_inst.lodScale * new_inst.maxScale;
+			const auto scale = new_inst.maxScale;
 			auto dist = inst.cullDist && scale > 0.0f ? inst.cullDist / scale : 0.0f;
 			if (!dist && inst.model && inst.model->numLods > 0 && inst.model->numLods <= 6)
 			{
-				dist = inst.model->lodInfo[inst.model->numLods - 1].dist;
+				dist = inst.model->lodInfo[inst.model->numLods - 1].dist * new_inst.lodScale;
 			}
 
 			return static_cast<unsigned short>(std::clamp(std::round(dist), 0.0f, 65535.0f));
