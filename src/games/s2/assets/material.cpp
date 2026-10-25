@@ -184,7 +184,7 @@ namespace zonetool::s2
 			j.asset(MATERIAL_FIELD(parentMaterial));
 
 			j.value("gameFlags", value.info.gameFlags);
-			j.value("unkFlags", value.info.unkFlags);
+			j.value("prepassClass", value.info.prepassClass);
 			j.value("sortKey", value.info.sortKey);
 			j.value("textureAtlasRowCount", value.info.textureAtlasRowCount);
 			j.value("textureAtlasColumnCount", value.info.textureAtlasColumnCount);

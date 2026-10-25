@@ -1673,11 +1673,19 @@ namespace zonetool::s2
 		std::uint64_t packed[2];
 	};
 
+	// how a material enters the static model depth prepass
+	enum MaterialPrepassClass : unsigned char
+	{
+		PREPASS_CLASS_OPAQUE = 0, // generic depth shader without a pixel shader
+		PREPASS_CLASS_ALPHA_TESTED = 1, // needs its own pixel shader (alpha tested t0/a0 and vdh techsets)
+		PREPASS_CLASS_BLENDED = 2, // not in the depth prepass (decals, translucent, effects, 2d)
+	};
+
 	struct MaterialInfo
 	{
 		const char* name;
 		unsigned char gameFlags;
-		unsigned char unkFlags; // 0 world, 1 model, 2 decal and effect
+		MaterialPrepassClass prepassClass;
 		unsigned char sortKey;
 		char __pad0;
 		unsigned char textureAtlasRowCount;

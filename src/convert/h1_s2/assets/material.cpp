@@ -458,6 +458,29 @@ namespace zonetool::h1::converter::s2::material
 			}
 		}
 
+		// stock s2: materials without depth writes are blended (out of the static model depth prepass), a layer 0 alpha test (t0/a0) or vdh needs
+		// the material's own prepass technique, the rest use the generic depth shader; alpha tested ones without a prepass technique stay out
+		zonetool::s2::MaterialPrepassClass convert_prepass_class(const Material* asset, const zonetool::s2::MaterialTechniqueSet* techset)
+		{
+			if (!(asset->stateFlags & STATE_FLAG_WRITES_DEPTH))
+			{
+				return zonetool::s2::PREPASS_CLASS_BLENDED;
+			}
+
+			const auto name = std::string_view(asset->techniqueSet && asset->techniqueSet->name ? asset->techniqueSet->name : "");
+			const auto alpha_tested = std::ranges::any_of(utils::string::split(std::string(name), '_'), [](const std::string& token)
+			{
+				return token.starts_with("t0") || token.starts_with("a0") || token == "vdh";
+			});
+
+			if (!alpha_tested)
+			{
+				return zonetool::s2::PREPASS_CLASS_OPAQUE;
+			}
+
+			return techset && techset->techniques[zonetool::s2::TECHNIQUE_ZPREPASS] ? zonetool::s2::PREPASS_CLASS_ALPHA_TESTED : zonetool::s2::PREPASS_CLASS_BLENDED;
+		}
+
 		std::uint8_t convert_state_flags(const std::uint8_t h1_flags)
 		{
 			constexpr std::array<std::pair<std::uint8_t, std::uint8_t>, 5> flag_map
@@ -514,6 +537,7 @@ namespace zonetool::h1::converter::s2::material
 			material->info.gameFlags = asset->info.gameFlags;
 			material->info.sortKey = convert_sort_key(asset->info.sortKey);
 			material->info.drawSurf.fields.primarySortKey = material->info.sortKey;
+			material->info.prepassClass = convert_prepass_class(asset, native.techset);
 			material->cameraRegion = convert_camera_region(asset->cameraRegion);
 			material->info.textureAtlasRowCount = asset->info.textureAtlasRowCount;
 			material->info.textureAtlasColumnCount = asset->info.textureAtlasColumnCount;
