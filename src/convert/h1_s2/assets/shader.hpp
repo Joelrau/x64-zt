@@ -75,6 +75,7 @@ namespace zonetool::h1::converter::s2::shader
 		std::optional<std::uint32_t> lightmap_params_dest;
 		std::vector<stable_literal_row> stable_literal_rows;
 		bool sprite{};
+		bool lit_instance_rows{}; // the lit pass of the same draw fills cb7 with 9 rows per instance (appended light passes)
 		std::optional<primary_lights> lights;
 		constant_rows material_rows; // h1 material constant buffer rows read at another row
 	};

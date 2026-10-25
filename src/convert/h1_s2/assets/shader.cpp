@@ -2019,7 +2019,7 @@ namespace zonetool::h1::converter::s2::shader
 					this->texture_slots_ = relocate_textures(this->instructions_, patch.lighting->texture);
 				}
 
-				this->lit_instance_rows_ = this->vs_lighting_ && patch.lighting->instanced;
+				this->lit_instance_rows_ = (this->vs_lighting_ && patch.lighting->instanced) || patch.lit_instance_rows;
 				this->base_temps_ = this->lightmap_.has_value() || patch.sun_shadow.texture.has_value() ? 1u : 0u;
 				const auto lighting_temps = this->vs_lighting_ ? 3u : this->pixel_lighting_ ? 6u : 0u;
 				this->sprite_temp_ = this->base_temps_ + lighting_temps;

@@ -442,6 +442,11 @@ namespace zonetool::h1::converter::s2::techset
 			{CONST_SRC_CODE_PARTICLE_CLOUD_COLOR, {1.0f, 1.0f, 1.0f, 1.0f}}, // s2 clouds take the color from a vertex stream
 			{CONST_SRC_CODE_LIGHTING_LOOKUP_SCALE, {1.0f, 1.0f, 1.0f, 0.0f}},
 			{CONST_SRC_CODE_SCRIPT_PARMS, {0.0f, 0.0f, 0.0f, 0.0f}}, // s2 const 26 holds other data that flickers the model lighting
+			// s2 has no rim lights (_mpr techsets): exp(log(sat(dot + 1_COLOR.w)) * 0_COLOR.w) and the fade divide by 1_DIR.y give nan with zeros, which the bloom spreads into white blobs
+			{CONST_SRC_CODE_RIM_LIGHT_0_DIR, {0.0f, 0.0f, 1.0f, 0.0f}},
+			{CONST_SRC_CODE_RIM_LIGHT_0_COLOR, {0.0f, 0.0f, 0.0f, 1.0f}},
+			{CONST_SRC_CODE_RIM_LIGHT_1_DIR, {0.0f, 1.0f, 0.0f, 0.0f}}, // fade offset, range, scale, bias -> fade 0
+			{CONST_SRC_CODE_RIM_LIGHT_1_COLOR, {0.0f, 0.0f, 0.0f, 1.0f}},
 		};
 
 		light_grid slot_light_grid(const std::int32_t slot)
@@ -751,6 +756,10 @@ namespace zonetool::h1::converter::s2::techset
 			if (patch.sprite)
 			{
 				suffix += "_sprite";
+			}
+			if (patch.lit_instance_rows)
+			{
+				suffix += "_li9";
 			}
 			const auto key = std::make_pair(static_cast<const void*>(source), suffix);
 			if (const auto entry = converted_shaders.find(key); entry != converted_shaders.end())
@@ -1183,7 +1192,7 @@ namespace zonetool::h1::converter::s2::techset
 		}
 
 		void convert_pass(const MaterialPass& pass, const light_grid grid, const std::int32_t slot, const bool sprite, zonetool::s2::MaterialPass& result,
-			const material_rows* lights = nullptr)
+			const material_rows* lights = nullptr, const bool lit_instances = false)
 		{
 			const auto lighting = find_model_lighting(pass);
 			const auto lightmap_params = find_model_lightmap_params(pass);
@@ -1228,6 +1237,7 @@ namespace zonetool::h1::converter::s2::techset
 			vertex_patch.lightmap_params_dest = lightmap_params;
 			vertex_patch.stable_literal_rows = stable_literal_rows;
 			vertex_patch.sprite = sprite;
+			vertex_patch.lit_instance_rows = lit_instances;
 			if (lights)
 			{
 				vertex_patch.material_rows = (*lights)[1];
@@ -1299,6 +1309,10 @@ namespace zonetool::h1::converter::s2::techset
 			result.perObjArgSize = pass.perObjArgSize;
 			result.stableArgSize = arg_size(pass.stableArgSize, next_stable_row);
 			result.customBufferFlags = convert_custom_buffer_flags(pass.customBufferFlags, lighting, grid);
+			if (lit_instances && (result.customBufferFlags & zonetool::s2::CUSTOM_BUFFER_INSTANCE_MATRICES))
+			{
+				result.customBufferFlags = (result.customBufferFlags & ~zonetool::s2::CUSTOM_BUFFER_INSTANCE_MATRICES) | zonetool::s2::CUSTOM_BUFFER_INSTANCE_MATRICES_LIGHTING;
+			}
 			if (primary_lights)
 			{
 				result.customBufferFlags |= zonetool::s2::CUSTOM_BUFFER_FORWARD_LIGHTING;
@@ -1367,7 +1381,9 @@ namespace zonetool::h1::converter::s2::techset
 
 			zonetool::s2::MaterialPass light_pass;
 			std::memset(&light_pass, 0, sizeof(light_pass)); // zeroed padding, the pass is dumped as written
-			convert_pass(light, light_grid::probe_buffer, slot, false, light_pass, &rows);
+			// both passes draw the same instances, so the light pass reads the lit pass cb7 layout (9 rows when lit)
+			const auto lit_instances = (base->passArray[0].customBufferFlags & zonetool::s2::CUSTOM_BUFFER_INSTANCE_MATRICES_LIGHTING) != 0;
+			convert_pass(light, light_grid::probe_buffer, slot, false, light_pass, &rows, lit_instances);
 
 			// the cached model draws bind the fixed per prim layout of these types for every pass
 			const auto base_type = base->passArray[0].modelVertexType;
