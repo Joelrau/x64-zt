@@ -175,22 +175,9 @@ namespace zonetool::h1::converter::s2::sound
 			return map;
 		}
 
-		template <typename T>
-		T* named_asset(const char* name, utils::memory::allocator& allocator)
+		zonetool::s2::SndCurve* curve_stub(const SndCurve* curve, utils::memory::allocator& allocator)
 		{
-			if (!name)
-			{
-				return nullptr;
-			}
-
-			auto* asset = allocator.allocate<T>();
-			asset->name = name;
-			return asset;
-		}
-
-		const char* curve_name(const SndCurve* curve)
-		{
-			return curve ? curve->name : nullptr;
+			return curve && curve->name ? make_stub<zonetool::s2::SndCurve>(curve->name, allocator) : nullptr;
 		}
 
 		const StreamFileName* find_stream_file(const SoundFile* file)
@@ -281,7 +268,7 @@ namespace zonetool::h1::converter::s2::sound
 				}
 			}
 
-			file->u.loadSnd = named_asset<zonetool::s2::LoadedSound>(loaded_name, allocator);
+			file->u.loadSnd = loaded_name ? make_stub<zonetool::s2::LoadedSound>(loaded_name, allocator) : nullptr;
 			return file;
 		}
 
@@ -317,12 +304,19 @@ namespace zonetool::h1::converter::s2::sound
 			result.squelchName = alias.squelchName;
 			result.polyCount = alias.polyCount;
 			result.dspBusIndex = convert_dsp_bus(alias);
+			result.volModIndex = convert_volume_mod(alias);
+
+			// s2 crossfades audio zones by playing both zone ambiences, zones sharing a bed need two instances (stock amb_quad aliases use 32767)
+			if (result.volModIndex == static_cast<short>(*find_name(s2_volume_mod_groups, "amb_quad")))
+			{
+				result.polyCount = 32767;
+			}
+
 			result.priority = alias.priority;
 			result.playCount = alias.playCount;
 			result.polyClass = alias.polyClass;
 			result.volMin = alias.volMin;
 			result.volMax = alias.volMax;
-			result.volModIndex = convert_volume_mod(alias);
 			result.pitchMin = alias.pitchMin;
 			result.pitchMax = alias.pitchMax;
 			result.distMin = alias.distMin;
@@ -340,9 +334,9 @@ namespace zonetool::h1::converter::s2::sound
 			result.lfePercentage = alias.lfePercentage;
 			result.centerPercentage = alias.centerPercentage;
 			result.startDelay = alias.startDelay;
-			result.volumeFalloffCurve = named_asset<zonetool::s2::SndCurve>(curve_name(alias.volumeFalloffCurve), allocator);
-			result.lpfCurve = named_asset<zonetool::s2::DistCurve>("$default", allocator);
-			result.reverbSendCurve = named_asset<zonetool::s2::SndCurve>(curve_name(alias.reverbSendCurve), allocator);
+			result.volumeFalloffCurve = curve_stub(alias.volumeFalloffCurve, allocator);
+			result.lpfCurve = make_stub<zonetool::s2::DistCurve>("$default", allocator);
+			result.reverbSendCurve = curve_stub(alias.reverbSendCurve, allocator);
 			result.speakerMap = convert_speaker_map(alias.speakerMap, allocator);
 			result.wetMixOverride = alias.wetMixOverride;
 			result.focusPercentage = alias.focusPercentage;
@@ -370,10 +364,17 @@ namespace zonetool::h1::converter::s2::sound
 			std::memcpy(curve.knots, asset->knots, sizeof(curve.knots));
 			return curve;
 		}
+
+		std::unordered_set<std::string> dumped_sounds;
 	}
 
 	void dump(snd_alias_list_t* asset)
 	{
+		if (!dumped_sounds.insert(asset->name).second)
+		{
+			return;
+		}
+
 		utils::memory::allocator allocator;
 
 		zonetool::s2::snd_alias_list_t list{};
@@ -389,6 +390,53 @@ namespace zonetool::h1::converter::s2::sound
 		add_csv_row(zonetool::s2::type_to_string(zonetool::s2::ASSET_TYPE_SOUND), asset->name);
 	}
 
+	// for aliases a converted asset names but the map zone does not ship (h1 common_mp), the in-zone audio is its own loaded sound asset
+	bool dump_used(const std::string& name)
+	{
+		if (name.empty() || dumped_sounds.contains(name))
+		{
+			return !name.empty();
+		}
+
+		auto* asset = db_find_x_asset_header_safe(ASSET_TYPE_SOUND, name).sound;
+		if (!asset)
+		{
+			return false;
+		}
+
+		dump(asset);
+		for (auto i = 0; asset->head && i < asset->count; i++)
+		{
+			const auto& alias = asset->head[i];
+			if (alias.soundFile)
+			{
+				if (auto* loaded = const_cast<LoadedSound*>(find_loaded_sound(alias.soundFile)))
+				{
+					loaded_sound::dump(loaded);
+				}
+			}
+
+			for (const auto* linked : {alias.secondaryAliasName, alias.chainAliasName})
+			{
+				if (linked && *linked)
+				{
+					dump_used(linked);
+				}
+			}
+		}
+
+		return true;
+	}
+
+	// dump_used for an alias a converted asset references, with a warning when no loaded h1 zone has it
+	void dump_used(const snd_alias_list_t* alias, const char* what)
+	{
+		if (alias && alias->name && !dump_used(alias->name))
+		{
+			ZONETOOL_WARNING("%s \"%s\" not found in the loaded h1 zones", what, alias->name);
+		}
+	}
+
 	void dump_curve(SndCurve* asset)
 	{
 		auto curve = convert_curve(asset);
@@ -401,5 +449,10 @@ namespace zonetool::h1::converter::s2::sound
 		auto curve = convert_curve(asset);
 		zonetool::s2::reverb_curve::dump(&curve);
 		add_csv_row(zonetool::s2::type_to_string(zonetool::s2::ASSET_TYPE_REVERB_CURVE), asset->name);
+	}
+
+	void clear()
+	{
+		dumped_sounds.clear();
 	}
 }

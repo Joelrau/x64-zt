@@ -167,8 +167,11 @@ namespace zonetool::s2
 				catch (const std::exception& e)
 				{
 					const auto name = *loader.name(data);
-					throw std::runtime_error(std::format("{} \"{}\": {}", type_to_string(static_cast<XAssetType>(type)),
-						name && this->reader_.contains(name) ? name : "", e.what()));
+					const auto previous = this->zone_.assets.empty() ? std::string("none")
+						: std::format("{} \"{}\"", type_to_string(this->zone_.assets.back().type),
+							get_asset_name(this->zone_.assets.back().type, this->zone_.assets.back().header));
+					throw std::runtime_error(std::format("{} \"{}\" (after {}): {}", type_to_string(static_cast<XAssetType>(type)),
+						name && this->reader_.contains(name) ? name : "", previous, e.what()));
 				}
 
 				auto header = static_cast<void*>(this->reader_.allocate<std::uint8_t>(loader.size));

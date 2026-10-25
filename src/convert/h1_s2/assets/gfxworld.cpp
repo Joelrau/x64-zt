@@ -5,7 +5,6 @@
 #include "comworld.hpp"
 #include "gfximage.hpp"
 #include "material.hpp"
-#include "techset.hpp"
 
 #include <formats/light_grid.hpp>
 #include <formats/probe_volume.hpp>
@@ -19,28 +18,30 @@ namespace zonetool::h1::converter::s2::gfxworld
 		constexpr float light_grid_cell_size[3] = {32.0f, 32.0f, 64.0f};
 		constexpr int light_grid_bias[3] = {4096, 4096, 2048};
 
-		GfxWorld* pending_world = nullptr;
-
-		template <typename To, typename From>
-		To* retype(From* data)
+		// the same in every stock S2 map
+		constexpr zonetool::s2::GfxWorldSortKeys stock_sort_keys
 		{
-			static_assert(sizeof(To) == sizeof(From));
-			return reinterpret_cast<To*>(data);
-		}
+			.unk_0x1 = 38,
+			.unk_0x2 = 39,
+			.twoD = 62,
+			.unk_0x4 = 44,
+			.effectDecal = 21,
+			.unk_0x6 = 46,
+			.effectAuto = 54,
+			.distortion = 49,
+			.transBegin = 22,
+			.transEnd = 33,
+			.emissiveBegin = 47,
+			.emissiveEnd = 58,
+			.postResolveLit = 38,
+		};
+
+		GfxWorld* pending_world = nullptr;
 
 		template <typename T>
 		T* non_null_array(const std::size_t count, utils::memory::allocator& allocator)
 		{
 			return allocator.allocate_array<T>(std::max<std::size_t>(count, 1));
-		}
-
-		template <typename T>
-		void reserve_runtime_buffer(T*& buffer, const unsigned int count, utils::memory::allocator& allocator)
-		{
-			if (count && !buffer)
-			{
-				buffer = allocator.allocate<T>();
-			}
 		}
 
 		template <typename T>
@@ -68,12 +69,22 @@ namespace zonetool::h1::converter::s2::gfxworld
 			stubs<zonetool::s2::XModel>().clear();
 		}
 
-		Bounds smodel_bounds(const GfxStaticModelInst& inst)
+		// h1 cullDist is world units (lod out * scale * lod scale), s2 compares it with distance / (lodScale * maxScale) or size culls the last lod (2.5 sub_14074DED0)
+		unsigned short convert_cull_dist(const GfxStaticModelDrawInst& inst, const zonetool::s2::GfxStaticModelDrawInst& new_inst)
 		{
-			Bounds bounds{};
-			std::memcpy(bounds.midPoint, inst.mins, sizeof(bounds.midPoint));
-			std::memcpy(bounds.halfSize, inst.maxs, sizeof(bounds.halfSize));
-			return bounds;
+			const auto scale = new_inst.lodScale * new_inst.maxScale;
+			auto dist = inst.cullDist && scale > 0.0f ? inst.cullDist / scale : 0.0f;
+			if (!dist && inst.model && inst.model->numLods > 0 && inst.model->numLods <= 6)
+			{
+				dist = inst.model->lodInfo[inst.model->numLods - 1].dist;
+			}
+
+			return static_cast<unsigned short>(std::clamp(std::round(dist), 0.0f, 65535.0f));
+		}
+
+		const Bounds& smodel_bounds(const GfxStaticModelInst& inst)
+		{
+			return inst.bounds;
 		}
 
 		zonetool::s2::GfxImage* image_stub(const GfxImage* image, utils::memory::allocator& allocator)
@@ -159,26 +170,26 @@ namespace zonetool::h1::converter::s2::gfxworld
 
 			auto& data = zone->vertices.data;
 			data.positions = allocator.allocate_array<zonetool::s2::vec3_t>(count);
-			data.data0 = allocator.allocate_array<unsigned int>(count);
-			data.data1 = allocator.allocate_array<unsigned int>(count);
-			data.data2 = allocator.allocate_array<std::uint64_t>(count);
-			data.data3 = allocator.allocate_array<std::uint64_t>(count);
-			data.data4 = allocator.allocate_array<unsigned int>(count);
-			data.data5 = allocator.allocate_array<unsigned int>(count);
+			data.texelDensities = allocator.allocate_array<float>(count);
+			data.colors = allocator.allocate_array<unsigned int>(count);
+			data.texCoords = allocator.allocate_array<zonetool::s2::vec2_t>(count);
+			data.lmapCoords = allocator.allocate_array<zonetool::s2::vec2_t>(count);
+			data.normals = allocator.allocate_array<unsigned int>(count);
+			data.tangents = allocator.allocate_array<unsigned int>(count);
 			for (auto i = 0u; i < count; i++)
 			{
 				const auto& vertex = asset->draw.vd.vertices[i];
 				std::memcpy(data.positions[i], vertex.xyz, sizeof(vertex.xyz));
-				std::memcpy(&data.data0[i], &vertex.binormalSign, sizeof(vertex.binormalSign));
-				data.data1[i] = vertex.color.packed;
-				std::memcpy(&data.data2[i], vertex.texCoord, sizeof(vertex.texCoord));
-				std::memcpy(&data.data3[i], vertex.lmapCoord, sizeof(vertex.lmapCoord));
-				data.data4[i] = vertex.normal.packed;
-				data.data5[i] = vertex.tangent.packed;
+				data.texelDensities[i] = std::abs(vertex.binormalSign);
+				data.colors[i] = vertex.color.packed;
+				std::memcpy(data.texCoords[i], vertex.texCoord, sizeof(vertex.texCoord));
+				std::memcpy(data.lmapCoords[i], vertex.lmapCoord, sizeof(vertex.lmapCoord));
+				data.normals[i] = vertex.normal.packed;
+				data.tangents[i] = pack_tangent(vertex.tangent.packed, vertex.binormalSign); // h1 binormalSign is the signed texel density
 			}
 
-			zone->indexDataSize = asset->draw.vertexLayerDataSize;
-			zone->indices.data = asset->draw.vld.data;
+			zone->vertexLayerDataSize = asset->draw.vertexLayerDataSize;
+			zone->vld.data = asset->draw.vld.data;
 			return zone;
 		}
 
@@ -186,14 +197,16 @@ namespace zonetool::h1::converter::s2::gfxworld
 		{
 			world.name = asset->name;
 			world.baseName = asset->baseName;
+			world.bspVersion = 204;
 			world.planeCount = asset->planeCount;
 			world.nodeCount = asset->nodeCount;
 			world.surfaceCount = asset->surfaceCount;
 			world.portalGroupCount = asset->portalGroupCount;
 			world.lastSunPrimaryLightIndex = 1;
 			world.primaryLightCount = asset->primaryLightCount;
-			world.primaryLightEnvCount = 1;
-			world.sortKeyLitDecal = asset->primaryLightCount; // TODO unverified
+			world.movingScriptablePrimaryLightCount = 0; // h1 has no moving scriptable lights
+			world.unk_0x40 = asset->primaryLightCount;
+			world.sortKeys = stock_sort_keys;
 
 			const auto skies = copy_array(retype<zonetool::s2::GfxSky>(asset->skies), asset->skyCount, allocator);
 			for (auto i = 0; skies && i < asset->skyCount; i++)
@@ -215,6 +228,8 @@ namespace zonetool::h1::converter::s2::gfxworld
 			{
 				world.dpvsPlanes.nodes[i] = asset->dpvsPlanes.nodes[i];
 			}
+			mark_runtime(world.dpvsPlanes.sceneEntCellBits, allocator);
+			mark_runtime(world.dpvsPlanes.unk_0x20, allocator);
 
 			world.aabbTreeCounts = retype<zonetool::s2::GfxCellTreeCount>(asset->aabbTreeCounts);
 			world.aabbTrees = retype<zonetool::s2::GfxCellTree>(asset->aabbTrees);
@@ -229,6 +244,35 @@ namespace zonetool::h1::converter::s2::gfxworld
 			world.portalGroup = groups;
 			world.portalDistanceAnchorCount = asset->portalDistanceAnchorCount;
 			world.portalDistanceAnchorsAndCloseDistSquared = retype<zonetool::s2::vec4_t>(asset->portalDistanceAnchorsAndCloseDistSquared);
+		}
+
+		// stock lists only the tiles its lightmap charts use, every tile of every lightmap is listed here
+		void convert_lightmap_tiles(const GfxWorldDraw& source, zonetool::s2::GfxWorldDraw& draw)
+		{
+			const auto& params = source.lightmapParameters;
+			const auto tile_width = std::max(params.lightmapWidthSecondary, 1);
+			const auto tile_height = std::max(params.lightmapHeightSecondary, 1);
+			const auto tiles_x = (params.lightmapWidthPrimary + tile_width - 1) / tile_width;
+			const auto tiles_y = (params.lightmapHeightPrimary + tile_height - 1) / tile_height;
+			for (auto layer = 0; layer < source.lightmapCount; layer++)
+			{
+				for (auto y = 0; y < tiles_y; y++)
+				{
+					for (auto x = 0; x < tiles_x && draw.lightmapTileCount < std::size(draw.lightmapTiles); x++)
+					{
+						auto& tile = draw.lightmapTiles[draw.lightmapTileCount++];
+						tile[0] = static_cast<unsigned int>(x);
+						tile[1] = static_cast<unsigned int>(y);
+						tile[2] = static_cast<unsigned int>(layer);
+					}
+				}
+			}
+
+			draw.unk_0x264[0] = 1;
+			draw.unk_0x264[1] = 1;
+			draw.lightmapTileSize[0] = static_cast<unsigned int>(tile_width);
+			draw.lightmapTileSize[1] = static_cast<unsigned int>(tile_height);
+			draw.unk_0x274 = 8;
 		}
 
 		void convert_draw(GfxWorld* asset, zonetool::s2::GfxWorld& world, const char* transient_zone, utils::memory::allocator& allocator)
@@ -247,6 +291,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 			{
 				draw.reflectionProbes[0] = draw.reflectionProbes[1]; // probe 0 is default red
 			}
+			reserve_runtime(draw.reflectionProbeTextures, draw.reflectionProbeCount, allocator);
 
 			draw.reflectionProbeOrigins = retype<zonetool::s2::GfxReflectionProbe>(source.reflectionProbeOrigins);
 			draw.reflectionProbeReferenceCount = source.reflectionProbeReferenceCount;
@@ -259,6 +304,9 @@ namespace zonetool::h1::converter::s2::gfxworld
 			draw.fogSplineImages[0] = make_stub<zonetool::s2::GfxImage>(allocator.duplicate_string(fog_spline), allocator);
 			draw.fogSplineInfo = allocator.allocate_array<char[116]>(1);
 
+			const auto ies_lookup = gfximage::dump_ies_lookup("*ieslookup");
+			draw.iesLookup = make_stub<zonetool::s2::GfxImage>(allocator.duplicate_string(ies_lookup), allocator);
+
 			const auto lightmap_count = static_cast<unsigned int>(std::max(source.lightmapCount, 0));
 			draw.lightmapOverrideCount = lightmap_count;
 			draw.lightmapOverrides = lightmap_count ? allocator.allocate_array<zonetool::s2::GfxLightmapArray>(lightmap_count) : nullptr;
@@ -267,19 +315,262 @@ namespace zonetool::h1::converter::s2::gfxworld
 				draw.lightmapOverrides[i].primary = image_stub(source.lightmaps[i].primary, allocator);
 				draw.lightmapOverrides[i].secondary = image_stub(source.lightmaps[i].secondary, allocator);
 			}
+			reserve_runtime(draw.lightmapPrimaryTextures, lightmap_count, allocator);
+			reserve_runtime(draw.lightmapSecondaryTextures, lightmap_count, allocator);
 
-			draw.lightmapOverridePrimary = nullptr;
-			draw.lightmapOverrideSecondary = nullptr;
-			draw.imageCount = 0;
-			draw.images = nullptr;
 			draw.lightmapParameters = std::bit_cast<zonetool::s2::GfxLightmapParameters>(source.lightmapParameters);
+			convert_lightmap_tiles(source, draw);
 
-			std::ranges::fill(draw.transientZones, nullptr);
+			draw.transientZoneCount = 1;
 			draw.transientZones[0] = make_stub<zonetool::s2::GfxMapTrZone>(transient_zone, allocator);
-			draw.transientZoneMaterials = nullptr;
 
 			draw.indexCount = source.indexCount;
 			draw.indices = source.indices;
+		}
+
+		// S2 lights the world with the probe volume, every stock map carries this empty grid
+		void convert_light_grid(zonetool::s2::GfxWorld& world, utils::memory::allocator& allocator)
+		{
+			auto& grid = world.lightGrid;
+			grid.colAxis = 1;
+			grid.rowDataStart = allocator.allocate<unsigned short>(); // one row, mins == maxs
+			grid.tableVersion = 1;
+			grid.paletteVersion = 1;
+		}
+
+		using vec3 = std::array<float, 3>;
+
+		struct light_proxy
+		{
+			std::vector<vec3> vertices;
+			std::vector<std::uint16_t> indices;
+		};
+
+		vec3 cross(const vec3& a, const vec3& b)
+		{
+			return {a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]};
+		}
+
+		float dot(const vec3& a, const vec3& b)
+		{
+			return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+		}
+
+		vec3 sub(const vec3& a, const vec3& b)
+		{
+			return {a[0] - b[0], a[1] - b[1], a[2] - b[2]};
+		}
+
+		vec3 normalize(const vec3& v)
+		{
+			const auto length = std::sqrt(dot(v, v));
+			return length > 0.0f ? vec3{v[0] / length, v[1] / length, v[2] / length} : vec3{0.0f, 0.0f, 1.0f};
+		}
+
+		// icosahedron split twice (162 vertices), scaled so that every face lies outside the light sphere
+		light_proxy make_omni_proxy(const vec3& origin, const float radius)
+		{
+			constexpr auto phi = std::numbers::phi_v<float>;
+			std::vector<vec3> points
+			{
+				{-1, phi, 0}, {1, phi, 0}, {-1, -phi, 0}, {1, -phi, 0}, {0, -1, phi}, {0, 1, phi},
+				{0, -1, -phi}, {0, 1, -phi}, {phi, 0, -1}, {phi, 0, 1}, {-phi, 0, -1}, {-phi, 0, 1},
+			};
+			const std::vector<std::uint16_t> faces
+			{
+				0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11, 1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 7, 1, 8,
+				3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9, 4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1,
+			};
+
+			for (auto& point : points)
+			{
+				point = normalize(point);
+			}
+
+			std::map<std::pair<std::uint16_t, std::uint16_t>, std::uint16_t> midpoints;
+			const auto midpoint = [&](const std::uint16_t a, const std::uint16_t b)
+			{
+				const auto key = std::minmax(a, b);
+				if (const auto entry = midpoints.find(key); entry != midpoints.end())
+				{
+					return entry->second;
+				}
+
+				const auto index = static_cast<std::uint16_t>(points.size());
+				points.emplace_back(normalize({points[a][0] + points[b][0], points[a][1] + points[b][1], points[a][2] + points[b][2]}));
+				midpoints.emplace(key, index);
+				return index;
+			};
+
+			light_proxy result;
+			result.indices = faces;
+			for (auto split = 0; split < 2; split++)
+			{
+				std::vector<std::uint16_t> indices;
+				for (auto i = 0u; i < result.indices.size(); i += 3)
+				{
+					const auto a = result.indices[i], b = result.indices[i + 1], c = result.indices[i + 2];
+					const auto ab = midpoint(a, b), bc = midpoint(b, c), ca = midpoint(c, a);
+					indices.insert(indices.end(), {a, ab, ca, b, bc, ab, c, ca, bc, ab, bc, ca});
+				}
+
+				result.indices = std::move(indices);
+			}
+
+			auto inradius = 1.0f;
+			for (auto i = 0u; i < result.indices.size(); i += 3)
+			{
+				const auto& a = points[result.indices[i]];
+				const auto normal = normalize(cross(sub(points[result.indices[i + 1]], a), sub(points[result.indices[i + 2]], a)));
+				inradius = std::min(inradius, std::abs(dot(normal, a)));
+			}
+
+			const auto scale = radius / inradius;
+			for (const auto& point : points)
+			{
+				result.vertices.push_back({origin[0] + point[0] * scale, origin[1] + point[1] * scale, origin[2] + point[2] * scale});
+			}
+
+			return result;
+		}
+
+		// s2 primary light dir points back at the light, the ring circumscribes the outer cone at the light radius
+		light_proxy make_spot_proxy(const vec3& origin, const vec3& dir, const float radius, const float cos_outer)
+		{
+			constexpr auto ring_count = 12u;
+			const auto axis = normalize({-dir[0], -dir[1], -dir[2]});
+			const auto side = normalize(cross(axis, std::abs(axis[2]) < 0.9f ? vec3{0.0f, 0.0f, 1.0f} : vec3{1.0f, 0.0f, 0.0f}));
+			const auto up = cross(axis, side);
+			const auto ring_radius = radius * std::sqrt(1.0f - cos_outer * cos_outer) / cos_outer / std::cos(std::numbers::pi_v<float> / ring_count);
+
+			light_proxy result;
+			result.vertices.push_back(origin);
+			for (auto i = 0u; i < ring_count; i++)
+			{
+				const auto angle = 2.0f * std::numbers::pi_v<float> * static_cast<float>(i) / ring_count;
+				const auto c = std::cos(angle) * ring_radius;
+				const auto s = std::sin(angle) * ring_radius;
+				result.vertices.push_back({origin[0] + axis[0] * radius + side[0] * c + up[0] * s, origin[1] + axis[1] * radius + side[1] * c + up[1] * s,
+					origin[2] + axis[2] * radius + side[2] * c + up[2] * s});
+			}
+
+			result.vertices.push_back({origin[0] + axis[0] * radius, origin[1] + axis[1] * radius, origin[2] + axis[2] * radius});
+			const auto cap = static_cast<std::uint16_t>(ring_count + 1);
+			for (auto i = 0u; i < ring_count; i++)
+			{
+				const auto a = static_cast<std::uint16_t>(1 + i);
+				const auto b = static_cast<std::uint16_t>(1 + (i + 1) % ring_count);
+				result.indices.insert(result.indices.end(), {0, a, b, cap, b, a});
+			}
+
+			return result;
+		}
+
+		// the full cone or sphere like the stock hulls: every spot and omni casts shadows (comworld.cpp), which keeps the lights out of the rooms
+		// behind their walls, so the hull has to cover everything the falloff reaches or the light ends on tile edges
+		void set_frustum_light(const ComPrimaryLight& light, zonetool::s2::GfxFrustumLights& frustum, utils::memory::allocator& allocator)
+		{
+			constexpr auto proxy_scale = 1.15f; // stock hulls reach 1.03-1.09x radius (spots) and 1.19-1.37x (omnis), so tile edges stay outside the falloff
+			constexpr auto proxy_margin = 16.0f; // units
+			constexpr auto spot_widen = 5.0f * std::numbers::pi_v<float> / 180.0f; // the cone sides stay outside the outer cone
+			constexpr auto min_spot_cos = 0.6f; // wider cones get the sphere hull, the cone ring would reach out to radius * tan(fov)
+
+			const vec3 origin{light.origin[0], light.origin[1], light.origin[2]};
+			const auto radius = light.radius * proxy_scale + proxy_margin;
+			const auto spot_cos = std::cos(std::acos(std::clamp(light.cosHalfFovOuter, -1.0f, 1.0f)) + spot_widen);
+			auto proxy = light.type == GFX_LIGHT_TYPE_SPOT && spot_cos >= min_spot_cos
+				? make_spot_proxy(origin, {light.dir[0], light.dir[1], light.dir[2]}, radius, spot_cos)
+				: make_omni_proxy(origin, radius);
+
+			vec3 center{};
+			for (const auto& vertex : proxy.vertices)
+			{
+				for (auto axis = 0; axis < 3; axis++)
+				{
+					center[axis] += vertex[axis] / static_cast<float>(proxy.vertices.size());
+				}
+			}
+
+			for (auto i = 0u; i < proxy.indices.size(); i += 3)
+			{
+				const auto& a = proxy.vertices[proxy.indices[i]];
+				const auto normal = cross(sub(proxy.vertices[proxy.indices[i + 1]], a), sub(proxy.vertices[proxy.indices[i + 2]], a));
+				if (dot(normal, sub(a, center)) > 0.0f)
+				{
+					std::swap(proxy.indices[i + 1], proxy.indices[i + 2]);
+				}
+			}
+
+			// frustum_lights_tile vs grows the hull by position - normal * expand, the normal is the inward vertex normal as 10:10:10 unorm at +28
+			std::vector<vec3> normals(proxy.vertices.size());
+			for (auto i = 0u; i < proxy.indices.size(); i += 3)
+			{
+				const auto& a = proxy.vertices[proxy.indices[i]];
+				const auto normal = normalize(cross(sub(proxy.vertices[proxy.indices[i + 1]], a), sub(proxy.vertices[proxy.indices[i + 2]], a)));
+				for (auto corner = 0u; corner < 3; corner++)
+				{
+					for (auto axis = 0; axis < 3; axis++)
+					{
+						normals[proxy.indices[i + corner]][axis] += normal[axis];
+					}
+				}
+			}
+
+			vec3 mins{std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), std::numeric_limits<float>::max()};
+			vec3 maxs{-mins[0], -mins[1], -mins[2]};
+			frustum.vertexCount = static_cast<unsigned int>(proxy.vertices.size());
+			frustum.vertices = allocator.allocate_array<char[32]>(proxy.vertices.size());
+			for (auto i = 0u; i < proxy.vertices.size(); i++)
+			{
+				std::memcpy(frustum.vertices[i], proxy.vertices[i].data(), sizeof(vec3));
+				const auto normal = normalize(normals[i]);
+				auto packed = 3u << 30;
+				for (auto axis = 0; axis < 3; axis++)
+				{
+					packed |= static_cast<std::uint32_t>(std::lround((normal[axis] * 0.5f + 0.5f) * 1023.0f)) << (axis * 10);
+				}
+				std::memcpy(frustum.vertices[i] + 28, &packed, sizeof(packed));
+				for (auto axis = 0; axis < 3; axis++)
+				{
+					mins[axis] = std::min(mins[axis], proxy.vertices[i][axis]);
+					maxs[axis] = std::max(maxs[axis], proxy.vertices[i][axis]);
+				}
+			}
+
+			frustum.indexCount = static_cast<unsigned int>(proxy.indices.size());
+			frustum.indices = copy_array(proxy.indices.data(), proxy.indices.size(), allocator);
+			for (auto axis = 0; axis < 3; axis++)
+			{
+				frustum.bounds.midPoint[axis] = (mins[axis] + maxs[axis]) * 0.5f;
+				frustum.bounds.halfSize[axis] = (maxs[axis] - mins[axis]) * 0.5f;
+			}
+		}
+
+		// the frustum light job only tests the local lights a visible cell lists (sub_140876B20 / sub_1402454B0 2.20), stock lists them sorted
+		void convert_cell_lights(GfxWorld* asset, zonetool::s2::GfxWorld& world, utils::memory::allocator& allocator)
+		{
+			for (auto cell = 0u; world.cellTransientInfos && cell < world.dpvsPlanes.cellCount; cell++)
+			{
+				const auto& bounds = asset->cells[cell].bounds;
+				std::vector<std::uint16_t> lights;
+				for (auto light = asset->lastSunPrimaryLightIndex + 1; light < asset->primaryLightCount; light++)
+				{
+					const auto& frustum = world.frustumLights[light].bounds;
+					auto overlaps = frustum.halfSize[0] >= 0.0f;
+					for (auto axis = 0; overlaps && axis < 3; axis++)
+					{
+						overlaps = std::abs(frustum.midPoint[axis] - bounds.midPoint[axis]) <= frustum.halfSize[axis] + bounds.halfSize[axis];
+					}
+
+					if (overlaps)
+					{
+						lights.push_back(static_cast<std::uint16_t>(light));
+					}
+				}
+
+				world.cellTransientInfos[cell].indexCount = static_cast<unsigned short>(lights.size());
+				world.cellTransientInfos[cell].indices = copy_array(lights.data(), lights.size(), allocator);
+			}
 		}
 
 		void convert_primary_lights(GfxWorld* asset, zonetool::s2::GfxWorld& world, const light_lists& lists, utils::memory::allocator& allocator)
@@ -290,11 +581,17 @@ namespace zonetool::h1::converter::s2::gfxworld
 			for (auto i = 0u; world.frustumLights && i < count; i++)
 			{
 				const auto light = com_world && i < com_world->primaryLightCount ? &com_world->primaryLights[i] : nullptr;
-				const auto is_local = light && light->type != GFX_LIGHT_TYPE_NONE && light->type != GFX_LIGHT_TYPE_DIR;
+				const auto is_local = light && light->type != GFX_LIGHT_TYPE_NONE && light->type != GFX_LIGHT_TYPE_DIR && light->radius > 0.0f;
+				if (is_local)
+				{
+					set_frustum_light(*light, world.frustumLights[i], allocator);
+					continue;
+				}
+
 				for (auto axis = 0; axis < 3; axis++)
 				{
-					world.frustumLights[i].bounds.midPoint[axis] = is_local ? light->origin[axis] : 0.0f;
-					world.frustumLights[i].bounds.halfSize[axis] = is_local ? light->radius : -std::numeric_limits<float>::max();
+					world.frustumLights[i].bounds.midPoint[axis] = 0.0f;
+					world.frustumLights[i].bounds.halfSize[axis] = -std::numeric_limits<float>::max();
 				}
 			}
 
@@ -306,6 +603,71 @@ namespace zonetool::h1::converter::s2::gfxworld
 			const auto& data = lists.data();
 			world.lightLists.listsSize = static_cast<unsigned int>(data.size());
 			world.lightLists.lists = copy_array(data.data(), data.size(), allocator);
+
+			convert_cell_lights(asset, world, allocator);
+		}
+
+		bool overlaps_sphere(const float* mid, const float* half, const float* origin, const float radius)
+		{
+			auto distance = 0.0f;
+			for (auto axis = 0; axis < 3; axis++)
+			{
+				const auto outside = std::max(std::abs(origin[axis] - mid[axis]) - half[axis], 0.0f);
+				distance += outside * outside;
+			}
+
+			return distance <= radius * radius;
+		}
+
+		// s2 renders the static shadow map of a light from its shadowGeom casters; maps compiled without them (mp_test_h1) list none, and the
+		// shadow then darkens the whole frustum, so local lights without casters get the opaque surfaces and static models in their radius
+		zonetool::s2::GfxShadowGeometry* convert_shadow_geometry(const GfxWorld* asset, const GfxShadowGeometry* source, utils::memory::allocator& allocator)
+		{
+			const auto com_world = comworld::source_world();
+			const auto count = asset->primaryLightCount;
+			auto* geometry = count ? allocator.allocate_array<zonetool::s2::GfxShadowGeometry>(count) : nullptr;
+			const auto& dpvs = asset->dpvs;
+			const auto opaque_end = dpvs.unkSurfsEnd > dpvs.unkSurfsBegin ? dpvs.unkSurfsEnd : dpvs.litOpaqueSurfsEnd;
+			for (auto i = 0u; geometry && i < count; i++)
+			{
+				if (source)
+				{
+					geometry[i] = std::bit_cast<zonetool::s2::GfxShadowGeometry>(source[i]);
+				}
+
+				const auto light = com_world && i < com_world->primaryLightCount ? &com_world->primaryLights[i] : nullptr;
+				if (geometry[i].surfaceCount || geometry[i].smodelCount || !light || (light->type != GFX_LIGHT_TYPE_SPOT && light->type != GFX_LIGHT_TYPE_OMNI))
+				{
+					continue;
+				}
+
+				std::vector<unsigned int> surfaces;
+				for (auto surface = dpvs.litOpaqueSurfsBegin; surface < std::min(opaque_end, asset->surfaceCount) && surfaces.size() < 0xFFFF; surface++)
+				{
+					const auto& bounds = dpvs.surfacesBounds[surface].bounds;
+					if (dpvs.surfaces[surface].material && overlaps_sphere(bounds.midPoint, bounds.halfSize, light->origin, light->radius))
+					{
+						surfaces.emplace_back(surface);
+					}
+				}
+
+				std::vector<unsigned short> smodels;
+				for (auto smodel = 0u; dpvs.smodelInsts && smodel < dpvs.smodelCount && smodels.size() < 0xFFFF; smodel++)
+				{
+					const auto bounds = smodel_bounds(dpvs.smodelInsts[smodel]);
+					if (!(dpvs.smodelDrawInsts[smodel].flags & STATIC_MODEL_FLAG_NO_CAST_SHADOW) && overlaps_sphere(bounds.midPoint, bounds.halfSize, light->origin, light->radius))
+					{
+						smodels.emplace_back(static_cast<unsigned short>(smodel));
+					}
+				}
+
+				geometry[i].surfaceCount = static_cast<unsigned short>(surfaces.size());
+				geometry[i].sortedSurfIndex = copy_array(surfaces.data(), surfaces.size(), allocator);
+				geometry[i].smodelCount = static_cast<unsigned short>(smodels.size());
+				geometry[i].smodelIndex = copy_array(smodels.data(), smodels.size(), allocator);
+			}
+
+			return geometry;
 		}
 
 		void convert_models(GfxWorld* asset, zonetool::s2::GfxWorld& world, utils::memory::allocator& allocator)
@@ -325,8 +687,8 @@ namespace zonetool::h1::converter::s2::gfxworld
 			std::memcpy(world.outdoorLookupMatrix, asset->outdoorLookupMatrix, sizeof(world.outdoorLookupMatrix));
 			world.outdoorImage = image_stub(asset->outdoorImage, allocator);
 
-			world.shadowGeom = retype<zonetool::s2::GfxShadowGeometry>(asset->shadowGeom);
-			world.shadowGeomOptimized = retype<zonetool::s2::GfxShadowGeometry>(asset->shadowGeomOptimized);
+			world.shadowGeom = convert_shadow_geometry(asset, asset->shadowGeom, allocator);
+			world.shadowGeomOptimized = convert_shadow_geometry(asset, asset->shadowGeomOptimized, allocator);
 			world.lightRegion = retype<zonetool::s2::GfxLightRegion>(asset->lightRegion);
 		}
 
@@ -359,8 +721,6 @@ namespace zonetool::h1::converter::s2::gfxworld
 			const auto surfaces = allocator.allocate_array<zonetool::s2::GfxSurface>(std::max(count, 1u));
 			const auto bounds = allocator.allocate_array<zonetool::s2::GfxSurfaceBounds>(std::max(count, 1u));
 
-			const std::uint8_t unk_0x34[5]{0x3D, 0x00, 0x68, 0xD0, 0xD0}; // stock S2 surface value
-
 			for (auto i = 0u; i < count; i++)
 			{
 				const auto& surface = source.surfaces[i];
@@ -373,18 +733,19 @@ namespace zonetool::h1::converter::s2::gfxworld
 				new_surface.material = surface.material ? shared_stub<zonetool::s2::Material>(surface.material->name, allocator) : nullptr;
 				new_surface.lightmapIndex = surface.laf.fields.lightmapIndex;
 				new_surface.reflectionProbeIndex = surface.laf.fields.reflectionProbeIndex;
-				new_surface.flags = zonetool::s2::GFX_SURFACE_FLAG_DEFAULT;
+				new_surface.flags = zonetool::s2::GFX_SURFACE_FLAG_CASTS_SHADOW;
 				if (surface.laf.fields.flags & GFX_SURFACE_CASTS_SUN_SHADOW)
 				{
-					new_surface.flags |= zonetool::s2::GFX_SURFACE_FLAG_CASTS_SUN_SHADOW;
+					new_surface.flags |= zonetool::s2::GFX_SURFACE_FLAG_SUN_SHADOW_PARTITION_0;
 				}
 				new_surface.lightListOffset = lists.offset(surface.laf.fields.primaryLightEnvIndex);
 
+				const auto& source_bounds = source.surfacesBounds[i];
 				auto& new_bounds = bounds[i];
-				new_bounds.bounds = std::bit_cast<zonetool::s2::Bounds>(source.surfacesBounds[i].bounds);
-				std::memcpy(new_bounds.midPoint, new_bounds.bounds.midPoint, sizeof(new_bounds.midPoint));
-				new_bounds.unk_0x30 = 1.0f;
-				std::memcpy(new_bounds.unk_0x34, unk_0x34, sizeof(unk_0x34));
+				new_bounds.bounds = std::bit_cast<zonetool::s2::Bounds>(source_bounds.bounds);
+				new_bounds.coneCutoff = -std::numeric_limits<float>::max(); // TODO: build the cone from the H1 triangles
+				new_bounds.mipRadius = source_bounds.mipRadius;
+				std::memcpy(new_bounds.invHighMipRadius, source_bounds.invHighMipRadius, sizeof(new_bounds.invHighMipRadius));
 			}
 
 			dpvs.surfaces = count ? surfaces : nullptr;
@@ -477,7 +838,6 @@ namespace zonetool::h1::converter::s2::gfxworld
 				auto& new_inst = insts[i];
 				convert_placement(inst.placement, new_inst);
 				new_inst.model = inst.model ? shared_stub<zonetool::s2::XModel>(inst.model->name, allocator) : nullptr;
-				new_inst.cullDist = inst.cullDist;
 				const auto lighting_flag = has_model_lightmap(asset, inst, source.smodelLightingInsts[i])
 					? zonetool::s2::STATIC_MODEL_FLAG_LIGHTMAP_LIGHTING
 					: has_vertex_lighting(inst, source.smodelLightingInsts[i])
@@ -492,6 +852,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 				new_inst.sortMaterialIndex = sort_material_index(inst.model);
 				new_inst.sunShadowFlags = inst.sunShadowFlags;
 				new_inst.lodScale = lod_dist_scales[inst.flags & STATIC_MODEL_FLAG_SCALE_MODIFIER_MASK];
+				new_inst.cullDist = convert_cull_dist(inst, new_inst);
 			}
 			dpvs.smodelDrawInsts = insts;
 
@@ -526,9 +887,26 @@ namespace zonetool::h1::converter::s2::gfxworld
 			convert_surface_ranges(source, dpvs);
 			dpvs.smodelVisDataCount = source.smodelVisDataCount;
 			dpvs.surfaceVisDataCount = source.surfaceVisDataCount;
-			dpvs.sunShadowOptCount = source.sunShadowOptCount;
-			dpvs.sunSurfVisDataCount = source.sunSurfVisDataCount;
+			dpvs.sunShadowOptCount = std::max(source.sunShadowOptCount, 1u); // custom maps have none, s2 then drops every smodel from the sun shadow
+			dpvs.sunSurfVisDataCount = source.sunSurfVisDataCount ? source.sunSurfVisDataCount : (asset->surfaceCount + 255) / 256 * 8; // mp_crash: 31583 surfaces -> 992
+			dpvs.primaryLightVisDataCount = (asset->primaryLightCount + 31) / 32 + 1; // matches every stock map
 			dpvs.unk_0x318 = non_null_array<unsigned int>(2ull * source.smodelVisDataCount, allocator);
+
+			mark_runtime(dpvs.smodelVisData, allocator);
+			mark_runtime(dpvs.smodelVisDataUnused, allocator);
+			mark_runtime(dpvs.smodelUnknownVisData, allocator);
+			mark_runtime(dpvs.surfaceVisData, allocator);
+			mark_runtime(dpvs.surfaceVisDataUnused, allocator);
+			mark_runtime(dpvs.surfaceUnknownVisData, allocator);
+			mark_runtime(dpvs.unk_0x2C8, allocator);
+			mark_runtime(dpvs.primaryLightVisData, allocator);
+			mark_runtime(dpvs.unk_0x2D8, allocator);
+			mark_runtime(dpvs.unk_0x2E0, allocator);
+			mark_runtime(dpvs.surfaceSortKeys, allocator);
+			mark_runtime(dpvs.surfaceCastsSunShadow, allocator);
+			mark_runtime(dpvs.surfaceCastsSunShadowOpt, allocator);
+			mark_runtime(dpvs.surfaceMaterials, allocator);
+			mark_runtime(dpvs.smodelConstantBuffers, allocator);
 
 			convert_surfaces(asset, dpvs, lists, allocator);
 			convert_static_models(asset, dpvs, lists, allocator);
@@ -558,11 +936,14 @@ namespace zonetool::h1::converter::s2::gfxworld
 		{
 			const auto model_count = asset->dpvsDyn.dynEntClientCount[0];
 			const auto brush_count = asset->dpvsDyn.dynEntClientCount[1];
-			reserve_runtime_buffer(world.sceneDynModel, model_count, allocator);
-			reserve_runtime_buffer(world.sceneDynBrush, brush_count, allocator);
-			reserve_runtime_buffer(world.primaryLightDynEntShadowVis[0], model_count, allocator);
-			reserve_runtime_buffer(world.primaryLightDynEntShadowVis[1], brush_count, allocator);
-			reserve_runtime_buffer(world.nonSunPrimaryLightForModelDynEnt, model_count, allocator);
+			mark_runtime(world.cellCasterBits, allocator);
+			mark_runtime(world.cellHasSunLitSurfsBits, allocator);
+			mark_runtime(world.primaryLightEntityShadowVis, allocator);
+			reserve_runtime(world.sceneDynModel, model_count, allocator);
+			reserve_runtime(world.sceneDynBrush, brush_count, allocator);
+			reserve_runtime(world.primaryLightDynEntShadowVis[0], model_count, allocator);
+			reserve_runtime(world.primaryLightDynEntShadowVis[1], brush_count, allocator);
+			reserve_runtime(world.nonSunPrimaryLightForModelDynEnt, model_count, allocator);
 		}
 
 		void convert_dynamic_data(GfxWorld* asset, zonetool::s2::GfxWorld& world, utils::memory::allocator& allocator)
@@ -570,10 +951,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 			convert_dpvs_dynamic(asset, world, allocator);
 			convert_dyn_ent_scene_buffers(asset, world, allocator);
 			world.mapVtxChecksum = asset->mapVtxChecksum;
-			world.heroOnlyLightCount = 0;
-			world.heroOnlyLights = nullptr;
-			world.mdaoVolumesCount = 0;
-			world.mdaoVolumes = nullptr;
+			world.fogTypesAllowed = 3; // every stock S2 map
 			world.buildInfo = std::bit_cast<zonetool::s2::GfxBuildInfo>(asset->buildInfo);
 		}
 
@@ -590,6 +968,24 @@ namespace zonetool::h1::converter::s2::gfxworld
 				probe.coeffs[i] = half_float::float_to_half(values[i]);
 			}
 			return probe;
+		}
+
+		// the source map's own default light grid color, for probes no voxel can light
+		std::array<float, light_grid::probe_sh_count + 1> default_probe(const GfxLightGrid& grid)
+		{
+			float radiance[light_grid::basis_dir_count][3];
+			for (auto dir = 0u; dir < light_grid::basis_dir_count; dir++)
+			{
+				for (auto channel = 0; channel < 3; channel++)
+				{
+					radiance[dir][channel] = half_float::half_to_float(grid.defaultLightGridColors.rgb[dir][channel]);
+				}
+			}
+
+			std::array<float, light_grid::probe_sh_count + 1> values{};
+			light_grid::project_probe_sh(radiance, values.data());
+			values.back() = 1.0f;
+			return values;
 		}
 
 		class probe_average
@@ -931,17 +1327,22 @@ namespace zonetool::h1::converter::s2::gfxworld
 				}
 			}
 
-			return sampler.sample(asset->dpvs.smodelInsts[index].lightingOrigin); // the voxel at the lighting origin is often inside the ground
+			// no baked color: blend the light grid cells around the lighting origin that hold data, or take the nearest one
+			return sampler.sample(asset->dpvs.smodelInsts[index].lightingOrigin);
 		}
 
 		void convert_static_model_probes(GfxWorld* asset, zonetool::s2::GfxWorld& world, light_grid_sampler& sampler, utils::memory::allocator& allocator)
 		{
 			auto& data = world.probeData;
 			const auto count = asset->dpvs.smodelCount;
-			if (!count || !sampler.valid())
+			if (!count)
 			{
-				ZONETOOL_WARNING("GfxWorld: the source map has no light grid, static models keep the donor probes");
 				return;
+			}
+
+			if (!sampler.valid())
+			{
+				ZONETOOL_WARNING("GfxWorld: the source map has no light grid, static models use its default light grid color");
 			}
 
 			const auto grids = allocator.allocate_array<zonetool::s2::GfxStaticModelProbeGrid>(count);
@@ -953,23 +1354,17 @@ namespace zonetool::h1::converter::s2::gfxworld
 				const auto& inst = asset->dpvs.smodelInsts[i];
 				grids[i] = make_single_probe_grid(i, smodel_bounds(inst));
 
-				samples[i] = static_model_lighting(asset, sampler, i);
+				samples[i] = sampler.valid() ? static_model_lighting(asset, sampler, i) : std::nullopt;
 				if (samples[i])
 				{
 					average.add(*samples[i]);
 				}
 			}
 
-			const auto fallback = average.value();
-			if (!fallback)
-			{
-				ZONETOOL_WARNING("GfxWorld: no static model is inside the source light grid, static models keep the donor probes");
-				return;
-			}
-
+			const auto fallback = average.value().value_or(default_probe(asset->lightGrid));
 			for (auto i = 0u; i < count; i++)
 			{
-				probes[i] = pack_probe(samples[i] ? *samples[i] : *fallback);
+				probes[i] = pack_probe(samples[i] ? *samples[i] : fallback);
 			}
 
 			data.smodelProbeGridCount = count;
@@ -1036,13 +1431,18 @@ namespace zonetool::h1::converter::s2::gfxworld
 
 		void convert_probe_volume(GfxWorld* asset, zonetool::s2::GfxWorld& world, light_grid_sampler& sampler, utils::memory::allocator& allocator)
 		{
-			float bounds_min[3];
-			float bounds_max[3];
+			float world_min[3];
+			float world_max[3];
 			for (auto axis = 0; axis < 3; axis++)
 			{
-				bounds_min[axis] = asset->bounds.midPoint[axis] - asset->bounds.halfSize[axis];
-				bounds_max[axis] = asset->bounds.midPoint[axis] + asset->bounds.halfSize[axis];
+				world_min[axis] = asset->bounds.midPoint[axis] - asset->bounds.halfSize[axis];
+				world_max[axis] = asset->bounds.midPoint[axis] + asset->bounds.halfSize[axis];
 			}
+
+			float bounds_min[3];
+			float bounds_max[3];
+			std::copy_n(world_min, 3, bounds_min);
+			std::copy_n(world_max, 3, bounds_max);
 
 			std::optional<light_grid_occupancy> occupancy;
 			probe_volume::cell_test cell_occupied;
@@ -1056,10 +1456,16 @@ namespace zonetool::h1::converter::s2::gfxworld
 				};
 			}
 
-			const auto volume = probe_volume::build(bounds_min, bounds_max, cell_occupied);
+			auto volume = probe_volume::build(bounds_min, bounds_max, cell_occupied);
+			if (!volume && cell_occupied)
+			{
+				ZONETOOL_WARNING("GfxWorld: no light probe volume fits the light grid voxels, it covers the whole map instead");
+				volume = probe_volume::build(world_min, world_max, {});
+			}
+
 			if (!volume)
 			{
-				ZONETOOL_WARNING("GfxWorld: the light probe volume does not fit the map, models use the donor light probes");
+				ZONETOOL_WARNING("GfxWorld: no light probe volume fits the map, the world has none");
 				return;
 			}
 
@@ -1078,9 +1484,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 				}
 			}
 
-			const auto average_values = average.value();
-			const auto fallback = average_values ? pack_probe(*average_values)
-				: data.zoneCount && data.zones ? data.zones[0].fallbackProbeData : zonetool::s2::GfxSHProbeData{};
+			const auto fallback = pack_probe(average.value().value_or(default_probe(asset->lightGrid)));
 			const auto probes = allocator.allocate_array<zonetool::s2::GfxSHProbeData>(probe_count);
 			for (auto i = 0u; i < probe_count; i++)
 			{
@@ -1116,10 +1520,8 @@ namespace zonetool::h1::converter::s2::gfxworld
 			data.zoneCount = 1;
 			data.zones = zone;
 			data.tetrahedronCount = tetrahedron_count;
-			data.tetrahedronCountVisible = 0;
 			data.tetrahedrons = tetrahedrons;
 			data.tetrahedronNeighbors = neighbors;
-			data.tetrahedronVisibility = nullptr;
 			data.voxelStartTetrahedronCount = start_count;
 			data.voxelStartTetrahedron = starts;
 
@@ -1130,16 +1532,29 @@ namespace zonetool::h1::converter::s2::gfxworld
 				probe_count, average.count(), tetrahedron_count, volume->leaf_count, 1 << volume->node_coord_bit_shift[2]);
 		}
 
-		zonetool::s2::GfxWorld* convert(GfxWorld* asset, const zonetool::s2::GfxWorld* donor, const char* transient_zone, utils::memory::allocator& allocator)
+		// stock lights FX from one point in the playable area, the middle of the lit probe volume stands in for it
+		void convert_lighting_lookups(GfxWorld* asset, zonetool::s2::GfxWorld& world)
+		{
+			world.useLightGridDefaultModelLightingLookup = asset->useLightGridDefaultModelLightingLookup;
+			std::memcpy(world.lightGridDefaultModelLightingLookup, asset->lightGridDefaultModelLightingLookup, sizeof(world.lightGridDefaultModelLightingLookup));
+
+			world.useLightGridDefaultFXLightingLookup = true;
+			const auto header = world.voxelTree ? world.voxelTree->voxelTreeHeader : nullptr;
+			for (auto axis = 0; axis < 3; axis++)
+			{
+				world.lightGridDefaultFXLightingLookup[axis] = asset->useLightGridDefaultFXLightingLookup ? asset->lightGridDefaultFXLightingLookup[axis]
+					: header ? 0.5f * (header->boundMin[axis] + header->boundMax[axis]) : asset->bounds.midPoint[axis];
+			}
+		}
+
+		zonetool::s2::GfxWorld* convert(GfxWorld* asset, const char* transient_zone, utils::memory::allocator& allocator)
 		{
 			const auto world = allocator.allocate<zonetool::s2::GfxWorld>();
-			*world = *donor;
-			std::memset(&world->unknownData, 0, sizeof(world->unknownData));
-
 			const light_lists lists(comworld::source_world());
 			convert_header(asset, *world, allocator);
 			convert_cells(asset, *world, allocator);
 			convert_draw(asset, *world, transient_zone, allocator);
+			convert_light_grid(*world, allocator);
 			convert_primary_lights(asset, *world, lists, allocator);
 			convert_models(asset, *world, allocator);
 			convert_dpvs(asset, *world, lists, allocator);
@@ -1148,24 +1563,11 @@ namespace zonetool::h1::converter::s2::gfxworld
 			light_grid_sampler sampler(asset->lightGrid, comworld::source_world());
 			convert_static_model_probes(asset, *world, sampler, allocator);
 			convert_probe_volume(asset, *world, sampler, allocator);
+			convert_lighting_lookups(asset, *world);
+
+			// with culling on, static geometry marks its lights through the light lists while there is a voxel tree (sub_140869F10 2.20)
+			world->cullPrimaryLights = world->voxelTreeCount > 0;
 			return world;
-		}
-
-		void dump_donor_image(const zonetool::s2::GfxWorld& world)
-		{
-			const auto image = world.draw.iesLookup;
-			if (!image || !image->name)
-			{
-				return;
-			}
-
-			const auto& zone = techset::donor_zone();
-			if (!zone.is_global_image(image->name))
-			{
-				db_scope _(zone.db());
-				zonetool::s2::gfx_image::dump(image);
-			}
-			add_csv_row("image", image->name, zone.is_global_image(image->name));
 		}
 	}
 
@@ -1181,21 +1583,12 @@ namespace zonetool::h1::converter::s2::gfxworld
 			return;
 		}
 
-		const auto donor = static_cast<zonetool::s2::GfxWorld*>(techset::donor_zone().find_asset(zonetool::s2::ASSET_TYPE_GFXWORLD));
-		if (!donor)
-		{
-			ZONETOOL_ERROR("The S2 donor zone has no GfxWorld");
-			pending_world = nullptr;
-			return;
-		}
-
 		utils::memory::allocator allocator;
 		const auto transient_zone = allocator.duplicate_string(transient_zone_name(pending_world));
 		zonetool::s2::gfx_map_trzone::dump(convert_transient_zone(pending_world, transient_zone, allocator));
 		add_csv_row("gfx_map_trzone", transient_zone);
 
-		const auto world = convert(pending_world, donor, transient_zone, allocator);
-		dump_donor_image(*world);
+		const auto world = convert(pending_world, transient_zone, allocator);
 		zonetool::s2::gfx_world::dump(world);
 		clear_stubs();
 		add_csv_row("gfx_map", pending_world->name);

@@ -5,24 +5,6 @@ namespace zonetool::s2
 {
 	namespace
 	{
-		enum fx_elem_type : std::uint8_t
-		{
-			FX_ELEM_TYPE_TRAIL = 5,
-			FX_ELEM_TYPE_FLARE = 6,
-			FX_ELEM_TYPE_PARTICLE_SIM_ANIMATION = 7,
-			FX_ELEM_TYPE_SPARK_FOUNTAIN = 10,
-			FX_ELEM_TYPE_MODEL = 11,
-			FX_ELEM_TYPE_OMNI_LIGHT = 12,
-			FX_ELEM_TYPE_SPOT_LIGHT = 13,
-			FX_ELEM_TYPE_SOUND = 14,
-			FX_ELEM_TYPE_VECTORFIELD = 15,
-			FX_ELEM_TYPE_DECAL = 16,
-			FX_ELEM_TYPE_RUNNER = 17,
-			FX_ELEM_TYPE_STRING_18 = 18,
-			FX_ELEM_TYPE_STRING_19 = 19,
-			FX_ELEM_TYPE_INLINE_20 = 20,
-		};
-
 		void read_visual(zone_reader& reader, const std::uint8_t elem_type, FxElemVisuals* visual)
 		{
 			switch (elem_type)
@@ -34,12 +16,12 @@ namespace zonetool::s2
 				reader.read_string(visual->effectDef.name);
 				break;
 			case FX_ELEM_TYPE_SOUND:
+			case FX_ELEM_TYPE_STRING_15:
 			case FX_ELEM_TYPE_VECTORFIELD:
-			case FX_ELEM_TYPE_STRING_18:
 			case FX_ELEM_TYPE_STRING_19:
 				reader.read_string(visual->soundName);
 				break;
-			case FX_ELEM_TYPE_INLINE_20:
+			case FX_ELEM_TYPE_UNK_20:
 				break;
 			case FX_ELEM_TYPE_PARTICLE_SIM_ANIMATION:
 				reader.read_asset(ASSET_TYPE_PARTICLE_SIM_ANIMATION, visual->particleSimAnimation);
@@ -131,8 +113,8 @@ namespace zonetool::s2
 
 		void read_elem(zone_reader& reader, FxElemDef* elem)
 		{
-			reader.read_stream(elem->velSamples, 3, 148, elem->velIntervalCount + 1);
-			reader.read_stream(elem->visSamples, 3, 120, elem->visStateIntervalCount + 1);
+			reader.read_array(elem->velSamples, 3, elem->velIntervalCount + 1);
+			reader.read_array(elem->visSamples, 3, elem->visStateIntervalCount + 1);
 			read_visuals(reader, elem);
 			reader.read_string(elem->effectOnImpact.name);
 			reader.read_string(elem->effectOnDeath.name);
@@ -161,8 +143,18 @@ namespace zonetool::s2
 
 	namespace
 	{
-		constexpr std::size_t vel_sample_size = 148;
-		constexpr std::size_t vis_sample_size = 120;
+		// samples dump as byte arrays to keep the existing dump format
+		template <typename T>
+		void dump_samples(assetmanager::dumper& write, T* samples, const int count)
+		{
+			write.dump_array(reinterpret_cast<char*>(samples), static_cast<std::uint32_t>(sizeof(T) * count));
+		}
+
+		template <typename T>
+		T* parse_samples(assetmanager::reader& read)
+		{
+			return reinterpret_cast<T*>(read.read_array<char>());
+		}
 
 		int elem_count(const FxEffectDef* asset)
 		{
@@ -212,10 +204,10 @@ namespace zonetool::s2
 				add_effect_by_name(zone, visual.effectDef.name);
 				break;
 			case FX_ELEM_TYPE_SOUND:
+			case FX_ELEM_TYPE_STRING_15:
 			case FX_ELEM_TYPE_VECTORFIELD:
-			case FX_ELEM_TYPE_STRING_18:
 			case FX_ELEM_TYPE_STRING_19:
-			case FX_ELEM_TYPE_INLINE_20:
+			case FX_ELEM_TYPE_UNK_20:
 			case FX_ELEM_TYPE_OMNI_LIGHT:
 				break;
 			case FX_ELEM_TYPE_PARTICLE_SIM_ANIMATION:
@@ -241,12 +233,12 @@ namespace zonetool::s2
 				write_string(buf, visual.effectDef.name, dest.effectDef.name);
 				break;
 			case FX_ELEM_TYPE_SOUND:
+			case FX_ELEM_TYPE_STRING_15:
 			case FX_ELEM_TYPE_VECTORFIELD:
-			case FX_ELEM_TYPE_STRING_18:
 			case FX_ELEM_TYPE_STRING_19:
 				write_string(buf, visual.soundName, dest.soundName);
 				break;
-			case FX_ELEM_TYPE_INLINE_20:
+			case FX_ELEM_TYPE_UNK_20:
 			case FX_ELEM_TYPE_OMNI_LIGHT:
 				break;
 			case FX_ELEM_TYPE_PARTICLE_SIM_ANIMATION:
@@ -356,8 +348,8 @@ namespace zonetool::s2
 
 		void write_elem(zone_base* zone, zone_buffer* buf, FxElemDef* elem, FxElemDef* dest)
 		{
-			write_inline_bytes(buf, 3, elem->velSamples, vel_sample_size * (elem->velIntervalCount + 1), dest->velSamples);
-			write_inline_bytes(buf, 3, elem->visSamples, vis_sample_size * (elem->visStateIntervalCount + 1), dest->visSamples);
+			write_inline(buf, 3, elem->velSamples, elem->velIntervalCount + 1, dest->velSamples);
+			write_inline(buf, 3, elem->visSamples, elem->visStateIntervalCount + 1, dest->visSamples);
 			write_visuals(zone, buf, elem, dest);
 			write_string(buf, elem->effectOnImpact.name, dest->effectOnImpact.name);
 			write_string(buf, elem->effectOnDeath.name, dest->effectOnDeath.name);
@@ -377,12 +369,12 @@ namespace zonetool::s2
 				write.dump_string(visual.effectDef.name);
 				break;
 			case FX_ELEM_TYPE_SOUND:
+			case FX_ELEM_TYPE_STRING_15:
 			case FX_ELEM_TYPE_VECTORFIELD:
-			case FX_ELEM_TYPE_STRING_18:
 			case FX_ELEM_TYPE_STRING_19:
 				write.dump_string(visual.soundName);
 				break;
-			case FX_ELEM_TYPE_INLINE_20:
+			case FX_ELEM_TYPE_UNK_20:
 			case FX_ELEM_TYPE_OMNI_LIGHT:
 				break;
 			case FX_ELEM_TYPE_PARTICLE_SIM_ANIMATION:
@@ -408,12 +400,12 @@ namespace zonetool::s2
 				visual.effectDef.name = read.read_string();
 				break;
 			case FX_ELEM_TYPE_SOUND:
+			case FX_ELEM_TYPE_STRING_15:
 			case FX_ELEM_TYPE_VECTORFIELD:
-			case FX_ELEM_TYPE_STRING_18:
 			case FX_ELEM_TYPE_STRING_19:
 				visual.soundName = read.read_string();
 				break;
-			case FX_ELEM_TYPE_INLINE_20:
+			case FX_ELEM_TYPE_UNK_20:
 			case FX_ELEM_TYPE_OMNI_LIGHT:
 				break;
 			case FX_ELEM_TYPE_PARTICLE_SIM_ANIMATION:
@@ -576,8 +568,8 @@ namespace zonetool::s2
 
 		void dump_elem(assetmanager::dumper& write, FxElemDef* elem)
 		{
-			write.dump_array(elem->velSamples, static_cast<std::uint32_t>(vel_sample_size * (elem->velIntervalCount + 1)));
-			write.dump_array(elem->visSamples, static_cast<std::uint32_t>(vis_sample_size * (elem->visStateIntervalCount + 1)));
+			dump_samples(write, elem->velSamples, elem->velIntervalCount + 1);
+			dump_samples(write, elem->visSamples, elem->visStateIntervalCount + 1);
 			dump_visuals(write, elem);
 			write.dump_string(elem->effectOnImpact.name);
 			write.dump_string(elem->effectOnDeath.name);
@@ -588,8 +580,8 @@ namespace zonetool::s2
 
 		void parse_elem(assetmanager::reader& read, FxElemDef* elem)
 		{
-			elem->velSamples = read.read_array<char>();
-			elem->visSamples = read.read_array<char>();
+			elem->velSamples = parse_samples<FxElemVelStateSample>(read);
+			elem->visSamples = parse_samples<FxElemVisStateSample>(read);
 			parse_visuals(read, elem);
 			elem->effectOnImpact.name = read.read_string();
 			elem->effectOnDeath.name = read.read_string();

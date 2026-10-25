@@ -293,8 +293,7 @@ namespace zonetool::h2
 						static XModel empty_model{};
 						empty_model.name = "tag_origin";
 
-						memset(smodel_inst->mins, 0, sizeof(smodel_inst->mins));
-						memset(smodel_inst->maxs, 0, sizeof(smodel_inst->maxs));
+						smodel_inst->bounds = {};
 
 						smodel_draw_inst->model = &empty_model;
 						zone->add_asset_of_type(ASSET_TYPE_XMODEL, ","s + empty_model.name);

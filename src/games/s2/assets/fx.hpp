@@ -60,18 +60,14 @@ namespace zonetool::s2
 	class particle_sim_animation : public asset_base<FxParticleSimAnimation, ASSET_TYPE_PARTICLE_SIM_ANIMATION>
 	{
 	public:
-		static constexpr std::size_t frame_size = 32;
-		static constexpr std::size_t sample_size = 8;
-		static constexpr std::size_t state_size = 16;
-
 		static void read(zone_reader& reader, FxParticleSimAnimation* asset)
 		{
 			reader.push_stream(XFILE_BLOCK_VIRTUAL);
 			reader.read_string(asset->name);
 			reader.read_asset(ASSET_TYPE_MATERIAL, asset->material);
-			reader.read_stream(asset->frames, 31, frame_size, asset->frameCount);
-			reader.read_stream(asset->samples, 3, sample_size, asset->sampleCount);
-			reader.read_stream(asset->states, 3, state_size, asset->stateCount);
+			reader.read_array(asset->particleData, 31, asset->header.particleDataCount);
+			reader.read_array(asset->frames, 3, asset->header.frameCount);
+			reader.read_array(asset->colorTable, 3, asset->header.colorTableSize);
 			reader.pop_stream();
 		}
 
@@ -88,9 +84,10 @@ namespace zonetool::s2
 			auto* asset = read.read_single<FxParticleSimAnimation>();
 			asset->name = read.read_string();
 			asset->material = read.read_asset<Material>();
-			asset->frames = read.read_array<char>();
-			asset->samples = read.read_array<char>();
-			asset->states = read.read_array<char>();
+			// the arrays dump as bytes to keep the existing dump format
+			asset->particleData = reinterpret_cast<FxParticleSimAnimationParticleData*>(read.read_array<char>());
+			asset->frames = reinterpret_cast<FxParticleSimAnimationFrame*>(read.read_array<char>());
+			asset->colorTable = reinterpret_cast<GfxColorFloat*>(read.read_array<char>());
 			read.close();
 
 			return asset;
@@ -109,9 +106,9 @@ namespace zonetool::s2
 			buf->push_stream(XFILE_BLOCK_VIRTUAL);
 			dest->name = this->write_name(buf);
 			dest->material = asset_reference(zone, ASSET_TYPE_MATERIAL, data->material);
-			write_inline_bytes(buf, 31, data->frames, frame_size * data->frameCount, dest->frames);
-			write_inline_bytes(buf, 3, data->samples, sample_size * data->sampleCount, dest->samples);
-			write_inline_bytes(buf, 3, data->states, state_size * data->stateCount, dest->states);
+			write_inline(buf, 31, data->particleData, data->header.particleDataCount, dest->particleData);
+			write_inline(buf, 3, data->frames, data->header.frameCount, dest->frames);
+			write_inline(buf, 3, data->colorTable, data->header.colorTableSize, dest->colorTable);
 			buf->pop_stream();
 		}
 
@@ -126,9 +123,9 @@ namespace zonetool::s2
 			write.dump_single(asset);
 			write.dump_string(asset->name);
 			write.dump_asset(asset->material);
-			write.dump_array(asset->frames, static_cast<std::uint32_t>(frame_size * asset->frameCount));
-			write.dump_array(asset->samples, static_cast<std::uint32_t>(sample_size * asset->sampleCount));
-			write.dump_array(asset->states, static_cast<std::uint32_t>(state_size * asset->stateCount));
+			write.dump_array(reinterpret_cast<char*>(asset->particleData), static_cast<std::uint32_t>(sizeof(FxParticleSimAnimationParticleData) * asset->header.particleDataCount));
+			write.dump_array(reinterpret_cast<char*>(asset->frames), static_cast<std::uint32_t>(sizeof(FxParticleSimAnimationFrame) * asset->header.frameCount));
+			write.dump_array(reinterpret_cast<char*>(asset->colorTable), static_cast<std::uint32_t>(sizeof(GfxColorFloat) * asset->header.colorTableSize));
 			write.close();
 		}
 	};

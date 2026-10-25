@@ -1,8 +1,11 @@
 #pragma once
+#include <cstddef>
+#include <cstdint>
 #include <d3d11.h>
 #include <xaudio2fx.h>
 
 #include <formats/ddl.hpp>
+#include <struct_asserts.hpp>
 
 namespace zonetool::h1
 {
@@ -363,7 +366,9 @@ namespace zonetool::h1
 	struct PhysWaterPreset
 	{
 		const char* name;
-		char __pad0[64];
+		float unknownParams[7]; // S2 has 8 here, no stock pair maps them
+		float sharedParams[8]; // same values and order as S2 in every stock preset
+		unsigned int sharedFlags;
 		FxEffectDef* fx0;
 		FxEffectDef* fx1;
 		FxEffectDef* fx2;
@@ -376,7 +381,7 @@ namespace zonetool::h1
 	struct PhysWaterVolumeDef
 	{
 		PhysWaterPreset* physWaterPreset;
-		char __pad0[12];
+		float origin[3]; // the water polytopes are centered on it
 		scr_string_t string;
 		short brushModelIndex;
 		char __pad1[6];
@@ -392,7 +397,7 @@ namespace zonetool::h1
 	{
 		short polytopeIndex;
 		short unk;
-		short worldIndex;
+		short polytopeCount;
 		short meshIndex;
 	};
 
@@ -7075,15 +7080,16 @@ namespace zonetool::h1
 		unsigned short bulletForceScale;
 	}; assert_sizeof(ScriptableEventPhysicsDef, 16);
 
+	// 1.4 sub_14042EBA0: flags 1 use color, 2 wait for the transition, 4 every target light of the instance
 	struct ScriptableEventLightSettingsDef
 	{
 		unsigned char color[4];
 		unsigned char lightIndexConstIndex;
 		unsigned char transStateStreamIndex;
-		unsigned char useColor;
-		unsigned char useStateTransitionTime;
-		unsigned short intensityScaleMin;
-		unsigned short intensityScaleMax;
+		unsigned char flags;
+		char __pad0;
+		float intensityScaleMin;
+		float intensityScaleMax;
 		unsigned short radiusScaleMin;
 		unsigned short radiusScaleMax;
 		unsigned short transitionTimeMin;
@@ -8093,8 +8099,7 @@ namespace zonetool::h1
 
 	struct GfxStaticModelInst
 	{
-		float mins[3];
-		float maxs[3];
+		Bounds bounds; // midpoint and half size, as in s2 (was named mins/maxs)
 		float lightingOrigin[3];
 	}; assert_sizeof(GfxStaticModelInst, 36);
 
@@ -8140,7 +8145,10 @@ namespace zonetool::h1
 	struct GfxSurfaceBounds
 	{
 		Bounds bounds;
-		float unk[3];
+		unsigned short mipRadius;
+		unsigned char invHighMipRadius[6]; // IDA types say 5, stock mp_shipment uses a 6th
+		char __pad0[3];
+		unsigned char flags;
 	}; assert_sizeof(GfxSurfaceBounds, 36);
 
 	struct GfxPackedPlacement
@@ -8631,8 +8639,8 @@ namespace zonetool::h1
 		$3936EE84564F75EDA6DCBAC77A545FC8 ___u9;
 		PathNodeParentUnion parent;
 		$5F11B9753862CE791E23553F99FA1738 ___u11;
+		char __pad0[4]; // always 0 in zones, the overlap pair follows it (5 mp maps)
 		short wOverlapNode[2];
-		char __pad0[4];
 		unsigned short totalLinkCount;
 		pathlink_s* Links;
 		scr_string_t customangles;
@@ -8686,6 +8694,9 @@ namespace zonetool::h1
 		pathnode_transient_t transient;
 	}; assert_sizeof(pathnode_t, 192);
 	assert_sizeof(pathnode_constant_t, 96);
+	assert_offsetof(pathnode_constant_t, wOverlapNode, 68);
+	assert_offsetof(pathnode_constant_t, totalLinkCount, 72);
+	assert_offsetof(pathnode_constant_t, Links, 80);
 	assert_sizeof(pathnode_dynamic_t, 44);
 	assert_sizeof(pathnode_transient_t, 48);
 

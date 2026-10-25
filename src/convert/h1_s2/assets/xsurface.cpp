@@ -61,12 +61,6 @@ namespace zonetool::h1::converter::s2::xsurface
 			return flutter | (phase << 8) | (bounce << 16) | (255u << 24);
 		}
 
-		std::uint32_t pack_tangent(const GfxPackedVertex& vertex)
-		{
-			// the top two bits are set when the binormal is -cross(normal, tangent), like every stock s2 surface
-			return (vertex.tangent.packed & ~0xC0000000u) | (vertex.binormalSign < 0.0f ? 0xC0000000u : 0u);
-		}
-
 		std::uint32_t pack_sky_visibility(const std::uint32_t packed_normal)
 		{
 			// octahedral bent normal in bits 0-17, visibility in 18-24, cone aperture in 25-31
@@ -159,7 +153,7 @@ namespace zonetool::h1::converter::s2::xsurface
 				colors[i] = use_color ? verts[i].color.packed : 0xFFFFFFFF;
 				tex_coords[i] = verts[i].texCoord.packed;
 				normals[i] = verts[i].normal.packed;
-				tangents[i] = pack_tangent(verts[i]);
+				tangents[i] = pack_tangent(verts[i].tangent.packed, verts[i].binormalSign);
 			}
 
 			if (has_lightmap_uv(surface))

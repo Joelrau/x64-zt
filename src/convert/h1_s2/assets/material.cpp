@@ -18,6 +18,7 @@ namespace zonetool::h1::converter::s2::material
 		constexpr auto depth_stencil_mode_count = std::extent_v<decltype(zonetool::s2::material_state::depth_stencil)>;
 
 		std::vector<Material*> pending_materials;
+		std::unordered_map<const Material*, std::string> pending_sprites;
 		std::unordered_set<std::string> dumped_donor_images;
 		std::unordered_set<std::string> minimap_materials;
 
@@ -153,13 +154,20 @@ namespace zonetool::h1::converter::s2::material
 			}
 		}
 
-		zonetool::s2::Material* convert_donor(const Material* asset, const zonetool::s2::Material* donor, utils::memory::allocator& allocator)
+		// the donor material with the h1 name and surface types
+		zonetool::s2::Material* copy_donor(const Material* asset, const zonetool::s2::Material* donor, utils::memory::allocator& allocator)
 		{
 			const auto material = allocator.allocate<zonetool::s2::Material>();
 			*material = *donor;
 			material->info.name = asset->name;
 			material->info.surfaceTypeBits = convert_surface_type_bits(static_cast<std::uint64_t>(asset->info.surfaceTypeBits));
 			material->parentMaterial = nullptr;
+			return material;
+		}
+
+		zonetool::s2::Material* convert_donor(const Material* asset, const zonetool::s2::Material* donor, utils::memory::allocator& allocator)
+		{
+			const auto material = copy_donor(asset, donor, allocator);
 			convert_donor_textures(asset, donor, material, allocator);
 			return material;
 		}
@@ -181,12 +189,34 @@ namespace zonetool::h1::converter::s2::material
 			return static_cast<std::uint8_t>(((load_bits0 >> 3) & 3) | ((load_bits2 >> 25) & 0x1C) | (load_bits0 & 0x20)); // sub_1407FB3E0
 		}
 
-		zonetool::s2::GfxStateBits convert_state_bits(const GfxStateBits& source, const std::uint32_t blend_class)
+		std::string get_techset_name(const Material* asset)
+		{
+			return asset->techniqueSet && asset->techniqueSet->name ? asset->techniqueSet->name : "";
+		}
+
+		bool is_effect_material(const Material* asset)
+		{
+			const auto techset = get_techset_name(asset);
+			return techset.starts_with("effect") || techset.starts_with("particle_cloud");
+		}
+
+		// stock S2 effect and particle cloud materials never alpha test > 0, h1 blend effects do
+		std::uint32_t convert_load_bits0(const std::uint32_t load_bits0, const bool effect)
+		{
+			if (effect && (load_bits0 & (GFXS0_ATEST_DISABLE | GFXS0_ATEST_MASK)) == GFXS0_ATEST_GT_0)
+			{
+				return (load_bits0 & ~GFXS0_ATEST_MASK) | GFXS0_ATEST_DISABLE;
+			}
+
+			return load_bits0;
+		}
+
+		zonetool::s2::GfxStateBits convert_state_bits(const GfxStateBits& source, const std::uint32_t blend_class, const bool effect)
 		{
 			const auto polygon_offset = (source.loadBits[1] & h1_polygon_offset_mask) >> h1_polygon_offset_shift;
 
 			zonetool::s2::GfxStateBits result{};
-			result.loadBits[0] = source.loadBits[0];
+			result.loadBits[0] = convert_load_bits0(source.loadBits[0], effect);
 			result.loadBits[1] = source.loadBits[1] & ~h1_polygon_offset_mask;
 			result.loadBits[2] = source.loadBits[2] | (polygon_offset << s2_polygon_offset_shift);
 			for (auto i = 0u; i < blend_word_count; i++)
@@ -195,6 +225,19 @@ namespace zonetool::h1::converter::s2::material
 			}
 			result.rasterizerState = rasterizer_index(result.loadBits[0], result.loadBits[2]);
 			return result;
+		}
+
+		// the h1 light pass polygon offset fails the s2 depth test except on edges, so it takes the lit pass state with the light blend
+		zonetool::s2::GfxStateBits convert_light_state_bits(const GfxStateBits& lit, const GfxStateBits& light, const std::uint32_t blend_class, const bool effect)
+		{
+			auto source = lit;
+			source.loadBits[1] = lit.loadBits[1] & ~(h1_polygon_offset_mask | GFXS1_DEPTHWRITE);
+			for (auto i = 0u; i < blend_word_count; i++)
+			{
+				source.loadBits[3 + i] = light.loadBits[3 + i];
+			}
+
+			return convert_state_bits(source, blend_class, effect);
 		}
 
 		std::array<std::uint64_t, depth_stencil_mode_count> depth_stencil_states(const std::uint32_t load_bits1, const std::uint32_t load_bits2)
@@ -304,7 +347,8 @@ namespace zonetool::h1::converter::s2::material
 			// pass p of a technique uses stateBitsEntry[slot] + p, so multi pass techniques get a run of entries
 			std::vector<zonetool::s2::GfxStateBits> state_bits;
 			std::vector<zonetool::s2::material_state> states;
-			std::map<std::tuple<std::uint8_t, std::uint32_t, std::uint32_t>, std::uint8_t> entries;
+			std::map<std::tuple<std::uint8_t, std::uint8_t, std::uint32_t, std::uint32_t>, std::uint8_t> entries;
+			const auto effect = is_effect_material(asset);
 			for (auto slot = 0; slot < zonetool::s2::technique_count; slot++)
 			{
 				const auto source = native.sources[slot];
@@ -323,18 +367,31 @@ namespace zonetool::h1::converter::s2::material
 
 				const auto* technique = native.techset->techniques[slot];
 				const auto pass_count = technique ? std::max<std::uint32_t>(technique->hdr.passCount, 1u) : 1u;
-				if (!asset->stateBitsTable || h1_entry + pass_count > asset->stateBitsCount)
+				const auto light_source = native.light_sources[slot];
+				const auto light_entry = light_source >= 0 ? asset->stateBitsEntry[light_source] : no_entry;
+				const auto base_pass_count = pass_count - (light_source >= 0 ? 1u : 0u);
+				if (!asset->stateBitsTable || h1_entry + base_pass_count > asset->stateBitsCount
+					|| (light_source >= 0 && (light_entry == no_entry || light_entry >= asset->stateBitsCount)))
 				{
 					throw std::runtime_error(std::format("technique {} has no state bits", source));
 				}
 
-				const auto key = std::make_tuple(h1_entry, blend_class(slot), pass_count);
+				// the appended primary light pass keeps the additive state of the h1 light technique
+				const auto key = std::make_tuple(h1_entry, light_entry, blend_class(slot), pass_count);
 				const auto [entry, inserted] = entries.try_emplace(key, static_cast<std::uint8_t>(state_bits.size()));
 				if (inserted)
 				{
 					for (auto pass = 0u; pass < pass_count; pass++)
 					{
-						state_bits.emplace_back(convert_state_bits(asset->stateBitsTable[h1_entry + pass], std::get<1>(key)));
+						if (pass < base_pass_count)
+						{
+							state_bits.emplace_back(convert_state_bits(asset->stateBitsTable[h1_entry + pass], std::get<2>(key), effect));
+						}
+						else
+						{
+							state_bits.emplace_back(convert_light_state_bits(asset->stateBitsTable[h1_entry], asset->stateBitsTable[light_entry], std::get<2>(key), effect));
+						}
+
 						states.emplace_back(convert_state(state_bits.back()));
 					}
 				}
@@ -453,9 +510,7 @@ namespace zonetool::h1::converter::s2::material
 		native_material convert_native(const Material* asset, const zonetool::s2::Material* donor, const techset::native_techset& native,
 			utils::memory::allocator& allocator)
 		{
-			const auto material = allocator.allocate<zonetool::s2::Material>();
-			*material = *donor;
-			material->info.name = asset->name;
+			const auto material = copy_donor(asset, donor, allocator);
 			material->info.gameFlags = asset->info.gameFlags;
 			material->info.sortKey = convert_sort_key(asset->info.sortKey);
 			material->info.drawSurf.fields.primarySortKey = material->info.sortKey;
@@ -464,10 +519,8 @@ namespace zonetool::h1::converter::s2::material
 			material->info.textureAtlasColumnCount = asset->info.textureAtlasColumnCount;
 			material->info.textureAtlasFrameBlend = asset->info.textureAtlasFrameBlend;
 			material->info.textureAtlasAsArray = asset->info.textureAtlasAsArray;
-			material->info.surfaceTypeBits = convert_surface_type_bits(static_cast<std::uint64_t>(asset->info.surfaceTypeBits));
 			material->stateFlags = convert_state_flags(asset->stateFlags);
 			material->techniqueSet = native.techset;
-			material->parentMaterial = nullptr;
 			material->layerCount = asset->subMaterials ? asset->layerCount : 0;
 			material->subMaterials = asset->subMaterials;
 
@@ -475,11 +528,6 @@ namespace zonetool::h1::converter::s2::material
 			convert_native_constants(asset, material, allocator);
 			convert_native_textures(asset, material, allocator);
 			return {material, states};
-		}
-
-		std::string get_techset_name(const Material* asset)
-		{
-			return asset->techniqueSet && asset->techniqueSet->name ? asset->techniqueSet->name : "";
 		}
 
 		void add_image_rows(const zonetool::s2::Material* material)
@@ -494,9 +542,10 @@ namespace zonetool::h1::converter::s2::material
 			}
 		}
 
-		bool dump_native(Material* asset, const zonetool::s2::Material* donor, const std::string& h1_techset, utils::memory::allocator& allocator)
+		bool dump_native(Material* asset, const zonetool::s2::Material* donor, const std::string& h1_techset, const bool sprite,
+			utils::memory::allocator& allocator)
 		{
-			const auto native = techset::convert_native(h1_techset);
+			const auto native = techset::convert_native(h1_techset, sprite);
 			if (!native)
 			{
 				return false;
@@ -544,7 +593,7 @@ namespace zonetool::h1::converter::s2::material
 			add_image_rows(material);
 		}
 
-		void convert_material(Material* asset, std::unordered_map<std::string, std::string>& selected)
+		void convert_material(Material* asset, std::unordered_map<std::string, std::string>& selected, const bool sprite)
 		{
 			const auto h1_techset = get_techset_name(asset);
 			if (h1_techset.empty())
@@ -569,10 +618,28 @@ namespace zonetool::h1::converter::s2::material
 			}
 
 			utils::memory::allocator allocator;
-			if (!dump_native(asset, donor, h1_techset, allocator))
+			if (sprite && dump_native(asset, donor, h1_techset, true, allocator))
+			{
+				return;
+			}
+
+			if (sprite)
+			{
+				ZONETOOL_WARNING("Material \"%s\" has no sprite techset, the fx sprites using it are not drawn", asset->name);
+			}
+
+			if (!dump_native(asset, donor, h1_techset, false, allocator))
 			{
 				dump_with_donor(asset, donor, s2_techset, allocator);
 			}
+		}
+
+		// fx sprite elems draw from the s2 sprite records, so they get a copy of the material on a sprite techset
+		void convert_sprite(const Material* asset, const std::string& name, std::unordered_map<std::string, std::string>& selected)
+		{
+			auto sprite = *asset;
+			sprite.name = name.data();
+			convert_material(&sprite, selected, true);
 		}
 	}
 
@@ -619,6 +686,11 @@ namespace zonetool::h1::converter::s2::material
 	void dump(Material* asset)
 	{
 		pending_materials.emplace_back(asset);
+	}
+
+	const char* dump_sprite(const Material* asset)
+	{
+		return pending_sprites.try_emplace(asset, std::string(asset->name) + "_sprite").first->second.data();
 	}
 
 	void dump_minimap(const std::string& minimap)
@@ -689,7 +761,7 @@ namespace zonetool::h1::converter::s2::material
 
 			try
 			{
-				convert_material(asset, selected);
+				convert_material(asset, selected, false);
 			}
 			catch (const std::exception& e)
 			{
@@ -697,7 +769,21 @@ namespace zonetool::h1::converter::s2::material
 			}
 		}
 
+		for (const auto& [asset, name] : pending_sprites)
+		{
+			try
+			{
+				convert_sprite(asset, name, selected);
+			}
+			catch (const std::exception& e)
+			{
+				ZONETOOL_ERROR("Failed to convert material \"%s\": %s", name.data(), e.what());
+			}
+		}
+
 		pending_materials.clear();
+		pending_sprites.clear();
 		minimap_materials.clear();
+		dumped_donor_images.clear();
 	}
 }

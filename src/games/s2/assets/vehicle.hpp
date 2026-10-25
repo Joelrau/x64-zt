@@ -2,6 +2,62 @@
 
 namespace zonetool::s2
 {
+	class vehicle_track : public asset_base<VehicleTrack, ASSET_TYPE_VEHICLE_TRACK>
+	{
+	public:
+		static void read(zone_reader& reader, VehicleTrack* asset)
+		{
+			reader.push_stream(XFILE_BLOCK_VIRTUAL);
+			reader.read_string(asset->name);
+
+			if (const auto segments = reader.read_array(asset->segments, 7, asset->segmentCount))
+			{
+				for (auto i = 0u; i < asset->segmentCount; i++)
+				{
+					read_segment(reader, &segments[i]);
+				}
+			}
+
+			reader.pop_stream();
+		}
+
+		VehicleTrack* parse(const std::string&, zone_memory*) override
+		{
+			return nullptr;
+		}
+
+	private:
+		static void read_segment(zone_reader& reader, VehicleTrackSegment* segment)
+		{
+			reader.read_string(segment->targetName);
+
+			if (const auto sectors = reader.read_array(segment->sectors, 7, segment->sectorCount))
+			{
+				for (auto i = 0u; i < segment->sectorCount; i++)
+				{
+					reader.read_array(sectors[i].obstacles, 3, sectors[i].obstacleCount);
+				}
+			}
+
+			read_branches(reader, segment->nextBranches, segment->nextBranchesCount);
+			read_branches(reader, segment->prevBranches, segment->prevBranchesCount);
+		}
+
+		static void read_branches(zone_reader& reader, VehicleTrackSegment**& branches, const unsigned int count)
+		{
+			if (const auto entries = reader.read_array(branches, 7, count))
+			{
+				for (auto i = 0u; i < count; i++)
+				{
+					if (const auto segment = reader.read_single(entries[i], 7))
+					{
+						read_segment(reader, segment);
+					}
+				}
+			}
+		}
+	};
+
 	class vehicle_def : public asset_base<VehicleDef, ASSET_TYPE_VEHICLE>
 	{
 	public:

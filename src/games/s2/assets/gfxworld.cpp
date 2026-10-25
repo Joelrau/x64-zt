@@ -902,7 +902,7 @@ namespace zonetool::s2
 				}
 			}
 			reader.read_array(dpvs->surfacesBounds, 3, asset->surfaceCount);
-			read_runtime_array(reader, XFILE_BLOCK_RUNTIME, dpvs->unk_0x300, 1, asset->surfaceCount);
+			read_runtime_array(reader, XFILE_BLOCK_RUNTIME, dpvs->surfaceSortKeys, 1, asset->surfaceCount);
 
 			reader.read_array(dpvs->smodelInsts, 3, dpvs->smodelCount);
 			if (const auto draw_insts = reader.read_array(dpvs->smodelDrawInsts, 7, dpvs->smodelCount))
@@ -923,11 +923,11 @@ namespace zonetool::s2
 					}
 				}
 			}
-			read_runtime_array(reader, XFILE_BLOCK_RUNTIME, dpvs->unk_0x328, 127, dpvs->surfaceVisDataCount);
+			read_runtime_array(reader, XFILE_BLOCK_RUNTIME, dpvs->surfaceCastsSunShadow, 127, dpvs->surfaceVisDataCount);
 			reader.read_array(dpvs->sortedSmodelIndices, 1, dpvs->smodelCount);
 			read_runtime_array(reader, XFILE_BLOCK_RUNTIME, dpvs->surfaceCastsSunShadowOpt, 127, dpvs->sunShadowOptCount * dpvs->sunSurfVisDataCount);
 			read_runtime_array(reader, XFILE_BLOCK_RUNTIME, dpvs->surfaceMaterials, 3, dpvs->staticSurfaceCount);
-			read_runtime_array(reader, XFILE_BLOCK_RUNTIME, dpvs->unk_0x350, 7, dpvs->smodelCount);
+			read_runtime_array(reader, XFILE_BLOCK_RUNTIME, dpvs->smodelConstantBuffers, 7, dpvs->smodelCount);
 		}
 
 		void write_dpvs_static(zone_base* zone, zone_buffer* buf, GfxWorld* data_world, GfxWorld* dest_world)
@@ -966,7 +966,7 @@ namespace zonetool::s2
 				}
 			}
 			write_array(buf, 3, data->surfacesBounds, data_world->surfaceCount, dest->surfacesBounds);
-			write_runtime_array(buf, XFILE_BLOCK_RUNTIME, 1, data->unk_0x300, data_world->surfaceCount, dest->unk_0x300);
+			write_runtime_array(buf, XFILE_BLOCK_RUNTIME, 1, data->surfaceSortKeys, data_world->surfaceCount, dest->surfaceSortKeys);
 
 			write_array(buf, 3, data->smodelInsts, data->smodelCount, dest->smodelInsts);
 			if (const auto dest_draw_insts = write_array(buf, 7, data->smodelDrawInsts, data->smodelCount, dest->smodelDrawInsts))
@@ -987,11 +987,11 @@ namespace zonetool::s2
 					}
 				}
 			}
-			write_runtime_array(buf, XFILE_BLOCK_RUNTIME, 127, data->unk_0x328, data->surfaceVisDataCount, dest->unk_0x328);
+			write_runtime_array(buf, XFILE_BLOCK_RUNTIME, 127, data->surfaceCastsSunShadow, data->surfaceVisDataCount, dest->surfaceCastsSunShadow);
 			write_array(buf, 1, data->sortedSmodelIndices, data->smodelCount, dest->sortedSmodelIndices);
 			write_runtime_array(buf, XFILE_BLOCK_RUNTIME, 127, data->surfaceCastsSunShadowOpt, data->sunShadowOptCount * data->sunSurfVisDataCount, dest->surfaceCastsSunShadowOpt);
 			write_runtime_array(buf, XFILE_BLOCK_RUNTIME, 3, data->surfaceMaterials, data->staticSurfaceCount, dest->surfaceMaterials);
-			write_runtime_array(buf, XFILE_BLOCK_RUNTIME, 7, data->unk_0x350, data->smodelCount, dest->unk_0x350);
+			write_runtime_array(buf, XFILE_BLOCK_RUNTIME, 7, data->smodelConstantBuffers, data->smodelCount, dest->smodelConstantBuffers);
 		}
 
 		void parse_dpvs_static(assetmanager::reader& read, zone_memory* mem, GfxWorld* asset)
@@ -1022,7 +1022,7 @@ namespace zonetool::s2
 				}
 			}
 			parse_array(read, mem, dpvs->surfacesBounds, asset->surfaceCount);
-			parse_runtime_array(mem, dpvs->unk_0x300, asset->surfaceCount);
+			parse_runtime_array(mem, dpvs->surfaceSortKeys, asset->surfaceCount);
 
 			parse_array(read, mem, dpvs->smodelInsts, dpvs->smodelCount);
 			if (const auto draw_insts = parse_array(read, mem, dpvs->smodelDrawInsts, dpvs->smodelCount))
@@ -1043,11 +1043,11 @@ namespace zonetool::s2
 					}
 				}
 			}
-			parse_runtime_array(mem, dpvs->unk_0x328, dpvs->surfaceVisDataCount);
+			parse_runtime_array(mem, dpvs->surfaceCastsSunShadow, dpvs->surfaceVisDataCount);
 			parse_array(read, mem, dpvs->sortedSmodelIndices, dpvs->smodelCount);
 			parse_runtime_array(mem, dpvs->surfaceCastsSunShadowOpt, dpvs->sunShadowOptCount * dpvs->sunSurfVisDataCount);
 			parse_runtime_array(mem, dpvs->surfaceMaterials, dpvs->staticSurfaceCount);
-			parse_runtime_array(mem, dpvs->unk_0x350, dpvs->smodelCount);
+			parse_runtime_array(mem, dpvs->smodelConstantBuffers, dpvs->smodelCount);
 		}
 
 		void dump_dpvs_static(assetmanager::dumper& write, GfxWorld* asset)

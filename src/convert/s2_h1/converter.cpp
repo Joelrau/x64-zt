@@ -166,7 +166,6 @@ namespace zonetool::convert::s2_h1
 				target::xsurface::dump(header_as<source::XModelSurfs>(header));
 				break;
 			case source::ASSET_TYPE_IMAGE:
-				if (std::getenv("ZT_SKIP_IMAGES")) break;
 				target::gfximage::dump(header_as<source::GfxImage>(header));
 				break;
 			case source::ASSET_TYPE_MATERIAL:

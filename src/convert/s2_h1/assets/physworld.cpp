@@ -14,7 +14,7 @@ namespace zonetool::s2::converter::h1::physworld
 		{
 			model.fields.polytopeIndex = -1;
 			model.fields.unk = -1;
-			model.fields.worldIndex = 0;
+			model.fields.polytopeCount = 0;
 			model.fields.meshIndex = -1;
 		}
 

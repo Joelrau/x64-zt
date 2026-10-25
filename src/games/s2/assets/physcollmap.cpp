@@ -27,10 +27,10 @@ namespace zonetool::s2
 
 	void phys_collmap::read_polytope(zone_reader& reader, dmPolytopeData* data)
 	{
-		reader.read_array(data->vec4_array0, 15, data->vec4_array0_count);
-		reader.read_array(data->vec4_array1, 15, data->vec4_array1_count);
-		reader.read_array(data->uint_array, 0, data->uint_array_count);
-		reader.read_array(data->byte_array, 0, data->vec4_array1_count);
+		reader.read_array(data->vertices, 15, data->vertexCount);
+		reader.read_array(data->planes, 15, data->faceCount);
+		reader.read_array(data->subEdges, 0, data->subEdgeCount);
+		reader.read_array(data->faceSubEdges, 0, data->faceCount);
 	}
 
 	void phys_collmap::read(zone_reader& reader, PhysCollmap* asset)
@@ -69,26 +69,26 @@ namespace zonetool::s2
 
 	void phys_collmap::write_polytope(zone_buffer* buf, dmPolytopeData* data, dmPolytopeData* dest)
 	{
-		write_inline(buf, 15, data->vec4_array0, data->vec4_array0_count, dest->vec4_array0);
-		write_inline(buf, 15, data->vec4_array1, data->vec4_array1_count, dest->vec4_array1);
-		write_inline(buf, 0, data->uint_array, data->uint_array_count, dest->uint_array);
-		write_inline(buf, 0, data->byte_array, data->vec4_array1_count, dest->byte_array);
+		write_inline(buf, 15, data->vertices, data->vertexCount, dest->vertices);
+		write_inline(buf, 15, data->planes, data->faceCount, dest->planes);
+		write_inline(buf, 0, data->subEdges, data->subEdgeCount, dest->subEdges);
+		write_inline(buf, 0, data->faceSubEdges, data->faceCount, dest->faceSubEdges);
 	}
 
 	void phys_collmap::dump_polytope(assetmanager::dumper& write, dmPolytopeData* data)
 	{
-		write.dump_array(data->vec4_array0, data->vec4_array0_count);
-		write.dump_array(data->vec4_array1, data->vec4_array1_count);
-		write.dump_array(data->uint_array, data->uint_array_count);
-		write.dump_array(data->byte_array, data->vec4_array1_count);
+		write.dump_array(data->vertices, data->vertexCount);
+		write.dump_array(data->planes, data->faceCount);
+		write.dump_array(data->subEdges, data->subEdgeCount);
+		write.dump_array(data->faceSubEdges, data->faceCount);
 	}
 
 	void phys_collmap::parse_polytope(assetmanager::reader& read, dmPolytopeData* data)
 	{
-		data->vec4_array0 = read.read_array<vec4_t>();
-		data->vec4_array1 = read.read_array<vec4_t>();
-		data->uint_array = read.read_array<unsigned int>();
-		data->byte_array = read.read_array<unsigned char>();
+		data->vertices = read.read_array<dmFloat4>();
+		data->planes = read.read_array<dmPlane>();
+		data->subEdges = read.read_array<dmSubEdge>();
+		data->faceSubEdges = read.read_array<unsigned char>();
 	}
 
 	PhysCollmap* phys_collmap::parse(const std::string& name, zone_memory* mem)
@@ -290,10 +290,10 @@ namespace zonetool::s2
 			for (auto i = 0u; i < asset->polytopeCount; i++)
 			{
 				auto* polytope = &polytopes[i];
-				parse_array(read, mem, polytope->vec4_array0, polytope->vec4_array0_count);
-				parse_array(read, mem, polytope->vec4_array1, polytope->vec4_array1_count);
-				parse_array(read, mem, polytope->uint_array, polytope->uint_array_count);
-				parse_array(read, mem, polytope->byte_array, polytope->vec4_array1_count);
+				parse_array(read, mem, polytope->vertices, polytope->vertexCount);
+				parse_array(read, mem, polytope->planes, polytope->faceCount);
+				parse_array(read, mem, polytope->subEdges, polytope->subEdgeCount);
+				parse_array(read, mem, polytope->faceSubEdges, polytope->faceCount);
 			}
 		}
 		if (const auto meshes = parse_array(read, mem, asset->meshes, asset->meshCount))
@@ -351,10 +351,10 @@ namespace zonetool::s2
 			{
 				auto* polytope = &data->polytopes[i];
 				auto* dest_polytope = &dest_polytopes[i];
-				write_array(buf, 15, polytope->vec4_array0, polytope->vec4_array0_count, dest_polytope->vec4_array0);
-				write_array(buf, 15, polytope->vec4_array1, polytope->vec4_array1_count, dest_polytope->vec4_array1);
-				write_array(buf, 0, polytope->uint_array, polytope->uint_array_count, dest_polytope->uint_array);
-				write_array(buf, 0, polytope->byte_array, polytope->vec4_array1_count, dest_polytope->byte_array);
+				write_array(buf, 15, polytope->vertices, polytope->vertexCount, dest_polytope->vertices);
+				write_array(buf, 15, polytope->planes, polytope->faceCount, dest_polytope->planes);
+				write_array(buf, 0, polytope->subEdges, polytope->subEdgeCount, dest_polytope->subEdges);
+				write_array(buf, 0, polytope->faceSubEdges, polytope->faceCount, dest_polytope->faceSubEdges);
 			}
 		}
 		if (const auto dest_meshes = write_array(buf, 7, data->meshes, data->meshCount, dest->meshes))

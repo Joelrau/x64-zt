@@ -17,14 +17,12 @@ namespace zonetool::s2::converter::h1::comworld
 				return;
 			}
 
-			const auto scale = light.type == zonetool::h1::GFX_LIGHT_TYPE_DIR ? light.intensity * 10.0f : 20000.0f;
-
 			new_light.canUseShadowMap = 0;
 			new_light.physicallyBased = light.type != zonetool::h1::GFX_LIGHT_TYPE_DIR;
-			new_light.exponent = light.type != zonetool::h1::GFX_LIGHT_TYPE_DIR;
+			new_light.exponent = light.exponent;
 			for (auto i = 0; i < 3; i++)
 			{
-				new_light.color[i] = light.color[i] * scale;
+				new_light.color[i] = light.color[i] * light.intensity; // s2 renders color * intensity where h1 renders color
 				new_light.dir[i] = light.dir[i];
 				new_light.up[i] = light.up[i];
 				new_light.origin[i] = light.origin[i];

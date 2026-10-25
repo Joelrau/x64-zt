@@ -1,6 +1,8 @@
 #include <std_include.hpp>
 
 #include "../include.hpp"
+#include "physcollmap.hpp"
+#include "physpreset.hpp"
 #include "xmodel.hpp"
 #include "xsurface.hpp"
 
@@ -10,7 +12,7 @@ namespace zonetool::h1::converter::s2::xmodel
 	{
 		constexpr auto no_cull_lod_dist = 1000000.0f;
 		constexpr auto automatic_forced_lod = 0xFE;
-		constexpr auto default_cull_size_scale = 15.0f;
+		constexpr auto no_cull_size_scale = 0.0f; // h1 has no projected size cull, s2's stock 15 hid small props like com_paintcan past their first lod
 		constexpr auto default_unk_0x374 = 96.0f;
 		constexpr auto lightmap_uv_model_flags = 0x6000u; // stock models with lightmap uv surfs have 0x6800
 		constexpr std::array<float, 4> grass_sway_params{2000.0f, 40.0f, 0.055f, 1.5f}; // stock foliage_s2_cob_weeds_07
@@ -156,8 +158,10 @@ namespace zonetool::h1::converter::s2::xmodel
 			std::memcpy(base->boundsMidPoint, asset->bounds.midPoint, sizeof(base->boundsMidPoint));
 			std::memcpy(base->boundsHalfSize, asset->bounds.halfSize, sizeof(base->boundsHalfSize));
 			base->boundsRadius = std::hypot(base->boundsHalfSize[0], base->boundsHalfSize[1], base->boundsHalfSize[2]);
-			base->cullSizeScale = default_cull_size_scale;
+			base->cullSizeScale = no_cull_size_scale;
 			base->memUsage = static_cast<unsigned int>(asset->memUsage);
+			base->physPreset = asset->physPreset ? physpreset::reference(asset->physPreset, asset, allocator) : nullptr;
+			base->physCollmap = physcollmap::reference(asset->physCollmap, allocator);
 			base->unk_0x301 = -1;
 			base->unk_0x372 = -1;
 			base->unk_0x374 = default_unk_0x374;

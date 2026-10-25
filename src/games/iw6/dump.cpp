@@ -99,18 +99,29 @@ namespace zonetool::iw6
 			return type != ASSET_TYPE_VERTEXDECL;
 		}
 
-		void write_asset_csv(const loaded_zone& zone)
+		// a converter may replace <name>.csv with its build list in finish, the source listing stays in <name>.<source>.csv
+		void write_asset_csv(const loaded_zone& zone, const converter* converter)
 		{
-			filesystem::file csv(zone.name + ".csv");
-			csv.open("wb");
-
+			std::string text;
 			for (const auto& asset : zone.assets)
 			{
-				csv.write(std::format("{},{}{}\n", type_to_string(asset.type),
-					asset.referenced ? "," : "", get_asset_name(asset.type, asset.header)));
+				text += std::format("{},{}{}\n", type_to_string(asset.type),
+					asset.referenced ? "," : "", get_asset_name(asset.type, asset.header));
 			}
 
-			csv.close();
+			const auto write = [&](const std::string& file_name)
+			{
+				filesystem::file csv(file_name);
+				csv.open("wb");
+				csv.write(text);
+				csv.close();
+			};
+
+			write(zone.name + ".csv");
+			if (converter)
+			{
+				write(std::format("{}.{}.csv", zone.name, converter->source));
+			}
 		}
 
 		std::vector<std::unique_ptr<loaded_zone>> load_required_zones(const converter* converter, const std::filesystem::path& zone_path)
@@ -223,7 +234,7 @@ namespace zonetool::iw6
 			}
 		}
 
-		write_asset_csv(*zone);
+		write_asset_csv(*zone, converter);
 		if (converter && converter->finish)
 		{
 			converter->finish(zone->name);

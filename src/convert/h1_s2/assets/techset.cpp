@@ -4,6 +4,8 @@
 #include "techset.hpp"
 #include "shader.hpp"
 
+#include <utils/compression.hpp>
+
 namespace zonetool::h1::converter::s2::techset
 {
 	namespace
@@ -294,6 +296,7 @@ namespace zonetool::h1::converter::s2::techset
 
 		constexpr auto h1_per_prim_constant_buffer = 0u;
 		constexpr auto h1_per_object_constant_buffer = 1u;
+		constexpr auto row_size = 16u; // bytes of a constant buffer row
 		constexpr auto h1_first_shifted_stream_source = 6u;
 		constexpr auto s2_stream_source_shift = 3u;
 		constexpr auto h1_instance_probe_ambient_flag = 0x400u; // cb7 probe ambient of the instanced "amb" passes
@@ -332,6 +335,18 @@ namespace zonetool::h1::converter::s2::techset
 				{CONST_SRC_CODE_CLIP_SPACE_LOOKUP_SCALE, zonetool::s2::CONST_SRC_CODE_CLIP_SPACE_LOOKUP_SCALE},
 				{CONST_SRC_CODE_CLIP_SPACE_LOOKUP_OFFSET, zonetool::s2::CONST_SRC_CODE_CLIP_SPACE_LOOKUP_OFFSET},
 				{CONST_SRC_CODE_DEPTH_FROM_CLIP, zonetool::s2::CONST_SRC_CODE_DEPTH_FROM_CLIP},
+				{CONST_SRC_CODE_INV_SCENE_PROJECTION, zonetool::s2::CONST_SRC_CODE_INV_SCENE_PROJECTION},
+				{CONST_SRC_CODE_DISTORTION_SAMPLE_LIMITS_PS, zonetool::s2::CONST_SRC_CODE_DISTORTION_SAMPLE_LIMITS_PS},
+				{CONST_SRC_CODE_ATMOS_FOG_PARMS_0, zonetool::s2::CONST_SRC_CODE_ATMOS_FOG_PARMS_0},
+				{CONST_SRC_CODE_ATMOS_FOG_PARMS_1, zonetool::s2::CONST_SRC_CODE_ATMOS_FOG_PARMS_1},
+				{CONST_SRC_CODE_ATMOS_FOG_PARMS_2, zonetool::s2::CONST_SRC_CODE_ATMOS_FOG_PARMS_2},
+				{CONST_SRC_CODE_ATMOS_FOG_PARMS_3, zonetool::s2::CONST_SRC_CODE_ATMOS_FOG_PARMS_3},
+				{CONST_SRC_CODE_ATMOS_FOG_PARMS_4, zonetool::s2::CONST_SRC_CODE_ATMOS_FOG_PARMS_4},
+				{CONST_SRC_CODE_ATMOS_FOG_PARMS_5, zonetool::s2::CONST_SRC_CODE_ATMOS_FOG_PARMS_5},
+				{CONST_SRC_CODE_CODE_MESH_ARG_0, zonetool::s2::CONST_SRC_CODE_CODE_MESH_ARG_0},
+				{CONST_SRC_CODE_CODE_MESH_ARG_1, zonetool::s2::CONST_SRC_CODE_CODE_MESH_ARG_1},
+				{CONST_SRC_CODE_CODE_MESH_ARG_3, zonetool::s2::CONST_SRC_CODE_CODE_MESH_ARG_3},
+				{CONST_SRC_CODE_CODE_MESH_ARG_4, zonetool::s2::CONST_SRC_CODE_CODE_MESH_ARG_4},
 			};
 
 			const auto add_range = [&](const std::int32_t first, const std::int32_t last, const std::int32_t s2_first)
@@ -412,14 +427,21 @@ namespace zonetool::h1::converter::s2::techset
 
 		const std::unordered_map<std::int32_t, std::array<float, 4>> code_literals
 		{
-			{CONST_SRC_CODE_FOG_HEIGHT_FOG, {0.0f, 0.0f, fog_off_height_falloff, 0.0f}},
-			{CONST_SRC_CODE_ATMOS_FOG_PARMS_5, {0.0f, 0.0f, fog_off_height_falloff, 0.0f}},
+			{CONST_SRC_CODE_FOG_HEIGHT_FOG, {0.0f, 0.0f, fog_off_height_falloff, 0.0f}}, // s2 has no legacy distance fog for the dfog techniques
+			{CONST_SRC_CODE_FOG, {0.0f, 0.0f, 0.0f, 0.0f}},
+			{CONST_SRC_CODE_FOG_COLOR_LINEAR, {0.0f, 0.0f, 0.0f, 0.0f}},
+			{CONST_SRC_CODE_FOG_COLOR_GAMMA, {0.0f, 0.0f, 0.0f, 0.0f}},
+			{CONST_SRC_CODE_FOG_SUN_CONSTS, {0.0f, 0.0f, 0.0f, 0.0f}},
+			{CONST_SRC_CODE_FOG_SUN_COLOR_LINEAR, {0.0f, 0.0f, 0.0f, 0.0f}},
+			{CONST_SRC_CODE_FOG_SUN_COLOR_GAMMA, {0.0f, 0.0f, 0.0f, 0.0f}},
+			{CONST_SRC_CODE_FOG_SUN_DIR, {0.0f, 0.0f, 0.0f, 0.0f}},
+			{CONST_SRC_CODE_SUN_SHADOWMAP_NEAR_FAR_PLANE, {0.0f, 0.0f, 0.0f, 0.0f}}, // only the effect translucent shadowmap techniques
+			{CONST_SRC_CODE_TESSELLATION_PARMS, {0.0f, 0.0f, 0.0f, 0.0f}}, // only the world displacement techniques
+			{CONST_SRC_CODE_TESSELLATION_PARMS2, {0.0f, 0.0f, 0.0f, 0.0f}},
+			{CONST_SRC_CODE_SCENE_UV_MULT, {1.0f, 1.0f, 0.0f, 0.0f}}, // only the cloak (ctq) techniques
+			{CONST_SRC_CODE_PARTICLE_CLOUD_COLOR, {1.0f, 1.0f, 1.0f, 1.0f}}, // s2 clouds take the color from a vertex stream
 			{CONST_SRC_CODE_LIGHTING_LOOKUP_SCALE, {1.0f, 1.0f, 1.0f, 0.0f}},
 			{CONST_SRC_CODE_SCRIPT_PARMS, {0.0f, 0.0f, 0.0f, 0.0f}}, // s2 const 26 holds other data that flickers the model lighting
-			{CONST_SRC_CODE_CODE_MESH_ARG_0, {65504.0f, -65504.0f, 1.0f, 1.0f}}, // open fade window of the "trailfade" vertex shaders
-			{CONST_SRC_CODE_CODE_MESH_ARG_1, {0.0f, 0.0f, 0.0f, 0.0f}},
-			{CONST_SRC_CODE_CODE_MESH_ARG_3, {0.0f, 0.0f, 0.0f, 0.0f}},
-			{CONST_SRC_CODE_CODE_MESH_ARG_4, {0.0f, 0.0f, 0.0f, 0.0f}},
 		};
 
 		light_grid slot_light_grid(const std::int32_t slot)
@@ -485,14 +507,35 @@ namespace zonetool::h1::converter::s2::techset
 		std::unordered_map<const zonetool::s2::MaterialVertexShader*, std::uint32_t> lighting_semantics;
 		std::unordered_map<const zonetool::s2::MaterialPixelShader*, std::map<std::uint32_t, std::uint32_t>> relocated_textures;
 		std::unordered_map<const MaterialVertexDeclaration*, zonetool::s2::MaterialVertexDeclaration*> converted_decls;
-		std::map<std::tuple<const MaterialTechnique*, light_grid, zonetool::s2::MaterialPassModelVertexType>, zonetool::s2::MaterialTechnique*> converted_techniques;
-		std::unordered_map<std::string, std::optional<native_techset>> native_techsets;
+		std::map<std::tuple<const MaterialTechnique*, light_grid, zonetool::s2::MaterialPassModelVertexType, bool>, zonetool::s2::MaterialTechnique*> converted_techniques;
+		std::map<std::pair<const zonetool::s2::MaterialTechnique*, const MaterialPass*>, zonetool::s2::MaterialTechnique*> light_pass_techniques;
+		std::map<std::tuple<const zonetool::s2::MaterialTechnique*, const MaterialPass*, bool>, zonetool::s2::MaterialTechnique*> merged_light_techniques;
+
+		// the froxel light list of the stock lw_fplus_*_bmclust passes, which ndw surfaces use since the tile lists are culled against the depth prepass
+		constexpr auto custom_buffer_forward_cluster_lighting = zonetool::s2::CUSTOM_BUFFER_FORWARD_LIGHTS | zonetool::s2::CUSTOM_BUFFER_LIGHT_CLUSTER_BITS;
+		constexpr auto custom_buffer_light_tiles = zonetool::s2::CUSTOM_BUFFER_LIGHT_TILE_BITS | zonetool::s2::CUSTOM_BUFFER_LIGHT_TILE_ZBINS; // the t23 tile bitmask and t25 z bins
+		constexpr std::array<std::uint16_t, 3> light_cluster_consts{93, 91, 92}; // cells (count xy, cells per pixel zw), slice starts, slice scales
+
+		std::unordered_map<std::string, zonetool::s2::MaterialPixelShader*> merged_pixel_shaders;
+		std::unordered_map<std::string, unsigned int> merged_pixel_shader_names;
+		std::map<std::pair<std::string, bool>, std::optional<native_techset>> native_techsets;
 
 		float* allocate_literal(const float* value)
 		{
 			auto* result = native_allocator.allocate_array<float>(4);
 			std::memcpy(result, value, sizeof(float) * 4);
 			return result;
+		}
+
+		// the dumps write the padding after dest, so every argument starts zeroed instead of with stack garbage
+		zonetool::s2::MaterialShaderArgument make_arg(const zonetool::s2::MaterialShaderArgumentType type, const unsigned char stage, const unsigned short dest)
+		{
+			zonetool::s2::MaterialShaderArgument arg;
+			std::memset(&arg, 0, sizeof(arg));
+			arg.type = type;
+			arg.shader = stage;
+			arg.dest = dest;
+			return arg;
 		}
 
 		void add_code_const(const MaterialShaderArgument& arg, const bool literals_allowed, std::vector<zonetool::s2::MaterialShaderArgument>& args)
@@ -503,7 +546,7 @@ namespace zonetool::h1::converter::s2::techset
 				throw std::runtime_error(utils::string::va("code constant %u has %u rows", code_const.index, code_const.rowCount));
 			}
 
-			zonetool::s2::MaterialShaderArgument result{zonetool::s2::MTL_ARG_CODE_CONST, arg.shader, arg.dest};
+			auto result = make_arg(zonetool::s2::MTL_ARG_CODE_CONST, arg.shader, arg.dest);
 			if (code_const.index == CONST_SRC_CODE_MODEL_LIGHTMAP_PARAMS)
 			{
 				result.dest = shader::s2_model_lightmap_params_dest;
@@ -523,6 +566,12 @@ namespace zonetool::h1::converter::s2::techset
 
 			constexpr std::array<float, 4> zero{};
 			const auto literal = code_literals.find(code_const.index);
+			static std::unordered_set<std::uint16_t> warned;
+			if (literal == code_literals.end() && warned.insert(code_const.index).second)
+			{
+				ZONETOOL_WARNING("code constant %u has no s2 source, the shaders read zero", code_const.index);
+			}
+
 			result.type = zonetool::s2::MTL_ARG_LITERAL_CONST;
 			result.u.literalConst = allocate_literal(literal != code_literals.end() ? literal->second.data() : zero.data());
 			for (auto row = 0u; row < code_const.rowCount; row++)
@@ -548,7 +597,7 @@ namespace zonetool::h1::converter::s2::techset
 			if (model_lighting && arg.type == MTL_ARG_CODE_CONST
 				&& (arg.u.codeConst.index == CONST_SRC_CODE_BASE_LIGHTING_COORDS || arg.u.codeConst.index == CONST_SRC_CODE_LIGHT_PROBE_AMBIENT))
 			{
-				zonetool::s2::MaterialShaderArgument result{zonetool::s2::MTL_ARG_CODE_CONST, arg.shader, shader::s2_model_lighting_index_dest};
+				auto result = make_arg(zonetool::s2::MTL_ARG_CODE_CONST, arg.shader, shader::s2_model_lighting_index_dest);
 				result.u.codeConst = {zonetool::s2::CONST_SRC_CODE_MODEL_LIGHTING_INDEX, 0, 1};
 				args.emplace_back(result);
 				return;
@@ -565,7 +614,7 @@ namespace zonetool::h1::converter::s2::techset
 				return;
 			}
 
-			zonetool::s2::MaterialShaderArgument result{argument_types[arg.type], arg.shader, arg.dest};
+			auto result = make_arg(argument_types[arg.type], arg.shader, arg.dest);
 			switch (arg.type)
 			{
 			case MTL_ARG_CODE_TEXTURE:
@@ -585,6 +634,20 @@ namespace zonetool::h1::converter::s2::techset
 			args.emplace_back(result);
 		}
 
+		void check_group_size(const std::vector<zonetool::s2::MaterialShaderArgument>& args)
+		{
+			if (args.size() > std::numeric_limits<unsigned char>::max())
+			{
+				throw std::runtime_error(utils::string::va("%zu arguments do not fit in one group", args.size()));
+			}
+		}
+
+		// an argument group size that covers at least rows constant rows
+		unsigned short arg_size(const std::uint32_t size, const std::uint32_t rows)
+		{
+			return static_cast<unsigned short>(std::max(size, rows * row_size));
+		}
+
 		std::vector<zonetool::s2::MaterialShaderArgument> convert_args(const MaterialShaderArgument* args, const std::size_t count, const bool literals_allowed,
 			const bool model_lighting)
 		{
@@ -595,11 +658,7 @@ namespace zonetool::h1::converter::s2::techset
 			}
 
 			std::ranges::stable_sort(result, {}, &zonetool::s2::MaterialShaderArgument::type);
-			if (result.size() > std::numeric_limits<unsigned char>::max())
-			{
-				throw std::runtime_error(utils::string::va("%zu arguments do not fit in one group", result.size()));
-			}
-
+			check_group_size(result);
 			return result;
 		}
 
@@ -680,6 +739,18 @@ namespace zonetool::h1::converter::s2::techset
 			for (const auto& [buffer, from, to] : patch.stable_literal_rows)
 			{
 				suffix += utils::string::va("_sl%u_%u_%u", buffer, from, to);
+			}
+			if (patch.lights)
+			{
+				suffix += utils::string::va("_fpl%u_%u", patch.lights->render_target_size_row, patch.lights->tile_parms_row);
+			}
+			for (const auto& [from, to] : patch.material_rows)
+			{
+				suffix += utils::string::va("_mr%u_%u", from, to);
+			}
+			if (patch.sprite)
+			{
+				suffix += "_sprite";
 			}
 			const auto key = std::make_pair(static_cast<const void*>(source), suffix);
 			if (const auto entry = converted_shaders.find(key); entry != converted_shaders.end())
@@ -951,10 +1022,7 @@ namespace zonetool::h1::converter::s2::techset
 
 			if (sampler)
 			{
-				zonetool::s2::MaterialShaderArgument arg{};
-				arg.type = zonetool::s2::MTL_ARG_CODE_SAMPLER;
-				arg.shader = MTL_SHADER_STAGE_PIXEL;
-				arg.dest = shader::ambient_light_grid_sampler;
+				auto arg = make_arg(zonetool::s2::MTL_ARG_CODE_SAMPLER, MTL_SHADER_STAGE_PIXEL, shader::ambient_light_grid_sampler);
 				arg.u.codeSampler = zonetool::s2::TEXTURE_SRC_CODE_LINEAR_CLAMP;
 				stable.emplace_back(arg);
 			}
@@ -970,10 +1038,7 @@ namespace zonetool::h1::converter::s2::techset
 
 			for (const auto& [slot, texture] : textures)
 			{
-				zonetool::s2::MaterialShaderArgument arg{};
-				arg.type = zonetool::s2::MTL_ARG_CODE_TEXTURE;
-				arg.shader = MTL_SHADER_STAGE_PIXEL;
-				arg.dest = slot;
+				auto arg = make_arg(zonetool::s2::MTL_ARG_CODE_TEXTURE, MTL_SHADER_STAGE_PIXEL, slot);
 				arg.u.codeSampler = texture;
 				stable.emplace_back(arg);
 			}
@@ -984,10 +1049,7 @@ namespace zonetool::h1::converter::s2::techset
 				return std::make_tuple(arg.type, is_code_texture ? arg.shader : 0, is_code_texture ? arg.dest : 0);
 			});
 
-			if (stable.size() > std::numeric_limits<unsigned char>::max())
-			{
-				throw std::runtime_error(utils::string::va("%zu arguments do not fit in one group", stable.size()));
-			}
+			check_group_size(stable);
 		}
 
 		zonetool::s2::MaterialPassModelVertexType stock_model_vertex_type(const std::int32_t slot)
@@ -1013,19 +1075,124 @@ namespace zonetool::h1::converter::s2::techset
 			}
 		}
 
-		void convert_pass(const MaterialPass& pass, const light_grid grid, const std::int32_t slot, zonetool::s2::MaterialPass& result)
+		// fx sprites are drawn without a vertex buffer, the vertex shader reads the sprite records and the per prim rows 6 to 9 hold the previous world matrix
+		void add_sprite_pass(zonetool::s2::MaterialPass& pass, std::vector<zonetool::s2::MaterialShaderArgument>& per_prim, const std::int32_t slot)
+		{
+			constexpr auto prev_world_dest = 6u;
+
+			auto prev_world = make_arg(zonetool::s2::MTL_ARG_CODE_CONST, MTL_SHADER_STAGE_VERTEX, prev_world_dest);
+			prev_world.u.codeConst = {zonetool::s2::CONST_SRC_CODE_PREV_FRAME_TRANSPOSE_WORLD_MATRIX, 0, 4};
+			per_prim.emplace_back(prev_world);
+
+			pass.vertexDecl = nullptr;
+			pass.perPrimArgSize = arg_size(pass.perPrimArgSize, prev_world_dest + 4);
+			pass.customBufferFlags |= zonetool::s2::CUSTOM_BUFFER_SPRITES;
+			pass.modelVertexType = slot % zonetool::s2::TECHNIQUE_GROUP_SIZE == zonetool::s2::TECHNIQUE_BUILD_SHADOWMAP_DEPTH
+				? zonetool::s2::MODEL_VERTEX_TYPE_INSTANCE_DATA : zonetool::s2::MODEL_VERTEX_TYPE_VERTEX_LIGHTING; // stock "xl" passes use 1 and 2
+		}
+
+		shader::primary_lights take_light_consts(std::vector<MaterialShaderArgument>& per_prim, std::vector<MaterialShaderArgument>& per_obj,
+			std::vector<MaterialShaderArgument>& stable)
+		{
+			constexpr std::array<std::uint32_t, shader::light_const_count> light_consts
+			{
+				CONST_SRC_CODE_LIGHT_POSITION,
+				CONST_SRC_CODE_LIGHT_DIFFUSE,
+				CONST_SRC_CODE_LIGHT_PHYSICALSIZE,
+				CONST_SRC_CODE_LIGHT_FADEOFFSET,
+				CONST_SRC_CODE_LIGHT_SPECULAR,
+			};
+
+			shader::primary_lights result{};
+			std::optional<std::uint32_t> buffer;
+			for (const auto& [list, index] : {std::pair{&per_prim, h1_per_prim_constant_buffer}, std::pair{&per_obj, h1_per_object_constant_buffer},
+				std::pair{&stable, shader::h1_stable_constant_buffer}})
+			{
+				std::erase_if(*list, [&](const MaterialShaderArgument& arg)
+				{
+					if (arg.type != MTL_ARG_CODE_CONST || arg.u.codeConst.index > CONST_SRC_CODE_LIGHT_DYN_SHADOW_TYPES)
+					{
+						return false;
+					}
+
+					const auto light = std::ranges::find(light_consts, arg.u.codeConst.index);
+					if (light == light_consts.end() || arg.shader != MTL_SHADER_STAGE_PIXEL || (buffer && *buffer != index))
+					{
+						throw std::runtime_error(utils::string::va("light pass reads light constant %u", arg.u.codeConst.index));
+					}
+
+					buffer = index;
+					result.rows[light - light_consts.begin()] = arg.dest;
+					return true;
+				});
+			}
+
+			if (!buffer)
+			{
+				throw std::runtime_error("light pass reads no light constant");
+			}
+
+			result.buffer = *buffer;
+			return result;
+		}
+
+		// the material constant rows of a light pass in the lit pass constant buffer, pixel then vertex stage
+		using material_rows = std::array<shader::constant_rows, 2>;
+
+		void remap_material_constants(std::vector<MaterialShaderArgument>& args, const material_rows& rows)
+		{
+			for (auto& arg : args)
+			{
+				const auto& stage = rows[arg.shader == MTL_SHADER_STAGE_VERTEX];
+				if (const auto row = stage.find(arg.dest); arg.type == MTL_ARG_MATERIAL_CONST && row != stage.end())
+				{
+					arg.dest = static_cast<unsigned short>(row->second);
+				}
+			}
+		}
+
+		struct pass_args
+		{
+			std::vector<MaterialShaderArgument> per_prim;
+			std::vector<MaterialShaderArgument> per_obj;
+			std::vector<MaterialShaderArgument> stable;
+		};
+
+		pass_args split_args(const MaterialPass& pass)
+		{
+			const MaterialShaderArgument* per_prim_args = pass.args;
+			const auto* per_obj_args = per_prim_args ? per_prim_args + pass.perPrimArgCount : nullptr;
+			const auto* stable_args = per_prim_args ? per_obj_args + pass.perObjArgCount : nullptr;
+			pass_args result;
+			result.per_prim.assign(per_prim_args, per_obj_args);
+			result.per_obj.assign(per_obj_args, stable_args);
+			result.stable.assign(stable_args, per_prim_args ? stable_args + pass.stableArgCount : nullptr);
+			return result;
+		}
+
+		// the render target size and light tile parms rows that the forward light loop reads
+		void add_light_tile_args(const shader::primary_lights& lights, std::vector<zonetool::s2::MaterialShaderArgument>& stable)
+		{
+			for (const auto& [row, index] : {std::pair{lights.render_target_size_row, zonetool::s2::CONST_SRC_CODE_RENDER_TARGET_SIZE},
+				std::pair{lights.tile_parms_row, zonetool::s2::CONST_SRC_CODE_LIGHT_TILE_PARMS}})
+			{
+				auto arg = make_arg(zonetool::s2::MTL_ARG_CODE_CONST, MTL_SHADER_STAGE_PIXEL, static_cast<unsigned short>(row));
+				arg.u.codeConst = {static_cast<unsigned short>(index), 0, 1};
+				stable.emplace_back(arg);
+			}
+		}
+
+		void convert_pass(const MaterialPass& pass, const light_grid grid, const std::int32_t slot, const bool sprite, zonetool::s2::MaterialPass& result,
+			const material_rows* lights = nullptr)
 		{
 			const auto lighting = find_model_lighting(pass);
 			const auto lightmap_params = find_model_lightmap_params(pass);
 
-			const MaterialShaderArgument* per_prim_args = pass.args;
-			const auto* per_obj_args = per_prim_args ? per_prim_args + pass.perPrimArgCount : nullptr;
-			const auto* stable_args = per_prim_args ? per_obj_args + pass.perObjArgCount : nullptr;
-			std::vector<MaterialShaderArgument> per_prim_list(per_prim_args, per_obj_args);
-			std::vector<MaterialShaderArgument> per_obj_list(per_obj_args, stable_args);
-			std::vector<MaterialShaderArgument> stable_list(stable_args, per_prim_args ? stable_args + pass.stableArgCount : nullptr);
+			auto args = split_args(pass);
+			auto& per_prim_list = args.per_prim;
+			auto& per_obj_list = args.per_obj;
+			auto& stable_list = args.stable;
 			std::vector<stable_literal_row> stable_literal_rows;
-			constexpr auto row_size = 16u;
 			auto next_stable_row = (pass.stableArgSize + row_size - 1) / row_size;
 			for (const auto& [list, buffer] : {std::pair{&per_prim_list, h1_per_prim_constant_buffer}, std::pair{&per_obj_list, h1_per_object_constant_buffer}})
 			{
@@ -1045,15 +1212,37 @@ namespace zonetool::h1::converter::s2::techset
 				});
 			}
 
+			std::optional<shader::primary_lights> primary_lights;
+			if (lights)
+			{
+				primary_lights = take_light_consts(per_prim_list, per_obj_list, stable_list);
+				primary_lights->render_target_size_row = next_stable_row++;
+				primary_lights->tile_parms_row = next_stable_row++;
+				for (auto* list : {&per_prim_list, &per_obj_list, &stable_list})
+				{
+					remap_material_constants(*list, *lights);
+				}
+			}
+
 			program_patch vertex_patch{{}, lighting};
 			vertex_patch.lightmap_params_dest = lightmap_params;
 			vertex_patch.stable_literal_rows = stable_literal_rows;
+			vertex_patch.sprite = sprite;
+			if (lights)
+			{
+				vertex_patch.material_rows = (*lights)[1];
+			}
 			result.vertexShader = convert_shader<zonetool::s2::MaterialVertexShader>(pass.vertexShader, vertex_patch);
 			result.vertexDecl = convert_decl(pass.vertexDecl);
 			result.hullShader = convert_shader<zonetool::s2::MaterialHullShader>(pass.hullShader);
 			result.domainShader = convert_shader<zonetool::s2::MaterialDomainShader>(pass.domainShader);
 
 			program_patch pixel_patch{find_sun_shadow_lookup(pass), lighting, grid};
+			pixel_patch.lights = primary_lights;
+			if (lights)
+			{
+				pixel_patch.material_rows = (*lights)[0];
+			}
 			if (lighting)
 			{
 				const auto semantic = lighting_semantics.find(result.vertexShader);
@@ -1088,6 +1277,12 @@ namespace zonetool::h1::converter::s2::techset
 				add_light_grid_textures(stable, grid, lighting->ambient);
 			}
 
+			if (primary_lights)
+			{
+				add_light_tile_args(*primary_lights, stable);
+				std::ranges::stable_sort(stable, {}, &zonetool::s2::MaterialShaderArgument::type);
+			}
+
 			result.pixelOutputMask = pass.pixelOutputMask;
 			result.perPrimArgCount = static_cast<unsigned char>(per_prim.size());
 			result.perObjArgCount = static_cast<unsigned char>(per_obj.size());
@@ -1095,15 +1290,19 @@ namespace zonetool::h1::converter::s2::techset
 			result.perPrimArgSize = pass.perPrimArgSize;
 			if (lighting && !lighting->instanced)
 			{
-				result.perPrimArgSize = static_cast<unsigned short>(std::max(static_cast<std::uint32_t>(result.perPrimArgSize), (shader::s2_model_lighting_index_dest + 1) * row_size));
+				result.perPrimArgSize = arg_size(result.perPrimArgSize, shader::s2_model_lighting_index_dest + 1);
 			}
 			if (lightmap_params)
 			{
-				result.perPrimArgSize = static_cast<unsigned short>(std::max(static_cast<std::uint32_t>(result.perPrimArgSize), (shader::s2_model_lightmap_params_dest + 1) * row_size));
+				result.perPrimArgSize = arg_size(result.perPrimArgSize, shader::s2_model_lightmap_params_dest + 1);
 			}
 			result.perObjArgSize = pass.perObjArgSize;
-			result.stableArgSize = static_cast<unsigned short>(std::max(static_cast<std::uint32_t>(pass.stableArgSize), next_stable_row * row_size));
+			result.stableArgSize = arg_size(pass.stableArgSize, next_stable_row);
 			result.customBufferFlags = convert_custom_buffer_flags(pass.customBufferFlags, lighting, grid);
+			if (primary_lights)
+			{
+				result.customBufferFlags |= zonetool::s2::CUSTOM_BUFFER_FORWARD_LIGHTING;
+			}
 			result.customSamplerFlags = pass.customSamplerFlags;
 			result.modelVertexType = stock_model_vertex_type(slot);
 			if (lightmap_params)
@@ -1120,6 +1319,12 @@ namespace zonetool::h1::converter::s2::techset
 				result.modelVertexType = zonetool::s2::MODEL_VERTEX_TYPE_VERTEX_LIGHTING;
 			}
 
+			if (sprite)
+			{
+				add_sprite_pass(result, per_prim, slot);
+				result.perPrimArgCount = static_cast<unsigned char>(per_prim.size());
+			}
+
 			const auto arg_count = per_prim.size() + per_obj.size() + stable.size();
 			result.args = arg_count ? native_allocator.allocate_array<zonetool::s2::MaterialShaderArgument>(arg_count) : nullptr;
 			auto* dest = result.args;
@@ -1129,9 +1334,9 @@ namespace zonetool::h1::converter::s2::techset
 			}
 		}
 
-		zonetool::s2::MaterialTechnique* convert_technique(const MaterialTechnique* technique, const light_grid grid, const std::int32_t slot)
+		zonetool::s2::MaterialTechnique* convert_technique(const MaterialTechnique* technique, const light_grid grid, const std::int32_t slot, const bool sprite)
 		{
-			const auto key = std::make_tuple(technique, grid, stock_model_vertex_type(slot));
+			const auto key = std::make_tuple(technique, grid, stock_model_vertex_type(slot), sprite);
 			if (const auto entry = converted_techniques.find(key); entry != converted_techniques.end())
 			{
 				return entry->second;
@@ -1144,10 +1349,238 @@ namespace zonetool::h1::converter::s2::techset
 			result->hdr.passCount = technique->hdr.passCount;
 			for (auto i = 0u; i < technique->hdr.passCount; i++)
 			{
-				convert_pass(technique->passArray[i], grid, slot, result->passArray[i]);
+				convert_pass(technique->passArray[i], grid, slot, sprite, result->passArray[i]);
 			}
 
 			converted_techniques.emplace(key, result);
+			return result;
+		}
+
+		zonetool::s2::MaterialTechnique* append_light_pass(const zonetool::s2::MaterialTechnique* base, const MaterialPass& light, const material_rows& rows,
+			const std::int32_t slot)
+		{
+			const auto key = std::make_pair(base, &light);
+			if (const auto entry = light_pass_techniques.find(key); entry != light_pass_techniques.end())
+			{
+				return entry->second;
+			}
+
+			zonetool::s2::MaterialPass light_pass;
+			std::memset(&light_pass, 0, sizeof(light_pass)); // zeroed padding, the pass is dumped as written
+			convert_pass(light, light_grid::probe_buffer, slot, false, light_pass, &rows);
+
+			// the cached model draws bind the fixed per prim layout of these types for every pass
+			const auto base_type = base->passArray[0].modelVertexType;
+			if (base_type == zonetool::s2::MODEL_VERTEX_TYPE_SELF_VISIBILITY || base_type == zonetool::s2::MODEL_VERTEX_TYPE_LIGHTMAP)
+			{
+				light_pass.modelVertexType = base_type;
+			}
+
+			const auto pass_count = base->hdr.passCount + 1u;
+			auto* result = static_cast<zonetool::s2::MaterialTechnique*>(native_allocator.allocate(offsetof(zonetool::s2::MaterialTechnique, passArray)
+				+ pass_count * sizeof(zonetool::s2::MaterialPass)));
+			result->hdr = base->hdr;
+			result->hdr.name = native_allocator.duplicate_string(std::string(base->hdr.name) + "_plight");
+			result->hdr.passCount = static_cast<unsigned short>(pass_count);
+			std::copy_n(base->passArray, base->hdr.passCount, result->passArray);
+			result->passArray[base->hdr.passCount] = light_pass;
+
+			light_pass_techniques.emplace(key, result);
+			return result;
+		}
+
+		bool same_argument(const zonetool::s2::MaterialShaderArgument& a, const zonetool::s2::MaterialShaderArgument& b)
+		{
+			if (a.type != b.type || a.shader != b.shader)
+			{
+				return false;
+			}
+
+			switch (a.type)
+			{
+			case zonetool::s2::MTL_ARG_CODE_CONST:
+				return a.u.codeConst.index == b.u.codeConst.index && a.u.codeConst.firstRow == b.u.codeConst.firstRow && a.u.codeConst.rowCount == b.u.codeConst.rowCount;
+			case zonetool::s2::MTL_ARG_LITERAL_CONST:
+				return std::memcmp(a.u.literalConst, b.u.literalConst, sizeof(float) * 4) == 0;
+			default:
+				return a.u.nameHash == b.u.nameHash;
+			}
+		}
+
+		std::uint32_t free_slot(std::set<std::uint32_t>& used, std::uint32_t first, const std::uint32_t end)
+		{
+			while (first < end && (used.contains(first) || first == shader::spot_shadow_sampler
+				|| std::ranges::find(shader::forward_light_slots, first) != shader::forward_light_slots.end()))
+			{
+				first++;
+			}
+
+			if (first >= end)
+			{
+				throw std::runtime_error("no free slot for a light pass texture or sampler");
+			}
+
+			used.insert(first);
+			return first;
+		}
+
+		// folds the h1 light pass into the lit pass, so lit surfaces draw once and loop over the tile (or froxel when clustered) lights in the same pixel shader
+		zonetool::s2::MaterialTechnique* merge_light_pass(const zonetool::s2::MaterialTechnique* base, const MaterialPass& light, const material_rows& rows,
+			const bool clustered)
+		{
+			const auto key = std::make_tuple(base, &light, clustered);
+			if (const auto entry = merged_light_techniques.find(key); entry != merged_light_techniques.end())
+			{
+				return entry->second;
+			}
+
+			constexpr auto texture_slot_count = 26u; // the merger moves lit textures off the forward light slots to 26 and up
+			constexpr auto sampler_slot_count = 16u;
+
+			if (base->hdr.passCount != 1 || !base->passArray[0].pixelShader || !base->passArray[0].pixelShader->prog.loadDef.program || !light.pixelShader
+				|| !light.pixelShader->prog.loadDef.program)
+			{
+				throw std::runtime_error("the lit technique is not one pass with a pixel shader");
+			}
+
+			const auto& lit = base->passArray[0];
+			const auto lit_count = lit.perPrimArgCount + lit.perObjArgCount + lit.stableArgCount;
+			const std::span lit_args(lit.args, lit.args ? lit_count : 0);
+
+			auto light_args = split_args(light);
+			auto& per_prim_list = light_args.per_prim;
+			auto& per_obj_list = light_args.per_obj;
+			auto& stable_list = light_args.stable;
+
+			shader::light_merge merge{take_light_consts(per_prim_list, per_obj_list, stable_list)};
+			merge.material_rows = rows[0];
+
+			// an argument can feed several stages at once (the displacement constants of the world_disp passes go to the hull, domain and
+			// pixel shaders), the merged pass keeps its pixel part
+			const auto is_pixel = [](const MaterialShaderArgument& arg) { return (arg.shader & MTL_SHADER_STAGE_PIXEL) != 0; };
+			const auto pixel_args = [&](std::vector<MaterialShaderArgument>& list)
+			{
+				std::erase_if(list, [&](const MaterialShaderArgument& arg) { return !is_pixel(arg) || arg.type == MTL_ARG_MATERIAL_CONST; });
+				for (auto& arg : list)
+				{
+					arg.shader = MTL_SHADER_STAGE_PIXEL;
+				}
+			};
+			pixel_args(per_prim_list);
+			pixel_args(per_obj_list);
+			pixel_args(stable_list);
+			if (!per_prim_list.empty() || !per_obj_list.empty())
+			{
+				throw std::runtime_error("the light pixel shader reads per prim or per object constants");
+			}
+
+			auto [textures, samplers] = shader::declared_slots(lit.pixelShader->prog.loadDef.program, lit.pixelShader->prog.loadDef.programSize);
+
+			// the spot shadow maps of the stock lw_fplus loop: code textures 8 (static) and 13 (dynamic), comparison code sampler 6
+			constexpr std::uint32_t spot_shadow_code_texture = 8;
+			constexpr std::uint32_t spot_shadow_dynamic_code_texture = 13;
+			constexpr std::uint32_t spot_shadow_code_sampler = 6;
+			merge.lights.shadows = !samplers.contains(shader::spot_shadow_sampler);
+			std::vector<zonetool::s2::MaterialShaderArgument> stable(lit_args.begin() + lit.perPrimArgCount + lit.perObjArgCount, lit_args.end());
+			auto next_row = (lit.stableArgSize + row_size - 1) / row_size;
+			merge.lights.render_target_size_row = next_row++;
+			merge.lights.tile_parms_row = next_row++;
+			if (clustered)
+			{
+				merge.lights.cluster_row = next_row;
+				next_row += static_cast<std::uint32_t>(light_cluster_consts.size());
+			}
+
+			add_light_tile_args(merge.lights, stable);
+
+			for (auto i = 0u; clustered && i < light_cluster_consts.size(); i++)
+			{
+				auto arg = make_arg(zonetool::s2::MTL_ARG_CODE_CONST, MTL_SHADER_STAGE_PIXEL, static_cast<unsigned short>(*merge.lights.cluster_row + i));
+				arg.u.codeConst = {light_cluster_consts[i], 0, 1};
+				stable.emplace_back(arg);
+			}
+
+			for (auto arg : convert_args(stable_list.data(), stable_list.size(), true, false))
+			{
+				const auto lit_arg = std::ranges::find_if(lit_args, [&](const zonetool::s2::MaterialShaderArgument& other) { return same_argument(arg, other); });
+				const auto is_constant = arg.type == zonetool::s2::MTL_ARG_CODE_CONST || arg.type == zonetool::s2::MTL_ARG_LITERAL_CONST;
+				const auto rows_count = arg.type == zonetool::s2::MTL_ARG_CODE_CONST ? std::max<std::uint32_t>(arg.u.codeConst.rowCount, 1u) : 1u;
+				const auto is_sampler = arg.type == zonetool::s2::MTL_ARG_CODE_SAMPLER || arg.type == zonetool::s2::MTL_ARG_MATERIAL_SAMPLER;
+				auto& slots = is_constant ? merge.stable_rows : is_sampler ? merge.sampler_slots : merge.texture_slots;
+				if (lit_arg != lit_args.end() && (!is_constant || lit_arg - lit_args.begin() >= lit.perPrimArgCount + lit.perObjArgCount))
+				{
+					for (auto row = 0u; row < rows_count; row++)
+					{
+						slots.emplace(arg.dest + row, lit_arg->dest + row);
+					}
+					continue;
+				}
+
+				const auto dest = is_constant ? next_row : is_sampler ? free_slot(samplers, 0, sampler_slot_count) : free_slot(textures, 0, texture_slot_count);
+				next_row += is_constant ? rows_count : 0;
+				for (auto row = 0u; row < rows_count; row++)
+				{
+					slots.emplace(arg.dest + row, dest + row);
+				}
+
+				arg.dest = static_cast<unsigned short>(dest);
+				stable.emplace_back(arg);
+			}
+
+			// s2 caps the loaded pixel shaders at 12144, so every lit pixel shader keeps one merged copy where the bytecode allows
+			const auto merged = shader::merge_light_program(lit.pixelShader->prog.loadDef.program, lit.pixelShader->prog.loadDef.programSize,
+				light.pixelShader->prog.loadDef.program, light.pixelShader->prog.loadDef.programSize, merge);
+			auto& pixel_shader = merged_pixel_shaders[merged.data];
+			if (!pixel_shader)
+			{
+				const auto variant = merged_pixel_shader_names[lit.pixelShader->name]++;
+				pixel_shader = native_allocator.allocate<zonetool::s2::MaterialPixelShader>();
+				pixel_shader->name = native_allocator.duplicate_string(variant ? utils::string::va("%s_fpl%u", lit.pixelShader->name, variant)
+					: utils::string::va("%s_fpl", lit.pixelShader->name));
+				pixel_shader->prog.loadDef.programSize = static_cast<unsigned int>(merged.data.size());
+				pixel_shader->prog.loadDef.program = native_allocator.allocate_array<unsigned char>(merged.data.size());
+				std::memcpy(pixel_shader->prog.loadDef.program, merged.data.data(), merged.data.size());
+			}
+
+			std::vector<zonetool::s2::MaterialShaderArgument> per_prim_obj(lit_args.begin(), lit_args.begin() + lit.perPrimArgCount + lit.perObjArgCount);
+			relocate_texture_args(per_prim_obj, merged.texture_slots);
+			relocate_texture_args(stable, merged.texture_slots);
+			// after the relocation, which moves lit textures off the forward light slots these take
+			if (merge.lights.shadows)
+			{
+				for (const auto& [type, dest, source] : {std::tuple{zonetool::s2::MTL_ARG_CODE_TEXTURE, shader::spot_shadow_slot, spot_shadow_code_texture},
+					std::tuple{zonetool::s2::MTL_ARG_CODE_TEXTURE, shader::spot_shadow_dynamic_slot, spot_shadow_dynamic_code_texture},
+					std::tuple{zonetool::s2::MTL_ARG_CODE_SAMPLER, shader::spot_shadow_sampler, spot_shadow_code_sampler}})
+				{
+					auto arg = make_arg(type, MTL_SHADER_STAGE_PIXEL, static_cast<unsigned short>(dest));
+					arg.u.codeSampler = source;
+					stable.emplace_back(arg);
+				}
+			}
+			std::ranges::stable_sort(stable, {}, &zonetool::s2::MaterialShaderArgument::type);
+			check_group_size(stable);
+
+			const auto arg_count = lit.perPrimArgCount + lit.perObjArgCount + stable.size();
+			auto* args = native_allocator.allocate_array<zonetool::s2::MaterialShaderArgument>(arg_count);
+			std::ranges::copy(per_prim_obj, args);
+			std::ranges::copy(stable, args + lit.perPrimArgCount + lit.perObjArgCount);
+
+			auto* result = static_cast<zonetool::s2::MaterialTechnique*>(native_allocator.allocate(sizeof(zonetool::s2::MaterialTechnique)));
+			result->hdr = base->hdr;
+			result->hdr.name = native_allocator.duplicate_string(std::string(base->hdr.name) + (clustered ? "_plightc" : "_plight"));
+			result->passArray[0] = lit;
+			auto& pass = result->passArray[0];
+			pass.pixelShader = pixel_shader;
+			pass.args = args;
+			pass.stableArgCount = static_cast<unsigned char>(stable.size());
+			pass.stableArgSize = arg_size(lit.stableArgSize, next_row);
+			pass.customBufferFlags |= clustered ? custom_buffer_forward_cluster_lighting : zonetool::s2::CUSTOM_BUFFER_FORWARD_LIGHTING;
+			if (clustered)
+			{
+				pass.customBufferFlags &= ~custom_buffer_light_tiles;
+			}
+
+			merged_light_techniques.emplace(key, result);
 			return result;
 		}
 
@@ -1238,7 +1671,112 @@ namespace zonetool::h1::converter::s2::techset
 			return exists(standard) ? standard : -1;
 		}
 
-		void convert_slot(const MaterialTechniqueSet* techset, const std::int32_t slot, native_techset& result)
+		// both passes of a technique read the material constant buffer of its slot, so the light pass reads each constant at the lit pass row
+		std::optional<material_rows> map_material_constants(const MaterialPass& base, const MaterialPass& light)
+		{
+			const auto args = [](const MaterialPass& pass)
+			{
+				return std::span(pass.args, pass.args ? pass.perPrimArgCount + pass.perObjArgCount + pass.stableArgCount : 0);
+			};
+
+			material_rows result;
+			for (const auto& arg : args(light))
+			{
+				if (arg.type != MTL_ARG_MATERIAL_CONST)
+				{
+					continue;
+				}
+
+				const auto lit = std::ranges::find_if(args(base), [&](const MaterialShaderArgument& other)
+				{
+					return other.type == MTL_ARG_MATERIAL_CONST && other.shader == arg.shader && other.u.nameHash == arg.u.nameHash;
+				});
+
+				if (lit == args(base).end())
+				{
+					return {};
+				}
+
+				if (arg.shader != MTL_SHADER_STAGE_VERTEX && arg.shader != MTL_SHADER_STAGE_PIXEL)
+				{
+					return {};
+				}
+
+				if (arg.dest != lit->dest)
+				{
+					result[arg.shader == MTL_SHADER_STAGE_VERTEX].emplace(arg.dest, lit->dest);
+				}
+			}
+
+			return result;
+		}
+
+		// h1 draws spot and omni lights in additive passes, s2 lit shaders loop over the forward+ lights: merge the light body, else add the pass
+		void add_light_pass(const MaterialTechniqueSet* techset, const std::int32_t slot, native_techset& result)
+		{
+			const auto type = slot % zonetool::s2::TECHNIQUE_GROUP_SIZE;
+			if (type <zonetool::s2::TECHNIQUE_LIT_BEGIN || type >= zonetool::s2::TECHNIQUE_LIT_END || !result.techset->techniques[slot])
+			{
+				return;
+			}
+
+			const auto group = slot - type;
+			// the dfog light technique only adds h1 fog, which the converted shaders read as off
+			auto source = find_group_technique(techset, group, TECHNIQUE_LIGHT_OMNI);
+			if (source < 0)
+			{
+				source = find_group_technique(techset, group, TECHNIQUE_LIGHT_OMNI_DFOG);
+			}
+
+			if (source < 0 || techset->techniques[source]->hdr.passCount != 1)
+			{
+				return;
+			}
+
+			const auto* light = techset->techniques[source];
+			static std::unordered_set<std::string> warned;
+			const auto rows = map_material_constants(techset->techniques[result.sources[slot]]->passArray[0], light->passArray[0]);
+			if (!rows)
+			{
+				if (warned.insert(light->hdr.name).second)
+				{
+					ZONETOOL_WARNING("technique \"%s\" draws no primary lights: its material constants differ from the lit pass", light->hdr.name);
+				}
+
+				return;
+			}
+
+			try
+			{
+				// h1 techsets without a depth prepass (ndw) are not in the depth the tile lists are culled with
+				const auto clustered = find_group_technique(techset, group, TECHNIQUE_ZPREPASS) < 0;
+				result.techset->techniques[slot] = merge_light_pass(result.techset->techniques[slot], light->passArray[0], *rows, clustered);
+				return;
+			}
+			catch (const std::exception& e)
+			{
+				static std::unordered_set<std::string> warned_merge;
+				if (warned_merge.insert(light->hdr.name).second)
+				{
+					ZONETOOL_WARNING("technique \"%s\" gets a separate light pass: %s", light->hdr.name, e.what());
+				}
+			}
+
+			try
+			{
+				result.techset->techniques[slot] = append_light_pass(result.techset->techniques[slot], light->passArray[0], *rows, slot);
+				result.light_sources[slot] = source;
+			}
+			catch (const std::exception& e)
+			{
+				if (warned.insert(light->hdr.name).second)
+				{
+					ZONETOOL_WARNING("technique \"%s\" draws no primary lights: %s", light->hdr.name, e.what());
+				}
+			}
+		}
+
+		void convert_slot(const MaterialTechniqueSet* techset, const std::int32_t slot, const bool sprite, native_techset& result)
 		{
 			const auto group = slot - slot % zonetool::s2::TECHNIQUE_GROUP_SIZE;
 			std::string error;
@@ -1252,8 +1790,13 @@ namespace zonetool::h1::converter::s2::techset
 
 				try
 				{
-					result.techset->techniques[slot] = convert_technique(techset->techniques[source], slot_light_grid(slot), slot);
+					result.techset->techniques[slot] = convert_technique(techset->techniques[source], slot_light_grid(slot), slot, sprite);
 					result.sources[slot] = source;
+					if (!sprite)
+					{
+						add_light_pass(techset, slot, result);
+					}
+
 					return;
 				}
 				catch (const std::exception& e)
@@ -1270,7 +1813,7 @@ namespace zonetool::h1::converter::s2::techset
 			}
 		}
 
-		native_techset build_native(const std::string& name)
+		native_techset build_native(const std::string& name, const bool sprite)
 		{
 			if (name.find("_reactivemotion") != std::string::npos)
 			{
@@ -1283,20 +1826,24 @@ namespace zonetool::h1::converter::s2::techset
 				throw std::runtime_error("the h1 techset is not loaded");
 			}
 
-			if (techset->worldVertFormat >= zonetool::s2::world_vert_format_count)
+			if (techset->worldVertFormat >= zonetool::s2::MTL_WORLDVERT_COUNT)
 			{
 				throw std::runtime_error(utils::string::va("world vertex format %u has no s2 mapping", techset->worldVertFormat));
 			}
 
 			native_techset result{native_allocator.allocate<zonetool::s2::MaterialTechniqueSet>()};
 			result.sources.fill(-1);
-			result.techset->name = native_allocator.duplicate_string(::game::add_source_postfix(name, ::game::h1));
+			result.light_sources.fill(-1);
+			result.techset->name = native_allocator.duplicate_string(::game::add_source_postfix(sprite ? name + "_sprite" : name, ::game::h1));
 			result.techset->flags = techset->flags;
 			result.techset->worldVertFormat = techset->worldVertFormat;
 			result.techset->preDisplacementOnlyCount = techset->preDisplacementOnlyCount;
-			for (auto slot = 0; slot < zonetool::s2::technique_count; slot++)
+
+			// stock sprite techsets fill only the standard group
+			const auto slot_count = sprite ? zonetool::s2::TECHNIQUE_GROUP_SIZE : zonetool::s2::technique_count;
+			for (auto slot = 0; slot < slot_count; slot++)
 			{
-				convert_slot(techset, slot, result);
+				convert_slot(techset, slot, sprite, result);
 			}
 
 			const auto empty = std::ranges::all_of(result.sources, [](const std::int32_t source)
@@ -1360,12 +1907,6 @@ namespace zonetool::h1::converter::s2::techset
 		}
 	}
 
-	void* s2_zone::find_asset(const zonetool::s2::XAssetType type) const
-	{
-		const auto& assets = this->find_assets(type);
-		return assets.empty() ? nullptr : assets.front();
-	}
-
 	const std::vector<void*>& s2_zone::find_assets(const zonetool::s2::XAssetType type) const
 	{
 		static const std::vector<void*> none;
@@ -1415,6 +1956,31 @@ namespace zonetool::h1::converter::s2::techset
 	database& s2_zone::db() const
 	{
 		return *this->database_;
+	}
+
+	const std::unordered_map<std::string, std::string>& common_rawfiles()
+	{
+		static const auto rawfiles = []
+		{
+			std::unordered_map<std::string, std::string> result;
+			const s2_zone common(s2_folder() / "zone" / "common_mp.ff");
+			for (const auto* asset : common.find_assets(zonetool::s2::ASSET_TYPE_RAWFILE))
+			{
+				const auto* rawfile = static_cast<const zonetool::s2::RawFile*>(asset);
+				if (!rawfile->name || !rawfile->buffer)
+				{
+					continue;
+				}
+
+				result.try_emplace(rawfile->name, rawfile->compressedLen > 0
+					? utils::compression::zlib::decompress({rawfile->buffer, static_cast<std::size_t>(rawfile->compressedLen)})
+					: std::string(rawfile->buffer, rawfile->len));
+			}
+
+			return result;
+		}();
+
+		return rawfiles;
 	}
 
 	const s2_zone& donor_zone()
@@ -1488,17 +2054,18 @@ namespace zonetool::h1::converter::s2::techset
 		return std::string(default_techsets.at(is_model_prefix(source.prefix) ? "mco" : "wc"));
 	}
 
-	const native_techset* convert_native(const std::string& h1_techset)
+	const native_techset* convert_native(const std::string& h1_techset, const bool sprite)
 	{
-		if (const auto entry = native_techsets.find(h1_techset); entry != native_techsets.end())
+		const auto key = std::make_pair(h1_techset, sprite);
+		if (const auto entry = native_techsets.find(key); entry != native_techsets.end())
 		{
 			return entry->second ? &*entry->second : nullptr;
 		}
 
-		auto& entry = native_techsets[h1_techset];
+		auto& entry = native_techsets[key];
 		try
 		{
-			entry = build_native(h1_techset);
+			entry = build_native(h1_techset, sprite);
 			ZONETOOL_INFO("techset %s -> %s (native)", h1_techset.data(), entry->techset->name);
 		}
 		catch (const std::exception& e)
@@ -1529,5 +2096,15 @@ namespace zonetool::h1::converter::s2::techset
 				dump_shader(pass.pixelShader);
 			}
 		}
+	}
+
+	void clear()
+	{
+		dumped_techsets.clear();
+		dumped_shaders<zonetool::s2::MaterialVertexShader>.clear();
+		dumped_shaders<zonetool::s2::MaterialVertexDeclaration>.clear();
+		dumped_shaders<zonetool::s2::MaterialHullShader>.clear();
+		dumped_shaders<zonetool::s2::MaterialDomainShader>.clear();
+		dumped_shaders<zonetool::s2::MaterialPixelShader>.clear();
 	}
 }

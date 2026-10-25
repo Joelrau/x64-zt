@@ -5968,10 +5968,9 @@ namespace zonetool::s1
 		unsigned char color[4];
 		unsigned char lightIndexConstIndex;
 		unsigned char transStateStreamIndex;
-		unsigned char useColor;
-		unsigned char useStateTransitionTime;
-		unsigned short intensityScaleMin;
-		unsigned short intensityScaleMax;
+		unsigned char flags;
+		float intensityScaleMin;
+		float intensityScaleMax;
 		unsigned short radiusScaleMin;
 		unsigned short radiusScaleMax;
 		unsigned short transitionTimeMin;
@@ -6957,8 +6956,7 @@ namespace zonetool::s1
 
 	struct GfxStaticModelInst
 	{
-		float mins[3];
-		float maxs[3];
+		Bounds bounds;
 		float lightingOrigin[3];
 	}; assert_sizeof(GfxStaticModelInst, 36);
 

@@ -3,6 +3,8 @@
 #include "../include.hpp"
 #include "clipmap.hpp"
 #include "mapents.hpp"
+#include "physpreset.hpp"
+#include "sound.hpp"
 
 namespace zonetool::h1::converter::s2::clipmap
 {
@@ -10,14 +12,6 @@ namespace zonetool::h1::converter::s2::clipmap
 	{
 		constexpr std::uint8_t transient_zone = 0;
 		constexpr std::uint8_t no_transient_zone = 0xFF;
-
-		const std::unordered_set<std::string> s2_global_phys_presets
-		{
-			"default", "phys_brick", "phys_cloth", "phys_flesh", "phys_fruit", "phys_glass", "phys_metal_chain",
-			"phys_metal_hollow", "phys_metal_hollow_sml", "phys_metal_solid", "phys_metal_thin", "phys_metal_vehicle",
-			"phys_metal_weapon", "phys_plastic_hollow", "phys_plastic_solid", "phys_wood_debris", "phys_wood_solid",
-			"phys_wood_solid_donotcollide",
-		};
 
 		clipMap_t* pending_clip_map = nullptr;
 
@@ -168,17 +162,17 @@ namespace zonetool::h1::converter::s2::clipmap
 			for (auto i = 0u; i < data.numBrushes; i++)
 			{
 				const auto& brush = data.brushes[i];
-				brushes[i].sides = brush.numsides ? reinterpret_cast<zonetool::s2::cbrushside_t*>(brush.sides) : nullptr;
+				brushes[i].sides = brush.numsides ? retype<zonetool::s2::cbrushside_t>(brush.sides) : nullptr;
 				brushes[i].numsides = brush.numsides;
 				std::memcpy(brushes[i].axialMaterialNum, brush.axialMaterialNum, sizeof(brush.axialMaterialNum));
 				contents[i] = static_cast<std::uint32_t>(data.brushContents[i]);
 			}
 
-			new_data.brushSides = reinterpret_cast<zonetool::s2::cbrushside_t*>(data.brushSides);
+			new_data.brushSides = retype<zonetool::s2::cbrushside_t>(data.brushSides);
 			new_data.numBrushSides = data.numBrushSides;
 			new_data.numBrushes = data.numBrushes;
 			new_data.brushes = brushes;
-			new_data.brushBounds = reinterpret_cast<zonetool::s2::Bounds*>(data.brushBounds);
+			new_data.brushBounds = retype<zonetool::s2::Bounds>(data.brushBounds);
 			new_data.brushContents = contents;
 		}
 
@@ -241,12 +235,12 @@ namespace zonetool::h1::converter::s2::clipmap
 			}
 
 			new_data.vertCount = data.vertCount;
-			new_data.verts = reinterpret_cast<zonetool::s2::vec3_t*>(data.verts);
+			new_data.verts = retype<zonetool::s2::vec3_t>(data.verts);
 			new_data.triCount = data.triCount;
 			new_data.triIndices = tri_indices;
 			new_data.triEdgeIsWalkable = data.triEdgeIsWalkable;
 			new_data.borderCount = data.borderCount;
-			new_data.borders = reinterpret_cast<zonetool::s2::CollisionBorder*>(data.borders);
+			new_data.borders = retype<zonetool::s2::CollisionBorder>(data.borders);
 			new_data.partitionCount = data.partitionCount;
 			new_data.partitions = partitions;
 		}
@@ -278,7 +272,7 @@ namespace zonetool::h1::converter::s2::clipmap
 			const auto nodes = allocator.allocate_array<zonetool::s2::cNode_t>(asset->numNodes);
 			for (auto i = 0u; i < asset->numNodes; i++)
 			{
-				nodes[i].plane = reinterpret_cast<zonetool::s2::cplane_s*>(asset->nodes[i].plane);
+				nodes[i].plane = retype<zonetool::s2::cplane_s>(asset->nodes[i].plane);
 				nodes[i].children[0] = asset->nodes[i].children[0];
 				nodes[i].children[1] = asset->nodes[i].children[1];
 				nodes[i].transientZone = no_transient_zone;
@@ -331,27 +325,12 @@ namespace zonetool::h1::converter::s2::clipmap
 		void convert_stages(const clipMap_t* asset, zonetool::s2::clipMap_t* new_asset, utils::memory::allocator& allocator)
 		{
 			new_asset->stageCount = asset->stageCount;
-			new_asset->stages = reinterpret_cast<zonetool::s2::Stage*>(asset->stages);
+			new_asset->stages = retype<zonetool::s2::Stage>(asset->stages);
 			new_asset->stageTrigger = mapents::convert_triggers(asset->stageTrigger, allocator);
-		}
-
-		zonetool::s2::PhysPreset* convert_phys_preset(const PhysPreset* preset, std::unordered_map<std::string, zonetool::s2::PhysPreset*>& presets,
-			utils::memory::allocator& allocator)
-		{
-			const std::string name = preset && preset->name && s2_global_phys_presets.contains(preset->name) ? preset->name : "default";
-			auto& result = presets[name];
-			if (!result)
-			{
-				result = make_stub<zonetool::s2::PhysPreset>(allocator.duplicate_string(name), allocator);
-				add_csv_row("physpreset", name, true);
-			}
-
-			return result;
 		}
 
 		void convert_dyn_ents(const clipMap_t* asset, zonetool::s2::clipMap_t* new_asset, utils::memory::allocator& allocator)
 		{
-			std::unordered_map<std::string, zonetool::s2::PhysPreset*> phys_presets;
 			for (auto i = 0; i < 2; i++)
 			{
 				const auto count = asset->dynEntCount[i];
@@ -373,9 +352,12 @@ namespace zonetool::h1::converter::s2::clipmap
 					new_def.physicsBrushModel = def.physicsBrushModel;
 					new_def.scriptableIndex = def.scriptableIndex;
 					new_def.health = def.health;
-					new_def.physPreset = convert_phys_preset(def.physPreset, phys_presets, allocator);
-					new_def.hinge = reinterpret_cast<zonetool::s2::DynEntityHingeDef*>(def.hinge);
-					new_def.linkTo = reinterpret_cast<zonetool::s2::DynEntityLinkToDef*>(def.linkTo);
+					new_def.destroyFx = reinterpret_cast<zonetool::s2::FxEffectDef*>(def.destroyFx);
+					new_def.sound = reinterpret_cast<zonetool::s2::snd_alias_list_t*>(def.sound);
+					sound::dump_used(def.sound, "dynent sound");
+					new_def.physPreset = physpreset::reference(def.physPreset, def.baseModel, allocator);
+					new_def.hinge = retype<zonetool::s2::DynEntityHingeDef>(def.hinge);
+					new_def.linkTo = retype<zonetool::s2::DynEntityLinkToDef>(def.linkTo);
 					new_def.contents = static_cast<std::uint32_t>(def.contents);
 					std::memcpy(new_def.unk_0x70, def.unk, sizeof(new_def.unk_0x70));
 				}
@@ -395,7 +377,7 @@ namespace zonetool::h1::converter::s2::clipmap
 			const auto& info = asset->info;
 			auto& new_info = new_asset->info;
 			new_info.planeCount = info.planeCount;
-			new_info.planes = reinterpret_cast<zonetool::s2::cplane_s*>(info.planes);
+			new_info.planes = retype<zonetool::s2::cplane_s>(info.planes);
 			convert_materials(info, new_info, allocator);
 			convert_leaf_brush_nodes(info, new_info, allocator);
 			const auto partition_materials = convert_aabb_trees(asset, new_info, allocator);

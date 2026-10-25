@@ -163,6 +163,49 @@ namespace zonetool::cli
 		settings.game->dump_zone(settings.zone_folder(), *path, *converter);
 	}
 
+	void dump_map(const settings& settings, const std::span<const std::string> args)
+	{
+		constexpr std::string_view usage = "dumpmap <map> [--target <game>] [--skip-common]";
+
+		if (!settings.game->dump_map)
+		{
+			std::cout << std::format("dumpmap is not supported for {}\n", settings.game->name);
+			return;
+		}
+
+		std::string_view target_name;
+		auto skip_common = false;
+		for (auto i = 1u; i < args.size(); ++i)
+		{
+			if (args[i] == "--skip-common")
+			{
+				skip_common = true;
+			}
+			else if (args[i] == "--target" && i + 1 < args.size())
+			{
+				target_name = args[++i];
+			}
+			else
+			{
+				std::cout << std::format("usage: {}\n", usage);
+				return;
+			}
+		}
+
+		if (!require_zone(settings, args, usage))
+		{
+			return;
+		}
+
+		const auto converter = select_converter(settings, target_name);
+		if (!converter)
+		{
+			return;
+		}
+
+		settings.game->dump_map(settings.zone_folder(), args.front(), *converter, skip_common);
+	}
+
 	void dump_asset(const settings& settings, const std::span<const std::string> args)
 	{
 		constexpr std::string_view usage = "dumpasset <type> <name> <zone> [--target <game>]";

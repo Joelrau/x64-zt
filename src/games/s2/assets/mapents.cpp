@@ -331,6 +331,189 @@ namespace zonetool::s2
 				clip_map::dump_info(write, info);
 			}
 		}
+
+		std::string ents_path(const std::string& name, const std::string_view part)
+		{
+			return dump_path(ASSET_TYPE_MAP_ENTS, name.data(), std::format(".ents{}", part));
+		}
+
+		template <typename T>
+		void dump_part(const std::string& name, const std::string_view part, T* header, const std::function<void(assetmanager::dumper&)>& body)
+		{
+			assetmanager::dumper write;
+			if (!write.open(ents_path(name, part)))
+			{
+				return;
+			}
+
+			write.dump_single(header);
+			body(write);
+			write.close();
+		}
+
+		template <typename T>
+		void parse_part(zone_memory* mem, const std::string& name, const std::string_view part, T* header,
+			const std::function<void(assetmanager::reader&)>& body)
+		{
+			assetmanager::reader read(mem);
+			if (!read.open(ents_path(name, part)))
+			{
+				*header = {}; // the .bin header still holds the dumped pointers
+				return;
+			}
+
+			*header = *read.read_single<T>();
+			body(read);
+			read.close();
+		}
+
+		void dump_entity_string(const MapEnts* asset)
+		{
+			filesystem::file file(ents_path(asset->name, ""));
+			file.open("wb");
+			if (!file.get_fp())
+			{
+				return;
+			}
+
+			auto text = std::string_view(asset->entityString ? asset->entityString : "", asset->entityString ? asset->numEntityChars : 0);
+			text = text.substr(0, text.find('\0'));
+			file.write(text.data(), text.size(), 1);
+			file.close();
+		}
+
+		bool parse_entity_string(zone_memory* mem, const std::string& name, MapEnts* asset)
+		{
+			filesystem::file file(ents_path(name, ""));
+			file.open("rb");
+			if (!file.get_fp())
+			{
+				return false;
+			}
+
+			const auto bytes = file.read_bytes(file.size());
+			file.close();
+
+			asset->numEntityChars = static_cast<int>(bytes.size() + 1); // the zone keeps the terminator
+			asset->entityString = mem->allocate<char>(bytes.size() + 1);
+			std::memcpy(asset->entityString, bytes.data(), bytes.size());
+			return true;
+		}
+
+		void dump_spawn_list(const MapEnts* asset)
+		{
+			const auto* list = &asset->spawnList;
+			auto data = ordered_json::array();
+			for (auto i = 0; list->spawns && i < list->spawnsCount; i++)
+			{
+				const auto& spawn = list->spawns[i];
+				auto& entry = data.emplace_back();
+				dump_script_string(entry["name"], spawn.name);
+				dump_script_string(entry["target"], spawn.target);
+				dump_script_string(entry["script_noteworthy"], spawn.script_noteworthy);
+				dump_script_string(entry["targetname"], spawn.targetname);
+				entry["origin"] = {spawn.origin[0], spawn.origin[1], spawn.origin[2]};
+				entry["angles"] = {spawn.angles[0], spawn.angles[1], spawn.angles[2]};
+			}
+
+			filesystem::file file(ents_path(asset->name, ".spawnList.json"));
+			file.open("wb");
+			if (file.get_fp())
+			{
+				file.write(data.dump(4));
+				file.close();
+			}
+		}
+
+		void parse_spawn_list(zone_memory* mem, const std::string& name, SpawnPointRecordList* list)
+		{
+			filesystem::file file(ents_path(name, ".spawnList.json"));
+			file.open("rb");
+			if (!file.get_fp())
+			{
+				*list = {};
+				return;
+			}
+
+			const auto bytes = file.read_bytes(file.size());
+			file.close();
+
+			const auto data = json::parse(bytes);
+			list->spawnsCount = static_cast<unsigned short>(data.size());
+			list->spawns = mem->allocate<SpawnPointEntityRecord>(list->spawnsCount);
+			for (auto i = 0; i < list->spawnsCount; i++)
+			{
+				const auto& entry = data[i];
+				auto& spawn = list->spawns[i];
+				spawn.index = static_cast<unsigned short>(i);
+				spawn.name = parse_script_string(entry["name"]);
+				spawn.target = parse_script_string(entry["target"]);
+				spawn.script_noteworthy = parse_script_string(entry["script_noteworthy"]);
+				spawn.targetname = parse_script_string(entry["targetname"]);
+				for (auto j = 0; j < 3; j++)
+				{
+					spawn.origin[j] = entry["origin"][j].get<float>();
+					spawn.angles[j] = entry["angles"][j].get<float>();
+				}
+			}
+		}
+
+		void dump_scriptable_map_ents(assetmanager::dumper& write, ScriptableMapEnts* scriptable)
+		{
+			write.dump_array(scriptable->instances, scriptable->instanceCount);
+			for (auto i = 0u; scriptable->instances && i < scriptable->instanceCount; i++)
+			{
+				dump_scriptable_instance(write, &scriptable->instances[i]);
+			}
+			write.dump_array(scriptable->animEntries, scriptable->animEntryCount);
+			for (auto i = 0u; scriptable->animEntries && i < scriptable->animEntryCount; i++)
+			{
+				write.dump_string(scriptable->animEntries[i].animName);
+			}
+		}
+
+		void parse_scriptable_map_ents(assetmanager::reader& read, zone_memory* mem, ScriptableMapEnts* scriptable)
+		{
+			if (const auto instances = parse_array(read, mem, scriptable->instances, scriptable->instanceCount))
+			{
+				for (auto i = 0u; i < scriptable->instanceCount; i++)
+				{
+					parse_scriptable_instance(read, mem, &instances[i]);
+				}
+			}
+			if (const auto entries = parse_array(read, mem, scriptable->animEntries, scriptable->animEntryCount))
+			{
+				for (auto i = 0u; i < scriptable->animEntryCount; i++)
+				{
+					entries[i].animName = read.read_string();
+				}
+			}
+		}
+
+		void dump_unknown(assetmanager::dumper& write, MapEnts* asset)
+		{
+			write.dump_array(asset->unk344.entries, asset->unk344.count);
+			for (auto i = 0; asset->unk344.entries && i < asset->unk344.count; i++)
+			{
+				dump_script_strings(write, asset->unk344.entries[i].names, std::size(asset->unk344.entries[i].names));
+			}
+			write.dump_array(asset->unk360.entries, asset->unk360.count);
+		}
+
+		void parse_unknown(assetmanager::reader& read, zone_memory* mem, MapEnts* asset)
+		{
+			if (const auto entries = parse_array(read, mem, asset->unk344.entries, asset->unk344.count))
+			{
+				for (auto i = 0; i < asset->unk344.count; i++)
+				{
+					for (auto& entry_name : entries[i].names)
+					{
+						entry_name = parse_script_string(read);
+					}
+				}
+			}
+			parse_array(read, mem, asset->unk360.entries, asset->unk360.count);
+		}
 	}
 
 	void map_ents::read_triggers(zone_reader& reader, MapTriggers* trigger)
@@ -411,8 +594,80 @@ namespace zonetool::s2
 		reader.pop_stream();
 	}
 
+	namespace
+	{
+		// the format dumped before the split, one file with every part
+		MapEnts* parse_single_file(const std::string& name, zone_memory* mem)
+		{
+			assetmanager::reader read(mem);
+			if (!read.open(dump_path(ASSET_TYPE_MAP_ENTS, name.data())))
+			{
+				return nullptr;
+			}
+
+			ZONETOOL_INFO("Parsing mapents \"%s\"...", name.data());
+
+			auto* asset = read.read_single<MapEnts>();
+			asset->name = read.read_string();
+			parse_array(read, mem, asset->entityString, asset->numEntityChars);
+			map_ents::parse_triggers(read, mem, &asset->trigger);
+			parse_client_triggers(read, mem, &asset->clientTrigger);
+			parse_array(read, mem, asset->clientTriggerBlend.blendNodes, asset->clientTriggerBlend.numClientTriggerBlendNodes);
+
+			auto* spawn_list = &asset->spawnList;
+			if (const auto spawns = parse_array(read, mem, spawn_list->spawns, spawn_list->spawnsCount))
+			{
+				for (auto i = 0; i < spawn_list->spawnsCount; i++)
+				{
+					spawns[i].name = parse_script_string(read);
+					spawns[i].target = parse_script_string(read);
+					spawns[i].script_noteworthy = parse_script_string(read);
+					spawns[i].targetname = parse_script_string(read);
+				}
+			}
+			parse_spline_list(read, mem, &asset->splineList);
+
+			auto* scriptable = &asset->scriptableMapEnts;
+			if (const auto instances = parse_array(read, mem, scriptable->instances, scriptable->instanceCount))
+			{
+				for (auto i = 0u; i < scriptable->instanceCount; i++)
+				{
+					parse_scriptable_instance(read, mem, &instances[i]);
+				}
+			}
+			if (const auto entries = parse_array(read, mem, scriptable->animEntries, scriptable->animEntryCount))
+			{
+				for (auto i = 0u; i < scriptable->animEntryCount; i++)
+				{
+					entries[i].animName = read.read_string();
+				}
+			}
+
+			if (const auto entries = parse_array(read, mem, asset->unk344.entries, asset->unk344.count))
+			{
+				for (auto i = 0; i < asset->unk344.count; i++)
+				{
+					for (auto& entry_name : entries[i].names)
+					{
+						entry_name = parse_script_string(read);
+					}
+				}
+			}
+			parse_array(read, mem, asset->unk360.entries, asset->unk360.count);
+			read.close();
+
+			return asset;
+		}
+	}
+
 	MapEnts* map_ents::parse(const std::string& name, zone_memory* mem)
 	{
+		if (!filesystem::file(ents_path(name, "")).exists())
+		{
+			return parse_single_file(name, mem);
+		}
+
+		// the .bin keeps the header and the unknown parts
 		assetmanager::reader read(mem);
 		if (!read.open(dump_path(ASSET_TYPE_MAP_ENTS, name.data())))
 		{
@@ -423,52 +678,31 @@ namespace zonetool::s2
 
 		auto* asset = read.read_single<MapEnts>();
 		asset->name = read.read_string();
-		parse_array(read, mem, asset->entityString, asset->numEntityChars);
-		parse_triggers(read, mem, &asset->trigger);
-		parse_client_triggers(read, mem, &asset->clientTrigger);
-		parse_array(read, mem, asset->clientTriggerBlend.blendNodes, asset->clientTriggerBlend.numClientTriggerBlendNodes);
-
-		auto* spawn_list = &asset->spawnList;
-		if (const auto spawns = parse_array(read, mem, spawn_list->spawns, spawn_list->spawnsCount))
-		{
-			for (auto i = 0; i < spawn_list->spawnsCount; i++)
-			{
-				spawns[i].name = parse_script_string(read);
-				spawns[i].target = parse_script_string(read);
-				spawns[i].script_noteworthy = parse_script_string(read);
-				spawns[i].targetname = parse_script_string(read);
-			}
-		}
-		parse_spline_list(read, mem, &asset->splineList);
-
-		auto* scriptable = &asset->scriptableMapEnts;
-		if (const auto instances = parse_array(read, mem, scriptable->instances, scriptable->instanceCount))
-		{
-			for (auto i = 0u; i < scriptable->instanceCount; i++)
-			{
-				parse_scriptable_instance(read, mem, &instances[i]);
-			}
-		}
-		if (const auto entries = parse_array(read, mem, scriptable->animEntries, scriptable->animEntryCount))
-		{
-			for (auto i = 0u; i < scriptable->animEntryCount; i++)
-			{
-				entries[i].animName = read.read_string();
-			}
-		}
-
-		if (const auto entries = parse_array(read, mem, asset->unk344.entries, asset->unk344.count))
-		{
-			for (auto i = 0; i < asset->unk344.count; i++)
-			{
-				for (auto& entry_name : entries[i].names)
-				{
-					entry_name = parse_script_string(read);
-				}
-			}
-		}
-		parse_array(read, mem, asset->unk360.entries, asset->unk360.count);
+		parse_unknown(read, mem, asset);
 		read.close();
+
+		parse_entity_string(mem, name, asset);
+		parse_part(mem, name, ".triggers", &asset->trigger, [&](assetmanager::reader& part)
+		{
+			parse_triggers(part, mem, &asset->trigger);
+		});
+		parse_part(mem, name, ".clientTriggers", &asset->clientTrigger, [&](assetmanager::reader& part)
+		{
+			parse_client_triggers(part, mem, &asset->clientTrigger);
+		});
+		parse_part(mem, name, ".clientBlendTriggers", &asset->clientTriggerBlend, [&](assetmanager::reader& part)
+		{
+			parse_array(part, mem, asset->clientTriggerBlend.blendNodes, asset->clientTriggerBlend.numClientTriggerBlendNodes);
+		});
+		parse_spawn_list(mem, name, &asset->spawnList);
+		parse_part(mem, name, ".splineList", &asset->splineList, [&](assetmanager::reader& part)
+		{
+			parse_spline_list(part, mem, &asset->splineList);
+		});
+		parse_part(mem, name, ".scriptables", &asset->scriptableMapEnts, [&](assetmanager::reader& part)
+		{
+			parse_scriptable_map_ents(part, mem, &asset->scriptableMapEnts);
+		});
 
 		return asset;
 	}
@@ -559,43 +793,35 @@ namespace zonetool::s2
 			return;
 		}
 
+		// the .bin keeps the header and the unknown parts, everything else goes into its own .ents file
 		write.dump_single(asset);
 		write.dump_string(asset->name);
-		write.dump_array(asset->entityString, asset->numEntityChars);
-		dump_triggers(write, &asset->trigger);
-		dump_client_triggers(write, &asset->clientTrigger);
-		write.dump_array(asset->clientTriggerBlend.blendNodes, asset->clientTriggerBlend.numClientTriggerBlendNodes);
-
-		auto* spawn_list = &asset->spawnList;
-		write.dump_array(spawn_list->spawns, spawn_list->spawnsCount);
-		for (auto i = 0; spawn_list->spawns && i < spawn_list->spawnsCount; i++)
-		{
-			dump_script_string(write, spawn_list->spawns[i].name);
-			dump_script_string(write, spawn_list->spawns[i].target);
-			dump_script_string(write, spawn_list->spawns[i].script_noteworthy);
-			dump_script_string(write, spawn_list->spawns[i].targetname);
-		}
-		dump_spline_list(write, &asset->splineList);
-
-		auto* scriptable = &asset->scriptableMapEnts;
-		write.dump_array(scriptable->instances, scriptable->instanceCount);
-		for (auto i = 0u; scriptable->instances && i < scriptable->instanceCount; i++)
-		{
-			dump_scriptable_instance(write, &scriptable->instances[i]);
-		}
-		write.dump_array(scriptable->animEntries, scriptable->animEntryCount);
-		for (auto i = 0u; scriptable->animEntries && i < scriptable->animEntryCount; i++)
-		{
-			write.dump_string(scriptable->animEntries[i].animName);
-		}
-
-		write.dump_array(asset->unk344.entries, asset->unk344.count);
-		for (auto i = 0; asset->unk344.entries && i < asset->unk344.count; i++)
-		{
-			dump_script_strings(write, asset->unk344.entries[i].names, std::size(asset->unk344.entries[i].names));
-		}
-		write.dump_array(asset->unk360.entries, asset->unk360.count);
+		dump_unknown(write, asset);
 		write.close();
+
+		const std::string name = asset->name;
+		dump_entity_string(asset);
+		dump_part(name, ".triggers", &asset->trigger, [&](assetmanager::dumper& part)
+		{
+			dump_triggers(part, &asset->trigger);
+		});
+		dump_part(name, ".clientTriggers", &asset->clientTrigger, [&](assetmanager::dumper& part)
+		{
+			dump_client_triggers(part, &asset->clientTrigger);
+		});
+		dump_part(name, ".clientBlendTriggers", &asset->clientTriggerBlend, [&](assetmanager::dumper& part)
+		{
+			part.dump_array(asset->clientTriggerBlend.blendNodes, asset->clientTriggerBlend.numClientTriggerBlendNodes);
+		});
+		dump_spawn_list(asset);
+		dump_part(name, ".splineList", &asset->splineList, [&](assetmanager::dumper& part)
+		{
+			dump_spline_list(part, &asset->splineList);
+		});
+		dump_part(name, ".scriptables", &asset->scriptableMapEnts, [&](assetmanager::dumper& part)
+		{
+			dump_scriptable_map_ents(part, &asset->scriptableMapEnts);
+		});
 	}
 
 	void addon_map_ents::read(zone_reader& reader, AddonMapEnts* asset)

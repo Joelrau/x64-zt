@@ -42,6 +42,7 @@
 	x(ASSET_TYPE_XMODEL_SURFS, xmodel_surfs, XModelSurfs) \
 	x(ASSET_TYPE_XMODEL_BASE, xmodel_base, XModelBase) \
 	x(ASSET_TYPE_XMODEL, xmodel, XModel) \
+	x(ASSET_TYPE_MAYHEM, mayhem, Mayhem) \
 	x(ASSET_TYPE_PHYSCOLLMAP, phys_collmap, PhysCollmap) \
 	x(ASSET_TYPE_XANIM, xanim_parts, XAnimParts) \
 	x(ASSET_TYPE_SOUND, sound, snd_alias_list_t) \
@@ -74,6 +75,7 @@
 	x(ASSET_TYPE_NAVMESH, nav_mesh, NavMeshData) \
 	x(ASSET_TYPE_FXWORLD, fx_world, FxWorld) \
 	x(ASSET_TYPE_PATHDATA, path_data, PathData) \
+	x(ASSET_TYPE_VEHICLE_TRACK, vehicle_track, VehicleTrack) \
 	x(ASSET_TYPE_MAP_ENTS, map_ents, MapEnts) \
 	x(ASSET_TYPE_CLIPMAP, clip_map, clipMap_t) \
 	x(ASSET_TYPE_ADDON_MAP_ENTS, addon_map_ents, AddonMapEnts) \
@@ -126,6 +128,7 @@ namespace zonetool::s2
 #include "assets/fxworld.hpp"
 #include "assets/gfxworld.hpp"
 #include "assets/vehicle.hpp"
+#include "assets/mayhem.hpp"
 
 #include "zone/zone.hpp"
 

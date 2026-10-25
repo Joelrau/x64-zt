@@ -117,24 +117,130 @@ namespace zonetool::h2
 			return type != ASSET_TYPE_VERTEXDECL;
 		}
 
-		void write_asset_csv(const loaded_zone& zone)
+		enum class map_zone_dump
 		{
-			filesystem::file csv(zone.name + ".csv");
-			csv.open("wb");
+			none,
+			referenced,
+			all,
+		};
 
-			for (const auto& asset : zone.assets)
+		struct map_zone
+		{
+			std::string name;
+			map_zone_dump dump;
+		};
+
+		struct map_asset_list
+		{
+			std::vector<loaded_asset> assets;
+			std::unordered_map<std::pair<std::uint32_t, std::string>, std::size_t, pair_hash<std::uint32_t, std::string>> indices;
+
+			void add(const loaded_asset& asset)
 			{
-				csv.write(std::format("{},{}{}\n", type_to_string(asset.type),
-					asset.referenced ? "," : "", get_asset_name(asset.type, asset.header)));
+				const auto [entry, inserted] = this->indices.try_emplace({asset.type, get_asset_name(asset.type, asset.header)},
+					this->assets.size());
+				if (inserted)
+				{
+					this->assets.emplace_back(asset);
+				}
+				else if (!asset.referenced)
+				{
+					this->assets[entry->second] = asset;
+				}
 			}
+		};
 
-			csv.close();
+		std::vector<map_zone> map_zones(const std::string& map)
+		{
+			return
+			{
+				{"code_post_gfx", map_zone_dump::referenced},
+				{"common", map_zone_dump::referenced},
+				{"techsets_common", map_zone_dump::referenced},
+				{"techsets_" + map, map_zone_dump::all},
+				{"eng_patch_" + map, map_zone_dump::all},
+				{"patch_" + map, map_zone_dump::all},
+				{map, map_zone_dump::all},
+			};
 		}
 
-		void prepare_paths(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path)
+		// the loader points a reference at the header of the zone that holds the asset
+		std::unordered_set<const void*> collect_map_references(const std::vector<std::pair<std::unique_ptr<loaded_zone>, map_zone_dump>>& zones)
+		{
+			std::unordered_set<const void*> references;
+			for (const auto& [zone, dump] : zones)
+			{
+				for (const auto& asset : zone->assets)
+				{
+					if (dump == map_zone_dump::all && asset.referenced)
+					{
+						references.insert(asset.header);
+					}
+				}
+			}
+
+			return references;
+		}
+
+		bool is_map_zone_asset(const loaded_asset& asset, const map_zone_dump dump, const std::unordered_set<const void*>& references)
+		{
+			if (asset.referenced || !is_dumped_type(asset.type))
+			{
+				return false;
+			}
+
+			return dump == map_zone_dump::all || (dump == map_zone_dump::referenced && references.contains(asset.header));
+		}
+
+		void dump_zone_asset(const loaded_asset& asset, const converter* converter)
+		{
+			try
+			{
+				if (converter)
+				{
+					converter->dump_asset(asset.type, asset.header);
+				}
+				else
+				{
+					dump_asset(asset);
+				}
+			}
+			catch (const std::exception& e)
+			{
+				ZONETOOL_ERROR("Failed to dump %s \"%s\": %s", type_to_string(asset.type),
+					get_asset_name(asset.type, asset.header), e.what());
+			}
+		}
+
+		// a converter may replace <name>.csv with its build list in finish, the source listing stays in <name>.<source>.csv
+		void write_asset_csv(const std::string& name, const std::vector<loaded_asset>& assets, const converter* converter)
+		{
+			std::string text;
+			for (const auto& asset : assets)
+			{
+				text += std::format("{},{}{}\n", type_to_string(asset.type),
+					asset.referenced ? "," : "", get_asset_name(asset.type, asset.header));
+			}
+
+			const auto write = [&](const std::string& file_name)
+			{
+				filesystem::file csv(file_name);
+				csv.open("wb");
+				csv.write(text);
+				csv.close();
+			};
+
+			write(name + ".csv");
+			if (converter)
+			{
+				write(std::format("{}.{}.csv", name, converter->source));
+			}
+		}
+
+		void prepare_paths(const std::filesystem::path& zone_folder, const std::string& fastfile)
 		{
 			filesystem::set_zone_folder(zone_folder);
-			filesystem::set_fastfile(zone_path.stem().string());
+			filesystem::set_fastfile(fastfile);
 			filesystem::set_language("english", "eng");
 		}
 	}
@@ -181,7 +287,7 @@ namespace zonetool::h2
 	{
 		const auto _ = gsl::finally(db_clear);
 
-		prepare_paths(zone_folder, zone_path);
+		prepare_paths(zone_folder, zone_path.stem().string());
 		ZONETOOL_INFO("Loading zone \"%s\"...", zone_path.stem().string().data());
 		const auto zone = load_zone(zone_path);
 
@@ -193,30 +299,63 @@ namespace zonetool::h2
 				continue;
 			}
 
-			try
-			{
-				if (converter)
-				{
-					converter->dump_asset(asset.type, asset.header);
-				}
-				else
-				{
-					dump_asset(asset);
-				}
-			}
-			catch (const std::exception& e)
-			{
-				ZONETOOL_ERROR("Failed to dump %s \"%s\": %s", type_to_string(asset.type),
-					get_asset_name(asset.type, asset.header), e.what());
-			}
+			dump_zone_asset(asset, converter);
 		}
 
-		write_asset_csv(*zone);
+		write_asset_csv(zone->name, zone->assets, converter);
 		if (converter && converter->finish)
 		{
 			converter->finish(zone->name);
 		}
 		ZONETOOL_INFO("Zone \"%s\" dumped to %s", zone->name.data(), filesystem::get_dump_path().data());
+	}
+
+	void dump_map(const std::filesystem::path& zone_folder, const std::string& map, const converter* converter, const bool skip_common)
+	{
+		const auto _ = gsl::finally(db_clear);
+
+		prepare_paths(zone_folder, map);
+
+		std::vector<std::pair<std::unique_ptr<loaded_zone>, map_zone_dump>> zones;
+		for (const auto& [name, dump] : map_zones(map))
+		{
+			const auto path = game_files::find_zone(name);
+			if (!path)
+			{
+				ZONETOOL_INFO("Zone \"%s\" not found, skipping", name.data());
+				continue;
+			}
+
+			ZONETOOL_INFO("Loading zone \"%s\"...", name.data());
+			zones.emplace_back(load_zone(*path), skip_common && dump != map_zone_dump::all ? map_zone_dump::none : dump);
+		}
+
+		const auto references = collect_map_references(zones);
+		map_asset_list map_assets;
+		for (const auto& [zone, dump] : zones)
+		{
+			ZONETOOL_INFO("Dumping zone \"%s\"...", zone->name.data());
+			for (const auto& asset : zone->assets)
+			{
+				const auto dumped = is_map_zone_asset(asset, dump, references);
+				if (dumped)
+				{
+					dump_zone_asset(asset, converter);
+				}
+
+				if (dumped || dump == map_zone_dump::all)
+				{
+					map_assets.add(asset);
+				}
+			}
+		}
+
+		write_asset_csv(map, map_assets.assets, converter);
+		if (converter && converter->finish)
+		{
+			converter->finish(map);
+		}
+		ZONETOOL_INFO("Map \"%s\" dumped to %s", map.data(), filesystem::get_dump_path().data());
 	}
 
 	void dump_asset(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path, const std::string& type_name,
@@ -230,7 +369,7 @@ namespace zonetool::h2
 
 		const auto _ = gsl::finally(db_clear);
 
-		prepare_paths(zone_folder, zone_path);
+		prepare_paths(zone_folder, zone_path.stem().string());
 		const auto zone = load_zone(zone_path);
 
 		const auto asset = std::ranges::find_if(zone->assets, [&](const loaded_asset& entry)
@@ -264,7 +403,7 @@ namespace zonetool::h2
 	{
 		const auto _ = gsl::finally(db_clear);
 
-		prepare_paths(zone_folder, zone_path);
+		prepare_paths(zone_folder, zone_path.stem().string());
 		load_zone(zone_path);
 	}
 }

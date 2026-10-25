@@ -1029,7 +1029,7 @@ namespace zonetool::iw6
 					const auto model = &new_asset->brushModels[i];
 					model->fields.polytopeIndex = -1;
 					model->fields.unk = -1;
-					model->fields.worldIndex = 0;
+					model->fields.polytopeCount = 0;
 					model->fields.meshIndex = i == 0 ? 0 : -1;
 				}
 

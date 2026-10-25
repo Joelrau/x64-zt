@@ -122,9 +122,18 @@ namespace zonetool::s2
 			}
 		}
 
-		void write_alias(zone_base* zone, zone_buffer* buf, snd_alias_t* alias, snd_alias_t* dest)
+		void write_alias(zone_base* zone, zone_buffer* buf, snd_alias_t* alias, snd_alias_t* dest, const char* list_name, const char* list_name_ptr)
 		{
-			write_string(buf, alias->aliasName, dest->aliasName);
+			// stock zones point every alias name at the list name
+			if (alias->aliasName && list_name && !std::strcmp(alias->aliasName, list_name))
+			{
+				dest->aliasName = list_name_ptr;
+			}
+			else
+			{
+				write_string(buf, alias->aliasName, dest->aliasName);
+			}
+
 			write_string(buf, alias->subtitle, dest->subtitle);
 			write_string(buf, alias->mixerGroup, dest->mixerGroup);
 			write_string(buf, alias->secondaryAliasName, dest->secondaryAliasName);
@@ -400,7 +409,12 @@ namespace zonetool::s2
 
 		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 
+		const auto* name_ptr = buf->get_zone_pointer<const char>(buf->current_stream(), buf->current_stream_offset());
 		dest->name = this->write_name(buf);
+		if (dest->name != reinterpret_cast<const char*>(buf->data_following))
+		{
+			name_ptr = dest->name; // the name was already in the zone
+		}
 
 		if (data->head)
 		{
@@ -408,7 +422,7 @@ namespace zonetool::s2
 			auto* aliases = buf->write(data->head, data->count);
 			for (auto i = 0; i < data->count; i++)
 			{
-				write_alias(zone, buf, &data->head[i], &aliases[i]);
+				write_alias(zone, buf, &data->head[i], &aliases[i], this->name_.data(), name_ptr);
 			}
 			buf->clear_pointer(&dest->head);
 		}

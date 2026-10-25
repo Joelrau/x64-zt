@@ -75,10 +75,11 @@ namespace zonetool::iw6
 								new_event->data.lightSettings.color[3] = event->data.lightSettings.color[3];
 								new_event->data.lightSettings.lightIndexConstIndex = event->data.lightSettings.lightIndexConstIndex;
 								new_event->data.lightSettings.transStateStreamIndex = event->data.lightSettings.transStateStreamIndex;
-								new_event->data.lightSettings.useColor = event->data.lightSettings.useColor;
-								new_event->data.lightSettings.useStateTransitionTime = event->data.lightSettings.useStateTransitionTime;
-								new_event->data.lightSettings.intensityScaleMin = event->data.lightSettings.intensityScaleMin;
-								new_event->data.lightSettings.intensityScaleMax = event->data.lightSettings.intensityScaleMax;
+								// iw6 ScriptableCl_DoEventLightSettings: two bools and u16 / 655.35 intensity, h1 1.4 sub_14042EBA0: flags 1 color, 2 wait for the transition and float intensity
+								new_event->data.lightSettings.flags = (event->data.lightSettings.useColor ? 1 : 0) | (event->data.lightSettings.useStateTransitionTime ? 2 : 0);
+								new_event->data.lightSettings.__pad0 = 0;
+								new_event->data.lightSettings.intensityScaleMin = event->data.lightSettings.intensityScaleMin / 655.35f;
+								new_event->data.lightSettings.intensityScaleMax = event->data.lightSettings.intensityScaleMax / 655.35f;
 								new_event->data.lightSettings.radiusScaleMin = event->data.lightSettings.radiusScaleMin;
 								new_event->data.lightSettings.radiusScaleMax = event->data.lightSettings.radiusScaleMax;
 								new_event->data.lightSettings.transitionTimeMin = event->data.lightSettings.transitionTimeMin;

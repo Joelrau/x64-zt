@@ -5,34 +5,6 @@ namespace zonetool::s2
 {
 	namespace
 	{
-		enum scriptable_event_type
-		{
-			SCRIPTABLE_EVENT_STATE_MODEL = 0,
-			SCRIPTABLE_EVENT_MODEL = 1,
-			SCRIPTABLE_EVENT_FX = 2,
-			SCRIPTABLE_EVENT_STOP_FX = 3,
-			SCRIPTABLE_EVENT_SOUND = 4,
-			SCRIPTABLE_EVENT_ANIMATION = 5,
-			SCRIPTABLE_EVENT_EXPLODE = 6,
-			SCRIPTABLE_EVENT_HEALTHDRAIN = 7,
-			SCRIPTABLE_EVENT_PHYSICSLAUNCH = 8,
-			SCRIPTABLE_EVENT_NAMED_SPLINE = 9,
-			SCRIPTABLE_EVENT_LATE_SPLINE = 10,
-			SCRIPTABLE_EVENT_STRING_11 = 11,
-			SCRIPTABLE_EVENT_LATE_STRING_12 = 12,
-			SCRIPTABLE_EVENT_LATE_STRING_13 = 13,
-			SCRIPTABLE_EVENT_MAYHEM = 14,
-			SCRIPTABLE_EVENT_STRING_15 = 15,
-			SCRIPTABLE_EVENT_SPLINE = 16,
-			SCRIPTABLE_EVENT_NONE_17 = 17,
-		};
-
-		enum scriptable_notetrack_type
-		{
-			SCRIPTABLE_NOTETRACK_FX = 0,
-			SCRIPTABLE_NOTETRACK_SOUND = 1,
-		};
-
 		void read_event(zone_reader& reader, ScriptableEventDef* event)
 		{
 			auto* data = &event->data;
@@ -55,13 +27,13 @@ namespace zonetool::s2
 				reader.read_name_reference(data->sound.alias);
 				break;
 			case SCRIPTABLE_EVENT_ANIMATION:
-			case SCRIPTABLE_EVENT_STRING_11:
+			case SCRIPTABLE_EVENT_SHAKE:
 			case SCRIPTABLE_EVENT_STRING_15:
 				reader.read_string(data->string.name);
 				break;
-			case SCRIPTABLE_EVENT_NAMED_SPLINE:
-				reader.read_string(data->namedSpline.name);
-				reader.read_asset(ASSET_TYPE_SPLINES, data->namedSpline.spline);
+			case SCRIPTABLE_EVENT_LIGHTSETTINGS:
+				reader.read_string(data->lightSettings.noteworthy);
+				reader.read_asset(ASSET_TYPE_SPLINES, data->lightSettings.spline);
 				break;
 			case SCRIPTABLE_EVENT_LATE_SPLINE:
 				reader.read_asset(ASSET_TYPE_SPLINES, data->lateSpline.spline);
@@ -103,13 +75,13 @@ namespace zonetool::s2
 				data->sound.alias = read.read_asset<snd_alias_list_t>();
 				break;
 			case SCRIPTABLE_EVENT_ANIMATION:
-			case SCRIPTABLE_EVENT_STRING_11:
+			case SCRIPTABLE_EVENT_SHAKE:
 			case SCRIPTABLE_EVENT_STRING_15:
 				data->string.name = read.read_string();
 				break;
-			case SCRIPTABLE_EVENT_NAMED_SPLINE:
-				data->namedSpline.name = read.read_string();
-				data->namedSpline.spline = read.read_asset<Spline>();
+			case SCRIPTABLE_EVENT_LIGHTSETTINGS:
+				data->lightSettings.noteworthy = read.read_string();
+				data->lightSettings.spline = read.read_asset<Spline>();
 				break;
 			case SCRIPTABLE_EVENT_LATE_SPLINE:
 				data->lateSpline.spline = read.read_asset<Spline>();
@@ -151,13 +123,13 @@ namespace zonetool::s2
 				write_sound(buf, data->sound.alias, dest_data->sound.alias);
 				break;
 			case SCRIPTABLE_EVENT_ANIMATION:
-			case SCRIPTABLE_EVENT_STRING_11:
+			case SCRIPTABLE_EVENT_SHAKE:
 			case SCRIPTABLE_EVENT_STRING_15:
 				write_string(buf, data->string.name, dest_data->string.name);
 				break;
-			case SCRIPTABLE_EVENT_NAMED_SPLINE:
-				write_string(buf, data->namedSpline.name, dest_data->namedSpline.name);
-				dest_data->namedSpline.spline = asset_reference(zone, ASSET_TYPE_SPLINES, data->namedSpline.spline);
+			case SCRIPTABLE_EVENT_LIGHTSETTINGS:
+				write_string(buf, data->lightSettings.noteworthy, dest_data->lightSettings.noteworthy);
+				dest_data->lightSettings.spline = asset_reference(zone, ASSET_TYPE_SPLINES, data->lightSettings.spline);
 				break;
 			case SCRIPTABLE_EVENT_LATE_SPLINE:
 				dest_data->lateSpline.spline = asset_reference(zone, ASSET_TYPE_SPLINES, data->lateSpline.spline);
@@ -199,13 +171,13 @@ namespace zonetool::s2
 				write.dump_asset(data->sound.alias);
 				break;
 			case SCRIPTABLE_EVENT_ANIMATION:
-			case SCRIPTABLE_EVENT_STRING_11:
+			case SCRIPTABLE_EVENT_SHAKE:
 			case SCRIPTABLE_EVENT_STRING_15:
 				write.dump_string(data->string.name);
 				break;
-			case SCRIPTABLE_EVENT_NAMED_SPLINE:
-				write.dump_string(data->namedSpline.name);
-				write.dump_asset(data->namedSpline.spline);
+			case SCRIPTABLE_EVENT_LIGHTSETTINGS:
+				write.dump_string(data->lightSettings.noteworthy);
+				write.dump_asset(data->lightSettings.spline);
 				break;
 			case SCRIPTABLE_EVENT_LATE_SPLINE:
 				write.dump_asset(data->lateSpline.spline);
@@ -244,8 +216,8 @@ namespace zonetool::s2
 			case SCRIPTABLE_EVENT_SOUND:
 				add_dependency(zone, ASSET_TYPE_SOUND, data->sound.alias);
 				break;
-			case SCRIPTABLE_EVENT_NAMED_SPLINE:
-				add_dependency(zone, ASSET_TYPE_SPLINES, data->namedSpline.spline);
+			case SCRIPTABLE_EVENT_LIGHTSETTINGS:
+				add_dependency(zone, ASSET_TYPE_SPLINES, data->lightSettings.spline);
 				break;
 			case SCRIPTABLE_EVENT_LATE_SPLINE:
 				add_dependency(zone, ASSET_TYPE_SPLINES, data->lateSpline.spline);

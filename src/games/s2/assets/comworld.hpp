@@ -5,84 +5,10 @@ namespace zonetool::s2
 	class com_world : public asset_base<ComWorld, ASSET_TYPE_COMWORLD>
 	{
 	public:
-		static void read(zone_reader& reader, ComWorld* asset)
-		{
-			reader.push_stream(XFILE_BLOCK_VIRTUAL);
-			reader.read_string(asset->name);
-			if (const auto lights = reader.read_array(asset->primaryLights, 7, asset->primaryLightCount))
-			{
-				for (auto i = 0u; i < asset->primaryLightCount; i++)
-				{
-					reader.read_string(lights[i].defName);
-				}
-			}
-			reader.read_array(asset->primaryLightEnvs, 1, asset->primaryLightEnvCount);
-			reader.pop_stream();
-		}
-
-		ComWorld* parse(const std::string& name, zone_memory* mem) override
-		{
-			assetmanager::reader read(mem);
-			if (!read.open(dump_path(ASSET_TYPE_COMWORLD, name.data())))
-			{
-				return nullptr;
-			}
-
-			ZONETOOL_INFO("Parsing comworld \"%s\"...", name.data());
-
-			auto* asset = read.read_single<ComWorld>();
-			asset->name = read.read_string();
-			if (const auto lights = parse_array(read, mem, asset->primaryLights, asset->primaryLightCount))
-			{
-				for (auto i = 0u; i < asset->primaryLightCount; i++)
-				{
-					lights[i].defName = read.read_string();
-				}
-			}
-			parse_array(read, mem, asset->primaryLightEnvs, asset->primaryLightEnvCount);
-			read.close();
-
-			return asset;
-		}
-
-		void write(zone_base* zone, zone_buffer* buf) override
-		{
-			auto* data = this->asset_;
-			auto* dest = buf->write(data);
-
-			buf->push_stream(XFILE_BLOCK_VIRTUAL);
-
-			dest->name = this->write_name(buf);
-			if (const auto dest_lights = write_array(buf, 7, data->primaryLights, data->primaryLightCount, dest->primaryLights))
-			{
-				for (auto i = 0u; i < data->primaryLightCount; i++)
-				{
-					write_string(buf, data->primaryLights[i].defName, dest_lights[i].defName);
-				}
-			}
-			write_array(buf, 1, data->primaryLightEnvs, data->primaryLightEnvCount, dest->primaryLightEnvs);
-
-			buf->pop_stream();
-		}
-
-		static void dump(ComWorld* asset)
-		{
-			assetmanager::dumper write;
-			if (!write.open(dump_path(ASSET_TYPE_COMWORLD, asset->name)))
-			{
-				return;
-			}
-
-			write.dump_single(asset);
-			write.dump_string(asset->name);
-			write.dump_array(asset->primaryLights, asset->primaryLightCount);
-			for (auto i = 0u; asset->primaryLights && i < asset->primaryLightCount; i++)
-			{
-				write.dump_string(asset->primaryLights[i].defName);
-			}
-			write.dump_array(asset->primaryLightEnvs, asset->primaryLightEnvCount);
-			write.close();
-		}
+		static void read(zone_reader& reader, ComWorld* asset);
+		ComWorld* parse(const std::string& name, zone_memory* mem) override;
+		void write(zone_base* zone, zone_buffer* buf) override;
+		static void dump(ComWorld* asset);
 	};
 
 	class glass_world : public asset_base<GlassWorld, ASSET_TYPE_GLASSWORLD>
@@ -99,9 +25,9 @@ namespace zonetool::s2
 				{
 					for (auto i = 0u; i < glass_data->glassNameCount; i++)
 					{
-						reader.read_string(glass_names[i].name);
-						reader.read_script_string(glass_names[i].targetName);
-						reader.read_array(glass_names[i].indices, 1, glass_names[i].indexCount);
+						reader.read_string(glass_names[i].nameStr);
+						reader.read_script_string(glass_names[i].name);
+						reader.read_array(glass_names[i].pieceIndices, 1, glass_names[i].pieceCount);
 					}
 				}
 			}
@@ -127,9 +53,9 @@ namespace zonetool::s2
 				{
 					for (auto i = 0u; i < glass_data->glassNameCount; i++)
 					{
-						glass_names[i].name = read.read_string();
-						glass_names[i].targetName = parse_script_string(read);
-						parse_array(read, mem, glass_names[i].indices, glass_names[i].indexCount);
+						glass_names[i].nameStr = read.read_string();
+						glass_names[i].name = parse_script_string(read);
+						parse_array(read, mem, glass_names[i].pieceIndices, glass_names[i].pieceCount);
 					}
 				}
 			}
@@ -149,7 +75,7 @@ namespace zonetool::s2
 			script_string_preparer prepare(buf);
 			for (auto i = 0u; i < glass_data->glassNameCount; i++)
 			{
-				prepare(glass_data->glassNames[i].targetName);
+				prepare(glass_data->glassNames[i].name);
 			}
 		}
 
@@ -170,8 +96,8 @@ namespace zonetool::s2
 					for (auto i = 0u; i < glass_data->glassNameCount; i++)
 					{
 						auto* glass = &glass_data->glassNames[i];
-						write_string(buf, glass->name, dest_glass_names[i].name);
-						write_array(buf, 1, glass->indices, glass->indexCount, dest_glass_names[i].indices);
+						write_string(buf, glass->nameStr, dest_glass_names[i].nameStr);
+						write_array(buf, 1, glass->pieceIndices, glass->pieceCount, dest_glass_names[i].pieceIndices);
 					}
 				}
 			}
@@ -197,9 +123,9 @@ namespace zonetool::s2
 				for (auto i = 0u; glass_data->glassNames && i < glass_data->glassNameCount; i++)
 				{
 					auto* glass = &glass_data->glassNames[i];
-					write.dump_string(glass->name);
-					dump_script_string(write, glass->targetName);
-					write.dump_array(glass->indices, glass->indexCount);
+					write.dump_string(glass->nameStr);
+					dump_script_string(write, glass->name);
+					write.dump_array(glass->pieceIndices, glass->pieceCount);
 				}
 			}
 			write.close();

@@ -244,6 +244,13 @@ namespace zonetool::h1::converter::s2::gfximage
 			return streams;
 		}
 
+		HRESULT decode_image(const DirectX::Image& source, const DXGI_FORMAT format, DirectX::ScratchImage& result)
+		{
+			return DirectX::IsCompressed(source.format)
+				? DirectX::Decompress(source, format, result)
+				: DirectX::Convert(source, format, DirectX::TEX_FILTER_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, result);
+		}
+
 		std::optional<image_data> read_image(const GfxImage* asset)
 		{
 			if (asset->streamed && is_2d(asset))
@@ -286,10 +293,7 @@ namespace zonetool::h1::converter::s2::gfximage
 					reinterpret_cast<std::uint8_t*>(pixels.data.data() + offset)};
 
 				DirectX::ScratchImage work;
-				const auto hr = DirectX::IsCompressed(source_format)
-					? DirectX::Decompress(source, work_format, work)
-					: DirectX::Convert(source, work_format, DirectX::TEX_FILTER_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, work);
-				if (FAILED(hr))
+				if (FAILED(decode_image(source, work_format, work)))
 				{
 					return false;
 				}
@@ -461,6 +465,31 @@ namespace zonetool::h1::converter::s2::gfximage
 			dump_loaded_image(&image, pixels.data);
 		}
 
+		// a single level 2d image the converter makes itself
+		zonetool::s2::GfxImage generated_image(const std::string& name, const DXGI_FORMAT format, const std::size_t width, const std::size_t height,
+			const std::uint8_t semantic)
+		{
+			zonetool::s2::GfxImage image{};
+			image.name = name.data();
+			image.imageFormat = static_cast<DXGI_FORMAT>(*s2_format_index(format));
+			image.width = static_cast<unsigned short>(width);
+			image.height = static_cast<unsigned short>(height);
+			image.depth = 1;
+			image.numElements = 1;
+			image.mapType = zonetool::s2::MAPTYPE_2D;
+			image.semantic = semantic;
+			image.levelCount = 1;
+			return image;
+		}
+
+		std::string dump_generated(zonetool::s2::GfxImage& image, const std::string& pixels)
+		{
+			dump_loaded_image(&image, pixels);
+			dumped_images.insert(image.name);
+			add_csv_row("image", image.name);
+			return image.name;
+		}
+
 		constexpr auto sky_z_scale = 0.919831f; // s2 sky uv = 0.5 + 0.5 * dir.xy / (len + |0.919831 * dir.z + 0.080169 * len|)
 		constexpr auto sky_size = 1024u;
 
@@ -524,10 +553,7 @@ namespace zonetool::h1::converter::s2::gfximage
 			{
 				const DirectX::Image source{pixels.width, pixels.height, format, row_pitch, slice_pitch,
 					reinterpret_cast<std::uint8_t*>(pixels.data.data() + slice_pitch * i)};
-				const auto hr = DirectX::IsCompressed(format)
-					? DirectX::Decompress(source, DXGI_FORMAT_R32G32B32A32_FLOAT, faces[i])
-					: DirectX::Convert(source, DXGI_FORMAT_R32G32B32A32_FLOAT, DirectX::TEX_FILTER_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, faces[i]);
-				if (FAILED(hr))
+				if (FAILED(decode_image(source, DXGI_FORMAT_R32G32B32A32_FLOAT, faces[i])))
 				{
 					return {};
 				}
@@ -649,8 +675,11 @@ namespace zonetool::h1::converter::s2::gfximage
 			return name;
 		}
 
+		// h1 creates cube textures with the srgb twin of rgba8/bc1/bc2/bc3 (1.4 sub_1405DB650 -> sub_1405DD210, not bc7), 2d ones keep theirs
+		const auto format = static_cast<DXGI_FORMAT>(asset->imageFormat);
+		const auto srgb = asset->mapType == MAPTYPE_CUBE && format != DXGI_FORMAT_BC7_UNORM;
 		const auto data = read_image(asset);
-		const auto format_index = s2_format_index(static_cast<DXGI_FORMAT>(asset->imageFormat));
+		const auto format_index = s2_format_index(srgb ? srgb_format(format) : format);
 		if (!data || !format_index)
 		{
 			ZONETOOL_WARNING("Image \"%s\" cannot keep its H1 encoding", asset->name);
@@ -677,21 +706,8 @@ namespace zonetool::h1::converter::s2::gfximage
 			pixels.append(reinterpret_cast<const char*>(color.data()), color.size());
 		}
 
-		zonetool::s2::GfxImage image{};
-		image.name = name.data();
-		image.imageFormat = static_cast<DXGI_FORMAT>(*s2_format_index(DXGI_FORMAT_R8G8B8A8_UNORM));
-		image.width = size;
-		image.height = size;
-		image.depth = 1;
-		image.numElements = 1;
-		image.mapType = zonetool::s2::MAPTYPE_2D;
-		image.semantic = semantic;
-		image.levelCount = 1;
-
-		dump_loaded_image(&image, pixels);
-		dumped_images.insert(name);
-		add_csv_row("image", name);
-		return name;
+		auto image = generated_image(name, DXGI_FORMAT_R8G8B8A8_UNORM, size, size, semantic);
+		return dump_generated(image, pixels);
 	}
 
 	std::string dump_fog_spline(const std::string& name)
@@ -704,22 +720,30 @@ namespace zonetool::h1::converter::s2::gfximage
 		constexpr auto width = 128u;
 		const std::string pixels(width * sizeof(std::uint32_t), '\xFF'); // full visibility
 
-		zonetool::s2::GfxImage image{};
-		image.name = name.data();
-		image.imageFormat = static_cast<DXGI_FORMAT>(*s2_format_index(DXGI_FORMAT_R10G10B10A2_UNORM));
-		image.width = width;
-		image.height = 1;
-		image.depth = 1;
-		image.numElements = 1;
-		image.mapType = zonetool::s2::MAPTYPE_2D;
-		image.semantic = TS_FUNCTION;
+		auto image = generated_image(name, DXGI_FORMAT_R10G10B10A2_UNORM, width, 1, TS_FUNCTION);
 		image.category = IMG_CATEGORY_AUTO_GENERATED;
-		image.levelCount = 1;
+		return dump_generated(image, pixels);
+	}
 
-		dump_loaded_image(&image, pixels);
-		dumped_images.insert(name);
-		add_csv_row("image", name);
-		return name;
+	std::string dump_ies_lookup(const std::string& name)
+	{
+		if (dumped_images.contains(name))
+		{
+			return name;
+		}
+
+		// the same in every stock S2 map, which has no IES profiles: a 1x1 cube with (1, 0) on each face
+		constexpr std::uint16_t texel[2] = {0x3C00, 0};
+		std::string pixels;
+		for (auto face = 0; face < 6; face++)
+		{
+			pixels.append(reinterpret_cast<const char*>(texel), sizeof(texel));
+		}
+
+		auto image = generated_image(name, DXGI_FORMAT_R16G16_FLOAT, 1, 1, TS_FUNCTION);
+		image.mapType = zonetool::s2::MAPTYPE_CUBE;
+		image.category = IMG_CATEGORY_AUTO_GENERATED;
+		return dump_generated(image, pixels);
 	}
 
 	std::optional<std::string> dump_sky(GfxImage* asset)
@@ -738,22 +762,10 @@ namespace zonetool::h1::converter::s2::gfximage
 			return {};
 		}
 
-		zonetool::s2::GfxImage image{};
-		image.name = name.data();
-		image.imageFormat = static_cast<DXGI_FORMAT>(*s2_format_index(DXGI_FORMAT_BC1_UNORM_SRGB));
-		image.width = static_cast<unsigned short>(pixels->width);
-		image.height = static_cast<unsigned short>(pixels->height);
-		image.depth = 1;
-		image.numElements = 1;
-		image.mapType = zonetool::s2::MAPTYPE_2D;
-		image.semantic = TS_COLOR_MAP;
+		auto image = generated_image(name, DXGI_FORMAT_BC1_UNORM_SRGB, pixels->width, pixels->height, TS_COLOR_MAP);
 		image.category = asset->category;
 		image.levelCount = static_cast<unsigned char>(pixels->levels);
-
-		dump_loaded_image(&image, *data);
-		dumped_images.insert(name);
-		add_csv_row("image", name);
-		return name;
+		return dump_generated(image, *data);
 	}
 
 	bool is_dumped(const std::string& name)

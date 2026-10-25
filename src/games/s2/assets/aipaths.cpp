@@ -144,7 +144,7 @@ namespace zonetool::s2
 				reader.read_script_string(node->animscript);
 				if (!asset->parentIndexResolved)
 				{
-					reader.read_script_string(node->parentName);
+					reader.read_script_string(node->parent.name);
 				}
 				reader.read_array(node->Links, 3, node->totalLinkCount);
 			}
@@ -192,7 +192,7 @@ namespace zonetool::s2
 				node->animscript = parse_script_string(read);
 				if (!asset->parentIndexResolved)
 				{
-					node->parentName = parse_script_string(read);
+					node->parent.name = parse_script_string(read);
 				}
 				parse_array(read, mem, node->Links, node->totalLinkCount);
 			}
@@ -231,7 +231,7 @@ namespace zonetool::s2
 			prepare(node->animscript);
 			if (!data->parentIndexResolved)
 			{
-				prepare(node->parentName);
+				prepare(node->parent.name);
 			}
 		}
 	}
@@ -294,7 +294,7 @@ namespace zonetool::s2
 			dump_script_string(write, node->animscript);
 			if (!asset->parentIndexResolved)
 			{
-				dump_script_string(write, node->parentName);
+				dump_script_string(write, node->parent.name);
 			}
 			write.dump_array(node->Links, node->totalLinkCount);
 		}

@@ -8,11 +8,42 @@ namespace zonetool::h1::converter::s2::physworld
 	namespace
 	{
 		constexpr auto node_padding = 1.0f / 2.54f;
-		constexpr auto world_collision_flags = 0xFFFF;
+		constexpr auto solid_collision_flags = 0xFFFFu;
+
+		// matched on stock S2 brush models of 13 maps, each pair of clip bits only occurs together there
+		constexpr std::array<std::pair<std::uint32_t, std::uint32_t>, 11> contents_collision_flags
+		{{
+			{0x1, solid_collision_flags}, // CONTENTS_SOLID
+			{0x10, solid_collision_flags}, // CONTENTS_GLASS
+			{0x20, 0x100}, // CONTENTS_WATER, stock mp_battleship_2 water polytope
+			{0x40, 0x2000}, // CONTENTS_CANSHOOTCLIP
+			{0x1000, 0x2000}, // CONTENTS_AI_NOSIGHT
+			{0x80, 0x180}, // CONTENTS_MISSILECLIP
+			{0x2000, 0x180}, // CONTENTS_CLIPSHOT
+			{0x200, 0x10}, // CONTENTS_VEHICLECLIP
+			{0x400, 0x80E}, // CONTENTS_ITEMCLIP
+			{0x10000, 0x600}, // CONTENTS_PLAYERCLIP
+			{0x20000, 0x600}, // CONTENTS_MONSTERCLIP
+		}};
+
+		int convert_collision_flags(const int contents)
+		{
+			auto flags = 0u;
+			for (const auto& [bit, collision_flags] : contents_collision_flags)
+			{
+				if (contents & bit)
+				{
+					flags |= collision_flags;
+				}
+			}
+
+			return static_cast<int>(flags ? flags : solid_collision_flags);
+		}
 
 		struct mesh_builder
 		{
 			const dmMeshData& source;
+			std::vector<zonetool::s2::dmFloat4> vertices;
 			std::vector<zonetool::s2::dmMeshTriangle> triangles;
 			std::vector<zonetool::s2::PhysMeshNode> nodes;
 			std::vector<std::array<float, 3>> centers;
@@ -22,6 +53,14 @@ namespace zonetool::h1::converter::s2::physworld
 			explicit mesh_builder(const dmMeshData& mesh)
 				: source(mesh)
 			{
+				// h1 stores vertices relative to the mesh center, s2 stores them in model space
+				this->vertices.resize(mesh.m_vertexCount);
+				for (auto i = 0; i < mesh.m_vertexCount; i++)
+				{
+					const auto& v = mesh.m_aVertices[i];
+					this->vertices[i] = {v.x + mesh.m_center.x, v.y + mesh.m_center.y, v.z + mesh.m_center.z, v.w};
+				}
+
 				const auto count = static_cast<std::size_t>(mesh.m_triangleCount);
 				this->centers.resize(count);
 				this->order.resize(count);
@@ -43,7 +82,7 @@ namespace zonetool::h1::converter::s2::physworld
 
 			float vertex(const int index, const int axis) const
 			{
-				const auto& v = this->source.m_aVertices[index];
+				const auto& v = this->vertices[index];
 				return axis == 0 ? v.x : axis == 1 ? v.y : v.z;
 			}
 
@@ -67,7 +106,7 @@ namespace zonetool::h1::converter::s2::physworld
 				for (auto i = begin; i < end; i++)
 				{
 					const auto& tri = this->source.m_aTriangles[this->order[i]];
-					flags |= world_collision_flags;
+					flags |= convert_collision_flags(tri.collisionFlags);
 					for (auto axis = 0; axis < 3; axis++)
 					{
 						for (const auto vert : {tri.i1, tri.i2, tri.i3})
@@ -91,7 +130,8 @@ namespace zonetool::h1::converter::s2::physworld
 					for (auto i = begin; i < end; i++)
 					{
 						auto& tri = this->triangles.emplace_back(std::bit_cast<zonetool::s2::dmMeshTriangle>(this->source.m_aTriangles[this->order[i]]));
-						tri.collisionFlags = world_collision_flags;
+						tri.materialIndex = static_cast<int>(convert_surface_type(tri.materialIndex));
+						tri.collisionFlags = convert_collision_flags(tri.collisionFlags);
 					}
 
 					this->nodes[index] = node;
@@ -159,8 +199,8 @@ namespace zonetool::h1::converter::s2::physworld
 
 			result.nodes = allocator.allocate_array<zonetool::s2::PhysMeshNode>(builder.nodes.size());
 			std::memcpy(result.nodes, builder.nodes.data(), builder.nodes.size() * sizeof(zonetool::s2::PhysMeshNode));
-			result.vertices = allocator.allocate_array<zonetool::s2::dmFloat4>(mesh.m_vertexCount);
-			std::memcpy(result.vertices, mesh.m_aVertices, mesh.m_vertexCount * sizeof(zonetool::s2::dmFloat4));
+			result.vertices = allocator.allocate_array<zonetool::s2::dmFloat4>(builder.vertices.size());
+			std::memcpy(result.vertices, builder.vertices.data(), builder.vertices.size() * sizeof(zonetool::s2::dmFloat4));
 			result.triangles = allocator.allocate_array<zonetool::s2::dmMeshTriangle>(builder.triangles.size());
 			std::memcpy(result.triangles, builder.triangles.data(), builder.triangles.size() * sizeof(zonetool::s2::dmMeshTriangle));
 
@@ -172,7 +212,17 @@ namespace zonetool::h1::converter::s2::physworld
 			return result;
 		}
 
-		zonetool::s2::PhysBrushModel convert_model(const PhysBrushModel& model, const std::size_t mesh_count)
+		zonetool::s2::PhysWaterVolumeDef convert_water_volume(const PhysWaterVolumeDef& water)
+		{
+			zonetool::s2::PhysWaterVolumeDef result{};
+			result.preset = reinterpret_cast<zonetool::s2::PhysWaterPreset*>(water.physWaterPreset);
+			std::memcpy(result.origin, water.origin, sizeof(result.origin));
+			result.name = static_cast<zonetool::s2::scr_string_t>(water.string);
+			result.brushModelIndex = water.brushModelIndex;
+			return result;
+		}
+
+		zonetool::s2::PhysBrushModel convert_model(const PhysBrushModel& model, const std::size_t mesh_count, const std::size_t polytope_count)
 		{
 			zonetool::s2::PhysBrushModel new_model{-1, 0, 0xFFFF}; // 0x631F89
 			const auto mesh = model.fields.meshIndex;
@@ -181,20 +231,61 @@ namespace zonetool::h1::converter::s2::physworld
 				new_model.meshIndex = static_cast<unsigned short>(mesh);
 			}
 
+			const auto polytope = model.fields.polytopeIndex;
+			if (polytope >= 0 && model.fields.polytopeCount > 0 && static_cast<std::size_t>(polytope + model.fields.polytopeCount) <= polytope_count)
+			{
+				new_model.polytopeStart = polytope;
+				new_model.polytopeCount = static_cast<unsigned short>(model.fields.polytopeCount);
+			}
+
 			return new_model;
 		}
 	}
 
+	zonetool::s2::dmPolytopeData convert_polytope(const dmPolytopeData& polytope)
+	{
+		zonetool::s2::dmPolytopeData result{};
+		result.vertices = retype<zonetool::s2::dmFloat4>(polytope.m_aVertices);
+		result.planes = retype<zonetool::s2::dmPlane>(polytope.m_aPlanes);
+		result.subEdges = retype<zonetool::s2::dmSubEdge>(polytope.m_aSubEdges);
+		result.faceSubEdges = polytope.m_aFaceSubEdges;
+		result.centroid[0] = polytope.m_centroid.x;
+		result.centroid[1] = polytope.m_centroid.y;
+		result.centroid[2] = polytope.m_centroid.z;
+		result.vertexCount = polytope.m_vertexCount;
+		result.faceCount = polytope.m_faceCount;
+		result.subEdgeCount = polytope.m_subEdgeCount;
+		result.volume = polytope.m_volume;
+		result.area = polytope.m_area;
+		result.inertiaMoments[0] = polytope.m_inertiaMoments.x;
+		result.inertiaMoments[1] = polytope.m_inertiaMoments.y;
+		result.inertiaMoments[2] = polytope.m_inertiaMoments.z;
+		result.inertiaProducts[0] = polytope.m_inertiaProducts.x;
+		result.inertiaProducts[1] = polytope.m_inertiaProducts.y;
+		result.inertiaProducts[2] = polytope.m_inertiaProducts.z;
+		result.collisionFlags = static_cast<unsigned int>(convert_collision_flags(polytope.contents));
+
+		// stock H1 polytopes use one surface type on every face
+		const auto surface_type = polytope.m_surfaceTypes && polytope.m_faceCount ? polytope.m_surfaceTypes[0] : 0;
+		result.surfaceType = convert_surface_type(surface_type);
+		return result;
+	}
+
 	void dump(PhysWorld* asset)
 	{
-		// TODO polytopes and water volumes are not converted
-		if (asset->polytopeCount || asset->waterVolumeDefCount)
+		utils::memory::allocator allocator;
+
+		std::vector<zonetool::s2::PhysWaterVolumeDef> waters;
+		for (auto i = 0u; asset->waterVolumeDefs && i < asset->waterVolumeDefCount; i++)
 		{
-			ZONETOOL_WARNING("PhysWorld \"%s\": %u polytopes and %u water volumes are not converted",
-				asset->name, asset->polytopeCount, asset->waterVolumeDefCount);
+			waters.push_back(convert_water_volume(asset->waterVolumeDefs[i]));
 		}
 
-		utils::memory::allocator allocator;
+		std::vector<zonetool::s2::dmPolytopeData> polytopes;
+		for (auto i = 0u; asset->polytopeDatas && i < asset->polytopeCount; i++)
+		{
+			polytopes.push_back(convert_polytope(asset->polytopeDatas[i]));
+		}
 
 		std::vector<zonetool::s2::PhysMeshData> meshes;
 		for (auto i = 0u; asset->meshDatas && i < asset->meshDataCount; i++)
@@ -205,16 +296,42 @@ namespace zonetool::h1::converter::s2::physworld
 		std::vector<zonetool::s2::PhysBrushModel> models(asset->brushModelCount);
 		for (auto i = 0u; asset->brushModels && i < asset->brushModelCount; i++)
 		{
-			models[i] = convert_model(asset->brushModels[i], meshes.size());
+			models[i] = convert_model(asset->brushModels[i], meshes.size(), polytopes.size());
 		}
 
 		zonetool::s2::PhysWorld new_asset{};
 		new_asset.name = asset->name;
 		new_asset.modelCount = asset->brushModelCount;
 		new_asset.models = models.empty() ? nullptr : models.data();
+		new_asset.polytopeCount = static_cast<unsigned int>(polytopes.size());
+		new_asset.polytopes = polytopes.empty() ? nullptr : polytopes.data();
 		new_asset.meshCount = static_cast<unsigned int>(meshes.size());
 		new_asset.meshes = meshes.empty() ? nullptr : meshes.data();
+		new_asset.waterCount = static_cast<unsigned int>(waters.size());
+		new_asset.waters = waters.empty() ? nullptr : waters.data();
 		zonetool::s2::phys_worldmap::dump(&new_asset);
 		add_csv_row("phys_worldmap", new_asset.name);
+	}
+
+	void dump_water_preset(PhysWaterPreset* asset)
+	{
+		// TODO: map H1 unknownParams, until then this uses stock S2 water_default
+		constexpr std::array<float, 8> stock_unknown_params{0.0f, 0.0f, 0.0f, 0.036127292f, 0.25f, 0.0f, 0.02f, 0.0f};
+
+		utils::memory::allocator allocator;
+		zonetool::s2::PhysWaterPreset new_asset{};
+		new_asset.name = asset->name;
+		std::copy(stock_unknown_params.begin(), stock_unknown_params.end(), new_asset.unknownParams);
+		std::memcpy(new_asset.sharedParams, asset->sharedParams, sizeof(new_asset.sharedParams));
+		new_asset.sharedFlags = asset->sharedFlags;
+
+		const FxEffectDef* fx[]{asset->fx0, asset->fx1, asset->fx2, asset->fx3, asset->fx4, asset->fx5, asset->fx6};
+		for (auto i = 0u; i < std::size(fx); i++)
+		{
+			new_asset.fx[i] = fx[i] ? make_stub<zonetool::s2::FxEffectDef>(fx[i]->name, allocator) : nullptr;
+		}
+
+		zonetool::s2::phys_water_preset::dump(&new_asset);
+		add_csv_row(zonetool::s2::type_to_string(zonetool::s2::ASSET_TYPE_PHYSWATERPRESET), asset->name);
 	}
 }

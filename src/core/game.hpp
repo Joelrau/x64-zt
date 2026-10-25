@@ -12,6 +12,8 @@ namespace zonetool
 	using converter_finish = void(*)(const std::string& zone_name);
 	using converter_required_zones = std::vector<std::string>(*)(const std::string& zone_name);
 	using dump_command = void(*)(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path, const converter* converter);
+	using map_dump_command = void(*)(const std::filesystem::path& zone_folder, const std::string& map, const converter* converter,
+		bool skip_common);
 	using asset_dump_command = void(*)(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path,
 		const std::string& type, const std::string& name, const converter* converter);
 	using zone_command = void(*)(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path);
@@ -27,6 +29,7 @@ namespace zonetool
 		game_files::opener open_files;
 		xfile::format format;
 		dump_command dump_zone;
+		map_dump_command dump_map;
 		asset_dump_command dump_asset;
 		zone_command verify_zone;
 		listing_command list_zone;

@@ -138,7 +138,14 @@ namespace zonetool::h1::converter::s2
 		clipmap::finish();
 		gfximage::finish();
 		xsurface::finish();
+		netconststrings::finish();
+		scriptable::finish();
 		comworld::clear();
+		techset::clear();
+		sound::clear();
+		xanim::clear();
+		physpreset::clear();
+		physcollmap::clear();
 		write_csv(zone_name);
 	}
 }
@@ -178,8 +185,17 @@ namespace zonetool::convert::h1_s2
 			case source::ASSET_TYPE_COMWORLD:
 				target::comworld::dump(header_as<source::ComWorld>(header));
 				break;
+			case source::ASSET_TYPE_PARTICLE_SIM_ANIMATION:
+				target::fxparticlesimanimation::dump(header_as<source::FxParticleSimAnimation>(header));
+				break;
+			case source::ASSET_TYPE_FX:
+				target::fxeffectdef::dump(header_as<source::FxEffectDef>(header));
+				break;
 			case source::ASSET_TYPE_FXWORLD:
 				target::fxworld::dump(header_as<source::FxWorld>(header));
+				break;
+			case source::ASSET_TYPE_PATHDATA:
+				target::aipaths::dump(header_as<source::PathData>(header));
 				break;
 			case source::ASSET_TYPE_GFXWORLD:
 				target::gfxworld::dump(header_as<source::GfxWorld>(header));
@@ -190,11 +206,30 @@ namespace zonetool::convert::h1_s2
 			case source::ASSET_TYPE_MAP_ENTS:
 				target::mapents::dump(header_as<source::MapEnts>(header));
 				break;
+			case source::ASSET_TYPE_NET_CONST_STRINGS:
+				target::netconststrings::dump(header_as<source::NetConstStrings>(header));
+				break;
+			case source::ASSET_TYPE_RAWFILE:
+				target::rawfile::dump(header_as<source::RawFile>(header));
+				break;
+			case source::ASSET_TYPE_STRINGTABLE:
+				target::lightsets::dump(header_as<source::StringTable>(header));
+				target::soundtables::dump(header_as<source::StringTable>(header));
+				break;
+			case source::ASSET_TYPE_XANIMPARTS:
+				target::xanim::dump(header_as<source::XAnimParts>(header));
+				break;
 			case source::ASSET_TYPE_SCRIPTABLE:
 				target::scriptable::dump(header_as<source::ScriptableDef>(header));
 				break;
+			case source::ASSET_TYPE_SCRIPTFILE:
+				target::scriptfile::dump(header_as<source::ScriptFile>(header));
+				break;
 			case source::ASSET_TYPE_PHYSWORLDMAP:
 				target::physworld::dump(header_as<source::PhysWorld>(header));
+				break;
+			case source::ASSET_TYPE_PHYSWATERPRESET:
+				target::physworld::dump_water_preset(header_as<source::PhysWaterPreset>(header));
 				break;
 			case source::ASSET_TYPE_SOUND:
 				target::sound::dump(header_as<source::snd_alias_list_t>(header));
@@ -225,8 +260,9 @@ namespace zonetool::convert::h1_s2
 
 		std::vector<std::string> required_zones(const std::string& zone_name)
 		{
-			return {"code_post_gfx_mp", "patch_code_post_gfx_mp", "techsets_common_core_mp", "techsets_common_mp", "common_mp", "techsets_" + zone_name,
-				"patch_" + zone_name};
+			// common_core_mp holds the xanims h1 scriptables play (vehicle_80s_sedan1_destroy)
+			return {"code_post_gfx_mp", "patch_code_post_gfx_mp", "techsets_common_core_mp", "techsets_common_mp", "common_core_mp", "common_mp",
+				"techsets_" + zone_name, "patch_" + zone_name};
 		}
 	}
 

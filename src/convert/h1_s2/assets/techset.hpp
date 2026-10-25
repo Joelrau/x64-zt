@@ -17,7 +17,6 @@ namespace zonetool::h1::converter::s2::techset
 		bool is_global_image(const std::string& image) const;
 		bool is_global_asset(const void* header) const;
 		std::vector<std::string> donor_techsets() const;
-		void* find_asset(zonetool::s2::XAssetType type) const;
 		const std::vector<void*>& find_assets(zonetool::s2::XAssetType type) const;
 		database& db() const;
 
@@ -36,10 +35,14 @@ namespace zonetool::h1::converter::s2::techset
 	{
 		zonetool::s2::MaterialTechniqueSet* techset;
 		std::array<std::int32_t, zonetool::s2::technique_count> sources;
+		std::array<std::int32_t, zonetool::s2::technique_count> light_sources; // h1 light technique of the appended primary light pass
 	};
 
 	const s2_zone& donor_zone();
+	const std::unordered_map<std::string, std::string>& common_rawfiles(); // s2 common_mp rawfiles by name, decompressed
 	std::string select(const std::string& h1_techset);
-	const native_techset* convert_native(const std::string& h1_techset);
+	const native_techset* convert_native(const std::string& h1_techset, bool sprite = false);
+
 	void dump(zonetool::s2::MaterialTechniqueSet* asset);
+	void clear();
 }

@@ -1,6 +1,10 @@
 #pragma once
+#include <cstddef>
+#include <cstdint>
 #include <d3d11.h>
 #include <formats/ddl.hpp>
+#include <struct_asserts.hpp>
+#include <xfile/structs.hpp>
 
 namespace zonetool::s2
 {
@@ -278,6 +282,7 @@ namespace zonetool::s2
 		STREAM_SRC_NORMAL = 3,
 		STREAM_SRC_TANGENT = 4,
 		STREAM_SRC_LIGHTMAP = 6,
+		STREAM_SRC_TEXEL_DENSITY = 7, // "ed" in world vertex decls, routed to TEXCOORD16 with mask 1
 		STREAM_SRC_VERTEX_LIGHTING_VISIBILITY = 13,
 		STREAM_SRC_VERTEX_LIGHTING_AMBIENT = 14,
 		STREAM_SRC_VERTEX_LIGHTING_HIGHLIGHT = 15,
@@ -291,6 +296,7 @@ namespace zonetool::s2
 		STREAM_DST_COLOR_0 = 2,
 		STREAM_DST_TEXCOORD_0 = 6,
 		STREAM_DST_TEXCOORD_15 = 21,
+		STREAM_DST_TEXCOORD_16 = 22,
 	};
 
 	struct MaterialStreamRouting
@@ -348,6 +354,7 @@ namespace zonetool::s2
 		CONST_SRC_CODE_NEARPLANE_ORG = 56,
 		CONST_SRC_CODE_NEARPLANE_DX = 57,
 		CONST_SRC_CODE_NEARPLANE_DY = 58,
+		CONST_SRC_CODE_LIGHT_TILE_PARMS = 94, // .x = uint light bitmask words per 8x8 pixel tile, stock lw_fplus_*_bmtile ps
 		CONST_SRC_CODE_SSR_PREV_FRAME_VIEWPROJECTION_MATRIX_R0 = 105,
 		CONST_SRC_CODE_SSR_PREV_FRAME_VIEWPROJECTION_MATRIX_R1 = 106,
 		CONST_SRC_CODE_SSR_PREV_FRAME_VIEWPROJECTION_MATRIX_R2 = 107,
@@ -355,6 +362,7 @@ namespace zonetool::s2
 		CONST_SRC_CODE_PREV_EYEPOSITION_TRANSFORM = 109,
 		CONST_SRC_CODE_SCREEN_SPACE_REFLECTION_PARAMETERS = 110,
 		CONST_SRC_CODE_SSS_MRT_OFF_SHADER_OFF = 113,
+		CONST_SRC_CODE_DISTORTION_SAMPLE_LIMITS_PS = 133, // h1 180, stock xv_distortion_scale ps
 		CONST_SRC_CODE_PREV_FRAME_WORLD_MATRIX_EYE_OFFSET = 138,
 		CONST_SRC_CODE_SHADOWMAP_SWITCH_PARTITION_ARRAY_0 = 140,
 		CONST_SRC_CODE_SHADOWMAP_SWITCH_PARTITION_ARRAY_1 = 141,
@@ -364,7 +372,16 @@ namespace zonetool::s2
 		CONST_SRC_CODE_SHADOWMAP_CASCADE_MASK = 145,
 		CONST_SRC_CODE_SHADOWMAP_DISTANCE_BLEND = 146,
 		CONST_SRC_CODE_ZNEAR = 147, // decodes FLOATZ like h1
+		CONST_SRC_CODE_INV_SCENE_PROJECTION = 148, // h1 205, stock xv_post_spritelight ps
 		CONST_SRC_CODE_MATERIAL_COLOR = 161,
+		CONST_SRC_CODE_ATMOS_FOG_PARMS_0 = 162, // stock effect fog vs rows match h1 222..228 (parms 7 = 169 drives the s2 fog lookup texture)
+		CONST_SRC_CODE_ATMOS_FOG_PARMS_1 = 163,
+		CONST_SRC_CODE_ATMOS_FOG_PARMS_2 = 164,
+		CONST_SRC_CODE_ATMOS_FOG_PARMS_3 = 165,
+		CONST_SRC_CODE_ATMOS_FOG_PARMS_4 = 166,
+		CONST_SRC_CODE_ATMOS_FOG_PARMS_5 = 167,
+		CONST_SRC_CODE_ATMOS_FOG_PARMS_6 = 168,
+		CONST_SRC_CODE_ATMOS_FOG_PARMS_7 = 169,
 		CONST_SRC_CODE_HDR_STAGE_PARMS = 218,
 		CONST_SRC_CODE_SUN_SHADOWMAP_PIXEL_ADJUST_ARRAY_0 = 241,
 		CONST_SRC_CODE_SUN_SHADOWMAP_PIXEL_ADJUST_ARRAY_1 = 242,
@@ -382,6 +399,10 @@ namespace zonetool::s2
 		CONST_SRC_CODE_PARTICLE_CLOUD_SPARK_COLOR1 = 326,
 		CONST_SRC_CODE_PARTICLE_CLOUD_SPARK_COLOR2 = 327,
 		CONST_SRC_CODE_DEPTH_FROM_CLIP = 331,
+		CONST_SRC_CODE_CODE_MESH_ARG_0 = 332, // h1 345..348, stock xv_post_spritelight vs rows 0-3
+		CONST_SRC_CODE_CODE_MESH_ARG_1 = 333,
+		CONST_SRC_CODE_CODE_MESH_ARG_3 = 334,
+		CONST_SRC_CODE_CODE_MESH_ARG_4 = 335,
 
 		CONST_SRC_CODE_COUNT_FLOAT4 = 338,
 		CONST_SRC_FIRST_CODE_MATRIX = 338,
@@ -572,11 +593,17 @@ namespace zonetool::s2
 		CUSTOM_BUFFER_INSTANCE_MATRICES = 0x8000, // 8 cb7 rows for each instance (sub_140181FA0)
 		CUSTOM_BUFFER_INSTANCE_MATRICES_LIGHTING = 0x10000, // 9 cb7 rows, row 8 .x is the model lighting index
 		CUSTOM_BUFFER_SLF = 0x40000, // binds cb5
+		CUSTOM_BUFFER_FORWARD_LIGHTS = 0xC0, // pixel shader structured t16 light records and t17 spot shadow records
+		CUSTOM_BUFFER_LIGHT_TILE_ZBINS = 0x100000, // pixel shader t25 light z bins of the "bmtile" passes
+		CUSTOM_BUFFER_LIGHT_CLUSTER_BITS = 0x200000, // pixel shader t24 froxel light bitmask of the "bmclust" passes
+		CUSTOM_BUFFER_LIGHT_TILE_BITS = 0x400000, // pixel shader t23 8x8 pixel tile light bitmask of the "bmtile" passes
 
-		CUSTOM_BUFFER_FORWARD_LIGHTING = 0x5000C0, // pixel shader t7 light grid volumes and the forward lights
+		CUSTOM_BUFFER_FORWARD_LIGHTING = 0x5000C0, // pixel shader t7 light grid volumes and the forward lights: FORWARD_LIGHTS | LIGHT_TILE_BITS | LIGHT_TILE_ZBINS
 		CUSTOM_BUFFER_LIGHT_GRID_VOLUME = 0x3800000, // vertex shader t5 index table, t6 transforms, t7 volumes
 		CUSTOM_BUFFER_LIGHT_GRID_PROBES = 0xC000000, // probe buffer t8 of the "lgv0d" passes
+		CUSTOM_BUFFER_SPRITES = 0x80000000, // raw t12 with the 64 byte fx sprite records, the "xl"/"xv" passes have no vertex decl
 	};
+	static_assert(CUSTOM_BUFFER_FORWARD_LIGHTING == (CUSTOM_BUFFER_FORWARD_LIGHTS | CUSTOM_BUFFER_LIGHT_TILE_BITS | CUSTOM_BUFFER_LIGHT_TILE_ZBINS));
 
 	enum CustomSamplerFlags : std::uint8_t
 	{
@@ -653,6 +680,7 @@ namespace zonetool::s2
 		TECHNIQUE_ZPREPASS_HIDIR_VELOCITY_RIGID = 4,
 		TECHNIQUE_ZPREPASS_HIDIR_VELOCITY_SKINNED = 5,
 		TECHNIQUE_BUILD_SHADOWMAP_DEPTH = 6,
+		TECHNIQUE_BUILD_SHADOWMAP_COLOR = 7, // slot 7 in h1, h2, s1 and iw7 too, no stock s2 techset fills it
 		TECHNIQUE_UNLIT = 8,
 		TECHNIQUE_UNLIT_SRGB_GAMMA = 9,
 		TECHNIQUE_UNLIT_BT2020_PQ = 10,
@@ -660,9 +688,24 @@ namespace zonetool::s2
 		TECHNIQUE_EMISSIVE_DFOG = 12,
 		TECHNIQUE_EMISSIVE_SHADOW = 13,
 		TECHNIQUE_EMISSIVE_SHADOW_DFOG = 14,
-		TECHNIQUE_LIT_BEGIN = 15, // 12 lit variants, sub_1407E7170
+		// sub_1407E7170: a drawlist table picks base 15..18, the light grid source adds 0 / 4 / 8
+		// stock names: lgv0 probe buffer, lgv1 2d array, lgv3 3d volume; even nofog, odd alfog; the last two of each group are never filled (mp, sp and zombies techsets)
+		TECHNIQUE_LIT = 15,
+		TECHNIQUE_LIT_ALFOG = 16,
+		TECHNIQUE_LIT_UNK_17 = 17,
+		TECHNIQUE_LIT_UNK_18 = 18,
+		TECHNIQUE_LIT_GRID_2D = 19,
+		TECHNIQUE_LIT_GRID_2D_ALFOG = 20,
+		TECHNIQUE_LIT_GRID_2D_UNK_21 = 21,
+		TECHNIQUE_LIT_GRID_2D_UNK_22 = 22,
+		TECHNIQUE_LIT_GRID_3D = 23,
+		TECHNIQUE_LIT_GRID_3D_ALFOG = 24,
+		TECHNIQUE_LIT_GRID_3D_UNK_25 = 25,
+		TECHNIQUE_LIT_GRID_3D_UNK_26 = 26,
+		TECHNIQUE_LIT_BEGIN = TECHNIQUE_LIT,
 		TECHNIQUE_LIT_END = 27,
 		TECHNIQUE_WIREFRAME_SOLID = 32,
+		// 34 is forced when the sort key has flag 0x40 (sub_1407E7170); 7, 27..31, 33..35 are never filled in mp, sp or zombies techsets
 		TECHNIQUE_VELOCITY_RIGID = 36,
 		TECHNIQUE_VELOCITY_SKINNED = 37,
 
@@ -673,7 +716,246 @@ namespace zonetool::s2
 	};
 
 	constexpr auto technique_count = 114;
-	constexpr auto world_vert_format_count = 234;
+
+	// same formats as h1 (the per-format layer stride, texel density and displacement weight tables match), techniques with flags & 8 use vertex decl 41 + format
+	enum MaterialWorldVertexFormat : std::int32_t
+	{
+		MTL_WORLDVERT_T1 = 0x0,
+		MTL_WORLDVERT_T2N1D0 = 0x1,
+		MTL_WORLDVERT_T2N1D1 = 0x2,
+		MTL_WORLDVERT_T2N1D2 = 0x3,
+		MTL_WORLDVERT_T2N2D0 = 0x4,
+		MTL_WORLDVERT_T2N2D1 = 0x5,
+		MTL_WORLDVERT_T2N2D2 = 0x6,
+		MTL_WORLDVERT_T3N1D0 = 0x7,
+		MTL_WORLDVERT_T3N1D1 = 0x8,
+		MTL_WORLDVERT_T3N1D2 = 0x9,
+		MTL_WORLDVERT_T3N1D3 = 0xA,
+		MTL_WORLDVERT_T3N2D0 = 0xB,
+		MTL_WORLDVERT_T3N2D1 = 0xC,
+		MTL_WORLDVERT_T3N2D2 = 0xD,
+		MTL_WORLDVERT_T3N2D3 = 0xE,
+		MTL_WORLDVERT_T3N3D0 = 0xF,
+		MTL_WORLDVERT_T3N3D1 = 0x10,
+		MTL_WORLDVERT_T3N3D2 = 0x11,
+		MTL_WORLDVERT_T3N3D3 = 0x12,
+		MTL_WORLDVERT_T4N1D0 = 0x13,
+		MTL_WORLDVERT_T4N1D1 = 0x14,
+		MTL_WORLDVERT_T4N1D2 = 0x15,
+		MTL_WORLDVERT_T4N1D3 = 0x16,
+		MTL_WORLDVERT_T4N1D4 = 0x17,
+		MTL_WORLDVERT_T4N2D0 = 0x18,
+		MTL_WORLDVERT_T4N2D1 = 0x19,
+		MTL_WORLDVERT_T4N2D2 = 0x1A,
+		MTL_WORLDVERT_T4N2D3 = 0x1B,
+		MTL_WORLDVERT_T4N2D4 = 0x1C,
+		MTL_WORLDVERT_T4N3D0 = 0x1D,
+		MTL_WORLDVERT_T4N3D1 = 0x1E,
+		MTL_WORLDVERT_T4N3D2 = 0x1F,
+		MTL_WORLDVERT_T4N3D3 = 0x20,
+		MTL_WORLDVERT_T4N3D4 = 0x21,
+		MTL_WORLDVERT_T4N4D0 = 0x22,
+		MTL_WORLDVERT_T4N4D1 = 0x23,
+		MTL_WORLDVERT_T4N4D2 = 0x24,
+		MTL_WORLDVERT_T4N4D3 = 0x25,
+		MTL_WORLDVERT_T4N4D4 = 0x26,
+		MTL_WORLDVERT_T5N1D0 = 0x27,
+		MTL_WORLDVERT_T5N1D1 = 0x28,
+		MTL_WORLDVERT_T5N1D2 = 0x29,
+		MTL_WORLDVERT_T5N1D3 = 0x2A,
+		MTL_WORLDVERT_T5N1D4 = 0x2B,
+		MTL_WORLDVERT_T5N1D5 = 0x2C,
+		MTL_WORLDVERT_T5N2D0 = 0x2D,
+		MTL_WORLDVERT_T5N2D1 = 0x2E,
+		MTL_WORLDVERT_T5N2D2 = 0x2F,
+		MTL_WORLDVERT_T5N2D3 = 0x30,
+		MTL_WORLDVERT_T5N2D4 = 0x31,
+		MTL_WORLDVERT_T5N2D5 = 0x32,
+		MTL_WORLDVERT_T5N3D0 = 0x33,
+		MTL_WORLDVERT_T5N3D1 = 0x34,
+		MTL_WORLDVERT_T5N3D2 = 0x35,
+		MTL_WORLDVERT_T5N3D3 = 0x36,
+		MTL_WORLDVERT_T5N3D4 = 0x37,
+		MTL_WORLDVERT_T5N3D5 = 0x38,
+		MTL_WORLDVERT_T5N4D0 = 0x39,
+		MTL_WORLDVERT_T5N4D1 = 0x3A,
+		MTL_WORLDVERT_T5N4D2 = 0x3B,
+		MTL_WORLDVERT_T5N4D3 = 0x3C,
+		MTL_WORLDVERT_T5N4D4 = 0x3D,
+		MTL_WORLDVERT_T5N4D5 = 0x3E,
+		MTL_WORLDVERT_T5N5D0 = 0x3F,
+		MTL_WORLDVERT_T5N5D1 = 0x40,
+		MTL_WORLDVERT_T5N5D2 = 0x41,
+		MTL_WORLDVERT_T5N5D3 = 0x42,
+		MTL_WORLDVERT_T5N5D4 = 0x43,
+		MTL_WORLDVERT_T5N5D5 = 0x44,
+		MTL_WORLDVERT_T6N1D0 = 0x45,
+		MTL_WORLDVERT_T6N1D1 = 0x46,
+		MTL_WORLDVERT_T6N1D2 = 0x47,
+		MTL_WORLDVERT_T6N1D3 = 0x48,
+		MTL_WORLDVERT_T6N1D4 = 0x49,
+		MTL_WORLDVERT_T6N1D5 = 0x4A,
+		MTL_WORLDVERT_T6N1D6 = 0x4B,
+		MTL_WORLDVERT_T6N2D0 = 0x4C,
+		MTL_WORLDVERT_T6N2D1 = 0x4D,
+		MTL_WORLDVERT_T6N2D2 = 0x4E,
+		MTL_WORLDVERT_T6N2D3 = 0x4F,
+		MTL_WORLDVERT_T6N2D4 = 0x50,
+		MTL_WORLDVERT_T6N2D5 = 0x51,
+		MTL_WORLDVERT_T6N2D6 = 0x52,
+		MTL_WORLDVERT_T6N3D0 = 0x53,
+		MTL_WORLDVERT_T6N3D1 = 0x54,
+		MTL_WORLDVERT_T6N3D2 = 0x55,
+		MTL_WORLDVERT_T6N3D3 = 0x56,
+		MTL_WORLDVERT_T6N3D4 = 0x57,
+		MTL_WORLDVERT_T6N3D5 = 0x58,
+		MTL_WORLDVERT_T6N3D6 = 0x59,
+		MTL_WORLDVERT_T6N4D0 = 0x5A,
+		MTL_WORLDVERT_T6N4D1 = 0x5B,
+		MTL_WORLDVERT_T6N4D2 = 0x5C,
+		MTL_WORLDVERT_T6N4D3 = 0x5D,
+		MTL_WORLDVERT_T6N4D4 = 0x5E,
+		MTL_WORLDVERT_T6N4D5 = 0x5F,
+		MTL_WORLDVERT_T6N4D6 = 0x60,
+		MTL_WORLDVERT_T6N5D0 = 0x61,
+		MTL_WORLDVERT_T6N5D1 = 0x62,
+		MTL_WORLDVERT_T6N5D2 = 0x63,
+		MTL_WORLDVERT_T6N5D3 = 0x64,
+		MTL_WORLDVERT_T6N5D4 = 0x65,
+		MTL_WORLDVERT_T6N5D5 = 0x66,
+		MTL_WORLDVERT_T6N5D6 = 0x67,
+		MTL_WORLDVERT_T7N1D0 = 0x68,
+		MTL_WORLDVERT_T7N1D1 = 0x69,
+		MTL_WORLDVERT_T7N1D2 = 0x6A,
+		MTL_WORLDVERT_T7N1D3 = 0x6B,
+		MTL_WORLDVERT_T7N1D4 = 0x6C,
+		MTL_WORLDVERT_T7N1D5 = 0x6D,
+		MTL_WORLDVERT_T7N1D6 = 0x6E,
+		MTL_WORLDVERT_T7N1D7 = 0x6F,
+		MTL_WORLDVERT_T7N2D0 = 0x70,
+		MTL_WORLDVERT_T7N2D1 = 0x71,
+		MTL_WORLDVERT_T7N2D2 = 0x72,
+		MTL_WORLDVERT_T7N2D3 = 0x73,
+		MTL_WORLDVERT_T7N2D4 = 0x74,
+		MTL_WORLDVERT_T7N2D5 = 0x75,
+		MTL_WORLDVERT_T7N2D6 = 0x76,
+		MTL_WORLDVERT_T7N2D7 = 0x77,
+		MTL_WORLDVERT_T7N3D0 = 0x78,
+		MTL_WORLDVERT_T7N3D1 = 0x79,
+		MTL_WORLDVERT_T7N3D2 = 0x7A,
+		MTL_WORLDVERT_T7N3D3 = 0x7B,
+		MTL_WORLDVERT_T7N3D4 = 0x7C,
+		MTL_WORLDVERT_T7N3D5 = 0x7D,
+		MTL_WORLDVERT_T7N3D6 = 0x7E,
+		MTL_WORLDVERT_T7N3D7 = 0x7F,
+		MTL_WORLDVERT_T7N4D0 = 0x80,
+		MTL_WORLDVERT_T7N4D1 = 0x81,
+		MTL_WORLDVERT_T7N4D2 = 0x82,
+		MTL_WORLDVERT_T7N4D3 = 0x83,
+		MTL_WORLDVERT_T7N4D4 = 0x84,
+		MTL_WORLDVERT_T7N4D5 = 0x85,
+		MTL_WORLDVERT_T7N4D6 = 0x86,
+		MTL_WORLDVERT_T7N4D7 = 0x87,
+		MTL_WORLDVERT_T7N5D0 = 0x88,
+		MTL_WORLDVERT_T7N5D1 = 0x89,
+		MTL_WORLDVERT_T7N5D2 = 0x8A,
+		MTL_WORLDVERT_T7N5D3 = 0x8B,
+		MTL_WORLDVERT_T7N5D4 = 0x8C,
+		MTL_WORLDVERT_T7N5D5 = 0x8D,
+		MTL_WORLDVERT_T7N5D6 = 0x8E,
+		MTL_WORLDVERT_T7N5D7 = 0x8F,
+		MTL_WORLDVERT_T8N1D0 = 0x90,
+		MTL_WORLDVERT_T8N1D1 = 0x91,
+		MTL_WORLDVERT_T8N1D2 = 0x92,
+		MTL_WORLDVERT_T8N1D3 = 0x93,
+		MTL_WORLDVERT_T8N1D4 = 0x94,
+		MTL_WORLDVERT_T8N1D5 = 0x95,
+		MTL_WORLDVERT_T8N1D6 = 0x96,
+		MTL_WORLDVERT_T8N1D7 = 0x97,
+		MTL_WORLDVERT_T8N1D8 = 0x98,
+		MTL_WORLDVERT_T8N2D0 = 0x99,
+		MTL_WORLDVERT_T8N2D1 = 0x9A,
+		MTL_WORLDVERT_T8N2D2 = 0x9B,
+		MTL_WORLDVERT_T8N2D3 = 0x9C,
+		MTL_WORLDVERT_T8N2D4 = 0x9D,
+		MTL_WORLDVERT_T8N2D5 = 0x9E,
+		MTL_WORLDVERT_T8N2D6 = 0x9F,
+		MTL_WORLDVERT_T8N2D7 = 0xA0,
+		MTL_WORLDVERT_T8N2D8 = 0xA1,
+		MTL_WORLDVERT_T8N3D0 = 0xA2,
+		MTL_WORLDVERT_T8N3D1 = 0xA3,
+		MTL_WORLDVERT_T8N3D2 = 0xA4,
+		MTL_WORLDVERT_T8N3D3 = 0xA5,
+		MTL_WORLDVERT_T8N3D4 = 0xA6,
+		MTL_WORLDVERT_T8N3D5 = 0xA7,
+		MTL_WORLDVERT_T8N3D6 = 0xA8,
+		MTL_WORLDVERT_T8N3D7 = 0xA9,
+		MTL_WORLDVERT_T8N3D8 = 0xAA,
+		MTL_WORLDVERT_T8N4D0 = 0xAB,
+		MTL_WORLDVERT_T8N4D1 = 0xAC,
+		MTL_WORLDVERT_T8N4D2 = 0xAD,
+		MTL_WORLDVERT_T8N4D3 = 0xAE,
+		MTL_WORLDVERT_T8N4D4 = 0xAF,
+		MTL_WORLDVERT_T8N4D5 = 0xB0,
+		MTL_WORLDVERT_T8N4D6 = 0xB1,
+		MTL_WORLDVERT_T8N4D7 = 0xB2,
+		MTL_WORLDVERT_T8N4D8 = 0xB3,
+		MTL_WORLDVERT_T8N5D0 = 0xB4,
+		MTL_WORLDVERT_T8N5D1 = 0xB5,
+		MTL_WORLDVERT_T8N5D2 = 0xB6,
+		MTL_WORLDVERT_T8N5D3 = 0xB7,
+		MTL_WORLDVERT_T8N5D4 = 0xB8,
+		MTL_WORLDVERT_T8N5D5 = 0xB9,
+		MTL_WORLDVERT_T8N5D6 = 0xBA,
+		MTL_WORLDVERT_T8N5D7 = 0xBB,
+		MTL_WORLDVERT_T8N5D8 = 0xBC,
+		MTL_WORLDVERT_T9N1D0 = 0xBD,
+		MTL_WORLDVERT_T9N1D1 = 0xBE,
+		MTL_WORLDVERT_T9N1D2 = 0xBF,
+		MTL_WORLDVERT_T9N1D3 = 0xC0,
+		MTL_WORLDVERT_T9N1D4 = 0xC1,
+		MTL_WORLDVERT_T9N1D5 = 0xC2,
+		MTL_WORLDVERT_T9N1D6 = 0xC3,
+		MTL_WORLDVERT_T9N1D7 = 0xC4,
+		MTL_WORLDVERT_T9N1D8 = 0xC5,
+		MTL_WORLDVERT_T9N2D0 = 0xC6,
+		MTL_WORLDVERT_T9N2D1 = 0xC7,
+		MTL_WORLDVERT_T9N2D2 = 0xC8,
+		MTL_WORLDVERT_T9N2D3 = 0xC9,
+		MTL_WORLDVERT_T9N2D4 = 0xCA,
+		MTL_WORLDVERT_T9N2D5 = 0xCB,
+		MTL_WORLDVERT_T9N2D6 = 0xCC,
+		MTL_WORLDVERT_T9N2D7 = 0xCD,
+		MTL_WORLDVERT_T9N2D8 = 0xCE,
+		MTL_WORLDVERT_T9N3D0 = 0xCF,
+		MTL_WORLDVERT_T9N3D1 = 0xD0,
+		MTL_WORLDVERT_T9N3D2 = 0xD1,
+		MTL_WORLDVERT_T9N3D3 = 0xD2,
+		MTL_WORLDVERT_T9N3D4 = 0xD3,
+		MTL_WORLDVERT_T9N3D5 = 0xD4,
+		MTL_WORLDVERT_T9N3D6 = 0xD5,
+		MTL_WORLDVERT_T9N3D7 = 0xD6,
+		MTL_WORLDVERT_T9N3D8 = 0xD7,
+		MTL_WORLDVERT_T9N4D0 = 0xD8,
+		MTL_WORLDVERT_T9N4D1 = 0xD9,
+		MTL_WORLDVERT_T9N4D2 = 0xDA,
+		MTL_WORLDVERT_T9N4D3 = 0xDB,
+		MTL_WORLDVERT_T9N4D4 = 0xDC,
+		MTL_WORLDVERT_T9N4D5 = 0xDD,
+		MTL_WORLDVERT_T9N4D6 = 0xDE,
+		MTL_WORLDVERT_T9N4D7 = 0xDF,
+		MTL_WORLDVERT_T9N4D8 = 0xE0,
+		MTL_WORLDVERT_T9N5D0 = 0xE1,
+		MTL_WORLDVERT_T9N5D1 = 0xE2,
+		MTL_WORLDVERT_T9N5D2 = 0xE3,
+		MTL_WORLDVERT_T9N5D3 = 0xE4,
+		MTL_WORLDVERT_T9N5D4 = 0xE5,
+		MTL_WORLDVERT_T9N5D5 = 0xE6,
+		MTL_WORLDVERT_T9N5D6 = 0xE7,
+		MTL_WORLDVERT_T9N5D7 = 0xE8,
+		MTL_WORLDVERT_T9N5D8 = 0xE9,
+		MTL_WORLDVERT_COUNT = 0xEA,
+	};
 
 	struct MaterialTechniqueSet
 	{
@@ -777,10 +1059,39 @@ namespace zonetool::s2
 	static_assert(sizeof(XSurfaceShared) == 0x48);
 	static_assert(offsetof(XSurfaceShared, indexCount) == 0x24);
 
+	enum NetConstStringType
+	{
+		NETCONSTSTRINGTYPE_XMODEL = 0, // mdl
+		NETCONSTSTRINGTYPE_MATERIAL = 1, // mat
+		NETCONSTSTRINGTYPE_RUMBLE = 2, // rmb
+		NETCONSTSTRINGTYPE_VEHICLES = 3, // veh
+		NETCONSTSTRINGTYPE_FX = 4, // vfx
+		NETCONSTSTRINGTYPE_LOCSTRING = 5, // loc
+		NETCONSTSTRINGTYPE_SOUNDALIAS = 6, // snd
+		NETCONSTSTRINGTYPE_SUBMIX = 7, // sbx
+		NETCONSTSTRINGTYPE_SHOCK = 8, // shk
+		NETCONSTSTRINGTYPE_SCRIPTMENU = 9, // mnu
+		NETCONSTSTRINGTYPE_CLIENT_TAGS = 10, // tag
+		NETCONSTSTRINGTYPE_POR = 11, // por, read by an agent script function
+		NETCONSTSTRINGTYPE_HEADICON = 12, // hic
+		NETCONSTSTRINGTYPE_NAMEPLATE = 13, // nps
+		NETCONSTSTRINGTYPE_MINIMAPICON = 14, // mic
+		NETCONSTSTRINGTYPE_LOCSELMAT = 15, // sel
+		NETCONSTSTRINGTYPE_WEAPON = 16, // wep
+		NETCONSTSTRINGTYPE_ATTACHMENT = 17, // att
+		NETCONSTSTRINGTYPE_HINTSTRING = 18, // hnt
+		NETCONSTSTRINGTYPE_ANIM = 19, // anm
+		NETCONSTSTRINGTYPE_ANIMCLASS = 20, // acl
+		NETCONSTSTRINGTYPE_LUI = 21, // lui
+		NETCONSTSTRINGTYPE_LASER = 22, // lsr
+		NETCONSTSTRINGTYPE_CLIENT_SCRIPT_STRING = 23, // css, notify names passed to lua
+		NETCONSTSTRINGTYPE_ASSET_COUNT = 24,
+	};
+
 	struct NetConstStrings
 	{
 		const char* name;
-		int stringType;
+		NetConstStringType stringType;
 		int sourceType;
 		unsigned int entryCount;
 		const char** stringList;
@@ -880,10 +1191,21 @@ namespace zonetool::s2
 		char __pad0[8];
 	};
 
+	// stock default: density 0.0361 (water, lb/in^3), phys_metal_vehicle 0.2836 (steel); mass = density * shape volume (2.5 sub_1405BD3F0)
 	struct PhysPreset
 	{
 		const char* name;
-		char __pad0[40];
+		float density;
+		float bounce;
+		float friction;
+		float unk_0x14; // 1.0 in stock
+		float bulletForceScale;
+		float explosiveForceScale; // scales scriptable physics launches (2.5 sub_14046C750)
+		float unk_0x20[2];
+		unsigned short collisionMask;
+		unsigned char unk_0x2A;
+		unsigned char unk_0x2B;
+		char __pad0[4];
 		const char* sndAliasPrefix;
 		char __pad1[8];
 		PhysPresetSound sounds[3];
@@ -892,6 +1214,8 @@ namespace zonetool::s2
 	};
 	static_assert(sizeof(PhysPreset) == 0x88);
 	static_assert(offsetof(PhysPreset, sounds) == 64);
+	static_assert(offsetof(PhysPreset, explosiveForceScale) == 0x1C);
+	static_assert(offsetof(PhysPreset, sndAliasPrefix) == 0x30);
 
 	struct LoadedSoundStreamInfo
 	{
@@ -1136,34 +1460,124 @@ namespace zonetool::s2
 
 	struct pathlink_s
 	{
-		char __pad0[12];
+		float fDist;
+		unsigned short nodeNum;
+		unsigned char disconnectCount;
+		unsigned char negotiationLink;
+		unsigned char flags;
+		unsigned char ubBadPlaceCount[3];
+	};
+	static_assert(sizeof(pathlink_s) == 12);
+
+	enum nodeType : std::uint16_t
+	{
+		NODE_ERROR = 0,
+		NODE_PATHNODE = 1,
+		NODE_COVER_STAND = 2,
+		NODE_COVER_CROUCH = 3,
+		NODE_COVER_CROUCH_WINDOW = 4,
+		NODE_COVER_PRONE = 5,
+		NODE_COVER_RIGHT = 6,
+		NODE_COVER_LEFT = 7,
+		NODE_COVER_MULTI = 8,
+		NODE_AMBUSH = 9,
+		NODE_EXPOSED = 10,
+		NODE_CONCEALMENT_STAND = 11,
+		NODE_CONCEALMENT_CROUCH = 12,
+		NODE_CONCEALMENT_PRONE = 13,
+		NODE_DOOR = 14,
+		NODE_DOOR_INTERIOR = 15,
+		NODE_SCRIPTED = 16,
+		NODE_NEGOTIATION_BEGIN = 17,
+		NODE_NEGOTIATION_END = 18,
+		NODE_TURRET = 19,
+		NODE_GUARD = 20,
+		NODE_PATHNODE_3D = 21,
+		NODE_COVER_UP_3D = 22,
+		NODE_COVER_RIGHT_3D = 23,
+		NODE_COVER_LEFT_3D = 24,
+		NODE_EXPOSED_3D = 25,
+		NODE_SCRIPTED_3D = 26,
+		NODE_NEGOTIATION_BEGIN_3D = 27,
+		NODE_NEGOTIATION_END_3D = 28,
+		NODE_NUMTYPES = 29,
+	};
+
+	struct pathnode_yaworient_t
+	{
+		float fLocalAngle;
+		float localForward[2];
+	};
+
+	union PathNodeOrientationUnion
+	{
+		pathnode_yaworient_t yaw_orient;
+		float angles[3];
+	};
+
+	union PathNodeParentUnion
+	{
+		scr_string_t name; // until parentIndexResolved
+		unsigned short index;
+	};
+
+	union PathNodeUseUnion
+	{
+		float minUseDistSq;
+		int error;
 	};
 
 	struct pathnode_constant_t
 	{
-		unsigned short type;
-		char __pad0[6];
+		nodeType type;
+		unsigned int spawnflags;
 		scr_string_t targetname;
 		scr_string_t script_linkName;
 		scr_string_t script_noteworthy;
 		scr_string_t target;
 		scr_string_t animscript;
-		char __pad1[28];
-		scr_string_t parentName;
-		char __pad2[8];
+		int animscriptfunc;
+		float vLocalOrigin[3];
+		PathNodeOrientationUnion orientation;
+		PathNodeParentUnion parent;
+		PathNodeUseUnion use;
+		short wOverlapNode[2];
 		unsigned short totalLinkCount;
-		char __pad3[2];
 		pathlink_s* Links;
 	};
 	static_assert(sizeof(pathnode_constant_t) == 0x50);
-	static_assert(offsetof(pathnode_constant_t, parentName) == 56);
+	static_assert(offsetof(pathnode_constant_t, vLocalOrigin) == 32);
+	static_assert(offsetof(pathnode_constant_t, parent) == 56);
+	static_assert(offsetof(pathnode_constant_t, wOverlapNode) == 64);
+	static_assert(offsetof(pathnode_constant_t, totalLinkCount) == 68);
+	static_assert(offsetof(pathnode_constant_t, Links) == 72);
+
+	struct SentientHandle
+	{
+		unsigned short number;
+		unsigned short infoIndex;
+	};
+
+	// runtime only, zero in zones; covers the dynamic and transient search data (16 bytes more than iw7)
+	struct pathnode_dynamic_t
+	{
+		SentientHandle pOwner[3]; // per team (Path_ClaimNode)
+		char __pad0[4];
+		int iFreeTime;
+		char __pad1[2];
+		unsigned char userCount[3];
+		char __pad2[87];
+	};
+	static_assert(sizeof(pathnode_dynamic_t) == 112);
 
 	struct pathnode_t
 	{
 		pathnode_constant_t constant;
-		char __pad0[112];
+		pathnode_dynamic_t dynamic;
 	};
 	static_assert(sizeof(pathnode_t) == 192);
+	static_assert(offsetof(pathnode_t, dynamic.iFreeTime) == 0x60);
+	static_assert(offsetof(pathnode_t, dynamic.userCount) == 0x66);
 
 	struct pathnode_tree_t;
 
@@ -1201,6 +1615,7 @@ namespace zonetool::s2
 		unsigned int nodeCount;
 		pathnode_t* nodes;
 		bool parentIndexResolved;
+		unsigned short version; // 29
 		unsigned int visBytes;
 		unsigned char* pathVis;
 		int nodeTreeCount;
@@ -1212,13 +1627,16 @@ namespace zonetool::s2
 		int noPeekVisBytes;
 		unsigned char* pathNoPeekVis;
 		int zoneCount;
-		unsigned short* pathZones;
+		char __pad0[4]; // h1 zonesBytes, s2 always 0
+		unsigned short* pathZones; // nodeCount entries when zoneCount, h1 has one byte per node
 		int dynStatesBytes;
 		unsigned char* pathDynStates;
 	};
 	static_assert(sizeof(PathData) == 0x88);
+	static_assert(offsetof(PathData, version) == 26);
 	static_assert(offsetof(PathData, visBytes) == 28);
 	static_assert(offsetof(PathData, zoneCount) == 104);
+	static_assert(offsetof(PathData, pathZones) == 112);
 
 	enum MaterialStateFlags : std::uint8_t
 	{
@@ -1368,20 +1786,49 @@ namespace zonetool::s2
 	static_assert(offsetof(Material, parentMaterial) == 216);
 	static_assert(offsetof(Material, constantBufferTable) == 344);
 
+	struct dmFloat4
+	{
+		float x;
+		float y;
+		float z;
+		float w;
+	};
+
+	struct dmPlane
+	{
+		float normal[3];
+		float offset;
+	};
+
+	struct dmSubEdge
+	{
+		char twinOffset;
+		unsigned char tail;
+		unsigned char left;
+		unsigned char next;
+	};
+	static_assert(sizeof(dmSubEdge) == 4);
+
 	struct dmPolytopeData
 	{
-		vec4_t* vec4_array0;
-		vec4_t* vec4_array1;
-		unsigned int* uint_array;
-		unsigned char* byte_array;
-		char __pad0[12];
-		int vec4_array0_count;
-		int vec4_array1_count;
-		int uint_array_count;
-		char __pad1[40];
+		dmFloat4* vertices;
+		dmPlane* planes;
+		dmSubEdge* subEdges;
+		unsigned char* faceSubEdges;
+		float centroid[3];
+		int vertexCount;
+		int faceCount;
+		int subEdgeCount;
+		float volume;
+		float area;
+		float inertiaMoments[3];
+		float inertiaProducts[3];
+		unsigned int collisionFlags; // same masks as dmMeshTriangle::collisionFlags
+		unsigned int surfaceType; // one per polytope, H1 had one per face
 	};
 	static_assert(sizeof(dmPolytopeData) == 0x60);
-	static_assert(offsetof(dmPolytopeData, vec4_array0_count) == 44);
+	static_assert(offsetof(dmPolytopeData, vertexCount) == 44);
+	static_assert(offsetof(dmPolytopeData, collisionFlags) == 88);
 
 	struct PhysGeomBox
 	{
@@ -1403,7 +1850,8 @@ namespace zonetool::s2
 			PhysGeomCapsule* capsule;
 		};
 		int type;
-		char __pad0[4];
+		short partIndex; // into PhysCollmap::parts, -1 for none (2.5 sub_1405BDB80)
+		char __pad0[2];
 	};
 	static_assert(sizeof(PhysGeomInfo) == 0x10);
 
@@ -1421,9 +1869,12 @@ namespace zonetool::s2
 		PhysCollmapPart* parts;
 		short geomCount;
 		short partCount;
-		char __pad0[36];
+		char __pad0[12];
+		float boundsMidPoint[3];
+		float boundsHalfSize[3];
 	};
 	static_assert(sizeof(PhysCollmap) == 0x40);
+	static_assert(offsetof(PhysCollmap, boundsMidPoint) == 40);
 
 	struct XSurfaceCollisionNode
 	{
@@ -1879,26 +2330,54 @@ namespace zonetool::s2
 		FxElemVisuals instance;
 	};
 
+	struct FxFloatRange
+	{
+		float base;
+		float amplitude;
+	};
+
 	struct FxTrailVertex
 	{
-		char __pad0[32];
+		float pos[2];
+		float normal[2];
+		float texCoord[2];
+		float radialNormal[2];
 	};
+	static_assert(sizeof(FxTrailVertex) == 32);
 
 	struct FxTrailDef
 	{
-		char __pad0[28];
+		int scrollTimeMsec;
+		int repeatDist;
+		float invSplitDist;
+		float invSplitArcDist;
+		float invSplitTime;
+		float headFadingFactor;
+		float tailFadingFactor;
 		int vertCount;
 		FxTrailVertex* verts;
 		int indCount;
-		char __pad1[4];
 		unsigned short* inds;
 	};
 	static_assert(sizeof(FxTrailDef) == 0x38);
 
 	struct FxSparkFountainDef
 	{
-		char __pad0[0x34];
+		float gravity;
+		float bounceFrac;
+		float bounceRand;
+		float sparkSpacing;
+		float sparkLength;
+		int sparkCount;
+		float loopTime;
+		float velMin;
+		float velMax;
+		float velConeFrac;
+		float restSpeed;
+		float boostTime;
+		float boostFactor;
 	};
+	static_assert(sizeof(FxSparkFountainDef) == 0x34);
 
 	struct FxSpotLightDef
 	{
@@ -1909,14 +2388,25 @@ namespace zonetool::s2
 
 	struct FxOmniLightDef
 	{
-		char __pad0[24];
+		float bulbRadius;
+		float bulbLength;
+		float fadeOffsetRt[2];
+		char __pad0[8];
 		const char* name;
 	};
 	static_assert(sizeof(FxOmniLightDef) == 0x20);
 
 	struct FxFlareDef
 	{
-		char __pad0[64];
+		float position;
+		int angularRotCount;
+		int flags;
+		FxFloatRange depthScaleRange;
+		FxFloatRange depthScaleValue;
+		FxFloatRange radialRot;
+		FxFloatRange radialScaleX;
+		FxFloatRange radialScaleY;
+		float dir[3];
 		int intensityXIntervalCount;
 		int intensityYIntervalCount;
 		int srcCosIntensityIntervalCount;
@@ -1939,45 +2429,288 @@ namespace zonetool::s2
 		char* unknownBytes;
 	};
 
+	enum FxEffectDefFlags : std::uint32_t
+	{
+		FX_EFFECT_NEEDS_LIGHT_GRID_LIGHTING_AT_SPAWN = 0x1,
+		FX_EFFECT_NEEDS_CAST_SHADOW = 0x2, // any elem with FX_ELEM_USE_CAST_SHADOW
+		FX_EFFECT_NEEDS_LIGHT_GRID_LIGHTING_PER_FRAME = 0x4,
+		FX_EFFECT_NEEDS_DYNAMIC_LIGHTING_PER_FRAME = 0x8, // no stock S2 effect sets it
+		FX_EFFECT_NEEDS_EMISSIVE_DRAW = 0x10, // any elem with FX_ELEM_USE_OCCLUSION_QUERY or FX_ELEM2_USE_EMISSIVE_DRAW
+		FX_EFFECT_USE_VECTORFIELDS = 0x20, // any elem with FX_ELEM_USE_VECTORFIELDS
+		FX_EFFECT_LINK_TO_SUN = 0x40,
+		FX_EFFECT_HAS_CAMERA_RELATIVE_ELEM = 0x80,
+		FX_EFFECT_NEEDS_POST_RESOLVE_DRAW = 0x100, // any elem with FX_ELEM2_REQUIRES_POST_RESOLVE_DRAW
+		FX_EFFECT_UNK_9 = 0x200,
+		FX_EFFECT_HAS_ROTATED_SPRITE_ELEM = 0x400, // any FX_ELEM_TYPE_SPRITE_ROTATED elem
+		FX_EFFECT_UNK_11 = 0x800, // any elem with FX_ELEM2_UNK_8
+		FX_EFFECT_UNK_12 = 0x1000, // any elem with FX_ELEM2_UNK_19
+		FX_EFFECT_UNK_13 = 0x2000, // any elem with FX_ELEM2_UNK_20
+		FX_EFFECT_UNK_14 = 0x4000, // FX_PlayEffect hands its FX_ELEM_TYPE_UNK_20 elems to cgame, not set on stock flesh impacts
+	};
+
+	enum FxElemType : std::uint8_t
+	{
+		FX_ELEM_TYPE_SPRITE_BILLBOARD = 0,
+		FX_ELEM_TYPE_SPRITE_ORIENTED = 1,
+		FX_ELEM_TYPE_SPRITE_ROTATED = 2,
+		FX_ELEM_TYPE_TAIL = 3,
+		FX_ELEM_TYPE_LINE = 4,
+		FX_ELEM_TYPE_TRAIL = 5,
+		FX_ELEM_TYPE_FLARE = 6,
+		FX_ELEM_TYPE_PARTICLE_SIM_ANIMATION = 7,
+		FX_ELEM_TYPE_CLOUD = 8,
+		FX_ELEM_TYPE_SPARK_CLOUD = 9,
+		FX_ELEM_TYPE_SPARK_FOUNTAIN = 10,
+		FX_ELEM_TYPE_MODEL = 11,
+		FX_ELEM_TYPE_OMNI_LIGHT = 12,
+		FX_ELEM_TYPE_SPOT_LIGHT = 13,
+		FX_ELEM_TYPE_SOUND = 14,
+		FX_ELEM_TYPE_STRING_15 = 15, // no stock S2 effect uses it
+		FX_ELEM_TYPE_DECAL = 16,
+		FX_ELEM_TYPE_RUNNER = 17,
+		FX_ELEM_TYPE_VECTORFIELD = 18,
+		FX_ELEM_TYPE_STRING_19 = 19, // explosion, smoke and large impact effects, visual is always null
+		FX_ELEM_TYPE_UNK_20 = 20, // no visual, cgame reads its spawn origin and offset radius, water splash, footstep and flesh effects
+	};
+
+	enum FxElemDefFlags : std::uint32_t
+	{
+		FX_ELEM_SPAWN_RELATIVE_TO_EFFECT = 0x2,
+		FX_ELEM_SPAWN_FRUSTUM_CULL = 0x4,
+		FX_ELEM_RUNNER_USES_RAND_ROT = 0x8,
+		FX_ELEM_SPAWN_OFFSET_NONE = 0x0,
+		FX_ELEM_SPAWN_OFFSET_SPHERE = 0x10,
+		FX_ELEM_SPAWN_OFFSET_CYLINDER = 0x20,
+		FX_ELEM_SPAWN_OFFSET_MASK = 0x30,
+		FX_ELEM_RUN_RELATIVE_TO_WORLD = 0x0,
+		FX_ELEM_RUN_RELATIVE_TO_SPAWN = 0x40,
+		FX_ELEM_RUN_RELATIVE_TO_EFFECT = 0x80,
+		FX_ELEM_RUN_RELATIVE_TO_OFFSET = 0xC0,
+		FX_ELEM_RUN_RELATIVE_TO_CAMERA = 0x100,
+		FX_ELEM_RUN_MASK = 0x1C0,
+		FX_ELEM_DIE_ON_TOUCH = 0x200,
+		FX_ELEM_DRAW_PAST_FOG = 0x400,
+		FX_ELEM_DRAW_WITH_VIEWMODEL = 0x800,
+		FX_ELEM_BLOCK_SIGHT = 0x1000,
+		FX_ELEM_DRAW_IN_THERMAL_VIEW_ONLY = 0x2000,
+		FX_ELEM_TRAIL_ORIENT_BY_VELOCITY = 0x4000,
+		FX_ELEM_EMIT_ORIENT_BY_ELEM = 0x8000,
+		FX_ELEM_USE_OCCLUSION_QUERY = 0x10000,
+		FX_ELEM_USE_CAST_SHADOW = 0x20000,
+		FX_ELEM_NODRAW_IN_THERMAL_VIEW = 0x40000,
+		FX_ELEM_THERMAL_MASK = 0x42000,
+		FX_ELEM_SPAWN_IMPACT_FX_WITH_SURFACE_NAME = 0x80000,
+		FX_ELEM_RECEIVE_DYNAMIC_LIGHT = 0x100000,
+		FX_ELEM_VOLUMETRIC_TRAIL = 0x200000,
+		FX_ELEM_USE_COLLISION = 0x400000,
+		FX_ELEM_USE_VECTORFIELDS = 0x800000,
+		FX_ELEM_HAS_VELOCITY_GRAPH_LOCAL = 0x1000000,
+		FX_ELEM_HAS_VELOCITY_GRAPH_WORLD = 0x2000000,
+		FX_ELEM_HAS_GRAVITY = 0x4000000,
+		FX_ELEM_USE_MODEL_PHYSICS = 0x8000000,
+		FX_ELEM_NONUNIFORM_SCALE = 0x10000000,
+		FX_ELEM_CLOUD_SHAPE_CUBE = 0x0,
+		FX_ELEM_CLOUD_SHAPE_SPHERE_LARGE = 0x20000000,
+		FX_ELEM_CLOUD_SHAPE_SPHERE_MEDIUM = 0x40000000,
+		FX_ELEM_CLOUD_SHAPE_SPHERE_SMALL = 0x60000000,
+		FX_ELEM_CLOUD_SHAPE_MASK = 0x60000000,
+		FX_ELEM_EMIT_BOLT = 0x80000000,
+		FX_ELEM_FOUNTAIN_DISABLE_COLLISION = 0x80000000,
+	};
+
+	enum FxElemDefExtraFlags : std::uint32_t
+	{
+		FX_ELEM2_BILLBOARD_FACING_CAMERA_PERPENDICULAR = 0x1,
+		FX_ELEM2_BILLBOARD_FACING_PLAYER = 0x2,
+		FX_ELEM2_BILLBOARD_FACING_MASK = 0x3,
+		FX_ELEM2_EMIT_TRAILS = 0x4,
+		FX_ELEM2_USE_EMISSIVE_DRAW = 0x8,
+		FX_ELEM2_USE_EFFECT_MODEL_COLOR = 0x20,
+		FX_ELEM2_REQUIRES_POST_RESOLVE_DRAW = 0x40, // H2 name, stock S2 sets it only with FX_ELEM2_USE_EMISSIVE_DRAW
+		FX_ELEM2_DECAL_EXPONENTIAL_FADE_OUT = 0x80,
+		FX_ELEM2_UNK_8 = 0x100, // packs an entity index of the bolted effect into the elem draw bits
+		FX_ELEM2_INHERIT_PARENT_VELOCITY = 0x200,
+		FX_ELEM2_H1_MASK = 0xFF, // bits with the same meaning in H1
+		FX_ELEM2_UNK_14 = 0x4000,
+		FX_ELEM2_UNK_15 = 0x8000, // sprite batches split on it
+		FX_ELEM2_UNK_16 = 0x10000,
+		FX_ELEM2_UNK_17 = 0x20000,
+		FX_ELEM2_UNK_18 = 0x40000,
+		FX_ELEM2_UNK_19 = 0x80000,
+		FX_ELEM2_UNK_20 = 0x100000, // runner elems only
+		FX_ELEM2_UNK_21 = 0x200000, // scales an elem value by FxElemDef::unknown344, no stock S2 elem sets it
+		FX_ELEM2_UNK_22 = 0x400000, // decal only
+		FX_ELEM2_UNK_23 = 0x800000, // decal only
+		FX_ELEM2_UNK_24 = 0x1000000, // decal only
+		FX_ELEM2_UNK_25 = 0x2000000, // decal only
+		FX_ELEM2_UNK_26 = 0x4000000, // decal only
+		FX_ELEM2_OCCLUSION_QUERY_NO_SCALE = 0x8000000, // skips the occlusion query size scale, no stock S2 elem sets it
+	};
+
+	struct FxIntRange
+	{
+		int base;
+		int amplitude;
+	};
+
+	struct FxSpawnDefLooping
+	{
+		int intervalMsec;
+		int count;
+	};
+
+	struct FxSpawnDefOneShot
+	{
+		FxIntRange count;
+	};
+
+	union FxSpawnDef
+	{
+		FxSpawnDefLooping looping;
+		FxSpawnDefOneShot oneShot;
+	};
+
+	enum FxElemAtlasBehavior : std::uint8_t
+	{
+		FX_ATLAS_PLAY_OVER_LIFE = 0x4,
+	};
+
+	struct FxElemAtlas
+	{
+		unsigned char behavior;
+		unsigned char index;
+		unsigned char fps;
+		unsigned char loopCount;
+		unsigned char colIndexBits;
+		unsigned char rowIndexBits;
+		short entryCount;
+	};
+
+	struct FxElemVec3Range
+	{
+		float base[3];
+		float amplitude[3];
+	};
+
+	struct FxElemVelStateInFrame
+	{
+		FxElemVec3Range velocity;
+		FxElemVec3Range totalDelta;
+	};
+
+	struct FxElemVelStateSample
+	{
+		float vectorFieldScale; // 1, stock curves fall over life only on FX_ELEM_USE_VECTORFIELDS elems
+		FxElemVelStateInFrame local;
+		FxElemVelStateInFrame world;
+		FxElemVelStateInFrame unk;
+	};
+	static_assert(sizeof(FxElemVelStateSample) == 148);
+
+	struct FxElemVisualState
+	{
+		float color[4];
+		float emissiveScale[3];
+		float rotationDelta;
+		float rotationTotal;
+		float size[2];
+		float scale;
+		float pivot[2];
+		float atlasFrame;
+	};
+
+	struct FxElemVisStateSample
+	{
+		FxElemVisualState base;
+		FxElemVisualState amplitude;
+	};
+	static_assert(sizeof(FxElemVisStateSample) == 120);
+
 	struct FxElemDef
 	{
-		char __pad0[188];
-		unsigned char elemType;
-		unsigned char __pad1;
+		unsigned int flags;
+		unsigned int flags2;
+		FxSpawnDef spawn;
+		FxFloatRange spawnRange;
+		FxFloatRange fadeInRange;
+		FxFloatRange fadeOutRange;
+		float spawnFrustumCullRadius;
+		FxIntRange spawnDelayMsec;
+		FxIntRange lifeSpanMsec;
+		FxFloatRange spawnOrigin[3];
+		FxFloatRange spawnOffsetRadius;
+		FxFloatRange spawnOffsetHeight;
+		FxFloatRange spawnAngles[3];
+		FxFloatRange angularVelocity[3];
+		FxFloatRange initialRotation;
+		FxFloatRange gravity;
+		FxFloatRange reflectionFactor;
+		FxFloatRange unknownRange; // stock {0.5, 0}
+		FxElemAtlas atlas;
+		FxElemType elemType;
+		unsigned char elemLitType;
 		unsigned char visualCount;
 		unsigned char velIntervalCount;
 		unsigned char visStateIntervalCount;
-		char __pad2[7];
-		char* velSamples;
-		char* visSamples;
+		FxElemVelStateSample* velSamples;
+		FxElemVisStateSample* visSamples;
 		FxElemDefVisuals visuals;
-		char __pad3[24];
+		Bounds collBounds;
 		FxEffectDefRef effectOnImpact;
 		FxEffectDefRef effectOnDeath;
 		FxEffectDefRef effectEmitted;
-		char __pad4[16];
+		FxFloatRange emitDist;
+		FxFloatRange emitDistVariance;
 		FxElemExtendedDefPtr extended;
-		char __pad5[56];
+		unsigned char sortOrder;
+		unsigned char lightingFrac;
+		unsigned char useItemClip;
+		unsigned char fadeInfo;
+		unsigned char fadeOutInfo;
+		int randomSeed;
+		float emissiveScaleScale;
+		float hdrLightingFrac;
+		float shadowDensityScale;
+		float scatterRatio;
+		float volumetricTrailFadeStart;
+		float unknown328; // stock 0.5
+		char __pad0[12];
+		float unknown344; // stock 1
+		char __pad1[4];
 		const char* name;
 	};
 	static_assert(sizeof(FxElemDef) == 0x168);
+	static_assert(offsetof(FxElemDef, atlas) == 180);
+	static_assert(offsetof(FxElemDef, elemType) == 188);
 	static_assert(offsetof(FxElemDef, velSamples) == 200);
 	static_assert(offsetof(FxElemDef, visuals) == 216);
 	static_assert(offsetof(FxElemDef, effectOnImpact) == 248);
 	static_assert(offsetof(FxElemDef, extended) == 288);
+	static_assert(offsetof(FxElemDef, sortOrder) == 296);
+	static_assert(offsetof(FxElemDef, randomSeed) == 304);
+	static_assert(offsetof(FxElemDef, unknown328) == 328);
 	static_assert(offsetof(FxElemDef, name) == 352);
 
 	struct FxEffectDef
 	{
 		const char* name;
-		char __pad0[12];
+		unsigned int flags;
+		int totalSize;
+		int msecLoopingLife;
 		int elemDefCountLooping;
 		int elemDefCountOneShot;
 		int elemDefCountEmission;
-		char __pad1[32];
+		float elemMaxRadius;
+		char __pad0[4];
+		float occlusionQueryDepthBias;
+		int occlusionQueryFadeIn;
+		int occlusionQueryFadeOut;
+		FxFloatRange occlusionQueryScaleRange;
+		char __pad1[4];
 		FxElemDef* elemDefs;
 	};
 	static_assert(sizeof(FxEffectDef) == 0x48);
+	static_assert(offsetof(FxEffectDef, occlusionQueryDepthBias) == 40);
 
 	struct LightDef
 	{
@@ -1986,22 +2719,74 @@ namespace zonetool::s2
 	};
 	static_assert(sizeof(LightDef) == 0x10);
 
+	struct GfxColorFloat
+	{
+		float array[4];
+	};
+
+	// same as h1 (2.5 zone loader sub_140439840, draw sub_1404787C0, particle decode sub_140479BA0)
+	struct FxParticleSimAnimationHeader
+	{
+		float playbackRate;
+		float duration;
+		unsigned int frameCount;
+		float minX;
+		float minY;
+		float minZ;
+		float boundsXDelta;
+		float boundsYDelta;
+		float boundsZDelta;
+		float maxWidth;
+		float maxHeight;
+		unsigned int colorTableSize;
+		unsigned int particleDataCount;
+		bool evalVisStatePerParticle;
+		bool sortParticlesAtRuntime; // the draw clears this on the asset when a frame has more than 8832 particles
+	};
+	static_assert(sizeof(FxParticleSimAnimationHeader) == 0x38);
+
+	// u16 / 65535 of the header bounds (pos), max sizes (size), duration (lifetime) and 2 pi (orientation); orientationDelta is s16 / 32767 of pi
+	struct FxParticleSimAnimationParticleData
+	{
+		unsigned short xNormalizedPos;
+		unsigned short yNormalizedPos;
+		unsigned short zNormalizedPos;
+		unsigned short xNormalizedWidth;
+		unsigned short yNormalizedHeight;
+		unsigned short orientation;
+		unsigned short lifetime;
+		unsigned short particleID;
+		unsigned short xNormalizedPosNextFrame;
+		unsigned short yNormalizedPosNextFrame;
+		unsigned short zNormalizedPosNextFrame;
+		unsigned short xNormalizedWidthNextFrame;
+		unsigned short yNormalizedHeightNextFrame;
+		short orientationDelta;
+		unsigned short colorTableIndex;
+		unsigned short nextColorTableIndex;
+	};
+	static_assert(sizeof(FxParticleSimAnimationParticleData) == 0x20);
+
+	struct FxParticleSimAnimationFrame
+	{
+		unsigned int particleDataOffset;
+		unsigned int numActiveParticles;
+	};
+	static_assert(sizeof(FxParticleSimAnimationFrame) == 0x8);
+
 	struct FxParticleSimAnimation
 	{
 		const char* name;
 		Material* material;
-		char __pad0[8];
-		unsigned int sampleCount;
-		char __pad1[32];
-		unsigned int stateCount;
-		unsigned int frameCount;
-		char __pad2[4];
-		char* frames;
-		char* samples;
-		char* states;
+		FxParticleSimAnimationHeader header;
+		FxParticleSimAnimationParticleData* particleData;
+		FxParticleSimAnimationFrame* frames;
+		GfxColorFloat* colorTable;
 	};
 	static_assert(sizeof(FxParticleSimAnimation) == 0x60);
-	static_assert(offsetof(FxParticleSimAnimation, stateCount) == 60);
+	static_assert(offsetof(FxParticleSimAnimation, header) == 0x10);
+	static_assert(offsetof(FxParticleSimAnimation, particleData) == 0x48);
+	static_assert(offsetof(FxParticleSimAnimation, colorTable) == 0x58);
 
 	union XAnimDynamicFrames
 	{
@@ -2256,15 +3041,16 @@ namespace zonetool::s2
 	};
 	static_assert(sizeof(TracerDef) == 0x80);
 
+	// h1 GfxWorldVertex split into one stream per field, buffers holds the matching d3d buffers
 	struct GfxMapTrZoneData
 	{
 		vec3_t* positions;
-		unsigned int* data0;
-		unsigned int* data1;
-		std::uint64_t* data2;
-		std::uint64_t* data3;
-		unsigned int* data4;
-		unsigned int* data5;
+		float* texelDensities; // uv units per world unit (vertex decl source 7 "ed"), h1 stores it signed in GfxWorldVertex::binormalSign
+		unsigned int* colors;
+		vec2_t* texCoords;
+		vec2_t* lmapCoords;
+		unsigned int* normals; // 10:10:10:2 unorm
+		unsigned int* tangents; // 10:10:10:2 unorm, w 3 = binormal is -cross(normal, tangent), w 0 = +cross
 	};
 	static_assert(sizeof(GfxMapTrZoneData) == 0x38);
 
@@ -2280,7 +3066,7 @@ namespace zonetool::s2
 	};
 	static_assert(sizeof(GfxMapTrZoneVertexBuffer) == 0x70);
 
-	struct GfxMapTrZoneIndexBuffer
+	struct GfxMapTrZoneVertexLayerData
 	{
 		unsigned char* data;
 		void* buffer;
@@ -2292,38 +3078,275 @@ namespace zonetool::s2
 		char __pad0[4];
 		unsigned int vertexCount;
 		GfxMapTrZoneVertexBuffer vertices;
-		unsigned int indexDataSize;
+		unsigned int vertexLayerDataSize; // GfxSurface::vertexLayerData is a byte offset into vld
 		char __pad1[4];
-		GfxMapTrZoneIndexBuffer indices;
+		GfxMapTrZoneVertexLayerData vld;
 	};
 	static_assert(sizeof(GfxMapTrZone) == 0x98);
-	static_assert(offsetof(GfxMapTrZone, indexDataSize) == 128);
-	static_assert(offsetof(GfxMapTrZone, indices) == 136);
+	static_assert(offsetof(GfxMapTrZone, vertexLayerDataSize) == 128);
+	static_assert(offsetof(GfxMapTrZone, vld) == 136);
+
+	struct MayhemModel
+	{
+		XModel* model;
+	};
+
+	struct MayhemTransBounds
+	{
+		vec3_t mins;
+		vec3_t size;
+	};
+	static_assert(sizeof(MayhemTransBounds) == 0x18);
+
+	struct GfxWrappedBaseBuffer
+	{
+		ID3D11Resource* buffer; // created at load
+	};
+
+	struct MayhemAnimFramesSplineCompressed
+	{
+		char* diskQuat;
+		char* diskPos;
+		unsigned short* diskQuatFrames;
+		unsigned short* diskPosFrames;
+		unsigned short* numDiskQuatFrames;
+		unsigned short* numDiskPosFrames;
+		MayhemTransBounds* transBounds;
+		GfxWrappedBaseBuffer quat;
+		GfxWrappedBaseBuffer pos;
+		unsigned int quatStride;
+		unsigned int posStride;
+		unsigned int totalCompressedQuatFrames;
+		unsigned int totalCompressedPosFrames;
+	};
+	static_assert(sizeof(MayhemAnimFramesSplineCompressed) == 0x58);
+
+	struct MayhemAnimFramesUncompressed
+	{
+		char* diskQuat;
+		char* diskPos;
+		MayhemTransBounds* transBounds;
+		GfxWrappedBaseBuffer quat;
+		GfxWrappedBaseBuffer pos;
+		unsigned int quatStride;
+		unsigned int posStride;
+	};
+	static_assert(sizeof(MayhemAnimFramesUncompressed) == 0x30);
+
+	union MayhemFramesUnion
+	{
+		void* data;
+		MayhemAnimFramesSplineCompressed* splineCompressedFrames;
+		MayhemAnimFramesUncompressed* uncompressedFrames;
+	};
+
+	struct MayhemDataKeysSplineCompressed
+	{
+		char* keys;
+		unsigned short* numKeys;
+		unsigned short* keyFrames;
+		unsigned int totalCompressedKeyFrames;
+		unsigned int numStreams;
+		unsigned int keyStride;
+	};
+	static_assert(sizeof(MayhemDataKeysSplineCompressed) == 0x28);
+
+	struct MayhemDataKeysUncompressed
+	{
+		char* keys;
+		unsigned int numStreams;
+		unsigned int keyStride;
+	};
+	static_assert(sizeof(MayhemDataKeysUncompressed) == 0x10);
+
+	union MayhemDataChannelsUnion
+	{
+		void* data;
+		MayhemDataKeysSplineCompressed* splineCompressedKeys;
+		MayhemDataKeysUncompressed* uncompressedKeys;
+	};
+
+	struct MayhemAnim
+	{
+		MayhemFramesUnion frames;
+		unsigned int numBones;
+		unsigned int numFrames;
+		float framerate;
+		float frequency;
+		unsigned int notifyCount;
+		unsigned int dataChannelCount;
+		bool isLooping;
+		bool isSplineCompressed;
+		bool quantizeQuats;
+		bool quantizeTrans;
+		bool quantizeChannels;
+		XAnimNotifyInfo* notify;
+		MayhemDataChannelsUnion dataChannels;
+	};
+	static_assert(sizeof(MayhemAnim) == 0x38);
+	static_assert(offsetof(MayhemAnim, isSplineCompressed) == 0x21);
+	static_assert(offsetof(MayhemAnim, notify) == 0x28);
+
+	struct MayhemObject
+	{
+		unsigned int modelIndex;
+		unsigned int animIndex;
+	};
 
 	struct Mayhem
 	{
 		const char* name;
-		char __pad0[0x48];
+		XModel* preModel;
+		XModel* postModel;
+		unsigned int numModels;
+		MayhemModel* models;
+		unsigned int numAnims;
+		MayhemAnim* anims;
+		unsigned int numObjects;
+		MayhemObject* objects;
+		float length;
 	};
 	static_assert(sizeof(Mayhem) == 0x50);
 
 	struct Spline;
 
+	enum ScriptableEventType : std::int32_t
+	{
+		SCRIPTABLE_EVENT_STATE_MODEL = 0,
+		SCRIPTABLE_EVENT_MODEL = 1,
+		SCRIPTABLE_EVENT_FX = 2,
+		SCRIPTABLE_EVENT_STOP_FX = 3,
+		SCRIPTABLE_EVENT_SOUND = 4,
+		SCRIPTABLE_EVENT_ANIMATION = 5,
+		SCRIPTABLE_EVENT_EXPLODE = 6,
+		SCRIPTABLE_EVENT_HEALTHDRAIN = 7,
+		SCRIPTABLE_EVENT_PHYSICSLAUNCH = 8,
+		SCRIPTABLE_EVENT_LIGHTSETTINGS = 9,
+		SCRIPTABLE_EVENT_LATE_SPLINE = 10,
+		SCRIPTABLE_EVENT_SHAKE = 11,
+		SCRIPTABLE_EVENT_LATE_STRING_12 = 12,
+		SCRIPTABLE_EVENT_LATE_STRING_13 = 13,
+		SCRIPTABLE_EVENT_MAYHEM = 14,
+		SCRIPTABLE_EVENT_STRING_15 = 15,
+		SCRIPTABLE_EVENT_SPLINE = 16,
+		SCRIPTABLE_EVENT_STATECHANGE = 17,
+	};
+
+	enum ScriptableNotetrackType : std::int32_t
+	{
+		SCRIPTABLE_NOTETRACK_FX = 0,
+		SCRIPTABLE_NOTETRACK_SOUND = 1,
+	};
+
+	// 2.5 sub_14060BB20 case 0
 	struct ScriptableEventModelDef
 	{
 		XModel* model;
 		const char* name;
+		unsigned char modelIndex;
+		unsigned char brushIndex;
+		bool noModel;
+		bool noBrush;
+		bool setInstanceFlag;
 	};
 
+	struct ScriptableEventPartModelDef
+	{
+		XModel* model;
+		bool show;
+		unsigned char modelTagIndex;
+	};
+
+	// 2.5 sub_140605800
 	struct ScriptableEventFxDef
 	{
 		FxEffectDef* effect;
 		scr_string_t tag;
+		unsigned short loopTime;
+		unsigned char loopTimeStreamIndex;
+		bool tagUseAngles;
 	};
 
 	struct ScriptableEventSoundDef
 	{
 		snd_alias_list_t* alias;
+		bool looping;
+	};
+
+	// 2.5 sub_14060B840
+	struct ScriptableEventAnimationDef
+	{
+		const char* animName;
+		unsigned short timeOffsetMin;
+		unsigned short timeOffsetMax;
+		unsigned short playbackRateMin;
+		unsigned short playbackRateMax;
+		unsigned short blendTime;
+		bool override;
+		unsigned char animEntryIndex;
+		unsigned char animPlaybackStreamIndex;
+	};
+	static_assert(offsetof(ScriptableEventAnimationDef, animEntryIndex) == 19);
+
+	// 2.5 sub_14060BB20 case 6, client sub_140605590
+	struct ScriptableEventExplodeDef
+	{
+		unsigned short forceMin;
+		unsigned short forceMax;
+		unsigned short forceRadius;
+		unsigned short radius;
+		unsigned short damageMin;
+		unsigned short damageMax;
+		bool aiAvoid;
+	};
+
+	// 2.5 ScriptableBg_DoHealthDrain, ScriptableSv_UpdateLoopingEvents
+	struct ScriptableEventHealthDef
+	{
+		unsigned short amount;
+		unsigned short interval;
+		unsigned short badPlaceHealth;
+		unsigned short badPlaceHeight;
+		unsigned short badPlaceRadius;
+		unsigned char streamIndex;
+	};
+
+	// 2.5 sub_140606730
+	struct ScriptableEventPhysicsDef
+	{
+		XModel* model;
+		unsigned char launchDirX;
+		unsigned char launchDirY;
+		unsigned char launchDirZ;
+		unsigned short explForceScale;
+		unsigned short bulletForceScale;
+	};
+
+	struct ScriptableEventShakeDef
+	{
+		const char* rumbleName;
+		unsigned short duration;
+		unsigned short durationFadeUp;
+		unsigned short durationFadeDown;
+		unsigned short radius;
+		unsigned short exponent;
+		unsigned short scaleEarthquake;
+		unsigned char scalePitch;
+		unsigned char scaleYaw;
+		unsigned char scaleRoll;
+		unsigned char frequencyPitch;
+		unsigned char frequencyYaw;
+		unsigned char frequencyRoll;
+		unsigned char flags;
+	};
+
+	// ScriptableBg_DoEventStateChange
+	struct ScriptableEventStateChangeDef
+	{
+		unsigned char targetIndex;
+		unsigned char delayStreamIndex;
+		unsigned short delayMin;
+		unsigned short delayMax;
 	};
 
 	struct ScriptableEventStringDef
@@ -2337,12 +3360,26 @@ namespace zonetool::s2
 		Spline* spline;
 	};
 
-	struct ScriptableEventNamedSplineDef
+	// h1 light settings with a float color (2.5 sub_140605A00 / sub_140604C30), the light index is in the instance flags buffer
+	struct ScriptableEventLightSettingsDef
 	{
-		char __pad0[40];
-		const char* name;
+		float color[4];
+		unsigned char lightIndexConstIndex;
+		unsigned char transStateStreamIndex;
+		unsigned char flags;
+		unsigned char splineStreamIndex;
+		float intensityScaleMin;
+		float intensityScaleMax;
+		unsigned short radiusScaleMin;
+		unsigned short radiusScaleMax;
+		unsigned short transitionTimeMin;
+		unsigned short transitionTimeMax;
+		char __pad0[4];
+		const char* noteworthy;
 		Spline* spline;
 	};
+	static_assert(offsetof(ScriptableEventLightSettingsDef, intensityScaleMin) == 0x14);
+	static_assert(offsetof(ScriptableEventLightSettingsDef, noteworthy) == 0x28);
 
 	struct ScriptableEventLateSplineDef
 	{
@@ -2365,11 +3402,18 @@ namespace zonetool::s2
 	{
 		ScriptableEventModelDef stateModel;
 		XModel* model;
+		ScriptableEventPartModelDef partModel;
 		ScriptableEventFxDef fx;
 		ScriptableEventSoundDef sound;
+		ScriptableEventAnimationDef anim;
+		ScriptableEventExplodeDef explode;
+		ScriptableEventHealthDef healthDrain;
+		ScriptableEventPhysicsDef physicsLaunch;
+		ScriptableEventShakeDef shake;
+		ScriptableEventStateChangeDef stateChange;
 		ScriptableEventStringDef string;
 		ScriptableEventSplineDef spline;
-		ScriptableEventNamedSplineDef namedSpline;
+		ScriptableEventLightSettingsDef lightSettings;
 		ScriptableEventLateSplineDef lateSpline;
 		ScriptableEventLateStringDef lateString;
 		ScriptableEventMayhemDef mayhem;
@@ -2390,18 +3434,20 @@ namespace zonetool::s2
 		scr_string_t tagName;
 		ScriptableEventDef* events;
 		unsigned char eventCount;
-		char __pad0;
+		unsigned char damageParentTransferRate;
 		unsigned short damageFlags;
-		char __pad1[2];
+		unsigned char damageParentReceiveRate;
+		char __pad0;
 		unsigned short maxHealth;
 	};
 	static_assert(sizeof(ScriptableStateDef) == 0x18);
 	static_assert(offsetof(ScriptableStateDef, damageFlags) == 18);
+	static_assert(offsetof(ScriptableStateDef, damageParentReceiveRate) == 20);
 
 	enum ScriptablePartFlags : unsigned char
 	{
 		SCRIPTABLE_PART_FLAG_SERVER_INSTANCE = 0x1,
-		SCRIPTABLE_PART_FLAG_SERVER_CONTROLLED = 0x4, 
+		SCRIPTABLE_PART_FLAG_SERVER_CONTROLLED = 0x2,
 	};
 
 	struct ScriptablePartDef
@@ -2410,7 +3456,8 @@ namespace zonetool::s2
 		scr_string_t name;
 		unsigned char stateCount;
 		unsigned char partFlags;
-		char __pad0[2];
+		unsigned char eventStreamTimeRemainIndex;
+		unsigned char eventStreamNextChangeTimeIndex;
 		unsigned char flagCount;
 		char __pad1[7];
 		unsigned char* flags;
@@ -2496,10 +3543,14 @@ namespace zonetool::s2
 	struct PhysWaterPreset
 	{
 		const char* name;
-		char __pad0[72];
+		float unknownParams[8]; // H1 has 7 here, no stock pair maps them
+		float sharedParams[8]; // same values and order as H1 in every stock preset
+		unsigned int sharedFlags;
+		char __pad0[4];
 		FxEffectDef* fx[7];
 	};
 	static_assert(sizeof(PhysWaterPreset) == 0x88);
+	static_assert(offsetof(PhysWaterPreset, fx) == 0x50);
 
 	struct DLogHash
 	{
@@ -2781,9 +3832,13 @@ namespace zonetool::s2
 		SplinePointRecordList* splines;
 	};
 
+	// h1 ScriptableInstanceTargetData with a 4 float color, a target light of the instance (2.5 sub_140605A00)
 	struct ScriptableInstancePartState
 	{
-		char __pad0[72];
+		unsigned int lightIndex;
+		float lightAxis[4][3];
+		float lightColorStorage[4];
+		float lightRadiusStorage;
 		scr_string_t name;
 	};
 	static_assert(sizeof(ScriptableInstancePartState) == 76);
@@ -2898,14 +3953,6 @@ namespace zonetool::s2
 	};
 	static_assert(sizeof(PhysMeshNode) == 32);
 
-	struct dmFloat4
-	{
-		float x;
-		float y;
-		float z;
-		float w;
-	};
-
 	struct dmMeshTriangle
 	{
 		int i1;
@@ -2944,11 +3991,13 @@ namespace zonetool::s2
 	struct PhysWaterVolumeDef
 	{
 		PhysWaterPreset* preset;
-		char __pad0[12];
+		float origin[3]; // the water polytopes are centered on it
 		scr_string_t name;
-		char __pad1[8];
+		short brushModelIndex;
+		char __pad0[6];
 	};
 	static_assert(sizeof(PhysWaterVolumeDef) == 0x20);
+	static_assert(offsetof(PhysWaterVolumeDef, brushModelIndex) == 24);
 
 	struct PhysWorld
 	{
@@ -4395,7 +5444,8 @@ namespace zonetool::s2
 	{
 		unsigned char type;
 		unsigned char canUseShadowMap;
-		char __pad0[10];
+		unsigned char exponent;
+		char __pad0[9];
 		float color[3];
 		float intensity;
 		float dir[3];
@@ -4436,26 +5486,39 @@ namespace zonetool::s2
 	};
 	static_assert(sizeof(ComWorld) == 0x30);
 
-	struct GlassDef
+	struct G_GlassPiece
 	{
-		const char* name;
-		scr_string_t targetName;
-		unsigned short indexCount;
-		unsigned short* indices;
+		unsigned short damageTaken;
+		unsigned short collapseTime;
+		int lastStateChangeTime;
+		unsigned char impactDir;
+		unsigned char impactPos[2];
 	};
-	static_assert(sizeof(GlassDef) == 0x18);
+	static_assert(sizeof(G_GlassPiece) == 12);
 
+	// same layout as h1, name is loaded as a script string (2.5 sub_140439E20)
+	struct G_GlassName
+	{
+		const char* nameStr;
+		scr_string_t name;
+		unsigned short pieceCount;
+		unsigned short* pieceIndices;
+	};
+	static_assert(sizeof(G_GlassName) == 0x18);
+
+	// 2.5 sub_140439D10
 	struct G_GlassData
 	{
-		char (*glassPieces)[12];
+		G_GlassPiece* glassPieces;
 		unsigned int pieceCount;
-		char __pad0[0x4];
+		unsigned short damageToWeaken;
+		unsigned short damageToDestroy;
 		unsigned int glassNameCount;
-		char __pad1[0x4];
-		GlassDef* glassNames;
-		char __pad2[0x70];
+		G_GlassName* glassNames;
+		char __pad0[0x70];
 	};
 	static_assert(sizeof(G_GlassData) == 0x90);
+	static_assert(offsetof(G_GlassData, glassNames) == 0x18);
 
 	struct GlassWorld
 	{
@@ -4584,7 +5647,10 @@ namespace zonetool::s2
 
 	struct FxGlassDef
 	{
-		char __pad0[0x28];
+		float halfThickness;
+		vec2_t texVecs[2];
+		vec4_t color; // rgba, packed * 255 into the glass vertex color
+		char __pad0[0x4];
 		Material* material;
 		Material* materialShattered;
 		PhysPreset* physPreset;
@@ -4595,39 +5661,153 @@ namespace zonetool::s2
 		snd_alias_list_t* damagedSound;
 		snd_alias_list_t* destroyedSound;
 		snd_alias_list_t* destroyedQuietSound;
-		char __pad1[0x10];
+		float invHighMipRadius;
+		float shatteredInvHighMipRadius;
+		int numCrackRings;
+		bool isOpaque;
 	};
 	static_assert(sizeof(FxGlassDef) == 0x88);
+	assert_offsetof(FxGlassDef, material, 0x28);
+	assert_offsetof(FxGlassDef, damagedSound, 0x60);
+	assert_offsetof(FxGlassDef, invHighMipRadius, 0x78);
+	assert_offsetof(FxGlassDef, numCrackRings, 0x80);
+	assert_offsetof(FxGlassDef, isOpaque, 0x84);
+
+	struct FxSpatialFrame
+	{
+		vec4_t quat;
+		vec3_t origin;
+	};
+
+	struct FxGlassPiecePlacement
+	{
+		FxSpatialFrame frame;
+		float radius;
+	};
+
+	union FxGlassPiecePlace
+	{
+		FxGlassPiecePlacement placement;
+		unsigned int nextFree;
+	};
+	static_assert(sizeof(FxGlassPiecePlace) == 0x20);
+
+	struct FxGlassPieceState
+	{
+		vec2_t texCoordOrigin;
+		unsigned int supportMask;
+		unsigned short initIndex;
+		unsigned short geoDataStart;
+		unsigned short lightingIndex;
+		unsigned char defIndex;
+		unsigned char pad[3];
+		unsigned char vertCount;
+		unsigned char holeDataCount;
+		unsigned char crackDataCount;
+		unsigned char fanDataCount;
+		unsigned short flags;
+		float areaX2;
+	};
+	static_assert(sizeof(FxGlassPieceState) == 0x20);
+	assert_offsetof(FxGlassPieceState, defIndex, 0x12);
+	assert_offsetof(FxGlassPieceState, holeDataCount, 0x17);
+
+	struct FxGlassPieceDynamics
+	{
+		int fallTime;
+		std::uint64_t physObjId;
+		std::uint64_t physJointId;
+		vec3_t vel;
+		vec3_t avel;
+	};
+	static_assert(sizeof(FxGlassPieceDynamics) == 0x30);
+	assert_offsetof(FxGlassPieceDynamics, vel, 0x18);
+
+	struct FxGlassVertex
+	{
+		short x;
+		short y;
+	};
+
+	struct FxGlassHoleHeader
+	{
+		unsigned short uniqueVertCount;
+		unsigned char touchVert;
+		unsigned char pad[1];
+	};
+
+	struct FxGlassCrackHeader
+	{
+		unsigned short uniqueVertCount;
+		unsigned char beginVertIndex;
+		unsigned char endVertIndex;
+	};
+
+	union FxGlassGeometryData
+	{
+		FxGlassVertex vert;
+		FxGlassHoleHeader hole;
+		FxGlassCrackHeader crack;
+		unsigned char asBytes[4];
+		short anonymous[2];
+	};
+	static_assert(sizeof(FxGlassGeometryData) == 4);
+
+	struct FxGlassInitPieceState
+	{
+		FxSpatialFrame frame;
+		float radius;
+		vec2_t texCoordOrigin;
+		unsigned int supportMask;
+		float areaX2;
+		unsigned short lightingIndex;
+		unsigned char defIndex;
+		unsigned char vertCount;
+		unsigned char fanDataCount;
+		unsigned char pad[1];
+	};
+	static_assert(sizeof(FxGlassInitPieceState) == 0x38);
+	assert_offsetof(FxGlassInitPieceState, areaX2, 0x2C);
+	assert_offsetof(FxGlassInitPieceState, defIndex, 0x32);
 
 	struct FxGlassSystem
 	{
-		char __pad0[0x8];
+		int time;
+		int prevTime;
 		unsigned int defCount;
 		unsigned int pieceLimit;
 		unsigned int pieceWordCount;
 		unsigned int cellCount;
-		char __pad1[0x8];
+		unsigned int activePieceCount;
+		unsigned int firstFreePiece;
 		unsigned int geoDataLimit;
-		char __pad2[0x4];
+		unsigned int geoDataCount;
 		unsigned int initGeoDataCount;
-		char __pad3[0x4];
 		FxGlassDef* defs;
-		char (*piecePlaces)[32];
-		char (*pieceStates)[32];
-		char (*pieceDynamics)[48];
-		char (*geoData)[4];
+		FxGlassPiecePlace* piecePlaces;
+		FxGlassPieceState* pieceStates;
+		FxGlassPieceDynamics* pieceDynamics;
+		FxGlassGeometryData* geoData;
 		unsigned int* isInUse;
 		unsigned int* cellBits;
 		unsigned char* visData;
-		char (*linkOrg)[12];
+		vec3_t* linkOrg;
 		float* halfThickness;
 		unsigned short* lightingHandles;
-		char (*initGeoData)[4];
-		char __pad4[0xC];
+		FxGlassGeometryData* initGeoData;
+		bool needToCompactData;
+		unsigned char initCount;
+		float effectChanceAccum;
+		int lastPieceDeletionTime;
 		unsigned int initPieceCount;
-		char (*initPieceStates)[56];
+		FxGlassInitPieceState* initPieceStates;
 	};
 	static_assert(sizeof(FxGlassSystem) == 0xA8);
+	assert_offsetof(FxGlassSystem, defs, 0x30);
+	assert_offsetof(FxGlassSystem, halfThickness, 0x78);
+	assert_offsetof(FxGlassSystem, initCount, 0x91);
+	assert_offsetof(FxGlassSystem, initPieceCount, 0x9C);
+	assert_offsetof(FxGlassSystem, initPieceStates, 0xA0);
 
 	struct FxWorld
 	{
@@ -4668,7 +5848,7 @@ namespace zonetool::s2
 		cplane_s* planes;
 		unsigned int* nodes;
 		unsigned int* sceneEntCellBits;
-		unsigned int* unk_0x20;
+		unsigned int* unk_0x20; // runtime, 256 bits per cell, one per slot of a 256 entry table (sub_140876D40 2.20)
 	};
 	assert_sizeof(GfxWorldDpvsPlanes, 40);
 	assert_offsetof(GfxWorldDpvsPlanes, planes, 8);
@@ -4706,7 +5886,7 @@ namespace zonetool::s2
 	{
 		unsigned short indexCount;
 		unsigned short* indices;
-		char unk_0x10[8];
+		char unk_0x10[8]; // zero in stock
 	};
 	assert_sizeof(GfxCellTransientInfo, 24);
 	assert_offsetof(GfxCellTransientInfo, indices, 8);
@@ -4846,7 +6026,8 @@ namespace zonetool::s2
 		GfxImage** fogSplineImages;
 		char (*fogSplineInfo)[116];
 		GfxImage* iesLookup;
-		char unk_0x58[68];
+		unsigned int iesProfileCount;
+		unsigned int iesProfiles[16]; // dynamic lights look up their profile id here (sub_14089FE90 2.20), empty in stock
 		unsigned int lightmapOverrideCount;
 		GfxLightmapArray* lightmapOverrides;
 		GfxTexture* lightmapPrimaryTextures;
@@ -4856,7 +6037,11 @@ namespace zonetool::s2
 		unsigned int imageCount;
 		GfxImage** images;
 		GfxLightmapParameters lightmapParameters;
-		char unk_0xEC[396];
+		unsigned int lightmapTiles[31][3]; // x, y, layer of each used tile, x and y < lightmap size / tile size in stock
+		unsigned int lightmapTileCount;
+		unsigned int unk_0x264[2]; // 1 or 2 in stock
+		unsigned int lightmapTileSize[2]; // same as lightmapParameters in stock
+		unsigned int unk_0x274; // 8 in stock
 		unsigned int transientZoneCount;
 		GfxMapTrZone* transientZones[16];
 		GfxTransientZoneMaterials* transientZoneMaterials;
@@ -4883,7 +6068,11 @@ namespace zonetool::s2
 	assert_offsetof(GfxWorldDraw, lightmapOverrideSecondary, 192);
 	assert_offsetof(GfxWorldDraw, imageCount, 200);
 	assert_offsetof(GfxWorldDraw, images, 208);
+	assert_offsetof(GfxWorldDraw, iesProfileCount, 88);
 	assert_offsetof(GfxWorldDraw, lightmapParameters, 216);
+	assert_offsetof(GfxWorldDraw, lightmapTiles, 236);
+	assert_offsetof(GfxWorldDraw, lightmapTileCount, 608);
+	assert_offsetof(GfxWorldDraw, lightmapTileSize, 620);
 	assert_offsetof(GfxWorldDraw, transientZoneCount, 632);
 	assert_offsetof(GfxWorldDraw, transientZones, 640);
 	assert_offsetof(GfxWorldDraw, transientZoneMaterials, 768);
@@ -5367,16 +6556,18 @@ namespace zonetool::s2
 		float axisScale[2]; // y and z, mirrored instances have a negative y
 		float maxScale;
 		unsigned char mirrored;
-		char unk_0x41[7];
+		char __pad0[7];
 		XModel* model;
-		char unk_0x50[2];
+		unsigned short unk_0x50; // zero in stock, no reader found
 		unsigned short cullDist; // 0 is no distance cull
 		unsigned short flags;
-		char unk_0x56[2];
+		unsigned short unk_0x56; // zero in stock, no reader found
 		unsigned short staticModelId;
-		char unk_0x5A[2];
+		unsigned short unk_0x5A; // zero in stock, no reader found
 		unsigned int unk_0x5C; // never read by the game
-		char unk_0x60[10];
+		int lightGridSlot; // runtime, set at load from smodelLightingInsts for flag 0x40, else -1 (sub_14021C100 2.5)
+		unsigned int unk_0x64; // runtime, cleared at load
+		unsigned short unk_0x68; // zero in stock, no reader found
 		unsigned short lightListOffset;
 		float radius;
 		unsigned char reflectionProbeIndex;
@@ -5384,7 +6575,7 @@ namespace zonetool::s2
 		unsigned char sunShadowFlags; // bit per sunShadowOptCount partition
 		unsigned char minLod;
 		float lodScale; // divides the lod and cull distance (sub_14074D820)
-		char unk_0x78[8];
+		char __pad1[8]; // zero in stock
 	};
 	assert_sizeof(GfxStaticModelDrawInst, 128);
 	assert_offsetof(GfxStaticModelDrawInst, axisScale, 52);
@@ -5395,6 +6586,7 @@ namespace zonetool::s2
 	assert_offsetof(GfxStaticModelDrawInst, flags, 84);
 	assert_offsetof(GfxStaticModelDrawInst, staticModelId, 88);
 	assert_offsetof(GfxStaticModelDrawInst, unk_0x5C, 92);
+	assert_offsetof(GfxStaticModelDrawInst, lightGridSlot, 96);
 	assert_offsetof(GfxStaticModelDrawInst, lightListOffset, 106);
 	assert_offsetof(GfxStaticModelDrawInst, radius, 108);
 	assert_offsetof(GfxStaticModelDrawInst, reflectionProbeIndex, 112);
@@ -5450,20 +6642,34 @@ namespace zonetool::s2
 
 	struct GfxSurfaceBuffer
 	{
-		char unk_0x0[16];
+		unsigned short vertexCount; // streams 7 and 8 are 8 bytes per vertex in every stock buffer
+		unsigned short indexCount;
+		unsigned short unk_0x4; // count of 16 byte records in stream 2
+		unsigned short triCount;
+		unsigned int unk_0x8; // size of stream 1 on 80% of stock buffers
+		unsigned int flags; // 1 in stock, bit 0x4 is tested at load (sub_1400A0150 2.20)
 		unsigned int dataSize;
-		char unk_0x14[44];
+		unsigned short unk_0x14; // the game subtracts 0x4EC0 from it at load
+		char __pad0[2];
+		char hash[32]; // lowercase hex, passed to sub_1404A4C80 (2.20) at load
+		char __pad1[8];
 		char* data;
-		char unk_0x48[184];
+		unsigned long long streamOffsets[11]; // into data, stream 0 = 16 bit indices at offset 0
+		char __pad2[72];
+		ExtentBounds bounds;
 	};
 	assert_sizeof(GfxSurfaceBuffer, 0x100);
 	assert_offsetof(GfxSurfaceBuffer, dataSize, 16);
+	assert_offsetof(GfxSurfaceBuffer, hash, 24);
 	assert_offsetof(GfxSurfaceBuffer, data, 64);
+	assert_offsetof(GfxSurfaceBuffer, streamOffsets, 72);
+	assert_offsetof(GfxSurfaceBuffer, bounds, 232);
 
-	enum GfxSurfaceFlag : std::uint8_t
+	enum GfxSurfaceFlag : std::uint16_t
 	{
-		GFX_SURFACE_FLAG_DEFAULT = 0x01,
-		GFX_SURFACE_FLAG_CASTS_SUN_SHADOW = 0x10,
+		GFX_SURFACE_FLAG_CASTS_SHADOW = 0x1, // with a shadow material it sets surfaceCastsSunShadow at load
+		GFX_SURFACE_FLAG_SUN_SHADOW_PARTITION_0 = 0x10, // bits 4-8, one per sunShadowOptCount partition (surfaceCastsSunShadowOpt)
+		GFX_SURFACE_FLAG_SUN_SHADOW_PARTITION_MASK = 0x1F0,
 	};
 
 	struct GfxSurface
@@ -5472,19 +6678,18 @@ namespace zonetool::s2
 		unsigned int firstVertex;
 		unsigned short vertexCount;
 		unsigned short triCount;
-		char unk_0xC[4];
+		char __pad0[4];
 		GfxSurfaceBuffer* buffer;
 		unsigned int baseIndex;
-		char unk_0x1C[4];
+		char __pad1[4];
 		Material* material;
 		unsigned char lightmapIndex;
 		unsigned char reflectionProbeIndex;
-		unsigned char flags;
-		char unk_0x2B[1];
+		unsigned short flags; // read as a word at load (sub_14088E820 2.20)
 		unsigned short lightListOffset;
-		char unk_0x2E[2];
+		char __pad2[2];
 		unsigned int transientZone;
-		char unk_0x34[4];
+		char __pad3[4];
 	};
 	assert_sizeof(GfxSurface, 56);
 	assert_offsetof(GfxSurface, vertexCount, 8);
@@ -5499,16 +6704,19 @@ namespace zonetool::s2
 	struct GfxSurfaceBounds
 	{
 		Bounds bounds;
-		float midPoint[3];
-		char unk_0x24[12];
-		float unk_0x30;
-		unsigned char unk_0x34[5];
-		char unk_0x39[7];
+		float coneApex[3]; // backface normal cone, sin-like cutoff around a unit axis
+		float coneCutoff; // -FLT_MAX with a zero apex and axis = no cone (20% of stock surfaces)
+		float coneAxis[3];
+		unsigned short mipRadius; // same values as H1 GfxSurfaceBounds
+		unsigned char invHighMipRadius[5]; // one per material image, texture streaming sub_1400AAD70 (2.20)
+		char __pad0[5];
 	};
 	assert_sizeof(GfxSurfaceBounds, 64);
-	assert_offsetof(GfxSurfaceBounds, midPoint, 24);
-	assert_offsetof(GfxSurfaceBounds, unk_0x30, 48);
-	assert_offsetof(GfxSurfaceBounds, unk_0x34, 52);
+	assert_offsetof(GfxSurfaceBounds, coneApex, 24);
+	assert_offsetof(GfxSurfaceBounds, coneCutoff, 36);
+	assert_offsetof(GfxSurfaceBounds, coneAxis, 40);
+	assert_offsetof(GfxSurfaceBounds, mipRadius, 52);
+	assert_offsetof(GfxSurfaceBounds, invHighMipRadius, 54);
 
 	struct GfxWorldDpvsStatic
 	{
@@ -5519,33 +6727,33 @@ namespace zonetool::s2
 		unsigned int smodelVisDataCount;
 		unsigned int surfaceVisDataCount;
 		unsigned int primaryLightVisDataCount;
-		char unk_0x54[4];
-		unsigned int* smodelVisData[4];
+		char __pad0[4];
+		unsigned int* smodelVisData[4]; // all 39 smodel and 39 surface vis arrays are bitsets cleared each frame (sub_140878400 2.20)
 		unsigned int* smodelVisDataUnused[8];
 		unsigned int* smodelUnknownVisData[27];
 		unsigned int* surfaceVisData[4];
 		unsigned int* surfaceVisDataUnused[8];
 		unsigned int* surfaceUnknownVisData[27];
-		unsigned int* unk_0x2C8;
+		unsigned int* unk_0x2C8; // runtime, 2 bits per surface, cleared each frame
 		unsigned int* primaryLightVisData;
-		unsigned int* unk_0x2D8;
-		unsigned int* unk_0x2E0;
+		unsigned int* unk_0x2D8; // runtime, 1 bit per static model, cleared each frame
+		unsigned int* unk_0x2E0; // runtime, 1 bit per surface, set to all ones each frame unless dword_14FFC89E0 (2.20)
 		unsigned int* sortedSurfIndex;
 		GfxSurface* surfaces;
 		GfxSurfaceBounds* surfacesBounds;
-		unsigned long long* unk_0x300;
+		unsigned long long* surfaceSortKeys; // runtime, packed from the material at load (sub_14088E820 2.20), low word = texture streaming index
 		GfxStaticModelInst* smodelInsts;
 		GfxStaticModelDrawInst* smodelDrawInsts;
-		unsigned int* unk_0x318;
+		unsigned int* unk_0x318; // zero in stock, like H1 unknownSModelVisData2
 		GfxStaticModelLighting* smodelLightingInsts;
-		unsigned int* unk_0x328;
+		unsigned int* surfaceCastsSunShadow; // runtime, built at load from GFX_SURFACE_FLAG_CASTS_SHADOW (sub_14088E820 2.20)
 		unsigned short* sortedSmodelIndices;
 		unsigned int sunShadowOptCount;
 		unsigned int sunSurfVisDataCount;
 		unsigned int* surfaceCastsSunShadowOpt;
 		unsigned long long* surfaceMaterials;
-		unsigned long long* unk_0x350;
-		char unk_0x358[8];
+		ID3D11Buffer** smodelConstantBuffers; // runtime, prebuilt per model constant buffer of the cached draw path (sub_1407E90E4 2.5)
+		char __pad1[8];
 	};
 	assert_sizeof(GfxWorldDpvsStatic, 864);
 	assert_offsetof(GfxWorldDpvsStatic, surfaceRangeBegins, 8);
@@ -5566,18 +6774,18 @@ namespace zonetool::s2
 	assert_offsetof(GfxWorldDpvsStatic, sortedSurfIndex, 744);
 	assert_offsetof(GfxWorldDpvsStatic, surfaces, 752);
 	assert_offsetof(GfxWorldDpvsStatic, surfacesBounds, 760);
-	assert_offsetof(GfxWorldDpvsStatic, unk_0x300, 768);
+	assert_offsetof(GfxWorldDpvsStatic, surfaceSortKeys, 768);
 	assert_offsetof(GfxWorldDpvsStatic, smodelInsts, 776);
 	assert_offsetof(GfxWorldDpvsStatic, smodelDrawInsts, 784);
 	assert_offsetof(GfxWorldDpvsStatic, unk_0x318, 792);
 	assert_offsetof(GfxWorldDpvsStatic, smodelLightingInsts, 800);
-	assert_offsetof(GfxWorldDpvsStatic, unk_0x328, 808);
+	assert_offsetof(GfxWorldDpvsStatic, surfaceCastsSunShadow, 808);
 	assert_offsetof(GfxWorldDpvsStatic, sortedSmodelIndices, 816);
 	assert_offsetof(GfxWorldDpvsStatic, sunShadowOptCount, 824);
 	assert_offsetof(GfxWorldDpvsStatic, sunSurfVisDataCount, 828);
 	assert_offsetof(GfxWorldDpvsStatic, surfaceCastsSunShadowOpt, 832);
 	assert_offsetof(GfxWorldDpvsStatic, surfaceMaterials, 840);
-	assert_offsetof(GfxWorldDpvsStatic, unk_0x350, 848);
+	assert_offsetof(GfxWorldDpvsStatic, smodelConstantBuffers, 848);
 
 	struct GfxWorldDpvsDynamic
 	{
@@ -5626,6 +6834,28 @@ namespace zonetool::s2
 	};
 	assert_sizeof(GfxBuildInfo, 32);
 
+	// bytes, the same in every stock map, named after iw7 where the values and readers line up
+	struct GfxWorldSortKeys
+	{
+		unsigned char unk_0x0;
+		unsigned char unk_0x1;
+		unsigned char unk_0x2;
+		unsigned char twoD;
+		unsigned char unk_0x4;
+		unsigned char effectDecal; // the one key outside the emissive range that sub_14088E820 (2.20) also accepts
+		unsigned char unk_0x6;
+		unsigned char effectAuto;
+		unsigned char distortion;
+		unsigned char transBegin;
+		unsigned char transEnd;
+		unsigned char emissiveBegin;
+		unsigned char emissiveEnd;
+		unsigned char postResolveLit; // not in iw7, sub_1400E8FC0 (2.20) labels it "post resolve lit"
+		char __pad0[6];
+	};
+	static_assert(sizeof(GfxWorldSortKeys) == 20);
+	static_assert(offsetof(GfxWorldSortKeys, distortion) == 8);
+
 	struct GfxWorld
 	{
 		const char* name;
@@ -5639,13 +6869,9 @@ namespace zonetool::s2
 		unsigned int portalGroupCount;
 		unsigned int lastSunPrimaryLightIndex;
 		unsigned int primaryLightCount;
-		unsigned int primaryLightEnvCount;
-		unsigned int sortKeyLitDecal;
-		unsigned int sortKeyEffectDecal;
-		unsigned int sortKeyTopDecal;
-		unsigned int sortKeyEffectAuto;
-		unsigned int sortKeyDistortion;
-		unsigned int sortKeyHair;
+		unsigned int movingScriptablePrimaryLightCount; // iw7 name, the last lights of the list (sub_1402590B0 2.20)
+		unsigned int unk_0x40; // equals primaryLightCount in every stock map, nothing reads it through the 2.20 world global
+		GfxWorldSortKeys sortKeys;
 		GfxWorldDpvsPlanes dpvsPlanes;
 		GfxCellTreeCount* aabbTreeCounts;
 		GfxCellTree* aabbTrees;
@@ -5654,7 +6880,8 @@ namespace zonetool::s2
 		GfxPortalGroup* portalGroup;
 		unsigned int portalDistanceAnchorCount;
 		vec4_t* portalDistanceAnchorsAndCloseDistSquared;
-		char unk_0xB8[8];
+		bool cullPrimaryLights; // 1 in stock, 0 marks every primary light visible each frame (sub_1400ECAB0 2.20)
+		char __pad0[7];
 		GfxWorldDraw draw;
 		GfxLightGrid lightGrid;
 		GfxLightGridProbeData probeData;
@@ -5691,8 +6918,10 @@ namespace zonetool::s2
 		unsigned char fogTypesAllowed;
 		unsigned int mdaoVolumesCount;
 		MdaoVolume* mdaoVolumes;
-		bool useLightGridDefaultModelLightingLookup;
-		bool useLightGridDefaultFXLightingLookup;
+		bool unk_0x1088;
+		bool unk_0x1089; // 0 or 1 in stock, h1 has the same byte before its lookup flags
+		bool useLightGridDefaultModelLightingLookup; // 0 in stock
+		bool useLightGridDefaultFXLightingLookup; // 1 in stock, with a point in the playable area
 		float lightGridDefaultModelLightingLookup[3];
 		float lightGridDefaultFXLightingLookup[3];
 		GfxBuildInfo buildInfo;
@@ -5706,9 +6935,9 @@ namespace zonetool::s2
 	assert_offsetof(GfxWorld, portalGroupCount, 48);
 	assert_offsetof(GfxWorld, lastSunPrimaryLightIndex, 52);
 	assert_offsetof(GfxWorld, primaryLightCount, 56);
-	assert_offsetof(GfxWorld, primaryLightEnvCount, 60);
-	assert_offsetof(GfxWorld, sortKeyLitDecal, 64);
-	assert_offsetof(GfxWorld, sortKeyHair, 84);
+	assert_offsetof(GfxWorld, movingScriptablePrimaryLightCount, 60);
+	assert_offsetof(GfxWorld, unk_0x40, 64);
+	assert_offsetof(GfxWorld, sortKeys, 68);
 	assert_offsetof(GfxWorld, dpvsPlanes, 88);
 	assert_offsetof(GfxWorld, aabbTreeCounts, 128);
 	assert_offsetof(GfxWorld, aabbTrees, 136);
@@ -5753,7 +6982,8 @@ namespace zonetool::s2
 	assert_offsetof(GfxWorld, fogTypesAllowed, 4216);
 	assert_offsetof(GfxWorld, mdaoVolumesCount, 4220);
 	assert_offsetof(GfxWorld, mdaoVolumes, 4224);
-	assert_offsetof(GfxWorld, useLightGridDefaultModelLightingLookup, 4232);
+	assert_offsetof(GfxWorld, useLightGridDefaultModelLightingLookup, 4234);
+	assert_offsetof(GfxWorld, useLightGridDefaultFXLightingLookup, 4235);
 	assert_offsetof(GfxWorld, lightGridDefaultModelLightingLookup, 4236);
 	assert_offsetof(GfxWorld, lightGridDefaultFXLightingLookup, 4248);
 	assert_offsetof(GfxWorld, buildInfo, 4264);
@@ -5845,6 +7075,54 @@ namespace zonetool::s2
 		char __pad0[0x8];
 	};
 	static_assert(sizeof(VehicleSoundEntry) == 0x10);
+
+	struct VehicleTrackObstacle
+	{
+		float origin[2];
+		float radius;
+	};
+	static_assert(sizeof(VehicleTrackObstacle) == 0xC);
+
+	struct VehicleTrackSector
+	{
+		float startEdgeDir[2];
+		float startEdgeDist;
+		float leftEdgeDir[2];
+		float leftEdgeDist;
+		float rightEdgeDir[2];
+		float rightEdgeDist;
+		float sectorLength;
+		float sectorWidth;
+		float totalPriorLength;
+		float totalFollowingLength;
+		VehicleTrackObstacle* obstacles;
+		unsigned int obstacleCount;
+	};
+	static_assert(sizeof(VehicleTrackSector) == 0x48);
+
+	struct VehicleTrackSegment
+	{
+		const char* targetName;
+		VehicleTrackSector* sectors;
+		unsigned int sectorCount;
+		VehicleTrackSegment** nextBranches;
+		unsigned int nextBranchesCount;
+		VehicleTrackSegment** prevBranches;
+		unsigned int prevBranchesCount;
+		float endEdgeDir[2];
+		float endEdgeDist;
+		float totalLength;
+	};
+	static_assert(sizeof(VehicleTrackSegment) == 0x48);
+
+	// Load_VehicleTrack: 2.20 sub_1404C12C0 (asset type 36), same layout as H1
+	struct VehicleTrack
+	{
+		const char* name;
+		VehicleTrackSegment* segments;
+		unsigned int segmentCount;
+	};
+	static_assert(sizeof(VehicleTrack) == 0x18);
 
 	struct VehicleDef
 	{

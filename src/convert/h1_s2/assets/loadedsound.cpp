@@ -40,10 +40,7 @@ namespace zonetool::h1::converter::s2::loaded_sound
 
 	void write_audio(const std::string& name, const std::string_view data)
 	{
-		auto file = filesystem::file("loaded_sound\\" + name + (audio::is_flac(data) ? ".flac" : ".wav"));
-		file.open("wb");
-		file.write(data.data(), data.size(), 1);
-		file.close();
+		write_file("loaded_sound\\" + name + (audio::is_flac(data) ? ".flac" : ".wav"), data);
 
 		add_csv_row(zonetool::s2::type_to_string(zonetool::s2::ASSET_TYPE_LOADED_SOUND), name);
 	}

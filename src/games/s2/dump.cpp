@@ -139,12 +139,23 @@ namespace zonetool::s2
 			return csv;
 		}
 
-		void write_asset_csv(const loaded_zone& zone)
+		// a converter may replace <name>.csv with its build list in finish, the source listing stays in <name>.<source>.csv
+		void write_asset_csv(const loaded_zone& zone, const converter* converter)
 		{
-			filesystem::file csv(zone.name + ".csv");
-			csv.open("wb");
-			csv.write(asset_csv(zone));
-			csv.close();
+			const auto text = asset_csv(zone);
+			const auto write = [&](const std::string& file_name)
+			{
+				filesystem::file csv(file_name);
+				csv.open("wb");
+				csv.write(text);
+				csv.close();
+			};
+
+			write(zone.name + ".csv");
+			if (converter)
+			{
+				write(std::format("{}.{}.csv", zone.name, converter->source));
+			}
 		}
 
 		bool is_transient_zone_of(const loaded_zone& transient_zone, const std::string& zone_name)
@@ -285,7 +296,7 @@ namespace zonetool::s2
 			dump_assets(*transient_zone, converter);
 		}
 
-		write_asset_csv(*zone);
+		write_asset_csv(*zone, converter);
 		if (converter && converter->finish)
 		{
 			converter->finish(zone->name);

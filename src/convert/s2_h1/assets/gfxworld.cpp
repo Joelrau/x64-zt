@@ -116,6 +116,13 @@ namespace zonetool::s2::converter::h1::gfxworld
 			return zones;
 		}
 
+		// s2 keeps the binormal sign in tangent w (3 = negative) and often no texel density, h1 shaders need a non-zero sign
+		float convert_binormal_sign(const float texel_density, const unsigned int tangent)
+		{
+			const auto density = texel_density > 0.0f ? texel_density : 1.0f;
+			return (tangent >> 30) >= 2 ? -density : density;
+		}
+
 		void convert_vertices(GfxWorld* asset, zonetool::h1::GfxWorld* world, utils::memory::allocator& allocator)
 		{
 			const auto zones = get_transient_zones(asset);
@@ -126,7 +133,7 @@ namespace zonetool::s2::converter::h1::gfxworld
 				if (zones[i])
 				{
 					world->draw.vertexCount += zones[i]->vertexCount;
-					world->draw.vertexLayerDataSize += zones[i]->indexDataSize;
+					world->draw.vertexLayerDataSize += zones[i]->vertexLayerDataSize;
 				}
 			}
 
@@ -146,20 +153,20 @@ namespace zonetool::s2::converter::h1::gfxworld
 				for (auto i = 0u; i < zone->vertexCount; i++, vertex++)
 				{
 					std::memcpy(vertex->xyz, data.positions[i], sizeof(vertex->xyz));
-					std::memcpy(&vertex->binormalSign, &data.data0[i], sizeof(vertex->binormalSign));
-					vertex->color.packed = data.data1[i];
-					std::memcpy(vertex->texCoord, &data.data2[i], sizeof(vertex->texCoord));
-					std::memcpy(vertex->lmapCoord, &data.data3[i], sizeof(vertex->lmapCoord));
-					vertex->normal.packed = data.data4[i];
-					vertex->tangent.packed = data.data5[i];
+					vertex->binormalSign = convert_binormal_sign(data.texelDensities[i], data.tangents[i]);
+					vertex->color.packed = data.colors[i];
+					std::memcpy(vertex->texCoord, data.texCoords[i], sizeof(vertex->texCoord));
+					std::memcpy(vertex->lmapCoord, data.lmapCoords[i], sizeof(vertex->lmapCoord));
+					vertex->normal.packed = data.normals[i];
+					vertex->tangent.packed = data.tangents[i] | 0xC0000000u; // stock h1 tangent w is always 3
 				}
 
-				if (zone->indices.data)
+				if (zone->vld.data)
 				{
-					std::memcpy(layer_data, zone->indices.data, zone->indexDataSize);
+					std::memcpy(layer_data, zone->vld.data, zone->vertexLayerDataSize);
 				}
 
-				layer_data += zone->indexDataSize;
+				layer_data += zone->vertexLayerDataSize;
 			}
 
 			world->draw.indexCount = asset->draw.indexCount;
@@ -291,7 +298,8 @@ namespace zonetool::s2::converter::h1::gfxworld
 				auto& new_bounds = dpvs.surfacesBounds[new_index[i]];
 				dpvs.surfaces[new_index[i]] = convert_surface(world, surfaces[i], get_light_env(asset, world, surfaces[i].lightListOffset), allocator);
 				new_bounds.bounds = std::bit_cast<zonetool::h1::Bounds>(bounds[i].bounds);
-				std::memset(&new_bounds.unk, 0xFF, 11); // image stream distances, 0xFF is far
+				new_bounds.mipRadius = 0xFFFF; // image stream distances, 0xFF is far
+				std::memset(new_bounds.invHighMipRadius, 0xFF, sizeof(new_bounds.invHighMipRadius));
 			}
 
 			set_surface_ranges(dpvs, range_sizes);
@@ -599,7 +607,7 @@ namespace zonetool::s2::converter::h1::gfxworld
 			world->portalGroupCount = asset->portalGroupCount;
 			world->lastSunPrimaryLightIndex = asset->lastSunPrimaryLightIndex;
 			world->primaryLightCount = asset->primaryLightCount;
-			world->primaryLightEnvCount = asset->primaryLightEnvCount;
+			world->primaryLightEnvCount = asset->movingScriptablePrimaryLightCount; // TODO: h1 wants the light env count, comworld only has it after the gfxworld
 			world->sortKeyLitDecal = 7;
 			world->sortKeyEffectDecal = 43;
 			world->sortKeyTopDecal = 17;

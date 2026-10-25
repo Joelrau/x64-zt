@@ -177,7 +177,9 @@ namespace zonetool::h2
 	struct PhysWaterPreset
 	{
 		const char* name;
-		char __pad0[64];
+		float unknownParams[7];
+		float sharedParams[8];
+		unsigned int sharedFlags;
 		FxEffectDef* fx0;
 		FxEffectDef* fx1;
 		FxEffectDef* fx2;
@@ -190,7 +192,7 @@ namespace zonetool::h2
 	struct PhysWaterVolumeDef
 	{
 		PhysWaterPreset* physWaterPreset;
-		char __pad0[12];
+		float origin[3];
 		scr_string_t string;
 		char __pad1[8];
 	}; static_assert(sizeof(PhysWaterVolumeDef) == 0x20);
@@ -1952,8 +1954,8 @@ namespace zonetool::h2
 		$3936EE84564F75EDA6DCBAC77A545FC8 ___u9;
 		PathNodeParentUnion parent;
 		$5F11B9753862CE791E23553F99FA1738 ___u11;
-		short wOverlapNode[2];
 		char __pad0[4];
+		short wOverlapNode[2];
 		unsigned short totalLinkCount;
 		pathlink_s* Links;
 		scr_string_t customangles;
@@ -1961,6 +1963,9 @@ namespace zonetool::h2
 	};
 
 	assert_sizeof(pathnode_constant_t, 0x60);
+	assert_offsetof(pathnode_constant_t, wOverlapNode, 68);
+	assert_offsetof(pathnode_constant_t, totalLinkCount, 72);
+	assert_offsetof(pathnode_constant_t, Links, 80);
 	assert_offsetof(pathnode_constant_t, parent.index, 56);
 
 	struct SentientHandle
@@ -5242,10 +5247,10 @@ namespace zonetool::h2
 		unsigned char color[4];
 		unsigned char lightIndexConstIndex;
 		unsigned char transStateStreamIndex;
-		unsigned char useColor;
-		unsigned char useStateTransitionTime;
-		unsigned short intensityScaleMin;
-		unsigned short intensityScaleMax;
+		unsigned char flags;
+		char __pad0;
+		float intensityScaleMin;
+		float intensityScaleMax;
 		unsigned short radiusScaleMin;
 		unsigned short radiusScaleMax;
 		unsigned short transitionTimeMin;
@@ -6227,8 +6232,7 @@ namespace zonetool::h2
 
 	struct GfxStaticModelInst
 	{
-		float mins[3];
-		float maxs[3];
+		Bounds bounds;
 		float lightingOrigin[3];
 	}; assert_sizeof(GfxStaticModelInst, 36);
 
@@ -6269,8 +6273,10 @@ namespace zonetool::h2
 	struct GfxSurfaceBounds
 	{
 		Bounds bounds;
-		char __pad0[11];
-		char flags;
+		unsigned short mipRadius;
+		unsigned char invHighMipRadius[6];
+		char __pad0[3];
+		unsigned char flags;
 	}; assert_sizeof(GfxSurfaceBounds, 36);
 
 	struct GfxPackedPlacement
