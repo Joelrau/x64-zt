@@ -4,27 +4,23 @@
 
 namespace zonetool::h1::converter::s2::techset
 {
-	constexpr std::string_view donor_zone_name = "mp_aachen_v2";
+	// a stock map, for the assets of the common zones it references, its reverb presets and minimap materials
+	constexpr std::string_view stock_zone_name = "mp_aachen_v2";
 
 	class s2_zone
 	{
 	public:
 		explicit s2_zone(const std::filesystem::path& path);
 
-		zonetool::s2::Material* find_donor(const std::string& techset) const;
-		zonetool::s2::MaterialTechniqueSet* find_techset(const std::string& techset) const;
 		bool is_global_techset(const std::string& techset) const;
 		bool is_global_image(const std::string& image) const;
 		bool is_global_asset(const void* header) const;
-		std::vector<std::string> donor_techsets() const;
 		const std::vector<void*>& find_assets(zonetool::s2::XAssetType type) const;
 		database& db() const;
 
 	private:
 		std::shared_ptr<database> database_;
 		std::unique_ptr<zonetool::s2::loaded_zone> zone_;
-		std::unordered_map<std::string, zonetool::s2::Material*> donors_;
-		std::unordered_map<std::string, zonetool::s2::MaterialTechniqueSet*> techsets_;
 		std::unordered_set<std::string> global_techsets_;
 		std::unordered_set<std::string> global_images_;
 		std::unordered_set<const void*> global_assets_;
@@ -38,9 +34,8 @@ namespace zonetool::h1::converter::s2::techset
 		std::array<std::int32_t, zonetool::s2::technique_count> light_sources; // h1 light technique of the appended primary light pass
 	};
 
-	const s2_zone& donor_zone();
+	const s2_zone& stock_zone();
 	const std::unordered_map<std::string, std::string>& common_rawfiles(); // s2 common_mp rawfiles by name, decompressed
-	std::string select(const std::string& h1_techset);
 	const native_techset* convert_native(const std::string& h1_techset, bool sprite = false);
 
 	void dump(zonetool::s2::MaterialTechniqueSet* asset);

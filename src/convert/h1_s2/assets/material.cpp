@@ -19,7 +19,6 @@ namespace zonetool::h1::converter::s2::material
 
 		std::vector<Material*> pending_materials;
 		std::unordered_map<const Material*, std::string> pending_sprites;
-		std::unordered_set<std::string> dumped_donor_images;
 		std::unordered_set<std::string> minimap_materials;
 
 		struct native_material
@@ -31,19 +30,6 @@ namespace zonetool::h1::converter::s2::material
 		zonetool::s2::GfxImage* make_image_stub(const std::string& name, utils::memory::allocator& allocator)
 		{
 			return make_stub<zonetool::s2::GfxImage>(allocator.duplicate_string(name), allocator);
-		}
-
-		const MaterialTextureDef* find_texture(const Material* asset, const std::uint32_t hash)
-		{
-			for (auto i = 0; asset->textureTable && i < asset->textureCount; i++)
-			{
-				if (asset->textureTable[i].nameHash == hash && asset->textureTable[i].semantic != TS_WATER_MAP)
-				{
-					return &asset->textureTable[i];
-				}
-			}
-
-			return nullptr;
 		}
 
 		std::string fallback_image(const std::uint8_t semantic)
@@ -61,115 +47,38 @@ namespace zonetool::h1::converter::s2::material
 			}
 		}
 
-		std::string select_image(const Material* asset, const zonetool::s2::MaterialTextureDef& donor_texture)
+		// s2 sets a bit per letter of its techset prefix, h1 world techsets have no prefix ("l_sm_...")
+		std::uint32_t convert_material_type(const std::string& h1_techset)
 		{
-			const auto& zone = techset::donor_zone();
-			const auto source_texture = donor_texture.semantic != zonetool::s2::TS_ENV_BRDF_LUT
-				? find_texture(asset, donor_texture.nameHash)
-				: nullptr;
-			const auto source_image = source_texture && source_texture->u.image ? source_texture->u.image->name : nullptr;
+			using namespace zonetool::s2;
 
-			if (source_image && donor_texture.semantic == zonetool::s2::TS_COLOR_MAP && source_texture->u.image->mapType == MAPTYPE_CUBE)
+			const auto prefix = h1_techset.substr(0, h1_techset.find('_'));
+			if (prefix == "l" || prefix == "w" || prefix == "wc")
 			{
-				if (const auto sky = gfximage::dump_sky(source_texture->u.image))
-				{
-					return *sky;
-				}
+				return MTL_TYPE_BIT_WORLD;
 			}
 
-			if (const auto image = source_image ? gfximage::dump_used(source_image) : std::nullopt)
+			if (prefix == "distortion")
 			{
-				return *image;
+				return MTL_TYPE_BIT_X | MTL_TYPE_BIT_V; // stock xv_distortion
 			}
 
-			if (source_image && source_image[0] != '$')
+			if (!prefix.starts_with('m'))
 			{
-				ZONETOOL_WARNING("Image \"%s\" of material \"%s\" is not in a loaded zone", source_image, asset->name);
+				return 0;
 			}
 
-			const auto donor_image = donor_texture.u.image;
-			if (donor_image && donor_image->name)
+			if (prefix == "ml" || prefix == "mlc" || prefix == "msl" || prefix == "mslc")
 			{
-				const auto is_core_semantic = donor_texture.semantic == zonetool::s2::TS_COLOR_MAP
-					|| donor_texture.semantic == zonetool::s2::TS_NORMAL_MAP
-					|| donor_texture.semantic == zonetool::s2::TS_SPECULAR_MAP;
-				if (zone.is_global_image(donor_image->name))
-				{
-					return donor_image->name;
-				}
-
-				if (!is_core_semantic)
-				{
-					if (dumped_donor_images.insert(donor_image->name).second)
-					{
-						db_scope _(zone.db());
-						zonetool::s2::gfx_image::dump(donor_image);
-						add_csv_row("image", donor_image->name);
-					}
-
-					return donor_image->name;
-				}
+				return MTL_TYPE_BIT_MODEL | MTL_TYPE_BIT_LIGHTMAP;
 			}
 
-			return fallback_image(donor_texture.semantic);
-		}
-
-		bool uses_sky_image(const zonetool::s2::Material* material)
-		{
-			for (auto i = 0; i < material->textureCount; i++)
+			if (prefix == "me" || prefix == "mce" || prefix == "mec")
 			{
-				const auto image = material->textureTable[i].u.image;
-				if (image && image->name && std::string_view(image->name).ends_with("_s2sky"))
-				{
-					return true;
-				}
+				return MTL_TYPE_BIT_MODEL | MTL_TYPE_BIT_EFFECT;
 			}
 
-			return false;
-		}
-
-		void convert_donor_textures(const Material* asset, const zonetool::s2::Material* donor, zonetool::s2::Material* material,
-			utils::memory::allocator& allocator)
-		{
-			material->textureTable = copy_array(donor->textureTable, donor->textureCount, allocator);
-			for (auto i = 0; i < donor->textureCount; i++)
-			{
-				auto& texture = material->textureTable[i];
-				texture.u.image = make_image_stub(select_image(asset, texture), allocator);
-			}
-
-			if (!uses_sky_image(material))
-			{
-				return;
-			}
-
-			for (auto i = 0; i < donor->textureCount; i++)
-			{
-				const auto donor_image = donor->textureTable[i].u.image;
-				if (donor_image && donor_image->name && std::string_view(donor_image->name).ends_with("_flow"))
-				{
-					auto& texture = material->textureTable[i];
-					texture.u.image = make_image_stub(gfximage::dump_solid("h1_s2_sky_still_flow", texture.semantic, {128, 128, 0, 255}), allocator);
-				}
-			}
-		}
-
-		// the donor material with the h1 name and surface types
-		zonetool::s2::Material* copy_donor(const Material* asset, const zonetool::s2::Material* donor, utils::memory::allocator& allocator)
-		{
-			const auto material = allocator.allocate<zonetool::s2::Material>();
-			*material = *donor;
-			material->info.name = asset->name;
-			material->info.surfaceTypeBits = convert_surface_type_bits(static_cast<std::uint64_t>(asset->info.surfaceTypeBits));
-			material->parentMaterial = nullptr;
-			return material;
-		}
-
-		zonetool::s2::Material* convert_donor(const Material* asset, const zonetool::s2::Material* donor, utils::memory::allocator& allocator)
-		{
-			const auto material = copy_donor(asset, donor, allocator);
-			convert_donor_textures(asset, donor, material, allocator);
-			return material;
+			return MTL_TYPE_BIT_MODEL;
 		}
 
 		std::uint32_t convert_blend_word(const std::uint32_t h1_word)
@@ -543,10 +452,13 @@ namespace zonetool::h1::converter::s2::material
 			}
 		}
 
-		native_material convert_native(const Material* asset, const zonetool::s2::Material* donor, const techset::native_techset& native,
+		native_material convert_native(const Material* asset, const std::string& h1_techset, const techset::native_techset& native,
 			utils::memory::allocator& allocator)
 		{
-			const auto material = copy_donor(asset, donor, allocator);
+			const auto material = allocator.allocate<zonetool::s2::Material>();
+			material->info.name = asset->name;
+			material->info.surfaceTypeBits = convert_surface_type_bits(static_cast<std::uint64_t>(asset->info.surfaceTypeBits));
+			material->materialType = convert_material_type(h1_techset);
 			material->info.gameFlags = asset->info.gameFlags;
 			material->info.sortKey = convert_sort_key(asset->info.sortKey);
 			material->info.drawSurf.fields.primarySortKey = material->info.sortKey;
@@ -572,15 +484,14 @@ namespace zonetool::h1::converter::s2::material
 			for (auto i = 0; i < material->textureCount; i++)
 			{
 				const auto image = material->textureTable[i].u.image;
-				if (image && image->name && !gfximage::is_dumped(image->name) && !dumped_donor_images.contains(image->name))
+				if (image && image->name && !gfximage::is_dumped(image->name))
 				{
 					add_csv_row("image", image->name, true);
 				}
 			}
 		}
 
-		bool dump_native(Material* asset, const zonetool::s2::Material* donor, const std::string& h1_techset, const bool sprite,
-			utils::memory::allocator& allocator)
+		bool dump_native(Material* asset, const std::string& h1_techset, const bool sprite, utils::memory::allocator& allocator)
 		{
 			const auto native = techset::convert_native(h1_techset, sprite);
 			if (!native)
@@ -591,11 +502,11 @@ namespace zonetool::h1::converter::s2::material
 			native_material converted{};
 			try
 			{
-				converted = convert_native(asset, donor, *native, allocator);
+				converted = convert_native(asset, h1_techset, *native, allocator);
 			}
 			catch (const std::exception& e)
 			{
-				ZONETOOL_WARNING("Material \"%s\" needs a donor: %s", asset->name, e.what());
+				ZONETOOL_WARNING("Material \"%s\" is not converted: %s", asset->name, e.what());
 				return false;
 			}
 
@@ -607,30 +518,7 @@ namespace zonetool::h1::converter::s2::material
 			return true;
 		}
 
-		void dump_with_donor(Material* asset, const zonetool::s2::Material* donor, const std::string& s2_techset, utils::memory::allocator& allocator)
-		{
-			const auto& zone = techset::donor_zone();
-			const auto global = zone.is_global_techset(s2_techset);
-			if (!global)
-			{
-				if (const auto techniques = zone.find_techset(s2_techset))
-				{
-					db_scope _(zone.db());
-					techset::dump(techniques);
-				}
-			}
-			add_csv_row("techset", s2_techset, global);
-
-			const auto material = convert_donor(asset, donor, allocator);
-			{
-				db_scope _(zone.db());
-				zonetool::s2::material::dump(material);
-			}
-			add_csv_row("material", asset->name);
-			add_image_rows(material);
-		}
-
-		void convert_material(Material* asset, std::unordered_map<std::string, std::string>& selected, const bool sprite)
+		void convert_material(Material* asset, const bool sprite)
 		{
 			const auto h1_techset = get_techset_name(asset);
 			if (h1_techset.empty())
@@ -639,23 +527,8 @@ namespace zonetool::h1::converter::s2::material
 				return;
 			}
 
-			auto [entry, inserted] = selected.try_emplace(h1_techset);
-			if (inserted)
-			{
-				entry->second = techset::select(h1_techset);
-				ZONETOOL_INFO("techset %s -> %s", h1_techset.data(), entry->second.data());
-			}
-
-			const auto& s2_techset = entry->second;
-			const auto donor = techset::donor_zone().find_donor(s2_techset);
-			if (!donor)
-			{
-				ZONETOOL_WARNING("No S2 material uses techset \"%s\"", s2_techset.data());
-				return;
-			}
-
 			utils::memory::allocator allocator;
-			if (sprite && dump_native(asset, donor, h1_techset, true, allocator))
+			if (sprite && dump_native(asset, h1_techset, true, allocator))
 			{
 				return;
 			}
@@ -665,18 +538,15 @@ namespace zonetool::h1::converter::s2::material
 				ZONETOOL_WARNING("Material \"%s\" has no sprite techset, the fx sprites using it are not drawn", asset->name);
 			}
 
-			if (!dump_native(asset, donor, h1_techset, false, allocator))
-			{
-				dump_with_donor(asset, donor, s2_techset, allocator);
-			}
+			dump_native(asset, h1_techset, false, allocator);
 		}
 
 		// fx sprite elems draw from the s2 sprite records, so they get a copy of the material on a sprite techset
-		void convert_sprite(const Material* asset, const std::string& name, std::unordered_map<std::string, std::string>& selected)
+		void convert_sprite(const Material* asset, const std::string& name)
 		{
 			auto sprite = *asset;
 			sprite.name = name.data();
-			convert_material(&sprite, selected, true);
+			convert_material(&sprite, true);
 		}
 	}
 
@@ -742,24 +612,25 @@ namespace zonetool::h1::converter::s2::material
 		}
 
 		utils::memory::allocator allocator;
-		const auto& zone = techset::donor_zone();
-		const auto donor_minimap = "compass_map_" + std::string(techset::donor_zone_name);
+		// the stock zone's own minimap materials with the h1 minimap image
+		const auto& zone = techset::stock_zone();
+		const auto stock_minimap = "compass_map_" + std::string(techset::stock_zone_name);
 		for (const auto suffix : {"", "_circular", "_ui3d"})
 		{
-			const auto donor_name = donor_minimap + suffix;
-			const auto& donors = zone.find_assets(zonetool::s2::ASSET_TYPE_MATERIAL);
-			const auto donor = std::ranges::find_if(donors, [&](void* header)
+			const auto stock_name = stock_minimap + suffix;
+			const auto& materials = zone.find_assets(zonetool::s2::ASSET_TYPE_MATERIAL);
+			const auto stock = std::ranges::find_if(materials, [&](void* header)
 			{
-				return static_cast<zonetool::s2::Material*>(header)->info.name == donor_name;
+				return static_cast<zonetool::s2::Material*>(header)->info.name == stock_name;
 			});
-			if (donor == donors.end())
+			if (stock == materials.end())
 			{
-				ZONETOOL_WARNING("Material \"%s\" is not in the donor zone", donor_name.data());
+				ZONETOOL_WARNING("Material \"%s\" is not in the stock zone", stock_name.data());
 				continue;
 			}
 
 			const auto material = allocator.allocate<zonetool::s2::Material>();
-			*material = *static_cast<zonetool::s2::Material*>(*donor);
+			*material = *static_cast<zonetool::s2::Material*>(*stock);
 			material->info.name = allocator.duplicate_string(minimap + suffix);
 			material->textureTable = copy_array(material->textureTable, material->textureCount, allocator);
 			for (auto i = 0; i < material->textureCount; i++)
@@ -788,7 +659,6 @@ namespace zonetool::h1::converter::s2::material
 
 	void finish()
 	{
-		std::unordered_map<std::string, std::string> selected;
 		for (const auto asset : pending_materials)
 		{
 			if (minimap_materials.contains(asset->name))
@@ -798,7 +668,7 @@ namespace zonetool::h1::converter::s2::material
 
 			try
 			{
-				convert_material(asset, selected, false);
+				convert_material(asset, false);
 			}
 			catch (const std::exception& e)
 			{
@@ -810,7 +680,7 @@ namespace zonetool::h1::converter::s2::material
 		{
 			try
 			{
-				convert_sprite(asset, name, selected);
+				convert_sprite(asset, name);
 			}
 			catch (const std::exception& e)
 			{
@@ -821,6 +691,5 @@ namespace zonetool::h1::converter::s2::material
 		pending_materials.clear();
 		pending_sprites.clear();
 		minimap_materials.clear();
-		dumped_donor_images.clear();
 	}
 }

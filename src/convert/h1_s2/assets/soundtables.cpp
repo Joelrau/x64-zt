@@ -66,10 +66,10 @@ namespace zonetool::h1::converter::s2::soundtables
 			});
 		}
 
-		// s2 maps carry the reverb presets that are not in code_post_gfx_mp, copy them from the stock donor map
+		// s2 maps carry the reverb presets that are not in code_post_gfx_mp, copy them from the stock map
 		void dump_reverb_preset(const std::string& name)
 		{
-			for (auto* header : techset::donor_zone().find_assets(zonetool::s2::ASSET_TYPE_REVERB_PRESET))
+			for (auto* header : techset::stock_zone().find_assets(zonetool::s2::ASSET_TYPE_REVERB_PRESET))
 			{
 				const auto preset = static_cast<zonetool::s2::ReverbPreset*>(header);
 				if (preset->name && name == preset->name)

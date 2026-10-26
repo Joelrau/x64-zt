@@ -182,7 +182,7 @@ namespace zonetool::h1::converter::s2::scriptfile
 			return std::format("main()\n{{\n    level.tweakfile = 1;\n    maps\\createart\\{}_fog_hdr::setupfog();\n}}\n", map);
 		}
 
-		// the map script names its compass material, built from the donor zone's minimap materials
+		// the map script names its compass material, built from the stock zone's minimap materials
 		void dump_minimap(const std::string& source)
 		{
 			static const std::regex setup_minimap(R"re(\bsetupminimap\s*\(\s*"([^"]+)")re");

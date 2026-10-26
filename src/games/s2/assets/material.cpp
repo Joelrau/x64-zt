@@ -191,11 +191,12 @@ namespace zonetool::s2
 			j.value("textureAtlasFrameBlend", value.info.textureAtlasFrameBlend);
 			j.value("textureAtlasAsArray", value.info.textureAtlasAsArray);
 			j.value("surfaceTypeBits", value.info.surfaceTypeBits);
+			j.value("unkHash", value.info.unkHash);
 
 			j.value(MATERIAL_FIELD(stateFlags));
 			j.value(MATERIAL_FIELD(cameraRegion));
 			j.value(MATERIAL_FIELD(materialType));
-			j.value(MATERIAL_FIELD(assetFlags));
+			j.value(MATERIAL_FIELD(flags));
 			j.value(MATERIAL_FIELD(stateBitsEntry));
 			j.value(MATERIAL_FIELD(constantBufferIndex));
 

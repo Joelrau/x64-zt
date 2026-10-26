@@ -1685,24 +1685,33 @@ namespace zonetool::s2
 		PREPASS_CLASS_BLENDED = 2, // not in the depth prepass (decals, translucent, effects, 2d)
 	};
 
+	// field values below are from all 31930 materials of the 146 stock zones (raw zone bytes)
 	struct MaterialInfo
 	{
 		const char* name;
 		unsigned char gameFlags;
 		MaterialPrepassClass prepassClass;
 		unsigned char sortKey;
-		char __pad0;
+		unsigned char unused; // 0 in every stock material, no reader found
 		unsigned char textureAtlasRowCount;
 		unsigned char textureAtlasColumnCount;
 		unsigned char textureAtlasFrameBlend;
 		unsigned char textureAtlasAsArray;
 		GfxMaterialDrawSurf drawSurf;
-		std::uint64_t surfaceTypeBits;
-		unsigned int hashIndex;
+		// one value per techset, shared across team/detail-layer/prefix variants of a techset (783 values), 0 on 2d; not derived from the
+		// techset's shaders, decls or the material constants, never compared in game code, no common 32/64-bit hash of exe strings or techset
+		// tokens matches: likely a hash of a tool-side name (material template?)
+		unsigned int unkHash;
+		unsigned short hashIndex; // runtime: the material index the draw surfs are built with (2.5 sub_140180790, & 0x7FFF)
+		unsigned char unk2; // runtime: 3 bits of the draw surf (2.5 sub_140180790)
+		unsigned char __pad0;
+		std::uint64_t surfaceTypeBits; // 1 << (surface type - 1), like h1
 	};
 	static_assert(sizeof(MaterialInfo) == 0x30);
 	static_assert(offsetof(MaterialInfo, sortKey) == 10);
 	static_assert(offsetof(MaterialInfo, textureAtlasRowCount) == 12);
+	static_assert(offsetof(MaterialInfo, unkHash) == 0x20);
+	static_assert(offsetof(MaterialInfo, surfaceTypeBits) == 0x28);
 
 	union MaterialTextureDefInfo
 	{
@@ -1762,6 +1771,28 @@ namespace zonetool::s2
 	};
 	static_assert(sizeof(MaterialConstantBufferDef) == 0x80);
 
+	// one bit per letter of the stock techset prefix, "mcou_l_sm_..." is m | c | o | u (0x8501); no stock material sets another bit
+	enum MaterialTypeBits : std::uint32_t
+	{
+		MTL_TYPE_BIT_MODEL = 0x1, // m
+		MTL_TYPE_BIT_WORLD = 0x2, // w
+		MTL_TYPE_BIT_X = 0x4, // x: fx particles and sprites (xv, xl)
+		MTL_TYPE_BIT_V = 0x8, // v: xv
+		MTL_TYPE_BIT_LIGHTMAP = 0x10, // l: ml, mlc lightmapped models, xl
+		MTL_TYPE_BIT_EFFECT = 0x40, // e: me, mec, meu, mecu
+		MTL_TYPE_BIT_VERTCOL = 0x100, // c: mc, mco, mcou, mcok, mlc, mec, mecu, wc
+		MTL_TYPE_BIT_O = 0x400, // o: mo, mou, mok, mco, mcou, mcok
+		MTL_TYPE_BIT_U = 0x8000, // u: mou, mcou, meu, mecu
+		MTL_TYPE_BIT_K = 0x10000, // k: mok, mcok (165 character and weapon materials)
+	};
+
+	enum MaterialFlags : std::uint8_t
+	{
+		MTL_FLAG_VERTEX_DISPLACEMENT = 0x2, // every "vdh" techset, also some cloth/foliage models and ui/fx "_mask" techsets
+		MTL_FLAG_PAINTSHOP = 0x8, // "ptshp" techsets (camo-able weapon materials), collected per entity model by 2.5 sub_14071AB60
+		MTL_FLAG_UNK_20 = 0x20, // only with 0x2, on 17 "_nodisplacement_transition" world materials
+	};
+
 	struct Material
 	{
 		union
@@ -1775,12 +1806,13 @@ namespace zonetool::s2
 		unsigned char stateBitsCount;
 		unsigned char stateFlags;
 		unsigned char cameraRegion;
-		unsigned char materialType;
-		unsigned char assetFlags;
-		unsigned char __pad0[4];
+		unsigned char unused1; // 0 in every stock material
+		unsigned int materialType; // MaterialTypeBits of the techset prefix
+		unsigned char flags; // MaterialFlags
 		unsigned char constantBufferCount;
 		unsigned char layerCount;
-		unsigned char __pad1[9];
+		unsigned char unused2; // 0 in every stock material
+		std::uint64_t unused3; // 0 in every stock material
 		MaterialTechniqueSet* techniqueSet;
 		MaterialTextureDef* textureTable;
 		MaterialConstantDef* constantTable;
@@ -1795,6 +1827,9 @@ namespace zonetool::s2
 	static_assert(offsetof(Material, textureCount) == 162);
 	static_assert(offsetof(Material, constantBufferCount) == 173);
 	static_assert(offsetof(Material, techniqueSet) == 184);
+	static_assert(offsetof(Material, materialType) == 0xA8);
+	static_assert(offsetof(Material, flags) == 0xAC);
+	static_assert(offsetof(Material, unused3) == 0xB0);
 	static_assert(offsetof(Material, parentMaterial) == 216);
 	static_assert(offsetof(Material, constantBufferTable) == 344);
 

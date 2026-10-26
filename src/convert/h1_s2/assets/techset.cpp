@@ -16,216 +16,9 @@ namespace zonetool::h1::converter::s2::techset
 		using shader::stable_literal_row;
 		using shader::sun_shadow_lookup;
 
-		const std::unordered_map<std::string_view, std::string_view> s2_prefixes
-		{
-			{"m", "mo"},
-			{"mc", "mco"},
-			{"wc", "wc"},
-			{"w", "w"},
-			{"me", "me"},
-			{"mec", "mco"},
-			{"mce", "mco"},
-		};
-
-		const std::vector<std::pair<std::string_view, std::string_view>> s2_token_renames
-		{
-			{"sld0", "sl0"},
-			{"sd0", "s0"},
-		};
-
-		const std::unordered_map<std::string_view, float> token_weights
-		{
-			{"l", 20.0f},
-			{"sm", 5.0f},
-			{"lmpb", 4.0f},
-			{"ndw", 8.0f},
-			{"add", 10.0f},
-			{"blend", 10.0f},
-			{"replace", 10.0f},
-			{"atest", 10.0f},
-			{"sky", 30.0f},
-			{"b0", 10.0f},
-			{"r0", 10.0f},
-			{"t0", 10.0f},
-			{"ct0", 6.0f},
-			{"cltrans", 6.0f},
-		};
-
-		const std::unordered_map<std::string_view, std::string_view> default_techsets
-		{
-			{"mco", "mco_l_sm_r0c0n0s0_nfwpf"},
-			{"mo", "mo_l_sm_lmpb_t0c0n0s0_nfwpf"},
-			{"wc", "wc_l_sm_lmpb_r0c0n0s0_nfwpf"},
-		};
-
-		struct techset_name
-		{
-			std::string name;
-			std::string prefix;
-			std::vector<std::string> tokens;
-		};
-
 		std::unordered_set<std::string> dumped_techsets;
 		template <typename T>
 		std::unordered_set<std::string> dumped_shaders;
-
-		enum class draw_kind
-		{
-			hidden,
-			sky,
-			translucent,
-			opaque,
-		};
-
-		const std::unordered_set<std::string_view> hidden_tokens
-		{
-			"tools",
-			"shadowcaster",
-			"distortion",
-		};
-
-		const std::unordered_set<std::string_view> translucent_tokens
-		{
-			"ndw",
-			"add",
-			"blend",
-			"multiply",
-			"b0",
-			"ba0",
-		};
-
-		void add_layer_tokens(const std::string& part, std::vector<std::string>& tokens)
-		{
-			static const std::regex layer_group(R"(^([a-z]+[0-9])+$)");
-			static const std::regex layer(R"([a-z]+[0-9])");
-			if (!std::regex_match(part, layer_group))
-			{
-				tokens.emplace_back(part);
-				return;
-			}
-
-			for (std::sregex_iterator i(part.begin(), part.end(), layer), end; i != end; ++i)
-			{
-				tokens.emplace_back(i->str());
-			}
-		}
-
-		techset_name parse_name(std::string name, const bool from_h1)
-		{
-			if (from_h1)
-			{
-				for (const auto& [from, to] : s2_token_renames)
-				{
-					for (auto pos = name.find(from); pos != std::string::npos; pos = name.find(from, pos + to.size()))
-					{
-						name.replace(pos, from.size(), to);
-					}
-				}
-			}
-
-			techset_name result{name};
-			auto parts = utils::string::split(name, '_');
-			if (!parts.empty())
-			{
-				result.prefix = parts.front();
-				parts.erase(parts.begin());
-			}
-
-			if (from_h1)
-			{
-				const auto prefix = s2_prefixes.find(result.prefix);
-				result.prefix = prefix != s2_prefixes.end() ? std::string(prefix->second) : result.prefix;
-			}
-
-			for (const auto& part : parts)
-			{
-				add_layer_tokens(part, result.tokens);
-			}
-
-			return result;
-		}
-
-		bool has_any_token(const techset_name& name, const std::unordered_set<std::string_view>& tokens)
-		{
-			return std::ranges::any_of(name.tokens, [&](const std::string& token)
-			{
-				return tokens.contains(token);
-			});
-		}
-
-		draw_kind get_draw_kind(const techset_name& name)
-		{
-			if (hidden_tokens.contains(name.prefix) || has_any_token(name, hidden_tokens))
-			{
-				return draw_kind::hidden;
-			}
-
-			if (has_any_token(name, {"sky"}))
-			{
-				return draw_kind::sky;
-			}
-
-			return has_any_token(name, translucent_tokens) ? draw_kind::translucent : draw_kind::opaque;
-		}
-
-		bool is_model_prefix(const std::string& prefix)
-		{
-			return prefix.starts_with('m');
-		}
-
-		bool lightmap_allowed(const techset_name& source, const techset_name& candidate)
-		{
-			return !has_any_token(source, {"unlit"}) || !has_any_token(candidate, {"lmpb"});
-		}
-
-		float token_weight(const std::string& token)
-		{
-			const auto weight = token_weights.find(token);
-			return weight != token_weights.end() ? weight->second : 2.0f;
-		}
-
-		float score(const techset_name& source, const techset_name& candidate)
-		{
-			auto result = 0.0f;
-			for (const auto& token : source.tokens)
-			{
-				const auto found = std::find(candidate.tokens.begin(), candidate.tokens.end(), token) != candidate.tokens.end();
-				result += found ? token_weight(token) * 2.0f : -token_weight(token);
-			}
-
-			for (const auto& token : candidate.tokens)
-			{
-				if (std::find(source.tokens.begin(), source.tokens.end(), token) == source.tokens.end())
-				{
-					result -= token_weight(token);
-				}
-			}
-
-			return result;
-		}
-
-		std::optional<std::string> find_best(const techset_name& source, const std::function<bool(const techset_name&)>& accept)
-		{
-			std::optional<std::string> best;
-			auto best_score = -std::numeric_limits<float>::infinity();
-			for (const auto& name : donor_zone().donor_techsets())
-			{
-				const auto candidate = parse_name(name, false);
-				if (!accept(candidate))
-				{
-					continue;
-				}
-
-				const auto value = score(source, candidate);
-				if (value > best_score)
-				{
-					best_score = value;
-					best = name;
-				}
-			}
-
-			return best;
-		}
 
 		template <typename T>
 		void dump_shader_file(T* shader)
@@ -285,7 +78,7 @@ namespace zonetool::h1::converter::s2::techset
 				return;
 			}
 
-			const auto global = donor_zone().is_global_asset(shader);
+			const auto global = stock_zone().is_global_asset(shader);
 			if (!global)
 			{
 				dump_shader_file(shader);
@@ -1879,7 +1672,7 @@ namespace zonetool::h1::converter::s2::techset
 				}
 			}
 
-			// the wireframe view is not worth a donor
+			// a missing wireframe view does not fail the techset
 			const auto optional = slot % zonetool::s2::TECHNIQUE_GROUP_SIZE == zonetool::s2::TECHNIQUE_WIREFRAME_SOLID;
 			if (!error.empty() && !optional)
 			{
@@ -2045,32 +1838,13 @@ namespace zonetool::h1::converter::s2::techset
 				this->assets_[asset.type].emplace_back(asset.header);
 			}
 
-			if (asset.type == zonetool::s2::ASSET_TYPE_TECHNIQUE_SET)
+			if (asset.type == zonetool::s2::ASSET_TYPE_TECHNIQUE_SET && asset.referenced)
 			{
-				const auto techset = static_cast<zonetool::s2::MaterialTechniqueSet*>(asset.header);
-				this->techsets_.try_emplace(techset->name, techset);
-				if (asset.referenced)
-				{
-					this->global_techsets_.insert(techset->name);
-				}
+				this->global_techsets_.insert(static_cast<zonetool::s2::MaterialTechniqueSet*>(asset.header)->name);
 			}
 			else if (asset.type == zonetool::s2::ASSET_TYPE_IMAGE && asset.referenced)
 			{
 				this->global_images_.insert(static_cast<zonetool::s2::GfxImage*>(asset.header)->name);
-			}
-			else if (asset.type == zonetool::s2::ASSET_TYPE_MATERIAL && !asset.referenced)
-			{
-				const auto material = static_cast<zonetool::s2::Material*>(asset.header);
-				if (!material->techniqueSet || !material->techniqueSet->name || !material->textureTable)
-				{
-					continue;
-				}
-
-				auto& donor = this->donors_[material->techniqueSet->name];
-				if (!donor || (donor->parentMaterial && !material->parentMaterial))
-				{
-					donor = material;
-				}
 			}
 		}
 	}
@@ -2080,18 +1854,6 @@ namespace zonetool::h1::converter::s2::techset
 		static const std::vector<void*> none;
 		const auto entry = this->assets_.find(type);
 		return entry != this->assets_.end() ? entry->second : none;
-	}
-
-	zonetool::s2::Material* s2_zone::find_donor(const std::string& techset) const
-	{
-		const auto donor = this->donors_.find(techset);
-		return donor != this->donors_.end() ? donor->second : nullptr;
-	}
-
-	zonetool::s2::MaterialTechniqueSet* s2_zone::find_techset(const std::string& techset) const
-	{
-		const auto entry = this->techsets_.find(techset);
-		return entry != this->techsets_.end() ? entry->second : nullptr;
 	}
 
 	bool s2_zone::is_global_techset(const std::string& techset) const
@@ -2107,18 +1869,6 @@ namespace zonetool::h1::converter::s2::techset
 	bool s2_zone::is_global_asset(const void* header) const
 	{
 		return this->global_assets_.contains(header);
-	}
-
-	std::vector<std::string> s2_zone::donor_techsets() const
-	{
-		std::vector<std::string> result;
-		for (const auto& [name, _] : this->donors_)
-		{
-			result.emplace_back(name);
-		}
-
-		std::sort(result.begin(), result.end());
-		return result;
 	}
 
 	database& s2_zone::db() const
@@ -2151,75 +1901,10 @@ namespace zonetool::h1::converter::s2::techset
 		return rawfiles;
 	}
 
-	const s2_zone& donor_zone()
+	const s2_zone& stock_zone()
 	{
-		static const s2_zone zone(s2_folder() / "zone" / (std::string(donor_zone_name) + ".ff"));
+		static const s2_zone zone(s2_folder() / "zone" / (std::string(stock_zone_name) + ".ff"));
 		return zone;
-	}
-
-	std::string select(const std::string& h1_techset)
-	{
-		const auto source = parse_name(h1_techset, true);
-		const auto source_kind = get_draw_kind(source);
-		const auto same_kind_and_prefix = [&](const techset_name& candidate)
-		{
-			return get_draw_kind(candidate) == source_kind && candidate.prefix == source.prefix && lightmap_allowed(source, candidate);
-		};
-
-		const auto hidden_same_geometry = [&](const techset_name& candidate)
-		{
-			return get_draw_kind(candidate) == draw_kind::hidden && is_model_prefix(candidate.prefix) == is_model_prefix(source.prefix);
-		};
-		const auto hidden = [&](const techset_name& candidate)
-		{
-			return get_draw_kind(candidate) == draw_kind::hidden;
-		};
-
-		const auto drawn_same_prefix = [&](const techset_name& candidate)
-		{
-			const auto kind = get_draw_kind(candidate);
-			return kind != draw_kind::hidden && kind != draw_kind::sky && candidate.prefix == source.prefix && lightmap_allowed(source, candidate);
-		};
-
-		// mixing world and model vertex types is the "816" fatal error
-		const auto drawn_same_geometry = [&](const techset_name& candidate)
-		{
-			const auto kind = get_draw_kind(candidate);
-			return kind == source_kind && is_model_prefix(candidate.prefix) == is_model_prefix(source.prefix) && lightmap_allowed(source, candidate);
-		};
-
-		if (h1_techset.find("_reactivemotion") != std::string::npos)
-		{
-			const auto wind = find_best(source, [&](const techset_name& candidate)
-			{
-				return std::ranges::find(candidate.tokens, "fwa") != candidate.tokens.end() && drawn_same_geometry(candidate);
-			});
-
-			if (wind)
-			{
-				return *wind;
-			}
-		}
-
-		const auto filters = source_kind == draw_kind::hidden
-			? std::vector<std::function<bool(const techset_name&)>>{same_kind_and_prefix, hidden_same_geometry, hidden}
-			: std::vector<std::function<bool(const techset_name&)>>{same_kind_and_prefix, drawn_same_prefix, drawn_same_geometry};
-
-		for (const auto& accept : filters)
-		{
-			if (const auto best = find_best(source, accept))
-			{
-				return *best;
-			}
-		}
-
-		const auto fallback = default_techsets.find(source.prefix);
-		if (fallback != default_techsets.end())
-		{
-			return std::string(fallback->second);
-		}
-
-		return std::string(default_techsets.at(is_model_prefix(source.prefix) ? "mco" : "wc"));
 	}
 
 	const native_techset* convert_native(const std::string& h1_techset, const bool sprite)
@@ -2238,7 +1923,7 @@ namespace zonetool::h1::converter::s2::techset
 		}
 		catch (const std::exception& e)
 		{
-			ZONETOOL_WARNING("techset %s needs a donor: %s", h1_techset.data(), e.what());
+			ZONETOOL_WARNING("techset %s is not converted: %s", h1_techset.data(), e.what());
 		}
 
 		return entry ? &*entry : nullptr;

@@ -93,14 +93,16 @@ namespace zonetool::h1::converter::s2
 		return (h1_flags & ~(0x3Fu << 20)) | (convert_surface_type(h1_flags >> 20) << 20);
 	}
 
+	// bit i is surface type i + 1 in both games, the default type has no bit
 	std::uint64_t convert_surface_type_bits(const std::uint64_t h1_bits)
 	{
 		std::uint64_t result{};
-		for (auto i = 0u; i < SURF_TYPE_COUNT; i++)
+		for (auto i = 0u; i + 1 < SURF_TYPE_COUNT; i++)
 		{
-			if (h1_bits & (1ull << i))
+			const auto type = convert_surface_type(i + 1);
+			if ((h1_bits & (1ull << i)) && type)
 			{
-				result |= 1ull << convert_surface_type(i);
+				result |= 1ull << (type - 1);
 			}
 		}
 
