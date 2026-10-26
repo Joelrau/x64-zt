@@ -17,6 +17,8 @@ namespace zonetool::h1::converter::s2::shader
 		constexpr auto h1_instance_row_shift = 2u;
 		constexpr auto s2_instance_row_shift = 3u;
 		constexpr auto h1_model_lighting_buffer = 7u;
+		constexpr auto h1_reactive_motion_buffer = 9u; // world space offset of each of the 16 reactive motion clusters
+		constexpr auto wind_temp_count = 5u; // the last one holds the instance row of the instanced passes
 		constexpr auto s2_lit_instance_rows = 9u;
 		constexpr auto s2_lit_instance_lighting_row = 8u;
 		constexpr auto light_grid_direction_count = 12u;
@@ -175,6 +177,223 @@ namespace zonetool::h1::converter::s2::shader
 			inputs.emplace_back(lightmap);
 
 			return result;
+		}
+
+		struct wind_inputs
+		{
+			std::uint32_t color; // the fwa COLOR1 stream: x normal flutter, y phase, z vertical flutter
+			std::uint32_t normal;
+			bool declare_normal; // the zprepass shaders read no normal
+		};
+
+		wind_inputs add_wind_inputs(alys::shader::shader_object::signature& inputs)
+		{
+			const auto add = [&](const char* name, const std::uint32_t semantic_index)
+			{
+				signature_element element{};
+				element.name = name;
+				element.semantic_index = semantic_index;
+				element.system_value_type = alys::shader::NONE;
+				element.component_type = alys::shader::format_float;
+				element.register_ = std::ranges::max(inputs, {}, &signature_element::register_).register_ + 1;
+				element.mask = 0xF;
+				element.rw_mask = 0x7;
+				inputs.emplace_back(element);
+				return element.register_;
+			};
+
+			const auto normal = std::ranges::find_if(inputs, [](const signature_element& element)
+			{
+				return element.name == "NORMAL" && element.semantic_index == 0;
+			});
+
+			if (normal != inputs.end() && (normal->rw_mask & 0x7) != 0x7)
+			{
+				throw std::runtime_error("reactive motion vertex shader reads part of the normal");
+			}
+
+			wind_inputs result{};
+			result.declare_normal = normal == inputs.end();
+			result.normal = result.declare_normal ? add("NORMAL", 0) : normal->register_;
+			result.color = add("COLOR", 1);
+			return result;
+		}
+
+		// s2 shares the input layout of a vertexdecl between shaders and builds it with the stock register order, the converted decl of the
+		// wind passes is the stock fwa one: position, color 0, color 1, texcoord 0, normal, other texcoords, then the system values
+		std::unordered_map<std::uint32_t, std::uint32_t> order_wind_inputs(alys::shader::shader_object::signature& inputs, const bool added_normal)
+		{
+			std::vector<signature_element*> order;
+			std::vector<signature_element*> system_values;
+			signature_element* color = nullptr;
+			signature_element* normal = nullptr;
+			for (auto& element : inputs)
+			{
+				if (element.system_value_type != alys::shader::NONE)
+				{
+					system_values.emplace_back(&element);
+				}
+				else if (element.name == "COLOR" && element.semantic_index == 1)
+				{
+					color = &element;
+				}
+				else if (added_normal && element.name == "NORMAL")
+				{
+					normal = &element;
+				}
+				else
+				{
+					order.emplace_back(&element);
+				}
+			}
+
+			const auto by_register = [](const signature_element* element) { return element->register_; };
+			std::ranges::sort(order, {}, by_register);
+			std::ranges::sort(system_values, {}, by_register);
+
+			const auto find = [&](const char* name, const std::uint32_t index)
+			{
+				return std::ranges::find_if(order, [&](const signature_element* element)
+				{
+					return element->name == name && element->semantic_index == index;
+				});
+			};
+
+			if (color)
+			{
+				const auto color0 = find("COLOR", 0);
+				order.insert(color0 != order.end() ? color0 + 1 : order.begin() + (order.empty() ? 0 : 1), color);
+			}
+
+			if (normal)
+			{
+				const auto texcoord = find("TEXCOORD", 0);
+				order.insert(texcoord != order.end() ? texcoord + 1 : order.end(), normal);
+			}
+
+			order.insert(order.end(), system_values.begin(), system_values.end());
+
+			std::unordered_map<std::uint32_t, std::uint32_t> registers;
+			for (auto i = 0u; i < order.size(); i++)
+			{
+				if (!registers.emplace(order[i]->register_, i).second)
+				{
+					throw std::runtime_error("vertex shader inputs share a register");
+				}
+			}
+
+			for (auto& element : inputs)
+			{
+				element.register_ = registers.at(element.register_);
+			}
+
+			std::ranges::sort(inputs, {}, &signature_element::register_);
+			return registers;
+		}
+
+		void remap_input_registers(alys::shader::detail::operand_t& operand, const std::unordered_map<std::uint32_t, std::uint32_t>& registers)
+		{
+			for (auto& index : operand.indices)
+			{
+				if (index.extra_operand)
+				{
+					remap_input_registers(*index.extra_operand, registers);
+				}
+			}
+
+			if (operand.type == D3D10_SB_OPERAND_TYPE_INPUT)
+			{
+				operand.indices[0].value.uint32 = registers.at(operand.indices[0].value.uint32);
+			}
+		}
+
+		bool reads_reactive_motion(const alys::shader::detail::instruction_t& instruction)
+		{
+			return std::ranges::any_of(instruction.operands, [](const alys::shader::detail::operand_t& operand)
+			{
+				return operand.type == D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER && operand.indices[0].value.uint32 == h1_reactive_motion_buffer;
+			});
+		}
+
+		// the stock fwa sway (vertcol_simple_vs_zp_fwa_atest_co_dso) as a world space offset in place of the h1 reactive motion offset:
+		// smoothed triangle wave flutter along the normal and up in model space, then the whole model bends along the wind by its height above the origin
+		// mul + add like stock, a precise mad may fuse differently in the prepass and lit shaders
+		void emit_foliage_wind(alys::shader::assembler& a, const alys::shader::detail::operand_t& dest, const std::uint32_t position, const wind_inputs& inputs,
+			const foliage_wind& wind, const std::array<alys::shader::detail::operand_t, 3>& world, const std::uint32_t temp)
+		{
+			constexpr auto precise = D3D11_SB_INSTRUCTION_PRECISE_VALUES_MASK >> 11; // every pass of the draw must move the vertex the same
+			const auto flutter = temp;
+			const auto work = temp + 1;
+			const auto bent = temp + 2;
+			const auto rest = temp + 3;
+			const auto time = [&](const char* swizzle) { return asm_::cb(s2_stable_constant_buffer, wind.time_row).select(swizzle); };
+			const auto strength = [&](const char* swizzle) { return asm_::cb(s2_stable_constant_buffer, wind.wind_row).select(swizzle); };
+			const auto params = [&](const char* swizzle) { return asm_::cb(s2_stable_constant_buffer, wind.params_row).select(swizzle); };
+			const auto all = [](const std::uint32_t reg) { return asm_::r(reg).select("xyzw"); };
+
+			a.push_controls(precise);
+			a.mul(asm_::r(flutter).zw(), asm_::v(inputs.color).select("yyyy"), asm_::l(0.0f, 0.0f, 3.14f, 3.14f));
+			a.add(asm_::r(flutter).xy(), asm_::r(flutter).select("wwww"), asm_::r(flutter).select("wwww"));
+			a.add(all(flutter), all(flutter), time("wwww"));
+			a.mul(all(flutter), all(flutter), asm_::l(1.975f, 0.793f, 0.375f, 0.193f));
+			a.frc(all(flutter), all(flutter));
+			a.mul(all(flutter), all(flutter), asm_::l(2.0f, 2.0f, 2.0f, 2.0f));
+			a.add(all(flutter), all(flutter), asm_::l(-1.0f, -1.0f, -1.0f, -1.0f));
+			a.mul(all(flutter), all(flutter), strength("xxxx"));
+			a.mul(all(flutter), all(flutter), params("xxxx"));
+			a.add(all(flutter), all(flutter), asm_::l(0.5f, 0.5f, 0.5f, 0.5f));
+			a.frc(all(flutter), all(flutter));
+			a.mul(all(flutter), all(flutter), asm_::l(2.0f, 2.0f, 2.0f, 2.0f));
+			a.add(all(flutter), all(flutter), asm_::l(-1.0f, -1.0f, -1.0f, -1.0f));
+			a.mul(all(work), all(flutter).abs(), asm_::l(2.0f, 2.0f, 2.0f, 2.0f));
+			a.add(all(work), all(work).neg(), asm_::l(3.0f, 3.0f, 3.0f, 3.0f));
+			a.mul(all(flutter), all(flutter).abs(), all(flutter).abs());
+			a.mul(all(flutter), all(flutter), all(work));
+			a.add(asm_::r(flutter).xyz(), asm_::r(flutter).select("yywy"), asm_::r(flutter).select("xxzx"));
+
+			a.mul(asm_::r(work).xyz(), asm_::v(inputs.normal).select("xyzx"), asm_::l(2.0f, 2.0f, 2.0f, 0.0f));
+			a.add(asm_::r(work).xyz(), asm_::r(work).select("xyzx"), asm_::l(-1.0f, -1.0f, -1.0f, 0.0f));
+			a.dp3(asm_::r(work).w(), asm_::r(work).select("xyzx"), asm_::r(work).select("xyzx"));
+			a.rsq(asm_::r(work).w(), asm_::r(work).w());
+			a.mul(asm_::r(work).xy(), asm_::r(work).select("wwww"), asm_::r(work).select("xyxx"));
+			a.mul(asm_::r(bent).zw(), asm_::v(inputs.color).select("xxxz"), params("yyyz"));
+			a.mul(asm_::r(bent).xy(), asm_::r(work).select("xyxx"), asm_::r(bent).select("zzzz"));
+			a.mul(asm_::r(flutter).xyz(), asm_::r(flutter).select("xyzx"), asm_::r(bent).select("xywx"));
+			a.add(asm_::r(flutter).xyz(), asm_::r(flutter).select("xyzx"), asm_::v(position).select("xyzx"));
+
+			// world space offsets from the model origin with and without the flutter
+			for (auto row = 0u; row < 3; row++)
+			{
+				a.dp3(asm_::r(bent).select(alys::shader::component_x + row), asm_::r(flutter).select("xyzx"), world[row]);
+				a.dp3(asm_::r(rest).select(alys::shader::component_x + row), asm_::v(position).select("xyzx"), world[row]);
+			}
+
+			a.mul(asm_::r(work).x(), time("wwww"), strength("yyyy"));
+			a.sincos(asm_::r(work).x(), asm_::r(work).y(), asm_::r(work).select("xxxx"));
+			a.add(asm_::r(work).x(), asm_::r(work).x(), asm_::l(0.1f));
+			a.add(asm_::r(work).x(), asm_::r(work).x(), asm_::l(1.0f));
+			a.mul(asm_::r(work).y(), strength("xxxx"), asm_::l(0.001f));
+			a.mul(asm_::r(work).y(), asm_::r(work).y(), params("wwww"));
+			a.mul(asm_::r(work).x(), asm_::r(work).x(), asm_::r(work).y());
+			a.max(asm_::r(work).y(), asm_::r(bent).z(), asm_::l(0.0f));
+			a.mul(asm_::r(work).x(), asm_::r(work).x(), asm_::r(work).y());
+			a.add(asm_::r(work).x(), asm_::r(work).x(), asm_::l(1.0f));
+			a.mul(asm_::r(work).x(), asm_::r(work).x(), asm_::r(work).x());
+			a.mul(asm_::r(work).y(), asm_::r(work).x(), asm_::r(work).x());
+			a.add(asm_::r(work).y(), asm_::r(work).x().neg(), asm_::r(work).y());
+			a.dp3(asm_::r(work).z(), asm_::r(bent).select("xyzx"), asm_::r(bent).select("xyzx"));
+			a.sqrt(asm_::r(work).z(), asm_::r(work).z());
+			a.mul(asm_::r(work).xy(), asm_::r(work).select("yyyy"), strength("zwzz"));
+			a.add(asm_::r(bent).xy(), asm_::r(work).select("xyxx"), asm_::r(bent).select("xyxx"));
+
+			// keep the distance from the origin so the model swings instead of stretching, stock divides by zero at the origin
+			a.dp3(asm_::r(work).w(), asm_::r(bent).select("xyzx"), asm_::r(bent).select("xyzx"));
+			a.max(asm_::r(work).w(), asm_::r(work).w(), asm_::l(1e-12f));
+			a.rsq(asm_::r(work).w(), asm_::r(work).w());
+			a.mul(asm_::r(work).w(), asm_::r(work).w(), asm_::r(work).z());
+			a.mul(asm_::r(bent).xyz(), asm_::r(bent).select("xyzx"), asm_::r(work).select("wwww"));
+			a.add(dest, asm_::r(bent).select("xyzx"), asm_::r(rest).select("xyzx").neg());
+			a.pop_controls();
 		}
 
 		bool is_destination(const alys::shader::detail::operand_t& operand)
@@ -659,6 +878,14 @@ namespace zonetool::h1::converter::s2::shader
 			});
 		}
 
+		bool declares_constant_buffer(const std::vector<alys::shader::detail::instruction_t>& instructions, const std::uint32_t slot)
+		{
+			return std::ranges::any_of(instructions, [&](const alys::shader::detail::instruction_t& instruction)
+			{
+				return instruction.opcode.type == D3D10_SB_OPCODE_DCL_CONSTANT_BUFFER && instruction.operands[0].indices[0].value.uint32 == slot;
+			});
+		}
+
 		bool declares_sampler(const std::vector<alys::shader::detail::instruction_t>& instructions, const std::uint32_t slot)
 		{
 			return std::ranges::any_of(instructions, [&](const alys::shader::detail::instruction_t& instruction)
@@ -818,17 +1045,10 @@ namespace zonetool::h1::converter::s2::shader
 			a.utof(asm_::r(coords).w(), asm_::r(volume).x());
 		}
 
-		void emit_light_grid_lookup(alys::shader::assembler& a, const program_patch& patch, const alys::shader::detail::operand_t& sampler,
-			const std::uint32_t input, const std::uint32_t temp, const bool directional)
+		// the light grid coords of the pixel's lighting volume, the probe index in .x for the probe buffer
+		void emit_light_grid_coords(alys::shader::assembler& a, const program_patch& patch, const std::uint32_t input,
+			const std::uint32_t volume, const std::uint32_t coords, const std::uint32_t probe, const std::uint32_t weight)
 		{
-			constexpr auto ambient_weight = 0.7f / 6.0f + 0.3f / 10.0f; // sphere mean of the directional weight
-
-			const auto dir = temp;
-			const auto volume = temp + 1;
-			const auto coords = temp + 2;
-			const auto probe = temp + 3;
-			const auto weight = temp + 4;
-			const auto color = temp + 5;
 			const auto texture = light_grid_volume_slot;
 
 			a.add(asm_::r(volume).x(), asm_::v(input).w(), asm_::l(0.5f));
@@ -842,6 +1062,21 @@ namespace zonetool::h1::converter::s2::shader
 				a.add(asm_::r(coords).x(), asm_::r(coords).x(), asm_::l(0.5f));
 				a.ftoi(asm_::r(coords).x(), asm_::r(coords).x());
 			}
+		}
+
+		void emit_light_grid_lookup(alys::shader::assembler& a, const program_patch& patch, const alys::shader::detail::operand_t& sampler,
+			const std::uint32_t input, const std::uint32_t temp, const bool directional)
+		{
+			constexpr auto ambient_weight = 0.7f / 6.0f + 0.3f / 10.0f; // sphere mean of the directional weight
+
+			const auto dir = temp;
+			const auto volume = temp + 1;
+			const auto coords = temp + 2;
+			const auto probe = temp + 3;
+			const auto weight = temp + 4;
+			const auto color = temp + 5;
+
+			emit_light_grid_coords(a, patch, input, volume, coords, probe, weight);
 
 			a.mov(asm_::r(color).select("xyzw"), asm_::l(0.0f, 0.0f, 0.0f, 0.0f));
 			for (auto i = 0u; i < light_grid_direction_count; i++)
@@ -914,6 +1149,58 @@ namespace zonetool::h1::converter::s2::shader
 			alys::shader::detail::operand_t result = asm_::r(color).select("xyzw").swz();
 			std::ranges::copy(sample.operands[2].components.names, result.components.names);
 			a.mov(sample.operands[0], result);
+		}
+
+		constexpr auto h1_scene_constant_buffer = 1u;
+		constexpr std::array h1_sun_color_rows = {9u, 10u}; // sun diffuse and specular color
+		constexpr auto sun_color_temp_count = 5u; // the gate, the gated sun colors, then light grid coords scratch
+
+		// index into h1_sun_color_rows of a sun color read
+		std::optional<std::uint32_t> sun_color_index(const alys::shader::detail::operand_t& operand)
+		{
+			if (operand.type != D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER || operand.indices[0].value.uint32 != h1_scene_constant_buffer
+				|| operand.indices[1].representation != D3D10_SB_OPERAND_INDEX_IMMEDIATE32)
+			{
+				return {};
+			}
+
+			const auto row = std::ranges::find(h1_sun_color_rows, operand.indices[1].value.uint32);
+			if (row == h1_sun_color_rows.end())
+			{
+				return {};
+			}
+
+			return static_cast<std::uint32_t>(row - h1_sun_color_rows.begin());
+		}
+
+		bool is_sun_color(const alys::shader::detail::operand_t& operand)
+		{
+			return sun_color_index(operand).has_value();
+		}
+
+		bool reads_sun_color(const std::vector<alys::shader::detail::instruction_t>& instructions)
+		{
+			return std::ranges::any_of(instructions, [](const alys::shader::detail::instruction_t& instruction)
+			{
+				return !is_declaration(instruction) && std::ranges::any_of(instruction.operands, is_sun_color);
+			});
+		}
+
+		// the sun colors of a probe lit model into r(temp + 1 + index), zero when its probe has no sun visibility (a sunless light env in h1)
+		void emit_probe_sun_color(alys::shader::assembler& a, const program_patch& patch, const std::uint32_t input, const std::uint32_t temp)
+		{
+			const auto gate = temp;
+			const auto coords = temp + 4;
+
+			emit_light_grid_coords(a, patch, input, temp + 1, coords, temp + 2, temp + 3);
+			a.ld_indexable(asm_::r(gate).x(), asm_::r(coords).select("xxxx"), asm_::t(light_grid_probe_visibility_slot).select("xyzw"));
+			a.lt(asm_::r(gate).x(), asm_::l(0.0f), asm_::r(gate).x());
+			a.movc(asm_::r(gate).x(), asm_::r(gate).x(), asm_::l(1.0f), asm_::l(0.0f));
+			for (auto i = 0u; i < h1_sun_color_rows.size(); i++)
+			{
+				const auto sun_color = asm_::cb(h1_scene_constant_buffer, h1_sun_color_rows[i]).select("xyzw");
+				a.mul(asm_::r(temp + 1 + i).select("xyzw"), sun_color, asm_::r(gate).select("xxxx"));
+			}
 		}
 
 		void declare_light_grid(alys::shader::assembler& a, const program_patch& patch)
@@ -1951,12 +2238,34 @@ namespace zonetool::h1::converter::s2::shader
 				else if (is_vertex_shader && inputs != signatures.end())
 				{
 					this->lightmap_ = add_lightmap_input(inputs->second);
+					if (patch.wind)
+					{
+						this->wind_inputs_ = add_wind_inputs(inputs->second);
+						this->input_registers_ = order_wind_inputs(inputs->second, this->wind_inputs_->declare_normal);
+						this->wind_inputs_->color = this->input_registers_.at(this->wind_inputs_->color);
+						this->wind_inputs_->normal = this->input_registers_.at(this->wind_inputs_->normal);
+						if (this->lightmap_)
+						{
+							this->lightmap_->texcoord = this->input_registers_.at(this->lightmap_->texcoord);
+							this->lightmap_->lightmap = this->input_registers_.at(this->lightmap_->lightmap);
+						}
+					}
+				}
+
+				if (patch.wind && !this->wind_inputs_)
+				{
+					throw std::runtime_error("foliage wind on a shader without vertex inputs");
+				}
+
+				if (patch.wind && !declares_constant_buffer(this->instructions_, h1_stable_constant_buffer))
+				{
+					throw std::runtime_error("foliage wind on a vertex shader without the stable constants");
 				}
 
 				this->first_code_ = std::ranges::find_if_not(this->instructions_, is_declaration) - this->instructions_.begin();
 				const auto last_input = std::find_if(this->instructions_.rbegin(), this->instructions_.rend(), is_input_declaration);
 				this->last_input_index_ = this->instructions_.rend() - last_input - 1;
-				if (this->lightmap_ && (last_input == this->instructions_.rend() || this->first_code_ == static_cast<std::ptrdiff_t>(this->instructions_.size())))
+				if ((this->lightmap_ || this->wind_inputs_) && (last_input == this->instructions_.rend() || this->first_code_ == static_cast<std::ptrdiff_t>(this->instructions_.size())))
 				{
 					throw std::runtime_error("vertex shader has no input declarations or code");
 				}
@@ -1965,6 +2274,10 @@ namespace zonetool::h1::converter::s2::shader
 				if (instance_matrices)
 				{
 					this->instance_input_ = find_instance_input(this->instructions_);
+					if (this->instance_input_ && !this->input_registers_.empty())
+					{
+						this->instance_input_ = this->input_registers_.at(*this->instance_input_);
+					}
 				}
 
 				if (instance_matrices && !this->instance_input_)
@@ -2024,6 +2337,18 @@ namespace zonetool::h1::converter::s2::shader
 				const auto lighting_temps = this->vs_lighting_ ? 3u : this->pixel_lighting_ ? 6u : 0u;
 				this->sprite_temp_ = this->base_temps_ + lighting_temps;
 				this->temp_count_ = this->sprite_temp_ + (this->sprite_inputs_ ? sprite_temp_count : 0u);
+				if (this->wind_inputs_)
+				{
+					this->wind_temp_ = this->temp_count_;
+					this->temp_count_ += wind_temp_count;
+				}
+
+				if (this->pixel_lighting_ && patch.grid == light_grid::probe_buffer && reads_sun_color(this->instructions_)
+					&& (this->pixel_ambient_ || declares_resource(this->instructions_, patch.lighting->texture)))
+				{
+					this->sun_temp_ = this->temp_count_;
+					this->temp_count_ += sun_color_temp_count;
+				}
 
 				if (!is_vertex_shader && patch.lights)
 				{
@@ -2041,7 +2366,20 @@ namespace zonetool::h1::converter::s2::shader
 				for (std::ptrdiff_t i = 0; i < static_cast<std::ptrdiff_t>(this->instructions_.size()); i++)
 				{
 					auto instruction = this->instructions_[i];
-					if (this->is_lighting_coords_buffer(instruction) || (this->sprite_inputs_ && is_input_declaration(instruction)))
+					if (!this->input_registers_.empty())
+					{
+						for (auto& operand : instruction.operands)
+						{
+							remap_input_registers(operand, this->input_registers_);
+						}
+					}
+
+					if (this->is_lighting_coords_buffer(instruction) || (this->sprite_inputs_ && is_input_declaration(instruction)) || this->is_reactive_motion_buffer(instruction))
+					{
+						continue;
+					}
+
+					if (this->emit_wind(i, instruction))
 					{
 						continue;
 					}
@@ -2067,6 +2405,7 @@ namespace zonetool::h1::converter::s2::shader
 					}
 
 					this->redirect_lighting_input(i, instruction);
+					this->redirect_sun_color(i, instruction);
 					this->patch_declaration_masks(instruction);
 					this->redirect_lightmap_input(i, instruction);
 					this->redirect_sprite_inputs(i, instruction);
@@ -2079,6 +2418,11 @@ namespace zonetool::h1::converter::s2::shader
 					relocate_resource_slots(instruction, this->texture_slots_);
 					this->assembler_(instruction);
 					this->emit_epilogue(i, instruction);
+				}
+
+				if (this->wind_inputs_ && !this->wind_emitted_)
+				{
+					throw std::runtime_error("foliage wind on a vertex shader without reactive motion offsets");
 				}
 
 				return {this->result_.serialize(), this->lightmap_.has_value(), this->vs_lighting_ ? std::optional(this->vs_lighting_->semantic) : std::nullopt, this->texture_slots_};
@@ -2094,6 +2438,10 @@ namespace zonetool::h1::converter::s2::shader
 			alys::shader::shader_object result_;
 			alys::shader::assembler assembler_;
 			std::optional<lightmap_input> lightmap_;
+			std::optional<wind_inputs> wind_inputs_;
+			std::unordered_map<std::uint32_t, std::uint32_t> input_registers_; // old -> new input register of the wind passes
+			std::uint32_t wind_temp_{};
+			bool wind_emitted_{};
 			std::optional<std::vector<std::pair<std::uint32_t, sprite_input>>> sprite_inputs_;
 			std::uint32_t sprite_temp_{};
 			std::ptrdiff_t first_code_{};
@@ -2102,6 +2450,7 @@ namespace zonetool::h1::converter::s2::shader
 			std::optional<vertex_lighting> vs_lighting_;
 			bool pixel_lighting_{};
 			bool pixel_ambient_{};
+			std::optional<std::uint32_t> sun_temp_; // probe sun gate, then the gated sun colors
 			std::optional<std::uint32_t> lighting_input_;
 			std::map<std::uint32_t, std::uint32_t> texture_slots_;
 			std::unordered_set<std::uint32_t> instance_rows_;
@@ -2247,6 +2596,58 @@ namespace zonetool::h1::converter::s2::shader
 					&& instruction.operands[0].indices[0].value.uint32 == h1_model_lighting_buffer;
 			}
 
+			bool is_reactive_motion_buffer(const instruction_t& instruction) const
+			{
+				return this->wind_inputs_ && instruction.opcode.type == D3D10_SB_OPCODE_DCL_CONSTANT_BUFFER
+					&& instruction.operands[0].indices[0].value.uint32 == h1_reactive_motion_buffer;
+			}
+
+			bool emit_wind(const std::ptrdiff_t index, const instruction_t& instruction)
+			{
+				if (!this->wind_inputs_ || index < this->first_code_ || !reads_reactive_motion(instruction))
+				{
+					return false;
+				}
+
+				const auto& dest = instruction.operands[0];
+				const auto position = std::ranges::find_if(instruction.operands, [](const operand_t& operand)
+				{
+					return operand.type == D3D10_SB_OPERAND_TYPE_INPUT;
+				});
+
+				if (index == this->first_code_ || instruction.opcode.type != D3D10_SB_OPCODE_MUL || dest.type != D3D10_SB_OPERAND_TYPE_TEMP
+					|| dest.components.mask != 0x7
+					|| position == instruction.operands.end())
+				{
+					throw std::runtime_error("reactive motion offset is not a position weight times cb9 into a temp xyz");
+				}
+
+				const auto temp = *this->first_temp_ + this->wind_temp_;
+				std::array<operand_t, 3> world;
+				for (auto row = 0u; row < world.size(); row++)
+				{
+					world[row] = asm_::cb(0, row).select("xyzx").swz();
+				}
+
+				if (this->instance_input_)
+				{
+					const auto row_index = temp + wind_temp_count - 1;
+					this->assembler_.imad(asm_::r(row_index).x(), asm_::v(*this->instance_input_).x(),
+						uint_literal(this->lit_instance_rows_ ? s2_lit_instance_rows : 1u << s2_instance_row_shift), uint_literal(0));
+					for (auto row = 0u; row < world.size(); row++)
+					{
+						world[row] = asm_::cb(s2_instance_matrix_buffer, 0).select("xyzx").swz();
+						world[row].indices[1].representation = D3D10_SB_OPERAND_INDEX_IMMEDIATE32_PLUS_RELATIVE;
+						world[row].indices[1].value.uint32 = row;
+						world[row].indices[1].extra_operand = std::make_shared<operand_t>(asm_::r(row_index).x().scalar());
+					}
+				}
+
+				emit_foliage_wind(this->assembler_, dest, position->indices[0].value.uint32, *this->wind_inputs_, *this->patch_.wind, world, temp);
+				this->wind_emitted_ = true;
+				return true;
+			}
+
 			bool emit_lighting_coords(const std::ptrdiff_t index)
 			{
 				if (!this->vs_lighting_ || index != static_cast<std::ptrdiff_t>(this->vs_lighting_->coords_write))
@@ -2272,13 +2673,17 @@ namespace zonetool::h1::converter::s2::shader
 					}
 				}
 
-				if (!this->patch_.stable_literal_rows.empty() && instruction.opcode.type == D3D10_SB_OPCODE_DCL_CONSTANT_BUFFER
-					&& instruction.operands[0].indices[0].value.uint32 == h1_stable_constant_buffer)
+				if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_CONSTANT_BUFFER && instruction.operands[0].indices[0].value.uint32 == h1_stable_constant_buffer)
 				{
 					auto& rows = instruction.operands[0].indices[1].value.uint32;
 					for (const auto& row : this->patch_.stable_literal_rows)
 					{
 						rows = std::max(rows, row.to + 1);
+					}
+
+					if (const auto& wind = this->patch_.wind)
+					{
+						rows = std::max({rows, wind->time_row + 1, wind->wind_row + 1, wind->params_row + 1});
 					}
 				}
 
@@ -2405,6 +2810,11 @@ namespace zonetool::h1::converter::s2::shader
 					emit_light_grid_lookup(this->assembler_, this->patch_, asm_::s(ambient_light_grid_sampler), *this->lighting_input_, *this->first_temp_ + this->base_temps_, false);
 				}
 
+				if (this->sun_temp_)
+				{
+					emit_probe_sun_color(this->assembler_, this->patch_, *this->lighting_input_, *this->first_temp_ + *this->sun_temp_);
+				}
+
 				if (this->lightmap_)
 				{
 					this->assembler_.mov(asm_::r(*this->temp_).xy(), asm_::v(this->lightmap_->texcoord).xyxx());
@@ -2440,6 +2850,22 @@ namespace zonetool::h1::converter::s2::shader
 					for (const auto& [input, value] : *this->sprite_inputs_)
 					{
 						redirect_input(operand, input, *this->first_temp_ + this->sprite_temp_ + static_cast<std::uint32_t>(value));
+					}
+				}
+			}
+
+			void redirect_sun_color(const std::ptrdiff_t index, instruction_t& instruction) const
+			{
+				if (!this->sun_temp_ || index < this->first_code_)
+				{
+					return;
+				}
+
+				for (auto& operand : instruction.operands)
+				{
+					if (const auto sun_index = sun_color_index(operand))
+					{
+						operand = as_temp(operand, *this->first_temp_ + *this->sun_temp_ + 1 + *sun_index);
 					}
 				}
 			}
@@ -2555,12 +2981,139 @@ namespace zonetool::h1::converter::s2::shader
 					this->assembler_.dcl_input(asm_::v(this->lightmap_->lightmap).xy());
 				}
 
+				if (this->wind_inputs_ && index == this->last_input_index_)
+				{
+					this->assembler_.dcl_input(asm_::v(this->wind_inputs_->color).xyz());
+					if (this->wind_inputs_->declare_normal)
+					{
+						this->assembler_.dcl_input(asm_::v(this->wind_inputs_->normal).xyz());
+					}
+				}
+
 				if (this->vs_lighting_ && index == static_cast<std::ptrdiff_t>(this->vs_lighting_->position_write))
 				{
 					emit_vertex_lighting(this->assembler_, instruction.operands[1], *this->patch_.lighting, this->instance_input_, *this->first_temp_ + this->base_temps_);
 				}
 			}
 		};
+	}
+
+	std::string instance_program(const unsigned char* program, const unsigned int size, const std::optional<std::uint32_t> coords_row)
+	{
+		constexpr auto h1_instance_matrix_rows = 512u;
+		constexpr auto h1_model_lighting_rows = 128u;
+
+		auto shader = alys::shader::shader_object::parse({reinterpret_cast<const char*>(program), size});
+		alys::shader::shader_object result;
+		result.get_info() = shader.get_info();
+		result.get_signatures() = shader.get_signatures();
+		result.get_unknown_chunks() = shader.get_unknown_chunks();
+
+		auto& signatures = result.get_signatures();
+		const auto inputs = signatures.find(alys::shader::chunk_isgn);
+		if (inputs == signatures.end() || inputs->second.empty())
+		{
+			throw std::runtime_error("vertex shader has no inputs to instance");
+		}
+
+		signature_element instance{};
+		instance.name = "SV_InstanceID";
+		instance.system_value_type = alys::shader::INSTID;
+		instance.component_type = alys::shader::format_uint;
+		instance.register_ = std::ranges::max(inputs->second, {}, &signature_element::register_).register_ + 1;
+		instance.mask = 0x1;
+		instance.rw_mask = 0x1;
+		inputs->second.emplace_back(instance);
+
+		const auto& instructions = shader.get_instructions();
+		const auto first_code = std::ranges::find_if_not(instructions, is_declaration) - instructions.begin();
+		const auto last_input = std::find_if(instructions.rbegin(), instructions.rend(), is_input_declaration);
+		if (last_input == instructions.rend() || first_code == static_cast<std::ptrdiff_t>(instructions.size()))
+		{
+			throw std::runtime_error("vertex shader has no input declarations or code");
+		}
+
+		const auto last_input_index = instructions.rend() - last_input - 1;
+		auto a = result.get_assembler();
+		std::optional<std::uint32_t> temp;
+		auto declares_world = false;
+		for (std::ptrdiff_t i = 0; i < static_cast<std::ptrdiff_t>(instructions.size()); i++)
+		{
+			auto instruction = instructions[i];
+			if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_TEMPS)
+			{
+				temp = instruction.operands[0].custom.u.value;
+				instruction.operands[0].custom.u.value++;
+			}
+
+			if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_CONSTANT_BUFFER && instruction.operands[0].indices[0].value.uint32 == 0)
+			{
+				declares_world = true;
+				instruction.opcode.controls |= 1; // dynamicIndexed
+				instruction.operands[0].indices[0].value.uint32 = h1_instance_matrix_buffer;
+				instruction.operands[0].indices[1].value.uint32 = h1_instance_matrix_rows;
+				a(instruction);
+				if (coords_row)
+				{
+					instruction.operands[0].indices[0].value.uint32 = h1_model_lighting_buffer;
+					instruction.operands[0].indices[1].value.uint32 = h1_model_lighting_rows;
+					a(instruction);
+				}
+
+				continue;
+			}
+
+			if (i == first_code)
+			{
+				if (!declares_world)
+				{
+					throw std::runtime_error("vertex shader reads no world matrix to instance");
+				}
+
+				if (!temp)
+				{
+					temp = 0;
+					a.dcl_temps(1);
+				}
+
+				a.ishl(asm_::r(*temp).x(), asm_::v(instance.register_).x(), uint_literal(h1_instance_row_shift));
+				a.mov(asm_::r(*temp).y(), asm_::v(instance.register_).x());
+			}
+
+			for (auto& operand : instruction.operands)
+			{
+				if (i < first_code || operand.type != D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER || operand.indices[0].value.uint32 != 0)
+				{
+					continue;
+				}
+
+				if (operand.indices[1].representation != D3D10_SB_OPERAND_INDEX_IMMEDIATE32)
+				{
+					throw std::runtime_error("vertex shader indexes the per prim constants");
+				}
+
+				const auto row = operand.indices[1].value.uint32;
+				const auto is_coords = coords_row && row == *coords_row;
+				if (row >= (1u << h1_instance_row_shift) && !is_coords)
+				{
+					throw std::runtime_error(utils::string::va("per prim row cb0[%u] has no instanced source", row));
+				}
+
+				operand.indices[0].value.uint32 = is_coords ? h1_model_lighting_buffer : h1_instance_matrix_buffer;
+				operand.indices[1].representation = D3D10_SB_OPERAND_INDEX_IMMEDIATE32_PLUS_RELATIVE;
+				operand.indices[1].value.uint32 = is_coords ? 0 : row;
+				operand.indices[1].extra_operand = std::make_shared<alys::shader::detail::operand_t>(
+					is_coords ? asm_::r(*temp).y().scalar() : asm_::r(*temp).x().scalar());
+			}
+
+			a(instruction);
+			if (i == last_input_index)
+			{
+				a.dcl_input_sgv(asm_::v(instance.register_).x(), asm_::instance_id);
+			}
+		}
+
+		return result.serialize();
 	}
 
 	patched_program patch_program(const unsigned char* program, const unsigned int size, const bool is_vertex_shader, const program_patch& patch)

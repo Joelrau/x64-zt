@@ -281,6 +281,7 @@ namespace zonetool::s2
 		STREAM_SRC_TEXCOORD_0 = 2,
 		STREAM_SRC_NORMAL = 3,
 		STREAM_SRC_TANGENT = 4,
+		STREAM_SRC_WIND = 5, // "ec1", the per vertex foliage sway weights of the fwa techsets, routed to COLOR1
 		STREAM_SRC_LIGHTMAP = 6,
 		STREAM_SRC_TEXEL_DENSITY = 7, // "ed" in world vertex decls, routed to TEXCOORD16 with mask 1
 		STREAM_SRC_VERTEX_LIGHTING_VISIBILITY = 13,
@@ -294,6 +295,7 @@ namespace zonetool::s2
 		STREAM_DST_POSITION = 0,
 		STREAM_DST_NORMAL = 1,
 		STREAM_DST_COLOR_0 = 2,
+		STREAM_DST_COLOR_1 = 3,
 		STREAM_DST_TEXCOORD_0 = 6,
 		STREAM_DST_TEXCOORD_15 = 21,
 		STREAM_DST_TEXCOORD_16 = 22,
@@ -387,6 +389,8 @@ namespace zonetool::s2
 		CONST_SRC_CODE_SUN_SHADOWMAP_PIXEL_ADJUST_ARRAY_1 = 242,
 		CONST_SRC_CODE_SUN_SHADOWMAP_PIXEL_ADJUST_ARRAY_2 = 243,
 		CONST_SRC_CODE_SUN_SHADOWMAP_CASCADE_V_CLAMP = 244,
+		CONST_SRC_CODE_SUN_SHADOWMAP_NEAR_FAR_PLANE = 245, // .z scales a sun shadow depth difference to the occluder thickness of the "smt" translucency, stock sst_smt foliage ps
+		CONST_SRC_CODE_WIND_DIRECTION = 278, // x strength, y frequency, zw direction, stock fwa vs
 		CONST_SRC_CODE_CLIP_SPACE_LOOKUP_SCALE = 317,
 		CONST_SRC_CODE_CLIP_SPACE_LOOKUP_OFFSET = 318,
 		CONST_SRC_CODE_MODEL_LIGHTING_INDEX = 319, // per prim, indexes the t5 volume table

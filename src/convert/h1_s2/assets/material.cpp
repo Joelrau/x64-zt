@@ -349,9 +349,22 @@ namespace zonetool::h1::converter::s2::material
 			std::vector<zonetool::s2::material_state> states;
 			std::map<std::tuple<std::uint8_t, std::uint8_t, std::uint32_t, std::uint32_t>, std::uint8_t> entries;
 			const auto effect = is_effect_material(asset);
+			// the instanced passes the converter builds for h1 techsets without them (reactive motion) share the states of the standard ones
+			const auto state_source = [&](const std::int32_t source)
+			{
+				constexpr auto group_size = TECHNIQUE_INSTANCED_BEGIN - TECHNIQUE_STANDARD_BEGIN;
+				const auto instanced = source >= TECHNIQUE_INSTANCED_BEGIN && source < TECHNIQUE_INSTANCED_BEGIN + group_size;
+				if (!instanced || asset->stateBitsEntry[source] != no_entry)
+				{
+					return source;
+				}
+
+				return source - group_size;
+			};
+
 			for (auto slot = 0; slot < zonetool::s2::technique_count; slot++)
 			{
-				const auto source = native.sources[slot];
+				const auto source = state_source(native.sources[slot]);
 				if (source < 0)
 				{
 					continue;
@@ -367,7 +380,7 @@ namespace zonetool::h1::converter::s2::material
 
 				const auto* technique = native.techset->techniques[slot];
 				const auto pass_count = technique ? std::max<std::uint32_t>(technique->hdr.passCount, 1u) : 1u;
-				const auto light_source = native.light_sources[slot];
+				const auto light_source = state_source(native.light_sources[slot]);
 				const auto light_entry = light_source >= 0 ? asset->stateBitsEntry[light_source] : no_entry;
 				const auto base_pass_count = pass_count - (light_source >= 0 ? 1u : 0u);
 				if (!asset->stateBitsTable || h1_entry + base_pass_count > asset->stateBitsCount

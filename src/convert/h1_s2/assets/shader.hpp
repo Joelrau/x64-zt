@@ -66,6 +66,14 @@ namespace zonetool::h1::converter::s2::shader
 		std::uint32_t to;
 	};
 
+	// stable rows of the stock fwa wind constants, the s2 foliage sway that replaces the h1 reactive motion offsets (cb9)
+	struct foliage_wind
+	{
+		std::uint32_t time_row; // code const 0, .w = game time
+		std::uint32_t wind_row; // x strength, y gust frequency, zw direction (literal, the s2 code const 278 is only set by a level wind fx)
+		std::uint32_t params_row; // foliageWindA literal: x flutter frequency, y normal flutter, z vertical flutter, w bend
+	};
+
 	struct program_patch
 	{
 		sun_shadow_lookup sun_shadow;
@@ -77,6 +85,7 @@ namespace zonetool::h1::converter::s2::shader
 		bool sprite{};
 		bool lit_instance_rows{}; // the lit pass of the same draw fills cb7 with 9 rows per instance (appended light passes)
 		std::optional<primary_lights> lights;
+		std::optional<foliage_wind> wind;
 		constant_rows material_rows; // h1 material constant buffer rows read at another row
 	};
 
@@ -96,6 +105,9 @@ namespace zonetool::h1::converter::s2::shader
 		std::map<std::uint32_t, std::uint32_t> texture_slots;
 		std::map<std::uint32_t, std::uint32_t> sampler_slots;
 	};
+
+	// h1 vertex shader of a non instanced pass as its instanced version: cb0 world rows -> cb6 rows of the instance, the lighting coords row -> cb7
+	std::string instance_program(const unsigned char* program, unsigned int size, std::optional<std::uint32_t> coords_row);
 
 	patched_program patch_program(const unsigned char* program, unsigned int size, bool is_vertex_shader, const program_patch& patch);
 

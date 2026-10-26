@@ -318,28 +318,37 @@ namespace zonetool::s2
 		prepare_paths(zone_folder, zone_path);
 		const auto zone = load_zone(zone_path);
 
-		const auto asset = std::ranges::find_if(zone->assets, [&](const loaded_asset& entry)
+		// "*" dumps every asset of the type
+		std::vector<const loaded_asset*> assets;
+		for (const auto& entry : zone->assets)
 		{
-			return entry.type == type && !entry.referenced && name == get_asset_name(entry.type, entry.header);
-		});
+			if (entry.type == type && !entry.referenced && (name == "*" || name == get_asset_name(entry.type, entry.header)))
+			{
+				assets.emplace_back(&entry);
+			}
+		}
 
-		if (asset == zone->assets.end())
+		if (assets.empty())
 		{
 			throw std::runtime_error(std::format("{} \"{}\" is not in zone \"{}\"", type_name, name, zone->name));
 		}
 
 		filesystem::set_dump_folder("assets");
-		if (converter)
+		for (const auto* asset : assets)
 		{
-			converter->dump_asset(asset->type, asset->header);
-			if (converter->finish)
+			if (converter)
 			{
-				converter->finish(zone->name);
+				converter->dump_asset(asset->type, asset->header);
+			}
+			else
+			{
+				dump_asset(*asset);
 			}
 		}
-		else
+
+		if (converter && converter->finish)
 		{
-			dump_asset(*asset);
+			converter->finish(zone->name);
 		}
 
 		ZONETOOL_INFO("%s \"%s\" dumped to %s", type_name.data(), name.data(), filesystem::get_dump_path().data());

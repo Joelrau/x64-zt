@@ -818,6 +818,20 @@ namespace zonetool::h1::converter::s2::gfxworld
 		constexpr std::array<float, 16> lod_dist_scales{0.25f, 0.375f, 0.5f, 0.625f, 0.75f, 0.875f, 1.0f, 1.125f, 1.25f, 1.5f, 1.75f, 2.0f,
 			2.5f, 3.0f, 3.5f, 4.0f}; // h1 g_lodDistIndexToScale
 
+		// h1 leaves its reactive motion grass out of the baked sun shadow partitions but still shadows it in game,
+		// s2 only draws the members of a partition into the sun shadow
+		bool casts_unbaked_sun_shadow(const GfxStaticModelDrawInst& inst)
+		{
+			return (inst.flags & STATIC_MODEL_FLAG_REACTIVEMOTION) && !(inst.flags & STATIC_MODEL_FLAG_NO_CAST_SHADOW);
+		}
+
+		// sunShadowFlags has one bit per sun shadow partition
+		unsigned char all_sun_shadow_partitions(const unsigned int partition_count)
+		{
+			const auto count = std::clamp(partition_count, 1u, 8u);
+			return static_cast<unsigned char>((1u << count) - 1);
+		}
+
 		void convert_static_models(GfxWorld* asset, zonetool::s2::GfxWorldDpvsStatic& dpvs, const light_lists& lists, utils::memory::allocator& allocator)
 		{
 			const auto& source = asset->dpvs;
@@ -851,6 +865,10 @@ namespace zonetool::h1::converter::s2::gfxworld
 				new_inst.reflectionProbeIndex = inst.reflectionProbeIndex;
 				new_inst.sortMaterialIndex = sort_material_index(inst.model);
 				new_inst.sunShadowFlags = inst.sunShadowFlags;
+				if (casts_unbaked_sun_shadow(inst))
+				{
+					new_inst.sunShadowFlags |= all_sun_shadow_partitions(source.sunShadowOptCount);
+				}
 				new_inst.lodScale = lod_dist_scales[inst.flags & STATIC_MODEL_FLAG_SCALE_MODIFIER_MASK];
 				new_inst.cullDist = convert_cull_dist(inst, new_inst);
 			}
@@ -960,6 +978,15 @@ namespace zonetool::h1::converter::s2::gfxworld
 			return static_cast<int>(std::floor(position / light_grid_cell_size[axis])) + light_grid_bias[axis];
 		}
 
+		// h1 draws models in a light env without the sun with a sunless lit technique, s2 has one lit technique for both:
+		// the converted lit shaders drop the sun when the probe's sun visibility is 0
+		float probe_sun_visibility(const float visibility, const bool has_sun)
+		{
+			constexpr auto min_visibility = 0.001f; // keeps the sun on sun env models the bake left fully shadowed
+
+			return has_sun ? std::max(visibility, min_visibility) : 0.0f;
+		}
+
 		zonetool::s2::GfxSHProbeData pack_probe(const std::array<float, light_grid::probe_sh_count + 1>& values)
 		{
 			zonetool::s2::GfxSHProbeData probe{};
@@ -1055,6 +1082,12 @@ namespace zonetool::h1::converter::s2::gfxworld
 			bool valid() const
 			{
 				return this->tree_.node_table && this->grid_.paletteBitstream && this->grid_.paletteEntryAddress;
+			}
+
+			// an env the source map doesn't list keeps the sun
+			bool env_has_sun(const unsigned int env) const
+			{
+				return env >= this->sun_envs_.size() || this->sun_envs_[env];
 			}
 
 			const light_grid::tree_view& tree() const
@@ -1364,7 +1397,10 @@ namespace zonetool::h1::converter::s2::gfxworld
 			const auto fallback = average.value().value_or(default_probe(asset->lightGrid));
 			for (auto i = 0u; i < count; i++)
 			{
-				probes[i] = pack_probe(samples[i] ? *samples[i] : fallback);
+				auto values = samples[i] ? *samples[i] : fallback;
+				const auto has_sun = sampler.env_has_sun(asset->dpvs.smodelDrawInsts[i].primaryLightEnvIndex);
+				values.back() = probe_sun_visibility(values.back(), has_sun);
+				probes[i] = pack_probe(values);
 			}
 
 			data.smodelProbeGridCount = count;

@@ -359,7 +359,7 @@ namespace zonetool::h1::converter::s2::techset
 
 			add_range(CONST_SRC_CODE_SHADOWMAP_SWITCH_PARTITION_ARRAY_0, CONST_SRC_CODE_SHADOWMAP_DISTANCE_BLEND,
 				zonetool::s2::CONST_SRC_CODE_SHADOWMAP_SWITCH_PARTITION_ARRAY_0);
-			add_range(CONST_SRC_CODE_SUN_SHADOWMAP_PIXEL_ADJUST_ARRAY_0, CONST_SRC_CODE_SUN_SHADOWMAP_CASCADE_V_CLAMP,
+			add_range(CONST_SRC_CODE_SUN_SHADOWMAP_PIXEL_ADJUST_ARRAY_0, CONST_SRC_CODE_SUN_SHADOWMAP_NEAR_FAR_PLANE,
 				zonetool::s2::CONST_SRC_CODE_SUN_SHADOWMAP_PIXEL_ADJUST_ARRAY_0);
 			add_range(CONST_SRC_CODE_VIEW_MATRIX, CONST_SRC_CODE_INVERSE_TRANSPOSE_VIEW_PROJECTION_MATRIX,
 				zonetool::s2::CONST_SRC_CODE_VIEW_MATRIX);
@@ -435,7 +435,6 @@ namespace zonetool::h1::converter::s2::techset
 			{CONST_SRC_CODE_FOG_SUN_COLOR_LINEAR, {0.0f, 0.0f, 0.0f, 0.0f}},
 			{CONST_SRC_CODE_FOG_SUN_COLOR_GAMMA, {0.0f, 0.0f, 0.0f, 0.0f}},
 			{CONST_SRC_CODE_FOG_SUN_DIR, {0.0f, 0.0f, 0.0f, 0.0f}},
-			{CONST_SRC_CODE_SUN_SHADOWMAP_NEAR_FAR_PLANE, {0.0f, 0.0f, 0.0f, 0.0f}}, // only the effect translucent shadowmap techniques
 			{CONST_SRC_CODE_TESSELLATION_PARMS, {0.0f, 0.0f, 0.0f, 0.0f}}, // only the world displacement techniques
 			{CONST_SRC_CODE_TESSELLATION_PARMS2, {0.0f, 0.0f, 0.0f, 0.0f}},
 			{CONST_SRC_CODE_SCENE_UV_MULT, {1.0f, 1.0f, 0.0f, 0.0f}}, // only the cloak (ctq) techniques
@@ -511,7 +510,8 @@ namespace zonetool::h1::converter::s2::techset
 		std::unordered_set<const zonetool::s2::MaterialVertexShader*> lightmap_vertex_shaders;
 		std::unordered_map<const zonetool::s2::MaterialVertexShader*, std::uint32_t> lighting_semantics;
 		std::unordered_map<const zonetool::s2::MaterialPixelShader*, std::map<std::uint32_t, std::uint32_t>> relocated_textures;
-		std::unordered_map<const MaterialVertexDeclaration*, zonetool::s2::MaterialVertexDeclaration*> converted_decls;
+		std::map<std::pair<const MaterialVertexDeclaration*, bool>, zonetool::s2::MaterialVertexDeclaration*> converted_decls;
+		std::map<std::pair<const MaterialVertexShader*, std::optional<std::uint32_t>>, MaterialVertexShader*> instanced_vertex_shaders;
 		std::map<std::tuple<const MaterialTechnique*, light_grid, zonetool::s2::MaterialPassModelVertexType, bool>, zonetool::s2::MaterialTechnique*> converted_techniques;
 		std::map<std::pair<const zonetool::s2::MaterialTechnique*, const MaterialPass*>, zonetool::s2::MaterialTechnique*> light_pass_techniques;
 		std::map<std::tuple<const zonetool::s2::MaterialTechnique*, const MaterialPass*, bool>, zonetool::s2::MaterialTechnique*> merged_light_techniques;
@@ -761,6 +761,10 @@ namespace zonetool::h1::converter::s2::techset
 			{
 				suffix += "_li9";
 			}
+			if (patch.wind)
+			{
+				suffix += utils::string::va("_fw%u_%u_%u", patch.wind->time_row, patch.wind->wind_row, patch.wind->params_row);
+			}
 			const auto key = std::make_pair(static_cast<const void*>(source), suffix);
 			if (const auto entry = converted_shaders.find(key); entry != converted_shaders.end())
 			{
@@ -845,14 +849,14 @@ namespace zonetool::h1::converter::s2::techset
 			return entry != stream_slot_order.end() ? entry - stream_slot_order.begin() : stream_slot_order.size() + source;
 		}
 
-		zonetool::s2::MaterialVertexDeclaration* convert_decl(const MaterialVertexDeclaration* decl)
+		zonetool::s2::MaterialVertexDeclaration* convert_decl(const MaterialVertexDeclaration* decl, const bool wind)
 		{
 			if (!decl)
 			{
 				return nullptr;
 			}
 
-			if (const auto entry = converted_decls.find(decl); entry != converted_decls.end())
+			if (const auto entry = converted_decls.find({decl, wind}); entry != converted_decls.end())
 			{
 				return entry->second;
 			}
@@ -870,6 +874,22 @@ namespace zonetool::h1::converter::s2::techset
 				}
 
 				streams.emplace_back(stream);
+			}
+
+			// the foliage sway reads the wind weights and the normal, which the h1 zprepass decls leave out
+			if (wind)
+			{
+				const auto has_normal = std::ranges::any_of(streams, [](const decl_stream& stream)
+				{
+					return stream.routing.source == zonetool::s2::STREAM_SRC_NORMAL;
+				});
+
+				if (!has_normal)
+				{
+					streams.emplace_back(decl_stream{{zonetool::s2::STREAM_SRC_NORMAL, zonetool::s2::STREAM_DST_NORMAL, 0xF}, "nn"});
+				}
+
+				streams.emplace_back(decl_stream{{zonetool::s2::STREAM_SRC_WIND, zonetool::s2::STREAM_DST_COLOR_1, 0xF}, "ec1"});
 			}
 
 			auto* result = native_allocator.allocate<zonetool::s2::MaterialVertexDeclaration>();
@@ -907,7 +927,7 @@ namespace zonetool::h1::converter::s2::techset
 			result->streamCount = static_cast<unsigned char>(streams.size());
 			result->hasOptionalSource = decl->hasOptionalSource;
 
-			converted_decls.emplace(decl, result);
+			converted_decls.emplace(std::make_pair(decl, wind), result);
 			return result;
 		}
 
@@ -1191,6 +1211,25 @@ namespace zonetool::h1::converter::s2::techset
 			}
 		}
 
+		// s2 has no reactive motion, the foliage sway of the stock fwa vs reads the game time, the wind and the foliageWindA material constant.
+		// the s2 wind (code const 278) comes from the level wind vector field fx (stock shipment vf_wind_mp_shpt), which converted maps lack: strength 0, so use a fixed wind
+		void add_foliage_wind_args(const shader::foliage_wind& wind, std::vector<zonetool::s2::MaterialShaderArgument>& stable)
+		{
+			constexpr std::array<float, 4> foliage_wind{1.0f, 1.0f, -0.7071f, 0.7071f}; // strength, gust frequency, direction
+			constexpr std::array<float, 4> foliage_wind_a{0.3f, 3.0f, 4.0f, 10.0f}; // stock mtl_h1_shp_grass_01 template with a livelier flutter
+
+			auto time = make_arg(zonetool::s2::MTL_ARG_CODE_CONST, MTL_SHADER_STAGE_VERTEX, static_cast<unsigned short>(wind.time_row));
+			time.u.codeConst = {static_cast<unsigned short>(zonetool::s2::CONST_SRC_CODE_GAMETIME), 0, 1};
+			stable.emplace_back(time);
+
+			for (const auto& [row, value] : {std::pair{wind.wind_row, &foliage_wind}, std::pair{wind.params_row, &foliage_wind_a}})
+			{
+				auto arg = make_arg(zonetool::s2::MTL_ARG_LITERAL_CONST, MTL_SHADER_STAGE_VERTEX, static_cast<unsigned short>(row));
+				arg.u.literalConst = allocate_literal(value->data());
+				stable.emplace_back(arg);
+			}
+		}
+
 		void convert_pass(const MaterialPass& pass, const light_grid grid, const std::int32_t slot, const bool sprite, zonetool::s2::MaterialPass& result,
 			const material_rows* lights = nullptr, const bool lit_instances = false)
 		{
@@ -1233,8 +1272,17 @@ namespace zonetool::h1::converter::s2::techset
 				}
 			}
 
+			std::optional<shader::foliage_wind> wind;
+			if (pass.customBufferFlags & CUSTOM_BUFFER_REACTIVE_MOTION)
+			{
+				const auto row = static_cast<std::uint32_t>(next_stable_row);
+				wind = shader::foliage_wind{row, row + 1, row + 2};
+				next_stable_row += 3;
+			}
+
 			program_patch vertex_patch{{}, lighting};
 			vertex_patch.lightmap_params_dest = lightmap_params;
+			vertex_patch.wind = wind;
 			vertex_patch.stable_literal_rows = stable_literal_rows;
 			vertex_patch.sprite = sprite;
 			vertex_patch.lit_instance_rows = lit_instances;
@@ -1243,7 +1291,7 @@ namespace zonetool::h1::converter::s2::techset
 				vertex_patch.material_rows = (*lights)[1];
 			}
 			result.vertexShader = convert_shader<zonetool::s2::MaterialVertexShader>(pass.vertexShader, vertex_patch);
-			result.vertexDecl = convert_decl(pass.vertexDecl);
+			result.vertexDecl = convert_decl(pass.vertexDecl, wind.has_value());
 			result.hullShader = convert_shader<zonetool::s2::MaterialHullShader>(pass.hullShader);
 			result.domainShader = convert_shader<zonetool::s2::MaterialDomainShader>(pass.domainShader);
 
@@ -1290,7 +1338,17 @@ namespace zonetool::h1::converter::s2::techset
 			if (primary_lights)
 			{
 				add_light_tile_args(*primary_lights, stable);
+			}
+
+			if (wind)
+			{
+				add_foliage_wind_args(*wind, stable);
+			}
+
+			if (primary_lights || wind)
+			{
 				std::ranges::stable_sort(stable, {}, &zonetool::s2::MaterialShaderArgument::type);
+				check_group_size(stable);
 			}
 
 			result.pixelOutputMask = pass.pixelOutputMask;
@@ -1308,7 +1366,7 @@ namespace zonetool::h1::converter::s2::techset
 			}
 			result.perObjArgSize = pass.perObjArgSize;
 			result.stableArgSize = arg_size(pass.stableArgSize, next_stable_row);
-			result.customBufferFlags = convert_custom_buffer_flags(pass.customBufferFlags, lighting, grid);
+			result.customBufferFlags = convert_custom_buffer_flags(pass.customBufferFlags & ~static_cast<std::uint32_t>(CUSTOM_BUFFER_REACTIVE_MOTION), lighting, grid);
 			if (lit_instances && (result.customBufferFlags & zonetool::s2::CUSTOM_BUFFER_INSTANCE_MATRICES))
 			{
 				result.customBufferFlags = (result.customBufferFlags & ~zonetool::s2::CUSTOM_BUFFER_INSTANCE_MATRICES) | zonetool::s2::CUSTOM_BUFFER_INSTANCE_MATRICES_LIGHTING;
@@ -1829,17 +1887,111 @@ namespace zonetool::h1::converter::s2::techset
 			}
 		}
 
-		native_techset build_native(const std::string& name, const bool sprite)
+		// h1 instances no reactive motion pass, s2 draws static models only through the instanced group: build the instanced passes from the
+		// standard ones like the stock h1 instanced passes (no per prim args, cb6 world rows, cb7 lighting coords, smodel buffer flags)
+		MaterialPass instance_pass(const MaterialPass& pass)
 		{
-			if (name.find("_reactivemotion") != std::string::npos)
+			if (!pass.vertexShader || !pass.vertexShader->prog.loadDef.program || pass.hullShader || pass.domainShader)
 			{
-				throw std::runtime_error("reactive motion uses a donor");
+				throw std::runtime_error("pass has no plain vertex shader to instance");
 			}
 
+			const auto per_prim = std::span{pass.args, pass.args ? pass.perPrimArgCount : 0u};
+			std::optional<std::uint32_t> coords_row;
+			auto instance_flags = static_cast<std::uint32_t>(CUSTOM_BUFFER_SMODEL_LIGHTING);
+			for (const auto& arg : per_prim)
+			{
+				const auto& code_const = arg.u.codeConst;
+				if (arg.type != MTL_ARG_CODE_CONST || arg.shader != MTL_SHADER_STAGE_VERTEX)
+				{
+					throw std::runtime_error("per prim argument has no instanced source");
+				}
+
+				if (arg.dest == 0 && code_const.rowCount == 4)
+				{
+					continue;
+				}
+
+				if (code_const.rowCount != 1 || (code_const.index != CONST_SRC_CODE_BASE_LIGHTING_COORDS && code_const.index != CONST_SRC_CODE_LIGHT_PROBE_AMBIENT))
+				{
+					throw std::runtime_error(utils::string::va("per prim code constant %u has no instanced source", code_const.index));
+				}
+
+				coords_row = arg.dest;
+				instance_flags |= code_const.index == CONST_SRC_CODE_BASE_LIGHTING_COORDS ? CUSTOM_BUFFER_SMODEL_AMBIENT : h1_instance_probe_ambient_flag;
+			}
+
+			auto& shader = instanced_vertex_shaders[{pass.vertexShader, coords_row}];
+			if (!shader)
+			{
+				const auto& load_def = pass.vertexShader->prog.loadDef;
+				const auto program = shader::instance_program(load_def.program, load_def.programSize, coords_row);
+				shader = native_allocator.allocate<MaterialVertexShader>();
+				shader->name = native_allocator.duplicate_string(pass.vertexShader->name + std::string("_inst"));
+				shader->prog.loadDef.programSize = static_cast<unsigned int>(program.size());
+				shader->prog.loadDef.program = native_allocator.allocate_array<unsigned char>(program.size());
+				std::memcpy(shader->prog.loadDef.program, program.data(), program.size());
+			}
+
+			auto result = pass;
+			result.vertexShader = shader;
+			result.args = pass.args ? pass.args + pass.perPrimArgCount : nullptr;
+			result.perPrimArgCount = 0;
+			result.perPrimArgSize = 0;
+			result.customBufferFlags = (pass.customBufferFlags & ~static_cast<std::uint32_t>(CUSTOM_BUFFER_PER_PRIM)) | instance_flags;
+			return result;
+		}
+
+		const MaterialTechniqueSet* add_instanced_techniques(const MaterialTechniqueSet* techset)
+		{
+			auto* result = native_allocator.allocate<MaterialTechniqueSet>();
+			*result = *techset;
+			for (auto type = 0; type < TECHNIQUE_INSTANCED_BEGIN - TECHNIQUE_STANDARD_BEGIN; type++)
+			{
+				const auto* standard = techset->techniques[TECHNIQUE_STANDARD_BEGIN + type];
+				if (!standard || techset->techniques[TECHNIQUE_INSTANCED_BEGIN + type])
+				{
+					continue;
+				}
+
+				try
+				{
+					const auto passes = standard->hdr.passCount;
+					const auto size = offsetof(MaterialTechnique, passArray) + sizeof(MaterialPass) * std::max<std::size_t>(passes, 1);
+					auto* technique = native_allocator.manual_allocate<MaterialTechnique>(size);
+					technique->hdr = standard->hdr;
+					technique->hdr.name = native_allocator.duplicate_string(std::string("instanced_") + standard->hdr.name);
+					for (auto i = 0; i < passes; i++)
+					{
+						technique->passArray[i] = instance_pass(standard->passArray[i]);
+					}
+
+					result->techniques[TECHNIQUE_INSTANCED_BEGIN + type] = technique;
+				}
+				catch (const std::exception& e)
+				{
+					static std::unordered_set<std::string> warned;
+					if (warned.insert(standard->hdr.name).second)
+					{
+						ZONETOOL_WARNING("technique \"%s\" has no instanced version: %s", standard->hdr.name, e.what());
+					}
+				}
+			}
+
+			return result;
+		}
+
+		native_techset build_native(const std::string& name, const bool sprite)
+		{
 			const auto* techset = zonetool::h1::db_find_x_asset_header_safe(ASSET_TYPE_TECHNIQUE_SET, name).techniqueSet;
 			if (!techset)
 			{
 				throw std::runtime_error("the h1 techset is not loaded");
+			}
+
+			if (name.find("_reactivemotion") != std::string::npos)
+			{
+				techset = add_instanced_techniques(techset);
 			}
 
 			if (techset->worldVertFormat >= zonetool::s2::MTL_WORLDVERT_COUNT)
