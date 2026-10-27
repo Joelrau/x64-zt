@@ -71,6 +71,17 @@ namespace zonetool::h1::converter::s2::scriptfile
 			{"atmosFogSplineMaxDistanceTangentAngle", "0"},
 		}};
 
+		// with atmos height fog off h1 uses base height 0 and half plane distance 100000 (1.4 sub_1400BF3F0), s2 base height -1000000
+		// (2.20 sub_14044DA00), which thins the converted h1 fog math (density at the eye height) ~1000x; the h1 values as an enabled s2 height fog
+		constexpr std::array<std::pair<std::string_view, std::string_view>, 5> h1_atmos_height_fog_off
+		{{
+			{"atmosFogHeightFogEnabled", "1"},
+			{"atmosFogHeightFogBaseHeight", "0"},
+			{"atmosFogHeightFogHalfPlaneDistance", "100000"},
+			{"atmosFogHeightFogMaximumOffset", "0"},
+			{"atmosFogHeightFogStrengthOfDepthFog", "1"},
+		}};
+
 		std::string fog_key(const std::string_view line)
 		{
 			if (!line.starts_with("ent."))
@@ -82,11 +93,24 @@ namespace zonetool::h1::converter::s2::scriptfile
 			return utils::string::to_lower(std::string(line.substr(4, end == std::string_view::npos ? end : end - 4)));
 		}
 
+		std::string fog_value(const std::string_view line)
+		{
+			const auto start = line.find('=');
+			if (start == std::string_view::npos)
+			{
+				return {};
+			}
+
+			const auto value = line.substr(start + 1, line.find(';', start) - start - 1);
+			const auto first = value.find_first_not_of(" \t");
+			return first == std::string_view::npos ? std::string{} : std::string(value.substr(first, value.find_last_not_of(" \t") - first + 1));
+		}
+
 		// every create_vision_set_fog block gets the s2 atmos fog keys it lacks after its last "ent." line
 		std::string convert_fog_file(const std::string& source)
 		{
 			std::vector<std::string> lines;
-			std::unordered_set<std::string> keys;
+			std::unordered_map<std::string, std::size_t> keys; // key -> line
 			std::optional<std::size_t> block_end;
 			const auto finish_block = [&]
 			{
@@ -95,12 +119,37 @@ namespace zonetool::h1::converter::s2::scriptfile
 					return;
 				}
 
+				std::unordered_map<std::string, std::string_view> values;
+				const auto enabled = keys.find("atmosfogheightfogenabled");
+				if (enabled != keys.end() && fog_value(lines[enabled->second]) == "0")
+				{
+					for (const auto& [key, value] : h1_atmos_height_fog_off)
+					{
+						values.emplace(utils::string::to_lower(std::string(key)), value);
+					}
+				}
+
 				std::vector<std::string> missing;
 				for (const auto& [key, value] : s2_atmos_fog_keys)
 				{
-					if (!keys.contains(utils::string::to_lower(std::string(key))))
+					values.try_emplace(utils::string::to_lower(std::string(key)), value);
+				}
+
+				for (const auto& [key, value] : h1_atmos_height_fog_off)
+				{
+					const auto lower = utils::string::to_lower(std::string(key));
+					if (const auto line = keys.find(lower); line != keys.end() && values.contains(lower))
 					{
-						missing.emplace_back(std::format("\tent.{} = {};", key, value));
+						lines[line->second] = std::format("\tent.{} = {};", key, values.at(lower));
+					}
+				}
+
+				for (const auto& [key, value] : s2_atmos_fog_keys)
+				{
+					const auto lower = utils::string::to_lower(std::string(key));
+					if (!keys.contains(lower))
+					{
+						missing.emplace_back(std::format("\tent.{} = {};", key, values.at(lower)));
 					}
 				}
 
@@ -139,7 +188,7 @@ namespace zonetool::h1::converter::s2::scriptfile
 				}
 				else if (const auto key = fog_key(trimmed); block_end && !key.empty())
 				{
-					keys.insert(key);
+					keys[key] = lines.size() - 1;
 					block_end = lines.size();
 				}
 			}

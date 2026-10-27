@@ -74,6 +74,16 @@ namespace zonetool::h1::converter::s2::shader
 		std::uint32_t params_row; // foliageWindA literal: x flutter frequency, y normal flutter, z vertical flutter, w bend
 	};
 
+	// stable rows of the atmos fog parms that s2 fills differently from h1 (2.20 sub_1408F0730 vs h1 1.4 sub_140629CE0): s2 folds parms 3
+	// (in scatter scale) into parms 0 and 1, scales parms 2 (extinction) by log2(e) and stores the sky distance minus the start distance
+	// in parms 4 w, parms 3 xyz hold its fog lookup texture coords instead
+	struct atmos_fog_rows
+	{
+		std::optional<std::uint32_t> extinction; // parms 2
+		std::optional<std::uint32_t> in_scatter; // parms 3
+		std::optional<std::uint32_t> sun_dir; // parms 4
+	};
+
 	struct program_patch
 	{
 		sun_shadow_lookup sun_shadow;
@@ -87,6 +97,8 @@ namespace zonetool::h1::converter::s2::shader
 		std::optional<primary_lights> lights;
 		std::optional<foliage_wind> wind;
 		constant_rows material_rows; // h1 material constant buffer rows read at another row
+		std::optional<std::uint32_t> ssr_texture; // slot of the ssr buffer code texture, its samples are clamped
+		atmos_fog_rows fog;
 	};
 
 	struct patched_program

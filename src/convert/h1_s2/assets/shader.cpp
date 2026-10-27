@@ -407,6 +407,81 @@ namespace zonetool::h1::converter::s2::shader
 			return operand.type == D3D10_SB_OPERAND_TYPE_RESOURCE && operand.indices[0].value.uint32 == texture;
 		}
 
+		constexpr auto fog_temp_count = 3u; // h1 parms 2, 3 and 4 rebuilt from the s2 rows
+
+		// index of the fog temp holding an h1 atmos fog row read
+		std::optional<std::uint32_t> fog_row_index(const alys::shader::detail::operand_t& operand, const atmos_fog_rows& fog)
+		{
+			if (operand.type != D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER || operand.indices[0].value.uint32 != h1_stable_constant_buffer
+				|| operand.indices[1].representation != D3D10_SB_OPERAND_INDEX_IMMEDIATE32)
+			{
+				return {};
+			}
+
+			const auto row = operand.indices[1].value.uint32;
+			const std::array rows{fog.extinction, fog.in_scatter, fog.sun_dir};
+			for (auto i = 0u; i < rows.size(); i++)
+			{
+				if (rows[i] == row)
+				{
+					return i;
+				}
+			}
+
+			return {};
+		}
+
+		bool reads_fog_rows(const std::vector<alys::shader::detail::instruction_t>& instructions, const atmos_fog_rows& fog)
+		{
+			return std::ranges::any_of(instructions, [&](const alys::shader::detail::instruction_t& instruction)
+			{
+				return !is_declaration(instruction) && std::ranges::any_of(instruction.operands, [&](const alys::shader::detail::operand_t& operand)
+				{
+					return fog_row_index(operand, fog).has_value();
+				});
+			});
+		}
+
+		// the h1 parms 2, 3 and 4 into r(temp + 0..2): extinction = s2 * ln 2, in scatter scale = 1 (s2 already scales parms 0 and 1 by it)
+		// with the negated start distance in w, sky distance = s2 w (sky minus start distance) + start distance
+		void emit_atmos_fog_rows(alys::shader::assembler& a, const atmos_fog_rows& fog, const std::uint32_t temp)
+		{
+			const auto row = [](const std::uint32_t index) { return asm_::cb(s2_stable_constant_buffer, index); };
+			if (fog.extinction)
+			{
+				a.mul(asm_::r(temp).select("xyzw"), row(*fog.extinction).select("xyzw"), asm_::l(0.693147182f, 0.693147182f, 0.693147182f, 1.0f));
+			}
+
+			if (fog.in_scatter)
+			{
+				a.mov(asm_::r(temp + 1).xyz(), asm_::l(1.0f, 1.0f, 1.0f, 0.0f));
+				a.mov(asm_::r(temp + 1).w(), row(*fog.in_scatter).w());
+			}
+
+			if (fog.sun_dir)
+			{
+				a.mov(asm_::r(temp + 2).select("xyzw"), row(*fog.sun_dir).select("xyzw"));
+				if (fog.in_scatter)
+				{
+					a.add(asm_::r(temp + 2).w(), row(*fog.sun_dir).w(), row(*fog.in_scatter).w().neg());
+				}
+			}
+		}
+
+		// h1's ssr buffer is its bloom prefilter output, a geometric mean that drops fireflies (~100 at most over shipment's sunlit water);
+		// s2's is a plain half res copy of the last frame, so a sun glint on h1 water saturates and reflects back into itself every frame
+		constexpr auto ssr_buffer_max = 128.0f;
+
+		void emit_ssr_clamp(alys::shader::assembler& a, const alys::shader::detail::operand_t& dest)
+		{
+			if (dest.type != D3D10_SB_OPERAND_TYPE_TEMP)
+			{
+				throw std::runtime_error("ssr buffer sample is not written to a temp");
+			}
+
+			a.min(dest, asm_::r(dest.indices[0].value.uint32).select("xyzw"), asm_::l(ssr_buffer_max));
+		}
+
 		bool is_sample(const alys::shader::detail::instruction_t& instruction, const std::uint32_t texture)
 		{
 			switch (instruction.opcode.type)
@@ -2350,6 +2425,12 @@ namespace zonetool::h1::converter::s2::shader
 					this->temp_count_ += sun_color_temp_count;
 				}
 
+				if (reads_fog_rows(this->instructions_, patch.fog))
+				{
+					this->fog_temp_ = this->temp_count_;
+					this->temp_count_ += fog_temp_count;
+				}
+
 				if (!is_vertex_shader && patch.lights)
 				{
 					this->prepare_lights();
@@ -2396,6 +2477,7 @@ namespace zonetool::h1::converter::s2::shader
 					}
 
 					this->patch_lights(i, instruction);
+					this->redirect_fog_rows(i, instruction);
 					this->patch_constant_buffers(i, instruction);
 					this->patch_instance_matrices(i, instruction);
 					this->patch_temps(i, instruction);
@@ -2415,8 +2497,14 @@ namespace zonetool::h1::converter::s2::shader
 					}
 
 					this->patch_sun_shadow(i, instruction);
+					const auto ssr_sample = this->patch_.ssr_texture && is_sample(instruction, *this->patch_.ssr_texture);
 					relocate_resource_slots(instruction, this->texture_slots_);
 					this->assembler_(instruction);
+					if (ssr_sample)
+					{
+						emit_ssr_clamp(this->assembler_, instruction.operands[0]);
+					}
+
 					this->emit_epilogue(i, instruction);
 				}
 
@@ -2451,6 +2539,7 @@ namespace zonetool::h1::converter::s2::shader
 			bool pixel_lighting_{};
 			bool pixel_ambient_{};
 			std::optional<std::uint32_t> sun_temp_; // probe sun gate, then the gated sun colors
+			std::optional<std::uint32_t> fog_temp_; // the h1 atmos fog parms 2, 3 and 4
 			std::optional<std::uint32_t> lighting_input_;
 			std::map<std::uint32_t, std::uint32_t> texture_slots_;
 			std::unordered_set<std::uint32_t> instance_rows_;
@@ -2685,6 +2774,14 @@ namespace zonetool::h1::converter::s2::shader
 					{
 						rows = std::max({rows, wind->time_row + 1, wind->wind_row + 1, wind->params_row + 1});
 					}
+
+					if (this->fog_temp_)
+					{
+						for (const auto& row : {this->patch_.fog.extinction, this->patch_.fog.in_scatter, this->patch_.fog.sun_dir})
+						{
+							rows = std::max(rows, row.value_or(0) + 1);
+						}
+					}
 				}
 
 				for (auto& operand : instruction.operands)
@@ -2815,6 +2912,11 @@ namespace zonetool::h1::converter::s2::shader
 					emit_probe_sun_color(this->assembler_, this->patch_, *this->lighting_input_, *this->first_temp_ + *this->sun_temp_);
 				}
 
+				if (this->fog_temp_)
+				{
+					emit_atmos_fog_rows(this->assembler_, this->patch_.fog, *this->first_temp_ + *this->fog_temp_);
+				}
+
 				if (this->lightmap_)
 				{
 					this->assembler_.mov(asm_::r(*this->temp_).xy(), asm_::v(this->lightmap_->texcoord).xyxx());
@@ -2866,6 +2968,22 @@ namespace zonetool::h1::converter::s2::shader
 					if (const auto sun_index = sun_color_index(operand))
 					{
 						operand = as_temp(operand, *this->first_temp_ + *this->sun_temp_ + 1 + *sun_index);
+					}
+				}
+			}
+
+			void redirect_fog_rows(const std::ptrdiff_t index, instruction_t& instruction) const
+			{
+				if (!this->fog_temp_ || index < this->first_code_)
+				{
+					return;
+				}
+
+				for (auto& operand : instruction.operands)
+				{
+					if (const auto fog_index = fog_row_index(operand, this->patch_.fog))
+					{
+						operand = as_temp(operand, *this->first_temp_ + *this->fog_temp_ + *fog_index);
 					}
 				}
 			}

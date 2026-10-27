@@ -520,6 +520,50 @@ namespace zonetool::h1::converter::s2::techset
 			return result;
 		}
 
+		std::optional<std::uint32_t> find_pixel_code_texture(const MaterialPass& pass, const std::uint32_t code_texture)
+		{
+			const auto count = pass.perPrimArgCount + pass.perObjArgCount + pass.stableArgCount;
+			for (auto i = 0; i < count; i++)
+			{
+				const auto& arg = pass.args[i];
+				if ((arg.shader & MTL_SHADER_STAGE_PIXEL) && arg.type == MTL_ARG_CODE_TEXTURE && arg.u.codeSampler == code_texture)
+				{
+					return arg.dest;
+				}
+			}
+
+			return {};
+		}
+
+		shader::atmos_fog_rows find_atmos_fog_rows(const MaterialPass& pass, const unsigned int stage)
+		{
+			shader::atmos_fog_rows result;
+			const auto first_stable_arg = pass.perPrimArgCount + pass.perObjArgCount;
+			for (auto i = first_stable_arg; i < first_stable_arg + pass.stableArgCount; i++)
+			{
+				const auto& arg = pass.args[i];
+				if (!(arg.shader & stage) || arg.type != MTL_ARG_CODE_CONST)
+				{
+					continue;
+				}
+
+				switch (arg.u.codeConst.index)
+				{
+				case CONST_SRC_CODE_ATMOS_FOG_PARMS_2:
+					result.extinction = arg.dest;
+					break;
+				case CONST_SRC_CODE_ATMOS_FOG_PARMS_3:
+					result.in_scatter = arg.dest;
+					break;
+				case CONST_SRC_CODE_ATMOS_FOG_PARMS_4:
+					result.sun_dir = arg.dest;
+					break;
+				}
+			}
+
+			return result;
+		}
+
 		template <typename S2Shader, typename H1Shader>
 		S2Shader* convert_shader(const H1Shader* source, const program_patch& patch = {})
 		{
@@ -1079,6 +1123,7 @@ namespace zonetool::h1::converter::s2::techset
 			vertex_patch.stable_literal_rows = stable_literal_rows;
 			vertex_patch.sprite = sprite;
 			vertex_patch.lit_instance_rows = lit_instances;
+			vertex_patch.fog = find_atmos_fog_rows(pass, MTL_SHADER_STAGE_VERTEX);
 			if (lights)
 			{
 				vertex_patch.material_rows = (*lights)[1];
@@ -1090,6 +1135,8 @@ namespace zonetool::h1::converter::s2::techset
 
 			program_patch pixel_patch{find_sun_shadow_lookup(pass), lighting, grid};
 			pixel_patch.lights = primary_lights;
+			pixel_patch.ssr_texture = find_pixel_code_texture(pass, TEXTURE_SRC_CODE_SSR_BUFFER);
+			pixel_patch.fog = find_atmos_fog_rows(pass, MTL_SHADER_STAGE_PIXEL);
 			if (lights)
 			{
 				pixel_patch.material_rows = (*lights)[0];
