@@ -8301,12 +8301,89 @@ namespace zonetool::s2
 	union XAssetHeader
 	{
 		void* data;
+		PhysPreset* physPreset;
+		SndPhysPreset* sndPhysPreset;
+		SndMusicSet* sndMusicSet;
+		PhysCollmap* physCollmap;
+		PhysWaterPreset* physWaterPreset;
+		PhysWorld* physWorld;
+		PhysConstraint* physConstraint;
+		XAnimParts* parts;
+		XSurfaceShared* surfaceShared;
+		XModelSurfs* modelSurfs;
+		XModel* model;
+		XModelBase* modelBase;
+		Mayhem* mayhem;
+		Material* material;
+		ComputeShader* computeShader;
+		MaterialVertexShader* vertexShader;
+		MaterialHullShader* hullShader;
+		MaterialDomainShader* domainShader;
+		MaterialPixelShader* pixelShader;
+		MaterialVertexDeclaration* vertexDecl;
+		MaterialTechniqueSet* techniqueSet;
+		GfxImage* image;
+		snd_alias_list_t* sound;
+		SoundSubmix* sndSubmix;
+		SndCurve* sndCurve;
+		DistCurve* distCurve;
+		SndCurve* reverbCurve;
+		SndContext* sndContext;
+		SndAliasParameterModifier* sndAliasParameterModifier;
+		SndAliasCombatCone* sndAliasCombatCone;
+		LoadedSound* loadSnd;
+		clipMap_t* clipMap;
+		ComWorld* comWorld;
+		GlassWorld* glassWorld;
+		PathData* pathData;
+		NavMeshData* navMeshData;
+		VehicleTrack* vehicleTrack;
+		MapEnts* mapEnts;
+		FxWorld* fxWorld;
+		GfxWorld* gfxWorld;
+		GfxMapTrZone* gfxMapTrZone;
+		ClipMapTrZone* clipMapTrZone;
+		// ies profile
+		LightDef* lightDef;
+		// ui map
+		AnimationClass* animClass;
+		LocalizeEntry* localize;
+		WeaponAttachment* attachment;
+		WeaponCompleteDef* weapon;
+		SndDriverGlobals* sndDriverGlobals;
+		FxEffectDef* fx;
+		FxImpactTable* impactFx;
+		SurfaceFxTable* surfaceFx;
+		// ai type
+		// mp type
+		// character
+		// xmodel alias
 		RawFile* rawfile;
 		ScriptFile* scriptfile;
 		StringTable* stringTable;
-		LocalizeEntry* localize;
+		LeaderboardDef* leaderboardDef;
+		VirtualLeaderboardDef* virtualLeaderboardDef;
+		// structured data def
+		DDLRoot* ddlRoot;
+		TracerDef* tracerDef;
+		VehicleDef* vehDef;
+		AddonMapEnts* addonMapEnts;
+		NetConstStrings* netConstStrings;
+		ReverbPreset* reverbPreset;
 		LuaFile* luaFile;
+		ScriptableDef* scriptable;
+		EquipmentSoundTable* equipSndTable;
+		VectorField* vectorField;
+		FxParticleSimAnimation* particleSimAnimation;
+		LaserDef* laserDef;
+		BeamDef* beamDef;
+		SkeletonScript* skeletonScript;
+		Clut* clut;
 		TTFDef* ttfDef;
+		Spline* spline;
+		PhysClothTuning* physClothTuning;
+		DLogSchema* dlogSchema;
+		DLogRoutes* dlogRoutes;
 	};
 
 	struct XAsset
