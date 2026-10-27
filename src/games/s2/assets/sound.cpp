@@ -1,6 +1,6 @@
 #include <std_include.hpp>
 #include "s2.hpp"
-#include "json_fields.hpp"
+#include "common/json_fields.hpp"
 
 namespace zonetool::s2
 {

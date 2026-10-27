@@ -91,8 +91,8 @@ namespace zonetool::s2
 	bool is_valid_asset_type(const std::string& type);
 }
 
-#include "assets/asset_base.hpp"
-#include "assets/name_only.hpp"
+#include "assets/common/asset_base.hpp"
+#include "assets/common/name_only.hpp"
 #include "assets/netconststrings.hpp"
 #include "assets/techset.hpp"
 #include "assets/xsurfaceshared.hpp"
@@ -106,10 +106,10 @@ namespace zonetool::s2
 #include "assets/xmodelsurfs.hpp"
 #include "assets/skeletonscript.hpp"
 #include "assets/xmodel.hpp"
-#include "assets/xmodel_cast.hpp"
+#include "assets/cast/xmodel_cast.hpp"
 #include "assets/fx.hpp"
 #include "assets/xanim.hpp"
-#include "assets/xanim_cast.hpp"
+#include "assets/cast/xanim_cast.hpp"
 #include "assets/tracerdef.hpp"
 #include "assets/leaderboard.hpp"
 #include "assets/ddl.hpp"
