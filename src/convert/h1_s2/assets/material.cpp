@@ -378,6 +378,13 @@ namespace zonetool::h1::converter::s2::material
 			}
 		}
 
+		bool deforms_prepass_vertices(const Material* asset)
+		{
+			const auto* prepass = asset->techniqueSet ? asset->techniqueSet->techniques[TECHNIQUE_ZPREPASS] : nullptr;
+			const auto* shader = prepass && prepass->hdr.passCount ? prepass->passArray[0].vertexShader : nullptr;
+			return shader && shader->name && std::string_view(shader->name) != "position_only.hlsl";
+		}
+
 		zonetool::s2::MaterialPrepassClass convert_prepass_class(const Material* asset, const zonetool::s2::MaterialTechniqueSet* techset)
 		{
 			if (!(asset->stateFlags & STATE_FLAG_WRITES_DEPTH))
@@ -391,7 +398,7 @@ namespace zonetool::h1::converter::s2::material
 				return token.starts_with("t0") || token.starts_with("a0") || token == "vdh";
 			});
 
-			if (!alpha_tested)
+			if (!alpha_tested && !deforms_prepass_vertices(asset)) // opaque materials get the s2 generic position only prepass
 			{
 				return zonetool::s2::PREPASS_CLASS_OPAQUE;
 			}
