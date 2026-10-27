@@ -127,12 +127,12 @@ namespace zonetool::s2
 			{
 				auto& state = asset->states[i];
 				state.name = read.read_string();
-				state.intro.name = read.read_string();
-				state.outro.name = read.read_string();
-				state.loops = read.read_array<SndMusicSubState>();
+				state.intro.alias = read.read_string();
+				state.exit.alias = read.read_string();
+				state.loops = read.read_array<SndMusicAsset>();
 				for (auto j = 0u; state.loops && j < state.loopCount; j++)
 				{
-					state.loops[j].name = read.read_string();
+					state.loops[j].alias = read.read_string();
 				}
 			}
 			read.close();
@@ -156,15 +156,15 @@ namespace zonetool::s2
 				{
 					const auto& state = data->states[i];
 					write_string(buf, state.name, states[i].name);
-					write_string(buf, state.intro.name, states[i].intro.name);
-					write_string(buf, state.outro.name, states[i].outro.name);
+					write_string(buf, state.intro.alias, states[i].intro.alias);
+					write_string(buf, state.exit.alias, states[i].exit.alias);
 					if (state.loops)
 					{
 						buf->align(7);
 						auto* loops = buf->write(state.loops, state.loopCount);
 						for (auto j = 0u; j < state.loopCount; j++)
 						{
-							write_string(buf, state.loops[j].name, loops[j].name);
+							write_string(buf, state.loops[j].alias, loops[j].alias);
 						}
 						buf->clear_pointer(&states[i].loops);
 					}
@@ -190,12 +190,12 @@ namespace zonetool::s2
 			{
 				const auto& state = asset->states[i];
 				write.dump_string(state.name);
-				write.dump_string(state.intro.name);
-				write.dump_string(state.outro.name);
+				write.dump_string(state.intro.alias);
+				write.dump_string(state.exit.alias);
 				write.dump_array(state.loops, state.loopCount);
 				for (auto j = 0u; state.loops && j < state.loopCount; j++)
 				{
-					write.dump_string(state.loops[j].name);
+					write.dump_string(state.loops[j].alias);
 				}
 			}
 			write.close();
@@ -205,25 +205,25 @@ namespace zonetool::s2
 		static void read_state(zone_reader& reader, SndMusicState* state)
 		{
 			reader.read_string(state->name);
-			reader.read_string(state->intro.name);
-			reader.read_string(state->outro.name);
+			reader.read_string(state->intro.alias);
+			reader.read_string(state->exit.alias);
 			if (const auto loops = reader.read_array(state->loops, 7, state->loopCount))
 			{
 				for (auto i = 0u; i < state->loopCount; i++)
 				{
-					reader.read_string(loops[i].name);
+					reader.read_string(loops[i].alias);
 				}
 			}
 		}
 	};
 
-	class equipment_snd_table : public asset_base<EquipmentSndTable, ASSET_TYPE_EQUIPMENT_SND_TABLE>
+	class equipment_snd_table : public asset_base<EquipmentSoundTable, ASSET_TYPE_EQUIPMENT_SND_TABLE>
 	{
 	public:
-		static void read(zone_reader& reader, EquipmentSndTable* asset);
-		EquipmentSndTable* parse(const std::string& name, zone_memory* mem) override;
+		static void read(zone_reader& reader, EquipmentSoundTable* asset);
+		EquipmentSoundTable* parse(const std::string& name, zone_memory* mem) override;
 		void load_depending(zone_base* zone) override;
 		void write(zone_base* zone, zone_buffer* buf) override;
-		static void dump(EquipmentSndTable* asset);
+		static void dump(EquipmentSoundTable* asset);
 	};
 }

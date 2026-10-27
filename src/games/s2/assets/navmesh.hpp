@@ -10,63 +10,65 @@ namespace zonetool::s2
 			reader.push_stream(XFILE_BLOCK_VIRTUAL);
 			reader.read_string(asset->name);
 
-			if (const auto regions = reader.read_array(asset->regions, 7, asset->regionCount))
+			if (const auto resources = reader.read_array(asset->navResources, 7, asset->numNavResources))
 			{
-				for (auto i = 0; i < asset->regionCount; i++)
+				for (auto i = 0; i < asset->numNavResources; i++)
 				{
-					reader.read_script_string(regions[i].name);
-					reader.read_array(regions[i].data, 3, regions[i].dataSize);
-					reader.read_array(regions[i].extraData, 3, extra_data_size(&regions[i]));
+					reader.read_script_string(resources[i].targetName);
+					reader.read_array(resources[i].pGraphBuffer, 3, resources[i].graphSize);
+					reader.read_array(resources[i].pWorkingGraph, 3, working_graph_size(&resources[i]));
 				}
 			}
 
-			if (const auto edge_lists = reader.read_array(asset->edgeLists, 7, asset->edgeListCount))
+			if (const auto bounds = reader.read_array(asset->obstacleBounds, 7, asset->numObstacleBounds))
 			{
-				for (auto i = 0; i < asset->edgeListCount; i++)
+				for (auto i = 0; i < asset->numObstacleBounds; i++)
 				{
-					if (const auto edges = reader.read_array(edge_lists[i].edges, 7, edge_lists[i].edgeCount))
+					if (const auto hulls = reader.read_array(bounds[i].m_Hulls, 7, bounds[i].m_NumHulls))
 					{
-						for (auto j = 0; j < edge_lists[i].edgeCount; j++)
+						for (auto j = 0; j < bounds[i].m_NumHulls; j++)
 						{
-							reader.read_array(edges[j].points, 3, edges[j].pointCount);
+							reader.read_array(hulls[j].m_Boundaries, 3, hulls[j].m_NumBoundaries);
 						}
 					}
 				}
 			}
 
-			if (const auto polygons = reader.read_array(asset->polygons, 7, asset->polygonCount))
+			if (const auto glass_bounds = reader.read_array(asset->glassBounds, 7, asset->numGlassBounds))
 			{
-				for (auto i = 0; i < asset->polygonCount; i++)
+				for (auto i = 0; i < asset->numGlassBounds; i++)
 				{
-					reader.read_array(polygons[i].points, 3, polygons[i].pointCount);
+					reader.read_array(glass_bounds[i].m_Boundaries, 3, glass_bounds[i].m_NumBoundaries);
 				}
 			}
 
-			if (const auto volumes = reader.read_array(asset->volumes, 7, asset->volumeCount))
+			if (const auto modifiers = reader.read_array(asset->modifiers, 7, asset->numModifiers))
 			{
-				for (auto i = 0; i < asset->volumeCount; i++)
+				for (auto i = 0; i < asset->numModifiers; i++)
 				{
-					reader.read_array(volumes[i].points, 3, volumes[i].pointCount);
-					reader.read_script_string(volumes[i].name);
+					reader.read_array(modifiers[i].m_Boundaries, 3, modifiers[i].m_NumBoundaries);
+					reader.read_script_string(modifiers[i].m_TargetName);
 				}
 			}
 
-			if (const auto links = reader.read_array(asset->links, 3, asset->linkCount))
+			if (const auto links = reader.read_array(asset->linkCreationData, 3, asset->numLinkCreationData))
 			{
-				for (auto i = 0; i < asset->linkCount; i++)
+				for (auto i = 0; i < asset->numLinkCreationData; i++)
 				{
-					reader.read_script_strings(links[i].names, std::size(links[i].names));
+					reader.read_script_string(links[i].m_Animscript);
+					reader.read_script_string(links[i].m_Target);
+					reader.read_script_string(links[i].m_Parent);
 				}
 			}
 
-			reader.read_array(asset->nodes, 3, asset->nodeCount);
-			reader.read_array(asset->faces, 3, asset->faceCount);
+			reader.read_array(asset->volumeSeeds, 3, asset->numVolumeSeeds);
+			reader.read_array(asset->rawVolumes, 3, asset->numRawVolumes);
 
-			if (const auto clusters = reader.read_array(asset->clusters, 7, asset->clusterCount))
+			if (const auto custom_volumes = reader.read_array(asset->rawCustomVolumes, 7, asset->numRawCustomVolumes))
 			{
-				for (auto i = 0; i < asset->clusterCount; i++)
+				for (auto i = 0; i < asset->numRawCustomVolumes; i++)
 				{
-					reader.read_array(clusters[i].data, 3, clusters[i].count);
+					reader.read_array(custom_volumes[i].m_Tris, 3, custom_volumes[i].m_NumTris);
 				}
 			}
 
@@ -86,66 +88,65 @@ namespace zonetool::s2
 			auto* asset = read.read_single<NavMeshData>();
 			asset->name = read.read_string();
 
-			if (const auto regions = parse_array(read, mem, asset->regions, asset->regionCount))
+			if (const auto resources = parse_array(read, mem, asset->navResources, asset->numNavResources))
 			{
-				for (auto i = 0; i < asset->regionCount; i++)
+				for (auto i = 0; i < asset->numNavResources; i++)
 				{
-					regions[i].name = parse_script_string(read);
-					parse_array(read, mem, regions[i].data, regions[i].dataSize);
-					parse_array(read, mem, regions[i].extraData, extra_data_size(&regions[i]));
+					resources[i].targetName = parse_script_string(read);
+					parse_array(read, mem, resources[i].pGraphBuffer, resources[i].graphSize);
+					parse_array(read, mem, resources[i].pWorkingGraph, working_graph_size(&resources[i]));
 				}
 			}
 
-			if (const auto edge_lists = parse_array(read, mem, asset->edgeLists, asset->edgeListCount))
+			if (const auto bounds = parse_array(read, mem, asset->obstacleBounds, asset->numObstacleBounds))
 			{
-				for (auto i = 0; i < asset->edgeListCount; i++)
+				for (auto i = 0; i < asset->numObstacleBounds; i++)
 				{
-					if (const auto edges = parse_array(read, mem, edge_lists[i].edges, edge_lists[i].edgeCount))
+					if (const auto hulls = parse_array(read, mem, bounds[i].m_Hulls, bounds[i].m_NumHulls))
 					{
-						for (auto j = 0; j < edge_lists[i].edgeCount; j++)
+						for (auto j = 0; j < bounds[i].m_NumHulls; j++)
 						{
-							parse_array(read, mem, edges[j].points, edges[j].pointCount);
+							parse_array(read, mem, hulls[j].m_Boundaries, hulls[j].m_NumBoundaries);
 						}
 					}
 				}
 			}
 
-			if (const auto polygons = parse_array(read, mem, asset->polygons, asset->polygonCount))
+			if (const auto glass_bounds = parse_array(read, mem, asset->glassBounds, asset->numGlassBounds))
 			{
-				for (auto i = 0; i < asset->polygonCount; i++)
+				for (auto i = 0; i < asset->numGlassBounds; i++)
 				{
-					parse_array(read, mem, polygons[i].points, polygons[i].pointCount);
+					parse_array(read, mem, glass_bounds[i].m_Boundaries, glass_bounds[i].m_NumBoundaries);
 				}
 			}
 
-			if (const auto volumes = parse_array(read, mem, asset->volumes, asset->volumeCount))
+			if (const auto modifiers = parse_array(read, mem, asset->modifiers, asset->numModifiers))
 			{
-				for (auto i = 0; i < asset->volumeCount; i++)
+				for (auto i = 0; i < asset->numModifiers; i++)
 				{
-					parse_array(read, mem, volumes[i].points, volumes[i].pointCount);
-					volumes[i].name = parse_script_string(read);
+					parse_array(read, mem, modifiers[i].m_Boundaries, modifiers[i].m_NumBoundaries);
+					modifiers[i].m_TargetName = parse_script_string(read);
 				}
 			}
 
-			if (const auto links = parse_array(read, mem, asset->links, asset->linkCount))
+			if (const auto links = parse_array(read, mem, asset->linkCreationData, asset->numLinkCreationData))
 			{
-				for (auto i = 0; i < asset->linkCount; i++)
+				for (auto i = 0; i < asset->numLinkCreationData; i++)
 				{
-					for (auto& link_name : links[i].names)
-					{
-						link_name = parse_script_string(read);
-					}
+					links[i].m_Animscript = parse_script_string(read);
+					links[i].m_Target = parse_script_string(read);
+					links[i].m_Parent = parse_script_string(read);
 				}
 			}
 
-			parse_array(read, mem, asset->nodes, asset->nodeCount);
-			parse_array(read, mem, asset->faces, asset->faceCount);
+			parse_array(read, mem, asset->volumeSeeds, asset->numVolumeSeeds);
+			parse_array(read, mem, asset->rawVolumes, asset->numRawVolumes);
 
-			if (const auto clusters = parse_array(read, mem, asset->clusters, asset->clusterCount))
+			if (const auto custom_volumes = parse_array(read, mem, asset->rawCustomVolumes, asset->numRawCustomVolumes))
 			{
-				for (auto i = 0; i < asset->clusterCount; i++)
+				for (auto i = 0; i < asset->numRawCustomVolumes; i++)
 				{
-					parse_array(read, mem, clusters[i].data, clusters[i].count);
+					parse_array(read, mem, custom_volumes[i].m_Tris, custom_volumes[i].m_NumTris);
 				}
 			}
 			read.close();
@@ -158,19 +159,21 @@ namespace zonetool::s2
 			auto* data = this->asset_;
 			script_string_preparer prepare(buf);
 
-			for (auto i = 0; data->regions && i < data->regionCount; i++)
+			for (auto i = 0; data->navResources && i < data->numNavResources; i++)
 			{
-				prepare(data->regions[i].name);
+				prepare(data->navResources[i].targetName);
 			}
 
-			for (auto i = 0; data->volumes && i < data->volumeCount; i++)
+			for (auto i = 0; data->modifiers && i < data->numModifiers; i++)
 			{
-				prepare(data->volumes[i].name);
+				prepare(data->modifiers[i].m_TargetName);
 			}
 
-			for (auto i = 0; data->links && i < data->linkCount; i++)
+			for (auto i = 0; data->linkCreationData && i < data->numLinkCreationData; i++)
 			{
-				prepare(data->links[i].names, std::size(data->links[i].names));
+				prepare(data->linkCreationData[i].m_Animscript);
+				prepare(data->linkCreationData[i].m_Target);
+				prepare(data->linkCreationData[i].m_Parent);
 			}
 		}
 
@@ -183,56 +186,56 @@ namespace zonetool::s2
 
 			dest->name = this->write_name(buf);
 
-			if (const auto dest_regions = write_array(buf, 7, data->regions, data->regionCount, dest->regions))
+			if (const auto dest_resources = write_array(buf, 7, data->navResources, data->numNavResources, dest->navResources))
 			{
-				for (auto i = 0; i < data->regionCount; i++)
+				for (auto i = 0; i < data->numNavResources; i++)
 				{
-					auto* region = &data->regions[i];
-					write_array(buf, 3, region->data, region->dataSize, dest_regions[i].data);
-					write_array(buf, 3, region->extraData, extra_data_size(region), dest_regions[i].extraData);
+					auto* resource = &data->navResources[i];
+					write_array(buf, 3, resource->pGraphBuffer, resource->graphSize, dest_resources[i].pGraphBuffer);
+					write_array(buf, 3, resource->pWorkingGraph, working_graph_size(resource), dest_resources[i].pWorkingGraph);
 				}
 			}
 
-			if (const auto dest_edge_lists = write_array(buf, 7, data->edgeLists, data->edgeListCount, dest->edgeLists))
+			if (const auto dest_bounds = write_array(buf, 7, data->obstacleBounds, data->numObstacleBounds, dest->obstacleBounds))
 			{
-				for (auto i = 0; i < data->edgeListCount; i++)
+				for (auto i = 0; i < data->numObstacleBounds; i++)
 				{
-					auto* edge_list = &data->edgeLists[i];
-					if (const auto dest_edges = write_array(buf, 7, edge_list->edges, edge_list->edgeCount, dest_edge_lists[i].edges))
+					auto* bounds = &data->obstacleBounds[i];
+					if (const auto dest_hulls = write_array(buf, 7, bounds->m_Hulls, bounds->m_NumHulls, dest_bounds[i].m_Hulls))
 					{
-						for (auto j = 0; j < edge_list->edgeCount; j++)
+						for (auto j = 0; j < bounds->m_NumHulls; j++)
 						{
-							write_array(buf, 3, edge_list->edges[j].points, edge_list->edges[j].pointCount, dest_edges[j].points);
+							write_array(buf, 3, bounds->m_Hulls[j].m_Boundaries, bounds->m_Hulls[j].m_NumBoundaries, dest_hulls[j].m_Boundaries);
 						}
 					}
 				}
 			}
 
-			if (const auto dest_polygons = write_array(buf, 7, data->polygons, data->polygonCount, dest->polygons))
+			if (const auto dest_glass_bounds = write_array(buf, 7, data->glassBounds, data->numGlassBounds, dest->glassBounds))
 			{
-				for (auto i = 0; i < data->polygonCount; i++)
+				for (auto i = 0; i < data->numGlassBounds; i++)
 				{
-					write_array(buf, 3, data->polygons[i].points, data->polygons[i].pointCount, dest_polygons[i].points);
+					write_array(buf, 3, data->glassBounds[i].m_Boundaries, data->glassBounds[i].m_NumBoundaries, dest_glass_bounds[i].m_Boundaries);
 				}
 			}
 
-			if (const auto dest_volumes = write_array(buf, 7, data->volumes, data->volumeCount, dest->volumes))
+			if (const auto dest_modifiers = write_array(buf, 7, data->modifiers, data->numModifiers, dest->modifiers))
 			{
-				for (auto i = 0; i < data->volumeCount; i++)
+				for (auto i = 0; i < data->numModifiers; i++)
 				{
-					write_array(buf, 3, data->volumes[i].points, data->volumes[i].pointCount, dest_volumes[i].points);
+					write_array(buf, 3, data->modifiers[i].m_Boundaries, data->modifiers[i].m_NumBoundaries, dest_modifiers[i].m_Boundaries);
 				}
 			}
 
-			write_array(buf, 3, data->links, data->linkCount, dest->links);
-			write_array(buf, 3, data->nodes, data->nodeCount, dest->nodes);
-			write_array(buf, 3, data->faces, data->faceCount, dest->faces);
+			write_array(buf, 3, data->linkCreationData, data->numLinkCreationData, dest->linkCreationData);
+			write_array(buf, 3, data->volumeSeeds, data->numVolumeSeeds, dest->volumeSeeds);
+			write_array(buf, 3, data->rawVolumes, data->numRawVolumes, dest->rawVolumes);
 
-			if (const auto dest_clusters = write_array(buf, 7, data->clusters, data->clusterCount, dest->clusters))
+			if (const auto dest_custom_volumes = write_array(buf, 7, data->rawCustomVolumes, data->numRawCustomVolumes, dest->rawCustomVolumes))
 			{
-				for (auto i = 0; i < data->clusterCount; i++)
+				for (auto i = 0; i < data->numRawCustomVolumes; i++)
 				{
-					write_array(buf, 3, data->clusters[i].data, data->clusters[i].count, dest_clusters[i].data);
+					write_array(buf, 3, data->rawCustomVolumes[i].m_Tris, data->rawCustomVolumes[i].m_NumTris, dest_custom_volumes[i].m_Tris);
 				}
 			}
 
@@ -250,60 +253,62 @@ namespace zonetool::s2
 			write.dump_single(asset);
 			write.dump_string(asset->name);
 
-			write.dump_array(asset->regions, asset->regionCount);
-			for (auto i = 0; asset->regions && i < asset->regionCount; i++)
+			write.dump_array(asset->navResources, asset->numNavResources);
+			for (auto i = 0; asset->navResources && i < asset->numNavResources; i++)
 			{
-				auto* region = &asset->regions[i];
-				dump_script_string(write, region->name);
-				write.dump_array(region->data, region->dataSize);
-				write.dump_array(region->extraData, extra_data_size(region));
+				auto* resource = &asset->navResources[i];
+				dump_script_string(write, resource->targetName);
+				write.dump_array(resource->pGraphBuffer, resource->graphSize);
+				write.dump_array(resource->pWorkingGraph, working_graph_size(resource));
 			}
 
-			write.dump_array(asset->edgeLists, asset->edgeListCount);
-			for (auto i = 0; asset->edgeLists && i < asset->edgeListCount; i++)
+			write.dump_array(asset->obstacleBounds, asset->numObstacleBounds);
+			for (auto i = 0; asset->obstacleBounds && i < asset->numObstacleBounds; i++)
 			{
-				auto* edge_list = &asset->edgeLists[i];
-				write.dump_array(edge_list->edges, edge_list->edgeCount);
-				for (auto j = 0; edge_list->edges && j < edge_list->edgeCount; j++)
+				auto* bounds = &asset->obstacleBounds[i];
+				write.dump_array(bounds->m_Hulls, bounds->m_NumHulls);
+				for (auto j = 0; bounds->m_Hulls && j < bounds->m_NumHulls; j++)
 				{
-					write.dump_array(edge_list->edges[j].points, edge_list->edges[j].pointCount);
+					write.dump_array(bounds->m_Hulls[j].m_Boundaries, bounds->m_Hulls[j].m_NumBoundaries);
 				}
 			}
 
-			write.dump_array(asset->polygons, asset->polygonCount);
-			for (auto i = 0; asset->polygons && i < asset->polygonCount; i++)
+			write.dump_array(asset->glassBounds, asset->numGlassBounds);
+			for (auto i = 0; asset->glassBounds && i < asset->numGlassBounds; i++)
 			{
-				write.dump_array(asset->polygons[i].points, asset->polygons[i].pointCount);
+				write.dump_array(asset->glassBounds[i].m_Boundaries, asset->glassBounds[i].m_NumBoundaries);
 			}
 
-			write.dump_array(asset->volumes, asset->volumeCount);
-			for (auto i = 0; asset->volumes && i < asset->volumeCount; i++)
+			write.dump_array(asset->modifiers, asset->numModifiers);
+			for (auto i = 0; asset->modifiers && i < asset->numModifiers; i++)
 			{
-				write.dump_array(asset->volumes[i].points, asset->volumes[i].pointCount);
-				dump_script_string(write, asset->volumes[i].name);
+				write.dump_array(asset->modifiers[i].m_Boundaries, asset->modifiers[i].m_NumBoundaries);
+				dump_script_string(write, asset->modifiers[i].m_TargetName);
 			}
 
-			write.dump_array(asset->links, asset->linkCount);
-			for (auto i = 0; asset->links && i < asset->linkCount; i++)
+			write.dump_array(asset->linkCreationData, asset->numLinkCreationData);
+			for (auto i = 0; asset->linkCreationData && i < asset->numLinkCreationData; i++)
 			{
-				dump_script_strings(write, asset->links[i].names, std::size(asset->links[i].names));
+				dump_script_string(write, asset->linkCreationData[i].m_Animscript);
+				dump_script_string(write, asset->linkCreationData[i].m_Target);
+				dump_script_string(write, asset->linkCreationData[i].m_Parent);
 			}
 
-			write.dump_array(asset->nodes, asset->nodeCount);
-			write.dump_array(asset->faces, asset->faceCount);
+			write.dump_array(asset->volumeSeeds, asset->numVolumeSeeds);
+			write.dump_array(asset->rawVolumes, asset->numRawVolumes);
 
-			write.dump_array(asset->clusters, asset->clusterCount);
-			for (auto i = 0; asset->clusters && i < asset->clusterCount; i++)
+			write.dump_array(asset->rawCustomVolumes, asset->numRawCustomVolumes);
+			for (auto i = 0; asset->rawCustomVolumes && i < asset->numRawCustomVolumes; i++)
 			{
-				write.dump_array(asset->clusters[i].data, asset->clusters[i].count);
+				write.dump_array(asset->rawCustomVolumes[i].m_Tris, asset->rawCustomVolumes[i].m_NumTris);
 			}
 			write.close();
 		}
 
 	private:
-		static int extra_data_size(const NavMeshRegion* region)
+		static int working_graph_size(const nav_resource_s* resource)
 		{
-			return region->hasExtraData ? region->dataSize : 0;
+			return resource->bDockable ? resource->graphSize : 0;
 		}
 	};
 }

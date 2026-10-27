@@ -30,7 +30,7 @@ namespace zonetool::s2
 				}
 			}
 
-			read_runtime_array(reader, XFILE_BLOCK_RUNTIME, state->runtime, 7, state->entryCount);
+			read_runtime_array(reader, XFILE_BLOCK_RUNTIME, state->animIndices, 7, state->entryCount);
 		}
 
 		void read_state_machine(zone_reader& reader, AnimationStateMachine* machine)
@@ -81,7 +81,7 @@ namespace zonetool::s2
 				}
 			}
 
-			parse_runtime_array(mem, state->runtime, state->entryCount);
+			parse_runtime_array(mem, state->animIndices, state->entryCount);
 		}
 
 		void parse_state_machine(assetmanager::reader& read, zone_memory* mem, AnimationStateMachine* machine)
@@ -146,7 +146,7 @@ namespace zonetool::s2
 					auto* state = &machine->states[i];
 					write_array(buf, 7, state->aimSet, 1, dest_states[i].aimSet);
 					write_array(buf, 3, state->animEntries, state->entryCount, dest_states[i].animEntries);
-					write_runtime_array(buf, XFILE_BLOCK_RUNTIME, 7, state->runtime, state->entryCount, dest_states[i].runtime);
+					write_runtime_array(buf, XFILE_BLOCK_RUNTIME, 7, state->animIndices, state->entryCount, dest_states[i].animIndices);
 				}
 			}
 

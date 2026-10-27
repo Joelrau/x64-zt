@@ -448,8 +448,8 @@ namespace zonetool::s2
 	{
 		void read_sound_set(zone_reader& reader, EquipmentSoundSet* set)
 		{
-			reader.read_name_reference(set->unk_0x0);
-			reader.read_name_reference(set->unk_0x8);
+			reader.read_name_reference(set->soundPLR);
+			reader.read_name_reference(set->soundNPC);
 		}
 
 		void read_sound_sets(zone_reader& reader, EquipmentSoundSet*& field, const unsigned int count)
@@ -463,28 +463,28 @@ namespace zonetool::s2
 			}
 		}
 
-		void read_sound_set_lists(zone_reader& reader, EquipmentSoundSet**& field, const unsigned int list_count, const unsigned int sound_count)
+		void read_move_types_array(zone_reader& reader, EquipSoundSetMoveTypes*& field, const unsigned int count, const unsigned int move_count)
 		{
-			if (const auto lists = reader.read_array(field, 7, list_count))
+			if (const auto types = reader.read_array(field, 7, count))
 			{
-				for (auto i = 0u; i < list_count; i++)
+				for (auto i = 0u; i < count; i++)
 				{
-					read_sound_sets(reader, lists[i], sound_count);
+					read_sound_sets(reader, types[i].soundSets, move_count);
 				}
 			}
 		}
 
-		void read_weights(zone_reader& reader, vec3_t***& field, const EquipmentSndTable* table)
+		void read_chances(zone_reader& reader, EquipmentChanceRattleTypes*& field, const EquipmentSoundTable* table)
 		{
-			if (const auto surfaces = reader.read_array(field, 7, table->surfaceCount))
+			if (const auto cloth_types = reader.read_array(field, 7, table->numClothTypes))
 			{
-				for (auto i = 0u; i < table->surfaceCount; i++)
+				for (auto i = 0u; i < table->numClothTypes; i++)
 				{
-					if (const auto equipment = reader.read_array(surfaces[i], 7, table->equipmentCount))
+					if (const auto rattle_types = reader.read_array(cloth_types[i].chances, 7, table->numWeaponRattleTypes))
 					{
-						for (auto j = 0u; j < table->equipmentCount; j++)
+						for (auto j = 0u; j < table->numWeaponRattleTypes; j++)
 						{
-							reader.read_array(equipment[j], 3, table->soundCount);
+							reader.read_array(rattle_types[j].chances, 3, table->numMoveTypes);
 						}
 					}
 				}
@@ -493,8 +493,8 @@ namespace zonetool::s2
 
 		void write_sound_set(zone_buffer* buf, const EquipmentSoundSet* set, EquipmentSoundSet* dest)
 		{
-			write_sound(buf, set->unk_0x0, dest->unk_0x0);
-			write_sound(buf, set->unk_0x8, dest->unk_0x8);
+			write_sound(buf, set->soundPLR, dest->soundPLR);
+			write_sound(buf, set->soundNPC, dest->soundNPC);
 		}
 
 		void write_sound_sets(zone_buffer* buf, EquipmentSoundSet* sets, const unsigned int count, EquipmentSoundSet*& dest_field)
@@ -508,28 +508,29 @@ namespace zonetool::s2
 			}
 		}
 
-		void write_sound_set_lists(zone_buffer* buf, EquipmentSoundSet** lists, const unsigned int list_count, const unsigned int sound_count, EquipmentSoundSet**& dest_field)
+		void write_move_types_array(zone_buffer* buf, EquipSoundSetMoveTypes* types, const unsigned int count, const unsigned int move_count,
+			EquipSoundSetMoveTypes*& dest_field)
 		{
-			if (const auto dest = write_array(buf, 7, lists, list_count, dest_field))
+			if (const auto dest = write_array(buf, 7, types, count, dest_field))
 			{
-				for (auto i = 0u; i < list_count; i++)
+				for (auto i = 0u; i < count; i++)
 				{
-					write_sound_sets(buf, lists[i], sound_count, dest[i]);
+					write_sound_sets(buf, types[i].soundSets, move_count, dest[i].soundSets);
 				}
 			}
 		}
 
-		void write_weights(zone_buffer* buf, vec3_t*** weights, const EquipmentSndTable* table, vec3_t***& dest_field)
+		void write_chances(zone_buffer* buf, EquipmentChanceRattleTypes* chances, const EquipmentSoundTable* table, EquipmentChanceRattleTypes*& dest_field)
 		{
-			if (const auto dest_surfaces = write_array(buf, 7, weights, table->surfaceCount, dest_field))
+			if (const auto dest_cloth_types = write_array(buf, 7, chances, table->numClothTypes, dest_field))
 			{
-				for (auto i = 0u; i < table->surfaceCount; i++)
+				for (auto i = 0u; i < table->numClothTypes; i++)
 				{
-					if (const auto dest_equipment = write_array(buf, 7, weights[i], table->equipmentCount, dest_surfaces[i]))
+					if (const auto dest_rattle_types = write_array(buf, 7, chances[i].chances, table->numWeaponRattleTypes, dest_cloth_types[i].chances))
 					{
-						for (auto j = 0u; j < table->equipmentCount; j++)
+						for (auto j = 0u; j < table->numWeaponRattleTypes; j++)
 						{
-							write_array(buf, 3, weights[i][j], table->soundCount, dest_equipment[j]);
+							write_array(buf, 3, chances[i].chances[j].chances, table->numMoveTypes, dest_rattle_types[j].chances);
 						}
 					}
 				}
@@ -538,8 +539,8 @@ namespace zonetool::s2
 
 		void parse_sound_set(assetmanager::reader& read, EquipmentSoundSet* set)
 		{
-			set->unk_0x0 = read.read_asset<snd_alias_list_t>();
-			set->unk_0x8 = read.read_asset<snd_alias_list_t>();
+			set->soundPLR = read.read_asset<snd_alias_list_t>();
+			set->soundNPC = read.read_asset<snd_alias_list_t>();
 		}
 
 		void parse_sound_sets(assetmanager::reader& read, zone_memory* mem, EquipmentSoundSet*& field, const unsigned int count)
@@ -553,28 +554,29 @@ namespace zonetool::s2
 			}
 		}
 
-		void parse_sound_set_lists(assetmanager::reader& read, zone_memory* mem, EquipmentSoundSet**& field, const unsigned int list_count, const unsigned int sound_count)
+		void parse_move_types_array(assetmanager::reader& read, zone_memory* mem, EquipSoundSetMoveTypes*& field, const unsigned int count,
+			const unsigned int move_count)
 		{
-			if (const auto lists = parse_array(read, mem, field, list_count))
+			if (const auto types = parse_array(read, mem, field, count))
 			{
-				for (auto i = 0u; i < list_count; i++)
+				for (auto i = 0u; i < count; i++)
 				{
-					parse_sound_sets(read, mem, lists[i], sound_count);
+					parse_sound_sets(read, mem, types[i].soundSets, move_count);
 				}
 			}
 		}
 
-		void parse_weights(assetmanager::reader& read, zone_memory* mem, vec3_t***& field, const EquipmentSndTable* table)
+		void parse_chances(assetmanager::reader& read, zone_memory* mem, EquipmentChanceRattleTypes*& field, const EquipmentSoundTable* table)
 		{
-			if (const auto surfaces = parse_array(read, mem, field, table->surfaceCount))
+			if (const auto cloth_types = parse_array(read, mem, field, table->numClothTypes))
 			{
-				for (auto i = 0u; i < table->surfaceCount; i++)
+				for (auto i = 0u; i < table->numClothTypes; i++)
 				{
-					if (const auto equipment = parse_array(read, mem, surfaces[i], table->equipmentCount))
+					if (const auto rattle_types = parse_array(read, mem, cloth_types[i].chances, table->numWeaponRattleTypes))
 					{
-						for (auto j = 0u; j < table->equipmentCount; j++)
+						for (auto j = 0u; j < table->numWeaponRattleTypes; j++)
 						{
-							parse_array(read, mem, equipment[j], table->soundCount);
+							parse_array(read, mem, rattle_types[j].chances, table->numMoveTypes);
 						}
 					}
 				}
@@ -583,8 +585,8 @@ namespace zonetool::s2
 
 		void dump_sound_set(assetmanager::dumper& write, const EquipmentSoundSet* set)
 		{
-			write.dump_asset(set->unk_0x0);
-			write.dump_asset(set->unk_0x8);
+			write.dump_asset(set->soundPLR);
+			write.dump_asset(set->soundNPC);
 		}
 
 		void dump_sound_sets(assetmanager::dumper& write, EquipmentSoundSet* sets, const unsigned int count)
@@ -596,24 +598,24 @@ namespace zonetool::s2
 			}
 		}
 
-		void dump_sound_set_lists(assetmanager::dumper& write, EquipmentSoundSet** lists, const unsigned int list_count, const unsigned int sound_count)
+		void dump_move_types_array(assetmanager::dumper& write, EquipSoundSetMoveTypes* types, const unsigned int count, const unsigned int move_count)
 		{
-			write.dump_array(lists, list_count);
-			for (auto i = 0u; lists && i < list_count; i++)
+			write.dump_array(types, count);
+			for (auto i = 0u; types && i < count; i++)
 			{
-				dump_sound_sets(write, lists[i], sound_count);
+				dump_sound_sets(write, types[i].soundSets, move_count);
 			}
 		}
 
-		void dump_weights(assetmanager::dumper& write, vec3_t*** weights, const EquipmentSndTable* table)
+		void dump_chances(assetmanager::dumper& write, EquipmentChanceRattleTypes* chances, const EquipmentSoundTable* table)
 		{
-			write.dump_array(weights, table->surfaceCount);
-			for (auto i = 0u; weights && i < table->surfaceCount; i++)
+			write.dump_array(chances, table->numClothTypes);
+			for (auto i = 0u; chances && i < table->numClothTypes; i++)
 			{
-				write.dump_array(weights[i], table->equipmentCount);
-				for (auto j = 0u; weights[i] && j < table->equipmentCount; j++)
+				write.dump_array(chances[i].chances, table->numWeaponRattleTypes);
+				for (auto j = 0u; chances[i].chances && j < table->numWeaponRattleTypes; j++)
 				{
-					write.dump_array(weights[i][j], table->soundCount);
+					write.dump_array(chances[i].chances[j].chances, table->numMoveTypes);
 				}
 			}
 		}
@@ -622,40 +624,40 @@ namespace zonetool::s2
 		{
 			for (std::size_t i = 0; sets && i < count; i++)
 			{
-				add_dependency(zone, ASSET_TYPE_SOUND, sets[i].unk_0x0);
-				add_dependency(zone, ASSET_TYPE_SOUND, sets[i].unk_0x8);
+				add_dependency(zone, ASSET_TYPE_SOUND, sets[i].soundPLR);
+				add_dependency(zone, ASSET_TYPE_SOUND, sets[i].soundNPC);
 			}
 		}
 	}
 
-	void equipment_snd_table::read(zone_reader& reader, EquipmentSndTable* asset)
+	void equipment_snd_table::read(zone_reader& reader, EquipmentSoundTable* asset)
 	{
 		reader.push_stream(XFILE_BLOCK_VIRTUAL);
 		reader.read_string(asset->name);
-		if (const auto names = reader.read_array(asset->surfaceNames, 7, asset->surfaceCount))
+		if (const auto cloth_types = reader.read_array(asset->clothTypes, 7, asset->numClothTypes))
 		{
-			for (auto i = 0u; i < asset->surfaceCount; i++)
+			for (auto i = 0u; i < asset->numClothTypes; i++)
 			{
-				reader.read_string(names[i]);
+				reader.read_string(cloth_types[i].szName);
 			}
 		}
-		if (const auto equipment = reader.read_array(asset->equipment, 7, asset->equipmentCount))
+		if (const auto rattle_types = reader.read_array(asset->weaponRattleTypes, 7, asset->numWeaponRattleTypes))
 		{
-			for (auto i = 0u; i < asset->equipmentCount; i++)
+			for (auto i = 0u; i < asset->numWeaponRattleTypes; i++)
 			{
-				reader.read_string(equipment[i].name);
+				reader.read_string(rattle_types[i].szName);
 			}
 		}
-		read_weights(reader, asset->unk_0x28, asset);
-		read_weights(reader, asset->unk_0x30, asset);
-		read_sound_set_lists(reader, asset->surfaceSounds, asset->surfaceCount, asset->soundCount);
-		read_sound_set_lists(reader, asset->equipmentSounds, asset->equipmentCount, asset->soundCount);
-		read_sound_sets(reader, asset->sounds, asset->soundCount);
-		if (const auto surface_sounds = reader.read_array(asset->unk_0x50, 7, asset->surfaceCount))
+		read_chances(reader, asset->chancesPLR, asset);
+		read_chances(reader, asset->chancesNPC, asset);
+		read_move_types_array(reader, asset->mvmtClothSoundSets, asset->numClothTypes, asset->numMoveTypes);
+		read_move_types_array(reader, asset->mvmtRattleSoundSets, asset->numWeaponRattleTypes, asset->numMoveTypes);
+		read_sound_sets(reader, asset->mvmtAccentSoundSets.soundSets, asset->numMoveTypes);
+		if (const auto mantle_types = reader.read_array(asset->mvmtMantleSoundSets, 7, asset->numClothTypes))
 		{
-			for (auto i = 0u; i < asset->surfaceCount; i++)
+			for (auto i = 0u; i < asset->numClothTypes; i++)
 			{
-				for (auto& set : surface_sounds[i].sets)
+				for (auto& set : mantle_types[i].soundSets)
 				{
 					read_sound_set(reader, &set);
 				}
@@ -664,7 +666,7 @@ namespace zonetool::s2
 		reader.pop_stream();
 	}
 
-	EquipmentSndTable* equipment_snd_table::parse(const std::string& name, zone_memory* mem)
+	EquipmentSoundTable* equipment_snd_table::parse(const std::string& name, zone_memory* mem)
 	{
 		assetmanager::reader read(mem);
 		if (!read.open(dump_path(ASSET_TYPE_EQUIPMENT_SND_TABLE, name.data())))
@@ -674,32 +676,32 @@ namespace zonetool::s2
 
 		ZONETOOL_INFO("Parsing equipmentsndtable \"%s\"...", name.data());
 
-		auto* asset = read.read_single<EquipmentSndTable>();
+		auto* asset = read.read_single<EquipmentSoundTable>();
 		asset->name = read.read_string();
-		if (const auto names = parse_array(read, mem, asset->surfaceNames, asset->surfaceCount))
+		if (const auto cloth_types = parse_array(read, mem, asset->clothTypes, asset->numClothTypes))
 		{
-			for (auto i = 0u; i < asset->surfaceCount; i++)
+			for (auto i = 0u; i < asset->numClothTypes; i++)
 			{
-				names[i] = read.read_string();
+				cloth_types[i].szName = read.read_string();
 			}
 		}
-		if (const auto equipment = parse_array(read, mem, asset->equipment, asset->equipmentCount))
+		if (const auto rattle_types = parse_array(read, mem, asset->weaponRattleTypes, asset->numWeaponRattleTypes))
 		{
-			for (auto i = 0u; i < asset->equipmentCount; i++)
+			for (auto i = 0u; i < asset->numWeaponRattleTypes; i++)
 			{
-				equipment[i].name = read.read_string();
+				rattle_types[i].szName = read.read_string();
 			}
 		}
-		parse_weights(read, mem, asset->unk_0x28, asset);
-		parse_weights(read, mem, asset->unk_0x30, asset);
-		parse_sound_set_lists(read, mem, asset->surfaceSounds, asset->surfaceCount, asset->soundCount);
-		parse_sound_set_lists(read, mem, asset->equipmentSounds, asset->equipmentCount, asset->soundCount);
-		parse_sound_sets(read, mem, asset->sounds, asset->soundCount);
-		if (const auto surface_sounds = parse_array(read, mem, asset->unk_0x50, asset->surfaceCount))
+		parse_chances(read, mem, asset->chancesPLR, asset);
+		parse_chances(read, mem, asset->chancesNPC, asset);
+		parse_move_types_array(read, mem, asset->mvmtClothSoundSets, asset->numClothTypes, asset->numMoveTypes);
+		parse_move_types_array(read, mem, asset->mvmtRattleSoundSets, asset->numWeaponRattleTypes, asset->numMoveTypes);
+		parse_sound_sets(read, mem, asset->mvmtAccentSoundSets.soundSets, asset->numMoveTypes);
+		if (const auto mantle_types = parse_array(read, mem, asset->mvmtMantleSoundSets, asset->numClothTypes))
 		{
-			for (auto i = 0u; i < asset->surfaceCount; i++)
+			for (auto i = 0u; i < asset->numClothTypes; i++)
 			{
-				for (auto& set : surface_sounds[i].sets)
+				for (auto& set : mantle_types[i].soundSets)
 				{
 					parse_sound_set(read, &set);
 				}
@@ -713,18 +715,18 @@ namespace zonetool::s2
 	void equipment_snd_table::load_depending(zone_base* zone)
 	{
 		auto* data = this->asset_;
-		for (auto i = 0u; data->surfaceSounds && i < data->surfaceCount; i++)
+		for (auto i = 0u; data->mvmtClothSoundSets && i < data->numClothTypes; i++)
 		{
-			add_sound_set_dependencies(zone, data->surfaceSounds[i], data->soundCount);
+			add_sound_set_dependencies(zone, data->mvmtClothSoundSets[i].soundSets, data->numMoveTypes);
 		}
-		for (auto i = 0u; data->equipmentSounds && i < data->equipmentCount; i++)
+		for (auto i = 0u; data->mvmtRattleSoundSets && i < data->numWeaponRattleTypes; i++)
 		{
-			add_sound_set_dependencies(zone, data->equipmentSounds[i], data->soundCount);
+			add_sound_set_dependencies(zone, data->mvmtRattleSoundSets[i].soundSets, data->numMoveTypes);
 		}
-		add_sound_set_dependencies(zone, data->sounds, data->soundCount);
-		for (auto i = 0u; data->unk_0x50 && i < data->surfaceCount; i++)
+		add_sound_set_dependencies(zone, data->mvmtAccentSoundSets.soundSets, data->numMoveTypes);
+		for (auto i = 0u; data->mvmtMantleSoundSets && i < data->numClothTypes; i++)
 		{
-			add_sound_set_dependencies(zone, data->unk_0x50[i].sets, std::size(data->unk_0x50[i].sets));
+			add_sound_set_dependencies(zone, data->mvmtMantleSoundSets[i].soundSets, std::size(data->mvmtMantleSoundSets[i].soundSets));
 		}
 	}
 
@@ -735,39 +737,39 @@ namespace zonetool::s2
 
 		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 		dest->name = this->write_name(buf);
-		if (const auto dest_names = write_array(buf, 7, data->surfaceNames, data->surfaceCount, dest->surfaceNames))
+		if (const auto dest_cloth_types = write_array(buf, 7, data->clothTypes, data->numClothTypes, dest->clothTypes))
 		{
-			for (auto i = 0u; i < data->surfaceCount; i++)
+			for (auto i = 0u; i < data->numClothTypes; i++)
 			{
-				write_string(buf, data->surfaceNames[i], dest_names[i]);
+				write_string(buf, data->clothTypes[i].szName, dest_cloth_types[i].szName);
 			}
 		}
-		if (const auto dest_equipment = write_array(buf, 7, data->equipment, data->equipmentCount, dest->equipment))
+		if (const auto dest_rattle_types = write_array(buf, 7, data->weaponRattleTypes, data->numWeaponRattleTypes, dest->weaponRattleTypes))
 		{
-			for (auto i = 0u; i < data->equipmentCount; i++)
+			for (auto i = 0u; i < data->numWeaponRattleTypes; i++)
 			{
-				write_string(buf, data->equipment[i].name, dest_equipment[i].name);
+				write_string(buf, data->weaponRattleTypes[i].szName, dest_rattle_types[i].szName);
 			}
 		}
-		write_weights(buf, data->unk_0x28, data, dest->unk_0x28);
-		write_weights(buf, data->unk_0x30, data, dest->unk_0x30);
-		write_sound_set_lists(buf, data->surfaceSounds, data->surfaceCount, data->soundCount, dest->surfaceSounds);
-		write_sound_set_lists(buf, data->equipmentSounds, data->equipmentCount, data->soundCount, dest->equipmentSounds);
-		write_sound_sets(buf, data->sounds, data->soundCount, dest->sounds);
-		if (const auto dest_surface_sounds = write_array(buf, 7, data->unk_0x50, data->surfaceCount, dest->unk_0x50))
+		write_chances(buf, data->chancesPLR, data, dest->chancesPLR);
+		write_chances(buf, data->chancesNPC, data, dest->chancesNPC);
+		write_move_types_array(buf, data->mvmtClothSoundSets, data->numClothTypes, data->numMoveTypes, dest->mvmtClothSoundSets);
+		write_move_types_array(buf, data->mvmtRattleSoundSets, data->numWeaponRattleTypes, data->numMoveTypes, dest->mvmtRattleSoundSets);
+		write_sound_sets(buf, data->mvmtAccentSoundSets.soundSets, data->numMoveTypes, dest->mvmtAccentSoundSets.soundSets);
+		if (const auto dest_mantle_types = write_array(buf, 7, data->mvmtMantleSoundSets, data->numClothTypes, dest->mvmtMantleSoundSets))
 		{
-			for (auto i = 0u; i < data->surfaceCount; i++)
+			for (auto i = 0u; i < data->numClothTypes; i++)
 			{
-				for (auto j = 0u; j < std::size(data->unk_0x50[i].sets); j++)
+				for (auto j = 0u; j < std::size(data->mvmtMantleSoundSets[i].soundSets); j++)
 				{
-					write_sound_set(buf, &data->unk_0x50[i].sets[j], &dest_surface_sounds[i].sets[j]);
+					write_sound_set(buf, &data->mvmtMantleSoundSets[i].soundSets[j], &dest_mantle_types[i].soundSets[j]);
 				}
 			}
 		}
 		buf->pop_stream();
 	}
 
-	void equipment_snd_table::dump(EquipmentSndTable* asset)
+	void equipment_snd_table::dump(EquipmentSoundTable* asset)
 	{
 		assetmanager::dumper write;
 		if (!write.open(dump_path(ASSET_TYPE_EQUIPMENT_SND_TABLE, asset->name)))
@@ -777,25 +779,25 @@ namespace zonetool::s2
 
 		write.dump_single(asset);
 		write.dump_string(asset->name);
-		write.dump_array(asset->surfaceNames, asset->surfaceCount);
-		for (auto i = 0u; asset->surfaceNames && i < asset->surfaceCount; i++)
+		write.dump_array(asset->clothTypes, asset->numClothTypes);
+		for (auto i = 0u; asset->clothTypes && i < asset->numClothTypes; i++)
 		{
-			write.dump_string(asset->surfaceNames[i]);
+			write.dump_string(asset->clothTypes[i].szName);
 		}
-		write.dump_array(asset->equipment, asset->equipmentCount);
-		for (auto i = 0u; asset->equipment && i < asset->equipmentCount; i++)
+		write.dump_array(asset->weaponRattleTypes, asset->numWeaponRattleTypes);
+		for (auto i = 0u; asset->weaponRattleTypes && i < asset->numWeaponRattleTypes; i++)
 		{
-			write.dump_string(asset->equipment[i].name);
+			write.dump_string(asset->weaponRattleTypes[i].szName);
 		}
-		dump_weights(write, asset->unk_0x28, asset);
-		dump_weights(write, asset->unk_0x30, asset);
-		dump_sound_set_lists(write, asset->surfaceSounds, asset->surfaceCount, asset->soundCount);
-		dump_sound_set_lists(write, asset->equipmentSounds, asset->equipmentCount, asset->soundCount);
-		dump_sound_sets(write, asset->sounds, asset->soundCount);
-		write.dump_array(asset->unk_0x50, asset->surfaceCount);
-		for (auto i = 0u; asset->unk_0x50 && i < asset->surfaceCount; i++)
+		dump_chances(write, asset->chancesPLR, asset);
+		dump_chances(write, asset->chancesNPC, asset);
+		dump_move_types_array(write, asset->mvmtClothSoundSets, asset->numClothTypes, asset->numMoveTypes);
+		dump_move_types_array(write, asset->mvmtRattleSoundSets, asset->numWeaponRattleTypes, asset->numMoveTypes);
+		dump_sound_sets(write, asset->mvmtAccentSoundSets.soundSets, asset->numMoveTypes);
+		write.dump_array(asset->mvmtMantleSoundSets, asset->numClothTypes);
+		for (auto i = 0u; asset->mvmtMantleSoundSets && i < asset->numClothTypes; i++)
 		{
-			for (auto& set : asset->unk_0x50[i].sets)
+			for (auto& set : asset->mvmtMantleSoundSets[i].soundSets)
 			{
 				dump_sound_set(write, &set);
 			}

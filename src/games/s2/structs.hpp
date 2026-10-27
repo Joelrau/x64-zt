@@ -1010,7 +1010,8 @@ namespace zonetool::s2
 	struct SndContext
 	{
 		const char* name;
-		char __pad0[0x8];
+		unsigned char priority;
+		char __pad0[0x7];
 	};
 	static_assert(sizeof(SndContext) == 0x10);
 
@@ -1051,14 +1052,14 @@ namespace zonetool::s2
 	{
 		std::uint16_t flags;
 		char hash[32];
-		char __pad1[2];
+		char __pad0[2];
 		unsigned int indexCount;
 		unsigned short vertCount;
 		unsigned short subdivCount;
 		unsigned int dataSize;
 		char* data;
 		char* subdivData;
-		char __pad2[8];
+		char __pad1[8];
 	};
 	static_assert(sizeof(XSurfaceShared) == 0x48);
 	static_assert(offsetof(XSurfaceShared, indexCount) == 0x24);
@@ -1292,7 +1293,7 @@ namespace zonetool::s2
 		char* data;
 		int dataSize;
 		unsigned short seekTableCount;
-		char __pad1[2];
+		char __pad0[2];
 		unsigned int* seekTable;
 	};
 	static_assert(sizeof(LoadedSound) == 0x58);
@@ -1381,6 +1382,198 @@ namespace zonetool::s2
 		SND_MODIFIER_OP_REVERSE_DIVIDE = 0x4,
 		SND_MODIFIER_OP_DIVIDE = 0x5,
 		SND_MODIFIER_OP_NONE = 0x6,
+	};
+
+	enum SoundDspBus : std::uint8_t
+	{
+		SND_DSPBUS_DEFAULT,
+		SND_DSPBUS_WEAPONS,
+		SND_DSPBUS_TURRET_WEAPONS,
+		SND_DSPBUS_WEAPONS_DIST,
+		SND_DSPBUS_AMBIENCE,
+		SND_DSPBUS_EMITTERS,
+		SND_DSPBUS_QUADS,
+		SND_DSPBUS_MUSIC,
+		SND_DSPBUS_FOLEY,
+		SND_DSPBUS_EXPLOSIONS,
+		SND_DSPBUS_TACTICAL,
+		SND_DSPBUS_TACTICAL_SPECIAL,
+		SND_DSPBUS_VEHICLES,
+		SND_DSPBUS_AIR_VEHICLES,
+		SND_DSPBUS_INT_VEHICLES_1,
+		SND_DSPBUS_INT_VEHICLES_2,
+		SND_DSPBUS_VOICES,
+		SND_DSPBUS_VOICES_CRITICAL,
+		SND_DSPBUS_VOICES_PLR,
+		SND_DSPBUS_VOICES_UNFILTERED,
+		SND_DSPBUS_VOICES_SOFT_OCCLU,
+		SND_DSPBUS_VOICES_UNOCCLUDED,
+		SND_DSPBUS_ANIMALS,
+		SND_DSPBUS_PHYSICS,
+		SND_DSPBUS_BATTLECHATTER,
+		SND_DSPBUS_INTERFACE,
+		SND_DSPBUS_SCRIPTED,
+		SND_DSPBUS_SCRIPTED1,
+		SND_DSPBUS_SCRIPTED2,
+		SND_DSPBUS_SCRIPTED3,
+		SND_DSPBUS_SCRIPTED4,
+		SND_DSPBUS_SCRIPTED5,
+		SND_DSPBUS_UNOCCLUDED,
+		SND_DSPBUS_UNOCCLU_NO_TIMESCALE,
+		SND_DSPBUS_WHIZBYS,
+
+		SND_DSPBUS_COUNT,
+	};
+
+	enum SoundVolMod : std::int16_t
+	{
+		SND_VOLMOD_DEFAULT,
+		SND_VOLMOD_HUD,
+		SND_VOLMOD_FRONTEND_SFX,
+		SND_VOLMOD_FRONTEND_MUSIC,
+		SND_VOLMOD_FRONTEND_MUSIC_FORCE,
+		SND_VOLMOD_SP_HIT_ALERT_NPC,
+		SND_VOLMOD_MUSIC_BIG,
+		SND_VOLMOD_MUSIC_STINGER,
+		SND_VOLMOD_MUSIC,
+		SND_VOLMOD_MUSIC2,
+		SND_VOLMOD_MUSIC_EMITTER,
+		SND_VOLMOD_MUSIC_OBJ_COMPLETE,
+		SND_VOLMOD_AMB_QUAD,
+		SND_VOLMOD_AMB_DIST,
+		SND_VOLMOD_AMB_DAMB,
+		SND_VOLMOD_AMB_DAMB_BIG,
+		SND_VOLMOD_AMB_DAMB_CREEPY,
+		SND_VOLMOD_AMB_EMITTER,
+		SND_VOLMOD_AMB_EMITTER_INT,
+		SND_VOLMOD_AMB_EMITTER_EXT,
+		SND_VOLMOD_PHYSICS,
+		SND_VOLMOD_BODYFALL,
+		SND_VOLMOD_BODYFALL_MECH,
+		SND_VOLMOD_FOLEY_PLR,
+		SND_VOLMOD_FOLEY_PLR_SPECIAL,
+		SND_VOLMOD_MP_FOLEY_PLR,
+		SND_VOLMOD_FOLEY_NPC,
+		SND_VOLMOD_FOLEY_MECH,
+		SND_VOLMOD_FOLEYMP_NPC,
+		SND_VOLMOD_WPN_FOLEY_PLR,
+		SND_VOLMOD_WPN_FOLEY_NPC,
+		SND_VOLMOD_WPN_FOLEY_MECH,
+		SND_VOLMOD_FOOTSTEP_PLR,
+		SND_VOLMOD_FOOTSTEP_PLR_SPECIAL,
+		SND_VOLMOD_FOOTSTEP_WATER_PLR,
+		SND_VOLMOD_FOOTSTEP_NPC,
+		SND_VOLMOD_FOOTSTEP_NPC_LARGE,
+		SND_VOLMOD_FOOTSTEP_NPC_HUGE,
+		SND_VOLMOD_FOOTSTEP_MECH,
+		SND_VOLMOD_MP_FOOTSTEP_PLR,
+		SND_VOLMOD_MP_FOOTSTEP_NPC,
+		SND_VOLMOD_MELEE_PLR,
+		SND_VOLMOD_MELEE_NPC,
+		SND_VOLMOD_MELEE_HIT,
+		SND_VOLMOD_PLR_INTERNAL,
+		SND_VOLMOD_DEATHS_DOOR,
+		SND_VOLMOD_CHATTER_FRIENDLY,
+		SND_VOLMOD_CHATTER_ENEMY,
+		SND_VOLMOD_CHATTER_ATLAS,
+		SND_VOLMOD_VOX_FRIENDLY,
+		SND_VOLMOD_VOX_ENEMY,
+		SND_VOLMOD_VOX_ZOMBIE,
+		SND_VOLMOD_VOX_ZOMBIE_GRONDO,
+		SND_VOLMOD_VOX_PLR,
+		SND_VOLMOD_VOX_PLR_BREATH,
+		SND_VOLMOD_DIALOG,
+		SND_VOLMOD_DIALOG_MORALE,
+		SND_VOLMOD_DIALOG_RADIO,
+		SND_VOLMOD_DIALOG_CRITICAL,
+		SND_VOLMOD_DIALOG_AMB,
+		SND_VOLMOD_DIALOG_PASSTHRU,
+		SND_VOLMOD_DESTRUCT,
+		SND_VOLMOD_EXPLOSION,
+		SND_VOLMOD_EXPLOSION_GRENADE,
+		SND_VOLMOD_EXPLOSION_FLASHBANG,
+		SND_VOLMOD_EXPLOSION_ROCKET,
+		SND_VOLMOD_EXPLOSION_CAR,
+		SND_VOLMOD_EXPLOSION_CRITICAL,
+		SND_VOLMOD_EXPLOSION_MORALE,
+		SND_VOLMOD_EXPLOSION_DEBRIS,
+		SND_VOLMOD_IMPACT_CRITICAL,
+		SND_VOLMOD_BULLET_IMPACT_GEO,
+		SND_VOLMOD_BULLET_IMPACT_PLR,
+		SND_VOLMOD_BULLET_IMPACT_NPC,
+		SND_VOLMOD_MP_BULLET_IMPACT_GEO,
+		SND_VOLMOD_MP_BULLET_IMPACT_PLR,
+		SND_VOLMOD_MP_BULLET_IMPACT_NPC,
+		SND_VOLMOD_BULLET_WHIZBY,
+		SND_VOLMOD_MP_BULLET_WHIZBY,
+		SND_VOLMOD_BULLET_IMPACT_SPECIAL,
+		SND_VOLMOD_VEHICLE_PLR,
+		SND_VOLMOD_VEHICLE_PLR_SPECIAL,
+		SND_VOLMOD_VEHICLE_NPC,
+		SND_VOLMOD_VEHICLE_NPC_SPECIAL,
+		SND_VOLMOD_VEHICLE_AVM_PLR,
+		SND_VOLMOD_VEHICLE_AVM_NPC,
+		SND_VOLMOD_WPN_VEHICLE_PLR,
+		SND_VOLMOD_WPN_VEHICLE_NPC,
+		SND_VOLMOD_VEHICLE,
+		SND_VOLMOD_VEHICLE_AIRCRAFT,
+		SND_VOLMOD_VEHICLE_PDRONE,
+		SND_VOLMOD_VEHICLE_DRONE_SWARM,
+		SND_VOLMOD_VEHICLE_AMB,
+		SND_VOLMOD_GRENADEBOUNCE,
+		SND_VOLMOD_MP_GRENADEBOUNCE,
+		SND_VOLMOD_SHELLCASINGS,
+		SND_VOLMOD_MP_SHELLCASINGS,
+		SND_VOLMOD_WPN_PLR,
+		SND_VOLMOD_MP_WPN_PLR,
+		SND_VOLMOD_WPN_PLR_SPECIAL,
+		SND_VOLMOD_WPN_NPC,
+		SND_VOLMOD_MP_WPN_NPC,
+		SND_VOLMOD_WPN_NPC_SPECIAL,
+		SND_VOLMOD_WPN_PROJECTILE,
+		SND_VOLMOD_MP_WPN_PROJECTILE,
+		SND_VOLMOD_WPN_NPC_MOUNTED,
+		SND_VOLMOD_WPN_NPC_MOUNTED_ALT,
+		SND_VOLMOD_WPN_PLR_SHOT_SPECIAL,
+		SND_VOLMOD_WPN_PLR_SHOT,
+		SND_VOLMOD_WPN_PLR_MECH,
+		SND_VOLMOD_WPN_PLR_SUB,
+		SND_VOLMOD_WPN_PLR_TAIL,
+		SND_VOLMOD_WPN_NPC_SHOT,
+		SND_VOLMOD_WPN_NPC_DIST,
+		SND_VOLMOD_WPN_NPC_MECH,
+		SND_VOLMOD_WPN_NPC_SUB,
+		SND_VOLMOD_WPN_NPC_TAIL,
+		SND_VOLMOD_TACTICAL_PLR,
+		SND_VOLMOD_TACTICAL_NPC,
+		SND_VOLMOD_TACTICAL_PLR_SPECIAL,
+		SND_VOLMOD_TACTICAL_NPC_SPECIAL,
+		SND_VOLMOD_PROP,
+		SND_VOLMOD_ATTACK_DOG,
+		SND_VOLMOD_BIG_MOMENT,
+		SND_VOLMOD_SCRIPTED1,
+		SND_VOLMOD_SCRIPTED2,
+		SND_VOLMOD_SCRIPTED3,
+		SND_VOLMOD_SCRIPTED4,
+		SND_VOLMOD_SCRIPTED5,
+		SND_VOLMOD_SCRIPTED6,
+		SND_VOLMOD_SCRIPTED7,
+		SND_VOLMOD_SCRIPTED8,
+		SND_VOLMOD_SCRIPTED9,
+		SND_VOLMOD_SCRIPTED10,
+		SND_VOLMOD_PA_WET,
+		SND_VOLMOD_PA_DRY,
+		SND_VOLMOD_FULLVOLUME,
+		SND_VOLMOD_MP_PRE_EVENT,
+		SND_VOLMOD_MP_POST_EVENT,
+		SND_VOLMOD_MP_SPLASH_NOTIFY,
+		SND_VOLMOD_MP_HIT_MARKER,
+		SND_VOLMOD_ZMB_GRONDO,
+		SND_VOLMOD_ZMB_HORROR_AUDIO_VIGNETTE,
+		SND_VOLMOD_MP_PERK_QUIET,
+		SND_VOLMOD_MW3_LEGACY,
+
+		SND_VOLMOD_COUNT,
 	};
 
 	struct snd_alias_t
@@ -1829,7 +2022,7 @@ namespace zonetool::s2
 		GfxStateBits* stateBitsTable;
 		Material* parentMaterial;
 		unsigned char constantBufferIndex[114];
-		unsigned char __pad2[6];
+		unsigned char __pad0[6];
 		MaterialConstantBufferDef* constantBufferTable;
 		const char** subMaterials;
 	};
@@ -1887,15 +2080,34 @@ namespace zonetool::s2
 	static_assert(offsetof(dmPolytopeData, vertexCount) == 44);
 	static_assert(offsetof(dmPolytopeData, collisionFlags) == 88);
 
-	struct PhysGeomBox
+	struct Bounds
 	{
-		float data[4];
+		vec3_t midPoint;
+		vec3_t halfSize;
 	};
+	assert_sizeof(Bounds, 24);
+
+	enum PhysGeomType : std::int32_t
+	{
+		PHYS_GEOM_POLYTOPE = 0x1,
+		PHYS_GEOM_SPHERE = 0x2,
+		PHYS_GEOM_CAPSULE = 0x3,
+	};
+
+	struct PhysGeomSphere
+	{
+		vec3_t center;
+		float radius;
+	};
+	static_assert(sizeof(PhysGeomSphere) == 0x10);
 
 	struct PhysGeomCapsule
 	{
-		float data[7];
+		vec3_t start;
+		vec3_t end;
+		float radius;
 	};
+	static_assert(sizeof(PhysGeomCapsule) == 0x1C);
 
 	struct PhysGeomInfo
 	{
@@ -1903,10 +2115,10 @@ namespace zonetool::s2
 		{
 			void* data;
 			dmPolytopeData* polytope;
-			PhysGeomBox* box;
+			PhysGeomSphere* sphere;
 			PhysGeomCapsule* capsule;
 		};
-		int type;
+		PhysGeomType type;
 		short partIndex; // into PhysCollmap::parts, -1 for none
 		char __pad0[2];
 	};
@@ -1915,7 +2127,8 @@ namespace zonetool::s2
 	struct PhysCollmapPart
 	{
 		scr_string_t name;
-		char __pad0[4];
+		unsigned short firstGeom;
+		unsigned short geomCount;
 	};
 	static_assert(sizeof(PhysCollmapPart) == 8);
 
@@ -1927,11 +2140,10 @@ namespace zonetool::s2
 		short geomCount;
 		short partCount;
 		char __pad0[12];
-		float boundsMidPoint[3];
-		float boundsHalfSize[3];
+		Bounds bounds;
 	};
 	static_assert(sizeof(PhysCollmap) == 0x40);
-	static_assert(offsetof(PhysCollmap, boundsMidPoint) == 40);
+	static_assert(offsetof(PhysCollmap, bounds) == 40);
 
 	struct XSurfaceCollisionNode
 	{
@@ -2008,34 +2220,40 @@ namespace zonetool::s2
 		char __pad0[2];
 		unsigned int partBits[13];
 		float surfaceArea;
-		char __pad2[4];
+		char __pad1[4];
 	};
 	static_assert(sizeof(XModelSurfs) == 0x50);
 	static_assert(offsetof(XModelSurfs, surfaceArea) == 0x48);
 
-	struct SkeletonScriptCode
+	union SkeletonScriptCode
 	{
-		unsigned char byteCount;
-		unsigned char intCount;
-		unsigned char floatCount;
-		unsigned char scriptStringCount;
-		char __pad0[4];
-		unsigned char* bytes;
-		int* ints;
-		float* floats;
-		scr_string_t* scriptStrings;
+		unsigned int instruction;
+		unsigned int variableIndex;
+		float immediateValue;
 	};
-	static_assert(sizeof(SkeletonScriptCode) == 0x28);
+
+	struct XModelIKData
+	{
+		unsigned char numSolvers;
+		unsigned char numFloatParams;
+		unsigned char numIntParams;
+		unsigned char numStringParams;
+		unsigned char* solverIDs;
+		float* floatParams;
+		int* intParams;
+		scr_string_t* stringParams;
+	};
+	static_assert(sizeof(XModelIKData) == 0x28);
 
 	struct SkeletonScript
 	{
 		const char* name;
-		SkeletonScriptCode code;
-		int dataCount;
-		char __pad0[4];
-		int* data;
+		XModelIKData ikData;
+		int codeSize;
+		SkeletonScriptCode* code;
 	};
 	static_assert(sizeof(SkeletonScript) == 0x40);
+	static_assert(offsetof(SkeletonScript, codeSize) == 0x30);
 
 	struct PhysClothTuningData
 	{
@@ -2088,7 +2306,7 @@ namespace zonetool::s2
 		unsigned short numsurfs;
 		unsigned short surfIndex;
 		XModelSurfs* modelSurfs;
-		char __pad1[64];
+		char __pad0[64];
 	};
 	static_assert(sizeof(XModelLodInfo) == 0x50);
 
@@ -2214,7 +2432,7 @@ namespace zonetool::s2
 		char __pad1[2];
 		float scale;
 		float unkScale[2]; // 1.0 in stock
-		char __pad11[56];
+		char __pad2[56];
 		scr_string_t* boneNames;
 		unsigned short* parentList;
 		short* tagAngles;
@@ -2240,14 +2458,14 @@ namespace zonetool::s2
 		float lodDistSq[6];
 		float boundsRadius; // length of boundsHalfSize
 		unsigned char useLodInfoDist; // reads lodInfo[].dist instead
-		char __pad10[3];
+		char __pad4[3];
 		unsigned int memUsage;
-		char __pad12[8];
+		char __pad5[8];
 		unsigned char unk_0x2D8; // 4 on vehicles
-		char __pad13[1];
+		char __pad6[1];
 		unsigned short extraBoneNameCount;
 		unsigned short extraDataCount;
-		char __pad5[2];
+		char __pad7[2];
 		scr_string_t* extraBoneNames;
 		char* extraData;
 		PhysPreset* physPreset;
@@ -2255,18 +2473,18 @@ namespace zonetool::s2
 		unsigned char unk_0x300; // 1 with physics rigs
 		signed char unk_0x301; // -1 without physics rigs
 		unsigned char physRigCount;
-		char __pad7[5];
+		char __pad8[5];
 		scr_string_t* physRigNames;
 		XModelPhysRig** physRigs;
 		PhysClothTuning* physClothTuning;
 		XModelCloth* cloth;
 		XModelRig* rig;
 		unsigned short imageRefCount;
-		char __pad8[6];
+		char __pad9[6];
 		XModelImageRef* imageRefs;
 		SkeletonScript* skeletonScripts[4];
 		float swayParams[4]; // wires and trees only
-		char __pad9[2];
+		char __pad10[2];
 		short unk_0x372; // -1 in stock
 		float unk_0x374; // 96 in stock
 	};
@@ -2306,13 +2524,6 @@ namespace zonetool::s2
 		char __pad1[8];
 	};
 	static_assert(sizeof(XModelVariant) == 0x30);
-
-	struct Bounds
-	{
-		vec3_t midPoint;
-		vec3_t halfSize;
-	};
-	assert_sizeof(Bounds, 24);
 
 	struct XModelCollSurf
 	{
@@ -2781,7 +2992,6 @@ namespace zonetool::s2
 		float array[4];
 	};
 
-	// same as h1
 	struct FxParticleSimAnimationHeader
 	{
 		float playbackRate;
@@ -2976,14 +3186,14 @@ namespace zonetool::s2
 		unsigned char notifyCount;
 		unsigned char assetType;
 		unsigned char ikType;
-		char __pad1[3];
+		char __pad0[3];
 		unsigned int randomDataByteCount;
 		unsigned int randomDataShortCount;
 		unsigned int randomDataIntCount;
 		unsigned int indexCount;
 		float framerate;
 		float frequency;
-		char __pad2[4];
+		char __pad1[4];
 		scr_string_t* names;
 		char* dataByte;
 		short* dataShort;
@@ -2995,12 +3205,12 @@ namespace zonetool::s2
 		XAnimNotifyInfo* notify;
 		XAnimDeltaPart* deltaPart;
 		const char* secondaryName;
-		char __pad3[2];
+		char __pad2[2];
 		unsigned short blendShapeCount;
-		char __pad4[4];
+		char __pad3[4];
 		scr_string_t* blendShapeWeightNames;
 		float* blendShapeWeights;
-		char __pad5[8];
+		char __pad4[8];
 	};
 	static_assert(sizeof(XAnimParts) == 0xC0);
 	static_assert(offsetof(XAnimParts, boneCount) == 18);
@@ -3069,25 +3279,71 @@ namespace zonetool::s2
 		DDLDef* ddlDef;
 	};
 
-	struct LeaderboardColumnDef
+	enum LbColType : std::int32_t
+	{
+		LBCOL_TYPE_NUMBER = 0x0,
+		LBCOL_TYPE_TIME = 0x1,
+		LBCOL_TYPE_LEVELXP = 0x2,
+		LBCOL_TYPE_PRESTIGE = 0x3,
+		LBCOL_TYPE_BIGNUMBER = 0x4,
+		LBCOL_TYPE_PERCENT = 0x5,
+		LBCOL_TYPE_TIME_FULL = 0x6,
+		LBCOL_TYPE_COUNT = 0x7,
+	};
+
+	enum LbAggType : std::int32_t
+	{
+		LBAGG_TYPE_MIN = 0x0,
+		LBAGG_TYPE_MAX = 0x1,
+		LBAGG_TYPE_SUM = 0x2,
+		LBAGG_TYPE_LAST = 0x3,
+		LBAGG_TYPE_COUNT = 0x4,
+	};
+
+	enum LbUpdateType : std::int32_t
+	{
+		LBUPDATE_TYPE_NORMAL = 0x0,
+		LBUPDATE_TYPE_RANK = 0x1,
+		LBUPDATE_TYPE_COMBINE = 0x2,
+		LBUPDATE_TYPE_VIRTUAL = 0x3,
+		LBUPDATE_TYPE_COUNT = 0x4,
+	};
+
+	struct LbColumnDef
 	{
 		const char* name;
-		char __pad0[16];
+		int id;
+		int propertyId;
+		bool hidden;
+		int statsGroup;
 		const char* statName;
-		char __pad1[24];
+		LbColType type;
+		int precision;
+		LbAggType agg;
+		int uiCalColX;
+		int uiCalColY;
 	};
-	static_assert(sizeof(LeaderboardColumnDef) == 0x38);
+	static_assert(sizeof(LbColumnDef) == 0x38);
+	static_assert(offsetof(LbColumnDef, statName) == 0x18);
 
 	struct LeaderboardDef
 	{
 		const char* name;
-		char __pad0[12];
+		int id;
+		int sourceLbId;
+		int sourceLbWidth;
 		int columnCount;
-		char __pad1[8];
-		LeaderboardColumnDef* columns;
-		char __pad2[16];
+		int xpColId;
+		int prestigeColId;
+		LbColumnDef* columns;
+		LbUpdateType updateType;
+		int trackTypes;
+		int rankColIdX;
+		int rankColIdY;
 	};
 	static_assert(sizeof(LeaderboardDef) == 0x38);
+	static_assert(offsetof(LeaderboardDef, columnCount) == 0x14);
+	static_assert(offsetof(LeaderboardDef, columns) == 0x20);
 
 	struct TracerDef
 	{
@@ -3509,7 +3765,7 @@ namespace zonetool::s2
 		unsigned char eventStreamTimeRemainIndex;
 		unsigned char eventStreamNextChangeTimeIndex;
 		unsigned char flagCount;
-		char __pad1[7];
+		char __pad0[7];
 		unsigned char* flags;
 	};
 	static_assert(sizeof(ScriptablePartDef) == 0x20);
@@ -3554,7 +3810,7 @@ namespace zonetool::s2
 		unsigned char modelCount;
 		unsigned char partStreamCount;
 		unsigned char modelTagCount;
-		char __pad2[6];
+		char __pad1[6];
 		XModel** models;
 		ScriptableModelTag* modelTags;
 	};
@@ -3787,7 +4043,9 @@ namespace zonetool::s2
 
 	struct ClientTriggerAabbNode
 	{
-		char __pad0[28];
+		Bounds bounds;
+		unsigned short firstChild;
+		unsigned short childCount;
 	};
 	static_assert(sizeof(ClientTriggerAabbNode) == 28);
 
@@ -3948,17 +4206,33 @@ namespace zonetool::s2
 	static_assert(offsetof(ScriptableMapEnts, instances) == 16);
 	static_assert(offsetof(ScriptableMapEnts, animEntries) == 32);
 
-	struct MapEntsUnk344Entry
+	struct VehicleNode
 	{
-		scr_string_t names[4];
-		char __pad0[64];
+		scr_string_t targetname;
+		scr_string_t target;
+		scr_string_t script_linkname;
+		scr_string_t script_noteworthy;
+		short index;
+		short flags; // 0x4 = isNotifyNode
+		float speed;
+		float lookAhead;
+		vec3_t origin;
+		vec3_t dir;
+		vec3_t angles;
+		float length;
+		char __pad0[0x4];
+		short targetIndex;
+		short prevIndex;
+		char __pad1[0x4];
 	};
-	static_assert(sizeof(MapEntsUnk344Entry) == 80);
+	static_assert(sizeof(VehicleNode) == 80);
+	static_assert(offsetof(VehicleNode, origin) == 0x1C);
+	static_assert(offsetof(VehicleNode, targetIndex) == 0x48);
 
-	struct MapEntsUnk344
+	struct VehicleNodeList
 	{
-		unsigned short count;
-		MapEntsUnk344Entry* entries;
+		unsigned short nodeCount;
+		VehicleNode* nodes;
 	};
 
 	struct MapEntsUnk360
@@ -3978,7 +4252,7 @@ namespace zonetool::s2
 		SpawnPointRecordList spawnList;
 		SplineRecordList splineList;
 		ScriptableMapEnts scriptableMapEnts;
-		MapEntsUnk344 unk344;
+		VehicleNodeList vehicleNodeList;
 		MapEntsUnk360 unk360;
 	};
 	static_assert(sizeof(MapEnts) == 0x178);
@@ -4141,6 +4415,29 @@ namespace zonetool::s2
 	};
 	static_assert(sizeof(AttachmentField) == 0x10);
 
+	struct AttHybridSettings
+	{
+		float adsSpread;
+		float adsAimPitch;
+		float adsTransInTime;
+		float adsTransInFromSprintTime;
+		float adsTransOutTime;
+		int adsReloadTransTime;
+		float adsCrosshairInFrac;
+		float adsCrosshairOutFrac;
+		float adsZoomFov;
+		float adsZoomInFrac;
+		float adsZoomOutFrac;
+		float adsFovLerpInTime;
+		float adsFovLerpOutTime;
+		float adsBobFactor;
+		float adsViewBobMult;
+		float adsViewErrorMin;
+		float adsViewErrorMax;
+		float adsFireAnimFrac;
+	};
+	static_assert(sizeof(AttHybridSettings) == 0x48);
+
 	struct WeaponAttachment
 	{
 		const char* szInternalName;
@@ -4156,7 +4453,7 @@ namespace zonetool::s2
 		XModel** worldModelsAdditional;
 		XModel** viewModelsAdditional;
 		XModel** reticleViewModels;
-		char (*unkStruct80)[72];
+		AttHybridSettings* hybridSettings;
 		unsigned short* fieldOffsets;
 		AttachmentField* fields;
 		int fieldCount;
@@ -5089,29 +5386,65 @@ namespace zonetool::s2
 	};
 	static_assert(sizeof(SoundSubmix) == 0x18);
 
-	struct SndMusicSubState
+	typedef std::uint32_t SndStringHash;
+
+	struct SndMusicAsset
 	{
-		const char* name;
-		char __pad0[0x50];
+		const char* alias;
+		SndStringHash aliasId;
+		int looping;
+		int completeLoop;
+		int removeAfterPlay;
+		int firstRandom;
+		int startSync;
+		int stopSync;
+		int completeOnStop;
+		unsigned int loopStartOffset;
+		int bpm;
+		int assetType;
+		int loopNumber;
+		int order;
+		int startDelayBeats;
+		int startFadeBeats;
+		int stopDelayBeats;
+		int stopFadeBeats;
+		int startOffsetFrames;
+		int meter;
 	};
-	static_assert(sizeof(SndMusicSubState) == 0x58);
+	static_assert(sizeof(SndMusicAsset) == 0x58);
+
+	enum SndMusicStateStatus : std::int32_t
+	{
+		SND_MUSIC_STATE_INACTIVE = 0x0,
+		SND_MUSIC_STATE_ACTIVE = 0x1,
+	};
 
 	struct SndMusicState
 	{
 		const char* name;
-		char __pad0[0x8];
-		SndMusicSubState intro;
-		SndMusicSubState outro;
+		SndStringHash id;
+		SndMusicAsset intro;
+		SndMusicAsset exit;
 		unsigned int loopCount;
-		SndMusicSubState* loops;
-		char __pad1[0x18];
+		SndMusicAsset* loops;
+		int order;
+		int interruptPriority;
+		int persistPriority;
+		bool isRandom;
+		bool isSequential;
+		bool skipPreviousExit;
+		bool wallClockSync;
+		unsigned int refCount;
+		SndMusicStateStatus status;
 	};
 	static_assert(sizeof(SndMusicState) == 0xE8);
+	static_assert(offsetof(SndMusicState, intro) == 0x10);
+	static_assert(offsetof(SndMusicState, loops) == 0xC8);
 
 	struct SndMusicSet
 	{
 		const char* name;
-		char __pad0[0x4];
+		SndStringHash id;
 		unsigned int stateCount;
 		SndMusicState* states;
 	};
@@ -5122,7 +5455,8 @@ namespace zonetool::s2
 		scr_string_t name;
 		scr_string_t rootName;
 		scr_string_t animName[8];
-		char __pad0[0x48];
+		unsigned __int64 rootIndex;
+		unsigned __int64 animIndices[8];
 	};
 	static_assert(sizeof(AnimationAimSet) == 0x70);
 
@@ -5136,14 +5470,17 @@ namespace zonetool::s2
 	{
 		scr_string_t name;
 		scr_string_t notify;
-		char __pad0[0x9];
+		float blendTime;
+		float blendOutTime;
+		unsigned char flags;
 		unsigned char entryCount;
-		char __pad1[0x6];
+		char __pad0[0x6];
 		AnimationAimSet* aimSet;
 		AnimationEntry* animEntries;
-		void** runtime;
+		unsigned __int64* animIndices;
 	};
 	static_assert(sizeof(AnimationState) == 0x30);
+	static_assert(offsetof(AnimationState, aimSet) == 0x18);
 
 	struct AnimationStateMachine
 	{
@@ -5155,16 +5492,24 @@ namespace zonetool::s2
 	};
 	static_assert(sizeof(AnimationStateMachine) == 0x18);
 
+	enum AnimationController : std::int32_t
+	{
+		ANIMCTRL_NONE = 0x0,
+		ANIMCTRL_PLAYER = 0x1,
+		ANIMCTRL_DOG = 0x2,
+		ANIMCTRL_NUM = 0x3,
+	};
+
 	struct AnimationClass
 	{
 		const char* name;
 		AnimationStateMachine* stateMachine;
-		char __pad0[0x4];
+		AnimationController animCtrl;
 		scr_string_t animTree;
 		ScriptableDef* scriptable;
 		unsigned short soundCount;
 		unsigned short effectCount;
-		char __pad1[0x4];
+		char __pad0[0x4];
 		scr_string_t* soundNotes;
 		scr_string_t* soundNames;
 		scr_string_t* soundOptions;
@@ -5415,26 +5760,60 @@ namespace zonetool::s2
 	static_assert(offsetof(DynEntityDef, xModel) == 0x20);
 	static_assert(offsetof(DynEntityDef, contents) == 0x68);
 
-	struct ClipMapScrEntry
+	struct DynEntityPose
 	{
-		scr_string_t name;
-		char __pad0[0x4];
+		char __pad0[60];
 	};
 
-	struct ClipMayhemInstance
+	struct DynEntityClient
 	{
-		char __pad0[0x20];
-		Mayhem* mayhem;
-		char (*transform)[28];
-		scr_string_t name;
-		char __pad1[0x14];
+		char __pad0[48];
 	};
-	static_assert(sizeof(ClipMayhemInstance) == 0x48);
+
+	struct DynEntityColl
+	{
+		unsigned short sector;
+		unsigned short nextEntInSector;
+		float linkMins[2];
+		float linkMaxs[2];
+	};
+
+	struct ClientEntAnchor
+	{
+		scr_string_t name;
+		int entNum;
+	};
+	static_assert(sizeof(ClientEntAnchor) == 0x8);
+
+	struct ClientEntityLinkToDef
+	{
+		int anchorIndex;
+		vec3_t originOffset;
+		vec3_t angleOffset;
+	};
+	static_assert(sizeof(ClientEntityLinkToDef) == 0x1C);
+
+	struct MayhemInstance
+	{
+		GfxPlacement initialPose;
+		Mayhem* mayhem;
+		ClientEntityLinkToDef* linkTo;
+		scr_string_t scriptName;
+		float curTime;
+		float oldTime;
+		unsigned int initialFlags;
+		unsigned int flags;
+		unsigned int mapEntLookup;
+	};
+	static_assert(sizeof(MayhemInstance) == 0x48);
+	static_assert(offsetof(MayhemInstance, mayhem) == 0x20);
+	static_assert(offsetof(MayhemInstance, scriptName) == 0x30);
 
 	struct clipMap_t
 	{
 		const char* name;
-		char __pad0[0x8];
+		int isInUse;
+		char __pad0[0x4];
 		ClipInfo info;
 		ClipInfo* pInfo;
 		unsigned int numNodes;
@@ -5451,17 +5830,17 @@ namespace zonetool::s2
 		unsigned short dynEntCount[2];
 		char __pad2[0x4];
 		DynEntityDef* dynEntDefList[2];
-		char (*dynEntPoseList[2])[60];
-		char (*dynEntClientList[2])[48];
-		char (*dynEntCollList[2])[20];
-		unsigned int scrStringCount;
-		scr_string_t* scrStrings;
-		unsigned int scrEntryCount;
-		ClipMapScrEntry* scrEntries;
-		unsigned int mayhemCount;
-		ClipMayhemInstance* mayhems;
+		DynEntityPose* dynEntPoseList[2];
+		DynEntityClient* dynEntClientList[2];
+		DynEntityColl* dynEntCollList[2];
+		unsigned int dynEntAnchorCount;
+		scr_string_t* dynEntAnchorNames;
+		unsigned int clientEntAnchorCount;
+		ClientEntAnchor* clientEntAnchors;
+		unsigned int numMayhemScenes;
+		MayhemInstance* mayhemScenes;
 		unsigned int checksum;
-		char __pad3[0x4C];
+		char __pad3[0x4C]; // alignment padding
 	};
 	static_assert(sizeof(clipMap_t) == 0x400);
 	static_assert(offsetof(clipMap_t, checksum) == 0x3B0);
@@ -5546,11 +5925,10 @@ namespace zonetool::s2
 	};
 	static_assert(sizeof(G_GlassPiece) == 12);
 
-	// same layout as h1, name is a script string
 	struct G_GlassName
 	{
 		const char* nameStr;
-		scr_string_t name;
+		scr_string_t name; // set during runtime from nameStr, G_InitGlass
 		unsigned short pieceCount;
 		unsigned short* pieceIndices;
 	};
@@ -5576,91 +5954,144 @@ namespace zonetool::s2
 	};
 	static_assert(sizeof(GlassWorld) == 0x10);
 
-	struct NavMeshRegion
+	struct nav_resource_s
 	{
-		scr_string_t name;
-		char __pad0[0x14];
-		int dataSize;
-		char __pad1[0x38];
-		bool hasExtraData;
-		char __pad2[0x3];
-		unsigned char* data;
-		unsigned char* extraData;
+		scr_string_t targetName;
+		int modelIdx;
+		int targetEntNum;
+		void* pSpace;
+		int graphSize;
+		vec3_t localOffsetPos;
+		vec4_t localOffsetRot;
+		int offsetLayer;
+		nav_resource_s* pPrev;
+		nav_resource_s* pNext;
+		unsigned int layerFlags;
+		bool bDockable;
+		bool bIsVolume;
+		char* pGraphBuffer;
+		char* pWorkingGraph;
 	};
-	static_assert(sizeof(NavMeshRegion) == 0x68);
+	static_assert(sizeof(nav_resource_s) == 0x68);
+	static_assert(offsetof(nav_resource_s, graphSize) == 0x18);
+	static_assert(offsetof(nav_resource_s, bDockable) == 0x54);
 
-	struct NavMeshEdge
+	struct nav_boundary_plane_s
 	{
-		char (*points)[16];
-		int pointCount;
-		char __pad0[0x1C];
+		vec3_t m_Normal;
+		float m_DistFromCenter;
 	};
-	static_assert(sizeof(NavMeshEdge) == 0x28);
+	static_assert(sizeof(nav_boundary_plane_s) == 0x10);
 
-	struct NavMeshEdgeList
+	struct nav_obstacle_hull_s
 	{
-		NavMeshEdge* edges;
-		int edgeCount;
-		char __pad0[0x4];
+		nav_boundary_plane_s* m_Boundaries;
+		int m_NumBoundaries;
+		float m_BoundsX;
+		float m_BoundsY;
+		float m_BoundsZ;
+		vec3_t m_Offset;
+		bool m_bUseBounds;
 	};
-	static_assert(sizeof(NavMeshEdgeList) == 0x10);
+	static_assert(sizeof(nav_obstacle_hull_s) == 0x28);
 
-	struct NavMeshPolygon
+	struct nav_obstacle_bounds_s
 	{
-		char (*points)[16];
-		int pointCount;
-		char __pad0[0x14];
+		nav_obstacle_hull_s* m_Hulls;
+		int m_NumHulls;
 	};
-	static_assert(sizeof(NavMeshPolygon) == 0x20);
+	static_assert(sizeof(nav_obstacle_bounds_s) == 0x10);
 
-	struct NavMeshVolume
+	struct nav_glass_bounds_s
 	{
-		char (*points)[16];
-		int pointCount;
-		char __pad0[0xC];
-		scr_string_t name;
-		char __pad1[0x14];
+		nav_boundary_plane_s* m_Boundaries;
+		int m_NumBoundaries;
+		vec3_t m_Pos;
+		unsigned int m_GlassPieceIndex;
 	};
-	static_assert(sizeof(NavMeshVolume) == 0x30);
+	static_assert(sizeof(nav_glass_bounds_s) == 0x20);
 
-	struct NavMeshLink
+	struct nav_modifier_s
 	{
-		char __pad0[0x30];
-		scr_string_t names[3];
-		char __pad1[0xC];
+		nav_boundary_plane_s* m_Boundaries;
+		int m_NumBoundaries;
+		vec3_t m_Pos;
+		scr_string_t m_TargetName;
+		unsigned int m_UserFlags;
+		unsigned int m_LayerFlags;
+		float m_Weight;
+		bool m_bActiveOnLoad;
 	};
-	static_assert(sizeof(NavMeshLink) == 0x48);
+	static_assert(sizeof(nav_modifier_s) == 0x30);
+	static_assert(offsetof(nav_modifier_s, m_TargetName) == 0x18);
 
-	struct NavMeshCluster
+	struct nav_link_point_s
 	{
-		char (*data)[36];
-		int count;
-		char __pad0[0x4];
+		vec3_t m_Pt1;
+		vec3_t m_Pt2;
 	};
-	static_assert(sizeof(NavMeshCluster) == 0x10);
+
+	struct nav_link_creation_data_s
+	{
+		nav_link_point_s m_Start;
+		nav_link_point_s m_End;
+		scr_string_t m_Animscript;
+		scr_string_t m_Target;
+		scr_string_t m_Parent;
+		unsigned int m_UsageFlags;
+		float m_PenaltyMult;
+		bool m_bBidirectional;
+	};
+	static_assert(sizeof(nav_link_creation_data_s) == 0x48);
+	static_assert(offsetof(nav_link_creation_data_s, m_Animscript) == 0x30);
+
+	struct nav_raw_volume_s
+	{
+		vec3_t m_MidPoint;
+		vec3_t m_HalfSize;
+		float m_MinVoxelSize;
+		float m_ClearanceXY;
+		float m_ClearanceZ;
+	};
+	static_assert(sizeof(nav_raw_volume_s) == 0x24);
+
+	struct nav_raw_custom_volume_tri_s
+	{
+		vec3_t m_Verts[3];
+	};
+	static_assert(sizeof(nav_raw_custom_volume_tri_s) == 0x24);
+
+	struct nav_raw_custom_volume_s
+	{
+		nav_raw_custom_volume_tri_s* m_Tris;
+		int m_NumTris;
+	};
+	static_assert(sizeof(nav_raw_custom_volume_s) == 0x10);
 
 	struct NavMeshData
 	{
 		const char* name;
-		char __pad0[0x8];
-		int regionCount;
-		NavMeshRegion* regions;
-		int edgeListCount;
-		NavMeshEdgeList* edgeLists;
-		int polygonCount;
-		NavMeshPolygon* polygons;
-		int volumeCount;
-		NavMeshVolume* volumes;
-		int linkCount;
-		NavMeshLink* links;
-		int nodeCount;
-		char (*nodes)[12];
-		int faceCount;
-		char (*faces)[36];
-		int clusterCount;
-		NavMeshCluster* clusters;
+		int version;
+		int hasExposureData;
+		int numNavResources;
+		nav_resource_s* navResources;
+		int numObstacleBounds;
+		nav_obstacle_bounds_s* obstacleBounds;
+		int numGlassBounds;
+		nav_glass_bounds_s* glassBounds;
+		int numModifiers;
+		nav_modifier_s* modifiers;
+		int numLinkCreationData;
+		nav_link_creation_data_s* linkCreationData;
+		int numVolumeSeeds;
+		vec3_t* volumeSeeds;
+		int numRawVolumes;
+		nav_raw_volume_s* rawVolumes;
+		int numRawCustomVolumes;
+		nav_raw_custom_volume_s* rawCustomVolumes;
 	};
 	static_assert(sizeof(NavMeshData) == 0x90);
+	static_assert(offsetof(NavMeshData, rawCustomVolumes) == 0x88);
 
 	struct SurfaceFxEntry
 	{
@@ -5675,24 +6106,43 @@ namespace zonetool::s2
 	};
 	static_assert(sizeof(SurfaceFxTable) == 0x10);
 
+	struct ExtentBounds
+	{
+		vec3_t mins;
+		vec3_t maxs;
+	};
+	assert_sizeof(ExtentBounds, 24);
+
+	enum VectorFieldType : std::int32_t
+	{
+		VECTOR_FIELD_TYPE_NONE = 0x0,
+		VECTOR_FIELD_TYPE_FORCE = 0x1,
+		VECTOR_FIELD_TYPE_VELOCITY = 0x2,
+		VECTOR_FIELD_NUM_TYPES = 0x3,
+	};
+
 	struct VectorSubField
 	{
-		char (*vectorData)[16];
-		char __pad0[0x24];
-		unsigned int numBlocks[3];
-		char __pad1[0x8];
+		vec4_t* linearData;
+		ExtentBounds worldBounds;
+		vec3_t ds;
+		unsigned int numEntries[3];
+		unsigned int flags;
+		VectorFieldType type;
 	};
 	static_assert(sizeof(VectorSubField) == 0x40);
+	static_assert(offsetof(VectorSubField, numEntries) == 0x2C);
 
 	struct VectorField
 	{
 		const char* name;
 		VectorSubField* subFields;
-		char __pad0[0x18];
+		ExtentBounds worldBounds;
 		unsigned int numSubFields;
-		char __pad1[0x4];
+		unsigned int pad;
 	};
 	static_assert(sizeof(VectorField) == 0x30);
+	static_assert(offsetof(VectorField, numSubFields) == 0x28);
 
 	struct FxGlassDef
 	{
@@ -5864,13 +6314,6 @@ namespace zonetool::s2
 		FxGlassSystem glassSys;
 	};
 	static_assert(sizeof(FxWorld) == 0xB0);
-
-	struct ExtentBounds
-	{
-		vec3_t mins;
-		vec3_t maxs;
-	};
-	assert_sizeof(ExtentBounds, 24);
 
 	union GfxColorHdr
 	{
@@ -6411,7 +6854,7 @@ namespace zonetool::s2
 		unsigned int vertexCount;
 		unsigned int indexCount;
 		unsigned short* indices;
-		char (*vertices)[32];
+		GfxFrustumLightVertex* vertices;
 		ID3D11Buffer* indexBuffer;
 		ID3D11Buffer* vertexBuffer;
 	};
@@ -7045,32 +7488,6 @@ namespace zonetool::s2
 	assert_offsetof(GfxWorld, lightGridDefaultFXLightingLookup, 4248);
 	assert_offsetof(GfxWorld, buildInfo, 4264);
 
-	struct AddonMapEntsCollision
-	{
-		char (*vertices)[16];
-		char (*normals)[16];
-		int* indices;
-		char* data;
-		char __pad0[0xC];
-		int vertexCount;
-		int normalCount;
-		int indexCount;
-		char __pad1[0x28];
-	};
-	static_assert(sizeof(AddonMapEntsCollision) == 0x60);
-
-	struct AddonMapEntsShape
-	{
-		char (*planes)[32];
-		char (*points)[16];
-		char (*edges)[32];
-		int planeCount;
-		int pointCount;
-		int edgeCount;
-		char __pad0[0xC];
-	};
-	static_assert(sizeof(AddonMapEntsShape) == 0x30);
-
 	struct AddonMapEnts
 	{
 		const char* name;
@@ -7080,32 +7497,43 @@ namespace zonetool::s2
 		ClipInfo* info;
 		unsigned int numSubModels;
 		cmodel_t* cmodels;
-		char (*models)[96];
-		char (*modelBounds)[8];
-		AddonMapEntsCollision* collisions;
-		AddonMapEntsShape* shapes;
-		unsigned int collisionCount;
-		unsigned int shapeCount;
+		GfxBrushModel* models;
+		PhysBrushModel* physModels;
+		dmPolytopeData* polytope;
+		PhysMeshData* meshData;
+		unsigned int polytopeCount;
+		unsigned int meshDataCount;
 	};
 	static_assert(sizeof(AddonMapEnts) == 0x88);
+	static_assert(offsetof(AddonMapEnts, models) == 0x60);
+	static_assert(offsetof(AddonMapEnts, polytopeCount) == 0x80);
 
-	struct VirtualLeaderboardColumnDef
+	struct LbVrColumnDef
 	{
 		const char* name;
-		char __pad0[0x18];
+		int id;
+		int uiCalColX;
+		int uiCalColY;
+		int unk_0x14;
+		int unk_0x18;
+		char __pad0[0x4];
 	};
-	static_assert(sizeof(VirtualLeaderboardColumnDef) == 0x20);
+	static_assert(sizeof(LbVrColumnDef) == 0x20);
 
 	struct VirtualLeaderboardDef
 	{
 		const char* name;
 		const char* sourceName;
-		char __pad0[0x8];
-		VirtualLeaderboardColumnDef* columns;
+		int id;
+		int sourceId;
+		LbVrColumnDef* columns;
 		int columnCount;
-		char __pad1[0xC];
+		int rankColIdX;
+		int rankColIdY;
+		char __pad0[0x4];
 	};
 	static_assert(sizeof(VirtualLeaderboardDef) == 0x30);
+	static_assert(offsetof(VirtualLeaderboardDef, columnCount) == 0x20);
 
 	struct PhysMass
 	{
@@ -7243,43 +7671,78 @@ namespace zonetool::s2
 	};
 	static_assert(sizeof(Clut) == 0x38);
 
+	struct EquipmentClothData
+	{
+		const char* szName;
+	};
+	static_assert(sizeof(EquipmentClothData) == 0x8);
+
+	struct EquipmentWeaponRattleData
+	{
+		const char* szName;
+		float priority;
+		char __pad0[0x4];
+	};
+	static_assert(sizeof(EquipmentWeaponRattleData) == 0x10);
+
+	struct EquipmentSndChance
+	{
+		float rattleChance;
+		float accentChance;
+		float silentChance;
+	};
+	static_assert(sizeof(EquipmentSndChance) == 0xC);
+
+	struct EquipmentChanceMoveTypes
+	{
+		EquipmentSndChance* chances;
+	};
+
+	struct EquipmentChanceRattleTypes
+	{
+		EquipmentChanceMoveTypes* chances;
+	};
+
 	struct EquipmentSoundSet
 	{
-		snd_alias_list_t* unk_0x0;
-		snd_alias_list_t* unk_0x8;
+		snd_alias_list_t* soundPLR;
+		snd_alias_list_t* soundNPC;
 	};
 	static_assert(sizeof(EquipmentSoundSet) == 0x10);
 
-	struct EquipmentSndEquipment
+	struct EquipSoundSetMoveTypes
+	{
+		EquipmentSoundSet* soundSets;
+	};
+
+	struct EquipSoundSetMantleTypes
+	{
+		EquipmentSoundSet soundSets[14];
+	};
+	static_assert(sizeof(EquipSoundSetMantleTypes) == 0xE0);
+
+	struct EquipmentSoundTable
 	{
 		const char* name;
-		char __pad0[0x8];
-	};
-	static_assert(sizeof(EquipmentSndEquipment) == 0x10);
-
-	struct EquipmentSndSurfaceSounds
-	{
-		EquipmentSoundSet sets[14];
-	};
-	static_assert(sizeof(EquipmentSndSurfaceSounds) == 0xE0);
-
-	struct EquipmentSndTable
-	{
-		const char* name;
-		unsigned int surfaceCount;
-		unsigned int equipmentCount;
-		unsigned int soundCount;
+		unsigned int numClothTypes;
+		unsigned int numWeaponRattleTypes;
+		unsigned int numMoveTypes;
 		char __pad0[0x4];
-		const char** surfaceNames;
-		EquipmentSndEquipment* equipment;
-		vec3_t*** unk_0x28;
-		vec3_t*** unk_0x30;
-		EquipmentSoundSet** surfaceSounds;
-		EquipmentSoundSet** equipmentSounds;
-		EquipmentSoundSet* sounds;
-		EquipmentSndSurfaceSounds* unk_0x50;
+		EquipmentClothData* clothTypes;
+		EquipmentWeaponRattleData* weaponRattleTypes;
+		EquipmentChanceRattleTypes* chancesPLR;
+		EquipmentChanceRattleTypes* chancesNPC;
+		EquipSoundSetMoveTypes* mvmtClothSoundSets;
+		EquipSoundSetMoveTypes* mvmtRattleSoundSets;
+		EquipSoundSetMoveTypes mvmtAccentSoundSets;
+		EquipSoundSetMantleTypes* mvmtMantleSoundSets;
 	};
-	static_assert(sizeof(EquipmentSndTable) == 0x58);
+	static_assert(sizeof(EquipmentSoundTable) == 0x58);
+	static_assert(offsetof(EquipmentSoundTable, numMoveTypes) == 0x10);
+	static_assert(offsetof(EquipmentSoundTable, clothTypes) == 0x18);
+	static_assert(offsetof(EquipmentSoundTable, chancesPLR) == 0x28);
+	static_assert(offsetof(EquipmentSoundTable, mvmtAccentSoundSets) == 0x48);
+	static_assert(offsetof(EquipmentSoundTable, mvmtMantleSoundSets) == 0x50);
 
 	union XAssetHeader
 	{

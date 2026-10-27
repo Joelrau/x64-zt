@@ -8,8 +8,6 @@ namespace zonetool::h1::converter::s2::physcollmap
 {
 	namespace
 	{
-		constexpr auto phys_geom_polytope = 1;
-
 		std::unordered_set<std::string> dumped_collmaps;
 
 		void dump_collmap(const PhysCollmap* collmap)
@@ -27,14 +25,14 @@ namespace zonetool::h1::converter::s2::physcollmap
 				}
 
 				auto& geom = new_collmap->geoms[new_collmap->geomCount++];
-				geom.type = phys_geom_polytope;
+				geom.type = zonetool::s2::PHYS_GEOM_POLYTOPE;
 				geom.partIndex = -1;
 				geom.polytope = allocator.allocate<zonetool::s2::dmPolytopeData>();
 				*geom.polytope = physworld::convert_polytope(*polytope);
 			}
 
-			std::memcpy(new_collmap->boundsMidPoint, collmap->bounds.midPoint, sizeof(new_collmap->boundsMidPoint));
-			std::memcpy(new_collmap->boundsHalfSize, collmap->bounds.halfSize, sizeof(new_collmap->boundsHalfSize));
+			std::memcpy(new_collmap->bounds.midPoint, collmap->bounds.midPoint, sizeof(new_collmap->bounds.midPoint));
+			std::memcpy(new_collmap->bounds.halfSize, collmap->bounds.halfSize, sizeof(new_collmap->bounds.halfSize));
 
 			zonetool::s2::phys_collmap::dump(new_collmap);
 			add_csv_row("phys_collmap", collmap->name);

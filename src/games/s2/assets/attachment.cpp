@@ -26,7 +26,7 @@ namespace zonetool::s2
 			json_reflect::counted(&WeaponAttachment::worldModelsAdditional, world_model_count),
 			json_reflect::counted(&WeaponAttachment::viewModelsAdditional, view_model_count),
 			json_reflect::counted(&WeaponAttachment::reticleViewModels, reticle_view_model_count),
-			json_reflect::manual("unkStruct80"),
+			json_reflect::manual("hybridSettings"),
 			json_reflect::manual("fields"),
 			&WeaponAttachment::loadIndex,
 			&WeaponAttachment::adsSettingsMode,
@@ -177,31 +177,33 @@ namespace zonetool::s2
 			}
 		}
 
-		void read_unk_struct80(const json& data, WeaponAttachment& attachment, zone_memory* mem)
+		void read_hybrid_settings(const json& data, WeaponAttachment& attachment, zone_memory* mem)
 		{
 			if (!data.is_array())
 			{
 				return;
 			}
 
-			attachment.unkStruct80 = mem->allocate<char[72]>();
-			for (auto i = 0u; i < std::size(*attachment.unkStruct80) && i < data.size(); i++)
+			attachment.hybridSettings = mem->allocate<AttHybridSettings>();
+			auto* bytes = reinterpret_cast<std::uint8_t*>(attachment.hybridSettings);
+			for (auto i = 0u; i < sizeof(AttHybridSettings) && i < data.size(); i++)
 			{
-				(*attachment.unkStruct80)[i] = static_cast<char>(data[i].get<std::uint8_t>());
+				bytes[i] = data[i].get<std::uint8_t>();
 			}
 		}
 
-		void write_unk_struct80(ordered_json& data, const WeaponAttachment& attachment)
+		void write_hybrid_settings(ordered_json& data, const WeaponAttachment& attachment)
 		{
-			if (!attachment.unkStruct80)
+			if (!attachment.hybridSettings)
 			{
 				data = nullptr;
 				return;
 			}
 
-			for (auto i = 0u; i < std::size(*attachment.unkStruct80); i++)
+			const auto* bytes = reinterpret_cast<const std::uint8_t*>(attachment.hybridSettings);
+			for (auto i = 0u; i < sizeof(AttHybridSettings); i++)
 			{
-				data[i] = static_cast<std::uint8_t>((*attachment.unkStruct80)[i]);
+				data[i] = bytes[i];
 			}
 		}
 	}
@@ -217,7 +219,7 @@ namespace zonetool::s2
 		reader.read_asset_array(ASSET_TYPE_XMODEL, asset->viewModelsAdditional, view_model_count);
 		reader.read_asset_array(ASSET_TYPE_XMODEL, asset->reticleViewModels, reticle_view_model_count);
 		reader.read_script_string(asset->knifeAttachTagOverride);
-		reader.read_array(asset->unkStruct80, 3);
+		reader.read_array(asset->hybridSettings, 3);
 		reader.read_array(asset->fieldOffsets, 1, asset->fieldCount);
 		if (const auto fields = reader.read_array(asset->fields, 7, asset->fieldCount))
 		{
@@ -262,7 +264,7 @@ namespace zonetool::s2
 		write_asset_array(zone, buf, ASSET_TYPE_XMODEL, data->worldModelsAdditional, world_model_count, dest->worldModelsAdditional);
 		write_asset_array(zone, buf, ASSET_TYPE_XMODEL, data->viewModelsAdditional, view_model_count, dest->viewModelsAdditional);
 		write_asset_array(zone, buf, ASSET_TYPE_XMODEL, data->reticleViewModels, reticle_view_model_count, dest->reticleViewModels);
-		write_array(buf, 3, data->unkStruct80, 1, dest->unkStruct80);
+		write_array(buf, 3, data->hybridSettings, 1, dest->hybridSettings);
 		write_array(buf, 1, data->fieldOffsets, data->fieldCount, dest->fieldOffsets);
 		if (auto* fields = write_array(buf, 7, data->fields, data->fieldCount, dest->fields))
 		{
@@ -294,7 +296,7 @@ namespace zonetool::s2
 
 		auto* asset = mem->allocate<WeaponAttachment>();
 		json_reflect::read<attachment_fields>(data, *asset, mem, json_options);
-		read_unk_struct80(data["unkStruct80"], *asset, mem);
+		read_hybrid_settings(data["hybridSettings"], *asset, mem);
 		read_fields(data["fields"], *asset, mem);
 		asset->knifeAttachTagOverride = parse_script_string(data["knifeAttachTagOverride"]);
 		return asset;
@@ -304,7 +306,7 @@ namespace zonetool::s2
 	{
 		ordered_json data;
 		json_reflect::write<attachment_fields>(data, *asset, json_options);
-		write_unk_struct80(data["unkStruct80"], *asset);
+		write_hybrid_settings(data["hybridSettings"], *asset);
 		write_fields(data["fields"], *asset);
 		dump_script_string(data["knifeAttachTagOverride"], asset->knifeAttachTagOverride);
 

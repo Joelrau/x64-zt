@@ -22,15 +22,37 @@ namespace zonetool::h1::converter::s2::clipmap
 			return base + "_000";
 		}
 
-		std::uint32_t lowest_vertex(const PatchesCollisionData& data, const int first_tri, const int end_tri, const std::uint32_t vertex_base)
+		constexpr auto h1_vertex_segment_size = 1024u;
+		constexpr auto s2_vertex_segment_size = 4096u;
+
+		struct vertex_range
 		{
-			auto lowest = std::numeric_limits<std::uint16_t>::max() + vertex_base;
+			std::uint32_t lowest;
+			std::uint32_t highest;
+		};
+
+		vertex_range partition_vertex_range(const PatchesCollisionData& data, const int first_tri, const int end_tri, const std::uint32_t vertex_base)
+		{
+			vertex_range range{std::numeric_limits<std::uint16_t>::max() + vertex_base, vertex_base};
 			for (auto index = 3 * first_tri; index < 3 * end_tri; index++)
 			{
-				lowest = std::min(lowest, data.triIndices[index] + vertex_base);
+				range.lowest = std::min(range.lowest, data.triIndices[index] + vertex_base);
+				range.highest = std::max(range.highest, data.triIndices[index] + vertex_base);
 			}
 
-			return lowest;
+			return range;
+		}
+
+		std::uint32_t append_vertices(std::vector<std::array<float, 3>>& verts, const PatchesCollisionData& data, const vertex_range& range)
+		{
+			const auto base = (static_cast<std::uint32_t>(verts.size()) + s2_vertex_segment_size - 1) / s2_vertex_segment_size * s2_vertex_segment_size;
+			verts.resize(base);
+			for (auto vertex = range.lowest; vertex <= range.highest; vertex++)
+			{
+				verts.push_back({data.verts[vertex][0], data.verts[vertex][1], data.verts[vertex][2]});
+			}
+
+			return base;
 		}
 
 		void convert_materials(const ClipInfo& info, zonetool::s2::ClipInfo& new_info, utils::memory::allocator& allocator)
@@ -183,6 +205,9 @@ namespace zonetool::h1::converter::s2::clipmap
 			const auto tri_indices = allocator.allocate_array<std::uint16_t>(3ull * data.triCount);
 			std::memcpy(tri_indices, data.triIndices, sizeof(std::uint16_t) * 3 * data.triCount);
 
+			std::vector<std::array<float, 3>> verts(data.vertCount);
+			std::memcpy(verts.data(), data.verts, sizeof(vec3_t) * data.vertCount);
+
 			std::vector<std::optional<std::uint32_t>> tri_segments(data.triCount);
 			auto overflow_count = 0u;
 			auto shared_tri_conflicts = 0u;
@@ -192,9 +217,17 @@ namespace zonetool::h1::converter::s2::clipmap
 				const auto& partition = data.partitions[i];
 				const auto first_tri = partition.firstTri;
 				const auto end_tri = std::min(partition.firstTri + partition.triCount, data.triCount);
-				const auto h1_vertex_base = partition.firstVertSegment * 1024u;
-				const auto s2_segment = lowest_vertex(data, first_tri, end_tri, h1_vertex_base) / 4096u;
-				const auto s2_vertex_base = s2_segment * 4096u;
+				const auto h1_vertex_base = partition.firstVertSegment * h1_vertex_segment_size;
+				const auto range = partition_vertex_range(data, first_tri, end_tri, h1_vertex_base);
+				auto first_vertex = range.lowest / s2_vertex_segment_size * s2_vertex_segment_size;
+				auto s2_vertex_base = first_vertex;
+				if (range.highest - first_vertex > std::numeric_limits<std::uint16_t>::max()) // s2 segments are coarser than h1's, copy the verts to a new segment
+				{
+					s2_vertex_base = append_vertices(verts, data, range);
+					first_vertex = range.lowest;
+				}
+
+				const auto s2_segment = s2_vertex_base / s2_vertex_segment_size;
 
 				auto& new_partition = partitions[i];
 				new_partition.triCount = partition.triCount;
@@ -217,7 +250,7 @@ namespace zonetool::h1::converter::s2::clipmap
 					tri_segments[tri] = s2_segment;
 					for (auto corner = 0; corner < 3; corner++)
 					{
-						const auto index = data.triIndices[3 * tri + corner] + h1_vertex_base - s2_vertex_base;
+						const auto index = data.triIndices[3 * tri + corner] + h1_vertex_base - first_vertex;
 						overflow_count += index > std::numeric_limits<std::uint16_t>::max();
 						tri_indices[3 * tri + corner] = static_cast<std::uint16_t>(index);
 					}
@@ -234,8 +267,10 @@ namespace zonetool::h1::converter::s2::clipmap
 				ZONETOOL_WARNING("clipMap \"%s\": %u collision tri indices do not fit 16 bits", asset->name, overflow_count);
 			}
 
-			new_data.vertCount = data.vertCount;
-			new_data.verts = retype<zonetool::s2::vec3_t>(data.verts);
+			const auto new_verts = allocator.allocate_array<zonetool::s2::vec3_t>(verts.size());
+			std::memcpy(new_verts, verts.data(), sizeof(zonetool::s2::vec3_t) * verts.size());
+			new_data.vertCount = static_cast<unsigned int>(verts.size());
+			new_data.verts = new_verts;
 			new_data.triCount = data.triCount;
 			new_data.triIndices = tri_indices;
 			new_data.triEdgeIsWalkable = data.triEdgeIsWalkable;
@@ -363,9 +398,9 @@ namespace zonetool::h1::converter::s2::clipmap
 				}
 
 				new_asset->dynEntDefList[i] = defs;
-				new_asset->dynEntPoseList[i] = allocator.allocate_array<char[60]>(count);
-				new_asset->dynEntClientList[i] = allocator.allocate_array<char[48]>(count);
-				new_asset->dynEntCollList[i] = allocator.allocate_array<char[20]>(count);
+				new_asset->dynEntPoseList[i] = allocator.allocate_array<zonetool::s2::DynEntityPose>(count);
+				new_asset->dynEntClientList[i] = allocator.allocate_array<zonetool::s2::DynEntityClient>(count);
+				new_asset->dynEntCollList[i] = allocator.allocate_array<zonetool::s2::DynEntityColl>(count);
 			}
 		}
 

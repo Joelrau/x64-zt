@@ -44,6 +44,9 @@ namespace zonetool::h1::converter::s2::sound
 			"scripted4", "scripted5", "unoccluded", "unocclu_no_timescale", "whizbys",
 		};
 
+		static_assert(s2_volume_mod_groups.size() == zonetool::s2::SND_VOLMOD_COUNT);
+		static_assert(s2_dsp_buses.size() == zonetool::s2::SND_DSPBUS_COUNT);
+
 		const std::unordered_map<std::string_view, std::string_view> h1_dsp_bus_renames
 		{
 			{"explosions_critical", "explosions"},
@@ -80,7 +83,7 @@ namespace zonetool::h1::converter::s2::sound
 			}
 
 			ZONETOOL_WARNING("%s: volume mod %d has no S2 group, the alias uses \"default\"", alias_name(alias), alias.volModIndex);
-			return 0;
+			return zonetool::s2::SND_VOLMOD_DEFAULT;
 		}
 
 		unsigned char convert_dsp_bus(const snd_alias_t& alias)
@@ -100,7 +103,7 @@ namespace zonetool::h1::converter::s2::sound
 			}
 
 			ZONETOOL_WARNING("%s: dsp bus %u has no S2 bus, the alias uses \"default\"", alias_name(alias), alias.dspBusIndex);
-			return 0;
+			return zonetool::s2::SND_DSPBUS_DEFAULT;
 		}
 
 		int convert_flags(const int h1_flags, const zonetool::s2::SoundFile* file)
@@ -307,7 +310,7 @@ namespace zonetool::h1::converter::s2::sound
 			result.volModIndex = convert_volume_mod(alias);
 
 			// s2 plays both ambiences of a zone crossfade, stock amb_quad aliases use 32767
-			if (result.volModIndex == static_cast<short>(*find_name(s2_volume_mod_groups, "amb_quad")))
+			if (result.volModIndex == zonetool::s2::SND_VOLMOD_AMB_QUAD)
 			{
 				result.polyCount = 32767;
 			}

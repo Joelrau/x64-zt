@@ -520,13 +520,13 @@ namespace zonetool::h1::converter::s2::gfxworld
 			vec3 mins{std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), std::numeric_limits<float>::max()};
 			vec3 maxs{-mins[0], -mins[1], -mins[2]};
 			frustum.vertexCount = static_cast<unsigned int>(proxy.vertices.size());
-			frustum.vertices = allocator.allocate_array<char[32]>(proxy.vertices.size());
+			frustum.vertices = allocator.allocate_array<zonetool::s2::GfxFrustumLightVertex>(proxy.vertices.size());
 			for (auto i = 0u; i < proxy.vertices.size(); i++)
 			{
 				zonetool::s2::GfxFrustumLightVertex vertex{};
 				std::memcpy(vertex.xyz, proxy.vertices[i].data(), sizeof(vertex.xyz));
 				vertex.normal = pack_unorm_normal(normalize(normals[i]));
-				std::memcpy(frustum.vertices[i], &vertex, sizeof(vertex));
+				frustum.vertices[i] = vertex;
 				for (auto axis = 0; axis < 3; axis++)
 				{
 					mins[axis] = std::min(mins[axis], proxy.vertices[i][axis]);

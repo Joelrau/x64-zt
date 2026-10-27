@@ -10,13 +10,13 @@ namespace zonetool::s2
 			reader.push_stream(XFILE_BLOCK_VIRTUAL);
 			reader.read_string(asset->name);
 
-			auto& code = asset->code;
-			reader.read_array(code.bytes, 0, code.byteCount);
-			reader.read_array(code.ints, 3, code.intCount);
-			reader.read_array(code.floats, 3, code.floatCount);
-			reader.read_script_string_array(code.scriptStrings, code.scriptStringCount);
+			auto& ik = asset->ikData;
+			reader.read_array(ik.solverIDs, 0, ik.numSolvers);
+			reader.read_array(ik.floatParams, 3, ik.numFloatParams);
+			reader.read_array(ik.intParams, 3, ik.numIntParams);
+			reader.read_script_string_array(ik.stringParams, ik.numStringParams);
 
-			reader.read_array(asset->data, 3, asset->dataCount);
+			reader.read_array(asset->code, 3, asset->codeSize);
 			reader.pop_stream();
 		}
 
@@ -33,12 +33,12 @@ namespace zonetool::s2
 			auto* asset = read.read_single<SkeletonScript>();
 			asset->name = read.read_string();
 
-			auto& code = asset->code;
-			code.bytes = read.read_array<unsigned char>();
-			code.ints = read.read_array<int>();
-			code.floats = read.read_array<float>();
-			code.scriptStrings = read_script_strings(read, mem, code.scriptStringCount);
-			asset->data = read.read_array<int>();
+			auto& ik = asset->ikData;
+			ik.solverIDs = read.read_array<unsigned char>();
+			ik.floatParams = read.read_array<float>();
+			ik.intParams = read.read_array<int>();
+			ik.stringParams = read_script_strings(read, mem, ik.numStringParams);
+			asset->code = read.read_array<SkeletonScriptCode>();
 			read.close();
 
 			return asset;
@@ -46,8 +46,8 @@ namespace zonetool::s2
 
 		void prepare(zone_buffer* buf, zone_memory* mem) override
 		{
-			const auto& code = this->asset_->code;
-			this->script_string_ids_.assign(code.scriptStrings, code.scriptStrings + code.scriptStringCount);
+			const auto& ik = this->asset_->ikData;
+			this->script_string_ids_.assign(ik.stringParams, ik.stringParams + ik.numStringParams);
 			prepare_script_strings(buf, this->script_string_ids_.data(), this->script_string_ids_.size());
 		}
 
@@ -60,37 +60,37 @@ namespace zonetool::s2
 
 			dest->name = this->write_name(buf);
 
-			const auto& code = data->code;
-			auto& dest_code = dest->code;
-			if (code.bytes)
+			const auto& ik = data->ikData;
+			auto& dest_ik = dest->ikData;
+			if (ik.solverIDs)
 			{
 				buf->align(0);
-				buf->write(code.bytes, code.byteCount);
-				buf->clear_pointer(&dest_code.bytes);
+				buf->write(ik.solverIDs, ik.numSolvers);
+				buf->clear_pointer(&dest_ik.solverIDs);
 			}
-			if (code.ints)
+			if (ik.floatParams)
 			{
 				buf->align(3);
-				buf->write(code.ints, code.intCount);
-				buf->clear_pointer(&dest_code.ints);
+				buf->write(ik.floatParams, ik.numFloatParams);
+				buf->clear_pointer(&dest_ik.floatParams);
 			}
-			if (code.floats)
+			if (ik.intParams)
 			{
 				buf->align(3);
-				buf->write(code.floats, code.floatCount);
-				buf->clear_pointer(&dest_code.floats);
+				buf->write(ik.intParams, ik.numIntParams);
+				buf->clear_pointer(&dest_ik.intParams);
 			}
-			if (code.scriptStrings)
+			if (ik.stringParams)
 			{
 				buf->align(3);
-				buf->write(this->script_string_ids_.data(), code.scriptStringCount);
-				buf->clear_pointer(&dest_code.scriptStrings);
+				buf->write(this->script_string_ids_.data(), ik.numStringParams);
+				buf->clear_pointer(&dest_ik.stringParams);
 			}
-			if (data->data)
+			if (data->code)
 			{
 				buf->align(3);
-				buf->write(data->data, data->dataCount);
-				buf->clear_pointer(&dest->data);
+				buf->write(data->code, data->codeSize);
+				buf->clear_pointer(&dest->code);
 			}
 
 			buf->pop_stream();
@@ -104,14 +104,14 @@ namespace zonetool::s2
 				return;
 			}
 
-			const auto& code = asset->code;
+			const auto& ik = asset->ikData;
 			write.dump_single(asset);
 			write.dump_string(asset->name);
-			write.dump_array(code.bytes, code.byteCount);
-			write.dump_array(code.ints, code.intCount);
-			write.dump_array(code.floats, code.floatCount);
-			dump_script_strings(write, code.scriptStrings, code.scriptStringCount);
-			write.dump_array(asset->data, asset->dataCount);
+			write.dump_array(ik.solverIDs, ik.numSolvers);
+			write.dump_array(ik.floatParams, ik.numFloatParams);
+			write.dump_array(ik.intParams, ik.numIntParams);
+			dump_script_strings(write, ik.stringParams, ik.numStringParams);
+			write.dump_array(asset->code, asset->codeSize);
 			write.close();
 		}
 

@@ -418,7 +418,7 @@ namespace zonetool::s2
 			{
 				for (auto i = 0u; i < asset->numSubFields; i++)
 				{
-					reader.read_array(sub_fields[i].vectorData, 3, block_count(sub_fields[i]));
+					reader.read_array(sub_fields[i].linearData, 3, entry_count(sub_fields[i]));
 				}
 			}
 			reader.pop_stream();
@@ -439,7 +439,7 @@ namespace zonetool::s2
 			asset->subFields = read.read_array<VectorSubField>();
 			for (auto i = 0u; asset->subFields && i < asset->numSubFields; i++)
 			{
-				asset->subFields[i].vectorData = read.read_array<char[16]>();
+				asset->subFields[i].linearData = read.read_array<vec4_t>();
 			}
 			read.close();
 
@@ -459,7 +459,7 @@ namespace zonetool::s2
 				auto* sub_fields = buf->write(data->subFields, data->numSubFields);
 				for (auto i = 0u; i < data->numSubFields; i++)
 				{
-					write_inline(buf, 3, data->subFields[i].vectorData, block_count(data->subFields[i]), sub_fields[i].vectorData);
+					write_inline(buf, 3, data->subFields[i].linearData, entry_count(data->subFields[i]), sub_fields[i].linearData);
 				}
 				buf->clear_pointer(&dest->subFields);
 			}
@@ -479,15 +479,15 @@ namespace zonetool::s2
 			write.dump_array(asset->subFields, asset->numSubFields);
 			for (auto i = 0u; asset->subFields && i < asset->numSubFields; i++)
 			{
-				write.dump_array(asset->subFields[i].vectorData, block_count(asset->subFields[i]));
+				write.dump_array(asset->subFields[i].linearData, entry_count(asset->subFields[i]));
 			}
 			write.close();
 		}
 
 	private:
-		static std::uint32_t block_count(const VectorSubField& field)
+		static std::uint32_t entry_count(const VectorSubField& field)
 		{
-			return field.numBlocks[0] * field.numBlocks[1] * field.numBlocks[2];
+			return field.numEntries[0] * field.numEntries[1] * field.numEntries[2];
 		}
 	};
 }

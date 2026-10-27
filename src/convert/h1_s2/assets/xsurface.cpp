@@ -16,6 +16,7 @@ namespace zonetool::h1::converter::s2::xsurface
 		constexpr std::uint32_t h1_bone_offset_scale = 64;
 
 		std::vector<XModelSurfs*> pending_surfs;
+		std::unordered_set<std::string> pending_names;
 		std::unordered_map<const XSurface*, std::uint32_t> base_vert_indices;
 
 		struct vertex_data
@@ -336,7 +337,7 @@ namespace zonetool::h1::converter::s2::xsurface
 
 	void dump(XModelSurfs* asset)
 	{
-		if (!asset->surfs || !asset->numsurfs)
+		if (!asset->surfs || !asset->numsurfs || pending_names.contains(asset->name))
 		{
 			return;
 		}
@@ -351,6 +352,7 @@ namespace zonetool::h1::converter::s2::xsurface
 		}
 
 		pending_surfs.emplace_back(asset);
+		pending_names.emplace(asset->name);
 		add_csv_row("xmodelsurfs", asset->name);
 	}
 
@@ -377,6 +379,7 @@ namespace zonetool::h1::converter::s2::xsurface
 		}
 
 		pending_surfs.clear();
+		pending_names.clear();
 		base_vert_indices.clear();
 	}
 

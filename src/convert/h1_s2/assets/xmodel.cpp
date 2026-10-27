@@ -186,6 +186,14 @@ namespace zonetool::h1::converter::s2::xmodel
 	{
 		utils::memory::allocator allocator;
 		xsurface::assign_base_vert_indices(asset);
+		for (auto i = 0; i < asset->numLods && i < static_cast<int>(std::size(asset->lodInfo)); i++)
+		{
+			if (asset->lodInfo[i].modelSurfs)
+			{
+				xsurface::dump(asset->lodInfo[i].modelSurfs); // a map model can use surfs from a common zone
+			}
+		}
+
 		const auto converted = convert(asset, allocator);
 		zonetool::s2::xmodel_base::dump(converted->base);
 		zonetool::s2::xmodel::dump(converted);

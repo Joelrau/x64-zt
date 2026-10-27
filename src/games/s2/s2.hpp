@@ -66,7 +66,7 @@
 	x(ASSET_TYPE_ANIMCLASS, anim_class, AnimationClass) \
 	x(ASSET_TYPE_VEHICLE, vehicle_def, VehicleDef) \
 	x(ASSET_TYPE_VIRTUAL_LEADERBOARD, virtual_leaderboard, VirtualLeaderboardDef) \
-	x(ASSET_TYPE_EQUIPMENT_SND_TABLE, equipment_snd_table, EquipmentSndTable) \
+	x(ASSET_TYPE_EQUIPMENT_SND_TABLE, equipment_snd_table, EquipmentSoundTable) \
 	x(ASSET_TYPE_SCRIPTABLE, scriptable_def, ScriptableDef) \
 	x(ASSET_TYPE_GFXWORLD_TRANSIENT_ZONE, gfx_map_trzone, GfxMapTrZone) \
 	x(ASSET_TYPE_CLIPMAP_TRANSIENT_ZONE, clip_map_trzone, ClipMapTrZone) \

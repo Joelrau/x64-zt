@@ -324,21 +324,21 @@ namespace zonetool::s2
 			read_runtime_array(reader, XFILE_BLOCK_RUNTIME, asset->dynEntCollList[i], 3, asset->dynEntCount[i]);
 		}
 
-		reader.read_script_string_array(asset->scrStrings, asset->scrStringCount);
-		if (const auto entries = reader.read_array(asset->scrEntries, 3, asset->scrEntryCount))
+		reader.read_script_string_array(asset->dynEntAnchorNames, asset->dynEntAnchorCount);
+		if (const auto anchors = reader.read_array(asset->clientEntAnchors, 3, asset->clientEntAnchorCount))
 		{
-			for (auto i = 0u; i < asset->scrEntryCount; i++)
+			for (auto i = 0u; i < asset->clientEntAnchorCount; i++)
 			{
-				reader.read_script_string(entries[i].name);
+				reader.read_script_string(anchors[i].name);
 			}
 		}
-		if (const auto mayhems = reader.read_array(asset->mayhems, 7, asset->mayhemCount))
+		if (const auto scenes = reader.read_array(asset->mayhemScenes, 7, asset->numMayhemScenes))
 		{
-			for (auto i = 0u; i < asset->mayhemCount; i++)
+			for (auto i = 0u; i < asset->numMayhemScenes; i++)
 			{
-				reader.read_asset(ASSET_TYPE_MAYHEM, mayhems[i].mayhem);
-				reader.read_array(mayhems[i].transform, 3);
-				reader.read_script_string(mayhems[i].name);
+				reader.read_asset(ASSET_TYPE_MAYHEM, scenes[i].mayhem);
+				reader.read_array(scenes[i].linkTo, 3);
+				reader.read_script_string(scenes[i].scriptName);
 			}
 		}
 
@@ -396,21 +396,21 @@ namespace zonetool::s2
 			parse_runtime_array(mem, asset->dynEntCollList[i], asset->dynEntCount[i]);
 		}
 
-		parse_script_string_array(read, mem, asset->scrStrings, asset->scrStringCount);
-		if (const auto entries = parse_array(read, mem, asset->scrEntries, asset->scrEntryCount))
+		parse_script_string_array(read, mem, asset->dynEntAnchorNames, asset->dynEntAnchorCount);
+		if (const auto anchors = parse_array(read, mem, asset->clientEntAnchors, asset->clientEntAnchorCount))
 		{
-			for (auto i = 0u; i < asset->scrEntryCount; i++)
+			for (auto i = 0u; i < asset->clientEntAnchorCount; i++)
 			{
-				entries[i].name = parse_script_string(read);
+				anchors[i].name = parse_script_string(read);
 			}
 		}
-		if (const auto mayhems = parse_array(read, mem, asset->mayhems, asset->mayhemCount))
+		if (const auto scenes = parse_array(read, mem, asset->mayhemScenes, asset->numMayhemScenes))
 		{
-			for (auto i = 0u; i < asset->mayhemCount; i++)
+			for (auto i = 0u; i < asset->numMayhemScenes; i++)
 			{
-				mayhems[i].mayhem = read.read_asset<Mayhem>();
-				parse_array(read, mem, mayhems[i].transform, 1);
-				mayhems[i].name = parse_script_string(read);
+				scenes[i].mayhem = read.read_asset<Mayhem>();
+				parse_array(read, mem, scenes[i].linkTo, 1);
+				scenes[i].scriptName = parse_script_string(read);
 			}
 		}
 		read.close();
@@ -423,14 +423,14 @@ namespace zonetool::s2
 		auto* data = this->asset_;
 		script_string_preparer prepare(buf);
 
-		prepare(data->scrStrings, data->scrStringCount);
-		for (auto i = 0u; data->scrEntries && i < data->scrEntryCount; i++)
+		prepare(data->dynEntAnchorNames, data->dynEntAnchorCount);
+		for (auto i = 0u; data->clientEntAnchors && i < data->clientEntAnchorCount; i++)
 		{
-			prepare(data->scrEntries[i].name);
+			prepare(data->clientEntAnchors[i].name);
 		}
-		for (auto i = 0u; data->mayhems && i < data->mayhemCount; i++)
+		for (auto i = 0u; data->mayhemScenes && i < data->numMayhemScenes; i++)
 		{
-			prepare(data->mayhems[i].name);
+			prepare(data->mayhemScenes[i].scriptName);
 		}
 	}
 
@@ -454,9 +454,9 @@ namespace zonetool::s2
 		{
 			add_dyn_entity_dependencies(zone, data->dynEntDefList[i], data->dynEntCount[i]);
 		}
-		for (auto i = 0u; data->mayhems && i < data->mayhemCount; i++)
+		for (auto i = 0u; data->mayhemScenes && i < data->numMayhemScenes; i++)
 		{
-			add_dependency(zone, ASSET_TYPE_MAYHEM, data->mayhems[i].mayhem);
+			add_dependency(zone, ASSET_TYPE_MAYHEM, data->mayhemScenes[i].mayhem);
 		}
 	}
 
@@ -514,14 +514,14 @@ namespace zonetool::s2
 			write_runtime_array(buf, XFILE_BLOCK_RUNTIME, 3, data->dynEntCollList[i], data->dynEntCount[i], dest->dynEntCollList[i]);
 		}
 
-		write_array(buf, 3, data->scrStrings, data->scrStringCount, dest->scrStrings);
-		write_array(buf, 3, data->scrEntries, data->scrEntryCount, dest->scrEntries);
-		if (const auto dest_mayhems = write_array(buf, 7, data->mayhems, data->mayhemCount, dest->mayhems))
+		write_array(buf, 3, data->dynEntAnchorNames, data->dynEntAnchorCount, dest->dynEntAnchorNames);
+		write_array(buf, 3, data->clientEntAnchors, data->clientEntAnchorCount, dest->clientEntAnchors);
+		if (const auto dest_scenes = write_array(buf, 7, data->mayhemScenes, data->numMayhemScenes, dest->mayhemScenes))
 		{
-			for (auto i = 0u; i < data->mayhemCount; i++)
+			for (auto i = 0u; i < data->numMayhemScenes; i++)
 			{
-				dest_mayhems[i].mayhem = asset_reference(zone, ASSET_TYPE_MAYHEM, data->mayhems[i].mayhem);
-				write_array(buf, 3, data->mayhems[i].transform, 1, dest_mayhems[i].transform);
+				dest_scenes[i].mayhem = asset_reference(zone, ASSET_TYPE_MAYHEM, data->mayhemScenes[i].mayhem);
+				write_array(buf, 3, data->mayhemScenes[i].linkTo, 1, dest_scenes[i].linkTo);
 			}
 		}
 
@@ -565,18 +565,18 @@ namespace zonetool::s2
 			dump_dyn_entity_defs(write, asset->dynEntDefList[i], asset->dynEntCount[i]);
 		}
 
-		dump_script_string_array(write, asset->scrStrings, asset->scrStringCount);
-		write.dump_array(asset->scrEntries, asset->scrEntryCount);
-		for (auto i = 0u; asset->scrEntries && i < asset->scrEntryCount; i++)
+		dump_script_string_array(write, asset->dynEntAnchorNames, asset->dynEntAnchorCount);
+		write.dump_array(asset->clientEntAnchors, asset->clientEntAnchorCount);
+		for (auto i = 0u; asset->clientEntAnchors && i < asset->clientEntAnchorCount; i++)
 		{
-			dump_script_string(write, asset->scrEntries[i].name);
+			dump_script_string(write, asset->clientEntAnchors[i].name);
 		}
-		write.dump_array(asset->mayhems, asset->mayhemCount);
-		for (auto i = 0u; asset->mayhems && i < asset->mayhemCount; i++)
+		write.dump_array(asset->mayhemScenes, asset->numMayhemScenes);
+		for (auto i = 0u; asset->mayhemScenes && i < asset->numMayhemScenes; i++)
 		{
-			write.dump_asset(asset->mayhems[i].mayhem);
-			write.dump_single(asset->mayhems[i].transform);
-			dump_script_string(write, asset->mayhems[i].name);
+			write.dump_asset(asset->mayhemScenes[i].mayhem);
+			write.dump_single(asset->mayhemScenes[i].linkTo);
+			dump_script_string(write, asset->mayhemScenes[i].scriptName);
 		}
 		write.close();
 	}

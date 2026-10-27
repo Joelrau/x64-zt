@@ -490,29 +490,30 @@ namespace zonetool::s2
 			}
 		}
 
-		void dump_unknown(assetmanager::dumper& write, MapEnts* asset)
+		void dump_vehicle_nodes(assetmanager::dumper& write, VehicleNodeList* list)
 		{
-			write.dump_array(asset->unk344.entries, asset->unk344.count);
-			for (auto i = 0; asset->unk344.entries && i < asset->unk344.count; i++)
+			write.dump_array(list->nodes, list->nodeCount);
+			for (auto i = 0; list->nodes && i < list->nodeCount; i++)
 			{
-				dump_script_strings(write, asset->unk344.entries[i].names, std::size(asset->unk344.entries[i].names));
+				dump_script_string(write, list->nodes[i].targetname);
+				dump_script_string(write, list->nodes[i].target);
+				dump_script_string(write, list->nodes[i].script_linkname);
+				dump_script_string(write, list->nodes[i].script_noteworthy);
 			}
-			write.dump_array(asset->unk360.entries, asset->unk360.count);
 		}
 
-		void parse_unknown(assetmanager::reader& read, zone_memory* mem, MapEnts* asset)
+		void parse_vehicle_nodes(assetmanager::reader& read, zone_memory* mem, VehicleNodeList* list)
 		{
-			if (const auto entries = parse_array(read, mem, asset->unk344.entries, asset->unk344.count))
+			if (const auto nodes = parse_array(read, mem, list->nodes, list->nodeCount))
 			{
-				for (auto i = 0; i < asset->unk344.count; i++)
+				for (auto i = 0; i < list->nodeCount; i++)
 				{
-					for (auto& entry_name : entries[i].names)
-					{
-						entry_name = parse_script_string(read);
-					}
+					nodes[i].targetname = parse_script_string(read);
+					nodes[i].target = parse_script_string(read);
+					nodes[i].script_linkname = parse_script_string(read);
+					nodes[i].script_noteworthy = parse_script_string(read);
 				}
 			}
-			parse_array(read, mem, asset->unk360.entries, asset->unk360.count);
 		}
 	}
 
@@ -582,11 +583,14 @@ namespace zonetool::s2
 			}
 		}
 
-		if (const auto entries = reader.read_array(asset->unk344.entries, 3, asset->unk344.count))
+		if (const auto nodes = reader.read_array(asset->vehicleNodeList.nodes, 3, asset->vehicleNodeList.nodeCount))
 		{
-			for (auto i = 0; i < asset->unk344.count; i++)
+			for (auto i = 0; i < asset->vehicleNodeList.nodeCount; i++)
 			{
-				reader.read_script_strings(entries[i].names, std::size(entries[i].names));
+				reader.read_script_string(nodes[i].targetname);
+				reader.read_script_string(nodes[i].target);
+				reader.read_script_string(nodes[i].script_linkname);
+				reader.read_script_string(nodes[i].script_noteworthy);
 			}
 		}
 		reader.read_array(asset->unk360.entries, 3, asset->unk360.count);
@@ -643,16 +647,7 @@ namespace zonetool::s2
 				}
 			}
 
-			if (const auto entries = parse_array(read, mem, asset->unk344.entries, asset->unk344.count))
-			{
-				for (auto i = 0; i < asset->unk344.count; i++)
-				{
-					for (auto& entry_name : entries[i].names)
-					{
-						entry_name = parse_script_string(read);
-					}
-				}
-			}
+			parse_vehicle_nodes(read, mem, &asset->vehicleNodeList);
 			parse_array(read, mem, asset->unk360.entries, asset->unk360.count);
 			read.close();
 
@@ -677,7 +672,8 @@ namespace zonetool::s2
 
 		auto* asset = read.read_single<MapEnts>();
 		asset->name = read.read_string();
-		parse_unknown(read, mem, asset);
+		parse_vehicle_nodes(read, mem, &asset->vehicleNodeList);
+		parse_array(read, mem, asset->unk360.entries, asset->unk360.count);
 		read.close();
 
 		parse_entity_string(mem, name, asset);
@@ -731,9 +727,13 @@ namespace zonetool::s2
 			prepare(instance->name);
 		}
 
-		for (auto i = 0; data->unk344.entries && i < data->unk344.count; i++)
+		for (auto i = 0; data->vehicleNodeList.nodes && i < data->vehicleNodeList.nodeCount; i++)
 		{
-			prepare(data->unk344.entries[i].names, std::size(data->unk344.entries[i].names));
+			auto* node = &data->vehicleNodeList.nodes[i];
+			prepare(node->targetname);
+			prepare(node->target);
+			prepare(node->script_linkname);
+			prepare(node->script_noteworthy);
 		}
 	}
 
@@ -778,7 +778,7 @@ namespace zonetool::s2
 			}
 		}
 
-		write_array(buf, 3, data->unk344.entries, data->unk344.count, dest->unk344.entries);
+		write_array(buf, 3, data->vehicleNodeList.nodes, data->vehicleNodeList.nodeCount, dest->vehicleNodeList.nodes);
 		write_array(buf, 3, data->unk360.entries, data->unk360.count, dest->unk360.entries);
 
 		buf->pop_stream();
@@ -792,10 +792,11 @@ namespace zonetool::s2
 			return;
 		}
 
-		// the .bin keeps the header and the unknown parts, everything else goes into its own .ents file
+		// the .bin keeps the header, the vehicle nodes and unk360, everything else goes into its own .ents file
 		write.dump_single(asset);
 		write.dump_string(asset->name);
-		dump_unknown(write, asset);
+		dump_vehicle_nodes(write, &asset->vehicleNodeList);
+		write.dump_array(asset->unk360.entries, asset->unk360.count);
 		write.close();
 
 		const std::string name = asset->name;
@@ -831,35 +832,35 @@ namespace zonetool::s2
 		map_ents::read_triggers(reader, &asset->trigger);
 		read_info_array(reader, asset->info);
 
-		if (const auto models = reader.read_array(asset->cmodels, 7, asset->numSubModels))
+		if (const auto cmodels = reader.read_array(asset->cmodels, 7, asset->numSubModels))
 		{
 			for (auto i = 0u; i < asset->numSubModels; i++)
 			{
-				read_info_array(reader, models[i].info);
+				read_info_array(reader, cmodels[i].info);
 			}
 		}
 		reader.read_array(asset->models, 3, asset->numSubModels);
-		reader.read_array(asset->modelBounds, 3, asset->numSubModels);
+		reader.read_array(asset->physModels, 3, asset->numSubModels);
 
-		if (const auto collisions = reader.read_array(asset->collisions, 7, asset->collisionCount))
+		if (const auto polytopes = reader.read_array(asset->polytope, 7, asset->polytopeCount))
 		{
-			for (auto i = 0u; i < asset->collisionCount; i++)
+			for (auto i = 0u; i < asset->polytopeCount; i++)
 			{
-				auto* collision = &collisions[i];
-				reader.read_array(collision->vertices, 15, collision->vertexCount);
-				reader.read_array(collision->normals, 15, collision->normalCount);
-				reader.read_array(collision->indices, 0, collision->indexCount);
-				reader.read_array(collision->data, 0, collision->normalCount);
+				auto* polytope = &polytopes[i];
+				reader.read_array(polytope->vertices, 15, polytope->vertexCount);
+				reader.read_array(polytope->planes, 15, polytope->faceCount);
+				reader.read_array(polytope->subEdges, 0, polytope->subEdgeCount);
+				reader.read_array(polytope->faceSubEdges, 0, polytope->faceCount);
 			}
 		}
-		if (const auto shapes = reader.read_array(asset->shapes, 7, asset->shapeCount))
+		if (const auto meshes = reader.read_array(asset->meshData, 7, asset->meshDataCount))
 		{
-			for (auto i = 0u; i < asset->shapeCount; i++)
+			for (auto i = 0u; i < asset->meshDataCount; i++)
 			{
-				auto* shape = &shapes[i];
-				reader.read_array(shape->planes, 15, shape->planeCount);
-				reader.read_array(shape->points, 15, shape->pointCount);
-				reader.read_array(shape->edges, 3, shape->edgeCount);
+				auto* mesh = &meshes[i];
+				reader.read_array(mesh->nodes, 15, mesh->nodeCount);
+				reader.read_array(mesh->vertices, 15, mesh->vertexCount);
+				reader.read_array(mesh->triangles, 3, mesh->triangleCount);
 			}
 		}
 
@@ -882,35 +883,35 @@ namespace zonetool::s2
 		map_ents::parse_triggers(read, mem, &asset->trigger);
 		parse_info_array(read, mem, asset->info);
 
-		if (const auto models = parse_array(read, mem, asset->cmodels, asset->numSubModels))
+		if (const auto cmodels = parse_array(read, mem, asset->cmodels, asset->numSubModels))
 		{
 			for (auto i = 0u; i < asset->numSubModels; i++)
 			{
-				parse_info_array(read, mem, models[i].info);
+				parse_info_array(read, mem, cmodels[i].info);
 			}
 		}
 		parse_array(read, mem, asset->models, asset->numSubModels);
-		parse_array(read, mem, asset->modelBounds, asset->numSubModels);
+		parse_array(read, mem, asset->physModels, asset->numSubModels);
 
-		if (const auto collisions = parse_array(read, mem, asset->collisions, asset->collisionCount))
+		if (const auto polytopes = parse_array(read, mem, asset->polytope, asset->polytopeCount))
 		{
-			for (auto i = 0u; i < asset->collisionCount; i++)
+			for (auto i = 0u; i < asset->polytopeCount; i++)
 			{
-				auto* collision = &collisions[i];
-				parse_array(read, mem, collision->vertices, collision->vertexCount);
-				parse_array(read, mem, collision->normals, collision->normalCount);
-				parse_array(read, mem, collision->indices, collision->indexCount);
-				parse_array(read, mem, collision->data, collision->normalCount);
+				auto* polytope = &polytopes[i];
+				parse_array(read, mem, polytope->vertices, polytope->vertexCount);
+				parse_array(read, mem, polytope->planes, polytope->faceCount);
+				parse_array(read, mem, polytope->subEdges, polytope->subEdgeCount);
+				parse_array(read, mem, polytope->faceSubEdges, polytope->faceCount);
 			}
 		}
-		if (const auto shapes = parse_array(read, mem, asset->shapes, asset->shapeCount))
+		if (const auto meshes = parse_array(read, mem, asset->meshData, asset->meshDataCount))
 		{
-			for (auto i = 0u; i < asset->shapeCount; i++)
+			for (auto i = 0u; i < asset->meshDataCount; i++)
 			{
-				auto* shape = &shapes[i];
-				parse_array(read, mem, shape->planes, shape->planeCount);
-				parse_array(read, mem, shape->points, shape->pointCount);
-				parse_array(read, mem, shape->edges, shape->edgeCount);
+				auto* mesh = &meshes[i];
+				parse_array(read, mem, mesh->nodes, mesh->nodeCount);
+				parse_array(read, mem, mesh->vertices, mesh->vertexCount);
+				parse_array(read, mem, mesh->triangles, mesh->triangleCount);
 			}
 		}
 		read.close();
@@ -946,37 +947,37 @@ namespace zonetool::s2
 		map_ents::write_triggers(buf, &data->trigger, &dest->trigger);
 		write_info_array(zone, buf, data->info, dest->info);
 
-		if (const auto dest_models = write_array(buf, 7, data->cmodels, data->numSubModels, dest->cmodels))
+		if (const auto dest_cmodels = write_array(buf, 7, data->cmodels, data->numSubModels, dest->cmodels))
 		{
 			for (auto i = 0u; i < data->numSubModels; i++)
 			{
-				write_info_array(zone, buf, data->cmodels[i].info, dest_models[i].info);
+				write_info_array(zone, buf, data->cmodels[i].info, dest_cmodels[i].info);
 			}
 		}
 		write_array(buf, 3, data->models, data->numSubModels, dest->models);
-		write_array(buf, 3, data->modelBounds, data->numSubModels, dest->modelBounds);
+		write_array(buf, 3, data->physModels, data->numSubModels, dest->physModels);
 
-		if (const auto dest_collisions = write_array(buf, 7, data->collisions, data->collisionCount, dest->collisions))
+		if (const auto dest_polytopes = write_array(buf, 7, data->polytope, data->polytopeCount, dest->polytope))
 		{
-			for (auto i = 0u; i < data->collisionCount; i++)
+			for (auto i = 0u; i < data->polytopeCount; i++)
 			{
-				auto* collision = &data->collisions[i];
-				auto* dest_collision = &dest_collisions[i];
-				write_array(buf, 15, collision->vertices, collision->vertexCount, dest_collision->vertices);
-				write_array(buf, 15, collision->normals, collision->normalCount, dest_collision->normals);
-				write_array(buf, 0, collision->indices, collision->indexCount, dest_collision->indices);
-				write_array(buf, 0, collision->data, collision->normalCount, dest_collision->data);
+				auto* polytope = &data->polytope[i];
+				auto* dest_polytope = &dest_polytopes[i];
+				write_array(buf, 15, polytope->vertices, polytope->vertexCount, dest_polytope->vertices);
+				write_array(buf, 15, polytope->planes, polytope->faceCount, dest_polytope->planes);
+				write_array(buf, 0, polytope->subEdges, polytope->subEdgeCount, dest_polytope->subEdges);
+				write_array(buf, 0, polytope->faceSubEdges, polytope->faceCount, dest_polytope->faceSubEdges);
 			}
 		}
-		if (const auto dest_shapes = write_array(buf, 7, data->shapes, data->shapeCount, dest->shapes))
+		if (const auto dest_meshes = write_array(buf, 7, data->meshData, data->meshDataCount, dest->meshData))
 		{
-			for (auto i = 0u; i < data->shapeCount; i++)
+			for (auto i = 0u; i < data->meshDataCount; i++)
 			{
-				auto* shape = &data->shapes[i];
-				auto* dest_shape = &dest_shapes[i];
-				write_array(buf, 15, shape->planes, shape->planeCount, dest_shape->planes);
-				write_array(buf, 15, shape->points, shape->pointCount, dest_shape->points);
-				write_array(buf, 3, shape->edges, shape->edgeCount, dest_shape->edges);
+				auto* mesh = &data->meshData[i];
+				auto* dest_mesh = &dest_meshes[i];
+				write_array(buf, 15, mesh->nodes, mesh->nodeCount, dest_mesh->nodes);
+				write_array(buf, 15, mesh->vertices, mesh->vertexCount, dest_mesh->vertices);
+				write_array(buf, 3, mesh->triangles, mesh->triangleCount, dest_mesh->triangles);
 			}
 		}
 
@@ -1003,24 +1004,24 @@ namespace zonetool::s2
 			dump_info_array(write, asset->cmodels[i].info);
 		}
 		write.dump_array(asset->models, asset->numSubModels);
-		write.dump_array(asset->modelBounds, asset->numSubModels);
+		write.dump_array(asset->physModels, asset->numSubModels);
 
-		write.dump_array(asset->collisions, asset->collisionCount);
-		for (auto i = 0u; asset->collisions && i < asset->collisionCount; i++)
+		write.dump_array(asset->polytope, asset->polytopeCount);
+		for (auto i = 0u; asset->polytope && i < asset->polytopeCount; i++)
 		{
-			auto* collision = &asset->collisions[i];
-			write.dump_array(collision->vertices, collision->vertexCount);
-			write.dump_array(collision->normals, collision->normalCount);
-			write.dump_array(collision->indices, collision->indexCount);
-			write.dump_array(collision->data, collision->normalCount);
+			auto* polytope = &asset->polytope[i];
+			write.dump_array(polytope->vertices, polytope->vertexCount);
+			write.dump_array(polytope->planes, polytope->faceCount);
+			write.dump_array(polytope->subEdges, polytope->subEdgeCount);
+			write.dump_array(polytope->faceSubEdges, polytope->faceCount);
 		}
-		write.dump_array(asset->shapes, asset->shapeCount);
-		for (auto i = 0u; asset->shapes && i < asset->shapeCount; i++)
+		write.dump_array(asset->meshData, asset->meshDataCount);
+		for (auto i = 0u; asset->meshData && i < asset->meshDataCount; i++)
 		{
-			auto* shape = &asset->shapes[i];
-			write.dump_array(shape->planes, shape->planeCount);
-			write.dump_array(shape->points, shape->pointCount);
-			write.dump_array(shape->edges, shape->edgeCount);
+			auto* mesh = &asset->meshData[i];
+			write.dump_array(mesh->nodes, mesh->nodeCount);
+			write.dump_array(mesh->vertices, mesh->vertexCount);
+			write.dump_array(mesh->triangles, mesh->triangleCount);
 		}
 		write.close();
 	}

@@ -9,16 +9,16 @@ namespace zonetool::s2
 		{
 			switch (geom->type)
 			{
-			case 1:
+			case PHYS_GEOM_POLYTOPE:
 				if (const auto polytope = reader.read_single(geom->polytope, 7))
 				{
 					phys_collmap::read_polytope(reader, polytope);
 				}
 				break;
-			case 2:
-				reader.read_single(geom->box, 3);
+			case PHYS_GEOM_SPHERE:
+				reader.read_single(geom->sphere, 3);
 				break;
-			case 3:
+			case PHYS_GEOM_CAPSULE:
 				reader.read_single(geom->capsule, 3);
 				break;
 			}
@@ -55,16 +55,6 @@ namespace zonetool::s2
 		}
 
 		reader.pop_stream();
-	}
-
-	namespace
-	{
-		enum phys_geom_type
-		{
-			phys_geom_polytope = 1,
-			phys_geom_box = 2,
-			phys_geom_capsule = 3,
-		};
 	}
 
 	void phys_collmap::write_polytope(zone_buffer* buf, dmPolytopeData* data, dmPolytopeData* dest)
@@ -110,17 +100,17 @@ namespace zonetool::s2
 			auto& geom = asset->geoms[i];
 			switch (geom.type)
 			{
-			case phys_geom_polytope:
+			case PHYS_GEOM_POLYTOPE:
 				geom.polytope = read.read_single<dmPolytopeData>();
 				if (geom.polytope)
 				{
 					parse_polytope(read, geom.polytope);
 				}
 				break;
-			case phys_geom_box:
-				geom.box = read.read_single<PhysGeomBox>();
+			case PHYS_GEOM_SPHERE:
+				geom.sphere = read.read_single<PhysGeomSphere>();
 				break;
-			case phys_geom_capsule:
+			case PHYS_GEOM_CAPSULE:
 				geom.capsule = read.read_single<PhysGeomCapsule>();
 				break;
 			default:
@@ -171,7 +161,7 @@ namespace zonetool::s2
 
 				switch (geom.type)
 				{
-				case phys_geom_polytope:
+				case PHYS_GEOM_POLYTOPE:
 				{
 					buf->align(7);
 					auto* polytope = buf->write(geom.polytope);
@@ -179,10 +169,10 @@ namespace zonetool::s2
 					buf->clear_pointer(&geoms[i].polytope);
 					break;
 				}
-				case phys_geom_box:
-					write_inline(buf, 3, geom.box, 1, geoms[i].box);
+				case PHYS_GEOM_SPHERE:
+					write_inline(buf, 3, geom.sphere, 1, geoms[i].sphere);
 					break;
-				case phys_geom_capsule:
+				case PHYS_GEOM_CAPSULE:
 					write_inline(buf, 3, geom.capsule, 1, geoms[i].capsule);
 					break;
 				default:
@@ -215,17 +205,17 @@ namespace zonetool::s2
 			const auto& geom = asset->geoms[i];
 			switch (geom.type)
 			{
-			case phys_geom_polytope:
+			case PHYS_GEOM_POLYTOPE:
 				write.dump_single(geom.polytope);
 				if (geom.polytope)
 				{
 					dump_polytope(write, geom.polytope);
 				}
 				break;
-			case phys_geom_box:
-				write.dump_single(geom.box);
+			case PHYS_GEOM_SPHERE:
+				write.dump_single(geom.sphere);
 				break;
-			case phys_geom_capsule:
+			case PHYS_GEOM_CAPSULE:
 				write.dump_single(geom.capsule);
 				break;
 			}
