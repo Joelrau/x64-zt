@@ -8,6 +8,7 @@ namespace zonetool::iw7
 	void dump_asset(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path, const std::string& type,
 		const std::string& name, const converter* converter);
 	void verify_zone(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path);
+	std::string list_zone(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path);
 	void build_zone(const std::filesystem::path& zone_folder, const std::string& name);
 
 	const game& definition()
@@ -28,6 +29,7 @@ namespace zonetool::iw7
 			.dump_zone = dump_zone,
 			.dump_asset = dump_asset,
 			.verify_zone = verify_zone,
+			.list_zone = list_zone,
 			.build_zone = build_zone,
 		};
 

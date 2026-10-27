@@ -231,8 +231,7 @@ namespace zonetool::h1
 			}
 		}
 
-		// a converter may replace <name>.csv with its build list in finish, the source listing stays in <name>.<source>.csv
-		void write_asset_csv(const std::string& name, const std::vector<loaded_asset>& assets, const converter* converter)
+		std::string asset_csv(const std::vector<loaded_asset>& assets)
 		{
 			std::string text;
 			for (const auto& asset : assets)
@@ -240,6 +239,14 @@ namespace zonetool::h1
 				text += std::format("{},{}{}\n", type_to_string(asset.type),
 					asset.referenced ? "," : "", get_asset_name(asset.type, asset.header));
 			}
+
+			return text;
+		}
+
+		// a converter may replace <name>.csv with its build list in finish, the source listing stays in <name>.<source>.csv
+		void write_asset_csv(const std::string& name, const std::vector<loaded_asset>& assets, const converter* converter)
+		{
+			const auto text = asset_csv(assets);
 
 			const auto write = [&](const std::string& file_name)
 			{
@@ -449,29 +456,37 @@ namespace zonetool::h1
 		const auto techset_zone_headers = collect_techset_zone_headers(required_zones, zone_path);
 		const auto zone = load_zone(zone_path);
 
-		const auto asset = std::ranges::find_if(zone->assets, [&](const loaded_asset& entry)
+		std::vector<const loaded_asset*> assets;
+		for (const auto& entry : zone->assets)
 		{
 			const auto held = !entry.referenced || techset_zone_headers.contains(entry.header);
-			return entry.type == type && held && name == get_asset_name(entry.type, entry.header);
-		});
+			if (entry.type == type && held && (name == "*" || name == get_asset_name(entry.type, entry.header)))
+			{
+				assets.emplace_back(&entry);
+			}
+		}
 
-		if (asset == zone->assets.end())
+		if (assets.empty())
 		{
 			throw std::runtime_error(std::format("{} \"{}\" is not in zone \"{}\"", type_name, name, zone->name));
 		}
 
 		filesystem::set_dump_folder("assets");
-		if (converter)
+		for (const auto* asset : assets)
 		{
-			converter->dump_asset(asset->type, asset->header);
-			if (converter->finish)
+			if (converter)
 			{
-				converter->finish(zone->name);
+				converter->dump_asset(asset->type, asset->header);
+			}
+			else
+			{
+				dump_asset(*asset);
 			}
 		}
-		else
+
+		if (converter && converter->finish)
 		{
-			dump_asset(*asset);
+			converter->finish(zone->name);
 		}
 
 		ZONETOOL_INFO("%s \"%s\" dumped to %s", type_name.data(), name.data(), filesystem::get_dump_path().data());
@@ -483,5 +498,13 @@ namespace zonetool::h1
 
 		prepare_paths(zone_folder, zone_path.stem().string());
 		load_zone(zone_path);
+	}
+
+	std::string list_zone(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path)
+	{
+		const auto _ = gsl::finally(db_clear);
+
+		prepare_paths(zone_folder, zone_path.stem().string());
+		return asset_csv(load_zone(zone_path)->assets);
 	}
 }

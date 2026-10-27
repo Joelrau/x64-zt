@@ -28,7 +28,7 @@ namespace zonetool::cli
 			command{"inspect", "inspect <zone> | inspect --all", inspect},
 			command{"dumpzone", "dumpzone <zone> [--target <game>]", dump_zone},
 			command{"dumpmap", "dumpmap <map> [--target <game>] [--skip-common]", dump_map},
-			command{"dumpasset", "dumpasset <type> <name> <zone> [--target <game>]", dump_asset},
+			command{"dumpasset", "dumpasset <type> <name|*> <zone> [--target <game>]", dump_asset},
 			command{"verifyzone", "verifyzone <zone> | verifyzone --all", verify_zone},
 			command{"listzone", "listzone <zone> | listzone --all", list_zone},
 			command{"buildzone", "buildzone <zone>", build_zone},

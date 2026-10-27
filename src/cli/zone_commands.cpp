@@ -208,7 +208,7 @@ namespace zonetool::cli
 
 	void dump_asset(const settings& settings, const std::span<const std::string> args)
 	{
-		constexpr std::string_view usage = "dumpasset <type> <name> <zone> [--target <game>]";
+		constexpr std::string_view usage = "dumpasset <type> <name|*> <zone> [--target <game>]";
 
 		const auto target = target_argument(args, 3);
 		if (!target)
