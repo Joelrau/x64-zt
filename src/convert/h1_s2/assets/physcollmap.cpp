@@ -12,7 +12,6 @@ namespace zonetool::h1::converter::s2::physcollmap
 
 		std::unordered_set<std::string> dumped_collmaps;
 
-		// h1 geoms are all polytopes, s2 tags each geom with its type and part (none here) and keeps the bounds after 12 unused bytes
 		void dump_collmap(const PhysCollmap* collmap)
 		{
 			utils::memory::allocator allocator;

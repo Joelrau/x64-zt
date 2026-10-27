@@ -10,7 +10,6 @@ namespace zonetool::h1::converter::s2::soundtables
 	{
 		constexpr auto s2_column_count = 10;
 
-		// section header rows of the stock s2 soundtables (soundtables/mp_aachen_v2.csv, soundtables/mp_defaults.csv)
 		constexpr std::array<std::string_view, 10> s2_headers
 		{
 			"zone_names,ambience,ambient_name,mix,reverb,filter,occlusion,player_adsr",
@@ -56,9 +55,9 @@ namespace zonetool::h1::converter::s2::soundtables
 			return {};
 		}
 
-		// h1 tables can hold broken header rows ("sus_len,sus_level" on its own), those name a column of some s2 header
 		bool is_header_column(const std::string_view name)
 		{
+			// h1 tables can hold broken header rows ("sus_len,sus_level" on its own)
 			return std::ranges::any_of(s2_headers, [&](const std::string_view header)
 			{
 				const auto columns = utils::string::split(std::string(header), ',');
@@ -66,7 +65,6 @@ namespace zonetool::h1::converter::s2::soundtables
 			});
 		}
 
-		// s2 maps carry the reverb presets that are not in code_post_gfx_mp, copy them from the stock map
 		void dump_reverb_preset(const std::string& name)
 		{
 			for (auto* header : techset::stock_zone().find_assets(zonetool::s2::ASSET_TYPE_REVERB_PRESET))
@@ -97,7 +95,6 @@ namespace zonetool::h1::converter::s2::soundtables
 			const std::string name = table_cell(asset, row, 0);
 			if (const auto header = find_header(name))
 			{
-				// h1 has a comments column after the name in some sections and calls the ambience column streamed_ambience
 				section = name;
 				comment_column = asset->columnCount > 1 && std::string_view(table_cell(asset, row, 1)).starts_with("comment");
 				buffer += make_row(utils::string::split(std::string(*header), ','));

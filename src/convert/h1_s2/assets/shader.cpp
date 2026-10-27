@@ -17,16 +17,16 @@ namespace zonetool::h1::converter::s2::shader
 		constexpr auto h1_instance_row_shift = 2u;
 		constexpr auto s2_instance_row_shift = 3u;
 		constexpr auto h1_model_lighting_buffer = 7u;
-		constexpr auto h1_reactive_motion_buffer = 9u; // world space offset of each of the 16 reactive motion clusters
-		constexpr auto wind_temp_count = 5u; // the last one holds the instance row of the instanced passes
+		constexpr auto h1_reactive_motion_buffer = 9u;
+		constexpr auto wind_temp_count = 5u;
 		constexpr auto s2_lit_instance_rows = 9u;
 		constexpr auto s2_lit_instance_lighting_row = 8u;
 		constexpr auto light_grid_direction_count = 12u;
-		constexpr auto light_grid_index_slot = 5u; // vertex shader structured t5, lighting index -> volume
-		constexpr auto light_grid_transform_slot = 6u; // vertex shader structured t6, world -> volume rows of each volume
-		constexpr auto light_grid_volume_slot = 7u; // fixed t7 of the stock "lmdl" shaders
-		constexpr auto light_grid_probe_colors_slot = 8u; // "lgv0d" buffer t8 with the direction colors of each probe
-		constexpr auto light_grid_probe_visibility_slot = 9u; // "lgv0d" buffer t9 with the sun visibility of each probe
+		constexpr auto light_grid_index_slot = 5u;
+		constexpr auto light_grid_transform_slot = 6u;
+		constexpr auto light_grid_volume_slot = 7u;
+		constexpr auto light_grid_probe_colors_slot = 8u;
+		constexpr auto light_grid_probe_visibility_slot = 9u;
 
 		constexpr std::array<std::array<float, 3>, light_grid_direction_count> light_grid_directions
 		{{
@@ -162,7 +162,7 @@ namespace zonetool::h1::converter::s2::shader
 			const auto last = std::ranges::max(inputs, {}, &alys::shader::shader_object::signature_element::register_);
 			const lightmap_input result{texcoord->register_, last.register_ + 1};
 
-			// declaring zw too is a d3d11 input layout linkage error
+			// a zw declaration fails the d3d11 input layout linkage
 			texcoord->mask &= 0x3;
 			texcoord->rw_mask &= 0x3;
 
@@ -181,9 +181,9 @@ namespace zonetool::h1::converter::s2::shader
 
 		struct wind_inputs
 		{
-			std::uint32_t color; // the fwa COLOR1 stream: x normal flutter, y phase, z vertical flutter
+			std::uint32_t color;
 			std::uint32_t normal;
-			bool declare_normal; // the zprepass shaders read no normal
+			bool declare_normal;
 		};
 
 		wind_inputs add_wind_inputs(alys::shader::shader_object::signature& inputs)
@@ -219,10 +219,9 @@ namespace zonetool::h1::converter::s2::shader
 			return result;
 		}
 
-		// s2 shares the input layout of a vertexdecl between shaders and builds it with the stock register order, the converted decl of the
-		// wind passes is the stock fwa one: position, color 0, color 1, texcoord 0, normal, other texcoords, then the system values
 		std::unordered_map<std::uint32_t, std::uint32_t> order_wind_inputs(alys::shader::shader_object::signature& inputs, const bool added_normal)
 		{
+			// s2 shares one input layout per vertexdecl, so the inputs take the register order of the stock fwa decl
 			std::vector<signature_element*> order;
 			std::vector<signature_element*> system_values;
 			signature_element* color = nullptr;
@@ -315,13 +314,10 @@ namespace zonetool::h1::converter::s2::shader
 			});
 		}
 
-		// the stock fwa sway (vertcol_simple_vs_zp_fwa_atest_co_dso) as a world space offset in place of the h1 reactive motion offset:
-		// smoothed triangle wave flutter along the normal and up in model space, then the whole model bends along the wind by its height above the origin
-		// mul + add like stock, a precise mad may fuse differently in the prepass and lit shaders
 		void emit_foliage_wind(alys::shader::assembler& a, const alys::shader::detail::operand_t& dest, const std::uint32_t position, const wind_inputs& inputs,
 			const foliage_wind& wind, const std::array<alys::shader::detail::operand_t, 3>& world, const std::uint32_t temp)
 		{
-			constexpr auto precise = D3D11_SB_INSTRUCTION_PRECISE_VALUES_MASK >> 11; // every pass of the draw must move the vertex the same
+			constexpr auto precise = D3D11_SB_INSTRUCTION_PRECISE_VALUES_MASK >> 11; // precise mul + add like stock, every pass of the draw must move the vertex the same
 			const auto flutter = temp;
 			const auto work = temp + 1;
 			const auto bent = temp + 2;
@@ -361,7 +357,6 @@ namespace zonetool::h1::converter::s2::shader
 			a.mul(asm_::r(flutter).xyz(), asm_::r(flutter).select("xyzx"), asm_::r(bent).select("xywx"));
 			a.add(asm_::r(flutter).xyz(), asm_::r(flutter).select("xyzx"), asm_::v(position).select("xyzx"));
 
-			// world space offsets from the model origin with and without the flutter
 			for (auto row = 0u; row < 3; row++)
 			{
 				a.dp3(asm_::r(bent).select(alys::shader::component_x + row), asm_::r(flutter).select("xyzx"), world[row]);
@@ -386,9 +381,8 @@ namespace zonetool::h1::converter::s2::shader
 			a.mul(asm_::r(work).xy(), asm_::r(work).select("yyyy"), strength("zwzz"));
 			a.add(asm_::r(bent).xy(), asm_::r(work).select("xyxx"), asm_::r(bent).select("xyxx"));
 
-			// keep the distance from the origin so the model swings instead of stretching, stock divides by zero at the origin
 			a.dp3(asm_::r(work).w(), asm_::r(bent).select("xyzx"), asm_::r(bent).select("xyzx"));
-			a.max(asm_::r(work).w(), asm_::r(work).w(), asm_::l(1e-12f));
+			a.max(asm_::r(work).w(), asm_::r(work).w(), asm_::l(1e-12f)); // stock divides by zero at the origin
 			a.rsq(asm_::r(work).w(), asm_::r(work).w());
 			a.mul(asm_::r(work).w(), asm_::r(work).w(), asm_::r(work).z());
 			a.mul(asm_::r(bent).xyz(), asm_::r(bent).select("xyzx"), asm_::r(work).select("wwww"));
@@ -407,9 +401,8 @@ namespace zonetool::h1::converter::s2::shader
 			return operand.type == D3D10_SB_OPERAND_TYPE_RESOURCE && operand.indices[0].value.uint32 == texture;
 		}
 
-		constexpr auto fog_temp_count = 3u; // h1 parms 2, 3 and 4 rebuilt from the s2 rows
+		constexpr auto fog_temp_count = 3u;
 
-		// index of the fog temp holding an h1 atmos fog row read
 		std::optional<std::uint32_t> fog_row_index(const alys::shader::detail::operand_t& operand, const atmos_fog_rows& fog)
 		{
 			if (operand.type != D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER || operand.indices[0].value.uint32 != h1_stable_constant_buffer
@@ -442,14 +435,15 @@ namespace zonetool::h1::converter::s2::shader
 			});
 		}
 
-		// the h1 parms 2, 3 and 4 into r(temp + 0..2): extinction = s2 * ln 2, in scatter scale = 1 (s2 already scales parms 0 and 1 by it)
-		// with the negated start distance in w, sky distance = s2 w (sky minus start distance) + start distance
 		void emit_atmos_fog_rows(alys::shader::assembler& a, const atmos_fog_rows& fog, const std::uint32_t temp)
 		{
+			// s2 scales parms 2 by log2(e), folds parms 3 into parms 0 and 1 and keeps the sky minus the start distance in parms 4 w
+			constexpr auto ln_2 = 0.693147182f;
+
 			const auto row = [](const std::uint32_t index) { return asm_::cb(s2_stable_constant_buffer, index); };
 			if (fog.extinction)
 			{
-				a.mul(asm_::r(temp).select("xyzw"), row(*fog.extinction).select("xyzw"), asm_::l(0.693147182f, 0.693147182f, 0.693147182f, 1.0f));
+				a.mul(asm_::r(temp).select("xyzw"), row(*fog.extinction).select("xyzw"), asm_::l(ln_2, ln_2, ln_2, 1.0f));
 			}
 
 			if (fog.in_scatter)
@@ -468,9 +462,7 @@ namespace zonetool::h1::converter::s2::shader
 			}
 		}
 
-		// h1's ssr buffer is its bloom prefilter output, a geometric mean that drops fireflies (~100 at most over shipment's sunlit water);
-		// s2's is a plain half res copy of the last frame, so a sun glint on h1 water saturates and reflects back into itself every frame
-		constexpr auto ssr_buffer_max = 128.0f;
+		constexpr auto ssr_buffer_max = 128.0f; // the s2 ssr buffer keeps the fireflies that the h1 bloom prefilter drops
 
 		void emit_ssr_clamp(alys::shader::assembler& a, const alys::shader::detail::operand_t& dest)
 		{
@@ -592,7 +584,7 @@ namespace zonetool::h1::converter::s2::shader
 				return *slice;
 			}
 
-			// "sst" samples the unfiltered cascade depth right after the filtered samples
+			// "sst" shaders sample the unfiltered cascade depth after the filtered samples
 			for (auto i = sample; i-- > 0;)
 			{
 				if (is_sample(instructions[i], *sun_shadow.texture))
@@ -749,6 +741,11 @@ namespace zonetool::h1::converter::s2::shader
 		};
 
 		constexpr auto sprite_temp_count = 8u;
+		constexpr auto sprite_record_shift = 6u;
+		constexpr auto sprite_frame_offset = 16u;
+		constexpr auto sprite_axes_offset = 20u;
+		constexpr auto sprite_uv_offset = 32u;
+		constexpr auto sprite_color_size_offset = 48u;
 
 		std::optional<sprite_input> find_sprite_input(const signature_element& element)
 		{
@@ -772,7 +769,6 @@ namespace zonetool::h1::converter::s2::shader
 				return sprite_input::normal;
 			}
 
-			// h1 atlas blend ("tab") shaders read the v step to the next frame here and the u step from NORMAL
 			if (element.name == "TEXCOORD" && element.semantic_index == 1)
 			{
 				return sprite_input::atlas_step;
@@ -781,7 +777,6 @@ namespace zonetool::h1::converter::s2::shader
 			return {};
 		}
 
-		// the sprite draw binds no vertex buffer, the vertex id is the only input
 		std::vector<std::pair<std::uint32_t, sprite_input>> take_sprite_inputs(alys::shader::shader_object::signature& inputs)
 		{
 			std::vector<std::pair<std::uint32_t, sprite_input>> result;
@@ -814,7 +809,6 @@ namespace zonetool::h1::converter::s2::shader
 			a.mul(asm_::r(dest).xyz(), asm_::r(dest).select("xyzx"), asm_::l(1.0f / 1023.0f));
 		}
 
-		// h1 "tab" vertex shaders decode the uv step to the next frame as x + y / 1023 of the normalized step * 2 - 1
 		void emit_encode_atlas_step(alys::shader::assembler& a, const std::uint32_t dest, const alys::shader::detail::operand_t& step)
 		{
 			a.mad(asm_::r(dest).x(), step, asm_::l(0.5f), asm_::l(0.5f));
@@ -824,12 +818,10 @@ namespace zonetool::h1::converter::s2::shader
 			a.mad(asm_::r(dest).z(), asm_::r(dest).z(), asm_::l(0.5f), asm_::l(0.5f));
 		}
 
-		// stock "tab" shaders: frame = high half at +16, blend = frac(frame), the next frame steps a column or wraps to the next row or frame 0;
-		// the atlas size comes from the record uv size, stock reads it from the material constants
 		void emit_atlas_step(alys::shader::assembler& a, const std::uint32_t position, const std::uint32_t u_step, const std::uint32_t v_step,
 			const std::uint32_t index, const std::uint32_t first, const std::uint32_t second)
 		{
-			a.iadd(asm_::r(index).y(), asm_::r(index).x(), uint_literal(16));
+			a.iadd(asm_::r(index).y(), asm_::r(index).x(), uint_literal(sprite_frame_offset));
 			a.ld_raw(asm_::r(index).y(), asm_::r(index).y(), asm_::t(sprite_buffer_slot).select("xxxx"));
 			a.ushr(asm_::r(index).y(), asm_::r(index).y(), uint_literal(16));
 			a.f16tof32(asm_::r(index).y(), asm_::r(index).y());
@@ -838,7 +830,6 @@ namespace zonetool::h1::converter::s2::shader
 			a.ftou(asm_::r(index).y(), asm_::r(index).y());
 			a.iadd(asm_::r(index).y(), asm_::r(index).y(), uint_literal(1));
 
-			// second.zw = 1 / (columns, rows), first = (frame count, columns, rows)
 			a.mov(asm_::r(second).z(), asm_::r(second).y().abs());
 			a.mov(asm_::r(second).w(), asm_::r(first).y().abs());
 			a.rcp(asm_::r(first).zw(), asm_::r(second).select("xyzw"));
@@ -857,8 +848,6 @@ namespace zonetool::h1::converter::s2::shader
 			emit_encode_atlas_step(a, v_step, asm_::r(second).select("yyyy").swz());
 		}
 
-		// 64 byte sprite record of the stock "_dso_xl" vertex shaders: +0 origin, rotation; +16 half second frame size, frame;
-		// +20 normal, +24 axis a, +28 axis b (10:10:10 unorm); +32 half uv origin, size, second frame uv; +48 half rg, ba, width height, pivot
 		void emit_sprite_fetch(alys::shader::assembler& a, const std::uint32_t temp, const bool atlas_blend)
 		{
 			const auto position = temp;
@@ -872,10 +861,10 @@ namespace zonetool::h1::converter::s2::shader
 			const auto buffer = asm_::t(sprite_buffer_slot);
 
 			a.ushr(asm_::r(index).x(), asm_::v(0).x(), uint_literal(2));
-			a.ishl(asm_::r(index).x(), asm_::r(index).x(), uint_literal(6));
+			a.ishl(asm_::r(index).x(), asm_::r(index).x(), uint_literal(sprite_record_shift));
 			a.and_(asm_::r(index).y(), asm_::v(0).x(), uint_literal(3));
 			a.ld_raw(asm_::r(position).select("xyzw"), asm_::r(index).x(), buffer.select("xyzw"));
-			a.iadd(asm_::r(index).z(), asm_::r(index).x(), uint_literal(20));
+			a.iadd(asm_::r(index).z(), asm_::r(index).x(), uint_literal(sprite_axes_offset));
 			a.ld_raw(asm_::r(first).xyz(), asm_::r(index).z(), buffer.select("xyzx"));
 			emit_unpack_unorm(a, normal, asm_::r(first).select("xxxx").swz());
 			emit_unpack_unorm(a, texcoord, asm_::r(first).select("yyyy").swz());
@@ -883,15 +872,13 @@ namespace zonetool::h1::converter::s2::shader
 			a.mad(asm_::r(texcoord).xyz(), asm_::r(texcoord).select("xyzx"), asm_::l(2.0f), asm_::l(-1.0f));
 			a.mad(asm_::r(color).xyz(), asm_::r(color).select("xyzx"), asm_::l(2.0f), asm_::l(-1.0f));
 
-			// rotated axes x = a * cos + b * sin, y = a * sin - b * cos
 			a.sincos(asm_::r(first).x(), asm_::r(first).y(), asm_::r(position).w());
 			a.mul(asm_::r(second).xyz(), asm_::r(color).select("xyzx"), asm_::r(first).select("xxxx"));
 			a.mad(asm_::r(second).xyz(), asm_::r(texcoord).select("xyzx"), asm_::r(first).select("yyyy"), asm_::r(second).select("xyzx"));
 			a.mul(asm_::r(color).xyz(), asm_::r(color).select("xyzx"), asm_::r(first).select("yyyy"));
 			a.mad(asm_::r(color).xyz(), asm_::r(texcoord).select("xyzx"), asm_::r(first).select("xxxx"), asm_::r(color).select("xyzx").neg());
 
-			// texcoord = (r, b, width, pivot x), first = (g, a, height, pivot y)
-			a.iadd(asm_::r(index).z(), asm_::r(index).x(), uint_literal(48));
+			a.iadd(asm_::r(index).z(), asm_::r(index).x(), uint_literal(sprite_color_size_offset));
 			a.ld_raw(asm_::r(first).select("xyzw"), asm_::r(index).z(), buffer.select("xyzw"));
 			a.and_(asm_::r(texcoord).select("xyzw"), asm_::r(first).select("xyzw"), uint_literal(0xFFFF));
 			a.ushr(asm_::r(first).select("xyzw"), asm_::r(first).select("xyzw"), uint_literal(16));
@@ -900,7 +887,6 @@ namespace zonetool::h1::converter::s2::shader
 			a.mul(asm_::r(second).xyz(), asm_::r(second).select("xyzx"), asm_::r(texcoord).select("zzzz"));
 			a.mul(asm_::r(color).xyz(), asm_::r(color).select("xyzx"), asm_::r(first).select("zzzz"));
 
-			// corners 0 to 3 are (-1, 1), (-1, -1), (1, -1), (1, 1) with uv (0, 1), (0, 0), (1, 0), (1, 1)
 			a.ushr(asm_::r(index).z(), asm_::r(index).y(), uint_literal(1));
 			a.xor_(asm_::r(index).w(), asm_::r(index).y(), asm_::r(index).z());
 			a.and_(asm_::r(index).w(), asm_::r(index).w(), uint_literal(1));
@@ -912,11 +898,11 @@ namespace zonetool::h1::converter::s2::shader
 			a.mad(asm_::r(index).y(), asm_::r(index).w(), asm_::l(2.0f), asm_::l(-1.0f));
 			a.add(asm_::r(index).y(), asm_::r(index).y(), asm_::r(first).w());
 			a.mad(asm_::r(position).xyz(), asm_::r(color).select("xyzx"), asm_::r(index).select("yyyy"), asm_::r(position).select("xyzx"));
-			a.mov(asm_::r(position).w(), asm_::l(0.0f)); // h1 atlas blend weight
+			a.mov(asm_::r(position).w(), asm_::l(0.0f));
 			a.mov(asm_::r(color).xz(), asm_::r(texcoord).select("xxyy"));
 			a.mov(asm_::r(color).yw(), asm_::r(first).select("xxyy"));
 
-			a.iadd(asm_::r(index).y(), asm_::r(index).x(), uint_literal(32));
+			a.iadd(asm_::r(index).y(), asm_::r(index).x(), uint_literal(sprite_uv_offset));
 			a.ld_raw(asm_::r(first).xy(), asm_::r(index).y(), buffer.select("xyxx"));
 			a.and_(asm_::r(second).xy(), asm_::r(first).select("xyxx"), uint_literal(0xFFFF));
 			a.ushr(asm_::r(first).xy(), asm_::r(first).select("xyxx"), uint_literal(16));
@@ -1120,7 +1106,6 @@ namespace zonetool::h1::converter::s2::shader
 			a.utof(asm_::r(coords).w(), asm_::r(volume).x());
 		}
 
-		// the light grid coords of the pixel's lighting volume, the probe index in .x for the probe buffer
 		void emit_light_grid_coords(alys::shader::assembler& a, const program_patch& patch, const std::uint32_t input,
 			const std::uint32_t volume, const std::uint32_t coords, const std::uint32_t probe, const std::uint32_t weight)
 		{
@@ -1142,7 +1127,7 @@ namespace zonetool::h1::converter::s2::shader
 		void emit_light_grid_lookup(alys::shader::assembler& a, const program_patch& patch, const alys::shader::detail::operand_t& sampler,
 			const std::uint32_t input, const std::uint32_t temp, const bool directional)
 		{
-			constexpr auto ambient_weight = 0.7f / 6.0f + 0.3f / 10.0f; // sphere mean of the directional weight
+			constexpr auto mean_directional_weight = 0.7f / 6.0f + 0.3f / 10.0f;
 
 			const auto dir = temp;
 			const auto volume = temp + 1;
@@ -1167,7 +1152,7 @@ namespace zonetool::h1::converter::s2::shader
 				}
 				else
 				{
-					a.mov(asm_::r(weight).x(), asm_::l(ambient_weight));
+					a.mov(asm_::r(weight).x(), asm_::l(mean_directional_weight));
 				}
 
 				switch (patch.grid)
@@ -1227,10 +1212,9 @@ namespace zonetool::h1::converter::s2::shader
 		}
 
 		constexpr auto h1_scene_constant_buffer = 1u;
-		constexpr std::array h1_sun_color_rows = {9u, 10u}; // sun diffuse and specular color
-		constexpr auto sun_color_temp_count = 5u; // the gate, the gated sun colors, then light grid coords scratch
+		constexpr std::array h1_sun_color_rows = {9u, 10u};
+		constexpr auto sun_color_temp_count = 5u;
 
-		// index into h1_sun_color_rows of a sun color read
 		std::optional<std::uint32_t> sun_color_index(const alys::shader::detail::operand_t& operand)
 		{
 			if (operand.type != D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER || operand.indices[0].value.uint32 != h1_scene_constant_buffer
@@ -1261,9 +1245,9 @@ namespace zonetool::h1::converter::s2::shader
 			});
 		}
 
-		// the sun colors of a probe lit model into r(temp + 1 + index), zero when its probe has no sun visibility (a sunless light env in h1)
 		void emit_probe_sun_color(alys::shader::assembler& a, const program_patch& patch, const std::uint32_t input, const std::uint32_t temp)
 		{
+			// h1 draws a model without sun visibility with a sunless light env
 			const auto gate = temp;
 			const auto coords = temp + 4;
 
@@ -1300,6 +1284,8 @@ namespace zonetool::h1::converter::s2::shader
 
 		constexpr auto light_temp_count = 15u;
 		constexpr auto light_spot_type = 2u;
+		constexpr auto h1_eye_position_semantic = 5u;
+		constexpr auto h1_fog_transmittance_semantic = 25u;
 
 		bool is_return(const alys::shader::detail::instruction_t& instruction)
 		{
@@ -1314,7 +1300,6 @@ namespace zonetool::h1::converter::s2::shader
 			return result;
 		}
 
-		// the s2 forward light buffers are bound to fixed slots, h1 shaders with many layers use them for material textures
 		std::map<std::uint32_t, std::uint32_t> relocate_light_textures(const std::vector<alys::shader::detail::instruction_t>& instructions)
 		{
 			constexpr auto first_free_slot = 26u;
@@ -1357,7 +1342,7 @@ namespace zonetool::h1::converter::s2::shader
 		{
 			a.dcl_resource_structured(asm_::t(forward_lights_slot), 104u);
 			a.dcl_resource(asm_::t(lights.cluster_row ? light_cluster_bits_slot : light_tile_bits_slot), asm_::buffer, uint4_type);
-			if (lights.shadows)
+			if (lights.spot_shadows)
 			{
 				a.dcl_resource_structured(asm_::t(spot_shadow_record_slot), 96u);
 				a.dcl_resource(asm_::t(spot_shadow_slot), asm_::texture2darray, float4_type);
@@ -1366,11 +1351,6 @@ namespace zonetool::h1::converter::s2::shader
 			}
 		}
 
-		// s2 gives an omni one spot like shadow frustum along its dir, so like the stock loop its strength is scaled by the cone (shadow.w)
-		// and the omni is unshadowed outside that frustum
-		// the stock lw_fplus spot shadow: shadow index = light flags byte 0 (255 none), strength = hi half of record +68, static / dynamic blend =
-		// lo half of +72; the t17 record holds 4 matrix rows for the eye relative position, then the filter scale (xy) and the dynamic and
-		// static slices (z, w); 8 comparison taps per map (the stock offsets, without the per pixel rotation), light factor *= 1 - strength * (1 - shadow)
 		void emit_spot_shadow(alys::shader::assembler& a, const std::uint32_t acc, const alys::shader::detail::operand_t& position)
 		{
 			constexpr std::array<std::pair<float, float>, 8> taps
@@ -1378,6 +1358,10 @@ namespace zonetool::h1::converter::s2::shader
 				{-0.7071f, 0.7071f}, {0.0f, -0.9308f}, {0.5997f, 0.5997f}, {-0.7516f, 0.0f},
 				{0.4531f, -0.4531f}, {0.0f, 0.5148f}, {-0.2633f, -0.2633f}, {0.21f, 0.0f},
 			}};
+			constexpr auto light_shadow_strength_offset = 68u;
+			constexpr auto shadow_filter_offset = 64u;
+			constexpr auto no_shadow_index = 255u;
+
 			const auto out = acc + 1;
 			const auto fade = acc + 5;
 			const auto light = acc + 8;
@@ -1387,18 +1371,17 @@ namespace zonetool::h1::converter::s2::shader
 			const auto address = acc + 14;
 			const auto records = asm_::t(spot_shadow_record_slot);
 
-			a.ld_structured(asm_::r(record).xy(), asm_::r(light).x(), uint_literal(68), asm_::t(forward_lights_slot).select("xyxx"));
+			a.ld_structured(asm_::r(record).xy(), asm_::r(light).x(), uint_literal(light_shadow_strength_offset), asm_::t(forward_lights_slot).select("xyxx"));
 			a.ushr(asm_::r(shadow).y(), asm_::r(record).x(), uint_literal(16));
 			a.and_(asm_::r(shadow).z(), asm_::r(record).y(), uint_literal(0xFFFF));
 			a.f16tof32(asm_::r(shadow).yz(), asm_::r(shadow).select("xyzx"));
-			a.mul(asm_::r(record).w(), asm_::r(shadow).y(), asm_::r(shadow).w());
+			a.mul(asm_::r(record).w(), asm_::r(shadow).y(), asm_::r(shadow).w()); // s2 shadows an omni with one spot frustum, so the cone fades it like stock
 			a.movc(asm_::r(shadow).y(), asm_::r(light).z(), asm_::r(shadow).y(), asm_::r(record).w());
-			a.ine(asm_::r(shadow).w(), asm_::r(shadow).x(), uint_literal(255));
+			a.ine(asm_::r(shadow).w(), asm_::r(shadow).x(), uint_literal(no_shadow_index));
 			a.lt(asm_::r(record).z(), asm_::l(0.0f), asm_::r(shadow).y());
 			a.and_(asm_::r(shadow).w(), asm_::r(shadow).w(), asm_::r(record).z());
 			a.if_nz(asm_::r(shadow).w());
 
-			// fade.xyz = shadow map uv and depth
 			for (auto row = 0u; row < 4; row++)
 			{
 				a.ld_structured(asm_::r(record).select("xyzw"), asm_::r(shadow).x(), uint_literal(row * 16), records.select("xyzw"));
@@ -1409,7 +1392,7 @@ namespace zonetool::h1::converter::s2::shader
 
 			a.rcp(asm_::r(out).x(), asm_::r(out).x());
 			a.mul(asm_::r(fade).xyz(), asm_::r(fade).select("xyzx"), asm_::r(out).select("xxxx"));
-			a.ld_structured(asm_::r(record).select("xyzw"), asm_::r(shadow).x(), uint_literal(64), records.select("xyzw"));
+			a.ld_structured(asm_::r(record).select("xyzw"), asm_::r(shadow).x(), uint_literal(shadow_filter_offset), records.select("xyzw"));
 
 			const auto sum_taps = [&](const std::uint32_t texture, const char* slice, const char* sum)
 			{
@@ -1426,8 +1409,7 @@ namespace zonetool::h1::converter::s2::shader
 				a.mul(asm_::r(out).select(sum), asm_::r(out).select(std::string(4, sum[0])).swz(), asm_::l(0.125f));
 			};
 
-			// out.y = static, out.z = dynamic, blended as static * blend + dynamic * (1 - blend) like the stock loop
-			// shadow.w is free once the outer if took it, record.z is the dynamic slice
+			// shadow.w is free once the outer if took it
 			a.mov(asm_::r(out).y(), asm_::l(0.0f));
 			a.ge(asm_::r(shadow).w(), asm_::r(shadow).z(), asm_::l(0.0f));
 			a.if_nz(asm_::r(shadow).w());
@@ -1446,17 +1428,15 @@ namespace zonetool::h1::converter::s2::shader
 			a.endif();
 		}
 
-		// the screen position components the light loop reads, the cluster loop adds the view depth w
 		std::uint8_t light_screen_mask(const primary_lights& lights)
 		{
 			return lights.cluster_row ? 0xB : 0x3;
 		}
 
-		// the stock lw_fplus_*_bmtile tile loop without the per pixel z bin mask, so every pixel of a quad runs the same lights and keeps its derivatives;
-		// temps acc .. acc + 14: sum, light body output, the five h1 light constants, tile, light, dir, color, spot, three shadow temps
 		void emit_forward_light_loop_begin(alys::shader::assembler& a, const primary_lights& lights, const std::uint32_t acc, const std::uint32_t screen_input,
 			const alys::shader::detail::operand_t& position)
 		{
+			// no per pixel z bin mask, so every pixel of a quad runs the same lights and keeps its derivatives
 			const auto out = acc + 1;
 			const auto light_position = acc + 2;
 			const auto diffuse = acc + 3;
@@ -1468,6 +1448,7 @@ namespace zonetool::h1::converter::s2::shader
 			const auto dir = acc + 9;
 			const auto color = acc + 10;
 			const auto spot = acc + 11;
+			const auto shadow = acc + 13;
 			const auto stable = s2_stable_constant_buffer;
 			const auto rt_size = asm_::cb(stable, lights.render_target_size_row);
 			const auto tile_parms = asm_::cb(stable, lights.tile_parms_row);
@@ -1477,10 +1458,8 @@ namespace zonetool::h1::converter::s2::shader
 			a.mov(asm_::r(acc).select("xyzw"), asm_::l(0.0f, 0.0f, 0.0f, 0.0f));
 			a.mov(asm_::r(out).select("xyzw"), asm_::l(0.0f, 0.0f, 0.0f, 0.0f));
 
-			// tile = (index, word, bits, first light of the word)
 			if (lights.cluster_row)
 			{
-				// the stock lw_fplus_*_bmclust froxel: screen cell light.xy of the cell grid light.zw, view depth slice dir.x of 32
 				const auto cells = asm_::cb(stable, *lights.cluster_row);
 				const auto slice_starts = asm_::cb(stable, *lights.cluster_row + 1);
 				const auto slice_scales = asm_::cb(stable, *lights.cluster_row + 2);
@@ -1536,12 +1515,11 @@ namespace zonetool::h1::converter::s2::shader
 			a.ld_structured(asm_::r(color).select("xyzw"), asm_::r(light).x(), uint_literal(32), lights_buffer.select("xyzw"));
 			a.ld_structured(asm_::r(physical_size).select("xyzw"), asm_::r(light).x(), uint_literal(48), lights_buffer.select("yzwx"));
 			a.ld_structured(asm_::r(spot).xy(), asm_::r(light).x(), uint_literal(64), lights_buffer.select("xyxx"));
-			if (lights.shadows)
+			if (lights.spot_shadows)
 			{
-				a.and_(asm_::r(acc + 13).x(), asm_::r(dir).w(), uint_literal(255));
+				a.and_(asm_::r(shadow).x(), asm_::r(dir).w(), uint_literal(255));
 			}
 
-			// light.z = spot, spot = (scale, exponent, falloff scale, falloff bias), light.w = spot bias
 			a.ubfe(asm_::r(light).z(), uint_literal(2), uint_literal(8), asm_::r(dir).w());
 			a.ieq(asm_::r(light).z(), asm_::r(light).z(), uint_literal(light_spot_type));
 			a.ushr(asm_::r(light).w(), asm_::r(spot).x(), uint_literal(16));
@@ -1551,7 +1529,6 @@ namespace zonetool::h1::converter::s2::shader
 			a.f16tof32(asm_::r(spot).select("xyzw"), asm_::r(spot).select("xyzw"));
 			a.f16tof32(asm_::r(light).w(), asm_::r(light).w());
 
-			// spot factor = cone^exponent * saturate(plane * falloff scale + bias)^2, the h1 omni body then skips its distance falloff
 			a.add(asm_::r(fade).xyz(), asm_::r(light_position).select("xyzx"), negate(position));
 			a.dp3(asm_::r(dir).w(), asm_::r(fade).select("xyzx"), asm_::r(dir).select("xyzx"));
 			a.add(asm_::r(dir).w(), asm_::r(dir).w(), asm_::r(light_position).w());
@@ -1562,16 +1539,16 @@ namespace zonetool::h1::converter::s2::shader
 			a.rsq(asm_::r(light).y(), asm_::r(light).y());
 			a.mul(asm_::r(fade).xyz(), asm_::r(fade).select("xyzx"), asm_::r(light).select("yyyy"));
 
-			// out.y = saturate((radius - distance) / (radius * 0.05)), the h1 falloff tail ends exactly at the radius the tiles are culled with
+			// the falloff ends at the radius that the tiles are culled with
 			a.mul(asm_::r(out).x(), asm_::r(out).x(), asm_::r(light).y());
 			a.mul(asm_::r(out).z(), asm_::r(light_position).w(), asm_::l(20.0f));
 			a.mad_sat(asm_::r(out).y(), asm_::r(out).x().neg(), asm_::r(out).z(), asm_::l(20.0f));
 
 			a.dp3(asm_::r(light).y(), asm_::r(fade).select("xyzx"), asm_::r(dir).select("xyzx"));
 			a.mad_sat(asm_::r(light).y(), asm_::r(light).y(), asm_::r(spot).x(), asm_::r(light).w());
-			if (lights.shadows)
+			if (lights.spot_shadows)
 			{
-				a.mov(asm_::r(acc + 13).w(), asm_::r(light).y()); // the cone before the exponent fades omni shadows
+				a.mov(asm_::r(shadow).w(), asm_::r(light).y());
 			}
 			a.ge(asm_::r(light).w(), asm_::l(0.0f), asm_::r(light).y());
 			a.log(asm_::r(light).y(), asm_::r(light).y());
@@ -1581,7 +1558,7 @@ namespace zonetool::h1::converter::s2::shader
 			a.mul(asm_::r(dir).w(), asm_::r(dir).w(), asm_::r(light).y());
 			a.movc(asm_::r(dir).w(), asm_::r(light).z(), asm_::r(dir).w(), asm_::l(1.0f));
 			a.mul(asm_::r(dir).w(), asm_::r(dir).w(), asm_::r(out).y());
-			if (lights.shadows)
+			if (lights.spot_shadows)
 			{
 				emit_spot_shadow(a, acc, position);
 			}
@@ -1593,14 +1570,12 @@ namespace zonetool::h1::converter::s2::shader
 			a.mov(asm_::r(fade).zw(), asm_::l(0.0f, 0.0f, 0.0f, 0.0f));
 		}
 
-		// writes o0 = lit + lights, or the lights alone for the separate light pass
 		void emit_forward_light_loop_end(alys::shader::assembler& a, const std::uint32_t acc, const std::optional<std::uint32_t> lit)
 		{
 			const auto out = acc + 1;
 			const auto tile = acc + 7;
 
-			// the h1 body divides by zero at the center of a highlight (rsq of a zero vector times the bulb radius); max / min return the
-			// other operand for NaN, so clamping like the stock lit shaders drops that light for the pixel instead of the whole frame
+			// max and min return the other operand for NaN, which drops the light at the center of an h1 highlight
 			a.max(asm_::r(out).xyz(), asm_::r(out).select("xyzx"), asm_::l(0.0f));
 			a.min(asm_::r(out).xyz(), asm_::r(out).select("xyzx"), asm_::l(65504.0f));
 			a.add(asm_::r(acc).xyz(), asm_::r(acc).select("xyzx"), asm_::r(out).select("xyzx"));
@@ -1633,7 +1608,6 @@ namespace zonetool::h1::converter::s2::shader
 				&& (instruction.operands[0].type == D3D10_SB_OPERAND_TYPE_RESOURCE || instruction.operands[0].type == D3D10_SB_OPERAND_TYPE_SAMPLER);
 		}
 
-		// throws unless the pixel shader returns only at its end
 		void check_single_return(const std::vector<alys::shader::detail::instruction_t>& instructions, const char* what)
 		{
 			if (instructions.empty() || instructions.back().opcode.type != D3D10_SB_OPCODE_RET
@@ -1664,7 +1638,6 @@ namespace zonetool::h1::converter::s2::shader
 			}
 		}
 
-		// the h1 light body reads the light pass inputs, constants and textures at the slots of the lit pass
 		class light_merger
 		{
 		public:
@@ -1678,7 +1651,6 @@ namespace zonetool::h1::converter::s2::shader
 				this->result_.get_signatures() = this->lit_.get_signatures();
 				this->result_.get_unknown_chunks() = this->lit_.get_unknown_chunks();
 
-				// the forward light buffers take fixed slots, multi layer lit shaders move the textures there
 				this->lit_slots_ = relocate_light_textures(this->lit_.get_instructions());
 				for (auto& instruction : this->lit_.get_instructions())
 				{
@@ -1758,7 +1730,7 @@ namespace zonetool::h1::converter::s2::shader
 			struct lane
 			{
 				bool valid{};
-				bool one{}; // the h1 light fog transmittance, s2 has no fog there
+				bool fog_transmittance{};
 				std::uint32_t reg{};
 				std::uint8_t component{};
 			};
@@ -1776,8 +1748,8 @@ namespace zonetool::h1::converter::s2::shader
 			alys::shader::shader_object result_;
 			const light_merge& merge_;
 			alys::shader::assembler assembler_;
-			std::map<std::uint32_t, std::array<lane, 4>> lanes_; // light input register components -> lit
-			std::map<std::uint32_t, std::uint32_t> gathered_; // light input registers whose components come from several lit registers -> temp
+			std::map<std::uint32_t, std::array<lane, 4>> lanes_;
+			std::map<std::uint32_t, std::uint32_t> gathered_;
 			std::map<std::uint32_t, lit_input> lit_needs_;
 			alys::shader::detail::operand_t position_;
 			std::map<std::uint32_t, std::uint32_t> lit_slots_;
@@ -1900,7 +1872,7 @@ namespace zonetool::h1::converter::s2::shader
 							continue;
 						}
 
-						if (element.name == "TEXCOORD" && element.semantic_index == 25)
+						if (element.name == "TEXCOORD" && element.semantic_index == h1_fog_transmittance_semantic)
 						{
 							for (auto c = 0; c < 4; c++)
 							{
@@ -1909,7 +1881,7 @@ namespace zonetool::h1::converter::s2::shader
 							continue;
 						}
 
-						// h1 model lit shaders (lpo_*) have no TEXCOORD0, the uv rides in the w of TEXCOORD1 (u) and TEXCOORD5 (v)
+						// lpo shaders have no TEXCOORD0, the uv is in the w of TEXCOORD1 (u) and TEXCOORD5 (v)
 						const auto lit_element = [&](const std::uint32_t index) -> signature_element*
 						{
 							const auto found = std::ranges::find_if(lit_inputs, [&](const signature_element& other)
@@ -1980,11 +1952,10 @@ namespace zonetool::h1::converter::s2::shader
 							need.system_value = instruction.operands[1].custom.u.value;
 						}
 
-						if (element.name == "TEXCOORD" && element.semantic_index == 5)
+						if (element.name == "TEXCOORD" && element.semantic_index == h1_eye_position_semantic)
 						{
 							const auto first = static_cast<std::uint32_t>(std::countr_zero(moved));
-							// a string swizzle and swz(): converted straight to an operand the selection stays a write mask, which reads as one
-							// replicated component, and the numeric select() overload does not build xyz either
+							// only swz() of a string swizzle reads xyz, the other selections stay a write mask
 							constexpr std::string_view names = "xyzw";
 							const std::string swizzle{names[first], names[first + 1], names[first + 2], names[first]};
 							this->position_ = asm_::v(lit.register_).select(swizzle).swz();
@@ -2117,8 +2088,6 @@ namespace zonetool::h1::converter::s2::shader
 				}
 			}
 
-			// a light input read as one operand must come from one lit register; one assembled from several (the TEXCOORD0 uv of the lpo
-			// shaders) gets a temp filled before the light loop
 			void gather_inputs(const std::uint32_t first_temp)
 			{
 				for (const auto& [reg, lanes] : this->lanes_)
@@ -2132,7 +2101,7 @@ namespace zonetool::h1::converter::s2::shader
 							continue;
 						}
 
-						split |= first && (first->one != entry.one || first->reg != entry.reg);
+						split |= first && (first->fog_transmittance != entry.fog_transmittance || first->reg != entry.reg);
 						first = first ? first : std::optional(entry);
 					}
 
@@ -2157,7 +2126,7 @@ namespace zonetool::h1::converter::s2::shader
 						}
 
 						const auto dest = asm_::r(temp).select(std::string(1, names[c]));
-						if (lanes[c].one)
+						if (lanes[c].fog_transmittance)
 						{
 							this->assembler_.mov(dest, asm_::l(1.0f));
 						}
@@ -2190,7 +2159,7 @@ namespace zonetool::h1::converter::s2::shader
 				for (auto i = 0; i < count; i++)
 				{
 					const auto& entry = lanes[components.names[i]];
-					if (!entry.valid || (first && (first->one != entry.one || first->reg != entry.reg)))
+					if (!entry.valid || (first && (first->fog_transmittance != entry.fog_transmittance || first->reg != entry.reg)))
 					{
 						throw std::runtime_error("light pixel shader mixes inputs that the lit shader packs apart");
 					}
@@ -2198,7 +2167,7 @@ namespace zonetool::h1::converter::s2::shader
 					first = first ? first : std::optional(entry);
 				}
 
-				if (first->one)
+				if (first->fog_transmittance)
 				{
 					operand = count == 1 ? asm_::l(1.0f) : asm_::l(1.0f, 1.0f, 1.0f, 1.0f);
 					return;
@@ -2527,7 +2496,7 @@ namespace zonetool::h1::converter::s2::shader
 			alys::shader::assembler assembler_;
 			std::optional<lightmap_input> lightmap_;
 			std::optional<wind_inputs> wind_inputs_;
-			std::unordered_map<std::uint32_t, std::uint32_t> input_registers_; // old -> new input register of the wind passes
+			std::unordered_map<std::uint32_t, std::uint32_t> input_registers_;
 			std::uint32_t wind_temp_{};
 			bool wind_emitted_{};
 			std::optional<std::vector<std::pair<std::uint32_t, sprite_input>>> sprite_inputs_;
@@ -2538,8 +2507,8 @@ namespace zonetool::h1::converter::s2::shader
 			std::optional<vertex_lighting> vs_lighting_;
 			bool pixel_lighting_{};
 			bool pixel_ambient_{};
-			std::optional<std::uint32_t> sun_temp_; // probe sun gate, then the gated sun colors
-			std::optional<std::uint32_t> fog_temp_; // the h1 atmos fog parms 2, 3 and 4
+			std::optional<std::uint32_t> sun_temp_;
+			std::optional<std::uint32_t> fog_temp_;
 			std::optional<std::uint32_t> lighting_input_;
 			std::map<std::uint32_t, std::uint32_t> texture_slots_;
 			std::unordered_set<std::uint32_t> instance_rows_;
@@ -2547,7 +2516,7 @@ namespace zonetool::h1::converter::s2::shader
 			std::uint32_t base_temps_{};
 			std::uint32_t temp_count_{};
 			std::optional<std::uint32_t> first_temp_;
-			std::optional<std::uint32_t> temp_;
+			std::optional<std::uint32_t> scratch_temp_;
 			std::ptrdiff_t light_return_ = -1;
 			std::uint32_t light_temp_{};
 			std::uint32_t light_position_input_{};
@@ -2576,7 +2545,7 @@ namespace zonetool::h1::converter::s2::shader
 				this->light_screen_input_ = screen.register_;
 				const auto& position = find_signature_element(this->result_, alys::shader::chunk_isgn, [](const signature_element& element)
 				{
-					return element.name == "TEXCOORD" && element.semantic_index == 5 && (element.rw_mask & 0x7) == 0x7;
+					return element.name == "TEXCOORD" && element.semantic_index == h1_eye_position_semantic && (element.rw_mask & 0x7) == 0x7;
 				}, "eye relative position input");
 				this->light_position_input_ = position.register_;
 				this->light_return_ = static_cast<std::ptrdiff_t>(this->instructions_.size() - 1);
@@ -2884,7 +2853,7 @@ namespace zonetool::h1::converter::s2::shader
 
 				if (index == this->first_code_ && this->first_temp_ && this->base_temps_)
 				{
-					this->temp_ = *this->first_temp_;
+					this->scratch_temp_ = *this->first_temp_;
 				}
 			}
 
@@ -2919,8 +2888,8 @@ namespace zonetool::h1::converter::s2::shader
 
 				if (this->lightmap_)
 				{
-					this->assembler_.mov(asm_::r(*this->temp_).xy(), asm_::v(this->lightmap_->texcoord).xyxx());
-					this->assembler_.mov(asm_::r(*this->temp_).zw(), asm_::v(this->lightmap_->lightmap).xxxy());
+					this->assembler_.mov(asm_::r(*this->scratch_temp_).xy(), asm_::v(this->lightmap_->texcoord).xyxx());
+					this->assembler_.mov(asm_::r(*this->scratch_temp_).zw(), asm_::v(this->lightmap_->lightmap).xxxy());
 				}
 
 				if (this->sprite_inputs_)
@@ -3031,7 +3000,7 @@ namespace zonetool::h1::converter::s2::shader
 
 				for (auto& operand : instruction.operands)
 				{
-					redirect_input(operand, this->lightmap_->texcoord, *this->temp_);
+					redirect_input(operand, this->lightmap_->texcoord, *this->scratch_temp_);
 				}
 			}
 
@@ -3081,9 +3050,9 @@ namespace zonetool::h1::converter::s2::shader
 				}
 				else if (is_sample(instruction, *sun_shadow.texture))
 				{
-					this->assembler_.mov(asm_::r(*this->temp_).xy(), instruction.operands[1]);
-					this->assembler_.mov(asm_::r(*this->temp_).z(), asm_::l(find_cascade_slice(this->instructions_, static_cast<std::size_t>(index), sun_shadow)));
-					instruction.operands[1] = asm_::r(*this->temp_).xyzx().swz();
+					this->assembler_.mov(asm_::r(*this->scratch_temp_).xy(), instruction.operands[1]);
+					this->assembler_.mov(asm_::r(*this->scratch_temp_).z(), asm_::l(find_cascade_slice(this->instructions_, static_cast<std::size_t>(index), sun_shadow)));
+					instruction.operands[1] = asm_::r(*this->scratch_temp_).xyzx().swz();
 					set_resource_dimension(instruction, D3D10_SB_RESOURCE_DIMENSION_TEXTURE2DARRAY);
 				}
 				else if (this->reads_sun_shadow(instruction))
@@ -3167,7 +3136,7 @@ namespace zonetool::h1::converter::s2::shader
 			if (instruction.opcode.type == D3D10_SB_OPCODE_DCL_CONSTANT_BUFFER && instruction.operands[0].indices[0].value.uint32 == 0)
 			{
 				declares_world = true;
-				instruction.opcode.controls |= 1; // dynamicIndexed
+				instruction.opcode.controls |= D3D10_SB_CONSTANT_BUFFER_DYNAMIC_INDEXED;
 				instruction.operands[0].indices[0].value.uint32 = h1_instance_matrix_buffer;
 				instruction.operands[0].indices[1].value.uint32 = h1_instance_matrix_rows;
 				a(instruction);

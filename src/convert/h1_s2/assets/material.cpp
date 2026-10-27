@@ -47,9 +47,9 @@ namespace zonetool::h1::converter::s2::material
 			}
 		}
 
-		// s2 sets a bit per letter of its techset prefix, h1 world techsets have no prefix ("l_sm_...")
 		std::uint32_t convert_material_type(const std::string& h1_techset)
 		{
+			// h1 world techsets have no type prefix ("l_sm_...")
 			using namespace zonetool::s2;
 
 			const auto prefix = h1_techset.substr(0, h1_techset.find('_'));
@@ -60,7 +60,7 @@ namespace zonetool::h1::converter::s2::material
 
 			if (prefix == "distortion")
 			{
-				return MTL_TYPE_BIT_X | MTL_TYPE_BIT_V; // stock xv_distortion
+				return MTL_TYPE_BIT_X | MTL_TYPE_BIT_V;
 			}
 
 			if (!prefix.starts_with('m'))
@@ -95,7 +95,7 @@ namespace zonetool::h1::converter::s2::material
 
 		std::uint8_t rasterizer_index(const std::uint32_t load_bits0, const std::uint32_t load_bits2)
 		{
-			return static_cast<std::uint8_t>(((load_bits0 >> 3) & 3) | ((load_bits2 >> 25) & 0x1C) | (load_bits0 & 0x20)); // sub_1407FB3E0
+			return static_cast<std::uint8_t>(((load_bits0 >> 3) & 3) | ((load_bits2 >> 25) & 0x1C) | (load_bits0 & 0x20));
 		}
 
 		std::string get_techset_name(const Material* asset)
@@ -109,9 +109,9 @@ namespace zonetool::h1::converter::s2::material
 			return techset.starts_with("effect") || techset.starts_with("particle_cloud");
 		}
 
-		// stock S2 effect and particle cloud materials never alpha test > 0, h1 blend effects do
 		std::uint32_t convert_load_bits0(const std::uint32_t load_bits0, const bool effect)
 		{
+			// stock s2 effects never alpha test > 0
 			if (effect && (load_bits0 & (GFXS0_ATEST_DISABLE | GFXS0_ATEST_MASK)) == GFXS0_ATEST_GT_0)
 			{
 				return (load_bits0 & ~GFXS0_ATEST_MASK) | GFXS0_ATEST_DISABLE;
@@ -136,9 +136,9 @@ namespace zonetool::h1::converter::s2::material
 			return result;
 		}
 
-		// the h1 light pass polygon offset fails the s2 depth test except on edges, so it takes the lit pass state with the light blend
 		zonetool::s2::GfxStateBits convert_light_state_bits(const GfxStateBits& lit, const GfxStateBits& light, const std::uint32_t blend_class, const bool effect)
 		{
+			// the h1 light pass polygon offset fails the s2 depth test, so it takes the lit pass state with the light blend
 			auto source = lit;
 			source.loadBits[1] = lit.loadBits[1] & ~(h1_polygon_offset_mask | GFXS1_DEPTHWRITE);
 			for (auto i = 0u; i < blend_word_count; i++)
@@ -163,7 +163,7 @@ namespace zonetool::h1::converter::s2::material
 			const auto front_func = load_bits1 & GFXS1_STENCIL_FRONT_ENABLE ? load_bits1 & front_stencil_func : front_stencil_func;
 			const auto back_func = load_bits1 & GFXS1_STENCIL_BACK_ENABLE
 				? load_bits1 & back_stencil_func
-				: front_func << (GFXS1_STENCIL_BACK_FUNC_SHIFT - GFXS1_STENCIL_FRONT_FUNC_SHIFT); // sub_140827CB0 case 2
+				: front_func << (GFXS1_STENCIL_BACK_FUNC_SHIFT - GFXS1_STENCIL_FRONT_FUNC_SHIFT);
 			const auto stencil_states = load_bits1 & 0xFFFFFF00 ? load_bits1 | depth_write : load_bits1 | 0xE02E0241;
 			const std::array<std::uint32_t, depth_stencil_mode_count> states
 			{
@@ -253,12 +253,11 @@ namespace zonetool::h1::converter::s2::material
 			std::ranges::fill(material->stateBitsEntry, no_entry);
 			std::ranges::fill(material->constantBufferIndex, no_entry);
 
-			// pass p of a technique uses stateBitsEntry[slot] + p, so multi pass techniques get a run of entries
+			// pass p of a technique uses stateBitsEntry[slot] + p
 			std::vector<zonetool::s2::GfxStateBits> state_bits;
 			std::vector<zonetool::s2::material_state> states;
 			std::map<std::tuple<std::uint8_t, std::uint8_t, std::uint32_t, std::uint32_t>, std::uint8_t> entries;
 			const auto effect = is_effect_material(asset);
-			// the instanced passes the converter builds for h1 techsets without them (reactive motion) share the states of the standard ones
 			const auto state_source = [&](const std::int32_t source)
 			{
 				constexpr auto group_size = TECHNIQUE_INSTANCED_BEGIN - TECHNIQUE_STANDARD_BEGIN;
@@ -298,7 +297,6 @@ namespace zonetool::h1::converter::s2::material
 					throw std::runtime_error(std::format("technique {} has no state bits", source));
 				}
 
-				// the appended primary light pass keeps the additive state of the h1 light technique
 				const auto key = std::make_tuple(h1_entry, light_entry, blend_class(slot), pass_count);
 				const auto [entry, inserted] = entries.try_emplace(key, static_cast<std::uint8_t>(state_bits.size()));
 				if (inserted)
@@ -380,8 +378,6 @@ namespace zonetool::h1::converter::s2::material
 			}
 		}
 
-		// stock s2: materials without depth writes are blended (out of the static model depth prepass), a layer 0 alpha test (t0/a0) or vdh needs
-		// the material's own prepass technique, the rest use the generic depth shader; alpha tested ones without a prepass technique stay out
 		zonetool::s2::MaterialPrepassClass convert_prepass_class(const Material* asset, const zonetool::s2::MaterialTechniqueSet* techset)
 		{
 			if (!(asset->stateFlags & STATE_FLAG_WRITES_DEPTH))
@@ -541,7 +537,6 @@ namespace zonetool::h1::converter::s2::material
 			dump_native(asset, h1_techset, false, allocator);
 		}
 
-		// fx sprite elems draw from the s2 sprite records, so they get a copy of the material on a sprite techset
 		void convert_sprite(const Material* asset, const std::string& name)
 		{
 			auto sprite = *asset;
@@ -574,12 +569,12 @@ namespace zonetool::h1::converter::s2::material
 
 		if (sort_key <= h1_decal_end)
 		{
-			return static_cast<std::uint8_t>(sort_key + 3); // s2 decals are 10 to 20
+			return static_cast<std::uint8_t>(sort_key + 3);
 		}
 
 		if (sort_key <= h1_trans_end)
 		{
-			return static_cast<std::uint8_t>(std::max(+sort_key, s2_trans_begin)); // keys below 22 are s2 decals
+			return static_cast<std::uint8_t>(std::max(+sort_key, s2_trans_begin));
 		}
 
 		if (sort_key >= h1_2d)
@@ -587,7 +582,7 @@ namespace zonetool::h1::converter::s2::material
 			return static_cast<std::uint8_t>(std::min(sort_key + 2, max_sort_key));
 		}
 
-		return static_cast<std::uint8_t>(sort_key + 1); // shadow caster 38 to 39, effect auto 53 to 54
+		return static_cast<std::uint8_t>(sort_key + 1);
 	}
 
 	void dump(Material* asset)
@@ -612,7 +607,6 @@ namespace zonetool::h1::converter::s2::material
 		}
 
 		utils::memory::allocator allocator;
-		// the stock zone's own minimap materials with the h1 minimap image
 		const auto& zone = techset::stock_zone();
 		const auto stock_minimap = "compass_map_" + std::string(techset::stock_zone_name);
 		for (const auto suffix : {"", "_circular", "_ui3d"})

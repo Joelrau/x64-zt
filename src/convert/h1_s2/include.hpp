@@ -37,7 +37,6 @@ namespace zonetool::h1::converter::s2
 		return result;
 	}
 
-	// reinterprets an h1 array as the s2 struct of the same layout
 	template <typename To, typename From>
 	To* retype(From* data)
 	{
@@ -45,11 +44,10 @@ namespace zonetool::h1::converter::s2
 		return reinterpret_cast<To*>(data);
 	}
 
-	// the S2 writer reserves a runtime array only when its pointer is set
 	template <typename T>
 	void mark_runtime(T*& buffer, utils::memory::allocator& allocator)
 	{
-		buffer = allocator.allocate<T>();
+		buffer = allocator.allocate<T>(); // the s2 writer reserves a runtime array only when its pointer is set
 	}
 
 	template <typename T, std::size_t N>
@@ -61,7 +59,6 @@ namespace zonetool::h1::converter::s2
 		}
 	}
 
-	// marks the runtime array only when it has elements
 	template <typename T>
 	void reserve_runtime(T*& buffer, const unsigned int count, utils::memory::allocator& allocator)
 	{
@@ -71,9 +68,9 @@ namespace zonetool::h1::converter::s2
 		}
 	}
 
-	// h1 keeps the binormal sign in the sign of binormalSign, s2 sets the top two tangent bits when the binormal is -cross(normal, tangent)
 	inline std::uint32_t pack_tangent(const std::uint32_t tangent, const float binormal_sign)
 	{
+		// s2 sets the top two tangent bits for a binormal of -cross(normal, tangent)
 		return (tangent & 0x3FFFFFFFu) | (binormal_sign < 0.0f ? 0xC0000000u : 0u);
 	}
 

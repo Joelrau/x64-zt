@@ -182,7 +182,7 @@ namespace zonetool::s2
 			}
 		}
 
-		// effects reference each other by name, so a cycle would recurse and add an effect twice without this guard
+		// effects reference each other by name, a cycle would recurse without this guard
 		thread_local std::unordered_set<std::string> loading_effects;
 
 		void add_effect_by_name(zone_base* zone, const char* name)

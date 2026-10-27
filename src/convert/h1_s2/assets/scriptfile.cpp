@@ -37,19 +37,15 @@ namespace zonetool::h1::converter::s2::scriptfile
 			const auto source = context.printer().print(*tree);
 			return {source.begin(), source.end()};
 		}
-	}
 
-	namespace
-	{
-		// atmos fog keys h1 does not write, values of the stock s2 neutral fog blocks; the parser (2.5 sub_1403D9200) keeps the
-		// previous or zero value of a missing key, entity scale 0 leaves models unfogged
+		// s2 keeps the previous value of a missing atmos fog key, so the blocks get the stock neutral values
 		constexpr std::array<std::pair<std::string_view, std::string_view>, 24> s2_atmos_fog_keys
 		{{
 			{"atmosFogExtinctionDesaturation", "0"},
 			{"atmosFogHeightFogMaximumOffset", "0"},
 			{"atmosFogHeightFogStrengthOfDepthFog", "0"},
 			{"atmosFogEntityScale", "1"},
-			{"atmosFogAirLightCapacity", "0"}, // stock main map blocks use 2, but h1 has no air lights: they haze the room around every bright primary light
+			{"atmosFogAirLightCapacity", "0"}, // stock uses 2, but s2 air lights haze the room around every bright h1 primary light
 			{"atmosFogAirLightDensityScalar", "1"},
 			{"atmosFogAirLightVertexInnerMutedRadius", "0"},
 			{"atmosFogSplineEnabled", "0"},
@@ -71,8 +67,7 @@ namespace zonetool::h1::converter::s2::scriptfile
 			{"atmosFogSplineMaxDistanceTangentAngle", "0"},
 		}};
 
-		// with atmos height fog off h1 uses base height 0 and half plane distance 100000 (1.4 sub_1400BF3F0), s2 base height -1000000
-		// (2.20 sub_14044DA00), which thins the converted h1 fog math (density at the eye height) ~1000x; the h1 values as an enabled s2 height fog
+		// h1 with height fog off uses base height 0 and half plane distance 100000
 		constexpr std::array<std::pair<std::string_view, std::string_view>, 5> h1_atmos_height_fog_off
 		{{
 			{"atmosFogHeightFogEnabled", "1"},
@@ -106,11 +101,10 @@ namespace zonetool::h1::converter::s2::scriptfile
 			return first == std::string_view::npos ? std::string{} : std::string(value.substr(first, value.find_last_not_of(" \t") - first + 1));
 		}
 
-		// every create_vision_set_fog block gets the s2 atmos fog keys it lacks after its last "ent." line
 		std::string convert_fog_file(const std::string& source)
 		{
 			std::vector<std::string> lines;
-			std::unordered_map<std::string, std::size_t> keys; // key -> line
+			std::unordered_map<std::string, std::size_t> key_lines;
 			std::optional<std::size_t> block_end;
 			const auto finish_block = [&]
 			{
@@ -120,8 +114,8 @@ namespace zonetool::h1::converter::s2::scriptfile
 				}
 
 				std::unordered_map<std::string, std::string_view> values;
-				const auto enabled = keys.find("atmosfogheightfogenabled");
-				if (enabled != keys.end() && fog_value(lines[enabled->second]) == "0")
+				const auto enabled = key_lines.find("atmosfogheightfogenabled");
+				if (enabled != key_lines.end() && fog_value(lines[enabled->second]) == "0")
 				{
 					for (const auto& [key, value] : h1_atmos_height_fog_off)
 					{
@@ -138,7 +132,7 @@ namespace zonetool::h1::converter::s2::scriptfile
 				for (const auto& [key, value] : h1_atmos_height_fog_off)
 				{
 					const auto lower = utils::string::to_lower(std::string(key));
-					if (const auto line = keys.find(lower); line != keys.end() && values.contains(lower))
+					if (const auto line = key_lines.find(lower); line != key_lines.end() && values.contains(lower))
 					{
 						lines[line->second] = std::format("\tent.{} = {};", key, values.at(lower));
 					}
@@ -147,14 +141,14 @@ namespace zonetool::h1::converter::s2::scriptfile
 				for (const auto& [key, value] : s2_atmos_fog_keys)
 				{
 					const auto lower = utils::string::to_lower(std::string(key));
-					if (!keys.contains(lower))
+					if (!key_lines.contains(lower))
 					{
 						missing.emplace_back(std::format("\tent.{} = {};", key, values.at(lower)));
 					}
 				}
 
 				lines.insert(lines.begin() + static_cast<std::ptrdiff_t>(*block_end), missing.begin(), missing.end());
-				keys.clear();
+				key_lines.clear();
 				block_end.reset();
 			};
 
@@ -188,7 +182,7 @@ namespace zonetool::h1::converter::s2::scriptfile
 				}
 				else if (const auto key = fog_key(trimmed); block_end && !key.empty())
 				{
-					keys[key] = lines.size() - 1;
+					key_lines[key] = lines.size() - 1;
 					block_end = lines.size();
 				}
 			}
@@ -210,16 +204,15 @@ namespace zonetool::h1::converter::s2::scriptfile
 			return text;
 		}
 
-		// s2 dropped isusinghdr. always renders hdr
 		std::string replace_removed_builtins(const std::string& source)
 		{
 			static const std::regex is_using_hdr(R"(\bisusinghdr\s*\(\s*\))");
 			return std::regex_replace(source, is_using_hdr, "1");
 		}
 
-		// s2 art scripts only run the fog file's setupfog(), the client loads vision and fog itself and visionsetnaked clears the fog
 		std::optional<std::string> make_s2_art_script(const std::string& name)
 		{
+			// the s2 client loads the vision and fog itself, visionsetnaked would clear the fog
 			constexpr std::string_view prefix = "maps/createart/";
 			constexpr std::string_view suffix = "_art.gsc";
 			if (!name.starts_with(prefix) || !name.ends_with(suffix))
@@ -231,7 +224,6 @@ namespace zonetool::h1::converter::s2::scriptfile
 			return std::format("main()\n{{\n    level.tweakfile = 1;\n    maps\\createart\\{}_fog_hdr::setupfog();\n}}\n", map);
 		}
 
-		// the map script names its compass material, built from the stock zone's minimap materials
 		void dump_minimap(const std::string& source)
 		{
 			static const std::regex setup_minimap(R"re(\bsetupminimap\s*\(\s*"([^"]+)")re");
@@ -273,7 +265,7 @@ namespace zonetool::h1::converter::s2::scriptfile
 			return;
 		}
 
-		// the zone's rawfile version has the original source (createfx text format etc) and is patched and dumped by rawfile
+		// the rawfile of the same name has the original source, rawfile dumps it
 		const auto name = convert_name(asset->name);
 		if (zonetool::h1::db_find_x_asset_header_safe(ASSET_TYPE_RAWFILE, name).rawfile)
 		{
@@ -281,7 +273,7 @@ namespace zonetool::h1::converter::s2::scriptfile
 		}
 
 		std::string source;
-		if (!make_s2_art_script(name)) // patch replaces art scripts whole
+		if (!make_s2_art_script(name))
 		{
 			try
 			{
@@ -298,7 +290,7 @@ namespace zonetool::h1::converter::s2::scriptfile
 
 		write_file(name, source);
 
-		// s2x compiles a "<name>.gsc" rawfile in place of the stock scriptfile, so shared h1 scripts must not replace the s2 ones
+		// s2x compiles a "<name>.gsc" rawfile in place of the stock script, so only the map scripts get a row
 		if (std::filesystem::path(name).stem().string().starts_with(filesystem::get_fastfile()))
 		{
 			add_csv_row("rawfile", name);

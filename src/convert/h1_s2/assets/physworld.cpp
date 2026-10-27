@@ -10,20 +10,31 @@ namespace zonetool::h1::converter::s2::physworld
 		constexpr auto node_padding = 1.0f / 2.54f;
 		constexpr auto solid_collision_flags = 0xFFFFu;
 
-		// matched on stock S2 brush models of 13 maps, each pair of clip bits only occurs together there
+		constexpr std::uint32_t contents_solid = 0x1;
+		constexpr std::uint32_t contents_glass = 0x10;
+		constexpr std::uint32_t contents_water = 0x20;
+		constexpr std::uint32_t contents_canshootclip = 0x40;
+		constexpr std::uint32_t contents_missileclip = 0x80;
+		constexpr std::uint32_t contents_vehicleclip = 0x200;
+		constexpr std::uint32_t contents_itemclip = 0x400;
+		constexpr std::uint32_t contents_ai_nosight = 0x1000;
+		constexpr std::uint32_t contents_clipshot = 0x2000;
+		constexpr std::uint32_t contents_playerclip = 0x10000;
+		constexpr std::uint32_t contents_monsterclip = 0x20000;
+
 		constexpr std::array<std::pair<std::uint32_t, std::uint32_t>, 11> contents_collision_flags
 		{{
-			{0x1, solid_collision_flags}, // CONTENTS_SOLID
-			{0x10, solid_collision_flags}, // CONTENTS_GLASS
-			{0x20, 0x100}, // CONTENTS_WATER, stock mp_battleship_2 water polytope
-			{0x40, 0x2000}, // CONTENTS_CANSHOOTCLIP
-			{0x1000, 0x2000}, // CONTENTS_AI_NOSIGHT
-			{0x80, 0x180}, // CONTENTS_MISSILECLIP
-			{0x2000, 0x180}, // CONTENTS_CLIPSHOT
-			{0x200, 0x10}, // CONTENTS_VEHICLECLIP
-			{0x400, 0x80E}, // CONTENTS_ITEMCLIP
-			{0x10000, 0x600}, // CONTENTS_PLAYERCLIP
-			{0x20000, 0x600}, // CONTENTS_MONSTERCLIP
+			{contents_solid, solid_collision_flags},
+			{contents_glass, solid_collision_flags},
+			{contents_water, 0x100},
+			{contents_canshootclip, 0x2000},
+			{contents_ai_nosight, 0x2000},
+			{contents_missileclip, 0x180},
+			{contents_clipshot, 0x180},
+			{contents_vehicleclip, 0x10},
+			{contents_itemclip, 0x80E},
+			{contents_playerclip, 0x600},
+			{contents_monsterclip, 0x600},
 		}};
 
 		int convert_collision_flags(const int contents)
@@ -224,7 +235,7 @@ namespace zonetool::h1::converter::s2::physworld
 
 		zonetool::s2::PhysBrushModel convert_model(const PhysBrushModel& model, const std::size_t mesh_count, const std::size_t polytope_count)
 		{
-			zonetool::s2::PhysBrushModel new_model{-1, 0, 0xFFFF}; // 0x631F89
+			zonetool::s2::PhysBrushModel new_model{-1, 0, 0xFFFF};
 			const auto mesh = model.fields.meshIndex;
 			if (mesh >= 0 && static_cast<std::size_t>(mesh) < mesh_count)
 			{
@@ -239,6 +250,42 @@ namespace zonetool::h1::converter::s2::physworld
 			}
 
 			return new_model;
+		}
+
+		zonetool::s2::PhysWorld* convert(PhysWorld* asset, utils::memory::allocator& allocator)
+		{
+			const auto new_asset = allocator.allocate<zonetool::s2::PhysWorld>();
+			new_asset->name = asset->name;
+
+			new_asset->waterCount = asset->waterVolumeDefs ? asset->waterVolumeDefCount : 0;
+			new_asset->waters = new_asset->waterCount ? allocator.allocate_array<zonetool::s2::PhysWaterVolumeDef>(new_asset->waterCount) : nullptr;
+			for (auto i = 0u; i < new_asset->waterCount; i++)
+			{
+				new_asset->waters[i] = convert_water_volume(asset->waterVolumeDefs[i]);
+			}
+
+			new_asset->polytopeCount = asset->polytopeDatas ? asset->polytopeCount : 0;
+			new_asset->polytopes = new_asset->polytopeCount ? allocator.allocate_array<zonetool::s2::dmPolytopeData>(new_asset->polytopeCount) : nullptr;
+			for (auto i = 0u; i < new_asset->polytopeCount; i++)
+			{
+				new_asset->polytopes[i] = convert_polytope(asset->polytopeDatas[i]);
+			}
+
+			new_asset->meshCount = asset->meshDatas ? asset->meshDataCount : 0;
+			new_asset->meshes = new_asset->meshCount ? allocator.allocate_array<zonetool::s2::PhysMeshData>(new_asset->meshCount) : nullptr;
+			for (auto i = 0u; i < new_asset->meshCount; i++)
+			{
+				new_asset->meshes[i] = convert_mesh(asset->meshDatas[i], allocator);
+			}
+
+			new_asset->modelCount = asset->brushModelCount;
+			new_asset->models = new_asset->modelCount ? allocator.allocate_array<zonetool::s2::PhysBrushModel>(new_asset->modelCount) : nullptr;
+			for (auto i = 0u; asset->brushModels && i < new_asset->modelCount; i++)
+			{
+				new_asset->models[i] = convert_model(asset->brushModels[i], new_asset->meshCount, new_asset->polytopeCount);
+			}
+
+			return new_asset;
 		}
 	}
 
@@ -265,7 +312,6 @@ namespace zonetool::h1::converter::s2::physworld
 		result.inertiaProducts[2] = polytope.m_inertiaProducts.z;
 		result.collisionFlags = static_cast<unsigned int>(convert_collision_flags(polytope.contents));
 
-		// stock H1 polytopes use one surface type on every face
 		const auto surface_type = polytope.m_surfaceTypes && polytope.m_faceCount ? polytope.m_surfaceTypes[0] : 0;
 		result.surfaceType = convert_surface_type(surface_type);
 		return result;
@@ -274,43 +320,9 @@ namespace zonetool::h1::converter::s2::physworld
 	void dump(PhysWorld* asset)
 	{
 		utils::memory::allocator allocator;
-
-		std::vector<zonetool::s2::PhysWaterVolumeDef> waters;
-		for (auto i = 0u; asset->waterVolumeDefs && i < asset->waterVolumeDefCount; i++)
-		{
-			waters.push_back(convert_water_volume(asset->waterVolumeDefs[i]));
-		}
-
-		std::vector<zonetool::s2::dmPolytopeData> polytopes;
-		for (auto i = 0u; asset->polytopeDatas && i < asset->polytopeCount; i++)
-		{
-			polytopes.push_back(convert_polytope(asset->polytopeDatas[i]));
-		}
-
-		std::vector<zonetool::s2::PhysMeshData> meshes;
-		for (auto i = 0u; asset->meshDatas && i < asset->meshDataCount; i++)
-		{
-			meshes.push_back(convert_mesh(asset->meshDatas[i], allocator));
-		}
-
-		std::vector<zonetool::s2::PhysBrushModel> models(asset->brushModelCount);
-		for (auto i = 0u; asset->brushModels && i < asset->brushModelCount; i++)
-		{
-			models[i] = convert_model(asset->brushModels[i], meshes.size(), polytopes.size());
-		}
-
-		zonetool::s2::PhysWorld new_asset{};
-		new_asset.name = asset->name;
-		new_asset.modelCount = asset->brushModelCount;
-		new_asset.models = models.empty() ? nullptr : models.data();
-		new_asset.polytopeCount = static_cast<unsigned int>(polytopes.size());
-		new_asset.polytopes = polytopes.empty() ? nullptr : polytopes.data();
-		new_asset.meshCount = static_cast<unsigned int>(meshes.size());
-		new_asset.meshes = meshes.empty() ? nullptr : meshes.data();
-		new_asset.waterCount = static_cast<unsigned int>(waters.size());
-		new_asset.waters = waters.empty() ? nullptr : waters.data();
-		zonetool::s2::phys_worldmap::dump(&new_asset);
-		add_csv_row("phys_worldmap", new_asset.name);
+		const auto new_asset = convert(asset, allocator);
+		zonetool::s2::phys_worldmap::dump(new_asset);
+		add_csv_row("phys_worldmap", new_asset->name);
 	}
 
 	void dump_water_preset(PhysWaterPreset* asset)

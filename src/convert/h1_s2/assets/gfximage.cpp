@@ -465,7 +465,6 @@ namespace zonetool::h1::converter::s2::gfximage
 			dump_loaded_image(&image, pixels.data);
 		}
 
-		// a single level 2d image the converter makes itself
 		zonetool::s2::GfxImage generated_image(const std::string& name, const DXGI_FORMAT format, const std::size_t width, const std::size_t height,
 			const std::uint8_t semantic)
 		{
@@ -488,118 +487,6 @@ namespace zonetool::h1::converter::s2::gfximage
 			dumped_images.insert(image.name);
 			add_csv_row("image", image.name);
 			return image.name;
-		}
-
-		constexpr auto sky_z_scale = 0.919831f; // s2 sky uv = 0.5 + 0.5 * dir.xy / (len + |0.919831 * dir.z + 0.080169 * len|)
-		constexpr auto sky_size = 1024u;
-
-		std::array<float, 3> sky_direction(const float px, const float py)
-		{
-			const auto r2 = std::min(px * px + py * py, 1.0f);
-			const auto c = 1.0f + 0.080169f;
-			const auto qa = r2 * sky_z_scale * sky_z_scale + 1.0f;
-			const auto qb = 2.0f * r2 * sky_z_scale * c;
-			const auto qc = r2 * c * c - 1.0f;
-			const auto z = (-qb + std::sqrt(std::max(0.0f, qb * qb - 4.0f * qa * qc))) / (2.0f * qa);
-			const auto d = c + sky_z_scale * z;
-			return {px * d, py * d, z};
-		}
-
-		std::tuple<std::size_t, float, float> cube_face(const std::array<float, 3>& dir)
-		{
-			const auto [x, y, z] = dir;
-			const auto ax = std::abs(x);
-			const auto ay = std::abs(y);
-			const auto az = std::abs(z);
-			std::size_t face{};
-			float sc{}, tc{}, ma{};
-			if (ax >= ay && ax >= az)
-			{
-				face = x >= 0.0f ? 0 : 1;
-				sc = x >= 0.0f ? -z : z;
-				tc = -y;
-				ma = ax;
-			}
-			else if (ay >= az)
-			{
-				face = y >= 0.0f ? 2 : 3;
-				sc = x;
-				tc = y >= 0.0f ? z : -z;
-				ma = ay;
-			}
-			else
-			{
-				face = z >= 0.0f ? 4 : 5;
-				sc = z >= 0.0f ? x : -x;
-				tc = -y;
-				ma = az;
-			}
-
-			return {face, (sc / ma + 1.0f) * 0.5f, (tc / ma + 1.0f) * 0.5f};
-		}
-
-		std::optional<std::string> bake_sky(const GfxImage* asset, image_pixels& pixels)
-		{
-			const auto format = static_cast<DXGI_FORMAT>(asset->imageFormat);
-			std::size_t row_pitch{};
-			std::size_t slice_pitch{};
-			if (FAILED(DirectX::ComputePitch(format, pixels.width, pixels.height, row_pitch, slice_pitch)) || slice_pitch * 6 > pixels.data.size())
-			{
-				return {};
-			}
-
-			std::vector<DirectX::ScratchImage> faces(6);
-			for (auto i = 0u; i < faces.size(); i++)
-			{
-				const DirectX::Image source{pixels.width, pixels.height, format, row_pitch, slice_pitch,
-					reinterpret_cast<std::uint8_t*>(pixels.data.data() + slice_pitch * i)};
-				if (FAILED(decode_image(source, DXGI_FORMAT_R32G32B32A32_FLOAT, faces[i])))
-				{
-					return {};
-				}
-			}
-
-			DirectX::ScratchImage sky;
-			if (FAILED(sky.Initialize2D(DXGI_FORMAT_R32G32B32A32_FLOAT, sky_size, sky_size, 1, 1)))
-			{
-				return {};
-			}
-
-			const auto& target = *sky.GetImage(0, 0, 0);
-			for (auto y = 0u; y < sky_size; y++)
-			{
-				const auto row = reinterpret_cast<float*>(target.pixels + y * target.rowPitch);
-				for (auto x = 0u; x < sky_size; x++)
-				{
-					const auto px = (x + 0.5f) / sky_size * 2.0f - 1.0f;
-					const auto py = (y + 0.5f) / sky_size * 2.0f - 1.0f;
-					const auto [face, u, v] = cube_face(sky_direction(px, py));
-
-					const auto& source = *faces[face].GetImage(0, 0, 0);
-					const auto sx = std::min(static_cast<std::size_t>(u * source.width), source.width - 1);
-					const auto sy = std::min(static_cast<std::size_t>(v * source.height), source.height - 1);
-					const auto texel = reinterpret_cast<const float*>(source.pixels + sy * source.rowPitch) + sx * 4;
-					std::copy_n(texel, 4, row + x * 4);
-				}
-			}
-
-			DirectX::ScratchImage mips;
-			if (FAILED(DirectX::GenerateMipMaps(target, DirectX::TEX_FILTER_DEFAULT, 0, mips)))
-			{
-				return {};
-			}
-
-			DirectX::ScratchImage compressed;
-			if (FAILED(DirectX::Compress(mips.GetImages(), mips.GetImageCount(), mips.GetMetadata(), DXGI_FORMAT_BC1_UNORM,
-				DirectX::TEX_COMPRESS_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, compressed)))
-			{
-				return {};
-			}
-
-			pixels.width = sky_size;
-			pixels.height = sky_size;
-			pixels.levels = compressed.GetMetadata().mipLevels;
-			return std::string{reinterpret_cast<const char*>(compressed.GetPixels()), compressed.GetPixelsSize()};
 		}
 
 		bool dump_zone_image(GfxImage* asset)
@@ -675,7 +562,7 @@ namespace zonetool::h1::converter::s2::gfximage
 			return name;
 		}
 
-		// h1 creates cube textures with the srgb twin of rgba8/bc1/bc2/bc3 (1.4 sub_1405DB650 -> sub_1405DD210, not bc7), 2d ones keep theirs
+		// h1 makes cube textures srgb except bc7, 2d ones keep their format
 		const auto format = static_cast<DXGI_FORMAT>(asset->imageFormat);
 		const auto srgb = asset->mapType == MAPTYPE_CUBE && format != DXGI_FORMAT_BC7_UNORM;
 		const auto data = read_image(asset);
@@ -718,7 +605,7 @@ namespace zonetool::h1::converter::s2::gfximage
 		}
 
 		constexpr auto width = 128u;
-		const std::string pixels(width * sizeof(std::uint32_t), '\xFF'); // full visibility
+		const std::string pixels(width * sizeof(std::uint32_t), '\xFF');
 
 		auto image = generated_image(name, DXGI_FORMAT_R10G10B10A2_UNORM, width, 1, TS_FUNCTION);
 		image.category = IMG_CATEGORY_AUTO_GENERATED;
@@ -732,7 +619,6 @@ namespace zonetool::h1::converter::s2::gfximage
 			return name;
 		}
 
-		// the same in every stock S2 map, which has no IES profiles: a 1x1 cube with (1, 0) on each face
 		constexpr std::uint16_t texel[2] = {0x3C00, 0};
 		std::string pixels;
 		for (auto face = 0; face < 6; face++)
@@ -744,28 +630,6 @@ namespace zonetool::h1::converter::s2::gfximage
 		image.mapType = zonetool::s2::MAPTYPE_CUBE;
 		image.category = IMG_CATEGORY_AUTO_GENERATED;
 		return dump_generated(image, pixels);
-	}
-
-	std::optional<std::string> dump_sky(GfxImage* asset)
-	{
-		const auto name = clean_name(asset->name) + "_s2sky";
-		if (dumped_images.contains(name))
-		{
-			return name;
-		}
-
-		auto pixels = read_pixels(asset);
-		const auto data = pixels ? bake_sky(asset, *pixels) : std::nullopt;
-		if (!data)
-		{
-			ZONETOOL_WARNING("Failed to convert sky cubemap \"%s\"", asset->name);
-			return {};
-		}
-
-		auto image = generated_image(name, DXGI_FORMAT_BC1_UNORM_SRGB, pixels->width, pixels->height, TS_COLOR_MAP);
-		image.category = asset->category;
-		image.levelCount = static_cast<unsigned char>(pixels->levels);
-		return dump_generated(image, *data);
 	}
 
 	bool is_dumped(const std::string& name)

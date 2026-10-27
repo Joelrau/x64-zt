@@ -50,7 +50,6 @@ namespace zonetool::h1::converter::s2::mapents
 			new_trigger.waterTriggers = trigger.waterTriggers;
 		}
 
-		// a blend node side without a trigger is 0x400 in h1 and 0x800 in s2 (2.5 sub_1403DE020), else s2 blends toward a zone read past its trigger table
 		zonetool::s2::ClientTriggerBlend convert_blend_nodes(const ClientTriggerBlend& blend, utils::memory::allocator& allocator)
 		{
 			constexpr auto h1_no_trigger = 0x400;
@@ -75,9 +74,9 @@ namespace zonetool::h1::converter::s2::mapents
 			return new_blend;
 		}
 
-		// like iw6 -> h1 the keys are written by name, the s2 spawn var parser (2.5 sub_1404E99B0) resolves a non numeric key with SL_GetCanonicalString
 		std::optional<std::string> convert_key(const std::string& name)
 		{
+			// s2 resolves a quoted key name to its canonical string
 			if (name.starts_with("_id_"))
 			{
 				ZONETOOL_WARNING("map_ents: key \"%s\" has no name, dropping it", name.data());

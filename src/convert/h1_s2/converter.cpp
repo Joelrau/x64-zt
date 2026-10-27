@@ -93,9 +93,9 @@ namespace zonetool::h1::converter::s2
 		return (h1_flags & ~(0x3Fu << 20)) | (convert_surface_type(h1_flags >> 20) << 20);
 	}
 
-	// bit i is surface type i + 1 in both games, the default type has no bit
 	std::uint64_t convert_surface_type_bits(const std::uint64_t h1_bits)
 	{
+		// bit i is surface type i + 1 in both games, the default type has no bit
 		std::uint64_t result{};
 		for (auto i = 0u; i + 1 < SURF_TYPE_COUNT; i++)
 		{
@@ -262,7 +262,7 @@ namespace zonetool::convert::h1_s2
 
 		std::vector<std::string> required_zones(const std::string& zone_name)
 		{
-			// common_core_mp holds the xanims h1 scriptables play (vehicle_80s_sedan1_destroy)
+			// common_core_mp holds the xanims of the h1 scriptables
 			return {"code_post_gfx_mp", "patch_code_post_gfx_mp", "techsets_common_core_mp", "techsets_common_mp", "common_core_mp", "common_mp",
 				"techsets_" + zone_name, "patch_" + zone_name};
 		}

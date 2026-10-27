@@ -667,7 +667,6 @@ namespace zonetool::s2
 			return parse_single_file(name, mem);
 		}
 
-		// the .bin keeps the header and the unknown parts
 		assetmanager::reader read(mem);
 		if (!read.open(dump_path(ASSET_TYPE_MAP_ENTS, name.data())))
 		{

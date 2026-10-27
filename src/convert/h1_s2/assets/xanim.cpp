@@ -9,10 +9,6 @@ namespace zonetool::h1::converter::s2::xanim
 	{
 		std::unordered_set<std::string> dumped_anims;
 
-		// walks the per-track streams in part type order, per track: key count in dataShort, then numKeys+1 frame indices
-		// (u8 in dataByte below 256 frames, else u16 inline, or a block table in dataShort plus the indices stream from 64 keys)
-		// h1 1.4 sub_140527140 keeps the bone index of translation tracks (types 5-8) as a u8 in dataByte,
-		// s2 2.20 sub_1407CFA20 as an s16 in dataShort ahead of the key count
 		template <bool s2_layout, typename T>
 		bool walk_tracks(const T* asset, const std::function<void(int type, int index, int bytes, int shorts)>& visit)
 		{
@@ -101,6 +97,7 @@ namespace zonetool::h1::converter::s2::xanim
 
 		void convert_track_data(XAnimParts* asset, zonetool::s2::XAnimParts* new_asset, utils::memory::allocator& allocator)
 		{
+			// h1 keeps the bone index of a translation track as a u8 in dataByte, s2 as an s16 in dataShort before the key count
 			std::vector<char> bytes;
 			std::vector<short> shorts;
 			auto byte_end = 0, short_end = 0;
@@ -145,7 +142,6 @@ namespace zonetool::h1::converter::s2::xanim
 			}
 		}
 
-		// same 10 part types and delta parts as h1, s2 widens the bone counts and flags to u16 and moves translation bone indices
 		zonetool::s2::XAnimParts* convert(XAnimParts* asset, utils::memory::allocator& allocator)
 		{
 			const auto new_asset = allocator.allocate<zonetool::s2::XAnimParts>();
@@ -178,7 +174,6 @@ namespace zonetool::h1::converter::s2::xanim
 			new_asset->secondaryName = asset->secondaryName;
 			convert_track_data(asset, new_asset, allocator);
 
-			// h1 stores compressed blend shape keys, s2 a weight per frame
 			if (asset->blendShapeCount)
 			{
 				ZONETOOL_WARNING("xanim \"%s\": dropping %u blend shapes, h1 blend shape keys are not converted", asset->name, asset->blendShapeCount);

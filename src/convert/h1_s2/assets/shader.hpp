@@ -4,42 +4,41 @@ namespace zonetool::h1::converter::s2::shader
 {
 	constexpr auto h1_stable_constant_buffer = 2u;
 	constexpr auto h1_material_constant_buffer = 3u;
-	constexpr auto s2_stable_constant_buffer = h1_stable_constant_buffer + 1; // s2 adds a buffer before the h1 stable one, so it and the ones after it move up one slot
+	constexpr auto s2_stable_constant_buffer = h1_stable_constant_buffer + 1;
 	constexpr auto s2_material_constant_buffer = h1_material_constant_buffer + 1;
-	constexpr auto s2_model_lighting_index_dest = 10u; // cb0[10] of the fixed per prim layout of the cached model draws (sub_1407E8F90)
-	constexpr auto s2_model_lightmap_params_dest = 10u; // the same row in the "ml" passes
+	constexpr auto s2_model_lighting_index_dest = 10u; // fixed per prim row of the cached model draws
+	constexpr auto s2_model_lightmap_params_dest = 10u;
 	constexpr auto light_grid_colors_slot = 19u;
 	constexpr auto light_grid_visibility_slot = 20u;
 	constexpr auto ambient_light_grid_sampler = 0u;
-	constexpr auto sprite_buffer_slot = 12u; // raw t12 with a 64 byte record per sprite, bound for customBufferFlags bit 31
-	constexpr auto forward_lights_slot = 16u; // structured t16 with a 104 byte record per light, bound for CUSTOM_BUFFER_FORWARD_LIGHTS (0xC0)
-	constexpr auto light_tile_bits_slot = 23u; // uint t23 with the light bitmask words of each 8x8 pixel tile, bound for CUSTOM_BUFFER_LIGHT_TILE_BITS (0x400000)
-	constexpr auto spot_shadow_slot = 21u; // texture2darray of the static spot shadow maps (code texture 8), the stock lw_fplus t5
-	constexpr auto spot_shadow_dynamic_slot = 22u; // texture2darray of the dynamic spot shadow maps (code texture 13), the stock lw_fplus t7
-	constexpr auto spot_shadow_sampler = 15u; // comparison sampler (code sampler 6), the stock lw_fplus s4
-	constexpr auto spot_shadow_record_slot = 17u; // structured t17 with a 96 byte shadow record per shadow index: 4 matrix rows, filter scale and slices, bound for CUSTOM_BUFFER_FORWARD_LIGHTS
-	constexpr auto light_cluster_bits_slot = 24u; // uint t24 with the light bitmask words of each froxel (screen cell x 32 view depth slices), bound for CUSTOM_BUFFER_LIGHT_CLUSTER_BITS (0x200000)
-	constexpr auto light_tile_zbins_slot = 25u; // t25 with the light z bins (min / max light of each view depth bin) of the stock bmtile loop, bound for CUSTOM_BUFFER_LIGHT_TILE_ZBINS (0x100000)
+	constexpr auto sprite_buffer_slot = 12u;
+	constexpr auto forward_lights_slot = 16u;
+	constexpr auto light_tile_bits_slot = 23u;
+	constexpr auto spot_shadow_slot = 21u;
+	constexpr auto spot_shadow_dynamic_slot = 22u;
+	constexpr auto spot_shadow_sampler = 15u;
+	constexpr auto spot_shadow_record_slot = 17u;
+	constexpr auto light_cluster_bits_slot = 24u;
+	constexpr auto light_tile_zbins_slot = 25u;
 	constexpr std::array<std::uint32_t, 7> forward_light_slots{forward_lights_slot, spot_shadow_record_slot, spot_shadow_slot, spot_shadow_dynamic_slot,
-		light_tile_bits_slot, light_cluster_bits_slot, light_tile_zbins_slot}; // the fixed texture slots of the forward light buffers
+		light_tile_bits_slot, light_cluster_bits_slot, light_tile_zbins_slot};
 	constexpr auto light_const_count = 5u;
 
-	// the h1 light pass constants LIGHT_POSITION, DIFFUSE, PHYSICALSIZE, FADEOFFSET and SPECULAR, filled from the s2 forward light records
 	struct primary_lights
 	{
 		std::uint32_t buffer;
 		std::array<std::optional<std::uint32_t>, light_const_count> rows;
 		std::uint32_t render_target_size_row;
 		std::uint32_t tile_parms_row;
-		bool shadows; // samples the s2 spot shadow maps of lights with a shadow index, like the stock lw_fplus loop
-		std::optional<std::uint32_t> cluster_row; // first of the stable rows with code consts 93 (cells), 91 (slice starts) and 92 (slice scales), the stock bmclust loop of surfaces without a depth prepass
+		bool spot_shadows;
+		std::optional<std::uint32_t> cluster_row;
 	};
 
 	enum class light_grid
 	{
-		probe_buffer, // "lgv0d"
-		array_2d, // "lgv1d2d"
-		volume_3d, // "lgv3d"
+		probe_buffer,
+		array_2d,
+		volume_3d,
 	};
 
 	struct model_lighting
@@ -66,22 +65,18 @@ namespace zonetool::h1::converter::s2::shader
 		std::uint32_t to;
 	};
 
-	// stable rows of the stock fwa wind constants, the s2 foliage sway that replaces the h1 reactive motion offsets (cb9)
 	struct foliage_wind
 	{
-		std::uint32_t time_row; // code const 0, .w = game time
-		std::uint32_t wind_row; // x strength, y gust frequency, zw direction (literal, the s2 code const 278 is only set by a level wind fx)
-		std::uint32_t params_row; // foliageWindA literal: x flutter frequency, y normal flutter, z vertical flutter, w bend
+		std::uint32_t time_row;
+		std::uint32_t wind_row;
+		std::uint32_t params_row;
 	};
 
-	// stable rows of the atmos fog parms that s2 fills differently from h1 (2.20 sub_1408F0730 vs h1 1.4 sub_140629CE0): s2 folds parms 3
-	// (in scatter scale) into parms 0 and 1, scales parms 2 (extinction) by log2(e) and stores the sky distance minus the start distance
-	// in parms 4 w, parms 3 xyz hold its fog lookup texture coords instead
 	struct atmos_fog_rows
 	{
-		std::optional<std::uint32_t> extinction; // parms 2
-		std::optional<std::uint32_t> in_scatter; // parms 3
-		std::optional<std::uint32_t> sun_dir; // parms 4
+		std::optional<std::uint32_t> extinction;
+		std::optional<std::uint32_t> in_scatter;
+		std::optional<std::uint32_t> sun_dir;
 	};
 
 	struct program_patch
@@ -93,11 +88,11 @@ namespace zonetool::h1::converter::s2::shader
 		std::optional<std::uint32_t> lightmap_params_dest;
 		std::vector<stable_literal_row> stable_literal_rows;
 		bool sprite{};
-		bool lit_instance_rows{}; // the lit pass of the same draw fills cb7 with 9 rows per instance (appended light passes)
+		bool lit_instance_rows{};
 		std::optional<primary_lights> lights;
 		std::optional<foliage_wind> wind;
-		constant_rows material_rows; // h1 material constant buffer rows read at another row
-		std::optional<std::uint32_t> ssr_texture; // slot of the ssr buffer code texture, its samples are clamped
+		constant_rows material_rows;
+		std::optional<std::uint32_t> ssr_texture;
 		atmos_fog_rows fog;
 	};
 
@@ -112,18 +107,14 @@ namespace zonetool::h1::converter::s2::shader
 	struct light_merge
 	{
 		primary_lights lights;
-		constant_rows material_rows; // h1 light pass material rows read at the lit pass rows
-		constant_rows stable_rows; // h1 light pass stable rows -> s2 stable rows of the merged pass
+		constant_rows material_rows;
+		constant_rows stable_rows;
 		std::map<std::uint32_t, std::uint32_t> texture_slots;
 		std::map<std::uint32_t, std::uint32_t> sampler_slots;
 	};
 
-	// h1 vertex shader of a non instanced pass as its instanced version: cb0 world rows -> cb6 rows of the instance, the lighting coords row -> cb7
 	std::string instance_program(const unsigned char* program, unsigned int size, std::optional<std::uint32_t> coords_row);
-
 	patched_program patch_program(const unsigned char* program, unsigned int size, bool is_vertex_shader, const program_patch& patch);
-
-	// appends the h1 light pass body, looped over the forward+ lights of the pixel's tile, to a converted lit pixel shader, texture_slots = moved lit textures
 	patched_program merge_light_program(const unsigned char* lit, unsigned int lit_size, const unsigned char* light, unsigned int light_size, const light_merge& merge);
-	std::pair<std::set<std::uint32_t>, std::set<std::uint32_t>> declared_slots(const unsigned char* program, unsigned int size); // textures, samplers
+	std::pair<std::set<std::uint32_t>, std::set<std::uint32_t>> declared_slots(const unsigned char* program, unsigned int size);
 }

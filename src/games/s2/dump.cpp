@@ -139,9 +139,9 @@ namespace zonetool::s2
 			return csv;
 		}
 
-		// a converter may replace <name>.csv with its build list in finish, the source listing stays in <name>.<source>.csv
 		void write_asset_csv(const loaded_zone& zone, const converter* converter)
 		{
+			// a converter may replace <name>.csv with its build list in finish, the source listing stays in <name>.<source>.csv
 			const auto text = asset_csv(zone);
 			const auto write = [&](const std::string& file_name)
 			{
@@ -318,7 +318,6 @@ namespace zonetool::s2
 		prepare_paths(zone_folder, zone_path);
 		const auto zone = load_zone(zone_path);
 
-		// "*" dumps every asset of the type
 		std::vector<const loaded_asset*> assets;
 		for (const auto& entry : zone->assets)
 		{

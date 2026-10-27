@@ -89,10 +89,10 @@ namespace zonetool::h1::converter::s2::techset
 
 		constexpr auto h1_per_prim_constant_buffer = 0u;
 		constexpr auto h1_per_object_constant_buffer = 1u;
-		constexpr auto row_size = 16u; // bytes of a constant buffer row
+		constexpr auto constant_row_size = 16u;
 		constexpr auto h1_first_shifted_stream_source = 6u;
 		constexpr auto s2_stream_source_shift = 3u;
-		constexpr auto h1_instance_probe_ambient_flag = 0x400u; // cb7 probe ambient of the instanced "amb" passes
+		constexpr auto h1_instance_probe_ambient_flag = 0x400u;
 
 		utils::memory::allocator native_allocator;
 
@@ -220,7 +220,7 @@ namespace zonetool::h1::converter::s2::techset
 
 		const std::unordered_map<std::int32_t, std::array<float, 4>> code_literals
 		{
-			{CONST_SRC_CODE_FOG_HEIGHT_FOG, {0.0f, 0.0f, fog_off_height_falloff, 0.0f}}, // s2 has no legacy distance fog for the dfog techniques
+			{CONST_SRC_CODE_FOG_HEIGHT_FOG, {0.0f, 0.0f, fog_off_height_falloff, 0.0f}},
 			{CONST_SRC_CODE_FOG, {0.0f, 0.0f, 0.0f, 0.0f}},
 			{CONST_SRC_CODE_FOG_COLOR_LINEAR, {0.0f, 0.0f, 0.0f, 0.0f}},
 			{CONST_SRC_CODE_FOG_COLOR_GAMMA, {0.0f, 0.0f, 0.0f, 0.0f}},
@@ -228,16 +228,16 @@ namespace zonetool::h1::converter::s2::techset
 			{CONST_SRC_CODE_FOG_SUN_COLOR_LINEAR, {0.0f, 0.0f, 0.0f, 0.0f}},
 			{CONST_SRC_CODE_FOG_SUN_COLOR_GAMMA, {0.0f, 0.0f, 0.0f, 0.0f}},
 			{CONST_SRC_CODE_FOG_SUN_DIR, {0.0f, 0.0f, 0.0f, 0.0f}},
-			{CONST_SRC_CODE_TESSELLATION_PARMS, {0.0f, 0.0f, 0.0f, 0.0f}}, // only the world displacement techniques
+			{CONST_SRC_CODE_TESSELLATION_PARMS, {0.0f, 0.0f, 0.0f, 0.0f}},
 			{CONST_SRC_CODE_TESSELLATION_PARMS2, {0.0f, 0.0f, 0.0f, 0.0f}},
-			{CONST_SRC_CODE_SCENE_UV_MULT, {1.0f, 1.0f, 0.0f, 0.0f}}, // only the cloak (ctq) techniques
-			{CONST_SRC_CODE_PARTICLE_CLOUD_COLOR, {1.0f, 1.0f, 1.0f, 1.0f}}, // s2 clouds take the color from a vertex stream
+			{CONST_SRC_CODE_SCENE_UV_MULT, {1.0f, 1.0f, 0.0f, 0.0f}},
+			{CONST_SRC_CODE_PARTICLE_CLOUD_COLOR, {1.0f, 1.0f, 1.0f, 1.0f}},
 			{CONST_SRC_CODE_LIGHTING_LOOKUP_SCALE, {1.0f, 1.0f, 1.0f, 0.0f}},
-			{CONST_SRC_CODE_SCRIPT_PARMS, {0.0f, 0.0f, 0.0f, 0.0f}}, // s2 const 26 holds other data that flickers the model lighting
-			// s2 has no rim lights (_mpr techsets): exp(log(sat(dot + 1_COLOR.w)) * 0_COLOR.w) and the fade divide by 1_DIR.y give nan with zeros, which the bloom spreads into white blobs
+			{CONST_SRC_CODE_SCRIPT_PARMS, {0.0f, 0.0f, 0.0f, 0.0f}}, // the s2 script parms hold other data
+			// s2 has no rim lights, these values keep the _mpr shaders from dividing by zero
 			{CONST_SRC_CODE_RIM_LIGHT_0_DIR, {0.0f, 0.0f, 1.0f, 0.0f}},
 			{CONST_SRC_CODE_RIM_LIGHT_0_COLOR, {0.0f, 0.0f, 0.0f, 1.0f}},
-			{CONST_SRC_CODE_RIM_LIGHT_1_DIR, {0.0f, 1.0f, 0.0f, 0.0f}}, // fade offset, range, scale, bias -> fade 0
+			{CONST_SRC_CODE_RIM_LIGHT_1_DIR, {0.0f, 1.0f, 0.0f, 0.0f}},
 			{CONST_SRC_CODE_RIM_LIGHT_1_COLOR, {0.0f, 0.0f, 0.0f, 1.0f}},
 		};
 
@@ -309,10 +309,10 @@ namespace zonetool::h1::converter::s2::techset
 		std::map<std::pair<const zonetool::s2::MaterialTechnique*, const MaterialPass*>, zonetool::s2::MaterialTechnique*> light_pass_techniques;
 		std::map<std::tuple<const zonetool::s2::MaterialTechnique*, const MaterialPass*, bool>, zonetool::s2::MaterialTechnique*> merged_light_techniques;
 
-		// the froxel light list of the stock lw_fplus_*_bmclust passes, which ndw surfaces use since the tile lists are culled against the depth prepass
 		constexpr auto custom_buffer_forward_cluster_lighting = zonetool::s2::CUSTOM_BUFFER_FORWARD_LIGHTS | zonetool::s2::CUSTOM_BUFFER_LIGHT_CLUSTER_BITS;
-		constexpr auto custom_buffer_light_tiles = zonetool::s2::CUSTOM_BUFFER_LIGHT_TILE_BITS | zonetool::s2::CUSTOM_BUFFER_LIGHT_TILE_ZBINS; // the t23 tile bitmask and t25 z bins
-		constexpr std::array<std::uint16_t, 3> light_cluster_consts{93, 91, 92}; // cells (count xy, cells per pixel zw), slice starts, slice scales
+		constexpr auto custom_buffer_light_tiles = zonetool::s2::CUSTOM_BUFFER_LIGHT_TILE_BITS | zonetool::s2::CUSTOM_BUFFER_LIGHT_TILE_ZBINS;
+		constexpr std::array<std::uint16_t, 3> light_cluster_consts{zonetool::s2::CONST_SRC_CODE_LIGHT_CLUSTER_CELLS,
+			zonetool::s2::CONST_SRC_CODE_LIGHT_CLUSTER_SLICE_STARTS, zonetool::s2::CONST_SRC_CODE_LIGHT_CLUSTER_SLICE_SCALES};
 
 		std::unordered_map<std::string, zonetool::s2::MaterialPixelShader*> merged_pixel_shaders;
 		std::unordered_map<std::string, unsigned int> merged_pixel_shader_names;
@@ -325,11 +325,10 @@ namespace zonetool::h1::converter::s2::techset
 			return result;
 		}
 
-		// the dumps write the padding after dest, so every argument starts zeroed instead of with stack garbage
 		zonetool::s2::MaterialShaderArgument make_arg(const zonetool::s2::MaterialShaderArgumentType type, const unsigned char stage, const unsigned short dest)
 		{
 			zonetool::s2::MaterialShaderArgument arg;
-			std::memset(&arg, 0, sizeof(arg));
+			std::memset(&arg, 0, sizeof(arg)); // the dump writes the padding
 			arg.type = type;
 			arg.shader = stage;
 			arg.dest = dest;
@@ -440,10 +439,9 @@ namespace zonetool::h1::converter::s2::techset
 			}
 		}
 
-		// an argument group size that covers at least rows constant rows
 		unsigned short arg_size(const std::uint32_t size, const std::uint32_t rows)
 		{
-			return static_cast<unsigned short>(std::max(size, rows * row_size));
+			return static_cast<unsigned short>(std::max(size, rows * constant_row_size));
 		}
 
 		std::vector<zonetool::s2::MaterialShaderArgument> convert_args(const MaterialShaderArgument* args, const std::size_t count, const bool literals_allowed,
@@ -713,7 +711,6 @@ namespace zonetool::h1::converter::s2::techset
 				streams.emplace_back(stream);
 			}
 
-			// the foliage sway reads the wind weights and the normal, which the h1 zprepass decls leave out
 			if (wind)
 			{
 				const auto has_normal = std::ranges::any_of(streams, [](const decl_stream& stream)
@@ -880,7 +877,6 @@ namespace zonetool::h1::converter::s2::techset
 
 		void add_light_grid_textures(std::vector<zonetool::s2::MaterialShaderArgument>& stable, const light_grid grid, const bool sampler)
 		{
-			// the stock 2d/3d passes bind these as stable code textures, without them the slots keep the previous draw and the lighting flickers
 			if (grid == light_grid::probe_buffer)
 			{
 				return;
@@ -941,7 +937,6 @@ namespace zonetool::h1::converter::s2::techset
 			}
 		}
 
-		// fx sprites are drawn without a vertex buffer, the vertex shader reads the sprite records and the per prim rows 6 to 9 hold the previous world matrix
 		void add_sprite_pass(zonetool::s2::MaterialPass& pass, std::vector<zonetool::s2::MaterialShaderArgument>& per_prim, const std::int32_t slot)
 		{
 			constexpr auto prev_world_dest = 6u;
@@ -954,7 +949,7 @@ namespace zonetool::h1::converter::s2::techset
 			pass.perPrimArgSize = arg_size(pass.perPrimArgSize, prev_world_dest + 4);
 			pass.customBufferFlags |= zonetool::s2::CUSTOM_BUFFER_SPRITES;
 			pass.modelVertexType = slot % zonetool::s2::TECHNIQUE_GROUP_SIZE == zonetool::s2::TECHNIQUE_BUILD_SHADOWMAP_DEPTH
-				? zonetool::s2::MODEL_VERTEX_TYPE_INSTANCE_DATA : zonetool::s2::MODEL_VERTEX_TYPE_VERTEX_LIGHTING; // stock "xl" passes use 1 and 2
+				? zonetool::s2::MODEL_VERTEX_TYPE_INSTANCE_DATA : zonetool::s2::MODEL_VERTEX_TYPE_VERTEX_LIGHTING;
 		}
 
 		shader::primary_lights take_light_consts(std::vector<MaterialShaderArgument>& per_prim, std::vector<MaterialShaderArgument>& per_obj,
@@ -1002,14 +997,17 @@ namespace zonetool::h1::converter::s2::techset
 			return result;
 		}
 
-		// the material constant rows of a light pass in the lit pass constant buffer, pixel then vertex stage
-		using material_rows = std::array<shader::constant_rows, 2>;
+		struct material_rows
+		{
+			shader::constant_rows pixel;
+			shader::constant_rows vertex;
+		};
 
 		void remap_material_constants(std::vector<MaterialShaderArgument>& args, const material_rows& rows)
 		{
 			for (auto& arg : args)
 			{
-				const auto& stage = rows[arg.shader == MTL_SHADER_STAGE_VERTEX];
+				const auto& stage = arg.shader == MTL_SHADER_STAGE_VERTEX ? rows.vertex : rows.pixel;
 				if (const auto row = stage.find(arg.dest); arg.type == MTL_ARG_MATERIAL_CONST && row != stage.end())
 				{
 					arg.dest = static_cast<unsigned short>(row->second);
@@ -1036,7 +1034,6 @@ namespace zonetool::h1::converter::s2::techset
 			return result;
 		}
 
-		// the render target size and light tile parms rows that the forward light loop reads
 		void add_light_tile_args(const shader::primary_lights& lights, std::vector<zonetool::s2::MaterialShaderArgument>& stable)
 		{
 			for (const auto& [row, index] : {std::pair{lights.render_target_size_row, zonetool::s2::CONST_SRC_CODE_RENDER_TARGET_SIZE},
@@ -1048,12 +1045,11 @@ namespace zonetool::h1::converter::s2::techset
 			}
 		}
 
-		// s2 has no reactive motion, the foliage sway of the stock fwa vs reads the game time, the wind and the foliageWindA material constant.
-		// the s2 wind (code const 278) comes from the level wind vector field fx (stock shipment vf_wind_mp_shpt), which converted maps lack: strength 0, so use a fixed wind
 		void add_foliage_wind_args(const shader::foliage_wind& wind, std::vector<zonetool::s2::MaterialShaderArgument>& stable)
 		{
-			constexpr std::array<float, 4> foliage_wind{1.0f, 1.0f, -0.7071f, 0.7071f}; // strength, gust frequency, direction
-			constexpr std::array<float, 4> foliage_wind_a{0.3f, 3.0f, 4.0f, 10.0f}; // stock mtl_h1_shp_grass_01 template with a livelier flutter
+			// a fixed wind, the s2 wind const comes from a level wind fx that converted maps lack
+			constexpr std::array<float, 4> foliage_wind{1.0f, 1.0f, -0.7071f, 0.7071f};
+			constexpr std::array<float, 4> foliage_wind_a{0.3f, 3.0f, 4.0f, 10.0f};
 
 			auto time = make_arg(zonetool::s2::MTL_ARG_CODE_CONST, MTL_SHADER_STAGE_VERTEX, static_cast<unsigned short>(wind.time_row));
 			time.u.codeConst = {static_cast<unsigned short>(zonetool::s2::CONST_SRC_CODE_GAMETIME), 0, 1};
@@ -1067,19 +1063,10 @@ namespace zonetool::h1::converter::s2::techset
 			}
 		}
 
-		void convert_pass(const MaterialPass& pass, const light_grid grid, const std::int32_t slot, const bool sprite, zonetool::s2::MaterialPass& result,
-			const material_rows* lights = nullptr, const bool lit_instances = false)
+		std::vector<stable_literal_row> move_literal_consts_to_stable(pass_args& args, std::uint32_t& next_stable_row)
 		{
-			const auto lighting = find_model_lighting(pass);
-			const auto lightmap_params = find_model_lightmap_params(pass);
-
-			auto args = split_args(pass);
-			auto& per_prim_list = args.per_prim;
-			auto& per_obj_list = args.per_obj;
-			auto& stable_list = args.stable;
-			std::vector<stable_literal_row> stable_literal_rows;
-			auto next_stable_row = (pass.stableArgSize + row_size - 1) / row_size;
-			for (const auto& [list, buffer] : {std::pair{&per_prim_list, h1_per_prim_constant_buffer}, std::pair{&per_obj_list, h1_per_object_constant_buffer}})
+			std::vector<stable_literal_row> result;
+			for (const auto& [list, buffer] : {std::pair{&args.per_prim, h1_per_prim_constant_buffer}, std::pair{&args.per_obj, h1_per_object_constant_buffer}})
 			{
 				std::erase_if(*list, [&](const MaterialShaderArgument& arg)
 				{
@@ -1090,22 +1077,76 @@ namespace zonetool::h1::converter::s2::techset
 						return false;
 					}
 
-					stable_literal_rows.emplace_back(buffer, arg.dest, next_stable_row);
-					auto& moved = stable_list.emplace_back(arg);
+					result.emplace_back(buffer, arg.dest, next_stable_row);
+					auto& moved = args.stable.emplace_back(arg);
 					moved.dest = static_cast<unsigned short>(next_stable_row++);
 					return true;
 				});
 			}
 
+			return result;
+		}
+
+		zonetool::s2::MaterialPassModelVertexType pass_model_vertex_type(const std::int32_t slot, const bool lightmap, const bool lighting,
+			const zonetool::s2::MaterialVertexDeclaration* decl)
+		{
+			if (lightmap)
+			{
+				return zonetool::s2::MODEL_VERTEX_TYPE_LIGHTMAP;
+			}
+
+			if (lighting)
+			{
+				return zonetool::s2::MODEL_VERTEX_TYPE_SELF_VISIBILITY; // s2 uploads the light grid constants only for this vertex type
+			}
+
+			if (has_vertex_lighting_stream(decl))
+			{
+				return zonetool::s2::MODEL_VERTEX_TYPE_VERTEX_LIGHTING;
+			}
+
+			return stock_model_vertex_type(slot);
+		}
+
+		std::uint64_t pass_custom_buffer_flags(const MaterialPass& pass, const std::optional<model_lighting>& lighting, const light_grid grid,
+			const bool lit_instances, const bool primary_lights)
+		{
+			auto flags = convert_custom_buffer_flags(pass.customBufferFlags & ~static_cast<std::uint32_t>(CUSTOM_BUFFER_REACTIVE_MOTION), lighting, grid);
+			if (lit_instances && (flags & zonetool::s2::CUSTOM_BUFFER_INSTANCE_MATRICES))
+			{
+				flags = (flags & ~zonetool::s2::CUSTOM_BUFFER_INSTANCE_MATRICES) | zonetool::s2::CUSTOM_BUFFER_INSTANCE_MATRICES_LIGHTING;
+			}
+
+			if (primary_lights)
+			{
+				flags |= zonetool::s2::CUSTOM_BUFFER_FORWARD_LIGHTING;
+			}
+
+			return flags;
+		}
+
+		void convert_pass(const MaterialPass& pass, const light_grid grid, const std::int32_t slot, const bool sprite, zonetool::s2::MaterialPass& result,
+			const material_rows* light_pass_rows = nullptr, const bool lit_instances = false)
+		{
+			const auto lighting = find_model_lighting(pass);
+			const auto lightmap_params = find_model_lightmap_params(pass);
+
+			auto args = split_args(pass);
+			auto& per_prim_list = args.per_prim;
+			auto& per_obj_list = args.per_obj;
+			auto& stable_list = args.stable;
+			auto next_stable_row = (pass.stableArgSize + constant_row_size - 1) / constant_row_size;
+			const auto stable_literal_rows = move_literal_consts_to_stable(args, next_stable_row);
+
 			std::optional<shader::primary_lights> primary_lights;
-			if (lights)
+			if (light_pass_rows)
 			{
 				primary_lights = take_light_consts(per_prim_list, per_obj_list, stable_list);
 				primary_lights->render_target_size_row = next_stable_row++;
 				primary_lights->tile_parms_row = next_stable_row++;
 				for (auto* list : {&per_prim_list, &per_obj_list, &stable_list})
 				{
-					remap_material_constants(*list, *lights);
+					remap_material_constants(*list, *light_pass_rows);
 				}
 			}
 
@@ -1124,9 +1165,9 @@ namespace zonetool::h1::converter::s2::techset
 			vertex_patch.sprite = sprite;
 			vertex_patch.lit_instance_rows = lit_instances;
 			vertex_patch.fog = find_atmos_fog_rows(pass, MTL_SHADER_STAGE_VERTEX);
-			if (lights)
+			if (light_pass_rows)
 			{
-				vertex_patch.material_rows = (*lights)[1];
+				vertex_patch.material_rows = light_pass_rows->vertex;
 			}
 			result.vertexShader = convert_shader<zonetool::s2::MaterialVertexShader>(pass.vertexShader, vertex_patch);
 			result.vertexDecl = convert_decl(pass.vertexDecl, wind.has_value());
@@ -1137,9 +1178,9 @@ namespace zonetool::h1::converter::s2::techset
 			pixel_patch.lights = primary_lights;
 			pixel_patch.ssr_texture = find_pixel_code_texture(pass, TEXTURE_SRC_CODE_SSR_BUFFER);
 			pixel_patch.fog = find_atmos_fog_rows(pass, MTL_SHADER_STAGE_PIXEL);
-			if (lights)
+			if (light_pass_rows)
 			{
-				pixel_patch.material_rows = (*lights)[0];
+				pixel_patch.material_rows = light_pass_rows->pixel;
 			}
 			if (lighting)
 			{
@@ -1206,31 +1247,9 @@ namespace zonetool::h1::converter::s2::techset
 			}
 			result.perObjArgSize = pass.perObjArgSize;
 			result.stableArgSize = arg_size(pass.stableArgSize, next_stable_row);
-			result.customBufferFlags = convert_custom_buffer_flags(pass.customBufferFlags & ~static_cast<std::uint32_t>(CUSTOM_BUFFER_REACTIVE_MOTION), lighting, grid);
-			if (lit_instances && (result.customBufferFlags & zonetool::s2::CUSTOM_BUFFER_INSTANCE_MATRICES))
-			{
-				result.customBufferFlags = (result.customBufferFlags & ~zonetool::s2::CUSTOM_BUFFER_INSTANCE_MATRICES) | zonetool::s2::CUSTOM_BUFFER_INSTANCE_MATRICES_LIGHTING;
-			}
-			if (primary_lights)
-			{
-				result.customBufferFlags |= zonetool::s2::CUSTOM_BUFFER_FORWARD_LIGHTING;
-			}
+			result.customBufferFlags = pass_custom_buffer_flags(pass, lighting, grid, lit_instances, primary_lights.has_value());
 			result.customSamplerFlags = pass.customSamplerFlags;
-			result.modelVertexType = stock_model_vertex_type(slot);
-			if (lightmap_params)
-			{
-				result.modelVertexType = zonetool::s2::MODEL_VERTEX_TYPE_LIGHTMAP;
-			}
-			else if (lighting)
-			{
-				// the model draw uploads the light grid constants only for this type (0x1407E7F40)
-				result.modelVertexType = zonetool::s2::MODEL_VERTEX_TYPE_SELF_VISIBILITY;
-			}
-			else if (has_vertex_lighting_stream(result.vertexDecl))
-			{
-				result.modelVertexType = zonetool::s2::MODEL_VERTEX_TYPE_VERTEX_LIGHTING;
-			}
-
+			result.modelVertexType = pass_model_vertex_type(slot, lightmap_params.has_value(), lighting.has_value(), result.vertexDecl);
 			if (sprite)
 			{
 				add_sprite_pass(result, per_prim, slot);
@@ -1278,12 +1297,11 @@ namespace zonetool::h1::converter::s2::techset
 			}
 
 			zonetool::s2::MaterialPass light_pass;
-			std::memset(&light_pass, 0, sizeof(light_pass)); // zeroed padding, the pass is dumped as written
-			// both passes draw the same instances, so the light pass reads the lit pass cb7 layout (9 rows when lit)
+			std::memset(&light_pass, 0, sizeof(light_pass)); // the dump writes the padding
 			const auto lit_instances = (base->passArray[0].customBufferFlags & zonetool::s2::CUSTOM_BUFFER_INSTANCE_MATRICES_LIGHTING) != 0;
 			convert_pass(light, light_grid::probe_buffer, slot, false, light_pass, &rows, lit_instances);
 
-			// the cached model draws bind the fixed per prim layout of these types for every pass
+			// the cached model draws bind the per prim layout of these types for every pass
 			const auto base_type = base->passArray[0].modelVertexType;
 			if (base_type == zonetool::s2::MODEL_VERTEX_TYPE_SELF_VISIBILITY || base_type == zonetool::s2::MODEL_VERTEX_TYPE_LIGHTMAP)
 			{
@@ -1338,7 +1356,6 @@ namespace zonetool::h1::converter::s2::techset
 			return first;
 		}
 
-		// folds the h1 light pass into the lit pass, so lit surfaces draw once and loop over the tile (or froxel when clustered) lights in the same pixel shader
 		zonetool::s2::MaterialTechnique* merge_light_pass(const zonetool::s2::MaterialTechnique* base, const MaterialPass& light, const material_rows& rows,
 			const bool clustered)
 		{
@@ -1348,7 +1365,7 @@ namespace zonetool::h1::converter::s2::techset
 				return entry->second;
 			}
 
-			constexpr auto texture_slot_count = 26u; // the merger moves lit textures off the forward light slots to 26 and up
+			constexpr auto texture_slot_count = 26u;
 			constexpr auto sampler_slot_count = 16u;
 
 			if (base->hdr.passCount != 1 || !base->passArray[0].pixelShader || !base->passArray[0].pixelShader->prog.loadDef.program || !light.pixelShader
@@ -1367,10 +1384,8 @@ namespace zonetool::h1::converter::s2::techset
 			auto& stable_list = light_args.stable;
 
 			shader::light_merge merge{take_light_consts(per_prim_list, per_obj_list, stable_list)};
-			merge.material_rows = rows[0];
+			merge.material_rows = rows.pixel;
 
-			// an argument can feed several stages at once (the displacement constants of the world_disp passes go to the hull, domain and
-			// pixel shaders), the merged pass keeps its pixel part
 			const auto is_pixel = [](const MaterialShaderArgument& arg) { return (arg.shader & MTL_SHADER_STAGE_PIXEL) != 0; };
 			const auto pixel_args = [&](std::vector<MaterialShaderArgument>& list)
 			{
@@ -1390,13 +1405,12 @@ namespace zonetool::h1::converter::s2::techset
 
 			auto [textures, samplers] = shader::declared_slots(lit.pixelShader->prog.loadDef.program, lit.pixelShader->prog.loadDef.programSize);
 
-			// the spot shadow maps of the stock lw_fplus loop: code textures 8 (static) and 13 (dynamic), comparison code sampler 6
 			constexpr std::uint32_t spot_shadow_code_texture = 8;
 			constexpr std::uint32_t spot_shadow_dynamic_code_texture = 13;
 			constexpr std::uint32_t spot_shadow_code_sampler = 6;
-			merge.lights.shadows = !samplers.contains(shader::spot_shadow_sampler);
+			merge.lights.spot_shadows = !samplers.contains(shader::spot_shadow_sampler);
 			std::vector<zonetool::s2::MaterialShaderArgument> stable(lit_args.begin() + lit.perPrimArgCount + lit.perObjArgCount, lit_args.end());
-			auto next_row = (lit.stableArgSize + row_size - 1) / row_size;
+			auto next_row = (lit.stableArgSize + constant_row_size - 1) / constant_row_size;
 			merge.lights.render_target_size_row = next_row++;
 			merge.lights.tile_parms_row = next_row++;
 			if (clustered)
@@ -1441,7 +1455,7 @@ namespace zonetool::h1::converter::s2::techset
 				stable.emplace_back(arg);
 			}
 
-			// s2 caps the loaded pixel shaders at 12144, so every lit pixel shader keeps one merged copy where the bytecode allows
+			// s2 caps the loaded pixel shaders, so equal merged programs share one shader
 			const auto merged = shader::merge_light_program(lit.pixelShader->prog.loadDef.program, lit.pixelShader->prog.loadDef.programSize,
 				light.pixelShader->prog.loadDef.program, light.pixelShader->prog.loadDef.programSize, merge);
 			auto& pixel_shader = merged_pixel_shaders[merged.data];
@@ -1459,8 +1473,8 @@ namespace zonetool::h1::converter::s2::techset
 			std::vector<zonetool::s2::MaterialShaderArgument> per_prim_obj(lit_args.begin(), lit_args.begin() + lit.perPrimArgCount + lit.perObjArgCount);
 			relocate_texture_args(per_prim_obj, merged.texture_slots);
 			relocate_texture_args(stable, merged.texture_slots);
-			// after the relocation, which moves lit textures off the forward light slots these take
-			if (merge.lights.shadows)
+			// added after the relocation, which moves lit textures off these slots
+			if (merge.lights.spot_shadows)
 			{
 				for (const auto& [type, dest, source] : {std::tuple{zonetool::s2::MTL_ARG_CODE_TEXTURE, shader::spot_shadow_slot, spot_shadow_code_texture},
 					std::tuple{zonetool::s2::MTL_ARG_CODE_TEXTURE, shader::spot_shadow_dynamic_slot, spot_shadow_dynamic_code_texture},
@@ -1585,7 +1599,6 @@ namespace zonetool::h1::converter::s2::techset
 			return exists(standard) ? standard : -1;
 		}
 
-		// both passes of a technique read the material constant buffer of its slot, so the light pass reads each constant at the lit pass row
 		std::optional<material_rows> map_material_constants(const MaterialPass& base, const MaterialPass& light)
 		{
 			const auto args = [](const MaterialPass& pass)
@@ -1618,14 +1631,13 @@ namespace zonetool::h1::converter::s2::techset
 
 				if (arg.dest != lit->dest)
 				{
-					result[arg.shader == MTL_SHADER_STAGE_VERTEX].emplace(arg.dest, lit->dest);
+					(arg.shader == MTL_SHADER_STAGE_VERTEX ? result.vertex : result.pixel).emplace(arg.dest, lit->dest);
 				}
 			}
 
 			return result;
 		}
 
-		// h1 draws spot and omni lights in additive passes, s2 lit shaders loop over the forward+ lights: merge the light body, else add the pass
 		void add_light_pass(const MaterialTechniqueSet* techset, const std::int32_t slot, native_techset& result)
 		{
 			const auto type = slot % zonetool::s2::TECHNIQUE_GROUP_SIZE;
@@ -1635,7 +1647,6 @@ namespace zonetool::h1::converter::s2::techset
 			}
 
 			const auto group = slot - type;
-			// the dfog light technique only adds h1 fog, which the converted shaders read as off
 			auto source = find_group_technique(techset, group, TECHNIQUE_LIGHT_OMNI);
 			if (source < 0)
 			{
@@ -1662,7 +1673,7 @@ namespace zonetool::h1::converter::s2::techset
 
 			try
 			{
-				// h1 techsets without a depth prepass (ndw) are not in the depth the tile lists are culled with
+				// the tile lists are culled with the depth prepass, which surfaces without one are not in
 				const auto clustered = find_group_technique(techset, group, TECHNIQUE_ZPREPASS) < 0;
 				result.techset->techniques[slot] = merge_light_pass(result.techset->techniques[slot], light->passArray[0], *rows, clustered);
 				return;
@@ -1719,16 +1730,13 @@ namespace zonetool::h1::converter::s2::techset
 				}
 			}
 
-			// a missing wireframe view does not fail the techset
-			const auto optional = slot % zonetool::s2::TECHNIQUE_GROUP_SIZE == zonetool::s2::TECHNIQUE_WIREFRAME_SOLID;
-			if (!error.empty() && !optional)
+			const auto is_wireframe = slot % zonetool::s2::TECHNIQUE_GROUP_SIZE == zonetool::s2::TECHNIQUE_WIREFRAME_SOLID;
+			if (!error.empty() && !is_wireframe)
 			{
 				throw std::runtime_error(error);
 			}
 		}
 
-		// h1 instances no reactive motion pass, s2 draws static models only through the instanced group: build the instanced passes from the
-		// standard ones like the stock h1 instanced passes (no per prim args, cb6 world rows, cb7 lighting coords, smodel buffer flags)
 		MaterialPass instance_pass(const MaterialPass& pass)
 		{
 			if (!pass.vertexShader || !pass.vertexShader->prog.loadDef.program || pass.hullShader || pass.domainShader)
@@ -1831,7 +1839,7 @@ namespace zonetool::h1::converter::s2::techset
 
 			if (name.find("_reactivemotion") != std::string::npos)
 			{
-				techset = add_instanced_techniques(techset);
+				techset = add_instanced_techniques(techset); // s2 draws static models only through the instanced group
 			}
 
 			if (techset->worldVertFormat >= zonetool::s2::MTL_WORLDVERT_COUNT)

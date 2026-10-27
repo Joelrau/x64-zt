@@ -15,14 +15,12 @@ namespace zonetool::h1::converter::s2::physpreset
 			"phys_wood_solid_donotcollide",
 		};
 
-		// stock s2 default, the unknown fields keep these values
 		constexpr auto default_density = 0.0361f;
 		constexpr float default_unk_0x20[2]{20.0f, 300.0f};
 		constexpr float default_unk_0x70[4]{176.0f, 1728.0f, 1728000.0f, 13824000.0f};
 
 		std::unordered_set<std::string> dumped_presets;
 
-		// s2 takes mass from density * shape volume, the shape is the model collmap or its bounds box like h1 (2.5 sub_14046DDB0)
 		float shape_volume(const XModel* model)
 		{
 			if (!model)
@@ -51,7 +49,7 @@ namespace zonetool::h1::converter::s2::physpreset
 			const auto new_preset = allocator.allocate<zonetool::s2::PhysPreset>();
 			new_preset->name = preset->name;
 
-			const auto volume = shape_volume(model);
+			const auto volume = shape_volume(model); // s2 takes the mass from density * shape volume
 			new_preset->density = volume > 0.0f && preset->mass > 0.0f ? preset->mass / volume : default_density;
 			new_preset->bounce = preset->bounce;
 			new_preset->friction = preset->friction;
@@ -61,14 +59,13 @@ namespace zonetool::h1::converter::s2::physpreset
 			std::ranges::copy(default_unk_0x20, new_preset->unk_0x20);
 			new_preset->collisionMask = 0xFFFF;
 			new_preset->unk_0x2B = 1;
-			std::memcpy(new_preset->__pad2, default_unk_0x70, sizeof(default_unk_0x70));
+			std::ranges::copy(default_unk_0x70, new_preset->unk_0x70);
 
 			zonetool::s2::phys_preset::dump(new_preset);
 			add_csv_row("physpreset", preset->name);
 		}
 	}
 
-	// h1 presets carry mass, s2 density, so a map preset is converted with the volume of the first model that uses it
 	zonetool::s2::PhysPreset* reference(const PhysPreset* preset, const XModel* model, utils::memory::allocator& allocator)
 	{
 		if (!preset || !preset->name || s2_global_phys_presets.contains(preset->name))
@@ -78,7 +75,7 @@ namespace zonetool::h1::converter::s2::physpreset
 			return make_stub<zonetool::s2::PhysPreset>(name, allocator);
 		}
 
-		// a model in the map zone can point at a reference stub (name only) of a preset from another zone
+		// the preset can be a name only stub of another zone
 		if (dumped_presets.insert(preset->name).second)
 		{
 			const auto* loaded = db_find_x_asset_header_safe(ASSET_TYPE_PHYSPRESET, preset->name).physPreset;

@@ -4,7 +4,6 @@
 
 namespace zonetool::h1::converter::s2::techset
 {
-	// a stock map, for the assets of the common zones it references, its reverb presets and minimap materials
 	constexpr std::string_view stock_zone_name = "mp_aachen_v2";
 
 	class s2_zone
@@ -31,11 +30,11 @@ namespace zonetool::h1::converter::s2::techset
 	{
 		zonetool::s2::MaterialTechniqueSet* techset;
 		std::array<std::int32_t, zonetool::s2::technique_count> sources;
-		std::array<std::int32_t, zonetool::s2::technique_count> light_sources; // h1 light technique of the appended primary light pass
+		std::array<std::int32_t, zonetool::s2::technique_count> light_sources;
 	};
 
 	const s2_zone& stock_zone();
-	const std::unordered_map<std::string, std::string>& common_rawfiles(); // s2 common_mp rawfiles by name, decompressed
+	const std::unordered_map<std::string, std::string>& common_rawfiles();
 	const native_techset* convert_native(const std::string& h1_techset, bool sprite = false);
 
 	void dump(zonetool::s2::MaterialTechniqueSet* asset);

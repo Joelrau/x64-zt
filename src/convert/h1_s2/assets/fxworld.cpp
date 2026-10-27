@@ -7,8 +7,7 @@ namespace zonetool::h1::converter::s2::fxworld
 {
 	namespace
 	{
-		// every stock S2 glass def uses it, H1 uses glass_chunk
-		constexpr auto glass_phys_preset = "phys_glass";
+		constexpr auto glass_phys_preset = "phys_glass"; // every stock s2 glass def uses it
 
 		zonetool::s2::FxGlassDef* convert_defs(const FxGlassSystem& glass, utils::memory::allocator& allocator)
 		{

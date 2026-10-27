@@ -10,12 +10,11 @@ namespace zonetool::h1::converter::s2::lightsets
 		struct s2_row
 		{
 			std::string_view name;
-			std::string_view h1_name; // empty: same name
-			std::string_view fallback; // empty: leave the dvar default
+			std::string_view h1_name;
+			std::string_view fallback;
 		};
 
-		// key table of the s2 lightset parser (2.5 0x140F9D830, sub_1403D6A20 matches rows by name, a missing row keeps the r_ dvar value)
-		constexpr std::array<s2_row, 92> s2_rows
+		constexpr std::array<s2_row, 92> s2_rows // s2 matches the rows by name, a missing row keeps the dvar value
 		{{
 			{"sunenable"},
 			{"sunshadowscale"},
@@ -105,9 +104,9 @@ namespace zonetool::h1::converter::s2::lightsets
 			{"mdaovolumestrength_time"},
 			{"wbColorTempK", {}, "6500"},
 			{"wbColorTempK_time"},
-			{"wbMethod", {}, "0"}, // h1 has no white balance
+			{"wbMethod", {}, "0"},
 			{"wbIlluminant", {}, "0"},
-			{"lgtemporalsmoothingfactor", {}, "0.9"}, // stock s2 value
+			{"lgtemporalsmoothingfactor", {}, "0.9"},
 			{"lgtemporalsmoothingfactor_time"},
 		}};
 

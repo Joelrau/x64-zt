@@ -126,7 +126,6 @@ namespace zonetool::h1::converter::s2::netconststrings
 
 	void finish()
 	{
-		// a map dump merges the patch zone tables (ncs_<tag>_patch_<map>) into the level ones
 		for (auto it = converted.begin(); dumping_map && it != converted.end();)
 		{
 			const auto tag = s2_tags[it->second.type];
@@ -150,7 +149,7 @@ namespace zonetool::h1::converter::s2::netconststrings
 			it = converted.erase(it);
 		}
 
-		// s2 maps need one ncs_<tag>_level asset per type, h1 has no por or css types
+		// s2 maps need an ncs_<tag>_level asset of every type
 		for (auto type = 0; dumping_map && type < zonetool::s2::NETCONSTSTRINGTYPE_ASSET_COUNT; type++)
 		{
 			const auto name = std::format("ncs_{}_level", s2_tags[type]);

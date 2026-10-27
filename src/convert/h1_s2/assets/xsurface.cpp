@@ -46,7 +46,7 @@ namespace zonetool::h1::converter::s2::xsurface
 
 		std::uint32_t pack_wind(const GfxPackedVertex& vertex, const float max_weight)
 		{
-			// stock weeds: x flutter 0 or 255, y phase 55..255, z vertical flutter 0 or 204, w 255; h1 keeps the weight in |binormalSign|
+			// h1 keeps the sway weight in |binormalSign|
 			const auto weight = max_weight > 0.0f ? std::clamp(std::abs(vertex.binormalSign) / max_weight, 0.0f, 1.0f) : 0.0f;
 			constexpr auto phase_cell = 8.0f;
 			auto hash = 2166136261u;
@@ -194,8 +194,7 @@ namespace zonetool::h1::converter::s2::xsurface
 			const auto hash = utils::cryptography::sha256::compute(std::string(data.data, data.data ? data.size : 0), true);
 
 			const auto shared = allocator.allocate<zonetool::s2::XSurfaceShared>();
-			shared->flags = static_cast<std::uint8_t>(streams);
-			shared->__pad0 = static_cast<std::uint8_t>(streams >> 8);
+			shared->flags = streams;
 			std::memcpy(shared->hash, hash.data(), sizeof(shared->hash));
 			shared->indexCount = surface->triCount * 3u;
 			shared->vertCount = surface->vertCount;

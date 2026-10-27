@@ -9,7 +9,6 @@ namespace zonetool::h1::converter::s2::glassworld
 {
 	void dump(GlassWorld* asset)
 	{
-		// same layout, pieceCount = fx_map initPieceCount in both games
 		zonetool::s2::G_GlassData data{};
 		if (asset->g_glassData)
 		{

@@ -11,7 +11,7 @@ namespace zonetool::h1::converter::s2::rawfile
 {
 	namespace
 	{
-		const std::unordered_map<std::string, std::string> s2_sun_dvars = // s2 sun files name each dvar by its id
+		const std::unordered_map<std::string, std::string> s2_sun_dvar_ids =
 		{
 			{"r_sunsprite_shader", "4843"},
 			{"r_sunsprite_size", "4337"},
@@ -36,7 +36,7 @@ namespace zonetool::h1::converter::s2::rawfile
 			{"r_sun_fx_position", "3196"},
 		};
 
-		const std::unordered_map<std::string, std::string> s2_vision_dvars = // s2 vision files name each dvar by its id
+		const std::unordered_map<std::string, std::string> s2_vision_dvar_ids =
 		{
 			{"r_filmEnable", "4389"},
 			{"r_filmContrast", "1485"},
@@ -96,7 +96,7 @@ namespace zonetool::h1::converter::s2::rawfile
 					continue;
 				}
 
-				if (std::ranges::all_of(dvar, [](const unsigned char c) { return std::isdigit(c); })) // already an id
+				if (std::ranges::all_of(dvar, [](const unsigned char c) { return std::isdigit(c); }))
 				{
 					text += line + "\n";
 					continue;
@@ -128,11 +128,11 @@ namespace zonetool::h1::converter::s2::rawfile
 		const auto is_vision = name.starts_with("vision/") && name.ends_with(".vision");
 		const auto is_gsc = name.ends_with(".gsc");
 
-		// s2 common_mp ships visions with the same names, a map zone can't replace them so s2x reads override/<name> first
+		// a map zone cannot replace a common_mp vision, s2x reads override/<name> first
 		const auto out_name = is_vision && techset::common_rawfiles().contains(name) ? "override/" + name : name;
 		if (is_sun || is_vision || is_gsc)
 		{
-			const auto text = is_gsc ? scriptfile::patch(name, read_rawfile(*asset)) : convert_dvar_file(*asset, is_sun ? s2_sun_dvars : s2_vision_dvars);
+			const auto text = is_gsc ? scriptfile::patch(name, read_rawfile(*asset)) : convert_dvar_file(*asset, is_sun ? s2_sun_dvar_ids : s2_vision_dvar_ids);
 			zonetool::s2::RawFile new_asset{out_name.data(), 0, static_cast<int>(text.size()), text.data()};
 			zonetool::s2::rawfile::dump(&new_asset);
 		}

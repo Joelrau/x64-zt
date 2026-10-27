@@ -638,8 +638,7 @@ namespace zonetool::s2::cast_xmodel
 				const auto& data = writer.data();
 				auto* shared = mem->allocate<XSurfaceShared>();
 				const auto streams = static_cast<std::uint16_t>(shared_streams_rigid | (skin.empty() ? 0 : shared_streams_skinned));
-				shared->flags = static_cast<std::uint8_t>(streams);
-				shared->__pad0 = static_cast<std::uint8_t>(streams >> 8);
+				shared->flags = streams;
 				const auto hash = utils::cryptography::sha256::compute(data, true);
 				std::memcpy(shared->hash, hash.data(), sizeof(shared->hash));
 				shared->indexCount = static_cast<unsigned int>(this->triangles_.size() * 3);

@@ -56,7 +56,6 @@ namespace zonetool::h1::converter::s2::fxeffectdef
 			return reference.handle ? reference.handle->name : nullptr;
 		}
 
-		// s2 draws sprite, tail and line elems from sprite records, only "xl"/"xv" sprite techsets read them
 		bool is_sprite(const FxElemType type)
 		{
 			return type <= FX_ELEM_TYPE_LINE;
@@ -166,7 +165,6 @@ namespace zonetool::h1::converter::s2::fxeffectdef
 			return result;
 		}
 
-		// S2 bakes the atlas frame curve into the vis samples, this rule matches every stock mp_aachen_v2 sample
 		void set_atlas_frames(const FxElemDef& elem, zonetool::s2::FxElemVisStateSample* samples, const int count)
 		{
 			if (elem.elemType == FX_ELEM_TYPE_DECAL)
@@ -448,9 +446,9 @@ namespace zonetool::h1::converter::s2::fxeffectdef
 			}
 		}
 
-		// matches the stock values, runner and effect reference names do not count
 		int total_size(const zonetool::s2::FxEffectDef* asset)
 		{
+			// stock does not count the runner and effect reference names
 			auto size = sizeof(zonetool::s2::FxEffectDef) + sizeof(zonetool::s2::FxElemDef) * elem_count(asset);
 			for (auto i = 0; i < elem_count(asset); i++)
 			{
@@ -501,7 +499,6 @@ namespace zonetool::h1::converter::s2::fxeffectdef
 			return flags;
 		}
 
-		// the elem derived bits match every stock S2 effect, the lighting and sun bits come from H1
 		unsigned int convert_effect_flags(const FxEffectDef* asset, const zonetool::s2::FxEffectDef* new_asset)
 		{
 			constexpr auto kept_flags = zonetool::s2::FX_EFFECT_NEEDS_LIGHT_GRID_LIGHTING_AT_SPAWN

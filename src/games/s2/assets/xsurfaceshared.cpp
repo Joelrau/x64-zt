@@ -9,26 +9,6 @@ namespace zonetool::s2
 {
 	namespace
 	{
-#pragma pack(push, 1)
-		struct xpak_toc_header
-		{
-			char magic[8];
-			std::uint32_t version;
-			std::uint32_t entry_count;
-		};
-
-		struct xpak_toc_entry
-		{
-			std::uint8_t hash[16];
-			std::uint64_t offset;
-			std::uint32_t size;
-			std::uint16_t file_index;
-		};
-#pragma pack(pop)
-
-		static_assert(sizeof(xpak_toc_header) == 16);
-		static_assert(sizeof(xpak_toc_entry) == 30);
-
 		constexpr std::string_view xpak_toc_magic = "S2ffi300";
 
 		struct xpak_location
@@ -41,25 +21,25 @@ namespace zonetool::s2
 		void read_xpak_toc(const std::filesystem::path& path, std::unordered_map<std::string, xpak_location>& entries)
 		{
 			std::string data;
-			if (!game_files::read(path, data) || data.size() < sizeof(xpak_toc_header))
+			if (!game_files::read(path, data) || data.size() < sizeof(XPakTocHeader))
 			{
 				return;
 			}
 
-			const auto header = reinterpret_cast<const xpak_toc_header*>(data.data());
+			const auto header = reinterpret_cast<const XPakTocHeader*>(data.data());
 			if (std::string_view(header->magic, sizeof(header->magic)) != xpak_toc_magic
-				|| sizeof(xpak_toc_header) + header->entry_count * sizeof(xpak_toc_entry) > data.size())
+				|| sizeof(XPakTocHeader) + header->entryCount * sizeof(XPakTocEntry) > data.size())
 			{
 				ZONETOOL_WARNING("Xpak toc \"%s\" is not valid", path.string().data());
 				return;
 			}
 
-			const auto toc = reinterpret_cast<const xpak_toc_entry*>(data.data() + sizeof(xpak_toc_header));
-			for (auto i = 0u; i < header->entry_count; i++)
+			const auto toc = reinterpret_cast<const XPakTocEntry*>(data.data() + sizeof(XPakTocHeader));
+			for (auto i = 0u; i < header->entryCount; i++)
 			{
 				entries.try_emplace(std::string(reinterpret_cast<const char*>(toc[i].hash), sizeof(toc[i].hash)), xpak_location
 				{
-					.pak = path.parent_path() / std::format("xpakfile{}.pak", toc[i].file_index),
+					.pak = path.parent_path() / std::format("xpakfile{}.pak", toc[i].fileIndex),
 					.offset = toc[i].offset,
 					.size = toc[i].size,
 				});

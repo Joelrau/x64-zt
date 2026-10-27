@@ -50,7 +50,7 @@ namespace zonetool::s2
 			return dump_path(ASSET_TYPE_COMWORLD, name, ".json");
 		}
 
-		// the pads hold unknown data, kept as bytes so a round trip is exact
+		// the unknown fields are kept as bytes so a round trip is exact
 		template <std::size_t N>
 		void write_bytes(ordered_json& data, const char (&bytes)[N])
 		{
@@ -95,8 +95,8 @@ namespace zonetool::s2
 			{
 				auto& light = asset->primaryLights[i];
 				json_reflect::read<primary_light_fields>(lights[i], light, mem, {.strings = json_reflect::null_string::null});
-				read_bytes(lights[i].value("pad0", json::array()), light.__pad0);
-				read_bytes(lights[i].value("pad1", json::array()), light.__pad1);
+				read_bytes(lights[i].value("pad0", json::array()), light.unk_0x3);
+				read_bytes(lights[i].value("pad1", json::array()), light.unk_0x70);
 			}
 
 			json_reflect::read_array<primary_light_env_fields>(data["primaryLightEnvs"], asset->primaryLightEnvs, asset->primaryLightEnvCount, mem);
@@ -115,8 +115,8 @@ namespace zonetool::s2
 				auto& entry = lights.emplace_back();
 				entry["index"] = i; // informational, the array order is the light index
 				json_reflect::write<primary_light_fields>(entry, light, {.strings = json_reflect::null_string::null});
-				write_bytes(entry["pad0"], light.__pad0);
-				write_bytes(entry["pad1"], light.__pad1);
+				write_bytes(entry["pad0"], light.unk_0x3);
+				write_bytes(entry["pad1"], light.unk_0x70);
 			}
 
 			json_reflect::write_array<primary_light_env_fields>(data["primaryLightEnvs"], asset->primaryLightEnvs, asset->primaryLightEnvCount);

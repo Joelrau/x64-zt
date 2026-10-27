@@ -10,24 +10,33 @@ namespace zonetool::h1::converter::s2::scriptable
 {
 	namespace
 	{
-		// event stream bytes per event, 2.5 sub_140608F00 (anim playback is 12 bytes) and ScriptableSv_UpdateLoopingEvents (drain time + badplace id)
 		constexpr unsigned int anim_stream_size = 12;
 		constexpr unsigned int health_drain_stream_size = 8;
 		constexpr unsigned int time_stream_size = 4;
-		constexpr unsigned int light_stream_size = 0x28; // h1 0x20
+		constexpr unsigned int light_stream_size = 0x28;
 
+		constexpr unsigned char h1_damage_generic = 0x1;
+		constexpr unsigned char h1_damage_splash = 0x2;
+		constexpr unsigned char h1_damage_melee = 0x4;
+		constexpr unsigned char h1_damage_player = 0x8;
+		constexpr unsigned char h1_damage_ai = 0x10;
+		constexpr unsigned char h1_damage_other = 0x20;
+		constexpr unsigned short s2_damage_bullets = 0x8F;
+		constexpr unsigned short s2_damage_splash = 0x10;
+		constexpr unsigned short s2_damage_melee = 0x20;
+		constexpr unsigned short s2_damage_player = 0x100;
+		constexpr unsigned short s2_damage_ai = 0x200;
+		constexpr unsigned short s2_damage_other = 0x400;
 
-		// h1 damage bits: 1 generic, 2 splash, 4 melee, 8 player, 0x10 ai/vehicle, 0x20 other (ScriptableBg_Damage_ProcessPartDamage)
-		// s2 bits: 0x8F bullet classes, 0x10 splash, 0x20 melee, 0x40 mod 11, 0x100 player, 0x200 ai/vehicle, 0x400 other (2.5 sub_140609C00)
 		unsigned short convert_damage_flags(const unsigned char flags)
 		{
 			unsigned short new_flags = 0;
-			new_flags |= (flags & 0x1) ? 0x8F : 0;
-			new_flags |= (flags & 0x2) ? 0x10 : 0;
-			new_flags |= (flags & 0x4) ? 0x20 : 0;
-			new_flags |= (flags & 0x8) ? 0x100 : 0;
-			new_flags |= (flags & 0x10) ? 0x200 : 0;
-			new_flags |= (flags & 0x20) ? 0x400 : 0;
+			new_flags |= (flags & h1_damage_generic) ? s2_damage_bullets : 0;
+			new_flags |= (flags & h1_damage_splash) ? s2_damage_splash : 0;
+			new_flags |= (flags & h1_damage_melee) ? s2_damage_melee : 0;
+			new_flags |= (flags & h1_damage_player) ? s2_damage_player : 0;
+			new_flags |= (flags & h1_damage_ai) ? s2_damage_ai : 0;
+			new_flags |= (flags & h1_damage_other) ? s2_damage_other : 0;
 			return new_flags;
 		}
 
@@ -71,7 +80,6 @@ namespace zonetool::h1::converter::s2::scriptable
 
 		std::set<std::string> map_anims;
 
-		// assets from the h1 common zones are converted with the scriptable, s2 skips the ones it already ships
 		void dump_used_anim(const char* name)
 		{
 			if (name && !xanim::dump_used(name))
@@ -87,7 +95,6 @@ namespace zonetool::h1::converter::s2::scriptable
 			switch (event.type)
 			{
 			case SCRIPTABLE_EVENT_MODEL:
-				// h1 swaps the instance model, s2 does it with the state model event (index into def->models)
 				new_event.type = zonetool::s2::SCRIPTABLE_EVENT_STATE_MODEL;
 				new_data.stateModel.model = reinterpret_cast<zonetool::s2::XModel*>(data.setModel.model);
 				new_data.stateModel.name = "";
@@ -111,7 +118,6 @@ namespace zonetool::h1::converter::s2::scriptable
 				new_data.sound.looping = data.playSound.looping;
 				return true;
 			case SCRIPTABLE_EVENT_ANIMATION:
-				// the entry index points into the map anim entries (destructibles animtree), the part lists the entries it blends between
 				new_event.type = zonetool::s2::SCRIPTABLE_EVENT_ANIMATION;
 				new_data.anim.animName = data.playAnim.animName;
 				dump_used_anim(data.playAnim.animName);
@@ -139,11 +145,10 @@ namespace zonetool::h1::converter::s2::scriptable
 				new_data.explode.aiAvoid = data.doExplosion.aiAvoid;
 				return true;
 			case SCRIPTABLE_EVENT_HEALTHDRAIN:
-				// s2 places the badplace once health is at or below badPlaceHealth, h1 places it right away
 				new_event.type = zonetool::s2::SCRIPTABLE_EVENT_HEALTHDRAIN;
 				new_data.healthDrain.amount = data.healthDrain.amount;
 				new_data.healthDrain.interval = data.healthDrain.interval;
-				new_data.healthDrain.badPlaceHealth = std::numeric_limits<unsigned short>::max();
+				new_data.healthDrain.badPlaceHealth = std::numeric_limits<unsigned short>::max(); // h1 places the badplace right away
 				new_data.healthDrain.badPlaceHeight = 64;
 				new_data.healthDrain.badPlaceRadius = data.healthDrain.badPlaceRadius;
 				new_data.healthDrain.streamIndex = streams.allocate(health_drain_stream_size);
@@ -158,7 +163,6 @@ namespace zonetool::h1::converter::s2::scriptable
 				new_data.physicsLaunch.bulletForceScale = data.physicsLaunch.bulletForceScale;
 				return true;
 			case SCRIPTABLE_EVENT_LIGHTSETTINGS:
-				// same fields after a float color, the light index stays in the instance constants (s2 flags buffer)
 				new_event.type = zonetool::s2::SCRIPTABLE_EVENT_LIGHTSETTINGS;
 				for (auto i = 0; i < 4; i++)
 				{
@@ -236,7 +240,6 @@ namespace zonetool::h1::converter::s2::scriptable
 			return false;
 		}
 
-		// event streams are laid out per part, the states of a part never run together so they share it
 		unsigned int convert_part(def_context& ctx, const ScriptablePartDef& part, zonetool::s2::ScriptablePartDef& new_part,
 			const unsigned int stream_base, utils::memory::allocator& allocator)
 		{
@@ -256,7 +259,7 @@ namespace zonetool::h1::converter::s2::scriptable
 			new_part.states = allocator.allocate_array<zonetool::s2::ScriptableStateDef>(part.stateCount);
 			for (auto i = 0; i < part.stateCount; i++)
 			{
-				streams.cursor = state_base;
+				streams.cursor = state_base; // the states of a part never run together, so they share its stream space
 				convert_state(ctx, part.states[i], new_part.states[i], streams, allocator);
 			}
 
@@ -295,7 +298,6 @@ namespace zonetool::h1::converter::s2::scriptable
 			}
 		}
 
-		// the target lights of a light scriptable (h1 targetData) are s2 part states with a 4 float color
 		void convert_target_lights(const ScriptableInstance& instance, zonetool::s2::ScriptableInstance& new_instance, utils::memory::allocator& allocator)
 		{
 			if (!instance.targetData || !instance.targetCount)
@@ -323,7 +325,6 @@ namespace zonetool::h1::converter::s2::scriptable
 				return 0;
 			}
 
-			// sub_140602750
 			const auto size = def->partCount * sizeof(*instance.partRuntime) + def->eventStreamSize + def->flagsSize
 				+ instance.partStateCount * sizeof(zonetool::s2::ScriptableInstancePartState) + def->modelTagCount;
 			return static_cast<unsigned int>(size);
@@ -405,7 +406,7 @@ namespace zonetool::h1::converter::s2::scriptable
 					def = convert(instance.def, allocator);
 				}
 
-				// s2 clears these on the mapents instances themselves (2.5 sub_14060E850), the writer only emits the non null ones
+				// the writer reserves these runtime buffers only when they are set
 				new_instance.def = def;
 				new_instance.partRuntime = allocator.allocate_array<char[4]>(def->partCount);
 				new_instance.eventStreamBuffer = def->eventStreamSize ? allocator.allocate_array<unsigned char>(def->eventStreamSize) : nullptr;
@@ -433,9 +434,9 @@ namespace zonetool::h1::converter::s2::scriptable
 		return new_map_ents;
 	}
 
-	// s2 resolves the map anim entries with Scr_FindAnim("destructibles", name), so anims stock s2 lacks go into a copy of its anim tree
 	void finish()
 	{
+		// s2 finds the map anims in the "destructibles" tree, so the anims it lacks go into a copy of that tree
 		if (map_anims.empty())
 		{
 			return;

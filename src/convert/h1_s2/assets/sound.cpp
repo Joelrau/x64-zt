@@ -306,7 +306,7 @@ namespace zonetool::h1::converter::s2::sound
 			result.dspBusIndex = convert_dsp_bus(alias);
 			result.volModIndex = convert_volume_mod(alias);
 
-			// s2 crossfades audio zones by playing both zone ambiences, zones sharing a bed need two instances (stock amb_quad aliases use 32767)
+			// s2 plays both ambiences of a zone crossfade, stock amb_quad aliases use 32767
 			if (result.volModIndex == static_cast<short>(*find_name(s2_volume_mod_groups, "amb_quad")))
 			{
 				result.polyCount = 32767;
@@ -390,7 +390,6 @@ namespace zonetool::h1::converter::s2::sound
 		add_csv_row(zonetool::s2::type_to_string(zonetool::s2::ASSET_TYPE_SOUND), asset->name);
 	}
 
-	// for aliases a converted asset names but the map zone does not ship (h1 common_mp), the in-zone audio is its own loaded sound asset
 	bool dump_used(const std::string& name)
 	{
 		if (name.empty() || dumped_sounds.contains(name))
@@ -428,7 +427,6 @@ namespace zonetool::h1::converter::s2::sound
 		return true;
 	}
 
-	// dump_used for an alias a converted asset references, with a warning when no loaded h1 zone has it
 	void dump_used(const snd_alias_list_t* alias, const char* what)
 	{
 		if (alias && alias->name && !dump_used(alias->name))

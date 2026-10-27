@@ -45,8 +45,6 @@ namespace zonetool::s2::image_pak
 		std::array<std::optional<std::filesystem::path>, toc_stream_count> pixels;
 	};
 
-	// writes the zone's own image streams to <zone>.pak in folder and points their keys at it
-	// with XStreamFileLocation::zone_pak_index, which the client resolves to the pak of the zone being loaded
 	void write(const std::string& zone_name, const std::filesystem::path& folder, std::span<const image_streams> images,
 		std::vector<XStreamFileKey>& keys);
 }

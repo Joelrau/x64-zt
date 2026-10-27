@@ -12,10 +12,10 @@ namespace zonetool::h1::converter::s2::xmodel
 	{
 		constexpr auto no_cull_lod_dist = 1000000.0f;
 		constexpr auto automatic_forced_lod = 0xFE;
-		constexpr auto no_cull_size_scale = 0.0f; // h1 has no projected size cull, s2's stock 15 hid small props like com_paintcan past their first lod
+		constexpr auto no_cull_size_scale = 0.0f; // h1 has no projected size cull
 		constexpr auto default_unk_0x374 = 96.0f;
-		constexpr auto lightmap_uv_model_flags = 0x6000u; // stock models with lightmap uv surfs have 0x6800
-		constexpr std::array<float, 4> grass_sway_params{2000.0f, 40.0f, 0.055f, 1.5f}; // stock foliage_s2_cob_weeds_07
+		constexpr auto lightmap_uv_model_flags = 0x6000u;
+		constexpr std::array<float, 4> grass_sway_params{2000.0f, 40.0f, 0.055f, 1.5f};
 
 		bool has_surface_flag(const XModel* asset, const unsigned int flag)
 		{
@@ -86,7 +86,7 @@ namespace zonetool::h1::converter::s2::xmodel
 				}
 			}
 
-			// matches what the s2 linker bakes into every stock model
+			// the lod distances that the s2 linker bakes into stock models
 			const auto* lod0 = lod_count ? asset->lodInfo[0].modelSurfs : nullptr;
 			const auto lod0_area = xsurface::surface_area(lod0);
 			const auto lod0_tris = static_cast<float>(xsurface::triangle_count(lod0));

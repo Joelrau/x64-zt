@@ -69,7 +69,7 @@ namespace zonetool::s2
 			}
 		}
 
-		// the game fills XFILE_BLOCK_CALLBACK after the zone is read (0x4D5EC0)
+		// the game fills XFILE_BLOCK_CALLBACK after the zone is read
 		std::uint64_t get_callback_block_size(const auto& assets)
 		{
 			std::uint64_t size = 0;
@@ -89,7 +89,6 @@ namespace zonetool::s2
 				{
 				case ASSET_TYPE_MATERIAL:
 				{
-					// image index per texture (0x4DA970)
 					const auto* material = static_cast<const Material*>(asset->pointer());
 					if (material->textureCount)
 					{
@@ -99,15 +98,13 @@ namespace zonetool::s2
 				}
 				case ASSET_TYPE_XMODEL_BASE:
 				{
-					// index per lod surface (using count at 0x26C) (0x4DAAA0)
 					const auto* base = static_cast<const XModelBase*>(asset->pointer());
 					if (!base->numLods)
 					{
 						break;
 					}
 
-					std::uint64_t count = *reinterpret_cast<const std::uint16_t*>(
-						reinterpret_cast<const std::uint8_t*>(base) + 0x26C);
+					const std::uint64_t count = base->unk_0x26C;
 					std::uint64_t surf_count = 0;
 					for (auto i = 0; i < base->numLods && i < 6; i++)
 					{
@@ -119,7 +116,6 @@ namespace zonetool::s2
 				}
 				case ASSET_TYPE_XMODEL:
 				{
-					// index per material for models that are not variants (0x4DAC30)
 					const auto* model = static_cast<const XModel*>(asset->pointer());
 					if (!(model->flags & 0x200) && model->numMaterials)
 					{

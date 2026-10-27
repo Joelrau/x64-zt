@@ -11,7 +11,6 @@ namespace zonetool::h1::converter::s2::aipaths
 		constexpr std::uint8_t h1_no_zone = 0xFF;
 		constexpr std::uint16_t s2_no_zone = 0xFFFF;
 
-		// s2 dropped the wide cover nodes (h1 8, 9) and moved cover multi from 10 to 8, the rest shifts down by 2
 		zonetool::s2::nodeType convert_type(const std::uint16_t type)
 		{
 			switch (type)
@@ -39,7 +38,6 @@ namespace zonetool::h1::converter::s2::aipaths
 			return zonetool::s2::NODE_ERROR;
 		}
 
-		// the runtime part stays zero like in stock zones
 		void convert_node(const pathnode_t& node, zonetool::s2::pathnode_t& result)
 		{
 			const auto& constant = node.constant;
@@ -64,7 +62,6 @@ namespace zonetool::h1::converter::s2::aipaths
 			dest.Links = retype<zonetool::s2::pathlink_s>(constant.Links);
 		}
 
-		// s2 keeps a u16 zone per node, h1 a byte
 		unsigned short* convert_zones(const PathData* asset, utils::memory::allocator& allocator)
 		{
 			if (!asset->zoneCount || !asset->pathZones)
@@ -107,7 +104,7 @@ namespace zonetool::h1::converter::s2::aipaths
 			new_asset->dynamicNodeGroups = retype<zonetool::s2::PathDynamicNodeGroup>(asset->dynamicNodeGroups);
 			new_asset->exposureBytes = asset->exposureBytes;
 			new_asset->pathExposure = asset->pathExposure;
-			new_asset->noPeekVisBytes = asset->noPeekVisBytes; // same per node u16 header and payload, stock s2 has no payload
+			new_asset->noPeekVisBytes = asset->noPeekVisBytes;
 			new_asset->pathNoPeekVis = asset->pathNoPeekVis;
 			new_asset->zoneCount = asset->zoneCount;
 			new_asset->pathZones = convert_zones(asset, allocator);
