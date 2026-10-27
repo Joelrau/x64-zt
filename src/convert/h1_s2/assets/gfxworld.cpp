@@ -70,6 +70,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 		}
 
 		// h1 cullDist is world units (lod out * scale * lod scale), s2 2.20 sub_140864F70/sub_1408661B0 compare it with distance / maxScale (no lodScale)
+		// a distance past the u16 range is no cull (0), clamping it culled far props like the shipment cargo ship nearer than h1
 		unsigned short convert_cull_dist(const GfxStaticModelDrawInst& inst, const zonetool::s2::GfxStaticModelDrawInst& new_inst)
 		{
 			const auto scale = new_inst.maxScale;
@@ -79,7 +80,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 				dist = inst.model->lodInfo[inst.model->numLods - 1].dist * new_inst.lodScale;
 			}
 
-			return static_cast<unsigned short>(std::clamp(std::round(dist), 0.0f, 65535.0f));
+			return dist > 65535.0f ? 0 : static_cast<unsigned short>(std::round(dist));
 		}
 
 		const Bounds& smodel_bounds(const GfxStaticModelInst& inst)
