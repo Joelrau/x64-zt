@@ -2,11 +2,14 @@
 
 #include "../include.hpp"
 #include "xanim.hpp"
+#include "xanim_retarget.hpp"
 
 namespace zonetool::h1::converter::s2::xanim
 {
 	namespace
 	{
+		constexpr auto retarget_memory_size = 16ull * 1024 * 1024;
+
 		std::unordered_set<std::string> dumped_anims;
 
 		template <bool s2_layout, typename T>
@@ -191,7 +194,10 @@ namespace zonetool::h1::converter::s2::xanim
 		}
 
 		utils::memory::allocator allocator;
-		zonetool::s2::xanim_parts::dump(convert(asset, allocator));
+		zone_memory memory(retarget_memory_size);
+		const auto new_asset = convert(asset, allocator);
+		xanim_retarget::retarget(new_asset, memory);
+		zonetool::s2::xanim_parts::dump(new_asset);
 		add_csv_row(zonetool::s2::type_to_string(zonetool::s2::ASSET_TYPE_XANIM), asset->name);
 	}
 
@@ -212,8 +218,25 @@ namespace zonetool::h1::converter::s2::xanim
 		return true;
 	}
 
+	zonetool::s2::XAnimParts* reference(const XAnimParts* asset, utils::memory::allocator& allocator)
+	{
+		if (!asset || !asset->name)
+		{
+			return nullptr;
+		}
+
+		if (!dump_used(asset->name))
+		{
+			ZONETOOL_WARNING("xanim \"%s\" not found in the loaded h1 zones", asset->name);
+			return nullptr;
+		}
+
+		return make_stub<zonetool::s2::XAnimParts>(asset->name, allocator);
+	}
+
 	void clear()
 	{
 		dumped_anims.clear();
+		xanim_retarget::clear();
 	}
 }

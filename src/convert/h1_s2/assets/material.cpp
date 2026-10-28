@@ -18,6 +18,7 @@ namespace zonetool::h1::converter::s2::material
 		constexpr auto depth_stencil_mode_count = std::extent_v<decltype(zonetool::s2::material_state::depth_stencil)>;
 
 		std::vector<Material*> pending_materials;
+		std::unordered_set<std::string> pending_names;
 		std::unordered_map<const Material*, std::string> pending_sprites;
 		std::unordered_set<std::string> minimap_materials;
 
@@ -594,7 +595,10 @@ namespace zonetool::h1::converter::s2::material
 
 	void dump(Material* asset)
 	{
-		pending_materials.emplace_back(asset);
+		if (pending_names.insert(asset->name).second)
+		{
+			pending_materials.emplace_back(asset);
+		}
 	}
 
 	const char* dump_sprite(const Material* asset)
@@ -690,6 +694,7 @@ namespace zonetool::h1::converter::s2::material
 		}
 
 		pending_materials.clear();
+		pending_names.clear();
 		pending_sprites.clear();
 		minimap_materials.clear();
 	}

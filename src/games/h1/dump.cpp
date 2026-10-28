@@ -183,7 +183,6 @@ namespace zonetool::h1
 				&& get_asset_name(asset.type, asset.header) == "vision/" + map + ".vision";
 		}
 
-		// the loader points a reference at the header of the zone that holds the asset
 		std::unordered_set<const void*> collect_map_references(const std::vector<std::pair<std::unique_ptr<loaded_zone>, map_zone_dump>>& zones)
 		{
 			std::unordered_set<const void*> references;
@@ -318,6 +317,22 @@ namespace zonetool::h1
 			return headers;
 		}
 
+		bool is_weapon_model_zone(const std::string& zone_name)
+		{
+			return zone_name.starts_with("mp_vm_") || zone_name.starts_with("mp_wm_");
+		}
+
+		bool is_dumped_reference(const loaded_asset& asset, const std::string& zone_name,
+			const std::unordered_set<const void*>& techset_zone_headers, const converter* converter)
+		{
+			if (techset_zone_headers.contains(asset.header))
+			{
+				return true;
+			}
+
+			return converter && asset.type == ASSET_TYPE_MATERIAL && is_weapon_model_zone(zone_name);
+		}
+
 		void prepare_paths(const std::filesystem::path& zone_folder, const std::string& fastfile)
 		{
 			filesystem::set_zone_folder(zone_folder);
@@ -376,7 +391,7 @@ namespace zonetool::h1
 		ZONETOOL_INFO("Dumping %zu assets...", zone->assets.size());
 		for (const auto& asset : zone->assets)
 		{
-			if ((asset.referenced && !techset_zone_headers.contains(asset.header)) || !is_dumped_type(asset.type))
+			if ((asset.referenced && !is_dumped_reference(asset, zone->name, techset_zone_headers, converter)) || !is_dumped_type(asset.type))
 			{
 				continue;
 			}

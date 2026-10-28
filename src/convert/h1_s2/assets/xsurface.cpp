@@ -1,6 +1,7 @@
 #include <std_include.hpp>
 
 #include "../include.hpp"
+#include "xmodel.hpp"
 #include "xsurface.hpp"
 
 #include <utils/cryptography.hpp>
@@ -133,9 +134,9 @@ namespace zonetool::h1::converter::s2::xsurface
 			const auto tex_coords_offset = take(vert_count * sizeof(std::uint32_t));
 			const auto normals_offset = take(vert_count * sizeof(std::uint32_t));
 			const auto tangents_offset = take(vert_count * sizeof(std::uint32_t));
+			const auto skin_offset = is_skinned(surface) ? take(vert_count * sizeof(zonetool::s2::XSurfaceSkinVertex)) : 0;
 			const auto lightmap_offset = has_lightmap_uv(surface) ? take(vert_count * sizeof(std::uint32_t)) : 0;
 			const auto wind_offset = has_wind_stream(surface) ? take(vert_count * sizeof(std::uint32_t)) : 0;
-			const auto skin_offset = is_skinned(surface) ? take(vert_count * sizeof(zonetool::s2::XSurfaceSkinVertex)) : 0;
 
 			const auto data = allocator.allocate_array<char>(size);
 			std::memcpy(data + faces_offset, surface->triIndices, surface->triCount * sizeof(Face));
@@ -284,7 +285,7 @@ namespace zonetool::h1::converter::s2::xsurface
 		{
 			utils::memory::allocator allocator;
 			const auto new_asset = allocator.allocate<zonetool::s2::XModelSurfs>();
-			new_asset->name = asset->name;
+			new_asset->name = xmodel::converted_name(zonetool::s2::ASSET_TYPE_XMODEL_SURFS, asset->name);
 			new_asset->numsurfs = asset->numsurfs;
 			new_asset->surfs = allocator.allocate_array<zonetool::s2::XSurface>(asset->numsurfs);
 			std::memcpy(new_asset->partBits, asset->partBits, sizeof(asset->partBits));
@@ -353,7 +354,7 @@ namespace zonetool::h1::converter::s2::xsurface
 
 		pending_surfs.emplace_back(asset);
 		pending_names.emplace(asset->name);
-		add_csv_row("xmodelsurfs", asset->name);
+		add_csv_row("xmodelsurfs", xmodel::converted_name(zonetool::s2::ASSET_TYPE_XMODEL_SURFS, asset->name));
 	}
 
 	void assign_base_vert_indices(const XModel* model)

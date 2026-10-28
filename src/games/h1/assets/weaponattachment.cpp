@@ -895,6 +895,11 @@ namespace zonetool::h1
 		};
 	}
 
+	std::optional<std::string> weapon_field_name(const unsigned short offset)
+	{
+		return weapon_offset_to_name(offset);
+	}
+
 	void weapon_attachment::add_script_string(scr_string_t* ptr, const char* str)
 	{
 		for (std::uint32_t i = 0; i < this->script_strings.size(); i++)

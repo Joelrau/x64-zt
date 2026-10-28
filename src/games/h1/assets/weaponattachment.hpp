@@ -29,4 +29,6 @@ namespace zonetool::h1
 
 		static void dump(WeaponAttachment* asset);
 	};
+
+	std::optional<std::string> weapon_field_name(unsigned short offset);
 }

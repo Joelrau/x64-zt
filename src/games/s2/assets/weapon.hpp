@@ -16,6 +16,7 @@ namespace zonetool::s2
 
 	std::optional<std::string> weapon_field_name(std::uint16_t offset);
 	std::optional<std::uint16_t> weapon_field_offset(const std::string& name);
+	std::optional<std::size_t> weapon_anim_index(const std::string& name);
 
 	class laser_def : public asset_base<LaserDef, ASSET_TYPE_LASER>
 	{

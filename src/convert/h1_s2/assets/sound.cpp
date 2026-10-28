@@ -3,6 +3,7 @@
 #include "../include.hpp"
 #include "sound.hpp"
 #include "loadedsound.hpp"
+#include "techset.hpp"
 
 namespace zonetool::h1::converter::s2::sound
 {
@@ -369,6 +370,29 @@ namespace zonetool::h1::converter::s2::sound
 		}
 
 		std::unordered_set<std::string> dumped_sounds;
+
+		bool is_common_curve(const zonetool::s2::XAssetType type, const char* name)
+		{
+			return std::ranges::any_of(techset::common_zone().find_assets(type), [&](void* header)
+			{
+				return std::strcmp(static_cast<zonetool::s2::SndCurve*>(header)->name, name) == 0;
+			});
+		}
+
+		void dump_used_curves(const snd_alias_t& alias)
+		{
+			if (const auto curve = alias.volumeFalloffCurve; curve && curve->name
+				&& !is_common_curve(zonetool::s2::ASSET_TYPE_SOUND_CURVE, curve->name))
+			{
+				dump_curve(curve);
+			}
+
+			if (const auto curve = alias.reverbSendCurve; curve && curve->name
+				&& !is_common_curve(zonetool::s2::ASSET_TYPE_REVERB_CURVE, curve->name))
+			{
+				dump_reverb_curve(curve);
+			}
+		}
 	}
 
 	void dump(snd_alias_list_t* asset)
@@ -410,6 +434,7 @@ namespace zonetool::h1::converter::s2::sound
 		for (auto i = 0; asset->head && i < asset->count; i++)
 		{
 			const auto& alias = asset->head[i];
+			dump_used_curves(alias);
 			if (alias.soundFile)
 			{
 				if (auto* loaded = const_cast<LoadedSound*>(find_loaded_sound(alias.soundFile)))
@@ -436,6 +461,22 @@ namespace zonetool::h1::converter::s2::sound
 		{
 			ZONETOOL_WARNING("%s \"%s\" not found in the loaded h1 zones", what, alias->name);
 		}
+	}
+
+	zonetool::s2::snd_alias_list_t* reference(const snd_alias_list_t* alias, utils::memory::allocator& allocator)
+	{
+		if (!alias || !alias->name)
+		{
+			return nullptr;
+		}
+
+		if (!dump_used(alias->name))
+		{
+			ZONETOOL_WARNING("sound \"%s\" not found in the loaded h1 zones", alias->name);
+			return nullptr;
+		}
+
+		return make_stub<zonetool::s2::snd_alias_list_t>(alias->name, allocator);
 	}
 
 	void dump_curve(SndCurve* asset)

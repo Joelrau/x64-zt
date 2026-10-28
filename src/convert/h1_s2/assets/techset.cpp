@@ -328,7 +328,7 @@ namespace zonetool::h1::converter::s2::techset
 		zonetool::s2::MaterialShaderArgument make_arg(const zonetool::s2::MaterialShaderArgumentType type, const unsigned char stage, const unsigned short dest)
 		{
 			zonetool::s2::MaterialShaderArgument arg;
-			std::memset(&arg, 0, sizeof(arg)); // the dump writes the padding
+			std::memset(&arg, 0, sizeof(arg));
 			arg.type = type;
 			arg.shader = stage;
 			arg.dest = dest;
@@ -1297,11 +1297,10 @@ namespace zonetool::h1::converter::s2::techset
 			}
 
 			zonetool::s2::MaterialPass light_pass;
-			std::memset(&light_pass, 0, sizeof(light_pass)); // the dump writes the padding
+			std::memset(&light_pass, 0, sizeof(light_pass));
 			const auto lit_instances = (base->passArray[0].customBufferFlags & zonetool::s2::CUSTOM_BUFFER_INSTANCE_MATRICES_LIGHTING) != 0;
 			convert_pass(light, light_grid::probe_buffer, slot, false, light_pass, &rows, lit_instances);
 
-			// the cached model draws bind the per prim layout of these types for every pass
 			const auto base_type = base->passArray[0].modelVertexType;
 			if (base_type == zonetool::s2::MODEL_VERTEX_TYPE_SELF_VISIBILITY || base_type == zonetool::s2::MODEL_VERTEX_TYPE_LIGHTMAP)
 			{
@@ -1473,7 +1472,7 @@ namespace zonetool::h1::converter::s2::techset
 			std::vector<zonetool::s2::MaterialShaderArgument> per_prim_obj(lit_args.begin(), lit_args.begin() + lit.perPrimArgCount + lit.perObjArgCount);
 			relocate_texture_args(per_prim_obj, merged.texture_slots);
 			relocate_texture_args(stable, merged.texture_slots);
-			// added after the relocation, which moves lit textures off these slots
+
 			if (merge.lights.spot_shadows)
 			{
 				for (const auto& [type, dest, source] : {std::tuple{zonetool::s2::MTL_ARG_CODE_TEXTURE, shader::spot_shadow_slot, spot_shadow_code_texture},
@@ -1599,6 +1598,110 @@ namespace zonetool::h1::converter::s2::techset
 			return exists(standard) ? standard : -1;
 		}
 
+		std::optional<std::int32_t> velocity_source_type(const std::int32_t type)
+		{
+			switch (type)
+			{
+			case zonetool::s2::TECHNIQUE_ZPREPASS_VELOCITY_RIGID:
+				return TECHNIQUE_ZPREPASS_VELOCITY_RIGID;
+			case zonetool::s2::TECHNIQUE_ZPREPASS_VELOCITY_SKINNED:
+				return TECHNIQUE_ZPREPASS_VELOCITY_SKINNED;
+			case zonetool::s2::TECHNIQUE_ZPREPASS_HIDIR_VELOCITY_RIGID:
+				return TECHNIQUE_ZPREPASS_HIDIR_VELOCITY_RIGID;
+			case zonetool::s2::TECHNIQUE_ZPREPASS_HIDIR_VELOCITY_SKINNED:
+				return TECHNIQUE_ZPREPASS_HIDIR_VELOCITY_SKINNED;
+			case zonetool::s2::TECHNIQUE_VELOCITY_RIGID:
+				return TECHNIQUE_VELOCITY_RIGID;
+			case zonetool::s2::TECHNIQUE_VELOCITY_SKINNED:
+				return TECHNIQUE_VELOCITY_SKINNED;
+			default:
+				return {};
+			}
+		}
+
+		template <typename Technique>
+		bool uses_material_arguments(const Technique* technique)
+		{
+			for (auto i = 0; i < technique->hdr.passCount; i++)
+			{
+				const auto& pass = technique->passArray[i];
+				if (pass.hullShader)
+				{
+					return true;
+				}
+
+				auto arg_count = pass.perPrimArgCount + pass.perObjArgCount + pass.stableArgCount;
+				auto material_types = std::array<std::uint8_t, 3>{MTL_ARG_MATERIAL_CONST, MTL_ARG_MATERIAL_TEXTURE, MTL_ARG_MATERIAL_SAMPLER};
+				if constexpr (std::is_same_v<Technique, zonetool::s2::MaterialTechnique>)
+				{
+					arg_count += pass.volatileArgCount;
+					material_types = {argument_types[MTL_ARG_MATERIAL_CONST], argument_types[MTL_ARG_MATERIAL_TEXTURE], argument_types[MTL_ARG_MATERIAL_SAMPLER]};
+				}
+
+				const auto args = std::span{pass.args, pass.args ? static_cast<std::size_t>(arg_count) : 0u};
+				const auto is_material = std::ranges::any_of(args, [&](const auto& arg)
+				{
+					return std::ranges::find(material_types, arg.type) != material_types.end();
+				});
+
+				if (is_material)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		zonetool::s2::MaterialTechnique* find_stock_velocity_technique(const std::int32_t slot)
+		{
+			static std::unordered_map<std::int32_t, zonetool::s2::MaterialTechnique*> techniques;
+			if (const auto entry = techniques.find(slot); entry != techniques.end())
+			{
+				return entry->second;
+			}
+
+			auto& result = techniques[slot];
+			for (auto* header : stock_zone().find_assets(zonetool::s2::ASSET_TYPE_TECHNIQUE_SET))
+			{
+				const auto* techset = static_cast<zonetool::s2::MaterialTechniqueSet*>(header);
+				auto* technique = techset->techniques[slot];
+				if (techset->worldVertFormat == 0 && technique && !uses_material_arguments(technique))
+				{
+					ZONETOOL_INFO("velocity slot %d uses stock technique \"%s\" of \"%s\"", slot, technique->hdr.name, techset->name);
+					result = technique;
+					break;
+				}
+			}
+
+			return result;
+		}
+
+		bool use_stock_velocity_technique(const MaterialTechniqueSet* techset, const std::int32_t slot, native_techset& result)
+		{
+			const auto type = velocity_source_type(slot % zonetool::s2::TECHNIQUE_GROUP_SIZE);
+			if (!type)
+			{
+				return false;
+			}
+
+			const auto source = find_group_technique(techset, slot - slot % zonetool::s2::TECHNIQUE_GROUP_SIZE, *type);
+			if (source < 0 || uses_material_arguments(techset->techniques[source]))
+			{
+				return false;
+			}
+
+			auto* technique = find_stock_velocity_technique(slot);
+			if (!technique)
+			{
+				return false;
+			}
+
+			result.techset->techniques[slot] = technique;
+			result.sources[slot] = source;
+			return true;
+		}
+
 		std::optional<material_rows> map_material_constants(const MaterialPass& base, const MaterialPass& light)
 		{
 			const auto args = [](const MaterialPass& pass)
@@ -1673,7 +1776,6 @@ namespace zonetool::h1::converter::s2::techset
 
 			try
 			{
-				// the tile lists are culled with the depth prepass, which surfaces without one are not in
 				const auto clustered = find_group_technique(techset, group, TECHNIQUE_ZPREPASS) < 0;
 				result.techset->techniques[slot] = merge_light_pass(result.techset->techniques[slot], light->passArray[0], *rows, clustered);
 				return;
@@ -1703,6 +1805,11 @@ namespace zonetool::h1::converter::s2::techset
 
 		void convert_slot(const MaterialTechniqueSet* techset, const std::int32_t slot, const bool sprite, native_techset& result)
 		{
+			if (!sprite && use_stock_velocity_technique(techset, slot, result))
+			{
+				return;
+			}
+
 			const auto group = slot - slot % zonetool::s2::TECHNIQUE_GROUP_SIZE;
 			std::string error;
 			for (const auto type : slot_candidates(slot % zonetool::s2::TECHNIQUE_GROUP_SIZE))
@@ -1839,7 +1946,7 @@ namespace zonetool::h1::converter::s2::techset
 
 			if (name.find("_reactivemotion") != std::string::npos)
 			{
-				techset = add_instanced_techniques(techset); // s2 draws static models only through the instanced group
+				techset = add_instanced_techniques(techset);
 			}
 
 			if (techset->worldVertFormat >= zonetool::s2::MTL_WORLDVERT_COUNT)
@@ -1855,7 +1962,6 @@ namespace zonetool::h1::converter::s2::techset
 			result.techset->worldVertFormat = techset->worldVertFormat;
 			result.techset->preDisplacementOnlyCount = techset->preDisplacementOnlyCount;
 
-			// stock sprite techsets fill only the standard group
 			const auto slot_count = sprite ? zonetool::s2::TECHNIQUE_GROUP_SIZE : zonetool::s2::technique_count;
 			for (auto slot = 0; slot < slot_count; slot++)
 			{
@@ -1936,8 +2042,7 @@ namespace zonetool::h1::converter::s2::techset
 		static const auto rawfiles = []
 		{
 			std::unordered_map<std::string, std::string> result;
-			const s2_zone common(s2_folder() / "zone" / "common_mp.ff");
-			for (const auto* asset : common.find_assets(zonetool::s2::ASSET_TYPE_RAWFILE))
+			for (const auto* asset : common_zone().find_assets(zonetool::s2::ASSET_TYPE_RAWFILE))
 			{
 				const auto* rawfile = static_cast<const zonetool::s2::RawFile*>(asset);
 				if (!rawfile->name || !rawfile->buffer)
@@ -1954,6 +2059,12 @@ namespace zonetool::h1::converter::s2::techset
 		}();
 
 		return rawfiles;
+	}
+
+	const s2_zone& common_zone()
+	{
+		static const s2_zone zone(s2_folder() / "zone" / "common_mp.ff");
+		return zone;
 	}
 
 	const s2_zone& stock_zone()

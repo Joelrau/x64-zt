@@ -1039,12 +1039,9 @@ namespace zonetool::s2
 
 		std::size_t anim_index(const std::string& name)
 		{
-			for (auto i = 0u; i < xanim_count; i++)
+			if (const auto index = weapon_anim_index(name))
 			{
-				if (!_stricmp(anim_names[i], name.data()))
-				{
-					return i;
-				}
+				return *index;
 			}
 
 			ZONETOOL_FATAL("Unknown weapon anim \"%s\"", name.data());
@@ -1927,5 +1924,18 @@ namespace zonetool::s2
 		const auto& offsets = weapon_field_offsets();
 		const auto offset = offsets.find(name);
 		return offset != offsets.end() ? std::optional(offset->second) : std::nullopt;
+	}
+
+	std::optional<std::size_t> weapon_anim_index(const std::string& name)
+	{
+		for (auto i = 0u; i < xanim_count; i++)
+		{
+			if (!_stricmp(anim_names[i], name.data()))
+			{
+				return i;
+			}
+		}
+
+		return std::nullopt;
 	}
 }

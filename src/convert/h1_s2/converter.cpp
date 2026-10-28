@@ -146,8 +146,11 @@ namespace zonetool::h1::converter::s2
 		techset::clear();
 		sound::clear();
 		xanim::clear();
+		xmodel::clear();
 		physpreset::clear();
 		physcollmap::clear();
+		attachment::clear();
+		weapon::clear();
 		write_csv(zone_name);
 	}
 }
@@ -241,6 +244,12 @@ namespace zonetool::convert::h1_s2
 				break;
 			case source::ASSET_TYPE_REVERB_CURVE:
 				target::sound::dump_reverb_curve(header_as<source::SndCurve>(header));
+				break;
+			case source::ASSET_TYPE_ATTACHMENT:
+				target::attachment::dump(header_as<source::WeaponAttachment>(header));
+				break;
+			case source::ASSET_TYPE_WEAPON:
+				target::weapon::dump(header_as<source::WeaponDef>(header));
 				break;
 			case source::ASSET_TYPE_LOADED_SOUND:
 				target::loaded_sound::dump(header_as<source::LoadedSound>(header));

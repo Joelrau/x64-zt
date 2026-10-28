@@ -535,6 +535,47 @@ namespace zonetool::s2::cast_xanim
 		}
 	}
 
+	cs::animation_t to_animation(const XAnimParts* parts)
+	{
+		part_reader reader(parts);
+		const auto tracks = reader.decode();
+		const auto mode = parts->assetType == XANIM_ASSET_TYPE_ADDITIVE ? cs::curve_mode_t::additive : cs::curve_mode_t::absolute;
+
+		cs::animation_t animation{.name = parts->name, .framerate = parts->framerate, .looping = (parts->flags & ANIM_LOOP) != 0};
+		for (std::size_t bone = 0; bone < tracks.size(); bone++)
+		{
+			const auto name = bone_name(parts, bone);
+			const auto& track = tracks[bone];
+			if (track.rotation.empty() && track.translation.empty())
+			{
+				animation.bones.emplace_back(cs::bone_t{.name = name});
+				continue;
+			}
+
+			if (!track.rotation.empty())
+			{
+				auto& curve = animation.curves.emplace_back(cs::curve_t{.node_name = name, .property = "rq", .mode = mode, .components = 4});
+				for (const auto& key : track.rotation)
+				{
+					curve.key_frames.emplace_back(key.frame);
+					curve.key_values.insert(curve.key_values.end(), std::begin(key.value), std::end(key.value));
+				}
+			}
+
+			for (auto axis = 0; axis < 3 && !track.translation.empty(); axis++)
+			{
+				auto& curve = animation.curves.emplace_back(cs::curve_t{.node_name = name, .property = std::string("t") + "xyz"[axis], .mode = mode});
+				for (const auto& key : track.translation)
+				{
+					curve.key_frames.emplace_back(key.frame);
+					curve.key_values.emplace_back(key.value[axis]);
+				}
+			}
+		}
+
+		return animation;
+	}
+
 	void dump(XAnimParts* parts)
 	{
 		if (!parts || !parts->name)

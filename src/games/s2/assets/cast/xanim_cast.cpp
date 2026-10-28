@@ -1260,4 +1260,10 @@ namespace zonetool::s2::cast_xanim
 		animation_converter converter(animation, name, from_sidecar);
 		return converter.convert(mem);
 	}
+
+	XAnimParts* from_animation(const cs::animation_t& animation, zone_memory* mem)
+	{
+		animation_converter converter(animation, animation.name, false);
+		return converter.convert(mem);
+	}
 }

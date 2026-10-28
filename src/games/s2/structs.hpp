@@ -2538,6 +2538,7 @@ namespace zonetool::s2
 
 	enum XModelFlags : unsigned int
 	{
+		XMODEL_FLAG_UNK_0x8 = 0x8,
 		XMODEL_FLAG_VARIANTS = 0x200,
 		XMODEL_FLAG_UNK_0x800 = 0x800,
 		XMODEL_FLAG_SWAY = 0x1000,

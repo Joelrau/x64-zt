@@ -34,6 +34,7 @@ namespace zonetool::h1::converter::s2::techset
 	};
 
 	const s2_zone& stock_zone();
+	const s2_zone& common_zone();
 	const std::unordered_map<std::string, std::string>& common_rawfiles();
 	const native_techset* convert_native(const std::string& h1_techset, bool sprite = false);
 

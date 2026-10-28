@@ -1,8 +1,10 @@
 #include <std_include.hpp>
 
 #include "../include.hpp"
+#include "material.hpp"
 #include "physcollmap.hpp"
 #include "physpreset.hpp"
+#include "techset.hpp"
 #include "xmodel.hpp"
 #include "xsurface.hpp"
 
@@ -15,7 +17,11 @@ namespace zonetool::h1::converter::s2::xmodel
 		constexpr auto no_cull_size_scale = 0.0f; // h1 has no projected size cull
 		constexpr auto default_unk_0x374 = 96.0f;
 		constexpr auto lightmap_uv_model_flags = 0x6000u;
+		constexpr auto stock_name_suffix = "_h1";
 		constexpr std::array<float, 4> grass_sway_params{2000.0f, 40.0f, 0.055f, 1.5f};
+
+		std::unordered_set<std::string> dumped_models;
+		std::map<std::pair<zonetool::s2::XAssetType, std::string>, std::string> converted_names;
 
 		bool has_surface_flag(const XModel* asset, const unsigned int flag)
 		{
@@ -82,7 +88,8 @@ namespace zonetool::h1::converter::s2::xmodel
 				new_lod.surfIndex = lod.surfIndex;
 				if (lod.modelSurfs)
 				{
-					new_lod.modelSurfs = make_stub<zonetool::s2::XModelSurfs>(lod.modelSurfs->name, allocator);
+					new_lod.modelSurfs = make_stub<zonetool::s2::XModelSurfs>(
+						converted_name(zonetool::s2::ASSET_TYPE_XMODEL_SURFS, lod.modelSurfs->name), allocator);
 				}
 			}
 
@@ -173,17 +180,35 @@ namespace zonetool::h1::converter::s2::xmodel
 			}
 
 			const auto model = allocator.allocate<zonetool::s2::XModel>();
-			model->name = asset->name;
+			model->name = converted_name(zonetool::s2::ASSET_TYPE_XMODEL, asset->name);
 			model->base = base;
-			model->flags = zonetool::s2::XMODEL_FLAG_UNK_0x800 | (has_surface_flag(asset, SURF_FLAG_LIGHTMAP_COORDS) ? lightmap_uv_model_flags : 0u)
+			model->flags = zonetool::s2::XMODEL_FLAG_UNK_0x800
+				| (asset->flags & zonetool::s2::XMODEL_FLAG_UNK_0x8)
+				| (has_surface_flag(asset, SURF_FLAG_LIGHTMAP_COORDS) ? lightmap_uv_model_flags : 0u)
 				| (sways ? zonetool::s2::XMODEL_FLAG_SWAY : 0u);
 			convert_materials(asset, model, allocator);
 			return model;
+		}
+
+		void dump_materials(const XModel* asset)
+		{
+			for (auto i = 0; asset->materialHandles && i < asset->numsurfs; i++)
+			{
+				if (const auto material = asset->materialHandles[i]; material && material->name)
+				{
+					material::dump(material);
+				}
+			}
 		}
 	}
 
 	void dump(XModel* asset)
 	{
+		if (!dumped_models.insert(asset->name).second)
+		{
+			return;
+		}
+
 		utils::memory::allocator allocator;
 		xsurface::assign_base_vert_indices(asset);
 		for (auto i = 0; i < asset->numLods && i < static_cast<int>(std::size(asset->lodInfo)); i++)
@@ -197,6 +222,56 @@ namespace zonetool::h1::converter::s2::xmodel
 		const auto converted = convert(asset, allocator);
 		zonetool::s2::xmodel_base::dump(converted->base);
 		zonetool::s2::xmodel::dump(converted);
-		add_csv_row("xmodel", asset->name);
+		add_csv_row("xmodel", converted->name);
+	}
+
+	zonetool::s2::XModel* reference(const XModel* asset, utils::memory::allocator& allocator)
+	{
+		if (!asset || !asset->name)
+		{
+			return nullptr;
+		}
+
+		dump_used(asset->name);
+		return make_stub<zonetool::s2::XModel>(converted_name(zonetool::s2::ASSET_TYPE_XMODEL, asset->name), allocator);
+	}
+
+	void dump_used(const char* name)
+	{
+		auto* loaded = db_find_x_asset_header_safe(ASSET_TYPE_XMODEL, name).model;
+		if (loaded && loaded->numLods > 0 && loaded->lodInfo[0].modelSurfs)
+		{
+			dump(loaded);
+			dump_materials(loaded);
+			return;
+		}
+
+		add_csv_row("xmodel", converted_name(zonetool::s2::ASSET_TYPE_XMODEL, name)); // the model comes from a converted transient zone
+	}
+
+	void clear()
+	{
+		dumped_models.clear();
+		converted_names.clear();
+	}
+
+	const char* converted_name(const zonetool::s2::XAssetType type, const char* name)
+	{
+		const auto key = std::make_pair(type, std::string(name));
+		if (const auto found = converted_names.find(key); found != converted_names.end())
+		{
+			return found->second.data();
+		}
+
+		auto converted = std::string(name);
+		{
+			db_scope _(techset::common_zone().db());
+			if (zonetool::s2::db_find_x_asset_header_safe(type, converted).data)
+			{
+				converted += stock_name_suffix;
+			}
+		}
+
+		return converted_names.emplace(key, std::move(converted)).first->second.data();
 	}
 }
