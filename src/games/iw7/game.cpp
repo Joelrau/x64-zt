@@ -1,0 +1,40 @@
+#include <std_include.hpp>
+
+#include <game.hpp>
+
+namespace zonetool::iw7
+{
+	void dump_zone(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path, const converter* converter);
+	void dump_asset(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path, const std::string& type,
+		const std::string& name, const converter* converter);
+	void verify_zone(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path);
+	std::string list_zone(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path);
+	void build_zone(const std::filesystem::path& zone_folder, const std::string& name);
+
+	const game& definition()
+	{
+		static constexpr std::array<std::string_view, 1> binaries{"iw7_ship.exe"};
+		static const game iw7
+		{
+			.name = "iw7",
+			.display_name = "Call of Duty: Infinite Warfare",
+			.steam_folder = "Call of Duty - Infinite Warfare",
+			.binaries = binaries,
+			.format =
+			{
+				.container = xfile::container::iw7,
+				.unsigned_magic = "IWffu100",
+				.signed_magic = "IWff0100",
+				.version = 1619,
+				.block_count = 10,
+			},
+			.dump_zone = dump_zone,
+			.dump_asset = dump_asset,
+			.verify_zone = verify_zone,
+			.list_zone = list_zone,
+			.build_zone = build_zone,
+		};
+
+		return iw7;
+	}
+}

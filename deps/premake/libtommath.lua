@@ -45,6 +45,17 @@ function libtommath.project()
 			"-IGNORE:4221"
 		}
 
+		-- libtommath relies on dead code elimination (MP_HAS), which /Od doesn't do
+		optimize "Speed"
+		runtimechecks "Off" -- /RTC1 is incompatible with /O2
+
+		-- keep the CRT matching the rest of the build (optimize would otherwise pick the release CRT)
+		filter "configurations:Debug"
+			runtime "Debug"
+		filter "configurations:Release"
+			runtime "Release"
+		filter {}
+
 		warnings "Off"
 		kind "StaticLib"
 end
