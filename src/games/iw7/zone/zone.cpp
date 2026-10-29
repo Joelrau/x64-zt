@@ -5,6 +5,7 @@
 
 #include <utils/io.hpp>
 #include <utils/cryptography.hpp>
+#include <utils/flags.hpp>
 
 #include <zlib.h>
 #include <lz4.h>
@@ -1164,7 +1165,8 @@ namespace zonetool::iw7
 
 		this->m_assetbase = 0;
 
-		this->m_zonemem = std::make_shared<zone_memory>(max_zone_size);
+		const auto max_memory_size = utils::flags::has_flag("more_memory") ? max_zone_size * 2 : max_zone_size;
+		this->m_zonemem = std::make_shared<zone_memory>(max_memory_size);
 	}
 
 	zone_interface::~zone_interface()

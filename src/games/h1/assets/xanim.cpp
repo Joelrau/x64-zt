@@ -1,6 +1,10 @@
 #include "std_include.hpp"
 #include "xanim.hpp"
 
+#include <assets/cast_dump.hpp>
+
+#include <utils/flags.hpp>
+
 namespace zonetool::h1
 {
 	std::unordered_set<std::string> xanim_parts::secondary_anims;
@@ -669,6 +673,11 @@ namespace zonetool::h1
 
 	void xanim_parts::dump(XAnimParts* asset)
 	{
+		if (utils::flags::has_flag("castdump"))
+		{
+			cast_dump::dump_xanim(asset);
+		}
+
 		const auto path = "xanim\\"s + asset->name + ".xab";
 
 		assetmanager::dumper dump;

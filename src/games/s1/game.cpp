@@ -22,11 +22,13 @@ namespace zonetool::s1
 
 	const game& definition()
 	{
+		static constexpr std::array<std::string_view, 2> binaries{"s1_mp64_ship.exe", "s1_sp64_ship.exe"};
 		static const game s1
 		{
 			.name = "s1",
 			.display_name = "Call of Duty: Advanced Warfare",
 			.steam_folder = "Call of Duty Advanced Warfare",
+			.binaries = binaries,
 			.format =
 			{
 				.container = xfile::container::s1,

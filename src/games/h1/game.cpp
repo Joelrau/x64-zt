@@ -22,11 +22,13 @@ namespace zonetool::h1
 
 	const game& definition()
 	{
+		static constexpr std::array<std::string_view, 2> binaries{"h1_mp64_ship.exe", "h1_sp64_ship.exe"};
 		static const game h1
 		{
 			.name = "h1",
 			.display_name = "Call of Duty: Modern Warfare Remastered",
 			.steam_folder = "Call of Duty Modern Warfare Remastered",
+			.binaries = binaries,
 			.format =
 			{
 				.container = xfile::container::s1,

@@ -5,6 +5,8 @@
 
 #include <game.hpp>
 
+#include <utils/flags.hpp>
+
 namespace zonetool::s2
 {
 	const game& definition();
@@ -474,7 +476,7 @@ namespace zonetool::s2
 	zone_interface::zone_interface(std::string name)
 		: m_assetbase(0)
 		, name_(std::move(name))
-		, m_zonemem(std::make_shared<zone_memory>(max_zone_size))
+		, m_zonemem(std::make_shared<zone_memory>(utils::flags::has_flag("more_memory") ? max_zone_size * 2 : max_zone_size))
 	{
 	}
 

@@ -25,14 +25,17 @@ namespace zonetool::cli
 	{
 		static const std::array list
 		{
-			command{"inspect", "inspect <zone> | inspect --all", inspect},
-			command{"dumpzone", "dumpzone <zone> [--target <game>]", dump_zone},
-			command{"dumpmap", "dumpmap <map> [--target <game>] [--skip-common]", dump_map},
-			command{"dumpasset", "dumpasset <type> <name|*> <zone> [--target <game>]", dump_asset},
-			command{"verifyzone", "verifyzone <zone> | verifyzone --all", verify_zone},
-			command{"listzone", "listzone <zone> | listzone --all", list_zone},
-			command{"buildzone", "buildzone <zone>", build_zone},
-			command{"generatecsv", "generatecsv <map> [sp] [--path <dir>]...", generate_csv},
+			command{"inspect", "inspect <zone> | inspect --all", "Shows the fastfile header and container data", inspect},
+			command{"dumpzone", "dumpzone <zone> [--target <game>]", "Writes the assets of a zone to dump/<zone>/", dump_zone},
+			command{"dumpmap", "dumpmap <map> [--target <game>] [--skip-common]", "Writes the map zones to dump/<map>/ (h1, h2, s1)",
+				dump_map},
+			command{"dumpasset", "dumpasset <type> <name|*> <zone> [--target <game>]", "Writes one asset (* = all of the type) to dump/assets/",
+				dump_asset},
+			command{"verifyzone", "verifyzone <zone> | verifyzone --all", "Reads every asset and checks the zone", verify_zone},
+			command{"listzone", "listzone <zone> | listzone --all", "Writes the asset list to asset_listing/<game>/", list_zone},
+			command{"buildzone", "buildzone <zone>", "Builds zone/<zone>.ff from zone_source/<zone>.csv and zonetool/<zone>/", build_zone},
+			command{"generatecsv", "generatecsv <map> [sp] [--path <dir>]...", "Writes zone_source/<map>.csv from zonetool/<map>/",
+				generate_csv},
 		};
 
 		return list;

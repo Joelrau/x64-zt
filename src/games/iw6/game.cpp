@@ -21,11 +21,13 @@ namespace zonetool::iw6
 
 	const game& definition()
 	{
+		static constexpr std::array<std::string_view, 2> binaries{"iw6mp64_ship.exe", "iw6sp64_ship.exe"};
 		static const game iw6
 		{
 			.name = "iw6",
 			.display_name = "Call of Duty: Ghosts",
 			.steam_folder = "Call of Duty Ghosts",
+			.binaries = binaries,
 			.format =
 			{
 				.container = xfile::container::s1,

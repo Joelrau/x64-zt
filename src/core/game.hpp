@@ -26,6 +26,7 @@ namespace zonetool
 		std::string_view name;
 		std::string_view display_name;
 		std::string_view steam_folder;
+		std::span<const std::string_view> binaries;
 		game_files::opener open_files;
 		xfile::format format;
 		dump_command dump_zone;

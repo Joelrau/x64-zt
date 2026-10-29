@@ -22,10 +22,12 @@ namespace zonetool::h2
 
 	const game& definition()
 	{
+		static constexpr std::array<std::string_view, 2> binaries{"MW2CR.exe", "h2_sp64_bnet_ship.exe"};
 		static const game h2
 		{
 			.name = "h2",
 			.display_name = "Call of Duty: Modern Warfare 2 Campaign Remastered",
+			.binaries = binaries,
 			.open_files = game_files::open_casc,
 			.format =
 			{

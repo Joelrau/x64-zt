@@ -47,11 +47,13 @@ namespace zonetool::s2
 
 	const game& definition()
 	{
+		static constexpr std::array<std::string_view, 1> binaries{"s2_mp64_ship.exe"};
 		static const game s2
 		{
 			.name = "s2",
 			.display_name = "Call of Duty: WWII",
 			.steam_folder = "Call of Duty WWII",
+			.binaries = binaries,
 			.format =
 			{
 				.container = xfile::container::s2,

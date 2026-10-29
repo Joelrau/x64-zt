@@ -1,6 +1,10 @@
 #include "std_include.hpp"
 #include "xanim.hpp"
 
+#include <assets/cast_dump.hpp>
+
+#include <utils/flags.hpp>
+
 namespace zonetool::iw6
 {
 	void xanim_parts::add_script_string(scr_string_t* ptr, const char* str)
@@ -498,6 +502,11 @@ namespace zonetool::iw6
 
 	void xanim_parts::dump(XAnimParts* asset)
 	{
+		if (utils::flags::has_flag("castdump"))
+		{
+			cast_dump::dump_xanim(asset);
+		}
+
 		const auto path = "xanim\\"s + asset->name + ".xab";
 
 		assetmanager::dumper dump;

@@ -13,11 +13,13 @@ namespace zonetool::iw7
 
 	const game& definition()
 	{
+		static constexpr std::array<std::string_view, 1> binaries{"iw7_ship.exe"};
 		static const game iw7
 		{
 			.name = "iw7",
 			.display_name = "Call of Duty: Infinite Warfare",
 			.steam_folder = "Call of Duty - Infinite Warfare",
+			.binaries = binaries,
 			.format =
 			{
 				.container = xfile::container::iw7,

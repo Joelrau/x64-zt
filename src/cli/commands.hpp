@@ -10,6 +10,7 @@ namespace zonetool::cli
 	{
 		std::string_view name;
 		std::string_view usage;
+		std::string_view description;
 		command_handler handler;
 	};
 

@@ -63,6 +63,22 @@ namespace zonetool::cli
 			return game;
 		}
 
+		const game* detect_game(const std::filesystem::path& folder)
+		{
+			for (const auto* game : enabled_games())
+			{
+				for (const auto binary : game->binaries)
+				{
+					if (std::filesystem::is_regular_file(folder / binary))
+					{
+						return game;
+					}
+				}
+			}
+
+			return nullptr;
+		}
+
 		std::filesystem::path select_game_path(const game& game, const std::optional<std::string>& requested)
 		{
 			if (requested)
@@ -139,16 +155,23 @@ namespace zonetool::cli
 	{
 		const auto config = read_config();
 
-		auto requested_game = take_option(args, "-game");
-		if (!requested_game)
-		{
-			requested_game = config_game(config);
-		}
+		const auto requested_game = take_option(args, "-game");
+		auto requested_path = take_option(args, "-path");
 
 		settings result{};
-		result.game = select_game(requested_game);
+		if (requested_game)
+		{
+			result.game = select_game(requested_game);
+		}
+		else
+		{
+			result.game = detect_game(requested_path ? std::filesystem::path(*requested_path) : executable_folder());
+			if (!result.game)
+			{
+				result.game = select_game(config_game(config));
+			}
+		}
 
-		auto requested_path = take_option(args, "-path");
 		if (!requested_path)
 		{
 			requested_path = config_game_path(config, *result.game);

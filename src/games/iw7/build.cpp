@@ -4,6 +4,8 @@
 
 #include <formats/csv.hpp>
 
+#include <utils/flags.hpp>
+
 namespace zonetool::iw7
 {
 	namespace
@@ -302,7 +304,8 @@ namespace zonetool::iw7
 
 		zone->add_asset_of_type("rawfile", name);
 
-		zone_buffer buffer;
+		const auto buffer_size = utils::flags::has_flag("more_memory") ? max_zone_size * 2 : max_zone_size;
+		zone_buffer buffer(buffer_size);
 		buffer.mode = ::game::iw7;
 		buffer.set_fields(XFILE_BLOCK_RUNTIME, 0xFFFFFFF000000000, static_cast<std::uint32_t>(-2),
 			static_cast<std::uint32_t>(-4), static_cast<std::uint32_t>(-3), static_cast<std::uint32_t>(-1));
