@@ -1,6 +1,7 @@
 #include <std_include.hpp>
 
 #include "../include.hpp"
+#include "bone_rig.hpp"
 #include "techset.hpp"
 #include "xanim_retarget.hpp"
 
@@ -18,40 +19,10 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 		constexpr auto finger_joints = 3;
 		constexpr auto epsilon = 0.0001f;
 
-		struct transform
-		{
-			cs::quat_t rotation;
-			cs::vec3_t position;
-		};
-
-		struct skeleton
-		{
-			std::vector<std::string> names;
-			std::vector<int> parents;
-			std::vector<transform> bind_world;
-			std::vector<transform> bind_local;
-			std::vector<cs::quat_t> anatomy;
-			std::unordered_map<std::string, int> indices;
-
-			int find(const std::string& name) const
-			{
-				const auto found = this->indices.find(name);
-				return found == this->indices.end() ? -1 : found->second;
-			}
-
-			bool has_ancestor(int bone, const int ancestor) const
-			{
-				for (; bone >= 0; bone = this->parents[bone])
-				{
-					if (bone == ancestor)
-					{
-						return true;
-					}
-				}
-
-				return false;
-			}
-		};
+		using bone_rig::compose;
+		using bone_rig::invert;
+		using bone_rig::skeleton;
+		using bone_rig::transform;
 
 		struct rigs
 		{
@@ -131,17 +102,6 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 			return cs::quat_normalize(cs::quat_multiply(a, b));
 		}
 
-		transform multiply(const transform& parent, const transform& local)
-		{
-			return {multiply(parent.rotation, local.rotation), add(parent.position, cs::quat_rotate(parent.rotation, local.position))};
-		}
-
-		transform inverse(const transform& t)
-		{
-			const auto rotation = inverse(t.rotation);
-			return {rotation, scale(cs::quat_rotate(rotation, t.position), -1.0f)};
-		}
-
 		cs::vec3_t to_world(const transform& space, const cs::vec3_t& point)
 		{
 			return add(space.position, cs::quat_rotate(space.rotation, point));
@@ -202,65 +162,14 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 			return cs::quat_dot(twist, twist) > epsilon ? cs::quat_normalize(twist) : cs::quat_t{};
 		}
 
-		void finish_skeleton(skeleton& rig)
-		{
-			rig.bind_local.resize(rig.names.size());
-			rig.anatomy.resize(rig.names.size());
-			for (auto i = 0u; i < rig.names.size(); i++)
-			{
-				rig.indices.emplace(rig.names[i], static_cast<int>(i));
-				rig.bind_local[i] = rig.parents[i] < 0 ? rig.bind_world[i] : multiply(inverse(rig.bind_world[rig.parents[i]]), rig.bind_world[i]);
-			}
-		}
-
-		template <typename AnimMat>
-		transform to_transform(const AnimMat& mat)
-		{
-			return {cs::quat_normalize({{mat.quat[0], mat.quat[1], mat.quat[2], mat.quat[3]}}), {{mat.trans[0], mat.trans[1], mat.trans[2]}}};
-		}
-
 		std::optional<skeleton> load_h1_rig()
 		{
-			const auto* model = db_find_x_asset_header_safe(ASSET_TYPE_XMODEL, rig_name).model;
-			if (!model || !model->boneNames || !model->baseMat)
-			{
-				return {};
-			}
-
-			skeleton rig;
-			for (auto i = 0; i < model->numBones; i++)
-			{
-				rig.names.emplace_back(SL_ConvertToString(model->boneNames[i]));
-				rig.parents.emplace_back(i < model->numRootBones ? -1 : i - model->parentList[i - model->numRootBones]);
-				rig.bind_world.emplace_back(to_transform(model->baseMat[i]));
-			}
-
-			finish_skeleton(rig);
-			return rig;
+			return bone_rig::load_h1_model(rig_name);
 		}
 
 		std::optional<skeleton> load_s2_rig()
 		{
-			db_scope _(techset::common_zone().db());
-			const auto* model = zonetool::s2::db_find_x_asset_header_safe(zonetool::s2::ASSET_TYPE_XMODEL, rig_name).model;
-			if (!model || (model->flags & zonetool::s2::XMODEL_FLAG_VARIANTS) || !model->base || !model->base->boneNames || !model->base->baseMat)
-			{
-				return {};
-			}
-
-			const auto* base = model->base;
-			const auto* base_mat = reinterpret_cast<const zonetool::s2::DObjAnimMat*>(base->baseMat);
-
-			skeleton rig;
-			for (auto i = 0; i < base->numBones; i++)
-			{
-				rig.names.emplace_back(SL_ConvertToString(base->boneNames[i]));
-				rig.parents.emplace_back(i < base->numRootBones ? -1 : i - base->parentList[i - base->numRootBones]);
-				rig.bind_world.emplace_back(to_transform(base_mat[i]));
-			}
-
-			finish_skeleton(rig);
-			return rig;
+			return bone_rig::load_s2_model(rig_name);
 		}
 
 		std::string side_bone(const char* name, const char* side)
@@ -524,7 +433,7 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 			std::vector<transform> world(locals.size());
 			for (auto i = 0u; i < locals.size(); i++)
 			{
-				world[i] = rig.parents[i] < 0 ? locals[i] : multiply(world[rig.parents[i]], locals[i]);
+				world[i] = rig.parents[i] < 0 ? locals[i] : compose(world[rig.parents[i]], locals[i]);
 			}
 
 			return world;
@@ -567,7 +476,7 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 					const auto parent = s2.parents[i] < 0 ? transform{} : this->s2_world_[s2.parents[i]];
 					if (static_cast<int>(i) == this->rigs_.s2_body)
 					{
-						this->s2_world_[i] = multiply(parent, this->body_local(h1_locals[this->rigs_.h1_body]));
+						this->s2_world_[i] = compose(parent, this->body_local(h1_locals[this->rigs_.h1_body]));
 					}
 					else if (this->shared_bones_[i])
 					{
@@ -575,7 +484,7 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 					}
 					else
 					{
-						this->s2_world_[i] = multiply(parent, s2.bind_local[i]);
+						this->s2_world_[i] = compose(parent, s2.bind_local[i]);
 					}
 				}
 
@@ -593,7 +502,7 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 					if (this->rigs_.s2_arm_bones[i] && is_twist(s2.names[i]))
 					{
 						s2_locals[i] = this->solve_twist(static_cast<int>(i));
-						this->s2_world_[i] = multiply(this->s2_world_[s2.parents[i]], s2_locals[i]);
+						this->s2_world_[i] = compose(this->s2_world_[s2.parents[i]], s2_locals[i]);
 					}
 				}
 
@@ -601,7 +510,7 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 				{
 					if (!this->rigs_.s2_arm_bones[i] || !is_twist(s2.names[i]))
 					{
-						s2_locals[i] = s2.parents[i] < 0 ? this->s2_world_[i] : multiply(inverse(this->s2_world_[s2.parents[i]]), this->s2_world_[i]);
+						s2_locals[i] = s2.parents[i] < 0 ? this->s2_world_[i] : compose(invert(this->s2_world_[s2.parents[i]]), this->s2_world_[i]);
 					}
 				}
 
@@ -641,7 +550,7 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 
 			transform bind_child(const int bone) const
 			{
-				return multiply(this->s2_world_[this->rigs_.s2.parents[bone]], this->rigs_.s2.bind_local[bone]);
+				return compose(this->s2_world_[this->rigs_.s2.parents[bone]], this->rigs_.s2.bind_local[bone]);
 			}
 
 			int h1_bone(const int s2_bone) const
@@ -704,8 +613,8 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 					ancestor = s2.parents[ancestor];
 				}
 
-				const auto relative = multiply(inverse(this->h1_anatomy(this->h1_bone(ancestor))), this->h1_anatomy(h1));
-				const auto anatomy = multiply(this->s2_anatomy(ancestor), relative);
+				const auto relative = compose(invert(this->h1_anatomy(this->h1_bone(ancestor))), this->h1_anatomy(h1));
+				const auto anatomy = compose(this->s2_anatomy(ancestor), relative);
 				if (name.starts_with("tag_"))
 				{
 					return {this->s2_rotation(bone, anatomy.rotation), anatomy.position};
@@ -787,7 +696,7 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 					return s2.bind_local[twist];
 				}
 
-				const auto driver_local = multiply(inverse(this->s2_world_[s2.parents[twist]]), this->s2_world_[driver]);
+				const auto driver_local = compose(invert(this->s2_world_[s2.parents[twist]]), this->s2_world_[driver]);
 				const auto delta = multiply(driver_local.rotation, inverse(s2.bind_local[driver].rotation));
 				const auto axis = normalize(s2.bind_local[driver].position);
 				const auto weight = std::clamp(length(s2.bind_local[twist].position) / std::max(length(s2.bind_local[driver].position), epsilon), 0.0f, 1.0f);

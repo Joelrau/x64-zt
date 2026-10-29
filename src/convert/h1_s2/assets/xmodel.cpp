@@ -1,6 +1,7 @@
 #include <std_include.hpp>
 
 #include "../include.hpp"
+#include "bone_rig.hpp"
 #include "material.hpp"
 #include "physcollmap.hpp"
 #include "physpreset.hpp"
@@ -18,6 +19,10 @@ namespace zonetool::h1::converter::s2::xmodel
 		constexpr auto default_unk_0x374 = 96.0f;
 		constexpr auto lightmap_uv_model_flags = 0x6000u;
 		constexpr auto stock_name_suffix = "_h1";
+		constexpr auto h1_body_rig_model = "body_usmc_desert_assault_mp"; // h1 common_mp
+		constexpr auto s2_body_rig_model = "usa_esc_m_assault_r1c1"; // a stock s2 player body, it holds the full s2 skeleton
+		constexpr auto bind_trans_weight = 2.0f;
+		constexpr auto angle_scale = 32768.0f;
 		constexpr std::array<float, 4> grass_sway_params{2000.0f, 40.0f, 0.055f, 1.5f};
 
 		std::unordered_set<std::string> dumped_models;
@@ -57,6 +62,99 @@ namespace zonetool::h1::converter::s2::xmodel
 			return parent_list;
 		}
 
+		using axis_corrections = std::unordered_map<std::string, cast::quat_t>;
+
+		const axis_corrections* body_axis_corrections()
+		{
+			static const auto corrections = []() -> std::optional<axis_corrections>
+			{
+				const auto h1_rig = bone_rig::load_h1_model(h1_body_rig_model);
+				const auto s2_rig = bone_rig::load_s2_model(s2_body_rig_model);
+				if (!h1_rig || !s2_rig)
+				{
+					return {};
+				}
+
+				axis_corrections result;
+				for (auto i = 0u; i < h1_rig->names.size(); i++)
+				{
+					if (const auto bone = s2_rig->find(h1_rig->names[i]); bone >= 0)
+					{
+						result.emplace(h1_rig->names[i], cast::quat_normalize(cast::quat_multiply(
+							cast::quat_conjugate(h1_rig->bind_world[i].rotation), s2_rig->bind_world[bone].rotation)));
+					}
+				}
+
+				return result;
+			}();
+
+			return corrections ? &*corrections : nullptr;
+		}
+
+		short encode_angle(const float value)
+		{
+			return static_cast<short>(std::clamp(std::lround(value * angle_scale), -32767l, 32767l));
+		}
+
+		void convert_bind_pose(const XModel* asset, zonetool::s2::XModelBase* base, utils::memory::allocator& allocator)
+		{
+			const auto* corrections = body_axis_corrections();
+			if (!corrections)
+			{
+				ZONETOOL_WARNING("xmodel \"%s\": body rig \"%s\" or \"%s\" is not loaded, the model keeps the h1 bone axes",
+					asset->name, h1_body_rig_model, s2_body_rig_model);
+			}
+
+			const auto bone_count = static_cast<int>(asset->numBones);
+			const auto root_count = static_cast<int>(asset->numRootBones);
+			const auto child_count = bone_count - root_count;
+
+			std::vector<bone_rig::transform> world(bone_count);
+			for (auto i = 0; i < bone_count; i++)
+			{
+				world[i] = bone_rig::to_transform(asset->baseMat[i]);
+				if (!corrections)
+				{
+					continue;
+				}
+
+				if (const auto correction = corrections->find(SL_ConvertToString(asset->boneNames[i])); correction != corrections->end())
+				{
+					world[i].rotation = cast::quat_normalize(cast::quat_multiply(world[i].rotation, correction->second));
+				}
+			}
+
+			const auto mats = allocator.allocate_array<zonetool::s2::DObjAnimMat>(bone_count);
+			for (auto i = 0; i < bone_count; i++)
+			{
+				std::ranges::copy(world[i].rotation.v, mats[i].quat);
+				std::ranges::copy(world[i].position.v, mats[i].trans);
+				mats[i].transWeight = bind_trans_weight;
+			}
+
+			const auto angles = allocator.allocate_array<short>(4 * child_count);
+			const auto positions = allocator.allocate_array<float>(3 * child_count);
+			for (auto i = root_count; i < bone_count; i++)
+			{
+				const auto child = i - root_count;
+				const auto parent = i - asset->parentList[child];
+				const auto local = bone_rig::compose(bone_rig::invert(world[parent]), world[i]);
+
+				for (auto component = 0; component < 4; component++)
+				{
+					angles[child * 4 + component] = encode_angle(local.rotation.v[component]);
+				}
+				for (auto axis = 0; axis < 3; axis++)
+				{
+					positions[child * 3 + axis] = local.position.v[axis];
+				}
+			}
+
+			base->baseMat = reinterpret_cast<char*>(mats);
+			base->tagAngles = angles;
+			base->tagPositions = positions;
+		}
+
 		void convert_bones(const XModel* asset, zonetool::s2::XModelBase* base, utils::memory::allocator& allocator)
 		{
 			base->numBones = asset->numBones;
@@ -64,11 +162,9 @@ namespace zonetool::h1::converter::s2::xmodel
 			base->numClientBones = 0;
 			base->boneNames = reinterpret_cast<zonetool::s2::scr_string_t*>(asset->boneNames);
 			base->parentList = convert_parent_list(asset, allocator);
-			base->tagAngles = reinterpret_cast<short*>(asset->tagAngles);
-			base->tagPositions = reinterpret_cast<float*>(asset->tagPositions);
 			base->partClassification = asset->partClassification;
-			base->baseMat = reinterpret_cast<char*>(asset->baseMat);
 			base->boneInfo = reinterpret_cast<char*>(asset->boneInfo);
+			convert_bind_pose(asset, base, allocator);
 		}
 
 		void convert_lods(const XModel* asset, zonetool::s2::XModelBase* base, utils::memory::allocator& allocator)
@@ -223,6 +319,7 @@ namespace zonetool::h1::converter::s2::xmodel
 		zonetool::s2::xmodel_base::dump(converted->base);
 		zonetool::s2::xmodel::dump(converted);
 		add_csv_row("xmodel", converted->name);
+		dump_materials(asset);
 	}
 
 	zonetool::s2::XModel* reference(const XModel* asset, utils::memory::allocator& allocator)
@@ -242,7 +339,6 @@ namespace zonetool::h1::converter::s2::xmodel
 		if (loaded && loaded->numLods > 0 && loaded->lodInfo[0].modelSurfs)
 		{
 			dump(loaded);
-			dump_materials(loaded);
 			return;
 		}
 
