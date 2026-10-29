@@ -4,6 +4,8 @@
 
 #include <formats/csv_generator.hpp>
 #include <game_mode.hpp>
+#include <io/filesystem.hpp>
+#include <utils/flags.hpp>
 #include <utils/io.hpp>
 
 namespace zonetool::cli
@@ -275,6 +277,12 @@ namespace zonetool::cli
 			return;
 		}
 
+		if (utils::flags::has_flag("use_usermaps"))
+		{
+			filesystem::set_output_folder((settings.game_path / "usermaps" / args.front()).string());
+		}
+
+		const auto _ = gsl::finally([] { filesystem::set_output_folder({}); });
 		settings.game->build_zone(settings.zone_folder(), args.front());
 	}
 

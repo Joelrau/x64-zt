@@ -12,6 +12,7 @@ namespace zonetool
 			std::string fastfile;
 			std::string dump_folder;
 			std::string zone_folder = "zone\\";
+			std::string output_folder;
 			std::string language_name = "english";
 			std::string language_code = "en";
 
@@ -354,6 +355,11 @@ namespace zonetool
 			return zone_folder;
 		}
 
+		void set_output_folder(const std::string& folder)
+		{
+			output_folder = folder.empty() ? std::string{} : folder + "\\";
+		}
+
 		std::string get_zone_path(const std::string& name)
 		{
 			if (std::filesystem::exists(zone_folder + name))
@@ -427,8 +433,9 @@ namespace zonetool
 
 		std::string get_output_path()
 		{
-			create_directory(zone_folder);
-			return zone_folder;
+			const auto& folder = output_folder.empty() ? zone_folder : output_folder;
+			create_directory(folder);
+			return folder;
 		}
 
 		bool create_directory(const std::string& name)

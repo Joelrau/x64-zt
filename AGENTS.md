@@ -32,7 +32,7 @@ zonetool.exe -game h1 dumpzone mp_shipment
 | `dumpzone <zone> [--target <game>]` | Writes `dump/<zone>/` and `dump/<zone>/<zone>.csv`. `--target` converts the assets |
 | `dumpmap <map> [--target <game>] [--skip-common]` | Writes the map zones of `<map>` to `dump/<map>/` with one merged `<map>.csv`. It dumps only techsets from common zones (H2 `common`: images). `--skip-common` loads the common zones but does not dump them. H1, H2 and S1 only |
 | `dumpasset <type> <name> <zone> [--target <game>]` | Reads `<zone>` and writes one asset to `dump/assets/`. `--target` converts the asset |
-| `buildzone <zone>` | Reads `zone_source/<zone>.csv` and the files in `zonetool/<zone>/`, then writes `<game folder>/zone/<zone>.ff` |
+| `buildzone <zone> [-use_usermaps]` | Reads `zone_source/<zone>.csv` and the files in `zonetool/<zone>/`, then writes `<game folder>/zone/<zone>.ff`. `-use_usermaps` writes the zone to `<game folder>/usermaps/<zone>/` instead |
 
 Without a command, `zonetool.exe` opens an interactive console.
 
@@ -70,7 +70,7 @@ src/games/<game>/      game.cpp, structs.hpp, <game>.hpp, assets/, zone/, dump.c
 src/convert/<a>_<b>/   converter from game <a> to game <b>
 src/cli/               main, commands, settings, game registry, crash handler
 deps/                  submodules; deps/premake/*.lua defines each dependency project
-tools/                 build.bat, premake5.exe, asm_slice.py
+tools/                 build.bat, premake5.exe, asm_slice.py, livemem.py, game_window.ps1
 ```
 
 Per game:
@@ -143,6 +143,7 @@ Stream facts:
 ## Compatibility rules
 
 - Keep working v1 logic. x64-zt asset code is studied and tested since 2021. If it works, do not change it.
+- Converters convert directly from the source asset. Do not copy a donor asset of the target game. Existing donor paths, for example the S2 to H1 material remap, are debt: remove them, do not extend them.
 - Keep the v1 dump formats. A dump from v1 must parse in v2. Change a format only when it is necessary, and tell the user.
 - v2 has no game runtime. A database lookup can return null where v1 got a game default asset. Add a null check, not a fake default.
 - Known v2 differences from v1: `dumpzone <zone> --target <game>` replaces `dumpzone <target> <zone>`, IW7 `proceduralbones` has a dump format, built zones share arrays the way stock zones do, and output goes to the `zone/` folder of the game folder.
@@ -213,3 +214,136 @@ Docs, commit messages and user-facing text use ASD-STE100 style:
 - `core.autocrlf` is `true`. Some files are CRLF in the working tree. Keep the line endings of the file you edit.
 - To test H1 in the game, copy `zonetool.exe` to the MWR 1.15 game folder, or build with `--copy-to`.
 - Anything you don't know how to do, but is listed in this file as advice for you, ask the user for questions and try to figure out how to get there if you are lost. This is mainly for non-Claude models that may get stuck easier.
+
+## Agent playbook
+
+This section is for agents that work alone for a long time, for example during a map port. It comes from real sessions and their mistakes.
+
+### Rules that agents forget
+
+1. Never close a game or tool process that you did not start. You can close a crashed process that you started, but read its memory first (see "A game crash").
+2. Copy the new `zonetool.exe` to the game folder before each dump or build. A dump with an old exe wastes up to one hour.
+3. Keep the same `--games` set for `generate.bat`. A different set regenerates the projects and rebuilds everything, which takes more than 10 minutes.
+4. Never read `re_reference/*/ship_asm.txt` with `Get-Content`, `ReadAllLines` or a file tool. Use `tools/asm_slice.py`.
+5. h1-mod runs the H1 1.4 binary. For an address from an h1-mod crash, use the `h1_1.4` dump, not `h1` (1.15).
+6. Keep machine paths, user names and drive letters out of the repository docs.
+
+### Work loop
+
+1. Find the code with the "Source layout" table and one search. Do not list the repository or search a whole drive.
+2. Read the function, 100 to 200 lines from the search hit. Never open a large file from line 1.
+3. Write the cause in one sentence before you edit. If you cannot, get more evidence first.
+4. Make the smallest edit that fixes the cause. Copy the style of the code around it.
+5. Build once. Fix the first compile error first.
+6. Run the checks in "Verification" that apply to the change.
+7. Reply with the build state, 3 to 6 bullets, and what you did not verify.
+
+### Speed
+
+Times from a 72-minute session that ported the S2 hub to H1:
+
+| Step | Time | What to do |
+|---|---|---|
+| One `Get-Content` of `ship_asm.txt` (1.5M lines) | about 30 s, many times | `python tools/asm_slice.py <dump> <address or name regex>` takes less than 1 s |
+| S2 zone reads from a slow disk | about 20 min of the dump | Start the dump early, in the background |
+| Streamed images | about 10 min of the dump | Keep `dump/<zone>/.zonetool_cache`. The next dump skips the files |
+| Material conversion | about 30 min of the dump | Run the dump once. Fix build-side bugs without a new dump |
+| `buildzone` of the hub | about 6 min | Run it in the background |
+| Full rebuild after a new `--games` set | more than 10 min | Keep the same set |
+
+- Run long commands in the background and redirect output with `*> file.log`. `Tee-Object` holds the output, so you see no progress.
+- A foreground shell command has a time limit of about 2 minutes. Run a longer job in the background and wait for it.
+- Compare hex addresses as integers, not as strings.
+- Before a long dump, check that the exe in the game folder is the one that you just built (size and time).
+- Batch reads. List every function that you need, then read them all in one step.
+- Do not run a dump and a build of the same zone at the same time.
+
+### Search recipes
+
+```bash
+python tools/asm_slice.py h1_1.4 -l 14060B312 1406060E9 140605A69
+python tools/asm_slice.py h1_1.4 14060B312 -a -m 80
+python tools/asm_slice.py h1 "Load_Material$"
+python tools/asm_slice.py s2 -c Load_MaterialTechniqueSet
+grep -n "struct GfxStateBits" -A12 src/games/h1/structs.hpp
+```
+
+- `-l` maps a call stack to function names. `-a` prints the lines around an address. `-c` lists every call site of a function.
+- A dumped techset has a readable technique list in `dump/<zone>/techsets/<techset>.techset.txt`.
+- The state data of each material is in `techsets/state/<techset>/<material>.statebits`, `.statebitsmap` and `.stateinfo`.
+- The build log names each asset that it parses. Search the log for the asset name.
+- A zonetool log from a Windows PowerShell 5.1 redirect is UTF-16, and `grep` finds nothing in it. Check with `file <log>`, then convert with `iconv -f UTF-16LE -t UTF-8 <log>`.
+
+### Theories
+
+1. Write 3 candidate causes, not 1. For each candidate, write what it predicts that the others do not.
+2. Do the cheapest check that can remove a candidate first.
+3. Write the cause as a chain. Give each link its proof: a register, a memory value, a log line or a code line (`file:line`). A link without proof is a guess.
+4. A theory must explain every observation. Example: two runs crash at the same address with the same registers, so a timing theory is wrong.
+5. Write the result that you expect before you test in the game. If the result is different, the theory is wrong. Remove the first fix before you try a second fix.
+
+### A game crash
+
+1. Read `<game folder>/minidumps/<newest>/info.txt`: exception address, registers, call stack and last zone.
+2. Map the call stack with `python tools/asm_slice.py h1_1.4 -l <addresses>`.
+3. Read the faulting instruction with `-a`. Write which register holds which struct and field.
+4. The h1-mod minidump holds the stack, but not the heap or the zone memory. While the crash dialog is open, the process is alive. Read its memory with `tools/livemem.py`:
+   - `python tools/livemem.py <pid> read <address> 40` prints 0x40 bytes.
+   - `python tools/livemem.py <pid> refs <address> --stride 28 --field 140` finds the struct that owns an array that reaches `<address>`. This example finds the H1 `Material` whose `stateBitsTable` holds a `GfxStateBits` (0x28 bytes).
+   - `python tools/livemem.py <pid> h1-material <address>` lists the techniques that have no valid state bits.
+5. Find the asset in `dump/<zone>/` and in the build log. Then find the code that made the bad value.
+6. Close the crashed process only after you have the evidence.
+
+Known crash: `sub_14060B200` in 1.4 reads `GfxStateBits.zone` from `stateBitsTable[stateBitsEntry[techType] + pass]`. If a technique has `stateBitsEntry` 0xFF, the game reads entry 255 and crashes. `buildzone` logs this case as `has no state bits for technique`.
+
+### Test in the game
+
+1. Build the zone with `buildzone <map> -use_usermaps`.
+2. Start the game from the game folder: `h1-mod.exe -noupdate -multiplayer +devmap <map>`. `devmap` enables cheats.
+3. Control the game window with `tools/game_window.ps1`:
+   - `shot <file.jpg> [scale]` saves the client area of the game window only.
+   - `click <x> <y>` clicks at client coordinates. Divide the coordinates of a scaled shot by the scale.
+   - `key tilde` opens the console, `type "<text>"` types text and `key enter` runs it.
+4. Select "Auto-assign" and a class. Then move with `setviewpos <x> <y> <z> <yaw> <pitch>`.
+5. Get coordinates from the map entities: the `origin` of named entities in `dump/<map>/maps/mp/<map>.d3dbsp.ents`.
+6. After each move, take one shot and look for a new folder in `minidumps`.
+
+### Known mistakes
+
+- A search of a whole drive or a recursive listing of the game folder. The output fills your context, and the search takes minutes.
+- `cmd /c` with `tools\build.bat` and a `--copy-to` path that has spaces or parentheses. The quotes break, and premake reports `no such action`. Run MSBuild directly, then copy the exe.
+- An edit of a file that you did not read in this session. The edit tool refuses it.
+- A dump with an exe that does not have your newest change.
+- A fix in the converter for a bug in the build side (`material::parse`, `techset::parse`, the `zonetool_paths` merge). Check the dumped files first. If the dump is correct, the bug is in the build.
+- Trust in the output of `DEEP_LOOK_TECHNIQUES`. It merges technique slots from every techset of the same name in `zonetool/` and `zonetool_paths/`. The merged techset can have techniques that the material dump does not have.
+- `&&` in Windows PowerShell 5.1. Use `;` and `if ($?) { ... }`.
+
+### When the build fails
+
+1. Find the first `error C` or `error LNK` line, and fix that error first.
+2. If the same error comes back, read 30 lines around it again. Do not try the same edit again.
+3. After three failed tries, stop. Report the exact error line and what you tried.
+
+### When you are stuck
+
+Say what you searched, what you found and what is missing. Ask one specific question. Do not fill the gap with a guess.
+
+### Checklist before you reply
+
+1. The build of this run succeeded, and the game folder has the new exe.
+2. `verifyzone` passes for each zone that you built.
+3. `git status --short` lists only the files that you meant to change.
+4. `git diff` has no unrelated edits, no reformatting and no debug code.
+5. The docs of the work (`docs/<GAME>_SUPPORT.md` or a handoff file) have a short dated entry with the result.
+6. Nothing is committed, unless the user asked for a commit.
+
+### Reply format
+
+```
+Built and copied. Zone built to usermaps. Tested in the game: no crash at 6 spots.
+
+- techset.cpp parse_statebits: opens the merged file from its own search path.
+- material.cpp write: logs techniques that have no state bits.
+
+Not verified: IW6 build (IW6 is not in this --games set).
+```

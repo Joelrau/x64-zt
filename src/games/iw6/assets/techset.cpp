@@ -261,7 +261,7 @@ namespace zonetool::iw6
 
 #ifdef DEEP_LOOK_TECHNIQUES
 		const std::string parent_path = utils::string::va("techsets\\constantbuffer\\%s", techset.data());
-		char index_buffer[MaterialTechniqueType::TECHNIQUE_COUNT]{};
+		unsigned char index_buffer[MaterialTechniqueType::TECHNIQUE_COUNT]{};
 		const auto& search_paths = filesystem::get_search_paths();
 		bool found = false;
 		for (auto& search_path : search_paths)
@@ -270,10 +270,8 @@ namespace zonetool::iw6
 			const auto first_file = material_data::find_first_file_with_extension_in_directory(dir, ".cbi");
 			if (first_file.has_value() && !first_file.value().empty())
 			{
-				std::string path = parent_path + "\\" + first_file.value();
-
-				auto file = filesystem::file(path);
-				file.open("rb");
+				auto file = filesystem::file(dir + "\\" + first_file.value());
+				file.open("rb", false);
 				auto fp = file.get_fp();
 
 				if (fp)
@@ -393,7 +391,7 @@ namespace zonetool::iw6
 
 #ifdef DEEP_LOOK_TECHNIQUES
 		const std::string parent_path = utils::string::va("techsets\\state\\%s", techset.data());
-		char index_buffer[MaterialTechniqueType::TECHNIQUE_COUNT]{};
+		unsigned char index_buffer[MaterialTechniqueType::TECHNIQUE_COUNT]{};
 		const auto& search_paths = filesystem::get_search_paths();
 		bool found = false;
 		for (auto& search_path : search_paths)
@@ -402,10 +400,8 @@ namespace zonetool::iw6
 			const auto first_file = material_data::find_first_file_with_extension_in_directory(dir, ".statebits");
 			if (first_file.has_value() && !first_file.value().empty())
 			{
-				std::string path = parent_path + "\\" + first_file.value();
-
-				auto file = filesystem::file(path);
-				file.open("rb");
+				auto file = filesystem::file(dir + "\\" + first_file.value());
+				file.open("rb", false);
 				auto fp = file.get_fp();
 
 				if (fp)

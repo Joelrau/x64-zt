@@ -237,6 +237,36 @@ namespace zonetool::s2
 			filesystem::set_fastfile(zone_path.stem().string());
 			filesystem::set_language("english", "eng");
 		}
+
+		std::vector<std::unique_ptr<loaded_zone>> load_required_zones(const converter* converter, const std::filesystem::path& zone_path)
+		{
+			std::vector<std::unique_ptr<loaded_zone>> zones;
+			if (!converter || !converter->required_zones)
+			{
+				return zones;
+			}
+
+			const auto zone_name = zone_path.stem().string();
+			for (const auto& name : converter->required_zones(zone_name))
+			{
+				if (name == zone_name)
+				{
+					continue;
+				}
+
+				const auto path = game_files::find_zone(name);
+				if (!path)
+				{
+					ZONETOOL_WARNING("Required zone \"%s\" not found", name.data());
+					continue;
+				}
+
+				ZONETOOL_INFO("Loading required zone \"%s\"...", name.data());
+				zones.emplace_back(load_zone(*path));
+			}
+
+			return zones;
+		}
 	}
 
 	const char* type_to_string(const XAssetType type)
@@ -278,6 +308,7 @@ namespace zonetool::s2
 
 		prepare_paths(zone_folder, zone_path);
 		const dump_cache_scope cache(filesystem::get_dump_path());
+		const auto required_zones = load_required_zones(converter, zone_path);
 		ZONETOOL_INFO("Loading zone \"%s\"...", zone_path.stem().string().data());
 		const auto zone = load_zone(zone_path);
 
@@ -316,6 +347,7 @@ namespace zonetool::s2
 		const auto _ = gsl::finally(db_clear);
 
 		prepare_paths(zone_folder, zone_path);
+		const auto required_zones = load_required_zones(converter, zone_path);
 		const auto zone = load_zone(zone_path);
 
 		std::vector<const loaded_asset*> assets;

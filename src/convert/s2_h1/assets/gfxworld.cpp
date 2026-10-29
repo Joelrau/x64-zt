@@ -347,6 +347,45 @@ namespace zonetool::s2::converter::h1::gfxworld
 			return static_cast<std::uint16_t>(std::clamp(half_extent * 100.0f, 1500.0f, 30000.0f));
 		}
 
+		// H1 allocates a model lighting handle for each static model that the vis job keeps, and clears
+		// the vis bit of a model when the 4096 handle pool is full. Report how close a camera can get to it.
+		void log_static_model_cull_load(const zonetool::h1::GfxWorld* world)
+		{
+			const auto& dpvs = world->dpvs;
+			if (!dpvs.smodelCount)
+			{
+				return;
+			}
+
+			constexpr auto grid_size = 24;
+			const auto& bounds = world->bounds;
+			auto worst = 0u;
+			auto worst_wide = 0u;
+			for (auto x = 0; x < grid_size; x++)
+			{
+				for (auto z = 0; z < grid_size; z++)
+				{
+					const auto position_x = bounds.midPoint[0] - bounds.halfSize[0] + 2.0f * bounds.halfSize[0] * (x + 0.5f) / grid_size;
+					const auto position_z = bounds.midPoint[2] - bounds.halfSize[2] + 2.0f * bounds.halfSize[2] * (z + 0.5f) / grid_size;
+					auto visible = 0u;
+					auto visible_wide = 0u;
+					for (auto i = 0u; i < dpvs.smodelCount; i++)
+					{
+						const auto& origin = dpvs.smodelDrawInsts[i].placement.origin;
+						const auto distance = std::hypot(origin[0] - position_x, origin[2] - position_z);
+						visible += distance < dpvs.smodelDrawInsts[i].cullDist ? 1u : 0u;
+						visible_wide += distance < 4.0f * dpvs.smodelDrawInsts[i].cullDist ? 1u : 0u;
+					}
+
+					worst = std::max(worst, visible);
+					worst_wide = std::max(worst_wide, visible_wide);
+				}
+			}
+
+			ZONETOOL_INFO("GfxWorld static models: %u, most models inside cullDist %u, inside 4x cullDist %u",
+				dpvs.smodelCount, worst, worst_wide);
+		}
+
 		void convert_static_models(GfxWorld* asset, zonetool::h1::GfxWorld* world, utils::memory::allocator& allocator)
 		{
 			auto& dpvs = world->dpvs;
@@ -686,6 +725,7 @@ namespace zonetool::s2::converter::h1::gfxworld
 
 		utils::memory::allocator allocator;
 		const auto world = convert(pending_world, allocator);
+		log_static_model_cull_load(world);
 		zonetool::h1::gfx_world::dump(world);
 		add_csv_row("gfx_map", world->name);
 		clear_stubs();

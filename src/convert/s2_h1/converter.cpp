@@ -189,6 +189,11 @@ namespace zonetool::convert::s2_h1
 			target::clipmap::finish();
 			target::write_csv(zone_name);
 		}
+
+		std::vector<std::string> required_zones(const std::string&)
+		{
+			return {"code_post_gfx_mp", "common_core_mp", "common_mp", "common_hub_mp"};
+		}
 	}
 
 	const converter& definition()
@@ -200,6 +205,7 @@ namespace zonetool::convert::s2_h1
 			.dump_asset = dump_asset,
 			.setup = setup,
 			.finish = finish,
+			.required_zones = required_zones,
 		};
 
 		return s2_h1;

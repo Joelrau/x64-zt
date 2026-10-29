@@ -78,6 +78,25 @@ namespace zonetool::h1
 				}
 			}
 		}
+
+		void check_state_bits(const Material* material, const MaterialTechniqueSet* techset)
+		{
+			for (auto i = 0; i < MaterialTechniqueType::TECHNIQUE_COUNT; i++)
+			{
+				const auto technique = techset->techniques[i];
+				if (!technique)
+				{
+					continue;
+				}
+
+				const auto entry = material->stateBitsEntry[i];
+				if (entry == 0xFF || entry + technique->hdr.passCount > material->stateBitsCount)
+				{
+					ZONETOOL_ERROR("Material \"%s\" has no state bits for technique %i (\"%s\") of techset \"%s\", the game crashes when it draws it",
+						material->name, i, technique->hdr.name, techset->name);
+				}
+			}
+		}
 	}
 
 	void fixup_statebits_from_stateflags(Material* asset)
@@ -524,6 +543,11 @@ namespace zonetool::h1
 
 		if (data->techniqueSet)
 		{
+			if (const auto techset = zone->find_asset(ASSET_TYPE_TECHNIQUE_SET, data->techniqueSet->name))
+			{
+				check_state_bits(data, static_cast<MaterialTechniqueSet*>(techset->pointer()));
+			}
+
 			dest->techniqueSet = reinterpret_cast<MaterialTechniqueSet*>(zone->get_asset_pointer(
 				ASSET_TYPE_TECHNIQUE_SET, data->techniqueSet->name));
 		}

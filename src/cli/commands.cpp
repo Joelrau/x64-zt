@@ -33,7 +33,8 @@ namespace zonetool::cli
 				dump_asset},
 			command{"verifyzone", "verifyzone <zone> | verifyzone --all", "Reads every asset and checks the zone", verify_zone},
 			command{"listzone", "listzone <zone> | listzone --all", "Writes the asset list to asset_listing/<game>/", list_zone},
-			command{"buildzone", "buildzone <zone>", "Builds zone/<zone>.ff from zone_source/<zone>.csv and zonetool/<zone>/", build_zone},
+			command{"buildzone", "buildzone <zone> [-use_usermaps]", "Builds zone/<zone>.ff from zone_source/<zone>.csv and zonetool/<zone>/",
+				build_zone},
 			command{"generatecsv", "generatecsv <map> [sp] [--path <dir>]...", "Writes zone_source/<map>.csv from zonetool/<map>/",
 				generate_csv},
 		};
