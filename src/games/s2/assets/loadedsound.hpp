@@ -65,7 +65,9 @@ namespace zonetool::s2
 		{
 			j.value("hash", value.hash);
 			j.value("index", value.index);
-			j.value("unknown", value.unknown);
+			j.value("unk_0xA", value.unk_0xA);
+			j.value("isLocalized", value.isLocalized);
+			j.value("unk_0xD", value.unk_0xD);
 			j.value("slot", value.slot);
 		}
 
@@ -88,7 +90,6 @@ namespace zonetool::s2
 			j.value("bitsPerSample", value.bitsPerSample);
 			j.value("blockSize", value.blockSize);
 			j.value("format", value.format);
-			j.value("unknown15", value.unknown15);
 		}
 	};
 }

@@ -46,7 +46,9 @@ namespace zonetool
 
 		std::uint64_t hash;
 		std::uint16_t index;
-		std::uint16_t unknown[2];
+		std::uint16_t unk_0xA;
+		std::uint8_t isLocalized;
+		std::uint8_t unk_0xD;
 		std::uint16_t slot;
 	};
 
@@ -62,7 +64,7 @@ namespace zonetool
 		std::uint64_t offset; // the game packs offset into 36 bits and size into 28
 		std::uint32_t size;
 		std::uint8_t isLocalized;
-		char pad;
+		std::uint8_t unk_0xD;
 		std::uint16_t fileIndex;
 	};
 

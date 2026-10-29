@@ -149,6 +149,8 @@ namespace zonetool::h1::converter::s2
 		xmodel::clear();
 		physpreset::clear();
 		physcollmap::clear();
+		fxeffectdef::clear();
+		tracer::clear();
 		attachment::clear();
 		weapon::clear();
 		write_csv(zone_name);

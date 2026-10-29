@@ -129,6 +129,11 @@ namespace zonetool::iw6
 					fields.push_back(f);
 				};
 
+				const auto bool_parm = [](const bool value)
+				{
+					return zonetool::h1::WAFieldParm{.p_float = value ? 1.0f : 0.0f}; // h1 reads bool fields as a float
+				};
+
 				float ammunitionScale = 1.0f;
 				float damageScale = 1.0f;
 				float damageScaleMin = 1.0f;
@@ -197,38 +202,38 @@ namespace zonetool::iw6
 					{
 						addField(zonetool::h1::FIELD_OP_STRING_SET, zonetool::h1::WAFIELD_TYPE_TRACER, {.string = asset->ammogeneral->tracerType->name}, offsetof(zonetool::h1::WeaponDef, tracerType));
 					}
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, {.p_bool = asset->ammogeneral->rifleBullet}, offsetof(zonetool::h1::WeaponDef, rifleBullet));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, {.p_bool = asset->ammogeneral->armorPiercing}, offsetof(zonetool::h1::WeaponDef, armorPiercing));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, bool_parm(asset->ammogeneral->rifleBullet), offsetof(zonetool::h1::WeaponDef, rifleBullet));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, bool_parm(asset->ammogeneral->armorPiercing), offsetof(zonetool::h1::WeaponDef, armorPiercing));
 				}
 
 				if (asset->sight)
 				{
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, {.p_bool = asset->sight->aimDownSight}, offsetof(zonetool::h1::WeaponDef, aimDownSight));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, bool_parm(asset->sight->aimDownSight), offsetof(zonetool::h1::WeaponDef, aimDownSight));
 					//addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, { .p_bool = asset->sight->adsFire }, offsetof(zonetool::h1::WeaponDef, adsFireOnly));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, {.p_bool = asset->sight->rechamberWhileAds}, offsetof(zonetool::h1::WeaponDef, rechamberWhileAds));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, {.p_bool = asset->sight->noAdsWhenMagEmpty}, offsetof(zonetool::h1::WeaponDef, noAdsWhenMagEmpty));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, {.p_bool = asset->sight->canHoldBreath}, offsetof(zonetool::h1::WeaponDef, canHoldBreath));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, {.p_bool = asset->sight->canVariableZoom}, offsetof(zonetool::h1::WeaponDef, canVariableZoom));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, bool_parm(asset->sight->rechamberWhileAds), offsetof(zonetool::h1::WeaponDef, rechamberWhileAds));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, bool_parm(asset->sight->noAdsWhenMagEmpty), offsetof(zonetool::h1::WeaponDef, noAdsWhenMagEmpty));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, bool_parm(asset->sight->canHoldBreath), offsetof(zonetool::h1::WeaponDef, canHoldBreath));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, bool_parm(asset->sight->canVariableZoom), offsetof(zonetool::h1::WeaponDef, canVariableZoom));
 					h1_asset->showSideRail = asset->sight->hideRailWithThisScope == false;
 					h1_asset->showMasterRail = asset->sight->hideRailWithThisScope == false;
 				}
 
 				if (asset->reload)
 				{
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, {.p_bool = asset->reload->noPartialReload}, offsetof(zonetool::h1::WeaponDef, noPartialReload));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, {.p_bool = asset->reload->segmentedReload}, offsetof(zonetool::h1::WeaponDef, segmentedReload));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, bool_parm(asset->reload->noPartialReload), offsetof(zonetool::h1::WeaponDef, noPartialReload));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, bool_parm(asset->reload->segmentedReload), offsetof(zonetool::h1::WeaponDef, segmentedReload));
 				}
 
 				if (asset->addOns)
 				{
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, {.p_bool = asset->addOns->motionTracker}, offsetof(zonetool::h1::WeaponDef, motionTracker));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, {.p_bool = asset->addOns->silenced}, offsetof(zonetool::h1::WeaponDef, silenced));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, bool_parm(asset->addOns->motionTracker), offsetof(zonetool::h1::WeaponDef, motionTracker));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, bool_parm(asset->addOns->silenced), offsetof(zonetool::h1::WeaponDef, silenced));
 				}
 
 				if (asset->general)
 				{
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, {.p_bool = asset->general->boltAction}, offsetof(zonetool::h1::WeaponDef, boltAction));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, {.p_bool = asset->general->inheritsPerks}, offsetof(zonetool::h1::WeaponDef, inheritsPerks));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, bool_parm(asset->general->boltAction), offsetof(zonetool::h1::WeaponDef, boltAction));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, bool_parm(asset->general->inheritsPerks), offsetof(zonetool::h1::WeaponDef, inheritsPerks));
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->general->enemyCrosshairRange}, offsetof(zonetool::h1::WeaponDef, enemyCrosshairRange));
 					if (asset->general->reticleCenter)
 					{
@@ -423,7 +428,7 @@ namespace zonetool::iw6
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->adsOverlay->overlay.height}, offsetof(zonetool::h1::WeaponDef, overlay.height));
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->adsOverlay->overlay.widthSplitscreen}, offsetof(zonetool::h1::WeaponDef, overlay.widthSplitscreen));
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->adsOverlay->overlay.heightSplitscreen}, offsetof(zonetool::h1::WeaponDef, overlay.heightSplitscreen));
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, {.p_bool = asset->adsOverlay->thermalScope}, offsetof(zonetool::h1::WeaponDef, thermalScope));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, bool_parm(asset->adsOverlay->thermalScope), offsetof(zonetool::h1::WeaponDef, thermalScope));
 				}
 
 				if (asset->ui)
@@ -472,7 +477,7 @@ namespace zonetool::iw6
 					{
 						addField(zonetool::h1::FIELD_OP_STRING_SET, zonetool::h1::WAFIELD_TYPE_FX, {.string = asset->projectile->projExplosionEffect->name}, offsetof(zonetool::h1::WeaponDef, projExplosionEffect));
 					}
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, {.p_bool = asset->projectile->projExplosionEffectForceNormalUp}, offsetof(zonetool::h1::WeaponDef, projExplosionEffectForceNormalUp));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, bool_parm(asset->projectile->projExplosionEffectForceNormalUp), offsetof(zonetool::h1::WeaponDef, projExplosionEffectForceNormalUp));
 					if (asset->projectile->projExplosionSound)
 					{
 						addField(zonetool::h1::FIELD_OP_STRING_SET, zonetool::h1::WAFIELD_TYPE_SOUND, {.string = asset->projectile->projExplosionSound->aliasName}, offsetof(zonetool::h1::WeaponDef, projExplosionSound));
@@ -485,7 +490,7 @@ namespace zonetool::iw6
 					{
 						addField(zonetool::h1::FIELD_OP_STRING_SET, zonetool::h1::WAFIELD_TYPE_SOUND, {.string = asset->projectile->projDudSound->aliasName}, offsetof(zonetool::h1::WeaponDef, projDudSound));
 					}
-					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, {.p_bool = asset->projectile->projImpactExplode}, offsetof(zonetool::h1::WeaponDef, projImpactExplode));
+					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_BOOL, bool_parm(asset->projectile->projImpactExplode), offsetof(zonetool::h1::WeaponDef, projImpactExplode));
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->projectile->destabilizationRateTime}, offsetof(zonetool::h1::WeaponDef, destabilizationRateTime));
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_FLOAT, {.p_float = asset->projectile->destabilizationCurvatureMax}, offsetof(zonetool::h1::WeaponDef, destabilizationCurvatureMax));
 					addField(zonetool::h1::FIELD_OP_NUMBER_SET, zonetool::h1::WAFIELD_TYPE_INT, {.p_float = static_cast<float>(asset->projectile->destabilizeDistance)}, offsetof(zonetool::h1::WeaponDef, destabilizeDistance));

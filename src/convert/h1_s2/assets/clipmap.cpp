@@ -350,7 +350,7 @@ namespace zonetool::h1::converter::s2::clipmap
 				cmodels[i].radius = cmodel.radius;
 				cmodels[i].info = new_asset->pInfo;
 				cmodels[i].leaf = convert_leaf(cmodel.leaf);
-				cmodels[i].unk_0x60 = i ? 0xFFFF : 0;
+				cmodels[i].navObstacleIdx = i ? 0xFFFF : 0;
 			}
 
 			new_asset->numSubModels = asset->numSubModels;
@@ -394,7 +394,8 @@ namespace zonetool::h1::converter::s2::clipmap
 					new_def.hinge = retype<zonetool::s2::DynEntityHingeDef>(def.hinge);
 					new_def.linkTo = retype<zonetool::s2::DynEntityLinkToDef>(def.linkTo);
 					new_def.contents = static_cast<std::uint32_t>(def.contents);
-					std::memcpy(new_def.unk_0x70, def.unk, sizeof(new_def.unk_0x70));
+					new_def.impactDamageThreshold = def.unk[0];
+					new_def.impactDamageScale = def.unk[1];
 				}
 
 				new_asset->dynEntDefList[i] = defs;

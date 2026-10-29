@@ -876,7 +876,7 @@ namespace zonetool::s2
 			read_vis_arrays(reader, dpvs->smodelVisDataUnused, std::size(dpvs->smodelVisDataUnused), 0);
 			read_vis_arrays(reader, dpvs->surfaceVisDataUnused, std::size(dpvs->surfaceVisDataUnused), 0);
 			read_runtime_array(reader, XFILE_BLOCK_RUNTIME, dpvs->unk_0x2C8, 127, 2 * dpvs->surfaceVisDataCount);
-			reader.read_array(dpvs->unk_0x318, 127, 2 * dpvs->smodelVisDataCount);
+			reader.read_array(dpvs->smodelLightingStateBits, 127, 2 * dpvs->smodelVisDataCount);
 
 			read_vis_arrays(reader, &dpvs->smodelVisData[3], 1, dpvs->smodelVisDataCount);
 			read_vis_arrays(reader, &dpvs->surfaceVisData[3], 1, dpvs->surfaceVisDataCount);
@@ -886,7 +886,7 @@ namespace zonetool::s2
 				read_vis_arrays(reader, &dpvs->surfaceUnknownVisData[view * 9], 9, dpvs->surfaceVisDataCount);
 			}
 			read_runtime_array(reader, XFILE_BLOCK_RUNTIME, dpvs->primaryLightVisData, 127, dpvs->primaryLightVisDataCount);
-			read_runtime_array(reader, XFILE_BLOCK_RUNTIME, dpvs->unk_0x2D8, 127, dpvs->smodelVisDataCount);
+			read_runtime_array(reader, XFILE_BLOCK_RUNTIME, dpvs->smodelFoliageVisData, 127, dpvs->smodelVisDataCount);
 			read_runtime_array(reader, XFILE_BLOCK_RUNTIME, dpvs->unk_0x2E0, 127, dpvs->surfaceVisDataCount);
 
 			reader.read_array(dpvs->sortedSurfIndex, 3, dpvs->staticSurfaceCount);
@@ -939,7 +939,7 @@ namespace zonetool::s2
 			write_vis_arrays(buf, data->smodelVisDataUnused, std::size(data->smodelVisDataUnused), 0, dest->smodelVisDataUnused);
 			write_vis_arrays(buf, data->surfaceVisDataUnused, std::size(data->surfaceVisDataUnused), 0, dest->surfaceVisDataUnused);
 			write_runtime_array(buf, XFILE_BLOCK_RUNTIME, 127, data->unk_0x2C8, 2 * data->surfaceVisDataCount, dest->unk_0x2C8);
-			write_array(buf, 127, data->unk_0x318, 2 * data->smodelVisDataCount, dest->unk_0x318);
+			write_array(buf, 127, data->smodelLightingStateBits, 2 * data->smodelVisDataCount, dest->smodelLightingStateBits);
 
 			write_vis_arrays(buf, &data->smodelVisData[3], 1, data->smodelVisDataCount, &dest->smodelVisData[3]);
 			write_vis_arrays(buf, &data->surfaceVisData[3], 1, data->surfaceVisDataCount, &dest->surfaceVisData[3]);
@@ -949,7 +949,7 @@ namespace zonetool::s2
 				write_vis_arrays(buf, &data->surfaceUnknownVisData[view * 9], 9, data->surfaceVisDataCount, &dest->surfaceUnknownVisData[view * 9]);
 			}
 			write_runtime_array(buf, XFILE_BLOCK_RUNTIME, 127, data->primaryLightVisData, data->primaryLightVisDataCount, dest->primaryLightVisData);
-			write_runtime_array(buf, XFILE_BLOCK_RUNTIME, 127, data->unk_0x2D8, data->smodelVisDataCount, dest->unk_0x2D8);
+			write_runtime_array(buf, XFILE_BLOCK_RUNTIME, 127, data->smodelFoliageVisData, data->smodelVisDataCount, dest->smodelFoliageVisData);
 			write_runtime_array(buf, XFILE_BLOCK_RUNTIME, 127, data->unk_0x2E0, data->surfaceVisDataCount, dest->unk_0x2E0);
 
 			write_array(buf, 3, data->sortedSurfIndex, data->staticSurfaceCount, dest->sortedSurfIndex);
@@ -1005,9 +1005,9 @@ namespace zonetool::s2
 			parse_vis_arrays(mem, dpvs->surfaceUnknownVisData, std::size(dpvs->surfaceUnknownVisData), dpvs->surfaceVisDataCount);
 			parse_runtime_array(mem, dpvs->unk_0x2C8, 2 * dpvs->surfaceVisDataCount);
 			parse_runtime_array(mem, dpvs->primaryLightVisData, dpvs->primaryLightVisDataCount);
-			parse_runtime_array(mem, dpvs->unk_0x2D8, dpvs->smodelVisDataCount);
+			parse_runtime_array(mem, dpvs->smodelFoliageVisData, dpvs->smodelVisDataCount);
 			parse_runtime_array(mem, dpvs->unk_0x2E0, dpvs->surfaceVisDataCount);
-			parse_array(read, mem, dpvs->unk_0x318, 2 * dpvs->smodelVisDataCount);
+			parse_array(read, mem, dpvs->smodelLightingStateBits, 2 * dpvs->smodelVisDataCount);
 
 			parse_array(read, mem, dpvs->sortedSurfIndex, dpvs->staticSurfaceCount);
 			if (const auto surfaces = parse_array(read, mem, dpvs->surfaces, asset->surfaceCount))
@@ -1053,7 +1053,7 @@ namespace zonetool::s2
 		void dump_dpvs_static(assetmanager::dumper& write, GfxWorld* asset)
 		{
 			auto* dpvs = &asset->dpvs;
-			write.dump_array(dpvs->unk_0x318, 2 * dpvs->smodelVisDataCount);
+			write.dump_array(dpvs->smodelLightingStateBits, 2 * dpvs->smodelVisDataCount);
 
 			write.dump_array(dpvs->sortedSurfIndex, dpvs->staticSurfaceCount);
 			write.dump_array(dpvs->surfaces, asset->surfaceCount);

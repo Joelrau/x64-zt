@@ -352,7 +352,7 @@ namespace zonetool::h1::converter::s2::sound
 			result.stereo3DStart = alias.stereo3DStart;
 			result.stereo3DEnd = alias.stereo3DEnd;
 			result.threshold = alias.threshold;
-			result.unknown232 = 1.0f;
+			result.normalizeLevel = 1.0f;
 			result.lockedLoopTime = alias.lockedLoopTime;
 			std::fill(std::begin(result.parameterModifierOps), std::end(result.parameterModifierOps) - 1, zonetool::s2::SND_MODIFIER_OP_NONE);
 			result.parameterModifierOps[7] = zonetool::s2::SND_MODIFIER_OP_ADD;

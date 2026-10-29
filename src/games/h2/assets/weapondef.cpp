@@ -1365,6 +1365,10 @@ namespace zonetool::h2
 			for (auto i = 0; i < 4; i++)
 			{
 				reader.read_name_reference(asset->turretBarrelSpinUpSnd[i]);
+			}
+
+			for (auto i = 0; i < 4; i++)
+			{
 				reader.read_name_reference(asset->turretBarrelSpinDownSnd[i]);
 			}
 
@@ -2008,6 +2012,10 @@ namespace zonetool::h2
 		for (int i = 0; i < 4; i++)
 		{
 			WEAPON_SOUND_CUSTOM(turretBarrelSpinUpSnd[i]);
+		}
+
+		for (int i = 0; i < 4; i++)
+		{
 			WEAPON_SOUND_CUSTOM(turretBarrelSpinDownSnd[i]);
 		}
 

@@ -1,28 +1,28 @@
 #include <std_include.hpp>
 
-#include "../include.hpp"
+#include "../../include.hpp"
+#include "../techset.hpp"
 #include "bone_rig.hpp"
-#include "techset.hpp"
 
 namespace zonetool::h1::converter::s2::bone_rig
 {
 	namespace
 	{
-		template <typename Base, typename AnimMat>
-		std::optional<skeleton> load_base(const Base* base)
+		template <typename Model, typename AnimMat>
+		std::optional<skeleton> load_skeleton(const Model* model)
 		{
-			if (!base || !base->boneNames || !base->baseMat)
+			if (!model || !model->boneNames || !model->baseMat || (model->numBones > model->numRootBones && !model->parentList))
 			{
 				return {};
 			}
 
-			const auto* mats = reinterpret_cast<const AnimMat*>(base->baseMat);
+			const auto* mats = reinterpret_cast<const AnimMat*>(model->baseMat);
 
 			skeleton rig;
-			for (auto i = 0; i < base->numBones; i++)
+			for (auto i = 0; i < model->numBones; i++)
 			{
-				rig.names.emplace_back(SL_ConvertToString(base->boneNames[i]));
-				rig.parents.emplace_back(i < base->numRootBones ? -1 : i - base->parentList[i - base->numRootBones]);
+				rig.names.emplace_back(SL_ConvertToString(model->boneNames[i]));
+				rig.parents.emplace_back(i < model->numRootBones ? -1 : i - model->parentList[i - model->numRootBones]);
 				rig.bind_world.emplace_back(to_transform(mats[i]));
 			}
 
@@ -82,13 +82,13 @@ namespace zonetool::h1::converter::s2::bone_rig
 		return {rotation, position};
 	}
 
-	std::optional<skeleton> load_h1_model(const char* name)
+	std::optional<skeleton> load_h1_skeleton(const char* name)
 	{
 		const auto* model = db_find_x_asset_header_safe(ASSET_TYPE_XMODEL, name).model;
-		return load_base<XModel, DObjAnimMat>(model);
+		return load_skeleton<XModel, DObjAnimMat>(model);
 	}
 
-	std::optional<skeleton> load_s2_model(const char* name)
+	std::optional<skeleton> load_s2_skeleton(const char* name)
 	{
 		db_scope _(techset::common_zone().db());
 
@@ -98,6 +98,6 @@ namespace zonetool::h1::converter::s2::bone_rig
 			return {};
 		}
 
-		return load_base<zonetool::s2::XModelBase, zonetool::s2::DObjAnimMat>(model->base);
+		return load_skeleton<zonetool::s2::XModelBase, zonetool::s2::DObjAnimMat>(model->base);
 	}
 }

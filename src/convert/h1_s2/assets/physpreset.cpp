@@ -17,7 +17,7 @@ namespace zonetool::h1::converter::s2::physpreset
 
 		constexpr auto default_density = 0.0361f;
 		constexpr float default_unk_0x20[2]{20.0f, 300.0f};
-		constexpr float default_unk_0x70[4]{176.0f, 1728.0f, 1728000.0f, 13824000.0f};
+		constexpr float default_impact_effect_thresholds[4]{176.0f, 1728.0f, 1728000.0f, 13824000.0f};
 
 		std::unordered_set<std::string> dumped_presets;
 
@@ -53,13 +53,13 @@ namespace zonetool::h1::converter::s2::physpreset
 			new_preset->density = volume > 0.0f && preset->mass > 0.0f ? preset->mass / volume : default_density;
 			new_preset->bounce = preset->bounce;
 			new_preset->friction = preset->friction;
-			new_preset->unk_0x14 = 1.0f;
+			new_preset->gravityScale = 1.0f;
 			new_preset->bulletForceScale = preset->bulletForceScale;
 			new_preset->explosiveForceScale = preset->explosiveForceScale;
 			std::ranges::copy(default_unk_0x20, new_preset->unk_0x20);
 			new_preset->collisionMask = 0xFFFF;
 			new_preset->unk_0x2B = 1;
-			std::ranges::copy(default_unk_0x70, new_preset->unk_0x70);
+			std::ranges::copy(default_impact_effect_thresholds, new_preset->impactEffectThresholds);
 
 			zonetool::s2::phys_preset::dump(new_preset);
 			add_csv_row("physpreset", preset->name);

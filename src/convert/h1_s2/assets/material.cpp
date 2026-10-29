@@ -131,8 +131,9 @@ namespace zonetool::h1::converter::s2::material
 			result.loadBits[2] = source.loadBits[2] | (polygon_offset << s2_polygon_offset_shift);
 			for (auto i = 0u; i < blend_word_count; i++)
 			{
-				result.loadBits[3 + i] = convert_blend_word(source.loadBits[3 + i]) | (blend_class << blend_class_shift);
+				result.loadBits[3 + i] = convert_blend_word(source.loadBits[3 + i]);
 			}
+			result.loadBits[3] |= blend_class << blend_class_shift; // the output color space class, only the first render target has one
 			result.rasterizerState = rasterizer_index(result.loadBits[0], result.loadBits[2]);
 			return result;
 		}
@@ -551,6 +552,88 @@ namespace zonetool::h1::converter::s2::material
 			sprite.name = name.data();
 			convert_material(&sprite, true);
 		}
+
+		struct minimap_variant
+		{
+			const char* suffix;
+			const char* techset;
+			std::uint8_t sort_key;
+			std::uint32_t blend;
+			const char* alpha_map;
+		};
+
+		constexpr std::array<minimap_variant, 3> minimap_variants
+		{{
+			{"", "2d", 62, 0x03CB1165, nullptr},
+			{"_circular", "2d_uia_uiuv", 53, 0x01CB1165, "compass_circular_base_cutout_2"},
+			{"_ui3d", "2d", 62, 0x03CB1165, nullptr},
+		}};
+		constexpr std::array<std::uint32_t, 3> minimap_load_bits{0xA, 0xE00E000C, 0xFFFF};
+		constexpr std::uint8_t minimap_color_sampler = 0xE2;
+		constexpr std::uint8_t minimap_alpha_sampler = 0xF3;
+
+		std::uint32_t texture_name_hash(const std::string_view name)
+		{
+			std::uint32_t hash = 0;
+			for (const auto c : name)
+			{
+				hash = (static_cast<std::uint8_t>(c) | 0x20) ^ (hash * 33);
+			}
+
+			return hash;
+		}
+
+		zonetool::s2::MaterialTextureDef make_texture(const std::string_view name, const std::uint8_t sampler_state, const std::string& image,
+			utils::memory::allocator& allocator)
+		{
+			zonetool::s2::MaterialTextureDef texture{};
+			texture.nameHash = texture_name_hash(name);
+			texture.nameStart = name.front();
+			texture.nameEnd = name.back();
+			texture.samplerState = sampler_state;
+			texture.u.image = make_image_stub(image, allocator);
+			return texture;
+		}
+
+		native_material make_minimap_material(const minimap_variant& variant, const std::string& name, const std::string& map_image,
+			utils::memory::allocator& allocator)
+		{
+			const auto material = allocator.allocate<zonetool::s2::Material>();
+			material->info.name = allocator.duplicate_string(name);
+			material->info.prepassClass = zonetool::s2::PREPASS_CLASS_BLENDED;
+			material->info.sortKey = variant.sort_key;
+			material->info.textureAtlasRowCount = 1;
+			material->info.textureAtlasColumnCount = 1;
+			material->cameraRegion = zonetool::s2::CAMERA_REGION_NONE;
+			material->techniqueSet = make_stub<zonetool::s2::MaterialTechniqueSet>(variant.techset, allocator);
+
+			std::vector<zonetool::s2::MaterialTextureDef> textures;
+			if (variant.alpha_map)
+			{
+				textures.emplace_back(make_texture("alphaMap", minimap_alpha_sampler, variant.alpha_map, allocator));
+			}
+			textures.emplace_back(make_texture("colorMap", minimap_color_sampler, map_image, allocator));
+			material->textureCount = static_cast<unsigned char>(textures.size());
+			material->textureTable = copy_array(textures.data(), textures.size(), allocator);
+
+			constexpr auto unlit_technique_count = 3u; // unlit, unlit srgb gamma and unlit bt2020 pq, one blend class each
+			std::ranges::fill(material->stateBitsEntry, no_entry);
+			std::ranges::fill(material->constantBufferIndex, no_entry);
+			material->stateBitsCount = unlit_technique_count;
+			material->stateBitsTable = allocator.allocate_array<zonetool::s2::GfxStateBits>(unlit_technique_count);
+			const auto states = allocator.allocate_array<zonetool::s2::material_state>(unlit_technique_count);
+			for (auto i = 0u; i < unlit_technique_count; i++)
+			{
+				auto& state_bits = material->stateBitsTable[i];
+				std::ranges::copy(minimap_load_bits, state_bits.loadBits);
+				state_bits.loadBits[3] = variant.blend | (1u << (blend_class_shift + i));
+				state_bits.rasterizerState = rasterizer_index(state_bits.loadBits[0], state_bits.loadBits[2]);
+				states[i] = convert_state(state_bits);
+				material->stateBitsEntry[zonetool::s2::TECHNIQUE_UNLIT + i] = static_cast<std::uint8_t>(i);
+			}
+
+			return {material, states};
+		}
 	}
 
 	std::uint8_t convert_sort_key(const std::uint8_t sort_key)
@@ -601,6 +684,25 @@ namespace zonetool::h1::converter::s2::material
 		}
 	}
 
+	bool dump_used(const char* name)
+	{
+		if (techset::is_stock_asset(zonetool::s2::ASSET_TYPE_MATERIAL, name))
+		{
+			add_csv_row("material", name, true); // the s2 material of the same name is used
+			return true;
+		}
+
+		auto* loaded = db_find_x_asset_header_safe(ASSET_TYPE_MATERIAL, name).material;
+		if (!loaded)
+		{
+			ZONETOOL_WARNING("material \"%s\" not found in the loaded h1 zones", name);
+			return false;
+		}
+
+		dump(loaded);
+		return true;
+	}
+
 	const char* dump_sprite(const Material* asset)
 	{
 		return pending_sprites.try_emplace(asset, std::string(asset->name) + "_sprite").first->second.data();
@@ -618,45 +720,16 @@ namespace zonetool::h1::converter::s2::material
 		}
 
 		utils::memory::allocator allocator;
-		const auto& zone = techset::stock_zone();
-		const auto stock_minimap = "compass_map_" + std::string(techset::stock_zone_name);
-		for (const auto suffix : {"", "_circular", "_ui3d"})
+		for (const auto& variant : minimap_variants)
 		{
-			const auto stock_name = stock_minimap + suffix;
-			const auto& materials = zone.find_assets(zonetool::s2::ASSET_TYPE_MATERIAL);
-			const auto stock = std::ranges::find_if(materials, [&](void* header)
+			const auto [material, states] = make_minimap_material(variant, minimap + variant.suffix, map_image, allocator);
+			if (variant.alpha_map)
 			{
-				return static_cast<zonetool::s2::Material*>(header)->info.name == stock_name;
-			});
-			if (stock == materials.end())
-			{
-				ZONETOOL_WARNING("Material \"%s\" is not in the stock zone", stock_name.data());
-				continue;
+				add_csv_row("image", variant.alpha_map, true);
 			}
-
-			const auto material = allocator.allocate<zonetool::s2::Material>();
-			*material = *static_cast<zonetool::s2::Material*>(*stock);
-			material->info.name = allocator.duplicate_string(minimap + suffix);
-			material->textureTable = copy_array(material->textureTable, material->textureCount, allocator);
-			for (auto i = 0; i < material->textureCount; i++)
-			{
-				auto& texture = material->textureTable[i];
-				const auto image = texture.u.image;
-				const auto is_global = image && image->name && zone.is_global_image(image->name);
-				texture.u.image = make_image_stub(is_global ? image->name : map_image, allocator);
-				add_csv_row("image", texture.u.image->name, is_global);
-			}
-
-			const auto techset = material->techniqueSet->name;
-			add_csv_row("techset", techset, zone.is_global_techset(techset));
-			{
-				db_scope _(zone.db());
-				if (!zone.is_global_techset(techset))
-				{
-					techset::dump(material->techniqueSet);
-				}
-				zonetool::s2::material::dump(material);
-			}
+			add_csv_row("image", map_image);
+			add_csv_row("techset", variant.techset, true);
+			zonetool::s2::material::dump(material, states);
 			add_csv_row("material", material->info.name);
 			minimap_materials.insert(material->info.name);
 		}

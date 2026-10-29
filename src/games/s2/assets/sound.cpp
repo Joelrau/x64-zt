@@ -47,7 +47,7 @@ namespace zonetool::s2
 		{
 			reader.read_string(alias->aliasName);
 			reader.read_string(alias->subtitle);
-			reader.read_string(alias->mixerGroup);
+			reader.read_string(alias->subtitleCharacterName);
 			reader.read_string(alias->secondaryAliasName);
 			reader.read_string(alias->chainAliasName);
 			reader.read_string(alias->squelchName);
@@ -135,7 +135,7 @@ namespace zonetool::s2
 			}
 
 			write_string(buf, alias->subtitle, dest->subtitle);
-			write_string(buf, alias->mixerGroup, dest->mixerGroup);
+			write_string(buf, alias->subtitleCharacterName, dest->subtitleCharacterName);
 			write_string(buf, alias->secondaryAliasName, dest->secondaryAliasName);
 			write_string(buf, alias->chainAliasName, dest->chainAliasName);
 			write_string(buf, alias->squelchName, dest->squelchName);
@@ -177,7 +177,7 @@ namespace zonetool::s2
 		{
 			alias->aliasName = read.read_string();
 			alias->subtitle = read.read_string();
-			alias->mixerGroup = read.read_string();
+			alias->subtitleCharacterName = read.read_string();
 			alias->secondaryAliasName = read.read_string();
 			alias->chainAliasName = read.read_string();
 			alias->squelchName = read.read_string();
@@ -244,7 +244,8 @@ namespace zonetool::s2
 			case SAT_PRIMED:
 				j.asset("loadedPart", value.u.primedSnd.loadedPart);
 				j.object("streamedPart", value.u.primedSnd.streamedPart, loaded_sound::visit_stream_info_json<J>);
-				j.value("unknown48", value.u.primedSnd.unknown48);
+				j.value("dataOffset", value.u.primedSnd.dataOffset);
+				j.value("unused52", value.u.primedSnd.unused52);
 				break;
 			default:
 				break;
@@ -270,12 +271,12 @@ namespace zonetool::s2
 		{
 			j.string(SOUND_FIELD(aliasName));
 			j.string(SOUND_FIELD(subtitle));
-			j.string(SOUND_FIELD(mixerGroup));
+			j.string(SOUND_FIELD(subtitleCharacterName));
 			j.string(SOUND_FIELD(secondaryAliasName));
 			j.string(SOUND_FIELD(chainAliasName));
 			j.optional_object(SOUND_FIELD(soundFile), visit_sound_file_json<J>);
 			j.string(SOUND_FIELD(squelchName));
-			j.value(SOUND_FIELD(unknown56));
+			j.value(SOUND_FIELD(subtitleFlags));
 			j.value(SOUND_FIELD(polyCount));
 			j.value(SOUND_FIELD(dspBusIndex));
 			j.value(SOUND_FIELD(priority));
@@ -315,14 +316,14 @@ namespace zonetool::s2
 			j.value(SOUND_FIELD(stereo3DStart));
 			j.value(SOUND_FIELD(stereo3DEnd));
 			j.value(SOUND_FIELD(threshold));
-			j.value(SOUND_FIELD(unknown232));
-			j.value(SOUND_FIELD(unknown236));
+			j.value(SOUND_FIELD(normalizeLevel));
+			j.value(SOUND_FIELD(normalize));
 			j.value(SOUND_FIELD(lockedLoopTime));
-			j.value(SOUND_FIELD(unknown244));
+			j.value(SOUND_FIELD(unused244));
 			j.assets(SOUND_FIELD(parameterModifiers));
 			j.value(SOUND_FIELD(parameterModifierOps));
 			j.value(SOUND_FIELD(length));
-			j.value(SOUND_FIELD(unknown324));
+			j.value(SOUND_FIELD(unused324));
 			j.asset(SOUND_FIELD(combatCone));
 		}
 

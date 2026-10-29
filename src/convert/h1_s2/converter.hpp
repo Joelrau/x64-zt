@@ -26,6 +26,7 @@
 #include "assets/sound.hpp"
 #include "assets/soundtables.hpp"
 #include "assets/techset.hpp"
+#include "assets/tracer.hpp"
 #include "assets/weapon.hpp"
 #include "assets/xanim.hpp"
 #include "assets/xmodel.hpp"

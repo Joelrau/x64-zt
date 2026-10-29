@@ -855,6 +855,13 @@ namespace zonetool::h1
 			return offset->second;
 		}
 
+		bool is_factor(const unsigned char type, const unsigned char code)
+		{
+			// the game applies add-multiply and multiply values as plain factors, without the int or ms conversion
+			return (type == WAFIELD_TYPE_INT || type == WAFIELD_TYPE_FLOAT32)
+				&& (code == FIELD_OP_NUMBER_ADD_MULTIPLY || code == FIELD_OP_NUMBER_MULTIPLY);
+		}
+
 		struct _
 		{
 			_()
@@ -1051,13 +1058,17 @@ namespace zonetool::h1
 				{
 					attachment->fields[f].parm.string = mem->duplicate_string(data["fields"][i]["value"].get<std::string>());
 				}
+				else if (is_factor(type, field.code))
+				{
+					attachment->fields[f].parm.p_float = data["fields"][i]["value"].get<float>();
+				}
 				else if (type == WAFIELD_TYPE_INT)
 				{
 					attachment->fields[f].parm.p_float = static_cast<float>(data["fields"][i]["value"].get<int>());
 				}
 				else if (type == WAFIELD_TYPE_BOOL)
 				{
-					attachment->fields[f].parm.p_bool = data["fields"][i]["value"].get<bool>();
+					attachment->fields[f].parm.p_float = data["fields"][i]["value"].get<bool>() ? 1.0f : 0.0f; // the game reads bool fields as a float
 				}
 				else if (type == WAFIELD_TYPE_FLOAT)
 				{
@@ -1494,13 +1505,17 @@ namespace zonetool::h1
 				{
 					data["fields"][i]["value"] = asset->fields[i].parm.string;
 				}
+				else if (is_factor(type, asset->fields[i].code))
+				{
+					data["fields"][i]["value"] = asset->fields[i].parm.p_float;
+				}
 				else if (type == WAFIELD_TYPE_INT)
 				{
 					data["fields"][i]["value"] = static_cast<int>(asset->fields[i].parm.p_float);
 				}
 				else if (type == WAFIELD_TYPE_BOOL)
 				{
-					data["fields"][i]["value"] = asset->fields[i].parm.p_bool;
+					data["fields"][i]["value"] = asset->fields[i].parm.p_float != 0.0f; // the game reads bool fields as a float
 				}
 				else if (type == WAFIELD_TYPE_FLOAT)
 				{

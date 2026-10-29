@@ -19,6 +19,7 @@ namespace zonetool::h1::converter::s2::techset
 		std::unordered_set<std::string> dumped_techsets;
 		template <typename T>
 		std::unordered_set<std::string> dumped_shaders;
+		std::unordered_set<const void*> global_shaders; // velocity technique shaders and decls, s2 has them in its common zones
 
 		template <typename T>
 		void dump_shader_file(T* shader)
@@ -78,7 +79,7 @@ namespace zonetool::h1::converter::s2::techset
 				return;
 			}
 
-			const auto global = stock_zone().is_global_asset(shader);
+			const auto global = global_shaders.contains(shader);
 			if (!global)
 			{
 				dump_shader_file(shader);
@@ -1545,9 +1546,7 @@ namespace zonetool::h1::converter::s2::techset
 			case zonetool::s2::TECHNIQUE_BUILD_SHADOWMAP_DEPTH:
 				return {TECHNIQUE_BUILD_SHADOWMAP_DEPTH};
 			case zonetool::s2::TECHNIQUE_UNLIT:
-			case zonetool::s2::TECHNIQUE_UNLIT_SRGB_GAMMA:
-			case zonetool::s2::TECHNIQUE_UNLIT_BT2020_PQ:
-				return {TECHNIQUE_UNLIT};
+				return {TECHNIQUE_UNLIT}; // the srgb gamma and bt2020 pq unlit slots stay empty, h1 has no shaders that encode those outputs
 			case zonetool::s2::TECHNIQUE_WIREFRAME_SOLID:
 				return {TECHNIQUE_WIREFRAME_SOLID};
 			default:
@@ -1653,7 +1652,135 @@ namespace zonetool::h1::converter::s2::techset
 			return false;
 		}
 
-		zonetool::s2::MaterialTechnique* find_stock_velocity_technique(const std::int32_t slot)
+		struct velocity_arg
+		{
+			unsigned short dest;
+			unsigned short code_const;
+			unsigned char row_count;
+		};
+
+		struct velocity_technique
+		{
+			std::int32_t slot;
+			const char* name;
+			const char* vertex_shader;
+			const char* pixel_shader;
+			bool hidir;
+			bool skinned;
+			std::vector<velocity_arg> per_prim_args;
+		};
+
+		constexpr std::uint64_t custom_buffer_skinned = 0x20000;
+
+		constexpr std::array<velocity_arg, 1> velocity_per_obj_args{{{0, 0x15C, 4}}};
+		constexpr std::array<velocity_arg, 7> velocity_stable_args{{{6, 0x86, 1}, {7, 0x87, 1}, {8, 0x88, 1}, {9, 0x89, 1}, {10, 0x8A, 1}, {34, 0x6, 1}, {42, 0x58, 1}}};
+
+		const std::vector<velocity_technique> velocity_techniques
+		{
+			{zonetool::s2::TECHNIQUE_ZPREPASS_VELOCITY_RIGID, "zprepass_velocity_rigid",
+				"vertcol_simple_zp_rvel_nc_noatest_dso.hlsl", "vertcol_simple_zp_vel_nc_noatest_dso.hlsl", false, false, {{0, 0x16C, 4}, {6, 0x168, 4}}},
+			{zonetool::s2::TECHNIQUE_ZPREPASS_VELOCITY_SKINNED, "zprepass_velocity_skinned",
+				"vertcol_simple_zp_svel_nc_noatest_dso.hlsl", "vertcol_simple_zp_vel_nc_noatest_dso.hlsl", false, true, {{0, 0x16C, 4}, {6, 0x168, 4}, {10, 0x14, 1}}},
+			{zonetool::s2::TECHNIQUE_ZPREPASS_HIDIR_VELOCITY_RIGID, "zprepass_hidir_velocity_rigid",
+				"vertcol_simple_zp_hidir_rvel_nc_noatest_dso.hlsl", "vertcol_simple_zp_hidir_vel_nc_noatest_dso.hlsl", true, false, {{0, 0x16C, 4}, {4, 0x149, 1}, {6, 0x168, 4}}},
+			{zonetool::s2::TECHNIQUE_ZPREPASS_HIDIR_VELOCITY_SKINNED, "zprepass_hidir_velocity_skinned",
+				"vertcol_simple_zp_hidir_svel_nc_noatest_dso.hlsl", "vertcol_simple_zp_hidir_vel_nc_noatest_dso.hlsl", true, true, {{0, 0x16C, 4}, {4, 0x149, 1}, {6, 0x168, 4}, {10, 0x14, 1}}},
+			{zonetool::s2::TECHNIQUE_VELOCITY_RIGID, "velocity_rigid_co_sm",
+				"velocity_sm_co_vrigid.hlsl", "velocity_sm_co_vrigid.hlsl", false, false, {{0, 0x16C, 4}, {6, 0x168, 4}}},
+			{zonetool::s2::TECHNIQUE_VELOCITY_SKINNED, "velocity_skinned_co_sm",
+				"velocity_sm_co_vskinned.hlsl", "velocity_sm_co_vrigid.hlsl", false, true, {{0, 0x16C, 4}, {6, 0x168, 4}, {10, 0x14, 1}}},
+			{zonetool::s2::TECHNIQUE_INSTANCED_BEGIN + zonetool::s2::TECHNIQUE_ZPREPASS_VELOCITY_RIGID, "instanced_zprepass_velocity_rigid",
+				"vertcol_simple_zp_i_rvel_nc_noatest_dso.hlsl", "vertcol_simple_zp_vel_nc_noatest_dso.hlsl", false, false, {}},
+			{zonetool::s2::TECHNIQUE_INSTANCED_BEGIN + zonetool::s2::TECHNIQUE_ZPREPASS_VELOCITY_SKINNED, "instanced_zprepass_velocity_skinned",
+				"vertcol_simple_zp_i_svel_nc_noatest_dso.hlsl", "vertcol_simple_zp_vel_nc_noatest_dso.hlsl", false, true, {{0, 0x14, 1}}},
+			{zonetool::s2::TECHNIQUE_INSTANCED_BEGIN + zonetool::s2::TECHNIQUE_ZPREPASS_HIDIR_VELOCITY_RIGID, "instanced_zprepass_hidir_velocity_rigid",
+				"vertcol_simple_zp_i_hidir_rvel_nc_noatest_dso.hlsl", "vertcol_simple_zp_hidir_vel_nc_noatest_dso.hlsl", true, false, {}},
+			{zonetool::s2::TECHNIQUE_INSTANCED_BEGIN + zonetool::s2::TECHNIQUE_ZPREPASS_HIDIR_VELOCITY_SKINNED, "instanced_zprepass_hidir_velocity_skinned",
+				"vertcol_simple_zp_i_hidir_svel_nc_noatest_dso.hlsl", "vertcol_simple_zp_hidir_vel_nc_noatest_dso.hlsl", true, true, {{0, 0x14, 1}}},
+			{zonetool::s2::TECHNIQUE_NO_TESS_BEGIN + zonetool::s2::TECHNIQUE_ZPREPASS_VELOCITY_RIGID, "no_tess_zprepass_velocity_rigid",
+				"vertcol_simple_zp_rvel_nc_noatest_dso.hlsl", "vertcol_simple_zp_vel_nc_noatest_dso.hlsl", false, false, {{0, 0x16C, 4}, {6, 0x168, 4}}},
+			{zonetool::s2::TECHNIQUE_NO_TESS_BEGIN + zonetool::s2::TECHNIQUE_ZPREPASS_VELOCITY_SKINNED, "no_tess_zprepass_velocity_skinned",
+				"vertcol_simple_zp_svel_nc_noatest_dso.hlsl", "vertcol_simple_zp_vel_nc_noatest_dso.hlsl", false, true, {{0, 0x16C, 4}, {6, 0x168, 4}, {10, 0x14, 1}}},
+			{zonetool::s2::TECHNIQUE_NO_TESS_BEGIN + zonetool::s2::TECHNIQUE_ZPREPASS_HIDIR_VELOCITY_RIGID, "no_tess_zprepass_hidir_velocity_rigid",
+				"vertcol_simple_zp_hidir_rvel_nc_noatest_dso.hlsl", "vertcol_simple_zp_hidir_vel_nc_noatest_dso.hlsl", true, false, {{0, 0x16C, 4}, {4, 0x149, 1}, {6, 0x168, 4}}},
+			{zonetool::s2::TECHNIQUE_NO_TESS_BEGIN + zonetool::s2::TECHNIQUE_ZPREPASS_HIDIR_VELOCITY_SKINNED, "no_tess_zprepass_hidir_velocity_skinned",
+				"vertcol_simple_zp_hidir_svel_nc_noatest_dso.hlsl", "vertcol_simple_zp_hidir_vel_nc_noatest_dso.hlsl", true, true, {{0, 0x16C, 4}, {4, 0x149, 1}, {6, 0x168, 4}, {10, 0x14, 1}}},
+		};
+
+		template <typename T>
+		T* global_shader(const char* name, utils::memory::allocator& allocator)
+		{
+			static std::unordered_map<std::string_view, T*> shaders;
+			auto& shader = shaders[name];
+			if (!shader)
+			{
+				shader = make_stub<T>(name, allocator);
+				global_shaders.insert(shader);
+			}
+
+			return shader;
+		}
+
+		void add_velocity_args(const std::span<const velocity_arg> group, std::vector<zonetool::s2::MaterialShaderArgument>& args,
+			unsigned char& count, unsigned short& size)
+		{
+			auto rows = 0u;
+			for (const auto& arg : group)
+			{
+				auto& result = args.emplace_back();
+				result.type = zonetool::s2::MTL_ARG_CODE_CONST;
+				result.shader = static_cast<unsigned char>(MTL_SHADER_STAGE_VERTEX);
+				result.dest = arg.dest;
+				result.u.codeConst.index = arg.code_const;
+				result.u.codeConst.rowCount = arg.row_count;
+				rows = std::max(rows, static_cast<std::uint32_t>(arg.dest + arg.row_count));
+			}
+
+			count = static_cast<unsigned char>(group.size());
+			size = arg_size(0, rows);
+		}
+
+		zonetool::s2::MaterialTechnique* make_velocity_technique(const velocity_technique& velocity)
+		{
+			static utils::memory::allocator allocator;
+			const auto instanced = velocity.slot >= zonetool::s2::TECHNIQUE_INSTANCED_BEGIN && velocity.slot < zonetool::s2::TECHNIQUE_NO_TESS_BEGIN;
+
+			auto* technique = allocator.allocate<zonetool::s2::MaterialTechnique>();
+			technique->hdr.name = velocity.name;
+			technique->hdr.passCount = 1;
+
+			auto& pass = technique->passArray[0];
+			pass.vertexShader = global_shader<zonetool::s2::MaterialVertexShader>(velocity.vertex_shader, allocator);
+			pass.vertexDecl = global_shader<zonetool::s2::MaterialVertexDeclaration>(velocity.hidir ? "pp.f.0nn.f.1" : "pp.f.0", allocator);
+			pass.pixelShader = global_shader<zonetool::s2::MaterialPixelShader>(velocity.pixel_shader, allocator);
+			pass.pixelOutputMask = static_cast<unsigned char>(velocity.hidir ? 3 : 1); // the hidir passes also write the second render target
+
+			std::vector<zonetool::s2::MaterialShaderArgument> args;
+			add_velocity_args(velocity.per_prim_args, args, pass.perPrimArgCount, pass.perPrimArgSize);
+			add_velocity_args(velocity_per_obj_args, args, pass.perObjArgCount, pass.perObjArgSize);
+			add_velocity_args(velocity_stable_args, args, pass.stableArgCount, pass.stableArgSize);
+			pass.args = copy_array(args.data(), args.size(), allocator);
+
+			pass.customBufferFlags = zonetool::s2::CUSTOM_BUFFER_PER_OBJECT | zonetool::s2::CUSTOM_BUFFER_PER_STABLE;
+			if (!velocity.per_prim_args.empty())
+			{
+				pass.customBufferFlags |= zonetool::s2::CUSTOM_BUFFER_PER_PRIM;
+			}
+			if (instanced)
+			{
+				pass.customBufferFlags |= zonetool::s2::CUSTOM_BUFFER_INSTANCE_MATRICES;
+			}
+			if (velocity.skinned)
+			{
+				pass.customBufferFlags |= custom_buffer_skinned;
+			}
+
+			pass.modelVertexType = instanced ? zonetool::s2::MODEL_VERTEX_TYPE_INSTANCE_DATA
+				: velocity.skinned ? zonetool::s2::MODEL_VERTEX_TYPE_SURFACE : zonetool::s2::MODEL_VERTEX_TYPE_PREV_FRAME;
+			return technique;
+		}
+
+		zonetool::s2::MaterialTechnique* find_velocity_technique(const std::int32_t slot)
 		{
 			static std::unordered_map<std::int32_t, zonetool::s2::MaterialTechnique*> techniques;
 			if (const auto entry = techniques.find(slot); entry != techniques.end())
@@ -1662,16 +1789,10 @@ namespace zonetool::h1::converter::s2::techset
 			}
 
 			auto& result = techniques[slot];
-			for (auto* header : stock_zone().find_assets(zonetool::s2::ASSET_TYPE_TECHNIQUE_SET))
+			const auto velocity = std::ranges::find(velocity_techniques, slot, &velocity_technique::slot);
+			if (velocity != velocity_techniques.end())
 			{
-				const auto* techset = static_cast<zonetool::s2::MaterialTechniqueSet*>(header);
-				auto* technique = techset->techniques[slot];
-				if (techset->worldVertFormat == 0 && technique && !uses_material_arguments(technique))
-				{
-					ZONETOOL_INFO("velocity slot %d uses stock technique \"%s\" of \"%s\"", slot, technique->hdr.name, techset->name);
-					result = technique;
-					break;
-				}
+				result = make_velocity_technique(*velocity);
 			}
 
 			return result;
@@ -1691,7 +1812,7 @@ namespace zonetool::h1::converter::s2::techset
 				return false;
 			}
 
-			auto* technique = find_stock_velocity_technique(slot);
+			auto* technique = find_velocity_technique(slot);
 			if (!technique)
 			{
 				return false;
@@ -1990,22 +2111,9 @@ namespace zonetool::h1::converter::s2::techset
 
 		for (const auto& asset : this->zone_->assets)
 		{
-			if (asset.referenced)
-			{
-				this->global_assets_.insert(asset.header);
-			}
-			else
+			if (!asset.referenced)
 			{
 				this->assets_[asset.type].emplace_back(asset.header);
-			}
-
-			if (asset.type == zonetool::s2::ASSET_TYPE_TECHNIQUE_SET && asset.referenced)
-			{
-				this->global_techsets_.insert(static_cast<zonetool::s2::MaterialTechniqueSet*>(asset.header)->name);
-			}
-			else if (asset.type == zonetool::s2::ASSET_TYPE_IMAGE && asset.referenced)
-			{
-				this->global_images_.insert(static_cast<zonetool::s2::GfxImage*>(asset.header)->name);
 			}
 		}
 	}
@@ -2015,21 +2123,6 @@ namespace zonetool::h1::converter::s2::techset
 		static const std::vector<void*> none;
 		const auto entry = this->assets_.find(type);
 		return entry != this->assets_.end() ? entry->second : none;
-	}
-
-	bool s2_zone::is_global_techset(const std::string& techset) const
-	{
-		return this->global_techsets_.contains(techset);
-	}
-
-	bool s2_zone::is_global_image(const std::string& image) const
-	{
-		return this->global_images_.contains(image);
-	}
-
-	bool s2_zone::is_global_asset(const void* header) const
-	{
-		return this->global_assets_.contains(header);
 	}
 
 	database& s2_zone::db() const
@@ -2067,10 +2160,10 @@ namespace zonetool::h1::converter::s2::techset
 		return zone;
 	}
 
-	const s2_zone& stock_zone()
+	bool is_stock_asset(const zonetool::s2::XAssetType type, const char* name)
 	{
-		static const s2_zone zone(s2_folder() / "zone" / (std::string(stock_zone_name) + ".ff"));
-		return zone;
+		db_scope _(common_zone().db());
+		return zonetool::s2::db_find_x_asset_header_safe(type, name).data != nullptr;
 	}
 
 	const native_techset* convert_native(const std::string& h1_techset, const bool sprite)

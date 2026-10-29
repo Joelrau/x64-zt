@@ -844,6 +844,12 @@ namespace zonetool::s1
 			return offset->second;
 		}
 
+		bool is_factor(const unsigned char type, const unsigned char code)
+		{
+			// s1 multiplies by the value for every number code except set
+			return (type == WAFIELD_TYPE_INT || type == WAFIELD_TYPE_FLOAT32) && code != FIELD_OP_NUMBER_SET;
+		}
+
 		struct _
 		{
 			_()
@@ -1007,9 +1013,13 @@ namespace zonetool::s1
 				{
 					attachment->fields[f].parm.string = mem->duplicate_string(data["fields"][i]["value"].get<std::string>());
 				}
-				else if (type == WAFIELD_TYPE_INT)
+				else if (is_factor(type, field.code))
 				{
-					attachment->fields[f].parm.p_float = static_cast<float>(data["fields"][i]["value"].get<int>());
+					attachment->fields[f].parm.p_float = data["fields"][i]["value"].get<float>();
+				}
+				else if (type == WAFIELD_TYPE_INT || type == WAFIELD_TYPE_FLOAT32)
+				{
+					attachment->fields[f].parm.p_int = data["fields"][i]["value"].get<int>(); // s1 stores int and ms set values as ints
 				}
 				else if (type == WAFIELD_TYPE_BOOL)
 				{
@@ -1018,10 +1028,6 @@ namespace zonetool::s1
 				else if (type == WAFIELD_TYPE_FLOAT)
 				{
 					attachment->fields[f].parm.p_float = data["fields"][i]["value"].get<float>();
-				}
-				else if (type == WAFIELD_TYPE_FLOAT32)
-				{
-					attachment->fields[f].parm.p_float = static_cast<float>(data["fields"][i]["value"].get<int>() / 1000.0f);
 				}
 				else
 				{
@@ -1207,6 +1213,7 @@ namespace zonetool::s1
 			}
 		}
 
+		reader.read_script_string(asset->knifeAttachTagOverride);
 		reader.pop_stream();
 	}
 
@@ -1375,9 +1382,13 @@ namespace zonetool::s1
 				{
 					data["fields"][i]["value"] = asset->fields[i].parm.string;
 				}
-				else if (type == WAFIELD_TYPE_INT)
+				else if (is_factor(type, asset->fields[i].code))
 				{
-					data["fields"][i]["value"] = static_cast<int>(asset->fields[i].parm.p_float);
+					data["fields"][i]["value"] = asset->fields[i].parm.p_float;
+				}
+				else if (type == WAFIELD_TYPE_INT || type == WAFIELD_TYPE_FLOAT32)
+				{
+					data["fields"][i]["value"] = asset->fields[i].parm.p_int; // s1 stores int and ms set values as ints
 				}
 				else if (type == WAFIELD_TYPE_BOOL)
 				{
@@ -1386,10 +1397,6 @@ namespace zonetool::s1
 				else if (type == WAFIELD_TYPE_FLOAT)
 				{
 					data["fields"][i]["value"] = asset->fields[i].parm.p_float;
-				}
-				else if (type == WAFIELD_TYPE_FLOAT32)
-				{
-					data["fields"][i]["value"] = static_cast<int>(asset->fields[i].parm.p_float * 1000.0f);
 				}
 				else
 				{

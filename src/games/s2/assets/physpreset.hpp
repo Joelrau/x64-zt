@@ -9,10 +9,9 @@ namespace zonetool::s2
 		{
 			reader.push_stream(XFILE_BLOCK_VIRTUAL);
 			reader.read_string(asset->name);
-			reader.read_string(asset->sndAliasPrefix);
-			for (auto& sound : asset->sounds)
+			for (auto& effect : asset->impactEffects)
 			{
-				reader.read_string(sound.name);
+				reader.read_string(effect.name);
 			}
 			reader.read_asset(ASSET_TYPE_SNDPHYSPRESET, asset->sndPhysPreset);
 			reader.pop_stream();
@@ -30,10 +29,9 @@ namespace zonetool::s2
 
 			auto* asset = read.read_single<PhysPreset>();
 			asset->name = read.read_string();
-			asset->sndAliasPrefix = read.read_string();
-			for (auto& sound : asset->sounds)
+			for (auto& effect : asset->impactEffects)
 			{
-				sound.name = read.read_string();
+				effect.name = read.read_string();
 			}
 			asset->sndPhysPreset = read.read_asset<SndPhysPreset>();
 			read.close();
@@ -54,15 +52,11 @@ namespace zonetool::s2
 			buf->push_stream(XFILE_BLOCK_VIRTUAL);
 
 			dest->name = this->write_name(buf);
-			if (data->sndAliasPrefix)
+			for (auto i = 0u; i < std::size(data->impactEffects); i++)
 			{
-				dest->sndAliasPrefix = buf->write_str(data->sndAliasPrefix);
-			}
-			for (auto i = 0; i < 3; i++)
-			{
-				if (data->sounds[i].name)
+				if (data->impactEffects[i].name)
 				{
-					dest->sounds[i].name = buf->write_str(data->sounds[i].name);
+					dest->impactEffects[i].name = buf->write_str(data->impactEffects[i].name);
 				}
 			}
 			dest->sndPhysPreset = asset_reference(zone, ASSET_TYPE_SNDPHYSPRESET, data->sndPhysPreset);
@@ -80,10 +74,9 @@ namespace zonetool::s2
 
 			write.dump_single(asset);
 			write.dump_string(asset->name);
-			write.dump_string(asset->sndAliasPrefix);
-			for (auto& sound : asset->sounds)
+			for (const auto& effect : asset->impactEffects)
 			{
-				write.dump_string(sound.name);
+				write.dump_string(effect.name);
 			}
 			write.dump_asset(asset->sndPhysPreset);
 			write.close();

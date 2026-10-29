@@ -1294,6 +1294,10 @@ namespace zonetool::s1
 			for (auto i = 0; i < 4; i++)
 			{
 				reader.read_name_reference(asset->turretBarrelSpinUpSnd[i]);
+			}
+
+			for (auto i = 0; i < 4; i++)
+			{
 				reader.read_name_reference(asset->turretBarrelSpinDownSnd[i]);
 			}
 
@@ -1338,6 +1342,7 @@ namespace zonetool::s1
 		reader.read_asset(ASSET_TYPE_XMODEL, asset->persistentArmXModel);
 		reader.read_string(asset->lobWorldModelName);
 		reader.read_asset(ASSET_TYPE_MATERIAL, asset->camoWorldModelMaterialOverride);
+		reader.read_asset(ASSET_TYPE_MATERIAL, asset->camoViewModelMaterialOverride);
 		reader.read_asset_array(ASSET_TYPE_XANIMPARTS, asset->szXAnimsRightHanded, anim_count);
 		reader.read_asset_array(ASSET_TYPE_XANIMPARTS, asset->szXAnimsLeftHanded, anim_count);
 		reader.read_script_string_array(asset->hideTags, 32);
@@ -1412,6 +1417,7 @@ namespace zonetool::s1
 		}
 
 		reader.read_string(asset->szScript);
+		reader.read_script_string(asset->knifeAttachTagOverride);
 		reader.read_script_string(asset->stowTag);
 		reader.pop_stream();
 	}
@@ -1495,6 +1501,12 @@ namespace zonetool::s1
 		{
 			dest->camoWorldModelMaterialOverride = reinterpret_cast<Material*>(
 				zone->get_asset_pointer(ASSET_TYPE_MATERIAL, data->camoWorldModelMaterialOverride->name));
+		}
+
+		if (data->camoViewModelMaterialOverride)
+		{
+			dest->camoViewModelMaterialOverride = reinterpret_cast<Material*>(
+				zone->get_asset_pointer(ASSET_TYPE_MATERIAL, data->camoViewModelMaterialOverride->name));
 		}
 
 		if (data->szXAnimsRightHanded)
@@ -1896,6 +1908,10 @@ namespace zonetool::s1
 		for (int i = 0; i < 4; i++)
 		{
 			WEAPON_SOUND_CUSTOM(turretBarrelSpinUpSnd[i]);
+		}
+
+		for (int i = 0; i < 4; i++)
+		{
 			WEAPON_SOUND_CUSTOM(turretBarrelSpinDownSnd[i]);
 		}
 

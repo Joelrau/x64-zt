@@ -4,25 +4,17 @@
 
 namespace zonetool::h1::converter::s2::techset
 {
-	constexpr std::string_view stock_zone_name = "mp_aachen_v2";
-
 	class s2_zone
 	{
 	public:
 		explicit s2_zone(const std::filesystem::path& path);
 
-		bool is_global_techset(const std::string& techset) const;
-		bool is_global_image(const std::string& image) const;
-		bool is_global_asset(const void* header) const;
 		const std::vector<void*>& find_assets(zonetool::s2::XAssetType type) const;
 		database& db() const;
 
 	private:
 		std::shared_ptr<database> database_;
 		std::unique_ptr<zonetool::s2::loaded_zone> zone_;
-		std::unordered_set<std::string> global_techsets_;
-		std::unordered_set<std::string> global_images_;
-		std::unordered_set<const void*> global_assets_;
 		std::unordered_map<std::int32_t, std::vector<void*>> assets_;
 	};
 
@@ -33,8 +25,8 @@ namespace zonetool::h1::converter::s2::techset
 		std::array<std::int32_t, zonetool::s2::technique_count> light_sources;
 	};
 
-	const s2_zone& stock_zone();
 	const s2_zone& common_zone();
+	bool is_stock_asset(zonetool::s2::XAssetType type, const char* name);
 	const std::unordered_map<std::string, std::string>& common_rawfiles();
 	const native_techset* convert_native(const std::string& h1_techset, bool sprite = false);
 

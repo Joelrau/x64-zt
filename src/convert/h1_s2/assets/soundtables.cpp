@@ -2,7 +2,6 @@
 
 #include "../include.hpp"
 #include "soundtables.hpp"
-#include "techset.hpp"
 
 namespace zonetool::h1::converter::s2::soundtables
 {
@@ -65,18 +64,55 @@ namespace zonetool::h1::converter::s2::soundtables
 			});
 		}
 
+		struct map_reverb_preset
+		{
+			const char* name;
+			std::array<float, 24> values;
+		};
+
+		constexpr std::array<map_reverb_preset, 6> map_reverb_presets // the other room types are global s2 presets
+		{{
+			{"alleyway_buildings", {74.0f, 0.78f, 0.54f, 0.05f, 23.0f, 0.0f, 0.79f, 0.56f,
+				-1.099998f, 0.07f, 0.72f, 11.4f, 0.69f, 83.0f, 0.07f, 0.55f,
+				-120.0f, 0.6f, 0.72f, 11.4f, 0.69f, 23.0f, 10000.0f, 6.0f}},
+			{"close_buildings", {275.0f, 0.88f, 0.04f, 0.05f, 0.0f, -21.0f, 0.88f, 0.03f,
+				-24.0f, 0.09999999f, 0.72f, 15.0f, 0.69f, 470.0f, 0.88f, 0.25f,
+				-24.0f, 0.26f, 0.72f, 14.0f, 0.69f, 480.0f, 800.0f, 12.0f}},
+			{"large_size_vibrant", {8.0f, 0.57f, 0.9f, 0.63f, 22.0f, -14.0f, 0.62f, 0.5049505f,
+				-9.0f, 0.33f, 0.39f, 5.4f, 0.48f, 62.0f, 0.61f, 0.68f,
+				-9.0f, 0.17f, 0.31f, 6.0f, 0.48f, 64.0f, 800.0f, 0.0f}},
+			{"med_size_vibrant", {8.0f, 0.57f, 0.9f, 0.63f, 22.0f, -49.0f, 0.62f, 0.63f,
+				-11.0f, 0.03f, 0.33f, 5.1f, 0.48f, 34.0f, 0.65f, 0.64f,
+				-7.0f, 0.02f, 0.61f, 5.7f, 0.5f, 37.0f, 800.0f, 4.0f}},
+			{"semi_open_large", {33.0f, 0.95f, 0.69f, 0.61f, 12.0f, 1.0f, 0.88f, 0.75f,
+				8.0f, 0.11f, 0.7f, 5.4f, 0.55f, 21.0f, 0.07f, 0.12f,
+				6.0f, 0.38f, 0.03f, 12.75f, 0.45f, 0.0f, 800.0f, 3.800003f}},
+			{"semi_open_small", {10.0f, 0.95f, 0.78f, 0.49f, 3.0f, -1.0f, 0.84f, 0.32f,
+				-7.5f, 0.04f, 0.72f, 6.0f, 0.69f, 230.0f, 0.86f, 0.09f,
+				-120.0f, 0.07f, 0.43f, 18.0f, 0.66f, 365.0f, 10000.0f, 5.0f}},
+		}};
+
+		std::string convert_room_type(const std::string& name)
+		{
+			return name == "church" ? "hall_marble" : name; // s2 has no church preset, a marble hall is the closest global one
+		}
+
 		void dump_reverb_preset(const std::string& name)
 		{
-			for (auto* header : techset::stock_zone().find_assets(zonetool::s2::ASSET_TYPE_REVERB_PRESET))
+			const auto entry = std::ranges::find_if(map_reverb_presets, [&](const map_reverb_preset& preset)
 			{
-				const auto preset = static_cast<zonetool::s2::ReverbPreset*>(header);
-				if (preset->name && name == preset->name)
-				{
-					zonetool::s2::reverb_preset::dump(preset);
-					add_csv_row("reverbpreset", name);
-					return;
-				}
+				return name == preset.name;
+			});
+			if (entry == map_reverb_presets.end())
+			{
+				return;
 			}
+
+			zonetool::s2::ReverbPreset preset{};
+			preset.name = entry->name;
+			std::ranges::copy(entry->values, preset.unk_0x8);
+			zonetool::s2::reverb_preset::dump(&preset);
+			add_csv_row("reverbpreset", name);
 		}
 	}
 
@@ -118,6 +154,7 @@ namespace zonetool::h1::converter::s2::soundtables
 			}
 			else if (section == "reverb_names" && cells.size() > 1)
 			{
+				cells[1] = convert_room_type(cells[1]);
 				dump_reverb_preset(cells[1]);
 			}
 

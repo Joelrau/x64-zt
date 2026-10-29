@@ -199,7 +199,7 @@ namespace zonetool::s2
 			{
 				for (std::size_t i = 0; i < surface_count; i++)
 				{
-					reader.read_string(surfaces[i].name);
+					reader.read_string(surfaces[i].weaponName);
 					reader.read_asset(ASSET_TYPE_FX, surfaces[i].effect);
 				}
 			}
@@ -227,7 +227,7 @@ namespace zonetool::s2
 			asset->surfaces = read.read_array<FxImpactSurfaceEntry>();
 			for (std::size_t i = 0; asset->surfaces && i < surface_count; i++)
 			{
-				asset->surfaces[i].name = read.read_string();
+				asset->surfaces[i].weaponName = read.read_string();
 				asset->surfaces[i].effect = read.read_asset<FxEffectDef>();
 			}
 			read.close();
@@ -272,7 +272,7 @@ namespace zonetool::s2
 				auto* surfaces = buf->write(data->surfaces, surface_count);
 				for (std::size_t i = 0; i < surface_count; i++)
 				{
-					write_string(buf, data->surfaces[i].name, surfaces[i].name);
+					write_string(buf, data->surfaces[i].weaponName, surfaces[i].weaponName);
 					surfaces[i].effect = asset_reference(zone, ASSET_TYPE_FX, data->surfaces[i].effect);
 				}
 				buf->clear_pointer(&dest->surfaces);
@@ -299,7 +299,7 @@ namespace zonetool::s2
 			write.dump_array(asset->surfaces, surface_count);
 			for (std::size_t i = 0; asset->surfaces && i < surface_count; i++)
 			{
-				write.dump_string(asset->surfaces[i].name);
+				write.dump_string(asset->surfaces[i].weaponName);
 				write.dump_asset(asset->surfaces[i].effect);
 			}
 			write.close();

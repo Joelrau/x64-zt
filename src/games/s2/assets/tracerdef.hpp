@@ -10,7 +10,7 @@ namespace zonetool::s2
 			reader.push_stream(XFILE_BLOCK_VIRTUAL);
 			reader.read_string(asset->name);
 			reader.read_asset(ASSET_TYPE_MATERIAL, asset->material);
-			reader.read_asset(ASSET_TYPE_FX, asset->effect);
+			reader.read_asset(ASSET_TYPE_FX, asset->effectDef);
 			reader.pop_stream();
 		}
 
@@ -27,7 +27,7 @@ namespace zonetool::s2
 			auto* asset = read.read_single<TracerDef>();
 			asset->name = read.read_string();
 			asset->material = read.read_asset<Material>();
-			asset->effect = read.read_asset<FxEffectDef>();
+			asset->effectDef = read.read_asset<FxEffectDef>();
 			read.close();
 
 			return asset;
@@ -36,7 +36,7 @@ namespace zonetool::s2
 		void load_depending(zone_base* zone) override
 		{
 			add_dependency(zone, ASSET_TYPE_MATERIAL, this->asset_->material);
-			add_dependency(zone, ASSET_TYPE_FX, this->asset_->effect);
+			add_dependency(zone, ASSET_TYPE_FX, this->asset_->effectDef);
 		}
 
 		void write(zone_base* zone, zone_buffer* buf) override
@@ -48,7 +48,7 @@ namespace zonetool::s2
 
 			dest->name = this->write_name(buf);
 			dest->material = asset_reference(zone, ASSET_TYPE_MATERIAL, data->material);
-			dest->effect = asset_reference(zone, ASSET_TYPE_FX, data->effect);
+			dest->effectDef = asset_reference(zone, ASSET_TYPE_FX, data->effectDef);
 
 			buf->pop_stream();
 		}
@@ -64,7 +64,7 @@ namespace zonetool::s2
 			write.dump_single(asset);
 			write.dump_string(asset->name);
 			write.dump_asset(asset->material);
-			write.dump_asset(asset->effect);
+			write.dump_asset(asset->effectDef);
 			write.close();
 		}
 	};

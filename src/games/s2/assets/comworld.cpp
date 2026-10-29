@@ -19,7 +19,8 @@ namespace zonetool::s2
 			&ComPrimaryLight::type,
 			&ComPrimaryLight::canUseShadowMap,
 			&ComPrimaryLight::exponent,
-			json_reflect::manual("pad0"),
+			&ComPrimaryLight::targetnameHash,
+			&ComPrimaryLight::unk_0x8,
 			&ComPrimaryLight::color,
 			&ComPrimaryLight::intensity,
 			&ComPrimaryLight::dir,
@@ -34,8 +35,16 @@ namespace zonetool::s2
 			&ComPrimaryLight::cosHalfFovExpanded,
 			&ComPrimaryLight::rotationLimit,
 			&ComPrimaryLight::translationLimit,
-			json_reflect::manual("pad1"),
-			&ComPrimaryLight::unk_0x9C,
+			&ComPrimaryLight::airLightOffset,
+			&ComPrimaryLight::airLightIntensityScale,
+			&ComPrimaryLight::airLightRadiusScale,
+			&ComPrimaryLight::airLightDensityScale,
+			&ComPrimaryLight::airLightSourceRadius,
+			&ComPrimaryLight::airLightVertexInnerMutedRadius,
+			&ComPrimaryLight::airLightMaxDistanceSq,
+			&ComPrimaryLight::airLightExponent,
+			&ComPrimaryLight::airLightHighQuality,
+			&ComPrimaryLight::iesProfileIndex,
 			&ComPrimaryLight::defName,
 		};
 
@@ -48,26 +57,6 @@ namespace zonetool::s2
 		std::string json_path(const char* name)
 		{
 			return dump_path(ASSET_TYPE_COMWORLD, name, ".json");
-		}
-
-		// the unknown fields are kept as bytes so a round trip is exact
-		template <std::size_t N>
-		void write_bytes(ordered_json& data, const char (&bytes)[N])
-		{
-			data = ordered_json::array();
-			for (const auto byte : bytes)
-			{
-				data.push_back(static_cast<std::uint8_t>(byte));
-			}
-		}
-
-		template <std::size_t N>
-		void read_bytes(const json& data, char (&bytes)[N])
-		{
-			for (auto i = 0u; data.is_array() && i < std::min(data.size(), N); i++)
-			{
-				bytes[i] = static_cast<char>(data[i].get<std::uint8_t>());
-			}
 		}
 
 		ComWorld* parse_json(const std::string& name, zone_memory* mem)
@@ -95,8 +84,6 @@ namespace zonetool::s2
 			{
 				auto& light = asset->primaryLights[i];
 				json_reflect::read<primary_light_fields>(lights[i], light, mem, {.strings = json_reflect::null_string::null});
-				read_bytes(lights[i].value("pad0", json::array()), light.unk_0x3);
-				read_bytes(lights[i].value("pad1", json::array()), light.unk_0x70);
 			}
 
 			json_reflect::read_array<primary_light_env_fields>(data["primaryLightEnvs"], asset->primaryLightEnvs, asset->primaryLightEnvCount, mem);
@@ -115,8 +102,6 @@ namespace zonetool::s2
 				auto& entry = lights.emplace_back();
 				entry["index"] = i; // informational, the array order is the light index
 				json_reflect::write<primary_light_fields>(entry, light, {.strings = json_reflect::null_string::null});
-				write_bytes(entry["pad0"], light.unk_0x3);
-				write_bytes(entry["pad1"], light.unk_0x70);
 			}
 
 			json_reflect::write_array<primary_light_env_fields>(data["primaryLightEnvs"], asset->primaryLightEnvs, asset->primaryLightEnvCount);

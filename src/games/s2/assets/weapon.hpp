@@ -27,9 +27,9 @@ namespace zonetool::s2
 			reader.read_string(asset->name);
 			reader.read_asset(ASSET_TYPE_MATERIAL, asset->laserMaterial);
 			reader.read_asset(ASSET_TYPE_MATERIAL, asset->laserLightMaterial);
-			reader.read_asset(ASSET_TYPE_FX, asset->effect);
-			reader.read_asset(ASSET_TYPE_LASER, asset->altLaser);
-			reader.read_script_string(asset->ownerTag);
+			reader.read_asset(ASSET_TYPE_FX, asset->laserEndEffect);
+			reader.read_asset(ASSET_TYPE_LASER, asset->friendlyTeamLaser);
+			reader.read_script_string(asset->laserTag);
 			reader.pop_stream();
 		}
 
@@ -47,9 +47,9 @@ namespace zonetool::s2
 			asset->name = read.read_string();
 			asset->laserMaterial = read.read_asset<Material>();
 			asset->laserLightMaterial = read.read_asset<Material>();
-			asset->effect = read.read_asset<FxEffectDef>();
-			asset->altLaser = read.read_asset<LaserDef>();
-			asset->ownerTag = parse_script_string(read);
+			asset->laserEndEffect = read.read_asset<FxEffectDef>();
+			asset->friendlyTeamLaser = read.read_asset<LaserDef>();
+			asset->laserTag = parse_script_string(read);
 			read.close();
 
 			return asset;
@@ -58,20 +58,20 @@ namespace zonetool::s2
 		void prepare(zone_buffer* buf, zone_memory* mem) override
 		{
 			script_string_preparer prepare(buf);
-			prepare(this->asset_->ownerTag);
+			prepare(this->asset_->laserTag);
 		}
 
 		void load_depending(zone_base* zone) override
 		{
 			add_dependency(zone, ASSET_TYPE_MATERIAL, this->asset_->laserMaterial);
 			add_dependency(zone, ASSET_TYPE_MATERIAL, this->asset_->laserLightMaterial);
-			add_dependency(zone, ASSET_TYPE_FX, this->asset_->effect);
+			add_dependency(zone, ASSET_TYPE_FX, this->asset_->laserEndEffect);
 			static thread_local std::unordered_set<std::string> loading;
-			const auto* alt_laser = this->asset_->altLaser;
-			if (alt_laser && alt_laser->name && !loading.contains(alt_laser->name))
+			const auto* friendly_laser = this->asset_->friendlyTeamLaser;
+			if (friendly_laser && friendly_laser->name && !loading.contains(friendly_laser->name))
 			{
 				loading.insert(this->name());
-				add_dependency(zone, ASSET_TYPE_LASER, alt_laser);
+				add_dependency(zone, ASSET_TYPE_LASER, friendly_laser);
 				loading.erase(this->name());
 			}
 		}
@@ -85,8 +85,8 @@ namespace zonetool::s2
 			dest->name = this->write_name(buf);
 			dest->laserMaterial = asset_reference(zone, ASSET_TYPE_MATERIAL, data->laserMaterial);
 			dest->laserLightMaterial = asset_reference(zone, ASSET_TYPE_MATERIAL, data->laserLightMaterial);
-			dest->effect = asset_reference(zone, ASSET_TYPE_FX, data->effect);
-			dest->altLaser = asset_reference(zone, ASSET_TYPE_LASER, data->altLaser);
+			dest->laserEndEffect = asset_reference(zone, ASSET_TYPE_FX, data->laserEndEffect);
+			dest->friendlyTeamLaser = asset_reference(zone, ASSET_TYPE_LASER, data->friendlyTeamLaser);
 			buf->pop_stream();
 		}
 
@@ -102,9 +102,9 @@ namespace zonetool::s2
 			write.dump_string(asset->name);
 			write.dump_asset(asset->laserMaterial);
 			write.dump_asset(asset->laserLightMaterial);
-			write.dump_asset(asset->effect);
-			write.dump_asset(asset->altLaser);
-			dump_script_string(write, asset->ownerTag);
+			write.dump_asset(asset->laserEndEffect);
+			write.dump_asset(asset->friendlyTeamLaser);
+			dump_script_string(write, asset->laserTag);
 			write.close();
 		}
 	};

@@ -35,6 +35,6 @@ namespace zonetool::h1::converter::s2::bone_rig
 			{{mat.trans[0], mat.trans[1], mat.trans[2]}}};
 	}
 
-	std::optional<skeleton> load_h1_model(const char* name);
-	std::optional<skeleton> load_s2_model(const char* name);
+	std::optional<skeleton> load_h1_skeleton(const char* name);
+	std::optional<skeleton> load_s2_skeleton(const char* name);
 }

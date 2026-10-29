@@ -768,6 +768,11 @@ namespace zonetool::h1
 				def->originalAccuracyGraphKnots[i] = mem->allocate<vec2_t>(count);
 				def->originalAccuracyGraphKnotCount[i] = static_cast<short>(count);
 
+				if (def->accuracyGraphKnotCount[i] != count)
+				{
+					ZONETOOL_FATAL("accuracyGraphKnots and originalAccuracyGraphKnots arrays must be the same size");
+				}
+
 				for (auto o = 0; o < count; o++)
 				{
 					def->originalAccuracyGraphKnots[i][o][0] = data["originalAccuracyGraphKnots"][i][o][0].get<float>();
@@ -1320,6 +1325,10 @@ namespace zonetool::h1
 			for (auto i = 0; i < 4; i++)
 			{
 				reader.read_name_reference(asset->turretBarrelSpinUpSnd[i]);
+			}
+
+			for (auto i = 0; i < 4; i++)
+			{
 				reader.read_name_reference(asset->turretBarrelSpinDownSnd[i]);
 			}
 
@@ -1434,7 +1443,7 @@ namespace zonetool::h1
 		{
 			reader.read_string(asset->accuracyGraphName[i]);
 			reader.read_array(asset->accuracyGraphKnots[i], 3, asset->accuracyGraphKnotCount[i]);
-			reader.read_array(asset->originalAccuracyGraphKnots[i], 3, asset->originalAccuracyGraphKnotCount[i]);
+			reader.read_array(asset->originalAccuracyGraphKnots[i], 3, asset->accuracyGraphKnotCount[i]);
 		}
 
 		reader.read_string(asset->szScript);
@@ -1943,6 +1952,10 @@ namespace zonetool::h1
 		for (int i = 0; i < 4; i++)
 		{
 			WEAPON_SOUND_CUSTOM(turretBarrelSpinUpSnd[i]);
+		}
+
+		for (int i = 0; i < 4; i++)
+		{
 			WEAPON_SOUND_CUSTOM(turretBarrelSpinDownSnd[i]);
 		}
 
@@ -2027,7 +2040,7 @@ namespace zonetool::h1
 			if (data->originalAccuracyGraphKnots[i])
 			{
 				buf->align(3);
-				buf->write(data->originalAccuracyGraphKnots[i], data->originalAccuracyGraphKnotCount[i]);
+				buf->write(data->originalAccuracyGraphKnots[i], data->accuracyGraphKnotCount[i]);
 				buf->clear_pointer(&dest->originalAccuracyGraphKnots[i]);
 			}
 		}
@@ -2063,19 +2076,6 @@ namespace zonetool::h1
 				{
 					data["accuracyGraphKnots"] = nullptr;
 				}
-				if (asset->accuracyGraphKnots[i])
-				{
-					data["originalAccuracyGraphKnots"][i][o][0] = asset->originalAccuracyGraphKnots[i][o][0];
-					data["originalAccuracyGraphKnots"][i][o][1] = asset->originalAccuracyGraphKnots[i][o][1];
-				}
-				else
-				{
-					data["originalAccuracyGraphKnots"] = nullptr;
-				}
-			}
-
-			for (auto o = 0; o < asset->originalAccuracyGraphKnotCount[i]; o++)
-			{
 				if (asset->originalAccuracyGraphKnots[i])
 				{
 					data["originalAccuracyGraphKnots"][i][o][0] = asset->originalAccuracyGraphKnots[i][o][0];

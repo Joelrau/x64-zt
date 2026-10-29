@@ -1,23 +1,33 @@
 #include <std_include.hpp>
 
 #include "../include.hpp"
+#include "rig/xanim_retarget.hpp"
 #include "xanim.hpp"
-#include "xanim_retarget.hpp"
 
 namespace zonetool::h1::converter::s2::xanim
 {
 	namespace
 	{
-		constexpr auto retarget_memory_size = 16ull * 1024 * 1024;
 
 		std::unordered_set<std::string> dumped_anims;
 
+		bool has_bone_index(const int type)
+		{
+			return type >= zonetool::s2::PART_TYPE_SMALL_TRANS;
+		}
+
+		bool has_key_frames(const int type)
+		{
+			return type == zonetool::s2::PART_TYPE_HALF_QUAT || type == zonetool::s2::PART_TYPE_FULL_QUAT ||
+				type == zonetool::s2::PART_TYPE_SMALL_TRANS || type == zonetool::s2::PART_TYPE_TRANS;
+		}
+
 		template <bool s2_layout, typename T>
-		bool walk_tracks(const T* asset, const std::function<void(int type, int index, int bytes, int shorts)>& visit)
+		bool walk_tracks(const T* asset, const std::function<void(int type, int track_bytes, int track_shorts)>& visit)
 		{
 			const auto small_frames = asset->numframes < 256;
 			auto bytes = 0, shorts = 0, indices = 0;
-			const auto frame_keys = [&]()
+			const auto skip_key_frames = [&]()
 			{
 				if (shorts >= asset->dataShortCount)
 				{
@@ -60,24 +70,23 @@ namespace zonetool::h1::converter::s2::xanim
 				for (auto i = 0; i < asset->boneCount[type]; i++)
 				{
 					const auto track_bytes = bytes, track_shorts = shorts;
-					if (type >= zonetool::s2::PART_TYPE_SMALL_TRANS)
+					if (has_bone_index(type))
 					{
 						if (s2_layout ? shorts >= asset->dataShortCount : bytes >= asset->dataByteCount)
 						{
 							return false;
 						}
 
-						const auto bone = s2_layout ? asset->dataShort[shorts++] : static_cast<std::uint8_t>(asset->dataByte[bytes++]);
-						if (bone < 0 || bone >= asset->boneCount[zonetool::s2::PART_TYPE_ALL])
+						const auto bone_index = s2_layout ? asset->dataShort[shorts++] : static_cast<std::uint8_t>(asset->dataByte[bytes++]);
+						if (bone_index < 0 || bone_index >= asset->boneCount[zonetool::s2::PART_TYPE_ALL])
 						{
 							return false;
 						}
 					}
 
-					if (type == zonetool::s2::PART_TYPE_HALF_QUAT || type == zonetool::s2::PART_TYPE_FULL_QUAT ||
-						type == zonetool::s2::PART_TYPE_SMALL_TRANS || type == zonetool::s2::PART_TYPE_TRANS)
+					if (has_key_frames(type))
 					{
-						if (!frame_keys())
+						if (!skip_key_frames())
 						{
 							return false;
 						}
@@ -91,7 +100,7 @@ namespace zonetool::h1::converter::s2::xanim
 						}
 					}
 
-					visit(type, i, track_bytes, track_shorts);
+					visit(type, track_bytes, track_shorts);
 				}
 			}
 
@@ -100,24 +109,24 @@ namespace zonetool::h1::converter::s2::xanim
 
 		void convert_track_data(XAnimParts* asset, zonetool::s2::XAnimParts* new_asset, utils::memory::allocator& allocator)
 		{
-			// h1 keeps the bone index of a translation track as a u8 in dataByte, s2 as an s16 in dataShort before the key count
 			std::vector<char> bytes;
 			std::vector<short> shorts;
-			auto byte_end = 0, short_end = 0;
-			const auto copy_until = [&](const int byte_pos, const int short_pos)
+			auto copied_bytes = 0, copied_shorts = 0;
+			const auto copy_until = [&](const int byte_end, const int short_end)
 			{
-				bytes.insert(bytes.end(), asset->dataByte + byte_end, asset->dataByte + byte_pos);
-				shorts.insert(shorts.end(), asset->dataShort + short_end, asset->dataShort + short_pos);
-				byte_end = byte_pos;
-				short_end = short_pos;
+				bytes.insert(bytes.end(), asset->dataByte + copied_bytes, asset->dataByte + byte_end);
+				shorts.insert(shorts.end(), asset->dataShort + copied_shorts, asset->dataShort + short_end);
+				copied_bytes = byte_end;
+				copied_shorts = short_end;
 			};
 
-			const auto valid = walk_tracks<false>(asset, [&](const int type, int, const int byte_pos, const int short_pos)
+			const auto valid = walk_tracks<false>(asset, [&](const int type, const int track_bytes, const int track_shorts)
 			{
-				if (type >= zonetool::s2::PART_TYPE_SMALL_TRANS)
+				if (has_bone_index(type))
 				{
-					copy_until(byte_pos, short_pos);
-					shorts.push_back(static_cast<std::uint8_t>(asset->dataByte[byte_end++]));
+					copy_until(track_bytes, track_shorts);
+					const auto h1_bone_index = static_cast<std::uint8_t>(asset->dataByte[copied_bytes++]);
+					shorts.push_back(h1_bone_index);
 				}
 			});
 
@@ -134,12 +143,10 @@ namespace zonetool::h1::converter::s2::xanim
 
 			new_asset->dataByteCount = static_cast<std::uint16_t>(bytes.size());
 			new_asset->dataShortCount = static_cast<std::uint16_t>(shorts.size());
-			new_asset->dataByte = bytes.empty() ? nullptr : allocator.allocate_array<char>(bytes.size());
-			new_asset->dataShort = shorts.empty() ? nullptr : allocator.allocate_array<short>(shorts.size());
-			std::memcpy(new_asset->dataByte, bytes.data(), bytes.size());
-			std::memcpy(new_asset->dataShort, shorts.data(), shorts.size() * sizeof(short));
+			new_asset->dataByte = copy_array(bytes.data(), bytes.size(), allocator);
+			new_asset->dataShort = copy_array(shorts.data(), shorts.size(), allocator);
 
-			if (!walk_tracks<true>(new_asset, [](int, int, int, int) {}))
+			if (!walk_tracks<true>(new_asset, [](int, int, int) {}))
 			{
 				ZONETOOL_FATAL("xanim \"%s\": converted track data fails the s2 walk", asset->name);
 			}
@@ -194,9 +201,9 @@ namespace zonetool::h1::converter::s2::xanim
 		}
 
 		utils::memory::allocator allocator;
-		zone_memory memory(retarget_memory_size);
+		std::optional<zone_memory> retarget_memory;
 		const auto new_asset = convert(asset, allocator);
-		xanim_retarget::retarget(new_asset, memory);
+		xanim_retarget::retarget(new_asset, retarget_memory);
 		zonetool::s2::xanim_parts::dump(new_asset);
 		add_csv_row(zonetool::s2::type_to_string(zonetool::s2::ASSET_TYPE_XANIM), asset->name);
 	}

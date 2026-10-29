@@ -24,8 +24,8 @@ namespace zonetool::h1::converter::s2::gfxworld
 			.unk_0x1 = 38,
 			.unk_0x2 = 39,
 			.twoD = 62,
-			.unk_0x4 = 44,
-			.effectDecal = 21,
+			.effectDecal = 44,
+			.unk_0x5 = 21,
 			.unk_0x6 = 46,
 			.effectAuto = 54,
 			.distortion = 49,
@@ -900,7 +900,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 			dpvs.sunShadowOptCount = std::max(source.sunShadowOptCount, 1u); // without one s2 drops every smodel from the sun shadow
 			dpvs.sunSurfVisDataCount = source.sunSurfVisDataCount ? source.sunSurfVisDataCount : (asset->surfaceCount + 255) / 256 * 8;
 			dpvs.primaryLightVisDataCount = (asset->primaryLightCount + 31) / 32 + 1;
-			dpvs.unk_0x318 = non_null_array<unsigned int>(2ull * source.smodelVisDataCount, allocator);
+			dpvs.smodelLightingStateBits = non_null_array<unsigned int>(2ull * source.smodelVisDataCount, allocator);
 
 			mark_runtime(dpvs.smodelVisData, allocator);
 			mark_runtime(dpvs.smodelVisDataUnused, allocator);
@@ -910,7 +910,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 			mark_runtime(dpvs.surfaceUnknownVisData, allocator);
 			mark_runtime(dpvs.unk_0x2C8, allocator);
 			mark_runtime(dpvs.primaryLightVisData, allocator);
-			mark_runtime(dpvs.unk_0x2D8, allocator);
+			mark_runtime(dpvs.smodelFoliageVisData, allocator);
 			mark_runtime(dpvs.unk_0x2E0, allocator);
 			mark_runtime(dpvs.surfaceSortKeys, allocator);
 			mark_runtime(dpvs.surfaceCastsSunShadow, allocator);
@@ -972,7 +972,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 
 		float probe_sun_visibility(const float visibility, const bool has_sun)
 		{
-			constexpr auto min_visibility = 0.001f; // a sun env model keeps the sun where the bake shadows it
+			constexpr auto min_visibility = 2.0f / 255.0f; // a sun env probe keeps the sun where the bake shadows it, s2 reads it as one byte
 
 			return has_sun ? std::max(visibility, min_visibility) : 0.0f;
 		}
@@ -1076,6 +1076,11 @@ namespace zonetool::h1::converter::s2::gfxworld
 			bool env_has_sun(const unsigned int env) const
 			{
 				return env >= this->sun_envs_.size() || this->sun_envs_[env];
+			}
+
+			bool has_sun() const
+			{
+				return this->sun_envs_.empty() || std::find(this->sun_envs_.begin(), this->sun_envs_.end(), true) != this->sun_envs_.end();
 			}
 
 			const light_grid::tree_view& tree() const
@@ -1496,14 +1501,25 @@ namespace zonetool::h1::converter::s2::gfxworld
 			const auto probe_count = static_cast<unsigned int>(volume->probe_positions.size());
 			const auto positions = allocator.allocate_array<zonetool::s2::GfxGpuLightGridProbePosition>(probe_count);
 			std::vector<std::optional<std::array<float, light_grid::probe_sh_count + 1>>> samples(probe_count);
-			probe_average average;
 			for (auto i = 0u; i < probe_count; i++)
 			{
 				std::memcpy(positions[i].origin, volume->probe_positions[i].data(), sizeof(positions[i].origin));
 				samples[i] = sampler.sample(positions[i].origin);
-				if (samples[i])
+			}
+
+			const auto grid_names_sun = std::ranges::any_of(samples, [](const auto& sample)
+			{
+				return sample && sample->back() > 0.0f;
+			});
+			const auto sun_everywhere = !grid_names_sun && sampler.has_sun(); // the shadow maps alone decide where the sun reaches
+
+			probe_average average;
+			for (auto& sample : samples)
+			{
+				if (sample)
 				{
-					average.add(*samples[i]);
+					sample->back() = probe_sun_visibility(sample->back(), sun_everywhere || sample->back() > 0.0f);
+					average.add(*sample);
 				}
 			}
 

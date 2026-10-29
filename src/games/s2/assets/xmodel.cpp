@@ -102,8 +102,8 @@ namespace zonetool::s2
 
 		reader.read_stream(asset->collSurfs, 7, 48, asset->collSurfCount);
 		reader.read_stream(asset->boneInfo, 3, 28, bone_count);
-		reader.read_script_string_array(asset->extraBoneNames, asset->extraBoneNameCount);
-		reader.read_stream(asset->extraData, 3, 8, asset->extraDataCount);
+		reader.read_script_string_array(asset->blendShapeWeightNames, asset->numberOfBlendShapeWeights);
+		reader.read_stream(asset->blendShapeWeightMaps, 3, sizeof(BlendShapeWeightMap), asset->numberOfBlendShapeWeightMaps);
 		reader.read_asset(ASSET_TYPE_PHYSPRESET, asset->physPreset);
 		reader.read_asset(ASSET_TYPE_PHYSCOLLMAP, asset->physCollmap);
 		reader.read_script_string_array(asset->physRigNames, asset->physRigCount);
@@ -416,8 +416,8 @@ namespace zonetool::s2
 
 		asset->collSurfs = read.read_array<char>();
 		asset->boneInfo = read.read_array<char>();
-		asset->extraBoneNames = parse_script_string_array(read, mem, asset->extraBoneNameCount);
-		asset->extraData = read.read_array<char>();
+		asset->blendShapeWeightNames = parse_script_string_array(read, mem, asset->numberOfBlendShapeWeights);
+		asset->blendShapeWeightMaps = reinterpret_cast<BlendShapeWeightMap*>(read.read_array<char>()); // dumped as bytes
 		asset->physPreset = read.read_asset<PhysPreset>();
 		asset->physCollmap = read.read_asset<PhysCollmap>();
 		asset->physRigNames = parse_script_string_array(read, mem, asset->physRigCount);
@@ -467,7 +467,7 @@ namespace zonetool::s2
 		script_string_preparer prepare(buf);
 
 		prepare(asset->boneNames, bone_count(asset));
-		prepare(asset->extraBoneNames, asset->extraBoneNameCount);
+		prepare(asset->blendShapeWeightNames, asset->numberOfBlendShapeWeights);
 		prepare(asset->physRigNames, asset->physRigCount);
 
 		for (auto i = 0; asset->physRigs && i < asset->physRigCount; i++)
@@ -564,8 +564,8 @@ namespace zonetool::s2
 
 		write_inline_bytes(buf, 7, data->collSurfs, 48 * data->collSurfCount, dest->collSurfs);
 		write_inline_bytes(buf, 3, data->boneInfo, 28 * bones, dest->boneInfo);
-		write_inline(buf, 3, data->extraBoneNames, data->extraBoneNameCount, dest->extraBoneNames);
-		write_inline_bytes(buf, 3, data->extraData, 8 * data->extraDataCount, dest->extraData);
+		write_inline(buf, 3, data->blendShapeWeightNames, data->numberOfBlendShapeWeights, dest->blendShapeWeightNames);
+		write_inline_bytes(buf, 3, data->blendShapeWeightMaps, sizeof(BlendShapeWeightMap) * data->numberOfBlendShapeWeightMaps, dest->blendShapeWeightMaps);
 		dest->physPreset = asset_reference(zone, ASSET_TYPE_PHYSPRESET, data->physPreset);
 		dest->physCollmap = asset_reference(zone, ASSET_TYPE_PHYSCOLLMAP, data->physCollmap);
 		write_inline(buf, 3, data->physRigNames, data->physRigCount, dest->physRigNames);
@@ -653,8 +653,8 @@ namespace zonetool::s2
 
 		write.dump_array(asset->collSurfs, 48 * asset->collSurfCount);
 		write.dump_array(asset->boneInfo, 28 * bones);
-		dump_script_string_array(write, asset->extraBoneNames, asset->extraBoneNameCount);
-		write.dump_array(asset->extraData, 8 * asset->extraDataCount);
+		dump_script_string_array(write, asset->blendShapeWeightNames, asset->numberOfBlendShapeWeights);
+		write.dump_array(reinterpret_cast<char*>(asset->blendShapeWeightMaps), sizeof(BlendShapeWeightMap) * asset->numberOfBlendShapeWeightMaps);
 		write.dump_asset(asset->physPreset);
 		write.dump_asset(asset->physCollmap);
 		dump_script_string_array(write, asset->physRigNames, asset->physRigCount);

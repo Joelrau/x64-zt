@@ -1,8 +1,7 @@
 #include <std_include.hpp>
 
-#include "../include.hpp"
+#include "../../include.hpp"
 #include "bone_rig.hpp"
-#include "techset.hpp"
 #include "xanim_retarget.hpp"
 
 namespace zonetool::h1::converter::s2::xanim_retarget
@@ -11,27 +10,30 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 	{
 		namespace cs = zonetool::cast;
 
-		constexpr auto rig_name = "viewmodel_base_viewhands"; // the base viewmodel arm rig of both games
+		constexpr auto arm_rig_model = "viewmodel_base_viewhands";
 		constexpr auto s2_arm_root = "j_mainroot";
 		constexpr auto body_tag = "tag_torso";
 		constexpr std::array sides{"le", "ri"};
 		constexpr std::array fingers{"index", "mid", "ring", "pinky", "thumb"};
 		constexpr auto finger_joints = 3;
+		constexpr auto h1_first_finger_joint = 0;
+		constexpr auto s2_first_finger_joint = 1;
 		constexpr auto epsilon = 0.0001f;
+		constexpr auto retarget_memory_size = 16ull * 1024 * 1024;
 
 		using bone_rig::compose;
 		using bone_rig::invert;
 		using bone_rig::skeleton;
 		using bone_rig::transform;
 
-		struct rigs
+		struct arm_rigs
 		{
 			skeleton h1;
 			skeleton s2;
 			std::unordered_map<std::string, std::string> s2_to_h1;
 			std::unordered_set<std::string> h1_arm_bones;
 			std::vector<bool> s2_arm_bones;
-			std::vector<bool> s2_body_bones; // bones under tag_torso outside the arms that h1 also has
+			std::vector<bool> s2_shared_body_bones;
 			int h1_body;
 			int s2_body;
 		};
@@ -49,7 +51,8 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 			std::vector<std::pair<std::uint32_t, cs::vec3_t>> translation;
 		};
 
-		std::optional<rigs> loaded_rigs;
+		std::optional<arm_rigs> loaded_rigs;
+		bool rigs_attempted = false;
 
 		cs::vec3_t add(const cs::vec3_t& a, const cs::vec3_t& b)
 		{
@@ -162,14 +165,9 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 			return cs::quat_dot(twist, twist) > epsilon ? cs::quat_normalize(twist) : cs::quat_t{};
 		}
 
-		std::optional<skeleton> load_h1_rig()
+		cs::vec3_t bend_normal(const cs::vec3_t& shoulder, const cs::vec3_t& elbow, const cs::vec3_t& wrist)
 		{
-			return bone_rig::load_h1_model(rig_name);
-		}
-
-		std::optional<skeleton> load_s2_rig()
-		{
-			return bone_rig::load_s2_model(rig_name);
+			return normalize(cross(sub(elbow, shoulder), sub(wrist, elbow)));
 		}
 
 		std::string side_bone(const char* name, const char* side)
@@ -182,9 +180,13 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 			return std::format("j_{}_{}_{}", finger, side, joint);
 		}
 
+		bool is_twist(const std::string& name)
+		{
+			return name.find("twist") != std::string::npos;
+		}
+
 		std::unordered_map<std::string, std::string> build_bone_map(const skeleton& h1, const skeleton& s2)
 		{
-			// h1 fingers count from _0 and s2 fingers from _1, the h1 palm bones match the s2 metacarpals of the ring and pinky fingers
 			std::unordered_map<std::string, std::string> map;
 			for (const auto* side : sides)
 			{
@@ -193,13 +195,13 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 					map.emplace(side_bone(joint, side), side_bone(joint, side));
 				}
 
-				map.emplace(finger_bone("metapinky", side, 1), side_bone("pinkypalm", side));
-				map.emplace(finger_bone("metaring", side, 1), side_bone("ringpalm", side));
+				map.emplace(finger_bone("metapinky", side, s2_first_finger_joint), side_bone("pinkypalm", side));
+				map.emplace(finger_bone("metaring", side, s2_first_finger_joint), side_bone("ringpalm", side));
 				for (const auto* finger : fingers)
 				{
 					for (auto joint = 0; joint < finger_joints; joint++)
 					{
-						map.emplace(finger_bone(finger, side, joint + 1), finger_bone(finger, side, joint));
+						map.emplace(finger_bone(finger, side, s2_first_finger_joint + joint), finger_bone(finger, side, h1_first_finger_joint + joint));
 					}
 				}
 			}
@@ -207,7 +209,7 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 			const auto s2_root = s2.find(s2_arm_root);
 			for (auto i = 0u; i < s2.names.size(); i++)
 			{
-				if (s2.names[i].starts_with("tag_") && s2.has_ancestor(static_cast<int>(i), s2_root) && h1.find(s2.names[i]) >= 0)
+				if (s2.names[i].starts_with("tag_") && s2.has_ancestor(static_cast<int>(i), s2_root) && h1.has(s2.names[i]))
 				{
 					map.emplace(s2.names[i], s2.names[i]);
 				}
@@ -215,7 +217,7 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 
 			std::erase_if(map, [&](const auto& entry)
 			{
-				return s2.find(entry.first) < 0 || h1.find(entry.second) < 0;
+				return !s2.has(entry.first) || !h1.has(entry.second);
 			});
 
 			return map;
@@ -226,7 +228,7 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 			auto result = -1;
 			for (auto i = 0u; i < rig.names.size(); i++)
 			{
-				if (rig.parents[i] == bone && rig.names[i].starts_with("j_") && rig.names[i].find("twist") == std::string::npos)
+				if (rig.parents[i] == bone && rig.names[i].starts_with("j_") && !is_twist(rig.names[i]))
 				{
 					if (result >= 0)
 					{
@@ -240,12 +242,12 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 			return result;
 		}
 
-		bool compute_anatomy(skeleton& rig, const std::unordered_map<std::string, std::string>& names)
+		bool compute_anatomy(skeleton& rig, const std::unordered_map<std::string, std::string>& s2_to_rig)
 		{
 			const auto bone = [&](const std::string& s2_name)
 			{
-				const auto found = names.find(s2_name);
-				return found == names.end() ? -1 : rig.find(found->second);
+				const auto found = s2_to_rig.find(s2_name);
+				return found == s2_to_rig.end() ? -1 : rig.find(found->second);
 			};
 
 			const auto position = [&](const int index)
@@ -263,21 +265,21 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 				const auto shoulder = bone(side_bone("shoulder", side));
 				const auto elbow = bone(side_bone("elbow", side));
 				const auto wrist = bone(side_bone("wrist", side));
-				const auto index = bone(finger_bone("index", side, 1));
-				const auto mid = bone(finger_bone("mid", side, 1));
-				const auto pinky = bone(finger_bone("pinky", side, 1));
+				const auto index = bone(finger_bone("index", side, s2_first_finger_joint));
+				const auto mid = bone(finger_bone("mid", side, s2_first_finger_joint));
+				const auto pinky = bone(finger_bone("pinky", side, s2_first_finger_joint));
 				if (shoulder < 0 || elbow < 0 || wrist < 0 || index < 0 || mid < 0 || pinky < 0)
 				{
 					return false;
 				}
 
-				const auto arm_normal = normalize(cross(sub(position(elbow), position(shoulder)), sub(position(wrist), position(elbow))));
+				const auto arm_normal = bend_normal(position(shoulder), position(elbow), position(wrist));
 				const auto palm_normal = normalize(cross(sub(position(index), position(wrist)), sub(position(pinky), position(wrist))));
 				set_anatomy(shoulder, frame_rotation(sub(position(elbow), position(shoulder)), arm_normal));
 				set_anatomy(elbow, frame_rotation(sub(position(wrist), position(elbow)), arm_normal));
 				set_anatomy(wrist, frame_rotation(sub(position(mid), position(wrist)), palm_normal));
 
-				for (const auto& [s2_name, rig_bone_name] : names)
+				for (const auto& rig_bone_name : s2_to_rig | std::views::values)
 				{
 					const auto joint = rig.find(rig_bone_name);
 					if (joint == shoulder || joint == elbow || joint == wrist || !rig_bone_name.starts_with("j_") || !rig.has_ancestor(joint, wrist))
@@ -294,62 +296,86 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 			return true;
 		}
 
-		std::optional<rigs> load_rigs()
+		std::unordered_set<std::string> find_h1_arm_bones(const skeleton& h1)
 		{
-			auto h1 = load_h1_rig();
-			auto s2 = load_s2_rig();
-			if (!h1 || !s2 || s2->find(s2_arm_root) < 0 || h1->find(body_tag) < 0 || s2->find(body_tag) < 0)
+			std::unordered_set<std::string> arm_bones;
+			for (const auto* side : sides)
 			{
-				ZONETOOL_WARNING("the h1 or s2 \"%s\" arm rig is not loaded, viewmodel anims keep the h1 arm bones", rig_name);
+				const auto shoulder = h1.find(side_bone("shoulder", side));
+				for (auto i = 0u; i < h1.names.size(); i++)
+				{
+					if (h1.has_ancestor(static_cast<int>(i), shoulder))
+					{
+						arm_bones.emplace(h1.names[i]);
+					}
+				}
+			}
+
+			return arm_bones;
+		}
+
+		std::vector<bool> find_s2_arm_bones(const skeleton& s2)
+		{
+			const auto s2_root = s2.find(s2_arm_root);
+			std::vector<bool> arm_bones;
+			for (auto i = 0u; i < s2.names.size(); i++)
+			{
+				arm_bones.emplace_back(s2.has_ancestor(static_cast<int>(i), s2_root));
+			}
+
+			return arm_bones;
+		}
+
+		std::vector<bool> find_s2_shared_body_bones(const arm_rigs& rigs)
+		{
+			std::vector<bool> body_bones;
+			for (auto i = 0u; i < rigs.s2.names.size(); i++)
+			{
+				body_bones.emplace_back(!rigs.s2_arm_bones[i] && rigs.s2.has_ancestor(static_cast<int>(i), rigs.s2_body)
+					&& rigs.h1.has(rigs.s2.names[i]));
+			}
+
+			return body_bones;
+		}
+
+		std::optional<arm_rigs> load_rigs()
+		{
+			auto h1 = bone_rig::load_h1_skeleton(arm_rig_model);
+			auto s2 = bone_rig::load_s2_skeleton(arm_rig_model);
+			if (!h1 || !s2 || !s2->has(s2_arm_root) || !h1->has(body_tag) || !s2->has(body_tag))
+			{
+				ZONETOOL_WARNING("the h1 or s2 \"%s\" arm rig is not loaded, viewmodel anims keep the h1 arm bones", arm_rig_model);
 				return {};
 			}
 
 			const auto h1_body = h1->find(body_tag);
 			const auto s2_body = s2->find(body_tag);
-			rigs result{.h1 = std::move(*h1), .s2 = std::move(*s2), .h1_body = h1_body, .s2_body = s2_body};
+			arm_rigs result{.h1 = std::move(*h1), .s2 = std::move(*s2), .h1_body = h1_body, .s2_body = s2_body};
 			result.s2_to_h1 = build_bone_map(result.h1, result.s2);
 
-			std::unordered_map<std::string, std::string> s2_names;
+			std::unordered_map<std::string, std::string> s2_to_s2;
 			for (const auto& s2_name : result.s2_to_h1 | std::views::keys)
 			{
-				s2_names.emplace(s2_name, s2_name);
+				s2_to_s2.emplace(s2_name, s2_name);
 			}
 
-			if (!compute_anatomy(result.h1, result.s2_to_h1) || !compute_anatomy(result.s2, s2_names))
+			if (!compute_anatomy(result.h1, result.s2_to_h1) || !compute_anatomy(result.s2, s2_to_s2))
 			{
-				ZONETOOL_WARNING("the h1 and s2 \"%s\" arm rigs do not have the expected arm and finger bones", rig_name);
+				ZONETOOL_WARNING("the h1 and s2 \"%s\" arm rigs do not have the expected arm and finger bones", arm_rig_model);
 				return {};
 			}
 
-			for (const auto* side : sides)
-			{
-				const auto shoulder = result.h1.find(side_bone("shoulder", side));
-				for (auto i = 0u; i < result.h1.names.size(); i++)
-				{
-					if (result.h1.has_ancestor(static_cast<int>(i), shoulder))
-					{
-						result.h1_arm_bones.emplace(result.h1.names[i]);
-					}
-				}
-			}
-
-			const auto s2_root = result.s2.find(s2_arm_root);
-			for (auto i = 0u; i < result.s2.names.size(); i++)
-			{
-				result.s2_arm_bones.emplace_back(result.s2.has_ancestor(static_cast<int>(i), s2_root));
-				result.s2_body_bones.emplace_back(!result.s2_arm_bones.back() && result.s2.has_ancestor(static_cast<int>(i), result.s2_body)
-					&& result.h1.find(result.s2.names[i]) >= 0);
-			}
-
+			result.h1_arm_bones = find_h1_arm_bones(result.h1);
+			result.s2_arm_bones = find_s2_arm_bones(result.s2);
+			result.s2_shared_body_bones = find_s2_shared_body_bones(result);
 			return result;
 		}
 
-		const rigs* get_rigs()
+		const arm_rigs* get_rigs()
 		{
-			static auto attempted = false;
-			if (!attempted)
+			if (!rigs_attempted)
 			{
-				attempted = true;
+				rigs_attempted = true;
 				loaded_rigs = load_rigs();
 			}
 
@@ -442,19 +468,18 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 		class arm_solver
 		{
 		public:
-			arm_solver(const rigs& rigs, const std::unordered_map<std::string, bone_keys>& keys, const std::vector<bool>& shared_bones)
+			arm_solver(const arm_rigs& rigs, const std::unordered_map<std::string, bone_keys>& keys, const std::vector<bool>& shared_bones)
 				: rigs_(rigs)
 				, keys_(keys)
 				, shared_bones_(shared_bones)
 			{
+				const auto& s2 = this->rigs_.s2;
 				for (const auto* side : sides)
 				{
-					const auto& s2 = this->rigs_.s2;
-					const auto shoulder = s2.find(side_bone("shoulder", side));
-					const auto elbow = s2.find(side_bone("elbow", side));
-					const auto wrist = s2.find(side_bone("wrist", side));
-					this->last_normal_.emplace(side, normalize(cross(sub(s2.bind_world[elbow].position, s2.bind_world[shoulder].position),
-						sub(s2.bind_world[wrist].position, s2.bind_world[elbow].position))));
+					const auto shoulder = s2.bind_world[s2.find(side_bone("shoulder", side))].position;
+					const auto elbow = s2.bind_world[s2.find(side_bone("elbow", side))].position;
+					const auto wrist = s2.bind_world[s2.find(side_bone("wrist", side))].position;
+					this->last_normal_.emplace(side, bend_normal(shoulder, elbow, wrist));
 				}
 			}
 
@@ -518,11 +543,6 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 			}
 
 		private:
-			static bool is_twist(const std::string& name)
-			{
-				return name.find("twist") != std::string::npos;
-			}
-
 			transform body_local(const transform& h1_local) const
 			{
 				const auto& h1_bind = this->rigs_.h1.bind_local[this->rigs_.h1_body];
@@ -548,9 +568,10 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 				return multiply(anatomy, inverse(this->rigs_.s2.anatomy[bone]));
 			}
 
-			transform bind_child(const int bone) const
+			transform bind_under_parent(const int bone) const
 			{
-				return compose(this->s2_world_[this->rigs_.s2.parents[bone]], this->rigs_.s2.bind_local[bone]);
+				const auto parent = this->rigs_.s2.parents[bone];
+				return compose(parent < 0 ? transform{} : this->s2_world_[parent], this->rigs_.s2.bind_local[bone]);
 			}
 
 			int h1_bone(const int s2_bone) const
@@ -574,8 +595,7 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 
 			transform solve_bone(const int bone)
 			{
-				const auto& s2 = this->rigs_.s2;
-				const auto& name = s2.names[bone];
+				const auto& name = this->rigs_.s2.names[bone];
 				for (const auto* clavicle_side : sides)
 				{
 					if (name == side_bone("clavicle", clavicle_side))
@@ -584,7 +604,7 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 					}
 				}
 
-				const auto* side = side_of(bone);
+				const auto* side = this->side_of(bone);
 				if (side && name == side_bone("shoulder", side))
 				{
 					return this->solve_shoulder(bone, side);
@@ -592,14 +612,13 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 
 				if (side && name == side_bone("elbow", side))
 				{
-					const auto& arm = this->arms_.at(side);
-					return {this->s2_rotation(bone, frame_rotation(sub(arm.wrist, arm.elbow), arm.normal)), arm.elbow};
+					return this->solve_elbow(bone, side);
 				}
 
 				const auto h1 = this->h1_bone(bone);
 				if (h1 < 0)
 				{
-					return this->bind_child(bone);
+					return this->bind_under_parent(bone);
 				}
 
 				if (side && name == side_bone("wrist", side))
@@ -607,29 +626,7 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 					return {this->s2_rotation(bone, this->h1_anatomy(h1).rotation), this->h1_world_[h1].position};
 				}
 
-				auto ancestor = s2.parents[bone];
-				while (this->h1_bone(ancestor) < 0)
-				{
-					ancestor = s2.parents[ancestor];
-				}
-
-				const auto relative = compose(invert(this->h1_anatomy(this->h1_bone(ancestor))), this->h1_anatomy(h1));
-				const auto anatomy = compose(this->s2_anatomy(ancestor), relative);
-				if (name.starts_with("tag_"))
-				{
-					return {this->s2_rotation(bone, anatomy.rotation), anatomy.position};
-				}
-
-				const auto position = this->bind_child(bone).position;
-				const auto child = aim_child(s2, bone);
-				const auto h1_child = child >= 0 ? this->h1_bone(child) : -1;
-				if (h1_child < 0)
-				{
-					return {this->s2_rotation(bone, anatomy.rotation), position};
-				}
-
-				const auto palm_normal = cs::quat_rotate(this->h1_anatomy(h1).rotation, {{0.0f, 0.0f, 1.0f}});
-				return {this->s2_rotation(bone, frame_rotation(sub(this->h1_world_[h1_child].position, position), palm_normal)), position};
+				return this->solve_finger_or_tag(bone, h1);
 			}
 
 			transform solve_clavicle(const int clavicle, const char* side) const
@@ -638,7 +635,7 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 				const auto& s2 = this->rigs_.s2;
 				const auto h1_shoulder = h1.find(side_bone("shoulder", side));
 				const auto s2_shoulder = s2.find(side_bone("shoulder", side));
-				const auto bind = this->bind_child(clavicle);
+				const auto bind = this->bind_under_parent(clavicle);
 				if (s2.parents[s2_shoulder] != clavicle)
 				{
 					return bind;
@@ -662,12 +659,12 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 				const auto h1_elbow = this->h1_world_[h1.find(side_bone("elbow", side))].position;
 				const auto h1_wrist = this->h1_world_[h1.find(side_bone("wrist", side))].position;
 
-				const auto start = this->bind_child(shoulder).position;
+				const auto start = this->bind_under_parent(shoulder).position;
 				const auto upper = length(s2.bind_local[elbow].position);
 				const auto lower = length(s2.bind_local[wrist].position);
 
 				auto& last_normal = this->last_normal_.at(side);
-				if (const auto normal = normalize(cross(sub(h1_elbow, h1_shoulder), sub(h1_wrist, h1_elbow))); length(normal) > epsilon)
+				if (const auto normal = bend_normal(h1_shoulder, h1_elbow, h1_wrist); length(normal) > epsilon)
 				{
 					last_normal = normal;
 				}
@@ -687,6 +684,45 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 				return {this->s2_rotation(shoulder, frame_rotation(sub(arm.elbow, start), normal)), start};
 			}
 
+			transform solve_elbow(const int elbow, const char* side) const
+			{
+				const auto& arm = this->arms_.at(side);
+				return {this->s2_rotation(elbow, frame_rotation(sub(arm.wrist, arm.elbow), arm.normal)), arm.elbow};
+			}
+
+			transform solve_finger_or_tag(const int bone, const int h1) const
+			{
+				const auto& s2 = this->rigs_.s2;
+				auto ancestor = s2.parents[bone];
+				while (ancestor >= 0 && this->h1_bone(ancestor) < 0)
+				{
+					ancestor = s2.parents[ancestor];
+				}
+
+				if (ancestor < 0)
+				{
+					return this->bind_under_parent(bone);
+				}
+
+				const auto relative = compose(invert(this->h1_anatomy(this->h1_bone(ancestor))), this->h1_anatomy(h1));
+				const auto anatomy = compose(this->s2_anatomy(ancestor), relative);
+				if (s2.names[bone].starts_with("tag_"))
+				{
+					return {this->s2_rotation(bone, anatomy.rotation), anatomy.position};
+				}
+
+				const auto position = this->bind_under_parent(bone).position;
+				const auto child = aim_child(s2, bone);
+				const auto h1_child = child >= 0 ? this->h1_bone(child) : -1;
+				if (h1_child < 0)
+				{
+					return {this->s2_rotation(bone, anatomy.rotation), position};
+				}
+
+				const auto palm_normal = cs::quat_rotate(this->h1_anatomy(h1).rotation, {{0.0f, 0.0f, 1.0f}});
+				return {this->s2_rotation(bone, frame_rotation(sub(this->h1_world_[h1_child].position, position), palm_normal)), position};
+			}
+
 			transform solve_twist(const int twist) const
 			{
 				const auto& s2 = this->rigs_.s2;
@@ -704,7 +740,7 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 				return {multiply(twist_rotation, s2.bind_local[twist].rotation), s2.bind_local[twist].position};
 			}
 
-			const rigs& rigs_;
+			const arm_rigs& rigs_;
 			const std::unordered_map<std::string, bone_keys>& keys_;
 			const std::vector<bool>& shared_bones_;
 			std::vector<transform> h1_world_;
@@ -713,7 +749,7 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 			std::unordered_map<std::string, cs::vec3_t> last_normal_;
 		};
 
-		bool drives_h1_arms(const cs::animation_t& animation, const rigs& rigs)
+		bool drives_h1_arms(const cs::animation_t& animation, const arm_rigs& rigs)
 		{
 			return std::ranges::any_of(animation.curves, [&](const cs::curve_t& curve)
 			{
@@ -721,17 +757,62 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 			});
 		}
 
-		cs::animation_t retarget_animation(const cs::animation_t& animation, const rigs& rigs, const std::uint32_t last_frame)
+		std::vector<bool> find_shared_bones(const arm_rigs& rigs, const std::unordered_map<std::string, bone_keys>& keys)
+		{
+			std::vector<bool> shared_bones(rigs.s2.names.size());
+			for (auto bone = 0u; bone < rigs.s2.names.size(); bone++)
+			{
+				const auto& name = rigs.s2.names[bone];
+				shared_bones[bone] = rigs.s2_shared_body_bones[bone] || (!rigs.s2_arm_bones[bone] && keys.contains(name) && rigs.h1.has(name));
+			}
+
+			return shared_bones;
+		}
+
+		std::vector<std::vector<transform>> solve_poses(const arm_rigs& rigs, const std::unordered_map<std::string, bone_keys>& keys,
+			const std::vector<bool>& shared_bones, const std::uint32_t last_frame)
+		{
+			std::vector<std::vector<transform>> poses;
+			arm_solver solver(rigs, keys, shared_bones);
+			for (auto frame = 0u; frame <= last_frame; frame++)
+			{
+				poses.emplace_back(solver.solve(frame));
+			}
+
+			return poses;
+		}
+
+		void add_bone_curves(std::vector<cs::curve_t>& curves, const std::string& name, const std::vector<std::vector<transform>>& poses,
+			const int bone)
+		{
+			cs::curve_t rotation{.node_name = name, .property = "rq", .components = 4};
+			std::array<cs::curve_t, 3> translation{};
+			for (auto axis = 0; axis < 3; axis++)
+			{
+				translation[axis] = {.node_name = name, .property = std::string("t") + "xyz"[axis]};
+			}
+
+			for (auto frame = 0u; frame < poses.size(); frame++)
+			{
+				const auto& local = poses[frame][bone];
+				rotation.key_frames.emplace_back(frame);
+				rotation.key_values.insert(rotation.key_values.end(), std::begin(local.rotation.v), std::end(local.rotation.v));
+				for (auto axis = 0; axis < 3; axis++)
+				{
+					translation[axis].key_frames.emplace_back(frame);
+					translation[axis].key_values.emplace_back(local.position.v[axis]);
+				}
+			}
+
+			curves.emplace_back(std::move(rotation));
+			std::ranges::move(translation, std::back_inserter(curves));
+		}
+
+		cs::animation_t retarget_animation(const cs::animation_t& animation, const arm_rigs& rigs, const std::uint32_t last_frame)
 		{
 			const auto& s2 = rigs.s2;
 			const auto keys = collect_keys(animation);
-
-			std::vector<bool> shared_bones(s2.names.size());
-			for (auto bone = 0u; bone < s2.names.size(); bone++)
-			{
-				const auto& name = s2.names[bone];
-				shared_bones[bone] = rigs.s2_body_bones[bone] || (!rigs.s2_arm_bones[bone] && keys.contains(name) && rigs.h1.find(name) >= 0);
-			}
+			const auto shared_bones = find_shared_bones(rigs, keys);
 
 			const auto written = [&](const int bone)
 			{
@@ -754,41 +835,13 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 				return !replaced(curve.node_name);
 			});
 
-			std::vector<std::vector<transform>> poses;
-			arm_solver solver(rigs, keys, shared_bones);
-			for (auto frame = 0u; frame <= last_frame; frame++)
-			{
-				poses.emplace_back(solver.solve(frame));
-			}
-
+			const auto poses = solve_poses(rigs, keys, shared_bones, last_frame);
 			for (auto bone = 0; bone < static_cast<int>(s2.names.size()); bone++)
 			{
-				if (!written(bone))
+				if (written(bone))
 				{
-					continue;
+					add_bone_curves(result.curves, s2.names[bone], poses, bone);
 				}
-
-				cs::curve_t rotation{.node_name = s2.names[bone], .property = "rq", .components = 4};
-				std::array<cs::curve_t, 3> translation{};
-				for (auto axis = 0; axis < 3; axis++)
-				{
-					translation[axis] = {.node_name = s2.names[bone], .property = std::string("t") + "xyz"[axis]};
-				}
-
-				for (auto frame = 0u; frame <= last_frame; frame++)
-				{
-					const auto& local = poses[frame][bone];
-					rotation.key_frames.emplace_back(frame);
-					rotation.key_values.insert(rotation.key_values.end(), std::begin(local.rotation.v), std::end(local.rotation.v));
-					for (auto axis = 0; axis < 3; axis++)
-					{
-						translation[axis].key_frames.emplace_back(frame);
-						translation[axis].key_values.emplace_back(local.position.v[axis]);
-					}
-				}
-
-				result.curves.emplace_back(std::move(rotation));
-				std::ranges::move(translation, std::back_inserter(result.curves));
 			}
 
 			return result;
@@ -815,7 +868,7 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 		}
 	}
 
-	bool retarget(zonetool::s2::XAnimParts* parts, zone_memory& memory)
+	bool retarget(zonetool::s2::XAnimParts* parts, std::optional<zone_memory>& memory)
 	{
 		const auto* rigs = get_rigs();
 		if (!rigs)
@@ -844,7 +897,8 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 			return false;
 		}
 
-		const auto* retargeted = zonetool::s2::cast_xanim::from_animation(retarget_animation(animation, *rigs, parts->numframes), &memory);
+		auto& retarget_memory = memory.emplace(retarget_memory_size);
+		const auto* retargeted = zonetool::s2::cast_xanim::from_animation(retarget_animation(animation, *rigs, parts->numframes), &retarget_memory);
 		if (retargeted->numframes != parts->numframes)
 		{
 			ZONETOOL_FATAL("xanim \"%s\": the retargeted anim has %u frames, the h1 anim has %u", parts->name, retargeted->numframes, parts->numframes);
@@ -857,5 +911,6 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 	void clear()
 	{
 		loaded_rigs.reset();
+		rigs_attempted = false;
 	}
 }

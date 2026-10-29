@@ -3,4 +3,6 @@
 namespace zonetool::h1::converter::s2::fxeffectdef
 {
 	void dump(FxEffectDef* asset);
+	bool dump_used(const char* name);
+	void clear();
 }

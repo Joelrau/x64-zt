@@ -14,6 +14,8 @@ namespace zonetool::h1::converter::s2::scriptable
 		constexpr unsigned int health_drain_stream_size = 8;
 		constexpr unsigned int time_stream_size = 4;
 		constexpr unsigned int light_stream_size = 0x28;
+		constexpr unsigned int sunlight_stream_size = 0x38;
+		constexpr unsigned int transform_stream_size = 0x20;
 
 		constexpr unsigned char h1_damage_generic = 0x1;
 		constexpr unsigned char h1_damage_splash = 0x2;
@@ -179,6 +181,32 @@ namespace zonetool::h1::converter::s2::scriptable
 				new_data.lightSettings.transitionTimeMin = data.lightSettings.transitionTimeMin;
 				new_data.lightSettings.transitionTimeMax = data.lightSettings.transitionTimeMax;
 				new_data.lightSettings.noteworthy = data.lightSettings.noteworthy;
+				return true;
+			case SCRIPTABLE_EVENT_SUNLIGHTSETTINGS:
+				new_event.type = zonetool::s2::SCRIPTABLE_EVENT_SUNLIGHTSETTINGS;
+				for (auto i = 0; i < 4; i++)
+				{
+					new_data.sunlightSettings.color[i] = data.sunlightSettings.color[i] / 255.0f;
+				}
+
+				new_data.sunlightSettings.transStateStreamIndex = streams.allocate(sunlight_stream_size);
+				new_data.sunlightSettings.flags = data.sunlightSettings.flags;
+				// s2 multiplies the intensity by a cg scale that stays 0.001 * 1000, so h1's absolute values carry over
+				new_data.sunlightSettings.intensityScaleMin = data.sunlightSettings.intensityScaleMin;
+				new_data.sunlightSettings.intensityScaleMax = data.sunlightSettings.intensityScaleMax;
+				new_data.sunlightSettings.pitchMin = data.sunlightSettings.pitchMin;
+				new_data.sunlightSettings.pitchMax = data.sunlightSettings.pitchMax;
+				new_data.sunlightSettings.headingMin = data.sunlightSettings.headingMin;
+				new_data.sunlightSettings.headingMax = data.sunlightSettings.headingMax;
+				new_data.sunlightSettings.transitionTimeMin = data.sunlightSettings.transitionTimeMin;
+				new_data.sunlightSettings.transitionTimeMax = data.sunlightSettings.transitionTimeMax;
+				return true;
+			case SCRIPTABLE_EVENT_TRANSLATE:
+			case SCRIPTABLE_EVENT_ROTATE:
+				new_event.type = event.type == SCRIPTABLE_EVENT_TRANSLATE ? zonetool::s2::SCRIPTABLE_EVENT_TRANSLATE : zonetool::s2::SCRIPTABLE_EVENT_ROTATE;
+				static_assert(sizeof(new_data.translate) == sizeof(data.translate) && sizeof(new_data.rotate) == sizeof(data.rotate));
+				std::memcpy(&new_data.translate, &data.translate, sizeof(data.translate));
+				new_data.translate.transStateStreamIndex = streams.allocate(transform_stream_size);
 				return true;
 			case SCRIPTABLE_EVENT_SHAKE:
 				new_event.type = zonetool::s2::SCRIPTABLE_EVENT_SHAKE;

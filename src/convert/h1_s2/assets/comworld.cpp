@@ -28,7 +28,7 @@ namespace zonetool::h1::converter::s2::comworld
 		void convert_light(const ComPrimaryLight& light, zonetool::s2::ComPrimaryLight& new_light)
 		{
 			new_light.type = static_cast<std::uint8_t>(light.type);
-			new_light.unk_0x9C = -1;
+			new_light.iesProfileIndex = -1; // h1 lights have no ies profile
 			if (light.type == GFX_LIGHT_TYPE_NONE)
 			{
 				return;

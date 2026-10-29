@@ -3,14 +3,15 @@
 #include "../include.hpp"
 #include "fxeffectdef.hpp"
 #include "material.hpp"
+#include "techset.hpp"
 
 namespace zonetool::h1::converter::s2::fxeffectdef
 {
 	namespace
 	{
-		constexpr auto stock_unknown_range_base = 0.5f;
-		constexpr auto stock_unknown328 = 0.5f;
-		constexpr auto stock_unknown344 = 1.0f;
+		constexpr auto stock_external_velocity_scale = 1.0f;
+
+		std::unordered_set<std::string> dumped_effects;
 
 		static_assert(sizeof(FxElemVelStateInFrame) == sizeof(zonetool::s2::FxElemVelStateInFrame));
 
@@ -22,18 +23,6 @@ namespace zonetool::h1::converter::s2::fxeffectdef
 		int elem_count(const zonetool::s2::FxEffectDef* asset)
 		{
 			return asset->elemDefCountLooping + asset->elemDefCountOneShot + asset->elemDefCountEmission;
-		}
-
-		bool is_supported(const FxEffectDef* asset, const FxElemDef& elem)
-		{
-			// TODO: S2 has no stock spot light effect to verify FxSpotLightDef
-			if (elem.elemType == FX_ELEM_TYPE_SPOT_LIGHT)
-			{
-				ZONETOOL_WARNING("fx \"%s\": elem type %d has no S2 conversion, the elem is removed", asset->name, elem.elemType);
-				return false;
-			}
-
-			return true;
 		}
 
 		zonetool::s2::FxElemType convert_elem_type(const FxElemType type)
@@ -82,6 +71,8 @@ namespace zonetool::h1::converter::s2::fxeffectdef
 				result.vectorFieldName = visual.vectorFieldName;
 				break;
 			case FX_ELEM_TYPE_OMNI_LIGHT:
+				break;
+			case FX_ELEM_TYPE_SPOT_LIGHT: // a null light def makes s2 use its default one, h1 attenuation images have no s2 form
 				break;
 			default:
 				result.material = is_sprite(type) && visual.material
@@ -228,6 +219,24 @@ namespace zonetool::h1::converter::s2::fxeffectdef
 			return result;
 		}
 
+		zonetool::s2::FxSpotLightDef* convert_spot_light(const FxSpotLightDef* light, utils::memory::allocator& allocator)
+		{
+			const auto result = allocator.allocate<zonetool::s2::FxSpotLightDef>();
+			result->halfFovOuter = light->halfFovOuter;
+			result->halfFovInner = light->halfFovInner;
+			result->radius = light->radius;
+			result->brightness = light->brightness;
+			result->maxLength = light->maxLength;
+			result->exponent = light->exponent;
+			result->nearClip = light->nearClip;
+			result->bulbRadius = light->bulbRadius;
+			result->bulbLength = light->bulbLength;
+			result->fadeOffsetRt[0] = light->fadeOffsetRt[0];
+			result->fadeOffsetRt[1] = light->fadeOffsetRt[1];
+			result->name = "";
+			return result;
+		}
+
 		zonetool::s2::FxOmniLightDef* convert_omni_light(const FxOmniLightDef* light, utils::memory::allocator& allocator)
 		{
 			const auto result = allocator.allocate<zonetool::s2::FxOmniLightDef>();
@@ -278,6 +287,9 @@ namespace zonetool::h1::converter::s2::fxeffectdef
 			case FX_ELEM_TYPE_SPARK_FOUNTAIN:
 				result.sparkFountainDef = retype<zonetool::s2::FxSparkFountainDef>(elem.extended.sparkFountainDef);
 				break;
+			case FX_ELEM_TYPE_SPOT_LIGHT:
+				result.spotLightDef = convert_spot_light(elem.extended.spotLightDef, allocator);
+				break;
 			case FX_ELEM_TYPE_OMNI_LIGHT:
 				result.omniLightDef = convert_omni_light(elem.extended.omniLightDef, allocator);
 				break;
@@ -285,7 +297,7 @@ namespace zonetool::h1::converter::s2::fxeffectdef
 				result.flareDef = convert_flare(elem.extended.flareDef, allocator);
 				break;
 			default:
-				result.unknownBytes = elem.extended.unknownDef;
+				result.unknownDef = elem.extended.unknownDef;
 				break;
 			}
 
@@ -325,7 +337,8 @@ namespace zonetool::h1::converter::s2::fxeffectdef
 			result.initialRotation = convert_range(elem.initialRotation);
 			result.gravity = convert_range(elem.gravity);
 			result.reflectionFactor = convert_range(elem.reflectionFactor);
-			result.unknownRange.base = stock_unknown_range_base;
+			// s2 scales the tangential bounce by 1 - friction, h1 by reflection (same random value)
+			result.frictionFactor = {1.0f - elem.reflectionFactor.base, -elem.reflectionFactor.amplitude};
 			std::memcpy(&result.atlas, &elem.atlas, sizeof(result.atlas));
 			result.elemType = convert_elem_type(elem.elemType);
 			result.elemLitType = elem.elemLitType;
@@ -353,24 +366,19 @@ namespace zonetool::h1::converter::s2::fxeffectdef
 			result.shadowDensityScale = elem.shadowDensityScale;
 			result.scatterRatio = elem.scatterRatio;
 			result.volumetricTrailFadeStart = elem.volumetricTrailFadeStart;
-			result.unknown328 = stock_unknown328;
-			result.unknown344 = stock_unknown344;
+			result.externalVelocityScale = stock_external_velocity_scale;
 			result.name = "";
 		}
 
 		int convert_elems(const FxEffectDef* asset, const int first, const int count, zonetool::s2::FxElemDef* result,
 			utils::memory::allocator& allocator)
 		{
-			auto converted = 0;
-			for (auto i = first; i < first + count; i++)
+			for (auto i = 0; i < count; i++)
 			{
-				if (is_supported(asset, asset->elemDefs[i]))
-				{
-					convert_elem(asset->elemDefs[i], result[converted++], allocator);
-				}
+				convert_elem(asset->elemDefs[first + i], result[i], allocator);
 			}
 
-			return converted;
+			return count;
 		}
 
 		std::size_t string_size(const char* str)
@@ -433,6 +441,8 @@ namespace zonetool::h1::converter::s2::fxeffectdef
 					+ sizeof(unsigned short) * extended.trailDef->indCount;
 			case zonetool::s2::FX_ELEM_TYPE_SPARK_FOUNTAIN:
 				return sizeof(zonetool::s2::FxSparkFountainDef);
+			case zonetool::s2::FX_ELEM_TYPE_SPOT_LIGHT:
+				return sizeof(zonetool::s2::FxSpotLightDef) + string_size(extended.spotLightDef->name);
 			case zonetool::s2::FX_ELEM_TYPE_OMNI_LIGHT:
 				return sizeof(zonetool::s2::FxOmniLightDef) + string_size(extended.omniLightDef->name);
 			case zonetool::s2::FX_ELEM_TYPE_FLARE:
@@ -543,9 +553,38 @@ namespace zonetool::h1::converter::s2::fxeffectdef
 
 	void dump(FxEffectDef* asset)
 	{
+		if (!dumped_effects.insert(asset->name).second)
+		{
+			return;
+		}
+
 		utils::memory::allocator allocator;
 		const auto converted = convert(asset, allocator);
 		zonetool::s2::fx_effect_def::dump(converted);
 		add_csv_row(zonetool::s2::type_to_string(zonetool::s2::ASSET_TYPE_FX), asset->name);
+	}
+
+	bool dump_used(const char* name)
+	{
+		if (techset::is_stock_asset(zonetool::s2::ASSET_TYPE_FX, name))
+		{
+			add_csv_row(zonetool::s2::type_to_string(zonetool::s2::ASSET_TYPE_FX), name, true); // the s2 effect of the same name is used
+			return true;
+		}
+
+		auto* loaded = db_find_x_asset_header_safe(ASSET_TYPE_FX, name).fx;
+		if (!loaded)
+		{
+			ZONETOOL_WARNING("effect \"%s\" not found in the loaded h1 zones", name);
+			return false;
+		}
+
+		dump(loaded);
+		return true;
+	}
+
+	void clear()
+	{
+		dumped_effects.clear();
 	}
 }

@@ -99,11 +99,11 @@ namespace zonetool::s2
 				{
 					reader.read_string(fields[i].name);
 					reader.read_string(fields[i].typeName);
-					if (const auto values = reader.read_array(fields[i].values, 7, fields[i].valueCount))
+					if (const auto members = reader.read_array(fields[i].members, 7, fields[i].memberCount))
 					{
-						for (auto j = 0; j < fields[i].valueCount; j++)
+						for (auto j = 0; j < fields[i].memberCount; j++)
 						{
-							reader.read_string(values[j].name);
+							reader.read_string(members[j].name);
 						}
 					}
 					read_hash_table(reader, &fields[i].hashTable);
@@ -121,11 +121,11 @@ namespace zonetool::s2
 				{
 					fields[i].name = read.read_string();
 					fields[i].typeName = read.read_string();
-					if (const auto values = parse_array(read, mem, fields[i].values, fields[i].valueCount))
+					if (const auto members = parse_array(read, mem, fields[i].members, fields[i].memberCount))
 					{
-						for (auto j = 0; j < fields[i].valueCount; j++)
+						for (auto j = 0; j < fields[i].memberCount; j++)
 						{
-							values[j].name = read.read_string();
+							members[j].name = read.read_string();
 						}
 					}
 					parse_array(read, mem, fields[i].hashTable.list, fields[i].hashTable.count);
@@ -149,11 +149,11 @@ namespace zonetool::s2
 					auto* field = &event->fields[i];
 					write_string(buf, field->name, dest_fields[i].name);
 					write_string(buf, field->typeName, dest_fields[i].typeName);
-					if (const auto dest_values = write_array(buf, 7, field->values, field->valueCount, dest_fields[i].values))
+					if (const auto dest_members = write_array(buf, 7, field->members, field->memberCount, dest_fields[i].members))
 					{
-						for (auto j = 0; j < field->valueCount; j++)
+						for (auto j = 0; j < field->memberCount; j++)
 						{
-							write_string(buf, field->values[j].name, dest_values[j].name);
+							write_string(buf, field->members[j].name, dest_members[j].name);
 						}
 					}
 					write_hash_table(buf, &field->hashTable, &dest_fields[i].hashTable);
@@ -171,10 +171,10 @@ namespace zonetool::s2
 				auto* field = &event->fields[i];
 				write.dump_string(field->name);
 				write.dump_string(field->typeName);
-				write.dump_array(field->values, field->valueCount);
-				for (auto j = 0; field->values && j < field->valueCount; j++)
+				write.dump_array(field->members, field->memberCount);
+				for (auto j = 0; field->members && j < field->memberCount; j++)
 				{
-					write.dump_string(field->values[j].name);
+					write.dump_string(field->members[j].name);
 				}
 				write.dump_array(field->hashTable.list, field->hashTable.count);
 			}

@@ -106,7 +106,7 @@ namespace zonetool::s2
 				}
 				break;
 			default:
-				reader.read_single(extended.unknownBytes, 0);
+				reader.read_single(extended.unknownDef, 0);
 				break;
 			}
 		}
@@ -341,7 +341,7 @@ namespace zonetool::s2
 				break;
 			}
 			default:
-				write_inline(buf, 0, extended.unknownBytes, 1, dest->extended.unknownBytes);
+				write_inline(buf, 0, extended.unknownDef, 1, dest->extended.unknownDef);
 				break;
 			}
 		}
@@ -515,7 +515,7 @@ namespace zonetool::s2
 				}
 				break;
 			default:
-				write.dump_single(extended.unknownBytes);
+				write.dump_single(extended.unknownDef);
 				break;
 			}
 		}
@@ -561,7 +561,7 @@ namespace zonetool::s2
 				}
 				break;
 			default:
-				extended.unknownBytes = read.read_single<char>();
+				extended.unknownDef = read.read_single<char>();
 				break;
 			}
 		}

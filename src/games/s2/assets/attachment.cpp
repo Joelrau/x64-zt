@@ -19,25 +19,38 @@ namespace zonetool::s2
 			&WeaponAttachment::weaponType,
 			&WeaponAttachment::weapClass,
 			&WeaponAttachment::greebleType,
-			&WeaponAttachment::unknown32,
-			&WeaponAttachment::unknown36,
+			&WeaponAttachment::altModeMask,
 			json_reflect::counted(&WeaponAttachment::worldModels, world_model_count),
 			json_reflect::counted(&WeaponAttachment::viewModels, view_model_count),
 			json_reflect::counted(&WeaponAttachment::worldModelsAdditional, world_model_count),
 			json_reflect::counted(&WeaponAttachment::viewModelsAdditional, view_model_count),
 			json_reflect::counted(&WeaponAttachment::reticleViewModels, reticle_view_model_count),
-			json_reflect::manual("hybridSettings"),
+			json_reflect::nested(&WeaponAttachment::hybridSettings),
 			json_reflect::manual("fields"),
 			&WeaponAttachment::loadIndex,
 			&WeaponAttachment::adsSettingsMode,
 			&WeaponAttachment::adsSceneBlurStrength,
 			json_reflect::manual("knifeAttachTagOverride"),
-			&WeaponAttachment::unknown124,
+			&WeaponAttachment::hideIronSightsWithThisAttachment,
+			&WeaponAttachment::showIronSightsWithThisAttachment,
+			&WeaponAttachment::showMasterRail,
+			&WeaponAttachment::showSideRail,
+			&WeaponAttachment::shareAmmoWithAlt,
+			&WeaponAttachment::showOnlyInAltMode,
+			&WeaponAttachment::unknown130,
+			&WeaponAttachment::isAlternateAmmo,
+			&WeaponAttachment::transferAltAmmoOnDrop,
 			&WeaponAttachment::extendedMag,
-			&WeaponAttachment::unknown134,
+			&WeaponAttachment::altSwitchInHand,
+			&WeaponAttachment::hideInAltMode,
 			&WeaponAttachment::treatAsAltWeapon,
 			&WeaponAttachment::tacticalKnife,
-			&WeaponAttachment::unknown138,
+			&WeaponAttachment::useDualFOV,
+			&WeaponAttachment::riotShield,
+			&WeaponAttachment::adsSceneBlur,
+			&WeaponAttachment::automaticAttachment,
+			&WeaponAttachment::stripOnDrop,
+			&WeaponAttachment::showAltClipBullets,
 		};
 
 		constexpr json_reflect::options json_options{.strings = json_reflect::null_string::null};
@@ -176,36 +189,6 @@ namespace zonetool::s2
 				write_field_value(entry["value"], field);
 			}
 		}
-
-		void read_hybrid_settings(const json& data, WeaponAttachment& attachment, zone_memory* mem)
-		{
-			if (!data.is_array())
-			{
-				return;
-			}
-
-			attachment.hybridSettings = mem->allocate<AttHybridSettings>();
-			auto* bytes = reinterpret_cast<std::uint8_t*>(attachment.hybridSettings);
-			for (auto i = 0u; i < sizeof(AttHybridSettings) && i < data.size(); i++)
-			{
-				bytes[i] = data[i].get<std::uint8_t>();
-			}
-		}
-
-		void write_hybrid_settings(ordered_json& data, const WeaponAttachment& attachment)
-		{
-			if (!attachment.hybridSettings)
-			{
-				data = nullptr;
-				return;
-			}
-
-			const auto* bytes = reinterpret_cast<const std::uint8_t*>(attachment.hybridSettings);
-			for (auto i = 0u; i < sizeof(AttHybridSettings); i++)
-			{
-				data[i] = bytes[i];
-			}
-		}
 	}
 
 	void weapon_attachment::read(zone_reader& reader, WeaponAttachment* asset)
@@ -296,7 +279,6 @@ namespace zonetool::s2
 
 		auto* asset = mem->allocate<WeaponAttachment>();
 		json_reflect::read<attachment_fields>(data, *asset, mem, json_options);
-		read_hybrid_settings(data["hybridSettings"], *asset, mem);
 		read_fields(data["fields"], *asset, mem);
 		asset->knifeAttachTagOverride = parse_script_string(data["knifeAttachTagOverride"]);
 		return asset;
@@ -306,7 +288,6 @@ namespace zonetool::s2
 	{
 		ordered_json data;
 		json_reflect::write<attachment_fields>(data, *asset, json_options);
-		write_hybrid_settings(data["hybridSettings"], *asset);
 		write_fields(data["fields"], *asset);
 		dump_script_string(data["knifeAttachTagOverride"], asset->knifeAttachTagOverride);
 

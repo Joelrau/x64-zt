@@ -28,25 +28,25 @@ namespace zonetool::s2
 				break;
 			case SCRIPTABLE_EVENT_ANIMATION:
 			case SCRIPTABLE_EVENT_SHAKE:
-			case SCRIPTABLE_EVENT_STRING_15:
+			case SCRIPTABLE_EVENT_PLAYMAYHEM:
 				reader.read_string(data->string.name);
 				break;
 			case SCRIPTABLE_EVENT_LIGHTSETTINGS:
 				reader.read_string(data->lightSettings.noteworthy);
 				reader.read_asset(ASSET_TYPE_SPLINES, data->lightSettings.spline);
 				break;
-			case SCRIPTABLE_EVENT_LATE_SPLINE:
-				reader.read_asset(ASSET_TYPE_SPLINES, data->lateSpline.spline);
+			case SCRIPTABLE_EVENT_SUNLIGHTSETTINGS:
+				reader.read_asset(ASSET_TYPE_SPLINES, data->sunlightSettings.spline);
 				break;
-			case SCRIPTABLE_EVENT_LATE_STRING_12:
-			case SCRIPTABLE_EVENT_LATE_STRING_13:
-				reader.read_string(data->lateString.name);
+			case SCRIPTABLE_EVENT_TRANSLATE:
+			case SCRIPTABLE_EVENT_ROTATE:
+				reader.read_string(data->translate.noteworthy);
 				break;
-			case SCRIPTABLE_EVENT_MAYHEM:
+			case SCRIPTABLE_EVENT_SETMAYHEM:
 				reader.read_asset(ASSET_TYPE_MAYHEM, data->mayhem.mayhem);
 				break;
-			case SCRIPTABLE_EVENT_SPLINE:
-				reader.read_asset(ASSET_TYPE_SPLINES, data->spline.spline);
+			case SCRIPTABLE_EVENT_GRAVITYSETTINGS:
+				reader.read_asset(ASSET_TYPE_SPLINES, data->gravitySettings.spline);
 				break;
 			default:
 				break;
@@ -76,25 +76,25 @@ namespace zonetool::s2
 				break;
 			case SCRIPTABLE_EVENT_ANIMATION:
 			case SCRIPTABLE_EVENT_SHAKE:
-			case SCRIPTABLE_EVENT_STRING_15:
+			case SCRIPTABLE_EVENT_PLAYMAYHEM:
 				data->string.name = read.read_string();
 				break;
 			case SCRIPTABLE_EVENT_LIGHTSETTINGS:
 				data->lightSettings.noteworthy = read.read_string();
 				data->lightSettings.spline = read.read_asset<Spline>();
 				break;
-			case SCRIPTABLE_EVENT_LATE_SPLINE:
-				data->lateSpline.spline = read.read_asset<Spline>();
+			case SCRIPTABLE_EVENT_SUNLIGHTSETTINGS:
+				data->sunlightSettings.spline = read.read_asset<Spline>();
 				break;
-			case SCRIPTABLE_EVENT_LATE_STRING_12:
-			case SCRIPTABLE_EVENT_LATE_STRING_13:
-				data->lateString.name = read.read_string();
+			case SCRIPTABLE_EVENT_TRANSLATE:
+			case SCRIPTABLE_EVENT_ROTATE:
+				data->translate.noteworthy = read.read_string();
 				break;
-			case SCRIPTABLE_EVENT_MAYHEM:
+			case SCRIPTABLE_EVENT_SETMAYHEM:
 				data->mayhem.mayhem = read.read_asset<Mayhem>();
 				break;
-			case SCRIPTABLE_EVENT_SPLINE:
-				data->spline.spline = read.read_asset<Spline>();
+			case SCRIPTABLE_EVENT_GRAVITYSETTINGS:
+				data->gravitySettings.spline = read.read_asset<Spline>();
 				break;
 			default:
 				break;
@@ -124,25 +124,25 @@ namespace zonetool::s2
 				break;
 			case SCRIPTABLE_EVENT_ANIMATION:
 			case SCRIPTABLE_EVENT_SHAKE:
-			case SCRIPTABLE_EVENT_STRING_15:
+			case SCRIPTABLE_EVENT_PLAYMAYHEM:
 				write_string(buf, data->string.name, dest_data->string.name);
 				break;
 			case SCRIPTABLE_EVENT_LIGHTSETTINGS:
 				write_string(buf, data->lightSettings.noteworthy, dest_data->lightSettings.noteworthy);
 				dest_data->lightSettings.spline = asset_reference(zone, ASSET_TYPE_SPLINES, data->lightSettings.spline);
 				break;
-			case SCRIPTABLE_EVENT_LATE_SPLINE:
-				dest_data->lateSpline.spline = asset_reference(zone, ASSET_TYPE_SPLINES, data->lateSpline.spline);
+			case SCRIPTABLE_EVENT_SUNLIGHTSETTINGS:
+				dest_data->sunlightSettings.spline = asset_reference(zone, ASSET_TYPE_SPLINES, data->sunlightSettings.spline);
 				break;
-			case SCRIPTABLE_EVENT_LATE_STRING_12:
-			case SCRIPTABLE_EVENT_LATE_STRING_13:
-				write_string(buf, data->lateString.name, dest_data->lateString.name);
+			case SCRIPTABLE_EVENT_TRANSLATE:
+			case SCRIPTABLE_EVENT_ROTATE:
+				write_string(buf, data->translate.noteworthy, dest_data->translate.noteworthy);
 				break;
-			case SCRIPTABLE_EVENT_MAYHEM:
+			case SCRIPTABLE_EVENT_SETMAYHEM:
 				dest_data->mayhem.mayhem = asset_reference(zone, ASSET_TYPE_MAYHEM, data->mayhem.mayhem);
 				break;
-			case SCRIPTABLE_EVENT_SPLINE:
-				dest_data->spline.spline = asset_reference(zone, ASSET_TYPE_SPLINES, data->spline.spline);
+			case SCRIPTABLE_EVENT_GRAVITYSETTINGS:
+				dest_data->gravitySettings.spline = asset_reference(zone, ASSET_TYPE_SPLINES, data->gravitySettings.spline);
 				break;
 			default:
 				break;
@@ -172,25 +172,25 @@ namespace zonetool::s2
 				break;
 			case SCRIPTABLE_EVENT_ANIMATION:
 			case SCRIPTABLE_EVENT_SHAKE:
-			case SCRIPTABLE_EVENT_STRING_15:
+			case SCRIPTABLE_EVENT_PLAYMAYHEM:
 				write.dump_string(data->string.name);
 				break;
 			case SCRIPTABLE_EVENT_LIGHTSETTINGS:
 				write.dump_string(data->lightSettings.noteworthy);
 				write.dump_asset(data->lightSettings.spline);
 				break;
-			case SCRIPTABLE_EVENT_LATE_SPLINE:
-				write.dump_asset(data->lateSpline.spline);
+			case SCRIPTABLE_EVENT_SUNLIGHTSETTINGS:
+				write.dump_asset(data->sunlightSettings.spline);
 				break;
-			case SCRIPTABLE_EVENT_LATE_STRING_12:
-			case SCRIPTABLE_EVENT_LATE_STRING_13:
-				write.dump_string(data->lateString.name);
+			case SCRIPTABLE_EVENT_TRANSLATE:
+			case SCRIPTABLE_EVENT_ROTATE:
+				write.dump_string(data->translate.noteworthy);
 				break;
-			case SCRIPTABLE_EVENT_MAYHEM:
+			case SCRIPTABLE_EVENT_SETMAYHEM:
 				write.dump_asset(data->mayhem.mayhem);
 				break;
-			case SCRIPTABLE_EVENT_SPLINE:
-				write.dump_asset(data->spline.spline);
+			case SCRIPTABLE_EVENT_GRAVITYSETTINGS:
+				write.dump_asset(data->gravitySettings.spline);
 				break;
 			default:
 				break;
@@ -219,14 +219,14 @@ namespace zonetool::s2
 			case SCRIPTABLE_EVENT_LIGHTSETTINGS:
 				add_dependency(zone, ASSET_TYPE_SPLINES, data->lightSettings.spline);
 				break;
-			case SCRIPTABLE_EVENT_LATE_SPLINE:
-				add_dependency(zone, ASSET_TYPE_SPLINES, data->lateSpline.spline);
+			case SCRIPTABLE_EVENT_SUNLIGHTSETTINGS:
+				add_dependency(zone, ASSET_TYPE_SPLINES, data->sunlightSettings.spline);
 				break;
-			case SCRIPTABLE_EVENT_MAYHEM:
+			case SCRIPTABLE_EVENT_SETMAYHEM:
 				add_dependency(zone, ASSET_TYPE_MAYHEM, data->mayhem.mayhem);
 				break;
-			case SCRIPTABLE_EVENT_SPLINE:
-				add_dependency(zone, ASSET_TYPE_SPLINES, data->spline.spline);
+			case SCRIPTABLE_EVENT_GRAVITYSETTINGS:
+				add_dependency(zone, ASSET_TYPE_SPLINES, data->gravitySettings.spline);
 				break;
 			default:
 				break;
