@@ -13,7 +13,7 @@ namespace zonetool::h1::converter::s2::comworld
 
 		void convert_up(const ComPrimaryLight& light, float* up)
 		{
-			// s2 builds the shadow view from dir and up, a light without an up gets the stock 0 1 0 (1 0 0 along y)
+			// s2 builds the shadow view from dir and up, stock up is 0 1 0 (1 0 0 along y)
 			const float cross[3]{light.dir[1] * light.up[2] - light.dir[2] * light.up[1], light.dir[2] * light.up[0] - light.dir[0] * light.up[2],
 				light.dir[0] * light.up[1] - light.dir[1] * light.up[0]};
 			const auto local = light.type == GFX_LIGHT_TYPE_SPOT || light.type == GFX_LIGHT_TYPE_OMNI;
@@ -101,6 +101,19 @@ namespace zonetool::h1::converter::s2::comworld
 	const ComWorld* source_world()
 	{
 		return pending_world;
+	}
+
+	std::vector<std::uint16_t> env_light_indices(const ComWorld& com_world, const ComPrimaryLightEnv& env)
+	{
+		std::vector<std::uint16_t> lights;
+		for (auto i = 0u; i < std::min<std::uint32_t>(env.numIndices, 4); i++)
+		{
+			if (env.primaryLightIndices[i] < com_world.primaryLightCount)
+			{
+				lights.push_back(env.primaryLightIndices[i]);
+			}
+		}
+		return lights;
 	}
 
 	void finish()

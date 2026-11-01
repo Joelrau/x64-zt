@@ -2,8 +2,8 @@
 
 #include "../include.hpp"
 #include "scriptable.hpp"
+#include "common/stock_zone.hpp"
 #include "sound.hpp"
-#include "techset.hpp"
 #include "xanim.hpp"
 
 namespace zonetool::h1::converter::s2::scriptable
@@ -191,7 +191,7 @@ namespace zonetool::h1::converter::s2::scriptable
 
 				new_data.sunlightSettings.transStateStreamIndex = streams.allocate(sunlight_stream_size);
 				new_data.sunlightSettings.flags = data.sunlightSettings.flags;
-				// s2 multiplies the intensity by a cg scale that stays 0.001 * 1000, so h1's absolute values carry over
+				// s2 scales the intensity by 0.001 * 1000, so the h1 values carry over
 				new_data.sunlightSettings.intensityScaleMin = data.sunlightSettings.intensityScaleMin;
 				new_data.sunlightSettings.intensityScaleMax = data.sunlightSettings.intensityScaleMax;
 				new_data.sunlightSettings.pitchMin = data.sunlightSettings.pitchMin;
@@ -464,13 +464,13 @@ namespace zonetool::h1::converter::s2::scriptable
 
 	void finish()
 	{
-		// s2 finds the map anims in the "destructibles" tree, so the anims it lacks go into a copy of that tree
+		// s2 looks map anims up in the "destructibles" tree, so missing ones go into a copy of it
 		if (map_anims.empty())
 		{
 			return;
 		}
 
-		const auto& common = techset::common_rawfiles();
+		const auto& common = stock_zone::common_rawfiles();
 		const auto stock_tree = common.find(std::string(anim_tree_name));
 		auto tree = stock_tree != common.end() ? stock_tree->second : std::string{};
 		if (tree.empty())

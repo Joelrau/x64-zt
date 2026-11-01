@@ -2,8 +2,8 @@
 
 #include "../include.hpp"
 #include "rawfile.hpp"
+#include "common/stock_zone.hpp"
 #include "scriptfile.hpp"
-#include "techset.hpp"
 
 #include <utils/compression.hpp>
 
@@ -132,7 +132,7 @@ namespace zonetool::h1::converter::s2::rawfile
 		const auto is_gsc = name.ends_with(".gsc");
 
 		// a map zone cannot replace a common_mp vision, s2x reads override/<name> first
-		const auto out_name = is_vision && techset::common_rawfiles().contains(name) ? "override/" + name : name;
+		const auto out_name = is_vision && stock_zone::common_rawfiles().contains(name) ? "override/" + name : name;
 		if (is_sun || is_vision || is_gsc)
 		{
 			const auto text = is_gsc ? scriptfile::patch(name, read_rawfile(*asset)) : convert_dvar_file(*asset, is_sun ? s2_sun_dvar_ids : s2_vision_dvar_ids);

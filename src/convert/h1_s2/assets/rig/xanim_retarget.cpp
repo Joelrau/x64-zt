@@ -12,19 +12,15 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 
 		constexpr auto arm_rig_model = "viewmodel_base_viewhands";
 		constexpr auto s2_arm_root = "j_mainroot";
-		constexpr auto body_tag = "tag_torso";
 		constexpr std::array sides{"le", "ri"};
 		constexpr std::array fingers{"index", "mid", "ring", "pinky", "thumb"};
+		constexpr std::array thumb_web_fingers{"index", "thumb"};
 		constexpr auto finger_joints = 3;
 		constexpr auto h1_first_finger_joint = 0;
 		constexpr auto s2_first_finger_joint = 1;
-		constexpr auto epsilon = 0.0001f;
 		constexpr auto retarget_memory_size = 16ull * 1024 * 1024;
 
-		using bone_rig::compose;
-		using bone_rig::invert;
-		using bone_rig::skeleton;
-		using bone_rig::transform;
+		using namespace bone_rig;
 
 		struct arm_rigs
 		{
@@ -38,142 +34,8 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 			int s2_body;
 		};
 
-		struct arm_pose
-		{
-			cs::vec3_t elbow;
-			cs::vec3_t wrist;
-			cs::vec3_t normal;
-		};
-
-		struct bone_keys
-		{
-			std::vector<std::pair<std::uint32_t, cs::quat_t>> rotation;
-			std::vector<std::pair<std::uint32_t, cs::vec3_t>> translation;
-		};
-
 		std::optional<arm_rigs> loaded_rigs;
 		bool rigs_attempted = false;
-
-		cs::vec3_t add(const cs::vec3_t& a, const cs::vec3_t& b)
-		{
-			return {{a.v[0] + b.v[0], a.v[1] + b.v[1], a.v[2] + b.v[2]}};
-		}
-
-		cs::vec3_t sub(const cs::vec3_t& a, const cs::vec3_t& b)
-		{
-			return {{a.v[0] - b.v[0], a.v[1] - b.v[1], a.v[2] - b.v[2]}};
-		}
-
-		cs::vec3_t scale(const cs::vec3_t& a, const float s)
-		{
-			return {{a.v[0] * s, a.v[1] * s, a.v[2] * s}};
-		}
-
-		float dot(const cs::vec3_t& a, const cs::vec3_t& b)
-		{
-			return a.v[0] * b.v[0] + a.v[1] * b.v[1] + a.v[2] * b.v[2];
-		}
-
-		cs::vec3_t cross(const cs::vec3_t& a, const cs::vec3_t& b)
-		{
-			return {{a.v[1] * b.v[2] - a.v[2] * b.v[1], a.v[2] * b.v[0] - a.v[0] * b.v[2], a.v[0] * b.v[1] - a.v[1] * b.v[0]}};
-		}
-
-		float length(const cs::vec3_t& a)
-		{
-			return std::sqrt(dot(a, a));
-		}
-
-		cs::vec3_t normalize(const cs::vec3_t& a)
-		{
-			const auto len = length(a);
-			return len > epsilon ? scale(a, 1.0f / len) : cs::vec3_t{};
-		}
-
-		cs::vec3_t lerp(const cs::vec3_t& a, const cs::vec3_t& b, const float t)
-		{
-			return add(a, scale(sub(b, a), t));
-		}
-
-		cs::quat_t inverse(const cs::quat_t& q)
-		{
-			return cs::quat_conjugate(q);
-		}
-
-		cs::quat_t multiply(const cs::quat_t& a, const cs::quat_t& b)
-		{
-			return cs::quat_normalize(cs::quat_multiply(a, b));
-		}
-
-		cs::vec3_t to_world(const transform& space, const cs::vec3_t& point)
-		{
-			return add(space.position, cs::quat_rotate(space.rotation, point));
-		}
-
-		cs::vec3_t to_local(const transform& space, const cs::vec3_t& point)
-		{
-			return cs::quat_rotate(inverse(space.rotation), sub(point, space.position));
-		}
-
-		cs::quat_t quat_from_axes(const cs::vec3_t& x, const cs::vec3_t& y, const cs::vec3_t& z)
-		{
-			cs::quat_t q{};
-			const auto trace = x.v[0] + y.v[1] + z.v[2];
-			if (trace > 0.0f)
-			{
-				const auto s = std::sqrt(trace + 1.0f) * 2.0f;
-				q = {{(y.v[2] - z.v[1]) / s, (z.v[0] - x.v[2]) / s, (x.v[1] - y.v[0]) / s, 0.25f * s}};
-			}
-			else if (x.v[0] > y.v[1] && x.v[0] > z.v[2])
-			{
-				const auto s = std::sqrt(1.0f + x.v[0] - y.v[1] - z.v[2]) * 2.0f;
-				q = {{0.25f * s, (y.v[0] + x.v[1]) / s, (z.v[0] + x.v[2]) / s, (y.v[2] - z.v[1]) / s}};
-			}
-			else if (y.v[1] > z.v[2])
-			{
-				const auto s = std::sqrt(1.0f + y.v[1] - x.v[0] - z.v[2]) * 2.0f;
-				q = {{(y.v[0] + x.v[1]) / s, 0.25f * s, (z.v[1] + y.v[2]) / s, (z.v[0] - x.v[2]) / s}};
-			}
-			else
-			{
-				const auto s = std::sqrt(1.0f + z.v[2] - x.v[0] - y.v[1]) * 2.0f;
-				q = {{(z.v[0] + x.v[2]) / s, (z.v[1] + y.v[2]) / s, 0.25f * s, (x.v[1] - y.v[0]) / s}};
-			}
-
-			return cs::quat_normalize(q);
-		}
-
-		cs::quat_t frame_rotation(const cs::vec3_t& aim, const cs::vec3_t& up)
-		{
-			const auto x = normalize(aim);
-			const auto z = normalize(sub(up, scale(x, dot(up, x))));
-			return quat_from_axes(x, cross(z, x), z);
-		}
-
-		cs::quat_t rotation_between(const cs::vec3_t& from, const cs::vec3_t& to)
-		{
-			const auto a = normalize(from);
-			const auto b = normalize(to);
-			const auto axis = cross(a, b);
-			return cs::quat_normalize({{axis.v[0], axis.v[1], axis.v[2], 1.0f + dot(a, b)}});
-		}
-
-		cs::quat_t twist_about(const cs::quat_t& q, const cs::vec3_t& axis)
-		{
-			const auto projected = scale(axis, dot({{q.v[0], q.v[1], q.v[2]}}, axis));
-			const cs::quat_t twist{{projected.v[0], projected.v[1], projected.v[2], q.v[3]}};
-			return cs::quat_dot(twist, twist) > epsilon ? cs::quat_normalize(twist) : cs::quat_t{};
-		}
-
-		cs::vec3_t bend_normal(const cs::vec3_t& shoulder, const cs::vec3_t& elbow, const cs::vec3_t& wrist)
-		{
-			return normalize(cross(sub(elbow, shoulder), sub(wrist, elbow)));
-		}
-
-		std::string side_bone(const char* name, const char* side)
-		{
-			return std::format("j_{}_{}", name, side);
-		}
 
 		std::string finger_bone(const char* finger, const char* side, const int joint)
 		{
@@ -382,89 +244,6 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 			return loaded_rigs ? &*loaded_rigs : nullptr;
 		}
 
-		std::unordered_map<std::string, bone_keys> collect_keys(const cs::animation_t& animation)
-		{
-			std::unordered_map<std::string, bone_keys> keys;
-			for (const auto& curve : animation.curves)
-			{
-				auto& bone = keys[curve.node_name];
-				for (auto i = 0u; i < curve.key_frames.size(); i++)
-				{
-					const auto frame = curve.key_frames[i];
-					if (curve.property == "rq")
-					{
-						const auto* value = &curve.key_values[i * 4];
-						bone.rotation.emplace_back(frame, cs::quat_normalize({{value[0], value[1], value[2], value[3]}}));
-						continue;
-					}
-
-					const auto axis = static_cast<std::size_t>(curve.property[1] - 'x');
-					if (bone.translation.size() <= i)
-					{
-						bone.translation.resize(i + 1, {frame, {}});
-					}
-
-					bone.translation[i].second.v[axis] = curve.key_values[i];
-				}
-			}
-
-			return keys;
-		}
-
-		template <typename T, typename Blend>
-		T sample(const std::vector<std::pair<std::uint32_t, T>>& keys, const std::uint32_t frame, const Blend& blend)
-		{
-			if (keys.size() == 1 || frame <= keys.front().first)
-			{
-				return keys.front().second;
-			}
-
-			for (auto i = 1u; i < keys.size(); i++)
-			{
-				if (frame <= keys[i].first)
-				{
-					const auto span = static_cast<float>(keys[i].first - keys[i - 1].first);
-					return blend(keys[i - 1].second, keys[i].second, span > 0.0f ? static_cast<float>(frame - keys[i - 1].first) / span : 0.0f);
-				}
-			}
-
-			return keys.back().second;
-		}
-
-		transform sample_local(const std::unordered_map<std::string, bone_keys>& keys, const std::string& name, const transform& bind,
-			const std::uint32_t frame)
-		{
-			auto local = bind;
-			const auto found = keys.find(name);
-			if (found == keys.end())
-			{
-				return local;
-			}
-
-			if (!found->second.rotation.empty())
-			{
-				local.rotation = cs::quat_normalize(sample(found->second.rotation, frame, cs::quat_slerp));
-			}
-
-			if (!found->second.translation.empty())
-			{
-				local.position = sample(found->second.translation, frame, lerp);
-			}
-
-			return local;
-		}
-
-		std::vector<transform> forward_kinematics(const skeleton& rig, const std::vector<transform>& locals)
-		{
-			std::vector<transform> world(locals.size());
-			for (auto i = 0u; i < locals.size(); i++)
-			{
-				world[i] = rig.parents[i] < 0 ? locals[i] : compose(world[rig.parents[i]], locals[i]);
-			}
-
-			return world;
-		}
-
 		class arm_solver
 		{
 		public:
@@ -491,7 +270,7 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 				std::vector<transform> h1_locals(h1.names.size());
 				for (auto i = 0u; i < h1.names.size(); i++)
 				{
-					h1_locals[i] = sample_local(this->keys_, h1.names[i], h1.bind_local[i], frame);
+					h1_locals[i] = sample_local(this->keys_, h1.names[i], h1.pose_local[i], frame);
 				}
 
 				this->h1_world_ = forward_kinematics(h1, h1_locals);
@@ -509,7 +288,7 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 					}
 					else
 					{
-						this->s2_world_[i] = compose(parent, s2.bind_local[i]);
+						this->s2_world_[i] = compose(parent, s2.pose_local[i]); // arm bones are solved below, the rest is not written and keeps the game pose
 					}
 				}
 
@@ -623,7 +402,7 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 
 				if (side && name == side_bone("wrist", side))
 				{
-					return {this->s2_rotation(bone, this->h1_anatomy(h1).rotation), this->h1_world_[h1].position};
+					return {this->s2_rotation(bone, this->h1_anatomy(h1).rotation), this->arms_.at(side).hand};
 				}
 
 				return this->solve_finger_or_tag(bone, h1);
@@ -669,19 +448,36 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 					last_normal = normal;
 				}
 
-				const auto reach = sub(h1_wrist, start);
-				const auto direction = normalize(reach);
-				const auto distance = std::clamp(length(reach), std::abs(upper - lower) + epsilon, upper + lower - epsilon);
-				const auto normal = normalize(sub(last_normal, scale(direction, dot(last_normal, direction))));
-				const auto bend = cross(direction, normal);
-				const auto cos_angle = std::clamp((upper * upper + distance * distance - lower * lower) / (2.0f * upper * distance), -1.0f, 1.0f);
-				const auto sin_angle = std::sqrt(1.0f - cos_angle * cos_angle);
-
 				auto& arm = this->arms_[side];
-				arm.elbow = add(start, scale(add(scale(direction, cos_angle), scale(bend, sin_angle)), upper));
-				arm.wrist = add(start, scale(direction, distance));
-				arm.normal = normal;
-				return {this->s2_rotation(shoulder, frame_rotation(sub(arm.elbow, start), normal)), start};
+				arm = solve_two_bone(start, this->hand_position(side), upper, lower, last_normal);
+				return {this->s2_rotation(shoulder, frame_rotation(sub(arm.elbow, start), arm.normal)), start};
+			}
+
+			cs::vec3_t hand_position(const char* side) const
+			{
+				const auto& h1 = this->rigs_.h1;
+				const auto& s2 = this->rigs_.s2;
+				const auto h1_wrist = h1.find(side_bone("wrist", side));
+				const auto s2_wrist = s2.find(side_bone("wrist", side));
+
+				cs::vec3_t h1_web{};
+				cs::vec3_t s2_web{};
+				for (const auto* finger : thumb_web_fingers)
+				{
+					const auto h1_joint = h1.find(finger_bone(finger, side, h1_first_finger_joint));
+					const auto s2_joint = s2.find(finger_bone(finger, side, s2_first_finger_joint));
+					if (h1_joint < 0 || s2_joint < 0)
+					{
+						return this->h1_world_[h1_wrist].position;
+					}
+
+					h1_web = add(h1_web, this->h1_world_[h1_joint].position);
+					s2_web = add(s2_web, to_local(s2.bind_world[s2_wrist], s2.bind_world[s2_joint].position));
+				}
+
+				const auto rotation = this->s2_rotation(s2_wrist, this->h1_anatomy(h1_wrist).rotation);
+				const auto weight = 1.0f / static_cast<float>(thumb_web_fingers.size());
+				return sub(scale(h1_web, weight), cs::quat_rotate(rotation, scale(s2_web, weight))); // the s2 hand is smaller than the h1 hand, so its thumb web takes the h1 grip instead of its wrist
 			}
 
 			transform solve_elbow(const int elbow, const char* side) const
@@ -782,32 +578,6 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 			return poses;
 		}
 
-		void add_bone_curves(std::vector<cs::curve_t>& curves, const std::string& name, const std::vector<std::vector<transform>>& poses,
-			const int bone)
-		{
-			cs::curve_t rotation{.node_name = name, .property = "rq", .components = 4};
-			std::array<cs::curve_t, 3> translation{};
-			for (auto axis = 0; axis < 3; axis++)
-			{
-				translation[axis] = {.node_name = name, .property = std::string("t") + "xyz"[axis]};
-			}
-
-			for (auto frame = 0u; frame < poses.size(); frame++)
-			{
-				const auto& local = poses[frame][bone];
-				rotation.key_frames.emplace_back(frame);
-				rotation.key_values.insert(rotation.key_values.end(), std::begin(local.rotation.v), std::end(local.rotation.v));
-				for (auto axis = 0; axis < 3; axis++)
-				{
-					translation[axis].key_frames.emplace_back(frame);
-					translation[axis].key_values.emplace_back(local.position.v[axis]);
-				}
-			}
-
-			curves.emplace_back(std::move(rotation));
-			std::ranges::move(translation, std::back_inserter(curves));
-		}
-
 		cs::animation_t retarget_animation(const cs::animation_t& animation, const arm_rigs& rigs, const std::uint32_t last_frame)
 		{
 			const auto& s2 = rigs.s2;
@@ -816,6 +586,11 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 
 			const auto written = [&](const int bone)
 			{
+				if (rigs.s2_arm_bones[bone] && s2.names[bone].starts_with("tag_") && !keys.contains(s2.names[bone]))
+				{
+					return false; // s2 rig tag bind matrices are unusable, so unkeyed tags keep the s2 model pose
+				}
+
 				return rigs.s2_arm_bones[bone] || shared_bones[bone];
 			};
 
@@ -906,6 +681,12 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 
 		copy_bone_data(retargeted, parts);
 		return true;
+	}
+
+	const bone_rig::skeleton* s2_arm_rig()
+	{
+		const auto* rigs = get_rigs();
+		return rigs ? &rigs->s2 : nullptr;
 	}
 
 	void clear()

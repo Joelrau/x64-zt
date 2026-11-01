@@ -7,8 +7,8 @@ namespace zonetool::s2
 {
 	namespace
 	{
-		constexpr std::size_t world_model_count = 2;
-		constexpr std::size_t view_model_count = 12;
+		constexpr std::size_t model_count = 2;
+		constexpr std::size_t variant_model_count = 12;
 		constexpr std::size_t reticle_view_model_count = 255;
 
 		constexpr auto attachment_fields = glz::tuple
@@ -20,10 +20,10 @@ namespace zonetool::s2
 			&WeaponAttachment::weapClass,
 			&WeaponAttachment::greebleType,
 			&WeaponAttachment::altModeMask,
-			json_reflect::counted(&WeaponAttachment::worldModels, world_model_count),
-			json_reflect::counted(&WeaponAttachment::viewModels, view_model_count),
-			json_reflect::counted(&WeaponAttachment::worldModelsAdditional, world_model_count),
-			json_reflect::counted(&WeaponAttachment::viewModelsAdditional, view_model_count),
+			json_reflect::counted(&WeaponAttachment::worldModels, model_count),
+			json_reflect::counted(&WeaponAttachment::worldModelVariants, variant_model_count),
+			json_reflect::counted(&WeaponAttachment::viewModels, model_count),
+			json_reflect::counted(&WeaponAttachment::viewModelVariants, variant_model_count),
 			json_reflect::counted(&WeaponAttachment::reticleViewModels, reticle_view_model_count),
 			json_reflect::nested(&WeaponAttachment::hybridSettings),
 			json_reflect::manual("fields"),
@@ -196,10 +196,10 @@ namespace zonetool::s2
 		reader.push_stream(XFILE_BLOCK_VIRTUAL);
 		reader.read_string(asset->szInternalName);
 		reader.read_string(asset->szDisplayName);
-		reader.read_asset_array(ASSET_TYPE_XMODEL, asset->worldModels, world_model_count);
-		reader.read_asset_array(ASSET_TYPE_XMODEL, asset->viewModels, view_model_count);
-		reader.read_asset_array(ASSET_TYPE_XMODEL, asset->worldModelsAdditional, world_model_count);
-		reader.read_asset_array(ASSET_TYPE_XMODEL, asset->viewModelsAdditional, view_model_count);
+		reader.read_asset_array(ASSET_TYPE_XMODEL, asset->worldModels, model_count);
+		reader.read_asset_array(ASSET_TYPE_XMODEL, asset->worldModelVariants, variant_model_count);
+		reader.read_asset_array(ASSET_TYPE_XMODEL, asset->viewModels, model_count);
+		reader.read_asset_array(ASSET_TYPE_XMODEL, asset->viewModelVariants, variant_model_count);
 		reader.read_asset_array(ASSET_TYPE_XMODEL, asset->reticleViewModels, reticle_view_model_count);
 		reader.read_script_string(asset->knifeAttachTagOverride);
 		reader.read_array(asset->hybridSettings, 3);
@@ -226,10 +226,10 @@ namespace zonetool::s2
 	void weapon_attachment::load_depending(zone_base* zone)
 	{
 		auto* data = this->asset_;
-		add_dependencies(zone, ASSET_TYPE_XMODEL, data->worldModels, world_model_count);
-		add_dependencies(zone, ASSET_TYPE_XMODEL, data->viewModels, view_model_count);
-		add_dependencies(zone, ASSET_TYPE_XMODEL, data->worldModelsAdditional, world_model_count);
-		add_dependencies(zone, ASSET_TYPE_XMODEL, data->viewModelsAdditional, view_model_count);
+		add_dependencies(zone, ASSET_TYPE_XMODEL, data->worldModels, model_count);
+		add_dependencies(zone, ASSET_TYPE_XMODEL, data->worldModelVariants, variant_model_count);
+		add_dependencies(zone, ASSET_TYPE_XMODEL, data->viewModels, model_count);
+		add_dependencies(zone, ASSET_TYPE_XMODEL, data->viewModelVariants, variant_model_count);
 		add_dependencies(zone, ASSET_TYPE_XMODEL, data->reticleViewModels, reticle_view_model_count);
 	}
 
@@ -242,10 +242,10 @@ namespace zonetool::s2
 
 		dest->szInternalName = this->write_name(buf);
 		write_string(buf, data->szDisplayName, dest->szDisplayName);
-		write_asset_array(zone, buf, ASSET_TYPE_XMODEL, data->worldModels, world_model_count, dest->worldModels);
-		write_asset_array(zone, buf, ASSET_TYPE_XMODEL, data->viewModels, view_model_count, dest->viewModels);
-		write_asset_array(zone, buf, ASSET_TYPE_XMODEL, data->worldModelsAdditional, world_model_count, dest->worldModelsAdditional);
-		write_asset_array(zone, buf, ASSET_TYPE_XMODEL, data->viewModelsAdditional, view_model_count, dest->viewModelsAdditional);
+		write_asset_array(zone, buf, ASSET_TYPE_XMODEL, data->worldModels, model_count, dest->worldModels);
+		write_asset_array(zone, buf, ASSET_TYPE_XMODEL, data->worldModelVariants, variant_model_count, dest->worldModelVariants);
+		write_asset_array(zone, buf, ASSET_TYPE_XMODEL, data->viewModels, model_count, dest->viewModels);
+		write_asset_array(zone, buf, ASSET_TYPE_XMODEL, data->viewModelVariants, variant_model_count, dest->viewModelVariants);
 		write_asset_array(zone, buf, ASSET_TYPE_XMODEL, data->reticleViewModels, reticle_view_model_count, dest->reticleViewModels);
 		write_array(buf, 3, data->hybridSettings, 1, dest->hybridSettings);
 		write_array(buf, 1, data->fieldOffsets, data->fieldCount, dest->fieldOffsets);

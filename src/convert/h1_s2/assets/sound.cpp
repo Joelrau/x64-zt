@@ -2,8 +2,8 @@
 
 #include "../include.hpp"
 #include "sound.hpp"
+#include "common/stock_zone.hpp"
 #include "loadedsound.hpp"
-#include "techset.hpp"
 
 namespace zonetool::h1::converter::s2::sound
 {
@@ -373,7 +373,7 @@ namespace zonetool::h1::converter::s2::sound
 
 		bool is_common_curve(const zonetool::s2::XAssetType type, const char* name)
 		{
-			return std::ranges::any_of(techset::common_zone().find_assets(type), [&](void* header)
+			return std::ranges::any_of(stock_zone::common_zone().find_assets(type), [&](void* header)
 			{
 				return std::strcmp(static_cast<zonetool::s2::SndCurve*>(header)->name, name) == 0;
 			});

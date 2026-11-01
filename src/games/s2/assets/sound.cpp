@@ -391,6 +391,14 @@ namespace zonetool::s2
 				}
 			}
 
+			for (const auto* linked : {alias.secondaryAliasName, alias.chainAliasName})
+			{
+				if (linked && *linked)
+				{
+					zone->add_asset_of_type(ASSET_TYPE_SOUND, linked); // the game plays secondary and chain aliases by name
+				}
+			}
+
 			add_dependency(zone, ASSET_TYPE_SOUND_CONTEXT, alias.sndContext);
 			add_dependency(zone, ASSET_TYPE_SOUND_CURVE, alias.volumeFalloffCurve);
 			add_dependency(zone, ASSET_TYPE_DIST_CURVE, alias.lpfCurve);

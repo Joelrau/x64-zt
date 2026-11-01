@@ -1146,7 +1146,10 @@ namespace zonetool::s2
 			anims = mem->allocate<XAnimParts*>(xanim_count);
 			for (const auto& [name, anim] : data.items())
 			{
-				json_reflect::read(anim, anims[anim_index(name)], mem);
+				if (!anim.is_null())
+				{
+					json_reflect::read(anim, anims[anim_index(name)], mem);
+				}
 			}
 		}
 
@@ -1161,10 +1164,7 @@ namespace zonetool::s2
 			data = ordered_json::object();
 			for (auto i = 0u; i < xanim_count; i++)
 			{
-				if (anims[i])
-				{
-					json_reflect::write(data[anim_names[i]], anims[i]);
-				}
+				json_reflect::write(data[anim_names[i]], anims[i]); // every slot is listed, unused ones as ""
 			}
 		}
 
@@ -1718,6 +1718,18 @@ namespace zonetool::s2
 			dest->projIgnitionEffect = asset_reference(zone, ASSET_TYPE_FX, data->projIgnitionEffect);
 			write_sound(buf, data->projIgnitionSound, dest->projIgnitionSound);
 		}
+
+		void add_sound_dependencies(zone_base* zone, const scr_string_t* names, const std::size_t count)
+		{
+			for (auto i = 0u; names && i < count; i++)
+			{
+				const auto* name = SL_ConvertToString(names[i]);
+				if (name && *name)
+				{
+					zone->add_asset_of_type(ASSET_TYPE_SOUND, name);
+				}
+			}
+		}
 	}
 
 	void weapon_def::read(zone_reader& reader, WeaponCompleteDef* asset)
@@ -1823,12 +1835,17 @@ namespace zonetool::s2
 			add_dependency(zone, ASSET_TYPE_SOUND, data->soundOverrides[i].overrideSound);
 			add_dependency(zone, ASSET_TYPE_SOUND, data->soundOverrides[i].altmodeSound);
 		}
+		for (auto i = 0; data->notetrackOverrides && i < data->numNotetrackOverrides; i++)
+		{
+			add_sound_dependencies(zone, data->notetrackOverrides[i].notetrackSoundMapValues, notetrack_sound_count);
+		}
 		for (auto i = 0; data->fxOverrides && i < data->numFXOverrides; i++)
 		{
 			add_dependency(zone, ASSET_TYPE_FX, data->fxOverrides[i].overrideFX);
 			add_dependency(zone, ASSET_TYPE_FX, data->fxOverrides[i].altmodeFX);
 		}
 
+		add_sound_dependencies(zone, data->notetrackSoundMapValues, notetrack_sound_count);
 		add_dependencies(zone, ASSET_TYPE_FX, data->notetrackFXMapValues, notetrack_map_count);
 		add_dependencies(zone, ASSET_TYPE_FX, pointer_run(data->viewFlashEffect, data->meleeMissEffect));
 		add_dependencies(zone, ASSET_TYPE_SOUND, pointer_run(data->pickupSound, data->grenadeStickSound));

@@ -190,8 +190,14 @@ namespace zonetool::s2
 			j.value("textureAtlasColumnCount", value.info.textureAtlasColumnCount);
 			j.value("textureAtlasFrameBlend", value.info.textureAtlasFrameBlend);
 			j.value("textureAtlasAsArray", value.info.textureAtlasAsArray);
+			j.value("textureAtlasFps", value.info.textureAtlasFps);
+			j.value("waterFlags", value.info.waterFlags);
+			j.value("renderFlags", value.info.renderFlags);
 			j.value("surfaceTypeBits", value.info.surfaceTypeBits);
-			j.value("unkHash", value.info.unkHash);
+			j.value("sortBits", value.info.sortData.bits);
+			j.value("pixelShaderCrc", value.info.sortData.pixelShaderCrc);
+			j.value("vertexShaderCrc", value.info.sortData.vertexShaderCrc);
+			j.value("tessellation", value.info.tessellation);
 
 			j.value(MATERIAL_FIELD(stateFlags));
 			j.value(MATERIAL_FIELD(cameraRegion));
@@ -224,6 +230,7 @@ namespace zonetool::s2
 			auto* asset = mem->allocate<Material>();
 			const json_field_parser j(data, mem);
 			visit_material_json(j, *asset);
+			asset->info.sortData.sortKey = asset->info.sortKey;
 
 			state_bits_entry* entries{};
 			j.entries("stateBitsTable", entries, asset->stateBitsCount, visit_state_bits_json<json_field_parser>);

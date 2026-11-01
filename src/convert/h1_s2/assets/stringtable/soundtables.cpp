@@ -1,9 +1,9 @@
 #include <std_include.hpp>
 
-#include "../include.hpp"
+#include "../../include.hpp"
 #include "soundtables.hpp"
 
-namespace zonetool::h1::converter::s2::soundtables
+namespace zonetool::h1::converter::s2::stringtable::soundtables
 {
 	namespace
 	{
@@ -118,11 +118,6 @@ namespace zonetool::h1::converter::s2::soundtables
 
 	void dump(StringTable* asset)
 	{
-		if (!std::string_view(asset->name).starts_with("soundtables/"))
-		{
-			return;
-		}
-
 		std::string buffer;
 		std::string section;
 		auto comment_column = false;

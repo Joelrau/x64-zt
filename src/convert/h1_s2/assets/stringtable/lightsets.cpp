@@ -1,9 +1,9 @@
 #include <std_include.hpp>
 
-#include "../include.hpp"
+#include "../../include.hpp"
 #include "lightsets.hpp"
 
-namespace zonetool::h1::converter::s2::lightsets
+namespace zonetool::h1::converter::s2::stringtable::lightsets
 {
 	namespace
 	{
@@ -138,7 +138,7 @@ namespace zonetool::h1::converter::s2::lightsets
 
 	void dump(StringTable* asset)
 	{
-		if (!std::string_view(asset->name).ends_with("_lightsets_hdr.csv") || asset->rowCount < 1 || asset->columnCount < 2)
+		if (asset->rowCount < 1 || asset->columnCount < 2)
 		{
 			return;
 		}

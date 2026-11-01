@@ -1,13 +1,16 @@
 #include <std_include.hpp>
 
 #include "../include.hpp"
+#include "common/stock_zone.hpp"
 #include "material.hpp"
 #include "physcollmap.hpp"
 #include "physpreset.hpp"
 #include "rig/bone_rig.hpp"
-#include "techset.hpp"
 #include "xmodel.hpp"
 #include "xsurface.hpp"
+
+#include <h1/zone/loader.hpp>
+#include <io/game_files.hpp>
 
 namespace zonetool::h1::converter::s2::xmodel
 {
@@ -24,6 +27,13 @@ namespace zonetool::h1::converter::s2::xmodel
 		constexpr auto bind_trans_weight = 2.0f;
 		constexpr auto angle_scale = 32768.0f;
 		constexpr std::array<float, 4> grass_sway_params{2000.0f, 40.0f, 0.055f, 1.5f};
+		constexpr auto variant_body_suffix = "_body";
+		constexpr auto variant_model_flags = zonetool::s2::XMODEL_FLAG_VARIANTS | zonetool::s2::XMODEL_FLAG_UNK_0x800 | 0x6000u; // the flags of the stock weapon variant models
+		constexpr auto min_part_rotation_w = 0.9999f;
+
+		const std::regex weapon_model_name{R"(wpn_h1_[a-z0-9]+_(.+_(?:vm|npc))(_.+)?)"}; // h1 adds parts to these models in code
+		const std::regex default_part_name{R"(attach_h1_.+_default_(.+_(?:vm|npc))(_.+)?)"};
+		const std::regex scope_name{R"(attach_h1_scope_(.+_(?:vm|npc))(_.+)?)"};
 
 		std::unordered_set<std::string> dumped_models;
 		std::map<std::pair<zonetool::s2::XAssetType, std::string>, std::string> converted_names;
@@ -331,6 +341,195 @@ namespace zonetool::h1::converter::s2::xmodel
 				}
 			}
 		}
+
+		void write_model(const XModel* asset, const char* name, utils::memory::allocator& allocator)
+		{
+			xsurface::assign_base_vert_indices(asset);
+			dump_lod_surfs(asset);
+
+			const auto converted = convert(asset, allocator);
+			converted->name = name;
+			zonetool::s2::xmodel_base::dump(converted->base);
+			zonetool::s2::xmodel::dump(converted);
+			add_csv_row("xmodel", converted->name);
+			dump_materials(asset);
+		}
+
+		struct default_part
+		{
+			const XModel* model;
+			std::array<float, 3> offset;
+		};
+
+		int find_bone(const XModel* asset, const scr_string_t name)
+		{
+			for (auto i = 0; i < asset->numBones; i++)
+			{
+				if (asset->boneNames[i] == name)
+				{
+					return i;
+				}
+			}
+
+			return -1;
+		}
+
+		std::optional<std::pair<std::string, std::string>> split_model_name(const std::string& name, const std::regex& pattern)
+		{
+			std::smatch match;
+			if (!std::regex_match(name, match, pattern))
+			{
+				return {};
+			}
+
+			return std::make_pair(match[1].str(), match[2].str());
+		}
+
+		int suffix_score(const std::string& model_suffix, const std::string& part_suffix)
+		{
+			return part_suffix == model_suffix ? 2 : model_suffix.ends_with(part_suffix) ? 1 : 0;
+		}
+
+		std::vector<default_part> find_default_parts(const XModel* asset)
+		{
+			const auto weapon = split_model_name(asset->name, weapon_model_name);
+			if (!asset->boneNames || !asset->baseMat || !weapon)
+			{
+				return {};
+			}
+
+			std::map<int, std::pair<int, const XModel*>> best_parts; // one part per tag, the closest suffix wins
+			db_enum_assets(ASSET_TYPE_XMODEL, [&](void* header)
+			{
+				const auto* part = static_cast<const XModel*>(header);
+				const auto split = split_model_name(part->name, default_part_name);
+				if (!split || split->first != weapon->first || part->numBones != 1 || !part->boneNames || !part->baseMat || !get_lod_count(part))
+				{
+					return;
+				}
+
+				const auto tag = find_bone(asset, part->boneNames[0]);
+				const auto score = suffix_score(weapon->second, split->second);
+				const auto best = best_parts.find(tag);
+				if (tag >= 0 && (best == best_parts.end() || score > best->second.first
+					|| (score == best->second.first && std::string_view(part->name) < best->second.second->name)))
+				{
+					best_parts[tag] = {score, part};
+				}
+			});
+
+			std::vector<default_part> parts;
+			for (const auto& [tag, best] : best_parts)
+			{
+				const auto* part = best.second;
+				const auto placement = bone_rig::compose(bone_rig::to_transform(asset->baseMat[tag]),
+					bone_rig::invert(bone_rig::to_transform(part->baseMat[0])));
+				if (std::abs(placement.rotation.v[3]) < min_part_rotation_w)
+				{
+					ZONETOOL_WARNING("xmodel \"%s\": default part \"%s\" is rotated on its tag, it is not added", asset->name, part->name);
+					continue;
+				}
+
+				parts.push_back({part, std::to_array(placement.position.v)});
+			}
+
+			return parts;
+		}
+
+		void offset_bounds(Bounds& bounds, const std::array<float, 3>& offset)
+		{
+			for (auto axis = 0; axis < 3; axis++)
+			{
+				bounds.midPoint[axis] += offset[axis];
+			}
+		}
+
+		XModel* place_default_part(const XModel* asset, const default_part& part, utils::memory::allocator& allocator)
+		{
+			const auto placed = allocator.allocate<XModel>();
+			*placed = *part.model;
+			placed->boneNames = copy_array(asset->boneNames, 1, allocator); // stock variant parts share the root bone of the body
+			placed->baseMat = copy_array(asset->baseMat, 1, allocator);
+
+			const auto distance = std::hypot(part.offset[0], part.offset[1], part.offset[2]);
+			placed->radius += distance;
+			offset_bounds(placed->bounds, part.offset);
+
+			placed->boneInfo = copy_array(part.model->boneInfo, 1, allocator);
+			if (placed->boneInfo)
+			{
+				offset_bounds(placed->boneInfo->bounds, part.offset);
+				placed->boneInfo->radiusSquared = std::pow(std::sqrt(placed->boneInfo->radiusSquared) + distance, 2.0f);
+			}
+
+			placed->collSurfs = copy_array(part.model->collSurfs, part.model->numCollSurfs, allocator);
+			for (auto i = 0; placed->collSurfs && i < placed->numCollSurfs; i++)
+			{
+				offset_bounds(placed->collSurfs[i].bounds, part.offset);
+			}
+
+			return placed;
+		}
+
+		const char* write_default_part(const XModel* asset, const default_part& part, utils::memory::allocator& allocator)
+		{
+			const auto name = converted_name(zonetool::s2::ASSET_TYPE_XMODEL, part.model->name);
+			if (dumped_models.insert(part.model->name).second)
+			{
+				const auto placed = place_default_part(asset, part, allocator);
+				for (auto i = 0; i < get_lod_count(placed); i++)
+				{
+					xsurface::set_position_offset(placed->lodInfo[i].modelSurfs, part.offset);
+				}
+
+				write_model(placed, name, allocator);
+			}
+
+			return name;
+		}
+
+		void write_variant_model(const XModel* asset, const char* name, const std::vector<const char*>& parts, utils::memory::allocator& allocator)
+		{
+			const auto model = allocator.allocate<zonetool::s2::XModel>();
+			model->name = name;
+			model->flags = variant_model_flags | (asset->flags & zonetool::s2::XMODEL_FLAG_UNK_0x8);
+			model->variantCount = static_cast<unsigned char>(parts.size());
+			model->variants = allocator.allocate_array<zonetool::s2::XModelVariant>(parts.size());
+			for (auto i = 0u; i < parts.size(); i++)
+			{
+				model->variants[i].model = make_stub<zonetool::s2::XModel>(parts[i], allocator);
+				model->variants[i].unk_0x8[3] = 1.0f; // identity quat and zero origin, as on every stock variant
+				model->variants[i].name = static_cast<zonetool::s2::scr_string_t>(SL_GetString("")); // stock names are an empty string, not a null one
+			}
+
+			model->runtimeSize = static_cast<std::uint16_t>(sizeof(zonetool::s2::XModel) + parts.size() * sizeof(zonetool::s2::XModelVariant));
+			zonetool::s2::xmodel::dump(model);
+			add_csv_row("xmodel", model->name);
+		}
+
+		std::vector<std::string> zone_models(const std::string& zone_name)
+		{
+			const auto path = game_files::find_zone(zone_name);
+			if (!path)
+			{
+				return {};
+			}
+
+			const auto database = db_create();
+			db_scope _(*database);
+			const auto zone = load_zone(*path);
+
+			std::vector<std::string> names;
+			for (const auto& asset : zone->assets)
+			{
+				if (asset.type == ASSET_TYPE_XMODEL && !asset.referenced)
+				{
+					names.emplace_back(get_asset_name(asset.type, asset.header));
+				}
+			}
+
+			return names;
+		}
 	}
 
 	void dump(XModel* asset)
@@ -341,14 +540,22 @@ namespace zonetool::h1::converter::s2::xmodel
 		}
 
 		utils::memory::allocator allocator;
-		xsurface::assign_base_vert_indices(asset);
-		dump_lod_surfs(asset);
+		const auto name = converted_name(zonetool::s2::ASSET_TYPE_XMODEL, asset->name);
+		const auto parts = find_default_parts(asset);
+		if (parts.empty())
+		{
+			write_model(asset, name, allocator);
+			return;
+		}
 
-		const auto converted = convert(asset, allocator);
-		zonetool::s2::xmodel_base::dump(converted->base);
-		zonetool::s2::xmodel::dump(converted);
-		add_csv_row("xmodel", converted->name);
-		dump_materials(asset);
+		std::vector<const char*> variants{allocator.duplicate_string(std::string(name) + variant_body_suffix)};
+		write_model(asset, variants.front(), allocator);
+		for (const auto& part : parts)
+		{
+			variants.emplace_back(write_default_part(asset, part, allocator));
+		}
+
+		write_variant_model(asset, name, variants, allocator); // s2 does not add the h1 default parts in code, so the variant model always shows them
 	}
 
 	zonetool::s2::XModel* reference(const XModel* asset, utils::memory::allocator& allocator)
@@ -374,6 +581,36 @@ namespace zonetool::h1::converter::s2::xmodel
 		add_csv_row("xmodel", converted_name(zonetool::s2::ASSET_TYPE_XMODEL, name)); // the model comes from a converted transient zone
 	}
 
+	std::optional<std::string> find_built_in_scope(const std::string& weapon, const XModel* gun_model)
+	{
+		const auto gun = gun_model && gun_model->name ? split_model_name(gun_model->name, weapon_model_name) : std::nullopt;
+		if (!gun)
+		{
+			return {};
+		}
+
+		const auto kind = gun->first.ends_with("_vm") ? "vm" : "wm";
+		std::optional<std::string> best;
+		auto best_score = 0;
+		for (const auto& name : zone_models(std::format("mp_{}_{}_base_tr", kind, weapon))) // h1 streams the weapon models from this zone
+		{
+			const auto scope = split_model_name(name.ends_with("_mp") ? name.substr(0, name.size() - 3) : name, scope_name);
+			if (!scope || scope->first != gun->first)
+			{
+				continue;
+			}
+
+			const auto score = suffix_score(gun->second, scope->second);
+			if (!best || score > best_score || (score == best_score && name < *best))
+			{
+				best = name;
+				best_score = score;
+			}
+		}
+
+		return best;
+	}
+
 	void clear()
 	{
 		dumped_models.clear();
@@ -391,7 +628,7 @@ namespace zonetool::h1::converter::s2::xmodel
 		}
 
 		auto converted = std::string(name);
-		if (techset::is_stock_asset(type, name))
+		if (stock_zone::is_stock_asset(type, name))
 		{
 			converted += stock_name_suffix;
 		}

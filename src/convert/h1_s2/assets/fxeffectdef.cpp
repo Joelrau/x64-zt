@@ -2,8 +2,8 @@
 
 #include "../include.hpp"
 #include "fxeffectdef.hpp"
+#include "common/stock_zone.hpp"
 #include "material.hpp"
-#include "techset.hpp"
 
 namespace zonetool::h1::converter::s2::fxeffectdef
 {
@@ -566,7 +566,7 @@ namespace zonetool::h1::converter::s2::fxeffectdef
 
 	bool dump_used(const char* name)
 	{
-		if (techset::is_stock_asset(zonetool::s2::ASSET_TYPE_FX, name))
+		if (stock_zone::is_stock_asset(zonetool::s2::ASSET_TYPE_FX, name))
 		{
 			add_csv_row(zonetool::s2::type_to_string(zonetool::s2::ASSET_TYPE_FX), name, true); // the s2 effect of the same name is used
 			return true;

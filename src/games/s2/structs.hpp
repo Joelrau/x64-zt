@@ -1954,19 +1954,50 @@ namespace zonetool::s2
 		CAMERA_REGION_NONE = 0x9,
 	};
 
-	struct GfxMaterialDrawSurfFields
+	enum MaterialRenderFlags : std::uint32_t
 	{
-		unsigned __int64 objectBits;
-		unsigned __int64 materialBits : 8;
-		unsigned __int64 primarySortKey : 6; // always MaterialInfo::sortKey
-		unsigned __int64 unused : 18;
-		unsigned __int64 techsetHash : 32;
+		MTL_RENDER_FLAG_BLUR_DISTORTION = 0x4, // blurdst techsets and ui blur backgrounds
+		MTL_RENDER_FLAG_DEPTH_HACK_DOF = 0x8, // view model lenses and reticles stay in focus with ads dof
+		MTL_RENDER_FLAG_WIND_SWAY = 0x80, // fwa techsets, model surfaces draw the velocity zprepass
+		MTL_RENDER_FLAG_DEPTH_HACK_MASK = 0x100, // post taa reticles
+		MTL_RENDER_FLAG_VERTEX_ANIM = 0x1000, // flag wave techsets, every surface draws the velocity zprepass
+		MTL_RENDER_FLAG_FLOATZ_RESOLVE = 0x2000, // $floatz is resolved again after the emissive list
+		MTL_RENDER_FLAG_REFRACTION = 0x4000, // refract techsets, the scene is copied before the emissive list
 	};
 
-	union GfxMaterialDrawSurf
+	enum MaterialSortBits : std::uint8_t
 	{
-		GfxMaterialDrawSurfFields fields;
-		std::uint64_t packed[2];
+		MTL_SORT_DISPLACEMENT_TRANSITION = 0x1, // MTL_FLAG_DISPLACEMENT_TRANSITION
+		MTL_SORT_CULL_BACK = 0x2,
+		MTL_SORT_NO_DEPTH_WRITE = 0x4,
+		MTL_SORT_ALPHA_TESTED = 0x8,
+		MTL_SORT_BLENDED = 0x10,
+		MTL_SORT_NOT_LIT = 0x20, // not with MTL_RENDER_FLAG_BLUR_DISTORTION
+		MTL_SORT_UNLIT = 0x40,
+		MTL_SORT_LIT = 0x80, // not with game flag 0x2
+	};
+
+	struct MaterialSortData // compared as three u32 when the game sorts materials
+	{
+		unsigned char bits; // MaterialSortBits
+		unsigned char sortKey; // copy of MaterialInfo::sortKey
+		char __pad0[2];
+		unsigned int pixelShaderCrc; // microCodeCrc of the first lit (else emissive) pass, 0 when unlit
+		unsigned int vertexShaderCrc;
+	};
+	static_assert(sizeof(MaterialSortData) == 12);
+
+	enum MaterialWaterFlags : std::uint16_t
+	{
+		MTL_WATER_DISPLACED = 0x1, // displace techsets, surfaces get traced
+		MTL_WATER_UNK_2 = 0x2, // ocean techsets, not read
+		MTL_WATER_FLOW_MAP = 0x4, // flowdocean techsets
+		MTL_WATER_UNK_8 = 0x8, // ocean techsets, not read
+		MTL_WATER_ATLAS = 0x10, // ocean techsets, displacement maps are atlases sampled per frame
+		MTL_WATER_FAR_MAP = 0x20, // far techsets, adds the far displacement map
+		MTL_WATER_TEXCOORDS = 0x40, // tcac techsets, displacement uv = vertex texcoords instead of world xy
+		MTL_WATER_FRAME_BLEND = 0x80, // blends two atlas frames
+		MTL_WATER_NORMAL_STEP_MASK = 0x1C00, // 1-4: hit normal from 4 rays 1/16, 1/8, 1/4, 1/2 unit apart, else 1
 	};
 
 	enum MaterialPrepassClass : unsigned char
@@ -1987,17 +2018,24 @@ namespace zonetool::s2
 		unsigned char textureAtlasColumnCount;
 		unsigned char textureAtlasFrameBlend;
 		unsigned char textureAtlasAsArray;
-		GfxMaterialDrawSurf drawSurf;
-		unsigned int unkHash;
-		unsigned short hashIndex; // runtime: the material index of the draw surfs
-		unsigned char unk2; // runtime: 3 bits of the draw surf
-		unsigned char __pad0;
+		unsigned char textureAtlasFps; // 0 = the default
+		char __pad0;
+		unsigned short waterFlags; // MaterialWaterFlags
+		unsigned int renderFlags; // MaterialRenderFlags
+		MaterialSortData sortData;
+		unsigned short sortedIndex; // runtime: position in the material sort, the material index of the draw surfs
+		unsigned char tessellation; // 3 = tessellated within r_tessellationCutoffDistance, 2/4 = no-tess techniques
+		char __pad1;
 		std::uint64_t surfaceTypeBits; // 1 << (surface type - 1), like h1
 	};
 	static_assert(sizeof(MaterialInfo) == 0x30);
 	static_assert(offsetof(MaterialInfo, sortKey) == 10);
 	static_assert(offsetof(MaterialInfo, textureAtlasRowCount) == 12);
-	static_assert(offsetof(MaterialInfo, unkHash) == 0x20);
+	static_assert(offsetof(MaterialInfo, waterFlags) == 0x12);
+	static_assert(offsetof(MaterialInfo, renderFlags) == 0x14);
+	static_assert(offsetof(MaterialInfo, sortData) == 0x18);
+	static_assert(offsetof(MaterialInfo, sortedIndex) == 0x24);
+	static_assert(offsetof(MaterialInfo, tessellation) == 0x26);
 	static_assert(offsetof(MaterialInfo, surfaceTypeBits) == 0x28);
 
 	union MaterialTextureDefInfo
@@ -2079,7 +2117,7 @@ namespace zonetool::s2
 	{
 		MTL_FLAG_VERTEX_DISPLACEMENT = 0x2, // every "vdh" techset
 		MTL_FLAG_PAINTSHOP = 0x8, // "ptshp" techsets, camo-able weapon materials
-		MTL_FLAG_UNK_20 = 0x20, // only with 0x2
+		MTL_FLAG_DISPLACEMENT_TRANSITION = 0x20, // "*_nodisplacement_transition" world materials, only with 0x2
 	};
 
 	struct Material
@@ -4996,9 +5034,9 @@ namespace zonetool::s2
 		int altModeMask; // 1 shareAmmoWithAlt, 2 isAlternateAmmo, 3 both
 		char __pad0[4];
 		XModel** worldModels;
+		XModel** worldModelVariants; // [(variant - 1) * 3 + quality tier] of the weapon
 		XModel** viewModels;
-		XModel** worldModelsAdditional;
-		XModel** viewModelsAdditional;
+		XModel** viewModelVariants;
 		XModel** reticleViewModels;
 		AttHybridSettings* hybridSettings;
 		unsigned short* fieldOffsets;

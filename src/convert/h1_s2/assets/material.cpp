@@ -2,8 +2,11 @@
 
 #include "../include.hpp"
 #include "material.hpp"
+#include "common/stock_zone.hpp"
 #include "gfximage.hpp"
 #include "techset.hpp"
+
+#include <utils/cryptography.hpp>
 
 namespace zonetool::h1::converter::s2::material
 {
@@ -140,7 +143,7 @@ namespace zonetool::h1::converter::s2::material
 
 		zonetool::s2::GfxStateBits convert_light_state_bits(const GfxStateBits& lit, const GfxStateBits& light, const std::uint32_t blend_class, const bool effect)
 		{
-			// the h1 light pass polygon offset fails the s2 depth test, so it takes the lit pass state with the light blend
+			// the h1 light pass polygon offset fails the s2 depth test, so it uses the lit state with the light blend
 			auto source = lit;
 			source.loadBits[1] = lit.loadBits[1] & ~(h1_polygon_offset_mask | GFXS1_DEPTHWRITE);
 			for (auto i = 0u; i < blend_word_count; i++)
@@ -431,13 +434,16 @@ namespace zonetool::h1::converter::s2::material
 			return result;
 		}
 
-		std::uint8_t convert_camera_region(const std::uint8_t camera_region)
+		std::uint8_t convert_camera_region(const Material* asset)
 		{
-			switch (camera_region)
+			switch (asset->cameraRegion)
 			{
-			case CAMERA_REGION_LIT_OPAQUE:
 			case CAMERA_REGION_DEPTH_HACK:
 			case CAMERA_REGION_PRE_DEPTH_HACK:
+				return asset->stateFlags & STATE_FLAG_WRITES_DEPTH
+					? zonetool::s2::CAMERA_REGION_LIT_OPAQUE
+					: zonetool::s2::CAMERA_REGION_LIT_TRANS; // s2 only draws depth writing materials in the opaque region, h1 also draws blended reticles there
+			case CAMERA_REGION_LIT_OPAQUE:
 			case CAMERA_REGION_PRE_OPAQUE:
 				return zonetool::s2::CAMERA_REGION_LIT_OPAQUE;
 			case CAMERA_REGION_LIT_OPAQUE_SSS:
@@ -457,6 +463,60 @@ namespace zonetool::h1::converter::s2::material
 			}
 		}
 
+		template <typename S>
+		std::uint32_t program_crc(const S* shader)
+		{
+			return shader ? utils::cryptography::crc32::compute(shader->prog.loadDef.program, shader->prog.loadDef.programSize) : 0;
+		}
+
+		std::int32_t sort_technique(const zonetool::s2::MaterialTechniqueSet* techset)
+		{
+			for (const auto type : {zonetool::s2::TECHNIQUE_LIT, zonetool::s2::TECHNIQUE_EMISSIVE, zonetool::s2::TECHNIQUE_UNLIT})
+			{
+				if (techset && techset->techniques[type])
+				{
+					return type;
+				}
+			}
+
+			return -1;
+		}
+
+		zonetool::s2::MaterialSortData make_sort_data(const zonetool::s2::Material* material, const std::int32_t technique)
+		{
+			const auto lit = technique == zonetool::s2::TECHNIQUE_LIT;
+			const std::array<std::pair<bool, std::uint8_t>, 8> bits
+			{{
+				{(material->flags & zonetool::s2::MTL_FLAG_DISPLACEMENT_TRANSITION) != 0, zonetool::s2::MTL_SORT_DISPLACEMENT_TRANSITION},
+				{(material->stateFlags & zonetool::s2::STATE_FLAG_CULL_BACK) != 0, zonetool::s2::MTL_SORT_CULL_BACK},
+				{(material->stateFlags & zonetool::s2::STATE_FLAG_WRITES_DEPTH) == 0, zonetool::s2::MTL_SORT_NO_DEPTH_WRITE},
+				{material->info.prepassClass == zonetool::s2::PREPASS_CLASS_ALPHA_TESTED, zonetool::s2::MTL_SORT_ALPHA_TESTED},
+				{material->info.prepassClass == zonetool::s2::PREPASS_CLASS_BLENDED, zonetool::s2::MTL_SORT_BLENDED},
+				{!lit && !(material->info.renderFlags & zonetool::s2::MTL_RENDER_FLAG_BLUR_DISTORTION), zonetool::s2::MTL_SORT_NOT_LIT},
+				{technique == zonetool::s2::TECHNIQUE_UNLIT, zonetool::s2::MTL_SORT_UNLIT},
+				{lit && !(material->info.gameFlags & MTL_GAMEFLAG_MARK_HAS_LIGHTMAP), zonetool::s2::MTL_SORT_LIT},
+			}};
+
+			zonetool::s2::MaterialSortData sort_data{};
+			sort_data.sortKey = material->info.sortKey;
+			for (const auto& [set, bit] : bits)
+			{
+				if (set)
+				{
+					sort_data.bits |= bit;
+				}
+			}
+
+			if (lit || technique == zonetool::s2::TECHNIQUE_EMISSIVE)
+			{
+				const auto& pass = material->techniqueSet->techniques[technique]->passArray[0];
+				sort_data.pixelShaderCrc = program_crc(pass.pixelShader);
+				sort_data.vertexShaderCrc = program_crc(pass.vertexShader);
+			}
+
+			return sort_data;
+		}
+
 		native_material convert_native(const Material* asset, const std::string& h1_techset, const techset::native_techset& native,
 			utils::memory::allocator& allocator)
 		{
@@ -466,17 +526,18 @@ namespace zonetool::h1::converter::s2::material
 			material->materialType = convert_material_type(h1_techset);
 			material->info.gameFlags = asset->info.gameFlags;
 			material->info.sortKey = convert_sort_key(asset->info.sortKey);
-			material->info.drawSurf.fields.primarySortKey = material->info.sortKey;
 			material->info.prepassClass = convert_prepass_class(asset, native.techset);
-			material->cameraRegion = convert_camera_region(asset->cameraRegion);
+			material->cameraRegion = convert_camera_region(asset);
 			material->info.textureAtlasRowCount = asset->info.textureAtlasRowCount;
 			material->info.textureAtlasColumnCount = asset->info.textureAtlasColumnCount;
 			material->info.textureAtlasFrameBlend = asset->info.textureAtlasFrameBlend;
 			material->info.textureAtlasAsArray = asset->info.textureAtlasAsArray;
+			material->info.renderFlags = asset->info.renderFlags;
 			material->stateFlags = convert_state_flags(asset->stateFlags);
 			material->techniqueSet = native.techset;
 			material->layerCount = asset->subMaterials ? asset->layerCount : 0;
 			material->subMaterials = asset->subMaterials;
+			material->info.sortData = make_sort_data(material, sort_technique(native.techset));
 
 			const auto states = convert_native_states(asset, native, material, allocator);
 			convert_native_constants(asset, material, allocator);
@@ -606,6 +667,7 @@ namespace zonetool::h1::converter::s2::material
 			material->info.textureAtlasColumnCount = 1;
 			material->cameraRegion = zonetool::s2::CAMERA_REGION_NONE;
 			material->techniqueSet = make_stub<zonetool::s2::MaterialTechniqueSet>(variant.techset, allocator);
+			material->info.sortData = make_sort_data(material, zonetool::s2::TECHNIQUE_UNLIT);
 
 			std::vector<zonetool::s2::MaterialTextureDef> textures;
 			if (variant.alpha_map)
@@ -686,7 +748,7 @@ namespace zonetool::h1::converter::s2::material
 
 	bool dump_used(const char* name)
 	{
-		if (techset::is_stock_asset(zonetool::s2::ASSET_TYPE_MATERIAL, name))
+		if (stock_zone::is_stock_asset(zonetool::s2::ASSET_TYPE_MATERIAL, name))
 		{
 			add_csv_row("material", name, true); // the s2 material of the same name is used
 			return true;

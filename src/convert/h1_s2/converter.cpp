@@ -135,6 +135,7 @@ namespace zonetool::h1::converter::s2
 	void finish(const std::string& zone_name)
 	{
 		material::finish();
+		techset::finish();
 		comworld::finish();
 		gfxworld::finish();
 		clipmap::finish();
@@ -220,8 +221,7 @@ namespace zonetool::convert::h1_s2
 				target::rawfile::dump(header_as<source::RawFile>(header));
 				break;
 			case source::ASSET_TYPE_STRINGTABLE:
-				target::lightsets::dump(header_as<source::StringTable>(header));
-				target::soundtables::dump(header_as<source::StringTable>(header));
+				target::stringtable::dump(header_as<source::StringTable>(header));
 				break;
 			case source::ASSET_TYPE_XANIMPARTS:
 				target::xanim::dump(header_as<source::XAnimParts>(header));

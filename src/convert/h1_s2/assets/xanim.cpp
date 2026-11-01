@@ -1,6 +1,8 @@
 #include <std_include.hpp>
 
 #include "../include.hpp"
+#include "rig/xanim_dive.hpp"
+#include "rig/xanim_melee.hpp"
 #include "rig/xanim_retarget.hpp"
 #include "xanim.hpp"
 
@@ -10,6 +12,8 @@ namespace zonetool::h1::converter::s2::xanim
 	{
 
 		std::unordered_set<std::string> dumped_anims;
+		std::unordered_map<std::string, bool> built_dives;
+		std::unordered_map<std::string, bool> built_melees;
 
 		bool has_bone_index(const int type)
 		{
@@ -191,6 +195,33 @@ namespace zonetool::h1::converter::s2::xanim
 
 			return new_asset;
 		}
+
+		std::string idle_base(const XAnimParts* idle)
+		{
+			std::string base = idle->name;
+			if (constexpr std::string_view suffix = "_idle"; base.ends_with(suffix))
+			{
+				base.resize(base.size() - suffix.size());
+			}
+
+			return base;
+		}
+
+		void dump_generated(zonetool::s2::XAnimParts* anim)
+		{
+			zonetool::s2::xanim_parts::dump(anim);
+			add_csv_row(zonetool::s2::type_to_string(zonetool::s2::ASSET_TYPE_XANIM), anim->name);
+		}
+
+		// generated anims start from the converted and retargeted h1 idle
+		template <typename Build>
+		bool build_from_idle(XAnimParts* idle, const Build& build)
+		{
+			utils::memory::allocator conversion_allocator;
+			std::optional<zone_memory> retarget_memory;
+			auto* converted = convert(idle, conversion_allocator);
+			return xanim_retarget::retarget(converted, retarget_memory) && build(converted);
+		}
 	}
 
 	void dump(XAnimParts* asset)
@@ -241,9 +272,74 @@ namespace zonetool::h1::converter::s2::xanim
 		return make_stub<zonetool::s2::XAnimParts>(asset->name, allocator);
 	}
 
+	std::array<zonetool::s2::XAnimParts*, 2> dive_anims(XAnimParts* idle, const char* donor, utils::memory::allocator& allocator)
+	{
+		std::array<zonetool::s2::XAnimParts*, 2> result{};
+		if (!idle || !idle->name)
+		{
+			return result;
+		}
+
+		const auto base = idle_base(idle);
+		const std::array names{base + "_dive", base + "_dive_end"};
+		const auto [entry, inserted] = built_dives.try_emplace(names[0], false);
+		if (inserted)
+		{
+			entry->second = build_from_idle(idle, [&](const zonetool::s2::XAnimParts* converted)
+			{
+				std::optional<zone_memory> dive_memory;
+				const auto anims = xanim_dive::build(converted, donor, names, dive_memory);
+				if (anims)
+				{
+					std::ranges::for_each(*anims, dump_generated);
+				}
+
+				return anims.has_value();
+			});
+		}
+
+		for (auto i = 0u; entry->second && i < result.size(); i++)
+		{
+			result[i] = make_stub<zonetool::s2::XAnimParts>(allocator.duplicate_string(names[i]), allocator);
+		}
+
+		return result;
+	}
+
+	zonetool::s2::XAnimParts* melee_anim(XAnimParts* idle, const char* donor, utils::memory::allocator& allocator)
+	{
+		if (!idle || !idle->name)
+		{
+			return nullptr;
+		}
+
+		const auto name = idle_base(idle) + "_melee";
+		const auto [entry, inserted] = built_melees.try_emplace(name, false);
+		if (inserted)
+		{
+			entry->second = build_from_idle(idle, [&](const zonetool::s2::XAnimParts* converted)
+			{
+				std::optional<zone_memory> melee_memory;
+				auto* anim = xanim_melee::build(converted, donor, name, melee_memory);
+				if (anim)
+				{
+					dump_generated(anim);
+				}
+
+				return anim != nullptr;
+			});
+		}
+
+		return entry->second ? make_stub<zonetool::s2::XAnimParts>(allocator.duplicate_string(name), allocator) : nullptr;
+	}
+
 	void clear()
 	{
 		dumped_anims.clear();
+		built_dives.clear();
+		built_melees.clear();
 		xanim_retarget::clear();
+		xanim_dive::clear();
+		xanim_melee::clear();
 	}
 }

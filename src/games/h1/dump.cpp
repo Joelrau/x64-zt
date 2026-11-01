@@ -151,6 +151,7 @@ namespace zonetool::h1
 				{"patch_common" + suffix, map_zone_dump::referenced},
 				{"techsets_common_core_mp", map_zone_dump::referenced},
 				{"techsets_" + map, map_zone_dump::all},
+				{"eng_" + map, map_zone_dump::all},
 				{"eng_patch_" + map, map_zone_dump::all},
 				{"patch_" + map, map_zone_dump::all},
 				{map + "_path", map_zone_dump::all},
@@ -337,6 +338,7 @@ namespace zonetool::h1
 		{
 			filesystem::set_zone_folder(zone_folder);
 			filesystem::set_fastfile(fastfile);
+			filesystem::set_language("english", "eng");
 		}
 	}
 

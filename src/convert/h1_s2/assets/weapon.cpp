@@ -252,7 +252,7 @@ namespace zonetool::h1::converter::s2::weapon
 		{
 			weapon->reticleCenterEnemySize = 32;
 			weapon->minimapRadiusScale = 1.0f;
-			weapon->viewModelFov = 55.0f;
+			weapon->viewModelFov = 65.0f;
 			weapon->lightweightSprintSpeedScale = 1.07f;
 			weapon->showNoAmmoWarning = true;
 			weapon->burnDuration = 0.4f;
@@ -290,7 +290,7 @@ namespace zonetool::h1::converter::s2::weapon
 			weapon->stateTimers.activeReloadJamWindowEnd = 1300;
 			weapon->stateTimers.crawlInTime = 300;
 			weapon->stateTimers.crawlLoopTime = 600;
-			// activeReloadEffect and tagWeaponOffset fit only the s2 models and guid only the s2 stats table, they stay empty
+			// activeReloadEffect, tagWeaponOffset and guid only fit the s2 models and stats table, so they stay empty
 		}
 
 		void set_wielded_weapon_defaults(zonetool::s2::WeaponCompleteDef* weapon)
@@ -321,6 +321,8 @@ namespace zonetool::h1::converter::s2::weapon
 			weapon->adsViewKickAltYawMin = -30.0f;
 			weapon->adsViewKickAltYawMax = 30.0f;
 			weapon->adsViewKickAltCenterSpeed = 2000.0f;
+			weapon->adsViewScatterMin = 10.0f; // s2 clamps the view kick pitch and yaw to these, the h1 fields are always 0
+			weapon->adsViewScatterMax = 10.0f;
 			weapon->adsViewScatterAltMin = 10.0f;
 			weapon->adsViewScatterAltMax = 10.0f;
 			weapon->adsKickDuckedScale = 1.0f;
@@ -337,6 +339,8 @@ namespace zonetool::h1::converter::s2::weapon
 			weapon->hipViewKickAltYawMin = -15.0f;
 			weapon->hipViewKickAltYawMax = 15.0f;
 			weapon->hipViewKickAltCenterSpeed = 2000.0f;
+			weapon->hipViewScatterMin = 10.0f;
+			weapon->hipViewScatterMax = 10.0f;
 			weapon->hipViewScatterAltMin = 10.0f;
 			weapon->hipViewScatterAltMax = 10.0f;
 			weapon->hipKickDuckedScale = 1.0f;
@@ -367,7 +371,6 @@ namespace zonetool::h1::converter::s2::weapon
 			{
 			case weapon_profile::melee:
 				weapon->quickMeleeDamage = 135;
-				weapon->viewModelFov = 65.0f;
 				weapon->fastReloadTimeScale = 0.55f;
 				weapon->meleeBackDamageScale = 1.0f;
 				weapon->jogSprintLoopAnimWeight = 0.3f;
@@ -491,7 +494,6 @@ namespace zonetool::h1::converter::s2::weapon
 				break;
 			case weapon_profile::grenade:
 				weapon->grenadeIndicatorIcon = make_stub<zonetool::s2::Material>("grenade_indicator_frag_allies_hud", allocator);
-				weapon->viewModelFov = 65.0f;
 				weapon->meleeBackDamageScale = 1.0f;
 				weapon->jogSprintLoopAnimWeight = 0.3f;
 				weapon->jogSprintLoopAnimBlendTime = 0.8f;
@@ -512,7 +514,6 @@ namespace zonetool::h1::converter::s2::weapon
 				weapon->quickMeleeDamage = 135;
 				weapon->aimAssistHoldBreathDelay = 0.0f;
 				weapon->maxBreathHoldTime = 0.0f;
-				weapon->viewModelFov = 65.0f;
 				weapon->fastReloadTimeScale = 0.8f;
 				weapon->bulletExplosionRadius = 0;
 				weapon->bulletExplosionInnerDamage = 0;
@@ -552,7 +553,6 @@ namespace zonetool::h1::converter::s2::weapon
 				break;
 			case weapon_profile::throwingknife:
 				weapon->grenadeIndicatorIconRatio = 2;
-				weapon->viewModelFov = 65.0f;
 				weapon->meleeBackDamageScale = 1.0f;
 				weapon->jogSprintLoopAnimWeight = 0.3f;
 				weapon->jogSprintLoopAnimBlendTime = 0.8f;
@@ -583,7 +583,6 @@ namespace zonetool::h1::converter::s2::weapon
 				weapon->firingAdsMoveSpeedScale = 0.95f;
 				weapon->stalkerAdsMoveSpeedScale = 1.925f;
 				weapon->firingStalkerAdsMoveSpeedScale = 1.875f;
-				weapon->viewModelFov = 65.0f;
 				weapon->firingSprintSpeedScale = 0.9495f;
 				weapon->hipSpreadSprintMin = 8.5f;
 				weapon->idleFireRecoveryTime = 750;
@@ -636,6 +635,17 @@ namespace zonetool::h1::converter::s2::weapon
 
 			const auto result = allocator.allocate_array<zonetool::s2::scr_string_t>(count);
 			for (auto i = 0u; i < count; i++)
+			{
+				result[i] = convert_script_string(values[i]);
+			}
+
+			return result;
+		}
+
+		zonetool::s2::scr_string_t* convert_notetrack_map_strings(const scr_string_t* values, utils::memory::allocator& allocator)
+		{
+			const auto result = allocator.allocate_array<zonetool::s2::scr_string_t>(notetrack_map_count); // stock weapons always have the maps
+			for (auto i = 0u; values && i < notetrack_map_count; i++)
 			{
 				result[i] = convert_script_string(values[i]);
 			}
@@ -697,7 +707,11 @@ namespace zonetool::h1::converter::s2::weapon
 			return slots;
 		}
 
-		zonetool::s2::XAnimParts** convert_anims(XAnimParts* const* anims, utils::memory::allocator& allocator)
+		constexpr std::array melee_slots{zonetool::s2::WEAP_ANIM_MELEE_SWIPE, zonetool::s2::WEAP_ANIM_MELEE_HIT, zonetool::s2::WEAP_ANIM_MELEE_FATAL,
+			zonetool::s2::WEAP_ANIM_MELEE_MISS, zonetool::s2::WEAP_ANIM_MELEE_VICTIM_CROUCHING_HIT, zonetool::s2::WEAP_ANIM_MELEE_VICTIM_CROUCHING_FATAL,
+			zonetool::s2::WEAP_ANIM_MELEE_VICTIM_CROUCHING_MISS}; // stock guns play their one melee anim in all of these
+
+		zonetool::s2::XAnimParts** convert_anims(XAnimParts* const* anims, zonetool::s2::XAnimParts* melee, utils::memory::allocator& allocator)
 		{
 			if (!anims)
 			{
@@ -717,6 +731,10 @@ namespace zonetool::h1::converter::s2::weapon
 				{
 					ZONETOOL_WARNING("weapon anim \"%s\" (%s) has no s2 slot", anim_names[i], anims[i]->name);
 				}
+				else if (melee && std::ranges::all_of(slots, [](const auto slot) { return std::ranges::find(melee_slots, slot) != melee_slots.end(); }))
+				{
+					continue; // the h1 knife melee is replaced, so it is not dumped
+				}
 
 				for (const auto slot : slots)
 				{
@@ -724,7 +742,92 @@ namespace zonetool::h1::converter::s2::weapon
 				}
 			}
 
+			if (melee)
+			{
+				for (const auto slot : melee_slots)
+				{
+					result[slot] = melee;
+				}
+			}
+
 			return result;
+		}
+
+		const FxEffectDef* explosion_effect(const WeaponDef* asset)
+		{
+			if (asset->projExplosionEffect || asset->projExplosion != WEAPPROJEXP_ROCKET)
+			{
+				return asset->projExplosionEffect;
+			}
+
+			return db_find_x_asset_header_safe(ASSET_TYPE_FX, "vfx/explosion/rocket_explosion_default").fx; // h1 rockets explode through the impact table, stock s2 rockets all have an explosion effect
+		}
+
+		const char* class_donor(const WeaponDef* asset)
+		{
+			switch (asset->weapClass)
+			{
+			case WEAPCLASS_RIFLE:
+				return "stg44";
+			case WEAPCLASS_SNIPER:
+				return "k98";
+			case WEAPCLASS_MG:
+				return "lewis";
+			case WEAPCLASS_SMG:
+				return "thompson";
+			case WEAPCLASS_SPREAD:
+				return "winchester1897";
+			case WEAPCLASS_PISTOL:
+				return "m1911";
+			case WEAPCLASS_ROCKETLAUNCHER:
+				return "bazooka";
+			default:
+				return nullptr;
+			}
+		}
+
+		const char* dive_donor(const WeaponDef* asset)
+		{
+			return asset->inventoryType == WEAPINVENTORY_MELEE ? "usa_shovel" : class_donor(asset);
+		}
+
+		// the stock long-gun bashes re-grip on top of the gun, and the stg44 spots land on h1 guns where the thompson and lewis ones miss
+		const char* melee_donor(const WeaponDef* asset)
+		{
+			if (!asset->knifeModel || asset->inventoryType == WEAPINVENTORY_MELEE)
+			{
+				return nullptr;
+			}
+
+			switch (asset->weapClass)
+			{
+			case WEAPCLASS_MG:
+			case WEAPCLASS_SMG:
+			case WEAPCLASS_SPREAD:
+				return "stg44";
+			default:
+				return class_donor(asset);
+			}
+		}
+
+		// s2 has no knife model, so the h1 knife melee becomes a gun bash built from the idle and a stock donor
+		zonetool::s2::XAnimParts* melee_anim(const WeaponDef* asset, utils::memory::allocator& allocator)
+		{
+			const auto* donor = melee_donor(asset);
+			return donor && asset->szXAnims ? xanim::melee_anim(asset->szXAnims[WEAP_ANIM_IDLE], donor, allocator) : nullptr;
+		}
+
+		void add_dive_anims(const WeaponDef* asset, zonetool::s2::WeaponCompleteDef* weapon, utils::memory::allocator& allocator)
+		{
+			const auto* donor = dive_donor(asset);
+			if (!donor || !asset->szXAnims || !weapon->szXAnims)
+			{
+				return;
+			}
+
+			const auto anims = xanim::dive_anims(asset->szXAnims[WEAP_ANIM_IDLE], donor, allocator); // h1 has no dive anims, so they are built from the idle and a stock s2 dive
+			weapon->szXAnims[zonetool::s2::WEAP_ANIM_DIVE] = anims[0];
+			weapon->szXAnims[zonetool::s2::WEAP_ANIM_DIVE_END] = anims[1];
 		}
 
 		template <typename T, typename Convert>
@@ -776,18 +879,27 @@ namespace zonetool::h1::converter::s2::weapon
 			weapon->numAttachments = 0;
 			weapon->attachments = nullptr;
 			std::memset(weapon->defaultAttachments, 0, sizeof(weapon->defaultAttachments));
-			if (!asset->attachments || !asset->numAttachments)
+			const auto h1_count = asset->attachments ? asset->numAttachments : 0u;
+			const auto scope = attachment::built_in_scope(asset, allocator);
+			const auto count = h1_count + (scope ? 1u : 0u);
+			if (!count)
 			{
 				return;
 			}
 
-			weapon->attachments = allocator.allocate_array<zonetool::s2::WeaponAttachment*>(asset->numAttachments);
-			for (auto i = 0u; i < asset->numAttachments; i++)
+			weapon->attachments = allocator.allocate_array<zonetool::s2::WeaponAttachment*>(count);
+			for (auto i = 0u; i < h1_count; i++)
 			{
 				weapon->attachments[i] = attachment::reference(asset->attachments[i], allocator);
 			}
 
-			weapon->numAttachments = asset->numAttachments;
+			if (scope)
+			{
+				weapon->attachments[h1_count] = scope;
+				weapon->defaultAttachments[0] = static_cast<unsigned char>(count); // the sight slot, s2 drops it when another scope is attached
+			}
+
+			weapon->numAttachments = static_cast<unsigned char>(count);
 		}
 
 		std::optional<std::string> attachment_anim_name(const WAField& field, const XAnimParts* base_anim)
@@ -930,12 +1042,15 @@ namespace zonetool::h1::converter::s2::weapon
 			weapon->notetrackSoundMapValues = convert_script_strings(asset->notetrackSoundMapValues, notetrack_sound_count, allocator);
 			dump_notetrack_sounds(asset->notetrackSoundMapValues, notetrack_sound_count);
 
-			// TODO: h1 rumbles and effects are not converted
-			weapon->notetrackRumbleMapKeys = allocator.allocate_array<zonetool::s2::scr_string_t>(notetrack_map_count);
-			weapon->notetrackRumbleMapValues = allocator.allocate_array<zonetool::s2::scr_string_t>(notetrack_map_count);
-			weapon->notetrackFXMapKeys = allocator.allocate_array<zonetool::s2::scr_string_t>(notetrack_map_count);
+			weapon->notetrackRumbleMapKeys = convert_notetrack_map_strings(asset->notetrackRumbleMapKeys, allocator);
+			weapon->notetrackRumbleMapValues = convert_notetrack_map_strings(asset->notetrackRumbleMapValues, allocator);
+			weapon->notetrackFXMapKeys = convert_notetrack_map_strings(asset->notetrackFXMapKeys, allocator);
+			weapon->notetrackFXMapTagValues = convert_notetrack_map_strings(asset->notetrackFXMapTagValues, allocator);
 			weapon->notetrackFXMapValues = allocator.allocate_array<zonetool::s2::FxEffectDef*>(notetrack_map_count);
-			weapon->notetrackFXMapTagValues = allocator.allocate_array<zonetool::s2::scr_string_t>(notetrack_map_count);
+			for (auto i = 0u; asset->notetrackFXMapValues && i < notetrack_map_count; i++)
+			{
+				weapon->notetrackFXMapValues[i] = convert_effect(asset->notetrackFXMapValues[i], allocator);
+			}
 		}
 
 		void convert_state_timers(const StateTimers& h1, zonetool::s2::StateTimers& s2)
@@ -1002,6 +1117,35 @@ namespace zonetool::h1::converter::s2::weapon
 			s2.slideLoopTime = h1.slideLoopTime;
 			s2.slideOutTime = h1.slideOutTime;
 			s2.offhandSwitchTime = h1.offhandSwitchTime;
+		}
+
+		int kick_rise_time(const float pitch_min, const float pitch_max, const float yaw_min, const float yaw_max, const float center_speed)
+		{
+			if (center_speed <= 0.0f)
+			{
+				return 0;
+			}
+
+			const auto speed = std::max({std::abs(pitch_min), std::abs(pitch_max), std::abs(yaw_min), std::abs(yaw_max)});
+			return static_cast<int>(std::ceil(1000.0f * speed / center_speed));
+		}
+
+		// s2 stops the view kick at EV_FIRE_WEAPON_END, so bolt-actions keep firing until the h1 kick peaks
+		void fit_bolt_action_fire_time(const WeaponDef* asset, zonetool::s2::StateTimers& timers)
+		{
+			const auto hip_rise = kick_rise_time(asset->hipViewKickPitchMin, asset->hipViewKickPitchMax, asset->hipViewKickYawMin,
+				asset->hipViewKickYawMax, asset->hipViewKickCenterSpeed);
+			const auto ads_rise = kick_rise_time(asset->adsViewKickPitchMin, asset->adsViewKickPitchMax, asset->adsViewKickYawMin,
+				asset->adsViewKickYawMax, asset->adsViewKickCenterSpeed);
+			const auto extra = std::min(std::max(hip_rise, ads_rise) - timers.fireTime, timers.rechamberTime);
+			if (!asset->boltAction || extra <= 0)
+			{
+				return;
+			}
+
+			timers.rechamberBoltTime = timers.rechamberBoltTime * (timers.rechamberTime - extra) / timers.rechamberTime;
+			timers.fireTime += extra;
+			timers.rechamberTime -= extra; // fireTime + rechamberTime stays the h1 shot cycle
 		}
 
 		void convert_sounds(const WeaponDef* asset, zonetool::s2::WeaponCompleteDef* weapon, utils::memory::allocator& allocator)
@@ -1074,6 +1218,7 @@ namespace zonetool::h1::converter::s2::weapon
 			weapon->bounceSound = convert_surface_array(asset->bounceSound, allocator, convert);
 			weapon->rollingSound = convert_surface_array(asset->rollingSound, allocator, convert);
 			weapon->projExplosionSound = convert(asset->projExplosionSound);
+			weapon->projFirstExplosionSound = convert(asset->projExplosionSound);
 			weapon->projDudSound = convert(asset->projDudSound);
 			weapon->projIgnitionSound = convert(asset->projIgnitionSound);
 			weapon->turretOverheatSound = convert(asset->turretOverheatSound);
@@ -1110,7 +1255,6 @@ namespace zonetool::h1::converter::s2::weapon
 			weapon->gunModelConditions = allocator.allocate_array<zonetool::s2::XModel*>(model_count); // stock weapons always have the arrays
 			weapon->worldModelConditions = allocator.allocate_array<zonetool::s2::XModel*>(model_count);
 			weapon->worldClipModel = xmodel::reference(asset->worldClipModel, allocator);
-			weapon->rocketModel = xmodel::reference(asset->rocketModel, allocator);
 			weapon->projectileModel = xmodel::reference(asset->projectileModel, allocator);
 			weapon->stowOffsetModel = xmodel::reference(asset->stowOffsetModel, allocator);
 			weapon->lobWorldModelName = asset->lobWorldModelName;
@@ -1174,7 +1318,7 @@ namespace zonetool::h1::converter::s2::weapon
 			weapon->worldLastShotEjectEffect = convert(asset->worldLastShotEjectEffect);
 			weapon->viewMagEjectEffect = convert(asset->viewMagEjectEffect);
 			weapon->turretOverheatEffect = convert(asset->turretOverheatEffect);
-			weapon->projExplosionEffect = convert(asset->projExplosionEffect);
+			weapon->projExplosionEffect = convert(explosion_effect(asset));
 			weapon->projDudEffect = convert(asset->projDudEffect);
 			weapon->projTrailEffect = convert(asset->projTrailEffect);
 			weapon->projBeaconEffect = convert(asset->projBeaconEffect);
@@ -1356,8 +1500,6 @@ namespace zonetool::h1::converter::s2::weapon
 			weapon->adsViewKickYawMax = asset->adsViewKickYawMax;
 			weapon->adsViewKickMagMin = asset->adsViewKickMagMin;
 			weapon->adsViewKickCenterSpeed = asset->adsViewKickCenterSpeed;
-			weapon->adsViewScatterMin = asset->adsViewScatterMin;
-			weapon->adsViewScatterMax = asset->adsViewScatterMax;
 			weapon->hipGunKickPitchMin = asset->hipGunKickPitchMin;
 			weapon->hipGunKickPitchMax = asset->hipGunKickPitchMax;
 			weapon->hipGunKickYawMin = asset->hipGunKickYawMin;
@@ -1375,8 +1517,6 @@ namespace zonetool::h1::converter::s2::weapon
 			weapon->hipViewKickYawMax = asset->hipViewKickYawMax;
 			weapon->hipViewKickMagMin = asset->hipViewKickMagMin;
 			weapon->hipViewKickCenterSpeed = asset->hipViewKickCenterSpeed;
-			weapon->hipViewScatterMin = asset->hipViewScatterMin;
-			weapon->hipViewScatterMax = asset->hipViewScatterMax;
 			weapon->viewKickScale = asset->viewKickScale;
 			weapon->decreasingKick = asset->decreasingKick;
 			weapon->viewKickPitchUpOnly = false; // s2 makes every pitch kick positive when this is set, h1 kicks can go down
@@ -1680,9 +1820,10 @@ namespace zonetool::h1::converter::s2::weapon
 		weapon->dropHintStringIndex = asset->dropHintStringIndex;
 		weapon->szScript = asset->szScript;
 		weapon->hideTags = convert_script_strings(asset->hideTags, hide_tag_count, allocator);
-		weapon->szXAnimsRightHanded = convert_anims(asset->szXAnimsRightHanded, allocator);
-		weapon->szXAnimsLeftHanded = convert_anims(asset->szXAnimsLeftHanded, allocator);
-		weapon->szXAnims = convert_anims(asset->szXAnims, allocator);
+		weapon->szXAnimsRightHanded = convert_anims(asset->szXAnimsRightHanded, nullptr, allocator);
+		weapon->szXAnimsLeftHanded = convert_anims(asset->szXAnimsLeftHanded, nullptr, allocator);
+		weapon->szXAnims = convert_anims(asset->szXAnims, melee_anim(asset, allocator), allocator);
+		add_dive_anims(asset, weapon, allocator);
 
 		convert_type(asset, weapon);
 		convert_weapon_models(asset, weapon, allocator);
@@ -1694,6 +1835,7 @@ namespace zonetool::h1::converter::s2::weapon
 		convert_sounds(asset, weapon, allocator);
 		convert_state_timers(asset->stateTimers, weapon->stateTimers);
 		convert_state_timers(asset->akimboStateTimers, weapon->akimboStateTimers);
+		fit_bolt_action_fire_time(asset, weapon->stateTimers);
 		weapon->stateTimers.inspectTime = asset->inspectAnimTime;
 		weapon->akimboStateTimers.inspectTime = asset->inspectAnimTime;
 		convert_damage(asset, weapon);

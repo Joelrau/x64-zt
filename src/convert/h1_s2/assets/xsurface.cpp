@@ -19,6 +19,7 @@ namespace zonetool::h1::converter::s2::xsurface
 		std::vector<XModelSurfs*> pending_surfs;
 		std::unordered_set<std::string> pending_names;
 		std::unordered_map<const XSurface*, std::uint32_t> base_vert_indices;
+		std::unordered_map<const XSurface*, std::array<float, 3>> position_offsets;
 
 		struct vertex_data
 		{
@@ -44,6 +45,20 @@ namespace zonetool::h1::converter::s2::xsurface
 		bool is_skinned(const XSurface* surface)
 		{
 			return (surface->flags & SURF_FLAG_SKINNED) != 0;
+		}
+
+		const std::array<float, 3>* find_position_offset(const XSurface* surface)
+		{
+			const auto offset = position_offsets.find(surface);
+			return offset != position_offsets.end() ? &offset->second : nullptr;
+		}
+
+		void add_position_offset(float* position, const std::array<float, 3>* offset)
+		{
+			for (auto axis = 0; offset && axis < 3; axis++)
+			{
+				position[axis] += (*offset)[axis];
+			}
 		}
 
 		std::uint32_t pack_wind(const GfxPackedVertex& vertex, const float max_weight)
@@ -148,9 +163,11 @@ namespace zonetool::h1::converter::s2::xsurface
 			const auto normals = reinterpret_cast<std::uint32_t*>(data + normals_offset);
 			const auto tangents = reinterpret_cast<std::uint32_t*>(data + tangents_offset);
 			const auto use_color = has_vertex_color(surface);
+			const auto* offset = find_position_offset(surface);
 			for (auto i = 0u; i < vert_count; i++)
 			{
 				std::memcpy(&positions[i * 3], verts[i].xyz, sizeof(verts[i].xyz));
+				add_position_offset(&positions[i * 3], offset);
 				sky_visibility[i] = pack_sky_visibility(verts[i].normal.packed);
 				colors[i] = use_color ? verts[i].color.packed : 0xFFFFFFFF;
 				tex_coords[i] = verts[i].texCoord.packed;
@@ -205,7 +222,8 @@ namespace zonetool::h1::converter::s2::xsurface
 			return shared;
 		}
 
-		zonetool::s2::XSurfaceCollisionLeaf* convert_collision_tree(const XSurfaceCollisionTree* tree, utils::memory::allocator& allocator)
+		zonetool::s2::XSurfaceCollisionLeaf* convert_collision_tree(const XSurfaceCollisionTree* tree, const std::array<float, 3>* offset,
+			utils::memory::allocator& allocator)
 		{
 			if (!tree)
 			{
@@ -214,6 +232,11 @@ namespace zonetool::h1::converter::s2::xsurface
 
 			const auto new_tree = allocator.allocate<zonetool::s2::XSurfaceCollisionLeaf>();
 			std::memcpy(new_tree->trans, tree->trans, sizeof(new_tree->trans));
+			for (auto axis = 0; offset && axis < 3; axis++)
+			{
+				new_tree->trans[axis] -= (*offset)[axis]; // trans holds the negated tree mins
+			}
+
 			std::memcpy(new_tree->scale, tree->scale, sizeof(new_tree->scale));
 			new_tree->nodeCount = tree->nodeCount;
 			new_tree->leafCount = tree->leafCount;
@@ -239,17 +262,19 @@ namespace zonetool::h1::converter::s2::xsurface
 				new_list.vertCount = list.vertCount;
 				new_list.triOffset = list.triOffset;
 				new_list.triCount = list.triCount;
-				new_list.collisionTree = convert_collision_tree(list.collisionTree, allocator);
+				new_list.collisionTree = convert_collision_tree(list.collisionTree, find_position_offset(surface), allocator);
 			}
 		}
 
 		zonetool::s2::vec4_t* convert_verts(const XSurface* surface, utils::memory::allocator& allocator)
 		{
 			const auto verts = allocator.allocate_array<zonetool::s2::vec4_t>(surface->vertCount);
+			const auto* offset = find_position_offset(surface);
 			for (auto i = 0; i < surface->vertCount; i++)
 			{
 				const auto& vertex = surface->verts0.packedVerts0[i];
 				std::memcpy(verts[i], vertex.xyz, sizeof(vertex.xyz));
+				add_position_offset(verts[i], offset);
 				std::memcpy(&verts[i][3], &vertex.normal.packed, sizeof(std::uint32_t));
 			}
 
@@ -372,6 +397,14 @@ namespace zonetool::h1::converter::s2::xsurface
 		}
 	}
 
+	void set_position_offset(const XModelSurfs* asset, const std::array<float, 3>& offset)
+	{
+		for (auto i = 0; asset && asset->surfs && i < asset->numsurfs; i++)
+		{
+			position_offsets[&asset->surfs[i]] = offset;
+		}
+	}
+
 	void finish()
 	{
 		for (auto* asset : pending_surfs)
@@ -382,6 +415,7 @@ namespace zonetool::h1::converter::s2::xsurface
 		pending_surfs.clear();
 		pending_names.clear();
 		base_vert_indices.clear();
+		position_offsets.clear();
 	}
 
 	float surface_area(const XModelSurfs* asset)

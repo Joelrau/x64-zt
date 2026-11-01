@@ -16,9 +16,13 @@ namespace zonetool::h1::converter::s2::attachment
 		constexpr std::size_t h1_world_model_count = 2;
 		constexpr std::size_t h1_view_model_count = 2;
 		constexpr std::size_t h1_reticle_view_model_count = 64;
-		constexpr std::size_t s2_world_model_count = 2;
-		constexpr std::size_t s2_view_model_count = 12;
+		constexpr std::size_t s2_model_count = 2;
+		constexpr std::size_t s2_variant_model_count = 12;
 		constexpr std::size_t s2_reticle_view_model_count = 255;
+		constexpr auto scope_alt_mode_mask = 3; // every stock scope
+		constexpr auto built_in_scope_display_name = "WEAPON_TELESCOPIC_SIGHT2"; // the stock default scopes
+		constexpr auto scope_dof_start = 50.0f; // stock telescopic sights set the view model dof start past its end, which turns it off
+		constexpr auto scope_dof_end = 25.0f;
 
 		const std::unordered_map<std::string_view, std::vector<std::string_view>> field_renames =
 		{
@@ -164,6 +168,28 @@ namespace zonetool::h1::converter::s2::attachment
 			}
 		}
 
+		void set_fields(zonetool::s2::WeaponAttachment* attachment, const std::vector<std::pair<std::uint16_t, zonetool::s2::AttachmentField>>& fields,
+			utils::memory::allocator& allocator)
+		{
+			attachment->fieldCount = static_cast<int>(fields.size());
+			attachment->fieldOffsets = allocator.allocate_array<unsigned short>(std::max<std::size_t>(fields.size(), 1));
+			attachment->fields = allocator.allocate_array<zonetool::s2::AttachmentField>(std::max<std::size_t>(fields.size(), 1));
+			for (auto i = 0u; i < fields.size(); i++)
+			{
+				attachment->fieldOffsets[i] = fields[i].first;
+				attachment->fields[i] = fields[i].second;
+			}
+		}
+
+		std::pair<std::uint16_t, zonetool::s2::AttachmentField> float_field(const char* name, const float value)
+		{
+			zonetool::s2::AttachmentField field{};
+			field.type = zonetool::s2::WAFIELD_TYPE_FLOAT;
+			field.code = zonetool::s2::WAFIELD_CODE_SET;
+			field.value.floatValue = value;
+			return {*zonetool::s2::weapon_field_offset(name), field};
+		}
+
 		void convert_fields(const WeaponAttachment* asset, zonetool::s2::WeaponAttachment* attachment, utils::memory::allocator& allocator)
 		{
 			std::vector<std::pair<std::uint16_t, zonetool::s2::AttachmentField>> fields;
@@ -205,14 +231,7 @@ namespace zonetool::h1::converter::s2::attachment
 				}
 			}
 
-			attachment->fieldCount = static_cast<int>(fields.size());
-			attachment->fieldOffsets = allocator.allocate_array<unsigned short>(std::max<std::size_t>(fields.size(), 1));
-			attachment->fields = allocator.allocate_array<zonetool::s2::AttachmentField>(std::max<std::size_t>(fields.size(), 1));
-			for (auto i = 0u; i < fields.size(); i++)
-			{
-				attachment->fieldOffsets[i] = fields[i].first;
-				attachment->fields[i] = fields[i].second;
-			}
+			set_fields(attachment, fields, allocator);
 		}
 
 		const WAField* find_field(const WeaponAttachment* asset, const std::string_view field_name)
@@ -268,18 +287,34 @@ namespace zonetool::h1::converter::s2::attachment
 		zonetool::s2::XModel** convert_models(XModel* const* models, const std::size_t h1_count, const std::size_t s2_count,
 			utils::memory::allocator& allocator)
 		{
-			if (!models)
-			{
-				return nullptr;
-			}
-
 			const auto result = allocator.allocate_array<zonetool::s2::XModel*>(s2_count);
-			for (auto i = 0u; i < h1_count; i++)
+			for (auto i = 0u; models && i < h1_count; i++)
 			{
 				result[i] = xmodel::reference(models[i], allocator);
 			}
 
 			return result;
+		}
+
+		zonetool::s2::XModel** reference_base_models(const std::optional<std::string>& name, utils::memory::allocator& allocator)
+		{
+			const auto result = allocator.allocate_array<zonetool::s2::XModel*>(s2_model_count);
+			if (name)
+			{
+				xmodel::dump_used(name->data());
+				result[0] = make_stub<zonetool::s2::XModel>(xmodel::converted_name(zonetool::s2::ASSET_TYPE_XMODEL, name->data()), allocator);
+			}
+
+			return result;
+		}
+
+		void set_models(zonetool::s2::WeaponAttachment* attachment, zonetool::s2::XModel** world_models, zonetool::s2::XModel** view_models,
+			utils::memory::allocator& allocator)
+		{
+			attachment->worldModels = world_models;
+			attachment->worldModelVariants = allocator.allocate_array<zonetool::s2::XModel*>(s2_variant_model_count);
+			attachment->viewModels = view_models;
+			attachment->viewModelVariants = allocator.allocate_array<zonetool::s2::XModel*>(s2_variant_model_count);
 		}
 	}
 
@@ -298,10 +333,11 @@ namespace zonetool::h1::converter::s2::attachment
 		attachment->weaponType = weapon::convert_weap_type(asset->weaponType);
 		attachment->weapClass = weapon::convert_weap_class(asset->weapClass).value_or(zonetool::s2::WEAPCLASS_RIFLE);
 		attachment->greebleType = static_cast<zonetool::s2::weapGreebleType_t>(asset->greebleType);
-		attachment->worldModels = convert_models(asset->worldModels, h1_world_model_count, s2_world_model_count, allocator);
-		attachment->viewModels = convert_models(asset->viewModels, h1_view_model_count, s2_view_model_count, allocator);
-		attachment->reticleViewModels = convert_models(asset->reticleViewModels, h1_reticle_view_model_count,
-			s2_reticle_view_model_count, allocator);
+		set_models(attachment, convert_models(asset->worldModels, h1_world_model_count, s2_model_count, allocator),
+			convert_models(asset->viewModels, h1_view_model_count, s2_model_count, allocator), allocator);
+		attachment->reticleViewModels = asset->reticleViewModels
+			? convert_models(asset->reticleViewModels, h1_reticle_view_model_count, s2_reticle_view_model_count, allocator)
+			: nullptr;
 		attachment->hybridSettings = retype<zonetool::s2::AttHybridSettings>(asset->hybridSettings);
 		attachment->hideIronSightsWithThisAttachment = asset->hideIronSightsWithThisAttachment;
 		attachment->showMasterRail = asset->showMasterRail;
@@ -335,6 +371,47 @@ namespace zonetool::h1::converter::s2::attachment
 
 		auto* stub = allocator.allocate<zonetool::s2::WeaponAttachment>();
 		stub->szInternalName = asset->name;
+		return stub;
+	}
+
+	zonetool::s2::WeaponAttachment* built_in_scope(const WeaponDef* weapon, utils::memory::allocator& allocator)
+	{
+		static const std::regex weapon_name(R"(h1_(.+)_mp)");
+		std::cmatch match;
+		if (!weapon->reticleViewModels || !weapon->reticleViewModels[0] || !weapon->gunModel || !weapon->worldModel
+			|| !std::regex_match(weapon->name, match, weapon_name))
+		{
+			return nullptr; // only the h1 snipers with a built-in scope have weapon reticles
+		}
+
+		const auto view_model = xmodel::find_built_in_scope(match[1].str(), weapon->gunModel[0]);
+		if (!view_model)
+		{
+			ZONETOOL_WARNING("weapon \"%s\": the built-in scope is not in its transient zone", weapon->name);
+			return nullptr;
+		}
+
+		const auto name = "scope_" + match[1].str();
+		if (dumped_attachments.insert(name).second)
+		{
+			auto* attachment = allocator.allocate<zonetool::s2::WeaponAttachment>();
+			attachment->szInternalName = allocator.duplicate_string(name);
+			attachment->szDisplayName = built_in_scope_display_name;
+			attachment->type = zonetool::s2::ATTACHMENT_SCOPE;
+			attachment->altModeMask = scope_alt_mode_mask;
+			set_models(attachment, reference_base_models(xmodel::find_built_in_scope(match[1].str(), weapon->worldModel[0]), allocator),
+				reference_base_models(view_model, allocator), allocator);
+			attachment->reticleViewModels = convert_models(weapon->reticleViewModels, h1_reticle_view_model_count, s2_reticle_view_model_count, allocator);
+			set_fields(attachment, {float_field("adsDofStart", scope_dof_start), float_field("adsDofEnd", scope_dof_end)}, allocator); // the h1 reticle plane is a view model surface, so the view model dof would blur the scope
+			attachment->adsSceneBlur = weapon->adsSceneBlur; // s2 reads the ads blur only from attachments
+			attachment->adsSceneBlurStrength = weapon->adsSceneBlurStrength;
+			attachment->automaticAttachment = true; // stock sets it on every default attachment
+			zonetool::s2::weapon_attachment::dump(attachment);
+			add_csv_row(zonetool::s2::type_to_string(zonetool::s2::ASSET_TYPE_ATTACHMENT), name);
+		}
+
+		auto* stub = allocator.allocate<zonetool::s2::WeaponAttachment>();
+		stub->szInternalName = allocator.duplicate_string(name);
 		return stub;
 	}
 
