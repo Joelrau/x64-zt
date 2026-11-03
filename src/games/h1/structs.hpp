@@ -5183,8 +5183,8 @@ namespace zonetool::h1
 		int nightVisionRemoveTime; // 1824 * x
 		int nightVisionRemoveTimePowerDown; // 1828 * x
 		int nightVisionRemoveTimeFadeInStart; // 1832 * x
-		int aiFuseTime; // 1836 * x
-		int fuseTime; // 1840 * x
+		int fuseTime; // 1836 * x
+		int aiFuseTime; // 1840 * x
 		int missileTime; // 1844 * x
 		int primeTime; // 1848 * x
 		bool bHoldFullPrime; // 1852 * x
@@ -5504,8 +5504,8 @@ namespace zonetool::h1
 		float swayLerpSpeed; // 2484
 		float swayPitchScale; // 2488
 		float swayYawScale; // 2492
-		float swayVertScale; // 2496
-		float swayHorizScale; // 2500
+		float swayHorizScale; // 2496
+		float swayVertScale; // 2500
 		float swayShellShockScale; // 2504
 		float adsSwayMaxAngle; // 2508
 		float adsSwayLerpSpeed; // 2512
@@ -8161,23 +8161,7 @@ namespace zonetool::h1
 
 	enum StaticModelFlag : std::int16_t
 	{
-		// scale modifiers: 
-		// 0 = 0.25f
-		// 1 = 0.285714f
-		// 2 = 0.333333f
-		// 3 = 0.4f
-		// 4 = 0.5f
-		// 5 = 0.571429f
-		// 6 = 0.666667f
-		// 7 = 0.8f
-		// 8 = 0.888889f
-		// 9 = 1.0f
-		// 10 = 1.14286f
-		// 11 = 1.33333f
-		// 12 = 1.6f
-		// 13 = 2.0f
-		// 14 = 2.66667f
-		// 15 = 4.0f
+		// lod distance scale of each modifier: 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1.0, 1.125, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 3.5, 4.0
 		STATIC_MODEL_FLAG_SCALE_0 = 0,
 		STATIC_MODEL_FLAG_SCALE_1 = 1,
 		STATIC_MODEL_FLAG_SCALE_2 = 2,

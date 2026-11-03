@@ -2,14 +2,6 @@
 #include "../include.hpp"
 #include "physworld.hpp"
 
-#pragma warning(push)
-#pragma warning(disable: 4459)
-#include <formats/earcut.hpp>
-#pragma warning(pop)
-
-#include <utils/string.hpp>
-#include <utils/cryptography.hpp>
-
 namespace zonetool::iw6
 {
 	namespace converter::h1
@@ -18,1159 +10,574 @@ namespace zonetool::iw6
 		{
 			namespace
 			{
-				struct mesh_node
-				{
-					float lower[3];
-					float upper[3];
-					bool is_max;
-					zonetool::h1::dmMeshNode node;
-				};
+				constexpr auto max_triangles_per_leaf = 15;
+				constexpr auto leaf_axis = 3u;
+				constexpr auto quantized_extent = 32766.0f;
+				constexpr auto weld_steps_per_unit = 64.0f;
 
-				struct bounding_box
-				{
-					float lower[3];
-					float upper[3];
-				};
+				using point_t = std::array<float, 3>;
+				using plane_t = std::array<float, 4>;
+				using axial_planes_t = std::array<plane_t, 6>;
 
 				struct triangle_t
 				{
-					int index;
 					int verts[3];
+					int material;
 				};
 
-				struct polygon_t
+				struct position_hash
 				{
-					float(*pts)[3];
-					unsigned int ptCount;
-				};
-
-				struct axial_planes_t
-				{
-					float planes[6][4];
-				};
-
-				void get_winding_for_brush_face(zonetool::h1::ClipInfo* info, const zonetool::h1::Bounds* bounds,
-					const zonetool::h1::cbrush_t* brush, unsigned int brush_side,
-					polygon_t* out_winding, int max_verts, const axial_planes_t* axial_planes)
-				{
-					float plane_1[4]{};
-					float plane_2[4]{};
-					float plane_3[4]{};
-
-					float v38;
-					float v39;
-					float v40;
-					float v41;
-					float v43;
-					float v44;
-					float v45;
-					float v51;
-					float v52;
-					float v53;
-
-					auto adjacent_side_offset = 0;
-					auto edge_count = 0;
-
-					if (brush_side >= 6)
+					std::size_t operator()(const std::array<int, 3>& position) const
 					{
-						const auto side = &brush->sides[brush_side - 6];
-						adjacent_side_offset = side->firstAdjacentSideOffset;
-						edge_count = side->edgeCount;
-
-						const auto plane = &info->planes[side->planeIndex];
-						plane_1[0] = plane->normal[0];
-						plane_1[1] = plane->normal[1];
-						plane_1[2] = plane->normal[2];
-						plane_1[3] = plane->dist;
+						return (static_cast<std::size_t>(position[0]) * 73856093) ^ (static_cast<std::size_t>(position[1]) * 19349663)
+							^ (static_cast<std::size_t>(position[2]) * 83492791);
 					}
-					else
-					{
-						const auto index = 3 * (brush_side & 1) + (brush_side >> 1);
-						adjacent_side_offset = brush->firstAdjacentSideOffsets[0][index];
-						edge_count = brush->edgeCount[0][index];
+				};
 
-						plane_1[0] = axial_planes->planes[brush_side][0];
-						plane_1[1] = axial_planes->planes[brush_side][1];
-						plane_1[2] = axial_planes->planes[brush_side][2];
-						plane_1[3] = axial_planes->planes[brush_side][3];
+				struct mesh_source
+				{
+					std::vector<point_t> verts;
+					std::unordered_map<std::array<int, 3>, int, position_hash> vert_lookup;
+					std::vector<triangle_t> triangles;
+					std::set<std::array<int, 3>> known_triangles;
+				};
+
+				struct tree_node
+				{
+					point_t lower;
+					point_t upper;
+					unsigned int axis;
+					unsigned int triangle_count;
+					unsigned int index;
+				};
+
+				point_t subtract(const point_t& a, const point_t& b)
+				{
+					return {a[0] - b[0], a[1] - b[1], a[2] - b[2]};
+				}
+
+				float distance_squared(const point_t& a, const point_t& b)
+				{
+					const auto delta = subtract(a, b);
+					return delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2];
+				}
+
+				int add_vertex(mesh_source& mesh, const point_t& point)
+				{
+					const std::array<int, 3> key{static_cast<int>(std::lround(point[0] * weld_steps_per_unit)),
+						static_cast<int>(std::lround(point[1] * weld_steps_per_unit)), static_cast<int>(std::lround(point[2] * weld_steps_per_unit))};
+					const auto [entry, inserted] = mesh.vert_lookup.try_emplace(key, static_cast<int>(mesh.verts.size()));
+					if (inserted)
+					{
+						mesh.verts.emplace_back(point);
 					}
 
-					v51 = plane_1[3];
-					v52 = plane_1[2];
-					v53 = plane_1[0];
+					return entry->second;
+				}
 
-					if (edge_count < 3 || edge_count > max_verts)
+				void add_triangle(mesh_source& mesh, const point_t& a, const point_t& b, const point_t& c, const int material)
+				{
+					std::array<int, 3> verts{add_vertex(mesh, a), add_vertex(mesh, b), add_vertex(mesh, c)};
+					if (verts[0] == verts[1] || verts[1] == verts[2] || verts[2] == verts[0])
 					{
-						out_winding->ptCount = 0;
 						return;
 					}
 
-					const auto adjacent_side = &brush->baseAdjacentSide[adjacent_side_offset];
-					const auto side_index = adjacent_side[edge_count - 1];
-
-					if (adjacent_side[edge_count - 1] >= 6u)
+					std::ranges::rotate(verts, std::ranges::min_element(verts));
+					if (mesh.known_triangles.insert(verts).second)
 					{
-						const auto plane = &info->planes[brush->sides[(side_index - 6)].planeIndex];
-						plane_2[0] = plane->normal[0];
-						plane_2[1] = plane->normal[1];
-						plane_2[2] = plane->normal[2];
-						plane_2[3] = plane->dist;
-					}
-					else
-					{
-						plane_2[0] = axial_planes->planes[side_index][0];
-						plane_2[1] = axial_planes->planes[side_index][1];
-						plane_2[2] = axial_planes->planes[side_index][2];
-						plane_2[3] = axial_planes->planes[side_index][3];
-					}
-
-					out_winding->ptCount = 0;
-					const auto points = out_winding->pts;
-					auto current_point = 0;
-
-					for (auto i = 0; i < edge_count; i++)
-					{
-						const auto current_side = adjacent_side[i];
-						if (current_side >= 6u)
-						{
-							const auto plane = &info->planes[brush->sides[(current_side - 6)].planeIndex];
-							plane_3[0] = plane->normal[0];
-							plane_3[1] = plane->normal[1];
-							plane_3[2] = plane->normal[2];
-							plane_3[3] = plane->dist;
-						}
-						else
-						{
-							plane_3[0] = axial_planes->planes[current_side][0];
-							plane_3[1] = axial_planes->planes[current_side][1];
-							plane_3[2] = axial_planes->planes[current_side][2];
-							plane_3[3] = axial_planes->planes[current_side][3];
-						}
-
-						v38 = (plane_3[2] * plane_2[1]) - (plane_2[2] * plane_3[1]);
-						v39 = (plane_1[2] * plane_3[1]) - (plane_1[1] * plane_3[2]);
-						v40 = (plane_1[1] * plane_2[2]) - (plane_1[2] * plane_2[1]);
-						v41 = (plane_2[0] * v39) + (plane_1[0] * v38) + (plane_3[0] * v40);
-
-						const auto abs = std::fabs(v41);
-						if (abs >= 0.001f)
-						{
-							points[current_point][0] = (((v39 * plane_2[3]) + (v38 * v51)) + (v40 * plane_3[3])) * (1.f / v41);
-							points[current_point][1] = (((((v53 * plane_3[2]) - (plane_3[0] * v52)) * plane_2[3]) + (((plane_3[0] * plane_2[2]) - (plane_2[0] * plane_3[2])) * v51))
-								+ (((plane_2[0] * v52) - (v53 * plane_2[2])) * plane_3[3]))
-								* (1.f / v41);
-							points[current_point][2] = (((((plane_3[0] * plane_1[1]) - (v53 * plane_3[1])) * plane_2[3]) + (((plane_2[0] * plane_3[1]) - (plane_3[0] * plane_2[1])) * v51))
-								+ (((v53 * plane_2[1]) - (plane_2[0] * plane_1[1])) * plane_3[3]))
-								* (1.f / v41);
-
-							if (!current_point
-								|| (v43 = points[(current_point - 1)][0],
-								v44 = points[(current_point - 1)][1] - points[current_point][1],
-								v45 = points[(current_point - 1)][2] - points[current_point][2],
-								(((v44 * v44) + ((v43 - points[current_point][0]) * (v43 - points[current_point][0]))) + (v45 * v45)) >= 1.0))
-							{
-								current_point++;
-							}
-
-							plane_1[0] = v53;
-						}
-
-						plane_1[2] = v52;
-						plane_2[0] = plane_3[0];
-						plane_2[1] = plane_3[1];
-						plane_2[2] = plane_3[2];
-						plane_2[3] = plane_3[3];
-					}
-
-					out_winding->ptCount = current_point;
-					const auto point_count = out_winding->ptCount;
-
-					if (point_count > 1)
-					{
-						const auto pt_index = point_count - 1;
-
-						float point[3]{};
-						point[0] = out_winding->pts[0][0] - out_winding->pts[pt_index][0];
-						point[1] = out_winding->pts[0][1] - out_winding->pts[pt_index][1];
-						point[2] = out_winding->pts[0][2] - out_winding->pts[pt_index][2];
-
-						if ((point[0] * point[0]) + (point[1] * point[1]) + (point[2] * point[2]) < 1.0)
-						{
-							out_winding->ptCount = pt_index;
-						}
-					}
-
-					if (out_winding->ptCount < 3)
-					{
-						out_winding->ptCount = 0;
+						mesh.triangles.push_back({{verts[0], verts[1], verts[2]}, material});
 					}
 				}
 
-				axial_planes_t get_axial_planes(const zonetool::h1::Bounds* bounds)
+				axial_planes_t get_axial_planes(const zonetool::h1::Bounds& bounds)
 				{
-					axial_planes_t axial_planes{};
-					axial_planes.planes[0][0] = -1.f;
-					axial_planes.planes[0][1] = 0.f;
-					axial_planes.planes[0][2] = 0.f;
-					axial_planes.planes[0][3] = -1 * (bounds->midPoint[0] - bounds->halfSize[0]);
-
-					axial_planes.planes[1][0] = 1.f;
-					axial_planes.planes[1][1] = 0.f;
-					axial_planes.planes[1][2] = 0.f;
-					axial_planes.planes[1][3] = bounds->midPoint[0] + bounds->halfSize[0];
-
-					axial_planes.planes[2][0] = 0.f;
-					axial_planes.planes[2][1] = -1.f;
-					axial_planes.planes[2][2] = 0.f;
-					axial_planes.planes[2][3] = -1 * (bounds->midPoint[1] - bounds->halfSize[1]);
-
-					axial_planes.planes[3][0] = 0.f;
-					axial_planes.planes[3][1] = 1.f;
-					axial_planes.planes[3][2] = 0.f;
-					axial_planes.planes[3][3] = (bounds->midPoint[1] + bounds->halfSize[1]);
-
-					axial_planes.planes[4][0] = 0.f;
-					axial_planes.planes[4][1] = 0.f;
-					axial_planes.planes[4][2] = -1.f;
-					axial_planes.planes[4][3] = -1 * (bounds->midPoint[2] - bounds->halfSize[2]);
-
-					axial_planes.planes[5][0] = 0.f;
-					axial_planes.planes[5][1] = 0.f;
-					axial_planes.planes[5][2] = 1.f;
-					axial_planes.planes[5][3] = (bounds->midPoint[2] + bounds->halfSize[2]);
-
-					return axial_planes;
+					const auto& mid = bounds.midPoint;
+					const auto& half = bounds.halfSize;
+					return
+					{{
+						{-1.0f, 0.0f, 0.0f, half[0] - mid[0]},
+						{1.0f, 0.0f, 0.0f, mid[0] + half[0]},
+						{0.0f, -1.0f, 0.0f, half[1] - mid[1]},
+						{0.0f, 1.0f, 0.0f, mid[1] + half[1]},
+						{0.0f, 0.0f, -1.0f, half[2] - mid[2]},
+						{0.0f, 0.0f, 1.0f, mid[2] + half[2]},
+					}};
 				}
 
-				void build_windings_for_brush(zonetool::h1::ClipInfo* info, const zonetool::h1::Bounds* bounds,
-					const zonetool::h1::cbrush_t* brush, polygon_t* out_polys,
-					unsigned int max_polys, float(*out_verts)[3], unsigned int max_verts)
+				plane_t side_plane(const zonetool::h1::ClipInfo* info, const zonetool::h1::cbrush_t& brush, const axial_planes_t& axial_planes, const unsigned int side)
 				{
-					auto point_count = 0;
-					const auto axial_planes = get_axial_planes(bounds);
-
-					for (auto side_index = 0; side_index < brush->numsides + 6; side_index++)
+					if (side < 6)
 					{
-						const auto out_poly = &out_polys[side_index];
-						out_poly->pts = &out_verts[point_count];
-						get_winding_for_brush_face(info, bounds, brush, side_index, out_poly, max_verts - point_count, &axial_planes);
-						point_count += out_poly->ptCount;
+						return axial_planes[side];
 					}
+
+					const auto& plane = info->planes[brush.sides[side - 6].planeIndex];
+					return {plane.normal[0], plane.normal[1], plane.normal[2], plane.dist};
 				}
 
-				int max_nodes = 0;
-				mesh_node* alloc_node(mesh_node* nodes, int& node_index)
+				int side_material(const zonetool::h1::cbrush_t& brush, const unsigned int side)
 				{
-					if (node_index + 1 >= max_nodes)
-					{
-						ZONETOOL_FATAL("out of nodes for physworld generation");
-					}
-
-					return &nodes[node_index++];
+					return side < 6 ? brush.axialMaterialNum[side & 1][side >> 1] : brush.sides[side - 6].materialNum;
 				}
 
-				bounding_box compute_bounding_box(zonetool::h1::dmMeshData* mesh, const std::vector<triangle_t>& triangles)
+				bool intersect_planes(const plane_t& a, const plane_t& b, const plane_t& c, point_t& out)
 				{
-					bounding_box box{};
-
-					const auto verts = &mesh->m_aVertices[0];
-
-					if (triangles.size() > 0)
-					{
-						box.lower[0] = verts[triangles[0].verts[0]].x;
-						box.lower[1] = verts[triangles[0].verts[0]].y;
-						box.lower[2] = verts[triangles[0].verts[0]].z;
-						box.upper[0] = verts[triangles[0].verts[0]].x;
-						box.upper[1] = verts[triangles[0].verts[0]].y;
-						box.upper[2] = verts[triangles[0].verts[0]].z;
-					}
-
-					for (const auto& tri : triangles)
-					{
-						for (auto i = 0; i < 3; i++)
-						{
-							for (auto o = 0; o < 3; o++)
-							{
-								const auto value = reinterpret_cast<float*>(&verts[tri.verts[i]].x)[o];
-								if (value > box.upper[o])
-								{
-									box.upper[o] = value;
-								}
-
-								if (value < box.lower[o])
-								{
-									box.lower[o] = value;
-								}
-							}
-						}
-					}
-
-					return box;
-				}
-
-				void cross_product(const float* a, const float* b, float* out)
-				{
-					out[0] = a[1] * b[2] - a[2] * b[1];
-					out[1] = a[2] * b[0] - a[0] * b[2];
-					out[2] = a[0] * b[1] - a[1] * b[0];
-				}
-
-				float dot_product(const float* a, const float* b)
-				{
-					return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-				}
-
-				void vector_sub(const float* a, const float* b, float* out)
-				{
-					out[0] = a[0] - b[0];
-					out[1] = a[1] - b[1];
-					out[2] = a[2] - b[2];
-				}
-
-				void vector_add(const float* a, const float* b, float* out)
-				{
-					out[0] = a[0] + b[0];
-					out[1] = a[1] + b[1];
-					out[2] = a[2] + b[2];
-				}
-
-				void vector_mul(const float* a, const float mul, float* out)
-				{
-					out[0] = a[0] * mul;
-					out[1] = a[1] * mul;
-					out[2] = a[2] * mul;
-				}
-
-				int hash_triangle(const triangle_t& tri, const std::vector<zonetool::h1::dmFloat4>& phys_verticies)
-				{
-					float verts[3][3]{};
-					std::memcpy(&verts[0], &phys_verticies[tri.verts[0]], sizeof(float[3]));
-					std::memcpy(&verts[1], &phys_verticies[tri.verts[1]], sizeof(float[3]));
-					std::memcpy(&verts[2], &phys_verticies[tri.verts[2]], sizeof(float[3]));
-
-					std::string data;
-					data.append(reinterpret_cast<char*>(&verts[0]), sizeof(float[3][3]));
-
-					return utils::cryptography::jenkins_one_at_a_time::compute(data);
-				}
-
-				bool is_script_brushmodel_brush_r(zonetool::h1::clipMap_t* asset, zonetool::h1::cLeafBrushNode_s* node, zonetool::h1::cbrush_t* brush)
-				{
-					if (node->leafBrushCount > 0)
-					{
-						for (auto o = 0; o < node->leafBrushCount; o++)
-						{
-							const auto brush_idx = node->data.leaf.brushes[o];
-							if (brush == &asset->info.bCollisionData.brushes[brush_idx])
-							{
-								return true;
-							}
-						}
-
-						return false;
-					}
-
-					if (node->leafBrushCount)
-					{
-						if (is_script_brushmodel_brush_r(asset, &node[1], brush))
-						{
-							return true;
-						}
-					}
-
-					if (node->data.children.childOffset[0] &&
-						is_script_brushmodel_brush_r(asset, &node[node->data.children.childOffset[0]], brush))
-					{
-						return true;
-					}
-
-					if (node->data.children.childOffset[1] &&
-						is_script_brushmodel_brush_r(asset, &node[node->data.children.childOffset[1]], brush))
-					{
-						return true;
-					}
-
-					return false;
-				}
-
-				bool is_script_brushmodel_brush(zonetool::h1::clipMap_t* asset, zonetool::h1::cbrush_t* brush)
-				{
-					for (auto i = 0u; i < asset->numSubModels; i++)
-					{
-						const auto cmodel = &asset->cmodels[i];
-						const auto leaf_brush_node = &asset->info.bCollisionTree.leafbrushNodes[cmodel->leaf.leafBrushNode];
-						if (is_script_brushmodel_brush_r(asset, leaf_brush_node, brush))
-						{
-							return true;
-						}
-					}
-
-					return false;
-				}
-
-				bool find_partition_in_tree(zonetool::h1::clipMap_t* asset, zonetool::h1::CollisionAabbTree* tree, zonetool::h1::CollisionPartition* partition)
-				{
-					if (tree->childCount != 0)
-					{
-						for (auto i = 0u; i < tree->childCount; i++)
-						{
-							const auto child = &asset->info.pCollisionTree.aabbTrees[tree->u.firstChildIndex + i];
-							if (find_partition_in_tree(asset, child, partition))
-							{
-								return true;
-							}
-						}
-					}
-					else
-					{
-						return partition == &asset->info.pCollisionData.partitions[tree->u.partitionIndex];
-					}
-
-					return false;
-				}
-
-				bool is_script_brushmodel_partition(zonetool::h1::clipMap_t* asset, zonetool::h1::CollisionPartition* partition)
-				{
-					for (auto i = 0u; i < asset->numSubModels; i++)
-					{
-						const auto cmodel = &asset->cmodels[i];
-						for (auto o = 0u; o < cmodel->leaf.collAabbCount; o++)
-						{
-							const auto tree = &asset->info.pCollisionTree.aabbTrees[cmodel->leaf.firstCollAabbIndex + o];
-							if (find_partition_in_tree(asset, tree, partition))
-							{
-								return true;
-							}
-						}
-					}
-
-					return false;
-				}
-
-				std::vector<triangle_t> generate_brush_triangles(zonetool::h1::clipMap_t* asset, std::vector<zonetool::h1::dmFloat4>& vertices, int brush_index)
-				{
-					std::vector<triangle_t> triangles;
-
-					auto brush = &asset->info.bCollisionData.brushes[brush_index];
-					auto brush_bounds = asset->info.bCollisionData.brushBounds[brush_index];
-
-					if (is_script_brushmodel_brush(asset, brush))
-					{
-						return {};
-					}
-
-					const auto add_points = [&](int side_index, polygon_t* poly)
-					{
-						const auto base_index = static_cast<int>(vertices.size());
-
-						for (auto i = 0u; i < poly->ptCount; i++)
-						{
-							zonetool::h1::dmFloat4 vert{};
-							vert.x = poly->pts[i][0];
-							vert.y = poly->pts[i][1];
-							vert.z = poly->pts[i][2];
-							vertices.emplace_back(vert);
-						}
-
-						if (poly->ptCount == 3)
-						{
-							triangle_t triangle{};
-							triangle.verts[0] = base_index + 0;
-							triangle.verts[1] = base_index + 1;
-							triangle.verts[2] = base_index + 2;
-							triangles.emplace_back(triangle);
-						}
-						else if (poly->ptCount == 4)
-						{
-							triangle_t triangle_1{};
-							triangle_1.verts[0] = base_index + 0;
-							triangle_1.verts[1] = base_index + 1;
-							triangle_1.verts[2] = base_index + 2;
-							triangles.emplace_back(triangle_1);
-
-							triangle_t triangle_2{};
-							triangle_2.verts[0] = base_index + 2;
-							triangle_2.verts[1] = base_index + 3;
-							triangle_2.verts[2] = base_index + 0;
-							triangles.emplace_back(triangle_2);
-						}
-						else
-						{
-							using point = std::array<float, 2>;
-							std::vector<point> points;
-							std::vector<std::vector<point>> polygon;
-
-							for (auto i = 0u; i < poly->ptCount; i++)
-							{
-								point p{};
-								p[0] = poly->pts[i][0];
-								p[1] = poly->pts[i][1];
-
-								points.push_back(p);
-							}
-
-							polygon.push_back(points);
-
-							const auto indices = mapbox::earcut<int>(polygon);
-							for (auto i = 0u; i < indices.size(); i += 3)
-							{
-								triangle_t triangle{};
-								triangle.verts[0] = base_index + indices[i + 2];
-								triangle.verts[1] = base_index + indices[i + 1];
-								triangle.verts[2] = base_index + indices[i + 0];
-								triangles.emplace_back(triangle);
-							}
-						}
-					};
-
-					constexpr auto max_verts = 0x1000;
-					constexpr auto max_polys = 0x1000;
-					float verts[max_verts][3]{};
-					polygon_t polys[max_verts]{};
-
-					build_windings_for_brush(asset->pInfo, &brush_bounds, brush, polys, max_polys, verts, max_verts);
-					for (auto side_index = 0; side_index < brush->numsides + 6; side_index++)
-					{
-						const auto poly = &polys[side_index];
-						add_points(side_index, poly);
-					}
-
-					return triangles;
-				}
-
-				std::vector<triangle_t> generate_triangles(zonetool::h1::clipMap_t* asset, std::vector<zonetool::h1::dmFloat4>& vertices)
-				{
-					std::vector<triangle_t> triangles;
-					std::unordered_set<int> triangle_hashes;
-
-					auto triangle_index = 0;
-
-					const auto add_triangle = [&](triangle_t& triangle)
-					{
-						const auto hash = hash_triangle(triangle, vertices);
-						if (triangle_hashes.contains(hash))
-						{
-							return;
-						}
-
-						triangle_hashes.insert(hash);
-						triangle.index = triangle_index++;
-						triangles.emplace_back(triangle);
-					};
-
-					for (auto i = 0u; i < asset->info.bCollisionData.numBrushes; i++)
-					{
-						const auto brush_tris = generate_brush_triangles(asset, vertices, i);
-						for (auto tri : brush_tris)
-						{
-							add_triangle(tri);
-						}
-					}
-
-					for (auto i = 0; i < asset->info.pCollisionData.partitionCount; i++)
-					{
-						const auto partition = &asset->info.pCollisionData.partitions[i];
-						if (is_script_brushmodel_partition(asset, partition))
-						{
-							continue;
-						}
-
-						auto tri_indices = &asset->info.pCollisionData.triIndices[3 * partition->firstTri];
-						for (auto o = 0u; o < partition->triCount; o++)
-						{
-							triangle_t triangle{};
-							triangle.verts[0] = tri_indices[0] + 1024 * partition->firstVertSegment;
-							triangle.verts[1] = tri_indices[1] + 1024 * partition->firstVertSegment;
-							triangle.verts[2] = tri_indices[2] + 1024 * partition->firstVertSegment;
-							add_triangle(triangle);
-
-							tri_indices += 3;
-						}
-					}
-
-					return triangles;
-				}
-
-				// https://github.com/autonomousvision/occupancy_flow/blob/master/im2mesh/utils/libvoxelize/tribox2.h
-
-
-#define FINDMINMAX(x0, x1, x2, min, max) \
-		min = max = x0; \
-		if (x1 < min) min = x1; \
-		if (x1 > max) max = x1; \
-		if (x2 < min) min = x2; \
-		if (x2 > max) max = x2; \
-
-#define AXISTEST_X01(a, b, fa, fb) \
-		p0 = a * v0[1] - b * v0[2]; \
-		p2 = a * v2[1] - b * v2[2]; \
-		if (p0 < p2) \
-		{ \
-			min = p0; \
-			max = p2; \
-		} \
-		else \
-		{ \
-			min = p2; \
-			max = p0; \
-		} \
-		rad = fa * boxhalfsize[1] + fb * boxhalfsize[2]; \
-		if (min > rad || max < -rad) \
-		{ \
-			return false; \
-		} \
-
-#define AXISTEST_X2(a, b, fa, fb) \
-		p0 = a * v0[1] - b * v0[2]; \
-		p1 = a * v1[1] - b * v1[2]; \
-		if (p0 < p1) \
-		{ \
-			min = p0;\
-			max = p1; \
-		} \
-		else \
-		{ \
-			min = p1; \
-			max = p0; \
-		} \
-		rad = fa * boxhalfsize[1] + fb * boxhalfsize[2]; \
-		if (min > rad || max < -rad) \
-		{ \
-			return false; \
-		} \
-
-#define AXISTEST_Y02(a, b, fa, fb) \
-		p0 = -a * v0[0] + b * v0[2]; \
-		p2 = -a * v2[0] + b * v2[2]; \
-		if (p0 < p2) \
-		{ \
-			min = p0; \
-			max = p2; \
-		}\
-		else \
-		{ \
-			min = p2; \
-			max = p0; \
-		} \
-		rad = fa * boxhalfsize[0] + fb * boxhalfsize[2]; \
-		if (min > rad || max < -rad) \
-		{ \
-			return false; \
-		} \
-
-#define AXISTEST_Y1(a, b, fa, fb) \
-		p0 = -a * v0[0] + b * v0[2]; \
-		p1 = -a * v1[0] + b * v1[2]; \
-		if (p0 < p1) \
-		{ \
-			min = p0; \
-			max = p1; \
-		} \
-		else \
-		{ \
-			min = p1;  \
-			max = p0; \
-		} \
-		rad = fa * boxhalfsize[0] + fb * boxhalfsize[2]; \
-		if (min > rad || max < -rad) \
-		{ \
-			return false; \
-		} \
-
-#define AXISTEST_Z12(a, b, fa, fb) \
-		p1 = a * v1[0] - b * v1[1]; \
-		p2 = a * v2[0] - b * v2[1]; \
-		if (p2 < p1) \
-		{ \
-			min = p2; \
-			max = p1; \
-		} \
-		else \
-		{ \
-			min = p1; \
-			max = p2; \
-		} \
-		rad = fa * boxhalfsize[0] + fb * boxhalfsize[1]; \
-		if (min > rad || max < -rad) \
-		{ \
-			return false; \
-		} \
-
-#define AXISTEST_Z0(a, b, fa, fb) \
-		p0 = a * v0[0] - b * v0[1]; \
-		p1 = a * v1[0] - b * v1[1]; \
-		if (p0 < p1) \
-		{ \
-			min = p0; \
-			max = p1; \
-		} \
-		else \
-		{ \
-			min = p1; \
-			max = p0; \
-		} \
-		rad = fa * boxhalfsize[0] + fb * boxhalfsize[1]; \
-		if (min > rad || max < -rad) \
-		{ \
-			return false; \
-		} \
-
-				bool plane_box_overlap(float normal[3], float vert[3], float maxbox[3])
-				{
-					float vmin[3]{};
-					float vmax[3]{};
-
-					for (auto q = 0; q < 3; q++)
-					{
-						const auto v = vert[q];
-						if (normal[q] > 0.0f)
-						{
-							vmin[q] = -maxbox[q] - v;
-							vmax[q] = maxbox[q] - v;
-
-						}
-						else
-						{
-							vmin[q] = maxbox[q] - v;
-							vmax[q] = -maxbox[q] - v;
-						}
-					}
-
-					if (dot_product(normal, vmin) > 0.0f)
+					const point_t bc{b[1] * c[2] - b[2] * c[1], b[2] * c[0] - b[0] * c[2], b[0] * c[1] - b[1] * c[0]};
+					const point_t ca{c[1] * a[2] - c[2] * a[1], c[2] * a[0] - c[0] * a[2], c[0] * a[1] - c[1] * a[0]};
+					const point_t ab{a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]};
+					const auto det = a[0] * bc[0] + a[1] * bc[1] + a[2] * bc[2];
+					if (std::abs(det) < 0.001f)
 					{
 						return false;
 					}
 
-					if (dot_product(normal, vmax) >= 0.0f)
+					for (auto i = 0; i < 3; i++)
 					{
-						return true;
-					}
-
-					return false;
-				}
-
-				bool tri_box_overlap(float boxcenter[3], float boxhalfsize[3], float triverts[3][3])
-				{
-					float v0[3]{};
-					float v1[3]{};
-					float v2[3]{};
-
-					float min{}, max{};
-					float p0{}, p1{}, p2{};
-					float rad{};
-					float fex{}, fey{}, fez{};
-
-					float normal[3]{}, e0[3]{}, e1[3]{}, e2[3]{};
-
-					vector_sub(triverts[0], boxcenter, v0);
-					vector_sub(triverts[1], boxcenter, v1);
-					vector_sub(triverts[2], boxcenter, v2);
-
-					vector_sub(v1, v0, e0);
-					vector_sub(v2, v1, e1);
-					vector_sub(v0, v2, e2);
-
-					fex = std::fabsf(e0[0]);
-					fey = std::fabsf(e0[1]);
-					fez = std::fabsf(e0[2]);
-
-					AXISTEST_X01(e0[2], e0[1], fez, fey);
-					AXISTEST_Y02(e0[2], e0[0], fez, fex);
-					AXISTEST_Z12(e0[1], e0[0], fey, fex);
-
-					fex = std::fabsf(e1[0]);
-					fey = std::fabsf(e1[1]);
-					fez = std::fabsf(e1[2]);
-
-					AXISTEST_X01(e1[2], e1[1], fez, fey);
-					AXISTEST_Y02(e1[2], e1[0], fez, fex);
-					AXISTEST_Z0(e1[1], e1[0], fey, fex);
-
-					fex = std::fabsf(e2[0]);
-					fey = std::fabsf(e2[1]);
-					fez = std::fabsf(e2[2]);
-
-					AXISTEST_X2(e2[2], e2[1], fez, fey);
-					AXISTEST_Y1(e2[2], e2[0], fez, fex);
-					AXISTEST_Z12(e2[1], e2[0], fey, fex);
-
-					FINDMINMAX(v0[0], v1[0], v2[0], min, max);
-
-					if (min >= boxhalfsize[0] || max <= -boxhalfsize[0])
-					{
-						return false;
-					}
-
-					FINDMINMAX(v0[1], v1[1], v2[1], min, max);
-
-					if (min >= boxhalfsize[1] || max <= -boxhalfsize[1])
-					{
-						return false;
-					}
-
-					FINDMINMAX(v0[2], v1[2], v2[2], min, max);
-
-					if (min >= boxhalfsize[2] || max <= -boxhalfsize[2])
-					{
-						return false;
-					}
-
-					cross_product(e0, e1, normal);
-
-					if (!plane_box_overlap(normal, v0, boxhalfsize))
-					{
-						return false;
+						out[i] = (a[3] * bc[i] + b[3] * ca[i] + c[3] * ab[i]) / det;
 					}
 
 					return true;
 				}
 
-				zonetool::h1::Bounds corners_to_bounds(bounding_box box)
+				std::vector<point_t> brush_face_winding(const zonetool::h1::ClipInfo* info, const zonetool::h1::cbrush_t& brush,
+					const axial_planes_t& axial_planes, const unsigned int side)
 				{
-					zonetool::h1::Bounds res{};
-
-					res.midPoint[0] = (box.upper[0] + box.lower[0]) * 0.5f;
-					res.midPoint[1] = (box.upper[1] + box.lower[1]) * 0.5f;
-					res.midPoint[2] = (box.upper[2] + box.lower[2]) * 0.5f;
-					res.halfSize[0] = (box.upper[0] - box.lower[0]) * 0.5f;
-					res.halfSize[1] = (box.upper[1] - box.lower[1]) * 0.5f;
-					res.halfSize[2] = (box.upper[2] - box.lower[2]) * 0.5f;
-
-					return res;
-				}
-
-				bool tri_intersects_box(float tri[3][3], bounding_box box)
-				{
-					auto bounds = corners_to_bounds(box);
-					return tri_box_overlap(bounds.midPoint, bounds.halfSize, tri);
-				}
-
-				bool triangle_box_overlay(zonetool::h1::dmMeshData* mesh, const triangle_t& triangle, const bounding_box& box)
-				{
-					const auto verts = &mesh->m_aVertices[0];
-
-					zonetool::h1::vec3_t p1{};
-					zonetool::h1::vec3_t p3{};
-					zonetool::h1::vec3_t p2{};
-					zonetool::h1::vec3_t points[3]{};
-
-					p1[0] = verts[triangle.verts[0]].x;
-					p1[1] = verts[triangle.verts[0]].y;
-					p1[2] = verts[triangle.verts[0]].z;
-
-					p2[0] = verts[triangle.verts[1]].x;
-					p2[1] = verts[triangle.verts[1]].y;
-					p2[2] = verts[triangle.verts[1]].z;
-
-					p3[0] = verts[triangle.verts[2]].x;
-					p3[1] = verts[triangle.verts[2]].y;
-					p3[2] = verts[triangle.verts[2]].z;
-
-					points[0][0] = p1[0];
-					points[0][1] = p1[1];
-					points[0][2] = p1[2];
-
-					points[1][0] = p2[0];
-					points[1][1] = p2[1];
-					points[1][2] = p2[2];
-
-					points[2][0] = p3[0];
-					points[2][1] = p3[1];
-					points[2][2] = p3[2];
-
-					return tri_intersects_box(points, box);
-				}
-
-				std::vector<triangle_t> get_triangles_in_box(zonetool::h1::dmMeshData* mesh, const std::vector<triangle_t>& triangles,
-					const bounding_box& root)
-				{
-					std::vector<triangle_t> res;
-
-					for (const auto& tri : triangles)
+					// game Phys_GetWindingForBrushFace2: the face plane cut by its adjacent sides in order, points under one unit apart merge
+					const auto axial = side < 6;
+					const auto first_adjacent = axial ? brush.firstAdjacentSideOffsets[side & 1][side >> 1] : brush.sides[side - 6].firstAdjacentSideOffset;
+					const auto edge_count = axial ? brush.edgeCount[side & 1][side >> 1] : brush.sides[side - 6].edgeCount;
+					if (edge_count < 3)
 					{
-						if (triangle_box_overlay(mesh, tri, root))
+						return {};
+					}
+
+					const auto* adjacent = &brush.baseAdjacentSide[first_adjacent];
+					const auto face = side_plane(info, brush, axial_planes, side);
+					auto previous = side_plane(info, brush, axial_planes, adjacent[edge_count - 1]);
+
+					std::vector<point_t> points;
+					for (auto i = 0; i < edge_count; i++)
+					{
+						const auto current = side_plane(info, brush, axial_planes, adjacent[i]);
+						point_t point{};
+						if (intersect_planes(face, previous, current, point) && (points.empty() || distance_squared(points.back(), point) >= 1.0f))
 						{
-							res.emplace_back(tri);
+							points.emplace_back(point);
+						}
+
+						previous = current;
+					}
+
+					if (points.size() > 1 && distance_squared(points.front(), points.back()) < 1.0f)
+					{
+						points.pop_back();
+					}
+
+					if (points.size() < 3)
+					{
+						points.clear();
+					}
+
+					return points;
+				}
+
+				void add_brush(mesh_source& mesh, const zonetool::h1::clipMap_t* asset, const int brush_index, const point_t& origin)
+				{
+					const auto& brush = asset->info.bCollisionData.brushes[brush_index];
+					const auto axial_planes = get_axial_planes(asset->info.bCollisionData.brushBounds[brush_index]);
+					for (auto side = 0u; side < brush.numsides + 6u; side++)
+					{
+						const auto winding = brush_face_winding(&asset->info, brush, axial_planes, side);
+						for (auto i = 1u; i + 1 < winding.size(); i++)
+						{
+							// brush windings turn the other way than h1 mesh triangles
+							add_triangle(mesh, subtract(winding[i + 1], origin), subtract(winding[i], origin), subtract(winding[0], origin), side_material(brush, side));
 						}
 					}
-
-					return res;
 				}
 
-				unsigned int write_triangles(std::vector<triangle_t>& dest_triangles, const std::vector<triangle_t>& triangles)
+				void add_partition(mesh_source& mesh, const zonetool::h1::clipMap_t* asset, const int partition_index, const int material, const point_t& origin)
 				{
-					auto index = dest_triangles.size();
-
-					for (const auto& tri : triangles)
+					const auto& data = asset->info.pCollisionData;
+					const auto& partition = data.partitions[partition_index];
+					const auto* indices = &data.triIndices[3 * partition.firstTri];
+					const auto first_vert = 1024 * partition.firstVertSegment;
+					const auto vert = [&](const int corner)
 					{
-						triangle_t dest_tri{};
-						std::memcpy(&dest_tri, &tri, sizeof(triangle_t));
-						dest_tri.index = static_cast<int>(dest_triangles.size());
-						dest_triangles.emplace_back(dest_tri);
+						const auto* position = data.verts[indices[corner] + first_vert];
+						return subtract({position[0], position[1], position[2]}, origin);
+					};
+
+					for (auto i = 0u; i < partition.triCount; i++, indices += 3)
+					{
+						add_triangle(mesh, vert(2), vert(1), vert(0), material);
+					}
+				}
+
+				void collect_brushes(const zonetool::h1::cLeafBrushNode_s* node, std::set<int>& brushes)
+				{
+					if (node->leafBrushCount > 0)
+					{
+						for (auto i = 0; i < node->leafBrushCount; i++)
+						{
+							brushes.insert(node->data.leaf.brushes[i]);
+						}
+
+						return;
 					}
 
-					return static_cast<unsigned int>(index);
-				}
-
-				int find_best_axis(zonetool::h1::dmMeshData* mesh, const std::vector<triangle_t>& triangles,
-					const bounding_box& box, float* value)
-				{
-					auto length = 0.f;
-					auto axis = 0;
-
-					for (auto i = 0; i < 3; i++)
+					if (node->leafBrushCount)
 					{
-						const auto l = std::abs(box.upper[i] - box.lower[i]);
-						if (l > length)
+						collect_brushes(&node[1], brushes);
+					}
+
+					for (const auto child_offset : node->data.children.childOffset)
+					{
+						if (child_offset)
 						{
-							axis = i;
-							length = l;
+							collect_brushes(&node[child_offset], brushes);
 						}
 					}
-
-					*value = box.lower[axis] + length / 2;
-					return axis;
 				}
 
-				constexpr auto max_tris_per_leaf = 15;
-				constexpr auto max_tree_depth = 128;
-
-				float calculate_surface_area(const bounding_box& box)
+				void collect_partitions(const zonetool::h1::clipMap_t* asset, const zonetool::h1::CollisionAabbTree& tree, std::map<int, int>& partitions)
 				{
-					const auto l = box.upper[0] - box.lower[0];
-					const auto w = box.upper[1] - box.lower[1];
-					const auto h = box.upper[2] - box.lower[2];
-
-					const auto a1 = l * w;
-					const auto a2 = l * h;
-					const auto a3 = w * h;
-
-					return 2 * (a1 + a2 + a3);
-				}
-
-				void compute_aabb_tree(zonetool::h1::dmMeshData* mesh, std::vector<triangle_t>& dest_triangles,
-					const std::vector<triangle_t>& parent_triangles,
-					const bounding_box& root, mesh_node* nodes, int& node_index, int& tree_depth)
-				{
-					const auto surface_area = calculate_surface_area(root);
-					const auto triangles = get_triangles_in_box(mesh, parent_triangles, root);
-
-					if (triangles.size() > max_tris_per_leaf && tree_depth < max_tree_depth && surface_area > 1.f)
+					if (!tree.childCount)
 					{
-						float value{};
-						const auto axis = find_best_axis(mesh, triangles, root, &value);
+						partitions.emplace(tree.u.partitionIndex, tree.materialIndex);
+						return;
+					}
 
-						bounding_box left{};
-						bounding_box right{};
+					for (auto i = 0u; i < tree.childCount; i++)
+					{
+						collect_partitions(asset, asset->info.pCollisionTree.aabbTrees[tree.u.firstChildIndex + i], partitions);
+					}
+				}
 
-						std::memcpy(&left, &root, sizeof(bounding_box));
-						std::memcpy(&right, &root, sizeof(bounding_box));
+				void collect_model(const zonetool::h1::clipMap_t* asset, const zonetool::h1::cmodel_t& model, std::set<int>& brushes, std::map<int, int>& partitions)
+				{
+					collect_brushes(&asset->info.bCollisionTree.leafbrushNodes[model.leaf.leafBrushNode], brushes);
+					for (auto i = 0u; i < model.leaf.collAabbCount; i++)
+					{
+						collect_partitions(asset, asset->info.pCollisionTree.aabbTrees[model.leaf.firstCollAabbIndex + i], partitions);
+					}
+				}
 
-						left.upper[axis] = value;
-						right.lower[axis] = value;
+				std::map<int, point_t> script_brushmodel_origins(const MapEnts* map_ents)
+				{
+					std::map<int, point_t> origins;
+					if (!map_ents || !map_ents->entityString)
+					{
+						return origins;
+					}
 
-						const auto left_tris = get_triangles_in_box(mesh, triangles, left);
-						const auto right_tris = get_triangles_in_box(mesh, triangles, right);
+					std::unordered_map<std::string, std::string> entity;
+					const std::string_view text(map_ents->entityString);
+					for (std::size_t position = 0; position < text.size();)
+					{
+						const auto end = std::min(text.find('\n', position), text.size());
+						const auto line = text.substr(position, end - position);
+						position = end + 1;
 
-						if (left_tris.size() == 0 || right_tris.size() == 0)
+						if (line.starts_with('{'))
 						{
-							if (left_tris.size() > 0)
+							entity.clear();
+						}
+						else if (line.starts_with('}'))
+						{
+							const auto model = entity.find("model");
+							if (entity["classname"] == "script_brushmodel" && model != entity.end() && model->second.starts_with('*'))
 							{
-								return compute_aabb_tree(mesh, dest_triangles, left_tris, left, nodes, node_index, tree_depth);
-							}
-							else if (right_tris.size() > 0)
-							{
-								return compute_aabb_tree(mesh, dest_triangles, right_tris, right, nodes, node_index, tree_depth);
+								point_t origin{};
+								std::istringstream(entity["origin"]) >> origin[0] >> origin[1] >> origin[2];
+								origins.emplace(std::atoi(model->second.data() + 1), origin);
 							}
 						}
-
-						const auto initial_index = node_index;
-						const auto parent_node = alloc_node(nodes, node_index);
-						std::memcpy(parent_node->lower, root.lower, sizeof(float[3]));
-						std::memcpy(parent_node->upper, root.upper, sizeof(float[3]));
-						tree_depth++;
-
-						compute_aabb_tree(mesh, dest_triangles, triangles, left, nodes, node_index, tree_depth);
-						parent_node->node.anon.fields.index = node_index - initial_index;
-						compute_aabb_tree(mesh, dest_triangles, triangles, right, nodes, node_index, tree_depth);
-
-						tree_depth--;
+						else if (const auto key_end = line.find('"', 1); line.starts_with('"') && key_end != std::string_view::npos)
+						{
+							const auto value_start = line.find('"', key_end + 1);
+							const auto value_end = value_start == std::string_view::npos ? value_start : line.find('"', value_start + 1);
+							if (value_end != std::string_view::npos)
+							{
+								entity[std::string(line.substr(1, key_end - 1))] = line.substr(value_start + 1, value_end - value_start - 1);
+							}
+						}
 					}
-					else if (triangles.size() > 0)
+
+					return origins;
+				}
+
+				unsigned int build_tree(const std::vector<point_t>& centroids, const mesh_source& mesh, std::vector<int>& order, const int begin, const int end,
+					std::vector<tree_node>& nodes, const int depth, int& max_depth)
+				{
+					const auto node_index = static_cast<unsigned int>(nodes.size());
+					nodes.emplace_back();
+					max_depth = std::max(max_depth, depth);
+
+					point_t lower{std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), std::numeric_limits<float>::max()};
+					point_t upper{-lower[0], -lower[1], -lower[2]};
+					auto centroid_lower = lower;
+					auto centroid_upper = upper;
+					for (auto i = begin; i < end; i++)
 					{
-						const auto leaf = alloc_node(nodes, node_index);
-						const auto box = compute_bounding_box(mesh, triangles);
-						std::memcpy(leaf->lower, box.lower, sizeof(float[3]));
-						std::memcpy(leaf->upper, box.upper, sizeof(float[3]));
-						leaf->node.anon.fields.triangleCount = static_cast<unsigned int>(std::min((int)triangles.size(), max_tris_per_leaf));
-						leaf->node.anon.fields.index = write_triangles(dest_triangles, triangles);
+						for (const auto vert : mesh.triangles[order[i]].verts)
+						{
+							for (auto axis = 0; axis < 3; axis++)
+							{
+								lower[axis] = std::min(lower[axis], mesh.verts[vert][axis]);
+								upper[axis] = std::max(upper[axis], mesh.verts[vert][axis]);
+							}
+						}
+
+						for (auto axis = 0; axis < 3; axis++)
+						{
+							centroid_lower[axis] = std::min(centroid_lower[axis], centroids[order[i]][axis]);
+							centroid_upper[axis] = std::max(centroid_upper[axis], centroids[order[i]][axis]);
+						}
 					}
-					else
+
+					nodes[node_index].lower = lower;
+					nodes[node_index].upper = upper;
+					if (end - begin <= max_triangles_per_leaf)
 					{
-						const auto leaf = alloc_node(nodes, node_index);
-						leaf->node.anon.fields.triangleCount = 1;
-						leaf->node.anon.fields.index = 0;
+						nodes[node_index].axis = leaf_axis;
+						nodes[node_index].triangle_count = static_cast<unsigned int>(end - begin);
+						nodes[node_index].index = static_cast<unsigned int>(begin);
+						return node_index;
+					}
+
+					auto split_axis = 0u;
+					for (auto axis = 1u; axis < 3; axis++)
+					{
+						if (centroid_upper[axis] - centroid_lower[axis] > centroid_upper[split_axis] - centroid_lower[split_axis])
+						{
+							split_axis = axis;
+						}
+					}
+
+					const auto middle = begin + (end - begin) / 2;
+					std::nth_element(order.begin() + begin, order.begin() + middle, order.begin() + end, [&](const int a, const int b)
+					{
+						return centroids[a][split_axis] < centroids[b][split_axis];
+					});
+
+					nodes[node_index].axis = split_axis;
+					build_tree(centroids, mesh, order, begin, middle, nodes, depth + 1, max_depth);
+					nodes[node_index].index = build_tree(centroids, mesh, order, middle, end, nodes, depth + 1, max_depth) - node_index;
+					return node_index;
+				}
+
+				void write_mesh(const zonetool::h1::clipMap_t* asset, const mesh_source& mesh, zonetool::h1::dmMeshData* data, utils::memory::allocator& allocator)
+				{
+					std::vector<int> order(mesh.triangles.size());
+					std::vector<point_t> centroids(mesh.triangles.size());
+					for (auto i = 0u; i < mesh.triangles.size(); i++)
+					{
+						order[i] = static_cast<int>(i);
+						for (const auto vert : mesh.triangles[i].verts)
+						{
+							for (auto axis = 0; axis < 3; axis++)
+							{
+								centroids[i][axis] += mesh.verts[vert][axis] / 3.0f;
+							}
+						}
+					}
+
+					std::vector<tree_node> nodes;
+					auto max_depth = 0;
+					build_tree(centroids, mesh, order, 0, static_cast<int>(order.size()), nodes, 1, max_depth);
+
+					point_t center{};
+					point_t extents{};
+					point_t unquantize{};
+					for (auto axis = 0; axis < 3; axis++)
+					{
+						center[axis] = (nodes[0].lower[axis] + nodes[0].upper[axis]) * 0.5f;
+						extents[axis] = (nodes[0].upper[axis] - nodes[0].lower[axis]) * 0.5f + 0.5f;
+						unquantize[axis] = extents[axis] / quantized_extent;
+					}
+
+					data->m_center = {center[0], center[1], center[2]};
+					data->m_extents = {extents[0], extents[1], extents[2]};
+					data->m_unquantize = {unquantize[0], unquantize[1], unquantize[2]};
+					data->m_height = max_depth;
+
+					data->m_vertexCount = static_cast<int>(mesh.verts.size());
+					data->m_aVertices = allocator.allocate_array<zonetool::h1::dmFloat4>(mesh.verts.size());
+					for (auto i = 0u; i < mesh.verts.size(); i++)
+					{
+						const auto position = subtract(mesh.verts[i], center);
+						data->m_aVertices[i] = {position[0], position[1], position[2], 0.0f};
+					}
+
+					std::unordered_map<std::uint64_t, int> opposite_verts;
+					const auto edge_key = [](const int a, const int b)
+					{
+						return (static_cast<std::uint64_t>(static_cast<std::uint32_t>(a)) << 32) | static_cast<std::uint32_t>(b);
+					};
+
+					for (const auto& triangle : mesh.triangles)
+					{
+						for (auto i = 0; i < 3; i++)
+						{
+							const auto [entry, inserted] = opposite_verts.try_emplace(edge_key(triangle.verts[i], triangle.verts[(i + 1) % 3]), triangle.verts[(i + 2) % 3]);
+							if (!inserted)
+							{
+								entry->second = -1; // stock leaves edges of more than two triangles without a winged vertex
+							}
+						}
+					}
+
+					data->m_triangleCount = static_cast<int>(mesh.triangles.size());
+					data->m_aTriangles = allocator.allocate_array<zonetool::h1::dmMeshTriangle>(mesh.triangles.size());
+					for (auto i = 0u; i < order.size(); i++)
+					{
+						const auto& triangle = mesh.triangles[order[i]];
+						const auto has_material = triangle.material >= 0 && triangle.material < static_cast<int>(asset->info.numMaterials);
+						const auto material = has_material ? asset->info.materials[triangle.material] : zonetool::h1::ClipMaterial{};
+						const auto winged = [&](const int a, const int b)
+						{
+							const auto opposite = opposite_verts.find(edge_key(b, a));
+							return opposite != opposite_verts.end() ? opposite->second : -1;
+						};
+
+						auto& out = data->m_aTriangles[i];
+						out.i1 = triangle.verts[0];
+						out.i2 = triangle.verts[1];
+						out.i3 = triangle.verts[2];
+						out.w1 = winged(triangle.verts[0], triangle.verts[1]);
+						out.w2 = winged(triangle.verts[1], triangle.verts[2]);
+						out.w3 = winged(triangle.verts[2], triangle.verts[0]);
+						out.materialIndex = (material.surfaceFlags >> 20) & 0x3F;
+						out.collisionFlags = material.contents;
+						data->contents |= material.contents;
+					}
+
+					const auto quantize = [&](const float value, const int axis, const bool upper)
+					{
+						const auto relative = value - center[axis];
+						auto steps = upper ? std::ceil(relative / unquantize[axis]) : std::floor(relative / unquantize[axis]);
+						if (upper ? steps * unquantize[axis] < relative : steps * unquantize[axis] > relative)
+						{
+							steps += upper ? 1.0f : -1.0f;
+						}
+
+						return static_cast<zonetool::h1::dm_int16>(std::clamp(steps, -32767.0f, 32767.0f));
+					};
+
+					data->m_nodeCount = static_cast<int>(nodes.size());
+					data->m_pRoot = allocator.allocate_array<zonetool::h1::dmMeshNode>(nodes.size());
+					for (auto i = 0u; i < nodes.size(); i++)
+					{
+						auto& out = data->m_pRoot[i];
+						out.lowerX = quantize(nodes[i].lower[0], 0, false);
+						out.lowerY = quantize(nodes[i].lower[1], 1, false);
+						out.lowerZ = quantize(nodes[i].lower[2], 2, false);
+						out.upperX = quantize(nodes[i].upper[0], 0, true);
+						out.upperY = quantize(nodes[i].upper[1], 1, true);
+						out.upperZ = quantize(nodes[i].upper[2], 2, true);
+						out.anon.fields.axis = nodes[i].axis;
+						out.anon.fields.triangleCount = nodes[i].triangle_count;
+						out.anon.fields.index = nodes[i].index;
 					}
 				}
 			}
 
-			zonetool::h1::PhysWorld* generate(zonetool::h1::clipMap_t* asset, utils::memory::allocator& allocator)
+			zonetool::h1::PhysWorld* generate(zonetool::h1::clipMap_t* asset, const MapEnts* map_ents, utils::memory::allocator& allocator)
 			{
-				ZONETOOL_INFO("generating physworld...");
+				std::set<int> model_brushes;
+				std::map<int, int> model_partitions;
+				for (auto i = 0u; i < asset->numSubModels; i++)
+				{
+					collect_model(asset, asset->cmodels[i], model_brushes, model_partitions);
+				}
 
-				const auto new_asset = allocator.allocate<zonetool::h1::PhysWorld>();
+				std::vector<mesh_source> meshes(1);
+				for (auto i = 0; i < static_cast<int>(asset->info.bCollisionData.numBrushes); i++)
+				{
+					if (!model_brushes.contains(i))
+					{
+						add_brush(meshes[0], asset, i, {});
+					}
+				}
 
+				std::map<int, int> partition_materials;
+				for (auto i = 0; i < asset->info.pCollisionTree.aabbTreeCount; i++)
+				{
+					const auto& tree = asset->info.pCollisionTree.aabbTrees[i];
+					if (!tree.childCount)
+					{
+						partition_materials.emplace(tree.u.partitionIndex, tree.materialIndex);
+					}
+				}
+
+				for (auto i = 0; i < asset->info.pCollisionData.partitionCount; i++)
+				{
+					if (!model_partitions.contains(i))
+					{
+						add_partition(meshes[0], asset, i, partition_materials[i], {});
+					}
+				}
+
+				auto* new_asset = allocator.allocate<zonetool::h1::PhysWorld>();
 				new_asset->name = allocator.duplicate_string(asset->name);
 				new_asset->brushModelCount = asset->numSubModels;
 				new_asset->brushModels = allocator.allocate_array<zonetool::h1::PhysBrushModel>(new_asset->brushModelCount);
-
 				for (auto i = 0u; i < new_asset->brushModelCount; i++)
 				{
-					const auto model = &new_asset->brushModels[i];
-					model->fields.polytopeIndex = -1;
-					model->fields.unk = -1;
-					model->fields.polytopeCount = 0;
-					model->fields.meshIndex = i == 0 ? 0 : -1;
+					new_asset->brushModels[i].fields = {-1, -1, 0, static_cast<short>(i == 0 && !meshes[0].triangles.empty() ? 0 : -1)};
 				}
 
-				new_asset->meshDatas = allocator.allocate_array<zonetool::h1::dmMeshData>(1);
-				new_asset->meshDataCount = 1;
-
-				const auto mesh = &new_asset->meshDatas[0];
-
-				std::vector<zonetool::h1::dmFloat4> vertices;
-
-				for (auto i = 0u; i < asset->info.pCollisionData.vertCount; i++)
+				for (const auto& [model, origin] : script_brushmodel_origins(map_ents))
 				{
-					zonetool::h1::dmFloat4 vertex{};
-					vertex.x = asset->info.pCollisionData.verts[i][0];
-					vertex.y = asset->info.pCollisionData.verts[i][1];
-					vertex.z = asset->info.pCollisionData.verts[i][2];
-					vertex.w = 0.f;
-					vertices.emplace_back(vertex);
-				}
-
-				auto triangles = generate_triangles(asset, vertices);
-
-				ZONETOOL_INFO("total tris: %lli, verts: %lli", triangles.size(), vertices.size());
-
-				mesh->m_vertexCount = static_cast<int>(vertices.size());
-				mesh->m_aVertices = allocator.allocate_array<zonetool::h1::dmFloat4>(mesh->m_vertexCount);
-				std::memcpy(mesh->m_aVertices, vertices.data(), vertices.size() * sizeof(zonetool::h1::dmFloat4));
-
-				max_nodes = static_cast<int>(triangles.size()) * max_tree_depth;
-				const auto nodes = allocator.allocate_array<mesh_node>(max_nodes);
-
-				auto node_index = 0;
-
-				std::vector<triangle_t> dest_triangles;
-
-				for (auto& tri : triangles)
-				{
-					dest_triangles.emplace_back(tri);
-				}
-
-				const auto root = compute_bounding_box(mesh, triangles);
-				int tree_depth = 0;
-				compute_aabb_tree(mesh, dest_triangles, triangles, root, nodes, node_index, tree_depth);
-
-				mesh->m_triangleCount = static_cast<int>(dest_triangles.size());
-				mesh->m_aTriangles = allocator.allocate_array<zonetool::h1::dmMeshTriangle>(mesh->m_triangleCount);
-
-				for (const auto& tri : dest_triangles)
-				{
-					mesh->m_aTriangles[tri.index].i1 = tri.verts[2];
-					mesh->m_aTriangles[tri.index].i2 = tri.verts[1];
-					mesh->m_aTriangles[tri.index].i3 = tri.verts[0];
-					mesh->m_aTriangles[tri.index].w1 = -1;
-					mesh->m_aTriangles[tri.index].w2 = -1;
-					mesh->m_aTriangles[tri.index].w3 = -1;
-					mesh->m_aTriangles[tri.index].materialIndex = 0;
-					mesh->m_aTriangles[tri.index].collisionFlags = 1;
-				}
-
-				mesh->m_nodeCount = node_index;
-				mesh->m_pRoot = allocator.allocate_array<zonetool::h1::dmMeshNode>(mesh->m_nodeCount);
-
-				float maxs[3]{};
-				float mins[3]{};
-				float unquantize[3]{};
-
-				for (auto i = 0; i < node_index; i++)
-				{
-					const auto node = &nodes[i];
-
-					for (auto o = 0; o < 3; o++)
+					if (model <= 0 || model >= static_cast<int>(asset->numSubModels) || new_asset->brushModels[model].fields.meshIndex >= 0)
 					{
-						if (node->lower[o] > maxs[o])
-						{
-							maxs[o] = node->lower[o];
-						}
+						continue;
+					}
 
-						if (node->lower[o] < mins[o])
-						{
-							mins[o] = node->lower[o];
-						}
+					std::set<int> brushes;
+					std::map<int, int> partitions;
+					collect_model(asset, asset->cmodels[model], brushes, partitions);
 
-						if (node->upper[o] > maxs[o])
-						{
-							maxs[o] = node->upper[o];
-						}
+					mesh_source mesh;
+					for (const auto brush : brushes)
+					{
+						add_brush(mesh, asset, brush, origin);
+					}
 
-						if (node->upper[o] < mins[o])
+					for (const auto& [partition, material] : partitions)
+					{
+						add_partition(mesh, asset, partition, material, origin);
+					}
+
+					if (!mesh.triangles.empty())
+					{
+						new_asset->brushModels[model].fields.meshIndex = static_cast<short>(meshes.size());
+						meshes.emplace_back(std::move(mesh));
+					}
+				}
+
+				if (meshes[0].triangles.empty())
+				{
+					meshes.erase(meshes.begin());
+					for (auto i = 1u; i < new_asset->brushModelCount; i++)
+					{
+						if (new_asset->brushModels[i].fields.meshIndex > 0)
 						{
-							mins[o] = node->upper[o];
+							new_asset->brushModels[i].fields.meshIndex--;
 						}
 					}
 				}
 
-				for (auto i = 0; i < 3; i++)
+				new_asset->meshDataCount = static_cast<unsigned int>(meshes.size());
+				new_asset->meshDatas = allocator.allocate_array<zonetool::h1::dmMeshData>(meshes.size());
+				for (auto i = 0u; i < meshes.size(); i++)
 				{
-					unquantize[i] = std::max(
-						maxs[i] / static_cast<float>(std::numeric_limits<std::int16_t>().max()),
-						mins[i] / static_cast<float>(std::numeric_limits<std::int16_t>().min())
-					);
+					write_mesh(asset, meshes[i], &new_asset->meshDatas[i], allocator);
 				}
 
-				ZONETOOL_INFO("mins: %f %f %f", mins[0], mins[1], mins[2]);
-				ZONETOOL_INFO("maxs: %f %f %f", maxs[0], maxs[1], maxs[2]);
-				ZONETOOL_INFO("unquantize: %f %f %f", unquantize[0], unquantize[1], unquantize[2]);
-
-				mesh->m_unquantize.x = unquantize[0];
-				mesh->m_unquantize.y = unquantize[1];
-				mesh->m_unquantize.z = unquantize[2];
-
-				mesh->m_center.x = 0.f;
-				mesh->m_center.y = 0.f;
-				mesh->m_center.z = 0.f;
-
-				mesh->m_extents.x = std::max(maxs[0], std::fabs(mins[0]));
-				mesh->m_extents.y = std::max(maxs[1], std::fabs(mins[1]));
-				mesh->m_extents.z = std::max(maxs[2], std::fabs(mins[2]));
-
-				mesh->m_height = 127;
-				mesh->contents = 1;
-
-				for (auto i = 0; i < node_index; i++)
-				{
-					const auto node = &nodes[i];
-
-					mesh->m_pRoot[i].lowerX = static_cast<zonetool::h1::dm_int16>(node->lower[0] / mesh->m_unquantize.x);
-					mesh->m_pRoot[i].lowerY = static_cast<zonetool::h1::dm_int16>(node->lower[1] / mesh->m_unquantize.y);
-					mesh->m_pRoot[i].lowerZ = static_cast<zonetool::h1::dm_int16>(node->lower[2] / mesh->m_unquantize.z);
-					mesh->m_pRoot[i].upperX = static_cast<zonetool::h1::dm_int16>(node->upper[0] / mesh->m_unquantize.x);
-					mesh->m_pRoot[i].upperY = static_cast<zonetool::h1::dm_int16>(node->upper[1] / mesh->m_unquantize.y);
-					mesh->m_pRoot[i].upperZ = static_cast<zonetool::h1::dm_int16>(node->upper[2] / mesh->m_unquantize.z);
-
-					mesh->m_pRoot[i].anon.fields.axis = node->node.anon.fields.axis;
-					mesh->m_pRoot[i].anon.fields.triangleCount = node->node.anon.fields.triangleCount;
-					mesh->m_pRoot[i].anon.fields.index = node->node.anon.fields.index;
-				}
-
-				allocator.free(nodes);
-
-				ZONETOOL_INFO("generation complete, total nodes: %i", node_index);
-
+				ZONETOOL_INFO("physworld \"%s\": %u meshes, %zu world triangles", asset->name, new_asset->meshDataCount, meshes.empty() ? 0 : meshes[0].triangles.size());
 				return new_asset;
 			}
 		}

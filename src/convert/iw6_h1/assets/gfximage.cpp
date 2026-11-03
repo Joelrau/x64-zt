@@ -50,7 +50,10 @@ namespace zonetool::iw6
 						continue;
 					}
 
-					const auto imagefile_path = utils::string::va("imagefile%d.pak", stream_file->fileIndex);
+					constexpr auto zone_pak_file_index = 69; // the stream is in <zone>.pak
+					const auto imagefile_path = stream_file->fileIndex == zone_pak_file_index
+						? std::format("{}.pak", filesystem::get_fastfile())
+						: std::format("imagefile{}.pak", stream_file->fileIndex);
 					std::string buffer;
 					const auto size = stream_file->offsetEnd - stream_file->offset;
 					buffer.resize(size);
@@ -75,7 +78,13 @@ namespace zonetool::iw6
 						std::string pixel_data;
 						pixel_data.resize(pixel_size);
 
-						uncompress((Bytef*)pixel_data.data(), (uLongf*)&pixel_size, (Bytef*)buffer.data(), (uLongf)buffer.size());
+						auto pixel_data_size = static_cast<uLongf>(pixel_data.size());
+						if (uncompress(reinterpret_cast<Bytef*>(pixel_data.data()), &pixel_data_size, reinterpret_cast<const Bytef*>(buffer.data()),
+							static_cast<uLong>(buffer.size())) != Z_OK || pixel_data_size != pixel_data.size())
+						{
+							ZONETOOL_ERROR("Failed to decompress stream %d of image \"%s\"", i, image->name);
+							continue;
+						}
 
 						const auto name = clean_name(image->name);
 
@@ -113,17 +122,16 @@ namespace zonetool::iw6
 					return;
 				}
 
+				if (asset->semantic == 11)
+				{
+					ZONETOOL_WARNING("GfxImage (%s) was not dumped succesfully!", asset->name);
+					return;
+				}
+
 				auto path = "images\\"s + clean_name(asset->name) + ext;
 				assetmanager::dumper write;
 				if (!write.open(path))
 				{
-					return;
-				}
-
-				if (asset->semantic == 11)
-				{
-					ZONETOOL_WARNING("GfxImage (%s) was not dumped succesfully!", asset->name);
-					write.close();
 					return;
 				}
 

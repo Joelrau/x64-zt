@@ -1104,8 +1104,8 @@ namespace zonetool::h1::converter::s2::weapon
 			s2.nightVisionRemoveTime = h1.nightVisionRemoveTime;
 			s2.nightVisionRemoveTimePowerDown = h1.nightVisionRemoveTimePowerDown;
 			s2.nightVisionRemoveTimeFadeInStart = h1.nightVisionRemoveTimeFadeInStart;
-			s2.aiFuseTime = h1.aiFuseTime;
 			s2.fuseTime = h1.fuseTime;
+			s2.aiFuseTime = h1.aiFuseTime;
 			s2.missileTime = h1.missileTime;
 			s2.primeTime = h1.primeTime;
 			s2.bHoldFullPrime = h1.bHoldFullPrime;

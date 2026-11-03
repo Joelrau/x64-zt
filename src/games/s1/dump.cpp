@@ -135,6 +135,12 @@ namespace zonetool::s1
 					this->assets[entry->second] = asset;
 				}
 			}
+
+			bool is_last_copy(const loaded_asset& asset) const
+			{
+				const auto entry = this->indices.find({asset.type, get_asset_name(asset.type, asset.header)});
+				return entry != this->indices.end() && this->assets[entry->second].header == asset.header;
+			}
 		};
 
 		std::string common_zone_suffix(const std::string& map)
@@ -162,11 +168,11 @@ namespace zonetool::s1
 				{"common" + suffix, map_zone_dump::referenced},
 				{"techsets_common_core_mp", map_zone_dump::referenced},
 				{"eng_" + map, map_zone_dump::all},
-				{"eng_patch_" + map, map_zone_dump::all},
-				{"patch_" + map, map_zone_dump::all},
 				{map + "_path", map_zone_dump::all},
 				{map + "_load", map_zone_dump::all},
 				{map, map_zone_dump::all},
+				{"eng_patch_" + map, map_zone_dump::all},
+				{"patch_" + map, map_zone_dump::all},
 			};
 		}
 
@@ -346,18 +352,24 @@ namespace zonetool::s1
 		map_asset_list map_assets;
 		for (const auto& [zone, dump] : zones)
 		{
+			for (const auto& asset : zone->assets)
+			{
+				if (is_map_zone_asset(asset, dump, references) || dump == map_zone_dump::all)
+				{
+					map_assets.add(asset);
+				}
+			}
+		}
+
+		// dump only the last copy of an asset, because patch zones load last and the game uses the patch copy
+		for (const auto& [zone, dump] : zones)
+		{
 			ZONETOOL_INFO("Dumping zone \"%s\"...", zone->name.data());
 			for (const auto& asset : zone->assets)
 			{
-				const auto dumped = is_map_zone_asset(asset, dump, references);
-				if (dumped)
+				if (is_map_zone_asset(asset, dump, references) && map_assets.is_last_copy(asset))
 				{
 					dump_zone_asset(asset, converter);
-				}
-
-				if (dumped || dump == map_zone_dump::all)
-				{
-					map_assets.add(asset);
 				}
 			}
 		}

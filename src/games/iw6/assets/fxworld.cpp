@@ -182,8 +182,8 @@ namespace zonetool::iw6
 		read_glass_defs(reader, &system);
 		read_glass_runtime_data(reader, &system);
 		reader.read_array(system.lightingHandles, 1, system.initPieceCount);
-		reader.read_array(system.initGeoData, 3, system.initGeoDataCount);
 		reader.read_array(system.initPieceStates, 3, system.initPieceCount);
+		reader.read_array(system.initGeoData, 3, system.initGeoDataCount);
 
 		reader.pop_stream();
 	}

@@ -2,12 +2,14 @@
 #include "converter.hpp"
 
 #include <game.hpp>
+#include <utils/io.hpp>
 
 namespace zonetool::iw6::converter::h1
 {
 	namespace
 	{
 		std::vector<std::string> csv_rows;
+		std::unordered_set<std::string> removed_csv_rows;
 	}
 
 	void add_csv_row(const std::string_view type, const std::string_view name)
@@ -19,23 +21,46 @@ namespace zonetool::iw6::converter::h1
 		}
 	}
 
-	void append_csv_rows(const std::string& zone_name)
+	void remove_csv_row(const std::string_view type, const std::string_view name)
 	{
-		if (csv_rows.empty())
+		removed_csv_rows.insert(std::format("{},{}", type, name));
+	}
+
+	void update_csv_rows(const std::string& zone_name)
+	{
+		if (csv_rows.empty() && removed_csv_rows.empty())
 		{
 			return;
 		}
 
-		filesystem::file csv(zone_name + ".csv");
-		csv.open("ab");
+		// file reads use the search paths, the listing is in the dump folder
+		std::string text;
+		utils::io::read_file(filesystem::get_dump_path() + zone_name + ".csv", &text);
+
+		std::string new_text;
+		std::unordered_set<std::string> rows;
+		for (const auto& row : utils::string::split(text, '\n'))
+		{
+			if (!row.empty() && !removed_csv_rows.contains(row) && rows.insert(row).second)
+			{
+				new_text += row + "\n";
+			}
+		}
 
 		for (const auto& row : csv_rows)
 		{
-			csv.write(row + "\n");
+			if (rows.insert(row).second)
+			{
+				new_text += row + "\n";
+			}
 		}
 
+		filesystem::file csv(zone_name + ".csv");
+		csv.open("wb");
+		csv.write(new_text);
 		csv.close();
 		csv_rows.clear();
+		removed_csv_rows.clear();
 	}
 }
 
@@ -146,6 +171,9 @@ namespace zonetool::convert::iw6_h1
 			case source::ASSET_TYPE_GFXWORLD:
 				target::gfxworld::dump(header_as<source::GfxWorld>(header));
 				break;
+			case source::ASSET_TYPE_IMPACT_FX:
+				target::impactfx::dump(header_as<source::FxImpactTable>(header));
+				break;
 			case source::ASSET_TYPE_DOPPLER_PRESET:
 				zonetool::h1::doppler_preset::dump(header_as<zonetool::h1::DopplerPreset>(header));
 				break;
@@ -168,7 +196,10 @@ namespace zonetool::convert::iw6_h1
 				zonetool::h1::sound_curve::dump(header_as<zonetool::h1::SndCurve>(header));
 				break;
 			case source::ASSET_TYPE_STRINGTABLE:
-				zonetool::h1::string_table::dump(header_as<zonetool::h1::StringTable>(header));
+				target::stringtable::dump(header_as<source::StringTable>(header));
+				break;
+			case source::ASSET_TYPE_REVERB_PRESET:
+				zonetool::h1::reverb_preset::dump(header_as<zonetool::h1::ReverbPreset>(header));
 				break;
 			case source::ASSET_TYPE_STRUCTURED_DATA_DEF:
 				zonetool::h1::structured_data_def_set::dump(header_as<zonetool::h1::StructuredDataDefSet>(header));
@@ -177,10 +208,10 @@ namespace zonetool::convert::iw6_h1
 				zonetool::h1::anim_class::dump(header_as<zonetool::h1::AnimationClass>(header));
 				break;
 			case source::ASSET_TYPE_MENU:
-				zonetool::h1::menu_def::dump(header_as<zonetool::h1::menuDef_t>(header));
+				source::menu_def::dump(header_as<source::menuDef_t>(header));
 				break;
 			case source::ASSET_TYPE_MENULIST:
-				zonetool::h1::menu_list::dump(header_as<zonetool::h1::MenuList>(header));
+				source::menu_list::dump(header_as<source::MenuList>(header));
 				break;
 			case source::ASSET_TYPE_GLASSWORLD:
 				zonetool::h1::glass_world::dump(header_as<zonetool::h1::GlassWorld>(header));
@@ -196,12 +227,12 @@ namespace zonetool::convert::iw6_h1
 		void finish(const std::string& zone_name)
 		{
 			zonetool::iw6::converter::h1::net_const_strings::add_missing_level_strings();
-			zonetool::iw6::converter::h1::append_csv_rows(zone_name);
+			zonetool::iw6::converter::h1::update_csv_rows(zone_name);
 		}
 
 		std::vector<std::string> required_zones(const std::string&)
 		{
-			return {"code_post_gfx_mp", "techsets_code_post_gfx_mp", "techsets_common_core_mp"};
+			return {"code_post_gfx_mp", "techsets_code_post_gfx_mp", "techsets_common_core_mp", "eng_common_mp", "eng_patch_common_mp"};
 		}
 	}
 

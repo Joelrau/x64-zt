@@ -383,8 +383,6 @@ namespace zonetool::s2::converter::h1::techset
 			}
 		}
 
-		const std::filesystem::path catalog_cache_path = "zonetool_cache/h1_techsets.txt";
-
 		std::string zone_signature(const std::vector<std::filesystem::path>& zones)
 		{
 			auto result = std::format("version {}\n", cache_revision::s2_h1_techset_catalog);
@@ -403,7 +401,7 @@ namespace zonetool::s2::converter::h1::techset
 		std::optional<catalog> read_catalog_cache(const std::string& signature)
 		{
 			std::string data;
-			if (!utils::io::read_file(catalog_cache_path.string(), &data) || !data.starts_with(signature))
+			if (!utils::io::read_file(filesystem::get_cache_path("h1_techsets.txt"), &data) || !data.starts_with(signature))
 			{
 				return {};
 			}
@@ -449,7 +447,7 @@ namespace zonetool::s2::converter::h1::techset
 				data += std::format("s\t{}\t{}\n", zone.string(), key);
 			}
 
-			utils::io::write_file(catalog_cache_path.string(), data);
+			utils::io::write_file(filesystem::get_cache_path("h1_techsets.txt"), data);
 		}
 
 		catalog scan_zones(const std::vector<std::filesystem::path>& zones)

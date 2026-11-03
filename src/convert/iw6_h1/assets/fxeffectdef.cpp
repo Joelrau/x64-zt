@@ -117,6 +117,106 @@ namespace zonetool::iw6
 				return h1_flags;
 			}
 
+			std::size_t string_size(const char* str)
+			{
+				return str ? std::strlen(str) + 1 : 0;
+			}
+
+			std::size_t visuals_size(const zonetool::h1::FxElemDef& elem)
+			{
+				if (elem.elemType == zonetool::h1::FX_ELEM_TYPE_DECAL)
+				{
+					return elem.visuals.markArray ? sizeof(zonetool::h1::FxElemMarkVisuals) * elem.visualCount : 0;
+				}
+
+				const auto has_strings = elem.elemType == zonetool::h1::FX_ELEM_TYPE_SOUND || elem.elemType == zonetool::h1::FX_ELEM_TYPE_VECTORFIELD;
+				if (elem.visualCount <= 1)
+				{
+					return has_strings && elem.visualCount ? string_size(elem.visuals.instance.soundName) : 0;
+				}
+
+				if (!elem.visuals.array)
+				{
+					return 0;
+				}
+
+				auto size = sizeof(zonetool::h1::FxElemVisuals) * elem.visualCount;
+				for (auto i = 0; has_strings && i < elem.visualCount; i++)
+				{
+					size += string_size(elem.visuals.array[i].soundName);
+				}
+
+				return size;
+			}
+
+			std::size_t extended_size(const zonetool::h1::FxElemDef& elem)
+			{
+				const auto& extended = elem.extended;
+				if (!extended.unknownDef)
+				{
+					return 0;
+				}
+
+				switch (elem.elemType)
+				{
+				case zonetool::h1::FX_ELEM_TYPE_TRAIL:
+					return sizeof(zonetool::h1::FxTrailDef)
+						+ (extended.trailDef->verts ? sizeof(zonetool::h1::FxTrailVertex) * extended.trailDef->vertCount : 0)
+						+ (extended.trailDef->inds ? sizeof(unsigned short) * extended.trailDef->indCount : 0);
+				case zonetool::h1::FX_ELEM_TYPE_SPARK_FOUNTAIN:
+					return sizeof(zonetool::h1::FxSparkFountainDef);
+				case zonetool::h1::FX_ELEM_TYPE_SPOT_LIGHT:
+					return sizeof(zonetool::h1::FxSpotLightDef);
+				case zonetool::h1::FX_ELEM_TYPE_OMNI_LIGHT:
+					return sizeof(zonetool::h1::FxOmniLightDef);
+				case zonetool::h1::FX_ELEM_TYPE_FLARE:
+				{
+					const auto* flare = extended.flareDef;
+					return sizeof(zonetool::h1::FxFlareDef) + sizeof(float) * (flare->intensityXIntervalCount + flare->intensityYIntervalCount
+						+ flare->srcCosIntensityIntervalCount + flare->srcCosScaleIntervalCount + 4);
+				}
+				default:
+					return 0;
+				}
+			}
+
+			// stock h1 counts the defs, samples, visuals, extended defs and the effect name
+			int total_size(const zonetool::h1::FxEffectDef* asset, const int elem_count)
+			{
+				auto size = sizeof(zonetool::h1::FxEffectDef) + sizeof(zonetool::h1::FxElemDef) * elem_count + string_size(asset->name);
+				for (auto i = 0; i < elem_count; i++)
+				{
+					const auto& elem = asset->elemDefs[i];
+					size += elem.velSamples ? sizeof(zonetool::h1::FxElemVelStateSample) * (elem.velIntervalCount + 1) : 0;
+					size += elem.visSamples ? sizeof(zonetool::h1::FxElemVisStateSample) * (elem.visStateIntervalCount + 1) : 0;
+					size += visuals_size(elem) + extended_size(elem);
+				}
+
+				return static_cast<int>(size);
+			}
+
+			// stock h1 sets these exactly when an elem runs relative to the camera, casts shadows, draws emissive or queries occlusion
+			unsigned int elem_effect_flags(const zonetool::h1::FxElemDef& elem)
+			{
+				auto flags = 0u;
+				if ((elem.flags & zonetool::h1::FX_ELEM_RUN_MASK) == zonetool::h1::FX_ELEM_RUN_RELATIVE_TO_CAMERA)
+				{
+					flags |= zonetool::h1::FX_EFFECT_HAS_CAMERA_RELATIVE_ELEM;
+				}
+
+				if (elem.flags & zonetool::h1::FX_ELEM_USE_CAST_SHADOW)
+				{
+					flags |= zonetool::h1::FX_EFFECT_NEEDS_CAST_SHADOW;
+				}
+
+				if (elem.flags & zonetool::h1::FX_ELEM_USE_OCCLUSION_QUERY || elem.flags2 & zonetool::h1::FX_ELEM2_USE_EMISSIVE_DRAW)
+				{
+					flags |= zonetool::h1::FX_EFFECT_NEEDS_EMISSIVE_DRAW;
+				}
+
+				return flags;
+			}
+
 			zonetool::h1::FxEffectDef* convert(FxEffectDef* asset, utils::memory::allocator& allocator)
 			{
 				auto* new_asset = allocator.allocate<zonetool::h1::FxEffectDef>();
@@ -124,7 +224,6 @@ namespace zonetool::iw6
 				REINTERPRET_CAST_SAFE(name);
 
 				COPY_VALUE(flags);
-				COPY_VALUE(totalSize);
 				COPY_VALUE(msecLoopingLife);
 				COPY_VALUE(elemDefCountLooping);
 				COPY_VALUE(elemDefCountOneShot);
@@ -155,6 +254,8 @@ namespace zonetool::iw6
 					new_elem->flags = static_cast<zonetool::h1::FxElemDefFlags>(convert_elem_flags(elem->flags));
 					COPY_VALUE_CAST(elemDefs[elem_index].flags2);
 
+					// distortion goes to the emissive draw list like stock, the emissive camera region only sets the emissive scale
+					bool distortion = false;
 					bool emissive = false;
 					const auto emissive_check = [&](const Material* mat)
 					{
@@ -165,20 +266,14 @@ namespace zonetool::iw6
 						case FX_ELEM_TYPE_TAIL:
 						case FX_ELEM_TYPE_TRAIL:
 						{
-							std::string mat_name = mat->name;
-							if (mat_name.find("distort") != std::string::npos)
+							if (!mat)
 							{
-								emissive = true;
+								break;
 							}
-							if (!emissive)
-							{
-								if ((mat->techniqueSet && mat->techniqueSet->name && std::string(mat->techniqueSet->name).find("distort") != std::string::npos) ||
-									(mat->info.gameFlags & MTL_GAMEFLAG_EMISSIVE) != 0 ||
-									(mat->cameraRegion == CAMERA_REGION_EMISSIVE || mat->cameraRegion == CAMERA_REGION_DEPTH_HACK))
-								{
-									emissive = true;
-								}
-							}
+
+							const std::string_view techset = mat->techniqueSet && mat->techniqueSet->name ? mat->techniqueSet->name : "";
+							distortion |= std::string_view(mat->name).contains("distort") || techset.contains("distort");
+							emissive |= distortion || mat->cameraRegion == CAMERA_REGION_EMISSIVE || mat->cameraRegion == CAMERA_REGION_DEPTH_HACK;
 						}
 						break;
 						}
@@ -199,9 +294,8 @@ namespace zonetool::iw6
 						emissive_check(elem->visuals.instance.material);
 					}
 
-					if (emissive)
+					if (distortion)
 					{
-						new_asset->flags |= zonetool::h1::FX_EFFECT_NEEDS_EMISSIVE_DRAW;
 						new_elem->flags2 |= zonetool::h1::FX_ELEM2_USE_EMISSIVE_DRAW;
 					}
 
@@ -222,6 +316,13 @@ namespace zonetool::iw6
 					COPY_VALUE_CAST(elemDefs[elem_index].reflectionFactor);
 					COPY_VALUE_CAST(elemDefs[elem_index].atlas);
 					new_elem->elemType = convert_elem_type(elem->elemType);
+
+					// iw6 draws oriented sprites without the spawn angles, h1 rotates them by spawnAngles + angularVelocity
+					if (new_elem->elemType == zonetool::h1::FX_ELEM_TYPE_SPRITE_ORIENTED)
+					{
+						std::memset(new_elem->spawnAngles, 0, sizeof(new_elem->spawnAngles));
+						std::memset(new_elem->angularVelocity, 0, sizeof(new_elem->angularVelocity));
+					}
 					COPY_VALUE_CAST(elemDefs[elem_index].elemLitType);
 					//new_elem->elemLitType = generate_elem_lit_type(elem->elemType);
 					COPY_VALUE_CAST(elemDefs[elem_index].visualCount);
@@ -261,7 +362,7 @@ namespace zonetool::iw6
 							new_elem->visSamples[i].amplitude.rotationTotal = elem->visSamples[i].amplitude.rotationTotal;
 							memcpy(&new_elem->visSamples[i].amplitude.size, &elem->visSamples[i].amplitude.size, sizeof(float[2]));
 							new_elem->visSamples[i].amplitude.scale = elem->visSamples[i].amplitude.scale;
-							new_elem->visSamples[i].amplitude.pivot[1] = 0.0f;
+							new_elem->visSamples[i].amplitude.pivot[0] = 0.0f;
 							new_elem->visSamples[i].amplitude.pivot[1] = 0.0f;
 
 							if (emissive || new_elem->elemLitType == zonetool::h1::FxElemLitType::FX_ELEM_LIT_TYPE_NONE)
@@ -328,6 +429,13 @@ namespace zonetool::iw6
 						new_elem->visuals.instance.anonymous = elem->visuals.instance.anonymous;
 					}
 
+					if (elem->elemType == FX_ELEM_TYPE_APEX_TURBULENCE || elem->elemType == FX_ELEM_TYPE_NVIDIA_HAIR)
+					{
+						ZONETOOL_WARNING("fx \"%s\": elem %d has iw6 elem type %d, which h1 lacks, it draws nothing", asset->name, elem_index, elem->elemType);
+						new_elem->visualCount = 0;
+						new_elem->visuals.instance.anonymous = nullptr;
+					}
+
 					COPY_VALUE_CAST(elemDefs[elem_index].collBounds);
 
 					new_elem->effectOnImpact.name = elem->effectOnImpact.name;
@@ -369,43 +477,24 @@ namespace zonetool::iw6
 						new_elem->extended.sparkFountainDef = reinterpret_cast<zonetool::h1::FxSparkFountainDef*>(elem->extended.sparkFountainDef);
 						break;
 					case FX_ELEM_TYPE_SPOT_LIGHT:
-						// check
 						new_elem->extended.spotLightDef = allocator.allocate<zonetool::h1::FxSpotLightDef>();
 						if (elem->extended.spotLightDef)
 						{
-							// ai giving you the following code:
-
+							const auto* src = elem->extended.spotLightDef;
 							auto* dst = new_elem->extended.spotLightDef;
-							auto* src = elem->extended.spotLightDef;
 
-							// Defensive clamps
-							const float epsilon = 1e-4f;
-							const float maxLen = std::max(src->maxLength, epsilon);
-							const float r0 = std::max(src->startRadius, 0.0f);
-							const float r1 = std::max(src->endRadius, 0.0f);
-							const float dR = std::max(r1 - r0, 0.0f);                 // beam widening
-							const float frac = std::clamp(src->fovInnerFraction, 0.0f, 1.0f);
-
-							// Half-angles (radians) from beam slope.
-							// Outer: atan( (end-start) / length )
-							// Inner uses the same slope scaled by the fraction.
-							const float halfFovOuter = std::atan2(dR, maxLen);
-							const float halfFovInner = std::atan2(frac * dR, maxLen);
-
-							// Assign to H1
-							dst->halfFovOuter = halfFovOuter;
-							dst->halfFovInner = std::min(halfFovOuter, halfFovInner);      // safety
-							dst->radius = r1;                                         // end radius at max distance
-							dst->brightness = src->brightness;                            // might need a scale, engine-dependent
-							dst->maxLength = maxLen;
+							// iw6 R_AddSpotLightToScene math, with the max length in place of the per frame light radius
+							const auto radius = std::max(src->maxLength, 0.2f);
+							const auto end_radius = std::clamp(src->endRadius, src->startRadius + 0.1f, src->startRadius + radius - 0.1f);
+							dst->halfFovOuter = std::max(std::atan((end_radius - src->startRadius) / radius), 0.01f);
+							dst->halfFovInner = dst->halfFovOuter * src->fovInnerFraction;
+							dst->radius = radius;
+							dst->brightness = src->brightness;
+							dst->maxLength = src->maxLength;
 							dst->exponent = src->exponent;
-
-							// Use startRadius to populate emitter/bulb; near clip small to avoid acne
-							dst->bulbRadius = r0;                                         // emitter base radius
-							dst->bulbLength = 0.0f;                                       // unknown in src; 0 is safest
-							dst->nearClip = 0.01f;                                      // tiny, or tie to % of maxLen if you prefer
-
-							// Keep your fade ramp unless you have better data
+							dst->nearClip = 0.01f;
+							dst->bulbRadius = src->startRadius;
+							dst->bulbLength = 0.0f;
 							dst->fadeOffsetRt[0] = 0.0f;
 							dst->fadeOffsetRt[1] = 1.0f;
 						}
@@ -445,6 +534,16 @@ namespace zonetool::iw6
 						new_elem->emissiveScaleScale = 1.0f;
 					}
 				}
+
+				constexpr auto elem_flags = zonetool::h1::FX_EFFECT_HAS_CAMERA_RELATIVE_ELEM | zonetool::h1::FX_EFFECT_NEEDS_CAST_SHADOW | zonetool::h1::FX_EFFECT_NEEDS_EMISSIVE_DRAW;
+				auto flags = static_cast<unsigned int>(asset->flags) & ~static_cast<unsigned int>(elem_flags);
+				for (auto i = 0; i < count; i++)
+				{
+					flags |= elem_effect_flags(new_asset->elemDefs[i]);
+				}
+
+				new_asset->flags = static_cast<decltype(new_asset->flags)>(flags);
+				new_asset->totalSize = total_size(new_asset, count);
 
 				return new_asset;
 			}

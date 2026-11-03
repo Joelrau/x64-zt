@@ -13,6 +13,7 @@ namespace zonetool
 			std::string dump_folder;
 			std::string zone_folder = "zone\\";
 			std::string output_folder;
+			std::string cache_game = "none";
 			std::string language_name = "english";
 			std::string language_code = "en";
 
@@ -353,6 +354,19 @@ namespace zonetool
 		const std::string& get_zone_folder()
 		{
 			return zone_folder;
+		}
+
+		void set_cache_game(const std::string& game)
+		{
+			cache_game = game;
+		}
+
+		std::string get_cache_path(const std::string& name)
+		{
+			char local_app_data[MAX_PATH]{};
+			const auto size = GetEnvironmentVariableA("LOCALAPPDATA", local_app_data, MAX_PATH);
+			const auto root = size > 0 && size < MAX_PATH ? std::string(local_app_data) + "\\zonetool\\" :std::string("zonetool_cache\\");
+			return root + cache_game + "\\" + name;
 		}
 
 		void set_output_folder(const std::string& folder)

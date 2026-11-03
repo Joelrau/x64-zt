@@ -3,6 +3,8 @@
 #include "game_registry.hpp"
 #include "crash.hpp"
 
+#include <io/filesystem.hpp>
+
 namespace zonetool::cli
 {
 	namespace
@@ -128,6 +130,7 @@ namespace zonetool::cli
 		try
 		{
 			const auto settings = load_settings(args);
+			filesystem::set_cache_game(std::string(settings.game->name));
 
 			if (args.empty())
 			{

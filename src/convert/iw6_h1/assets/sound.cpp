@@ -371,6 +371,33 @@ namespace zonetool::iw6
 				zonetool::h1::SoundVolMod::SND_VOLMOD_DEFAULT, //SND_VOLMOD_DEFAULT,
 			};
 
+			std::optional<zonetool::h1::SoundDspBus> get_dsp_bus(const char* channel)
+			{
+				const auto index = zonetool::iw6::get_channel_index_from_name(channel);
+				if (index < 0)
+				{
+					return {};
+				}
+
+				return channel_to_dspbus_index[index];
+			}
+
+			std::size_t get_dsp_bus_channel_count(const zonetool::h1::SoundDspBus bus)
+			{
+				return static_cast<std::size_t>(std::ranges::count(channel_to_dspbus_index, bus));
+			}
+
+			std::optional<zonetool::h1::SoundVolMod> get_vol_mod(const char* vol_mod)
+			{
+				const auto index = zonetool::iw6::get_vol_mod_index_from_name(vol_mod);
+				if (index < 0)
+				{
+					return {};
+				}
+
+				return volmod_to_volmod_index[index];
+			}
+
 			void convert_alias(snd_alias_t* asset, zonetool::h1::snd_alias_t* new_asset, int index, utils::memory::allocator& mem)
 			{
 				COPY_VALUE(aliasName);
@@ -380,20 +407,17 @@ namespace zonetool::iw6
 				// mixerGroup is not present in H1
 				new_asset->squelchName = nullptr;
 
-				new_asset->soundFile;
 				new_asset->soundFile = mem.allocate<zonetool::h1::SoundFile>();
-
-				new_asset->soundFile->exists = asset->soundFile->exists;
-				new_asset->soundFile->type = static_cast<zonetool::h1::snd_alias_type_t>(asset->soundFile->type);
-
-				switch (asset->soundFile->type)
+				if (asset->soundFile)
 				{
-				case SAT_LOADED:
-				{
-					new_asset->soundFile->u.loadSnd = mem.allocate<zonetool::h1::LoadedSound>();
-					new_asset->soundFile->u.loadSnd->name = mem.duplicate_string(remove_extension(sanitize_path(asset->soundFile->u.loadSnd->name)));
-					break;
-				}
+					new_asset->soundFile->exists = asset->soundFile->exists;
+					new_asset->soundFile->type = static_cast<zonetool::h1::snd_alias_type_t>(asset->soundFile->type);
+
+					if (asset->soundFile->type == SAT_LOADED)
+					{
+						new_asset->soundFile->u.loadSnd = mem.allocate<zonetool::h1::LoadedSound>();
+						new_asset->soundFile->u.loadSnd->name = mem.duplicate_string(remove_extension(sanitize_path(asset->soundFile->u.loadSnd->name)));
+					}
 				}
 
 				new_asset->polyCount = 1;
@@ -439,23 +463,14 @@ namespace zonetool::iw6
 				default_sndcurve->name = "$default";
 				default_sndcurve->isDefault = 1;
 
-				zonetool::h1::SndCurve* sndcurve = nullptr;
-				if (asset->volumeFalloffCurve && asset->volumeFalloffCurve->filename != ""s)
+				const auto convert_curve = [&](SndCurve* curve)
 				{
-					sndcurve = mem.allocate<zonetool::h1::SndCurve>();
-					sndcurve->filename = asset->volumeFalloffCurve->filename;
-					sndcurve->isDefault = 0;
-					sndcurve->knotCount = asset->volumeFalloffCurve->knotCount;
-					memcpy(sndcurve->knots, asset->volumeFalloffCurve->knots, sizeof(float[16][2]));
-				}
-				else
-				{
-					sndcurve = default_sndcurve;
-				}
+					return curve && curve->name && *curve->name ? reinterpret_cast<zonetool::h1::SndCurve*>(curve) : default_sndcurve;
+				};
 
-				new_asset->volumeFalloffCurve = sndcurve;
-				new_asset->lpfCurve = default_sndcurve;
-				new_asset->reverbSendCurve = default_sndcurve;
+				new_asset->volumeFalloffCurve = convert_curve(asset->volumeFalloffCurve);
+				new_asset->lpfCurve = convert_curve(asset->lpfCurve);
+				new_asset->reverbSendCurve = convert_curve(asset->reverbSendCurve);
 
 				new_asset->speakerMap = nullptr;
 				if (asset->speakerMap)

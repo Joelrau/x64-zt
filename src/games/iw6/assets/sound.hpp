@@ -3,6 +3,9 @@
 
 namespace zonetool::iw6
 {
+	int get_vol_mod_index_from_name(const char* name);
+	int get_channel_index_from_name(const char* name);
+
 	class sound : public asset_interface
 	{
 	private:

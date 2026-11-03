@@ -79,6 +79,10 @@ namespace zonetool::iw6
 				if (asset->numReactiveMotionParts)
 				{
 					new_asset->reactiveMotionLOD = 6;
+
+					// h1 scales the global reactive motion settings by these and reads them without a null check, iw6 uses only the globals
+					new_asset->reactiveMotionTweaks = allocator.allocate<zonetool::h1::ReactiveMotionModelTweaks>();
+					std::ranges::fill(new_asset->reactiveMotionTweaks->scale, 1.0f);
 				}
 
 				return new_asset;

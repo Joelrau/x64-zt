@@ -2,8 +2,6 @@
 #include "../include.hpp"
 #include "scriptfile.hpp"
 
-//#include <h1/assets/scriptfile.hpp>
-
 #include <xsk/gsc/engine/iw6_pc.hpp>
 
 #include <utils/string.hpp>
@@ -21,11 +19,6 @@ namespace zonetool::iw6
 
 		namespace scriptfile
 		{
-			zonetool::h1::ScriptFile* convert(ScriptFile* asset, utils::memory::allocator& allocator)
-			{
-				return nullptr;
-			}
-
 			std::string convert_name(std::string gsc_name)
 			{
 				if (utils::string::is_numeric(gsc_name))
@@ -80,6 +73,10 @@ namespace zonetool::iw6
 			void dump(ScriptFile* asset)
 			{
 				dump_as_gsc(asset);
+
+				// h1-mod compiles gsc rawfiles
+				remove_csv_row("scriptfile", asset->name);
+				add_csv_row("rawfile", convert_name(asset->name));
 			}
 		}
 	}

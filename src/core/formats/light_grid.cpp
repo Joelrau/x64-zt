@@ -119,6 +119,16 @@ namespace light_grid
 				this->position_ += bytes * 8;
 			}
 
+			void seek(const std::size_t bit)
+			{
+				this->position_ = bit;
+			}
+
+			std::size_t position() const
+			{
+				return this->position_;
+			}
+
 			bool overflowed() const
 			{
 				return this->overflow_;
@@ -129,6 +139,38 @@ namespace light_grid
 			std::size_t bit_count_;
 			std::size_t position_ = 0;
 			bool overflow_ = false;
+		};
+
+		class bit_writer
+		{
+		public:
+			void write(const unsigned int value, const int bits)
+			{
+				for (auto i = 0; i < bits; i++)
+				{
+					if ((this->position_ & 7) == 0)
+					{
+						this->data_.emplace_back(static_cast<unsigned char>(0));
+					}
+
+					this->data_.back() |= static_cast<unsigned char>(((value >> i) & 1) << (this->position_ & 7));
+					this->position_++;
+				}
+			}
+
+			void align_byte()
+			{
+				this->position_ = (this->position_ + 7) & ~7ull;
+			}
+
+			const std::vector<unsigned char>& data() const
+			{
+				return this->data_;
+			}
+
+		private:
+			std::vector<unsigned char> data_;
+			std::size_t position_ = 0;
 		};
 
 		struct node_index_info
@@ -377,6 +419,58 @@ namespace light_grid
 			{
 				out.values[i] = encoded[i] ? encoded[i] + base : 0;
 			}
+		}
+
+		bool convert_chunk(const tree_view& tree, const unsigned int chunk_mask, const int leaf_size_bit_count, const unsigned int address,
+			std::vector<unsigned char>& out)
+		{
+			bit_reader reader(tree.leaf_table + address, tree.leaf_table_size - address);
+			const auto format = reader.read(8);
+			const auto leaf_count = std::popcount(chunk_mask & 0xFF);
+
+			int leaf_size[8]{};
+			auto blocks_size = 0u;
+			for (auto i = 0; i < leaf_count; i++)
+			{
+				leaf_size[i] = reader.read_int(tree.leaf_size_bit_count);
+				blocks_size += leaf_size[i];
+			}
+
+			const auto index_info_start = reader.position();
+			node_index_info index_info{};
+			read_node_index(reader, format & 0x1, format & 0x2, format & 0x4, tree.default_color_index_bit_count, 16, index_info);
+			read_node_index(reader, format & 0x8, format & 0x10, format & 0x20, tree.default_light_index_bit_count, 1, index_info);
+			const auto index_info_end = reader.position();
+			reader.align_byte();
+
+			const auto blocks_start = address + reader.position() / 8;
+			if (reader.overflowed() || blocks_start + blocks_size > static_cast<std::size_t>(tree.leaf_table_size))
+			{
+				return false;
+			}
+
+			bit_writer writer;
+			writer.write(format, 8);
+			for (auto i = 0; i < leaf_count; i++)
+			{
+				if (leaf_size[i] >= (1 << leaf_size_bit_count))
+				{
+					return false;
+				}
+
+				writer.write(leaf_size[i], leaf_size_bit_count);
+			}
+
+			reader.seek(index_info_start);
+			for (auto bit = index_info_start; bit < index_info_end; bit++)
+			{
+				writer.write(reader.read(1), 1);
+			}
+
+			writer.align_byte();
+			out.insert(out.end(), writer.data().begin(), writer.data().end());
+			out.insert(out.end(), tree.leaf_table + blocks_start, tree.leaf_table + blocks_start + blocks_size);
+			return true;
 		}
 
 		void read_leaf_block(bit_reader& reader, const chunk_header& header, const int block_size, leaf_block& out)
@@ -673,6 +767,58 @@ namespace light_grid
 		out.trace_low = (block.trace_mask >> voxel_index) & 1;
 		out.trace_high = (block.trace_mask >> (voxel_index + 16)) & 1;
 		return out.color_index != 0;
+	}
+
+	bool convert_leaf_table(const tree_view& tree, const int leaf_size_bit_count, std::vector<unsigned int>& node_table, std::vector<unsigned char>& leaf_table)
+	{
+		node_table.assign(tree.node_table, tree.node_table + tree.node_count);
+		leaf_table.clear();
+		if (!tree.node_table || !tree.leaf_table || tree.node_count <= 0)
+		{
+			return false;
+		}
+
+		std::unordered_map<unsigned int, unsigned int> converted_addresses;
+		std::vector<std::pair<unsigned int, int>> pending{{0u, 0}};
+		while (!pending.empty())
+		{
+			const auto [node_index, depth] = pending.back();
+			pending.pop_back();
+			if (node_index >= static_cast<unsigned int>(tree.node_count))
+			{
+				return false;
+			}
+
+			const auto node = tree.node_table[node_index];
+			const auto chunk_mask = node >> 24;
+			if (depth < tree.max_depth)
+			{
+				for (auto child = 0; child < std::popcount(chunk_mask); child++)
+				{
+					pending.emplace_back((node & 0xFFFFFF) + child, depth + 1);
+				}
+
+				continue;
+			}
+
+			const auto address = node & 0xFFFFFF;
+			auto converted = converted_addresses.find(address);
+			if (converted == converted_addresses.end())
+			{
+				const auto new_address = static_cast<unsigned int>(leaf_table.size());
+				if (address >= static_cast<unsigned int>(tree.leaf_table_size) || new_address > 0xFFFFFF
+					|| !convert_chunk(tree, chunk_mask, leaf_size_bit_count, address, leaf_table))
+				{
+					return false;
+				}
+
+				converted = converted_addresses.emplace(address, new_address).first;
+			}
+
+			node_table[node_index] = (node & 0xFF000000) | converted->second;
+		}
+
+		return true;
 	}
 
 	void decode_palette_entry(const palette_config& config, const unsigned char* stream, palette_sh& out)

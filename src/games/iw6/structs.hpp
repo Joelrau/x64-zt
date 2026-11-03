@@ -615,6 +615,7 @@ namespace zonetool::iw6
 
 	enum materialSurfType_t
 	{
+		SURF_TYPE_DEFAULT,
 		SURF_TYPE_BARK,
 		SURF_TYPE_BRICK,
 		SURF_TYPE_CARPET,
@@ -645,7 +646,6 @@ namespace zonetool::iw6
 		SURF_TYPE_PAINTEDMETAL,
 		SURF_TYPE_RIOTSHIELD,
 		SURF_TYPE_SLUSH,
-		SURF_TYPE_CUSHION,
 		SURF_TYPE_COUNT,
 	};
 
@@ -3767,10 +3767,11 @@ namespace zonetool::iw6
 	struct GfxSurfaceBounds
 	{
 		Bounds bounds;
-		unsigned char flags;
 		unsigned short mipRadius;
-		unsigned char invHighMipRadius[5];
-	};
+		unsigned char invHighMipRadius[6];
+		char __pad0[3];
+		unsigned char flags;
+	}; assert_sizeof(GfxSurfaceBounds, 36);
 
 	struct GfxPackedPlacement
 	{

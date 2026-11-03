@@ -6,7 +6,7 @@ namespace zonetool::iw6
 	{
 		namespace physworld
 		{
-			zonetool::h1::PhysWorld* generate(zonetool::h1::clipMap_t* asset, utils::memory::allocator& allocator);
+			zonetool::h1::PhysWorld* generate(zonetool::h1::clipMap_t* asset, const MapEnts* map_ents, utils::memory::allocator& allocator);
 		}
 	}
 }

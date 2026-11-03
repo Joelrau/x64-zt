@@ -1,6 +1,7 @@
 #include <std_include.hpp>
 #include "../include.hpp"
 #include "vehicledef.hpp"
+#include "common/surface_type.hpp"
 
 #include <h1/assets/vehicledef.hpp>
 
@@ -402,9 +403,11 @@ namespace zonetool::iw6
 				COPY_VALUE_CAST(speedSnd);
 				COPY_VALUE(speedSndBlendSpeed);
 
-				for (auto i = 0; i < 31; i++)
+				COPY_VALUE(surfaceSndPrefix);
+				for (auto type = 0; type < zonetool::h1::SURF_TYPE_COUNT; type++)
 				{
-					new_asset->surfaceSnds[i] = reinterpret_cast<zonetool::h1::snd_alias_list_t*>(asset->surfaceSnds[i]);
+					const auto source = surface_type::get_source(static_cast<zonetool::h1::materialSurfType_t>(type));
+					new_asset->surfaceSnds[type] = reinterpret_cast<zonetool::h1::snd_alias_list_t*>(asset->surfaceSnds[source]);
 				}
 
 				COPY_VALUE(surfaceSndBlendSpeed);

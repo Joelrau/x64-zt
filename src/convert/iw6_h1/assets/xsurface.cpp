@@ -61,7 +61,6 @@ namespace zonetool::iw6
 					COPY_VALUE(surfs[i].rigidVertListCount);
 					COPY_VALUE(surfs[i].subdivLevelCount);
 					COPY_ARR(surfs[i].blendVertCounts);
-					COPY_VALUE(surfs[i].vertCount);
 					if ((surf->flags & 8) != 0)
 					{
 						REINTERPRET_CAST_SAFE(surfs[i].verts0.packedMotionVerts0);

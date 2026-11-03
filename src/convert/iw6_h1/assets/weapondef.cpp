@@ -1,8 +1,11 @@
 #include <std_include.hpp>
 #include "../include.hpp"
 #include "weapondef.hpp"
+#include "common/surface_type.hpp"
 
 #include <h1/assets/weapondef.hpp>
+
+#include <bit>
 
 
 namespace zonetool::iw6
@@ -258,7 +261,7 @@ namespace zonetool::iw6
 					{PLAYERANIMTYPE_AUTORIFLE, zonetool::h1::PLAYERANIMTYPE_AUTORIFLE},
 					//{PLAYERANIMTYPE_MG, zonetool::h1::PLAYERANIMTYPE_MG},
 					{PLAYERANIMTYPE_SNIPER, zonetool::h1::PLAYERANIMTYPE_SNIPER},
-					//{PLAYERANIMTYPE_ROCKETLAUNCHER, zonetool::h1::PLAYERANIMTYPE_ROCKETLAUNCHER},
+					{PLAYERANIMTYPE_ROCKETLAUNCHER, zonetool::h1::PLAYERANIMTYPE_ROCKET_LAUNCHER},
 					//{PLAYERANIMTYPE_EXPLOSIVE, zonetool::h1::PLAYERANIMTYPE_EXPLOSIVE},
 					{PLAYERANIMTYPE_GRENADE, zonetool::h1::PLAYERANIMTYPE_GRENADE},
 					//{PLAYERANIMTYPE_TURRET, zonetool::h1::PLAYERANIMTYPE_TURRET},
@@ -270,13 +273,13 @@ namespace zonetool::iw6
 					{PLAYERANIMTYPE_LAPTOP, zonetool::h1::PLAYERANIMTYPE_LAPTOP},
 					{PLAYERANIMTYPE_THROWINGKNIFE, zonetool::h1::PLAYERANIMTYPE_THROWINGKNIFE},
 					//{PLAYERANIMTYPE_MORTAR, zonetool::h1::PLAYERANIMTYPE_MORTAR},
-					//{PLAYERANIMTYPE_JUGGERNAUTMANIAC, zonetool::h1::PLAYERANIMTYPE_JUGGERNAUTMANIAC},
+					{PLAYERANIMTYPE_JUGGERNAUTMANIAC, zonetool::h1::PLAYERANIMTYPE_COMBATKNIFE},
 					//{PLAYERANIMTYPE_CLAYMORE, zonetool::h1::PLAYERANIMTYPE_CLAYMORE},
 					{PLAYERANIMTYPE_MINIGUN, zonetool::h1::PLAYERANIMTYPE_MINIGUN},
 					//{PLAYERANIMTYPE_DRILL, zonetool::h1::PLAYERANIMTYPE_DRILL},
 					//{PLAYERANIMTYPE_DOGWHISTLE, zonetool::h1::PLAYERANIMTYPE_DOGWHISTLE},
 					{PLAYERANIMTYPE_SMG_BULLPUP, zonetool::h1::PLAYERANIMTYPE_SMG_BULLPUP},
-					//{PLAYERANIMTYPE_AUTORIFLE_BULLPUP, zonetool::h1::PLAYERANIMTYPE_AUTORIFLE_BULLPUP},
+					{PLAYERANIMTYPE_AUTORIFLE_BULLPUP, zonetool::h1::PLAYERANIMTYPE_AUTOFILE_BULLPUP},
 					{PLAYERANIMTYPE_SNIPER_BULLPUP, zonetool::h1::PLAYERANIMTYPE_SNIPER_BULLPUP},
 					{PLAYERANIMTYPE_KILLSTREAKTRIGGER, zonetool::h1::PLAYERANIMTYPE_KILLSTREAKTRIGGER},
 					{PLAYERANIMTYPE_TROPHYSYSTEM, zonetool::h1::PLAYERANIMTYPE_TROPHYSYSTEM},
@@ -379,10 +382,10 @@ namespace zonetool::iw6
 				COPY_FIELD(nightVisionRemoveTimePowerDown, nightVisionRemoveTimePowerDown);
 				COPY_FIELD(nightVisionRemoveTimeFadeInStart, nightVisionRemoveTimeFadeInStart);
 
-				COPY_FIELD(aiFuseTime, aiFuseTime);
 				COPY_FIELD(fuseTime, fuseTime);
+				COPY_FIELD(aiFuseTime, aiFuseTime);
 				h1_asset->missileTime = def->weapDef->weapClass == WEAPCLASS_ROCKETLAUNCHER ? 4000 : 0;
-				h1_asset->primeTime = 0;
+				COPY_FIELD(primeTime, primeTime);
 				h1_asset->bHoldFullPrime = false;
 
 				COPY_FIELD(blastFrontTime, blastFrontTime);
@@ -442,69 +445,13 @@ namespace zonetool::iw6
 
 			void convert_surf_sounds(zonetool::h1::snd_alias_list_t** h1_sounds, snd_alias_list_t** sounds, utils::memory::allocator& mem)
 			{
-				static std::unordered_map<zonetool::h1::materialSurfType_t, materialSurfType_t> mapped =
+				for (auto type = 0; type < zonetool::h1::SURF_TYPE_COUNT; type++)
 				{
-					//{ zonetool::h1::SURF_TYPE_DEFAULT, SURF_TYPE_DEFAULT },
-					{zonetool::h1::SURF_TYPE_BARK, SURF_TYPE_BARK},
-					{zonetool::h1::SURF_TYPE_BRICK, SURF_TYPE_BRICK},
-					{zonetool::h1::SURF_TYPE_CARPET, SURF_TYPE_CARPET},
-					{zonetool::h1::SURF_TYPE_CLOTH, SURF_TYPE_CLOTH},
-					{zonetool::h1::SURF_TYPE_CONCRETE, SURF_TYPE_CONCRETE},
-					{zonetool::h1::SURF_TYPE_DIRT, SURF_TYPE_DIRT},
-					{zonetool::h1::SURF_TYPE_FLESH, SURF_TYPE_FLESH},
-					{zonetool::h1::SURF_TYPE_FOLIAGE_DEBRIS, SURF_TYPE_FOLIAGE},
-					{zonetool::h1::SURF_TYPE_GLASS, SURF_TYPE_GLASS},
-					{zonetool::h1::SURF_TYPE_GRASS, SURF_TYPE_GRASS},
-					{zonetool::h1::SURF_TYPE_GRAVEL, SURF_TYPE_GRAVEL},
-					{zonetool::h1::SURF_TYPE_ICE, SURF_TYPE_ICE},
-					{zonetool::h1::SURF_TYPE_METAL_SOLID, SURF_TYPE_METAL},
-					{zonetool::h1::SURF_TYPE_METAL_GRATE, SURF_TYPE_METAL},
-					{zonetool::h1::SURF_TYPE_MUD, SURF_TYPE_MUD},
-					{zonetool::h1::SURF_TYPE_PAPER, SURF_TYPE_PAPER},
-					{zonetool::h1::SURF_TYPE_PLASTER, SURF_TYPE_PLASTER},
-					{zonetool::h1::SURF_TYPE_ROCK, SURF_TYPE_ROCK},
-					{zonetool::h1::SURF_TYPE_SAND, SURF_TYPE_SAND},
-					{zonetool::h1::SURF_TYPE_SNOW, SURF_TYPE_SNOW},
-					{zonetool::h1::SURF_TYPE_WATER_WAIST, SURF_TYPE_WATER},
-					{zonetool::h1::SURF_TYPE_WOOD_SOLID, SURF_TYPE_WOOD},
-					{zonetool::h1::SURF_TYPE_ASPHALT, SURF_TYPE_ASPHALT},
-					{zonetool::h1::SURF_TYPE_CERAMIC, SURF_TYPE_CERAMIC},
-					{zonetool::h1::SURF_TYPE_PLASTIC_SOLID, SURF_TYPE_PLASTIC},
-					{zonetool::h1::SURF_TYPE_RUBBER, SURF_TYPE_RUBBER},
-					{zonetool::h1::SURF_TYPE_FRUIT, SURF_TYPE_FRUIT},
-					//{ zonetool::h1::SURF_TYPE_PAINTEDMETAL, SURF_TYPE_PAINTED_METAL },
-					//{ zonetool::h1::SURF_TYPE_RIOTSHIELD, SURF_TYPE_RIOT_SHIELD },
-					{zonetool::h1::SURF_TYPE_SLUSH, SURF_TYPE_SLUSH},
-					{zonetool::h1::SURF_TYPE_ASPHALT_WET, SURF_TYPE_ASPHALT},
-					{zonetool::h1::SURF_TYPE_ASPHALT_DEBRIS, SURF_TYPE_ASPHALT},
-					{zonetool::h1::SURF_TYPE_CONCRETE_WET, SURF_TYPE_CONCRETE},
-					{zonetool::h1::SURF_TYPE_CONCRETE_DEBRIS, SURF_TYPE_CONCRETE},
-					{zonetool::h1::SURF_TYPE_FOLIAGE_VEGETATION, SURF_TYPE_FOLIAGE},
-					{zonetool::h1::SURF_TYPE_FOLIAGE_LEAVES, SURF_TYPE_FOLIAGE},
-					{zonetool::h1::SURF_TYPE_GRASS_TALL, SURF_TYPE_GRASS},
-					{zonetool::h1::SURF_TYPE_METAL_HOLLOW, SURF_TYPE_METAL},
-					{zonetool::h1::SURF_TYPE_METAL_VEHICLE, SURF_TYPE_METAL},
-					{zonetool::h1::SURF_TYPE_METAL_THIN, SURF_TYPE_METAL},
-					{zonetool::h1::SURF_TYPE_METAL_WET, SURF_TYPE_METAL},
-					{zonetool::h1::SURF_TYPE_METAL_DEBRIS, SURF_TYPE_METAL},
-					{zonetool::h1::SURF_TYPE_PLASTIC_HOLLOW, SURF_TYPE_PLASTIC},
-					{zonetool::h1::SURF_TYPE_PLASTIC_TARP, SURF_TYPE_PLASTIC},
-					{zonetool::h1::SURF_TYPE_ROCK_WET, SURF_TYPE_ROCK},
-					{zonetool::h1::SURF_TYPE_ROCK_DEBRIS, SURF_TYPE_ROCK},
-					{zonetool::h1::SURF_TYPE_WATER_ANKLE, SURF_TYPE_WATER},
-					{zonetool::h1::SURF_TYPE_WATER_KNEE, SURF_TYPE_WATER},
-					{zonetool::h1::SURF_TYPE_WOOD_HOLLOW, SURF_TYPE_WOOD},
-					{zonetool::h1::SURF_TYPE_WOOD_WET, SURF_TYPE_WOOD},
-					{zonetool::h1::SURF_TYPE_WOOD_DEBRIS, SURF_TYPE_WOOD},
-					{zonetool::h1::SURF_TYPE_CUSHION, SURF_TYPE_CUSHION},
-				};
-
-				for (auto& [h1_type, iw5_type] : mapped)
-				{
-					if (sounds[iw5_type])
+					const auto source = surface_type::get_source(static_cast<zonetool::h1::materialSurfType_t>(type));
+					if (sounds[source])
 					{
-						h1_sounds[h1_type] = mem.manual_allocate<zonetool::h1::snd_alias_list_t>(sizeof(const char*));
-						h1_sounds[h1_type]->name = mem.duplicate_string(sounds[iw5_type]->aliasName);
+						h1_sounds[type] = mem.manual_allocate<zonetool::h1::snd_alias_list_t>(sizeof(const char*));
+						h1_sounds[type]->name = mem.duplicate_string(sounds[source]->aliasName);
 					}
 				}
 			}
@@ -539,74 +486,26 @@ namespace zonetool::iw6
 				}
 				REINTERPRET_CAST(hideTags);
 
-				// attachments
-				const auto getScopes = [](WeaponCompleteDef* def, std::vector<WeaponAttachment*>& attachmentsOut)
-				{
-					if (def->scopes)
-					{
-						for (auto i = 0; i < 6; i++)
-						{
-							if (def->scopes[i])
-							{
-								attachmentsOut.push_back(def->scopes[i]);
-							}
-						}
-					}
-				};
-				const auto getUnderBarrels = [](WeaponCompleteDef* def, std::vector<WeaponAttachment*>& attachmentsOut)
-				{
-					if (def->underBarrels)
-					{
-						for (auto i = 0; i < 3; i++)
-						{
-							if (def->underBarrels[i])
-							{
-								attachmentsOut.push_back(def->underBarrels[i]);
-							}
-						}
-					}
-				};
-				const auto getOthers = [](WeaponCompleteDef* def, std::vector<WeaponAttachment*>& attachmentsOut)
-				{
-					if (def->others)
-					{
-						for (auto i = 0; i < 4; i++)
-						{
-							if (def->others[i])
-							{
-								attachmentsOut.push_back(def->others[i]);
-							}
-						}
-					}
-				};
-				const auto getAllAttachments = [&](WeaponCompleteDef* def, std::vector<WeaponAttachment*>& attachmentsOut)
-				{
-					getScopes(def, attachmentsOut);
-					getUnderBarrels(def, attachmentsOut);
-					getOthers(def, attachmentsOut);
-				};
-
-				const auto getNumScopes = [&](WeaponCompleteDef* def)
-				{
-					std::vector <WeaponAttachment*> attachments;
-					getScopes(def, attachments);
-					return attachments.size();
-				};
-				const auto getNumUnderBarrels = [&](WeaponCompleteDef* def)
-				{
-					std::vector <WeaponAttachment*> attachments;
-					getUnderBarrels(def, attachments);
-					return attachments.size();
-				};
-				const auto getNumOthers = [&](WeaponCompleteDef* def)
-				{
-					std::vector <WeaponAttachment*> attachments;
-					getOthers(def, attachments);
-					return attachments.size();
-				};
-
+				// attachments, h1 overrides use 1-based indices into this list
 				std::vector<WeaponAttachment*> attachments;
-				getAllAttachments(asset, attachments);
+				std::array<unsigned char, 6> scope_indices{};
+				std::array<unsigned char, 3> under_barrel_indices{};
+				std::array<unsigned char, 8> other_indices{};
+				const auto add_attachments = [&](WeaponAttachment** list, auto& indices)
+				{
+					for (auto i = 0u; list && i < indices.size(); i++)
+					{
+						if (list[i])
+						{
+							attachments.push_back(list[i]);
+							indices[i] = static_cast<unsigned char>(attachments.size());
+						}
+					}
+				};
+
+				add_attachments(asset->scopes, scope_indices);
+				add_attachments(asset->underBarrels, under_barrel_indices);
+				add_attachments(asset->others, other_indices);
 				assert(attachments.size() < 0xFF);
 
 				h1_asset->numAttachments = static_cast<unsigned char>(attachments.size());
@@ -624,43 +523,25 @@ namespace zonetool::iw6
 					convert_anims(h1_asset->szXAnims, asset->szXAnims, mem);
 				}
 
-				union WeaponAttachmentCombination
+				// iw6 packs a 1-based scope (bits 0-2), a 1-based underbarrel (bits 3-4) and one bit per other attachment from bit 5
+				const auto convertAttachmentValue = [&](const unsigned short attach) -> unsigned char
 				{
-					struct
+					if (const auto scope = attach & 7u)
 					{
-						unsigned short scope : 3;
-						unsigned short underBarrel : 4;
-						unsigned short other : 8;
-					} fields;
-
-					unsigned short packed;
-				};
-
-				const auto convertAttachmentValue = [&](unsigned short attach) -> unsigned char
-				{
-					WeaponAttachmentCombination value{};
-					value.packed = attach;
-
-					if (value.packed == 0)
-					{
-						return 0; // unused
+						return scope <= scope_indices.size() ? scope_indices[scope - 1] : 0;
 					}
 
-					if (value.fields.scope)
+					if (const auto under_barrel = (attach >> 3) & 3u)
 					{
-						return static_cast<unsigned char>(value.fields.scope);
-					}
-					else if (value.fields.underBarrel)
-					{
-						return static_cast<unsigned char>(value.fields.underBarrel + static_cast<unsigned short>(getNumScopes(asset)));
-					}
-					else if (value.fields.other)
-					{
-						return static_cast<unsigned char>(
-							value.fields.other + static_cast<unsigned short>(getNumScopes(asset)) + static_cast<unsigned short>(getNumUnderBarrels(asset)));
+						return under_barrel_indices[under_barrel - 1];
 					}
 
-					__debugbreak();
+					if (const auto others = static_cast<unsigned int>(attach >> 5))
+					{
+						const auto other = std::countr_zero(others);
+						return other < static_cast<int>(other_indices.size()) ? other_indices[other] : 0;
+					}
+
 					return 0;
 				};
 
@@ -717,13 +598,16 @@ namespace zonetool::iw6
 					REINTERPRET_CAST(soundOverrides[i].altmodeSound, soundOverrides[i].altmodeSound);
 				}
 
+				// h1 adds the view body flash at 2: iw6 has view flash 1, world flash 2, shell and last shot ejects 3-7 and ads flash 8
+				constexpr std::array<unsigned char, 9> fx_types{0, 1, 3, 4, 5, 6, 7, 8, 9};
+
 				h1_asset->numFXOverrides = static_cast<unsigned char>(asset->numFXOverrides);
 				h1_asset->fxOverrides = mem.allocate_array<zonetool::h1::FXOverrideEntry>(h1_asset->numFXOverrides);
 				for (auto i = 0; i < h1_asset->numFXOverrides; i++)
 				{
 					h1_asset->fxOverrides[i].attachment1 = convertAttachmentValue(asset->fxOverrides[i].attachment1);
 					h1_asset->fxOverrides[i].attachment2 = convertAttachmentValue(asset->fxOverrides[i].attachment2);
-					COPY_FIELD_CAST(fxOverrides[i].fxType);
+					h1_asset->fxOverrides[i].fxType = asset->fxOverrides[i].fxType < fx_types.size() ? fx_types[asset->fxOverrides[i].fxType] : 0;
 					REINTERPRET_CAST(fxOverrides[i].overrideFX, fxOverrides[i].overrideFX);
 					REINTERPRET_CAST(fxOverrides[i].altmodeFX, fxOverrides[i].altmodeFX);
 				}
@@ -992,7 +876,7 @@ namespace zonetool::iw6
 				COPY_FIELD(damageType, weapDef->iDamageType);
 
 				copy_state_timer(&h1_asset->stateTimers, &asset->weapDef->stateTimers, asset, false);
-				copy_state_timer(&h1_asset->akimboStateTimers, &asset->weapDef->stateTimers, asset, true);
+				copy_state_timer(&h1_asset->akimboStateTimers, &asset->weapDef->akimboStateTimers, asset, true);
 
 				COPY_FIELD(autoAimRange, weapDef->autoAimRange);
 				COPY_FIELD(aimAssistRange, weapDef->aimAssistRange);
@@ -1057,8 +941,8 @@ namespace zonetool::iw6
 				COPY_FIELD(swayLerpSpeed, weapDef->swayLerpSpeed);
 				COPY_FIELD(swayPitchScale, weapDef->swayPitchScale);
 				COPY_FIELD(swayYawScale, weapDef->swayYawScale);
-				COPY_FIELD(swayVertScale, weapDef->swayVertScale);
 				COPY_FIELD(swayHorizScale, weapDef->swayHorizScale);
+				COPY_FIELD(swayVertScale, weapDef->swayVertScale);
 				COPY_FIELD(swayShellShockScale, weapDef->swayShellShockScale);
 				COPY_FIELD(adsSwayMaxAngle, weapDef->adsSwayMaxAngle);
 				COPY_FIELD(adsSwayLerpSpeed, weapDef->adsSwayLerpSpeed);
@@ -1066,8 +950,6 @@ namespace zonetool::iw6
 				COPY_FIELD(adsSwayYawScale, weapDef->adsSwayYawScale);
 				COPY_FIELD(adsSwayHorizScale, weapDef->adsSwayHorizScale);
 				COPY_FIELD(adsSwayVertScale, weapDef->adsSwayVertScale);
-				COPY_FIELD(adsViewErrorMin, weapDef->adsFireRateScale);
-				COPY_FIELD(adsViewErrorMax, weapDef->adsDamageRangeScale);
 				COPY_FIELD(dualWieldViewModelOffset, weapDef->dualWieldViewModelOffset);
 				COPY_FIELD(adsFireAnimFrac, weapDef->adsFireAnimFrac);
 				COPY_FIELD(scopeDriftDelay, weapDef->fScopeDriftDelay);
@@ -1132,139 +1014,19 @@ namespace zonetool::iw6
 				COPY_FIELD(riotShieldHealth, weapDef->riotShieldHealth);
 				COPY_FIELD(riotShieldDamageMult, weapDef->riotShieldDamageMult);
 
-				std::vector<float> parallelBounceArray =
+				const auto convert_bounce = [&](const float* bounce)
 				{
-					0.5,
-					0.6000000238418579,
-					0.6000000238418579,
-					0.6000000238418579,
-					0.20000000298023224,
-					0.6000000238418579,
-					0.44999998807907104,
-					0.20000000298023224,
-					0.05000000074505806,
-					0.4000000059604645,
-					0.3499999940395355,
-					0.5,
-					0.6000000238418579,
-					0.6000000238418579,
-					0.5,
-					0.20000000298023224,
-					0.20000000298023224,
-					0.5,
-					0.6000000238418579,
-					0.30000001192092896,
-					0.20000000298023224,
-					0.20000000298023224,
-					0.6000000238418579,
-					0.6000000238418579,
-					0.5,
-					0.5,
-					0.5,
-					0.5,
-					0.5,
-					0.5,
-					0.5,
-					0.6000000238418579,
-					0.6000000238418579,
-					0.6000000238418579,
-					0.6000000238418579,
-					0.05000000074505806,
-					0.05000000074505806,
-					0.3499999940395355,
-					0.6000000238418579,
-					0.6000000238418579,
-					0.6000000238418579,
-					0.6000000238418579,
-					0.6000000238418579,
-					0.5,
-					0.5,
-					0.6000000238418579,
-					0.6000000238418579,
-					0.20000000298023224,
-					0.20000000298023224,
-					0.6000000238418579,
-					0.6000000238418579,
-					0.6000000238418579,
-					0.0
+					auto* values = mem.allocate_array<float>(zonetool::h1::SURF_TYPE_COUNT);
+					for (auto type = 0; bounce && type < zonetool::h1::SURF_TYPE_COUNT; type++)
+					{
+						values[type] = bounce[surface_type::get_source(static_cast<zonetool::h1::materialSurfType_t>(type))];
+					}
+
+					return values;
 				};
 
-				std::vector<float> perpendicularBounceArray =
-				{
-					0.25,
-					0.25,
-					0.25,
-					0.25,
-					0.20000000298023224,
-					0.25,
-					0.22499999403953552,
-					0.20000000298023224,
-					0.05000000074505806,
-					0.20000000298023224,
-					0.15000000596046448,
-					0.25,
-					0.30000001192092896,
-					0.25,
-					0.5,
-					0.10000000149011612,
-					0.20000000298023224,
-					0.25,
-					0.25,
-					0.10000000149011612,
-					0.10000000149011612,
-					0.20000000298023224,
-					0.25,
-					0.25,
-					0.5,
-					0.5,
-					0.5,
-					0.5,
-					0.5,
-					0.5,
-					0.5,
-					0.25,
-					0.25,
-					0.25,
-					0.25,
-					0.05000000074505806,
-					0.05000000074505806,
-					0.15000000596046448,
-					0.25,
-					0.25,
-					0.25,
-					0.25,
-					0.25,
-					0.5,
-					0.5,
-					0.25,
-					0.25,
-					0.20000000298023224,
-					0.20000000298023224,
-					0.25,
-					0.25,
-					0.25,
-					0.0
-				};
-
-				h1_asset->parallelBounce = mem.allocate_array<float>(53);
-				if (asset->weapDef->weapClass == WEAPCLASS_ROCKETLAUNCHER)
-				{
-					std::fill_n(h1_asset->parallelBounce, 52, 0.5f);
-				}
-				else if (asset->weapDef->weapClass == WEAPCLASS_GRENADE || asset->weapDef->weapClass == WEAPCLASS_THROWINGKNIFE)
-				{
-					std::copy_n(parallelBounceArray.data(), std::min<std::size_t>(52, parallelBounceArray.size()), h1_asset->parallelBounce);
-				}
-
-				h1_asset->perpendicularBounce = mem.allocate_array<float>(53);
-				if (asset->weapDef->weapClass == WEAPCLASS_ROCKETLAUNCHER)
-				{
-					std::fill_n(h1_asset->perpendicularBounce, 52, 0.5f);
-				}
-				else if (asset->weapDef->weapClass == WEAPCLASS_GRENADE || asset->weapDef->weapClass == WEAPCLASS_THROWINGKNIFE)
-				{
-					std::copy_n(perpendicularBounceArray.data(), std::min<std::size_t>(52, perpendicularBounceArray.size()), h1_asset->perpendicularBounce);
-				}
+				h1_asset->parallelBounce = convert_bounce(asset->weapDef->parallelBounce);
+				h1_asset->perpendicularBounce = convert_bounce(asset->weapDef->perpendicularBounce);
 
 				REINTERPRET_CAST(projTrailEffect, weapDef->projTrailEffect);
 				REINTERPRET_CAST(projBeaconEffect, weapDef->projBeaconEffect);
@@ -1327,15 +1089,16 @@ namespace zonetool::iw6
 				REINTERPRET_CAST(accuracyGraphName[0], weapDef->accuracyGraphName[0]);
 				REINTERPRET_CAST(accuracyGraphName[1], weapDef->accuracyGraphName[1]);
 
-				REINTERPRET_CAST(accuracyGraphKnots[0], weapDef->originalAccuracyGraphKnots[0]);
-				REINTERPRET_CAST(accuracyGraphKnots[1], weapDef->originalAccuracyGraphKnots[1]);
-				REINTERPRET_CAST(originalAccuracyGraphKnots[0], weapDef->originalAccuracyGraphKnots[0]);
-				REINTERPRET_CAST(originalAccuracyGraphKnots[1], weapDef->originalAccuracyGraphKnots[1]);
+				// the iw6 loader reads the knots of the complete def, not the weapon def originals
+				REINTERPRET_CAST(accuracyGraphKnots[0], accuracyGraphKnots[0]);
+				REINTERPRET_CAST(accuracyGraphKnots[1], accuracyGraphKnots[1]);
+				REINTERPRET_CAST(originalAccuracyGraphKnots[0], accuracyGraphKnots[0]);
+				REINTERPRET_CAST(originalAccuracyGraphKnots[1], accuracyGraphKnots[1]);
 
-				COPY_FIELD(accuracyGraphKnotCount[0], weapDef->originalAccuracyGraphKnotCount[0]);
-				COPY_FIELD(accuracyGraphKnotCount[1], weapDef->originalAccuracyGraphKnotCount[1]);
-				COPY_FIELD(originalAccuracyGraphKnotCount[0], weapDef->originalAccuracyGraphKnotCount[0]);
-				COPY_FIELD(originalAccuracyGraphKnotCount[1], weapDef->originalAccuracyGraphKnotCount[1]);
+				COPY_FIELD(accuracyGraphKnotCount[0], accuracyGraphKnotCount[0]);
+				COPY_FIELD(accuracyGraphKnotCount[1], accuracyGraphKnotCount[1]);
+				COPY_FIELD(originalAccuracyGraphKnotCount[0], accuracyGraphKnotCount[0]);
+				COPY_FIELD(originalAccuracyGraphKnotCount[1], accuracyGraphKnotCount[1]);
 				COPY_FIELD(leftArc, weapDef->leftArc);
 				COPY_FIELD(rightArc, weapDef->rightArc);
 				COPY_FIELD(topArc, weapDef->topArc);

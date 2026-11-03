@@ -36,8 +36,6 @@ namespace zonetool::iw6
 				COPY_VALUE_CAST(pitchType);
 				COPY_VALUE(tempDefaultToCylinder);
 				COPY_VALUE(perSurfaceSndAlias);
-				COPY_VALUE(name);
-				COPY_VALUE(name);
 
 				return new_asset;
 			}

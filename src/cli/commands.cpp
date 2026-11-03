@@ -27,7 +27,7 @@ namespace zonetool::cli
 		{
 			command{"inspect", "inspect <zone> | inspect --all", "Shows the fastfile header and container data", inspect},
 			command{"dumpzone", "dumpzone <zone> [--target <game>]", "Writes the assets of a zone to dump/<zone>/", dump_zone},
-			command{"dumpmap", "dumpmap <map> [--target <game>] [--skip-common]", "Writes the map zones to dump/<map>/ (h1, h2, s1)",
+			command{"dumpmap", "dumpmap <map> [--target <game>] [--skip-common]", "Writes the map zones to dump/<map>/ (h1, h2, iw6, s1)",
 				dump_map},
 			command{"dumpasset", "dumpasset <type> <name|*> <zone> [--target <game>]", "Writes one asset (* = all of the type) to dump/assets/",
 				dump_asset},

@@ -91,9 +91,8 @@ namespace zonetool::iw6
 					return mapped_sortkeys[sortkey];
 				}
 
-				ZONETOOL_FATAL("Could not find mapped sortkey: %d (material: %s)", sortkey, matname.data());
-
-				//return sortkey;
+				ZONETOOL_ERROR("Could not find mapped sortkey: %d (material: %s), keeping it", sortkey, matname.data());
+				return sortkey;
 			}
 
 			std::unordered_map<std::uint8_t, std::uint8_t> mapped_camera_regions =
@@ -127,9 +126,8 @@ namespace zonetool::iw6
 					return mapped_camera_regions[camera_region];
 				}
 
-				ZONETOOL_FATAL("Could not find mapped camera region: %d (material: %s)", camera_region, matname.data());
-
-				//return camera_region;
+				ZONETOOL_ERROR("Could not find mapped camera region: %d (material: %s), using none", camera_region, matname.data());
+				return zonetool::h1::CAMERA_REGION_NONE;
 			}
 
 			std::unordered_map<std::uint8_t, std::uint8_t> mapped_material_type =
@@ -171,9 +169,8 @@ namespace zonetool::iw6
 					return mapped_material_type[material_type];
 				}
 
-				ZONETOOL_FATAL("Could not find mapped material type: %d (material: %s)", material_type, matname.data());
-
-				//return material_type;
+				ZONETOOL_ERROR("Could not find mapped material type: %d (material: %s), using default", material_type, matname.data());
+				return zonetool::h1::MTL_TYPE_DEFAULT;
 			}
 
 			namespace
@@ -228,7 +225,6 @@ namespace zonetool::iw6
 			{
 				auto* new_asset = allocator.allocate<zonetool::h1::Material>();
 
-				std::string name = asset->name;
 				REINTERPRET_CAST_SAFE(name);
 
 				const std::string techset_name = asset->techniqueSet->name;
@@ -240,9 +236,7 @@ namespace zonetool::iw6
 				new_asset->info.textureAtlasFrameBlend = asset->info.textureAtlasFrameBlend;
 				new_asset->info.textureAtlasAsArray = asset->info.textureAtlasAsArray;
 				new_asset->info.renderFlags = asset->info.renderFlags; // convert?
-				COPY_VALUE_CAST(info.drawSurf); // todo?
 				new_asset->info.surfaceTypeBits = static_cast<zonetool::h1::SurfaceTypeBits>(convert_surf_bits(asset->info.surfaceTypeBits));
-				new_asset->info.hashIndex = asset->info.hashIndex;
 
 				std::memset(new_asset->stateBitsEntry, 0xFF, zonetool::h1::MaterialTechniqueType::TECHNIQUE_COUNT);
 				for (auto i = 0; i < MaterialTechniqueType::TECHNIQUE_COUNT; i++)
@@ -288,7 +282,6 @@ namespace zonetool::iw6
 				}
 
 				new_asset->stateBitsTable = allocator.allocate_array<zonetool::h1::GfxStateBits>(asset->stateBitsCount); // dump() writes the statebitsmap from the iw6 table
-				new_asset->stateBitsCount = asset->stateBitsCount;
 
 				std::memset(new_asset->constantBufferIndex, 0xFF, zonetool::h1::MaterialTechniqueType::TECHNIQUE_COUNT);
 				for (auto i = 0; i < MaterialTechniqueType::TECHNIQUE_COUNT; i++)
@@ -362,6 +355,10 @@ namespace zonetool::iw6
 					}
 				}
 
+				// iw6 materials often skip the cucoloris state bits their techset has, a cucoloris light would draw without them
+				merge_techs({TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS, TECHNIQUE_LIT_SPOT_SHADOW}, zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS);
+				merge_techs({TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, TECHNIQUE_LIT_SPOT_SHADOW_DFOG}, zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_DFOG);
+
 				// nofog
 				{
 					merge_techs(
@@ -378,12 +375,22 @@ namespace zonetool::iw6
 						},
 						zonetool::h1::TECHNIQUE_LIT_SUN_DYNAMIC_BRANCHING);
 
-					//merge_techs(
-					//	{
-					//		TECHNIQUE_LIT_DIR_SPOT_SHADOW_CUCOLORIS,
-					//		TECHNIQUE_LIT_DIR_SHADOW_SPOT_SHADOW_CUCOLORIS,
-					//	},
-					//	zonetool::h1::TECHNIQUE_LIT_SUN_DYNAMIC_BRANCHING_CUCOLORIS);
+					merge_techs(
+						{
+							TECHNIQUE_LIT_SUN_DYNAMIC_BRANCHING_CUCOLORIS,
+							TECHNIQUE_LIT_DIR_SHADOW_SPOT_SHADOW_CUCOLORIS,
+							TECHNIQUE_LIT_DIR_SPOT_SHADOW_CUCOLORIS,
+							TECHNIQUE_LIT_SUN_DYNAMIC_BRANCHING,
+							TECHNIQUE_LIT_DIR_SHADOW_OMNI_SHADOW,
+							TECHNIQUE_LIT_DIR_SHADOW_OMNI,
+							TECHNIQUE_LIT_DIR_SHADOW_SPOT_SHADOW,
+							TECHNIQUE_LIT_DIR_SHADOW_SPOT,
+							TECHNIQUE_LIT_DIR_OMNI_SHADOW,
+							TECHNIQUE_LIT_DIR_OMNI,
+							TECHNIQUE_LIT_DIR_SPOT_SHADOW,
+							TECHNIQUE_LIT_DIR_SPOT,
+						},
+						zonetool::h1::TECHNIQUE_LIT_SUN_DYNAMIC_BRANCHING_CUCOLORIS);
 
 					merge_techs(
 						{
@@ -402,18 +409,32 @@ namespace zonetool::iw6
 							TECHNIQUE_LIT_SPOT_SPOT,
 						},
 						zonetool::h1::TECHNIQUE_LIT_DYNAMIC_BRANCHING);
-					//
-					//merge_techs(
-					//	{
-					//		TECHNIQUE_LIT_SPOT_SPOT_SHADOW_CUCOLORIS,
-					//		TECHNIQUE_LIT_SPOT_SHADOW_SPOT_SHADOW_CUCOLORIS,
-					//		TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT,
-					//		TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT_SHADOW,
-					//		TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT_SHADOW_CUCOLORIS,
-					//		TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI,
-					//		TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI_SHADOW,
-					//	},
-					//	zonetool::h1::TECHNIQUE_LIT_DYNAMIC_BRANCHING_CUCOLORIS);
+
+					merge_techs(
+						{
+							TECHNIQUE_LIT_DYNAMIC_BRANCHING_CUCOLORIS,
+							TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT_SHADOW_CUCOLORIS,
+							TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT_SHADOW,
+							TECHNIQUE_LIT_SPOT_SHADOW_SPOT_SHADOW_CUCOLORIS,
+							TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT,
+							TECHNIQUE_LIT_SPOT_SPOT_SHADOW_CUCOLORIS,
+							TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI_SHADOW,
+							TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI,
+							TECHNIQUE_LIT_DYNAMIC_BRANCHING,
+							TECHNIQUE_LIT_OMNI_SHADOW_OMNI_SHADOW,
+							TECHNIQUE_LIT_OMNI_SHADOW_OMNI,
+							TECHNIQUE_LIT_OMNI_OMNI_SHADOW,
+							TECHNIQUE_LIT_OMNI_OMNI,
+							TECHNIQUE_LIT_SPOT_SHADOW_OMNI_SHADOW,
+							TECHNIQUE_LIT_SPOT_SHADOW_OMNI,
+							TECHNIQUE_LIT_SPOT_SHADOW_SPOT_SHADOW,
+							TECHNIQUE_LIT_SPOT_SHADOW_SPOT,
+							TECHNIQUE_LIT_SPOT_OMNI_SHADOW,
+							TECHNIQUE_LIT_SPOT_OMNI,
+							TECHNIQUE_LIT_SPOT_SPOT_SHADOW,
+							TECHNIQUE_LIT_SPOT_SPOT,
+						},
+						zonetool::h1::TECHNIQUE_LIT_DYNAMIC_BRANCHING_CUCOLORIS);
 				}
 
 				// fog
@@ -432,12 +453,22 @@ namespace zonetool::iw6
 						},
 						zonetool::h1::TECHNIQUE_LIT_SUN_DYNAMIC_BRANCHING_DFOG);
 
-					//merge_techs(
-					//	{
-					//		TECHNIQUE_LIT_DIR_SPOT_SHADOW_CUCOLORIS_DFOG,
-					//		TECHNIQUE_LIT_DIR_SHADOW_SPOT_SHADOW_CUCOLORIS_DFOG,
-					//	},
-					//	zonetool::h1::TECHNIQUE_LIT_SUN_DYNAMIC_BRANCHING_CUCOLORIS_DFOG);
+					merge_techs(
+						{
+							TECHNIQUE_LIT_SUN_DYNAMIC_BRANCHING_CUCOLORIS_DFOG,
+							TECHNIQUE_LIT_DIR_SHADOW_SPOT_SHADOW_CUCOLORIS_DFOG,
+							TECHNIQUE_LIT_DIR_SPOT_SHADOW_CUCOLORIS_DFOG,
+							TECHNIQUE_LIT_SUN_DYNAMIC_BRANCHING_DFOG,
+							TECHNIQUE_LIT_DIR_SHADOW_OMNI_SHADOW_DFOG,
+							TECHNIQUE_LIT_DIR_SHADOW_OMNI_DFOG,
+							TECHNIQUE_LIT_DIR_SHADOW_SPOT_SHADOW_DFOG,
+							TECHNIQUE_LIT_DIR_SHADOW_SPOT_DFOG,
+							TECHNIQUE_LIT_DIR_OMNI_SHADOW_DFOG,
+							TECHNIQUE_LIT_DIR_OMNI_DFOG,
+							TECHNIQUE_LIT_DIR_SPOT_SHADOW_DFOG,
+							TECHNIQUE_LIT_DIR_SPOT_DFOG,
+						},
+						zonetool::h1::TECHNIQUE_LIT_SUN_DYNAMIC_BRANCHING_CUCOLORIS_DFOG);
 
 					merge_techs(
 						{
@@ -456,18 +487,54 @@ namespace zonetool::iw6
 							TECHNIQUE_LIT_SPOT_SPOT_DFOG,
 						},
 						zonetool::h1::TECHNIQUE_LIT_DYNAMIC_BRANCHING_DFOG);
-					//
-					//merge_techs(
-					//	{
-					//		TECHNIQUE_LIT_SPOT_SPOT_SHADOW_CUCOLORIS_DFOG,
-					//		TECHNIQUE_LIT_SPOT_SHADOW_SPOT_SHADOW_CUCOLORIS_DFOG,
-					//		TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT_DFOG,
-					//		TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT_SHADOW_DFOG,
-					//		TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT_SHADOW_CUCOLORIS_DFOG,
-					//		TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI_DFOG,
-					//		TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI_SHADOW_DFOG,
-					//	},
-					//	zonetool::h1::TECHNIQUE_LIT_DYNAMIC_BRANCHING_CUCOLORIS_DFOG);
+
+					merge_techs(
+						{
+							TECHNIQUE_LIT_DYNAMIC_BRANCHING_CUCOLORIS_DFOG,
+							TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT_SHADOW_CUCOLORIS_DFOG,
+							TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT_SHADOW_DFOG,
+							TECHNIQUE_LIT_SPOT_SHADOW_SPOT_SHADOW_CUCOLORIS_DFOG,
+							TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_SPOT_DFOG,
+							TECHNIQUE_LIT_SPOT_SPOT_SHADOW_CUCOLORIS_DFOG,
+							TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI_SHADOW_DFOG,
+							TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_OMNI_DFOG,
+							TECHNIQUE_LIT_DYNAMIC_BRANCHING_DFOG,
+							TECHNIQUE_LIT_OMNI_SHADOW_OMNI_SHADOW_DFOG,
+							TECHNIQUE_LIT_OMNI_SHADOW_OMNI_DFOG,
+							TECHNIQUE_LIT_OMNI_OMNI_SHADOW_DFOG,
+							TECHNIQUE_LIT_OMNI_OMNI_DFOG,
+							TECHNIQUE_LIT_SPOT_SHADOW_OMNI_SHADOW_DFOG,
+							TECHNIQUE_LIT_SPOT_SHADOW_OMNI_DFOG,
+							TECHNIQUE_LIT_SPOT_SHADOW_SPOT_SHADOW_DFOG,
+							TECHNIQUE_LIT_SPOT_SHADOW_SPOT_DFOG,
+							TECHNIQUE_LIT_SPOT_OMNI_SHADOW_DFOG,
+							TECHNIQUE_LIT_SPOT_OMNI_DFOG,
+							TECHNIQUE_LIT_SPOT_SPOT_SHADOW_DFOG,
+							TECHNIQUE_LIT_SPOT_SPOT_DFOG,
+						},
+						zonetool::h1::TECHNIQUE_LIT_DYNAMIC_BRANCHING_CUCOLORIS_DFOG);
+				}
+
+				// the techset converter gives a techset with only LIT the same technique in every lit slot
+				for (auto offset = 0; offset < 240; offset += 60)
+				{
+					for (const auto& [first, last] : {
+						std::pair{zonetool::h1::TECHNIQUE_LIT, zonetool::h1::TECHNIQUE_LIT_SUN_DYNAMIC_BRANCHING},
+						std::pair{zonetool::h1::TECHNIQUE_LIT_DFOG, zonetool::h1::TECHNIQUE_LIT_SUN_DYNAMIC_BRANCHING_DFOG}})
+					{
+						for (auto slot = first + 1; slot <= last; slot++)
+						{
+							if (new_asset->stateBitsEntry[slot + offset] == 0xFF)
+							{
+								new_asset->stateBitsEntry[slot + offset] = new_asset->stateBitsEntry[first + offset];
+							}
+
+							if (new_asset->constantBufferIndex[slot + offset] == 0xFF)
+							{
+								new_asset->constantBufferIndex[slot + offset] = new_asset->constantBufferIndex[first + offset];
+							}
+						}
+					}
 				}
 
 				REINTERPRET_CAST_SAFE(subMaterials);
@@ -479,6 +546,7 @@ namespace zonetool::iw6
 			{
 				utils::memory::allocator allocator;
 				const auto converted_asset = convert(asset, allocator);
+				converted_asset->stateBitsCount = 0; // the h1 dumper would read iw6 gfx globals for the empty table, the iw6 map is written below
 				zonetool::h1::material::dump(converted_asset);
 
 				if (converted_asset->techniqueSet)

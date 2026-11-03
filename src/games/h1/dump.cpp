@@ -138,6 +138,12 @@ namespace zonetool::h1
 					this->assets[entry->second] = asset;
 				}
 			}
+
+			bool is_last_copy(const loaded_asset& asset) const
+			{
+				const auto entry = this->indices.find({asset.type, get_asset_name(asset.type, asset.header)});
+				return entry != this->indices.end() && this->assets[entry->second].header == asset.header;
+			}
 		};
 
 		std::vector<map_zone> map_zones(const std::string& map, const converter* converter)
@@ -152,11 +158,11 @@ namespace zonetool::h1
 				{"techsets_common_core_mp", map_zone_dump::referenced},
 				{"techsets_" + map, map_zone_dump::all},
 				{"eng_" + map, map_zone_dump::all},
-				{"eng_patch_" + map, map_zone_dump::all},
-				{"patch_" + map, map_zone_dump::all},
 				{map + "_path", map_zone_dump::all},
 				{map + "_load", map_zone_dump::all},
 				{map, map_zone_dump::all},
+				{"eng_patch_" + map, map_zone_dump::all},
+				{"patch_" + map, map_zone_dump::all},
 			};
 
 			if (!converter || !converter->required_zones)
@@ -430,21 +436,31 @@ namespace zonetool::h1
 		}
 
 		const auto references = collect_map_references(zones);
+		const auto is_dumped = [&](const loaded_asset& asset, const map_zone_dump dump)
+		{
+			return is_map_vision(asset, map) || is_map_zone_asset(asset, dump, references);
+		};
+
 		map_asset_list map_assets;
 		for (const auto& [zone, dump] : zones)
 		{
 			for (const auto& asset : zone->assets)
 			{
-				const auto map_vision = is_map_vision(asset, map);
-				const auto dumped = map_vision || is_map_zone_asset(asset, dump, references);
-				if (dumped)
-				{
-					dump_zone_asset(asset, converter);
-				}
-
-				if (dumped || dump == map_zone_dump::all)
+				if (is_dumped(asset, dump) || dump == map_zone_dump::all)
 				{
 					map_assets.add(asset);
+				}
+			}
+		}
+
+		// dump only the last copy of an asset, because patch zones load last and the game uses the patch copy
+		for (const auto& [zone, dump] : zones)
+		{
+			for (const auto& asset : zone->assets)
+			{
+				if (is_dumped(asset, dump) && map_assets.is_last_copy(asset))
+				{
+					dump_zone_asset(asset, converter);
 				}
 			}
 		}

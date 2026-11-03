@@ -30,7 +30,7 @@ zonetool.exe -game h1 dumpzone mp_shipment
 | `verifyzone <zone>`, `verifyzone --all` | Reads every asset and checks that the reader consumed the zone exactly |
 | `listzone <zone>`, `listzone --all` | Writes the asset CSV of each zone to `asset_listing/<game>/<zone>.zone`. It dumps no assets. S2 only |
 | `dumpzone <zone> [--target <game>]` | Writes `dump/<zone>/` and `dump/<zone>/<zone>.csv`. `--target` converts the assets |
-| `dumpmap <map> [--target <game>] [--skip-common]` | Writes the map zones of `<map>` to `dump/<map>/` with one merged `<map>.csv`. It dumps only techsets from common zones (H2 `common`: images). `--skip-common` loads the common zones but does not dump them. H1, H2 and S1 only |
+| `dumpmap <map> [--target <game>] [--skip-common]` | Writes the map zones of `<map>` to `dump/<map>/` with one merged `<map>.csv`. It dumps only techsets from common zones (H2 `common`: images, IW6: every common asset that the map zones reference). `--skip-common` loads the common zones but does not dump them. Patch zones load after the map zone. It dumps only the last copy of an asset, because the game uses the patch copy. H1, H2, IW6 and S1 only |
 | `dumpasset <type> <name> <zone> [--target <game>]` | Reads `<zone>` and writes one asset to `dump/assets/`. `--target` converts the asset |
 | `buildzone <zone> [-use_usermaps]` | Reads `zone_source/<zone>.csv` and the files in `zonetool/<zone>/`, then writes `<game folder>/zone/<zone>.ff`. `-use_usermaps` writes the zone to `<game folder>/usermaps/<zone>/` instead |
 
@@ -52,8 +52,8 @@ Without a command, `zonetool.exe` opens an interactive console.
 The cache makes a second `dumpzone` or `buildzone` of the same zone faster. It does not change the asset files, so v1 and tools without the cache read the output.
 
 - `dump/<zone>/.zonetool_cache` records a fingerprint and a file stamp (size and write time) for each cached dump file. If both match, the dumper skips the file.
-- `zonetool_cache/<zone>.pak.streams` records the stream offsets of the last `.pak`. If the streamed image files and the `.pak` did not change, `buildzone` reuses the `.pak`.
-- `zonetool_cache/h1_techsets.txt` holds the H1 techset catalog of the S2 to H1 converter.
+- `%LOCALAPPDATA%/zonetool/<game>/<zone>.pak.streams` records the stream offsets of the last `.pak`. If the streamed image files and the `.pak` did not change, `buildzone` reuses the `.pak`.
+- `%LOCALAPPDATA%/zonetool/s2/h1_techsets.txt` holds the H1 techset catalog of the S2 to H1 converter.
 - Zlib zones of 8 MB or more compress in 4 MB chunks on all threads. The result is one valid zlib stream.
 - The revision values are in `cache_revision` in `src/core/io/output_cache.hpp`. If you change the output of a cached asset, increment its revision.
 

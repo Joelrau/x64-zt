@@ -52,7 +52,8 @@ namespace zonetool::iw6
 
 				int convert_surf_flags(int flags)
 				{
-					int new_flags = surf_flags_conversion_table[flags >> 20];
+					const auto surface_type = (static_cast<std::uint32_t>(flags) >> 20) & 0x1F;
+					int new_flags = surface_type < std::size(surf_flags_conversion_table) ? surf_flags_conversion_table[surface_type] : zonetool::h1::SURF_FLAG_DEFAULT;
 					auto convert = [&](zonetool::iw6::CSurfaceFlags a, zonetool::h1::CSurfaceFlags b)
 					{
 						new_flags |= ((flags & a) == a) ? b : 0;
@@ -143,7 +144,11 @@ namespace zonetool::iw6
 					info->pCollisionTree.aabbTrees[i].childCount = asset->aabbTrees[i].childCount;
 
 					info->pCollisionTree.aabbTrees[i].u.firstChildIndex = asset->aabbTrees[i].u.firstChildIndex;
-					//info->pCollisionTree.aabbTrees[i].u.partitionIndex = asset->aabbTrees[i].u.partitionIndex;
+				}
+
+				if (asset->numStaticModels > std::numeric_limits<unsigned short>::max())
+				{
+					ZONETOOL_WARNING("clipmap \"%s\": %u static models, H1 keeps only 65535", asset->name, asset->numStaticModels);
 				}
 
 				info->sCollisionTree.numStaticModels = static_cast<unsigned short>(asset->numStaticModels);
@@ -316,29 +321,24 @@ namespace zonetool::iw6
 						h1_asset->dynEntDefList[i][j].linkTo = reinterpret_cast<zonetool::h1::DynEntityLinkToDef*>(asset->dynEntDefList[i][j].linkTo);
 						memcpy(&h1_asset->dynEntDefList[i][j].mass, &asset->dynEntDefList[i][j].mass, sizeof(PhysMass));
 						h1_asset->dynEntDefList[i][j].contents = asset->dynEntDefList[i][j].contents;
-						if (1) // check
-						{
-							h1_asset->dynEntDefList[i][j].unk[0] = 2500.00000f;
-							h1_asset->dynEntDefList[i][j].unk[1] = 0.0199999996f;
-						}
+						h1_asset->dynEntDefList[i][j].unk[0] = 2500.00000f;
+						h1_asset->dynEntDefList[i][j].unk[1] = 0.0199999996f;
 
 						if (h1_asset->dynEntDefList[i][j].type == zonetool::h1::DYNENT_TYPE_SCRIPTABLEINST)
 						{
 							h1_asset->dynEntDefList[i][j].scriptableIndex = asset->dynEntDefList[i][j].scriptableIndex;
-							//h1_asset->dynEntDefList[i][j].type = zonetool::h1::DYNENT_TYPE_INVALID;
 						}
 
 						memcpy(&h1_asset->dynEntPoseList[i][j].pose, &asset->dynEntPoseList[i][j].pose, sizeof(GfxPlacement));
 						h1_asset->dynEntPoseList[i][j].radius = asset->dynEntPoseList[i][j].radius;
-						h1_asset->dynEntPoseList[i][j].__pad0; // check
 
-						h1_asset->dynEntClientList[i][j].physObjId = asset->dynEntClientList[i]->physObjId;
-						h1_asset->dynEntClientList[i][j].flags = asset->dynEntClientList[i]->flags;
-						h1_asset->dynEntClientList[i][j].lightingHandle = asset->dynEntClientList[i]->lightingHandle;
-						h1_asset->dynEntClientList[i][j].health = asset->dynEntClientList[i]->health;
+						h1_asset->dynEntClientList[i][j].physObjId = asset->dynEntClientList[i][j].physObjId;
+						h1_asset->dynEntClientList[i][j].flags = asset->dynEntClientList[i][j].flags;
+						h1_asset->dynEntClientList[i][j].lightingHandle = asset->dynEntClientList[i][j].lightingHandle;
+						h1_asset->dynEntClientList[i][j].health = asset->dynEntClientList[i][j].health;
 						h1_asset->dynEntClientList[i][j].hinge = nullptr;
 						h1_asset->dynEntClientList[i][j].activeModel = nullptr;
-						h1_asset->dynEntClientList[i][j].contents = asset->dynEntClientList[i]->contents;
+						h1_asset->dynEntClientList[i][j].contents = asset->dynEntClientList[i][j].contents;
 					}
 				}
 
@@ -403,7 +403,7 @@ namespace zonetool::iw6
 				const auto converted_asset = convert(asset, allocator);
 				zonetool::h1::clip_map::dump(converted_asset);
 
-				const auto physworld = physworld::generate(converted_asset, allocator);
+				const auto physworld = physworld::generate(converted_asset, asset->mapEnts, allocator);
 				zonetool::h1::phys_world::dump(physworld);
 				add_csv_row("phys_worldmap", physworld->name);
 			}

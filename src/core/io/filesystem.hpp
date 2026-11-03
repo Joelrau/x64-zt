@@ -86,6 +86,8 @@ namespace zonetool
 		void set_dump_folder(const std::string& name);
 		std::string get_dump_path();
 		std::string get_output_path();
+		void set_cache_game(const std::string& game);
+		std::string get_cache_path(const std::string& name);
 		bool create_directory(const std::string& name);
 		void add_path(const std::string& path, bool insert_at_beginning = false);
 		void add_paths_from_directory(const std::string& dir, bool insert_at_beginning = false);

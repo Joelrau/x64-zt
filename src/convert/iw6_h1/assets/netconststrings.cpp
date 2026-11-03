@@ -1,6 +1,6 @@
 #include <std_include.hpp>
 #include "../include.hpp"
-#include "scriptfile.hpp"
+#include "netconststrings.hpp"
 
 #include <h1/assets/netconststrings.hpp>
 
@@ -37,7 +37,6 @@ namespace zonetool::iw6
 				case NETCONSTSTRINGTYPE_SCRIPTMENU: return zonetool::h1::NETCONSTSTRINGTYPE_SCRIPTMENU;
 				case NETCONSTSTRINGTYPE_CLIENT_TAGS: return zonetool::h1::NETCONSTSTRINGTYPE_CLIENT_TAGS;
 				case NETCONSTSTRINGTYPE_HEADICON: return zonetool::h1::NETCONSTSTRINGTYPE_HEADICON;
-				case NETCONSTSTRINGTYPE_STATUSICON: return zonetool::h1::NETCONSTSTRINGTYPE_HEADICON;
 				case NETCONSTSTRINGTYPE_NAMEPLATE: return zonetool::h1::NETCONSTSTRINGTYPE_NAMEPLATE;
 				case NETCONSTSTRINGTYPE_MINIMAPICON: return zonetool::h1::NETCONSTSTRINGTYPE_MINIMAPICON;
 				case NETCONSTSTRINGTYPE_LOCSELMAT: return zonetool::h1::NETCONSTSTRINGTYPE_LOCSELMAT;
@@ -61,6 +60,17 @@ namespace zonetool::iw6
 
 			void dump(NetConstStrings* asset)
 			{
+				if (asset->stringType == NETCONSTSTRINGTYPE_STATUSICON) // h1 has no status icon type
+				{
+					if (asset->entryCount)
+					{
+						ZONETOOL_WARNING("netconststrings \"%s\": %u status icons are dropped", asset->name, asset->entryCount);
+					}
+
+					remove_csv_row("netconststrings", asset->name);
+					return;
+				}
+
 				utils::memory::allocator allocator;
 				auto* converted_asset = convert(asset, allocator);
 				zonetool::h1::net_const_strings::dump(converted_asset);

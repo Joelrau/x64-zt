@@ -4025,8 +4025,8 @@ namespace zonetool::h2
 		int nightVisionRemoveTime; // 1824 * x
 		int nightVisionRemoveTimePowerDown; // 1828 * x
 		int nightVisionRemoveTimeFadeInStart; // 1832 * x
-		int aiFuseTime; // 1836 * x
-		int fuseTime; // 1840 * x
+		int fuseTime; // 1836 * x
+		int aiFuseTime; // 1840 * x
 		int missileTime; // 1844 * x
 		int primeTime; // 1848 * x
 		bool bHoldFullPrime; // 1852 * x
@@ -4370,8 +4370,8 @@ namespace zonetool::h2
 		float swayLerpSpeed; // 2484
 		float swayPitchScale; // 2488
 		float swayYawScale; // 2492
-		float swayVertScale; // 2496
-		float swayHorizScale; // 2500
+		float swayHorizScale; // 2496
+		float swayVertScale; // 2500
 		float swayShellShockScale; // 2504
 		float adsSwayMaxAngle; // 2508
 		float adsSwayLerpSpeed; // 2512

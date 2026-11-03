@@ -16,7 +16,7 @@ namespace zonetool::imagefile
 
 		std::string get_reusable_streams_path(const std::string& fastfile)
 		{
-			return "zonetool_cache\\" + fastfile + ".pak.streams";
+			return filesystem::get_cache_path(fastfile + ".pak.streams");
 		}
 	}
 

@@ -7,6 +7,7 @@
 namespace zonetool::iw6
 {
 	void dump_zone(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path, const converter* converter);
+	void dump_map(const std::filesystem::path& zone_folder, const std::string& map, const converter* converter, bool skip_common);
 	void dump_asset(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path, const std::string& type,
 		const std::string& name, const converter* converter);
 	void verify_zone(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path);
@@ -39,6 +40,7 @@ namespace zonetool::iw6
 				.auth_blocks_per_group = 256,
 			},
 			.dump_zone = dump_zone,
+			.dump_map = dump_map,
 			.dump_asset = dump_asset,
 			.verify_zone = verify_zone,
 			.list_zone = list_zone,

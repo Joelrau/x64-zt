@@ -5266,8 +5266,8 @@ namespace zonetool::s2
 		int nightVisionRemoveTime;
 		int nightVisionRemoveTimePowerDown;
 		int nightVisionRemoveTimeFadeInStart;
-		int aiFuseTime;
 		int fuseTime;
+		int aiFuseTime;
 		int missileTime;
 		int primeTime;
 		bool bHoldFullPrime;

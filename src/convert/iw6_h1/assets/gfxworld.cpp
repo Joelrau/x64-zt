@@ -12,6 +12,41 @@ namespace zonetool::iw6
 		namespace gfxworld
 		{
 			constexpr auto iw6_leaf_size_bit_count = 6;
+			constexpr auto h1_leaf_size_bit_count = 7;
+
+			namespace
+			{
+				void convert_light_grid_tree(const GfxWorld* asset, zonetool::h1::GfxLightGridTree& tree, utils::memory::allocator& allocator)
+				{
+					const auto& source = asset->lightGrid.tree;
+					tree.maxDepth = source.maxDepth;
+					tree.nodeCount = source.nodeCount;
+					tree.leafCount = source.leafCount;
+					std::memcpy(tree.coordMinGridSpace, source.coordMinGridSpace, sizeof(tree.coordMinGridSpace));
+					std::memcpy(tree.coordMaxGridSpace, source.coordMaxGridSpace, sizeof(tree.coordMaxGridSpace));
+					std::memcpy(tree.coordHalfSizeGridSpace, source.coordHalfSizeGridSpace, sizeof(tree.coordHalfSizeGridSpace));
+					tree.defaultColorIndexBitCount = source.defaultColorIndexBitCount;
+					tree.defaultLightIndexBitCount = source.defaultLightIndexBitCount;
+
+					std::vector<unsigned int> node_table;
+					std::vector<unsigned char> leaf_table;
+					if (!light_grid::convert_leaf_table(light_grid::make_tree_view(source, iw6_leaf_size_bit_count), h1_leaf_size_bit_count, node_table, leaf_table))
+					{
+						if (source.nodeCount)
+						{
+							ZONETOOL_ERROR("gfxworld \"%s\": the light grid tree could not be converted", asset->name);
+						}
+
+						return;
+					}
+
+					tree.p_nodeTable = allocator.allocate_array<unsigned int>(node_table.size());
+					std::memcpy(tree.p_nodeTable, node_table.data(), node_table.size() * sizeof(unsigned int));
+					tree.leafTableSize = static_cast<int>(leaf_table.size());
+					tree.p_leafTable = allocator.allocate_array<unsigned char>(leaf_table.size());
+					std::memcpy(tree.p_leafTable, leaf_table.data(), leaf_table.size());
+				}
+			}
 
 			zonetool::h1::GfxWorld* convert(GfxWorld* asset, utils::memory::allocator& allocator)
 			{
@@ -36,15 +71,10 @@ namespace zonetool::iw6
 					new_asset->skies[i].skySurfCount = asset->skies[i].skySurfCount;
 					new_asset->skies[i].skyStartSurfs = asset->skies[i].skyStartSurfs;
 					new_asset->skies[i].skySamplerState = asset->skies[i].skySamplerState;
-					// add bounds
-					for (auto j = 0; j < asset->skies[i].skySurfCount; j++)
+					if (asset->skies[i].skySurfCount)
 					{
-						auto index = asset->dpvs.sortedSurfIndex[asset->skies[i].skyStartSurfs[j]];
-						auto* surface_bounds = &asset->dpvs.surfacesBounds[index];
-						memcpy(&new_asset->skies[i].bounds, &surface_bounds->bounds, sizeof(surface_bounds->bounds));
-
-						if (1)
-							break;
+						const auto index = asset->dpvs.sortedSurfIndex[asset->skies[i].skyStartSurfs[0]];
+						memcpy(&new_asset->skies[i].bounds, &asset->dpvs.surfacesBounds[index].bounds, sizeof(Bounds));
 					}
 				}
 
@@ -116,7 +146,6 @@ namespace zonetool::iw6
 
 				REINTERPRET_CAST_SAFE(draw.reflectionProbes);
 
-				//REINTERPRET_CAST_SAFE(draw.reflectionProbeOrigins);
 				new_asset->draw.reflectionProbeOrigins = allocator.allocate_array<zonetool::h1::GfxReflectionProbe>(asset->draw.reflectionProbeCount);
 				for (unsigned int i = 0; i < asset->draw.reflectionProbeCount; i++)
 				{
@@ -167,17 +196,13 @@ namespace zonetool::iw6
 				REINTERPRET_CAST_SAFE(lightGrid.entries);
 				COPY_VALUE(lightGrid.colorCount);
 				new_asset->lightGrid.colors = allocator.allocate_array<zonetool::h1::GfxLightGridColors>(asset->lightGrid.colorCount);
-				if (asset->lightGrid.colors)
+				for (auto i = 0u; asset->lightGrid.colors && i < asset->lightGrid.colorCount; i++)
 				{
-					for (unsigned int i = 0; i < 56; i++)
+					for (auto j = 0u; j < light_grid::basis_dir_count; j++)
 					{
-						for (unsigned int j = 0; j < 3; j++)
+						for (auto k = 0u; k < 3; k++)
 						{
-							auto& rgb = asset->lightGrid.colors[i].rgb[j];
-							auto& dest_rgb = new_asset->lightGrid.colors[i].rgb[j];
-							dest_rgb[0] = half_float::float_to_half(rgb[0] / 255.f);
-							dest_rgb[1] = half_float::float_to_half(rgb[1] / 255.f);
-							dest_rgb[2] = half_float::float_to_half(rgb[2] / 255.f);
+							new_asset->lightGrid.colors[i].rgb[j][k] = half_float::float_to_half(asset->lightGrid.colors[i].rgb[j][k] / 255.f);
 						}
 					}
 				}
@@ -219,33 +244,9 @@ namespace zonetool::iw6
 				for (auto i = 0; i < 3; i++)
 				{
 					new_asset->lightGrid.tree[i].index = static_cast<unsigned char>(i);
-					if (i == 0)
-					{
-						new_asset->lightGrid.tree[i].maxDepth = asset->lightGrid.tree.maxDepth;
-						new_asset->lightGrid.tree[i].nodeCount = asset->lightGrid.tree.nodeCount;
-						new_asset->lightGrid.tree[i].leafCount = asset->lightGrid.tree.leafCount;
-						memcpy(new_asset->lightGrid.tree[i].coordMinGridSpace, asset->lightGrid.tree.coordMinGridSpace, sizeof(int[3]));
-						memcpy(new_asset->lightGrid.tree[i].coordMaxGridSpace, asset->lightGrid.tree.coordMaxGridSpace, sizeof(int[3]));
-						memcpy(new_asset->lightGrid.tree[i].coordHalfSizeGridSpace, asset->lightGrid.tree.coordHalfSizeGridSpace, sizeof(int[3]));
-						new_asset->lightGrid.tree[i].defaultColorIndexBitCount = asset->lightGrid.tree.defaultColorIndexBitCount;
-						new_asset->lightGrid.tree[i].defaultLightIndexBitCount = asset->lightGrid.tree.defaultLightIndexBitCount;
-						new_asset->lightGrid.tree[i].p_nodeTable = asset->lightGrid.tree.p_nodeTable;
-						new_asset->lightGrid.tree[i].leafTableSize = asset->lightGrid.tree.leafTableSize;
-						new_asset->lightGrid.tree[i].p_leafTable = asset->lightGrid.tree.p_leafTable;
-
-						enum leaf_table_version : std::int8_t
-						{
-							h2 = 0i8,
-							h1 = 0i8,
-							s1 = 0i8,
-							iw6 = 1i8,
-						};
-
-						// with this indicator, we know the leafTable is in iw6 format.
-						// this will allow us to create a patch for iw6 maps, so it will be able to read them.
-						new_asset->lightGrid.tree[i].unused[0] = leaf_table_version::iw6;
-					}
 				}
+
+				convert_light_grid_tree(asset, new_asset->lightGrid.tree[0], allocator);
 
 				COPY_VALUE(modelCount);
 				new_asset->models = allocator.allocate_array<zonetool::h1::GfxBrushModel>(asset->modelCount);
@@ -340,7 +341,6 @@ namespace zonetool::iw6
 
 					REINTERPRET_CAST_SAFE(dpvs.sortedSurfIndex);
 					REINTERPRET_CAST_SAFE(dpvs.smodelInsts);
-					REINTERPRET_CAST_SAFE(dpvs.surfaces);
 
 					new_asset->dpvs.surfaces = allocator.allocate_array<zonetool::h1::GfxSurface>(asset->surfaceCount);
 					for (unsigned int i = 0; i < asset->surfaceCount; i++)
@@ -359,14 +359,7 @@ namespace zonetool::iw6
 						COPY_VALUE(dpvs.surfaces[i].laf.fields.flags); // convert?
 					}
 
-					new_asset->dpvs.surfacesBounds = allocator.allocate_array<zonetool::h1::GfxSurfaceBounds>(asset->surfaceCount);
-					for (unsigned int i = 0; i < asset->surfaceCount; i++)
-					{
-						//memcpy(&new_asset->dpvs.surfacesBounds[i].bounds, &asset->dpvs.surfacesBounds[i].bounds, sizeof(Bounds));
-						// unk data
-						memcpy(&new_asset->dpvs.surfacesBounds[i].bounds, &asset->dpvs.surfacesBounds[i].bounds, sizeof(GfxSurfaceBounds));
-						assert(sizeof(zonetool::h1::GfxSurfaceBounds) == sizeof(zonetool::iw6::GfxSurfaceBounds));
-					}
+					REINTERPRET_CAST_SAFE(dpvs.surfacesBounds);
 
 					std::vector<zonetool::h1::GfxSubdivVertexLightingInfo> subdiv_vertex_lighting_infos;
 					new_asset->dpvs.smodelDrawInsts = allocator.allocate_array<zonetool::h1::GfxStaticModelDrawInst>(asset->dpvs.smodelCount);
@@ -386,10 +379,8 @@ namespace zonetool::iw6
 						new_asset->dpvs.smodelDrawInsts[i].reactiveMotionCullDist = new_asset->dpvs.smodelDrawInsts[i].cullDist;
 						new_asset->dpvs.smodelDrawInsts[i].reactiveMotionLOD = 0;
 
-						new_asset->dpvs.smodelDrawInsts[i].flags = asset->dpvs.smodelDrawInsts[i].flags;
-
-						// g_lodDistIndexToScale
-						new_asset->dpvs.smodelDrawInsts[i].flags |= zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_SCALE_9; // 1.0f
+						new_asset->dpvs.smodelDrawInsts[i].flags = static_cast<unsigned short>((asset->dpvs.smodelDrawInsts[i].flags & ~zonetool::h1::STATIC_MODEL_FLAG_SCALE_MODIFIER_MASK)
+							| zonetool::h1::STATIC_MODEL_FLAG_SCALE_6);
 
 						if ((new_asset->dpvs.smodelDrawInsts[i].flags & zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_REACTIVEMOTION) != 0)
 						{

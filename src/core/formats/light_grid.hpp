@@ -36,6 +36,7 @@ namespace light_grid
 	};
 
 	bool find_voxel(const tree_view& tree, const unsigned short grid_pos[3], voxel& out, bool* stream_overflow = nullptr);
+	bool convert_leaf_table(const tree_view& tree, int leaf_size_bit_count, std::vector<unsigned int>& node_table, std::vector<unsigned char>& leaf_table);
 
 	struct palette_config
 	{

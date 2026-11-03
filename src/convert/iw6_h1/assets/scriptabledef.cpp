@@ -94,8 +94,8 @@ namespace zonetool::iw6
 								new_event->data.sunlightSettings.color[3] = event->data.sunlightSettings.color[3];
 								new_event->data.sunlightSettings.transStateStreamIndex = event->data.sunlightSettings.transStateStreamIndex;
 								new_event->data.sunlightSettings.flags = event->data.sunlightSettings.flags;
-								new_event->data.sunlightSettings.intensityScaleMin = static_cast<float>(event->data.sunlightSettings.intensityScaleMin);
-								new_event->data.sunlightSettings.intensityScaleMax = static_cast<float>(event->data.sunlightSettings.intensityScaleMax);
+								new_event->data.sunlightSettings.intensityScaleMin = event->data.sunlightSettings.intensityScaleMin / 655.35f;
+								new_event->data.sunlightSettings.intensityScaleMax = event->data.sunlightSettings.intensityScaleMax / 655.35f;
 								new_event->data.sunlightSettings.pitchMin = event->data.sunlightSettings.pitchMin;
 								new_event->data.sunlightSettings.pitchMax = event->data.sunlightSettings.pitchMax;
 								new_event->data.sunlightSettings.headingMin = event->data.sunlightSettings.headingMin;

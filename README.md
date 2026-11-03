@@ -93,7 +93,7 @@ Run `zonetool.exe -h` to see all commands and options. Run `zonetool.exe` withou
 | `inspect <zone>` / `inspect --all` | Shows the fastfile header and container data |
 | `verifyzone <zone>` / `verifyzone --all` | Reads every asset and checks that the zone is consumed exactly |
 | `dumpzone <zone> [--target <game>]` | Writes a fastfile dump to `dump/<zone>/`. `--target` converts assets |
-| `dumpmap <map> [--target <game>] [--skip-common]` | Writes the map zones to `dump/<map>/` with one merged CSV. H1, H2 and S1 only |
+| `dumpmap <map> [--target <game>] [--skip-common]` | Writes the map zones to `dump/<map>/` with one merged CSV. H1, H2, IW6 and S1 only |
 | `dumpasset <type> <name\|*> <zone> [--target <game>]` | Writes one asset of `<zone>` to `dump/assets/`. `*` writes all assets of the type. `--target` converts it |
 | `listzone <zone>` / `listzone --all` | Writes the asset CSV of each zone to `asset_listing/<game>/`. It dumps no assets |
 | `buildzone <zone>` | Reads `zone_source/<zone>.csv` and `zonetool/<zone>/`, then writes `<zone>.ff` to the game `zone/` folder |

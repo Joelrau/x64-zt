@@ -12,27 +12,32 @@ namespace zonetool::iw6
 		{
 			namespace
 			{
-				float PhysicallyBasedLight_IntensityFromCandelas(float candelas)
+				float intensity_from_candelas(float candelas)
 				{
 					return candelas * 1550.0f;
 				}
 
-				float PhysicallyBasedLight_FramebufferUnitsFromIntensity(float intensity, float radiometricScale)
+				float framebuffer_units_from_intensity(float intensity, float radiometric_scale)
 				{
-					return intensity * radiometricScale;
+					return intensity * radiometric_scale;
 				}
 
-				void convertColorToPhysicallyBased(float* color)
+				void convert_color_to_physically_based(float* color)
 				{
-					float extracted_intensity = std::max({ color[0], color[1], color[2] });
+					const auto extracted_intensity = std::max({color[0], color[1], color[2]});
+					if (extracted_intensity <= 0.0f)
+					{
+						return;
+					}
+
 					float normalized_color[3] = {
 						color[0] / extracted_intensity,
 						color[1] / extracted_intensity,
 						color[2] / extracted_intensity
 					};
 
-					auto intensity = PhysicallyBasedLight_IntensityFromCandelas(extracted_intensity * 1000.0f);
-					auto framebuffer_units = PhysicallyBasedLight_FramebufferUnitsFromIntensity(intensity, 0.001f);
+					auto intensity = intensity_from_candelas(extracted_intensity * 1000.0f);
+					auto framebuffer_units = framebuffer_units_from_intensity(intensity, 0.001f);
 
 					color[0] = normalized_color[0] * framebuffer_units;
 					color[1] = normalized_color[1] * framebuffer_units;
@@ -52,7 +57,6 @@ namespace zonetool::iw6
 				new_asset->primaryLights = allocator.allocate_array<zonetool::h1::ComPrimaryLight>(asset->primaryLightCount);
 				for (unsigned int i = 0; i < asset->primaryLightCount; i++)
 				{
-					//auto* light = &asset->primaryLights[i];
 					const auto new_light = &new_asset->primaryLights[i];
 
 					COPY_VALUE_CAST(primaryLights[i].type); // should be the same
@@ -86,9 +90,6 @@ namespace zonetool::iw6
 						new_light->physicallyBased = 1;
 						new_light->lightingState = 0;
 
-						new_light->cucScaleVector[0] = 1.0f;
-						new_light->cucScaleVector[1] = 1.0f;
-
 						new_light->bulbRadius = 3.0f;
 						new_light->bulbLength[0] = 0.0f;
 						new_light->bulbLength[1] = 0.0f;
@@ -96,7 +97,7 @@ namespace zonetool::iw6
 						new_light->fadeOffset[0] = 0.0f;
 						new_light->fadeOffset[1] = 0.0f;
 
-						convertColorToPhysicallyBased(new_light->color);
+						convert_color_to_physically_based(new_light->color);
 					}
 				}
 

@@ -14,6 +14,8 @@ namespace zonetool::iw6
 		{
 			std::string convert_mapents_ids(const std::string& source)
 			{
+				static const std::regex expr(R"~((.+) "(.*)")~");
+
 				std::string out_buffer;
 
 				const auto lines = utils::string::split(source, '\n');
@@ -27,7 +29,6 @@ namespace zonetool::iw6
 
 					const auto& line = lines[i];
 
-					std::regex expr(R"~((.+) "(.*)")~");
 					std::smatch match{};
 					if (!line.starts_with("0 ") && std::regex_search(line, match, expr))
 					{
@@ -61,6 +62,7 @@ namespace zonetool::iw6
 				};
 
 				convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_VISIONSET, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_VISIONSET);
+				convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_VISIONSET, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_LIGHTSET); // the iw6 vision trigger also picks the tonemap
 				convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_AUDIO, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_AUDIO);
 				convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_BLEND_VISION, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_BLEND_VISION);
 				convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_BLEND_AUDIO, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_BLEND_AUDIO);
@@ -89,7 +91,7 @@ namespace zonetool::iw6
 				REINTERPRET_CAST_SAFE(clientTrigger.triggerString);
 				REINTERPRET_CAST_SAFE(clientTrigger.visionSetTriggers);
 				new_asset->clientTrigger.lightSetTriggers = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
-				std::fill(new_asset->clientTrigger.lightSetTriggers, new_asset->clientTrigger.lightSetTriggers + asset->clientTrigger.trigger.count, -1);
+				std::copy_n(asset->clientTrigger.visionSetTriggers, asset->clientTrigger.trigger.count, new_asset->clientTrigger.lightSetTriggers);
 				new_asset->clientTrigger.clutTriggers = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
 				std::fill(new_asset->clientTrigger.clutTriggers, new_asset->clientTrigger.clutTriggers + asset->clientTrigger.trigger.count, -1);
 				
@@ -107,15 +109,14 @@ namespace zonetool::iw6
 				std::fill(new_asset->clientTrigger.unkTriggers, new_asset->clientTrigger.unkTriggers + asset->clientTrigger.trigger.count, -1);
 				new_asset->clientTrigger.npcTriggers = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
 				std::fill(new_asset->clientTrigger.npcTriggers, new_asset->clientTrigger.npcTriggers + asset->clientTrigger.trigger.count, -1);
+				if (asset->clientTrigger.npcTriggers)
+				{
+					std::copy_n(asset->clientTrigger.npcTriggers, asset->clientTrigger.trigger.count, new_asset->clientTrigger.npcTriggers);
+				}
 				new_asset->clientTrigger.contextTriggers = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
 				std::fill(new_asset->clientTrigger.contextTriggers, new_asset->clientTrigger.contextTriggers + asset->clientTrigger.trigger.count, -1);
 				new_asset->clientTrigger.waterTriggers = allocator.allocate_array<short>(asset->clientTrigger.trigger.count);
 				std::fill(new_asset->clientTrigger.waterTriggers, new_asset->clientTrigger.waterTriggers + asset->clientTrigger.trigger.count, -1);
-
-				for (unsigned int i = 0; i < asset->clientTrigger.trigger.count; i++)
-				{
-					new_asset->clientTrigger.lightSetTriggers[i] = asset->clientTrigger.visionSetTriggers[i];
-				}
 
 				COPY_VALUE(clientTriggerBlend.numClientTriggerBlendNodes);
 				REINTERPRET_CAST_SAFE(clientTriggerBlend.blendNodes);
@@ -137,20 +138,6 @@ namespace zonetool::iw6
 				REINTERPRET_CAST_SAFE(splineList.splines);
 
 				return new_asset;
-			}
-
-			void dump_entity_strings(const std::string& name, char* entityString, int numEntityChars)
-			{
-				const auto path = name + ".ents"s;
-				auto file = filesystem::file(path);
-				file.open("wb");
-				if (file.get_fp())
-				{
-					const auto str = convert_mapents_ids(
-						std::string{ entityString, static_cast<size_t>(numEntityChars) });
-					file.write(str.data(), str.size(), 1);
-					file.close();
-				}
 			}
 
 			void dump(MapEnts* asset)

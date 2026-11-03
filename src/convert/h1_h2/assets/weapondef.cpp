@@ -603,8 +603,8 @@ namespace zonetool::h1
 				COPY_VALUE(stateTimers.nightVisionRemoveTime);
 				COPY_VALUE(stateTimers.nightVisionRemoveTimePowerDown);
 				COPY_VALUE(stateTimers.nightVisionRemoveTimeFadeInStart);
-				COPY_VALUE(stateTimers.aiFuseTime);
 				COPY_VALUE(stateTimers.fuseTime);
+				COPY_VALUE(stateTimers.aiFuseTime);
 				COPY_VALUE(stateTimers.missileTime);
 				COPY_VALUE(stateTimers.primeTime);
 				COPY_VALUE(stateTimers.bHoldFullPrime);
@@ -682,8 +682,8 @@ namespace zonetool::h1
 				COPY_VALUE(akimboStateTimers.nightVisionRemoveTime);
 				COPY_VALUE(akimboStateTimers.nightVisionRemoveTimePowerDown);
 				COPY_VALUE(akimboStateTimers.nightVisionRemoveTimeFadeInStart);
-				COPY_VALUE(akimboStateTimers.aiFuseTime);
 				COPY_VALUE(akimboStateTimers.fuseTime);
+				COPY_VALUE(akimboStateTimers.aiFuseTime);
 				COPY_VALUE(akimboStateTimers.missileTime);
 				COPY_VALUE(akimboStateTimers.primeTime);
 				COPY_VALUE(akimboStateTimers.bHoldFullPrime);
@@ -773,8 +773,8 @@ namespace zonetool::h1
 				COPY_VALUE(swayLerpSpeed);
 				COPY_VALUE(swayPitchScale);
 				COPY_VALUE(swayYawScale);
-				COPY_VALUE(swayVertScale);
 				COPY_VALUE(swayHorizScale);
+				COPY_VALUE(swayVertScale);
 				COPY_VALUE(swayShellShockScale);
 				COPY_VALUE(adsSwayMaxAngle);
 				COPY_VALUE(adsSwayLerpSpeed);
