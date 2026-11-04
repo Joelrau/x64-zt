@@ -1,6 +1,7 @@
 #include <std_include.hpp>
 #include "../include.hpp"
 #include "rawfile.hpp"
+#include "tonemapping.hpp"
 
 #include <h1/assets/rawfile.hpp>
 
@@ -41,150 +42,10 @@ namespace zonetool::iw6
 
 				using color_t = std::array<float, 3>;
 
-				float linear_to_srgb(const float value)
-				{
-					return value <= 0.0031308f ? value * 12.92f : 1.055f * std::pow(value, 1.0f / 2.4f) - 0.055f;
-				}
-
-				float smooth_step(const float value)
-				{
-					return value * value * (3.0f - 2.0f * value);
-				}
-
-				color_t apply_colorization(const GfxColorization& colorization, const float value)
-				{
-					color_t result{};
-					for (auto i = 0u; i < result.size(); i++)
-					{
-						result[i] = std::pow(std::max(value, 0.000001f), colorization.powerAndDesaturation[i]) * colorization.scale[i] + colorization.bias[i];
-					}
-
-					return result;
-				}
-
-				// the color of the grade in the gamma space of the h1 film tints, the brightness stays with the tonemap
-				color_t get_grade_tint(const ColorizationSet& set, const float value)
-				{
-					auto color = rawfile::apply_colorization_set(set, value);
-					for (auto& channel : color)
-					{
-						channel = linear_to_srgb(std::clamp(channel, 0.0f, 1.0f));
-					}
-
-					const auto luma = color[0] * 0.299f + color[1] * 0.587f + color[2] * 0.114f;
-					return {color[0] / luma, color[1] / luma, color[2] / luma};
-				}
-
 				std::string tint_to_string(const color_t& tint)
 				{
 					return utils::string::va("%g %g %g", tint[0], tint[1], tint[2]);
 				}
-
-				// the grade of postfx_color_grad(_lmh) for a color
-				color_t grade_color(const ColorizationSet& set, const color_t& color)
-				{
-					const auto luma = color[0] * 0.299f + color[1] * 0.587f + color[2] * 0.114f;
-
-					const auto apply = [&](const GfxColorization& colorization)
-					{
-						color_t result{};
-						for (auto i = 0u; i < result.size(); i++)
-						{
-							const auto value = color[i] + colorization.powerAndDesaturation[3] * (luma - color[i]);
-							result[i] = std::pow(std::max(value, 0.000001f), colorization.powerAndDesaturation[i]) * colorization.scale[i] + colorization.bias[i];
-						}
-						return result;
-					};
-
-					if ((set.flags & COLORIZATION_USE_LOW_MID_HIGH) == 0 || !set.colorizationLow || !set.colorizationMid || !set.colorizationHigh)
-					{
-						return set.colorization ? apply(*set.colorization) : color;
-					}
-
-					const auto low = 1.0f - smooth_step(std::clamp((luma - set.lowAndHighEndPoints[0]) * set.lowAndHighEndPoints[1], 0.0f, 1.0f));
-					const auto mid = 1.0001f - smooth_step(std::clamp((std::abs(luma - set.midEndPoints[0]) - set.midEndPoints[1]) * set.midEndPoints[2], 0.0f, 1.0f));
-					const auto high = smooth_step(std::clamp((luma - set.lowAndHighEndPoints[2]) * set.lowAndHighEndPoints[3], 0.0f, 1.0f));
-
-					const auto low_color = apply(*set.colorizationLow);
-					const auto mid_color = apply(*set.colorizationMid);
-					const auto high_color = apply(*set.colorizationHigh);
-
-					color_t result{};
-					for (auto i = 0u; i < result.size(); i++)
-					{
-						result[i] = (low_color[i] * low + mid_color[i] * mid + high_color[i] * high) / (low + mid + high);
-					}
-					return result;
-				}
-
-				// film tints only multiply, a grade bias pulls colors together: desaturate until the mean saturation matches the grade
-				float get_grade_desaturation(const ColorizationSet& set, const color_t& dark, const color_t& medium, const color_t& light)
-				{
-					static constexpr std::array<color_t, 8> colors
-					{{
-						{1.0f, 1.0f, 1.0f}, {1.0f, 0.6f, 0.3f}, {0.3f, 0.6f, 1.0f}, {0.4f, 1.0f, 0.4f},
-						{1.0f, 0.3f, 0.3f}, {0.6f, 0.6f, 1.0f}, {0.8f, 0.9f, 0.6f}, {0.15f, 0.35f, 1.0f},
-					}};
-
-					const auto saturation = [](const color_t& color)
-					{
-						return *std::max_element(color.begin(), color.end()) - *std::min_element(color.begin(), color.end());
-					};
-
-					auto film_saturation = 0.0f;
-					auto grade_saturation = 0.0f;
-					for (const auto& color : colors)
-					{
-						for (const auto scale : {0.02f, 0.05f, 0.1f, 0.2f, 0.35f, 0.5f, 0.7f, 1.0f})
-						{
-							color_t film{};
-							color_t grade{};
-							const auto graded = grade_color(set, {color[0] * scale, color[1] * scale, color[2] * scale});
-							for (auto i = 0u; i < film.size(); i++)
-							{
-								film[i] = linear_to_srgb(color[i] * scale);
-								grade[i] = linear_to_srgb(std::clamp(graded[i], 0.0f, 1.0f));
-							}
-
-							const auto luma = film[0] * 0.2126f + film[1] * 0.7152f + film[2] * 0.0722f;
-							for (auto i = 0u; i < film.size(); i++)
-							{
-								const auto tint = dark[i] + (2.0f * medium[i] - 2.0f * dark[i]) * luma + (light[i] + dark[i] - 2.0f * medium[i]) * luma * luma;
-								film[i] = std::clamp(film[i] * tint, 0.0f, 1.0f);
-							}
-
-							film_saturation += saturation(film);
-							grade_saturation += saturation(grade);
-						}
-					}
-
-					return film_saturation > 0.0f ? std::clamp(1.0f - grade_saturation / film_saturation, 0.0f, 0.5f) : 0.0f;
-				}
-			}
-
-			// the grade of postfx_color_grad(_lmh) for a gray value
-			std::array<float, 3> apply_colorization_set(const ColorizationSet& set, const float value)
-			{
-				if ((set.flags & COLORIZATION_USE_LOW_MID_HIGH) == 0 || !set.colorizationLow || !set.colorizationMid || !set.colorizationHigh)
-				{
-					return set.colorization ? apply_colorization(*set.colorization, value) : std::array<float, 3>{value, value, value};
-				}
-
-				const auto low = 1.0f - smooth_step(std::clamp((value - set.lowAndHighEndPoints[0]) * set.lowAndHighEndPoints[1], 0.0f, 1.0f));
-				const auto mid = 1.0001f - smooth_step(std::clamp((std::abs(value - set.midEndPoints[0]) - set.midEndPoints[1]) * set.midEndPoints[2], 0.0f, 1.0f));
-				const auto high = smooth_step(std::clamp((value - set.lowAndHighEndPoints[2]) * set.lowAndHighEndPoints[3], 0.0f, 1.0f));
-
-				const auto low_color = apply_colorization(*set.colorizationLow, value);
-				const auto mid_color = apply_colorization(*set.colorizationMid, value);
-				const auto high_color = apply_colorization(*set.colorizationHigh, value);
-
-				std::array<float, 3> result{};
-				for (auto i = 0u; i < result.size(); i++)
-				{
-					result[i] = (low_color[i] * low + mid_color[i] * mid + high_color[i] * high) / (low + mid + high);
-				}
-
-				return result;
 			}
 
 			std::vector<float> parse_vector(const std::string& value)
@@ -295,49 +156,17 @@ namespace zonetool::iw6
 				const auto* colorization_set = colorization_name != values.end()
 					? db_find_x_asset_header_safe(ASSET_TYPE_COLORIZATIONSET, colorization_name->second).colorizationSet : nullptr;
 
-				color_t dark_tint{1.0f, 1.0f, 1.0f};
-				color_t medium_tint{1.0f, 1.0f, 1.0f};
-				color_t light_tint{1.0f, 1.0f, 1.0f};
-				if (colorization_set)
-				{
-					// a bias only shows near black, the bezier would spread it far up the shadows
-					dark_tint = get_grade_tint(*colorization_set, 0.01f);
-					for (auto& channel : dark_tint)
-					{
-						channel = std::clamp(channel, 0.75f, 1.35f);
-					}
-
-					// a clipped grade has lost its color, take the brightest value that keeps it
-					auto light_value = 0.7f;
-					while (light_value > 0.3f)
-					{
-						const auto color = apply_colorization_set(*colorization_set, light_value);
-						if (*std::max_element(color.begin(), color.end()) < 1.0f)
-						{
-							break;
-						}
-						light_value -= 0.05f;
-					}
-
-					light_tint = get_grade_tint(*colorization_set, light_value);
-					const auto middle = get_grade_tint(*colorization_set, 0.21f);
-					for (auto i = 0u; i < medium_tint.size(); i++)
-					{
-						// 0.75 from the mp_strikezone h1/iw6 screenshots, the h1 curve already keeps some of the shift
-						medium_tint[i] = 1.0f + 0.75f * (2.0f * middle[i] - 0.5f * (dark_tint[i] + light_tint[i]) - 1.0f);
-					}
-				}
+				const auto film = tonemapping::get_film_values(name, colorization_set);
 
 				write_value("r_filmEnable", "1");
 				write_value("r_filmContrast", "1", colorization_set != nullptr);
 				write_value("r_filmBrightness", "0", colorization_set != nullptr);
-				const auto desaturation = colorization_set ? get_grade_desaturation(*colorization_set, dark_tint, medium_tint, light_tint) : 0.0f;
-				write_value("r_filmDesaturation", utils::string::va("%g", desaturation), colorization_set != nullptr);
-				write_value("r_filmDesaturationDark", utils::string::va("%g", desaturation), colorization_set != nullptr);
+				write_value("r_filmDesaturation", utils::string::va("%g", film.desaturation), colorization_set != nullptr);
+				write_value("r_filmDesaturationDark", utils::string::va("%g", film.desaturation), colorization_set != nullptr);
 				write_value("r_filmInvert", "0");
-				write_value("r_filmLightTint", tint_to_string(light_tint), true);
-				write_value("r_filmMediumTint", tint_to_string(medium_tint), true);
-				write_value("r_filmDarkTint", tint_to_string(dark_tint), true);
+				write_value("r_filmLightTint", tint_to_string(film.light), true);
+				write_value("r_filmMediumTint", tint_to_string(film.medium), true);
+				write_value("r_filmDarkTint", tint_to_string(film.dark), true);
 				separator();
 				write_value("r_primaryLightUseTweaks", "0");
 				write_value("r_primaryLightTweakDiffuseStrength", "0");
@@ -391,6 +220,8 @@ namespace zonetool::iw6
 				{
 					float color_intensity = 1.0f;
 					float sun_intensity = 1.0f;
+					float sky_min_angle = 0.0f;
+					float sky_max_angle = 90.0f;
 					std::string hdr_override;
 				};
 
@@ -398,6 +229,9 @@ namespace zonetool::iw6
 				static const std::regex color_regex("ent\\.HDRColorIntensity\\s*=\\s*([0-9.]+)");
 				static const std::regex sun_regex("ent\\.HDRSunColorIntensity\\s*=\\s*([0-9.]+)");
 				static const std::regex override_regex("ent\\.HDROverride\\s*=\\s*\"([^\"]+)\"");
+				static const std::regex sky_min_regex("(ent\\.skyFogMinAngle\\s*=\\s*)(-?[0-9.]+)");
+				static const std::regex sky_max_regex("(ent\\.skyFogMaxAngle\\s*=\\s*)(-?[0-9.]+)");
+				static const std::regex sky_intensity_regex("(ent\\.skyFogIntensity\\s*=\\s*)(-?[0-9.]+)");
 
 				std::unordered_map<std::string, fog_set> sets;
 				std::string set_name;
@@ -420,9 +254,17 @@ namespace zonetool::iw6
 					{
 						sets[set_name].hdr_override = match[1].str();
 					}
+					else if (std::regex_search(line, match, sky_min_regex))
+					{
+						sets[set_name].sky_min_angle = static_cast<float>(std::atof(match[2].str().data()));
+					}
+					else if (std::regex_search(line, match, sky_max_regex))
+					{
+						sets[set_name].sky_max_angle = static_cast<float>(std::atof(match[2].str().data()));
+					}
 				}
 
-				// the intensity multiplies the fog color in iw6, in h1 it is an ev: fb = nits * 0.001, nits = 2^(ev - 2.84)
+				// iw6 linearizes the srgb fog color and multiplies it by the intensity, in h1 it is an ev: fb = nits * 0.001, nits = 2^(ev - 2.84)
 				const auto intensity_to_ev = [](const float intensity)
 				{
 					return 2.84f + std::log2(1000.0f * std::max(intensity, 0.001f));
@@ -450,18 +292,36 @@ namespace zonetool::iw6
 						set_name = match[1].str();
 					}
 
-					// iw6 fog colors are linear, explicit h1 ones are read as srgb
-					static const std::regex fog_color_regex("(ent\\.(?:red|green|blue|sunRed|sunGreen|sunBlue)\\s*=\\s*)([0-9.]+)");
-					if (std::regex_search(line, match, fog_color_regex))
+					// iw6 keeps a falling sky fog ramp when min >= max and h1 makes it a hard step, so mirror the ramp: the sky mesh
+					// reads it upside down and the world fog pass the right way up, half the intensity since both apply it
+					if (const auto& set = sets[set_name]; set.sky_min_angle >= set.sky_max_angle)
 					{
-						buffer.append(match.prefix().str() + match[1].str());
-						buffer.append(utils::string::va("%g", linear_to_srgb(static_cast<float>(std::atof(match[2].str().data())))));
-						buffer.append(match.suffix().str());
+						const auto replace_sky_value = [&](const std::regex& regex, const float value)
+						{
+							if (!std::regex_search(line, match, regex))
+							{
+								return false;
+							}
+
+							const auto prefix = match.prefix().str() + match[1].str();
+							buffer.append(prefix + utils::string::va("%g", value) + match.suffix().str() + "\n");
+							return true;
+						};
+
+						if (replace_sky_value(sky_min_regex, 180.0f - set.sky_min_angle)
+							|| replace_sky_value(sky_max_regex, 180.0f - set.sky_max_angle))
+						{
+							continue;
+						}
+
+						if (std::regex_search(line, match, sky_intensity_regex)
+							&& replace_sky_value(sky_intensity_regex, static_cast<float>(std::atof(match[2].str().data())) * 0.5f))
+						{
+							continue;
+						}
 					}
-					else
-					{
-						buffer.append(line);
-					}
+
+					buffer.append(line);
 					buffer.append("\n");
 
 					// without them h1 reads the fog as legacy

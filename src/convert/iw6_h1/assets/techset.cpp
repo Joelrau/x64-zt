@@ -3968,6 +3968,22 @@ namespace zonetool::iw6
 						}
 					}
 				}
+
+				// iw6 has no dfog light slots, h1 draws dynamic lights from them when the view has dfog, stock fills both with one technique
+				for (auto offset = 0; offset < 240; offset += 60)
+				{
+					for (const auto& [light, dfog] : {
+						std::pair{zonetool::h1::TECHNIQUE_LIGHT_SPOT, zonetool::h1::TECHNIQUE_LIGHT_SPOT_DFOG},
+						std::pair{zonetool::h1::TECHNIQUE_LIGHT_OMNI, zonetool::h1::TECHNIQUE_LIGHT_OMNI_DFOG},
+						std::pair{zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW, zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_DFOG},
+						std::pair{zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS, zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG}})
+					{
+						if (!new_asset->techniques[dfog + offset])
+						{
+							new_asset->techniques[dfog + offset] = new_asset->techniques[light + offset];
+						}
+					}
+				}
 #endif
 
 				return new_asset;

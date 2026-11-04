@@ -537,6 +537,27 @@ namespace zonetool::iw6
 					}
 				}
 
+				// the techset converter gives the dfog light slots the plain light technique
+				for (auto offset = 0; offset < 240; offset += 60)
+				{
+					for (const auto& [light, dfog] : {
+						std::pair{zonetool::h1::TECHNIQUE_LIGHT_SPOT, zonetool::h1::TECHNIQUE_LIGHT_SPOT_DFOG},
+						std::pair{zonetool::h1::TECHNIQUE_LIGHT_OMNI, zonetool::h1::TECHNIQUE_LIGHT_OMNI_DFOG},
+						std::pair{zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW, zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_DFOG},
+						std::pair{zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS, zonetool::h1::TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG}})
+					{
+						if (new_asset->stateBitsEntry[dfog + offset] == 0xFF)
+						{
+							new_asset->stateBitsEntry[dfog + offset] = new_asset->stateBitsEntry[light + offset];
+						}
+
+						if (new_asset->constantBufferIndex[dfog + offset] == 0xFF)
+						{
+							new_asset->constantBufferIndex[dfog + offset] = new_asset->constantBufferIndex[light + offset];
+						}
+					}
+				}
+
 				REINTERPRET_CAST_SAFE(subMaterials);
 
 				return new_asset;

@@ -7,7 +7,6 @@ namespace zonetool::iw6
 		namespace rawfile
 		{
 			std::array<float, 4> get_sky_intensity();
-			std::array<float, 3> apply_colorization_set(const ColorizationSet& set, float value);
 			zonetool::h1::RawFile* convert(RawFile* asset, utils::memory::allocator& allocator);
 			void dump(RawFile* asset);
 		}

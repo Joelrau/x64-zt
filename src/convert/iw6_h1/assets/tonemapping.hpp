@@ -6,6 +6,15 @@ namespace zonetool::iw6
 	{
 		namespace tonemapping
 		{
+			struct film_values
+			{
+				std::array<float, 3> dark;
+				std::array<float, 3> medium;
+				std::array<float, 3> light;
+				float desaturation;
+			};
+
+			film_values get_film_values(const std::string& vision, const ColorizationSet* set);
 			zonetool::h1::StringTable* convert(ToneMapping* asset, utils::memory::allocator& allocator);
 			void dump(ToneMapping* asset);
 		}

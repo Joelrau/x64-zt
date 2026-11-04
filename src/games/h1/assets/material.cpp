@@ -309,6 +309,27 @@ namespace zonetool::h1
 			}
 		}
 
+		// older iw6 conversions have no dfog light slots, their techsets now share the plain light technique there
+		for (auto offset = 0; offset < TECHNIQUE_COUNT; offset += TECHNIQUE_INSTANCED_BEGIN)
+		{
+			for (const auto& [light, dfog] : {
+				std::pair{TECHNIQUE_LIGHT_SPOT, TECHNIQUE_LIGHT_SPOT_DFOG},
+				std::pair{TECHNIQUE_LIGHT_OMNI, TECHNIQUE_LIGHT_OMNI_DFOG},
+				std::pair{TECHNIQUE_LIGHT_SPOT_SHADOW, TECHNIQUE_LIGHT_SPOT_SHADOW_DFOG},
+				std::pair{TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS, TECHNIQUE_LIGHT_SPOT_SHADOW_CUCOLORIS_DFOG}})
+			{
+				if (mat->stateBitsEntry[dfog + offset] == 0xFF)
+				{
+					mat->stateBitsEntry[dfog + offset] = mat->stateBitsEntry[light + offset];
+				}
+
+				if (mat->constantBufferIndex[dfog + offset] == 0xFF)
+				{
+					mat->constantBufferIndex[dfog + offset] = mat->constantBufferIndex[light + offset];
+				}
+			}
+		}
+
 		auto max_state_index = 0;
 		for (auto i = 0; i < MaterialTechniqueType::TECHNIQUE_COUNT; i++)
 		{

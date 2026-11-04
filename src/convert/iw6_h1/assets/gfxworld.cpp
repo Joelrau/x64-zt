@@ -379,7 +379,8 @@ namespace zonetool::iw6
 						new_asset->dpvs.smodelDrawInsts[i].reactiveMotionCullDist = new_asset->dpvs.smodelDrawInsts[i].cullDist;
 						new_asset->dpvs.smodelDrawInsts[i].reactiveMotionLOD = 0;
 
-						new_asset->dpvs.smodelDrawInsts[i].flags = static_cast<unsigned short>((asset->dpvs.smodelDrawInsts[i].flags & ~zonetool::h1::STATIC_MODEL_FLAG_SCALE_MODIFIER_MASK)
+						// h1 lights animated verts models from one baked color, iw6 samples the grid at the lighting origin like every other model
+						new_asset->dpvs.smodelDrawInsts[i].flags = static_cast<unsigned short>((asset->dpvs.smodelDrawInsts[i].flags & ~(zonetool::h1::STATIC_MODEL_FLAG_SCALE_MODIFIER_MASK | zonetool::h1::STATIC_MODEL_FLAG_ANIMATED_VERTS))
 							| zonetool::h1::STATIC_MODEL_FLAG_SCALE_6);
 
 						if ((new_asset->dpvs.smodelDrawInsts[i].flags & zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_REACTIVEMOTION) != 0)
@@ -424,27 +425,6 @@ namespace zonetool::iw6
 						{
 							memcpy(&new_asset->dpvs.smodelLightingInsts[i].modelLightmapInfo,
 								&asset->dpvs.smodelDrawInsts[i].modelLightmapInfo, sizeof(GfxStaticModelLightmapInfo));
-						}
-						if ((new_asset->dpvs.smodelDrawInsts[i].flags & zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING) != 0)
-						{
-							auto& smodel_inst = asset->dpvs.smodelInsts[i];
-							auto& smodel_draw_inst = asset->dpvs.smodelDrawInsts[i];
-
-							if ((smodel_draw_inst.flags & zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING) != 0 &&
-								(smodel_draw_inst.flags & zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_ANIMATED_VERTS) != 0)
-							{
-								const auto sample_pos = smodel_inst.lightingOrigin;
-								unsigned short grid_pos[3]{};
-								grid_pos[0] = static_cast<unsigned short>((static_cast<int>(std::floor(sample_pos[0])) + 0x20000) / 32);
-								grid_pos[1] = static_cast<unsigned short>((static_cast<int>(std::floor(sample_pos[1])) + 0x20000) / 32);
-								grid_pos[2] = static_cast<unsigned short>((static_cast<int>(std::floor(sample_pos[2])) + 0x20000) / 64);
-
-								light_grid::voxel voxel{};
-								light_grid::find_voxel(light_grid::make_tree_view(asset->lightGrid.tree, iw6_leaf_size_bit_count), grid_pos, voxel);
-
-								new_asset->dpvs.smodelLightingInsts[i].ambientLightingInfo.colorIndex = voxel.color_index;
-								new_asset->dpvs.smodelLightingInsts[i].ambientLightingInfo.primaryLightWeight = 1.0f;
-							}
 						}
 					}
 
