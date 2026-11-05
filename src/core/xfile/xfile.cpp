@@ -25,66 +25,6 @@ namespace zonetool::xfile
 		};
 
 		constexpr std::size_t header_size_before_stream_files = offsetof(XFileHeader, baseFileLen);
-		constexpr std::size_t file_length_fields_size = sizeof(XFileHeader) - header_size_before_stream_files;
-
-		class byte_reader
-		{
-		public:
-			byte_reader(const std::string_view data)
-				: data_(data)
-			{
-			}
-
-			template <typename T>
-			T read()
-			{
-				T value{};
-				this->read(&value, sizeof(T));
-				return value;
-			}
-
-			void read(void* destination, const std::size_t size)
-			{
-				if (this->remaining() < size)
-				{
-					throw std::runtime_error("unexpected end of file");
-				}
-
-				std::memcpy(destination, this->data_.data() + this->offset_, size);
-				this->offset_ += size;
-			}
-
-			std::string_view read_view(const std::size_t size)
-			{
-				if (this->remaining() < size)
-				{
-					throw std::runtime_error("unexpected end of file");
-				}
-
-				const auto view = this->data_.substr(this->offset_, size);
-				this->offset_ += size;
-				return view;
-			}
-
-			void skip(const std::size_t size)
-			{
-				this->read_view(size);
-			}
-
-			std::string_view rest()
-			{
-				return this->read_view(this->remaining());
-			}
-
-			std::size_t remaining() const
-			{
-				return this->data_.size() - this->offset_;
-			}
-
-		private:
-			std::string_view data_;
-			std::size_t offset_{};
-		};
 
 		std::string strip_auth_blocks(const std::string_view data, const format& format)
 		{
@@ -279,7 +219,7 @@ namespace zonetool::xfile
 
 			file.stream_files.resize(header.imageCount);
 			reader.read(file.stream_files.data(), file.stream_files.size() * sizeof(XStreamFile));
-			reader.read(&header.baseFileLen, file_length_fields_size);
+			reader.read(&header.baseFileLen, sizeof(XFileHeader) - header_size_before_stream_files);
 
 			const auto zone = decompress(header, read_signed_data(reader, format, file.is_signed));
 
@@ -297,42 +237,6 @@ namespace zonetool::xfile
 
 			file.payload = zone_reader.rest();
 		}
-
-		constexpr std::size_t iw7_block_count = 10;
-
-#pragma pack(push, 1)
-		struct iw7_file_header
-		{
-			char magic[8];
-			std::uint32_t version;
-			std::uint8_t unused;
-			std::uint8_t has_no_image_fastfile;
-			std::uint8_t has_no_shared_fastfile;
-			std::uint8_t unknown;
-			std::uint32_t file_time_high;
-			std::uint32_t file_time_low;
-			std::uint64_t size;
-			std::uint64_t unknown_sizes[2];
-			std::uint64_t block_sizes[iw7_block_count];
-			std::uint64_t unknown_array[8];
-			std::uint32_t shared_stream_hash;
-			std::uint32_t shared_stream_count;
-			std::uint32_t image_stream_hash;
-			std::uint32_t image_stream_count;
-		};
-
-		struct iw7_stream_file
-		{
-			std::uint64_t offset;
-			std::uint64_t offset_end;
-			std::uint16_t file_index;
-			std::uint8_t is_localized;
-			std::uint8_t pad[5];
-		};
-#pragma pack(pop)
-
-		static_assert(sizeof(iw7_file_header) == 0xD0);
-		static_assert(sizeof(iw7_stream_file) == 0x18);
 
 		std::vector<XStreamFile> read_iw7_stream_files(byte_reader& reader, const std::size_t count)
 		{
@@ -397,30 +301,8 @@ namespace zonetool::xfile
 		}
 
 		constexpr std::size_t s2_header_version = 5;
-		constexpr std::size_t s2_rsa_block_size = 256;
 		constexpr std::size_t s2_aes_key_size = 24;
 		constexpr std::size_t s2_aes_iv_size = 16;
-		constexpr std::size_t s2_master_hash_offset = 0x150;
-		constexpr std::string_view s2_master_magic = "S1ffs100";
-
-#pragma pack(push, 1)
-		struct s2_file_header
-		{
-			char magic[8];
-			std::uint32_t header_version;
-			std::uint32_t version;
-			std::uint8_t compress;
-			std::uint8_t compress_type;
-			std::uint8_t stream_compress_type;
-			std::uint8_t unknown;
-			std::uint32_t unknown2;
-			std::uint32_t file_time_high;
-			std::uint32_t file_time_low;
-			std::uint32_t stream_key_count;
-		};
-#pragma pack(pop)
-
-		static_assert(sizeof(s2_file_header) == 0x24);
 
 		std::string decrypt_s2_block(const std::string_view block, const std::string_view key, const std::string_view hash)
 		{
@@ -440,7 +322,7 @@ namespace zonetool::xfile
 				throw std::runtime_error("cannot find the zone key");
 			}
 
-			const auto key_data = utils::cryptography::rsa::decrypt(std::string(reader.read_view(s2_rsa_block_size)), "sha256", rsa_key);
+			const auto key_data = utils::cryptography::rsa::decrypt(std::string(reader.read_view(256)), "sha256", rsa_key);
 			if (key_data.size() != s2_aes_key_size + s2_aes_iv_size)
 			{
 				throw std::runtime_error("cannot decrypt the zone key");
@@ -448,7 +330,7 @@ namespace zonetool::xfile
 
 			const std::string_view key(key_data.data(), s2_aes_key_size);
 			const auto master = decrypt_s2_block(reader.read_view(std::min(auth_block_size, reader.remaining())), key, std::string_view(key_data).substr(s2_aes_key_size));
-			if (!master.starts_with(s2_master_magic))
+			if (!master.starts_with("S1ffs100"))
 			{
 				throw std::runtime_error("auth header has the wrong magic");
 			}
@@ -458,7 +340,7 @@ namespace zonetool::xfile
 
 			for (std::size_t group = 0; reader.remaining(); group++)
 			{
-				const auto group_hash_offset = s2_master_hash_offset + group * sizeof(DB_AuthHash);
+				const auto group_hash_offset = 0x150 + group * sizeof(DB_AuthHash);
 				if (group_hash_offset + sizeof(DB_AuthHash) > master.size())
 				{
 					throw std::runtime_error("zone has too many auth groups");
@@ -590,8 +472,6 @@ namespace zonetool::xfile
 	{
 		constexpr std::size_t s2_block_size = 0x10000;
 		constexpr std::uint8_t s2_write_codec = 3;
-		constexpr int s2_lz4_level = 9;
-		constexpr std::uintmax_t s2_stream_batch_size = 0x10000000;
 
 		template <typename T>
 		void append(std::string& output, const T& value)
@@ -642,7 +522,7 @@ namespace zonetool::xfile
 			std::string block(LZ4_compressBound(static_cast<int>(source.size())), '\0');
 
 			const auto size = LZ4_compress_HC(source.data(), block.data(), static_cast<int>(source.size()),
-				static_cast<int>(block.size()), s2_lz4_level);
+				static_cast<int>(block.size()), 9);
 			if (size <= 0)
 			{
 				throw std::runtime_error("lz4 compression failed");
@@ -731,7 +611,7 @@ namespace zonetool::xfile
 		std::size_t next_stream_batch(const std::span<const std::filesystem::path> streams, std::size_t index)
 		{
 			std::uintmax_t size{};
-			while (index < streams.size() && size < s2_stream_batch_size)
+			while (index < streams.size() && size < 0x10000000)
 			{
 				size += std::filesystem::file_size(streams[index++]);
 			}

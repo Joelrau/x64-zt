@@ -8192,7 +8192,6 @@ namespace zonetool::iw6
 	{
 		float globalVolumeModifier;
 		float unk[5];
-		//char __pad0[36];
 	};
 
 	struct XaReverbSettings

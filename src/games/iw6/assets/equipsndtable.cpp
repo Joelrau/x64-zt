@@ -137,8 +137,6 @@ namespace zonetool::iw6
 
 		dest->name = buf->write_str(this->name());
 
-		// won't bother adding this, not used.
-
 		buf->pop_stream();
 	}
 

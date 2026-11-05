@@ -8,33 +8,20 @@ namespace zonetool::h1::converter::s2::physworld
 	namespace
 	{
 		constexpr auto node_padding = 1.0f / 2.54f;
-		constexpr auto solid_collision_flags = 0xFFFFu;
-
-		constexpr std::uint32_t contents_solid = 0x1;
-		constexpr std::uint32_t contents_glass = 0x10;
-		constexpr std::uint32_t contents_water = 0x20;
-		constexpr std::uint32_t contents_canshootclip = 0x40;
-		constexpr std::uint32_t contents_missileclip = 0x80;
-		constexpr std::uint32_t contents_vehicleclip = 0x200;
-		constexpr std::uint32_t contents_itemclip = 0x400;
-		constexpr std::uint32_t contents_ai_nosight = 0x1000;
-		constexpr std::uint32_t contents_clipshot = 0x2000;
-		constexpr std::uint32_t contents_playerclip = 0x10000;
-		constexpr std::uint32_t contents_monsterclip = 0x20000;
 
 		constexpr std::array<std::pair<std::uint32_t, std::uint32_t>, 11> contents_collision_flags
 		{{
-			{contents_solid, solid_collision_flags},
-			{contents_glass, solid_collision_flags},
-			{contents_water, 0x100},
-			{contents_canshootclip, 0x2000},
-			{contents_ai_nosight, 0x2000},
-			{contents_missileclip, 0x180},
-			{contents_clipshot, 0x180},
-			{contents_vehicleclip, 0x10},
-			{contents_itemclip, 0x80E},
-			{contents_playerclip, 0x600},
-			{contents_monsterclip, 0x600},
+			{CONTENTS_SOLID, 0xFFFFu},
+			{CONTENTS_GLASS, 0xFFFFu},
+			{CONTENTS_WATER, 0x100},
+			{CONTENTS_CANSHOOTCLIP, 0x2000},
+			{CONTENTS_AI_NOSIGHT, 0x2000},
+			{CONTENTS_MISSILECLIP, 0x180},
+			{CONTENTS_CLIPSHOT, 0x180},
+			{CONTENTS_VEHICLECLIP, 0x10},
+			{CONTENTS_ITEMCLIP, 0x80E},
+			{CONTENTS_PLAYERCLIP, 0x600},
+			{CONTENTS_MONSTERCLIP, 0x600},
 		}};
 
 		int convert_collision_flags(const int contents)
@@ -48,7 +35,7 @@ namespace zonetool::h1::converter::s2::physworld
 				}
 			}
 
-			return static_cast<int>(flags ? flags : solid_collision_flags);
+			return static_cast<int>(flags ? flags : 0xFFFFu);
 		}
 
 		struct mesh_builder
@@ -64,7 +51,6 @@ namespace zonetool::h1::converter::s2::physworld
 			explicit mesh_builder(const dmMeshData& mesh)
 				: source(mesh)
 			{
-				// h1 stores vertices relative to the mesh center, s2 stores them in model space
 				this->vertices.resize(mesh.m_vertexCount);
 				for (auto i = 0; i < mesh.m_vertexCount; i++)
 				{
@@ -327,8 +313,7 @@ namespace zonetool::h1::converter::s2::physworld
 
 	void dump_water_preset(PhysWaterPreset* asset)
 	{
-		// TODO: map H1 unknownParams, until then this uses stock S2 water_default
-		constexpr std::array<float, 8> stock_unknown_params{0.0f, 0.0f, 0.0f, 0.036127292f, 0.25f, 0.0f, 0.02f, 0.0f};
+		constexpr std::array<float, 8> stock_unknown_params{0.0f, 0.0f, 0.0f, 0.036127292f, 0.25f, 0.0f, 0.02f, 0.0f}; // TODO: map H1 unknownParams
 
 		utils::memory::allocator allocator;
 		zonetool::s2::PhysWaterPreset new_asset{};

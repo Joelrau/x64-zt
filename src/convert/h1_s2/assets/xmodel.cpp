@@ -16,22 +16,9 @@ namespace zonetool::h1::converter::s2::xmodel
 {
 	namespace
 	{
-		constexpr auto no_cull_lod_dist = 1000000.0f;
-		constexpr auto automatic_forced_lod = 0xFE;
-		constexpr auto no_cull_size_scale = 0.0f; // h1 has no projected size cull
-		constexpr auto default_lighting_probe_spacing = 96.0f;
-		constexpr auto lightmap_uv_model_flags = 0x6000u;
-		constexpr auto stock_name_suffix = "_h1";
-		constexpr auto h1_body_rig_model = "body_usmc_desert_assault_mp";
-		constexpr auto s2_body_rig_model = "usa_esc_m_assault_r1c1"; // holds the full s2 skeleton
-		constexpr auto bind_trans_weight = 2.0f;
-		constexpr auto angle_scale = 32768.0f;
 		constexpr std::array<float, 4> grass_sway_params{2000.0f, 40.0f, 0.055f, 1.5f};
-		constexpr auto variant_body_suffix = "_body";
-		constexpr auto variant_model_flags = zonetool::s2::XMODEL_FLAG_VARIANTS | zonetool::s2::XMODEL_FLAG_UNK_0x800 | 0x6000u; // the flags of the stock weapon variant models
-		constexpr auto min_part_rotation_w = 0.9999f;
 
-		const std::regex weapon_model_name{R"(wpn_h1_[a-z0-9]+_(.+_(?:vm|npc))(_.+)?)"}; // h1 adds parts to these models in code
+		const std::regex weapon_model_name{R"(wpn_h1_[a-z0-9]+_(.+_(?:vm|npc))(_.+)?)"};
 		const std::regex default_part_name{R"(attach_h1_.+_default_(.+_(?:vm|npc))(_.+)?)"};
 		const std::regex scope_name{R"(attach_h1_scope_(.+_(?:vm|npc))(_.+)?)"};
 
@@ -83,8 +70,8 @@ namespace zonetool::h1::converter::s2::xmodel
 
 		std::optional<axis_corrections> load_body_axis_corrections()
 		{
-			const auto h1_rig = bone_rig::load_h1_skeleton(h1_body_rig_model);
-			const auto s2_rig = bone_rig::load_s2_skeleton(s2_body_rig_model);
+			const auto h1_rig = bone_rig::load_h1_skeleton("body_usmc_desert_assault_mp");
+			const auto s2_rig = bone_rig::load_s2_skeleton("usa_esc_m_assault_r1c1");
 			if (!h1_rig || !s2_rig)
 			{
 				return {};
@@ -116,7 +103,7 @@ namespace zonetool::h1::converter::s2::xmodel
 
 		short encode_angle(const float value)
 		{
-			return static_cast<short>(std::clamp(std::lround(value * angle_scale), -32767l, 32767l));
+			return static_cast<short>(std::clamp(std::lround(value * 32768.0f), -32767l, 32767l));
 		}
 
 		std::vector<bone_rig::transform> corrected_bind_pose(const XModel* asset)
@@ -124,8 +111,8 @@ namespace zonetool::h1::converter::s2::xmodel
 			const auto* corrections = body_axis_corrections();
 			if (!corrections)
 			{
-				ZONETOOL_WARNING("xmodel \"%s\": body rig \"%s\" or \"%s\" is not loaded, the model keeps the h1 bone axes",
-					asset->name, h1_body_rig_model, s2_body_rig_model);
+				ZONETOOL_WARNING("xmodel \"%s\": body rig \"body_usmc_desert_assault_mp\" or \"usa_esc_m_assault_r1c1\" is not loaded, the model keeps the h1 bone axes",
+					asset->name);
 			}
 
 			std::vector<bone_rig::transform> world(asset->numBones);
@@ -158,7 +145,7 @@ namespace zonetool::h1::converter::s2::xmodel
 			{
 				std::ranges::copy(world[i].rotation.v, mats[i].quat);
 				std::ranges::copy(world[i].position.v, mats[i].trans);
-				mats[i].transWeight = bind_trans_weight;
+				mats[i].transWeight = 2.0f;
 			}
 
 			const auto angles = allocator.allocate_array<short>(4 * child_count);
@@ -214,7 +201,7 @@ namespace zonetool::h1::converter::s2::xmodel
 		{
 			for (auto& lod : base->lodInfo)
 			{
-				lod.dist = no_cull_lod_dist;
+				lod.dist = 1000000.0f;
 			}
 
 			const auto lod_count = get_lod_count(asset);
@@ -222,7 +209,7 @@ namespace zonetool::h1::converter::s2::xmodel
 			{
 				const auto& lod = asset->lodInfo[i];
 				auto& new_lod = base->lodInfo[i];
-				new_lod.dist = lod.dist > 0.0f ? lod.dist : no_cull_lod_dist;
+				new_lod.dist = lod.dist > 0.0f ? lod.dist : 1000000.0f;
 				new_lod.numsurfs = lod.numsurfs;
 				new_lod.surfIndex = lod.surfIndex;
 				if (lod.modelSurfs)
@@ -235,7 +222,7 @@ namespace zonetool::h1::converter::s2::xmodel
 			set_stock_lod_dist_sq(asset, base);
 			base->numLods = static_cast<unsigned char>(lod_count);
 			base->collLod = asset->collLod;
-			base->forcedLod = automatic_forced_lod;
+			base->forcedLod = 0xFE;
 			base->lodRampType = asset->lodRampType;
 			base->lodDistScale = 1.0f;
 			base->useLodInfoDist = 1;
@@ -295,13 +282,13 @@ namespace zonetool::h1::converter::s2::xmodel
 			std::memcpy(base->boundsMidPoint, asset->bounds.midPoint, sizeof(base->boundsMidPoint));
 			std::memcpy(base->boundsHalfSize, asset->bounds.halfSize, sizeof(base->boundsHalfSize));
 			base->boundsRadius = std::hypot(base->boundsHalfSize[0], base->boundsHalfSize[1], base->boundsHalfSize[2]);
-			base->cullSizeScale = no_cull_size_scale;
+			base->cullSizeScale = 0.0f;
 			base->memUsage = static_cast<unsigned int>(asset->memUsage);
 			base->physPreset = asset->physPreset ? physpreset::reference(asset->physPreset, asset, allocator) : nullptr;
 			base->physCollmap = physcollmap::reference(asset->physCollmap, allocator);
 			base->defaultPhysRigIndex = -1;
 			base->lightingBone = 0xFFFF;
-			base->lightingProbeSpacing = default_lighting_probe_spacing;
+			base->lightingProbeSpacing = 96.0f;
 
 			const auto sways = has_surface_flag(asset, SURF_FLAG_REACTIVE_MOTION);
 			if (sways)
@@ -314,7 +301,7 @@ namespace zonetool::h1::converter::s2::xmodel
 			model->base = base;
 			model->flags = zonetool::s2::XMODEL_FLAG_UNK_0x800
 				| (asset->flags & zonetool::s2::XMODEL_FLAG_UNK_0x8)
-				| (has_surface_flag(asset, SURF_FLAG_LIGHTMAP_COORDS) ? lightmap_uv_model_flags : 0u)
+				| (has_surface_flag(asset, SURF_FLAG_LIGHTMAP_COORDS) ? 0x6000u : 0u)
 				| (sways ? zonetool::s2::XMODEL_FLAG_SWAY : 0u);
 			convert_materials(asset, model, allocator);
 			return model;
@@ -326,7 +313,7 @@ namespace zonetool::h1::converter::s2::xmodel
 			{
 				if (asset->lodInfo[i].modelSurfs)
 				{
-					xsurface::dump(asset->lodInfo[i].modelSurfs); // a map model can use surfs from a common zone
+					xsurface::dump(asset->lodInfo[i].modelSurfs);
 				}
 			}
 		}
@@ -354,12 +341,6 @@ namespace zonetool::h1::converter::s2::xmodel
 			add_csv_row("xmodel", converted->name);
 			dump_materials(asset);
 		}
-
-		struct default_part
-		{
-			const XModel* model;
-			std::array<float, 3> offset;
-		};
 
 		int find_bone(const XModel* asset, const scr_string_t name)
 		{
@@ -398,7 +379,7 @@ namespace zonetool::h1::converter::s2::xmodel
 				return {};
 			}
 
-			std::map<int, std::pair<int, const XModel*>> best_parts; // one part per tag, the closest suffix wins
+			std::map<int, std::pair<int, const XModel*>> best_parts;
 			db_enum_assets(ASSET_TYPE_XMODEL, [&](void* header)
 			{
 				const auto* part = static_cast<const XModel*>(header);
@@ -424,7 +405,7 @@ namespace zonetool::h1::converter::s2::xmodel
 				const auto* part = best.second;
 				const auto placement = bone_rig::compose(bone_rig::to_transform(asset->baseMat[tag]),
 					bone_rig::invert(bone_rig::to_transform(part->baseMat[0])));
-				if (std::abs(placement.rotation.v[3]) < min_part_rotation_w)
+				if (std::abs(placement.rotation.v[3]) < 0.9999f)
 				{
 					ZONETOOL_WARNING("xmodel \"%s\": default part \"%s\" is rotated on its tag, it is not added", asset->name, part->name);
 					continue;
@@ -448,7 +429,7 @@ namespace zonetool::h1::converter::s2::xmodel
 		{
 			const auto placed = allocator.allocate<XModel>();
 			*placed = *part.model;
-			placed->boneNames = copy_array(asset->boneNames, 1, allocator); // stock variant parts share the root bone of the body
+			placed->boneNames = copy_array(asset->boneNames, 1, allocator);
 			placed->baseMat = copy_array(asset->baseMat, 1, allocator);
 
 			const auto distance = std::hypot(part.offset[0], part.offset[1], part.offset[2]);
@@ -492,14 +473,14 @@ namespace zonetool::h1::converter::s2::xmodel
 		{
 			const auto model = allocator.allocate<zonetool::s2::XModel>();
 			model->name = name;
-			model->flags = variant_model_flags | (asset->flags & zonetool::s2::XMODEL_FLAG_UNK_0x8);
+			model->flags = zonetool::s2::XMODEL_FLAG_VARIANTS | zonetool::s2::XMODEL_FLAG_UNK_0x800 | 0x6000u | (asset->flags & zonetool::s2::XMODEL_FLAG_UNK_0x8);
 			model->variantCount = static_cast<unsigned char>(parts.size());
 			model->variants = allocator.allocate_array<zonetool::s2::XModelVariant>(parts.size());
 			for (auto i = 0u; i < parts.size(); i++)
 			{
 				model->variants[i].model = make_stub<zonetool::s2::XModel>(parts[i], allocator);
-				model->variants[i].unk_0x8[3] = 1.0f; // identity quat and zero origin, as on every stock variant
-				model->variants[i].name = static_cast<zonetool::s2::scr_string_t>(SL_GetString("")); // stock names are an empty string, not a null one
+				model->variants[i].unk_0x8[3] = 1.0f;
+				model->variants[i].name = static_cast<zonetool::s2::scr_string_t>(SL_GetString(""));
 			}
 
 			model->runtimeSize = static_cast<std::uint16_t>(sizeof(zonetool::s2::XModel) + parts.size() * sizeof(zonetool::s2::XModelVariant));
@@ -548,14 +529,14 @@ namespace zonetool::h1::converter::s2::xmodel
 			return;
 		}
 
-		std::vector<const char*> variants{allocator.duplicate_string(std::string(name) + variant_body_suffix)};
+		std::vector<const char*> variants{allocator.duplicate_string(std::string(name) + "_body")};
 		write_model(asset, variants.front(), allocator);
 		for (const auto& part : parts)
 		{
 			variants.emplace_back(write_default_part(asset, part, allocator));
 		}
 
-		write_variant_model(asset, name, variants, allocator); // s2 does not add the h1 default parts in code, so the variant model always shows them
+		write_variant_model(asset, name, variants, allocator);
 	}
 
 	zonetool::s2::XModel* reference(const XModel* asset, utils::memory::allocator& allocator)
@@ -578,7 +559,7 @@ namespace zonetool::h1::converter::s2::xmodel
 			return;
 		}
 
-		add_csv_row("xmodel", converted_name(zonetool::s2::ASSET_TYPE_XMODEL, name)); // the model comes from a converted transient zone
+		add_csv_row("xmodel", converted_name(zonetool::s2::ASSET_TYPE_XMODEL, name));
 	}
 
 	std::optional<std::string> find_built_in_scope(const std::string& weapon, const XModel* gun_model)
@@ -592,7 +573,7 @@ namespace zonetool::h1::converter::s2::xmodel
 		const auto kind = gun->first.ends_with("_vm") ? "vm" : "wm";
 		std::optional<std::string> best;
 		auto best_score = 0;
-		for (const auto& name : zone_models(std::format("mp_{}_{}_base_tr", kind, weapon))) // h1 streams the weapon models from this zone
+		for (const auto& name : zone_models(std::format("mp_{}_{}_base_tr", kind, weapon)))
 		{
 			const auto scope = split_model_name(name.ends_with("_mp") ? name.substr(0, name.size() - 3) : name, scope_name);
 			if (!scope || scope->first != gun->first)
@@ -630,7 +611,7 @@ namespace zonetool::h1::converter::s2::xmodel
 		auto converted = std::string(name);
 		if (stock_zone::is_stock_asset(type, name))
 		{
-			converted += stock_name_suffix;
+			converted += "_h1";
 		}
 
 		return converted_names.emplace(key, std::move(converted)).first->second.data();

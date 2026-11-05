@@ -7,7 +7,6 @@ namespace zonetool::s2
 {
 	namespace
 	{
-		// glaze miscounts aggregate members with C arrays, so the light structs need explicit lists
 		constexpr auto com_world_fields = glz::tuple
 		{
 			&ComWorld::isInUse,
@@ -100,7 +99,7 @@ namespace zonetool::s2
 			{
 				const auto& light = asset->primaryLights[i];
 				auto& entry = lights.emplace_back();
-				entry["index"] = i; // informational, the array order is the light index
+				entry["index"] = i;
 				json_reflect::write<primary_light_fields>(entry, light, {.strings = json_reflect::null_string::null});
 			}
 

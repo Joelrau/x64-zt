@@ -167,7 +167,7 @@ These rules apply to agents more than humans, but it is good practice for humans
 - Do not write hacky or sloppy shortcut code. Fix the cause, not the symptom.
 - Put engine structs in the game `structs.hpp`. Do not declare structs inline in an asset file or a converter file, as that makes it hacky and less ideal to maintain overall in the codebase.
 - Keep code readable for humans. x64-zt was a human project before AI, and code that only a machine can follow is not accepted at all. Furthermore, comments do not fix sloppy or weird code. Use named struct fields, not raw offsets and byte casts.
-- To add onto comments, they should be inlined and short summaries and not over-yapped to keep explaining something. The code itself explains the logic and what we do with it, so a comment used in the codebase is for something we are unsure about, TODO, or could cause issues later. Even "hacky" code contains comments for the future, but it's there because a human most likely tested it at one point and deemed it necessary to note down for other contributors.
+- Comments follow the "Comments" section under "Code style". Most comments in this repository are noise.
 - Trust `re_reference/` as the source of truth. Its `ship_asm.txt` and `.asm` files show what each game does that this project supports. When the code and the asm disagree, the asm decides as assembly will show everything truly happening.
 - During the process, you may want to test launch the game, receive crashdumps, or even take screenshots. Focus on only screenshotting a game window itself and nothing else to give away stuff you don't need to know. Most Call of Duty clients have `map` and `devmap` available in order to get you in game to test, and you may need to select a team & class in order to also keep going. And in order to receive crashdumps, look for a `minidumps` folder inside of the game folder(s) that may contain the crash you're looking for. It has a .dmp file usually, and a .info txt file to quickly figure out what's going on. The .dmp file is extremely helpful as to figuring out what went wrong, and the info.txt will also do wonders. If no crashdump is found, your last fallback is to find a process minidump Windows generates in %CRASHDUMPS%.
 
@@ -178,20 +178,45 @@ These rules apply to agents more than humans, but it is good practice for humans
 - Keep the structure flat. Do not make a file for one declaration. Put a small declaration in the header that already owns the topic. A list macro belongs in the game header, and a value that one file uses belongs in that file.
 - No umbrella headers outside `<game>.hpp`. Include what you use.
 - Name things so that the code reads without comments. Prefer a small well-named function to a comment over a block.
+- Do not make named constants by default. Write the value where the code uses it. Keep a named constant only for a shared value that is unknown at the use site, for example a format version or a file magic.
+- An engine flag, id or type value goes in the game `structs.hpp` as an enum value, not as a `constexpr` in a `.cpp` file.
+- Use `constexpr` only where the language needs a compile-time value: array sizes, template arguments, `static_assert`, `if constexpr` and field tables.
+- Do not define structs in `.cpp` files. Engine and file-format structs go in the game `structs.hpp`. Helper structs go in the header of the `.cpp` file.
 
 ### Comments
 
-Default: no comment. Code must explain itself through naming and structure. A comment is justified only when it carries information that the code cannot show:
+Default: no comment. Before you add a comment, try to delete it. Less is better, and nothing is best.
 
-- a non-obvious external constraint, for example game or format behavior verified in the asm;
-- a deliberate deviation that a reader would want to "fix" back;
-- a hack or workaround that can break later, with the reason;
-- a reference that saves a research session.
-- multiple lines that are single commented trying to express something
-- comments showing above function definitions (put them in the function body - we dont need functions explained as comments unless the code cannot explain itself)
-- comments showing above variable definitions (put them to the side as one liners, short and sweet unless you absolutely need to explain more and the definition doesn't explain itself)
+Write a comment only for one of these cases:
 
-Never write restatements, section banners, edit narration or commented-out code. If unsure whether a comment qualifies, it does not. Example of a valid comment: the raw heap pointer note in `zone_reader::read_array`.
+- a deviation from the asm or from v1 that a reader would "fix" back;
+- a hack or workaround that can break later;
+- a TODO;
+- an address or a name that the code cannot show, for example an unnamed builtin.
+
+Form:
+
+- Put the comment at the end of the line that it describes. Do not put it on its own line above the code.
+- Use the fewest words possible. A name and an address is enough.
+- One line only. No comment blocks, no comments above functions, no section banners.
+
+Do not write:
+
+- how the game or the client uses a value;
+- where the data comes from, or which function reads or writes it;
+- research notes, debug findings or the reason behind a fix. Put these in the commit message or in `docs/`;
+- restatements, edit narration or commented-out code.
+
+Examples:
+
+| Bad | Good |
+|---|---|
+| `// s2 ambientplay is builtin 0x11A (sub_140514B40), gsc-tool has no name for it` on the line above | `// ambientplay (0x140514B40)` at the end of the line |
+| `// the s2 client reads "fx_<fx>;<tag>" and crashes on a missing tag (MS 0x14039CEC0)` | no comment |
+| `// the client parses the createart fog source for "ent = maps\_utility::create_vision_set_fog(" (CG_ParseClientVisionsetTriggers)` | no comment |
+| `// the rawfile of the same name has the original source, dump_source writes it` | no comment |
+
+If you are unsure whether a comment qualifies, it does not.
 
 ### Technical writing
 

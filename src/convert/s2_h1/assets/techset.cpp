@@ -81,28 +81,6 @@ namespace zonetool::s2::converter::h1::techset
 			{"flagext", 15.0f},
 		};
 
-		struct techset_name
-		{
-			std::string name;
-			std::string prefix;
-			std::string kind;
-			std::unordered_set<std::string> features;
-		};
-
-		struct catalog
-		{
-			std::unordered_map<std::string, h1_techset_source> sources;
-			std::vector<techset_name> names;
-			std::unordered_set<std::string> global_images;
-			std::unordered_map<std::string, std::filesystem::path> shader_sources;
-		};
-
-		struct shader_key
-		{
-			zonetool::h1::XAssetType type;
-			std::string name;
-		};
-
 		std::vector<shader_key> missing_shaders;
 		std::unordered_set<std::string> missing_shader_keys;
 		std::unordered_set<std::string> dumped_shader_keys;
@@ -163,7 +141,6 @@ namespace zonetool::s2::converter::h1::techset
 				result.kind = tokens.front();
 			}
 
-			// S2 model ui3d and 2d techsets draw an opaque world screen, the H1 techsets of these kinds are code UI techsets without a depth test
 			if (is_s2 && result.prefix.starts_with('m') && model_screen_kinds.contains(result.kind))
 			{
 				result.kind = "unlit";

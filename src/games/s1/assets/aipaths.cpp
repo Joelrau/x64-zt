@@ -395,7 +395,6 @@ namespace zonetool::s1
 			}
 
 			asset->nodes[i].constant.Links = read.read_array<pathlink_s>();
-			//ADD_SCRIPT_STRING(customangles);
 		}
 
 		asset->pathVis = read.read_array<unsigned char>();
@@ -432,7 +431,7 @@ namespace zonetool::s1
 
 	void path_data::init(const std::string& name, zone_memory* mem)
 	{
-		this->name_ = "maps/"s + (filesystem::get_fastfile().substr(0, 3) == "mp_" ? "mp/" : "") + filesystem::get_fastfile() + ".d3dbsp"; // name;
+		this->name_ = "maps/"s + (filesystem::get_fastfile().substr(0, 3) == "mp_" ? "mp/" : "") + filesystem::get_fastfile() + ".d3dbsp";
 		this->asset_ = parse_from_botwarfare(name, this->name_, mem);
 		if (this->asset_)
 		{
@@ -463,8 +462,6 @@ namespace zonetool::s1
 			{
 				WRITE_SCRIPT_STRING(parent.name);
 			}
-
-			//WRITE_SCRIPT_STRING(customangles);
 		}
 	}
 
@@ -750,7 +747,6 @@ namespace zonetool::s1
 			}
 
 			dumper.dump_array(asset->nodes[i].constant.Links, asset->nodes[i].constant.totalLinkCount);
-			//dumper.dump_string(SL_ConvertToString(asset->nodes[i].constant.customangles));
 		}
 
 		dumper.dump_array(asset->pathVis, asset->visBytes);

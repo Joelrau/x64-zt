@@ -386,7 +386,7 @@ namespace zonetool::s2
 				? std::vector<material_state>(states, states + asset->stateBitsCount)
 				: get_states(asset);
 
-			std::vector<state_bits_entry> entries(std::max<std::size_t>(asset->stateBitsCount, 1)); // keeps an empty table non-null
+			std::vector<state_bits_entry> entries(std::max<std::size_t>(asset->stateBitsCount, 1));
 			for (auto i = 0u; i < asset->stateBitsCount; i++)
 			{
 				entries[i].bits = asset->stateBitsTable[i];

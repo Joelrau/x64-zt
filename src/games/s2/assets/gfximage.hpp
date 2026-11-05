@@ -2,6 +2,13 @@
 
 namespace zonetool::s2
 {
+	struct image_stream_location
+	{
+		std::filesystem::path pak;
+		std::uint64_t offset;
+		std::uint32_t size;
+	};
+
 	std::optional<std::string> read_image_stream(const XStreamFileKey& key);
 
 	constexpr std::size_t image_stream_count = 4;

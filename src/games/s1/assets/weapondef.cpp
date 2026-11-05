@@ -27,7 +27,6 @@ namespace zonetool::s1
 		}
 
 		ZONETOOL_FATAL("Invalid animation index returned for name: \"%s\"", name);
-		//return WEAP_ANIM_INVALID;
 	}
 
 	void weapon_def::add_script_string(scr_string_t* ptr, const char* str)
@@ -726,7 +725,7 @@ namespace zonetool::s1
 
 		json write_state_timers(const StateTimers& timers)
 		{
-			json data; // v1 writes the state timers with sorted keys
+			json data;
 			json_reflect::write(data, timers);
 			return data;
 		}
@@ -781,7 +780,6 @@ namespace zonetool::s1
 
 		ZONETOOL_INFO("Parsing weapon \"%s\"...", name.data());
 
-		// parse json file
 		file.open("rb");
 		auto size = file.size();
 		auto bytes = file.read_bytes(size);
@@ -1226,8 +1224,6 @@ namespace zonetool::s1
 	{
 		constexpr auto flash_effect_count = 12;
 		constexpr auto weapon_sound_count = 74;
-		constexpr auto anim_count = 180;
-		constexpr auto surface_count = 53;
 
 		static_assert(offsetof(WeaponDef, meleeMissEffect) == offsetof(WeaponDef, viewFlashEffect) + (flash_effect_count - 1) * sizeof(FxEffectDef*));
 		static_assert(offsetof(WeaponDef, adsCrosshairEnemySound) == offsetof(WeaponDef, pickupSound) + (weapon_sound_count - 1) * sizeof(snd_alias_list_t*));
@@ -1322,8 +1318,8 @@ namespace zonetool::s1
 			reader.read_asset(ASSET_TYPE_FX, asset->projDudEffect);
 			reader.read_name_reference(asset->projExplosionSound);
 			reader.read_name_reference(asset->projDudSound);
-			reader.read_array(asset->parallelBounce, 3, surface_count);
-			reader.read_array(asset->perpendicularBounce, 3, surface_count);
+			reader.read_array(asset->parallelBounce, 3, 53);
+			reader.read_array(asset->perpendicularBounce, 3, 53);
 			reader.read_asset(ASSET_TYPE_FX, asset->projTrailEffect);
 			reader.read_asset(ASSET_TYPE_FX, asset->projBeaconEffect);
 			reader.read_asset(ASSET_TYPE_FX, asset->projIgnitionEffect);
@@ -1343,11 +1339,11 @@ namespace zonetool::s1
 		reader.read_string(asset->lobWorldModelName);
 		reader.read_asset(ASSET_TYPE_MATERIAL, asset->camoWorldModelMaterialOverride);
 		reader.read_asset(ASSET_TYPE_MATERIAL, asset->camoViewModelMaterialOverride);
-		reader.read_asset_array(ASSET_TYPE_XANIMPARTS, asset->szXAnimsRightHanded, anim_count);
-		reader.read_asset_array(ASSET_TYPE_XANIMPARTS, asset->szXAnimsLeftHanded, anim_count);
+		reader.read_asset_array(ASSET_TYPE_XANIMPARTS, asset->szXAnimsRightHanded, NUM_WEAP_ANIMS);
+		reader.read_asset_array(ASSET_TYPE_XANIMPARTS, asset->szXAnimsLeftHanded, NUM_WEAP_ANIMS);
 		reader.read_script_string_array(asset->hideTags, 32);
 		reader.read_asset_array(ASSET_TYPE_ATTACHMENT, asset->attachments, asset->numAttachments);
-		reader.read_asset_array(ASSET_TYPE_XANIMPARTS, asset->szXAnims, anim_count);
+		reader.read_asset_array(ASSET_TYPE_XANIMPARTS, asset->szXAnims, NUM_WEAP_ANIMS);
 		read_overrides(reader, asset);
 		read_notetrack_maps(reader, asset);
 		reader.read_string(asset->szAdsrBaseSetting);
@@ -1364,8 +1360,8 @@ namespace zonetool::s1
 			reader.read_name_reference(sounds[i]);
 		}
 
-		reader.read_name_reference_array(asset->bounceSound, surface_count);
-		reader.read_name_reference_array(asset->rollingSound, surface_count);
+		reader.read_name_reference_array(asset->bounceSound, 53);
+		reader.read_name_reference_array(asset->rollingSound, 53);
 		reader.read_asset(ASSET_TYPE_FX, asset->viewShellEjectEffect);
 		reader.read_asset(ASSET_TYPE_FX, asset->worldShellEjectEffect);
 		reader.read_asset(ASSET_TYPE_FX, asset->viewLastShotEjectEffect);

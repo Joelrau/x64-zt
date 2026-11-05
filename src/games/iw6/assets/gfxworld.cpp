@@ -363,8 +363,6 @@ namespace zonetool::iw6
 
 	namespace
 	{
-		constexpr std::size_t vis_data_alignment = 127;
-
 		void read_skies(zone_reader& reader, GfxWorld* asset)
 		{
 			const auto skies = reader.read_array(asset->skies, 3, asset->skyCount);
@@ -587,7 +585,7 @@ namespace zonetool::iw6
 		{
 			for (auto& field : fields)
 			{
-				reader.read_array(field, vis_data_alignment, count);
+				reader.read_array(field, 127, count);
 			}
 		}
 
@@ -663,8 +661,8 @@ namespace zonetool::iw6
 
 			reader.push_stream(XFILE_BLOCK_RUNTIME);
 			reader.read_array(dpvs.surfaceMaterials, 7, asset->surfaceCount);
-			reader.read_array(dpvs.surfaceCastsSunShadow, vis_data_alignment, dpvs.surfaceVisDataCount);
-			reader.read_array(dpvs.surfaceCastsSunShadowOpt, vis_data_alignment, dpvs.sunShadowOptCount * dpvs.sunSurfVisDataCount);
+			reader.read_array(dpvs.surfaceCastsSunShadow, 127, dpvs.surfaceVisDataCount);
+			reader.read_array(dpvs.surfaceCastsSunShadowOpt, 127, dpvs.sunShadowOptCount * dpvs.sunSurfVisDataCount);
 			read_constant_buffers(reader, dpvs.constantBuffersLit, dpvs.smodelCount);
 			read_constant_buffers(reader, dpvs.constantBuffersAmbient, dpvs.smodelCount);
 			reader.pop_stream();

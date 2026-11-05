@@ -9,14 +9,13 @@ namespace zonetool::h1::converter::s2::scriptfile
 {
 	namespace
 	{
-		// s2 keeps the previous value of a missing atmos fog key, so the blocks get the stock neutral values
 		constexpr std::array<std::pair<std::string_view, std::string_view>, 24> s2_atmos_fog_keys
 		{{
 			{"atmosFogExtinctionDesaturation", "0"},
 			{"atmosFogHeightFogMaximumOffset", "0"},
 			{"atmosFogHeightFogStrengthOfDepthFog", "0"},
 			{"atmosFogEntityScale", "1"},
-			{"atmosFogAirLightCapacity", "0"}, // stock uses 2, but s2 air lights haze the room around every bright h1 primary light
+			{"atmosFogAirLightCapacity", "0"},
 			{"atmosFogAirLightDensityScalar", "1"},
 			{"atmosFogAirLightVertexInnerMutedRadius", "0"},
 			{"atmosFogSplineEnabled", "0"},
@@ -38,7 +37,6 @@ namespace zonetool::h1::converter::s2::scriptfile
 			{"atmosFogSplineMaxDistanceTangentAngle", "0"},
 		}};
 
-		// h1 with height fog off uses base height 0 and half plane distance 100000
 		constexpr std::array<std::pair<std::string_view, std::string_view>, 5> h1_atmos_height_fog_off
 		{{
 			{"atmosFogHeightFogEnabled", "1"},
@@ -133,12 +131,12 @@ namespace zonetool::h1::converter::s2::scriptfile
 
 			const auto first = line.find_first_not_of(" \t");
 			const auto trimmed = first == std::string::npos ? std::string{} : line.substr(first);
-			if (trimmed == "/*" || trimmed == "*/") // h1 comments out setupfog(), the s2 art script calls it
+			if (trimmed == "/*" || trimmed == "*/")
 			{
 				continue;
 			}
 
-			if (trimmed == "/$" || trimmed == "$/") // gsc compilers only know "/#" dev blocks, the client fog parser skips both
+			if (trimmed == "/$" || trimmed == "$/")
 			{
 				line.replace(first, 2, trimmed == "/$" ? "/#" : "#/");
 			}
@@ -168,7 +166,7 @@ namespace zonetool::h1::converter::s2::scriptfile
 		}
 
 		static const std::regex setup_fog(R"((^|\n)\s*setupfog\s*\()", std::regex::icase);
-		if (!std::regex_search(text, setup_fog)) // custom maps ship no setupfog(), the s2 art script still links it
+		if (!std::regex_search(text, setup_fog))
 		{
 			text += "\nsetupfog()\n{\n}\n";
 		}

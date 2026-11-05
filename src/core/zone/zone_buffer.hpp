@@ -95,7 +95,6 @@ namespace zonetool
 				return;
 			}
 
-			// no range contains another, so find_sub_buffer only needs the nearest start
 			auto contained = this->sub_zone_buffers_.lower_bound(buffer.start);
 			while (contained != this->sub_zone_buffers_.end() && contained->second.end <= buffer.end)
 			{

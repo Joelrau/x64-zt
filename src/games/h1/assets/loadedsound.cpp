@@ -510,7 +510,7 @@ namespace zonetool::h1
 		auto data = read_at(offset, length);
 		if (!data.starts_with("fLaC"))
 		{
-			data = read_at(offset - SIZEOF_SNDFILE_WAVE_HEADER, length + SIZEOF_SNDFILE_WAVE_HEADER); // the riff header is before the wave data
+			data = read_at(offset - SIZEOF_SNDFILE_WAVE_HEADER, length + SIZEOF_SNDFILE_WAVE_HEADER);
 			if (!data.starts_with("RIFF"))
 			{
 				return {};

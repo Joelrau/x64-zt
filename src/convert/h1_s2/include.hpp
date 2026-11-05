@@ -47,7 +47,7 @@ namespace zonetool::h1::converter::s2
 	template <typename T>
 	void mark_runtime(T*& buffer, utils::memory::allocator& allocator)
 	{
-		buffer = allocator.allocate<T>(); // the s2 writer reserves a runtime array only when its pointer is set
+		buffer = allocator.allocate<T>();
 	}
 
 	template <typename T, std::size_t N>
@@ -70,7 +70,6 @@ namespace zonetool::h1::converter::s2
 
 	inline std::uint32_t pack_tangent(const std::uint32_t tangent, const float binormal_sign)
 	{
-		// s2 sets the top two tangent bits for a binormal of -cross(normal, tangent)
 		return (tangent & 0x3FFFFFFFu) | (binormal_sign < 0.0f ? 0xC0000000u : 0u);
 	}
 

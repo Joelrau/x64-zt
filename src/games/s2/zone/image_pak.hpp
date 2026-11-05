@@ -22,7 +22,6 @@ namespace zonetool::s2::image_pak
 		std::uint16_t file_index;
 	};
 
-	// the game keeps hash[0] (looked up by XStreamFileKey::hash) and drops hash[1]
 	struct toc_entry
 	{
 		std::uint64_t hash[2];

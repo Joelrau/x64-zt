@@ -434,7 +434,6 @@ namespace zonetool::h2
 			{
 				buf->align(3);
 				/*auto* dest_editField = */buf->write(data->editField);
-				//buf->clear_pointer(&dest->editField);
 			}
 			break;
 		case 12:
@@ -456,7 +455,6 @@ namespace zonetool::h2
 						dest_multi->dvarStr[i] = buf->write_str(data->multi->dvarStr[i]);
 					}
 				}
-				//buf->clear_pointer(&dest->multi);
 			}
 			break;
 		case 13:
@@ -470,7 +468,6 @@ namespace zonetool::h2
 			{
 				buf->align(3);
 				/*auto* dest_ticker = */buf->write(data->ticker);
-				//buf->clear_pointer(&dest->ticker);
 			}
 			break;
 		case 21:
@@ -478,7 +475,6 @@ namespace zonetool::h2
 			{
 				buf->align(3);
 				/*auto* dest_scroll = */buf->write(data->scroll);
-				//buf->clear_pointer(&dest->scroll);
 			}
 			break;
 		}
@@ -935,7 +931,6 @@ namespace zonetool::h2
 
 		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 
-		// menudata
 		if (data->data)
 		{
 			buf->align(3);
@@ -945,7 +940,6 @@ namespace zonetool::h2
 
 		write_menu_window(zone, buf, &data->window, &dest->window);
 
-		// items
 		if (data->items)
 		{
 			buf->align(7);

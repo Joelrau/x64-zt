@@ -2,14 +2,12 @@
 
 #include "../include.hpp"
 #include "netconststrings.hpp"
-#include "techset.hpp"
+#include "common/stock_zone.hpp"
 
 namespace zonetool::h1::converter::s2::netconststrings
 {
 	namespace
 	{
-		constexpr auto s2_type_none = zonetool::s2::NETCONSTSTRINGTYPE_ASSET_COUNT;
-
 		constexpr std::array<std::string_view, zonetool::s2::NETCONSTSTRINGTYPE_ASSET_COUNT> s2_tags
 		{
 			"mdl", "mat", "rmb", "veh", "vfx", "loc", "snd", "sbx", "shk", "mnu", "tag", "por",
@@ -20,13 +18,6 @@ namespace zonetool::h1::converter::s2::netconststrings
 		{
 			"mdl", "mat", "rmb", "veh", "vfx", "loc", "snd", "sbx", "snl", "shk", "mnu", "tag",
 			"hic", "nps", "mic", "sel", "wep", "att", "hnt", "anm", "fxt", "acl", "lui", "lsr",
-		};
-
-		struct net_const_strings
-		{
-			zonetool::s2::NetConstStringType type;
-			int source;
-			std::vector<std::string> strings;
 		};
 
 		std::map<std::string, net_const_strings> converted;
@@ -44,7 +35,7 @@ namespace zonetool::h1::converter::s2::netconststrings
 			case NETCONSTSTRINGTYPE_LOCSTRING: return zonetool::s2::NETCONSTSTRINGTYPE_LOCSTRING;
 			case NETCONSTSTRINGTYPE_SOUNDALIAS: return zonetool::s2::NETCONSTSTRINGTYPE_SOUNDALIAS;
 			case NETCONSTSTRINGTYPE_SUBMIX: return zonetool::s2::NETCONSTSTRINGTYPE_SUBMIX;
-			case NETCONSTSTRINGTYPE_SOUNDALIAS_LOOPING: return zonetool::s2::NETCONSTSTRINGTYPE_SOUNDALIAS; // s2 lists looping aliases with the others
+			case NETCONSTSTRINGTYPE_SOUNDALIAS_LOOPING: return zonetool::s2::NETCONSTSTRINGTYPE_SOUNDALIAS;
 			case NETCONSTSTRINGTYPE_SHOCK: return zonetool::s2::NETCONSTSTRINGTYPE_SHOCK;
 			case NETCONSTSTRINGTYPE_SCRIPTMENU: return zonetool::s2::NETCONSTSTRINGTYPE_SCRIPTMENU;
 			case NETCONSTSTRINGTYPE_CLIENT_TAGS: return zonetool::s2::NETCONSTSTRINGTYPE_CLIENT_TAGS;
@@ -59,7 +50,7 @@ namespace zonetool::h1::converter::s2::netconststrings
 			case NETCONSTSTRINGTYPE_ANIMCLASS: return zonetool::s2::NETCONSTSTRINGTYPE_ANIMCLASS;
 			case NETCONSTSTRINGTYPE_LUI: return zonetool::s2::NETCONSTSTRINGTYPE_LUI;
 			case NETCONSTSTRINGTYPE_LASER: return zonetool::s2::NETCONSTSTRINGTYPE_LASER;
-			default: return s2_type_none;
+			default: return zonetool::s2::NETCONSTSTRINGTYPE_ASSET_COUNT;
 			}
 		}
 
@@ -81,7 +72,7 @@ namespace zonetool::h1::converter::s2::netconststrings
 				return true;
 			}
 
-			db_scope _(techset::common_zone().db());
+			db_scope _(stock_zone::common_zone().db());
 			return zonetool::s2::db_find_x_asset_header_safe(zonetool::s2::ASSET_TYPE_WEAPON, name).weapon != nullptr;
 		}
 
@@ -113,7 +104,7 @@ namespace zonetool::h1::converter::s2::netconststrings
 		}
 
 		const auto type = convert_type(asset->stringType);
-		if (type == s2_type_none)
+		if (type == zonetool::s2::NETCONSTSTRINGTYPE_ASSET_COUNT)
 		{
 			ZONETOOL_WARNING("netconststrings \"%s\": S2 has no \"%s\" type, dropping it", asset->name, h1_tags[asset->stringType].data());
 			return;
@@ -167,7 +158,6 @@ namespace zonetool::h1::converter::s2::netconststrings
 			it = converted.erase(it);
 		}
 
-		// s2 maps need an ncs_<tag>_level asset of every type
 		for (auto type = 0; dumping_map && type < zonetool::s2::NETCONSTSTRINGTYPE_ASSET_COUNT; type++)
 		{
 			const auto name = std::format("ncs_{}_level", s2_tags[type]);

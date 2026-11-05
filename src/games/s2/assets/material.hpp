@@ -11,7 +11,7 @@ namespace zonetool::s2
 	struct state_bits_entry
 	{
 		GfxStateBits bits;
-		material_state state; // the state indices in bits are local to the zone globals
+		material_state state;
 	};
 
 	class material : public asset_base<Material, ASSET_TYPE_MATERIAL>

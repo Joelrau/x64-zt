@@ -79,7 +79,7 @@ namespace zonetool::iw6
 			json_reflect::manual("adsOverlay"),
 			json_reflect::nested(&WeaponAttachment::ui),
 			json_reflect::nested(&WeaponAttachment::rumbles, rumbles_fields),
-			json_reflect::nested(&WeaponAttachment::projectile, projectile_fields), // projectileName is not in the zone
+			json_reflect::nested(&WeaponAttachment::projectile, projectile_fields),
 			&WeaponAttachment::ammunitionScale,
 			&WeaponAttachment::damageScale,
 			&WeaponAttachment::damageScaleMin,
@@ -99,7 +99,6 @@ namespace zonetool::iw6
 
 		constexpr json_reflect::options dump_options{.strings = json_reflect::null_string::null};
 
-		// v1 writes the overlay members as "overlay.<member>" keys of the adsOverlay object
 		void read_ads_overlay(const ordered_json& data, AttADSOverlay*& asset, zone_memory* mem)
 		{
 			if (data.is_null())
@@ -163,7 +162,6 @@ namespace zonetool::iw6
 
 		ZONETOOL_INFO("Parsing attachment \"%s\"...", name.data());
 
-		// parse json file
 		file.open("rb");
 		auto size = file.size();
 		auto bytes = file.read_bytes(size);

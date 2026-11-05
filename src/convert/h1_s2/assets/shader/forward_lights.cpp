@@ -8,8 +8,6 @@ namespace zonetool::h1::converter::s2::shader
 {
 	namespace
 	{
-		constexpr auto light_spot_type = 2u;
-
 		void emit_spot_shadow(alys::shader::assembler& a, const std::uint32_t acc, const alys::shader::detail::operand_t& position)
 		{
 			constexpr std::array<std::pair<float, float>, 8> taps
@@ -17,9 +15,6 @@ namespace zonetool::h1::converter::s2::shader
 				{-0.7071f, 0.7071f}, {0.0f, -0.9308f}, {0.5997f, 0.5997f}, {-0.7516f, 0.0f},
 				{0.4531f, -0.4531f}, {0.0f, 0.5148f}, {-0.2633f, -0.2633f}, {0.21f, 0.0f},
 			}};
-			constexpr auto light_shadow_strength_offset = 68u;
-			constexpr auto shadow_filter_offset = 64u;
-			constexpr auto no_shadow_index = 255u;
 
 			const auto out = acc + 1;
 			const auto fade = acc + 5;
@@ -30,13 +25,13 @@ namespace zonetool::h1::converter::s2::shader
 			const auto address = acc + 14;
 			const auto records = asm_::t(spot_shadow_record_slot);
 
-			a.ld_structured(asm_::r(record).xy(), asm_::r(light).x(), uint_literal(light_shadow_strength_offset), asm_::t(forward_lights_slot).select("xyxx"));
+			a.ld_structured(asm_::r(record).xy(), asm_::r(light).x(), uint_literal(68u), asm_::t(forward_lights_slot).select("xyxx"));
 			a.ushr(asm_::r(shadow).y(), asm_::r(record).x(), uint_literal(16));
 			a.and_(asm_::r(shadow).z(), asm_::r(record).y(), uint_literal(0xFFFF));
 			a.f16tof32(asm_::r(shadow).yz(), asm_::r(shadow).select("xyzx"));
-			a.mul(asm_::r(record).w(), asm_::r(shadow).y(), asm_::r(shadow).w()); // s2 shadows an omni with one spot frustum, so the cone fades it like stock
+			a.mul(asm_::r(record).w(), asm_::r(shadow).y(), asm_::r(shadow).w());
 			a.movc(asm_::r(shadow).y(), asm_::r(light).z(), asm_::r(shadow).y(), asm_::r(record).w());
-			a.ine(asm_::r(shadow).w(), asm_::r(shadow).x(), uint_literal(no_shadow_index));
+			a.ine(asm_::r(shadow).w(), asm_::r(shadow).x(), uint_literal(255u));
 			a.lt(asm_::r(record).z(), asm_::l(0.0f), asm_::r(shadow).y());
 			a.and_(asm_::r(shadow).w(), asm_::r(shadow).w(), asm_::r(record).z());
 			a.if_nz(asm_::r(shadow).w());
@@ -51,7 +46,7 @@ namespace zonetool::h1::converter::s2::shader
 
 			a.rcp(asm_::r(out).x(), asm_::r(out).x());
 			a.mul(asm_::r(fade).xyz(), asm_::r(fade).select("xyzx"), asm_::r(out).select("xxxx"));
-			a.ld_structured(asm_::r(record).select("xyzw"), asm_::r(shadow).x(), uint_literal(shadow_filter_offset), records.select("xyzw"));
+			a.ld_structured(asm_::r(record).select("xyzw"), asm_::r(shadow).x(), uint_literal(64u), records.select("xyzw"));
 
 			const auto sum_taps = [&](const std::uint32_t texture, const char* slice, const char* sum)
 			{
@@ -68,7 +63,6 @@ namespace zonetool::h1::converter::s2::shader
 				a.mul(asm_::r(out).select(sum), asm_::r(out).select(std::string(4, sum[0])).swz(), asm_::l(0.125f));
 			};
 
-			// shadow.w is free once the outer if took it
 			a.mov(asm_::r(out).y(), asm_::l(0.0f));
 			a.ge(asm_::r(shadow).w(), asm_::r(shadow).z(), asm_::l(0.0f));
 			a.if_nz(asm_::r(shadow).w());
@@ -90,10 +84,8 @@ namespace zonetool::h1::converter::s2::shader
 
 	std::map<std::uint32_t, std::uint32_t> relocate_light_textures(const std::vector<alys::shader::detail::instruction_t>& instructions)
 	{
-		constexpr auto first_free_slot = 26u;
-
 		std::map<std::uint32_t, std::uint32_t> result;
-		auto next = first_free_slot;
+		auto next = 26u;
 		for (const auto slot : forward_light_slots)
 		{
 			if (!declares_resource(instructions, slot))
@@ -133,7 +125,6 @@ namespace zonetool::h1::converter::s2::shader
 	void emit_forward_light_loop_begin(alys::shader::assembler& a, const primary_lights& lights, const std::uint32_t acc, const std::uint32_t screen_input,
 		const alys::shader::detail::operand_t& position)
 	{
-		// no per pixel z bin mask, so every pixel of a quad runs the same lights and keeps its derivatives
 		const auto out = acc + 1;
 		const auto light_position = acc + 2;
 		const auto diffuse = acc + 3;
@@ -218,7 +209,7 @@ namespace zonetool::h1::converter::s2::shader
 		}
 
 		a.ubfe(asm_::r(light).z(), uint_literal(2), uint_literal(8), asm_::r(dir).w());
-		a.ieq(asm_::r(light).z(), asm_::r(light).z(), uint_literal(light_spot_type));
+		a.ieq(asm_::r(light).z(), asm_::r(light).z(), uint_literal(GFX_LIGHT_TYPE_SPOT));
 		a.ushr(asm_::r(light).w(), asm_::r(spot).x(), uint_literal(16));
 		a.and_(asm_::r(spot).xy(), asm_::r(spot).select("xyxx"), uint_literal(0xFFFF));
 		a.and_(asm_::r(spot).z(), asm_::r(color).w(), uint_literal(0xFFFF));
@@ -236,7 +227,6 @@ namespace zonetool::h1::converter::s2::shader
 		a.rsq(asm_::r(light).y(), asm_::r(light).y());
 		a.mul(asm_::r(fade).xyz(), asm_::r(fade).select("xyzx"), asm_::r(light).select("yyyy"));
 
-		// the falloff ends at the radius that the tiles are culled with
 		a.mul(asm_::r(out).x(), asm_::r(out).x(), asm_::r(light).y());
 		a.mul(asm_::r(out).z(), asm_::r(light_position).w(), asm_::l(20.0f));
 		a.mad_sat(asm_::r(out).y(), asm_::r(out).x().neg(), asm_::r(out).z(), asm_::l(20.0f));
@@ -272,7 +262,6 @@ namespace zonetool::h1::converter::s2::shader
 		const auto out = acc + 1;
 		const auto tile = acc + 7;
 
-		// max and min return the other operand for NaN, which drops the light at the center of an h1 highlight
 		a.max(asm_::r(out).xyz(), asm_::r(out).select("xyzx"), asm_::l(0.0f));
 		a.min(asm_::r(out).xyz(), asm_::r(out).select("xyzx"), asm_::l(65504.0f));
 		a.add(asm_::r(acc).xyz(), asm_::r(acc).select("xyzx"), asm_::r(out).select("xyzx"));

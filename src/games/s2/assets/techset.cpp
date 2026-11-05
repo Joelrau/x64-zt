@@ -89,8 +89,8 @@ namespace zonetool::s2
 			{
 				auto* pass = const_cast<MaterialPass*>(&technique->passArray[i]);
 
-				auto& zone_free_pass = pass_copies.emplace_back(*pass); // the dumper dedupes by address, so the copies live for the whole dump
-				zone_free_pass.zone = 0; // the buffer indices are local to the zone globals, prepare() gets them again
+				auto& zone_free_pass = pass_copies.emplace_back(*pass);
+				zone_free_pass.zone = 0;
 				zone_free_pass.perPrimConstantBuffer = 0;
 				zone_free_pass.perObjConstantBuffer = 0;
 				zone_free_pass.volatileConstantBuffer = 0;

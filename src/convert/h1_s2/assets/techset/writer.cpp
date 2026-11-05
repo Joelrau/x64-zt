@@ -10,10 +10,10 @@ namespace zonetool::h1::converter::s2::techset
 	namespace
 	{
 		std::unordered_set<std::string> dumped_techsets;
-		std::vector<zonetool::s2::MaterialTechniqueSet*> pending_techsets; // written in finish, once every pass of a decl is known
+		std::vector<zonetool::s2::MaterialTechniqueSet*> pending_techsets;
 		template <typename T>
 		std::unordered_set<std::string> dumped_shaders;
-		std::unordered_set<const void*> global_shaders; // velocity technique shaders and decls, s2 has them in its common zones
+		std::unordered_set<const void*> global_shaders;
 
 		template <typename T>
 		void dump_shader_file(T* shader)

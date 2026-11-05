@@ -10,20 +10,8 @@ namespace zonetool::s2::converter::h1::xsurface
 	namespace
 	{
 		constexpr std::uint32_t h1_bone_offset_scale = 64;
-		constexpr std::size_t max_blend_bones = 4;
 
 		std::unordered_set<std::string> dumped_surfs;
-
-		struct vertex_streams
-		{
-			const std::uint16_t* indices;
-			const float* positions;
-			const std::uint32_t* colors;
-			const std::uint32_t* tex_coords;
-			const std::uint32_t* normals;
-			const std::uint32_t* tangents;
-			const XSurfaceSkinVertex* skin;
-		};
 
 		std::optional<vertex_streams> map_vertex_streams(const XSurface* surface, const std::string& data)
 		{
@@ -122,7 +110,7 @@ namespace zonetool::s2::converter::h1::xsurface
 		{
 			auto blend_index = 0u;
 			auto table_index = 0u;
-			for (auto bone_count = 1u; bone_count <= max_blend_bones; bone_count++)
+			for (auto bone_count = 1u; bone_count <= 4; bone_count++)
 			{
 				for (auto i = 0; i < surface->blendVertCounts[bone_count - 1]; i++)
 				{
@@ -149,7 +137,7 @@ namespace zonetool::s2::converter::h1::xsurface
 			for (auto i = 0; i < surface->vertCount; i++)
 			{
 				const auto count = streams.skin[i].count;
-				if (count < 1 || count > max_blend_bones || (i && count < streams.skin[i - 1].count))
+				if (count < 1 || count > 4 || (i && count < streams.skin[i - 1].count))
 				{
 					return false;
 				}

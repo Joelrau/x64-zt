@@ -5,7 +5,6 @@ namespace zonetool::h2
 {
 	EquipmentSoundTable* equip_snd_table::parse(const std::string& name, zone_memory* mem)
 	{
-		// equipsndtable,soundaliases/equipment_snd.def is only asset in h1 and it doesn't have anything in it.
 		auto* asset = mem->allocate<EquipmentSoundTable>();
 		asset->name = mem->duplicate_string(name);
 		return asset;

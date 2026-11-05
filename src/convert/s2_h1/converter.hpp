@@ -15,3 +15,13 @@
 #include "assets/techset.hpp"
 #include "assets/xsurface.hpp"
 #include "assets/xmodel.hpp"
+
+namespace zonetool::s2::converter::h1
+{
+	struct csv_row
+	{
+		std::string type;
+		std::string name;
+		bool referenced;
+	};
+}

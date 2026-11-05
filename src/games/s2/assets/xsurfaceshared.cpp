@@ -9,15 +9,6 @@ namespace zonetool::s2
 {
 	namespace
 	{
-		constexpr std::string_view xpak_toc_magic = "S2ffi300";
-
-		struct xpak_location
-		{
-			std::filesystem::path pak;
-			std::uint64_t offset;
-			std::uint32_t size;
-		};
-
 		void read_xpak_toc(const std::filesystem::path& path, std::unordered_map<std::string, xpak_location>& entries)
 		{
 			std::string data;
@@ -27,7 +18,7 @@ namespace zonetool::s2
 			}
 
 			const auto header = reinterpret_cast<const XPakTocHeader*>(data.data());
-			if (std::string_view(header->magic, sizeof(header->magic)) != xpak_toc_magic
+			if (std::string_view(header->magic, sizeof(header->magic)) != "S2ffi300"
 				|| sizeof(XPakTocHeader) + header->entryCount * sizeof(XPakTocEntry) > data.size())
 			{
 				ZONETOOL_WARNING("Xpak toc \"%s\" is not valid", path.string().data());

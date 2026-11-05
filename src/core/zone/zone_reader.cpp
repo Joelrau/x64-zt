@@ -28,14 +28,6 @@ namespace zonetool
 			return reinterpret_cast<std::uint64_t>(pointer);
 		}
 
-		struct zone_offset
-		{
-			std::uint64_t block_index;
-			std::uint64_t offset;
-		};
-
-		constexpr auto offset_tag_shift = 36;
-
 		zone_offset split_offset(const void* pointer)
 		{
 			const auto value = pointer_value(pointer);
@@ -195,7 +187,6 @@ namespace zonetool
 		const auto is_runtime = this->current_block_ == this->layout_.runtime_block || this->current_block_ == this->layout_.unread_block;
 		if (block.position + size > block.size)
 		{
-			// Runtime data holds no file bytes, and some loaders size it differently from the game.
 			if (is_runtime)
 			{
 				return this->allocate_bytes(size);
@@ -237,9 +228,7 @@ namespace zonetool
 			return false;
 		}
 
-		// Stock zones leave the bits above the block index clear, and zonetool sets them to the pointer mask.
-		// Any other value is a raw heap pointer that the game ignores.
-		const auto tag = pointer_value(pointer) >> offset_tag_shift;
+		const auto tag = pointer_value(pointer) >> 36;
 		if (tag != this->layout_.offset_tag && (tag != 0 || !this->layout_.untagged_offsets))
 		{
 			return false;

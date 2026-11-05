@@ -172,8 +172,6 @@ namespace zonetool::s2
 
 	namespace
 	{
-		constexpr unsigned int xmodel_flag_variants = 0x200;
-
 		std::size_t bone_count(const XModelBase* asset)
 		{
 			return asset->numBones + asset->numClientBones;
@@ -417,7 +415,7 @@ namespace zonetool::s2
 		asset->collSurfs = read.read_array<char>();
 		asset->boneInfo = read.read_array<char>();
 		asset->blendShapeWeightNames = parse_script_string_array(read, mem, asset->numberOfBlendShapeWeights);
-		asset->blendShapeWeightMaps = reinterpret_cast<BlendShapeWeightMap*>(read.read_array<char>()); // dumped as bytes
+		asset->blendShapeWeightMaps = reinterpret_cast<BlendShapeWeightMap*>(read.read_array<char>());
 		asset->physPreset = read.read_asset<PhysPreset>();
 		asset->physCollmap = read.read_asset<PhysCollmap>();
 		asset->physRigNames = parse_script_string_array(read, mem, asset->physRigCount);
@@ -710,7 +708,7 @@ namespace zonetool::s2
 		auto* asset = read.read_single<XModel>();
 		asset->name = read.read_string();
 
-		if ((asset->flags & xmodel_flag_variants) == 0)
+		if ((asset->flags & XMODEL_FLAG_VARIANTS) == 0)
 		{
 			asset->base = read.read_asset<XModelBase>();
 		}
@@ -738,7 +736,7 @@ namespace zonetool::s2
 	void xmodel::prepare(zone_buffer* buf, zone_memory* mem)
 	{
 		auto* asset = this->asset_;
-		if ((asset->flags & xmodel_flag_variants) == 0)
+		if ((asset->flags & XMODEL_FLAG_VARIANTS) == 0)
 		{
 			return;
 		}
@@ -754,7 +752,7 @@ namespace zonetool::s2
 	{
 		auto* asset = this->asset_;
 
-		if ((asset->flags & xmodel_flag_variants) == 0)
+		if ((asset->flags & XMODEL_FLAG_VARIANTS) == 0)
 		{
 			add_dependency(zone, ASSET_TYPE_XMODEL_BASE, asset->base);
 		}
@@ -781,7 +779,7 @@ namespace zonetool::s2
 
 		dest->name = this->write_name(buf);
 
-		if ((data->flags & xmodel_flag_variants) == 0)
+		if ((data->flags & XMODEL_FLAG_VARIANTS) == 0)
 		{
 			dest->base = asset_reference(zone, ASSET_TYPE_XMODEL_BASE, data->base);
 		}
@@ -828,7 +826,7 @@ namespace zonetool::s2
 		write.dump_single(asset);
 		write.dump_string(asset->name);
 
-		if ((asset->flags & xmodel_flag_variants) == 0)
+		if ((asset->flags & XMODEL_FLAG_VARIANTS) == 0)
 		{
 			write.dump_asset(asset->base);
 		}

@@ -1,5 +1,6 @@
 #include <std_include.hpp>
 #include "zone_buffer.hpp"
+#include "zone_memory.hpp"
 
 #include "../log.hpp"
 #include "../io/filesystem.hpp"
@@ -7,11 +8,6 @@
 
 namespace zonetool
 {
-	namespace
-	{
-		constexpr std::size_t max_zone_size = 2ull * 1024 * 1024 * 1024;
-	}
-
 	zone_buffer::zone_buffer()
 	{
 		this->init();

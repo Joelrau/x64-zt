@@ -100,20 +100,6 @@ namespace zonetool::h1::converter::s2::gfximage
 			return semantic <= TS_SPECULAR_MAP ? semantic : TS_2D;
 		}
 
-		struct image_pixels
-		{
-			std::string data;
-			std::size_t width;
-			std::size_t height;
-			std::size_t levels;
-		};
-
-		struct image_data
-		{
-			bool streamed;
-			std::vector<image_pixels> chains;
-		};
-
 		std::optional<std::string> read_stream(const XStreamFile& stream_file)
 		{
 			if (!stream_file.offset || stream_file.offsetEnd <= stream_file.offset)
@@ -562,7 +548,6 @@ namespace zonetool::h1::converter::s2::gfximage
 			return name;
 		}
 
-		// h1 makes cube textures srgb except bc7, 2d ones keep their format
 		const auto format = static_cast<DXGI_FORMAT>(asset->imageFormat);
 		const auto srgb = asset->mapType == MAPTYPE_CUBE && format != DXGI_FORMAT_BC7_UNORM;
 		const auto data = read_image(asset);
@@ -586,14 +571,13 @@ namespace zonetool::h1::converter::s2::gfximage
 			return name;
 		}
 
-		constexpr auto size = 4u;
 		std::string pixels;
-		for (auto i = 0u; i < size * size; i++)
+		for (auto i = 0u; i < 4u * 4u; i++)
 		{
 			pixels.append(reinterpret_cast<const char*>(color.data()), color.size());
 		}
 
-		auto image = generated_image(name, DXGI_FORMAT_R8G8B8A8_UNORM, size, size, semantic);
+		auto image = generated_image(name, DXGI_FORMAT_R8G8B8A8_UNORM, 4u, 4u, semantic);
 		return dump_generated(image, pixels);
 	}
 
@@ -604,10 +588,9 @@ namespace zonetool::h1::converter::s2::gfximage
 			return name;
 		}
 
-		constexpr auto width = 128u;
-		const std::string pixels(width * sizeof(std::uint32_t), '\xFF');
+		const std::string pixels(128u * sizeof(std::uint32_t), '\xFF');
 
-		auto image = generated_image(name, DXGI_FORMAT_R10G10B10A2_UNORM, width, 1, TS_FUNCTION);
+		auto image = generated_image(name, DXGI_FORMAT_R10G10B10A2_UNORM, 128u, 1, TS_FUNCTION);
 		image.category = IMG_CATEGORY_AUTO_GENERATED;
 		return dump_generated(image, pixels);
 	}

@@ -5,8 +5,6 @@ namespace zonetool::iw7
 {
 	namespace
 	{
-		constexpr auto disk_alignment = 63;
-
 		void read_trans_bounds(zone_reader& reader, MayhemTransBounds*& bounds, const MayhemAnim& anim)
 		{
 			reader.read_array(bounds, 3, anim.quantizeTrans * anim.numBones);
@@ -20,8 +18,8 @@ namespace zonetool::iw7
 				return;
 			}
 
-			reader.read_array(frames->diskQuat, disk_alignment, frames->quatStride * frames->totalCompressedQuatFrames);
-			reader.read_array(frames->diskPos, disk_alignment, frames->posStride * frames->totalCompressedPosFrames);
+			reader.read_array(frames->diskQuat, 63, frames->quatStride * frames->totalCompressedQuatFrames);
+			reader.read_array(frames->diskPos, 63, frames->posStride * frames->totalCompressedPosFrames);
 			reader.read_array(frames->diskQuatFrames, 1, frames->totalCompressedQuatFrames / 3);
 			reader.read_array(frames->diskPosFrames, 1, frames->totalCompressedPosFrames / 3);
 			reader.read_array(frames->numDiskQuatFrames, 1, anim.numBones);
@@ -37,8 +35,8 @@ namespace zonetool::iw7
 				return;
 			}
 
-			reader.read_array(frames->diskQuat, disk_alignment, anim.numFrames * frames->quatStride);
-			reader.read_array(frames->diskPos, disk_alignment, anim.numFrames * frames->posStride);
+			reader.read_array(frames->diskQuat, 63, anim.numFrames * frames->quatStride);
+			reader.read_array(frames->diskPos, 63, anim.numFrames * frames->posStride);
 			read_trans_bounds(reader, frames->transBounds, anim);
 		}
 
@@ -50,7 +48,7 @@ namespace zonetool::iw7
 				return;
 			}
 
-			reader.read_array(keys->keys, disk_alignment, keys->keyStride * keys->totalCompressedKeyFrames);
+			reader.read_array(keys->keys, 63, keys->keyStride * keys->totalCompressedKeyFrames);
 			reader.read_array(keys->numKeys, 1, keys->numStreams);
 			reader.read_array(keys->keyFrames, 1, keys->totalCompressedKeyFrames / 3);
 		}
@@ -63,7 +61,7 @@ namespace zonetool::iw7
 				return;
 			}
 
-			reader.read_array(keys->keys, disk_alignment, anim.numFrames * keys->keyStride * keys->numStreams);
+			reader.read_array(keys->keys, 63, anim.numFrames * keys->keyStride * keys->numStreams);
 		}
 
 		void read_anim(zone_reader& reader, MayhemAnim& anim)

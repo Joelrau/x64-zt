@@ -6,7 +6,7 @@ namespace zonetool::h1::converter::s2::shader
 	constexpr auto h1_material_constant_buffer = 3u;
 	constexpr auto s2_stable_constant_buffer = h1_stable_constant_buffer + 1;
 	constexpr auto s2_material_constant_buffer = h1_material_constant_buffer + 1;
-	constexpr auto s2_model_lighting_index_dest = 10u; // fixed per prim row of the cached model draws
+	constexpr auto s2_model_lighting_index_dest = 10u;
 	constexpr auto s2_model_lightmap_params_dest = 10u;
 	constexpr auto light_grid_colors_slot = 19u;
 	constexpr auto light_grid_visibility_slot = 20u;

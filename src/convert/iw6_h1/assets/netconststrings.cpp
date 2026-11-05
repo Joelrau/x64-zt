@@ -60,7 +60,7 @@ namespace zonetool::iw6
 
 			void dump(NetConstStrings* asset)
 			{
-				if (asset->stringType == NETCONSTSTRINGTYPE_STATUSICON) // h1 has no status icon type
+				if (asset->stringType == NETCONSTSTRINGTYPE_STATUSICON)
 				{
 					if (asset->entryCount)
 					{
@@ -90,7 +90,6 @@ namespace zonetool::iw6
 					return;
 				}
 
-				// IW6 has no submix, attachment or laser types, but H1 needs one ncs_<tag>_level asset per type
 				for (auto type = 0; type < zonetool::h1::NETCONSTSTRINGTYPE_ASSET_COUNT; type++)
 				{
 					const auto name = std::format("ncs_{}_level", level_net_const_string_tags[type]);

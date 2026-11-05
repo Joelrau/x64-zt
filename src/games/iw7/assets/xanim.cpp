@@ -227,8 +227,6 @@ namespace zonetool::iw7
 
 	namespace
 	{
-		constexpr std::size_t delta_part_header_size = 8;
-
 		std::size_t frame_index_size(const XAnimParts* asset)
 		{
 			return asset->numframes >= 256 ? sizeof(unsigned short) : sizeof(unsigned char);
@@ -236,7 +234,7 @@ namespace zonetool::iw7
 
 		void read_delta_trans(zone_reader& reader, XAnimPartTrans*& field, const std::size_t index_size)
 		{
-			if (!reader.read_stream(field, 7, delta_part_header_size))
+			if (!reader.read_stream(field, 7, offsetof(XAnimPartTrans, u)))
 			{
 				return;
 			}
@@ -264,7 +262,7 @@ namespace zonetool::iw7
 		template <typename T>
 		void read_delta_quat(zone_reader& reader, T*& field, const std::size_t index_size)
 		{
-			if (!reader.read_stream(field, 7, delta_part_header_size))
+			if (!reader.read_stream(field, 7, offsetof(T, u)))
 			{
 				return;
 			}

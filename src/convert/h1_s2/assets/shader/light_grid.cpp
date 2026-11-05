@@ -65,8 +65,6 @@ namespace zonetool::h1::converter::s2::shader
 
 	std::map<std::uint32_t, std::uint32_t> relocate_textures(const std::vector<alys::shader::detail::instruction_t>& instructions, const std::uint32_t lighting_texture)
 	{
-		constexpr auto texture_slot_count = 16u;
-
 		std::set<std::uint32_t> used;
 		for (const auto& instruction : instructions)
 		{
@@ -79,7 +77,7 @@ namespace zonetool::h1::converter::s2::shader
 		used.erase(lighting_texture);
 
 		std::vector<std::uint32_t> free;
-		for (auto slot = 0u; slot < texture_slot_count; slot++)
+		for (auto slot = 0u; slot < 16u; slot++)
 		{
 			if (!is_light_grid_slot(slot) && !used.contains(slot))
 			{
@@ -204,8 +202,6 @@ namespace zonetool::h1::converter::s2::shader
 	void emit_light_grid_lookup(alys::shader::assembler& a, const program_patch& patch, const alys::shader::detail::operand_t& sampler,
 		const std::uint32_t input, const std::uint32_t temp, const bool directional)
 	{
-		constexpr auto mean_directional_weight = 0.7f / 6.0f + 0.3f / 10.0f;
-
 		const auto dir = temp;
 		const auto volume = temp + 1;
 		const auto coords = temp + 2;
@@ -229,7 +225,7 @@ namespace zonetool::h1::converter::s2::shader
 			}
 			else
 			{
-				a.mov(asm_::r(weight).x(), asm_::l(mean_directional_weight));
+				a.mov(asm_::r(weight).x(), asm_::l(0.7f / 6.0f + 0.3f / 10.0f));
 			}
 
 			switch (patch.grid)
@@ -315,7 +311,6 @@ namespace zonetool::h1::converter::s2::shader
 
 	void emit_probe_sun_color(alys::shader::assembler& a, const program_patch& patch, const std::uint32_t input, const std::uint32_t temp)
 	{
-		// h1 draws a model without sun visibility with a sunless light env
 		const auto gate = temp;
 		const auto coords = temp + 4;
 

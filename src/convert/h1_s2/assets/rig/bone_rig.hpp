@@ -6,7 +6,7 @@ namespace zonetool::h1::converter::s2::bone_rig
 {
 	constexpr auto epsilon = 0.0001f;
 	constexpr auto body_tag = "tag_torso";
-	constexpr std::array camera_bones{"tag_cambone", "tag_camera", "tag_player"}; // generated anims take the stock camera motion
+	constexpr std::array camera_bones{"tag_cambone", "tag_camera", "tag_player"};
 
 	struct transform
 	{
@@ -40,7 +40,7 @@ namespace zonetool::h1::converter::s2::bone_rig
 		std::vector<int> parents;
 		std::vector<transform> bind_world;
 		std::vector<transform> bind_local;
-		std::vector<transform> pose_local; // bones without anim keys: the model tag angles and positions, zero for most rig bones
+		std::vector<transform> pose_local;
 		std::vector<cast::quat_t> anatomy;
 		std::unordered_map<std::string, int> indices;
 

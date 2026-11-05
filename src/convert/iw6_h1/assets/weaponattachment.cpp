@@ -131,7 +131,7 @@ namespace zonetool::iw6
 
 				const auto bool_parm = [](const bool value)
 				{
-					return zonetool::h1::WAFieldParm{.p_float = value ? 1.0f : 0.0f}; // h1 reads bool fields as a float
+					return zonetool::h1::WAFieldParm{.p_float = value ? 1.0f : 0.0f};
 				};
 
 				float ammunitionScale = 1.0f;

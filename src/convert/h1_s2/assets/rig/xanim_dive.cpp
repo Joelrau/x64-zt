@@ -12,9 +12,7 @@ namespace zonetool::h1::converter::s2::xanim_dive
 		namespace cs = zonetool::cast;
 		using namespace bone_rig;
 
-		constexpr auto dive_free_hand_distance = 4.0f; // the stock left hand counts as off the gun this far from its idle grip
-		constexpr auto dive_hand_speed = 3.0f; // units per frame, about the fastest the stock left hand moves
-		constexpr auto dive_memory_size = 16ull * 1024 * 1024;
+		constexpr auto dive_hand_speed = 3.0f;
 
 		struct dive_donor
 		{
@@ -56,7 +54,7 @@ namespace zonetool::h1::converter::s2::xanim_dive
 			const auto wrist = rig.find(side_bone("wrist", "le"));
 			const auto grip = compose(invert(donor.idle[gun]), donor.idle[wrist]).position;
 			const auto hand = compose(invert(stock[gun]), stock[wrist]).position;
-			return smoothstep(length(sub(hand, grip)) / dive_free_hand_distance); // the stock left hand lets go of the gun to break the fall
+			return smoothstep(length(sub(hand, grip)) / 4.0f);
 		}
 
 		void limit_rate(std::vector<float>& values, const float rate)
@@ -81,7 +79,7 @@ namespace zonetool::h1::converter::s2::xanim_dive
 			const auto elbow = rig.find(side_bone("elbow", "le"));
 			const auto wrist = rig.find(side_bone("wrist", "le"));
 			const auto stock = forward_kinematics(rig, stock_locals);
-			const auto motion = compose(stock[torso], invert(donor.idle[torso])); // the stock gun, right arm and body move as one with tag_torso
+			const auto motion = compose(stock[torso], invert(donor.idle[torso]));
 
 			std::vector<transform> world(rig.names.size());
 			for (auto i = 0u; i < rig.names.size(); i++)
@@ -166,9 +164,9 @@ namespace zonetool::h1::converter::s2::xanim_dive
 			}
 		}
 
-		limit_rate(free, travel > dive_hand_speed ? dive_hand_speed / travel : 1.0f); // an h1 left hand far from the stock one takes longer to get there
+		limit_rate(free, travel > dive_hand_speed ? dive_hand_speed / travel : 1.0f);
 
-		auto& dive_memory = memory.emplace(dive_memory_size);
+		auto& dive_memory = memory.emplace(16ull * 1024 * 1024);
 		std::array<zonetool::s2::XAnimParts*, 2> anims{};
 		for (auto i = 0u, first = 0u; i < anims.size(); first += static_cast<std::uint32_t>(stock_poses[i].size()), i++)
 		{

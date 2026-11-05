@@ -2,6 +2,20 @@
 
 namespace zonetool::h1::converter::s2::gfximage
 {
+	struct image_pixels
+	{
+		std::string data;
+		std::size_t width;
+		std::size_t height;
+		std::size_t levels;
+	};
+
+	struct image_data
+	{
+		bool streamed;
+		std::vector<image_pixels> chains;
+	};
+
 	void dump(zonetool::h1::GfxImage* asset);
 	std::optional<std::string> dump_used(const std::string& name);
 	void finish();

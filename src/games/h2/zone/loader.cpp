@@ -24,13 +24,6 @@ namespace zonetool::h2
 
 		constexpr std::size_t image_stream_file_count = 4;
 
-		struct asset_loader
-		{
-			std::size_t size;
-			void (*read)(zone_reader& reader, void* asset);
-			const char** (*name)(void* asset);
-		};
-
 		template <typename S>
 		const char** asset_name_field(void* asset)
 		{

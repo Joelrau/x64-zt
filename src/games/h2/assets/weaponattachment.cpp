@@ -905,7 +905,6 @@ namespace zonetool::h2
 
 		bool is_factor(const unsigned char type, const unsigned char code)
 		{
-			// the game applies add-multiply and multiply values as plain factors, without the int or ms conversion
 			return (type == WAFIELD_TYPE_INT || type == WAFIELD_TYPE_FLOAT32)
 				&& (code == FIELD_OP_NUMBER_ADD_MULTIPLY || code == FIELD_OP_NUMBER_MULTIPLY);
 		}
@@ -996,7 +995,6 @@ namespace zonetool::h2
 		auto* attachment = mem->allocate<WeaponAttachment>();
 		json_reflect::read<attachment_fields>(data, *attachment, mem);
 
-		// v1 never leaves the model arrays null
 		if (!attachment->worldModels)
 		{
 			attachment->worldModels = mem->allocate<XModel*>(2);
@@ -1111,7 +1109,7 @@ namespace zonetool::h2
 				}
 				else if (type == WAFIELD_TYPE_BOOL)
 				{
-					attachment->fields[f].parm.p_float = data["fields"][i]["value"].get<bool>() ? 1.0f : 0.0f; // the game reads bool fields as a float
+					attachment->fields[f].parm.p_float = data["fields"][i]["value"].get<bool>() ? 1.0f : 0.0f;
 				}
 				else if (type == WAFIELD_TYPE_FLOAT)
 				{
@@ -1558,7 +1556,7 @@ namespace zonetool::h2
 				}
 				else if (type == WAFIELD_TYPE_BOOL)
 				{
-					data["fields"][i]["value"] = asset->fields[i].parm.p_float != 0.0f; // the game reads bool fields as a float
+					data["fields"][i]["value"] = asset->fields[i].parm.p_float != 0.0f;
 				}
 				else if (type == WAFIELD_TYPE_FLOAT)
 				{

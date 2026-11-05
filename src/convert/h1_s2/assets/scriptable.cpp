@@ -10,59 +10,17 @@ namespace zonetool::h1::converter::s2::scriptable
 {
 	namespace
 	{
-		constexpr unsigned int anim_stream_size = 12;
-		constexpr unsigned int health_drain_stream_size = 8;
-		constexpr unsigned int time_stream_size = 4;
-		constexpr unsigned int light_stream_size = 0x28;
-		constexpr unsigned int sunlight_stream_size = 0x38;
-		constexpr unsigned int transform_stream_size = 0x20;
-
-		constexpr unsigned char h1_damage_generic = 0x1;
-		constexpr unsigned char h1_damage_splash = 0x2;
-		constexpr unsigned char h1_damage_melee = 0x4;
-		constexpr unsigned char h1_damage_player = 0x8;
-		constexpr unsigned char h1_damage_ai = 0x10;
-		constexpr unsigned char h1_damage_other = 0x20;
-		constexpr unsigned short s2_damage_bullets = 0x8F;
-		constexpr unsigned short s2_damage_splash = 0x10;
-		constexpr unsigned short s2_damage_melee = 0x20;
-		constexpr unsigned short s2_damage_player = 0x100;
-		constexpr unsigned short s2_damage_ai = 0x200;
-		constexpr unsigned short s2_damage_other = 0x400;
-
 		unsigned short convert_damage_flags(const unsigned char flags)
 		{
 			unsigned short new_flags = 0;
-			new_flags |= (flags & h1_damage_generic) ? s2_damage_bullets : 0;
-			new_flags |= (flags & h1_damage_splash) ? s2_damage_splash : 0;
-			new_flags |= (flags & h1_damage_melee) ? s2_damage_melee : 0;
-			new_flags |= (flags & h1_damage_player) ? s2_damage_player : 0;
-			new_flags |= (flags & h1_damage_ai) ? s2_damage_ai : 0;
-			new_flags |= (flags & h1_damage_other) ? s2_damage_other : 0;
+			new_flags |= (flags & SCRIPTABLE_DAMAGE_GENERIC) ? zonetool::s2::SCRIPTABLE_DAMAGE_BULLETS : 0;
+			new_flags |= (flags & SCRIPTABLE_DAMAGE_SPLASH) ? zonetool::s2::SCRIPTABLE_DAMAGE_SPLASH : 0;
+			new_flags |= (flags & SCRIPTABLE_DAMAGE_MELEE) ? zonetool::s2::SCRIPTABLE_DAMAGE_MELEE : 0;
+			new_flags |= (flags & SCRIPTABLE_DAMAGE_PLAYER) ? zonetool::s2::SCRIPTABLE_DAMAGE_PLAYER : 0;
+			new_flags |= (flags & SCRIPTABLE_DAMAGE_AI) ? zonetool::s2::SCRIPTABLE_DAMAGE_AI : 0;
+			new_flags |= (flags & SCRIPTABLE_DAMAGE_OTHER) ? zonetool::s2::SCRIPTABLE_DAMAGE_OTHER : 0;
 			return new_flags;
 		}
-
-		struct stream_allocator
-		{
-			unsigned int part_base;
-			unsigned int cursor;
-			unsigned int part_size;
-
-			unsigned char allocate(const unsigned int size)
-			{
-				const auto index = this->cursor;
-				this->cursor += size;
-				this->part_size = std::max(this->part_size, this->cursor - this->part_base);
-				return static_cast<unsigned char>(index);
-			}
-		};
-
-		struct def_context
-		{
-			ScriptableDef* asset;
-			std::vector<zonetool::s2::XModel*> models;
-			std::vector<unsigned char> part_anim_entries;
-		};
 
 		unsigned char model_index(def_context& ctx, XModel* model)
 		{
@@ -76,9 +34,6 @@ namespace zonetool::h1::converter::s2::scriptable
 			ctx.models.emplace_back(new_model);
 			return static_cast<unsigned char>(ctx.models.size() - 1);
 		}
-
-		constexpr std::string_view anim_tree_name = "animtrees/destructibles.atr";
-		constexpr std::string_view anim_tree_override = "override/animtrees/destructibles.atr"; // s2x reads override/<name> rawfiles from the map zone
 
 		std::set<std::string> map_anims;
 
@@ -110,7 +65,7 @@ namespace zonetool::h1::converter::s2::scriptable
 				new_data.fx.effect = reinterpret_cast<zonetool::s2::FxEffectDef*>(data.playFx.handle);
 				new_data.fx.tag = static_cast<zonetool::s2::scr_string_t>(data.playFx.tagName);
 				new_data.fx.loopTime = data.playFx.loopTime;
-				new_data.fx.loopTimeStreamIndex = data.playFx.loopTime ? streams.allocate(time_stream_size) : 0;
+				new_data.fx.loopTimeStreamIndex = data.playFx.loopTime ? streams.allocate(4) : 0;
 				new_data.fx.tagUseAngles = data.playFx.tagUseAngles;
 				return true;
 			case SCRIPTABLE_EVENT_SOUND:
@@ -130,7 +85,7 @@ namespace zonetool::h1::converter::s2::scriptable
 				new_data.anim.blendTime = data.playAnim.blendTime;
 				new_data.anim.override = data.playAnim.override;
 				new_data.anim.animEntryIndex = data.playAnim.animEntryIndex;
-				new_data.anim.animPlaybackStreamIndex = streams.allocate(anim_stream_size);
+				new_data.anim.animPlaybackStreamIndex = streams.allocate(12);
 				if (std::find(ctx.part_anim_entries.begin(), ctx.part_anim_entries.end(), data.playAnim.animEntryIndex) == ctx.part_anim_entries.end())
 				{
 					ctx.part_anim_entries.emplace_back(data.playAnim.animEntryIndex);
@@ -150,10 +105,10 @@ namespace zonetool::h1::converter::s2::scriptable
 				new_event.type = zonetool::s2::SCRIPTABLE_EVENT_HEALTHDRAIN;
 				new_data.healthDrain.amount = data.healthDrain.amount;
 				new_data.healthDrain.interval = data.healthDrain.interval;
-				new_data.healthDrain.badPlaceHealth = std::numeric_limits<unsigned short>::max(); // h1 places the badplace right away
+				new_data.healthDrain.badPlaceHealth = std::numeric_limits<unsigned short>::max();
 				new_data.healthDrain.badPlaceHeight = 64;
 				new_data.healthDrain.badPlaceRadius = data.healthDrain.badPlaceRadius;
-				new_data.healthDrain.streamIndex = streams.allocate(health_drain_stream_size);
+				new_data.healthDrain.streamIndex = streams.allocate(8);
 				return true;
 			case SCRIPTABLE_EVENT_PHYSICSLAUNCH:
 				new_event.type = zonetool::s2::SCRIPTABLE_EVENT_PHYSICSLAUNCH;
@@ -172,7 +127,7 @@ namespace zonetool::h1::converter::s2::scriptable
 				}
 
 				new_data.lightSettings.lightIndexConstIndex = data.lightSettings.lightIndexConstIndex;
-				new_data.lightSettings.transStateStreamIndex = streams.allocate(light_stream_size);
+				new_data.lightSettings.transStateStreamIndex = streams.allocate(0x28);
 				new_data.lightSettings.flags = data.lightSettings.flags;
 				new_data.lightSettings.intensityScaleMin = data.lightSettings.intensityScaleMin;
 				new_data.lightSettings.intensityScaleMax = data.lightSettings.intensityScaleMax;
@@ -189,9 +144,8 @@ namespace zonetool::h1::converter::s2::scriptable
 					new_data.sunlightSettings.color[i] = data.sunlightSettings.color[i] / 255.0f;
 				}
 
-				new_data.sunlightSettings.transStateStreamIndex = streams.allocate(sunlight_stream_size);
+				new_data.sunlightSettings.transStateStreamIndex = streams.allocate(0x38);
 				new_data.sunlightSettings.flags = data.sunlightSettings.flags;
-				// s2 scales the intensity by 0.001 * 1000, so the h1 values carry over
 				new_data.sunlightSettings.intensityScaleMin = data.sunlightSettings.intensityScaleMin;
 				new_data.sunlightSettings.intensityScaleMax = data.sunlightSettings.intensityScaleMax;
 				new_data.sunlightSettings.pitchMin = data.sunlightSettings.pitchMin;
@@ -206,7 +160,7 @@ namespace zonetool::h1::converter::s2::scriptable
 				new_event.type = event.type == SCRIPTABLE_EVENT_TRANSLATE ? zonetool::s2::SCRIPTABLE_EVENT_TRANSLATE : zonetool::s2::SCRIPTABLE_EVENT_ROTATE;
 				static_assert(sizeof(new_data.translate) == sizeof(data.translate) && sizeof(new_data.rotate) == sizeof(data.rotate));
 				std::memcpy(&new_data.translate, &data.translate, sizeof(data.translate));
-				new_data.translate.transStateStreamIndex = streams.allocate(transform_stream_size);
+				new_data.translate.transStateStreamIndex = streams.allocate(0x20);
 				return true;
 			case SCRIPTABLE_EVENT_SHAKE:
 				new_event.type = zonetool::s2::SCRIPTABLE_EVENT_SHAKE;
@@ -216,7 +170,7 @@ namespace zonetool::h1::converter::s2::scriptable
 			case SCRIPTABLE_EVENT_STATECHANGE:
 				new_event.type = zonetool::s2::SCRIPTABLE_EVENT_STATECHANGE;
 				new_data.stateChange.targetIndex = data.stateChange.targetIndex;
-				new_data.stateChange.delayStreamIndex = streams.allocate(time_stream_size);
+				new_data.stateChange.delayStreamIndex = streams.allocate(4);
 				new_data.stateChange.delayMin = data.stateChange.delayMin;
 				new_data.stateChange.delayMax = data.stateChange.delayMax;
 				return true;
@@ -277,8 +231,8 @@ namespace zonetool::h1::converter::s2::scriptable
 			stream_allocator streams{stream_base, stream_base, 0};
 			if (has_state_change(part))
 			{
-				new_part.eventStreamTimeRemainIndex = streams.allocate(time_stream_size);
-				new_part.eventStreamNextChangeTimeIndex = streams.allocate(time_stream_size);
+				new_part.eventStreamTimeRemainIndex = streams.allocate(4);
+				new_part.eventStreamNextChangeTimeIndex = streams.allocate(4);
 			}
 
 			const auto state_base = streams.cursor;
@@ -287,7 +241,7 @@ namespace zonetool::h1::converter::s2::scriptable
 			new_part.states = allocator.allocate_array<zonetool::s2::ScriptableStateDef>(part.stateCount);
 			for (auto i = 0; i < part.stateCount; i++)
 			{
-				streams.cursor = state_base; // the states of a part never run together, so they share its stream space
+				streams.cursor = state_base;
 				convert_state(ctx, part.states[i], new_part.states[i], streams, allocator);
 			}
 
@@ -434,7 +388,6 @@ namespace zonetool::h1::converter::s2::scriptable
 					def = convert(instance.def, allocator);
 				}
 
-				// the writer reserves these runtime buffers only when they are set
 				new_instance.def = def;
 				new_instance.partRuntime = allocator.allocate_array<char[4]>(def->partCount);
 				new_instance.eventStreamBuffer = def->eventStreamSize ? allocator.allocate_array<unsigned char>(def->eventStreamSize) : nullptr;
@@ -464,18 +417,17 @@ namespace zonetool::h1::converter::s2::scriptable
 
 	void finish()
 	{
-		// s2 looks map anims up in the "destructibles" tree, so missing ones go into a copy of it
 		if (map_anims.empty())
 		{
 			return;
 		}
 
 		const auto& common = stock_zone::common_rawfiles();
-		const auto stock_tree = common.find(std::string(anim_tree_name));
+		const auto stock_tree = common.find("animtrees/destructibles.atr");
 		auto tree = stock_tree != common.end() ? stock_tree->second : std::string{};
 		if (tree.empty())
 		{
-			ZONETOOL_WARNING("%s not found in s2 common_mp, scriptable anims are not added", anim_tree_name.data());
+			ZONETOOL_WARNING("animtrees/destructibles.atr not found in s2 common_mp, scriptable anims are not added");
 			map_anims.clear();
 			return;
 		}
@@ -512,9 +464,9 @@ namespace zonetool::h1::converter::s2::scriptable
 		}
 
 		tree += "\n";
-		zonetool::s2::RawFile new_asset{anim_tree_override.data(), 0, static_cast<int>(tree.size()), tree.data()};
+		zonetool::s2::RawFile new_asset{"override/animtrees/destructibles.atr", 0, static_cast<int>(tree.size()), tree.data()};
 		zonetool::s2::rawfile::dump(&new_asset);
-		add_csv_row("rawfile", anim_tree_override);
+		add_csv_row("rawfile", "override/animtrees/destructibles.atr");
 	}
 
 	void dump(ScriptableDef* asset)

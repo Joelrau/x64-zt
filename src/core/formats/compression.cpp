@@ -217,7 +217,6 @@ namespace compression
 	namespace
 	{
 		constexpr std::size_t zlib_chunk_size = 0x400000;
-		constexpr std::size_t zlib_window_size = 0x8000;
 		constexpr std::uint8_t zlib_header[] = {0x78, 0xDA};
 
 		std::vector<std::uint8_t> deflate_raw_chunk(const std::uint8_t* data, const std::size_t size, const std::size_t dictionary_size, const bool last)
@@ -267,7 +266,7 @@ namespace compression
 				{
 					const auto offset = index * zlib_chunk_size;
 					const auto chunk_size = std::min(zlib_chunk_size, size - offset);
-					const auto dictionary_size = std::min(offset, zlib_window_size);
+					const auto dictionary_size = std::min(offset, static_cast<std::size_t>(0x8000));
 					chunks[index] = deflate_raw_chunk(data + offset, chunk_size, dictionary_size, index + 1 == chunk_count);
 				}
 			};

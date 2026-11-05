@@ -75,7 +75,6 @@ namespace zonetool::iw6
 								new_event->data.lightSettings.color[3] = event->data.lightSettings.color[3];
 								new_event->data.lightSettings.lightIndexConstIndex = event->data.lightSettings.lightIndexConstIndex;
 								new_event->data.lightSettings.transStateStreamIndex = event->data.lightSettings.transStateStreamIndex;
-								// iw6 ScriptableCl_DoEventLightSettings: two bools and u16 / 655.35 intensity, h1 1.4 sub_14042EBA0: flags 1 color, 2 wait for the transition and float intensity
 								new_event->data.lightSettings.flags = (event->data.lightSettings.useColor ? 1 : 0) | (event->data.lightSettings.useStateTransitionTime ? 2 : 0);
 								new_event->data.lightSettings.__pad0 = 0;
 								new_event->data.lightSettings.intensityScaleMin = event->data.lightSettings.intensityScaleMin / 655.35f;

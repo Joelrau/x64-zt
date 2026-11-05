@@ -137,7 +137,6 @@ namespace zonetool::iw7
 			return text;
 		}
 
-		// a converter may replace <name>.csv with its build list in finish, the source listing stays in <name>.<source>.csv
 		void write_asset_csv(const loaded_zone& zone, const converter* converter)
 		{
 			const auto text = asset_csv(zone.assets);

@@ -18,13 +18,6 @@ namespace zonetool::s2
 	{
 		using image_pak::toc_entry;
 
-		struct image_stream_location
-		{
-			std::filesystem::path pak;
-			std::uint64_t offset;
-			std::uint32_t size;
-		};
-
 		struct image_stream_entry
 		{
 			std::filesystem::path folder;
@@ -183,9 +176,6 @@ namespace zonetool::s2
 			DXGI_FORMAT_R32G32B32A32_UINT,
 		};
 
-		constexpr std::uint8_t default_image_semantic = 2;
-		constexpr std::uint8_t image_category_load_from_file = 3;
-
 		DXGI_FORMAT dxgi_format_from_index(const std::uint32_t index)
 		{
 			return index < std::size(image_formats) ? image_formats[index] : DXGI_FORMAT_UNKNOWN;
@@ -263,8 +253,8 @@ namespace zonetool::s2
 			image->height = static_cast<unsigned short>(metadata.height);
 			image->depth = static_cast<unsigned short>(metadata.depth);
 			image->levelCount = static_cast<unsigned char>(metadata.mipLevels);
-			image->semantic = default_image_semantic;
-			image->category = image_category_load_from_file;
+			image->semantic = TS_COLOR_MAP;
+			image->category = IMG_CATEGORY_LOAD_FROM_FILE;
 
 			if (metadata.IsCubemap())
 			{
@@ -437,7 +427,6 @@ namespace zonetool::s2
 
 			if (is_streamed_image(image))
 			{
-				// separate storage per key, the dumper writes a pointer it has seen before as a reference to the first one
 				std::array<XStreamFileKey, image_stream_count> keys{};
 				std::ranges::copy(get_image_stream_keys(image) | std::views::take(image_stream_count), keys.begin());
 				for (auto& key : keys)
@@ -478,8 +467,7 @@ namespace zonetool::s2
 			asset->name = read.read_string();
 			asset->pixelData = asset->pixelData && asset->dataLen1 ? read.read_array<unsigned char>() : nullptr;
 
-			// backwards compatibility with older h1_s2 images that copied the second H1 picmip byte into streamed
-			if (asset->streamed && !asset->streams[0].width)
+			if (asset->streamed && !asset->streams[0].width) // old h1_s2 dumps
 			{
 				asset->streamed = 0;
 			}
@@ -491,8 +479,7 @@ namespace zonetool::s2
 					auto& key = this->parsed_stream_keys_[i];
 					key = *read.read_single<XStreamFileKey>();
 
-					// older dumps wrote keys 1-3 as references to key 0, a toc key always looks up its own stream of the entry
-					if (is_toc_stream(key))
+					if (is_toc_stream(key)) // old dumps
 					{
 						key.index = static_cast<std::uint16_t>(i);
 					}

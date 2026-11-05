@@ -281,9 +281,9 @@ namespace zonetool::s2
 		STREAM_SRC_TEXCOORD_0 = 2,
 		STREAM_SRC_NORMAL = 3,
 		STREAM_SRC_TANGENT = 4,
-		STREAM_SRC_WIND = 5, // "ec1", the per vertex foliage sway weights
+		STREAM_SRC_WIND = 5,
 		STREAM_SRC_LIGHTMAP = 6,
-		STREAM_SRC_TEXEL_DENSITY = 7, // "ed" in world vertex decls
+		STREAM_SRC_TEXEL_DENSITY = 7,
 		STREAM_SRC_VERTEX_LIGHTING_VISIBILITY = 13,
 		STREAM_SRC_VERTEX_LIGHTING_AMBIENT = 14,
 		STREAM_SRC_VERTEX_LIGHTING_HIGHLIGHT = 15,
@@ -306,7 +306,7 @@ namespace zonetool::s2
 		unsigned char source;
 		unsigned char dest;
 		unsigned char mask;
-		unsigned char slot; // stock stores the routing index, no reader found
+		unsigned char slot;
 	};
 
 	struct MaterialVertexStreamRouting
@@ -597,26 +597,27 @@ namespace zonetool::s2
 		CUSTOM_BUFFER_PER_OBJECT = 0x2,
 		CUSTOM_BUFFER_PER_STABLE = 0x8,
 		CUSTOM_BUFFER_MATERIAL = 0x10,
-		CUSTOM_BUFFER_INSTANCE_MATRICES = 0x8000, // 8 cb7 rows per instance
-		CUSTOM_BUFFER_INSTANCE_MATRICES_LIGHTING = 0x10000, // 9 cb7 rows per instance, row 8 .x is the model lighting index
-		CUSTOM_BUFFER_SLF = 0x40000, // binds cb5
-		CUSTOM_BUFFER_FORWARD_LIGHTS = 0xC0, // pixel shader t16 light records and t17 spot shadow records
-		CUSTOM_BUFFER_LIGHT_TILE_ZBINS = 0x100000, // pixel shader t25 light z bins
-		CUSTOM_BUFFER_LIGHT_CLUSTER_BITS = 0x200000, // pixel shader t24 froxel light bits
-		CUSTOM_BUFFER_LIGHT_TILE_BITS = 0x400000, // pixel shader t23 light bits of each 8x8 pixel tile
+		CUSTOM_BUFFER_INSTANCE_MATRICES = 0x8000,
+		CUSTOM_BUFFER_INSTANCE_MATRICES_LIGHTING = 0x10000,
+		CUSTOM_BUFFER_SKINNED = 0x20000,
+		CUSTOM_BUFFER_SLF = 0x40000,
+		CUSTOM_BUFFER_FORWARD_LIGHTS = 0xC0,
+		CUSTOM_BUFFER_LIGHT_TILE_ZBINS = 0x100000,
+		CUSTOM_BUFFER_LIGHT_CLUSTER_BITS = 0x200000,
+		CUSTOM_BUFFER_LIGHT_TILE_BITS = 0x400000,
 
-		CUSTOM_BUFFER_FORWARD_LIGHTING = 0x5000C0, // FORWARD_LIGHTS | LIGHT_TILE_BITS | LIGHT_TILE_ZBINS
-		CUSTOM_BUFFER_LIGHT_GRID_VOLUME = 0x3800000, // vertex shader t5 index table, t6 transforms, t7 volumes
-		CUSTOM_BUFFER_LIGHT_GRID_PROBES = 0xC000000, // probe buffer t8 of the "lgv0d" passes
-		CUSTOM_BUFFER_SPRITES = 0x80000000, // raw t12 with the 64 byte fx sprite records
+		CUSTOM_BUFFER_FORWARD_LIGHTING = 0x5000C0,
+		CUSTOM_BUFFER_LIGHT_GRID_VOLUME = 0x3800000,
+		CUSTOM_BUFFER_LIGHT_GRID_PROBES = 0xC000000,
+		CUSTOM_BUFFER_SPRITES = 0x80000000,
 	};
 	static_assert(CUSTOM_BUFFER_FORWARD_LIGHTING == (CUSTOM_BUFFER_FORWARD_LIGHTS | CUSTOM_BUFFER_LIGHT_TILE_BITS | CUSTOM_BUFFER_LIGHT_TILE_ZBINS));
 
 	enum CustomSamplerFlags : std::uint8_t
 	{
-		CUSTOM_SAMPLER_FLAG_USE_REFLECTION_PROBE = 0x1, // pixel shader t1
-		CUSTOM_SAMPLER_FLAG_USE_LIGHTMAP_PRIMARY = 0x2, // pixel shader t2
-		CUSTOM_SAMPLER_FLAG_USE_LIGHTMAP_SECONDARY = 0x4, // pixel shader t3
+		CUSTOM_SAMPLER_FLAG_USE_REFLECTION_PROBE = 0x1,
+		CUSTOM_SAMPLER_FLAG_USE_LIGHTMAP_PRIMARY = 0x2,
+		CUSTOM_SAMPLER_FLAG_USE_LIGHTMAP_SECONDARY = 0x4,
 	};
 
 	enum MaterialPassModelVertexType : unsigned char
@@ -625,8 +626,8 @@ namespace zonetool::s2
 		MODEL_VERTEX_TYPE_INSTANCE_DATA = 1,
 		MODEL_VERTEX_TYPE_VERTEX_LIGHTING = 2,
 		MODEL_VERTEX_TYPE_LIGHTMAP = 3,
-		MODEL_VERTEX_TYPE_SELF_VISIBILITY = 4, // also uploads the light grid per prim constants
-		MODEL_VERTEX_TYPE_PREV_FRAME = 5, // also uploads the previous frame world matrix
+		MODEL_VERTEX_TYPE_SELF_VISIBILITY = 4,
+		MODEL_VERTEX_TYPE_PREV_FRAME = 5,
 	};
 
 	struct MaterialPass
@@ -695,7 +696,6 @@ namespace zonetool::s2
 		TECHNIQUE_EMISSIVE_DFOG = 12,
 		TECHNIQUE_EMISSIVE_SHADOW = 13,
 		TECHNIQUE_EMISSIVE_SHADOW_DFOG = 14,
-		// the light grid source adds 0 (probe buffer), 4 (2d array) or 8 (3d volume), odd slots are the alfog variants
 		TECHNIQUE_LIT = 15,
 		TECHNIQUE_LIT_ALFOG = 16,
 		TECHNIQUE_LIT_UNK_17 = 17,
@@ -722,7 +722,6 @@ namespace zonetool::s2
 
 	constexpr auto technique_count = 114;
 
-	// same formats as h1
 	enum MaterialWorldVertexFormat : std::int32_t
 	{
 		MTL_WORLDVERT_T1 = 0x0,
@@ -1147,30 +1146,30 @@ namespace zonetool::s2
 
 	enum NetConstStringType
 	{
-		NETCONSTSTRINGTYPE_XMODEL = 0, // mdl
-		NETCONSTSTRINGTYPE_MATERIAL = 1, // mat
-		NETCONSTSTRINGTYPE_RUMBLE = 2, // rmb
-		NETCONSTSTRINGTYPE_VEHICLES = 3, // veh
-		NETCONSTSTRINGTYPE_FX = 4, // vfx
-		NETCONSTSTRINGTYPE_LOCSTRING = 5, // loc
-		NETCONSTSTRINGTYPE_SOUNDALIAS = 6, // snd
-		NETCONSTSTRINGTYPE_SUBMIX = 7, // sbx
-		NETCONSTSTRINGTYPE_SHOCK = 8, // shk
-		NETCONSTSTRINGTYPE_SCRIPTMENU = 9, // mnu
-		NETCONSTSTRINGTYPE_CLIENT_TAGS = 10, // tag
-		NETCONSTSTRINGTYPE_POR = 11, // por, read by an agent script function
-		NETCONSTSTRINGTYPE_HEADICON = 12, // hic
-		NETCONSTSTRINGTYPE_NAMEPLATE = 13, // nps
-		NETCONSTSTRINGTYPE_MINIMAPICON = 14, // mic
-		NETCONSTSTRINGTYPE_LOCSELMAT = 15, // sel
-		NETCONSTSTRINGTYPE_WEAPON = 16, // wep
-		NETCONSTSTRINGTYPE_ATTACHMENT = 17, // att
-		NETCONSTSTRINGTYPE_HINTSTRING = 18, // hnt
-		NETCONSTSTRINGTYPE_ANIM = 19, // anm
-		NETCONSTSTRINGTYPE_ANIMCLASS = 20, // acl
-		NETCONSTSTRINGTYPE_LUI = 21, // lui
-		NETCONSTSTRINGTYPE_LASER = 22, // lsr
-		NETCONSTSTRINGTYPE_CLIENT_SCRIPT_STRING = 23, // css, notify names passed to lua
+		NETCONSTSTRINGTYPE_XMODEL = 0,
+		NETCONSTSTRINGTYPE_MATERIAL = 1,
+		NETCONSTSTRINGTYPE_RUMBLE = 2,
+		NETCONSTSTRINGTYPE_VEHICLES = 3,
+		NETCONSTSTRINGTYPE_FX = 4,
+		NETCONSTSTRINGTYPE_LOCSTRING = 5,
+		NETCONSTSTRINGTYPE_SOUNDALIAS = 6,
+		NETCONSTSTRINGTYPE_SUBMIX = 7,
+		NETCONSTSTRINGTYPE_SHOCK = 8,
+		NETCONSTSTRINGTYPE_SCRIPTMENU = 9,
+		NETCONSTSTRINGTYPE_CLIENT_TAGS = 10,
+		NETCONSTSTRINGTYPE_POR = 11,
+		NETCONSTSTRINGTYPE_HEADICON = 12,
+		NETCONSTSTRINGTYPE_NAMEPLATE = 13,
+		NETCONSTSTRINGTYPE_MINIMAPICON = 14,
+		NETCONSTSTRINGTYPE_LOCSELMAT = 15,
+		NETCONSTSTRINGTYPE_WEAPON = 16,
+		NETCONSTSTRINGTYPE_ATTACHMENT = 17,
+		NETCONSTSTRINGTYPE_HINTSTRING = 18,
+		NETCONSTSTRINGTYPE_ANIM = 19,
+		NETCONSTSTRINGTYPE_ANIMCLASS = 20,
+		NETCONSTSTRINGTYPE_LUI = 21,
+		NETCONSTSTRINGTYPE_LASER = 22,
+		NETCONSTSTRINGTYPE_CLIENT_SCRIPT_STRING = 23,
 		NETCONSTSTRINGTYPE_ASSET_COUNT = 24,
 	};
 
@@ -1244,6 +1243,11 @@ namespace zonetool::s2
 		TS_EMISSIVE_MAP = 0x11,
 	};
 
+	enum IMG_CATEGORY : std::uint8_t
+	{
+		IMG_CATEGORY_LOAD_FROM_FILE = 0x3,
+	};
+
 	struct GfxImage
 	{
 		const char* name;
@@ -1262,7 +1266,7 @@ namespace zonetool::s2
 		unsigned char flags;
 		unsigned char levelCount;
 		unsigned char picmip;
-		unsigned char streamed; // the engine reads 4 stream keys for each image that has this set
+		unsigned char streamed;
 		char __pad0[1];
 	};
 	static_assert(sizeof(GfxImage) == 0x60);
@@ -1276,7 +1280,7 @@ namespace zonetool::s2
 	struct PhysPresetEffect
 	{
 		const char* name;
-		FxEffectDef* effect; // runtime
+		FxEffectDef* effect;
 	};
 
 	struct PhysPreset
@@ -1295,8 +1299,8 @@ namespace zonetool::s2
 		bool continuousCollisionAgainstKinematic;
 		bool continuousCollision;
 		unsigned short impactEffectMask;
-		PhysPresetEffect impactEffects[4]; // aerial, small, medium, large
-		float impactEffectThresholds[4]; // [0] min impact speed, [1..3] min body volume
+		PhysPresetEffect impactEffects[4];
+		float impactEffectThresholds[4];
 		SndPhysPreset* sndPhysPreset;
 	};
 	static_assert(sizeof(PhysPreset) == 0x88);
@@ -1342,7 +1346,7 @@ namespace zonetool::s2
 
 	struct SoundFileTocEntry
 	{
-		unsigned long long hash[2]; // the game uses only hash[0]
+		unsigned long long hash[2];
 		unsigned long long offset;
 		unsigned int size;
 		unsigned short fileIndex;
@@ -1398,7 +1402,7 @@ namespace zonetool::s2
 	{
 		LoadedSound* loadedPart;
 		LoadedSoundStreamInfo streamedPart;
-		int dataOffset; // stream reads start at this offset + the loaded part size
+		int dataOffset;
 		int unused52;
 	};
 	static_assert(sizeof(PrimedSound) == 0x38);
@@ -1444,7 +1448,7 @@ namespace zonetool::s2
 		SND_ALIAS_FLAG_PAUSABLE = 0x100,
 		SND_ALIAS_FLAG_USE_CONTEXT_LIST = 0x800,
 		SND_ALIAS_FLAG_DMONO = 0x1000,
-		SND_ALIAS_FLAG_TYPE_MASK = 0x70000, // SoundFileType << 16
+		SND_ALIAS_FLAG_TYPE_MASK = 0x70000,
 	};
 
 	enum SndVariationType : std::uint8_t
@@ -1668,7 +1672,7 @@ namespace zonetool::s2
 		const char* chainAliasName;
 		SoundFile* soundFile;
 		const char* squelchName;
-		int subtitleFlags; // 1 forced color, 2 eavesdrop (shown only near the speaker)
+		int subtitleFlags;
 		short polyCount;
 		unsigned char dspBusIndex;
 		unsigned char priority;
@@ -1682,7 +1686,7 @@ namespace zonetool::s2
 		float distMin;
 		float distMax;
 		float velocityMin;
-		int flags; // SndAliasFlags
+		int flags;
 		unsigned char masterPriority;
 		float masterPercentage;
 		float slavePercentage;
@@ -1712,7 +1716,7 @@ namespace zonetool::s2
 		int normalize;
 		int lockedLoopTime;
 		int unused244;
-		SndAliasParameterModifier* parameterModifiers[8]; // 0-5 vol, pitch and dist min and max, 6 position offset, 7 playbackPercentage
+		SndAliasParameterModifier* parameterModifiers[8];
 		SndParameterModifierOp parameterModifierOps[8];
 		int length;
 		int unused324;
@@ -1813,7 +1817,7 @@ namespace zonetool::s2
 
 	union PathNodeParentUnion
 	{
-		scr_string_t name; // until parentIndexResolved
+		scr_string_t name;
 		unsigned short index;
 	};
 
@@ -1854,10 +1858,9 @@ namespace zonetool::s2
 		unsigned short infoIndex;
 	};
 
-	// runtime only, zero in zones
 	struct pathnode_dynamic_t
 	{
-		SentientHandle pOwner[3]; // per team
+		SentientHandle pOwner[3];
 		char __pad0[4];
 		int iFreeTime;
 		char __pad1[2];
@@ -1923,8 +1926,8 @@ namespace zonetool::s2
 		int noPeekVisBytes;
 		unsigned char* pathNoPeekVis;
 		int zoneCount;
-		char __pad0[4]; // h1 zonesBytes, 0 in s2
-		unsigned short* pathZones; // nodeCount entries when zoneCount
+		char __pad0[4];
+		unsigned short* pathZones;
 		int dynStatesBytes;
 		unsigned char* pathDynStates;
 	};
@@ -1950,54 +1953,61 @@ namespace zonetool::s2
 		CAMERA_REGION_LIT_DECAL = 0x2,
 		CAMERA_REGION_LIT_TRANS = 0x4,
 		CAMERA_REGION_EMISSIVE = 0x5,
-		CAMERA_REGION_POST_TAA = 0x8, // weapon reticles
+		CAMERA_REGION_POST_TAA = 0x8,
 		CAMERA_REGION_NONE = 0x9,
 	};
 
 	enum MaterialRenderFlags : std::uint32_t
 	{
-		MTL_RENDER_FLAG_BLUR_DISTORTION = 0x4, // blurdst techsets and ui blur backgrounds
-		MTL_RENDER_FLAG_DEPTH_HACK_DOF = 0x8, // view model lenses and reticles stay in focus with ads dof
-		MTL_RENDER_FLAG_WIND_SWAY = 0x80, // fwa techsets, model surfaces draw the velocity zprepass
-		MTL_RENDER_FLAG_DEPTH_HACK_MASK = 0x100, // post taa reticles
-		MTL_RENDER_FLAG_VERTEX_ANIM = 0x1000, // flag wave techsets, every surface draws the velocity zprepass
-		MTL_RENDER_FLAG_FLOATZ_RESOLVE = 0x2000, // $floatz is resolved again after the emissive list
-		MTL_RENDER_FLAG_REFRACTION = 0x4000, // refract techsets, the scene is copied before the emissive list
+		MTL_RENDER_FLAG_BLUR_DISTORTION = 0x4,
+		MTL_RENDER_FLAG_DEPTH_HACK_DOF = 0x8,
+		MTL_RENDER_FLAG_WIND_SWAY = 0x80,
+		MTL_RENDER_FLAG_DEPTH_HACK_MASK = 0x100,
+		MTL_RENDER_FLAG_VERTEX_ANIM = 0x1000,
+		MTL_RENDER_FLAG_FLOATZ_RESOLVE = 0x2000,
+		MTL_RENDER_FLAG_REFRACTION = 0x4000,
 	};
 
 	enum MaterialSortBits : std::uint8_t
 	{
-		MTL_SORT_DISPLACEMENT_TRANSITION = 0x1, // MTL_FLAG_DISPLACEMENT_TRANSITION
+		MTL_SORT_DISPLACEMENT_TRANSITION = 0x1,
 		MTL_SORT_CULL_BACK = 0x2,
 		MTL_SORT_NO_DEPTH_WRITE = 0x4,
 		MTL_SORT_ALPHA_TESTED = 0x8,
 		MTL_SORT_BLENDED = 0x10,
-		MTL_SORT_NOT_LIT = 0x20, // not with MTL_RENDER_FLAG_BLUR_DISTORTION
+		MTL_SORT_NOT_LIT = 0x20,
 		MTL_SORT_UNLIT = 0x40,
-		MTL_SORT_LIT = 0x80, // not with game flag 0x2
+		MTL_SORT_LIT = 0x80,
 	};
 
-	struct MaterialSortData // compared as three u32 when the game sorts materials
+	struct MaterialSortData
 	{
-		unsigned char bits; // MaterialSortBits
-		unsigned char sortKey; // copy of MaterialInfo::sortKey
+		unsigned char bits;
+		unsigned char sortKey;
 		char __pad0[2];
-		unsigned int pixelShaderCrc; // microCodeCrc of the first lit (else emissive) pass, 0 when unlit
+		unsigned int pixelShaderCrc;
 		unsigned int vertexShaderCrc;
 	};
 	static_assert(sizeof(MaterialSortData) == 12);
 
 	enum MaterialWaterFlags : std::uint16_t
 	{
-		MTL_WATER_DISPLACED = 0x1, // displace techsets, surfaces get traced
-		MTL_WATER_UNK_2 = 0x2, // ocean techsets, not read
-		MTL_WATER_FLOW_MAP = 0x4, // flowdocean techsets
-		MTL_WATER_UNK_8 = 0x8, // ocean techsets, not read
-		MTL_WATER_ATLAS = 0x10, // ocean techsets, displacement maps are atlases sampled per frame
-		MTL_WATER_FAR_MAP = 0x20, // far techsets, adds the far displacement map
-		MTL_WATER_TEXCOORDS = 0x40, // tcac techsets, displacement uv = vertex texcoords instead of world xy
-		MTL_WATER_FRAME_BLEND = 0x80, // blends two atlas frames
-		MTL_WATER_NORMAL_STEP_MASK = 0x1C00, // 1-4: hit normal from 4 rays 1/16, 1/8, 1/4, 1/2 unit apart, else 1
+		MTL_WATER_DISPLACED = 0x1,
+		MTL_WATER_UNK_2 = 0x2,
+		MTL_WATER_FLOW_MAP = 0x4,
+		MTL_WATER_UNK_8 = 0x8,
+		MTL_WATER_ATLAS = 0x10,
+		MTL_WATER_FAR_MAP = 0x20,
+		MTL_WATER_TEXCOORDS = 0x40,
+		MTL_WATER_FRAME_BLEND = 0x80,
+		MTL_WATER_NORMAL_STEP_MASK = 0x1C00,
+	};
+
+	enum MaterialSortKey : std::uint8_t
+	{
+		MTL_SORTKEY_OPAQUE = 4,
+		MTL_SORTKEY_SKY = 6,
+		MTL_SORTKEY_TRANS_BEGIN = 22,
 	};
 
 	enum MaterialPrepassClass : unsigned char
@@ -2013,20 +2023,20 @@ namespace zonetool::s2
 		unsigned char gameFlags;
 		MaterialPrepassClass prepassClass;
 		unsigned char sortKey;
-		unsigned char unused; // 0 in stock
+		unsigned char unused;
 		unsigned char textureAtlasRowCount;
 		unsigned char textureAtlasColumnCount;
 		unsigned char textureAtlasFrameBlend;
 		unsigned char textureAtlasAsArray;
-		unsigned char textureAtlasFps; // 0 = the default
+		unsigned char textureAtlasFps;
 		char __pad0;
-		unsigned short waterFlags; // MaterialWaterFlags
-		unsigned int renderFlags; // MaterialRenderFlags
+		unsigned short waterFlags;
+		unsigned int renderFlags;
 		MaterialSortData sortData;
-		unsigned short sortedIndex; // runtime: position in the material sort, the material index of the draw surfs
-		unsigned char tessellation; // 3 = tessellated within r_tessellationCutoffDistance, 2/4 = no-tess techniques
+		unsigned short sortedIndex;
+		unsigned char tessellation;
 		char __pad1;
-		std::uint64_t surfaceTypeBits; // 1 << (surface type - 1), like h1
+		std::uint64_t surfaceTypeBits;
 	};
 	static_assert(sizeof(MaterialInfo) == 0x30);
 	static_assert(offsetof(MaterialInfo, sortKey) == 10);
@@ -2062,6 +2072,11 @@ namespace zonetool::s2
 		float literal[4];
 	};
 	static_assert(sizeof(MaterialConstantDef) == 0x20);
+
+	enum GfxStateBitRawBits3 : std::uint32_t
+	{
+		GFXS3_BLEND_CLASS_SHIFT = 26,
+	};
 
 	struct GfxStateBits
 	{
@@ -2101,23 +2116,23 @@ namespace zonetool::s2
 
 	enum MaterialTypeBits : std::uint32_t
 	{
-		MTL_TYPE_BIT_MODEL = 0x1, // m
-		MTL_TYPE_BIT_WORLD = 0x2, // w
-		MTL_TYPE_BIT_X = 0x4, // x: fx particles and sprites
-		MTL_TYPE_BIT_V = 0x8, // v
-		MTL_TYPE_BIT_LIGHTMAP = 0x10, // l: lightmapped models and xl
-		MTL_TYPE_BIT_EFFECT = 0x40, // e
-		MTL_TYPE_BIT_VERTCOL = 0x100, // c
-		MTL_TYPE_BIT_O = 0x400, // o
-		MTL_TYPE_BIT_U = 0x8000, // u
-		MTL_TYPE_BIT_K = 0x10000, // k
+		MTL_TYPE_BIT_MODEL = 0x1,
+		MTL_TYPE_BIT_WORLD = 0x2,
+		MTL_TYPE_BIT_X = 0x4,
+		MTL_TYPE_BIT_V = 0x8,
+		MTL_TYPE_BIT_LIGHTMAP = 0x10,
+		MTL_TYPE_BIT_EFFECT = 0x40,
+		MTL_TYPE_BIT_VERTCOL = 0x100,
+		MTL_TYPE_BIT_O = 0x400,
+		MTL_TYPE_BIT_U = 0x8000,
+		MTL_TYPE_BIT_K = 0x10000,
 	};
 
 	enum MaterialFlags : std::uint8_t
 	{
-		MTL_FLAG_VERTEX_DISPLACEMENT = 0x2, // every "vdh" techset
-		MTL_FLAG_PAINTSHOP = 0x8, // "ptshp" techsets, camo-able weapon materials
-		MTL_FLAG_DISPLACEMENT_TRANSITION = 0x20, // "*_nodisplacement_transition" world materials, only with 0x2
+		MTL_FLAG_VERTEX_DISPLACEMENT = 0x2,
+		MTL_FLAG_PAINTSHOP = 0x8,
+		MTL_FLAG_DISPLACEMENT_TRANSITION = 0x20,
 	};
 
 	struct Material
@@ -2133,13 +2148,13 @@ namespace zonetool::s2
 		unsigned char stateBitsCount;
 		unsigned char stateFlags;
 		unsigned char cameraRegion;
-		unsigned char unused1; // 0 in stock
-		unsigned int materialType; // MaterialTypeBits
-		unsigned char flags; // MaterialFlags
+		unsigned char unused1;
+		unsigned int materialType;
+		unsigned char flags;
 		unsigned char constantBufferCount;
 		unsigned char layerCount;
-		unsigned char unused2; // 0 in stock
-		std::uint64_t unused3; // 0 in stock
+		unsigned char unused2;
+		std::uint64_t unused3;
 		MaterialTechniqueSet* techniqueSet;
 		MaterialTextureDef* textureTable;
 		MaterialConstantDef* constantTable;
@@ -2197,8 +2212,8 @@ namespace zonetool::s2
 		float area;
 		float inertiaMoments[3];
 		float inertiaProducts[3];
-		unsigned int collisionFlags; // same masks as dmMeshTriangle::collisionFlags
-		unsigned int surfaceType; // one per polytope
+		unsigned int collisionFlags;
+		unsigned int surfaceType;
 	};
 	static_assert(sizeof(dmPolytopeData) == 0x60);
 	static_assert(offsetof(dmPolytopeData, vertexCount) == 44);
@@ -2243,7 +2258,7 @@ namespace zonetool::s2
 			PhysGeomCapsule* capsule;
 		};
 		PhysGeomType type;
-		short partIndex; // into PhysCollmap::parts, -1 for none
+		short partIndex;
 		char __pad0[2];
 	};
 	static_assert(sizeof(PhysGeomInfo) == 0x10);
@@ -2274,7 +2289,7 @@ namespace zonetool::s2
 		unsigned short mins[3];
 		unsigned short maxs[3];
 		unsigned short childBeginIndex;
-		unsigned short childCount; // 0x8000 marks leaf children
+		unsigned short childCount;
 	};
 	static_assert(sizeof(XSurfaceCollisionNode) == 16);
 
@@ -2384,22 +2399,22 @@ namespace zonetool::s2
 		float gravity[4];
 		float wind[4];
 		int solverIterations;
-		float motionFollow; // share of the attachment motion per step, 1 = rigid
-		float distanceStiffness[3]; // blended per distance constraint by its two class weights
+		float motionFollow;
+		float distanceStiffness[3];
 		float bendStiffness;
 		float unk_0x38;
-		float maxAeroDelta; // clamp per particle and step
+		float maxAeroDelta;
 		float vectorFieldWindScale;
-		float aeroMotionScale; // weight of the cloth's own velocity in the airflow
+		float aeroMotionScale;
 		float aeroLift;
-		float damping; // velocities decay by exp(-damping * dt)
-		float maxDistanceScale; // max distance from the skinned position = scale * (level / levels) ^ exponent
+		float damping;
+		float maxDistanceScale;
 		float maxDistanceExponent;
 		float maxDistanceStiffness;
 		float tetherStiffness;
 		float massScale;
-		bool flatBending; // bending constraints ignore their rest angle
-		bool collision; // with the sim's capsules and planes and runtime colliders
+		bool flatBending;
+		bool collision;
 		char __pad0[10];
 	};
 	static_assert(sizeof(PhysClothTuningData) == 0x70);
@@ -2409,7 +2424,7 @@ namespace zonetool::s2
 		const char* name;
 		PhysClothTuningData* data;
 		bool vectorFieldWind;
-		bool playerCollision; // local player only, while it overlaps the bounds
+		bool playerCollision;
 		char __pad0[6];
 	};
 	static_assert(sizeof(PhysClothTuning) == 0x18);
@@ -2441,7 +2456,7 @@ namespace zonetool::s2
 
 	struct XBoneInfo
 	{
-		float bounds[2][3]; // midPoint, halfSize
+		float bounds[2][3];
 		float radiusSquared;
 	};
 	static_assert(sizeof(XBoneInfo) == 28);
@@ -2509,13 +2524,13 @@ namespace zonetool::s2
 		char __pad0[32];
 		int particleCount;
 		int constraint0Count;
-		int fixedParticleCount; // the first particles follow their bones, the rest are simulated
+		int fixedParticleCount;
 		int constraint1Count;
 		int constraint2Count;
-		int motionGroupCount; // particle groups that carry the attachment motion
+		int motionGroupCount;
 		int maxDistanceLevels;
 		int indices2Count;
-		int attachSlotCount; // bone transform slots, filled from the attach bones through indices2
+		int attachSlotCount;
 		int constraint3Count;
 		int constraint4Count;
 		float unk_0x94;
@@ -2599,7 +2614,7 @@ namespace zonetool::s2
 		unsigned short numClientBones;
 		char __pad1[2];
 		float scale;
-		float unkScale[2]; // 1.0 in stock
+		float unkScale[2];
 		char __pad2[56];
 		scr_string_t* boneNames;
 		unsigned short* parentList;
@@ -2610,9 +2625,9 @@ namespace zonetool::s2
 		XModelLodInfo lodInfo[6];
 		unsigned char numLods;
 		char collLod;
-		unsigned char forcedLod; // 0xFE is automatic
+		unsigned char forcedLod;
 		unsigned char lodForMaxViewDist;
-		unsigned short unk_0x26C; // a surface count, the game sizes the callback block with it
+		unsigned short unk_0x26C;
 		unsigned short collSurfCount;
 		char* collSurfs;
 		int contents;
@@ -2621,11 +2636,11 @@ namespace zonetool::s2
 		float radius;
 		float boundsMidPoint[3];
 		float boundsHalfSize[3];
-		float cullSizeScale; // 15 in stock
+		float cullSizeScale;
 		float lodDistScale;
 		float lodDistSq[6];
-		float boundsRadius; // length of boundsHalfSize
-		unsigned char useLodInfoDist; // reads lodInfo[].dist instead
+		float boundsRadius;
+		unsigned char useLodInfoDist;
 		char __pad4[3];
 		unsigned int memUsage;
 		char __pad5[8];
@@ -2637,7 +2652,7 @@ namespace zonetool::s2
 		BlendShapeWeightMap* blendShapeWeightMaps;
 		PhysPreset* physPreset;
 		PhysCollmap* physCollmap;
-		unsigned char unk_0x300; // 1 with physics rigs
+		unsigned char unk_0x300;
 		signed char defaultPhysRigIndex;
 		unsigned char physRigCount;
 		char __pad7[5];
@@ -2650,7 +2665,7 @@ namespace zonetool::s2
 		char __pad8[6];
 		XModelImageRef* imageRefs;
 		SkeletonScript* skeletonScripts[4];
-		float swayParams[4]; // wires and trees only
+		float swayParams[4];
 		char __pad9[2];
 		unsigned short lightingBone;
 		float lightingProbeSpacing;
@@ -2888,10 +2903,10 @@ namespace zonetool::s2
 		FX_EFFECT_NEEDS_POST_RESOLVE_DRAW = 0x100,
 		FX_EFFECT_UNK_9 = 0x200,
 		FX_EFFECT_HAS_ROTATED_SPRITE_ELEM = 0x400,
-		FX_EFFECT_UNK_11 = 0x800, // any elem with FX_ELEM2_UNK_8
-		FX_EFFECT_UNK_12 = 0x1000, // any elem with FX_ELEM2_UNK_19
-		FX_EFFECT_UNK_13 = 0x2000, // any elem with FX_ELEM2_UNK_20
-		FX_EFFECT_UNK_14 = 0x4000, // FX_PlayEffect hands its FX_ELEM_TYPE_UNK_20 elems to cgame
+		FX_EFFECT_UNK_11 = 0x800,
+		FX_EFFECT_UNK_12 = 0x1000,
+		FX_EFFECT_UNK_13 = 0x2000,
+		FX_EFFECT_UNK_14 = 0x4000,
 	};
 
 	enum FxElemType : std::uint8_t
@@ -2915,8 +2930,8 @@ namespace zonetool::s2
 		FX_ELEM_TYPE_DECAL = 16,
 		FX_ELEM_TYPE_RUNNER = 17,
 		FX_ELEM_TYPE_VECTORFIELD = 18,
-		FX_ELEM_TYPE_STRING_19 = 19, // visual is always null
-		FX_ELEM_TYPE_UNK_20 = 20, // no visual, cgame reads its spawn origin and offset radius
+		FX_ELEM_TYPE_STRING_19 = 19,
+		FX_ELEM_TYPE_UNK_20 = 20,
 	};
 
 	enum FxElemDefFlags : std::uint32_t
@@ -2972,25 +2987,25 @@ namespace zonetool::s2
 		FX_ELEM2_EMIT_TRAILS = 0x4,
 		FX_ELEM2_USE_EMISSIVE_DRAW = 0x8,
 		FX_ELEM2_USE_EFFECT_MODEL_COLOR = 0x20,
-		FX_ELEM2_REQUIRES_POST_RESOLVE_DRAW = 0x40, // H2 name
+		FX_ELEM2_REQUIRES_POST_RESOLVE_DRAW = 0x40,
 		FX_ELEM2_DECAL_EXPONENTIAL_FADE_OUT = 0x80,
-		FX_ELEM2_UNK_8 = 0x100, // packs an entity index of the bolted effect into the elem draw bits
+		FX_ELEM2_UNK_8 = 0x100,
 		FX_ELEM2_INHERIT_PARENT_VELOCITY = 0x200,
-		FX_ELEM2_H1_MASK = 0xFF, // bits with the same meaning in H1
+		FX_ELEM2_H1_MASK = 0xFF,
 		FX_ELEM2_UNK_14 = 0x4000,
-		FX_ELEM2_UNK_15 = 0x8000, // sprite batches split on it
+		FX_ELEM2_UNK_15 = 0x8000,
 		FX_ELEM2_UNK_16 = 0x10000,
 		FX_ELEM2_UNK_17 = 0x20000,
 		FX_ELEM2_UNK_18 = 0x40000,
 		FX_ELEM2_UNK_19 = 0x80000,
-		FX_ELEM2_UNK_20 = 0x100000, // runner elems only
-		FX_ELEM2_UNK_21 = 0x200000, // uses FxElemDef::externalVelocityScale
-		FX_ELEM2_UNK_22 = 0x400000, // decal only
-		FX_ELEM2_UNK_23 = 0x800000, // decal only
-		FX_ELEM2_UNK_24 = 0x1000000, // decal only
-		FX_ELEM2_UNK_25 = 0x2000000, // decal only
-		FX_ELEM2_UNK_26 = 0x4000000, // decal only
-		FX_ELEM2_OCCLUSION_QUERY_NO_SCALE = 0x8000000, // skips the occlusion query size scale
+		FX_ELEM2_UNK_20 = 0x100000,
+		FX_ELEM2_UNK_21 = 0x200000,
+		FX_ELEM2_UNK_22 = 0x400000,
+		FX_ELEM2_UNK_23 = 0x800000,
+		FX_ELEM2_UNK_24 = 0x1000000,
+		FX_ELEM2_UNK_25 = 0x2000000,
+		FX_ELEM2_UNK_26 = 0x4000000,
+		FX_ELEM2_OCCLUSION_QUERY_NO_SCALE = 0x8000000,
 	};
 
 	struct FxIntRange
@@ -3046,7 +3061,7 @@ namespace zonetool::s2
 
 	struct FxElemVelStateSample
 	{
-		float vectorFieldScale; // 1 in stock
+		float vectorFieldScale;
 		FxElemVelStateInFrame local;
 		FxElemVelStateInFrame world;
 		FxElemVelStateInFrame parentVelocity;
@@ -3186,11 +3201,10 @@ namespace zonetool::s2
 		unsigned int colorTableSize;
 		unsigned int particleDataCount;
 		bool evalVisStatePerParticle;
-		bool sortParticlesAtRuntime; // the draw clears this on the asset when a frame has more than 8832 particles
+		bool sortParticlesAtRuntime;
 	};
 	static_assert(sizeof(FxParticleSimAnimationHeader) == 0x38);
 
-	// u16 / 65535 of the header bounds (pos), max sizes (size), duration (lifetime) and 2 pi (orientation), orientationDelta is s16 / 32767 of pi
 	struct FxParticleSimAnimationParticleData
 	{
 		unsigned short xNormalizedPos;
@@ -3539,16 +3553,15 @@ namespace zonetool::s2
 	};
 	static_assert(sizeof(TracerDef) == 0x80);
 
-	// h1 GfxWorldVertex with one stream per field
 	struct GfxMapTrZoneData
 	{
 		vec3_t* positions;
-		float* texelDensities; // uv units per world unit, h1 stores it signed in GfxWorldVertex::binormalSign
+		float* texelDensities;
 		unsigned int* colors;
 		vec2_t* texCoords;
 		vec2_t* lmapCoords;
-		unsigned int* normals; // 10:10:10:2 unorm
-		unsigned int* tangents; // 10:10:10:2 unorm, w 3 = binormal is -cross(normal, tangent), w 0 = +cross
+		unsigned int* normals;
+		unsigned int* tangents;
 	};
 	static_assert(sizeof(GfxMapTrZoneData) == 0x38);
 
@@ -3576,7 +3589,7 @@ namespace zonetool::s2
 		char __pad0[4];
 		unsigned int vertexCount;
 		GfxMapTrZoneVertexBuffer vertices;
-		unsigned int vertexLayerDataSize; // GfxSurface::vertexLayerData is a byte offset into vld
+		unsigned int vertexLayerDataSize;
 		char __pad1[4];
 		GfxMapTrZoneVertexLayerData vld;
 	};
@@ -3598,7 +3611,7 @@ namespace zonetool::s2
 
 	struct GfxWrappedBaseBuffer
 	{
-		ID3D11Resource* buffer; // created at load
+		ID3D11Resource* buffer;
 	};
 
 	struct MayhemAnimFramesSplineCompressed
@@ -3858,7 +3871,6 @@ namespace zonetool::s2
 		Spline* spline;
 	};
 
-	// h1 light settings with a float color, the light index is in the instance flags buffer
 	struct ScriptableEventLightSettingsDef
 	{
 		float color[4];
@@ -3967,6 +3979,16 @@ namespace zonetool::s2
 	};
 	static_assert(sizeof(ScriptableEventDef) == 0x40);
 
+	enum ScriptableDamageFlags : unsigned short
+	{
+		SCRIPTABLE_DAMAGE_BULLETS = 0x8F,
+		SCRIPTABLE_DAMAGE_SPLASH = 0x10,
+		SCRIPTABLE_DAMAGE_MELEE = 0x20,
+		SCRIPTABLE_DAMAGE_PLAYER = 0x100,
+		SCRIPTABLE_DAMAGE_AI = 0x200,
+		SCRIPTABLE_DAMAGE_OTHER = 0x400,
+	};
+
 	struct ScriptableStateDef
 	{
 		scr_string_t name;
@@ -4066,7 +4088,7 @@ namespace zonetool::s2
 		unsigned char* data;
 		unsigned int dataSize;
 		scr_string_t name;
-		int loopMode; // 0 once, 1 loop, 2 ping-pong
+		int loopMode;
 		unsigned char pointCount;
 		char __pad0[3];
 	};
@@ -4084,8 +4106,8 @@ namespace zonetool::s2
 	struct PhysWaterPreset
 	{
 		const char* name;
-		float unknownParams[8]; // H1 has 7 here
-		float sharedParams[8]; // same values and order as H1
+		float unknownParams[8];
+		float sharedParams[8];
 		unsigned int sharedFlags;
 		char __pad0[4];
 		FxEffectDef* fx[7];
@@ -4319,6 +4341,11 @@ namespace zonetool::s2
 	};
 	static_assert(sizeof(ClientTriggers) == 0xB0);
 
+	enum ClientTriggerBlendTrigger
+	{
+		CLIENT_TRIGGER_BLEND_NO_TRIGGER = 0x800,
+	};
+
 	struct ClientTriggerBlendNode
 	{
 		float pointA[3];
@@ -4381,7 +4408,6 @@ namespace zonetool::s2
 		SplinePointRecordList* splines;
 	};
 
-	// h1 ScriptableInstanceTargetData with a 4 float color
 	struct ScriptableInstancePartState
 	{
 		unsigned int lightIndex;
@@ -4454,7 +4480,7 @@ namespace zonetool::s2
 		scr_string_t script_linkname;
 		scr_string_t script_noteworthy;
 		short index;
-		short flags; // 0x4 = isNotifyNode
+		short flags;
 		float speed;
 		float lookAhead;
 		vec3_t origin;
@@ -4556,7 +4582,7 @@ namespace zonetool::s2
 	struct PhysWaterVolumeDef
 	{
 		PhysWaterPreset* preset;
-		float origin[3]; // the water polytopes are centered on it
+		float origin[3];
 		scr_string_t name;
 		short brushModelIndex;
 		char __pad0[6];
@@ -5031,10 +5057,10 @@ namespace zonetool::s2
 		weapType_t weaponType;
 		weapClass_t weapClass;
 		weapGreebleType_t greebleType;
-		int altModeMask; // 1 shareAmmoWithAlt, 2 isAlternateAmmo, 3 both
+		int altModeMask;
 		char __pad0[4];
 		XModel** worldModels;
-		XModel** worldModelVariants; // [(variant - 1) * 3 + quality tier] of the weapon
+		XModel** worldModelVariants;
 		XModel** viewModels;
 		XModel** viewModelVariants;
 		XModel** reticleViewModels;
@@ -5056,7 +5082,7 @@ namespace zonetool::s2
 		bool isAlternateAmmo;
 		bool transferAltAmmoOnDrop;
 		bool extendedMag;
-		bool altSwitchInHand; // third person: on tag_inhand or hidden during alt raise/drop anims (launchers also reload)
+		bool altSwitchInHand;
 		bool hideInAltMode;
 		bool treatAsAltWeapon;
 		bool tacticalKnife;
@@ -5195,7 +5221,7 @@ namespace zonetool::s2
 		float height;
 		float widthSplitscreen;
 		float heightSplitscreen;
-		bool enabled; // draws the overlay with shader when aiming and hides the gun once fully aimed
+		bool enabled;
 		bool showMuzzleFlash;
 		char __pad0[2];
 	};
@@ -5255,7 +5281,7 @@ namespace zonetool::s2
 		int sprintInTime;
 		int sprintLoopTime;
 		int sprintOutTime;
-		int sprintFireOutTime; // sprintOutTime when firing out of a sprint with specialty_sprintfire
+		int sprintFireOutTime;
 		int sprintResumeDelay;
 		int stunnedTimeBegin;
 		int stunnedTimeLoop;
@@ -5333,7 +5359,7 @@ namespace zonetool::s2
 	struct Weapon
 	{
 		unsigned short weaponIdx;
-		unsigned char weaponAttachments[6]; // 1-based
+		unsigned char weaponAttachments[6];
 		unsigned char unk_0x8;
 		unsigned char specialGrip;
 		unsigned char unk_0xA[2];
@@ -5366,7 +5392,7 @@ namespace zonetool::s2
 		XAnimParts** szXAnimsLeftHanded;
 		scr_string_t* hideTags;
 		WeaponAttachment** attachments;
-		unsigned char defaultAttachments[5]; // 1-based: sight, muzzle, alt mode, magazine, always
+		unsigned char defaultAttachments[5];
 		char __pad0[3];
 		XAnimParts** szXAnims;
 		AnimOverrideEntry* animOverrides;
@@ -5392,7 +5418,7 @@ namespace zonetool::s2
 		FxEffectDef* signatureWorldFlashEffect;
 		FxEffectDef* signatureViewFlashADSEffect;
 		FxEffectDef* signatureViewBodyFlashADSEffect;
-		FxEffectDef* activeReloadEffect; // on activeReloadEffectTag during the success window
+		FxEffectDef* activeReloadEffect;
 		FxEffectDef* meleeHitEffect;
 		FxEffectDef* meleeMissEffect;
 		snd_alias_list_t* pickupSound;
@@ -5591,7 +5617,7 @@ namespace zonetool::s2
 		bool keepHoldBreathOnFire;
 		char __pad5[3];
 		float maxBreathHoldTime;
-		float maxTargetAngle; // vehicle turrets aim at the script target within this many degrees of the barrel
+		float maxTargetAngle;
 		float enemyCrosshairRange;
 		float moveSpeedScale;
 		float firingMoveSpeedScale;
@@ -5605,7 +5631,7 @@ namespace zonetool::s2
 		float fastReloadTimeScale;
 		float sprintDurationScale;
 		float minimapRadiusScale;
-		float minimapAdsShrink; // minimap radius scale * (1 - this * ads fraction)
+		float minimapAdsShrink;
 		float viewModelFov;
 		float adsZoomFov;
 		float adsZoomInFrac;
@@ -5649,7 +5675,7 @@ namespace zonetool::s2
 		int adsTransOutTime;
 		float adsIdleLerpStartTime;
 		float adsIdleLerpTime;
-		int projExplosionDuration; // time a smoke or fire projectile stays after it explodes
+		int projExplosionDuration;
 		float swayMaxAngle;
 		float swayMaxAngleSteadyAim;
 		float swayLerpSpeed;
@@ -5719,9 +5745,9 @@ namespace zonetool::s2
 		float explosionShakeScale;
 		float explosionShakeDuration;
 		float projectileSpinRate;
-		float killcamUpOffset; // guided missile type 8 killcam: camera offset up from the projectile
+		float killcamUpOffset;
 		float killcamBackOffset;
-		float killcamStopDistance; // stops following the projectile this close to the victim
+		float killcamStopDistance;
 		char __pad7[4];
 		const char* projectileName;
 		XModel* projectileModel;
@@ -5746,7 +5772,7 @@ namespace zonetool::s2
 		FxEffectDef* projBeaconEffect;
 		float projectileColor[3];
 		int guidedMissileType;
-		float guidedForwardAccel; // guided missile type 9 speeds up along its facing by this much per second
+		float guidedForwardAccel;
 		float maxSteeringAccel;
 		float guidedPitchMin;
 		float guidedPitchMax;
@@ -5790,7 +5816,7 @@ namespace zonetool::s2
 		float adsViewScatterAltMin;
 		float adsViewScatterAltMax;
 		float unused3172[2];
-		float adsTransSpread; // spread the hip spread blends to while aiming in, adsSpread applies once fully aimed
+		float adsTransSpread;
 		float adsSpread;
 		float adsKickDuckedScale;
 		float adsKickProneScale;
@@ -5899,7 +5925,7 @@ namespace zonetool::s2
 		int minDamage;
 		int minPlayerDamage;
 		float minDamageRange;
-		float pelletRangeScale; // shotgun pellets trace minDamageRange times this when above 1
+		float pelletRangeScale;
 		int firstPelletBonusDamage;
 		int firstPelletBonusPlayerDamage;
 		int firstPelletBonusMid1Damage;
@@ -5968,8 +5994,8 @@ namespace zonetool::s2
 		int smokeCloudRadius;
 		int smokeCloudGrowTime;
 		int smokeCloudShrinkTime;
-		int turretViewMode; // 2 views from the turret tag_player, 1/2/4 turn the view to the turret on use
-		float turretViewOffsetMax[2]; // sp turret view offset that input pushes toward over turretViewOffsetTime
+		int turretViewMode;
+		float turretViewOffsetMax[2];
 		float turretViewOffsetTime[2];
 		scr_string_t stowTag;
 		scr_string_t activeReloadEffectTag;
@@ -6021,7 +6047,7 @@ namespace zonetool::s2
 		bool blocksProne;
 		bool silenced;
 		bool isRollingGrenade;
-		bool isMolotov; // plays the lit molotov fx on the held weapon
+		bool isMolotov;
 		bool projExplosionEffectForceNormalUp;
 		bool projExplosionEffectInheritParentDirection;
 		bool projImpactExplode;
@@ -6096,8 +6122,8 @@ namespace zonetool::s2
 		float jogSprintLoopAnimWeight;
 		float jogSprintLoopAnimRate;
 		float jogSprintLoopAnimBlendTime;
-		float tagWeaponOffset[3]; // on the third person player model
-		float tagWeaponOffsetAlt[3]; // meant for eFlags 0x10000000 but the game overwrites it with tagWeaponOffset
+		float tagWeaponOffset[3];
+		float tagWeaponOffsetAlt[3];
 		bool grenadeRotationOverride;
 		char __pad19[3];
 		float initialPitch;
@@ -6109,17 +6135,17 @@ namespace zonetool::s2
 		float rotationPitchMax;
 		float rotationYawMax;
 		float rotationRollMax;
-		int fireShakeType; // sp view shake when the weapon fires: 0 noise, 1 random jitter, 2 off
+		int fireShakeType;
 		float fireShakeAmplitude[3];
-		int fireShakeDuration; // ms, fades to nothing 100 units from the shooter
+		int fireShakeDuration;
 		float fireShakeFadeInTime;
 		float fireShakeFadeOutTime;
-		float fireShakeFrequency[3]; // used by the noise type
-		bool fireShakePreset; // built in amplitudes and frequencies scaled by fireShakeAmplitude[0] squared
-		bool projQuickThrust; // rockets thrust to 60% of projectileSpeed in one 50 ms step
+		float fireShakeFrequency[3];
+		bool fireShakePreset;
+		bool projQuickThrust;
 		char __pad20[2];
 		unsigned int guid;
-		int projTurretTargetPriority; // turrets subtract this from the target score of this weapon's projectiles
+		int projTurretTargetPriority;
 		char __pad21[4];
 	};
 	static_assert(sizeof(WeaponCompleteDef) == 0x1090);
@@ -6146,7 +6172,7 @@ namespace zonetool::s2
 	struct SoundSubmixEntry
 	{
 		const char* name;
-		short volModIndex; // -2 = every volmod
+		short volModIndex;
 		float value;
 		int fadeInTime;
 		int fadeOutTime;
@@ -6632,7 +6658,7 @@ namespace zonetool::s2
 	{
 		const char* weaponName;
 		int impactType;
-		int surfaceType; // flesh index when flesh is set
+		int surfaceType;
 		FxEffectDef* effect;
 		bool flesh;
 		bool anySurface;
@@ -6655,7 +6681,7 @@ namespace zonetool::s2
 		unsigned char exponent;
 		char __pad0;
 		unsigned int targetnameHash;
-		unsigned char unk_0x8; // only copied into the client light record
+		unsigned char unk_0x8;
 		char __pad1[3];
 		float color[3];
 		float intensity;
@@ -6671,17 +6697,17 @@ namespace zonetool::s2
 		float cosHalfFovExpanded;
 		float rotationLimit;
 		float translationLimit;
-		float airLightOffset[3]; // the atmos fog air light sits at origin + offset
-		float airLightIntensityScale; // air light color = color * intensity * scale, none below 1e-7
-		float airLightRadiusScale; // the air light score uses scale * radius + |offset|, <= 0 is 1
-		float airLightDensityScale; // scales the fog air light density, <= 0 is 1
-		float airLightSourceRadius; // the scattering treats the light as a sphere of this radius
-		float airLightVertexInnerMutedRadius; // overrides the fog or dvar value when above 0
-		float airLightMaxDistanceSq; // no air light for views farther away, <= 0 is no limit
-		float airLightExponent; // power on the air light scattering, <= 0 is 1
-		bool airLightHighQuality; // full resolution air light pass unless r_airLightForceLQ
+		float airLightOffset[3];
+		float airLightIntensityScale;
+		float airLightRadiusScale;
+		float airLightDensityScale;
+		float airLightSourceRadius;
+		float airLightVertexInnerMutedRadius;
+		float airLightMaxDistanceSq;
+		float airLightExponent;
+		bool airLightHighQuality;
 		char __pad2[3];
-		int iesProfileIndex; // forward+ ies cube array layer, -1 none
+		int iesProfileIndex;
 		const char* defName;
 	};
 	static_assert(sizeof(ComPrimaryLight) == 0xA8);
@@ -6719,7 +6745,7 @@ namespace zonetool::s2
 	struct G_GlassName
 	{
 		const char* nameStr;
-		scr_string_t name; // set during runtime from nameStr, G_InitGlass
+		scr_string_t name;
 		unsigned short pieceCount;
 		unsigned short* pieceIndices;
 	};
@@ -6939,7 +6965,7 @@ namespace zonetool::s2
 	{
 		float halfThickness;
 		vec2_t texVecs[2];
-		vec4_t color; // rgba, packed * 255 into the glass vertex color
+		vec4_t color;
 		char __pad0[0x4];
 		Material* material;
 		Material* materialShattered;
@@ -7131,7 +7157,7 @@ namespace zonetool::s2
 		cplane_s* planes;
 		unsigned int* nodes;
 		unsigned int* sceneEntCellBits;
-		unsigned int* unk_0x20; // runtime, 256 bits per cell
+		unsigned int* unk_0x20;
 	};
 	assert_sizeof(GfxWorldDpvsPlanes, 40);
 	assert_offsetof(GfxWorldDpvsPlanes, planes, 8);
@@ -7169,7 +7195,7 @@ namespace zonetool::s2
 	{
 		unsigned short indexCount;
 		unsigned short* indices;
-		char unk_0x10[8]; // zero in stock
+		char unk_0x10[8];
 	};
 	assert_sizeof(GfxCellTransientInfo, 24);
 	assert_offsetof(GfxCellTransientInfo, indices, 8);
@@ -7310,7 +7336,7 @@ namespace zonetool::s2
 		char (*fogSplineInfo)[116];
 		GfxImage* iesLookup;
 		unsigned int iesProfileCount;
-		unsigned int iesProfiles[16]; // dynamic lights look up their profile id here, empty in stock
+		unsigned int iesProfiles[16];
 		unsigned int lightmapOverrideCount;
 		GfxLightmapArray* lightmapOverrides;
 		GfxTexture* lightmapPrimaryTextures;
@@ -7320,11 +7346,11 @@ namespace zonetool::s2
 		unsigned int imageCount;
 		GfxImage** images;
 		GfxLightmapParameters lightmapParameters;
-		unsigned int lightmapTiles[31][3]; // x, y, layer of each used tile
+		unsigned int lightmapTiles[31][3];
 		unsigned int lightmapTileCount;
-		unsigned int unk_0x264[2]; // 1 or 2 in stock
-		unsigned int lightmapTileSize[2]; // same as lightmapParameters in stock
-		unsigned int unk_0x274; // 8 in stock
+		unsigned int unk_0x264[2];
+		unsigned int lightmapTileSize[2];
+		unsigned int unk_0x274;
 		unsigned int transientZoneCount;
 		GfxMapTrZone* transientZones[16];
 		GfxTransientZoneMaterials* transientZoneMaterials;
@@ -7509,8 +7535,8 @@ namespace zonetool::s2
 		unsigned short probeCountX;
 		unsigned short probeCountY;
 		unsigned int probeCountZ;
-		unsigned int averageProbe; // firstProbe for one probe, else the slot after the grid
-		float worldToGrid[3][4]; // world to unit cube over the model bounds
+		unsigned int averageProbe;
+		float worldToGrid[3][4];
 	};
 	assert_sizeof(GfxStaticModelProbeGrid, 64);
 
@@ -7674,7 +7700,7 @@ namespace zonetool::s2
 
 	struct GfxVoxelInternalNode
 	{
-		int firstNodeIndex[2]; // one base per mask half, bit 31 set when the children are leaves
+		int firstNodeIndex[2];
 		unsigned int childNodeMask[2];
 	};
 	assert_sizeof(GfxVoxelInternalNode, 16);
@@ -7845,30 +7871,30 @@ namespace zonetool::s2
 
 	struct GfxStaticModelDrawInst
 	{
-		GfxPackedPlacement placement; // placement.scale is the x axis scale
-		float axisScale[2]; // y and z, mirrored instances have a negative y
+		GfxPackedPlacement placement;
+		float axisScale[2];
 		float maxScale;
 		unsigned char mirrored;
 		char __pad0[7];
 		XModel* model;
-		unsigned short unk_0x50; // zero in stock
-		unsigned short cullDist; // 0 is no distance cull
+		unsigned short unk_0x50;
+		unsigned short cullDist;
 		unsigned short flags;
-		unsigned short unk_0x56; // zero in stock
+		unsigned short unk_0x56;
 		unsigned short staticModelId;
-		unsigned short unk_0x5A; // zero in stock
-		unsigned int unk_0x5C; // never read by the game
-		int lightGridSlot; // runtime, set at load from smodelLightingInsts for flag 0x40, else -1
-		unsigned int unk_0x64; // runtime, cleared at load
-		unsigned short unk_0x68; // zero in stock
+		unsigned short unk_0x5A;
+		unsigned int unk_0x5C;
+		int lightGridSlot;
+		unsigned int unk_0x64;
+		unsigned short unk_0x68;
 		unsigned short lightListOffset;
 		float radius;
 		unsigned char reflectionProbeIndex;
 		unsigned char sortMaterialIndex;
-		unsigned char sunShadowFlags; // bit per sunShadowOptCount partition
+		unsigned char sunShadowFlags;
 		unsigned char minLod;
-		float lodScale; // divides the lod and cull distance
-		int foliageModelIndex; // runtime
+		float lodScale;
+		int foliageModelIndex;
 		char __pad1[4];
 	};
 	assert_sizeof(GfxStaticModelDrawInst, 128);
@@ -7936,19 +7962,19 @@ namespace zonetool::s2
 
 	struct GfxSurfaceBuffer
 	{
-		unsigned short vertexCount; // streams 7 and 8 are 8 bytes per vertex in every stock buffer
+		unsigned short vertexCount;
 		unsigned short indexCount;
-		unsigned short unk_0x4; // count of 16 byte records in stream 2
+		unsigned short unk_0x4;
 		unsigned short triCount;
-		unsigned int unk_0x8; // size of stream 1 on most stock buffers
-		unsigned int flags; // 1 = always resident, 2 = streamed, 4 is tested at load
+		unsigned int unk_0x8;
+		unsigned int flags;
 		unsigned int dataSize;
 		unsigned short streamHandle;
 		char __pad0[2];
-		char hash[32]; // lowercase hex
+		char hash[32];
 		char __pad1[8];
 		char* data;
-		unsigned long long streamOffsets[11]; // into data, stream 0 = 16 bit indices at offset 0
+		unsigned long long streamOffsets[11];
 		void* runtimeResources[9];
 		ExtentBounds bounds;
 	};
@@ -7961,8 +7987,8 @@ namespace zonetool::s2
 
 	enum GfxSurfaceFlag : std::uint16_t
 	{
-		GFX_SURFACE_FLAG_CASTS_SHADOW = 0x1, // with a shadow material it sets surfaceCastsSunShadow at load
-		GFX_SURFACE_FLAG_SUN_SHADOW_PARTITION_0 = 0x10, // bits 4-8, one per sunShadowOptCount partition (surfaceCastsSunShadowOpt)
+		GFX_SURFACE_FLAG_CASTS_SHADOW = 0x1,
+		GFX_SURFACE_FLAG_SUN_SHADOW_PARTITION_0 = 0x10,
 		GFX_SURFACE_FLAG_SUN_SHADOW_PARTITION_MASK = 0x1F0,
 	};
 
@@ -7979,7 +8005,7 @@ namespace zonetool::s2
 		Material* material;
 		unsigned char lightmapIndex;
 		unsigned char reflectionProbeIndex;
-		unsigned short flags; // read as a word at load
+		unsigned short flags;
 		unsigned short lightListOffset;
 		char __pad2[2];
 		unsigned int transientZone;
@@ -7998,11 +8024,11 @@ namespace zonetool::s2
 	struct GfxSurfaceBounds
 	{
 		Bounds bounds;
-		float coneApex[3]; // backface normal cone, sin-like cutoff around a unit axis
-		float coneCutoff; // -FLT_MAX with a zero apex and axis = no cone
+		float coneApex[3];
+		float coneCutoff;
 		float coneAxis[3];
-		unsigned short mipRadius; // same values as H1 GfxSurfaceBounds
-		unsigned char invHighMipRadius[5]; // one per material image, read by texture streaming
+		unsigned short mipRadius;
+		unsigned char invHighMipRadius[5];
 		char __pad0[5];
 	};
 	assert_sizeof(GfxSurfaceBounds, 64);
@@ -8022,31 +8048,31 @@ namespace zonetool::s2
 		unsigned int surfaceVisDataCount;
 		unsigned int primaryLightVisDataCount;
 		char __pad0[4];
-		unsigned int* smodelVisData[4]; // the smodel and surface vis arrays are bitsets cleared each frame
+		unsigned int* smodelVisData[4];
 		unsigned int* smodelVisDataUnused[8];
 		unsigned int* smodelUnknownVisData[27];
 		unsigned int* surfaceVisData[4];
 		unsigned int* surfaceVisDataUnused[8];
 		unsigned int* surfaceUnknownVisData[27];
-		unsigned int* unk_0x2C8; // runtime, 2 bits per surface, cleared each frame
+		unsigned int* unk_0x2C8;
 		unsigned int* primaryLightVisData;
-		unsigned int* smodelFoliageVisData; // runtime
-		unsigned int* unk_0x2E0; // runtime, 1 bit per surface, set to all ones each frame
+		unsigned int* smodelFoliageVisData;
+		unsigned int* unk_0x2E0;
 		unsigned int* sortedSurfIndex;
 		GfxSurface* surfaces;
 		GfxSurfaceBounds* surfacesBounds;
-		unsigned long long* surfaceSortKeys; // runtime, packed from the material at load, low word = texture streaming index
+		unsigned long long* surfaceSortKeys;
 		GfxStaticModelInst* smodelInsts;
 		GfxStaticModelDrawInst* smodelDrawInsts;
-		unsigned int* smodelLightingStateBits; // 2 bits per static model
+		unsigned int* smodelLightingStateBits;
 		GfxStaticModelLighting* smodelLightingInsts;
-		unsigned int* surfaceCastsSunShadow; // runtime, built at load from GFX_SURFACE_FLAG_CASTS_SHADOW
+		unsigned int* surfaceCastsSunShadow;
 		unsigned short* sortedSmodelIndices;
 		unsigned int sunShadowOptCount;
 		unsigned int sunSurfVisDataCount;
 		unsigned int* surfaceCastsSunShadowOpt;
 		unsigned long long* surfaceMaterials;
-		ID3D11Buffer** smodelConstantBuffers; // runtime, per model constant buffer of the cached draw path
+		ID3D11Buffer** smodelConstantBuffers;
 		char __pad1[8];
 	};
 	assert_sizeof(GfxWorldDpvsStatic, 864);
@@ -8128,23 +8154,22 @@ namespace zonetool::s2
 	};
 	assert_sizeof(GfxBuildInfo, 32);
 
-	// the same in every stock map, named after iw7
 	struct GfxWorldSortKeys
 	{
 		unsigned char unused0;
 		unsigned char unk_0x1;
 		unsigned char unk_0x2;
 		unsigned char twoD;
-		unsigned char effectDecal; // fx mark meshes are drawn with this key
-		unsigned char unk_0x5; // world surfaces with this key get flag 0x8 at load, like the trans and emissive ranges
-		unsigned char unk_0x6; // same use as unk_0x5
+		unsigned char effectDecal;
+		unsigned char unk_0x5;
+		unsigned char unk_0x6;
 		unsigned char effectAuto;
 		unsigned char distortion;
 		unsigned char transBegin;
 		unsigned char transEnd;
 		unsigned char emissiveBegin;
 		unsigned char emissiveEnd;
-		unsigned char postResolveLit; // the game labels it "post resolve lit"
+		unsigned char postResolveLit;
 		char __pad0[6];
 	};
 	static_assert(sizeof(GfxWorldSortKeys) == 20);
@@ -8163,8 +8188,8 @@ namespace zonetool::s2
 		unsigned int portalGroupCount;
 		unsigned int lastSunPrimaryLightIndex;
 		unsigned int primaryLightCount;
-		unsigned int movingScriptablePrimaryLightCount; // iw7 name, the last lights of the list
-		unsigned int unk_0x40; // equals primaryLightCount in stock
+		unsigned int movingScriptablePrimaryLightCount;
+		unsigned int unk_0x40;
 		GfxWorldSortKeys sortKeys;
 		GfxWorldDpvsPlanes dpvsPlanes;
 		GfxCellTreeCount* aabbTreeCounts;
@@ -8174,7 +8199,7 @@ namespace zonetool::s2
 		GfxPortalGroup* portalGroup;
 		unsigned int portalDistanceAnchorCount;
 		vec4_t* portalDistanceAnchorsAndCloseDistSquared;
-		bool cullPrimaryLights; // 1 in stock, 0 marks every primary light visible each frame
+		bool cullPrimaryLights;
 		char __pad0[7];
 		GfxWorldDraw draw;
 		GfxLightGrid lightGrid;
@@ -8213,9 +8238,9 @@ namespace zonetool::s2
 		unsigned int mdaoVolumesCount;
 		MdaoVolume* mdaoVolumes;
 		bool unk_0x1088;
-		bool unk_0x1089; // 0 or 1 in stock, h1 has the same byte before its lookup flags
-		bool useLightGridDefaultModelLightingLookup; // 0 in stock
-		bool useLightGridDefaultFXLightingLookup; // 1 in stock, with a point in the playable area
+		bool unk_0x1089;
+		bool useLightGridDefaultModelLightingLookup;
+		bool useLightGridDefaultFXLightingLookup;
 		float lightGridDefaultModelLightingLookup[3];
 		float lightGridDefaultFXLightingLookup[3];
 		GfxBuildInfo buildInfo;

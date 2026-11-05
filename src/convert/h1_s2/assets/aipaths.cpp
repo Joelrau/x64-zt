@@ -7,10 +7,6 @@ namespace zonetool::h1::converter::s2::aipaths
 {
 	namespace
 	{
-		constexpr auto s2_path_version = 29;
-		constexpr std::uint8_t h1_no_zone = 0xFF;
-		constexpr std::uint16_t s2_no_zone = 0xFFFF;
-
 		zonetool::s2::nodeType convert_type(const std::uint16_t type)
 		{
 			switch (type)
@@ -77,7 +73,7 @@ namespace zonetool::h1::converter::s2::aipaths
 			const auto zones = allocator.allocate_array<unsigned short>(asset->nodeCount);
 			for (auto i = 0u; i < asset->nodeCount; i++)
 			{
-				zones[i] = asset->pathZones[i] == h1_no_zone ? s2_no_zone : asset->pathZones[i];
+				zones[i] = asset->pathZones[i] == 0xFF ? 0xFFFF : asset->pathZones[i];
 			}
 
 			return zones;
@@ -95,7 +91,7 @@ namespace zonetool::h1::converter::s2::aipaths
 			}
 
 			new_asset->parentIndexResolved = asset->parentIndexResolved;
-			new_asset->version = s2_path_version;
+			new_asset->version = 29;
 			new_asset->visBytes = asset->visBytes;
 			new_asset->pathVis = asset->pathVis;
 			new_asset->nodeTreeCount = asset->nodeTreeCount;

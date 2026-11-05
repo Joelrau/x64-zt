@@ -99,7 +99,6 @@ namespace zonetool::iw6
 				}
 			}
 
-			// the transient search data is runtime only, h1 dumps none of it
 			void convert_node(const pathnode_t* node, zonetool::h1::pathnode_t* dest)
 			{
 				static_assert(sizeof(dest->constant.___u9) == sizeof(node->constant.___u9));

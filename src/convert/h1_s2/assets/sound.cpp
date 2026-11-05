@@ -111,7 +111,6 @@ namespace zonetool::h1::converter::s2::sound
 		{
 			const auto source = static_cast<std::uint32_t>(h1_flags);
 
-			// bits 0-5, 7, 8 and the file type match, h1 bits 10-15 are s2 bits 9-14
 			auto flags = (source & 0x701BF) | ((source & 0xFC00) >> 1);
 			flags &= ~zonetool::s2::SND_ALIAS_FLAG_USE_CONTEXT_LIST;
 
@@ -310,7 +309,6 @@ namespace zonetool::h1::converter::s2::sound
 			result.dspBusIndex = convert_dsp_bus(alias);
 			result.volModIndex = convert_volume_mod(alias);
 
-			// s2 plays both ambiences of a zone crossfade, stock amb_quad aliases use 32767
 			if (result.volModIndex == zonetool::s2::SND_VOLMOD_AMB_QUAD)
 			{
 				result.polyCount = 32767;

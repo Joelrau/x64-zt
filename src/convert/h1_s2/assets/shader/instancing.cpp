@@ -111,9 +111,6 @@ namespace zonetool::h1::converter::s2::shader
 
 	std::string instance_program(const unsigned char* program, const unsigned int size, const std::optional<std::uint32_t> coords_row)
 	{
-		constexpr auto h1_instance_matrix_rows = 512u;
-		constexpr auto h1_model_lighting_rows = 128u;
-
 		auto shader = alys::shader::shader_object::parse({reinterpret_cast<const char*>(program), size});
 		alys::shader::shader_object result;
 		result.get_info() = shader.get_info();
@@ -162,12 +159,12 @@ namespace zonetool::h1::converter::s2::shader
 				declares_world = true;
 				instruction.opcode.controls |= D3D10_SB_CONSTANT_BUFFER_DYNAMIC_INDEXED;
 				instruction.operands[0].indices[0].value.uint32 = h1_instance_matrix_buffer;
-				instruction.operands[0].indices[1].value.uint32 = h1_instance_matrix_rows;
+				instruction.operands[0].indices[1].value.uint32 = 512u;
 				a(instruction);
 				if (coords_row)
 				{
 					instruction.operands[0].indices[0].value.uint32 = h1_model_lighting_buffer;
-					instruction.operands[0].indices[1].value.uint32 = h1_model_lighting_rows;
+					instruction.operands[0].indices[1].value.uint32 = 128u;
 					a(instruction);
 				}
 

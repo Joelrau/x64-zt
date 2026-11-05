@@ -23,13 +23,6 @@ namespace zonetool::iw7
 
 		constexpr std::size_t image_stream_file_count = 4;
 
-		struct asset_loader
-		{
-			std::size_t size;
-			void (*read)(zone_reader& reader, void* asset);
-			const char** (*name)(void* asset);
-		};
-
 		template <typename S>
 		const char** asset_name_field(void* asset)
 		{
@@ -361,8 +354,6 @@ namespace zonetool::iw7
 			return assets;
 		}
 
-		// The linker aligns absolute VIRTUAL addresses from an unknown start. The phase that places the most
-		// string offsets on string starts is the phase of the linker.
 		std::unique_ptr<asset_list_reader> read_zone_with_best_phase(loaded_zone& zone, const std::uint16_t zone_index)
 		{
 			auto assets = read_zone(zone, zone_index, 0);

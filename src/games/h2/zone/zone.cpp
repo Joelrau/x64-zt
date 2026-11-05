@@ -115,7 +115,6 @@ namespace zonetool::h2
 			return;
 		}
 
-		// add ignore assets as referenced
 		if (ignore_assets.find(std::make_pair(static_cast<std::uint32_t>(type), name)) != ignore_assets.end())
 		{
 			if (!name.starts_with(","))
@@ -208,7 +207,6 @@ namespace zonetool::h2
 			//ADD_ASSET(ASSET_TYPE_VERTEXDECL, vertex_decl);
 			ADD_ASSET(ASSET_TYPE_VERTEXSHADER, vertex_shader);
 
-			//ADD_ASSET(ASSET_TYPE_MENU, menu_def); // added via menulist
 			ADD_ASSET(ASSET_TYPE_MENULIST, menu_list);
 
 			ADD_ASSET(ASSET_TYPE_PATHDATA, path_data);
@@ -561,7 +559,6 @@ namespace zonetool::h2
 		
 #ifdef DEBUG
 		// Dump zone to disk (for debugging)
-		//buf->save("zonetool\\_debug\\" + this->name_ + ".zone", false);
 #endif
 
 		// Compress buffer
@@ -573,15 +570,12 @@ namespace zonetool::h2
 
 		const auto streamfiles_count = buf->streamfile_count();
 
-		// clear zone buffer
-		//buf->clear();
-
 		// Generate FF header
 		XFileHeader header{0};
 		strcat(header.header, FF_HEADER);
 		header.version = FF_VERSION;
 		header.compress = 1;
-		header.compressType = COMPRESS_TYPE; // 0 == INVALID, 1 == ZLIB, 3 == PASSTHROUGH, 4 == LZ4
+		header.compressType = COMPRESS_TYPE;
 		header.sizeOfPointer = 8;
 		header.sizeOfLong = 4;
 		header.fileTimeHigh = 0;
@@ -590,7 +584,6 @@ namespace zonetool::h2
 		header.baseFileLen = buf_compressed.size() + sizeof(XFileHeader) + (sizeof(XStreamFile) * streamfiles_count);
 		header.totalFileLen = header.baseFileLen;
 
-		// alloc fastfile buffer
 		zone_buffer fastfile(header.baseFileLen);
 
 		// Do streamfile stuff
@@ -613,7 +606,6 @@ namespace zonetool::h2
 				auto* stream = reinterpret_cast<XStreamFile*>(buf->get_streamfile(i));
 				fastfile.write_stream(stream, sizeof(XStreamFile));
 
-				// not sure if this is correct, but it doesn't matter.
 				total_len += (stream->offsetEnd - stream->offset);
 			}
 			header.totalFileLen = total_len;
@@ -629,7 +621,7 @@ namespace zonetool::h2
 		}
 
 		fastfile.write(buf_compressed.data(), buf_compressed.size());
-		buf_compressed.clear(); // free compressed buffer
+		buf_compressed.clear();
 		buf_compressed.shrink_to_fit();
 
 		const auto path = filesystem::get_output_path() + this->name_ + ".ff";
@@ -648,7 +640,7 @@ namespace zonetool::h2
 		auto max_memory_size = max_zone_size;
 		if (utils::flags::has_flag("more_memory"))
 		{
-			max_memory_size = max_memory_size * 2; // double the memory (2GB -> 4GB)
+			max_memory_size = max_memory_size * 2;
 		}
 		this->m_zonemem = std::make_shared<zone_memory>(max_memory_size);
 	}

@@ -7,12 +7,6 @@ namespace zonetool::s2::converter::h1::lightsets
 {
 	namespace
 	{
-		struct h1_row
-		{
-			std::string_view name;
-			std::string_view value;
-		};
-
 		constexpr std::array<h1_row, 103> h1_rows
 		{{
 			{"sunenable", "1"},
@@ -147,17 +141,16 @@ namespace zonetool::s2::converter::h1::lightsets
 
 	void dump(zonetool::s2::StringTable* asset)
 	{
-		constexpr auto map_column = 1;
-		if (!std::string_view(asset->name).ends_with("_lightsets_hdr.csv") || asset->rowCount < 1 || asset->columnCount <= map_column)
+		if (!std::string_view(asset->name).ends_with("_lightsets_hdr.csv") || asset->rowCount < 1 || asset->columnCount <= 1)
 		{
 			return;
 		}
 
-		auto buffer = std::format("{},{}\n", cell(asset, 0, 0), cell(asset, 0, map_column));
+		auto buffer = std::format("{},{}\n", cell(asset, 0, 0), cell(asset, 0, 1));
 		for (const auto& row : h1_rows)
 		{
 			const auto source_row = uses_h1_tonemap_curve(row.name) ? -1 : find_row(asset, row.name);
-			buffer.append(std::format("{},{}\n", row.name, source_row < 0 ? row.value : cell(asset, source_row, map_column)));
+			buffer.append(std::format("{},{}\n", row.name, source_row < 0 ? row.value : cell(asset, source_row, 1)));
 		}
 
 		filesystem::file file(asset->name);

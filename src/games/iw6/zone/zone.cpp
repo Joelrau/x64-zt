@@ -67,7 +67,6 @@ namespace zonetool::iw6
 
 		const std::string& name = get_asset_name(XAssetType(type), pointer);
 
-		// don't add asset if it already exists
 		for (std::size_t idx = 0; idx < m_assets.size(); idx++)
 		{
 			if (m_assets[idx]->type() == type && m_assets[idx]->name() == name)
@@ -109,7 +108,6 @@ namespace zonetool::iw6
 			return;
 		}
 
-		// add ignore assets as referenced
 		if (ignore_assets.find(std::make_pair(static_cast<std::uint32_t>(type), name)) != ignore_assets.end())
 		{
 			if (!name.starts_with(","))
@@ -118,7 +116,6 @@ namespace zonetool::iw6
 			}
 		}
 
-		// don't add asset if it already exists
 		if (get_asset_pointer(type, name))
 		{
 			return;
@@ -194,7 +191,6 @@ namespace zonetool::iw6
 			//ADD_ASSET(ASSET_TYPE_VERTEXDECL, vertex_decl);
 			ADD_ASSET(ASSET_TYPE_VERTEXSHADER, vertex_shader);
 
-			//ADD_ASSET(ASSET_TYPE_MENU, menu_def); // added via menulist
 			ADD_ASSET(ASSET_TYPE_MENULIST, menu_list);
 
 			ADD_ASSET(ASSET_TYPE_PATHDATA, path_data);
@@ -552,9 +548,6 @@ namespace zonetool::iw6
 
 		const auto streamfiles_count = buf->streamfile_count();
 
-		// clear zone buffer
-		//buf->clear();
-
 		// Generate FF header
 		XFileHeader header{0};
 		strcat(header.header, FF_HEADER);
@@ -627,7 +620,7 @@ namespace zonetool::iw6
 		auto max_memory_size = max_zone_size;
 		if (utils::flags::has_flag("more_memory"))
 		{
-			max_memory_size = max_memory_size * 2; // double the memory (2GB -> 4GB)
+			max_memory_size = max_memory_size * 2;
 		}
 		this->m_zonemem = std::make_shared<zone_memory>(max_memory_size);
 	}

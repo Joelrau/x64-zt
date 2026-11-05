@@ -715,9 +715,6 @@ namespace zonetool::s1
 
 	namespace
 	{
-		constexpr std::uint32_t smodel_flag_vertex_lighting = 0x80;
-		constexpr std::size_t vis_data_alignment = 127;
-
 		void read_skies(zone_reader& reader, GfxWorld* asset)
 		{
 			const auto skies = reader.read_array(asset->skies, 3, asset->skyCount);
@@ -965,7 +962,7 @@ namespace zonetool::s1
 		{
 			for (auto i = first; i <= last; i++)
 			{
-				reader.read_array(fields[i], vis_data_alignment, count);
+				reader.read_array(fields[i], 127, count);
 			}
 		}
 
@@ -979,8 +976,8 @@ namespace zonetool::s1
 			read_vis_data(reader, dpvs->surfaceVisData, 0, 2, surface_count);
 			reader.pop_stream();
 
-			reader.read_array(dpvs->unknownSModelVisData1, vis_data_alignment, smodel_count);
-			reader.read_array(dpvs->unknownSModelVisData2, vis_data_alignment, 2 * smodel_count);
+			reader.read_array(dpvs->unknownSModelVisData1, 127, smodel_count);
+			reader.read_array(dpvs->unknownSModelVisData2, 127, 2 * smodel_count);
 
 			reader.push_stream(XFILE_BLOCK_RUNTIME);
 			read_vis_data(reader, dpvs->smodelVisData, 3, 3, smodel_count);
@@ -1017,7 +1014,7 @@ namespace zonetool::s1
 
 			for (auto i = 0u; i < dpvs->smodelCount; i++)
 			{
-				if (dpvs->smodelDrawInsts[i].flags & smodel_flag_vertex_lighting)
+				if (dpvs->smodelDrawInsts[i].flags & STATIC_MODEL_FLAG_VERTEXLIT_LIGHTING)
 				{
 					auto& info = lighting[i].vertexLightingInfo;
 					info.lightingValuesVb = nullptr;
@@ -1069,8 +1066,8 @@ namespace zonetool::s1
 
 			reader.push_stream(XFILE_BLOCK_RUNTIME);
 			reader.read_array(dpvs.surfaceMaterials, 7, asset->surfaceCount);
-			reader.read_array(dpvs.surfaceCastsSunShadow, vis_data_alignment, dpvs.surfaceVisDataCount);
-			reader.read_array(dpvs.surfaceCastsSunShadowOpt, vis_data_alignment, dpvs.sunShadowOptCount * dpvs.sunSurfVisDataCount);
+			reader.read_array(dpvs.surfaceCastsSunShadow, 127, dpvs.surfaceVisDataCount);
+			reader.read_array(dpvs.surfaceCastsSunShadowOpt, 127, dpvs.sunShadowOptCount * dpvs.sunSurfVisDataCount);
 			reader.read_array(dpvs.surfaceDeptAndSurf, 3, dpvs.staticSurfaceCount);
 			read_constant_buffers(reader, dpvs.constantBuffersLit, dpvs.smodelCount);
 			read_constant_buffers(reader, dpvs.constantBuffersAmbient, dpvs.smodelCount);

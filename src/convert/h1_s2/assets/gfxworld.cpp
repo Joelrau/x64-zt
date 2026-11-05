@@ -65,7 +65,6 @@ namespace zonetool::h1::converter::s2::gfxworld
 
 		unsigned short convert_cull_dist(const GfxStaticModelDrawInst& inst, const zonetool::s2::GfxStaticModelDrawInst& new_inst)
 		{
-			// s2 compares the cull distance with distance / maxScale, 0 is no cull
 			const auto scale = new_inst.maxScale;
 			auto dist = inst.cullDist && scale > 0.0f ? inst.cullDist / scale : 0.0f;
 			if (!dist && inst.model && inst.model->numLods > 0 && inst.model->numLods <= 6)
@@ -156,7 +155,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 			{
 				const auto& vertex = asset->draw.vd.vertices[i];
 				std::memcpy(data.positions[i], vertex.xyz, sizeof(vertex.xyz));
-				data.texelDensities[i] = std::abs(vertex.binormalSign); // h1 binormalSign is the signed texel density
+				data.texelDensities[i] = std::abs(vertex.binormalSign);
 				data.colors[i] = vertex.color.packed;
 				std::memcpy(data.texCoords[i], vertex.texCoord, sizeof(vertex.texCoord));
 				std::memcpy(data.lmapCoords[i], vertex.lmapCoord, sizeof(vertex.lmapCoord));
@@ -224,7 +223,6 @@ namespace zonetool::h1::converter::s2::gfxworld
 
 		void convert_lightmap_tiles(const GfxWorldDraw& source, zonetool::s2::GfxWorldDraw& draw)
 		{
-			// every tile of every lightmap, stock lists only the tiles that its charts use
 			const auto& params = source.lightmapParameters;
 			const auto tile_width = std::max(params.lightmapWidthSecondary, 1);
 			const auto tile_height = std::max(params.lightmapHeightSecondary, 1);
@@ -265,7 +263,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 
 			if (draw.reflectionProbes && source.reflectionProbeCount > 1)
 			{
-				draw.reflectionProbes[0] = draw.reflectionProbes[1]; // h1 probe 0 is a red default image
+				draw.reflectionProbes[0] = draw.reflectionProbes[1];
 			}
 			reserve_runtime(draw.reflectionProbeTextures, draw.reflectionProbeCount, allocator);
 
@@ -402,7 +400,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 		light_proxy make_spot_proxy(const vec3& origin, const vec3& dir, const float radius, const float cos_outer)
 		{
 			constexpr auto ring_count = 12u;
-			const auto axis = normalize({-dir[0], -dir[1], -dir[2]}); // s2 light dir points back at the light
+			const auto axis = normalize({-dir[0], -dir[1], -dir[2]});
 			const auto side = normalize(cross(axis, std::abs(axis[2]) < 0.9f ? vec3{0.0f, 0.0f, 1.0f} : vec3{1.0f, 0.0f, 0.0f}));
 			const auto up = cross(axis, side);
 			const auto ring_radius = radius * std::sqrt(1.0f - cos_outer * cos_outer) / cos_outer / std::cos(std::numbers::pi_v<float> / ring_count);
@@ -443,15 +441,12 @@ namespace zonetool::h1::converter::s2::gfxworld
 
 		void set_frustum_light(const ComPrimaryLight& light, zonetool::s2::GfxFrustumLights& frustum, utils::memory::allocator& allocator)
 		{
-			constexpr auto proxy_scale = 1.15f; // the hull must reach past the falloff or the light ends on tile edges
-			constexpr auto proxy_margin = 16.0f;
-			constexpr auto spot_widen = 5.0f * std::numbers::pi_v<float> / 180.0f;
-			constexpr auto min_spot_cos = 0.6f;
+			const auto spot_widen = 5.0f * std::numbers::pi_v<float> / 180.0f;
 
 			const vec3 origin{light.origin[0], light.origin[1], light.origin[2]};
-			const auto radius = light.radius * proxy_scale + proxy_margin;
+			const auto radius = light.radius * 1.15f + 16.0f;
 			const auto spot_cos = std::cos(std::acos(std::clamp(light.cosHalfFovOuter, -1.0f, 1.0f)) + spot_widen);
-			auto proxy = light.type == GFX_LIGHT_TYPE_SPOT && spot_cos >= min_spot_cos
+			auto proxy = light.type == GFX_LIGHT_TYPE_SPOT && spot_cos >= 0.6f
 				? make_spot_proxy(origin, {light.dir[0], light.dir[1], light.dir[2]}, radius, spot_cos)
 				: make_omni_proxy(origin, radius);
 
@@ -474,7 +469,6 @@ namespace zonetool::h1::converter::s2::gfxworld
 				}
 			}
 
-			// inward vertex normals, the tile shader grows the hull along them
 			std::vector<vec3> normals(proxy.vertices.size());
 			for (auto i = 0u; i < proxy.indices.size(); i += 3)
 			{
@@ -602,7 +596,6 @@ namespace zonetool::h1::converter::s2::gfxworld
 				}
 
 				const auto light = com_world && i < com_world->primaryLightCount ? &com_world->primaryLights[i] : nullptr;
-				// s2 shadows the whole frustum of a light without casters
 				if (geometry[i].surfaceCount || geometry[i].smodelCount || !light || (light->type != GFX_LIGHT_TYPE_SPOT && light->type != GFX_LIGHT_TYPE_OMNI))
 				{
 					continue;
@@ -745,7 +738,6 @@ namespace zonetool::h1::converter::s2::gfxworld
 			inst.axisScale[1] = placement.scale;
 			inst.maxScale = std::abs(placement.scale);
 
-			// s2 keeps the axes right handed and mirrors through the y scale
 			if (determinant(placement.axis) < 0.0f)
 			{
 				for (auto& value : inst.placement.axis[1])
@@ -764,8 +756,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 				return 0;
 			}
 
-			// TODO: stock also orders by the techset
-			const auto sort_order = [&](const int index)
+			const auto sort_order = [&](const int index) // TODO: stock also orders by the techset
 			{
 				const auto handle = model->materialHandles[index];
 				return std::make_tuple(material::convert_sort_key(handle->info.sortKey), std::string_view(handle->name));
@@ -821,7 +812,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 					: has_vertex_lighting(inst, source.smodelLightingInsts[i])
 					? zonetool::s2::STATIC_MODEL_FLAG_VERTEXLIT_LIGHTING
 					: zonetool::s2::STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING;
-				new_inst.flags = 0x200 | lighting_flag | (inst.flags & STATIC_MODEL_FLAG_NO_CAST_SHADOW); // stock zones set 0x200
+				new_inst.flags = 0x200 | lighting_flag | (inst.flags & STATIC_MODEL_FLAG_NO_CAST_SHADOW);
 				new_inst.staticModelId = inst.staticModelId;
 				new_inst.lightListOffset = lists.offset(inst.primaryLightEnvIndex);
 				const auto& half_size = source.smodelInsts[i].bounds.halfSize;
@@ -869,7 +860,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 			convert_surface_ranges(source, dpvs);
 			dpvs.smodelVisDataCount = source.smodelVisDataCount;
 			dpvs.surfaceVisDataCount = source.surfaceVisDataCount;
-			dpvs.sunShadowOptCount = std::max(source.sunShadowOptCount, 1u); // without one s2 drops every smodel from the sun shadow
+			dpvs.sunShadowOptCount = std::max(source.sunShadowOptCount, 1u);
 			dpvs.sunSurfVisDataCount = source.sunSurfVisDataCount ? source.sunSurfVisDataCount : (asset->surfaceCount + 255) / 256 * 8;
 			dpvs.primaryLightVisDataCount = (asset->primaryLightCount + 31) / 32 + 1;
 			dpvs.smodelLightingStateBits = non_null_array<unsigned int>(2ull * source.smodelVisDataCount, allocator);
@@ -951,7 +942,6 @@ namespace zonetool::h1::converter::s2::gfxworld
 			convert_dynamic_data(asset, *world, allocator);
 			convert_light_grid_probes(asset, *world, allocator);
 
-			// s2 culls the lights through the light lists only with a voxel tree
 			world->cullPrimaryLights = world->voxelTreeCount > 0;
 			return world;
 		}

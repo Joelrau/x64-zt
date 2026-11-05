@@ -8,12 +8,6 @@ namespace zonetool::imagefile
 {
 	namespace
 	{
-		struct reusable_streams_header
-		{
-			std::uint64_t inputs;
-			std::uint64_t pak;
-		};
-
 		std::string get_reusable_streams_path(const std::string& fastfile)
 		{
 			return filesystem::get_cache_path(fastfile + ".pak.streams");

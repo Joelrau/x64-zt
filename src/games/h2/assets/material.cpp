@@ -349,8 +349,6 @@ namespace zonetool::h2
 		return ASSET_TYPE_MATERIAL;
 	}
 
-	constexpr unsigned char water_map_semantic = 11;
-
 	void read_constant_buffer(zone_reader& reader, MaterialConstantBufferDef* buffer)
 	{
 		reader.read_array(buffer->vsData, 15, buffer->vsDataSize);
@@ -373,7 +371,7 @@ namespace zonetool::h2
 		{
 			for (auto i = 0; i < asset->textureCount; i++)
 			{
-				if (textures[i].semantic == water_map_semantic && textures[i].u.water)
+				if (textures[i].semantic == TS_WATER_MAP && textures[i].u.water)
 				{
 					throw std::runtime_error(std::format("material \"{}\" has a water map", asset->name));
 				}

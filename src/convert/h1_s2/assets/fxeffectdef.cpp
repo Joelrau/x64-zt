@@ -10,8 +10,6 @@ namespace zonetool::h1::converter::s2::fxeffectdef
 {
 	namespace
 	{
-		constexpr auto stock_external_velocity_scale = 1.0f;
-
 		std::unordered_set<std::string> dumped_effects;
 
 		static_assert(sizeof(FxElemVelStateInFrame) == sizeof(zonetool::s2::FxElemVelStateInFrame));
@@ -73,7 +71,7 @@ namespace zonetool::h1::converter::s2::fxeffectdef
 				break;
 			case FX_ELEM_TYPE_OMNI_LIGHT:
 				break;
-			case FX_ELEM_TYPE_SPOT_LIGHT: // a null light def makes s2 use its default one, h1 attenuation images have no s2 form
+			case FX_ELEM_TYPE_SPOT_LIGHT:
 				break;
 			default:
 				result.material = is_sprite(type) && visual.material
@@ -338,7 +336,6 @@ namespace zonetool::h1::converter::s2::fxeffectdef
 			result.initialRotation = convert_range(elem.initialRotation);
 			result.gravity = convert_range(elem.gravity);
 			result.reflectionFactor = convert_range(elem.reflectionFactor);
-			// s2 scales the tangential bounce by 1 - friction, h1 by reflection (same random value)
 			result.frictionFactor = {1.0f - elem.reflectionFactor.base, -elem.reflectionFactor.amplitude};
 			std::memcpy(&result.atlas, &elem.atlas, sizeof(result.atlas));
 			result.elemType = convert_elem_type(elem.elemType);
@@ -367,7 +364,7 @@ namespace zonetool::h1::converter::s2::fxeffectdef
 			result.shadowDensityScale = elem.shadowDensityScale;
 			result.scatterRatio = elem.scatterRatio;
 			result.volumetricTrailFadeStart = elem.volumetricTrailFadeStart;
-			result.externalVelocityScale = stock_external_velocity_scale;
+			result.externalVelocityScale = 1.0f;
 			result.name = "";
 		}
 
@@ -459,7 +456,6 @@ namespace zonetool::h1::converter::s2::fxeffectdef
 
 		int total_size(const zonetool::s2::FxEffectDef* asset)
 		{
-			// stock does not count the runner and effect reference names
 			auto size = sizeof(zonetool::s2::FxEffectDef) + sizeof(zonetool::s2::FxElemDef) * elem_count(asset);
 			for (auto i = 0; i < elem_count(asset); i++)
 			{
@@ -512,11 +508,9 @@ namespace zonetool::h1::converter::s2::fxeffectdef
 
 		unsigned int convert_effect_flags(const FxEffectDef* asset, const zonetool::s2::FxEffectDef* new_asset)
 		{
-			constexpr auto kept_flags = zonetool::s2::FX_EFFECT_NEEDS_LIGHT_GRID_LIGHTING_AT_SPAWN
+			auto flags = static_cast<unsigned int>(asset->flags) & (zonetool::s2::FX_EFFECT_NEEDS_LIGHT_GRID_LIGHTING_AT_SPAWN
 				| zonetool::s2::FX_EFFECT_NEEDS_LIGHT_GRID_LIGHTING_PER_FRAME | zonetool::s2::FX_EFFECT_NEEDS_DYNAMIC_LIGHTING_PER_FRAME
-				| zonetool::s2::FX_EFFECT_LINK_TO_SUN;
-
-			auto flags = static_cast<unsigned int>(asset->flags) & kept_flags;
+				| zonetool::s2::FX_EFFECT_LINK_TO_SUN);
 			for (auto i = 0; i < elem_count(new_asset); i++)
 			{
 				flags |= elem_effect_flags(new_asset->elemDefs[i]);
@@ -569,7 +563,7 @@ namespace zonetool::h1::converter::s2::fxeffectdef
 	{
 		if (stock_zone::is_stock_asset(zonetool::s2::ASSET_TYPE_FX, name))
 		{
-			add_csv_row(zonetool::s2::type_to_string(zonetool::s2::ASSET_TYPE_FX), name, true); // the s2 effect of the same name is used
+			add_csv_row(zonetool::s2::type_to_string(zonetool::s2::ASSET_TYPE_FX), name, true);
 			return true;
 		}
 

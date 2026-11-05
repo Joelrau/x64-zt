@@ -16,8 +16,6 @@ namespace zonetool::s2::cast_xanim
 		constexpr std::size_t index_pool_threshold = 65;
 		constexpr std::size_t index_checkpoint_stride = 256;
 
-		constexpr const char* delta_bone_name = "tag_origin";
-
 		struct quat_key
 		{
 			std::uint32_t frame;
@@ -471,7 +469,7 @@ namespace zonetool::s2::cast_xanim
 				}
 
 				const auto name = bone_name(parts, bone);
-				delta_name_taken |= utils::string::to_lower(name) == delta_bone_name;
+				delta_name_taken |= utils::string::to_lower(name) == "tag_origin";
 
 				if (!tracks[bone].rotation.empty())
 				{
@@ -488,21 +486,21 @@ namespace zonetool::s2::cast_xanim
 				const auto big_frames = parts->numframes >= 256;
 				if (delta_name_taken)
 				{
-					ZONETOOL_WARNING("CAST XAnim \"%s\": the animation drives \"%s\" and has an entity delta, the delta is not written", parts->name, delta_bone_name);
+					ZONETOOL_WARNING("CAST XAnim \"%s\": the animation drives \"tag_origin\" and has an entity delta, the delta is not written", parts->name);
 				}
 				else
 				{
 					if (delta->quat2)
 					{
-						write_rotation_curve(animation, delta_bone_name, "absolute", decode_delta_quat(delta->quat2, big_frames));
+						write_rotation_curve(animation, "tag_origin", "absolute", decode_delta_quat(delta->quat2, big_frames));
 					}
 					else if (delta->quat)
 					{
-						write_rotation_curve(animation, delta_bone_name, "absolute", decode_delta_quat(delta->quat, big_frames));
+						write_rotation_curve(animation, "tag_origin", "absolute", decode_delta_quat(delta->quat, big_frames));
 					}
 					if (delta->trans)
 					{
-						write_translation_curves(animation, delta_bone_name, "absolute", decode_delta_trans(delta->trans, big_frames));
+						write_translation_curves(animation, "tag_origin", "absolute", decode_delta_trans(delta->trans, big_frames));
 					}
 				}
 			}

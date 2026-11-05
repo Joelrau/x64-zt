@@ -13,23 +13,12 @@ namespace zonetool::h1::converter::s2::material
 	namespace
 	{
 		constexpr std::uint8_t no_entry = 0xFF;
-		constexpr std::uint32_t h1_polygon_offset_shift = 4;
-		constexpr std::uint32_t h1_polygon_offset_mask = 3u << h1_polygon_offset_shift;
-		constexpr std::uint32_t s2_polygon_offset_shift = 27;
-		constexpr std::uint32_t blend_class_shift = 26;
-		constexpr std::uint32_t blend_word_count = 3;
 		constexpr auto depth_stencil_mode_count = std::extent_v<decltype(zonetool::s2::material_state::depth_stencil)>;
 
 		std::vector<Material*> pending_materials;
 		std::unordered_set<std::string> pending_names;
 		std::unordered_map<const Material*, std::string> pending_sprites;
 		std::unordered_set<std::string> minimap_materials;
-
-		struct native_material
-		{
-			zonetool::s2::Material* material;
-			zonetool::s2::material_state* states;
-		};
 
 		zonetool::s2::GfxImage* make_image_stub(const std::string& name, utils::memory::allocator& allocator)
 		{
@@ -53,7 +42,6 @@ namespace zonetool::h1::converter::s2::material
 
 		std::uint32_t convert_material_type(const std::string& h1_techset)
 		{
-			// h1 world techsets have no type prefix ("l_sm_...")
 			using namespace zonetool::s2;
 
 			const auto prefix = h1_techset.substr(0, h1_techset.find('_'));
@@ -115,7 +103,6 @@ namespace zonetool::h1::converter::s2::material
 
 		std::uint32_t convert_load_bits0(const std::uint32_t load_bits0, const bool effect)
 		{
-			// stock s2 effects never alpha test > 0
 			if (effect && (load_bits0 & (GFXS0_ATEST_DISABLE | GFXS0_ATEST_MASK)) == GFXS0_ATEST_GT_0)
 			{
 				return (load_bits0 & ~GFXS0_ATEST_MASK) | GFXS0_ATEST_DISABLE;
@@ -126,27 +113,26 @@ namespace zonetool::h1::converter::s2::material
 
 		zonetool::s2::GfxStateBits convert_state_bits(const GfxStateBits& source, const std::uint32_t blend_class, const bool effect)
 		{
-			const auto polygon_offset = (source.loadBits[1] & h1_polygon_offset_mask) >> h1_polygon_offset_shift;
+			const auto polygon_offset = (source.loadBits[1] & GFXS1_POLYGON_OFFSET_MASK) >> GFXS1_POLYGON_OFFSET_SHIFT;
 
 			zonetool::s2::GfxStateBits result{};
 			result.loadBits[0] = convert_load_bits0(source.loadBits[0], effect);
-			result.loadBits[1] = source.loadBits[1] & ~h1_polygon_offset_mask;
-			result.loadBits[2] = source.loadBits[2] | (polygon_offset << s2_polygon_offset_shift);
-			for (auto i = 0u; i < blend_word_count; i++)
+			result.loadBits[1] = source.loadBits[1] & ~GFXS1_POLYGON_OFFSET_MASK;
+			result.loadBits[2] = source.loadBits[2] | (polygon_offset << 27);
+			for (auto i = 0u; i < 3; i++)
 			{
 				result.loadBits[3 + i] = convert_blend_word(source.loadBits[3 + i]);
 			}
-			result.loadBits[3] |= blend_class << blend_class_shift; // the output color space class, only the first render target has one
+			result.loadBits[3] |= blend_class << zonetool::s2::GFXS3_BLEND_CLASS_SHIFT;
 			result.rasterizerState = rasterizer_index(result.loadBits[0], result.loadBits[2]);
 			return result;
 		}
 
 		zonetool::s2::GfxStateBits convert_light_state_bits(const GfxStateBits& lit, const GfxStateBits& light, const std::uint32_t blend_class, const bool effect)
 		{
-			// the h1 light pass polygon offset fails the s2 depth test, so it uses the lit state with the light blend
 			auto source = lit;
-			source.loadBits[1] = lit.loadBits[1] & ~(h1_polygon_offset_mask | GFXS1_DEPTHWRITE);
-			for (auto i = 0u; i < blend_word_count; i++)
+			source.loadBits[1] = lit.loadBits[1] & ~(GFXS1_POLYGON_OFFSET_MASK | GFXS1_DEPTHWRITE);
+			for (auto i = 0u; i < 3; i++)
 			{
 				source.loadBits[3 + i] = light.loadBits[3 + i];
 			}
@@ -156,42 +142,38 @@ namespace zonetool::h1::converter::s2::material
 
 		std::array<std::uint64_t, depth_stencil_mode_count> depth_stencil_states(const std::uint32_t load_bits1, const std::uint32_t load_bits2)
 		{
-			constexpr std::uint32_t depth_write = 1;
-			constexpr std::uint32_t front_stencil_func = 0x000E0000;
-			constexpr std::uint32_t back_stencil_func = 0xE0000000;
-			constexpr std::uint32_t default_stencil_masks = 0xFFFF;
 			constexpr std::array<std::uint32_t, depth_stencil_mode_count> default_masks
 			{
 				0x0909, 0x1010, 0x0404, 0x0808, 0x0902, 0x0912, 0x0303, 0x0707, 0x1313, 0x1717, 0x0909, 0x1010,
 			};
 
-			const auto front_func = load_bits1 & GFXS1_STENCIL_FRONT_ENABLE ? load_bits1 & front_stencil_func : front_stencil_func;
+			const auto front_func = load_bits1 & GFXS1_STENCIL_FRONT_ENABLE ? load_bits1 & GFXS1_STENCIL_FRONT_FUNC_MASK : GFXS1_STENCIL_FRONT_FUNC_MASK;
 			const auto back_func = load_bits1 & GFXS1_STENCIL_BACK_ENABLE
-				? load_bits1 & back_stencil_func
+				? load_bits1 & GFXS1_STENCIL_BACK_FUNC_MASK
 				: front_func << (GFXS1_STENCIL_BACK_FUNC_SHIFT - GFXS1_STENCIL_FRONT_FUNC_SHIFT);
-			const auto stencil_states = load_bits1 & 0xFFFFFF00 ? load_bits1 | depth_write : load_bits1 | 0xE02E0241;
+			const auto stencil_states = load_bits1 & 0xFFFFFF00 ? load_bits1 | GFXS1_DEPTHWRITE : load_bits1 | 0xE02E0241;
 			const std::array<std::uint32_t, depth_stencil_mode_count> states
 			{
 				load_bits1,
 				(load_bits1 & 0xBF) | 0xE02E0240,
 				(load_bits1 & 0xBF) | front_func | back_func | 0x200240,
 				load_bits1,
-				(load_bits1 & ~depth_write) | 0x400400C0,
-				(load_bits1 & ~depth_write) | 0x400400C0,
+				(load_bits1 & ~GFXS1_DEPTHWRITE) | 0x400400C0,
+				(load_bits1 & ~GFXS1_DEPTHWRITE) | 0x400400C0,
 				stencil_states,
 				stencil_states,
 				stencil_states,
 				stencil_states,
-				load_bits1 | depth_write,
+				load_bits1 | GFXS1_DEPTHWRITE,
 				(load_bits1 & 0xBE) | 0xE02E0241,
 			};
 
-			const auto keeps_stencil_masks = load_bits2 != default_stencil_masks;
+			const auto keeps_stencil_masks = load_bits2 != 0xFFFF;
 			std::array<std::uint64_t, depth_stencil_mode_count> result{};
 			for (auto mode = 0u; mode < depth_stencil_mode_count; mode++)
 			{
 				const auto uses_stencil_masks = mode == 0 || (mode >= 6 && mode <= 9);
-				const auto masks = keeps_stencil_masks && uses_stencil_masks ? load_bits2 & default_stencil_masks : default_masks[mode];
+				const auto masks = keeps_stencil_masks && uses_stencil_masks ? load_bits2 & 0xFFFF : default_masks[mode];
 				result[mode] = (static_cast<std::uint64_t>(masks) << 32) | states[mode];
 			}
 
@@ -203,9 +185,9 @@ namespace zonetool::h1::converter::s2::material
 			zonetool::s2::material_state result{};
 			const auto depth_stencil = depth_stencil_states(state_bits.loadBits[1], state_bits.loadBits[2]);
 			std::ranges::copy(depth_stencil, result.depth_stencil);
-			for (auto i = 0u; i < blend_word_count; i++)
+			for (auto i = 0u; i < 3; i++)
 			{
-				result.blend[i] = state_bits.loadBits[3 + i] & ~(7u << blend_class_shift);
+				result.blend[i] = state_bits.loadBits[3 + i] & ~(7u << zonetool::s2::GFXS3_BLEND_CLASS_SHIFT);
 			}
 
 			return result;
@@ -258,21 +240,19 @@ namespace zonetool::h1::converter::s2::material
 			std::ranges::fill(material->stateBitsEntry, no_entry);
 			std::ranges::fill(material->constantBufferIndex, no_entry);
 
-			// pass p of a technique uses stateBitsEntry[slot] + p
 			std::vector<zonetool::s2::GfxStateBits> state_bits;
 			std::vector<zonetool::s2::material_state> states;
 			std::map<std::tuple<std::uint8_t, std::uint8_t, std::uint32_t, std::uint32_t>, std::uint8_t> entries;
 			const auto effect = is_effect_material(asset);
 			const auto state_source = [&](const std::int32_t source)
 			{
-				constexpr auto group_size = TECHNIQUE_INSTANCED_BEGIN - TECHNIQUE_STANDARD_BEGIN;
-				const auto instanced = source >= TECHNIQUE_INSTANCED_BEGIN && source < TECHNIQUE_INSTANCED_BEGIN + group_size;
+				const auto instanced = source >= TECHNIQUE_INSTANCED_BEGIN && source < TECHNIQUE_INSTANCED_BEGIN + (TECHNIQUE_INSTANCED_BEGIN - TECHNIQUE_STANDARD_BEGIN);
 				if (!instanced || asset->stateBitsEntry[source] != no_entry)
 				{
 					return source;
 				}
 
-				return source - group_size;
+				return source - (TECHNIQUE_INSTANCED_BEGIN - TECHNIQUE_STANDARD_BEGIN);
 			};
 
 			for (auto slot = 0; slot < zonetool::s2::technique_count; slot++)
@@ -403,7 +383,7 @@ namespace zonetool::h1::converter::s2::material
 				return token.starts_with("t0") || token.starts_with("a0") || token == "vdh";
 			});
 
-			if (!alpha_tested && !deforms_prepass_vertices(asset)) // opaque materials get the s2 generic position only prepass
+			if (!alpha_tested && !deforms_prepass_vertices(asset))
 			{
 				return zonetool::s2::PREPASS_CLASS_OPAQUE;
 			}
@@ -442,7 +422,7 @@ namespace zonetool::h1::converter::s2::material
 			case CAMERA_REGION_PRE_DEPTH_HACK:
 				return asset->stateFlags & STATE_FLAG_WRITES_DEPTH
 					? zonetool::s2::CAMERA_REGION_LIT_OPAQUE
-					: zonetool::s2::CAMERA_REGION_LIT_TRANS; // s2 only draws depth writing materials in the opaque region, h1 also draws blended reticles there
+					: zonetool::s2::CAMERA_REGION_LIT_TRANS;
 			case CAMERA_REGION_LIT_OPAQUE:
 			case CAMERA_REGION_PRE_OPAQUE:
 				return zonetool::s2::CAMERA_REGION_LIT_OPAQUE;
@@ -614,15 +594,6 @@ namespace zonetool::h1::converter::s2::material
 			convert_material(&sprite, true);
 		}
 
-		struct minimap_variant
-		{
-			const char* suffix;
-			const char* techset;
-			std::uint8_t sort_key;
-			std::uint32_t blend;
-			const char* alpha_map;
-		};
-
 		constexpr std::array<minimap_variant, 3> minimap_variants
 		{{
 			{"", "2d", 62, 0x03CB1165, nullptr},
@@ -630,8 +601,6 @@ namespace zonetool::h1::converter::s2::material
 			{"_ui3d", "2d", 62, 0x03CB1165, nullptr},
 		}};
 		constexpr std::array<std::uint32_t, 3> minimap_load_bits{0xA, 0xE00E000C, 0xFFFF};
-		constexpr std::uint8_t minimap_color_sampler = 0xE2;
-		constexpr std::uint8_t minimap_alpha_sampler = 0xF3;
 
 		std::uint32_t texture_name_hash(const std::string_view name)
 		{
@@ -672,23 +641,22 @@ namespace zonetool::h1::converter::s2::material
 			std::vector<zonetool::s2::MaterialTextureDef> textures;
 			if (variant.alpha_map)
 			{
-				textures.emplace_back(make_texture("alphaMap", minimap_alpha_sampler, variant.alpha_map, allocator));
+				textures.emplace_back(make_texture("alphaMap", 0xF3, variant.alpha_map, allocator));
 			}
-			textures.emplace_back(make_texture("colorMap", minimap_color_sampler, map_image, allocator));
+			textures.emplace_back(make_texture("colorMap", 0xE2, map_image, allocator));
 			material->textureCount = static_cast<unsigned char>(textures.size());
 			material->textureTable = copy_array(textures.data(), textures.size(), allocator);
 
-			constexpr auto unlit_technique_count = 3u; // unlit, unlit srgb gamma and unlit bt2020 pq, one blend class each
 			std::ranges::fill(material->stateBitsEntry, no_entry);
 			std::ranges::fill(material->constantBufferIndex, no_entry);
-			material->stateBitsCount = unlit_technique_count;
-			material->stateBitsTable = allocator.allocate_array<zonetool::s2::GfxStateBits>(unlit_technique_count);
-			const auto states = allocator.allocate_array<zonetool::s2::material_state>(unlit_technique_count);
-			for (auto i = 0u; i < unlit_technique_count; i++)
+			material->stateBitsCount = 3u;
+			material->stateBitsTable = allocator.allocate_array<zonetool::s2::GfxStateBits>(3u);
+			const auto states = allocator.allocate_array<zonetool::s2::material_state>(3u);
+			for (auto i = 0u; i < 3u; i++)
 			{
 				auto& state_bits = material->stateBitsTable[i];
 				std::ranges::copy(minimap_load_bits, state_bits.loadBits);
-				state_bits.loadBits[3] = variant.blend | (1u << (blend_class_shift + i));
+				state_bits.loadBits[3] = variant.blend | (1u << (zonetool::s2::GFXS3_BLEND_CLASS_SHIFT + i));
 				state_bits.rasterizerState = rasterizer_index(state_bits.loadBits[0], state_bits.loadBits[2]);
 				states[i] = convert_state(state_bits);
 				material->stateBitsEntry[zonetool::s2::TECHNIQUE_UNLIT + i] = static_cast<std::uint8_t>(i);
@@ -700,39 +668,29 @@ namespace zonetool::h1::converter::s2::material
 
 	std::uint8_t convert_sort_key(const std::uint8_t sort_key)
 	{
-		constexpr auto h1_opaque = 2;
-		constexpr auto h1_sky = 3;
-		constexpr auto h1_decal_end = 17;
-		constexpr auto h1_trans_end = 36;
-		constexpr auto h1_2d = 60;
-		constexpr auto s2_opaque = 4;
-		constexpr auto s2_sky = 6;
-		constexpr auto s2_trans_begin = 22;
-		constexpr auto max_sort_key = 63;
-
 		switch (sort_key)
 		{
-		case h1_opaque:
-			return s2_opaque;
-		case h1_sky:
-			return s2_sky;
+		case MTL_SORTKEY_OPAQUE:
+			return zonetool::s2::MTL_SORTKEY_OPAQUE;
+		case MTL_SORTKEY_SKY:
+			return zonetool::s2::MTL_SORTKEY_SKY;
 		default:
 			break;
 		}
 
-		if (sort_key <= h1_decal_end)
+		if (sort_key <= MTL_SORTKEY_DECAL_TOP_3)
 		{
 			return static_cast<std::uint8_t>(sort_key + 3);
 		}
 
-		if (sort_key <= h1_trans_end)
+		if (sort_key <= MTL_SORTKEY_VIEWMODEL_EFFECT)
 		{
-			return static_cast<std::uint8_t>(std::max(+sort_key, s2_trans_begin));
+			return static_cast<std::uint8_t>(std::max<int>(+sort_key, zonetool::s2::MTL_SORTKEY_TRANS_BEGIN));
 		}
 
-		if (sort_key >= h1_2d)
+		if (sort_key >= MTL_SORTKEY_2D)
 		{
-			return static_cast<std::uint8_t>(std::min(sort_key + 2, max_sort_key));
+			return static_cast<std::uint8_t>(std::min(sort_key + 2, 63));
 		}
 
 		return static_cast<std::uint8_t>(sort_key + 1);
@@ -750,7 +708,7 @@ namespace zonetool::h1::converter::s2::material
 	{
 		if (stock_zone::is_stock_asset(zonetool::s2::ASSET_TYPE_MATERIAL, name))
 		{
-			add_csv_row("material", name, true); // the s2 material of the same name is used
+			add_csv_row("material", name, true);
 			return true;
 		}
 

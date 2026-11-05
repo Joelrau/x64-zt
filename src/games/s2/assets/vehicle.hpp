@@ -63,7 +63,6 @@ namespace zonetool::s2
 		using effect_field = FxEffectDef* VehicleDef::*;
 		using sound_field = snd_alias_list_t* VehicleDef::*;
 
-		// each list is contiguous in zone and dump order
 		static constexpr effect_field vehicle_effects[] =
 		{
 			&VehicleDef::treadDefaultFx,

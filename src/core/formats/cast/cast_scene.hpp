@@ -141,6 +141,65 @@ namespace zonetool::cast
 		std::vector<animation_t> animations;
 	};
 
+	class basis_converter
+	{
+	public:
+		explicit basis_converter(const std::string& up_axis)
+			: y_up_(up_axis == "y" || up_axis == "Y")
+			, scale_(get_import_scale())
+		{
+		}
+
+		[[nodiscard]] bool active() const
+		{
+			return this->y_up_;
+		}
+
+		[[nodiscard]] float scale() const
+		{
+			return this->scale_;
+		}
+
+		[[nodiscard]] vec3_t convert_position(const vec3_t& in) const
+		{
+			auto out = this->convert(in);
+			out.v[0] *= this->scale_;
+			out.v[1] *= this->scale_;
+			out.v[2] *= this->scale_;
+			return out;
+		}
+
+		[[nodiscard]] vec3_t convert(const vec3_t& in) const
+		{
+			if (!this->y_up_)
+			{
+				return in;
+			}
+
+			vec3_t out{};
+			out.v[0] = in.v[0];
+			out.v[1] = -in.v[2];
+			out.v[2] = in.v[1];
+			return out;
+		}
+
+		[[nodiscard]] quat_t convert(const quat_t& in) const
+		{
+			if (!this->y_up_)
+			{
+				return in;
+			}
+
+			const auto half_sqrt2 = 0.70710678118654752440f;
+			const quat_t rotation{{half_sqrt2, 0.0f, 0.0f, half_sqrt2}};
+			return quat_multiply(quat_multiply(rotation, in), quat_conjugate(rotation));
+		}
+
+	private:
+		bool y_up_;
+		float scale_;
+	};
+
 	scene_t build_scene(const file& source, const std::string& display_name);
 
 	std::vector<std::uint32_t> normalize_skeleton(std::vector<bone_t>& bones, const std::string& owner);

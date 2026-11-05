@@ -15,8 +15,6 @@ namespace zonetool::h1::converter::s2::techset
 		std::map<std::pair<const zonetool::s2::MaterialTechnique*, const MaterialPass*>, zonetool::s2::MaterialTechnique*> light_pass_techniques;
 		std::map<std::tuple<const zonetool::s2::MaterialTechnique*, const MaterialPass*, bool>, zonetool::s2::MaterialTechnique*> merged_light_techniques;
 
-		constexpr auto custom_buffer_forward_cluster_lighting = zonetool::s2::CUSTOM_BUFFER_FORWARD_LIGHTS | zonetool::s2::CUSTOM_BUFFER_LIGHT_CLUSTER_BITS;
-		constexpr auto custom_buffer_light_tiles = zonetool::s2::CUSTOM_BUFFER_LIGHT_TILE_BITS | zonetool::s2::CUSTOM_BUFFER_LIGHT_TILE_ZBINS;
 		constexpr std::array<std::uint16_t, 3> light_cluster_consts{zonetool::s2::CONST_SRC_CODE_LIGHT_CLUSTER_CELLS,
 			zonetool::s2::CONST_SRC_CODE_LIGHT_CLUSTER_SLICE_STARTS, zonetool::s2::CONST_SRC_CODE_LIGHT_CLUSTER_SLICE_SCALES};
 
@@ -100,9 +98,6 @@ namespace zonetool::h1::converter::s2::techset
 				return entry->second;
 			}
 
-			constexpr auto texture_slot_count = 26u;
-			constexpr auto sampler_slot_count = 16u;
-
 			if (base->hdr.passCount != 1 || !base->passArray[0].pixelShader || !base->passArray[0].pixelShader->prog.loadDef.program || !light.pixelShader
 				|| !light.pixelShader->prog.loadDef.program)
 			{
@@ -140,9 +135,6 @@ namespace zonetool::h1::converter::s2::techset
 
 			auto [textures, samplers] = shader::declared_slots(lit.pixelShader->prog.loadDef.program, lit.pixelShader->prog.loadDef.programSize);
 
-			constexpr std::uint32_t spot_shadow_code_texture = 8;
-			constexpr std::uint32_t spot_shadow_dynamic_code_texture = 13;
-			constexpr std::uint32_t spot_shadow_code_sampler = 6;
 			merge.lights.spot_shadows = !samplers.contains(shader::spot_shadow_sampler);
 			std::vector<zonetool::s2::MaterialShaderArgument> stable(lit_args.begin() + lit.perPrimArgCount + lit.perObjArgCount, lit_args.end());
 			auto next_row = (lit.stableArgSize + constant_row_size - 1) / constant_row_size;
@@ -179,7 +171,7 @@ namespace zonetool::h1::converter::s2::techset
 					continue;
 				}
 
-				const auto dest = is_constant ? next_row : is_sampler ? free_slot(samplers, 0, sampler_slot_count) : free_slot(textures, 0, texture_slot_count);
+				const auto dest = is_constant ? next_row : is_sampler ? free_slot(samplers, 0, 16u) : free_slot(textures, 0, 26u);
 				next_row += is_constant ? rows_count : 0;
 				for (auto row = 0u; row < rows_count; row++)
 				{
@@ -190,7 +182,6 @@ namespace zonetool::h1::converter::s2::techset
 				stable.emplace_back(arg);
 			}
 
-			// s2 caps the loaded pixel shaders, so equal merged programs share one shader
 			const auto merged = shader::merge_light_program(lit.pixelShader->prog.loadDef.program, lit.pixelShader->prog.loadDef.programSize,
 				light.pixelShader->prog.loadDef.program, light.pixelShader->prog.loadDef.programSize, merge);
 			auto& pixel_shader = merged_pixel_shaders[merged.data];
@@ -211,9 +202,9 @@ namespace zonetool::h1::converter::s2::techset
 
 			if (merge.lights.spot_shadows)
 			{
-				for (const auto& [type, dest, source] : {std::tuple{zonetool::s2::MTL_ARG_CODE_TEXTURE, shader::spot_shadow_slot, spot_shadow_code_texture},
-					std::tuple{zonetool::s2::MTL_ARG_CODE_TEXTURE, shader::spot_shadow_dynamic_slot, spot_shadow_dynamic_code_texture},
-					std::tuple{zonetool::s2::MTL_ARG_CODE_SAMPLER, shader::spot_shadow_sampler, spot_shadow_code_sampler}})
+				for (const auto& [type, dest, source] : {std::tuple{zonetool::s2::MTL_ARG_CODE_TEXTURE, shader::spot_shadow_slot, 8u},
+					std::tuple{zonetool::s2::MTL_ARG_CODE_TEXTURE, shader::spot_shadow_dynamic_slot, 13u},
+					std::tuple{zonetool::s2::MTL_ARG_CODE_SAMPLER, shader::spot_shadow_sampler, 6u}})
 				{
 					auto arg = make_arg(type, MTL_SHADER_STAGE_PIXEL, static_cast<unsigned short>(dest));
 					arg.u.codeSampler = source;
@@ -237,10 +228,10 @@ namespace zonetool::h1::converter::s2::techset
 			pass.args = args;
 			pass.stableArgCount = static_cast<unsigned char>(stable.size());
 			pass.stableArgSize = arg_size(lit.stableArgSize, next_row);
-			pass.customBufferFlags |= clustered ? custom_buffer_forward_cluster_lighting : zonetool::s2::CUSTOM_BUFFER_FORWARD_LIGHTING;
+			pass.customBufferFlags |= clustered ? (zonetool::s2::CUSTOM_BUFFER_FORWARD_LIGHTS | zonetool::s2::CUSTOM_BUFFER_LIGHT_CLUSTER_BITS) : zonetool::s2::CUSTOM_BUFFER_FORWARD_LIGHTING;
 			if (clustered)
 			{
-				pass.customBufferFlags &= ~custom_buffer_light_tiles;
+				pass.customBufferFlags &= ~(zonetool::s2::CUSTOM_BUFFER_LIGHT_TILE_BITS | zonetool::s2::CUSTOM_BUFFER_LIGHT_TILE_ZBINS);
 			}
 
 			merged_light_techniques.emplace(key, result);

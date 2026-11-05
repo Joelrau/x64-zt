@@ -55,13 +55,11 @@ namespace zonetool
 	struct XStreamFileLocation
 	{
 		static constexpr std::uint16_t fastfile_index = 0;
-		// s2 marks imagefile paks with 0x8000 (0x4000 is imagestream) and keeps the pak index in the low 13 bits (sub_14007FCC0);
-		// a client opens the zone's own <zone>.pak for this index like h1-mod does for XStreamFile::zone_pak_file_index
 		static constexpr std::uint16_t imagefile_pak_flag = 0x8000;
 		static constexpr std::uint16_t pak_index_mask = 0x1FFF;
 		static constexpr std::uint16_t zone_pak_index = imagefile_pak_flag | XStreamFile::zone_pak_file_index;
 
-		std::uint64_t offset; // the game packs offset into 36 bits and size into 28
+		std::uint64_t offset;
 		std::uint32_t size;
 		std::uint8_t isLocalized;
 		std::uint8_t unk_0xD;
@@ -89,6 +87,70 @@ namespace zonetool
 		DB_AuthSignature signature;
 	};
 #pragma pack(pop)
+
+	struct XAssetList
+	{
+		std::int32_t stringCount;
+		std::uint64_t strings;
+		std::int32_t assetCount;
+		std::uint64_t assets;
+		std::uint64_t globals;
+	};
+
+	constexpr std::size_t iw7_block_count = 10;
+
+#pragma pack(push, 1)
+	struct iw7_file_header
+	{
+		char magic[8];
+		std::uint32_t version;
+		std::uint8_t unused;
+		std::uint8_t has_no_image_fastfile;
+		std::uint8_t has_no_shared_fastfile;
+		std::uint8_t unknown;
+		std::uint32_t file_time_high;
+		std::uint32_t file_time_low;
+		std::uint64_t size;
+		std::uint64_t unknown_sizes[2];
+		std::uint64_t block_sizes[iw7_block_count];
+		std::uint64_t unknown_array[8];
+		std::uint32_t shared_stream_hash;
+		std::uint32_t shared_stream_count;
+		std::uint32_t image_stream_hash;
+		std::uint32_t image_stream_count;
+	};
+
+	struct iw7_stream_file
+	{
+		std::uint64_t offset;
+		std::uint64_t offset_end;
+		std::uint16_t file_index;
+		std::uint8_t is_localized;
+		std::uint8_t pad[5];
+	};
+#pragma pack(pop)
+
+	static_assert(sizeof(iw7_file_header) == 0xD0);
+	static_assert(sizeof(iw7_stream_file) == 0x18);
+
+#pragma pack(push, 1)
+	struct s2_file_header
+	{
+		char magic[8];
+		std::uint32_t header_version;
+		std::uint32_t version;
+		std::uint8_t compress;
+		std::uint8_t compress_type;
+		std::uint8_t stream_compress_type;
+		std::uint8_t unknown;
+		std::uint32_t unknown2;
+		std::uint32_t file_time_high;
+		std::uint32_t file_time_low;
+		std::uint32_t stream_key_count;
+	};
+#pragma pack(pop)
+
+	static_assert(sizeof(s2_file_header) == 0x24);
 
 	enum XFileBlock
 	{

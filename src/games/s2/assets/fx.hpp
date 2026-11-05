@@ -84,7 +84,6 @@ namespace zonetool::s2
 			auto* asset = read.read_single<FxParticleSimAnimation>();
 			asset->name = read.read_string();
 			asset->material = read.read_asset<Material>();
-			// the arrays dump as bytes to keep the existing dump format
 			asset->particleData = reinterpret_cast<FxParticleSimAnimationParticleData*>(read.read_array<char>());
 			asset->frames = reinterpret_cast<FxParticleSimAnimationFrame*>(read.read_array<char>());
 			asset->colorTable = reinterpret_cast<GfxColorFloat*>(read.read_array<char>());
@@ -180,24 +179,21 @@ namespace zonetool::s2
 	class impact_fx : public asset_base<FxImpactTable, ASSET_TYPE_IMPACT_FX>
 	{
 	public:
-		static constexpr std::size_t entry_count = 23;
-		static constexpr std::size_t surface_count = 72;
-
 		static void read(zone_reader& reader, FxImpactTable* asset)
 		{
 			reader.push_stream(XFILE_BLOCK_VIRTUAL);
 			reader.read_string(asset->name);
-			if (const auto table = reader.read_array(asset->table, 7, entry_count))
+			if (const auto table = reader.read_array(asset->table, 7, 23))
 			{
-				for (std::size_t i = 0; i < entry_count; i++)
+				for (std::size_t i = 0; i < 23; i++)
 				{
 					read_effects(reader, table[i].nonflesh);
 					read_effects(reader, table[i].flesh);
 				}
 			}
-			if (const auto surfaces = reader.read_array(asset->surfaces, 7, surface_count))
+			if (const auto surfaces = reader.read_array(asset->surfaces, 7, 72))
 			{
-				for (std::size_t i = 0; i < surface_count; i++)
+				for (std::size_t i = 0; i < 72; i++)
 				{
 					reader.read_string(surfaces[i].weaponName);
 					reader.read_asset(ASSET_TYPE_FX, surfaces[i].effect);
@@ -219,13 +215,13 @@ namespace zonetool::s2
 			auto* asset = read.read_single<FxImpactTable>();
 			asset->name = read.read_string();
 			asset->table = read.read_array<FxImpactEntry>();
-			for (std::size_t i = 0; asset->table && i < entry_count; i++)
+			for (std::size_t i = 0; asset->table && i < 23; i++)
 			{
 				parse_effect_references(read, asset->table[i].nonflesh);
 				parse_effect_references(read, asset->table[i].flesh);
 			}
 			asset->surfaces = read.read_array<FxImpactSurfaceEntry>();
-			for (std::size_t i = 0; asset->surfaces && i < surface_count; i++)
+			for (std::size_t i = 0; asset->surfaces && i < 72; i++)
 			{
 				asset->surfaces[i].weaponName = read.read_string();
 				asset->surfaces[i].effect = read.read_asset<FxEffectDef>();
@@ -237,12 +233,12 @@ namespace zonetool::s2
 
 		void load_depending(zone_base* zone) override
 		{
-			for (std::size_t i = 0; this->asset_->table && i < entry_count; i++)
+			for (std::size_t i = 0; this->asset_->table && i < 23; i++)
 			{
 				add_effect_dependencies(zone, this->asset_->table[i].nonflesh);
 				add_effect_dependencies(zone, this->asset_->table[i].flesh);
 			}
-			for (std::size_t i = 0; this->asset_->surfaces && i < surface_count; i++)
+			for (std::size_t i = 0; this->asset_->surfaces && i < 72; i++)
 			{
 				add_dependency(zone, ASSET_TYPE_FX, this->asset_->surfaces[i].effect);
 			}
@@ -258,8 +254,8 @@ namespace zonetool::s2
 			if (data->table)
 			{
 				buf->align(7);
-				auto* table = buf->write(data->table, entry_count);
-				for (std::size_t i = 0; i < entry_count; i++)
+				auto* table = buf->write(data->table, 23);
+				for (std::size_t i = 0; i < 23; i++)
 				{
 					write_effect_references(zone, data->table[i].nonflesh, table[i].nonflesh);
 					write_effect_references(zone, data->table[i].flesh, table[i].flesh);
@@ -269,8 +265,8 @@ namespace zonetool::s2
 			if (data->surfaces)
 			{
 				buf->align(7);
-				auto* surfaces = buf->write(data->surfaces, surface_count);
-				for (std::size_t i = 0; i < surface_count; i++)
+				auto* surfaces = buf->write(data->surfaces, 72);
+				for (std::size_t i = 0; i < 72; i++)
 				{
 					write_string(buf, data->surfaces[i].weaponName, surfaces[i].weaponName);
 					surfaces[i].effect = asset_reference(zone, ASSET_TYPE_FX, data->surfaces[i].effect);
@@ -290,14 +286,14 @@ namespace zonetool::s2
 
 			write.dump_single(asset);
 			write.dump_string(asset->name);
-			write.dump_array(asset->table, entry_count);
-			for (std::size_t i = 0; asset->table && i < entry_count; i++)
+			write.dump_array(asset->table, 23);
+			for (std::size_t i = 0; asset->table && i < 23; i++)
 			{
 				dump_effect_references(write, asset->table[i].nonflesh);
 				dump_effect_references(write, asset->table[i].flesh);
 			}
-			write.dump_array(asset->surfaces, surface_count);
-			for (std::size_t i = 0; asset->surfaces && i < surface_count; i++)
+			write.dump_array(asset->surfaces, 72);
+			for (std::size_t i = 0; asset->surfaces && i < 72; i++)
 			{
 				write.dump_string(asset->surfaces[i].weaponName);
 				write.dump_asset(asset->surfaces[i].effect);
@@ -319,15 +315,13 @@ namespace zonetool::s2
 	class surface_fx : public asset_base<SurfaceFxTable, ASSET_TYPE_SURFACE_FX>
 	{
 	public:
-		static constexpr std::size_t entry_count = 11;
-
 		static void read(zone_reader& reader, SurfaceFxTable* asset)
 		{
 			reader.push_stream(XFILE_BLOCK_VIRTUAL);
 			reader.read_string(asset->name);
-			if (const auto table = reader.read_array(asset->table, 7, entry_count))
+			if (const auto table = reader.read_array(asset->table, 7, 11))
 			{
-				for (std::size_t i = 0; i < entry_count; i++)
+				for (std::size_t i = 0; i < 11; i++)
 				{
 					for (auto& effect : table[i].surfaceEffect)
 					{
@@ -351,7 +345,7 @@ namespace zonetool::s2
 			auto* asset = read.read_single<SurfaceFxTable>();
 			asset->name = read.read_string();
 			asset->table = read.read_array<SurfaceFxEntry>();
-			for (std::size_t i = 0; asset->table && i < entry_count; i++)
+			for (std::size_t i = 0; asset->table && i < 11; i++)
 			{
 				parse_effect_references(read, asset->table[i].surfaceEffect);
 			}
@@ -362,7 +356,7 @@ namespace zonetool::s2
 
 		void load_depending(zone_base* zone) override
 		{
-			for (std::size_t i = 0; this->asset_->table && i < entry_count; i++)
+			for (std::size_t i = 0; this->asset_->table && i < 11; i++)
 			{
 				add_effect_dependencies(zone, this->asset_->table[i].surfaceEffect);
 			}
@@ -378,8 +372,8 @@ namespace zonetool::s2
 			if (data->table)
 			{
 				buf->align(7);
-				auto* table = buf->write(data->table, entry_count);
-				for (std::size_t i = 0; i < entry_count; i++)
+				auto* table = buf->write(data->table, 11);
+				for (std::size_t i = 0; i < 11; i++)
 				{
 					write_effect_references(zone, data->table[i].surfaceEffect, table[i].surfaceEffect);
 				}
@@ -398,8 +392,8 @@ namespace zonetool::s2
 
 			write.dump_single(asset);
 			write.dump_string(asset->name);
-			write.dump_array(asset->table, entry_count);
-			for (std::size_t i = 0; asset->table && i < entry_count; i++)
+			write.dump_array(asset->table, 11);
+			for (std::size_t i = 0; asset->table && i < 11; i++)
 			{
 				dump_effect_references(write, asset->table[i].surfaceEffect);
 			}

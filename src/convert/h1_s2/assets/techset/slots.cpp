@@ -50,7 +50,7 @@ namespace zonetool::h1::converter::s2::techset
 		case zonetool::s2::TECHNIQUE_BUILD_SHADOWMAP_DEPTH:
 			return {TECHNIQUE_BUILD_SHADOWMAP_DEPTH};
 		case zonetool::s2::TECHNIQUE_UNLIT:
-			return {TECHNIQUE_UNLIT}; // the srgb gamma and bt2020 pq unlit slots stay empty, h1 has no shaders that encode those outputs
+			return {TECHNIQUE_UNLIT};
 		case zonetool::s2::TECHNIQUE_WIREFRAME_SOLID:
 			return {TECHNIQUE_WIREFRAME_SOLID};
 		default:

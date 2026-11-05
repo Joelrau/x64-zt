@@ -128,8 +128,7 @@ namespace zonetool::s2::converter::h1::mapents
 			return buffer;
 		}
 
-		// TODO H1 has no S2 turret weapons, and spawning a misc_turret without a weaponinfo is a fatal error
-		std::string remove_turrets(const std::string& data)
+		std::string remove_turrets(const std::string& data) // TODO: h1 has no s2 turret weapons
 		{
 			std::string buffer{};
 			std::string entity{};
@@ -181,8 +180,7 @@ namespace zonetool::s2::converter::h1::mapents
 			return new_asset;
 		}
 
-		// TODO S2 map scripts do not run on H1, h1-mod compiles this loose stub in place of the map scriptfile
-		void dump_map_script(const std::string& ents_name)
+		void dump_map_script(const std::string& ents_name) // TODO: s2 map scripts do not run on h1
 		{
 			const auto map_name = ents_name.substr(0, ents_name.find(".d3dbsp"));
 			const std::string script =

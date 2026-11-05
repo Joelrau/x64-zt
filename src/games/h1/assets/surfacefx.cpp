@@ -26,8 +26,6 @@ namespace zonetool::h1
 		};
 	}
 
-	constexpr int SURFACE_EFFECT_SIZE =  53;
-
 	SurfaceFxTable* surface_fx::parse(const std::string& name, zone_memory* mem)
 	{
 		const auto path = "surfacefx\\"s + get_name(name) + ".json"s;
@@ -96,7 +94,7 @@ namespace zonetool::h1
 			for (auto table_i = 0; table_i < TABLE_SIZE; table_i++)
 			{
 				auto* data_table = &data_tables[table_i];
-				for (auto effect_i = 0; effect_i < SURFACE_EFFECT_SIZE; effect_i++)
+				for (auto effect_i = 0; effect_i < 53; effect_i++)
 				{
 					if (data_table->surfaceEffect[effect_i])
 					{
@@ -152,7 +150,7 @@ namespace zonetool::h1
 			{
 				auto* data_table = &data_tables[table_i];
 				auto* dest_table = &dest_tables[table_i];
-				for (auto effect_i = 0; effect_i < SURFACE_EFFECT_SIZE; effect_i++)
+				for (auto effect_i = 0; effect_i < 53; effect_i++)
 				{
 					if (data_table->surfaceEffect[effect_i])
 					{

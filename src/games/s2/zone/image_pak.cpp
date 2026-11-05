@@ -50,7 +50,6 @@ namespace zonetool::s2::image_pak
 			return;
 		}
 
-		// the game checks the signature of every open S1ff pak, except one that starts with the toc magic
 		ZONETOOL_INFO("Writing %zu image streams to \"%s\"...", streams.size(), pak_path.string().data());
 		const auto locations = xfile::write_s2_pak(pak_path, toc_magic, streams);
 
@@ -67,7 +66,7 @@ namespace zonetool::s2::image_pak
 				XStreamFileLocation stream{};
 				stream.offset = location->offset;
 				stream.size = location->size;
-				stream.fileIndex = XStreamFileLocation::zone_pak_index; // the client resolves it to the pak of the zone being loaded
+				stream.fileIndex = XStreamFileLocation::zone_pak_index;
 				keys.at(image.first_key + i) = std::bit_cast<XStreamFileKey>(stream);
 				++location;
 			}

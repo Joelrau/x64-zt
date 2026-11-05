@@ -10,9 +10,6 @@ namespace zonetool::h1::converter::s2::clipmap
 {
 	namespace
 	{
-		constexpr std::uint8_t transient_zone = 0;
-		constexpr std::uint8_t no_transient_zone = 0xFF;
-
 		clipMap_t* pending_clip_map = nullptr;
 
 		std::string transient_zone_name(const std::string& clip_name)
@@ -21,15 +18,6 @@ namespace zonetool::h1::converter::s2::clipmap
 			base = base.substr(0, base.find(".d3dbsp"));
 			return base + "_000";
 		}
-
-		constexpr auto h1_vertex_segment_size = 1024u;
-		constexpr auto s2_vertex_segment_size = 4096u;
-
-		struct vertex_range
-		{
-			std::uint32_t lowest;
-			std::uint32_t highest;
-		};
 
 		vertex_range partition_vertex_range(const PatchesCollisionData& data, const int first_tri, const int end_tri, const std::uint32_t vertex_base)
 		{
@@ -45,7 +33,7 @@ namespace zonetool::h1::converter::s2::clipmap
 
 		std::uint32_t append_vertices(std::vector<std::array<float, 3>>& verts, const PatchesCollisionData& data, const vertex_range& range)
 		{
-			const auto base = (static_cast<std::uint32_t>(verts.size()) + s2_vertex_segment_size - 1) / s2_vertex_segment_size * s2_vertex_segment_size;
+			const auto base = (static_cast<std::uint32_t>(verts.size()) + 4096u - 1) / 4096u * 4096u;
 			verts.resize(base);
 			for (auto vertex = range.lowest; vertex <= range.highest; vertex++)
 			{
@@ -108,7 +96,7 @@ namespace zonetool::h1::converter::s2::clipmap
 				const auto& node = tree.leafbrushNodes[i];
 				auto& new_node = nodes[i];
 				new_node.axis = node.axis;
-				new_node.transientZone = transient_zone;
+				new_node.transientZone = 0;
 				new_node.leafBrushCount = node.leafBrushCount;
 				new_node.contents = static_cast<std::uint32_t>(node.contents);
 				if (node.leafBrushCount > 0)
@@ -139,7 +127,7 @@ namespace zonetool::h1::converter::s2::clipmap
 				auto& new_node = nodes[i];
 				std::memcpy(new_node.midPoint, node.midPoint, sizeof(new_node.midPoint));
 				std::memcpy(new_node.halfSize, node.halfSize, sizeof(new_node.halfSize));
-				new_node.transientZone = transient_zone;
+				new_node.transientZone = 0;
 				new_node.u.firstChildIndex = static_cast<unsigned int>(node.u.firstChildIndex);
 				if (node.childCount > std::numeric_limits<std::uint8_t>::max())
 				{
@@ -168,7 +156,7 @@ namespace zonetool::h1::converter::s2::clipmap
 				nodes[i].bounds = std::bit_cast<zonetool::s2::Bounds>(node.bounds);
 				nodes[i].firstChild = node.firstChild;
 				nodes[i].childCount = static_cast<std::uint8_t>(node.childCount);
-				nodes[i].transientZone = transient_zone;
+				nodes[i].transientZone = 0;
 			}
 
 			new_info.sCollisionTree.numStaticModels = tree.numStaticModels;
@@ -217,17 +205,17 @@ namespace zonetool::h1::converter::s2::clipmap
 				const auto& partition = data.partitions[i];
 				const auto first_tri = partition.firstTri;
 				const auto end_tri = std::min(partition.firstTri + partition.triCount, data.triCount);
-				const auto h1_vertex_base = partition.firstVertSegment * h1_vertex_segment_size;
+				const auto h1_vertex_base = partition.firstVertSegment * 1024u;
 				const auto range = partition_vertex_range(data, first_tri, end_tri, h1_vertex_base);
-				auto first_vertex = range.lowest / s2_vertex_segment_size * s2_vertex_segment_size;
+				auto first_vertex = range.lowest / 4096u * 4096u;
 				auto s2_vertex_base = first_vertex;
-				if (range.highest - first_vertex > std::numeric_limits<std::uint16_t>::max()) // s2 segments are coarser than h1's, copy the verts to a new segment
+				if (range.highest - first_vertex > std::numeric_limits<std::uint16_t>::max())
 				{
 					s2_vertex_base = append_vertices(verts, data, range);
 					first_vertex = range.lowest;
 				}
 
-				const auto s2_segment = s2_vertex_base / s2_vertex_segment_size;
+				const auto s2_segment = s2_vertex_base / 4096u;
 
 				auto& new_partition = partitions[i];
 				new_partition.triCount = partition.triCount;
@@ -310,7 +298,7 @@ namespace zonetool::h1::converter::s2::clipmap
 				nodes[i].plane = retype<zonetool::s2::cplane_s>(asset->nodes[i].plane);
 				nodes[i].children[0] = asset->nodes[i].children[0];
 				nodes[i].children[1] = asset->nodes[i].children[1];
-				nodes[i].transientZone = no_transient_zone;
+				nodes[i].transientZone = 0xFF;
 			}
 
 			new_asset->numNodes = asset->numNodes;
@@ -326,8 +314,8 @@ namespace zonetool::h1::converter::s2::clipmap
 			new_leaf.terrainContents = static_cast<std::uint32_t>(leaf.terrainContents);
 			new_leaf.bounds = std::bit_cast<zonetool::s2::Bounds>(leaf.bounds);
 			new_leaf.leafBrushNode = leaf.leafBrushNode;
-			new_leaf.brushTransientZone = leaf.brushContents ? transient_zone : no_transient_zone;
-			new_leaf.aabbTransientZone = leaf.collAabbCount ? transient_zone : no_transient_zone;
+			new_leaf.brushTransientZone = leaf.brushContents ? 0 : 0xFF;
+			new_leaf.aabbTransientZone = leaf.collAabbCount ? 0 : 0xFF;
 			return new_leaf;
 		}
 

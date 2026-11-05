@@ -247,27 +247,18 @@ namespace zonetool::s2::converter::h1::gfximage
 
 		std::optional<DirectX::ScratchImage> compress_bc6h_cube(const DirectX::ScratchImage& cube, const std::size_t face_size)
 		{
-			constexpr std::size_t strip_height = 16;
-
 			DirectX::ScratchImage compressed;
 			if (FAILED(compressed.InitializeCube(DXGI_FORMAT_BC6H_UF16, face_size, face_size, 1, 1)))
 			{
 				return {};
 			}
 
-			struct strip
-			{
-				std::size_t face;
-				std::size_t y;
-				std::size_t height;
-			};
-
 			std::vector<strip> strips;
 			for (auto face = 0u; face < 6; face++)
 			{
-				for (auto y = 0ull; y < face_size; y += strip_height)
+				for (auto y = 0ull; y < face_size; y += 16)
 				{
-					strips.emplace_back(face, y, std::min(strip_height, face_size - y));
+					strips.emplace_back(face, y, std::min<std::size_t>(16, face_size - y));
 				}
 			}
 
@@ -326,7 +317,6 @@ namespace zonetool::s2::converter::h1::gfximage
 			}
 		}
 
-		// S2 sky_c.hlsl rotates the view direction by skyRotationParms, then samples a 2D image with uv = 0.5 + 0.5 * dir.xy / (1 + |0.080169 + 0.919831 * dir.z|)
 		std::optional<DirectX::ScratchImage> make_sky_cube(const DirectX::ScratchImage& source, const float rotation_cos, const float rotation_sin)
 		{
 			const auto& image = *source.GetImage(0, 0, 0);
@@ -421,7 +411,6 @@ namespace zonetool::s2::converter::h1::gfximage
 			write.close();
 		}
 
-		// stream pixelSize is cumulative over the streams, dataLen2 is the total
 		template <std::size_t N>
 		void convert_specular_streams(GfxImage* asset, zonetool::h1::GfxImage* image, std::array<std::optional<std::string>, N>& streams)
 		{

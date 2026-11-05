@@ -9,17 +9,6 @@ namespace zonetool::s2
 {
 	namespace
 	{
-		constexpr std::string_view sound_toc_magic = "S2ffi200";
-		constexpr std::string_view sound_file_prefix = "soundfile";
-		constexpr std::uint16_t flac_block_size = 1024;
-
-		struct sound_stream_location
-		{
-			std::filesystem::path pak;
-			std::uint64_t offset;
-			std::uint32_t size;
-		};
-
 		void read_sound_toc(const std::string& name, std::unordered_map<std::uint64_t, sound_stream_location>& locations)
 		{
 			const auto path = game_files::get().path(name);
@@ -30,7 +19,7 @@ namespace zonetool::s2
 			}
 
 			const auto* header = reinterpret_cast<const SoundFileTocHeader*>(data.data());
-			if (std::string_view(header->magic, sizeof(header->magic)) != sound_toc_magic
+			if (std::string_view(header->magic, sizeof(header->magic)) != "S2ffi200"
 				|| sizeof(SoundFileTocHeader) + header->entryCount * sizeof(SoundFileTocEntry) > data.size())
 			{
 				ZONETOOL_WARNING("Sound toc \"%s\" is not valid", name.data());
@@ -38,12 +27,12 @@ namespace zonetool::s2
 			}
 
 			const auto file_name = path.filename().string();
-			const auto pak_prefix = file_name.substr(0, file_name.find(sound_file_prefix));
+			const auto pak_prefix = file_name.substr(0, file_name.find("soundfile"));
 
 			const auto* entries = reinterpret_cast<const SoundFileTocEntry*>(data.data() + sizeof(SoundFileTocHeader));
 			for (auto i = 0u; i < header->entryCount; i++)
 			{
-				const auto pak_name = std::format("{}{}{}.pak", pak_prefix, sound_file_prefix, entries[i].fileIndex);
+				const auto pak_name = std::format("{}soundfile{}.pak", pak_prefix, entries[i].fileIndex);
 				locations.try_emplace(entries[i].hash[0], path.parent_path() / pak_name, entries[i].offset, entries[i].size);
 			}
 		}
@@ -55,7 +44,7 @@ namespace zonetool::s2
 				std::unordered_map<std::uint64_t, sound_stream_location> result;
 				for (const auto& name : game_files::get().list(".toc"))
 				{
-					if (std::filesystem::path(name).filename().string().contains(sound_file_prefix))
+					if (std::filesystem::path(name).filename().string().contains("soundfile"))
 					{
 						read_sound_toc(name, result);
 					}
@@ -141,10 +130,10 @@ namespace zonetool::s2
 				ZONETOOL_FATAL("%s: the flac file is not valid", name.data());
 			}
 
-			if (info->min_block_size != flac_block_size || info->max_block_size != flac_block_size)
+			if (info->min_block_size != 1024 || info->max_block_size != 1024)
 			{
 				ZONETOOL_WARNING("%s: the flac block size must be %u (min %u, max %u)",
-					name.data(), flac_block_size, info->min_block_size, info->max_block_size);
+					name.data(), 1024, info->min_block_size, info->max_block_size);
 			}
 
 			set_audio_data(asset, *data, mem);
@@ -228,7 +217,7 @@ namespace zonetool::s2
 
 			if (asset->info.streamKey.hash)
 			{
-				asset->data = mem->allocate<char>(asset->dataSize); // the game streams the audio from the soundfile pak, the zone holds zeros
+				asset->data = mem->allocate<char>(asset->dataSize);
 			}
 			else if (!parse_audio(name, asset, mem) && asset->dataSize)
 			{

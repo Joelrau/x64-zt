@@ -42,7 +42,6 @@ namespace zonetool::h1::converter::s2::shader
 
 	std::unordered_map<std::uint32_t, std::uint32_t> order_wind_inputs(alys::shader::shader_object::signature& inputs, const bool added_normal)
 	{
-		// s2 shares one input layout per decl, so the inputs follow the stock fwa decl registers
 		std::vector<signature_element*> order;
 		std::vector<signature_element*> system_values;
 		signature_element* color = nullptr;
@@ -138,7 +137,6 @@ namespace zonetool::h1::converter::s2::shader
 	void emit_foliage_wind(alys::shader::assembler& a, const alys::shader::detail::operand_t& dest, const std::uint32_t position, const wind_inputs& inputs,
 		const foliage_wind& wind, const std::array<alys::shader::detail::operand_t, 3>& world, const std::uint32_t temp)
 	{
-		constexpr auto precise = D3D11_SB_INSTRUCTION_PRECISE_VALUES_MASK >> 11; // precise mul + add like stock, every pass of the draw must move the vertex the same
 		const auto flutter = temp;
 		const auto work = temp + 1;
 		const auto bent = temp + 2;
@@ -148,7 +146,7 @@ namespace zonetool::h1::converter::s2::shader
 		const auto params = [&](const char* swizzle) { return asm_::cb(s2_stable_constant_buffer, wind.params_row).select(swizzle); };
 		const auto all = [](const std::uint32_t reg) { return asm_::r(reg).select("xyzw"); };
 
-		a.push_controls(precise);
+		a.push_controls(D3D11_SB_INSTRUCTION_PRECISE_VALUES_MASK >> 11);
 		a.mul(asm_::r(flutter).zw(), asm_::v(inputs.color).select("yyyy"), asm_::l(0.0f, 0.0f, 3.14f, 3.14f));
 		a.add(asm_::r(flutter).xy(), asm_::r(flutter).select("wwww"), asm_::r(flutter).select("wwww"));
 		a.add(all(flutter), all(flutter), time("wwww"));
@@ -203,7 +201,7 @@ namespace zonetool::h1::converter::s2::shader
 		a.add(asm_::r(bent).xy(), asm_::r(work).select("xyxx"), asm_::r(bent).select("xyxx"));
 
 		a.dp3(asm_::r(work).w(), asm_::r(bent).select("xyzx"), asm_::r(bent).select("xyzx"));
-		a.max(asm_::r(work).w(), asm_::r(work).w(), asm_::l(1e-12f)); // stock divides by zero at the origin
+		a.max(asm_::r(work).w(), asm_::r(work).w(), asm_::l(1e-12f));
 		a.rsq(asm_::r(work).w(), asm_::r(work).w());
 		a.mul(asm_::r(work).w(), asm_::r(work).w(), asm_::r(work).z());
 		a.mul(asm_::r(bent).xyz(), asm_::r(bent).select("xyzx"), asm_::r(work).select("wwww"));

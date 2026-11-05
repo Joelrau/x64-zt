@@ -13,13 +13,6 @@ namespace zonetool::iw6
 		{
 			namespace
 			{
-				struct lightset_entry
-				{
-					std::string name;
-					std::string default_value;
-					std::optional<std::function<std::string(ToneMapping*)>> convert = {};
-				};
-
 				std::string convert_name(ToneMapping* asset)
 				{
 					std::string name = asset->name;
@@ -40,7 +33,6 @@ namespace zonetool::iw6
 					return value * value * (3.0f - 2.0f * value);
 				}
 
-				// the grade of postfx_color_grad(_lmh)
 				color_t grade_color(const ColorizationSet& set, const color_t& color)
 				{
 					const auto luma = color[0] * 0.299f + color[1] * 0.587f + color[2] * 0.114f;
@@ -77,7 +69,6 @@ namespace zonetool::iw6
 					return result;
 				}
 
-				// the postfx_color_grad curve and grade of iw6 for an exposed scene color
 				color_t iw6_tone(const ToneMapping& tone, const ColorizationSet* set, const color_t& x)
 				{
 					color_t value{};
@@ -126,7 +117,6 @@ namespace zonetool::iw6
 
 				using filmic_fit = std::array<float, FIT_COUNT>;
 
-				// the h1 filmic operator of R_CalculateTonemapFilmicParms, then the film pass of postfx_color
 				color_t h1_tone(const filmic_fit& fit, const color_t& scene)
 				{
 					const auto s = std::pow(fit[FIT_SHOULDER], 0.25f);
@@ -156,7 +146,6 @@ namespace zonetool::iw6
 					return value;
 				}
 
-				// colors over a log exposure range, grays count most since most of a map is near gray
 				struct fit_sample
 				{
 					color_t scene;
@@ -173,15 +162,13 @@ namespace zonetool::iw6
 						{{1.0f, 0.3f, 0.3f}, 1.0f}, {{0.15f, 0.35f, 1.0f}, 1.0f}, {{0.9f, 0.9f, 0.6f}, 1.0f}, {{0.7f, 0.7f, 0.7f}, 4.0f},
 					}};
 
-					constexpr auto steps = 40u;
-
 					std::vector<fit_sample> samples;
-					samples.reserve(hues.size() * steps);
+					samples.reserve(hues.size() * 40u);
 					for (const auto& [hue, weight] : hues)
 					{
-						for (auto i = 0u; i < steps; i++)
+						for (auto i = 0u; i < 40u; i++)
 						{
-							const auto scale = 0.001f * std::pow(10000.0f, static_cast<float>(i) / (steps - 1));
+							const auto scale = 0.001f * std::pow(10000.0f, static_cast<float>(i) / (40u - 1));
 							const color_t scene{hue[0] * scale, hue[1] * scale, hue[2] * scale};
 							samples.push_back({scene, iw6_tone(tone, set, scene), weight});
 						}
@@ -200,16 +187,8 @@ namespace zonetool::iw6
 					return sum;
 				}
 
-				// a pattern search from first_parameter on, the parameters before it stay fixed
 				filmic_fit search_fit(const std::vector<fit_sample>& samples, filmic_fit best, const int first_parameter)
 				{
-					struct range
-					{
-						float min;
-						float max;
-						float step;
-					};
-
 					const auto get_range = [](const int parameter) -> range
 					{
 						switch (parameter)
@@ -257,7 +236,6 @@ namespace zonetool::iw6
 					return db_find_x_asset_header_safe(ASSET_TYPE_COLORIZATIONSET, set_name).colorizationSet;
 				}
 
-				// fits the h1 curve and film together to the iw6 curve and grade, the search stops in local minima so keep the best of a few starts
 				const filmic_fit& get_tone_fit(ToneMapping* tone)
 				{
 					static std::unordered_map<ToneMapping*, filmic_fit> fits;
@@ -294,19 +272,15 @@ namespace zonetool::iw6
 					return fits.emplace(tone, best).first->second;
 				}
 
-				// a user exposure is an ev, the normalized exposure of the curve is 1000 * 2^(2.84 - ev) at radiometricScale 0.001
 				float user_exposure(ToneMapping* asset, const float exposure)
 				{
 					return 2.84f + std::log2(1000.0f / (get_tone_fit(asset)[FIT_EXPOSURE] * exposure));
 				}
 
-				// the iw6 iris is exposure[2] / luminance clamped to exposure[0..1], the h1 auto exposure is 2^adjust / luminance
-				// iw6 meters a blurred low mip, its log average on the mp_strikezone capture is 1.3x the h1 one
 				float iris_key(ToneMapping* asset) { return std::max(asset->exposure[2] * 0.77f, 0.001f); }
 				float iris_min(ToneMapping* asset) { return std::max(asset->exposure[0], 0.001f); }
 				float iris_max(ToneMapping* asset) { return std::max(asset->exposure[1], iris_min(asset)); }
 
-				// the ev where the iris reaches its minimum, the adjust curve rises 1:1 above it to hold the exposure there
 				float iris_ev(ToneMapping* asset) { return 2.84f + std::log2(1000.0f * iris_key(asset) / iris_min(asset)); }
 				float iris_adjust(ToneMapping* asset) { return std::log2(get_tone_fit(asset)[FIT_EXPOSURE] * iris_key(asset)); }
 
@@ -350,7 +324,7 @@ namespace zonetool::iw6
 					{"diffusecolorscale", "1"},
 					{"diffusecolorscale_time", "0"},
 
-					{"veil", "0"}, // iw6 has no veil, it lifts the blacks
+					{"veil", "0"},
 					{"veilstrength", "0"},
 					{"veilstrength_time", "0"},
 					{"veilbackgroundstrength", "0"},
@@ -367,7 +341,7 @@ namespace zonetool::iw6
 					{"tonemapexposureadjust", "0"},
 					{"tonemapexposureadjust_time", "0"},
 					{"tonemapmaxexposure", "-10", convert_max_exposure},
-					{"tonemapmaxexposure_time", "0.5"}, // h1 switches the lightset at once, the _time fields blend it, 0.5 like stock mp_crash
+					{"tonemapmaxexposure_time", "0.5"},
 					{"tonemapadaptspeed", "0.02"},
 					{"tonemapadaptspeed_time", "0"},
 					{"tonemapdarkev", "2.84", convert_dark_ev},
@@ -443,7 +417,6 @@ namespace zonetool::iw6
 					{"ssaorejectdepth_time", "0"},
 				};
 
-				// the tonemaps of the map by name, the dumped one included
 				std::vector<ToneMapping*> get_map_tone_mappings(ToneMapping* asset)
 				{
 					std::set<std::string> names{asset->name};
@@ -477,7 +450,6 @@ namespace zonetool::iw6
 				auto* tone = db_find_x_asset_header_safe(ASSET_TYPE_TONEMAPPING, vision + "_tone").toneMapping;
 				if (!tone)
 				{
-					// h1 falls back to the lightset of the map
 					tone = db_find_x_asset_header_safe(ASSET_TYPE_TONEMAPPING, filesystem::get_fastfile() + "_tone").toneMapping;
 				}
 
@@ -486,7 +458,6 @@ namespace zonetool::iw6
 					return values;
 				}
 
-				// the lightset curve is fixed by its own tonemap, another grade can only fit the film
 				auto fit = get_tone_fit(tone);
 				if (set != get_tone_colorization_set(tone))
 				{
@@ -555,7 +526,7 @@ namespace zonetool::iw6
 				utils::memory::allocator allocator;
 				const auto converted_asset = convert(asset, allocator);
 				zonetool::h1::string_table::dump(converted_asset);
-				add_csv_row("stringtable", converted_asset->name); // H1 applies no tonemap without the lightset of the map
+				add_csv_row("stringtable", converted_asset->name);
 			}
 		}
 	}

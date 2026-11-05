@@ -141,7 +141,6 @@ namespace zonetool::s2
 
 		void write_asset_csv(const loaded_zone& zone, const converter* converter)
 		{
-			// a converter may replace <name>.csv with its build list in finish, the source listing stays in <name>.<source>.csv
 			const auto text = asset_csv(zone);
 			const auto write = [&](const std::string& file_name)
 			{

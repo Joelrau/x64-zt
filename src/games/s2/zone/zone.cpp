@@ -15,7 +15,6 @@ namespace zonetool::s2
 	{
 		bool allows_empty_name(const std::int32_t type)
 		{
-			// no clue why but common.ff has empty tables
 			return type == ASSET_TYPE_IMPACT_FX || type == ASSET_TYPE_SURFACE_FX;
 		}
 
@@ -71,7 +70,6 @@ namespace zonetool::s2
 			}
 		}
 
-		// the game fills XFILE_BLOCK_CALLBACK after the zone is read
 		std::uint64_t get_callback_block_size(const auto& assets)
 		{
 			std::uint64_t size = 0;

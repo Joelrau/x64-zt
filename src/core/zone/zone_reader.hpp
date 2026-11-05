@@ -13,13 +13,17 @@ namespace zonetool
 		std::uint8_t runtime_block;
 		std::uint8_t virtual_block;
 		std::optional<std::uint8_t> pop_aligned_block;
-		// IW7 zones place the data of this block at its end, so offsets count from (block size - data size).
 		std::optional<std::uint8_t> end_anchored_block;
 		std::uint8_t temp_block{};
-		// S2 reserves the memory of this block but reads no file bytes and does not clear it.
 		std::optional<std::uint8_t> unread_block;
 		std::size_t asset_alignment = 3;
 		bool untagged_offsets = true;
+	};
+
+	struct zone_offset
+	{
+		std::uint64_t block_index;
+		std::uint64_t offset;
 	};
 
 	class zone_reader
@@ -91,9 +95,7 @@ namespace zonetool
 				return nullptr;
 			}
 
-			// The game reads most arrays inline when the pointer is not null, and ignores its value.
-			// Third-party zones store raw heap pointers there, so only a valid offset is followed.
-			if (this->is_offset(field))
+			if (this->is_offset(field)) // third-party zones store raw heap pointers here
 			{
 				this->resolve_pointer(field);
 				return nullptr;

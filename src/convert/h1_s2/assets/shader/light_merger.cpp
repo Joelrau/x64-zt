@@ -251,7 +251,6 @@ namespace zonetool::h1::converter::s2::shader
 							continue;
 						}
 
-						// lpo shaders have no TEXCOORD0, the uv is in the w of TEXCOORD1 (u) and TEXCOORD5 (v)
 						const auto lit_element = [&](const std::uint32_t index) -> signature_element*
 						{
 							const auto found = std::ranges::find_if(lit_inputs, [&](const signature_element& other)
@@ -325,7 +324,6 @@ namespace zonetool::h1::converter::s2::shader
 						if (element.name == "TEXCOORD" && element.semantic_index == h1_eye_position_semantic)
 						{
 							const auto first = static_cast<std::uint32_t>(std::countr_zero(moved));
-							// only swz() of a string swizzle reads xyz, the other selections stay a write mask
 							constexpr std::string_view names = "xyzw";
 							const std::string swizzle{names[first], names[first + 1], names[first + 2], names[first]};
 							this->position_ = asm_::v(lit.register_).select(swizzle).swz();

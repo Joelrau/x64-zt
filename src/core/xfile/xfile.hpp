@@ -42,11 +42,69 @@ namespace zonetool::xfile
 		std::uint32_t size;
 	};
 
+	class byte_reader
+	{
+	public:
+		byte_reader(const std::string_view data)
+			: data_(data)
+		{
+		}
+
+		template <typename T>
+		T read()
+		{
+			T value{};
+			this->read(&value, sizeof(T));
+			return value;
+		}
+
+		void read(void* destination, const std::size_t size)
+		{
+			if (this->remaining() < size)
+			{
+				throw std::runtime_error("unexpected end of file");
+			}
+
+			std::memcpy(destination, this->data_.data() + this->offset_, size);
+			this->offset_ += size;
+		}
+
+		std::string_view read_view(const std::size_t size)
+		{
+			if (this->remaining() < size)
+			{
+				throw std::runtime_error("unexpected end of file");
+			}
+
+			const auto view = this->data_.substr(this->offset_, size);
+			this->offset_ += size;
+			return view;
+		}
+
+		void skip(const std::size_t size)
+		{
+			this->read_view(size);
+		}
+
+		std::string_view rest()
+		{
+			return this->read_view(this->remaining());
+		}
+
+		std::size_t remaining() const
+		{
+			return this->data_.size() - this->offset_;
+		}
+
+	private:
+		std::string_view data_;
+		std::size_t offset_{};
+	};
+
 	fastfile read(const std::filesystem::path& path, const format& format);
 
 	void write_s2(const std::filesystem::path& path, const format& format, const fastfile& file, std::string_view payload);
 
-	// compresses every stream like the fastfile streams and writes them after header, in order
 	std::vector<stream_location> write_s2_pak(const std::filesystem::path& path, std::string_view header,
 		std::span<const std::filesystem::path> streams);
 

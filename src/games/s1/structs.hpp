@@ -8194,7 +8194,6 @@ namespace zonetool::s1
 	{
 		float globalVolumeModifier;
 		float unk[5];
-		//char __pad0[36];
 	};
 
 	struct XaReverbSettings
@@ -8342,7 +8341,6 @@ namespace zonetool::s1
 		FxWorld* fxWorld;
 		GfxWorld* gfxWorld;
 		GfxLightDef* lightDef;
-		// ui map
 		Font_s* font;
 		MenuList* menuList;
 		menuDef_t* menu;
@@ -8354,10 +8352,6 @@ namespace zonetool::s1
 		FxEffectDef* fx;
 		FxImpactTable* impactFx;
 		SurfaceFxTable* surfaceFx;
-		// ai type
-		// mp type
-		// character
-		// xmodel alias
 		RawFile* rawfile;
 		ScriptFile* scriptfile;
 		StringTable* stringTable;

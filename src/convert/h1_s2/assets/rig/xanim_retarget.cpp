@@ -10,15 +10,11 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 	{
 		namespace cs = zonetool::cast;
 
-		constexpr auto arm_rig_model = "viewmodel_base_viewhands";
-		constexpr auto s2_arm_root = "j_mainroot";
 		constexpr std::array sides{"le", "ri"};
 		constexpr std::array fingers{"index", "mid", "ring", "pinky", "thumb"};
 		constexpr std::array thumb_web_fingers{"index", "thumb"};
-		constexpr auto finger_joints = 3;
 		constexpr auto h1_first_finger_joint = 0;
 		constexpr auto s2_first_finger_joint = 1;
-		constexpr auto retarget_memory_size = 16ull * 1024 * 1024;
 
 		using namespace bone_rig;
 
@@ -61,14 +57,14 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 				map.emplace(finger_bone("metaring", side, s2_first_finger_joint), side_bone("ringpalm", side));
 				for (const auto* finger : fingers)
 				{
-					for (auto joint = 0; joint < finger_joints; joint++)
+					for (auto joint = 0; joint < 3; joint++)
 					{
 						map.emplace(finger_bone(finger, side, s2_first_finger_joint + joint), finger_bone(finger, side, h1_first_finger_joint + joint));
 					}
 				}
 			}
 
-			const auto s2_root = s2.find(s2_arm_root);
+			const auto s2_root = s2.find("j_mainroot");
 			for (auto i = 0u; i < s2.names.size(); i++)
 			{
 				if (s2.names[i].starts_with("tag_") && s2.has_ancestor(static_cast<int>(i), s2_root) && h1.has(s2.names[i]))
@@ -178,7 +174,7 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 
 		std::vector<bool> find_s2_arm_bones(const skeleton& s2)
 		{
-			const auto s2_root = s2.find(s2_arm_root);
+			const auto s2_root = s2.find("j_mainroot");
 			std::vector<bool> arm_bones;
 			for (auto i = 0u; i < s2.names.size(); i++)
 			{
@@ -202,11 +198,11 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 
 		std::optional<arm_rigs> load_rigs()
 		{
-			auto h1 = bone_rig::load_h1_skeleton(arm_rig_model);
-			auto s2 = bone_rig::load_s2_skeleton(arm_rig_model);
-			if (!h1 || !s2 || !s2->has(s2_arm_root) || !h1->has(body_tag) || !s2->has(body_tag))
+			auto h1 = bone_rig::load_h1_skeleton("viewmodel_base_viewhands");
+			auto s2 = bone_rig::load_s2_skeleton("viewmodel_base_viewhands");
+			if (!h1 || !s2 || !s2->has("j_mainroot") || !h1->has(body_tag) || !s2->has(body_tag))
 			{
-				ZONETOOL_WARNING("the h1 or s2 \"%s\" arm rig is not loaded, viewmodel anims keep the h1 arm bones", arm_rig_model);
+				ZONETOOL_WARNING("the h1 or s2 \"viewmodel_base_viewhands\" arm rig is not loaded, viewmodel anims keep the h1 arm bones");
 				return {};
 			}
 
@@ -223,7 +219,7 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 
 			if (!compute_anatomy(result.h1, result.s2_to_h1) || !compute_anatomy(result.s2, s2_to_s2))
 			{
-				ZONETOOL_WARNING("the h1 and s2 \"%s\" arm rigs do not have the expected arm and finger bones", arm_rig_model);
+				ZONETOOL_WARNING("the h1 and s2 \"viewmodel_base_viewhands\" arm rigs do not have the expected arm and finger bones");
 				return {};
 			}
 
@@ -288,7 +284,7 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 					}
 					else
 					{
-						this->s2_world_[i] = compose(parent, s2.pose_local[i]); // arm bones are solved below, the rest is not written and keeps the game pose
+						this->s2_world_[i] = compose(parent, s2.pose_local[i]);
 					}
 				}
 
@@ -477,7 +473,7 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 
 				const auto rotation = this->s2_rotation(s2_wrist, this->h1_anatomy(h1_wrist).rotation);
 				const auto weight = 1.0f / static_cast<float>(thumb_web_fingers.size());
-				return sub(scale(h1_web, weight), cs::quat_rotate(rotation, scale(s2_web, weight))); // the s2 hand is smaller than the h1 hand, so its thumb web takes the h1 grip instead of its wrist
+				return sub(scale(h1_web, weight), cs::quat_rotate(rotation, scale(s2_web, weight)));
 			}
 
 			transform solve_elbow(const int elbow, const char* side) const
@@ -588,7 +584,7 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 			{
 				if (rigs.s2_arm_bones[bone] && s2.names[bone].starts_with("tag_") && !keys.contains(s2.names[bone]))
 				{
-					return false; // s2 rig tag bind matrices are unusable, so unkeyed tags keep the s2 model pose
+					return false;
 				}
 
 				return rigs.s2_arm_bones[bone] || shared_bones[bone];
@@ -672,7 +668,7 @@ namespace zonetool::h1::converter::s2::xanim_retarget
 			return false;
 		}
 
-		auto& retarget_memory = memory.emplace(retarget_memory_size);
+		auto& retarget_memory = memory.emplace(16ull * 1024 * 1024);
 		const auto* retargeted = zonetool::s2::cast_xanim::from_animation(retarget_animation(animation, *rigs, parts->numframes), &retarget_memory);
 		if (retargeted->numframes != parts->numframes)
 		{

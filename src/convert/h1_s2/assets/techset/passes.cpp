@@ -352,7 +352,6 @@ namespace zonetool::h1::converter::s2::techset
 
 		void add_foliage_wind_args(const shader::foliage_wind& wind, std::vector<zonetool::s2::MaterialShaderArgument>& stable)
 		{
-			// a fixed wind, the s2 wind const comes from a level wind fx that converted maps lack
 			constexpr std::array<float, 4> foliage_wind{1.0f, 1.0f, -0.7071f, 0.7071f};
 			constexpr std::array<float, 4> foliage_wind_a{0.3f, 3.0f, 4.0f, 10.0f};
 
@@ -402,7 +401,7 @@ namespace zonetool::h1::converter::s2::techset
 
 			if (lighting)
 			{
-				return zonetool::s2::MODEL_VERTEX_TYPE_SELF_VISIBILITY; // s2 uploads the light grid constants only for this vertex type
+				return zonetool::s2::MODEL_VERTEX_TYPE_SELF_VISIBILITY;
 			}
 
 			if (has_vertex_lighting_stream(decl))

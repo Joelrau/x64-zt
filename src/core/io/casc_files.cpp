@@ -49,7 +49,7 @@ namespace zonetool::game_files
 					return false;
 				}
 
-				constexpr std::size_t chunk_size = 0x10000000;
+				const std::size_t chunk_size = 0x10000000;
 
 				auto* output = static_cast<std::uint8_t*>(buffer);
 				for (std::size_t done = 0; done < size;)

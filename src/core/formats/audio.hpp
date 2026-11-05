@@ -21,6 +21,18 @@ namespace zonetool::audio
 		std::uint16_t bits_per_sample;
 	};
 
+	struct flac_block
+	{
+		std::uint8_t type;
+		std::string_view data;
+	};
+
+	struct flac_layout
+	{
+		std::vector<flac_block> blocks;
+		std::size_t frames_offset;
+	};
+
 	struct wav_file
 	{
 		pcm_format format;

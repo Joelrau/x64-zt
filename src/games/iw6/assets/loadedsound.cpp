@@ -475,7 +475,7 @@ namespace zonetool::iw6
 			{
 				if (asset->sound.format.format == SND_FORMAT_MP3)
 				{
-					ZONETOOL_WARNING("loaded sound \"%s\" is mp3, the dump is untested", asset->name); // no stock zone has one yet
+					ZONETOOL_WARNING("loaded sound \"%s\" is mp3, the dump is untested", asset->name);
 
 					auto format_ext = format_extension[asset->sound.format.format];
 					const bool has_ext = strstr(asset->name, format_ext);

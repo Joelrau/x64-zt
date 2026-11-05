@@ -255,9 +255,8 @@ namespace zonetool::iw6
 				new_asset->constantCount = asset->constantCount;
 				new_asset->stateBitsCount = asset->stateBitsCount;
 				new_asset->stateFlags = asset->stateFlags;
-				if ((asset->stateFlags & 0x2) != 0) // stateflag 0x2 is different for iw4, iw5 and iw6. it's not cull front
+				if ((asset->stateFlags & 0x2) != 0) // iw6 0x2 is not cull front
 				{
-					// fix stateflags, we could check if the material has front cull from loadbits but thats too much work, lets just use "none" if front is used...
 					new_asset->stateFlags = asset->stateFlags & ~0x2;
 
 				}
@@ -281,7 +280,7 @@ namespace zonetool::iw6
 					//}
 				}
 
-				new_asset->stateBitsTable = allocator.allocate_array<zonetool::h1::GfxStateBits>(asset->stateBitsCount); // dump() writes the statebitsmap from the iw6 table
+				new_asset->stateBitsTable = allocator.allocate_array<zonetool::h1::GfxStateBits>(asset->stateBitsCount);
 
 				std::memset(new_asset->constantBufferIndex, 0xFF, zonetool::h1::MaterialTechniqueType::TECHNIQUE_COUNT);
 				for (auto i = 0; i < MaterialTechniqueType::TECHNIQUE_COUNT; i++)
@@ -355,7 +354,6 @@ namespace zonetool::iw6
 					}
 				}
 
-				// iw6 materials often skip the cucoloris state bits their techset has, a cucoloris light would draw without them
 				merge_techs({TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS, TECHNIQUE_LIT_SPOT_SHADOW}, zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS);
 				merge_techs({TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_DFOG, TECHNIQUE_LIT_SPOT_SHADOW_DFOG}, zonetool::h1::TECHNIQUE_LIT_SPOT_SHADOW_CUCOLORIS_DFOG);
 
@@ -515,7 +513,6 @@ namespace zonetool::iw6
 						zonetool::h1::TECHNIQUE_LIT_DYNAMIC_BRANCHING_CUCOLORIS_DFOG);
 				}
 
-				// the techset converter gives a techset with only LIT the same technique in every lit slot
 				for (auto offset = 0; offset < 240; offset += 60)
 				{
 					for (const auto& [first, last] : {
@@ -537,7 +534,6 @@ namespace zonetool::iw6
 					}
 				}
 
-				// the techset converter gives the dfog light slots the plain light technique
 				for (auto offset = 0; offset < 240; offset += 60)
 				{
 					for (const auto& [light, dfog] : {
@@ -567,7 +563,7 @@ namespace zonetool::iw6
 			{
 				utils::memory::allocator allocator;
 				const auto converted_asset = convert(asset, allocator);
-				converted_asset->stateBitsCount = 0; // the h1 dumper would read iw6 gfx globals for the empty table, the iw6 map is written below
+				converted_asset->stateBitsCount = 0;
 				zonetool::h1::material::dump(converted_asset);
 
 				if (converted_asset->techniqueSet)

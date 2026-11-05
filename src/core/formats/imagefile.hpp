@@ -11,6 +11,12 @@
 
 namespace zonetool::imagefile
 {
+	struct reusable_streams_header
+	{
+		std::uint64_t inputs;
+		std::uint64_t pak;
+	};
+
 	std::optional<std::vector<XStreamFile>> find_reusable_streams(const std::string& fastfile, const std::string& pak_path, std::uint64_t inputs);
 	void save_reusable_streams(const std::string& fastfile, const std::string& pak_path, std::uint64_t inputs, const std::vector<XStreamFile>& streams);
 

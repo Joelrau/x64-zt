@@ -67,7 +67,6 @@ namespace zonetool::h1::converter::s2::shader
 			const auto last = std::ranges::max(inputs, {}, &alys::shader::shader_object::signature_element::register_);
 			const lightmap_input result{texcoord->register_, last.register_ + 1};
 
-			// a zw declaration fails the d3d11 input layout linkage
 			texcoord->mask &= 0x3;
 			texcoord->rw_mask &= 0x3;
 
@@ -83,8 +82,6 @@ namespace zonetool::h1::converter::s2::shader
 
 			return result;
 		}
-
-		constexpr auto fog_temp_count = 3u;
 
 		std::optional<std::uint32_t> fog_row_index(const alys::shader::detail::operand_t& operand, const atmos_fog_rows& fog)
 		{
@@ -120,7 +117,6 @@ namespace zonetool::h1::converter::s2::shader
 
 		void emit_atmos_fog_rows(alys::shader::assembler& a, const atmos_fog_rows& fog, const std::uint32_t temp)
 		{
-			// s2: parms 2 scaled by log2(e), parms 3 folded into 0 and 1, parms 4 w = sky minus start distance
 			constexpr auto ln_2 = 0.693147182f;
 
 			const auto row = [](const std::uint32_t index) { return asm_::cb(s2_stable_constant_buffer, index); };
@@ -145,8 +141,6 @@ namespace zonetool::h1::converter::s2::shader
 			}
 		}
 
-		constexpr auto ssr_buffer_max = 128.0f; // the s2 ssr buffer keeps the fireflies that the h1 bloom prefilter drops
-
 		void emit_ssr_clamp(alys::shader::assembler& a, const alys::shader::detail::operand_t& dest)
 		{
 			if (dest.type != D3D10_SB_OPERAND_TYPE_TEMP)
@@ -154,7 +148,7 @@ namespace zonetool::h1::converter::s2::shader
 				throw std::runtime_error("ssr buffer sample is not written to a temp");
 			}
 
-			a.min(dest, asm_::r(dest.indices[0].value.uint32).select("xyzw"), asm_::l(ssr_buffer_max));
+			a.min(dest, asm_::r(dest.indices[0].value.uint32).select("xyzw"), asm_::l(128.0f));
 		}
 
 		std::optional<float> read_cascade_slice(const alys::shader::detail::operand_t& operand, const sun_shadow_lookup& sun_shadow)
@@ -223,7 +217,6 @@ namespace zonetool::h1::converter::s2::shader
 				return *slice;
 			}
 
-			// "sst" shaders sample the unfiltered cascade depth after the filtered samples
 			for (auto i = sample; i-- > 0;)
 			{
 				if (is_sample(instructions[i], *sun_shadow.texture))
@@ -380,7 +373,7 @@ namespace zonetool::h1::converter::s2::shader
 				if (reads_fog_rows(this->instructions_, patch.fog))
 				{
 					this->fog_temp_ = this->temp_count_;
-					this->temp_count_ += fog_temp_count;
+					this->temp_count_ += 3u;
 				}
 
 				if (!is_vertex_shader && patch.lights)
@@ -1029,7 +1022,7 @@ namespace zonetool::h1::converter::s2::shader
 						throw std::runtime_error("sun shadowmap is not a texture2d");
 					}
 
-					instruction.opcode.controls = D3D10_SB_RESOURCE_DIMENSION_TEXTURE2DARRAY; // s2 keeps each sun cascade in its own slice
+					instruction.opcode.controls = D3D10_SB_RESOURCE_DIMENSION_TEXTURE2DARRAY;
 				}
 				else if (is_sample(instruction, *sun_shadow.texture))
 				{

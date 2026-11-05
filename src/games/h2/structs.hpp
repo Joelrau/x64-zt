@@ -1401,6 +1401,11 @@ namespace zonetool::h2
 		MAPTYPE_COUNT = 0x7,
 	};
 
+	enum IMG_TS : std::uint8_t
+	{
+		TS_WATER_MAP = 0xB,
+	};
+
 	struct GfxImage
 	{
 		GfxTexture texture;
@@ -7548,7 +7553,7 @@ namespace zonetool::h2
 
 	struct StaticDvar
 	{
-		void* dvar; //const dvar_t* dvar;
+		void* dvar;
 		char* dvarName;
 	};
 
@@ -8191,7 +8196,6 @@ namespace zonetool::h2
 	{
 		float globalVolumeModifier;
 		float unk[9];
-		//char __pad0[36];
 	};
 
 	struct XaReverbSettings

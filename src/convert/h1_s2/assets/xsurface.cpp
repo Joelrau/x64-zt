@@ -10,22 +10,10 @@ namespace zonetool::h1::converter::s2::xsurface
 {
 	namespace
 	{
-		constexpr std::uint16_t base_streams = 0x7E0;
-		constexpr std::uint16_t skin_stream = 0x1000;
-		constexpr std::uint16_t lightmap_uv_stream = 0x2000;
-		constexpr std::uint16_t wind_stream = 0x800;
-		constexpr std::uint32_t h1_bone_offset_scale = 64;
-
 		std::vector<XModelSurfs*> pending_surfs;
 		std::unordered_set<std::string> pending_names;
 		std::unordered_map<const XSurface*, std::uint32_t> base_vert_indices;
 		std::unordered_map<const XSurface*, std::array<float, 3>> position_offsets;
-
-		struct vertex_data
-		{
-			char* data;
-			std::uint32_t size;
-		};
 
 		bool has_vertex_color(const XSurface* surface)
 		{
@@ -63,13 +51,11 @@ namespace zonetool::h1::converter::s2::xsurface
 
 		std::uint32_t pack_wind(const GfxPackedVertex& vertex, const float max_weight)
 		{
-			// h1 keeps the sway weight in |binormalSign|
 			const auto weight = max_weight > 0.0f ? std::clamp(std::abs(vertex.binormalSign) / max_weight, 0.0f, 1.0f) : 0.0f;
-			constexpr auto phase_cell = 8.0f;
 			auto hash = 2166136261u;
 			for (const auto coord : {vertex.xyz[0], vertex.xyz[1]})
 			{
-				hash = (hash ^ static_cast<std::uint32_t>(static_cast<std::int32_t>(std::floor(coord / phase_cell)))) * 16777619u;
+				hash = (hash ^ static_cast<std::uint32_t>(static_cast<std::int32_t>(std::floor(coord / 8.0f)))) * 16777619u;
 			}
 
 			const auto flutter = static_cast<std::uint32_t>(std::lround(weight * 255.0f));
@@ -80,7 +66,6 @@ namespace zonetool::h1::converter::s2::xsurface
 
 		std::uint32_t pack_sky_visibility(const std::uint32_t packed_normal)
 		{
-			// octahedral bent normal in bits 0-17, visibility in 18-24, cone aperture in 25-31
 			float n[3]{};
 			for (auto i = 0; i < 3; i++)
 			{
@@ -116,10 +101,10 @@ namespace zonetool::h1::converter::s2::xsurface
 				{
 					auto& vertex_skin = skin[vertex++];
 					vertex_skin.count = static_cast<std::uint16_t>(std::min(bone_count, 4u));
-					vertex_skin.bones[0] = static_cast<std::uint16_t>(blend[0] / h1_bone_offset_scale);
+					vertex_skin.bones[0] = static_cast<std::uint16_t>(blend[0] / 64);
 					for (auto bone = 1u; bone < vertex_skin.count; bone++)
 					{
-						vertex_skin.bones[bone] = static_cast<std::uint16_t>(blend[bone * 2 - 1] / h1_bone_offset_scale);
+						vertex_skin.bones[bone] = static_cast<std::uint16_t>(blend[bone * 2 - 1] / 64);
 						vertex_skin.weights[bone - 1] = blend[bone * 2];
 					}
 
@@ -206,10 +191,10 @@ namespace zonetool::h1::converter::s2::xsurface
 		zonetool::s2::XSurfaceShared* convert_shared(const XSurface* surface, utils::memory::allocator& allocator)
 		{
 			const auto data = build_vertex_data(surface, allocator);
-			const auto streams = static_cast<std::uint16_t>(base_streams
-				| (is_skinned(surface) ? skin_stream : 0)
-				| (has_lightmap_uv(surface) ? lightmap_uv_stream : 0)
-				| (has_wind_stream(surface) ? wind_stream : 0));
+			const auto streams = static_cast<std::uint16_t>(0x7E0
+				| (is_skinned(surface) ? 0x1000 : 0)
+				| (has_lightmap_uv(surface) ? 0x2000 : 0)
+				| (has_wind_stream(surface) ? 0x800 : 0));
 			const auto hash = utils::cryptography::sha256::compute(std::string(data.data, data.data ? data.size : 0), true);
 
 			const auto shared = allocator.allocate<zonetool::s2::XSurfaceShared>();
@@ -234,7 +219,7 @@ namespace zonetool::h1::converter::s2::xsurface
 			std::memcpy(new_tree->trans, tree->trans, sizeof(new_tree->trans));
 			for (auto axis = 0; offset && axis < 3; axis++)
 			{
-				new_tree->trans[axis] -= (*offset)[axis]; // trans holds the negated tree mins
+				new_tree->trans[axis] -= (*offset)[axis];
 			}
 
 			std::memcpy(new_tree->scale, tree->scale, sizeof(new_tree->scale));
@@ -302,7 +287,6 @@ namespace zonetool::h1::converter::s2::xsurface
 
 		std::uint32_t next_base_vert_index(const std::uint32_t base_vert_index, const XSurface& surface)
 		{
-			// the s2 linker numbers the surfaces of all lods in one run with each count rounded up to even
 			return base_vert_index + ((surface.vertCount + 1u) & ~1u);
 		}
 
@@ -332,12 +316,6 @@ namespace zonetool::h1::converter::s2::xsurface
 		{
 			return surface.verts0.packedVerts0 && surface.triIndices && (!is_skinned(&surface) || surface.blendVerts);
 		}
-
-		struct area_sum
-		{
-			double log_area;
-			std::uint32_t tris;
-		};
 
 		void add_triangle_areas(const XSurface* surface, area_sum& sum)
 		{
@@ -420,7 +398,6 @@ namespace zonetool::h1::converter::s2::xsurface
 
 	float surface_area(const XModelSurfs* asset)
 	{
-		// the s2 linker stores the geometric mean of the triangle areas
 		area_sum sum{};
 		for (auto i = 0; asset && asset->surfs && i < asset->numsurfs; i++)
 		{

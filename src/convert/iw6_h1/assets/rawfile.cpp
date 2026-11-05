@@ -151,7 +151,6 @@ namespace zonetool::iw6
 				write_value("r_glowAltColorScaleG", "0");
 				write_value("r_glowAltColorScaleB", "0");
 				separator();
-				// iw6 grades with the colorization set instead of its film values, h1 film tints are a bezier over gamma luma
 				const auto colorization_name = values.find("colorizationSet");
 				const auto* colorization_set = colorization_name != values.end()
 					? db_find_x_asset_header_safe(ASSET_TYPE_COLORIZATIONSET, colorization_name->second).colorizationSet : nullptr;
@@ -216,15 +215,6 @@ namespace zonetool::iw6
 			{
 				const auto lines = utils::string::split(data, '\n');
 
-				struct fog_set
-				{
-					float color_intensity = 1.0f;
-					float sun_intensity = 1.0f;
-					float sky_min_angle = 0.0f;
-					float sky_max_angle = 90.0f;
-					std::string hdr_override;
-				};
-
 				static const std::regex name_regex("create_vision_set_fog\\(\\s*\"([^\"]+)\"");
 				static const std::regex color_regex("ent\\.HDRColorIntensity\\s*=\\s*([0-9.]+)");
 				static const std::regex sun_regex("ent\\.HDRSunColorIntensity\\s*=\\s*([0-9.]+)");
@@ -264,13 +254,11 @@ namespace zonetool::iw6
 					}
 				}
 
-				// iw6 linearizes the srgb fog color and multiplies it by the intensity, in h1 it is an ev: fb = nits * 0.001, nits = 2^(ev - 2.84)
 				const auto intensity_to_ev = [](const float intensity)
 				{
 					return 2.84f + std::log2(1000.0f * std::max(intensity, 0.001f));
 				};
 
-				// iw6 draws the override of a fog set
 				const auto get_fog_set = [&](const std::string& fog_name) -> const fog_set&
 				{
 					const auto& set = sets[fog_name];
@@ -292,8 +280,6 @@ namespace zonetool::iw6
 						set_name = match[1].str();
 					}
 
-					// iw6 keeps a falling sky fog ramp when min >= max and h1 makes it a hard step, so mirror the ramp: the sky mesh
-					// reads it upside down and the world fog pass the right way up, half the intensity since both apply it
 					if (const auto& set = sets[set_name]; set.sky_min_angle >= set.sky_max_angle)
 					{
 						const auto replace_sky_value = [&](const std::regex& regex, const float value)
@@ -324,7 +310,6 @@ namespace zonetool::iw6
 					buffer.append(line);
 					buffer.append("\n");
 
-					// without them h1 reads the fog as legacy
 					if (line.contains("ent.blue"))
 					{
 						buffer.append(utils::string::va("\tent.HDRColorIntensity = %g;\n", intensity_to_ev(get_fog_set(set_name).color_intensity)));
@@ -342,7 +327,7 @@ namespace zonetool::iw6
 				new_asset->len = static_cast<int>(buffer.size());
 				new_asset->compressedLen = 0;
 				zonetool::h1::rawfile::dump(new_asset);
-				add_csv_row("rawfile", hdr_name); // H1 reads the fog of the map from this file
+				add_csv_row("rawfile", hdr_name);
 
 				return buffer;
 			}

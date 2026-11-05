@@ -8,11 +8,9 @@ namespace zonetool::h1::converter::s2::bone_rig
 {
 	namespace
 	{
-		constexpr auto tag_angle_scale = 32767.0f;
-
 		transform tag_transform(const short* angles, const float* positions)
 		{
-			return {cast::quat_normalize({{angles[0] / tag_angle_scale, angles[1] / tag_angle_scale, angles[2] / tag_angle_scale, angles[3] / tag_angle_scale}}),
+			return {cast::quat_normalize({{angles[0] / 32767.0f, angles[1] / 32767.0f, angles[2] / 32767.0f, angles[3] / 32767.0f}}),
 				{{positions[0], positions[1], positions[2]}}};
 		}
 
@@ -384,7 +382,7 @@ namespace zonetool::h1::converter::s2::bone_rig
 		{
 			if (!rig.has(curve.node_name) && !curve.key_frames.empty())
 			{
-				auto& held = result.curves.emplace_back(curve); // gun bones hold their first idle key
+				auto& held = result.curves.emplace_back(curve);
 				held.key_frames = {0};
 				held.key_values.resize(curve.components);
 			}

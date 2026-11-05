@@ -4,7 +4,7 @@
 
 namespace light_grid
 {
-	const float basis_dirs[basis_dir_count][3] = // gridBasisDirs of iw6mp64_ship, normalized by the game with rsqrtss
+	const float basis_dirs[basis_dir_count][3] =
 	{
 		{-0.57727051f, -0.57727051f, -0.57727051f}, {-0.22941080f, -0.68823242f, -0.68823242f},
 		{0.22941084f, -0.68823242f, -0.68823242f}, {0.57727051f, -0.57727051f, -0.57727051f},
@@ -40,13 +40,6 @@ namespace light_grid
 	{
 		constexpr unsigned char voxel_index_table[16]{0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 12, 13, 10, 11, 14, 15};
 
-		struct mask_table_entry
-		{
-			unsigned short mask;
-			unsigned char bit_count;
-			unsigned char bit_index[8];
-		};
-
 		constexpr mask_table_entry voxel_mask_table[16] =
 		{
 			{0x0033, 4, {0, 1, 4, 5}}, {0x00CC, 4, {2, 3, 6, 7}}, {0x3300, 4, {8, 9, 12, 13}}, {0xCC00, 4, {10, 11, 14, 15}},
@@ -78,131 +71,6 @@ namespace light_grid
 		{
 			return std::popcount(mask & ((1u << index) - 1));
 		}
-
-		class bit_reader
-		{
-		public:
-			bit_reader(const unsigned char* data, const std::size_t size)
-				: data_(data)
-				, bit_count_(size * 8)
-			{
-			}
-
-			unsigned int read(const int bits)
-			{
-				auto value = 0u;
-				for (auto i = 0; i < bits; i++)
-				{
-					if (this->position_ >= this->bit_count_)
-					{
-						this->overflow_ = true;
-						return value;
-					}
-					value |= static_cast<unsigned int>((this->data_[this->position_ >> 3] >> (this->position_ & 7)) & 1) << i;
-					this->position_++;
-				}
-				return value;
-			}
-
-			int read_int(const int bits)
-			{
-				return static_cast<int>(this->read(bits));
-			}
-
-			void align_byte()
-			{
-				this->position_ = (this->position_ + 7) & ~7ull;
-			}
-
-			void skip_bytes(const std::size_t bytes)
-			{
-				this->position_ += bytes * 8;
-			}
-
-			void seek(const std::size_t bit)
-			{
-				this->position_ = bit;
-			}
-
-			std::size_t position() const
-			{
-				return this->position_;
-			}
-
-			bool overflowed() const
-			{
-				return this->overflow_;
-			}
-
-		private:
-			const unsigned char* data_;
-			std::size_t bit_count_;
-			std::size_t position_ = 0;
-			bool overflow_ = false;
-		};
-
-		class bit_writer
-		{
-		public:
-			void write(const unsigned int value, const int bits)
-			{
-				for (auto i = 0; i < bits; i++)
-				{
-					if ((this->position_ & 7) == 0)
-					{
-						this->data_.emplace_back(static_cast<unsigned char>(0));
-					}
-
-					this->data_.back() |= static_cast<unsigned char>(((value >> i) & 1) << (this->position_ & 7));
-					this->position_++;
-				}
-			}
-
-			void align_byte()
-			{
-				this->position_ = (this->position_ + 7) & ~7ull;
-			}
-
-			const std::vector<unsigned char>& data() const
-			{
-				return this->data_;
-			}
-
-		private:
-			std::vector<unsigned char> data_;
-			std::size_t position_ = 0;
-		};
-
-		struct node_index_info
-		{
-			int index_bit_count;
-			int index_min;
-			int encoded_index_default;
-			int index_table_size;
-			int index_table_size_bit_count;
-			int raw_index_table[16];
-			int raw_index_default;
-		};
-
-		struct chunk_header
-		{
-			unsigned int format;
-			int leaf_size[8];
-			node_index_info color;
-			node_index_info light;
-		};
-
-		struct leaf_index_channel
-		{
-			int values[16];
-		};
-
-		struct leaf_block
-		{
-			leaf_index_channel color;
-			leaf_index_channel light;
-			unsigned int trace_mask; // low 16 bits: lower z half, high 16 bits: upper z half
-		};
 
 		void read_node_index(bit_reader& reader, const bool has_range, const bool has_default, const bool has_table,
 			const int default_bit_count, const int fallback_bit_count, node_index_info& info)
@@ -295,7 +163,7 @@ namespace light_grid
 			{
 				return reader.read(16);
 			}
-			const auto& entry = voxel_mask_table[reader.read(4) & 15]; // the game copies g_voxelMaskTable over g_indexMaskTable
+			const auto& entry = voxel_mask_table[reader.read(4) & 15];
 			const auto invert = reader.read(1) != 0;
 			return read_table_mask_bits(reader, entry, invert);
 		}
@@ -525,7 +393,7 @@ namespace light_grid
 		{
 			out.coeffs[0][channel] = range * 0.000015258789f * read_u16(data);
 			const auto scale = range * 2.0f * 0.00024414062f;
-			const unsigned int values[8] = // the game reads data[9] for two coefficients
+			const unsigned int values[8] =
 			{
 				static_cast<unsigned int>((data[9] >> 4) | (data[2] << 4)),
 				static_cast<unsigned int>((data[10] & 0xF) | (data[3] << 4)),
@@ -572,7 +440,7 @@ namespace light_grid
 
 		void probe_basis(const float dir[3], double basis[9])
 		{
-			const auto x = -dir[0]; // the probe frame has x and y negated (measured on stock S2 probes)
+			const auto x = -dir[0];
 			const auto y = -dir[1];
 			const auto z = dir[2];
 			basis[0] = 0.2820948;

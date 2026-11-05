@@ -5,15 +5,6 @@ namespace zonetool::cli
 {
 	namespace
 	{
-		struct XAssetList
-		{
-			std::int32_t stringCount;
-			std::uint64_t strings;
-			std::int32_t assetCount;
-			std::uint64_t assets;
-			std::uint64_t globals;
-		};
-
 		struct zone_summary
 		{
 			xfile::fastfile file;

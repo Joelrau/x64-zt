@@ -19,7 +19,7 @@ namespace zonetool::h1::converter::s2::stringtable
 		{
 			soundtables::dump(asset);
 		}
-		else if (!stock_zone::is_stock_asset(zonetool::s2::ASSET_TYPE_STRINGTABLE, asset->name)) // the s2 table of the same name is used
+		else if (!stock_zone::is_stock_asset(zonetool::s2::ASSET_TYPE_STRINGTABLE, asset->name))
 		{
 			zonetool::s2::string_table::dump(asset);
 			add_csv_row("stringtable", asset->name);

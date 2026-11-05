@@ -49,7 +49,7 @@ namespace zonetool::s2
 		template <std::size_t N>
 		void fixed_string(const char* name, const char (&field)[N]) const
 		{
-			this->data_[name] = std::string(field, strnlen(field, N)); // can use every byte, without a null terminator
+			this->data_[name] = std::string(field, strnlen(field, N));
 		}
 
 		template <typename T>
@@ -466,7 +466,6 @@ namespace zonetool::s2
 			return node ? static_cast<scr_string_t>(SL_GetString(node->get_ref<const std::string&>().data())) : 0;
 		}
 
-		// a zero count array keeps one element, so that the writer keeps the non-null pointer of stock zones
 		template <typename T>
 		T* allocate(const std::size_t count) const
 		{

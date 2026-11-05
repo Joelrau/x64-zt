@@ -8,12 +8,11 @@ namespace zonetool::h1::converter::s2::comworld
 	namespace
 	{
 		ComWorld* pending_world = nullptr;
-		constexpr auto omni_shadow_cos_outer = 0.17364818f; // cos 80 deg
-		constexpr auto omni_shadow_cos_inner = 0.34202015f; // cos 70 deg
+		constexpr auto omni_shadow_cos_outer = 0.17364818f;
+		constexpr auto omni_shadow_cos_inner = 0.34202015f;
 
 		void convert_up(const ComPrimaryLight& light, float* up)
 		{
-			// s2 builds the shadow view from dir and up, stock up is 0 1 0 (1 0 0 along y)
 			const float cross[3]{light.dir[1] * light.up[2] - light.dir[2] * light.up[1], light.dir[2] * light.up[0] - light.dir[0] * light.up[2],
 				light.dir[0] * light.up[1] - light.dir[1] * light.up[0]};
 			const auto local = light.type == GFX_LIGHT_TYPE_SPOT || light.type == GFX_LIGHT_TYPE_OMNI;
@@ -28,17 +27,15 @@ namespace zonetool::h1::converter::s2::comworld
 		void convert_light(const ComPrimaryLight& light, zonetool::s2::ComPrimaryLight& new_light)
 		{
 			new_light.type = static_cast<std::uint8_t>(light.type);
-			new_light.iesProfileIndex = -1; // h1 lights have no ies profile
+			new_light.iesProfileIndex = -1;
 			if (light.type == GFX_LIGHT_TYPE_NONE)
 			{
 				return;
 			}
 
-			// s2 renders color * intensity, h1 treats the max color channel as the intensity
 			const auto max_color = std::max({light.color[0], light.color[1], light.color[2]});
 			new_light.intensity = max_color > 0.0f ? max_color : 1.0f;
 
-			// s2 keeps lights out of the rooms behind walls only with shadows, like the stock spots and omnis
 			new_light.canUseShadowMap = light.type == GFX_LIGHT_TYPE_SPOT || light.type == GFX_LIGHT_TYPE_OMNI ? 1 : light.canUseShadowMap;
 			new_light.exponent = light.exponent;
 			for (auto i = 0; i < 3; i++)
@@ -54,7 +51,6 @@ namespace zonetool::h1::converter::s2::comworld
 			new_light.fadeOffset[1] = light.fadeOffset[1];
 			new_light.bulbRadius = light.bulbRadius;
 			new_light.radius = light.radius;
-			// s2 shadows an omni through one frustum sized by these cones, h1 omnis never read them
 			const auto omni = light.type == GFX_LIGHT_TYPE_OMNI;
 			new_light.cosHalfFovOuter = omni ? omni_shadow_cos_outer : light.cosHalfFovOuter;
 			new_light.cosHalfFovInner = omni ? omni_shadow_cos_inner : light.cosHalfFovInner;

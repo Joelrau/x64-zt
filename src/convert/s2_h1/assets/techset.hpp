@@ -10,6 +10,28 @@ namespace zonetool::s2::converter::h1::techset
 		bool global;
 	};
 
+	struct techset_name
+	{
+		std::string name;
+		std::string prefix;
+		std::string kind;
+		std::unordered_set<std::string> features;
+	};
+
+	struct catalog
+	{
+		std::unordered_map<std::string, h1_techset_source> sources;
+		std::vector<techset_name> names;
+		std::unordered_set<std::string> global_images;
+		std::unordered_map<std::string, std::filesystem::path> shader_sources;
+	};
+
+	struct shader_key
+	{
+		zonetool::h1::XAssetType type;
+		std::string name;
+	};
+
 	class h1_zone
 	{
 	public:

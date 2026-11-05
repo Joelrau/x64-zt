@@ -2,8 +2,6 @@
 #include "../include.hpp"
 #include "material.hpp"
 
-//#include <h1/assets/material.hpp>
-
 namespace zonetool::iw7
 {
 	namespace converter::h1

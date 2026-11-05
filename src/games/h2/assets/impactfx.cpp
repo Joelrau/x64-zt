@@ -17,10 +17,6 @@ namespace zonetool::h2
 		}
 	}
 
-	constexpr int TABLE_SIZE = 19;
-	constexpr int NONFLESH_SIZE = 53;
-	constexpr int FLESH_SIZE = 7;
-
 	namespace
 	{
 		constexpr auto impact_entry_fields = glz::tuple
@@ -42,7 +38,6 @@ namespace zonetool::h2
 
 		ZONETOOL_INFO("Parsing impactfx \"%s\"...", name.data());
 
-		// parse json file
 		file.open("rb");
 		auto size = file.size();
 		auto bytes = file.read_bytes(size);
@@ -56,8 +51,8 @@ namespace zonetool::h2
 
 		if (!data["table"].is_null())
 		{
-			asset->table = mem->allocate<FxImpactEntry>(TABLE_SIZE);
-			for (int table_i = 0; table_i < TABLE_SIZE; table_i++)
+			asset->table = mem->allocate<FxImpactEntry>(19);
+			for (int table_i = 0; table_i < 19; table_i++)
 			{
 				json_reflect::read<impact_entry_fields>(data["table"][table_i], asset->table[table_i], mem);
 			}
@@ -95,17 +90,17 @@ namespace zonetool::h2
 		if (data->table)
 		{
 			auto data_tables = data->table;
-			for (auto table_i = 0; table_i < TABLE_SIZE; table_i++)
+			for (auto table_i = 0; table_i < 19; table_i++)
 			{
 				auto* data_table = &data_tables[table_i];
-				for (auto nonflesh_i = 0; nonflesh_i < NONFLESH_SIZE; nonflesh_i++)
+				for (auto nonflesh_i = 0; nonflesh_i < 53; nonflesh_i++)
 				{
 					if (data_table->nonflesh[nonflesh_i])
 					{
 						zone->add_asset_of_type(ASSET_TYPE_FX, data_table->nonflesh[nonflesh_i]->name);
 					}
 				}
-				for (auto flesh_i = 0; flesh_i < FLESH_SIZE; flesh_i++)
+				for (auto flesh_i = 0; flesh_i < 7; flesh_i++)
 				{
 					if (data_table->flesh[flesh_i])
 					{
@@ -130,9 +125,9 @@ namespace zonetool::h2
 	{
 		reader.push_stream(XFILE_BLOCK_VIRTUAL);
 		reader.read_string(asset->name);
-		if (const auto tables = reader.read_array(asset->table, 3, TABLE_SIZE))
+		if (const auto tables = reader.read_array(asset->table, 3, 19))
 		{
-			for (auto i = 0; i < TABLE_SIZE; i++)
+			for (auto i = 0; i < 19; i++)
 			{
 				for (auto& effect : tables[i].nonflesh)
 				{
@@ -161,12 +156,12 @@ namespace zonetool::h2
 		{
 			buf->align(3);
 			auto data_tables = data->table;
-			auto dest_tables = buf->write(data->table, TABLE_SIZE);
-			for (auto table_i = 0; table_i < TABLE_SIZE; table_i++)
+			auto dest_tables = buf->write(data->table, 19);
+			for (auto table_i = 0; table_i < 19; table_i++)
 			{
 				auto* data_table = &data_tables[table_i];
 				auto* dest_table = &dest_tables[table_i];
-				for (auto nonflesh_i = 0; nonflesh_i < NONFLESH_SIZE; nonflesh_i++)
+				for (auto nonflesh_i = 0; nonflesh_i < 53; nonflesh_i++)
 				{
 					if (data_table->nonflesh[nonflesh_i])
 					{
@@ -174,7 +169,7 @@ namespace zonetool::h2
 							zone->get_asset_pointer(ASSET_TYPE_FX, data_table->nonflesh[nonflesh_i]->name));
 					}
 				}
-				for (auto flesh_i = 0; flesh_i < FLESH_SIZE; flesh_i++)
+				for (auto flesh_i = 0; flesh_i < 7; flesh_i++)
 				{
 					if (data_table->flesh[flesh_i])
 					{
@@ -202,7 +197,7 @@ namespace zonetool::h2
 
 		if (data->table)
 		{
-			json_reflect::write_array<impact_entry_fields>(json_data["table"], data->table, TABLE_SIZE);
+			json_reflect::write_array<impact_entry_fields>(json_data["table"], data->table, 19);
 		}
 		else 
 		{

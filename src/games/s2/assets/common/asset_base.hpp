@@ -311,7 +311,7 @@ namespace zonetool::s2
 	template <typename T>
 	T* keep_empty(zone_memory* mem, T*& field, T* parsed, const std::size_t count)
 	{
-		field = !parsed && !count && field ? mem->allocate<T>(1) : parsed; // a non-null empty array still aligns the zone stream
+		field = !parsed && !count && field ? mem->allocate<T>(1) : parsed;
 		return field;
 	}
 

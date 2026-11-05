@@ -10,29 +10,9 @@ namespace zonetool::iw6
 		{
 			namespace
 			{
-				constexpr auto max_triangles_per_leaf = 15;
-				constexpr auto leaf_axis = 3u;
-				constexpr auto quantized_extent = 32766.0f;
-				constexpr auto weld_steps_per_unit = 64.0f;
-
 				using point_t = std::array<float, 3>;
 				using plane_t = std::array<float, 4>;
 				using axial_planes_t = std::array<plane_t, 6>;
-
-				struct triangle_t
-				{
-					int verts[3];
-					int material;
-				};
-
-				struct position_hash
-				{
-					std::size_t operator()(const std::array<int, 3>& position) const
-					{
-						return (static_cast<std::size_t>(position[0]) * 73856093) ^ (static_cast<std::size_t>(position[1]) * 19349663)
-							^ (static_cast<std::size_t>(position[2]) * 83492791);
-					}
-				};
 
 				struct mesh_source
 				{
@@ -64,8 +44,8 @@ namespace zonetool::iw6
 
 				int add_vertex(mesh_source& mesh, const point_t& point)
 				{
-					const std::array<int, 3> key{static_cast<int>(std::lround(point[0] * weld_steps_per_unit)),
-						static_cast<int>(std::lround(point[1] * weld_steps_per_unit)), static_cast<int>(std::lround(point[2] * weld_steps_per_unit))};
+					const std::array<int, 3> key{static_cast<int>(std::lround(point[0] * 64.0f)),
+						static_cast<int>(std::lround(point[1] * 64.0f)), static_cast<int>(std::lround(point[2] * 64.0f))};
 					const auto [entry, inserted] = mesh.vert_lookup.try_emplace(key, static_cast<int>(mesh.verts.size()));
 					if (inserted)
 					{
@@ -143,7 +123,6 @@ namespace zonetool::iw6
 				std::vector<point_t> brush_face_winding(const zonetool::h1::ClipInfo* info, const zonetool::h1::cbrush_t& brush,
 					const axial_planes_t& axial_planes, const unsigned int side)
 				{
-					// game Phys_GetWindingForBrushFace2: the face plane cut by its adjacent sides in order, points under one unit apart merge
 					const auto axial = side < 6;
 					const auto first_adjacent = axial ? brush.firstAdjacentSideOffsets[side & 1][side >> 1] : brush.sides[side - 6].firstAdjacentSideOffset;
 					const auto edge_count = axial ? brush.edgeCount[side & 1][side >> 1] : brush.sides[side - 6].edgeCount;
@@ -191,7 +170,6 @@ namespace zonetool::iw6
 						const auto winding = brush_face_winding(&asset->info, brush, axial_planes, side);
 						for (auto i = 1u; i + 1 < winding.size(); i++)
 						{
-							// brush windings turn the other way than h1 mesh triangles
 							add_triangle(mesh, subtract(winding[i + 1], origin), subtract(winding[i], origin), subtract(winding[0], origin), side_material(brush, side));
 						}
 					}
@@ -339,9 +317,9 @@ namespace zonetool::iw6
 
 					nodes[node_index].lower = lower;
 					nodes[node_index].upper = upper;
-					if (end - begin <= max_triangles_per_leaf)
+					if (end - begin <= 15)
 					{
-						nodes[node_index].axis = leaf_axis;
+						nodes[node_index].axis = 3u;
 						nodes[node_index].triangle_count = static_cast<unsigned int>(end - begin);
 						nodes[node_index].index = static_cast<unsigned int>(begin);
 						return node_index;
@@ -395,7 +373,7 @@ namespace zonetool::iw6
 					{
 						center[axis] = (nodes[0].lower[axis] + nodes[0].upper[axis]) * 0.5f;
 						extents[axis] = (nodes[0].upper[axis] - nodes[0].lower[axis]) * 0.5f + 0.5f;
-						unquantize[axis] = extents[axis] / quantized_extent;
+						unquantize[axis] = extents[axis] / 32766.0f;
 					}
 
 					data->m_center = {center[0], center[1], center[2]};
@@ -424,7 +402,7 @@ namespace zonetool::iw6
 							const auto [entry, inserted] = opposite_verts.try_emplace(edge_key(triangle.verts[i], triangle.verts[(i + 1) % 3]), triangle.verts[(i + 2) % 3]);
 							if (!inserted)
 							{
-								entry->second = -1; // stock leaves edges of more than two triangles without a winged vertex
+								entry->second = -1;
 							}
 						}
 					}

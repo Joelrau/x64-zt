@@ -64,7 +64,7 @@ namespace zonetool::iw6
 					{zonetool::h1::SURF_TYPE_WOOD_HOLLOW, SURF_TYPE_WOOD},
 					{zonetool::h1::SURF_TYPE_WOOD_WET, SURF_TYPE_WOOD},
 					{zonetool::h1::SURF_TYPE_WOOD_DEBRIS, SURF_TYPE_WOOD},
-					{zonetool::h1::SURF_TYPE_CUSHION, SURF_TYPE_CLOTH}, // iw6 cushion surfaces use the cloth type
+					{zonetool::h1::SURF_TYPE_CUSHION, SURF_TYPE_CLOTH},
 				};
 			}
 

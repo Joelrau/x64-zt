@@ -155,7 +155,6 @@ namespace zonetool::iw6
 		}
 
 		ZONETOOL_FATAL("Invalid animation index returned for name: \"%s\"", name);
-		//return WEAP_ANIM_INVALID;
 	}
 
 	void weapon_def::add_script_string(scr_string_t* ptr, const char* str)
@@ -860,14 +859,12 @@ namespace zonetool::iw6
 
 		auto weapon = mem->allocate<WeaponCompleteDef>();
 
-		// parse json file
 		file.open("rb");
 		auto size = file.size();
 		auto bytes = file.read_bytes(size);
 		file.close();
 		json data = json::parse(bytes);
 
-		// base asset
 		auto base = data["baseAsset"].get<std::string>();
 		WeaponCompleteDef* baseAsset = nullptr;
 

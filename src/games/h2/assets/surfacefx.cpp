@@ -17,7 +17,6 @@ namespace zonetool::h2
 		}
 	}
 
-	constexpr int TABLE_SIZE = 8;
 	namespace
 	{
 		constexpr auto surface_entry_fields = glz::tuple
@@ -25,8 +24,6 @@ namespace zonetool::h2
 			&SurfaceFxEntry::surfaceEffect,
 		};
 	}
-
-	constexpr int SURFACE_EFFECT_SIZE =  53;
 
 	SurfaceFxTable* surface_fx::parse(const std::string& name, zone_memory* mem)
 	{
@@ -40,7 +37,6 @@ namespace zonetool::h2
 
 		ZONETOOL_INFO("Parsing surfacefx \"%s\"...", name.data());
 
-		// parse json file
 		file.open("rb");
 		auto size = file.size();
 		auto bytes = file.read_bytes(size);
@@ -54,8 +50,8 @@ namespace zonetool::h2
 
 		if (!data["table"].is_null())
 		{
-			asset->table = mem->allocate<SurfaceFxEntry>(TABLE_SIZE);
-			for (int table_i = 0; table_i < TABLE_SIZE; table_i++)
+			asset->table = mem->allocate<SurfaceFxEntry>(8);
+			for (int table_i = 0; table_i < 8; table_i++)
 			{
 				json_reflect::read<surface_entry_fields>(data["table"][table_i], asset->table[table_i], mem);
 			}
@@ -93,10 +89,10 @@ namespace zonetool::h2
 		if (data->table)
 		{
 			auto data_tables = data->table;
-			for (auto table_i = 0; table_i < TABLE_SIZE; table_i++)
+			for (auto table_i = 0; table_i < 8; table_i++)
 			{
 				auto* data_table = &data_tables[table_i];
-				for (auto effect_i = 0; effect_i < SURFACE_EFFECT_SIZE; effect_i++)
+				for (auto effect_i = 0; effect_i < 53; effect_i++)
 				{
 					if (data_table->surfaceEffect[effect_i])
 					{
@@ -121,9 +117,9 @@ namespace zonetool::h2
 	{
 		reader.push_stream(XFILE_BLOCK_VIRTUAL);
 		reader.read_string(asset->name);
-		if (const auto tables = reader.read_array(asset->table, 3, TABLE_SIZE))
+		if (const auto tables = reader.read_array(asset->table, 3, 8))
 		{
-			for (auto i = 0; i < TABLE_SIZE; i++)
+			for (auto i = 0; i < 8; i++)
 			{
 				for (auto& effect : tables[i].surfaceEffect)
 				{
@@ -147,12 +143,12 @@ namespace zonetool::h2
 		{
 			buf->align(3);
 			auto data_tables = data->table;
-			auto dest_tables = buf->write(data->table, TABLE_SIZE);
-			for (auto table_i = 0; table_i < TABLE_SIZE; table_i++)
+			auto dest_tables = buf->write(data->table, 8);
+			for (auto table_i = 0; table_i < 8; table_i++)
 			{
 				auto* data_table = &data_tables[table_i];
 				auto* dest_table = &dest_tables[table_i];
-				for (auto effect_i = 0; effect_i < SURFACE_EFFECT_SIZE; effect_i++)
+				for (auto effect_i = 0; effect_i < 53; effect_i++)
 				{
 					if (data_table->surfaceEffect[effect_i])
 					{
@@ -180,7 +176,7 @@ namespace zonetool::h2
 
 		if (data->table)
 		{
-			json_reflect::write_array<surface_entry_fields>(json_data["table"], data->table, TABLE_SIZE);
+			json_reflect::write_array<surface_entry_fields>(json_data["table"], data->table, 8);
 		}
 		else 
 		{

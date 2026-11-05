@@ -486,7 +486,6 @@ namespace zonetool
 					{
 						read.read_array(&asset->scriptableMapEnts.instances[i].targetData);
 					}
-					// The dump writes "" for a null targetname.
 					const auto targetname = read.read_string();
 					this->add_script_string(&asset->scriptableMapEnts.instances[i].targetname,
 						targetname && *targetname ? targetname : nullptr);

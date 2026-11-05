@@ -2,8 +2,6 @@
 #include "../include.hpp"
 #include "scriptfile.hpp"
 
-//#include <h1/assets/scriptfile.hpp>
-
 #include <xsk/gsc/engine/s1_pc.hpp>
 
 #include <utils/string.hpp>
@@ -54,7 +52,6 @@ namespace zonetool::s1
 
 			void dump_source(RawFile* asset)
 			{
-				// the client parses the createart fog source for "ent = maps\_utility::create_vision_set_fog(" (CG_ParseClientVisionsetTriggers)
 				std::string source{asset->buffer, static_cast<std::uint32_t>(asset->compressedLen > 0 ? asset->compressedLen : asset->len)};
 				if (asset->compressedLen > 0)
 				{
@@ -105,7 +102,6 @@ namespace zonetool::s1
 
 			void dump(ScriptFile* asset)
 			{
-				// the rawfile of the same name has the original source, dump_source writes it
 				if (db_find_x_asset_header_safe(ASSET_TYPE_RAWFILE, convert_name(asset->name)).data)
 				{
 					return;

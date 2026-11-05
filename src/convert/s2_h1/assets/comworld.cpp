@@ -22,7 +22,7 @@ namespace zonetool::s2::converter::h1::comworld
 			new_light.exponent = light.exponent;
 			for (auto i = 0; i < 3; i++)
 			{
-				new_light.color[i] = light.color[i] * light.intensity; // s2 renders color * intensity where h1 renders color
+				new_light.color[i] = light.color[i] * light.intensity;
 				new_light.dir[i] = light.dir[i];
 				new_light.up[i] = light.up[i];
 				new_light.origin[i] = light.origin[i];
@@ -41,15 +41,13 @@ namespace zonetool::s2::converter::h1::comworld
 			new_light.defName = light.defName;
 		}
 
-		constexpr std::size_t max_env_lights = 4;
-
 		ComWorld* pending_world = nullptr;
 		std::vector<zonetool::h1::ComPrimaryLightEnv> envs;
 		std::map<std::vector<std::uint16_t>, std::uint16_t> env_lookup;
 
 		std::vector<std::uint16_t> get_env_lights(const zonetool::h1::ComPrimaryLightEnv& env)
 		{
-			return {env.primaryLightIndices, env.primaryLightIndices + std::min<std::size_t>(env.numIndices, max_env_lights)};
+			return {env.primaryLightIndices, env.primaryLightIndices + std::min<std::size_t>(env.numIndices, 4)};
 		}
 
 		zonetool::h1::ComWorld* convert(ComWorld* asset, utils::memory::allocator& allocator)
@@ -87,9 +85,9 @@ namespace zonetool::s2::converter::h1::comworld
 
 	std::uint16_t get_light_env(std::vector<std::uint16_t> lights)
 	{
-		if (lights.size() > max_env_lights)
+		if (lights.size() > 4)
 		{
-			lights.resize(max_env_lights);
+			lights.resize(4);
 		}
 
 		if (const auto itr = env_lookup.find(lights); itr != env_lookup.end())

@@ -15,7 +15,6 @@ namespace zonetool::h1::converter::s2::physpreset
 			"phys_wood_solid_donotcollide",
 		};
 
-		constexpr auto default_density = 0.0361f;
 		constexpr float default_unk_0x20[2]{20.0f, 300.0f};
 		constexpr float default_impact_effect_thresholds[4]{176.0f, 1728.0f, 1728000.0f, 13824000.0f};
 
@@ -49,8 +48,8 @@ namespace zonetool::h1::converter::s2::physpreset
 			const auto new_preset = allocator.allocate<zonetool::s2::PhysPreset>();
 			new_preset->name = preset->name;
 
-			const auto volume = shape_volume(model); // s2 takes the mass from density * shape volume
-			new_preset->density = volume > 0.0f && preset->mass > 0.0f ? preset->mass / volume : default_density;
+			const auto volume = shape_volume(model);
+			new_preset->density = volume > 0.0f && preset->mass > 0.0f ? preset->mass / volume : 0.0361f;
 			new_preset->bounce = preset->bounce;
 			new_preset->friction = preset->friction;
 			new_preset->gravityScale = 1.0f;
@@ -75,7 +74,6 @@ namespace zonetool::h1::converter::s2::physpreset
 			return make_stub<zonetool::s2::PhysPreset>(name, allocator);
 		}
 
-		// the preset can be a name only stub of another zone
 		if (dumped_presets.insert(preset->name).second)
 		{
 			const auto* loaded = db_find_x_asset_header_safe(ASSET_TYPE_PHYSPRESET, preset->name).physPreset;

@@ -4,7 +4,13 @@
 
 namespace zonetool
 {
-	struct database;
+	struct database
+	{
+		std::unordered_map<std::string, void*> assets[256];
+		std::unordered_map<int, void*> gfx_globals;
+		std::unordered_map<const void*, std::span<const XStreamFile>> image_stream_files;
+		std::unordered_map<const void*, std::span<const XStreamFileKey>> image_stream_keys;
+	};
 
 	std::shared_ptr<database> db_create();
 

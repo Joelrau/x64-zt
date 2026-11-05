@@ -17,6 +17,13 @@ namespace zonetool::h1
 		std::vector<loaded_asset> assets;
 	};
 
+	struct asset_loader
+	{
+		std::size_t size;
+		void (*read)(zone_reader& reader, void* asset);
+		const char** (*name)(void* asset);
+	};
+
 	const char* get_asset_name(XAssetType type, const void* header);
 
 	std::unique_ptr<loaded_zone> load_zone(const std::filesystem::path& path);

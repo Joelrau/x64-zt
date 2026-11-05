@@ -145,7 +145,6 @@ namespace zonetool::s2
 				read_field_value(entry["value"], field, mem);
 			}
 
-			// the game expects the fields sorted by offset and index, the same as stock zones
 			std::ranges::stable_sort(fields, [](const auto& left, const auto& right)
 			{
 				return std::tie(left.first, left.second.index) < std::tie(right.first, right.second.index);

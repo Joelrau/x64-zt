@@ -143,7 +143,6 @@ namespace zonetool::s2
 
 	namespace
 	{
-		// samples dump as byte arrays to keep the existing dump format
 		template <typename T>
 		void dump_samples(assetmanager::dumper& write, T* samples, const int count)
 		{
@@ -182,7 +181,6 @@ namespace zonetool::s2
 			}
 		}
 
-		// effects reference each other by name, a cycle would recurse without this guard
 		thread_local std::unordered_set<std::string> loading_effects;
 
 		void add_effect_by_name(zone_base* zone, const char* name)

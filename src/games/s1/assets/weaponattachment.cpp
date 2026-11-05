@@ -1019,7 +1019,7 @@ namespace zonetool::s1
 				}
 				else if (type == WAFIELD_TYPE_INT || type == WAFIELD_TYPE_FLOAT32)
 				{
-					attachment->fields[f].parm.p_int = data["fields"][i]["value"].get<int>(); // s1 stores int and ms set values as ints
+					attachment->fields[f].parm.p_int = data["fields"][i]["value"].get<int>();
 				}
 				else if (type == WAFIELD_TYPE_BOOL)
 				{
@@ -1388,7 +1388,7 @@ namespace zonetool::s1
 				}
 				else if (type == WAFIELD_TYPE_INT || type == WAFIELD_TYPE_FLOAT32)
 				{
-					data["fields"][i]["value"] = asset->fields[i].parm.p_int; // s1 stores int and ms set values as ints
+					data["fields"][i]["value"] = asset->fields[i].parm.p_int;
 				}
 				else if (type == WAFIELD_TYPE_BOOL)
 				{

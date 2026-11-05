@@ -8,13 +8,6 @@ namespace zonetool::s2::converter::h1
 {
 	namespace
 	{
-		struct csv_row
-		{
-			std::string type;
-			std::string name;
-			bool referenced;
-		};
-
 		std::vector<csv_row> csv_rows;
 		std::unordered_set<std::string> csv_keys;
 
@@ -33,8 +26,7 @@ namespace zonetool::s2::converter::h1
 			csv_keys.clear();
 		}
 
-		// S2 table read from the exe at 0x140FB0DE0
-		constexpr std::array<std::string_view, 62> s2_surface_types
+		constexpr std::array<std::string_view, 62> s2_surface_types // 0x140FB0DE0
 		{
 			"default", "asphalt", "asphalt_debris", "asphalt_wet", "bark", "brick_dark", "brick_light", "brick_red",
 			"carpet", "ceramic", "cloth", "concrete", "concrete_debris", "concrete_wet", "cushion", "dirt", "flesh",

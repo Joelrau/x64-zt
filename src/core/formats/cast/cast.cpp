@@ -12,8 +12,6 @@ namespace zonetool::cast
 		constexpr std::size_t node_header_size = 0x18;
 		constexpr std::size_t property_header_size = 0x8;
 
-		constexpr std::size_t max_node_depth = 32;
-
 		std::size_t component_size(const property_type type)
 		{
 			switch (type)
@@ -30,94 +28,6 @@ namespace zonetool::cast
 			default: return 0;
 			}
 		}
-
-		class stream_reader
-		{
-		public:
-			stream_reader(const std::uint8_t* data, const std::size_t size, std::string name)
-				: data_(data)
-				, size_(size)
-				, name_(std::move(name))
-			{
-			}
-
-			[[nodiscard]] std::size_t position() const
-			{
-				return this->pos_;
-			}
-
-			[[nodiscard]] std::size_t remaining() const
-			{
-				return this->size_ - this->pos_;
-			}
-
-			void read_raw(void* dest, const std::size_t size)
-			{
-				this->require(size);
-				std::memcpy(dest, this->data_ + this->pos_, size);
-				this->pos_ += size;
-			}
-
-			void skip(const std::size_t size)
-			{
-				this->require(size);
-				this->pos_ += size;
-			}
-
-			template <typename T>
-			T read()
-			{
-				T value{};
-				this->read_raw(&value, sizeof(T));
-				return value;
-			}
-
-			std::string read_string()
-			{
-				const auto start = this->pos_;
-				while (this->pos_ < this->size_ && this->data_[this->pos_] != 0)
-				{
-					this->pos_++;
-				}
-
-				if (this->pos_ >= this->size_)
-				{
-					this->fail("unterminated string");
-				}
-
-				std::string result(reinterpret_cast<const char*>(this->data_ + start), this->pos_ - start);
-				this->pos_++;
-				return result;
-			}
-
-			std::string read_fixed_string(const std::size_t size)
-			{
-				this->require(size);
-				std::string result(reinterpret_cast<const char*>(this->data_ + this->pos_), size);
-				this->pos_ += size;
-				return result;
-			}
-
-			[[noreturn]] void fail(const std::string& reason) const
-			{
-				throw cast_error(utils::string::va("%s: %s (at offset 0x%llX of 0x%llX)",
-					this->name_.data(), reason.data(), this->pos_, this->size_));
-			}
-
-			void require(const std::size_t size) const
-			{
-				if (size > this->size_ || this->pos_ > this->size_ - size)
-				{
-					this->fail(utils::string::va("truncated file, tried to read %llu bytes", size));
-				}
-			}
-
-		private:
-			const std::uint8_t* data_;
-			std::size_t size_;
-			std::size_t pos_ = 0;
-			std::string name_;
-		};
 
 		property_type parse_property_type(const std::string& identifier)
 		{
@@ -199,7 +109,7 @@ namespace zonetool::cast
 		std::unique_ptr<node> read_node(stream_reader& reader, file& result, const node* parent,
 			const std::size_t depth)
 		{
-			if (depth > max_node_depth)
+			if (depth > 32)
 			{
 				reader.fail("node hierarchy is nested too deeply");
 			}

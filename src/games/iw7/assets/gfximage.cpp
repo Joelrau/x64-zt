@@ -761,7 +761,6 @@ namespace zonetool::iw7
 
 		if (asset->streamed)
 		{
-			// separate storage per stream, the dumper writes a pointer it has seen before as a reference to the first one
 			std::array<XStreamFile, 4> stream_files{};
 			for (auto i = 0u; i < stream_files.size(); i++)
 			{

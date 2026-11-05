@@ -2,6 +2,13 @@
 
 namespace zonetool::s2
 {
+	struct sound_stream_location
+	{
+		std::filesystem::path pak;
+		std::uint64_t offset;
+		std::uint32_t size;
+	};
+
 	class loaded_sound : public asset_base<LoadedSound, ASSET_TYPE_LOADED_SOUND>
 	{
 	public:

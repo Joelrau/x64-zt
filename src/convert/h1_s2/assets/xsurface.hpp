@@ -2,6 +2,18 @@
 
 namespace zonetool::h1::converter::s2::xsurface
 {
+	struct vertex_data
+	{
+		char* data;
+		std::uint32_t size;
+	};
+
+	struct area_sum
+	{
+		double log_area;
+		std::uint32_t tris;
+	};
+
 	void dump(zonetool::h1::XModelSurfs* asset);
 	void assign_base_vert_indices(const zonetool::h1::XModel* model);
 	void set_position_offset(const zonetool::h1::XModelSurfs* asset, const std::array<float, 3>& offset);

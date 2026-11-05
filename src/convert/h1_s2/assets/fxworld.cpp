@@ -7,8 +7,6 @@ namespace zonetool::h1::converter::s2::fxworld
 {
 	namespace
 	{
-		constexpr auto glass_phys_preset = "phys_glass"; // every stock s2 glass def uses it
-
 		zonetool::s2::FxGlassDef* convert_defs(const FxGlassSystem& glass, utils::memory::allocator& allocator)
 		{
 			if (!glass.defCount)
@@ -16,7 +14,7 @@ namespace zonetool::h1::converter::s2::fxworld
 				return nullptr;
 			}
 
-			const auto phys_preset = make_stub<zonetool::s2::PhysPreset>(glass_phys_preset, allocator);
+			const auto phys_preset = make_stub<zonetool::s2::PhysPreset>("phys_glass", allocator);
 			const auto defs = allocator.allocate_array<zonetool::s2::FxGlassDef>(glass.defCount);
 			for (auto i = 0u; i < glass.defCount; i++)
 			{
@@ -46,7 +44,7 @@ namespace zonetool::h1::converter::s2::fxworld
 
 				if (def.physPreset)
 				{
-					add_csv_row("physpreset", glass_phys_preset, true);
+					add_csv_row("physpreset", "phys_glass", true);
 				}
 			}
 

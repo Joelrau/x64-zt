@@ -13,45 +13,9 @@ namespace zonetool::s2::cast_xanim
 		namespace cs = zonetool::cast;
 
 		constexpr float quat_scale = 32767.0f;
-		constexpr float full_trans_quantization = 65535.0f;
 
 		constexpr std::size_t index_pool_threshold = 65;
 		constexpr std::size_t index_checkpoint_stride = 256;
-
-		constexpr const char* delta_bone_name = "tag_origin";
-
-		struct quat_track
-		{
-			XAnimPartType type = PART_TYPE_NO_QUAT;
-			std::vector<std::uint16_t> indices;
-			std::vector<std::array<std::int16_t, 4>> frames;
-		};
-
-		struct trans_track
-		{
-			XAnimPartType type = PART_TYPE_NO_TRANS;
-			std::vector<std::uint16_t> indices;
-			float mins[3]{};
-			float size[3]{};
-			float constant[3]{};
-			std::vector<std::array<std::uint16_t, 3>> frames;
-		};
-
-		struct bone_track
-		{
-			std::string name;
-			quat_track quat;
-			trans_track trans;
-		};
-
-		struct flat_data
-		{
-			std::vector<std::uint8_t> data_byte;
-			std::vector<std::int16_t> data_short;
-			std::vector<std::int32_t> data_int;
-			std::vector<std::int16_t> random_data_short;
-			std::vector<std::uint16_t> indices;
-		};
 
 		std::int16_t quantize_quat_component(const float value)
 		{
@@ -241,7 +205,7 @@ namespace zonetool::s2::cast_xanim
 
 					if (claims)
 					{
-						if (!cs::is_bone_ignored(bone.name) && !equals_ignore_case(bone.name, delta_bone_name))
+						if (!cs::is_bone_ignored(bone.name) && !equals_ignore_case(bone.name, "tag_origin"))
 						{
 							this->claim_bones_.insert(bone.name);
 						}
@@ -425,7 +389,7 @@ namespace zonetool::s2::cast_xanim
 
 				for (auto itr = this->curves_.begin(); itr != this->curves_.end(); ++itr)
 				{
-					if (equals_ignore_case(itr->first, delta_bone_name))
+					if (equals_ignore_case(itr->first, "tag_origin"))
 					{
 						this->delta_name_ = itr->first;
 						this->delta_ = itr->second;
@@ -790,7 +754,7 @@ namespace zonetool::s2::cast_xanim
 				for (auto axis = 0; axis < 3; axis++)
 				{
 					track.mins[axis] = mins[axis];
-					track.size[axis] = (maxs[axis] - mins[axis]) / full_trans_quantization;
+					track.size[axis] = (maxs[axis] - mins[axis]) / 65535.0f;
 				}
 
 				track.indices.assign(frames.begin(), frames.end());
@@ -803,7 +767,7 @@ namespace zonetool::s2::cast_xanim
 						if (extent > 0.0f)
 						{
 							const auto normalized = std::clamp((value.v[axis] - mins[axis]) / extent, 0.0f, 1.0f);
-							frame[axis] = static_cast<std::uint16_t>(normalized * full_trans_quantization + 0.5f);
+							frame[axis] = static_cast<std::uint16_t>(normalized * 65535.0f + 0.5f);
 						}
 					}
 					track.frames.emplace_back(frame);

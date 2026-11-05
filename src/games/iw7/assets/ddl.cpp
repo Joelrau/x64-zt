@@ -88,7 +88,7 @@ namespace zonetool::iw7
 
 						if (data_members[member_index].parent)
 						{
-							dest_members[member_index].parent = nullptr; // ??
+							dest_members[member_index].parent = nullptr;
 						}
 					}
 

@@ -62,7 +62,7 @@ namespace zonetool::iw6
 				};
 
 				convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_VISIONSET, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_VISIONSET);
-				convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_VISIONSET, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_LIGHTSET); // the iw6 vision trigger also picks the tonemap
+				convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_VISIONSET, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_LIGHTSET);
 				convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_AUDIO, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_AUDIO);
 				convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_BLEND_VISION, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_BLEND_VISION);
 				convert(zonetool::iw6::clientTriggerType_t::CLIENT_TRIGGER_BLEND_AUDIO, zonetool::h1::clientTriggerType_t::CLIENT_TRIGGER_BLEND_AUDIO);

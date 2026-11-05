@@ -30,3 +30,13 @@
 #include "assets/xanim.hpp"
 #include "assets/xmodel.hpp"
 #include "assets/xsurface.hpp"
+
+namespace zonetool::h1::converter::s2
+{
+	struct csv_row
+	{
+		std::string type;
+		std::string name;
+		bool referenced;
+	};
+}

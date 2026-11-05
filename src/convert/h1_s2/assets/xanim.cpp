@@ -162,7 +162,6 @@ namespace zonetool::h1::converter::s2::xanim
 			new_asset->notifyCount = 0;
 			for (auto i = 0; asset->notify && i < asset->notifyCount; i++)
 			{
-				// the s2 client reads "fx_<fx>;<tag>" and crashes on a missing tag (MS 0x14039CEC0)
 				const std::string_view name = SL_ConvertToString(asset->notify[i].name);
 				if (name.starts_with("fx_") && name.find(';') == std::string_view::npos)
 				{
@@ -230,7 +229,6 @@ namespace zonetool::h1::converter::s2::xanim
 			add_csv_row(zonetool::s2::type_to_string(zonetool::s2::ASSET_TYPE_XANIM), anim->name);
 		}
 
-		// generated anims start from the converted and retargeted h1 idle
 		template <typename Build>
 		bool build_from_idle(XAnimParts* idle, const Build& build)
 		{

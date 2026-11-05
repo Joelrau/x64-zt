@@ -52,9 +52,6 @@ namespace zonetool::h1::converter::s2::mapents
 
 		zonetool::s2::ClientTriggerBlend convert_blend_nodes(const ClientTriggerBlend& blend, utils::memory::allocator& allocator)
 		{
-			constexpr auto h1_no_trigger = 0x400;
-			constexpr auto s2_no_trigger = 0x800;
-
 			zonetool::s2::ClientTriggerBlend new_blend{};
 			new_blend.numClientTriggerBlendNodes = blend.numClientTriggerBlendNodes;
 			if (!blend.blendNodes || !blend.numClientTriggerBlendNodes)
@@ -67,8 +64,8 @@ namespace zonetool::h1::converter::s2::mapents
 			{
 				auto& node = new_blend.blendNodes[i];
 				node = std::bit_cast<zonetool::s2::ClientTriggerBlendNode>(blend.blendNodes[i]);
-				node.triggerA = node.triggerA == h1_no_trigger ? s2_no_trigger : node.triggerA;
-				node.triggerB = node.triggerB == h1_no_trigger ? s2_no_trigger : node.triggerB;
+				node.triggerA = node.triggerA == CLIENT_TRIGGER_BLEND_NO_TRIGGER ? zonetool::s2::CLIENT_TRIGGER_BLEND_NO_TRIGGER : node.triggerA;
+				node.triggerB = node.triggerB == CLIENT_TRIGGER_BLEND_NO_TRIGGER ? zonetool::s2::CLIENT_TRIGGER_BLEND_NO_TRIGGER : node.triggerB;
 			}
 
 			return new_blend;
@@ -76,7 +73,6 @@ namespace zonetool::h1::converter::s2::mapents
 
 		std::optional<std::string> convert_key(const std::string& name)
 		{
-			// s2 resolves a quoted key name to its canonical string
 			if (name.starts_with("_id_"))
 			{
 				ZONETOOL_WARNING("map_ents: key \"%s\" has no name, dropping it", name.data());

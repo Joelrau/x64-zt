@@ -2,8 +2,6 @@
 #include "../include.hpp"
 #include "techset.hpp"
 
-//#include <h1/assets/techset.hpp>
-
 
 #include "vertexdecl.hpp"
 

@@ -66,26 +66,6 @@ namespace zonetool::h1::converter::s2::techset
 			return false;
 		}
 
-		struct velocity_arg
-		{
-			unsigned short dest;
-			unsigned short code_const;
-			unsigned char row_count;
-		};
-
-		struct velocity_technique
-		{
-			std::int32_t slot;
-			const char* name;
-			const char* vertex_shader;
-			const char* pixel_shader;
-			bool hidir;
-			bool skinned;
-			std::vector<velocity_arg> per_prim_args;
-		};
-
-		constexpr std::uint64_t custom_buffer_skinned = 0x20000;
-
 		constexpr std::array<velocity_arg, 1> velocity_per_obj_args{{{0, 0x15C, 4}}};
 		constexpr std::array<velocity_arg, 7> velocity_stable_args{{{6, 0x86, 1}, {7, 0x87, 1}, {8, 0x88, 1}, {9, 0x89, 1}, {10, 0x8A, 1}, {34, 0x6, 1}, {42, 0x58, 1}}};
 
@@ -167,7 +147,7 @@ namespace zonetool::h1::converter::s2::techset
 			pass.vertexShader = global_shader<zonetool::s2::MaterialVertexShader>(velocity.vertex_shader, allocator);
 			pass.vertexDecl = global_shader<zonetool::s2::MaterialVertexDeclaration>(velocity.hidir ? "pp.f.0nn.f.1" : "pp.f.0", allocator);
 			pass.pixelShader = global_shader<zonetool::s2::MaterialPixelShader>(velocity.pixel_shader, allocator);
-			pass.pixelOutputMask = static_cast<unsigned char>(velocity.hidir ? 3 : 1); // the hidir passes also write the second render target
+			pass.pixelOutputMask = static_cast<unsigned char>(velocity.hidir ? 3 : 1);
 
 			std::vector<zonetool::s2::MaterialShaderArgument> args;
 			add_velocity_args(velocity.per_prim_args, args, pass.perPrimArgCount, pass.perPrimArgSize);
@@ -186,7 +166,7 @@ namespace zonetool::h1::converter::s2::techset
 			}
 			if (velocity.skinned)
 			{
-				pass.customBufferFlags |= custom_buffer_skinned;
+				pass.customBufferFlags |= zonetool::s2::CUSTOM_BUFFER_SKINNED;
 			}
 
 			pass.modelVertexType = instanced ? zonetool::s2::MODEL_VERTEX_TYPE_INSTANCE_DATA

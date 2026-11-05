@@ -6,79 +6,11 @@ namespace probe_volume
 {
 	namespace
 	{
-		constexpr auto no_probe = 0xFFFFFFFFu;
-		constexpr auto no_tetrahedron = 0xFFFFFFFFu;
-		constexpr auto seed_tetrahedron = 0u;
-		constexpr auto probe_offset = 1.0f / 32.0f; // stock probes sit 1/32 unit off the voxel grid
-		constexpr auto first_leaf_shift = 5;
-		constexpr auto last_leaf_shift = 12;
-		constexpr auto node_size = 4; // children per axis of an internal node
-		constexpr auto root_size_in_leaves = node_size * node_size;
-		constexpr auto max_scanned_cells = 12ull * 1024 * 1024;
+		constexpr auto probe_offset = 1.0f / 32.0f;
 
-		constexpr int cube_tetrahedrons[6][4] = // Freudenthal split, corner bits: 1 = +x, 2 = +y, 4 = +z
+		constexpr int cube_tetrahedrons[6][4] =
 		{
 			{0, 1, 3, 7}, {0, 3, 2, 7}, {0, 2, 6, 7}, {0, 6, 4, 7}, {0, 4, 5, 7}, {0, 5, 1, 7},
-		};
-
-		struct cell
-		{
-			int x;
-			int y;
-			int z;
-		};
-
-		struct grid_3d
-		{
-			int size[3];
-
-			std::size_t count() const
-			{
-				return static_cast<std::size_t>(this->size[0]) * this->size[1] * this->size[2];
-			}
-
-			std::size_t index(const int x, const int y, const int z) const
-			{
-				return (static_cast<std::size_t>(z) * this->size[1] + y) * this->size[0] + x;
-			}
-		};
-
-		struct leaf_grid
-		{
-			int leaf_shift;
-			float leaf_size;
-			float origin[3];
-			grid_3d roots;
-			grid_3d blocks; // the level 1 nodes, node_size leaves per axis
-			grid_3d cells;
-			grid_3d corners;
-
-			leaf_grid(const float bounds_min[3], const float bounds_max[3], const int leaf_shift)
-				: leaf_shift(leaf_shift)
-				, leaf_size(static_cast<float>(1 << leaf_shift))
-			{
-				const auto root_size = this->leaf_size * root_size_in_leaves;
-				for (auto axis = 0; axis < 3; axis++)
-				{
-					this->origin[axis] = std::floor(bounds_min[axis] / root_size) * root_size;
-					this->roots.size[axis] = std::max(1, static_cast<int>(std::ceil((bounds_max[axis] - this->origin[axis]) / root_size)));
-					this->blocks.size[axis] = this->roots.size[axis] * node_size;
-					this->cells.size[axis] = this->roots.size[axis] * root_size_in_leaves;
-					this->corners.size[axis] = this->cells.size[axis] + 1;
-				}
-			}
-
-			void cell_min(const cell& c, float out[3]) const
-			{
-				out[0] = this->origin[0] + static_cast<float>(c.x) * this->leaf_size;
-				out[1] = this->origin[1] + static_cast<float>(c.y) * this->leaf_size;
-				out[2] = this->origin[2] + static_cast<float>(c.z) * this->leaf_size;
-			}
-
-			std::size_t corner_index(const cell& c, const int corner) const
-			{
-				return this->corners.index(c.x + (corner & 1), c.y + ((corner >> 1) & 1), c.z + ((corner >> 2) & 1));
-			}
 		};
 
 		bool overlaps(const float min[3], const float size, const float bounds_min[3], const float bounds_max[3])
@@ -134,7 +66,7 @@ namespace probe_volume
 				}
 			}
 
-			std::vector<unsigned int> probe_of_corner(grid.corners.count(), no_probe);
+			std::vector<unsigned int> probe_of_corner(grid.corners.count(), 0xFFFFFFFFu);
 			probe_count = 0;
 			for (auto i = 0u; i < used.size(); i++)
 			{
@@ -173,7 +105,7 @@ namespace probe_volume
 					for (auto x = 0; x < grid.corners.size[0]; x++)
 					{
 						const auto probe = probe_of_corner[grid.corners.index(x, y, z)];
-						if (probe == no_probe)
+						if (probe == 0xFFFFFFFFu)
 						{
 							continue;
 						}
@@ -285,9 +217,9 @@ namespace probe_volume
 
 		void add_tetrahedrons(const leaf_grid& grid, const std::vector<unsigned int>& probe_of_corner, const std::vector<cell>& leaves, volume& out)
 		{
-			out.voxel_start_tetrahedron.assign(leaves.size() + out.internal_nodes.size(), no_tetrahedron);
-			out.voxel_start_tetrahedron[0] = seed_tetrahedron;
-			out.voxel_start_tetrahedron[leaves.size()] = seed_tetrahedron;
+			out.voxel_start_tetrahedron.assign(leaves.size() + out.internal_nodes.size(), 0xFFFFFFFFu);
+			out.voxel_start_tetrahedron[0] = 0u;
+			out.voxel_start_tetrahedron[leaves.size()] = 0u;
 
 			for (auto leaf = 1u; leaf < leaves.size(); leaf++)
 			{
@@ -304,7 +236,6 @@ namespace probe_volume
 				}
 			}
 
-			// a node walk starts at the tetrahedrons of its first leaf, the internal nodes follow the leaves
 			for (auto node = out.internal_nodes.size() - 1; node > 0; node--)
 			{
 				const auto& internal = out.internal_nodes[node];
@@ -329,13 +260,7 @@ namespace probe_volume
 
 		void add_neighbors(volume& out)
 		{
-			struct open_face
-			{
-				unsigned int tetrahedron;
-				int opposite_vertex;
-			};
-
-			out.tetrahedron_neighbors.assign(out.tetrahedrons.size(), {no_tetrahedron, no_tetrahedron, no_tetrahedron, no_tetrahedron});
+			out.tetrahedron_neighbors.assign(out.tetrahedrons.size(), {0xFFFFFFFFu, 0xFFFFFFFFu, 0xFFFFFFFFu, 0xFFFFFFFFu});
 			std::unordered_map<std::uint64_t, open_face> open_faces;
 			for (auto i = 0u; i < out.tetrahedrons.size(); i++)
 			{
@@ -363,7 +288,7 @@ namespace probe_volume
 			out.probe_positions.resize(probe_count);
 			add_probe_positions(grid, probe_of_corner, out);
 
-			std::vector<cell> leaves(1); // stock maps leave leaf 0 and internal node 0 unused
+			std::vector<cell> leaves(1);
 			out.internal_nodes.resize(1);
 			add_tree(grid, present, leaves, out);
 			add_tetrahedrons(grid, probe_of_corner, leaves, out);
@@ -385,10 +310,10 @@ namespace probe_volume
 
 	std::optional<volume> build(const float bounds_min[3], const float bounds_max[3], const cell_test& cell_occupied)
 	{
-		for (auto leaf_shift = first_leaf_shift; leaf_shift <= last_leaf_shift; leaf_shift++)
+		for (auto leaf_shift = 5; leaf_shift <= 12; leaf_shift++)
 		{
 			const leaf_grid grid(bounds_min, bounds_max, leaf_shift);
-			if (grid.cells.count() > max_scanned_cells)
+			if (grid.cells.count() > 12ull * 1024 * 1024)
 			{
 				continue;
 			}

@@ -9,9 +9,6 @@ namespace zonetool::s2
 	{
 		constexpr std::size_t model_count = 2;
 		constexpr std::size_t xanim_count = 188;
-		constexpr std::size_t hide_tag_count = 32;
-		constexpr std::size_t notetrack_sound_count = 36;
-		constexpr std::size_t notetrack_map_count = 16;
 		constexpr std::size_t location_damage_count = 22;
 		constexpr std::size_t surface_type_count = 62;
 
@@ -258,7 +255,7 @@ namespace zonetool::s2
 			&TurretHydraulicSettings::soundFadeOutTime,
 		};
 
-		constexpr auto state_timer_fields = glz::tuple // glaze miscounts aggregate members with C arrays, so StateTimers needs an explicit list
+		constexpr auto state_timer_fields = glz::tuple
 		{
 			&StateTimers::fireDelay,
 			&StateTimers::meleeDelay,
@@ -1164,7 +1161,7 @@ namespace zonetool::s2
 			data = ordered_json::object();
 			for (auto i = 0u; i < xanim_count; i++)
 			{
-				json_reflect::write(data[anim_names[i]], anims[i]); // every slot is listed, unused ones as ""
+				json_reflect::write(data[anim_names[i]], anims[i]);
 			}
 		}
 
@@ -1234,10 +1231,10 @@ namespace zonetool::s2
 				return;
 			}
 
-			weapon.notetrackFXMapKeys = mem->allocate<scr_string_t>(notetrack_map_count);
-			weapon.notetrackFXMapValues = mem->allocate<FxEffectDef*>(notetrack_map_count);
-			weapon.notetrackFXMapTagValues = mem->allocate<scr_string_t>(notetrack_map_count);
-			for (auto i = 0u; i < notetrack_map_count && i < data.size(); i++)
+			weapon.notetrackFXMapKeys = mem->allocate<scr_string_t>(16);
+			weapon.notetrackFXMapValues = mem->allocate<FxEffectDef*>(16);
+			weapon.notetrackFXMapTagValues = mem->allocate<scr_string_t>(16);
+			for (auto i = 0u; i < 16 && i < data.size(); i++)
 			{
 				weapon.notetrackFXMapKeys[i] = parse_script_string(data[i]["Key"]);
 				json_reflect::read(data[i]["Value"], weapon.notetrackFXMapValues[i], mem);
@@ -1253,7 +1250,7 @@ namespace zonetool::s2
 				return;
 			}
 
-			for (auto i = 0u; i < notetrack_map_count; i++)
+			for (auto i = 0u; i < 16; i++)
 			{
 				dump_script_string(data[i]["Key"], weapon.notetrackFXMapKeys[i]);
 				json_reflect::write(data[i]["Value"], weapon.notetrackFXMapValues[i]);
@@ -1274,7 +1271,7 @@ namespace zonetool::s2
 			{
 				auto& entry = weapon.notetrackOverrides[i];
 				entry.attachment = data[i]["attachment"].get<int>();
-				read_notetrack_map(data[i]["notetrackSoundMap"], entry.notetrackSoundMapKeys, entry.notetrackSoundMapValues, notetrack_sound_count, mem);
+				read_notetrack_map(data[i]["notetrackSoundMap"], entry.notetrackSoundMapKeys, entry.notetrackSoundMapValues, 36, mem);
 			}
 		}
 
@@ -1284,7 +1281,7 @@ namespace zonetool::s2
 			{
 				const auto& entry = weapon.notetrackOverrides[i];
 				data[i]["attachment"] = entry.attachment;
-				write_notetrack_map(data[i]["notetrackSoundMap"], entry.notetrackSoundMapKeys, entry.notetrackSoundMapValues, notetrack_sound_count);
+				write_notetrack_map(data[i]["notetrackSoundMap"], entry.notetrackSoundMapKeys, entry.notetrackSoundMapValues, 36);
 			}
 		}
 
@@ -1584,21 +1581,21 @@ namespace zonetool::s2
 			{
 				for (auto i = 0; i < asset->numNotetrackOverrides; i++)
 				{
-					reader.read_script_string_array(notetracks[i].notetrackSoundMapKeys, notetrack_sound_count);
-					reader.read_script_string_array(notetracks[i].notetrackSoundMapValues, notetrack_sound_count);
+					reader.read_script_string_array(notetracks[i].notetrackSoundMapKeys, 36);
+					reader.read_script_string_array(notetracks[i].notetrackSoundMapValues, 36);
 				}
 			}
 		}
 
 		void read_notetrack_maps(zone_reader& reader, WeaponCompleteDef* asset)
 		{
-			reader.read_script_string_array(asset->notetrackSoundMapKeys, notetrack_sound_count);
-			reader.read_script_string_array(asset->notetrackSoundMapValues, notetrack_sound_count);
-			reader.read_script_string_array(asset->notetrackRumbleMapKeys, notetrack_map_count);
-			reader.read_script_string_array(asset->notetrackRumbleMapValues, notetrack_map_count);
-			reader.read_script_string_array(asset->notetrackFXMapKeys, notetrack_map_count);
-			reader.read_asset_array(ASSET_TYPE_FX, asset->notetrackFXMapValues, notetrack_map_count);
-			reader.read_script_string_array(asset->notetrackFXMapTagValues, notetrack_map_count);
+			reader.read_script_string_array(asset->notetrackSoundMapKeys, 36);
+			reader.read_script_string_array(asset->notetrackSoundMapValues, 36);
+			reader.read_script_string_array(asset->notetrackRumbleMapKeys, 16);
+			reader.read_script_string_array(asset->notetrackRumbleMapValues, 16);
+			reader.read_script_string_array(asset->notetrackFXMapKeys, 16);
+			reader.read_asset_array(ASSET_TYPE_FX, asset->notetrackFXMapValues, 16);
+			reader.read_script_string_array(asset->notetrackFXMapTagValues, 16);
 		}
 
 		void read_turret(zone_reader& reader, WeaponCompleteDef* asset)
@@ -1669,21 +1666,21 @@ namespace zonetool::s2
 				for (auto i = 0; i < data->numNotetrackOverrides; i++)
 				{
 					const auto& notetrack = data->notetrackOverrides[i];
-					write_array(buf, 3, notetrack.notetrackSoundMapKeys, notetrack_sound_count, notetracks[i].notetrackSoundMapKeys);
-					write_array(buf, 3, notetrack.notetrackSoundMapValues, notetrack_sound_count, notetracks[i].notetrackSoundMapValues);
+					write_array(buf, 3, notetrack.notetrackSoundMapKeys, 36, notetracks[i].notetrackSoundMapKeys);
+					write_array(buf, 3, notetrack.notetrackSoundMapValues, 36, notetracks[i].notetrackSoundMapValues);
 				}
 			}
 		}
 
 		void write_notetrack_maps(zone_base* zone, zone_buffer* buf, WeaponCompleteDef* data, WeaponCompleteDef* dest)
 		{
-			write_array(buf, 3, data->notetrackSoundMapKeys, notetrack_sound_count, dest->notetrackSoundMapKeys);
-			write_array(buf, 3, data->notetrackSoundMapValues, notetrack_sound_count, dest->notetrackSoundMapValues);
-			write_array(buf, 3, data->notetrackRumbleMapKeys, notetrack_map_count, dest->notetrackRumbleMapKeys);
-			write_array(buf, 3, data->notetrackRumbleMapValues, notetrack_map_count, dest->notetrackRumbleMapValues);
-			write_array(buf, 3, data->notetrackFXMapKeys, notetrack_map_count, dest->notetrackFXMapKeys);
-			write_asset_array(zone, buf, ASSET_TYPE_FX, data->notetrackFXMapValues, notetrack_map_count, dest->notetrackFXMapValues);
-			write_array(buf, 3, data->notetrackFXMapTagValues, notetrack_map_count, dest->notetrackFXMapTagValues);
+			write_array(buf, 3, data->notetrackSoundMapKeys, 36, dest->notetrackSoundMapKeys);
+			write_array(buf, 3, data->notetrackSoundMapValues, 36, dest->notetrackSoundMapValues);
+			write_array(buf, 3, data->notetrackRumbleMapKeys, 16, dest->notetrackRumbleMapKeys);
+			write_array(buf, 3, data->notetrackRumbleMapValues, 16, dest->notetrackRumbleMapValues);
+			write_array(buf, 3, data->notetrackFXMapKeys, 16, dest->notetrackFXMapKeys);
+			write_asset_array(zone, buf, ASSET_TYPE_FX, data->notetrackFXMapValues, 16, dest->notetrackFXMapValues);
+			write_array(buf, 3, data->notetrackFXMapTagValues, 16, dest->notetrackFXMapTagValues);
 		}
 
 		void write_turret(zone_base* zone, zone_buffer* buf, WeaponCompleteDef* data, WeaponCompleteDef* dest)
@@ -1743,7 +1740,7 @@ namespace zonetool::s2
 		reader.read_string(asset->lobWorldModelName);
 		reader.read_asset_array(ASSET_TYPE_XANIM, asset->szXAnimsRightHanded, xanim_count);
 		reader.read_asset_array(ASSET_TYPE_XANIM, asset->szXAnimsLeftHanded, xanim_count);
-		reader.read_script_string_array(asset->hideTags, hide_tag_count);
+		reader.read_script_string_array(asset->hideTags, 32);
 		reader.read_asset_array(ASSET_TYPE_ATTACHMENT, asset->attachments, asset->numAttachments);
 		reader.read_asset_array(ASSET_TYPE_XANIM, asset->szXAnims, xanim_count);
 		read_overrides(reader, asset);
@@ -1797,18 +1794,18 @@ namespace zonetool::s2
 	{
 		auto* data = this->asset_;
 		script_string_preparer prepare(buf);
-		prepare(data->hideTags, hide_tag_count);
+		prepare(data->hideTags, 32);
 		for (auto i = 0; data->notetrackOverrides && i < data->numNotetrackOverrides; i++)
 		{
-			prepare(data->notetrackOverrides[i].notetrackSoundMapKeys, notetrack_sound_count);
-			prepare(data->notetrackOverrides[i].notetrackSoundMapValues, notetrack_sound_count);
+			prepare(data->notetrackOverrides[i].notetrackSoundMapKeys, 36);
+			prepare(data->notetrackOverrides[i].notetrackSoundMapValues, 36);
 		}
-		prepare(data->notetrackSoundMapKeys, notetrack_sound_count);
-		prepare(data->notetrackSoundMapValues, notetrack_sound_count);
-		prepare(data->notetrackRumbleMapKeys, notetrack_map_count);
-		prepare(data->notetrackRumbleMapValues, notetrack_map_count);
-		prepare(data->notetrackFXMapKeys, notetrack_map_count);
-		prepare(data->notetrackFXMapTagValues, notetrack_map_count);
+		prepare(data->notetrackSoundMapKeys, 36);
+		prepare(data->notetrackSoundMapValues, 36);
+		prepare(data->notetrackRumbleMapKeys, 16);
+		prepare(data->notetrackRumbleMapValues, 16);
+		prepare(data->notetrackFXMapKeys, 16);
+		prepare(data->notetrackFXMapTagValues, 16);
 		prepare(data->knifeAttachTagOverride);
 		prepare(data->stowTag);
 		prepare(data->activeReloadEffectTag);
@@ -1837,7 +1834,7 @@ namespace zonetool::s2
 		}
 		for (auto i = 0; data->notetrackOverrides && i < data->numNotetrackOverrides; i++)
 		{
-			add_sound_dependencies(zone, data->notetrackOverrides[i].notetrackSoundMapValues, notetrack_sound_count);
+			add_sound_dependencies(zone, data->notetrackOverrides[i].notetrackSoundMapValues, 36);
 		}
 		for (auto i = 0; data->fxOverrides && i < data->numFXOverrides; i++)
 		{
@@ -1845,8 +1842,8 @@ namespace zonetool::s2
 			add_dependency(zone, ASSET_TYPE_FX, data->fxOverrides[i].altmodeFX);
 		}
 
-		add_sound_dependencies(zone, data->notetrackSoundMapValues, notetrack_sound_count);
-		add_dependencies(zone, ASSET_TYPE_FX, data->notetrackFXMapValues, notetrack_map_count);
+		add_sound_dependencies(zone, data->notetrackSoundMapValues, 36);
+		add_dependencies(zone, ASSET_TYPE_FX, data->notetrackFXMapValues, 16);
 		add_dependencies(zone, ASSET_TYPE_FX, pointer_run(data->viewFlashEffect, data->meleeMissEffect));
 		add_dependencies(zone, ASSET_TYPE_SOUND, pointer_run(data->pickupSound, data->grenadeStickSound));
 		add_dependencies(zone, ASSET_TYPE_SOUND, data->bounceSound, surface_type_count);
@@ -1903,7 +1900,7 @@ namespace zonetool::s2
 		write_string(buf, data->lobWorldModelName, dest->lobWorldModelName);
 		write_asset_array(zone, buf, ASSET_TYPE_XANIM, data->szXAnimsRightHanded, xanim_count, dest->szXAnimsRightHanded);
 		write_asset_array(zone, buf, ASSET_TYPE_XANIM, data->szXAnimsLeftHanded, xanim_count, dest->szXAnimsLeftHanded);
-		write_array(buf, 3, data->hideTags, hide_tag_count, dest->hideTags);
+		write_array(buf, 3, data->hideTags, 32, dest->hideTags);
 		write_asset_array(zone, buf, ASSET_TYPE_ATTACHMENT, data->attachments, data->numAttachments, dest->attachments);
 		write_asset_array(zone, buf, ASSET_TYPE_XANIM, data->szXAnims, xanim_count, dest->szXAnims);
 		write_overrides(zone, buf, data, dest);
@@ -1970,12 +1967,12 @@ namespace zonetool::s2
 
 		read_anim_array(data["szXAnimsRightHanded"], asset->szXAnimsRightHanded, mem);
 		read_anim_array(data["szXAnimsLeftHanded"], asset->szXAnimsLeftHanded, mem);
-		asset->hideTags = parse_script_string_array(data["hideTags"], mem, hide_tag_count);
+		asset->hideTags = parse_script_string_array(data["hideTags"], mem, 32);
 		read_attachments(data["attachments"], *asset, mem);
 		read_anim_array(data["szXAnims"], asset->szXAnims, mem);
 		read_notetrack_overrides(data["notetrackOverrides"], *asset, mem);
-		read_notetrack_map(data["notetrackSoundMap"], asset->notetrackSoundMapKeys, asset->notetrackSoundMapValues, notetrack_sound_count, mem);
-		read_notetrack_map(data["notetrackRumbleMap"], asset->notetrackRumbleMapKeys, asset->notetrackRumbleMapValues, notetrack_map_count, mem);
+		read_notetrack_map(data["notetrackSoundMap"], asset->notetrackSoundMapKeys, asset->notetrackSoundMapValues, 36, mem);
+		read_notetrack_map(data["notetrackRumbleMap"], asset->notetrackRumbleMapKeys, asset->notetrackRumbleMapValues, 16, mem);
 		read_notetrack_fx_map(data["notetrackFXMap"], *asset, mem);
 		read_accuracy_graphs(data["accuracyGraphs"], *asset, mem);
 		asset->knifeAttachTagOverride = parse_script_string(data["knifeAttachTagOverride"]);
@@ -1993,12 +1990,12 @@ namespace zonetool::s2
 
 		write_anim_array(data["szXAnimsRightHanded"], asset->szXAnimsRightHanded);
 		write_anim_array(data["szXAnimsLeftHanded"], asset->szXAnimsLeftHanded);
-		dump_script_string_array(data["hideTags"], asset->hideTags, hide_tag_count);
+		dump_script_string_array(data["hideTags"], asset->hideTags, 32);
 		write_attachments(data["attachments"], *asset);
 		write_anim_array(data["szXAnims"], asset->szXAnims);
 		write_notetrack_overrides(data["notetrackOverrides"], *asset);
-		write_notetrack_map(data["notetrackSoundMap"], asset->notetrackSoundMapKeys, asset->notetrackSoundMapValues, notetrack_sound_count);
-		write_notetrack_map(data["notetrackRumbleMap"], asset->notetrackRumbleMapKeys, asset->notetrackRumbleMapValues, notetrack_map_count);
+		write_notetrack_map(data["notetrackSoundMap"], asset->notetrackSoundMapKeys, asset->notetrackSoundMapValues, 36);
+		write_notetrack_map(data["notetrackRumbleMap"], asset->notetrackRumbleMapKeys, asset->notetrackRumbleMapValues, 16);
 		write_notetrack_fx_map(data["notetrackFXMap"], *asset);
 		write_accuracy_graphs(data["accuracyGraphs"], *asset);
 		dump_script_string(data["knifeAttachTagOverride"], asset->knifeAttachTagOverride);

@@ -12,35 +12,7 @@ namespace zonetool::iw6
 		{
 			namespace
 			{
-				constexpr auto cylinder_sides = 16;
-				constexpr auto min_box_half_size = 0.19685; // retail SetAsBox clamp
-				constexpr auto relative_epsilon = 1e-5;
-				constexpr auto max_polytope_elements = 256u; // sub edge, vertex and face indices are 8 bit
-
-				struct vec3
-				{
-					double x;
-					double y;
-					double z;
-				};
-
-				struct plane_t
-				{
-					vec3 normal;
-					double offset;
-				};
-
-				struct polygon_t
-				{
-					std::vector<vec3> points; // counter-clockwise around the outward normal
-					plane_t plane;
-				};
-
-				struct face_t
-				{
-					std::vector<int> verts;
-					plane_t plane;
-				};
+				constexpr auto min_box_half_size = 0.19685;
 
 				vec3 operator+(const vec3& a, const vec3& b)
 				{
@@ -152,7 +124,6 @@ namespace zonetool::iw6
 
 				std::vector<polygon_t> clip(const std::vector<polygon_t>& polygons, const plane_t& plane, const double epsilon)
 				{
-					// points within epsilon of the plane are on it and never split, so neighbour faces always agree
 					const auto is_cut = [&](const polygon_t& polygon)
 					{
 						return std::ranges::any_of(polygon.points, [&](const vec3& point) { return distance(plane, point) > epsilon; });
@@ -201,7 +172,7 @@ namespace zonetool::iw6
 							}
 						}
 
-						if (!on_plane && result.points.size() >= 3) // a polygon on the plane comes back as the cap
+						if (!on_plane && result.points.size() >= 3)
 						{
 							clipped.emplace_back(std::move(result));
 						}
@@ -268,7 +239,6 @@ namespace zonetool::iw6
 
 				void remove_degenerate_faces(const std::vector<vec3>& verts, std::vector<face_t>& faces, const double epsilon)
 				{
-					// a flat face and a vertex on fewer than three faces are an edge seen from the side
 					for (auto removed = true; removed;)
 					{
 						std::erase_if(faces, [&](const face_t& face) { return face.verts.size() < 3 || is_flat(verts, face.verts, epsilon); });
@@ -325,7 +295,7 @@ namespace zonetool::iw6
 						}
 					}
 
-					std::map<std::pair<int, int>, int> sub_edges; // twins are adjacent, so twinOffset is 1 or -1 like retail
+					std::map<std::pair<int, int>, int> sub_edges;
 					for (const auto& [tail, head] : edges)
 					{
 						if (!edges.contains({head, tail}))
@@ -346,12 +316,11 @@ namespace zonetool::iw6
 
 				void set_mass_properties(zonetool::h1::dmPolytopeData* data, const std::vector<vec3>& verts, const std::vector<face_t>& faces)
 				{
-					// unit density and inertia about the model origin, like retail polytopes
 					auto volume = 0.0;
 					auto area = 0.0;
 					vec3 first{};
-					vec3 squares{}; // xx yy zz
-					vec3 products{}; // xy zx yz
+					vec3 squares{};
+					vec3 products{};
 					for (const auto& face : faces)
 					{
 						const auto& a = verts[face.verts[0]];
@@ -385,8 +354,8 @@ namespace zonetool::iw6
 					const bool material_arrays, utils::memory::allocator& allocator)
 				{
 					const auto scale = std::max({1.0, std::abs(mins.x), std::abs(mins.y), std::abs(mins.z), std::abs(maxs.x), std::abs(maxs.y), std::abs(maxs.z)});
-					const auto epsilon = scale * relative_epsilon;
-					const auto merge_distance = 10.0 * epsilon; // planes and vertices closer than this leave overlapping faces and tiny edges
+					const auto epsilon = scale * 1e-5;
+					const auto merge_distance = 10.0 * epsilon;
 					const auto box = box_polygons(mins, maxs);
 
 					std::vector<plane_t> cuts;
@@ -411,8 +380,8 @@ namespace zonetool::iw6
 					remove_unused_vertices(verts, faces);
 
 					const auto sub_edges = index_sub_edges(faces);
-					if (verts.size() < 4 || faces.size() < 4 || !sub_edges || verts.size() > max_polytope_elements
-						|| faces.size() > max_polytope_elements || sub_edges->size() > max_polytope_elements)
+					if (verts.size() < 4 || faces.size() < 4 || !sub_edges || verts.size() > 256u
+						|| faces.size() > 256u || sub_edges->size() > 256u)
 					{
 						return nullptr;
 					}
@@ -425,7 +394,7 @@ namespace zonetool::iw6
 					data->m_aPlanes = allocator.allocate_array<zonetool::h1::dmPlane>(faces.size());
 					data->m_aSubEdges = allocator.allocate_array<zonetool::h1::dmSubEdge>(sub_edges->size());
 					data->m_aFaceSubEdges = allocator.allocate_array<zonetool::h1::dm_uint8>(faces.size());
-					if (material_arrays) // retail boxes and cylinders have none, brush hulls have zeroed arrays
+					if (material_arrays)
 					{
 						data->m_surfaceTypes = allocator.allocate_array<zonetool::h1::dm_uint16>(faces.size());
 						data->m_vertexMaterials = allocator.allocate_array<zonetool::h1::dm_uint16>(verts.size());
@@ -465,7 +434,7 @@ namespace zonetool::iw6
 
 				zonetool::h1::dmPolytopeData* make_brush(const BrushWrapper& brush, utils::memory::allocator& allocator)
 				{
-					std::vector<plane_t> sides; // the axial sides are the bounds, they are not in the side list
+					std::vector<plane_t> sides;
 					for (auto i = 0; brush.brush.sides && i < brush.brush.numsides; i++)
 					{
 						if (const auto* side = brush.brush.sides[i].plane)
@@ -498,19 +467,18 @@ namespace zonetool::iw6
 
 				zonetool::h1::dmPolytopeData* make_cylinder(const PhysGeomInfo& geom, utils::memory::allocator& allocator)
 				{
-					// iw6 Phys_DistanceOfCylinderFromPlane: the axis is orientation[0], halfSize[0] the radius and halfSize[2] the half height
 					const auto center = to_vec3(geom.bounds.midPoint);
 					const auto axis = normalize(to_vec3(geom.orientation[0]));
 					const auto side = normalize(to_vec3(geom.orientation[1]));
 					const auto up = normalize(to_vec3(geom.orientation[2]));
 					const double radius = geom.bounds.halfSize[0];
 					const double half_height = geom.bounds.halfSize[2];
-					const auto step = 2.0 * std::numbers::pi / cylinder_sides;
+					const auto step = 2.0 * std::numbers::pi / 16;
 
 					std::vector<plane_t> planes;
-					for (auto i = 0; i < cylinder_sides; i++)
+					for (auto i = 0; i < 16; i++)
 					{
-						const auto angle = (i + 0.5) * step - std::numbers::pi / 2.0; // retail SetAsCylinder starts its vertices at -90 degrees
+						const auto angle = (i + 0.5) * step - std::numbers::pi / 2.0;
 						const auto normal = side * std::cos(angle) + up * std::sin(angle);
 						planes.push_back({normal, dot(normal, center) + radius * std::cos(step / 2.0)});
 					}
@@ -526,7 +494,6 @@ namespace zonetool::iw6
 
 				zonetool::h1::dmPolytopeData* convert_geom(const PhysCollmap* asset, const PhysGeomInfo& geom, utils::memory::allocator& allocator)
 				{
-					// iw6 Phys_CollideWorldWithCollmap: a brush wrapper makes a brush, type box a box and every other type a cylinder
 					auto* polytope = geom.brushWrapper ? make_brush(*geom.brushWrapper, allocator)
 						: geom.type == PHYS_GEOM_BOX ? make_box(geom, allocator) : make_cylinder(geom, allocator);
 					if (!polytope)
@@ -539,7 +506,6 @@ namespace zonetool::iw6
 
 				void set_collmap_mass(zonetool::h1::PhysCollmap* asset)
 				{
-					// retail collmaps store the polytope sums per unit volume and the bounds of all vertices
 					auto volume = 0.0;
 					vec3 center{};
 					vec3 moments{};

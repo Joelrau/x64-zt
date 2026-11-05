@@ -8,12 +8,6 @@ namespace zonetool::h1::converter::s2::shader
 {
 	namespace
 	{
-		constexpr auto sprite_record_shift = 6u;
-		constexpr auto sprite_frame_offset = 16u;
-		constexpr auto sprite_axes_offset = 20u;
-		constexpr auto sprite_uv_offset = 32u;
-		constexpr auto sprite_color_size_offset = 48u;
-
 		std::optional<sprite_input> find_sprite_input(const signature_element& element)
 		{
 			if ((element.name == "POSITION" || element.name == "SV_POSITION") && element.semantic_index == 0)
@@ -64,7 +58,7 @@ namespace zonetool::h1::converter::s2::shader
 		void emit_atlas_step(alys::shader::assembler& a, const std::uint32_t position, const std::uint32_t u_step, const std::uint32_t v_step,
 			const std::uint32_t index, const std::uint32_t first, const std::uint32_t second)
 		{
-			a.iadd(asm_::r(index).y(), asm_::r(index).x(), uint_literal(sprite_frame_offset));
+			a.iadd(asm_::r(index).y(), asm_::r(index).x(), uint_literal(16u));
 			a.ld_raw(asm_::r(index).y(), asm_::r(index).y(), asm_::t(sprite_buffer_slot).select("xxxx"));
 			a.ushr(asm_::r(index).y(), asm_::r(index).y(), uint_literal(16));
 			a.f16tof32(asm_::r(index).y(), asm_::r(index).y());
@@ -129,10 +123,10 @@ namespace zonetool::h1::converter::s2::shader
 		const auto buffer = asm_::t(sprite_buffer_slot);
 
 		a.ushr(asm_::r(index).x(), asm_::v(0).x(), uint_literal(2));
-		a.ishl(asm_::r(index).x(), asm_::r(index).x(), uint_literal(sprite_record_shift));
+		a.ishl(asm_::r(index).x(), asm_::r(index).x(), uint_literal(6u));
 		a.and_(asm_::r(index).y(), asm_::v(0).x(), uint_literal(3));
 		a.ld_raw(asm_::r(position).select("xyzw"), asm_::r(index).x(), buffer.select("xyzw"));
-		a.iadd(asm_::r(index).z(), asm_::r(index).x(), uint_literal(sprite_axes_offset));
+		a.iadd(asm_::r(index).z(), asm_::r(index).x(), uint_literal(20u));
 		a.ld_raw(asm_::r(first).xyz(), asm_::r(index).z(), buffer.select("xyzx"));
 		emit_unpack_unorm(a, normal, asm_::r(first).select("xxxx").swz());
 		emit_unpack_unorm(a, texcoord, asm_::r(first).select("yyyy").swz());
@@ -146,7 +140,7 @@ namespace zonetool::h1::converter::s2::shader
 		a.mul(asm_::r(color).xyz(), asm_::r(color).select("xyzx"), asm_::r(first).select("yyyy"));
 		a.mad(asm_::r(color).xyz(), asm_::r(texcoord).select("xyzx"), asm_::r(first).select("xxxx"), asm_::r(color).select("xyzx").neg());
 
-		a.iadd(asm_::r(index).z(), asm_::r(index).x(), uint_literal(sprite_color_size_offset));
+		a.iadd(asm_::r(index).z(), asm_::r(index).x(), uint_literal(48u));
 		a.ld_raw(asm_::r(first).select("xyzw"), asm_::r(index).z(), buffer.select("xyzw"));
 		a.and_(asm_::r(texcoord).select("xyzw"), asm_::r(first).select("xyzw"), uint_literal(0xFFFF));
 		a.ushr(asm_::r(first).select("xyzw"), asm_::r(first).select("xyzw"), uint_literal(16));
@@ -170,7 +164,7 @@ namespace zonetool::h1::converter::s2::shader
 		a.mov(asm_::r(color).xz(), asm_::r(texcoord).select("xxyy"));
 		a.mov(asm_::r(color).yw(), asm_::r(first).select("xxyy"));
 
-		a.iadd(asm_::r(index).y(), asm_::r(index).x(), uint_literal(sprite_uv_offset));
+		a.iadd(asm_::r(index).y(), asm_::r(index).x(), uint_literal(32u));
 		a.ld_raw(asm_::r(first).xy(), asm_::r(index).y(), buffer.select("xyxx"));
 		a.and_(asm_::r(second).xy(), asm_::r(first).select("xyxx"), uint_literal(0xFFFF));
 		a.ushr(asm_::r(first).xy(), asm_::r(first).select("xyxx"), uint_literal(16));

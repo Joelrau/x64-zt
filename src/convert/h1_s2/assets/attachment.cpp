@@ -13,23 +13,12 @@ namespace zonetool::h1::converter::s2::attachment
 {
 	namespace
 	{
-		constexpr std::size_t h1_world_model_count = 2;
-		constexpr std::size_t h1_view_model_count = 2;
-		constexpr std::size_t h1_reticle_view_model_count = 64;
-		constexpr std::size_t s2_model_count = 2;
-		constexpr std::size_t s2_variant_model_count = 12;
-		constexpr std::size_t s2_reticle_view_model_count = 255;
-		constexpr auto scope_alt_mode_mask = 3; // every stock scope
-		constexpr auto built_in_scope_display_name = "WEAPON_TELESCOPIC_SIGHT2"; // the stock default scopes
-		constexpr auto scope_dof_start = 50.0f; // stock telescopic sights set the view model dof start past its end, which turns it off
-		constexpr auto scope_dof_end = 25.0f;
-
 		const std::unordered_map<std::string_view, std::vector<std::string_view>> field_renames =
 		{
-			{"thermalScope", {}}, // s2 has no thermal scopes
-			{"knifeModel", {}}, // s2 weapons have no knife models, tacticalKnife marks the attachment instead
+			{"thermalScope", {}},
+			{"knifeModel", {}},
 			{"worldKnifeModel", {}},
-			{"knifeAttachTagLeft", {}}, // s2 never reads its knife attach tags
+			{"knifeAttachTagLeft", {}},
 			{"inspectAnimTime", {"stateTimers.inspectTime"}},
 			{"actionSlotShowAmmo", {"dpadIconShowsAmmo"}},
 			{"hasDetonatorEmptyThrow", {"detonatesOnEmptyThrow"}},
@@ -37,15 +26,15 @@ namespace zonetool::h1::converter::s2::attachment
 			{"midDamage", {"mid1Damage"}},
 			{"midPlayerDamage", {"mid1PlayerDamage"}},
 			{"signatureMidDamage", {"signatureMid1Damage"}},
-			{"minDamage", {"minDamage", "mid2Damage"}}, // h1 has one step between mid and min, s2 has two
+			{"minDamage", {"minDamage", "mid2Damage"}},
 			{"minPlayerDamage", {"minPlayerDamage", "mid2PlayerDamage"}},
 			{"minDamageRange", {"minDamageRange", "mid1DamageRange"}},
-			{"meleeDamage", {"meleeDamage", "meleeChargeDamage"}}, // the s2 alternate melee damage too, h1 has one damage for every swing
+			{"meleeDamage", {"meleeDamage", "meleeChargeDamage"}},
 		};
 
 		const std::unordered_set<std::string_view> attachment_level_fields =
 		{
-			"adsSceneBlur", // s2 reads ads blur only from the attachment's own fields
+			"adsSceneBlur",
 			"adsSceneBlurStrength",
 		};
 
@@ -82,13 +71,13 @@ namespace zonetool::h1::converter::s2::attachment
 			switch (field.type)
 			{
 			case WAFIELD_TYPE_INT:
-				value.intValue = static_cast<int>(field.parm.p_float); // h1 stores int fields as a float
+				value.intValue = static_cast<int>(field.parm.p_float);
 				break;
 			case WAFIELD_TYPE_BOOL:
-				value.intValue = field.parm.p_float != 0.0f; // h1 stores bool fields as a float too, s2 as an int
+				value.intValue = field.parm.p_float != 0.0f;
 				break;
 			case WAFIELD_TYPE_FLOAT32:
-				value.intValue = static_cast<int>(std::lround(field.parm.p_float * 1000.0f)); // seconds -> milliseconds
+				value.intValue = static_cast<int>(std::lround(field.parm.p_float * 1000.0f));
 				break;
 			default:
 				value.floatValue = field.parm.p_float;
@@ -156,7 +145,7 @@ namespace zonetool::h1::converter::s2::attachment
 				result.value = convert_set_value(field);
 				return result;
 			case FIELD_OP_NUMBER_ADD_MULTIPLY:
-				result.code = zonetool::s2::WAFIELD_CODE_MULTIPLY; // h1 adds value times the base value, a multiply by 1 + value on its own
+				result.code = zonetool::s2::WAFIELD_CODE_MULTIPLY;
 				result.value.floatValue = 1.0f + field.parm.p_float;
 				return result;
 			case FIELD_OP_NUMBER_MULTIPLY:
@@ -221,7 +210,7 @@ namespace zonetool::h1::converter::s2::attachment
 					fields.emplace_back(offset, *converted);
 				}
 
-				if (*name == "overlay.shader") // s2 only draws an overlay shader with overlay.enabled set
+				if (*name == "overlay.shader")
 				{
 					zonetool::s2::AttachmentField enabled{};
 					enabled.type = zonetool::s2::WAFIELD_TYPE_BOOL;
@@ -261,7 +250,7 @@ namespace zonetool::h1::converter::s2::attachment
 				attachment->adsSceneBlurStrength = strength->parm.p_float;
 			}
 
-			attachment->tacticalKnife = asset->knifeAlwaysAttached || sets_bool_field(asset, "knifeAlwaysAttached"); // s2 reads the tactical knife from the attachment, h1 from the weapon
+			attachment->tacticalKnife = asset->knifeAlwaysAttached || sets_bool_field(asset, "knifeAlwaysAttached");
 		}
 
 		zonetool::s2::AttachmentType convert_attachment_type(const WeaponAttachment* asset)
@@ -275,12 +264,12 @@ namespace zonetool::h1::converter::s2::attachment
 			case ATTACHMENT_OTHER:
 				if (sets_bool_field(asset, "silenced"))
 				{
-					return zonetool::s2::ATTACHMENT_MUZZLE; // s2 files suppressors under muzzle
+					return zonetool::s2::ATTACHMENT_MUZZLE;
 				}
 
 				return find_field(asset, "clipSize") ? zonetool::s2::ATTACHMENT_MAGAZINE : zonetool::s2::ATTACHMENT_MODELFREE;
 			default:
-				return zonetool::s2::ATTACHMENT_MODELFREE; // s2 has no side rail
+				return zonetool::s2::ATTACHMENT_MODELFREE;
 			}
 		}
 
@@ -298,7 +287,7 @@ namespace zonetool::h1::converter::s2::attachment
 
 		zonetool::s2::XModel** reference_base_models(const std::optional<std::string>& name, utils::memory::allocator& allocator)
 		{
-			const auto result = allocator.allocate_array<zonetool::s2::XModel*>(s2_model_count);
+			const auto result = allocator.allocate_array<zonetool::s2::XModel*>(2);
 			if (name)
 			{
 				xmodel::dump_used(name->data());
@@ -312,9 +301,9 @@ namespace zonetool::h1::converter::s2::attachment
 			utils::memory::allocator& allocator)
 		{
 			attachment->worldModels = world_models;
-			attachment->worldModelVariants = allocator.allocate_array<zonetool::s2::XModel*>(s2_variant_model_count);
+			attachment->worldModelVariants = allocator.allocate_array<zonetool::s2::XModel*>(12);
 			attachment->viewModels = view_models;
-			attachment->viewModelVariants = allocator.allocate_array<zonetool::s2::XModel*>(s2_variant_model_count);
+			attachment->viewModelVariants = allocator.allocate_array<zonetool::s2::XModel*>(12);
 		}
 	}
 
@@ -333,10 +322,10 @@ namespace zonetool::h1::converter::s2::attachment
 		attachment->weaponType = weapon::convert_weap_type(asset->weaponType);
 		attachment->weapClass = weapon::convert_weap_class(asset->weapClass).value_or(zonetool::s2::WEAPCLASS_RIFLE);
 		attachment->greebleType = static_cast<zonetool::s2::weapGreebleType_t>(asset->greebleType);
-		set_models(attachment, convert_models(asset->worldModels, h1_world_model_count, s2_model_count, allocator),
-			convert_models(asset->viewModels, h1_view_model_count, s2_model_count, allocator), allocator);
+		set_models(attachment, convert_models(asset->worldModels, 2, 2, allocator),
+			convert_models(asset->viewModels, 2, 2, allocator), allocator);
 		attachment->reticleViewModels = asset->reticleViewModels
-			? convert_models(asset->reticleViewModels, h1_reticle_view_model_count, s2_reticle_view_model_count, allocator)
+			? convert_models(asset->reticleViewModels, 64, 255, allocator)
 			: nullptr;
 		attachment->hybridSettings = retype<zonetool::s2::AttHybridSettings>(asset->hybridSettings);
 		attachment->hideIronSightsWithThisAttachment = asset->hideIronSightsWithThisAttachment;
@@ -381,7 +370,7 @@ namespace zonetool::h1::converter::s2::attachment
 		if (!weapon->reticleViewModels || !weapon->reticleViewModels[0] || !weapon->gunModel || !weapon->worldModel
 			|| !std::regex_match(weapon->name, match, weapon_name))
 		{
-			return nullptr; // only the h1 snipers with a built-in scope have weapon reticles
+			return nullptr;
 		}
 
 		const auto view_model = xmodel::find_built_in_scope(match[1].str(), weapon->gunModel[0]);
@@ -396,16 +385,16 @@ namespace zonetool::h1::converter::s2::attachment
 		{
 			auto* attachment = allocator.allocate<zonetool::s2::WeaponAttachment>();
 			attachment->szInternalName = allocator.duplicate_string(name);
-			attachment->szDisplayName = built_in_scope_display_name;
+			attachment->szDisplayName = "WEAPON_TELESCOPIC_SIGHT2";
 			attachment->type = zonetool::s2::ATTACHMENT_SCOPE;
-			attachment->altModeMask = scope_alt_mode_mask;
+			attachment->altModeMask = 3;
 			set_models(attachment, reference_base_models(xmodel::find_built_in_scope(match[1].str(), weapon->worldModel[0]), allocator),
 				reference_base_models(view_model, allocator), allocator);
-			attachment->reticleViewModels = convert_models(weapon->reticleViewModels, h1_reticle_view_model_count, s2_reticle_view_model_count, allocator);
-			set_fields(attachment, {float_field("adsDofStart", scope_dof_start), float_field("adsDofEnd", scope_dof_end)}, allocator); // the h1 reticle plane is a view model surface, so the view model dof would blur the scope
-			attachment->adsSceneBlur = weapon->adsSceneBlur; // s2 reads the ads blur only from attachments
+			attachment->reticleViewModels = convert_models(weapon->reticleViewModels, 64, 255, allocator);
+			set_fields(attachment, {float_field("adsDofStart", 50.0f), float_field("adsDofEnd", 25.0f)}, allocator);
+			attachment->adsSceneBlur = weapon->adsSceneBlur;
 			attachment->adsSceneBlurStrength = weapon->adsSceneBlurStrength;
-			attachment->automaticAttachment = true; // stock sets it on every default attachment
+			attachment->automaticAttachment = true;
 			zonetool::s2::weapon_attachment::dump(attachment);
 			add_csv_row(zonetool::s2::type_to_string(zonetool::s2::ASSET_TYPE_ATTACHMENT), name);
 		}

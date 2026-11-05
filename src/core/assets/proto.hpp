@@ -13,11 +13,6 @@ namespace zonetool
 		typedef TYPEOF_MEMBER(S, message_index) index_t;
 		typedef TYPEOF_MEMBER(index_t, entries) index_entry_t;
 
-		static constexpr int message_field_index_capacity = 128;
-		static constexpr int root_message_index_capacity = 64;
-		static constexpr int root_enum_index_capacity = 8;
-		static constexpr int max_message_nesting = 32;
-
 		struct field_type_name
 		{
 			int type;
@@ -38,7 +33,6 @@ namespace zonetool
 		std::string name_;
 		S* asset_ = nullptr;
 
-		// Java String.hashCode
 		static unsigned int name_hash(const char* name)
 		{
 			unsigned int hash = 0;
@@ -130,7 +124,7 @@ namespace zonetool
 		static void parse_message(const ordered_json& source, const ordered_json& root, message_t* dest,
 			zone_memory* mem, const int depth)
 		{
-			if (depth > max_message_nesting)
+			if (depth > 32)
 			{
 				ZONETOOL_FATAL("Proto message \"%s\" nests too deep", source["name"].get<std::string>().data());
 			}
@@ -167,7 +161,7 @@ namespace zonetool
 				}
 			}
 
-			build_index(dest->field_index, field_names, message_field_index_capacity, mem);
+			build_index(dest->field_index, field_names, 128, mem);
 		}
 
 		static ordered_json dump_enum(const enum_t* source)
@@ -367,7 +361,7 @@ namespace zonetool
 				message_names.push_back(asset->messages[i].name);
 			}
 
-			build_index(asset->message_index, message_names, root_message_index_capacity, mem);
+			build_index(asset->message_index, message_names, 64, mem);
 
 			std::vector<const char*> enum_names;
 			asset->enum_count = static_cast<int>(data["enums"].size());
@@ -379,7 +373,7 @@ namespace zonetool
 				enum_names.push_back(asset->enums[i].name);
 			}
 
-			build_index(asset->enum_index, enum_names, root_enum_index_capacity, mem);
+			build_index(asset->enum_index, enum_names, 8, mem);
 
 			return asset;
 		}

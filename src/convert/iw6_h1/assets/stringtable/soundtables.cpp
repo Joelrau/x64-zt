@@ -11,8 +11,6 @@ namespace zonetool::iw6
 		{
 			namespace
 			{
-				constexpr auto h1_column_count = 11u;
-
 				constexpr std::array<std::string_view, 11> iw6_sections
 				{
 					"zone_name", "filter_name", "reverb_name", "occlusion_name", "mix_name", "ambient_name", "ambient_event",
@@ -51,7 +49,7 @@ namespace zonetool::iw6
 						cells.pop_back();
 					}
 
-					cells.resize(std::max(cells.size(), static_cast<std::size_t>(h1_column_count)));
+					cells.resize(std::max(cells.size(), static_cast<std::size_t>(11u)));
 					auto line = cells.front();
 					for (auto i = 1u; i < cells.size(); i++)
 					{
@@ -112,7 +110,6 @@ namespace zonetool::iw6
 					}
 				}
 
-				// stock h1 zones fill 56 of the 64 reverb preset slots, the iw6 presets need a raised limit
 				void dump_reverb_preset(const std::string& name)
 				{
 					if (auto* preset = db_find_x_asset_header_safe(ASSET_TYPE_REVERB_PRESET, name).reverbPreset)
@@ -151,7 +148,7 @@ namespace zonetool::iw6
 					for (const auto& row : rows)
 					{
 						const auto bus = sound::get_dsp_bus(cell(row, 1).data());
-						if (!bus || std::atoi(cell(row, 2).data()) != 0) // h1 has one band per dsp bus
+						if (!bus || std::atoi(cell(row, 2).data()) != 0)
 						{
 							continue;
 						}
@@ -173,7 +170,6 @@ namespace zonetool::iw6
 					{
 						for (const auto& [bus, filter] : filters[name])
 						{
-							// h1 filters a whole dsp bus, keep it only when iw6 filters each channel on it the same way
 							if (!filter.conflict && filter.channels.size() == sound::get_dsp_bus_channel_count(bus))
 							{
 								h1_rows.push_back({name, zonetool::h1::sound::get_dsp_bus_name(static_cast<char>(bus)),
@@ -229,7 +225,6 @@ namespace zonetool::iw6
 							}
 						}
 
-						// iw6 picks one element by weight per event, h1 plays every component on its own timer
 						const auto time = [&](const row_t& element, const std::size_t ambient_column, const std::size_t element_column)
 						{
 							return cell(ambient, ambient_column).empty() ? cell_float(element, element_column) : cell_float(ambient, ambient_column);
@@ -275,12 +270,10 @@ namespace zonetool::iw6
 				auto& mixes = sections["mix_name"];
 				for (const auto& zone : sections["zone_name"])
 				{
-					// iw6 zones can use the reverbs, filters and mixes of the global soundtables/common_mp.csv
 					add_global_rows(reverbs, globals["reverb_name"], cell(zone, 4));
 					add_global_rows(filters, globals["filter_name"], cell(zone, 5));
 					add_global_rows(mixes, globals["mix_name"], cell(zone, 3));
 
-					// every stock h1 mp zone uses mp_tuned_default, h1 has no iw6 occlusion names like interior
 					const auto occlusion = cell(zone, 6).empty() ? "" : "mp_tuned_default";
 					zones.push_back({cell(zone, 0), "", cell(zone, 1), cell(zone, 2), cell(zone, 3), cell(zone, 4), cell(zone, 5), occlusion, cell(zone, 7)});
 				}

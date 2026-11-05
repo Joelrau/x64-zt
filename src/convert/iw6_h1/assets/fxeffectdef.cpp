@@ -180,7 +180,6 @@ namespace zonetool::iw6
 				}
 			}
 
-			// stock h1 counts the defs, samples, visuals, extended defs and the effect name
 			int total_size(const zonetool::h1::FxEffectDef* asset, const int elem_count)
 			{
 				auto size = sizeof(zonetool::h1::FxEffectDef) + sizeof(zonetool::h1::FxElemDef) * elem_count + string_size(asset->name);
@@ -195,7 +194,6 @@ namespace zonetool::iw6
 				return static_cast<int>(size);
 			}
 
-			// stock h1 sets these exactly when an elem runs relative to the camera, casts shadows, draws emissive or queries occlusion
 			unsigned int elem_effect_flags(const zonetool::h1::FxElemDef& elem)
 			{
 				auto flags = 0u;
@@ -254,7 +252,6 @@ namespace zonetool::iw6
 					new_elem->flags = static_cast<zonetool::h1::FxElemDefFlags>(convert_elem_flags(elem->flags));
 					COPY_VALUE_CAST(elemDefs[elem_index].flags2);
 
-					// distortion goes to the emissive draw list like stock, the emissive camera region only sets the emissive scale
 					bool distortion = false;
 					bool emissive = false;
 					const auto emissive_check = [&](const Material* mat)
@@ -317,7 +314,6 @@ namespace zonetool::iw6
 					COPY_VALUE_CAST(elemDefs[elem_index].atlas);
 					new_elem->elemType = convert_elem_type(elem->elemType);
 
-					// iw6 draws oriented sprites without the spawn angles, h1 rotates them by spawnAngles + angularVelocity
 					if (new_elem->elemType == zonetool::h1::FX_ELEM_TYPE_SPRITE_ORIENTED)
 					{
 						std::memset(new_elem->spawnAngles, 0, sizeof(new_elem->spawnAngles));
@@ -483,7 +479,6 @@ namespace zonetool::iw6
 							const auto* src = elem->extended.spotLightDef;
 							auto* dst = new_elem->extended.spotLightDef;
 
-							// iw6 R_AddSpotLightToScene math, with the max length in place of the per frame light radius
 							const auto radius = std::max(src->maxLength, 0.2f);
 							const auto end_radius = std::clamp(src->endRadius, src->startRadius + 0.1f, src->startRadius + radius - 0.1f);
 							dst->halfFovOuter = std::max(std::atan((end_radius - src->startRadius) / radius), 0.01f);
@@ -535,8 +530,7 @@ namespace zonetool::iw6
 					}
 				}
 
-				constexpr auto elem_flags = zonetool::h1::FX_EFFECT_HAS_CAMERA_RELATIVE_ELEM | zonetool::h1::FX_EFFECT_NEEDS_CAST_SHADOW | zonetool::h1::FX_EFFECT_NEEDS_EMISSIVE_DRAW;
-				auto flags = static_cast<unsigned int>(asset->flags) & ~static_cast<unsigned int>(elem_flags);
+				auto flags = static_cast<unsigned int>(asset->flags) & ~static_cast<unsigned int>(zonetool::h1::FX_EFFECT_HAS_CAMERA_RELATIVE_ELEM | zonetool::h1::FX_EFFECT_NEEDS_CAST_SHADOW | zonetool::h1::FX_EFFECT_NEEDS_EMISSIVE_DRAW);
 				for (auto i = 0; i < count; i++)
 				{
 					flags |= elem_effect_flags(new_asset->elemDefs[i]);

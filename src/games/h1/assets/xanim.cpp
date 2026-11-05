@@ -329,8 +329,6 @@ namespace zonetool::h1
 
 	namespace
 	{
-		constexpr std::size_t delta_part_header_size = 8;
-
 		std::size_t frame_index_size(const XAnimParts* asset)
 		{
 			return asset->numframes >= 256 ? sizeof(unsigned short) : sizeof(unsigned char);
@@ -338,7 +336,7 @@ namespace zonetool::h1
 
 		void read_delta_trans(zone_reader& reader, XAnimPartTrans*& field, const std::size_t index_size)
 		{
-			if (!reader.read_stream(field, 3, delta_part_header_size))
+			if (!reader.read_stream(field, 3, offsetof(XAnimPartTrans, u)))
 			{
 				return;
 			}
@@ -366,7 +364,7 @@ namespace zonetool::h1
 		template <typename T>
 		void read_delta_quat(zone_reader& reader, T*& field, const std::size_t index_size)
 		{
-			if (!reader.read_stream(field, 3, delta_part_header_size))
+			if (!reader.read_stream(field, 3, offsetof(T, u)))
 			{
 				return;
 			}

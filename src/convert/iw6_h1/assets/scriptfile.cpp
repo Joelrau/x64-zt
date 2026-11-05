@@ -74,7 +74,6 @@ namespace zonetool::iw6
 			{
 				dump_as_gsc(asset);
 
-				// h1-mod compiles gsc rawfiles
 				remove_csv_row("scriptfile", asset->name);
 				add_csv_row("rawfile", convert_name(asset->name));
 			}

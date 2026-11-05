@@ -358,7 +358,7 @@ namespace zonetool::s2
 			assetmanager::reader read(mem);
 			if (!read.open(ents_path(name, part)))
 			{
-				*header = {}; // the .bin header still holds the dumped pointers
+				*header = {};
 				return;
 			}
 
@@ -394,7 +394,7 @@ namespace zonetool::s2
 			const auto bytes = file.read_bytes(file.size());
 			file.close();
 
-			asset->numEntityChars = static_cast<int>(bytes.size() + 1); // the zone keeps the terminator
+			asset->numEntityChars = static_cast<int>(bytes.size() + 1);
 			asset->entityString = mem->allocate<char>(bytes.size() + 1);
 			std::memcpy(asset->entityString, bytes.data(), bytes.size());
 			return true;
@@ -600,7 +600,6 @@ namespace zonetool::s2
 
 	namespace
 	{
-		// the format dumped before the split, one file with every part
 		MapEnts* parse_single_file(const std::string& name, zone_memory* mem)
 		{
 			assetmanager::reader read(mem);
@@ -792,7 +791,6 @@ namespace zonetool::s2
 			return;
 		}
 
-		// the .bin keeps the header, the vehicle nodes and unk360, everything else goes into its own .ents file
 		write.dump_single(asset);
 		write.dump_string(asset->name);
 		dump_vehicle_nodes(write, &asset->vehicleNodeList);

@@ -18,7 +18,6 @@ namespace zonetool::convert::s1_s2
 			return static_cast<S*>(header);
 		}
 
-		// S1 and H1 materials differ only in the size of the per-technique arrays, the S2 converter reads none of them
 		zonetool::h1::Material* material_view(const source::Material* asset)
 		{
 			static_assert(sizeof(source::MaterialInfo) == sizeof(zonetool::h1::MaterialInfo));
@@ -42,7 +41,6 @@ namespace zonetool::convert::s1_s2
 			return !line.empty() && std::isdigit(static_cast<unsigned char>(line.front())) && !line.starts_with("0 ");
 		}
 
-		// the S1 to H1 key conversion keeps numeric ids that S1 has no name for, the S2 converter would read them as H1 ids
 		void remove_unnamed_keys(zonetool::h1::MapEnts* asset, utils::memory::allocator& allocator)
 		{
 			std::string buffer;

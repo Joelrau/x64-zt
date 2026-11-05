@@ -11,19 +11,10 @@ namespace zonetool::h1::converter::s2::techset
 {
 	namespace
 	{
-		constexpr auto h1_first_shifted_stream_source = 6u;
-		constexpr auto s2_stream_source_shift = 3u;
-
 		constexpr std::array<std::uint8_t, 18> stream_slot_order{0, 1, 5, 21, 2, 3, 4, 9, 10, 16, 17, 18, 19, 20, 26, 6, 7, 29};
 
 		std::map<std::tuple<const MaterialVertexDeclaration*, bool, bool>, zonetool::s2::MaterialVertexDeclaration*> converted_decls;
 		std::unordered_map<const zonetool::s2::MaterialVertexDeclaration*, std::string> decl_routing_names;
-
-		struct decl_stream
-		{
-			zonetool::s2::MaterialStreamRouting routing;
-			std::string token;
-		};
 
 		std::vector<std::string> parse_decl_tokens(const MaterialVertexDeclaration* decl)
 		{
@@ -49,12 +40,12 @@ namespace zonetool::h1::converter::s2::techset
 				return source;
 			}
 
-			if (source < h1_first_shifted_stream_source)
+			if (source < 6u)
 			{
 				throw std::runtime_error(utils::string::va("stream source %u has no s2 mapping", source));
 			}
 
-			return static_cast<std::uint8_t>(source + s2_stream_source_shift);
+			return static_cast<std::uint8_t>(source + 3u);
 		}
 
 		std::size_t stream_slot_priority(const std::uint8_t source)
@@ -191,7 +182,7 @@ namespace zonetool::h1::converter::s2::techset
 			if (stock_zone::is_stock_asset(zonetool::s2::ASSET_TYPE_VERTEXDECL, routing->second.data()))
 			{
 				decl->name = native_allocator.duplicate_string(routing->second);
-				global_shaders.insert(decl); // a zone copy of a stock decl would replace the decl of every zone using it
+				global_shaders.insert(decl);
 				continue;
 			}
 
@@ -202,7 +193,7 @@ namespace zonetool::h1::converter::s2::techset
 			}
 
 			const auto hash = utils::cryptography::jenkins_one_at_a_time::compute(key);
-			decl->name = native_allocator.duplicate_string(std::format("{}_{:08x}", routing->second, hash)); // pass vertex shaders build the input layouts, so zones may share a decl only with the same shaders
+			decl->name = native_allocator.duplicate_string(std::format("{}_{:08x}", routing->second, hash));
 		}
 	}
 }

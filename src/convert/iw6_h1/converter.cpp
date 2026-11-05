@@ -33,7 +33,6 @@ namespace zonetool::iw6::converter::h1
 			return;
 		}
 
-		// file reads use the search paths, the listing is in the dump folder
 		std::string text;
 		utils::io::read_file(filesystem::get_dump_path() + zone_name + ".csv", &text);
 

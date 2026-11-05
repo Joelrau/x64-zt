@@ -116,7 +116,6 @@ namespace zonetool::s2::converter::h1::gfxworld
 			return zones;
 		}
 
-		// s2 keeps the binormal sign in tangent w (3 = negative) and often no texel density, h1 shaders need a non-zero sign
 		float convert_binormal_sign(const float texel_density, const unsigned int tangent)
 		{
 			const auto density = texel_density > 0.0f ? texel_density : 1.0f;
@@ -158,7 +157,7 @@ namespace zonetool::s2::converter::h1::gfxworld
 					std::memcpy(vertex->texCoord, data.texCoords[i], sizeof(vertex->texCoord));
 					std::memcpy(vertex->lmapCoord, data.lmapCoords[i], sizeof(vertex->lmapCoord));
 					vertex->normal.packed = data.normals[i];
-					vertex->tangent.packed = data.tangents[i] | 0xC0000000u; // stock h1 tangent w is always 3
+					vertex->tangent.packed = data.tangents[i] | 0xC0000000u;
 				}
 
 				if (zone->vld.data)
@@ -213,7 +212,7 @@ namespace zonetool::s2::converter::h1::gfxworld
 			for (auto i = 0u; i < count; i++)
 			{
 				const auto light = light_lists.lists[list_offset + 1 + i];
-				const auto is_extra_sun = light > 1 && light <= world->lastSunPrimaryLightIndex; // primary light 1 is the main sun
+				const auto is_extra_sun = light > 1 && light <= world->lastSunPrimaryLightIndex;
 				if (light >= world->primaryLightCount || is_extra_sun)
 				{
 					continue;
@@ -298,7 +297,7 @@ namespace zonetool::s2::converter::h1::gfxworld
 				auto& new_bounds = dpvs.surfacesBounds[new_index[i]];
 				dpvs.surfaces[new_index[i]] = convert_surface(world, surfaces[i], get_light_env(asset, world, surfaces[i].lightListOffset), allocator);
 				new_bounds.bounds = std::bit_cast<zonetool::h1::Bounds>(bounds[i].bounds);
-				new_bounds.mipRadius = 0xFFFF; // image stream distances, 0xFF is far
+				new_bounds.mipRadius = 0xFFFF;
 				std::memset(new_bounds.invHighMipRadius, 0xFF, sizeof(new_bounds.invHighMipRadius));
 			}
 
@@ -347,8 +346,6 @@ namespace zonetool::s2::converter::h1::gfxworld
 			return static_cast<std::uint16_t>(std::clamp(half_extent * 100.0f, 1500.0f, 30000.0f));
 		}
 
-		// H1 allocates a model lighting handle for each static model that the vis job keeps, and clears
-		// the vis bit of a model when the 4096 handle pool is full. Report how close a camera can get to it.
 		void log_static_model_cull_load(const zonetool::h1::GfxWorld* world)
 		{
 			const auto& dpvs = world->dpvs;
@@ -609,7 +606,6 @@ namespace zonetool::s2::converter::h1::gfxworld
 					continue;
 				}
 
-				// R_LightgridLookup walks p_nodeTable when the grid point is inside the bounds, so an empty tree needs min > max
 				for (auto axis = 0; axis < 3; axis++)
 				{
 					tree.coordMinGridSpace[axis] = 0x10000;
@@ -620,7 +616,6 @@ namespace zonetool::s2::converter::h1::gfxworld
 
 		void set_neutral_light_grid(zonetool::h1::GfxLightGrid& grid, utils::memory::allocator& allocator)
 		{
-			// H1 cannot read the S2 probe grid, stock H1 maps use these half float colors and one stage
 			constexpr unsigned short neutral_color[3]{0x4173, 0x41FE, 0x426E};
 			for (auto i = 0u; i < std::size(grid.defaultLightGridColors.rgb); i++)
 			{
@@ -646,7 +641,7 @@ namespace zonetool::s2::converter::h1::gfxworld
 			world->portalGroupCount = asset->portalGroupCount;
 			world->lastSunPrimaryLightIndex = asset->lastSunPrimaryLightIndex;
 			world->primaryLightCount = asset->primaryLightCount;
-			world->primaryLightEnvCount = asset->movingScriptablePrimaryLightCount; // TODO: h1 wants the light env count, comworld only has it after the gfxworld
+			world->primaryLightEnvCount = asset->movingScriptablePrimaryLightCount; // TODO: needs the comworld light env count
 			world->sortKeyLitDecal = 7;
 			world->sortKeyEffectDecal = 43;
 			world->sortKeyTopDecal = 17;
@@ -682,7 +677,7 @@ namespace zonetool::s2::converter::h1::gfxworld
 
 			world->lightRegion = retype<zonetool::h1::GfxLightRegion>(asset->lightRegion);
 
-			world->dpvsDyn = {}; // zero counts keep H1 from walking the clip dyn ent list
+			world->dpvsDyn = {};
 			convert_dpvs(asset, world, allocator);
 			allocate_runtime_data(world, allocator);
 

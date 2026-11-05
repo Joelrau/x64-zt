@@ -491,7 +491,6 @@ namespace zonetool::s1
 
 		ZONETOOL_INFO("Parsing vehicle \"%s\"...", name.data());
 
-		// parse json file
 		file.open("rb");
 		auto size = file.size();
 		auto bytes = file.read_bytes(size);

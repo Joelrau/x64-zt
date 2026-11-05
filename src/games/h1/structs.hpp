@@ -366,8 +366,8 @@ namespace zonetool::h1
 	struct PhysWaterPreset
 	{
 		const char* name;
-		float unknownParams[7]; // S2 has 8 here, no stock pair maps them
-		float sharedParams[8]; // same values and order as S2 in every stock preset
+		float unknownParams[7];
+		float sharedParams[8];
 		unsigned int sharedFlags;
 		FxEffectDef* fx0;
 		FxEffectDef* fx1;
@@ -381,7 +381,7 @@ namespace zonetool::h1
 	struct PhysWaterVolumeDef
 	{
 		PhysWaterPreset* physWaterPreset;
-		float origin[3]; // the water polytopes are centered on it
+		float origin[3];
 		scr_string_t string;
 		short brushModelIndex;
 		char __pad1[6];
@@ -1649,7 +1649,7 @@ namespace zonetool::h1
 	struct MaterialShaderArgument
 	{
 		unsigned char type;
-		unsigned char shader; // MaterialShaderStage bits
+		unsigned char shader;
 		unsigned short dest;
 		MaterialArgumentDef u;
 	}; assert_sizeof(MaterialShaderArgument, 0x10);
@@ -1699,7 +1699,7 @@ namespace zonetool::h1
 		CUSTOM_BUFFER_REGULAR_PATCH_FLAGS = 0x1000,
 		CUSTOM_BUFFER_UNKNOWN2000 = 0x2000,
 		CUSTOM_BUFFER_UNKNOWN4000 = 0x4000,
-		CUSTOM_BUFFER_SLF = 0x20000, // binds cb4 for the "slf" techsets
+		CUSTOM_BUFFER_SLF = 0x20000,
 	};
 
 	enum PrecompiledIndex : std::uint8_t
@@ -1892,11 +1892,13 @@ namespace zonetool::h1
 		GFXS1_STENCIL_FRONT_FAIL_SHIFT = 0xB,
 		GFXS1_STENCIL_FRONT_ZFAIL_SHIFT = 0xE,
 		GFXS1_STENCIL_FRONT_FUNC_SHIFT = 0x11,
+		GFXS1_STENCIL_FRONT_FUNC_MASK = 0xE0000,
 		GFXS1_STENCIL_FRONT_MASK = 0xFFF00,
 		GFXS1_STENCIL_BACK_PASS_SHIFT = 0x14,
 		GFXS1_STENCIL_BACK_FAIL_SHIFT = 0x17,
 		GFXS1_STENCIL_BACK_ZFAIL_SHIFT = 0x1A,
 		GFXS1_STENCIL_BACK_FUNC_SHIFT = 0x1D,
+		GFXS1_STENCIL_BACK_FUNC_MASK = 0xE0000000,
 		GFXS1_STENCIL_BACK_MASK = 0xFFF00000,
 		GFXS1_STENCILFUNC_FRONTBACK_MASK = 0xE00E0000,
 		GFXS1_STENCILOP_FRONTBACK_MASK = 0x1FF1FF00,
@@ -2161,6 +2163,8 @@ namespace zonetool::h1
 		MTL_SORTKEY_UNKNOWN54 = 54,
 		MTL_SORTKEY_UNKNOWN55 = 55,
 		MTL_SORTKEY_UNKNOWN56 = 56, // additive
+
+		MTL_SORTKEY_2D = 60,
 	};
 
 	enum SurfaceTypeBits : std::uint64_t
@@ -3104,6 +3108,11 @@ namespace zonetool::h1
 		short* waterTriggers;
 		short* unkTriggers;
 	}; assert_sizeof(ClientTriggers, 0xB0);
+
+	enum ClientTriggerBlendTrigger
+	{
+		CLIENT_TRIGGER_BLEND_NO_TRIGGER = 0x400,
+	};
 
 	struct ClientTriggerBlendNode
 	{
@@ -6684,6 +6693,21 @@ namespace zonetool::h1
 		SURF_FLAG_TRANSSORT = 0x00080000,
 	};
 
+	enum ContentsFlags : std::uint32_t
+	{
+		CONTENTS_SOLID = 0x1,
+		CONTENTS_GLASS = 0x10,
+		CONTENTS_WATER = 0x20,
+		CONTENTS_CANSHOOTCLIP = 0x40,
+		CONTENTS_MISSILECLIP = 0x80,
+		CONTENTS_VEHICLECLIP = 0x200,
+		CONTENTS_ITEMCLIP = 0x400,
+		CONTENTS_AI_NOSIGHT = 0x1000,
+		CONTENTS_CLIPSHOT = 0x2000,
+		CONTENTS_PLAYERCLIP = 0x10000,
+		CONTENTS_MONSTERCLIP = 0x20000,
+	};
+
 	struct ClipMaterial
 	{
 		const char* name;
@@ -7081,7 +7105,6 @@ namespace zonetool::h1
 		unsigned short bulletForceScale;
 	}; assert_sizeof(ScriptableEventPhysicsDef, 16);
 
-	// 1.4 sub_14042EBA0: flags 1 use color, 2 wait for the transition, 4 every target light of the instance
 	struct ScriptableEventLightSettingsDef
 	{
 		unsigned char color[4];
@@ -7194,6 +7217,16 @@ namespace zonetool::h1
 	{
 		ScriptableEventType type;
 		ScriptableEventDataUnion data;
+	};
+
+	enum ScriptableDamageFlags : unsigned char
+	{
+		SCRIPTABLE_DAMAGE_GENERIC = 0x1,
+		SCRIPTABLE_DAMAGE_SPLASH = 0x2,
+		SCRIPTABLE_DAMAGE_MELEE = 0x4,
+		SCRIPTABLE_DAMAGE_PLAYER = 0x8,
+		SCRIPTABLE_DAMAGE_AI = 0x10,
+		SCRIPTABLE_DAMAGE_OTHER = 0x20,
 	};
 
 	struct ScriptableStateDef
@@ -8100,7 +8133,7 @@ namespace zonetool::h1
 
 	struct GfxStaticModelInst
 	{
-		Bounds bounds; // midpoint and half size, as in s2 (was named mins/maxs)
+		Bounds bounds;
 		float lightingOrigin[3];
 	}; assert_sizeof(GfxStaticModelInst, 36);
 
@@ -8147,7 +8180,7 @@ namespace zonetool::h1
 	{
 		Bounds bounds;
 		unsigned short mipRadius;
-		unsigned char invHighMipRadius[6]; // IDA types say 5, stock mp_shipment uses a 6th
+		unsigned char invHighMipRadius[6]; // IDA says 5, stock zones use 6
 		char __pad0[3];
 		unsigned char flags;
 	}; assert_sizeof(GfxSurfaceBounds, 36);
@@ -8161,7 +8194,6 @@ namespace zonetool::h1
 
 	enum StaticModelFlag : std::int16_t
 	{
-		// lod distance scale of each modifier: 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1.0, 1.125, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 3.5, 4.0
 		STATIC_MODEL_FLAG_SCALE_0 = 0,
 		STATIC_MODEL_FLAG_SCALE_1 = 1,
 		STATIC_MODEL_FLAG_SCALE_2 = 2,
@@ -8624,7 +8656,7 @@ namespace zonetool::h1
 		$3936EE84564F75EDA6DCBAC77A545FC8 ___u9;
 		PathNodeParentUnion parent;
 		$5F11B9753862CE791E23553F99FA1738 ___u11;
-		char __pad0[4]; // always 0 in zones, the overlap pair follows it (5 mp maps)
+		char __pad0[4];
 		short wOverlapNode[2];
 		unsigned short totalLinkCount;
 		pathlink_s* Links;

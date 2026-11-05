@@ -50,8 +50,7 @@ namespace zonetool::iw6
 						continue;
 					}
 
-					constexpr auto zone_pak_file_index = 69; // the stream is in <zone>.pak
-					const auto imagefile_path = stream_file->fileIndex == zone_pak_file_index
+					const auto imagefile_path = stream_file->fileIndex == 69
 						? std::format("{}.pak", filesystem::get_fastfile())
 						: std::format("imagefile{}.pak", stream_file->fileIndex);
 					std::string buffer;

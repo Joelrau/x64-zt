@@ -8,7 +8,6 @@ namespace zonetool::cli
 {
 	namespace
 	{
-		constexpr auto config_file = "zonetool.json";
 		constexpr auto steam_common = R"(C:\Program Files (x86)\Steam\steamapps\common)";
 
 		std::optional<std::string> take_option(std::vector<std::string>& args, const std::string_view option)
@@ -38,7 +37,7 @@ namespace zonetool::cli
 
 		json read_config()
 		{
-			const auto path = executable_folder() / config_file;
+			const auto path = executable_folder() / "zonetool.json";
 			if (!utils::io::file_exists(path.string()))
 			{
 				return json::object();

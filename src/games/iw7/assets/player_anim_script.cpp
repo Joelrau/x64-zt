@@ -5,9 +5,6 @@ namespace zonetool::iw7
 {
 	namespace
 	{
-		constexpr auto script_anim_count = 121;
-		constexpr auto script_event_count = 55;
-
 		void read_script_entries(zone_reader& reader, PlayerAnimScriptEntry*& field, const std::size_t count)
 		{
 			if (const auto entries = reader.read_array(field, 7, count))
@@ -46,8 +43,8 @@ namespace zonetool::iw7
 				reader.read_script_string(animations[i].shadowAnimName);
 			}
 		}
-		read_script_entries(reader, asset->scriptAnims, script_anim_count);
-		read_script_entries(reader, asset->scriptEvents, script_event_count);
+		read_script_entries(reader, asset->scriptAnims, 121);
+		read_script_entries(reader, asset->scriptEvents, 55);
 		read_script_items(reader, asset);
 		reader.read_array(asset->scriptTransitions, 3, asset->scriptTransitionCount);
 		reader.read_array(asset->scriptIdleTurns, 3, asset->scriptIdleTurnCount);

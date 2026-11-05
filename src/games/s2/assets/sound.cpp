@@ -124,7 +124,6 @@ namespace zonetool::s2
 
 		void write_alias(zone_base* zone, zone_buffer* buf, snd_alias_t* alias, snd_alias_t* dest, const char* list_name, const char* list_name_ptr)
 		{
-			// stock zones point every alias name at the list name
 			if (alias->aliasName && list_name && !std::strcmp(alias->aliasName, list_name))
 			{
 				dest->aliasName = list_name_ptr;
@@ -395,7 +394,7 @@ namespace zonetool::s2
 			{
 				if (linked && *linked)
 				{
-					zone->add_asset_of_type(ASSET_TYPE_SOUND, linked); // the game plays secondary and chain aliases by name
+					zone->add_asset_of_type(ASSET_TYPE_SOUND, linked);
 				}
 			}
 
@@ -422,7 +421,7 @@ namespace zonetool::s2
 		dest->name = this->write_name(buf);
 		if (dest->name != reinterpret_cast<const char*>(buf->data_following))
 		{
-			name_ptr = dest->name; // the name was already in the zone
+			name_ptr = dest->name;
 		}
 
 		if (data->head)

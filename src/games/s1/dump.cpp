@@ -342,7 +342,6 @@ namespace zonetool::s1
 			}
 		}
 
-		// the loader points a reference at the header of the zone that holds the asset
 		std::unordered_set<const void*> collect_map_references(const std::vector<std::pair<std::unique_ptr<loaded_zone>, map_zone_dump>>& zones)
 		{
 			std::unordered_set<const void*> references;
@@ -409,7 +408,6 @@ namespace zonetool::s1
 			return text;
 		}
 
-		// a converter may replace <name>.csv with its build list in finish, the source listing stays in <name>.<source>.csv
 		void write_asset_csv(const std::string& name, const std::vector<loaded_asset>& assets, const converter* converter)
 		{
 			const auto text = asset_csv(assets);
@@ -535,7 +533,6 @@ namespace zonetool::s1
 			}
 		}
 
-		// dump only the last copy of an asset, because patch zones load last and the game uses the patch copy
 		for (const auto& [zone, dump] : zones)
 		{
 			ZONETOOL_INFO("Dumping zone \"%s\"...", zone->name.data());

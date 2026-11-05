@@ -11,9 +11,6 @@ namespace zonetool::iw6
 	{
 		namespace gfxworld
 		{
-			constexpr auto iw6_leaf_size_bit_count = 6;
-			constexpr auto h1_leaf_size_bit_count = 7;
-
 			namespace
 			{
 				void convert_light_grid_tree(const GfxWorld* asset, zonetool::h1::GfxLightGridTree& tree, utils::memory::allocator& allocator)
@@ -30,7 +27,7 @@ namespace zonetool::iw6
 
 					std::vector<unsigned int> node_table;
 					std::vector<unsigned char> leaf_table;
-					if (!light_grid::convert_leaf_table(light_grid::make_tree_view(source, iw6_leaf_size_bit_count), h1_leaf_size_bit_count, node_table, leaf_table))
+					if (!light_grid::convert_leaf_table(light_grid::make_tree_view(source, 6), 7, node_table, leaf_table))
 					{
 						if (source.nodeCount)
 						{
@@ -379,7 +376,6 @@ namespace zonetool::iw6
 						new_asset->dpvs.smodelDrawInsts[i].reactiveMotionCullDist = new_asset->dpvs.smodelDrawInsts[i].cullDist;
 						new_asset->dpvs.smodelDrawInsts[i].reactiveMotionLOD = 0;
 
-						// h1 lights animated verts models from one baked color, iw6 samples the grid at the lighting origin like every other model
 						new_asset->dpvs.smodelDrawInsts[i].flags = static_cast<unsigned short>((asset->dpvs.smodelDrawInsts[i].flags & ~(zonetool::h1::STATIC_MODEL_FLAG_SCALE_MODIFIER_MASK | zonetool::h1::STATIC_MODEL_FLAG_ANIMATED_VERTS))
 							| zonetool::h1::STATIC_MODEL_FLAG_SCALE_6);
 

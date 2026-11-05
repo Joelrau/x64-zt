@@ -13,7 +13,6 @@ namespace zonetool::h1::converter::s2::gfxworld
 	{
 		constexpr float light_grid_cell_size[3] = {32.0f, 32.0f, 64.0f};
 		constexpr int light_grid_bias[3] = {4096, 4096, 2048};
-		constexpr auto h1_light_grid_leaf_bits = 7;
 
 		int light_grid_cell(const float position, const int axis)
 		{
@@ -22,9 +21,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 
 		float probe_sun_visibility(const float visibility, const bool has_sun)
 		{
-			constexpr auto min_visibility = 2.0f / 255.0f; // a sun env probe keeps the sun where the bake shadows it, s2 reads it as one byte
-
-			return has_sun ? std::max(visibility, min_visibility) : 0.0f;
+			return has_sun ? std::max(visibility, 2.0f / 255.0f) : 0.0f;
 		}
 
 		zonetool::s2::GfxSHProbeData pack_probe(const std::array<float, light_grid::probe_sh_count + 1>& values)
@@ -97,7 +94,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 		public:
 			light_grid_sampler(const GfxLightGrid& grid, const ComWorld* com_world)
 				: grid_(grid)
-				, tree_(light_grid::make_tree_view(grid.tree[0], h1_light_grid_leaf_bits))
+				, tree_(light_grid::make_tree_view(grid.tree[0], 7))
 				, config_{grid.rangeExponent8BitsEncoding, grid.rangeExponent12BitsEncoding, grid.rangeExponent16BitsEncoding}
 			{
 				if (!com_world)
@@ -561,7 +558,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 			{
 				return sample && sample->back() > 0.0f;
 			});
-			const auto sun_everywhere = !grid_names_sun && sampler.has_sun(); // the shadow maps alone decide where the sun reaches
+			const auto sun_everywhere = !grid_names_sun && sampler.has_sun();
 
 			probe_average average;
 			for (auto& sample : samples)

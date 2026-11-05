@@ -7,8 +7,6 @@ namespace zonetool::s2
 {
 	namespace
 	{
-		constexpr std::size_t delta_part_header_size = 8;
-
 		std::size_t frame_index_size(const XAnimParts* asset)
 		{
 			return asset->numframes >= 256 ? sizeof(unsigned short) : sizeof(unsigned char);
@@ -16,7 +14,7 @@ namespace zonetool::s2
 
 		void read_delta_trans(zone_reader& reader, XAnimPartTrans*& field, const std::size_t index_size)
 		{
-			if (!reader.read_stream(field, 7, delta_part_header_size))
+			if (!reader.read_stream(field, 7, offsetof(XAnimPartTrans, u)))
 			{
 				return;
 			}
@@ -44,7 +42,7 @@ namespace zonetool::s2
 		template <typename T>
 		void read_delta_quat(zone_reader& reader, T*& field, const std::size_t index_size)
 		{
-			if (!reader.read_stream(field, 7, delta_part_header_size))
+			if (!reader.read_stream(field, 7, offsetof(T, u)))
 			{
 				return;
 			}
@@ -113,7 +111,7 @@ namespace zonetool::s2
 
 			buf->align(7);
 			auto* dest = buf->at<XAnimPartTrans>();
-			buf->write_stream(trans, delta_part_header_size);
+			buf->write_stream(trans, offsetof(XAnimPartTrans, u));
 
 			if (!trans->size)
 			{
@@ -148,7 +146,7 @@ namespace zonetool::s2
 
 			buf->align(7);
 			auto* dest = buf->at<T>();
-			buf->write_stream(quat, delta_part_header_size);
+			buf->write_stream(quat, offsetof(T, u));
 
 			if (!quat->size)
 			{
@@ -167,7 +165,7 @@ namespace zonetool::s2
 
 		std::string pack_delta_trans(const XAnimPartTrans* trans, const std::size_t index_size)
 		{
-			std::string data(reinterpret_cast<const char*>(trans), delta_part_header_size);
+			std::string data(reinterpret_cast<const char*>(trans), offsetof(XAnimPartTrans, u));
 			if (!trans->size)
 			{
 				data.append(reinterpret_cast<const char*>(&trans->u.frame0), sizeof(trans->u.frame0));
@@ -193,7 +191,7 @@ namespace zonetool::s2
 		template <typename T>
 		std::string pack_delta_quat(const T* quat, const std::size_t index_size)
 		{
-			std::string data(reinterpret_cast<const char*>(quat), delta_part_header_size);
+			std::string data(reinterpret_cast<const char*>(quat), offsetof(T, u));
 			if (!quat->size)
 			{
 				data.append(reinterpret_cast<const char*>(&quat->u.frame0), sizeof(quat->u.frame0));

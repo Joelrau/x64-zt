@@ -2,8 +2,6 @@
 #include "../include.hpp"
 #include "techset.hpp"
 
-//#include <h1/assets/techset.hpp>
-
 
 #include "domainshader.hpp"
 #include "hullshader.hpp"
@@ -208,7 +206,7 @@ namespace zonetool::iw6
 				{zonetool::iw6::CONST_SRC_CODE_FOG_SUN_COLOR_LINEAR, zonetool::h1::CONST_SRC_CODE_FOG_SUN_COLOR_LINEAR},
 				{zonetool::iw6::CONST_SRC_CODE_FOG_SUN_COLOR_GAMMA, zonetool::h1::CONST_SRC_CODE_FOG_SUN_COLOR_GAMMA},
 				{zonetool::iw6::CONST_SRC_CODE_FOG_SUN_DIR, zonetool::h1::CONST_SRC_CODE_FOG_SUN_DIR},
-				{zonetool::iw6::CONST_SRC_CODE_FOG_HEIGHT, zonetool::h1::CONST_SRC_CODE_FOG_SKY_FOG}, // the iw6 sky shader reads the sky fog angles and intensity from it
+				{zonetool::iw6::CONST_SRC_CODE_FOG_HEIGHT, zonetool::h1::CONST_SRC_CODE_FOG_SKY_FOG},
 				{zonetool::iw6::CONST_SRC_CODE_FOG_SKY_DIR, zonetool::h1::CONST_SRC_CODE_FOG_SKY_DIR},
 				{zonetool::iw6::CONST_SRC_CODE_FOG_DEPTHHACK, zonetool::h1::CONST_SRC_CODE_FOG_DEPTHHACK},
 				{zonetool::iw6::CONST_SRC_CODE_GLOW_SETUP, zonetool::h1::CONST_SRC_CODE_GLOW_SETUP},
@@ -1079,7 +1077,7 @@ namespace zonetool::iw6
 				{zonetool::iw6::CONST_SRC_CODE_MCOLOR_BIAS2_AND_RANGE_SCALE, {0.000000f, 0.000000f, 0.000000f, 0.000000f}}, //190
 				{zonetool::iw6::CONST_SRC_CODE_MCOLOR_CONTRAST_SCALE2, {0.000000f, 0.000000f, 0.000000f, 0.000000f}}, //191
 				{zonetool::iw6::CONST_SRC_CODE_MCOLOR_CONTRAST_POW_AND_SAT2, {0.000000f, 0.000000f, 0.000000f, 0.000000f}}, //192
-				{zonetool::iw6::CONST_SRC_CODE_COLORIZATION_POWER_AND_DESATURATION, {1.000000f, 1.000000f, 1.000000f, 0.000000f}}, //193, identity: H1 does not colorize the world, so effects must not colorize
+				{zonetool::iw6::CONST_SRC_CODE_COLORIZATION_POWER_AND_DESATURATION, {1.000000f, 1.000000f, 1.000000f, 0.000000f}}, //193
 				{zonetool::iw6::CONST_SRC_CODE_COLORIZATION_SCALE, {1.000000f, 1.000000f, 1.000000f, 0.000000f}}, //194
 				{zonetool::iw6::CONST_SRC_CODE_COLORIZATION_BIAS, {0.000000f, 0.000000f, 0.000000f, 0.000000f}}, //195
 				{zonetool::iw6::CONST_SRC_CODE_COLORIZATION_POWER_AND_DESATURATION_ARRAY, {0.000000f, 0.000000f, 0.000000f, 0.000000f}}, //196
@@ -1274,11 +1272,10 @@ namespace zonetool::iw6
 					return static_cast<std::uint32_t>(index - zonetool::h1::CONST_SRC_CODE_LIGHT_SPECULAR_DB_ARRAY_0);
 				}
 
-				constexpr auto light_stride = 9;
 				for (auto light = 0; light < 4; light++)
 				{
-					if (index == zonetool::h1::CONST_SRC_CODE_LIGHT_DIFFUSE + (light * light_stride) ||
-						index == zonetool::h1::CONST_SRC_CODE_LIGHT_SPECULAR + (light * light_stride))
+					if (index == zonetool::h1::CONST_SRC_CODE_LIGHT_DIFFUSE + (light * 9) ||
+						index == zonetool::h1::CONST_SRC_CODE_LIGHT_SPECULAR + (light * 9))
 					{
 						return static_cast<std::uint32_t>(light);
 					}
@@ -1875,7 +1872,6 @@ namespace zonetool::iw6
 					}
 					else if (arg->u.codeConst.index == CONST_SCR_CODE_HDR_SKY_INTENSITY)
 					{
-						// h1 has no sky intensity constant, bake the map vision value
 						const auto sky_intensity = rawfile::get_sky_intensity();
 						new_arg.type = zonetool::h1::MTL_ARG_LITERAL_CONST;
 						new_arg.u.literalConst = allocator.allocate_array<float>(4);
@@ -1956,7 +1952,6 @@ namespace zonetool::iw6
 
 			bool is_code_arg(const zonetool::h1::MaterialShaderArgument& arg)
 			{
-				// h1 1.4 R_SetPassShaderPrimArguments/ObjectArguments (140604DB0, 140604AD0) stop at the first other type
 				return arg.type == zonetool::h1::MTL_ARG_CODE_CONST ||
 					arg.type == zonetool::h1::MTL_ARG_CODE_TEXTURE ||
 					arg.type == zonetool::h1::MTL_ARG_CODE_SAMPLER;
@@ -2171,7 +2166,7 @@ namespace zonetool::iw6
 
 				const auto new_technique = new_asset->techniques[new_tech_index];
 
-				std::memcpy(new_technique, technique, size); // same size, the pass zone is u8 in iw6
+				std::memcpy(new_technique, technique, size);
 
 				new_technique->hdr.name = allocator.duplicate_string(game::add_source_postfix(technique->hdr.name, game::iw6));
 
@@ -2320,14 +2315,6 @@ namespace zonetool::iw6
 					return false;
 				}
 			}
-
-			struct light_setup_t
-			{
-				int l0;
-				int s0;
-				int l1;
-				int s1;
-			};
 
 			std::optional<light_setup_t> get_light_setup(const std::uint32_t tech_type)
 			{
@@ -3226,7 +3213,6 @@ namespace zonetool::iw6
 				return m.prefix().str() + rep + m.suffix().str();
 			}
 
-			// h1 dynamic branching reads the cucoloris transform of each light from the db array
 			void remap_db_cucoloris(zonetool::h1::MaterialShaderArgument& arg)
 			{
 				if (arg.type != zonetool::h1::MTL_ARG_CODE_CONST)
@@ -3700,7 +3686,6 @@ namespace zonetool::iw6
 				}
 
 #ifdef EXPERIMENTAL_DB_MERGE
-				// with cucoloris_count, the first sources are cucoloris ones and one of them must exist
 				const auto merge_techs = [&](std::vector<MaterialTechniqueType> source, zonetool::h1::MaterialTechniqueType dest, const std::size_t cucoloris_count = 0)
 				{
 					for (auto idx = 0; idx < 4; idx++)
@@ -3714,7 +3699,6 @@ namespace zonetool::iw6
 							dest = zonetool::h1::MaterialTechniqueType(dest + 60);
 						};
 
-						// iw6 often points its cucoloris slots at the plain techniques
 						const auto is_cucoloris_tech = [&](const MaterialTechniqueType techidx)
 						{
 							return asset->techniques[techidx] && std::none_of(source.begin() + cucoloris_count, source.end(),
@@ -3727,7 +3711,6 @@ namespace zonetool::iw6
 							continue;
 						}
 
-						// one technique per light setup, the first in the list wins
 						std::vector<merge_data_t> techs_to_merge;
 						std::unordered_set<int> setups;
 						for (auto& techidx : source)
@@ -3781,7 +3764,6 @@ namespace zonetool::iw6
 						},
 						zonetool::h1::TECHNIQUE_LIT_SUN_DYNAMIC_BRANCHING);
 
-					// h1 samples a cucoloris for each spot light, the iw6 cucoloris on every light variant goes first
 					merge_techs(
 						{
 							TECHNIQUE_LIT_SUN_DYNAMIC_BRANCHING_CUCOLORIS,
@@ -3860,7 +3842,6 @@ namespace zonetool::iw6
 						},
 						zonetool::h1::TECHNIQUE_LIT_SUN_DYNAMIC_BRANCHING_DFOG);
 
-					// h1 samples a cucoloris for each spot light, the iw6 cucoloris on every light variant goes first
 					merge_techs(
 						{
 							TECHNIQUE_LIT_SUN_DYNAMIC_BRANCHING_CUCOLORIS_DFOG,
@@ -3923,7 +3904,6 @@ namespace zonetool::iw6
 						zonetool::h1::TECHNIQUE_LIT_DYNAMIC_BRANCHING_CUCOLORIS_DFOG, 8);
 				}
 
-				// iw6 draws an unlit techset through LIT whatever lights hit the surface, h1 reads the slot of the light setup
 				for (auto offset = 0; offset < 240; offset += 60)
 				{
 					for (const auto& [first, last] : {
@@ -3953,7 +3933,6 @@ namespace zonetool::iw6
 					}
 				}
 
-				// cucoloris lights fall back to the plain dynamic branching technique
 				for (auto offset = 0; offset < 240; offset += 60)
 				{
 					for (const auto& [cucoloris, plain] : {
@@ -3969,7 +3948,6 @@ namespace zonetool::iw6
 					}
 				}
 
-				// iw6 has no dfog light slots, h1 draws dynamic lights from them when the view has dfog, stock fills both with one technique
 				for (auto offset = 0; offset < 240; offset += 60)
 				{
 					for (const auto& [light, dfog] : {
@@ -4081,7 +4059,6 @@ namespace zonetool::iw6
 					convert_bit(GFXS1_DEPTHTEST_MASK, GFXS1_DEPTHTEST_LESSEQUAL, zonetool::h1::GFXS1_DEPTHTEST_LESSEQUAL);
 					convert_bit(0, GFXS1_DEPTHTEST_DISABLE, zonetool::h1::GFXS1_DEPTHTEST_DISABLE);
 
-					// stencil patches from v1, tested in game
 					if ((iw6_bits & (0xFFull << 12)) == (0x48ull << 12))
 					{
 						h1_bits = (h1_bits & ~(0xFFull << 12)) | (0xE0ull << 12);
@@ -4133,8 +4110,6 @@ namespace zonetool::iw6
 					{zonetool::h1::GFX_DEPTH_STENCIL_MODE_CACHED_SPOT_STENCIL_FULL_MASK, GFX_DEPTH_STENCIL_MODE_CACHED_SPOT_STENCIL_FULL_MASK},
 				}};
 
-				constexpr std::uint64_t h1_unk_depth_stencil_bits = 19872279822919; // v1 value, IW6 has no such mode
-
 				ordered_json json_data = ordered_json::array();
 				for (auto i = 0; i < count; i++)
 				{
@@ -4152,7 +4127,7 @@ namespace zonetool::iw6
 						entry["loadBits"][j] = h1_bits.loadBits[j];
 					}
 
-					entry["depthStencilStateBits"][zonetool::h1::GFX_DEPTH_STENCIL_MODE_UNK] = h1_unk_depth_stencil_bits;
+					entry["depthStencilStateBits"][zonetool::h1::GFX_DEPTH_STENCIL_MODE_UNK] = 19872279822919;
 					for (const auto& [h1_mode, iw6_mode] : depth_stencil_modes)
 					{
 						entry["depthStencilStateBits"][h1_mode] = get_depth_stencil_state_bits(globals, map[i].depthStencilState[iw6_mode], material);

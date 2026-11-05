@@ -16,18 +16,6 @@ namespace zonetool::audio
 
 		constexpr std::uint16_t wav_format_pcm = 1;
 
-		struct flac_block
-		{
-			std::uint8_t type;
-			std::string_view data;
-		};
-
-		struct flac_layout
-		{
-			std::vector<flac_block> blocks;
-			std::size_t frames_offset;
-		};
-
 		std::optional<flac_layout> read_flac_layout(const std::string_view data)
 		{
 			if (!is_flac(data))
@@ -119,7 +107,7 @@ namespace zonetool::audio
 		}
 
 		const auto* block = reinterpret_cast<const std::uint8_t*>(layout->blocks[0].data.data());
-		std::uint64_t bits{}; // sample rate (20), channels - 1 (3), bits per sample - 1 (5), sample count (36)
+		std::uint64_t bits{};
 		for (auto i = 10; i < 18; i++)
 		{
 			bits = (bits << 8) | block[i];

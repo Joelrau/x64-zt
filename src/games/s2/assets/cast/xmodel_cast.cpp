@@ -19,8 +19,6 @@ namespace zonetool::s2::cast_xmodel
 		constexpr std::size_t max_bones = std::extent_v<decltype(XSurface::partBits)> * 32;
 
 		constexpr std::uint32_t bone_offset_stride = 64;
-		constexpr std::uint16_t shared_streams_rigid = 0x7E0;
-		constexpr std::uint16_t shared_streams_skinned = 0x1000;
 
 		constexpr float no_cull_lod_dist = 1000000.0f;
 		constexpr float lod_dist_divisor = 565.087f;
@@ -537,7 +535,7 @@ namespace zonetool::s2::cast_xmodel
 					list.vertCount = static_cast<unsigned short>(vertex_head - vertex_tail);
 					list.triOffset = static_cast<unsigned short>(triangle_tail);
 					list.triCount = static_cast<unsigned short>(triangle_head - triangle_tail);
-					list.collisionTree = nullptr; // TODO: build the tree that model marks trace against
+					list.collisionTree = nullptr; // TODO: build the collision tree
 					lists.emplace_back(list);
 
 					vertex_tail = vertex_head;
@@ -637,7 +635,7 @@ namespace zonetool::s2::cast_xmodel
 
 				const auto& data = writer.data();
 				auto* shared = mem->allocate<XSurfaceShared>();
-				const auto streams = static_cast<std::uint16_t>(shared_streams_rigid | (skin.empty() ? 0 : shared_streams_skinned));
+				const auto streams = static_cast<std::uint16_t>(0x7E0 | (skin.empty() ? 0 : 0x1000));
 				shared->flags = streams;
 				const auto hash = utils::cryptography::sha256::compute(data, true);
 				std::memcpy(shared->hash, hash.data(), sizeof(shared->hash));
@@ -808,13 +806,6 @@ namespace zonetool::s2::cast_xmodel
 			const auto scaled = std::max(0.0f, view_dist - radius) / lod_dist_divisor;
 			return scaled * scaled;
 		}
-
-		struct build_cache
-		{
-			zone_memory* mem = nullptr;
-			std::unordered_map<std::string, XModelBase*> bases;
-			std::unordered_map<std::string, XModelSurfs*> surfs;
-		};
 
 		build_cache& get_cache()
 		{

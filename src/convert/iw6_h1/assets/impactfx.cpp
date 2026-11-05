@@ -11,7 +11,6 @@ namespace zonetool::iw6
 		{
 			namespace
 			{
-				// iw6 row of each h1 row: h1 adds shotgun energy (8) and energy beam (16), stock fills 17 like 0 and 18 like 12
 				constexpr std::array<int, 19> source_rows{0, 1, 2, 3, 4, 5, 6, 7, 5, 8, 9, 10, 11, 12, 13, 14, 0, 0, 11};
 			}
 

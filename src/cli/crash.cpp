@@ -9,8 +9,6 @@ namespace zonetool::cli
 {
 	namespace
 	{
-		constexpr auto max_frames = 32;
-
 		std::string describe_address(const HANDLE process, const DWORD64 address)
 		{
 			alignas(SYMBOL_INFO) char buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME]{};
@@ -51,7 +49,7 @@ namespace zonetool::cli
 			frame.AddrFrame = {context.Rbp, 0, AddrModeFlat};
 			frame.AddrStack = {context.Rsp, 0, AddrModeFlat};
 
-			for (auto i = 0; i < max_frames; i++)
+			for (auto i = 0; i < 32; i++)
 			{
 				if (!StackWalk64(IMAGE_FILE_MACHINE_AMD64, process, thread, &frame, &context, nullptr,
 					SymFunctionTableAccess64, SymGetModuleBase64, nullptr) || !frame.AddrPC.Offset)

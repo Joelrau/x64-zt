@@ -5,8 +5,6 @@ namespace zonetool::s2
 {
 	namespace
 	{
-		constexpr auto disk_alignment = 63;
-
 		std::size_t trans_bounds_count(const MayhemAnim& anim)
 		{
 			return anim.quantizeTrans * anim.numBones;
@@ -14,7 +12,7 @@ namespace zonetool::s2
 
 		std::size_t uncompressed_keys_size(const MayhemAnim& anim, const MayhemDataKeysUncompressed& keys)
 		{
-			return anim.numFrames * keys.keyStride; // S2 has no numStreams factor here, unlike IW7
+			return anim.numFrames * keys.keyStride; // no numStreams factor, unlike IW7
 		}
 
 		void read_spline_frames(zone_reader& reader, MayhemAnimFramesSplineCompressed*& field, const MayhemAnim& anim)
@@ -25,8 +23,8 @@ namespace zonetool::s2
 				return;
 			}
 
-			reader.read_array(frames->diskQuat, disk_alignment, frames->quatStride * frames->totalCompressedQuatFrames);
-			reader.read_array(frames->diskPos, disk_alignment, frames->posStride * frames->totalCompressedPosFrames);
+			reader.read_array(frames->diskQuat, 63, frames->quatStride * frames->totalCompressedQuatFrames);
+			reader.read_array(frames->diskPos, 63, frames->posStride * frames->totalCompressedPosFrames);
 			reader.read_array(frames->diskQuatFrames, 1, frames->totalCompressedQuatFrames / 3);
 			reader.read_array(frames->diskPosFrames, 1, frames->totalCompressedPosFrames / 3);
 			reader.read_array(frames->numDiskQuatFrames, 1, anim.numBones);
@@ -42,8 +40,8 @@ namespace zonetool::s2
 				return;
 			}
 
-			reader.read_array(frames->diskQuat, disk_alignment, anim.numFrames * frames->quatStride);
-			reader.read_array(frames->diskPos, disk_alignment, anim.numFrames * frames->posStride);
+			reader.read_array(frames->diskQuat, 63, anim.numFrames * frames->quatStride);
+			reader.read_array(frames->diskPos, 63, anim.numFrames * frames->posStride);
 			reader.read_array(frames->transBounds, 3, trans_bounds_count(anim));
 		}
 
@@ -55,7 +53,7 @@ namespace zonetool::s2
 				return;
 			}
 
-			reader.read_array(keys->keys, disk_alignment, keys->keyStride * keys->totalCompressedKeyFrames);
+			reader.read_array(keys->keys, 63, keys->keyStride * keys->totalCompressedKeyFrames);
 			reader.read_array(keys->numKeys, 1, keys->numStreams);
 			reader.read_array(keys->keyFrames, 1, keys->totalCompressedKeyFrames / 3);
 		}
@@ -68,7 +66,7 @@ namespace zonetool::s2
 				return;
 			}
 
-			reader.read_array(keys->keys, disk_alignment, uncompressed_keys_size(anim, *keys));
+			reader.read_array(keys->keys, 63, uncompressed_keys_size(anim, *keys));
 		}
 
 		void read_anim(zone_reader& reader, MayhemAnim& anim)
@@ -195,8 +193,8 @@ namespace zonetool::s2
 				return;
 			}
 
-			write_array(buf, disk_alignment, frames->diskQuat, frames->quatStride * frames->totalCompressedQuatFrames, dest->diskQuat);
-			write_array(buf, disk_alignment, frames->diskPos, frames->posStride * frames->totalCompressedPosFrames, dest->diskPos);
+			write_array(buf, 63, frames->diskQuat, frames->quatStride * frames->totalCompressedQuatFrames, dest->diskQuat);
+			write_array(buf, 63, frames->diskPos, frames->posStride * frames->totalCompressedPosFrames, dest->diskPos);
 			write_array(buf, 1, frames->diskQuatFrames, frames->totalCompressedQuatFrames / 3, dest->diskQuatFrames);
 			write_array(buf, 1, frames->diskPosFrames, frames->totalCompressedPosFrames / 3, dest->diskPosFrames);
 			write_array(buf, 1, frames->numDiskQuatFrames, anim.numBones, dest->numDiskQuatFrames);
@@ -214,8 +212,8 @@ namespace zonetool::s2
 				return;
 			}
 
-			write_array(buf, disk_alignment, frames->diskQuat, anim.numFrames * frames->quatStride, dest->diskQuat);
-			write_array(buf, disk_alignment, frames->diskPos, anim.numFrames * frames->posStride, dest->diskPos);
+			write_array(buf, 63, frames->diskQuat, anim.numFrames * frames->quatStride, dest->diskQuat);
+			write_array(buf, 63, frames->diskPos, anim.numFrames * frames->posStride, dest->diskPos);
 			write_array(buf, 3, frames->transBounds, trans_bounds_count(anim), dest->transBounds);
 			dest->quat.buffer = nullptr;
 			dest->pos.buffer = nullptr;
@@ -229,7 +227,7 @@ namespace zonetool::s2
 				return;
 			}
 
-			write_array(buf, disk_alignment, keys->keys, keys->keyStride * keys->totalCompressedKeyFrames, dest->keys);
+			write_array(buf, 63, keys->keys, keys->keyStride * keys->totalCompressedKeyFrames, dest->keys);
 			write_array(buf, 1, keys->numKeys, keys->numStreams, dest->numKeys);
 			write_array(buf, 1, keys->keyFrames, keys->totalCompressedKeyFrames / 3, dest->keyFrames);
 		}
@@ -242,7 +240,7 @@ namespace zonetool::s2
 				return;
 			}
 
-			write_array(buf, disk_alignment, keys->keys, uncompressed_keys_size(anim, *keys), dest->keys);
+			write_array(buf, 63, keys->keys, uncompressed_keys_size(anim, *keys), dest->keys);
 		}
 
 		void write_anim(zone_buffer* buf, MayhemAnim& anim, MayhemAnim& dest)

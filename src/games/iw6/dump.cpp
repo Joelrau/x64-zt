@@ -197,7 +197,6 @@ namespace zonetool::iw6
 				}
 			}
 
-			// shaders of a common techset the map uses live in the same common zone
 			for (const auto& [zone, dump] : zones)
 			{
 				for (const auto& asset : zone->assets)
@@ -263,7 +262,6 @@ namespace zonetool::iw6
 			return text;
 		}
 
-		// a converter may replace <name>.csv with its build list in finish, the source listing stays in <name>.<source>.csv
 		void write_asset_csv(const std::string& name, const std::vector<loaded_asset>& assets, const converter* converter)
 		{
 			const auto text = asset_csv(assets);
@@ -425,7 +423,6 @@ namespace zonetool::iw6
 			}
 		}
 
-		// dump only the last copy of an asset, because patch zones load last and the game uses the patch copy
 		for (const auto& [zone, dump] : zones)
 		{
 			for (const auto& asset : zone->assets)

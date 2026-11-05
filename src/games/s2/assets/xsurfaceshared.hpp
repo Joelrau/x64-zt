@@ -2,6 +2,13 @@
 
 namespace zonetool::s2
 {
+	struct xpak_location
+	{
+		std::filesystem::path pak;
+		std::uint64_t offset;
+		std::uint32_t size;
+	};
+
 	std::optional<std::string> read_shared_stream(const XSurfaceShared* shared);
 	std::string surface_shared_key(const XSurfaceShared* shared);
 

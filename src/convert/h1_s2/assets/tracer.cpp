@@ -22,7 +22,7 @@ namespace zonetool::h1::converter::s2::tracer
 			return nullptr;
 		}
 
-		const auto* converted = xmodel::converted_name(zonetool::s2::ASSET_TYPE_TRACER, name); // most h1 tracer names are stock s2 tracers too
+		const auto* converted = xmodel::converted_name(zonetool::s2::ASSET_TYPE_TRACER, name);
 		if (!dumped_tracers.insert(converted).second)
 		{
 			return converted;

@@ -47,7 +47,6 @@ namespace zonetool::h1::converter::s2::scriptfile
 
 		std::optional<std::string> make_s2_art_script(const std::string& name)
 		{
-			// the s2 client loads the vision and fog itself, visionsetnaked would clear the fog
 			constexpr std::string_view prefix = "maps/createart/";
 			constexpr std::string_view suffix = "_art.gsc";
 			if (!name.starts_with(prefix) || !name.ends_with(suffix))
@@ -67,8 +66,7 @@ namespace zonetool::h1::converter::s2::scriptfile
 				return {};
 			}
 
-			// s2 ambientplay is builtin 0x11A (sub_140514B40), gsc-tool has no name for it
-			return make_map_setup_script(map, source, {.ambient_play = "_func_11A", .keep_dvars = false});
+			return make_map_setup_script(map, source, {.ambient_play = "_func_11A", .keep_dvars = false}); // ambientplay (0x140514B40)
 		}
 
 		void dump_minimap(const std::string& source)
@@ -117,7 +115,6 @@ namespace zonetool::h1::converter::s2::scriptfile
 			return;
 		}
 
-		// the rawfile of the same name has the original source, rawfile dumps it
 		const auto name = convert_name(asset->name);
 		if (zonetool::h1::db_find_x_asset_header_safe(ASSET_TYPE_RAWFILE, name).rawfile)
 		{
@@ -142,7 +139,6 @@ namespace zonetool::h1::converter::s2::scriptfile
 
 		write_file(name, source);
 
-		// s2x compiles a "<name>.gsc" rawfile in place of the stock script, so only the map scripts get a row
 		if (std::filesystem::path(name).stem().string().starts_with(filesystem::get_fastfile()))
 		{
 			add_csv_row("rawfile", name);

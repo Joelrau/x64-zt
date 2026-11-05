@@ -7,8 +7,6 @@ namespace zonetool::h1::converter::s2::stringtable::soundtables
 {
 	namespace
 	{
-		constexpr auto s2_column_count = 10;
-
 		constexpr std::array<std::string_view, 10> s2_headers
 		{
 			"zone_names,ambience,ambient_name,mix,reverb,filter,occlusion,player_adsr",
@@ -30,7 +28,7 @@ namespace zonetool::h1::converter::s2::stringtable::soundtables
 				cells.pop_back();
 			}
 
-			cells.resize(std::max(cells.size(), static_cast<std::size_t>(s2_column_count)));
+			cells.resize(std::max(cells.size(), static_cast<std::size_t>(10)));
 
 			auto line = cells.front();
 			for (auto i = 1u; i < cells.size(); i++)
@@ -56,7 +54,6 @@ namespace zonetool::h1::converter::s2::stringtable::soundtables
 
 		bool is_header_column(const std::string_view name)
 		{
-			// h1 tables can hold broken header rows ("sus_len,sus_level" on its own)
 			return std::ranges::any_of(s2_headers, [&](const std::string_view header)
 			{
 				const auto columns = utils::string::split(std::string(header), ',');
@@ -64,13 +61,7 @@ namespace zonetool::h1::converter::s2::stringtable::soundtables
 			});
 		}
 
-		struct map_reverb_preset
-		{
-			const char* name;
-			std::array<float, 24> values;
-		};
-
-		constexpr std::array<map_reverb_preset, 6> map_reverb_presets // the other room types are global s2 presets
+		constexpr std::array<map_reverb_preset, 6> map_reverb_presets
 		{{
 			{"alleyway_buildings", {74.0f, 0.78f, 0.54f, 0.05f, 23.0f, 0.0f, 0.79f, 0.56f,
 				-1.099998f, 0.07f, 0.72f, 11.4f, 0.69f, 83.0f, 0.07f, 0.55f,
@@ -94,7 +85,7 @@ namespace zonetool::h1::converter::s2::stringtable::soundtables
 
 		std::string convert_room_type(const std::string& name)
 		{
-			return name == "church" ? "hall_marble" : name; // s2 has no church preset, a marble hall is the closest global one
+			return name == "church" ? "hall_marble" : name;
 		}
 
 		void dump_reverb_preset(const std::string& name)
@@ -145,7 +136,7 @@ namespace zonetool::h1::converter::s2::stringtable::soundtables
 
 			if (section == "dynamic_ambience_names" && cells.size() > 1)
 			{
-				std::erase(cells[1], ' '); // s2 joins the components with a bare "+"
+				std::erase(cells[1], ' ');
 			}
 			else if (section == "reverb_names" && cells.size() > 1)
 			{

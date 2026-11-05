@@ -486,7 +486,6 @@ namespace zonetool::iw6
 				}
 				REINTERPRET_CAST(hideTags);
 
-				// attachments, h1 overrides use 1-based indices into this list
 				std::vector<WeaponAttachment*> attachments;
 				std::array<unsigned char, 6> scope_indices{};
 				std::array<unsigned char, 3> under_barrel_indices{};
@@ -523,7 +522,6 @@ namespace zonetool::iw6
 					convert_anims(h1_asset->szXAnims, asset->szXAnims, mem);
 				}
 
-				// iw6 packs a 1-based scope (bits 0-2), a 1-based underbarrel (bits 3-4) and one bit per other attachment from bit 5
 				const auto convertAttachmentValue = [&](const unsigned short attach) -> unsigned char
 				{
 					if (const auto scope = attach & 7u)
@@ -598,7 +596,6 @@ namespace zonetool::iw6
 					REINTERPRET_CAST(soundOverrides[i].altmodeSound, soundOverrides[i].altmodeSound);
 				}
 
-				// h1 adds the view body flash at 2: iw6 has view flash 1, world flash 2, shell and last shot ejects 3-7 and ads flash 8
 				constexpr std::array<unsigned char, 9> fx_types{0, 1, 3, 4, 5, 6, 7, 8, 9};
 
 				h1_asset->numFXOverrides = static_cast<unsigned char>(asset->numFXOverrides);
@@ -1089,7 +1086,6 @@ namespace zonetool::iw6
 				REINTERPRET_CAST(accuracyGraphName[0], weapDef->accuracyGraphName[0]);
 				REINTERPRET_CAST(accuracyGraphName[1], weapDef->accuracyGraphName[1]);
 
-				// the iw6 loader reads the knots of the complete def, not the weapon def originals
 				REINTERPRET_CAST(accuracyGraphKnots[0], accuracyGraphKnots[0]);
 				REINTERPRET_CAST(accuracyGraphKnots[1], accuracyGraphKnots[1]);
 				REINTERPRET_CAST(originalAccuracyGraphKnots[0], accuracyGraphKnots[0]);

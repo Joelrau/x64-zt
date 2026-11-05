@@ -14,7 +14,7 @@ namespace zonetool::h1::converter::s2::techset
 			{TEXTURE_SRC_CODE_WHITE, zonetool::s2::TEXTURE_SRC_CODE_WHITE},
 			{TEXTURE_SRC_CODE_IDENTITY_NORMAL_MAP, zonetool::s2::TEXTURE_SRC_CODE_IDENTITY_NORMAL_MAP},
 			{TEXTURE_SRC_CODE_SHADOWMAP_SUN, zonetool::s2::TEXTURE_SRC_CODE_SHADOWMAP_SUN},
-			{TEXTURE_SRC_CODE_TRANS_SHADOWMAP_SUN, zonetool::s2::TEXTURE_SRC_CODE_WHITE}, // h1 shadow is saturate(sun + trans - 1), white keeps the sun term
+			{TEXTURE_SRC_CODE_TRANS_SHADOWMAP_SUN, zonetool::s2::TEXTURE_SRC_CODE_WHITE},
 			{TEXTURE_SRC_CODE_SHADOWMAP_SPOT, zonetool::s2::TEXTURE_SRC_CODE_SHADOWMAP_SPOT},
 			{TEXTURE_SRC_CODE_SHADOWMAP_SPOT_1, zonetool::s2::TEXTURE_SRC_CODE_SHADOWMAP_SPOT_1},
 			{TEXTURE_SRC_CODE_SHADOWMAP_SPOT_2, zonetool::s2::TEXTURE_SRC_CODE_SHADOWMAP_SPOT_2},
@@ -56,8 +56,6 @@ namespace zonetool::h1::converter::s2::techset
 			{TEXTURE_SRC_CODE_UI3D, zonetool::s2::TEXTURE_SRC_CODE_UI3D},
 			{TEXTURE_SRC_CODE_FONT_CACHE, zonetool::s2::TEXTURE_SRC_CODE_FONT_CACHE},
 		};
-
-		constexpr auto fog_off_height_falloff = 1.0f / 8192.0f;
 
 		std::uint64_t light_grid_buffer_flags(const light_grid grid)
 		{
@@ -245,7 +243,7 @@ namespace zonetool::h1::converter::s2::techset
 
 	const std::unordered_map<std::int32_t, std::array<float, 4>> code_literals
 	{
-		{CONST_SRC_CODE_FOG_HEIGHT_FOG, {0.0f, 0.0f, fog_off_height_falloff, 0.0f}},
+		{CONST_SRC_CODE_FOG_HEIGHT_FOG, {0.0f, 0.0f, 1.0f / 8192.0f, 0.0f}},
 		{CONST_SRC_CODE_FOG, {0.0f, 0.0f, 0.0f, 0.0f}},
 		{CONST_SRC_CODE_FOG_COLOR_LINEAR, {0.0f, 0.0f, 0.0f, 0.0f}},
 		{CONST_SRC_CODE_FOG_COLOR_GAMMA, {0.0f, 0.0f, 0.0f, 0.0f}},
@@ -258,8 +256,7 @@ namespace zonetool::h1::converter::s2::techset
 		{CONST_SRC_CODE_SCENE_UV_MULT, {1.0f, 1.0f, 0.0f, 0.0f}},
 		{CONST_SRC_CODE_PARTICLE_CLOUD_COLOR, {1.0f, 1.0f, 1.0f, 1.0f}},
 		{CONST_SRC_CODE_LIGHTING_LOOKUP_SCALE, {1.0f, 1.0f, 1.0f, 0.0f}},
-		{CONST_SRC_CODE_SCRIPT_PARMS, {0.0f, 0.0f, 0.0f, 0.0f}}, // the s2 script parms hold other data
-		// s2 has no rim lights, these values keep the _mpr shaders from dividing by zero
+		{CONST_SRC_CODE_SCRIPT_PARMS, {0.0f, 0.0f, 0.0f, 0.0f}},
 		{CONST_SRC_CODE_RIM_LIGHT_0_DIR, {0.0f, 0.0f, 1.0f, 0.0f}},
 		{CONST_SRC_CODE_RIM_LIGHT_0_COLOR, {0.0f, 0.0f, 0.0f, 1.0f}},
 		{CONST_SRC_CODE_RIM_LIGHT_1_DIR, {0.0f, 1.0f, 0.0f, 0.0f}},

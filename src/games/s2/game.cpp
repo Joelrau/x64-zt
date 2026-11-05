@@ -17,7 +17,7 @@ namespace zonetool::s2
 	{
 		std::string load_zone_key()
 		{
-			const auto resource = FindResource(nullptr, TEXT("S2_ZONE_KEY"), RT_RCDATA); // cli/resource.rc
+			const auto resource = FindResource(nullptr, TEXT("S2_ZONE_KEY"), RT_RCDATA);
 			if (!resource)
 			{
 				return {};
