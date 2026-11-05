@@ -156,6 +156,24 @@ namespace zonetool::h1::converter::s2::xanim
 			}
 		}
 
+		void convert_notify(const XAnimParts* asset, zonetool::s2::XAnimParts* new_asset, utils::memory::allocator& allocator)
+		{
+			new_asset->notify = asset->notify ? allocator.allocate_array<zonetool::s2::XAnimNotifyInfo>(asset->notifyCount) : nullptr;
+			new_asset->notifyCount = 0;
+			for (auto i = 0; asset->notify && i < asset->notifyCount; i++)
+			{
+				// the s2 client reads "fx_<fx>;<tag>" and crashes on a missing tag (MS 0x14039CEC0)
+				const std::string_view name = SL_ConvertToString(asset->notify[i].name);
+				if (name.starts_with("fx_") && name.find(';') == std::string_view::npos)
+				{
+					ZONETOOL_WARNING("xanim \"%s\": dropping notetrack \"%s\", s2 needs \"fx_<fx>;<tag>\"", asset->name, name.data());
+					continue;
+				}
+
+				new_asset->notify[new_asset->notifyCount++] = {static_cast<zonetool::s2::scr_string_t>(asset->notify[i].name), asset->notify[i].time};
+			}
+		}
+
 		zonetool::s2::XAnimParts* convert(XAnimParts* asset, utils::memory::allocator& allocator)
 		{
 			const auto new_asset = allocator.allocate<zonetool::s2::XAnimParts>();
@@ -168,7 +186,6 @@ namespace zonetool::h1::converter::s2::xanim
 				new_asset->boneCount[i] = asset->boneCount[i];
 			}
 
-			new_asset->notifyCount = asset->notifyCount;
 			new_asset->assetType = asset->assetType;
 			new_asset->ikType = asset->ikType;
 			new_asset->randomDataByteCount = asset->randomDataByteCount;
@@ -183,7 +200,7 @@ namespace zonetool::h1::converter::s2::xanim
 			new_asset->randomDataByte = asset->randomDataByte;
 			new_asset->randomDataInt = asset->randomDataInt;
 			new_asset->indices.data = asset->indices.data;
-			new_asset->notify = retype<zonetool::s2::XAnimNotifyInfo>(asset->notify);
+			convert_notify(asset, new_asset, allocator);
 			new_asset->deltaPart = retype<zonetool::s2::XAnimDeltaPart>(asset->deltaPart);
 			new_asset->secondaryName = asset->secondaryName;
 			convert_track_data(asset, new_asset, allocator);

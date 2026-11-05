@@ -164,6 +164,9 @@ namespace zonetool::s1
 			return
 			{
 				{"code_post_gfx" + suffix, map_zone_dump::referenced},
+				{"patch_code_post_gfx" + suffix, map_zone_dump::referenced},
+				{"common_core" + suffix, map_zone_dump::referenced},
+				{"patch_common_core" + suffix, map_zone_dump::referenced},
 				{"patch_common" + suffix, map_zone_dump::referenced},
 				{"common" + suffix, map_zone_dump::referenced},
 				{"techsets_common_core_mp", map_zone_dump::referenced},
@@ -176,6 +179,169 @@ namespace zonetool::s1
 			};
 		}
 
+		void add_techset_shaders(const MaterialTechniqueSet* techset, std::unordered_set<const void*>& references)
+		{
+			for (const auto* technique : techset->techniques)
+			{
+				if (!technique)
+				{
+					continue;
+				}
+
+				for (auto pass_index = 0u; pass_index < technique->hdr.passCount; pass_index++)
+				{
+					const auto& pass = technique->passArray[pass_index];
+					for (const void* shader : {static_cast<const void*>(pass.vertexShader), static_cast<const void*>(pass.hullShader),
+						static_cast<const void*>(pass.domainShader), static_cast<const void*>(pass.pixelShader)})
+					{
+						if (shader)
+						{
+							references.insert(shader);
+						}
+					}
+				}
+			}
+		}
+
+		void add_material_dependencies(const Material* material, std::unordered_set<const void*>& references)
+		{
+			if (material->techniqueSet && references.insert(material->techniqueSet).second)
+			{
+				add_techset_shaders(material->techniqueSet, references);
+			}
+
+			for (auto i = 0; material->textureTable && i < material->textureCount; i++)
+			{
+				const auto& texture = material->textureTable[i];
+				const auto* image = texture.semantic == TS_WATER_MAP
+					? (texture.u.water ? texture.u.water->image : nullptr)
+					: texture.u.image;
+				if (image)
+				{
+					references.insert(image);
+				}
+			}
+		}
+
+		void add_xmodel_dependencies(const XModel* model, std::unordered_set<const void*>& references)
+		{
+			for (auto i = 0; model->materialHandles && i < model->numsurfs; i++)
+			{
+				if (model->materialHandles[i])
+				{
+					references.insert(model->materialHandles[i]);
+				}
+			}
+
+			for (auto i = 0; i < model->numLods; i++)
+			{
+				if (model->lodInfo[i].modelSurfs)
+				{
+					references.insert(model->lodInfo[i].modelSurfs);
+				}
+			}
+		}
+
+		void add_fx_dependencies(const FxEffectDef* fx, std::unordered_set<const void*>& references);
+
+		void add_fx_reference(const FxEffectDef* fx, std::unordered_set<const void*>& references)
+		{
+			if (fx && references.insert(fx).second)
+			{
+				add_fx_dependencies(fx, references);
+			}
+		}
+
+		void add_fx_visual_dependencies(const FxElemDef& def, const FxElemVisuals& visual, std::unordered_set<const void*>& references)
+		{
+			if (!visual.anonymous)
+			{
+				return;
+			}
+
+			switch (def.elemType)
+			{
+			case FX_ELEM_TYPE_RUNNER:
+				add_fx_reference(visual.effectDef.handle, references);
+				break;
+			case FX_ELEM_TYPE_SOUND:
+			case FX_ELEM_TYPE_VECTORFIELD:
+			case FX_ELEM_TYPE_OMNI_LIGHT:
+				break;
+			default:
+				references.insert(visual.anonymous);
+				break;
+			}
+		}
+
+		void add_fx_dependencies(const FxEffectDef* fx, std::unordered_set<const void*>& references)
+		{
+			const auto elem_count = fx->elemDefCountLooping + fx->elemDefCountOneShot + fx->elemDefCountEmission;
+			for (auto i = 0; fx->elemDefs && i < elem_count; i++)
+			{
+				const auto& def = fx->elemDefs[i];
+				add_fx_reference(def.effectOnImpact.handle, references);
+				add_fx_reference(def.effectOnDeath.handle, references);
+				add_fx_reference(def.effectEmitted.handle, references);
+
+				if (def.elemType == FX_ELEM_TYPE_DECAL)
+				{
+					for (auto j = 0; def.visuals.markArray && j < def.visualCount; j++)
+					{
+						for (const auto* material : def.visuals.markArray[j].materials)
+						{
+							if (material)
+							{
+								references.insert(material);
+							}
+						}
+					}
+				}
+				else if (def.visualCount > 1)
+				{
+					for (auto j = 0; def.visuals.array && j < def.visualCount; j++)
+					{
+						add_fx_visual_dependencies(def, def.visuals.array[j], references);
+					}
+				}
+				else
+				{
+					add_fx_visual_dependencies(def, def.visuals.instance, references);
+				}
+			}
+		}
+
+		void add_common_dependencies(const std::vector<std::pair<std::unique_ptr<loaded_zone>, map_zone_dump>>& zones,
+			std::unordered_set<const void*>& references)
+		{
+			for (const auto type : {ASSET_TYPE_FX, ASSET_TYPE_XMODEL, ASSET_TYPE_MATERIAL})
+			{
+				for (const auto& [zone, dump] : zones)
+				{
+					for (const auto& asset : zone->assets)
+					{
+						if (dump != map_zone_dump::referenced || asset.referenced || asset.type != type || !references.contains(asset.header))
+						{
+							continue;
+						}
+
+						if (type == ASSET_TYPE_FX)
+						{
+							add_fx_dependencies(static_cast<const FxEffectDef*>(asset.header), references);
+						}
+						else if (type == ASSET_TYPE_XMODEL)
+						{
+							add_xmodel_dependencies(static_cast<const XModel*>(asset.header), references);
+						}
+						else
+						{
+							add_material_dependencies(static_cast<const Material*>(asset.header), references);
+						}
+					}
+				}
+			}
+		}
+
 		// the loader points a reference at the header of the zone that holds the asset
 		std::unordered_set<const void*> collect_map_references(const std::vector<std::pair<std::unique_ptr<loaded_zone>, map_zone_dump>>& zones)
 		{
@@ -184,13 +350,20 @@ namespace zonetool::s1
 			{
 				for (const auto& asset : zone->assets)
 				{
-					if (dump == map_zone_dump::all && asset.referenced)
+					if (dump != map_zone_dump::all || !asset.referenced)
 					{
-						references.insert(asset.header);
+						continue;
+					}
+
+					references.insert(asset.header);
+					if (asset.type == ASSET_TYPE_TECHNIQUE_SET)
+					{
+						add_techset_shaders(static_cast<const MaterialTechniqueSet*>(asset.header), references);
 					}
 				}
 			}
 
+			add_common_dependencies(zones, references);
 			return references;
 		}
 
@@ -260,6 +433,7 @@ namespace zonetool::s1
 		{
 			filesystem::set_zone_folder(zone_folder);
 			filesystem::set_fastfile(fastfile);
+			filesystem::set_language("english", "eng");
 		}
 	}
 

@@ -340,10 +340,11 @@ namespace zonetool::h1
 			return converter && asset.type == ASSET_TYPE_MATERIAL && is_weapon_model_zone(zone_name);
 		}
 
-		void prepare_paths(const std::filesystem::path& zone_folder, const std::string& fastfile)
+		void prepare_paths(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path)
 		{
 			filesystem::set_zone_folder(zone_folder);
-			filesystem::set_fastfile(fastfile);
+			filesystem::set_fastfile_folder(zone_path.parent_path());
+			filesystem::set_fastfile(zone_path.stem().string());
 			filesystem::set_language("english", "eng");
 		}
 	}
@@ -390,7 +391,7 @@ namespace zonetool::h1
 	{
 		const auto _ = gsl::finally(db_clear);
 
-		prepare_paths(zone_folder, zone_path.stem().string());
+		prepare_paths(zone_folder, zone_path);
 		const auto required_zones = load_required_zones(converter, zone_path);
 		const auto techset_zone_headers = collect_techset_zone_headers(required_zones, zone_path);
 		ZONETOOL_INFO("Loading zone \"%s\"...", zone_path.stem().string().data());
@@ -484,7 +485,7 @@ namespace zonetool::h1
 
 		const auto _ = gsl::finally(db_clear);
 
-		prepare_paths(zone_folder, zone_path.stem().string());
+		prepare_paths(zone_folder, zone_path);
 		const auto required_zones = load_required_zones(converter, zone_path);
 		const auto techset_zone_headers = collect_techset_zone_headers(required_zones, zone_path);
 		const auto zone = load_zone(zone_path);
@@ -529,7 +530,7 @@ namespace zonetool::h1
 	{
 		const auto _ = gsl::finally(db_clear);
 
-		prepare_paths(zone_folder, zone_path.stem().string());
+		prepare_paths(zone_folder, zone_path);
 		load_zone(zone_path);
 	}
 
@@ -537,7 +538,7 @@ namespace zonetool::h1
 	{
 		const auto _ = gsl::finally(db_clear);
 
-		prepare_paths(zone_folder, zone_path.stem().string());
+		prepare_paths(zone_folder, zone_path);
 		return asset_csv(load_zone(zone_path)->assets);
 	}
 }

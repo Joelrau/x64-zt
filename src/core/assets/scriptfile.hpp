@@ -139,4 +139,49 @@ namespace zonetool
 			file.close();
 		}
 	};
+
+	struct map_setup_builtins
+	{
+		std::string ambient_play;
+		bool keep_dvars;
+	};
+
+	inline std::string make_map_setup_script(const std::string& map, const std::string& source, const map_setup_builtins& builtins)
+	{
+		const std::regex setup_line(std::format(
+			R"re(\s*(maps\\(mp|createart)\\({}\w*|_load)::main\(\s*\)|maps\\mp\\_compass::setupminimap\(.*\)|game\["(attackers|defenders)"\] = .*);\s*)re", map));
+		static const std::regex dvar_line(R"re(\s*setdvar\(.*\);\s*)re");
+		static const std::regex ambient_play_line(R"re(\s*(ambientplay|_func_11A)\((.*)\);\s*)re");
+
+		std::string setup;
+		std::string ambient;
+		auto in_main = false;
+		for (auto line : utils::string::split(source, '\n'))
+		{
+			if (line.ends_with('\r'))
+			{
+				line.pop_back();
+			}
+
+			std::smatch match;
+			if (line == "main()")
+			{
+				in_main = true;
+			}
+			else if (in_main && line == "}")
+			{
+				in_main = false;
+			}
+			else if (in_main && (std::regex_match(line, setup_line) || (builtins.keep_dvars && std::regex_match(line, dvar_line))))
+			{
+				setup += line + "\n";
+			}
+			else if (std::regex_match(line, match, ambient_play_line))
+			{
+				ambient += std::format("    {}({});\n", builtins.ambient_play, match[2].str());
+			}
+		}
+
+		return "main()\n{\n" + setup + ambient + "}\n";
+	}
 }

@@ -606,6 +606,8 @@ namespace zonetool::s1
 							const auto pass = &technique->passArray[pass_index];
 							const auto new_pass = &new_technique->passArray[pass_index];
 
+							new_pass->customBufferFlags &= ~0x8000;
+
 							convert_shader(&new_pass->vertexShader, pass->vertexShader, allocator);
 							convert_shader(&new_pass->hullShader, pass->hullShader, allocator);
 							convert_shader(&new_pass->domainShader, pass->domainShader, allocator);

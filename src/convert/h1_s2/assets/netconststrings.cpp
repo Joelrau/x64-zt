@@ -2,6 +2,7 @@
 
 #include "../include.hpp"
 #include "netconststrings.hpp"
+#include "techset.hpp"
 
 namespace zonetool::h1::converter::s2::netconststrings
 {
@@ -73,6 +74,17 @@ namespace zonetool::h1::converter::s2::netconststrings
 			return std::format("ncs_{}_{}", s2_tags[new_type], name.substr(prefix.size()));
 		}
 
+		bool has_weapon(const char* name)
+		{
+			if (db_find_x_asset_header_safe(ASSET_TYPE_WEAPON, name).weapon)
+			{
+				return true;
+			}
+
+			db_scope _(techset::common_zone().db());
+			return zonetool::s2::db_find_x_asset_header_safe(zonetool::s2::ASSET_TYPE_WEAPON, name).weapon != nullptr;
+		}
+
 		void dump_converted(const std::string& name, net_const_strings& asset)
 		{
 			std::vector<const char*> strings;
@@ -112,6 +124,12 @@ namespace zonetool::h1::converter::s2::netconststrings
 		entry.source = asset->sourceType;
 		for (auto i = 0u; asset->stringList && i < asset->entryCount; i++)
 		{
+			if (type == zonetool::s2::NETCONSTSTRINGTYPE_WEAPON && !has_weapon(asset->stringList[i]))
+			{
+				ZONETOOL_WARNING("netconststrings \"%s\": weapon \"%s\" is not in the zone, dropping it", asset->name, asset->stringList[i]);
+				continue;
+			}
+
 			if (std::find(entry.strings.begin(), entry.strings.end(), asset->stringList[i]) == entry.strings.end())
 			{
 				entry.strings.emplace_back(asset->stringList[i]);

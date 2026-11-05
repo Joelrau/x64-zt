@@ -59,6 +59,18 @@ namespace zonetool::h1::converter::s2::scriptfile
 			return std::format("main()\n{{\n    level.tweakfile = 1;\n    maps\\createart\\{}_fog_hdr::setupfog();\n}}\n", map);
 		}
 
+		std::optional<std::string> make_s2_map_script(const std::string& name, const std::string& source)
+		{
+			const auto map = filesystem::get_fastfile();
+			if (name != std::format("maps/mp/{}.gsc", map))
+			{
+				return {};
+			}
+
+			// s2 ambientplay is builtin 0x11A (sub_140514B40), gsc-tool has no name for it
+			return make_map_setup_script(map, source, {.ambient_play = "_func_11A", .keep_dvars = false});
+		}
+
 		void dump_minimap(const std::string& source)
 		{
 			static const std::regex setup_minimap(R"re(\bsetupminimap\s*\(\s*"([^"]+)")re");
@@ -89,6 +101,11 @@ namespace zonetool::h1::converter::s2::scriptfile
 		}
 
 		dump_minimap(source);
+		if (const auto map_script = make_s2_map_script(name, source))
+		{
+			return *map_script;
+		}
+
 		const auto result = replace_removed_builtins(source);
 		return name.starts_with("maps/createart/") && name.ends_with("_fog_hdr.gsc") ? convert_fog_file(result) : result;
 	}

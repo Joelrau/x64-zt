@@ -13,6 +13,25 @@ namespace zonetool::convert::s1_h1
 			return static_cast<S*>(header);
 		}
 
+		void dump_net_const_strings(zonetool::h1::NetConstStrings* asset)
+		{
+			if (asset->stringType != zonetool::h1::NETCONSTSTRINGTYPE_WEAPON)
+			{
+				zonetool::h1::net_const_strings::dump(asset);
+				return;
+			}
+
+			for (auto i = 0u; asset->stringList && i < asset->entryCount; i++)
+			{
+				ZONETOOL_WARNING("netconststrings \"%s\": weapon \"%s\" is not converted, dropping it", asset->name, asset->stringList[i]);
+			}
+
+			auto new_asset = *asset;
+			new_asset.entryCount = 0;
+			new_asset.stringList = nullptr;
+			zonetool::h1::net_const_strings::dump(&new_asset);
+		}
+
 		void dump_asset(const std::int32_t type, void* header)
 		{
 			namespace source = zonetool::s1;
@@ -84,10 +103,17 @@ namespace zonetool::convert::s1_h1
 				zonetool::h1::lpf_curve::dump(header_as<zonetool::h1::SndCurve>(header));
 				break;
 			case source::ASSET_TYPE_NET_CONST_STRINGS:
-				zonetool::h1::net_const_strings::dump(header_as<zonetool::h1::NetConstStrings>(header));
+				dump_net_const_strings(header_as<zonetool::h1::NetConstStrings>(header));
 				break;
 			case source::ASSET_TYPE_RAWFILE:
-				zonetool::h1::rawfile::dump(header_as<zonetool::h1::RawFile>(header));
+				if (std::string_view(header_as<source::RawFile>(header)->name).ends_with(".gsc"))
+				{
+					target::scriptfile::dump_source(header_as<source::RawFile>(header));
+				}
+				else
+				{
+					zonetool::h1::rawfile::dump(header_as<zonetool::h1::RawFile>(header));
+				}
 				break;
 			case source::ASSET_TYPE_REVERB_CURVE:
 				zonetool::h1::reverb_curve::dump(header_as<zonetool::h1::SndCurve>(header));

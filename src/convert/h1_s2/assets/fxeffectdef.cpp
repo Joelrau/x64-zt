@@ -4,6 +4,7 @@
 #include "fxeffectdef.hpp"
 #include "common/stock_zone.hpp"
 #include "material.hpp"
+#include "xmodel.hpp"
 
 namespace zonetool::h1::converter::s2::fxeffectdef
 {
@@ -56,7 +57,7 @@ namespace zonetool::h1::converter::s2::fxeffectdef
 			switch (type)
 			{
 			case FX_ELEM_TYPE_MODEL:
-				result.model = reinterpret_cast<zonetool::s2::XModel*>(visual.model);
+				result.model = xmodel::reference(visual.model, allocator);
 				break;
 			case FX_ELEM_TYPE_PARTICLE_SIM_ANIMATION:
 				result.particleSimAnimation = reinterpret_cast<zonetool::s2::FxParticleSimAnimation*>(visual.particleSimAnimation);

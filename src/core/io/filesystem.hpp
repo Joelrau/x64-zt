@@ -75,6 +75,7 @@ namespace zonetool
 		void set_fastfile(const std::string& ff);
 		const std::string& get_fastfile();
 		void set_zone_folder(const std::filesystem::path& folder);
+		void set_fastfile_folder(const std::filesystem::path& folder);
 		std::string get_zone_path(const std::string& name = "");
 		const std::string& get_zone_folder();
 		void set_output_folder(const std::string& folder);

@@ -41,6 +41,34 @@ namespace zonetool::s1
 				return gsc_name;
 			}
 
+			std::string remove_s1_dev_blocks(std::string source)
+			{
+				for (auto start = source.find("/$"); start != std::string::npos; start = source.find("/$", start))
+				{
+					const auto end = source.find("$/", start + 2);
+					source.erase(start, end == std::string::npos ? std::string::npos : end + 2 - start);
+				}
+
+				return source;
+			}
+
+			void dump_source(RawFile* asset)
+			{
+				// the client parses the createart fog source for "ent = maps\_utility::create_vision_set_fog(" (CG_ParseClientVisionsetTriggers)
+				std::string source{asset->buffer, static_cast<std::uint32_t>(asset->compressedLen > 0 ? asset->compressedLen : asset->len)};
+				if (asset->compressedLen > 0)
+				{
+					source = utils::compression::zlib::decompress(source);
+				}
+
+				source = remove_s1_dev_blocks(source);
+
+				filesystem::file file(asset->name);
+				file.open("wb");
+				file.write(source.data(), source.size());
+				file.close();
+			}
+
 			std::string decompile_script(ScriptFile* asset)
 			{
 				auto& decompiler = gsc_context().decompiler();
@@ -61,9 +89,15 @@ namespace zonetool::s1
 
 			void dump_as_gsc(ScriptFile* asset)
 			{
-				const auto decompiled_data = decompile_script(asset);
+				const auto name = convert_name(asset->name);
+				const auto map = filesystem::get_fastfile();
+				auto decompiled_data = decompile_script(asset);
+				if (name == std::format("maps/mp/{}.gsc", map))
+				{
+					decompiled_data = make_map_setup_script(map, decompiled_data, {.ambient_play = "ambientplay", .keep_dvars = true});
+				}
 
-				filesystem::file file(convert_name(asset->name));
+				filesystem::file file(name);
 				file.open("wb");
 				file.write(decompiled_data.data(), decompiled_data.size());
 				file.close();
@@ -71,6 +105,12 @@ namespace zonetool::s1
 
 			void dump(ScriptFile* asset)
 			{
+				// the rawfile of the same name has the original source, dump_source writes it
+				if (db_find_x_asset_header_safe(ASSET_TYPE_RAWFILE, convert_name(asset->name)).data)
+				{
+					return;
+				}
+
 				dump_as_gsc(asset);
 			}
 		}
