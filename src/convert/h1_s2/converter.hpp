@@ -1,0 +1,42 @@
+#pragma once
+
+#include "include.hpp"
+
+#include "assets/aipaths.hpp"
+#include "assets/attachment.hpp"
+#include "assets/clipmap.hpp"
+#include "assets/comworld.hpp"
+#include "assets/fxeffectdef.hpp"
+#include "assets/fxparticlesimanimation.hpp"
+#include "assets/fxworld.hpp"
+#include "assets/gfximage.hpp"
+#include "assets/gfxworld.hpp"
+#include "assets/glassworld.hpp"
+#include "assets/loadedsound.hpp"
+#include "assets/mapents.hpp"
+#include "assets/material.hpp"
+#include "assets/netconststrings.hpp"
+#include "assets/physcollmap.hpp"
+#include "assets/physpreset.hpp"
+#include "assets/physworld.hpp"
+#include "assets/rawfile.hpp"
+#include "assets/scriptable.hpp"
+#include "assets/scriptfile.hpp"
+#include "assets/sound.hpp"
+#include "assets/stringtable.hpp"
+#include "assets/techset.hpp"
+#include "assets/tracer.hpp"
+#include "assets/weapon.hpp"
+#include "assets/xanim.hpp"
+#include "assets/xmodel.hpp"
+#include "assets/xsurface.hpp"
+
+namespace zonetool::h1::converter::s2
+{
+	struct csv_row
+	{
+		std::string type;
+		std::string name;
+		bool referenced;
+	};
+}
