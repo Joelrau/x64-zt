@@ -60,6 +60,11 @@ namespace zonetool::h1::converter::s2::techset
 				{
 					result.cascade_slices.emplace(arg.dest, static_cast<float>(index - CONST_SRC_CODE_SUN_SHADOWMAP_PIXEL_ADJUST_ARRAY_0));
 				}
+
+				if (index == CONST_SRC_CODE_SHADOWMAP_SWITCH_PARTITION_ARRAY_0 || index == CONST_SRC_CODE_SHADOWMAP_SWITCH_PARTITION_ARRAY_1)
+				{
+					result.cascade_slices.emplace(arg.dest, static_cast<float>(index - CONST_SRC_CODE_SHADOWMAP_SWITCH_PARTITION_ARRAY_0 + 1));
+				}
 			}
 
 			return result;
@@ -109,6 +114,99 @@ namespace zonetool::h1::converter::s2::techset
 			return result;
 		}
 
+		void convert_legacy_fog_args(const MaterialPass& pass, std::vector<MaterialShaderArgument>& stable, std::uint32_t& next_stable_row, // s2 has no legacy fog consts
+			shader::atmos_fog_rows& vertex, shader::atmos_fog_rows& pixel)
+		{
+			const auto is_code_const = [](const MaterialShaderArgument& arg, const unsigned int stage, const unsigned int index)
+			{
+				return arg.type == MTL_ARG_CODE_CONST && arg.shader == stage && arg.u.codeConst.index == index;
+			};
+
+			const auto reads_atmos_fog = std::ranges::any_of(stable, [](const MaterialShaderArgument& arg)
+			{
+				return arg.type == MTL_ARG_CODE_CONST && arg.u.codeConst.index >= CONST_SRC_CODE_ATMOS_FOG_PARMS_0 && arg.u.codeConst.index <= CONST_SRC_CODE_ATMOS_FOG_PARMS_6;
+			});
+
+			const auto reads_legacy_fog = std::ranges::any_of(stable, [&](const MaterialShaderArgument& arg)
+			{
+				return is_code_const(arg, MTL_SHADER_STAGE_VERTEX, CONST_SRC_CODE_FOG);
+			});
+
+			const auto pixel_name = pass.pixelShader ? std::string_view(pass.pixelShader->name) : std::string_view{};
+			if (reads_atmos_fog || !reads_legacy_fog || !pixel_name.contains("ndw"))
+			{
+				return;
+			}
+
+			for (auto& arg : stable)
+			{
+				if (is_code_const(arg, MTL_SHADER_STAGE_VERTEX, CONST_SRC_CODE_FOG))
+				{
+					vertex.legacy_fog = arg.dest;
+					arg.u.codeConst.index = CONST_SRC_CODE_ATMOS_FOG_PARMS_2;
+				}
+				else if (is_code_const(arg, MTL_SHADER_STAGE_PIXEL, CONST_SRC_CODE_FOG_COLOR_LINEAR))
+				{
+					pixel.legacy_color = arg.dest;
+					arg.u.codeConst.index = CONST_SRC_CODE_ATMOS_FOG_PARMS_1;
+				}
+				else if (is_code_const(arg, MTL_SHADER_STAGE_PIXEL, CONST_SRC_CODE_FOG_COLOR_GAMMA))
+				{
+					pixel.legacy_color_gamma = arg.dest;
+					arg.u.codeConst.index = CONST_SRC_CODE_ATMOS_FOG_PARMS_1;
+				}
+			}
+
+			vertex.legacy_start = next_stable_row++;
+			MaterialShaderArgument start{};
+			start.type = MTL_ARG_CODE_CONST;
+			start.shader = MTL_SHADER_STAGE_VERTEX;
+			start.dest = static_cast<unsigned short>(*vertex.legacy_start);
+			start.u.codeConst.index = CONST_SRC_CODE_ATMOS_FOG_PARMS_3;
+			start.u.codeConst.rowCount = 1;
+			stable.insert(stable.begin(), start);
+		}
+
+		bool add_lightmap_samplers(const MaterialPass& pass, std::vector<zonetool::s2::MaterialShaderArgument>& stable)
+		{
+			if (!pass.pixelShader || !(pass.customSamplerFlags & (zonetool::s2::CUSTOM_SAMPLER_FLAG_USE_LIGHTMAP_PRIMARY | zonetool::s2::CUSTOM_SAMPLER_FLAG_USE_LIGHTMAP_SECONDARY)))
+			{
+				return false;
+			}
+
+			auto added = false;
+			const auto [textures, samplers] = shader::declared_slots(pass.pixelShader->prog.loadDef.program, pass.pixelShader->prog.loadDef.programSize);
+			for (const auto dest : {2u, 3u})
+			{
+				const auto has_arg = std::ranges::any_of(stable, [&](const zonetool::s2::MaterialShaderArgument& arg)
+				{
+					return arg.type == zonetool::s2::MTL_ARG_CODE_SAMPLER && arg.dest == dest;
+				});
+
+				if (samplers.contains(dest) && !has_arg)
+				{
+					auto arg = make_arg(zonetool::s2::MTL_ARG_CODE_SAMPLER, MTL_SHADER_STAGE_PIXEL, static_cast<unsigned short>(dest));
+					arg.u.codeSampler = zonetool::s2::TEXTURE_SRC_CODE_LINEAR_CLAMP;
+					stable.emplace_back(arg);
+					added = true;
+				}
+			}
+
+			return added;
+		}
+
+		std::uint32_t find_free_sampler(const MaterialPixelShader* shader)
+		{
+			const auto samplers = shader::declared_slots(shader->prog.loadDef.program, shader->prog.loadDef.programSize).second;
+			auto slot = shader::ambient_light_grid_sampler;
+			while (samplers.contains(slot))
+			{
+				slot++;
+			}
+
+			return slot;
+		}
+
 		template <typename S2Shader, typename H1Shader>
 		S2Shader* convert_shader(const H1Shader* source, const program_patch& patch = {})
 		{
@@ -137,7 +235,7 @@ namespace zonetool::h1::converter::s2::techset
 			}
 			if (patch.sprite)
 			{
-				suffix += "_sprite";
+				suffix += patch.sprite_gamma_color ? "_sprite_gc" : "_sprite";
 			}
 			if (patch.lit_instance_rows)
 			{
@@ -146,6 +244,26 @@ namespace zonetool::h1::converter::s2::techset
 			if (patch.wind)
 			{
 				suffix += utils::string::va("_fw%u_%u_%u", patch.wind->time_row, patch.wind->wind_row, patch.wind->params_row);
+			}
+			if (patch.fog.legacy_fog && patch.fog.legacy_start)
+			{
+				suffix += utils::string::va("_lf%u_%u", *patch.fog.legacy_fog, *patch.fog.legacy_start);
+			}
+			if (patch.fog.legacy_color)
+			{
+				suffix += utils::string::va("_lfc%u", *patch.fog.legacy_color);
+			}
+			if (patch.fog.legacy_color_gamma)
+			{
+				suffix += utils::string::va("_lfg%u", *patch.fog.legacy_color_gamma);
+			}
+			if (patch.ambient_sun_row)
+			{
+				suffix += utils::string::va("_asun%u", *patch.ambient_sun_row);
+			}
+			if (patch.ambient_sampler != shader::ambient_light_grid_sampler)
+			{
+				suffix += utils::string::va("_as%u", patch.ambient_sampler);
 			}
 			const auto key = std::make_pair(static_cast<const void*>(source), suffix);
 			if (const auto entry = converted_shaders.find(key); entry != converted_shaders.end())
@@ -261,7 +379,7 @@ namespace zonetool::h1::converter::s2::techset
 			return result;
 		}
 
-		void add_light_grid_textures(std::vector<zonetool::s2::MaterialShaderArgument>& stable, const light_grid grid, const bool sampler)
+		void add_light_grid_textures(std::vector<zonetool::s2::MaterialShaderArgument>& stable, const light_grid grid, const bool sampler, const std::uint32_t sampler_slot)
 		{
 			if (grid == light_grid::probe_buffer)
 			{
@@ -270,7 +388,7 @@ namespace zonetool::h1::converter::s2::techset
 
 			if (sampler)
 			{
-				auto arg = make_arg(zonetool::s2::MTL_ARG_CODE_SAMPLER, MTL_SHADER_STAGE_PIXEL, shader::ambient_light_grid_sampler);
+				auto arg = make_arg(zonetool::s2::MTL_ARG_CODE_SAMPLER, MTL_SHADER_STAGE_PIXEL, static_cast<unsigned short>(sampler_slot));
 				arg.u.codeSampler = zonetool::s2::TEXTURE_SRC_CODE_LINEAR_CLAMP;
 				stable.emplace_back(arg);
 			}
@@ -469,6 +587,12 @@ namespace zonetool::h1::converter::s2::techset
 		{
 			std::erase_if(*list, [&](const MaterialShaderArgument& arg)
 			{
+				if ((arg.type == MTL_ARG_CODE_TEXTURE || arg.type == MTL_ARG_CODE_SAMPLER) && arg.u.codeSampler == TEXTURE_SRC_CODE_LIGHT_ATTENUATION) // no s2 source, light_merger replaces it
+				{
+					(arg.type == MTL_ARG_CODE_TEXTURE ? result.attenuation_texture : result.attenuation_sampler) = arg.dest;
+					return true;
+				}
+
 				if (arg.type != MTL_ARG_CODE_CONST || arg.u.codeConst.index > CONST_SRC_CODE_LIGHT_DYN_SHADOW_TYPES)
 				{
 					return false;
@@ -510,7 +634,7 @@ namespace zonetool::h1::converter::s2::techset
 	void add_light_tile_args(const shader::primary_lights& lights, std::vector<zonetool::s2::MaterialShaderArgument>& stable)
 	{
 		for (const auto& [row, index] : {std::pair{lights.render_target_size_row, zonetool::s2::CONST_SRC_CODE_RENDER_TARGET_SIZE},
-			std::pair{lights.tile_parms_row, zonetool::s2::CONST_SRC_CODE_LIGHT_TILE_PARMS}})
+			std::pair{lights.tile_parms_row, zonetool::s2::CONST_SRC_CODE_FRUSTUM_GRID_LIGHT_PARAMS}})
 		{
 			auto arg = make_arg(zonetool::s2::MTL_ARG_CODE_CONST, MTL_SHADER_STAGE_PIXEL, static_cast<unsigned short>(row));
 			arg.u.codeConst = {static_cast<unsigned short>(index), 0, 1};
@@ -551,13 +675,22 @@ namespace zonetool::h1::converter::s2::techset
 			next_stable_row += 3;
 		}
 
+		auto vertex_fog = find_atmos_fog_rows(pass, MTL_SHADER_STAGE_VERTEX);
+		auto pixel_fog = find_atmos_fog_rows(pass, MTL_SHADER_STAGE_PIXEL);
+		convert_legacy_fog_args(pass, stable_list, next_stable_row, vertex_fog, pixel_fog);
+
 		program_patch vertex_patch{{}, lighting};
 		vertex_patch.lightmap_params_dest = lightmap_params;
 		vertex_patch.wind = wind;
 		vertex_patch.stable_literal_rows = stable_literal_rows;
 		vertex_patch.sprite = sprite;
+		if (sprite && pass.pixelShader)
+		{
+			vertex_patch.sprite_gamma_color = std::string_view(pass.pixelShader->name).contains("_iw6")
+				&& shader::squares_color(pass.pixelShader->prog.loadDef.program, pass.pixelShader->prog.loadDef.programSize);
+		}
 		vertex_patch.lit_instance_rows = lit_instances;
-		vertex_patch.fog = find_atmos_fog_rows(pass, MTL_SHADER_STAGE_VERTEX);
+		vertex_patch.fog = vertex_fog;
 		if (light_pass_rows)
 		{
 			vertex_patch.material_rows = light_pass_rows->vertex;
@@ -570,7 +703,21 @@ namespace zonetool::h1::converter::s2::techset
 		program_patch pixel_patch{find_sun_shadow_lookup(pass), lighting, grid};
 		pixel_patch.lights = primary_lights;
 		pixel_patch.ssr_texture = find_pixel_code_texture(pass, TEXTURE_SRC_CODE_SSR_BUFFER);
-		pixel_patch.fog = find_atmos_fog_rows(pass, MTL_SHADER_STAGE_PIXEL);
+		pixel_patch.fog = pixel_fog;
+		if (lighting && lighting->ambient && grid != light_grid::probe_buffer && pass.pixelShader)
+		{
+			pixel_patch.ambient_sampler = find_free_sampler(pass.pixelShader);
+		}
+		if (lighting && lighting->ambient)
+		{
+			for (const auto& arg : per_obj_list)
+			{
+				if (arg.type == MTL_ARG_CODE_CONST && arg.shader == MTL_SHADER_STAGE_PIXEL && arg.u.codeConst.index == CONST_SRC_CODE_LIGHT_DIFFUSE)
+				{
+					pixel_patch.ambient_sun_row = arg.dest;
+				}
+			}
+		}
 		if (light_pass_rows)
 		{
 			pixel_patch.material_rows = light_pass_rows->pixel;
@@ -606,7 +753,7 @@ namespace zonetool::h1::converter::s2::techset
 
 		if (lighting)
 		{
-			add_light_grid_textures(stable, grid, lighting->ambient);
+			add_light_grid_textures(stable, grid, lighting->ambient, pixel_patch.ambient_sampler);
 		}
 
 		if (primary_lights)
@@ -619,7 +766,8 @@ namespace zonetool::h1::converter::s2::techset
 			add_foliage_wind_args(*wind, stable);
 		}
 
-		if (primary_lights || wind)
+		const auto bound_samplers = add_lightmap_samplers(pass, stable);
+		if (primary_lights || wind || bound_samplers)
 		{
 			std::ranges::stable_sort(stable, {}, &zonetool::s2::MaterialShaderArgument::type);
 			check_group_size(stable);

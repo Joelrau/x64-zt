@@ -105,25 +105,30 @@ namespace zonetool::h1::converter::s2::shader
 		return result;
 	}
 
+	bool reads_model_lighting_row(const alys::shader::detail::instruction_t& instruction, const model_lighting& lighting)
+	{
+		if (instruction.opcode.type != D3D10_SB_OPCODE_MOV || instruction.operands[0].type != D3D10_SB_OPERAND_TYPE_OUTPUT
+			|| instruction.operands[1].type != D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER)
+		{
+			return false;
+		}
+
+		const auto& source = instruction.operands[1];
+		if (lighting.instanced)
+		{
+			return source.indices[0].value.uint32 == h1_model_lighting_buffer;
+		}
+
+		return source.indices[0].value.uint32 == 0 && source.indices[1].representation == D3D10_SB_OPERAND_INDEX_IMMEDIATE32
+			&& source.indices[1].value.uint32 == lighting.coords_dest;
+	}
+
 	vertex_lighting find_vertex_lighting(alys::shader::shader_object& shader, const model_lighting& lighting)
 	{
 		const auto& instructions = shader.get_instructions();
 		const auto writes_coords = [&](const alys::shader::detail::instruction_t& instruction)
 		{
-			if (instruction.opcode.type != D3D10_SB_OPCODE_MOV || instruction.operands[0].type != D3D10_SB_OPERAND_TYPE_OUTPUT
-				|| instruction.operands[1].type != D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER)
-			{
-				return false;
-			}
-
-			const auto& source = instruction.operands[1];
-			if (lighting.instanced)
-			{
-				return source.indices[0].value.uint32 == h1_model_lighting_buffer;
-			}
-
-			return source.indices[0].value.uint32 == 0 && source.indices[1].representation == D3D10_SB_OPERAND_INDEX_IMMEDIATE32
-				&& source.indices[1].value.uint32 == lighting.coords_dest;
+			return reads_model_lighting_row(instruction, lighting) && instruction.operands[0].components.mask != 0x8;
 		};
 
 		const auto coords_write = std::ranges::find_if(instructions, writes_coords);

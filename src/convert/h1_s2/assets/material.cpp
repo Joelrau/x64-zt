@@ -265,7 +265,9 @@ namespace zonetool::h1::converter::s2::material
 
 				material->constantBufferIndex[slot] = asset->constantBufferIndex[source];
 
-				const auto h1_entry = asset->stateBitsEntry[source];
+				const auto state_override = state_source(native.state_sources[slot]);
+				const auto prepass_from_lit = state_override >= 0 && asset->stateBitsEntry[state_override] != no_entry;
+				const auto h1_entry = asset->stateBitsEntry[prepass_from_lit ? state_override : source];
 				if (h1_entry == no_entry)
 				{
 					continue;
@@ -282,7 +284,7 @@ namespace zonetool::h1::converter::s2::material
 					throw std::runtime_error(std::format("technique {} has no state bits", source));
 				}
 
-				const auto key = std::make_tuple(h1_entry, light_entry, blend_class(slot), pass_count);
+				const auto key = std::make_tuple(h1_entry, prepass_from_lit ? std::uint8_t(0xFE) : light_entry, blend_class(slot), pass_count);
 				const auto [entry, inserted] = entries.try_emplace(key, static_cast<std::uint8_t>(state_bits.size()));
 				if (inserted)
 				{
@@ -291,6 +293,14 @@ namespace zonetool::h1::converter::s2::material
 						if (pass < base_pass_count)
 						{
 							state_bits.emplace_back(convert_state_bits(asset->stateBitsTable[h1_entry + pass], std::get<2>(key), effect));
+							if (prepass_from_lit)
+							{
+								auto& bits = state_bits.back();
+								bits.loadBits[0] = (bits.loadBits[0] & GFXS0_CULL_MASK) | GFXS0_ATEST_DISABLE;
+								bits.loadBits[1] = 0xE49E4907;
+								bits.loadBits[3] = 0x9012;
+								bits.rasterizerState = rasterizer_index(bits.loadBits[0], bits.loadBits[2]);
+							}
 						}
 						else
 						{
@@ -383,7 +393,8 @@ namespace zonetool::h1::converter::s2::material
 				return token.starts_with("t0") || token.starts_with("a0") || token == "vdh";
 			});
 
-			if (!alpha_tested && !deforms_prepass_vertices(asset))
+			const auto named_deform = name.contains("_atest") || name.contains("_flag");
+			if (!alpha_tested && !named_deform && !deforms_prepass_vertices(asset))
 			{
 				return zonetool::s2::PREPASS_CLASS_OPAQUE;
 			}

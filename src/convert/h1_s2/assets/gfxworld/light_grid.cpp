@@ -51,6 +51,34 @@ namespace zonetool::h1::converter::s2::gfxworld
 			return values;
 		}
 
+		std::array<float, light_grid::probe_sh_count + 1> ground_probe(const GfxColorHdr& ground)
+		{
+			float radiance[light_grid::basis_dir_count][3];
+			for (auto dir = 0u; dir < light_grid::basis_dir_count; dir++)
+			{
+				for (auto channel = 0; channel < 3; channel++)
+				{
+					radiance[dir][channel] = half_float::half_to_float(ground.array[channel]) / 1.76f;
+				}
+			}
+
+			std::array<float, light_grid::probe_sh_count + 1> values{};
+			light_grid::project_probe_sh(radiance, values.data());
+			values.back() = half_float::half_to_float(ground.array[3]);
+			return values;
+		}
+
+		bool uses_baked_lighting(const unsigned int flags)
+		{
+			const auto baked_flags = STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING | STATIC_MODEL_FLAG_ANIMATED_VERTS;
+			return (flags & baked_flags) == baked_flags;
+		}
+
+		bool uses_ground_lighting(const unsigned int flags)
+		{
+			return (flags & STATIC_MODEL_FLAG_GROUND_LIGHTING) != 0 && !uses_baked_lighting(flags);
+		}
+
 		class probe_average
 		{
 		public:
@@ -392,7 +420,13 @@ namespace zonetool::h1::converter::s2::gfxworld
 
 		std::optional<std::array<float, light_grid::probe_sh_count + 1>> static_model_lighting(GfxWorld* asset, light_grid_sampler& sampler, const unsigned int index)
 		{
-			if (asset->dpvs.smodelDrawInsts[index].flags & STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING)
+			const auto flags = asset->dpvs.smodelDrawInsts[index].flags;
+			if (uses_ground_lighting(flags))
+			{
+				return ground_probe(asset->dpvs.smodelLightingInsts[index].ambientLightingInfo.groundLighting);
+			}
+
+			if (uses_baked_lighting(flags))
 			{
 				if (const auto baked = sampler.baked(asset->dpvs.smodelLightingInsts[index].ambientLightingInfo))
 				{
@@ -438,7 +472,15 @@ namespace zonetool::h1::converter::s2::gfxworld
 			{
 				auto values = samples[i] ? *samples[i] : fallback;
 				const auto has_sun = sampler.env_has_sun(asset->dpvs.smodelDrawInsts[i].primaryLightEnvIndex);
-				values.back() = probe_sun_visibility(values.back(), has_sun);
+				if (uses_ground_lighting(asset->dpvs.smodelDrawInsts[i].flags))
+				{
+					values.back() = has_sun ? values.back() : 0.0f;
+				}
+				else
+				{
+					values.back() = probe_sun_visibility(values.back(), has_sun);
+				}
+
 				probes[i] = pack_probe(values);
 			}
 

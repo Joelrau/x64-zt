@@ -338,6 +338,32 @@ namespace zonetool::h1::converter::s2::gfximage
 			});
 		}
 
+		bool is_compass_map(const GfxImage* asset)
+		{
+			return is_2d(asset) && std::string_view(asset->name).contains("compass_map_");
+		}
+
+		bool convert_compass_map(image_pixels& pixels, const DXGI_FORMAT format) // stock minimap shader ignores alpha
+		{
+			return transform_levels(pixels, format, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_BC1_UNORM, [](const DirectX::Image& image)
+			{
+				for (auto y = 0u; y < image.height; y++)
+				{
+					const auto row = image.pixels + y * image.rowPitch;
+					for (auto x = 0u; x < image.width; x++)
+					{
+						const auto pixel = row + x * 4;
+						for (auto channel = 0; channel < 3; channel++)
+						{
+							pixel[channel] = static_cast<std::uint8_t>(pixel[channel] * pixel[3] / 255u);
+						}
+
+						pixel[3] = 255;
+					}
+				}
+			});
+		}
+
 		template <typename Convert>
 		bool convert_chains(std::vector<image_pixels>& chains, Convert&& convert)
 		{
@@ -351,9 +377,30 @@ namespace zonetool::h1::converter::s2::gfximage
 			return true;
 		}
 
+		bool bake_compass_map(const GfxImage* asset, std::vector<image_pixels>& chains)
+		{
+			if (asset->imageFormat != DXGI_FORMAT_BC3_UNORM || !is_compass_map(asset))
+			{
+				return false;
+			}
+
+			if (convert_chains(chains, [](image_pixels& pixels) { return convert_compass_map(pixels, DXGI_FORMAT_BC3_UNORM); }))
+			{
+				return true;
+			}
+
+			ZONETOOL_WARNING("Failed to convert compass map \"%s\"", asset->name);
+			return false;
+		}
+
 		DXGI_FORMAT convert_pixels(const GfxImage* asset, std::vector<image_pixels>& chains)
 		{
 			const auto format = static_cast<DXGI_FORMAT>(asset->imageFormat);
+			if (bake_compass_map(asset, chains))
+			{
+				return DXGI_FORMAT_BC1_UNORM;
+			}
+
 			if (asset->semantic == TS_NORMAL_MAP && format == DXGI_FORMAT_BC5_UNORM && is_2d(asset))
 			{
 				if (convert_chains(chains, [&](image_pixels& pixels) { return convert_normal_map(pixels, format); }))
@@ -548,9 +595,14 @@ namespace zonetool::h1::converter::s2::gfximage
 			return name;
 		}
 
-		const auto format = static_cast<DXGI_FORMAT>(asset->imageFormat);
+		auto format = static_cast<DXGI_FORMAT>(asset->imageFormat);
 		const auto srgb = asset->mapType == MAPTYPE_CUBE && format != DXGI_FORMAT_BC7_UNORM;
-		const auto data = read_image(asset);
+		auto data = read_image(asset);
+		if (data && bake_compass_map(asset, data->chains))
+		{
+			format = DXGI_FORMAT_BC1_UNORM;
+		}
+
 		const auto format_index = s2_format_index(srgb ? srgb_format(format) : format);
 		if (!data || !format_index)
 		{

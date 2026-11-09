@@ -15,8 +15,8 @@ namespace zonetool::h1::converter::s2::techset
 		std::map<std::pair<const zonetool::s2::MaterialTechnique*, const MaterialPass*>, zonetool::s2::MaterialTechnique*> light_pass_techniques;
 		std::map<std::tuple<const zonetool::s2::MaterialTechnique*, const MaterialPass*, bool>, zonetool::s2::MaterialTechnique*> merged_light_techniques;
 
-		constexpr std::array<std::uint16_t, 3> light_cluster_consts{zonetool::s2::CONST_SRC_CODE_LIGHT_CLUSTER_CELLS,
-			zonetool::s2::CONST_SRC_CODE_LIGHT_CLUSTER_SLICE_STARTS, zonetool::s2::CONST_SRC_CODE_LIGHT_CLUSTER_SLICE_SCALES};
+		constexpr std::array<std::uint16_t, 3> light_cluster_consts{zonetool::s2::CONST_SRC_CODE_FRUSTUM_GRID_CLUSTER_SIZE,
+			zonetool::s2::CONST_SRC_CODE_VOLUMETRIC_DEPTH, zonetool::s2::CONST_SRC_CODE_VOLUMETRIC_DEPTH_RCP};
 
 		std::unordered_map<std::string, zonetool::s2::MaterialPixelShader*> merged_pixel_shaders;
 		std::unordered_map<std::string, unsigned int> merged_pixel_shader_names;
@@ -322,8 +322,19 @@ namespace zonetool::h1::converter::s2::techset
 			static std::unordered_set<std::string> warned_merge;
 			if (warned_merge.insert(light->hdr.name).second)
 			{
-				ZONETOOL_WARNING("technique \"%s\" gets a separate light pass: %s", light->hdr.name, e.what());
+				ZONETOOL_WARNING("technique \"%s\" is not merged with its lit pass: %s", light->hdr.name, e.what());
 			}
+		}
+
+		const auto& pass = light->passArray[0];
+		const auto reads_attenuation = std::ranges::any_of(std::span(pass.args, pass.args ? pass.perPrimArgCount + pass.perObjArgCount + pass.stableArgCount : 0), [](const MaterialShaderArgument& arg)
+		{
+			return arg.type == MTL_ARG_CODE_TEXTURE && arg.u.codeSampler == TEXTURE_SRC_CODE_LIGHT_ATTENUATION;
+		});
+
+		if (reads_attenuation)
+		{
+			return;
 		}
 
 		try

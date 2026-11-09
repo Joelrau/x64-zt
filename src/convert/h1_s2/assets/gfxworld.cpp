@@ -2,6 +2,7 @@
 
 #include "../include.hpp"
 #include "gfxworld.hpp"
+#include "clipmap.hpp"
 #include "comworld.hpp"
 #include "gfximage.hpp"
 #include "material.hpp"
@@ -630,10 +631,49 @@ namespace zonetool::h1::converter::s2::gfxworld
 			return geometry;
 		}
 
+		void add_care_package_model(const GfxWorld* asset, zonetool::s2::GfxWorld& world, utils::memory::allocator& allocator)
+		{
+			const auto index = clipmap::care_package_model(asset->name);
+			if (!index)
+			{
+				return;
+			}
+
+			if (*index != static_cast<unsigned int>(world.modelCount))
+			{
+				ZONETOOL_WARNING("GfxWorld \"%s\": has %d brush models but the care package model is *%u, not adding it", asset->name, world.modelCount, *index);
+				return;
+			}
+
+			zonetool::s2::GfxBrushModel model{};
+			model.writable.quat[3] = 1.0f;
+			model.mdaoVolumeIndex = -1;
+			for (auto i = world.modelCount - 1; i >= 0; i--)
+			{
+				if (!world.models[i].surfaceCount)
+				{
+					model = world.models[i];
+					break;
+				}
+			}
+
+			model.bounds = clipmap::care_package_bounds(0.0f);
+			model.writable.bounds = model.bounds;
+			model.radius = clipmap::care_package_radius();
+			model.surfaceCount = 0;
+
+			const auto models = allocator.allocate_array<zonetool::s2::GfxBrushModel>(world.modelCount + 1);
+			std::copy_n(world.models, world.modelCount, models);
+			models[world.modelCount] = model;
+			world.models = models;
+			world.modelCount++;
+		}
+
 		void convert_models(GfxWorld* asset, zonetool::s2::GfxWorld& world, utils::memory::allocator& allocator)
 		{
 			world.modelCount = asset->modelCount;
 			world.models = retype<zonetool::s2::GfxBrushModel>(asset->models);
+			add_care_package_model(asset, world, allocator);
 			world.bounds = std::bit_cast<zonetool::s2::Bounds>(asset->bounds);
 			world.shadowBounds = std::bit_cast<zonetool::s2::Bounds>(asset->shadowBounds);
 			world.checksum = asset->checksum;

@@ -20,17 +20,17 @@ namespace zonetool::h1::converter::s2::techset
 	{
 		if (slot >= zonetool::s2::TECHNIQUE_LIT_BEGIN && slot < zonetool::s2::TECHNIQUE_LIT_END)
 		{
-			if ((slot - zonetool::s2::TECHNIQUE_LIT_BEGIN) % 2)
-			{
-				return {TECHNIQUE_LIT_DIR_SHADOW_DFOG, TECHNIQUE_LIT_DIR_DFOG, TECHNIQUE_LIT_DFOG};
-			}
-
 			return {TECHNIQUE_LIT_DIR_SHADOW, TECHNIQUE_LIT_DIR, TECHNIQUE_LIT};
 		}
 
-		if (slot >= zonetool::s2::TECHNIQUE_EMISSIVE && slot <= zonetool::s2::TECHNIQUE_EMISSIVE_SHADOW_DFOG)
+		if (slot == zonetool::s2::TECHNIQUE_EMISSIVE || slot == zonetool::s2::TECHNIQUE_EMISSIVE_ALFOG)
 		{
-			return {TECHNIQUE_EMISSIVE + slot - zonetool::s2::TECHNIQUE_EMISSIVE};
+			return {TECHNIQUE_EMISSIVE};
+		}
+
+		if (slot == zonetool::s2::TECHNIQUE_EMISSIVE_SHADOW || slot == zonetool::s2::TECHNIQUE_EMISSIVE_SHADOW_ALFOG)
+		{
+			return {TECHNIQUE_EMISSIVE_SHADOW};
 		}
 
 		switch (slot)

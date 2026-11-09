@@ -32,6 +32,8 @@ namespace zonetool::h1::converter::s2::shader
 		std::uint32_t tile_parms_row;
 		bool spot_shadows;
 		std::optional<std::uint32_t> cluster_row;
+		std::optional<std::uint32_t> attenuation_texture;
+		std::optional<std::uint32_t> attenuation_sampler;
 	};
 
 	enum class light_grid
@@ -77,6 +79,10 @@ namespace zonetool::h1::converter::s2::shader
 		std::optional<std::uint32_t> extinction;
 		std::optional<std::uint32_t> in_scatter;
 		std::optional<std::uint32_t> sun_dir;
+		std::optional<std::uint32_t> legacy_fog;
+		std::optional<std::uint32_t> legacy_start;
+		std::optional<std::uint32_t> legacy_color;
+		std::optional<std::uint32_t> legacy_color_gamma;
 	};
 
 	struct program_patch
@@ -85,9 +91,12 @@ namespace zonetool::h1::converter::s2::shader
 		std::optional<model_lighting> lighting;
 		light_grid grid{};
 		std::uint32_t lighting_semantic{};
+		std::uint32_t ambient_sampler{ambient_light_grid_sampler};
+		std::optional<std::uint32_t> ambient_sun_row;
 		std::optional<std::uint32_t> lightmap_params_dest;
 		std::vector<stable_literal_row> stable_literal_rows;
 		bool sprite{};
+		bool sprite_gamma_color{};
 		bool lit_instance_rows{};
 		std::optional<primary_lights> lights;
 		std::optional<foliage_wind> wind;
@@ -117,4 +126,5 @@ namespace zonetool::h1::converter::s2::shader
 	patched_program patch_program(const unsigned char* program, unsigned int size, bool is_vertex_shader, const program_patch& patch);
 	patched_program merge_light_program(const unsigned char* lit, unsigned int lit_size, const unsigned char* light, unsigned int light_size, const light_merge& merge);
 	std::pair<std::set<std::uint32_t>, std::set<std::uint32_t>> declared_slots(const unsigned char* program, unsigned int size);
+	bool squares_color(const unsigned char* program, unsigned int size);
 }

@@ -1,6 +1,7 @@
 #include <std_include.hpp>
 
 #include "../include.hpp"
+#include "clipmap.hpp"
 #include "mapents.hpp"
 #include "netconststrings.hpp"
 #include "scriptable.hpp"
@@ -134,12 +135,125 @@ namespace zonetool::h1::converter::s2::mapents
 			return buffer;
 		}
 
+		std::string care_package_entities(const std::string& map_name)
+		{
+			const auto model = clipmap::care_package_model(map_name);
+			const auto* clip_map = zonetool::h1::db_find_x_asset_header_safe(ASSET_TYPE_CLIPMAP, map_name).clipMap;
+			if (!model || !clip_map->numSubModels)
+			{
+				return {};
+			}
+
+			const auto& world = clip_map->cmodels[0].bounds;
+			const auto x = std::round(world.midPoint[0]);
+			const auto y = std::round(world.midPoint[1]);
+			const auto z = std::floor(world.midPoint[2] - world.halfSize[2]) - 512.0f;
+			ZONETOOL_INFO("map_ents \"%s\": added care package collision *%u at %g %g %g", map_name.data(), *model, x, y, z);
+
+			return std::format("\n{{\n\"target\" \"care_package_collision\"\n\"targetname\" \"care_package\"\n\"origin\" \"{} {} {}\"\n"
+				"\"classname\" \"script_model\"\n\"model\" \"ger_carepackage_crate\"\n}}\n{{\n\"script_gameobjectname\" \"airdrop_pallet\"\n"
+				"\"targetname\" \"care_package_collision\"\n\"classname\" \"script_brushmodel\"\n\"origin\" \"{} {} {}\"\n\"model\" \"*{}\"\n}}",
+				x, y, z + 15.0f, x, y, z, *model);
+		}
+
+		std::vector<std::array<float, 3>> minimap_corners(const std::string& entities)
+		{
+			std::vector<std::array<float, 3>> corners;
+			for (auto start = entities.find('{'); start != std::string::npos; start = entities.find('{', start + 1))
+			{
+				const auto end = entities.find('}', start);
+				const auto entity = entities.substr(start, end - start);
+				const auto origin = entity.find("\"origin\" \"");
+				if (entity.find("\"targetname\" \"minimap_corner\"") == std::string::npos || origin == std::string::npos)
+				{
+					continue;
+				}
+
+				std::array<float, 3> corner{};
+				if (std::sscanf(entity.data() + origin + 10, "%f %f %f", &corner[0], &corner[1], &corner[2]) == 3)
+				{
+					corners.emplace_back(corner);
+				}
+			}
+
+			return corners;
+		}
+
+		std::string remote_missile_entities(const MapEnts* asset, const std::string& entities)
+		{
+			if (!std::string_view(asset->name).starts_with("maps/mp/") || entities.find("\"remoteMissileSpawn\"") != std::string::npos)
+			{
+				return {};
+			}
+
+			std::array<float, 2> mins{std::numeric_limits<float>::max(), std::numeric_limits<float>::max()};
+			std::array<float, 2> maxs{-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max()};
+			const auto add_point = [&](const float x, const float y)
+			{
+				mins = {std::min(mins[0], x), std::min(mins[1], y)};
+				maxs = {std::max(maxs[0], x), std::max(maxs[1], y)};
+			};
+
+			const auto corners = minimap_corners(entities);
+			std::vector<float> heights;
+			for (auto i = 0; asset->spawnList.spawns && i < asset->spawnList.spawnsCount; i++)
+			{
+				const auto& origin = asset->spawnList.spawns[i].origin;
+				heights.emplace_back(origin[2]);
+				if (corners.size() < 2)
+				{
+					add_point(origin[0], origin[1]);
+				}
+			}
+
+			for (const auto& corner : corners)
+			{
+				add_point(corner[0], corner[1]);
+			}
+
+			if (heights.empty() || mins[0] > maxs[0])
+			{
+				return {};
+			}
+
+			std::ranges::nth_element(heights, heights.begin() + heights.size() / 2);
+			const auto ground = std::round(heights[heights.size() / 2]);
+			const auto center_x = std::round((mins[0] + maxs[0]) * 0.5f);
+			const auto center_y = std::round((mins[1] + maxs[1]) * 0.5f);
+			const auto quarter_x = std::round((maxs[0] - mins[0]) * 0.25f);
+			const auto quarter_y = std::round((maxs[1] - mins[1]) * 0.25f);
+
+			std::string result;
+			constexpr std::array<std::array<float, 2>, 4> quadrants{{{1.0f, 1.0f}, {-1.0f, 1.0f}, {-1.0f, -1.0f}, {1.0f, -1.0f}}};
+			for (auto i = 0u; i < quadrants.size(); i++)
+			{
+				const auto target = std::format("remote_missile_target_{}", i);
+				result += std::format("\n{{\n\"targetname\" \"{}\"\n\"classname\" \"script_origin\"\n\"origin\" \"{} {} {}\"\n}}", target,
+					center_x + quadrants[i][0] * quarter_x, center_y + quadrants[i][1] * quarter_y, ground + 64.0f);
+				result += std::format("\n{{\n\"script_noteworthy\" \"{}\"\n\"target\" \"{}\"\n\"targetname\" \"remoteMissileSpawn\"\n\"classname\" \"script_origin\"\n"
+					"\"origin\" \"{} {} {}\"\n}}", i, target, center_x, center_y, ground + 3400.0f);
+			}
+
+			ZONETOOL_INFO("map_ents \"%s\": added 4 remoteMissileSpawn ents over %g %g, ground %g", asset->name, center_x, center_y, ground);
+			return result;
+		}
+
 		zonetool::s2::MapEnts* convert(MapEnts* asset, utils::memory::allocator& allocator)
 		{
 			const auto new_asset = allocator.allocate<zonetool::s2::MapEnts>();
 			new_asset->name = asset->name;
 
-			const auto entity_string = replace_entity_keys({asset->entityString, static_cast<std::size_t>(asset->numEntityChars)});
+			auto entity_string = replace_entity_keys({asset->entityString, static_cast<std::size_t>(asset->numEntityChars)});
+			const auto added = care_package_entities(asset->name) + remote_missile_entities(asset, entity_string);
+			if (!added.empty())
+			{
+				while (entity_string.ends_with('\n'))
+				{
+					entity_string.pop_back();
+				}
+
+				entity_string += added;
+			}
 			new_asset->numEntityChars = static_cast<int>(entity_string.size() + 1);
 			new_asset->entityString = allocator.allocate_array<char>(new_asset->numEntityChars);
 			std::memcpy(new_asset->entityString, entity_string.data(), entity_string.size());

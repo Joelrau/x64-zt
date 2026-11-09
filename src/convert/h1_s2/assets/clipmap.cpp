@@ -12,6 +12,9 @@ namespace zonetool::h1::converter::s2::clipmap
 	{
 		clipMap_t* pending_clip_map = nullptr;
 
+		constexpr zonetool::s2::Bounds care_package_brush{{0.5f, -0.5f, 15.0f}, {29.5f, 15.5f, 14.0f}};
+		constexpr std::uint64_t care_package_contents = 0x8031640;
+
 		std::string transient_zone_name(const std::string& clip_name)
 		{
 			auto base = clip_name.substr(clip_name.find_last_of('/') + 1);
@@ -393,6 +396,65 @@ namespace zonetool::h1::converter::s2::clipmap
 			}
 		}
 
+		template <typename T>
+		T* append(const T* source, const std::size_t count, const T& value, utils::memory::allocator& allocator)
+		{
+			const auto result = allocator.allocate_array<T>(count + 1);
+			if (count)
+			{
+				std::memcpy(result, source, sizeof(T) * count);
+			}
+
+			result[count] = value;
+			return result;
+		}
+
+		int add_care_package_brush(zonetool::s2::ClipInfo& info, utils::memory::allocator& allocator)
+		{
+			const auto material = static_cast<short>(info.numMaterials);
+			info.materials = append(info.materials, info.numMaterials, {"clip_nosight_metal", 0x1D440A0, {}, care_package_contents}, allocator);
+			info.numMaterials++;
+
+			auto& brushes = info.trZones[0]->bCollisionData;
+			const auto brush_index = brushes.numBrushes;
+			zonetool::s2::cbrush_t brush{};
+			std::fill_n(&brush.axialMaterialNum[0][0], 6, material);
+			brushes.brushes = append(brushes.brushes, brush_index, brush, allocator);
+			brushes.brushBounds = append(brushes.brushBounds, brush_index, care_package_brush, allocator);
+			brushes.brushContents = append(brushes.brushContents, brush_index, care_package_contents, allocator);
+			brushes.numBrushes++;
+			info.transientZones.zones[0].brushEnd = brushes.numBrushes;
+
+			auto& tree = info.bCollisionTree;
+			zonetool::s2::cLeafBrushNode_s node{};
+			node.transientZone = 0;
+			node.leafBrushCount = 1;
+			node.contents = care_package_contents;
+			node.data.leaf.brushes = allocator.allocate<unsigned int>();
+			*node.data.leaf.brushes = brush_index;
+			tree.leafbrushNodes = append(tree.leafbrushNodes, tree.leafbrushNodesCount, node, allocator);
+			return static_cast<int>(tree.leafbrushNodesCount++);
+		}
+
+		void add_care_package_model(zonetool::s2::clipMap_t* new_asset, const int leaf_brush_node, utils::memory::allocator& allocator)
+		{
+			zonetool::s2::cmodel_t cmodel{};
+			cmodel.bounds = care_package_bounds(1.0f);
+			cmodel.radius = care_package_radius();
+			cmodel.info = new_asset->pInfo;
+			cmodel.leaf.firstCollAabbIndex = new_asset->numSubModels ? new_asset->cmodels[new_asset->numSubModels - 1].leaf.firstCollAabbIndex : 0;
+			cmodel.leaf.brushContents = care_package_contents;
+			cmodel.leaf.bounds = care_package_bounds(0.125f);
+			cmodel.leaf.leafBrushNode = leaf_brush_node;
+			cmodel.leaf.brushTransientZone = 0;
+			cmodel.leaf.aabbTransientZone = 0xFF;
+			cmodel.navObstacleIdx = 0xFFFF;
+
+			new_asset->cmodels = append(new_asset->cmodels, new_asset->numSubModels, cmodel, allocator);
+			ZONETOOL_INFO("clipMap \"%s\": added care package collision brush model *%u", new_asset->name, new_asset->numSubModels);
+			new_asset->numSubModels++;
+		}
+
 		zonetool::s2::clipMap_t* convert(const clipMap_t* asset, utils::memory::allocator& allocator)
 		{
 			const auto new_asset = allocator.allocate<zonetool::s2::clipMap_t>();
@@ -413,17 +475,66 @@ namespace zonetool::h1::converter::s2::clipmap
 			new_info.transientZones.zones[0].partitionCount = info.pCollisionData.partitionCount;
 			new_info.trZones[0] = convert_transient_zone(asset, partition_materials, allocator);
 
+			const auto care_package = care_package_model(asset->name);
+			const auto care_package_node = care_package ? add_care_package_brush(new_info, allocator) : -1;
+
 			new_asset->pInfo = allocator.allocate<zonetool::s2::ClipInfo>();
 			*new_asset->pInfo = new_info;
 
 			convert_nodes(asset, new_asset, allocator);
 			convert_leafs(asset, new_asset, allocator);
+			if (care_package)
+			{
+				add_care_package_model(new_asset, care_package_node, allocator);
+			}
+
 			convert_stages(asset, new_asset, allocator);
 			new_asset->mapEnts = asset->mapEnts ? make_stub<zonetool::s2::MapEnts>(asset->mapEnts->name, allocator) : nullptr;
 			new_asset->checksum = asset->checksum;
 			convert_dyn_ents(asset, new_asset, allocator);
 			return new_asset;
 		}
+	}
+
+	std::optional<unsigned int> care_package_model(const std::string& map_name)
+	{
+		const auto* clip_map = zonetool::h1::db_find_x_asset_header_safe(ASSET_TYPE_CLIPMAP, map_name).clipMap;
+		if (!map_name.starts_with("maps/mp/") || !clip_map || !clip_map->mapEnts || !clip_map->mapEnts->entityString)
+		{
+			return {};
+		}
+
+		const std::string_view entities(clip_map->mapEnts->entityString, static_cast<std::size_t>(clip_map->mapEnts->numEntityChars));
+		if (entities.find("\"airdrop_pallet\"") != std::string_view::npos)
+		{
+			return {};
+		}
+
+		return clip_map->numSubModels;
+	}
+
+	zonetool::s2::Bounds care_package_bounds(const float padding)
+	{
+		auto bounds = care_package_brush;
+		for (auto& half_size : bounds.halfSize)
+		{
+			half_size += padding;
+		}
+
+		return bounds;
+	}
+
+	float care_package_radius()
+	{
+		const auto bounds = care_package_bounds(1.0f);
+		auto length = 0.0f;
+		for (auto i = 0; i < 3; i++)
+		{
+			const auto corner = std::abs(bounds.midPoint[i]) + bounds.halfSize[i];
+			length += corner * corner;
+		}
+
+		return std::sqrt(length);
 	}
 
 	void dump(clipMap_t* asset)

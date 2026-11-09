@@ -1,6 +1,7 @@
 #include <std_include.hpp>
 
 #include "../include.hpp"
+#include "clipmap.hpp"
 #include "physworld.hpp"
 
 namespace zonetool::h1::converter::s2::physworld
@@ -238,6 +239,27 @@ namespace zonetool::h1::converter::s2::physworld
 			return new_model;
 		}
 
+		void add_care_package_model(zonetool::s2::PhysWorld* new_asset, utils::memory::allocator& allocator)
+		{
+			const auto index = clipmap::care_package_model(new_asset->name);
+			if (!index)
+			{
+				return;
+			}
+
+			if (*index != new_asset->modelCount)
+			{
+				ZONETOOL_WARNING("PhysWorld \"%s\": has %u brush models but the care package model is *%u, not adding it", new_asset->name, new_asset->modelCount, *index);
+				return;
+			}
+
+			const auto models = allocator.allocate_array<zonetool::s2::PhysBrushModel>(new_asset->modelCount + 1);
+			std::copy_n(new_asset->models, new_asset->modelCount, models);
+			models[new_asset->modelCount] = {-1, 0, 0xFFFF};
+			new_asset->models = models;
+			new_asset->modelCount++;
+		}
+
 		zonetool::s2::PhysWorld* convert(PhysWorld* asset, utils::memory::allocator& allocator)
 		{
 			const auto new_asset = allocator.allocate<zonetool::s2::PhysWorld>();
@@ -271,6 +293,7 @@ namespace zonetool::h1::converter::s2::physworld
 				new_asset->models[i] = convert_model(asset->brushModels[i], new_asset->meshCount, new_asset->polytopeCount);
 			}
 
+			add_care_package_model(new_asset, allocator);
 			return new_asset;
 		}
 	}

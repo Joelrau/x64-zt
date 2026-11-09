@@ -40,8 +40,6 @@ namespace zonetool::h1::converter::s2::shader
 					this->texture_slots_[from] = slot != this->lit_slots_.end() ? slot->second : to;
 				}
 
-				check_writes_only_o0(this->lit_, "lit");
-
 				this->map_inputs();
 				this->lit_temps_ = temp_count(lit);
 				this->light_temps_ = temp_count(light);
@@ -63,13 +61,13 @@ namespace zonetool::h1::converter::s2::shader
 				}
 
 				this->emit_declarations();
-				this->assembler_.dcl_temps(lit_out + 1 + static_cast<std::uint32_t>(this->gathered_.size()));
+				this->assembler_.dcl_temps(lit_out + 1 + static_cast<std::uint32_t>(this->gathered_.size()) + (this->merge_.lights.attenuation_texture ? 1u : 0u));
 				for (auto i = lit_code; i + 1 < static_cast<std::ptrdiff_t>(lit.size()); i++)
 				{
 					auto instruction = lit[i];
 					for (auto& operand : instruction.operands)
 					{
-						if (operand.type == D3D10_SB_OPERAND_TYPE_OUTPUT)
+						if (operand.type == D3D10_SB_OPERAND_TYPE_OUTPUT && operand.indices[0].value.uint32 == 0)
 						{
 							operand = as_temp(operand, lit_out);
 						}
@@ -84,6 +82,14 @@ namespace zonetool::h1::converter::s2::shader
 				for (auto i = light_code; i + 1 < static_cast<std::ptrdiff_t>(light.size()); i++)
 				{
 					auto instruction = light[i];
+					if (this->merge_.lights.attenuation_texture && is_sample(instruction, *this->merge_.lights.attenuation_texture))
+					{
+						this->patch_light_operand(instruction.operands[0], acc);
+						this->patch_light_operand(instruction.operands[1], acc);
+						this->emit_attenuation(instruction, lit_out + 1 + static_cast<std::uint32_t>(this->gathered_.size()));
+						continue;
+					}
+
 					for (auto& operand : instruction.operands)
 					{
 						this->patch_light_operand(operand, acc);
@@ -236,7 +242,14 @@ namespace zonetool::h1::converter::s2::shader
 					auto& lanes = this->lanes_[reg];
 					for (const auto& element : light_inputs->second)
 					{
-						const auto used = static_cast<std::uint8_t>(element.register_ == reg ? declared & element.mask : 0);
+						auto used = static_cast<std::uint8_t>(element.register_ == reg ? declared & element.mask : 0);
+
+						if (this->merge_.lights.attenuation_texture && element.name == "TEXCOORD" && element.semantic_index == 1 && (used & 0x8))
+						{
+							lanes[3] = lane{true, true};
+							used &= 0x7;
+						}
+
 						if (!used)
 						{
 							continue;
@@ -431,6 +444,11 @@ namespace zonetool::h1::converter::s2::shader
 					}
 
 					const auto is_sampler = instruction.operands[0].type == D3D10_SB_OPERAND_TYPE_SAMPLER;
+					if (instruction.operands[0].indices[0].value.uint32 == (is_sampler ? this->merge_.lights.attenuation_sampler : this->merge_.lights.attenuation_texture))
+					{
+						continue;
+					}
+
 					const auto& slots = is_sampler ? this->merge_.sampler_slots : this->texture_slots_;
 					const auto slot = slots.find(instruction.operands[0].indices[0].value.uint32);
 					if (slot == slots.end())
@@ -504,6 +522,21 @@ namespace zonetool::h1::converter::s2::shader
 						}
 					}
 				}
+			}
+
+			void emit_attenuation(const alys::shader::detail::instruction_t& sample, const std::uint32_t temp)
+			{
+				constexpr std::array coefficients{6.2571f, -5.1194f, 0.3302f, 1.0034f}; // falloff_linear fit
+
+				auto& a = this->assembler_;
+				a.mov_sat(asm_::r(temp).x(), sample.operands[1]);
+				a.mov(asm_::r(temp).y(), asm_::l(-2.4957f));
+				for (const auto coefficient : coefficients)
+				{
+					a.mad(asm_::r(temp).y(), asm_::r(temp).select("yyyy"), asm_::r(temp).select("xxxx"), asm_::l(coefficient));
+				}
+
+				a.mov_sat(sample.operands[0], asm_::r(temp).select("yyyy"));
 			}
 
 			void patch_light_input(alys::shader::detail::operand_t& operand) const
@@ -644,5 +677,29 @@ namespace zonetool::h1::converter::s2::shader
 		}
 
 		return result;
+	}
+
+	bool squares_color(const unsigned char* program, const unsigned int size)
+	{
+		auto shader = alys::shader::shader_object::parse({reinterpret_cast<const char*>(program), size});
+		return std::ranges::any_of(shader.get_instructions(), [](const alys::shader::detail::instruction_t& instruction)
+		{
+			if ((instruction.opcode.type != D3D10_SB_OPCODE_MUL && instruction.opcode.type != D3D10_SB_OPCODE_MAD) || instruction.operands.size() < 3)
+			{
+				return false;
+			}
+
+			const auto& dest = instruction.operands[0];
+			const auto& first = instruction.operands[1];
+			const auto& second = instruction.operands[2];
+			const auto reads_xyz = [](const alys::shader::detail::operand_t& operand)
+			{
+				return operand.components.selection_mode == D3D10_SB_OPERAND_4_COMPONENT_SWIZZLE_MODE
+					&& operand.components.names[0] == 0 && operand.components.names[1] == 1 && operand.components.names[2] == 2;
+			};
+
+			return dest.type == D3D10_SB_OPERAND_TYPE_TEMP && dest.components.mask == 0x7 && first.type == D3D10_SB_OPERAND_TYPE_TEMP && second.type == D3D10_SB_OPERAND_TYPE_TEMP
+				&& first.indices[0].value.uint32 == second.indices[0].value.uint32 && reads_xyz(first) && reads_xyz(second);
+		});
 	}
 }

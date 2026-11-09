@@ -166,7 +166,7 @@ namespace zonetool::h1::converter::s2::techset
 			}
 			if (velocity.skinned)
 			{
-				pass.customBufferFlags |= zonetool::s2::CUSTOM_BUFFER_SKINNED;
+				pass.customBufferFlags |= zonetool::s2::CUSTOM_BUFFER_SKINNED_CACHED_PREV_FRAME;
 			}
 
 			pass.modelVertexType = instanced ? zonetool::s2::MODEL_VERTEX_TYPE_INSTANCE_DATA

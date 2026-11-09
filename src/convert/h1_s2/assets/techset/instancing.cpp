@@ -71,7 +71,10 @@ namespace zonetool::h1::converter::s2::techset
 		for (auto type = 0; type < TECHNIQUE_INSTANCED_BEGIN - TECHNIQUE_STANDARD_BEGIN; type++)
 		{
 			const auto* standard = techset->techniques[TECHNIQUE_STANDARD_BEGIN + type];
-			if (!standard || techset->techniques[TECHNIQUE_INSTANCED_BEGIN + type])
+			const auto* instanced = techset->techniques[TECHNIQUE_INSTANCED_BEGIN + type];
+
+			const auto rebuild = instanced && std::string_view(instanced->hdr.name).contains("_amb_") && instanced->hdr.passCount && (instanced->passArray[0].customBufferFlags & CUSTOM_BUFFER_SMODEL_AMBIENT);
+			if (!standard || (instanced && !rebuild))
 			{
 				continue;
 			}

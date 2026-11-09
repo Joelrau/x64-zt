@@ -92,7 +92,7 @@ namespace zonetool::h1::converter::s2::shader
 			}
 
 			const auto row = operand.indices[1].value.uint32;
-			const std::array rows{fog.extinction, fog.in_scatter, fog.sun_dir};
+			const std::array rows{fog.extinction, fog.in_scatter, fog.sun_dir, fog.legacy_fog, fog.legacy_color, fog.legacy_color_gamma};
 			for (auto i = 0u; i < rows.size(); i++)
 			{
 				if (rows[i] == row)
@@ -139,6 +139,25 @@ namespace zonetool::h1::converter::s2::shader
 					a.add(asm_::r(temp + 2).w(), row(*fog.sun_dir).w(), row(*fog.in_scatter).w().neg());
 				}
 			}
+
+			if (fog.legacy_fog && fog.legacy_start)
+			{
+				a.mov(asm_::r(temp + 3).x(), asm_::l(0.0f));
+				a.add(asm_::r(temp + 3).y(), asm_::l(1.0f), row(*fog.legacy_fog).w().neg());
+				a.mul(asm_::r(temp + 3).z(), row(*fog.legacy_fog).x(), asm_::l(-1.44269502f));
+				a.mul(asm_::r(temp + 3).w(), asm_::r(temp + 3).z(), row(*fog.legacy_start).w());
+			}
+
+			if (fog.legacy_color)
+			{
+				a.mul(asm_::r(temp + 4).select("xyzw"), row(*fog.legacy_color).select("xyzw"), asm_::l(0.0795775f, 0.0795775f, 0.0795775f, 1.0f));
+			}
+
+			if (fog.legacy_color_gamma)
+			{
+				a.mul(asm_::r(temp + 5).select("xyzw"), row(*fog.legacy_color_gamma).select("xyzw"), asm_::l(0.0795775f, 0.0795775f, 0.0795775f, 1.0f));
+				a.sqrt(asm_::r(temp + 5).xyz(), asm_::r(temp + 5).select("xyzx"));
+			}
 		}
 
 		void emit_ssr_clamp(alys::shader::assembler& a, const alys::shader::detail::operand_t& dest)
@@ -166,6 +185,7 @@ namespace zonetool::h1::converter::s2::shader
 		std::optional<float> trace_cascade_slice(const std::vector<alys::shader::detail::instruction_t>& instructions, const std::size_t sample,
 			const sun_shadow_lookup& sun_shadow)
 		{
+			std::optional<float> result;
 			std::unordered_map<std::uint32_t, std::uint8_t> wanted;
 			const auto& uv = instructions[sample].operands[1];
 			if (uv.type == D3D10_SB_OPERAND_TYPE_TEMP)
@@ -196,7 +216,7 @@ namespace zonetool::h1::converter::s2::shader
 					{
 						if (const auto slice = read_cascade_slice(operands[source], sun_shadow))
 						{
-							return *slice;
+							result = std::max(result.value_or(*slice), *slice);
 						}
 
 						if (operands[source].type == D3D10_SB_OPERAND_TYPE_TEMP)
@@ -207,7 +227,7 @@ namespace zonetool::h1::converter::s2::shader
 				}
 			}
 
-			return {};
+			return result;
 		}
 
 		float find_cascade_slice(const std::vector<alys::shader::detail::instruction_t>& instructions, const std::size_t sample, const sun_shadow_lookup& sun_shadow)
@@ -228,7 +248,7 @@ namespace zonetool::h1::converter::s2::shader
 				}
 			}
 
-			throw std::runtime_error("sun shadow sample has no cascade");
+			return 0.0f;
 		}
 
 		class program_patcher
@@ -312,9 +332,9 @@ namespace zonetool::h1::converter::s2::shader
 
 				this->pixel_lighting_ = !is_vertex_shader && patch.lighting.has_value();
 				this->pixel_ambient_ = this->pixel_lighting_ && patch.lighting->ambient;
-				if (this->pixel_ambient_ && patch.grid != light_grid::probe_buffer && declares_sampler(this->instructions_, ambient_light_grid_sampler))
+				if (this->pixel_ambient_ && patch.grid != light_grid::probe_buffer && declares_sampler(this->instructions_, patch.ambient_sampler))
 				{
-					throw std::runtime_error(utils::string::va("pixel shader already uses the light grid sampler s%u", ambient_light_grid_sampler));
+					throw std::runtime_error(utils::string::va("pixel shader already uses the light grid sampler s%u", patch.ambient_sampler));
 				}
 
 				if (this->vs_lighting_ && (declares_resource(this->instructions_, light_grid_index_slot) || declares_resource(this->instructions_, light_grid_transform_slot)))
@@ -374,6 +394,10 @@ namespace zonetool::h1::converter::s2::shader
 				{
 					this->fog_temp_ = this->temp_count_;
 					this->temp_count_ += 3u;
+					if (patch.fog.legacy_fog || patch.fog.legacy_color || patch.fog.legacy_color_gamma)
+					{
+						this->temp_count_ += 3u;
+					}
 				}
 
 				if (!is_vertex_shader && patch.lights)
@@ -412,6 +436,18 @@ namespace zonetool::h1::converter::s2::shader
 
 					if (this->emit_lighting_coords(i))
 					{
+						continue;
+					}
+
+					if (this->vs_lighting_ && i > static_cast<std::ptrdiff_t>(this->vs_lighting_->coords_write) && !is_declaration(instruction)
+						&& writes_operand(instruction, D3D10_SB_OPERAND_TYPE_OUTPUT, this->vs_lighting_->output))
+					{
+						continue;
+					}
+
+					if (this->vs_lighting_ && i >= this->first_code_ && reads_model_lighting_row(instruction, *this->patch_.lighting))
+					{
+						this->assembler_.mov(instruction.operands[0], asm_::l(1.0f));
 						continue;
 					}
 
@@ -649,7 +685,10 @@ namespace zonetool::h1::converter::s2::shader
 					return operand.type == D3D10_SB_OPERAND_TYPE_INPUT;
 				});
 
-				if (index == this->first_code_ || instruction.opcode.type != D3D10_SB_OPCODE_MUL || dest.type != D3D10_SB_OPERAND_TYPE_TEMP
+				const auto adds_base = instruction.opcode.type == D3D10_SB_OPCODE_MAD && instruction.operands[3].type == D3D10_SB_OPERAND_TYPE_TEMP
+					&& instruction.operands[3].indices[0].value.uint32 != dest.indices[0].value.uint32;
+
+				if (index == this->first_code_ || (instruction.opcode.type != D3D10_SB_OPCODE_MUL && !adds_base) || dest.type != D3D10_SB_OPERAND_TYPE_TEMP
 					|| dest.components.mask != 0x7
 					|| position == instruction.operands.end())
 				{
@@ -678,6 +717,11 @@ namespace zonetool::h1::converter::s2::shader
 				}
 
 				emit_foliage_wind(this->assembler_, dest, position->indices[0].value.uint32, *this->wind_inputs_, *this->patch_.wind, world, temp);
+				if (adds_base)
+				{
+					this->assembler_.add(dest, asm_::r(dest.indices[0].value.uint32).select("xyzx"), instruction.operands[3]);
+				}
+
 				this->wind_emitted_ = true;
 				return true;
 			}
@@ -722,7 +766,8 @@ namespace zonetool::h1::converter::s2::shader
 
 					if (this->fog_temp_)
 					{
-						for (const auto& row : {this->patch_.fog.extinction, this->patch_.fog.in_scatter, this->patch_.fog.sun_dir})
+						const auto& fog = this->patch_.fog;
+						for (const auto& row : {fog.extinction, fog.in_scatter, fog.sun_dir, fog.legacy_fog, fog.legacy_start, fog.legacy_color, fog.legacy_color_gamma})
 						{
 							rows = std::max(rows, row.value_or(0) + 1);
 						}
@@ -846,10 +891,10 @@ namespace zonetool::h1::converter::s2::shader
 					declare_light_grid(this->assembler_, this->patch_);
 					if (this->patch_.grid != light_grid::probe_buffer)
 					{
-						this->assembler_.dcl_sampler(asm_::s(ambient_light_grid_sampler));
+						this->assembler_.dcl_sampler(asm_::s(this->patch_.ambient_sampler));
 					}
 
-					emit_light_grid_lookup(this->assembler_, this->patch_, asm_::s(ambient_light_grid_sampler), *this->lighting_input_, *this->first_temp_ + this->base_temps_, false);
+					emit_light_grid_lookup(this->assembler_, this->patch_, asm_::s(this->patch_.ambient_sampler), *this->lighting_input_, *this->first_temp_ + this->base_temps_, false);
 				}
 
 				if (this->sun_temp_)
@@ -877,6 +922,11 @@ namespace zonetool::h1::converter::s2::shader
 						return input.second == sprite_input::atlas_step;
 					});
 					emit_sprite_fetch(this->assembler_, *this->first_temp_ + this->sprite_temp_, atlas_blend);
+					if (this->patch_.sprite_gamma_color)
+					{
+						const auto color = *this->first_temp_ + this->sprite_temp_ + static_cast<std::uint32_t>(sprite_input::color);
+						this->assembler_.sqrt(asm_::r(color).xyz(), asm_::r(color).select("xyzx"));
+					}
 				}
 
 				if (this->light_return_ >= 0)
@@ -940,8 +990,20 @@ namespace zonetool::h1::converter::s2::shader
 					return;
 				}
 
+				const auto reads_sun = this->patch_.ambient_sun_row && std::ranges::any_of(instruction.operands, [&](const operand_t& operand)
+				{
+					return operand.type == D3D10_SB_OPERAND_TYPE_CONSTANT_BUFFER && operand.indices[0].value.uint32 == 1u
+						&& operand.indices[1].representation == D3D10_SB_OPERAND_INDEX_IMMEDIATE32 && operand.indices[1].value.uint32 == *this->patch_.ambient_sun_row;
+				});
+
 				for (auto& operand : instruction.operands)
 				{
+					if (reads_sun && operand.type == D3D10_SB_OPERAND_TYPE_INPUT && operand.indices[0].value.uint32 != *this->lighting_input_)
+					{
+						operand = as_temp(operand, *this->first_temp_ + this->base_temps_ + 5);
+						continue;
+					}
+
 					redirect_input(operand, *this->lighting_input_, *this->first_temp_ + this->base_temps_ + 5);
 				}
 			}

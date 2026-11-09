@@ -18,7 +18,7 @@ namespace zonetool::h1::converter::s2::physpreset
 		constexpr float default_unk_0x20[2]{20.0f, 300.0f};
 		constexpr float default_impact_effect_thresholds[4]{176.0f, 1728.0f, 1728000.0f, 13824000.0f};
 
-		std::unordered_set<std::string> dumped_presets;
+		std::unordered_map<std::string, std::vector<std::pair<float, std::string>>> dumped_presets;
 
 		float shape_volume(const XModel* model)
 		{
@@ -42,14 +42,18 @@ namespace zonetool::h1::converter::s2::physpreset
 			return 8.0f * half_size[0] * half_size[1] * half_size[2];
 		}
 
-		void dump_preset(const PhysPreset* preset, const XModel* model)
+		float preset_density(const PhysPreset* preset, const XModel* model)
+		{
+			const auto volume = shape_volume(model);
+			return volume > 0.0f && preset->mass > 0.0f ? preset->mass / volume : 0.0361f;
+		}
+
+		void dump_preset(const PhysPreset* preset, const char* name, const float density)
 		{
 			utils::memory::allocator allocator;
 			const auto new_preset = allocator.allocate<zonetool::s2::PhysPreset>();
-			new_preset->name = preset->name;
-
-			const auto volume = shape_volume(model);
-			new_preset->density = volume > 0.0f && preset->mass > 0.0f ? preset->mass / volume : 0.0361f;
+			new_preset->name = name;
+			new_preset->density = density;
 			new_preset->bounce = preset->bounce;
 			new_preset->friction = preset->friction;
 			new_preset->gravityScale = 1.0f;
@@ -61,7 +65,7 @@ namespace zonetool::h1::converter::s2::physpreset
 			std::ranges::copy(default_impact_effect_thresholds, new_preset->impactEffectThresholds);
 
 			zonetool::s2::phys_preset::dump(new_preset);
-			add_csv_row("physpreset", preset->name);
+			add_csv_row("physpreset", name);
 		}
 	}
 
@@ -74,13 +78,25 @@ namespace zonetool::h1::converter::s2::physpreset
 			return make_stub<zonetool::s2::PhysPreset>(name, allocator);
 		}
 
-		if (dumped_presets.insert(preset->name).second)
+		const auto* loaded = db_find_x_asset_header_safe(ASSET_TYPE_PHYSPRESET, preset->name).physPreset;
+		const auto* source = loaded ? loaded : preset;
+		const auto density = preset_density(source, model);
+
+		auto& variants = dumped_presets[preset->name];
+		const auto variant = std::ranges::find_if(variants, [&](const std::pair<float, std::string>& entry)
 		{
-			const auto* loaded = db_find_x_asset_header_safe(ASSET_TYPE_PHYSPRESET, preset->name).physPreset;
-			dump_preset(loaded ? loaded : preset, model);
+			return density <= entry.first * 1.25f && entry.first <= density * 1.25f;
+		});
+
+		if (variant != variants.end())
+		{
+			return make_stub<zonetool::s2::PhysPreset>(allocator.duplicate_string(variant->second), allocator);
 		}
 
-		return make_stub<zonetool::s2::PhysPreset>(preset->name, allocator);
+		const auto name = variants.empty() ? std::string(preset->name) : std::string(preset->name) + "_v" + std::to_string(variants.size());
+		dump_preset(source, name.data(), density);
+		variants.emplace_back(density, name);
+		return make_stub<zonetool::s2::PhysPreset>(allocator.duplicate_string(name), allocator);
 	}
 
 	void clear()

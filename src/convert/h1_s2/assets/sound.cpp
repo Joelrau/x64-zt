@@ -409,6 +409,14 @@ namespace zonetool::h1::converter::s2::sound
 		for (auto i = 0; i < asset->count; i++)
 		{
 			convert_alias(asset->head[i], i, list.head[i], allocator);
+
+			if (const auto* file = asset->head[i].soundFile)
+			{
+				if (auto* loaded = const_cast<LoadedSound*>(find_loaded_sound(file)))
+				{
+					loaded_sound::dump(loaded);
+				}
+			}
 		}
 
 		zonetool::s2::sound::dump(&list);
@@ -433,14 +441,6 @@ namespace zonetool::h1::converter::s2::sound
 		{
 			const auto& alias = asset->head[i];
 			dump_used_curves(alias);
-			if (alias.soundFile)
-			{
-				if (auto* loaded = const_cast<LoadedSound*>(find_loaded_sound(alias.soundFile)))
-				{
-					loaded_sound::dump(loaded);
-				}
-			}
-
 			for (const auto* linked : {alias.secondaryAliasName, alias.chainAliasName})
 			{
 				if (linked && *linked)

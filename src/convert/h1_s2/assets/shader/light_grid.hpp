@@ -17,6 +17,7 @@ namespace zonetool::h1::converter::s2::shader
 		std::uint32_t semantic;
 	};
 
+	bool reads_model_lighting_row(const alys::shader::detail::instruction_t& instruction, const model_lighting& lighting);
 	vertex_lighting find_vertex_lighting(alys::shader::shader_object& shader, const model_lighting& lighting);
 	void emit_vertex_lighting(alys::shader::assembler& a, const alys::shader::detail::operand_t& position, const model_lighting& lighting,
 		const std::optional<std::uint32_t> instance_input, const std::uint32_t temp);

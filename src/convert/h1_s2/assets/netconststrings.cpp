@@ -1,6 +1,7 @@
 #include <std_include.hpp>
 
 #include "../include.hpp"
+#include "common/stock_zone.hpp"
 #include "netconststrings.hpp"
 #include "common/stock_zone.hpp"
 
@@ -78,16 +79,21 @@ namespace zonetool::h1::converter::s2::netconststrings
 
 		void dump_converted(const std::string& name, net_const_strings& asset)
 		{
+			const auto level_sounds = name == "ncs_snd_level";
+
 			std::vector<const char*> strings;
 			for (const auto& string : asset.strings)
 			{
-				strings.emplace_back(string.data());
+				if (!level_sounds || !stock_zone::is_stock_asset(zonetool::s2::ASSET_TYPE_SOUND, string.data()))
+				{
+					strings.emplace_back(string.data());
+				}
 			}
 
 			zonetool::s2::NetConstStrings new_asset{};
 			new_asset.name = name.data();
 			new_asset.stringType = asset.type;
-			new_asset.sourceType = asset.source;
+			new_asset.sourceType = level_sounds ? zonetool::s2::NETCONSTSTRINGSOURCE_NONE : asset.source; // puts the level sounds before the shifted common ones
 			new_asset.entryCount = static_cast<unsigned int>(strings.size());
 			new_asset.stringList = strings.empty() ? nullptr : strings.data();
 			zonetool::s2::net_const_strings::dump(&new_asset);
@@ -112,7 +118,7 @@ namespace zonetool::h1::converter::s2::netconststrings
 
 		auto& entry = converted[convert_name(asset->name, asset->stringType, type)];
 		entry.type = type;
-		entry.source = asset->sourceType;
+		entry.source = static_cast<zonetool::s2::NetConstStringSource>(asset->sourceType);
 		for (auto i = 0u; asset->stringList && i < asset->entryCount; i++)
 		{
 			if (type == zonetool::s2::NETCONSTSTRINGTYPE_WEAPON && !has_weapon(asset->stringList[i]))
@@ -146,7 +152,7 @@ namespace zonetool::h1::converter::s2::netconststrings
 
 			auto& level = converted[std::format("ncs_{}_level", tag)];
 			level.type = it->second.type;
-			level.source = NETCONSTSTRINGSOURCE_MAP;
+			level.source = zonetool::s2::NETCONSTSTRINGSOURCE_MAP;
 			for (auto& string : it->second.strings)
 			{
 				if (std::ranges::find(level.strings, string) == level.strings.end())
@@ -163,7 +169,7 @@ namespace zonetool::h1::converter::s2::netconststrings
 			const auto name = std::format("ncs_{}_level", s2_tags[type]);
 			if (!converted.contains(name))
 			{
-				converted[name] = {static_cast<zonetool::s2::NetConstStringType>(type), NETCONSTSTRINGSOURCE_MAP};
+				converted[name] = {static_cast<zonetool::s2::NetConstStringType>(type), zonetool::s2::NETCONSTSTRINGSOURCE_MAP};
 			}
 		}
 
