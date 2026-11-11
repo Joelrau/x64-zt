@@ -5,6 +5,7 @@
 #include "comworld.hpp"
 #include "gfximage.hpp"
 #include "material.hpp"
+#include "gfxworld/light_grid.hpp"
 
 #include <h1/assets/gfxworld.hpp>
 
@@ -240,7 +241,7 @@ namespace zonetool::s2::converter::h1::gfxworld
 			new_surface.laf.fields.lightmapIndex = surface.lightmapIndex;
 			new_surface.laf.fields.reflectionProbeIndex = surface.reflectionProbeIndex;
 			new_surface.laf.fields.primaryLightEnvIndex = light_env;
-			new_surface.laf.fields.flags = zonetool::h1::GFX_SURFACE_CASTS_SUN_SHADOW;
+			new_surface.laf.fields.flags = (surface.flags & GFX_SURFACE_FLAG_SUN_SHADOW_PARTITION_MASK) ? zonetool::h1::GFX_SURFACE_CASTS_SUN_SHADOW : 0;
 
 			return new_surface;
 		}
@@ -297,8 +298,9 @@ namespace zonetool::s2::converter::h1::gfxworld
 				auto& new_bounds = dpvs.surfacesBounds[new_index[i]];
 				dpvs.surfaces[new_index[i]] = convert_surface(world, surfaces[i], get_light_env(asset, world, surfaces[i].lightListOffset), allocator);
 				new_bounds.bounds = std::bit_cast<zonetool::h1::Bounds>(bounds[i].bounds);
-				new_bounds.mipRadius = 0xFFFF;
+				new_bounds.mipRadius = bounds[i].mipRadius;
 				std::memset(new_bounds.invHighMipRadius, 0xFF, sizeof(new_bounds.invHighMipRadius));
+				std::memcpy(new_bounds.invHighMipRadius, bounds[i].invHighMipRadius, sizeof(bounds[i].invHighMipRadius));
 			}
 
 			set_surface_ranges(dpvs, range_sizes);
@@ -339,11 +341,43 @@ namespace zonetool::s2::converter::h1::gfxworld
 			return new_geometry;
 		}
 
-		std::uint16_t get_smodel_cull_dist(const GfxStaticModelInst& inst)
+		constexpr std::array<float, 16> lod_dist_index_to_scale{0.25f, 0.375f, 0.5f, 0.625f, 0.75f, 0.875f, 1.0f, 1.125f, 1.25f, 1.5f, 1.75f, 2.0f,
+			2.5f, 3.0f, 3.5f, 4.0f};
+
+		std::uint16_t get_lod_scale_index(const float lod_scale)
 		{
+			const auto nearest = std::ranges::min_element(lod_dist_index_to_scale, {}, [&](const float scale)
+			{
+				return std::abs(scale - lod_scale);
+			});
+
+			return static_cast<std::uint16_t>(nearest - lod_dist_index_to_scale.begin());
+		}
+
+		std::uint16_t get_smodel_cull_dist(const GfxStaticModelDrawInst& draw_inst, const GfxStaticModelInst& inst)
+		{
+			if (draw_inst.cullDist)
+			{
+				return static_cast<std::uint16_t>(std::min(std::round(draw_inst.cullDist * draw_inst.maxScale), 65535.0f));
+			}
+
 			const auto& half_size = inst.bounds.halfSize;
 			const auto half_extent = std::hypot(half_size[0], half_size[1], half_size[2]);
 			return static_cast<std::uint16_t>(std::clamp(half_extent * 100.0f, 1500.0f, 30000.0f));
+		}
+
+		zonetool::h1::GfxPackedPlacement convert_placement(const GfxStaticModelDrawInst& inst)
+		{
+			auto placement = std::bit_cast<zonetool::h1::GfxPackedPlacement>(inst.placement);
+			if (inst.mirrored)
+			{
+				for (auto& value : placement.axis[1])
+				{
+					value = -value;
+				}
+			}
+
+			return placement;
 		}
 
 		void log_static_model_cull_load(const zonetool::h1::GfxWorld* world)
@@ -397,14 +431,14 @@ namespace zonetool::s2::converter::h1::gfxworld
 			{
 				const auto& inst = draw_insts[i];
 				auto& new_inst = dpvs.smodelDrawInsts[i];
-				new_inst.placement = std::bit_cast<zonetool::h1::GfxPackedPlacement>(inst.placement);
+				new_inst.placement = convert_placement(inst);
 				new_inst.model = make_stub<zonetool::h1::XModel>(inst.model ? inst.model->name : "void", allocator);
-				new_inst.flags = zonetool::h1::STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING | (inst.flags & zonetool::h1::STATIC_MODEL_FLAG_NO_CAST_SHADOW) | zonetool::h1::STATIC_MODEL_FLAG_SCALE_6;
-				new_inst.cullDist = inst.cullDist ? inst.cullDist : get_smodel_cull_dist(insts[i]);
+				new_inst.flags = zonetool::h1::STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING | (inst.flags & zonetool::h1::STATIC_MODEL_FLAG_NO_CAST_SHADOW) | get_lod_scale_index(inst.lodScale);
+				new_inst.cullDist = get_smodel_cull_dist(inst, insts[i]);
 				new_inst.staticModelId = inst.staticModelId;
 				new_inst.reflectionProbeIndex = inst.reflectionProbeIndex;
 				new_inst.primaryLightEnvIndex = get_light_env(asset, world, inst.lightListOffset);
-				new_inst.sunShadowFlags = (new_inst.flags & zonetool::h1::STATIC_MODEL_FLAG_NO_CAST_SHADOW) ? 0 : 1;
+				new_inst.sunShadowFlags = (new_inst.flags & zonetool::h1::STATIC_MODEL_FLAG_NO_CAST_SHADOW) ? 0 : inst.sunShadowFlags;
 			}
 
 			dpvs.lodData = allocator.allocate_array<unsigned int>(dpvs.smodelCount + 1);
@@ -641,7 +675,6 @@ namespace zonetool::s2::converter::h1::gfxworld
 			world->portalGroupCount = asset->portalGroupCount;
 			world->lastSunPrimaryLightIndex = asset->lastSunPrimaryLightIndex;
 			world->primaryLightCount = asset->primaryLightCount;
-			world->primaryLightEnvCount = asset->movingScriptablePrimaryLightCount; // TODO: needs the comworld light env count
 			world->sortKeyLitDecal = 7;
 			world->sortKeyEffectDecal = 43;
 			world->sortKeyTopDecal = 17;
@@ -663,7 +696,6 @@ namespace zonetool::s2::converter::h1::gfxworld
 
 			convert_draw(asset, world, allocator);
 			world->lightGrid = std::bit_cast<zonetool::h1::GfxLightGrid>(asset->lightGrid);
-			disable_empty_light_grid_trees(world->lightGrid);
 			set_neutral_light_grid(world->lightGrid, allocator);
 
 			world->modelCount = asset->modelCount;
@@ -679,6 +711,9 @@ namespace zonetool::s2::converter::h1::gfxworld
 
 			world->dpvsDyn = {};
 			convert_dpvs(asset, world, allocator);
+			convert_light_grid(asset, world, allocator);
+			disable_empty_light_grid_trees(world->lightGrid);
+			world->primaryLightEnvCount = comworld::get_light_env_count();
 			allocate_runtime_data(world, allocator);
 
 			world->mapVtxChecksum = asset->mapVtxChecksum;

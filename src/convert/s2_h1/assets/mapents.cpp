@@ -2,11 +2,10 @@
 
 #include "../include.hpp"
 #include "mapents.hpp"
+#include "scriptfile.hpp"
 
 #include <h1/assets/mapents.hpp>
 #include <h1/assets/netconststrings.hpp>
-
-#include <xsk/gsc/engine/s2.hpp>
 
 namespace zonetool::s2::converter::h1::mapents
 {
@@ -97,35 +96,42 @@ namespace zonetool::s2::converter::h1::mapents
 			new_trigger.unkTriggers = allocate_zeroed<short>(allocator, count);
 		}
 
-		std::string token_name(const std::uint32_t id)
-		{
-			static const xsk::gsc::s2::context context{xsk::gsc::instance::server};
-			return context.token_name(id);
-		}
-
 		std::string replace_entity_keys(const std::string& data)
 		{
 			std::string buffer{};
 			for (const auto& line : utils::string::split(data.substr(0, data.find('\0')), '\n'))
 			{
+				const auto first_space = line.find_first_of(' ');
+				const auto id = static_cast<std::uint32_t>(std::atoi(line.data()));
+				const auto has_key_id = !line.starts_with("{") && !line.starts_with("}") && !line.starts_with("\"") && first_space != std::string::npos && id != 0;
+				const auto key = has_key_id ? scriptfile::s2_context().token_name(id) : std::string{};
+				if (key.starts_with("_id_"))
+				{
+					ZONETOOL_WARNING("map_ents: key \"%s\" has no name, dropping it", key.data());
+					continue;
+				}
+
 				if (!buffer.empty())
 				{
 					buffer.append("\n");
 				}
 
-				const auto first_space = line.find_first_of(' ');
-				const auto id = static_cast<std::uint32_t>(std::atoi(line.data()));
-				if (line.starts_with("{") || line.starts_with("}") || line.starts_with("\"") || first_space == std::string::npos || id == 0)
-				{
-					buffer.append(line);
-				}
-				else
-				{
-					buffer.append("\"" + token_name(id) + "\"" + line.substr(first_space));
-				}
+				buffer.append(has_key_id ? "\"" + key + "\"" + line.substr(first_space) : line);
 			}
 
 			return buffer;
+		}
+
+		zonetool::h1::ClientTriggerBlendNode* convert_blend_nodes(const ClientTriggerBlend& blend, utils::memory::allocator& allocator)
+		{
+			const auto nodes = copy_array<zonetool::h1::ClientTriggerBlendNode>(blend.blendNodes, blend.numClientTriggerBlendNodes, allocator);
+			for (auto i = 0; nodes && i < blend.numClientTriggerBlendNodes; i++)
+			{
+				nodes[i].triggerA = nodes[i].triggerA == CLIENT_TRIGGER_BLEND_NO_TRIGGER ? zonetool::h1::CLIENT_TRIGGER_BLEND_NO_TRIGGER : nodes[i].triggerA;
+				nodes[i].triggerB = nodes[i].triggerB == CLIENT_TRIGGER_BLEND_NO_TRIGGER ? zonetool::h1::CLIENT_TRIGGER_BLEND_NO_TRIGGER : nodes[i].triggerB;
+			}
+
+			return nodes;
 		}
 
 		std::string remove_turrets(const std::string& data) // TODO: h1 has no s2 turret weapons
@@ -169,8 +175,7 @@ namespace zonetool::s2::converter::h1::mapents
 			convert_client_triggers(asset->clientTrigger, new_asset->clientTrigger, allocator);
 
 			new_asset->clientTriggerBlend.numClientTriggerBlendNodes = asset->clientTriggerBlend.numClientTriggerBlendNodes;
-			new_asset->clientTriggerBlend.blendNodes = copy_array<zonetool::h1::ClientTriggerBlendNode>(asset->clientTriggerBlend.blendNodes,
-				asset->clientTriggerBlend.numClientTriggerBlendNodes, allocator);
+			new_asset->clientTriggerBlend.blendNodes = convert_blend_nodes(asset->clientTriggerBlend, allocator);
 
 			new_asset->spawnList.spawnsCount = asset->spawnList.spawnsCount;
 			new_asset->spawnList.spawns = copy_array<zonetool::h1::SpawnPointEntityRecord>(asset->spawnList.spawns, asset->spawnList.spawnsCount, allocator);
@@ -178,24 +183,6 @@ namespace zonetool::s2::converter::h1::mapents
 			new_asset->splineList.splineCount = asset->splineList.splineCount;
 			new_asset->splineList.splines = reinterpret_cast<zonetool::h1::SplinePointRecordList*>(asset->splineList.splines);
 			return new_asset;
-		}
-
-		void dump_map_script(const std::string& ents_name) // TODO: s2 map scripts do not run on h1
-		{
-			const auto map_name = ents_name.substr(0, ents_name.find(".d3dbsp"));
-			const std::string script =
-				"main()\n"
-				"{\n"
-				"\tmaps\\mp\\_load::main();\n"
-				"\n"
-				"\tgame[\"attackers\"] = \"allies\";\n"
-				"\tgame[\"defenders\"] = \"axis\";\n"
-				"}\n";
-
-			filesystem::file file(map_name + ".gsc");
-			file.open("wb");
-			file.write(script);
-			file.close();
 		}
 
 		constexpr const char* level_net_const_string_tags[zonetool::h1::NETCONSTSTRINGTYPE_ASSET_COUNT]
@@ -243,7 +230,8 @@ namespace zonetool::s2::converter::h1::mapents
 		const auto new_asset = convert(asset, allocator);
 		zonetool::h1::map_ents::dump(new_asset);
 		add_csv_row("map_ents", new_asset->name);
-		dump_map_script(new_asset->name);
+		const std::string name = new_asset->name;
+		scriptfile::add_default_map_script(name.substr(0, name.find(".d3dbsp")) + ".gsc");
 		dump_level_net_const_strings();
 	}
 }

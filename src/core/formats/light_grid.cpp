@@ -740,4 +740,377 @@ namespace light_grid
 		static const probe_projection projection;
 		projection.project(radiance, out);
 	}
+
+	void probe_sh_to_palette(const float probe[probe_sh_count], palette_sh& out)
+	{
+		for (auto channel = 0; channel < 3; channel++)
+		{
+			const auto coeffs = probe + channel * 9;
+			out.coeffs[0][channel] = 0.2820948f * coeffs[0];
+			out.coeffs[1][channel] = -0.4886025f * coeffs[3];
+			out.coeffs[2][channel] = -0.4886025f * coeffs[1];
+			out.coeffs[3][channel] = 0.4886025f * coeffs[2];
+			out.coeffs[4][channel] = -1.0925484f * coeffs[7];
+			out.coeffs[5][channel] = -1.0925484f * coeffs[5];
+			out.coeffs[6][channel] = 1.0925484f * coeffs[4];
+			out.coeffs[7][channel] = 0.3153916f * coeffs[6];
+			out.coeffs[8][channel] = 0.5462742f * coeffs[8];
+		}
+	}
+
+	namespace
+	{
+		unsigned int quantize(const float value, const float range, const int steps)
+		{
+			return static_cast<unsigned int>(std::clamp(std::lround(value * static_cast<float>(steps) / range), 0l, steps - 1l));
+		}
+
+		int select_exponent(const palette_config& config, const palette_sh& sh, const int channel)
+		{
+			auto coeff_min = 0.0f;
+			auto coeff_max = 0.0f;
+			for (auto i = 1; i < 9; i++)
+			{
+				coeff_min = std::min(coeff_min, sh.coeffs[i][channel]);
+				coeff_max = std::max(coeff_max, sh.coeffs[i][channel]);
+			}
+
+			for (auto exponent = -8; exponent < 23; exponent++)
+			{
+				const auto range = range_from_exponent(exponent);
+				const auto steps = coeff_bits(config, exponent) == 8 ? 256.0f : 65536.0f;
+				if (sh.coeffs[0][channel] <= range * (steps - 1.0f) / steps && coeff_max <= range * (steps - 2.0f) / steps && coeff_min >= -range)
+				{
+					return exponent;
+				}
+			}
+
+			return 23;
+		}
+
+		void write_u16(std::vector<unsigned char>& stream, const unsigned int value)
+		{
+			stream.emplace_back(static_cast<unsigned char>(value & 0xFF));
+			stream.emplace_back(static_cast<unsigned char>((value >> 8) & 0xFF));
+		}
+	}
+
+	int encode_palette_entry(const palette_config& config, const palette_sh& sh, std::vector<unsigned char>& stream)
+	{
+		if (config.range_exp_12bits != config.range_exp_8bits)
+		{
+			throw std::runtime_error("light grid palette: the 12 bit encoding is not supported"); // the game reader shares one byte between two coefficients
+		}
+
+		if (stream.size() & 1)
+		{
+			stream.emplace_back(static_cast<unsigned char>(0));
+		}
+
+		const auto start = stream.size();
+		const int exponents[3] = {select_exponent(config, sh, 0), select_exponent(config, sh, 1), select_exponent(config, sh, 2)};
+		write_u16(stream, static_cast<unsigned int>(((exponents[0] + 8) << 10) | ((exponents[1] + 8) << 5) | (exponents[2] + 8)));
+
+		for (auto channel = 0; channel < 3; channel++)
+		{
+			const auto range = range_from_exponent(exponents[channel]);
+			const auto base = std::max(sh.coeffs[0][channel], 0.0f);
+			if (coeff_bits(config, exponents[channel]) == 8)
+			{
+				stream.emplace_back(static_cast<unsigned char>(quantize(base, range, 256)));
+				for (auto i = 1; i < 9; i++)
+				{
+					stream.emplace_back(static_cast<unsigned char>(quantize(sh.coeffs[i][channel] + range, 2.0f * range, 256)));
+				}
+
+				continue;
+			}
+
+			if ((stream.size() - start) & 1)
+			{
+				stream.emplace_back(static_cast<unsigned char>(0));
+			}
+
+			write_u16(stream, quantize(base, range, 65536));
+			for (auto i = 1; i < 9; i++)
+			{
+				write_u16(stream, quantize(sh.coeffs[i][channel] + range, 2.0f * range, 65536));
+			}
+		}
+
+		return static_cast<int>(start);
+	}
+
+	namespace
+	{
+		struct leaf_voxels
+		{
+			unsigned int color[16];
+			unsigned int light[16];
+			unsigned int trace_low_mask;
+			unsigned int trace_high_mask;
+		};
+
+		struct channel_plan
+		{
+			int encoded_min;
+			int encoded_bits;
+			int encoded[16];
+			int encoded_default;
+			bool needs_commands;
+		};
+
+		channel_plan plan_channel(const unsigned int values[16], const int value_bits)
+		{
+			channel_plan plan{};
+			plan.encoded_bits = 1;
+
+			auto min_value = std::numeric_limits<unsigned int>::max();
+			for (auto i = 0; i < 16; i++)
+			{
+				min_value = values[i] ? std::min(min_value, values[i]) : min_value;
+			}
+
+			if (min_value == std::numeric_limits<unsigned int>::max())
+			{
+				return plan;
+			}
+
+			plan.encoded_min = static_cast<int>(std::min<std::uint64_t>(min_value + 1ull, (1ull << value_bits) - 1));
+			auto max_encoded = 0;
+			for (auto i = 0; i < 16; i++)
+			{
+				plan.encoded[i] = values[i] ? static_cast<int>(values[i]) - (plan.encoded_min - 2) : 0;
+				max_encoded = std::max(max_encoded, plan.encoded[i]);
+			}
+
+			plan.encoded_bits = std::max(bit_length(max_encoded), 1);
+			if (plan.encoded_bits > (1 << bit_count_field_width(value_bits)))
+			{
+				throw std::runtime_error("light grid tree: the index range of one leaf is too large");
+			}
+
+			auto best_count = 0;
+			for (auto i = 0; i < 16; i++)
+			{
+				const auto count = static_cast<int>(std::count(plan.encoded, plan.encoded + 16, plan.encoded[i]));
+				if (count > best_count)
+				{
+					best_count = count;
+					plan.encoded_default = plan.encoded[i];
+				}
+			}
+
+			plan.needs_commands = best_count != 16;
+			return plan;
+		}
+
+		void write_channel(bit_writer& writer, const channel_plan& plan, const int value_bits)
+		{
+			writer.write(static_cast<unsigned int>(plan.encoded_min), value_bits);
+			writer.write(static_cast<unsigned int>(plan.encoded_bits - 1), bit_count_field_width(value_bits));
+			writer.write(static_cast<unsigned int>(plan.encoded_default), plan.encoded_bits);
+			if (!plan.needs_commands)
+			{
+				return;
+			}
+
+			writer.write(0, 2);
+			for (const auto encoded : plan.encoded)
+			{
+				writer.write(static_cast<unsigned int>(encoded), plan.encoded_bits);
+			}
+		}
+
+		void write_voxel_mask(bit_writer& writer, const unsigned int mask)
+		{
+			if (mask == 0xFFFF)
+			{
+				writer.write(1, 2);
+				return;
+			}
+
+			writer.write(0, 2);
+			writer.write(mask, 16);
+		}
+
+		std::vector<unsigned char> encode_leaf_block(const leaf_voxels& leaf, const int color_bits)
+		{
+			const auto color = plan_channel(leaf.color, color_bits);
+			const auto light = plan_channel(leaf.light, 16);
+
+			bit_writer writer;
+			writer.write(0x1 | 0x2 | 0x8 | 0x10 | (color.needs_commands ? 0x4 : 0) | (light.needs_commands ? 0x20 : 0)
+				| (leaf.trace_low_mask ? 0x40 : 0) | (leaf.trace_high_mask ? 0x80 : 0), 8);
+			write_channel(writer, color, color_bits);
+			write_channel(writer, light, 16);
+			if (leaf.trace_low_mask)
+			{
+				write_voxel_mask(writer, leaf.trace_low_mask);
+			}
+
+			if (leaf.trace_high_mask)
+			{
+				write_voxel_mask(writer, leaf.trace_high_mask);
+			}
+
+			return writer.data();
+		}
+
+		std::uint64_t pack_tree_coord(const unsigned int x, const unsigned int y, const unsigned int z)
+		{
+			return (static_cast<std::uint64_t>(z) << 42) | (static_cast<std::uint64_t>(y) << 21) | x;
+		}
+
+		std::uint64_t child_tree_coord(const std::uint64_t coord, const int octant)
+		{
+			const auto x = static_cast<unsigned int>(coord & 0x1FFFFF);
+			const auto y = static_cast<unsigned int>((coord >> 21) & 0x1FFFFF);
+			const auto z = static_cast<unsigned int>((coord >> 42) & 0x1FFFFF);
+			return pack_tree_coord((x << 1) | (octant & 1), (y << 1) | ((octant >> 1) & 1), (z << 1) | ((octant >> 2) & 1));
+		}
+
+		void write_chunk(const std::map<std::uint64_t, leaf_voxels>& leaves, const std::uint64_t coord, const unsigned int mask, const int color_bits,
+			const int leaf_size_bit_count, std::vector<unsigned char>& leaf_table)
+		{
+			bit_writer header;
+			header.write(0x1 | 0x8, 8);
+
+			std::vector<unsigned char> blocks;
+			for (auto octant = 0; octant < 8; octant++)
+			{
+				if (!(mask & (1u << octant)))
+				{
+					continue;
+				}
+
+				const auto block = encode_leaf_block(leaves.at(child_tree_coord(coord, octant)), color_bits);
+				if (block.size() >= (1ull << leaf_size_bit_count))
+				{
+					throw std::runtime_error("light grid tree: a leaf block is too large");
+				}
+
+				header.write(static_cast<unsigned int>(block.size()), leaf_size_bit_count);
+				blocks.insert(blocks.end(), block.begin(), block.end());
+			}
+
+			header.write(0, color_bits);
+			header.write(static_cast<unsigned int>(color_bits - 1), bit_count_field_width(color_bits));
+			header.write(0, 16);
+			header.write(15, 4);
+
+			leaf_table.insert(leaf_table.end(), header.data().begin(), header.data().end());
+			leaf_table.insert(leaf_table.end(), blocks.begin(), blocks.end());
+		}
+	}
+
+	tree_data build_tree(const std::vector<grid_sample>& samples, const int leaf_size_bit_count)
+	{
+		tree_data tree{};
+		tree.default_color_index_bit_count = 16;
+		tree.default_light_index_bit_count = 16;
+		if (samples.empty())
+		{
+			std::fill_n(tree.coord_min_grid_space, 3, 1);
+			tree.node_table.emplace_back(0u);
+			return tree;
+		}
+
+		auto max_color = 0u;
+		std::fill_n(tree.coord_min_grid_space, 3, std::numeric_limits<int>::max());
+		for (const auto& sample : samples)
+		{
+			max_color = std::max(max_color, sample.value.color_index);
+			for (auto axis = 0; axis < 3; axis++)
+			{
+				tree.coord_min_grid_space[axis] = std::min<int>(tree.coord_min_grid_space[axis], sample.grid_pos[axis]);
+				tree.coord_max_grid_space[axis] = std::max<int>(tree.coord_max_grid_space[axis], sample.grid_pos[axis]);
+			}
+		}
+
+		for (auto axis = 0; axis < 3; axis++)
+		{
+			tree.coord_half_size_grid_space[axis] = (tree.coord_max_grid_space[axis] - tree.coord_min_grid_space[axis]) / 2 + 1;
+		}
+
+		const auto color_bits = std::max(bit_length(static_cast<int>(max_color)), 16);
+		if (color_bits > 24)
+		{
+			throw std::runtime_error("light grid tree: the color index is too large");
+		}
+
+		tree.default_color_index_bit_count = color_bits;
+
+		std::map<std::uint64_t, leaf_voxels> leaves;
+		auto max_coord = 0u;
+		for (const auto& sample : samples)
+		{
+			const auto x = static_cast<unsigned int>(sample.grid_pos[0] - tree.coord_min_grid_space[0]) >> 2;
+			const auto y = static_cast<unsigned int>(sample.grid_pos[1] - tree.coord_min_grid_space[1]) >> 2;
+			const auto z = static_cast<unsigned int>(sample.grid_pos[2] - tree.coord_min_grid_space[2]);
+			max_coord = std::max({max_coord, x, y, z});
+
+			auto& leaf = leaves[pack_tree_coord(x, y, z)];
+			const auto index = voxel_index_table[(sample.grid_pos[0] & 3) | ((sample.grid_pos[1] & 3) << 2)];
+			leaf.color[index] = sample.value.color_index;
+			leaf.light[index] = sample.value.light_index;
+			leaf.trace_low_mask = (leaf.trace_low_mask & ~(1u << index)) | (sample.value.trace_low ? 1u << index : 0u);
+			leaf.trace_high_mask = (leaf.trace_high_mask & ~(1u << index)) | (sample.value.trace_high ? 1u << index : 0u);
+		}
+
+		tree.leaf_count = static_cast<int>(leaves.size());
+		const auto max_depth = std::max(bit_length(static_cast<int>(max_coord)) - 1, 0);
+		tree.max_depth = static_cast<unsigned char>(max_depth);
+
+		std::vector<std::map<std::uint64_t, unsigned char>> level_masks(max_depth + 1);
+		for (const auto& [coord, leaf] : leaves)
+		{
+			auto x = static_cast<unsigned int>(coord & 0x1FFFFF);
+			auto y = static_cast<unsigned int>((coord >> 21) & 0x1FFFFF);
+			auto z = static_cast<unsigned int>((coord >> 42) & 0x1FFFFF);
+			for (auto level = max_depth; level >= 0; level--)
+			{
+				const auto octant = (x & 1) | ((y & 1) << 1) | ((z & 1) << 2);
+				x >>= 1;
+				y >>= 1;
+				z >>= 1;
+				level_masks[level][pack_tree_coord(x, y, z)] |= static_cast<unsigned char>(1u << octant);
+			}
+		}
+
+		std::vector<std::pair<int, std::uint64_t>> nodes{{0, 0ull}};
+		tree.node_table.emplace_back(0u);
+		for (auto n = 0ull; n < nodes.size(); n++)
+		{
+			const auto [level, coord] = nodes[n];
+			const unsigned int mask = level_masks[level][coord];
+
+			auto address = static_cast<unsigned int>(tree.node_table.size());
+			if (level < max_depth)
+			{
+				for (auto octant = 0; octant < 8; octant++)
+				{
+					if (mask & (1u << octant))
+					{
+						nodes.emplace_back(level + 1, child_tree_coord(coord, octant));
+						tree.node_table.emplace_back(0u);
+					}
+				}
+			}
+			else
+			{
+				address = static_cast<unsigned int>(tree.leaf_table.size());
+				write_chunk(leaves, coord, mask, color_bits, leaf_size_bit_count, tree.leaf_table);
+			}
+
+			if (address > 0xFFFFFF)
+			{
+				throw std::runtime_error("light grid tree: the node or leaf table is too large");
+			}
+
+			tree.node_table[n] = (mask << 24) | address;
+		}
+
+		return tree;
+	}
 }

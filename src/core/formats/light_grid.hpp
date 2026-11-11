@@ -35,6 +35,27 @@ namespace light_grid
 	};
 
 	bool find_voxel(const tree_view& tree, const unsigned short grid_pos[3], voxel& out, bool* stream_overflow = nullptr);
+
+	struct grid_sample
+	{
+		unsigned short grid_pos[3];
+		voxel value;
+	};
+
+	struct tree_data
+	{
+		unsigned char max_depth;
+		int leaf_count;
+		int coord_min_grid_space[3];
+		int coord_max_grid_space[3];
+		int coord_half_size_grid_space[3];
+		int default_color_index_bit_count;
+		int default_light_index_bit_count;
+		std::vector<unsigned int> node_table;
+		std::vector<unsigned char> leaf_table;
+	};
+
+	tree_data build_tree(const std::vector<grid_sample>& samples, int leaf_size_bit_count);
 	bool convert_leaf_table(const tree_view& tree, int leaf_size_bit_count, std::vector<unsigned int>& node_table, std::vector<unsigned char>& leaf_table);
 
 	struct palette_config
@@ -50,10 +71,12 @@ namespace light_grid
 	};
 
 	void decode_palette_entry(const palette_config& config, const unsigned char* stream, palette_sh& out);
+	int encode_palette_entry(const palette_config& config, const palette_sh& sh, std::vector<unsigned char>& stream);
 	void evaluate(const palette_sh& sh, float radiance[basis_dir_count][3]);
 
 	constexpr auto probe_sh_count = 27u;
 	void project_probe_sh(const float radiance[basis_dir_count][3], float out[probe_sh_count]);
+	void probe_sh_to_palette(const float probe[probe_sh_count], palette_sh& out);
 
 	struct mask_table_entry
 	{

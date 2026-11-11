@@ -163,6 +163,12 @@ namespace zonetool::convert::s2_h1
 			case source::ASSET_TYPE_MATERIAL:
 				target::material::dump(header_as<source::Material>(header));
 				break;
+			case source::ASSET_TYPE_RAWFILE:
+				target::rawfile::dump(header_as<source::RawFile>(header));
+				break;
+			case source::ASSET_TYPE_SCRIPTFILE:
+				target::scriptfile::dump(header_as<source::ScriptFile>(header));
+				break;
 			default:
 				break;
 			}
@@ -179,6 +185,7 @@ namespace zonetool::convert::s2_h1
 			target::gfxworld::finish();
 			target::comworld::finish();
 			target::clipmap::finish();
+			target::scriptfile::finish();
 			target::write_csv(zone_name);
 		}
 

@@ -18,6 +18,11 @@ namespace zonetool::s1
 		auto* asset = read.read_single<SndDriverGlobals>();
 		asset->name = read.read_string();
 
+		if (asset->reverbSettings)
+		{
+			asset->reverbSettings = read.read_array<XaReverbSettings>();
+		}
+
 		read.close();
 
 		return asset;
@@ -63,6 +68,7 @@ namespace zonetool::s1
 	{
 		reader.push_stream(XFILE_BLOCK_VIRTUAL);
 		reader.read_string(asset->name);
+		reader.read_array(asset->reverbSettings, 3, 26);
 		reader.pop_stream();
 	}
 
@@ -74,6 +80,13 @@ namespace zonetool::s1
 		buf->push_stream(XFILE_BLOCK_VIRTUAL);
 
 		dest->name = buf->write_str(this->name());
+
+		if (data->reverbSettings)
+		{
+			buf->align(3);
+			buf->write(data->reverbSettings, 26);
+			buf->clear_pointer(&dest->reverbSettings);
+		}
 
 		buf->pop_stream();
 	}
@@ -90,6 +103,11 @@ namespace zonetool::s1
 
 		dump.dump_single(asset);
 		dump.dump_string(asset->name);
+
+		if (asset->reverbSettings)
+		{
+			dump.dump_array(asset->reverbSettings, 26);
+		}
 
 		dump.close();
 	}

@@ -140,12 +140,17 @@ namespace zonetool::s2::converter::h1::xmodel
 
 		float get_lod_dist(const XModelBase* base, const int lod, const int lod_count)
 		{
+			if (base->useLodInfoDist)
+			{
+				return base->lodInfo[lod].dist;
+			}
+
 			if (lod >= lod_count - 1)
 			{
 				return 1000000.0f;
 			}
 
-			return std::sqrt(std::max(0.0f, base->lodDistScale * base->lodDistSq[lod])) * 565.087f + base->radius;
+			return std::sqrt(std::max(0.0f, base->lodDistScale * base->lodDistSq[lod])) * 565.087f + base->boundsRadius;
 		}
 
 		zonetool::h1::XModel* convert(const XModel* asset, utils::memory::allocator& allocator)

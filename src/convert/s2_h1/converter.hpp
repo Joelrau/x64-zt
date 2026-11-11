@@ -12,6 +12,8 @@
 #include "assets/mapents.hpp"
 #include "assets/lightsets.hpp"
 #include "assets/material.hpp"
+#include "assets/rawfile.hpp"
+#include "assets/scriptfile.hpp"
 #include "assets/techset.hpp"
 #include "assets/xsurface.hpp"
 #include "assets/xmodel.hpp"

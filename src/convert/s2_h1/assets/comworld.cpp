@@ -104,6 +104,11 @@ namespace zonetool::s2::converter::h1::comworld
 		return index;
 	}
 
+	unsigned int get_light_env_count()
+	{
+		return static_cast<unsigned int>(envs.size()) + 1;
+	}
+
 	void finish()
 	{
 		if (!pending_world)

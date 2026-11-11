@@ -15,6 +15,13 @@ namespace zonetool::s2::converter::h1::clipmap
 		clipMap_t* pending_clip_map = nullptr;
 		std::array<ClipMapTrZone*, transient_zone_count> loaded_transient_zones{};
 
+		template <typename To, typename From>
+		To* retype(From* data)
+		{
+			static_assert(sizeof(To) == sizeof(From));
+			return reinterpret_cast<To*>(data);
+		}
+
 		template <typename T>
 		T* to_array(std::vector<T>& values, utils::memory::allocator& allocator)
 		{
@@ -103,8 +110,8 @@ namespace zonetool::s2::converter::h1::clipmap
 					new_asset->mapEnts->name = this->asset->mapEnts->name;
 				}
 
-				new_asset->stageCount = 1;
-				new_asset->stages = default_stage(this->allocator);
+				new_asset->stageCount = this->asset->stageCount ? this->asset->stageCount : 1;
+				new_asset->stages = this->asset->stageCount ? retype<zonetool::h1::Stage>(this->asset->stages) : default_stage(this->allocator);
 				return new_asset;
 			}
 

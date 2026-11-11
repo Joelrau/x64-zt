@@ -8193,20 +8193,22 @@ namespace zonetool::s1
 	struct SndGlobalSettings_t
 	{
 		float globalVolumeModifier;
-		float unk[5];
+		float unk[3];
 	};
 
 	struct XaReverbSettings
 	{
 		int presetOverridden;
 		XAUDIO2FX_REVERB_I3DL2_PARAMETERS reverbSettings;
-	};
+	}; assert_sizeof(XaReverbSettings, 0x38);
 
 	struct SndDriverGlobals
 	{
 		const char* name;
 		SndGlobalSettings_t settings;
+		XaReverbSettings* reverbSettings; // array: 26
 	}; assert_sizeof(SndDriverGlobals, 0x20);
+	assert_offsetof(SndDriverGlobals, reverbSettings, 0x18);
 
 	enum VectorFieldType : std::int32_t
 	{

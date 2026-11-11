@@ -80,7 +80,7 @@ namespace zonetool::s2::converter::h1::xsurface
 
 		float binormal_sign(const std::uint32_t tangent)
 		{
-			return (tangent >> 30) == 0 ? -1.0f : 1.0f;
+			return (tangent >> 30) >= 2 ? -1.0f : 1.0f;
 		}
 
 		void convert_vertices(const XSurface* surface, const vertex_streams& streams, zonetool::h1::XSurface* new_surface,

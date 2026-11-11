@@ -8188,23 +8188,19 @@ namespace zonetool::iw6
 		EquipSoundSetMantleTypes* mvmtMantleSoundSets;
 	};
 
-	struct SndGlobalSettings_t
-	{
-		float globalVolumeModifier;
-		float unk[5];
-	};
-
 	struct XaReverbSettings
 	{
 		int presetOverridden;
 		XAUDIO2FX_REVERB_I3DL2_PARAMETERS reverbSettings;
-	};
+	}; assert_sizeof(XaReverbSettings, 0x38);
 
 	struct SndDriverGlobals
 	{
 		const char* name;
-		SndGlobalSettings_t settings;
-	}; assert_sizeof(SndDriverGlobals, 0x20);
+		char unk_0x08[8];
+		XaReverbSettings* reverbSettings; // array: 26
+	}; assert_sizeof(SndDriverGlobals, 0x18);
+	assert_offsetof(SndDriverGlobals, reverbSettings, 0x10);
 
 
 	union XAssetHeader
