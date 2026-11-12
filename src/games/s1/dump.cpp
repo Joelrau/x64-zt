@@ -244,9 +244,16 @@ namespace zonetool::s1
 
 		void add_fx_dependencies(const FxEffectDef* fx, std::unordered_set<const void*>& references);
 
-		void add_fx_reference(const FxEffectDef* fx, std::unordered_set<const void*>& references)
+		void add_fx_reference(const FxEffectDef* reference, std::unordered_set<const void*>& references)
 		{
-			if (fx && references.insert(fx).second)
+			if (!reference)
+			{
+				return;
+			}
+
+			const auto* loaded = db_find_x_asset_header_safe(ASSET_TYPE_FX, reference->name).fx;
+			const auto* fx = loaded ? loaded : reference;
+			if (references.insert(fx).second)
 			{
 				add_fx_dependencies(fx, references);
 			}
