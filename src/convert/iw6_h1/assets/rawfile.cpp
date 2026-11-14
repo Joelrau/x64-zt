@@ -78,15 +78,20 @@ namespace zonetool::iw6
 				return values;
 			}
 
-			std::array<float, 4> get_sky_intensity()
+			std::unordered_map<std::string, std::string> read_vision(const std::string& name)
 			{
-				const auto* vision = db_find_x_asset_header_safe(ASSET_TYPE_RAWFILE, std::format("vision/{}.vision", filesystem::get_fastfile())).rawfile;
+				const auto* vision = db_find_x_asset_header_safe(ASSET_TYPE_RAWFILE, std::format("vision/{}.vision", name)).rawfile;
 				if (!vision)
 				{
-					return {1.0f, 1.0f, 1.0f, 1.0f};
+					return {};
 				}
 
-				auto values = read_vision_values(read_rawfile(vision));
+				return read_vision_values(read_rawfile(vision));
+			}
+
+			std::array<float, 4> get_sky_intensity()
+			{
+				auto values = read_vision(filesystem::get_fastfile());
 				const auto intensity = parse_vector(values["r_hdrSkyIntensity"]);
 				const auto tint = parse_vector(values["r_hdrSkyColorTint"]);
 				if (intensity.size() != 1 || tint.size() != 3)

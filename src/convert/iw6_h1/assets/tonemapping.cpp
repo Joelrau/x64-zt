@@ -1,6 +1,7 @@
 #include <std_include.hpp>
 #include "../include.hpp"
 #include "tonemapping.hpp"
+#include "rawfile.hpp"
 
 #include <h1/assets/stringtable.hpp>
 
@@ -304,8 +305,6 @@ namespace zonetool::iw6
 
 				std::vector<lightset_entry> lightset_values =
 				{
-					{"name", "", convert_name},
-
 					{"sunenable", "1"},
 					{"sunshadowscale", "1"},
 					{"sunshadowscale_time", "0"},
@@ -417,26 +416,61 @@ namespace zonetool::iw6
 					{"ssaorejectdepth_time", "0"},
 				};
 
-				std::vector<ToneMapping*> get_map_tone_mappings(ToneMapping* asset)
+				ToneMapping* get_vision_tone_mapping(const std::string& vision)
 				{
+					const auto values = rawfile::read_vision(vision);
+					const auto tone_name = values.find("toneMapping");
+					if (tone_name == values.end())
+					{
+						return nullptr;
+					}
+
+					return db_find_x_asset_header_safe(ASSET_TYPE_TONEMAPPING, tone_name->second).toneMapping;
+				}
+
+				std::map<std::string, ToneMapping*> get_map_lightsets(ToneMapping* asset)
+				{
+					const auto& fastfile = filesystem::get_fastfile();
+
+					std::map<std::string, ToneMapping*> lightsets;
+					std::set<std::string> vision_tone_names;
+					db_enum_assets(ASSET_TYPE_RAWFILE, [&](void* header)
+					{
+						const std::string name = static_cast<RawFile*>(header)->name;
+						if (!name.starts_with("vision/") || !name.ends_with(".vision") || !name.contains(fastfile))
+						{
+							return;
+						}
+
+						const auto vision = name.substr(7, name.size() - 14);
+						if (const auto tone_mapping = get_vision_tone_mapping(vision))
+						{
+							lightsets[vision] = tone_mapping;
+							vision_tone_names.insert(tone_mapping->name);
+						}
+					});
+
 					std::set<std::string> names{asset->name};
 					db_enum_assets(ASSET_TYPE_TONEMAPPING, [&](void* header)
 					{
 						const auto tone_mapping = static_cast<ToneMapping*>(header);
-						if (std::string_view(tone_mapping->name).contains(filesystem::get_fastfile()))
+						if (std::string_view(tone_mapping->name).contains(fastfile))
 						{
 							names.insert(tone_mapping->name);
 						}
 					});
 
-					std::vector<ToneMapping*> assets;
 					for (const auto& name : names)
 					{
 						const auto tone_mapping = db_find_x_asset_header_safe(ASSET_TYPE_TONEMAPPING, name).toneMapping;
-						assets.emplace_back(tone_mapping ? tone_mapping : asset);
+						if (!vision_tone_names.contains(name))
+						{
+							const auto lightset = tone_mapping ? tone_mapping : asset;
+							lightsets.emplace(convert_name(lightset), lightset);
+						}
 					}
 
-					return assets;
+					return lightsets;
 				}
 			}
 
@@ -447,7 +481,11 @@ namespace zonetool::iw6
 				values.medium.fill(1.0f);
 				values.light.fill(1.0f);
 
-				auto* tone = db_find_x_asset_header_safe(ASSET_TYPE_TONEMAPPING, vision + "_tone").toneMapping;
+				auto* tone = get_vision_tone_mapping(vision);
+				if (!tone)
+				{
+					tone = db_find_x_asset_header_safe(ASSET_TYPE_TONEMAPPING, vision + "_tone").toneMapping;
+				}
 				if (!tone)
 				{
 					tone = db_find_x_asset_header_safe(ASSET_TYPE_TONEMAPPING, filesystem::get_fastfile() + "_tone").toneMapping;
@@ -481,10 +519,10 @@ namespace zonetool::iw6
 				const auto new_asset = allocator.allocate<zonetool::h1::StringTable>();
 				new_asset->name = allocator.duplicate_string(utils::string::va("maps/createart/%s_lightsets_hdr.csv", fastfile.data()));
 
-				const auto assets = get_map_tone_mappings(asset);
+				const auto lightsets = get_map_lightsets(asset);
 
-				new_asset->columnCount = 1 + static_cast<int>(assets.size());
-				new_asset->rowCount = static_cast<int>(lightset_values.size());
+				new_asset->columnCount = 1 + static_cast<int>(lightsets.size());
+				new_asset->rowCount = 1 + static_cast<int>(lightset_values.size());
 				new_asset->values = allocator.allocate_array<zonetool::h1::StringTableCell>(new_asset->columnCount * new_asset->rowCount);
 
 				const auto insert_value = [&](const int column, const int row, const std::string& value)
@@ -494,24 +532,26 @@ namespace zonetool::iw6
 					new_asset->values[index].hash = string_table_hash(new_asset->values[index].string);
 				};
 
+				insert_value(0, 0, "name");
 				for (auto i = 0u; i < lightset_values.size(); i++)
 				{
-					insert_value(0, i, lightset_values[i].name);
+					insert_value(0, i + 1, lightset_values[i].name);
 				}
 
 				auto i = 0u;
-				for (const auto& asset_ : assets)
+				for (const auto& [lightset_name, tone_mapping] : lightsets)
 				{
+					insert_value(i + 1, 0, lightset_name);
 					for (auto o = 0u; o < lightset_values.size(); o++)
 					{
 						const auto& entry = lightset_values[o];
 						if (entry.convert.has_value())
 						{
-							insert_value(i + 1, o, entry.convert->operator()(asset_));
+							insert_value(i + 1, o + 1, entry.convert->operator()(tone_mapping));
 						}
 						else
 						{
-							insert_value(i + 1, o, entry.default_value);
+							insert_value(i + 1, o + 1, entry.default_value);
 						}
 					}
 

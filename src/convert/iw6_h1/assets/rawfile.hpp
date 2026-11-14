@@ -15,6 +15,7 @@ namespace zonetool::iw6
 				std::string hdr_override;
 			};
 
+			std::unordered_map<std::string, std::string> read_vision(const std::string& name);
 			std::array<float, 4> get_sky_intensity();
 			zonetool::h1::RawFile* convert(RawFile* asset, utils::memory::allocator& allocator);
 			void dump(RawFile* asset);
