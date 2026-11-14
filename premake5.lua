@@ -39,54 +39,47 @@ function vertonumarr(value, vernumber, partscount)
 end
 
 dependencies = {
-	basePath = "./deps"
+	basePath = "./deps",
+	used = {},
 }
 
 function dependencies.load()
-	dir = path.join(dependencies.basePath, "premake/*.lua")
-	deps = os.matchfiles(dir)
-
-	for i, dep in pairs(deps) do
-		dep = dep:gsub(".lua", "")
-		require(dep)
+	for _, dep in ipairs(os.matchfiles(path.join(dependencies.basePath, "premake/*.lua"))) do
+		require((dep:gsub("%.lua$", "")))
 	end
 end
 
-function dependencies.imports()
-	for i, proj in pairs(dependencies) do
-		if type(i) == 'number' then
-			proj.import()
-		end
+function dependencies.use(...)
+	for _, dep in ipairs({...}) do
+		dependencies.used[dep] = true
+		dep.import()
 	end
 end
 
 function dependencies.projects()
-	for i, proj in pairs(dependencies) do
-		if type(i) == 'number' then
-			proj.project()
+	for _, dep in ipairs(dependencies) do
+		if dependencies.used[dep] then
+			dep.project()
 		end
 	end
 end
 
-local function addcopyopt(name)
-	newoption({
-		trigger = name,
-		description = "Optional, copy the EXE to a custom folder after build, define the path here if wanted.",
-		value = "PATH"
-	})
-end
-
-addcopyopt("copy-to")
-addcopyopt("iw6-copy-to")
-addcopyopt("s1-copy-to")
-addcopyopt("h1-copy-to")
-addcopyopt("h2-copy-to")
-addcopyopt("iw7-copy-to")
+newoption {
+	trigger = "games",
+	description = "Games to build, separated by \"+\" or \",\" (or \"all\")",
+	value = "LIST",
+	default = "all",
+}
 
 newoption {
-	trigger = "target-project",
-	description = "Optional, selects which project is used as default",
-	value = "PATH"
+	trigger = "no-convert",
+	description = "Do not build converters between the selected games",
+}
+
+newoption {
+	trigger = "copy-to",
+	description = "Copy zonetool.exe to this folder after build",
+	value = "PATH",
 }
 
 newaction {
@@ -231,6 +224,8 @@ newaction {
 
 dependencies.load()
 
+include "src/games.lua"
+
 workspace "x64-zt"
 startproject "zonetool"
 location "./build"
@@ -269,9 +264,9 @@ filter {}
 filter "configurations:Release"
 	optimize "Size"
 	buildoptions {"/bigobj"}
-	linkoptions { "/IGNORE:4702" }
+	linkoptions {"/IGNORE:4702"}
 	defines {"NDEBUG"}
-	fatalwarnings { "All" }
+	fatalwarnings {"All"}
 filter {}
 
 filter "configurations:Debug"
@@ -280,13 +275,18 @@ filter "configurations:Debug"
 	defines {"DEBUG", "_DEBUG"}
 filter {}
 
-include "src/zonetool.lua"
+if _ACTION and _ACTION:startswith("vs") then
+	games.write_enabled_header()
+end
+
 include "src/common.lua"
-include "src/tlsdll.lua"
+include "src/core.lua"
+include "src/zonetool.lua"
 
 common:project()
+core:project()
+games.projects()
 zonetool:project()
-tlsdll:project()
 
 group "Dependencies"
 dependencies.projects()

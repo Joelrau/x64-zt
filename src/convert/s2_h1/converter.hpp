@@ -1,0 +1,29 @@
+#pragma once
+
+#include "include.hpp"
+
+#include "assets/gfximage.hpp"
+#include "assets/gfxworld.hpp"
+#include "assets/clipmap.hpp"
+#include "assets/comworld.hpp"
+#include "assets/fxworld.hpp"
+#include "assets/glassworld.hpp"
+#include "assets/physworld.hpp"
+#include "assets/mapents.hpp"
+#include "assets/lightsets.hpp"
+#include "assets/material.hpp"
+#include "assets/rawfile.hpp"
+#include "assets/scriptfile.hpp"
+#include "assets/techset.hpp"
+#include "assets/xsurface.hpp"
+#include "assets/xmodel.hpp"
+
+namespace zonetool::s2::converter::h1
+{
+	struct csv_row
+	{
+		std::string type;
+		std::string name;
+		bool referenced;
+	};
+}
