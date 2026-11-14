@@ -183,6 +183,152 @@ namespace zonetool::iw6
 				&& get_asset_name(asset.type, asset.header) == "vision/" + map + ".vision";
 		}
 
+		void add_material_dependencies(const Material* material, std::unordered_set<const void*>& references)
+		{
+			if (material->techniqueSet)
+			{
+				references.insert(material->techniqueSet);
+			}
+
+			for (auto i = 0; material->textureTable && i < material->textureCount; i++)
+			{
+				const auto& texture = material->textureTable[i];
+				const auto* image = texture.semantic == TS_WATER_MAP
+					? (texture.u.water ? texture.u.water->image : nullptr)
+					: texture.u.image;
+				if (image)
+				{
+					references.insert(image);
+				}
+			}
+		}
+
+		void add_xmodel_dependencies(const XModel* model, std::unordered_set<const void*>& references)
+		{
+			for (auto i = 0; model->materialHandles && i < model->numsurfs; i++)
+			{
+				if (model->materialHandles[i])
+				{
+					references.insert(model->materialHandles[i]);
+				}
+			}
+
+			for (auto i = 0; i < model->numLods; i++)
+			{
+				if (model->lodInfo[i].modelSurfs)
+				{
+					references.insert(model->lodInfo[i].modelSurfs);
+				}
+			}
+		}
+
+		void add_fx_dependencies(const FxEffectDef* fx, std::unordered_set<const void*>& references);
+
+		void add_fx_reference(const FxEffectDef* reference, std::unordered_set<const void*>& references)
+		{
+			if (!reference)
+			{
+				return;
+			}
+
+			const auto* loaded = db_find_x_asset_header_safe(ASSET_TYPE_FX, reference->name).fx;
+			const auto* fx = loaded ? loaded : reference;
+			if (references.insert(fx).second)
+			{
+				add_fx_dependencies(fx, references);
+			}
+		}
+
+		void add_fx_visual_dependencies(const FxElemDef& def, const FxElemVisuals& visual, std::unordered_set<const void*>& references)
+		{
+			if (!visual.anonymous)
+			{
+				return;
+			}
+
+			switch (def.elemType)
+			{
+			case FX_ELEM_TYPE_RUNNER:
+				add_fx_reference(visual.effectDef.handle, references);
+				break;
+			case FX_ELEM_TYPE_SOUND:
+			case FX_ELEM_TYPE_VECTORFIELD:
+			case FX_ELEM_TYPE_OMNI_LIGHT:
+				break;
+			default:
+				references.insert(visual.anonymous);
+				break;
+			}
+		}
+
+		void add_fx_dependencies(const FxEffectDef* fx, std::unordered_set<const void*>& references)
+		{
+			const auto elem_count = fx->elemDefCountLooping + fx->elemDefCountOneShot + fx->elemDefCountEmission;
+			for (auto i = 0; fx->elemDefs && i < elem_count; i++)
+			{
+				const auto& def = fx->elemDefs[i];
+				add_fx_reference(def.effectOnImpact.handle, references);
+				add_fx_reference(def.effectOnDeath.handle, references);
+				add_fx_reference(def.effectEmitted.handle, references);
+
+				if (def.elemType == FX_ELEM_TYPE_DECAL)
+				{
+					for (auto j = 0; def.visuals.markArray && j < def.visualCount; j++)
+					{
+						for (const auto* material : def.visuals.markArray[j].materials)
+						{
+							if (material)
+							{
+								references.insert(material);
+							}
+						}
+					}
+				}
+				else if (def.visualCount > 1)
+				{
+					for (auto j = 0; def.visuals.array && j < def.visualCount; j++)
+					{
+						add_fx_visual_dependencies(def, def.visuals.array[j], references);
+					}
+				}
+				else
+				{
+					add_fx_visual_dependencies(def, def.visuals.instance, references);
+				}
+			}
+		}
+
+		void add_common_dependencies(const std::vector<std::pair<std::unique_ptr<loaded_zone>, map_zone_dump>>& zones,
+			std::unordered_set<const void*>& references)
+		{
+			for (const auto type : {ASSET_TYPE_FX, ASSET_TYPE_XMODEL, ASSET_TYPE_MATERIAL})
+			{
+				for (const auto& [zone, dump] : zones)
+				{
+					for (const auto& asset : zone->assets)
+					{
+						if (dump != map_zone_dump::referenced || asset.referenced || asset.type != type || !references.contains(asset.header))
+						{
+							continue;
+						}
+
+						if (type == ASSET_TYPE_FX)
+						{
+							add_fx_dependencies(static_cast<const FxEffectDef*>(asset.header), references);
+						}
+						else if (type == ASSET_TYPE_XMODEL)
+						{
+							add_xmodel_dependencies(static_cast<const XModel*>(asset.header), references);
+						}
+						else
+						{
+							add_material_dependencies(static_cast<const Material*>(asset.header), references);
+						}
+					}
+				}
+			}
+		}
+
 		std::unordered_set<const void*> collect_map_references(const std::vector<std::pair<std::unique_ptr<loaded_zone>, map_zone_dump>>& zones)
 		{
 			std::unordered_set<const void*> references;
@@ -196,6 +342,8 @@ namespace zonetool::iw6
 					}
 				}
 			}
+
+			add_common_dependencies(zones, references);
 
 			for (const auto& [zone, dump] : zones)
 			{
