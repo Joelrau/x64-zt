@@ -23,27 +23,6 @@ namespace zonetool::iw7
 			constexpr auto hk_magic1 = 0x57E0E057;
 			constexpr auto hk_magic2 = 0x10C0C010;
 
-			struct hkxHeaderData
-			{
-				unsigned int magic1; // 0x57E0E057
-				unsigned int magic2; // 0x10C0C010
-				unsigned int userTag;
-				unsigned int version;
-				unsigned char pointerSize;
-				bool littleEndian;
-				bool reuseBaseClassPadding;
-				bool emptyBaseClassOptimization;
-				int numSections;
-				int contentsSectionIndex;
-				int contentsSectionOffset;
-				int contentsClassNameSectionIndex;
-				int contentsClassNameSectionOffset;
-				char contentsVersion[16];
-				unsigned int flags;
-				short maxpredicate;
-				short predicateArraySizePlusPadding;
-			};
-
 			bool validate_header(hkxHeaderData* header)
 			{
 				if (!header)
@@ -142,7 +121,7 @@ namespace zonetool::iw7
 					return;
 				}
 
-				if (!validate_header(reinterpret_cast<binary::hkxHeaderData*>(data)))
+				if (!validate_header(reinterpret_cast<hkxHeaderData*>(data)))
 				{
 					__debugbreak();
 				}
@@ -151,6 +130,178 @@ namespace zonetool::iw7
 				file.open("wb");
 				file.write(data, size, 1);
 				file.close();
+			}
+
+			namespace
+			{
+				const std::unordered_map<std::string, std::uint32_t> class_signatures =
+				{
+					{"hkClass", 0x33D42383},
+					{"hkClassMember", 0xB0EFA719},
+					{"hkClassEnum", 0x8A3609CF},
+					{"hkClassEnumItem", 0xCE6F8A6C},
+					{"HavokPhysicsShapeList", 0xC909A395},
+					{"hknpCompressedMeshShape", 0x1318CC9F},
+					{"hknpCompressedMeshShapeData", 0x54FD8D57},
+				};
+
+				void pad(std::string& buffer, const char fill)
+				{
+					while (buffer.size() % 16)
+					{
+						buffer.push_back(fill);
+					}
+				}
+
+				template <typename T>
+				void append_value(std::string& buffer, const T& value)
+				{
+					buffer.append(reinterpret_cast<const char*>(&value), sizeof(T));
+				}
+
+				hkxSectionHeader make_section_header(const char* tag, const std::size_t start, const std::size_t local,
+					const std::size_t global, const std::size_t virtuals, const std::size_t end)
+				{
+					hkxSectionHeader header{};
+					std::memset(&header, 0xFF, sizeof(header));
+					std::memset(header.sectionTag, 0, sizeof(header.sectionTag));
+					std::strncpy(header.sectionTag, tag, sizeof(header.sectionTag));
+					header.absoluteDataStart = static_cast<int>(start);
+					header.localFixupsOffset = static_cast<int>(local);
+					header.globalFixupsOffset = static_cast<int>(global);
+					header.virtualFixupsOffset = static_cast<int>(virtuals);
+					header.exportsOffset = static_cast<int>(end);
+					header.importsOffset = static_cast<int>(end);
+					header.endOffset = static_cast<int>(end);
+					return header;
+				}
+			}
+
+			void packfile_writer::add_string(const std::size_t pointer_field, const std::string& text)
+			{
+				const auto offset = this->append(text.data(), text.size() + 1);
+				this->add_pointer(pointer_field, offset);
+			}
+
+			void packfile_writer::add_pointer(const std::size_t pointer_field, const std::size_t target)
+			{
+				this->local_fixups_.emplace_back(static_cast<std::uint32_t>(pointer_field), static_cast<std::uint32_t>(target));
+			}
+
+			void packfile_writer::add_object_pointer(const std::size_t pointer_field, const std::size_t object)
+			{
+				this->global_fixups_.emplace_back(static_cast<std::uint32_t>(pointer_field), static_cast<std::uint32_t>(object));
+			}
+
+			std::size_t packfile_writer::append(const void* data, const std::size_t size)
+			{
+				pad(this->data_, 0);
+				const auto offset = this->data_.size();
+				this->data_.append(static_cast<const char*>(data), size);
+				return offset;
+			}
+
+			std::string packfile_writer::finish(const std::string& root_class_name)
+			{
+				std::string class_names;
+				std::unordered_map<std::string, std::uint32_t> class_name_offsets;
+				const auto add_class_name = [&](const std::string& name)
+				{
+					if (class_name_offsets.contains(name))
+					{
+						return;
+					}
+
+					const auto signature = class_signatures.find(name);
+					if (signature == class_signatures.end())
+					{
+						throw std::runtime_error(std::format("havok packfile: no class signature for {}", name));
+					}
+
+					append_value(class_names, signature->second);
+					class_names.push_back(9);
+					class_name_offsets[name] = static_cast<std::uint32_t>(class_names.size());
+					class_names.append(name);
+					class_names.push_back('\0');
+				};
+
+				for (const auto* name : {"hkClass", "hkClassMember", "hkClassEnum", "hkClassEnumItem"})
+				{
+					add_class_name(name);
+				}
+
+				for (const auto& [offset, name] : this->virtual_fixups_)
+				{
+					add_class_name(name);
+				}
+
+				pad(class_names, static_cast<char>(0xFF));
+				pad(this->data_, 0);
+
+				std::ranges::sort(this->local_fixups_);
+				std::ranges::sort(this->global_fixups_);
+
+				std::string local_fixups;
+				for (const auto& [source, target] : this->local_fixups_)
+				{
+					append_value(local_fixups, source);
+					append_value(local_fixups, target);
+				}
+				pad(local_fixups, static_cast<char>(0xFF));
+
+				std::string global_fixups;
+				for (const auto& [source, target] : this->global_fixups_)
+				{
+					append_value(global_fixups, source);
+					append_value(global_fixups, 2u);
+					append_value(global_fixups, target);
+				}
+				pad(global_fixups, static_cast<char>(0xFF));
+
+				std::string virtual_fixups;
+				for (const auto& [source, name] : this->virtual_fixups_)
+				{
+					append_value(virtual_fixups, source);
+					append_value(virtual_fixups, 0u);
+					append_value(virtual_fixups, class_name_offsets[name]);
+				}
+				pad(virtual_fixups, static_cast<char>(0xFF));
+
+				hkxHeaderData header{};
+				header.magic1 = hk_magic1;
+				header.magic2 = hk_magic2;
+				header.version = 11;
+				header.pointerSize = sizeof(void*);
+				header.littleEndian = true;
+				header.reuseBaseClassPadding = false;
+				header.emptyBaseClassOptimization = true;
+				header.numSections = 3;
+				header.contentsSectionIndex = 2;
+				header.contentsClassNameSectionIndex = 0;
+				header.contentsClassNameSectionOffset = static_cast<int>(class_name_offsets.at(root_class_name));
+				std::memset(header.contentsVersion, 0xFF, sizeof(header.contentsVersion));
+				std::memcpy(header.contentsVersion, havok_version, std::strlen(havok_version) + 1);
+				header.maxpredicate = 21;
+
+				const auto class_names_start = sizeof(hkxHeaderData) + 3 * sizeof(hkxSectionHeader);
+				const auto data_start = class_names_start + class_names.size();
+				const auto local_offset = this->data_.size();
+				const auto global_offset = local_offset + local_fixups.size();
+				const auto virtual_offset = global_offset + global_fixups.size();
+				const auto end_offset = virtual_offset + virtual_fixups.size();
+
+				std::string result;
+				append_value(result, header);
+				append_value(result, make_section_header("__classnames__", class_names_start,
+					class_names.size(), class_names.size(), class_names.size(), class_names.size()));
+				append_value(result, make_section_header("__types__", data_start, 0, 0, 0, 0));
+				append_value(result, make_section_header("__data__", data_start, local_offset, global_offset, virtual_offset, end_offset));
+				result.append(class_names);
+				result.append(this->data_);
+				result.append(local_fixups);
+				result.append(global_fixups);
+				result.append(virtual_fixups);
+				return result;
 			}
 		}
 	}

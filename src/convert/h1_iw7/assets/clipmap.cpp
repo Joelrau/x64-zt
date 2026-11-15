@@ -423,7 +423,7 @@ namespace zonetool::h1
 					memcpy(&iw7_asset->stages[i].origin, &asset->stages[i].origin, sizeof(float[3]));
 					iw7_asset->stages[i].triggerIndex = asset->stages[i].triggerIndex;
 					iw7_asset->stages[i].sunPrimaryLightIndex = asset->stages[i].sunPrimaryLightIndex;
-					iw7_asset->stages[i].entityUID = 0x3A83126F;
+					iw7_asset->stages[i].luminanceScale = 0.001f;
 				}
 
 				//memcpy(&iw7_asset->stageTrigger, &mapents_converted_asset->trigger, sizeof(MapTriggers));

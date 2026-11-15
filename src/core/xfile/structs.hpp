@@ -152,6 +152,44 @@ namespace zonetool
 
 	static_assert(sizeof(s2_file_header) == 0x24);
 
+	constexpr std::size_t iw8_block_count = 11;
+
+#pragma pack(push, 1)
+	struct iw8_file_header
+	{
+		char magic[8];
+		std::uint32_t header_version;
+		std::uint32_t xfile_version;
+		std::uint8_t dash_compress_build;
+		std::uint8_t dash_encrypt_build;
+		std::uint8_t transient_file_type;
+		std::uint8_t pad;
+		std::uint32_t resident_part_size;
+		std::uint32_t resident_hash;
+		std::uint32_t always_loaded_part_size;
+		std::uint64_t size;
+		std::uint64_t preload_walk_size;
+		std::uint64_t block_sizes[iw8_block_count];
+	};
+
+	struct iw8_patch_header
+	{
+		char magic[8];
+		std::uint32_t version;
+		std::uint32_t diff_version;
+		std::uint64_t dest_window_size;
+		std::uint64_t source_window_size;
+		std::uint64_t diff_window_size;
+		std::uint64_t resident_diff_compressed_size;
+		std::uint64_t resident_diff_size;
+		iw8_file_header base;
+		iw8_file_header target;
+	};
+#pragma pack(pop)
+
+	static_assert(sizeof(iw8_file_header) == 0x88);
+	static_assert(sizeof(iw8_patch_header) == 0x148);
+
 	enum XFileBlock
 	{
 		XFILE_BLOCK_TEMP = 0x0,

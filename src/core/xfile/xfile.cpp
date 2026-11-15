@@ -1,6 +1,9 @@
 #include <std_include.hpp>
 #include "xfile.hpp"
 
+#include "oodle.hpp"
+
+#include <formats/vcdiff.hpp>
 #include <io/game_files.hpp>
 #include <utils/cryptography.hpp>
 #include <utils/io.hpp>
@@ -104,6 +107,7 @@ namespace zonetool::xfile
 			codec_lz4hc = 3,
 			codec_lz4 = 4,
 			codec_none = 5,
+			codec_oodle = 6,
 		};
 
 		void decompress_block(const std::uint8_t codec, const std::string_view block, char* destination, const std::size_t size)
@@ -136,6 +140,9 @@ namespace zonetool::xfile
 				}
 
 				std::memcpy(destination, block.data(), size);
+				return;
+			case codec_oodle:
+				oodle::decompress(block, destination, size);
 				return;
 			}
 
@@ -409,6 +416,173 @@ namespace zonetool::xfile
 		}
 	}
 
+	namespace
+	{
+		std::uint32_t iw8_expected_xfile_version(const std::uint8_t transient_file_type)
+		{
+			constexpr std::uint32_t versions[] = {0xFF7, 0xFF7, 0xFF3, 0xFF3, 0xFF3, 0xFF3, 0xFF7, 0xFCD, 0xFCD, 0xFCD, 0xFCD, 0xFCD, 0xFCD, 0xFCD};
+			if (transient_file_type >= std::size(versions))
+			{
+				throw std::runtime_error(std::format("unknown transient file type {}", transient_file_type));
+			}
+
+			return versions[transient_file_type];
+		}
+
+		std::uint8_t iw8_block_codec(const std::uint8_t type)
+		{
+			switch (type)
+			{
+			case 1:
+				return codec_none;
+			case 4:
+			case 5:
+				return codec_lz4;
+			case 6:
+			case 7:
+				return codec_oodle;
+			}
+
+			throw std::runtime_error(std::format("unknown block type {}", type));
+		}
+
+		std::string decompress_iw8_iwc(const std::string_view data)
+		{
+			enum compressor : std::uint8_t
+			{
+				compressor_passthrough = 1,
+				compressor_block = 2,
+			};
+
+			byte_reader reader(data);
+
+			const auto type = reader.read<std::uint8_t>();
+			if (reader.read_view(3) != "IWC")
+			{
+				throw std::runtime_error("compressor header has no IWC magic");
+			}
+
+			if (type == compressor_passthrough)
+			{
+				return std::string(reader.rest());
+			}
+
+			if (type != compressor_block)
+			{
+				throw std::runtime_error(std::format("unknown compressor {}", type));
+			}
+
+			const auto total_size = reader.read<std::uint32_t>();
+			const auto codec = iw8_block_codec(static_cast<std::uint8_t>(reader.read<std::uint32_t>() >> 24));
+
+			std::string result;
+			result.resize(total_size);
+
+			std::size_t written = 0;
+			while (written < total_size)
+			{
+				const auto compressed_size = reader.read<std::uint32_t>();
+				const auto decompressed_size = reader.read<std::uint32_t>();
+				reader.skip(sizeof(std::uint32_t));
+
+				const auto block = reader.read_view(compressed_size);
+				reader.skip(((compressed_size + 3) & ~std::size_t(3)) - compressed_size);
+
+				if (written + decompressed_size > total_size)
+				{
+					throw std::runtime_error("block container exceeds its declared size");
+				}
+
+				try
+				{
+					decompress_block(codec, block, result.data() + written, decompressed_size);
+				}
+				catch (const std::exception& e)
+				{
+					throw std::runtime_error(std::format("{} at output offset 0x{:X}", e.what(), written));
+				}
+
+				written += decompressed_size;
+			}
+
+			return result;
+		}
+
+		std::string read_iw8_resident_data(const std::string_view data, const format& format, const bool is_signed)
+		{
+			byte_reader reader(data);
+			return decompress_iw8_iwc(read_signed_data(reader, format, is_signed));
+		}
+
+		std::optional<iw8_patch_header> read_iw8_patch(const std::filesystem::path& path, const format& format,
+			const iw8_file_header& header, std::string& zone)
+		{
+			const auto patch_path = std::filesystem::path(path).replace_extension(".fp");
+
+			std::string data;
+			if (!game_files::read(patch_path, data) || data.size() < sizeof(iw8_patch_header))
+			{
+				return {};
+			}
+
+			byte_reader reader(data);
+			const auto patch = reader.read<iw8_patch_header>();
+			if (std::string_view(patch.magic, sizeof(patch.magic)) != "IWffd100")
+			{
+				throw std::runtime_error("patch file has no IWffd100 magic");
+			}
+
+			if (std::memcmp(&patch.base, &header, sizeof(header)))
+			{
+				throw std::runtime_error("patch file is for another version of the zone");
+			}
+
+			if (!patch.resident_diff_compressed_size)
+			{
+				return patch;
+			}
+
+			const auto is_signed = std::string_view(patch.target.magic, sizeof(patch.target.magic)) == format.signed_magic;
+			const auto delta = read_iw8_resident_data(reader.rest(), format, is_signed);
+			if (delta.size() != patch.resident_diff_size)
+			{
+				throw std::runtime_error(std::format("patch size 0x{:X} is not 0x{:X}", delta.size(), patch.resident_diff_size));
+			}
+
+			zone = vcdiff::apply(delta, zone);
+			return patch;
+		}
+
+		void read_iw8(const std::filesystem::path& path, byte_reader& reader, const format& format, fastfile& file)
+		{
+			if (format.block_count != iw8_block_count)
+			{
+				throw std::runtime_error(std::format("IW8 zones have {} blocks", iw8_block_count));
+			}
+
+			auto header = reader.read<iw8_file_header>();
+			auto zone = read_iw8_resident_data(reader.rest(), format, file.is_signed);
+			if (const auto patch = read_iw8_patch(path, format, header, zone))
+			{
+				header = patch->target;
+			}
+
+			const auto expected_version = iw8_expected_xfile_version(header.transient_file_type);
+			if (header.xfile_version != expected_version)
+			{
+				throw std::runtime_error(std::format("xfile version 0x{:X} is not 0x{:X}", header.xfile_version, expected_version));
+			}
+
+			if (zone.size() != header.size)
+			{
+				throw std::runtime_error(std::format("zone size 0x{:X} does not match data size 0x{:X}", header.size, zone.size()));
+			}
+
+			file.block_sizes.assign(std::begin(header.block_sizes), std::end(header.block_sizes));
+			file.payload = std::move(zone);
+		}
+	}
+
 	std::string decompress_s2_stream(const std::string_view data)
 	{
 		byte_reader reader(data);
@@ -462,6 +636,9 @@ namespace zonetool::xfile
 			break;
 		case container::s2:
 			read_s2(reader, format, file);
+			break;
+		case container::iw8:
+			read_iw8(path, reader, format, file);
 			break;
 		}
 

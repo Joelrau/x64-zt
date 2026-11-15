@@ -11,6 +11,7 @@ DUMPS = {
 	"h2": "h2/ship",
 	"iw6": "iw6/ship",
 	"iw7": "iw7/ship",
+	"iw8": "iw8/ship",
 	"s1": "s1/ship",
 	"s2": "s2/ship",
 }

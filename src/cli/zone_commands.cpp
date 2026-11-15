@@ -271,6 +271,12 @@ namespace zonetool::cli
 
 	void build_zone(const settings& settings, const std::span<const std::string> args)
 	{
+		if (!settings.game->build_zone)
+		{
+			std::cout << std::format("buildzone is not supported for {}\n", settings.game->name);
+			return;
+		}
+
 		if (args.empty())
 		{
 			std::cout << "usage: buildzone <zone>\n";

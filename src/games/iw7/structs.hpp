@@ -2554,6 +2554,26 @@ namespace zonetool::iw7
 		MaterialDomainShaderProgram prog;
 	}; assert_sizeof(MaterialDomainShader, 0x28);
 
+	enum MaterialStreamStreamSource : std::uint8_t
+	{
+		STREAM_SRC_POSITION = 0x0,
+		STREAM_SRC_COLOR = 0x1,
+		STREAM_SRC_TEXCOORD_0 = 0x2,
+		STREAM_SRC_NORMAL = 0x3,
+		STREAM_SRC_TANGENT = 0x4,
+		STREAM_SRC_TEXCOORD_1 = 0x6,
+	};
+
+	enum MaterialStreamDestination : std::uint8_t
+	{
+		STREAM_DST_POSITION = 0x0,
+		STREAM_DST_NORMAL = 0x1,
+		STREAM_DST_COLOR_0 = 0x2,
+		STREAM_DST_TEXCOORD_0 = 0x8,
+		STREAM_DST_TEXCOORD_2 = 0xA,
+		STREAM_DST_TEXCOORD_3 = 0xB,
+	};
+
 	struct MaterialStreamRouting
 	{
 		unsigned char source;
@@ -2602,6 +2622,12 @@ namespace zonetool::iw7
 		MTL_ARG_COUNT = 0x7,
 	};
 
+	enum MaterialShaderStageFlags : std::uint8_t
+	{
+		MTL_SHADER_STAGE_VS = 0x2,
+		MTL_SHADER_STAGE_PS = 0x10,
+	};
+
 	struct MaterialShaderArgument
 	{
 		unsigned char type;
@@ -2609,6 +2635,22 @@ namespace zonetool::iw7
 		unsigned short dest;
 		MaterialArgumentDef u;
 	}; assert_sizeof(MaterialShaderArgument, 0x10);
+
+	enum MaterialPassResourceFlags : std::uint64_t
+	{
+		PASS_RESOURCE_PER_PRIM_BUFFER = 0x1,
+		PASS_RESOURCE_PER_OBJECT_BUFFER = 0x2,
+		PASS_RESOURCE_STABLE_BUFFER = 0x4,
+		PASS_RESOURCE_MATERIAL_BUFFER = 0x8,
+		PASS_RESOURCE_INSTANCED = 0x1000,
+	};
+
+	enum MaterialPassVertexFormat : std::uint8_t
+	{
+		PASS_VERTEX_FORMAT_WORLD = 0,
+		PASS_VERTEX_FORMAT_MODEL = 2,
+		PASS_VERTEX_FORMAT_MODEL_LIT = 5,
+	};
 
 	struct MaterialPass
 	{
@@ -2633,11 +2675,26 @@ namespace zonetool::iw7
 		unsigned char precompiledIndex;
 		unsigned char stageConfig;
 		char __pad0[1];
-		int unk[8];
+		unsigned int depthStencilStateMask; // sub_140E46560
+		unsigned int unk[3];
+		unsigned __int64 resourceFlags; // sub_140E3FD40
+		unsigned char codeSamplerMask;
+		unsigned char vertexFormat; // sub_140E71420
+		unsigned char tessellation;
+		unsigned char unk2[5];
 		MaterialShaderArgument* args;
 	}; assert_sizeof(MaterialPass, 104);
 	assert_offsetof(MaterialPass, zone, 50);
+	assert_offsetof(MaterialPass, depthStencilStateMask, 64);
+	assert_offsetof(MaterialPass, resourceFlags, 80);
+	assert_offsetof(MaterialPass, vertexFormat, 89);
 	assert_offsetof(MaterialPass, args, 96);
+
+	enum MaterialTechniqueFlags : std::uint16_t
+	{
+		TECHNIQUE_FLAG_POSITION_ONLY_PREPASS = 0x10, // sub_140E13510
+		TECHNIQUE_FLAG_MODEL_LIT = 0x20, // sub_140E71B60
+	};
 
 	struct MaterialTechniqueHeader
 	{
@@ -3786,9 +3843,11 @@ namespace zonetool::iw7
 		vec3_t origin;
 		unsigned short triggerIndex;
 		char sunPrimaryLightIndex;
+		float luminanceScale;
 		unsigned int entityUID;
-		char unk[20];
+		vec3_t skyRotationAngles;
 	}; assert_sizeof(Stage, 48);
+	assert_offsetof(Stage, luminanceScale, 0x18);
 
 	struct PhysicsCapacities
 	{
@@ -3882,6 +3941,275 @@ namespace zonetool::iw7
 		unsigned int windingPointCount;
 		TriggerWindingPoint* windingPoints;
 	}; assert_sizeof(MapTriggers, 0x50);
+
+	enum PhysicsContents : std::uint32_t
+	{
+		PHYSICS_CONTENTS_SOLID = 0x1,
+		PHYSICS_CONTENTS_FOLIAGE = 0x2,
+		PHYSICS_CONTENTS_AIAVOID = 0x4,
+		PHYSICS_CONTENTS_VEHICLETRIGGER = 0x8,
+		PHYSICS_CONTENTS_GLASS = 0x10,
+		PHYSICS_CONTENTS_WATER = 0x20,
+		PHYSICS_CONTENTS_CANSHOOTCLIP = 0x40,
+		PHYSICS_CONTENTS_MISSILECLIP = 0x80,
+		PHYSICS_CONTENTS_ITEM = 0x100,
+		PHYSICS_CONTENTS_VEHICLECLIP = 0x200,
+		PHYSICS_CONTENTS_ITEMCLIP = 0x400,
+		PHYSICS_CONTENTS_SKY = 0x800,
+		PHYSICS_CONTENTS_AINOSIGHT = 0x1000,
+		PHYSICS_CONTENTS_CLIPSHOT = 0x2000,
+		PHYSICS_CONTENTS_ACTOR = 0x4000,
+		PHYSICS_CONTENTS_CORPSECLIPSHOT = 0x8000,
+		PHYSICS_CONTENTS_PLAYERCLIP = 0x10000,
+		PHYSICS_CONTENTS_MONSTERCLIP = 0x20000,
+		PHYSICS_CONTENTS_SENTIENTTRIGGER = 0x40000,
+		PHYSICS_CONTENTS_TEAMTRIGGER = 0x80000,
+		PHYSICS_CONTENTS_EXPLOSIONCLIP = 0x100000,
+		PHYSICS_CONTENTS_USE = 0x200000,
+		PHYSICS_CONTENTS_NONSENTIENTTRIGGER = 0x400000,
+		PHYSICS_CONTENTS_VEHICLE = 0x800000,
+		PHYSICS_CONTENTS_MANTLE = 0x1000000,
+		PHYSICS_CONTENTS_PLAYER = 0x2000000,
+		PHYSICS_CONTENTS_CORPSE = 0x4000000,
+		PHYSICS_CONTENTS_DETAIL = 0x8000000,
+		PHYSICS_CONTENTS_STRUCTURAL = 0x10000000,
+		PHYSICS_CONTENTS_TRANSLUCENT = 0x20000000,
+		PHYSICS_CONTENTS_PLAYERTRIGGER = 0x40000000,
+		PHYSICS_CONTENTS_NODROP = 0x80000000,
+	};
+
+	struct hkxHeaderData
+	{
+		unsigned int magic1;
+		unsigned int magic2;
+		unsigned int userTag;
+		unsigned int version;
+		unsigned char pointerSize;
+		bool littleEndian;
+		bool reuseBaseClassPadding;
+		bool emptyBaseClassOptimization;
+		int numSections;
+		int contentsSectionIndex;
+		int contentsSectionOffset;
+		int contentsClassNameSectionIndex;
+		int contentsClassNameSectionOffset;
+		char contentsVersion[16];
+		unsigned int flags;
+		short maxpredicate;
+		short predicateArraySizePlusPadding;
+	}; assert_sizeof(hkxHeaderData, 64);
+
+	struct hkxSectionHeader
+	{
+		char sectionTag[19];
+		char nullByte;
+		int absoluteDataStart;
+		int localFixupsOffset;
+		int globalFixupsOffset;
+		int virtualFixupsOffset;
+		int exportsOffset;
+		int importsOffset;
+		int endOffset;
+		int pad[4];
+	}; assert_sizeof(hkxSectionHeader, 64);
+
+	enum hkArrayFlags : std::uint32_t
+	{
+		HK_ARRAY_DONT_DEALLOCATE = 0x80000000,
+	};
+
+	template <typename T>
+	struct hkArray
+	{
+		T* data;
+		int size;
+		unsigned int capacityAndFlags;
+	}; assert_sizeof(hkArray<int>, 16);
+
+	struct hkVector4
+	{
+		float x;
+		float y;
+		float z;
+		float w;
+	}; assert_sizeof(hkVector4, 16);
+
+	struct hkAabb
+	{
+		hkVector4 min;
+		hkVector4 max;
+	}; assert_sizeof(hkAabb, 32);
+
+	struct hkBitField
+	{
+		hkArray<unsigned int> words;
+		int numBits;
+	}; assert_sizeof(hkBitField, 24);
+
+	struct hknpSparseCompactMap
+	{
+		unsigned int secondaryKeyMask;
+		unsigned int secondaryKeyBits;
+		hkArray<unsigned short> primaryKeyToIndex;
+		hkArray<unsigned short> valueAndSecondaryKeys;
+	}; assert_sizeof(hknpSparseCompactMap, 40);
+
+	enum hknpShapeDispatchType : std::uint8_t
+	{
+		HKNP_SHAPE_DISPATCH_COMPOSITE = 0x2,
+	};
+
+	enum hknpShapeFlags : std::uint16_t
+	{
+		HKNP_SHAPE_FLAG_IS_COMPOSITE = 0x4,
+	};
+
+	struct hkcdStaticTreeCodec3Axis4
+	{
+		unsigned char xyz[3];
+		unsigned char data;
+	}; assert_sizeof(hkcdStaticTreeCodec3Axis4, 4);
+
+	struct hkcdStaticTreeCodec3Axis5
+	{
+		unsigned char xyz[3];
+		unsigned char hiData;
+		unsigned char loData;
+	}; assert_sizeof(hkcdStaticTreeCodec3Axis5, 5);
+
+	struct hkcdStaticMeshTreeBaseSection
+	{
+		hkArray<hkcdStaticTreeCodec3Axis4> nodes;
+		hkAabb domain;
+		float codecParms[6];
+		unsigned int firstPackedVertex;
+		unsigned int sharedVertices;
+		unsigned int primitives;
+		unsigned int dataRuns;
+		unsigned char numPackedVertices;
+		unsigned char numSharedIndices;
+		unsigned short leafIndex;
+		unsigned char page;
+		unsigned char flags;
+		unsigned char layerData;
+		unsigned char unusedData;
+	}; assert_sizeof(hkcdStaticMeshTreeBaseSection, 96);
+
+	enum hknpCompressedMeshCustomPrimitive : std::uint16_t
+	{
+		HKNP_CUSTOM_PRIMITIVE_CONVEX = 0x2,
+	};
+
+	struct hkcdStaticMeshTreeBasePrimitive
+	{
+		unsigned char indices[4];
+	}; assert_sizeof(hkcdStaticMeshTreeBasePrimitive, 4);
+
+	struct hknpCompressedMeshShapeTreeDataRun
+	{
+		unsigned short value;
+		unsigned char index;
+		unsigned char count;
+	}; assert_sizeof(hknpCompressedMeshShapeTreeDataRun, 4);
+
+	struct hknpCompressedMeshShapeTree
+	{
+		hkArray<hkcdStaticTreeCodec3Axis5> nodes;
+		hkAabb domain;
+		int numPrimitiveKeys;
+		int bitsPerKey;
+		unsigned int maxKeyValue;
+		char __pad0[4];
+		hkArray<hkcdStaticMeshTreeBaseSection> sections;
+		hkArray<hkcdStaticMeshTreeBasePrimitive> primitives;
+		hkArray<unsigned short> sharedVerticesIndex;
+		hkArray<unsigned int> packedVertices;
+		hkArray<unsigned long long> sharedVertices;
+		hkArray<hknpCompressedMeshShapeTreeDataRun> primitiveDataRuns;
+	}; assert_sizeof(hknpCompressedMeshShapeTree, 160);
+
+	struct hkcdSimdTreeNode
+	{
+		float lx[4];
+		float hx[4];
+		float ly[4];
+		float hy[4];
+		float lz[4];
+		float hz[4];
+		unsigned int data[4];
+	}; assert_sizeof(hkcdSimdTreeNode, 112);
+
+	struct hkcdSimdTree
+	{
+		void* vtable;
+		hkArray<hkcdSimdTreeNode> nodes;
+	}; assert_sizeof(hkcdSimdTree, 24);
+
+	struct hkcdStaticMeshTreeBaseConnectivity
+	{
+		hkArray<void> headers;
+		hkArray<void> localLinks;
+		hkArray<void> globalLinks;
+	}; assert_sizeof(hkcdStaticMeshTreeBaseConnectivity, 48);
+
+	struct hknpCompressedMeshShapeData
+	{
+		void* vtable;
+		unsigned int memSizeAndRefCount;
+		char __pad0[4];
+		hknpCompressedMeshShapeTree meshTree;
+		hkcdSimdTree simdTree;
+		hkcdStaticMeshTreeBaseConnectivity connectivity;
+		char __pad1[8];
+	}; assert_sizeof(hknpCompressedMeshShapeData, 256);
+	assert_offsetof(hknpCompressedMeshShapeData, meshTree, 16);
+	assert_offsetof(hknpCompressedMeshShapeData, simdTree, 176);
+
+	struct hknpCompressedMeshShape
+	{
+		void* vtable;
+		unsigned int memSizeAndRefCount;
+		char __pad0[4];
+		hknpShapeFlags flags;
+		unsigned char numShapeKeyBits;
+		hknpShapeDispatchType dispatchType;
+		float convexRadius;
+		unsigned long long userData;
+		void* properties;
+		char __pad1[8];
+		hknpSparseCompactMap edgeWeldingMap;
+		unsigned int shapeTagCodecInfo;
+		hknpCompressedMeshShapeData* data;
+		hkBitField quadIsFlat;
+		hkBitField triangleIsInterior;
+		int numTriangles;
+		int numConvexShapes;
+	}; assert_sizeof(hknpCompressedMeshShape, 160);
+	assert_offsetof(hknpCompressedMeshShape, flags, 16);
+	assert_offsetof(hknpCompressedMeshShape, edgeWeldingMap, 48);
+	assert_offsetof(hknpCompressedMeshShape, data, 96);
+
+	struct HavokPhysicsShapeTagData
+	{
+		unsigned int collisionFilterInfo;
+		int materialCRC;
+		unsigned short materialId;
+		unsigned long long userData;
+	}; assert_sizeof(HavokPhysicsShapeTagData, 24);
+
+	struct HavokPhysicsShapeList
+	{
+		hkArray<void*> shapes;
+		hkArray<int> shapeIndices;
+		hkArray<const char*> shapeNames;
+		hkArray<int> vertCounts;
+		hkArray<int> triCounts;
+		hkArray<hkVector4> minMaxes;
+		int numWorldGeoShapes;
+		hkArray<HavokPhysicsShapeTagData> shapeTagData;
+		hkArray<unsigned int> shapeContents;
+		hkArray<int> convexCounts;
+	}; assert_sizeof(HavokPhysicsShapeList, 152);
 
 	struct clipMap_t // __declspec(align(128))
 	{
@@ -5661,10 +5989,9 @@ namespace zonetool::iw7
 		XModel* model;
 		GfxStaticModelVertexLightingInfo vertexLightingInfo;
 		GfxStaticModelLightmapInfo modelLightmapInfo;
-		unsigned short unk0;
-		unsigned short unk1;
+		unsigned int firstProbe;
 		unsigned short unk2;
-		unsigned short unk3;
+		unsigned short probeCount;
 		unsigned short lightingHandle;
 		unsigned short unk5;
 		unsigned short unk6[4];
@@ -5685,6 +6012,7 @@ namespace zonetool::iw7
 	}; assert_sizeof(GfxStaticModelDrawInst, 184);
 	assert_offsetof(GfxStaticModelDrawInst, model, 56);
 	assert_offsetof(GfxStaticModelDrawInst, vertexLightingInfo, 64);
+	assert_offsetof(GfxStaticModelDrawInst, firstProbe, 140);
 	assert_offsetof(GfxStaticModelDrawInst, cullDist, 160);
 
 	struct GfxSurfaceBounds
@@ -5757,6 +6085,17 @@ namespace zonetool::iw7
 	};
 
 	typedef void* umbraTomePtr_t;
+
+	enum UmbraObjectType : std::uint32_t
+	{
+		UMBRA_OBJECT_SURFACE = 0x0,
+		UMBRA_OBJECT_STATIC_MODEL = 0x1,
+		UMBRA_OBJECT_VOLUMETRIC = 0x3,
+		UMBRA_OBJECT_PRIMARY_LIGHT = 0x4,
+		UMBRA_OBJECT_REFLECTION_PROBE = 0x5,
+		UMBRA_OBJECT_DECAL = 0x6,
+		UMBRA_OBJECT_NONE = 0x7, // sub_1405FAA30 ignores 2 and 7
+	};
 
 	struct UmbraGate
 	{

@@ -12,6 +12,7 @@ namespace zonetool
 		computeshader,
 		hullshader,
 		domainshader,
+		libshader,
 		shader_count,
 	};
 
@@ -24,6 +25,7 @@ namespace zonetool
 			{computeshader, "computeshader"},
 			{hullshader, "hullshader"},
 			{domainshader, "domainshader"},
+			{libshader, "libshader"},
 		};
 
 		std::unordered_map<shader_type, std::string> shader_abbreviations
@@ -33,6 +35,7 @@ namespace zonetool
 			{computeshader, "cs"},
 			{hullshader, "hs"},
 			{domainshader, "ds"},
+			{libshader, "ls"},
 		};
 
 		std::string get_shader_name(const shader_type type)

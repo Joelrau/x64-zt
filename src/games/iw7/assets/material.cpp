@@ -349,6 +349,10 @@ namespace zonetool::iw7
 		if (!this->asset_)
 		{
 			this->asset_ = db_find_x_asset_header_safe(XAssetType(this->type()), this->name_.data()).material;
+			if (!this->asset_)
+			{
+				ZONETOOL_FATAL("material \"%s\" not found.", name.data());
+			}
 
 			if (DB_IsXAssetDefault(XAssetType(this->type()), this->name_.data()))
 			{
@@ -476,7 +480,13 @@ namespace zonetool::iw7
 		}
 
 		reader.read_array(asset->constantTable, 15, asset->constantCount);
-		reader.read_array(asset->stateBitsTable, 3, asset->stateBitsCount);
+		if (const auto state_bits = reader.read_array(asset->stateBitsTable, 3, asset->stateBitsCount))
+		{
+			for (auto i = 0; i < asset->stateBitsCount; i++)
+			{
+				state_bits[i].zone = reader.zone_index();
+			}
+		}
 		reader.read_array(asset->constantBufferIndex, 0, MaterialTechniqueType::TECHNIQUE_COUNT);
 
 		if (const auto buffers = reader.read_array(asset->constantBufferTable, 15, asset->constantBufferCount))

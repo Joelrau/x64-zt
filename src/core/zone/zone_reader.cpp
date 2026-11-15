@@ -27,12 +27,20 @@ namespace zonetool
 		{
 			return reinterpret_cast<std::uint64_t>(pointer);
 		}
+	}
 
-		zone_offset split_offset(const void* pointer)
+	zone_offset zone_reader::split_offset(const void* pointer) const
+	{
+		const auto value = pointer_value(pointer);
+		zone_offset result{(value >> 32) & 0xF, static_cast<std::uint32_t>(value) - 1ull};
+
+		if (this->layout_.asset_relative_tag && value >> 36 == *this->layout_.asset_relative_tag
+			&& result.block_index < this->root_asset_positions_.size())
 		{
-			const auto value = pointer_value(pointer);
-			return {(value >> 32) & 0xF, static_cast<std::uint32_t>(value) - 1ull};
+			result.offset += this->root_asset_positions_[result.block_index];
 		}
+
+		return result;
 	}
 
 	zone_reader::zone_reader(const std::string_view data, const std::span<const std::uint64_t> block_sizes,
@@ -126,10 +134,32 @@ namespace zonetool
 		}
 		else if (this->current_block_ == this->layout_.pop_aligned_block)
 		{
-			this->align(15);
+			this->align(this->layout_.pop_alignment);
 		}
 
 		this->current_block_ = state.previous_block;
+	}
+
+	void zone_reader::push_asset()
+	{
+		if (!this->asset_depth_++)
+		{
+			this->root_asset_positions_.clear();
+			for (const auto& block : this->blocks_)
+			{
+				this->root_asset_positions_.push_back(block.position);
+			}
+		}
+	}
+
+	void zone_reader::pop_asset()
+	{
+		if (!this->asset_depth_)
+		{
+			throw std::runtime_error("asset stack is empty");
+		}
+
+		this->asset_depth_--;
 	}
 
 	void zone_reader::align(const std::size_t alignment)
@@ -229,7 +259,7 @@ namespace zonetool
 		}
 
 		const auto tag = pointer_value(pointer) >> 36;
-		if (tag != this->layout_.offset_tag && (tag != 0 || !this->layout_.untagged_offsets))
+		if (tag != this->layout_.offset_tag && (tag != 0 || !this->layout_.untagged_offsets) && tag != this->layout_.asset_relative_tag)
 		{
 			return false;
 		}

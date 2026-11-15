@@ -18,6 +18,8 @@ namespace zonetool
 		std::optional<std::uint8_t> unread_block;
 		std::size_t asset_alignment = 3;
 		bool untagged_offsets = true;
+		std::size_t pop_alignment = 15;
+		std::optional<std::uint64_t> asset_relative_tag;
 	};
 
 	struct zone_offset
@@ -53,6 +55,9 @@ namespace zonetool
 		void push_stream(std::uint8_t block);
 		void pop_stream();
 		void align(std::size_t alignment);
+
+		void push_asset();
+		void pop_asset();
 
 		std::uint8_t current_stream() const;
 		std::size_t remaining() const;
@@ -300,6 +305,8 @@ namespace zonetool
 		std::vector<block> blocks_;
 		std::uint8_t current_block_{};
 		std::vector<stream_state> stream_stack_;
+		std::vector<std::size_t> root_asset_positions_;
+		std::size_t asset_depth_{};
 
 		zone_layout layout_;
 
@@ -321,6 +328,7 @@ namespace zonetool
 		}
 
 		block& current_block();
+		zone_offset split_offset(const void* pointer) const;
 		std::uint8_t* offset_address(std::uint8_t block_index, std::size_t offset) const;
 		void resolve_offset(void** field, offset_target target);
 		char* read_string_data();

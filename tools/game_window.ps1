@@ -22,20 +22,50 @@ public static class game_window
 	[DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint f, IntPtr e);
 	[DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
 	[DllImport("user32.dll")] public static extern uint MapVirtualKey(uint code, uint type);
+	[DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+	[DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+	public delegate bool enum_proc(IntPtr h, IntPtr l);
+	[DllImport("user32.dll")] public static extern bool EnumWindows(enum_proc f, IntPtr l);
+
+	public static IntPtr largest_window(uint pid)
+	{
+		var best = IntPtr.Zero;
+		var best_area = 0L;
+		EnumWindows((h, l) =>
+		{
+			uint owner;
+			GetWindowThreadProcessId(h, out owner);
+			RECT r;
+			if (owner == pid && IsWindowVisible(h) && GetClientRect(h, out r) && (long)r.right * r.bottom > best_area)
+			{
+				best = h;
+				best_area = (long)r.right * r.bottom;
+			}
+			return true;
+		}, IntPtr.Zero);
+		return best;
+	}
 }
 "@
 
 $process = Get-Process $process_name -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
 if (-not $process) { Write-Output "no $process_name window"; exit 1 }
-$hwnd = $process.MainWindowHandle
+$hwnd = [game_window]::largest_window([uint32]$process.Id)
 
 function focus_game
 {
 	if ([game_window]::GetForegroundWindow() -ne $hwnd)
 	{
 		[game_window]::ShowWindow($hwnd, 9) | Out-Null
+		[game_window]::keybd_event(0x12, 0, 0, [IntPtr]::Zero) # alt press lifts the foreground lock
 		[game_window]::SetForegroundWindow($hwnd) | Out-Null
+		[game_window]::keybd_event(0x12, 0, 2, [IntPtr]::Zero)
 		Start-Sleep -Milliseconds 400
+	}
+	if ([game_window]::GetForegroundWindow() -ne $hwnd)
+	{
+		Write-Output "$process_name window is not in the foreground"
+		exit 1
 	}
 }
 
@@ -93,7 +123,7 @@ switch ($action)
 		{
 			$vk = switch ($name)
 			{
-				"enter" { 0x0D } "esc" { 0x1B } "tilde" { 0xC0 } "space" { 0x20 } "tab" { 0x09 } "back" { 0x08 }
+				"enter" { 0x0D } "esc" { 0x1B } "tilde" { 0xC0 } "space" { 0x20 } "tab" { 0x09 } "back" { 0x08 } "f12" { 0x7B }
 				default { [int][char]$name.ToUpper() }
 			}
 			press ([byte]$vk)

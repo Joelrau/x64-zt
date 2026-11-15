@@ -11,6 +11,7 @@ namespace game
 		iw7,
 		s1,
 		s2,
+		iw8,
 		count,
 	};
 

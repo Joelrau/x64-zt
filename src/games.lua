@@ -1,5 +1,5 @@
 games = {
-	known = {"h1", "h2", "iw6", "iw7", "s1", "s2"},
+	known = {"h1", "h2", "iw6", "iw7", "iw8", "s1", "s2"},
 	enabled = {},
 	dependencies = {
 		h1 = function()
@@ -23,6 +23,9 @@ games = {
 			gsc_tool.import_engine("iw6")
 		end,
 		iw7 = function()
+			dependencies.use(directxtex)
+		end,
+		iw8 = function()
 			dependencies.use(directxtex)
 		end,
 	},
