@@ -95,7 +95,7 @@ zonetool.exe -game h1 dumpzone mp_shipment
 | `dumpzone <zone> [--target <game>]` | Writes `dump/<zone>/` and `dump/<zone>/<zone>.csv`. `--target` converts the assets |
 | `dumpmap <map> [--target <game>] [--skip-common]` | Writes the map zones of `<map>` to `dump/<map>/` with one merged `<map>.csv`. It dumps only techsets from common zones (H2 `common`: images, IW6: every common asset that the map zones reference). `--skip-common` loads the common zones but does not dump them. Patch zones load after the map zone. It dumps only the last copy of an asset, because the game uses the patch copy. H1, H2, IW6 and S1 only |
 | `dumpasset <type> <name> <zone> [--target <game>]` | Reads `<zone>` and writes one asset to `dump/assets/`. The name `*` writes every asset of the type. `--target` converts the asset |
-| `buildzone <zone> [-use_usermaps]` | Reads `zone_source/<zone>.csv` and the files in `zonetool/<zone>/`, then writes `<game folder>/zone/<zone>.ff`. `-use_usermaps` writes the zone to `<game folder>/usermaps/<zone>/` instead. Not for IW8 |
+| `buildzone <zone> [-use_usermaps]` | Reads `zone_source/<zone>.csv` and the files in `zonetool/<zone>/`, then writes `<game folder>/zone/<zone>.ff`. `-use_usermaps` writes the zone to `<game folder>/usermaps/<zone>/` instead |
 | `generatecsv <map> [sp] [--path <dir>]` | Writes `zone_source/<map>.csv` from the files in `zonetool/<map>/` |
 
 Without a command, `zonetool.exe` opens an interactive console that waits for input. An agent always passes a command. `zonetool.exe -h` prints every command and flag.
@@ -111,7 +111,8 @@ Without a command, `zonetool.exe` opens an interactive console that waits for in
 - With `--target`, a converter loads its `required_zones` (h1_s2: `common_core_mp`, `common_mp` and others) and can also dump common-zone assets that a converted asset uses (h1_s2 `dump_used`: images, xanims, sounds with their loaded sounds). The S2 `buildzone` skips the ones S2 already ships through the `ignore` rows.
 - H1 to S2 output can need S2x: a map zone cannot replace a rawfile that S2 `common_mp` already holds, so h1_s2 writes such files as `override/<name>` and S2x loads `override/<name>` first. This covers `vision/<map>.vision` when `common_mp` has the same name, and `override/animtrees/destructibles.atr` (the stock tree plus the H1 scriptable anims it lacks, since S2 looks scriptable anims up in the hardcoded `destructibles` tree). h1_s2 reads `<S2 folder>/zone/common_mp.ff` to find them. A hand-filtered `zone_source/<map>.csv` needs the `rawfile,override/...` rows.
 - Flags for `dumpzone`: `-dds` writes DDS images. `-dump_streamed_image` reads `imagefile*.pak` and writes streamed images. `-castdump` writes a `.cast` file next to each xmodel and xanim; IW6, S1, H1, H2 and IW7 share `src/core/assets/cast_dump.hpp`. See `docs/S2_SUPPORT.md`.
-- Flags for `buildzone`: `-more_memory` doubles the zone memory limit. `-keep_mp_traverse_nodes` keeps invalid mp traverse nodes in aipaths (H2).
+- Flag for `dumpzone --target iw7` of IW8: `-pbr` converts materials to the stock PBR techsets. Without it, the converter uses the stock lambert techsets.
+- Flags for `buildzone`: `-more_memory` doubles the zone memory limit. `-keep_mp_traverse_nodes` keeps invalid mp traverse nodes in aipaths (H2). `-uncompressed` writes a stored IW8 zone (`\x01IWC` body), which `mw120rproxy` needs.
 - The `require` row in a build CSV loads another zone into the asset database. There is no `loadzone` command.
 - `buildzone` writes `<zone>.ff` and `<zone>.pak` to the `zone/` folder of the game folder. It replaces a zone of the same name.
 - `-no_cache` writes every output again and ignores the build cache.
@@ -238,7 +239,7 @@ Run these after a change to a reader, writer or the container code:
 | H2 | No full count. `patch_gulag`, `code_post_gfx`, `common` and `gulag` pass | `patch_gulag` |
 | IW6 | 878 of 878 | `mp_battery3` |
 | IW7 | 686 of 687 (`mp_vlobby_room` on disk is a modified file) | `mp_frontend`, `mp_afghan` |
-| IW8 | 9471 of 9494 (`code_post_gfx` and old frontend zones fail, see `docs/IW8_SUPPORT.md`) | None. IW8 has no `buildzone` |
+| IW8 | 9471 of 9494 (`code_post_gfx` and old frontend zones fail, see `docs/IW8_SUPPORT.md`) | `mp_rust`, `srv_mp_rust`, `techsets_mp_rust` |
 | S1 | 3058 of 3058 | `mp_prison` |
 | S2 | 268 of 268 | `common`, `mp_aachen_v2` |
 

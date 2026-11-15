@@ -94,21 +94,6 @@ namespace zonetool::iw8
 			return std::ranges::contains(unused_types, type);
 		}
 
-		std::size_t asset_alignment(const XAssetType type)
-		{
-			switch (type)
-			{
-			case ASSET_TYPE_IMAGE:
-			case ASSET_TYPE_VFX:
-			case ASSET_TYPE_VECTORFIELD:
-				return 15;
-			case ASSET_TYPE_PARTICLE_SIM_ANIMATION:
-				return 31;
-			default:
-				return layout.asset_alignment;
-			}
-		}
-
 		std::uint16_t next_zone_index()
 		{
 			static std::atomic_uint16_t index{};
@@ -228,6 +213,26 @@ namespace zonetool::iw8
 				throw std::runtime_error(std::format("0x{:X} bytes remain after the last asset", reader.remaining()));
 			}
 		}
+	}
+
+	std::size_t asset_alignment(const XAssetType type)
+	{
+		switch (type)
+		{
+		case ASSET_TYPE_IMAGE:
+		case ASSET_TYPE_VFX:
+		case ASSET_TYPE_VECTORFIELD:
+			return 15;
+		case ASSET_TYPE_PARTICLE_SIM_ANIMATION:
+			return 31;
+		default:
+			return layout.asset_alignment;
+		}
+	}
+
+	const asset_loader& get_asset_loader(const XAssetType type)
+	{
+		return asset_loaders()[type];
 	}
 
 	const char* get_asset_name(const XAssetType type, const void* header)

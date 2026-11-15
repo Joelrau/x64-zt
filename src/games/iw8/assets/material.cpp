@@ -37,6 +37,142 @@ namespace zonetool::iw8
 				}
 			}
 		}
+
+		void write_constant_buffer_data(zone_buffer* buf, const char* source, char*& target, const unsigned int size)
+		{
+			if (source)
+			{
+				buf->align(15);
+				buf->write(source, size);
+				buf->clear_pointer(&target);
+			}
+		}
+
+		const MaterialConstantDef* find_constant(const Material* asset, const unsigned short index)
+		{
+			for (auto i = 0; asset->constantTable && i < asset->constantCount; i++)
+			{
+				if (asset->constantTable[i].index == index)
+				{
+					return &asset->constantTable[i];
+				}
+			}
+
+			return nullptr;
+		}
+
+		void place_constant(std::string& data, const unsigned short dest, const MaterialConstantDef* constant)
+		{
+			const auto offset = dest * sizeof(vec4_t);
+			if (data.size() < offset + sizeof(vec4_t))
+			{
+				data.resize(offset + sizeof(vec4_t));
+			}
+
+			if (constant)
+			{
+				std::memcpy(data.data() + offset, constant->literal, sizeof(vec4_t));
+			}
+		}
+
+		char* duplicate_data(const std::string& data, unsigned int& size, zone_memory* mem)
+		{
+			size = static_cast<unsigned int>(data.size());
+			if (data.empty())
+			{
+				return nullptr;
+			}
+
+			const auto result = mem->allocate<char>(data.size());
+			std::memcpy(result, data.data(), data.size());
+			return result;
+		}
+
+		void generate_constant_buffers(Material* asset, const MaterialTechniqueSet* techset, zone_memory* mem)
+		{
+			std::vector<constant_buffer_data> buffers;
+			asset->constantBufferIndex = mem->allocate<unsigned char>(TECHNIQUE_COUNT);
+			std::memset(asset->constantBufferIndex, 0xFF, TECHNIQUE_COUNT);
+
+			for (std::size_t i = 0; techset->maskedTechniques && i < get_technique_count(techset); i++)
+			{
+				const auto* technique = techset->maskedTechniques[i];
+				const auto type = get_technique_type(techset, i);
+				if (!technique || !technique->args || !type)
+				{
+					continue;
+				}
+
+				constant_buffer_data data;
+				for (std::size_t arg = 0; arg < argument_count(technique); arg++)
+				{
+					const auto& argument = technique->args[arg];
+					if (argument.type != MTL_ARG_MATERIAL_CONST)
+					{
+						continue;
+					}
+
+					const auto* constant = find_constant(asset, argument.index);
+					if (argument.shader & MTL_SHADER_STAGE_VS)
+					{
+						place_constant(data.vs, argument.dest, constant);
+					}
+					if (argument.shader & MTL_SHADER_STAGE_PS)
+					{
+						place_constant(data.ps, argument.dest, constant);
+					}
+				}
+
+				if (data.vs.empty() && data.ps.empty())
+				{
+					continue;
+				}
+
+				const auto found = std::ranges::find(buffers, data);
+				asset->constantBufferIndex[*type] = static_cast<unsigned char>(found - buffers.begin());
+				if (found == buffers.end())
+				{
+					buffers.emplace_back(std::move(data));
+				}
+			}
+
+			asset->constantBufferCount = static_cast<unsigned char>(buffers.size());
+			asset->constantBufferTable = buffers.empty() ? nullptr : mem->allocate<MaterialConstantBufferDef>(buffers.size());
+			for (std::size_t i = 0; i < buffers.size(); i++)
+			{
+				auto& buffer = asset->constantBufferTable[i];
+				buffer.vsData = duplicate_data(buffers[i].vs, buffer.vsDataSize, mem);
+				buffer.psData = duplicate_data(buffers[i].ps, buffer.psDataSize, mem);
+			}
+		}
+
+		template <typename T>
+		void write_shader(zone_base* zone, T*& target, const T* shader, const XAssetType type)
+		{
+			if (shader)
+			{
+				target = static_cast<T*>(zone->get_asset_pointer(type, shader->name));
+			}
+		}
+
+		void write_technique(zone_base* zone, zone_buffer* buf, const MaterialTechnique* technique, MaterialTechnique* dest)
+		{
+			if (technique->name)
+			{
+				dest->name = buf->write_str(technique->name);
+			}
+
+			write_shared_array(buf, dest->pipelineStates, technique->pipelineStateInputLayoutCount * technique->renderTargetFormatCount, 7);
+			write_shared_array(buf, dest->stateBitsTable, 1, 0);
+
+			write_shader(zone, dest->vertexShader, technique->vertexShader, ASSET_TYPE_VERTEXSHADER);
+			write_shader(zone, dest->hullShader, technique->hullShader, ASSET_TYPE_HULLSHADER);
+			write_shader(zone, dest->domainShader, technique->domainShader, ASSET_TYPE_DOMAINSHADER);
+			write_shader(zone, dest->pixelShader, technique->pixelShader, ASSET_TYPE_PIXELSHADER);
+
+			write_shared_array(buf, dest->renderTargetFormats, technique->renderTargetFormatCount, 0);
+			write_shared_array(buf, dest->args, argument_count(technique), 1);
+		}
 	}
 
 	std::size_t get_technique_count(const MaterialTechniqueSet* asset)
@@ -118,129 +254,412 @@ namespace zonetool::iw8
 		reader.pop_stream();
 	}
 
-	namespace
+	Material* material::parse(const std::string& name, zone_memory* mem)
 	{
-		std::string to_hex(const void* data, const std::size_t size)
+		assetmanager::reader read(mem);
+		if (!read.open("materials\\"s + name))
 		{
-			std::string result;
-			for (auto i = 0u; i < size; i++)
+			return nullptr;
+		}
+
+		ZONETOOL_INFO("Parsing material \"%s\"...", name.data());
+
+		auto* asset = read.read_single<Material>();
+		asset->name = read.read_string();
+		asset->packedAtlasData = read.read_array<char>();
+		asset->techniqueSet = read.read_asset<MaterialTechniqueSet>();
+
+		asset->textureTable = read.read_array<MaterialTextureDef>();
+		for (auto i = 0; asset->textureTable && i < asset->textureCount; i++)
+		{
+			asset->textureTable[i].image = read.read_asset<GfxImage>();
+		}
+
+		asset->constantTable = read.read_array<MaterialConstantDef>();
+		asset->decalVolumeMaterial = read.read_asset<GfxDecalVolumeMaterial>();
+		asset->constantBufferIndex = read.read_array<unsigned char>();
+
+		asset->constantBufferTable = read.read_array<MaterialConstantBufferDef>();
+		for (auto i = 0; asset->constantBufferTable && i < asset->constantBufferCount; i++)
+		{
+			auto& buffer = asset->constantBufferTable[i];
+			buffer.vsData = read.read_array<char>();
+			buffer.hsData = read.read_array<char>();
+			buffer.dsData = read.read_array<char>();
+			buffer.psData = read.read_array<char>();
+		}
+
+		asset->subMaterials = read.read_array<const char*>();
+		for (auto i = 0; asset->subMaterials && i < asset->layerCount; i++)
+		{
+			asset->subMaterials[i] = read.read_string();
+		}
+
+		read.close();
+		return asset;
+	}
+
+	void material::init(const std::string& name, zone_memory* mem)
+	{
+		this->name_ = name;
+
+		if (this->referenced())
+		{
+			this->asset_ = mem->allocate<Material>();
+			this->asset_->name = mem->duplicate_string(name);
+			return;
+		}
+
+		this->asset_ = this->parse(name, mem);
+		if (!this->asset_)
+		{
+			ZONETOOL_FATAL("Material \"%s\" not found.", name.data());
+		}
+
+		if (this->asset_->constantTable && !this->asset_->constantBufferTable && this->asset_->techniqueSet)
+		{
+			const std::string techset_name = this->asset_->techniqueSet->name;
+			auto* techset = static_cast<MaterialTechniqueSet*>(db_find_asset(ASSET_TYPE_TECHNIQUE_SET, techset_name));
+			if (!techset)
 			{
-				result += std::format("{:02X}", static_cast<const unsigned char*>(data)[i]);
+				techset = technique_set().parse(techset_name, mem);
 			}
 
-			return result;
+			if (!techset)
+			{
+				ZONETOOL_FATAL("Material \"%s\" has no constant buffers and techset \"%s\" is not loaded.", name.data(), techset_name.data());
+			}
+
+			generate_constant_buffers(this->asset_, techset, mem);
+		}
+	}
+
+	void material::prepare(zone_buffer* buf, zone_memory* mem)
+	{
+	}
+
+	void material::load_depending(zone_base* zone)
+	{
+		auto* data = this->asset_;
+		if (data->techniqueSet)
+		{
+			zone->add_asset_of_type(ASSET_TYPE_TECHNIQUE_SET, data->techniqueSet->name);
 		}
 
-		template <typename T>
-		const char* shader_name(const T* shader)
+		for (auto i = 0; data->textureTable && i < data->textureCount; i++)
 		{
-			return shader ? shader->name : "";
+			if (data->textureTable[i].image)
+			{
+				zone->add_asset_of_type(ASSET_TYPE_IMAGE, data->textureTable[i].image->name);
+			}
 		}
+
+		if (data->decalVolumeMaterial)
+		{
+			zone->add_asset_of_type(ASSET_TYPE_DECAL_VOLUME_MATERIAL, data->decalVolumeMaterial->name);
+		}
+	}
+
+	std::string material::name()
+	{
+		return this->name_;
+	}
+
+	std::int32_t material::type()
+	{
+		return ASSET_TYPE_MATERIAL;
+	}
+
+	void material::write(zone_base* zone, zone_buffer* buf)
+	{
+		auto* data = this->asset_;
+		auto* dest = buf->write(data);
+
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
+		dest->name = buf->write_str(this->name());
+
+		if (data->packedAtlasData)
+		{
+			buf->write(data->packedAtlasData, data->packedAtlasDataSize);
+			buf->clear_pointer(&dest->packedAtlasData);
+		}
+
+		if (data->techniqueSet)
+		{
+			dest->techniqueSet = static_cast<MaterialTechniqueSet*>(zone->get_asset_pointer(ASSET_TYPE_TECHNIQUE_SET, data->techniqueSet->name));
+		}
+
+		if (data->textureTable)
+		{
+			buf->align(7);
+			auto* textures = buf->write(data->textureTable, data->textureCount);
+			for (auto i = 0; i < data->textureCount; i++)
+			{
+				if (data->textureTable[i].image)
+				{
+					textures[i].image = static_cast<GfxImage*>(zone->get_asset_pointer(ASSET_TYPE_IMAGE, data->textureTable[i].image->name));
+				}
+			}
+			buf->clear_pointer(&dest->textureTable);
+		}
+
+		if (data->constantTable)
+		{
+			buf->align(15);
+			buf->write(data->constantTable, data->constantCount);
+			buf->clear_pointer(&dest->constantTable);
+		}
+
+		if (data->decalVolumeMaterial)
+		{
+			dest->decalVolumeMaterial = static_cast<GfxDecalVolumeMaterial*>(zone->get_asset_pointer(ASSET_TYPE_DECAL_VOLUME_MATERIAL, data->decalVolumeMaterial->name));
+		}
+
+		if (data->constantBufferIndex)
+		{
+			buf->write(data->constantBufferIndex, TECHNIQUE_COUNT);
+			buf->clear_pointer(&dest->constantBufferIndex);
+		}
+
+		if (data->constantBufferTable)
+		{
+			buf->align(15);
+			auto* buffers = buf->write(data->constantBufferTable, data->constantBufferCount);
+			for (auto i = 0; i < data->constantBufferCount; i++)
+			{
+				const auto& buffer = data->constantBufferTable[i];
+				write_constant_buffer_data(buf, buffer.vsData, buffers[i].vsData, buffer.vsDataSize);
+				write_constant_buffer_data(buf, buffer.hsData, buffers[i].hsData, buffer.hsDataSize);
+				write_constant_buffer_data(buf, buffer.dsData, buffers[i].dsData, buffer.dsDataSize);
+				write_constant_buffer_data(buf, buffer.psData, buffers[i].psData, buffer.psDataSize);
+			}
+			buf->clear_pointer(&dest->constantBufferTable);
+		}
+
+		if (data->subMaterials)
+		{
+			buf->align(7);
+			auto* sub_materials = buf->write(data->subMaterials, data->layerCount);
+			for (auto i = 0; i < data->layerCount; i++)
+			{
+				if (data->subMaterials[i])
+				{
+					sub_materials[i] = buf->write_str(data->subMaterials[i]);
+				}
+			}
+			buf->clear_pointer(&dest->subMaterials);
+		}
+		buf->pop_stream();
 	}
 
 	void material::dump(Material* asset)
 	{
-		ordered_json data;
-		data["techniqueSet"] = asset->techniqueSet ? asset->techniqueSet->name : "";
-		data["contents"] = asset->contents;
-		data["surfaceFlags"] = asset->surfaceFlags;
-		data["maxDisplacement"] = asset->maxDisplacement;
-		data["materialType"] = asset->materialType;
-		data["cameraRegion"] = asset->cameraRegion;
-		data["sortKey"] = asset->sortKey;
-		data["flags"] = asset->flags;
-		data["textureAtlasRowCount"] = asset->textureAtlasRowCount;
-		data["textureAtlasColumnCount"] = asset->textureAtlasColumnCount;
-		data["drawSurf"] = to_hex(&asset->drawSurf, sizeof(asset->drawSurf));
-		data["packedAtlasData"] = asset->packedAtlasData ? to_hex(asset->packedAtlasData, asset->packedAtlasDataSize) : "";
-
-		data["textureTable"] = ordered_json::array();
-		for (auto i = 0; i < asset->textureCount; i++)
+		assetmanager::dumper dump;
+		if (!dump.open("materials\\"s + asset->name))
 		{
-			const auto& texture = asset->textureTable[i];
-			data["textureTable"].push_back({{"index", texture.index}, {"image", texture.image ? texture.image->name : ""}});
+			return;
 		}
 
-		data["constantTable"] = ordered_json::array();
-		for (auto i = 0; i < asset->constantCount; i++)
+		dump.dump_single(asset);
+		dump.dump_string(asset->name);
+		dump.dump_array(asset->packedAtlasData, asset->packedAtlasDataSize);
+		dump.dump_asset(asset->techniqueSet);
+
+		dump.dump_array(asset->textureTable, asset->textureCount);
+		for (auto i = 0; asset->textureTable && i < asset->textureCount; i++)
 		{
-			const auto& constant = asset->constantTable[i];
-			data["constantTable"].push_back({{"index", constant.index}, {"literal", constant.literal}});
+			dump.dump_asset(asset->textureTable[i].image);
 		}
 
-		data["constantBufferIndex"] = ordered_json::array();
-		for (auto i = 0; asset->constantBufferIndex && i < TECHNIQUE_COUNT; i++)
-		{
-			data["constantBufferIndex"].push_back(asset->constantBufferIndex[i]);
-		}
+		dump.dump_array(asset->constantTable, asset->constantCount);
+		dump.dump_asset(asset->decalVolumeMaterial);
+		dump.dump_array(asset->constantBufferIndex, TECHNIQUE_COUNT);
 
-		data["constantBufferTable"] = ordered_json::array();
-		for (auto i = 0; i < asset->constantBufferCount; i++)
+		dump.dump_array(asset->constantBufferTable, asset->constantBufferCount);
+		for (auto i = 0; asset->constantBufferTable && i < asset->constantBufferCount; i++)
 		{
 			const auto& buffer = asset->constantBufferTable[i];
-			data["constantBufferTable"].push_back(
-			{
-				{"vsData", buffer.vsData ? to_hex(buffer.vsData, buffer.vsDataSize) : ""},
-				{"hsData", buffer.hsData ? to_hex(buffer.hsData, buffer.hsDataSize) : ""},
-				{"dsData", buffer.dsData ? to_hex(buffer.dsData, buffer.dsDataSize) : ""},
-				{"psData", buffer.psData ? to_hex(buffer.psData, buffer.psDataSize) : ""},
-			});
+			dump.dump_array(buffer.vsData, buffer.vsDataSize);
+			dump.dump_array(buffer.hsData, buffer.hsDataSize);
+			dump.dump_array(buffer.dsData, buffer.dsDataSize);
+			dump.dump_array(buffer.psData, buffer.psDataSize);
 		}
 
-		data["subMaterials"] = ordered_json::array();
+		dump.dump_array(asset->subMaterials, asset->layerCount);
 		for (auto i = 0; asset->subMaterials && i < asset->layerCount; i++)
 		{
-			data["subMaterials"].push_back(asset->subMaterials[i] ? asset->subMaterials[i] : "");
+			dump.dump_string(asset->subMaterials[i]);
 		}
-
-		filesystem::file file("materials\\"s + asset->name + ".json");
-		file.open("wb");
-		file.write(data.dump(4));
-		file.close();
+		dump.close();
 	}
 
-	void technique_set::dump(MaterialTechniqueSet* asset)
+	MaterialTechniqueSet* technique_set::parse(const std::string& name, zone_memory* mem)
 	{
-		ordered_json data;
-		data["flags"] = asset->flags;
-		data["materialType"] = asset->materialType;
-		data["techniques"] = ordered_json::array();
-
-		for (auto i = 0u; i < get_technique_count(asset); i++)
+		assetmanager::reader read(mem);
+		if (!read.open("techsets\\"s + name + ".techset"s))
 		{
-			const auto technique = asset->maskedTechniques[i];
+			return nullptr;
+		}
+
+		ZONETOOL_INFO("Parsing techset \"%s\"...", name.data());
+
+		auto* asset = read.read_single<MaterialTechniqueSet>();
+		asset->name = read.read_string();
+		asset->maskedTechniques = read.read_array<MaterialTechnique*>();
+
+		const auto count = get_technique_count(asset);
+		for (std::size_t i = 0; asset->maskedTechniques && i < count; i++)
+		{
+			auto* technique = read.read_single<MaterialTechnique>();
+			asset->maskedTechniques[i] = technique;
 			if (!technique)
 			{
 				continue;
 			}
 
-			ordered_json entry;
-			entry["type"] = get_technique_type(asset, i).value_or(TECHNIQUE_COUNT);
-			entry["name"] = technique->name ? technique->name : "";
-			entry["flags"] = technique->flags;
-			entry["vertexShader"] = shader_name(technique->vertexShader);
-			entry["hullShader"] = shader_name(technique->hullShader);
-			entry["domainShader"] = shader_name(technique->domainShader);
-			entry["pixelShader"] = shader_name(technique->pixelShader);
-			entry["stateBits"] = to_hex(&technique->stateBits, sizeof(technique->stateBits));
-			entry["argCounts"] = {technique->perPrimArgCount, technique->perObjArgCount, technique->stableArgCount, technique->neverArgCount};
-			entry["argSizes"] = {technique->perPrimArgSize, technique->perObjArgSize, technique->stableArgSize};
-			entry["customBufferFlags"] = technique->customBufferFlags;
-			entry["customSamplerFlags"] = technique->customSamplerFlags;
-
-			entry["args"] = ordered_json::array();
-			for (auto o = 0u; o < argument_count(technique); o++)
-			{
-				const auto& arg = technique->args[o];
-				entry["args"].push_back({arg.type, arg.shader, arg.dest, arg.index});
-			}
-
-			data["techniques"].push_back(entry);
+			technique->name = read.read_string();
+			technique->pipelineStates = read.read_array<Packed128>();
+			technique->stateBitsTable = read.read_array<GfxStateBits>();
+			technique->vertexShader = read.read_asset<MaterialVertexShader>();
+			technique->hullShader = read.read_asset<MaterialHullShader>();
+			technique->domainShader = read.read_asset<MaterialDomainShader>();
+			technique->pixelShader = read.read_asset<MaterialPixelShader>();
+			technique->renderTargetFormats = read.read_array<MaterialRenderTargetFormat>();
+			technique->args = read.read_array<MaterialShaderArgument>();
 		}
 
-		filesystem::file file("techsets\\"s + asset->name + ".techset.json");
-		file.open("wb");
-		file.write(data.dump(4));
-		file.close();
+		read.close();
+		return asset;
+	}
+
+	void technique_set::init(const std::string& name, zone_memory* mem)
+	{
+		this->name_ = name;
+
+		if (this->referenced())
+		{
+			this->asset_ = mem->allocate<MaterialTechniqueSet>();
+			this->asset_->name = mem->duplicate_string(name);
+			return;
+		}
+
+		this->asset_ = this->parse(name, mem);
+		if (!this->asset_)
+		{
+			ZONETOOL_FATAL("Techset \"%s\" not found.", name.data());
+		}
+	}
+
+	void technique_set::prepare(zone_buffer* buf, zone_memory* mem)
+	{
+	}
+
+	void technique_set::load_depending(zone_base* zone)
+	{
+		auto* data = this->asset_;
+		for (std::size_t i = 0; data->maskedTechniques && i < get_technique_count(data); i++)
+		{
+			const auto* technique = data->maskedTechniques[i];
+			if (!technique)
+			{
+				continue;
+			}
+
+			if (technique->vertexShader)
+			{
+				zone->add_asset_of_type(ASSET_TYPE_VERTEXSHADER, technique->vertexShader->name);
+			}
+
+			if (technique->hullShader)
+			{
+				zone->add_asset_of_type(ASSET_TYPE_HULLSHADER, technique->hullShader->name);
+			}
+
+			if (technique->domainShader)
+			{
+				zone->add_asset_of_type(ASSET_TYPE_DOMAINSHADER, technique->domainShader->name);
+			}
+
+			if (technique->pixelShader)
+			{
+				zone->add_asset_of_type(ASSET_TYPE_PIXELSHADER, technique->pixelShader->name);
+			}
+		}
+	}
+
+	std::string technique_set::name()
+	{
+		return this->name_;
+	}
+
+	std::int32_t technique_set::type()
+	{
+		return ASSET_TYPE_TECHNIQUE_SET;
+	}
+
+	void technique_set::write(zone_base* zone, zone_buffer* buf)
+	{
+		auto* data = this->asset_;
+		auto* dest = buf->write(data);
+
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
+		dest->name = buf->write_str(this->name());
+
+		if (data->maskedTechniques)
+		{
+			const auto count = get_technique_count(data);
+			buf->align(7);
+			auto* techniques = buf->write(data->maskedTechniques, count);
+			for (std::size_t i = 0; i < count; i++)
+			{
+				auto* technique = data->maskedTechniques[i];
+				if (!technique)
+				{
+					continue;
+				}
+
+				buf->align(7);
+				auto* dest_technique = buf->write(technique);
+				write_technique(zone, buf, technique, dest_technique);
+				buf->clear_pointer(&techniques[i]);
+			}
+			buf->clear_pointer(&dest->maskedTechniques);
+		}
+		buf->pop_stream();
+	}
+
+	void technique_set::dump(MaterialTechniqueSet* asset)
+	{
+		assetmanager::dumper dump;
+		if (!dump.open("techsets\\"s + asset->name + ".techset"s))
+		{
+			return;
+		}
+
+		const auto count = get_technique_count(asset);
+		dump.dump_single(asset);
+		dump.dump_string(asset->name);
+		dump.dump_array(asset->maskedTechniques, static_cast<std::uint32_t>(count));
+
+		for (std::size_t i = 0; asset->maskedTechniques && i < count; i++)
+		{
+			const auto* technique = asset->maskedTechniques[i];
+			dump.dump_single(technique);
+			if (!technique)
+			{
+				continue;
+			}
+
+			dump.dump_string(technique->name);
+			dump.dump_array(technique->pipelineStates, technique->pipelineStateInputLayoutCount * technique->renderTargetFormatCount);
+			dump.dump_array(technique->stateBitsTable, 1);
+			dump.dump_asset(technique->vertexShader);
+			dump.dump_asset(technique->hullShader);
+			dump.dump_asset(technique->domainShader);
+			dump.dump_asset(technique->pixelShader);
+			dump.dump_array(technique->renderTargetFormats, technique->renderTargetFormatCount);
+			dump.dump_array(technique->args, static_cast<std::uint32_t>(argument_count(technique)));
+		}
+		dump.close();
 	}
 }

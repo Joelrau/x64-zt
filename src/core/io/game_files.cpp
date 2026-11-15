@@ -94,6 +94,11 @@ namespace zonetool::game_files
 		current_source = std::move(source);
 	}
 
+	std::unique_ptr<source> exchange(std::unique_ptr<source> source)
+	{
+		return std::exchange(current_source, std::move(source));
+	}
+
 	const source& get()
 	{
 		if (!current_source)

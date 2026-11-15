@@ -21,6 +21,7 @@ namespace zonetool::game_files
 	std::unique_ptr<source> open_casc(const std::filesystem::path& game_path);
 
 	void set(std::unique_ptr<source> source);
+	std::unique_ptr<source> exchange(std::unique_ptr<source> source);
 	const source& get();
 
 	std::vector<std::filesystem::path> list_zones();

@@ -35,6 +35,8 @@ namespace zonetool::xfile
 		std::vector<XStreamFileKey> stream_keys;
 		std::vector<XStreamFileKey> shared_stream_keys;
 		std::string payload;
+		iw8_file_header iw8_header;
+		bool is_compressed = true;
 	};
 
 	struct stream_location
@@ -105,6 +107,8 @@ namespace zonetool::xfile
 	fastfile read(const std::filesystem::path& path, const format& format);
 
 	void write_s2(const std::filesystem::path& path, const format& format, const fastfile& file, std::string_view payload);
+
+	void write_iw8(const std::filesystem::path& path, const format& format, const fastfile& file, std::string_view payload);
 
 	std::vector<stream_location> write_s2_pak(const std::filesystem::path& path, std::string_view header,
 		std::span<const std::filesystem::path> streams);

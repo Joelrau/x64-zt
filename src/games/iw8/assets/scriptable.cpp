@@ -5,255 +5,295 @@ namespace zonetool::iw8
 {
 	namespace
 	{
-		void read_events(zone_reader& reader, ScriptableEventDef*& field, unsigned int count);
+		template <typename Walk>
+		void walk_events(Walk walk, ScriptableEventDef*& field, unsigned int count);
 
-		void read_event_base(zone_reader& reader, ScriptableEventBaseDef*& field)
+		template <typename Walk>
+		void walk_tag(Walk walk, const char*& name, scr_string_t& scr_name)
 		{
-			if (const auto base = reader.read_single(field, 7))
-			{
-				reader.read_string(base->name);
-			}
+			walk.string(name);
+			walk.script_string(scr_name);
 		}
 
-		void read_tag(zone_reader& reader, const char*& name, scr_string_t& scr_name)
-		{
-			reader.read_string(name);
-			reader.read_script_string(scr_name);
-		}
-
-		void read_model_event(zone_reader& reader, ScriptableEventModelDef& event)
+		template <typename Walk>
+		void walk_model_event(Walk walk, ScriptableEventModelDef& event)
 		{
 			if (event.dataType == SCRIPTABLE_MODEL_DATA_COMPOSITE_MODEL)
 			{
-				reader.read_asset(ASSET_TYPE_XCOMPOSITEMODEL, event.data.compositeModel);
+				walk.asset(ASSET_TYPE_XCOMPOSITEMODEL, event.data.compositeModel);
 			}
 			else if (event.dataType == SCRIPTABLE_MODEL_DATA_MODEL)
 			{
-				reader.read_asset(ASSET_TYPE_XMODEL, event.data.model);
+				walk.asset(ASSET_TYPE_XMODEL, event.data.model);
 			}
 		}
 
-		void read_note_tracks(zone_reader& reader, ScriptableEventNoteTrackDef& event)
+		template <typename Walk>
+		void walk_note_tracks(Walk walk, ScriptableEventNoteTrackDef& event)
 		{
-			if (const auto note_tracks = reader.read_array(event.noteTracks, 7, event.noteTrackCount))
+			if (const auto note_tracks = walk.array(event.noteTracks, event.noteTrackCount, 7))
 			{
 				for (auto i = 0u; i < event.noteTrackCount; i++)
 				{
-					read_tag(reader, note_tracks[i].noteTrackName, note_tracks[i].scrNoteTrackName);
-					read_events(reader, note_tracks[i].events, note_tracks[i].numEvents);
+					walk_tag(walk, note_tracks[i].noteTrackName, note_tracks[i].scrNoteTrackName);
+					walk_events(walk, note_tracks[i].events, note_tracks[i].numEvents);
 				}
 			}
 		}
 
-		void read_compass_icon(zone_reader& reader, ScriptableEventCompassIconDef& event)
+		template <typename Walk>
+		void walk_compass_icon(Walk walk, ScriptableEventCompassIconDef& event)
 		{
 			for (auto material : {&event.friendlyArrow, &event.friendlyFiring, &event.friendlyChatting, &event.friendlyYelling,
 				&event.partyArrow, &event.partyFiring, &event.partyChatting, &event.partyYelling, &event.squadArrow, &event.squadFiring})
 			{
-				reader.read_asset(ASSET_TYPE_MATERIAL, *material);
+				walk.asset(ASSET_TYPE_MATERIAL, *material);
 			}
 
 			for (auto& material : event.enemyCompassIconQuiet)
 			{
-				reader.read_asset(ASSET_TYPE_MATERIAL, material);
+				walk.asset(ASSET_TYPE_MATERIAL, material);
 			}
 
 			for (auto& material : event.enemyCompassIconFiring)
 			{
-				reader.read_asset(ASSET_TYPE_MATERIAL, material);
+				walk.asset(ASSET_TYPE_MATERIAL, material);
 			}
 
-			reader.read_asset(ASSET_TYPE_MATERIAL, event.enemyCompassIconDirectional);
+			walk.asset(ASSET_TYPE_MATERIAL, event.enemyCompassIconDirectional);
 		}
 
-		void read_event_data(zone_reader& reader, ScriptableEventDef& event)
+		template <typename Walk>
+		void walk_event_data(Walk walk, ScriptableEventDef& event)
 		{
 			auto& data = event.data;
-			read_event_base(reader, data.anonymous.base);
+			if (const auto base = walk.array(data.anonymous.base, 1, 7))
+			{
+				walk.string(base->name);
+			}
 
 			switch (event.type)
 			{
 			case Scriptable_EventType_Random:
-				read_events(reader, data.random.eventsA, data.random.eventACount);
-				read_events(reader, data.random.eventsB, data.random.eventBCount);
+				walk_events(walk, data.random.eventsA, data.random.eventACount);
+				walk_events(walk, data.random.eventsB, data.random.eventBCount);
 				break;
 			case Scriptable_EventType_Script:
-				read_tag(reader, data.script.notification, data.script.scrNotification);
+				walk_tag(walk, data.script.notification, data.script.scrNotification);
 				break;
 			case Scriptable_EventType_Model:
-				read_model_event(reader, data.model);
+				walk_model_event(walk, data.model);
 				break;
 			case Scriptable_EventType_Collision:
-				reader.read_string(data.collision.collmapName);
-				reader.read_asset(ASSET_TYPE_XMODEL, data.collision.model);
+				walk.string(data.collision.collmapName);
+				walk.asset(ASSET_TYPE_XMODEL, data.collision.model);
 				break;
 			case Scriptable_EventType_Animation:
-				reader.read_asset(ASSET_TYPE_XANIMPARTS, data.animation.animation);
-				read_events(reader, data.animation.eventsAtEnd, data.animation.eventAtEndCount);
+				walk.asset(ASSET_TYPE_XANIMPARTS, data.animation.animation);
+				walk_events(walk, data.animation.eventsAtEnd, data.animation.eventAtEndCount);
 				break;
 			case Scriptable_EventType_HideShowBone:
-				read_tag(reader, data.hideShowBone.tagName, data.hideShowBone.scrTagName);
+				walk_tag(walk, data.hideShowBone.tagName, data.hideShowBone.scrTagName);
 				break;
 			case Scriptable_EventType_DisablePhysicsSubShape:
-				reader.read_string(data.disablePhysicsSubShape.mutableShapeName);
+				walk.string(data.disablePhysicsSubShape.mutableShapeName);
 				break;
 			case Scriptable_EventType_NoteTrack:
-				read_note_tracks(reader, data.noteTrack);
+				walk_note_tracks(walk, data.noteTrack);
 				break;
 			case Scriptable_EventType_SpawnDynent:
-				reader.read_asset(ASSET_TYPE_XMODEL, data.spawnDynent.model);
-				read_tag(reader, data.spawnDynent.tagName, data.spawnDynent.scrTagName);
-				reader.read_string(data.spawnDynent.effectAlias);
-				reader.read_asset(ASSET_TYPE_VFX, data.spawnDynent.effectDef.particleSystemDef);
+				walk.asset(ASSET_TYPE_XMODEL, data.spawnDynent.model);
+				walk_tag(walk, data.spawnDynent.tagName, data.spawnDynent.scrTagName);
+				walk.string(data.spawnDynent.effectAlias);
+				walk.asset(ASSET_TYPE_VFX, data.spawnDynent.effectDef.particleSystemDef);
 				break;
 			case Scriptable_EventType_PFX:
-				reader.read_script_string_array(data.particleFX.scrTagNames, data.particleFX.scrTagCount);
-				reader.read_script_string_array(data.particleFX.scrEndTagNames, data.particleFX.scrEndTagCount);
-				reader.read_string(data.particleFX.effectAlias);
-				reader.read_asset(ASSET_TYPE_VFX, data.particleFX.effectDef.particleSystemDef);
+				walk.script_strings(data.particleFX.scrTagNames, data.particleFX.scrTagCount);
+				walk.script_strings(data.particleFX.scrEndTagNames, data.particleFX.scrEndTagCount);
+				walk.string(data.particleFX.effectAlias);
+				walk.asset(ASSET_TYPE_VFX, data.particleFX.effectDef.particleSystemDef);
 				break;
 			case Scriptable_EventType_Sound:
-				read_tag(reader, data.sound.tagName, data.sound.scrTagName);
-				reader.read_string(data.sound.soundAlias);
-				reader.read_string(data.sound.explosionReflClass);
+				walk_tag(walk, data.sound.tagName, data.sound.scrTagName);
+				walk.string(data.sound.soundAlias);
+				walk.string(data.sound.explosionReflClass);
 				break;
 			case Scriptable_EventType_Explosion:
-				read_tag(reader, data.explosion.tagName, data.explosion.scrTagName);
-				reader.read_asset(ASSET_TYPE_WEAPON, data.explosion.weapon);
+				walk_tag(walk, data.explosion.tagName, data.explosion.scrTagName);
+				walk.asset(ASSET_TYPE_WEAPON, data.explosion.weapon);
 				break;
 			case Scriptable_EventType_Rumble:
-				read_tag(reader, data.rumble.tagName, data.rumble.scrTagName);
-				reader.read_string(data.rumble.rumble);
-				reader.read_asset(ASSET_TYPE_RUMBLE, data.rumble.rumbleAsset);
+				walk_tag(walk, data.rumble.tagName, data.rumble.scrTagName);
+				walk.string(data.rumble.rumble);
+				walk.asset(ASSET_TYPE_RUMBLE, data.rumble.rumbleAsset);
 				break;
 			case Scriptable_EventType_Screenshake:
-				read_tag(reader, data.screenshake.tagName, data.screenshake.scrTagName);
+				walk_tag(walk, data.screenshake.tagName, data.screenshake.scrTagName);
 				break;
 			case Scriptable_EventType_SetMayhem:
-				reader.read_asset(ASSET_TYPE_MAYHEM, data.setMayhem.mayhem);
+				walk.asset(ASSET_TYPE_MAYHEM, data.setMayhem.mayhem);
 				break;
 			case Scriptable_EventType_ClientViewSelector:
-				read_events(reader, data.clientViewSelector.events1p, data.clientViewSelector.event1pCount);
-				read_events(reader, data.clientViewSelector.events3p, data.clientViewSelector.event3pCount);
+				walk_events(walk, data.clientViewSelector.events1p, data.clientViewSelector.event1pCount);
+				walk_events(walk, data.clientViewSelector.events3p, data.clientViewSelector.event3pCount);
 				break;
 			case Scriptable_EventType_TeamSelector:
-				read_events(reader, data.teamSelector.eventsPass, data.teamSelector.eventPassCount);
-				read_events(reader, data.teamSelector.eventsFail, data.teamSelector.eventFailCount);
+				walk_events(walk, data.teamSelector.eventsPass, data.teamSelector.eventPassCount);
+				walk_events(walk, data.teamSelector.eventsFail, data.teamSelector.eventFailCount);
 				break;
 			case Scriptable_EventType_AddModel:
-				read_tag(reader, data.addModel.tagName, data.addModel.scrTagName);
-				reader.read_asset(ASSET_TYPE_XMODEL, data.addModel.model);
+				walk_tag(walk, data.addModel.tagName, data.addModel.scrTagName);
+				walk.asset(ASSET_TYPE_XMODEL, data.addModel.model);
 				break;
 			case Scriptable_EventType_CompassIcon:
-				read_compass_icon(reader, data.compassIcon);
+				walk_compass_icon(walk, data.compassIcon);
 				break;
 			case Scriptable_EventType_DynamicBoneNoiseCurve:
-				reader.read_asset(ASSET_TYPE_XANIMCURVE, data.dynamicBoneNoiseCurve.curve);
+				walk.asset(ASSET_TYPE_XANIMCURVE, data.dynamicBoneNoiseCurve.curve);
 				break;
 			case Scriptable_EventType_Footstep:
-				read_tag(reader, data.footstep.tagName, data.footstep.scrTagName);
-				reader.read_string(data.footstep.soundAlias);
-				reader.read_asset(ASSET_TYPE_FOOTSTEP_VFX, data.footstep.rightFootstepVFX);
-				reader.read_asset(ASSET_TYPE_FOOTSTEP_VFX, data.footstep.leftFootstepVFX);
+				walk_tag(walk, data.footstep.tagName, data.footstep.scrTagName);
+				walk.string(data.footstep.soundAlias);
+				walk.asset(ASSET_TYPE_FOOTSTEP_VFX, data.footstep.rightFootstepVFX);
+				walk.asset(ASSET_TYPE_FOOTSTEP_VFX, data.footstep.leftFootstepVFX);
 				break;
 			case Scriptable_EventType_GravityArc:
-				read_events(reader, data.gravityArc.eventsAtEnd, data.gravityArc.eventAtEndCount);
+				walk_events(walk, data.gravityArc.eventsAtEnd, data.gravityArc.eventAtEndCount);
 				break;
 			case Scriptable_EventType_Objective:
-				reader.read_string(data.objective.description);
-				reader.read_string(data.objective.icon);
-				reader.read_string(data.objective.label);
-				reader.read_asset(ASSET_TYPE_IMAGE, data.objective.iconImage);
+				walk.string(data.objective.description);
+				walk.string(data.objective.icon);
+				walk.string(data.objective.label);
+				walk.asset(ASSET_TYPE_IMAGE, data.objective.iconImage);
 				break;
 			default:
 				break;
 			}
 		}
 
-		void read_events(zone_reader& reader, ScriptableEventDef*& field, const unsigned int count)
+		template <typename Walk>
+		void walk_events(Walk walk, ScriptableEventDef*& field, const unsigned int count)
 		{
-			if (const auto events = reader.read_array(field, 7, count))
+			if (const auto events = walk.array(field, count, 7))
 			{
 				for (auto i = 0u; i < count; i++)
 				{
-					reader.read_string(events[i].base.name);
-					read_event_data(reader, events[i]);
+					walk.string(events[i].base.name);
+					walk_event_data(walk, events[i]);
 				}
 			}
 		}
 
-		void read_state_base(zone_reader& reader, ScriptableStateBaseDef& base)
+		template <typename Walk>
+		void walk_state_base(Walk walk, ScriptableStateBaseDef& base)
 		{
-			reader.read_string(base.name);
-			read_events(reader, base.events, base.numEvents);
+			walk.string(base.name);
+			walk_events(walk, base.events, base.numEvents);
 		}
 
-		void read_state_data(zone_reader& reader, ScriptableStateDef& state)
+		template <typename Walk>
+		void walk_state_data(Walk walk, ScriptableStateDef& state)
 		{
 			auto& data = state.data;
-			if (const auto base = reader.read_single(data.simple.base, 7))
+			if (const auto base = walk.array(data.simple.base, 1, 7))
 			{
-				read_state_base(reader, *base);
+				walk_state_base(walk, *base);
 			}
 
 			switch (state.type)
 			{
 			case Scriptable_StateType_Health:
-				reader.read_array(data.health.weaponClasses, 3, data.health.numWeaponClasses);
-				reader.read_asset_array(ASSET_TYPE_WEAPON, data.health.weapons, data.health.numWeapons);
-				read_tag(reader, data.health.script_id, data.health.scrScript_id);
+				walk.array(data.health.weaponClasses, data.health.numWeaponClasses, 3);
+				walk_asset_array(walk, ASSET_TYPE_WEAPON, data.health.weapons, data.health.numWeapons);
+				walk_tag(walk, data.health.script_id, data.health.scrScript_id);
 				break;
 			case Scriptable_StateType_Scripted:
-				read_tag(reader, data.scripted.script_id, data.scripted.scrScript_id);
+				walk_tag(walk, data.scripted.script_id, data.scripted.scrScript_id);
 				break;
 			case Scriptable_StateType_Usable:
-				read_tag(reader, data.usable.script_id, data.usable.scrScript_id);
-				reader.read_script_string(data.usable.hintTag);
-				reader.read_string(data.usable.hintString);
-				reader.read_string(data.usable.hintStringDisabled);
-				reader.read_string(data.usable.hintIcon);
-				reader.read_asset(ASSET_TYPE_IMAGE, data.usable.hintIconImage);
+				walk_tag(walk, data.usable.script_id, data.usable.scrScript_id);
+				walk.script_string(data.usable.hintTag);
+				walk.string(data.usable.hintString);
+				walk.string(data.usable.hintStringDisabled);
+				walk.string(data.usable.hintIcon);
+				walk.asset(ASSET_TYPE_IMAGE, data.usable.hintIconImage);
 				break;
 			default:
 				break;
 			}
 		}
 
-		void read_parts(zone_reader& reader, ScriptablePartDef*& field, unsigned int count);
+		template <typename Walk>
+		void walk_parts(Walk walk, ScriptablePartDef*& field, unsigned int count);
 
-		void read_part(zone_reader& reader, ScriptablePartDef& part)
+		template <typename Walk>
+		void walk_part(Walk walk, ScriptablePartDef& part)
 		{
-			reader.read_string(part.name);
-			reader.read_script_string(part.scrName);
-			read_tag(reader, part.tagName, part.scrTagName);
+			walk.string(part.name);
+			walk.script_string(part.scrName);
+			walk_tag(walk, part.tagName, part.scrTagName);
 
-			if (const auto states = reader.read_array(part.states, 7, part.numStates))
+			if (const auto states = walk.array(part.states, part.numStates, 7))
 			{
 				for (auto i = 0u; i < part.numStates; i++)
 				{
-					read_state_base(reader, states[i].base);
-					read_state_data(reader, states[i]);
+					walk_state_base(walk, states[i].base);
+					walk_state_data(walk, states[i]);
 				}
 			}
 
-			read_parts(reader, part.childParts, part.numChildParts);
+			walk_parts(walk, part.childParts, part.numChildParts);
 
-			if (const auto overrides = reader.read_array(part.damageTagOverrides, 7, part.numDamageTagOverrides))
+			if (const auto overrides = walk.array(part.damageTagOverrides, part.numDamageTagOverrides, 7))
 			{
 				for (auto i = 0u; i < part.numDamageTagOverrides; i++)
 				{
-					read_tag(reader, overrides[i].tag, overrides[i].scrTag);
+					walk_tag(walk, overrides[i].tag, overrides[i].scrTag);
 				}
 			}
 		}
 
-		void read_parts(zone_reader& reader, ScriptablePartDef*& field, const unsigned int count)
+		template <typename Walk>
+		void walk_parts(Walk walk, ScriptablePartDef*& field, const unsigned int count)
 		{
-			if (const auto parts = reader.read_array(field, 7, count))
+			if (const auto parts = walk.array(field, count, 7))
 			{
 				for (auto i = 0u; i < count; i++)
 				{
-					read_part(reader, parts[i]);
+					walk_part(walk, parts[i]);
+				}
+			}
+		}
+
+		template <typename Walk>
+		void walk_scriptable(Walk walk, ScriptableDef& asset)
+		{
+			walk.asset(ASSET_TYPE_SCRIPTABLE, asset.nextScriptableDef);
+			walk_parts(walk, asset.parts, asset.numParts);
+			walk.script_string(asset.animationTreeName);
+			walk_asset_array(walk, ASSET_TYPE_XMODEL, asset.models, asset.numXModels);
+		}
+
+		template <typename Walk>
+		void walk_composite_model(Walk walk, XCompositeModelDef& asset)
+		{
+			if (const auto submodels = walk.array(asset.submodels, 10, 7))
+			{
+				for (auto i = 0; i < 10; i++)
+				{
+					walk.string(submodels[i].modelName);
+					walk.script_string(submodels[i].parentBoneName);
+					walk.asset(ASSET_TYPE_XMODEL, submodels[i].model);
+				}
+			}
+
+			if (const auto composites = walk.array(asset.subCompositeModels, 10, 7))
+			{
+				for (auto i = 0; i < 10; i++)
+				{
+					walk.string(composites[i].compositeModelName);
+					walk.script_string(composites[i].parentBoneName);
+					walk.asset(ASSET_TYPE_XCOMPOSITEMODEL, composites[i].compositeModel);
 				}
 			}
 		}
@@ -263,37 +303,183 @@ namespace zonetool::iw8
 	{
 		reader.push_stream(XFILE_BLOCK_VIRTUAL);
 		reader.read_string(asset->name);
-		reader.read_asset(ASSET_TYPE_SCRIPTABLE, asset->nextScriptableDef);
-		read_parts(reader, asset->parts, asset->numParts);
-		reader.read_script_string(asset->animationTreeName);
-		reader.read_asset_array(ASSET_TYPE_XMODEL, asset->models, asset->numXModels);
+		walk_scriptable(read_walk{reader}, *asset);
 		reader.pop_stream();
+	}
+
+	void scriptable_def::write(zone_base* zone, zone_buffer* buf)
+	{
+		auto* data = this->asset_;
+		auto* dest = buf->write(data);
+
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
+		dest->name = buf->write_str(this->name());
+		walk_scriptable(write_walk{zone, buf}, *dest);
+		buf->pop_stream();
+	}
+
+	void scriptable_def::dump(ScriptableDef* asset)
+	{
+		assetmanager::dumper dump;
+		if (!dump.open("scriptable\\"s + asset->name + ".scriptableb"))
+		{
+			return;
+		}
+
+		dump.dump_single(asset);
+		dump.dump_string(asset->name);
+		walk_scriptable(dump_walk{dump}, *asset);
+		dump.close();
+	}
+
+	ScriptableDef* scriptable_def::parse(const std::string& name, zone_memory* mem)
+	{
+		assetmanager::reader read(mem);
+		if (!read.open("scriptable\\"s + name + ".scriptableb"))
+		{
+			return nullptr;
+		}
+
+		ZONETOOL_INFO("Parsing scriptable \"%s\"...", name.data());
+
+		auto* asset = read.read_single<ScriptableDef>();
+		asset->name = read.read_string();
+		walk_scriptable(parse_script_walk{{read}, this->script_strings_}, *asset);
+		read.close();
+		return asset;
+	}
+
+	void scriptable_def::init(const std::string& name, zone_memory* mem)
+	{
+		this->name_ = name;
+
+		if (this->referenced())
+		{
+			this->asset_ = mem->allocate<ScriptableDef>();
+			this->asset_->name = mem->duplicate_string(name);
+			return;
+		}
+
+		this->asset_ = this->parse(name, mem);
+	}
+
+	void scriptable_def::load_depending(zone_base* zone)
+	{
+		if (this->referenced())
+		{
+			return;
+		}
+
+		walk_scriptable(depend_walk{zone}, *this->asset_);
+	}
+
+	void scriptable_def::prepare(zone_buffer* buf, zone_memory* mem)
+	{
+		if (!this->referenced())
+		{
+			walk_scriptable(prepare_walk{buf, this->script_strings_}, *this->asset_);
+		}
+	}
+
+	std::string scriptable_def::name()
+	{
+		return this->name_;
+	}
+
+	std::int32_t scriptable_def::type()
+	{
+		return ASSET_TYPE_SCRIPTABLE;
 	}
 
 	void composite_model::read(zone_reader& reader, XCompositeModelDef* asset)
 	{
 		reader.push_stream(XFILE_BLOCK_VIRTUAL);
 		reader.read_string(asset->name);
-
-		if (const auto submodels = reader.read_array(asset->submodels, 7, 10))
-		{
-			for (auto i = 0; i < 10; i++)
-			{
-				reader.read_string(submodels[i].modelName);
-				reader.read_script_string(submodels[i].parentBoneName);
-				reader.read_asset(ASSET_TYPE_XMODEL, submodels[i].model);
-			}
-		}
-
-		if (const auto composites = reader.read_array(asset->subCompositeModels, 7, 10))
-		{
-			for (auto i = 0; i < 10; i++)
-			{
-				reader.read_string(composites[i].compositeModelName);
-				reader.read_script_string(composites[i].parentBoneName);
-				reader.read_asset(ASSET_TYPE_XCOMPOSITEMODEL, composites[i].compositeModel);
-			}
-		}
+		walk_composite_model(read_walk{reader}, *asset);
 		reader.pop_stream();
+	}
+
+	void composite_model::write(zone_base* zone, zone_buffer* buf)
+	{
+		auto* data = this->asset_;
+		auto* dest = buf->write(data);
+
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
+		dest->name = buf->write_str(this->name());
+		walk_composite_model(write_walk{zone, buf}, *dest);
+		buf->pop_stream();
+	}
+
+	void composite_model::dump(XCompositeModelDef* asset)
+	{
+		assetmanager::dumper dump;
+		if (!dump.open("xcompositemodel\\"s + asset->name + ".xcompositemodelb"))
+		{
+			return;
+		}
+
+		dump.dump_single(asset);
+		dump.dump_string(asset->name);
+		walk_composite_model(dump_walk{dump}, *asset);
+		dump.close();
+	}
+
+	XCompositeModelDef* composite_model::parse(const std::string& name, zone_memory* mem)
+	{
+		assetmanager::reader read(mem);
+		if (!read.open("xcompositemodel\\"s + name + ".xcompositemodelb"))
+		{
+			return nullptr;
+		}
+
+		ZONETOOL_INFO("Parsing xcompositemodel \"%s\"...", name.data());
+
+		auto* asset = read.read_single<XCompositeModelDef>();
+		asset->name = read.read_string();
+		walk_composite_model(parse_script_walk{{read}, this->script_strings_}, *asset);
+		read.close();
+		return asset;
+	}
+
+	void composite_model::init(const std::string& name, zone_memory* mem)
+	{
+		this->name_ = name;
+
+		if (this->referenced())
+		{
+			this->asset_ = mem->allocate<XCompositeModelDef>();
+			this->asset_->name = mem->duplicate_string(name);
+			return;
+		}
+
+		this->asset_ = this->parse(name, mem);
+	}
+
+	void composite_model::load_depending(zone_base* zone)
+	{
+		if (this->referenced())
+		{
+			return;
+		}
+
+		walk_composite_model(depend_walk{zone}, *this->asset_);
+	}
+
+	void composite_model::prepare(zone_buffer* buf, zone_memory* mem)
+	{
+		if (!this->referenced())
+		{
+			walk_composite_model(prepare_walk{buf, this->script_strings_}, *this->asset_);
+		}
+	}
+
+	std::string composite_model::name()
+	{
+		return this->name_;
+	}
+
+	std::int32_t composite_model::type()
+	{
+		return ASSET_TYPE_XCOMPOSITEMODEL;
 	}
 }

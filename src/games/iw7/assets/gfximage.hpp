@@ -3,6 +3,8 @@
 
 namespace zonetool::iw7
 {
+	std::optional<std::string> read_streamed_image_pixels(const GfxImage* image, unsigned int stream);
+
 	class gfx_image : public asset_interface
 	{
 	private:

@@ -5,34 +5,48 @@ namespace zonetool::iw8
 {
 	namespace
 	{
-		void read_search_node(zone_reader& reader, tacpoint_search_node_t* node)
+		template <typename Walk>
+		void walk_search_node(Walk walk, tacpoint_search_node_t& node)
 		{
-			if (const auto children = reader.read_array(node->m_ChildNodes, 7, 4))
+			if (const auto children = walk.array(node.m_ChildNodes, 4, 7))
 			{
 				for (auto i = 0; i < 4; i++)
 				{
-					if (const auto child = reader.read_single(children[i], 7))
+					if (const auto child = walk.array(children[i], 1, 7))
 					{
-						read_search_node(reader, child);
+						walk_search_node(walk, *child);
 					}
 				}
 			}
 		}
 
-		void read_graph(zone_reader& reader, TacticalGraph* graph)
+		template <typename Walk>
+		void walk_graph(Walk walk, TacticalGraph& graph)
 		{
-			reader.read_array(graph->m_Points, 3, graph->m_NumPoints);
+			walk.array(graph.m_Points, graph.m_NumPoints, 3);
 
-			const auto row_count = graph->m_NumPoints - 1;
-			if (const auto rows = reader.read_array(graph->m_VisGraph, 7, row_count))
+			const auto row_count = graph.m_NumPoints - 1;
+			if (const auto rows = walk.array(graph.m_VisGraph, row_count, 7))
 			{
 				for (auto i = 0; i < row_count; i++)
 				{
-					reader.read_array(rows[i].m_Vis, 0, (rows[i].m_End - rows[i].m_Start) / 8 + 1);
+					walk.array(rows[i].m_Vis, (rows[i].m_End - rows[i].m_Start) / 8 + 1, 0);
 				}
 			}
 
-			read_search_node(reader, &graph->m_SearchRoot);
+			walk_search_node(walk, graph.m_SearchRoot);
+		}
+
+		template <typename Walk>
+		void walk_tactical_graph(Walk walk, TacticalGraphData& asset)
+		{
+			if (const auto graphs = walk.array(asset.m_TacGraphs, asset.m_NumTacGraphs, 7))
+			{
+				for (auto i = 0; i < asset.m_NumTacGraphs; i++)
+				{
+					walk_graph(walk, graphs[i]);
+				}
+			}
 		}
 	}
 
@@ -40,14 +54,73 @@ namespace zonetool::iw8
 	{
 		reader.push_stream(XFILE_BLOCK_VIRTUAL);
 		reader.read_string(asset->name);
-
-		if (const auto graphs = reader.read_array(asset->m_TacGraphs, 7, asset->m_NumTacGraphs))
-		{
-			for (auto i = 0; i < asset->m_NumTacGraphs; i++)
-			{
-				read_graph(reader, &graphs[i]);
-			}
-		}
+		walk_tactical_graph(read_walk{reader}, *asset);
 		reader.pop_stream();
+	}
+
+	void tactical_graph::write(zone_base* zone, zone_buffer* buf)
+	{
+		auto* data = this->asset_;
+		auto* dest = buf->write(data);
+
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
+		dest->name = buf->write_str(this->name());
+		walk_tactical_graph(write_walk{zone, buf}, *dest);
+		buf->pop_stream();
+	}
+
+	void tactical_graph::dump(TacticalGraphData* asset)
+	{
+		assetmanager::dumper dump;
+		if (!dump.open(asset->name + ".tacgraph"s))
+		{
+			return;
+		}
+
+		dump.dump_single(asset);
+		dump.dump_string(asset->name);
+		walk_tactical_graph(dump_walk{dump}, *asset);
+		dump.close();
+	}
+
+	TacticalGraphData* tactical_graph::parse(const std::string& name, zone_memory* mem)
+	{
+		assetmanager::reader read(mem);
+		if (!read.open(name + ".tacgraph"s))
+		{
+			return nullptr;
+		}
+
+		ZONETOOL_INFO("Parsing tacgraph \"%s\"...", name.data());
+
+		auto* asset = read.read_single<TacticalGraphData>();
+		asset->name = read.read_string();
+		walk_tactical_graph(parse_walk{read}, *asset);
+		read.close();
+		return asset;
+	}
+
+	void tactical_graph::init(const std::string& name, zone_memory* mem)
+	{
+		this->name_ = name;
+
+		if (this->referenced())
+		{
+			this->asset_ = mem->allocate<TacticalGraphData>();
+			this->asset_->name = mem->duplicate_string(name);
+			return;
+		}
+
+		this->asset_ = this->parse(name, mem);
+	}
+
+	std::string tactical_graph::name()
+	{
+		return this->name_;
+	}
+
+	std::int32_t tactical_graph::type()
+	{
+		return ASSET_TYPE_TACGRAPH;
 	}
 }

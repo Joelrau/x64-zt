@@ -820,8 +820,8 @@ namespace zonetool::iw7
 		unsigned char boneCount[10]; // 119
 		unsigned char notifyCount; // 129
 		unsigned char assetType; // 130
-		unsigned char unk1; // 131
-		unsigned char unk2; // 132
+		unsigned char ikType; // 131
+		unsigned char fingerPoseType; // 132
 	}; assert_sizeof(XAnimParts, 0x88);
 
 	struct XSurfaceCollisionAabb

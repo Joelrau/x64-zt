@@ -24,7 +24,9 @@ namespace zonetool::iw8
 		const char** (*name)(void* asset);
 	};
 
+	const asset_loader& get_asset_loader(XAssetType type);
 	const char* get_asset_name(XAssetType type, const void* header);
+	std::size_t asset_alignment(XAssetType type);
 
 	std::unique_ptr<loaded_zone> load_zone(const std::filesystem::path& path);
 }

@@ -238,6 +238,71 @@ namespace zonetool::iw8
 		return xpak::read(data.xpakEntry.key, data.pixelSize - smaller_parts_size);
 	}
 
+	GfxImage* gfx_image::parse(const std::string& name, zone_memory* mem)
+	{
+		assetmanager::reader read(mem);
+		if (!read.open("images\\" + clean_name(name) + ".iw8Image"))
+		{
+			return nullptr;
+		}
+
+		ZONETOOL_INFO("Parsing image \"%s\"...", name.data());
+
+		auto* asset = read.read_single<GfxImage>();
+		asset->name = read.read_string();
+		asset->packedAtlasData = read.read_array<char>();
+		asset->fallback = read.read_single<GfxImageFallback>();
+		if (asset->fallback)
+		{
+			asset->fallback->pixels = read.read_array<char>();
+		}
+
+		const auto pixels = read.read_array<char>();
+		if (!(asset->flags & IMG_DISK_FLAG_STREAMED))
+		{
+			asset->pixels.residentData = pixels;
+		}
+
+		read.close();
+		return asset;
+	}
+
+	void gfx_image::init(const std::string& name, zone_memory* mem)
+	{
+		this->name_ = name;
+
+		if (this->referenced())
+		{
+			this->asset_ = mem->allocate<GfxImage>();
+			this->asset_->name = mem->duplicate_string(name);
+			return;
+		}
+
+		this->asset_ = this->parse(name, mem);
+		if (!this->asset_)
+		{
+			ZONETOOL_FATAL("Image \"%s\" not found.", name.data());
+		}
+	}
+
+	void gfx_image::prepare(zone_buffer* buf, zone_memory* mem)
+	{
+	}
+
+	void gfx_image::load_depending(zone_base* zone)
+	{
+	}
+
+	std::string gfx_image::name()
+	{
+		return this->name_;
+	}
+
+	std::int32_t gfx_image::type()
+	{
+		return ASSET_TYPE_IMAGE;
+	}
+
 	void gfx_image::read(zone_reader& reader, GfxImage* asset)
 	{
 		reader.push_stream(XFILE_BLOCK_VIRTUAL);
@@ -254,6 +319,47 @@ namespace zonetool::iw8
 			read_resident_pixels(reader, asset);
 		}
 		reader.pop_stream();
+	}
+
+	void gfx_image::write(zone_base* zone, zone_buffer* buf)
+	{
+		auto* data = this->asset_;
+		auto* dest = buf->write(data);
+
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
+		dest->name = buf->write_str(this->name());
+
+		if (data->packedAtlasData)
+		{
+			buf->write(data->packedAtlasData, packed_atlas_data_size(data));
+			buf->clear_pointer(&dest->packedAtlasData);
+		}
+
+		if (data->fallback)
+		{
+			buf->align(7);
+			auto* fallback = buf->write(data->fallback);
+			if (data->fallback->pixels)
+			{
+				buf->align(15);
+				buf->write(data->fallback->pixels, data->fallback->size);
+				buf->clear_pointer(&fallback->pixels);
+			}
+			buf->clear_pointer(&dest->fallback);
+		}
+
+		if (!(data->flags & IMG_DISK_FLAG_STREAMED))
+		{
+			buf->push_stream(XFILE_BLOCK_TEMP);
+			if (data->pixels.residentData)
+			{
+				buf->align(15);
+				buf->write(data->pixels.residentData, data->totalSize);
+				buf->clear_pointer(&dest->pixels.residentData);
+			}
+			buf->pop_stream();
+		}
+		buf->pop_stream();
 	}
 
 	void gfx_image::dump(GfxImage* asset)

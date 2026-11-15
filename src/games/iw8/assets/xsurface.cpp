@@ -87,4 +87,332 @@ namespace zonetool::iw8
 		read_shared(reader, asset->shared);
 		reader.pop_stream();
 	}
+
+	namespace
+	{
+		template <typename T>
+		void write_array(zone_buffer* buf, const T* source, T*& target, const std::size_t count, const std::uint32_t alignment)
+		{
+			if (!source)
+			{
+				return;
+			}
+
+			if (const auto written = buf->find_sub_buffer(source))
+			{
+				target = written;
+				return;
+			}
+
+			buf->align(alignment);
+			buf->insert_sub_buffer(source, count);
+			buf->write(source, count);
+			buf->clear_pointer(&target);
+		}
+
+		bool shared_resident(const XSurfaceShared* shared)
+		{
+			return !(shared->flags & XSURFACE_SHARED_STREAMED);
+		}
+
+		void write_shared(zone_buffer* buf, XSurfaceShared* source, XSurfaceShared*& target)
+		{
+			if (!source)
+			{
+				return;
+			}
+
+			if (const auto written = buf->find_sub_buffer(source))
+			{
+				target = written;
+				return;
+			}
+
+			buf->align(7);
+			buf->insert_sub_buffer(source, 1);
+			auto* shared = buf->write(source);
+			if (shared_resident(source))
+			{
+				write_array(buf, source->data.residentData, shared->data.residentData, source->dataSize, 15);
+			}
+			buf->clear_pointer(&target);
+		}
+
+		void write_subdiv_level(zone_buffer* buf, const XSurfaceSubdivLevel* source, XSurfaceSubdivLevel* level, const XSurface* surface)
+		{
+			write_array(buf, source->rigidVertLists, level->rigidVertLists, surface->rigidVertListCount, 3);
+			write_array(buf, source->faceIndices, level->faceIndices, 6 * source->faceCount, 3);
+			write_array(buf, source->regularPatchIndices, level->regularPatchIndices, 16 * source->regularPatchCount, 3);
+			write_array(buf, source->regularPatchFlags, level->regularPatchFlags, source->regularPatchCount, 3);
+			write_array(buf, source->facePoints, level->facePoints, source->facePointBufferSize / sizeof(unsigned int), 3);
+			write_array(buf, source->edgePoints, level->edgePoints, 2 * source->edgePointCount, 3);
+			write_array(buf, source->vertexPoints, level->vertexPoints, source->vertexPointBufferSize / sizeof(unsigned int), 3);
+			write_array(buf, source->normals, level->normals, source->normalBufferSize / sizeof(unsigned int), 3);
+			write_array(buf, source->transitionPoints, level->transitionPoints, source->transitionPointCount, 3);
+			write_array(buf, source->regularPatchCones, level->regularPatchCones, 8 * source->regularPatchCount, 3);
+		}
+
+		void write_subdiv(zone_buffer* buf, const XSurface* source, XSurface* surface)
+		{
+			if (!source->subdiv)
+			{
+				return;
+			}
+
+			buf->align(15);
+			auto* subdiv = buf->write(source->subdiv);
+			if (source->subdiv->levels)
+			{
+				buf->align(7);
+				auto* levels = buf->write(source->subdiv->levels, source->subdivLevelCount);
+				for (auto i = 0; i < source->subdivLevelCount; i++)
+				{
+					write_subdiv_level(buf, &source->subdiv->levels[i], &levels[i], source);
+				}
+				buf->clear_pointer(&subdiv->levels);
+			}
+			buf->clear_pointer(&surface->subdiv);
+		}
+
+		void write_blend_shapes(zone_buffer* buf, const XSurface* source, XSurface* surface)
+		{
+			if (auto* per_vert = source->blendShapesPerVert)
+			{
+				buf->align(15);
+				auto* dest = buf->write(per_vert);
+				write_array(buf, per_vert->perVertBlendShapeData, dest->perVertBlendShapeData, per_vert->perVertBlendShapeDataSize / sizeof(unsigned __int64), 7);
+				write_array(buf, per_vert->surfBlendShapesData, dest->surfBlendShapesData, per_vert->surfBlendShapeCount, 1);
+				buf->clear_pointer(&surface->blendShapesPerVert);
+			}
+
+			if (auto* tangent_frame = source->blendShapesRecalcTangentFrameData)
+			{
+				buf->align(15);
+				auto* dest = buf->write(tangent_frame);
+				write_array(buf, tangent_frame->topologicalData, dest->topologicalData, tangent_frame->bufferSize / sizeof(unsigned short), 1);
+				buf->clear_pointer(&surface->blendShapesRecalcTangentFrameData);
+			}
+		}
+
+		void write_surface(zone_buffer* buf, const XSurface* source, XSurface* surface)
+		{
+			write_shared(buf, source->shared, surface->shared);
+			write_array(buf, source->lmapCoords, surface->lmapCoords, source->vertCount, 3);
+			write_array(buf, source->rigidVertLists, surface->rigidVertLists, source->rigidVertListCount, 1);
+			write_array(buf, source->blendVerts, surface->blendVerts, source->blendVertSize / sizeof(unsigned short), 3);
+			write_subdiv(buf, source, surface);
+			write_array(buf, source->childBounds, surface->childBounds, source->rigidVertListCount, 3);
+			write_blend_shapes(buf, source, surface);
+		}
+
+		void parse_shared(assetmanager::reader& read, XSurfaceShared*& shared)
+		{
+			if ((shared = read.read_single<XSurfaceShared>()) && shared_resident(shared))
+			{
+				shared->data.residentData = read.read_array<char>();
+			}
+		}
+
+		void dump_shared(assetmanager::dumper& dump, const XSurfaceShared* shared)
+		{
+			dump.dump_single(shared);
+			if (shared && shared_resident(shared))
+			{
+				dump.dump_array(shared->data.residentData, shared->dataSize);
+			}
+		}
+
+		void parse_surface(assetmanager::reader& read, XSurface* surface)
+		{
+			parse_shared(read, surface->shared);
+			surface->lmapCoords = read.read_array<PackedLmapCoords>();
+			surface->rigidVertLists = read.read_array<XRigidVertList>();
+			surface->blendVerts = read.read_array<unsigned short>();
+
+			if ((surface->subdiv = read.read_single<XSurfaceSubdivInfo>()))
+			{
+				if ((surface->subdiv->levels = read.read_array<XSurfaceSubdivLevel>()))
+				{
+					for (auto i = 0; i < surface->subdivLevelCount; i++)
+					{
+						auto* level = &surface->subdiv->levels[i];
+						level->rigidVertLists = read.read_array<XSubdivRigidVertList>();
+						level->faceIndices = read.read_array<unsigned short>();
+						level->regularPatchIndices = read.read_array<unsigned short>();
+						level->regularPatchFlags = read.read_array<unsigned int>();
+						level->facePoints = read.read_array<unsigned int>();
+						level->edgePoints = read.read_array<unsigned int>();
+						level->vertexPoints = read.read_array<unsigned int>();
+						level->normals = read.read_array<unsigned int>();
+						level->transitionPoints = read.read_array<unsigned int>();
+						level->regularPatchCones = read.read_array<float>();
+					}
+				}
+			}
+
+			surface->childBounds = read.read_array<Bounds>();
+
+			if ((surface->blendShapesPerVert = read.read_single<BlendShapesPerVert>()))
+			{
+				surface->blendShapesPerVert->perVertBlendShapeData = read.read_array<unsigned __int64>();
+				surface->blendShapesPerVert->surfBlendShapesData = read.read_array<unsigned short>();
+			}
+
+			if ((surface->blendShapesRecalcTangentFrameData = read.read_single<BlendShapesRecalcTangentFrameData>()))
+			{
+				surface->blendShapesRecalcTangentFrameData->topologicalData = read.read_array<unsigned short>();
+			}
+		}
+
+		void dump_surface(assetmanager::dumper& dump, const XSurface* surface)
+		{
+			dump_shared(dump, surface->shared);
+			dump.dump_array(surface->lmapCoords, surface->vertCount);
+			dump.dump_array(surface->rigidVertLists, surface->rigidVertListCount);
+			dump.dump_array(surface->blendVerts, surface->blendVertSize / sizeof(unsigned short));
+
+			dump.dump_single(surface->subdiv);
+			if (surface->subdiv)
+			{
+				dump.dump_array(surface->subdiv->levels, surface->subdivLevelCount);
+				if (surface->subdiv->levels)
+				{
+					for (auto i = 0; i < surface->subdivLevelCount; i++)
+					{
+						const auto* level = &surface->subdiv->levels[i];
+						dump.dump_array(level->rigidVertLists, surface->rigidVertListCount);
+						dump.dump_array(level->faceIndices, 6 * level->faceCount);
+						dump.dump_array(level->regularPatchIndices, 16 * level->regularPatchCount);
+						dump.dump_array(level->regularPatchFlags, level->regularPatchCount);
+						dump.dump_array(level->facePoints, level->facePointBufferSize / sizeof(unsigned int));
+						dump.dump_array(level->edgePoints, 2 * level->edgePointCount);
+						dump.dump_array(level->vertexPoints, level->vertexPointBufferSize / sizeof(unsigned int));
+						dump.dump_array(level->normals, level->normalBufferSize / sizeof(unsigned int));
+						dump.dump_array(level->transitionPoints, level->transitionPointCount);
+						dump.dump_array(level->regularPatchCones, 8 * level->regularPatchCount);
+					}
+				}
+			}
+
+			dump.dump_array(surface->childBounds, surface->rigidVertListCount);
+
+			dump.dump_single(surface->blendShapesPerVert);
+			if (const auto* per_vert = surface->blendShapesPerVert)
+			{
+				dump.dump_array(per_vert->perVertBlendShapeData, per_vert->perVertBlendShapeDataSize / sizeof(unsigned __int64));
+				dump.dump_array(per_vert->surfBlendShapesData, per_vert->surfBlendShapeCount);
+			}
+
+			dump.dump_single(surface->blendShapesRecalcTangentFrameData);
+			if (const auto* tangent_frame = surface->blendShapesRecalcTangentFrameData)
+			{
+				dump.dump_array(tangent_frame->topologicalData, tangent_frame->bufferSize / sizeof(unsigned short));
+			}
+		}
+	}
+
+	XModelSurfs* xmodel_surfs::parse(const std::string& name, zone_memory* mem)
+	{
+		assetmanager::reader read(mem);
+		if (!read.open("xsurface\\"s + name + ".xsb"))
+		{
+			return nullptr;
+		}
+
+		ZONETOOL_INFO("Parsing xmodelsurfs \"%s\"...", name.data());
+
+		auto* asset = read.read_single<XModelSurfs>();
+		asset->name = read.read_string();
+
+		if ((asset->surfs = read.read_array<XSurface>()))
+		{
+			for (auto i = 0; i < asset->numsurfs; i++)
+			{
+				parse_surface(read, &asset->surfs[i]);
+			}
+		}
+
+		parse_shared(read, asset->shared);
+		read.close();
+		return asset;
+	}
+
+	void xmodel_surfs::init(const std::string& name, zone_memory* mem)
+	{
+		this->name_ = name;
+
+		if (this->referenced())
+		{
+			this->asset_ = mem->allocate<XModelSurfs>();
+			this->asset_->name = mem->duplicate_string(name);
+			return;
+		}
+
+		this->asset_ = this->parse(name, mem);
+	}
+
+	void xmodel_surfs::prepare(zone_buffer* buf, zone_memory* mem)
+	{
+	}
+
+	void xmodel_surfs::load_depending(zone_base* zone)
+	{
+	}
+
+	std::string xmodel_surfs::name()
+	{
+		return this->name_;
+	}
+
+	std::int32_t xmodel_surfs::type()
+	{
+		return ASSET_TYPE_XMODEL_SURFS;
+	}
+
+	void xmodel_surfs::write(zone_base* zone, zone_buffer* buf)
+	{
+		auto* data = this->asset_;
+		auto* dest = buf->write(data);
+
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
+		dest->name = buf->write_str(this->name());
+
+		if (data->surfs)
+		{
+			buf->align(15);
+			auto* surfaces = buf->write(data->surfs, data->numsurfs);
+			for (auto i = 0; i < data->numsurfs; i++)
+			{
+				write_surface(buf, &data->surfs[i], &surfaces[i]);
+			}
+			buf->clear_pointer(&dest->surfs);
+		}
+
+		write_shared(buf, data->shared, dest->shared);
+		buf->pop_stream();
+	}
+
+	void xmodel_surfs::dump(XModelSurfs* asset)
+	{
+		assetmanager::dumper dump;
+		if (!dump.open("xsurface\\"s + asset->name + ".xsb"))
+		{
+			return;
+		}
+
+		dump.dump_single(asset);
+		dump.dump_string(asset->name);
+
+		dump.dump_array(asset->surfs, asset->numsurfs);
+		if (asset->surfs)
+		{
+			for (auto i = 0; i < asset->numsurfs; i++)
+			{
+				dump_surface(dump, &asset->surfs[i]);
+			}
+		}
+
+		dump_shared(dump, asset->shared);
+		dump.close();
+	}
 }

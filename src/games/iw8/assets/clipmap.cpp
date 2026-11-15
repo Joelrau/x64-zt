@@ -5,17 +5,18 @@ namespace zonetool::iw8
 {
 	namespace
 	{
-		void read_static_model_collision(zone_reader& reader, clipMap_t* asset)
+		template <typename Walk>
+		void walk_static_model_collision(Walk walk, clipMap_t& asset)
 		{
-			const auto lists = reader.read_array(asset->staticModelCollisionModelLists, 7, asset->numStaticModelCollisionModelLists);
+			const auto lists = walk.array(asset.staticModelCollisionModelLists, asset.numStaticModelCollisionModelLists, 7);
 			if (!lists)
 			{
 				return;
 			}
 
-			for (auto i = 0u; i < asset->numStaticModelCollisionModelLists; i++)
+			for (auto i = 0u; i < asset.numStaticModelCollisionModelLists; i++)
 			{
-				const auto models = reader.read_array(lists[i].models, 7, lists[i].numModels);
+				const auto models = walk.array(lists[i].models, lists[i].numModels, 7);
 				if (!models)
 				{
 					continue;
@@ -24,12 +25,33 @@ namespace zonetool::iw8
 				for (auto j = 0u; j < lists[i].numModels; j++)
 				{
 					auto& model = models[j];
-					reader.read_script_string(model.name);
-					reader.read_asset(ASSET_TYPE_PHYSICSASSET, model.physicsAsset);
-					reader.read_asset(ASSET_TYPE_XMODEL_DETAIL_COLLISION, model.detailCollision);
-					reader.read_array(model.instances, 3, model.numInstances);
+					walk.script_string(model.name);
+					walk.asset(ASSET_TYPE_PHYSICSASSET, model.physicsAsset);
+					walk.asset(ASSET_TYPE_XMODEL_DETAIL_COLLISION, model.detailCollision);
+					walk.array(model.instances, model.numInstances, 3);
 				}
 			}
+		}
+
+		template <typename Walk>
+		void walk_clip_map(Walk walk, clipMap_t& asset)
+		{
+			walk_static_model_collision(walk, asset);
+			walk.asset(ASSET_TYPE_MAP_ENTS, asset.mapEnts);
+
+			if (const auto stages = walk.array(asset.stages, asset.stageCount, 7))
+			{
+				for (auto i = 0u; i < asset.stageCount; i++)
+				{
+					walk.string(stages[i].name);
+				}
+			}
+
+			walk_map_triggers(walk, asset.stageTrigger);
+			walk.array(asset.havokWorldShapeData, asset.havokWorldShapeDataSize, 15);
+			walk.array(asset.collisionHeatmap, asset.numCollisionHeatmapEntries, 3);
+			walk.array(asset.topDownMapData, 1, 3);
+			walk.string(asset.visionSetName);
 		}
 	}
 
@@ -37,22 +59,91 @@ namespace zonetool::iw8
 	{
 		reader.push_stream(XFILE_BLOCK_VIRTUAL);
 		reader.read_string(asset->name);
-		read_static_model_collision(reader, asset);
-		reader.read_asset(ASSET_TYPE_MAP_ENTS, asset->mapEnts);
+		walk_clip_map(read_walk{reader}, *asset);
+		reader.pop_stream();
+	}
 
-		if (const auto stages = reader.read_array(asset->stages, 7, asset->stageCount))
+	void clip_map::write(zone_base* zone, zone_buffer* buf)
+	{
+		auto* data = this->asset_;
+		auto* dest = buf->write(data);
+
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
+		dest->name = buf->write_str(this->name());
+		walk_clip_map(write_walk{zone, buf}, *dest);
+		buf->pop_stream();
+	}
+
+	void clip_map::dump(clipMap_t* asset)
+	{
+		assetmanager::dumper dump;
+		if (!dump.open(asset->name + ".colmap"s))
 		{
-			for (auto i = 0u; i < asset->stageCount; i++)
-			{
-				reader.read_string(stages[i].name);
-			}
+			return;
 		}
 
-		read_map_triggers(reader, asset->stageTrigger);
-		reader.read_array(asset->havokWorldShapeData, 15, asset->havokWorldShapeDataSize);
-		reader.read_array(asset->collisionHeatmap, 3, asset->numCollisionHeatmapEntries);
-		reader.read_single(asset->topDownMapData, 3);
-		reader.read_string(asset->visionSetName);
-		reader.pop_stream();
+		dump.dump_single(asset);
+		dump.dump_string(asset->name);
+		walk_clip_map(dump_walk{dump}, *asset);
+		dump.close();
+	}
+
+	clipMap_t* clip_map::parse(const std::string& name, zone_memory* mem)
+	{
+		assetmanager::reader read(mem);
+		if (!read.open(name + ".colmap"s))
+		{
+			return nullptr;
+		}
+
+		ZONETOOL_INFO("Parsing clipmap \"%s\"...", name.data());
+
+		auto* asset = read.read_single<clipMap_t>();
+		asset->name = read.read_string();
+		walk_clip_map(parse_script_walk{{read}, this->script_strings_}, *asset);
+		read.close();
+		return asset;
+	}
+
+	void clip_map::init(const std::string& name, zone_memory* mem)
+	{
+		this->name_ = name;
+
+		if (this->referenced())
+		{
+			this->asset_ = mem->allocate<clipMap_t>();
+			this->asset_->name = mem->duplicate_string(name);
+			return;
+		}
+
+		this->asset_ = this->parse(name, mem);
+	}
+
+	void clip_map::load_depending(zone_base* zone)
+	{
+		if (this->referenced())
+		{
+			return;
+		}
+
+		walk_clip_map(depend_walk{zone}, *this->asset_);
+	}
+
+	void clip_map::prepare(zone_buffer* buf, zone_memory* mem)
+	{
+		if (!this->referenced())
+		{
+			walk_clip_map(prepare_walk{buf, this->script_strings_}, *this->asset_);
+		}
+	}
+
+	std::string clip_map::name()
+	{
+		return this->name_;
+	}
+
+	std::int32_t clip_map::type()
+	{
+		return ASSET_TYPE_CLIPMAP;
 	}
 }

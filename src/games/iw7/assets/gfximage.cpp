@@ -543,6 +543,46 @@ namespace zonetool::iw7
 		return out_buffer;
 	}
 
+	std::optional<std::string> read_streamed_image_pixels(const GfxImage* image, const unsigned int stream)
+	{
+		const auto stream_file = image_stream_file(image, stream);
+		if (stream_file.offset == 0 || stream_file.offsetEnd == 0)
+		{
+			return {};
+		}
+
+		const auto filename = stream_file.fileIndex == custom_imagefile_index
+			? std::format("{}.pak", filesystem::get_fastfile())
+			: std::format("imagefile{}.pak", stream_file.fileIndex);
+
+		std::ifstream imagefile(filesystem::get_zone_path(filename) + filename, std::ios::binary);
+		if (!imagefile.is_open())
+		{
+			return {};
+		}
+
+		std::string buffer;
+		buffer.resize(stream_file.offsetEnd - stream_file.offset);
+		imagefile.seekg(stream_file.offset);
+		imagefile.read(buffer.data(), buffer.size());
+
+		const auto* header = reinterpret_cast<const XFileCompressorHeader*>(buffer.data());
+		if (buffer.size() < sizeof(XFileCompressorHeader) || header->compressor != DB_COMPRESSOR_BLOCK)
+		{
+			return {};
+		}
+
+		try
+		{
+			const auto pixels = decompress_lz4_block(buffer.data() + sizeof(XFileCompressorHeader), buffer.size() - sizeof(XFileCompressorHeader));
+			return std::string(pixels.begin(), pixels.end());
+		}
+		catch (const std::exception&)
+		{
+			return {};
+		}
+	}
+
 	void dump_streamed_image(GfxImage* image, bool is_self = false, bool dump_dds = false)
 	{
 		for (auto i = 0u; i < 4; i++)

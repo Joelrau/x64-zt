@@ -3,9 +3,5 @@
 
 namespace zonetool::iw8
 {
-	class localize
-	{
-	public:
-		static void read(zone_reader& reader, LocalizeEntry* asset);
-	};
+	REGISTER_TEMPLATED_ASSET(localize, LocalizeEntry, ASSET_TYPE_LOCALIZE_ENTRY);
 }

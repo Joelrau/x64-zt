@@ -48,7 +48,7 @@ namespace zonetool
 		template <typename T>
 		T* get_zone_pointer(const std::uint8_t stream, const std::size_t ptr)
 		{
-			if (this->mode == game::iw7 || this->mode == game::s2)
+			if (this->mode == game::iw7 || this->mode == game::s2 || this->mode == game::iw8)
 			{
 				return reinterpret_cast<T*>(create_data_ptr(0x0, stream, 0x0) | ((ptr + 1) & 0x0FFFFFFFFFFFFFF));
 			}
@@ -187,6 +187,7 @@ namespace zonetool
 		std::uint8_t current_stream();
 		std::uint32_t current_stream_offset();
 		std::uint32_t stream_offset(const std::uint8_t stream);
+		std::uint32_t stream_position(const std::uint8_t stream);
 
 		std::uint32_t write_scriptstring(const char* str);
 		const char* get_scriptstring(const std::size_t idx);
@@ -277,6 +278,9 @@ namespace zonetool
 		void init_script_strings();
 
 		std::map<std::size_t, sub_zone_buffer> sub_zone_buffers_;
+		std::unordered_map<std::string, char*> shared_strings_;
+
+		char* write_shared_str(const std::string& str);
 
 	};
 }

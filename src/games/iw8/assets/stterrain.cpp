@@ -15,56 +15,87 @@ namespace zonetool::iw8
 			return mesh.flags & ST_MESH_LAYER_MASK ? 4 * (mesh.triCount - mesh.cutoutTriCount) : 0;
 		}
 
-		void read_mesh(zone_reader& reader, StMesh& mesh)
+		template <typename Walk>
+		void walk_mesh(Walk walk, StMesh& mesh)
 		{
-			reader.read_array(mesh.vd0.data, 127, vertex_data_size(mesh));
-			reader.read_array(mesh.layerMask.data, 127, layer_mask_size(mesh));
-			reader.read_array(mesh.indices, 3, 3 * mesh.triCount);
-			reader.read_asset(ASSET_TYPE_STREAM_KEY, mesh.streamKey);
+			walk.array(mesh.vd0.data, vertex_data_size(mesh), 127);
+			walk.array(mesh.layerMask.data, layer_mask_size(mesh), 127);
+			walk.array(mesh.indices, 3 * mesh.triCount, 3);
+			walk.asset(ASSET_TYPE_STREAM_KEY, mesh.streamKey);
 		}
 
-		void read_grid(zone_reader& reader, StTerrainGrid& grid)
+		template <typename Walk>
+		void walk_grid(Walk walk, StTerrainGrid& grid)
 		{
-			if (const auto levels = reader.read_array(grid.levels, 7, grid.numLevels))
+			if (const auto levels = walk.array(grid.levels, grid.numLevels, 7))
 			{
 				for (auto i = 0u; i < grid.numLevels; i++)
 				{
 					const auto count = levels[i].width * levels[i].height;
-					if (const auto nodes = reader.read_array(levels[i].nodes, 7, count))
+					if (const auto nodes = walk.array(levels[i].nodes, count, 7))
 					{
 						for (auto j = 0u; j < count; j++)
 						{
-							read_mesh(reader, nodes[j].mesh);
+							walk_mesh(walk, nodes[j].mesh);
 						}
 					}
 				}
 			}
 		}
 
-		void read_surface(zone_reader& reader, StDiskTerrainSurface& surface)
+		template <typename Walk>
+		void walk_surface(Walk walk, StDiskTerrainSurface& surface)
 		{
-			reader.read_array(surface.highLODIndices, 3, surface.highLODIndexCount);
-			read_grid(reader, surface.grid);
+			walk.array(surface.highLODIndices, surface.highLODIndexCount, 3);
+			walk_grid(walk, surface.grid);
 
-			if (const auto layers = reader.read_array(surface.layerMaterials, 7, surface.layerMaterialsCount))
+			if (const auto layers = walk.array(surface.layerMaterials, surface.layerMaterialsCount, 7))
 			{
 				for (auto i = 0u; i < surface.layerMaterialsCount; i++)
 				{
-					reader.read_asset(ASSET_TYPE_MATERIAL, layers[i].material);
-					reader.read_array(layers[i].materialTextureIdxs, 1, 4);
+					walk.asset(ASSET_TYPE_MATERIAL, layers[i].material);
+					walk.array(layers[i].materialTextureIdxs, 4, 1);
 				}
 			}
 
-			reader.read_array(surface.displacementScales, 3, surface.displacementScalesCount);
-			reader.read_array(surface.clutterLayers, 3, surface.clutterLayerCount);
-			reader.read_asset(ASSET_TYPE_STREAM_KEY, surface.clutterSampleBitmask.streamKey);
-			reader.read_array(surface.clutterSampleBitmask.bitmask, 3, surface.clutterSampleBitmask.wordCount);
-			reader.read_array(surface.clutterTileInstanceCounts, 3, surface.clutterTileCount);
-			reader.read_array(surface.layerMaskMapIdxs, 1, surface.layerMaskMapIdxsCount);
-			reader.read_asset(ASSET_TYPE_IMAGE, surface.heightMap);
-			reader.read_asset(ASSET_TYPE_IMAGE, surface.cutoutMap);
-			reader.read_asset(ASSET_TYPE_IMAGE, surface.combinedAlbedoMap);
-			reader.read_asset(ASSET_TYPE_IMAGE, surface.combinedNogMap);
+			walk.array(surface.displacementScales, surface.displacementScalesCount, 3);
+			walk.array(surface.clutterLayers, surface.clutterLayerCount, 3);
+			walk.asset(ASSET_TYPE_STREAM_KEY, surface.clutterSampleBitmask.streamKey);
+			walk.array(surface.clutterSampleBitmask.bitmask, surface.clutterSampleBitmask.wordCount, 3);
+			walk.array(surface.clutterTileInstanceCounts, surface.clutterTileCount, 3);
+			walk.array(surface.layerMaskMapIdxs, surface.layerMaskMapIdxsCount, 1);
+			walk.asset(ASSET_TYPE_IMAGE, surface.heightMap);
+			walk.asset(ASSET_TYPE_IMAGE, surface.cutoutMap);
+			walk.asset(ASSET_TYPE_IMAGE, surface.combinedAlbedoMap);
+			walk.asset(ASSET_TYPE_IMAGE, surface.combinedNogMap);
+		}
+
+		template <typename Walk>
+		void walk_st_terrain(Walk walk, StTerrain& asset)
+		{
+
+			if (const auto surfaces = walk.array(asset.surfaces, asset.surfaceCount, 7))
+			{
+				for (auto i = 0u; i < asset.surfaceCount; i++)
+				{
+					walk_surface(walk, surfaces[i]);
+				}
+			}
+
+			walk.array(asset.maps, asset.mapsCount, 3);
+			walk_asset_array(walk, ASSET_TYPE_IMAGE, asset.flattenedImages, asset.flattenedImagesCount);
+			walk.array(asset.clutterSamplePoints.samplePoints, asset.clutterSamplePoints.sampleCount, 3);
+
+			if (const auto lightmaps = walk.array(asset.lightmaps, asset.lightmapCount, 7))
+			{
+				for (auto i = 0u; i < asset.lightmapCount; i++)
+				{
+					for (auto& image : lightmaps[i].images)
+					{
+						walk.asset(ASSET_TYPE_IMAGE, image);
+					}
+				}
+			}
 		}
 	}
 
@@ -72,29 +103,83 @@ namespace zonetool::iw8
 	{
 		reader.push_stream(XFILE_BLOCK_VIRTUAL);
 		reader.read_string(asset->name);
-
-		if (const auto surfaces = reader.read_array(asset->surfaces, 7, asset->surfaceCount))
-		{
-			for (auto i = 0u; i < asset->surfaceCount; i++)
-			{
-				read_surface(reader, surfaces[i]);
-			}
-		}
-
-		reader.read_array(asset->maps, 3, asset->mapsCount);
-		reader.read_asset_array(ASSET_TYPE_IMAGE, asset->flattenedImages, asset->flattenedImagesCount);
-		reader.read_array(asset->clutterSamplePoints.samplePoints, 3, asset->clutterSamplePoints.sampleCount);
-
-		if (const auto lightmaps = reader.read_array(asset->lightmaps, 7, asset->lightmapCount))
-		{
-			for (auto i = 0u; i < asset->lightmapCount; i++)
-			{
-				for (auto& image : lightmaps[i].images)
-				{
-					reader.read_asset(ASSET_TYPE_IMAGE, image);
-				}
-			}
-		}
+		walk_st_terrain(read_walk{reader}, *asset);
 		reader.pop_stream();
+	}
+
+	void st_terrain::write(zone_base* zone, zone_buffer* buf)
+	{
+		auto* data = this->asset_;
+		auto* dest = buf->write(data);
+
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
+		dest->name = buf->write_str(this->name());
+		walk_st_terrain(write_walk{zone, buf}, *dest);
+		buf->pop_stream();
+	}
+
+	void st_terrain::dump(StTerrain* asset)
+	{
+		assetmanager::dumper dump;
+		if (!dump.open("stterrain\\"s + asset->name + ".stterrainb"))
+		{
+			return;
+		}
+
+		dump.dump_single(asset);
+		dump.dump_string(asset->name);
+		walk_st_terrain(dump_walk{dump}, *asset);
+		dump.close();
+	}
+
+	StTerrain* st_terrain::parse(const std::string& name, zone_memory* mem)
+	{
+		assetmanager::reader read(mem);
+		if (!read.open("stterrain\\"s + name + ".stterrainb"))
+		{
+			return nullptr;
+		}
+
+		ZONETOOL_INFO("Parsing stterrain \"%s\"...", name.data());
+
+		auto* asset = read.read_single<StTerrain>();
+		asset->name = read.read_string();
+		walk_st_terrain(parse_walk{read}, *asset);
+		read.close();
+		return asset;
+	}
+
+	void st_terrain::init(const std::string& name, zone_memory* mem)
+	{
+		this->name_ = name;
+
+		if (this->referenced())
+		{
+			this->asset_ = mem->allocate<StTerrain>();
+			this->asset_->name = mem->duplicate_string(name);
+			return;
+		}
+
+		this->asset_ = this->parse(name, mem);
+	}
+
+	void st_terrain::load_depending(zone_base* zone)
+	{
+		if (this->referenced())
+		{
+			return;
+		}
+
+		walk_st_terrain(depend_walk{zone}, *this->asset_);
+	}
+
+	std::string st_terrain::name()
+	{
+		return this->name_;
+	}
+
+	std::int32_t st_terrain::type()
+	{
+		return ASSET_TYPE_ST_TERRAIN;
 	}
 }

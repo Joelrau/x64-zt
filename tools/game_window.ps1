@@ -123,7 +123,7 @@ switch ($action)
 		{
 			$vk = switch ($name)
 			{
-				"enter" { 0x0D } "esc" { 0x1B } "tilde" { 0xC0 } "space" { 0x20 } "tab" { 0x09 } "back" { 0x08 } "f12" { 0x7B }
+				"enter" { 0x0D } "esc" { 0x1B } "tilde" { 0xC0 } "space" { 0x20 } "tab" { 0x09 } "back" { 0x08 } "f6" { 0x75 } "f12" { 0x7B }
 				default { [int][char]$name.ToUpper() }
 			}
 			press ([byte]$vk)

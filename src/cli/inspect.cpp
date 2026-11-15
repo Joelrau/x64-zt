@@ -9,12 +9,14 @@ namespace zonetool::cli
 		{
 			xfile::fastfile file;
 			XAssetList asset_list;
+			xfile::container container;
 		};
 
 		zone_summary summarize(const game& game, const std::filesystem::path& path)
 		{
 			zone_summary summary{};
 			summary.file = xfile::read(path, game.format);
+			summary.container = game.format.container;
 
 			const auto& payload = summary.file.payload;
 			if (payload.size() < sizeof(XAssetList))
@@ -44,6 +46,16 @@ namespace zonetool::cli
 			std::cout << std::format("script strings: {}\n", summary.asset_list.stringCount);
 			std::cout << std::format("assets:         {}\n", summary.asset_list.assetCount);
 			std::cout << std::format("globals:        {}\n", summary.asset_list.globals != 0);
+
+			if (summary.container == xfile::container::iw8)
+			{
+				const auto& header = file.iw8_header;
+				std::cout << std::format("transient type: {}\n", header.transient_file_type);
+				std::cout << std::format("resident size:  0x{:X}\n", header.resident_part_size);
+				std::cout << std::format("resident hash:  0x{:X}\n", header.resident_hash);
+				std::cout << std::format("always loaded:  0x{:X}\n", header.always_loaded_part_size);
+				std::cout << std::format("preload walk:   0x{:X}\n", header.preload_walk_size);
+			}
 		}
 
 		void inspect_all(const settings& settings)

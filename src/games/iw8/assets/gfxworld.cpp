@@ -10,396 +10,462 @@ namespace zonetool::iw8
 			return (cell_count + 31) >> 5;
 		}
 
-		void read_dpvs_planes(zone_reader& reader, GfxWorldDpvsPlanes& planes)
+		template <typename Walk>
+		void walk_dpvs_planes(Walk walk, GfxWorldDpvsPlanes& planes)
 		{
-			reader.read_array(planes.planes, 3, planes.planeCount);
-			reader.read_array(planes.nodes, 1, planes.nodeCount);
+			walk.array(planes.planes, planes.planeCount, 3);
+			walk.array(planes.nodes, planes.nodeCount, 1);
 
-			reader.push_stream(XFILE_BLOCK_RUNTIME);
-			reader.read_array(planes.sceneEntCellBits, 3, planes.cellCount << 9);
-			reader.pop_stream();
+			walk.push_stream(XFILE_BLOCK_RUNTIME);
+			walk.array(planes.sceneEntCellBits, planes.cellCount << 9, 3);
+			walk.pop_stream();
 		}
 
-		void read_cells(zone_reader& reader, GfxWorld* asset)
+		template <typename Walk>
+		void walk_cells(Walk walk, GfxWorld& asset)
 		{
-			const auto cells = reader.read_array(asset->cells, 7, asset->dpvsPlanes.cellCount);
+			const auto cells = walk.array(asset.cells, asset.dpvsPlanes.cellCount, 7);
 			if (!cells)
 			{
 				return;
 			}
 
-			for (auto i = 0u; i < asset->dpvsPlanes.cellCount; i++)
+			for (auto i = 0u; i < asset.dpvsPlanes.cellCount; i++)
 			{
-				if (const auto portals = reader.read_array(cells[i].portals, 7, cells[i].portalCount))
+				if (const auto portals = walk.array(cells[i].portals, cells[i].portalCount, 7))
 				{
 					for (auto j = 0u; j < cells[i].portalCount; j++)
 					{
-						reader.read_array(portals[j].vertices, 3, portals[j].vertexCount);
+						walk.array(portals[j].vertices, portals[j].vertexCount, 3);
 					}
 				}
 			}
 		}
 
-		void read_surfaces(zone_reader& reader, GfxWorldSurfaces& surfaces)
+		template <typename Walk>
+		void walk_surfaces(Walk walk, GfxWorldSurfaces& surfaces)
 		{
-			if (const auto surfs = reader.read_array(surfaces.surfaces, 7, surfaces.count))
+			if (const auto surfs = walk.array(surfaces.surfaces, surfaces.count, 7))
 			{
 				for (auto i = 0u; i < surfaces.count; i++)
 				{
-					reader.read_asset(ASSET_TYPE_MATERIAL, surfs[i].material);
+					walk.asset(ASSET_TYPE_MATERIAL, surfs[i].material);
 				}
 			}
 
-			reader.read_array(surfaces.surfaceBounds, 3, surfaces.count);
-			reader.read_array(surfaces.surfaceMaterials, 7, surfaces.count);
-			reader.read_array(surfaces.surfData, 63, surfaces.surfDataCount);
+			walk.array(surfaces.surfaceBounds, surfaces.count, 3);
+			walk.array(surfaces.surfaceMaterials, surfaces.count, 7);
+			walk.array(surfaces.surfData, surfaces.surfDataCount, 63);
 		}
 
-		void read_static_models(zone_reader& reader, GfxWorldStaticModels& smodels)
+		template <typename Walk>
+		void walk_static_models(Walk walk, GfxWorldStaticModels& smodels)
 		{
-			reader.read_array(smodels.surfaces, 1, smodels.surfaceCount);
+			walk.array(smodels.surfaces, smodels.surfaceCount, 1);
 
-			if (const auto models = reader.read_array(smodels.models, 7, smodels.modelCount))
+			if (const auto models = walk.array(smodels.models, smodels.modelCount, 7))
 			{
 				for (auto i = 0u; i < smodels.modelCount; i++)
 				{
-					reader.read_asset(ASSET_TYPE_XMODEL, models[i].model);
+					walk.asset(ASSET_TYPE_XMODEL, models[i].model);
 				}
 			}
 
-			reader.read_array(smodels.clutterCollections, 3, smodels.clutterCollectionCount);
-			reader.read_array(smodels.collections, 3, smodels.collectionCount);
-			reader.read_array(smodels.instances, 3, smodels.instanceCount);
-			reader.read_array(smodels.instanceFlags, 0, smodels.instanceCount);
-			reader.read_array(smodels.collectionBounds, 3, smodels.collectionCount);
-			reader.read_asset_array(ASSET_TYPE_MATERIAL, smodels.materials, smodels.materialCount);
-			reader.read_array(smodels.modelStaticIndirection, 3, smodels.instanceCount);
-			reader.read_array(smodels.lmapTransforms, 3, smodels.lmapTransformsCount);
-			reader.read_array(smodels.smodelSurfData, 15, smodels.surfaceCount);
-			reader.read_array(smodels.smodelInstanceData, 15, smodels.instanceCount);
-			reader.read_array(smodels.clutterTintData, 3, smodels.clutterTintCount);
-			reader.read_array(smodels.clutterCollectionGPUData, 3, smodels.clutterCollectionCount);
-			reader.read_array(smodels.smodelExpansionData, 3, smodels.modelCount);
-			reader.read_array(smodels.smodelSurfMatIndirection, 1, smodels.surfaceCount);
-			reader.read_array(smodels.smodelSurfUGBIndirection, 3, smodels.surfaceCount);
-			reader.read_array(smodels.splinedModelInstanceBounds, 3, smodels.splinedModelInstanceCount);
-			reader.read_array(smodels.splinedModelInstanceData, 15, smodels.splinedModelInstanceCount);
-			reader.read_array(smodels.splineSegmentData, 15, smodels.splineSegmentCount);
+			walk.array(smodels.clutterCollections, smodels.clutterCollectionCount, 3);
+			walk.array(smodels.collections, smodels.collectionCount, 3);
+			walk.array(smodels.instances, smodels.instanceCount, 3);
+			walk.array(smodels.instanceFlags, smodels.instanceCount, 0);
+			walk.array(smodels.collectionBounds, smodels.collectionCount, 3);
+			walk_asset_array(walk, ASSET_TYPE_MATERIAL, smodels.materials, smodels.materialCount);
+			walk.array(smodels.modelStaticIndirection, smodels.instanceCount, 3);
+			walk.array(smodels.lmapTransforms, smodels.lmapTransformsCount, 3);
+			walk.array(smodels.smodelSurfData, smodels.surfaceCount, 15);
+			walk.array(smodels.smodelInstanceData, smodels.instanceCount, 15);
+			walk.array(smodels.clutterTintData, smodels.clutterTintCount, 3);
+			walk.array(smodels.clutterCollectionGPUData, smodels.clutterCollectionCount, 3);
+			walk.array(smodels.smodelExpansionData, smodels.modelCount, 3);
+			walk.array(smodels.smodelSurfMatIndirection, smodels.surfaceCount, 1);
+			walk.array(smodels.smodelSurfUGBIndirection, smodels.surfaceCount, 3);
+			walk.array(smodels.splinedModelInstanceBounds, smodels.splinedModelInstanceCount, 3);
+			walk.array(smodels.splinedModelInstanceData, smodels.splinedModelInstanceCount, 15);
+			walk.array(smodels.splineSegmentData, smodels.splineSegmentCount, 15);
 
 			auto& visibility = smodels.collectionTransientZonePrevFrameVisibility;
-			reader.read_array(visibility.array, 3, visibility.wordCount);
-			reader.read_array(smodels.collectionVisData, 3, smodels.collectionVisDataCount);
-			reader.read_array(smodels.collectionVisRefCount, 0, smodels.collectionCount);
+			walk.array(visibility.array, visibility.wordCount, 3);
+			walk.array(smodels.collectionVisData, smodels.collectionVisDataCount, 3);
+			walk.array(smodels.collectionVisRefCount, smodels.collectionCount, 0);
 		}
 
-		void read_reflection_probes(zone_reader& reader, GfxWorldReflectionProbeData& data)
+		template <typename Walk>
+		void walk_reflection_probes(Walk walk, GfxWorldReflectionProbeData& data)
 		{
-			reader.read_asset_array(ASSET_TYPE_IMAGE, data.reflectionProbeImages, data.reflectionProbeCount);
-			reader.read_asset_array(ASSET_TYPE_IMAGE, data.reflectionProbeImages_octahedron, data.sharedReflectionProbeCount);
+			walk_asset_array(walk, ASSET_TYPE_IMAGE, data.reflectionProbeImages, data.reflectionProbeCount);
+			walk_asset_array(walk, ASSET_TYPE_IMAGE, data.reflectionProbeImages_octahedron, data.sharedReflectionProbeCount);
 
-			if (const auto probes = reader.read_array(data.reflectionProbes, 7, data.reflectionProbeCount))
+			if (const auto probes = walk.array(data.reflectionProbes, data.reflectionProbeCount, 7))
 			{
 				for (auto i = 0u; i < data.reflectionProbeCount; i++)
 				{
-					reader.read_string(probes[i].livePath);
-					reader.read_array(probes[i].probeInstances, 1, probes[i].probeInstanceCount);
+					walk.string(probes[i].livePath);
+					walk.array(probes[i].probeInstances, probes[i].probeInstanceCount, 1);
 				}
 			}
 
-			reader.read_asset(ASSET_TYPE_IMAGE, data.reflectionProbeArrayImage);
-			reader.read_asset(ASSET_TYPE_IMAGE, data.reflectionProbeArrayImage_octahedron);
+			walk.asset(ASSET_TYPE_IMAGE, data.reflectionProbeArrayImage);
+			walk.asset(ASSET_TYPE_IMAGE, data.reflectionProbeArrayImage_octahedron);
 
-			if (const auto relighting = reader.read_array(data.probeRelightingData, 7, data.probeRelightingCount))
+			if (const auto relighting = walk.array(data.probeRelightingData, data.probeRelightingCount, 7))
 			{
 				for (auto i = 0u; i < data.probeRelightingCount; i++)
 				{
-					reader.read_array(relighting[i].zones, 1, relighting[i].zoneCount);
+					walk.array(relighting[i].zones, relighting[i].zoneCount, 1);
 				}
 			}
 
-			reader.read_asset_array(ASSET_TYPE_IMAGE, data.reflectionProbeGBufferImages, data.reflectionProbeGBufferImageCount);
-			reader.read_asset_array(ASSET_TYPE_IMAGE, data.reflectionProbeGBufferImages_octahedron, data.reflectionProbeGBufferImageCount);
+			walk_asset_array(walk, ASSET_TYPE_IMAGE, data.reflectionProbeGBufferImages, data.reflectionProbeGBufferImageCount);
+			walk_asset_array(walk, ASSET_TYPE_IMAGE, data.reflectionProbeGBufferImages_octahedron, data.reflectionProbeGBufferImageCount);
 
-			if (const auto instances = reader.read_array(data.reflectionProbeInstances, 7, data.reflectionProbeInstanceCount))
+			if (const auto instances = walk.array(data.reflectionProbeInstances, data.reflectionProbeInstanceCount, 7))
 			{
 				for (auto i = 0u; i < data.reflectionProbeInstanceCount; i++)
 				{
-					reader.read_string(instances[i].livePath);
+					walk.string(instances[i].livePath);
 				}
 			}
 
-			reader.read_array(data.reflectionProbeSH, 63, 4 * data.reflectionProbeCount);
+			walk.array(data.reflectionProbeSH, 4 * data.reflectionProbeCount, 63);
 		}
 
-		void read_volumetrics(zone_reader& reader, GfxWorldVolumetrics& volumetrics)
+		template <typename Walk>
+		void walk_volumetrics(Walk walk, GfxWorldVolumetrics& volumetrics)
 		{
-			if (const auto entries = reader.read_array(volumetrics.volumetrics, 7, volumetrics.volumetricCount))
+			if (const auto entries = walk.array(volumetrics.volumetrics, volumetrics.volumetricCount, 7))
 			{
 				for (auto i = 0u; i < volumetrics.volumetricCount; i++)
 				{
-					reader.read_string(entries[i].livePath);
+					walk.string(entries[i].livePath);
 
 					for (auto& mask : entries[i].masks)
 					{
-						reader.read_asset(ASSET_TYPE_IMAGE, mask.image);
+						walk.asset(ASSET_TYPE_IMAGE, mask.image);
 					}
 				}
 			}
 
-			reader.read_asset(ASSET_TYPE_IMAGE, volumetrics.volumetricMaskAtlasImage);
+			walk.asset(ASSET_TYPE_IMAGE, volumetrics.volumetricMaskAtlasImage);
 		}
 
-		void read_draw(zone_reader& reader, GfxWorldDraw& draw)
+		template <typename Walk>
+		void walk_draw(Walk walk, GfxWorldDraw& draw)
 		{
-			read_reflection_probes(reader, draw.reflectionProbeData);
+			walk_reflection_probes(walk, draw.reflectionProbeData);
 
 			auto& reindex = draw.lightmapReindexData;
-			reader.read_array(reindex.reindexElement, 3, reindex.reindexCount);
-			reader.read_array(reindex.packedLightmap, 3, reindex.packedLightmapCount);
+			walk.array(reindex.reindexElement, reindex.reindexCount, 3);
+			walk.array(reindex.packedLightmap, reindex.packedLightmapCount, 3);
 
-			reader.read_asset(ASSET_TYPE_IMAGE, draw.iesLookupTexture);
+			walk.asset(ASSET_TYPE_IMAGE, draw.iesLookupTexture);
 
-			if (const auto materials = reader.read_array(draw.decalVolumeMaterials, 7, draw.decalVolumeMaterialCount))
+			if (const auto materials = walk.array(draw.decalVolumeMaterials, draw.decalVolumeMaterialCount, 7))
 			{
 				for (auto i = 0u; i < draw.decalVolumeMaterialCount; i++)
 				{
-					reader.read_asset(ASSET_TYPE_MATERIAL, materials[i].material);
+					walk.asset(ASSET_TYPE_MATERIAL, materials[i].material);
 				}
 			}
 
-			if (const auto masks = reader.read_array(draw.decalVolumeMasks, 7, draw.decalVolumeMaskCount))
+			if (const auto masks = walk.array(draw.decalVolumeMasks, draw.decalVolumeMaskCount, 7))
 			{
 				for (auto i = 0u; i < draw.decalVolumeMaskCount; i++)
 				{
-					reader.read_asset(ASSET_TYPE_DECAL_VOLUME_MASK, masks[i].blendMapOverride);
+					walk.asset(ASSET_TYPE_DECAL_VOLUME_MASK, masks[i].blendMapOverride);
 				}
 			}
 
-			reader.read_array(draw.decalVolumeCollections, 3, draw.decalVolumeCollectionCount);
-			reader.read_array(draw.materialAndMaskIndirection, 3, draw.decalVolumeMaterialCount + draw.decalVolumeMaskCount);
+			walk.array(draw.decalVolumeCollections, draw.decalVolumeCollectionCount, 3);
+			walk.array(draw.materialAndMaskIndirection, draw.decalVolumeMaterialCount + draw.decalVolumeMaskCount, 3);
 
 			for (auto& zone : draw.transientZones)
 			{
-				reader.read_asset(ASSET_TYPE_GFXWORLD_TRANSIENT_ZONE, zone);
+				walk.asset(ASSET_TYPE_GFXWORLD_TRANSIENT_ZONE, zone);
 			}
 
-			reader.read_array(draw.lightmapTransientIndex, 3, draw.lightmapCount);
-			read_volumetrics(reader, draw.volumetrics);
-			reader.read_array(draw.compressedSunShadow, 0, draw.compressedSunShadowSize);
+			walk.array(draw.lightmapTransientIndex, draw.lightmapCount, 3);
+			walk_volumetrics(walk, draw.volumetrics);
+			walk.array(draw.compressedSunShadow, draw.compressedSunShadowSize, 0);
 		}
 
-		void read_dynamic_lightset_lm_data(zone_reader& reader, GfxDynamicLightsetLMData& data)
+		template <typename Walk>
+		void walk_dynamic_lightset_lm_data(Walk walk, GfxDynamicLightsetLMData& data)
 		{
-			reader.read_array(data.chunkGLM, 3, data.numGChunkLM);
-			reader.read_array(data.chunkGLMBF, 1, data.numGChunkLMBF);
-			reader.read_array(data.chunkWhichLM, 1, data.numLMHave);
-			reader.read_array(data.chunkLMStart, 3, data.numLMHave + (data.numLMHave != 0));
-			reader.read_array(data.origTexels, 3, 2 * data.numOrigTexels);
-			reader.read_array(data.origRecords, 3, data.numOrigTexels);
-			reader.read_array(data.bfTexels, 3, 2 * data.numBFLMTexels);
-			reader.read_array(data.skipRecords, 1, data.numSkipRecords);
-			reader.read_array(data.palletteRecords, 3, data.numSkipRecords);
+			walk.array(data.chunkGLM, data.numGChunkLM, 3);
+			walk.array(data.chunkGLMBF, data.numGChunkLMBF, 1);
+			walk.array(data.chunkWhichLM, data.numLMHave, 1);
+			walk.array(data.chunkLMStart, data.numLMHave + (data.numLMHave != 0), 3);
+			walk.array(data.origTexels, 2 * data.numOrigTexels, 3);
+			walk.array(data.origRecords, data.numOrigTexels, 3);
+			walk.array(data.bfTexels, 2 * data.numBFLMTexels, 3);
+			walk.array(data.skipRecords, data.numSkipRecords, 1);
+			walk.array(data.palletteRecords, data.numSkipRecords, 3);
 		}
 
-		void read_dynamic_lightset(zone_reader& reader, GfxDynamicLightset& lightset)
+		template <typename Walk>
+		void walk_dynamic_lightset(Walk walk, GfxDynamicLightset& lightset)
 		{
-			reader.read_array(lightset.basisFunctions, 3, lightset.numBasisFunctions);
-			reader.read_array(lightset.basisFunctionLights, 3, lightset.numBasisFunctionPrimaryLights);
-			reader.read_array(lightset.portalGIData, 3, lightset.numPortalGI);
-			reader.read_array(lightset.productGIData, 1, lightset.numProductGI);
-			read_dynamic_lightset_lm_data(reader, lightset.lmData);
-			read_lightset_probe_data(reader, lightset.lgProbeData);
+			walk.array(lightset.basisFunctions, lightset.numBasisFunctions, 3);
+			walk.array(lightset.basisFunctionLights, lightset.numBasisFunctionPrimaryLights, 3);
+			walk.array(lightset.portalGIData, lightset.numPortalGI, 3);
+			walk.array(lightset.productGIData, lightset.numProductGI, 1);
+			walk_dynamic_lightset_lm_data(walk, lightset.lmData);
+			walk_lightset_probe_data(walk, lightset.lgProbeData);
 		}
 
-		void read_voxel_trees(zone_reader& reader, GfxWorld* asset)
+		template <typename Walk>
+		void walk_voxel_trees(Walk walk, GfxWorld& asset)
 		{
-			const auto trees = reader.read_array(asset->voxelTree, 7, asset->voxelTreeCount);
+			const auto trees = walk.array(asset.voxelTree, asset.voxelTreeCount, 7);
 			if (!trees)
 			{
 				return;
 			}
 
-			for (auto i = 0; i < asset->voxelTreeCount; i++)
+			for (auto i = 0; i < asset.voxelTreeCount; i++)
 			{
 				auto& tree = trees[i];
-				reader.read_single(tree.voxelTreeHeader, 15);
-				reader.read_array(tree.voxelTopDownViewNodeArray, 3, tree.voxelTopDownViewNodeCount);
-				reader.read_array(tree.voxelInternalNodeArray, 3, tree.voxelInternalNodeCount);
-				reader.read_array(tree.voxelLeafNodeArray, 1, tree.voxelLeafNodeCount);
-				reader.read_array(tree.lightListArray, 3, tree.lightListArraySize);
+				walk.array(tree.voxelTreeHeader, 1, 15);
+				walk.array(tree.voxelTopDownViewNodeArray, tree.voxelTopDownViewNodeCount, 3);
+				walk.array(tree.voxelInternalNodeArray, tree.voxelInternalNodeCount, 3);
+				walk.array(tree.voxelLeafNodeArray, tree.voxelLeafNodeCount, 1);
+				walk.array(tree.lightListArray, tree.lightListArraySize, 3);
 
-				reader.push_stream(XFILE_BLOCK_RUNTIME);
-				reader.read_array(tree.voxelInternalNodeDynamicLightListCPU, 3, 2 * tree.voxelInternalNodeCount);
-				reader.pop_stream();
+				walk.push_stream(XFILE_BLOCK_RUNTIME);
+				walk.array(tree.voxelInternalNodeDynamicLightListCPU, 2 * tree.voxelInternalNodeCount, 3);
+				walk.pop_stream();
 			}
 		}
 
-		void read_frustum_lights(zone_reader& reader, GfxFrustumLights& lights)
+		template <typename Walk>
+		void walk_frustum_lights(Walk walk, GfxFrustumLights& lights)
 		{
-			reader.read_array(lights.indicesOffsets, 3, lights.lightCount);
-			reader.read_array(lights.verticesOffsets, 3, lights.lightCount);
-			reader.read_array(lights.indicesCounts, 1, lights.lightCount);
-			reader.read_array(lights.verticesCounts, 1, lights.lightCount);
-			reader.read_array(lights.indices, 3, lights.totalIndicesCount);
-			reader.read_array(lights.vertices, 3, 16 * lights.totalVerticesCount);
+			walk.array(lights.indicesOffsets, lights.lightCount, 3);
+			walk.array(lights.verticesOffsets, lights.lightCount, 3);
+			walk.array(lights.indicesCounts, lights.lightCount, 1);
+			walk.array(lights.verticesCounts, lights.lightCount, 1);
+			walk.array(lights.indices, lights.totalIndicesCount, 3);
+			walk.array(lights.vertices, 16 * lights.totalVerticesCount, 3);
 		}
 
-		void read_light_view_frustums(zone_reader& reader, GfxWorld* asset)
+		template <typename Walk>
+		void walk_light_view_frustums(Walk walk, GfxWorld& asset)
 		{
-			const auto frustums = reader.read_array(asset->lightViewFrustums, 7, asset->primaryLightCount);
+			const auto frustums = walk.array(asset.lightViewFrustums, asset.primaryLightCount, 7);
 			if (!frustums)
 			{
 				return;
 			}
 
-			for (auto i = 0u; i < asset->primaryLightCount; i++)
+			for (auto i = 0u; i < asset.primaryLightCount; i++)
 			{
-				reader.read_array(frustums[i].planes, 3, frustums[i].planeCount);
-				reader.read_array(frustums[i].indices, 0, frustums[i].indexCount);
-				reader.read_array(frustums[i].vertices, 3, frustums[i].vertexCount);
+				walk.array(frustums[i].planes, frustums[i].planeCount, 3);
+				walk.array(frustums[i].indices, frustums[i].indexCount, 0);
+				walk.array(frustums[i].vertices, frustums[i].vertexCount, 3);
 			}
 		}
 
-		void read_heightfields(zone_reader& reader, GfxWorld* asset)
+		template <typename Walk>
+		void walk_heightfields(Walk walk, GfxWorld& asset)
 		{
-			if (const auto heightfields = reader.read_array(asset->heightfields, 7, asset->heightfieldCount))
+			if (const auto heightfields = walk.array(asset.heightfields, asset.heightfieldCount, 7))
 			{
-				for (auto i = 0; i < asset->heightfieldCount; i++)
+				for (auto i = 0; i < asset.heightfieldCount; i++)
 				{
-					reader.read_asset(ASSET_TYPE_IMAGE, heightfields[i].image);
+					walk.asset(ASSET_TYPE_IMAGE, heightfields[i].image);
 				}
 			}
 		}
 
-		void read_sky_illumination(zone_reader& reader, GfxPrecomputedSkyIllumination& sky)
+		template <typename Walk>
+		void walk_sky_illumination(Walk walk, GfxPrecomputedSkyIllumination& sky)
 		{
-			reader.read_asset(ASSET_TYPE_IMAGE, sky.detailMask);
-			reader.read_asset(ASSET_TYPE_IMAGE, sky.heightMap);
-			reader.read_asset(ASSET_TYPE_IMAGE, sky.SVDCoefficient);
-			reader.read_asset(ASSET_TYPE_IMAGE, sky.SVDBasis);
+			walk.asset(ASSET_TYPE_IMAGE, sky.detailMask);
+			walk.asset(ASSET_TYPE_IMAGE, sky.heightMap);
+			walk.asset(ASSET_TYPE_IMAGE, sky.SVDCoefficient);
+			walk.asset(ASSET_TYPE_IMAGE, sky.SVDBasis);
 		}
 
-		void read_runtime_bits(zone_reader& reader, GfxWorld* asset)
+		template <typename Walk>
+		void walk_runtime_bits(Walk walk, GfxWorld& asset)
 		{
-			const auto cell_count = asset->dpvsPlanes.cellCount;
+			const auto cell_count = asset.dpvsPlanes.cellCount;
 
-			reader.push_stream(XFILE_BLOCK_RUNTIME);
-			reader.read_array(asset->cellCasterBits, 3, cell_count * cell_bit_words(cell_count));
-			reader.read_array(asset->cellHasSunLitSurfsBits, 3, cell_bit_words(cell_count));
-			reader.read_array(asset->sceneDynModel, 3, asset->dpvsDyn.dynEntClientCount[0]);
-			reader.read_array(asset->sceneDynBrush, 3, asset->dpvsDyn.dynEntClientCount[1]);
-			reader.read_array(asset->primaryLightMotionDetectBits, 3, asset->primaryLightMotionDetectBitsEntries);
-			reader.read_array(asset->entityMotionBits, 3, asset->entityMotionBitsEntries);
-			reader.read_array(asset->primaryLightEntityShadowVis, 3, asset->numPrimaryLightEntityShadowVisEntries);
-			reader.read_array(asset->dynEntMotionBits[0], 3, asset->dynEntMotionBitsEntries[0]);
-			reader.read_array(asset->dynEntMotionBits[1], 3, asset->dynEntMotionBitsEntries[1]);
-			reader.read_array(asset->primaryLightDynEntShadowVis[0], 3, asset->numPrimaryLightDynEntShadowVisEntries[0]);
-			reader.read_array(asset->primaryLightDynEntShadowVis[1], 3, asset->numPrimaryLightDynEntShadowVisEntries[1]);
-			reader.pop_stream();
+			walk.push_stream(XFILE_BLOCK_RUNTIME);
+			walk.array(asset.cellCasterBits, cell_count * cell_bit_words(cell_count), 3);
+			walk.array(asset.cellHasSunLitSurfsBits, cell_bit_words(cell_count), 3);
+			walk.array(asset.sceneDynModel, asset.dpvsDyn.dynEntClientCount[0], 3);
+			walk.array(asset.sceneDynBrush, asset.dpvsDyn.dynEntClientCount[1], 3);
+			walk.array(asset.primaryLightMotionDetectBits, asset.primaryLightMotionDetectBitsEntries, 3);
+			walk.array(asset.entityMotionBits, asset.entityMotionBitsEntries, 3);
+			walk.array(asset.primaryLightEntityShadowVis, asset.numPrimaryLightEntityShadowVisEntries, 3);
+			walk.array(asset.dynEntMotionBits[0], asset.dynEntMotionBitsEntries[0], 3);
+			walk.array(asset.dynEntMotionBits[1], asset.dynEntMotionBitsEntries[1], 3);
+			walk.array(asset.primaryLightDynEntShadowVis[0], asset.numPrimaryLightDynEntShadowVisEntries[0], 3);
+			walk.array(asset.primaryLightDynEntShadowVis[1], asset.numPrimaryLightDynEntShadowVisEntries[1], 3);
+			walk.pop_stream();
 		}
 
-		void read_shadow_geometry(zone_reader& reader, GfxWorld* asset)
+		template <typename Walk>
+		void walk_shadow_geometry(Walk walk, GfxWorld& asset)
 		{
-			const auto geometry = reader.read_array(asset->shadowGeomOptimized, 7, asset->primaryLightCount);
+			const auto geometry = walk.array(asset.shadowGeomOptimized, asset.primaryLightCount, 7);
 			if (!geometry)
 			{
 				return;
 			}
 
-			for (auto i = 0u; i < asset->primaryLightCount; i++)
+			for (auto i = 0u; i < asset.primaryLightCount; i++)
 			{
-				reader.read_array(geometry[i].sortedSurfIndex, 3, geometry[i].surfaceCount);
-				reader.read_array(geometry[i].smodelIndex, 1, geometry[i].smodelCount);
+				walk.array(geometry[i].sortedSurfIndex, geometry[i].surfaceCount, 3);
+				walk.array(geometry[i].smodelIndex, geometry[i].smodelCount, 1);
 			}
 		}
 
-		void read_light_aabb(zone_reader& reader, GfxLightAABB& aabb)
+		template <typename Walk>
+		void walk_light_aabb(Walk walk, GfxLightAABB& aabb)
 		{
-			reader.read_array(aabb.nodeArray, 3, aabb.nodeCount);
-			reader.read_array(aabb.lightArray, 1, aabb.lightCount);
+			walk.array(aabb.nodeArray, aabb.nodeCount, 3);
+			walk.array(aabb.lightArray, aabb.lightCount, 1);
 		}
 
-		void read_dpvs_static(zone_reader& reader, GfxWorldDpvsStatic& dpvs)
+		template <typename Walk>
+		void walk_dpvs_static(Walk walk, GfxWorldDpvsStatic& dpvs)
 		{
-			reader.push_stream(XFILE_BLOCK_RUNTIME);
+			walk.push_stream(XFILE_BLOCK_RUNTIME);
 			for (auto i = 0u; i < 32; i++)
 			{
-				reader.read_array(dpvs.smodelVisData[i], 127, i >= 4 && i < 12 ? 0 : dpvs.smodelVisDataCount);
+				walk.array(dpvs.smodelVisData[i], i >= 4 && i < 12 ? 0 : dpvs.smodelVisDataCount, 127);
 			}
 
 			for (auto i = 0u; i < 32; i++)
 			{
-				reader.read_array(dpvs.surfaceVisData[i], 127, i >= 4 && i < 12 ? 0 : dpvs.surfaceVisDataCount);
+				walk.array(dpvs.surfaceVisData[i], i >= 4 && i < 12 ? 0 : dpvs.surfaceVisDataCount, 127);
 			}
 
-			reader.read_array(dpvs.primaryLightVisData, 127, dpvs.primaryLightVisDataCount);
-			reader.read_array(dpvs.reflectionProbeVisData, 127, dpvs.reflectionProbeVisDataCount);
-			reader.read_array(dpvs.volumetricVisData, 127, dpvs.volumetricVisDataCount);
-			reader.read_array(dpvs.decalVisData, 127, dpvs.decalVisDataCount);
-			reader.pop_stream();
+			walk.array(dpvs.primaryLightVisData, dpvs.primaryLightVisDataCount, 127);
+			walk.array(dpvs.reflectionProbeVisData, dpvs.reflectionProbeVisDataCount, 127);
+			walk.array(dpvs.volumetricVisData, dpvs.volumetricVisDataCount, 127);
+			walk.array(dpvs.decalVisData, dpvs.decalVisDataCount, 127);
+			walk.pop_stream();
 
-			reader.read_array(dpvs.sortedSurfIndex, 3, 32 * dpvs.surfaceVisDataCount);
-			reader.read_array(dpvs.sortedSmodelIndices, 1, 32 * dpvs.smodelVisDataCount + 1);
+			walk.array(dpvs.sortedSurfIndex, 32 * dpvs.surfaceVisDataCount, 3);
+			walk.array(dpvs.sortedSmodelIndices, 32 * dpvs.smodelVisDataCount + 1, 1);
 
-			reader.push_stream(XFILE_BLOCK_RUNTIME);
-			reader.read_array(dpvs.surfaceCastsSunShadow, 127, dpvs.surfaceVisDataCount);
-			reader.read_array(dpvs.surfaceCastsSunShadowOpt, 127, dpvs.sunShadowOptCount * dpvs.sunSurfVisDataCount);
-			reader.pop_stream();
+			walk.push_stream(XFILE_BLOCK_RUNTIME);
+			walk.array(dpvs.surfaceCastsSunShadow, dpvs.surfaceVisDataCount, 127);
+			walk.array(dpvs.surfaceCastsSunShadowOpt, dpvs.sunShadowOptCount * dpvs.sunSurfVisDataCount, 127);
+			walk.pop_stream();
 		}
 
-		void read_dpvs_dynamic(zone_reader& reader, GfxWorldDpvsDynamic& dpvs, const unsigned int cell_count)
+		template <typename Walk>
+		void walk_dpvs_dynamic(Walk walk, GfxWorldDpvsDynamic& dpvs, const unsigned int cell_count)
 		{
-			reader.push_stream(XFILE_BLOCK_RUNTIME);
-			reader.read_array(dpvs.dynEntCellBits[0], 3, dpvs.dynEntClientWordCount[0] * cell_count);
-			reader.read_array(dpvs.dynEntCellBits[1], 3, dpvs.dynEntClientWordCount[1] * cell_count);
+			walk.push_stream(XFILE_BLOCK_RUNTIME);
+			walk.array(dpvs.dynEntCellBits[0], dpvs.dynEntClientWordCount[0] * cell_count, 3);
+			walk.array(dpvs.dynEntCellBits[1], dpvs.dynEntClientWordCount[1] * cell_count, 3);
 
 			for (auto i = 0u; i < 32; i++)
 			{
 				for (auto j = 0u; j < 2; j++)
 				{
-					reader.read_array(dpvs.dynEntVisData[j][i], 15, i == 3 || i >= 12 ? 0 : 32 * dpvs.dynEntClientWordCount[j]);
+					walk.array(dpvs.dynEntVisData[j][i], i == 3 || i >= 12 ? 0 : 32 * dpvs.dynEntClientWordCount[j], 15);
 				}
 			}
-			reader.pop_stream();
+			walk.pop_stream();
 		}
 
-		void read_mdao_volumes(zone_reader& reader, GfxWorld* asset)
+		template <typename Walk>
+		void walk_mdao_volumes(Walk walk, GfxWorld& asset)
 		{
-			if (const auto volumes = reader.read_array(asset->mdaoVolumes, 7, asset->mdaoVolumeCount))
+			if (const auto volumes = walk.array(asset.mdaoVolumes, asset.mdaoVolumeCount, 7))
 			{
-				for (auto i = 0u; i < asset->mdaoVolumeCount; i++)
+				for (auto i = 0u; i < asset.mdaoVolumeCount; i++)
 				{
-					reader.read_asset(ASSET_TYPE_IMAGE, volumes[i].volumeData);
+					walk.asset(ASSET_TYPE_IMAGE, volumes[i].volumeData);
 				}
 			}
 		}
 
-		void read_stream_tree(zone_reader& reader, StreamTree& tree)
+		template <typename Walk>
+		void walk_stream_tree(Walk walk, StreamTree& tree)
 		{
-			if (const auto nodes = reader.read_array(tree.nodes, 7, tree.nodeCount))
+			if (const auto nodes = walk.array(tree.nodes, tree.nodeCount, 7))
 			{
 				for (auto i = 0u; i < tree.nodeCount; i++)
 				{
-					reader.read_asset(ASSET_TYPE_STREAM_KEY, nodes[i].volumesKey);
-					reader.read_array(nodes[i].infos, 3, nodes[i].mtlInfoCount + nodes[i].imgInfoCount);
+					walk.asset(ASSET_TYPE_STREAM_KEY, nodes[i].volumesKey);
+					walk.array(nodes[i].infos, nodes[i].mtlInfoCount + nodes[i].imgInfoCount, 3);
 				}
 			}
 
-			reader.read_asset_array(ASSET_TYPE_MATERIAL, tree.materials, tree.materialCount);
-			reader.read_asset_array(ASSET_TYPE_IMAGE, tree.images, tree.imageCount);
+			walk_asset_array(walk, ASSET_TYPE_MATERIAL, tree.materials, tree.materialCount);
+			walk_asset_array(walk, ASSET_TYPE_IMAGE, tree.images, tree.imageCount);
 
 			auto& group = tree.largeMtlGroup;
-			reader.read_asset(ASSET_TYPE_STREAM_KEY, group.volumesKey);
-			reader.read_array(group.infos, 3, group.mtlInfoCount + group.imgInfoCount);
+			walk.asset(ASSET_TYPE_STREAM_KEY, group.volumesKey);
+			walk.array(group.infos, group.mtlInfoCount + group.imgInfoCount, 3);
 		}
 
-		void read_stream_tree_grid(zone_reader& reader, StreamTreeGrid& grid)
+		template <typename Walk>
+		void walk_stream_tree_grid(Walk walk, StreamTreeGrid& grid)
 		{
-			reader.read_asset_array(ASSET_TYPE_STREAM_KEY, grid.cellKeys, grid.rowCount * grid.columnCount);
-			reader.read_asset_array(ASSET_TYPE_MATERIAL, grid.materials, grid.materialCount);
-			reader.read_asset_array(ASSET_TYPE_IMAGE, grid.images, grid.imageCount);
-			reader.read_asset_array(ASSET_TYPE_XMODEL, grid.xmodels, grid.xmodelCount);
-			reader.read_array(grid.smodelCollectionIndices, 1, grid.smodelCollectionIndexCount);
+			walk_asset_array(walk, ASSET_TYPE_STREAM_KEY, grid.cellKeys, grid.rowCount * grid.columnCount);
+			walk_asset_array(walk, ASSET_TYPE_MATERIAL, grid.materials, grid.materialCount);
+			walk_asset_array(walk, ASSET_TYPE_IMAGE, grid.images, grid.imageCount);
+			walk_asset_array(walk, ASSET_TYPE_XMODEL, grid.xmodels, grid.xmodelCount);
+			walk.array(grid.smodelCollectionIndices, grid.smodelCollectionIndexCount, 1);
+		}
+
+		template <typename Walk>
+		void walk_gfx_world(Walk walk, GfxWorld& asset)
+		{
+			walk.string(asset.baseName);
+			walk_dpvs_planes(walk, asset.dpvsPlanes);
+			walk.array(asset.cellTransientInfos, asset.dpvsPlanes.cellCount, 1);
+			walk_cells(walk, asset);
+			walk_surfaces(walk, asset.surfaces);
+			walk_static_models(walk, asset.smodels);
+			walk_draw(walk, asset.draw);
+			walk_dynamic_lightset(walk, asset.dynamicLightset);
+			walk_voxel_trees(walk, asset);
+
+			auto& self_vis = asset.mayhemSelfVis;
+			walk.array(self_vis.selfVis, self_vis.selfVisBufferSize, 0);
+			walk_frustum_lights(walk, asset.frustumLights);
+
+			walk.push_stream(XFILE_BLOCK_RUNTIME);
+			walk.array(asset.primaryLights, asset.primaryLightCount, 7);
+			walk.pop_stream();
+
+			walk_light_view_frustums(walk, asset);
+			walk_heightfields(walk, asset);
+			walk.array(asset.models, asset.modelCount, 3);
+			walk_sky_illumination(walk, asset.precomputedSkyIllumination);
+			walk.array(asset.lmapLookup, asset.lmapLookupCount, 3);
+			walk.array(asset.gfxMapEntLookup, asset.gfxMapEntLookupCount, 3);
+			walk.asset(ASSET_TYPE_MATERIAL, asset.sun.spriteMaterial);
+			walk.asset(ASSET_TYPE_MATERIAL, asset.sun.flareMaterial);
+			walk.asset(ASSET_TYPE_IMAGE, asset.outdoorImage);
+			walk.asset(ASSET_TYPE_MATERIAL, asset.dustMaterial);
+			walk_runtime_bits(walk, asset);
+			walk_shadow_geometry(walk, asset);
+			walk_light_aabb(walk, asset.lightAABB);
+			walk_dpvs_static(walk, asset.dpvs);
+			walk_dpvs_dynamic(walk, asset.dpvsDyn, asset.dpvsPlanes.cellCount);
+			walk.array(asset.umbraGates, asset.numUmbraGates, 3);
+			walk.array(asset.umbraTomeData, asset.umbraTomeSize, 15);
+			walk_mdao_volumes(walk, asset);
+			walk_stream_tree(walk, asset.streamTree);
+			walk_stream_tree_grid(walk, asset.materialStreamTreeGrid);
+			walk_stream_tree_grid(walk, asset.xmodelStreamTreeGrid);
 		}
 	}
 
@@ -407,45 +473,83 @@ namespace zonetool::iw8
 	{
 		reader.push_stream(XFILE_BLOCK_VIRTUAL);
 		reader.read_string(asset->name);
-		reader.read_string(asset->baseName);
-		read_dpvs_planes(reader, asset->dpvsPlanes);
-		reader.read_array(asset->cellTransientInfos, 1, asset->dpvsPlanes.cellCount);
-		read_cells(reader, asset);
-		read_surfaces(reader, asset->surfaces);
-		read_static_models(reader, asset->smodels);
-		read_draw(reader, asset->draw);
-		read_dynamic_lightset(reader, asset->dynamicLightset);
-		read_voxel_trees(reader, asset);
-
-		auto& self_vis = asset->mayhemSelfVis;
-		reader.read_array(self_vis.selfVis, 0, self_vis.selfVisBufferSize);
-		read_frustum_lights(reader, asset->frustumLights);
-
-		reader.push_stream(XFILE_BLOCK_RUNTIME);
-		reader.read_array(asset->primaryLights, 7, asset->primaryLightCount);
+		walk_gfx_world(read_walk{reader}, *asset);
 		reader.pop_stream();
+	}
 
-		read_light_view_frustums(reader, asset);
-		read_heightfields(reader, asset);
-		reader.read_array(asset->models, 3, asset->modelCount);
-		read_sky_illumination(reader, asset->precomputedSkyIllumination);
-		reader.read_array(asset->lmapLookup, 3, asset->lmapLookupCount);
-		reader.read_array(asset->gfxMapEntLookup, 3, asset->gfxMapEntLookupCount);
-		reader.read_asset(ASSET_TYPE_MATERIAL, asset->sun.spriteMaterial);
-		reader.read_asset(ASSET_TYPE_MATERIAL, asset->sun.flareMaterial);
-		reader.read_asset(ASSET_TYPE_IMAGE, asset->outdoorImage);
-		reader.read_asset(ASSET_TYPE_MATERIAL, asset->dustMaterial);
-		read_runtime_bits(reader, asset);
-		read_shadow_geometry(reader, asset);
-		read_light_aabb(reader, asset->lightAABB);
-		read_dpvs_static(reader, asset->dpvs);
-		read_dpvs_dynamic(reader, asset->dpvsDyn, asset->dpvsPlanes.cellCount);
-		reader.read_array(asset->umbraGates, 3, asset->numUmbraGates);
-		reader.read_array(asset->umbraTomeData, 15, asset->umbraTomeSize);
-		read_mdao_volumes(reader, asset);
-		read_stream_tree(reader, asset->streamTree);
-		read_stream_tree_grid(reader, asset->materialStreamTreeGrid);
-		read_stream_tree_grid(reader, asset->xmodelStreamTreeGrid);
-		reader.pop_stream();
+	void gfx_world::write(zone_base* zone, zone_buffer* buf)
+	{
+		auto* data = this->asset_;
+		auto* dest = buf->write(data);
+
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
+		dest->name = buf->write_str(this->name());
+		walk_gfx_world(write_walk{zone, buf}, *dest);
+		buf->pop_stream();
+	}
+
+	void gfx_world::dump(GfxWorld* asset)
+	{
+		assetmanager::dumper dump;
+		if (!dump.open(asset->name + ".gfxmap"s))
+		{
+			return;
+		}
+
+		dump.dump_single(asset);
+		dump.dump_string(asset->name);
+		walk_gfx_world(dump_walk{dump}, *asset);
+		dump.close();
+	}
+
+	GfxWorld* gfx_world::parse(const std::string& name, zone_memory* mem)
+	{
+		assetmanager::reader read(mem);
+		if (!read.open(name + ".gfxmap"s))
+		{
+			return nullptr;
+		}
+
+		ZONETOOL_INFO("Parsing gfxworld \"%s\"...", name.data());
+
+		auto* asset = read.read_single<GfxWorld>();
+		asset->name = read.read_string();
+		walk_gfx_world(parse_walk{read}, *asset);
+		read.close();
+		return asset;
+	}
+
+	void gfx_world::init(const std::string& name, zone_memory* mem)
+	{
+		this->name_ = name;
+
+		if (this->referenced())
+		{
+			this->asset_ = mem->allocate<GfxWorld>();
+			this->asset_->name = mem->duplicate_string(name);
+			return;
+		}
+
+		this->asset_ = this->parse(name, mem);
+	}
+
+	void gfx_world::load_depending(zone_base* zone)
+	{
+		if (this->referenced())
+		{
+			return;
+		}
+
+		walk_gfx_world(depend_walk{zone}, *this->asset_);
+	}
+
+	std::string gfx_world::name()
+	{
+		return this->name_;
+	}
+
+	std::int32_t gfx_world::type()
+	{
+		return ASSET_TYPE_GFXWORLD;
 	}
 }

@@ -142,6 +142,11 @@ namespace zonetool
 
 	char* zone_buffer::write_str(const char* str)
 	{
+		if (this->mode == game::iw8)
+		{
+			return this->write_shared_str(str);
+		}
+
 		return const_cast<char*>(this->write_s(0, str, 1, strlen(str) + 1));
 
 		//this->write_stream(str, strlen(str) + 1);
@@ -150,8 +155,29 @@ namespace zonetool
 
 	char* zone_buffer::write_str(const std::string& str)
 	{
+		if (this->mode == game::iw8)
+		{
+			return this->write_shared_str(str);
+		}
+
 		this->write_stream(str.data(), str.size() + 1);
 		return reinterpret_cast<char*>(this->data_following);
+	}
+
+	char* zone_buffer::write_shared_str(const std::string& str)
+	{
+		if (const auto found = this->shared_strings_.find(str); found != this->shared_strings_.end())
+		{
+			return found->second;
+		}
+
+		if (this->stream_ != this->zone_stream_runtime && !(this->temp_stream_ && this->stream_ == *this->temp_stream_))
+		{
+			this->shared_strings_.emplace(str, this->get_zone_pointer<char>(this->stream_, this->zone_streams_[this->stream_]));
+		}
+
+		this->write_stream(str.data(), str.size() + 1);
+		return reinterpret_cast<char*>(this->data_shared);
 	}
 
 	char* zone_buffer::write_str_raw(const std::string& str)
@@ -184,6 +210,7 @@ namespace zonetool
 		this->length_ = 0;
 
 		this->sub_zone_buffers_.clear();
+		this->shared_strings_.clear();
 		this->init_script_strings();
 		this->depth_stencil_state_bits_.clear();
 		this->blend_state_bits_.clear();
@@ -260,8 +287,18 @@ namespace zonetool
 		return static_cast<std::uint32_t>(this->zone_streams_[stream]);
 	}
 
+	std::uint32_t zone_buffer::stream_position(const std::uint8_t stream)
+	{
+		return static_cast<std::uint32_t>(this->zone_streams_[stream]);
+	}
+
 	std::uint32_t zone_buffer::write_scriptstring(const char* str)
 	{
+		if (this->mode == game::iw8 && this->script_strings_.empty())
+		{
+			this->script_strings_.push_back(nullptr);
+		}
+
 		for (auto i = 0u; i < this->script_strings_.size(); i++)
 		{
 			if (this->script_strings_[i] == str || 

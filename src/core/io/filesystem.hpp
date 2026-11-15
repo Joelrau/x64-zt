@@ -93,5 +93,6 @@ namespace zonetool
 		void add_path(const std::string& path, bool insert_at_beginning = false);
 		void add_paths_from_directory(const std::string& dir, bool insert_at_beginning = false);
 		std::vector<std::string>& get_search_paths();
+		void add_renamed_source(const std::string& name, const std::string& source_name);
 	}
 }

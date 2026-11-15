@@ -201,7 +201,13 @@ namespace zonetool::h1::converter::s2::techset
 			return false;
 		}
 
-		const auto source = find_group_technique(techset, slot - slot % zonetool::s2::TECHNIQUE_GROUP_SIZE, *type);
+		const auto group = slot - slot % zonetool::s2::TECHNIQUE_GROUP_SIZE;
+		if (!result.techset->techniques[group + zonetool::s2::TECHNIQUE_ZPREPASS])
+		{
+			return false;
+		}
+
+		const auto source = find_group_technique(techset, group, *type);
 		if (source < 0 || uses_material_arguments(techset->techniques[source]))
 		{
 			return false;

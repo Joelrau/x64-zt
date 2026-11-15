@@ -722,6 +722,26 @@ namespace zonetool::iw8
 		XAnimDeltaPartQuat* quat;
 	};
 
+	enum XAnimPartType
+	{
+		PART_TYPE_NO_QUAT = 0,
+		PART_TYPE_HALF_QUAT = 1,
+		PART_TYPE_FULL_QUAT = 2,
+		PART_TYPE_HALF_QUAT_NO_SIZE = 3,
+		PART_TYPE_FULL_QUAT_NO_SIZE = 4,
+		PART_TYPE_SMALL_TRANS = 5,
+		PART_TYPE_TRANS = 6,
+		PART_TYPE_TRANS_NO_SIZE = 7,
+		PART_TYPE_NO_TRANS = 8,
+		PART_TYPE_ALL = 9,
+	};
+
+	enum XAnimAssetType : std::uint8_t
+	{
+		XANIM_ASSET_TYPE_ABSOLUTE = 1,
+		XANIM_ASSET_TYPE_ADDITIVE = 6,
+	};
+
 	enum XAnimPartsFlags : std::uint8_t
 	{
 		ANIM_LOOP = 0x1,
@@ -991,6 +1011,13 @@ namespace zonetool::iw8
 		unsigned short v2;
 		unsigned short v3;
 	}; assert_sizeof(Face, 0x6);
+
+	struct XSurfaceTriCluster
+	{
+		unsigned short midPoint[3];
+		unsigned short halfSize[3];
+		unsigned char cone[12]; // TODO: prove the layout
+	}; assert_sizeof(XSurfaceTriCluster, 0x18);
 
 	struct XSurface
 	{
@@ -2548,6 +2575,49 @@ namespace zonetool::iw8
 		bool allAnimsNotify;
 	}; assert_sizeof(BlendSpace2DDef, 0x40);
 
+	enum weapAnimFiles_t
+	{
+		WEAP_ANIM_SPRINT_LOOP = 65,
+		WEAP_ANIM_ADDITIVE_JUMP = 68,
+		WEAP_ANIM_ADDITIVE_JUMP_LAND = 71,
+		WEAP_ANIM_ADDITIVE_CRAWL_IN = 108,
+		WEAP_ANIM_ADDITIVE_CRAWL_LOOP = 110,
+		WEAP_ANIM_ADDITIVE_PRONE_DROP = 116,
+		WEAP_ANIM_ADDITIVE_FINGER_POSE_LEFT = 118,
+		WEAP_ANIM_ADDITIVE_FINGER_POSE_RIGHT = 120,
+		WEAP_ANIM_ADDITIVE_DEMEANOR_OFFSET_SAFE = 122,
+		WEAP_ANIM_ADDITIVE_SETTLE_ADS = 164,
+		WEAP_ANIM_IDLE = 236,
+		WEAP_ANIM_EMPTY_IDLE = 237,
+		WEAP_ANIM_FIRE = 239,
+		WEAP_ANIM_LASTSHOT = 241,
+		WEAP_ANIM_MELEE_MISS = 262,
+		WEAP_ANIM_MELEE_HIT = 263,
+		WEAP_ANIM_MELEE_FATAL = 264,
+		WEAP_ANIM_RELOAD = 286,
+		WEAP_ANIM_RELOAD_ADS = 287,
+		WEAP_ANIM_RELOAD_EMPTY = 289,
+		WEAP_ANIM_RELOAD_EMPTY_ADS = 290,
+		WEAP_ANIM_FAST_RELOAD = 304,
+		WEAP_ANIM_FAST_RELOAD_ADS = 305,
+		WEAP_ANIM_FAST_RELOAD_EMPTY = 307,
+		WEAP_ANIM_FAST_RELOAD_EMPTY_ADS = 308,
+		WEAP_ANIM_RAISE = 322,
+		WEAP_ANIM_FIRST_RAISE = 323,
+		WEAP_ANIM_DROP = 325,
+		WEAP_ANIM_QUICK_RAISE = 333,
+		WEAP_ANIM_QUICK_DROP = 334,
+		WEAP_ANIM_EMPTY_RAISE = 335,
+		WEAP_ANIM_EMPTY_DROP = 336,
+		WEAP_ANIM_ADS_FIRE = 346,
+		WEAP_ANIM_ADS_LASTSHOT = 348,
+		WEAP_ANIM_ADS_UP = 405,
+		WEAP_ANIM_ADS_DOWN = 407,
+		WEAP_ANIM_3P_FINGER_POSE_LEFT = 609,
+		WEAP_ANIM_3P_FINGER_POSE_RIGHT = 611,
+		NUM_WEAP_ANIMS = 614,
+	};
+
 	struct WeaponAnimPackage
 	{
 		const char* name;
@@ -3218,12 +3288,20 @@ namespace zonetool::iw8
 
 	struct SndBankTransient
 	{
-		SndBank bank;
+		union
+		{
+			SndBank bank;
+			const char* name;
+		};
 	};
 
 	struct SndBankResident
 	{
-		SndBank bank;
+		union
+		{
+			SndBank bank;
+			const char* name;
+		};
 	};
 
 	struct WeaponSFXPackage
@@ -3690,6 +3768,12 @@ namespace zonetool::iw8
 		MTL_ARG_CODE_CBUFFER = 0x8,
 		MTL_ARG_MATERIAL_CONST = 0x9,
 		MTL_ARG_COUNT = 0xA,
+	};
+
+	enum MaterialShaderStageFlags : std::uint8_t
+	{
+		MTL_SHADER_STAGE_VS = 0x2,
+		MTL_SHADER_STAGE_PS = 0x10,
 	};
 
 	struct MaterialShaderArgument
@@ -5445,7 +5529,24 @@ namespace zonetool::iw8
 
 	struct WeaponCompleteDef;
 	struct RumbleInfo;
-	struct MayhemData;
+	struct MayhemModel;
+	struct MayhemAnim;
+	struct MayhemObject;
+
+	struct MayhemData
+	{
+		const char* name;
+		XModel* preModel;
+		XModel* postModel;
+		unsigned int numModels;
+		MayhemModel* models;
+		unsigned int numAnims;
+		MayhemAnim* anims;
+		unsigned int numObjects;
+		MayhemObject* objects;
+		float length;
+	}; assert_sizeof(MayhemData, 0x50);
+
 	struct FootstepVFX;
 	struct XCompositeModelDef;
 	struct ScriptableEventDef;
@@ -6497,7 +6598,11 @@ namespace zonetool::iw8
 
 	struct WeaponCompleteDef
 	{
-		const char* szInternalName;
+		union
+		{
+			const char* szInternalName;
+			const char* name;
+		};
 		WeaponDef* weapDef;
 		const char* szDisplayName;
 		const char* szLootTable;

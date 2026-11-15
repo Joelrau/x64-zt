@@ -580,6 +580,7 @@ namespace zonetool::xfile
 
 			file.block_sizes.assign(std::begin(header.block_sizes), std::end(header.block_sizes));
 			file.payload = std::move(zone);
+			file.iw8_header = header;
 		}
 	}
 
@@ -825,6 +826,80 @@ namespace zonetool::xfile
 
 		std::filesystem::create_directories(path.parent_path());
 		if (!utils::io::write_file(path.string(), make_s2_zone(format, file, payload)))
+		{
+			throw std::runtime_error(std::format("cannot write \"{}\"", path.string()));
+		}
+	}
+
+	namespace
+	{
+		constexpr std::size_t iw8_block_size = 0x10000;
+		constexpr std::uint8_t iw8_oodle_block_type = 6;
+
+		std::string compress_iw8_iwc(const std::string_view data)
+		{
+			std::vector<std::string> blocks((data.size() + iw8_block_size - 1) / iw8_block_size);
+			run_parallel(blocks.size(), [&](const std::size_t index)
+			{
+				blocks[index] = oodle::compress(data.substr(index * iw8_block_size, iw8_block_size));
+			});
+
+			std::string output;
+			output.push_back(2);
+			output.append("IWC");
+			append(output, static_cast<std::uint32_t>(data.size()));
+			append(output, static_cast<std::uint32_t>(iw8_block_size | (iw8_oodle_block_type << 24)));
+			for (std::size_t i = 0; i < blocks.size(); i++)
+			{
+				append(output, static_cast<std::uint32_t>(blocks[i].size()));
+				append(output, static_cast<std::uint32_t>(std::min(iw8_block_size, data.size() - i * iw8_block_size)));
+				append(output, std::uint32_t{});
+				output.append(blocks[i]);
+				output.append(((blocks[i].size() + 3) & ~std::size_t(3)) - blocks[i].size(), '\0');
+			}
+
+			return output;
+		}
+
+		std::string store_iw8_iwc(const std::string_view data)
+		{
+			std::string output;
+			output.push_back(1);
+			output.append("IWC");
+			output.append(data);
+			return output;
+		}
+	}
+
+	void write_iw8(const std::filesystem::path& path, const format& format, const fastfile& file, const std::string_view payload)
+	{
+		if (format.container != container::iw8)
+		{
+			throw std::runtime_error("write_iw8 needs the iw8 container");
+		}
+
+		const auto resident = file.is_compressed ? compress_iw8_iwc(payload) : store_iw8_iwc(payload);
+
+		auto header = file.iw8_header;
+		std::memcpy(header.magic, format.unsigned_magic.data(), sizeof(header.magic));
+		header.header_version = format.version;
+		header.xfile_version = iw8_expected_xfile_version(header.transient_file_type);
+		header.dash_compress_build = 0;
+		header.dash_encrypt_build = 0;
+		header.resident_part_size = static_cast<std::uint32_t>(resident.size());
+		header.resident_hash = 0;
+		header.size = payload.size();
+		for (std::size_t i = 0; i < iw8_block_count; i++)
+		{
+			header.block_sizes[i] = i < file.block_sizes.size() ? file.block_sizes[i] : 0;
+		}
+
+		std::string output;
+		append(output, header);
+		output.append(resident);
+
+		std::filesystem::create_directories(path.parent_path());
+		if (!utils::io::write_file(path.string(), output))
 		{
 			throw std::runtime_error(std::format("cannot write \"{}\"", path.string()));
 		}

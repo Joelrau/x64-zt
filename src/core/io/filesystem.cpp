@@ -10,6 +10,7 @@ namespace zonetool
 		namespace
 		{
 			std::string fastfile;
+			std::vector<std::pair<std::string, std::string>> renamed_sources;
 			std::string dump_folder;
 			std::string zone_folder = "zone\\";
 			std::string fastfile_folder;
@@ -21,6 +22,19 @@ namespace zonetool
 			errno_t open_long_path(FILE*& fp, const std::filesystem::path& path, const std::string& mode)
 			{
 				return _wfopen_s(&fp, long_path(path).c_str(), std::wstring(mode.begin(), mode.end()).data());
+			}
+
+			std::string get_renamed_source_path(const std::string& path)
+			{
+				for (const auto& [name, source_name] : renamed_sources)
+				{
+					if (const auto offset = path.find(name); offset != std::string::npos)
+					{
+						return path.substr(0, offset) + source_name + path.substr(offset + name.size());
+					}
+				}
+
+				return {};
 			}
 		}
 
@@ -122,6 +136,13 @@ namespace zonetool
 					if (!path.empty())
 					{
 						return open_long_path(this->fp, path + this->filepath.string(), mode);
+					}
+
+					const auto source_path = get_renamed_source_path(this->filepath.string());
+					path = source_path.empty() ? "" : get_file_path(source_path);
+					if (!path.empty())
+					{
+						return open_long_path(this->fp, path + source_path, mode);
 					}
 				}
 				if (mode[0] == 'w' || mode[0] == 'a')
@@ -340,6 +361,13 @@ namespace zonetool
 
 			fastfile = ff;
 			dump_folder.clear();
+			renamed_sources.clear();
+		}
+
+		void add_renamed_source(const std::string& name, const std::string& source_name)
+		{
+			renamed_sources.emplace_back(name, source_name);
+			std::ranges::sort(renamed_sources, std::ranges::greater{}, [](const auto& source) { return source.first.size(); });
 		}
 
 		const std::string& get_fastfile()

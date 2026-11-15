@@ -8,6 +8,7 @@ local engine_sources = {
 	h2 = "h2",
 	iw6 = "iw6_pc",
 	iw7 = "iw7",
+	iw8 = "iw8",
 	s1 = "s1_pc",
 	s2 = "s2",
 }
@@ -45,10 +46,7 @@ local function engine_project(name)
 		files {
 			path.join(gsc_tool.source, "include/xsk/gsc/engine/" .. engine .. ".hpp"),
 			path.join(gsc_tool.source, "src/gsc/engine/" .. engine .. ".cpp"),
-			path.join(gsc_tool.source, "src/gsc/engine/" .. engine .. "_code.cpp"),
-			path.join(gsc_tool.source, "src/gsc/engine/" .. engine .. "_func.cpp"),
-			path.join(gsc_tool.source, "src/gsc/engine/" .. engine .. "_meth.cpp"),
-			path.join(gsc_tool.source, "src/gsc/engine/" .. engine .. "_token.cpp"),
+			path.join(gsc_tool.source, "src/gsc/engine/" .. engine .. "_*.cpp"),
 		}
 
 		gsc_tool.includes()

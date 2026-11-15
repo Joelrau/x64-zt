@@ -10,7 +10,22 @@ namespace zonetool::xfile::oodle
 			std::intptr_t dictionary_size, void* callback, void* callback_data, void* decoder_memory,
 			std::intptr_t decoder_memory_size, int thread_phase);
 
+		using compress_function = std::intptr_t(__stdcall*)(int compressor, const void* source, std::intptr_t source_size,
+			void* destination, int level, const void* options, const void* dictionary_base, const void* long_range_matcher,
+			void* scratch_memory, std::intptr_t scratch_size);
+
+		enum compressor
+		{
+			compressor_kraken = 8,
+		};
+
+		enum compression_level
+		{
+			compression_level_normal = 4,
+		};
+
 		decompress_function decompress_ = nullptr;
+		compress_function compress_ = nullptr;
 	}
 
 	void load(const std::filesystem::path& game_folder)
@@ -35,7 +50,8 @@ namespace zonetool::xfile::oodle
 			}
 
 			decompress_ = reinterpret_cast<decompress_function>(GetProcAddress(library, "OodleLZ_Decompress"));
-			if (decompress_)
+			compress_ = reinterpret_cast<compress_function>(GetProcAddress(library, "OodleLZ_Compress"));
+			if (decompress_ && compress_)
 			{
 				return;
 			}
@@ -57,5 +73,24 @@ namespace zonetool::xfile::oodle
 		{
 			throw std::runtime_error("oodle block failed");
 		}
+	}
+
+	std::string compress(const std::string_view source)
+	{
+		if (!compress_)
+		{
+			throw std::runtime_error("the Oodle library is not loaded");
+		}
+
+		std::string destination(source.size() + 0x1000, '\0');
+		const auto size = compress_(compressor_kraken, source.data(), static_cast<std::intptr_t>(source.size()), destination.data(),
+			compression_level_normal, nullptr, nullptr, nullptr, nullptr, 0);
+		if (size <= 0)
+		{
+			throw std::runtime_error("oodle compression failed");
+		}
+
+		destination.resize(size);
+		return destination;
 	}
 }

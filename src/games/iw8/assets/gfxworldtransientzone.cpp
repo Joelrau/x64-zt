@@ -3,50 +3,33 @@
 
 namespace zonetool::iw8
 {
-	void read_lightset_probe_data(zone_reader& reader, GfxDynamicLightsetProbeData& data)
-	{
-		reader.read_array(data.chunkG, 3, data.numGChunk);
-		reader.read_array(data.chunkGBF, 1, data.numGChunkBF);
-		reader.read_array(data.origProbes, 31, data.numOrigProbes);
-		reader.read_array(data.bfProbes, 31, data.numBFProbes);
-		reader.read_array(data.skipRecords, 1, data.numSkipRecords);
-		reader.read_array(data.palletteRecords, 3, data.numSkipRecords);
-		reader.read_array(data.tempRemap, 3, data.numOrigProbes);
-	}
-
 	namespace
 	{
-		void read_raw_images(zone_reader& reader, GfxImageRaw* images, const std::size_t count)
+		template <typename Walk>
+		void walk_raw_images(Walk walk, GfxImageRaw* images, const std::size_t count)
 		{
 			for (std::size_t i = 0; i < count; i++)
 			{
-				reader.push_stream(XFILE_BLOCK_PHYSICAL);
-				reader.read_array(images[i].pixels, 15, images[i].desc.totalSize);
-				reader.pop_stream();
+				walk.push_stream(XFILE_BLOCK_PHYSICAL);
+				walk.array(images[i].pixels, images[i].desc.totalSize, 15);
+				walk.pop_stream();
 			}
 		}
 
-		void read_draw_verts(zone_reader& reader, GfxWorldDrawVerts& verts)
+		template <typename Walk>
+		void walk_draw_verts(Walk walk, GfxWorldDrawVerts& verts)
 		{
-			reader.read_array(verts.posData, 3, verts.posDataSize);
-			reader.read_array(verts.auxData, 3, verts.auxDataSize);
-			reader.read_array(verts.indices, 3, verts.indexCount);
+			walk.array(verts.posData, verts.posDataSize, 3);
+			walk.array(verts.auxData, verts.auxDataSize, 3);
+			walk.array(verts.indices, verts.indexCount, 3);
 		}
 
-		unsigned int read_aabb_tree_count(zone_reader& reader)
+		template <typename Walk>
+		void walk_draw_cells(Walk walk, GfxWorldDrawCells& cells)
 		{
-			reader.push_stream(XFILE_BLOCK_TEMP);
-			reader.align(3);
-			const auto count = *reader.read<unsigned int>();
-			reader.pop_stream();
-			return count;
-		}
+			const auto tree_counts = walk.array(cells.aabbTreeCounts, cells.cellCount, 3);
 
-		void read_draw_cells(zone_reader& reader, GfxWorldDrawCells& cells)
-		{
-			reader.read_array(cells.aabbTreeCounts, 3, cells.cellCount);
-
-			if (const auto cell_trees = reader.read_array(cells.aabbTrees, 7, cells.cellCount))
+			if (const auto cell_trees = walk.array(cells.aabbTrees, cells.cellCount, 7))
 			{
 				for (auto i = 0u; i < cells.cellCount; i++)
 				{
@@ -55,141 +38,160 @@ namespace zonetool::iw8
 						continue;
 					}
 
-					const auto count = read_aabb_tree_count(reader);
-					if (const auto trees = reader.read_array(cell_trees[i].aabbTree, 7, count))
+					const auto count = walk.temp_count(tree_counts[i].aabbTreeCount);
+					if (const auto trees = walk.array(cell_trees[i].aabbTree, count, 7))
 					{
 						for (auto j = 0u; j < count; j++)
 						{
-							reader.read_array(trees[j].smodelIndexes, 1, trees[j].smodelIndexCount);
+							walk.array(trees[j].smodelIndexes, trees[j].smodelIndexCount, 1);
 						}
 					}
 				}
 			}
 		}
 
-		void read_lightmaps(zone_reader& reader, GfxLightmapAtlasDataTemp*& field)
+		template <typename Walk>
+		void walk_lightmaps(Walk walk, GfxLightmapAtlasDataTemp*& field)
 		{
-			if (const auto lightmaps = reader.read_single(field, 7))
+			if (const auto lightmaps = walk.array(field, 1, 7))
 			{
 				for (auto& lightmap : lightmaps->lightmaps)
 				{
-					read_raw_images(reader, lightmap.textures, std::size(lightmap.textures));
+					walk_raw_images(walk, lightmap.textures, std::size(lightmap.textures));
 				}
 			}
 		}
 
-		void read_voxel_tree(zone_reader& reader, GfxGpuLightGridVoxelTree& tree)
+		template <typename Walk>
+		void walk_voxel_tree(Walk walk, GfxGpuLightGridVoxelTree& tree)
 		{
-			reader.read_single(tree.treeHeader, 15);
-			reader.read_array(tree.topDownViewNodes, 3, tree.topDownViewNodeCount);
-			reader.read_array(tree.internalNodes, 3, tree.internalNodeCount);
+			walk.array(tree.treeHeader, 1, 15);
+			walk.array(tree.topDownViewNodes, tree.topDownViewNodeCount, 3);
+			walk.array(tree.internalNodes, tree.internalNodeCount, 3);
 		}
 
-		void read_gpu_light_grid(zone_reader& reader, GfxGpuLightGrid*& field)
+		template <typename Walk>
+		void walk_gpu_light_grid(Walk walk, GfxGpuLightGrid*& field)
 		{
-			const auto grid = reader.read_single(field, 7);
+			const auto grid = walk.array(field, 1, 7);
 			if (!grid)
 			{
 				return;
 			}
 
-			reader.read_array(grid->probes, 31, grid->probeCount);
-			reader.read_array(grid->probePositions, 3, grid->probeCount);
-			reader.read_array(grid->zones, 63, grid->zoneCount);
+			walk.array(grid->probes, grid->probeCount, 31);
+			walk.array(grid->probePositions, grid->probeCount, 3);
+			walk.array(grid->zones, grid->zoneCount, 63);
 
-			if (const auto trees = reader.read_array(grid->zoneVoxelTrees, 7, grid->zoneCount))
+			if (const auto trees = walk.array(grid->zoneVoxelTrees, grid->zoneCount, 7))
 			{
 				for (auto i = 0u; i < grid->zoneCount; i++)
 				{
-					read_voxel_tree(reader, trees[i]);
+					walk_voxel_tree(walk, trees[i]);
 				}
 			}
 
-			reader.read_array(grid->tetrahedrons, 63, grid->tetrahedronCount);
-			reader.read_array(grid->tetrahedronNeighbors, 63, grid->tetrahedronCount);
-			reader.read_array(grid->tetrahedronVisibility, 63, grid->tetrahedronCountVisible);
-			reader.read_array(grid->voxelStartTetrahedron, 63, grid->voxelStartTetrahedronCount);
+			walk.array(grid->tetrahedrons, grid->tetrahedronCount, 63);
+			walk.array(grid->tetrahedronNeighbors, grid->tetrahedronCount, 63);
+			walk.array(grid->tetrahedronVisibility, grid->tetrahedronCountVisible, 63);
+			walk.array(grid->voxelStartTetrahedron, grid->voxelStartTetrahedronCount, 63);
 		}
 
-		void read_light_grid_volumes(zone_reader& reader, GfxLightGridVolumeAtlasDataTemp*& field)
+		template <typename Walk>
+		void walk_light_grid_volumes(Walk walk, GfxLightGridVolumeAtlasDataTemp*& field)
 		{
-			const auto volumes = reader.read_single(field, 7);
+			const auto volumes = walk.array(field, 1, 7);
 			if (!volumes)
 			{
 				return;
 			}
 
-			read_raw_images(reader, volumes->m_textures, std::size(volumes->m_textures));
+			walk_raw_images(walk, volumes->m_textures, std::size(volumes->m_textures));
 
-			reader.push_stream(XFILE_BLOCK_PHYSICAL);
-			reader.read_array(volumes->m_packingParams, 3, volumes->m_numVolumes);
-			reader.pop_stream();
+			walk.push_stream(XFILE_BLOCK_PHYSICAL);
+			walk.array(volumes->m_packingParams, volumes->m_numVolumes, 3);
+			walk.pop_stream();
 
-			reader.push_stream(XFILE_BLOCK_PHYSICAL);
-			reader.read_array(volumes->m_transformParams, 3, volumes->m_numVolumes);
-			reader.pop_stream();
+			walk.push_stream(XFILE_BLOCK_PHYSICAL);
+			walk.array(volumes->m_transformParams, volumes->m_numVolumes, 3);
+			walk.pop_stream();
 		}
 
-		void read_light_grid(zone_reader& reader, GfxGpuLightGridTransientData& light_grid)
+		template <typename Walk>
+		void walk_light_grid(Walk walk, GfxGpuLightGridTransientData& light_grid)
 		{
-			read_gpu_light_grid(reader, light_grid.gpuLightGrid);
-			reader.read_array(light_grid.staticModelVolumes, 3, light_grid.staticModelVolumeCount);
+			walk_gpu_light_grid(walk, light_grid.gpuLightGrid);
+			walk.array(light_grid.staticModelVolumes, light_grid.staticModelVolumeCount, 3);
 
-			if (const auto zone = reader.read_single(light_grid.SMLGppZone, 7))
+			if (const auto zone = walk.array(light_grid.SMLGppZone, 1, 7))
 			{
-				reader.read_array(zone->lgvReferences, 3, zone->numOrigSMLGppProbes);
-				read_lightset_probe_data(reader, zone->lgvProbeData);
+				walk.array(zone->lgvReferences, zone->numOrigSMLGppProbes, 3);
+				walk_lightset_probe_data(walk, zone->lgvProbeData);
 			}
 
-			read_light_grid_volumes(reader, light_grid.tempLightGridVolumeData);
+			walk_light_grid_volumes(walk, light_grid.tempLightGridVolumeData);
 		}
 
-		void read_reflection_probes(zone_reader& reader, GfxReflectionProbeTransientData*& field)
+		template <typename Walk>
+		void walk_reflection_probes(Walk walk, GfxReflectionProbeTransientData*& field)
 		{
-			const auto probes = reader.read_single(field, 7);
+			const auto probes = walk.array(field, 1, 7);
 			if (!probes)
 			{
 				return;
 			}
 
-			reader.read_array(probes->reflectionProbeInstances, 1, probes->reflectionProbeInstanceCount);
+			walk.array(probes->reflectionProbeInstances, probes->reflectionProbeInstanceCount, 1);
 
-			if (const auto buckets = reader.read_array(probes->exclusiveProbeBuckets, 7, probes->exclusiveProbeBucketCount))
+			if (const auto buckets = walk.array(probes->exclusiveProbeBuckets, probes->exclusiveProbeBucketCount, 7))
 			{
 				for (auto i = 0; i < probes->exclusiveProbeBucketCount; i++)
 				{
 					auto& bucket = buckets[i];
-					reader.push_stream(XFILE_BLOCK_TEMP);
-					if (const auto pixels = reader.read_array(bucket.pixels, 15, bucket.totalSize))
-					{
-						bucket.pixels = reader.duplicate(pixels, bucket.totalSize);
-					}
-					reader.pop_stream();
+					walk.push_stream(XFILE_BLOCK_TEMP);
+					walk.array(bucket.pixels, bucket.totalSize, 15);
+					walk.keep_temp(bucket.pixels, bucket.totalSize);
+					walk.pop_stream();
 				}
 			}
 		}
 
-		void read_decal_volumes(zone_reader& reader, GfxDecalVolumeTransientData*& field)
+		template <typename Walk>
+		void walk_decal_volumes(Walk walk, GfxDecalVolumeTransientData*& field)
 		{
-			if (const auto decals = reader.read_single(field, 7))
+			if (const auto decals = walk.array(field, 1, 7))
 			{
-				reader.read_array(decals->decalVolumes, 3, decals->decalVolumeCount);
-				reader.read_array(decals->collectionBounds, 3, decals->collectionCount);
-				reader.read_array(decals->decalVolumeUids, 3, decals->decalVolumeCount);
+				walk.array(decals->decalVolumes, decals->decalVolumeCount, 3);
+				walk.array(decals->collectionBounds, decals->collectionCount, 3);
+				walk.array(decals->decalVolumeUids, decals->decalVolumeCount, 3);
 			}
 		}
 
-		void read_sun_shadow(zone_reader& reader, GfxCompressedSunShadowDataTemp*& field)
+		template <typename Walk>
+		void walk_sun_shadow(Walk walk, GfxCompressedSunShadowDataTemp*& field)
 		{
-			if (const auto shadow = reader.read_single(field, 7))
+			if (const auto shadow = walk.array(field, 1, 7))
 			{
-				reader.read_array(shadow->tilesIndices, 3, shadow->tilesCount);
-				reader.read_array(shadow->tilesOffsets, 3, shadow->tilesCount);
+				walk.array(shadow->tilesIndices, shadow->tilesCount, 3);
+				walk.array(shadow->tilesOffsets, shadow->tilesCount, 3);
 
-				reader.push_stream(XFILE_BLOCK_PHYSICAL);
-				reader.read_array(shadow->tilesData, 0, shadow->tilesDataSize);
-				reader.pop_stream();
+				walk.push_stream(XFILE_BLOCK_PHYSICAL);
+				walk.array(shadow->tilesData, shadow->tilesDataSize, 0);
+				walk.pop_stream();
 			}
+		}
+
+		template <typename Walk>
+		void walk_gfx_world_transient_zone(Walk walk, GfxWorldTransientZone& asset)
+		{
+			walk_draw_verts(walk, asset.drawVerts);
+			walk_draw_cells(walk, asset.drawCells);
+			walk_lightmaps(walk, asset.tempLightmapData);
+			walk_light_grid(walk, asset.gpuLightGrid);
+			walk_reflection_probes(walk, asset.reflectionProbes);
+			walk.array(asset.collections, asset.collectionCount, 1);
+			walk_decal_volumes(walk, asset.decalVolumes);
+			walk_sun_shadow(walk, asset.compressedSunShadow);
 		}
 	}
 
@@ -197,14 +199,73 @@ namespace zonetool::iw8
 	{
 		reader.push_stream(XFILE_BLOCK_VIRTUAL);
 		reader.read_string(asset->name);
-		read_draw_verts(reader, asset->drawVerts);
-		read_draw_cells(reader, asset->drawCells);
-		read_lightmaps(reader, asset->tempLightmapData);
-		read_light_grid(reader, asset->gpuLightGrid);
-		read_reflection_probes(reader, asset->reflectionProbes);
-		reader.read_array(asset->collections, 1, asset->collectionCount);
-		read_decal_volumes(reader, asset->decalVolumes);
-		read_sun_shadow(reader, asset->compressedSunShadow);
+		walk_gfx_world_transient_zone(read_walk{reader}, *asset);
 		reader.pop_stream();
+	}
+
+	void gfx_world_transient_zone::write(zone_base* zone, zone_buffer* buf)
+	{
+		auto* data = this->asset_;
+		auto* dest = buf->write(data);
+
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
+		dest->name = buf->write_str(this->name());
+		walk_gfx_world_transient_zone(write_walk{zone, buf}, *dest);
+		buf->pop_stream();
+	}
+
+	void gfx_world_transient_zone::dump(GfxWorldTransientZone* asset)
+	{
+		assetmanager::dumper dump;
+		if (!dump.open("transient_zones\\"s + asset->name + ".gfxmap_tr"))
+		{
+			return;
+		}
+
+		dump.dump_single(asset);
+		dump.dump_string(asset->name);
+		walk_gfx_world_transient_zone(dump_walk{dump}, *asset);
+		dump.close();
+	}
+
+	GfxWorldTransientZone* gfx_world_transient_zone::parse(const std::string& name, zone_memory* mem)
+	{
+		assetmanager::reader read(mem);
+		if (!read.open("transient_zones\\"s + name + ".gfxmap_tr"))
+		{
+			return nullptr;
+		}
+
+		ZONETOOL_INFO("Parsing gfxworld_tr \"%s\"...", name.data());
+
+		auto* asset = read.read_single<GfxWorldTransientZone>();
+		asset->name = read.read_string();
+		walk_gfx_world_transient_zone(parse_walk{read}, *asset);
+		read.close();
+		return asset;
+	}
+
+	void gfx_world_transient_zone::init(const std::string& name, zone_memory* mem)
+	{
+		this->name_ = name;
+
+		if (this->referenced())
+		{
+			this->asset_ = mem->allocate<GfxWorldTransientZone>();
+			this->asset_->name = mem->duplicate_string(name);
+			return;
+		}
+
+		this->asset_ = this->parse(name, mem);
+	}
+
+	std::string gfx_world_transient_zone::name()
+	{
+		return this->name_;
+	}
+
+	std::int32_t gfx_world_transient_zone::type()
+	{
+		return ASSET_TYPE_GFXWORLD_TRANSIENT_ZONE;
 	}
 }

@@ -10,93 +10,134 @@ namespace zonetool::iw8
 			return (4 * image_count + 31) >> 5;
 		}
 
-		void read_flags(zone_reader& reader, AlwaysloadedFlags& flags)
+		template <typename Walk>
+		void walk_flags(Walk walk, AlwaysloadedFlags& flags)
 		{
-			reader.read_asset_array(ASSET_TYPE_IMAGE, flags.images, flags.imageCount);
-			reader.read_array(flags.imageFlags, 3, image_flag_words(flags.imageCount));
+			walk_asset_array(walk, ASSET_TYPE_IMAGE, flags.images, flags.imageCount);
+			walk.array(flags.imageFlags, image_flag_words(flags.imageCount), 3);
 		}
 
-		void read_flag_set(zone_reader& reader, AlwaysloadedFlagSet& set)
+		template <typename Walk>
+		void walk_flag_set(Walk walk, AlwaysloadedFlagSet& set)
 		{
-			read_flags(reader, set.globalFlags);
+			walk_flags(walk, set.globalFlags);
 
-			if (const auto models = reader.read_array(set.perModelFlags, 7, set.modelCount))
+			if (const auto models = walk.array(set.perModelFlags, set.modelCount, 7))
 			{
 				for (auto i = 0u; i < set.modelCount; i++)
 				{
-					reader.read_asset(ASSET_TYPE_XMODEL, models[i].model);
-					read_flags(reader, models[i].flags);
+					walk.asset(ASSET_TYPE_XMODEL, models[i].model);
+					walk_flags(walk, models[i].flags);
 				}
 			}
 
-			reader.read_asset_array(ASSET_TYPE_XMODEL_SURFS, set.modelSurfs, set.modelSurfCount);
+			walk_asset_array(walk, ASSET_TYPE_XMODEL_SURFS, set.modelSurfs, set.modelSurfCount);
 		}
 
-		void read_transient_sets(zone_reader& reader, TransientSets& sets)
+		template <typename Walk>
+		void walk_transient_sets(Walk walk, TransientSets& sets)
 		{
-			if (const auto names = reader.read_array(sets.names, 7, sets.count))
+			if (const auto names = walk.array(sets.names, sets.count, 7))
 			{
 				for (auto i = 0u; i < sets.count; i++)
 				{
-					reader.read_string(names[i]);
+					walk.string(names[i]);
 				}
 			}
 
-			reader.read_array(sets.masks, 3, sets.count);
+			walk.array(sets.masks, sets.count, 3);
 		}
 
-		void read_transient_costs(zone_reader& reader, TransientCosts& costs)
+		template <typename Walk>
+		void walk_transient_costs(Walk walk, TransientCosts& costs)
 		{
 			const auto count = costs.transientCostCount;
-			reader.read_array(costs.streamingCosts, 3, costs.streamingItemCount);
+			walk.array(costs.streamingCosts, costs.streamingItemCount, 3);
 
 			auto& set = costs.streamContents;
-			reader.read_array(set.contentCounts, 1, count);
+			walk.array(set.contentCounts, count, 1);
 
-			if (const auto contents = reader.read_array(set.contents, 7, count))
+			if (const auto contents = walk.array(set.contents, count, 7))
 			{
 				for (auto i = 0u; i < count; i++)
 				{
-					reader.read_array(contents[i].contents, 1, set.contentCounts[i]);
+					walk.array(contents[i].contents, set.contentCounts[i], 1);
 				}
 			}
 
-			reader.read_array(costs.residentPageSizes, 1, count);
-			reader.read_array(costs.tempPageSizes, 1, count);
+			walk.array(costs.residentPageSizes, count, 1);
+			walk.array(costs.tempPageSizes, count, 1);
+		}
+
+		template <typename Walk, typename T>
+		void walk_named_references(Walk walk, T*& field, const unsigned int count)
+		{
+			if (const auto references = walk.array(field, count, 7))
+			{
+				for (auto i = 0u; i < count; i++)
+				{
+					walk.string(references[i].name);
+				}
+			}
 		}
 
 		template <typename T>
-		void read_named_references(zone_reader& reader, T*& field, const unsigned int count)
+		void rename_references(T* references, const unsigned int count, zone_memory* mem)
 		{
-			if (const auto references = reader.read_array(field, 7, count))
+			for (auto i = 0u; references && i < count; i++)
 			{
-				for (auto i = 0u; i < count; i++)
+				if (!references[i].name)
 				{
-					reader.read_string(references[i].name);
+					continue;
+				}
+
+				const auto renamed = renamed_asset_name(references[i].name);
+				if (renamed != references[i].name)
+				{
+					references[i].name = mem->duplicate_string(renamed);
 				}
 			}
 		}
 
-		void read_transient_info(zone_reader& reader, TransientInfo& info)
+		void rename_transient_references(TransientInfo& info, zone_memory* mem)
 		{
-			read_transient_sets(reader, info.transientSets);
-			read_transient_costs(reader, info.transientCosts);
-			read_named_references(reader, info.forcedStubAssets, info.forcedStubAssetCount);
-			read_named_references(reader, info.transientFiles, info.transientFileCount);
-			read_named_references(reader, info.transientAssets, info.transientAssetCount);
+			rename_references(info.forcedStubAssets, info.forcedStubAssetCount, mem);
+			rename_references(info.transientFiles, info.transientFileCount, mem);
+			rename_references(info.transientAssets, info.transientAssetCount, mem);
+		}
 
-			if (const auto maps = reader.read_array(info.transientWorldGridTileMaps, 7, info.transientWorldGridTileMapCount))
+		template <typename Walk>
+		void walk_transient_info(Walk walk, TransientInfo& info)
+		{
+			walk_transient_sets(walk, info.transientSets);
+			walk_transient_costs(walk, info.transientCosts);
+			walk_named_references(walk, info.forcedStubAssets, info.forcedStubAssetCount);
+			walk_named_references(walk, info.transientFiles, info.transientFileCount);
+			walk_named_references(walk, info.transientAssets, info.transientAssetCount);
+
+			if (const auto maps = walk.array(info.transientWorldGridTileMaps, info.transientWorldGridTileMapCount, 7))
 			{
 				for (auto i = 0u; i < info.transientWorldGridTileMapCount; i++)
 				{
-					reader.read_array(maps[i].spaceToTransientIndex, 1, maps[i].indexCount);
+					walk.array(maps[i].spaceToTransientIndex, maps[i].indexCount, 1);
 				}
 			}
 
-			read_spatial_tree(reader, info.transientWorldGridSpatial);
-			reader.read_array(info.transientWorldGridBounds, 3, info.transientWorldGridBoundsCount);
-			reader.read_array(info.transientWorldGridHighLodLookup, 1, info.transientWorldGridHighLodLookupCount);
-			reader.read_array(info.transientSkipLoading.array, 3, info.transientSkipLoading.wordCount);
+			walk_spatial_tree(walk, info.transientWorldGridSpatial);
+			walk.array(info.transientWorldGridBounds, info.transientWorldGridBoundsCount, 3);
+			walk.array(info.transientWorldGridHighLodLookup, info.transientWorldGridHighLodLookupCount, 1);
+			walk.array(info.transientSkipLoading.array, info.transientSkipLoading.wordCount, 3);
+		}
+
+		template <typename Walk>
+		void walk_streaming_info(Walk walk, StreamingInfo& asset)
+		{
+			walk_flag_set(walk, asset.alwaysloadedFlagSet);
+
+			if (const auto info = walk.array(asset.transientInfo, 1, 7))
+			{
+				walk_transient_info(walk, *info);
+			}
 		}
 	}
 
@@ -104,12 +145,87 @@ namespace zonetool::iw8
 	{
 		reader.push_stream(XFILE_BLOCK_VIRTUAL);
 		reader.read_string(asset->name);
-		read_flag_set(reader, asset->alwaysloadedFlagSet);
-
-		if (const auto info = reader.read_single(asset->transientInfo, 7))
-		{
-			read_transient_info(reader, *info);
-		}
+		walk_streaming_info(read_walk{reader}, *asset);
 		reader.pop_stream();
+	}
+
+	void streaming_info::write(zone_base* zone, zone_buffer* buf)
+	{
+		auto* data = this->asset_;
+		auto* dest = buf->write(data);
+
+		buf->push_stream(XFILE_BLOCK_VIRTUAL);
+		dest->name = buf->write_str(this->name());
+		walk_streaming_info(write_walk{zone, buf}, *dest);
+		buf->pop_stream();
+	}
+
+	void streaming_info::dump(StreamingInfo* asset)
+	{
+		assetmanager::dumper dump;
+		if (!dump.open("streaminginfo\\"s + asset->name + ".streaminginfob"))
+		{
+			return;
+		}
+
+		dump.dump_single(asset);
+		dump.dump_string(asset->name);
+		walk_streaming_info(dump_walk{dump}, *asset);
+		dump.close();
+	}
+
+	StreamingInfo* streaming_info::parse(const std::string& name, zone_memory* mem)
+	{
+		assetmanager::reader read(mem);
+		if (!read.open("streaminginfo\\"s + name + ".streaminginfob"))
+		{
+			return nullptr;
+		}
+
+		ZONETOOL_INFO("Parsing streaminginfo \"%s\"...", name.data());
+
+		auto* asset = read.read_single<StreamingInfo>();
+		asset->name = read.read_string();
+		walk_streaming_info(parse_walk{read}, *asset);
+		read.close();
+		return asset;
+	}
+
+	void streaming_info::init(const std::string& name, zone_memory* mem)
+	{
+		this->name_ = name;
+
+		if (this->referenced())
+		{
+			this->asset_ = mem->allocate<StreamingInfo>();
+			this->asset_->name = mem->duplicate_string(name);
+			return;
+		}
+
+		this->asset_ = this->parse(name, mem);
+		if (this->asset_ && this->asset_->transientInfo)
+		{
+			rename_transient_references(*this->asset_->transientInfo, mem);
+		}
+	}
+
+	void streaming_info::load_depending(zone_base* zone)
+	{
+		if (this->referenced())
+		{
+			return;
+		}
+
+		walk_streaming_info(depend_walk{zone}, *this->asset_);
+	}
+
+	std::string streaming_info::name()
+	{
+		return this->name_;
+	}
+
+	std::int32_t streaming_info::type()
+	{
+		return ASSET_TYPE_STREAMING_INFO;
 	}
 }

@@ -67,6 +67,7 @@ namespace zonetool::cli
 				"\nbuild options:\n"
 				"  -more_memory              doubles the zone memory limit\n"
 				"  -keep_mp_traverse_nodes   keeps invalid mp traverse nodes in aipaths (h2)\n"
+				"  -uncompressed             writes the zone without compression (iw8)\n"
 				"\nquick start:\n"
 				"  1. zonetool.exe goes in the game folder next to the game exe and fastfiles\n"
 				"     (externally, use `-game <s1/h1/s2/iw6>` and `-path \"C:/path/to/game/folder\"`)\n"

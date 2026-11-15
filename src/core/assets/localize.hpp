@@ -315,8 +315,16 @@ namespace zonetool
 		static void read(zone_reader& reader, S* asset)
 		{
 			reader.push_stream(Streams::XFILE_BLOCK_VIRTUAL);
-			reader.read_string(asset->value);
-			reader.read_string(asset->name);
+			if constexpr (offsetof(S, name) < offsetof(S, value))
+			{
+				reader.read_string(asset->name);
+				reader.read_string(asset->value);
+			}
+			else
+			{
+				reader.read_string(asset->value);
+				reader.read_string(asset->name);
+			}
 			reader.pop_stream();
 		}
 
@@ -333,11 +341,20 @@ namespace zonetool
 				name = utils::string::to_lower(name);
 			}
 
+			if constexpr (offsetof(S, name) < offsetof(S, value))
+			{
+				dest->name = buf->write_str(name);
+			}
+
 			if (data->value)
 			{
 				dest->value = buf->write_str(data->value);
 			}
-			dest->name = buf->write_str(name);
+
+			if constexpr (offsetof(S, name) > offsetof(S, value))
+			{
+				dest->name = buf->write_str(name);
+			}
 
 			buf->pop_stream();
 		}
