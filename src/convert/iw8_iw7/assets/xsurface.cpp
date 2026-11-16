@@ -281,33 +281,33 @@ namespace zonetool::iw8::converter::iw7::xsurface
 			std::memcpy(result->partBits, surface.partBits.array, sizeof(result->partBits));
 			return true;
 		}
+	}
 
-		target::XModelSurfs* convert(const XModelSurfs* asset, utils::memory::allocator& allocator)
+	zonetool::iw7::XModelSurfs* convert(const XModelSurfs* asset, utils::memory::allocator& allocator)
+	{
+		const auto data = read_shared_data(asset);
+		if (!data)
 		{
-			const auto data = read_shared_data(asset);
-			if (!data)
+			ZONETOOL_ERROR("Cannot read the vertex data of xmodelsurfs \"%s\"", asset->name);
+			return nullptr;
+		}
+
+		const auto result = allocator.allocate<target::XModelSurfs>();
+		result->name = asset->name;
+		result->numsurfs = asset->numsurfs;
+		result->surfs = allocator.allocate_array<target::XSurface>(asset->numsurfs);
+		std::memcpy(result->partBits, asset->partBits.array, sizeof(result->partBits));
+
+		for (auto i = 0; i < asset->numsurfs; i++)
+		{
+			if (!convert_surface(asset->surfs[i], *data, &result->surfs[i], allocator))
 			{
-				ZONETOOL_ERROR("Cannot read the vertex data of xmodelsurfs \"%s\"", asset->name);
+				ZONETOOL_ERROR("Surface %d of xmodelsurfs \"%s\" points outside its vertex data", i, asset->name);
 				return nullptr;
 			}
-
-			const auto result = allocator.allocate<target::XModelSurfs>();
-			result->name = asset->name;
-			result->numsurfs = asset->numsurfs;
-			result->surfs = allocator.allocate_array<target::XSurface>(asset->numsurfs);
-			std::memcpy(result->partBits, asset->partBits.array, sizeof(result->partBits));
-
-			for (auto i = 0; i < asset->numsurfs; i++)
-			{
-				if (!convert_surface(asset->surfs[i], *data, &result->surfs[i], allocator))
-				{
-					ZONETOOL_ERROR("Surface %d of xmodelsurfs \"%s\" points outside its vertex data", i, asset->name);
-					return nullptr;
-				}
-			}
-
-			return result;
 		}
+
+		return result;
 	}
 
 	tangent_frame unpack_tangent_frame(const std::uint32_t packed)
@@ -333,6 +333,16 @@ namespace zonetool::iw8::converter::iw7::xsurface
 		frame.tangent = { 1.0f - 2.0f * (q[1] * q[1] + q[2] * q[2]), 2.0f * (q[2] * q[3] + q[0] * q[1]), 2.0f * (q[0] * q[2] - q[1] * q[3]) };
 		frame.binormal_sign = (packed >> 29) & 1 ? -1.0f : 1.0f;
 		return frame;
+	}
+
+	std::array<float, 3> unpack_unit_vec(const std::uint32_t packed)
+	{
+		const auto unpack_component = [&](const int shift)
+		{
+			return static_cast<float>((packed >> shift) & 0x3FF) * (2.0f / 1023.0f) - 1.0f;
+		};
+
+		return { unpack_component(0), unpack_component(10), unpack_component(20) };
 	}
 
 	std::uint32_t pack_unit_vec(const std::array<float, 3>& value, const std::uint32_t alpha)

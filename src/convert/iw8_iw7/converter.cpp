@@ -3,6 +3,9 @@
 
 #include <game.hpp>
 
+#include <iw8/zone/loader.hpp>
+#include <io/game_files.hpp>
+
 #include <utils/io.hpp>
 
 namespace zonetool::iw8::converter::iw7
@@ -10,6 +13,70 @@ namespace zonetool::iw8::converter::iw7
 	namespace
 	{
 		std::vector<std::string> csv_rows;
+		std::vector<std::unique_ptr<loaded_zone>> transient_zones;
+		std::unordered_set<std::string> loaded_transient_files;
+
+		const char* find_transient_file(const std::string_view asset_name)
+		{
+			const char* file{};
+			db_enum_assets(ASSET_TYPE_STREAMING_INFO, [&](void* header)
+			{
+				const auto info = static_cast<StreamingInfo*>(header)->transientInfo;
+				if (file || !info || !info->transientAssets || !info->transientFiles)
+				{
+					return;
+				}
+
+				for (auto i = 0u; i < info->transientAssetCount; i++)
+				{
+					const auto& asset = info->transientAssets[i];
+					if (asset.name && asset.name == asset_name && asset.mpParentIndex < info->transientFileCount)
+					{
+						file = info->transientFiles[asset.mpParentIndex].name;
+						return;
+					}
+				}
+			});
+
+			return file;
+		}
+
+		XModel* find_loaded_model(const char* name)
+		{
+			const auto model = static_cast<XModel*>(db_find_asset(ASSET_TYPE_XMODEL, name));
+			return model && model->numBones ? model : nullptr;
+		}
+	}
+
+	XModel* find_transient_model(const char* name)
+	{
+		if (const auto model = find_loaded_model(name))
+		{
+			return model;
+		}
+
+		const auto file = find_transient_file(name);
+		if (!file || !loaded_transient_files.emplace(file).second)
+		{
+			return nullptr;
+		}
+
+		const auto path = game_files::find_zone(file);
+		if (!path)
+		{
+			ZONETOOL_WARNING("Transient zone \"%s\" of xmodel \"%s\" not found", file, name);
+			return nullptr;
+		}
+
+		ZONETOOL_INFO("Loading transient zone \"%s\"...", file);
+		transient_zones.emplace_back(load_zone(*path));
+		return find_loaded_model(name);
+	}
+
+	void release_transient_zones()
+	{
+		transient_zones.clear();
+		loaded_transient_files.clear();
 	}
 
 	void add_csv_row(const std::string_view type, const std::string_view name)
@@ -38,6 +105,8 @@ namespace zonetool::iw8::converter::iw7
 		{
 			netconststrings::dump_level_strings();
 		}
+
+		std::ranges::stable_partition(csv_rows, [](const std::string& row) { return row.starts_with("require,"); });
 
 		std::string text;
 		for (const auto& row : csv_rows)
@@ -106,6 +175,15 @@ namespace zonetool::convert::iw8_iw7
 			case source::ASSET_TYPE_GFXWORLD:
 				target::gfxworld::dump(header_as<source::GfxWorld>(header));
 				break;
+			case source::ASSET_TYPE_XANIMPARTS:
+				target::xanim::dump(header_as<source::XAnimParts>(header));
+				break;
+			case source::ASSET_TYPE_ANIM_PACKAGE:
+				target::animpackage::dump(header_as<source::WeaponAnimPackage>(header));
+				break;
+			case source::ASSET_TYPE_WEAPON:
+				target::weapon::dump(header_as<source::WeaponCompleteDef>(header));
+				break;
 			default:
 				break;
 			}
@@ -114,9 +192,15 @@ namespace zonetool::convert::iw8_iw7
 
 	namespace
 	{
+		void setup(const std::filesystem::path& target_game_path)
+		{
+			zonetool::iw8::converter::iw7::sound::set_iw7_folder(target_game_path);
+		}
+
 		void finish(const std::string& zone_name)
 		{
 			zonetool::iw8::converter::iw7::write_csv(zone_name);
+			zonetool::iw8::converter::iw7::release_transient_zones();
 		}
 
 		std::vector<std::string> required_zones(const std::string& zone_name)
@@ -139,6 +223,7 @@ namespace zonetool::convert::iw8_iw7
 			.source = "iw8",
 			.target = "iw7",
 			.dump_asset = dump_asset,
+			.setup = setup,
 			.finish = finish,
 			.required_zones = required_zones,
 		};

@@ -291,6 +291,11 @@ namespace zonetool::iw7
 			const auto result = get_streamed_image_pixels_path(name, i);
 			if (!result.has_value())
 			{
+				if (asset->streams[i].levelCountAndSize.levelCount)
+				{
+					ZONETOOL_WARNING("Streamed image \"%s\" has no pixels for stream %d", name.data(), i);
+				}
+
 				continue;
 			}
 

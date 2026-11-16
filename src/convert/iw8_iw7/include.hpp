@@ -7,4 +7,6 @@ namespace zonetool::iw8::converter::iw7
 {
 	void add_csv_row(std::string_view type, std::string_view name);
 	bool mark_dumped(XAssetType type, std::string_view name);
+	XModel* find_transient_model(const char* name);
+	void release_transient_zones();
 }

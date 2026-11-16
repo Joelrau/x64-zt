@@ -266,7 +266,11 @@ namespace zonetool::iw8::converter::iw7::gfximage
 				image.streams[i].levelCountAndSize.pixelSize = total_size;
 
 				const auto path = std::format("{}streamed_images\\{}_stream{}.pixels", filesystem::get_dump_path(), name, i);
-				utils::io::write_file(path, *converted, false);
+				if (!utils::io::write_file(path, *converted, false))
+				{
+					ZONETOOL_WARNING("Cannot write stream %d of image \"%s\" to \"%s\"", i, image.name, path.data());
+					return false;
+				}
 			}
 
 			image.dataLen2 = total_size;

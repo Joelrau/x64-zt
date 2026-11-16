@@ -26,8 +26,24 @@ namespace zonetool::iw7
 		static void dump(SndBank* asset);
 	};
 
+	namespace aliases
+	{
+		std::string get_path(SndBank* asset);
+		void dump(SndBank* asset);
+	}
+
+	namespace ducks
+	{
+		void dump(SndBank* asset);
+	}
+
 	namespace sound_asset_bank
 	{
 		std::string create_path(SndBank* bank, bool streamed);
+
+		namespace flac
+		{
+			void dump(SndAssetBankEntry& entry, const std::string& name, uint8_t* data, size_t size);
+		}
 	}
 }

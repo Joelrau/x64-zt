@@ -45,6 +45,7 @@
 	x(ASSET_TYPE_PHYSICS_SFX_EVENT_ASSET, physics_sfx_event, PhysicsSFXEventAsset) \
 	x(ASSET_TYPE_PHYSICS_VFX_EVENT_ASSET, physics_vfx_event, PhysicsVFXEventAsset) \
 	x(ASSET_TYPE_PHYSICSASSET, physics_asset, PhysicsAsset) \
+	x(ASSET_TYPE_PHYSICSLIBRARY, physics_library, PhysicsLibrary) \
 	x(ASSET_TYPE_SOUND_GLOBALS, sound_globals, SndGlobals) \
 	x(ASSET_TYPE_SOUND_BANK, sound_bank, SndBankResident) \
 	x(ASSET_TYPE_SOUND_BANK_TRANSIENT, sound_bank_transient, SndBankTransient) \
@@ -82,7 +83,6 @@
 	x(ASSET_TYPE_GFXWORLD_TRANSIENT_ZONE, gfx_world_transient_zone, GfxWorldTransientZone)
 
 #define IW8_READ_ONLY_ASSETS(x) \
-	x(ASSET_TYPE_PHYSICSLIBRARY, physics_library, PhysicsLibrary) \
 	x(ASSET_TYPE_DLOG_SCHEMA, dlog_schema, DLogSchema) \
 	x(ASSET_TYPE_LEADERBOARD, leaderboard_def, LeaderboardDef) \
 	x(ASSET_TYPE_VIRTUAL_LEADERBOARD, virtual_leaderboard_def, VirtualLeaderboardDef) \

@@ -2,6 +2,7 @@
 
 #include "include.hpp"
 
+#include "assets/animpackage.hpp"
 #include "assets/clipmap.hpp"
 #include "assets/comworld.hpp"
 #include "assets/fxworld.hpp"
@@ -13,6 +14,9 @@
 #include "assets/material.hpp"
 #include "assets/netconststrings.hpp"
 #include "assets/rawfile.hpp"
+#include "assets/sound.hpp"
 #include "assets/techset.hpp"
+#include "assets/weapon.hpp"
+#include "assets/xanim.hpp"
 #include "assets/xmodel.hpp"
 #include "assets/xsurface.hpp"

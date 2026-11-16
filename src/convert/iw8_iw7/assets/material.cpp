@@ -1486,6 +1486,10 @@ namespace zonetool::iw8::converter::iw7::material
 		{
 			if (mark_dumped(ASSET_TYPE_TECHNIQUE_SET, stock.name))
 			{
+				if (stock.in_common_zone)
+				{
+					add_csv_row("require", "techsets_common");
+				}
 				add_csv_row("techset", stock.in_common_zone ? std::format(",{}", stock.name) : stock.name);
 			}
 
@@ -1694,6 +1698,8 @@ namespace zonetool::iw8::converter::iw7::material
 		{
 			return true;
 		}
+
+		add_csv_row("material", asset->name);
 
 		if (const auto stock = find_stock_techset(asset, *techset_type))
 		{
