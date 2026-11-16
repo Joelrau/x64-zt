@@ -3331,6 +3331,29 @@ namespace zonetool::iw8
 		bool enabledForFireType[6];
 	};
 
+	enum ImpactType : std::int32_t
+	{
+		IMPACT_TYPE_NONE = 0,
+		IMPACT_TYPE_BULLET_SMALL = 1,
+		IMPACT_TYPE_BULLET_MEDIUM = 2,
+		IMPACT_TYPE_BULLET_LARGE = 3,
+		IMPACT_TYPE_BULLET_AP = 4,
+		IMPACT_TYPE_BULLET_EXPLODE = 5,
+		IMPACT_TYPE_SHOTGUN = 6,
+		IMPACT_TYPE_SHOTGUN_EXPLODE = 7,
+		IMPACT_TYPE_KNIFE_STICK = 8,
+		IMPACT_TYPE_GRENADE_BOUNCE = 9,
+		IMPACT_TYPE_GRENADE_EXPLODE = 10,
+		IMPACT_TYPE_GRENADE_EXPLODE_SMALL = 11,
+		IMPACT_TYPE_ROCKET_EXPLODE = 12,
+		IMPACT_TYPE_ROCKET_EXPLODE_SMALL = 13,
+		IMPACT_TYPE_PROJECTILE_DUD = 14,
+		IMPACT_TYPE_VEH_BULLET_MEDIUM = 15,
+		IMPACT_TYPE_VEH_BULLET_EXPLODE = 16,
+		IMPACT_TYPE_VEH_MISSILE_EXPLODE = 17,
+		IMPACT_TYPE_BULLET_RICOCHET_SMALL = 18,
+	};
+
 	enum MeleeImpactType : std::int32_t
 	{
 		MELEE_IMPACT_TYPE_NONE = 0x0,
@@ -6790,7 +6813,7 @@ namespace zonetool::iw8
 		int iAdsTransInToOutTime;
 		int iAdsTransOutToInTime;
 		int iClipSize;
-		int vfxImpactType;
+		ImpactType vfxImpactType;
 		float penetrateMultiplier;
 		float fAdsViewKickCenterSpeed;
 		float fHipViewKickCenterSpeed;
@@ -12417,7 +12440,7 @@ namespace zonetool::iw8
 
 	struct AttImpact
 	{
-		int vfxImpactType;
+		ImpactType vfxImpactType;
 	}; assert_sizeof(AttImpact, 0x4);
 
 	struct AttAmmoTracer

@@ -59,6 +59,61 @@ namespace zonetool::iw7::converter::iw8::weapon
 			return model;
 		}
 
+		bool is_zero_gravity_bone(const XModel* model, unsigned int bone, const scr_string_t zero_gravity_tag, const scr_string_t zero_gravity_tag2)
+		{
+			while (bone >= model->numRootBones)
+			{
+				bone -= model->parentList[bone - model->numRootBones];
+				if (model->boneNames[bone] == zero_gravity_tag || model->boneNames[bone] == zero_gravity_tag2)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		target::scr_string_t* convert_hide_tags(const WeaponCompleteDef* asset, utils::memory::allocator& allocator)
+		{
+			const auto hide_tags = allocator.allocate_array<target::scr_string_t>(32);
+			if (asset->hideTags)
+			{
+				std::memcpy(hide_tags, asset->hideTags, sizeof(target::scr_string_t) * 32);
+			}
+
+			const auto model = asset->weapDef ? find_loaded(ASSET_TYPE_XMODEL, asset->weapDef->gunXModel) : nullptr;
+			if (!model || !model->boneNames || !model->parentList)
+			{
+				return hide_tags;
+			}
+
+			const auto zero_gravity_tag = static_cast<scr_string_t>(SL_GetString("tag_zerog_off"));
+			const auto zero_gravity_tag2 = static_cast<scr_string_t>(SL_GetString("tag_zerog_off2"));
+			auto slot = 0u;
+			for (auto bone = 0u; bone < model->numBones; bone++)
+			{
+				if (!is_zero_gravity_bone(model, bone, zero_gravity_tag, zero_gravity_tag2))
+				{
+					continue;
+				}
+
+				while (slot < 32 && hide_tags[slot])
+				{
+					slot++;
+				}
+
+				if (slot == 32)
+				{
+					ZONETOOL_WARNING("Weapon \"%s\" has no free hide tag for bone \"%s\"", asset->szInternalName, SL_ConvertToString(model->boneNames[bone]));
+					break;
+				}
+
+				hide_tags[slot] = model->boneNames[bone];
+			}
+
+			return hide_tags;
+		}
+
 		target::WeaponAnimPackage* convert_anim_package(WeaponAnimPackage* asset, utils::memory::allocator& allocator)
 		{
 			if (!asset)
@@ -114,6 +169,24 @@ namespace zonetool::iw7::converter::iw8::weapon
 			case WEAPTYPE_CHARGE_SHIELD: return target::WEAPTYPE_CHARGE_SHIELD;
 			case WEAPTYPE_EQUIP_DEPLOY: return target::WEAPTYPE_EQUIP_DEPLOY;
 			default: return target::WEAPTYPE_NONE;
+			}
+		}
+
+		target::ImpactType convert_impact_type(const ImpactType type, const char* weapon)
+		{
+			switch (type)
+			{
+			case IMPACT_TYPE_NONE: return target::IMPACT_TYPE_NONE;
+			case IMPACT_TYPE_BULLET_SMALL:
+			case IMPACT_TYPE_BULLET_SMALL_ENERGY: return target::IMPACT_TYPE_BULLET_SMALL;
+			case IMPACT_TYPE_BULLET_LARGE:
+			case IMPACT_TYPE_BULLET_LARGE_ENERGY: return target::IMPACT_TYPE_BULLET_MEDIUM;
+			case IMPACT_TYPE_SHOTGUN:
+			case IMPACT_TYPE_SHOTGUN_ENERGY:
+			case IMPACT_TYPE_SHOTGUN_SONIC: return target::IMPACT_TYPE_SHOTGUN;
+			default:
+				ZONETOOL_WARNING("Weapon \"%s\" has IW7 impact type %d, which has no IW8 equivalent", weapon, type);
+				return target::IMPACT_TYPE_NONE;
 			}
 		}
 
@@ -837,10 +910,11 @@ namespace zonetool::iw7::converter::iw8::weapon
 			COPY_VALUE(szInternalName);
 			COPY_VALUE(szDisplayName);
 			COPY_VALUE(szLootTable);
-			COPY_SCRIPT_STRINGS(hideTags);
+			new_asset->hideTags = convert_hide_tags(asset, allocator);
 			COPY_VALUE(iAdsTransInTime);
 			COPY_VALUE(iAdsTransOutTime);
 			COPY_VALUE(iClipSize);
+			new_asset->vfxImpactType = convert_impact_type(asset->vfxImpactType, asset->szInternalName);
 			COPY_VALUE(penetrateMultiplier);
 			COPY_VALUE(fAdsViewKickCenterSpeed);
 			COPY_VALUE(fHipViewKickCenterSpeed);

@@ -286,12 +286,21 @@ namespace zonetool::iw7
 		const auto zone = load_zone(zone_path);
 
 		std::vector<const loaded_asset*> assets;
-		for (const auto& entry : zone->assets)
+		const auto find_assets = [&](const loaded_zone& source)
 		{
-			if (entry.type == type && !entry.referenced && (name == "*" || name == get_asset_name(entry.type, entry.header)))
+			for (const auto& entry : source.assets)
 			{
-				assets.emplace_back(&entry);
+				if (entry.type == type && !entry.referenced && (name == "*" || name == get_asset_name(entry.type, entry.header)))
+				{
+					assets.emplace_back(&entry);
+				}
 			}
+		};
+
+		find_assets(*zone);
+		for (auto i = 0u; assets.empty() && name != "*" && i < required_zones.size(); i++)
+		{
+			find_assets(*required_zones[i]);
 		}
 
 		if (assets.empty())
