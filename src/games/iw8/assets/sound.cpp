@@ -604,4 +604,12 @@ namespace zonetool::iw8
 	{
 		return ASSET_TYPE_SFX_PACKAGE;
 	}
+
+	void sound_bank_list::read(zone_reader& reader, SoundBankListDef* asset)
+	{
+		reader.push_stream(XFILE_BLOCK_VIRTUAL);
+		reader.read_string(asset->name);
+		reader.read_array(asset->soundBankNames, 3, asset->soundBankCount);
+		reader.pop_stream();
+	}
 }

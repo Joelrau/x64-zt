@@ -25,4 +25,9 @@ namespace zonetool::iw7
 
 		static void dump(SndBank* asset);
 	};
+
+	namespace sound_asset_bank
+	{
+		std::string create_path(SndBank* bank, bool streamed);
+	}
 }

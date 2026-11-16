@@ -43,6 +43,10 @@ namespace zonetool::iw8
 			{
 				return const_cast<const char**>(&static_cast<S*>(asset)->m_szName);
 			}
+			else if constexpr (requires(S* s) { s->className; })
+			{
+				return const_cast<const char**>(&static_cast<S*>(asset)->className);
+			}
 			else
 			{
 				return const_cast<const char**>(&static_cast<S*>(asset)->name);

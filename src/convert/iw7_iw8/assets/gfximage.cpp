@@ -29,6 +29,33 @@ namespace zonetool::iw7::converter::iw8::gfximage
 			return image;
 		}
 
+		std::size_t count_levels(const DXGI_FORMAT format, std::size_t width, std::size_t height, const std::size_t size)
+		{
+			std::size_t total = 0;
+			for (std::size_t level = 1;; level++)
+			{
+				std::size_t row_pitch, slice_pitch;
+				if (FAILED(DirectX::ComputePitch(format, width, height, row_pitch, slice_pitch)))
+				{
+					return 0;
+				}
+
+				total += slice_pitch;
+				if (total >= size)
+				{
+					return total == size ? level : 0;
+				}
+
+				if (width == 1 && height == 1)
+				{
+					return 0;
+				}
+
+				width = std::max<std::size_t>(1, width / 2);
+				height = std::max<std::size_t>(1, height / 2);
+			}
+		}
+
 		std::optional<DirectX::ScratchImage> load_source(const GfxImage* asset)
 		{
 			if (asset->mapType != MAPTYPE_2D || asset->depth > 1 || asset->numElements > 1)
@@ -53,9 +80,11 @@ namespace zonetool::iw7::converter::iw8::gfximage
 			for (const auto stream : streams)
 			{
 				const auto& data = asset->streams[stream];
-				if (const auto pixels = read_streamed_image_pixels(asset, stream))
+				const auto pixels = read_streamed_image_pixels(asset, stream);
+				const auto levels = pixels ? count_levels(format, data.width, data.height, pixels->size()) : 0;
+				if (levels)
 				{
-					return load_pixels(format, data.width, data.height, 1, *pixels);
+					return load_pixels(format, data.width, data.height, levels, *pixels);
 				}
 			}
 
@@ -148,10 +177,14 @@ namespace zonetool::iw7::converter::iw8::gfximage
 			return static_cast<std::uint8_t>(std::lround(std::clamp(value, 0.0f, 1.0f) * 255.0f));
 		}
 
+		std::uint8_t linear_to_srgb(const float linear)
+		{
+			return to_byte(linear <= 0.0031308f ? linear * 12.92f : 1.055f * std::pow(linear, 1.0f / 2.4f) - 0.055f);
+		}
+
 		std::uint8_t from_squared_gamma(const int value)
 		{
-			const auto linear = value / 255.0f * value / 255.0f;
-			return to_byte(linear <= 0.0031308f ? linear * 12.92f : 1.055f * std::pow(linear, 1.0f / 2.4f) - 0.055f);
+			return linear_to_srgb(value / 255.0f * value / 255.0f);
 		}
 
 		target::GfxImage* convert(const GfxImage* asset, const target::GfxPixelFormat format, const std::uint32_t flags,
@@ -159,7 +192,8 @@ namespace zonetool::iw7::converter::iw8::gfximage
 		{
 			static utils::memory::allocator allocator;
 
-			auto source = load_source(asset);
+			const auto loaded = static_cast<const GfxImage*>(db_find_asset(ASSET_TYPE_IMAGE, asset->name));
+			auto source = load_source(loaded ? loaded : asset);
 			auto decoded = source ? decode_rgba8(std::move(*source)) : std::nullopt;
 			if (!decoded)
 			{
@@ -247,6 +281,23 @@ namespace zonetool::iw7::converter::iw8::gfximage
 
 			return convert(asset, target::GFX_PF_BC7_SRGB, target::IMG_DISK_FLAG_GAMMA_SRGB | target::IMG_DISK_FLAG_AUTOMETALNESS,
 				target::TS_METALNESS_MAP, 0xFF, tables);
+		});
+	}
+
+	target::GfxImage* dump_color(const GfxImage* asset)
+	{
+		return dump_once(asset, [&]
+		{
+			const auto srgb = DirectX::IsSRGB(static_cast<DXGI_FORMAT>(asset->imageFormat));
+
+			channel_tables tables{};
+			for (auto i = 0; i < 256; i++)
+			{
+				tables[0][i] = tables[1][i] = tables[2][i] = srgb ? static_cast<std::uint8_t>(i) : linear_to_srgb(i / 255.0f);
+				tables[3][i] = static_cast<std::uint8_t>(i);
+			}
+
+			return convert(asset, target::GFX_PF_BC7_SRGB, target::IMG_DISK_FLAG_GAMMA_SRGB, target::TS_COLOR_MAP, 0, tables);
 		});
 	}
 

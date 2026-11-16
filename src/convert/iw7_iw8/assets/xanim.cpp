@@ -389,6 +389,41 @@ namespace zonetool::iw7::converter::iw8::xanim
 			}
 		}
 
+		bool is_melee_anim(const XAnimParts* asset)
+		{
+			auto melee = false;
+			db_enum_assets(ASSET_TYPE_ANIM_PACKAGE, [&](void* header)
+			{
+				const auto* package = static_cast<const WeaponAnimPackage*>(header);
+				if (!package->anims)
+				{
+					return;
+				}
+
+				for (const auto slot : {WEAP_ANIM_MELEE_MISS, WEAP_ANIM_MELEE_HIT, WEAP_ANIM_MELEE_FATAL})
+				{
+					melee |= package->anims[slot] && !std::strcmp(package->anims[slot]->name, asset->name);
+				}
+			});
+
+			return melee;
+		}
+
+		void add_melee_notify(target::XAnimParts* parts, utils::memory::allocator& allocator)
+		{
+			const auto name = static_cast<target::scr_string_t>(SL_GetString("melee_attack_sfx"));
+			std::vector<target::XAnimNotifyInfo> notifies(parts->notify, parts->notify + parts->notifyCount);
+			if (std::ranges::find(notifies, name, &target::XAnimNotifyInfo::name) != notifies.end())
+			{
+				return;
+			}
+
+			const auto time = 0.1026f; // vm_pi_mike1911_melee_hit_01
+			notifies.insert(std::ranges::upper_bound(notifies, time, {}, &target::XAnimNotifyInfo::time), {name, time});
+			parts->notify = copy_array(notifies, allocator);
+			parts->notifyCount = static_cast<unsigned char>(notifies.size());
+		}
+
 		target::XAnimParts* convert(const XAnimParts* asset, utils::memory::allocator& allocator)
 		{
 			const auto result = allocator.allocate<target::XAnimParts>();
@@ -421,6 +456,11 @@ namespace zonetool::iw7::converter::iw8::xanim
 			result->fingerPoseType = asset->fingerPoseType;
 
 			retarget_view_anim(result, allocator);
+			if (is_melee_anim(asset))
+			{
+				add_melee_notify(result, allocator);
+			}
+
 			return result;
 		}
 	}

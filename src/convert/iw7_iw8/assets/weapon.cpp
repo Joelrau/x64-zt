@@ -3,6 +3,8 @@
 #include "../include.hpp"
 #include "weapon.hpp"
 #include "animpackage.hpp"
+#include "sound.hpp"
+#include "tracer.hpp"
 #include "xmodel.hpp"
 
 #include <iw8/assets/weapon.hpp>
@@ -69,6 +71,34 @@ namespace zonetool::iw7::converter::iw8::weapon
 			const auto package = allocator.allocate<target::WeaponAnimPackage>();
 			package->name = asset->name;
 			return package;
+		}
+
+		target::TracerDef* convert_tracer(TracerDef* asset, utils::memory::allocator& allocator)
+		{
+			if (!asset)
+			{
+				return nullptr;
+			}
+
+			tracer::dump(find_loaded(ASSET_TYPE_TRACER, asset));
+
+			const auto result = allocator.allocate<target::TracerDef>();
+			result->name = asset->name;
+			return result;
+		}
+
+		target::WeaponSFXPackage* convert_sfx_package(WeaponCompleteDef* asset, utils::memory::allocator& allocator)
+		{
+			if (!asset->weapDef->sfxPackage)
+			{
+				return nullptr;
+			}
+
+			sound::dump(asset);
+
+			const auto result = allocator.allocate<target::WeaponSFXPackage>();
+			result->name = asset->weapDef->sfxPackage->name;
+			return result;
 		}
 
 		target::weapType_t convert_weap_type(const weapType_t type)
@@ -293,6 +323,8 @@ namespace zonetool::iw7::converter::iw8::weapon
 			COPY_VALUE(fIdleProneFactor);
 			COPY_VALUE(fGunMaxPitch);
 			COPY_VALUE(fGunMaxYaw);
+			new_asset->fViewMaxPitch = 10.0f; // BG_KickAngles clamp (0x140749E20)
+			new_asset->fViewMaxYaw = 10.0f;
 			COPY_VALUE(adsIdleLerpStartTime);
 			COPY_VALUE(adsIdleLerpTime);
 			COPY_VALUE(slideSpreadMin);
@@ -710,12 +742,11 @@ namespace zonetool::iw7::converter::iw8::weapon
 			new_asset->projectileModel = convert_model(asset->projectileModel, allocator);
 			new_asset->stowOffsetModel = convert_model(asset->stowOffsetModel, allocator);
 
+			new_asset->tracerType = convert_tracer(asset->tracerType, allocator);
+
 			new_asset->szXAnims = convert_anim_package(asset->szXAnims, allocator);
 			new_asset->szXAnimsRightHanded = convert_anim_package(asset->szXAnimsRightHanded, allocator);
 			new_asset->szXAnimsLeftHanded = convert_anim_package(asset->szXAnimsLeftHanded, allocator);
-
-			new_asset->sfxPackage = allocator.allocate<target::WeaponSFXPackage>();
-			new_asset->sfxPackage->name = "iw8_pi_mike1911_mp_sfxpackage"; // TODO: native sfxpkg
 
 			convert_damage(asset, new_asset);
 			convert_sway(asset, new_asset);
@@ -741,6 +772,63 @@ namespace zonetool::iw7::converter::iw8::weapon
 			weapon.adsNVGReloadZoomFov = -1.0f;
 			weapon.adsZoomInFrac = 1.0f;
 			weapon.adsZoomOutFrac = 1.0f;
+		}
+
+		void convert_ads_dof(target::WeaponCompleteDef* new_asset)
+		{
+			new_asset->adsDofPhysicalFocalTag = true;
+			new_asset->adsDofPhysicalReloadFstop = 19.5f;
+			new_asset->adsDofPhysicalReloadFocusDistance = 60.0f;
+
+			switch (new_asset->weapDef->weapClass)
+			{
+			case target::WEAPCLASS_PISTOL:
+				new_asset->adsDofPhysicalFstop = 10.0f;
+				new_asset->adsDofPhysicalFocusDistance = 21.0f;
+				break;
+			case target::WEAPCLASS_RIFLE:
+				new_asset->adsDofPhysicalFstop = 30.0f;
+				new_asset->adsDofPhysicalFocusDistance = 15.0f;
+				break;
+			case target::WEAPCLASS_SNIPER:
+			case target::WEAPCLASS_MG:
+			case target::WEAPCLASS_SMG:
+			case target::WEAPCLASS_SPREAD:
+				new_asset->adsDofPhysicalFstop = 30.0f;
+				new_asset->adsDofPhysicalFocusDistance = 21.0f;
+				break;
+			default:
+				new_asset->adsDofPhysicalFstop = 19.5f;
+				new_asset->adsDofPhysicalFocusDistance = 60.0f;
+				break;
+			}
+		}
+
+		const char* get_crosshair_widget(const target::WeaponDef* def)
+		{
+			switch (def->weapClass)
+			{
+			case target::WEAPCLASS_PISTOL:
+				return "ReticleCrosshairSingleSmall";
+			case target::WEAPCLASS_SPREAD:
+				return "ReticleCrosshairSpread";
+			case target::WEAPCLASS_SNIPER:
+				return "ReticleCrosshairSingle";
+			case target::WEAPCLASS_RIFLE:
+			case target::WEAPCLASS_MG:
+			case target::WEAPCLASS_SMG:
+				switch (def->fireType)
+				{
+				case target::WEAPON_FIRETYPE_BURST:
+					return "ReticleCrosshairBurst";
+				case target::WEAPON_FIRETYPE_SINGLESHOT:
+					return "ReticleCrosshairSingle";
+				default:
+					return "ReticleCrosshairAuto";
+				}
+			default:
+				return nullptr;
+			}
 		}
 
 		target::WeaponCompleteDef* convert(WeaponCompleteDef* asset, utils::memory::allocator& allocator)
@@ -774,7 +862,10 @@ namespace zonetool::iw7::converter::iw8::weapon
 			new_asset->iAdsTransInToOutTime = asset->iAdsTransOutTime;
 			new_asset->iAdsTransOutToInTime = asset->iAdsTransInTime;
 			new_asset->weapDef = convert_def(asset->weapDef, allocator);
+			new_asset->weapDef->sfxPackage = convert_sfx_package(asset, allocator);
 			convert_zoom(asset, new_asset);
+			convert_ads_dof(new_asset);
+			new_asset->szLUICrosshairWidget = get_crosshair_widget(new_asset->weapDef);
 			return new_asset;
 		}
 	}
@@ -788,7 +879,6 @@ namespace zonetool::iw7::converter::iw8::weapon
 
 		utils::memory::allocator allocator;
 		target::weapon::dump(convert(asset, allocator));
-		add_csv_row("sfxpkg", ",iw8_pi_mike1911_mp_sfxpackage");
 		add_csv_row("weapon", asset->name);
 	}
 }

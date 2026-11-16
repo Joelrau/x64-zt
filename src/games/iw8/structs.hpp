@@ -1664,6 +1664,11 @@ namespace zonetool::iw8
 		int m_NumTacGraphs;
 	}; assert_sizeof(TacticalGraphData, 0x18);
 
+	struct GfxWrappedBaseBuffer
+	{
+		char __pad0[0x30];
+	}; assert_sizeof(GfxWrappedBaseBuffer, 0x30);
+
 	struct GfxWrappedBuffer
 	{
 		char __pad0[0x40];
@@ -3148,6 +3153,72 @@ namespace zonetool::iw8
 		unsigned int stopAliasId;
 		unsigned int loopAliasId;
 	}; assert_sizeof(SndFutz, 0x88);
+
+	enum SndAliasLoadType : std::uint8_t
+	{
+		SAT_LOADED = 0x0,
+		SAT_HYBRID_PCM = 0x2,
+		SAT_STREAMED = 0x3,
+		SAT_PRIMED = 0x4,
+	};
+
+	struct SndAliasFlags
+	{
+		unsigned int looping : 3;
+		unsigned int reverb : 1;
+		unsigned int shape : 3;
+		unsigned int type : 3;
+		unsigned int channel : 8;
+		unsigned int unknown : 14;
+	}; assert_sizeof(SndAliasFlags, 0x4);
+
+#pragma pack(push, 1)
+	struct SndAssetBankHeader
+	{
+		unsigned int magic;
+		unsigned int version;
+		unsigned int entrySize;
+		unsigned int checksumSize;
+		unsigned int dependencySize;
+		unsigned int entryCount;
+		unsigned int dependencyCount;
+		unsigned int buildVersion;
+		std::uint64_t fileSize;
+		std::uint64_t entryOffset;
+		std::uint64_t checksumOffset;
+		char checksumChecksum[16];
+		char dependencies[512];
+		std::uint64_t SourceChecksumOffset;
+		std::uint64_t AssetNameOffset;
+		char zoneName[64];
+		char platform[8];
+		char language[3];
+		unsigned int convertedAssetVersion;
+		unsigned int assetSectionSize;
+		char padding[5];
+	}; assert_sizeof(SndAssetBankHeader, 0x2B0);
+
+	struct SndAssetBankEntry
+	{
+		unsigned int id;
+		unsigned int size;
+		unsigned int seekTableSize;
+		unsigned int frameCount;
+		unsigned int hybridPcmSize;
+		unsigned __int64 offset;
+		int frameRate;
+		char channelCount;
+		char looping;
+		char format;
+		unsigned short EnvelopeTime1;
+		unsigned short EnvelopeTime2;
+		char EnvelopeLoudness0;
+		char EnvelopeLoudness1;
+		char EnvelopeLoudness2;
+		char EnvelopeLoudness3;
+		char BlocksizeKB;
+	}; assert_sizeof(SndAssetBankEntry, 44);
+#pragma pack(pop)
 
 	struct SndAlias
 	{
@@ -5529,9 +5600,99 @@ namespace zonetool::iw8
 
 	struct WeaponCompleteDef;
 	struct RumbleInfo;
-	struct MayhemModel;
-	struct MayhemAnim;
-	struct MayhemObject;
+
+	struct MayhemModel
+	{
+		XModel* model;
+	}; assert_sizeof(MayhemModel, 0x8);
+
+	struct MayhemTransBounds
+	{
+		float mins[3];
+		float size[3];
+	}; assert_sizeof(MayhemTransBounds, 0x18);
+
+	struct MayhemAnimFramesSplineCompressed
+	{
+		char* diskQuat;
+		char* diskPos;
+		unsigned short* diskQuatFrames;
+		unsigned short* diskPosFrames;
+		unsigned short* numDiskQuatFrames;
+		unsigned short* numDiskPosFrames;
+		MayhemTransBounds* transBounds;
+		GfxWrappedBaseBuffer quat;
+		GfxWrappedBaseBuffer pos;
+		unsigned int quatStride;
+		unsigned int posStride;
+		unsigned int totalCompressedQuatFrames;
+		unsigned int totalCompressedPosFrames;
+	}; assert_sizeof(MayhemAnimFramesSplineCompressed, 0xA8);
+
+	struct MayhemAnimFramesUncompressed
+	{
+		char* diskQuat;
+		char* diskPos;
+		MayhemTransBounds* transBounds;
+		GfxWrappedBaseBuffer quat;
+		GfxWrappedBaseBuffer pos;
+		unsigned int quatStride;
+		unsigned int posStride;
+	}; assert_sizeof(MayhemAnimFramesUncompressed, 0x80);
+
+	struct MayhemDataKeysSplineCompressed
+	{
+		char* keys;
+		unsigned short* numKeys;
+		unsigned short* keyFrames;
+		unsigned int totalCompressedKeyFrames;
+		unsigned int numStreams;
+		unsigned int keyStride;
+	}; assert_sizeof(MayhemDataKeysSplineCompressed, 0x28);
+
+	struct MayhemDataKeysUncompressed
+	{
+		char* keys;
+		unsigned int numStreams;
+		unsigned int keyStride;
+	}; assert_sizeof(MayhemDataKeysUncompressed, 0x10);
+
+	union MayhemFramesUnion
+	{
+		MayhemAnimFramesSplineCompressed* splineCompressedFrames;
+		MayhemAnimFramesUncompressed* uncompressedFrames;
+	};
+
+	union MayhemDataChannelsUnion
+	{
+		MayhemDataKeysSplineCompressed* splineCompressedKeys;
+		MayhemDataKeysUncompressed* uncompressedKeys;
+	};
+
+	struct MayhemAnim
+	{
+		MayhemFramesUnion frames;
+		unsigned int numBones;
+		unsigned int numFrames;
+		float framerate;
+		float frequency;
+		unsigned int notifyCount;
+		unsigned int dataChannelCount;
+		bool isLooping;
+		bool isSplineCompressed;
+		bool quantizeQuats;
+		bool quantizeTrans;
+		bool quantizeChannels;
+		XAnimNotifyInfo* notify;
+		MayhemDataChannelsUnion dataChannels;
+		char __pad0[0x10];
+	}; assert_sizeof(MayhemAnim, 0x48);
+
+	struct MayhemObject
+	{
+		unsigned int modelIndex;
+		unsigned int animIndex;
+	}; assert_sizeof(MayhemObject, 0x8);
 
 	struct MayhemData
 	{
@@ -5546,6 +5707,13 @@ namespace zonetool::iw8
 		MayhemObject* objects;
 		float length;
 	}; assert_sizeof(MayhemData, 0x50);
+
+	struct SoundBankListDef
+	{
+		const char* name;
+		unsigned short soundBankCount;
+		unsigned int* soundBankNames;
+	}; assert_sizeof(SoundBankListDef, 0x18);
 
 	struct FootstepVFX;
 	struct XCompositeModelDef;
@@ -7107,6 +7275,17 @@ namespace zonetool::iw8
 		CARRYOBJECTTYPE_HUMAN = 0x1,
 		CARRYOBJECTTYPE_COUNT = 0x2,
 	};
+
+	struct CarryObjectDef
+	{
+		const char* name;
+		CarryObjectType type;
+		XModel* carryViewModel;
+		XModel* carryWorldModel;
+		Gesture* gesture;
+		scr_string_t attachTag;
+		bool allowADS;
+	}; assert_sizeof(CarryObjectDef, 0x30);
 
 	struct CarryAnimOverride
 	{
@@ -11933,7 +12112,81 @@ namespace zonetool::iw8
 
 	enum AnimationController : std::int32_t
 	{
+		ANIMCTRL_NONE = 0x0,
+		ANIMCTRL_PLAYER = 0x1,
+		ANIMCTRL_DOG = 0x2,
+		ANIMCTRL_NUM = 0x3,
 	};
+
+	struct AnimationEntry
+	{
+		scr_string_t animName;
+		int aimSetIndex;
+	}; assert_sizeof(AnimationEntry, 0x8);
+
+	struct AnimAliasInfo
+	{
+		char animIndex;
+		float animWeight;
+	}; assert_sizeof(AnimAliasInfo, 0x8);
+
+	struct AnimAlias
+	{
+		scr_string_t aliasName;
+		char animCount;
+		AnimAliasInfo* aliasInfo;
+	}; assert_sizeof(AnimAlias, 0x10);
+
+	struct AnimationState
+	{
+		scr_string_t name;
+		scr_string_t notify;
+		float blendTime;
+		float blendOutTime;
+		char flags;
+		unsigned char entryCount;
+		unsigned char aliasCount;
+		int aimSetIndex;
+		AnimationEntry* animEntries;
+		unsigned __int64* animIndices;
+		AnimAlias* aliasList;
+	}; assert_sizeof(AnimationState, 0x30);
+
+	struct AnimationAimSet
+	{
+		scr_string_t name;
+		scr_string_t rootName;
+		int animCount;
+		scr_string_t* animName;
+		unsigned __int64 rootIndex;
+		unsigned __int64* animIndices;
+		unsigned __int64* aimNodeIndices;
+	}; assert_sizeof(AnimationAimSet, 0x30);
+
+	struct AnimationStateMachine
+	{
+		scr_string_t name;
+		unsigned short stateCount;
+		unsigned short aimSetCount;
+		AnimationState* states;
+		AnimationAimSet* aimSets;
+	}; assert_sizeof(AnimationStateMachine, 0x18);
+
+	struct AnimationClass
+	{
+		const char* className;
+		AnimationStateMachine* stateMachine;
+		AnimationController animCtrl;
+		scr_string_t animTree;
+		unsigned short soundCount;
+		unsigned short effectCount;
+		scr_string_t* soundNotes;
+		scr_string_t* soundNames;
+		scr_string_t* soundOptions;
+		scr_string_t* effectNotes;
+		FxCombinedDef* effectDefs;
+		scr_string_t* effectTags;
+	}; assert_sizeof(AnimationClass, 0x50);
 
 	enum ASM_Mode : std::int32_t
 	{

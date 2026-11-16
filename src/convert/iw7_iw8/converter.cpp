@@ -90,6 +90,9 @@ namespace zonetool::convert::iw7_iw8
 			case source::ASSET_TYPE_MATERIAL:
 				target::material::dump(header_as<source::Material>(header));
 				break;
+			case source::ASSET_TYPE_TRACER:
+				target::tracer::dump(header_as<source::TracerDef>(header));
+				break;
 			case source::ASSET_TYPE_XANIMPARTS:
 				target::xanim::dump(header_as<source::XAnimParts>(header));
 				break;
@@ -116,7 +119,7 @@ namespace zonetool::convert::iw7_iw8
 
 		std::vector<std::string> required_zones(const std::string&)
 		{
-			return {"global_core_mp", "techsets_global_core_mp", "common_core_mp"};
+			return {"code_post_gfx", "global_core_mp", "techsets_global_core_mp", "common_core_mp", "common_mp"};
 		}
 	}
 

@@ -98,6 +98,10 @@
 	x(ASSET_TYPE_LOC_DMG_TABLE, loc_dmg_table, LocDmgTable) \
 	x(ASSET_TYPE_BULLET_PENETRATION, bullet_penetration, BulletPenetration) \
 	x(ASSET_TYPE_XCAM, xcam, XCam) \
+	x(ASSET_TYPE_ANIMCLASS, anim_class, AnimationClass) \
+	x(ASSET_TYPE_MAYHEM, mayhem, MayhemData) \
+	x(ASSET_TYPE_CARRY_OBJECT, carry_object, CarryObjectDef) \
+	x(ASSET_TYPE_SOUND_BANK_LIST, sound_bank_list, SoundBankListDef) \
 	x(ASSET_TYPE_EXECUTION, execution_def, ExecutionDef) \
 	x(ASSET_TYPE_CAMO, camo, Camo) \
 	x(ASSET_TYPE_BEHAVIOR_TREE, behavior_tree, BehaviorTree) \
@@ -155,6 +159,9 @@
 #include "assets/luafile.hpp"
 #include "assets/mapents.hpp"
 #include "assets/material.hpp"
+#include "assets/mayhem.hpp"
+#include "assets/animclass.hpp"
+#include "assets/carryobject.hpp"
 #include "assets/navmesh.hpp"
 #include "assets/netconststrings.hpp"
 #include "assets/particlesimanimation.hpp"

@@ -5,6 +5,8 @@
 #include "assets/animpackage.hpp"
 #include "assets/gfximage.hpp"
 #include "assets/material.hpp"
+#include "assets/sound.hpp"
+#include "assets/tracer.hpp"
 #include "assets/weapon.hpp"
 #include "assets/xanim.hpp"
 #include "assets/xmodel.hpp"

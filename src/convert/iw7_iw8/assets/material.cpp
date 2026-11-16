@@ -11,16 +11,39 @@ namespace zonetool::iw7::converter::iw8::material
 		namespace target = zonetool::iw8;
 
 		const char* const techset_name = "mo/lit_3_lit_rpl_ta1_800800_184a000010001010_0_3_1_0_0_13810015b_0_0_1_0_0_0_0_7818015f_0_1_2_0_0_0_0_b818015f_0_1_2_0_0"; // TODO: stock akilo47_fore techset, convert natively
+		const char* const effect_techset_name = "unlit_6_effect_bad_ta0_8a03_4_0_1_0_0_0_100000023_0_0_2_0_0"; // TODO: stock gfx_tracer_new_erad_blue techset, convert natively
 
-		target::GfxImage* find_image(const Material* asset, const TextureSemantic semantic)
+		GfxImage* find_texture(const Material* asset, const TextureSemantic semantic)
 		{
 			for (auto i = 0; asset->textureTable && i < asset->textureCount; i++)
 			{
 				if (asset->textureTable[i].semantic == semantic && asset->textureTable[i].image)
 				{
-					return semantic == TS_COLOR_SPECULAR_MAP
-						? gfximage::dump_color_specular(asset->textureTable[i].image)
-						: gfximage::dump_normal_gloss(asset->textureTable[i].image);
+					return asset->textureTable[i].image;
+				}
+			}
+
+			return nullptr;
+		}
+
+		target::GfxImage* find_image(const Material* asset, const TextureSemantic semantic)
+		{
+			const auto image = find_texture(asset, semantic);
+			if (!image)
+			{
+				return nullptr;
+			}
+
+			return semantic == TS_COLOR_SPECULAR_MAP ? gfximage::dump_color_specular(image) : gfximage::dump_normal_gloss(image);
+		}
+
+		const MaterialConstantDef* find_constant(const Material* asset, const std::string_view name)
+		{
+			for (auto i = 0; asset->constantTable && i < asset->constantCount; i++)
+			{
+				if (std::string_view(asset->constantTable[i].name, strnlen(asset->constantTable[i].name, sizeof(asset->constantTable[i].name))) == name)
+				{
+					return &asset->constantTable[i];
 				}
 			}
 
@@ -108,6 +131,52 @@ namespace zonetool::iw7::converter::iw8::material
 			result->constantTable = convert_constants(result->constantCount, allocator);
 			return result;
 		}
+
+		target::Material* convert_effect(const Material* asset, utils::memory::allocator& allocator)
+		{
+			const auto result = allocator.allocate<target::Material>();
+			result->name = asset->name;
+			result->contents = 1;
+			result->surfaceFlags = 0x10000;
+			result->materialType = target::MTL_TYPE_DEFAULT;
+			result->cameraRegion = target::CAMERA_REGION_EMISSIVE;
+			result->sortKey = asset->info.sortKey;
+			result->flags = 0x10;
+			result->textureAtlasRowCount = asset->info.textureAtlasRowCount;
+			result->textureAtlasColumnCount = asset->info.textureAtlasColumnCount;
+
+			result->techniqueSet = allocator.allocate<target::MaterialTechniqueSet>();
+			result->techniqueSet->name = effect_techset_name;
+
+			if (const auto image = find_texture(asset, TS_COLOR_MAP))
+			{
+				result->textureCount = 1;
+				result->textureTable = allocator.allocate<target::MaterialTextureDef>();
+				result->textureTable->index = 18;
+				result->textureTable->image = gfximage::dump_color(image);
+			}
+
+			result->constantCount = 1;
+			result->constantTable = allocator.allocate<target::MaterialConstantDef>();
+			result->constantTable->index = 36;
+			const auto tint = find_constant(asset, "colorTint");
+			const std::array<float, 4> white{1.0f, 1.0f, 1.0f, 1.0f};
+			std::memcpy(result->constantTable->literal, tint ? tint->literal : white.data(), sizeof(result->constantTable->literal));
+			return result;
+		}
+
+		Material* find_loaded(Material* asset)
+		{
+			if (!asset->textureTable)
+			{
+				if (const auto loaded = static_cast<Material*>(db_find_asset(ASSET_TYPE_MATERIAL, asset->name)))
+				{
+					return loaded;
+				}
+			}
+
+			return asset;
+		}
 	}
 
 	void dump(Material* asset)
@@ -117,19 +186,29 @@ namespace zonetool::iw7::converter::iw8::material
 			return;
 		}
 
-		if (!asset->textureTable)
-		{
-			if (const auto loaded = static_cast<Material*>(db_find_asset(ASSET_TYPE_MATERIAL, asset->name)))
-			{
-				asset = loaded;
-			}
-		}
+		asset = find_loaded(asset);
 
 		utils::memory::allocator allocator;
 		zonetool::iw8::material::dump(convert(asset, allocator));
 		add_csv_row("require", "techsets_global_stream_mp");
 		add_csv_row("techset", ","s + techset_name);
 		add_csv_row("image", ",$black");
+		add_csv_row("material", asset->name);
+	}
+
+	void dump_effect(Material* asset)
+	{
+		if (!asset || !mark_dumped(ASSET_TYPE_MATERIAL, asset->name))
+		{
+			return;
+		}
+
+		asset = find_loaded(asset);
+
+		utils::memory::allocator allocator;
+		zonetool::iw8::material::dump(convert_effect(asset, allocator));
+		add_csv_row("require", "techsets_common_core_mp");
+		add_csv_row("techset", ","s + effect_techset_name);
 		add_csv_row("material", asset->name);
 	}
 }
