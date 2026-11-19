@@ -1,8 +1,12 @@
 #include "flags.hpp"
 #include "string.hpp"
-#include "nt.hpp"
+#include "win_include.hpp"
 
 #include <shellapi.h>
+
+#include <optional>
+#include <string>
+#include <unordered_map>
 
 namespace utils::flags
 {

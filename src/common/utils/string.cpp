@@ -3,7 +3,7 @@
 #include <cstdarg>
 #include <algorithm>
 
-#include "nt.hpp"
+#include "win_include.hpp"
 
 namespace utils::string
 {

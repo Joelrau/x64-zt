@@ -3,3 +3,10 @@
 build/
 
 generate_custom.bat
+
+docs/
+re_reference/
+dump/
+
+iw8_asset_listing/
+/.gsclsp/config.json

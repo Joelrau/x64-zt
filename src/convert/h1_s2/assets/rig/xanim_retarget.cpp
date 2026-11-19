@@ -1,0 +1,693 @@
+#include <std_include.hpp>
+
+#include "../../include.hpp"
+#include "bone_rig.hpp"
+#include "xanim_retarget.hpp"
+
+namespace zonetool::h1::converter::s2::xanim_retarget
+{
+	namespace
+	{
+		namespace cs = zonetool::cast;
+
+		constexpr std::array sides{"le", "ri"};
+		constexpr std::array fingers{"index", "mid", "ring", "pinky", "thumb"};
+		constexpr std::array thumb_web_fingers{"index", "thumb"};
+		constexpr auto h1_first_finger_joint = 0;
+		constexpr auto s2_first_finger_joint = 1;
+
+		using namespace bone_rig;
+
+		struct arm_rigs
+		{
+			skeleton h1;
+			skeleton s2;
+			std::unordered_map<std::string, std::string> s2_to_h1;
+			std::unordered_set<std::string> h1_arm_bones;
+			std::vector<bool> s2_arm_bones;
+			std::vector<bool> s2_shared_body_bones;
+			int h1_body;
+			int s2_body;
+		};
+
+		std::optional<arm_rigs> loaded_rigs;
+		bool rigs_attempted = false;
+
+		std::string finger_bone(const char* finger, const char* side, const int joint)
+		{
+			return std::format("j_{}_{}_{}", finger, side, joint);
+		}
+
+		bool is_twist(const std::string& name)
+		{
+			return name.find("twist") != std::string::npos;
+		}
+
+		std::unordered_map<std::string, std::string> build_bone_map(const skeleton& h1, const skeleton& s2)
+		{
+			std::unordered_map<std::string, std::string> map;
+			for (const auto* side : sides)
+			{
+				for (const auto* joint : {"shoulder", "elbow", "wrist"})
+				{
+					map.emplace(side_bone(joint, side), side_bone(joint, side));
+				}
+
+				map.emplace(finger_bone("metapinky", side, s2_first_finger_joint), side_bone("pinkypalm", side));
+				map.emplace(finger_bone("metaring", side, s2_first_finger_joint), side_bone("ringpalm", side));
+				for (const auto* finger : fingers)
+				{
+					for (auto joint = 0; joint < 3; joint++)
+					{
+						map.emplace(finger_bone(finger, side, s2_first_finger_joint + joint), finger_bone(finger, side, h1_first_finger_joint + joint));
+					}
+				}
+			}
+
+			const auto s2_root = s2.find("j_mainroot");
+			for (auto i = 0u; i < s2.names.size(); i++)
+			{
+				if (s2.names[i].starts_with("tag_") && s2.has_ancestor(static_cast<int>(i), s2_root) && h1.has(s2.names[i]))
+				{
+					map.emplace(s2.names[i], s2.names[i]);
+				}
+			}
+
+			std::erase_if(map, [&](const auto& entry)
+			{
+				return !s2.has(entry.first) || !h1.has(entry.second);
+			});
+
+			return map;
+		}
+
+		int aim_child(const skeleton& rig, const int bone)
+		{
+			auto result = -1;
+			for (auto i = 0u; i < rig.names.size(); i++)
+			{
+				if (rig.parents[i] == bone && rig.names[i].starts_with("j_") && !is_twist(rig.names[i]))
+				{
+					if (result >= 0)
+					{
+						return -1;
+					}
+
+					result = static_cast<int>(i);
+				}
+			}
+
+			return result;
+		}
+
+		bool compute_anatomy(skeleton& rig, const std::unordered_map<std::string, std::string>& s2_to_rig)
+		{
+			const auto bone = [&](const std::string& s2_name)
+			{
+				const auto found = s2_to_rig.find(s2_name);
+				return found == s2_to_rig.end() ? -1 : rig.find(found->second);
+			};
+
+			const auto position = [&](const int index)
+			{
+				return rig.bind_world[index].position;
+			};
+
+			const auto set_anatomy = [&](const int index, const cs::quat_t& frame)
+			{
+				rig.anatomy[index] = multiply(inverse(rig.bind_world[index].rotation), frame);
+			};
+
+			for (const auto* side : sides)
+			{
+				const auto shoulder = bone(side_bone("shoulder", side));
+				const auto elbow = bone(side_bone("elbow", side));
+				const auto wrist = bone(side_bone("wrist", side));
+				const auto index = bone(finger_bone("index", side, s2_first_finger_joint));
+				const auto mid = bone(finger_bone("mid", side, s2_first_finger_joint));
+				const auto pinky = bone(finger_bone("pinky", side, s2_first_finger_joint));
+				if (shoulder < 0 || elbow < 0 || wrist < 0 || index < 0 || mid < 0 || pinky < 0)
+				{
+					return false;
+				}
+
+				const auto arm_normal = bend_normal(position(shoulder), position(elbow), position(wrist));
+				const auto palm_normal = normalize(cross(sub(position(index), position(wrist)), sub(position(pinky), position(wrist))));
+				set_anatomy(shoulder, frame_rotation(sub(position(elbow), position(shoulder)), arm_normal));
+				set_anatomy(elbow, frame_rotation(sub(position(wrist), position(elbow)), arm_normal));
+				set_anatomy(wrist, frame_rotation(sub(position(mid), position(wrist)), palm_normal));
+
+				for (const auto& rig_bone_name : s2_to_rig | std::views::values)
+				{
+					const auto joint = rig.find(rig_bone_name);
+					if (joint == shoulder || joint == elbow || joint == wrist || !rig_bone_name.starts_with("j_") || !rig.has_ancestor(joint, wrist))
+					{
+						continue;
+					}
+
+					const auto child = aim_child(rig, joint);
+					const auto aim = child >= 0 ? sub(position(child), position(joint)) : sub(position(joint), position(rig.parents[joint]));
+					set_anatomy(joint, frame_rotation(aim, palm_normal));
+				}
+			}
+
+			return true;
+		}
+
+		std::unordered_set<std::string> find_h1_arm_bones(const skeleton& h1)
+		{
+			std::unordered_set<std::string> arm_bones;
+			for (const auto* side : sides)
+			{
+				const auto shoulder = h1.find(side_bone("shoulder", side));
+				for (auto i = 0u; i < h1.names.size(); i++)
+				{
+					if (h1.has_ancestor(static_cast<int>(i), shoulder))
+					{
+						arm_bones.emplace(h1.names[i]);
+					}
+				}
+			}
+
+			return arm_bones;
+		}
+
+		std::vector<bool> find_s2_arm_bones(const skeleton& s2)
+		{
+			const auto s2_root = s2.find("j_mainroot");
+			std::vector<bool> arm_bones;
+			for (auto i = 0u; i < s2.names.size(); i++)
+			{
+				arm_bones.emplace_back(s2.has_ancestor(static_cast<int>(i), s2_root));
+			}
+
+			return arm_bones;
+		}
+
+		std::vector<bool> find_s2_shared_body_bones(const arm_rigs& rigs)
+		{
+			std::vector<bool> body_bones;
+			for (auto i = 0u; i < rigs.s2.names.size(); i++)
+			{
+				body_bones.emplace_back(!rigs.s2_arm_bones[i] && rigs.s2.has_ancestor(static_cast<int>(i), rigs.s2_body)
+					&& rigs.h1.has(rigs.s2.names[i]));
+			}
+
+			return body_bones;
+		}
+
+		std::optional<arm_rigs> load_rigs()
+		{
+			auto h1 = bone_rig::load_h1_skeleton("viewmodel_base_viewhands");
+			auto s2 = bone_rig::load_s2_skeleton("viewmodel_base_viewhands");
+			if (!h1 || !s2 || !s2->has("j_mainroot") || !h1->has(body_tag) || !s2->has(body_tag))
+			{
+				ZONETOOL_WARNING("the h1 or s2 \"viewmodel_base_viewhands\" arm rig is not loaded, viewmodel anims keep the h1 arm bones");
+				return {};
+			}
+
+			const auto h1_body = h1->find(body_tag);
+			const auto s2_body = s2->find(body_tag);
+			arm_rigs result{.h1 = std::move(*h1), .s2 = std::move(*s2), .h1_body = h1_body, .s2_body = s2_body};
+			result.s2_to_h1 = build_bone_map(result.h1, result.s2);
+
+			std::unordered_map<std::string, std::string> s2_to_s2;
+			for (const auto& s2_name : result.s2_to_h1 | std::views::keys)
+			{
+				s2_to_s2.emplace(s2_name, s2_name);
+			}
+
+			if (!compute_anatomy(result.h1, result.s2_to_h1) || !compute_anatomy(result.s2, s2_to_s2))
+			{
+				ZONETOOL_WARNING("the h1 and s2 \"viewmodel_base_viewhands\" arm rigs do not have the expected arm and finger bones");
+				return {};
+			}
+
+			result.h1_arm_bones = find_h1_arm_bones(result.h1);
+			result.s2_arm_bones = find_s2_arm_bones(result.s2);
+			result.s2_shared_body_bones = find_s2_shared_body_bones(result);
+			return result;
+		}
+
+		const arm_rigs* get_rigs()
+		{
+			if (!rigs_attempted)
+			{
+				rigs_attempted = true;
+				loaded_rigs = load_rigs();
+			}
+
+			return loaded_rigs ? &*loaded_rigs : nullptr;
+		}
+
+		class arm_solver
+		{
+		public:
+			arm_solver(const arm_rigs& rigs, const std::unordered_map<std::string, bone_keys>& keys, const std::vector<bool>& shared_bones)
+				: rigs_(rigs)
+				, keys_(keys)
+				, shared_bones_(shared_bones)
+			{
+				const auto& s2 = this->rigs_.s2;
+				for (const auto* side : sides)
+				{
+					const auto shoulder = s2.bind_world[s2.find(side_bone("shoulder", side))].position;
+					const auto elbow = s2.bind_world[s2.find(side_bone("elbow", side))].position;
+					const auto wrist = s2.bind_world[s2.find(side_bone("wrist", side))].position;
+					this->last_normal_.emplace(side, bend_normal(shoulder, elbow, wrist));
+				}
+			}
+
+			std::vector<transform> solve(const std::uint32_t frame)
+			{
+				const auto& h1 = this->rigs_.h1;
+				const auto& s2 = this->rigs_.s2;
+
+				std::vector<transform> h1_locals(h1.names.size());
+				for (auto i = 0u; i < h1.names.size(); i++)
+				{
+					h1_locals[i] = sample_local(this->keys_, h1.names[i], h1.pose_local[i], frame);
+				}
+
+				this->h1_world_ = forward_kinematics(h1, h1_locals);
+				this->s2_world_.assign(s2.names.size(), {});
+				for (auto i = 0u; i < s2.names.size(); i++)
+				{
+					const auto parent = s2.parents[i] < 0 ? transform{} : this->s2_world_[s2.parents[i]];
+					if (static_cast<int>(i) == this->rigs_.s2_body)
+					{
+						this->s2_world_[i] = compose(parent, this->body_local(h1_locals[this->rigs_.h1_body]));
+					}
+					else if (this->shared_bones_[i])
+					{
+						this->s2_world_[i] = this->h1_world_[h1.find(s2.names[i])];
+					}
+					else
+					{
+						this->s2_world_[i] = compose(parent, s2.pose_local[i]);
+					}
+				}
+
+				for (auto i = 0u; i < s2.names.size(); i++)
+				{
+					if (this->rigs_.s2_arm_bones[i] && !is_twist(s2.names[i]))
+					{
+						this->s2_world_[i] = this->solve_bone(static_cast<int>(i));
+					}
+				}
+
+				std::vector<transform> s2_locals(s2.names.size());
+				for (auto i = 0u; i < s2.names.size(); i++)
+				{
+					if (this->rigs_.s2_arm_bones[i] && is_twist(s2.names[i]))
+					{
+						s2_locals[i] = this->solve_twist(static_cast<int>(i));
+						this->s2_world_[i] = compose(this->s2_world_[s2.parents[i]], s2_locals[i]);
+					}
+				}
+
+				for (auto i = 0u; i < s2.names.size(); i++)
+				{
+					if (!this->rigs_.s2_arm_bones[i] || !is_twist(s2.names[i]))
+					{
+						s2_locals[i] = s2.parents[i] < 0 ? this->s2_world_[i] : compose(invert(this->s2_world_[s2.parents[i]]), this->s2_world_[i]);
+					}
+				}
+
+				return s2_locals;
+			}
+
+		private:
+			transform body_local(const transform& h1_local) const
+			{
+				const auto& h1_bind = this->rigs_.h1.bind_local[this->rigs_.h1_body];
+				const auto& s2_bind = this->rigs_.s2.bind_local[this->rigs_.s2_body];
+				return {multiply(multiply(h1_local.rotation, inverse(h1_bind.rotation)), s2_bind.rotation),
+					add(s2_bind.position, sub(h1_local.position, h1_bind.position))};
+			}
+
+			transform h1_anatomy(const int bone) const
+			{
+				const auto& world = this->h1_world_[bone];
+				return {multiply(world.rotation, this->rigs_.h1.anatomy[bone]), world.position};
+			}
+
+			transform s2_anatomy(const int bone) const
+			{
+				const auto& world = this->s2_world_[bone];
+				return {multiply(world.rotation, this->rigs_.s2.anatomy[bone]), world.position};
+			}
+
+			cs::quat_t s2_rotation(const int bone, const cs::quat_t& anatomy) const
+			{
+				return multiply(anatomy, inverse(this->rigs_.s2.anatomy[bone]));
+			}
+
+			transform bind_under_parent(const int bone) const
+			{
+				const auto parent = this->rigs_.s2.parents[bone];
+				return compose(parent < 0 ? transform{} : this->s2_world_[parent], this->rigs_.s2.bind_local[bone]);
+			}
+
+			int h1_bone(const int s2_bone) const
+			{
+				const auto found = this->rigs_.s2_to_h1.find(this->rigs_.s2.names[s2_bone]);
+				return found == this->rigs_.s2_to_h1.end() ? -1 : this->rigs_.h1.find(found->second);
+			}
+
+			const char* side_of(const int s2_bone) const
+			{
+				for (const auto* side : sides)
+				{
+					if (this->rigs_.s2.has_ancestor(s2_bone, this->rigs_.s2.find(side_bone("shoulder", side))))
+					{
+						return side;
+					}
+				}
+
+				return nullptr;
+			}
+
+			transform solve_bone(const int bone)
+			{
+				const auto& name = this->rigs_.s2.names[bone];
+				for (const auto* clavicle_side : sides)
+				{
+					if (name == side_bone("clavicle", clavicle_side))
+					{
+						return this->solve_clavicle(bone, clavicle_side);
+					}
+				}
+
+				const auto* side = this->side_of(bone);
+				if (side && name == side_bone("shoulder", side))
+				{
+					return this->solve_shoulder(bone, side);
+				}
+
+				if (side && name == side_bone("elbow", side))
+				{
+					return this->solve_elbow(bone, side);
+				}
+
+				const auto h1 = this->h1_bone(bone);
+				if (h1 < 0)
+				{
+					return this->bind_under_parent(bone);
+				}
+
+				if (side && name == side_bone("wrist", side))
+				{
+					return {this->s2_rotation(bone, this->h1_anatomy(h1).rotation), this->arms_.at(side).hand};
+				}
+
+				return this->solve_finger_or_tag(bone, h1);
+			}
+
+			transform solve_clavicle(const int clavicle, const char* side) const
+			{
+				const auto& h1 = this->rigs_.h1;
+				const auto& s2 = this->rigs_.s2;
+				const auto h1_shoulder = h1.find(side_bone("shoulder", side));
+				const auto s2_shoulder = s2.find(side_bone("shoulder", side));
+				const auto bind = this->bind_under_parent(clavicle);
+				if (s2.parents[s2_shoulder] != clavicle)
+				{
+					return bind;
+				}
+
+				const auto h1_offset = sub(to_local(this->h1_world_[this->rigs_.h1_body], this->h1_world_[h1_shoulder].position),
+					to_local(h1.bind_world[this->rigs_.h1_body], h1.bind_world[h1_shoulder].position));
+				const auto s2_offset = to_local(s2.bind_world[this->rigs_.s2_body], s2.bind_world[s2_shoulder].position);
+				const auto target = to_world(this->s2_world_[this->rigs_.s2_body], add(s2_offset, h1_offset));
+				const auto swing = rotation_between(cs::quat_rotate(bind.rotation, s2.bind_local[s2_shoulder].position), sub(target, bind.position));
+				return {multiply(swing, bind.rotation), bind.position};
+			}
+
+			transform solve_shoulder(const int shoulder, const char* side)
+			{
+				const auto& h1 = this->rigs_.h1;
+				const auto& s2 = this->rigs_.s2;
+				const auto elbow = s2.find(side_bone("elbow", side));
+				const auto wrist = s2.find(side_bone("wrist", side));
+				const auto h1_shoulder = this->h1_world_[h1.find(side_bone("shoulder", side))].position;
+				const auto h1_elbow = this->h1_world_[h1.find(side_bone("elbow", side))].position;
+				const auto h1_wrist = this->h1_world_[h1.find(side_bone("wrist", side))].position;
+
+				const auto start = this->bind_under_parent(shoulder).position;
+				const auto upper = length(s2.bind_local[elbow].position);
+				const auto lower = length(s2.bind_local[wrist].position);
+
+				auto& last_normal = this->last_normal_.at(side);
+				if (const auto normal = bend_normal(h1_shoulder, h1_elbow, h1_wrist); length(normal) > epsilon)
+				{
+					last_normal = normal;
+				}
+
+				auto& arm = this->arms_[side];
+				arm = solve_two_bone(start, this->hand_position(side), upper, lower, last_normal);
+				return {this->s2_rotation(shoulder, frame_rotation(sub(arm.elbow, start), arm.normal)), start};
+			}
+
+			cs::vec3_t hand_position(const char* side) const
+			{
+				const auto& h1 = this->rigs_.h1;
+				const auto& s2 = this->rigs_.s2;
+				const auto h1_wrist = h1.find(side_bone("wrist", side));
+				const auto s2_wrist = s2.find(side_bone("wrist", side));
+
+				cs::vec3_t h1_web{};
+				cs::vec3_t s2_web{};
+				for (const auto* finger : thumb_web_fingers)
+				{
+					const auto h1_joint = h1.find(finger_bone(finger, side, h1_first_finger_joint));
+					const auto s2_joint = s2.find(finger_bone(finger, side, s2_first_finger_joint));
+					if (h1_joint < 0 || s2_joint < 0)
+					{
+						return this->h1_world_[h1_wrist].position;
+					}
+
+					h1_web = add(h1_web, this->h1_world_[h1_joint].position);
+					s2_web = add(s2_web, to_local(s2.bind_world[s2_wrist], s2.bind_world[s2_joint].position));
+				}
+
+				const auto rotation = this->s2_rotation(s2_wrist, this->h1_anatomy(h1_wrist).rotation);
+				const auto weight = 1.0f / static_cast<float>(thumb_web_fingers.size());
+				return sub(scale(h1_web, weight), cs::quat_rotate(rotation, scale(s2_web, weight)));
+			}
+
+			transform solve_elbow(const int elbow, const char* side) const
+			{
+				const auto& arm = this->arms_.at(side);
+				return {this->s2_rotation(elbow, frame_rotation(sub(arm.wrist, arm.elbow), arm.normal)), arm.elbow};
+			}
+
+			transform solve_finger_or_tag(const int bone, const int h1) const
+			{
+				const auto& s2 = this->rigs_.s2;
+				auto ancestor = s2.parents[bone];
+				while (ancestor >= 0 && this->h1_bone(ancestor) < 0)
+				{
+					ancestor = s2.parents[ancestor];
+				}
+
+				if (ancestor < 0)
+				{
+					return this->bind_under_parent(bone);
+				}
+
+				const auto relative = compose(invert(this->h1_anatomy(this->h1_bone(ancestor))), this->h1_anatomy(h1));
+				const auto anatomy = compose(this->s2_anatomy(ancestor), relative);
+				if (s2.names[bone].starts_with("tag_"))
+				{
+					return {this->s2_rotation(bone, anatomy.rotation), anatomy.position};
+				}
+
+				const auto position = this->bind_under_parent(bone).position;
+				const auto child = aim_child(s2, bone);
+				const auto h1_child = child >= 0 ? this->h1_bone(child) : -1;
+				if (h1_child < 0)
+				{
+					return {this->s2_rotation(bone, anatomy.rotation), position};
+				}
+
+				const auto palm_normal = cs::quat_rotate(this->h1_anatomy(h1).rotation, {{0.0f, 0.0f, 1.0f}});
+				return {this->s2_rotation(bone, frame_rotation(sub(this->h1_world_[h1_child].position, position), palm_normal)), position};
+			}
+
+			transform solve_twist(const int twist) const
+			{
+				const auto& s2 = this->rigs_.s2;
+				const auto driver = aim_child(s2, s2.parents[twist]);
+				if (driver < 0)
+				{
+					return s2.bind_local[twist];
+				}
+
+				const auto driver_local = compose(invert(this->s2_world_[s2.parents[twist]]), this->s2_world_[driver]);
+				const auto delta = multiply(driver_local.rotation, inverse(s2.bind_local[driver].rotation));
+				const auto axis = normalize(s2.bind_local[driver].position);
+				const auto weight = std::clamp(length(s2.bind_local[twist].position) / std::max(length(s2.bind_local[driver].position), epsilon), 0.0f, 1.0f);
+				const auto twist_rotation = cs::quat_slerp(cs::quat_t{}, twist_about(delta, axis), weight);
+				return {multiply(twist_rotation, s2.bind_local[twist].rotation), s2.bind_local[twist].position};
+			}
+
+			const arm_rigs& rigs_;
+			const std::unordered_map<std::string, bone_keys>& keys_;
+			const std::vector<bool>& shared_bones_;
+			std::vector<transform> h1_world_;
+			std::vector<transform> s2_world_;
+			std::unordered_map<std::string, arm_pose> arms_;
+			std::unordered_map<std::string, cs::vec3_t> last_normal_;
+		};
+
+		bool drives_h1_arms(const cs::animation_t& animation, const arm_rigs& rigs)
+		{
+			return std::ranges::any_of(animation.curves, [&](const cs::curve_t& curve)
+			{
+				return rigs.h1_arm_bones.contains(curve.node_name);
+			});
+		}
+
+		std::vector<bool> find_shared_bones(const arm_rigs& rigs, const std::unordered_map<std::string, bone_keys>& keys)
+		{
+			std::vector<bool> shared_bones(rigs.s2.names.size());
+			for (auto bone = 0u; bone < rigs.s2.names.size(); bone++)
+			{
+				const auto& name = rigs.s2.names[bone];
+				shared_bones[bone] = rigs.s2_shared_body_bones[bone] || (!rigs.s2_arm_bones[bone] && keys.contains(name) && rigs.h1.has(name));
+			}
+
+			return shared_bones;
+		}
+
+		std::vector<std::vector<transform>> solve_poses(const arm_rigs& rigs, const std::unordered_map<std::string, bone_keys>& keys,
+			const std::vector<bool>& shared_bones, const std::uint32_t last_frame)
+		{
+			std::vector<std::vector<transform>> poses;
+			arm_solver solver(rigs, keys, shared_bones);
+			for (auto frame = 0u; frame <= last_frame; frame++)
+			{
+				poses.emplace_back(solver.solve(frame));
+			}
+
+			return poses;
+		}
+
+		cs::animation_t retarget_animation(const cs::animation_t& animation, const arm_rigs& rigs, const std::uint32_t last_frame)
+		{
+			const auto& s2 = rigs.s2;
+			const auto keys = collect_keys(animation);
+			const auto shared_bones = find_shared_bones(rigs, keys);
+
+			const auto written = [&](const int bone)
+			{
+				if (rigs.s2_arm_bones[bone] && s2.names[bone].starts_with("tag_") && !keys.contains(s2.names[bone]))
+				{
+					return false;
+				}
+
+				return rigs.s2_arm_bones[bone] || shared_bones[bone];
+			};
+
+			const auto replaced = [&](const std::string& name)
+			{
+				const auto s2_bone = s2.find(name);
+				return rigs.h1_arm_bones.contains(name) || (s2_bone >= 0 && written(s2_bone));
+			};
+
+			cs::animation_t result{.name = animation.name, .framerate = animation.framerate, .looping = animation.looping};
+			std::ranges::copy_if(animation.bones, std::back_inserter(result.bones), [&](const cs::bone_t& bone)
+			{
+				return !replaced(bone.name);
+			});
+			std::ranges::copy_if(animation.curves, std::back_inserter(result.curves), [&](const cs::curve_t& curve)
+			{
+				return !replaced(curve.node_name);
+			});
+
+			const auto poses = solve_poses(rigs, keys, shared_bones, last_frame);
+			for (auto bone = 0; bone < static_cast<int>(s2.names.size()); bone++)
+			{
+				if (written(bone))
+				{
+					add_bone_curves(result.curves, s2.names[bone], poses, bone);
+				}
+			}
+
+			return result;
+		}
+
+		void copy_bone_data(const zonetool::s2::XAnimParts* source, zonetool::s2::XAnimParts* target)
+		{
+			target->dataByteCount = source->dataByteCount;
+			target->dataShortCount = source->dataShortCount;
+			target->dataIntCount = source->dataIntCount;
+			std::memcpy(target->boneCount, source->boneCount, sizeof(target->boneCount));
+			target->randomDataByteCount = source->randomDataByteCount;
+			target->randomDataShortCount = source->randomDataShortCount;
+			target->randomDataIntCount = source->randomDataIntCount;
+			target->indexCount = source->indexCount;
+			target->names = source->names;
+			target->dataByte = source->dataByte;
+			target->dataShort = source->dataShort;
+			target->dataInt = source->dataInt;
+			target->randomDataShort = source->randomDataShort;
+			target->randomDataByte = source->randomDataByte;
+			target->randomDataInt = source->randomDataInt;
+			target->indices = source->indices;
+		}
+	}
+
+	bool retarget(zonetool::s2::XAnimParts* parts, std::optional<zone_memory>& memory)
+	{
+		const auto* rigs = get_rigs();
+		if (!rigs)
+		{
+			return false;
+		}
+
+		cs::animation_t animation;
+		try
+		{
+			animation = zonetool::s2::cast_xanim::to_animation(parts);
+		}
+		catch (const std::exception& ex)
+		{
+			ZONETOOL_FATAL("xanim \"%s\": %s", parts->name, ex.what());
+		}
+
+		if (!drives_h1_arms(animation, *rigs))
+		{
+			return false;
+		}
+
+		if (parts->assetType == zonetool::s2::XANIM_ASSET_TYPE_ADDITIVE)
+		{
+			ZONETOOL_WARNING("xanim \"%s\": additive anims are not retargeted, its h1 arm bones do not match the s2 arm rig", parts->name);
+			return false;
+		}
+
+		auto& retarget_memory = memory.emplace(16ull * 1024 * 1024);
+		const auto* retargeted = zonetool::s2::cast_xanim::from_animation(retarget_animation(animation, *rigs, parts->numframes), &retarget_memory);
+		if (retargeted->numframes != parts->numframes)
+		{
+			ZONETOOL_FATAL("xanim \"%s\": the retargeted anim has %u frames, the h1 anim has %u", parts->name, retargeted->numframes, parts->numframes);
+		}
+
+		copy_bone_data(retargeted, parts);
+		return true;
+	}
+
+	const bone_rig::skeleton* s2_arm_rig()
+	{
+		const auto* rigs = get_rigs();
+		return rigs ? &rigs->s2 : nullptr;
+	}
+
+	void clear()
+	{
+		loaded_rigs.reset();
+		rigs_attempted = false;
+	}
+}

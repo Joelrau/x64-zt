@@ -53,6 +53,7 @@ namespace utils::cryptography
 	namespace rsa
 	{
 		std::string encrypt(const std::string& data, const std::string& hash, const std::string& key);
+		std::string decrypt(const std::string& data, const std::string& hash, const std::string& key);
 	}
 
 	namespace des3
@@ -71,6 +72,7 @@ namespace utils::cryptography
 	{
 		std::string encrypt(const std::string& data, const std::string& iv, const std::string& key);
 		std::string decrypt(const std::string& data, const std::string& iv, const std::string& key);
+		std::string crypt_ctr_little_endian(std::string_view data, std::string_view iv, std::string_view key);
 	}
 
 	namespace hmac_sha1
