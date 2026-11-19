@@ -3907,11 +3907,16 @@ namespace zonetool::iw8
 	enum ShaderCodeConstants : std::uint16_t
 	{
 		CONST_SRC_CODE_CAMERA_OFFSET = 0x1, // name unknown
+		CONST_SRC_CODE_GAME_TIME = 0x2, // name unknown
+		CONST_SRC_CODE_RENDER_TARGET_SIZE = 0x4, // name unknown
+		CONST_SRC_CODE_RESOLUTION_SCALE = 0x67, // name unknown
 		CONST_SRC_CODE_VIEW_PROJECTION_MATRIX = 0xA4, // name unknown
 	};
 
 	enum ShaderCodeBuffers : std::uint16_t
 	{
+		BUFFER_SRC_CODE_LIGHTMAP_PACKING = 0x28, // name unknown
+		BUFFER_SRC_CODE_SCREEN_TILES = 0x2C, // name unknown
 		BUFFER_SRC_CODE_WORLD_SURFACE_DATA = 0x2D, // name unknown
 	};
 
@@ -4031,6 +4036,12 @@ namespace zonetool::iw8
 		GfxConstantBuffer dsConstantBuffer;
 		GfxConstantBuffer psConstantBuffer;
 	}; assert_sizeof(MaterialConstantBufferDef, 0x110);
+
+	enum MaterialConstantIndex : std::uint8_t
+	{
+		MATERIAL_CONSTANT_EFFECT_COLOR_TINT = 36, // name unknown
+		MATERIAL_CONSTANT_UV_ANIM = 0x3F, // name unknown
+	};
 
 	enum CameraRegion : std::uint8_t
 	{
@@ -9649,6 +9660,14 @@ namespace zonetool::iw8
 		GfxStaticModelLOD lodInfo[6];
 		float lodDist[6];
 	}; assert_sizeof(GfxStaticModelExpansion, 0x40);
+
+	enum GfxSModelSurfCullType : std::uint8_t
+	{
+		SMODEL_SURF_CULL_DOUBLE_SIDED = 0x6E,
+		SMODEL_SURF_CULL_DECAL_DOUBLE_SIDED = 0x7E,
+		SMODEL_SURF_CULL_OPAQUE = 0xEF,
+		SMODEL_SURF_CULL_DECAL = 0xFF,
+	};
 
 	struct GfxSModelSurfMatIndirection
 	{

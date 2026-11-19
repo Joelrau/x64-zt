@@ -584,6 +584,25 @@ namespace zonetool::xfile
 		}
 	}
 
+	std::string read_iw7_asset_file(const std::filesystem::path& path, const XStreamFile& stream_file, const format& format)
+	{
+		std::ifstream stream(path, std::ios::binary);
+		if (!stream)
+		{
+			throw std::runtime_error(std::format("cannot open {}", path.filename().string()));
+		}
+
+		std::string data(stream_file.offsetEnd - stream_file.offset, '\0');
+		stream.seekg(static_cast<std::streamoff>(stream_file.offset));
+		if (!stream.read(data.data(), static_cast<std::streamsize>(data.size())))
+		{
+			throw std::runtime_error(std::format("cannot read 0x{:X} bytes at 0x{:X} of {}", data.size(), stream_file.offset,
+				path.filename().string()));
+		}
+
+		return decompress_iwc(strip_auth_blocks(data, format));
+	}
+
 	std::string decompress_s2_stream(const std::string_view data)
 	{
 		byte_reader reader(data);

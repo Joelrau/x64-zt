@@ -2,7 +2,9 @@
 
 #include "../include.hpp"
 #include "gfxworld.hpp"
+#include "gfximage.hpp"
 #include "material.hpp"
+#include "xmodel.hpp"
 #include "xsurface.hpp"
 
 #include <iw8/assets/gfxworld.hpp>
@@ -298,12 +300,7 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 				data.lmapCoordOffset = static_cast<unsigned int>(geometry.aux.size());
 				for (auto i = 0u; i < vertex_count; i++)
 				{
-					const float coord[2]
-					{
-						(vertices[i].lmapCoord[0] - std::floor(vertices[i].lmapCoord[0])) * 4.0f - 1.0f,
-						(vertices[i].lmapCoord[1] - std::floor(vertices[i].lmapCoord[1])) * 4.0f - 1.0f,
-					};
-					append(geometry.aux, coord, sizeof(coord));
+					append(geometry.aux, vertices[i].lmapCoord, sizeof(vertices[i].lmapCoord));
 				}
 
 				data.colorOffset = static_cast<unsigned int>(geometry.aux.size());
@@ -441,9 +438,38 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 			}
 		}
 
+		std::unordered_map<unsigned int, const GfxImage*> get_sky_surfaces(const GfxWorld* asset)
+		{
+			std::unordered_map<unsigned int, const GfxImage*> surfaces;
+			for (auto i = 0; asset->skies && asset->dpvs.sortedSurfIndex && i < asset->skyCount; i++)
+			{
+				const auto& sky = asset->skies[i];
+				for (auto j = 0; sky.skyStartSurfs && j < sky.skySurfCount; j++)
+				{
+					surfaces.emplace(asset->dpvs.sortedSurfIndex[sky.skyStartSurfs[j]], sky.skyImage);
+				}
+			}
+
+			return surfaces;
+		}
+
+		target::Material* convert_surface_material(const Material* handle, const std::unordered_map<unsigned int, const GfxImage*>& sky_surfaces,
+			const unsigned int index, utils::memory::allocator& allocator)
+		{
+			const auto sky = sky_surfaces.find(index);
+			if (sky == sky_surfaces.end())
+			{
+				return convert_lit_material(handle, techset::GENERATED_TECHSET_WORLD, allocator);
+			}
+
+			const auto name = material::dump_sky(const_cast<Material*>(handle), sky->second);
+			return name.empty() ? nullptr : make_named<target::Material>(name.c_str(), allocator);
+		}
+
 		void convert_surfaces(const GfxWorld* asset, const world_geometry& geometry, target::GfxWorld* world,
 			utils::memory::allocator& allocator)
 		{
+			const auto sky_surfaces = get_sky_surfaces(asset);
 			const auto count = asset->surfaceCount;
 			auto& surfaces = world->surfaces;
 			surfaces.count = count;
@@ -467,7 +493,7 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 			{
 				const auto& source = asset->dpvs.surfaces[i];
 				auto& converted = surfaces.surfaces[i];
-				converted.material = convert_lit_material(source.material, techset::GENERATED_TECHSET_WORLD, allocator);
+				converted.material = convert_surface_material(source.material, sky_surfaces, i, allocator);
 				if (geometry.valid[i] && converted.material)
 				{
 					converted.tris.posOffset = geometry.surf_data[i].xyzOffset;
@@ -482,7 +508,7 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 
 				converted.surfDataIndex = i;
 				converted.transientZone = 0;
-				converted.lightmapIndex = 0;
+				converted.lightmapIndex = source.lightmapIndex < world->draw.lightmapCount ? source.lightmapIndex : 510;
 				converted.flags = 0;
 				surfaces.surfData[i] = geometry.surf_data[i];
 				surfaces.surfaceBounds[i].bounds = std::bit_cast<target::Bounds>(asset->dpvs.surfacesBounds[i].bounds);
@@ -563,7 +589,6 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 			smodels.models = make_array<target::GfxStaticModel>(smodels.modelCount, allocator);
 			smodels.surfaces = make_array<target::GfxStaticModelSurface>(total_surfaces, allocator);
 			smodels.collections = make_array<target::GfxStaticModelCollection>(instance_count, allocator);
-			smodels.instances = make_array<target::GfxStaticModelInstance>(instance_count, allocator);
 			smodels.instanceFlags = make_array<unsigned char>(instance_count, allocator);
 			smodels.collectionBounds = make_array<target::Bounds>(instance_count, allocator);
 			smodels.modelStaticIndirection = make_array<target::GfxModelStaticIndirection>(instance_count, allocator);
@@ -573,12 +598,6 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 			smodels.smodelSurfMatIndirection = make_array<target::GfxSModelSurfMatIndirection>(total_surfaces, allocator);
 			smodels.smodelSurfUGBIndirection = make_array<unsigned int>(total_surfaces, allocator);
 
-			const auto vis_words = (instance_count + 31) >> 5;
-			smodels.collectionTransientZonePrevFrameVisibility.array = make_array<unsigned int>(vis_words, allocator);
-			smodels.collectionTransientZonePrevFrameVisibility.wordCount = vis_words;
-			smodels.collectionTransientZonePrevFrameVisibility.bitCount = instance_count;
-			smodels.collectionVisRefCount = make_array<unsigned char>(instance_count, allocator);
-
 			std::vector<const Material*> materials;
 			std::unordered_map<std::string_view, unsigned short> material_index;
 			auto surface = 0u;
@@ -587,7 +606,7 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 			{
 				const auto& entry = models[m];
 				auto& model = smodels.models[m];
-				model.model = make_named<target::XModel>(entry.model, allocator);
+				model.model = entry.model ? make_named<target::XModel>(xmodel::dump_static(const_cast<XModel*>(entry.model)).c_str(), allocator) : nullptr;
 				model.flags = target::STATIC_MODEL_FLAG_LIGHTPROBE_LIGHTING;
 				model.firstStaticModelSurfaceIndex = static_cast<unsigned short>(entry.first_surface);
 
@@ -614,7 +633,7 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 						auto& surface_entry = smodels.surfaces[surface];
 						surface_entry.smodelIndex = static_cast<unsigned short>(m);
 						surface_entry.lodIndex = static_cast<unsigned char>(lod);
-						surface_entry.surfIndex = static_cast<unsigned char>(info.surfIndex + s);
+						surface_entry.surfIndex = static_cast<unsigned char>(s);
 
 						const auto* material = info.surfIndex + s < entry.model->numsurfs
 							? entry.model->materialHandles[info.surfIndex + s]
@@ -635,7 +654,7 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 
 						auto& indirection = smodels.smodelSurfMatIndirection[surface];
 						indirection.smodelMaterialIndex = found->second;
-						indirection.cullType = target::GFX_RASTERIZER_CULL_NONE;
+						indirection.cullType = material::get_smodel_cull_type(const_cast<Material*>(material));
 						indirection.emitType = 0x0F;
 
 						const auto& bounds = entry.model->bounds;
@@ -645,7 +664,7 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 						data.boundingBoxData[2] = bounds.midPoint[2];
 						data.boundingBoxData[3] = std::max({bounds.halfSize[0], bounds.halfSize[1], bounds.halfSize[2]});
 						std::memcpy(data.boundingBoxHalfSize, bounds.halfSize, sizeof(data.boundingBoxHalfSize));
-						data.drawDistance = info.dist;
+						data.drawDistance = entry.lod_dist[entry.lod_count - 1];
 
 						surface++;
 					}
@@ -718,8 +737,6 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 			auto& draw = world->draw;
 			draw.iesLookupTexture = convert_image(asset->draw.iesLookupTexture, allocator);
 			draw.lightGridType = 0;
-			draw.lightmapType = target::GFX_LIGHTMAP_TYPE_REGULAR_UNCOMPRESSED;
-			draw.lightmapCount = 0;
 			draw.transientZoneCount = 1;
 			draw.transientZones[0] = zone;
 			draw.bakedLightScale = 1.0f;
@@ -729,6 +746,55 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 			world->materialLod0SizeThreshold = 0.5f;
 			world->checksum = asset->checksum;
 			world->bounds = std::bit_cast<target::Bounds>(asset->bounds);
+		}
+
+		void convert_lightmaps(const GfxWorld* asset, target::GfxWorldTransientZone* zone, target::GfxWorld* world,
+			utils::memory::allocator& allocator)
+		{
+			auto& draw = world->draw;
+			draw.lightmapType = target::GFX_LIGHTMAP_TYPE_REGULAR_UNCOMPRESSED;
+
+			auto* atlas = allocator.allocate<target::GfxLightmapAtlasDataTemp>();
+			atlas->lightmapType = target::GFX_LIGHTMAP_TYPE_AB_LIGHTING;
+			const auto count = std::min<std::size_t>(asset->draw.lightMapCount, std::size(atlas->lightmaps));
+			for (auto i = 0u; i < count; i++)
+			{
+				const auto* source = asset->draw.lightMaps[i];
+				const auto lightmap = source ? gfximage::convert_lightmap(source, allocator) : std::nullopt;
+				if (!lightmap)
+				{
+					ZONETOOL_WARNING("gfxworld \"%s\": cannot convert lightmap %u", asset->name, i);
+					break;
+				}
+
+				atlas->lightmaps[atlas->numLightmaps++] = *lightmap;
+			}
+
+			if (!atlas->numLightmaps)
+			{
+				return;
+			}
+
+			zone->tempLightmapData = atlas;
+			draw.lightmapType = atlas->lightmapType;
+			draw.lightmapCount = static_cast<int>(atlas->numLightmaps);
+			draw.lightmapTransientIndex = make_array<unsigned int>(atlas->numLightmaps, allocator);
+
+			auto& reindex = draw.lightmapReindexData;
+			reindex.imagePixelSize = 4;
+			reindex.reindexCount = atlas->numLightmaps * 3;
+			reindex.reindexElement = make_array<target::GfxWorldLightmapReindexDataElement>(reindex.reindexCount, allocator);
+			reindex.packedLightmapCount = atlas->numLightmaps;
+			reindex.packedLightmap = make_array<target::GfxWorldPackedLightmap>(reindex.packedLightmapCount, allocator);
+			for (auto i = 0u; i < atlas->numLightmaps; i++)
+			{
+				const auto& desc = atlas->lightmaps[i].textures[0].desc;
+				reindex.packedLightmap[i] = {desc.width, desc.height};
+				for (auto j = 0u; j < 3; j++)
+				{
+					reindex.reindexElement[i * 3 + j] = {.index = i, .width = desc.width, .height = desc.height};
+				}
+			}
 		}
 
 		void convert_frustum_lights(const GfxWorld* asset, target::GfxWorld* world, utils::memory::allocator& allocator)
@@ -1287,6 +1353,7 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 
 		const auto* zone_name = transient_zone_name(asset, allocator);
 		auto* zone = convert_transient_zone(asset, geometry, zone_name, allocator);
+		convert_lightmaps(asset, zone, world, allocator);
 
 		convert_cells(asset, world, allocator);
 		convert_surfaces(asset, geometry, world, allocator);

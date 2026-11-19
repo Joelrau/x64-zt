@@ -221,6 +221,35 @@ namespace zonetool::iw7
 				this->add_header(asset_type, header, referenced, field, insert_slot);
 			}
 
+			void end_asset_files()
+			{
+				this->asset_file_count_ = this->zone_.assets.size();
+			}
+
+			void link_asset_files()
+			{
+				auto& assets = this->zone_.assets;
+				const auto asset_files = std::span(assets).first(this->asset_file_count_);
+				std::vector<bool> linked(asset_files.size());
+				for (auto& entry : std::span(assets).subspan(this->asset_file_count_))
+				{
+					const auto asset_file = std::ranges::find(asset_files, entry.header, &loaded_asset::header);
+					if (entry.referenced && asset_file != asset_files.end())
+					{
+						entry.referenced = false;
+						linked[asset_file - asset_files.begin()] = true;
+					}
+				}
+
+				for (auto i = asset_files.size(); i-- > 0;)
+				{
+					if (linked[i])
+					{
+						assets.erase(assets.begin() + i);
+					}
+				}
+			}
+
 			void add_assets_named_later()
 			{
 				for (const auto& [type, header] : this->assets_named_later_)
@@ -253,6 +282,7 @@ namespace zonetool::iw7
 			loaded_zone& zone_;
 			zone_reader& reader_;
 			std::vector<std::pair<XAssetType, void*>> assets_named_later_;
+			std::size_t asset_file_count_{};
 			std::vector<std::tuple<XAssetType, std::string, void*>> replaced_assets_;
 
 			void add_to_database(const XAssetType type, const std::string& name, void* header)
@@ -334,6 +364,44 @@ namespace zonetool::iw7
 			}
 		}
 
+		std::vector<std::string> read_asset_files(const std::filesystem::path& path, const xfile::fastfile& file)
+		{
+			std::vector<std::string> asset_files;
+			asset_files.reserve(file.shared_stream_files.size());
+			for (const auto& stream_file : file.shared_stream_files)
+			{
+				const auto pak_path = path.parent_path() / std::format("assetfile{}.pak", stream_file.fileIndex);
+				if (stream_file.isLocalized || !std::filesystem::exists(pak_path))
+				{
+					ZONETOOL_WARNING("Asset file %s of %s is not available", pak_path.filename().string().data(), path.stem().string().data());
+					asset_files.emplace_back();
+					continue;
+				}
+
+				asset_files.emplace_back(xfile::read_iw7_asset_file(pak_path, stream_file, definition().format));
+			}
+
+			return asset_files;
+		}
+
+		void read_asset_files(zone_reader& reader, std::span<const std::string> asset_files)
+		{
+			for (const auto& data : asset_files)
+			{
+				if (data.empty())
+				{
+					continue;
+				}
+
+				reader.set_data(data);
+				reader.push_stream(XFILE_BLOCK_VIRTUAL);
+				reader.align(7);
+				const auto asset = reader.read<XAsset>();
+				reader.read_asset(asset->type, asset->header.data);
+				reader.pop_stream();
+			}
+		}
+
 		std::unique_ptr<asset_list_reader> read_zone(loaded_zone& zone, const std::uint16_t zone_index, const std::size_t virtual_phase)
 		{
 			zone.assets.clear();
@@ -348,6 +416,9 @@ namespace zonetool::iw7
 			{
 				assets.read_inline_asset(type, field, insert_slot);
 			});
+			read_asset_files(reader, zone.asset_files);
+			assets->end_asset_files();
+			reader.set_data(zone.file.payload);
 			read_asset_list(reader);
 			reader.set_inline_asset_loader({});
 
@@ -391,10 +462,12 @@ namespace zonetool::iw7
 		auto zone = std::make_unique<loaded_zone>();
 		zone->name = path.stem().string();
 		zone->file = xfile::read(path, definition().format);
+		zone->asset_files = read_asset_files(path, zone->file);
 
 		const auto assets = read_zone_with_best_phase(*zone, next_zone_index());
 		zone->reader->resolve_deferred_offsets();
 		assets->add_assets_named_later();
+		assets->link_asset_files();
 
 		return zone;
 	}

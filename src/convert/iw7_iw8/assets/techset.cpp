@@ -34,13 +34,74 @@ namespace zonetool::iw7::converter::iw8::techset
 			return args;
 		}
 
+		void add_arg(std::vector<target::MaterialShaderArgument>& args, const target::MaterialShaderArgument& arg)
+		{
+			const auto position = std::ranges::find_if(args, [&](const target::MaterialShaderArgument& other)
+			{
+				return std::tie(other.type, other.dest) > std::tie(arg.type, arg.dest);
+			});
+
+			args.insert(position, arg);
+		}
+
 		std::vector<target::MaterialShaderArgument> lit_args(const generated_techset techset)
 		{
 			auto args = transform_args(techset);
+			add_arg(args, {target::MTL_ARG_CODE_CONST, target::MTL_SHADER_STAGE_PS, 6, target::CONST_SRC_CODE_RENDER_TARGET_SIZE});
+			add_arg(args, {target::MTL_ARG_CODE_CONST, target::MTL_SHADER_STAGE_PS, 7, target::CONST_SRC_CODE_RESOLUTION_SCALE});
+			if (techset == GENERATED_TECHSET_WORLD)
+			{
+				add_arg(args, {target::MTL_ARG_CODE_BUFFER, target::MTL_SHADER_STAGE_PS, 0, target::BUFFER_SRC_CODE_LIGHTMAP_PACKING});
+			}
+
 			const unsigned short color_map = techset == GENERATED_TECHSET_WORLD ? 1 : 0;
-			args.push_back({target::MTL_ARG_MATERIAL_TEXTURE, target::MTL_SHADER_STAGE_PS, color_map, 0});
-			args.push_back({target::MTL_ARG_CODE_CBUFFER, target::MTL_SHADER_STAGE_PS, 7, 0});
+			add_arg(args, {target::MTL_ARG_CODE_BUFFER, target::MTL_SHADER_STAGE_PS, 5, target::BUFFER_SRC_CODE_SCREEN_TILES});
+			add_arg(args, {target::MTL_ARG_MATERIAL_TEXTURE, target::MTL_SHADER_STAGE_PS, color_map, 0});
+			add_arg(args, {target::MTL_ARG_CODE_CBUFFER, target::MTL_SHADER_STAGE_PS, 7, 0});
 			return args;
+		}
+
+		std::vector<target::MaterialShaderArgument> unlit_args(const generated_techset techset)
+		{
+			auto args = transform_args(techset);
+			const unsigned short color_map = techset == GENERATED_TECHSET_WORLD ? 1 : 0;
+			add_arg(args, {target::MTL_ARG_MATERIAL_TEXTURE, target::MTL_SHADER_STAGE_PS, color_map, 0});
+			add_arg(args, {target::MTL_ARG_CODE_CBUFFER, target::MTL_SHADER_STAGE_PS, 7, 0});
+			add_arg(args, {target::MTL_ARG_MATERIAL_CONST, target::MTL_SHADER_STAGE_PS, 0, target::MATERIAL_CONSTANT_EFFECT_COLOR_TINT});
+			return args;
+		}
+
+		std::vector<target::MaterialShaderArgument> add_alpha_map(std::vector<target::MaterialShaderArgument> args)
+		{
+			add_arg(args, {target::MTL_ARG_MATERIAL_TEXTURE, target::MTL_SHADER_STAGE_PS, 2, 27});
+			return args;
+		}
+
+		std::vector<target::MaterialShaderArgument> get_lit_args(const generated_variant& variant)
+		{
+			auto args = variant.lit ? lit_args(variant.techset) : unlit_args(variant.techset);
+			if (variant.blend != GENERATED_BLEND_OPAQUE)
+			{
+				args = add_alpha_map(args);
+			}
+
+			if (variant.uv_anim)
+			{
+				add_arg(args, {target::MTL_ARG_CODE_CONST, target::MTL_SHADER_STAGE_VS, 4, target::CONST_SRC_CODE_GAME_TIME});
+				add_arg(args, {target::MTL_ARG_MATERIAL_CONST, target::MTL_SHADER_STAGE_VS, 1, target::MATERIAL_CONSTANT_UV_ANIM});
+			}
+
+			return args;
+		}
+
+		const char* get_lit_vertex_entry(const generated_variant& variant)
+		{
+			if (variant.techset == GENERATED_TECHSET_WORLD)
+			{
+				return variant.uv_anim ? "world_lit_uv_anim_vs" : "world_lit_vs";
+			}
+
+			return variant.uv_anim ? "smodel_lit_uv_anim_vs" : "smodel_lit_vs";
 		}
 
 		unsigned short get_code_constant_rows(const unsigned short index)
@@ -62,44 +123,181 @@ namespace zonetool::iw7::converter::iw8::techset
 			return rows * 16;
 		}
 
-		std::vector<technique_definition> get_definitions(const generated_techset techset)
+		std::vector<technique_definition> get_sky_definitions()
 		{
-			const auto world = techset == GENERATED_TECHSET_WORLD;
-			const auto prepass_vs = world ? "world_prepass_vs" : "smodel_prepass_vs";
-			const auto shadow_vs = world ? "world_shadow_vs" : "smodel_shadow_vs";
-			const auto lit_vs = world ? "world_lit_vs" : "smodel_lit_vs";
-			const auto lit_ps = world ? "world_lit_ps" : "smodel_lit_ps";
-			const std::vector<unsigned char> transform_decls = world ? std::vector<unsigned char>{0} : std::vector<unsigned char>{2, 5, 6};
-			const std::vector<unsigned char> lit_decls = world ? std::vector<unsigned char>{0} : std::vector<unsigned char>{5, 6};
-			const std::vector<target::MaterialRenderTargetFormat> shadow_formats = {{0x14, {0, 0, 0, 0}}};
+			auto args = transform_args(GENERATED_TECHSET_WORLD);
+			args.push_back({target::MTL_ARG_MATERIAL_TEXTURE, target::MTL_SHADER_STAGE_PS, 1, 0});
+			args.push_back({target::MTL_ARG_CODE_CBUFFER, target::MTL_SHADER_STAGE_PS, 7, 0});
+
+			const auto make_definition = [&](const target::MaterialTechniqueType type, const char* name) -> technique_definition
+			{
+				return {type, name, "world_sky_vs", "sky_ps", {{0x16, {0x20, 0, 0, 0}}}, 1, 0x8100, 32, {0x0C01, 0}, args, {0}};
+			};
 
 			return
 			{
+				make_definition(target::TECHNIQUE_EMISSIVE, "TECHNIQUE_EMISSIVE"),
+				make_definition(target::TECHNIQUE_LIT_FORWARDPLUS_BITMASK, "TECHNIQUE_LIT_FORWARDPLUS_BITMASK"),
+			};
+		}
+
+		const char* get_lit_pixel_entry(const generated_variant& variant)
+		{
+			const auto world = variant.techset == GENERATED_TECHSET_WORLD;
+			switch (variant.blend)
+			{
+			case GENERATED_BLEND_ALPHA:
+				if (!variant.lit)
 				{
-					target::TECHNIQUE_DEPTH_PREPASS, "TECHNIQUE_DEPTH_PREPASS", prepass_vs, "prepass_ps",
+					return world ? "world_unlit_blend_ps" : "smodel_unlit_blend_ps";
+				}
+				return world ? "world_blend_ps" : "smodel_blend_ps";
+			case GENERATED_BLEND_ADD:
+				if (!variant.lit)
+				{
+					return world ? "world_unlit_add_ps" : "smodel_unlit_add_ps";
+				}
+				return world ? "world_add_ps" : "smodel_add_ps";
+			case GENERATED_BLEND_MULTIPLY:
+				return world ? "world_multiply_ps" : "smodel_multiply_ps";
+			default:
+				if (!variant.lit)
+				{
+					return world ? "world_unlit_ps" : "smodel_unlit_ps";
+				}
+				return world ? "world_lit_ps" : "smodel_lit_ps";
+			}
+		}
+
+		std::uint64_t get_blend_bits(const generated_blend blend)
+		{
+			switch (blend)
+			{
+			case GENERATED_BLEND_ALPHA:
+			case GENERATED_BLEND_ADD:
+				return 0x28050; // ONE, INV_SRC_ALPHA
+			case GENERATED_BLEND_MULTIPLY:
+				return 0x8808; // DEST_COLOR, ZERO
+			default:
+				return 0;
+			}
+		}
+
+		std::vector<technique_definition> get_definitions(const generated_variant& variant)
+		{
+			if (variant.techset == GENERATED_TECHSET_SKY)
+			{
+				return get_sky_definitions();
+			}
+
+			const auto world = variant.techset == GENERATED_TECHSET_WORLD;
+			const auto alpha_test = variant.alpha_test && variant.blend == GENERATED_BLEND_OPAQUE;
+			const std::uint64_t cull_back = variant.two_sided ? 0 : 1;
+			const std::uint64_t cull_front = variant.two_sided ? 0 : 2;
+			const std::vector<unsigned char> transform_decls = world ? std::vector<unsigned char>{0} : std::vector<unsigned char>{2, 5, 6};
+			const std::vector<unsigned char> lit_decls = world ? std::vector<unsigned char>{0} : std::vector<unsigned char>{5, 6};
+			const std::vector<target::MaterialRenderTargetFormat> shadow_formats = {{0x14, {0, 0, 0, 0}}};
+			const auto transform = transform_args(variant.techset);
+			const auto alpha_transform = add_alpha_map(transform);
+
+			std::vector<technique_definition> definitions;
+			if (variant.visible && variant.blend == GENERATED_BLEND_OPAQUE)
+			{
+				definitions.push_back(
+				{
+					target::TECHNIQUE_DEPTH_PREPASS, "TECHNIQUE_DEPTH_PREPASS",
+					world ? "world_prepass_vs" : "smodel_prepass_vs", alpha_test ? "prepass_alpha_ps" : "prepass_ps",
 					{{0x16, {0x06, 0x11, 0, 0}}, {0x16, {0x10, 0x11, 0, 0}}}, 2,
 					world ? 0x18100u : 0u, static_cast<unsigned char>(world ? 34 : 1),
-					{0x0E01, 0xFFFFFF0F00000000}, transform_args(techset), transform_decls,
-				},
+					{(alpha_test ? 0x2000E00 : 0x0E00) | cull_back, 0xFFFFFF0F00000000}, alpha_test ? alpha_transform : transform, transform_decls,
+				});
+			}
+
+			if (variant.casts_shadow && variant.blend == GENERATED_BLEND_OPAQUE)
+			{
+				const auto shadow_vs = alpha_test
+					? (world ? "world_shadow_alpha_vs" : "smodel_shadow_alpha_vs")
+					: (world ? "world_shadow_vs" : "smodel_shadow_vs");
+				const auto shadow_ps = alpha_test ? "shadow_alpha_ps" : nullptr;
+				const auto shadow_buffer_flags = world ? (alpha_test ? 0x18100u : 0x8100u) : 0u;
+				const auto shadow_index = static_cast<unsigned char>(world ? (alpha_test ? 33 : 32) : 1);
+
+				definitions.push_back(
 				{
-					target::TECHNIQUE_BUILD_SHADOWMAP_DEPTH, "TECHNIQUE_BUILD_SHADOWMAP_DEPTH", shadow_vs, nullptr,
-					shadow_formats, 0,
-					world ? 0x8100u : 0u, static_cast<unsigned char>(world ? 32 : 1),
-					{0x0E21, 0xFFFFFFFF00000000}, transform_args(techset), transform_decls,
-				},
+					target::TECHNIQUE_BUILD_SHADOWMAP_DEPTH, "TECHNIQUE_BUILD_SHADOWMAP_DEPTH", shadow_vs, shadow_ps,
+					shadow_formats, 0, shadow_buffer_flags, shadow_index,
+					{0x0E20 | cull_back, 0xFFFFFFFF00000000}, alpha_test ? alpha_transform : transform, transform_decls,
+				});
+				definitions.push_back(
 				{
-					target::TECHNIQUE_BUILD_SHADOWMAP_DEPTH_BACK_FACE, "TECHNIQUE_BUILD_SHADOWMAP_DEPTH_BACK_FACE", shadow_vs, nullptr,
-					shadow_formats, 0,
-					world ? 0x8100u : 0u, static_cast<unsigned char>(world ? 32 : 1),
-					{0x0E22, 0xFFFFFFFF00000000}, transform_args(techset), transform_decls,
-				},
+					target::TECHNIQUE_BUILD_SHADOWMAP_DEPTH_BACK_FACE, "TECHNIQUE_BUILD_SHADOWMAP_DEPTH_BACK_FACE", shadow_vs, shadow_ps,
+					shadow_formats, 0, shadow_buffer_flags, shadow_index,
+					{0x0E20 | cull_front, 0xFFFFFFFF00000000}, alpha_test ? alpha_transform : transform, transform_decls,
+				});
+			}
+
+			if (variant.visible)
+			{
+				const auto blend = variant.blend != GENERATED_BLEND_OPAQUE;
+				definitions.push_back(
 				{
-					target::TECHNIQUE_LIT_FORWARDPLUS_BITMASK, "TECHNIQUE_LIT_FORWARDPLUS_BITMASK", lit_vs, lit_ps,
+					target::TECHNIQUE_LIT_FORWARDPLUS_BITMASK, "TECHNIQUE_LIT_FORWARDPLUS_BITMASK",
+					get_lit_vertex_entry(variant), get_lit_pixel_entry(variant),
 					{{0x16, {0x20, 0x01, 0, 0}}}, 2,
 					world ? 0x18100u : 0u, static_cast<unsigned char>(world ? 35 : 2),
-					{0x0801, 0}, lit_args(techset), lit_decls,
-				},
-			};
+					{(blend ? 0x0C10 : 0x0800) | cull_back, get_blend_bits(variant.blend)},
+					get_lit_args(variant), lit_decls,
+				});
+			}
+
+			return definitions;
+		}
+
+		std::uint64_t get_techset_flags(const generated_variant& variant)
+		{
+			const auto world = variant.techset == GENERATED_TECHSET_WORLD;
+			if (variant.techset == GENERATED_TECHSET_SKY)
+			{
+				return 0x20;
+			}
+
+			if (variant.blend != GENERATED_BLEND_OPAQUE)
+			{
+				return world ? 0x1404010001 : 0x4010000;
+			}
+
+			if (variant.alpha_test)
+			{
+				return world ? 0x14040000A1 : 0x10040000A1;
+			}
+
+			return world ? 0x404001020 : 0x4001020;
+		}
+
+		std::string get_techset_base_name(const generated_variant& variant)
+		{
+			if (!variant.visible)
+			{
+				if (!variant.casts_shadow)
+				{
+					return "nodraw";
+				}
+
+				return variant.alpha_test ? "shadowcaster_alphatest" : "shadowcaster";
+			}
+
+			const std::string lighting = variant.lit ? "lit" : "unlit";
+			switch (variant.blend)
+			{
+			case GENERATED_BLEND_ALPHA:
+				return lighting + "_blend";
+			case GENERATED_BLEND_ADD:
+				return lighting + "_add";
+			case GENERATED_BLEND_MULTIPLY:
+				return lighting + "_multiply";
+			default:
+				return lighting + (variant.alpha_test ? "_alphatest" : "_opaque");
+			}
 		}
 
 		template <typename T>
@@ -172,7 +370,9 @@ namespace zonetool::iw7::converter::iw8::techset
 				? get_shader(pixel_shaders, definition.pixel_entry, "ps_5_0", allocator)
 				: empty_pixel_shader;
 
-			technique->stableArgCount = static_cast<unsigned char>(definition.args.size());
+			const auto never_args = std::ranges::count(definition.args, target::MTL_ARG_MATERIAL_CONST, &target::MaterialShaderArgument::type);
+			technique->stableArgCount = static_cast<unsigned char>(definition.args.size() - never_args);
+			technique->neverArgCount = static_cast<unsigned char>(never_args);
 			technique->stableArgSize = get_stable_size(definition.args);
 			technique->colorRtCount = definition.color_rt_count;
 			technique->renderTargetFormatCount = static_cast<unsigned char>(format_count);
@@ -189,32 +389,46 @@ namespace zonetool::iw7::converter::iw8::techset
 		}
 	}
 
-	const char* get_techset_name(const generated_techset techset)
+	std::string get_techset_name(const generated_variant& variant)
 	{
-		return techset == GENERATED_TECHSET_WORLD ? "tw/iw7_lit_opaque" : "tmo/iw7_lit_opaque";
+		if (variant.techset == GENERATED_TECHSET_SKY)
+		{
+			return "tw/iw7_sky";
+		}
+
+		const auto prefix = variant.techset == GENERATED_TECHSET_STATIC_MODEL ? "tmo" : "tw";
+		const auto two_sided = variant.two_sided ? "_2s" : "";
+		const auto no_cast = variant.visible && !variant.casts_shadow && variant.blend == GENERATED_BLEND_OPAQUE ? "_nocast" : "";
+		const auto uv_anim = variant.visible && variant.uv_anim ? "_ua" : "";
+		return std::format("{}/iw7_{}{}{}{}", prefix, get_techset_base_name(variant), uv_anim, two_sided, no_cast);
 	}
 
-	void dump_techset(const generated_techset techset)
+	target::MaterialGeometryType get_material_type(const generated_techset techset)
 	{
-		static std::array<bool, GENERATED_TECHSET_COUNT> dumped{};
-		if (dumped[techset])
+		return techset == GENERATED_TECHSET_STATIC_MODEL ? target::MTL_TYPE_STATIC_MODEL_SELFVIS : target::MTL_TYPE_WORLD;
+	}
+
+	void dump_techset(const generated_variant& variant)
+	{
+		static std::unordered_set<std::string> dumped;
+		const auto name = get_techset_name(variant);
+		if (!dumped.emplace(name).second)
 		{
 			return;
 		}
-		dumped[techset] = true;
 
 		utils::memory::allocator allocator;
 		shader_cache<target::MaterialVertexShader> vertex_shaders;
 		shader_cache<target::MaterialPixelShader> pixel_shaders;
 		auto* empty_pixel_shader = make_empty_pixel_shader(allocator);
 
-		const auto definitions = get_definitions(techset);
-		const auto suffix = utils::cryptography::sha1::compute(get_techset_name(techset), true).substr(0, 16);
+		const auto definitions = get_definitions(variant);
+		const auto suffix = utils::cryptography::sha1::compute(name, true).substr(0, 16);
 
 		auto* asset = allocator.allocate<target::MaterialTechniqueSet>();
-		asset->name = get_techset_name(techset);
-		asset->flags = techset == GENERATED_TECHSET_WORLD ? 0x404001020 : 0x4001020;
-		asset->materialType = techset == GENERATED_TECHSET_WORLD ? target::MTL_TYPE_WORLD : target::MTL_TYPE_STATIC_MODEL_SELFVIS;
+		asset->name = allocator.duplicate_string(name);
+		asset->flags = get_techset_flags(variant);
+		asset->materialType = get_material_type(variant.techset);
 		asset->maskedTechniques = allocator.allocate_array<target::MaterialTechnique*>(definitions.size());
 
 		for (auto i = 0u; i < definitions.size(); i++)

@@ -238,7 +238,7 @@ Run these after a change to a reader, writer or the container code:
 | H1 | 6991 of 6991 | `mp_shipment`, `mp_crash` |
 | H2 | No full count. `patch_gulag`, `code_post_gfx`, `common` and `gulag` pass | `patch_gulag` |
 | IW6 | 878 of 878 | `mp_battery3` |
-| IW7 | 686 of 687 (`mp_vlobby_room` on disk is a modified file) | `mp_frontend`, `mp_afghan` |
+| IW7 | 696 of 697 (`mp_vlobby_room` on disk is a modified file) | `mp_frontend`, `mp_afghan` |
 | IW8 | 9471 of 9494 (`code_post_gfx` and old frontend zones fail, see `docs/IW8_SUPPORT.md`) | `mp_rust`, `srv_mp_rust`, `techsets_mp_rust` |
 | S1 | 3058 of 3058 | `mp_prison` |
 | S2 | 268 of 268 | `common`, `mp_aachen_v2` |

@@ -123,6 +123,9 @@ namespace zonetool::convert::iw7_iw8
 			case source::ASSET_TYPE_FXWORLD:
 				target::fxworld::dump(header_as<source::FxWorld>(header));
 				break;
+			case source::ASSET_TYPE_RAWFILE:
+				target::rawfile::dump(header_as<source::RawFile>(header));
+				break;
 			case source::ASSET_TYPE_NET_CONST_STRINGS:
 				target::netconststrings::dump(header_as<source::NetConstStrings>(header));
 				break;

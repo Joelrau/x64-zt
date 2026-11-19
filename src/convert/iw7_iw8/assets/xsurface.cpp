@@ -6,6 +6,7 @@
 #include <iw8/assets/xsurface.hpp>
 
 #include <shared.hpp>
+#include <utils/cryptography.hpp>
 
 namespace zonetool::iw7::converter::iw8::xsurface
 {
@@ -287,6 +288,10 @@ namespace zonetool::iw7::converter::iw8::xsurface
 				clusters[i] = make_tri_cluster(surface, first_tri, std::min(64u, static_cast<unsigned int>(surface.triCount) - first_tri));
 			}
 			result->sharedTriClusterDataOffset = append(data, clusters.data(), clusters.size());
+
+			const auto surface_data = data.data() + result->sharedIndexDataOffset;
+			result->hash = utils::cryptography::crc32::compute(reinterpret_cast<const std::uint8_t*>(surface_data),
+				data.size() - result->sharedIndexDataOffset);
 
 			data.resize((data.size() + 15) & ~15ull);
 		}

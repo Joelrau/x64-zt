@@ -4,6 +4,8 @@
 #include "material.hpp"
 #include "gfximage.hpp"
 
+#include <utils/string.hpp>
+
 namespace zonetool::iw7::converter::iw8::material
 {
 	namespace
@@ -132,6 +134,30 @@ namespace zonetool::iw7::converter::iw8::material
 			return result;
 		}
 
+		target::MaterialConstantDef convert_color_tint(const Material* asset)
+		{
+			target::MaterialConstantDef result{};
+			result.index = target::MATERIAL_CONSTANT_EFFECT_COLOR_TINT;
+			const auto tint = find_constant(asset, "colorTint");
+			const std::array<float, 4> white{1.0f, 1.0f, 1.0f, 1.0f};
+			std::memcpy(result.literal, tint ? tint->literal : white.data(), sizeof(result.literal));
+			return result;
+		}
+
+		target::MaterialConstantDef* allocate_constants(const std::vector<target::MaterialConstantDef>& constants, unsigned char& count,
+			utils::memory::allocator& allocator)
+		{
+			count = static_cast<unsigned char>(constants.size());
+			if (constants.empty())
+			{
+				return nullptr;
+			}
+
+			const auto result = allocator.allocate_array<target::MaterialConstantDef>(constants.size());
+			std::memcpy(result, constants.data(), constants.size() * sizeof(target::MaterialConstantDef));
+			return result;
+		}
+
 		target::Material* convert_effect(const Material* asset, utils::memory::allocator& allocator)
 		{
 			const auto result = allocator.allocate<target::Material>();
@@ -156,12 +182,7 @@ namespace zonetool::iw7::converter::iw8::material
 				result->textureTable->image = gfximage::dump_color(image);
 			}
 
-			result->constantCount = 1;
-			result->constantTable = allocator.allocate<target::MaterialConstantDef>();
-			result->constantTable->index = 36;
-			const auto tint = find_constant(asset, "colorTint");
-			const std::array<float, 4> white{1.0f, 1.0f, 1.0f, 1.0f};
-			std::memcpy(result->constantTable->literal, tint ? tint->literal : white.data(), sizeof(result->constantTable->literal));
+			result->constantTable = allocate_constants({convert_color_tint(asset)}, result->constantCount, allocator);
 			return result;
 		}
 
@@ -180,9 +201,74 @@ namespace zonetool::iw7::converter::iw8::material
 			return nullptr;
 		}
 
+		GfxImage* find_alpha_texture(const Material* asset)
+		{
+			if (const auto image = find_texture(asset, TS_ALPHA_REVEAL_THICKNESS_MAP))
+			{
+				return image;
+			}
+
+			return find_texture(asset, TS_COLOR_MAP);
+		}
+
+		target::GfxImage* find_alpha_image(const Material* asset, utils::memory::allocator& allocator)
+		{
+			if (const auto image = find_texture(asset, TS_ALPHA_REVEAL_THICKNESS_MAP))
+			{
+				return image->name[0] == '$' ? make_image_reference(image->name, allocator) : gfximage::dump_alpha(image);
+			}
+
+			if (const auto image = find_texture(asset, TS_COLOR_MAP))
+			{
+				return gfximage::dump_color(image);
+			}
+
+			return nullptr;
+		}
+
+		bool has_techset_token(const Material* asset, const std::string_view token)
+		{
+			if (!asset->techniqueSet || !asset->techniqueSet->name)
+			{
+				return false;
+			}
+
+			const auto parts = utils::string::split(asset->techniqueSet->name, '_');
+			return std::ranges::find(parts, token) != parts.end();
+		}
+
+		techset::generated_variant get_variant(const Material* asset, const techset::generated_techset techset)
+		{
+			techset::generated_variant variant{.techset = techset};
+			variant.lit = !has_techset_token(asset, "unlit");
+			variant.uv_anim = has_techset_token(asset, "ua") && find_constant(asset, "uvAnimParms");
+			variant.two_sided = (asset->stateFlags & STATE_FLAG_CULL_MASK) != STATE_FLAG_CULL_BACK;
+			variant.casts_shadow = !has_techset_token(asset, "nocast");
+
+			const auto alpha_test = has_techset_token(asset, "atest") && find_alpha_texture(asset);
+			if (has_techset_token(asset, "onlycast") || asset->cameraRegion == CAMERA_REGION_NONE_2)
+			{
+				variant.visible = false;
+				variant.alpha_test = alpha_test;
+				return variant;
+			}
+
+			if (asset->cameraRegion == CAMERA_REGION_LIT_DECAL || asset->cameraRegion == CAMERA_REGION_LIT_TRANS)
+			{
+				variant.blend = has_techset_token(asset, "add") ? techset::GENERATED_BLEND_ADD
+					: has_techset_token(asset, "multiply") ? techset::GENERATED_BLEND_MULTIPLY
+					: techset::GENERATED_BLEND_ALPHA;
+				variant.casts_shadow = false;
+				return variant;
+			}
+
+			variant.alpha_test = alpha_test;
+			return variant;
+		}
+
 		std::string get_lit_name(const char* name, const techset::generated_techset techset)
 		{
-			const auto prefix = techset == techset::GENERATED_TECHSET_WORLD ? "tw" : "tmo";
+			const auto prefix = techset == techset::GENERATED_TECHSET_STATIC_MODEL ? "tmo" : "tw";
 			if (name[0] == '*')
 			{
 				return std::format("{}/maps/mp/generated/{}", prefix, name + 1); // '*' is not a valid file name
@@ -191,28 +277,84 @@ namespace zonetool::iw7::converter::iw8::material
 			return std::format("{}/{}", prefix, name);
 		}
 
-		target::Material* convert_lit(const Material* asset, const std::string& name, const techset::generated_techset techset,
+		target::Material* convert_lit(const Material* asset, const std::string& name, const techset::generated_variant& variant,
 			utils::memory::allocator& allocator)
 		{
 			const auto result = allocator.allocate<target::Material>();
 			result->name = allocator.duplicate_string(name);
 			result->contents = 1;
 			result->surfaceFlags = 0xB80000;
-			result->materialType = techset == techset::GENERATED_TECHSET_WORLD ? target::MTL_TYPE_WORLD : target::MTL_TYPE_STATIC_MODEL_SELFVIS;
+			result->materialType = techset::get_material_type(variant.techset);
 			result->cameraRegion = target::CAMERA_REGION_LIT_OPAQUE;
 			result->sortKey = 2;
 			result->flags = 0x10;
 			result->textureAtlasRowCount = 1;
 			result->textureAtlasColumnCount = 1;
 
+			if (variant.blend != techset::GENERATED_BLEND_OPAQUE)
+			{
+				result->cameraRegion = asset->cameraRegion == CAMERA_REGION_LIT_DECAL ? target::CAMERA_REGION_LIT_DECAL : target::CAMERA_REGION_LIT_TRANS;
+				result->sortKey = asset->info.sortKey;
+			}
+
 			result->techniqueSet = allocator.allocate<target::MaterialTechniqueSet>();
-			result->techniqueSet->name = techset::get_techset_name(techset);
+			result->techniqueSet->name = allocator.duplicate_string(techset::get_techset_name(variant));
 
 			const auto color = find_color_image(asset);
+			const auto uses_alpha = variant.alpha_test || variant.blend != techset::GENERATED_BLEND_OPAQUE;
+			result->textureCount = uses_alpha ? 2 : 1;
+			result->textureTable = allocator.allocate_array<target::MaterialTextureDef>(result->textureCount);
+			result->textureTable[0].index = 0;
+			result->textureTable[0].image = color ? color : make_image_reference("$black", allocator);
+
+			if (uses_alpha)
+			{
+				const auto alpha = find_alpha_image(asset, allocator);
+				result->textureTable[1].index = 27;
+				result->textureTable[1].image = alpha ? alpha : make_image_reference("$white", allocator);
+			}
+
+			std::vector<target::MaterialConstantDef> constants;
+			if (!variant.lit && variant.visible)
+			{
+				constants.push_back(convert_color_tint(asset));
+			}
+
+			if (variant.uv_anim)
+			{
+				target::MaterialConstantDef uv_anim{};
+				uv_anim.index = target::MATERIAL_CONSTANT_UV_ANIM;
+				std::memcpy(uv_anim.literal, find_constant(asset, "uvAnimParms")->literal, sizeof(uv_anim.literal));
+				constants.push_back(uv_anim);
+			}
+
+			result->constantTable = allocate_constants(constants, result->constantCount, allocator);
+
+			result->constantBufferIndex = allocator.allocate_array<unsigned char>(target::TECHNIQUE_COUNT);
+			std::memset(result->constantBufferIndex, 0xFF, target::TECHNIQUE_COUNT);
+			return result;
+		}
+
+		target::Material* convert_sky(const std::string& name, const GfxImage* sky_image, utils::memory::allocator& allocator)
+		{
+			const auto result = allocator.allocate<target::Material>();
+			result->name = allocator.duplicate_string(name);
+			result->contents = 0x800;
+			result->surfaceFlags = 0x34;
+			result->materialType = techset::get_material_type(techset::GENERATED_TECHSET_SKY);
+			result->cameraRegion = target::CAMERA_REGION_LIT_OPAQUE;
+			result->sortKey = 3;
+			result->textureAtlasRowCount = 1;
+			result->textureAtlasColumnCount = 1;
+
+			result->techniqueSet = allocator.allocate<target::MaterialTechniqueSet>();
+			result->techniqueSet->name = allocator.duplicate_string(techset::get_techset_name({.techset = techset::GENERATED_TECHSET_SKY}));
+
+			const auto image = sky_image ? gfximage::dump_sky(sky_image) : nullptr;
 			result->textureCount = 1;
 			result->textureTable = allocator.allocate<target::MaterialTextureDef>();
 			result->textureTable->index = 0;
-			result->textureTable->image = color ? color : make_image_reference("$black", allocator);
+			result->textureTable->image = image ? image : make_image_reference("$black", allocator);
 
 			result->constantBufferIndex = allocator.allocate_array<unsigned char>(target::TECHNIQUE_COUNT);
 			std::memset(result->constantBufferIndex, 0xFF, target::TECHNIQUE_COUNT);
@@ -280,10 +422,40 @@ namespace zonetool::iw7::converter::iw8::material
 		}
 
 		asset = find_loaded(asset);
-		techset::dump_techset(techset);
+		const auto variant = get_variant(asset, techset);
+		techset::dump_techset(variant);
 
 		utils::memory::allocator allocator;
-		const auto converted = convert_lit(asset, name, techset, allocator);
+		const auto converted = convert_lit(asset, name, variant, allocator);
+		zonetool::iw8::material::dump(converted);
+		for (auto i = 0; i < converted->textureCount; i++)
+		{
+			if (const auto image = converted->textureTable[i].image->name; image[0] == '$')
+			{
+				add_csv_row("image", ","s + image);
+			}
+		}
+		add_csv_row("material", name);
+		return name;
+	}
+
+	std::string dump_sky(Material* asset, const GfxImage* sky_image)
+	{
+		if (!asset || !asset->name)
+		{
+			return {};
+		}
+
+		const auto name = get_lit_name(asset->name, techset::GENERATED_TECHSET_SKY);
+		if (!mark_dumped(ASSET_TYPE_MATERIAL, name))
+		{
+			return name;
+		}
+
+		techset::dump_techset({.techset = techset::GENERATED_TECHSET_SKY});
+
+		utils::memory::allocator allocator;
+		const auto converted = convert_sky(name, sky_image, allocator);
 		zonetool::iw8::material::dump(converted);
 		if (converted->textureTable->image->name == "$black"sv)
 		{
@@ -291,5 +463,22 @@ namespace zonetool::iw7::converter::iw8::material
 		}
 		add_csv_row("material", name);
 		return name;
+	}
+
+	zonetool::iw8::GfxSModelSurfCullType get_smodel_cull_type(Material* asset)
+	{
+		if (!asset)
+		{
+			return zonetool::iw8::SMODEL_SURF_CULL_OPAQUE;
+		}
+
+		asset = find_loaded(asset);
+		const auto back_face = (asset->stateFlags & STATE_FLAG_CULL_MASK) == STATE_FLAG_CULL_BACK;
+		if (asset->stateFlags & STATE_FLAG_DECAL)
+		{
+			return back_face ? zonetool::iw8::SMODEL_SURF_CULL_DECAL : zonetool::iw8::SMODEL_SURF_CULL_DECAL_DOUBLE_SIDED;
+		}
+
+		return back_face ? zonetool::iw8::SMODEL_SURF_CULL_OPAQUE : zonetool::iw8::SMODEL_SURF_CULL_DOUBLE_SIDED;
 	}
 }

@@ -15,6 +15,7 @@ namespace zonetool::iw7
 		xfile::fastfile file;
 		std::unique_ptr<zone_reader> reader;
 		std::vector<loaded_asset> assets;
+		std::vector<std::string> asset_files;
 	};
 
 	struct asset_loader

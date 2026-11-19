@@ -49,6 +49,7 @@ namespace zonetool
 		XStreamFileKey next_shared_stream_key();
 		std::size_t shared_stream_keys_read() const;
 		void set_block_base(std::uint8_t block, std::size_t base);
+		void set_data(std::string_view data);
 		std::size_t end_anchored_data_start() const;
 		std::size_t end_anchored_alignment() const;
 

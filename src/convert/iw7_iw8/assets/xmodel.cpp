@@ -39,6 +39,22 @@ namespace zonetool::iw7::converter::iw8::xmodel
 			return materials;
 		}
 
+		target::Material** convert_static_materials(const XModel* asset, utils::memory::allocator& allocator)
+		{
+			const auto materials = allocator.allocate_array<target::Material*>(asset->numsurfs);
+			for (auto i = 0; i < asset->numsurfs; i++)
+			{
+				const auto name = material::dump_lit(asset->materialHandles[i], techset::GENERATED_TECHSET_STATIC_MODEL);
+				if (!name.empty())
+				{
+					materials[i] = allocator.allocate<target::Material>();
+					materials[i]->name = allocator.duplicate_string(name);
+				}
+			}
+
+			return materials;
+		}
+
 		float* convert_himip_radius(const XModel* asset, utils::memory::allocator& allocator)
 		{
 			if (!asset->invHighMipRadius)
@@ -93,8 +109,8 @@ namespace zonetool::iw7::converter::iw8::xmodel
 			result->numBones = asset->numBones;
 			result->numRootBones = asset->numRootBones;
 			result->numClientBones = asset->numClientBones;
-			result->flags = asset->flags & ~(XMODEL_FLAG_REACTIVE_MOTION | XMODEL_FLAG_HAS_DEFAULT_MODEL
-				| XMODEL_FLAG_HAS_ANY_DEFAULT_SURFS | XMODEL_FLAG_HAS_ALL_DEFAULT_SURFS);
+			result->flags = asset->flags & ~(XMODEL_FLAG_REACTIVE_MOTION | XMODEL_FLAG_UNK_0x100 | XMODEL_FLAG_UNK_0x200 // stock iw8 never sets 0x100 or 0x200
+				| XMODEL_FLAG_HAS_DEFAULT_MODEL | XMODEL_FLAG_HAS_ANY_DEFAULT_SURFS | XMODEL_FLAG_HAS_ALL_DEFAULT_SURFS);
 			result->contents = asset->contents;
 			result->scale = asset->scale;
 			result->radius = asset->radius;
@@ -139,5 +155,28 @@ namespace zonetool::iw7::converter::iw8::xmodel
 		{
 			xsurface::dump(asset->lodInfo[i].modelSurfs);
 		}
+	}
+
+	std::string dump_static(XModel* asset)
+	{
+		const auto name = "tm/"s + asset->name;
+		if (!mark_dumped(ASSET_TYPE_XMODEL, name))
+		{
+			return name;
+		}
+
+		utils::memory::allocator allocator;
+		const auto result = convert(asset, allocator);
+		result->name = name.data();
+		result->materialHandles = convert_static_materials(asset, allocator);
+		zonetool::iw8::xmodel::dump(result);
+		add_csv_row("xmodel", name);
+
+		for (auto i = 0; i < asset->numLods; i++)
+		{
+			xsurface::dump(asset->lodInfo[i].modelSurfs);
+		}
+
+		return name;
 	}
 }

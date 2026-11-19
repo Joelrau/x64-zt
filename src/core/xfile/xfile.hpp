@@ -106,6 +106,8 @@ namespace zonetool::xfile
 
 	fastfile read(const std::filesystem::path& path, const format& format);
 
+	std::string read_iw7_asset_file(const std::filesystem::path& path, const XStreamFile& stream_file, const format& format);
+
 	void write_s2(const std::filesystem::path& path, const format& format, const fastfile& file, std::string_view payload);
 
 	void write_iw8(const std::filesystem::path& path, const format& format, const fastfile& file, std::string_view payload);

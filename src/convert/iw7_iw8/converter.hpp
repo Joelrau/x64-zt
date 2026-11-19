@@ -13,6 +13,7 @@
 #include "assets/mapents.hpp"
 #include "assets/material.hpp"
 #include "assets/netconststrings.hpp"
+#include "assets/rawfile.hpp"
 #include "assets/sound.hpp"
 #include "assets/tracer.hpp"
 #include "assets/weapon.hpp"

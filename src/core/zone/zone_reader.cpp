@@ -169,6 +169,12 @@ namespace zonetool
 		block.largest_alignment = std::max(block.largest_alignment, alignment);
 	}
 
+	void zone_reader::set_data(const std::string_view data)
+	{
+		this->data_ = data;
+		this->data_position_ = 0;
+	}
+
 	void zone_reader::set_block_base(const std::uint8_t block, const std::size_t base)
 	{
 		this->blocks_[block].base = base;
