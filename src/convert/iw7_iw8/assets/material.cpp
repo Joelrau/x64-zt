@@ -4,7 +4,11 @@
 #include "material.hpp"
 #include "gfximage.hpp"
 
+#include <iw8/zone/loader.hpp>
+
+#include <io/game_files.hpp>
 #include <utils/string.hpp>
+#include <xfile/oodle.hpp>
 
 namespace zonetool::iw7::converter::iw8::material
 {
@@ -237,6 +241,19 @@ namespace zonetool::iw7::converter::iw8::material
 			return std::ranges::find(parts, token) != parts.end();
 		}
 
+		target::CameraRegion get_blend_camera_region(const Material* asset)
+		{
+			switch (asset->cameraRegion)
+			{
+			case CAMERA_REGION_LIT_DECAL:
+				return target::CAMERA_REGION_LIT_DECAL;
+			case CAMERA_REGION_EMISSIVE:
+				return target::CAMERA_REGION_EMISSIVE;
+			default:
+				return target::CAMERA_REGION_LIT_TRANS;
+			}
+		}
+
 		techset::generated_variant get_variant(const Material* asset, const techset::generated_techset techset)
 		{
 			techset::generated_variant variant{.techset = techset};
@@ -253,7 +270,8 @@ namespace zonetool::iw7::converter::iw8::material
 				return variant;
 			}
 
-			if (asset->cameraRegion == CAMERA_REGION_LIT_DECAL || asset->cameraRegion == CAMERA_REGION_LIT_TRANS)
+			if (asset->cameraRegion == CAMERA_REGION_LIT_DECAL || asset->cameraRegion == CAMERA_REGION_LIT_TRANS
+				|| asset->cameraRegion == CAMERA_REGION_EMISSIVE)
 			{
 				variant.blend = has_techset_token(asset, "add") ? techset::GENERATED_BLEND_ADD
 					: has_techset_token(asset, "multiply") ? techset::GENERATED_BLEND_MULTIPLY
@@ -293,7 +311,7 @@ namespace zonetool::iw7::converter::iw8::material
 
 			if (variant.blend != techset::GENERATED_BLEND_OPAQUE)
 			{
-				result->cameraRegion = asset->cameraRegion == CAMERA_REGION_LIT_DECAL ? target::CAMERA_REGION_LIT_DECAL : target::CAMERA_REGION_LIT_TRANS;
+				result->cameraRegion = get_blend_camera_region(asset);
 				result->sortKey = asset->info.sortKey;
 			}
 
@@ -361,6 +379,232 @@ namespace zonetool::iw7::converter::iw8::material
 			return result;
 		}
 
+		const char* get_donor_techset(const techset::generated_variant& variant) // TODO: stock mp_rust techsets, convert natively
+		{
+			if (!variant.visible || !variant.lit || variant.uv_anim)
+			{
+				return nullptr;
+			}
+
+			const auto world = variant.techset == techset::GENERATED_TECHSET_WORLD;
+			if (variant.blend == techset::GENERATED_BLEND_ALPHA)
+			{
+				return world ? "tw/lit_3_lit_bad_tca_815002_1002000000000010_0_1_1_0_0_13810015b_0_0_3_0_0"
+					: "tmo/lit_3_lit_bad_tca_284002_1002000000000010_0_1_1_0_0_13810015b_0_0_3_0_0";
+			}
+
+			if (variant.blend != techset::GENERATED_BLEND_OPAQUE)
+			{
+				return nullptr;
+			}
+
+			if (world)
+			{
+				return variant.alpha_test || variant.two_sided ? "tw/lit_3_lit_alt_ta1_808800_1002000000000010_0_1_1_0_0_13830015b_0_0_1_0_0"
+					: "tw/lit_3_lit_rpl_ta1_800800_1002000000000010_0_1_1_0_0_13810015b_0_0_1_0_0";
+			}
+
+			if (variant.alpha_test)
+			{
+				return variant.two_sided ? "tmo/lit_3_lit_alt_ta1_808800_1002000000000010_0_1_1_0_0_13830015b_0_0_1_0_0"
+					: "tmo/lit_3_lit_alt_ta1_800800_1002000000000010_0_1_1_0_0_13830015b_0_0_1_0_0";
+			}
+
+			return variant.two_sided ? "tmo/lit_3_lit_rpl_ta1_808800_1002000000000010_0_1_1_0_0_13810015b_0_0_1_0_0"
+				: "tmo/lit_3_lit_rpl_ta1_800800_1002000000000010_0_1_1_0_0_13810015b_0_0_1_0_0";
+		}
+
+		const char* get_flag_donor_techset(const Material* asset, const techset::generated_variant& variant) // TODO: stock mp_rust techset, convert natively
+		{
+			if (variant.techset != techset::GENERATED_TECHSET_STATIC_MODEL || !variant.visible || !variant.lit || variant.uv_anim
+				|| variant.blend != techset::GENERATED_BLEND_OPAQUE || !has_techset_token(asset, "flagext") || !find_constant(asset, "flagParms"))
+			{
+				return nullptr;
+			}
+
+			return "tmco/lit_3_lit_alt_ta1_808810_1002000000000010_0_1_1_0_0_13830015b_0_0_1_0_0";
+		}
+
+		const char* get_distortion_donor_techset(const Material* asset, const techset::generated_variant& variant) // TODO: stock mp_rust techset, convert natively
+		{
+			if (variant.techset != techset::GENERATED_TECHSET_WORLD || !has_techset_token(asset, "distortion") || !find_texture(asset, TS_COLOR_MAP))
+			{
+				return nullptr;
+			}
+
+			return "twc/dist_10_distortion_rpl_ta0_0_3_0_0_0";
+		}
+
+		std::unordered_set<std::string> donor_techsets;
+
+		GfxImage* find_base_normal_texture(const Material* asset)
+		{
+			for (auto i = 0; asset->textureTable && i < asset->textureCount; i++)
+			{
+				const auto& texture = asset->textureTable[i];
+				if (texture.semantic == TS_NORMAL_MAP && texture.nameStart == 'n' && texture.image)
+				{
+					return texture.image;
+				}
+			}
+
+			return nullptr;
+		}
+
+		target::GfxImage* find_normal_image(const Material* asset)
+		{
+			if (const auto image = find_texture(asset, TS_NORMAL_OCCLUSSION_GLOSS_MAP))
+			{
+				return gfximage::dump_normal_gloss(image);
+			}
+
+			return gfximage::dump_normal_gloss(find_base_normal_texture(asset), find_texture(asset, TS_SPECULAR_MAP),
+				find_texture(asset, TS_SPECULAR_OCCLUSION_MAP));
+		}
+
+		target::GfxImage* find_opacity_image(const Material* asset, utils::memory::allocator& allocator)
+		{
+			if (const auto image = find_texture(asset, TS_ALPHA_REVEAL_THICKNESS_MAP))
+			{
+				return image->name[0] == '$' ? make_image_reference(image->name, allocator) : gfximage::dump_alpha(image);
+			}
+
+			if (const auto image = find_texture(asset, TS_COLOR_MAP))
+			{
+				return gfximage::dump_opacity(image);
+			}
+
+			return nullptr;
+		}
+
+		target::Material* convert_donor(const Material* asset, const std::string& name, const techset::generated_variant& variant, const char* donor,
+			const bool flag_wave, utils::memory::allocator& allocator)
+		{
+			const auto world = variant.techset == techset::GENERATED_TECHSET_WORLD;
+			const auto blend = variant.blend != techset::GENERATED_BLEND_OPAQUE;
+			const auto opacity = flag_wave || blend || variant.alpha_test || (world && variant.two_sided);
+
+			const auto result = allocator.allocate<target::Material>();
+			result->name = allocator.duplicate_string(name);
+			result->contents = 1;
+			result->surfaceFlags = 0xB80000;
+			result->materialType = flag_wave ? target::MTL_TYPE_STATIC_MODEL_VERTCOL_SELFVIS : techset::get_material_type(variant.techset);
+			result->cameraRegion = blend ? get_blend_camera_region(asset) : target::CAMERA_REGION_LIT_OPAQUE;
+			result->sortKey = blend ? asset->info.sortKey : world ? 33 : 9;
+			result->flags = 0x10;
+			result->textureAtlasRowCount = 1;
+			result->textureAtlasColumnCount = 1;
+
+			result->techniqueSet = allocator.allocate<target::MaterialTechniqueSet>();
+			result->techniqueSet->name = donor;
+
+			const auto color = find_color_image(asset);
+			const auto normal = find_normal_image(asset);
+			std::vector<target::MaterialTextureDef> textures
+			{
+				{0, color ? color : make_image_reference("$black", allocator)},
+				{9, normal ? normal : make_image_reference("$identitynormalmap", allocator)},
+			};
+
+			if (opacity)
+			{
+				const auto image = blend || variant.alpha_test ? find_opacity_image(asset, allocator) : nullptr;
+				textures.push_back({27, image ? image : make_image_reference("$white", allocator)});
+			}
+
+			textures.push_back({59, make_image_reference("$black", allocator)});
+			result->textureCount = static_cast<unsigned char>(textures.size());
+			result->textureTable = allocator.allocate_array<target::MaterialTextureDef>(textures.size());
+			std::ranges::copy(textures, result->textureTable);
+
+			std::vector<std::pair<unsigned char, std::array<std::uint32_t, 4>>> literals
+			{
+				{0, {opacity ? 0xFu : 0x7u, 0x80003C00, 0x3C003C00, 0}},
+				{9, {0xFFFFFFFF, 0x00FF2FAD, 0x0000BC00, 0}},
+				{54, {0x9, 0x00FF00FF, 0x4F800000, 0}},
+				{72, {0x3F800000, 0x1, 0x3FD9364E, 0x3FD9364E}},
+			};
+
+			if (blend)
+			{
+				literals.push_back({87, {0x49742400, 0x36039605, 0x4BFA459C, 0xB4000000}});
+				literals.push_back({89, {0, 0, 0, 0}});
+			}
+
+			std::vector<target::MaterialConstantDef> constants(literals.size());
+			for (auto i = 0u; i < literals.size(); i++)
+			{
+				constants[i].index = literals[i].first;
+				std::memcpy(constants[i].literal, literals[i].second.data(), sizeof(constants[i].literal));
+			}
+
+			if (flag_wave)
+			{
+				const std::array<std::pair<target::MaterialConstantIndex, std::string_view>, 4> waves
+				{{
+					{target::MATERIAL_CONSTANT_FLAG_PARMS, "flagParms"},
+					{target::MATERIAL_CONSTANT_FLAG_WAVE_0, "flagWave0Par"},
+					{target::MATERIAL_CONSTANT_FLAG_WAVE_1, "flagWave1Par"},
+					{target::MATERIAL_CONSTANT_FLAG_WAVE_2, "flagWave2Par"},
+				}};
+
+				for (const auto& [index, source_name] : waves)
+				{
+					auto& wave = constants.emplace_back();
+					wave.index = index;
+					if (const auto source = find_constant(asset, source_name))
+					{
+						std::memcpy(wave.literal, source->literal, sizeof(wave.literal));
+					}
+				}
+			}
+
+			result->constantTable = allocate_constants(constants, result->constantCount, allocator);
+			return result;
+		}
+
+		target::Material* convert_distortion(const Material* asset, const std::string& name, const char* donor, utils::memory::allocator& allocator)
+		{
+			const auto result = allocator.allocate<target::Material>();
+			result->name = allocator.duplicate_string(name);
+			result->contents = 0x20;
+			result->surfaceFlags = 0xACA030;
+			result->materialType = target::MTL_TYPE_WORLD_VERTCOL;
+			result->cameraRegion = target::CAMERA_REGION_LIT_OPAQUE;
+			result->sortKey = 33;
+			result->flags = 0x10;
+			result->textureAtlasRowCount = 1;
+			result->textureAtlasColumnCount = 1;
+
+			result->techniqueSet = allocator.allocate<target::MaterialTechniqueSet>();
+			result->techniqueSet->name = donor;
+
+			result->textureCount = 1;
+			result->textureTable = allocator.allocate<target::MaterialTextureDef>();
+			result->textureTable->index = 157;
+			result->textureTable->image = gfximage::dump_color(find_texture(asset, TS_COLOR_MAP));
+
+			const std::array<std::pair<target::MaterialConstantIndex, std::string_view>, 2> sources
+			{{
+				{target::MATERIAL_CONSTANT_UV_ANIM, "uvAnimParms"},
+				{target::MATERIAL_CONSTANT_DISTORTION_SCALE, "distortionSc"},
+			}};
+
+			std::vector<target::MaterialConstantDef> constants;
+			for (const auto& [index, source_name] : sources)
+			{
+				auto& constant = constants.emplace_back();
+				constant.index = index;
+				if (const auto source = find_constant(asset, source_name))
+				{
+					std::memcpy(constant.literal, source->literal, sizeof(constant.literal));
+				}
+			}
+
+			result->constantTable = allocate_constants(constants, result->constantCount, allocator);
+			return result;
+		}
+
 		Material* find_loaded(Material* asset)
 		{
 			if (!asset->textureTable)
@@ -423,10 +667,26 @@ namespace zonetool::iw7::converter::iw8::material
 
 		asset = find_loaded(asset);
 		const auto variant = get_variant(asset, techset);
-		techset::dump_techset(variant);
 
 		utils::memory::allocator allocator;
-		const auto converted = convert_lit(asset, name, variant, allocator);
+		target::Material* converted;
+		const auto flag_donor = get_flag_donor_techset(asset, variant);
+		if (const auto distortion_donor = get_distortion_donor_techset(asset, variant))
+		{
+			donor_techsets.emplace(distortion_donor);
+			converted = convert_distortion(asset, name, distortion_donor, allocator);
+		}
+		else if (const auto donor = flag_donor ? flag_donor : get_donor_techset(variant))
+		{
+			donor_techsets.emplace(donor);
+			converted = convert_donor(asset, name, variant, donor, flag_donor != nullptr, allocator);
+		}
+		else
+		{
+			techset::dump_techset(variant);
+			converted = convert_lit(asset, name, variant, allocator);
+		}
+
 		zonetool::iw8::material::dump(converted);
 		for (auto i = 0; i < converted->textureCount; i++)
 		{
@@ -474,11 +734,130 @@ namespace zonetool::iw7::converter::iw8::material
 
 		asset = find_loaded(asset);
 		const auto back_face = (asset->stateFlags & STATE_FLAG_CULL_MASK) == STATE_FLAG_CULL_BACK;
-		if (asset->stateFlags & STATE_FLAG_DECAL)
+		const auto cull_type = (asset->stateFlags & STATE_FLAG_DECAL)
+			? (back_face ? zonetool::iw8::SMODEL_SURF_CULL_DECAL : zonetool::iw8::SMODEL_SURF_CULL_DECAL_DOUBLE_SIDED)
+			: (back_face ? zonetool::iw8::SMODEL_SURF_CULL_OPAQUE : zonetool::iw8::SMODEL_SURF_CULL_DOUBLE_SIDED);
+
+		const auto variant = get_variant(asset, techset::GENERATED_TECHSET_STATIC_MODEL);
+		if (get_flag_donor_techset(asset, variant))
 		{
-			return back_face ? zonetool::iw8::SMODEL_SURF_CULL_DECAL : zonetool::iw8::SMODEL_SURF_CULL_DECAL_DOUBLE_SIDED;
+			return static_cast<zonetool::iw8::GfxSModelSurfCullType>(cull_type & ~zonetool::iw8::SMODEL_SURF_CULL_ENABLED);
 		}
 
-		return back_face ? zonetool::iw8::SMODEL_SURF_CULL_OPAQUE : zonetool::iw8::SMODEL_SURF_CULL_DOUBLE_SIDED;
+		return cull_type;
+	}
+
+	zonetool::iw8::GfxSModelSurfEmitType get_smodel_emit_type(Material* asset)
+	{
+		auto emit_type = zonetool::iw8::SMODEL_SURF_EMIT_NONE | zonetool::iw8::SMODEL_SURF_EMIT_MAIN_VIEW | zonetool::iw8::SMODEL_SURF_EMIT_SHADOW;
+		if (!asset)
+		{
+			return static_cast<zonetool::iw8::GfxSModelSurfEmitType>(emit_type);
+		}
+
+		const auto variant = get_variant(find_loaded(asset), techset::GENERATED_TECHSET_STATIC_MODEL);
+		if (!variant.visible)
+		{
+			emit_type &= ~zonetool::iw8::SMODEL_SURF_EMIT_MAIN_VIEW;
+		}
+
+		if (!variant.casts_shadow)
+		{
+			emit_type &= ~zonetool::iw8::SMODEL_SURF_EMIT_SHADOW;
+		}
+
+		return static_cast<zonetool::iw8::GfxSModelSurfEmitType>(emit_type);
+	}
+
+	void dump_donor_techsets()
+	{
+		if (donor_techsets.empty())
+		{
+			return;
+		}
+
+		xfile::oodle::load(iw8_folder());
+		auto previous_files = game_files::exchange(game_files::open_casc(iw8_folder()));
+		const auto _ = gsl::finally([&previous_files] { game_files::set(std::move(previous_files)); });
+
+		const auto path = game_files::find_zone("techsets_mp_rust");
+		if (!path)
+		{
+			ZONETOOL_WARNING("IW8 zone \"techsets_mp_rust\" is missing, the donor techsets are not dumped");
+			return;
+		}
+
+		const auto database = db_create();
+		db_scope scope(*database);
+		const auto zone = target::load_zone(*path);
+
+		std::unordered_set<std::string> shaders;
+		for (const auto& asset : zone->assets)
+		{
+			auto* techset = static_cast<target::MaterialTechniqueSet*>(asset.header);
+			if (asset.referenced || asset.type != target::ASSET_TYPE_TECHNIQUE_SET || !donor_techsets.erase(techset->name))
+			{
+				continue;
+			}
+
+			target::technique_set::dump(techset);
+			for (auto i = 0u; techset->maskedTechniques && i < target::get_technique_count(techset); i++)
+			{
+				const auto* technique = techset->maskedTechniques[i];
+				if (!technique)
+				{
+					continue;
+				}
+
+				for (const auto* shader : {technique->vertexShader ? technique->vertexShader->name : nullptr,
+					technique->hullShader ? technique->hullShader->name : nullptr,
+					technique->domainShader ? technique->domainShader->name : nullptr,
+					technique->pixelShader ? technique->pixelShader->name : nullptr})
+				{
+					if (shader)
+					{
+						shaders.emplace(shader);
+					}
+				}
+			}
+		}
+
+		for (const auto& name : donor_techsets)
+		{
+			ZONETOOL_WARNING("IW8 donor techset \"%s\" is missing in techsets_mp_rust", name.data());
+		}
+
+		for (const auto& asset : zone->assets)
+		{
+			const auto* shader = *static_cast<const char* const*>(asset.header);
+			if (!shaders.contains(shader))
+			{
+				continue;
+			}
+
+			if (asset.referenced)
+			{
+				add_csv_row(target::type_to_string(asset.type), ","s + shader);
+				continue;
+			}
+
+			switch (asset.type)
+			{
+			case target::ASSET_TYPE_VERTEXSHADER:
+				target::vertex_shader::dump(static_cast<target::MaterialVertexShader*>(asset.header));
+				break;
+			case target::ASSET_TYPE_HULLSHADER:
+				target::hull_shader::dump(static_cast<target::MaterialHullShader*>(asset.header));
+				break;
+			case target::ASSET_TYPE_DOMAINSHADER:
+				target::domain_shader::dump(static_cast<target::MaterialDomainShader*>(asset.header));
+				break;
+			case target::ASSET_TYPE_PIXELSHADER:
+				target::pixel_shader::dump(static_cast<target::MaterialPixelShader*>(asset.header));
+				break;
+			default:
+				break;
+			}
+		}
 	}
 }

@@ -1766,6 +1766,12 @@ namespace zonetool::iw8
 		GfxCellTree* aabbTrees;
 	}; assert_sizeof(GfxWorldDrawCells, 0x18);
 
+	enum GfxLightGridType : std::uint8_t
+	{
+		GFX_LIGHT_GRID_TYPE_NONE = 0x0,
+		GFX_LIGHT_GRID_TYPE_GPU = 0x1,
+	};
+
 	enum GfxLightmapType : std::uint32_t
 	{
 		GFX_LIGHTMAP_TYPE_REGULAR = 0x0,
@@ -1790,8 +1796,12 @@ namespace zonetool::iw8
 
 	struct GfxSHCompressedProbeData
 	{
-		unsigned int data[8];
-	};
+		unsigned int l0; // R11G11B10F
+		unsigned char shRatios[3][8];
+		unsigned char skyVisibility;
+		unsigned char gpuVisibility;
+		unsigned char pad[2];
+	}; assert_sizeof(GfxSHCompressedProbeData, 0x20);
 
 	struct GfxSHProbeData
 	{
@@ -4041,6 +4051,11 @@ namespace zonetool::iw8
 	{
 		MATERIAL_CONSTANT_EFFECT_COLOR_TINT = 36, // name unknown
 		MATERIAL_CONSTANT_UV_ANIM = 0x3F, // name unknown
+		MATERIAL_CONSTANT_FLAG_PARMS = 0x4F, // name unknown
+		MATERIAL_CONSTANT_FLAG_WAVE_0 = 0x50, // name unknown
+		MATERIAL_CONSTANT_FLAG_WAVE_1 = 0x51, // name unknown
+		MATERIAL_CONSTANT_FLAG_WAVE_2 = 0x52, // name unknown
+		MATERIAL_CONSTANT_DISTORTION_SCALE = 0x7F, // name unknown
 	};
 
 	enum CameraRegion : std::uint8_t
@@ -9495,6 +9510,12 @@ namespace zonetool::iw8
 		unsigned int baseIndex;
 	}; assert_sizeof(srfTriangles_t, 0x10);
 
+	enum GfxSurfaceFlags : std::uint8_t
+	{
+		GFX_SURFACE_CASTS_SUN_SHADOW = 0x1,
+		GFX_SURFACE_SUN_SHADOW_OPT_MASK = 0x3E,
+	};
+
 	struct GfxSurface
 	{
 		srfTriangles_t tris;
@@ -9663,10 +9684,24 @@ namespace zonetool::iw8
 
 	enum GfxSModelSurfCullType : std::uint8_t
 	{
+		SMODEL_SURF_CULL_BACK_FACE = 0x1,
+		SMODEL_SURF_CULL_OCCLUSION = 0x2,
+		SMODEL_SURF_CULL_FRUSTUM = 0x4,
+		SMODEL_SURF_CULL_SMALL_TRIANGLE = 0x8,
+		SMODEL_SURF_CULL_DECAL_DEPTH_BIAS = 0x10,
+		SMODEL_SURF_CULL_ENABLED = 0x20,
+		SMODEL_SURF_CULL_CLUSTER = 0x40,
 		SMODEL_SURF_CULL_DOUBLE_SIDED = 0x6E,
 		SMODEL_SURF_CULL_DECAL_DOUBLE_SIDED = 0x7E,
 		SMODEL_SURF_CULL_OPAQUE = 0xEF,
 		SMODEL_SURF_CULL_DECAL = 0xFF,
+	};
+
+	enum GfxSModelSurfEmitType : std::uint8_t
+	{
+		SMODEL_SURF_EMIT_MAIN_VIEW = 0x1,
+		SMODEL_SURF_EMIT_SHADOW = 0x2,
+		SMODEL_SURF_EMIT_NONE = 0xC,
 	};
 
 	struct GfxSModelSurfMatIndirection
@@ -9960,7 +9995,7 @@ namespace zonetool::iw8
 		GfxDecalVolumeCollection* decalVolumeCollections;
 		unsigned int* materialAndMaskIndirection;
 		GfxWrappedBuffer materialAndMaskIndirectionBuffer;
-		unsigned char lightGridType;
+		GfxLightGridType lightGridType;
 		GfxLightmapType lightmapType;
 		int lightmapCount;
 		unsigned int transientZoneCount;

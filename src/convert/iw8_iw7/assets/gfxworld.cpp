@@ -401,7 +401,7 @@ namespace zonetool::iw8::converter::iw7::gfxworld
 				converted.material = make_named<target::Material>(surface.material, allocator);
 				converted.lightmapIndex = get_lightmap_index(world, surface);
 				warn_missing_lightmap(asset, surface, converted.lightmapIndex);
-				converted.flags = surface.flags & 1; // TODO: only bit 0 is known to match
+				converted.flags = (surface.flags & target::GFX_SURFACE_CASTS_SUN_SHADOW) | ((surface.flags & GFX_SURFACE_SUN_SHADOW_OPT_MASK) << 2);
 
 				dpvs.surfacesBounds[i].bounds = std::bit_cast<target::Bounds>(surfaces.surfaceBounds[i].bounds);
 			}
@@ -411,7 +411,7 @@ namespace zonetool::iw8::converter::iw7::gfxworld
 			dpvs.surfaceCastsSunShadow = allocator.allocate_array<unsigned int>(dpvs.surfaceVisDataCount);
 			for (auto i = dpvs.litOpaqueSurfsBegin; i < dpvs.litOpaqueSurfsEnd; i++)
 			{
-				if (dpvs.surfaces[i].flags & 1)
+				if (dpvs.surfaces[i].flags & target::GFX_SURFACE_CASTS_SUN_SHADOW)
 				{
 					dpvs.surfaceCastsSunShadow[i >> 5] |= 1u << (i & 31);
 				}
@@ -477,23 +477,22 @@ namespace zonetool::iw8::converter::iw7::gfxworld
 		light_grid_probe decode_light_grid_probe(const GfxSHCompressedProbeData& probe, const vec3_t& origin, const float scale)
 		{
 			DirectX::PackedVector::XMFLOAT3PK packed_l0{};
-			packed_l0.v = probe.data[0];
+			packed_l0.v = probe.l0;
 			DirectX::XMFLOAT3 l0{};
 			DirectX::XMStoreFloat3(&l0, DirectX::PackedVector::XMLoadFloat3PK(&packed_l0));
 			const std::array<float, 3> base{l0.x * scale, l0.y * scale, l0.z * scale};
 
 			light_grid_probe result{{origin[0], origin[1], origin[2]}};
-			const auto* ratios = reinterpret_cast<const unsigned char*>(&probe.data[1]);
 			for (auto channel = 0; channel < 3; channel++)
 			{
 				result.coefficients[channel * 9] = base[channel];
 				for (auto i = 1; i < 9; i++)
 				{
-					result.coefficients[channel * 9 + i] = (ratios[channel * 8 + i - 1] - 127.0f) / 127.0f * base[channel];
+					result.coefficients[channel * 9 + i] = (probe.shRatios[channel][i - 1] - 127.0f) / 127.0f * base[channel];
 				}
 			}
 
-			result.sun_visibility = (probe.data[7] & 0xFF) / 255.0f;
+			result.sun_visibility = probe.skyVisibility / 255.0f;
 			return result;
 		}
 

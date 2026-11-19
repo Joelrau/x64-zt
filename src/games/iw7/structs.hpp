@@ -2418,7 +2418,7 @@ namespace zonetool::iw7
 		CAMERA_REGION_LIT_OPAQUE = 0,
 		CAMERA_REGION_LIT_DECAL = 2,
 		CAMERA_REGION_LIT_TRANS = 3,
-		CAMERA_REGION_NONE = 4,
+		CAMERA_REGION_EMISSIVE = 4,
 		CAMERA_REGION_NONE_2 = 11,
 	};
 
@@ -5891,6 +5891,12 @@ namespace zonetool::iw7
 		unsigned short vertexCount;
 		unsigned short triCount;
 		unsigned int baseIndex;
+	};
+
+	enum GfxSurfaceFlags : std::uint8_t
+	{
+		GFX_SURFACE_CASTS_SUN_SHADOW = 0x1,
+		GFX_SURFACE_SUN_SHADOW_OPT_MASK = 0xF8,
 	};
 
 	struct GfxSurface

@@ -227,7 +227,7 @@ namespace zonetool::iw7::converter::iw8::xsurface
 
 		bool has_vertex_colors(const XSurface& surface)
 		{
-			if (surface.flags & SURF_FLAG_VERTCOL_NONE)
+			if (surface.flags & (SURF_FLAG_VERTCOL_NONE | SURF_FLAG_REACTIVE_MOTION))
 			{
 				return false;
 			}
@@ -259,12 +259,15 @@ namespace zonetool::iw7::converter::iw8::xsurface
 			std::memcpy(indices.data(), surface.triIndices, sizeof(target::Face) * surface.triCount);
 			result->sharedIndexDataOffset = append(data, indices.data(), indices.size());
 
+			float default_visibility[4] = { 0.0f, 0.0f, 1.0f, 0.0f };
+			const auto motion = (surface.flags & SURF_FLAG_REACTIVE_MOTION) != 0;
+
 			std::vector<target::GfxPackedVertex> verts(surface.vertCount);
 			for (auto i = 0; i < surface.vertCount; i++)
 			{
 				const auto& vertex = surface.verts0.packedVerts0[i];
 				verts[i].xyz = pack_position(vertex.xyz, bounds);
-				verts[i].selfVisibility = vertex.selfVisibility.packed;
+				verts[i].selfVisibility = motion ? self_visibility::XSurfacePackSelfVisibility(default_visibility) : vertex.selfVisibility.packed;
 				verts[i].texCoord = vertex.texCoord.packed;
 				verts[i].tangentFrame = pack_tangent_frame(unpack_unit_vec(vertex.normal.packed), unpack_unit_vec(vertex.tangent.packed),
 					(vertex.tangent.packed >> 30) == 3);

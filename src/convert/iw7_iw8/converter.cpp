@@ -48,7 +48,10 @@ namespace zonetool::iw7::converter::iw8
 			return;
 		}
 
-		std::ranges::stable_partition(csv_rows, [](const std::string& row) { return row.starts_with("require,"); });
+		std::ranges::stable_sort(csv_rows, {}, [](const std::string& row)
+		{
+			return row.starts_with("require,") ? 0 : row.contains(",,") ? 1 : 2;
+		});
 
 		std::string text;
 		for (const auto& row : csv_rows)
@@ -142,6 +145,7 @@ namespace zonetool::convert::iw7_iw8
 		void finish(const std::string& zone_name)
 		{
 			zonetool::iw7::converter::iw8::netconststrings::dump_missing_level_strings();
+			zonetool::iw7::converter::iw8::material::dump_donor_techsets();
 			zonetool::iw7::converter::iw8::write_csv(zone_name);
 		}
 

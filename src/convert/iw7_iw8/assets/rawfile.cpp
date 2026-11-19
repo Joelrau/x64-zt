@@ -130,9 +130,24 @@ namespace zonetool::iw7::converter::iw8::rawfile
 				return "\"3\""; // IW8 has no filmic tonemap
 			}
 
-			if (name == "fogAtmosphericScattering")
+			if (name == "fogAtmosphericScattering" || name == "r_EVCompBounds")
 			{
 				return "\"0\"";
+			}
+
+			if (name == "r_EVCompGrayReference")
+			{
+				return "\"1\"";
+			}
+
+			if (name == "tonemapMaxExposure")
+			{
+				return "\"-10\"";
+			}
+
+			if (name == "tonemapMinExposureAdjust" || name == "tonemapMaxExposureAdjust")
+			{
+				return std::nullopt;
 			}
 
 			const auto value = values.find(std::string(name));

@@ -22,5 +22,14 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 		float lod_dist[6];
 	};
 
+	struct light_grid_volume
+	{
+		GfxPackedPlacement placement;
+		float box_min[3];
+		float box_size[3];
+		unsigned int dimensions[3];
+		unsigned int start[3];
+	};
+
 	void dump(GfxWorld* asset);
 }

@@ -10,6 +10,8 @@
 #include <iw8/assets/gfxworld.hpp>
 #include <iw8/assets/gfxworldtransientzone.hpp>
 
+#include <DirectXPackedVector.h>
+
 namespace zonetool::iw7::converter::iw8::gfxworld
 {
 	namespace
@@ -509,7 +511,7 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 				converted.surfDataIndex = i;
 				converted.transientZone = 0;
 				converted.lightmapIndex = source.lightmapIndex < world->draw.lightmapCount ? source.lightmapIndex : 510;
-				converted.flags = 0;
+				converted.flags = (source.flags & GFX_SURFACE_CASTS_SUN_SHADOW) | ((source.flags & GFX_SURFACE_SUN_SHADOW_OPT_MASK) >> 2);
 				surfaces.surfData[i] = geometry.surf_data[i];
 				surfaces.surfaceBounds[i].bounds = std::bit_cast<target::Bounds>(asset->dpvs.surfacesBounds[i].bounds);
 			}
@@ -655,7 +657,7 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 						auto& indirection = smodels.smodelSurfMatIndirection[surface];
 						indirection.smodelMaterialIndex = found->second;
 						indirection.cullType = material::get_smodel_cull_type(const_cast<Material*>(material));
-						indirection.emitType = 0x0F;
+						indirection.emitType = material::get_smodel_emit_type(const_cast<Material*>(material));
 
 						const auto& bounds = entry.model->bounds;
 						auto& data = smodels.smodelSurfData[surface];
@@ -696,7 +698,9 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 					: static_cast<unsigned char>((1u << std::min(asset->lastSunPrimaryLightIndex, 5u)) - 1);
 
 				smodels.instanceFlags[i] = static_cast<unsigned char>(inst.flags & STATIC_MODEL_FLAG_SCALE_MODIFIER_MASK);
-				smodels.collectionBounds[i] = std::bit_cast<target::Bounds>(asset->dpvs.smodelInsts[i].bounds);
+				smodels.collectionBounds[i] = inst.model
+					? transform_bounds(inst.model->bounds, inst.placement)
+					: std::bit_cast<target::Bounds>(asset->dpvs.smodelInsts[i].bounds);
 				instance_bounds[i] = smodels.collectionBounds[i];
 
 				auto& indirection = smodels.modelStaticIndirection[i];
@@ -724,6 +728,637 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 				smodels.modelCount, total_surfaces);
 		}
 
+		using sh_probe = std::array<float, 27>;
+
+		sh_probe decode_sh_probe(const GfxSHProbeData& probe)
+		{
+			sh_probe result{};
+			for (auto i = 0u; i < result.size(); i++)
+			{
+				const auto value = half_float::half_to_float(probe.coeffs[i]);
+				result[i] = std::isfinite(value) ? value : 0.0f;
+			}
+
+			return result;
+		}
+
+		std::uint32_t pack_r11g11b10(const float r, const float g, const float b)
+		{
+			DirectX::PackedVector::XMFLOAT3PK packed{};
+			DirectX::PackedVector::XMStoreFloat3PK(&packed, DirectX::XMVectorSet(r, g, b, 0.0f));
+			return packed.v;
+		}
+
+		std::array<float, 3> unpack_r11g11b10(const std::uint32_t value)
+		{
+			DirectX::PackedVector::XMFLOAT3PK packed{};
+			packed.v = value;
+			DirectX::XMFLOAT3 result{};
+			DirectX::XMStoreFloat3(&result, DirectX::PackedVector::XMLoadFloat3PK(&packed));
+			return {result.x, result.y, result.z};
+		}
+
+		unsigned char pack_unit_byte(const float value)
+		{
+			return static_cast<unsigned char>(std::lround(std::clamp(value, 0.0f, 1.0f) * 255.0f));
+		}
+
+		float sh_band_scale(const unsigned int coefficient)
+		{
+			return coefficient < 4 ? 1.0f / std::sqrt(3.0f) : 1.0f / std::sqrt(5.0f);
+		}
+
+		std::uint32_t pack_sh_l0(const sh_probe& probe)
+		{
+			return pack_r11g11b10(probe[0], probe[9], probe[18]);
+		}
+
+		float sh_ratio(const sh_probe& probe, const std::array<float, 3>& l0, const unsigned int channel, const unsigned int coefficient)
+		{
+			return l0[channel] > 0.0f ? probe[channel * 9 + coefficient] / l0[channel] * sh_band_scale(coefficient) : 0.0f;
+		}
+
+		target::GfxSHCompressedProbeData compress_sh_probe(const sh_probe& probe, const float sky_visibility)
+		{
+			target::GfxSHCompressedProbeData result{};
+			result.l0 = pack_sh_l0(probe);
+			const auto l0 = unpack_r11g11b10(result.l0);
+			for (auto channel = 0u; channel < 3; channel++)
+			{
+				for (auto coefficient = 1u; coefficient < 9; coefficient++)
+				{
+					const auto ratio = std::clamp(sh_ratio(probe, l0, channel, coefficient), -1.0f, 1.0f);
+					result.shRatios[channel][coefficient - 1] = static_cast<unsigned char>(ratio * 127.0f + 127.5f);
+				}
+			}
+
+			result.skyVisibility = pack_unit_byte(sky_visibility);
+			result.gpuVisibility = 255;
+			return result;
+		}
+
+		void compute_light_grid_bounding_volume(target::GfxGpuLightGrid* grid)
+		{
+			const auto diagonal = 1.0f / std::sqrt(3.0f);
+			const float directions[7][2] =
+			{
+				{1.0f, 0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f},
+				{diagonal, diagonal}, {diagonal, -diagonal}, {-diagonal, diagonal}, {-diagonal, -diagonal},
+			};
+
+			for (auto d = 0; d < 7; d++)
+			{
+				const auto x = directions[d][0];
+				const auto y = directions[d][1];
+				const auto z = std::sqrt(std::max(1.0f - x * x - y * y, 0.0f));
+
+				auto min = std::numeric_limits<float>::max();
+				auto max = std::numeric_limits<float>::lowest();
+				for (auto i = 0u; i < grid->probeCount; i++)
+				{
+					const auto& position = grid->probePositions[i];
+					const auto distance = position[0] * x + position[1] * y + position[2] * z;
+					min = std::min(min, distance);
+					max = std::max(max, distance);
+				}
+
+				grid->boundingVolume[d][0] = x;
+				grid->boundingVolume[d][1] = y;
+				grid->boundingVolume[d][2] = min;
+				grid->boundingVolume[d][3] = max;
+			}
+		}
+
+		target::GfxGpuLightGrid* convert_gpu_light_grid(const GfxLightGridProbeData& source, utils::memory::allocator& allocator)
+		{
+			if (!source.probeCount || !source.probes || !source.probePositions || !source.zoneCount || !source.zones)
+			{
+				return nullptr;
+			}
+
+			auto* grid = allocator.allocate<target::GfxGpuLightGrid>();
+			grid->probeCount = source.probeCount;
+			grid->probes = allocator.allocate_array<target::GfxSHCompressedProbeData>(source.probeCount);
+			for (auto i = 0u; i < source.probeCount; i++)
+			{
+				const auto sky_visibility = half_float::half_to_float(source.probes[i].coeffs[27]);
+				grid->probes[i] = compress_sh_probe(decode_sh_probe(source.probes[i]), sky_visibility);
+			}
+
+			grid->probePositions = convert_array<vec3_t>(source.probePositions, source.probeCount, allocator);
+			grid->fallbackProbeCustomSamplePos[2] = 131072.0f;
+
+			grid->zoneCount = source.zoneCount;
+			grid->zones = allocator.allocate_array<target::GfxGpuLightGridZone>(source.zoneCount);
+			for (auto i = 0u; i < source.zoneCount; i++)
+			{
+				const auto& zone = source.zones[i];
+				auto& converted = grid->zones[i];
+				converted.numProbes = zone.numProbes;
+				converted.firstProbe = zone.firstProbe;
+				converted.numTetrahedrons = zone.numTetrahedrons;
+				converted.firstTetrahedron = zone.firstTetrahedron;
+				converted.firstVoxelTetrahedronIndex = zone.firstVoxelTetrahedronIndex;
+				converted.voxelTetrahedronInternalNodeShift = 0xFFFFFFFF;
+				converted.numVoxelTetrahedronIndices = zone.numVoxelTetrahedronIndices;
+				converted.fallbackProbeData = std::bit_cast<target::GfxSHProbeData>(zone.fallbackProbeData);
+				converted.fallbackProbeData.coeffs[28] = half_float::float_to_half(1.0f);
+			}
+
+			grid->tetrahedronCount = source.tetrahedronCount;
+			grid->tetrahedronCountVisible = source.tetrahedronCountVisible;
+			grid->tetrahedrons = convert_array<target::GfxGpuLightGridTetrahedron>(source.tetrahedrons, source.tetrahedronCount, allocator);
+			grid->tetrahedronNeighbors = convert_array<target::GfxGpuLightGridTetrahedronNeighbors>(source.tetrahedronNeighbors,
+				source.tetrahedronCount, allocator);
+			grid->tetrahedronVisibility = convert_array<target::GfxGpuLightGridTetrahedronVisibility>(source.tetrahedronVisibility,
+				source.tetrahedronCountVisible, allocator);
+			grid->voxelStartTetrahedronCount = source.voxelStartTetrahedronCount;
+			grid->voxelStartTetrahedron = convert_array<target::GfxGpuLightGridVoxelStartTetrahedron>(source.voxelStartTetrahedron,
+				source.voxelStartTetrahedronCount, allocator);
+
+			compute_light_grid_bounding_volume(grid);
+			return grid;
+		}
+
+		light_grid_volume make_light_grid_volume(const GfxStaticModelDrawInst& inst, const GfxStaticModelInst& instance)
+		{
+			light_grid_volume volume{};
+			auto bounds = instance.bounds;
+			if (inst.model && inst.placement.scale > 0.0f)
+			{
+				volume.placement = inst.placement;
+				bounds = inst.model->bounds;
+			}
+			else
+			{
+				volume.placement.scale = 1.0f;
+				for (auto a = 0; a < 3; a++)
+				{
+					volume.placement.axis[a][a] = 1.0f;
+				}
+			}
+
+			for (auto a = 0; a < 3; a++)
+			{
+				volume.box_size[a] = std::max(bounds.halfSize[a] * 2.0f, 1.0f);
+				volume.box_min[a] = bounds.midPoint[a] - volume.box_size[a] * 0.5f;
+			}
+
+			return volume;
+		}
+
+		std::array<float, 3> light_grid_volume_point(const light_grid_volume& volume, const unsigned int x, const unsigned int y,
+			const unsigned int z)
+		{
+			const unsigned int cell[3] = {x, y, z};
+			const auto& placement = volume.placement;
+			std::array<float, 3> result{placement.origin[0], placement.origin[1], placement.origin[2]};
+			for (auto a = 0; a < 3; a++)
+			{
+				const auto fraction = volume.dimensions[a] > 1 ? static_cast<float>(cell[a]) / (volume.dimensions[a] - 1) : 0.5f;
+				const auto local = volume.box_min[a] + fraction * volume.box_size[a];
+				for (auto i = 0; i < 3; i++)
+				{
+					result[i] += placement.axis[a][i] * local * placement.scale;
+				}
+			}
+
+			return result;
+		}
+
+		void write_light_grid_volume_transform(const light_grid_volume& volume, vec4_t* rows)
+		{
+			const auto& placement = volume.placement;
+			for (auto a = 0; a < 3; a++)
+			{
+				const auto& axis = placement.axis[a];
+				const auto origin = axis[0] * placement.origin[0] + axis[1] * placement.origin[1] + axis[2] * placement.origin[2];
+				for (auto i = 0; i < 3; i++)
+				{
+					rows[a][i] = axis[i] / (placement.scale * volume.box_size[a]);
+				}
+
+				rows[a][3] = -(origin / placement.scale + volume.box_min[a]) / volume.box_size[a];
+			}
+		}
+
+		unsigned int pack_light_grid_volumes(std::vector<light_grid_volume>& volumes, const unsigned int width)
+		{
+			std::vector<unsigned int> order(volumes.size());
+			std::iota(order.begin(), order.end(), 0u);
+			std::stable_sort(order.begin(), order.end(), [&](const unsigned int left, const unsigned int right)
+			{
+				const auto& a = volumes[left].dimensions;
+				const auto& b = volumes[right].dimensions;
+				return std::tie(a[2], a[1], a[0]) > std::tie(b[2], b[1], b[0]);
+			});
+
+			auto x = 0u, y = 0u, z = 0u;
+			auto row_height = 0u, layer_depth = 0u;
+			for (const auto index : order)
+			{
+				auto& volume = volumes[index];
+				if (x + volume.dimensions[0] > width)
+				{
+					x = 0;
+					y += row_height;
+					row_height = 0;
+				}
+
+				if (y + volume.dimensions[1] > width)
+				{
+					x = 0;
+					y = 0;
+					z += layer_depth;
+					row_height = 0;
+					layer_depth = 0;
+				}
+
+				volume.start[0] = x;
+				volume.start[1] = y;
+				volume.start[2] = z;
+				x += volume.dimensions[0];
+				row_height = std::max(row_height, volume.dimensions[1]);
+				layer_depth = std::max(layer_depth, volume.dimensions[2]);
+			}
+
+			return z + layer_depth;
+		}
+
+		sh_probe sample_instance_probes(const std::vector<sh_probe>& probes, const GfxGpuLightGridProbePosition* positions,
+			const GfxStaticModelDrawInst& inst, const std::array<float, 3>& point, const sh_probe& fallback)
+		{
+			if (!inst.probeCount || inst.firstProbe + inst.probeCount > probes.size())
+			{
+				return fallback;
+			}
+
+			sh_probe result{};
+			auto total = 0.0f;
+			for (auto p = inst.firstProbe; p < inst.firstProbe + inst.probeCount; p++)
+			{
+				const auto& origin = positions[p].origin;
+				const auto dx = origin[0] - point[0];
+				const auto dy = origin[1] - point[1];
+				const auto dz = origin[2] - point[2];
+				const auto weight = 1.0f / (dx * dx + dy * dy + dz * dz + 1.0f);
+				for (auto i = 0u; i < result.size(); i++)
+				{
+					result[i] += probes[p][i] * weight;
+				}
+
+				total += weight;
+			}
+
+			for (auto& value : result)
+			{
+				value /= total;
+			}
+
+			return result;
+		}
+
+		void write_light_grid_volume_texels(const sh_probe& probe, const unsigned int x, const unsigned int y, const unsigned int z,
+			const unsigned int width, std::uint32_t* l0_pixels, unsigned char* sh_pixels)
+		{
+			const auto l0 = pack_sh_l0(probe);
+			l0_pixels[(z * width + y) * width + x] = l0;
+
+			const auto unpacked = unpack_r11g11b10(l0);
+			const unsigned int coefficient_order[8] = {2, 6, 1, 3, 7, 5, 8, 4};
+			for (auto slot = 0u; slot < 24; slot++)
+			{
+				const auto tile = slot / 4;
+				const auto channel = slot % 3;
+				const auto coefficient = coefficient_order[slot / 3];
+				const auto texel_x = (tile % 2) * width + x;
+				const auto texel_y = (tile / 2) * width + y;
+				const auto texel = (z * width * 3 + texel_y) * width * 2 + texel_x;
+				const auto value = sh_ratio(probe, unpacked, channel, coefficient) * 0.5f + 0.5f;
+				sh_pixels[texel * 4 + slot % 4] = pack_unit_byte(value);
+			}
+		}
+
+		target::GfxImageRaw make_light_grid_volume_texture(const target::GfxPixelFormat format, const unsigned int width,
+			const unsigned int height, const unsigned int depth, utils::memory::allocator& allocator)
+		{
+			target::GfxImageRaw image{};
+			image.desc.format = format;
+			image.desc.flags = static_cast<target::GfxImageFlags>(target::IMG_CREATE_FLAG_RW_VIEW | target::IMG_DISK_FLAG_MAPTYPE_3D
+				| target::IMG_DISK_FLAG_NOMIPMAPS | target::IMG_DISK_FLAG_NOPICMIP);
+			image.desc.totalSize = width * height * depth * 4;
+			image.desc.width = static_cast<unsigned short>(width);
+			image.desc.height = static_cast<unsigned short>(height);
+			image.desc.depth = static_cast<unsigned short>(depth);
+			image.desc.numElements = 1;
+			image.desc.levelCount = 1;
+			image.pixels = allocator.allocate_array<char>(image.desc.totalSize);
+			return image;
+		}
+
+		void convert_light_grid_volumes(const GfxWorld* asset, target::GfxGpuLightGridTransientData& light_grid,
+			utils::memory::allocator& allocator)
+		{
+			const auto& source = asset->lightGrid.probeData;
+			const auto instance_count = static_cast<unsigned int>(asset->dpvs.smodelCount);
+			if (!instance_count)
+			{
+				return;
+			}
+
+			std::vector<sh_probe> probes;
+			if (source.gpuVisibleProbesData && source.gpuVisibleProbePositions)
+			{
+				probes.reserve(source.gpuVisibleProbesCount);
+				for (auto i = 0u; i < source.gpuVisibleProbesCount; i++)
+				{
+					probes.emplace_back(decode_sh_probe(source.gpuVisibleProbesData[i]));
+				}
+			}
+
+			const auto fallback = decode_sh_probe(source.zones[0].fallbackProbeData);
+
+			std::vector<light_grid_volume> volumes(instance_count);
+			for (auto i = 0u; i < instance_count; i++)
+			{
+				volumes[i] = make_light_grid_volume(asset->dpvs.smodelDrawInsts[i], asset->dpvs.smodelInsts[i]);
+			}
+
+			const auto width = 64u;
+			auto spacing = 128.0f;
+			auto depth = 0u;
+			while (true)
+			{
+				for (auto i = 0u; i < instance_count; i++)
+				{
+					auto& volume = volumes[i];
+					const auto single_probe = asset->dpvs.smodelDrawInsts[i].unk2 == 0;
+					for (auto a = 0; a < 3; a++)
+					{
+						const auto extent = volume.box_size[a] * volume.placement.scale;
+						volume.dimensions[a] = single_probe ? 1 : std::clamp(static_cast<unsigned int>(std::ceil(extent / spacing)), 1u, 8u);
+					}
+				}
+
+				depth = pack_light_grid_volumes(volumes, width);
+				if (depth <= 12)
+				{
+					break;
+				}
+
+				spacing *= 1.25f;
+			}
+
+			auto* atlas = allocator.allocate<target::GfxLightGridVolumeAtlasDataTemp>();
+			atlas->m_widthAndHeight = width;
+			atlas->m_depth = depth;
+			atlas->m_numVolumes = instance_count;
+			atlas->m_textures[0] = make_light_grid_volume_texture(target::GFX_PF_R11G11B10F, width, width, depth, allocator);
+			atlas->m_textures[1] = make_light_grid_volume_texture(target::GFX_PF_R8G8B8A8, width * 2, width * 3, depth, allocator);
+			atlas->m_packingParams = allocator.allocate_array<target::LightGridVolumePackingParams>(instance_count);
+			atlas->m_transformParams = allocator.allocate_array<target::LightGridVolumeTransformParams>(instance_count);
+
+			auto* l0_pixels = reinterpret_cast<std::uint32_t*>(atlas->m_textures[0].pixels);
+			auto* sh_pixels = reinterpret_cast<unsigned char*>(atlas->m_textures[1].pixels);
+
+			light_grid.staticModelVolumeCount = instance_count;
+			light_grid.staticModelVolumes = allocator.allocate_array<target::GfxStaticModelLightGridVolume>(instance_count);
+			light_grid.tempLightGridVolumeData = atlas;
+
+			const float texture_size[3] = {static_cast<float>(width), static_cast<float>(width), static_cast<float>(depth)};
+			auto first_probe = 0u;
+			for (auto i = 0u; i < instance_count; i++)
+			{
+				const auto& inst = asset->dpvs.smodelDrawInsts[i];
+				const auto& volume = volumes[i];
+				for (auto z = 0u; z < volume.dimensions[2]; z++)
+				{
+					for (auto y = 0u; y < volume.dimensions[1]; y++)
+					{
+						for (auto x = 0u; x < volume.dimensions[0]; x++)
+						{
+							const auto point = light_grid_volume_point(volume, x, y, z);
+							const auto probe = sample_instance_probes(probes, source.gpuVisibleProbePositions, inst, point, fallback);
+							write_light_grid_volume_texels(probe, volume.start[0] + x, volume.start[1] + y, volume.start[2] + z, width,
+								l0_pixels, sh_pixels);
+						}
+					}
+				}
+
+				auto& packing = atlas->m_packingParams[i];
+				for (auto a = 0; a < 3; a++)
+				{
+					packing.m_uvScale[a] = volume.dimensions[a] > 1 ? (volume.dimensions[a] - 1) / texture_size[a] : 0.0f;
+					packing.m_uvBias[a] = (volume.start[a] + 0.5f) / texture_size[a];
+					packing.m_volumeSize[a] = static_cast<unsigned char>(volume.dimensions[a]);
+				}
+
+				packing.m_basisType = 1;
+				write_light_grid_volume_transform(volume, atlas->m_transformParams[i].m_volumeTransform);
+
+				auto& model_volume = light_grid.staticModelVolumes[i];
+				const auto probe_count = volume.dimensions[0] * volume.dimensions[1] * volume.dimensions[2];
+				model_volume.firstProbe = first_probe;
+				model_volume.singleProbe = probe_count == 1 ? first_probe : 0xFFFFFFFF;
+				for (auto a = 0; a < 3; a++)
+				{
+					model_volume.m_volumeSize[a] = static_cast<unsigned short>(volume.dimensions[a]);
+				}
+
+				write_light_grid_volume_transform(volume, model_volume.volumeTransform);
+				first_probe += probe_count;
+			}
+
+			ZONETOOL_INFO("gfxworld \"%s\": %u light grid volumes, %u volume probes, atlas %ux%ux%u, spacing %.0f", asset->name,
+				instance_count, first_probe, width, width, depth, spacing);
+		}
+
+		void convert_light_grid(const GfxWorld* asset, target::GfxWorldTransientZone* zone, utils::memory::allocator& allocator)
+		{
+			auto& light_grid = zone->gpuLightGrid;
+			light_grid.gpuLightGrid = convert_gpu_light_grid(asset->lightGrid.probeData, allocator);
+			if (!light_grid.gpuLightGrid)
+			{
+				ZONETOOL_WARNING("gfxworld \"%s\" has no light grid probes", asset->name);
+				return;
+			}
+
+			convert_light_grid_volumes(asset, light_grid, allocator);
+
+			const auto* grid = light_grid.gpuLightGrid;
+			ZONETOOL_INFO("gfxworld \"%s\": light grid %u probes, %u zones, %u tetrahedrons", asset->name, grid->probeCount,
+				grid->zoneCount, grid->tetrahedronCount);
+		}
+
+		float triple_product(const std::array<float, 3>& a, const std::array<float, 3>& b, const std::array<float, 3>& c)
+		{
+			return a[0] * (b[1] * c[2] - b[2] * c[1]) + a[1] * (b[2] * c[0] - b[0] * c[2]) + a[2] * (b[0] * c[1] - b[1] * c[0]);
+		}
+
+		std::optional<std::array<float, 4>> get_tetrahedron_weights(const std::array<std::array<float, 3>, 4>& corners,
+			const std::array<float, 3>& point)
+		{
+			const auto edge = [&](const std::array<float, 3>& to)
+			{
+				return std::array{to[0] - corners[0][0], to[1] - corners[0][1], to[2] - corners[0][2]};
+			};
+
+			const auto a = edge(corners[1]);
+			const auto b = edge(corners[2]);
+			const auto c = edge(corners[3]);
+			const auto d = edge(point);
+			const auto volume = triple_product(a, b, c);
+			if (std::abs(volume) < 0.000001f)
+			{
+				return {};
+			}
+
+			const auto w1 = triple_product(d, b, c) / volume;
+			const auto w2 = triple_product(a, d, c) / volume;
+			const auto w3 = triple_product(a, b, d) / volume;
+			const std::array weights{1.0f - w1 - w2 - w3, w1, w2, w3};
+			if (std::ranges::any_of(weights, [](const float weight) { return weight < -0.001f; }))
+			{
+				return {};
+			}
+
+			return weights;
+		}
+
+		sh_probe sample_light_grid(const GfxLightGridProbeData& grid, const vec3_t& point)
+		{
+			const auto position = [&](const unsigned int index)
+			{
+				const auto& origin = grid.probePositions[index].origin;
+				return std::array{origin[0], origin[1], origin[2]};
+			};
+
+			const std::array target{point[0], point[1], point[2]};
+			for (auto i = 0u; grid.tetrahedrons && i < grid.tetrahedronCount; i++)
+			{
+				std::array<unsigned int, 4> indices{};
+				std::array<std::array<float, 3>, 4> corners{};
+				auto valid = true;
+				for (auto v = 0u; v < indices.size() && valid; v++)
+				{
+					indices[v] = grid.tetrahedrons[i].indexFlags[v] & 0x7FFFFFFF;
+					valid = indices[v] < grid.probeCount;
+					corners[v] = valid ? position(indices[v]) : std::array<float, 3>{};
+				}
+
+				const auto weights = valid ? get_tetrahedron_weights(corners, target) : std::nullopt;
+				if (!weights)
+				{
+					continue;
+				}
+
+				sh_probe result{};
+				for (auto v = 0u; v < indices.size(); v++)
+				{
+					const auto probe = decode_sh_probe(grid.probes[indices[v]]);
+					for (auto k = 0u; k < result.size(); k++)
+					{
+						result[k] += probe[k] * (*weights)[v];
+					}
+				}
+
+				return result;
+			}
+
+			auto nearest = 0u;
+			auto nearest_distance = std::numeric_limits<float>::max();
+			for (auto i = 0u; i < grid.probeCount; i++)
+			{
+				const auto origin = position(i);
+				const auto dx = origin[0] - target[0];
+				const auto dy = origin[1] - target[1];
+				const auto dz = origin[2] - target[2];
+				const auto distance = dx * dx + dy * dy + dz * dz;
+				if (distance < nearest_distance)
+				{
+					nearest = i;
+					nearest_distance = distance;
+				}
+			}
+
+			return decode_sh_probe(grid.probes[nearest]);
+		}
+
+		void convert_reflection_probes(const GfxWorld* asset, target::GfxWorld* world, utils::memory::allocator& allocator)
+		{
+			const auto& source = asset->draw.reflectionProbeData;
+			const auto& grid = asset->lightGrid.probeData;
+			if (!source.reflectionProbeCount || !source.reflectionProbes || !source.reflectionProbeArrayImage
+				|| !grid.probeCount || !grid.probes || !grid.probePositions)
+			{
+				ZONETOOL_WARNING("gfxworld \"%s\": cannot convert the reflection probes", asset->name);
+				return;
+			}
+
+			const auto count = source.reflectionProbeCount;
+			auto& probes = world->draw.reflectionProbeData;
+			probes.reflectionProbeCount = count;
+			probes.reflectionProbes = allocator.allocate_array<target::GfxReflectionProbe>(count);
+			probes.reflectionProbeSH = allocator.allocate_array<target::GfxSH3Vec>(4 * count);
+
+			std::vector<std::array<float, 4>> luminance_sh(count);
+			for (auto i = 0u; i < count; i++)
+			{
+				const auto& probe = source.reflectionProbes[i];
+				auto& converted = probes.reflectionProbes[i];
+				converted.livePath = probe.livePath;
+				std::memcpy(converted.origin, probe.origin, sizeof(converted.origin));
+				std::memcpy(converted.angles, probe.angles, sizeof(converted.angles));
+				converted.probeInstanceCount = static_cast<unsigned short>(probe.probeInstanceCount);
+				converted.probeInstances = make_array<unsigned short>(probe.probeInstanceCount, allocator);
+				for (auto j = 0u; j < probe.probeInstanceCount; j++)
+				{
+					converted.probeInstances[j] = static_cast<unsigned short>(probe.probeInstances[j]);
+				}
+
+				converted.probeRelightingIndex = 0xFFFF;
+
+				const auto sh = sample_light_grid(grid, probe.origin);
+				auto& luminance = probes.reflectionProbeSH[i];
+				for (auto k = 0u; k < 9; k++)
+				{
+					luminance.coeffs[k] = 0.2126f * sh[k] + 0.7152f * sh[9 + k] + 0.0722f * sh[18 + k];
+					for (auto channel = 0u; channel < 3; channel++)
+					{
+						probes.reflectionProbeSH[(channel + 1) * count + i].coeffs[k] = sh[channel * 9 + k];
+					}
+				}
+
+				std::memcpy(luminance_sh[i].data(), luminance.coeffs, sizeof(luminance_sh[i]));
+			}
+
+			probes.reflectionProbeInstanceCount = source.reflectionProbeInstanceCount;
+			probes.reflectionProbeInstances = make_array<target::GfxReflectionProbeInstance>(source.reflectionProbeInstanceCount, allocator);
+			for (auto i = 0u; i < source.reflectionProbeInstanceCount; i++)
+			{
+				const auto& instance = source.reflectionProbeInstances[i];
+				auto& converted = probes.reflectionProbeInstances[i];
+				converted.livePath = instance.livePath;
+				std::memcpy(converted.probePosition, instance.probePosition, sizeof(converted.probePosition));
+				converted.probeImageIndex = instance.probeImageIndex;
+				converted.lodLevel = instance.lodLevel;
+				converted.flags = instance.flags;
+				std::memcpy(converted.probeRotation, instance.probeRotation, sizeof(converted.probeRotation));
+				converted.volumeObb = std::bit_cast<target::GfxReflectionProbeObb>(instance.volumeObb);
+				converted.priority = instance.priority;
+				std::memcpy(converted.feather, instance.feather, sizeof(converted.feather));
+				std::memcpy(converted.expandProjectionNeg, instance.expandProjectionNeg, sizeof(converted.expandProjectionNeg));
+				std::memcpy(converted.expandProjectionPos, instance.expandProjectionPos, sizeof(converted.expandProjectionPos));
+			}
+
+			const auto* image = gfximage::dump_reflection_probes(source.reflectionProbeArrayImage, luminance_sh);
+			probes.reflectionProbeArrayImage_octahedron = make_named<target::GfxImage>(image, allocator);
+			if (!image)
+			{
+				ZONETOOL_WARNING("gfxworld \"%s\": cannot convert the reflection probe image", asset->name);
+			}
+		}
+
 		void convert_sun(const GfxWorld* asset, target::GfxWorld* world, utils::memory::allocator& allocator)
 		{
 			world->sun = std::bit_cast<target::sunflare_t>(asset->sun);
@@ -736,7 +1371,7 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 		{
 			auto& draw = world->draw;
 			draw.iesLookupTexture = convert_image(asset->draw.iesLookupTexture, allocator);
-			draw.lightGridType = 0;
+			draw.lightGridType = zone->gpuLightGrid.gpuLightGrid ? target::GFX_LIGHT_GRID_TYPE_GPU : target::GFX_LIGHT_GRID_TYPE_NONE;
 			draw.transientZoneCount = 1;
 			draw.transientZones[0] = zone;
 			draw.bakedLightScale = 1.0f;
@@ -956,7 +1591,7 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 			dpvs.smodelVisDataCount = (instance_count + 31) >> 5;
 			dpvs.surfaceVisDataCount = (surface_count + 31) >> 5;
 			dpvs.primaryLightVisDataCount = (world->primaryLightCount + 31) >> 5;
-			dpvs.reflectionProbeVisDataCount = 0;
+			dpvs.reflectionProbeVisDataCount = (world->draw.reflectionProbeData.reflectionProbeInstanceCount + 31) >> 5;
 			dpvs.volumetricVisDataCount = 0;
 			dpvs.decalVisDataCount = 0;
 
@@ -968,6 +1603,7 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 			}
 
 			dpvs.primaryLightVisData = make_array<unsigned int>(dpvs.primaryLightVisDataCount, allocator);
+			dpvs.reflectionProbeVisData = make_array<unsigned int>(dpvs.reflectionProbeVisDataCount, allocator);
 
 			const auto sorted_count = 32 * dpvs.surfaceVisDataCount;
 			dpvs.sortedSurfIndex = make_array<unsigned int>(sorted_count, allocator);
@@ -1360,7 +1996,9 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 
 		std::vector<target::Bounds> instance_bounds;
 		convert_static_models(asset, world, instance_bounds, allocator);
+		convert_light_grid(asset, zone, allocator);
 		convert_draw(asset, zone, world, allocator);
+		convert_reflection_probes(asset, world, allocator);
 		convert_sun(asset, world, allocator);
 		world->primaryLights = make_array<target::GfxLight>(world->primaryLightCount, allocator);
 		convert_lights(asset, world, allocator);

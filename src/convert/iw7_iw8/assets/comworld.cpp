@@ -23,8 +23,8 @@ namespace zonetool::iw7::converter::iw8::comworld
 			converted.uvIntensity = light.uvIntensity;
 			converted.irIntensity = light.irIntensity;
 
-			const auto intensity = std::max({light.color[0], light.color[1], light.color[2]}); // TODO: IW7 to IW8 light unit is not proven
-			converted.intensity = intensity;
+			const auto intensity = std::max({light.color[0], light.color[1], light.color[2]});
+			converted.intensity = intensity / std::numbers::pi_v<float>; // TODO: IW7 artist unit inferred from sun ratio, not proven in IW7 asm
 			for (auto i = 0; i < 3; i++)
 			{
 				converted.colorLinearSrgb[i] = intensity > 0.0f ? light.color[i] / intensity : 0.0f;

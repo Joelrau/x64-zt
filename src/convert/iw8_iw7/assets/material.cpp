@@ -736,7 +736,7 @@ namespace zonetool::iw8::converter::iw7::material
 			"2d",
 			true,
 			{0, 41, 64, 0, 1},
-			target::CAMERA_REGION_NONE,
+			target::CAMERA_REGION_EMISSIVE,
 			243,
 			{
 				{
