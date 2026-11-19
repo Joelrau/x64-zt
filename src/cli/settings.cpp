@@ -178,6 +178,7 @@ namespace zonetool::cli
 
 		result.game_path = select_game_path(*result.game, requested_path).make_preferred();
 		result.target_path = take_option(args, "-target_path");
+		result.copy_to = take_option(args, "-copy_to");
 		result.config = config;
 
 		game_files::set(result.game->open_files

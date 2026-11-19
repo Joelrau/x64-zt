@@ -12,20 +12,21 @@ namespace zonetool::iw7::converter::iw8::xsurface
 	namespace
 	{
 		namespace target = zonetool::iw8;
+	}
 
-		using vec3 = std::array<float, 3>;
-
-		vec3 unpack_unit_vec(const std::uint32_t packed)
+	vec3 unpack_unit_vec(const std::uint32_t packed)
+	{
+		vec3 result{};
+		for (auto i = 0; i < 3; i++)
 		{
-			vec3 result{};
-			for (auto i = 0; i < 3; i++)
-			{
-				result[i] = static_cast<float>((packed >> (10 * i)) & 0x3FF) / 1023.0f * 2.0f - 1.0f;
-			}
-
-			return result;
+			result[i] = static_cast<float>((packed >> (10 * i)) & 0x3FF) / 1023.0f * 2.0f - 1.0f;
 		}
 
+		return result;
+	}
+
+	namespace
+	{
 		float dot(const vec3& a, const vec3& b)
 		{
 			return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -92,55 +93,58 @@ namespace zonetool::iw7::converter::iw8::xsurface
 
 			return q;
 		}
+	}
 
-		std::uint32_t pack_tangent_frame(const vec3& normal, const vec3& tangent, const bool negative_binormal)
+	std::uint32_t pack_tangent_frame(const vec3& normal, const vec3& tangent, const bool negative_binormal)
+	{
+		const auto n = normalize(normal, { 0.0f, 0.0f, 1.0f });
+		const auto projected = vec3{ tangent[0] - n[0] * dot(n, tangent), tangent[1] - n[1] * dot(n, tangent), tangent[2] - n[2] * dot(n, tangent) };
+		const auto t = normalize(projected, any_perpendicular(n));
+		const auto b = cross(n, t);
+
+		auto q = matrix_to_quat(t, b, n);
+
+		auto largest_index = 0u;
+		for (auto i = 1u; i < q.size(); i++)
 		{
-			const auto n = normalize(normal, { 0.0f, 0.0f, 1.0f });
-			const auto projected = vec3{ tangent[0] - n[0] * dot(n, tangent), tangent[1] - n[1] * dot(n, tangent), tangent[2] - n[2] * dot(n, tangent) };
-			const auto t = normalize(projected, any_perpendicular(n));
-			const auto b = cross(n, t);
-
-			auto q = matrix_to_quat(t, b, n);
-
-			auto largest_index = 0u;
-			for (auto i = 1u; i < q.size(); i++)
+			if (std::abs(q[i]) > std::abs(q[largest_index]))
 			{
-				if (std::abs(q[i]) > std::abs(q[largest_index]))
-				{
-					largest_index = i;
-				}
+				largest_index = i;
 			}
-
-			if (q[largest_index] < 0.0f)
-			{
-				for (auto& value : q)
-				{
-					value = -value;
-				}
-			}
-
-			const auto pack_component = [](const float value, const float max)
-			{
-				const auto scaled = (std::clamp(value / 0.707107f, -1.0f, 1.0f) + 1.0f) * 0.5f * max;
-				return static_cast<std::uint32_t>(std::floor(scaled + 0.5f));
-			};
-
-			std::uint32_t remaining[3]{};
-			for (auto i = 0u, j = 0u; i < q.size(); i++)
-			{
-				if (i != largest_index)
-				{
-					remaining[j++] = i;
-				}
-			}
-
-			return pack_component(q[remaining[0]], 1023.0f)
-				| (pack_component(q[remaining[1]], 1023.0f) << 10)
-				| (pack_component(q[remaining[2]], 511.0f) << 20)
-				| (negative_binormal ? 1u << 29 : 0u)
-				| (largest_index << 30);
 		}
 
+		if (q[largest_index] < 0.0f)
+		{
+			for (auto& value : q)
+			{
+				value = -value;
+			}
+		}
+
+		const auto pack_component = [](const float value, const float max)
+		{
+			const auto scaled = (std::clamp(value / 0.707107f, -1.0f, 1.0f) + 1.0f) * 0.5f * max;
+			return static_cast<std::uint32_t>(std::floor(scaled + 0.5f));
+		};
+
+		std::uint32_t remaining[3]{};
+		for (auto i = 0u, j = 0u; i < q.size(); i++)
+		{
+			if (i != largest_index)
+			{
+				remaining[j++] = i;
+			}
+		}
+
+		return pack_component(q[remaining[0]], 1023.0f)
+			| (pack_component(q[remaining[1]], 1023.0f) << 10)
+			| (pack_component(q[remaining[2]], 511.0f) << 20)
+			| (negative_binormal ? 1u << 29 : 0u)
+			| (largest_index << 30);
+	}
+
+	namespace
+	{
 		std::uint64_t pack_position(const float* xyz, const target::Bounds& bounds)
 		{
 			const auto scale = std::max({ bounds.halfSize[0], bounds.halfSize[1], bounds.halfSize[2] });

@@ -165,6 +165,60 @@ namespace zonetool::iw7::converter::iw8::material
 			return result;
 		}
 
+		target::GfxImage* find_color_image(const Material* asset)
+		{
+			if (const auto image = find_texture(asset, TS_COLOR_SPECULAR_MAP))
+			{
+				return gfximage::dump_color_specular(image);
+			}
+
+			if (const auto image = find_texture(asset, TS_COLOR_MAP))
+			{
+				return gfximage::dump_color(image);
+			}
+
+			return nullptr;
+		}
+
+		std::string get_lit_name(const char* name, const techset::generated_techset techset)
+		{
+			const auto prefix = techset == techset::GENERATED_TECHSET_WORLD ? "tw" : "tmo";
+			if (name[0] == '*')
+			{
+				return std::format("{}/maps/mp/generated/{}", prefix, name + 1); // '*' is not a valid file name
+			}
+
+			return std::format("{}/{}", prefix, name);
+		}
+
+		target::Material* convert_lit(const Material* asset, const std::string& name, const techset::generated_techset techset,
+			utils::memory::allocator& allocator)
+		{
+			const auto result = allocator.allocate<target::Material>();
+			result->name = allocator.duplicate_string(name);
+			result->contents = 1;
+			result->surfaceFlags = 0xB80000;
+			result->materialType = techset == techset::GENERATED_TECHSET_WORLD ? target::MTL_TYPE_WORLD : target::MTL_TYPE_STATIC_MODEL_SELFVIS;
+			result->cameraRegion = target::CAMERA_REGION_LIT_OPAQUE;
+			result->sortKey = 2;
+			result->flags = 0x10;
+			result->textureAtlasRowCount = 1;
+			result->textureAtlasColumnCount = 1;
+
+			result->techniqueSet = allocator.allocate<target::MaterialTechniqueSet>();
+			result->techniqueSet->name = techset::get_techset_name(techset);
+
+			const auto color = find_color_image(asset);
+			result->textureCount = 1;
+			result->textureTable = allocator.allocate<target::MaterialTextureDef>();
+			result->textureTable->index = 0;
+			result->textureTable->image = color ? color : make_image_reference("$black", allocator);
+
+			result->constantBufferIndex = allocator.allocate_array<unsigned char>(target::TECHNIQUE_COUNT);
+			std::memset(result->constantBufferIndex, 0xFF, target::TECHNIQUE_COUNT);
+			return result;
+		}
+
 		Material* find_loaded(Material* asset)
 		{
 			if (!asset->textureTable)
@@ -210,5 +264,32 @@ namespace zonetool::iw7::converter::iw8::material
 		add_csv_row("require", "techsets_common_core_mp");
 		add_csv_row("techset", ","s + effect_techset_name);
 		add_csv_row("material", asset->name);
+	}
+
+	std::string dump_lit(Material* asset, const techset::generated_techset techset)
+	{
+		if (!asset || !asset->name)
+		{
+			return {};
+		}
+
+		const auto name = get_lit_name(asset->name, techset);
+		if (!mark_dumped(ASSET_TYPE_MATERIAL, name))
+		{
+			return name;
+		}
+
+		asset = find_loaded(asset);
+		techset::dump_techset(techset);
+
+		utils::memory::allocator allocator;
+		const auto converted = convert_lit(asset, name, techset, allocator);
+		zonetool::iw8::material::dump(converted);
+		if (converted->textureTable->image->name == "$black"sv)
+		{
+			add_csv_row("image", ",$black");
+		}
+		add_csv_row("material", name);
+		return name;
 	}
 }

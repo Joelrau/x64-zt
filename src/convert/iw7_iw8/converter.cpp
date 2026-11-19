@@ -102,6 +102,30 @@ namespace zonetool::convert::iw7_iw8
 			case source::ASSET_TYPE_WEAPON:
 				target::weapon::dump(header_as<source::WeaponCompleteDef>(header));
 				break;
+			case source::ASSET_TYPE_COMWORLD:
+				target::comworld::dump(header_as<source::ComWorld>(header));
+				break;
+			case source::ASSET_TYPE_MAP_ENTS:
+				target::mapents::dump(header_as<source::MapEnts>(header));
+				break;
+			case source::ASSET_TYPE_CLIPMAP:
+				target::clipmap::dump(header_as<source::clipMap_t>(header));
+				break;
+			case source::ASSET_TYPE_LIGHT_DEF:
+				target::lightdef::dump(header_as<source::GfxLightDef>(header));
+				break;
+			case source::ASSET_TYPE_GLASSWORLD:
+				target::glassworld::dump(header_as<source::GlassWorld>(header));
+				break;
+			case source::ASSET_TYPE_GFXWORLD:
+				target::gfxworld::dump(header_as<source::GfxWorld>(header));
+				break;
+			case source::ASSET_TYPE_FXWORLD:
+				target::fxworld::dump(header_as<source::FxWorld>(header));
+				break;
+			case source::ASSET_TYPE_NET_CONST_STRINGS:
+				target::netconststrings::dump(header_as<source::NetConstStrings>(header));
+				break;
 			default:
 				break;
 			}
@@ -114,12 +138,19 @@ namespace zonetool::convert::iw7_iw8
 
 		void finish(const std::string& zone_name)
 		{
+			zonetool::iw7::converter::iw8::netconststrings::dump_missing_level_strings();
 			zonetool::iw7::converter::iw8::write_csv(zone_name);
 		}
 
-		std::vector<std::string> required_zones(const std::string&)
+		std::vector<std::string> required_zones(const std::string& zone_name)
 		{
-			return {"code_post_gfx", "global_core_mp", "techsets_global_core_mp", "common_core_mp", "common_mp"};
+			std::vector<std::string> zones{"code_post_gfx", "global_core_mp", "techsets_global_core_mp", "common_core_mp", "common_mp"};
+			if (!zone_name.starts_with("techsets_"))
+			{
+				zones.emplace_back("techsets_" + zone_name);
+			}
+
+			return zones;
 		}
 	}
 

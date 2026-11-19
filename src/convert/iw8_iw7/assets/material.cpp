@@ -1102,7 +1102,7 @@ namespace zonetool::iw8::converter::iw7::material
 					continue;
 				}
 
-				switch (technique->stateBits.rasterizerBits & GFX_RASTERIZER_CULL_MASK)
+				switch (technique->stateBits.depthStencilRasterizerBits & GFX_RASTERIZER_CULL_MASK)
 				{
 				case GFX_RASTERIZER_CULL_NONE:
 					return target::RASTERIZER_STATE_CULL_NONE;

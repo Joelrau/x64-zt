@@ -1,9 +1,12 @@
-#include <std_include.hpp>
+#include "win_include.hpp"
 #include "shader_compiler.hpp"
 
 #include <d3dcompiler.h>
 
-namespace zonetool::iw8::converter::iw7::shader_compiler
+#include <format>
+#include <stdexcept>
+
+namespace utils::shader_compiler
 {
 	namespace
 	{

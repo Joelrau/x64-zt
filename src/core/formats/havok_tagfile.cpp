@@ -90,6 +90,19 @@ namespace havok::tagfile
 				throw std::runtime_error("havok tagfile: bad packed integer");
 			}
 
+			std::uint32_t read_u32()
+			{
+				if (this->offset_ + sizeof(std::uint32_t) > this->end_)
+				{
+					throw std::runtime_error("havok tagfile: packed integer out of range");
+				}
+
+				std::uint32_t value{};
+				std::memcpy(&value, this->data_ + this->offset_, sizeof(value));
+				this->offset_ += sizeof(value);
+				return value;
+			}
+
 		private:
 			std::uint64_t read_bytes(const std::size_t count, const std::uint8_t first_mask)
 			{
@@ -324,6 +337,7 @@ namespace havok::tagfile
 			auto& info = this->types_.at(index);
 			info.parent = static_cast<std::uint32_t>(bodies.read());
 			const auto flags = bodies.read();
+			info.body_flags = static_cast<std::uint32_t>(flags);
 			if (flags & body_format)
 			{
 				info.format = static_cast<std::uint32_t>(bodies.read());
@@ -343,11 +357,12 @@ namespace havok::tagfile
 			}
 			if (flags & body_type_flags)
 			{
-				bodies.read();
+				info.type_flags = static_cast<std::uint32_t>(bodies.read());
 			}
 			if (flags & body_members)
 			{
-				const auto count = bodies.read() & 0xFFFF;
+				info.raw_member_count = static_cast<std::uint32_t>(bodies.read());
+				const auto count = info.raw_member_count & 0xFFFF;
 				for (auto m = 0u; m < count; m++)
 				{
 					type_member member{};
@@ -369,6 +384,19 @@ namespace havok::tagfile
 			if (flags & body_attribute)
 			{
 				bodies.read();
+			}
+		}
+
+		if (chunks.contains("THSH"))
+		{
+			packed_reader hashes(data, chunks["THSH"]);
+			const auto count = hashes.read();
+			for (auto i = 0u; i < count; i++)
+			{
+				const auto index = hashes.read();
+				auto& info = this->types_.at(index);
+				info.hash = hashes.read_u32();
+				info.has_hash = true;
 			}
 		}
 
@@ -456,5 +484,343 @@ namespace havok::tagfile
 	std::string_view file::data() const
 	{
 		return this->data_;
+	}
+
+	namespace
+	{
+		void append_packed(std::string& out, std::uint64_t value)
+		{
+			if (value < 0x80)
+			{
+				out.push_back(static_cast<char>(value));
+			}
+			else if (value < 0x4000)
+			{
+				out.push_back(static_cast<char>(0x80 | (value >> 8)));
+				out.push_back(static_cast<char>(value));
+			}
+			else if (value < 0x200000)
+			{
+				out.push_back(static_cast<char>(0xC0 | (value >> 16)));
+				out.push_back(static_cast<char>(value >> 8));
+				out.push_back(static_cast<char>(value));
+			}
+			else if (value < 0x8000000)
+			{
+				out.push_back(static_cast<char>(0xE0 | (value >> 24)));
+				out.push_back(static_cast<char>(value >> 16));
+				out.push_back(static_cast<char>(value >> 8));
+				out.push_back(static_cast<char>(value));
+			}
+			else if (value < 0x800000000)
+			{
+				out.push_back(static_cast<char>(0xE8 | (value >> 32)));
+				for (auto shift = 24; shift >= 0; shift -= 8)
+				{
+					out.push_back(static_cast<char>(value >> shift));
+				}
+			}
+			else if (value < 0x800000000000000)
+			{
+				out.push_back(static_cast<char>(0xF0 | (value >> 56)));
+				for (auto shift = 48; shift >= 0; shift -= 8)
+				{
+					out.push_back(static_cast<char>(value >> shift));
+				}
+			}
+			else
+			{
+				out.push_back(static_cast<char>(0xF8));
+				for (auto shift = 56; shift >= 0; shift -= 8)
+				{
+					out.push_back(static_cast<char>(value >> shift));
+				}
+			}
+		}
+
+		void append_value(std::string& out, const void* data, const std::size_t size)
+		{
+			out.append(static_cast<const char*>(data), size);
+		}
+
+		template <typename T>
+		void append_number(std::string& out, const T& value)
+		{
+			append_value(out, &value, sizeof(value));
+		}
+
+		void align(std::string& out, const std::size_t alignment)
+		{
+			while (out.size() % alignment)
+			{
+				out.push_back('\0');
+			}
+		}
+
+		std::uint32_t name_index(std::vector<std::string>& names, const std::string& name)
+		{
+			const auto found = std::ranges::find(names, name);
+			if (found != names.end())
+			{
+				return static_cast<std::uint32_t>(found - names.begin());
+			}
+
+			names.push_back(name);
+			return static_cast<std::uint32_t>(names.size() - 1);
+		}
+
+		void write_chunk(std::string& out, const std::string_view tag, std::string content, const std::uint32_t flags)
+		{
+			align(content, 4);
+			const auto size = 8 + content.size();
+			if (size >= 0x40000000)
+			{
+				throw std::runtime_error("havok tagfile: chunk too large");
+			}
+
+			const auto header = static_cast<std::uint32_t>(size) | (flags << 30);
+			out.push_back(static_cast<char>(header >> 24));
+			out.push_back(static_cast<char>(header >> 16));
+			out.push_back(static_cast<char>(header >> 8));
+			out.push_back(static_cast<char>(header));
+			out.append(tag);
+			out.append(content);
+		}
+	}
+
+	writer::writer(std::vector<type_info> types)
+		: types_(std::move(types))
+	{
+		this->items_.push_back({});
+	}
+
+	std::uint32_t writer::type_id(const std::string_view name) const
+	{
+		for (auto i = 1u; i < this->types_.size(); i++)
+		{
+			if (this->types_[i].name == name)
+			{
+				return i;
+			}
+		}
+
+		throw std::runtime_error(std::format("havok tagfile: no type {}", name));
+	}
+
+	std::uint32_t writer::type_size(const std::uint32_t type) const
+	{
+		auto index = type;
+		while (!this->types_.at(index).size && this->types_[index].parent)
+		{
+			index = this->types_[index].parent;
+		}
+
+		return this->types_[index].size;
+	}
+
+	writer::reference writer::add_object(const std::uint32_t type, const void* data)
+	{
+		const auto size = this->type_size(type);
+		align(this->data_, 16);
+		const auto offset = this->data_.size();
+		append_value(this->data_, data, size);
+		this->items_.push_back({type, item_object, static_cast<std::uint32_t>(offset), 1});
+		return {static_cast<std::uint32_t>(this->items_.size() - 1), static_cast<std::uint32_t>(offset)};
+	}
+
+	writer::reference writer::add_array(const std::uint32_t element_type, const void* data, const std::size_t count)
+	{
+		const auto size = static_cast<std::size_t>(this->type_size(element_type)) * count;
+		if (this->types_[element_type].name != "char")
+		{
+			align(this->data_, 16);
+		}
+
+		const auto offset = this->data_.size();
+		if (size)
+		{
+			append_value(this->data_, data, size);
+		}
+
+		this->items_.push_back({element_type, item_array, static_cast<std::uint32_t>(offset),
+			static_cast<std::uint32_t>(count)});
+		return {static_cast<std::uint32_t>(this->items_.size() - 1), static_cast<std::uint32_t>(offset)};
+	}
+
+	void writer::set_pointer(const std::size_t field_offset, const std::uint32_t field_type, const std::size_t item)
+	{
+		if (field_offset + 4 > this->data_.size())
+		{
+			throw std::runtime_error("havok tagfile: pointer field is outside the data");
+		}
+
+		if (this->type_size(field_type) == 4)
+		{
+			const auto value = static_cast<std::uint32_t>(item);
+			std::memcpy(this->data_.data() + field_offset, &value, sizeof(value));
+		}
+		else
+		{
+			const auto value = static_cast<std::uint64_t>(item);
+			std::memcpy(this->data_.data() + field_offset, &value, sizeof(value));
+		}
+
+		if (item)
+		{
+			this->patches_[field_type].push_back(static_cast<std::uint32_t>(field_offset));
+		}
+	}
+
+	std::string writer::finish(const std::uint32_t root_item)
+	{
+		if (!root_item || root_item >= this->items_.size())
+		{
+			throw std::runtime_error("havok tagfile: bad root item");
+		}
+
+		std::vector<std::string> type_names;
+		std::string type_names_chunk;
+		append_packed(type_names_chunk, this->types_.size());
+		for (auto i = 1u; i < this->types_.size(); i++)
+		{
+			const auto& info = this->types_[i];
+			append_packed(type_names_chunk, name_index(type_names, info.name));
+			append_packed(type_names_chunk, info.templates.size());
+			for (const auto& [template_name, template_value] : info.templates)
+			{
+				append_packed(type_names_chunk, name_index(type_names, template_name));
+				append_packed(type_names_chunk, template_value);
+			}
+		}
+
+		std::string names;
+		for (const auto& name : type_names)
+		{
+			names.append(name);
+			names.push_back('\0');
+		}
+
+		std::vector<std::string> member_names;
+		std::string member_names_chunk;
+		std::string bodies;
+		for (auto i = 1u; i < this->types_.size(); i++)
+		{
+			const auto& info = this->types_[i];
+			append_packed(bodies, i);
+			append_packed(bodies, info.parent);
+			append_packed(bodies, info.body_flags);
+			if (info.body_flags & body_format)
+			{
+				append_packed(bodies, info.format);
+			}
+			if (info.body_flags & body_subtype)
+			{
+				append_packed(bodies, info.subtype);
+			}
+			if (info.body_flags & body_version)
+			{
+				append_packed(bodies, info.version);
+			}
+			if (info.body_flags & body_size)
+			{
+				append_packed(bodies, info.size);
+				append_packed(bodies, info.alignment);
+			}
+			if (info.body_flags & body_type_flags)
+			{
+				append_packed(bodies, info.type_flags);
+			}
+			if (info.body_flags & body_members)
+			{
+				append_packed(bodies, info.raw_member_count);
+				for (const auto& member : info.members)
+				{
+					append_packed(bodies, name_index(member_names, member.name));
+					append_packed(bodies, member.flags);
+					append_packed(bodies, member.offset);
+					append_packed(bodies, member.type);
+				}
+			}
+			if (info.body_flags & body_interfaces)
+			{
+				append_packed(bodies, 0);
+			}
+			if (info.body_flags & body_attribute)
+			{
+				append_packed(bodies, 0);
+			}
+		}
+		bodies.append(2, '\0');
+
+		std::string hashes;
+		auto hash_count = 0u;
+		for (auto i = 1u; i < this->types_.size(); i++)
+		{
+			if (this->types_[i].has_hash)
+			{
+				hash_count++;
+			}
+		}
+		append_packed(hashes, hash_count);
+		for (auto i = 1u; i < this->types_.size(); i++)
+		{
+			if (!this->types_[i].has_hash)
+			{
+				continue;
+			}
+
+			append_packed(hashes, i);
+			append_number(hashes, this->types_[i].hash);
+		}
+
+		member_names_chunk.clear();
+		for (const auto& name : member_names)
+		{
+			member_names_chunk.append(name);
+			member_names_chunk.push_back('\0');
+		}
+
+		std::string item_table;
+		for (const auto& entry : this->items_)
+		{
+			const auto type_and_flags = entry.type | (entry.flags << 24);
+			append_number(item_table, type_and_flags);
+			append_number(item_table, entry.offset);
+			append_number(item_table, entry.count);
+		}
+
+		std::string patch_table;
+		for (auto& [type, offsets] : this->patches_)
+		{
+			std::ranges::sort(offsets);
+			append_number(patch_table, type);
+			append_number(patch_table, static_cast<std::uint32_t>(offsets.size()));
+			for (const auto offset : offsets)
+			{
+				append_number(patch_table, offset);
+			}
+		}
+
+		std::string type_chunk;
+		write_chunk(type_chunk, "TPTR", std::string(this->types_.size() * 8, '\0'), 1);
+		write_chunk(type_chunk, "TSTR", std::move(names), 1);
+		write_chunk(type_chunk, "TNA1", std::move(type_names_chunk), 1);
+		write_chunk(type_chunk, "FSTR", std::move(member_names_chunk), 1);
+		write_chunk(type_chunk, "TBDY", std::move(bodies), 1);
+		write_chunk(type_chunk, "THSH", std::move(hashes), 1);
+		write_chunk(type_chunk, "TPAD", {}, 1);
+
+		std::string index_chunk;
+		write_chunk(index_chunk, "ITEM", std::move(item_table), 1);
+		write_chunk(index_chunk, "PTCH", std::move(patch_table), 1);
+
+		std::string result;
+		std::string contents;
+		write_chunk(contents, "SDKV", "20180200", 1);
+		write_chunk(contents, "DATA", std::move(this->data_), 1);
+		write_chunk(contents, "TYPE", std::move(type_chunk), 0);
+		write_chunk(contents, "INDX", std::move(index_chunk), 0);
+		write_chunk(result, "TAG0", std::move(contents), 0);
+		return result;
 	}
 }

@@ -177,6 +177,99 @@ namespace zonetool::iw7
 				}
 			}
 
+			packfile_reader::packfile_reader(const std::string_view bytes)
+			{
+				if (bytes.size() < sizeof(hkxHeaderData))
+				{
+					throw std::runtime_error("havok packfile: file is too small");
+				}
+
+				const auto* header = reinterpret_cast<const hkxHeaderData*>(bytes.data());
+				if (!validate_header(const_cast<hkxHeaderData*>(header)))
+				{
+					throw std::runtime_error("havok packfile: invalid header");
+				}
+
+				if (header->numSections < 1
+					|| bytes.size() < sizeof(hkxHeaderData) + static_cast<std::size_t>(header->numSections) * sizeof(hkxSectionHeader))
+				{
+					throw std::runtime_error("havok packfile: bad section table");
+				}
+
+				const auto* sections = reinterpret_cast<const hkxSectionHeader*>(bytes.data() + sizeof(hkxHeaderData));
+				if (header->contentsSectionIndex < 0 || header->contentsSectionIndex >= header->numSections)
+				{
+					throw std::runtime_error("havok packfile: bad contents section");
+				}
+
+				const auto& contents = sections[header->contentsSectionIndex];
+				const auto contents_start = static_cast<std::size_t>(contents.absoluteDataStart);
+				const auto contents_size = static_cast<std::size_t>(contents.endOffset);
+				if (contents_start + contents_size > bytes.size())
+				{
+					throw std::runtime_error("havok packfile: contents are outside the file");
+				}
+
+				this->data_.assign(bytes.data() + contents_start, contents_size);
+				auto* data = this->data_.data();
+
+				const auto apply_local = [&](const std::size_t relative)
+				{
+					return data + relative;
+				};
+
+				auto offset = contents_start + static_cast<std::size_t>(contents.localFixupsOffset);
+				const auto local_end = contents_start + static_cast<std::size_t>(contents.globalFixupsOffset);
+				while (offset + 8 <= local_end)
+				{
+					std::uint32_t source{}, target{};
+					std::memcpy(&source, bytes.data() + offset, sizeof(source));
+					std::memcpy(&target, bytes.data() + offset + 4, sizeof(target));
+					offset += 8;
+					if (source == 0xFFFFFFFF)
+					{
+						break;
+					}
+
+					const auto value = reinterpret_cast<std::uintptr_t>(apply_local(target));
+					std::memcpy(data + source, &value, sizeof(value));
+				}
+
+				offset = contents_start + static_cast<std::size_t>(contents.globalFixupsOffset);
+				const auto global_end = contents_start + static_cast<std::size_t>(contents.virtualFixupsOffset);
+				while (offset + 12 <= global_end)
+				{
+					std::uint32_t source{}, section{}, target{};
+					std::memcpy(&source, bytes.data() + offset, sizeof(source));
+					std::memcpy(&section, bytes.data() + offset + 4, sizeof(section));
+					std::memcpy(&target, bytes.data() + offset + 8, sizeof(target));
+					offset += 12;
+					if (source == 0xFFFFFFFF)
+					{
+						break;
+					}
+
+					std::uintptr_t value{};
+					if (section == static_cast<std::uint32_t>(header->contentsSectionIndex))
+					{
+						value = reinterpret_cast<std::uintptr_t>(apply_local(target));
+					}
+
+					std::memcpy(data + source, &value, sizeof(value));
+				}
+
+				if (header->contentsClassNameSectionIndex >= 0 && header->contentsClassNameSectionIndex < header->numSections)
+				{
+					const auto& names = sections[header->contentsClassNameSectionIndex];
+					const auto name_offset = static_cast<std::size_t>(names.absoluteDataStart)
+						+ static_cast<std::size_t>(header->contentsClassNameSectionOffset);
+					if (name_offset < bytes.size())
+					{
+						this->root_class_name_ = std::string(bytes.data() + name_offset);
+					}
+				}
+			}
+
 			void packfile_writer::add_string(const std::size_t pointer_field, const std::string& text)
 			{
 				const auto offset = this->append(text.data(), text.size() + 1);

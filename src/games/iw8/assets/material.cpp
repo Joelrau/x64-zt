@@ -14,7 +14,7 @@ namespace zonetool::iw8
 		{
 			reader.read_string(technique->name);
 			reader.read_array(technique->pipelineStates, 7, technique->pipelineStateInputLayoutCount * technique->renderTargetFormatCount);
-			reader.read_array(technique->stateBitsTable, 0, 1);
+			reader.read_array(technique->inputLayout, 0, 1);
 			reader.read_asset(ASSET_TYPE_VERTEXSHADER, technique->vertexShader);
 			reader.read_asset(ASSET_TYPE_HULLSHADER, technique->hullShader);
 			reader.read_asset(ASSET_TYPE_DOMAINSHADER, technique->domainShader);
@@ -163,7 +163,7 @@ namespace zonetool::iw8
 			}
 
 			write_shared_array(buf, dest->pipelineStates, technique->pipelineStateInputLayoutCount * technique->renderTargetFormatCount, 7);
-			write_shared_array(buf, dest->stateBitsTable, 1, 0);
+			write_shared_array(buf, dest->inputLayout, 1, 0);
 
 			write_shader(zone, dest->vertexShader, technique->vertexShader, ASSET_TYPE_VERTEXSHADER);
 			write_shader(zone, dest->hullShader, technique->hullShader, ASSET_TYPE_HULLSHADER);
@@ -519,7 +519,7 @@ namespace zonetool::iw8
 
 			technique->name = read.read_string();
 			technique->pipelineStates = read.read_array<Packed128>();
-			technique->stateBitsTable = read.read_array<GfxStateBits>();
+			technique->inputLayout = read.read_array<MaterialInputLayout>();
 			technique->vertexShader = read.read_asset<MaterialVertexShader>();
 			technique->hullShader = read.read_asset<MaterialHullShader>();
 			technique->domainShader = read.read_asset<MaterialDomainShader>();
@@ -652,7 +652,7 @@ namespace zonetool::iw8
 
 			dump.dump_string(technique->name);
 			dump.dump_array(technique->pipelineStates, technique->pipelineStateInputLayoutCount * technique->renderTargetFormatCount);
-			dump.dump_array(technique->stateBitsTable, 1);
+			dump.dump_array(technique->inputLayout, 1);
 			dump.dump_asset(technique->vertexShader);
 			dump.dump_asset(technique->hullShader);
 			dump.dump_asset(technique->domainShader);

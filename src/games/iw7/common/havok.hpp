@@ -22,6 +22,27 @@ namespace zonetool::iw7
 				return {nullptr, static_cast<int>(count), static_cast<unsigned int>(count) | HK_ARRAY_DONT_DEALLOCATE};
 			}
 
+			class packfile_reader
+			{
+			public:
+				explicit packfile_reader(std::string_view data);
+
+				template <typename T>
+				const T* root() const
+				{
+					return reinterpret_cast<const T*>(this->data_.data());
+				}
+
+				const std::string& root_class_name() const
+				{
+					return this->root_class_name_;
+				}
+
+			private:
+				std::string data_;
+				std::string root_class_name_;
+			};
+
 			class packfile_writer
 			{
 			public:

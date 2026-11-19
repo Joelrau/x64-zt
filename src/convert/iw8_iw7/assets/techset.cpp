@@ -1,7 +1,7 @@
 #include <std_include.hpp>
 
 #include "../include.hpp"
-#include "../shader_compiler.hpp"
+#include <utils/shader_compiler.hpp>
 #include "techset.hpp"
 #include "shaders.hpp"
 
@@ -166,7 +166,7 @@ namespace zonetool::iw8::converter::iw7::techset
 				full_source += source;
 			}
 
-			const auto bytecode = shader_compiler::compile(full_source, name, "main", profile);
+			const auto bytecode = utils::shader_compiler::compile(full_source, name, "main", profile);
 
 			auto* shader = allocator.allocate<T>();
 			shader->name = allocator.duplicate_string(name);

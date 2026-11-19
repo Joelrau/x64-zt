@@ -137,6 +137,23 @@ namespace zonetool::cli
 
 			std::cout << std::format("{} of {} zones listed\n", zones.size() - failed, zones.size());
 		}
+
+		void copy_built_zone(const std::filesystem::path& output_folder, const std::string& zone, const std::filesystem::path& copy_folder)
+		{
+			std::filesystem::create_directories(copy_folder);
+
+			for (const auto* extension : {".ff", ".pak"})
+			{
+				const auto file = output_folder / (zone + extension);
+				if (!std::filesystem::exists(file))
+				{
+					continue;
+				}
+
+				std::filesystem::copy_file(file, copy_folder / file.filename(), std::filesystem::copy_options::overwrite_existing);
+				std::cout << std::format("copied {} to {}\n", file.filename().string(), copy_folder.string());
+			}
+		}
 	}
 
 	void dump_zone(const settings& settings, const std::span<const std::string> args)
@@ -290,6 +307,11 @@ namespace zonetool::cli
 
 		const auto _ = gsl::finally([] { filesystem::set_output_folder({}); });
 		settings.game->build_zone(settings.zone_folder(), args.front());
+
+		if (settings.copy_to)
+		{
+			copy_built_zone(filesystem::get_output_path(), args.front(), *settings.copy_to);
+		}
 	}
 
 	void generate_csv(const settings& settings, const std::span<const std::string> args)

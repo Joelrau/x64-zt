@@ -9,6 +9,7 @@ namespace zonetool::cli
 		const game* game{};
 		std::filesystem::path game_path;
 		std::optional<std::string> target_path;
+		std::optional<std::string> copy_to;
 		json config;
 
 		std::filesystem::path zone_folder() const;

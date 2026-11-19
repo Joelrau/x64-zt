@@ -46,6 +46,10 @@ games = {
 		iw6_h1 = function()
 			dependencies.use(shader_tool)
 		end,
+		iw7_iw8 = function()
+			gsc_tool.import_engine("iw7")
+			gsc_tool.import_engine("iw8")
+		end,
 		iw8_iw7 = function()
 			gsc_tool.import_engine("iw8")
 			gsc_tool.import_engine("iw7")

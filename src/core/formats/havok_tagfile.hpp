@@ -62,6 +62,11 @@ namespace havok::tagfile
 		std::uint32_t version;
 		std::uint32_t size;
 		std::uint32_t alignment;
+		std::uint32_t body_flags;
+		std::uint32_t type_flags;
+		std::uint32_t raw_member_count;
+		std::uint32_t hash;
+		bool has_hash;
 		std::vector<type_member> members;
 	};
 
@@ -128,5 +133,31 @@ namespace havok::tagfile
 		std::vector<type_info> types_;
 		std::vector<item> items_;
 		std::string_view data_;
+	};
+
+	class writer
+	{
+	public:
+		struct reference
+		{
+			std::uint32_t item;
+			std::uint32_t offset;
+		};
+
+		explicit writer(std::vector<type_info> types);
+
+		std::uint32_t type_id(std::string_view name) const;
+		std::uint32_t type_size(std::uint32_t type) const;
+
+		reference add_object(std::uint32_t type, const void* data);
+		reference add_array(std::uint32_t element_type, const void* data, std::size_t count);
+		void set_pointer(std::size_t field_offset, std::uint32_t field_type, std::size_t item);
+		std::string finish(std::uint32_t root_item);
+
+	private:
+		std::vector<type_info> types_;
+		std::vector<item> items_;
+		std::string data_;
+		std::unordered_map<std::uint32_t, std::vector<std::uint32_t>> patches_;
 	};
 }
