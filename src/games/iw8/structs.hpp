@@ -1296,6 +1296,12 @@ namespace zonetool::iw8
 	assert_offsetof(GfxImage, atlasInfo, 0x2C);
 	assert_offsetof(GfxImage, fallback, 0xD8);
 
+	enum ComPrimaryLightSpawnFlags : unsigned char
+	{
+		PRIMARY_LIGHT_SPAWN_NO_SHADOW = 0x8,
+		PRIMARY_LIGHT_SPAWN_STATIC_SHADOW = 0x20,
+	};
+
 	struct ComPrimaryLight
 	{
 		unsigned char spawnFlags;
@@ -3396,6 +3402,8 @@ namespace zonetool::iw8
 		IMPACT_TYPE_VEH_BULLET_EXPLODE = 16,
 		IMPACT_TYPE_VEH_MISSILE_EXPLODE = 17,
 		IMPACT_TYPE_BULLET_RICOCHET_SMALL = 18,
+		IMPACT_TYPE_REGISTERED_COUNT = 33,
+		IMPACT_TYPE_COUNT = 42,
 	};
 
 	enum MeleeImpactType : std::int32_t
@@ -3474,6 +3482,23 @@ namespace zonetool::iw8
 		TriggerDisconnectSoundData triggerDisconnectSoundData;
 	}; assert_sizeof(WeaponSFXPackage, 0xB0);
 	assert_offsetof(WeaponSFXPackage, szMountEnterExitString, 0x80);
+
+	enum GfxDecalVolumeMaterialFlags : std::uint32_t
+	{
+		DECAL_VOLUME_MATERIAL_FLAG_COLOR = 0x4,
+		DECAL_VOLUME_MATERIAL_FLAG_NORMAL = 0x8,
+		DECAL_VOLUME_MATERIAL_FLAG_EMISSIVE = 0x10,
+		DECAL_VOLUME_MATERIAL_FLAG_UNK_40 = 0x40, // TODO: stock data only
+		DECAL_VOLUME_MATERIAL_FLAG_UNK_400 = 0x400, // TODO: stock data only
+	};
+
+	enum GfxDecalVolumeChannel
+	{
+		DECAL_VOLUME_CHANNEL_COLOR_SPECULAR = 0x0,
+		DECAL_VOLUME_CHANNEL_NORMAL_GLOSS = 0x1,
+		DECAL_VOLUME_CHANNEL_OPACITY = 0x2,
+		DECAL_VOLUME_CHANNEL_EMISSIVE = 0x3,
+	};
 
 	struct GfxDecalVolumeMaterial
 	{
@@ -3598,6 +3623,7 @@ namespace zonetool::iw8
 		MTL_TYPE_WORLD = 0x210000,
 		MTL_TYPE_WORLD_VERTCOL = 0x210004,
 		MTL_TYPE_WORLD_LAYERED = 0x210040,
+		MTL_TYPE_WORLD_LAYERED_VERTCOL = 0x210044,
 		MTL_TYPE_BMODEL = 0x200000,
 		MTL_TYPE_BMODEL_VERTCOL = 0x200004,
 		MTL_TYPE_BMODEL_LAYERED = 0x200040,
@@ -4049,13 +4075,18 @@ namespace zonetool::iw8
 
 	enum MaterialConstantIndex : std::uint8_t
 	{
+		MATERIAL_CONSTANT_TRANSMISSION_TINT = 18, // name unknown
+		MATERIAL_CONSTANT_FROST = 27, // name unknown
 		MATERIAL_CONSTANT_EFFECT_COLOR_TINT = 36, // name unknown
 		MATERIAL_CONSTANT_UV_ANIM = 0x3F, // name unknown
 		MATERIAL_CONSTANT_FLAG_PARMS = 0x4F, // name unknown
 		MATERIAL_CONSTANT_FLAG_WAVE_0 = 0x50, // name unknown
 		MATERIAL_CONSTANT_FLAG_WAVE_1 = 0x51, // name unknown
 		MATERIAL_CONSTANT_FLAG_WAVE_2 = 0x52, // name unknown
+		MATERIAL_CONSTANT_ATLAS_SIZE = 0x5E, // name unknown
+		MATERIAL_CONSTANT_ATLAS_INDEXING = 0x5F, // name unknown
 		MATERIAL_CONSTANT_DISTORTION_SCALE = 0x7F, // name unknown
+		MATERIAL_CONSTANT_2D_COLOR_TINT = 126, // name unknown
 	};
 
 	enum CameraRegion : std::uint8_t
@@ -4073,9 +4104,13 @@ namespace zonetool::iw8
 
 	enum MaterialLayerFlags : std::uint32_t
 	{
+		MATERIAL_LAYER_BLEND_NORMAL = 0x1,
+		MATERIAL_LAYER_BLEND_OCCLUSION = 0x2,
+		MATERIAL_LAYER_BLEND_GLOSS = 0x4,
 		MATERIAL_LAYER_BLEND_MASK = 0x8,
 		MATERIAL_LAYER_BLEND_HEIGHT = 0x10,
 		MATERIAL_LAYER_TINT_MASK = 0x40,
+		MATERIAL_LAYER_COLOR_MULTIPLY = 0x80,
 	};
 
 	struct Material
@@ -4806,6 +4841,29 @@ namespace zonetool::iw8
 		unsigned int pad[1];
 	}; assert_sizeof(ParticleEmitterDef, 0xA0);
 	assert_offsetof(ParticleEmitterDef, fadeCurveDef, 0x50);
+
+	enum ParticleElementType : std::uint32_t
+	{
+		PARTICLE_ELEMENT_TYPE_BILLBOARD_SPRITE = 0x0,
+		PARTICLE_ELEMENT_TYPE_BEAM = 0x1,
+		PARTICLE_ELEMENT_TYPE_DECAL = 0x2,
+		PARTICLE_ELEMENT_TYPE_FLARE = 0x3,
+		PARTICLE_ELEMENT_TYPE_GEO_TRAIL = 0x4,
+		PARTICLE_ELEMENT_TYPE_LIGHT_OMNI = 0x5,
+		PARTICLE_ELEMENT_TYPE_LIGHT_SPOT = 0x6,
+		PARTICLE_ELEMENT_TYPE_MODEL = 0x7,
+		PARTICLE_ELEMENT_TYPE_ORIENTED_SPRITE = 0x8,
+		PARTICLE_ELEMENT_TYPE_RUNNER = 0x9,
+		PARTICLE_ELEMENT_TYPE_TAIL = 0xA,
+		PARTICLE_ELEMENT_TYPE_VECTOR_FIELD = 0xB,
+		PARTICLE_ELEMENT_TYPE_VOLUMETRIC = 0xC,
+	};
+
+	enum ParticleStateDefFlags : std::uint64_t
+	{
+		PARTICLE_STATE_DEF_FLAG_HAS_SPAWN_SHAPE = 0x4,
+		PARTICLE_STATE_DEF_FLAG_HAS_SIZE_CURVE = 0x8000000000,
+	};
 
 	struct ParticleStateDef
 	{

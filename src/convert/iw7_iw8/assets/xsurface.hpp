@@ -6,6 +6,7 @@ namespace zonetool::iw7::converter::iw8::xsurface
 
 	vec3 unpack_unit_vec(std::uint32_t packed);
 	std::uint32_t pack_tangent_frame(const vec3& normal, const vec3& tangent, bool negative_binormal);
+	zonetool::iw8::Bounds get_bounds(const XSurface& surface);
 
 	void dump(XModelSurfs* asset);
 }

@@ -1,16 +1,36 @@
 #include <std_include.hpp>
 
 #include "../include.hpp"
+#include "gradingclut.hpp"
 #include "rawfile.hpp"
 
 #include <zlib.h>
 
 namespace zonetool::iw7::converter::iw8::rawfile
 {
+	std::string read_text(const RawFile* asset)
+	{
+		if (!asset->compressedLen)
+		{
+			return std::string(asset->buffer, asset->len);
+		}
+
+		std::string text(asset->len, '\0');
+		auto size = static_cast<uLongf>(text.size());
+		if (uncompress(reinterpret_cast<Bytef*>(text.data()), &size, reinterpret_cast<const Bytef*>(asset->buffer), asset->compressedLen) != Z_OK)
+		{
+			return {};
+		}
+
+		text.resize(size);
+		return text;
+	}
+
 	namespace
 	{
 		const std::pair<std::string_view, std::string_view> vision_hashes[] // sub_C52C00
 		{
+			{"clut0Image", "NONMKTKNNM"},
 			{"r_ssaoStrength", "NQNPKMQRLT"},
 			{"r_mdaoCullDistance", "MSLPPMPKSM"},
 			{"r_mdaoFadeoutDistance", "TQORTRNQ"},
@@ -83,24 +103,6 @@ namespace zonetool::iw7::converter::iw8::rawfile
 			{"volumetricOmniBrightness", "RRKMLNPKP"},
 		};
 
-		std::string read_text(const RawFile* asset)
-		{
-			if (!asset->compressedLen)
-			{
-				return std::string(asset->buffer, asset->len);
-			}
-
-			std::string text(asset->len, '\0');
-			auto size = static_cast<uLongf>(text.size());
-			if (uncompress(reinterpret_cast<Bytef*>(text.data()), &size, reinterpret_cast<const Bytef*>(asset->buffer), asset->compressedLen) != Z_OK)
-			{
-				return {};
-			}
-
-			text.resize(size);
-			return text;
-		}
-
 		std::unordered_map<std::string, std::string> read_vision_values(const std::string& text)
 		{
 			std::unordered_map<std::string, std::string> values;
@@ -121,6 +123,21 @@ namespace zonetool::iw7::converter::iw8::rawfile
 			}
 
 			return values;
+		}
+
+		std::optional<std::string> convert_clut(const std::unordered_map<std::string, std::string>& values)
+		{
+			const auto value = values.find("clut0Image");
+			if (value == values.end())
+			{
+				return {};
+			}
+
+			auto image_name = value->second;
+			std::erase(image_name, '"');
+			const auto* image = image_name.empty() ? nullptr : static_cast<const GfxImage*>(db_find_asset(ASSET_TYPE_IMAGE, image_name.data()));
+			const auto converted = image ? gradingclut::dump(image) : std::nullopt;
+			return converted ? std::optional(std::format("\"{}\"", *converted)) : std::nullopt;
 		}
 
 		std::optional<std::string> convert_vision_value(const std::string_view name, const std::unordered_map<std::string, std::string>& values)
@@ -145,9 +162,9 @@ namespace zonetool::iw7::converter::iw8::rawfile
 				return "\"-10\"";
 			}
 
-			if (name == "tonemapMinExposureAdjust" || name == "tonemapMaxExposureAdjust")
+			if (name == "clut0Image")
 			{
-				return std::nullopt;
+				return convert_clut(values);
 			}
 
 			const auto value = values.find(std::string(name));
@@ -169,12 +186,20 @@ namespace zonetool::iw7::converter::iw8::rawfile
 
 			return converted;
 		}
+
+		bool is_createfx_script(const std::string_view name)
+		{
+			const auto& map = filesystem::get_fastfile();
+			return name == std::format("scripts/mp/maps/{}/{}_fx.gsc", map, map) || name == std::format("scripts/mp/maps/{}/gen/{}_fx.gsc", map, map)
+				|| name == std::format("scripts/mp/maps/{}/gen/{}_sound.gsc", map, map);
+		}
 	}
 
 	void dump(RawFile* asset)
 	{
 		const std::string_view name = asset->name;
-		if (!name.starts_with("vision/") || !name.ends_with(".vision") || !asset->len)
+		const auto is_vision = name.starts_with("vision/") && name.ends_with(".vision");
+		if ((!is_vision && !is_createfx_script(name)) || !asset->len)
 		{
 			return;
 		}
@@ -186,7 +211,7 @@ namespace zonetool::iw7::converter::iw8::rawfile
 
 		filesystem::file file(asset->name);
 		file.open("wb");
-		file.write(convert_vision(read_text(asset)));
+		file.write(is_vision ? convert_vision(read_text(asset)) : read_text(asset));
 		file.close();
 
 		add_csv_row("rawfile", name);

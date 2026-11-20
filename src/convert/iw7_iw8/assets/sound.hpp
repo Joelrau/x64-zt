@@ -6,6 +6,7 @@ namespace zonetool::iw7::converter::iw8::sound
 	{
 	public:
 		const zonetool::iw8::SndAssetBankEntry* add(SndBank* bank, SndStringHash asset_id);
+		const zonetool::iw8::SndAssetBankEntry* add(const std::string& path, SndStringHash asset_id);
 		std::string build(const std::string& zone_name) const;
 
 	private:
@@ -18,7 +19,7 @@ namespace zonetool::iw7::converter::iw8::sound
 			std::vector<std::array<char, 128>> names;
 		};
 
-		source_bank* open(SndBank* bank);
+		source_bank* open(const std::string& path);
 
 		std::unordered_map<std::string, std::unique_ptr<source_bank>> sources_;
 		std::vector<zonetool::iw8::SndAssetBankEntry> entries_;
@@ -27,6 +28,11 @@ namespace zonetool::iw7::converter::iw8::sound
 		std::vector<std::array<char, 128>> names_;
 		std::string data_;
 	};
+
+	int convert_volmod(int index);
+	unsigned int convert_channel(unsigned int index);
+	zonetool::iw8::SndAlias convert_alias(const SndAlias& alias, const zonetool::iw8::SndAssetBankEntry* entry, const SndGlobals* globals);
+	zonetool::iw8::SndIndexEntry* build_alias_index(const zonetool::iw8::SndAliasList* lists, unsigned short count, utils::memory::allocator& allocator);
 
 	void dump(WeaponCompleteDef* asset);
 }

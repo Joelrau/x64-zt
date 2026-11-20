@@ -9287,7 +9287,9 @@ namespace zonetool::iw7
 		int m_playRate;
 		int m_startFrame;
 		int m_loopCount;
-	}; assert_sizeof(ParticleModuleInitAtlas, 20);
+		bool m_randomIndex;
+		bool m_playOverLife;
+	}; assert_sizeof(ParticleModuleInitAtlas, 24);
 
 	struct ParticleModuleInitAttributes : ParticleModule
 	{
@@ -9515,7 +9517,14 @@ namespace zonetool::iw7
 
 	struct ParticleModuleInitRunner : ParticleModule
 	{
-		unsigned int m_pad[2];
+		unsigned char m_useOrientationOptions;
+		unsigned char m_useScaleOptions;
+		unsigned char m_useVelocityOptions;
+		bool m_attachToParent;
+		bool m_stopChildOnDeath;
+		bool m_killChildOnDeath;
+		bool m_legacyOrientationVelocity;
+		bool m_legacyOrientationRotation;
 		ParticleLinkedAssetListDef m_linkedAssetList;
 	}; assert_sizeof(ParticleModuleInitRunner, 32);
 
@@ -9562,8 +9571,11 @@ namespace zonetool::iw7
 		char m_spawnFlags;
 		char m_normalAxis;
 		char m_spawnType;
-		float m_volumeCubeRoot;
-		//float4 m_calculationOffset;
+		union
+		{
+			float m_volumeCubeRoot;
+			unsigned int m_normalAxisIndex;
+		};
 		float4 m_offset;
 	};
 

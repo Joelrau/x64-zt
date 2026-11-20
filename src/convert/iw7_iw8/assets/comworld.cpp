@@ -11,9 +11,47 @@ namespace zonetool::iw7::converter::iw8::comworld
 	{
 		namespace target = zonetool::iw8;
 
+		void orthonormal_up(const float* dir, const float* up, float* out)
+		{
+			const auto project = [&](const float* axis)
+			{
+				const auto along = axis[0] * dir[0] + axis[1] * dir[1] + axis[2] * dir[2];
+				for (auto i = 0; i < 3; i++)
+				{
+					out[i] = axis[i] - along * dir[i];
+				}
+				return std::sqrt(out[0] * out[0] + out[1] * out[1] + out[2] * out[2]);
+			};
+
+			const auto dir_length = std::sqrt(dir[0] * dir[0] + dir[1] * dir[1] + dir[2] * dir[2]);
+			if (dir_length < 0.999f || dir_length > 1.001f)
+			{
+				std::memcpy(out, up, sizeof(float[3]));
+				return;
+			}
+
+			auto length = project(up);
+			if (length < 0.001f)
+			{
+				const float fallback[2][3] = {{0.0f, 0.0f, 1.0f}, {1.0f, 0.0f, 0.0f}};
+				length = project(fallback[std::abs(dir[2]) > 0.9f ? 1 : 0]);
+			}
+
+			for (auto i = 0; i < 3; i++)
+			{
+				out[i] /= length;
+			}
+		}
+
 		target::ComPrimaryLight convert_light(const ComPrimaryLight& light)
 		{
 			target::ComPrimaryLight converted{};
+			if (light.type == GFX_LIGHT_TYPE_SPOT || light.type == GFX_LIGHT_TYPE_OMNI)
+			{
+				converted.spawnFlags = !light.canUseShadowMap ? target::PRIMARY_LIGHT_SPAWN_NO_SHADOW : light.needsDynamicShadows ? 0 : target::PRIMARY_LIGHT_SPAWN_STATIC_SHADOW; // TODO: stock mp_rust pattern, not proven in IW8 asm
+				converted.shadowNearPlaneBias = 8.0f; // TODO: value of every stock mp_rust light, IW7 has no field
+			}
+
 			converted.type = light.type;
 			converted.canUseShadowMap = light.canUseShadowMap;
 			converted.needsDynamicShadows = light.needsDynamicShadows;
@@ -23,16 +61,16 @@ namespace zonetool::iw7::converter::iw8::comworld
 			converted.uvIntensity = light.uvIntensity;
 			converted.irIntensity = light.irIntensity;
 
-			const auto intensity = std::max({light.color[0], light.color[1], light.color[2]});
-			converted.intensity = intensity / std::numbers::pi_v<float>; // TODO: IW7 artist unit inferred from sun ratio, not proven in IW7 asm
+			const auto luminance = 0.2126f * light.color[0] + 0.7152f * light.color[1] + 0.0722f * light.color[2]; // TODO: stock mp_rust colors have luminance 1, not proven in IW8 asm
+			converted.intensity = luminance / std::numbers::pi_v<float>; // TODO: IW7 artist unit inferred from sun ratio, not proven in IW7 asm
 			for (auto i = 0; i < 3; i++)
 			{
-				converted.colorLinearSrgb[i] = intensity > 0.0f ? light.color[i] / intensity : 0.0f;
+				converted.colorLinearSrgb[i] = luminance > 0.0f ? light.color[i] / luminance : 0.0f;
 			}
 
 			std::memcpy(converted.dir, light.dir, sizeof(converted.dir));
-			std::memcpy(converted.up, light.up, sizeof(converted.up));
 			std::memcpy(converted.origin, light.origin, sizeof(converted.origin));
+			orthonormal_up(light.dir, light.up, converted.up); // TODO: stock mp_rust up is orthonormal to dir, not proven in IW8 asm
 			converted.radius = light.radius;
 			std::memcpy(converted.fadeOffset, light.fadeOffsetRt, sizeof(converted.fadeOffset));
 			converted.bulbRadius = light.bulbRadius;

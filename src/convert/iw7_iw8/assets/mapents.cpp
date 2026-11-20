@@ -3,8 +3,15 @@
 #include "../include.hpp"
 #include "mapents.hpp"
 #include "havok.hpp"
+#include "material.hpp"
+#include "rawfile.hpp"
+#include "vfx.hpp"
 
 #include <iw8/assets/mapents.hpp>
+#include <iw8/assets/scriptfile.hpp>
+
+#include <utils/compression.hpp>
+#include <utils/string.hpp>
 
 #include <xsk/gsc/engine/iw7.hpp>
 #include <xsk/gsc/engine/iw8.hpp>
@@ -15,16 +22,179 @@ namespace zonetool::iw7::converter::iw8::mapents
 	{
 		namespace target = zonetool::iw8;
 
-		const xsk::gsc::iw7::context& source_tokens()
+		xsk::gsc::iw7::context& source_context()
 		{
-			static const xsk::gsc::iw7::context context{xsk::gsc::instance::server};
-			return context;
+			static auto context = []
+			{
+				auto result = std::make_unique<xsk::gsc::iw7::context>(xsk::gsc::instance::server);
+				result->init(xsk::gsc::build::prod, {});
+				return result;
+			}();
+			return *context;
 		}
 
-		const xsk::gsc::iw8::context& target_tokens()
+		script_context& target_context()
 		{
-			static const xsk::gsc::iw8::context context{xsk::gsc::instance::server};
-			return context;
+			static auto context = []
+			{
+				auto result = std::make_unique<script_context>();
+				result->init(xsk::gsc::build::prod, {});
+				return result;
+			}();
+			return *context;
+		}
+
+		std::string decompile(const ScriptFile* asset)
+		{
+			auto& context = source_context();
+			const auto stack = utils::compression::zlib::decompress({asset->buffer, static_cast<std::size_t>(asset->compressedLen)});
+			const auto assembly = context.disassembler().disassemble(
+				std::vector<std::uint8_t>{asset->bytecode, asset->bytecode + asset->bytecodeLen},
+				std::vector<std::uint8_t>{stack.begin(), stack.end()});
+
+			const auto tree = context.decompiler().decompile(*assembly);
+			const auto source = context.printer().print(*tree);
+			return {source.begin(), source.end()};
+		}
+
+		std::string make_default_map_script(const std::string& map)
+		{
+			return std::format(R"(main()
+{{
+    scripts\mp\load::main();
+    level.outofboundstriggers = getentarray( "OutOfBounds", "targetname" );
+    scripts\mp\compass::setupminimap( "compass_map_{}" );
+    game["attackers"] = "allies";
+    game["defenders"] = "axis";
+    game["allies_outfit"] = "urban";
+    game["axis_outfit"] = "woodland";
+}}
+)", map);
+		}
+
+		std::string make_map_script(const std::string& map, const std::string& source) // TODO: convert the precache, art and fx scripts and the render dvars
+		{
+			const std::regex map_script_call(std::format(R"re(\s*scripts\\mp\\maps\\{}\\.*::main\(\s*\);\s*)re", map));
+			static const std::regex dvar_line(R"re(\s*setdvar\(.*\);\s*)re");
+
+			std::string script;
+			for (auto line : utils::string::split(source, '\n'))
+			{
+				if (line.ends_with('\r'))
+				{
+					line.pop_back();
+				}
+
+				if (!std::regex_match(line, map_script_call) && !std::regex_match(line, dvar_line))
+				{
+					script += line + "\n";
+				}
+			}
+
+			return script;
+		}
+
+		std::string get_map_script(const std::string& map)
+		{
+			const auto* asset = static_cast<const ScriptFile*>(db_find_asset(ASSET_TYPE_SCRIPTFILE, std::format("scripts/mp/maps/{}/{}", map, map).data()));
+			if (!asset || !asset->buffer || !asset->bytecode)
+			{
+				return make_default_map_script(map);
+			}
+
+			try
+			{
+				return make_map_script(map, decompile(asset));
+			}
+			catch (const std::exception& e)
+			{
+				ZONETOOL_WARNING("scriptfile \"%s\" does not decompile: %s", asset->name, e.what());
+				return make_default_map_script(map);
+			}
+		}
+
+		void dump_map_script(const std::string& map)
+		{
+			const auto name = std::format("scripts/mp/maps/{}/{}.gsc", map, map);
+			const auto source = get_map_script(map);
+			std::vector<std::uint8_t> data(source.begin(), source.end());
+
+			auto& context = target_context();
+			const auto assembly = context.compiler().compile(name, data);
+			const auto [bytecode, stack, devmap] = context.assembler().assemble(*assembly);
+			const auto buffer = utils::compression::zlib::compress(std::string(reinterpret_cast<const char*>(stack.data), stack.size));
+
+			target::ScriptFile script{};
+			script.name = name.data();
+			script.compressedLen = static_cast<int>(buffer.size());
+			script.len = static_cast<int>(stack.size);
+			script.bytecodeLen = static_cast<int>(bytecode.size);
+			script.buffer = buffer.data();
+			script.bytecode = reinterpret_cast<char*>(const_cast<std::uint8_t*>(bytecode.data));
+			target::scriptfile::dump(&script);
+			add_csv_row("scriptfile", name);
+
+			material::dump_2d(static_cast<Material*>(db_find_asset(ASSET_TYPE_MATERIAL, std::format("compass_map_{}", map).data())));
+		}
+
+		std::string get_rawfile_text(const std::string& name)
+		{
+			const auto* asset = static_cast<const RawFile*>(db_find_asset(ASSET_TYPE_RAWFILE, name.data()));
+			return asset && asset->len ? rawfile::read_text(asset) : std::string{};
+		}
+
+		std::unordered_map<std::string, std::string> read_effect_paths(const std::string& map)
+		{
+			static const std::regex load_fx(R"re(level\._effect\[\s*"([^"]+)"\s*\]\s*=\s*loadfx\(\s*"([^"]+?)(?:\.vfx)?"\s*\))re");
+
+			std::unordered_map<std::string, std::string> paths;
+			const auto source = get_rawfile_text(std::format("scripts/mp/maps/{}/{}_fx.gsc", map, map));
+			for (auto it = std::sregex_iterator(source.begin(), source.end(), load_fx); it != std::sregex_iterator(); ++it)
+			{
+				paths[(*it)[1].str()] = (*it)[2].str();
+			}
+
+			return paths;
+		}
+
+		void read_vector(const std::string& text, target::vec3_t& vector)
+		{
+			std::sscanf(text.data(), "%f , %f , %f", &vector[0], &vector[1], &vector[2]);
+		}
+
+		void convert_oneshot_effects(const std::string& map, target::ClientSideEffects& effects, utils::memory::allocator& allocator)
+		{
+			static const std::regex oneshot(R"re(createOneshotEffect\(\s*"([^"]+)"\s*\);\s*ent set_origin_and_angles\(\s*\(([^)]*)\)\s*,\s*\(([^)]*)\)\s*\);(?:\s*ent\.v\[\s*"fxid"\s*\]\s*=\s*"[^"]*"\s*;)?(?:\s*ent\.v\[\s*"delay"\s*\]\s*=\s*([-\d.]+)\s*;)?)re");
+
+			const auto paths = read_effect_paths(map);
+			const auto source = get_rawfile_text(std::format("scripts/mp/maps/{}/gen/{}_fx.gsc", map, map));
+
+			std::vector<target::ClientOneshotEffectDef> converted;
+			for (auto it = std::sregex_iterator(source.begin(), source.end(), oneshot); it != std::sregex_iterator(); ++it)
+			{
+				const auto& match = *it;
+				const auto path = paths.find(match[1].str());
+				auto* vfx = path != paths.end() ? static_cast<ParticleSystemDef*>(db_find_asset(ASSET_TYPE_VFX, path->second.data())) : nullptr;
+				if (!vfx)
+				{
+					ZONETOOL_WARNING("createfx oneshot \"%s\" has no vfx", match[1].str().data());
+					continue;
+				}
+
+				vfx::dump(vfx);
+
+				auto& effect = converted.emplace_back();
+				read_vector(match[2].str(), effect.origin);
+				read_vector(match[3].str(), effect.angles);
+				effect.radius = 0.0f; // TODO: stock radius rule unknown (mp_rust uses 0 to 900000 per effect)
+				effect.delayMsec = match[4].matched ? static_cast<int>(std::stof(match[4].str()) * 1000.0f) : 0;
+				effect.effect.particleSystemDef = allocator.allocate<target::ParticleSystemDef>();
+				const_cast<target::ParticleSystemDef*>(effect.effect.particleSystemDef)->name = allocator.duplicate_string(vfx->name);
+			}
+
+			effects.oneshotEffectCount = static_cast<unsigned int>(converted.size());
+			effects.oneshotEffects = allocator.allocate_array<target::ClientOneshotEffectDef>(converted.size());
+			std::copy(converted.begin(), converted.end(), effects.oneshotEffects);
 		}
 
 		std::string_view next_token(const std::string_view source, std::size_t& pos)
@@ -71,16 +241,16 @@ namespace zonetool::iw7::converter::iw8::mapents
 			std::uint32_t id{};
 			if (key.front() == '"' || std::from_chars(key.data(), key.data() + key.size(), id).ptr != key.data() + key.size())
 			{
-				return target_tokens().token_id(std::string(unquote(key)));
+				return target_context().token_id(std::string(unquote(key)));
 			}
 
 			if (id == 0)
 			{
-				return target_tokens().token_id(std::string(unquote(next_token(source, pos))));
+				return target_context().token_id(std::string(unquote(next_token(source, pos))));
 			}
 
-			const auto name = source_tokens().token_name(id);
-			return name.starts_with("_id_") ? 0 : target_tokens().token_id(name);
+			const auto name = source_context().token_name(id);
+			return name.starts_with("_id_") ? 0 : target_context().token_id(name);
 		}
 
 		std::string convert_entity_string(const MapEnts* asset)
@@ -89,6 +259,7 @@ namespace zonetool::iw7::converter::iw8::mapents
 			converted.reserve(asset->numEntityChars);
 
 			const std::string_view source(asset->entityString, std::strlen(asset->entityString));
+			const auto classname_key = target_context().token_id("classname");
 			auto dropped_keys = 0u;
 			std::size_t pos{};
 			while (true)
@@ -102,6 +273,8 @@ namespace zonetool::iw7::converter::iw8::mapents
 				if (token == "{")
 				{
 					converted.append("{");
+					std::string_view classname;
+					auto has_20186 = false;
 					while (true)
 					{
 						auto peek = pos;
@@ -113,14 +286,21 @@ namespace zonetool::iw7::converter::iw8::mapents
 						}
 
 						const auto key = convert_key(source, pos);
-						const auto value = next_token(source, pos);
+						const auto value = unquote(next_token(source, pos));
 						if (!key)
 						{
 							dropped_keys++;
 							continue;
 						}
 
-						converted.append(std::format(" {} \"{}\"", key, unquote(value)));
+						classname = key == classname_key ? value : classname;
+						has_20186 |= key == 20186;
+						converted.append(std::format(" {} \"{}\"", key, value));
+					}
+
+					if (!has_20186 && (classname == "script_struct" || classname == "script_brushmodel" || classname == "script_model"))
+					{
+						converted.append(" 20186 \"default\""); // TODO: stock mp_rust only, requirement unknown
 					}
 					converted.append(" }\n");
 				}
@@ -257,7 +437,12 @@ namespace zonetool::iw7::converter::iw8::mapents
 
 		converted->scriptableMapEnts.spatialPopulationTree = make_leaf_tree(allocator);
 
+		convert_oneshot_effects(filesystem::get_fastfile(), converted->clientSideEffects, allocator); // TODO: sounds and reactive ents are not baked
+		converted->createFxEffectTotal = converted->clientSideEffects.oneshotEffectCount;
+
 		target::map_ents::dump(converted);
 		add_csv_row("map_ents", asset->name);
+
+		dump_map_script(filesystem::get_fastfile());
 	}
 }

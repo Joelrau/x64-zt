@@ -96,6 +96,9 @@ namespace zonetool::convert::iw7_iw8
 			case source::ASSET_TYPE_TRACER:
 				target::tracer::dump(header_as<source::TracerDef>(header));
 				break;
+			case source::ASSET_TYPE_VFX:
+				target::vfx::dump(header_as<source::ParticleSystemDef>(header));
+				break;
 			case source::ASSET_TYPE_XANIMPARTS:
 				target::xanim::dump(header_as<source::XAnimParts>(header));
 				break;
@@ -126,6 +129,12 @@ namespace zonetool::convert::iw7_iw8
 			case source::ASSET_TYPE_FXWORLD:
 				target::fxworld::dump(header_as<source::FxWorld>(header));
 				break;
+			case source::ASSET_TYPE_IMPACT_FX:
+				target::impactfx::dump(header_as<source::FxImpactTable>(header));
+				break;
+			case source::ASSET_TYPE_SOUND_BANK:
+				target::map_sound::dump(header_as<source::SndBank>(header));
+				break;
 			case source::ASSET_TYPE_RAWFILE:
 				target::rawfile::dump(header_as<source::RawFile>(header));
 				break;
@@ -151,7 +160,7 @@ namespace zonetool::convert::iw7_iw8
 
 		std::vector<std::string> required_zones(const std::string& zone_name)
 		{
-			std::vector<std::string> zones{"code_post_gfx", "global_core_mp", "techsets_global_core_mp", "common_core_mp", "common_mp"};
+			std::vector<std::string> zones{"code_post_gfx", "global_core_mp", "techsets_global_core_mp", "techsets_common", "common", "common_core_mp", "techsets_common_core_mp", "common_mp"};
 			if (!zone_name.starts_with("techsets_"))
 			{
 				zones.emplace_back("techsets_" + zone_name);

@@ -85,6 +85,17 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 			return make_named<target::GfxImage>(handle, allocator);
 		}
 
+		target::GfxImage* convert_generated_image(const GfxImage* handle, const target::GfxPixelFormat format, utils::memory::allocator& allocator)
+		{
+			if (!handle || !handle->name)
+			{
+				return nullptr;
+			}
+
+			const auto* image = gfximage::dump_generated(handle, format);
+			return image ? make_named<target::GfxImage>(image, allocator) : convert_image(handle, allocator);
+		}
+
 		template <typename T>
 		T* make_array(const std::size_t count, utils::memory::allocator& allocator)
 		{
@@ -123,6 +134,18 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 		{
 			const auto* bytes = static_cast<const unsigned char*>(value);
 			data.insert(data.end(), bytes, bytes + size);
+		}
+
+		std::uint32_t convert_normal_transform(const std::uint32_t packed)
+		{
+			std::uint32_t converted{};
+			for (auto i = 0; i < 4; i++)
+			{
+				const auto value = static_cast<float>((packed >> (i * 8)) & 0xFF);
+				converted |= static_cast<std::uint32_t>(std::min(255l, std::lround(value * 127.5f / 127.0f))) << (i * 8);
+			}
+
+			return converted;
 		}
 
 		std::uint32_t pack_vertex_frame(const GfxWorldVertex& vertex)
@@ -230,7 +253,7 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 		}
 
 		bool build_surface(const GfxWorld* asset, const unsigned int index,
-			std::map<std::array<unsigned int, 3>, target::GfxWorldSurfData>& blocks, world_geometry& geometry)
+			std::map<std::array<unsigned int, 4>, target::GfxWorldSurfData>& blocks, world_geometry& geometry)
 		{
 			const auto& surface = asset->dpvs.surfaces[index];
 			auto& data = geometry.surf_data[index];
@@ -269,7 +292,23 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 				}
 			}
 
-			const std::array<unsigned int, 3> key{surface.transientZone, first_vertex, vertex_count};
+			const auto layer_count = material::get_world_layer_count(surface.material);
+			std::array<bool, 7> has_transform{};
+			auto layer_stride = 8 * (layer_count - 1);
+			for (auto layer = 1u; layer < layer_count; layer++)
+			{
+				has_transform[layer - 1] = material::has_world_layer_normal_transform(surface.material, layer);
+				layer_stride += has_transform[layer - 1] ? 4 : 0;
+			}
+
+			if (layer_count > 1 && (!zone->vld.data || surface.tris.vertexLayerData + layer_stride * vertex_count > zone->vertexLayerDataSize))
+			{
+				ZONETOOL_WARNING("gfxworld \"%s\": surface %u is outside the vertex layer data", asset->name, index);
+				return false;
+			}
+
+			const auto* layers = layer_count > 1 ? zone->vld.data + surface.tris.vertexLayerData : nullptr;
+			const std::array<unsigned int, 4> key{surface.transientZone, first_vertex, vertex_count, layer_count};
 			const auto found = blocks.find(key);
 			if (found != blocks.end())
 			{
@@ -278,7 +317,7 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 			else
 			{
 				data.transientZone = 0;
-				data.layerCount = 1;
+				data.layerCount = layer_count;
 
 				data.xyzOffset = static_cast<unsigned int>(geometry.positions.size());
 				for (auto i = 0u; i < vertex_count; i++)
@@ -297,6 +336,29 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 				for (auto i = 0u; i < vertex_count; i++)
 				{
 					append(geometry.aux, vertices[i].texCoord, sizeof(vertices[i].texCoord));
+					for (auto layer = 1u; layer < layer_count; layer++)
+					{
+						append(geometry.aux, layers + layer_stride * i + 8 * (layer - 1), sizeof(float[2]));
+					}
+				}
+
+				auto transform_offset = 8 * (layer_count - 1);
+				for (auto layer = 1u; layer < layer_count; layer++)
+				{
+					data.normalTransformOffset[layer - 1] = static_cast<unsigned int>(geometry.aux.size());
+					for (auto i = 0u; i < vertex_count; i++)
+					{
+						std::uint32_t transform = 0x007F7FFF;
+						if (has_transform[layer - 1])
+						{
+							std::memcpy(&transform, layers + layer_stride * i + transform_offset, sizeof(transform));
+						}
+
+						const auto converted = convert_normal_transform(transform);
+						append(geometry.aux, &converted, sizeof(converted));
+					}
+
+					transform_offset += has_transform[layer - 1] ? 4 : 0;
 				}
 
 				data.lmapCoordOffset = static_cast<unsigned int>(geometry.aux.size());
@@ -332,7 +394,7 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 			geometry.base_index.resize(surface_count);
 			geometry.valid.resize(surface_count);
 
-			std::map<std::array<unsigned int, 3>, target::GfxWorldSurfData> blocks;
+			std::map<std::array<unsigned int, 4>, target::GfxWorldSurfData> blocks;
 			for (auto i = 0u; i < surface_count; i++)
 			{
 				geometry.valid[i] = build_surface(asset, i, blocks, geometry) ? 1 : 0;
@@ -455,8 +517,28 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 			return surfaces;
 		}
 
+		std::array<float, 3> get_sky_rotation_angles(const GfxWorld* asset)
+		{
+			const auto* clip = static_cast<const clipMap_t*>(db_find_asset(ASSET_TYPE_CLIPMAP, asset->name));
+			if (!clip || !clip->stages || !clip->stageCount)
+			{
+				return {};
+			}
+
+			const auto& angles = clip->stages[0].skyRotationAngles;
+			for (auto i = 1; i < clip->stageCount; i++)
+			{
+				if (std::memcmp(clip->stages[i].skyRotationAngles, angles, sizeof(vec3_t)))
+				{
+					ZONETOOL_WARNING("clipmap \"%s\": stage %d has a different sky rotation, the sky uses stage 0", clip->name, i);
+				}
+			}
+
+			return {angles[0], angles[1], angles[2]};
+		}
+
 		target::Material* convert_surface_material(const Material* handle, const std::unordered_map<unsigned int, const GfxImage*>& sky_surfaces,
-			const unsigned int index, utils::memory::allocator& allocator)
+			const std::array<float, 3>& sky_rotation_angles, const unsigned int index, utils::memory::allocator& allocator)
 		{
 			const auto sky = sky_surfaces.find(index);
 			if (sky == sky_surfaces.end())
@@ -464,7 +546,7 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 				return convert_lit_material(handle, techset::GENERATED_TECHSET_WORLD, allocator);
 			}
 
-			const auto name = material::dump_sky(const_cast<Material*>(handle), sky->second);
+			const auto name = material::dump_sky(const_cast<Material*>(handle), sky->second, sky_rotation_angles);
 			return name.empty() ? nullptr : make_named<target::Material>(name.c_str(), allocator);
 		}
 
@@ -472,6 +554,7 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 			utils::memory::allocator& allocator)
 		{
 			const auto sky_surfaces = get_sky_surfaces(asset);
+			const auto sky_rotation_angles = get_sky_rotation_angles(asset);
 			const auto count = asset->surfaceCount;
 			auto& surfaces = world->surfaces;
 			surfaces.count = count;
@@ -495,7 +578,7 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 			{
 				const auto& source = asset->dpvs.surfaces[i];
 				auto& converted = surfaces.surfaces[i];
-				converted.material = convert_surface_material(source.material, sky_surfaces, i, allocator);
+				converted.material = convert_surface_material(source.material, sky_surfaces, sky_rotation_angles, i, allocator);
 				if (geometry.valid[i] && converted.material)
 				{
 					converted.tris.posOffset = geometry.surf_data[i].xyzOffset;
@@ -659,7 +742,9 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 						indirection.cullType = material::get_smodel_cull_type(const_cast<Material*>(material));
 						indirection.emitType = material::get_smodel_emit_type(const_cast<Material*>(material));
 
-						const auto& bounds = entry.model->bounds;
+						const auto bounds = info.modelSurfs && s < info.modelSurfs->numsurfs
+							? xsurface::get_bounds(info.modelSurfs->surfs[s])
+							: std::bit_cast<target::Bounds>(entry.model->bounds);
 						auto& data = smodels.smodelSurfData[surface];
 						data.boundingBoxData[0] = bounds.midPoint[0];
 						data.boundingBoxData[1] = bounds.midPoint[1];
@@ -1301,7 +1386,6 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 			probes.reflectionProbes = allocator.allocate_array<target::GfxReflectionProbe>(count);
 			probes.reflectionProbeSH = allocator.allocate_array<target::GfxSH3Vec>(4 * count);
 
-			std::vector<std::array<float, 4>> luminance_sh(count);
 			for (auto i = 0u; i < count; i++)
 			{
 				const auto& probe = source.reflectionProbes[i];
@@ -1328,8 +1412,6 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 						probes.reflectionProbeSH[(channel + 1) * count + i].coeffs[k] = sh[channel * 9 + k];
 					}
 				}
-
-				std::memcpy(luminance_sh[i].data(), luminance.coeffs, sizeof(luminance_sh[i]));
 			}
 
 			probes.reflectionProbeInstanceCount = source.reflectionProbeInstanceCount;
@@ -1351,7 +1433,7 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 				std::memcpy(converted.expandProjectionPos, instance.expandProjectionPos, sizeof(converted.expandProjectionPos));
 			}
 
-			const auto* image = gfximage::dump_reflection_probes(source.reflectionProbeArrayImage, luminance_sh);
+			const auto* image = gfximage::dump_reflection_probes(source.reflectionProbeArrayImage, count);
 			probes.reflectionProbeArrayImage_octahedron = make_named<target::GfxImage>(image, allocator);
 			if (!image)
 			{
@@ -1370,13 +1452,13 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 			utils::memory::allocator& allocator)
 		{
 			auto& draw = world->draw;
-			draw.iesLookupTexture = convert_image(asset->draw.iesLookupTexture, allocator);
+			draw.iesLookupTexture = convert_generated_image(asset->draw.iesLookupTexture, target::GFX_PF_R8, allocator);
 			draw.lightGridType = zone->gpuLightGrid.gpuLightGrid ? target::GFX_LIGHT_GRID_TYPE_GPU : target::GFX_LIGHT_GRID_TYPE_NONE;
 			draw.transientZoneCount = 1;
 			draw.transientZones[0] = zone;
 			draw.bakedLightScale = 1.0f;
 
-			world->outdoorImage = convert_image(asset->outdoorImage, allocator);
+			world->outdoorImage = convert_generated_image(asset->outdoorImage, target::GFX_PF_L8, allocator); // TODO: L8 from stock $outdoor only
 			world->dustMaterial = convert_material(asset->dustMaterial, allocator);
 			world->materialLod0SizeThreshold = 0.5f;
 			world->checksum = asset->checksum;
@@ -1461,7 +1543,9 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 				std::memcpy(&lights.indices[lights.indicesOffsets[i]], source.indices, 2 * source.indexCount);
 				for (auto j = 0u; j < source.vertexCount; j++)
 				{
-					std::memcpy(&lights.vertices[16 * (lights.verticesOffsets[i] + j)], &source.vertices[32 * j], 16);
+					auto* vertex = &lights.vertices[16 * (lights.verticesOffsets[i] + j)];
+					std::memcpy(vertex, &source.vertices[32 * j], 12);
+					std::memcpy(vertex + 12, &source.vertices[32 * j + 28], 4);
 				}
 			}
 		}

@@ -3,6 +3,8 @@
 #include "../include.hpp"
 #include "gfximage.hpp"
 
+#include <io/output_cache.hpp>
+
 #pragma warning( push )
 #pragma warning( disable : 4459 )
 #include <DirectXTex.h>
@@ -16,12 +18,14 @@ namespace zonetool::iw7::converter::iw8::gfximage
 
 		using channel_tables = std::array<std::array<std::uint8_t, 256>, 4>;
 
-		std::optional<DirectX::ScratchImage> load_pixels(const DXGI_FORMAT format, const std::size_t width, const std::size_t height,
+		std::optional<DirectX::ScratchImage> load_pixels(const DXGI_FORMAT format, const std::size_t width, const std::size_t height, const std::size_t depth,
 			const std::size_t level_count, const std::size_t cube_count, const std::string_view pixels)
 		{
 			DirectX::ScratchImage image;
 			const auto result = cube_count
 				? image.InitializeCube(DirectX::MakeLinear(format), width, height, cube_count, level_count)
+				: depth > 1
+				? image.Initialize3D(DirectX::MakeLinear(format), width, height, depth, level_count)
 				: image.Initialize2D(DirectX::MakeLinear(format), width, height, 1, level_count);
 			if (FAILED(result) || image.GetPixelsSize() != pixels.size())
 			{
@@ -63,7 +67,9 @@ namespace zonetool::iw7::converter::iw8::gfximage
 		{
 			const auto cube_array = asset->mapType == MAPTYPE_CUBE_ARRAY;
 			const auto cube = asset->mapType == MAPTYPE_CUBE || cube_array;
-			if ((asset->mapType != MAPTYPE_2D && !cube) || asset->depth > 1 || (asset->numElements > 1 && !cube_array))
+			const auto volume = asset->mapType == MAPTYPE_3D;
+			if ((asset->mapType != MAPTYPE_2D && !cube && !volume) || (asset->depth > 1 && !volume) || (volume && asset->streamed)
+				|| (asset->numElements > 1 && !cube_array))
 			{
 				return {};
 			}
@@ -78,7 +84,7 @@ namespace zonetool::iw7::converter::iw8::gfximage
 					return {};
 				}
 
-				return load_pixels(format, asset->width, asset->height, asset->levelCount, cube_count,
+				return load_pixels(format, asset->width, asset->height, volume ? asset->depth : 1u, asset->levelCount, cube_count,
 					{reinterpret_cast<const char*>(asset->pixelData), asset->dataLen1});
 			}
 
@@ -93,7 +99,7 @@ namespace zonetool::iw7::converter::iw8::gfximage
 					: 0;
 				if (levels)
 				{
-					return load_pixels(format, data.width, data.height, levels, cube_count, *pixels);
+					return load_pixels(format, data.width, data.height, 1, levels, cube_count, *pixels);
 				}
 			}
 
@@ -191,6 +197,11 @@ namespace zonetool::iw7::converter::iw8::gfximage
 			return to_byte(linear <= 0.0031308f ? linear * 12.92f : 1.055f * std::pow(linear, 1.0f / 2.4f) - 0.055f);
 		}
 
+		float srgb_to_linear(const float srgb)
+		{
+			return srgb <= 0.04045f ? srgb / 12.92f : std::pow((srgb + 0.055f) / 1.055f, 2.4f);
+		}
+
 		std::uint8_t from_squared_gamma(const int value)
 		{
 			return linear_to_srgb(value / 255.0f * value / 255.0f);
@@ -210,7 +221,7 @@ namespace zonetool::iw7::converter::iw8::gfximage
 		}
 
 		target::GfxImage* make_image(const std::string& name, const DirectX::ScratchImage& compressed, const target::GfxPixelFormat format,
-			const std::uint32_t flags, const target::TextureSemantic semantic, const unsigned int scale_bias)
+			const std::uint32_t flags, const target::TextureSemantic semantic)
 		{
 			static utils::memory::allocator allocator;
 
@@ -220,7 +231,6 @@ namespace zonetool::iw7::converter::iw8::gfximage
 			result->format = format;
 			result->flags = static_cast<target::GfxImageFlags>(flags);
 			result->totalSize = static_cast<unsigned int>(compressed.GetPixelsSize());
-			result->semanticSpecific.albedoMapScaleBias = scale_bias;
 			result->width = static_cast<unsigned short>(metadata.width);
 			result->height = static_cast<unsigned short>(metadata.height);
 			result->depth = 1;
@@ -235,8 +245,7 @@ namespace zonetool::iw7::converter::iw8::gfximage
 		}
 
 		target::GfxImage* convert(const GfxImage* asset, const std::string& name, const target::GfxPixelFormat format, const std::uint32_t flags,
-			const target::TextureSemantic semantic, const unsigned int scale_bias, const channel_tables& tables,
-			const std::array<std::uint8_t, 4>& sources = {0, 1, 2, 3})
+			const target::TextureSemantic semantic, const channel_tables& tables, const std::array<std::uint8_t, 4>& sources = {0, 1, 2, 3})
 		{
 			auto decoded = read_pixels(asset, DXGI_FORMAT_R8G8B8A8_UNORM);
 			if (!decoded)
@@ -281,7 +290,65 @@ namespace zonetool::iw7::converter::iw8::gfximage
 				return nullptr;
 			}
 
-			return make_image(name, *compressed, format, flags, semantic, scale_bias);
+			return make_image(name, *compressed, format, flags, semantic);
+		}
+
+		template <std::size_t count>
+		bool read_composed_sources(const std::array<const GfxImage*, count>& sources, std::array<std::optional<DirectX::ScratchImage>, count>& pixels,
+			std::size_t& width, std::size_t& height)
+		{
+			width = 4;
+			height = 4;
+			for (auto i = 0u; i < count; i++)
+			{
+				if (sources[i] && (pixels[i] = read_pixels(sources[i], DXGI_FORMAT_R8G8B8A8_UNORM)))
+				{
+					width = std::max(width, pixels[i]->GetMetadata().width);
+					height = std::max(height, pixels[i]->GetMetadata().height);
+				}
+			}
+
+			width = (width + 3) & ~3ull;
+			height = (height + 3) & ~3ull;
+			for (auto& source : pixels)
+			{
+				DirectX::ScratchImage resized;
+				if (source && (source->GetMetadata().width != width || source->GetMetadata().height != height))
+				{
+					if (FAILED(DirectX::Resize(*source->GetImage(0, 0, 0), width, height, DirectX::TEX_FILTER_LINEAR | DirectX::TEX_FILTER_FORCE_NON_WIC, resized)))
+					{
+						return false;
+					}
+
+					source = std::move(resized);
+				}
+			}
+
+			return true;
+		}
+
+		const std::uint8_t* read_texel(const std::optional<DirectX::ScratchImage>& source, const std::size_t row, const std::size_t column)
+		{
+			return source ? source->GetImage(0, 0, 0)->pixels + row * source->GetImage(0, 0, 0)->rowPitch + column * 4 : nullptr;
+		}
+
+		target::GfxImage* compress_composed(const std::string& name, const DirectX::Image& image, const target::GfxPixelFormat format, const std::uint32_t flags,
+			const target::TextureSemantic semantic)
+		{
+			DirectX::ScratchImage mips;
+			if (FAILED(DirectX::GenerateMipMaps(image, DirectX::TEX_FILTER_BOX | DirectX::TEX_FILTER_FORCE_NON_WIC, 0, mips)))
+			{
+				return nullptr;
+			}
+
+			const auto compressed = compress(mips, DXGI_FORMAT_BC7_UNORM, DirectX::TEX_COMPRESS_BC7_QUICK);
+			if (!compressed)
+			{
+				ZONETOOL_WARNING("Cannot compress image \"%s\"", name.data());
+				return nullptr;
+			}
+
+			return make_image(name, *compressed, format, flags, semantic);
 		}
 
 		std::array<float, 3> get_octahedron_direction(const float u, const float v)
@@ -359,9 +426,25 @@ namespace zonetool::iw7::converter::iw8::gfximage
 			return result;
 		}
 
-		std::optional<DirectX::ScratchImage> make_octahedron(const DirectX::ScratchImage& cube)
+		std::array<float, 3> rotate_to_sky(const std::array<float, 3>& direction, const std::array<std::array<float, 3>, 3>& axis)
+		{
+			std::array<float, 3> result{};
+			for (auto i = 0u; i < result.size(); i++)
+			{
+				result[i] = direction[0] * axis[i][0] + direction[1] * axis[i][1] + direction[2] * axis[i][2];
+			}
+
+			return result;
+		}
+
+		std::optional<DirectX::ScratchImage> make_octahedron(const DirectX::ScratchImage& cube, const std::array<float, 3>& rotation_angles)
 		{
 			const auto size = std::min<std::size_t>(2048, cube.GetMetadata().width * 2);
+
+			std::array<std::array<float, 3>, 3> axis{};
+			float right[3]{};
+			AngleVectors(rotation_angles.data(), axis[0].data(), right, axis[2].data());
+			axis[1] = {-right[0], -right[1], -right[2]};
 
 			DirectX::ScratchImage result;
 			if (FAILED(result.Initialize2D(DXGI_FORMAT_R32G32B32A32_FLOAT, size, size, 1, 1)))
@@ -376,7 +459,7 @@ namespace zonetool::iw7::converter::iw8::gfximage
 				for (auto column = 0u; column < size; column++, texel += 4)
 				{
 					const auto direction = get_octahedron_direction((column + 0.5f) / size, (row + 0.5f) / size);
-					const auto color = sample_cube(cube, 0, 0, direction);
+					const auto color = sample_cube(cube, 0, 0, rotate_to_sky(direction, axis));
 					texel[0] = std::max(color[0], 0.0f);
 					texel[1] = std::max(color[1], 0.0f);
 					texel[2] = std::max(color[2], 0.0f);
@@ -408,14 +491,45 @@ namespace zonetool::iw7::converter::iw8::gfximage
 		{
 			const auto [x, y, z] = direction;
 			const auto length = std::sqrt(x * x + y * y + z * z);
-			return 0.282095f * sh[0] + 0.488603f * (-y * sh[1] + z * sh[2] - x * sh[3]) / length;
+			return 0.282095f * sh[0] + 0.325735f * (-y * sh[1] + z * sh[2] - x * sh[3]) / length; // iw7 lit PS, stock iw8 bakes use 0.488603
 		}
 
-		float write_probe_octahedron(const DirectX::ScratchImage& cubes, const std::size_t cube_index, const std::array<float, 4>& luminance_sh,
-			const DirectX::ScratchImage& result)
+		std::array<float, 4> project_luminance_sh(const DirectX::ScratchImage& cubes, const std::size_t cube_index)
 		{
+			std::array<float, 4> sh{};
+			auto weight_sum = 0.0f;
+			for (auto row = 0u; row < 256u; row++)
+			{
+				for (auto column = 0u; column < 256u; column++)
+				{
+					const auto direction = get_octahedron_direction((column + 0.5f) / 256.0f, (row + 0.5f) / 256.0f);
+					const auto [x, y, z] = direction;
+					const auto length = std::sqrt(x * x + y * y + z * z);
+					const auto weight = 1.0f / (length * length * length);
+					const auto color = sample_cube(cubes, cube_index * 6, 0, direction);
+					const auto luminance = weight * (0.2126f * std::max(color[0], 0.0f) + 0.7152f * std::max(color[1], 0.0f)
+						+ 0.0722f * std::max(color[2], 0.0f));
+					sh[0] += 0.282095f * luminance;
+					sh[1] -= 0.488603f * y / length * luminance;
+					sh[2] += 0.488603f * z / length * luminance;
+					sh[3] -= 0.488603f * x / length * luminance;
+					weight_sum += weight;
+				}
+			}
+
+			for (auto& value : sh)
+			{
+				value *= 4.0f * std::numbers::pi_v<float> / weight_sum;
+			}
+
+			return sh;
+		}
+
+		float write_probe_octahedron(const DirectX::ScratchImage& cubes, const std::size_t cube_index, const DirectX::ScratchImage& result)
+		{
+			const auto luminance_sh = project_luminance_sh(cubes, cube_index); // TODO: own probe irradiance from stock mp_rust probe data only
 			const auto cube_levels = cubes.GetMetadata().mipLevels;
-			const auto min_irradiance = std::max(0.1f * 0.282095f * luminance_sh[0], 0.001f);
+			const auto min_irradiance = std::max(0.282095f * luminance_sh[0] / 3.0f, 0.001f); // r_reflectionProbeNormalizeMax 3.0
 			auto luminance_sum = 0.0f;
 			for (auto level = 0u; level < result.GetMetadata().mipLevels; level++)
 			{
@@ -494,14 +608,125 @@ namespace zonetool::iw7::converter::iw8::gfximage
 			return asset->name[0] == '$' ? "iw7_"s + (asset->name + 1) : asset->name;
 		}
 
-		target::GfxImage* dump_once(const std::string& name, const std::function<target::GfxImage*()>& convert_image)
+		std::string get_tinted_name(const GfxImage* asset, const std::array<float, 3>& tint)
 		{
+			const auto name = get_output_name(asset);
+			if (tint == std::array{1.0f, 1.0f, 1.0f})
+			{
+				return name;
+			}
+
+			return std::format("{}_tint_{:x}_{:x}_{:x}", name, std::lround(tint[0] * 255.0f), std::lround(tint[1] * 255.0f), std::lround(tint[2] * 255.0f));
+		}
+
+		channel_tables make_identity_tables()
+		{
+			channel_tables tables{};
+			for (auto i = 0; i < 256; i++)
+			{
+				tables[0][i] = tables[1][i] = tables[2][i] = tables[3][i] = static_cast<std::uint8_t>(i);
+			}
+
+			return tables;
+		}
+
+		channel_tables make_inverted_tables()
+		{
+			channel_tables tables{};
+			for (auto i = 0; i < 256; i++)
+			{
+				tables[0][i] = tables[1][i] = tables[2][i] = tables[3][i] = static_cast<std::uint8_t>(255 - i);
+			}
+
+			return tables;
+		}
+
+		std::array<float, 256> make_linear_table(const GfxImage* asset)
+		{
+			const auto srgb = DirectX::IsSRGB(static_cast<DXGI_FORMAT>(asset->imageFormat));
+
+			std::array<float, 256> table{};
+			for (auto i = 0; i < 256; i++)
+			{
+				table[i] = srgb ? srgb_to_linear(i / 255.0f) : i / 255.0f * i / 255.0f;
+			}
+
+			return table;
+		}
+
+		channel_tables make_tinted_tables(const GfxImage* asset, const std::array<float, 3>& tint)
+		{
+			const auto linear = make_linear_table(asset);
+
+			channel_tables tables{};
+			for (auto i = 0; i < 256; i++)
+			{
+				for (auto channel = 0u; channel < tint.size(); channel++)
+				{
+					tables[channel][i] = linear_to_srgb(linear[i] * tint[channel]);
+				}
+
+				tables[3][i] = static_cast<std::uint8_t>(i);
+			}
+
+			return tables;
+		}
+
+		std::uint64_t get_fingerprint(const std::string_view kind, const std::initializer_list<const GfxImage*> sources)
+		{
+			fingerprint result;
+			result.add_value(cache_revision::iw7_iw8_image).add(kind);
+			for (const auto* source : sources)
+			{
+				const auto* loaded = source ? static_cast<const GfxImage*>(db_find_asset(ASSET_TYPE_IMAGE, source->name)) : nullptr;
+				const auto* image = loaded ? loaded : source;
+				if (!image)
+				{
+					result.add_value(0);
+					continue;
+				}
+
+				result.add(image->name).add_value(image->imageFormat).add_value(image->flags).add_value(image->mapType).add_value(image->width)
+					.add_value(image->height).add_value(image->depth).add_value(image->numElements).add_value(image->levelCount)
+					.add_value(image->streamed).add_value(image->dataLen1).add_value(image->streams);
+			}
+
+			return result.value();
+		}
+
+		target::GfxImage* dump_once(const std::string& name, const std::optional<std::uint64_t> fingerprint,
+			const target::GfxImageSemanticSpecific semantic_specific, const std::function<target::GfxImage*()>& convert_image)
+		{
+			static utils::memory::allocator allocator;
 			static std::unordered_map<std::string, target::GfxImage*> converted;
 
 			const auto [entry, inserted] = converted.try_emplace(name);
-			if (inserted && (entry->second = convert_image()))
+			if (!inserted)
 			{
+				return entry->second;
+			}
+
+			auto file_name = name;
+			std::ranges::replace(file_name, '*', '_');
+			const auto output = std::format("{}images\\{}.iw8Image", filesystem::get_dump_path(), file_name);
+			if (fingerprint && is_dump_current(output, *fingerprint))
+			{
+				entry->second = allocator.allocate<target::GfxImage>();
+				entry->second->name = allocator.duplicate_string(name);
+				entry->second->semanticSpecific = semantic_specific;
+			}
+			else if ((entry->second = convert_image()))
+			{
+				entry->second->semanticSpecific = semantic_specific;
 				target::gfx_image::dump(entry->second);
+				if (fingerprint)
+				{
+					update_dump_cache(output, *fingerprint);
+				}
+			}
+
+			if (entry->second)
+			{
 				add_csv_row("image", name);
 			}
 
@@ -509,77 +734,188 @@ namespace zonetool::iw7::converter::iw8::gfximage
 		}
 	}
 
-	target::GfxImage* dump_color_specular(const GfxImage* asset)
+	target::GfxImage* dump_color_specular(const GfxImage* asset, const std::array<float, 3>& tint)
 	{
-		const auto name = get_output_name(asset);
-		return dump_once(name, [&]
+		const auto name = get_tinted_name(asset, tint);
+		return dump_once(name, get_fingerprint("color_specular", {asset}), {.albedoMapScaleBias = 0xFF}, [&]
 		{
-			const auto srgb = DirectX::IsSRGB(static_cast<DXGI_FORMAT>(asset->imageFormat));
-
-			channel_tables tables{};
-			for (auto i = 0; i < 256; i++)
-			{
-				tables[0][i] = tables[1][i] = tables[2][i] = srgb ? static_cast<std::uint8_t>(i) : from_squared_gamma(i);
-				tables[3][i] = static_cast<std::uint8_t>(i);
-			}
-
 			return convert(asset, name, target::GFX_PF_BC7_SRGB, target::IMG_DISK_FLAG_GAMMA_SRGB | target::IMG_DISK_FLAG_AUTOMETALNESS,
-				target::TS_METALNESS_MAP, 0xFF, tables);
+				target::TS_METALNESS_MAP, make_tinted_tables(asset, tint));
 		});
 	}
 
-	target::GfxImage* dump_color(const GfxImage* asset)
+	target::GfxImage* dump_color_specular(const GfxImage* color, const GfxImage* specular_gloss, const std::array<float, 3>& tint)
 	{
-		const auto name = get_output_name(asset);
-		return dump_once(name, [&]
+		const auto name = std::format("{}_{}_cs", get_tinted_name(color, tint), get_output_name(specular_gloss));
+		return dump_once(name, get_fingerprint("color_specular_2", {color, specular_gloss}), {.albedoMapScaleBias = 0xFF}, [&]() -> target::GfxImage*
 		{
-			const auto srgb = DirectX::IsSRGB(static_cast<DXGI_FORMAT>(asset->imageFormat));
-
-			channel_tables tables{};
-			for (auto i = 0; i < 256; i++)
+			const std::array sources{color, specular_gloss};
+			std::array<std::optional<DirectX::ScratchImage>, 2> pixels;
+			std::size_t width, height;
+			if (!read_composed_sources(sources, pixels, width, height) || !pixels[0] || !pixels[1])
 			{
-				tables[0][i] = tables[1][i] = tables[2][i] = srgb ? static_cast<std::uint8_t>(i) : linear_to_srgb(i / 255.0f);
-				tables[3][i] = static_cast<std::uint8_t>(i);
+				ZONETOOL_WARNING("Cannot read the sources of image \"%s\"", name.data());
+				return nullptr;
 			}
 
-			return convert(asset, name, target::GFX_PF_BC7_SRGB, target::IMG_DISK_FLAG_GAMMA_SRGB, target::TS_COLOR_MAP, 0, tables);
+			DirectX::ScratchImage composed;
+			if (FAILED(composed.Initialize2D(DXGI_FORMAT_R8G8B8A8_UNORM, width, height, 1, 1)))
+			{
+				return nullptr;
+			}
+
+			const auto color_linear = make_linear_table(color);
+			const auto specular_linear = make_linear_table(specular_gloss);
+			const auto get_luminance = [](const std::array<float, 3>& value)
+			{
+				return value[0] * 0.2126f + value[1] * 0.7152f + value[2] * 0.0722f;
+			};
+
+			const auto& image = *composed.GetImage(0, 0, 0);
+			for (auto row = 0u; row < height; row++)
+			{
+				for (auto column = 0u; column < width; column++)
+				{
+					const auto* color_texel = read_texel(pixels[0], row, column);
+					const auto* specular_texel = read_texel(pixels[1], row, column);
+
+					std::array<float, 3> diffuse{}, specular{}, albedo{};
+					for (auto channel = 0u; channel < 3; channel++)
+					{
+						diffuse[channel] = color_linear[color_texel[channel]] * tint[channel];
+						specular[channel] = specular_linear[specular_texel[channel]];
+						albedo[channel] = std::max(diffuse[channel] + specular[channel] - 0.1f, 0.0f);
+					}
+
+					const auto specular_luminance = get_luminance(specular);
+					const auto albedo_luminance = get_luminance(albedo);
+					const auto metalness = specular_luminance > 0.1f && albedo_luminance > 0.0f
+						? std::min((specular_luminance - 0.1f) / albedo_luminance, 1.0f) : 0.0f;
+
+					auto* texel = image.pixels + row * image.rowPitch + column * 4;
+					for (auto channel = 0u; channel < 3; channel++)
+					{
+						texel[channel] = linear_to_srgb(metalness > 0.0f ? albedo[channel] : diffuse[channel]);
+					}
+
+					texel[3] = to_byte(metalness > 0.0f ? 0.1f + 0.9f * metalness : specular_luminance);
+				}
+			}
+
+			return compress_composed(name, image, target::GFX_PF_BC7_SRGB, target::IMG_DISK_FLAG_GAMMA_SRGB | target::IMG_DISK_FLAG_AUTOMETALNESS,
+				target::TS_METALNESS_MAP);
+		});
+	}
+
+	target::GfxImage* dump_color(const GfxImage* asset, const std::array<float, 3>& tint)
+	{
+		const auto name = get_tinted_name(asset, tint);
+		return dump_once(name, get_fingerprint("color", {asset}), {}, [&]
+		{
+			return convert(asset, name, target::GFX_PF_BC7_SRGB, target::IMG_DISK_FLAG_GAMMA_SRGB, target::TS_COLOR_MAP, make_tinted_tables(asset, tint));
+		});
+	}
+
+	target::GfxImage* dump_decal_color(const GfxImage* asset)
+	{
+		const auto name = get_output_name(asset) + "&defaultspec";
+		return dump_once(name, get_fingerprint("decal_color", {asset}), {.albedoMapScaleBias = 9}, [&] // TODO: stock decal value
+		{
+			auto tables = make_tinted_tables(asset, {1.0f, 1.0f, 1.0f});
+			tables[3].fill(255);
+			return convert(asset, name, target::GFX_PF_BC7_SRGB, target::IMG_DISK_FLAG_GAMMA_SRGB | target::IMG_DISK_FLAG_AUTOMETALNESS,
+				target::TS_METALNESS_MAP, tables);
 		});
 	}
 
 	target::GfxImage* dump_alpha(const GfxImage* asset)
 	{
 		const auto name = get_output_name(asset);
-		return dump_once(name, [&]
+		return dump_once(name, get_fingerprint("alpha", {asset}), {}, [&]
 		{
-			channel_tables tables{};
-			for (auto i = 0; i < 256; i++)
+			return convert(asset, name, target::GFX_PF_BC7, 0, target::TS_2D, make_identity_tables(), {0, 0, 0, 0});
+		});
+	}
+
+	target::GfxImage* dump_layer_mask(const GfxImage* asset)
+	{
+		const auto name = get_output_name(asset) + "_mask";
+		return dump_once(name, get_fingerprint("layer_mask", {asset}), {}, [&]
+		{
+			return convert(asset, name, target::GFX_PF_BC7, 0, target::TS_2D, make_identity_tables());
+		});
+	}
+
+	target::GfxImage* dump_layer_mask(const GfxImage* coverage, const GfxImage* reveal)
+	{
+		const auto name = std::format("{}_{}_mask", get_output_name(coverage), get_output_name(reveal));
+		return dump_once(name, get_fingerprint("layer_mask_2", {coverage, reveal}), {}, [&]() -> target::GfxImage*
+		{
+			const std::array sources{coverage, reveal};
+			std::array<std::optional<DirectX::ScratchImage>, 2> pixels;
+			std::size_t width, height;
+			if (!read_composed_sources(sources, pixels, width, height) || !pixels[0] || !pixels[1])
 			{
-				tables[0][i] = tables[1][i] = tables[2][i] = tables[3][i] = static_cast<std::uint8_t>(i);
+				ZONETOOL_WARNING("Cannot read the sources of image \"%s\"", name.data());
+				return nullptr;
 			}
 
-			return convert(asset, name, target::GFX_PF_BC7, 0, target::TS_2D, 0, tables, {0, 0, 0, 0});
+			DirectX::ScratchImage composed;
+			if (FAILED(composed.Initialize2D(DXGI_FORMAT_R8G8B8A8_UNORM, width, height, 1, 1)))
+			{
+				return nullptr;
+			}
+
+			const auto& image = *composed.GetImage(0, 0, 0);
+			for (auto row = 0u; row < height; row++)
+			{
+				for (auto column = 0u; column < width; column++)
+				{
+					auto* texel = image.pixels + row * image.rowPitch + column * 4;
+					texel[0] = read_texel(pixels[0], row, column)[3];
+					texel[1] = read_texel(pixels[1], row, column)[0];
+					texel[2] = 0xFF;
+					texel[3] = 0xFF;
+				}
+			}
+
+			return compress_composed(name, image, target::GFX_PF_BC7, 0, target::TS_2D);
+		});
+	}
+
+	target::GfxImage* dump_2d(const GfxImage* asset)
+	{
+		const auto name = get_output_name(asset);
+		return dump_once(name, get_fingerprint("2d", {asset}), {}, [&]
+		{
+			return convert(asset, name, target::GFX_PF_BC7_SRGB, target::IMG_DISK_FLAG_NOPICMIP | target::IMG_DISK_FLAG_CLAMP_U
+				| target::IMG_DISK_FLAG_CLAMP_V | target::IMG_DISK_FLAG_GAMMA_SRGB, target::TS_2D, make_identity_tables());
 		});
 	}
 
 	target::GfxImage* dump_opacity(const GfxImage* asset)
 	{
 		const auto name = get_output_name(asset) + "_opacity";
-		return dump_once(name, [&]
+		return dump_once(name, get_fingerprint("opacity", {asset}), {}, [&]
 		{
-			channel_tables tables{};
-			for (auto i = 0; i < 256; i++)
-			{
-				tables[0][i] = tables[1][i] = tables[2][i] = tables[3][i] = static_cast<std::uint8_t>(i);
-			}
-
-			return convert(asset, name, target::GFX_PF_BC7, 0, target::TS_2D, 0, tables, {3, 3, 3, 3});
+			return convert(asset, name, target::GFX_PF_BC7, 0, target::TS_2D, make_identity_tables(), {3, 3, 3, 3});
 		});
 	}
 
-	target::GfxImage* dump_sky(const GfxImage* asset)
+	target::GfxImage* dump_transmission(const GfxImage* coverage, const bool coverage_in_alpha)
+	{
+		const auto name = get_output_name(coverage) + (coverage_in_alpha ? "_alpha_transmission" : "_transmission");
+		const auto channel = static_cast<std::uint8_t>(coverage_in_alpha ? 3 : 0);
+		return dump_once(name, get_fingerprint(coverage_in_alpha ? "alpha_transmission" : "transmission", {coverage}), {}, [&]
+		{
+			return convert(coverage, name, target::GFX_PF_BC7, 0, target::TS_2D, make_inverted_tables(), {channel, channel, channel, channel});
+		});
+	}
+
+	target::GfxImage* dump_sky(const GfxImage* asset, const std::array<float, 3>& rotation_angles)
 	{
 		const auto name = get_output_name(asset);
-		return dump_once(name, [&]() -> target::GfxImage*
+		return dump_once(name, std::nullopt, {}, [&]() -> target::GfxImage*
 		{
 			const auto cube = read_pixels(asset, DXGI_FORMAT_R32G32B32A32_FLOAT);
 			if (!cube)
@@ -593,7 +929,7 @@ namespace zonetool::iw7::converter::iw8::gfximage
 				return nullptr;
 			}
 
-			const auto octahedron = make_octahedron(*cube);
+			const auto octahedron = make_octahedron(*cube, rotation_angles);
 			const auto compressed = octahedron ? compress(*octahedron, DXGI_FORMAT_BC6H_UF16, DirectX::TEX_COMPRESS_DEFAULT) : std::nullopt;
 			if (!compressed)
 			{
@@ -603,13 +939,107 @@ namespace zonetool::iw7::converter::iw8::gfximage
 
 			return make_image(name, *compressed, target::GFX_PF_BC6H,
 				target::IMG_DISK_FLAG_NOPICMIP | target::IMG_DISK_FLAG_NOMIPMAPS | target::IMG_DISK_FLAG_CLAMP_U | target::IMG_DISK_FLAG_CLAMP_V | target::IMG_DISK_FLAG_OCTAHEDRON,
-				target::TS_FUNCTION, 0);
+				target::TS_FUNCTION);
 		});
 	}
 
-	target::GfxImage* dump_reflection_probes(const GfxImage* asset, const std::vector<std::array<float, 4>>& luminance_sh)
+	target::GfxImage* dump_generated(const GfxImage* asset, const target::GfxPixelFormat format)
 	{
-		return dump_once("*reflection_probe_array_octahedron", [&]() -> target::GfxImage*
+		return dump_once(asset->name, get_fingerprint("generated", {asset}), {}, [&]() -> target::GfxImage*
+		{
+			const auto* loaded = static_cast<const GfxImage*>(db_find_asset(ASSET_TYPE_IMAGE, asset->name));
+			const auto* image = loaded ? loaded : asset;
+			const auto source_pitch = image->height ? image->dataLen1 / image->height : 0u;
+			if (!image->pixelData || image->streamed || image->imageFormat != DXGI_FORMAT_R8_UNORM || image->levelCount != 1
+				|| image->depth != 1 || image->numElements != 1 || source_pitch < image->width)
+			{
+				ZONETOOL_WARNING("Cannot convert generated image \"%s\"", asset->name);
+				return nullptr;
+			}
+
+			static utils::memory::allocator allocator;
+			const auto pitch = (image->width + 15u) & ~15u; // TODO: 16 byte rows from stock *ieslookup and *heightmap0 only
+			const auto result = allocator.allocate<target::GfxImage>();
+			result->name = allocator.duplicate_string(asset->name);
+			result->format = format;
+			result->flags = static_cast<target::GfxImageFlags>(image->flags);
+			result->totalSize = pitch * image->height;
+			result->width = image->width;
+			result->height = image->height;
+			result->depth = 1;
+			result->numElements = 1;
+			result->semantic = target::TS_FUNCTION;
+			result->category = target::IMG_CATEGORY_AUTO_GENERATED;
+			result->levelCount = 1;
+			result->pixels.residentData = allocator.allocate_array<char>(result->totalSize);
+			for (auto row = 0u; row < image->height; row++)
+			{
+				std::memcpy(result->pixels.residentData + row * pitch, image->pixelData + row * source_pitch, image->width);
+			}
+
+			return result;
+		});
+	}
+
+	target::GfxImage* dump_grading_clut(const GfxImage* asset, const std::string& name, const std::size_t size,
+		const std::function<std::vector<std::uint16_t>(const std::vector<std::uint8_t>& texels, std::size_t source_size)>& convert_texels)
+	{
+		return dump_once(name, get_fingerprint("grading_clut", {asset}), {}, [&]() -> target::GfxImage*
+		{
+			const auto volume = read_pixels(asset, DXGI_FORMAT_R8G8B8A8_UNORM);
+			if (!volume)
+			{
+				return nullptr;
+			}
+
+			const auto& metadata = volume->GetMetadata();
+			if (metadata.dimension != DirectX::TEX_DIMENSION_TEXTURE3D || metadata.width != metadata.height || metadata.width != metadata.depth)
+			{
+				ZONETOOL_WARNING("Image \"%s\" is not a cube volume", asset->name);
+				return nullptr;
+			}
+
+			const auto source_size = metadata.width;
+			std::vector<std::uint8_t> texels(source_size * source_size * source_size * 4);
+			for (auto slice = 0u; slice < source_size; slice++)
+			{
+				const auto& image = *volume->GetImage(0, 0, slice);
+				for (auto row = 0u; row < source_size; row++)
+				{
+					std::memcpy(&texels[(slice * source_size + row) * source_size * 4], image.pixels + row * image.rowPitch, source_size * 4);
+				}
+			}
+
+			const auto converted = convert_texels(texels, source_size);
+			if (converted.size() != size * size * size * 4)
+			{
+				return nullptr;
+			}
+
+			static utils::memory::allocator allocator;
+			const auto result = allocator.allocate<target::GfxImage>();
+			result->name = allocator.duplicate_string(name);
+			result->format = target::GFX_PF_R16G16B16A16;
+			result->flags = static_cast<target::GfxImageFlags>(target::IMG_DISK_FLAG_NOPICMIP | target::IMG_DISK_FLAG_NOMIPMAPS
+				| target::IMG_DISK_FLAG_MAPTYPE_3D);
+			result->totalSize = static_cast<unsigned int>(converted.size() * sizeof(std::uint16_t));
+			result->width = static_cast<unsigned short>(size);
+			result->height = static_cast<unsigned short>(size);
+			result->depth = static_cast<unsigned short>(size);
+			result->numElements = 1;
+			result->semantic = target::TS_FUNCTION;
+			result->category = target::IMG_CATEGORY_AUTO_GENERATED;
+			result->levelCount = 1;
+			result->streamedPartCount = 8; // TODO: stock gradingclutmp_rust_clut only
+			result->pixels.residentData = allocator.allocate_array<char>(result->totalSize);
+			std::memcpy(result->pixels.residentData, converted.data(), result->totalSize);
+			return result;
+		});
+	}
+
+	target::GfxImage* dump_reflection_probes(const GfxImage* asset, const std::size_t probe_count)
+	{
+		return dump_once("*reflection_probe_array_octahedron", std::nullopt, {}, [&]() -> target::GfxImage*
 		{
 			const auto cubes = read_pixels(asset, DXGI_FORMAT_R32G32B32A32_FLOAT);
 			if (!cubes)
@@ -618,26 +1048,25 @@ namespace zonetool::iw7::converter::iw8::gfximage
 			}
 
 			const auto& metadata = cubes->GetMetadata();
-			if (!metadata.IsCubemap() || metadata.arraySize < 6 * luminance_sh.size())
+			if (!metadata.IsCubemap() || metadata.arraySize < 6 * probe_count)
 			{
-				ZONETOOL_WARNING("Image \"%s\" has %zu cube faces for %zu reflection probes", asset->name, metadata.arraySize, luminance_sh.size());
+				ZONETOOL_WARNING("Image \"%s\" has %zu cube faces for %zu reflection probes", asset->name, metadata.arraySize, probe_count);
 				return nullptr;
 			}
 
 			DirectX::ScratchImage octahedrons;
-			if (FAILED(octahedrons.Initialize2D(DXGI_FORMAT_R32G32B32A32_FLOAT, 256, 256, luminance_sh.size(), 6)))
+			if (FAILED(octahedrons.Initialize2D(DXGI_FORMAT_R32G32B32A32_FLOAT, 256, 256, probe_count, 6)))
 			{
 				return nullptr;
 			}
 
 			auto luminance = 0.0f;
-			for (auto i = 0u; i < luminance_sh.size(); i++)
+			for (auto i = 0u; i < probe_count; i++)
 			{
-				luminance += write_probe_octahedron(*cubes, i, luminance_sh[i], octahedrons);
+				luminance += write_probe_octahedron(*cubes, i, octahedrons);
 			}
 
-			ZONETOOL_INFO("Image \"%s\": %zu reflection probes, mean luminance %.2f", asset->name, luminance_sh.size(),
-				luminance / luminance_sh.size());
+			ZONETOOL_INFO("Image \"%s\": %zu reflection probes, mean luminance %.2f", asset->name, probe_count, luminance / probe_count);
 
 			const auto compressed = compress(octahedrons, DXGI_FORMAT_BC6H_UF16, DirectX::TEX_COMPRESS_DEFAULT);
 			if (!compressed)
@@ -647,7 +1076,7 @@ namespace zonetool::iw7::converter::iw8::gfximage
 			}
 
 			auto* image = make_image("*reflection_probe_array_octahedron", *compressed, target::GFX_PF_BC6H,
-				target::IMG_DISK_FLAG_NOPICMIP | target::IMG_DISK_FLAG_MAPTYPE_ARRAY, target::TS_FUNCTION, 0);
+				target::IMG_DISK_FLAG_NOPICMIP | target::IMG_DISK_FLAG_MAPTYPE_ARRAY, target::TS_FUNCTION);
 			image->atlasInfo = {};
 			image->category = target::IMG_CATEGORY_LIGHTMAP;
 			return image;
@@ -657,7 +1086,7 @@ namespace zonetool::iw7::converter::iw8::gfximage
 	target::GfxImage* dump_normal_gloss(const GfxImage* asset)
 	{
 		const auto name = get_output_name(asset);
-		return dump_once(name, [&]
+		return dump_once(name, get_fingerprint("normal_gloss", {asset}), {.normalMapScaleBias = 0xFF00FF}, [&]
 		{
 			channel_tables tables{};
 			for (auto i = 0; i < 256; i++)
@@ -666,8 +1095,7 @@ namespace zonetool::iw7::converter::iw8::gfximage
 				tables[2][i] = to_byte(i / 255.0f * i / 255.0f);
 			}
 
-			return convert(asset, name, target::GFX_PF_BC7, target::IMG_DISK_FLAG_NORMAL_OCCLUSON_GLOSS, target::TS_NORMAL_OCCLUSION_GLOSS_MAP,
-				0xFF00FF, tables);
+			return convert(asset, name, target::GFX_PF_BC7, target::IMG_DISK_FLAG_NORMAL_OCCLUSON_GLOSS, target::TS_NORMAL_OCCLUSION_GLOSS_MAP, tables);
 		});
 	}
 
@@ -682,34 +1110,15 @@ namespace zonetool::iw7::converter::iw8::gfximage
 		}
 
 		name = name.empty() ? "iw7_flat_ng" : name + "ng";
-		return dump_once(name, [&]() -> target::GfxImage*
+		return dump_once(name, get_fingerprint("normal_gloss_3", {normal, specular_gloss, occlusion}), {.normalMapScaleBias = 0xFF00FF},
+			[&]() -> target::GfxImage*
 		{
 			std::array<std::optional<DirectX::ScratchImage>, 3> pixels;
-			std::size_t width = 4, height = 4;
-			for (auto i = 0u; i < sources.size(); i++)
+			std::size_t width, height;
+			if (!read_composed_sources(sources, pixels, width, height))
 			{
-				if (sources[i] && (pixels[i] = read_pixels(sources[i], DXGI_FORMAT_R8G8B8A8_UNORM)))
-				{
-					width = std::max(width, pixels[i]->GetMetadata().width);
-					height = std::max(height, pixels[i]->GetMetadata().height);
-				}
-			}
-
-			width = (width + 3) & ~3ull;
-			height = (height + 3) & ~3ull;
-			for (auto& source : pixels)
-			{
-				DirectX::ScratchImage resized;
-				if (source && (source->GetMetadata().width != width || source->GetMetadata().height != height))
-				{
-					if (FAILED(DirectX::Resize(*source->GetImage(0, 0, 0), width, height, DirectX::TEX_FILTER_LINEAR | DirectX::TEX_FILTER_FORCE_NON_WIC, resized)))
-					{
-						ZONETOOL_WARNING("Cannot resize the sources of image \"%s\"", name.data());
-						return nullptr;
-					}
-
-					source = std::move(resized);
-				}
+				ZONETOOL_WARNING("Cannot resize the sources of image \"%s\"", name.data());
+				return nullptr;
 			}
 
 			DirectX::ScratchImage composed;
@@ -717,11 +1126,6 @@ namespace zonetool::iw7::converter::iw8::gfximage
 			{
 				return nullptr;
 			}
-
-			const auto read_texel = [](const std::optional<DirectX::ScratchImage>& source, const std::size_t row, const std::size_t column) -> const std::uint8_t*
-			{
-				return source ? source->GetImage(0, 0, 0)->pixels + row * source->GetImage(0, 0, 0)->rowPitch + column * 4 : nullptr;
-			};
 
 			const auto& image = *composed.GetImage(0, 0, 0);
 			for (auto row = 0u; row < height; row++)
@@ -740,21 +1144,7 @@ namespace zonetool::iw7::converter::iw8::gfximage
 				}
 			}
 
-			DirectX::ScratchImage mips;
-			if (FAILED(DirectX::GenerateMipMaps(image, DirectX::TEX_FILTER_BOX | DirectX::TEX_FILTER_FORCE_NON_WIC, 0, mips)))
-			{
-				return nullptr;
-			}
-
-			const auto compressed = compress(mips, DXGI_FORMAT_BC7_UNORM, DirectX::TEX_COMPRESS_BC7_QUICK);
-			if (!compressed)
-			{
-				ZONETOOL_WARNING("Cannot compress image \"%s\"", name.data());
-				return nullptr;
-			}
-
-			return make_image(name, *compressed, target::GFX_PF_BC7, target::IMG_DISK_FLAG_NORMAL_OCCLUSON_GLOSS, target::TS_NORMAL_OCCLUSION_GLOSS_MAP,
-				0xFF00FF);
+			return compress_composed(name, image, target::GFX_PF_BC7, target::IMG_DISK_FLAG_NORMAL_OCCLUSON_GLOSS, target::TS_NORMAL_OCCLUSION_GLOSS_MAP);
 		});
 	}
 

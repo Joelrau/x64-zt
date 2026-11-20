@@ -398,6 +398,7 @@ namespace zonetool::iw7
 				reader.align(7);
 				const auto asset = reader.read<XAsset>();
 				reader.read_asset(asset->type, asset->header.data);
+				reader.align(15); // sub_140A7C4C0, TODO: table 0x1414DC160 is not in the dump, common.ff proves 16
 				reader.pop_stream();
 			}
 		}

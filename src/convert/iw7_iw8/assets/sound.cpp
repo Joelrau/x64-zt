@@ -49,56 +49,6 @@ namespace zonetool::iw7::converter::iw8::sound
 			return (value + alignment - 1) & ~(alignment - 1);
 		}
 
-		int convert_volmod(const int index)
-		{
-			const std::string name = index >= 0 && index < static_cast<int>(std::size(VOLMODS)) ? VOLMODS[index] : "default";
-			if (const auto found = std::ranges::find(target::volmod_names, name); found != std::end(target::volmod_names))
-			{
-				return static_cast<int>(found - std::begin(target::volmod_names));
-			}
-
-			ZONETOOL_WARNING("volmod \"%s\" does not exist in IW8", std::string(name).data());
-			return static_cast<int>(std::ranges::find(target::volmod_names, "default") - std::begin(target::volmod_names));
-		}
-
-		unsigned int convert_channel(const unsigned int index)
-		{
-			const std::string name = index < std::size(ENTCHANNELS) ? ENTCHANNELS[index] : "";
-			const auto find_channel = [](const std::string_view search)
-			{
-				return std::ranges::find(target::entchannel_names, search);
-			};
-
-			if (const auto found = find_channel(name); found != std::end(target::entchannel_names))
-			{
-				return static_cast<unsigned int>(found - std::begin(target::entchannel_names));
-			}
-
-			std::vector<std::string> candidates;
-			for (auto start = name.find('_'); start != std::string::npos; start = name.find('_', start + 1))
-			{
-				const auto end = name.find('_', start + 1);
-				candidates.emplace_back(name.substr(0, start) + (end == std::string::npos ? "" : name.substr(end)));
-			}
-
-			for (auto end = name.rfind('_'); end != std::string::npos && end != 0; end = name.rfind('_', end - 1))
-			{
-				candidates.emplace_back(name.substr(0, end));
-			}
-
-			for (const auto& candidate : candidates)
-			{
-				if (const auto found = find_channel(candidate); found != std::end(target::entchannel_names))
-				{
-					ZONETOOL_WARNING("entchannel \"%s\" does not exist in IW8, using \"%s\"", name.data(), candidate.data());
-					return static_cast<unsigned int>(found - std::begin(target::entchannel_names));
-				}
-			}
-
-			ZONETOOL_WARNING("entchannel \"%s\" does not exist in IW8", name.data());
-			return 0;
-		}
-
 		const char* convert_reflection_class(const char* name)
 		{
 			if (!name)
@@ -110,13 +60,28 @@ namespace zonetool::iw7::converter::iw8::sound
 			return value.starts_with("eng_") ? name + 4 : name;
 		}
 
+		target::SndAliasLoadType convert_load_type(const unsigned int type)
+		{
+			switch (type)
+			{
+			case SAT_HYBRID_PCM:
+				return target::SAT_HYBRID_PCM;
+			case SAT_STREAMED:
+				return target::SAT_STREAMED;
+			case SAT_PRIMED:
+				return target::SAT_PRIMED;
+			default:
+				return target::SAT_LOADED;
+			}
+		}
+
 		int convert_flags(const SndAliasFlags& flags)
 		{
 			target::SndAliasFlags result{};
 			result.looping = flags.looping;
 			result.reverb = flags.reverb;
 			result.shape = flags.shape;
-			result.type = flags.type == SAT_HYBRID_PCM ? target::SAT_HYBRID_PCM : target::SAT_LOADED;
+			result.type = convert_load_type(flags.type);
 			result.channel = convert_channel(flags.channel);
 			return std::bit_cast<int>(result);
 		}
@@ -142,63 +107,6 @@ namespace zonetool::iw7::converter::iw8::sound
 			return globals->volmodinfo[index].value;
 		}
 
-		target::SndAlias convert_alias(const SndAlias& alias, const target::SndAssetBankEntry* entry, const SndGlobals* globals)
-		{
-			const auto default_hash = snd_hash_name("default");
-
-			target::SndAlias result{};
-			result.aliasName = alias.aliasName;
-			result.subtitle = alias.subtitle;
-			result.secondaryAliasName = alias.secondaryAliasName;
-			result.assetFileName = alias.assetFileName;
-			result.id = alias.id;
-			result.secondaryId = alias.secondaryId;
-			result.assetId = alias.assetId;
-			result.contextType = alias.contextType;
-			result.contextValue = alias.contextValue;
-			result.sequence = alias.sequence;
-			result.volMin = alias.volMin * volmod_value(globals, alias.volModIndex); // iw8 base volmods are 1.0
-			result.volMax = alias.volMax * volmod_value(globals, alias.volModIndex);
-			result.volModIndex = convert_volmod(alias.volModIndex);
-			result.pitchMin = alias.pitchMin;
-			result.pitchMax = alias.pitchMax;
-			result.donutFadeEnd = alias.donutFadeEnd;
-			result.distMin = alias.distMin;
-			result.distMax = alias.distMax;
-			result.velocityMin = alias.velocityMin;
-			result.flags = convert_flags(alias.flags);
-			result.probability = alias.probability;
-			result.lfePercentage = alias.lfePercentage;
-			result.centerPercentage = alias.centerPercentage;
-			result.startDelay = alias.startDelay;
-			result.startDelayMax = alias.startDelay;
-			result.volumeFalloffCurve = default_hash; // TODO: map IW7 curve names
-			result.lpfCurve = default_hash;
-			result.hpfCurve = default_hash;
-			result.reverbSendCurve = default_hash;
-			result.envelopMin = alias.envelopMin;
-			result.envelopMax = alias.envelopMax;
-			result.envelopPercentage = alias.envelopPercentage;
-			result.speakerMap = default_hash;
-			result.reverbMultiplier = alias.reverbMultiplier;
-			result.farReverbMultiplier = alias.farReverbMultiplier;
-			result.occlusionShape = default_hash;
-			result.dopplerPreset = default_hash;
-			result.smartPanDistance2d = alias.smartPanDistance2d;
-			result.smartPanDistance3d = alias.smartPanDistance3d;
-			result.smartPanAttenuation2d = alias.smartPanAttenuation2d;
-			result.stereoSpreadMinDist = alias.stereoSpreadMinDist;
-			result.stereoSpreadMaxDist = alias.stereoSpreadMaxDist;
-			result.stereoSpreadMidPoint = alias.stereoSpreadMidPoint;
-			result.stereoSpreadMaxAngle = static_cast<char>(alias.stereoSpreadMaxAngle);
-			result.masterPriority = static_cast<char>(alias.masterPriority);
-			result.masterPercentage = alias.masterPercentage;
-			result.masterSlavePercentage = alias.slavePercentage;
-			result.masterThreshold = 0.25118863f;
-			result.maxDuration_dsec = get_duration_dsec(entry);
-			return result;
-		}
-
 		SndAliasList* find_alias_list(const std::string& name, SndBank*& owner)
 		{
 			SndAliasList* result{};
@@ -217,67 +125,173 @@ namespace zonetool::iw7::converter::iw8::sound
 
 			return result;
 		}
-
-		target::SndIndexEntry* build_alias_index(const target::SndAliasList* lists, const unsigned short count, utils::memory::allocator& allocator)
-		{
-			const auto empty = std::numeric_limits<unsigned short>::max();
-			const auto index = allocator.allocate_array<target::SndIndexEntry>(count);
-			std::memset(index, 0xFF, sizeof(target::SndIndexEntry) * count);
-
-			std::vector<bool> placed(count);
-			for (unsigned short i = 0; i < count; i++)
-			{
-				const auto slot = lists[i].id % count;
-				if (index[slot].value == empty)
-				{
-					index[slot].value = i;
-					placed[i] = true;
-				}
-			}
-
-			for (unsigned short i = 0; i < count; i++)
-			{
-				if (placed[i])
-				{
-					continue;
-				}
-
-				auto last = static_cast<unsigned short>(lists[i].id % count);
-				while (index[last].next != empty)
-				{
-					last = index[last].next;
-				}
-
-				auto free_slot = empty;
-				for (unsigned short offset = 1; offset < count && free_slot == empty; offset++)
-				{
-					if (const auto after = static_cast<unsigned short>((last + offset) % count); index[after].value == empty)
-					{
-						free_slot = after;
-					}
-					else if (const auto before = static_cast<unsigned short>((last + count - offset) % count); index[before].value == empty)
-					{
-						free_slot = before;
-					}
-				}
-
-				if (free_slot == empty)
-				{
-					ZONETOOL_FATAL("Unable to allocate sound bank alias index list");
-				}
-
-				index[last].next = free_slot;
-				index[free_slot].value = i;
-				placed[i] = true;
-			}
-
-			return index;
-		}
 	}
 
-	asset_bank_builder::source_bank* asset_bank_builder::open(SndBank* bank)
+	int convert_volmod(const int index)
 	{
-		const auto path = sound_asset_bank::create_path(bank, false);
+		const std::string name = index >= 0 && index < static_cast<int>(std::size(VOLMODS)) ? VOLMODS[index] : "default";
+		if (const auto found = std::ranges::find(target::volmod_names, name); found != std::end(target::volmod_names))
+		{
+			return static_cast<int>(found - std::begin(target::volmod_names));
+		}
+
+		ZONETOOL_WARNING("volmod \"%s\" does not exist in IW8", std::string(name).data());
+		return static_cast<int>(std::ranges::find(target::volmod_names, "default") - std::begin(target::volmod_names));
+	}
+
+	unsigned int convert_channel(const unsigned int index)
+	{
+		const std::string name = index < std::size(ENTCHANNELS) ? ENTCHANNELS[index] : "";
+		const auto find_channel = [](const std::string_view search)
+		{
+			return std::ranges::find(target::entchannel_names, search);
+		};
+
+		if (const auto found = find_channel(name); found != std::end(target::entchannel_names))
+		{
+			return static_cast<unsigned int>(found - std::begin(target::entchannel_names));
+		}
+
+		std::vector<std::string> candidates;
+		for (auto start = name.find('_'); start != std::string::npos; start = name.find('_', start + 1))
+		{
+			const auto end = name.find('_', start + 1);
+			candidates.emplace_back(name.substr(0, start) + (end == std::string::npos ? "" : name.substr(end)));
+		}
+
+		for (auto end = name.rfind('_'); end != std::string::npos && end != 0; end = name.rfind('_', end - 1))
+		{
+			candidates.emplace_back(name.substr(0, end));
+		}
+
+		for (const auto& candidate : candidates)
+		{
+			if (const auto found = find_channel(candidate); found != std::end(target::entchannel_names))
+			{
+				ZONETOOL_WARNING("entchannel \"%s\" does not exist in IW8, using \"%s\"", name.data(), candidate.data());
+				return static_cast<unsigned int>(found - std::begin(target::entchannel_names));
+			}
+		}
+
+		ZONETOOL_WARNING("entchannel \"%s\" does not exist in IW8", name.data());
+		return 0;
+	}
+
+	target::SndAlias convert_alias(const SndAlias& alias, const target::SndAssetBankEntry* entry, const SndGlobals* globals)
+	{
+		const auto default_hash = snd_hash_name("default");
+
+		target::SndAlias result{};
+		result.aliasName = alias.aliasName;
+		result.subtitle = alias.subtitle;
+		result.secondaryAliasName = alias.secondaryAliasName;
+		result.assetFileName = alias.assetFileName;
+		result.id = alias.id;
+		result.secondaryId = alias.secondaryId;
+		result.assetId = alias.assetId;
+		result.contextType = alias.contextType;
+		result.contextValue = alias.contextValue;
+		result.sequence = alias.sequence;
+		result.volMin = alias.volMin * volmod_value(globals, alias.volModIndex); // iw8 base volmods are 1.0
+		result.volMax = alias.volMax * volmod_value(globals, alias.volModIndex);
+		result.volModIndex = convert_volmod(alias.volModIndex);
+		result.pitchMin = alias.pitchMin;
+		result.pitchMax = alias.pitchMax;
+		result.donutFadeEnd = alias.donutFadeEnd;
+		result.distMin = alias.distMin;
+		result.distMax = alias.distMax;
+		result.velocityMin = alias.velocityMin;
+		result.flags = convert_flags(alias.flags);
+		result.probability = alias.probability;
+		result.lfePercentage = alias.lfePercentage;
+		result.centerPercentage = alias.centerPercentage;
+		result.startDelay = alias.startDelay;
+		result.startDelayMax = alias.startDelay;
+		result.volumeFalloffCurve = default_hash; // TODO: map IW7 curve names
+		result.lpfCurve = default_hash;
+		result.hpfCurve = default_hash;
+		result.reverbSendCurve = default_hash;
+		result.envelopMin = alias.envelopMin;
+		result.envelopMax = alias.envelopMax;
+		result.envelopPercentage = alias.envelopPercentage;
+		result.speakerMap = default_hash;
+		result.reverbMultiplier = alias.reverbMultiplier;
+		result.farReverbMultiplier = alias.farReverbMultiplier;
+		result.occlusionShape = default_hash;
+		result.dopplerPreset = default_hash;
+		result.smartPanDistance2d = alias.smartPanDistance2d;
+		result.smartPanDistance3d = alias.smartPanDistance3d;
+		result.smartPanAttenuation2d = alias.smartPanAttenuation2d;
+		result.stereoSpreadMinDist = alias.stereoSpreadMinDist;
+		result.stereoSpreadMaxDist = alias.stereoSpreadMaxDist;
+		result.stereoSpreadMidPoint = alias.stereoSpreadMidPoint;
+		result.stereoSpreadMaxAngle = static_cast<char>(alias.stereoSpreadMaxAngle);
+		result.masterPriority = static_cast<char>(alias.masterPriority);
+		result.masterPercentage = alias.masterPercentage;
+		result.masterSlavePercentage = alias.slavePercentage;
+		result.masterThreshold = 0.25118863f;
+		result.maxDuration_dsec = get_duration_dsec(entry);
+		return result;
+	}
+
+	target::SndIndexEntry* build_alias_index(const target::SndAliasList* lists, const unsigned short count, utils::memory::allocator& allocator)
+	{
+		const auto empty = std::numeric_limits<unsigned short>::max();
+		const auto index = allocator.allocate_array<target::SndIndexEntry>(count);
+		std::memset(index, 0xFF, sizeof(target::SndIndexEntry) * count);
+
+		std::vector<bool> placed(count);
+		for (unsigned short i = 0; i < count; i++)
+		{
+			const auto slot = lists[i].id % count;
+			if (index[slot].value == empty)
+			{
+				index[slot].value = i;
+				placed[i] = true;
+			}
+		}
+
+		for (unsigned short i = 0; i < count; i++)
+		{
+			if (placed[i])
+			{
+				continue;
+			}
+
+			auto last = static_cast<unsigned short>(lists[i].id % count);
+			while (index[last].next != empty)
+			{
+				last = index[last].next;
+			}
+
+			auto free_slot = empty;
+			for (unsigned short offset = 1; offset < count && free_slot == empty; offset++)
+			{
+				if (const auto after = static_cast<unsigned short>((last + offset) % count); index[after].value == empty)
+				{
+					free_slot = after;
+				}
+				else if (const auto before = static_cast<unsigned short>((last + count - offset) % count); index[before].value == empty)
+				{
+					free_slot = before;
+				}
+			}
+
+			if (free_slot == empty)
+			{
+				ZONETOOL_FATAL("Unable to allocate sound bank alias index list");
+			}
+
+			index[last].next = free_slot;
+			index[free_slot].value = i;
+			placed[i] = true;
+		}
+
+		return index;
+	}
+
+	asset_bank_builder::source_bank* asset_bank_builder::open(const std::string& path)
+	{
 		if (const auto found = this->sources_.find(path); found != this->sources_.end())
 		{
 			return found->second.get();
@@ -313,12 +327,17 @@ namespace zonetool::iw7::converter::iw8::sound
 
 	const target::SndAssetBankEntry* asset_bank_builder::add(SndBank* bank, const SndStringHash asset_id)
 	{
+		return this->add(sound_asset_bank::create_path(bank, false), asset_id);
+	}
+
+	const target::SndAssetBankEntry* asset_bank_builder::add(const std::string& path, const SndStringHash asset_id)
+	{
 		if (const auto found = std::ranges::find(this->entries_, asset_id, &target::SndAssetBankEntry::id); found != this->entries_.end())
 		{
 			return &*found;
 		}
 
-		const auto source = this->open(bank);
+		const auto source = this->open(path);
 		const auto found = std::ranges::find(source->entries, asset_id, &SndAssetBankEntry::id);
 		if (found == source->entries.end())
 		{

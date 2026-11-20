@@ -104,6 +104,21 @@ def print_callers(asm_path, index, target):
 					print(f"{address:x} in {caller}")
 
 
+def print_references(asm_path, index, pattern, max_lines):
+	regex = re.compile(pattern)
+	count = 0
+	with open(asm_path, encoding="utf-8", errors="replace") as file:
+		for text in file:
+			if regex.search(text):
+				address = parse_address(text.split(maxsplit=1)[0])
+				entry = index.find_address(address) if address is not None else None
+				print(f"{entry[3] if entry else '?'}: {text.strip()}")
+				count += 1
+				if count >= max_lines:
+					print(f"; more references, raise --max-lines")
+					return
+
+
 def main():
 	parser = argparse.ArgumentParser(description="Print functions from a re_reference IDA dump without reading the whole file.")
 	parser.add_argument("dump", choices=DUMPS.keys(), help="h1 = mp_1.15 (RVAs), h1_1.4 = the build that h1-mod runs (full addresses)")
@@ -111,6 +126,7 @@ def main():
 	parser.add_argument("-l", "--list", action="store_true", help="print the containing function of each target only (use for call stacks)")
 	parser.add_argument("-a", "--around", action="store_true", help="print only --max-lines around the address instead of the whole function")
 	parser.add_argument("-c", "--callers", action="store_true", help="list every call site of the named function")
+	parser.add_argument("-r", "--refs", action="store_true", help="list every line that matches the target regex, with its function (use for data references)")
 	parser.add_argument("-m", "--max-lines", type=int, default=400)
 	args = parser.parse_args()
 
@@ -119,6 +135,10 @@ def main():
 	index = function_index(folder)
 
 	for target in args.targets:
+		if args.refs:
+			print_references(asm_path, index, target, args.max_lines)
+			continue
+
 		address = parse_address(target.removeprefix("0x").removeprefix("sub_"))
 		if address is not None:
 			entry = index.find_address(address)

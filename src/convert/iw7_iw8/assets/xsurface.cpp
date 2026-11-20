@@ -260,7 +260,7 @@ namespace zonetool::iw7::converter::iw8::xsurface
 			result->sharedIndexDataOffset = append(data, indices.data(), indices.size());
 
 			float default_visibility[4] = { 0.0f, 0.0f, 1.0f, 0.0f };
-			const auto motion = (surface.flags & SURF_FLAG_REACTIVE_MOTION) != 0;
+			const auto motion = (surface.flags & (SURF_FLAG_REACTIVE_MOTION | SURF_FLAG_SELF_VISIBILITY)) == SURF_FLAG_REACTIVE_MOTION;
 
 			std::vector<target::GfxPackedVertex> verts(surface.vertCount);
 			for (auto i = 0; i < surface.vertCount; i++)
@@ -378,7 +378,7 @@ namespace zonetool::iw7::converter::iw8::xsurface
 			result->rigidVertLists = convert_rigid_vert_lists(surface, allocator);
 			result->childBounds = convert_child_bounds(surface, allocator);
 			std::memcpy(result->partBits.array, surface.partBits, sizeof(result->partBits.array));
-			result->surfBounds = compute_bounds(surface.verts0.packedVerts0, surface.vertCount);
+			result->surfBounds = get_bounds(surface);
 
 			result->sharedVertDataOffset = 0xFFFFFFFF;
 			result->sharedIndexDataOffset = 0xFFFFFFFF;
@@ -425,6 +425,11 @@ namespace zonetool::iw7::converter::iw8::xsurface
 
 			return result;
 		}
+	}
+
+	zonetool::iw8::Bounds get_bounds(const XSurface& surface)
+	{
+		return compute_bounds(surface.verts0.packedVerts0, surface.vertCount);
 	}
 
 	void dump(XModelSurfs* asset)
