@@ -343,7 +343,9 @@ namespace zonetool::iw7
 				// v76: unlit blended light cards/emblems (hdr_light, emissive decals) were lit by the model light grid -> drawn black; make them additive glows
 				const bool unlit_glow = blended && techset.find("unlit") != std::string::npos && techset.find("_add_") == std::string::npos && (v72_name.find("light") != std::string::npos || v72_name.find("emissive") != std::string::npos || v72_name.find("glow") != std::string::npos);
 				const bool distortion = techset.find("distortion") != std::string::npos; // v76: heat/water distortion draws its normal map as colour (purple ripples) -> invisible additive
-				if ((distortion || unlit_glow || techset.find("_add_") != std::string::npos) && techset.find("sky") == std::string::npos && asset->name && std::string(asset->name).find("sky") == std::string::npos && !material_images.empty())
+				// v76: IW7 blendadd glass came out as milky opaque panes (colour alpha = 1); a faint additive sheen reads as clear glass
+				const bool add_glass = techset.find("blendadd") != std::string::npos || facade_glass; // facade glass ignored colorTint and drew as cream panes
+				if ((distortion || unlit_glow || add_glass || techset.find("_add_") != std::string::npos) && techset.find("sky") == std::string::npos && asset->name && std::string(asset->name).find("sky") == std::string::npos && !material_images.empty())
 				{
 					const auto glow_img = material_images.back()["image"].get<std::string>();
 					matdata["techniqueSet->name"] = "effect_add_lin_ct_nofog_ndw_bl_blmod_iw6";
@@ -352,7 +354,7 @@ namespace zonetool::iw7
 					matdata["cameraRegion"] = 4;
 					matdata["materialType"] = 0;
 					ordered_json a1; a1["name"] = "textureAtlas"; a1["nameHash"] = 1128936273u; a1["literal"] = { 1.0f, 1.0f, 1.0f, 1.0f };
-					ordered_json a2; a2["name"] = "colorTint"; a2["nameHash"] = 3054254906u; if (distortion) a2["literal"] = { 0.0f, 0.0f, 0.0f, 0.0f }; else if (unlit_glow) a2["literal"] = { 1.5f, 1.5f, 1.5f, 1.0f }; else a2["literal"] = { 2.0f, 2.0f, 2.0f, 1.0f };
+					ordered_json a2; a2["name"] = "colorTint"; a2["nameHash"] = 3054254906u; if (distortion) a2["literal"] = { 0.0f, 0.0f, 0.0f, 0.0f }; else if (unlit_glow) a2["literal"] = { 1.5f, 1.5f, 1.5f, 1.0f }; else if (add_glass) a2["literal"] = { 0.12f, 0.14f, 0.16f, 1.0f }; else a2["literal"] = { 2.0f, 2.0f, 2.0f, 1.0f };
 					ordered_json a3; a3["name"] = "bloomParams"; a3["nameHash"] = 3733414975u; a3["literal"] = { 1.0f, 0.0f, 0.0f, 0.0f };
 					matdata["constantTable"] = ordered_json::array({ a1, a2, a3 });
 					ordered_json gi; gi["image"] = glow_img; gi["semantic"] = 2; gi["samplerState"] = 243;
