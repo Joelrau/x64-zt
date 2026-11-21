@@ -440,6 +440,31 @@ namespace zonetool::iw7
 						matdata["constantTable"] = ordered_json::array({ c1, c2, c3 });
 						for (auto& im : material_images) im["samplerState"] = 19;
 					}
+					// v86: model screens (cinematic) and unlit blend overlays (CRT dots, LED cards) are unlit in IW7 -> Ghosts model unlit blend.
+					//      As lit alpha-test they covered the HAILE billboard with an opaque dark layer.
+					else if (!prefix.empty() && prefix[0] == 'm' && cur_ts.rfind("wc_l_sm_ndw_b0c0l0_", 0) == 0
+						&& (techset.find("cinematic") != std::string::npos || techset.find("unlit_blend") != std::string::npos))
+					{
+						const bool cine = techset.find("cinematic") != std::string::npos;
+						float t[3] = { 1.0f, 1.0f, 1.0f };
+						for (int ci = 0; ci < asset->constantCount && asset->constantTable; ci++)
+							if (std::strncmp(asset->constantTable[ci].name, "colorTint", 9) == 0 && asset->constantTable[ci].name[9] == 0) { for (int c = 0; c < 3; c++) t[c] = asset->constantTable[ci].literal[c]; }
+						const float mx = std::max({ t[0], t[1], t[2], 0.0001f });
+						const float k = cine ? 1.2f / mx : std::min(mx * 0.15f, 3.0f) / mx;
+						std::string col = "blank";
+						for (const auto& im : material_images) if (im["typeHash"].get<std::size_t>() == 2695565377u) col = im["image"].get<std::string>();
+						matdata["techniqueSet->name"] = "mc_unlit_blend_lin_ct_ndw_bl_abl_cltrans_iw6";
+						matdata["sortKey"] = cine ? 2 : 31;
+						matdata["cameraRegion"] = 3;
+						matdata["materialType"] = 3;
+						matdata["gameFlags"] = 0;
+						ordered_json c1; c1["name"] = "textureAtlas"; c1["nameHash"] = 1128936273u; c1["literal"] = { 1.0f, 1.0f, 1.0f, 1.0f };
+						ordered_json c2; c2["name"] = "colorTint"; c2["nameHash"] = 3054254906u; c2["literal"] = { t[0] * k, t[1] * k, t[2] * k, 1.0f };
+						ordered_json c3; c3["name"] = "bloomParams"; c3["nameHash"] = 3733414975u; c3["literal"] = { 1.0f, 0.0f, 0.0f, 0.0f };
+						matdata["constantTable"] = ordered_json::array({ c1, c2, c3 });
+						ordered_json t1; t1["image"] = col; t1["semantic"] = 2; t1["samplerState"] = 19; t1["lastCharacter"] = 112; t1["firstCharacter"] = 99; t1["typeHash"] = 2695565377u;
+						material_images = ordered_json::array({ t1 });
+					}
 					else if (!prefix.empty() && prefix[0] == 'm' && cur_ts.rfind("wc_l_sm_ndw_b0c0l0_", 0) == 0)
 					{
 						std::string col = "blank", nml = "$identitynormalmap";

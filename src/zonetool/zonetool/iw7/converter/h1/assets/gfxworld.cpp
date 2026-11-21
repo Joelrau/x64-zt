@@ -459,6 +459,12 @@ namespace zonetool::iw7
 					for (unsigned int i = 0; i < asset->surfaceCount; i++)
 					{
 						memcpy(&d.surfacesBounds[i], &s.surfacesBounds[i], sizeof(zonetool::h1::GfxSurfaceBounds));
+						{ // v86: surface -> material + bounds table for locating surfaces by position
+							static FILE* sf = fopen("v86_surfaces.txt", "w");
+							if (sf) { const auto& b = s.surfacesBounds[i].bounds; const auto* sm = s.surfaces[i].material;
+								fprintf(sf, "%u %s %.0f %.0f %.0f %.0f %.0f %.0f %u\n", i, (sm && sm->name) ? sm->name : "?", b.midPoint[0], b.midPoint[1], b.midPoint[2], b.halfSize[0], b.halfSize[1], b.halfSize[2], (unsigned)s.surfaces[i].lightmapIndex);
+								if (i + 1 == asset->surfaceCount) fflush(sf); }
+						}
 					}
 
 					d.smodelDrawInsts = allocator.allocate_array<zonetool::h1::GfxStaticModelDrawInst>(s.smodelCount);
