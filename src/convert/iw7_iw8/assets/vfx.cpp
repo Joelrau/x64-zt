@@ -245,6 +245,11 @@ namespace zonetool::iw7::converter::iw8::vfx
 			convert_linked_assets(test.m_eventHandlerData.m_linkedAssetList, type, result.m_eventHandlerData.m_linkedAssetList, allocator);
 		}
 
+		bool is_enabled(const ParticleModuleDef& module)
+		{
+			return !(module.moduleData.moduleBase.m_flags & PARTICLE_MODULE_FLAG_DISABLED);
+		}
+
 		std::optional<target::ParticleModuleType> convert_module_data(const ParticleModuleDef& module,
 			target::ParticleModuleTypeDef& result, utils::memory::allocator& allocator)
 		{
@@ -475,7 +480,7 @@ namespace zonetool::iw7::converter::iw8::vfx
 				return target::PARTICLE_MODULE_ATTRACTOR;
 			}
 			case PARTICLE_MODULE_COLOR_GRAPH:
-				result.colorGraph.firstCurve = data.colorGraph.firstCurve;
+				result.colorGraph.firstCurve = is_enabled(module); // TODO: stock IW8 data only, IW7 has 0
 				result.colorGraph.m_modulateColorByAlpha = data.colorGraph.m_modulateColorByAlpha;
 				convert_curves(data.colorGraph.m_curves, result.colorGraph.m_curves, allocator);
 				return target::PARTICLE_MODULE_COLOR_GRAPH;
@@ -494,7 +499,7 @@ namespace zonetool::iw7::converter::iw8::vfx
 				result.gravity.m_gravityPercentage = convert_range(data.gravity.m_gravityPercentage);
 				return target::PARTICLE_MODULE_GRAVITY;
 			case PARTICLE_MODULE_INTENSITY_GRAPH:
-				result.intensityGraph.firstCurve = data.intensityGraph.firstCurve;
+				result.intensityGraph.firstCurve = is_enabled(module); // TODO: stock IW8 data only, IW7 has 0
 				convert_curves(data.intensityGraph.m_curves, result.intensityGraph.m_curves, allocator);
 				return target::PARTICLE_MODULE_INTENSITY_GRAPH;
 			case PARTICLE_MODULE_PARENT_VELOCITY_GRAPH:
@@ -525,7 +530,7 @@ namespace zonetool::iw7::converter::iw8::vfx
 				convert_curves(data.rotationGraph3D.m_curves, result.rotationGraph3D.m_curves, allocator);
 				return target::PARTICLE_MODULE_ROTATION_GRAPH_3D;
 			case PARTICLE_MODULE_SIZE_GRAPH:
-				result.sizeGraph.firstCurve = data.sizeGraph.firstCurve;
+				result.sizeGraph.firstCurve = is_enabled(module); // TODO: stock IW8 data only, IW7 has 0
 				convert_curves(data.sizeGraph.m_curves, result.sizeGraph.m_curves, allocator);
 				result.sizeGraph.m_sizeBegin = convert_float4(data.sizeGraph.m_sizeBegin);
 				result.sizeGraph.m_sizeEnd = convert_float4(data.sizeGraph.m_sizeEnd);

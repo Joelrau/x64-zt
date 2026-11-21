@@ -2,6 +2,7 @@
 
 #include "../include.hpp"
 #include "netconststrings.hpp"
+#include "xmodel.hpp"
 
 #include <iw8/assets/netconststrings.hpp>
 
@@ -64,6 +65,22 @@ namespace zonetool::iw7::converter::iw8::netconststrings
 			dumped_types.emplace(type);
 			add_csv_row("netconststrings", name);
 		}
+
+		void dump_models(const unsigned int count, const char** names)
+		{
+			for (auto i = 0u; i < count; i++)
+			{
+				if (!names[i])
+				{
+					continue;
+				}
+
+				if (const auto model = static_cast<XModel*>(db_find_asset(ASSET_TYPE_XMODEL, names[i])); model && model->numsurfs)
+				{
+					xmodel::dump(model);
+				}
+			}
+		}
 	}
 
 	void dump(NetConstStrings* asset)
@@ -82,6 +99,11 @@ namespace zonetool::iw7::converter::iw8::netconststrings
 		if (!std::string_view(asset->name).ends_with("_level") || dumped_types.contains(*type))
 		{
 			return;
+		}
+
+		if (*type == target::NETCONSTSTRINGTYPE_XMODEL)
+		{
+			dump_models(asset->entryCount, asset->stringList);
 		}
 
 		dump_table(*type, asset->entryCount, asset->stringList);

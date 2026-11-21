@@ -1425,6 +1425,11 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 				converted.probeImageIndex = instance.probeImageIndex;
 				converted.lodLevel = instance.lodLevel;
 				converted.flags = instance.flags;
+				if (instance.priority == std::numeric_limits<float>::lowest())
+				{
+					converted.flags |= target::REFLECTION_PROBE_INSTANCE_NO_PARALLAX; // TODO: stock mp_rust value
+				}
+
 				std::memcpy(converted.probeRotation, instance.probeRotation, sizeof(converted.probeRotation));
 				converted.volumeObb = std::bit_cast<target::GfxReflectionProbeObb>(instance.volumeObb);
 				converted.priority = instance.priority;

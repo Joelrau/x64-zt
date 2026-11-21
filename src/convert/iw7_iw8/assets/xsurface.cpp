@@ -345,6 +345,47 @@ namespace zonetool::iw7::converter::iw8::xsurface
 			return bounds;
 		}
 
+		unsigned short* convert_blend_verts(const XSurface& surface, utils::memory::allocator& allocator)
+		{
+			if (!surface.blendVerts || !surface.blendVertSize)
+			{
+				return nullptr;
+			}
+
+			auto size = 0u;
+			for (auto bone_count = 1u; bone_count <= 8; bone_count++)
+			{
+				size += surface.blendVertCounts[bone_count - 1] * bone_count * 2;
+			}
+
+			if (size * sizeof(XBlendInfo) > surface.blendVertSize)
+			{
+				ZONETOOL_WARNING("Surface blend verts need %zu bytes, but have %u", size * sizeof(XBlendInfo), surface.blendVertSize);
+				return nullptr;
+			}
+
+			const auto result = allocator.allocate_array<unsigned short>(surface.blendVertSize / sizeof(XBlendInfo));
+			auto offset = 0u;
+			for (auto bone_count = 1u; bone_count <= 8; bone_count++)
+			{
+				const auto vert_count = surface.blendVertCounts[bone_count - 1];
+				for (auto vert = 0u; vert < vert_count; vert++)
+				{
+					const auto* blend = surface.blendVerts + offset + vert * bone_count * 2;
+					for (auto bone = 0u; bone < bone_count; bone++)
+					{
+						auto* influence = result + offset + (bone * vert_count + vert) * 2;
+						influence[0] = bone ? blend[bone * 2 - 1] : blend[0];
+						influence[1] = bone ? blend[bone * 2] : 0;
+					}
+				}
+
+				offset += vert_count * bone_count * 2;
+			}
+
+			return result;
+		}
+
 		std::uint16_t convert_flags(const XSurface& surface)
 		{
 			std::uint16_t result = target::SURF_FLAG_SELF_VISIBILITY;
@@ -374,7 +415,7 @@ namespace zonetool::iw7::converter::iw8::xsurface
 			result->rigidVertListCount = surface.rigidVertListCount;
 			std::memcpy(result->blendVertCounts, surface.blendVertCounts, sizeof(result->blendVertCounts));
 			result->blendVertSize = surface.blendVertSize;
-			result->blendVerts = reinterpret_cast<unsigned short*>(surface.blendVerts);
+			result->blendVerts = convert_blend_verts(surface, allocator);
 			result->rigidVertLists = convert_rigid_vert_lists(surface, allocator);
 			result->childBounds = convert_child_bounds(surface, allocator);
 			std::memcpy(result->partBits.array, surface.partBits, sizeof(result->partBits.array));

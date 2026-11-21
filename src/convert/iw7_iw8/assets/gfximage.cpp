@@ -240,7 +240,18 @@ namespace zonetool::iw7::converter::iw8::gfximage
 			result->category = target::IMG_CATEGORY_LOAD_FROM_FILE;
 			result->levelCount = static_cast<unsigned char>(metadata.mipLevels);
 			result->pixels.residentData = allocator.allocate_array<char>(result->totalSize);
-			std::memcpy(result->pixels.residentData, compressed.GetPixels(), result->totalSize);
+
+			auto* pixels = result->pixels.residentData;
+			for (auto level = 0u; level < metadata.mipLevels; level++)
+			{
+				for (auto item = 0u; item < metadata.arraySize; item++)
+				{
+					const auto* image = compressed.GetImage(level, item, 0);
+					std::memcpy(pixels, image->pixels, image->slicePitch);
+					pixels += image->slicePitch;
+				}
+			}
+
 			return result;
 		}
 
@@ -816,6 +827,47 @@ namespace zonetool::iw7::converter::iw8::gfximage
 		});
 	}
 
+	target::GfxImage* dump_color_premultiplied(const GfxImage* asset)
+	{
+		const auto name = get_output_name(asset) + "_premultiplied";
+		return dump_once(name, get_fingerprint("color_premultiplied", {asset}), {}, [&]() -> target::GfxImage*
+		{
+			const std::array sources{asset};
+			std::array<std::optional<DirectX::ScratchImage>, 1> pixels;
+			std::size_t width, height;
+			if (!read_composed_sources(sources, pixels, width, height) || !pixels[0])
+			{
+				ZONETOOL_WARNING("Cannot read the sources of image \"%s\"", name.data());
+				return nullptr;
+			}
+
+			DirectX::ScratchImage composed;
+			if (FAILED(composed.Initialize2D(DXGI_FORMAT_R8G8B8A8_UNORM, width, height, 1, 1)))
+			{
+				return nullptr;
+			}
+
+			const auto linear = make_linear_table(asset);
+			const auto& image = *composed.GetImage(0, 0, 0);
+			for (auto row = 0u; row < height; row++)
+			{
+				for (auto column = 0u; column < width; column++)
+				{
+					const auto* source = read_texel(pixels[0], row, column);
+					auto* texel = image.pixels + row * image.rowPitch + column * 4;
+					for (auto channel = 0u; channel < 3; channel++)
+					{
+						texel[channel] = linear_to_srgb(linear[source[channel]] * source[3] / 255.0f);
+					}
+
+					texel[3] = source[3];
+				}
+			}
+
+			return compress_composed(name, image, target::GFX_PF_BC7_SRGB, target::IMG_DISK_FLAG_GAMMA_SRGB, target::TS_COLOR_MAP);
+		});
+	}
+
 	target::GfxImage* dump_decal_color(const GfxImage* asset)
 	{
 		const auto name = get_output_name(asset) + "&defaultspec";
@@ -831,9 +883,35 @@ namespace zonetool::iw7::converter::iw8::gfximage
 	target::GfxImage* dump_alpha(const GfxImage* asset)
 	{
 		const auto name = get_output_name(asset);
-		return dump_once(name, get_fingerprint("alpha", {asset}), {}, [&]
+		return dump_once(name, get_fingerprint("alpha_reveal_2", {asset}), {}, [&]() -> target::GfxImage*
 		{
-			return convert(asset, name, target::GFX_PF_BC7, 0, target::TS_2D, make_identity_tables(), {0, 0, 0, 0});
+			const std::array sources{asset};
+			std::array<std::optional<DirectX::ScratchImage>, 1> pixels;
+			std::size_t width, height;
+			if (!read_composed_sources(sources, pixels, width, height) || !pixels[0])
+			{
+				ZONETOOL_WARNING("Cannot read the sources of image \"%s\"", name.data());
+				return nullptr;
+			}
+
+			DirectX::ScratchImage composed;
+			if (FAILED(composed.Initialize2D(DXGI_FORMAT_R8G8B8A8_UNORM, width, height, 1, 1)))
+			{
+				return nullptr;
+			}
+
+			const auto& image = *composed.GetImage(0, 0, 0);
+			for (auto row = 0u; row < height; row++)
+			{
+				for (auto column = 0u; column < width; column++)
+				{
+					const auto* source = read_texel(pixels[0], row, column);
+					const auto alpha = source[1] ? source[0] : std::uint8_t(0); // revealParams.x >= 0 gives a reveal threshold of 0
+					std::memset(image.pixels + row * image.rowPitch + column * 4, alpha, 4);
+				}
+			}
+
+			return compress_composed(name, image, target::GFX_PF_BC7, 0, target::TS_2D);
 		});
 	}
 
@@ -1113,9 +1191,12 @@ namespace zonetool::iw7::converter::iw8::gfximage
 		return dump_once(name, get_fingerprint("normal_gloss_3", {normal, specular_gloss, occlusion}), {.normalMapScaleBias = 0xFF00FF},
 			[&]() -> target::GfxImage*
 		{
+			const auto identity_normal = normal && normal->name == "$identitynormalmap"sv;
+			const std::array<const GfxImage*, 3> pixel_sources{identity_normal ? nullptr : normal, specular_gloss, occlusion};
+
 			std::array<std::optional<DirectX::ScratchImage>, 3> pixels;
 			std::size_t width, height;
-			if (!read_composed_sources(sources, pixels, width, height))
+			if (!read_composed_sources(pixel_sources, pixels, width, height))
 			{
 				ZONETOOL_WARNING("Cannot resize the sources of image \"%s\"", name.data());
 				return nullptr;

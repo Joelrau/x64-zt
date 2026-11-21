@@ -48,7 +48,8 @@ namespace zonetool
 			{
 				for (std::size_t i = 0; i < dump_entries.size(); i++)
 				{
-					if (dump_entries[i].start <= entry.start && dump_entries[i].end >= entry.end)
+					if (dump_entries[i].start <= entry.start && dump_entries[i].end >= entry.end
+						&& (entry.start - dump_entries[i].start) % sizeof(T) == 0)
 					{
 						*index = static_cast<std::uint32_t>(i);
 						*array_index = static_cast<std::uint32_t>((entry.start - dump_entries[i].start) / sizeof(T));

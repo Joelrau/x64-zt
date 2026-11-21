@@ -3942,6 +3942,7 @@ namespace zonetool::iw8
 
 	enum ShaderCodeConstants : std::uint16_t
 	{
+		CONST_SRC_CODE_CAMERA_POSITION = 0x0, // name unknown
 		CONST_SRC_CODE_CAMERA_OFFSET = 0x1, // name unknown
 		CONST_SRC_CODE_GAME_TIME = 0x2, // name unknown
 		CONST_SRC_CODE_RENDER_TARGET_SIZE = 0x4, // name unknown
@@ -4075,7 +4076,9 @@ namespace zonetool::iw8
 
 	enum MaterialConstantIndex : std::uint8_t
 	{
+		MATERIAL_CONSTANT_SPRITE_BLEND_PARMS = 0x9, // name unknown
 		MATERIAL_CONSTANT_TRANSMISSION_TINT = 18, // name unknown
+		MATERIAL_CONSTANT_SPRITE_BLEND_TINT = 0x12, // name unknown
 		MATERIAL_CONSTANT_FROST = 27, // name unknown
 		MATERIAL_CONSTANT_EFFECT_COLOR_TINT = 36, // name unknown
 		MATERIAL_CONSTANT_UV_ANIM = 0x3F, // name unknown
@@ -4087,6 +4090,8 @@ namespace zonetool::iw8
 		MATERIAL_CONSTANT_ATLAS_INDEXING = 0x5F, // name unknown
 		MATERIAL_CONSTANT_DISTORTION_SCALE = 0x7F, // name unknown
 		MATERIAL_CONSTANT_2D_COLOR_TINT = 126, // name unknown
+		MATERIAL_CONSTANT_OCEAN_SCROLL_NORMAL_0 = 0xE0, // TODO: id not proven
+		MATERIAL_CONSTANT_OCEAN_SCROLL_NORMAL_1 = 0xE1, // TODO: id not proven
 	};
 
 	enum CameraRegion : std::uint8_t
@@ -4879,6 +4884,11 @@ namespace zonetool::iw8
 		int numModules;
 		bool disabled;
 	}; assert_sizeof(ParticleModuleGroupDef, 0x10);
+
+	enum PARTICLE_MODULE_FLAG : std::uint32_t
+	{
+		PARTICLE_MODULE_FLAG_USE_OCCLUSION_QUERY_WORLD_SIZE = 0x4000,
+	};
 
 	struct ParticleModule
 	{
@@ -9882,6 +9892,11 @@ namespace zonetool::iw8
 		vec3_t zAxis;
 		vec3_t halfSize;
 	}; assert_sizeof(GfxReflectionProbeObb, 0x3C);
+
+	enum GfxReflectionProbeInstanceFlags : std::uint8_t
+	{
+		REFLECTION_PROBE_INSTANCE_NO_PARALLAX = 0x1,
+	};
 
 	struct GfxReflectionProbeInstance
 	{

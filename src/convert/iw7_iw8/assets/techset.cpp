@@ -80,15 +80,25 @@ namespace zonetool::iw7::converter::iw8::techset
 		std::vector<target::MaterialShaderArgument> get_lit_args(const generated_variant& variant)
 		{
 			auto args = variant.lit ? lit_args(variant.techset) : unlit_args(variant.techset);
-			if (variant.blend != GENERATED_BLEND_OPAQUE)
+			if (variant.blend != GENERATED_BLEND_OPAQUE && !variant.water)
 			{
 				args = add_alpha_map(args);
 			}
 
 			if (variant.uv_anim)
 			{
-				add_arg(args, {target::MTL_ARG_CODE_CONST, target::MTL_SHADER_STAGE_VS, 4, target::CONST_SRC_CODE_GAME_TIME});
+				const unsigned char time_stage = variant.water ? target::MTL_SHADER_STAGE_VS | target::MTL_SHADER_STAGE_PS : target::MTL_SHADER_STAGE_VS;
+				add_arg(args, {target::MTL_ARG_CODE_CONST, time_stage, 4, target::CONST_SRC_CODE_GAME_TIME});
 				add_arg(args, {target::MTL_ARG_MATERIAL_CONST, target::MTL_SHADER_STAGE_VS, 1, target::MATERIAL_CONSTANT_UV_ANIM});
+			}
+
+			if (variant.water)
+			{
+				add_arg(args, {target::MTL_ARG_CODE_CONST, target::MTL_SHADER_STAGE_PS, 8, target::CONST_SRC_CODE_CAMERA_POSITION});
+				add_arg(args, {target::MTL_ARG_MATERIAL_TEXTURE, target::MTL_SHADER_STAGE_PS, 3, 9});
+				add_arg(args, {target::MTL_ARG_MATERIAL_CONST, target::MTL_SHADER_STAGE_PS, 0, target::MATERIAL_CONSTANT_EFFECT_COLOR_TINT});
+				add_arg(args, {target::MTL_ARG_MATERIAL_CONST, target::MTL_SHADER_STAGE_PS, 2, target::MATERIAL_CONSTANT_OCEAN_SCROLL_NORMAL_0});
+				add_arg(args, {target::MTL_ARG_MATERIAL_CONST, target::MTL_SHADER_STAGE_PS, 3, target::MATERIAL_CONSTANT_OCEAN_SCROLL_NORMAL_1});
 			}
 
 			return args;
@@ -98,10 +108,10 @@ namespace zonetool::iw7::converter::iw8::techset
 		{
 			if (variant.techset == GENERATED_TECHSET_WORLD)
 			{
-				return variant.uv_anim ? "world_lit_uv_anim_vs" : "world_lit_vs";
+				return variant.water ? "world_water_vs" : variant.uv_anim ? "world_lit_uv_anim_vs" : "world_lit_vs";
 			}
 
-			return variant.uv_anim ? "smodel_lit_uv_anim_vs" : "smodel_lit_vs";
+			return variant.water ? "smodel_water_vs" : variant.uv_anim ? "smodel_lit_uv_anim_vs" : "smodel_lit_vs";
 		}
 
 		unsigned short get_code_constant_rows(const unsigned short index)
@@ -141,30 +151,46 @@ namespace zonetool::iw7::converter::iw8::techset
 			};
 		}
 
-		const char* get_lit_pixel_entry(const generated_variant& variant)
+		const char* get_unlit_pixel_entry(const generated_variant& variant)
 		{
 			const auto world = variant.techset == GENERATED_TECHSET_WORLD;
+			const auto evc = variant.exposure_compensated;
 			switch (variant.blend)
 			{
 			case GENERATED_BLEND_ALPHA:
-				if (!variant.lit)
-				{
-					return world ? "world_unlit_blend_ps" : "smodel_unlit_blend_ps";
-				}
+				return world ? (evc ? "world_unlit_blend_evc_ps" : "world_unlit_blend_ps") : (evc ? "smodel_unlit_blend_evc_ps" : "smodel_unlit_blend_ps");
+			case GENERATED_BLEND_ADD:
+				return world ? (evc ? "world_unlit_add_evc_ps" : "world_unlit_add_ps") : (evc ? "smodel_unlit_add_evc_ps" : "smodel_unlit_add_ps");
+			default:
+				return world ? (evc ? "world_unlit_evc_ps" : "world_unlit_ps") : (evc ? "smodel_unlit_evc_ps" : "smodel_unlit_ps");
+			}
+		}
+
+		const char* get_lit_pixel_entry(const generated_variant& variant)
+		{
+			const auto world = variant.techset == GENERATED_TECHSET_WORLD;
+			if (variant.blend == GENERATED_BLEND_MULTIPLY)
+			{
+				return world ? "world_multiply_ps" : "smodel_multiply_ps";
+			}
+
+			if (!variant.lit)
+			{
+				return get_unlit_pixel_entry(variant);
+			}
+
+			if (variant.water)
+			{
+				return world ? "world_water_ps" : "smodel_water_ps";
+			}
+
+			switch (variant.blend)
+			{
+			case GENERATED_BLEND_ALPHA:
 				return world ? "world_blend_ps" : "smodel_blend_ps";
 			case GENERATED_BLEND_ADD:
-				if (!variant.lit)
-				{
-					return world ? "world_unlit_add_ps" : "smodel_unlit_add_ps";
-				}
 				return world ? "world_add_ps" : "smodel_add_ps";
-			case GENERATED_BLEND_MULTIPLY:
-				return world ? "world_multiply_ps" : "smodel_multiply_ps";
 			default:
-				if (!variant.lit)
-				{
-					return world ? "world_unlit_ps" : "smodel_unlit_ps";
-				}
 				return world ? "world_lit_ps" : "smodel_lit_ps";
 			}
 		}
@@ -400,7 +426,9 @@ namespace zonetool::iw7::converter::iw8::techset
 		const auto two_sided = variant.two_sided ? "_2s" : "";
 		const auto no_cast = variant.visible && !variant.casts_shadow && variant.blend == GENERATED_BLEND_OPAQUE ? "_nocast" : "";
 		const auto uv_anim = variant.visible && variant.uv_anim ? "_ua" : "";
-		return std::format("{}/iw7_{}{}{}{}", prefix, get_techset_base_name(variant), uv_anim, two_sided, no_cast);
+		const auto evc = variant.visible && variant.exposure_compensated ? "_evc" : "";
+		const auto water = variant.visible && variant.water ? "_water" : "";
+		return std::format("{}/iw7_{}{}{}{}{}{}", prefix, get_techset_base_name(variant), water, evc, uv_anim, two_sided, no_cast);
 	}
 
 	target::MaterialGeometryType get_material_type(const generated_techset techset)

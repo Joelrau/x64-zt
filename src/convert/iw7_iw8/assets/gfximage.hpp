@@ -3,6 +3,7 @@
 namespace zonetool::iw7::converter::iw8::gfximage
 {
 	zonetool::iw8::GfxImage* dump_color(const GfxImage* asset, const std::array<float, 3>& tint = {1.0f, 1.0f, 1.0f});
+	zonetool::iw8::GfxImage* dump_color_premultiplied(const GfxImage* asset);
 	zonetool::iw8::GfxImage* dump_decal_color(const GfxImage* asset);
 	zonetool::iw8::GfxImage* dump_alpha(const GfxImage* asset);
 	zonetool::iw8::GfxImage* dump_opacity(const GfxImage* asset);

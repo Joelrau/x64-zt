@@ -23,7 +23,9 @@ namespace zonetool::iw7::converter::iw8::techset
 		generated_techset techset;
 		generated_blend blend = GENERATED_BLEND_OPAQUE;
 		bool lit = true;
+		bool exposure_compensated = false;
 		bool uv_anim = false;
+		bool water = false;
 		bool alpha_test = false;
 		bool two_sided = false;
 		bool visible = true;

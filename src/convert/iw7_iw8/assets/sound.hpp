@@ -31,6 +31,7 @@ namespace zonetool::iw7::converter::iw8::sound
 
 	int convert_volmod(int index);
 	unsigned int convert_channel(unsigned int index);
+	bool is_looping(const std::string& alias_name);
 	zonetool::iw8::SndAlias convert_alias(const SndAlias& alias, const zonetool::iw8::SndAssetBankEntry* entry, const SndGlobals* globals);
 	zonetool::iw8::SndIndexEntry* build_alias_index(const zonetool::iw8::SndAliasList* lists, unsigned short count, utils::memory::allocator& allocator);
 

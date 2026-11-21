@@ -22,6 +22,8 @@ namespace zonetool::iw7::converter::iw8::material
 		const char* const effect_techset_name = "unlit_6_effect_bad_ta0_8a03_4_0_1_0_0_0_100000023_0_0_2_0_0"; // TODO: stock gfx_tracer_new_erad_blue techset, convert natively
 		const char* const sprite_techset_name = "elcq/unlit_6_effect_bad_ta0_802_4_0_1_0_0_0_100000023_0_0_2_0_0"; // TODO: stock vfx_ui_marker_1 techset, convert natively
 		const char* const atlas_sprite_techset_name = "elcq/unlit_6_effect_bad_ta0_802_1004_0_1_0_0_0_100000023_0_0_2_0_0"; // TODO: stock techsets_common atlas techset, convert natively
+		const char* const blend_sprite_techset_name = "elcq/unlit_6_effect_bad_ta0_802_4_0_1_0_0_0_10000020b_0_0_2_0_0"; // TODO: stock techsets_common_mp techset, convert natively
+		const char* const blend_atlas_sprite_techset_name = "elcq/unlit_6_effect_bad_ta0_802_1004_0_1_0_0_0_10000020b_0_0_2_0_0"; // TODO: stock vfx_particulate_dust_sheet_1 techset, convert natively
 		const char* const hud_techset_name = "cust_2_2d_rpl_ta0_0_0_0_0_0"; // TODO: stock compass_map_mp_rust techset, convert natively
 
 		GfxImage* find_texture(const Material* asset, const TextureSemantic semantic, const char name_start = 0)
@@ -36,17 +38,6 @@ namespace zonetool::iw7::converter::iw8::material
 			}
 
 			return nullptr;
-		}
-
-		target::GfxImage* find_image(const Material* asset, const TextureSemantic semantic)
-		{
-			const auto image = find_texture(asset, semantic);
-			if (!image)
-			{
-				return nullptr;
-			}
-
-			return semantic == TS_COLOR_SPECULAR_MAP ? gfximage::dump_color_specular(image) : gfximage::dump_normal_gloss(image);
 		}
 
 		const MaterialConstantDef* find_constant(const Material* asset, const std::string_view name)
@@ -135,81 +126,6 @@ namespace zonetool::iw7::converter::iw8::material
 			return image;
 		}
 
-		target::MaterialTextureDef* convert_textures(const Material* asset, unsigned char& count, utils::memory::allocator& allocator)
-		{
-			const auto black = make_image_reference("$black", allocator);
-			auto* color_specular = find_image(asset, TS_COLOR_SPECULAR_MAP);
-			auto* normal_gloss = find_image(asset, TS_NORMAL_OCCLUSSION_GLOSS_MAP);
-			color_specular = color_specular ? color_specular : black;
-			normal_gloss = normal_gloss ? normal_gloss : black;
-
-			const std::array<std::pair<unsigned char, target::GfxImage*>, 15> slots
-			{{
-				{0, color_specular}, {1, color_specular}, {2, color_specular},
-				{9, normal_gloss}, {10, normal_gloss}, {11, normal_gloss},
-				{28, black}, {29, black}, {54, black}, {55, black}, {59, black}, {60, black}, {61, black}, {123, black}, {124, black},
-			}};
-
-			count = static_cast<unsigned char>(slots.size());
-			const auto textures = allocator.allocate_array<target::MaterialTextureDef>(slots.size());
-			for (auto i = 0u; i < slots.size(); i++)
-			{
-				textures[i].index = slots[i].first;
-				textures[i].image = slots[i].second;
-			}
-
-			return textures;
-		}
-
-		target::MaterialConstantDef* convert_constants(unsigned char& count, utils::memory::allocator& allocator)
-		{
-			const std::array<std::pair<unsigned char, std::array<std::uint32_t, 4>>, 11> constants
-			{{
-				{0, {0x00000007, 0x80003C00, 0x3C003C00, 0}},
-				{1, {0x0000022F, 0x80003C00, 0x3C003C00, 0}},
-				{2, {0x0000022F, 0x80003C00, 0x3C003C00, 0}},
-				{9, {0xFFFFFFFF, 0x00FF2FBB, 0x0000BC00, 0}},
-				{10, {0xFFFFFFFF, 0x00FF2FBB, 0x0000BC00, 0}},
-				{11, {0xFFFFFFFF, 0x00FF2FBB, 0x0000BC00, 0}},
-				{54, {0x000000FF, 0x00FF00FF, 0x4F800000, 0}},
-				{72, {0x40400000, 0x00000001, 0x3FD9364E, 0x3FD9364E}},
-				{98, {0x00000000, 0x3F800000, 0x00000000, 0}},
-				{103, {0x3E020C4A, 0x3D656042, 0x3C3E0DED, 0x3D8B0959}},
-				{104, {0x3E4CCCCD, 0x3E4CCCCD, 0x3E4CCCCD, 0}},
-			}};
-
-			count = static_cast<unsigned char>(constants.size());
-			const auto result = allocator.allocate_array<target::MaterialConstantDef>(constants.size());
-			for (auto i = 0u; i < constants.size(); i++)
-			{
-				result[i].index = constants[i].first;
-				std::memcpy(result[i].literal, constants[i].second.data(), sizeof(result[i].literal));
-			}
-
-			return result;
-		}
-
-		target::Material* convert(const Material* asset, utils::memory::allocator& allocator)
-		{
-			const auto result = allocator.allocate<target::Material>();
-			result->name = asset->name;
-			result->contents = 1;
-			result->surfaceFlags = 0xB00000;
-			result->materialType = target::MTL_TYPE_MODEL_SELFVIS;
-			result->cameraRegion = target::CAMERA_REGION_LIT_OPAQUE;
-			result->sortKey = 2;
-			result->flags = 0x19;
-			result->textureAtlasRowCount = 1;
-			result->textureAtlasColumnCount = 1;
-
-			result->techniqueSet = allocator.allocate<target::MaterialTechniqueSet>();
-			result->techniqueSet->name = techset_name;
-
-			result->textureTable = convert_textures(asset, result->textureCount, allocator);
-			result->constantTable = convert_constants(result->constantCount, allocator);
-			return result;
-		}
-
 		target::MaterialConstantDef convert_color_tint(const Material* asset)
 		{
 			target::MaterialConstantDef result{};
@@ -234,19 +150,55 @@ namespace zonetool::iw7::converter::iw8::material
 			return result;
 		}
 
+		bool has_techset_token(const Material* asset, const std::string_view token)
+		{
+			if (!asset->techniqueSet || !asset->techniqueSet->name)
+			{
+				return false;
+			}
+
+			const auto parts = utils::string::split(asset->techniqueSet->name, '_');
+			return std::ranges::find(parts, token) != parts.end();
+		}
+
 		bool is_atlas(const Material* asset)
 		{
 			return asset->info.textureAtlasRowCount * asset->info.textureAtlasColumnCount > 1;
 		}
 
+		bool is_blend_sprite(const Material* asset)
+		{
+			return !has_techset_token(asset, "add");
+		}
+
 		const char* get_sprite_techset_name(const Material* asset)
 		{
+			if (is_blend_sprite(asset))
+			{
+				return is_atlas(asset) ? blend_atlas_sprite_techset_name : blend_sprite_techset_name;
+			}
+
 			return is_atlas(asset) ? atlas_sprite_techset_name : sprite_techset_name;
 		}
 
 		std::vector<target::MaterialConstantDef> convert_sprite_constants(const Material* asset)
 		{
-			std::vector<target::MaterialConstantDef> constants{convert_color_tint(asset)};
+			std::vector<target::MaterialConstantDef> constants;
+			if (is_blend_sprite(asset))
+			{
+				auto& parms = constants.emplace_back();
+				parms.index = target::MATERIAL_CONSTANT_SPRITE_BLEND_PARMS;
+				const std::array<std::uint32_t, 4> stock_parms{0xFFFFFFFF, 0x00FF17E7, 0x0000BC00, 0}; // TODO: stock vfx_particulate_dust_sheet_1 value
+				std::memcpy(parms.literal, stock_parms.data(), sizeof(parms.literal));
+
+				auto& tint = constants.emplace_back(convert_color_tint(asset));
+				tint.index = target::MATERIAL_CONSTANT_SPRITE_BLEND_TINT;
+			}
+			else
+			{
+				constants.push_back(convert_color_tint(asset));
+			}
+
 			if (!is_atlas(asset))
 			{
 				return constants;
@@ -285,7 +237,16 @@ namespace zonetool::iw7::converter::iw8::material
 			result->techniqueSet = allocator.allocate<target::MaterialTechniqueSet>();
 			result->techniqueSet->name = sprite ? get_sprite_techset_name(asset) : effect_techset_name;
 
-			if (const auto image = find_texture(asset, TS_COLOR_MAP, 'c'))
+			if (const auto image = find_texture(asset, TS_COLOR_MAP, 'c'); image && sprite && is_blend_sprite(asset))
+			{
+				result->textureCount = 2;
+				result->textureTable = allocator.allocate_array<target::MaterialTextureDef>(2);
+				result->textureTable[0].index = 0;
+				result->textureTable[0].image = gfximage::dump_color_premultiplied(image);
+				result->textureTable[1].index = 0x44;
+				result->textureTable[1].image = gfximage::dump_transmission(image, true);
+			}
+			else if (image)
 			{
 				result->textureCount = 1;
 				result->textureTable = allocator.allocate<target::MaterialTextureDef>();
@@ -398,15 +359,35 @@ namespace zonetool::iw7::converter::iw8::material
 			return nullptr;
 		}
 
-		bool has_techset_token(const Material* asset, const std::string_view token)
+		target::GfxImage* find_normal_image(const Material* asset, const unsigned int layer = 0)
 		{
-			if (!asset->techniqueSet || !asset->techniqueSet->name)
+			const auto normal = find_layer_texture(asset, "normalMap", layer);
+			if (!normal && !layer)
 			{
-				return false;
+				if (const auto image = find_texture(asset, TS_NORMAL_OCCLUSSION_GLOSS_MAP))
+				{
+					return gfximage::dump_normal_gloss(image);
+				}
+
+				return gfximage::dump_normal_gloss(find_texture(asset, TS_NORMAL_MAP, 'n'), find_texture(asset, TS_SPECULAR_MAP),
+					find_texture(asset, TS_SPECULAR_OCCLUSION_MAP));
 			}
 
-			const auto parts = utils::string::split(asset->techniqueSet->name, '_');
-			return std::ranges::find(parts, token) != parts.end();
+			if (normal && normal->semantic == TS_NORMAL_OCCLUSSION_GLOSS_MAP)
+			{
+				return gfximage::dump_normal_gloss(normal->image);
+			}
+
+			return gfximage::dump_normal_gloss(normal ? normal->image : nullptr, find_layer_image(asset, "specularMap", layer, TS_SPECULAR_MAP),
+				find_layer_image(asset, "specOcclusionMap", layer, TS_SPECULAR_OCCLUSION_MAP));
+		}
+
+		target::MaterialConstantDef convert_constant(const target::MaterialConstantIndex index, const MaterialConstantDef* source)
+		{
+			target::MaterialConstantDef result{};
+			result.index = index;
+			std::memcpy(result.literal, source->literal, sizeof(result.literal));
+			return result;
 		}
 
 		target::CameraRegion get_blend_camera_region(const Material* asset)
@@ -426,6 +407,7 @@ namespace zonetool::iw7::converter::iw8::material
 		{
 			techset::generated_variant variant{.techset = techset};
 			variant.lit = !has_techset_token(asset, "unlit");
+			variant.exposure_compensated = !variant.lit && !has_techset_token(asset, "multiply") && has_techset_token(asset, "evc");
 			variant.uv_anim = has_techset_token(asset, "ua") && find_constant(asset, "uvAnimParms");
 			variant.two_sided = (asset->stateFlags & STATE_FLAG_CULL_MASK) != STATE_FLAG_CULL_BACK;
 			variant.casts_shadow = !has_techset_token(asset, "nocast");
@@ -445,6 +427,8 @@ namespace zonetool::iw7::converter::iw8::material
 					: has_techset_token(asset, "multiply") ? techset::GENERATED_BLEND_MULTIPLY
 					: techset::GENERATED_BLEND_ALPHA;
 				variant.casts_shadow = false;
+				variant.water = variant.lit && variant.uv_anim && variant.blend == techset::GENERATED_BLEND_ALPHA
+					&& find_layer_constant(asset, "oceanScrollNormal0", 0) && find_layer_constant(asset, "oceanScrollNormal1", 0);
 				return variant;
 			}
 
@@ -486,9 +470,9 @@ namespace zonetool::iw7::converter::iw8::material
 			result->techniqueSet = allocator.allocate<target::MaterialTechniqueSet>();
 			result->techniqueSet->name = allocator.duplicate_string(techset::get_techset_name(variant));
 
-			const auto color = find_color_image(asset, variant.lit);
-			const auto uses_alpha = variant.alpha_test || variant.blend != techset::GENERATED_BLEND_OPAQUE;
-			result->textureCount = uses_alpha ? 2 : 1;
+			const auto color = find_color_image(asset, variant.lit && !variant.water);
+			const auto uses_alpha = !variant.water && (variant.alpha_test || variant.blend != techset::GENERATED_BLEND_OPAQUE);
+			result->textureCount = uses_alpha || variant.water ? 2 : 1;
 			result->textureTable = allocator.allocate_array<target::MaterialTextureDef>(result->textureCount);
 			result->textureTable[0].index = 0;
 			result->textureTable[0].image = color ? color : make_image_reference("$black", allocator);
@@ -500,18 +484,28 @@ namespace zonetool::iw7::converter::iw8::material
 				result->textureTable[1].image = alpha ? alpha : make_image_reference("$white", allocator);
 			}
 
+			if (variant.water)
+			{
+				const auto normal = find_normal_image(asset);
+				result->textureTable[1].index = 9;
+				result->textureTable[1].image = normal ? normal : make_image_reference("$identitynormalmap", allocator);
+			}
+
 			std::vector<target::MaterialConstantDef> constants;
-			if (!variant.lit && variant.visible)
+			if ((!variant.lit || variant.water) && variant.visible)
 			{
 				constants.push_back(convert_color_tint(asset));
 			}
 
 			if (variant.uv_anim)
 			{
-				target::MaterialConstantDef uv_anim{};
-				uv_anim.index = target::MATERIAL_CONSTANT_UV_ANIM;
-				std::memcpy(uv_anim.literal, find_constant(asset, "uvAnimParms")->literal, sizeof(uv_anim.literal));
-				constants.push_back(uv_anim);
+				constants.push_back(convert_constant(target::MATERIAL_CONSTANT_UV_ANIM, find_constant(asset, "uvAnimParms")));
+			}
+
+			if (variant.water)
+			{
+				constants.push_back(convert_constant(target::MATERIAL_CONSTANT_OCEAN_SCROLL_NORMAL_0, find_layer_constant(asset, "oceanScrollNormal0", 0)));
+				constants.push_back(convert_constant(target::MATERIAL_CONSTANT_OCEAN_SCROLL_NORMAL_1, find_layer_constant(asset, "oceanScrollNormal1", 0)));
 			}
 
 			result->constantTable = allocate_constants(constants, result->constantCount, allocator);
@@ -713,27 +707,81 @@ namespace zonetool::iw7::converter::iw8::material
 
 		std::unordered_set<std::string> donor_techsets;
 
-		target::GfxImage* find_normal_image(const Material* asset, const unsigned int layer = 0)
+		target::MaterialTextureDef* convert_textures(target::GfxImage* color, target::GfxImage* normal, unsigned char& count,
+			utils::memory::allocator& allocator)
 		{
-			const auto normal = find_layer_texture(asset, "normalMap", layer);
-			if (!normal && !layer)
-			{
-				if (const auto image = find_texture(asset, TS_NORMAL_OCCLUSSION_GLOSS_MAP))
-				{
-					return gfximage::dump_normal_gloss(image);
-				}
+			const auto black = make_image_reference("$black", allocator);
+			color = color ? color : black;
+			normal = normal ? normal : make_image_reference("$identitynormalmap", allocator);
 
-				return gfximage::dump_normal_gloss(find_texture(asset, TS_NORMAL_MAP, 'n'), find_texture(asset, TS_SPECULAR_MAP),
-					find_texture(asset, TS_SPECULAR_OCCLUSION_MAP));
+			const std::array<std::pair<unsigned char, target::GfxImage*>, 15> slots
+			{{
+				{0, color}, {1, color}, {2, color},
+				{9, normal}, {10, normal}, {11, normal},
+				{28, black}, {29, black}, {54, black}, {55, black}, {59, black}, {60, black}, {61, black}, {123, black}, {124, black},
+			}};
+
+			count = static_cast<unsigned char>(slots.size());
+			const auto textures = allocator.allocate_array<target::MaterialTextureDef>(slots.size());
+			for (auto i = 0u; i < slots.size(); i++)
+			{
+				textures[i].index = slots[i].first;
+				textures[i].image = slots[i].second;
 			}
 
-			if (normal && normal->semantic == TS_NORMAL_OCCLUSSION_GLOSS_MAP)
+			return textures;
+		}
+
+		target::MaterialConstantDef* convert_constants(const target::GfxImage* color, const target::GfxImage* normal, unsigned char& count,
+			utils::memory::allocator& allocator)
+		{
+			const std::array<std::pair<unsigned char, std::array<std::uint32_t, 4>>, 11> constants
+			{{
+				{0, {0x00000007, 0x80003C00, 0x3C003C00, 0}},
+				{1, {0x0000022F, 0x80003C00, 0x3C003C00, 0}},
+				{2, {0x0000022F, 0x80003C00, 0x3C003C00, 0}},
+				{9, {0xFFFFFFFF, 0x00FF2FBB, 0x0000BC00, 0}},
+				{10, {0xFFFFFFFF, 0x00FF2FBB, 0x0000BC00, 0}},
+				{11, {0xFFFFFFFF, 0x00FF2FBB, 0x0000BC00, 0}},
+				{54, get_scale_bias_literal(color, normal)},
+				{72, {0x40400000, 0x00000001, 0x3FD9364E, 0x3FD9364E}},
+				{98, {0x00000000, 0x3F800000, 0x00000000, 0}},
+				{103, {0x3E020C4A, 0x3D656042, 0x3C3E0DED, 0x3D8B0959}},
+				{104, {0x3E4CCCCD, 0x3E4CCCCD, 0x3E4CCCCD, 0}},
+			}};
+
+			count = static_cast<unsigned char>(constants.size());
+			const auto result = allocator.allocate_array<target::MaterialConstantDef>(constants.size());
+			for (auto i = 0u; i < constants.size(); i++)
 			{
-				return gfximage::dump_normal_gloss(normal->image);
+				result[i].index = constants[i].first;
+				std::memcpy(result[i].literal, constants[i].second.data(), sizeof(result[i].literal));
 			}
 
-			return gfximage::dump_normal_gloss(normal ? normal->image : nullptr, find_layer_image(asset, "specularMap", layer, TS_SPECULAR_MAP),
-				find_layer_image(asset, "specOcclusionMap", layer, TS_SPECULAR_OCCLUSION_MAP));
+			return result;
+		}
+
+		target::Material* convert(const Material* asset, utils::memory::allocator& allocator)
+		{
+			const auto result = allocator.allocate<target::Material>();
+			result->name = asset->name;
+			result->contents = 1;
+			result->surfaceFlags = 0xB00000;
+			result->materialType = target::MTL_TYPE_MODEL_SELFVIS;
+			result->cameraRegion = target::CAMERA_REGION_LIT_OPAQUE;
+			result->sortKey = 2;
+			result->flags = 0x19;
+			result->textureAtlasRowCount = 1;
+			result->textureAtlasColumnCount = 1;
+
+			result->techniqueSet = allocator.allocate<target::MaterialTechniqueSet>();
+			result->techniqueSet->name = techset_name;
+
+			const auto color = find_color_image(asset, true);
+			const auto normal = find_normal_image(asset);
+			result->textureTable = convert_textures(color, normal, result->textureCount, allocator);
+			result->constantTable = convert_constants(color, normal, result->constantCount, allocator);
+			return result;
 		}
 
 		std::vector<std::string> get_layer_tokens(const Material* asset, const unsigned int layer)

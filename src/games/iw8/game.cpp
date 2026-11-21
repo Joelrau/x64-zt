@@ -17,6 +17,11 @@ namespace zonetool::iw8
 		std::unique_ptr<game_files::source> open_files(const std::filesystem::path& game_path)
 		{
 			xfile::oodle::load(game_path);
+			if (!std::filesystem::is_directory(game_path / "Data") && std::filesystem::is_directory(game_path / "zone"))
+			{
+				return game_files::open_folder(game_path / "zone");
+			}
+
 			return game_files::open_casc(game_path);
 		}
 	}

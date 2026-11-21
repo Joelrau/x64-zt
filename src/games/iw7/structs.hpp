@@ -11304,7 +11304,7 @@ namespace zonetool::iw7
 	{
 		ScriptableEventBaseDef* base;
 		ScriptablePartReference partReference;
-		ScriptablePartDef* part;
+		unsigned int stateIdx;
 	}; assert_sizeof(ScriptableEventStateChangeDef, 64);
 
 	struct ScriptableEventWaitDef
@@ -11312,8 +11312,8 @@ namespace zonetool::iw7
 		ScriptableEventBaseDef* base;
 		float delayMin;
 		float delayMax;
-		unsigned short eventStreamBufferOffsetServer;
-		unsigned short eventStreamBufferOffsetClient;
+		unsigned int eventStreamBufferOffsetServer;
+		unsigned int eventStreamBufferOffsetClient;
 	}; assert_sizeof(ScriptableEventWaitDef, 24);
 
 	struct ScriptableEventRandomDef

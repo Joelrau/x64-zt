@@ -177,6 +177,13 @@ namespace zonetool::iw7::converter::iw8::sound
 		return 0;
 	}
 
+	bool is_looping(const std::string& alias_name)
+	{
+		SndBank* bank{};
+		const auto* list = find_alias_list(alias_name, bank);
+		return list && list->count && list->head[0].flags.looping;
+	}
+
 	target::SndAlias convert_alias(const SndAlias& alias, const target::SndAssetBankEntry* entry, const SndGlobals* globals)
 	{
 		const auto default_hash = snd_hash_name("default");

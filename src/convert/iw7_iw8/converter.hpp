@@ -17,6 +17,7 @@
 #include "assets/material.hpp"
 #include "assets/netconststrings.hpp"
 #include "assets/rawfile.hpp"
+#include "assets/scriptable.hpp"
 #include "assets/sound.hpp"
 #include "assets/tracer.hpp"
 #include "assets/vfx.hpp"

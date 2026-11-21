@@ -5,6 +5,7 @@
 #include "havok.hpp"
 #include "material.hpp"
 #include "rawfile.hpp"
+#include "scriptable.hpp"
 #include "vfx.hpp"
 
 #include <iw8/assets/mapents.hpp>
@@ -408,6 +409,47 @@ namespace zonetool::iw7::converter::iw8::mapents
 		converted.windingPoints = convert_array<target::TriggerWindingPoint>(source.windingPoints, source.windingPointCount, allocator);
 	}
 
+	void convert_scriptables(const ScriptableMapEnts& source, target::ScriptableMapEnts& converted, utils::memory::allocator& allocator)
+	{
+		std::vector<std::pair<const ScriptableInstance*, const ScriptableDef*>> server_instances;
+		std::vector<std::pair<const ScriptableInstance*, const ScriptableDef*>> client_instances;
+		for (auto i = 0u; i < source.totalInstanceCount; i++)
+		{
+			const auto& instance = source.instances[i];
+			if (const auto def = scriptable::dump_used(instance.contextHeader.context.def))
+			{
+				auto& instances = (def->flags & SCRIPTABLE_DEFFLAG_SERVER_INSTANCE) ? server_instances : client_instances;
+				instances.emplace_back(&instance, def);
+			}
+		}
+
+		converted.serverInstanceCount = static_cast<unsigned int>(server_instances.size());
+		converted.mapInstanceCount = static_cast<unsigned int>(server_instances.size() + client_instances.size());
+		converted.mapInstances = allocator.allocate_array<target::ScriptableInstance>(converted.mapInstanceCount);
+
+		auto index = 0u;
+		for (const auto* instances : {&server_instances, &client_instances})
+		{
+			for (const auto& [instance, def] : *instances)
+			{
+				const auto& context = instance->contextHeader.context;
+				auto& result = converted.mapInstances[index++];
+				const auto initial_def = allocator.allocate<target::ScriptableDef>();
+				initial_def->name = def->name;
+				result.initialDef = initial_def;
+				std::memcpy(result.initialOrigin, context.initialOrigin, sizeof(result.initialOrigin));
+				std::memcpy(result.initialAngles, context.initialAngles, sizeof(result.initialAngles));
+				result.classname = static_cast<target::scr_string_t>(SL_GetString(std::format("scriptable_{}", def->name).data()));
+				result.targetname = static_cast<target::scr_string_t>(instance->targetname);
+			}
+		}
+
+		for (const auto& [instance, def] : server_instances)
+		{
+			converted.serverFixedPartCount += def->partCount; // TODO: inferred from stock count
+		}
+	}
+
 	void dump(MapEnts* asset)
 	{
 		utils::memory::allocator allocator;
@@ -428,14 +470,15 @@ namespace zonetool::iw7::converter::iw8::mapents
 		converted->spawnList.spawns = convert_array<target::SpawnPointEntityRecord>(asset->spawnList.spawns, asset->spawnList.spawnsCount, allocator);
 		convert_splines(asset->splineList, converted->splineList, allocator);
 
-		convert_submodels(asset, converted, allocator); // TODO: havok ents shapes, dynents and scriptables are not converted
+		convert_submodels(asset, converted, allocator); // TODO: havok ents shapes and dynents are not converted
 
 		for (auto& population : converted->dynEntSpatialPopulation)
 		{
 			population = make_empty_population(allocator);
 		}
 
-		converted->scriptableMapEnts.spatialPopulationTree = make_leaf_tree(allocator);
+		convert_scriptables(asset->scriptableMapEnts, converted->scriptableMapEnts, allocator);
+		converted->scriptableMapEnts.spatialPopulationTree = make_leaf_tree(allocator); // TODO: scriptable spatial population
 
 		convert_oneshot_effects(filesystem::get_fastfile(), converted->clientSideEffects, allocator); // TODO: sounds and reactive ents are not baked
 		converted->createFxEffectTotal = converted->clientSideEffects.oneshotEffectCount;

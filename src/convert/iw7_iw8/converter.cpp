@@ -132,6 +132,9 @@ namespace zonetool::convert::iw7_iw8
 			case source::ASSET_TYPE_IMPACT_FX:
 				target::impactfx::dump(header_as<source::FxImpactTable>(header));
 				break;
+			case source::ASSET_TYPE_SCRIPTABLE:
+				target::scriptable::dump(header_as<source::ScriptableDef>(header));
+				break;
 			case source::ASSET_TYPE_SOUND_BANK:
 				target::map_sound::dump(header_as<source::SndBank>(header));
 				break;
