@@ -72,7 +72,8 @@ namespace zonetool::iw7
 				new_asset->blendShapeWeightNames = nullptr;
 				new_asset->blendShapeWeightMaps = nullptr;
 
-				if (asset->physicsAsset)
+				// v17: H1 caps phys_collmap assets at 256 per zone; props don't need collision here
+				if (false && asset->physicsAsset)
 				{
 					new_asset->physPreset = allocator.allocate<zonetool::h1::PhysPreset>();
 					new_asset->physPreset->name = "default";

@@ -104,7 +104,10 @@ namespace zonetool::iw7
 				MATERIAL_DUMP_STRING(name);
 
 				std::string techset;
-				std::string h1_techset;
+				// v51: IW7 sortKey 2 = opaque world; >= 7 = decal (7/10/15), translucent (24-30), emissive (36+).
+				//      Opaque keeps the depth-writing remap; the rest go to Ghosts' alpha-blended, no-depth-write lit techset.
+				const bool blended = asset->info.sortKey >= 7;
+				std::string h1_techset = blended ? "wc_l_sm_ndw_b0c0l0_cltrans_iw6" : "wc_l_sm_ndw_b0c0l0_nfwpf_iw6";
 				if (asset->techniqueSet)
 				{
 					techset = asset->techniqueSet->name;
@@ -127,12 +130,12 @@ namespace zonetool::iw7
 
 				matdata["stateFlags"] = asset->stateFlags; // same
 
-				matdata["cameraRegion"] = convert_camera_region(asset->cameraRegion);
+				matdata["cameraRegion"] = blended ? 3 : convert_camera_region(asset->cameraRegion); // v51: 3 = lit trans (as Ghosts cltrans materials)
 				matdata["materialType"] = convert_material_type(asset->materialType);
 				matdata["assetFlags"] = zonetool::h1::MTL_ASSETFLAG_NONE;
 
 				ordered_json constant_table = json::array();
-				for (int i = 0; i < asset->constantCount && techset != "2d"; i++)
+				for (int i = 0; i < 0 && techset != "2d"; i++)
 				{
 					ordered_json table;
 					std::string constant_name = asset->constantTable[i].name;
@@ -188,10 +191,58 @@ namespace zonetool::iw7
 					constant_table.insert(constant_table.begin() + insert_position, table); \
 				}
 
+				if (blended)
+				{
+					// v51: values from Ghosts' wc/dig_web_01 (cltrans); without colorTint the blend would come out black/invisible
+					ordered_json c1; c1["name"] = "colorTint"; c1["nameHash"] = 3054254906u; c1["literal"] = { 1.0f, 1.0f, 1.0f, 1.0f };
+					ordered_json c2; c2["name"] = "bloomParams"; c2["nameHash"] = 3733414975u; c2["literal"] = { 1.0f, 0.0f, 0.0f, 0.0f };
+					constant_table.push_back(c1); constant_table.push_back(c2);
+				}
 				matdata["constantTable"] = constant_table;
 
 				ordered_json material_images = json::array();
-				for (auto i = 0; i < asset->textureCount; i++)
+				{
+					// IW7 -> IW6 techset remap: keep a single color map
+					std::string col_name = "blank"; // v35: "default" does not exist as an image (rendered solid red)
+					int best = -100; // v36: materials that only have packed/spec images must still pick something (was -1 -> "default")
+					for (auto i = 0; i < asset->textureCount; i++)
+					{
+						if (!asset->textureTable[i].image || !asset->textureTable[i].image->name) continue;
+						const std::string n = asset->textureTable[i].image->name;
+						int score = 0;
+						if (n.size() > 2 && n.compare(n.size() - 2, 2, "_c") == 0) score = 4;
+						if (n.size() > 4 && n.compare(n.size() - 4, 4, "_col") == 0) score = 4;
+						if (n.size() > 3 && n.compare(n.size() - 3, 3, "_bc") == 0) score = 4;
+						if (n.find("_nml") != std::string::npos || n.find("_n") == n.size() - 2) score = -6; // v38: normal maps are never colour
+						if (n.find("_spc") != std::string::npos || n.find("_cos") != std::string::npos || n.find("_ao") != std::string::npos) score = -1;
+						if (n.find("_packed_cs") != std::string::npos) score = -2; // packed colour+spec: best fallback
+						else if (n.find("_packed") != std::string::npos || n.find("_ng") != std::string::npos) score = -5;
+						if (score == 0 && asset->textureTable[i].semantic == 2) score = 2;
+						if (score == 0) score = 1;
+						if (score > best) { best = score; col_name = n; }
+					}
+					// v40: images that exist in no loaded zone render solid red
+					static const char* const missing_imgs[] = { "default", "$white", "black", "$gray", "transparent_invisible", "glass_clear_01_c", "koth_grid_03_c", "koth_grid_01_c", "falloff_linear", "vfx_energy_dome_shield_ping", "vfx_energy_beam_nrm" };
+					for (const auto* mi : missing_imgs) if (col_name == mi) col_name = "blank";
+					// v45: near-black floor/ground materials render as pitch black with placeholder lighting; use the grey blank so floors are visible
+					// v51: v45 forced-blank for floor/black materials removed (floors were a depth-write issue, not textures)
+					if (blended)
+					{
+						ordered_json nimg; // v51: cltrans materials in Ghosts carry the identity normal map first (sorted by typeHash)
+						nimg["image"] = "$identitynormalmap"; nimg["semantic"] = 5; nimg["samplerState"] = 1;
+						nimg["lastCharacter"] = 112; nimg["firstCharacter"] = 110; nimg["typeHash"] = 1507003663u;
+						material_images.push_back(nimg);
+					}
+					ordered_json image;
+					image["image"] = col_name;
+					image["semantic"] = 2;
+					image["samplerState"] = 19;
+					image["lastCharacter"] = 112;
+					image["firstCharacter"] = 99;
+					image["typeHash"] = 2695565377u;
+					material_images.push_back(image);
+				}
+				for (auto i = 0; i < 0; i++)
 				{
 					ordered_json image;
 					if (asset->textureTable[i].image && asset->textureTable[i].image->name)
