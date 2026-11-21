@@ -197,7 +197,10 @@ namespace zonetool::iw7
 				if (blended)
 				{
 					// v51: values from Ghosts' wc/dig_web_01 (cltrans); without colorTint the blend would come out black/invisible
-					ordered_json c1; c1["name"] = "colorTint"; c1["nameHash"] = 3054254906u; c1["literal"] = { 1.0f, 1.0f, 1.0f, 1.0f };
+					const std::string lname = asset->name ? asset->name : "";
+					const bool is_glass = lname.find("glass") != std::string::npos || og_techset_name.find("blendadd") != std::string::npos || og_techset_name.find("glass") != std::string::npos;
+					ordered_json c1; c1["name"] = "colorTint"; c1["nameHash"] = 3054254906u; // v67: glass was opaque dark; make it see-through
+					if (is_glass) c1["literal"] = { 0.55f, 0.7f, 0.75f, 0.12f }; else c1["literal"] = { 1.0f, 1.0f, 1.0f, 1.0f };
 					ordered_json c2; c2["name"] = "bloomParams"; c2["nameHash"] = 3733414975u; c2["literal"] = { 1.0f, 0.0f, 0.0f, 0.0f };
 					constant_table.push_back(c1); constant_table.push_back(c2);
 				}
