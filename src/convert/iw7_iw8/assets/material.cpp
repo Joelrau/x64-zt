@@ -258,6 +258,36 @@ namespace zonetool::iw7::converter::iw8::material
 			return result;
 		}
 
+		bool is_model_effect(const Material* asset)
+		{
+			return has_techset_token(asset, "unlit") && has_techset_token(asset, "add");
+		}
+
+		bool is_two_sided(const Material* asset)
+		{
+			return (asset->stateFlags & STATE_FLAG_CULL_MASK) != STATE_FLAG_CULL_BACK;
+		}
+
+		const char* get_model_effect_techset_name(const Material* asset) // TODO: stock techsets_common_base_mp techsets, convert natively
+		{
+			return is_two_sided(asset) ? "mo/unlit_6_effect_bad_ta0_8902_64_0_1_0_0_0_100000023_0_0_2_0_0"
+				: "mo/unlit_6_effect_bad_ta0_4102_64_0_1_0_0_0_100000023_0_0_2_0_0";
+		}
+
+		target::Material* convert_model_effect(const Material* asset, utils::memory::allocator& allocator)
+		{
+			const auto result = convert_effect(asset, false, allocator);
+			result->materialType = target::MTL_TYPE_MODEL_SELFVIS;
+			result->techniqueSet->name = get_model_effect_techset_name(asset);
+
+			target::MaterialConstantDef parms{};
+			parms.index = target::MATERIAL_CONSTANT_MODEL_EFFECT_PARMS;
+			const auto stock_parms = is_two_sided(asset) ? std::array{0.1f, 10.0f, 10.0f, 0.025f} : std::array{2.0f, 0.5f, 0.5f, 0.3333f}; // TODO: stock vfx_drone_blast_radius_mat and vfx_test_burning_plate_1 values
+			std::memcpy(parms.literal, stock_parms.data(), sizeof(parms.literal));
+			result->constantTable = allocate_constants({convert_color_tint(asset), parms}, result->constantCount, allocator);
+			return result;
+		}
+
 		target::Material* convert_2d(const Material* asset, utils::memory::allocator& allocator)
 		{
 			const auto result = allocator.allocate<target::Material>();
@@ -1057,6 +1087,74 @@ namespace zonetool::iw7::converter::iw8::material
 			return result;
 		}
 
+		const char* get_glass_piece_donor_techset(const bool shattered) // TODO: stock mp_aniyah_tac techsets, convert natively
+		{
+			return shattered ? "g/lit_3_lit_bar_ta1_1006_1002000000080403_0_1_1_0_0_113810035b_0_0_1_0_0"
+				: "g/lit_3_lit_bad_ta1_c02_1002000000000011_0_1_1_0_0_13810035b_0_0_1_0_0";
+		}
+
+		target::Material* convert_glass_piece(const Material* asset, const std::string& name, const bool shattered, utils::memory::allocator& allocator)
+		{
+			const auto result = allocator.allocate<target::Material>();
+			result->name = allocator.duplicate_string(name);
+			result->contents = shattered ? 0x2010 : 0x10; // TODO: stock g/com_glass_clear_shattered, g/glass_dirty_old_01 values
+			result->surfaceFlags = shattered ? 0x4C4000 : 0x480000;
+			result->materialType = target::MTL_TYPE_GLASS;
+			result->cameraRegion = target::CAMERA_REGION_LIT_TRANS;
+			result->sortKey = shattered ? 26 : 25;
+			result->flags = 0x10;
+			result->textureAtlasRowCount = 1;
+			result->textureAtlasColumnCount = 1;
+
+			result->techniqueSet = allocator.allocate<target::MaterialTechniqueSet>();
+			result->techniqueSet->name = get_glass_piece_donor_techset(shattered);
+
+			const auto color = find_color_image(asset, true);
+			const auto normal = find_normal_image(asset);
+			const auto transmission = find_transmission_image(asset, allocator);
+			std::vector<target::MaterialTextureDef> textures
+			{
+				{0, color ? color : make_image_reference("$black", allocator)},
+				{9, normal ? normal : make_image_reference("$identitynormalmap", allocator)},
+				{27, make_image_reference("$white", allocator)},
+				{59, make_image_reference("$black", allocator)},
+				{68, transmission ? transmission : make_image_reference("$white", allocator)},
+			};
+
+			if (shattered)
+			{
+				textures.push_back({133, make_image_reference("$white", allocator)});
+			}
+
+			result->textureCount = static_cast<unsigned char>(textures.size());
+			result->textureTable = allocator.allocate_array<target::MaterialTextureDef>(textures.size());
+			std::ranges::copy(textures, result->textureTable);
+
+			std::vector<std::pair<unsigned char, std::array<std::uint32_t, 4>>> literals
+			{
+				{0, {0x7, 0x80003C00, 0x3C003C00, 0}},
+				{9, {0xFFFFFFFF, 0x00FF2FAD, 0x0000BC00, 0}},
+				{target::MATERIAL_CONSTANT_TRANSMISSION_TINT, get_transmission_tint(asset)},
+				{54, get_scale_bias_literal(color, normal)},
+				{72, {0x3F800000, 0x1, 0x3FD9364E, 0x3FD9364E}},
+			};
+
+			if (shattered)
+			{
+				literals.push_back({77, {0x3F000000, 0, 0, 0}}); // TODO: stock g/com_glass_clear_shattered value
+			}
+
+			std::vector<target::MaterialConstantDef> constants(literals.size());
+			for (auto i = 0u; i < literals.size(); i++)
+			{
+				constants[i].index = literals[i].first;
+				std::memcpy(constants[i].literal, literals[i].second.data(), sizeof(constants[i].literal));
+			}
+
+			result->constantTable = allocate_constants(constants, result->constantCount, allocator);
+			return result;
+		}
+
 		target::Material* convert_layered(const Material* asset, const std::string& name, const char* donor, utils::memory::allocator& allocator)
 		{
 			const auto layer_count = get_layer_count(asset);
@@ -1341,7 +1439,7 @@ namespace zonetool::iw7::converter::iw8::material
 
 	void dump(Material* asset)
 	{
-		if (!asset || !mark_dumped(ASSET_TYPE_MATERIAL, asset->name))
+		if (!asset || asset->name[0] == '*' || !mark_dumped(ASSET_TYPE_MATERIAL, asset->name)) // dump_lit writes the generated variants
 		{
 			return;
 		}
@@ -1349,6 +1447,15 @@ namespace zonetool::iw7::converter::iw8::material
 		asset = find_loaded(asset);
 
 		utils::memory::allocator allocator;
+		if (is_model_effect(asset))
+		{
+			zonetool::iw8::material::dump(convert_model_effect(asset, allocator));
+			add_csv_row("require", "techsets_common_base_mp");
+			add_csv_row("techset", ","s + get_model_effect_techset_name(asset));
+			add_csv_row("material", asset->name);
+			return;
+		}
+
 		zonetool::iw8::material::dump(convert(asset, allocator));
 		add_csv_row("require", "techsets_global_stream_mp");
 		add_csv_row("techset", ","s + techset_name);
@@ -1463,6 +1570,33 @@ namespace zonetool::iw7::converter::iw8::material
 			converted = convert_lit(asset, name, variant, allocator);
 		}
 
+		zonetool::iw8::material::dump(converted);
+		for (auto i = 0; i < converted->textureCount; i++)
+		{
+			if (const auto image = converted->textureTable[i].image->name; image[0] == '$')
+			{
+				add_csv_row("image", ","s + image);
+			}
+		}
+		add_csv_row("material", name);
+		return name;
+	}
+
+	std::string dump_glass_piece(Material* asset, const bool shattered)
+	{
+		const std::string_view source_name = asset->name;
+		const auto name = "g/"s + std::string(source_name.starts_with("m/") ? source_name.substr(2) : source_name);
+		if (!mark_dumped(ASSET_TYPE_MATERIAL, name))
+		{
+			return name;
+		}
+
+		asset = find_loaded(asset);
+		const auto donor = get_glass_piece_donor_techset(shattered);
+		donor_techsets.emplace(donor);
+
+		utils::memory::allocator allocator;
+		const auto converted = convert_glass_piece(asset, name, shattered, allocator);
 		zonetool::iw8::material::dump(converted);
 		for (auto i = 0; i < converted->textureCount; i++)
 		{

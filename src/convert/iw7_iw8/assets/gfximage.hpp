@@ -20,5 +20,6 @@ namespace zonetool::iw7::converter::iw8::gfximage
 	zonetool::iw8::GfxImage* dump_grading_clut(const GfxImage* asset, const std::string& name, std::size_t size,
 		const std::function<std::vector<std::uint16_t>(const std::vector<std::uint8_t>& texels, std::size_t source_size)>& convert_texels);
 	zonetool::iw8::GfxImage* dump_reflection_probes(const GfxImage* asset, std::size_t probe_count);
+	void dump_preview(const GfxImage* asset);
 	std::optional<zonetool::iw8::GfxLightmapRaw> convert_lightmap(const GfxLightMap* lightmap, utils::memory::allocator& allocator);
 }

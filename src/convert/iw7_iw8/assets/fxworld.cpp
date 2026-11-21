@@ -25,7 +25,7 @@ namespace zonetool::iw7::converter::iw8::fxworld
 			return stub;
 		}
 
-		target::Material* convert_material(const Material* handle, utils::memory::allocator& allocator)
+		target::Material* convert_material(const Material* handle, const bool shattered, utils::memory::allocator& allocator)
 		{
 			if (!handle)
 			{
@@ -39,8 +39,9 @@ namespace zonetool::iw7::converter::iw8::fxworld
 				return name_stub<target::Material>(handle, allocator);
 			}
 
-			material::dump(material);
-			return name_stub<target::Material>(handle, allocator);
+			auto* stub = allocator.allocate<target::Material>();
+			stub->name = allocator.duplicate_string(material::dump_glass_piece(material, shattered));
+			return stub;
 		}
 
 		target::FxCombinedDef convert_effect(const FxCombinedDef& effect, utils::memory::allocator& allocator)
@@ -63,8 +64,8 @@ namespace zonetool::iw7::converter::iw8::fxworld
 				result.halfThickness = def.halfThickness;
 				std::memcpy(result.texVecs, def.texVecs, sizeof(result.texVecs));
 				result.color = std::bit_cast<target::GfxColor>(def.color);
-				result.material = convert_material(def.material, allocator);
-				result.materialShattered = convert_material(def.materialShattered, allocator);
+				result.material = convert_material(def.material, false, allocator);
+				result.materialShattered = convert_material(def.materialShattered, true, allocator);
 				result.physicsAsset = name_stub<target::PhysicsAsset>(def.physicsAsset, allocator);
 				result.pieceBreakEffect = convert_effect(def.pieceBreakEffect, allocator);
 				result.shatterEffect = convert_effect(def.shatterEffect, allocator);

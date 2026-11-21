@@ -2,6 +2,7 @@
 
 #include "../include.hpp"
 #include "mapents.hpp"
+#include "gfximage.hpp"
 #include "havok.hpp"
 #include "material.hpp"
 #include "rawfile.hpp"
@@ -136,6 +137,11 @@ namespace zonetool::iw7::converter::iw8::mapents
 			add_csv_row("scriptfile", name);
 
 			material::dump_2d(static_cast<Material*>(db_find_asset(ASSET_TYPE_MATERIAL, std::format("compass_map_{}", map).data())));
+
+			if (const auto* loadscreen = static_cast<const GfxImage*>(db_find_asset(ASSET_TYPE_IMAGE, std::format("loadscreen_{}", map).data())))
+			{
+				gfximage::dump_preview(loadscreen);
+			}
 		}
 
 		std::string get_rawfile_text(const std::string& name)

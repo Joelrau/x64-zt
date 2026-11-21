@@ -62,7 +62,7 @@ namespace zonetool::iw7::converter::iw8::comworld
 			converted.irIntensity = light.irIntensity;
 
 			const auto luminance = 0.2126f * light.color[0] + 0.7152f * light.color[1] + 0.0722f * light.color[2]; // TODO: stock mp_rust colors have luminance 1, not proven in IW8 asm
-			converted.intensity = luminance / std::numbers::pi_v<float>; // TODO: IW7 artist unit inferred from sun ratio, not proven in IW7 asm
+			converted.intensity = luminance;
 			for (auto i = 0; i < 3; i++)
 			{
 				converted.colorLinearSrgb[i] = luminance > 0.0f ? light.color[i] / luminance : 0.0f;

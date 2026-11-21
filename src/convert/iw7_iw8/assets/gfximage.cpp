@@ -1360,4 +1360,42 @@ namespace zonetool::iw7::converter::iw8::gfximage
 		result.textures[2] = make_raw_image(direction_shadow, target::GFX_PF_R8G8B8A8, allocator);
 		return result;
 	}
+
+	void dump_preview(const GfxImage* asset)
+	{
+		auto pixels = read_pixels(asset, DXGI_FORMAT_R8G8B8A8_UNORM);
+		if (!pixels)
+		{
+			return;
+		}
+
+		const auto& source = *pixels->GetImage(0, 0, 0);
+		const auto scale = std::min(1.0, 2048.0 / std::max(source.width, source.height));
+		const auto width = std::max<std::size_t>(1, static_cast<std::size_t>(source.width * scale));
+		const auto height = std::max<std::size_t>(1, static_cast<std::size_t>(source.height * scale));
+		if (width != source.width || height != source.height)
+		{
+			DirectX::ScratchImage resized;
+			if (FAILED(DirectX::Resize(source, width, height, DirectX::TEX_FILTER_LINEAR | DirectX::TEX_FILTER_FORCE_NON_WIC, resized)))
+			{
+				ZONETOOL_WARNING("Cannot resize the preview \"%s\"", asset->name);
+				return;
+			}
+
+			pixels = std::move(resized);
+		}
+
+		const auto& image = *pixels->GetImage(0, 0, 0);
+		const std::array<std::uint32_t, 4> header{0x4952574D, 1, static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height)}; // mw120r preview.rgba v1
+
+		filesystem::file file("preview.rgba");
+		file.open("wb");
+		file.write(header.data(), sizeof(header), 1);
+		for (auto row = 0u; row < height; row++)
+		{
+			file.write(image.pixels + row * image.rowPitch, width * 4, 1);
+		}
+
+		file.close();
+	}
 }

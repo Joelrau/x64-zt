@@ -169,6 +169,11 @@ namespace zonetool::convert::iw7_iw8
 				zones.emplace_back("techsets_" + zone_name);
 			}
 
+			if (zone_name.starts_with("mp_") && !zone_name.ends_with("_load"))
+			{
+				zones.emplace_back(zone_name + "_load");
+			}
+
 			return zones;
 		}
 	}

@@ -90,8 +90,12 @@ namespace zonetool::iw7::converter::iw8::clipmap
 			std::memcpy(clip->topDownMapData, asset->topDownMapData, sizeof(target::TopDownMapData));
 		}
 
-		clip->totalGlassInitPieceCount = 0;
-		clip->totalGlassPieceLimit = 0;
+		if (const auto* fx = static_cast<const FxWorld*>(db_find_asset(ASSET_TYPE_FXWORLD, asset->name)))
+		{
+			clip->totalGlassInitPieceCount = fx->glassSys.initPieceCount;
+			clip->totalGlassPieceLimit = fx->glassSys.pieceLimit;
+		}
+
 		clip->visionSetName = nullptr;
 		clip->checksum = asset->checksum;
 

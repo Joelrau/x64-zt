@@ -858,16 +858,11 @@ namespace zonetool::iw7::converter::iw8::havok
 		{
 			static constexpr std::uint32_t bits[] =
 			{
-				0x1, 0x2, 0x8, 0x20, 0x80, 0x100, 0x200, 0x400, 0x800, 0x1000, 0x2000, 0x4000,
+				0x1, 0x2, 0x8, 0x10, 0x20, 0x80, 0x100, 0x200, 0x400, 0x800, 0x1000, 0x2000, 0x4000,
 				0x10000, 0x20000, 0x40000, 0x100000, 0x400000, 0x800000, 0x1000000, 0x2000000, 0x40000000,
 			};
 
 			std::uint32_t result = 0;
-			if (contents & PHYSICS_CONTENTS_GLASS)
-			{
-				result |= zonetool::iw8::PHYSICS_CONTENTS_SOLID;
-			}
-
 			for (const auto bit : bits)
 			{
 				if (contents & bit)
@@ -897,6 +892,11 @@ namespace zonetool::iw7::converter::iw8::havok
 			return (user_data & 0xFFFFFFFF00000000ull) | low;
 		}
 
+		std::uint16_t get_glass_piece(const std::uint64_t user_data)
+		{
+			return static_cast<std::uint16_t>(user_data >> 32);
+		}
+
 		std::vector<iw7::HavokPhysicsShapeTagData> convert_shape_tags(const iw7::HavokPhysicsShapeList* list)
 		{
 			std::vector<iw7::HavokPhysicsShapeTagData> tags(list->shapeTagData.size);
@@ -908,6 +908,12 @@ namespace zonetool::iw7::converter::iw8::havok
 				tag.materialCRC = source.materialCRC;
 				tag.materialId = source.materialId;
 				tag.userData = convert_user_data(source.userData);
+				if (get_glass_piece(source.userData))
+				{
+					tag.collisionFilterInfo = zonetool::iw8::PHYSICS_CONTENTS_SOLID | zonetool::iw8::PHYSICS_CONTENTS_GLASS
+						| zonetool::iw8::PHYSICS_CONTENTS_SOUNDCLIP | zonetool::iw8::PHYSICS_CONTENTS_SOUNDREFLECT; // TODO: stock mp_backlot2 has no GLASS bit, the piece check (0x1632690) needs it
+					tag.userData = (tag.userData & ~(0x3Full << 19)) | (static_cast<std::uint64_t>(zonetool::iw8::SURFACE_TYPE_GLASS_SOLID) << 19);
+				}
 			}
 
 			return tags;
