@@ -2,6 +2,7 @@
 #include "zonetool.hpp"
 
 #include "converter/converter.hpp"
+#include "importer/bo2map.hpp"
 
 #include "../utils/gsc.hpp"
 #include "../utils/csv_generator.hpp"
@@ -1409,6 +1410,16 @@ namespace zonetool::h1
 			dump_asset(&asset);
 
 			ZONETOOL_INFO("Dumped to dump/assets");
+		});
+
+		::h1::command::add("importmap", [](const ::h1::command::params& params)
+		{
+			if (params.size() < 2)
+			{
+				ZONETOOL_ERROR("usage: importmap <file.h1map> [name]");
+				return;
+			}
+			importer::import_bo2_map(params[1], params.size() > 2 ? params[2] : "");
 		});
 
 		::h1::command::add("dumpmap", [](const ::h1::command::params& params)
