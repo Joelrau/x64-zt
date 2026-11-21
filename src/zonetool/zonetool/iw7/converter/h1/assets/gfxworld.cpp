@@ -196,6 +196,46 @@ namespace zonetool::iw7
 				new_asset->draw.reflectionProbeReferenceOrigins = nullptr;
 				new_asset->draw.reflectionProbeReferences = nullptr;
 
+				// v79: lightmap diagnostics (IW7 packs lightmaps; surfaces index lightmapReindexData)
+				{
+					const auto& rd = asset->draw.lightmapReindexData;
+					ZONETOOL_INFO("v79 lm: lightMapCount=%u imagePixelSize=%u reindexCount=%u packedCount=%u", asset->draw.lightMapCount, rd.imagePixelSize, rd.reindexCount, rd.packedLightmapCount);
+					for (unsigned int i = 0; i < asset->draw.lightMapCount && i < 8; i++)
+					{
+						const auto* lm = asset->draw.lightMaps ? asset->draw.lightMaps[i] : nullptr;
+						if (!lm) continue;
+						for (int t = 0; t < 3; t++)
+						{
+							const auto* im = lm->textures[t];
+							if (im) ZONETOOL_INFO("v79 lm %u tex%d %s %ux%ux%u fmt=%u elems=%u lv=%u streamed=%u", i, t, im->name ? im->name : "?", (unsigned)im->width, (unsigned)im->height, (unsigned)im->depth, (unsigned)im->imageFormat, (unsigned)im->numElements, (unsigned)im->levelCount, (unsigned)im->streamed);
+						}
+					}
+					for (unsigned int i = 0; i < rd.packedLightmapCount && rd.packedLightmap; i++)
+						ZONETOOL_INFO("v79 packed %u: %ux%u", i, rd.packedLightmap[i].imageWidth, rd.packedLightmap[i].imageHeight);
+					for (unsigned int i = 0; i < rd.reindexCount && rd.reindexElement && i < 64; i++)
+						ZONETOOL_INFO("v79 reindex %u: index=%u pos=%u,%u size=%ux%u", i, rd.reindexElement[i].index, rd.reindexElement[i].posX, rd.reindexElement[i].posY, rd.reindexElement[i].width, rd.reindexElement[i].height);
+					std::map<unsigned, unsigned> hist;
+					for (unsigned int i = 0; i < asset->surfaceCount; i++) hist[asset->dpvs.surfaces[i].lightmapIndex]++;
+					for (auto& [k, v] : hist) ZONETOOL_INFO("v79 surf lightmapIndex %u: %u surfaces", k, v);
+					// lmapCoord ranges for a few surfaces per lightmapIndex
+					std::map<unsigned, int> shown;
+					for (unsigned int i = 0; i < asset->surfaceCount; i++)
+					{
+						const auto& su = asset->dpvs.surfaces[i];
+						if (shown[su.lightmapIndex]++ >= 3) continue;
+						const auto z = su.transientZone;
+						if (z >= zone_count || !asset->draw.transientZones[z] || !asset->draw.transientZones[z]->vd.vertices) continue;
+						const auto* vv = asset->draw.transientZones[z]->vd.vertices;
+						float mn[2] = { 1e9f, 1e9f }, mx[2] = { -1e9f, -1e9f };
+						for (unsigned int k = 0; k < su.tris.vertexCount; k++)
+						{
+							const auto& v = vv[su.tris.firstVertex + k];
+							for (int c = 0; c < 2; c++) { mn[c] = std::min(mn[c], v.lmapCoord[c]); mx[c] = std::max(mx[c], v.lmapCoord[c]); }
+						}
+						ZONETOOL_INFO("v79 surf %u lm=%u flags=%u verts=%u lmap u[%f..%f] v[%f..%f] mat=%s", i, su.lightmapIndex, su.flags, su.tris.vertexCount, mn[0], mx[0], mn[1], mx[1], su.material && su.material->name ? su.material->name : "?");
+					}
+				}
+
 				// lightmaps: STUB (none)
 				new_asset->draw.lightmapCount = 1;
 				new_asset->draw.lightmaps = allocator.allocate_array<zonetool::h1::GfxLightmapArray>(1);
