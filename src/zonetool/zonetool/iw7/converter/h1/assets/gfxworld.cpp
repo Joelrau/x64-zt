@@ -219,6 +219,19 @@ namespace zonetool::iw7
 						new_asset->lightGrid.skyLightGridColors.rgb[i][j] = half_float::float_to_half(asset->lightGrid.skyLightGridColors.rgb[i][j]);
 					}
 				}
+				// v58: the stub grid had all-zero colours, so static models (STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING) were black
+				// wherever the sun didn't hit them. Give the single grid entry + defaults a flat ambient instead.
+				for (unsigned int i = 0; i < 56; i++)
+				{
+					for (unsigned int j = 0; j < 3; j++)
+					{
+						new_asset->lightGrid.colors[0].rgb[i][j] = 0x3800;
+						if (new_asset->lightGrid.defaultLightGridColors.rgb[i][j] == 0)
+							new_asset->lightGrid.defaultLightGridColors.rgb[i][j] = half_float::float_to_half(0.5f);
+						if (new_asset->lightGrid.skyLightGridColors.rgb[i][j] == 0)
+							new_asset->lightGrid.skyLightGridColors.rgb[i][j] = half_float::float_to_half(0.5f);
+					}
+				}
 				for (auto i = 0; i < 3; i++)
 				{
 					auto& tree = new_asset->lightGrid.tree[i];
@@ -343,7 +356,7 @@ namespace zonetool::iw7
 						dst_surf.tris.baseIndex = src_surf.tris.baseIndex;
 						dst_surf.material = reinterpret_cast<zonetool::h1::Material*>(src_surf.material);
 						// v37: KOTH/hardpoint zone grid slabs are script-toggled in IW7 but would render permanently (solid red) here
-						if (src_surf.material && src_surf.material->name && (std::string(src_surf.material->name).find("caulk") != std::string::npos || std::string(src_surf.material->name).find("koth_grid") != std::string::npos || std::string(src_surf.material->name).find("blockout") != std::string::npos /* v53: KOTH zone grids/blockout are script-toggled brush models; hide again now that brush models render */ || (src_surf.material->techniqueSet && src_surf.material->techniqueSet->name && std::string(src_surf.material->techniqueSet->name).find("_add_") != std::string::npos && std::string(src_surf.material->name).find("sky") == std::string::npos) /* v41: only additive glow materials; blend/glass stay visible */))
+						if (src_surf.material && src_surf.material->name && (std::string(src_surf.material->name).find("caulk") != std::string::npos || std::string(src_surf.material->name).find("koth_grid") != std::string::npos || std::string(src_surf.material->name).find("blockout") != std::string::npos /* v53: KOTH zone grids/blockout are script-toggled brush models; hide again now that brush models render */ ))
 						{
 							{ static std::set<std::string> logged_hidden; if (logged_hidden.insert(src_surf.material->name).second) ZONETOOL_INFO("v46 hidden surface material: %s tech=%s", src_surf.material->name, (src_surf.material->techniqueSet && src_surf.material->techniqueSet->name) ? src_surf.material->techniqueSet->name : "?"); }
 							dst_surf.tris.triCount = 0;

@@ -293,6 +293,47 @@ namespace zonetool::iw7
 					material_images.insert(material_images.begin() + insert_position, image); \
 				}
 
+				// v54: IW7 sky dome = cubemap on a 2D world techset (black). Use the Ghosts sky techset exactly like wc/sky_mp_dig
+				{
+					const std::string mn = asset->name ? asset->name : "";
+					if (mn.find("/sky_") != std::string::npos || mn.rfind("sky_", 0) == 0)
+					{
+						std::string sky_img = "hdr_sunset13";
+						for (auto i = 0; i < asset->textureCount; i++)
+						{
+							if (asset->textureTable[i].image && asset->textureTable[i].image->name) { sky_img = asset->textureTable[i].image->name; break; }
+						}
+						matdata["techniqueSet->name"] = "wc_sky_bl_iw6";
+						matdata["gameFlags"] = 12;
+						matdata["sortKey"] = 3;
+						matdata["cameraRegion"] = 0;
+						matdata["materialType"] = 36;
+						ordered_json sc; sc["name"] = "bloomParams"; sc["nameHash"] = 3733414975u; sc["literal"] = { 1.02f, 0.0f, 0.0f, 0.0f };
+						matdata["constantTable"] = ordered_json::array({ sc });
+						ordered_json si; si["image"] = sky_img; si["semantic"] = 2; si["samplerState"] = 243;
+						si["lastCharacter"] = 112; si["firstCharacter"] = 99; si["typeHash"] = 2695565377u;
+						material_images = ordered_json::array({ si });
+					}
+				}
+
+				// v56: additive glow world materials (IW7 *_add_* techsets) -> Ghosts additive effect techset (additive blend: dark texels add nothing)
+				if (techset.find("_add_") != std::string::npos && techset.find("sky") == std::string::npos && asset->name && std::string(asset->name).find("sky") == std::string::npos && !material_images.empty())
+				{
+					const auto glow_img = material_images.back()["image"].get<std::string>();
+					matdata["techniqueSet->name"] = "effect_add_lin_ct_nofog_ndw_bl_blmod_iw6";
+					matdata["gameFlags"] = 8;
+					matdata["sortKey"] = 53;
+					matdata["cameraRegion"] = 4;
+					matdata["materialType"] = 0;
+					ordered_json a1; a1["name"] = "textureAtlas"; a1["nameHash"] = 1128936273u; a1["literal"] = { 1.0f, 1.0f, 1.0f, 1.0f };
+					ordered_json a2; a2["name"] = "colorTint"; a2["nameHash"] = 3054254906u; a2["literal"] = { 2.0f, 2.0f, 2.0f, 1.0f };
+					ordered_json a3; a3["name"] = "bloomParams"; a3["nameHash"] = 3733414975u; a3["literal"] = { 1.0f, 0.0f, 0.0f, 0.0f };
+					matdata["constantTable"] = ordered_json::array({ a1, a2, a3 });
+					ordered_json gi; gi["image"] = glow_img; gi["semantic"] = 2; gi["samplerState"] = 243;
+					gi["lastCharacter"] = 112; gi["firstCharacter"] = 99; gi["typeHash"] = 2695565377u;
+					material_images = ordered_json::array({ gi });
+				}
+
 				matdata["textureTable"] = material_images;
 
 				auto str = matdata.dump(4, ' ', true, nlohmann::detail::error_handler_t::replace);
