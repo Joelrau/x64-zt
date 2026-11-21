@@ -65,8 +65,38 @@ namespace zonetool::iw7
 
 				// IW7 entity strings are plain text key/values; H1 uses the same format (classnames/keys may need review)
 				const auto entity_string = replace_mapents_keys(std::string{asset->entityString, static_cast<size_t>(asset->numEntityChars)});
-				new_asset->entityString = allocator.duplicate_string(entity_string);
-				new_asset->numEntityChars = static_cast<int>(entity_string.size());
+				// scriptable instances (palms, props, ...) are not an H1 concept, spawn them as plain script_models
+				std::string entity_string_full = entity_string;
+				if (asset->scriptableMapEnts.instances)
+				{
+					for (unsigned int i = 0; i < asset->scriptableMapEnts.totalInstanceCount; i++)
+					{
+						const auto& ctx = asset->scriptableMapEnts.instances[i].contextHeader.context;
+						const char* model_name = nullptr;
+						if (ctx.modelData.model && ctx.modelData.model->name)
+						{
+							model_name = ctx.modelData.model->name;
+						}
+						else if (ctx.def && ctx.def->numXModels && ctx.def->models && ctx.def->models[0])
+						{
+							model_name = ctx.def->models[0]->name;
+						}
+						if (!model_name || !*model_name)
+						{
+							continue;
+						}
+						if (ctx.def && ctx.def->name && std::string_view{ctx.def->name}.starts_with("hardpoint"))
+						{
+							continue;
+						}
+						const auto* o = ctx.origin;
+						const auto* a = ctx.angles;
+						entity_string_full += utils::string::va("{\n\"classname\" \"script_model\"\n\"model\" \"%s\"\n\"origin\" \"%g %g %g\"\n\"angles\" \"%g %g %g\"\n}\n",
+							model_name, o[0], o[1], o[2], a[0], a[1], a[2]);
+					}
+				}
+				new_asset->entityString = allocator.duplicate_string(entity_string_full);
+				new_asset->numEntityChars = static_cast<int>(entity_string_full.size());
 
 				// triggers (IW7 models carry extra physics fields, so copy element-wise)
 				new_asset->trigger.count = asset->trigger.count;
