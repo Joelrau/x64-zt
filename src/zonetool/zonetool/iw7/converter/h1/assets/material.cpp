@@ -363,7 +363,10 @@ namespace zonetool::iw7
 				const bool distortion = techset.find("distortion") != std::string::npos; // v76: heat/water distortion draws its normal map as colour (purple ripples) -> invisible additive
 				// v76: IW7 blendadd glass came out as milky opaque panes (colour alpha = 1); a faint additive sheen reads as clear glass
 				const bool add_glass = techset.find("blendadd") != std::string::npos || facade_glass; // facade glass ignored colorTint and drew as cream panes
-				if ((distortion || unlit_glow || add_glass || techset.find("_add_") != std::string::npos) && techset.find("sky") == std::string::npos && asset->name && std::string(asset->name).find("sky") == std::string::npos && !material_images.empty())
+				// v88: world unlit blend overlays (screen_crt_dots_01 over the HAILE billboards) went to the lit blend techset; with no
+				//      lightmap (index 31) they drew an opaque black layer over the posters. Additive with the global exposure = faint dots.
+				const bool world_unlit_blend = asset->name && asset->name[0] == 'w' && asset->name[1] == '/' && techset.find("unlit_blend") != std::string::npos;
+				if ((distortion || unlit_glow || add_glass || world_unlit_blend || techset.find("_add_") != std::string::npos) && techset.find("sky") == std::string::npos && asset->name && std::string(asset->name).find("sky") == std::string::npos && !material_images.empty())
 				{
 					const auto glow_img = material_images.back()["image"].get<std::string>();
 					matdata["techniqueSet->name"] = "effect_add_lin_ct_nofog_ndw_bl_blmod_iw6";
