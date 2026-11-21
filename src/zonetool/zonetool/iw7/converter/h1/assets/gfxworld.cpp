@@ -450,7 +450,8 @@ namespace zonetool::iw7
 						}
 						dst_surf.laf.fields.lightmapIndex = 0; // v32: placeholder lightmap 0 exists
 						dst_surf.laf.fields.reflectionProbeIndex = 0;
-						dst_surf.laf.fields.primaryLightEnvIndex = 0;
+						// v81: env 0 has no lights (numIndices 0); env 1 = the sun (as in mp_dig). With 0 the world got no sun light or sun shadows at all.
+						dst_surf.laf.fields.primaryLightEnvIndex = 1;
 						dst_surf.laf.fields.flags = src_surf.flags; // TODO convert
 					}
 

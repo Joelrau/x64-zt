@@ -65,6 +65,15 @@ namespace zonetool::iw7
 					}
 				}
 
+				// v81: Ghosts/H1 suns are non-physical (mp_dig: 10,8.8,6.2). IW7 marks them physicallyBased with ~3.5 peak -> dim, overly orange sun.
+				for (unsigned int i = 0; i < asset->primaryLightCount; i++)
+				{
+					auto& l = new_asset->primaryLights[i];
+					if (static_cast<int>(l.type) != 1) continue;
+					l.physicallyBased = 0;
+					for (int c = 0; c < 3; c++) l.color[c] *= 2.5f;
+				}
+
 				COPY_VALUE(primaryLightEnvCount);
 				REINTERPRET_CAST_SAFE(primaryLightEnvs);
 

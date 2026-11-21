@@ -1,6 +1,7 @@
 #include <std_include.hpp>
 #include "zonetool/iw7/converter/h1/include.hpp"
 #include "material.hpp"
+#include <utils/string.hpp>
 
 //#include "zonetool/h1/assets/material.hpp"
 
@@ -138,6 +139,23 @@ namespace zonetool::iw7
 				matdata["cameraRegion"] = blended ? 3 : convert_camera_region(asset->cameraRegion); // v51: 3 = lit trans (as Ghosts cltrans materials)
 				matdata["materialType"] = convert_material_type(asset->materialType);
 				matdata["assetFlags"] = zonetool::h1::MTL_ASSETFLAG_NONE;
+
+				// v80: log IW7 material parameters (constant table + pixel-shader constant buffers) to recover tints/emissive colours
+				{
+					std::string line = ::utils::string::va("v80 mat %s tech=%s cc=%u cbc=%u", asset->name ? asset->name : "?", techset.data(), (unsigned)asset->constantCount, (unsigned)asset->constantBufferCount);
+					for (int i = 0; i < asset->constantCount && asset->constantTable; i++)
+						line += ::utils::string::va(" c[%.12s]=%g,%g,%g,%g", asset->constantTable[i].name, asset->constantTable[i].literal[0], asset->constantTable[i].literal[1], asset->constantTable[i].literal[2], asset->constantTable[i].literal[3]);
+					for (int b = 0; b < asset->constantBufferCount && asset->constantBufferTable && b < 3; b++)
+					{
+						const auto& cb = asset->constantBufferTable[b];
+						if (!cb.psData || cb.psDataSize < 4) continue;
+						const auto* f = reinterpret_cast<const float*>(cb.psData);
+						const unsigned n = std::min<unsigned>(cb.psDataSize / 4, 48);
+						line += ::utils::string::va(" ps%d(%u):", b, cb.psDataSize);
+						for (unsigned k = 0; k < n; k++) line += ::utils::string::va("%s%g", k ? "," : "", f[k]);
+					}
+					{ static FILE* vf = fopen("v80_materials.txt", "w"); if (vf) { fprintf(vf, "%s\n", line.data()); fflush(vf); } }
+				}
 
 				ordered_json constant_table = json::array();
 				for (int i = 0; i < 0 && techset != "2d"; i++)
@@ -355,6 +373,22 @@ namespace zonetool::iw7
 					matdata["materialType"] = 0;
 					ordered_json a1; a1["name"] = "textureAtlas"; a1["nameHash"] = 1128936273u; a1["literal"] = { 1.0f, 1.0f, 1.0f, 1.0f };
 					ordered_json a2; a2["name"] = "colorTint"; a2["nameHash"] = 3054254906u; if (distortion) a2["literal"] = { 0.0f, 0.0f, 0.0f, 0.0f }; else if (unlit_glow) a2["literal"] = { 1.5f, 1.5f, 1.5f, 1.0f }; else if (add_glass) a2["literal"] = { 0.12f, 0.14f, 0.16f, 1.0f }; else a2["literal"] = { 2.0f, 2.0f, 2.0f, 1.0f };
+					// v80: keep the real IW7 colour of glows (e.g. light_line_lightblue_02_emissive colorTint 5,17,17 = teal LED strips; we drew them white/yellow)
+					if (!distortion && !add_glass)
+					{
+						for (int ci = 0; ci < asset->constantCount && asset->constantTable; ci++)
+						{
+							if (std::strncmp(asset->constantTable[ci].name, "colorTint", 9) != 0 || asset->constantTable[ci].name[9] != 0) continue;
+							const float* l = asset->constantTable[ci].literal;
+							const float mx = std::max({ l[0], l[1], l[2] });
+							if (mx <= 0.0f) break;
+							const bool neutral = std::abs(l[0] - l[1]) < 0.02f * mx && std::abs(l[1] - l[2]) < 0.02f * mx;
+							const float target = unlit_glow ? 1.5f : 2.0f;
+							const float k = (neutral ? std::min(mx, target) : target) / mx;
+							a2["literal"] = { l[0] * k, l[1] * k, l[2] * k, 1.0f };
+							break;
+						}
+					}
 					ordered_json a3; a3["name"] = "bloomParams"; a3["nameHash"] = 3733414975u; a3["literal"] = { 1.0f, 0.0f, 0.0f, 0.0f };
 					matdata["constantTable"] = ordered_json::array({ a1, a2, a3 });
 					ordered_json gi; gi["image"] = glow_img; gi["semantic"] = 2; gi["samplerState"] = 243;
