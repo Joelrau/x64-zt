@@ -222,7 +222,7 @@ namespace zonetool::iw7
 					ordered_json c1; c1["name"] = "colorTint"; c1["nameHash"] = 3054254906u; // v67: glass was opaque dark; make it see-through
 					bool emissive_img = false; // v70: lit-blend emissive/vista images were far too dark
 					for (auto i = 0; i < asset->textureCount; i++) if (asset->textureTable[i].image && asset->textureTable[i].image->name) { const std::string in = asset->textureTable[i].image->name; if (in.find("skyline") != std::string::npos || in.find("light_line") != std::string::npos || in.find("_e_warm") != std::string::npos) emissive_img = true; }
-					if (facade_glass) c1["literal"] = { 0.08f, 0.2f, 0.26f, 0.55f }; else if (is_glass) c1["literal"] = { 0.55f, 0.7f, 0.75f, 0.12f }; else if (emissive_img) c1["literal"] = { 3.0f, 3.0f, 3.0f, 1.0f }; else c1["literal"] = { 1.0f, 1.0f, 1.0f, 1.0f };
+					if (facade_glass) c1["literal"] = { 0.08f, 0.2f, 0.26f, 0.55f }; else if (is_glass) c1["literal"] = { 0.55f, 0.7f, 0.75f, 0.12f }; else if (emissive_img) c1["literal"] = { 1.0f, 1.0f, 1.0f, 1.0f }; // v83: was 3 -> every ledge glowed neon yellow; IW7 emissivePara is 1 else c1["literal"] = { 1.0f, 1.0f, 1.0f, 1.0f };
 					ordered_json c2; c2["name"] = "bloomParams"; c2["nameHash"] = 3733414975u; c2["literal"] = { 1.0f, 0.0f, 0.0f, 0.0f };
 					constant_table.push_back(c1); constant_table.push_back(c2);
 				}
@@ -402,6 +402,27 @@ namespace zonetool::iw7
 					const auto slash = c_name.find('/');
 					const std::string prefix = slash == std::string::npos ? "" : c_name.substr(0, slash);
 					const auto cur_ts = matdata["techniqueSet->name"].is_string() ? matdata["techniqueSet->name"].get<std::string>() : "";
+					// v84: world unlit_replace (signs, posters, emissive panels) went to the LIT opaque techset; with no lightmap (index 31) they drew black.
+					//      Use Ghosts' world unlit replace techset and keep the IW7 tint (HDR values like 10 clamped to a displayable 1.4).
+					if (!prefix.empty() && prefix[0] == 'w' && techset.find("unlit_replace") != std::string::npos)
+					{
+						std::string col = "blank";
+						for (const auto& im : material_images) if (im["typeHash"].get<std::size_t>() == 2695565377u) col = im["image"].get<std::string>();
+						float t[3] = { 1.0f, 1.0f, 1.0f };
+						for (int ci = 0; ci < asset->constantCount && asset->constantTable; ci++)
+							if (std::strncmp(asset->constantTable[ci].name, "colorTint", 9) == 0 && asset->constantTable[ci].name[9] == 0) { for (int c = 0; c < 3; c++) t[c] = asset->constantTable[ci].literal[c]; }
+						const float mx = std::max({ t[0], t[1], t[2], 0.0001f });
+						const float k = std::min(mx, 1.4f) / mx;
+						matdata["techniqueSet->name"] = "wc_unlit_replace_lin_ct_bl_nfwpf_iw6";
+						matdata["sortKey"] = 2;
+						matdata["cameraRegion"] = 0;
+						matdata["materialType"] = 35;
+						ordered_json c1; c1["name"] = "colorTint"; c1["nameHash"] = 3054254906u; c1["literal"] = { t[0] * k, t[1] * k, t[2] * k, 1.0f };
+						matdata["constantTable"] = ordered_json::array({ c1 });
+						ordered_json t1; t1["image"] = col; t1["semantic"] = 2; t1["samplerState"] = 19; t1["lastCharacter"] = 112; t1["firstCharacter"] = 99; t1["typeHash"] = 2695565377u;
+						material_images = ordered_json::array({ t1 });
+					}
+					else
 					// v78: glow cards on static models (lion emblems, light strips) -> Ghosts model unlit blend (mp_dig's lit candle)
 					if (!prefix.empty() && prefix[0] == 'm' && cur_ts == "effect_add_lin_ct_nofog_ndw_bl_blmod_iw6")
 					{
