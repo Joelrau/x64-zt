@@ -229,7 +229,18 @@ namespace zonetool::iw7
 						else if (n.find("_packed") != std::string::npos || n.find("_ng") != std::string::npos) score = -5;
 						if (score == 0 && asset->textureTable[i].semantic == 2) score = 2;
 						if (score == 0) score = 1;
+						// v76: anisotropy (_a), occlusion (_o), height (_h), gloss (_sg) and detail maps showed as solid blue/red/green
+						{
+							auto ends = [&](const char* suf) { const size_t l = strlen(suf); return n.size() > l && n.compare(n.size() - l, l, suf) == 0; };
+							if (ends("_a") || ends("_a&") || ends("_o") || ends("_h") || ends("_sg") || ends("_mask") || n.find("detail_") != std::string::npos || n.find("_detail") != std::string::npos) score = -50;
+						}
+						if (asset->textureTable[i].nameHash == 2695565377u && score > -50) score += 10; // v76: the sampler literally named colorMap
 						if (score > best) { best = score; col_name = n; }
+					}
+					if (best <= -50) // v76: no colour image at all -> neutral grey, or the bronze swatch for brass/gold metals
+					{
+						const std::string mn = asset->name ? asset->name : "";
+						col_name = (mn.find("brass") != std::string::npos || mn.find("bronze") != std::string::npos || mn.find("gold") != std::string::npos) ? "metal_bare_bronze_01_c" : "blank";
 					}
 					// v40: images that exist in no loaded zone render solid red
 					static const char* const missing_imgs[] = { "default", "$white", "black", "$gray", "transparent_invisible", "glass_clear_01_c", "koth_grid_03_c", "koth_grid_01_c", "falloff_linear", "vfx_energy_dome_shield_ping", "vfx_energy_beam_nrm" };
@@ -329,7 +340,8 @@ namespace zonetool::iw7
 				}
 
 				// v56: additive glow world materials (IW7 *_add_* techsets) -> Ghosts additive effect techset (additive blend: dark texels add nothing)
-				if (techset.find("_add_") != std::string::npos && techset.find("sky") == std::string::npos && asset->name && std::string(asset->name).find("sky") == std::string::npos && !material_images.empty())
+				const bool distortion = techset.find("distortion") != std::string::npos; // v76: heat/water distortion draws its normal map as colour (purple ripples) -> invisible additive
+				if ((distortion || techset.find("_add_") != std::string::npos) && techset.find("sky") == std::string::npos && asset->name && std::string(asset->name).find("sky") == std::string::npos && !material_images.empty())
 				{
 					const auto glow_img = material_images.back()["image"].get<std::string>();
 					matdata["techniqueSet->name"] = "effect_add_lin_ct_nofog_ndw_bl_blmod_iw6";
@@ -338,7 +350,7 @@ namespace zonetool::iw7
 					matdata["cameraRegion"] = 4;
 					matdata["materialType"] = 0;
 					ordered_json a1; a1["name"] = "textureAtlas"; a1["nameHash"] = 1128936273u; a1["literal"] = { 1.0f, 1.0f, 1.0f, 1.0f };
-					ordered_json a2; a2["name"] = "colorTint"; a2["nameHash"] = 3054254906u; a2["literal"] = { 2.0f, 2.0f, 2.0f, 1.0f };
+					ordered_json a2; a2["name"] = "colorTint"; a2["nameHash"] = 3054254906u; if (distortion) a2["literal"] = { 0.0f, 0.0f, 0.0f, 0.0f }; else a2["literal"] = { 2.0f, 2.0f, 2.0f, 1.0f };
 					ordered_json a3; a3["name"] = "bloomParams"; a3["nameHash"] = 3733414975u; a3["literal"] = { 1.0f, 0.0f, 0.0f, 0.0f };
 					matdata["constantTable"] = ordered_json::array({ a1, a2, a3 });
 					ordered_json gi; gi["image"] = glow_img; gi["semantic"] = 2; gi["samplerState"] = 243;
