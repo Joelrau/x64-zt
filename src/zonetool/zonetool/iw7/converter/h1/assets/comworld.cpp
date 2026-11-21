@@ -52,6 +52,19 @@ namespace zonetool::iw7
 					dst->defName = src->defName;
 				}
 
+				// v62: IW7 keeps light 0 empty and puts the sun at 1/2, H1 treats light 0 as the sun -> the port had no sun colour at all (cold ambient only look)
+				if (asset->primaryLightCount > 1 && new_asset->primaryLights[0].type == static_cast<zonetool::h1::GfxLightType>(0))
+				{
+					for (unsigned int i = 1; i < asset->primaryLightCount; i++)
+					{
+						if (static_cast<int>(new_asset->primaryLights[i].type) == 1)
+						{
+							new_asset->primaryLights[0] = new_asset->primaryLights[i];
+							break;
+						}
+					}
+				}
+
 				COPY_VALUE(primaryLightEnvCount);
 				REINTERPRET_CAST_SAFE(primaryLightEnvs);
 
