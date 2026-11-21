@@ -2,6 +2,7 @@
 #include <std_include.hpp>
 #include "zonetool/iw7/converter/h1/include.hpp"
 #include "gfxworld.hpp"
+#include <map>
 #include <unordered_map>
 #include "clipmap.hpp"
 
@@ -439,6 +440,7 @@ namespace zonetool::iw7
 							if (i < 30 || i % 2000 == 0)
 								ZONETOOL_INFO("v34 surf %u mat=%s mat_sortKey=%u surf_sortKey=%u flags=%u lm=%u", i, (sm && sm->name) ? sm->name : "(null)", msk, (unsigned)s.surfaces[i].sortKey, (unsigned)s.surfaces[i].flags, (unsigned)s.surfaces[i].lightmapIndex);
 						}
+						{ static std::map<std::string, unsigned int> use; static unsigned int total = 0; const auto* sm2 = s.surfaces[i].material; use[(sm2 && sm2->name) ? sm2->name : "(null)"]++; if (++total == asset->surfaceCount) for (const auto& kv : use) ZONETOOL_INFO("v71 matuse %u %s", kv.second, kv.first.c_str()); } // v71: per-material surface counts
 						d.surfaceMaterials[i].fields.tessellation = s.surfaceMaterials ? (static_cast<unsigned __int64>(s.surfaceMaterials[i].fields.tessellation) & 3) : 0;
 					}
 

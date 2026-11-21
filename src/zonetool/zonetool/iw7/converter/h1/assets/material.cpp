@@ -109,7 +109,9 @@ namespace zonetool::iw7
 				// v60: alpha-tested lit materials (palm leaves, plants, fences) have no matching Ghosts atest techset, so draw them alpha-blended (colour map alpha)
 				const std::string og_techset_name = (asset->techniqueSet && asset->techniqueSet->name) ? asset->techniqueSet->name : "";
 				const bool alpha_tested = og_techset_name.find("_atest") != std::string::npos && og_techset_name.find("unlit") == std::string::npos;
-				const bool blended = asset->info.sortKey >= 7 || alpha_tested;
+				const std::string v72_name = asset->name ? asset->name : "";
+				const bool facade_glass = asset->info.sortKey < 7 && v72_name.find("glass") != std::string::npos && (v72_name.find("building") != std::string::npos || v72_name.find("tinted") != std::string::npos || v72_name.find("opaque_02") != std::string::npos); // v72: dark facade glass rendered pitch black; draw it see-through
+				const bool blended = asset->info.sortKey >= 7 || alpha_tested || facade_glass;
 				std::string h1_techset = blended ? "wc_l_sm_ndw_b0c0l0_cltrans_iw6" : "wc_l_sm_ndw_b0c0l0_nfwpf_iw6";
 				if (asset->techniqueSet)
 				{
@@ -120,7 +122,7 @@ namespace zonetool::iw7
 				}
 
 				matdata["gameFlags"] = asset->info.gameFlags; // convert
-				matdata["sortKey"] = (alpha_tested && asset->info.sortKey < 7) ? 7 : convert_sortkey(asset->info.sortKey);
+				matdata["sortKey"] = ((alpha_tested || facade_glass) && asset->info.sortKey < 7) ? 7 : convert_sortkey(asset->info.sortKey);
 				matdata["renderFlags"] = 0; // idk
 
 				matdata["textureAtlasRowCount"] = asset->info.textureAtlasRowCount;
@@ -200,7 +202,9 @@ namespace zonetool::iw7
 					const std::string lname = asset->name ? asset->name : "";
 					const bool is_glass = lname.find("glass") != std::string::npos || og_techset_name.find("blendadd") != std::string::npos || og_techset_name.find("glass") != std::string::npos;
 					ordered_json c1; c1["name"] = "colorTint"; c1["nameHash"] = 3054254906u; // v67: glass was opaque dark; make it see-through
-					if (is_glass) c1["literal"] = { 0.55f, 0.7f, 0.75f, 0.12f }; else c1["literal"] = { 1.0f, 1.0f, 1.0f, 1.0f };
+					bool emissive_img = false; // v70: lit-blend emissive/vista images were far too dark
+					for (auto i = 0; i < asset->textureCount; i++) if (asset->textureTable[i].image && asset->textureTable[i].image->name) { const std::string in = asset->textureTable[i].image->name; if (in.find("skyline") != std::string::npos || in.find("light_line") != std::string::npos || in.find("_e_warm") != std::string::npos) emissive_img = true; }
+					if (facade_glass) c1["literal"] = { 0.08f, 0.2f, 0.26f, 0.55f }; else if (is_glass) c1["literal"] = { 0.55f, 0.7f, 0.75f, 0.12f }; else if (emissive_img) c1["literal"] = { 3.0f, 3.0f, 3.0f, 1.0f }; else c1["literal"] = { 1.0f, 1.0f, 1.0f, 1.0f };
 					ordered_json c2; c2["name"] = "bloomParams"; c2["nameHash"] = 3733414975u; c2["literal"] = { 1.0f, 0.0f, 0.0f, 0.0f };
 					constant_table.push_back(c1); constant_table.push_back(c2);
 				}
@@ -230,6 +234,8 @@ namespace zonetool::iw7
 					// v40: images that exist in no loaded zone render solid red
 					static const char* const missing_imgs[] = { "default", "$white", "black", "$gray", "transparent_invisible", "glass_clear_01_c", "koth_grid_03_c", "koth_grid_01_c", "falloff_linear", "vfx_energy_dome_shield_ping", "vfx_energy_beam_nrm" };
 					for (const auto* mi : missing_imgs) if (col_name == mi) col_name = "blank";
+					// v70: ambient-occlusion-only images ("ng_ambocc_black") are not colour maps; they made whole wall panels render black
+					if (col_name.find("ambocc") != std::string::npos || facade_glass) col_name = "blank";
 					// v45: near-black floor/ground materials render as pitch black with placeholder lighting; use the grey blank so floors are visible
 					// v51: v45 forced-blank for floor/black materials removed (floors were a depth-write issue, not textures)
 					if (blended)
