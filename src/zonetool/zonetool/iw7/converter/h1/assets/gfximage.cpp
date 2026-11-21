@@ -313,7 +313,7 @@ namespace zonetool::iw7
 				{zonetool::iw7::TextureSemantic::TS_THINFILM_MAP, zonetool::h1::IMG_TS::TS_2D},
 				{zonetool::iw7::TextureSemantic::TS_DISPLACEMENT_MAP, zonetool::h1::IMG_TS::TS_DISPLACEMENT_MAP},
 				{zonetool::iw7::TextureSemantic::TS_PARALLAX_MAP, zonetool::h1::IMG_TS::TS_PARALLAX_MAP},
-				{zonetool::iw7::TextureSemantic::TS_COLOR_SPECULAR_MAP, zonetool::h1::IMG_TS::TS_2D},
+				{zonetool::iw7::TextureSemantic::TS_COLOR_SPECULAR_MAP, zonetool::h1::IMG_TS::TS_COLOR_MAP}, // v59: packed colour+spec is a colour map
 				{zonetool::iw7::TextureSemantic::TS_NORMAL_OCCLUSSION_GLOSS_MAP, zonetool::h1::IMG_TS::TS_2D},
 				{zonetool::iw7::TextureSemantic::TS_ALPHA_REVEAL_THICKNESS_MAP, zonetool::h1::IMG_TS::TS_2D},
 			};
@@ -345,7 +345,7 @@ namespace zonetool::iw7
 
 				new_asset->flags = asset->flags & 0x2;
 				new_asset->semantic = mapped_semantic[asset->semantic];
-				new_asset->category = mapped_category[asset->semantic];
+				new_asset->category = (mapped_category.find(static_cast<std::uint8_t>(asset->category)) != mapped_category.end()) ? mapped_category[static_cast<std::uint8_t>(asset->category)] : zonetool::h1::IMG_CATEGORY::IMG_CATEGORY_UNKNOWN; // v59: was keyed by semantic
 
 				COPY_VALUE_CAST(picmip);
 				COPY_VALUE_CAST(cardMemory);
