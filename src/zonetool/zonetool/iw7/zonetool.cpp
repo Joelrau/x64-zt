@@ -159,7 +159,10 @@ namespace zonetool::iw7
 
 		try
 		{
+			DUMP_ASSET_CONVERT(ASSET_TYPE_COMWORLD, comworld, ComWorld);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_IMAGE, gfximage, GfxImage);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_GFXWORLD, gfxworld, GfxWorld);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_MAP_ENTS, mapents, MapEnts);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_MATERIAL, material, Material);
 			//DUMP_ASSET_CONVERT(ASSET_TYPE_XANIMPARTS, xanim, XAnimParts);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_XMODEL, xmodel, XModel);
@@ -1208,8 +1211,33 @@ namespace zonetool::iw7
 					}
 					else if (args[i] == "-dumpzone")
 					{
-						dump_zone(args[i + 1], game::iw7);
-						i++;
+						// -dumpzone <zone>  or  -dumpzone <target> <zone>
+						const auto maybe_target = game::get_mode_from_string(args[i + 1]);
+						if (i + 2 < args.size() && maybe_target != game::none && dump_functions.contains(maybe_target))
+						{
+							asset_type_filter.clear();
+							if (i + 3 < args.size() && args[i + 3].rfind("-", 0) != 0 && args[i + 3] != "_")
+							{
+								for (const auto& type_str : utils::string::split(args[i + 3], ','))
+								{
+									const auto type = type_to_int(type_str);
+									if (type == -1)
+									{
+										ZONETOOL_ERROR("Asset type \"%s\" does not exist", type_str.data());
+										std::quick_exit(EXIT_FAILURE);
+									}
+									asset_type_filter.insert(static_cast<XAssetType>(type));
+								}
+								i++;
+							}
+							dump_zone(args[i + 2], maybe_target);
+							i += 2;
+						}
+						else
+						{
+							dump_zone(args[i + 1], game::iw7);
+							i++;
+						}
 
 						do_exit = true;
 					}
