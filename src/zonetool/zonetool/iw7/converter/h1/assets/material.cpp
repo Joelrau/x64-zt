@@ -382,9 +382,10 @@ namespace zonetool::iw7
 							const float* l = asset->constantTable[ci].literal;
 							const float mx = std::max({ l[0], l[1], l[2] });
 							if (mx <= 0.0f) break;
-							const bool neutral = std::abs(l[0] - l[1]) < 0.02f * mx && std::abs(l[1] - l[2]) < 0.02f * mx;
-							const float target = unlit_glow ? 1.5f : 2.0f;
-							const float k = (neutral ? std::min(mx, target) : target) / mx;
+							// v85: one global IW7->H1 emissive exposure instead of per-material normalising (light bands 0.75 stayed neon-bright,
+							//      LED strips 17 got the same brightness as everything else). E=0.15, peak clamped to 3.
+							constexpr float E = 0.15f;
+							const float k = std::min(mx * E, 3.0f) / mx;
 							a2["literal"] = { l[0] * k, l[1] * k, l[2] * k, 1.0f };
 							break;
 						}
@@ -412,7 +413,7 @@ namespace zonetool::iw7
 						for (int ci = 0; ci < asset->constantCount && asset->constantTable; ci++)
 							if (std::strncmp(asset->constantTable[ci].name, "colorTint", 9) == 0 && asset->constantTable[ci].name[9] == 0) { for (int c = 0; c < 3; c++) t[c] = asset->constantTable[ci].literal[c]; }
 						const float mx = std::max({ t[0], t[1], t[2], 0.0001f });
-						const float k = std::min(mx, 1.4f) / mx;
+						const float k = std::clamp(mx * 0.15f, 0.5f, 1.4f) / mx; // v85: same global emissive exposure (floor 0.5 for untinted signs)
 						matdata["techniqueSet->name"] = "wc_unlit_replace_lin_ct_bl_nfwpf_iw6";
 						matdata["sortKey"] = 2;
 						matdata["cameraRegion"] = 0;
