@@ -106,7 +106,10 @@ namespace zonetool::iw7
 				std::string techset;
 				// v51: IW7 sortKey 2 = opaque world; >= 7 = decal (7/10/15), translucent (24-30), emissive (36+).
 				//      Opaque keeps the depth-writing remap; the rest go to Ghosts' alpha-blended, no-depth-write lit techset.
-				const bool blended = asset->info.sortKey >= 7;
+				// v60: alpha-tested lit materials (palm leaves, plants, fences) have no matching Ghosts atest techset, so draw them alpha-blended (colour map alpha)
+				const std::string og_techset_name = (asset->techniqueSet && asset->techniqueSet->name) ? asset->techniqueSet->name : "";
+				const bool alpha_tested = og_techset_name.find("_atest") != std::string::npos && og_techset_name.find("unlit") == std::string::npos;
+				const bool blended = asset->info.sortKey >= 7 || alpha_tested;
 				std::string h1_techset = blended ? "wc_l_sm_ndw_b0c0l0_cltrans_iw6" : "wc_l_sm_ndw_b0c0l0_nfwpf_iw6";
 				if (asset->techniqueSet)
 				{
@@ -117,7 +120,7 @@ namespace zonetool::iw7
 				}
 
 				matdata["gameFlags"] = asset->info.gameFlags; // convert
-				matdata["sortKey"] = convert_sortkey(asset->info.sortKey);
+				matdata["sortKey"] = (alpha_tested && asset->info.sortKey < 7) ? 7 : convert_sortkey(asset->info.sortKey);
 				matdata["renderFlags"] = 0; // idk
 
 				matdata["textureAtlasRowCount"] = asset->info.textureAtlasRowCount;
