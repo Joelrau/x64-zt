@@ -122,6 +122,52 @@ namespace zonetool::iw7
 					}
 				}
 
+				// v76: IW7 keeps never-cull static models (cullDist 0: lion logos, HAIL sign) out of the cell aabb trees,
+				//      so H1 never draws them. Append every unreferenced static model to the root node of the cells containing it.
+				if (asset->cellTransientInfos && asset->dpvs.smodelCount && asset->dpvs.smodelDrawInsts)
+				{
+					std::vector<bool> referenced(asset->dpvs.smodelCount, false);
+					for (int i = 0; i < cell_count; i++)
+					{
+						for (int j = 0; j < new_asset->aabbTreeCounts[i].aabbTreeCount; j++)
+						{
+							const auto& t = new_asset->aabbTrees[i].aabbTree[j];
+							for (int k = 0; t.smodelIndexes && k < t.smodelIndexCount; k++)
+								if (t.smodelIndexes[k] < referenced.size()) referenced[t.smodelIndexes[k]] = true;
+						}
+					}
+					std::vector<std::vector<unsigned short>> extra(cell_count);
+					int added = 0;
+					for (unsigned int m = 0; m < asset->dpvs.smodelCount; m++)
+					{
+						if (referenced[m]) continue;
+						const float* o = asset->dpvs.smodelDrawInsts[m].placement.origin;
+						bool placed = false;
+						for (int i = 0; i < cell_count; i++)
+						{
+							const auto& b = asset->cells[i].bounds;
+							if (std::abs(o[0] - b.midPoint[0]) <= b.halfSize[0] && std::abs(o[1] - b.midPoint[1]) <= b.halfSize[1] && std::abs(o[2] - b.midPoint[2]) <= b.halfSize[2])
+							{
+								extra[i].push_back(static_cast<unsigned short>(m)); placed = true;
+							}
+						}
+						if (!placed) for (int i = 0; i < cell_count; i++) extra[i].push_back(static_cast<unsigned short>(m));
+						added++;
+					}
+					for (int i = 0; i < cell_count; i++)
+					{
+						if (extra[i].empty() || new_asset->aabbTreeCounts[i].aabbTreeCount <= 0) continue;
+						auto& root = new_asset->aabbTrees[i].aabbTree[0];
+						const int n = root.smodelIndexCount + static_cast<int>(extra[i].size());
+						auto* idx = allocator.allocate_array<unsigned short>(n);
+						for (int k = 0; k < root.smodelIndexCount; k++) idx[k] = root.smodelIndexes[k];
+						for (size_t k = 0; k < extra[i].size(); k++) idx[root.smodelIndexCount + k] = extra[i][k];
+						root.smodelIndexes = idx;
+						root.smodelIndexCount = static_cast<unsigned short>(n);
+					}
+					ZONETOOL_INFO("v76 unreferenced static models added to cells: %d", added);
+				}
+
 				new_asset->cells = allocator.allocate_array<zonetool::h1::GfxCell>(cell_count);
 				for (int i = 0; i < cell_count; i++)
 				{
