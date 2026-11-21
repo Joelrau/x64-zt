@@ -362,6 +362,35 @@ namespace zonetool::iw7
 					material_images = ordered_json::array({ gi });
 				}
 
+				// v77: xmodel materials (mo/, mopw/, mco/, mso/, m/ ...) must use Ghosts *model* techsets: world wc_* techsets have no
+				//      static-model technique, so all 2332 static models (plants, vines, rails, statues, lights) were skipped by the renderer
+				{
+					const auto slash = c_name.find('/');
+					const std::string prefix = slash == std::string::npos ? "" : c_name.substr(0, slash);
+					const auto cur_ts = matdata["techniqueSet->name"].is_string() ? matdata["techniqueSet->name"].get<std::string>() : "";
+					if (!prefix.empty() && prefix[0] == 'm' && cur_ts.rfind("wc_l_sm_ndw_b0c0l0_", 0) == 0)
+					{
+						std::string col = "blank", nml = "$identitynormalmap";
+						for (const auto& im : material_images)
+						{
+							if (im["typeHash"].get<std::size_t>() == 2695565377u) col = im["image"].get<std::string>();
+						}
+						matdata["techniqueSet->name"] = blended ? "mc_l_t0c0n0s0l0_nfwpf_iw6" : "mc_l_sm_r0c0n0s0l0_nfwpf_iw6";
+						matdata["sortKey"] = 2;
+						matdata["cameraRegion"] = 0;
+						matdata["materialType"] = 3;
+						ordered_json c1; c1["name"] = "envMapParms"; c1["nameHash"] = 1033475292u; c1["literal"] = { 0.0f, 1.0f, 2.0f, 2.0f };
+						ordered_json c2; c2["name"] = "colorTint"; c2["nameHash"] = 3054254906u; c2["literal"] = { 1.0f, 1.0f, 1.0f, 1.0f };
+						ordered_json c3; c3["name"] = "reflectionRa"; c3["nameHash"] = 3344177073u; c3["literal"] = { 8096.0f, 0.0f, 0.0f, 0.0f };
+						ordered_json c4; c4["name"] = "bloomParams"; c4["nameHash"] = 3733414975u; c4["literal"] = { 1.0f, 0.0f, 0.0f, 0.0f };
+						matdata["constantTable"] = ordered_json::array({ c1, c2, c3, c4 });
+						ordered_json t1; t1["image"] = "$black"; t1["semantic"] = 8; t1["samplerState"] = 19; t1["lastCharacter"] = 112; t1["firstCharacter"] = 115; t1["typeHash"] = 887934131u;
+						ordered_json t2; t2["image"] = nml; t2["semantic"] = 5; t2["samplerState"] = 19; t2["lastCharacter"] = 112; t2["firstCharacter"] = 110; t2["typeHash"] = 1507003663u;
+						ordered_json t3; t3["image"] = col; t3["semantic"] = 2; t3["samplerState"] = 19; t3["lastCharacter"] = 112; t3["firstCharacter"] = 99; t3["typeHash"] = 2695565377u;
+						material_images = ordered_json::array({ t1, t2, t3 });
+					}
+				}
+
 				matdata["textureTable"] = material_images;
 
 				auto str = matdata.dump(4, ' ', true, nlohmann::detail::error_handler_t::replace);
