@@ -84,9 +84,6 @@ namespace zonetool::convert::iw7_iw8
 
 			switch (type)
 			{
-			case source::ASSET_TYPE_XMODEL_SURFS:
-				target::xsurface::dump(header_as<source::XModelSurfs>(header));
-				break;
 			case source::ASSET_TYPE_XMODEL:
 				target::xmodel::dump(header_as<source::XModel>(header));
 				break;

@@ -743,7 +743,7 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 						indirection.emitType = material::get_smodel_emit_type(const_cast<Material*>(material));
 
 						const auto bounds = info.modelSurfs && s < info.modelSurfs->numsurfs
-							? xsurface::get_bounds(info.modelSurfs->surfs[s])
+							? xsurface::get_bounds(entry.model, info.modelSurfs->surfs[s])
 							: std::bit_cast<target::Bounds>(entry.model->bounds);
 						auto& data = smodels.smodelSurfData[surface];
 						data.boundingBoxData[0] = bounds.midPoint[0];

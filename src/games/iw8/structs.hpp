@@ -4647,6 +4647,13 @@ namespace zonetool::iw8
 		unsigned int numDecalVolumes;
 	}; assert_sizeof(XModelDecalVolumesInfo, 0x10);
 
+	enum XModelFlags : std::uint32_t
+	{
+		XMODEL_FLAG_SKINNED = 0x40000,
+		XMODEL_FLAG_RIGID_VERT_LIST_CHILDREN = 0x80000,
+		XMODEL_FLAG_STREAMED_IMAGES = 0x2000000,
+	};
+
 	struct XModel
 	{
 		const char* name;

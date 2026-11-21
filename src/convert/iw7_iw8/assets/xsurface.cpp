@@ -402,7 +402,7 @@ namespace zonetool::iw7::converter::iw8::xsurface
 			return result;
 		}
 
-		bool convert_surface(const XSurface& surface, target::XSurface* result, std::string& data, utils::memory::allocator& allocator)
+		bool convert_surface(const XModel* model, const XSurface& surface, target::XSurface* result, std::string& data, utils::memory::allocator& allocator)
 		{
 			if (!surface.verts0.packedVerts0 || !surface.triIndices)
 			{
@@ -419,7 +419,7 @@ namespace zonetool::iw7::converter::iw8::xsurface
 			result->rigidVertLists = convert_rigid_vert_lists(surface, allocator);
 			result->childBounds = convert_child_bounds(surface, allocator);
 			std::memcpy(result->partBits.array, surface.partBits, sizeof(result->partBits.array));
-			result->surfBounds = get_bounds(surface);
+			result->surfBounds = get_bounds(model, surface);
 
 			result->sharedVertDataOffset = 0xFFFFFFFF;
 			result->sharedIndexDataOffset = 0xFFFFFFFF;
@@ -433,7 +433,20 @@ namespace zonetool::iw7::converter::iw8::xsurface
 			return true;
 		}
 
-		target::XModelSurfs* convert(const XModelSurfs* asset, std::string& data, utils::memory::allocator& allocator)
+		bool fits(const target::Bounds& inner, const target::Bounds& outer)
+		{
+			for (auto i = 0; i < 3; i++)
+			{
+				if (std::abs(inner.midPoint[i] - outer.midPoint[i]) + inner.halfSize[i] > outer.halfSize[i])
+				{
+					return false;
+				}
+			}
+
+			return true;
+		}
+
+		target::XModelSurfs* convert(const XModel* model, const XModelSurfs* asset, std::string& data, utils::memory::allocator& allocator)
 		{
 			const auto result = allocator.allocate<target::XModelSurfs>();
 			result->name = asset->name;
@@ -449,10 +462,15 @@ namespace zonetool::iw7::converter::iw8::xsurface
 					ZONETOOL_WARNING("Surface %d of xmodelsurfs \"%s\" has the unsupported flags 0x%X", i, asset->name, surface.flags);
 				}
 
-				if (!convert_surface(surface, &result->surfs[i], data, allocator))
+				if (!convert_surface(model, surface, &result->surfs[i], data, allocator))
 				{
 					ZONETOOL_ERROR("Surface %d of xmodelsurfs \"%s\" has no vertex data", i, asset->name);
 					return nullptr;
+				}
+
+				if (!fits(compute_bounds(surface.verts0.packedVerts0, surface.vertCount), result->surfs[i].surfBounds))
+				{
+					ZONETOOL_WARNING("Surface %d of xmodelsurfs \"%s\" does not fit the bounds of xmodel \"%s\"", i, asset->name, model->name);
 				}
 			}
 
@@ -468,12 +486,41 @@ namespace zonetool::iw7::converter::iw8::xsurface
 		}
 	}
 
-	zonetool::iw8::Bounds get_bounds(const XSurface& surface)
+	bool is_skinned(const XModel* model)
 	{
-		return compute_bounds(surface.verts0.packedVerts0, surface.vertCount);
+		for (auto i = 0; i < model->numLods; i++)
+		{
+			const auto* surfs = model->lodInfo[i].modelSurfs;
+			for (auto surf = 0; surfs && surfs->surfs && surf < surfs->numsurfs; surf++)
+			{
+				if (surfs->surfs[surf].blendVertSize)
+				{
+					return true;
+				}
+			}
+		}
+
+		return false;
 	}
 
-	void dump(XModelSurfs* asset)
+	std::optional<zonetool::iw8::Bounds> get_skinned_bounds(const XModel* model)
+	{
+		if (!is_skinned(model))
+		{
+			return {};
+		}
+
+		const auto size = model->radius * 1.5f; // TODO: stock rule (all skinned mp_rust models), loader code is not found
+		return zonetool::iw8::Bounds{ { 0.0f, 0.0f, 0.0f }, { size, size, size } };
+	}
+
+	zonetool::iw8::Bounds get_bounds(const XModel* model, const XSurface& surface)
+	{
+		const auto skinned_bounds = get_skinned_bounds(model);
+		return skinned_bounds ? *skinned_bounds : compute_bounds(surface.verts0.packedVerts0, surface.vertCount);
+	}
+
+	void dump(const XModel* model, XModelSurfs* asset)
 	{
 		if (!asset || !mark_dumped(ASSET_TYPE_XMODEL_SURFS, asset->name))
 		{
@@ -482,7 +529,7 @@ namespace zonetool::iw7::converter::iw8::xsurface
 
 		utils::memory::allocator allocator;
 		std::string data;
-		if (const auto converted = convert(asset, data, allocator))
+		if (const auto converted = convert(model, asset, data, allocator))
 		{
 			zonetool::iw8::xmodel_surfs::dump(converted);
 		}

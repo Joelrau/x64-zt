@@ -94,6 +94,29 @@ namespace zonetool::iw7::converter::iw8::xmodel
 			}
 		}
 
+		std::uint32_t get_surface_flags(const XModel* asset)
+		{
+			std::uint32_t flags = xsurface::is_skinned(asset) ? target::XMODEL_FLAG_SKINNED : 0;
+			for (auto i = 0; i < asset->numLods; i++)
+			{
+				const auto* surfs = asset->lodInfo[i].modelSurfs;
+				if (!surfs || !surfs->surfs)
+				{
+					continue;
+				}
+
+				for (auto surf = 0; surf < surfs->numsurfs; surf++)
+				{
+					if (surfs->surfs[surf].rigidVertListCount > 1)
+					{
+						flags |= target::XMODEL_FLAG_RIGID_VERT_LIST_CHILDREN;
+					}
+				}
+			}
+
+			return flags;
+		}
+
 		target::XModel* convert(const XModel* asset, utils::memory::allocator& allocator)
 		{
 			const auto result = allocator.allocate<target::XModel>();
@@ -111,10 +134,16 @@ namespace zonetool::iw7::converter::iw8::xmodel
 			result->numClientBones = asset->numClientBones;
 			result->flags = asset->flags & ~(XMODEL_FLAG_REACTIVE_MOTION | XMODEL_FLAG_UNK_0x100 | XMODEL_FLAG_UNK_0x200 // stock iw8 never sets 0x100 or 0x200
 				| XMODEL_FLAG_HAS_DEFAULT_MODEL | XMODEL_FLAG_HAS_ANY_DEFAULT_SURFS | XMODEL_FLAG_HAS_ALL_DEFAULT_SURFS);
+			result->flags |= get_surface_flags(asset); // TODO: XMODEL_FLAG_STREAMED_IMAGES rule is not known
 			result->contents = asset->contents;
 			result->scale = asset->scale;
 			result->radius = asset->radius;
 			std::memcpy(&result->bounds, &asset->bounds, sizeof(result->bounds));
+			if (const auto skinned_bounds = xsurface::get_skinned_bounds(asset))
+			{
+				result->bounds = *skinned_bounds;
+			}
+
 			result->edgeLength = asset->edgeLength;
 			std::memcpy(&result->physicsUsageCounter, &asset->physicsUsageCounter, sizeof(result->physicsUsageCounter));
 			std::memcpy(result->noScalePartBits, asset->noScalePartBits, sizeof(result->noScalePartBits));
@@ -153,7 +182,7 @@ namespace zonetool::iw7::converter::iw8::xmodel
 
 		for (auto i = 0; i < asset->numLods; i++)
 		{
-			xsurface::dump(asset->lodInfo[i].modelSurfs);
+			xsurface::dump(asset, asset->lodInfo[i].modelSurfs);
 		}
 	}
 
@@ -174,7 +203,7 @@ namespace zonetool::iw7::converter::iw8::xmodel
 
 		for (auto i = 0; i < asset->numLods; i++)
 		{
-			xsurface::dump(asset->lodInfo[i].modelSurfs);
+			xsurface::dump(asset, asset->lodInfo[i].modelSurfs);
 		}
 
 		return name;

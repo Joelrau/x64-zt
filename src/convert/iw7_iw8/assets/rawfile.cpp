@@ -125,6 +125,19 @@ namespace zonetool::iw7::converter::iw8::rawfile
 			return values;
 		}
 
+		float read_vision_float(const std::unordered_map<std::string, std::string>& values, const std::string& name)
+		{
+			const auto value = values.find(name);
+			if (value == values.end())
+			{
+				return 0.0f;
+			}
+
+			auto text = value->second;
+			std::erase(text, '"');
+			return std::strtof(text.data(), nullptr);
+		}
+
 		std::optional<std::string> convert_clut(const std::unordered_map<std::string, std::string>& values)
 		{
 			const auto value = values.find("clut0Image");
@@ -140,8 +153,37 @@ namespace zonetool::iw7::converter::iw8::rawfile
 			return converted ? std::optional(std::format("\"{}\"", *converted)) : std::nullopt;
 		}
 
+		float get_volumetric_density_scale(const std::unordered_map<std::string, std::string>& values) // iw8 absorption range is 0 to 10
+		{
+			const auto brightness = std::max({read_vision_float(values, "volumetricSunBrightness"), read_vision_float(values, "volumetricSpotBrightness"),
+				read_vision_float(values, "volumetricOmniBrightness"), read_vision_float(values, "volumetricAmbientBrightness")});
+			return std::clamp(read_vision_float(values, "volumetricAbsorption"), std::min(brightness, 1.0f), 1.0f);
+		}
+
 		std::optional<std::string> convert_vision_value(const std::string_view name, const std::unordered_map<std::string, std::string>& values)
 		{
+			if (values.contains(std::string(name)))
+			{
+				const auto density = read_vision_float(values, "volumetricAirDensity");
+				const auto absorption = read_vision_float(values, "volumetricAbsorption");
+				const auto scale = get_volumetric_density_scale(values);
+				if (name == "volumetricAirDensity")
+				{
+					return std::format("\"{}\"", density * scale);
+				}
+
+				if (name == "volumetricAbsorption")
+				{
+					return std::format("\"{}\"", std::max(0.01f * density * (absorption - scale), 0.0f));
+				}
+
+				if (scale > 0.0f && (name == "volumetricSunBrightness" || name == "volumetricSpotBrightness" || name == "volumetricOmniBrightness"
+					|| name == "volumetricAmbientBrightness"))
+				{
+					return std::format("\"{}\"", read_vision_float(values, std::string(name)) / scale);
+				}
+			}
+
 			if (name == "tonemapMode")
 			{
 				return "\"3\""; // IW8 has no filmic tonemap
