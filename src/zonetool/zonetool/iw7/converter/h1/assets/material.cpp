@@ -368,7 +368,23 @@ namespace zonetool::iw7
 					const auto slash = c_name.find('/');
 					const std::string prefix = slash == std::string::npos ? "" : c_name.substr(0, slash);
 					const auto cur_ts = matdata["techniqueSet->name"].is_string() ? matdata["techniqueSet->name"].get<std::string>() : "";
-					if (!prefix.empty() && prefix[0] == 'm' && cur_ts.rfind("wc_l_sm_ndw_b0c0l0_", 0) == 0)
+					// v78: glow cards on static models (lion emblems, light strips) -> Ghosts model unlit blend (mp_dig's lit candle)
+					if (!prefix.empty() && prefix[0] == 'm' && cur_ts == "effect_add_lin_ct_nofog_ndw_bl_blmod_iw6")
+					{
+						ordered_json tint = { 1.0f, 1.0f, 1.0f, 1.0f };
+						for (const auto& c : matdata["constantTable"]) if (c["name"] == "colorTint") tint = c["literal"];
+						matdata["techniqueSet->name"] = "mc_unlit_blend_lin_ct_ndw_bl_abl_cltrans_iw6";
+						matdata["sortKey"] = 31;
+						matdata["cameraRegion"] = 3;
+						matdata["materialType"] = 3;
+						matdata["gameFlags"] = 0;
+						ordered_json c1; c1["name"] = "textureAtlas"; c1["nameHash"] = 1128936273u; c1["literal"] = { 1.0f, 1.0f, 1.0f, 1.0f };
+						ordered_json c2; c2["name"] = "colorTint"; c2["nameHash"] = 3054254906u; c2["literal"] = tint;
+						ordered_json c3; c3["name"] = "bloomParams"; c3["nameHash"] = 3733414975u; c3["literal"] = { 1.4f, 0.0f, 0.0f, 0.0f };
+						matdata["constantTable"] = ordered_json::array({ c1, c2, c3 });
+						for (auto& im : material_images) im["samplerState"] = 19;
+					}
+					else if (!prefix.empty() && prefix[0] == 'm' && cur_ts.rfind("wc_l_sm_ndw_b0c0l0_", 0) == 0)
 					{
 						std::string col = "blank", nml = "$identitynormalmap";
 						for (const auto& im : material_images)
