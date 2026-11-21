@@ -400,8 +400,9 @@ namespace zonetool::iw7
 							}
 							if (all_proxy) dst_inst.placement.scale = 0.0f;
 						}
-						dst_inst.cullDist = src_inst.cullDist;
-						dst_inst.reactiveMotionCullDist = src_inst.cullDist;
+						// v76: IW7 cullDist 0 = never cull; H1 culls at 0 (the lion emblem / HAIL sign never drew)
+						dst_inst.cullDist = src_inst.cullDist ? src_inst.cullDist : 0xFFFF;
+						dst_inst.reactiveMotionCullDist = dst_inst.cullDist;
 						dst_inst.reactiveMotionLOD = 0;
 						dst_inst.lightingHandle = src_inst.lightingHandle;
 						dst_inst.staticModelId = static_cast<unsigned short>(i);
