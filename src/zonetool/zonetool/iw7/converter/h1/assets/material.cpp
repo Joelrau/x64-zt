@@ -398,7 +398,8 @@ namespace zonetool::iw7
 				//      smoke then reads as a soft glow, which is acceptable for a first pass (needs a Ghosts effect blend techset).
 				const auto v102_slash = c_name.find('/');
 				const std::string v102_prefix = v102_slash == std::string::npos ? "" : c_name.substr(0, v102_slash);
-				const bool v102_fx_mat = techset.find("effect") != std::string::npos && techset.find("sky") == std::string::npos
+				constexpr bool v109_fx_mat_on = false; // v109: suspected of the black void on the building right of spawn (bisect)
+				const bool v102_fx_mat = v109_fx_mat_on && techset.find("effect") != std::string::npos && techset.find("sky") == std::string::npos
 					&& (v102_prefix.empty() || (v102_prefix[0] != 'w' && v102_prefix[0] != 'm'));
 				const bool v102_fx_add = v102_fx_mat && (techset.find("_add") != std::string::npos || techset.find("add_") != std::string::npos);
 				if (v102_fx_mat)
