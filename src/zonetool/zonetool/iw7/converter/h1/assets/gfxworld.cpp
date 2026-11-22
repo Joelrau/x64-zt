@@ -466,6 +466,14 @@ namespace zonetool::iw7
 						new_asset->lightGrid.skyLightGridColors.rgb[i][j] = half_float::float_to_half(asset->lightGrid.skyLightGridColors.rgb[i][j]);
 					}
 				}
+				{
+					float v132_d = 0.0f, v132_s = 0.0f;
+					for (unsigned int i = 0; i < 56; i++) for (unsigned int j = 0; j < 3; j++) { v132_d += asset->lightGrid.defaultLightGridColors.rgb[i][j]; v132_s += asset->lightGrid.skyLightGridColors.rgb[i][j]; }
+					filesystem::file v132_f("v132_grid.txt");
+					v132_f.open("wb");
+					v132_f.write(std::string(utils::string::va("iw7 default grid mean %f sky mean %f\n", v132_d / 168.0f, v132_s / 168.0f)));
+					v132_f.close();
+				}
 				// v58: the stub grid had all-zero colours, so static models (STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING) were black
 				// wherever the sun didn't hit them. Give the single grid entry + defaults a flat ambient instead.
 				for (unsigned int i = 0; i < 56; i++)
@@ -473,10 +481,10 @@ namespace zonetool::iw7
 					for (unsigned int j = 0; j < 3; j++)
 					{
 						new_asset->lightGrid.colors[0].rgb[i][j] = 0x3400; // v131: 0.25 (was 0.5): with the toned lightmap (v129) props read far brighter than the world around them
-						if (new_asset->lightGrid.defaultLightGridColors.rgb[i][j] == 0)
-							new_asset->lightGrid.defaultLightGridColors.rgb[i][j] = half_float::float_to_half(0.5f);
-						if (new_asset->lightGrid.skyLightGridColors.rgb[i][j] == 0)
-							new_asset->lightGrid.skyLightGridColors.rgb[i][j] = half_float::float_to_half(0.5f);
+						// v132: the gallery statue kept the same brightness when the grid entry halved (v131), so static models read the
+						//       default/sky colours, which were IW7's own HDR values. Same flat 0.25 for all three.
+						new_asset->lightGrid.defaultLightGridColors.rgb[i][j] = 0x3400;
+						new_asset->lightGrid.skyLightGridColors.rgb[i][j] = 0x3400;
 					}
 				}
 				for (auto i = 0; i < 3; i++)
