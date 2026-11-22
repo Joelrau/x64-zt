@@ -519,6 +519,12 @@ namespace zonetool::iw7
 						dst_surf.laf.fields.reflectionProbeIndex = (asset->dpvs.surfacesBounds) ? nearest_probe(asset->dpvs.surfacesBounds[i].bounds.midPoint) : 0;
 						// v81: env 0 has no lights (numIndices 0); env 1 = the sun (as in mp_dig). With 0 the world got no sun light or sun shadows at all.
 						dst_surf.laf.fields.primaryLightEnvIndex = 1;
+						// v123: the vista city far below the map (tower surfaces centred thousands of units down) drew full-sun white; IW7 has it
+						//       in shade/fog. Keep only the baked lightmap there.
+						if (asset->dpvs.surfacesBounds && asset->dpvs.surfacesBounds[i].bounds.midPoint[2] < -1000.0f)
+						{
+							dst_surf.laf.fields.primaryLightEnvIndex = 0;
+						}
 						dst_surf.laf.fields.flags = src_surf.flags; // TODO convert
 					}
 
@@ -567,6 +573,7 @@ namespace zonetool::iw7
 						dst_inst.lightingHandle = src_inst.lightingHandle;
 						dst_inst.staticModelId = static_cast<unsigned short>(i);
 						dst_inst.primaryLightEnvIndex = src_inst.primaryLightEnvIndex;
+						if (src_inst.placement.origin[2] < -1000.0f) dst_inst.primaryLightEnvIndex = 0; // v123: vista city models, no sun
 						dst_inst.reflectionProbeIndex = nearest_probe(src_inst.placement.origin);
 						{
 							const float* o = src_inst.placement.origin;
