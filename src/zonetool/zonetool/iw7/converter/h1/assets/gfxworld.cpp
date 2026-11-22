@@ -420,7 +420,7 @@ namespace zonetool::iw7
 				};
 				{
 					// entry 0: the fallback (models with no floor under them, and missingGridColorIndex)
-					const float q_d0[3] = { 0.6f, 0.6f, 0.6f }, q_d3[3] = { 0.1f, 0.1f, 0.1f };
+					const float q_d0[3] = { 0.45f, 0.45f, 0.45f }, q_d3[3] = { 0.12f, 0.12f, 0.12f };
 					v135_add(q_d0, q_d3);
 				}
 				const auto v129_bc4 = [&](float q_u, float q_v) -> float
@@ -470,7 +470,10 @@ namespace zonetool::iw7
 				};
 				unsigned int v129_shaded = 0, v129_lit = 0, v129_none = 0, v133_grounded = 0;
 				constexpr bool v135_palette = true;
-				constexpr bool v136_seq_handles = true;
+				constexpr bool v136_seq_handles = false; // v136: no change (statics still black with the palette)
+				// v137: with v135's per-model entries every static model drew black (the gun, lit from the grid, did take entry 0), so
+				//       statics don't read colorIndex here; try a palette of one entry that every lookup resolves to
+				constexpr bool v137_per_model = false;
 				constexpr bool v134_one_handle = false; // tested in v134: no visible change
 				constexpr bool v133_ground_lighting = false; // v134: GROUND_LIGHTING (0x20) drew every static model black: our IW6 model techsets take MODEL_LIGHTING from the grid atlas, not the ground colour
 
@@ -781,7 +784,7 @@ namespace zonetool::iw7
 						{
 							float q0[3], q3[3];
 							for (int c = 0; c < 3; c++) { q0[c] = v133_rgb[c] + 0.6f * v133_dir[c]; q3[c] = 0.3f * v133_dir[c]; }
-							v135_index = v135_add(q0, q3);
+							if (v137_per_model) v135_index = v135_add(q0, q3);
 						}
 						dst_inst.reflectionProbeIndex = nearest_probe(src_inst.placement.origin);
 						{
@@ -824,8 +827,7 @@ namespace zonetool::iw7
 						lg.rangeExponent12BitsEncoding = 23;
 						lg.rangeExponent16BitsEncoding = 23;
 						lg.missingGridColorIndex = 0;
-						lg.colorCount = 0; // retail maps keep no colour table; the palette is read only without one
-						lg.colors = nullptr;
+						// v137: keep the one-entry colour table (v135 dropped it)
 					}
 					{
 						const std::string v131_msg = utils::string::va("primary %s, floors %zu, shaded %u, sunlit %u, no floor %u, secondary %s, ground lit %u, palette entries %zu\n", v129_prim.empty() ? "MISSING" : "ok", v129_floors.size(), v129_shaded, v129_lit, v129_none, v133_sec.empty() ? "MISSING" : "ok", v133_grounded, v135_addr.size());
