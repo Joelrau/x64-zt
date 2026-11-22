@@ -854,10 +854,10 @@ namespace zonetool::iw7
 									for (int q_c = 0; q_c < 3; q_c++)
 									{
 										q_c0[q_c] = q_up[q_c] + 0.6f * q_lo[q_c];
-										// quantise in sqrt space, 64 steps up to 4
-										const int q_qv = std::clamp(int(std::lround(std::sqrt(std::max(q_c0[q_c], 0.0f) / 4.0f) * 63.0f)), 0, 63);
-										q_key |= static_cast<unsigned int>(q_qv) << (6 * q_c);
-										const float q_back = (q_qv / 63.0f) * (q_qv / 63.0f) * 4.0f;
+										// quantise in sqrt space, 128 steps up to 4 (v139: was 64)
+										const int q_qv = std::clamp(int(std::lround(std::sqrt(std::max(q_c0[q_c], 0.0f) / 4.0f) * 127.0f)), 0, 127);
+										q_key |= static_cast<unsigned int>(q_qv) << (7 * q_c);
+										const float q_back = (q_qv / 127.0f) * (q_qv / 127.0f) * 4.0f;
 										q_c0[q_c] = q_back;
 										q_c3[q_c] = 0.35f * q_back;
 									}
