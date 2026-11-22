@@ -350,6 +350,38 @@ namespace zonetool::iw7
 					}
 					if (v129_prim.empty()) ZONETOOL_WARNING("v129 model sun: no primary lightmap found (models stay sunlit)");
 				}
+				// v133 ground lighting: static models drew far brighter than the world around them whatever the stub light grid
+				//      held (v131/v132). Our model techset is an IW6 lprobe set, which reads LIGHT_PROBE_AMBIENT = the instance's
+				//      ground lighting (docs/H1_NATIVE.md, IW6_NATIVE.md). Give each model the baked light of the floor under it
+				//      (our H1 secondary at that lightmap texel, upper page + 0.8 x directional page), as fastfile_iw7's ground_light.
+				float v133_last_uv[2] = { 0.0f, 0.0f };
+				std::vector<std::uint16_t> v133_sec;
+				{
+					std::string mapname = asset->name ? asset->name : "";
+					if (const auto sl = mapname.find_last_of("/\\"); sl != std::string::npos) mapname = mapname.substr(sl + 1);
+					if (const auto dt = mapname.find('.'); dt != std::string::npos) mapname = mapname.substr(0, dt);
+					const std::string rel = "iw7_assets\\" + mapname + "\\_lightmap0_secondary.h1Image";
+					for (const auto& cand : { "..\\mwr_game_files\\" + rel, "..\\..\\mwr_game_files\\" + rel, std::string("C:\\Users\\Shadow\\Documents\\mwr_game_files\\") + rel })
+					{
+						std::ifstream pf(cand, std::ios::binary);
+						if (!pf.is_open()) continue;
+						std::string all((std::istreambuf_iterator<char>(pf)), std::istreambuf_iterator<char>());
+						const std::size_t bytes = 1024u * 4096u * 8u;
+						if (all.size() < bytes) continue;
+						v133_sec.resize(bytes / 2);
+						std::memcpy(v133_sec.data(), all.data() + (all.size() - bytes), bytes);
+						break;
+					}
+				}
+				const auto v133_ground = [&](float q_u, float q_v, float* q_rgb) -> bool
+				{
+					if (v133_sec.empty()) return false;
+					const int q_x = std::clamp(int(q_u * 1024.0f), 0, 1023), q_y = std::clamp(int(q_v * 2048.0f), 0, 2047);
+					const std::size_t q_top = (std::size_t(q_y) * 1024 + q_x) * 4, q_bot = (std::size_t(q_y + 2048) * 1024 + q_x) * 4;
+					for (int q_c = 0; q_c < 3; q_c++)
+						q_rgb[q_c] = half_float::half_to_float(v133_sec[q_top + q_c]) + 0.8f * half_float::half_to_float(v133_sec[q_bot + q_c]);
+					return true;
+				};
 				const auto v129_bc4 = [&](float q_u, float q_v) -> float
 				{
 					const int q_x = std::clamp(int(q_u * v129_pw), 0, int(v129_pw) - 1), q_y = std::clamp(int(q_v * v129_ph), 0, int(v129_ph) - 1);
@@ -391,10 +423,12 @@ namespace zonetool::iw7
 						const float q_u = q_w0 * q_f.uv[0][0] + q_w1 * q_f.uv[1][0] + q_w2 * q_f.uv[2][0];
 						const float q_v = q_w0 * q_f.uv[0][1] + q_w1 * q_f.uv[1][1] + q_w2 * q_f.uv[2][1];
 						q_best = v129_bc4(q_u, q_v);
+						v133_last_uv[0] = q_u; v133_last_uv[1] = q_v;
 					}
 					return q_best;
 				};
-				unsigned int v129_shaded = 0, v129_lit = 0, v129_none = 0;
+				unsigned int v129_shaded = 0, v129_lit = 0, v129_none = 0, v133_grounded = 0;
+				constexpr bool v133_ground_lighting = true;
 
 				// lightmaps: STUB (none)
 				new_asset->draw.lightmapCount = 1;
@@ -694,6 +728,10 @@ namespace zonetool::iw7
 							else if (sv < 0.5f) { dst_inst.primaryLightEnvIndex = 0; v129_shaded++; }
 							else v129_lit++;
 						}
+						bool v133_has_ground = false;
+						float v133_rgb[3] = { 0.0f, 0.0f, 0.0f };
+						if (v133_ground_lighting && v129_sun_at(src_inst.placement.origin) >= 0.0f)
+							v133_has_ground = v133_ground(v133_last_uv[0], v133_last_uv[1], v133_rgb);
 						dst_inst.reflectionProbeIndex = nearest_probe(src_inst.placement.origin);
 						{
 							const float* o = src_inst.placement.origin;
@@ -711,11 +749,18 @@ namespace zonetool::iw7
 							| zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING;
 						d.smodelLightingInsts[i].ambientLightingInfo.colorIndex = 0;
 						d.smodelLightingInsts[i].ambientLightingInfo.primaryLightWeight = 1.0f;
+						if (v133_has_ground)
+						{
+							dst_inst.flags = zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_SCALE_9 | zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_GROUND_LIGHTING;
+							for (int c = 0; c < 3; c++) d.smodelLightingInsts[i].ambientLightingInfo.groundLighting.array[c] = half_float::float_to_half(v133_rgb[c]);
+							d.smodelLightingInsts[i].ambientLightingInfo.groundLighting.array[3] = half_float::float_to_half(1.0f);
+							v133_grounded++;
+						}
 					}
 
 					ZONETOOL_INFO("v129 model sun: %u static models shaded, %u sunlit, %u with no floor found", v129_shaded, v129_lit, v129_none);
 					{
-						const std::string v131_msg = utils::string::va("primary %s, floors %zu, shaded %u, sunlit %u, no floor %u\n", v129_prim.empty() ? "MISSING" : "ok", v129_floors.size(), v129_shaded, v129_lit, v129_none);
+						const std::string v131_msg = utils::string::va("primary %s, floors %zu, shaded %u, sunlit %u, no floor %u, secondary %s, ground lit %u\n", v129_prim.empty() ? "MISSING" : "ok", v129_floors.size(), v129_shaded, v129_lit, v129_none, v133_sec.empty() ? "MISSING" : "ok", v133_grounded);
 						filesystem::file v131_f("v129_model_sun.txt");
 						v131_f.open("wb");
 						v131_f.write(v131_msg);
