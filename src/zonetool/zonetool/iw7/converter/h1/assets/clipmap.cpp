@@ -58,6 +58,7 @@ namespace zonetool::iw7
 					std::vector<unsigned short> tri_indices;
 					bool overflow = false;
 					unsigned long long dropped = 0;
+					unsigned long long dropped_small = 0;
 
 					static void bounds_of(const std::vector<unsigned int>& ids, const std::vector<tri_t>& t, float mn[3], float mx[3])
 					{
@@ -251,13 +252,15 @@ namespace zonetool::iw7
 						const float e1[3] = { tri.p[1][0] - tri.p[0][0], tri.p[1][1] - tri.p[0][1], tri.p[1][2] - tri.p[0][2] };
 						const float e2[3] = { tri.p[2][0] - tri.p[0][0], tri.p[2][1] - tri.p[0][1], tri.p[2][2] - tri.p[0][2] };
 						const float nx_ = e1[1] * e2[2] - e1[2] * e2[1], ny_ = e1[2] * e2[0] - e1[0] * e2[2], nz_ = e1[0] * e2[1] - e1[1] * e2[0];
-						if (nx_ * nx_ + ny_ * ny_ + nz_ * nz_ < 1e-6f) continue;
+						// v111: also drop tiny detail triangles (area < 2 units^2): mp_flip went 53 verts past the 256 vertex segments and the
+						//       last material groups (spawn floors among them) lost collision -> players fell through the map
+						if (nx_ * nx_ + ny_ * ny_ + nz_ * nz_ < 16.0f) { b.dropped_small++; continue; }
 						for (int k = 0; k < 3; k++) tri.c[k] = (tri.p[0][k] + tri.p[1][k] + tri.p[2][k]) / 3.0f;
 						b.tris.push_back(tri);
 					}
 				}
 
-				ZONETOOL_INFO("collision triangles: %llu, materials: %llu", static_cast<unsigned long long>(b.tris.size()), static_cast<unsigned long long>(mat_names.size()));
+				ZONETOOL_INFO("collision triangles: %llu, materials: %llu (v111: %llu tiny tris dropped)", static_cast<unsigned long long>(b.tris.size()), static_cast<unsigned long long>(mat_names.size()), b.dropped_small);
 
 				if (b.tris.empty() || mat_names.empty())
 				{
