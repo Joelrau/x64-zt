@@ -1,6 +1,8 @@
 #include <std_include.hpp>
 #include "zonetool/iw7/converter/h1/include.hpp"
 #include "fxeffectdef.hpp"
+#include "particlesystem.hpp"
+#include "createfx.hpp"
 
 #include "zonetool/h1/assets/fxeffectdef.hpp"
 
@@ -566,6 +568,11 @@ namespace zonetool::iw7
 				return written_effects;
 			}
 
+			bool is_fx_emissive_material(const Material* mat)
+			{
+				return is_emissive_material(mat);
+			}
+
 			zonetool::h1::FxEffectDef* convert(FxEffectDef* asset, utils::memory::allocator& allocator)
 			{
 				return convert_filtered(asset, allocator, nullptr, nullptr);
@@ -583,9 +590,20 @@ namespace zonetool::iw7
 
 			void flush()
 			{
-				if (queued_effects.empty())
+				auto& vfx_queue = particlesystem::queued();
+				if (queued_effects.empty() && vfx_queue.empty())
 				{
 					return;
+				}
+
+				// v104 vfx: particle systems share the effects/ namespace; a legacy FX of the same name wins
+				std::vector<ParticleSystemDef*> vfx_list;
+				for (auto* vfx : vfx_queue)
+				{
+					if (vfx && vfx->name && !queued_names.contains(vfx->name))
+					{
+						vfx_list.push_back(vfx);
+					}
 				}
 
 				// v102 fx: fixed point - an effect is alive while it keeps >= 1 element given the other alive effects
@@ -593,6 +611,10 @@ namespace zonetool::iw7
 				for (auto* fx : queued_effects)
 				{
 					alive.insert(fx->name);
+				}
+				for (auto* vfx : vfx_list)
+				{
+					alive.insert(vfx->name);
 				}
 				for (const auto& name : written_effects)
 				{
@@ -608,6 +630,14 @@ namespace zonetool::iw7
 						if (alive.contains(fx->name) && surviving_elems(fx, &alive) == 0)
 						{
 							alive.erase(fx->name);
+							changed = true;
+						}
+					}
+					for (auto* vfx : vfx_list)
+					{
+						if (alive.contains(vfx->name) && particlesystem::surviving_emitters(vfx, &alive, createfx::is_ambient(vfx->name)) == 0)
+						{
+							alive.erase(vfx->name);
 							changed = true;
 						}
 					}
@@ -645,8 +675,46 @@ namespace zonetool::iw7
 
 				ZONETOOL_INFO("v102 fx: %d effects written, %d effects skipped (empty), %d elements skipped", written, empty, dropped_total);
 
+				// v104 vfx: particle systems
+				int vfx_written = 0;
+				int vfx_empty = 0;
+				int vfx_dropped = 0;
+				for (auto* vfx : vfx_list)
+				{
+					const bool ambient = createfx::is_ambient(vfx->name);
+					if (!alive.contains(vfx->name))
+					{
+						vfx_empty++;
+						ZONETOOL_INFO("v104 vfx: %s not written (no emitter maps to H1: beams/decals/geo trails/volumetrics only, or materials/models not in this zone)", vfx->name);
+						continue;
+					}
+
+					try
+					{
+						utils::memory::allocator allocator;
+						int dropped = 0;
+						auto* converted = particlesystem::convert(vfx, allocator, &alive, ambient, &dropped);
+						zonetool::h1::fx_effect_def::dump(converted);
+						written_effects.insert(vfx->name);
+						vfx_written++;
+						vfx_dropped += dropped;
+						ZONETOOL_INFO("v104 vfx: %s -> H1%s (%d emitters: %d looping, %d oneshot, %d skipped)", vfx->name, ambient ? " [createfx ambient]" : "",
+							vfx->numEmitters, converted->elemDefCountLooping, converted->elemDefCountOneShot, dropped);
+					}
+					catch (const std::exception& ex)
+					{
+						ZONETOOL_ERROR("v104 vfx: failed to convert %s: %s", vfx->name, ex.what());
+					}
+				}
+
+				if (!vfx_list.empty())
+				{
+					ZONETOOL_INFO("v104 vfx: %d particle systems written, %d skipped (empty), %d emitters skipped", vfx_written, vfx_empty, vfx_dropped);
+				}
+
 				queued_effects.clear();
 				queued_names.clear();
+				particlesystem::clear_queue();
 			}
 		}
 	}
