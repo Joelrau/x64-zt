@@ -626,6 +626,8 @@ namespace zonetool::iw7
 						ordered_json c4; c4["name"] = "bloomParams"; c4["nameHash"] = 3733414975u; c4["literal"] = { v104_bloom, 0.0f, 0.0f, 0.0f };
 						matdata["constantTable"] = ordered_json::array({ c1, c2, c3, c4 });
 						// sorted by typeHash like the Ghosts material: spec (887934131), normal (1507003663), colour (2695565377)
+						// v106: checked against mp_dig's wc/dig_signs.json (techset 1) and wc/dig_floor_tile_01.json (techset 0): both use
+						//      exactly these 4 constants in this order (the constant buffer offsets are per index) and these 3 textures.
 						ordered_json t1; t1["image"] = "iw7_spec_gloss"; t1["semantic"] = 8; t1["samplerState"] = 19; t1["lastCharacter"] = 112; t1["firstCharacter"] = 115; t1["typeHash"] = 887934131u;
 						ordered_json t2; t2["image"] = "$identitynormalmap"; t2["semantic"] = 5; t2["samplerState"] = 19; t2["lastCharacter"] = 112; t2["firstCharacter"] = 110; t2["typeHash"] = 1507003663u;
 						ordered_json t3; t3["image"] = col; t3["semantic"] = 2; t3["samplerState"] = 19; t3["lastCharacter"] = 112; t3["firstCharacter"] = 99; t3["typeHash"] = 2695565377u;
