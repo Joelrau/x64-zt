@@ -285,6 +285,9 @@ namespace zonetool::iw7
 						//      loaded by w/metal_bare_bronze_01.
 						if (mn.find("copper") != std::string::npos && col_name.find("_packed_cs") != std::string::npos)
 							col_name = "iw7_copper_dark"; // v104: bronze still read as a glowing yellow tube under the sun; flat dark copper (iw7_port2.ps1)
+						// v127: the owner / victory statues are dark bronze in IW7 (user's gallery video); their packed metal map drew bright gold
+						if ((mn.find("owner_statue") != std::string::npos || mn.find("victory_statue") != std::string::npos) && col_name.find("_packed_cs") != std::string::npos)
+							col_name = "iw7_copper_dark";
 					}
 					// v40: images that exist in no loaded zone render solid red
 					static const char* const missing_imgs[] = { "default", "$white", "black", "$gray", "transparent_invisible", "glass_clear_01_c", "koth_grid_03_c", "koth_grid_01_c", "falloff_linear", "vfx_energy_dome_shield_ping", "vfx_energy_beam_nrm" };
