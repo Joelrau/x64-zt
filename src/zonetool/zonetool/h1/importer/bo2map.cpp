@@ -63,7 +63,7 @@ namespace zonetool::h1::importer
 			}
 			std::uint8_t c()
 			{
-				const std::uint8_t v = ok(1) ? b[at] : 0;
+				const auto v = static_cast<std::uint8_t>(ok(1) ? b[at] : 0);
 				at += 1;
 				return v;
 			}
