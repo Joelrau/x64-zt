@@ -98,7 +98,7 @@ namespace zonetool::iw7
 					//      canUseShadowMap 0, physicallyBased 0); the flag selects shadow-mapped spot/omni variants, not sun cascades. Match them.
 					ZONETOOL_INFO("v102 shadows: sun light %u canUseShadowMap was %u -> 0, lightingState %u", i, (unsigned)l.canUseShadowMap, (unsigned)l.lightingState);
 					l.canUseShadowMap = 0;
-					for (int c = 0; c < 3; c++) l.color[c] *= 3.4f; // v99: 2.5 left sunlit marble ~30% darker than the IW7 reference frame
+					for (int c = 0; c < 3; c++) l.color[c] *= 1.4f; // v130: was 3.4 (v99) against the untoned lightmap; v129 folds IW7's tone curve into the lightmap (shade ~3x lower), so the sun drops with it or sunlit props blow out
 					// v96: IW7's sun hue is graded by its own tonemapper; raw in H1 it tinted the cream marble brown/orange.
 					//      Pull 20% toward neutral at the same luminance (IW7 reference frame shows near-white sunlit stone).
 					const float lum = l.color[0] * 0.3f + l.color[1] * 0.59f + l.color[2] * 0.11f;
