@@ -236,6 +236,30 @@ namespace zonetool::iw7
 				}
 			}
 
+			bool is_ambient(const std::string& effect_path)
+			{
+				// v104 vfx: ent fxid -> loadfx path (or a path ending in /fxid when the table misses it)
+				for (const auto& ent : ents)
+				{
+					if (ent.fxid.empty())
+					{
+						continue;
+					}
+					if (ent.fxid == effect_path || effect_path.ends_with("/" + ent.fxid))
+					{
+						return true;
+					}
+					for (const auto& [id, path] : effect_table)
+					{
+						if (id == ent.fxid && path == effect_path)
+						{
+							return true;
+						}
+					}
+				}
+				return false;
+			}
+
 			void dump(ScriptFile* asset)
 			{
 				if (!asset || !asset->name)
@@ -345,7 +369,7 @@ namespace zonetool::iw7
 							else
 							{
 								missing++;
-								const char* why = vfx_names.contains(path) ? "IW7 particle system (vfx), not converted" : "not converted / not in this zone";
+								const char* why = vfx_names.contains(path) ? "IW7 particle system (vfx) with no emitter that maps to H1" : "not converted / not in this zone";
 								fx_gsc += utils::string::va("\t// level._effect[ \"%s\" ] = loadfx( \"%s\" ); // v102 fx: %s\n", id.data(), path.data(), why);
 							}
 						}

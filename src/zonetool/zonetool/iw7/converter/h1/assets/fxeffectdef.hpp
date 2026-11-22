@@ -21,6 +21,9 @@ namespace zonetool::iw7
 
 			// v102 fx: effect names that ended up as H1 effects json (valid loadfx targets)
 			const std::unordered_set<std::string>& converted_effects();
+
+			// v104 vfx: shared with the particle system converter (material goes to the additive emissive techset)
+			bool is_fx_emissive_material(const Material* mat);
 		}
 	}
 }

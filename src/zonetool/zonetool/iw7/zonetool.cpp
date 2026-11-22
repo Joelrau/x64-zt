@@ -163,9 +163,10 @@ namespace zonetool::iw7
 			converter::h1::fxeffectdef::note_dumped(asset->type, get_asset_name(asset));
 			if (asset->type == ASSET_TYPE_VFX)
 			{
-				// v102 fx: IW7 particle systems have no H1 equivalent yet
-				ZONETOOL_INFO("v102 fx: skipping IW7 particle system (vfx) \"%s\"", get_asset_name(asset));
+				// v104 vfx: IW7 particle systems are approximated as H1 FxEffectDefs (queued, written in stop_dumping)
+				if (IS_DEBUG) ZONETOOL_INFO("v104 vfx: queueing IW7 particle system \"%s\"", get_asset_name(asset));
 				converter::h1::createfx::note_vfx(get_asset_name(asset));
+				converter::h1::particlesystem::dump(reinterpret_cast<ParticleSystemDef*>(asset->header.data));
 			}
 
 			DUMP_ASSET_CONVERT(ASSET_TYPE_COMWORLD, comworld, ComWorld);
