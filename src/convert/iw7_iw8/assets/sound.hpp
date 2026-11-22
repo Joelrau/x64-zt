@@ -36,4 +36,5 @@ namespace zonetool::iw7::converter::iw8::sound
 	zonetool::iw8::SndIndexEntry* build_alias_index(const zonetool::iw8::SndAliasList* lists, unsigned short count, utils::memory::allocator& allocator);
 
 	void dump(WeaponCompleteDef* asset);
+	void dump_weapon_bank(const std::string& zone_name);
 }

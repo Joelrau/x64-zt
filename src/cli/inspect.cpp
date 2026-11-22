@@ -1,6 +1,8 @@
 #include <std_include.hpp>
 #include "commands.hpp"
 
+#include <utils/flags.hpp>
+
 namespace zonetool::cli
 {
 	namespace
@@ -83,7 +85,7 @@ namespace zonetool::cli
 				}
 			};
 
-			std::vector<std::jthread> threads(std::clamp(std::thread::hardware_concurrency(), 1u, 8u));
+			std::vector<std::jthread> threads(std::clamp(utils::flags::get_thread_count(), 1u, 8u));
 			for (auto& thread : threads)
 			{
 				thread = std::jthread(worker);

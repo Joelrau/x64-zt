@@ -6,6 +6,8 @@
 
 #include <iw8/assets/gradingclut.hpp>
 
+#include <io/output_cache.hpp>
+
 namespace zonetool::iw7::converter::iw8::gradingclut
 {
 	namespace
@@ -107,10 +109,10 @@ namespace zonetool::iw7::converter::iw8::gradingclut
 			return multiply(to_output, multiply(to_xyz, curve));
 		}
 
+		const matrix to_bt709{{{1.6605, -0.5877, -0.0728}, {-0.1246, 1.1330, -0.0084}, {-0.0182, -0.1006, 1.1187}}};
+
 		color apply_display(color value)
 		{
-			const matrix to_bt709{{{1.6605, -0.5877, -0.0728}, {-0.1246, 1.1330, -0.0084}, {-0.0182, -0.1006, 1.1187}}};
-
 			value = clamp_min(value, 0.0); // TODO: CB0[4].w matrix assumed off
 			for (auto& channel : value)
 			{
@@ -164,7 +166,7 @@ namespace zonetool::iw7::converter::iw8::gradingclut
 			auto output = multiply(to_bt709, value);
 			for (auto& channel : output)
 			{
-				channel = std::pow(std::clamp(channel, 0.0, 1.0), 1.0 / 2.2); // TODO: display mode 0 unproven
+				channel = std::pow(std::clamp(channel, 0.0, 1.0), 1.0 / 2.4);
 			}
 
 			return output;
@@ -175,7 +177,34 @@ namespace zonetool::iw7::converter::iw8::gradingclut
 			return apply_display(apply_aces_rrt(value));
 		}
 
-		color lookup_iw7_clut(const std::vector<std::uint8_t>& texels, const std::size_t size, const color& value) // TODO: display encoded input assumed
+		double apply_filmic(const filmic_curve& curve, const double value)
+		{
+			const auto shoulder = std::pow(curve.shoulder, 0.25);
+			const auto toe = curve.toe * curve.toe;
+			const auto low = (curve.crossover - curve.black_point) * (1.0 - toe);
+			const auto split = low / (low + (curve.white_point - curve.crossover) * (1.0 - shoulder));
+			if (value < curve.crossover)
+			{
+				return split * (1.0 - toe) * (value - curve.black_point) / (curve.crossover - (1.0 - toe) * curve.black_point - toe * value);
+			}
+
+			return ((1.0 - split * (1.0 - shoulder)) * value + split * curve.white_point * (1.0 - shoulder) - curve.crossover)
+				/ (shoulder * value + (1.0 - shoulder) * curve.white_point - curve.crossover);
+		}
+
+		color apply_iw7_tonemap(const filmic_curve& curve, const color& value)
+		{
+			auto output = multiply(to_bt709, value);
+			for (auto& channel : output)
+			{
+				channel = std::clamp(apply_filmic(curve, std::max(channel, 0.0) / 0.18), 0.0, 1.0);
+				channel = std::max(1.055 * std::pow(channel, 1.0 / 2.4) - 0.055, 0.0);
+			}
+
+			return output;
+		}
+
+		color lookup_iw7_clut(const std::vector<std::uint8_t>& texels, const std::size_t size, const color& value)
 		{
 			std::array<std::size_t, 3> lower{};
 			std::array<std::size_t, 3> upper{};
@@ -321,7 +350,122 @@ namespace zonetool::iw7::converter::iw8::gradingclut
 			return {log_value, error};
 		}
 
-		std::vector<std::uint16_t> convert_texels(const std::vector<std::uint8_t>& texels, const std::size_t source_size, const std::size_t size)
+		double rec709_luminance(const color& v)
+		{
+			return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+		}
+
+		double smoothstep(const double value)
+		{
+			return value * value * (3.0 - 2.0 * value);
+		}
+
+		std::array<double, 3> get_band_weights(const grading& values, const double lum) // sub_1405F2EF0
+		{
+			const auto epsilon = 1e-6; // TODO: dword_141438F00 value is not known
+			const auto low_scale = 1.0 / std::max<double>(values.curve_low_max - values.curve_low_max * values.curve_low_min, epsilon);
+			const auto high_base = (1.0 - values.curve_high_min) * (1.0 - values.curve_high_max);
+			const auto high_scale = 1.0 / std::max((1.0 - values.curve_high_max) - high_base, epsilon);
+			const auto mid_scale = 1.0 / std::max<double>(values.curve_mid_falloff, epsilon);
+
+			const auto low = 1.0 - smoothstep(std::clamp((lum - values.curve_low_min) * low_scale, 0.0, 1.0));
+			const auto high = smoothstep(std::clamp((lum - high_base) * high_scale, 0.0, 1.0));
+			const auto mid = 1.0001 - smoothstep(std::clamp((std::abs(lum - values.curve_mid_midpoint) - values.curve_mid_range) * mid_scale, 0.0, 1.0));
+			const auto sum = low + mid + high;
+			return {low / sum, mid / sum, high / sum};
+		}
+
+		color apply_band(const lmh_band& band, const double preserve_luminance, const color& value)
+		{
+			const auto saturation = 1.0 + band.saturation / 100.0; // TODO: mapping fits one capture only
+			color scaled{};
+			color gamma{};
+			for (auto i = 0u; i < 3; i++)
+			{
+				scaled[i] = value[i] * band.scale[i];
+				gamma[i] = std::pow(scaled[i], std::exp2(-0.03 * band.balance[i])); // TODO: mapping fits one capture only
+			}
+
+			const auto gamma_luminance = rec709_luminance(gamma);
+			const auto ratio = gamma_luminance < 0.001961 ? 0.0 : rec709_luminance(scaled) / gamma_luminance;
+			for (auto& channel : gamma)
+			{
+				channel *= ratio * preserve_luminance + (1.0 - preserve_luminance);
+			}
+
+			const auto luminance = rec709_luminance(gamma);
+			color result{};
+			for (auto i = 0u; i < 3; i++)
+			{
+				result[i] = luminance + saturation * (gamma[i] - luminance);
+			}
+
+			return result;
+		}
+
+		color apply_levels(const grading& values, color value) // r_blacklevel is a user setting and is not applied
+		{
+			const auto in_scale = 255.0 / std::max(values.levels_in_max - values.levels_in_min, 1.0f);
+			const auto out_scale = (values.levels_out_max - values.levels_out_min) / 255.0; // TODO: levels out mapping is not proven
+			for (auto& channel : value)
+			{
+				channel = std::clamp((channel - values.levels_in_min / 255.0) * in_scale, 0.0, 1.0);
+				channel = std::pow(channel, 1.0 / values.levels_in_gamma); // TODO: levels gamma mapping is not proven
+				channel = std::clamp(channel * out_scale + values.levels_out_min / 255.0, 0.0, 1.0);
+			}
+
+			return value;
+		}
+
+		std::vector<std::uint8_t> apply_iw7_grading(const std::vector<std::uint8_t>& texels, const std::size_t source_size, const std::size_t size,
+			const grading& values) // cs_macroclut generate_lmh
+		{
+			const auto source_position = [&](const std::size_t id)
+			{
+				return ((id + 0.5) * source_size / size - 0.5) / (source_size - 1);
+			};
+
+			std::vector<std::uint8_t> graded(size * size * size * 4);
+			for (auto b = 0u; b < size; b++)
+			{
+				for (auto g = 0u; g < size; g++)
+				{
+					for (auto r = 0u; r < size; r++)
+					{
+						const auto value = lookup_iw7_clut(texels, source_size, {source_position(r), source_position(g), source_position(b)});
+						const auto weights = get_band_weights(values, rec709_luminance(value));
+
+						color mixed{};
+						for (auto band = 0u; band < values.bands.size(); band++)
+						{
+							const auto result = apply_band(values.bands[band], values.preserve_luminance, value);
+							for (auto i = 0u; i < 3; i++)
+							{
+								mixed[i] += result[i] * weights[band];
+							}
+						}
+
+						for (auto& channel : mixed)
+						{
+							channel = std::clamp(channel, 0.0, 1.0);
+						}
+
+						const auto leveled = apply_levels(values, mixed);
+						auto* texel = &graded[((b * size + g) * size + r) * 4];
+						for (auto i = 0u; i < 3; i++)
+						{
+							texel[i] = static_cast<std::uint8_t>(std::lround(leveled[i] * 255.0));
+						}
+
+						texel[3] = texel[0];
+					}
+				}
+			}
+
+			return graded;
+		}
+
+		std::vector<std::uint16_t> convert_texels(const std::vector<std::uint8_t>& texels, const std::size_t source_size, const std::size_t size, const filmic_curve& curve)
 		{
 			std::vector<std::uint16_t> converted(size * size * size * 4);
 			std::vector<color> solved(size * size * size);
@@ -333,7 +477,7 @@ namespace zonetool::iw7::converter::iw8::gradingclut
 					{
 						const color encoded{static_cast<double>(r) / (size - 1), static_cast<double>(g) / (size - 1), static_cast<double>(b) / (size - 1)};
 						const color linear{pq_decode(encoded[0]) * 1024.0, pq_decode(encoded[1]) * 1024.0, pq_decode(encoded[2]) * 1024.0};
-						const auto graded = lookup_iw7_clut(texels, source_size, apply_tonemap(linear));
+						const auto graded = lookup_iw7_clut(texels, source_size, apply_iw7_tonemap(curve, linear));
 						const auto index = (b * size + g) * size + r;
 
 						color start_log{};
@@ -368,23 +512,29 @@ namespace zonetool::iw7::converter::iw8::gradingclut
 		}
 	}
 
-	std::optional<std::string> dump(const GfxImage* clut)
+	std::optional<std::string> dump(const GfxImage* clut, const grading& values)
 	{
-		static std::unordered_map<std::string, std::optional<std::string>> converted;
-		if (const auto entry = converted.find(clut->name); entry != converted.end())
+		static std::unordered_map<std::uint64_t, std::optional<std::string>> converted;
+		const auto key = fingerprint().add(clut->name).add_value(values).value();
+		if (const auto entry = converted.find(key); entry != converted.end())
 		{
 			return entry->second;
 		}
 
 		const auto& map = filesystem::get_fastfile();
 		auto name = converted.empty() ? std::format("{}_clut", map) : std::format("{}_{}", map, clut->name);
-		auto& result = converted[clut->name];
+		if (std::ranges::any_of(converted, [&](const auto& entry) { return entry.second == name; }))
+		{
+			name += std::format("_{}", converted.size());
+		}
+
+		auto& result = converted[key];
 
 		const auto size = 32u; // TODO: clutSize from stock mp_rust_clut only
 		const auto image_name = "gradingclut" + name;
-		auto* image = gfximage::dump_grading_clut(clut, image_name, size, [&](const std::vector<std::uint8_t>& texels, const std::size_t source_size)
+		auto* image = gfximage::dump_grading_clut(clut, image_name, size, key, [&](const std::vector<std::uint8_t>& texels, const std::size_t source_size)
 		{
-			return convert_texels(texels, source_size, size);
+			return convert_texels(apply_iw7_grading(texels, source_size, size, values), size, size, values.filmic);
 		});
 		if (!image)
 		{

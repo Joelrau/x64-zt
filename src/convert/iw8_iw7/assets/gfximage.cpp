@@ -6,6 +6,7 @@
 #include <DirectXTex.h>
 
 #include <io/output_cache.hpp>
+#include <utils/flags.hpp>
 #include <utils/io.hpp>
 
 namespace zonetool::iw8::converter::iw7::gfximage
@@ -190,7 +191,7 @@ namespace zonetool::iw8::converter::iw7::gfximage
 				}
 			};
 
-			std::vector<std::jthread> threads(std::max(1u, std::thread::hardware_concurrency()));
+			std::vector<std::jthread> threads(utils::flags::get_thread_count());
 			for (auto& thread : threads)
 			{
 				thread = std::jthread(compress_images);

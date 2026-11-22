@@ -125,6 +125,15 @@ namespace zonetool::iw7::converter::iw8::sound
 
 			return result;
 		}
+
+		utils::memory::allocator weapon_allocator;
+		asset_bank_builder weapon_audio;
+		std::vector<target::SndAliasList> weapon_lists;
+
+		bool has_weapon_alias(const char* name)
+		{
+			return name && std::ranges::any_of(weapon_lists, [&](const auto& list) { return !std::strcmp(list.aliasName, name); });
+		}
 	}
 
 	int convert_volmod(const int index)
@@ -453,12 +462,14 @@ namespace zonetool::iw7::converter::iw8::sound
 			ZONETOOL_WARNING("Sound globals are not loaded, volumes of \"%s\" are not scaled", package->name);
 		}
 
-		utils::memory::allocator allocator;
-		asset_bank_builder audio;
-		std::vector<target::SndAliasList> lists;
+		auto converted_count = 0u;
 		for (std::size_t i = 0; i < names.size(); i++)
 		{
 			const auto name = names[i];
+			if (has_weapon_alias(name.data()))
+			{
+				continue;
+			}
 
 			SndBank* bank{};
 			const auto* list = find_alias_list(name, bank);
@@ -472,7 +483,7 @@ namespace zonetool::iw7::converter::iw8::sound
 			result.aliasName = list->aliasName;
 			result.id = list->id;
 			result.sequence = list->sequence;
-			result.head = allocator.allocate_array<target::SndAlias>(list->count);
+			result.head = weapon_allocator.allocate_array<target::SndAlias>(list->count);
 			for (auto j = 0; j < list->count; j++)
 			{
 				const auto& alias = list->head[j];
@@ -482,7 +493,7 @@ namespace zonetool::iw7::converter::iw8::sound
 					continue;
 				}
 
-				const auto* entry = alias.assetFileName ? audio.add(bank, alias.assetId) : nullptr;
+				const auto* entry = alias.assetFileName ? weapon_audio.add(bank, alias.assetId) : nullptr;
 				if (alias.assetFileName && !entry)
 				{
 					ZONETOOL_WARNING("Sound asset \"%s\" of alias \"%s\" is not in the loaded bank", alias.assetFileName, name.data());
@@ -495,36 +506,12 @@ namespace zonetool::iw7::converter::iw8::sound
 
 			if (result.count)
 			{
-				lists.emplace_back(result);
+				weapon_lists.emplace_back(result);
+				converted_count++;
 			}
 		}
 
-		const auto converted = [&](const char* name)
-		{
-			return name && std::ranges::any_of(lists, [&](const auto& list) { return !std::strcmp(list.aliasName, name); });
-		};
-
-		const auto data = audio.build(package->name);
-
-		const auto key = allocator.allocate<target::StreamKey>();
-		key->name = allocator.duplicate_string(std::format("{}_all_loaded", package->name));
-		key->data.residentData = const_cast<char*>(data.data());
-		key->dataSize = static_cast<unsigned int>(data.size());
-		key->behaviorIndex = 2;
-		key->flags = 0x3;
-
-		const auto bank = allocator.allocate<target::SndBankResident>();
-		bank->bank.name = allocator.duplicate_string(std::format("{}.all", package->name));
-		bank->bank.zone = package->name;
-		bank->bank.gameLanguage = "all";
-		bank->bank.soundLanguage = "all";
-		bank->bank.aliasCount = static_cast<unsigned int>(lists.size());
-		bank->bank.alias = allocator.allocate_array<target::SndAliasList>(lists.size());
-		std::ranges::copy(lists, bank->bank.alias);
-		bank->bank.aliasIndex = build_alias_index(bank->bank.alias, static_cast<unsigned short>(lists.size()), allocator);
-		bank->bank.streamInfo.loadedStreamKey = key;
-		bank->bank.streamInfo.alwaysLoaded = true;
-
+		utils::memory::allocator allocator;
 		const auto result = allocator.allocate<target::WeaponSFXPackage>();
 		result->name = package->name;
 		result->sounds = allocator.allocate<target::WeaponSFXPackageSounds>();
@@ -533,7 +520,7 @@ namespace zonetool::iw7::converter::iw8::sound
 		{
 			for (const auto& [source, slot] : sound_slots)
 			{
-				if (converted(package->sounds->*source))
+				if (has_weapon_alias(package->sounds->*source))
 				{
 					result->sounds->sounds[slot].name = package->sounds->*source;
 				}
@@ -552,17 +539,53 @@ namespace zonetool::iw7::converter::iw8::sound
 		result->sfxImpactType = 1;
 		result->sfxMeleeImpactType = target::MELEE_IMPACT_TYPE_GUN_SMALL;
 
-		auto streamed = filesystem::file("soundbank\\"s + package->name + ".sabs");
+		target::sfx_package::dump(result);
+		add_csv_row("sfxpkg", result->name);
+
+		ZONETOOL_INFO("Converted sfxpkg \"%s\": %u new aliases", package->name, converted_count);
+	}
+
+	void dump_weapon_bank(const std::string& zone_name)
+	{
+		if (weapon_lists.empty())
+		{
+			return;
+		}
+
+		const auto bank_zone = zone_name + "_weapons";
+		const auto data = weapon_audio.build(bank_zone);
+
+		utils::memory::allocator allocator;
+		const auto key = allocator.allocate<target::StreamKey>();
+		key->name = allocator.duplicate_string(std::format("{}_all_loaded", bank_zone));
+		key->data.residentData = const_cast<char*>(data.data());
+		key->dataSize = static_cast<unsigned int>(data.size());
+		key->behaviorIndex = 2;
+		key->flags = 0x3;
+
+		const auto bank = allocator.allocate<target::SndBankResident>();
+		bank->bank.name = allocator.duplicate_string(std::format("{}.all", bank_zone));
+		bank->bank.zone = bank_zone.data();
+		bank->bank.gameLanguage = "all";
+		bank->bank.soundLanguage = "all";
+		bank->bank.aliasCount = static_cast<unsigned int>(weapon_lists.size());
+		bank->bank.alias = weapon_lists.data();
+		bank->bank.aliasIndex = build_alias_index(bank->bank.alias, static_cast<unsigned short>(weapon_lists.size()), allocator);
+		bank->bank.streamInfo.loadedStreamKey = key;
+		bank->bank.streamInfo.alwaysLoaded = true;
+
+		auto streamed = filesystem::file("soundbank\\"s + bank_zone + ".sabs");
 		streamed.open("wb");
-		streamed.write(asset_bank_builder{}.build(package->name));
+		streamed.write(asset_bank_builder{}.build(bank_zone));
 		streamed.close();
 
 		target::stream_key::dump(key);
 		target::sound_bank::dump(bank);
-		target::sfx_package::dump(result);
 		add_csv_row("soundbank", bank->bank.name);
-		add_csv_row("sfxpkg", result->name);
 
-		ZONETOOL_INFO("Converted sfxpkg \"%s\": %zu aliases, %zu bytes of audio", package->name, lists.size(), data.size());
+		ZONETOOL_INFO("Converted weapon soundbank \"%s\": %zu aliases, %zu bytes of audio", bank->bank.name, weapon_lists.size(), data.size());
+
+		weapon_lists.clear();
+		weapon_audio = {};
 	}
 }

@@ -6,6 +6,7 @@
 #include <io/output_cache.hpp>
 
 #include <utils/string.hpp>
+#include <utils/flags.hpp>
 #include <utils/io.hpp>
 #include <utils/cryptography.hpp>
 
@@ -86,7 +87,7 @@ namespace zonetool::imagefile
 	{
 		ZONETOOL_INFO("Compressing images...");
 
-		const auto max_threads = std::thread::hardware_concurrency() * 2;
+		const auto max_threads = utils::flags::get_thread_count() * 2;
 		const auto images_per_thread = std::max(1, static_cast<int>(images.size() / max_threads));
 
 		std::vector<std::thread> threads;

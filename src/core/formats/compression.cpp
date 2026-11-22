@@ -14,6 +14,7 @@
 
 #include <tomcrypt.h>
 
+#include <utils/flags.hpp>
 #include <utils/string.hpp>
 
 #define LZ4_COMPRESSION 4
@@ -271,7 +272,7 @@ namespace compression
 				}
 			};
 
-			const auto thread_count = std::min<std::size_t>(std::max(1u, std::thread::hardware_concurrency()), chunk_count);
+			const auto thread_count = std::min<std::size_t>(utils::flags::get_thread_count(), chunk_count);
 			std::vector<std::thread> threads;
 			for (auto i = 0ull; i < thread_count; i++)
 			{

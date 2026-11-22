@@ -357,7 +357,7 @@ namespace zonetool::iw7
 		{
 			ZONETOOL_INFO("Compressing images...");
 
-			const auto max_threads = std::thread::hardware_concurrency() * 2;
+			const auto max_threads = utils::flags::get_thread_count() * 2;
 			const auto images_per_thread = std::max(1, static_cast<int>(images.size() / max_threads));
 
 			std::vector<std::thread> threads;

@@ -3,6 +3,7 @@
 #include "../include.hpp"
 #include "material.hpp"
 #include "gfximage.hpp"
+#include "rawfile.hpp"
 
 #include <iw8/zone/loader.hpp>
 
@@ -126,6 +127,11 @@ namespace zonetool::iw7::converter::iw8::material
 			return image;
 		}
 
+		target::GfxImage* image_or_reference(target::GfxImage* image, const char* fallback, utils::memory::allocator& allocator)
+		{
+			return image ? image : make_image_reference(fallback, allocator);
+		}
+
 		target::MaterialConstantDef convert_color_tint(const Material* asset)
 		{
 			target::MaterialConstantDef result{};
@@ -242,16 +248,16 @@ namespace zonetool::iw7::converter::iw8::material
 				result->textureCount = 2;
 				result->textureTable = allocator.allocate_array<target::MaterialTextureDef>(2);
 				result->textureTable[0].index = 0;
-				result->textureTable[0].image = gfximage::dump_color_premultiplied(image);
+				result->textureTable[0].image = image_or_reference(gfximage::dump_color_premultiplied(image), "$black", allocator);
 				result->textureTable[1].index = 0x44;
-				result->textureTable[1].image = gfximage::dump_transmission(image, true);
+				result->textureTable[1].image = image_or_reference(gfximage::dump_transmission(image, true), "$white", allocator);
 			}
 			else if (image)
 			{
 				result->textureCount = 1;
 				result->textureTable = allocator.allocate<target::MaterialTextureDef>();
 				result->textureTable->index = 18;
-				result->textureTable->image = gfximage::dump_color(image);
+				result->textureTable->image = image_or_reference(gfximage::dump_color(image), "$black", allocator);
 			}
 
 			result->constantTable = allocate_constants(sprite ? convert_sprite_constants(asset) : std::vector{convert_color_tint(asset)}, result->constantCount, allocator);
@@ -332,12 +338,12 @@ namespace zonetool::iw7::converter::iw8::material
 			return tint ? std::array{tint->literal[0], tint->literal[1], tint->literal[2]} : std::array{1.0f, 1.0f, 1.0f};
 		}
 
-		target::GfxImage* find_color_image(const Material* asset, const bool bake_tint, const unsigned int layer = 0)
+		target::GfxImage* find_color_image(const Material* asset, const bool bake_tint, const unsigned int layer = 0, const bool premultiply_alpha = false)
 		{
 			const auto tint = bake_tint ? get_color_tint(asset, layer) : std::array{1.0f, 1.0f, 1.0f};
 			const auto dump_unpacked_color = [&](GfxImage* image, const GfxImage* specular_gloss)
 			{
-				return specular_gloss ? gfximage::dump_color_specular(image, specular_gloss, tint) : gfximage::dump_color(image, tint);
+				return specular_gloss ? gfximage::dump_color_specular(image, specular_gloss, tint, premultiply_alpha) : gfximage::dump_color(image, tint); // TODO: glass without a specular map is not premultiplied
 			};
 
 			if (const auto texture = find_layer_texture(asset, "colorMap", layer))
@@ -561,7 +567,7 @@ namespace zonetool::iw7::converter::iw8::material
 			result->techniqueSet = allocator.allocate<target::MaterialTechniqueSet>();
 			result->techniqueSet->name = allocator.duplicate_string(techset::get_techset_name({.techset = techset::GENERATED_TECHSET_SKY}));
 
-			const auto image = sky_image ? gfximage::dump_sky(sky_image, rotation_angles) : nullptr;
+			const auto image = sky_image ? gfximage::dump_sky(sky_image, rotation_angles, rawfile::get_sky_color_scale()) : nullptr;
 			result->textureCount = 1;
 			result->textureTable = allocator.allocate<target::MaterialTextureDef>();
 			result->textureTable->index = 0;
@@ -849,13 +855,13 @@ namespace zonetool::iw7::converter::iw8::material
 		{
 			if (const auto mask = find_layer_image(asset, "specOcclusionMap", layer, TS_ALPHA_REVEAL_THICKNESS_MAP))
 			{
-				return gfximage::dump_layer_mask(mask);
+				return image_or_reference(gfximage::dump_layer_mask(mask), "$white", allocator);
 			}
 
 			if (const auto coverage = find_layer_coverage_image(asset, layer))
 			{
 				const auto reveal = find_layer_image(asset, "revealMap", layer, TS_COLOR_MAP);
-				return reveal ? gfximage::dump_layer_mask(coverage, reveal) : gfximage::dump_opacity(coverage);
+				return image_or_reference(reveal ? gfximage::dump_layer_mask(coverage, reveal) : gfximage::dump_opacity(coverage), "$white", allocator);
 			}
 
 			return make_image_reference("$white", allocator);
@@ -993,7 +999,7 @@ namespace zonetool::iw7::converter::iw8::material
 			result->techniqueSet = allocator.allocate<target::MaterialTechniqueSet>();
 			result->techniqueSet->name = donor;
 
-			const auto color = find_color_image(asset, true);
+			const auto color = find_color_image(asset, true, 0, glass); // TODO: IW7 glass emissive 'e' has no input in the glass donors
 			const auto normal = find_normal_image(asset);
 			std::vector<target::MaterialTextureDef> textures
 			{
@@ -1003,7 +1009,7 @@ namespace zonetool::iw7::converter::iw8::material
 
 			if (emissive)
 			{
-				textures.push_back({18, gfximage::dump_color(find_texture(asset, TS_COLOR_MAP, 'e'))});
+				textures.push_back({18, image_or_reference(gfximage::dump_color(find_texture(asset, TS_COLOR_MAP, 'e')), "$black", allocator)});
 			}
 
 			if (opacity || glass)
@@ -1261,7 +1267,7 @@ namespace zonetool::iw7::converter::iw8::material
 			result->textureCount = 1;
 			result->textureTable = allocator.allocate<target::MaterialTextureDef>();
 			result->textureTable->index = 157;
-			result->textureTable->image = gfximage::dump_color(find_texture(asset, TS_COLOR_MAP, 'c'));
+			result->textureTable->image = image_or_reference(gfximage::dump_color(find_texture(asset, TS_COLOR_MAP, 'c')), "$black", allocator);
 
 			const std::array<std::pair<target::MaterialConstantIndex, std::string_view>, 2> sources
 			{{

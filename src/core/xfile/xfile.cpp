@@ -6,6 +6,7 @@
 #include <formats/vcdiff.hpp>
 #include <io/game_files.hpp>
 #include <utils/cryptography.hpp>
+#include <utils/flags.hpp>
 #include <utils/io.hpp>
 
 #include <zlib.h>
@@ -684,7 +685,7 @@ namespace zonetool::xfile
 		template <typename Work>
 		void run_parallel(const std::size_t count, const Work& work)
 		{
-			const auto worker_count = std::max(1u, std::min<unsigned>(std::thread::hardware_concurrency(), static_cast<unsigned>(count)));
+			const auto worker_count = std::max(1u, std::min<unsigned>(utils::flags::get_thread_count(), static_cast<unsigned>(count)));
 			std::atomic_size_t next{};
 
 			const auto run = [&]

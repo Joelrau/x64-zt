@@ -117,7 +117,7 @@ namespace zonetool::iw7::converter::iw8::mapents
 
 		void dump_map_script(const std::string& map)
 		{
-			const auto name = std::format("scripts/mp/maps/{}/{}.gsc", map, map);
+			const auto name = std::format("scripts/{}/maps/{}/{}.gsc", map.starts_with("cp_") ? "cp" : "mp", map, map); // GScr_MainMP_LoadScripts_shared (0xE94369)
 			const auto source = get_map_script(map);
 			std::vector<std::uint8_t> data(source.begin(), source.end());
 
@@ -242,22 +242,108 @@ namespace zonetool::iw7::converter::iw8::mapents
 			return token.size() >= 2 && token.front() == '"' ? token.substr(1, token.size() - 2) : token;
 		}
 
-		std::uint32_t convert_key(const std::string_view source, std::size_t& pos)
+		std::string read_key(const std::string_view source, std::size_t& pos)
 		{
 			const auto key = next_token(source, pos);
 			std::uint32_t id{};
 			if (key.front() == '"' || std::from_chars(key.data(), key.data() + key.size(), id).ptr != key.data() + key.size())
 			{
-				return target_context().token_id(std::string(unquote(key)));
+				return std::string(unquote(key));
 			}
 
 			if (id == 0)
 			{
-				return target_context().token_id(std::string(unquote(next_token(source, pos))));
+				return std::string(unquote(next_token(source, pos)));
 			}
 
-			const auto name = source_context().token_name(id);
+			return source_context().token_name(id);
+		}
+
+		std::uint32_t convert_key(const std::string_view source, std::size_t& pos)
+		{
+			const auto name = read_key(source, pos);
 			return name.starts_with("_id_") ? 0 : target_context().token_id(name);
+		}
+
+		std::vector<std::unordered_map<std::string, std::string>> read_entities(const MapEnts* asset)
+		{
+			std::vector<std::unordered_map<std::string, std::string>> entities;
+			const std::string_view source(asset->entityString, std::strlen(asset->entityString));
+			std::size_t pos{};
+			for (auto token = next_token(source, pos); !token.empty(); token = next_token(source, pos))
+			{
+				if (token != "{")
+				{
+					continue;
+				}
+
+				auto& entity = entities.emplace_back();
+				while (true)
+				{
+					auto peek = pos;
+					const auto next = next_token(source, peek);
+					if (next.empty() || next == "}")
+					{
+						pos = peek;
+						break;
+					}
+
+					const auto key = read_key(source, pos);
+					entity[key] = unquote(next_token(source, pos));
+				}
+			}
+
+			return entities;
+		}
+
+		void make_spawn_points(const MapEnts* asset, target::SpawnPointRecordList& converted, utils::memory::allocator& allocator)
+		{
+			std::vector<target::SpawnPointEntityRecord> spawns;
+			const auto add_spawn = [&](const std::unordered_map<std::string, std::string>& entity, const char* classname)
+			{
+				auto& spawn = spawns.emplace_back();
+				spawn.index = static_cast<unsigned short>(spawns.size() - 1); // TODO: stock index rule unknown
+				spawn.name = static_cast<target::scr_string_t>(SL_GetString(classname));
+				spawn.target = static_cast<target::scr_string_t>(SL_GetString(""));
+				spawn.script_noteworthy = spawn.target;
+				if (const auto origin = entity.find("origin"); origin != entity.end())
+				{
+					std::sscanf(origin->second.data(), "%f %f %f", &spawn.origin[0], &spawn.origin[1], &spawn.origin[2]);
+				}
+				if (const auto angles = entity.find("angles"); angles != entity.end())
+				{
+					std::sscanf(angles->second.data(), "%f %f %f", &spawn.angles[0], &spawn.angles[1], &spawn.angles[2]);
+				}
+			};
+
+			for (const auto& entity : read_entities(asset))
+			{
+				const auto targetname = entity.find("targetname");
+				if (targetname == entity.end())
+				{
+					continue;
+				}
+
+				if (targetname->second == "default_player_start")
+				{
+					for (const auto* classname : {"mp_tdm_spawn_allies_start", "mp_tdm_spawn_axis_start", "mp_dm_spawn_start"})
+					{
+						add_spawn(entity, classname);
+					}
+				}
+				else if (targetname->second == "player_respawn_loc")
+				{
+					for (const auto* classname : {"mp_tdm_spawn", "mp_dm_spawn"})
+					{
+						add_spawn(entity, classname);
+					}
+				}
+			}
+
+			ZONETOOL_INFO("mapents \"%s\": made %zu spawn points from zombies player structs", asset->name, spawns.size());
+			converted.spawnsCount = static_cast<unsigned short>(spawns.size());
+			converted.spawns = allocator.allocate_array<target::SpawnPointEntityRecord>(spawns.size());
+			std::copy(spawns.begin(), spawns.end(), converted.spawns);
 		}
 
 		std::string convert_entity_string(const MapEnts* asset)
@@ -472,8 +558,15 @@ namespace zonetool::iw7::converter::iw8::mapents
 		converted->clientTriggerBlend.blendNodes = convert_array<target::ClientTriggerBlendNode>(asset->clientTriggerBlend.blendNodes,
 			asset->clientTriggerBlend.numClientTriggerBlendNodes, allocator);
 
-		converted->spawnList.spawnsCount = asset->spawnList.spawnsCount;
-		converted->spawnList.spawns = convert_array<target::SpawnPointEntityRecord>(asset->spawnList.spawns, asset->spawnList.spawnsCount, allocator);
+		if (asset->spawnList.spawnsCount)
+		{
+			converted->spawnList.spawnsCount = asset->spawnList.spawnsCount;
+			converted->spawnList.spawns = convert_array<target::SpawnPointEntityRecord>(asset->spawnList.spawns, asset->spawnList.spawnsCount, allocator);
+		}
+		else
+		{
+			make_spawn_points(asset, converted->spawnList, allocator);
+		}
 		convert_splines(asset->splineList, converted->splineList, allocator);
 
 		convert_submodels(asset, converted, allocator); // TODO: havok ents shapes and dynents are not converted

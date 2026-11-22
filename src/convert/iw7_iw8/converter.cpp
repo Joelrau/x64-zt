@@ -155,6 +155,7 @@ namespace zonetool::convert::iw7_iw8
 		{
 			zonetool::iw7::converter::iw8::netconststrings::dump_missing_level_strings();
 			zonetool::iw7::converter::iw8::material::dump_donor_techsets();
+			zonetool::iw7::converter::iw8::sound::dump_weapon_bank(zone_name);
 			zonetool::iw7::converter::iw8::write_csv(zone_name);
 		}
 

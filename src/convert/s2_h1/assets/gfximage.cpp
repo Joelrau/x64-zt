@@ -4,6 +4,7 @@
 #include "gfximage.hpp"
 
 #include <io/output_cache.hpp>
+#include <utils/flags.hpp>
 #include <utils/io.hpp>
 
 #include <DirectXTex.h>
@@ -286,7 +287,7 @@ namespace zonetool::s2::converter::h1::gfximage
 			};
 
 			std::vector<std::thread> threads;
-			for (auto i = 0u; i < std::max(1u, std::thread::hardware_concurrency()); i++)
+			for (auto i = 0u; i < utils::flags::get_thread_count(); i++)
 			{
 				threads.emplace_back(compress_strips);
 			}
