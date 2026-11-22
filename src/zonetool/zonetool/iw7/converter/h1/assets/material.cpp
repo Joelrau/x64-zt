@@ -111,8 +111,16 @@ namespace zonetool::iw7
 				const std::string og_techset_name = (asset->techniqueSet && asset->techniqueSet->name) ? asset->techniqueSet->name : "";
 				const bool alpha_tested = og_techset_name.find("_atest") != std::string::npos && og_techset_name.find("unlit") == std::string::npos;
 				const std::string v72_name = asset->name ? asset->name : "";
-				const bool facade_glass = asset->info.sortKey < 7 && v72_name.find("glass") != std::string::npos && (v72_name.find("building") != std::string::npos || v72_name.find("tinted") != std::string::npos || v72_name.find("opaque_02") != std::string::npos); // v72: dark facade glass rendered pitch black; draw it see-through
-				const bool blended = asset->info.sortKey >= 7 || alpha_tested || facade_glass;
+				// v113: with reflection probes in (v101) draw facade glass as opaque reflective dark glass (IW7's mirror facades) instead
+				//       of the v72 see-through pane, which showed the unlit interiors as a black void (building right of spawn)
+				constexpr bool v113_mirror_glass = true;
+				const bool facade_glass_raw = asset->info.sortKey < 7 && v72_name.find("glass") != std::string::npos && (v72_name.find("building") != std::string::npos || v72_name.find("tinted") != std::string::npos || v72_name.find("opaque_02") != std::string::npos); // v72: dark facade glass rendered pitch black; draw it see-through
+				const bool facade_glass = facade_glass_raw && !v113_mirror_glass;
+				// v113: IW7 world glass on the opaque "replace" techsets (glass_building_*, glass_opaque_*, solar panels: sortKey 7, colour "blank")
+				//       is a mirror facade lit only by reflections; it went to the translucent techset and showed the void behind it
+				const bool mirror_glass = v113_mirror_glass && v72_name.rfind("w/", 0) == 0 && v72_name.find("glass") != std::string::npos
+					&& og_techset_name.find("replace") != std::string::npos;
+				const bool blended = (asset->info.sortKey >= 7 || alpha_tested || facade_glass) && !mirror_glass;
 				std::string h1_techset = blended ? "wc_l_sm_ndw_b0c0l0_cltrans_iw6" : "wc_l_sm_ndw_b0c0l0_nfwpf_iw6";
 				if (asset->techniqueSet)
 				{
@@ -600,11 +608,13 @@ namespace zonetool::iw7
 					const std::string gn = asset->name;
 					const auto has = [&](const char* s) { return gn.find(s) != std::string::npos; };
 					const bool reflective = techset.find("sref") != std::string::npos || has("_ssr") || has("glossy") || has("marble") || has("polished");
-					const bool excluded = has("glass") || has("gold") || has("brass") || has("_no_ssr") || has("decal"); // v95 trims, glass handled elsewhere
-					if (reflective && !excluded)
+					const bool mirror = mirror_glass;
+					const bool excluded = !mirror && (has("glass") || has("gold") || has("brass") || has("_no_ssr") || has("decal")); // v95 trims, glass handled elsewhere
+					if ((reflective || mirror) && !excluded)
 					{
 						std::string col = "blank";
 						for (const auto& im : material_images) if (im["typeHash"].get<std::size_t>() == 2695565377u) col = im["image"].get<std::string>();
+						if (mirror && (col == "blank" || col.empty())) col = "iw7_glass_dark"; // v113: alpha 1 (the b0 PS discards col.a <= 1/255), dark so the probe reflection dominates
 						const bool dull = has("dull");
 						matdata["techniqueSet->name"] = v105_gloss_techset == 1 ? "wc_l_sm_ndw_b0c0n0s0l0_nfwpf_iw6" : "wc_l_sm_r0c0n0s0l0_nfwpf_iw6";
 						matdata["sortKey"] = 2;
@@ -619,7 +629,7 @@ namespace zonetool::iw7
 							matdata["gameFlags"] = 82;
 						}
 						// envMapParms = min / max / fresnel exponent (mp_dig dig_floor_tile_01: 0.2, 1.0, 2.5, 2.0); "dull" variants reflect less
-						ordered_json c1; c1["name"] = "envMapParms"; c1["nameHash"] = 1033475292u; c1["literal"] = dull ? ordered_json{ 0.1f, 0.6f, 2.5f, 2.0f } : ordered_json{ 0.25f, 1.0f, 2.5f, 2.0f };
+						ordered_json c1; c1["name"] = "envMapParms"; c1["nameHash"] = 1033475292u; c1["literal"] = mirror ? ordered_json{ 0.6f, 1.0f, 2.5f, 2.0f } : dull ? ordered_json{ 0.1f, 0.6f, 2.5f, 2.0f } : ordered_json{ 0.25f, 1.0f, 2.5f, 2.0f };
 						ordered_json c2; c2["name"] = "colorTint"; c2["nameHash"] = 3054254906u; c2["literal"] = { 1.0f, 1.0f, 1.0f, 1.0f };
 						ordered_json c3; c3["name"] = "reflectionRa"; c3["nameHash"] = 3344177073u; c3["literal"] = { 8096.0f, 0.0f, 0.0f, 0.0f };
 						// v104 gloss: bloomParams.x is written to the pixel alpha (= bloom mask: out.a = vertexColour.a * bloomParams.x, IW6_SHADERS.md 4/8).
@@ -634,7 +644,7 @@ namespace zonetool::iw7
 						ordered_json t2; t2["image"] = "$identitynormalmap"; t2["semantic"] = 5; t2["samplerState"] = 19; t2["lastCharacter"] = 112; t2["firstCharacter"] = 110; t2["typeHash"] = 1507003663u;
 						ordered_json t3; t3["image"] = col; t3["semantic"] = 2; t3["samplerState"] = 19; t3["lastCharacter"] = 112; t3["firstCharacter"] = 99; t3["typeHash"] = 2695565377u;
 						material_images = ordered_json::array({ t1, t2, t3 });
-						ZONETOOL_INFO("v102 gloss: %s (%s)%s", asset->name, techset.data(), dull ? " dull" : "");
+						ZONETOOL_INFO("v102 gloss: %s (%s)%s", asset->name, techset.data(), mirror ? " mirror glass" : dull ? " dull" : "");
 					}
 				}
 
