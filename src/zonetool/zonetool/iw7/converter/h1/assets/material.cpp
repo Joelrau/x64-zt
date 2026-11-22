@@ -113,6 +113,18 @@ namespace zonetool::iw7
 				const std::string v72_name = asset->name ? asset->name : "";
 				// v113: with reflection probes in (v101) draw facade glass as opaque reflective dark glass (IW7's mirror facades) instead
 				//       of the v72 see-through pane, which showed the unlit interiors as a black void (building right of spawn)
+				// v129: an unlit (emissive) surface's HDR tint as IW7 shows it: through the map's tone curve (vision/mp_flip.vision:
+				//       white 512, crossover 2, shoulder 0.95, toe 0.2; fastfile_iw7 light.rs Vision::tonemap) at the auto exposure
+				//       its lit scene meters to (~6.15), x1.3 for H1's display. Tint 70 panels come out at 1.3, tint 1 signs at 0.25.
+				const auto v129_emissive = [](float v129_x) -> float
+				{
+					constexpr float v129_b = 0.0f, v129_w = 512.0f, v129_c = 2.0f, v129_s = 0.95f, v129_t = 0.2f;
+					const float v129_k = (1.0f - v129_t) * (v129_c - v129_b) / ((1.0f - v129_s) * (v129_w - v129_c) + (1.0f - v129_t) * (v129_c - v129_b));
+					v129_x = std::max(v129_x * 6.15f, 0.0f);
+					const float v129_y = v129_x < v129_c ? v129_k * (1.0f - v129_t) * (v129_x - v129_b) / (v129_c - (1.0f - v129_t) * v129_b - v129_t * v129_x)
+						: v129_k + (1.0f - v129_k) * (v129_x - v129_c) / (v129_s * v129_x + (1.0f - v129_s) * v129_w - v129_c);
+					return 1.3f * std::clamp(v129_y, 0.0f, 1.0f);
+				};
 				constexpr bool v113_mirror_glass = true;
 					// v128: metals get their diffuse taken out of the packed colour map itself (gfximage.cpp v128_unmetal), so the flat
 					//      copper / bronze swatches (v102, v127) are no longer needed
@@ -497,7 +509,7 @@ namespace zonetool::iw7
 						for (int ci = 0; ci < asset->constantCount && asset->constantTable; ci++)
 							if (std::strncmp(asset->constantTable[ci].name, "colorTint", 9) == 0 && asset->constantTable[ci].name[9] == 0) { for (int c = 0; c < 3; c++) t[c] = asset->constantTable[ci].literal[c]; }
 						const float mx = std::max({ t[0], t[1], t[2], 0.0001f });
-						const float k = std::clamp(mx * 0.15f, 0.5f, 1.4f) / mx; // v85: same global emissive exposure (floor 0.5 for untinted signs)
+						const float k = v129_emissive(mx) / mx; // v129: IW7 tone curve (was v85 clamp(0.15 mx, 0.5, 1.4))
 						matdata["techniqueSet->name"] = "wc_unlit_replace_lin_ct_bl_nfwpf_iw6";
 						matdata["sortKey"] = 2;
 						matdata["cameraRegion"] = 0;
@@ -541,7 +553,7 @@ namespace zonetool::iw7
 						for (int ci = 0; ci < asset->constantCount && asset->constantTable; ci++)
 							if (std::strncmp(asset->constantTable[ci].name, "colorTint", 9) == 0 && asset->constantTable[ci].name[9] == 0) { for (int c = 0; c < 3; c++) t[c] = asset->constantTable[ci].literal[c]; }
 						const float mx = std::max({ t[0], t[1], t[2], 0.0001f });
-						const float k = cine ? 1.2f / mx : repl ? std::clamp(mx * 0.15f, 0.5f, 1.4f) / mx : std::min(mx * 0.15f, 3.0f) / mx;
+						const float k = cine ? 1.2f / mx : repl ? v129_emissive(mx) / mx : std::min(mx * 0.15f, 3.0f) / mx;
 						std::string col = "blank";
 						for (const auto& im : material_images) if (im["typeHash"].get<std::size_t>() == 2695565377u) col = im["image"].get<std::string>();
 						matdata["techniqueSet->name"] = "mc_unlit_blend_lin_ct_ndw_bl_abl_cltrans_iw6";

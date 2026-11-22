@@ -350,49 +350,49 @@ namespace zonetool::iw7
 					}
 					if (v129_prim.empty()) ZONETOOL_WARNING("v129 model sun: no primary lightmap found (models stay sunlit)");
 				}
-				const auto v129_bc4 = [&](float u, float v) -> float
+				const auto v129_bc4 = [&](float q_u, float q_v) -> float
 				{
-					const int x = std::clamp(int(u * v129_pw), 0, int(v129_pw) - 1), y = std::clamp(int(v * v129_ph), 0, int(v129_ph) - 1);
-					const unsigned char* b = &v129_prim[(std::size_t(y / 4) * (v129_pw / 4) + std::size_t(x / 4)) * 8];
-					const int r0 = b[0], r1 = b[1];
-					unsigned long long bits = 0;
-					for (int k = 0; k < 6; k++) bits |= static_cast<unsigned long long>(b[2 + k]) << (8 * k);
-					const int sel = static_cast<int>((bits >> (3 * ((y % 4) * 4 + (x % 4)))) & 7);
-					float val;
-					if (sel == 0) val = float(r0);
-					else if (sel == 1) val = float(r1);
-					else if (r0 > r1) val = ((8 - sel) * r0 + (sel - 1) * r1) / 7.0f;
-					else if (sel < 6) val = ((6 - sel) * r0 + (sel - 1) * r1) / 5.0f;
-					else val = sel == 6 ? 0.0f : 255.0f;
-					return val / 255.0f;
+					const int q_x = std::clamp(int(q_u * v129_pw), 0, int(v129_pw) - 1), q_y = std::clamp(int(q_v * v129_ph), 0, int(v129_ph) - 1);
+					const unsigned char* q_b = &v129_prim[(std::size_t(q_y / 4) * (v129_pw / 4) + std::size_t(q_x / 4)) * 8];
+					const int q_r0 = q_b[0], q_r1 = q_b[1];
+					unsigned long long q_bits = 0;
+					for (int q_k = 0; q_k < 6; q_k++) q_bits |= static_cast<unsigned long long>(q_b[2 + q_k]) << (8 * q_k);
+					const int q_sel = static_cast<int>((q_bits >> (3 * ((q_y % 4) * 4 + (q_x % 4)))) & 7);
+					float q_val;
+					if (q_sel == 0) q_val = float(q_r0);
+					else if (q_sel == 1) q_val = float(q_r1);
+					else if (q_r0 > q_r1) q_val = ((8 - q_sel) * q_r0 + (q_sel - 1) * q_r1) / 7.0f;
+					else if (q_sel < 6) q_val = ((6 - q_sel) * q_r0 + (q_sel - 1) * q_r1) / 5.0f;
+					else q_val = q_sel == 6 ? 0.0f : 255.0f;
+					return q_val / 255.0f;
 				};
 				// sun visibility under a point: -1 when no floor or no primary lightmap
-				const auto v129_sun_at = [&](const float* o) -> float
+				const auto v129_sun_at = [&](const float* q_o) -> float
 				{
 					if (v129_prim.empty()) return -1.0f;
-					const long long key = (static_cast<long long>(int(std::floor(o[0] / 256.0f))) << 32) ^ static_cast<unsigned int>(int(std::floor(o[1] / 256.0f)));
-					const auto it = v129_cells.find(key);
-					if (it == v129_cells.end()) return -1.0f;
-					float best_z = -1e30f, best = -1.0f;
-					for (const auto idx : it->second)
+					const long long q_key = (static_cast<long long>(int(std::floor(q_o[0] / 256.0f))) << 32) ^ static_cast<unsigned int>(int(std::floor(q_o[1] / 256.0f)));
+					const auto q_it = v129_cells.find(q_key);
+					if (q_it == v129_cells.end()) return -1.0f;
+					float q_best_z = -1e30f, q_best = -1.0f;
+					for (const auto q_idx : q_it->second)
 					{
-						const auto& f = v129_floors[idx];
-						if (o[0] < f.mn[0] || o[0] > f.mx[0] || o[1] < f.mn[1] || o[1] > f.mx[1]) continue;
-						const float x0 = f.p[0][0], y0 = f.p[0][1], x1 = f.p[1][0], y1 = f.p[1][1], x2 = f.p[2][0], y2 = f.p[2][1];
-						const float den = (y1 - y2) * (x0 - x2) + (x2 - x1) * (y0 - y2);
-						if (std::abs(den) < 1e-6f) continue;
-						const float w0 = ((y1 - y2) * (o[0] - x2) + (x2 - x1) * (o[1] - y2)) / den;
-						const float w1 = ((y2 - y0) * (o[0] - x2) + (x0 - x2) * (o[1] - y2)) / den;
-						const float w2 = 1.0f - w0 - w1;
-						if (w0 < -0.01f || w1 < -0.01f || w2 < -0.01f) continue;
-						const float zf = w0 * f.p[0][2] + w1 * f.p[1][2] + w2 * f.p[2][2];
-						if (zf > o[2] + 8.0f || o[2] - zf > 512.0f || zf <= best_z) continue;
-						best_z = zf;
-						const float u = w0 * f.uv[0][0] + w1 * f.uv[1][0] + w2 * f.uv[2][0];
-						const float v = w0 * f.uv[0][1] + w1 * f.uv[1][1] + w2 * f.uv[2][1];
-						best = v129_bc4(u, v);
+						const auto& q_f = v129_floors[q_idx];
+						if (q_o[0] < q_f.mn[0] || q_o[0] > q_f.mx[0] || q_o[1] < q_f.mn[1] || q_o[1] > q_f.mx[1]) continue;
+						const float q_x0 = q_f.p[0][0], q_y0 = q_f.p[0][1], q_x1 = q_f.p[1][0], q_y1 = q_f.p[1][1], q_x2 = q_f.p[2][0], q_y2 = q_f.p[2][1];
+						const float q_den = (q_y1 - q_y2) * (q_x0 - q_x2) + (q_x2 - q_x1) * (q_y0 - q_y2);
+						if (std::abs(q_den) < 1e-6f) continue;
+						const float q_w0 = ((q_y1 - q_y2) * (q_o[0] - q_x2) + (q_x2 - q_x1) * (q_o[1] - q_y2)) / q_den;
+						const float q_w1 = ((q_y2 - q_y0) * (q_o[0] - q_x2) + (q_x0 - q_x2) * (q_o[1] - q_y2)) / q_den;
+						const float q_w2 = 1.0f - q_w0 - q_w1;
+						if (q_w0 < -0.01f || q_w1 < -0.01f || q_w2 < -0.01f) continue;
+						const float q_zf = q_w0 * q_f.p[0][2] + q_w1 * q_f.p[1][2] + q_w2 * q_f.p[2][2];
+						if (q_zf > q_o[2] + 8.0f || q_o[2] - q_zf > 512.0f || q_zf <= q_best_z) continue;
+						q_best_z = q_zf;
+						const float q_u = q_w0 * q_f.uv[0][0] + q_w1 * q_f.uv[1][0] + q_w2 * q_f.uv[2][0];
+						const float q_v = q_w0 * q_f.uv[0][1] + q_w1 * q_f.uv[1][1] + q_w2 * q_f.uv[2][1];
+						q_best = v129_bc4(q_u, q_v);
 					}
-					return best;
+					return q_best;
 				};
 				unsigned int v129_shaded = 0, v129_lit = 0, v129_none = 0;
 
