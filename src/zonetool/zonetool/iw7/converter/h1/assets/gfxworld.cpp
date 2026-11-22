@@ -290,6 +290,112 @@ namespace zonetool::iw7
 					ZONETOOL_INFO("v121 bake: %u lightmapped triangles exported", tri_total);
 				}
 
+				// v129 model sun: every static model was drawn fully sunlit (primary light env from IW7, no shadow: the model
+				//      techsets' baked visibility comes from the stub light grid), so props under roofs (the gallery statue) glowed.
+				//      Take IW7's baked sun visibility (the BC4 primary lightmap, fastfile_iw7 light.rs: 0.5 = shadow edge) on the
+				//      floor right under each model (the highest upward-facing lightmapped triangle below its origin, as
+				//      fastfile_iw7's ground_light picks it) and drop the sun for models standing in the shade.
+				struct v129_floor_t { float p[3][3]; float uv[3][2]; float mn[2]; float mx[2]; };
+				std::vector<v129_floor_t> v129_floors;
+				std::unordered_map<long long, std::vector<unsigned int>> v129_cells;
+				std::vector<unsigned char> v129_prim;
+				unsigned int v129_pw = 0, v129_ph = 0;
+				{
+					for (unsigned int i = 0; i < asset->surfaceCount; i++)
+					{
+						const auto& su = asset->dpvs.surfaces[i];
+						const auto z = su.transientZone;
+						if (su.lightmapIndex != 0 || z >= zone_count || !asset->draw.transientZones[z] || !asset->draw.transientZones[z]->vd.vertices || !asset->draw.indices) continue;
+						if (!su.material || su.material->info.sortKey >= 7) continue;
+						const auto* vv = asset->draw.transientZones[z]->vd.vertices;
+						for (unsigned int t = 0; t < su.tris.triCount; t++)
+						{
+							v129_floor_t f{};
+							for (int k = 0; k < 3; k++)
+							{
+								const auto& v = vv[su.tris.firstVertex + asset->draw.indices[su.tris.baseIndex + t * 3 + k]];
+								for (int c = 0; c < 3; c++) f.p[k][c] = v.xyz[c];
+								f.uv[k][0] = v.lmapCoord[0]; f.uv[k][1] = v.lmapCoord[1];
+							}
+							const float e1[3] = { f.p[1][0] - f.p[0][0], f.p[1][1] - f.p[0][1], f.p[1][2] - f.p[0][2] };
+							const float e2[3] = { f.p[2][0] - f.p[0][0], f.p[2][1] - f.p[0][1], f.p[2][2] - f.p[0][2] };
+							const float nx = e1[1] * e2[2] - e1[2] * e2[1], ny = e1[2] * e2[0] - e1[0] * e2[2], nz = e1[0] * e2[1] - e1[1] * e2[0];
+							const float nl = std::sqrt(nx * nx + ny * ny + nz * nz);
+							if (nl < 1e-4f || std::abs(nz) / nl < 0.6f) continue;
+							f.mn[0] = std::min({ f.p[0][0], f.p[1][0], f.p[2][0] }); f.mx[0] = std::max({ f.p[0][0], f.p[1][0], f.p[2][0] });
+							f.mn[1] = std::min({ f.p[0][1], f.p[1][1], f.p[2][1] }); f.mx[1] = std::max({ f.p[0][1], f.p[1][1], f.p[2][1] });
+							if (f.mx[0] - f.mn[0] > 8192.0f || f.mx[1] - f.mn[1] > 8192.0f) continue;
+							const auto idx = static_cast<unsigned int>(v129_floors.size());
+							v129_floors.push_back(f);
+							for (int gx = int(std::floor(f.mn[0] / 256.0f)); gx <= int(std::floor(f.mx[0] / 256.0f)); gx++)
+								for (int gy = int(std::floor(f.mn[1] / 256.0f)); gy <= int(std::floor(f.mx[1] / 256.0f)); gy++)
+									v129_cells[(static_cast<long long>(gx) << 32) ^ static_cast<unsigned int>(gy)].push_back(idx);
+						}
+					}
+					std::string mapname = asset->name ? asset->name : "";
+					if (const auto sl = mapname.find_last_of("/\\"); sl != std::string::npos) mapname = mapname.substr(sl + 1);
+					if (const auto dt = mapname.find('.'); dt != std::string::npos) mapname = mapname.substr(0, dt);
+					const std::string rel = "iw7_assets\\" + mapname + "\\_lightmap0_primary.h1Image";
+					for (const auto& cand : { "..\\mwr_game_files\\" + rel, "..\\..\\mwr_game_files\\" + rel, std::string("C:\\Users\\Shadow\\Documents\\mwr_game_files\\") + rel })
+					{
+						std::ifstream pf(cand, std::ios::binary);
+						if (!pf.is_open()) continue;
+						std::string all((std::istreambuf_iterator<char>(pf)), std::istreambuf_iterator<char>());
+						const std::size_t bytes = 2048u * 4096u / 2u;
+						if (all.size() < bytes) continue;
+						v129_prim.assign(all.end() - bytes, all.end());
+						v129_pw = 2048; v129_ph = 4096;
+						ZONETOOL_INFO("v129 model sun: primary lightmap %s, %zu floor triangles", cand.data(), v129_floors.size());
+						break;
+					}
+					if (v129_prim.empty()) ZONETOOL_WARNING("v129 model sun: no primary lightmap found (models stay sunlit)");
+				}
+				const auto v129_bc4 = [&](float u, float v) -> float
+				{
+					const int x = std::clamp(int(u * v129_pw), 0, int(v129_pw) - 1), y = std::clamp(int(v * v129_ph), 0, int(v129_ph) - 1);
+					const unsigned char* b = &v129_prim[(std::size_t(y / 4) * (v129_pw / 4) + std::size_t(x / 4)) * 8];
+					const int r0 = b[0], r1 = b[1];
+					unsigned long long bits = 0;
+					for (int k = 0; k < 6; k++) bits |= static_cast<unsigned long long>(b[2 + k]) << (8 * k);
+					const int sel = static_cast<int>((bits >> (3 * ((y % 4) * 4 + (x % 4)))) & 7);
+					float val;
+					if (sel == 0) val = float(r0);
+					else if (sel == 1) val = float(r1);
+					else if (r0 > r1) val = ((8 - sel) * r0 + (sel - 1) * r1) / 7.0f;
+					else if (sel < 6) val = ((6 - sel) * r0 + (sel - 1) * r1) / 5.0f;
+					else val = sel == 6 ? 0.0f : 255.0f;
+					return val / 255.0f;
+				};
+				// sun visibility under a point: -1 when no floor or no primary lightmap
+				const auto v129_sun_at = [&](const float* o) -> float
+				{
+					if (v129_prim.empty()) return -1.0f;
+					const long long key = (static_cast<long long>(int(std::floor(o[0] / 256.0f))) << 32) ^ static_cast<unsigned int>(int(std::floor(o[1] / 256.0f)));
+					const auto it = v129_cells.find(key);
+					if (it == v129_cells.end()) return -1.0f;
+					float best_z = -1e30f, best = -1.0f;
+					for (const auto idx : it->second)
+					{
+						const auto& f = v129_floors[idx];
+						if (o[0] < f.mn[0] || o[0] > f.mx[0] || o[1] < f.mn[1] || o[1] > f.mx[1]) continue;
+						const float x0 = f.p[0][0], y0 = f.p[0][1], x1 = f.p[1][0], y1 = f.p[1][1], x2 = f.p[2][0], y2 = f.p[2][1];
+						const float den = (y1 - y2) * (x0 - x2) + (x2 - x1) * (y0 - y2);
+						if (std::abs(den) < 1e-6f) continue;
+						const float w0 = ((y1 - y2) * (o[0] - x2) + (x2 - x1) * (o[1] - y2)) / den;
+						const float w1 = ((y2 - y0) * (o[0] - x2) + (x0 - x2) * (o[1] - y2)) / den;
+						const float w2 = 1.0f - w0 - w1;
+						if (w0 < -0.01f || w1 < -0.01f || w2 < -0.01f) continue;
+						const float zf = w0 * f.p[0][2] + w1 * f.p[1][2] + w2 * f.p[2][2];
+						if (zf > o[2] + 8.0f || o[2] - zf > 512.0f || zf <= best_z) continue;
+						best_z = zf;
+						const float u = w0 * f.uv[0][0] + w1 * f.uv[1][0] + w2 * f.uv[2][0];
+						const float v = w0 * f.uv[0][1] + w1 * f.uv[1][1] + w2 * f.uv[2][1];
+						best = v129_bc4(u, v);
+					}
+					return best;
+				};
+				unsigned int v129_shaded = 0, v129_lit = 0, v129_none = 0;
+
 				// lightmaps: STUB (none)
 				new_asset->draw.lightmapCount = 1;
 				new_asset->draw.lightmaps = allocator.allocate_array<zonetool::h1::GfxLightmapArray>(1);
@@ -574,6 +680,12 @@ namespace zonetool::iw7
 						dst_inst.staticModelId = static_cast<unsigned short>(i);
 						dst_inst.primaryLightEnvIndex = src_inst.primaryLightEnvIndex;
 						if (src_inst.placement.origin[2] < -1000.0f) dst_inst.primaryLightEnvIndex = 0; // v123: vista city models, no sun
+						{
+							const float sv = v129_sun_at(src_inst.placement.origin);
+							if (sv < 0.0f) v129_none++;
+							else if (sv < 0.5f) { dst_inst.primaryLightEnvIndex = 0; v129_shaded++; }
+							else v129_lit++;
+						}
 						dst_inst.reflectionProbeIndex = nearest_probe(src_inst.placement.origin);
 						{
 							const float* o = src_inst.placement.origin;
@@ -593,6 +705,7 @@ namespace zonetool::iw7
 						d.smodelLightingInsts[i].ambientLightingInfo.primaryLightWeight = 1.0f;
 					}
 
+					ZONETOOL_INFO("v129 model sun: %u static models shaded, %u sunlit, %u with no floor found", v129_shaded, v129_lit, v129_none);
 					d.surfaceMaterials = allocator.allocate_array<zonetool::h1::GfxDrawSurf>(asset->surfaceCount);
 					std::unordered_map<const void*, unsigned int> mat_index_map;
 					const auto mat_index_of = [&](const void* m) -> unsigned int
