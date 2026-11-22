@@ -2,6 +2,9 @@
 
 #include "../include.hpp"
 #include "xmodel.hpp"
+#include "physcollmap.hpp"
+#include "physpreset.hpp"
+#include "material.hpp"
 #include "xsurface.hpp"
 
 #include <h1/assets/xmodel.hpp>
@@ -18,6 +21,11 @@ namespace zonetool::s2::converter::h1::xmodel
 			const auto stub = allocator.allocate<T>();
 			stub->name = name;
 			return stub;
+		}
+
+		float get_phys_volume(const XModelBase* base)
+		{
+			return base->physCollmap ? physcollmap::get_volume(base->physCollmap) : 8.0f * base->boundsHalfSize[0] * base->boundsHalfSize[1] * base->boundsHalfSize[2];
 		}
 
 		const XModel* resolve_variant(const XModel* asset)
@@ -106,6 +114,76 @@ namespace zonetool::s2::converter::h1::xmodel
 			return {};
 		}
 
+		bool is_wind_material(const Material* material)
+		{
+			return material && material->techniqueSet && material->techniqueSet->name && std::strstr(material->techniqueSet->name, "_fwa");
+		}
+
+		bool has_wind_material(const XModel* source)
+		{
+			if (!source || !source->materialHandles)
+			{
+				return false;
+			}
+
+			for (auto i = 0; i < source->numMaterials; i++)
+			{
+				if (is_wind_material(source->materialHandles[i]))
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		constexpr std::array<float, 4> reactive_motion_tweaks{0.5f, 0.65f, 0.2f, 1.0f};
+
+		xsurface::reactive_parts get_reactive_parts(const XModelBase* base)
+		{
+			const auto cells = [](const float half_size)
+			{
+				return std::clamp(static_cast<int>(std::round(2.0f * half_size / 24.0f)), 1, 4);
+			};
+
+			const auto count_x = cells(base->boundsHalfSize[0]);
+			const auto count_y = cells(base->boundsHalfSize[1]);
+			xsurface::reactive_parts parts;
+			for (auto y = 0; y < count_y; y++)
+			{
+				for (auto x = 0; x < count_x; x++)
+				{
+					parts.push_back({
+						base->boundsMidPoint[0] + base->boundsHalfSize[0] * ((2.0f * x + 1.0f) / count_x - 1.0f),
+						base->boundsMidPoint[1] + base->boundsHalfSize[1] * ((2.0f * y + 1.0f) / count_y - 1.0f),
+						base->boundsMidPoint[2],
+					});
+				}
+			}
+
+			return parts;
+		}
+
+		void set_reactive_motion(const XModelBase* base, zonetool::h1::XModel* model, utils::memory::allocator& allocator)
+		{
+			const auto centers = get_reactive_parts(base);
+			auto* parts = allocator.allocate_array<zonetool::h1::ReactiveMotionModelPart>(centers.size());
+			for (auto i = 0u; i < centers.size(); i++)
+			{
+				std::ranges::copy(centers[i], parts[i].center);
+				parts[i].stiffness = 0.0f;
+			}
+
+			auto* tweaks = allocator.allocate<zonetool::h1::ReactiveMotionModelTweaks>();
+			std::ranges::copy(reactive_motion_tweaks, tweaks->scale);
+
+			model->numReactiveMotionParts = static_cast<unsigned char>(centers.size());
+			model->reactiveMotionParts = parts;
+			model->reactiveMotionTweaks = tweaks;
+			model->reactiveMotionLOD = 6;
+			model->flags |= zonetool::h1::XMODEL_FLAG_ANIMATED_VERTS | zonetool::h1::XMODEL_FLAG_REACTIVEMOTION;
+		}
+
 		int get_lod_count(const XModel* asset, const XModelBase* base)
 		{
 			const auto skip_last = (asset->flags & XMODEL_FLAG_NO_LAST_LOD) && base->numLods > 1;
@@ -117,20 +195,28 @@ namespace zonetool::s2::converter::h1::xmodel
 			const auto source = resolve_variant(asset);
 			const auto lod_count = get_lod_count(asset, source->base);
 			auto vertex_lighting_index = 0u;
+			const auto parts = get_reactive_parts(source->base);
 			for (auto i = 0; i < lod_count; i++)
 			{
 				const auto& lod = source->base->lodInfo[i];
 				std::unordered_map<int, std::uint32_t> vertex_color_surfs;
+				std::unordered_set<int> reactive_surfs;
 				for (auto j = 0; j < lod.numsurfs; j++)
 				{
-					const auto forced_bits = source->materialHandles ? get_forced_vertex_color_bits(source->materialHandles[lod.surfIndex + j]) : std::nullopt;
+					const auto material = source->materialHandles ? source->materialHandles[lod.surfIndex + j] : nullptr;
+					const auto forced_bits = get_forced_vertex_color_bits(material);
 					if (forced_bits)
 					{
 						vertex_color_surfs.emplace(j, *forced_bits);
 					}
+
+					if (is_wind_material(material))
+					{
+						reactive_surfs.insert(j);
+					}
 				}
 
-				xsurface::dump(lod.modelSurfs, vertex_color_surfs, vertex_lighting_index);
+				xsurface::dump(lod.modelSurfs, vertex_color_surfs, reactive_surfs, parts, vertex_lighting_index);
 				for (auto j = 0; j < lod.modelSurfs->numsurfs; j++)
 				{
 					vertex_lighting_index += lod.modelSurfs->surfs[j].vertCount;
@@ -220,14 +306,41 @@ namespace zonetool::s2::converter::h1::xmodel
 			new_asset->collLod = base->collLod;
 			new_asset->numCollSurfs = base->collSurfCount;
 			new_asset->collSurfs = convert_coll_surfs(base, allocator);
+			if (const auto* collmap = physcollmap::reference(base->physCollmap))
+			{
+				new_asset->physCollmap = make_stub<zonetool::h1::PhysCollmap>(collmap, allocator);
+			}
+
+			if (const auto* preset = physpreset::reference(base->physPreset, get_phys_volume(base)))
+			{
+				new_asset->physPreset = make_stub<zonetool::h1::PhysPreset>(preset, allocator);
+			}
+
+			if (base->physRigCount)
+			{
+				ZONETOOL_WARNING("XModel \"%s\" has %u physics rigs that are not converted", asset->name, base->physRigCount);
+			}
+
 			new_asset->contents = base->contents;
 			new_asset->boneInfo = reinterpret_cast<zonetool::h1::XBoneInfo*>(base->boneInfo);
 			new_asset->radius = base->radius;
 			std::memcpy(new_asset->bounds.midPoint, base->boundsMidPoint, sizeof(new_asset->bounds.midPoint));
 			std::memcpy(new_asset->bounds.halfSize, base->boundsHalfSize, sizeof(new_asset->bounds.halfSize));
 			new_asset->invHighMipRadius = make_inv_high_mip_radius(base->radius, new_asset->numsurfs, allocator);
+			if (has_wind_material(source) && !is_skinned(base))
+			{
+				set_reactive_motion(base, new_asset, allocator);
+			}
 
 			return new_asset;
+		}
+	}
+
+	void reference(XModel* asset)
+	{
+		if (asset && !is_dumped(asset->name))
+		{
+			dump(asset);
 		}
 	}
 
@@ -236,13 +349,49 @@ namespace zonetool::s2::converter::h1::xmodel
 		return dumped_models.contains(name);
 	}
 
+	const char* reference_phys_preset(const XModel* asset, const PhysPreset* preset)
+	{
+		const auto source = asset ? resolve_variant(asset) : nullptr;
+		return source && source->base ? physpreset::reference(preset, get_phys_volume(source->base)) : nullptr;
+	}
+
+	bool is_wind_sway(const XModel* asset)
+	{
+		const auto source = asset ? resolve_variant(asset) : nullptr;
+		return source && source->base && has_wind_material(source) && !is_skinned(source->base);
+	}
+
 	void dump(XModel* asset)
 	{
+		const auto source = resolve_variant(asset);
+		if (!source || !source->base)
+		{
+			return;
+		}
+
+		for (auto i = 0; i < get_lod_count(asset, source->base); i++)
+		{
+			const auto surfs = source->base->lodInfo[i].modelSurfs;
+			if (!surfs || !surfs->surfs)
+			{
+				ZONETOOL_WARNING("XModel \"%s\" has lod %d surfs that are not loaded", asset->name, i);
+				return;
+			}
+		}
+
+		for (auto i = 0; source->materialHandles && i < source->numMaterials; i++)
+		{
+			if (source->materialHandles[i])
+			{
+				material::dump(source->materialHandles[i]);
+			}
+		}
+
+		dump_lod_surfs(asset);
 		utils::memory::allocator allocator;
 		if (const auto converted = convert(asset, allocator))
 		{
 			zonetool::h1::xmodel::dump(converted);
-			dump_lod_surfs(asset);
 			add_csv_row("xmodel", asset->name);
 			dumped_models.insert(asset->name);
 		}

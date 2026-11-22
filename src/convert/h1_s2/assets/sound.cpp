@@ -9,45 +9,6 @@ namespace zonetool::h1::converter::s2::sound
 {
 	namespace
 	{
-		constexpr std::array<std::string_view, 145> s2_volume_mod_groups
-		{
-			"default", "hud", "frontend_sfx", "frontend_music", "frontend_music_force", "sp_hit_alert_npc", "music_big",
-			"music_stinger", "music", "music2", "music_emitter", "music_obj_complete", "amb_quad", "amb_dist", "amb_damb",
-			"amb_damb_big", "amb_damb_creepy", "amb_emitter", "amb_emitter_int", "amb_emitter_ext", "physics", "bodyfall",
-			"bodyfall_mech", "foley_plr", "foley_plr_special", "mp_foley_plr", "foley_npc", "foley_mech", "foleymp_npc",
-			"wpn_foley_plr", "wpn_foley_npc", "wpn_foley_mech", "footstep_plr", "footstep_plr_special", "footstep_water_plr",
-			"footstep_npc", "footstep_npc_large", "footstep_npc_huge", "footstep_mech", "mp_footstep_plr", "mp_footstep_npc",
-			"melee_plr", "melee_npc", "melee_hit", "plr_internal", "deaths_door", "chatter_friendly", "chatter_enemy",
-			"chatter_atlas", "vox_friendly", "vox_enemy", "vox_zombie", "vox_zombie_grondo", "vox_plr", "vox_plr_breath",
-			"dialog", "dialog_morale", "dialog_radio", "dialog_critical", "dialog_amb", "dialog_passthru", "destruct",
-			"explosion", "explosion_grenade", "explosion_flashbang", "explosion_rocket", "explosion_car",
-			"explosion_critical", "explosion_morale", "explosion_debris", "impact_critical", "bullet_impact_geo",
-			"bullet_impact_plr", "bullet_impact_npc", "mp_bullet_impact_geo", "mp_bullet_impact_plr",
-			"mp_bullet_impact_npc", "bullet_whizby", "mp_bullet_whizby", "bullet_impact_special", "vehicle_plr",
-			"vehicle_plr_special", "vehicle_npc", "vehicle_npc_special", "vehicle_avm_plr", "vehicle_avm_npc",
-			"wpn_vehicle_plr", "wpn_vehicle_npc", "vehicle", "vehicle_aircraft", "vehicle_pdrone", "vehicle_drone_swarm",
-			"vehicle_amb", "grenadebounce", "mp_grenadebounce", "shellcasings", "mp_shellcasings", "wpn_plr", "mp_wpn_plr",
-			"wpn_plr_special", "wpn_npc", "mp_wpn_npc", "wpn_npc_special", "wpn_projectile", "mp_wpn_projectile",
-			"wpn_npc_mounted", "wpn_npc_mounted_alt", "wpn_plr_shot_special", "wpn_plr_shot", "wpn_plr_mech",
-			"wpn_plr_sub", "wpn_plr_tail", "wpn_npc_shot", "wpn_npc_dist", "wpn_npc_mech", "wpn_npc_sub", "wpn_npc_tail",
-			"tactical_plr", "tactical_npc", "tactical_plr_special", "tactical_npc_special", "prop", "attack_dog",
-			"big_moment", "scripted1", "scripted2", "scripted3", "scripted4", "scripted5", "scripted6", "scripted7",
-			"scripted8", "scripted9", "scripted10", "pa_wet", "pa_dry", "fullvolume", "mp_pre_event", "mp_post_event",
-			"mp_splash_notify", "mp_hit_marker", "zmb_grondo", "zmb_horror_audio_vignette", "mp_perk_quiet", "mw3_legacy",
-		};
-
-		constexpr std::array<std::string_view, 35> s2_dsp_buses
-		{
-			"default", "weapons", "turret_weapons", "weapons_dist", "ambience", "emitters", "quads", "music", "foley",
-			"explosions", "tactical", "tactical_special", "vehicles", "air_vehicles", "int_vehicles_1", "int_vehicles_2",
-			"voices", "voices_critical", "voices_plr", "voices_unfiltered", "voices_soft_occlu", "voices_unoccluded",
-			"animals", "physics", "battlechatter", "interface", "scripted", "scripted1", "scripted2", "scripted3",
-			"scripted4", "scripted5", "unoccluded", "unocclu_no_timescale", "whizbys",
-		};
-
-		static_assert(s2_volume_mod_groups.size() == zonetool::s2::SND_VOLMOD_COUNT);
-		static_assert(s2_dsp_buses.size() == zonetool::s2::SND_DSPBUS_COUNT);
-
 		const std::unordered_map<std::string_view, std::string_view> h1_dsp_bus_renames
 		{
 			{"explosions_critical", "explosions"},
@@ -59,27 +20,15 @@ namespace zonetool::h1::converter::s2::sound
 			return alias.aliasName ? alias.aliasName : "null";
 		}
 
-		template <std::size_t N>
-		std::optional<std::size_t> find_name(const std::array<std::string_view, N>& names, const std::string_view name)
-		{
-			const auto entry = std::ranges::find(names, name);
-			if (entry == names.end())
-			{
-				return {};
-			}
-
-			return static_cast<std::size_t>(entry - names.begin());
-		}
-
 		short convert_volume_mod(const snd_alias_t& alias)
 		{
 			if (alias.volModIndex >= 0 && alias.volModIndex < SND_VOLMOD_COUNT)
 			{
 				const std::string_view name = zonetool::h1::sound::get_vol_mod_name(alias.volModIndex);
 				const auto s2_name = name.starts_with("mw3_") ? std::string_view("mw3_legacy") : name;
-				if (const auto index = find_name(s2_volume_mod_groups, s2_name))
+				if (const auto index = zonetool::s2::sound::get_vol_mod_index_from_name(s2_name); index >= 0)
 				{
-					return static_cast<short>(*index);
+					return index;
 				}
 			}
 
@@ -97,9 +46,9 @@ namespace zonetool::h1::converter::s2::sound
 					name = rename->second;
 				}
 
-				if (const auto index = find_name(s2_dsp_buses, name))
+				if (const auto index = zonetool::s2::sound::get_dsp_bus_index_from_name(name); index >= 0)
 				{
-					return static_cast<unsigned char>(*index);
+					return static_cast<unsigned char>(index);
 				}
 			}
 

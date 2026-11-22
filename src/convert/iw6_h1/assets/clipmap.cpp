@@ -321,8 +321,8 @@ namespace zonetool::iw6
 						h1_asset->dynEntDefList[i][j].linkTo = reinterpret_cast<zonetool::h1::DynEntityLinkToDef*>(asset->dynEntDefList[i][j].linkTo);
 						memcpy(&h1_asset->dynEntDefList[i][j].mass, &asset->dynEntDefList[i][j].mass, sizeof(PhysMass));
 						h1_asset->dynEntDefList[i][j].contents = asset->dynEntDefList[i][j].contents;
-						h1_asset->dynEntDefList[i][j].unk[0] = 2500.00000f;
-						h1_asset->dynEntDefList[i][j].unk[1] = 0.0199999996f;
+						h1_asset->dynEntDefList[i][j].impactDamageThreshold = 2500.00000f;
+						h1_asset->dynEntDefList[i][j].impactDamageScale = 0.0199999996f;
 
 						if (h1_asset->dynEntDefList[i][j].type == zonetool::h1::DYNENT_TYPE_SCRIPTABLEINST)
 						{

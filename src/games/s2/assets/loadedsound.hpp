@@ -66,6 +66,7 @@ namespace zonetool::s2
 		}
 
 		static void dump(LoadedSound* asset);
+		static std::optional<std::string> read_stream(const XStreamFileKey& key);
 
 		template <typename J>
 		static void visit_stream_key_json(const J& j, XStreamFileKey& value)

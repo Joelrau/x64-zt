@@ -385,8 +385,8 @@ namespace zonetool::h1::converter::s2::clipmap
 					new_def.hinge = retype<zonetool::s2::DynEntityHingeDef>(def.hinge);
 					new_def.linkTo = retype<zonetool::s2::DynEntityLinkToDef>(def.linkTo);
 					new_def.contents = static_cast<std::uint32_t>(def.contents);
-					new_def.impactDamageThreshold = def.unk[0];
-					new_def.impactDamageScale = def.unk[1];
+					new_def.impactDamageThreshold = def.impactDamageThreshold;
+					new_def.impactDamageScale = def.impactDamageScale;
 				}
 
 				new_asset->dynEntDefList[i] = defs;

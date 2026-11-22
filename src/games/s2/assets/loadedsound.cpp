@@ -244,6 +244,11 @@ namespace zonetool::s2
 		return nullptr;
 	}
 
+	std::optional<std::string> loaded_sound::read_stream(const XStreamFileKey& key)
+	{
+		return read_sound_stream(key);
+	}
+
 	void loaded_sound::dump(LoadedSound* asset)
 	{
 		ordered_json fields;

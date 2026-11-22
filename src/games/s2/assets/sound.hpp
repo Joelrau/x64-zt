@@ -5,6 +5,11 @@ namespace zonetool::s2
 	class sound : public asset_base<snd_alias_list_t, ASSET_TYPE_SOUND>
 	{
 	public:
+		static const char* get_vol_mod_name(short index);
+		static const char* get_dsp_bus_name(unsigned char index);
+		static short get_vol_mod_index_from_name(std::string_view name);
+		static short get_dsp_bus_index_from_name(std::string_view name);
+
 		static void read(zone_reader& reader, snd_alias_list_t* asset);
 
 		snd_alias_list_t* parse(const std::string& name, zone_memory* mem) override;

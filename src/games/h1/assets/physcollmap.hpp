@@ -26,4 +26,31 @@ namespace zonetool::h1
 
 		static void dump(PhysCollmap* asset);
 	};
+
+	namespace polytope
+	{
+		struct vec3
+		{
+			double x;
+			double y;
+			double z;
+		};
+
+		struct plane_t
+		{
+			vec3 normal;
+			double offset;
+		};
+
+		vec3 operator+(const vec3& a, const vec3& b);
+		vec3 operator-(const vec3& a, const vec3& b);
+		vec3 operator*(const vec3& a, double scale);
+		double dot(const vec3& a, const vec3& b);
+		vec3 cross(const vec3& a, const vec3& b);
+		vec3 normalize(const vec3& a);
+		vec3 to_vec3(const float* v);
+
+		dmPolytopeData* make_polytope(const vec3& mins, const vec3& maxs, const std::vector<plane_t>& planes, bool material_arrays, utils::memory::allocator& allocator);
+		void set_collmap_mass(PhysCollmap* asset);
+	}
 }

@@ -1344,7 +1344,7 @@ namespace zonetool::h1
 					zone->add_asset_of_type(ASSET_TYPE_SOUND, vis->soundName);
 					break;
 				case FX_ELEM_TYPE_VECTORFIELD:
-					zone->add_asset_of_type(ASSET_TYPE_VECTORFIELD, vis->vectorFieldName);
+					zone->add_asset_of_type(ASSET_TYPE_VECTORFIELD, "vectorfields/"s + vis->vectorFieldName);
 					break;
 				case FX_ELEM_TYPE_PARTICLE_SIM_ANIMATION:
 					zone->add_asset_of_type(ASSET_TYPE_PARTICLE_SIM_ANIMATION, vis->particleSimAnimation->name);
