@@ -119,7 +119,7 @@ namespace zonetool::iw7
 				// v113: IW7 world glass on the opaque "replace" techsets (glass_building_*, glass_opaque_*, solar panels: sortKey 7, colour "blank")
 				//       is a mirror facade lit only by reflections; it went to the translucent techset and showed the void behind it
 				const bool mirror_glass = v113_mirror_glass && v72_name.rfind("w/", 0) == 0 && v72_name.find("glass") != std::string::npos
-					&& (og_techset_name.find("replace") != std::string::npos || v72_name.find("glass_building") != std::string::npos); // v117: + blendadd glass_building_shiny_01 (tower right of spawn showed its unlit interior)
+					&& (og_techset_name.find("replace") != std::string::npos || v72_name.find("glass_building") != std::string::npos || v72_name.find("glass_tinted_reflective") != std::string::npos); // v117: + blendadd glass_building_shiny_01 (tower right of spawn showed its unlit interior)
 				const bool blended = (asset->info.sortKey >= 7 || alpha_tested || facade_glass) && !mirror_glass;
 				std::string h1_techset = blended ? "wc_l_sm_ndw_b0c0l0_cltrans_iw6" : "wc_l_sm_ndw_b0c0l0_nfwpf_iw6";
 				if (asset->techniqueSet)
