@@ -13,3 +13,4 @@
 #include "assets/xsurface.hpp"
 #include "assets/fxeffectdef.hpp"
 #include "assets/createfx.hpp"
+#include "assets/particlesystem.hpp"
