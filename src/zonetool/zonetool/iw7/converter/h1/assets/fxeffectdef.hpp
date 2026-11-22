@@ -29,6 +29,7 @@ namespace zonetool::iw7
 
 			// v114 fx: an effect material from another loaded zone (IW7 common_core_mp): dump it (json + images) with the map
 			void ensure_external_material(const Material* mat);
+			void ensure_external_model(XModel* model); // v124
 		}
 	}
 }

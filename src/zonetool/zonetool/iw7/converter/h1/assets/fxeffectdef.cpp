@@ -5,6 +5,8 @@
 #include "createfx.hpp"
 #include "material.hpp"
 #include "gfximage.hpp"
+#include "xmodel.hpp"
+#include "xsurface.hpp"
 #include <fstream>
 
 #include "zonetool/h1/assets/fxeffectdef.hpp"
@@ -337,6 +339,18 @@ namespace zonetool::iw7
 						}
 					}
 
+					// v124 fx: effect models from another loaded zone (glass shard debris lives in common_core_mp)
+					if (elem->elemType == FX_ELEM_TYPE_MODEL)
+					{
+						if (auto* mlist = visual_list(elem))
+						{
+							for (auto i = 0; i < elem->visualCount; i++)
+							{
+								if (mlist[i].anonymous) ensure_external_model(mlist[i].model);
+							}
+						}
+					}
+
 					// v102 fx: IW7 has no elemLitType; lit when lightingFrac / litUnlitBlendFactor say so
 					const bool lit = !emissive && (elem->lightingFrac != 0 || elem->litUnlitBlendFactor > 0.0f);
 					new_elem->elemLitType = zonetool::h1::FX_ELEM_LIT_TYPE_NONE;
@@ -622,6 +636,36 @@ namespace zonetool::iw7
 			bool is_fx_emissive_material(const Material* mat)
 			{
 				return is_emissive_material(mat);
+			}
+
+			void ensure_external_model(XModel* model)
+			{
+				if (!model || !model->name || !*model->name) return;
+				const std::string model_name = model->name;
+				const auto in_zone = dumped_assets.find(ASSET_TYPE_XMODEL);
+				if (in_zone != dumped_assets.end() && in_zone->second.contains(model_name)) return;
+				static std::unordered_set<std::string> done_models;
+				if (!done_models.insert(model_name).second) return;
+				try
+				{
+					for (auto i = 0; i < model->numsurfs && model->materialHandles; i++) ensure_external_material(model->materialHandles[i]);
+					for (auto l = 0; l < model->numLods && l < 6; l++)
+					{
+						auto* surfs = model->lodInfo[l].modelSurfs;
+						if (surfs && surfs->name && !was_dumped(ASSET_TYPE_XMODEL_SURFS, surfs->name))
+						{
+							xsurface::dump(surfs);
+							note_dumped(ASSET_TYPE_XMODEL_SURFS, surfs->name);
+						}
+					}
+					xmodel::dump(model);
+					note_dumped(ASSET_TYPE_XMODEL, model->name);
+					ZONETOOL_INFO("v124 fx: dumped external effect model %s", model->name);
+				}
+				catch (const std::exception& ex)
+				{
+					ZONETOOL_ERROR("v124 fx: external model %s failed: %s", model->name, ex.what());
+				}
 			}
 
 			void ensure_external_material(const Material* mat)
