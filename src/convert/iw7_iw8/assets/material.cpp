@@ -252,12 +252,12 @@ namespace zonetool::iw7::converter::iw8::material
 				result->textureTable[1].index = 0x44;
 				result->textureTable[1].image = image_or_reference(gfximage::dump_transmission(image, true), "$white", allocator);
 			}
-			else if (image)
+			else
 			{
 				result->textureCount = 1;
 				result->textureTable = allocator.allocate<target::MaterialTextureDef>();
 				result->textureTable->index = 18;
-				result->textureTable->image = image_or_reference(gfximage::dump_color(image), "$black", allocator);
+				result->textureTable->image = image ? image_or_reference(gfximage::dump_color(image), "$black", allocator) : make_image_reference("$white", allocator);
 			}
 
 			result->constantTable = allocate_constants(sprite ? convert_sprite_constants(asset) : std::vector{convert_color_tint(asset)}, result->constantCount, allocator);

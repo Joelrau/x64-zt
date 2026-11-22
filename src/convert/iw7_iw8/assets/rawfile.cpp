@@ -191,15 +191,15 @@ namespace zonetool::iw7::converter::iw8::rawfile
 		std::optional<std::string> convert_clut(const std::unordered_map<std::string, std::string>& values)
 		{
 			const auto value = values.find("clut0Image");
-			if (value == values.end())
+			auto image_name = value != values.end() ? value->second : std::string{};
+			std::erase(image_name, '"');
+			const auto* image = image_name.empty() ? nullptr : static_cast<const GfxImage*>(db_find_asset(ASSET_TYPE_IMAGE, image_name.data()));
+			if (!image_name.empty() && !image)
 			{
 				return {};
 			}
 
-			auto image_name = value->second;
-			std::erase(image_name, '"');
-			const auto* image = image_name.empty() ? nullptr : static_cast<const GfxImage*>(db_find_asset(ASSET_TYPE_IMAGE, image_name.data()));
-			const auto converted = image ? gradingclut::dump(image, read_grading(values)) : std::nullopt;
+			const auto converted = gradingclut::dump(image, read_grading(values));
 			return converted ? std::optional(std::format("\"{}\"", *converted)) : std::nullopt;
 		}
 
@@ -249,9 +249,9 @@ namespace zonetool::iw7::converter::iw8::rawfile
 				return "\"1\"";
 			}
 
-			if (name == "tonemapMaxExposure")
+			if (name == "r_ssaoStrength" && values.contains("r_ssaoStrength"))
 			{
-				return "\"-10\"";
+				return std::format("\"{}\"", std::clamp(read_vision_float(values, "r_ssaoStrength"), 0.0f, 1.0f)); // TODO: range from the game_test vision field table
 			}
 
 			if (name == "clut0Image")
@@ -282,9 +282,15 @@ namespace zonetool::iw7::converter::iw8::rawfile
 		bool is_createfx_script(const std::string_view name)
 		{
 			const auto& map = filesystem::get_fastfile();
-			return name == std::format("scripts/mp/maps/{}/{}_fx.gsc", map, map) || name == std::format("scripts/mp/maps/{}/gen/{}_fx.gsc", map, map)
-				|| name == std::format("scripts/mp/maps/{}/gen/{}_sound.gsc", map, map);
+			const auto folder = get_map_script_folder(map);
+			return name == std::format("{}/{}_fx.gsc", folder, map) || name == std::format("{}/gen/{}_fx.gsc", folder, map)
+				|| name == std::format("{}/gen/{}_sound.gsc", folder, map);
 		}
+	}
+
+	std::string get_map_script_folder(const std::string& map)
+	{
+		return std::format("scripts/{}/maps/{}", map.starts_with("cp_") ? "cp" : "mp", map); // GScr_MainMP_LoadScripts_shared (0xE94369)
 	}
 
 	std::array<float, 3> get_sky_color_scale()

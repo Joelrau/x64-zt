@@ -117,7 +117,7 @@ namespace zonetool::iw7::converter::iw8::mapents
 
 		void dump_map_script(const std::string& map)
 		{
-			const auto name = std::format("scripts/{}/maps/{}/{}.gsc", map.starts_with("cp_") ? "cp" : "mp", map, map); // GScr_MainMP_LoadScripts_shared (0xE94369)
+			const auto name = std::format("{}/{}.gsc", rawfile::get_map_script_folder(map), map);
 			const auto source = get_map_script(map);
 			std::vector<std::uint8_t> data(source.begin(), source.end());
 
@@ -152,10 +152,10 @@ namespace zonetool::iw7::converter::iw8::mapents
 
 		std::unordered_map<std::string, std::string> read_effect_paths(const std::string& map)
 		{
-			static const std::regex load_fx(R"re(level\._effect\[\s*"([^"]+)"\s*\]\s*=\s*loadfx\(\s*"([^"]+?)(?:\.vfx)?"\s*\))re");
+			static const std::regex load_fx(R"re(level\._effect\[\s*"([^"]+)"\s*\]\s*=\s*loadfx\s*\(\s*"([^"]+?)(?:\.vfx)?"\s*\))re", std::regex::icase);
 
 			std::unordered_map<std::string, std::string> paths;
-			const auto source = get_rawfile_text(std::format("scripts/mp/maps/{}/{}_fx.gsc", map, map));
+			const auto source = get_rawfile_text(std::format("{}/{}_fx.gsc", rawfile::get_map_script_folder(map), map));
 			for (auto it = std::sregex_iterator(source.begin(), source.end(), load_fx); it != std::sregex_iterator(); ++it)
 			{
 				paths[(*it)[1].str()] = (*it)[2].str();
@@ -174,7 +174,7 @@ namespace zonetool::iw7::converter::iw8::mapents
 			static const std::regex oneshot(R"re(createOneshotEffect\(\s*"([^"]+)"\s*\);\s*ent set_origin_and_angles\(\s*\(([^)]*)\)\s*,\s*\(([^)]*)\)\s*\);(?:\s*ent\.v\[\s*"fxid"\s*\]\s*=\s*"[^"]*"\s*;)?(?:\s*ent\.v\[\s*"delay"\s*\]\s*=\s*([-\d.]+)\s*;)?)re");
 
 			const auto paths = read_effect_paths(map);
-			const auto source = get_rawfile_text(std::format("scripts/mp/maps/{}/gen/{}_fx.gsc", map, map));
+			const auto source = get_rawfile_text(std::format("{}/gen/{}_fx.gsc", rawfile::get_map_script_folder(map), map));
 
 			std::vector<target::ClientOneshotEffectDef> converted;
 			for (auto it = std::sregex_iterator(source.begin(), source.end(), oneshot); it != std::sregex_iterator(); ++it)
@@ -193,7 +193,7 @@ namespace zonetool::iw7::converter::iw8::mapents
 				auto& effect = converted.emplace_back();
 				read_vector(match[2].str(), effect.origin);
 				read_vector(match[3].str(), effect.angles);
-				effect.radius = 0.0f; // TODO: stock radius rule unknown (mp_rust uses 0 to 900000 per effect)
+				effect.radius = 0.0f; // 0 spawns at load, no spatial tree (sub_16896F0)
 				effect.delayMsec = match[4].matched ? static_cast<int>(std::stof(match[4].str()) * 1000.0f) : 0;
 				effect.effect.particleSystemDef = allocator.allocate<target::ParticleSystemDef>();
 				const_cast<target::ParticleSystemDef*>(effect.effect.particleSystemDef)->name = allocator.duplicate_string(vfx->name);

@@ -866,6 +866,56 @@ namespace zonetool::iw7::converter::iw8::gfximage
 			return result.value();
 		}
 
+		std::vector<std::uint8_t> read_cube_volume(const GfxImage* asset, std::size_t& size)
+		{
+			const auto volume = read_pixels(asset, DXGI_FORMAT_R8G8B8A8_UNORM);
+			if (!volume)
+			{
+				return {};
+			}
+
+			const auto& metadata = volume->GetMetadata();
+			if (metadata.dimension != DirectX::TEX_DIMENSION_TEXTURE3D || metadata.width != metadata.height || metadata.width != metadata.depth)
+			{
+				ZONETOOL_WARNING("Image \"%s\" is not a cube volume", asset->name);
+				return {};
+			}
+
+			size = metadata.width;
+			std::vector<std::uint8_t> texels(size * size * size * 4);
+			for (auto slice = 0u; slice < size; slice++)
+			{
+				const auto& image = *volume->GetImage(0, 0, slice);
+				for (auto row = 0u; row < size; row++)
+				{
+					std::memcpy(&texels[(slice * size + row) * size * 4], image.pixels + row * image.rowPitch, size * 4);
+				}
+			}
+
+			return texels;
+		}
+
+		std::vector<std::uint8_t> make_identity_volume(const std::size_t size)
+		{
+			std::vector<std::uint8_t> texels(size * size * size * 4);
+			for (auto b = 0u; b < size; b++)
+			{
+				for (auto g = 0u; g < size; g++)
+				{
+					for (auto r = 0u; r < size; r++)
+					{
+						auto* texel = &texels[((b * size + g) * size + r) * 4];
+						texel[0] = static_cast<std::uint8_t>(std::lround(r * 255.0 / (size - 1)));
+						texel[1] = static_cast<std::uint8_t>(std::lround(g * 255.0 / (size - 1)));
+						texel[2] = static_cast<std::uint8_t>(std::lround(b * 255.0 / (size - 1)));
+						texel[3] = 255;
+					}
+				}
+			}
+
+			return texels;
+		}
+
 		target::GfxImage* dump_once(const std::string& name, const std::optional<std::uint64_t> fingerprint,
 			const target::GfxImageSemanticSpecific semantic_specific, const std::function<target::GfxImage*()>& convert_image)
 		{
@@ -1229,28 +1279,11 @@ namespace zonetool::iw7::converter::iw8::gfximage
 		const auto cache_key = fingerprint().add_value(get_fingerprint("grading_clut", {asset})).add_value(settings).value();
 		return dump_once(name, cache_key, {}, [&]() -> target::GfxImage*
 		{
-			const auto volume = read_pixels(asset, DXGI_FORMAT_R8G8B8A8_UNORM);
-			if (!volume)
+			auto source_size = size;
+			const auto texels = asset ? read_cube_volume(asset, source_size) : make_identity_volume(size);
+			if (texels.empty())
 			{
 				return nullptr;
-			}
-
-			const auto& metadata = volume->GetMetadata();
-			if (metadata.dimension != DirectX::TEX_DIMENSION_TEXTURE3D || metadata.width != metadata.height || metadata.width != metadata.depth)
-			{
-				ZONETOOL_WARNING("Image \"%s\" is not a cube volume", asset->name);
-				return nullptr;
-			}
-
-			const auto source_size = metadata.width;
-			std::vector<std::uint8_t> texels(source_size * source_size * source_size * 4);
-			for (auto slice = 0u; slice < source_size; slice++)
-			{
-				const auto& image = *volume->GetImage(0, 0, slice);
-				for (auto row = 0u; row < source_size; row++)
-				{
-					std::memcpy(&texels[(slice * source_size + row) * source_size * 4], image.pixels + row * image.rowPitch, source_size * 4);
-				}
 			}
 
 			const auto converted = convert_texels(texels, source_size);

@@ -638,6 +638,25 @@ namespace zonetool::iw7::converter::iw8::vfx
 			{
 				result.flags &= ~static_cast<unsigned long long>(target::PARTICLE_STATE_DEF_FLAG_HAS_SPAWN_SHAPE);
 			}
+
+			if (!has_module(result, [](const auto type) { return type == target::PARTICLE_MODULE_INIT_SOUND; })) // TODO: convert the IW7 sound module
+			{
+				result.flags &= ~static_cast<unsigned long long>(target::PARTICLE_STATE_DEF_FLAG_PLAY_SOUNDS);
+			}
+		}
+
+		bool uses_emissive_streams(const target::ParticleEmitterDef& emitter) // sub_1BA3AB0 (0x1BA4271)
+		{
+			for (auto i = 0; i < emitter.numStates; i++)
+			{
+				if (emitter.stateDefs[i].flags & (target::PARTICLE_STATE_DEF_FLAG_HAS_EMISSIVE | target::PARTICLE_STATE_DEF_FLAG_HAS_INTENSITY
+					| target::PARTICLE_STATE_DEF_FLAG_HAS_LIGHTING_FRACTION))
+				{
+					return true;
+				}
+			}
+
+			return false;
 		}
 
 		int data_flags(const target::ParticleEmitterDef& emitter)
@@ -660,7 +679,7 @@ namespace zonetool::iw7::converter::iw8::vfx
 					return type == target::PARTICLE_MODULE_INTENSITY_GRAPH || type == target::PARTICLE_MODULE_EMISSIVE_GRAPH
 						|| type == target::PARTICLE_MODULE_EMISSION_GRAPH || type == target::PARTICLE_MODULE_INIT_FLARE
 						|| type == target::PARTICLE_MODULE_INIT_MODEL || type == target::PARTICLE_MODULE_INIT_PLAYER_FACING;
-				}))
+				}) || uses_emissive_streams(emitter))
 			{
 				flags |= target::USE_EMISSIVE_CURVES;
 			}
@@ -747,6 +766,20 @@ namespace zonetool::iw7::converter::iw8::vfx
 			return false;
 		}
 
+		bool has_unconverted_element(const ParticleEmitterDef& emitter) // TODO: convert the beam, geo trail and spot light modules
+		{
+			for (auto i = 0; emitter.stateDefs && i < emitter.numStates; i++)
+			{
+				const auto type = emitter.stateDefs[i].elementType;
+				if (type == PARTICLE_ELEMENT_TYPE_BEAM || type == PARTICLE_ELEMENT_TYPE_GEO_TRAIL || type == PARTICLE_ELEMENT_TYPE_LIGHT_SPOT)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
 		target::ParticleSystemDef* convert(const ParticleSystemDef* asset, utils::memory::allocator& allocator)
 		{
 			const auto result = allocator.allocate<target::ParticleSystemDef>();
@@ -773,6 +806,12 @@ namespace zonetool::iw7::converter::iw8::vfx
 				if (has_cloud_state(asset->emitterDefs[i]))
 				{
 					ZONETOOL_WARNING("VFX \"%s\": emitter %d is a cloud emitter, IW8 has no cloud element, dropped", asset->name, i);
+					continue;
+				}
+
+				if (has_unconverted_element(asset->emitterDefs[i]))
+				{
+					ZONETOOL_WARNING("VFX \"%s\": emitter %d has an element without an IW8 conversion, dropped", asset->name, i);
 					continue;
 				}
 

@@ -515,14 +515,14 @@ namespace zonetool::iw7::converter::iw8::gradingclut
 	std::optional<std::string> dump(const GfxImage* clut, const grading& values)
 	{
 		static std::unordered_map<std::uint64_t, std::optional<std::string>> converted;
-		const auto key = fingerprint().add(clut->name).add_value(values).value();
+		const auto key = fingerprint().add(clut ? clut->name : "").add_value(values).value();
 		if (const auto entry = converted.find(key); entry != converted.end())
 		{
 			return entry->second;
 		}
 
 		const auto& map = filesystem::get_fastfile();
-		auto name = converted.empty() ? std::format("{}_clut", map) : std::format("{}_{}", map, clut->name);
+		auto name = converted.empty() ? std::format("{}_clut", map) : std::format("{}_{}", map, clut ? clut->name : "identity_clut");
 		if (std::ranges::any_of(converted, [&](const auto& entry) { return entry.second == name; }))
 		{
 			name += std::format("_{}", converted.size());
