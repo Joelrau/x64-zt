@@ -16,7 +16,6 @@
 //   sun, static model placements, bounds.
 // What is STUBBED (IW7 data has no H1 equivalent):
 //   lightmaps (none), light grid (flat, 1-node), reflection probes (1 stub), vis data (zeroed),
-//   (v102 shadows: sun shadowGeom = all drawn static models, sun-shadow bit arrays zeroed, shadowBounds fitted to casters)
 //   static model lighting (default light grid colour), portal groups, mdao.
 
 namespace zonetool::iw7
@@ -474,15 +473,7 @@ namespace zonetool::iw7
 						dst_surf.laf.fields.reflectionProbeIndex = (asset->dpvs.surfacesBounds) ? nearest_probe(asset->dpvs.surfacesBounds[i].bounds.midPoint) : 0;
 						// v81: env 0 has no lights (numIndices 0); env 1 = the sun (as in mp_dig). With 0 the world got no sun light or sun shadows at all.
 						dst_surf.laf.fields.primaryLightEnvIndex = 1;
-						// v102 shadows: H1 surface flags only know GFX_SURFACE_CASTS_SUN_SHADOW (0x1); working Ghosts ports (mp_dig/mp_frag) only use
-						//      0x1/0x8 and set 0x1 on every surface. IW7 adds 0x10 (unknown to H1) -> keep the low nibble and always set 0x1.
-						dst_surf.laf.fields.flags = static_cast<unsigned char>((src_surf.flags & 0x0F) | zonetool::h1::GFX_SURFACE_CASTS_SUN_SHADOW);
-					}
-					{
-						std::map<unsigned, unsigned> src_hist, dst_hist;
-						for (unsigned int i = 0; i < asset->surfaceCount; i++) { src_hist[s.surfaces[i].flags]++; dst_hist[d.surfaces[i].laf.fields.flags]++; }
-						for (auto& [k, v] : src_hist) ZONETOOL_INFO("v102 shadows: IW7 surface flags 0x%X: %u surfaces", k, v);
-						for (auto& [k, v] : dst_hist) ZONETOOL_INFO("v102 shadows: H1 surface flags 0x%X: %u surfaces", k, v);
+						dst_surf.laf.fields.flags = src_surf.flags; // TODO convert
 					}
 
 					d.surfacesBounds = allocator.allocate_array<zonetool::h1::GfxSurfaceBounds>(asset->surfaceCount);
@@ -532,9 +523,7 @@ namespace zonetool::iw7
 						dst_inst.primaryLightEnvIndex = src_inst.primaryLightEnvIndex;
 						dst_inst.reflectionProbeIndex = nearest_probe(src_inst.placement.origin);
 						dst_inst.firstMtlSkinIndex = 0; // v28: IW7 skin index (e.g. 11) indexes a table H1 does not have
-						// v102 shadows: IW7 sunShadowFlags bits (0/2/3 on mp_flip) are not H1's (Ghosts ports: 0/1, 1 on most sun casters).
-						//      Set below for every model put in the sun's shadow geometry list.
-						dst_inst.sunShadowFlags = 0;
+						dst_inst.sunShadowFlags = src_inst.sunShadowFlags;
 
 						// IW7 flag bits do not map to H1 yet: use light-grid lighting with the (stub) default colour
 						dst_inst.flags = zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_SCALE_9
@@ -570,19 +559,10 @@ namespace zonetool::iw7
 						d.surfaceMaterials[i].fields.tessellation = s.surfaceMaterials ? (static_cast<unsigned __int64>(s.surfaceMaterials[i].fields.tessellation) & 3) : 0;
 					}
 
-					// v102 shadows: these sun-shadow bit arrays (surfaceVisDataCount words / sunShadowOptCount * sunSurfVisDataCount words,
-					//      one bit per surface index) are all zero in IW7 and in the working Ghosts ports (mp_dig, mp_frag: optCount 1).
-					//      zonetool's H1 build also re-sorts the surfaces, so copied bits could not stay valid anyway. Use zeroed H1-shaped arrays.
-					{
-						auto bits_of = [](const unsigned int* p, unsigned int n) { unsigned int b = 0; for (unsigned int k = 0; p && k < n; k++) for (unsigned int x = p[k]; x; x &= x - 1) b++; return b; };
-						ZONETOOL_INFO("v102 shadows: IW7 surfaceCastsSunShadow bits=%u (words %u), opt count=%u sunSurfVisDataCount=%u bits=%u",
-							bits_of(s.surfaceCastsSunShadow, s.surfaceVisDataCount), s.surfaceVisDataCount, s.sunShadowOptCount, s.sunSurfVisDataCount,
-							bits_of(s.surfaceCastsSunShadowOpt, s.sunShadowOptCount * s.sunSurfVisDataCount));
-						d.sunShadowOptCount = 1;
-						d.sunSurfVisDataCount = std::max(s.sunSurfVisDataCount, d.surfaceVisDataCount);
-						d.surfaceCastsSunShadow = allocator.allocate_array<unsigned int>(std::max(d.surfaceVisDataCount, 1u));
-						d.surfaceCastsSunShadowOpt = allocator.allocate_array<unsigned int>(std::max(d.sunShadowOptCount * d.sunSurfVisDataCount, 1u));
-					}
+					REINTERPRET_CAST_SAFE(dpvs.surfaceCastsSunShadow);
+					COPY_VALUE(dpvs.sunShadowOptCount);
+					COPY_VALUE(dpvs.sunSurfVisDataCount);
+					REINTERPRET_CAST_SAFE(dpvs.surfaceCastsSunShadowOpt);
 					d.surfaceDeptAndSurf = allocator.allocate_array<zonetool::h1::GfxDepthAndSurf>(d.staticSurfaceCount); // runtime data
 					d.constantBuffersLit = allocator.allocate_array<zonetool::h1::GfxWorldDpvsVoid>(s.smodelCount);
 					d.constantBuffersAmbient = allocator.allocate_array<zonetool::h1::GfxWorldDpvsVoid>(s.smodelCount);
@@ -592,83 +572,6 @@ namespace zonetool::iw7
 						d.constantBuffersAmbient[cb] = allocator.allocate<char>();
 					}
 					COPY_VALUE(dpvs.usageCount);
-				}
-
-				// v102 shadows: H1 picks the static models that cast sun shadows from shadowGeom[sun light].smodelIndex. Working Ghosts ports
-				//      list them there (mp_dig shadowGeom[1]: 0 surfaces / 2494 smodels, mp_frag: 0 / 4028); our list was empty, so no static
-				//      model ever went into the sun shadow map. IW7 has no shadowGeom (only per-light shadowGeomOptimized). List every drawn
-				//      static model (sorted, as in the Ghosts data) for each sun light 0..lastSunPrimaryLightIndex; the per-surface material
-				//      decides whether it really casts (H1 MTL_GAMEFLAG_CASTS_SHADOW + a build_shadowmap technique, see material.cpp).
-				if (new_asset->primaryLightCount && new_asset->dpvs.smodelDrawInsts)
-				{
-					std::vector<unsigned short> casters;
-					std::map<unsigned, unsigned> iw7_flags_hist, env_hist;
-					for (unsigned int i = 0; i < new_asset->dpvs.smodelCount && casters.size() < 0xFFFF; i++)
-					{
-						iw7_flags_hist[asset->dpvs.smodelDrawInsts[i].sunShadowFlags]++;
-						env_hist[new_asset->dpvs.smodelDrawInsts[i].primaryLightEnvIndex]++;
-						auto& sinst = new_asset->dpvs.smodelDrawInsts[i];
-						if (!sinst.model || sinst.placement.scale == 0.0f) continue; // proxies hidden in v40
-						casters.push_back(static_cast<unsigned short>(i));
-						sinst.sunShadowFlags = 1;
-					}
-					for (auto& [k, v] : iw7_flags_hist) ZONETOOL_INFO("v102 shadows: IW7 smodel sunShadowFlags %u: %u models", k, v);
-					// smodels with env 0 get no sun light (and so no sun shadow on themselves); world surfaces use env 1 since v81
-					{ int shown = 0; for (auto& [k, v] : env_hist) if (shown++ < 8) ZONETOOL_INFO("v102 shadows: smodel primaryLightEnvIndex %u: %u models", k, v); }
-
-					const unsigned int last_sun = std::min<unsigned int>(new_asset->lastSunPrimaryLightIndex, new_asset->primaryLightCount - 1);
-					if (!casters.empty())
-					{
-						auto* idx = allocator.allocate_array<unsigned short>(casters.size());
-						std::copy(casters.begin(), casters.end(), idx);
-						for (unsigned int li = 0; li <= last_sun; li++)
-						{
-							new_asset->shadowGeom[li].surfaceCount = 0;
-							new_asset->shadowGeom[li].sortedSurfIndex = nullptr;
-							new_asset->shadowGeom[li].smodelCount = static_cast<unsigned short>(casters.size());
-							new_asset->shadowGeom[li].smodelIndex = idx;
-						}
-					}
-					ZONETOOL_INFO("v102 shadows: sun shadowGeom lights 0..%u: %zu static model casters of %u (lastSun=%u primaryLights=%u)",
-						last_sun, casters.size(), new_asset->dpvs.smodelCount, new_asset->lastSunPrimaryLightIndex, new_asset->primaryLightCount);
-				}
-
-				// v102 shadows: shadowBounds = IW7 world bounds was ~126k x 132k x 129k units (sky dome / vista cards included). Ghosts ports use
-				//      their (much smaller) world bounds. Fit it to what can actually cast: opaque, drawn, non-sky surfaces + drawn static models.
-				{
-					float mn[3] = { 3.4e38f, 3.4e38f, 3.4e38f }, mx[3] = { -3.4e38f, -3.4e38f, -3.4e38f };
-					unsigned int used = 0;
-					const auto add_box = [&](const Bounds& b)
-					{
-						for (int c = 0; c < 3; c++)
-						{
-							mn[c] = std::min(mn[c], b.midPoint[c] - b.halfSize[c]);
-							mx[c] = std::max(mx[c], b.midPoint[c] + b.halfSize[c]);
-						}
-						used++;
-					};
-					for (unsigned int i = 0; i < asset->surfaceCount && asset->dpvs.surfacesBounds; i++)
-					{
-						const auto* m = asset->dpvs.surfaces[i].material;
-						if (!m || !m->name || m->info.sortKey >= 7 || new_asset->dpvs.surfaces[i].tris.triCount == 0) continue;
-						if (std::string(m->name).find("sky") != std::string::npos) continue;
-						add_box(asset->dpvs.surfacesBounds[i].bounds);
-					}
-					for (unsigned int i = 0; i < asset->dpvs.smodelCount && asset->dpvs.smodelInsts; i++)
-					{
-						if (new_asset->dpvs.smodelDrawInsts[i].placement.scale == 0.0f) continue;
-						add_box(asset->dpvs.smodelInsts[i].bounds);
-					}
-					if (used)
-					{
-						for (int c = 0; c < 3; c++)
-						{
-							new_asset->shadowBounds.midPoint[c] = (mn[c] + mx[c]) * 0.5f;
-							new_asset->shadowBounds.halfSize[c] = (mx[c] - mn[c]) * 0.5f + 256.0f;
-						}
-					}
-					ZONETOOL_INFO("v102 shadows: world bounds mid %g %g %g half %g %g %g", new_asset->bounds.midPoint[0], new_asset->bounds.midPoint[1], new_asset->bounds.midPoint[2], new_asset->bounds.halfSize[0], new_asset->bounds.halfSize[1], new_asset->bounds.halfSize[2]);
-					ZONETOOL_INFO("v102 shadows: shadowBounds from %u boxes mid %g %g %g half %g %g %g", used, new_asset->shadowBounds.midPoint[0], new_asset->shadowBounds.midPoint[1], new_asset->shadowBounds.midPoint[2], new_asset->shadowBounds.halfSize[0], new_asset->shadowBounds.halfSize[1], new_asset->shadowBounds.halfSize[2]);
 				}
 
 				for (int i = 0; i < 2; i++)
