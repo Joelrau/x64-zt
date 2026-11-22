@@ -2,6 +2,7 @@
 #include "zonetool/iw7/converter/h1/include.hpp"
 #include "material.hpp"
 #include <utils/string.hpp>
+#pragma warning(disable: 4127) // constexpr test toggles in conditions (warnings are errors in Release)
 
 //#include "zonetool/h1/assets/material.hpp"
 

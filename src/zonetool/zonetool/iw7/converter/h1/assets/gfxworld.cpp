@@ -8,6 +8,7 @@
 #include <utils/string.hpp>
 
 #include "zonetool/h1/assets/gfxworld.hpp"
+#pragma warning(disable: 4127) // constexpr test toggles in conditions (warnings are errors in Release)
 
 // IW7 -> H1 GfxWorld, FIRST PASS (untested).
 //
