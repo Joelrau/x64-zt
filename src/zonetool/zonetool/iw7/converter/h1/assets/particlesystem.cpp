@@ -303,6 +303,7 @@ namespace zonetool::iw7
 						if (!readable(linked.model, sizeof(const char*))) return false;
 						const auto* name = safe_name(linked.model->name);
 						if (!name) return false;
+						if (!alive) fxeffectdef::ensure_external_model(const_cast<XModel*>(linked.model)); // v125: glass shards etc. from common zones
 						return !alive || fxeffectdef::was_dumped(ASSET_TYPE_XMODEL, name);
 					}
 					if (type == zonetool::h1::FX_ELEM_TYPE_RUNNER)
