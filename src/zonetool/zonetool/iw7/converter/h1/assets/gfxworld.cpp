@@ -474,8 +474,8 @@ namespace zonetool::iw7
 						{
 							const float* mp = asset->dpvs.surfacesBounds[i].bounds.midPoint;
 							const float* hs = asset->dpvs.surfacesBounds[i].bounds.halfSize;
-							const float dx = mp[0] + 660.0f, dy = mp[1] + 1452.0f;
-							if (dx * dx + dy * dy < 1400.0f * 1400.0f && (hs[0] > 64.0f || hs[1] > 64.0f || hs[2] > 64.0f))
+							const float v118x = mp[0] + 660.0f, v118y = mp[1] + 1452.0f;
+							if (v118x * v118x + v118y * v118y < 1400.0f * 1400.0f && (hs[0] > 64.0f || hs[1] > 64.0f || hs[2] > 64.0f))
 							{
 								ZONETOOL_INFO("v118 near: surf %u %s (%s) mid %.0f %.0f %.0f half %.0f %.0f %.0f tris %u", i, src_surf.material->name,
 									(src_surf.material->techniqueSet && src_surf.material->techniqueSet->name) ? src_surf.material->techniqueSet->name : "?",
@@ -537,8 +537,8 @@ namespace zonetool::iw7
 						dst_inst.reflectionProbeIndex = nearest_probe(src_inst.placement.origin);
 						{
 							const float* o = src_inst.placement.origin;
-							const float dx = o[0] + 660.0f, dy = o[1] + 1452.0f;
-							if (dx * dx + dy * dy < 1400.0f * 1400.0f && src_inst.model && src_inst.model->name)
+							const float v118x = o[0] + 660.0f, v118y = o[1] + 1452.0f;
+							if (v118x * v118x + v118y * v118y < 1400.0f * 1400.0f && src_inst.model && src_inst.model->name)
 							{
 								ZONETOOL_INFO("v118 near: smodel %u %s at %.0f %.0f %.0f scale %.2f", i, src_inst.model->name, o[0], o[1], o[2], dst_inst.placement.scale);
 							}
