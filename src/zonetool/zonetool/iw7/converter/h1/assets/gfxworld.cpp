@@ -469,11 +469,13 @@ namespace zonetool::iw7
 					return q_best;
 				};
 				unsigned int v129_shaded = 0, v129_lit = 0, v129_none = 0, v133_grounded = 0;
+				std::map<unsigned int, unsigned int> v138_env_hist;
 				constexpr bool v135_palette = true;
 				constexpr bool v136_seq_handles = false; // v136: no change (statics still black with the palette)
 				// v137: with v135's per-model entries every static model drew black (the gun, lit from the grid, did take entry 0), so
 				//       statics don't read colorIndex here; try a palette of one entry that every lookup resolves to
 				constexpr bool v137_per_model = false;
+				constexpr bool v138_tree = true;
 				constexpr bool v134_one_handle = false; // tested in v134: no visible change
 				constexpr bool v133_ground_lighting = false; // v134: GROUND_LIGHTING (0x20) drew every static model black: our IW6 model techsets take MODEL_LIGHTING from the grid atlas, not the ground colour
 
@@ -773,7 +775,7 @@ namespace zonetool::iw7
 							const float sv = v129_sun_at(src_inst.placement.origin);
 							if (sv < 0.0f) v129_none++;
 							else if (sv < 0.5f) { dst_inst.primaryLightEnvIndex = 0; v129_shaded++; }
-							else v129_lit++;
+							else { v129_lit++; v138_env_hist[src_inst.primaryLightEnvIndex]++; }
 						}
 						bool v133_has_ground = false;
 						float v133_rgb[3] = { 0.0f, 0.0f, 0.0f }, v133_dir[3] = { 0.0f, 0.0f, 0.0f };
@@ -814,6 +816,169 @@ namespace zonetool::iw7
 					}
 
 					ZONETOOL_INFO("v129 model sun: %u static models shaded, %u sunlit, %u with no floor found", v129_shaded, v129_lit, v129_none);
+					// v138 light grid tree (docs/exe_notes/IW6_LIGHTGRID.md, the "new" tree + palette format H1 shares): static models
+					//      take their light from the grid at their origin, not from colorIndex (v135-v137), and our one-node stub tree
+					//      resolved to nothing. Build a real tree: one octant block (4 x 4 x 1 cells = 128 x 128 x 64 units) wherever a
+					//      lightmapped floor lies under the block's centre, its colour index a palette entry of that floor's baked light
+					//      (quantised), its light environment the sun's where IW7's primary says the floor is sunlit.
+					unsigned int v138_blocks = 0, v138_nodes = 0;
+					if (v138_tree && v135_palette && !v129_floors.empty())
+					{
+						unsigned int q_sun_env = 0, q_best_n = 0;
+						for (const auto& [q_env, q_n] : v138_env_hist) if (q_n > q_best_n && q_env != 0) { q_best_n = q_n; q_sun_env = q_env; }
+						constexpr int q_D = 6; // 2^(D+1) = 128 blocks a side: 16384 x 16384 x 8192 units
+						float q_mn[3] = { 1e30f, 1e30f, 1e30f }, q_mx[3] = { -1e30f, -1e30f, -1e30f };
+						for (const auto& q_f : v129_floors) for (int q_k = 0; q_k < 3; q_k++) for (int q_c = 0; q_c < 3; q_c++) { q_mn[q_c] = std::min(q_mn[q_c], q_f.p[q_k][q_c]); q_mx[q_c] = std::max(q_mx[q_c], q_f.p[q_k][q_c]); }
+						const int q_minX = (int(std::floor(q_mn[0])) + 131072) >> 5, q_minY = (int(std::floor(q_mn[1])) + 131072) >> 5, q_minZ = (int(std::floor(q_mn[2])) + 131072) >> 6;
+						const int q_nb = 1 << (q_D + 1);
+						const int q_nx = std::min(q_nb, (((int(std::floor(q_mx[0])) + 131072) >> 5) - q_minX) / 4 + 2);
+						const int q_ny = std::min(q_nb, (((int(std::floor(q_mx[1])) + 131072) >> 5) - q_minY) / 4 + 2);
+						const int q_nz = std::min(q_nb, (((int(std::floor(q_mx[2])) + 131072) >> 6) - q_minZ) + 6);
+						std::map<unsigned int, unsigned int> q_pal; // quantised colour -> palette index
+						// block key (x | y << 8 | z << 16) -> (colour index, sunlit)
+						std::map<unsigned int, std::pair<unsigned int, bool>> q_blk;
+						for (int q_bz = 0; q_bz < q_nz; q_bz++)
+							for (int q_by = 0; q_by < q_ny; q_by++)
+								for (int q_bx = 0; q_bx < q_nx; q_bx++)
+								{
+									const float q_p[3] = {
+										float((q_minX + q_bx * 4 + 2) * 32 - 131072),
+										float((q_minY + q_by * 4 + 2) * 32 - 131072),
+										float((q_minZ + q_bz) * 64 - 131072 + 32) };
+									const float q_sv = v129_sun_at(q_p);
+									if (q_sv < 0.0f) continue;
+									float q_up[3], q_lo[3];
+									if (!v133_ground(v133_last_uv[0], v133_last_uv[1], q_up, q_lo)) continue;
+									float q_c0[3], q_c3[3];
+									unsigned int q_key = 0;
+									for (int q_c = 0; q_c < 3; q_c++)
+									{
+										q_c0[q_c] = q_up[q_c] + 0.6f * q_lo[q_c];
+										// quantise in sqrt space, 64 steps up to 4
+										const int q_qv = std::clamp(int(std::lround(std::sqrt(std::max(q_c0[q_c], 0.0f) / 4.0f) * 63.0f)), 0, 63);
+										q_key |= static_cast<unsigned int>(q_qv) << (6 * q_c);
+										const float q_back = (q_qv / 63.0f) * (q_qv / 63.0f) * 4.0f;
+										q_c0[q_c] = q_back;
+										q_c3[q_c] = 0.35f * q_back;
+									}
+									auto q_it = q_pal.find(q_key);
+									if (q_it == q_pal.end()) q_it = q_pal.emplace(q_key, v135_add(q_c0, q_c3)).first;
+									q_blk[static_cast<unsigned int>(q_bx) | (static_cast<unsigned int>(q_by) << 8) | (static_cast<unsigned int>(q_bz) << 16)] = { q_it->second, q_sv >= 0.5f && q_sun_env != 0 };
+								}
+						// leaf nodes (depth D): key = block >> 1 per axis
+						struct q_leaf_t { unsigned int mask = 0; std::pair<unsigned int, bool> v[8]; };
+						std::map<unsigned int, q_leaf_t> q_leaves;
+						for (const auto& [q_k, q_v] : q_blk)
+						{
+							const unsigned int q_x = q_k & 255, q_y = (q_k >> 8) & 255, q_z = (q_k >> 16) & 255;
+							const unsigned int q_oct = (q_z & 1) << 2 | (q_y & 1) << 1 | (q_x & 1);
+							auto& q_l = q_leaves[(q_x >> 1) | ((q_y >> 1) << 8) | ((q_z >> 1) << 16)];
+							q_l.mask |= 1u << q_oct;
+							q_l.v[q_oct] = q_v;
+						}
+						// leaf table (LSB-first bits)
+						std::vector<unsigned char> q_leaf_bytes;
+						std::map<unsigned int, unsigned int> q_leaf_off;
+						constexpr int q_LB = 10;
+						for (const auto& [q_k, q_l] : q_leaves)
+						{
+							q_leaf_off[q_k] = static_cast<unsigned int>(q_leaf_bytes.size());
+							std::vector<unsigned char> q_rec;
+							unsigned int q_bitpos = 0;
+							const auto q_put = [&](unsigned int q_val, int q_bits)
+							{
+								for (int q_b = 0; q_b < q_bits; q_b++, q_bitpos++)
+								{
+									if ((q_bitpos >> 3) >= q_rec.size()) q_rec.push_back(0);
+									if ((q_val >> q_b) & 1) q_rec[q_bitpos >> 3] |= static_cast<unsigned char>(1u << (q_bitpos & 7));
+								}
+							};
+							const auto q_align = [&]() { q_bitpos = (q_bitpos + 7) & ~7u; while ((q_bitpos >> 3) > q_rec.size()) q_rec.push_back(0); };
+							std::vector<unsigned int> q_order;
+							for (unsigned int q_o = 0; q_o < 8; q_o++) if ((q_l.mask >> q_o) & 1) q_order.push_back(q_o);
+							// block sizes: 8 (g) + 16 (colour) [+ 1 light] bits -> 3 or 4 bytes
+							q_put(0x08, 8); // f: light base present
+							for (const auto q_o : q_order) q_put(q_l.v[q_o].second ? 4u : 3u, 6);
+							q_put(q_sun_env, q_LB);  // lBase
+							q_put(0, 4);             // lW - 1 (bitlen(LB - 1) = 4 bits) -> lW = 1
+							q_align();
+							for (const auto q_o : q_order)
+							{
+								const bool q_lit = q_l.v[q_o].second;
+								q_put(0x02 | (q_lit ? 0x10u : 0u), 8);
+								q_put(q_l.v[q_o].first + 1, 16); // value v -> index v - 1
+								if (q_lit) q_put(1, 1);           // -> lBase (the sun's environment)
+								q_align();
+							}
+							q_leaf_bytes.insert(q_leaf_bytes.end(), q_rec.begin(), q_rec.end());
+							v138_blocks += static_cast<unsigned int>(q_order.size());
+						}
+						// nodes, level by level, children contiguous in octant order
+						std::vector<unsigned int> q_nodes;
+						std::vector<unsigned int> q_level = { 0u }; // node keys at the current level (coords >> (D - l + 1))
+						std::vector<unsigned int> q_level_idx = { 0u };
+						q_nodes.push_back(0);
+						for (int q_l = 0; q_l <= q_D; q_l++)
+						{
+							const int q_shift_child = q_D - q_l; // child key = coord >> shift_child (leaf blocks at l = D: shift 0)
+							std::vector<unsigned int> q_next, q_next_idx;
+							for (size_t q_i = 0; q_i < q_level.size(); q_i++)
+							{
+								const unsigned int q_key = q_level[q_i];
+								const unsigned int q_px = q_key & 255, q_py = (q_key >> 8) & 255, q_pz = (q_key >> 16) & 255;
+								unsigned int q_mask = 0;
+								std::vector<unsigned int> q_kids;
+								for (unsigned int q_o = 0; q_o < 8; q_o++)
+								{
+									const unsigned int q_cx = (q_px << 1) | (q_o & 1), q_cy = (q_py << 1) | ((q_o >> 1) & 1), q_cz = (q_pz << 1) | ((q_o >> 2) & 1);
+									const unsigned int q_ck = q_cx | (q_cy << 8) | (q_cz << 16);
+									bool q_has = false;
+									if (q_l == q_D) q_has = q_blk.count(q_ck) != 0;
+									else
+									{
+										// any block under this child?
+										const int q_sh = q_shift_child;
+										for (auto q_it2 = q_leaves.begin(); q_it2 != q_leaves.end() && !q_has; ++q_it2)
+										{
+											const unsigned int q_lx = q_it2->first & 255, q_ly = (q_it2->first >> 8) & 255, q_lz = (q_it2->first >> 16) & 255;
+											if (((q_lx << 1) >> q_sh) == q_cx && ((q_ly << 1) >> q_sh) == q_cy && ((q_lz << 1) >> q_sh) == q_cz) q_has = true;
+										}
+									}
+									if (!q_has) continue;
+									q_mask |= 1u << q_o;
+									q_kids.push_back(q_ck);
+								}
+								if (q_l == q_D)
+									q_nodes[q_level_idx[q_i]] = (q_mask << 24) | (q_leaf_off[q_key] & 0xFFFFFF);
+								else
+								{
+									const unsigned int q_base = static_cast<unsigned int>(q_nodes.size());
+									q_nodes[q_level_idx[q_i]] = (q_mask << 24) | q_base;
+									for (const auto q_ck : q_kids) { q_next.push_back(q_ck); q_next_idx.push_back(static_cast<unsigned int>(q_nodes.size())); q_nodes.push_back(0); }
+								}
+							}
+							q_level = q_next; q_level_idx = q_next_idx;
+							if (q_l == q_D) break;
+						}
+						v138_nodes = static_cast<unsigned int>(q_nodes.size());
+						for (int q_t = 0; q_t < 3; q_t++)
+						{
+							auto& q_tr = new_asset->lightGrid.tree[q_t];
+							q_tr.maxDepth = static_cast<unsigned char>(q_D);
+							q_tr.nodeCount = static_cast<int>(q_nodes.size());
+							q_tr.leafCount = static_cast<int>(v138_blocks);
+							q_tr.coordMinGridSpace[0] = q_minX; q_tr.coordMinGridSpace[1] = q_minY; q_tr.coordMinGridSpace[2] = q_minZ;
+							q_tr.coordHalfSizeGridSpace[0] = q_nb * 4 / 2; q_tr.coordHalfSizeGridSpace[1] = q_nb * 4 / 2; q_tr.coordHalfSizeGridSpace[2] = q_nb / 2;
+							q_tr.coordMaxGridSpace[0] = q_minX + q_nb * 4 - 1; q_tr.coordMaxGridSpace[1] = q_minY + q_nb * 4 - 1; q_tr.coordMaxGridSpace[2] = q_minZ + q_nb - 1;
+							q_tr.defaultColorIndexBitCount = 16;
+							q_tr.defaultLightIndexBitCount = q_LB;
+							q_tr.p_nodeTable = allocator.allocate_array<unsigned int>(q_nodes.size());
+							std::memcpy(q_tr.p_nodeTable, q_nodes.data(), q_nodes.size() * sizeof(unsigned int));
+							q_tr.leafTableSize = static_cast<int>(q_leaf_bytes.size());
+							q_tr.p_leafTable = allocator.allocate_array<unsigned char>(q_leaf_bytes.size());
+							std::memcpy(q_tr.p_leafTable, q_leaf_bytes.data(), q_leaf_bytes.size());
+						}
+					}
 					if (v135_palette)
 					{
 						auto& lg = new_asset->lightGrid;
@@ -830,7 +995,7 @@ namespace zonetool::iw7
 						// v137: keep the one-entry colour table (v135 dropped it)
 					}
 					{
-						const std::string v131_msg = utils::string::va("primary %s, floors %zu, shaded %u, sunlit %u, no floor %u, secondary %s, ground lit %u, palette entries %zu\n", v129_prim.empty() ? "MISSING" : "ok", v129_floors.size(), v129_shaded, v129_lit, v129_none, v133_sec.empty() ? "MISSING" : "ok", v133_grounded, v135_addr.size());
+						const std::string v131_msg = utils::string::va("primary %s, floors %zu, shaded %u, sunlit %u, no floor %u, secondary %s, ground lit %u, palette entries %zu, tree nodes %u blocks %u\n", v129_prim.empty() ? "MISSING" : "ok", v129_floors.size(), v129_shaded, v129_lit, v129_none, v133_sec.empty() ? "MISSING" : "ok", v133_grounded, v135_addr.size(), v138_nodes, v138_blocks);
 						filesystem::file v131_f("v129_model_sun.txt");
 						v131_f.open("wb");
 						v131_f.write(v131_msg);
