@@ -577,6 +577,8 @@ namespace zonetool::iw7
 				//      reflection from the surface's reflection probe). Spec image iw7_spec_gloss (RGB = reflectance, A = gloss) is
 				//      written by iw7_port2.ps1 as images\iw7_spec_gloss.dds. Set to false to go back to the matte v101 look.
 				constexpr bool v102_gloss = false; // v103: true blew every matched marble surface out to white in game (lighting of wc_l_sm_r0c0n0s0l0 differs)
+				constexpr bool v104_ghosts_flags = true; // v104: materialType 36 + gameFlags 82 exactly as mp_dig's wc/dig_floor_tile_01
+				constexpr float v104_bloom = 0.0f;       // v104: bloom mask of the gloss materials (mp_dig uses 1.0; our world has 0)
 				if (v102_gloss && asset->name && asset->name[0] == 'w' && asset->name[1] == '/' && !blended
 					&& matdata["techniqueSet->name"].is_string() && matdata["techniqueSet->name"].get<std::string>() == "wc_l_sm_ndw_b0c0l0_nfwpf_iw6")
 				{
@@ -592,11 +594,23 @@ namespace zonetool::iw7
 						matdata["techniqueSet->name"] = "wc_l_sm_r0c0n0s0l0_nfwpf_iw6";
 						matdata["sortKey"] = 2;
 						matdata["cameraRegion"] = 0;
+						// v104 gloss: v102 kept IW7's materialType (68) and gameFlags. H1's MaterialType enum ends at 36 (MTL_TYPE_COUNT = 37),
+						//      so 68 is out of range; the wc_ techsets belong to MTL_TYPE_WORLD_VERTCOL (36), which mp_dig's
+						//      wc/dig_floor_tile_01 uses with gameFlags 82 (0x52 = CASTS_SHADOW | MARK_HAS_REFLECTION | MARK_HAS_LIGHTMAP).
+						//      This techset has build_shadowmap_depth, so 0x40 is right here.
+						if (v104_ghosts_flags)
+						{
+							matdata["materialType"] = static_cast<int>(zonetool::h1::MTL_TYPE_WORLD_VERTCOL);
+							matdata["gameFlags"] = 82;
+						}
 						// envMapParms = min / max / fresnel exponent (mp_dig dig_floor_tile_01: 0.2, 1.0, 2.5, 2.0); "dull" variants reflect less
 						ordered_json c1; c1["name"] = "envMapParms"; c1["nameHash"] = 1033475292u; c1["literal"] = dull ? ordered_json{ 0.1f, 0.6f, 2.5f, 2.0f } : ordered_json{ 0.25f, 1.0f, 2.5f, 2.0f };
 						ordered_json c2; c2["name"] = "colorTint"; c2["nameHash"] = 3054254906u; c2["literal"] = { 1.0f, 1.0f, 1.0f, 1.0f };
 						ordered_json c3; c3["name"] = "reflectionRa"; c3["nameHash"] = 3344177073u; c3["literal"] = { 8096.0f, 0.0f, 0.0f, 0.0f };
-						ordered_json c4; c4["name"] = "bloomParams"; c4["nameHash"] = 3733414975u; c4["literal"] = { 1.0f, 0.0f, 0.0f, 0.0f };
+						// v104 gloss: bloomParams.x is written to the pixel alpha (= bloom mask: out.a = vertexColour.a * bloomParams.x, IW6_SHADERS.md 4/8).
+						//      Our other opaque world materials have NO constants, so no constant buffer and a bloom mask of 0; at 1 these
+						//      HDR-lit surfaces were the only bloom sources in the map. Match the rest of the world (0).
+						ordered_json c4; c4["name"] = "bloomParams"; c4["nameHash"] = 3733414975u; c4["literal"] = { v104_bloom, 0.0f, 0.0f, 0.0f };
 						matdata["constantTable"] = ordered_json::array({ c1, c2, c3, c4 });
 						// sorted by typeHash like the Ghosts material: spec (887934131), normal (1507003663), colour (2695565377)
 						ordered_json t1; t1["image"] = "iw7_spec_gloss"; t1["semantic"] = 8; t1["samplerState"] = 19; t1["lastCharacter"] = 112; t1["firstCharacter"] = 115; t1["typeHash"] = 887934131u;
