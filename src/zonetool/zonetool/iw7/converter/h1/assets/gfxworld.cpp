@@ -470,6 +470,7 @@ namespace zonetool::iw7
 				};
 				unsigned int v129_shaded = 0, v129_lit = 0, v129_none = 0, v133_grounded = 0;
 				constexpr bool v135_palette = true;
+				constexpr bool v136_seq_handles = true;
 				constexpr bool v134_one_handle = false; // tested in v134: no visible change
 				constexpr bool v133_ground_lighting = false; // v134: GROUND_LIGHTING (0x20) drew every static model black: our IW6 model techsets take MODEL_LIGHTING from the grid atlas, not the ground colour
 
@@ -761,7 +762,7 @@ namespace zonetool::iw7
 						dst_inst.cullDist = src_inst.cullDist ? src_inst.cullDist : 0xFFFF;
 						dst_inst.reactiveMotionCullDist = dst_inst.cullDist;
 						dst_inst.reactiveMotionLOD = 0;
-						dst_inst.lightingHandle = v134_one_handle ? 1 : src_inst.lightingHandle; // v134: IW7 handles index IW7's lighting tables, not H1's model lighting atlas (models ignored the stub grid colour)
+						dst_inst.lightingHandle = v136_seq_handles ? static_cast<unsigned short>(i + 1) : v134_one_handle ? 1 : src_inst.lightingHandle; // v136: one H1 lighting tile per model (IW7 handles collide in H1's atlas; with the v135 palette, models whose tile was never filled drew black) // v134: IW7 handles index IW7's lighting tables, not H1's model lighting atlas (models ignored the stub grid colour)
 						dst_inst.staticModelId = static_cast<unsigned short>(i);
 						dst_inst.primaryLightEnvIndex = src_inst.primaryLightEnvIndex;
 						if (src_inst.placement.origin[2] < -1000.0f) dst_inst.primaryLightEnvIndex = 0; // v123: vista city models, no sun
