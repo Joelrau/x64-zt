@@ -503,7 +503,7 @@ namespace zonetool::iw7
 							if (!elem_survives(elem, alive))
 							{
 								dropped++;
-								if (IS_DEBUG || alive)
+								if (alive) // v105: IS_DEBUG undefined here
 								{
 									ZONETOOL_INFO("v102 fx: %s elem %d (type %d) skipped", asset->name, in_index, static_cast<int>(elem->elemType));
 								}
