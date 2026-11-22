@@ -213,6 +213,14 @@ namespace zonetool::iw7
 
 				const unsigned int zone_count = std::min<unsigned int>(asset->draw.transientZoneCount, 32);
 
+				float wmn[3], wmx[3];
+				static const float v115_thresholds[] = { 1e-6f, 4.0f, 16.0f, 64.0f, 256.0f, 1024.0f, 4096.0f };
+				for (int v115_attempt = 0; ; v115_attempt++)
+				{
+				const float v115_thr = v115_thresholds[v115_attempt];
+				b = builder{};
+				mat_names.clear();
+				mat_lookup.clear();
 				for (unsigned int i = 0; i < asset->surfaceCount; i++)
 				{
 					const auto& s = asset->dpvs.surfaces[i];
@@ -254,7 +262,7 @@ namespace zonetool::iw7
 						const float nx_ = e1[1] * e2[2] - e1[2] * e2[1], ny_ = e1[2] * e2[0] - e1[0] * e2[2], nz_ = e1[0] * e2[1] - e1[1] * e2[0];
 						// v111: also drop tiny detail triangles (area < 2 units^2): mp_flip went 53 verts past the 256 vertex segments and the
 						//       last material groups (spawn floors among them) lost collision -> players fell through the map
-						if (nx_ * nx_ + ny_ * ny_ + nz_ * nz_ < 16.0f) { b.dropped_small++; continue; }
+						if (nx_ * nx_ + ny_ * ny_ + nz_ * nz_ < v115_thr) { b.dropped_small++; continue; }
 						for (int k = 0; k < 3; k++) tri.c[k] = (tri.p[0][k] + tri.p[1][k] + tri.p[2][k]) / 3.0f;
 						b.tris.push_back(tri);
 					}
@@ -277,7 +285,7 @@ namespace zonetool::iw7
 				b.nodes.resize(1 + used.size());
 				b.nodes[0].childCount = static_cast<unsigned short>(used.size());
 				b.nodes[0].u.firstChildIndex = 1;
-				float wmn[3] = { FLT_MAX, FLT_MAX, FLT_MAX }, wmx[3] = { -FLT_MAX, -FLT_MAX, -FLT_MAX };
+				for (int k = 0; k < 3; k++) { wmn[k] = FLT_MAX; wmx[k] = -FLT_MAX; }
 				for (size_t g = 0; g < used.size(); g++)
 				{
 					b.build(1 + static_cast<unsigned int>(g), std::move(groups[used[g]]), used[g], 0);
@@ -336,6 +344,10 @@ namespace zonetool::iw7
 					b.partitions.push_back(p);
 					b.verts = { 0, 0, 0 };
 					b.tri_indices = {};
+				}
+				// v115: only drop small detail when the vertex segments overflow (v111 always dropped < 2 units^2); retry with a growing threshold
+				if (!b.overflow || v115_attempt + 1 >= static_cast<int>(std::size(v115_thresholds))) break;
+				ZONETOOL_INFO("v115 collision: vertex segments overflowed (min tri area %.1f), retrying with a larger threshold", v115_thr * 0.5f);
 				}
 				for (int k = 0; k < 3; k++)
 				{
