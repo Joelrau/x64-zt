@@ -260,6 +260,15 @@ namespace zonetool::iw7
 						const std::string mn = asset->name ? asset->name : "";
 						col_name = (mn.find("brass") != std::string::npos || mn.find("bronze") != std::string::npos || mn.find("gold") != std::string::npos) ? "metal_bare_bronze_01_c" : "blank";
 					}
+					// v94: IW7 metal colour maps (packed colour+spec) hold the metal's specular F0 colour; drawn as Ghosts diffuse
+					//      under the sun, gold/brass trims glowed neon yellow. Use the map's own bronze swatch (warm, darker gold).
+					{
+						const std::string mn = asset->name ? asset->name : "";
+						if ((mn.find("gold") != std::string::npos || mn.find("brass") != std::string::npos) && col_name.find("_packed_cs") != std::string::npos)
+							col_name = (mn.size() > 1 && mn[0] == 'w' && (mn[1] == '/' || mn[1] == 'c')) ? "$black" : "metal_bare_bronze_01_c";
+						// v95: world trims stayed bright orange even as bronze (in-game test with $black matches the IW7 reference:
+						//      thin dark metal edges, no glowing lines along planters and the tower)
+					}
 					// v40: images that exist in no loaded zone render solid red
 					static const char* const missing_imgs[] = { "default", "$white", "black", "$gray", "transparent_invisible", "glass_clear_01_c", "koth_grid_03_c", "koth_grid_01_c", "falloff_linear", "vfx_energy_dome_shield_ping", "vfx_energy_beam_nrm" };
 					for (const auto* mi : missing_imgs) if (col_name == mi) col_name = "blank";
