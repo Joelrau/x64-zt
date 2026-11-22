@@ -256,6 +256,7 @@ namespace zonetool::iw7
 					case PARTICLE_ELEMENT_TYPE_BILLBOARD_SPRITE:
 					case PARTICLE_ELEMENT_TYPE_CLOUD:
 					case PARTICLE_ELEMENT_TYPE_SPARK_CLOUD:
+					case PARTICLE_ELEMENT_TYPE_FLARE: // v122: lens flares / glares are camera-facing sprites
 						return zonetool::h1::FX_ELEM_TYPE_SPRITE_BILLBOARD;
 					case PARTICLE_ELEMENT_TYPE_ORIENTED_SPRITE:
 						return zonetool::h1::FX_ELEM_TYPE_SPRITE_ORIENTED;
