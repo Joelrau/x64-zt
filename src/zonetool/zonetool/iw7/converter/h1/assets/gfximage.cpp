@@ -117,6 +117,67 @@ namespace zonetool::iw7
 				return out_buffer;
 			}
 
+
+			// v128 metal: IW7's *_packed_cs colour maps carry the specular level in alpha (render_iw7 / fastfile_iw7 shine.rs,
+			//      from retail mp_flip's lmap_specenv shaders): metalness = saturate(a - 0.1) / 0.9, diffuse = colour * (1 - metalness).
+			//      H1's Ghosts-style techsets use the colour map as diffuse albedo (squared), so every metal (statues, copper pipes,
+			//      brushed steel) drew as a bright painted surface. Take the metal's diffuse out here (in gamma-2 space:
+			//      c * sqrt(1 - m)), keeping a small floor so metals don't go black where the probes are dim.
+			constexpr bool v128_metal = true;
+			constexpr float v128_metal_floor = 0.12f;
+			std::atomic<unsigned int> v128_metal_images{0};
+
+			void v128_unmetal(const std::string& vn, DXGI_FORMAT vf, std::vector<std::uint8_t>& vd, unsigned int vw, unsigned int vh)
+			{
+				if (!v128_metal || vn.find("_packed_cs") == std::string::npos) return;
+				if (vf != DXGI_FORMAT_BC7_UNORM && vf != DXGI_FORMAT_BC7_UNORM_SRGB) return;
+				size_t voff = 0;
+				bool vany = false;
+				while (vw && vh && voff < vd.size())
+				{
+					const size_t vbytes = size_t((vw + 3) / 4) * size_t((vh + 3) / 4) * 16;
+					if (voff + vbytes > vd.size()) break;
+					DirectX::Image vimg{};
+					vimg.width = vw; vimg.height = vh; vimg.format = vf;
+					vimg.rowPitch = size_t((vw + 3) / 4) * 16; vimg.slicePitch = vbytes;
+					vimg.pixels = vd.data() + voff;
+					DirectX::ScratchImage vraw;
+					if (SUCCEEDED(DirectX::Decompress(vimg, DXGI_FORMAT_R8G8B8A8_UNORM, vraw)))
+					{
+						const auto* vr = vraw.GetImage(0, 0, 0);
+						bool vchg = false;
+						for (size_t vy = 0; vy < vr->height; vy++)
+						{
+							auto* vrow = vr->pixels + vy * vr->rowPitch;
+							for (size_t vx = 0; vx < vr->width; vx++)
+							{
+								auto* vpx = vrow + vx * 4;
+								const float va = vpx[3] / 255.0f;
+								const float vm = std::clamp((va - 0.1f) / 0.9f, 0.0f, 1.0f);
+								if (vm <= 0.0f) continue;
+								const float vk = std::sqrt(std::max(1.0f - vm, v128_metal_floor));
+								for (int vc = 0; vc < 3; vc++) vpx[vc] = static_cast<std::uint8_t>(std::lround(vpx[vc] * vk));
+								vchg = true;
+							}
+						}
+						if (vchg)
+						{
+							DirectX::ScratchImage venc;
+							if (SUCCEEDED(DirectX::Compress(*vr, vf, DirectX::TEX_COMPRESS_BC7_QUICK | DirectX::TEX_COMPRESS_PARALLEL, 0.5f, venc))
+								&& venc.GetPixelsSize() == vbytes)
+							{
+								std::memcpy(vd.data() + voff, venc.GetPixels(), vbytes);
+								vany = true;
+							}
+						}
+					}
+					voff += vbytes;
+					if (vw == 1 && vh == 1) break;
+					vw = std::max(1u, vw / 2); vh = std::max(1u, vh / 2);
+				}
+				if (vany) v128_metal_images++;
+			}
+
 			void dump_streamed_image(zonetool::h1::GfxImage* image, bool is_self = false, bool dump_dds = false)
 			{
 				const auto index = (*g_streamZoneMem)->streamed_image_index;
@@ -192,6 +253,7 @@ namespace zonetool::iw7
 						{
 							std::string parent_path = filesystem::get_dump_path() + "streamed_images\\";
 							std::string raw_path = utils::string::va("%s%s_stream%i.pixels", parent_path.data(), name.data(), i);
+							v128_unmetal(name, DXGI_FORMAT(image->imageFormat), pixel_data, image->streams[i].width, image->streams[i].height);
 							std::string pixel_data_str = std::string(pixel_data.begin(), pixel_data.end());
 							utils::io::write_file(raw_path, pixel_data_str, false);
 						}

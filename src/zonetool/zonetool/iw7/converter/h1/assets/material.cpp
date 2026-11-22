@@ -114,6 +114,9 @@ namespace zonetool::iw7
 				// v113: with reflection probes in (v101) draw facade glass as opaque reflective dark glass (IW7's mirror facades) instead
 				//       of the v72 see-through pane, which showed the unlit interiors as a black void (building right of spawn)
 				constexpr bool v113_mirror_glass = true;
+					// v128: metals get their diffuse taken out of the packed colour map itself (gfximage.cpp v128_unmetal), so the flat
+					//      copper / bronze swatches (v102, v127) are no longer needed
+					constexpr bool v128_true_metal = true;
 				const bool facade_glass_raw = asset->info.sortKey < 7 && v72_name.find("glass") != std::string::npos && (v72_name.find("building") != std::string::npos || v72_name.find("tinted") != std::string::npos || v72_name.find("opaque_02") != std::string::npos); // v72: dark facade glass rendered pitch black; draw it see-through
 				const bool facade_glass = facade_glass_raw && !v113_mirror_glass;
 				// v113: IW7 world glass on the opaque "replace" techsets (glass_building_*, glass_opaque_*, solar panels: sortKey 7, colour "blank")
@@ -283,10 +286,10 @@ namespace zonetool::iw7
 						//      so the big curved pipe over the tower (surfaces 3888-3902 around (480,100,150-656)) drew white/cream
 						//      instead of the dark reddish copper in IW7. Use the darker, warmer bronze swatch (160,110,60), which is
 						//      loaded by w/metal_bare_bronze_01.
-						if (mn.find("copper") != std::string::npos && col_name.find("_packed_cs") != std::string::npos)
+						if (!v128_true_metal && mn.find("copper") != std::string::npos && col_name.find("_packed_cs") != std::string::npos)
 							col_name = "iw7_copper_dark"; // v104: bronze still read as a glowing yellow tube under the sun; flat dark copper (iw7_port2.ps1)
 						// v127: the owner / victory statues are dark bronze in IW7 (user's gallery video); their packed metal map drew bright gold
-						if ((mn.find("owner_statue") != std::string::npos || mn.find("victory_statue") != std::string::npos) && col_name.find("_packed_cs") != std::string::npos)
+						if (!v128_true_metal && (mn.find("owner_statue") != std::string::npos || mn.find("victory_statue") != std::string::npos) && col_name.find("_packed_cs") != std::string::npos)
 							col_name = "iw7_copper_dark";
 					}
 					// v40: images that exist in no loaded zone render solid red
