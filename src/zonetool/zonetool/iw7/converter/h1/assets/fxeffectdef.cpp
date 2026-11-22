@@ -3,6 +3,9 @@
 #include "fxeffectdef.hpp"
 #include "particlesystem.hpp"
 #include "createfx.hpp"
+#include "material.hpp"
+#include "gfximage.hpp"
+#include <fstream>
 
 #include "zonetool/h1/assets/fxeffectdef.hpp"
 
@@ -24,6 +27,38 @@ namespace zonetool::iw7
 			{
 				// v102 fx: what this session dumped for H1, by type (materials, models, ...)
 				std::unordered_map<std::int32_t, std::unordered_set<std::string>> dumped_assets;
+				// v114 fx: assets that live in another dumped zone (IW7 common_core_mp materials), listed one "type,name" per line in
+				//          zt_extra_assets.txt (working dir); effects may reference them, the port script copies the ones used
+				std::unordered_map<std::int32_t, std::unordered_set<std::string>> external_assets;
+				bool external_loaded = false;
+				std::set<std::pair<std::int32_t, std::string>> used_external;
+
+				void load_external()
+				{
+					if (external_loaded)
+					{
+						return;
+					}
+					external_loaded = true;
+					std::ifstream in("zt_extra_assets.txt");
+					std::string line;
+					std::size_t count = 0;
+					while (std::getline(in, line))
+					{
+						while (!line.empty() && (line.back() == '\r' || line.back() == ' ')) line.pop_back();
+						const auto comma = line.find(',');
+						if (comma == std::string::npos) continue;
+						const auto type_str = line.substr(0, comma);
+						const auto asset_name = line.substr(comma + 1);
+						std::int32_t asset_type = -1;
+						if (type_str == "material") asset_type = ASSET_TYPE_MATERIAL;
+						else if (type_str == "xmodel") asset_type = ASSET_TYPE_XMODEL;
+						if (asset_type < 0 || asset_name.empty()) continue;
+						external_assets[asset_type].insert(asset_name);
+						count++;
+					}
+					ZONETOOL_INFO("v114 fx: %zu external assets available (zt_extra_assets.txt)", count);
+				}
 				// v109 fx: effects converted at dump time into owned H1 data (the IW7 zone memory is reused by
 				//          stop_dumping time: v108 read every queued particle system as "mp_flip"); pruned + written in flush()
 				struct pending_effect
@@ -290,6 +325,10 @@ namespace zonetool::iw7
 						{
 							for (auto i = 0; i < elem->visualCount; i++)
 							{
+								if (list[i].anonymous)
+								{
+									ensure_external_material(list[i].material); // v114
+								}
 								if (list[i].anonymous && is_emissive_material(list[i].material))
 								{
 									emissive = true;
@@ -561,7 +600,18 @@ namespace zonetool::iw7
 					return false;
 				}
 				const auto itr = dumped_assets.find(type);
-				return itr != dumped_assets.end() && itr->second.contains(name);
+				if (itr != dumped_assets.end() && itr->second.contains(name))
+				{
+					return true;
+				}
+				load_external();
+				const auto ext = external_assets.find(type);
+				if (ext != external_assets.end() && ext->second.contains(name))
+				{
+					used_external.emplace(static_cast<std::int32_t>(type), name);
+					return true;
+				}
+				return false;
 			}
 
 			const std::unordered_set<std::string>& converted_effects()
@@ -572,6 +622,47 @@ namespace zonetool::iw7
 			bool is_fx_emissive_material(const Material* mat)
 			{
 				return is_emissive_material(mat);
+			}
+
+			void ensure_external_material(const Material* mat)
+			{
+				constexpr bool v114_dump_external = true;
+				if (!v114_dump_external || !mat || !mat->name || !*mat->name)
+				{
+					return;
+				}
+				const std::string mat_name = mat->name;
+				const auto in_zone = dumped_assets.find(ASSET_TYPE_MATERIAL);
+				if (in_zone != dumped_assets.end() && in_zone->second.contains(mat_name))
+				{
+					return;
+				}
+				static std::unordered_set<std::string> done;
+				if (!done.insert(mat_name).second)
+				{
+					return;
+				}
+				try
+				{
+					material::dump(const_cast<Material*>(mat));
+					int images = 0;
+					for (auto i = 0; i < mat->textureCount && mat->textureTable; i++)
+					{
+						auto* image = mat->textureTable[i].image;
+						if (image && image->name && !was_dumped(ASSET_TYPE_IMAGE, image->name))
+						{
+							gfximage::dump(image);
+							note_dumped(ASSET_TYPE_IMAGE, image->name);
+							images++;
+						}
+					}
+					note_dumped(ASSET_TYPE_MATERIAL, mat->name);
+					ZONETOOL_INFO("v114 fx: dumped external effect material %s (%d images)", mat->name, images);
+				}
+				catch (const std::exception& ex)
+				{
+					ZONETOOL_ERROR("v114 fx: external material %s failed: %s", mat->name, ex.what());
+				}
 			}
 
 			zonetool::h1::FxEffectDef* convert(FxEffectDef* asset, utils::memory::allocator& allocator)
@@ -1138,6 +1229,20 @@ namespace zonetool::iw7
 				ZONETOOL_INFO("v102 fx: %d legacy effects written, %d skipped (empty), %d elements dropped", written[0], empty[0], dropped_total[0]);
 				ZONETOOL_INFO("v104 vfx: %d particle systems written, %d skipped (empty), %d elements dropped", written[1], empty[1], dropped_total[1]);
 				std::fflush(stdout);
+
+				// v114 fx: external (common zone) assets the effects use, for iw7_port2.ps1 to copy into the map's zone source
+				{
+					std::string list;
+					for (const auto& [type, asset_name] : used_external)
+					{
+						list += (type == ASSET_TYPE_MATERIAL ? "material," : "xmodel,") + asset_name + "\n";
+					}
+					filesystem::file file("fx_external_assets.txt");
+					file.open("wb");
+					file.write(list);
+					file.close();
+					ZONETOOL_INFO("v114 fx: %zu external assets used by effects (fx_external_assets.txt)", used_external.size());
+				}
 
 				pending_effects.clear();
 				pending_names.clear();

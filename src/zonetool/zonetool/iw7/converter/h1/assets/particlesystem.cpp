@@ -294,6 +294,7 @@ namespace zonetool::iw7
 						if (!readable(linked.material, sizeof(Material))) return false;
 						const auto* name = safe_name(linked.material->name);
 						if (!name) return false;
+						if (!alive) fxeffectdef::ensure_external_material(linked.material); // v114: dump-time pass, pointers valid
 						return !alive || fxeffectdef::was_dumped(ASSET_TYPE_MATERIAL, name);
 					}
 					if (type == zonetool::h1::FX_ELEM_TYPE_MODEL)

@@ -26,6 +26,9 @@ namespace zonetool::iw7
 
 			// v104 vfx: shared with the particle system converter (material goes to the additive emissive techset)
 			bool is_fx_emissive_material(const Material* mat);
+
+			// v114 fx: an effect material from another loaded zone (IW7 common_core_mp): dump it (json + images) with the map
+			void ensure_external_material(const Material* mat);
 		}
 	}
 }
