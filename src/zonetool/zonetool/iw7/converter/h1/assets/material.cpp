@@ -529,6 +529,41 @@ namespace zonetool::iw7
 					}
 				}
 
+				// v102 gloss: IW7 glossy world floors (sref0 / _ssr / glossy / marble) looked matte with the colour+lightmap-only techset.
+				//      Use Ghosts' reflective opaque world techset exactly like mp_dig's wc/dig_floor_tile_01 (spec + normal + colour,
+				//      reflection from the surface's reflection probe). Spec image iw7_spec_gloss (RGB = reflectance, A = gloss) is
+				//      written by iw7_port2.ps1 as images\iw7_spec_gloss.dds. Set to false to go back to the matte v101 look.
+				constexpr bool v102_gloss = true;
+				if (v102_gloss && asset->name && asset->name[0] == 'w' && asset->name[1] == '/' && !blended
+					&& matdata["techniqueSet->name"].is_string() && matdata["techniqueSet->name"].get<std::string>() == "wc_l_sm_ndw_b0c0l0_nfwpf_iw6")
+				{
+					const std::string gn = asset->name;
+					const auto has = [&](const char* s) { return gn.find(s) != std::string::npos; };
+					const bool reflective = techset.find("sref") != std::string::npos || has("_ssr") || has("glossy") || has("marble") || has("polished");
+					const bool excluded = has("glass") || has("gold") || has("brass") || has("_no_ssr") || has("decal"); // v95 trims, glass handled elsewhere
+					if (reflective && !excluded)
+					{
+						std::string col = "blank";
+						for (const auto& im : material_images) if (im["typeHash"].get<std::size_t>() == 2695565377u) col = im["image"].get<std::string>();
+						const bool dull = has("dull");
+						matdata["techniqueSet->name"] = "wc_l_sm_r0c0n0s0l0_nfwpf_iw6";
+						matdata["sortKey"] = 2;
+						matdata["cameraRegion"] = 0;
+						// envMapParms = min / max / fresnel exponent (mp_dig dig_floor_tile_01: 0.2, 1.0, 2.5, 2.0); "dull" variants reflect less
+						ordered_json c1; c1["name"] = "envMapParms"; c1["nameHash"] = 1033475292u; c1["literal"] = dull ? ordered_json{ 0.1f, 0.6f, 2.5f, 2.0f } : ordered_json{ 0.25f, 1.0f, 2.5f, 2.0f };
+						ordered_json c2; c2["name"] = "colorTint"; c2["nameHash"] = 3054254906u; c2["literal"] = { 1.0f, 1.0f, 1.0f, 1.0f };
+						ordered_json c3; c3["name"] = "reflectionRa"; c3["nameHash"] = 3344177073u; c3["literal"] = { 8096.0f, 0.0f, 0.0f, 0.0f };
+						ordered_json c4; c4["name"] = "bloomParams"; c4["nameHash"] = 3733414975u; c4["literal"] = { 1.0f, 0.0f, 0.0f, 0.0f };
+						matdata["constantTable"] = ordered_json::array({ c1, c2, c3, c4 });
+						// sorted by typeHash like the Ghosts material: spec (887934131), normal (1507003663), colour (2695565377)
+						ordered_json t1; t1["image"] = "iw7_spec_gloss"; t1["semantic"] = 8; t1["samplerState"] = 19; t1["lastCharacter"] = 112; t1["firstCharacter"] = 115; t1["typeHash"] = 887934131u;
+						ordered_json t2; t2["image"] = "$identitynormalmap"; t2["semantic"] = 5; t2["samplerState"] = 19; t2["lastCharacter"] = 112; t2["firstCharacter"] = 110; t2["typeHash"] = 1507003663u;
+						ordered_json t3; t3["image"] = col; t3["semantic"] = 2; t3["samplerState"] = 19; t3["lastCharacter"] = 112; t3["firstCharacter"] = 99; t3["typeHash"] = 2695565377u;
+						material_images = ordered_json::array({ t1, t2, t3 });
+						ZONETOOL_INFO("v102 gloss: %s (%s)%s", asset->name, techset.data(), dull ? " dull" : "");
+					}
+				}
+
 				matdata["textureTable"] = material_images;
 
 				auto str = matdata.dump(4, ' ', true, nlohmann::detail::error_handler_t::replace);
