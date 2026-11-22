@@ -907,6 +907,57 @@ namespace zonetool::iw7
 					return out;
 				}
 
+				// v110 fx: dedup list of assets the converted effects need but this session did not dump
+				void collect_missing(const pending_effect& pend, const alive_set& alive, std::map<std::pair<std::string, std::string>, int>& missing)
+				{
+					const auto* def = pend.def;
+					const int total = def->elemDefCountLooping + def->elemDefCountOneShot + def->elemDefCountEmission;
+					const auto note = [&](const char* kind, const char* name)
+					{
+						if (name) missing[{ kind, name }]++;
+					};
+					for (auto elem_index = 0; elem_index < total; elem_index++)
+					{
+						const auto& elem = def->elemDefs[elem_index];
+						if (elem.elemType == zonetool::h1::FX_ELEM_TYPE_DECAL)
+						{
+							if (!elem.visuals.markArray) continue;
+							for (auto vis = 0; vis < elem.visualCount; vis++)
+							{
+								for (const auto* mat : elem.visuals.markArray[vis].materials)
+								{
+									if (mat && !was_dumped(ASSET_TYPE_MATERIAL, mat->name)) note("material", mat->name);
+								}
+							}
+						}
+						else if (!is_light_type(elem.elemType) && elem.visualCount > 0)
+						{
+							for (auto vis = 0; vis < elem.visualCount; vis++)
+							{
+								const void* ptr = elem.visualCount == 1 ? elem.visuals.instance.anonymous : elem.visuals.array[vis].anonymous;
+								const auto* name = owned_visual_name(elem.elemType, ptr);
+								if (!name) continue;
+								if (elem.elemType == zonetool::h1::FX_ELEM_TYPE_MODEL)
+								{
+									if (!was_dumped(ASSET_TYPE_XMODEL, name)) note("model", name);
+								}
+								else if (elem.elemType == zonetool::h1::FX_ELEM_TYPE_RUNNER)
+								{
+									if (!alive.contains(name)) note("effect", name);
+								}
+								else if (!was_dumped(ASSET_TYPE_MATERIAL, name))
+								{
+									note("material", name);
+								}
+							}
+						}
+						for (const auto* handle : { elem.effectOnImpact.handle, elem.effectOnDeath.handle, elem.effectEmitted.handle })
+						{
+							if (handle && handle->name && !alive.contains(handle->name)) note("effect", handle->name);
+						}
+					}
+				}
+
 				void add_pending(const std::string& name, zonetool::h1::FxEffectDef* def, std::vector<particlesystem::elem_meta>&& meta, bool is_vfx)
 				{
 					pending_names.insert(name);
@@ -1026,6 +1077,26 @@ namespace zonetool::iw7
 							changed = true;
 						}
 					}
+				}
+
+				// v110 fx: what is missing, so the zone holding it (common mp?) can be dumped alongside
+				{
+					std::map<std::pair<std::string, std::string>, int> missing;
+					for (const auto& pend : pending_effects)
+					{
+						collect_missing(pend, alive, missing);
+					}
+					std::vector<std::pair<std::pair<std::string, std::string>, int>> sorted_missing(missing.begin(), missing.end());
+					std::sort(sorted_missing.begin(), sorted_missing.end(), [](const auto& lhs, const auto& rhs)
+					{
+						return lhs.second != rhs.second ? lhs.second > rhs.second : lhs.first < rhs.first;
+					});
+					for (const auto& [key, uses] : sorted_missing)
+					{
+						ZONETOOL_INFO("v110 fx: missing %s %s (%d uses)", key.first.data(), key.second.data(), uses);
+					}
+					ZONETOOL_INFO("v110 fx: %zu distinct missing assets", sorted_missing.size());
+					std::fflush(stdout);
 				}
 
 				int written[2] = {};

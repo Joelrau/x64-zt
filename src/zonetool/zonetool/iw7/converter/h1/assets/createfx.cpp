@@ -218,6 +218,59 @@ namespace zonetool::iw7
 					file.close();
 				}
 
+				// v110 fx: loadfx strings vs written effect names: exact, then normalised (lowercase, '/' separators, no ',' prefix,
+				//          no extension), then by base name (only when unique)
+				std::string normalize_fx_name(const std::string& raw)
+				{
+					auto out = utils::string::to_lower(trim(raw));
+					std::replace(out.begin(), out.end(), '\\', '/');
+					while (!out.empty() && (out.front() == ',' || out.front() == '/')) out.erase(out.begin());
+					const auto slash = out.find_last_of('/');
+					const auto dot = out.find_last_of('.');
+					if (dot != std::string::npos && (slash == std::string::npos || dot > slash))
+					{
+						out.erase(dot);
+					}
+					return out;
+				}
+
+				std::string base_fx_name(const std::string& normalized)
+				{
+					const auto slash = normalized.find_last_of('/');
+					return slash == std::string::npos ? normalized : normalized.substr(slash + 1);
+				}
+
+				struct fx_resolver
+				{
+					const std::unordered_set<std::string>* written = nullptr;
+					std::unordered_map<std::string, std::string> by_norm;
+					std::unordered_map<std::string, std::string> by_base;
+					std::unordered_set<std::string> ambiguous_base;
+
+					explicit fx_resolver(const std::unordered_set<std::string>& names) : written(&names)
+					{
+						for (const auto& name : names)
+						{
+							const auto norm = normalize_fx_name(name);
+							by_norm.emplace(norm, name);
+							const auto base = base_fx_name(norm);
+							if (by_base.contains(base) && by_base[base] != name) ambiguous_base.insert(base);
+							else by_base.emplace(base, name);
+						}
+						for (const auto& base : ambiguous_base) by_base.erase(base);
+					}
+
+					std::string resolve(const std::string& raw) const
+					{
+						if (raw.empty()) return {};
+						if (written->contains(raw)) return raw;
+						const auto norm = normalize_fx_name(raw);
+						if (const auto itr = by_norm.find(norm); itr != by_norm.end()) return itr->second;
+						if (const auto itr = by_base.find(base_fx_name(norm)); itr != by_base.end()) return itr->second;
+						return {};
+					}
+				};
+
 				void reset()
 				{
 					effect_table.clear();
@@ -245,13 +298,15 @@ namespace zonetool::iw7
 					{
 						continue;
 					}
-					if (ent.fxid == effect_path || effect_path.ends_with("/" + ent.fxid))
+					const auto target = normalize_fx_name(effect_path);
+					const auto fxid_norm = normalize_fx_name(ent.fxid);
+					if (fxid_norm == target || base_fx_name(target) == base_fx_name(fxid_norm))
 					{
 						return true;
 					}
 					for (const auto& [id, path] : effect_table)
 					{
-						if (id == ent.fxid && path == effect_path)
+						if (id == ent.fxid && (path == effect_path || normalize_fx_name(path) == target || base_fx_name(normalize_fx_name(path)) == base_fx_name(target)))
 						{
 							return true;
 						}
@@ -334,7 +389,9 @@ namespace zonetool::iw7
 
 					if (have_scripts)
 					{
-						// resolve id -> path; ents may reference ids missing from the table (use a converted effect ending in /id)
+						const fx_resolver resolver(converted);
+
+						// resolve id -> path; ents may reference ids missing from the table (use a written effect matching the id)
 						std::unordered_map<std::string, std::string> id_to_path(effect_table.begin(), effect_table.end());
 						for (const auto& ent : ents)
 						{
@@ -342,15 +399,30 @@ namespace zonetool::iw7
 							{
 								continue;
 							}
-							for (const auto& fx : converted)
+							const auto hit = resolver.resolve(ent.fxid);
+							if (!hit.empty())
 							{
-								if (fx == ent.fxid || fx.ends_with("/" + ent.fxid))
-								{
-									id_to_path[ent.fxid] = fx;
-									effect_table.emplace_back(ent.fxid, fx);
-									break;
-								}
+								id_to_path[ent.fxid] = hit;
+								effect_table.emplace_back(ent.fxid, hit);
 							}
+						}
+
+						// v110 fx: match loadfx strings to written effect names robustly; log samples so mismatches are visible
+						{
+							int shown = 0;
+							for (const auto& name : converted)
+							{
+								if (shown++ >= 5) break;
+								ZONETOOL_INFO("v110 fx: written effect sample \"%s\"", name.data());
+							}
+							shown = 0;
+							for (const auto& [id, path] : effect_table)
+							{
+								if (shown++ >= 8) break;
+								const auto hit = resolver.resolve(path);
+								ZONETOOL_INFO("v110 fx: loadfx sample id \"%s\" path \"%s\" -> \"%s\"", id.data(), path.data(), hit.empty() ? "<none>" : hit.data());
+							}
+							std::fflush(stdout);
 						}
 
 						std::unordered_set<std::string> usable_ids;
@@ -361,10 +433,12 @@ namespace zonetool::iw7
 						int missing = 0;
 						for (const auto& [id, path] : effect_table)
 						{
-							if (converted.contains(path))
+							auto resolved = resolver.resolve(path);
+							if (resolved.empty()) resolved = resolver.resolve(id); // v110 fx: id often is the effect base name
+							if (!resolved.empty())
 							{
 								usable_ids.insert(id);
-								fx_gsc += utils::string::va("\tlevel._effect[ \"%s\" ] = loadfx( \"%s\" );\n", id.data(), path.data());
+								fx_gsc += utils::string::va("\tlevel._effect[ \"%s\" ] = loadfx( \"%s\" );\n", id.data(), resolved.data());
 							}
 							else
 							{
@@ -384,20 +458,29 @@ namespace zonetool::iw7
 						cfx += "main()\n{\n\tlevel thread v102_spawn_createfx();\n}\n\n";
 						cfx += "v102_spawn_createfx()\n{\n\twait 0.05;\n";
 						int placed = 0, skipped = 0;
+						int skipped_kind = 0, skipped_no_origin = 0, skipped_missing = 0;
+						int ent_samples = 0;
 						for (const auto& ent : ents)
 						{
+							if (ent_samples++ < 5)
+							{
+								ZONETOOL_INFO("v110 fx: createfx sample func \"%s\" type \"%s\" fxid \"%s\" origin \"%s\" angles \"%s\" usable=%d", ent.func.data(),
+									ent.type.data(), ent.fxid.data(), ent.origin.data(), ent.angles.data(), usable_ids.contains(ent.fxid) ? 1 : 0);
+							}
 							const auto kind = ent_kind(ent);
 							const auto origin = ent.origin.empty() ? "( 0, 0, 0 )"s : ent.origin;
 							const auto angles = ent.angles.empty() ? "( 270, 0, 0 )"s : ent.angles;
 							if (kind == "exploder" || kind == "sound" || ent.fxid.empty() || ent.origin.empty())
 							{
 								skipped++;
+								if (ent.origin.empty() && kind != "exploder" && kind != "sound") skipped_no_origin++; else skipped_kind++;
 								cfx += utils::string::va("\t// v102 fx: skipped %s \"%s\" at %s\n", kind.data(), ent.fxid.data(), origin.data());
 								continue;
 							}
 							if (!usable_ids.contains(ent.fxid))
 							{
 								skipped++;
+								skipped_missing++;
 								cfx += utils::string::va("\t// v102 fx: missing effect \"%s\" (%s at %s)\n", ent.fxid.data(), kind.data(), origin.data());
 								continue;
 							}
@@ -429,6 +512,8 @@ namespace zonetool::iw7
 
 						ZONETOOL_INFO("v102 fx: %s createfx: %d scripts, %zu effects (%d missing), %zu entities (%d placed, %d skipped)",
 							map.data(), scripts_parsed, effect_table.size(), missing, ents.size(), placed, skipped);
+						ZONETOOL_INFO("v110 fx: skipped entities: %d exploder/sound/no fxid, %d without origin, %d effect not written",
+							skipped_kind, skipped_no_origin, skipped_missing);
 					}
 					else
 					{
