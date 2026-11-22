@@ -72,6 +72,11 @@ namespace zonetool::iw7
 					if (static_cast<int>(l.type) != 1) continue;
 					l.physicallyBased = 0;
 					for (int c = 0; c < 3; c++) l.color[c] *= 2.5f;
+					// v96: IW7's sun hue is graded by its own tonemapper; raw in H1 it tinted the cream marble brown/orange.
+					//      Pull 35% toward neutral at the same luminance (IW7 reference frame shows near-white sunlit stone).
+					const float lum = l.color[0] * 0.3f + l.color[1] * 0.59f + l.color[2] * 0.11f;
+					for (int c = 0; c < 3; c++) l.color[c] = l.color[c] * 0.65f + lum * 0.35f;
+					ZONETOOL_INFO("v96 sun color %g %g %g dir %g %g %g", l.color[0], l.color[1], l.color[2], l.dir[0], l.dir[1], l.dir[2]);
 				}
 
 				COPY_VALUE(primaryLightEnvCount);
