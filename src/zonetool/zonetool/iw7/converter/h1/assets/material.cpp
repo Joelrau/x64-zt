@@ -423,7 +423,7 @@ namespace zonetool::iw7
 					matdata["cameraRegion"] = 4;
 					matdata["materialType"] = 0;
 					ordered_json a1; a1["name"] = "textureAtlas"; a1["nameHash"] = 1128936273u; a1["literal"] = { 1.0f, 1.0f, 1.0f, 1.0f };
-					ordered_json a2; a2["name"] = "colorTint"; a2["nameHash"] = 3054254906u; if (distortion || tool_surf) a2["literal"] = { 0.0f, 0.0f, 0.0f, 0.0f }; else if (unlit_glow) a2["literal"] = { 1.5f, 1.5f, 1.5f, 1.0f }; else if (add_glass) a2["literal"] = { 0.12f, 0.14f, 0.16f, 1.0f }; else if (v102_fx_mat) a2["literal"] = v102_fx_add ? ordered_json{ 0.7f, 0.7f, 0.7f, 1.0f } : ordered_json{ 0.3f, 0.3f, 0.3f, 1.0f }; // v115: city light streaks / smoke were far too bright else a2["literal"] = { 2.0f, 2.0f, 2.0f, 1.0f };
+					ordered_json a2; a2["name"] = "colorTint"; a2["nameHash"] = 3054254906u; if (distortion || tool_surf) a2["literal"] = { 0.0f, 0.0f, 0.0f, 0.0f }; else if (unlit_glow) a2["literal"] = { 1.5f, 1.5f, 1.5f, 1.0f }; else if (add_glass) a2["literal"] = { 0.12f, 0.14f, 0.16f, 1.0f }; else if (v102_fx_mat) a2["literal"] = v102_fx_add ? ordered_json{ 0.7f, 0.7f, 0.7f, 1.0f } : ordered_json{ 0.3f, 0.3f, 0.3f, 1.0f }; /* v115: city light streaks / smoke were far too bright */ else a2["literal"] = { 2.0f, 2.0f, 2.0f, 1.0f };
 					// v80: keep the real IW7 colour of glows (e.g. light_line_lightblue_02_emissive colorTint 5,17,17 = teal LED strips; we drew them white/yellow)
 					if (!distortion && !add_glass && !tool_surf && !v102_fx_mat) // v102 fx: particle colour comes from the effect, keep tint 1
 					{
@@ -640,7 +640,7 @@ namespace zonetool::iw7
 						// sorted by typeHash like the Ghosts material: spec (887934131), normal (1507003663), colour (2695565377)
 						// v106: checked against mp_dig's wc/dig_signs.json (techset 1) and wc/dig_floor_tile_01.json (techset 0): both use
 						//      exactly these 4 constants in this order (the constant buffer offsets are per index) and these 3 textures.
-						ordered_json t1; t1["image"] = mirror ? "iw7_spec_mirror" : "iw7_spec_gloss"; // v115: mirror glass reflects ~0.8 (floors 0.31) t1["semantic"] = 8; t1["samplerState"] = 19; t1["lastCharacter"] = 112; t1["firstCharacter"] = 115; t1["typeHash"] = 887934131u;
+						ordered_json t1; t1["image"] = mirror ? "iw7_spec_mirror" : "iw7_spec_gloss"; /* v115: mirror glass reflects ~0.8 (floors 0.31) */ t1["semantic"] = 8; t1["samplerState"] = 19; t1["lastCharacter"] = 112; t1["firstCharacter"] = 115; t1["typeHash"] = 887934131u;
 						ordered_json t2; t2["image"] = "$identitynormalmap"; t2["semantic"] = 5; t2["samplerState"] = 19; t2["lastCharacter"] = 112; t2["firstCharacter"] = 110; t2["typeHash"] = 1507003663u;
 						ordered_json t3; t3["image"] = col; t3["semantic"] = 2; t3["samplerState"] = 19; t3["lastCharacter"] = 112; t3["firstCharacter"] = 99; t3["typeHash"] = 2695565377u;
 						material_images = ordered_json::array({ t1, t2, t3 });
