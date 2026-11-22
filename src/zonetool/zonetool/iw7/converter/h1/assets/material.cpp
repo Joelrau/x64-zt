@@ -379,7 +379,19 @@ namespace zonetool::iw7
 				// v92: tool surfaces (caulk_shadow shadow casters, lightmap index 31) drew as solid black boxes next to the spawn.
 				//      Additive with zero tint = invisible.
 				const bool tool_surf = techset.find("_tools") != std::string::npos || (asset->name && std::string(asset->name).find("caulk") != std::string::npos);
-				if ((distortion || tool_surf || unlit_glow || add_glass || world_unlit_blend || techset.find("_add_") != std::string::npos) && techset.find("sky") == std::string::npos && asset->name && std::string(asset->name).find("sky") == std::string::npos && !material_images.empty())
+				// v102 fx: IW7 particle materials (eq_/ev_effect_* techsets, no w/ or m/ prefix) fell to the world lit techset (no
+				//      particle vertex path -> invisible/garbage sprites). Send them to the Ghosts additive effect techset too; blended
+				//      smoke then reads as a soft glow, which is acceptable for a first pass (needs a Ghosts effect blend techset).
+				const auto v102_slash = c_name.find('/');
+				const std::string v102_prefix = v102_slash == std::string::npos ? "" : c_name.substr(0, v102_slash);
+				const bool v102_fx_mat = techset.find("effect") != std::string::npos && techset.find("sky") == std::string::npos
+					&& (v102_prefix.empty() || (v102_prefix[0] != 'w' && v102_prefix[0] != 'm'));
+				const bool v102_fx_add = v102_fx_mat && (techset.find("_add") != std::string::npos || techset.find("add_") != std::string::npos);
+				if (v102_fx_mat)
+				{
+					ZONETOOL_INFO("v102 fx: effect material %s (%s) -> effect_add_lin_ct_nofog_ndw_bl_blmod_iw6%s", c_name.data(), techset.data(), v102_fx_add ? "" : " (blend drawn additive)");
+				}
+				if ((v102_fx_mat || distortion || tool_surf || unlit_glow || add_glass || world_unlit_blend || techset.find("_add_") != std::string::npos) && techset.find("sky") == std::string::npos && asset->name && std::string(asset->name).find("sky") == std::string::npos && !material_images.empty())
 				{
 					const auto glow_img = material_images.back()["image"].get<std::string>();
 					matdata["techniqueSet->name"] = "effect_add_lin_ct_nofog_ndw_bl_blmod_iw6";
@@ -388,9 +400,9 @@ namespace zonetool::iw7
 					matdata["cameraRegion"] = 4;
 					matdata["materialType"] = 0;
 					ordered_json a1; a1["name"] = "textureAtlas"; a1["nameHash"] = 1128936273u; a1["literal"] = { 1.0f, 1.0f, 1.0f, 1.0f };
-					ordered_json a2; a2["name"] = "colorTint"; a2["nameHash"] = 3054254906u; if (distortion || tool_surf) a2["literal"] = { 0.0f, 0.0f, 0.0f, 0.0f }; else if (unlit_glow) a2["literal"] = { 1.5f, 1.5f, 1.5f, 1.0f }; else if (add_glass) a2["literal"] = { 0.12f, 0.14f, 0.16f, 1.0f }; else a2["literal"] = { 2.0f, 2.0f, 2.0f, 1.0f };
+					ordered_json a2; a2["name"] = "colorTint"; a2["nameHash"] = 3054254906u; if (distortion || tool_surf) a2["literal"] = { 0.0f, 0.0f, 0.0f, 0.0f }; else if (unlit_glow) a2["literal"] = { 1.5f, 1.5f, 1.5f, 1.0f }; else if (add_glass) a2["literal"] = { 0.12f, 0.14f, 0.16f, 1.0f }; else if (v102_fx_mat) a2["literal"] = v102_fx_add ? ordered_json{ 1.0f, 1.0f, 1.0f, 1.0f } : ordered_json{ 0.6f, 0.6f, 0.6f, 1.0f }; else a2["literal"] = { 2.0f, 2.0f, 2.0f, 1.0f };
 					// v80: keep the real IW7 colour of glows (e.g. light_line_lightblue_02_emissive colorTint 5,17,17 = teal LED strips; we drew them white/yellow)
-					if (!distortion && !add_glass && !tool_surf)
+					if (!distortion && !add_glass && !tool_surf && !v102_fx_mat) // v102 fx: particle colour comes from the effect, keep tint 1
 					{
 						for (int ci = 0; ci < asset->constantCount && asset->constantTable; ci++)
 						{
