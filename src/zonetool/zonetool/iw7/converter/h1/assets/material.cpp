@@ -119,7 +119,7 @@ namespace zonetool::iw7
 				// v113: IW7 world glass on the opaque "replace" techsets (glass_building_*, glass_opaque_*, solar panels: sortKey 7, colour "blank")
 				//       is a mirror facade lit only by reflections; it went to the translucent techset and showed the void behind it
 				const bool mirror_glass = v113_mirror_glass && v72_name.rfind("w/", 0) == 0 && v72_name.find("glass") != std::string::npos
-					&& og_techset_name.find("replace") != std::string::npos;
+					&& (og_techset_name.find("replace") != std::string::npos || v72_name.find("glass_building") != std::string::npos); // v117: + blendadd glass_building_shiny_01 (tower right of spawn showed its unlit interior)
 				const bool blended = (asset->info.sortKey >= 7 || alpha_tested || facade_glass) && !mirror_glass;
 				std::string h1_techset = blended ? "wc_l_sm_ndw_b0c0l0_cltrans_iw6" : "wc_l_sm_ndw_b0c0l0_nfwpf_iw6";
 				if (asset->techniqueSet)
@@ -388,7 +388,7 @@ namespace zonetool::iw7
 				const bool unlit_glow = blended && techset.find("unlit") != std::string::npos && techset.find("_add_") == std::string::npos && (v72_name.find("light") != std::string::npos || v72_name.find("emissive") != std::string::npos || v72_name.find("glow") != std::string::npos);
 				const bool distortion = techset.find("distortion") != std::string::npos; // v76: heat/water distortion draws its normal map as colour (purple ripples) -> invisible additive
 				// v76: IW7 blendadd glass came out as milky opaque panes (colour alpha = 1); a faint additive sheen reads as clear glass
-				const bool add_glass = techset.find("blendadd") != std::string::npos || facade_glass; // facade glass ignored colorTint and drew as cream panes
+				const bool add_glass = (techset.find("blendadd") != std::string::npos || facade_glass) && !mirror_glass; /* v117 */ // facade glass ignored colorTint and drew as cream panes
 				// v88: world unlit blend overlays (screen_crt_dots_01 over the HAILE billboards) went to the lit blend techset; with no
 				//      lightmap (index 31) they drew an opaque black layer over the posters. Additive with the global exposure = faint dots.
 				const bool world_unlit_blend = asset->name && asset->name[0] == 'w' && asset->name[1] == '/' && techset.find("unlit_blend") != std::string::npos
