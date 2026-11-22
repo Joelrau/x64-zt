@@ -580,6 +580,18 @@ namespace zonetool::iw7
 				constexpr bool v102_gloss = false; // v103: true blew every matched marble surface out to white in game (lighting of wc_l_sm_r0c0n0s0l0 differs)
 				constexpr bool v104_ghosts_flags = true; // v104: materialType 36 + gameFlags 82 exactly as mp_dig's wc/dig_floor_tile_01
 				constexpr float v104_bloom = 0.0f;       // v104: bloom mask of the gloss materials (mp_dig uses 1.0; our world has 0)
+				// v105: which reflective Ghosts world techset the gloss materials use.
+				//   0 = wc_l_sm_r0c0n0s0l0_nfwpf_iw6 (mp_dig's floor; v102/v104). Disassembled (PS lmo_sm_l0d_l0sd_r0c0n0s0l0_nofog_vcw_blm_sm5):
+				//       out = (col.rgb * vcol.rgb)^2 * light + spec^2 * fresnel * (probe + sun highlight). It does NOT multiply by alpha.
+				//   1 = wc_l_sm_ndw_b0c0n0s0l0_nfwpf_iw6 (mp_dig's dig_signs). Same "b0" (blend) family as our working world techset
+				//       wc_l_sm_ndw_b0c0l0_nfwpf_iw6, whose PS (lmo_sm_l0d_l0sd_b0c0l0_ndw_nofog_blm_sm5) outputs
+				//       (col.rgb * vcol.rgb)^2 * (col.a * vcol.a) * light and discards col.a * vcol.a <= 1/255.
+				//       IW7 colour maps are _packed_cs (alpha = smoothness), and our IW7 lightmap scale (S=26) was tuned with that
+				//       alpha factor in place, so under techset 0 the same surfaces come out 1/col.a times brighter (white).
+				//       Techset 1 keeps that factor and adds normal + spec + probe reflection. Its state files must be the same
+				//       opaque / depth-write / cull-none patched pair iw7_port2.ps1 makes for wc_l_sm_ndw_b0c0l0_nfwpf_iw6 (they come
+				//       from this very techset's dig_signs), copied to the top of techsets\state\wc_l_sm_ndw_b0c0n0s0l0_nfwpf_iw6\.
+				constexpr int v105_gloss_techset = 1;
 				if (v102_gloss && asset->name && asset->name[0] == 'w' && asset->name[1] == '/' && !blended
 					&& matdata["techniqueSet->name"].is_string() && matdata["techniqueSet->name"].get<std::string>() == "wc_l_sm_ndw_b0c0l0_nfwpf_iw6")
 				{
@@ -592,14 +604,14 @@ namespace zonetool::iw7
 						std::string col = "blank";
 						for (const auto& im : material_images) if (im["typeHash"].get<std::size_t>() == 2695565377u) col = im["image"].get<std::string>();
 						const bool dull = has("dull");
-						matdata["techniqueSet->name"] = "wc_l_sm_r0c0n0s0l0_nfwpf_iw6";
+						matdata["techniqueSet->name"] = v105_gloss_techset == 1 ? "wc_l_sm_ndw_b0c0n0s0l0_nfwpf_iw6" : "wc_l_sm_r0c0n0s0l0_nfwpf_iw6";
 						matdata["sortKey"] = 2;
 						matdata["cameraRegion"] = 0;
 						// v104 gloss: v102 kept IW7's materialType (68) and gameFlags. H1's MaterialType enum ends at 36 (MTL_TYPE_COUNT = 37),
 						//      so 68 is out of range; the wc_ techsets belong to MTL_TYPE_WORLD_VERTCOL (36), which mp_dig's
 						//      wc/dig_floor_tile_01 uses with gameFlags 82 (0x52 = CASTS_SHADOW | MARK_HAS_REFLECTION | MARK_HAS_LIGHTMAP).
 						//      This techset has build_shadowmap_depth, so 0x40 is right here.
-						if (v104_ghosts_flags)
+						if (v104_ghosts_flags && v105_gloss_techset == 0) // v105: techset 1 keeps the world flags our b0c0l0 materials use
 						{
 							matdata["materialType"] = static_cast<int>(zonetool::h1::MTL_TYPE_WORLD_VERTCOL);
 							matdata["gameFlags"] = 82;
