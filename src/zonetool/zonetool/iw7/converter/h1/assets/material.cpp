@@ -268,6 +268,12 @@ namespace zonetool::iw7
 							col_name = (mn.size() > 1 && mn[0] == 'w' && (mn[1] == '/' || mn[1] == 'c')) ? "$black" : "metal_bare_bronze_01_c";
 						// v95: world trims stayed bright orange even as bronze (in-game test with $black matches the IW7 reference:
 						//      thin dark metal edges, no glowing lines along planters and the tower)
+						// v102 aqua: same for copper. w/metal_bare_copper_01's packed_cs map averages a pale pink-cream (223,160,135),
+						//      so the big curved pipe over the tower (surfaces 3888-3902 around (480,100,150-656)) drew white/cream
+						//      instead of the dark reddish copper in IW7. Use the darker, warmer bronze swatch (160,110,60), which is
+						//      loaded by w/metal_bare_bronze_01.
+						if (mn.find("copper") != std::string::npos && col_name.find("_packed_cs") != std::string::npos)
+							col_name = "metal_bare_bronze_01_c";
 					}
 					// v40: images that exist in no loaded zone render solid red
 					static const char* const missing_imgs[] = { "default", "$white", "black", "$gray", "transparent_invisible", "glass_clear_01_c", "koth_grid_03_c", "koth_grid_01_c", "falloff_linear", "vfx_energy_dome_shield_ping", "vfx_energy_beam_nrm" };
@@ -379,7 +385,12 @@ namespace zonetool::iw7
 				// v92: tool surfaces (caulk_shadow shadow casters, lightmap index 31) drew as solid black boxes next to the spawn.
 				//      Additive with zero tint = invisible.
 				const bool tool_surf = techset.find("_tools") != std::string::npos || (asset->name && std::string(asset->name).find("caulk") != std::string::npos);
-				if ((distortion || tool_surf || unlit_glow || add_glass || world_unlit_blend || techset.find("_add_") != std::string::npos) && techset.find("sky") == std::string::npos && asset->name && std::string(asset->name).find("sky") == std::string::npos && !material_images.empty())
+				// v102 aqua: the tower aquarium (box at (160,39,309-559): marble walls, pebble floor, wc/atmos_caustics_03 over the walls)
+				//      is fronted by wc/water_mp_riot_fountain_creek_b (IW7 colorTint 0,1,1 = cyan). As a lit cltrans blend with
+				//      its murky grey packed map it drew a murky grey pane; IW7 shows a glowing teal case. Draw it additive teal.
+				const bool aqua_water = v72_name.find("water_mp_riot_fountain_creek") != std::string::npos;
+				const bool aqua_caustics = v72_name.find("atmos_caustics") != std::string::npos;
+				if ((distortion || tool_surf || unlit_glow || add_glass || world_unlit_blend || aqua_water || techset.find("_add_") != std::string::npos) && techset.find("sky") == std::string::npos && asset->name && std::string(asset->name).find("sky") == std::string::npos && !material_images.empty())
 				{
 					const auto glow_img = material_images.back()["image"].get<std::string>();
 					matdata["techniqueSet->name"] = "effect_add_lin_ct_nofog_ndw_bl_blmod_iw6";
@@ -403,6 +414,14 @@ namespace zonetool::iw7
 							constexpr float E = 0.15f;
 							const float k = std::min(mx * E, 3.0f) / mx;
 							a2["literal"] = { l[0] * k, l[1] * k, l[2] * k, 1.0f };
+							// v102 aqua: the water's tint (0,1,1) is an albedo tint (max <= 1), not HDR emissive; E=0.15 would leave
+							//      0.15 teal = invisible over the murky map. Use the real tint at 0.6 so the case reads teal and glowing.
+							if (aqua_water && mx <= 1.0f)
+								a2["literal"] = { l[0] * 0.6f, l[1] * 0.6f, l[2] * 0.6f, 1.0f };
+							// v102 aqua: caustics (IW7 tint 50 -> clamped 3, white) always sit under the cyan fountain/aquarium water;
+							//      in IW7 they read teal through it. Filter by the water tint (0,1,1), keeping some red for the highlights.
+							if (aqua_caustics)
+								a2["literal"] = { l[0] * k * 0.35f, l[1] * k, l[2] * k, 1.0f };
 							break;
 						}
 					}
