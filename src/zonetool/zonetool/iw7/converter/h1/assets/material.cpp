@@ -365,8 +365,12 @@ namespace zonetool::iw7
 				const bool add_glass = techset.find("blendadd") != std::string::npos || facade_glass; // facade glass ignored colorTint and drew as cream panes
 				// v88: world unlit blend overlays (screen_crt_dots_01 over the HAILE billboards) went to the lit blend techset; with no
 				//      lightmap (index 31) they drew an opaque black layer over the posters. Additive with the global exposure = faint dots.
-				const bool world_unlit_blend = asset->name && asset->name[0] == 'w' && asset->name[1] == '/' && techset.find("unlit_blend") != std::string::npos;
-				if ((distortion || unlit_glow || add_glass || world_unlit_blend || techset.find("_add_") != std::string::npos) && techset.find("sky") == std::string::npos && asset->name && std::string(asset->name).find("sky") == std::string::npos && !material_images.empty())
+				const bool world_unlit_blend = asset->name && asset->name[0] == 'w' && asset->name[1] == '/' && techset.find("unlit_blend") != std::string::npos
+					&& std::string(asset->name).find("crt_dots") != std::string::npos; // v92: only the CRT overlay; other unlit blend panels went black-void
+				// v92: tool surfaces (caulk_shadow shadow casters, lightmap index 31) drew as solid black boxes next to the spawn.
+				//      Additive with zero tint = invisible.
+				const bool tool_surf = techset.find("_tools") != std::string::npos || (asset->name && std::string(asset->name).find("caulk") != std::string::npos);
+				if ((distortion || tool_surf || unlit_glow || add_glass || world_unlit_blend || techset.find("_add_") != std::string::npos) && techset.find("sky") == std::string::npos && asset->name && std::string(asset->name).find("sky") == std::string::npos && !material_images.empty())
 				{
 					const auto glow_img = material_images.back()["image"].get<std::string>();
 					matdata["techniqueSet->name"] = "effect_add_lin_ct_nofog_ndw_bl_blmod_iw6";
@@ -375,9 +379,9 @@ namespace zonetool::iw7
 					matdata["cameraRegion"] = 4;
 					matdata["materialType"] = 0;
 					ordered_json a1; a1["name"] = "textureAtlas"; a1["nameHash"] = 1128936273u; a1["literal"] = { 1.0f, 1.0f, 1.0f, 1.0f };
-					ordered_json a2; a2["name"] = "colorTint"; a2["nameHash"] = 3054254906u; if (distortion) a2["literal"] = { 0.0f, 0.0f, 0.0f, 0.0f }; else if (unlit_glow) a2["literal"] = { 1.5f, 1.5f, 1.5f, 1.0f }; else if (add_glass) a2["literal"] = { 0.12f, 0.14f, 0.16f, 1.0f }; else a2["literal"] = { 2.0f, 2.0f, 2.0f, 1.0f };
+					ordered_json a2; a2["name"] = "colorTint"; a2["nameHash"] = 3054254906u; if (distortion || tool_surf) a2["literal"] = { 0.0f, 0.0f, 0.0f, 0.0f }; else if (unlit_glow) a2["literal"] = { 1.5f, 1.5f, 1.5f, 1.0f }; else if (add_glass) a2["literal"] = { 0.12f, 0.14f, 0.16f, 1.0f }; else a2["literal"] = { 2.0f, 2.0f, 2.0f, 1.0f };
 					// v80: keep the real IW7 colour of glows (e.g. light_line_lightblue_02_emissive colorTint 5,17,17 = teal LED strips; we drew them white/yellow)
-					if (!distortion && !add_glass)
+					if (!distortion && !add_glass && !tool_surf)
 					{
 						for (int ci = 0; ci < asset->constantCount && asset->constantTable; ci++)
 						{
@@ -406,6 +410,23 @@ namespace zonetool::iw7
 					const auto slash = c_name.find('/');
 					const std::string prefix = slash == std::string::npos ? "" : c_name.substr(0, slash);
 					const auto cur_ts = matdata["techniqueSet->name"].is_string() ? matdata["techniqueSet->name"].get<std::string>() : "";
+					// v89: Ghosts' model unlit blend techset draws opaque in H1, so overlay layers (CRT scanlines, glass over screens and
+					//      windows) covered what is behind them. Hide them: alpha-tested model techset + fully transparent image (iw7_clear,
+					//      written by iw7_port2.ps1).
+					const auto make_hidden = [&]()
+					{
+						matdata["techniqueSet->name"] = "mc_l_t0c0n0s0l0_nfwpf_iw6";
+						matdata["sortKey"] = 2; matdata["cameraRegion"] = 0; matdata["materialType"] = 3; matdata["gameFlags"] = 0;
+						ordered_json h1; h1["name"] = "envMapParms"; h1["nameHash"] = 1033475292u; h1["literal"] = { 0.0f, 1.0f, 2.0f, 2.0f };
+						ordered_json h2; h2["name"] = "colorTint"; h2["nameHash"] = 3054254906u; h2["literal"] = { 1.0f, 1.0f, 1.0f, 1.0f };
+						ordered_json h3; h3["name"] = "reflectionRa"; h3["nameHash"] = 3344177073u; h3["literal"] = { 8096.0f, 0.0f, 0.0f, 0.0f };
+						ordered_json h4; h4["name"] = "bloomParams"; h4["nameHash"] = 3733414975u; h4["literal"] = { 1.0f, 0.0f, 0.0f, 0.0f };
+						matdata["constantTable"] = ordered_json::array({ h1, h2, h3, h4 });
+						ordered_json t1; t1["image"] = "$black"; t1["semantic"] = 8; t1["samplerState"] = 19; t1["lastCharacter"] = 112; t1["firstCharacter"] = 115; t1["typeHash"] = 887934131u;
+						ordered_json t2; t2["image"] = "$identitynormalmap"; t2["semantic"] = 5; t2["samplerState"] = 19; t2["lastCharacter"] = 112; t2["firstCharacter"] = 110; t2["typeHash"] = 1507003663u;
+						ordered_json t3; t3["image"] = "iw7_clear"; t3["semantic"] = 2; t3["samplerState"] = 19; t3["lastCharacter"] = 112; t3["firstCharacter"] = 99; t3["typeHash"] = 2695565377u;
+						material_images = ordered_json::array({ t1, t2, t3 });
+					};
 					// v84: world unlit_replace (signs, posters, emissive panels) went to the LIT opaque techset; with no lightmap (index 31) they drew black.
 					//      Use Ghosts' world unlit replace techset and keep the IW7 tint (HDR values like 10 clamped to a displayable 1.4).
 					if (!prefix.empty() && prefix[0] == 'w' && techset.find("unlit_replace") != std::string::npos)
@@ -428,7 +449,11 @@ namespace zonetool::iw7
 					}
 					else
 					// v78: glow cards on static models (lion emblems, light strips) -> Ghosts model unlit blend (mp_dig's lit candle)
-					if (!prefix.empty() && prefix[0] == 'm' && cur_ts == "effect_add_lin_ct_nofog_ndw_bl_blmod_iw6")
+					if (!prefix.empty() && prefix[0] == 'm' && cur_ts == "effect_add_lin_ct_nofog_ndw_bl_blmod_iw6" && (distortion || (add_glass && !facade_glass)))
+					{
+						make_hidden();
+					}
+					else if (!prefix.empty() && prefix[0] == 'm' && cur_ts == "effect_add_lin_ct_nofog_ndw_bl_blmod_iw6")
 					{
 						ordered_json tint = { 1.0f, 1.0f, 1.0f, 1.0f };
 						for (const auto& c : matdata["constantTable"]) if (c["name"] == "colorTint") tint = c["literal"];
@@ -446,18 +471,21 @@ namespace zonetool::iw7
 					// v86: model screens (cinematic) and unlit blend overlays (CRT dots, LED cards) are unlit in IW7 -> Ghosts model unlit blend.
 					//      As lit alpha-test they covered the HAILE billboard with an opaque dark layer.
 					else if (!prefix.empty() && prefix[0] == 'm' && cur_ts.rfind("wc_l_sm_ndw_b0c0l0_", 0) == 0
-						&& (techset.find("cinematic") != std::string::npos || techset.find("unlit_blend") != std::string::npos))
+						&& (techset.find("cinematic") != std::string::npos || techset.find("unlit_blend") != std::string::npos || techset.find("unlit_replace") != std::string::npos))
 					{
+						// v89: model unlit_replace signs (advertisement_screen_01's HAILE sign) were lit by the light grid -> dark panel
 						const bool cine = techset.find("cinematic") != std::string::npos;
+						const bool repl = techset.find("unlit_replace") != std::string::npos;
+						const bool overlay = c_name.find("crt_dots") != std::string::npos; // CRT scanline overlay: alpha layer in Ghosts darkens the sign below
 						float t[3] = { 1.0f, 1.0f, 1.0f };
 						for (int ci = 0; ci < asset->constantCount && asset->constantTable; ci++)
 							if (std::strncmp(asset->constantTable[ci].name, "colorTint", 9) == 0 && asset->constantTable[ci].name[9] == 0) { for (int c = 0; c < 3; c++) t[c] = asset->constantTable[ci].literal[c]; }
 						const float mx = std::max({ t[0], t[1], t[2], 0.0001f });
-						const float k = cine ? 1.2f / mx : std::min(mx * 0.15f, 3.0f) / mx;
+						const float k = cine ? 1.2f / mx : repl ? std::clamp(mx * 0.15f, 0.5f, 1.4f) / mx : std::min(mx * 0.15f, 3.0f) / mx;
 						std::string col = "blank";
 						for (const auto& im : material_images) if (im["typeHash"].get<std::size_t>() == 2695565377u) col = im["image"].get<std::string>();
 						matdata["techniqueSet->name"] = "mc_unlit_blend_lin_ct_ndw_bl_abl_cltrans_iw6";
-						matdata["sortKey"] = cine ? 2 : 31;
+						matdata["sortKey"] = (cine || repl) ? 2 : 31;
 						matdata["cameraRegion"] = 3;
 						matdata["materialType"] = 3;
 						matdata["gameFlags"] = 0;
@@ -467,6 +495,7 @@ namespace zonetool::iw7
 						matdata["constantTable"] = ordered_json::array({ c1, c2, c3 });
 						ordered_json t1; t1["image"] = col; t1["semantic"] = 2; t1["samplerState"] = 19; t1["lastCharacter"] = 112; t1["firstCharacter"] = 99; t1["typeHash"] = 2695565377u;
 						material_images = ordered_json::array({ t1 });
+						if (overlay) make_hidden();
 					}
 					else if (!prefix.empty() && prefix[0] == 'm' && cur_ts.rfind("wc_l_sm_ndw_b0c0l0_", 0) == 0)
 					{
