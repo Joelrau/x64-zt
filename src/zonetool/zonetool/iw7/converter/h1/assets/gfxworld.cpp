@@ -428,7 +428,8 @@ namespace zonetool::iw7
 					return q_best;
 				};
 				unsigned int v129_shaded = 0, v129_lit = 0, v129_none = 0, v133_grounded = 0;
-				constexpr bool v133_ground_lighting = true;
+				constexpr bool v134_one_handle = true;
+				constexpr bool v133_ground_lighting = false; // v134: GROUND_LIGHTING (0x20) drew every static model black: our IW6 model techsets take MODEL_LIGHTING from the grid atlas, not the ground colour
 
 				// lightmaps: STUB (none)
 				new_asset->draw.lightmapCount = 1;
@@ -718,7 +719,7 @@ namespace zonetool::iw7
 						dst_inst.cullDist = src_inst.cullDist ? src_inst.cullDist : 0xFFFF;
 						dst_inst.reactiveMotionCullDist = dst_inst.cullDist;
 						dst_inst.reactiveMotionLOD = 0;
-						dst_inst.lightingHandle = src_inst.lightingHandle;
+						dst_inst.lightingHandle = v134_one_handle ? 1 : src_inst.lightingHandle; // v134: IW7 handles index IW7's lighting tables, not H1's model lighting atlas (models ignored the stub grid colour)
 						dst_inst.staticModelId = static_cast<unsigned short>(i);
 						dst_inst.primaryLightEnvIndex = src_inst.primaryLightEnvIndex;
 						if (src_inst.placement.origin[2] < -1000.0f) dst_inst.primaryLightEnvIndex = 0; // v123: vista city models, no sun
