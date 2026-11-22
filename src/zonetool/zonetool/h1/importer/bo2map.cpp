@@ -63,7 +63,7 @@ namespace zonetool::h1::importer
 			}
 			std::uint8_t c()
 			{
-				const auto v = ok(1) ? b[at] : 0;
+				const std::uint8_t v = ok(1) ? b[at] : 0;
 				at += 1;
 				return v;
 			}
@@ -478,9 +478,9 @@ namespace zonetool::h1::importer
 			std::vector<std::string> mat_names;
 			std::unordered_map<std::uint32_t, unsigned int> mat_lookup;
 
-			for (const auto si : order)
+			for (const auto surf_idx : order)
 			{
-				const auto& s = in.surfaces[si];
+				const auto& s = in.surfaces[surf_idx];
 				if (s.material >= in.materials.size() || !solid(in.materials[s.material].kind)) continue;
 				auto it = mat_lookup.find(s.material);
 				unsigned int mi;
