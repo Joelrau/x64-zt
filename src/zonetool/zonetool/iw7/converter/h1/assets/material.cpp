@@ -576,7 +576,7 @@ namespace zonetool::iw7
 				//      Use Ghosts' reflective opaque world techset exactly like mp_dig's wc/dig_floor_tile_01 (spec + normal + colour,
 				//      reflection from the surface's reflection probe). Spec image iw7_spec_gloss (RGB = reflectance, A = gloss) is
 				//      written by iw7_port2.ps1 as images\iw7_spec_gloss.dds. Set to false to go back to the matte v101 look.
-				constexpr bool v102_gloss = true;
+				constexpr bool v102_gloss = false; // v103: true blew every matched marble surface out to white in game (lighting of wc_l_sm_r0c0n0s0l0 differs)
 				if (v102_gloss && asset->name && asset->name[0] == 'w' && asset->name[1] == '/' && !blended
 					&& matdata["techniqueSet->name"].is_string() && matdata["techniqueSet->name"].get<std::string>() == "wc_l_sm_ndw_b0c0l0_nfwpf_iw6")
 				{
