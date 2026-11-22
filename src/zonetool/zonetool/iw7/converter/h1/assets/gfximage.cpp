@@ -129,7 +129,15 @@ namespace zonetool::iw7
 
 			void v128_unmetal(const std::string& vn, DXGI_FORMAT vf, std::vector<std::uint8_t>& vd, unsigned int vw, unsigned int vh)
 			{
-				if (!v128_metal || vn.find("_packed_cs") == std::string::npos) return;
+				// v132: our opaque world techset (wc_l_sm_ndw_b0c0l0, IW6 "b0" family) multiplies the lit colour by col.a, and the
+				//       IW7 lightmap was scaled (S=26) for the ~0.04 average alpha of packed_cs maps. But that alpha is IW7's specular
+				//       level, not opacity (fastfile_iw7 look.rs / shine.rs), so metals (a ~0.9) and old-style _c maps (a = 1, e.g. the
+				//       gallery's metal_brushed_soft_01 pedestal) came out 20-26x brighter than the rest of the world. Give every
+				//       packed_cs map the same alpha (10/255 = 1/S), and _c metal maps without transparency the same.
+				if (!v128_metal) return;
+				const bool vpacked = vn.find("_packed_cs") != std::string::npos;
+				const bool vmetal_c = !vpacked && vn.size() > 2 && vn.compare(vn.size() - 2, 2, "_c") == 0 && vn.find("metal") != std::string::npos;
+				if (!vpacked && !vmetal_c) return;
 				if (vf != DXGI_FORMAT_BC7_UNORM && vf != DXGI_FORMAT_BC7_UNORM_SRGB) return;
 				size_t voff = 0;
 				bool vany = false;
@@ -146,13 +154,24 @@ namespace zonetool::iw7
 					{
 						const auto* vr = vraw.GetImage(0, 0, 0);
 						bool vchg = false;
+						if (vmetal_c)
+						{
+							unsigned char vamin = 255;
+							for (size_t vy = 0; vy < vr->height; vy++) for (size_t vx = 0; vx < vr->width; vx++) vamin = std::min(vamin, vr->pixels[vy * vr->rowPitch + vx * 4 + 3]);
+							if (vamin < 250) return; // has real transparency: leave it
+							for (size_t vy = 0; vy < vr->height; vy++) for (size_t vx = 0; vx < vr->width; vx++) vr->pixels[vy * vr->rowPitch + vx * 4 + 3] = 10;
+							vchg = true;
+						}
 						for (size_t vy = 0; vy < vr->height; vy++)
 						{
 							auto* vrow = vr->pixels + vy * vr->rowPitch;
 							for (size_t vx = 0; vx < vr->width; vx++)
 							{
+								if (!vpacked) break;
 								auto* vpx = vrow + vx * 4;
 								const float va = vpx[3] / 255.0f;
+								vpx[3] = 10;
+								vchg = true;
 								const float vm = std::clamp((va - 0.1f) / 0.9f, 0.0f, 1.0f);
 								if (vm <= 0.0f) continue;
 								const float vk = std::sqrt(std::max(1.0f - vm, v128_metal_floor));
