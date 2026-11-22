@@ -551,7 +551,8 @@ namespace zonetool::iw7
 						// v102 shadows: mc_l_sm_r0c0n0s0l0_nfwpf_iw6 has zprepass_iw6 + build_shadowmap_model_iw6, so these static-model
 						//      materials can cast sun shadows; H1 only puts them in the shadow map with MTL_GAMEFLAG_CASTS_SHADOW (0x40).
 						matdata["sortKey"] = 2; // v104: restored (v102 dropped it by accident)
-						if (!blended)
+						constexpr bool v108_model_casts_shadow = false; // v108: suspected of hiding the building facade (black void right of spawn)
+						if (v108_model_casts_shadow && !blended)
 						{
 							const unsigned int gf = (matdata["gameFlags"].get<unsigned int>() & 0x3F) | zonetool::h1::MTL_GAMEFLAG_CASTS_SHADOW;
 							matdata["gameFlags"] = gf;
