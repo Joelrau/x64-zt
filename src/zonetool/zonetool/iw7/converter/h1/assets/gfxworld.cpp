@@ -373,15 +373,55 @@ namespace zonetool::iw7
 						break;
 					}
 				}
-				const auto v133_ground = [&](float q_u, float q_v, float* q_rgb) -> bool
+				// q_rgb gets the upper (non-directional) page, q_dir the lower (directional) page
+				const auto v133_ground = [&](float q_u, float q_v, float* q_rgb, float* q_dir) -> bool
 				{
 					if (v133_sec.empty()) return false;
 					const int q_x = std::clamp(int(q_u * 1024.0f), 0, 1023), q_y = std::clamp(int(q_v * 2048.0f), 0, 2047);
 					const std::size_t q_top = (std::size_t(q_y) * 1024 + q_x) * 4, q_bot = (std::size_t(q_y + 2048) * 1024 + q_x) * 4;
 					for (int q_c = 0; q_c < 3; q_c++)
-						q_rgb[q_c] = half_float::half_to_float(v133_sec[q_top + q_c]) + 0.8f * half_float::half_to_float(v133_sec[q_bot + q_c]);
+					{
+						q_rgb[q_c] = half_float::half_to_float(v133_sec[q_top + q_c]);
+						q_dir[q_c] = half_float::half_to_float(v133_sec[q_bot + q_c]);
+					}
 					return true;
 				};
+				// v135 palette light grid (fastfile_h1 light_grid_palette.rs / docs/H1_NATIVE.md "The palette light grid"): H1 lights a
+				//      static model with flag 0x40 from palette entry colorIndex (an L2 harmonic, 9 coefficients a channel). With no
+				//      palette entries the engine uses c0 = 1 everywhere, which is why every prop drew at full light whatever the stub
+				//      grid held. One entry per model: c0 = floor light, c3 (the z term) adds the directional page from above.
+				//      Encoded in the 8-bit form only (range exponents 23): u16 of three (e + 8), then 9 bytes a channel.
+				std::vector<unsigned char> v135_bits;
+				std::vector<int> v135_addr;
+				const auto v135_add = [&](const float* q_c0, const float* q_c3) -> unsigned int
+				{
+					v135_addr.push_back(static_cast<int>(v135_bits.size()));
+					int q_e[3];
+					for (int q_c = 0; q_c < 3; q_c++)
+					{
+						const float q_m = std::max({ q_c0[q_c] * 1.004f, std::abs(q_c3[q_c]) * 1.004f, 1e-3f });
+						q_e[q_c] = std::clamp(int(std::ceil(std::log2(q_m))), -8, 23);
+					}
+					const unsigned short q_h = static_cast<unsigned short>(((q_e[0] + 8) << 10) | ((q_e[1] + 8) << 5) | (q_e[2] + 8));
+					v135_bits.push_back(static_cast<unsigned char>(q_h & 0xFF));
+					v135_bits.push_back(static_cast<unsigned char>(q_h >> 8));
+					for (int q_c = 0; q_c < 3; q_c++)
+					{
+						const float q_s = std::ldexp(1.0f, q_e[q_c]);
+						v135_bits.push_back(static_cast<unsigned char>(std::clamp(std::lround(q_c0[q_c] * 256.0f / q_s), 0L, 255L)));
+						for (int q_j = 1; q_j < 9; q_j++)
+						{
+							const float q_v = q_j == 3 ? q_c3[q_c] : 0.0f;
+							v135_bits.push_back(static_cast<unsigned char>(std::clamp(std::lround((q_v + q_s) * 128.0f / q_s), 0L, 255L)));
+						}
+					}
+					return static_cast<unsigned int>(v135_addr.size() - 1);
+				};
+				{
+					// entry 0: the fallback (models with no floor under them, and missingGridColorIndex)
+					const float q_d0[3] = { 0.6f, 0.6f, 0.6f }, q_d3[3] = { 0.1f, 0.1f, 0.1f };
+					v135_add(q_d0, q_d3);
+				}
 				const auto v129_bc4 = [&](float q_u, float q_v) -> float
 				{
 					const int q_x = std::clamp(int(q_u * v129_pw), 0, int(v129_pw) - 1), q_y = std::clamp(int(q_v * v129_ph), 0, int(v129_ph) - 1);
@@ -428,6 +468,7 @@ namespace zonetool::iw7
 					return q_best;
 				};
 				unsigned int v129_shaded = 0, v129_lit = 0, v129_none = 0, v133_grounded = 0;
+				constexpr bool v135_palette = true;
 				constexpr bool v134_one_handle = false; // tested in v134: no visible change
 				constexpr bool v133_ground_lighting = false; // v134: GROUND_LIGHTING (0x20) drew every static model black: our IW6 model techsets take MODEL_LIGHTING from the grid atlas, not the ground colour
 
@@ -730,9 +771,16 @@ namespace zonetool::iw7
 							else v129_lit++;
 						}
 						bool v133_has_ground = false;
-						float v133_rgb[3] = { 0.0f, 0.0f, 0.0f };
-						if (v133_ground_lighting && v129_sun_at(src_inst.placement.origin) >= 0.0f)
-							v133_has_ground = v133_ground(v133_last_uv[0], v133_last_uv[1], v133_rgb);
+						float v133_rgb[3] = { 0.0f, 0.0f, 0.0f }, v133_dir[3] = { 0.0f, 0.0f, 0.0f };
+						if (v129_sun_at(src_inst.placement.origin) >= 0.0f)
+							v133_has_ground = v133_ground(v133_last_uv[0], v133_last_uv[1], v133_rgb, v133_dir);
+						unsigned int v135_index = 0;
+						if (v133_has_ground)
+						{
+							float q0[3], q3[3];
+							for (int c = 0; c < 3; c++) { q0[c] = v133_rgb[c] + 0.6f * v133_dir[c]; q3[c] = 0.3f * v133_dir[c]; }
+							v135_index = v135_add(q0, q3);
+						}
 						dst_inst.reflectionProbeIndex = nearest_probe(src_inst.placement.origin);
 						{
 							const float* o = src_inst.placement.origin;
@@ -750,7 +798,8 @@ namespace zonetool::iw7
 							| zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING;
 						d.smodelLightingInsts[i].ambientLightingInfo.colorIndex = 0;
 						d.smodelLightingInsts[i].ambientLightingInfo.primaryLightWeight = 1.0f;
-						if (v133_has_ground)
+						d.smodelLightingInsts[i].ambientLightingInfo.colorIndex = v135_index;
+						if (v133_ground_lighting && v133_has_ground)
 						{
 							dst_inst.flags = zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_SCALE_9 | zonetool::h1::StaticModelFlag::STATIC_MODEL_FLAG_GROUND_LIGHTING;
 							for (int c = 0; c < 3; c++) d.smodelLightingInsts[i].ambientLightingInfo.groundLighting.array[c] = half_float::float_to_half(v133_rgb[c]);
@@ -760,8 +809,24 @@ namespace zonetool::iw7
 					}
 
 					ZONETOOL_INFO("v129 model sun: %u static models shaded, %u sunlit, %u with no floor found", v129_shaded, v129_lit, v129_none);
+					if (v135_palette)
 					{
-						const std::string v131_msg = utils::string::va("primary %s, floors %zu, shaded %u, sunlit %u, no floor %u, secondary %s, ground lit %u\n", v129_prim.empty() ? "MISSING" : "ok", v129_floors.size(), v129_shaded, v129_lit, v129_none, v133_sec.empty() ? "MISSING" : "ok", v133_grounded);
+						auto& lg = new_asset->lightGrid;
+						lg.paletteEntryCount = static_cast<unsigned int>(v135_addr.size());
+						lg.paletteEntryAddress = allocator.allocate_array<int>(v135_addr.size());
+						std::memcpy(lg.paletteEntryAddress, v135_addr.data(), v135_addr.size() * sizeof(int));
+						lg.paletteBitstreamSize = static_cast<unsigned int>(v135_bits.size());
+						lg.paletteBitstream = allocator.allocate_array<unsigned char>(v135_bits.size());
+						std::memcpy(lg.paletteBitstream, v135_bits.data(), v135_bits.size());
+						lg.rangeExponent8BitsEncoding = 23;
+						lg.rangeExponent12BitsEncoding = 23;
+						lg.rangeExponent16BitsEncoding = 23;
+						lg.missingGridColorIndex = 0;
+						lg.colorCount = 0; // retail maps keep no colour table; the palette is read only without one
+						lg.colors = nullptr;
+					}
+					{
+						const std::string v131_msg = utils::string::va("primary %s, floors %zu, shaded %u, sunlit %u, no floor %u, secondary %s, ground lit %u, palette entries %zu\n", v129_prim.empty() ? "MISSING" : "ok", v129_floors.size(), v129_shaded, v129_lit, v129_none, v133_sec.empty() ? "MISSING" : "ok", v133_grounded, v135_addr.size());
 						filesystem::file v131_f("v129_model_sun.txt");
 						v131_f.open("wb");
 						v131_f.write(v131_msg);
