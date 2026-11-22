@@ -5,6 +5,7 @@
 #include <map>
 #include <unordered_map>
 #include "clipmap.hpp"
+#include <utils/string.hpp>
 
 #include "zonetool/h1/assets/gfxworld.hpp"
 
@@ -185,13 +186,33 @@ namespace zonetool::iw7
 				new_asset->portalDistanceAnchorCount = 0;
 				new_asset->portalDistanceAnchorsAndCloseDistSquared = nullptr;
 
-				// reflection probes: STUB (IW7 stores one array image, H1 wants one image per probe)
-				new_asset->draw.reflectionProbeCount = 1;
-				new_asset->draw.reflectionProbes = allocator.allocate_array<zonetool::h1::GfxImage*>(1);
-				new_asset->draw.reflectionProbes[0] = allocator.allocate<zonetool::h1::GfxImage>();
-				new_asset->draw.reflectionProbes[0]->name = allocator.duplicate_string("*reflection_probe0");
-				new_asset->draw.reflectionProbeOrigins = allocator.allocate_array<zonetool::h1::GfxReflectionProbe>(1);
-				new_asset->draw.reflectionProbeTextures = allocator.allocate_array<zonetool::h1::GfxRawTexture>(1);
+				// v101: real IW7 reflection probes. IW7 keeps them in one BC6H cube array; iw7_port2.ps1 installs one H1 cube per
+				//      probe (_reflection_probeN.h1Image, decoded offline from _reflection_probe_array). Surfaces and static models
+				//      use the nearest probe (IW7 picks probes through volumes we do not convert).
+				const unsigned int probe_count = std::clamp(asset->draw.reflectionProbeData.reflectionProbeCount, 1u, 255u);
+				new_asset->draw.reflectionProbeCount = probe_count;
+				new_asset->draw.reflectionProbes = allocator.allocate_array<zonetool::h1::GfxImage*>(probe_count);
+				new_asset->draw.reflectionProbeOrigins = allocator.allocate_array<zonetool::h1::GfxReflectionProbe>(probe_count);
+				new_asset->draw.reflectionProbeTextures = allocator.allocate_array<zonetool::h1::GfxRawTexture>(probe_count);
+				for (unsigned int pi = 0; pi < probe_count; pi++)
+				{
+					new_asset->draw.reflectionProbes[pi] = allocator.allocate<zonetool::h1::GfxImage>();
+					new_asset->draw.reflectionProbes[pi]->name = allocator.duplicate_string(::utils::string::va("*reflection_probe%u", pi));
+					if (asset->draw.reflectionProbeData.reflectionProbes && pi < asset->draw.reflectionProbeData.reflectionProbeCount)
+						memcpy(new_asset->draw.reflectionProbeOrigins[pi].origin, asset->draw.reflectionProbeData.reflectionProbes[pi].origin, sizeof(float) * 3);
+				}
+				ZONETOOL_INFO("v101 reflection probes: %u", probe_count);
+				const auto nearest_probe = [&](const float* p) -> unsigned char
+				{
+					unsigned int best = 0; float bd = 3.4e38f;
+					for (unsigned int pi = 0; pi < probe_count; pi++)
+					{
+						const float* o = new_asset->draw.reflectionProbeOrigins[pi].origin;
+						const float d = (o[0] - p[0]) * (o[0] - p[0]) + (o[1] - p[1]) * (o[1] - p[1]) + (o[2] - p[2]) * (o[2] - p[2]);
+						if (d < bd) { bd = d; best = pi; }
+					}
+					return static_cast<unsigned char>(best);
+				};
 				new_asset->draw.reflectionProbeReferenceCount = 0;
 				new_asset->draw.reflectionProbeReferenceOrigins = nullptr;
 				new_asset->draw.reflectionProbeReferences = nullptr;
@@ -449,7 +470,7 @@ namespace zonetool::iw7
 							dst_surf.tris.triCount = 0;
 						}
 						dst_surf.laf.fields.lightmapIndex = 0; // v32: placeholder lightmap 0 exists
-						dst_surf.laf.fields.reflectionProbeIndex = 0;
+						dst_surf.laf.fields.reflectionProbeIndex = (asset->dpvs.surfacesBounds) ? nearest_probe(asset->dpvs.surfacesBounds[i].bounds.midPoint) : 0;
 						// v81: env 0 has no lights (numIndices 0); env 1 = the sun (as in mp_dig). With 0 the world got no sun light or sun shadows at all.
 						dst_surf.laf.fields.primaryLightEnvIndex = 1;
 						dst_surf.laf.fields.flags = src_surf.flags; // TODO convert
@@ -500,7 +521,7 @@ namespace zonetool::iw7
 						dst_inst.lightingHandle = src_inst.lightingHandle;
 						dst_inst.staticModelId = static_cast<unsigned short>(i);
 						dst_inst.primaryLightEnvIndex = src_inst.primaryLightEnvIndex;
-						dst_inst.reflectionProbeIndex = 0;
+						dst_inst.reflectionProbeIndex = nearest_probe(src_inst.placement.origin);
 						dst_inst.firstMtlSkinIndex = 0; // v28: IW7 skin index (e.g. 11) indexes a table H1 does not have
 						dst_inst.sunShadowFlags = src_inst.sunShadowFlags;
 
