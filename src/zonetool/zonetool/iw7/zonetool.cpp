@@ -159,7 +159,18 @@ namespace zonetool::iw7
 
 		try
 		{
+			// v102 fx: remember what was dumped so converted effects only reference assets that exist in the H1 dump
+			converter::h1::fxeffectdef::note_dumped(asset->type, get_asset_name(asset));
+			if (asset->type == ASSET_TYPE_VFX)
+			{
+				// v102 fx: IW7 particle systems have no H1 equivalent yet
+				ZONETOOL_INFO("v102 fx: skipping IW7 particle system (vfx) \"%s\"", get_asset_name(asset));
+				converter::h1::createfx::note_vfx(get_asset_name(asset));
+			}
+
 			DUMP_ASSET_CONVERT(ASSET_TYPE_COMWORLD, comworld, ComWorld);
+			DUMP_ASSET_CONVERT(ASSET_TYPE_FX, fxeffectdef, FxEffectDef); // v102 fx: queued, written in stop_dumping
+			DUMP_ASSET_CONVERT(ASSET_TYPE_SCRIPTFILE, createfx, ScriptFile); // v102 fx: fx/createfx scripts only
 			DUMP_ASSET_CONVERT(ASSET_TYPE_IMAGE, gfximage, GfxImage);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_GFXWORLD, gfxworld, GfxWorld);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_MAP_ENTS, mapents, MapEnts);
@@ -381,6 +392,21 @@ namespace zonetool::iw7
 		}
 
 		dump_refs();
+
+		// v102 fx: effects are written once the whole zone was seen (drop refs to assets that were not dumped),
+		//          then the IW7 createfx is turned into H1 gsc + csv lines
+		if (globals.target_game == game::h1)
+		{
+			try
+			{
+				converter::h1::fxeffectdef::flush();
+				converter::h1::createfx::finalize(filesystem::get_fastfile());
+			}
+			catch (const std::exception& ex)
+			{
+				ZONETOOL_ERROR("v102 fx: finalize failed: %s", ex.what());
+			}
+		}
 
 		ZONETOOL_INFO("Zone \"%s\" dumped.", filesystem::get_fastfile().data());
 

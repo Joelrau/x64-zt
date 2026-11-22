@@ -11,3 +11,5 @@
 #include "assets/material.hpp"
 #include "assets/xmodel.hpp"
 #include "assets/xsurface.hpp"
+#include "assets/fxeffectdef.hpp"
+#include "assets/createfx.hpp"
