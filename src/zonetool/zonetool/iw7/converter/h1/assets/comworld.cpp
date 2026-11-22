@@ -71,8 +71,10 @@ namespace zonetool::iw7
 					auto& l = new_asset->primaryLights[i];
 					if (static_cast<int>(l.type) != 1) continue;
 					l.physicallyBased = 0;
-					ZONETOOL_INFO("v100 sun canUseShadowMap was %u", (unsigned)l.canUseShadowMap);
-					l.canUseShadowMap = 1; // v100: no sun shadows in game; the IW7 sun is flagged as baked-only
+					// v102 shadows: v100 forced canUseShadowMap=1 but the working Ghosts ports keep 0 on their sun (mp_dig light 1: type 1,
+					//      canUseShadowMap 0, physicallyBased 0); the flag selects shadow-mapped spot/omni variants, not sun cascades. Match them.
+					ZONETOOL_INFO("v102 shadows: sun light %u canUseShadowMap was %u -> 0, lightingState %u", i, (unsigned)l.canUseShadowMap, (unsigned)l.lightingState);
+					l.canUseShadowMap = 0;
 					for (int c = 0; c < 3; c++) l.color[c] *= 3.4f; // v99: 2.5 left sunlit marble ~30% darker than the IW7 reference frame
 					// v96: IW7's sun hue is graded by its own tonemapper; raw in H1 it tinted the cream marble brown/orange.
 					//      Pull 20% toward neutral at the same luminance (IW7 reference frame shows near-white sunlit stone).
@@ -83,6 +85,14 @@ namespace zonetool::iw7
 
 				COPY_VALUE(primaryLightEnvCount);
 				REINTERPRET_CAST_SAFE(primaryLightEnvs);
+				// v102 shadows: world surfaces use env 1; log which lights it holds (must be the sun for sun shadows)
+				for (unsigned int e = 0; e < 3 && e < new_asset->primaryLightEnvCount && new_asset->primaryLightEnvs; e++)
+				{
+					const auto& env = new_asset->primaryLightEnvs[e];
+					const unsigned li = env.numIndices ? env.primaryLightIndices[0] : 0;
+					ZONETOOL_INFO("v102 shadows: env %u numIndices %u first light %u type %u", e, (unsigned)env.numIndices, li,
+						li < new_asset->primaryLightCount ? (unsigned)new_asset->primaryLights[li].type : 255u);
+				}
 
 				return new_asset;
 			}
