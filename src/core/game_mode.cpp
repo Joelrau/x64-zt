@@ -19,6 +19,7 @@ namespace game
 				{s1, "s1"},
 				{s2, "s2"},
 				{iw8, "iw8"},
+				{iw3, "iw3"},
 			};
 
 			return game_mode_map;

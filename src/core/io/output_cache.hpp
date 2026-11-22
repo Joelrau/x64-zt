@@ -5,7 +5,7 @@ namespace zonetool
 	namespace cache_revision
 	{
 		constexpr std::uint32_t pak_streams = 1;
-		constexpr std::uint32_t iw8_iw7_image = 1;
+		constexpr std::uint32_t iw8_iw7_image = 2;
 		constexpr std::uint32_t iw7_iw8_image = 4;
 		constexpr std::uint32_t s2_h1_image = 1;
 		constexpr std::uint32_t s2_h1_techset = 1;

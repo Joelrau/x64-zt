@@ -1,5 +1,5 @@
 games = {
-	known = {"h1", "h2", "iw6", "iw7", "iw8", "s1", "s2"},
+	known = {"h1", "h2", "iw3", "iw6", "iw7", "iw8", "s1", "s2"},
 	enabled = {},
 	dependencies = {
 		h1 = function()
@@ -18,6 +18,9 @@ games = {
 			dependencies.use(directxtex)
 			gsc_tool.import_engine("s2")
 		end,
+		iw3 = function()
+			dependencies.use(zlib, minizip)
+		end,
 		iw6 = function()
 			dependencies.use(directxtex)
 			gsc_tool.import_engine("iw6")
@@ -32,6 +35,9 @@ games = {
 	converter_requires = {
 		s1_h2 = {"h1"},
 		s1_s2 = {"h1"},
+	},
+	converter_stages = {
+		iw3_iw7 = {"iw3_iw4", "iw4_iw5", "iw5_iw7"},
 	},
 	converter_dependencies = {
 		s1_s2 = function()
@@ -52,6 +58,9 @@ games = {
 		end,
 		iw8_iw7 = function()
 			gsc_tool.import_engine("iw8")
+			gsc_tool.import_engine("iw7")
+		end,
+		iw3_iw7 = function()
 			gsc_tool.import_engine("iw7")
 		end,
 	},
@@ -115,7 +124,7 @@ function games.write_enabled_header()
 	table.insert(lines, "#define ZONETOOL_CONVERTERS(x) " .. table.concat(converter_list, " "))
 
 	local content = table.concat(lines, "\n") .. "\n"
-	local folder = path.join(_MAIN_SCRIPT_DIR, "build/generated")
+	local folder = path.join(_MAIN_SCRIPT_DIR, build_directory, "generated")
 	local file = path.join(folder, "enabled_games.hpp")
 
 	if io.readfile(file) ~= content then
@@ -166,8 +175,16 @@ local function converter_project(converter)
 			"src/convert/" .. name .. "/**.cpp",
 		}
 
+		for _, stage in ipairs(games.converter_stages[name] or {}) do
+			files {
+				"src/convert/" .. stage .. "/**.hpp",
+				"src/convert/" .. stage .. "/**.cpp",
+			}
+		end
+
 		includedirs {
 			"src/convert/" .. name,
+			"src/convert",
 			"src/games",
 			"src/core",
 			"src/common",

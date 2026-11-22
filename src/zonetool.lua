@@ -28,7 +28,7 @@ function zonetool:project()
 
 		links {"core", "common"}
 
-		prebuildcommands {"pushd %{_MAIN_SCRIPT_DIR}", "tools\\premake5 generate-buildinfo", "popd"}
+		prebuildcommands {"pushd \"%{_MAIN_SCRIPT_DIR}\"", "tools\\premake5 --build-dir=" .. build_directory .. " generate-buildinfo", "popd"}
 
 		if _OPTIONS["copy-to"] then
 			postbuildcommands {"copy /y \"$(TargetPath)\" \"" .. _OPTIONS["copy-to"] .. "\""}

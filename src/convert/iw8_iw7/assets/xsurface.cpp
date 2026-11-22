@@ -197,7 +197,12 @@ namespace zonetool::iw8::converter::iw7::xsurface
 			return result;
 		}
 
-		target::GfxPackedVertex convert_vertex(const GfxPackedVertex& vertex, const Bounds& bounds, const std::uint32_t* color)
+		bool has_self_visibility(const XSurface& surface)
+		{
+			return (surface.flags & (SURF_FLAG_REACTIVE_MOTION | SURF_FLAG_SELF_VISIBILITY)) == SURF_FLAG_SELF_VISIBILITY;
+		}
+
+		target::GfxPackedVertex convert_vertex(const GfxPackedVertex& vertex, const Bounds& bounds, const std::uint32_t* color, const bool keep_visibility)
 		{
 			target::GfxPackedVertex result{};
 
@@ -205,7 +210,7 @@ namespace zonetool::iw8::converter::iw7::xsurface
 			std::memcpy(result.xyz, position.data(), sizeof(result.xyz));
 
 			float default_visibility[4] = { 0.0f, 0.0f, 1.0f, 0.0f };
-			result.selfVisibility.packed = self_visibility::XSurfacePackSelfVisibility(default_visibility);
+			result.selfVisibility.packed = keep_visibility ? vertex.selfVisibility : self_visibility::XSurfacePackSelfVisibility(default_visibility);
 
 			result.color.packed = color ? *color : 0xFFFFFFFF;
 			result.texCoord.packed = vertex.texCoord;
@@ -254,10 +259,12 @@ namespace zonetool::iw8::converter::iw7::xsurface
 			result->rigidVertListCount = surface.rigidVertListCount;
 			std::memcpy(result->blendVertCounts, surface.blendVertCounts, sizeof(result->blendVertCounts));
 
+			const auto keep_visibility = has_self_visibility(surface);
+
 			result->verts0.packedVerts0 = allocator.allocate_array<target::GfxPackedVertex>(surface.vertCount);
 			for (auto i = 0; i < surface.vertCount; i++)
 			{
-				result->verts0.packedVerts0[i] = convert_vertex(vertices[i], surface.surfBounds, colors ? &colors[i] : nullptr);
+				result->verts0.packedVerts0[i] = convert_vertex(vertices[i], surface.surfBounds, colors ? &colors[i] : nullptr, keep_visibility);
 			}
 
 			result->triIndices = allocator.allocate_array<target::Face>(surface.triCount);

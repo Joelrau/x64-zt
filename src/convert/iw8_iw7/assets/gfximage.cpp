@@ -3,8 +3,7 @@
 #include "../include.hpp"
 #include "gfximage.hpp"
 
-#include <DirectXTex.h>
-
+#include <formats/image_compress.hpp>
 #include <io/output_cache.hpp>
 #include <utils/flags.hpp>
 #include <utils/io.hpp>
@@ -15,7 +14,6 @@ namespace zonetool::iw8::converter::iw7::gfximage
 	{
 		using pixel_transform = std::function<std::optional<std::string>(std::string_view pixels, std::uint32_t first_level, std::uint32_t level_count)>;
 		using channel_tables = std::array<std::array<std::uint8_t, 256>, 4>;
-		using compress_strip = std::pair<std::size_t, std::size_t>;
 		using color = std::array<float, 3>;
 
 		std::string clean_name(std::string name)
@@ -96,7 +94,7 @@ namespace zonetool::iw8::converter::iw7::gfximage
 			}
 		}
 
-		std::array<float, 2> encode_octahedron(const std::array<float, 3>& direction) // TODO: check the IW8 octahedron axes in the game
+		std::array<float, 2> encode_octahedron(const std::array<float, 3>& direction)
 		{
 			const auto length = std::abs(direction[0]) + std::abs(direction[1]) + std::abs(direction[2]);
 			auto x = direction[0] / length;
@@ -132,8 +130,21 @@ namespace zonetool::iw8::converter::iw7::gfximage
 			return DirectX::XMVectorLerp(top, bottom, y - y0);
 		}
 
-		void write_cube_face(const DirectX::Image& source, const DirectX::Image& face_image, const std::size_t face)
+		float get_probe_irradiance(const GfxSH3Vec& luminance, const std::array<float, 3>& direction)
 		{
+			const auto [x, y, z] = direction;
+			const auto length = std::sqrt(x * x + y * y + z * z);
+			const auto ambient = 0.282095f * luminance.coeffs[0];
+			const auto irradiance = ambient + 0.488603f * (-y * luminance.coeffs[1] + z * luminance.coeffs[2] - x * luminance.coeffs[3]) / length;
+			return std::max({irradiance, 0.1f * ambient, 0.001f});
+		}
+
+		void write_cube_face(const DirectX::Image& source, const std::size_t source_level, const GfxSH3Vec* luminance, const DirectX::Image& face_image,
+			const std::size_t face)
+		{
+			const auto border = static_cast<float>(4u << std::min<std::size_t>(source_level, 3));
+			const auto scale = 1.0f - border / 128.0f;
+			const auto offset = border / 256.0f;
 			for (auto row = 0u; row < face_image.height; row++)
 			{
 				auto* line = reinterpret_cast<DirectX::XMFLOAT4*>(face_image.pixels + row * face_image.rowPitch);
@@ -141,69 +152,13 @@ namespace zonetool::iw8::converter::iw7::gfximage
 				{
 					const auto s = (column + 0.5f) * 2.0f / face_image.width - 1.0f;
 					const auto t = (row + 0.5f) * 2.0f / face_image.height - 1.0f;
-					DirectX::XMStoreFloat4(&line[column], sample_bilinear(source, encode_octahedron(get_cube_direction(face, s, t))));
+					const auto direction = get_cube_direction(face, s, t);
+					const auto uv = encode_octahedron(direction);
+					const auto irradiance = luminance ? get_probe_irradiance(*luminance, direction) : 1.0f;
+					const auto color = DirectX::XMVectorScale(sample_bilinear(source, {uv[0] * scale + offset, uv[1] * scale + offset}), irradiance);
+					DirectX::XMStoreFloat4(&line[column], DirectX::XMVectorSetW(color, 1.0f));
 				}
 			}
-		}
-
-		std::optional<DirectX::ScratchImage> compress(const DirectX::ScratchImage& source, const DXGI_FORMAT format, const DirectX::TEX_COMPRESS_FLAGS flags)
-		{
-			auto metadata = source.GetMetadata();
-			metadata.format = format;
-
-			DirectX::ScratchImage compressed;
-			if (FAILED(compressed.Initialize(metadata)))
-			{
-				return {};
-			}
-
-			std::vector<compress_strip> strips;
-			for (auto index = 0u; index < source.GetImageCount(); index++)
-			{
-				for (auto row = 0u; row < source.GetImages()[index].height; row += 64)
-				{
-					strips.emplace_back(index, row);
-				}
-			}
-
-			std::atomic_size_t next_strip{};
-			std::atomic_bool failed{};
-			const auto compress_images = [&]
-			{
-				for (auto strip = next_strip++; strip < strips.size(); strip = next_strip++)
-				{
-					const auto [index, row] = strips[strip];
-					const auto& image = source.GetImages()[index];
-					auto part = image;
-					part.height = std::min<std::size_t>(64, image.height - row);
-					part.slicePitch = image.rowPitch * part.height;
-					part.pixels = image.pixels + image.rowPitch * row;
-
-					DirectX::ScratchImage result;
-					if (FAILED(DirectX::Compress(part, format, flags, DirectX::TEX_THRESHOLD_DEFAULT, result)))
-					{
-						failed = true;
-						continue;
-					}
-
-					const auto& target = compressed.GetImages()[index];
-					std::memcpy(target.pixels + target.rowPitch * (row / 4), result.GetPixels(), result.GetPixelsSize());
-				}
-			};
-
-			std::vector<std::jthread> threads(utils::flags::get_thread_count());
-			for (auto& thread : threads)
-			{
-				thread = std::jthread(compress_images);
-			}
-
-			threads.clear();
-			if (failed)
-			{
-				return {};
-			}
-
-			return compressed;
 		}
 
 		std::uint32_t get_stream_first_level(const GfxImage* asset, const int stream)
@@ -534,7 +489,7 @@ namespace zonetool::iw8::converter::iw7::gfximage
 				return std::string(reinterpret_cast<const char*>(decoded->GetPixels()), decoded->GetPixelsSize());
 			}
 
-			const auto compressed = compress(*decoded, DXGI_FORMAT_BC7_UNORM, DirectX::TEX_COMPRESS_BC7_QUICK);
+			const auto compressed = image_compress::compress(*decoded, DXGI_FORMAT_BC7_UNORM, DirectX::TEX_COMPRESS_BC7_QUICK);
 			if (!compressed)
 			{
 				return {};
@@ -574,7 +529,7 @@ namespace zonetool::iw8::converter::iw7::gfximage
 			const auto width = std::max(1, asset->width >> first_level);
 			const auto height = std::max(1, asset->height >> first_level);
 			const auto decoded = decode_rgba8(DXGI_FORMAT_BC1_UNORM_SRGB, width, height, level_count, pixels);
-			const auto compressed = decoded ? compress(*decoded, DXGI_FORMAT_BC3_UNORM, DirectX::TEX_COMPRESS_DEFAULT) : std::nullopt;
+			const auto compressed = decoded ? image_compress::compress(*decoded, DXGI_FORMAT_BC3_UNORM, DirectX::TEX_COMPRESS_DEFAULT) : std::nullopt;
 			if (!compressed)
 			{
 				return {};
@@ -907,7 +862,7 @@ namespace zonetool::iw8::converter::iw7::gfximage
 			}
 		}
 
-		const auto secondary = compress(lighting, DXGI_FORMAT_BC6H_UF16, DirectX::TEX_COMPRESS_DEFAULT);
+		const auto secondary = image_compress::compress(lighting, DXGI_FORMAT_BC6H_UF16, DirectX::TEX_COMPRESS_DEFAULT);
 		if (!secondary)
 		{
 			ZONETOOL_WARNING("Cannot encode lightmap \"%s\"", name.data());
@@ -930,7 +885,7 @@ namespace zonetool::iw8::converter::iw7::gfximage
 		return names;
 	}
 
-	void dump_reflection_probe_array(const GfxImage* octahedron, const char* name)
+	void dump_reflection_probe_array(const GfxImage* octahedron, const GfxSH3Vec* luminance, const std::size_t luminance_count, const char* name)
 	{
 		const auto format = get_dxgi_format(octahedron->format);
 		const auto pixels = get_image_pixels(octahedron);
@@ -946,7 +901,16 @@ namespace zonetool::iw8::converter::iw7::gfximage
 			return;
 		}
 
-		std::memcpy(source.GetPixels(), tight_pixels->data(), tight_pixels->size());
+		auto* level_pixels = tight_pixels->data();
+		for (auto level = 0u; level < octahedron->levelCount; level++)
+		{
+			for (auto element = 0u; element < elements; element++)
+			{
+				const auto* image = source.GetImage(level, element, 0);
+				std::memcpy(image->pixels, level_pixels, image->slicePitch);
+				level_pixels += image->slicePitch;
+			}
+		}
 
 		DirectX::ScratchImage decoded;
 		if (FAILED(DirectX::Decompress(source.GetImages(), source.GetImageCount(), source.GetMetadata(), DXGI_FORMAT_R32G32B32A32_FLOAT, decoded)))
@@ -972,15 +936,16 @@ namespace zonetool::iw8::converter::iw7::gfximage
 		{
 			for (auto level = 0u; level < levels; level++)
 			{
-				const auto* source_level = decoded.GetImage(std::min<std::size_t>(level, octahedron->levelCount - 1), element, 0);
+				const auto source_level = std::min<std::size_t>(level, octahedron->levelCount - 1);
 				for (auto face = 0u; face < 6; face++)
 				{
-					write_cube_face(*source_level, *cubes.GetImage(level, element * 6 + face, 0), face);
+					write_cube_face(*decoded.GetImage(source_level, element, 0), source_level, element < luminance_count ? &luminance[element] : nullptr,
+						*cubes.GetImage(level, element * 6 + face, 0), face);
 				}
 			}
 		}
 
-		const auto compressed = compress(cubes, DXGI_FORMAT_BC6H_UF16, DirectX::TEX_COMPRESS_DEFAULT);
+		const auto compressed = image_compress::compress(cubes, DXGI_FORMAT_BC6H_UF16, DirectX::TEX_COMPRESS_DEFAULT);
 		if (!compressed)
 		{
 			ZONETOOL_WARNING("Cannot encode the reflection probes of image \"%s\"", octahedron->name);

@@ -19,6 +19,6 @@ namespace zonetool::iw8::converter::iw7::xmodel
 	};
 
 	bool is_supported(const XModel* asset);
-	void dump(XModel* asset);
-	void dump_with_parts(XModel* asset, const std::vector<XModel*>& parts);
+	bool dump(XModel* asset);
+	bool dump_with_parts(XModel* asset, const std::vector<XModel*>& parts);
 }

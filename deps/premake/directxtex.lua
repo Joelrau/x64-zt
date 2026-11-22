@@ -1,7 +1,7 @@
 directxtex = {
 	source = path.join(dependencies.basePath, "DirectXTex/DirectXTex"),
 	common = path.join(dependencies.basePath, "DirectXTex/Common"),
-	shaders = path.join(_MAIN_SCRIPT_DIR, "build/generated/directxtex_shaders")
+	shaders = path.join(_MAIN_SCRIPT_DIR, build_directory, "generated/directxtex_shaders")
 }
 
 function directxtex.import()

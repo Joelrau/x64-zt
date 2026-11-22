@@ -2,6 +2,7 @@ gitVersioningCommand = "git describe --tags --dirty --always"
 gitCurrentBranchCommand = "git symbolic-ref -q --short HEAD"
 
 COMPUTER_NAME = os.getenv('COMPUTERNAME')
+build_directory = _OPTIONS["build-dir"] or "build"
 
 -- Quote the given string input as a C string
 function cstrquote(value)
@@ -77,6 +78,13 @@ newoption {
 }
 
 newoption {
+	trigger = "build-dir",
+	description = "Folder of the generated projects (default build)",
+	value = "PATH",
+	default = "build",
+}
+
+newoption {
 	trigger = "copy-to",
 	description = "Copy zonetool.exe to this folder after build",
 	value = "PATH",
@@ -111,6 +119,7 @@ newaction {
 	trigger = "generate-buildinfo",
 	description = "Sets up build information file like version.h.",
 	onWorkspace = function(wks)
+		os.mkdir(wks.location .. "/src")
 		-- get old version number from version.hpp if any
 		local oldVersion = "(none)"
 		local oldVersionHeader = io.open(wks.location .. "/src/version.h", "r")
@@ -228,7 +237,7 @@ include "src/games.lua"
 
 workspace "x64-zt"
 startproject "zonetool"
-location "./build"
+location("./" .. build_directory)
 objdir "%{wks.location}/obj"
 targetdir "%{wks.location}/bin/%{cfg.platform}/%{cfg.buildcfg}"
 

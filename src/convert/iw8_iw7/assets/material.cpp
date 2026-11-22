@@ -1594,14 +1594,14 @@ namespace zonetool::iw8::converter::iw7::material
 					return &emissive_model_techset;
 				}
 
-				return utils::flags::has_flag("pbr") ? &lit_model_techset : &lambert_model_techset;
+				return utils::flags::has_flag("lambert") ? &lambert_model_techset : &lit_model_techset;
 			case techset::GENERATED_TECHSET_WORLD:
 				if (is_alpha_tested(asset))
 				{
 					return &alpha_tested_world_techset;
 				}
 
-				if (!utils::flags::has_flag("pbr"))
+				if (utils::flags::has_flag("lambert"))
 				{
 					return &lambert_world_techset;
 				}

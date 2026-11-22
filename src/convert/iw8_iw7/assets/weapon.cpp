@@ -48,9 +48,9 @@ namespace zonetool::iw8::converter::iw7::weapon
 				return nullptr;
 			}
 
-			if (const auto loaded = find_loaded(ASSET_TYPE_XMODEL, asset))
+			if (!xmodel::dump(find_loaded(ASSET_TYPE_XMODEL, asset)))
 			{
-				xmodel::dump(loaded);
+				return nullptr;
 			}
 
 			const auto model = allocator.allocate<target::XModel>();
@@ -108,7 +108,10 @@ namespace zonetool::iw8::converter::iw7::weapon
 				return convert_model(asset->weapDef->gunXModel, allocator);
 			}
 
-			xmodel::dump_with_parts(gun, find_base_parts(asset));
+			if (!xmodel::dump_with_parts(gun, find_base_parts(asset)))
+			{
+				return nullptr;
+			}
 
 			const auto model = allocator.allocate<target::XModel>();
 			model->name = gun->name;

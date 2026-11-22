@@ -6,15 +6,7 @@
 #include <io/output_cache.hpp>
 #include <utils/flags.hpp>
 
-#include <d3d11.h>
-#include <wrl/client.h>
-
-#pragma warning( push )
-#pragma warning( disable : 4459 )
-#include <DirectXTex.h>
-#pragma warning( pop )
-
-#pragma comment(lib, "d3d11.lib")
+#include <formats/image_compress.hpp>
 
 namespace zonetool::iw7::converter::iw8::gfximage
 {
@@ -146,109 +138,6 @@ namespace zonetool::iw7::converter::iw8::gfximage
 			}
 
 			return decoded;
-		}
-
-		ID3D11Device* get_gpu()
-		{
-			static const auto device = []
-			{
-				Microsoft::WRL::ComPtr<ID3D11Device> result;
-				if (utils::flags::has_flag("no_gpu")
-					|| FAILED(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0, nullptr, 0, D3D11_SDK_VERSION, &result, nullptr, nullptr)))
-				{
-					return Microsoft::WRL::ComPtr<ID3D11Device>{};
-				}
-
-				ZONETOOL_INFO("Compressing BC6H and BC7 images on the GPU");
-				return result;
-			}();
-			return device.Get();
-		}
-
-		std::optional<DirectX::ScratchImage> compress_on_gpu(const DirectX::ScratchImage& source, const DXGI_FORMAT format, const DirectX::TEX_COMPRESS_FLAGS flags)
-		{
-			static std::mutex mutex;
-
-			auto* const device = (format == DXGI_FORMAT_BC7_UNORM || format == DXGI_FORMAT_BC6H_UF16) ? get_gpu() : nullptr;
-			if (!device)
-			{
-				return {};
-			}
-
-			std::lock_guard lock(mutex);
-			DirectX::ScratchImage compressed;
-			if (FAILED(DirectX::Compress(device, source.GetImages(), source.GetImageCount(), source.GetMetadata(), format, flags,
-				DirectX::TEX_ALPHA_WEIGHT_DEFAULT, compressed)))
-			{
-				return {};
-			}
-
-			return compressed;
-		}
-
-		std::optional<DirectX::ScratchImage> compress(const DirectX::ScratchImage& source, const DXGI_FORMAT format, const DirectX::TEX_COMPRESS_FLAGS flags)
-		{
-			if (auto compressed = compress_on_gpu(source, format, flags))
-			{
-				return compressed;
-			}
-
-			auto metadata = source.GetMetadata();
-			metadata.format = format;
-
-			DirectX::ScratchImage compressed;
-			if (FAILED(compressed.Initialize(metadata)))
-			{
-				return {};
-			}
-
-			std::vector<std::pair<std::size_t, std::size_t>> strips;
-			for (auto index = 0u; index < source.GetImageCount(); index++)
-			{
-				for (auto row = 0u; row < source.GetImages()[index].height; row += 64)
-				{
-					strips.emplace_back(index, row);
-				}
-			}
-
-			std::atomic_size_t next_strip{};
-			std::atomic_bool failed{};
-			const auto compress_strips = [&]
-			{
-				for (auto strip = next_strip++; strip < strips.size(); strip = next_strip++)
-				{
-					const auto [index, row] = strips[strip];
-					const auto& image = source.GetImages()[index];
-					auto part = image;
-					part.height = std::min<std::size_t>(64, image.height - row);
-					part.slicePitch = image.rowPitch * part.height;
-					part.pixels = image.pixels + image.rowPitch * row;
-
-					DirectX::ScratchImage result;
-					if (FAILED(DirectX::Compress(part, format, flags, DirectX::TEX_THRESHOLD_DEFAULT, result)))
-					{
-						failed = true;
-						continue;
-					}
-
-					const auto& target_image = compressed.GetImages()[index];
-					std::memcpy(target_image.pixels + target_image.rowPitch * (row / 4), result.GetPixels(), result.GetPixelsSize());
-				}
-			};
-
-			std::vector<std::jthread> threads(utils::flags::get_thread_count());
-			for (auto& thread : threads)
-			{
-				thread = std::jthread(compress_strips);
-			}
-
-			threads.clear();
-			if (failed)
-			{
-				return {};
-			}
-
-			return compressed;
 		}
 
 		std::uint8_t to_byte(const float value)
@@ -445,7 +334,7 @@ namespace zonetool::iw7::converter::iw8::gfximage
 				}
 			}
 
-			const auto compressed = compress(*decoded, DXGI_FORMAT_BC7_UNORM, DirectX::TEX_COMPRESS_BC7_QUICK);
+			const auto compressed = image_compress::compress(*decoded, DXGI_FORMAT_BC7_UNORM, DirectX::TEX_COMPRESS_BC7_QUICK);
 			if (!compressed)
 			{
 				ZONETOOL_WARNING("Cannot compress image \"%s\"", asset->name);
@@ -508,7 +397,7 @@ namespace zonetool::iw7::converter::iw8::gfximage
 				return nullptr;
 			}
 
-			const auto compressed = compress(mips, DXGI_FORMAT_BC7_UNORM, DirectX::TEX_COMPRESS_BC7_QUICK);
+			const auto compressed = image_compress::compress(mips, DXGI_FORMAT_BC7_UNORM, DirectX::TEX_COMPRESS_BC7_QUICK);
 			if (!compressed)
 			{
 				ZONETOOL_WARNING("Cannot compress image \"%s\"", name.data());
@@ -1222,7 +1111,7 @@ namespace zonetool::iw7::converter::iw8::gfximage
 			}
 
 			const auto octahedron = make_octahedron(*cube, rotation_angles, color_scale);
-			const auto compressed = octahedron ? compress(*octahedron, DXGI_FORMAT_BC6H_UF16, DirectX::TEX_COMPRESS_DEFAULT) : std::nullopt;
+			const auto compressed = octahedron ? image_compress::compress(*octahedron, DXGI_FORMAT_BC6H_UF16, DirectX::TEX_COMPRESS_DEFAULT) : std::nullopt;
 			if (!compressed)
 			{
 				ZONETOOL_WARNING("Cannot compress image \"%s\"", asset->name);
@@ -1344,7 +1233,7 @@ namespace zonetool::iw7::converter::iw8::gfximage
 
 			ZONETOOL_INFO("Image \"%s\": %zu reflection probes, mean luminance %.2f", asset->name, probe_count, luminance / probe_count);
 
-			const auto compressed = compress(octahedrons, DXGI_FORMAT_BC6H_UF16, DirectX::TEX_COMPRESS_DEFAULT);
+			const auto compressed = image_compress::compress(octahedrons, DXGI_FORMAT_BC6H_UF16, DirectX::TEX_COMPRESS_DEFAULT);
 			if (!compressed)
 			{
 				ZONETOOL_WARNING("Cannot compress image \"%s\"", asset->name);
@@ -1544,7 +1433,7 @@ namespace zonetool::iw7::converter::iw8::gfximage
 			}
 		}
 
-		const auto compressed_ambient = compress(ambient, DXGI_FORMAT_BC4_UNORM, DirectX::TEX_COMPRESS_DEFAULT);
+		const auto compressed_ambient = image_compress::compress(ambient, DXGI_FORMAT_BC4_UNORM, DirectX::TEX_COMPRESS_DEFAULT);
 		const auto packed_irradiance = decode(std::move(irradiance), DXGI_FORMAT_R11G11B10_FLOAT);
 		if (!compressed_ambient || !packed_irradiance)
 		{

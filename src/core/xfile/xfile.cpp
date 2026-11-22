@@ -246,6 +246,24 @@ namespace zonetool::xfile
 			file.payload = zone_reader.rest();
 		}
 
+		void read_iw3(byte_reader& reader, const format& format, fastfile& file)
+		{
+			reader.skip(sizeof(std::uint64_t) + sizeof(std::uint32_t));
+
+			const auto zone = inflate_zlib(reader.rest(), MAX_WBITS, 0);
+
+			byte_reader zone_reader(zone);
+			zone_reader.skip(sizeof(std::uint32_t) * 2);
+
+			file.block_sizes.resize(format.block_count);
+			for (auto& size : file.block_sizes)
+			{
+				size = zone_reader.read<std::uint32_t>();
+			}
+
+			file.payload = zone_reader.rest();
+		}
+
 		std::vector<XStreamFile> read_iw7_stream_files(byte_reader& reader, const std::size_t count)
 		{
 			std::vector<XStreamFile> files(count);
@@ -660,6 +678,9 @@ namespace zonetool::xfile
 			break;
 		case container::iw8:
 			read_iw8(path, reader, format, file);
+			break;
+		case container::iw3:
+			read_iw3(reader, format, file);
 			break;
 		}
 

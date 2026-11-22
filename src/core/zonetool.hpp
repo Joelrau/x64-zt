@@ -10,6 +10,7 @@
 #include "zone/zone_memory.hpp"
 #include "zone/asset.hpp"
 #include "zone/zone_reader.hpp"
+#include "zone/zone_reader32.hpp"
 #include "zone/database.hpp"
 #include "zone/script_strings.hpp"
 

@@ -61,15 +61,6 @@ namespace zonetool::iw8::converter::iw7::comworld
 		world->firstScriptablePrimaryLight = asset->firstScriptablePrimaryLight;
 		world->changeListInfo = std::bit_cast<target::ComChangeListInfo>(asset->changeListInfo);
 
-		if (asset->numUmbraGates > sizeof(world->umbraGateInitialStates) * 8)
-		{
-			ZONETOOL_WARNING("comworld \"%s\" has %u umbra gates, IW7 supports %zu", asset->name, asset->numUmbraGates, sizeof(world->umbraGateInitialStates) * 8);
-		}
-
-		world->numUmbraGates = asset->numUmbraGates;
-		world->umbraGateNames = asset->umbraGateNames;
-		std::memcpy(world->umbraGateInitialStates, asset->umbraGateInitialStates, sizeof(world->umbraGateInitialStates));
-
 		world->primaryLightCount = asset->primaryLightCount;
 		world->primaryLights = allocator.allocate_array<target::ComPrimaryLight>(asset->primaryLightCount);
 		world->primaryLightEnvCount = asset->primaryLightCount;

@@ -141,7 +141,8 @@ namespace zonetool::iw8::converter::iw7::xmodel
 		int convert_flags(const unsigned int flags)
 		{
 			return static_cast<int>(flags & ~(target::XMODEL_FLAG_REACTIVE_MOTION | target::XMODEL_FLAG_HAS_DEFAULT_MODEL
-				| target::XMODEL_FLAG_HAS_ANY_DEFAULT_SURFS | target::XMODEL_FLAG_HAS_ALL_DEFAULT_SURFS));
+				| target::XMODEL_FLAG_HAS_ANY_DEFAULT_SURFS | target::XMODEL_FLAG_HAS_ALL_DEFAULT_SURFS
+				| XMODEL_FLAG_SKINNED | XMODEL_FLAG_STREAMED_IMAGES));
 		}
 
 		target::XModel* convert(const XModel* asset, utils::memory::allocator& allocator)
@@ -155,6 +156,7 @@ namespace zonetool::iw8::converter::iw7::xmodel
 			result->collLod = asset->collLod;
 			result->shadowCutoffLod = asset->shadowCutoffLod;
 			result->characterCollBoundsType = asset->characterCollBoundsType;
+			result->impactType = asset->impactType;
 			result->flags = convert_flags(asset->flags);
 
 			result->numBones = asset->numBones;
@@ -638,7 +640,7 @@ namespace zonetool::iw8::converter::iw7::xmodel
 		return true;
 	}
 
-	void dump(XModel* asset)
+	bool dump(XModel* asset)
 	{
 		utils::memory::allocator allocator;
 		zonetool::iw7::xmodel::dump(convert(asset, allocator));
@@ -646,37 +648,39 @@ namespace zonetool::iw8::converter::iw7::xmodel
 		{
 			ZONETOOL_WARNING("A LOD of xmodel \"%s\" has no loaded surfaces", asset->name);
 			add_csv_row("xmodel", asset->name);
+			return true;
 		}
-		else if (dump_materials(asset))
+
+		if (!dump_materials(asset))
 		{
-			dump_surfaces(asset);
-			add_csv_row("xmodel", asset->name);
+			return false;
 		}
+
+		dump_surfaces(asset);
+		add_csv_row("xmodel", asset->name);
+		return true;
 	}
 
-	void dump_with_parts(XModel* asset, const std::vector<XModel*>& parts)
+	bool dump_with_parts(XModel* asset, const std::vector<XModel*>& parts)
 	{
 		merged_skeleton skeleton{};
 		const auto attached = attach_parts(skeleton, asset, parts);
 		if (attached.empty())
 		{
-			dump(asset);
-			return;
+			return dump(asset);
 		}
 
 		if (skeleton.bones.size() > 0xFF)
 		{
 			ZONETOOL_ERROR("The merged skeleton of xmodel \"%s\" does not fit the bone limits", asset->name);
-			dump(asset);
-			return;
+			return dump(asset);
 		}
 
 		utils::memory::allocator allocator;
 		const auto surfaces = merge_surfaces(asset, attached, skeleton, allocator);
 		if (!surfaces)
 		{
-			dump(asset);
-			return;
+			return dump(asset);
 		}
 
 		const auto result = convert(asset, allocator);
@@ -714,10 +718,13 @@ namespace zonetool::iw8::converter::iw7::xmodel
 			materials_dumped = dump_materials(part) && materials_dumped;
 		}
 
-		if (materials_dumped)
+		if (!materials_dumped)
 		{
-			zonetool::iw7::xsurface::dump(surfaces);
-			add_csv_row("xmodel", asset->name);
+			return false;
 		}
+
+		zonetool::iw7::xsurface::dump(surfaces);
+		add_csv_row("xmodel", asset->name);
+		return true;
 	}
 }

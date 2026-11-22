@@ -26,6 +26,24 @@ namespace zonetool::cli
 				throw std::runtime_error("zone is smaller than its asset list");
 			}
 
+			if (summary.container == xfile::container::iw3)
+			{
+				struct x86_asset_list
+				{
+					std::uint32_t string_count;
+					std::uint32_t strings;
+					std::uint32_t asset_count;
+					std::uint32_t assets;
+				};
+
+				x86_asset_list list{};
+				std::memcpy(&list, payload.data(), sizeof(list));
+				summary.asset_list = {};
+				summary.asset_list.stringCount = static_cast<decltype(summary.asset_list.stringCount)>(list.string_count);
+				summary.asset_list.assetCount = static_cast<decltype(summary.asset_list.assetCount)>(list.asset_count);
+				return summary;
+			}
+
 			std::memcpy(&summary.asset_list, payload.data(), sizeof(XAssetList));
 			return summary;
 		}

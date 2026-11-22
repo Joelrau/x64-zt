@@ -11,6 +11,7 @@
 #include <iw7/assets/gfxworld.hpp>
 #include <iw7/assets/gfxworld_tr.hpp>
 
+#include <formats/umbra_tome.hpp>
 #include <log.hpp>
 
 #include <DirectXPackedVector.h>
@@ -430,7 +431,8 @@ namespace zonetool::iw8::converter::iw7::gfxworld
 			probes.reflectionProbeArrayImage = make_named<target::GfxImage>(source.reflectionProbeArrayImage, allocator);
 			if (!probes.reflectionProbeArrayImage && source.reflectionProbeArrayImage_octahedron)
 			{
-				gfximage::dump_reflection_probe_array(source.reflectionProbeArrayImage_octahedron, "*reflection_probe_array");
+				gfximage::dump_reflection_probe_array(source.reflectionProbeArrayImage_octahedron, source.reflectionProbeSH,
+					source.reflectionProbeSH ? source.reflectionProbeCount : 0, "*reflection_probe_array");
 				probes.reflectionProbeArrayImage = make_named<target::GfxImage>("*reflection_probe_array", allocator);
 			}
 			probes.reflectionProbeLightgridSampleData = allocator.allocate_array<target::GfxReflectionProbeSampleData>(source.reflectionProbeCount);
@@ -488,7 +490,8 @@ namespace zonetool::iw8::converter::iw7::gfxworld
 				result.coefficients[channel * 9] = base[channel];
 				for (auto i = 1; i < 9; i++)
 				{
-					result.coefficients[channel * 9 + i] = (probe.shRatios[channel][i - 1] - 127.0f) / 127.0f * base[channel];
+					const auto band_scale = i < 4 ? std::sqrt(3.0f) : std::sqrt(5.0f);
+					result.coefficients[channel * 9 + i] = (probe.shRatios[channel][i - 1] - 127.0f) / 127.0f * base[channel] * band_scale;
 				}
 			}
 
@@ -871,15 +874,15 @@ namespace zonetool::iw8::converter::iw7::gfxworld
 			return result;
 		}
 
-		unsigned short get_cull_dist(const XModel* model)
+		unsigned short get_cull_dist(const XModel* model, const float scale)
 		{
 			if (!model->numLods)
 			{
 				return 0;
 			}
 
-			const auto dist = model->lodInfo[model->numLods - 1].dist;
-			return static_cast<unsigned short>(std::clamp(dist, 1.0f, 65535.0f));
+			const auto dist = model->lodInfo[model->numLods - 1].dist * scale;
+			return dist > 65535.0f ? 0 : static_cast<unsigned short>(std::max(dist, 1.0f));
 		}
 
 		std::vector<static_model_range> convert_static_models(const GfxWorld* asset, target::GfxWorld* world, utils::memory::allocator& allocator)
@@ -928,7 +931,7 @@ namespace zonetool::iw8::converter::iw7::gfxworld
 				draw.model = make_named<target::XModel>(instance.model->name, allocator);
 				draw.modelLightmapInfo.lightmapIndex = -1; // TODO: lightmaps are not converted
 				draw.flags = target::STATIC_MODEL_FLAG_SCALE_6 | target::STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING | target::STATIC_MODEL_FLAG_ALLOW_FXMARK;
-				draw.cullDist = get_cull_dist(instance.model);
+				draw.cullDist = get_cull_dist(instance.model, draw.placement.scale);
 				draw.sunShadowFlags = 1;
 
 				auto& inst = dpvs.smodelInsts[i];
@@ -1050,107 +1053,72 @@ namespace zonetool::iw8::converter::iw7::gfxworld
 			std::iota(dpvs.lodData, dpvs.lodData + dpvs.smodelCount + 1, 0u);
 		}
 
-		bool has_umbra_object(const target::GfxWorld* world, const unsigned int user_id)
+		umbra_tome::object make_umbra_object(const unsigned int user_id, const target::Bounds& bounds)
+		{
+			umbra_tome::object object{user_id};
+			for (auto i = 0; i < 3; i++)
+			{
+				object.minimum[i] = bounds.midPoint[i] - bounds.halfSize[i];
+				object.maximum[i] = bounds.midPoint[i] + bounds.halfSize[i];
+			}
+
+			return object;
+		}
+
+		void grow_umbra_object(umbra_tome::object& scene, const umbra_tome::object& object)
+		{
+			for (auto i = 0; i < 3; i++)
+			{
+				scene.minimum[i] = std::min(scene.minimum[i], object.minimum[i]);
+				scene.maximum[i] = std::max(scene.maximum[i], object.maximum[i]);
+			}
+		}
+
+		void build_umbra_tome(target::GfxWorld* world, utils::memory::allocator& allocator)
 		{
 			const auto& dpvs = world->dpvs;
-			const auto index = user_id & 0xFFFFFF;
-			switch ((user_id >> 28) & 7)
-			{
-			case target::UMBRA_OBJECT_VOLUMETRIC:
-				return index < dpvs.volumetricVisDataCount * 32;
-			case target::UMBRA_OBJECT_PRIMARY_LIGHT:
-				return index < dpvs.primaryLightVisDataCount * 32;
-			case target::UMBRA_OBJECT_REFLECTION_PROBE:
-				return index < dpvs.reflectionProbeVisDataCount * 32;
-			case target::UMBRA_OBJECT_DECAL:
-				return index < dpvs.decalVisDataCount * 32;
-			default:
-				return true;
-			}
-		}
+			auto scene = make_umbra_object(0, world->bounds);
 
-		std::span<unsigned int> get_umbra_user_ids(target::GfxWorld* world)
-		{
-			const auto* tome = reinterpret_cast<const target::Umbra::ImpTome*>(world->umbraTomeData);
-			if (!tome->m_userIDs.m_offset)
-			{
-				return {};
-			}
-
-			const auto* user_id_starts = reinterpret_cast<const unsigned int*>(world->umbraTomeData + tome->m_userIDStarts.m_offset);
-			const auto count = tome->m_userIDStarts.m_offset ? user_id_starts[tome->m_numObjects] : static_cast<unsigned int>(tome->m_numObjects);
-			return {reinterpret_cast<unsigned int*>(world->umbraTomeData + tome->m_userIDs.m_offset), count};
-		}
-
-		std::vector<unsigned int> get_sorted_surface_positions(const target::GfxWorldDpvsStatic& dpvs)
-		{
-			std::vector<unsigned int> positions(dpvs.staticSurfaceCount, std::numeric_limits<unsigned int>::max());
+			std::vector<umbra_tome::object> objects;
 			for (auto i = 0u; i < dpvs.staticSurfaceCount; i++)
 			{
-				if (dpvs.sortedSurfIndex[i] < positions.size())
-				{
-					positions[dpvs.sortedSurfIndex[i]] = i;
-				}
+				objects.push_back(make_umbra_object(target::UMBRA_OBJECT_SURFACE << 28 | i, dpvs.surfacesBounds[dpvs.sortedSurfIndex[i]].bounds));
+				grow_umbra_object(scene, objects.back());
 			}
 
-			return positions;
-		}
-
-		unsigned int convert_umbra_user_id(const target::GfxWorld* world, const unsigned int user_id, const std::vector<unsigned int>& surface_positions,
-			const std::vector<static_model_range>& smodel_ranges)
-		{
-			const auto index = user_id & 0xFFFFFF;
-			switch ((user_id >> 28) & 7)
+			for (auto i = 0u; i < dpvs.smodelCount; i++)
 			{
-			case target::UMBRA_OBJECT_SURFACE:
-				if (index >= surface_positions.size() || surface_positions[index] == std::numeric_limits<unsigned int>::max())
-				{
-					return target::UMBRA_OBJECT_NONE << 28;
-				}
-
-				return (user_id & 0xFF000000) | surface_positions[index];
-			case target::UMBRA_OBJECT_STATIC_MODEL:
-				if (index >= smodel_ranges.size() || !smodel_ranges[index].count)
-				{
-					return target::UMBRA_OBJECT_NONE << 28;
-				}
-
-				return (user_id & 0xFF000000) | smodel_ranges[index].first;
-			default:
-				return has_umbra_object(world, user_id) ? user_id : target::UMBRA_OBJECT_NONE << 28;
+				objects.push_back(make_umbra_object(target::UMBRA_OBJECT_STATIC_MODEL << 28 | i, dpvs.smodelInsts[i].bounds));
+				grow_umbra_object(scene, objects.back());
 			}
-		}
 
-		void convert_umbra(const GfxWorld* asset, target::GfxWorld* world, const std::vector<static_model_range>& smodel_ranges,
-			utils::memory::allocator& allocator)
-		{
-			if (!asset->umbraTomeData)
+			const auto first_scene_object = objects.size();
+			for (auto i = 0u; i < world->primaryLightCount; i++)
 			{
+				objects.push_back({target::UMBRA_OBJECT_PRIMARY_LIGHT << 28 | i});
+			}
+
+			for (auto i = 0u; i < world->draw.reflectionProbeData.reflectionProbeInstanceCount; i++)
+			{
+				objects.push_back({target::UMBRA_OBJECT_REFLECTION_PROBE << 28 | i});
+			}
+
+			for (auto i = first_scene_object; i < objects.size(); i++)
+			{
+				std::memcpy(objects[i].minimum, scene.minimum, sizeof(scene.minimum));
+				std::memcpy(objects[i].maximum, scene.maximum, sizeof(scene.maximum));
+			}
+
+			const auto tome = umbra_tome::build_single_cell(scene.minimum, scene.maximum, objects);
+			if (tome.empty())
+			{
+				ZONETOOL_WARNING("gfxworld \"%s\": %zu umbra objects cannot be represented", world->name, objects.size());
 				return;
 			}
 
-			if (std::ranges::any_of(smodel_ranges, [](const static_model_range& range) { return range.count > 1; }))
-			{
-				ZONETOOL_WARNING("gfxworld \"%s\" has static model collections with more than one instance, the Umbra tome is not converted", asset->name);
-				return;
-			}
-
-			world->numUmbraGates = asset->numUmbraGates;
-			world->umbraGates = allocator.allocate_array<target::UmbraGate>(asset->numUmbraGates);
-			for (auto i = 0u; i < asset->numUmbraGates; i++)
-			{
-				world->umbraGates[i] = std::bit_cast<target::UmbraGate>(asset->umbraGates[i]);
-			}
-
-			world->umbraTomeSize = asset->umbraTomeSize;
-			world->umbraTomeData = allocator.allocate_array<char>(asset->umbraTomeSize);
-			std::memcpy(world->umbraTomeData, asset->umbraTomeData, asset->umbraTomeSize);
-
-			const auto surface_positions = get_sorted_surface_positions(world->dpvs);
-			for (auto& user_id : get_umbra_user_ids(world))
-			{
-				user_id = convert_umbra_user_id(world, user_id, surface_positions, smodel_ranges);
-			}
+			world->umbraTomeSize = static_cast<unsigned int>(tome.size());
+			world->umbraTomeData = allocator.allocate_array<char>(tome.size());
+			std::memcpy(world->umbraTomeData, tome.data(), tome.size());
 		}
 
 		target::GfxWorld* convert(const GfxWorld* asset, world_geometry& geometry, utils::memory::allocator& allocator)
@@ -1205,7 +1173,7 @@ namespace zonetool::iw8::converter::iw7::gfxworld
 			world->materialLod0SizeThreshold = asset->materialLod0SizeThreshold;
 
 			convert_dynamic_data(world, allocator);
-			convert_umbra(asset, world, smodel_ranges, allocator);
+			build_umbra_tome(world, allocator);
 			return world;
 		}
 
