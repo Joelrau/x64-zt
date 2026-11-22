@@ -276,7 +276,7 @@ namespace zonetool::iw7
 						//      instead of the dark reddish copper in IW7. Use the darker, warmer bronze swatch (160,110,60), which is
 						//      loaded by w/metal_bare_bronze_01.
 						if (mn.find("copper") != std::string::npos && col_name.find("_packed_cs") != std::string::npos)
-							col_name = "metal_bare_bronze_01_c";
+							col_name = "iw7_copper_dark"; // v104: bronze still read as a glowing yellow tube under the sun; flat dark copper (iw7_port2.ps1)
 					}
 					// v40: images that exist in no loaded zone render solid red
 					static const char* const missing_imgs[] = { "default", "$white", "black", "$gray", "transparent_invisible", "glass_clear_01_c", "koth_grid_03_c", "koth_grid_01_c", "falloff_linear", "vfx_energy_dome_shield_ping", "vfx_energy_beam_nrm" };
