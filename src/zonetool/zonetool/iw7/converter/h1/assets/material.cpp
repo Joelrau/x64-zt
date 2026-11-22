@@ -577,7 +577,7 @@ namespace zonetool::iw7
 				//      Use Ghosts' reflective opaque world techset exactly like mp_dig's wc/dig_floor_tile_01 (spec + normal + colour,
 				//      reflection from the surface's reflection probe). Spec image iw7_spec_gloss (RGB = reflectance, A = gloss) is
 				//      written by iw7_port2.ps1 as images\iw7_spec_gloss.dds. Set to false to go back to the matte v101 look.
-				constexpr bool v102_gloss = false; // v103: true blew every matched marble surface out to white in game (lighting of wc_l_sm_r0c0n0s0l0 differs)
+				constexpr bool v102_gloss = true; // v103: r0c0n0s0l0 blew marble to white (no colour-alpha factor); v107: on again with techset 1 (b0c0n0s0l0, PS checked)
 				constexpr bool v104_ghosts_flags = true; // v104: materialType 36 + gameFlags 82 exactly as mp_dig's wc/dig_floor_tile_01
 				constexpr float v104_bloom = 0.0f;       // v104: bloom mask of the gloss materials (mp_dig uses 1.0; our world has 0)
 				// v105: which reflective Ghosts world techset the gloss materials use.
