@@ -286,9 +286,11 @@ namespace zonetool::iw7
 						//      so the big curved pipe over the tower (surfaces 3888-3902 around (480,100,150-656)) drew white/cream
 						//      instead of the dark reddish copper in IW7. Use the darker, warmer bronze swatch (160,110,60), which is
 						//      loaded by w/metal_bare_bronze_01.
+#pragma warning(suppress: 4127)
 						if (!v128_true_metal && mn.find("copper") != std::string::npos && col_name.find("_packed_cs") != std::string::npos)
 							col_name = "iw7_copper_dark"; // v104: bronze still read as a glowing yellow tube under the sun; flat dark copper (iw7_port2.ps1)
 						// v127: the owner / victory statues are dark bronze in IW7 (user's gallery video); their packed metal map drew bright gold
+#pragma warning(suppress: 4127)
 						if (!v128_true_metal && (mn.find("owner_statue") != std::string::npos || mn.find("victory_statue") != std::string::npos) && col_name.find("_packed_cs") != std::string::npos)
 							col_name = "iw7_copper_dark";
 					}
