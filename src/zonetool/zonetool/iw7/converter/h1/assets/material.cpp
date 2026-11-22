@@ -415,7 +415,10 @@ namespace zonetool::iw7
 					&& std::string(asset->name).find("crt_dots") != std::string::npos; // v92: only the CRT overlay; other unlit blend panels went black-void
 				// v92: tool surfaces (caulk_shadow shadow casters, lightmap index 31) drew as solid black boxes next to the spawn.
 				//      Additive with zero tint = invisible.
-				const bool tool_surf = techset.find("_tools") != std::string::npos || (asset->name && std::string(asset->name).find("caulk") != std::string::npos);
+				// v135: effect materials IW7 left as "2d" stubs here (the real ones live in a common zone we don't have) drew as red
+				//       "Fx" placeholders on the distant antennas; hide them like tool surfaces (additive, tint 0)
+				const bool v135_fx_stub = techset == "2d" && asset->name && asset->name[0] == 'e' && std::strchr("lqv", asset->name[1]) && asset->name[2] == '/';
+				const bool tool_surf = v135_fx_stub || techset.find("_tools") != std::string::npos || (asset->name && std::string(asset->name).find("caulk") != std::string::npos);
 				// v102 aqua: the tower aquarium (box at (160,39,309-559): marble walls, pebble floor, wc/atmos_caustics_03 over the walls)
 				//      is fronted by wc/water_mp_riot_fountain_creek_b (IW7 colorTint 0,1,1 = cyan). As a lit cltrans blend with
 				//      its murky grey packed map it drew a murky grey pane; IW7 shows a glowing teal case. Draw it additive teal.
