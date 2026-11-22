@@ -9,8 +9,10 @@ namespace zonetool::iw7
 			// v102 fx: IW7 legacy FxEffectDef (ASSET_TYPE_FX) -> H1 FxEffectDef
 			zonetool::h1::FxEffectDef* convert(FxEffectDef* asset, utils::memory::allocator& allocator);
 
-			// v102 fx: queues the effect; the json is written by flush() once the whole zone was seen
+			// v109 fx: converts the effect now (zone memory is only valid during the load) into owned H1 data;
+			//          the json is written by flush() once the whole zone was seen
 			void dump(FxEffectDef* asset);
+			void dump_vfx(ParticleSystemDef* asset);
 
 			// v102 fx: drops elements whose material/model/effect was not dumped, writes effects/*.json
 			void flush();

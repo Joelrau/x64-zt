@@ -164,14 +164,14 @@ namespace zonetool::iw7
 			constexpr bool v106_vfx = true; // v108: re-enabled, particle system reads are now pointer/count checked
 			if (v106_vfx && asset->type == ASSET_TYPE_VFX)
 			{
-				// v104 vfx: IW7 particle systems are approximated as H1 FxEffectDefs (queued, written in stop_dumping)
+				// v109 fx: IW7 particle systems are converted to owned H1 FxEffectDefs now, pruned + written in stop_dumping
 				if (IS_DEBUG) ZONETOOL_INFO("v104 vfx: queueing IW7 particle system \"%s\"", get_asset_name(asset));
 				converter::h1::createfx::note_vfx(get_asset_name(asset));
 				converter::h1::particlesystem::dump(reinterpret_cast<ParticleSystemDef*>(asset->header.data));
 			}
 
 			DUMP_ASSET_CONVERT(ASSET_TYPE_COMWORLD, comworld, ComWorld);
-			DUMP_ASSET_CONVERT(ASSET_TYPE_FX, fxeffectdef, FxEffectDef); // v102 fx: queued, written in stop_dumping
+			DUMP_ASSET_CONVERT(ASSET_TYPE_FX, fxeffectdef, FxEffectDef); // v109 fx: converted now, pruned + written in stop_dumping
 			DUMP_ASSET_CONVERT(ASSET_TYPE_SCRIPTFILE, createfx, ScriptFile); // v102 fx: fx/createfx scripts only
 			DUMP_ASSET_CONVERT(ASSET_TYPE_IMAGE, gfximage, GfxImage);
 			DUMP_ASSET_CONVERT(ASSET_TYPE_GFXWORLD, gfxworld, GfxWorld);

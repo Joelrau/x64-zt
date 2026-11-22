@@ -93,8 +93,6 @@ namespace zonetool::iw7
 				constexpr int max_control_points = 1024;
 				constexpr int max_linked_assets = 255;
 
-				std::vector<ParticleSystemDef*> vfx_queue;
-				std::unordered_set<std::string> vfx_queue_names;
 
 				// v104 vfx: H1 sprite size is a half extent, IW7 sizes are treated as full width/height
 				constexpr float sprite_size_scale = 0.5f;
@@ -450,6 +448,9 @@ namespace zonetool::iw7
 					float max_life_msec;
 					float max_radius;
 					int extra_size;
+					bool burst;
+					int ambient_interval;
+					int ambient_count;
 				};
 
 				elem_build build_elem(const ParticleSystemDef* sys_def, const ParticleEmitterDef& emitter, zonetool::h1::FxElemType type,
@@ -460,7 +461,7 @@ namespace zonetool::iw7
 					const auto mods = gather_modules(state);
 					const auto visuals = usable_visuals(mods, type, alive);
 
-					elem_build result{ new_elem, true, 0.0f, 0.0f, 0 };
+					elem_build result{ new_elem, true, 0.0f, 0.0f, 0, false, 0, 1 };
 
 					new_elem->elemType = type;
 					new_elem->flags = static_cast<zonetool::h1::FxElemDefFlags>(zonetool::h1::FX_ELEM_SPAWN_RELATIVE_TO_EFFECT);
@@ -520,6 +521,10 @@ namespace zonetool::iw7
 					else
 					{
 						result.looping = false;
+						// v109 fx: remember the ambient (createfx) variant, decided at write time
+						result.burst = true;
+						result.ambient_interval = static_cast<int>(std::max({ life_max, to_msec(emitter.emitterLife.max), 250.0f }));
+						result.ambient_count = burst_max;
 						new_elem->spawn.oneShot.count.base = burst_min;
 						new_elem->spawn.oneShot.count.amplitude = burst_max - burst_min;
 					}
@@ -935,23 +940,8 @@ namespace zonetool::iw7
 
 			void dump(ParticleSystemDef* asset)
 			{
-				if (!readable(asset, sizeof(ParticleSystemDef)) || !safe_name(asset->name) || vfx_queue_names.contains(asset->name))
-				{
-					return;
-				}
-				vfx_queue_names.insert(asset->name);
-				vfx_queue.push_back(asset);
-			}
-
-			std::vector<ParticleSystemDef*>& queued()
-			{
-				return vfx_queue;
-			}
-
-			void clear_queue()
-			{
-				vfx_queue.clear();
-				vfx_queue_names.clear();
+				// v109 fx: converted right away (the asset memory is only valid while the zone loads)
+				fxeffectdef::dump_vfx(asset);
 			}
 
 			int surviving_emitters(ParticleSystemDef* asset, const alive_set* alive, bool ambient)
@@ -974,7 +964,7 @@ namespace zonetool::iw7
 			}
 
 			zonetool::h1::FxEffectDef* convert(ParticleSystemDef* asset, utils::memory::allocator& allocator,
-				const alive_set* alive, bool ambient, int* dropped_out)
+				const alive_set* alive, bool ambient, int* dropped_out, std::vector<elem_meta>* meta_out)
 			{
 				auto* new_asset = allocator.allocate<zonetool::h1::FxEffectDef>();
 				new_asset->name = asset->name;
@@ -988,6 +978,8 @@ namespace zonetool::iw7
 				// looping elements first, then one-shots (H1 element order)
 				std::vector<zonetool::h1::FxElemDef> looping_elems;
 				std::vector<zonetool::h1::FxElemDef> oneshot_elems;
+				std::vector<elem_meta> looping_meta;
+				std::vector<elem_meta> oneshot_meta;
 				int dropped = 0;
 				int extra_size = 0;
 				float max_radius = std::max(sane(asset->drawFrustumCullRadius), 0.0f);
@@ -1012,14 +1004,23 @@ namespace zonetool::iw7
 					const auto built = build_elem(asset, emitter, type, alive, ambient, &elem, new_asset, allocator);
 					max_radius = std::max(max_radius, built.max_radius);
 					extra_size += built.extra_size;
+					elem_meta meta{};
+					meta.burst = built.burst;
+					meta.ambient_interval = built.ambient_interval;
+					meta.ambient_count = built.ambient_count;
+					meta.life_msec = built.max_life_msec + static_cast<float>(elem.spawnDelayMsec.base + elem.spawnDelayMsec.amplitude);
 					if (built.looping)
 					{
-						looping_life = std::max(looping_life, built.max_life_msec + static_cast<float>(elem.spawnDelayMsec.base + elem.spawnDelayMsec.amplitude));
+						looping_life = std::max(looping_life, meta.life_msec);
+						meta.category = 0;
 						looping_elems.push_back(elem);
+						looping_meta.push_back(meta);
 					}
 					else
 					{
+						meta.category = 1;
 						oneshot_elems.push_back(elem);
+						oneshot_meta.push_back(meta);
 					}
 				}
 
@@ -1034,6 +1035,12 @@ namespace zonetool::iw7
 				new_asset->totalSize = static_cast<int>(sizeof(zonetool::h1::FxEffectDef) + std::strlen(asset->name) + 1
 					+ out_index * sizeof(zonetool::h1::FxElemDef)) + extra_size;
 
+				if (meta_out)
+				{
+					meta_out->clear();
+					meta_out->insert(meta_out->end(), looping_meta.begin(), looping_meta.end());
+					meta_out->insert(meta_out->end(), oneshot_meta.begin(), oneshot_meta.end());
+				}
 				if (dropped_out)
 				{
 					*dropped_out = dropped;

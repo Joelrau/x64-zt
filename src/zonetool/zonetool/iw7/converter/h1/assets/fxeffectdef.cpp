@@ -24,9 +24,18 @@ namespace zonetool::iw7
 			{
 				// v102 fx: what this session dumped for H1, by type (materials, models, ...)
 				std::unordered_map<std::int32_t, std::unordered_set<std::string>> dumped_assets;
-				// v102 fx: queued IW7 effects (zone memory stays valid until stop_dumping)
-				std::vector<FxEffectDef*> queued_effects;
-				std::unordered_set<std::string> queued_names;
+				// v109 fx: effects converted at dump time into owned H1 data (the IW7 zone memory is reused by
+				//          stop_dumping time: v108 read every queued particle system as "mp_flip"); pruned + written in flush()
+				struct pending_effect
+				{
+					std::string name;
+					zonetool::h1::FxEffectDef* def = nullptr;
+					std::vector<particlesystem::elem_meta> meta;
+					bool is_vfx = false;
+				};
+				std::vector<pending_effect> pending_effects;
+				std::unordered_set<std::string> pending_names;
+				utils::memory::allocator* owned_allocator = nullptr;
 				// v102 fx: effects that were written as H1 json
 				std::unordered_set<std::string> written_effects;
 
@@ -534,20 +543,6 @@ namespace zonetool::iw7
 					}
 					return new_asset;
 				}
-
-				int surviving_elems(FxEffectDef* asset, const alive_set* alive)
-				{
-					const int total = asset->elemDefCountLooping + asset->elemDefCountOneShot + asset->elemDefCountEmission;
-					int n = 0;
-					for (auto i = 0; i < total; i++)
-					{
-						if (elem_survives(&asset->elemDefs[i], alive))
-						{
-							n++;
-						}
-					}
-					return n;
-				}
 			}
 
 			void note_dumped(XAssetType type, const char* name)
@@ -584,169 +579,501 @@ namespace zonetool::iw7
 				return convert_filtered(asset, allocator, nullptr, nullptr);
 			}
 
+			namespace
+			{
+				utils::memory::allocator& owned()
+				{
+					if (!owned_allocator)
+					{
+						owned_allocator = new utils::memory::allocator();
+					}
+					return *owned_allocator;
+				}
+
+				// v109 fx: name of an IW7 asset pointer (material / model / effect / particle system all start with the name)
+				const char* raw_asset_name(const void* ptr)
+				{
+					if (!particlesystem::readable(ptr, sizeof(const char*)))
+					{
+						return nullptr;
+					}
+					return particlesystem::safe_name(*static_cast<const char* const*>(ptr));
+				}
+
+				template <typename T>
+				T* name_holder(const char* name, utils::memory::allocator& alloc)
+				{
+					if (!name)
+					{
+						return nullptr;
+					}
+					auto* holder = alloc.allocate<T>();
+					holder->name = alloc.duplicate_string(name);
+					return holder;
+				}
+
+				bool is_light_type(zonetool::h1::FxElemType type)
+				{
+					return type == zonetool::h1::FX_ELEM_TYPE_OMNI_LIGHT || type == zonetool::h1::FX_ELEM_TYPE_SPOT_LIGHT;
+				}
+
+				// v109 fx: replace an IW7 asset pointer by an owned H1 stub that only carries the name (all the H1 dumper reads)
+				const void* own_visual(zonetool::h1::FxElemType type, const void* ptr, utils::memory::allocator& alloc)
+				{
+					const auto* name = raw_asset_name(ptr);
+					switch (type)
+					{
+					case zonetool::h1::FX_ELEM_TYPE_MODEL: return name_holder<zonetool::h1::XModel>(name, alloc);
+					case zonetool::h1::FX_ELEM_TYPE_RUNNER: return name_holder<zonetool::h1::FxEffectDef>(name, alloc);
+					default: return name_holder<zonetool::h1::Material>(name, alloc);
+					}
+				}
+
+				const char* owned_visual_name(zonetool::h1::FxElemType type, const void* ptr)
+				{
+					if (!ptr) return nullptr;
+					switch (type)
+					{
+					case zonetool::h1::FX_ELEM_TYPE_MODEL: return static_cast<const zonetool::h1::XModel*>(ptr)->name;
+					case zonetool::h1::FX_ELEM_TYPE_RUNNER: return static_cast<const zonetool::h1::FxEffectDef*>(ptr)->name;
+					default: return static_cast<const zonetool::h1::Material*>(ptr)->name;
+					}
+				}
+
+				zonetool::h1::FxEffectDef* own_effect_ref(zonetool::h1::FxEffectDef* handle, utils::memory::allocator& alloc)
+				{
+					return handle ? name_holder<zonetool::h1::FxEffectDef>(raw_asset_name(handle), alloc) : nullptr;
+				}
+
+				// v109 fx: make a freshly converted H1 effect independent of the IW7 zone memory
+				void own_effect(zonetool::h1::FxEffectDef* def, const std::string& name, utils::memory::allocator& alloc)
+				{
+					def->name = alloc.duplicate_string(name);
+					const int total = def->elemDefCountLooping + def->elemDefCountOneShot + def->elemDefCountEmission;
+					for (auto elem_index = 0; elem_index < total; elem_index++)
+					{
+						auto& elem = def->elemDefs[elem_index];
+
+						if (elem.velSamples)
+						{
+							const auto count = static_cast<std::size_t>(elem.velIntervalCount) + 1;
+							auto* copy = alloc.allocate_array<zonetool::h1::FxElemVelStateSample>(count);
+							if (particlesystem::readable(elem.velSamples, count * sizeof(zonetool::h1::FxElemVelStateSample)))
+							{
+								std::memcpy(copy, elem.velSamples, count * sizeof(zonetool::h1::FxElemVelStateSample));
+							}
+							elem.velSamples = copy;
+						}
+
+						if (elem.elemType == zonetool::h1::FX_ELEM_TYPE_DECAL)
+						{
+							if (elem.visuals.markArray)
+							{
+								for (auto vis = 0; vis < elem.visualCount; vis++)
+								{
+									for (auto& mat : elem.visuals.markArray[vis].materials)
+									{
+										mat = mat ? name_holder<zonetool::h1::Material>(raw_asset_name(mat), alloc) : nullptr;
+									}
+								}
+							}
+						}
+						else if (is_light_type(elem.elemType))
+						{
+							elem.visualCount = 0;
+							elem.visuals.instance.anonymous = nullptr;
+						}
+						else if (elem.visualCount > 1)
+						{
+							int kept = 0;
+							for (auto vis = 0; vis < elem.visualCount; vis++)
+							{
+								const auto* owned_ptr = own_visual(elem.elemType, elem.visuals.array[vis].anonymous, alloc);
+								if (owned_ptr) elem.visuals.array[kept++].anonymous = owned_ptr;
+							}
+							if (kept == 1)
+							{
+								const auto* only = elem.visuals.array[0].anonymous;
+								elem.visuals.instance.anonymous = only;
+							}
+							elem.visualCount = static_cast<unsigned char>(kept);
+						}
+						else if (elem.visualCount == 1)
+						{
+							elem.visuals.instance.anonymous = own_visual(elem.elemType, elem.visuals.instance.anonymous, alloc);
+							if (!elem.visuals.instance.anonymous) elem.visualCount = 0;
+						}
+
+						elem.effectOnImpact.handle = own_effect_ref(elem.effectOnImpact.handle, alloc);
+						elem.effectOnDeath.handle = own_effect_ref(elem.effectOnDeath.handle, alloc);
+						elem.effectEmitted.handle = own_effect_ref(elem.effectEmitted.handle, alloc);
+
+						switch (elem.elemType)
+						{
+						case zonetool::h1::FX_ELEM_TYPE_TRAIL:
+							if (elem.extended.trailDef && elem.extended.trailDef->inds)
+							{
+								auto* trail = elem.extended.trailDef;
+								const auto count = static_cast<std::size_t>(std::clamp(trail->indCount, 0, 65536));
+								auto* inds = alloc.allocate_array<unsigned short>(std::max<std::size_t>(count, 1));
+								if (particlesystem::readable(trail->inds, count * sizeof(unsigned short)))
+								{
+									std::memcpy(inds, trail->inds, count * sizeof(unsigned short));
+								}
+								else
+								{
+									trail->indCount = 0;
+								}
+								trail->inds = inds;
+							}
+							break;
+						case zonetool::h1::FX_ELEM_TYPE_SPARK_FOUNTAIN:
+							if (elem.extended.sparkFountainDef)
+							{
+								auto* copy = alloc.allocate<zonetool::h1::FxSparkFountainDef>();
+								if (particlesystem::readable(elem.extended.sparkFountainDef, sizeof(*copy))) *copy = *elem.extended.sparkFountainDef;
+								elem.extended.sparkFountainDef = copy;
+							}
+							break;
+						case zonetool::h1::FX_ELEM_TYPE_FLARE:
+							if (elem.extended.flareDef)
+							{
+								auto* copy = alloc.allocate<zonetool::h1::FxFlareDef>();
+								if (particlesystem::readable(elem.extended.flareDef, sizeof(*copy))) *copy = *elem.extended.flareDef;
+								const auto copy_floats = [&](float*& arr, int& count)
+								{
+									count = std::clamp(count, 0, 1024);
+									auto* owned_arr = alloc.allocate_array<float>(std::max(count, 1));
+									if (arr && particlesystem::readable(arr, static_cast<std::size_t>(count) * sizeof(float)))
+									{
+										std::memcpy(owned_arr, arr, static_cast<std::size_t>(count) * sizeof(float));
+									}
+									else
+									{
+										count = 0;
+									}
+									arr = owned_arr;
+								};
+								copy_floats(copy->intensityX, copy->intensityXIntervalCount);
+								copy_floats(copy->intensityY, copy->intensityYIntervalCount);
+								copy_floats(copy->srcCosIntensity, copy->srcCosIntensityIntervalCount);
+								copy_floats(copy->srcCosScale, copy->srcCosScaleIntervalCount);
+								elem.extended.flareDef = copy;
+							}
+							break;
+						case zonetool::h1::FX_ELEM_TYPE_OMNI_LIGHT:
+							break; // allocated by the converters
+						default:
+							elem.extended.unknownDef = nullptr;
+							break;
+						}
+					}
+				}
+
+				bool owned_visual_alive(zonetool::h1::FxElemType type, const void* ptr, const alive_set& alive)
+				{
+					const auto* name = owned_visual_name(type, ptr);
+					if (!name) return false;
+					if (type == zonetool::h1::FX_ELEM_TYPE_MODEL) return was_dumped(ASSET_TYPE_XMODEL, name);
+					if (type == zonetool::h1::FX_ELEM_TYPE_RUNNER) return alive.contains(name);
+					return was_dumped(ASSET_TYPE_MATERIAL, name);
+				}
+
+				bool owned_elem_alive(const zonetool::h1::FxElemDef& elem, const alive_set& alive)
+				{
+					if (is_light_type(elem.elemType))
+					{
+						return true;
+					}
+					if (elem.elemType == zonetool::h1::FX_ELEM_TYPE_DECAL)
+					{
+						if (!elem.visuals.markArray || !elem.visualCount) return false;
+						for (auto vis = 0; vis < elem.visualCount; vis++)
+						{
+							const auto& mats = elem.visuals.markArray[vis].materials;
+							if (!mats[0]) return false;
+							for (const auto* mat : mats)
+							{
+								if (mat && !was_dumped(ASSET_TYPE_MATERIAL, mat->name)) return false;
+							}
+						}
+						return true;
+					}
+					if (elem.visualCount == 0)
+					{
+						return elem.elemType != zonetool::h1::FX_ELEM_TYPE_MODEL && elem.elemType != zonetool::h1::FX_ELEM_TYPE_RUNNER;
+					}
+					if (elem.visualCount == 1)
+					{
+						return owned_visual_alive(elem.elemType, elem.visuals.instance.anonymous, alive);
+					}
+					for (auto vis = 0; vis < elem.visualCount; vis++)
+					{
+						if (owned_visual_alive(elem.elemType, elem.visuals.array[vis].anonymous, alive)) return true;
+					}
+					return false;
+				}
+
+				int owned_alive_count(const pending_effect& pend, const alive_set& alive)
+				{
+					const auto* def = pend.def;
+					const int total = def->elemDefCountLooping + def->elemDefCountOneShot + def->elemDefCountEmission;
+					int count = 0;
+					for (auto elem_index = 0; elem_index < total; elem_index++)
+					{
+						if (owned_elem_alive(def->elemDefs[elem_index], alive)) count++;
+					}
+					return count;
+				}
+
+				// v109 fx: final H1 effect: drop elements / visuals / refs to assets that were not dumped, apply the ambient
+				//          (createfx) variant of burst emitters
+				zonetool::h1::FxEffectDef* prune(const pending_effect& pend, const alive_set& alive, bool ambient,
+					utils::memory::allocator& alloc, int* dropped_out)
+				{
+					const auto* src = pend.def;
+					auto* out = alloc.allocate<zonetool::h1::FxEffectDef>();
+					*out = *src;
+					const int total = src->elemDefCountLooping + src->elemDefCountOneShot + src->elemDefCountEmission;
+					std::vector<zonetool::h1::FxElemDef> by_category[3];
+					int dropped = 0;
+					float looping_life = 0.0f;
+					for (auto elem_index = 0; elem_index < total; elem_index++)
+					{
+						const auto& elem = src->elemDefs[elem_index];
+						if (!owned_elem_alive(elem, alive))
+						{
+							dropped++;
+							continue;
+						}
+						auto copy = elem;
+						if (!is_light_type(elem.elemType) && elem.elemType != zonetool::h1::FX_ELEM_TYPE_DECAL && elem.visualCount > 1)
+						{
+							std::vector<const void*> kept;
+							for (auto vis = 0; vis < elem.visualCount; vis++)
+							{
+								if (owned_visual_alive(elem.elemType, elem.visuals.array[vis].anonymous, alive)) kept.push_back(elem.visuals.array[vis].anonymous);
+							}
+							copy.visualCount = static_cast<unsigned char>(kept.size());
+							if (kept.size() == 1)
+							{
+								copy.visuals.instance.anonymous = kept[0];
+							}
+							else
+							{
+								copy.visuals.array = alloc.allocate_array<zonetool::h1::FxElemVisuals>(kept.size());
+								for (auto idx = 0u; idx < kept.size(); idx++) copy.visuals.array[idx].anonymous = kept[idx];
+							}
+						}
+						const auto ref_alive = [&](zonetool::h1::FxEffectDef* handle) -> zonetool::h1::FxEffectDef*
+						{
+							return (handle && handle->name && alive.contains(handle->name)) ? handle : nullptr;
+						};
+						copy.effectOnImpact.handle = ref_alive(elem.effectOnImpact.handle);
+						copy.effectOnDeath.handle = ref_alive(elem.effectOnDeath.handle);
+						copy.effectEmitted.handle = ref_alive(elem.effectEmitted.handle);
+
+						int category = 0;
+						if (elem_index < static_cast<int>(pend.meta.size()))
+						{
+							const auto& meta = pend.meta[elem_index];
+							category = meta.category;
+							if (ambient && meta.burst && category == 1)
+							{
+								copy.spawn.looping.intervalMsec = std::max(meta.ambient_interval, 1);
+								copy.spawn.looping.count = std::max(meta.ambient_count, 1);
+								category = 0;
+							}
+							if (category == 0) looping_life = std::max(looping_life, meta.life_msec);
+						}
+						by_category[std::clamp(category, 0, 2)].push_back(copy);
+					}
+
+					const auto kept_total = by_category[0].size() + by_category[1].size() + by_category[2].size();
+					out->elemDefs = alloc.allocate_array<zonetool::h1::FxElemDef>(std::max<std::size_t>(kept_total, 1));
+					int out_index = 0;
+					for (const auto& list : by_category)
+					{
+						for (const auto& elem : list) out->elemDefs[out_index++] = elem;
+					}
+					out->elemDefCountLooping = static_cast<int>(by_category[0].size());
+					out->elemDefCountOneShot = static_cast<int>(by_category[1].size());
+					out->elemDefCountEmission = static_cast<int>(by_category[2].size());
+					if (pend.is_vfx)
+					{
+						out->msecLoopingLife = static_cast<int>(looping_life);
+					}
+					if (dropped_out) *dropped_out = dropped;
+					return out;
+				}
+
+				void add_pending(const std::string& name, zonetool::h1::FxEffectDef* def, std::vector<particlesystem::elem_meta>&& meta, bool is_vfx)
+				{
+					pending_names.insert(name);
+					pending_effect pend{};
+					pend.name = name;
+					pend.def = def;
+					pend.meta = std::move(meta);
+					pend.is_vfx = is_vfx;
+					pending_effects.push_back(std::move(pend));
+				}
+			}
+
 			void dump(FxEffectDef* asset)
 			{
-				if (!asset || !asset->name || queued_names.contains(asset->name))
+				if (!particlesystem::readable(asset, sizeof(FxEffectDef)))
 				{
 					return;
 				}
-				queued_names.insert(asset->name);
-				queued_effects.push_back(asset);
+				const auto* name = particlesystem::safe_name(asset->name);
+				if (!name || pending_names.contains(name))
+				{
+					return;
+				}
+				const std::string fx_name = name;
+				ZONETOOL_INFO("v109 fx: converting legacy effect %s", fx_name.data());
+				std::fflush(stdout);
+				try
+				{
+					auto& alloc = owned();
+					int dropped = 0;
+					auto* def = convert_filtered(asset, alloc, nullptr, &dropped);
+					own_effect(def, fx_name, alloc);
+					std::vector<particlesystem::elem_meta> meta;
+					const int counts[3] = { def->elemDefCountLooping, def->elemDefCountOneShot, def->elemDefCountEmission };
+					for (auto cat = 0; cat < 3; cat++)
+					{
+						for (auto idx = 0; idx < counts[cat]; idx++)
+						{
+							particlesystem::elem_meta entry{};
+							entry.category = cat;
+							meta.push_back(entry);
+						}
+					}
+					add_pending(fx_name, def, std::move(meta), false);
+				}
+				catch (const std::exception& ex)
+				{
+					ZONETOOL_ERROR("v109 fx: failed to convert %s: %s", fx_name.data(), ex.what());
+				}
+				catch (...)
+				{
+					ZONETOOL_ERROR("v109 fx: failed to convert %s (unknown exception)", fx_name.data());
+				}
+			}
+
+			void dump_vfx(ParticleSystemDef* asset)
+			{
+				if (!particlesystem::readable(asset, sizeof(ParticleSystemDef)))
+				{
+					return;
+				}
+				const auto* name = particlesystem::safe_name(asset->name);
+				if (!name || pending_names.contains(name))
+				{
+					return;
+				}
+				const std::string vfx_name = name;
+				ZONETOOL_INFO("v109 vfx: converting %s (%d emitters)", vfx_name.data(), asset->numEmitters);
+				std::fflush(stdout);
+				try
+				{
+					auto& alloc = owned();
+					int dropped = 0;
+					std::vector<particlesystem::elem_meta> meta;
+					auto* def = particlesystem::convert(asset, alloc, nullptr, false, &dropped, &meta);
+					own_effect(def, vfx_name, alloc);
+					add_pending(vfx_name, def, std::move(meta), true);
+				}
+				catch (const std::exception& ex)
+				{
+					ZONETOOL_ERROR("v109 vfx: failed to convert %s: %s", vfx_name.data(), ex.what());
+				}
+				catch (...)
+				{
+					ZONETOOL_ERROR("v109 vfx: failed to convert %s (unknown exception)", vfx_name.data());
+				}
 			}
 
 			void flush()
 			{
-				auto& vfx_queue = particlesystem::queued();
-				if (queued_effects.empty() && vfx_queue.empty())
+				if (pending_effects.empty())
 				{
 					return;
 				}
-
-				// v104 vfx: particle systems share the effects/ namespace; a legacy FX of the same name wins
-				std::vector<ParticleSystemDef*> vfx_list;
-				for (auto* vfx : vfx_queue)
-				{
-					if (particlesystem::readable(vfx, sizeof(ParticleSystemDef)) && particlesystem::safe_name(vfx->name) && !queued_names.contains(vfx->name))
-					{
-						vfx_list.push_back(vfx);
-					}
-				}
-				ZONETOOL_INFO("v108 fx: flush: %zu legacy effects, %zu particle systems queued", queued_effects.size(), vfx_list.size());
+				ZONETOOL_INFO("v109 fx: flush: %zu converted effects pending", pending_effects.size());
 				std::fflush(stdout);
 
 				// v102 fx: fixed point - an effect is alive while it keeps >= 1 element given the other alive effects
 				alive_set alive;
-				for (auto* fx : queued_effects)
+				for (const auto& pend : pending_effects)
 				{
-					alive.insert(fx->name);
-				}
-				for (auto* vfx : vfx_list)
-				{
-					alive.insert(vfx->name);
+					alive.insert(pend.name);
 				}
 				for (const auto& name : written_effects)
 				{
 					alive.insert(name); // effects written by an earlier zone of this session
 				}
-
-				// v108 vfx: one pass with a log line per system first, so a crash while reading a system names it
-				for (auto* vfx : vfx_list)
-				{
-					ZONETOOL_INFO("v108 vfx: checking %s (%d emitters)", vfx->name, vfx->numEmitters);
-					std::fflush(stdout);
-					const auto usable = particlesystem::surviving_emitters(vfx, nullptr, false);
-					if (usable == 0)
-					{
-						alive.erase(vfx->name);
-					}
-				}
-
 				bool changed = true;
 				while (changed)
 				{
 					changed = false;
-					for (auto* fx : queued_effects)
+					for (const auto& pend : pending_effects)
 					{
-						if (alive.contains(fx->name) && surviving_elems(fx, &alive) == 0)
+						if (alive.contains(pend.name) && owned_alive_count(pend, alive) == 0)
 						{
-							alive.erase(fx->name);
-							changed = true;
-						}
-					}
-					for (auto* vfx : vfx_list)
-					{
-						if (alive.contains(vfx->name) && particlesystem::surviving_emitters(vfx, &alive, createfx::is_ambient(vfx->name)) == 0)
-						{
-							alive.erase(vfx->name);
+							alive.erase(pend.name);
 							changed = true;
 						}
 					}
 				}
 
-				int written = 0;
-				int empty = 0;
-				int dropped_total = 0;
-				for (auto* fx : queued_effects)
+				int written[2] = {};
+				int empty[2] = {};
+				int dropped_total[2] = {};
+				for (const auto& pend : pending_effects)
 				{
-					if (!alive.contains(fx->name))
+					const int kind = pend.is_vfx ? 1 : 0;
+					const char* prefix = pend.is_vfx ? "v104 vfx" : "v102 fx";
+					if (!alive.contains(pend.name))
 					{
-						empty++;
-						ZONETOOL_INFO("v102 fx: %s not written (no convertible element: sound/vectorfield/particlesim only, or its materials/models are not in this zone)", fx->name);
+						empty[kind]++;
+						ZONETOOL_INFO("%s: %s not written (no element left: unsupported types, or materials/models/child effects not in this zone)", prefix, pend.name.data());
 						continue;
 					}
-
 					try
 					{
-						utils::memory::allocator allocator;
+						const bool ambient = pend.is_vfx && createfx::is_ambient(pend.name);
+						utils::memory::allocator alloc;
 						int dropped = 0;
-						auto* converted = convert_filtered(fx, allocator, &alive, &dropped);
-						zonetool::h1::fx_effect_def::dump(converted);
-						written_effects.insert(fx->name);
-						written++;
-						dropped_total += dropped;
-						ZONETOOL_INFO("v102 fx: %s -> H1 (%d looping, %d oneshot, %d emission, %d elems skipped)", fx->name,
-							converted->elemDefCountLooping, converted->elemDefCountOneShot, converted->elemDefCountEmission, dropped);
+						auto* final_def = prune(pend, alive, ambient, alloc, &dropped);
+						zonetool::h1::fx_effect_def::dump(final_def);
+						written_effects.insert(pend.name);
+						written[kind]++;
+						dropped_total[kind] += dropped;
+						ZONETOOL_INFO("%s: %s -> H1%s (%d looping, %d oneshot, %d emission, %d elems dropped for missing assets)", prefix, pend.name.data(),
+							ambient ? " [createfx ambient]" : "", final_def->elemDefCountLooping, final_def->elemDefCountOneShot, final_def->elemDefCountEmission, dropped);
 					}
 					catch (const std::exception& ex)
 					{
-						ZONETOOL_ERROR("v102 fx: failed to convert %s: %s", fx->name, ex.what());
+						ZONETOOL_ERROR("%s: failed to write %s: %s", prefix, pend.name.data(), ex.what());
 					}
 					catch (...)
 					{
-						ZONETOOL_ERROR("v108 fx: failed to convert %s (unknown exception)", fx->name);
+						ZONETOOL_ERROR("%s: failed to write %s (unknown exception)", prefix, pend.name.data());
 					}
 				}
 
-				ZONETOOL_INFO("v102 fx: %d effects written, %d effects skipped (empty), %d elements skipped", written, empty, dropped_total);
+				ZONETOOL_INFO("v102 fx: %d legacy effects written, %d skipped (empty), %d elements dropped", written[0], empty[0], dropped_total[0]);
+				ZONETOOL_INFO("v104 vfx: %d particle systems written, %d skipped (empty), %d elements dropped", written[1], empty[1], dropped_total[1]);
 				std::fflush(stdout);
 
-				// v104 vfx: particle systems
-				int vfx_written = 0;
-				int vfx_empty = 0;
-				int vfx_dropped = 0;
-				for (auto* vfx : vfx_list)
+				pending_effects.clear();
+				pending_names.clear();
+				if (owned_allocator)
 				{
-					const bool ambient = createfx::is_ambient(vfx->name);
-					if (!alive.contains(vfx->name))
-					{
-						vfx_empty++;
-						ZONETOOL_INFO("v104 vfx: %s not written (no emitter maps to H1: beams/decals/geo trails/volumetrics only, or materials/models not in this zone)", vfx->name);
-						continue;
-					}
-
-					ZONETOOL_INFO("v108 vfx: converting %s", vfx->name);
-					std::fflush(stdout);
-					try
-					{
-						utils::memory::allocator allocator;
-						int dropped = 0;
-						auto* converted = particlesystem::convert(vfx, allocator, &alive, ambient, &dropped);
-						zonetool::h1::fx_effect_def::dump(converted);
-						written_effects.insert(vfx->name);
-						vfx_written++;
-						vfx_dropped += dropped;
-						ZONETOOL_INFO("v104 vfx: %s -> H1%s (%d emitters: %d looping, %d oneshot, %d skipped)", vfx->name, ambient ? " [createfx ambient]" : "",
-							vfx->numEmitters, converted->elemDefCountLooping, converted->elemDefCountOneShot, dropped);
-					}
-					catch (const std::exception& ex)
-					{
-						ZONETOOL_ERROR("v104 vfx: failed to convert %s: %s", vfx->name, ex.what());
-					}
-					catch (...)
-					{
-						ZONETOOL_ERROR("v108 vfx: failed to convert %s (unknown exception)", vfx->name);
-					}
+					owned_allocator->clear();
 				}
-
-				if (!vfx_list.empty())
-				{
-					ZONETOOL_INFO("v104 vfx: %d particle systems written, %d skipped (empty), %d emitters skipped", vfx_written, vfx_empty, vfx_dropped);
-					std::fflush(stdout);
-				}
-
-				queued_effects.clear();
-				queued_names.clear();
-				particlesystem::clear_queue();
 			}
 		}
 	}
