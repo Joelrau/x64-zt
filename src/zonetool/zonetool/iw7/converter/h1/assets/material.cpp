@@ -122,7 +122,10 @@ namespace zonetool::iw7
 					matdata["techniqueSet->og_name"] = techset;
 				}
 
-				matdata["gameFlags"] = asset->info.gameFlags; // convert
+				// v102 shadows: IW7 gameFlags bits differ from H1/IW6 (opaque IW7 world = 0x92, Ghosts mp_dig opaque world = 0x52).
+				//      H1 0x40 = MTL_GAMEFLAG_CASTS_SHADOW, 0x80 = CASTS_SHADOW_EFFECT. Keep the low bits, drop IW7's 0x40/0x80; 0x40 is
+				//      set again below only where the H1 techset really has a build_shadowmap technique.
+				matdata["gameFlags"] = asset->info.gameFlags & 0x3F;
 				matdata["sortKey"] = ((alpha_tested || facade_glass) && asset->info.sortKey < 7) ? 7 : convert_sortkey(asset->info.sortKey);
 				matdata["renderFlags"] = 0; // idk
 
@@ -514,7 +517,16 @@ namespace zonetool::iw7
 							if (im["typeHash"].get<std::size_t>() == 2695565377u) col = im["image"].get<std::string>();
 						}
 						matdata["techniqueSet->name"] = blended ? "mc_l_t0c0n0s0l0_nfwpf_iw6" : "mc_l_sm_r0c0n0s0l0_nfwpf_iw6";
-						matdata["sortKey"] = 2;
+						// v102 shadows: mc_l_sm_r0c0n0s0l0_nfwpf_iw6 has zprepass_iw6 + build_shadowmap_model_iw6, so these static-model
+						//      materials can cast sun shadows; H1 only puts them in the shadow map with MTL_GAMEFLAG_CASTS_SHADOW (0x40).
+						if (!blended)
+						{
+							const unsigned int gf = (matdata["gameFlags"].get<unsigned int>() & 0x3F) | zonetool::h1::MTL_GAMEFLAG_CASTS_SHADOW;
+							matdata["gameFlags"] = gf;
+							static unsigned int casters = 0;
+							if (++casters <= 32 || casters % 100 == 0)
+								ZONETOOL_INFO("v102 shadows: shadow caster model material #%u %s gameFlags 0x%X -> 0x%X", casters, asset->name ? asset->name : "?", (unsigned)asset->info.gameFlags, gf);
+						}
 						matdata["cameraRegion"] = 0;
 						matdata["materialType"] = 3;
 						ordered_json c1; c1["name"] = "envMapParms"; c1["nameHash"] = 1033475292u; c1["literal"] = { 0.0f, 1.0f, 2.0f, 2.0f };
