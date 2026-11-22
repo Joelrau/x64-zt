@@ -27,8 +27,72 @@ namespace zonetool::iw7
 	{
 		namespace particlesystem
 		{
+			bool readable(const void* ptr, std::size_t size)
+			{
+				const auto start = reinterpret_cast<std::uintptr_t>(ptr);
+				if (!ptr || start < 0x10000 || size > 0x10000000)
+				{
+					return false;
+				}
+				const std::uintptr_t stop = start + (size ? size : 1);
+				if (stop < start)
+				{
+					return false;
+				}
+				constexpr DWORD readable_mask = PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READ
+					| PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY;
+				std::uintptr_t cursor = start;
+				while (cursor < stop)
+				{
+					MEMORY_BASIC_INFORMATION mem_info{};
+					if (!VirtualQuery(reinterpret_cast<LPCVOID>(cursor), &mem_info, sizeof(mem_info)))
+					{
+						return false;
+					}
+					if (mem_info.State != MEM_COMMIT || (mem_info.Protect & (PAGE_NOACCESS | PAGE_GUARD)) || !(mem_info.Protect & readable_mask))
+					{
+						return false;
+					}
+					const auto region_end = reinterpret_cast<std::uintptr_t>(mem_info.BaseAddress) + mem_info.RegionSize;
+					if (region_end <= cursor)
+					{
+						return false;
+					}
+					cursor = region_end;
+				}
+				return true;
+			}
+
+			const char* safe_name(const char* str)
+			{
+				if (!readable(str, 1))
+				{
+					return nullptr;
+				}
+				for (auto offset = 0; offset < 512; offset++)
+				{
+					const char* chr = str + offset;
+					if (offset > 0 && (reinterpret_cast<std::uintptr_t>(chr) & 0xFFF) == 0 && !readable(chr, 1))
+					{
+						return nullptr;
+					}
+					if (*chr == 0)
+					{
+						return offset > 0 ? str : nullptr;
+					}
+				}
+				return nullptr;
+			}
+
 			namespace
 			{
+				// v108 vfx: sanity limits for counts read from IW7 particle structs
+				constexpr int max_emitters = 256;
+				constexpr int max_states = 64;
+				constexpr int max_modules = 512;
+				constexpr int max_control_points = 1024;
+				constexpr int max_linked_assets = 255;
+
 				std::vector<ParticleSystemDef*> vfx_queue;
 				std::unordered_set<std::string> vfx_queue_names;
 
@@ -61,7 +125,8 @@ namespace zonetool::iw7
 
 				bool curve_present(const ParticleCurveDef& curve)
 				{
-					return curve.controlPoints && curve.numControlPoints > 0;
+					return curve.numControlPoints > 0 && curve.numControlPoints <= max_control_points
+						&& readable(curve.controlPoints, static_cast<std::size_t>(curve.numControlPoints) * sizeof(ParticleCurveControlPointDef));
 				}
 
 				// v104 vfx: control points are (sample_time 0..1, value), linear between points, value * curve scale
@@ -124,7 +189,8 @@ namespace zonetool::iw7
 
 				const ParticleStateDef* first_state(const ParticleEmitterDef& emitter)
 				{
-					if (!emitter.stateDefs || emitter.numStates <= 0)
+					if (emitter.numStates <= 0 || emitter.numStates > max_states
+						|| !readable(emitter.stateDefs, static_cast<std::size_t>(emitter.numStates) * sizeof(ParticleStateDef)))
 					{
 						return nullptr;
 					}
@@ -134,7 +200,7 @@ namespace zonetool::iw7
 				emitter_modules gather_modules(const ParticleStateDef* state)
 				{
 					emitter_modules mods{};
-					if (!state || !state->moduleGroupDefs)
+					if (!state || !readable(state->moduleGroupDefs, PARTICLE_MODULE_GROUP_COUNT * sizeof(ParticleModuleGroupDef)))
 					{
 						return mods;
 					}
@@ -142,7 +208,8 @@ namespace zonetool::iw7
 					for (auto group = 0; group < PARTICLE_MODULE_GROUP_TEST; group++)
 					{
 						const auto& group_def = state->moduleGroupDefs[group];
-						if (group_def.disabled || !group_def.moduleDefs || group_def.numModules <= 0)
+						if (group_def.disabled || group_def.numModules <= 0 || group_def.numModules > max_modules
+							|| !readable(group_def.moduleDefs, static_cast<std::size_t>(group_def.numModules) * sizeof(ParticleModuleDef)))
 						{
 							continue;
 						}
@@ -226,18 +293,24 @@ namespace zonetool::iw7
 				{
 					if (is_sprite_type(type))
 					{
-						if (!linked.material || !linked.material->name) return false;
-						return !alive || fxeffectdef::was_dumped(ASSET_TYPE_MATERIAL, linked.material->name);
+						if (!readable(linked.material, sizeof(Material))) return false;
+						const auto* name = safe_name(linked.material->name);
+						if (!name) return false;
+						return !alive || fxeffectdef::was_dumped(ASSET_TYPE_MATERIAL, name);
 					}
 					if (type == zonetool::h1::FX_ELEM_TYPE_MODEL)
 					{
-						if (!linked.model || !linked.model->name) return false;
-						return !alive || fxeffectdef::was_dumped(ASSET_TYPE_XMODEL, linked.model->name);
+						if (!readable(linked.model, sizeof(const char*))) return false;
+						const auto* name = safe_name(linked.model->name);
+						if (!name) return false;
+						return !alive || fxeffectdef::was_dumped(ASSET_TYPE_XMODEL, name);
 					}
 					if (type == zonetool::h1::FX_ELEM_TYPE_RUNNER)
 					{
-						if (!linked.particleSystem || !linked.particleSystem->name) return false;
-						return !alive || alive->contains(linked.particleSystem->name);
+						if (!readable(linked.particleSystem, sizeof(ParticleSystemDef))) return false;
+						const auto* name = safe_name(linked.particleSystem->name);
+						if (!name) return false;
+						return !alive || alive->contains(name);
 					}
 					return false;
 				}
@@ -246,11 +319,12 @@ namespace zonetool::iw7
 				{
 					std::vector<const void*> visuals;
 					const auto* list = linked_list(mods, type);
-					if (!list || !list->assetList || list->numAssets <= 0)
+					if (!list || list->numAssets <= 0 || list->numAssets > max_linked_assets
+						|| !readable(list->assetList, static_cast<std::size_t>(list->numAssets) * sizeof(ParticleLinkedAssetDef)))
 					{
 						return visuals;
 					}
-					for (auto asset_index = 0; asset_index < list->numAssets && asset_index < 255; asset_index++)
+					for (auto asset_index = 0; asset_index < list->numAssets; asset_index++)
 					{
 						const auto& linked = list->assetList[asset_index];
 						if (linked_asset_ok(linked, type, alive))
@@ -861,7 +935,7 @@ namespace zonetool::iw7
 
 			void dump(ParticleSystemDef* asset)
 			{
-				if (!asset || !asset->name || vfx_queue_names.contains(asset->name))
+				if (!readable(asset, sizeof(ParticleSystemDef)) || !safe_name(asset->name) || vfx_queue_names.contains(asset->name))
 				{
 					return;
 				}
@@ -883,7 +957,8 @@ namespace zonetool::iw7
 			int surviving_emitters(ParticleSystemDef* asset, const alive_set* alive, bool ambient)
 			{
 				(void)ambient;
-				if (!asset || !asset->emitterDefs || asset->numEmitters <= 0)
+				if (!readable(asset, sizeof(ParticleSystemDef)) || asset->numEmitters <= 0 || asset->numEmitters > max_emitters
+					|| !readable(asset->emitterDefs, static_cast<std::size_t>(asset->numEmitters) * sizeof(ParticleEmitterDef)))
 				{
 					return 0;
 				}
@@ -906,7 +981,8 @@ namespace zonetool::iw7
 				new_asset->flags = 0;
 				new_asset->occlusionQueryScaleRange.base = 1.0f;
 
-				const int emitter_count = (asset->emitterDefs && asset->numEmitters > 0) ? asset->numEmitters : 0;
+				const int emitter_count = (asset->numEmitters > 0 && asset->numEmitters <= max_emitters
+					&& readable(asset->emitterDefs, static_cast<std::size_t>(asset->numEmitters) * sizeof(ParticleEmitterDef))) ? asset->numEmitters : 0;
 				new_asset->elemDefs = allocator.allocate_array<zonetool::h1::FxElemDef>(std::max(emitter_count, 1));
 
 				// looping elements first, then one-shots (H1 element order)
@@ -929,6 +1005,9 @@ namespace zonetool::iw7
 						continue;
 					}
 
+					// v108 vfx: log before touching the emitter data so a crash is attributable
+					ZONETOOL_INFO("v108 vfx: %s emitter %d -> h1 type %d", asset->name, emitter_index, static_cast<int>(type));
+					std::fflush(stdout);
 					zonetool::h1::FxElemDef elem{};
 					const auto built = build_elem(asset, emitter, type, alive, ambient, &elem, new_asset, allocator);
 					max_radius = std::max(max_radius, built.max_radius);

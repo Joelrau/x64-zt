@@ -437,6 +437,7 @@ namespace zonetool::iw7
 					}
 				}
 
+				std::fflush(stdout);
 				reset();
 			}
 		}

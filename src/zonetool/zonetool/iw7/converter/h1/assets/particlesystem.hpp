@@ -8,6 +8,11 @@ namespace zonetool::iw7
 		{
 			using alive_set = std::unordered_set<std::string>;
 
+			// v108 vfx: VirtualQuery based guards - IW7 particle structs are partly guessed ("maybe wrong fields"),
+			//           so every pointer read from them is checked before it is dereferenced
+			bool readable(const void* ptr, std::size_t size);
+			const char* safe_name(const char* str);
+
 			// v104 vfx: queues an IW7 ParticleSystemDef (ASSET_TYPE_VFX); written by fxeffectdef::flush()
 			void dump(ParticleSystemDef* asset);
 

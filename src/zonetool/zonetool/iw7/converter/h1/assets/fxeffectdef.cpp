@@ -126,11 +126,17 @@ namespace zonetool::iw7
 				//          additive emissive techset (cameraRegion 4) -> draw those elements in H1's emissive pass
 				bool is_emissive_material(const Material* mat)
 				{
-					if (!mat || !mat->techniqueSet || !mat->techniqueSet->name)
+					// v108 vfx: also reached from particle systems, whose material pointers come from partly guessed structs
+					if (!particlesystem::readable(mat, sizeof(Material)) || !particlesystem::readable(mat->techniqueSet, sizeof(const char*)))
 					{
 						return false;
 					}
-					const std::string ts = mat->techniqueSet->name;
+					const auto* ts_name = particlesystem::safe_name(mat->techniqueSet->name);
+					if (!ts_name)
+					{
+						return false;
+					}
+					const std::string ts = ts_name;
 					return ts.find("effect") != std::string::npos || ts.find("_add_") != std::string::npos
 						|| ts.find("distortion") != std::string::npos || ts.find("blendadd") != std::string::npos;
 				}
@@ -600,11 +606,13 @@ namespace zonetool::iw7
 				std::vector<ParticleSystemDef*> vfx_list;
 				for (auto* vfx : vfx_queue)
 				{
-					if (vfx && vfx->name && !queued_names.contains(vfx->name))
+					if (particlesystem::readable(vfx, sizeof(ParticleSystemDef)) && particlesystem::safe_name(vfx->name) && !queued_names.contains(vfx->name))
 					{
 						vfx_list.push_back(vfx);
 					}
 				}
+				ZONETOOL_INFO("v108 fx: flush: %zu legacy effects, %zu particle systems queued", queued_effects.size(), vfx_list.size());
+				std::fflush(stdout);
 
 				// v102 fx: fixed point - an effect is alive while it keeps >= 1 element given the other alive effects
 				alive_set alive;
@@ -619,6 +627,18 @@ namespace zonetool::iw7
 				for (const auto& name : written_effects)
 				{
 					alive.insert(name); // effects written by an earlier zone of this session
+				}
+
+				// v108 vfx: one pass with a log line per system first, so a crash while reading a system names it
+				for (auto* vfx : vfx_list)
+				{
+					ZONETOOL_INFO("v108 vfx: checking %s (%d emitters)", vfx->name, vfx->numEmitters);
+					std::fflush(stdout);
+					const auto usable = particlesystem::surviving_emitters(vfx, nullptr, false);
+					if (usable == 0)
+					{
+						alive.erase(vfx->name);
+					}
 				}
 
 				bool changed = true;
@@ -671,9 +691,14 @@ namespace zonetool::iw7
 					{
 						ZONETOOL_ERROR("v102 fx: failed to convert %s: %s", fx->name, ex.what());
 					}
+					catch (...)
+					{
+						ZONETOOL_ERROR("v108 fx: failed to convert %s (unknown exception)", fx->name);
+					}
 				}
 
 				ZONETOOL_INFO("v102 fx: %d effects written, %d effects skipped (empty), %d elements skipped", written, empty, dropped_total);
+				std::fflush(stdout);
 
 				// v104 vfx: particle systems
 				int vfx_written = 0;
@@ -689,6 +714,8 @@ namespace zonetool::iw7
 						continue;
 					}
 
+					ZONETOOL_INFO("v108 vfx: converting %s", vfx->name);
+					std::fflush(stdout);
 					try
 					{
 						utils::memory::allocator allocator;
@@ -705,11 +732,16 @@ namespace zonetool::iw7
 					{
 						ZONETOOL_ERROR("v104 vfx: failed to convert %s: %s", vfx->name, ex.what());
 					}
+					catch (...)
+					{
+						ZONETOOL_ERROR("v108 vfx: failed to convert %s (unknown exception)", vfx->name);
+					}
 				}
 
 				if (!vfx_list.empty())
 				{
 					ZONETOOL_INFO("v104 vfx: %d particle systems written, %d skipped (empty), %d emitters skipped", vfx_written, vfx_empty, vfx_dropped);
+					std::fflush(stdout);
 				}
 
 				queued_effects.clear();

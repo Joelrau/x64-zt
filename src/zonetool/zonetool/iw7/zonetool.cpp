@@ -161,7 +161,7 @@ namespace zonetool::iw7
 		{
 			// v102 fx: remember what was dumped so converted effects only reference assets that exist in the H1 dump
 			converter::h1::fxeffectdef::note_dumped(asset->type, get_asset_name(asset));
-			constexpr bool v106_vfx = false; // v106: v105 crashed the dump (access violation after physworld); off until fixed
+			constexpr bool v106_vfx = true; // v108: re-enabled, particle system reads are now pointer/count checked
 			if (v106_vfx && asset->type == ASSET_TYPE_VFX)
 			{
 				// v104 vfx: IW7 particle systems are approximated as H1 FxEffectDefs (queued, written in stop_dumping)
@@ -283,8 +283,21 @@ namespace zonetool::iw7
 		{game::h1, dump_asset_h1},
 	};
 
+	// v108 fx: dump activity tracking for the -dumpzone watchdog (see dump_zone)
+	std::atomic<int> dump_busy{ 0 };
+	std::atomic<std::uint64_t> last_dump_activity{ 0 };
+	std::mutex stop_dumping_mutex;
+
 	void dump_asset(XAsset* asset)
 	{
+		++dump_busy;
+		last_dump_activity = GetTickCount64();
+		const auto _busy = gsl::finally([]
+		{
+			--dump_busy;
+			last_dump_activity = GetTickCount64();
+		});
+
 		if (globals.verify)
 		{
 			ZONETOOL_INFO("Loading asset \"%s\" of type %s.", get_asset_name(asset), type_to_string(asset->type));
@@ -379,6 +392,7 @@ namespace zonetool::iw7
 
 	void stop_dumping()
 	{
+		std::lock_guard<std::mutex> stop_lock(stop_dumping_mutex); // v108 fx: hook and watchdog may both get here
 		globals.verify = false;
 
 		if (globals.dump_csv)
@@ -395,6 +409,9 @@ namespace zonetool::iw7
 
 		dump_refs();
 
+		ZONETOOL_INFO("v108 fx: zone end reached, writing effects / createfx for \"%s\"", filesystem::get_fastfile().data());
+		std::fflush(stdout);
+
 		// v102 fx: effects are written once the whole zone was seen (drop refs to assets that were not dumped),
 		//          then the IW7 createfx is turned into H1 gsc + csv lines
 		if (globals.target_game == game::h1)
@@ -408,6 +425,11 @@ namespace zonetool::iw7
 			{
 				ZONETOOL_ERROR("v102 fx: finalize failed: %s", ex.what());
 			}
+			catch (...)
+			{
+				ZONETOOL_ERROR("v108 fx: finalize failed (unknown exception)");
+			}
+			std::fflush(stdout);
 		}
 
 		ZONETOOL_INFO("Zone \"%s\" dumped.", filesystem::get_fastfile().data());
@@ -538,6 +560,7 @@ namespace zonetool::iw7
 
 		globals.dump = true;
 		globals.dump_csv = true;
+		last_dump_activity = GetTickCount64();
 		if (!load_zone(name, DB_LOAD_ASYNC, false))
 		{
 			globals.dump = false;
@@ -548,6 +571,16 @@ namespace zonetool::iw7
 		while (globals.dump)
 		{
 			Sleep(1);
+
+			// v108 fx: the finish-load hook only fires for one return address; if it never fires (no effects/createfx files
+			//          were written on -dumpzone) finish the dump ourselves once the zone is registered and nothing was
+			//          added for 30 seconds
+			if (dump_busy == 0 && GetTickCount64() - last_dump_activity > 30000 && is_zone_loaded(name))
+			{
+				ZONETOOL_WARNING("v108 fx: zone finish hook did not fire (30s idle), finishing dump of \"%s\" now", name.data());
+				std::fflush(stdout);
+				stop_dumping();
+			}
 		}
 	}
 
