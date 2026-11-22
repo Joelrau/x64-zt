@@ -257,6 +257,39 @@ namespace zonetool::iw7
 					}
 				}
 
+				// v121 bake: export lightmapped world triangles (xyz, packed normal, lightmap uv) for the offline lightmap baker
+				{
+					std::string buf;
+					const auto put = [&](const void* p, std::size_t n) { buf.append(static_cast<const char*>(p), n); };
+					unsigned int tri_total = 0;
+					put("BK21", 4);
+					put(&tri_total, 4);
+					for (unsigned int i = 0; i < asset->surfaceCount; i++)
+					{
+						const auto& su = asset->dpvs.surfaces[i];
+						const auto z = su.transientZone;
+						if (su.lightmapIndex != 0 || z >= zone_count || !asset->draw.transientZones[z] || !asset->draw.transientZones[z]->vd.vertices || !asset->draw.indices) continue;
+						const auto* vv = asset->draw.transientZones[z]->vd.vertices;
+						const unsigned int caster = (su.material && su.material->info.sortKey < 7) ? 1u : 0u;
+						for (unsigned int t = 0; t < su.tris.triCount; t++)
+						{
+							put(&caster, 4);
+							for (int k = 0; k < 3; k++)
+							{
+								const auto& v = vv[su.tris.firstVertex + asset->draw.indices[su.tris.baseIndex + t * 3 + k]];
+								put(v.xyz, 12); put(&v.normal.packed, 4); put(v.lmapCoord, 8);
+							}
+							tri_total++;
+						}
+					}
+					std::memcpy(&buf[4], &tri_total, 4);
+					filesystem::file file("v121_bake.bin");
+					file.open("wb");
+					file.write(buf);
+					file.close();
+					ZONETOOL_INFO("v121 bake: %u lightmapped triangles exported", tri_total);
+				}
+
 				// lightmaps: STUB (none)
 				new_asset->draw.lightmapCount = 1;
 				new_asset->draw.lightmaps = allocator.allocate_array<zonetool::h1::GfxLightmapArray>(1);

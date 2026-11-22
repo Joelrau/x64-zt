@@ -52,6 +52,29 @@ namespace zonetool::iw7
 					dst->defName = src->defName;
 				}
 
+				// v121 bake: export IW7's primary lights (most are forward+ real-time lights H1 cannot draw) for the offline lightmap baker
+				{
+					std::string buf;
+					const auto put = [&](const void* p, std::size_t n) { buf.append(static_cast<const char*>(p), n); };
+					const unsigned int count = asset->primaryLightCount;
+					put("LT21", 4);
+					put(&count, 4);
+					for (unsigned int i = 0; i < count; i++)
+					{
+						const auto& l = asset->primaryLights[i];
+						const unsigned int type = static_cast<unsigned int>(l.type);
+						const float ex = static_cast<float>(l.exponent);
+						put(&type, 4); put(l.color, 12); put(l.dir, 12); put(l.origin, 12);
+						put(&l.radius, 4); put(&l.cosHalfFovOuter, 4); put(&l.cosHalfFovInner, 4); put(&ex, 4);
+						put(&l.distanceFalloff, 4); put(&l.uvIntensity, 4); put(&l.irIntensity, 4); put(&l.bulbRadius, 4);
+					}
+					filesystem::file file("v121_lights.bin");
+					file.open("wb");
+					file.write(buf);
+					file.close();
+					ZONETOOL_INFO("v121 bake: %u lights exported", count);
+				}
+
 				// v62: IW7 keeps light 0 empty and puts the sun at 1/2, H1 treats light 0 as the sun -> the port had no sun colour at all (cold ambient only look)
 				if (asset->primaryLightCount > 1 && new_asset->primaryLights[0].type == static_cast<zonetool::h1::GfxLightType>(0))
 				{
