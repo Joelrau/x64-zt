@@ -428,7 +428,7 @@ namespace zonetool::iw7
 					return q_best;
 				};
 				unsigned int v129_shaded = 0, v129_lit = 0, v129_none = 0, v133_grounded = 0;
-				constexpr bool v134_one_handle = true;
+				constexpr bool v134_one_handle = false; // tested in v134: no visible change
 				constexpr bool v133_ground_lighting = false; // v134: GROUND_LIGHTING (0x20) drew every static model black: our IW6 model techsets take MODEL_LIGHTING from the grid atlas, not the ground colour
 
 				// lightmaps: STUB (none)

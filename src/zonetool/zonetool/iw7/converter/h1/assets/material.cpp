@@ -594,7 +594,7 @@ namespace zonetool::iw7
 						ordered_json c1; c1["name"] = "envMapParms"; c1["nameHash"] = 1033475292u; c1["literal"] = { 0.0f, 1.0f, 2.0f, 2.0f };
 						// v134: static models read ~3x brighter than the world around them (gallery statue pale gold where IW7's is dark
 						//       bronze, aquarium corals white): the stub light grid can't vary, so bring them down by tint (gamma-2 colour: 0.6^2)
-						constexpr float v134_model_tint = 0.6f;
+						constexpr float v134_model_tint = 1.0f; // 0.6 tested in v134: the model shader ignores colorTint
 						ordered_json c2; c2["name"] = "colorTint"; c2["nameHash"] = 3054254906u; c2["literal"] = { v134_model_tint, v134_model_tint, v134_model_tint, 1.0f };
 						ordered_json c3; c3["name"] = "reflectionRa"; c3["nameHash"] = 3344177073u; c3["literal"] = { 8096.0f, 0.0f, 0.0f, 0.0f };
 						ordered_json c4; c4["name"] = "bloomParams"; c4["nameHash"] = 3733414975u; c4["literal"] = { 1.0f, 0.0f, 0.0f, 0.0f };
