@@ -1617,6 +1617,13 @@ namespace zonetool::h1
 
 					do_exit = true;
 				}
+				else if (arg == "-importmap")
+				{
+					importer::import_bo2_map(param, "");
+					++i;
+
+					do_exit = true;
+				}
 			}
 
 			// Commands without parameters
@@ -1636,6 +1643,7 @@ namespace zonetool::h1
 				ZONETOOL_INFO("  -verifyzone <zone>   Verify a zone");
 				ZONETOOL_INFO("  -dumpzone <zone>     Dump a zone");
 				ZONETOOL_INFO("  -dumpcsv <zone>      Dump a CSV of a zone");
+				ZONETOOL_INFO("  -importmap <file.h1map>  Import a Black Ops II map (.h1map) as H1 map assets");
 				ZONETOOL_INFO("  -unloadzones         Unload all zones");
 
 				do_exit = true;
