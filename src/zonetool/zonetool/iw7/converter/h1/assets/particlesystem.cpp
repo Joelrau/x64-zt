@@ -850,7 +850,7 @@ namespace zonetool::iw7
 
 					new_elem->flags = static_cast<zonetool::h1::FxElemDefFlags>(elem_flags);
 
-					if (IS_DEBUG)
+					if (false) // v105: IS_DEBUG is not defined in this build
 					{
 						ZONETOOL_INFO("v104 vfx: %s emitter -> type %d, %s, life %.0f-%.0fms, %d visuals, size %.1f", sys_def->name,
 							static_cast<int>(type), result.looping ? "looping" : "oneshot", life_min, life_max, static_cast<int>(visuals.size()), max_size);
