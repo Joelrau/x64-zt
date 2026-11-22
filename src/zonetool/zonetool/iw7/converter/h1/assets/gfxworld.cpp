@@ -469,6 +469,19 @@ namespace zonetool::iw7
 							{ static std::set<std::string> logged_hidden; if (logged_hidden.insert(src_surf.material->name).second) ZONETOOL_INFO("v46 hidden surface material: %s tech=%s", src_surf.material->name, (src_surf.material->techniqueSet && src_surf.material->techniqueSet->name) ? src_surf.material->techniqueSet->name : "?"); }
 							dst_surf.tris.triCount = 0;
 						}
+						// v118: what draws around the tower right of the TDM spawn (-660,-1452): it shows its unlit interior
+						if (asset->dpvs.surfacesBounds && src_surf.material && src_surf.material->name)
+						{
+							const float* mp = asset->dpvs.surfacesBounds[i].bounds.midPoint;
+							const float* hs = asset->dpvs.surfacesBounds[i].bounds.halfSize;
+							const float dx = mp[0] + 660.0f, dy = mp[1] + 1452.0f;
+							if (dx * dx + dy * dy < 1400.0f * 1400.0f && (hs[0] > 64.0f || hs[1] > 64.0f || hs[2] > 64.0f))
+							{
+								ZONETOOL_INFO("v118 near: surf %u %s (%s) mid %.0f %.0f %.0f half %.0f %.0f %.0f tris %u", i, src_surf.material->name,
+									(src_surf.material->techniqueSet && src_surf.material->techniqueSet->name) ? src_surf.material->techniqueSet->name : "?",
+									mp[0], mp[1], mp[2], hs[0], hs[1], hs[2], static_cast<unsigned>(src_surf.tris.triCount));
+							}
+						}
 						dst_surf.laf.fields.lightmapIndex = 0; // v32: placeholder lightmap 0 exists
 						dst_surf.laf.fields.reflectionProbeIndex = (asset->dpvs.surfacesBounds) ? nearest_probe(asset->dpvs.surfacesBounds[i].bounds.midPoint) : 0;
 						// v81: env 0 has no lights (numIndices 0); env 1 = the sun (as in mp_dig). With 0 the world got no sun light or sun shadows at all.
@@ -522,6 +535,14 @@ namespace zonetool::iw7
 						dst_inst.staticModelId = static_cast<unsigned short>(i);
 						dst_inst.primaryLightEnvIndex = src_inst.primaryLightEnvIndex;
 						dst_inst.reflectionProbeIndex = nearest_probe(src_inst.placement.origin);
+						{
+							const float* o = src_inst.placement.origin;
+							const float dx = o[0] + 660.0f, dy = o[1] + 1452.0f;
+							if (dx * dx + dy * dy < 1400.0f * 1400.0f && src_inst.model && src_inst.model->name)
+							{
+								ZONETOOL_INFO("v118 near: smodel %u %s at %.0f %.0f %.0f scale %.2f", i, src_inst.model->name, o[0], o[1], o[2], dst_inst.placement.scale);
+							}
+						}
 						dst_inst.firstMtlSkinIndex = 0; // v28: IW7 skin index (e.g. 11) indexes a table H1 does not have
 						dst_inst.sunShadowFlags = src_inst.sunShadowFlags;
 
