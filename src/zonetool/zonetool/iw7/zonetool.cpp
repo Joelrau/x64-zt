@@ -161,7 +161,8 @@ namespace zonetool::iw7
 		{
 			// v102 fx: remember what was dumped so converted effects only reference assets that exist in the H1 dump
 			converter::h1::fxeffectdef::note_dumped(asset->type, get_asset_name(asset));
-			if (asset->type == ASSET_TYPE_VFX)
+			constexpr bool v106_vfx = false; // v106: v105 crashed the dump (access violation after physworld); off until fixed
+			if (v106_vfx && asset->type == ASSET_TYPE_VFX)
 			{
 				// v104 vfx: IW7 particle systems are approximated as H1 FxEffectDefs (queued, written in stop_dumping)
 				if (IS_DEBUG) ZONETOOL_INFO("v104 vfx: queueing IW7 particle system \"%s\"", get_asset_name(asset));
