@@ -125,7 +125,7 @@ namespace zonetool::iw7
 				// v102 shadows: IW7 gameFlags bits differ from H1/IW6 (opaque IW7 world = 0x92, Ghosts mp_dig opaque world = 0x52).
 				//      H1 0x40 = MTL_GAMEFLAG_CASTS_SHADOW, 0x80 = CASTS_SHADOW_EFFECT. Keep the low bits, drop IW7's 0x40/0x80; 0x40 is
 				//      set again below only where the H1 techset really has a build_shadowmap technique.
-				matdata["gameFlags"] = asset->info.gameFlags & 0x3F;
+				matdata["gameFlags"] = asset->info.gameFlags; // v104: masking to 0x3F (v102) made the building facade glass vanish; only shadow-caster models are remapped below
 				matdata["sortKey"] = ((alpha_tested || facade_glass) && asset->info.sortKey < 7) ? 7 : convert_sortkey(asset->info.sortKey);
 				matdata["renderFlags"] = 0; // idk
 
@@ -276,7 +276,7 @@ namespace zonetool::iw7
 						//      instead of the dark reddish copper in IW7. Use the darker, warmer bronze swatch (160,110,60), which is
 						//      loaded by w/metal_bare_bronze_01.
 						if (mn.find("copper") != std::string::npos && col_name.find("_packed_cs") != std::string::npos)
-							col_name = "metal_bare_bronze_01_c";
+							col_name = "iw7_copper_dark"; // v104: bronze still read as a glowing yellow tube under the sun; flat dark copper (iw7_port2.ps1)
 					}
 					// v40: images that exist in no loaded zone render solid red
 					static const char* const missing_imgs[] = { "default", "$white", "black", "$gray", "transparent_invisible", "glass_clear_01_c", "koth_grid_03_c", "koth_grid_01_c", "falloff_linear", "vfx_energy_dome_shield_ping", "vfx_energy_beam_nrm" };
@@ -550,6 +550,7 @@ namespace zonetool::iw7
 						matdata["techniqueSet->name"] = blended ? "mc_l_t0c0n0s0l0_nfwpf_iw6" : "mc_l_sm_r0c0n0s0l0_nfwpf_iw6";
 						// v102 shadows: mc_l_sm_r0c0n0s0l0_nfwpf_iw6 has zprepass_iw6 + build_shadowmap_model_iw6, so these static-model
 						//      materials can cast sun shadows; H1 only puts them in the shadow map with MTL_GAMEFLAG_CASTS_SHADOW (0x40).
+						matdata["sortKey"] = 2; // v104: restored (v102 dropped it by accident)
 						if (!blended)
 						{
 							const unsigned int gf = (matdata["gameFlags"].get<unsigned int>() & 0x3F) | zonetool::h1::MTL_GAMEFLAG_CASTS_SHADOW;

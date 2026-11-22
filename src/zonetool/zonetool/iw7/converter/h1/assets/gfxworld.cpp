@@ -607,10 +607,10 @@ namespace zonetool::iw7
 					{
 						iw7_flags_hist[asset->dpvs.smodelDrawInsts[i].sunShadowFlags]++;
 						env_hist[new_asset->dpvs.smodelDrawInsts[i].primaryLightEnvIndex]++;
-						auto& di = new_asset->dpvs.smodelDrawInsts[i];
-						if (!di.model || di.placement.scale == 0.0f) continue; // proxies hidden in v40
+						auto& sinst = new_asset->dpvs.smodelDrawInsts[i];
+						if (!sinst.model || sinst.placement.scale == 0.0f) continue; // proxies hidden in v40
 						casters.push_back(static_cast<unsigned short>(i));
-						di.sunShadowFlags = 1;
+						sinst.sunShadowFlags = 1;
 					}
 					for (auto& [k, v] : iw7_flags_hist) ZONETOOL_INFO("v102 shadows: IW7 smodel sunShadowFlags %u: %u models", k, v);
 					// smodels with env 0 get no sun light (and so no sun shadow on themselves); world surfaces use env 1 since v81
