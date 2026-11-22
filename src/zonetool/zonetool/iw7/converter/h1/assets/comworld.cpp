@@ -71,11 +71,13 @@ namespace zonetool::iw7
 					auto& l = new_asset->primaryLights[i];
 					if (static_cast<int>(l.type) != 1) continue;
 					l.physicallyBased = 0;
+					ZONETOOL_INFO("v100 sun canUseShadowMap was %u", (unsigned)l.canUseShadowMap);
+					l.canUseShadowMap = 1; // v100: no sun shadows in game; the IW7 sun is flagged as baked-only
 					for (int c = 0; c < 3; c++) l.color[c] *= 3.4f; // v99: 2.5 left sunlit marble ~30% darker than the IW7 reference frame
 					// v96: IW7's sun hue is graded by its own tonemapper; raw in H1 it tinted the cream marble brown/orange.
-					//      Pull 35% toward neutral at the same luminance (IW7 reference frame shows near-white sunlit stone).
+					//      Pull 20% toward neutral at the same luminance (IW7 reference frame shows near-white sunlit stone).
 					const float lum = l.color[0] * 0.3f + l.color[1] * 0.59f + l.color[2] * 0.11f;
-					for (int c = 0; c < 3; c++) l.color[c] = l.color[c] * 0.65f + lum * 0.35f;
+					for (int c = 0; c < 3; c++) l.color[c] = l.color[c] * 0.8f + lum * 0.2f;
 					ZONETOOL_INFO("v96 sun color %g %g %g dir %g %g %g", l.color[0], l.color[1], l.color[2], l.dir[0], l.dir[1], l.dir[2]);
 				}
 
