@@ -124,7 +124,7 @@ namespace zonetool::iw7
 			//      brushed steel) drew as a bright painted surface. Take the metal's diffuse out here (in gamma-2 space:
 			//      c * sqrt(1 - m)), keeping a small floor so metals don't go black where the probes are dim.
 			constexpr bool v128_metal = true;
-			constexpr float v128_metal_floor = 0.12f;
+			constexpr float v128_metal_floor = 0.04f; // v131: 0.12 left the gold owner statue pale cream; IW7 metals have no diffuse at all
 			std::atomic<unsigned int> v128_metal_images{0};
 
 			void v128_unmetal(const std::string& vn, DXGI_FORMAT vf, std::vector<std::uint8_t>& vd, unsigned int vw, unsigned int vh)

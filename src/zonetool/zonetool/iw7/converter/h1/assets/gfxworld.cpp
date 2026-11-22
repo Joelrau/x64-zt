@@ -472,7 +472,7 @@ namespace zonetool::iw7
 				{
 					for (unsigned int j = 0; j < 3; j++)
 					{
-						new_asset->lightGrid.colors[0].rgb[i][j] = 0x3800;
+						new_asset->lightGrid.colors[0].rgb[i][j] = 0x3400; // v131: 0.25 (was 0.5): with the toned lightmap (v129) props read far brighter than the world around them
 						if (new_asset->lightGrid.defaultLightGridColors.rgb[i][j] == 0)
 							new_asset->lightGrid.defaultLightGridColors.rgb[i][j] = half_float::float_to_half(0.5f);
 						if (new_asset->lightGrid.skyLightGridColors.rgb[i][j] == 0)
@@ -706,6 +706,13 @@ namespace zonetool::iw7
 					}
 
 					ZONETOOL_INFO("v129 model sun: %u static models shaded, %u sunlit, %u with no floor found", v129_shaded, v129_lit, v129_none);
+					{
+						const std::string v131_msg = utils::string::va("primary %s, floors %zu, shaded %u, sunlit %u, no floor %u\n", v129_prim.empty() ? "MISSING" : "ok", v129_floors.size(), v129_shaded, v129_lit, v129_none);
+						filesystem::file v131_f("v129_model_sun.txt");
+						v131_f.open("wb");
+						v131_f.write(v131_msg);
+						v131_f.close();
+					}
 					d.surfaceMaterials = allocator.allocate_array<zonetool::h1::GfxDrawSurf>(asset->surfaceCount);
 					std::unordered_map<const void*, unsigned int> mat_index_map;
 					const auto mat_index_of = [&](const void* m) -> unsigned int
