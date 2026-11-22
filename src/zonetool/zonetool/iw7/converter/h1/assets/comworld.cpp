@@ -71,7 +71,7 @@ namespace zonetool::iw7
 					auto& l = new_asset->primaryLights[i];
 					if (static_cast<int>(l.type) != 1) continue;
 					l.physicallyBased = 0;
-					for (int c = 0; c < 3; c++) l.color[c] *= 2.5f;
+					for (int c = 0; c < 3; c++) l.color[c] *= 3.4f; // v99: 2.5 left sunlit marble ~30% darker than the IW7 reference frame
 					// v96: IW7's sun hue is graded by its own tonemapper; raw in H1 it tinted the cream marble brown/orange.
 					//      Pull 35% toward neutral at the same luminance (IW7 reference frame shows near-white sunlit stone).
 					const float lum = l.color[0] * 0.3f + l.color[1] * 0.59f + l.color[2] * 0.11f;
