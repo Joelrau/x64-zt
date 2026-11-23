@@ -3,6 +3,8 @@
 #include "zonetool/iw7/converter/h1/include.hpp"
 #include "gfxworld.hpp"
 #include <map>
+#include <array>
+#include <algorithm>
 #include <unordered_map>
 #include "clipmap.hpp"
 #include <utils/string.hpp>
@@ -470,6 +472,7 @@ namespace zonetool::iw7
 				};
 				unsigned int v129_shaded = 0, v129_lit = 0, v129_none = 0, v133_grounded = 0;
 				std::map<unsigned int, unsigned int> v138_env_hist;
+				std::vector<std::array<float, 3>> v141_origins;
 				constexpr bool v135_palette = true;
 				constexpr bool v136_seq_handles = false; // v136: no change (statics still black with the palette)
 				// v137: with v135's per-model entries every static model drew black (the gun, lit from the grid, did take entry 0), so
@@ -772,6 +775,7 @@ namespace zonetool::iw7
 						dst_inst.primaryLightEnvIndex = src_inst.primaryLightEnvIndex;
 						if (src_inst.placement.origin[2] < -1000.0f) dst_inst.primaryLightEnvIndex = 0; // v123: vista city models, no sun
 						{
+							if (src_inst.placement.origin[2] > -1000.0f) v141_origins.push_back({ src_inst.placement.origin[0], src_inst.placement.origin[1], src_inst.placement.origin[2] });
 							const float sv = v129_sun_at(src_inst.placement.origin);
 							if (sv < 0.0f) v129_none++;
 							else if (sv < 0.5f) { dst_inst.primaryLightEnvIndex = 0; v129_shaded++; }
@@ -831,6 +835,20 @@ namespace zonetool::iw7
 						float q_mn[3] = { 1e30f, 1e30f, 1e30f }, q_mx[3] = { -1e30f, -1e30f, -1e30f };
 						// v140: bounds from the playable floors only (the vista city below z -1000 spans far more than 128 blocks, and v138/v139
 						//       covered the vista instead of the map: 13 palette entries, props on the fallback colour)
+						// v141: the floors still spanned 75k x 94k units (distant city blocks above z -1000). Use the 2nd..98th
+						//       percentile of the static model origins above z -1000, plus 1024 units each way.
+						if (v141_origins.size() > 20)
+						{
+							for (int q_c = 0; q_c < 3; q_c++)
+							{
+								std::vector<float> q_v;
+								for (const auto& q_o : v141_origins) q_v.push_back(q_o[q_c]);
+								std::sort(q_v.begin(), q_v.end());
+								q_mn[q_c] = q_v[q_v.size() * 2 / 100] - 1024.0f;
+								q_mx[q_c] = q_v[q_v.size() * 98 / 100] + 1024.0f;
+							}
+						}
+						else
 						for (const auto& q_f : v129_floors)
 						{
 							if (q_f.p[0][2] < -1000.0f || q_f.p[1][2] < -1000.0f || q_f.p[2][2] < -1000.0f) continue;
