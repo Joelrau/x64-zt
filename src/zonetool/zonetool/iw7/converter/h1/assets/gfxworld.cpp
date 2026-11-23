@@ -478,7 +478,7 @@ namespace zonetool::iw7
 				// v137: with v135's per-model entries every static model drew black (the gun, lit from the grid, did take entry 0), so
 				//       statics don't read colorIndex here; try a palette of one entry that every lookup resolves to
 				constexpr bool v137_per_model = false;
-				constexpr bool v138_tree = false; // v143: v141/v142 (tree over the playable area) hung / crashed on load; H1's leaf format may differ from Ghosts'. Every lookup now misses the (empty) stub tree and takes missingGridColorIndex = entry 0
+				constexpr bool v138_tree = true; // v144: on again with paired palette entries
 				constexpr bool v134_one_handle = false; // tested in v134: no visible change
 				constexpr bool v133_ground_lighting = false; // v134: GROUND_LIGHTING (0x20) drew every static model black: our IW6 model techsets take MODEL_LIGHTING from the grid atlas, not the ground colour
 
@@ -888,7 +888,15 @@ namespace zonetool::iw7
 										q_c3[q_c] = 0.35f * q_back;
 									}
 									auto q_it = q_pal.find(q_key);
-									if (q_it == q_pal.end()) q_it = q_pal.emplace(q_key, v135_add(q_c0, q_c3)).first;
+									if (q_it == q_pal.end())
+									{
+										// v144: each colour twice in a row (entries k and k + 1) and the leaf stores v = k + 1, so the colour is
+										//       right whether the engine takes v - 1 (Ghosts' reading) or v (v142 crashed in the palette decode,
+										//       reading the address of an entry past the end)
+										const unsigned int q_k0 = v135_add(q_c0, q_c3);
+										v135_add(q_c0, q_c3);
+										q_it = q_pal.emplace(q_key, q_k0).first;
+									}
 									q_blk[static_cast<unsigned int>(q_bx) | (static_cast<unsigned int>(q_by) << 8) | (static_cast<unsigned int>(q_bz) << 16)] = { q_it->second, q_sv >= 0.5f && q_sun_env != 0 };
 								}
 						// leaf nodes (depth D): key = block >> 1 per axis
@@ -932,7 +940,7 @@ namespace zonetool::iw7
 							{
 								const bool q_lit = q_l.v[q_o].second;
 								q_put(0x02 | (q_lit ? 0x10u : 0u), 8);
-								q_put(q_l.v[q_o].first + 1, 16); // value v -> index v - 1
+								q_put(q_l.v[q_o].first + 1, 16); // value v = k + 1: entry k (v - 1) and entry k + 1 (v) hold the same colour
 								if (q_lit) q_put(1, 1);           // -> lBase (the sun's environment)
 								q_align();
 							}
