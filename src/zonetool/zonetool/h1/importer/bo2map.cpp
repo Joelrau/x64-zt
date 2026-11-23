@@ -572,6 +572,26 @@ namespace zonetool::h1::importer
 			ZONETOOL_INFO("collision triangles: %llu, materials: %llu", static_cast<unsigned long long>(b.tris.size()), static_cast<unsigned long long>(mat_names.size()));
 			if (b.tris.empty() || mat_names.empty()) mat_names.push_back("default");
 
+			// The clipmap vertex pool is limited to 256 segments of 1024 verts, so keep only
+			// the largest triangles (floors, walls, decks) when the map exceeds the budget.
+			{
+				constexpr size_t tri_budget = 255000;
+				if (b.tris.size() > tri_budget)
+				{
+					auto area2 = [](const tri_t& t)
+					{
+						const float e1[3] = {t.p[1][0] - t.p[0][0], t.p[1][1] - t.p[0][1], t.p[1][2] - t.p[0][2]};
+						const float e2[3] = {t.p[2][0] - t.p[0][0], t.p[2][1] - t.p[0][1], t.p[2][2] - t.p[0][2]};
+						const float nx = e1[1] * e2[2] - e1[2] * e2[1], ny = e1[2] * e2[0] - e1[0] * e2[2], nz = e1[0] * e2[1] - e1[1] * e2[0];
+						return nx * nx + ny * ny + nz * nz;
+					};
+					std::nth_element(b.tris.begin(), b.tris.begin() + tri_budget, b.tris.end(),
+						[&](const tri_t& a, const tri_t& c) { return area2(a) > area2(c); });
+					ZONETOOL_INFO("collision budget: dropping %llu smallest triangles", static_cast<unsigned long long>(b.tris.size() - tri_budget));
+					b.tris.resize(tri_budget);
+				}
+			}
+
 			std::vector<std::vector<unsigned int>> groups(mat_names.size());
 			for (unsigned int i = 0; i < b.tris.size(); i++) groups[b.tris[i].mat].push_back(i);
 			std::vector<unsigned int> used;
