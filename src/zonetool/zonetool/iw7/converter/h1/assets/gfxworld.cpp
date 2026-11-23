@@ -478,6 +478,7 @@ namespace zonetool::iw7
 				// v137: with v135's per-model entries every static model drew black (the gun, lit from the grid, did take entry 0), so
 				//       statics don't read colorIndex here; try a palette of one entry that every lookup resolves to
 				constexpr bool v137_per_model = false;
+				constexpr bool v146_light_env = false;
 				constexpr bool v138_tree = true; // v144: on again with paired palette entries
 				constexpr bool v134_one_handle = false; // tested in v134: no visible change
 				constexpr bool v133_ground_lighting = false; // v134: GROUND_LIGHTING (0x20) drew every static model black: our IW6 model techsets take MODEL_LIGHTING from the grid atlas, not the ground colour
@@ -825,12 +826,13 @@ namespace zonetool::iw7
 					//      resolved to nothing. Build a real tree: one octant block (4 x 4 x 1 cells = 128 x 128 x 64 units) wherever a
 					//      lightmapped floor lies under the block's centre, its colour index a palette entry of that floor's baked light
 					//      (quantised), its light environment the sun's where IW7's primary says the floor is sunlit.
-					unsigned int v138_blocks = 0, v138_nodes = 0;
+					unsigned int v138_blocks = 0, v138_nodes = 0, v146_env = 0;
 					float v140_ext[3] = { 0.0f, 0.0f, 0.0f };
 					if (v138_tree && v135_palette && !v129_floors.empty())
 					{
 						unsigned int q_sun_env = 0, q_best_n = 0;
 						for (const auto& [q_env, q_n] : v138_env_hist) if (q_n > q_best_n && q_env != 0) { q_best_n = q_n; q_sun_env = q_env; }
+						v146_env = q_sun_env;
 						constexpr int q_D = 6; // v142: back to 6 (v141 with D = 7 hung on the loading screen); 128 blocks a side covers the v141 bounds
 						float q_mn[3] = { 1e30f, 1e30f, 1e30f }, q_mx[3] = { -1e30f, -1e30f, -1e30f };
 						// v140: bounds from the playable floors only (the vista city below z -1000 spans far more than 128 blocks, and v138/v139
@@ -931,14 +933,20 @@ namespace zonetool::iw7
 							std::vector<unsigned int> q_order;
 							for (unsigned int q_o = 0; q_o < 8; q_o++) if ((q_l.mask >> q_o) & 1) q_order.push_back(q_o);
 							// block sizes: 8 (g) + 16 (colour) [+ 1 light] bits -> 3 or 4 bytes
-							q_put(0x08, 8); // f: light base present
-							for (const auto q_o : q_order) q_put(q_l.v[q_o].second ? 4u : 3u, 6);
-							q_put(q_sun_env, q_LB);  // lBase
-							q_put(0, 4);             // lW - 1 (bitlen(LB - 1) = 4 bits) -> lW = 1
+							// v146: no light-env index (v142/v144 crashed in the palette decode with an odd entry address; the IW7 sun env
+							//       index may not exist in H1's tables). Colour only: f = 0, blocks of 3 bytes.
+							const bool q_use_env = v146_light_env;
+							q_put(q_use_env ? 0x08u : 0u, 8);
+							for (const auto q_o : q_order) q_put((q_use_env && q_l.v[q_o].second) ? 4u : 3u, 7); // v147: H1 reads 7-bit block sizes (Ghosts: 6); the 6-bit sizes shifted every later field, so some corners decoded garbage colour indices (v142-v146 crash)
+							if (q_use_env)
+							{
+								q_put(q_sun_env, q_LB);  // lBase
+								q_put(0, 4);             // lW - 1 (bitlen(LB - 1) = 4 bits) -> lW = 1
+							}
 							q_align();
 							for (const auto q_o : q_order)
 							{
-								const bool q_lit = q_l.v[q_o].second;
+								const bool q_lit = q_use_env && q_l.v[q_o].second;
 								q_put(0x02 | (q_lit ? 0x10u : 0u), 8);
 								q_put(q_l.v[q_o].first + 1, 16); // value v = k + 1: entry k (v - 1) and entry k + 1 (v) hold the same colour
 								if (q_lit) q_put(1, 1);           // -> lBase (the sun's environment)
@@ -1029,7 +1037,7 @@ namespace zonetool::iw7
 						// v137: keep the one-entry colour table (v135 dropped it)
 					}
 					{
-						const std::string v131_msg = utils::string::va("primary %s, floors %zu, shaded %u, sunlit %u, no floor %u, secondary %s, ground lit %u, palette entries %zu, tree nodes %u blocks %u, extent %.0f %.0f %.0f\n", v129_prim.empty() ? "MISSING" : "ok", v129_floors.size(), v129_shaded, v129_lit, v129_none, v133_sec.empty() ? "MISSING" : "ok", v133_grounded, v135_addr.size(), v138_nodes, v138_blocks, v140_ext[0], v140_ext[1], v140_ext[2]);
+						const std::string v131_msg = utils::string::va("primary %s, floors %zu, shaded %u, sunlit %u, no floor %u, secondary %s, ground lit %u, palette entries %zu, tree nodes %u blocks %u, extent %.0f %.0f %.0f, sun env %u\n", v129_prim.empty() ? "MISSING" : "ok", v129_floors.size(), v129_shaded, v129_lit, v129_none, v133_sec.empty() ? "MISSING" : "ok", v133_grounded, v135_addr.size(), v138_nodes, v138_blocks, v140_ext[0], v140_ext[1], v140_ext[2], v146_env);
 						filesystem::file v131_f("v129_model_sun.txt");
 						v131_f.open("wb");
 						v131_f.write(v131_msg);

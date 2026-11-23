@@ -2,6 +2,8 @@
 #include "zonetool/iw7/converter/h1/include.hpp"
 #include "clipmap.hpp"
 #include "physworld.hpp"
+#include "fxeffectdef.hpp"
+#include "zonetool/iw7/zonetool.hpp"
 
 #include "zonetool/h1/assets/clipmap.hpp"
 #include "zonetool/h1/assets/physworld.hpp"
@@ -500,6 +502,7 @@ namespace zonetool::iw7
 
 			void dump_from_gfxworld(GfxWorld* asset)
 			{
+				constexpr bool v145_glass = true;
 				utils::memory::allocator allocator;
 
 				const auto converted_asset = generate_from_gfxworld(asset, allocator);
@@ -508,14 +511,114 @@ namespace zonetool::iw7
 				const auto pw = physworld::generate(converted_asset, allocator);
 				zonetool::h1::phys_world::dump(pw);
 
-				// IW7 has no equivalent of the IW6/H1 glass + fx world data: emit empty ones
+				// v145 glass: IW7 keeps breakable glass in the same two assets as IW6/H1 (FxWorld's FxGlassSystem + GlassWorld's
+				//      G_GlassData), with nearly identical layouts. Convert them; the per-def effects, sounds and physics preset are
+				//      the H1 common ones (as mp_frag's port uses), since IW7's are vfx / IW7 sound aliases / physics assets.
 				const auto fx = allocator.allocate<zonetool::h1::FxWorld>();
 				fx->name = asset->name;
-				zonetool::h1::fx_world::dump(fx);
-
 				const auto glass = allocator.allocate<zonetool::h1::GlassWorld>();
 				glass->name = asset->name;
 				glass->g_glassData = allocator.allocate<zonetool::h1::G_GlassData>();
+				unsigned int v145_pieces = 0;
+				if (v145_glass)
+				{
+					const auto* iw_fx = zonetool::iw7::db_find_x_asset_header_safe(zonetool::iw7::ASSET_TYPE_FXWORLD, asset->name).fxWorld;
+					const auto* iw_glass = zonetool::iw7::db_find_x_asset_header_safe(zonetool::iw7::ASSET_TYPE_GLASSWORLD, asset->name).glassWorld;
+					if (iw_fx && iw_glass) ZONETOOL_INFO("v147 glass: iw7 defs %u pieceLimit %u initPieces %u initGeo %u, g_glassData %s pieces %u names %u", iw_fx->glassSys.defCount, iw_fx->glassSys.pieceLimit, iw_fx->glassSys.initPieceCount, iw_fx->glassSys.initGeoDataCount, iw_glass->g_glassData ? "yes" : "no", iw_glass->g_glassData ? iw_glass->g_glassData->pieceCount : 0u, iw_glass->g_glassData ? iw_glass->g_glassData->glassNameCount : 0u);
+					if (iw_fx && iw_glass && iw_glass->g_glassData && iw_fx->glassSys.defs && iw_fx->glassSys.pieceLimit && iw_fx->glassSys.initPieceStates)
+					{
+						const auto& sg = iw_fx->glassSys;
+						auto& dg = fx->glassSys;
+						dg.defCount = sg.defCount;
+						dg.pieceLimit = sg.pieceLimit;
+						dg.pieceWordCount = sg.pieceWordCount;
+						dg.cellCount = sg.cellCount;
+						dg.activePieceCount = sg.activePieceCount;
+						dg.firstFreePiece = sg.firstFreePiece;
+						dg.geoDataLimit = sg.geoDataLimit;
+						dg.geoDataCount = sg.geoDataCount;
+						dg.initGeoDataCount = sg.initGeoDataCount;
+						dg.initPieceCount = sg.initPieceCount;
+						dg.initCount = sg.initCount;
+						dg.needToCompactData = sg.needToCompactData;
+						const auto named = [&](auto* q_p, const char* q_n) { q_p->name = allocator.duplicate_string(q_n); return q_p; };
+						dg.defs = allocator.allocate_array<zonetool::h1::FxGlassDef>(sg.defCount);
+						for (unsigned int i = 0; i < sg.defCount; i++)
+						{
+							const auto& sd = sg.defs[i];
+							auto& dd = dg.defs[i];
+							dd.halfThickness = sd.halfThickness;
+							std::memcpy(dd.texVecs, sd.texVecs, sizeof(dd.texVecs));
+							std::memcpy(&dd.color, &sd.color, sizeof(dd.color));
+							if (sd.material && sd.material->name)
+							{
+								dd.material = named(allocator.allocate<zonetool::h1::Material>(), sd.material->name);
+								fxeffectdef::ensure_external_material(sd.material);
+							}
+							if (sd.materialShattered && sd.materialShattered->name)
+							{
+								dd.materialShattered = named(allocator.allocate<zonetool::h1::Material>(), sd.materialShattered->name);
+								fxeffectdef::ensure_external_material(sd.materialShattered);
+							}
+							if (!dd.materialShattered) dd.materialShattered = dd.material;
+							dd.physPreset = named(allocator.allocate<zonetool::h1::PhysPreset>(), "glass_chunk");
+							dd.pieceBreakEffect = named(allocator.allocate<zonetool::h1::FxEffectDef>(), "fx/code/glass_shatter_piece");
+							dd.shatterEffect = named(allocator.allocate<zonetool::h1::FxEffectDef>(), "fx/code/glass_shatter_64x64");
+							dd.shatterSmallEffect = named(allocator.allocate<zonetool::h1::FxEffectDef>(), "fx/code/glass_shatter_32x32");
+							dd.damagedSound = named(allocator.allocate<zonetool::h1::snd_alias_list_t>(), "glass_pane_shatter");
+							dd.destroyedSound = named(allocator.allocate<zonetool::h1::snd_alias_list_t>(), "glass_pane_blowout");
+							dd.destroyedQuietSound = named(allocator.allocate<zonetool::h1::snd_alias_list_t>(), "glass_pane_breakout");
+							dd.invHighMipRadius = sd.highMipRadiusInvSq;
+							dd.shatteredInvHighMipRadius = sd.shatteredHighMipRadiusInvSq;
+							dd.numCrackRings = sd.numCrackRings;
+							dd.isOpaque = sd.isOpaque;
+						}
+						const auto copy_arr = [&](auto*& q_dst, const auto* q_src, size_t q_count)
+						{
+							using q_t = std::remove_pointer_t<std::remove_reference_t<decltype(q_dst)>>;
+							if (!q_src || !q_count) return;
+							q_dst = allocator.allocate_array<q_t>(q_count);
+							std::memcpy(q_dst, q_src, q_count * std::min(sizeof(q_t), sizeof(*q_src)));
+						};
+						static_assert(sizeof(zonetool::h1::FxGlassPiecePlace) == sizeof(zonetool::iw7::FxGlassPiecePlace));
+						static_assert(sizeof(zonetool::h1::FxGlassPieceState) == sizeof(zonetool::iw7::FxGlassPieceState));
+						static_assert(sizeof(zonetool::h1::FxGlassInitPieceState) == sizeof(zonetool::iw7::FxGlassInitPieceState));
+						copy_arr(dg.piecePlaces, sg.piecePlaces, sg.pieceLimit);
+						copy_arr(dg.pieceStates, sg.pieceStates, sg.pieceLimit);
+						dg.pieceDynamics = allocator.allocate_array<zonetool::h1::FxGlassPieceDynamics>(sg.pieceLimit); // runtime state
+						copy_arr(dg.geoData, sg.geoData, sg.geoDataLimit);
+						copy_arr(dg.isInUse, sg.isInUse, sg.pieceWordCount);
+						copy_arr(dg.cellBits, sg.cellBits, size_t(sg.pieceWordCount) * sg.cellCount);
+						copy_arr(dg.visData, sg.visData, (sg.pieceLimit + 15) & 0xFFFFFFF0);
+						if (sg.linkOrg) { dg.linkOrg = reinterpret_cast<float(*)[3]>(allocator.allocate_array<float>(size_t(sg.pieceLimit) * 3)); std::memcpy(dg.linkOrg, sg.linkOrg, sizeof(float) * 3 * sg.pieceLimit); }
+						copy_arr(dg.halfThickness, sg.halfThickness, (sg.pieceLimit + 3) & 0xFFFFFFFC);
+						copy_arr(dg.lightingHandles, sg.lightingHandles, sg.initPieceCount);
+						copy_arr(dg.initGeoData, sg.initGeoData, sg.initGeoDataCount);
+						copy_arr(dg.initPieceStates, sg.initPieceStates, sg.initPieceCount);
+
+						const auto* sgd = iw_glass->g_glassData;
+						auto* dgd = glass->g_glassData;
+						dgd->pieceCount = sgd->pieceCount;
+						dgd->damageToWeaken = sgd->damageToWeaken;
+						dgd->damageToDestroy = sgd->damageToDestroy;
+						static_assert(sizeof(zonetool::h1::G_GlassPiece) == sizeof(zonetool::iw7::G_GlassPiece));
+						copy_arr(dgd->glassPieces, sgd->glassPieces, sgd->pieceCount);
+						dgd->glassNameCount = sgd->glassNameCount;
+						if (sgd->glassNames && sgd->glassNameCount)
+						{
+							dgd->glassNames = allocator.allocate_array<zonetool::h1::G_GlassName>(sgd->glassNameCount);
+							for (unsigned int i = 0; i < sgd->glassNameCount; i++)
+							{
+								dgd->glassNames[i].nameStr = sgd->glassNames[i].nameStr;
+								dgd->glassNames[i].pieceCount = sgd->glassNames[i].pieceCount;
+								dgd->glassNames[i].pieceIndices = sgd->glassNames[i].pieceIndices;
+							}
+						}
+						v145_pieces = sgd->pieceCount;
+					}
+					ZONETOOL_INFO("v145 glass: fxworld %s, glassworld %s, %u pieces, %u defs", iw_fx ? "found" : "missing", iw_glass ? "found" : "missing", v145_pieces, fx->glassSys.defCount);
+				}
+				zonetool::h1::fx_world::dump(fx);
 				zonetool::h1::glass_world::dump(glass);
 			}
 		}
