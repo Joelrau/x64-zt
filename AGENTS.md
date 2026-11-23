@@ -225,6 +225,126 @@ Stream facts:
 - v2 has no game runtime. A database lookup can return null where v1 got a game default asset. Add a null check, not a fake default.
 - Known v2 differences from v1: `dumpzone <zone> --target <game>` replaces `dumpzone <target> <zone>`, IW7 `proceduralbones` has a dump format, built zones share arrays the way stock zones do, and output goes to the `zone/` folder of the game folder.
 
+## Converter structure
+
+```
+src/convert/<a>_<b>/converter.cpp    required zones and one dump call for each asset type
+src/convert/<a>_<b>/include.hpp      the headers of both games
+src/convert/<a>_<b>/assets/<type>.*  one file pair for each asset type
+```
+
+- The namespace is `zonetool::<a>::converter::<b>::<type>`, for example `zonetool::iw5::converter::iw7::xmodel`.
+- Each type has `dump(<a>::T*)`. If another type needs the converted asset, the type also has `convert()`. `dump()` calls `convert()`, then the `dump()` of game `<b>`:
+
+```cpp
+void dump(zonetool::h1::XModel* asset)
+{
+	utils::memory::allocator allocator;
+	const auto converted_asset = convert(asset, allocator);
+	zonetool::iw7::xmodel::dump(converted_asset);
+}
+```
+
+- Put helpers in an anonymous namespace in the `.cpp` file. Declare in the `.hpp` file only what other files call.
+- Allocate all target data from the allocator that `convert()` gets. Do not keep asset data in globals or `static` variables.
+- Convert a shared asset one time. In the function that converts the array, keep a map from source pointer to target pointer, for example `std::unordered_map<zonetool::iw4::XModel*, zonetool::iw5::XModel*>`.
+- Convert each field by name. Map each enum value with a `switch` or a table. The same enum name can have a different value in each game:
+
+| Value | IW3 | IW4, IW5 | IW7 |
+|---|---|---|---|
+| `CAMERA_REGION_EMISSIVE` | 2 | 2 | 4 |
+| `CAMERA_REGION_NONE` | 3 | 4 | `CAMERA_REGION_NONE_2` 11 |
+
+- Copy a struct with `memcpy` only if both structs have the same fields in the same order. A `static_assert(sizeof(...))` checks the size only, so also compare the fields in `structs.hpp`.
+- Never copy a pointer value from a source struct into a target struct. In the x86 chain (`iw3_iw4`, `iw4_iw5`), an `x86::pointer<T>` is a 32-bit offset into the x86 address space. A copied pointer still points to data of the old game, and the next stage reads it with the wrong layout. Convert the asset with the converter of its type, or make a name reference.
+- An `x86::pointer` can hold only an address in the x86 region. Allocate x86 data and strings with the `x86::allocator`, for example `allocator.duplicate_string("default")`. A string literal or memory from `new`, `std::vector` or `utils::memory::allocator` is not in the region.
+- A name reference is a target asset that holds only the name, for example `material_reference` in `src/convert/iw3_iw4/assets/fx.cpp`. Use it when the target dump writes only the name.
+- The IW8 dump walk dumps RUNTIME arrays too. For each RUNTIME array, allocate a zero-filled array with the count that the walk uses. Do not share one allocation between two arrays, because the walk deduplicates arrays by address range.
+- If the target game has a field that the source game does not have, compute it from the source data. Example: the IW5 to IW7 converter sets `numLightingValues` from the vertex count of the model. Do not read the value from a stock target asset.
+- Log a lossy conversion with `ZONETOOL_WARNING` and the asset name.
+- A chain converter (`iw3_iw7`) runs each stage in order. A field that one stage drops is lost for all later stages. Check that a new value reaches the final dump.
+
+## Research with re_reference
+
+`re_reference/<game>/<build>/` holds the IDA text export of one game exe. `DUMPS` in `tools/asm_slice.py` maps each dump name to its folder.
+
+| File | Content |
+|---|---|
+| `ship_asm.txt` | The full disassembly with IDA names. Never open it with a file tool |
+| `func_index.txt` | The line in `ship_asm.txt`, the start, the end and the name of each function |
+| `funcs.txt` | The start, end, size, xref count and name of each function |
+| `names.txt` | Each named address and its kind |
+| `strings.txt` | Each string with its address, length and xref count |
+| `types.h` | The local types of the IDA database |
+| `imports.txt`, `segments.txt`, `ptr_tables.txt` | Imports, segments and pointer tables |
+
+- `asm_slice.py` needs `ship_asm.txt` and `func_index.txt`. Search the other files with `grep`.
+- Do not commit other export files, for example `func_index.pkl`. `asm_slice.py` does not read them.
+- To add a dump, put it in `re_reference/<game>/<build>/` and add its name to `DUMPS`. IW3, IW4 and IW5 have no dump yet.
+
+Research steps:
+
+1. Start from the `Load_*` function of the asset. It gives the stream order, the struct sizes and the array strides.
+2. To find the code that uses a field, search the field offset with `-r`. Keep the hits in functions that also use the struct. If a field has only one reader, that reader shows what the field does.
+3. To find an unnamed function, search a dvar name or an assert text in `strings.txt`. Then search the IDA label of the string with `-r`. Example: `-r aRSmodelinstanc` finds `R_RegisterDvars`, which registers `r_smodelInstancedRenderer`.
+4. Map a call stack with `-l`. List the callers of a function with `-c`.
+5. Read every caller before you give a meaning to a field. One function can use the same register for a different struct.
+6. Check a field meaning on many stock assets. One example is not proof.
+7. Trust the code, not the name. Many IDA names in the H1 1.15 dump are wrong, because the compiler folds identical functions into one.
+8. If a dump has few names, find the same function in a game of the same engine through a shared string or constant. Example: for S2, search S1 or H1 1.4.
+9. Write the proof in the doc of the game before you write the code: the function, its address, the condition and the fields.
+
+## Asset hunts
+
+Start from the symptom. Then check the asset that it points to.
+
+Material and techset:
+
+- Check that the techset has each technique that the draw path selects. A draw path can add an offset to the technique index. In IW7, the instanced static model path adds 0x26. A techset without that technique draws nothing for that path.
+- Read the technique list in `dump/<zone>/techsets/<techset>.techset.txt`. Compare it with a stock techset of the same kind.
+- Check the camera region and the sort key after the conversion. A wrong camera region puts the surface in a different draw list.
+
+XModel and XSurface:
+
+- Take each struct size from `structs.hpp` and the `Load_*` code. A script with a wrong size reads the first surface correctly and the rest as garbage.
+- IW7 `XSurface.vertexLightingIndex` is a running sum of the vertex counts of all surfaces in all LODs of the model. Do not reset it for each LOD.
+- In a chain, check that each surface has its converted material in the final stage.
+
+GfxWorld and ComWorld:
+
+- If a model appears and disappears when the camera moves, the bug is in the culling or in the draw path, not in the material.
+- Ask the user to test one dvar at a time. In IW7, `r_umbra 0` turns off umbra culling. `r_smodelInstancedRenderer 0` turns off the instanced static model path.
+- A dvar test finds the path. It is not the fix. A map must work with the default dvars of the game.
+- IW7 draws a static model rigid, not instanced, if one of these is true (`sub_140DCDBA0`): flag 0x400, a SUBDIV LOD, `numLightingValues` is not 0, or `lightmapIndex` is not -1.
+- Count the assets that a change affects before you build. Example: `>= CAMERA_REGION_EMISSIVE` made 661 static models rigid. `== CAMERA_REGION_EMISSIVE` made only the 18 lamp models rigid.
+- GfxWorld refers to the ComWorld primary lights by index. Keep the count and the order of the primary lights the same in both assets.
+
+GfxImage:
+
+- The warning `does not account for <n> bytes` means that the pixel data size does not match the width, height, format and mip count. Check the format map and the mip count.
+
+Render bugs:
+
+- Use a stock map of the target game as the control for each question. Dump the stock value before you guess a value.
+- Fix lost data first: missing models, layers, masks or techniques. Do not adjust the tonemap, the tint or the exposure before that.
+- A dvar test is valid only if the dvar exists. Some clients print nothing for an unknown dvar, and a string in `strings.txt` does not prove that the game registers it.
+- A control build with one changed value gives a clearer result than a dvar test.
+- To test an input, replace it with a constant. Do not scale it: `0 * NaN` is NaN, and a clamp can hide a scale.
+- A finite value is not a correct value. A check that the data is valid does not prove the scale.
+- Do not edit render data in live memory. The renderer copies world data at map load. Read live memory only to examine values.
+- In a RenderDoc capture, find the material of a draw by the DXBC checksum of its shader (bytes 4 to 20 of the bytecode). Search the `.cso` files of the dump for it.
+- A live process uses ASLR, so IDA addresses of globals do not apply. Find a world asset through a pointer to its name string.
+
+Other assets:
+
+- Find the `Load_*` function, then the code that reads the asset at run time. Compare a converted asset with a stock asset of the same kind, field by field.
+
+Scripts for dump files:
+
+- To count or compare dumped binary files, write a small Python script in the scratchpad. Take each struct size and offset from `structs.hpp`.
+- Print counts and a short list, not every record.
+- Keep the script out of the repository, unless the user wants a new tool in `tools/`.
+
 ## Verification
 
 Run these after a change to a reader, writer or the container code:
@@ -261,14 +381,17 @@ The total changes when the zone folder changes. A zone that passed before and fa
 
 ### Comments
 
-Default: no comment. Before you add a comment, try to delete it. Less is better, and nothing is best.
+Default: no comment. About 99% of the lines in x64-zt have no comment, and new code keeps that ratio. Before you add a comment, try to delete it. Less is better, and nothing is best.
 
 Write a comment only for one of these cases:
 
+- a short label for one line whose effect the code cannot show, for example a value that only an engine check uses;
 - a deviation from the asm or from v1 that a reader would "fix" back;
 - a hack or workaround that can break later;
 - a TODO;
 - an address or a name that the code cannot show, for example an unnamed builtin.
+
+A label is 2 to 5 words, with the address when there is one.
 
 Form:
 
@@ -278,7 +401,7 @@ Form:
 
 Do not write:
 
-- how the game or the client uses a value;
+- an explanation of how the game or the client uses a value. A label is enough;
 - where the data comes from, or which function reads or writes it;
 - research notes, debug findings or the reason behind a fix. Put these in the commit message or in `docs/`;
 - restatements, edit narration or commented-out code.
@@ -291,6 +414,8 @@ Examples:
 | `// the s2 client reads "fx_<fx>;<tag>" and crashes on a missing tag (MS 0x14039CEC0)` | no comment |
 | `// the client parses the createart fog source for "ent = maps\_utility::create_vision_set_fog(" (CG_ParseClientVisionsetTriggers)` | no comment |
 | `// the rawfile of the same name has the original source, dump_source writes it` | no comment |
+| `// IW7 draws a static model rigid when numLightingValues is not 0 (sub_140DCDBA0), so emissive models get values` on the line above | `// forces rigid draw (sub_140DCDBA0)` at the end of the line |
+| `// convert each material once` above a loop with a cache | no comment. A function name such as `convert_materials` shows it |
 
 If you are unsure whether a comment qualifies, it does not.
 
@@ -305,6 +430,17 @@ Docs, commit messages and user-facing text use ASD-STE100 style:
 - No contractions. Keep articles and "that".
 - Delete filler: simply, robust, seamlessly, leverage.
 - Code and identifiers stay exact.
+
+## Pull requests
+
+- Keep one topic in each pull request: one game, one converter or one asset type. Do not mix a refactor with a fix.
+- Change only the lines that the fix needs. Do not reformat other lines. Keep the line endings of each file, and run `git diff --check`.
+- For each layout change, give the proof in the description: the `Load_*` function, its address and the game build.
+- Give each check that you ran and its result: build, `verifyzone` count, round trip, test in the game. Report the build result and the game result separately.
+- List each check that you did not run as "Not verified".
+- Do not commit machine paths, user names, drive letters, dumps, built zones or game files.
+- Put research notes in the pull request description or in `docs/`, not in code comments.
+- Update this file when you add a command, a flag, a game, a dump or a verification count.
 
 ## Agent playbook
 
@@ -348,11 +484,15 @@ python tools/asm_slice.py h1_1.4 14060B312 -a -m 80
 python tools/asm_slice.py h1 "Load_Material$"
 python tools/asm_slice.py s2 -c Load_MaterialTechniqueSet
 python tools/asm_slice.py iw8 Load_GfxWorld -m 400
+python tools/asm_slice.py iw7 -r "aRSmodelinstanc"
+python tools/asm_slice.py iw7 -r "\+74h\]"
 grep -n "struct GfxStateBits" -A12 src/games/h1/structs.hpp
+grep -n "r_smodelInstancedRenderer" re_reference/iw7/ship/strings.txt
 ```
 
 - Dump names: `h1` (1.15, RVAs), `h1_1.4` (full addresses), `h2`, `iw6`, `iw7`, `iw8`, `s1`, `s2`.
 - `-l` maps a call stack to function names. `-a` prints the lines around an address. `-c` lists every call site of a function.
+- `-r` searches the text of each line with a regex, not an address. Use it for a string label, a global or a field offset.
 - A dumped techset has a readable technique list in `dump/<zone>/techsets/<techset>.techset.txt`.
 - The state data of each material is in `techsets/state/<techset>/<material>.statebits`, `.statebitsmap` and `.stateinfo`.
 - The build log names each asset that it parses. Search the log for the asset name.
@@ -365,6 +505,8 @@ grep -n "struct GfxStateBits" -A12 src/games/h1/structs.hpp
 3. Write the cause as a chain. Give each link its proof: a register, a memory value, a log line or a code line (`file:line`). A link without proof is a guess.
 4. A theory must explain every observation. Example: two runs crash at the same address with the same registers, so a timing theory is wrong.
 5. Write the result that you expect before you test in the game. If the result is different, the theory is wrong. Remove the first fix before you try a second fix.
+6. After three null results in one line of tests, stop that line. Go back to the list of inputs and bisect.
+7. Keep a "Ruled out" list in the doc of the game. Do not test an item on it again without a new reason.
 
 ### A game crash
 
@@ -381,6 +523,10 @@ grep -n "struct GfxStateBits" -A12 src/games/h1/structs.hpp
 Known crash: `sub_14060B200` in 1.4 reads `GfxStateBits.zone` from `stateBitsTable[stateBitsEntry[techType] + pass]`. If a technique has `stateBitsEntry` 0xFF, the game reads entry 255 and crashes. `buildzone` logs this case as `has no state bits for technique`.
 
 ### Test in the game
+
+Ask the user before you start the game or send input to its window. Many users test by hand. Then give the user a short list for each test: a spot (a `setviewpos` line or a landmark) and the thing to look for.
+
+A visual feature works only after a game screenshot or a report from the user shows it. `buildzone` and `verifyzone` prove the file, not the picture. A debug output in a shader is allowed for one test build. Remove it before the next build.
 
 1. Build the zone with `buildzone <map> -use_usermaps`.
 2. Start the game from the game folder: `h1-mod.exe -noupdate -multiplayer +devmap <map>`. `devmap` enables cheats. Most Call of Duty clients have `map` and `devmap`.
@@ -400,6 +546,11 @@ Known crash: `sub_14060B200` in 1.4 reads `GfxStateBits.zone` from `stateBitsTab
 - A fix in the converter for a bug in the build side (`material::parse`, `techset::parse`, the `zonetool_paths` merge). Check the dumped files first. If the dump is correct, the bug is in the build.
 - Trust in the output of `DEEP_LOOK_TECHNIQUES`. It merges technique slots from every techset of the same name in `zonetool/` and `zonetool_paths/`. The merged techset can have techniques that the material dump does not have.
 - `&&` in Windows PowerShell 5.1. Use `;` and `if ($?) { ... }`.
+- A raw copy of a pointer between two games. See "Converter structure".
+- A `<` or `>=` compare of an engine enum value. The order of the values changes between games. Compare with `==` and the named value.
+- A fix in the last stage of a chain when an earlier stage drops the data. Check that the value reaches the final dump.
+- A dvar change as the fix. A map must work with the default dvars of the game.
+- A change that you did not count. Count the assets that the change affects before you build.
 
 ### When the build fails
 
