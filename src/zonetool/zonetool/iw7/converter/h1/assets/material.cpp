@@ -419,6 +419,10 @@ namespace zonetool::iw7
 				// v135: effect materials IW7 left as "2d" stubs here (the real ones live in a common zone we don't have) drew as red
 				//       "Fx" placeholders on the distant antennas; hide them like tool surfaces (additive, tint 0)
 				const bool v135_fx_stub = techset == "2d" && asset->name && asset->name[0] == 'e' && std::strchr("lqv", asset->name[1]) && asset->name[2] == '/';
+				// v148: IW7 cloud / haze layers (wc/titan_lhcloud_*, cloud_swirling_*: unlit blend, HDR tint 3-12) are what turns the city below the map
+				//       white; as lit blends they drew black. City-light blend layers (w/city_lights, ec0) likewise. Both draw additive here.
+				const bool v148_cloud = blended && techset.find("unlit_blend") != std::string::npos && v72_name.find("cloud") != std::string::npos;
+				const bool v148_city_blend = blended && techset.find("_blend_") != std::string::npos && techset.find("ec0") != std::string::npos && v72_name.find("city_lights") != std::string::npos;
 				const bool tool_surf = v135_fx_stub || techset.find("_tools") != std::string::npos || (asset->name && std::string(asset->name).find("caulk") != std::string::npos);
 				// v102 aqua: the tower aquarium (box at (160,39,309-559): marble walls, pebble floor, wc/atmos_caustics_03 over the walls)
 				//      is fronted by wc/water_mp_riot_fountain_creek_b (IW7 colorTint 0,1,1 = cyan). As a lit cltrans blend with
@@ -438,7 +442,7 @@ namespace zonetool::iw7
 				{
 					ZONETOOL_INFO("v102 fx: effect material %s (%s) -> effect_add_lin_ct_nofog_ndw_bl_blmod_iw6%s", c_name.data(), techset.data(), v102_fx_add ? "" : " (blend drawn additive)");
 				}
-				if ((v102_fx_mat || distortion || tool_surf || unlit_glow || add_glass || world_unlit_blend || aqua_water || techset.find("_add_") != std::string::npos) && techset.find("sky") == std::string::npos && asset->name && std::string(asset->name).find("sky") == std::string::npos && !material_images.empty())
+				if ((v102_fx_mat || distortion || tool_surf || unlit_glow || add_glass || world_unlit_blend || aqua_water || v148_cloud || v148_city_blend || techset.find("_add_") != std::string::npos) && techset.find("sky") == std::string::npos && asset->name && std::string(asset->name).find("sky") == std::string::npos && !material_images.empty())
 				{
 					const auto glow_img = material_images.back()["image"].get<std::string>();
 					matdata["techniqueSet->name"] = "effect_add_lin_ct_nofog_ndw_bl_blmod_iw6";
@@ -473,9 +477,16 @@ namespace zonetool::iw7
 							break;
 						}
 					}
+					if (v148_cloud) // v148: HDR tints 3..12 x E overshoot as an additive haze; keep the brightest channel near 0.45
+					{
+						const float cm = std::max({ a2["literal"][0].get<float>(), a2["literal"][1].get<float>(), a2["literal"][2].get<float>(), 0.0001f });
+						const float ck = std::min(1.0f, 0.45f / cm);
+						a2["literal"] = { a2["literal"][0].get<float>() * ck, a2["literal"][1].get<float>() * ck, a2["literal"][2].get<float>() * ck, 1.0f };
+					}
+					if (v148_city_blend) { const float ce = v129_emissive(6.0f) * 0.5f; a2["literal"] = { ce, ce, ce, 1.0f }; } // emissivePara 6, as a layer over the buildings
 					ordered_json a3; a3["name"] = "bloomParams"; a3["nameHash"] = 3733414975u; a3["literal"] = { 1.0f, 0.0f, 0.0f, 0.0f };
 					matdata["constantTable"] = ordered_json::array({ a1, a2, a3 });
-					ordered_json gi; gi["image"] = glow_img; gi["semantic"] = 2; gi["samplerState"] = 243;
+					ordered_json gi; gi["image"] = glow_img; gi["semantic"] = 2; gi["samplerState"] = 19; /* v148: IW7 uses wrap (0x13); 243 = clamp smeared the tiled traffic / city-light textures into huge streaky bands */
 					gi["lastCharacter"] = 112; gi["firstCharacter"] = 99; gi["typeHash"] = 2695565377u;
 					material_images = ordered_json::array({ gi });
 				}
@@ -505,7 +516,26 @@ namespace zonetool::iw7
 					};
 					// v84: world unlit_replace (signs, posters, emissive panels) went to the LIT opaque techset; with no lightmap (index 31) they drew black.
 					//      Use Ghosts' world unlit replace techset and keep the IW7 tint (HDR values like 10 clamped to a displayable 1.4).
-					if (!prefix.empty() && prefix[0] == 'w' && techset.find("unlit_replace") != std::string::npos)
+					// v148: the vista city (blend-layer materials *NNn_N: corrugated metal + emissive city_lights windows, ~1000 surfaces below the map)
+						//       drew black: the lit techset with no lightmap. IW7 shows dark facades with lit windows; draw the window map unlit.
+						bool v148_vista = false;
+						if (!v72_name.empty() && v72_name[0] == '*' && techset.find("ec1") != std::string::npos)
+							for (auto i = 0; i < asset->textureCount; i++) if (asset->textureTable[i].image && asset->textureTable[i].image->name && std::string(asset->textureTable[i].image->name) == "city_lights") v148_vista = true;
+						if (v148_vista)
+						{
+							matdata["techniqueSet->name"] = "wc_unlit_replace_lin_ct_bl_nfwpf_iw6";
+							matdata["sortKey"] = 2;
+							matdata["cameraRegion"] = 0;
+							matdata["materialType"] = 35;
+							const float vk = v129_emissive(6.0f);
+							ordered_json c1; c1["name"] = "colorTint"; c1["nameHash"] = 3054254906u; c1["literal"] = { vk, vk, vk, 1.0f };
+							matdata["constantTable"] = ordered_json::array({ c1 });
+							ordered_json t1; t1["image"] = "city_lights"; t1["semantic"] = 2; t1["samplerState"] = 19; t1["lastCharacter"] = 112; t1["firstCharacter"] = 99; t1["typeHash"] = 2695565377u;
+							material_images = ordered_json::array({ t1 });
+							ZONETOOL_INFO("v148 vista: %s drawn unlit city_lights", c_name.data());
+						}
+						else
+						if (!prefix.empty() && prefix[0] == 'w' && techset.find("unlit_replace") != std::string::npos)
 					{
 						std::string col = "blank";
 						for (const auto& im : material_images) if (im["typeHash"].get<std::size_t>() == 2695565377u) col = im["image"].get<std::string>();

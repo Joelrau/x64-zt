@@ -13,9 +13,13 @@
 #include "zonetool/iw7/converter/h1/assets/physworld.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cfloat>
 #include <cmath>
 #include <unordered_map>
+#include <unordered_set>
+#include <fstream>
+#include <sstream>
 
 // Black Ops II -> H1 map, FIRST PASS (untested in game).
 //
@@ -93,6 +97,7 @@ namespace zonetool::h1::importer
 			std::string name;
 			std::uint32_t kind;
 			std::string h1_name; // wc/bo2_<...>
+			std::string col, nrm, spc; // real Black Ops II picture names (images\\<name>.dds), empty = none
 		};
 
 		struct vertex_in
@@ -192,6 +197,53 @@ namespace zonetool::h1::importer
 
 		// ---- materials: one placeholder per Black Ops II material ----
 
+		std::string g_src_dir;
+		std::unordered_set<std::string> g_copied;
+
+		// Copies <src>/images/<name>.dds into the dump's images folder (once). Returns false when the picture is missing.
+		bool copy_picture(const std::string& name)
+		{
+			if (name.empty()) return false;
+			if (g_copied.count(name)) return true;
+			std::ifstream f(g_src_dir + "images\\" + name + ".dds", std::ios::binary);
+			if (!f) return false;
+			std::string bytes((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+			if (bytes.size() < 128) return false;
+			auto out = zonetool::filesystem::file("images\\"s + name + ".dds"s);
+			out.open("wb");
+			out.write(bytes);
+			out.close();
+			g_copied.insert(name);
+			return true;
+		}
+
+		void read_mats_tsv(const std::string& path, map_in& m)
+		{
+			std::ifstream f(path);
+			if (!f) return;
+			std::unordered_map<std::string, std::array<std::string, 3>> by_name;
+			std::string line;
+			while (std::getline(f, line))
+			{
+				if (!line.empty() && line.back() == '\r') line.pop_back();
+				std::vector<std::string> c;
+				std::stringstream ss(line);
+				std::string t;
+				while (std::getline(ss, t, '\t')) c.push_back(t);
+				if (c.size() < 5) continue;
+				auto fix = [](const std::string& v) { return v == "-" ? std::string() : v; };
+				by_name[c[0]] = {fix(c[2]), fix(c[3]), fix(c[4])};
+			}
+			for (auto& mat : m.materials)
+			{
+				const auto it = by_name.find(mat.name);
+				if (it == by_name.end()) continue;
+				mat.col = it->second[0];
+				mat.nrm = it->second[1];
+				mat.spc = it->second[2];
+			}
+		}
+
 		void write_material(const material_in& m)
 		{
 			const bool blended = m.kind == K_DECAL || m.kind == K_BLEND || m.kind == K_GLASS || m.kind == K_ALPHATEST;
@@ -244,7 +296,7 @@ namespace zonetool::h1::importer
 			if (!blended)
 			{
 				ordered_json spec;
-				spec["image"] = "$black";
+				spec["image"] = (!m.spc.empty() && copy_picture(m.spc)) ? m.spc : "$black";
 				spec["semantic"] = 8;
 				spec["samplerState"] = 19;
 				spec["lastCharacter"] = 112;
@@ -253,7 +305,7 @@ namespace zonetool::h1::importer
 				textures.push_back(spec);
 			}
 			ordered_json nml;
-			nml["image"] = "$identitynormalmap";
+			nml["image"] = (!m.nrm.empty() && copy_picture(m.nrm)) ? m.nrm : "$identitynormalmap";
 			nml["semantic"] = 5;
 			nml["samplerState"] = blended ? 1 : 19;
 			nml["lastCharacter"] = 112;
@@ -261,7 +313,7 @@ namespace zonetool::h1::importer
 			nml["typeHash"] = 1507003663u;
 			textures.push_back(nml);
 			ordered_json col;
-			col["image"] = "$white";
+			col["image"] = (!m.col.empty() && copy_picture(m.col)) ? m.col : "$white";
 			col["semantic"] = 2;
 			col["samplerState"] = 19;
 			col["lastCharacter"] = 112;
@@ -1204,6 +1256,15 @@ namespace zonetool::h1::importer
 			return false;
 		}
 		if (!name_override.empty()) in.name = name_override;
+		{
+			const auto sl = h1map_path.find_last_of("/\\");
+			g_src_dir = sl == std::string::npos ? "" : h1map_path.substr(0, sl + 1);
+			const auto dot = h1map_path.find_last_of('.');
+			const auto stem_start = sl == std::string::npos ? 0 : sl + 1;
+			const auto stem = h1map_path.substr(stem_start, (dot == std::string::npos || dot < stem_start ? h1map_path.size() : dot) - stem_start);
+			g_copied.clear();
+			read_mats_tsv(g_src_dir + stem + ".mats.tsv", in);
+		}
 
 		// Drawn surfaces only (no sky, tool or water), sorted by category (opaque, decal, translucent).
 		std::vector<unsigned int> order;
