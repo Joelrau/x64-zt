@@ -3,10 +3,13 @@
 #include "../include.hpp"
 #include "clipmap.hpp"
 #include "clipmap_collision.hpp"
+#include "xmodel.hpp"
 
 #include <iw7/assets/clipmap.hpp>
 #include <iw7/assets/mapents.hpp>
 #include <iw7/common/havok_builder.hpp>
+
+#include <xsk/gsc/engine/iw7.hpp>
 
 namespace zonetool::iw5::converter::iw7
 {
@@ -17,11 +20,11 @@ namespace zonetool::iw5::converter::iw7
 			namespace builder = zonetool::iw7::havok::builder;
 
 			constexpr auto brushmodel_physics_asset = "scriptbrushmodeldummydefault";
-			constexpr auto physics_asset_key = "51961"; // static canonical string id 0xCAF9, no text form
+			constexpr auto physics_asset_key = "51961";
 			constexpr auto trigger_physics_asset = "triggermodeldummydefault";
-			constexpr auto ents_trigger_contents = 0xC7FFBFFFu; // all valid contents, stock trigger shapes carry it
+			constexpr auto ents_trigger_contents = 0xC7FFBFFFu;
 			constexpr auto ents_brush_basis = 1ull << 48;
-			constexpr auto ents_trigger_surface_flags = 0x40080ull; // constant on every stock trigger tag
+			constexpr auto ents_trigger_surface_flags = 0x40080ull;
 			constexpr unsigned short reserved_dynents = 64;
 
 			template <typename Source>
@@ -103,7 +106,6 @@ namespace zonetool::iw5::converter::iw7
 				return true;
 			}
 
-			// Only an exact geometric match of exactly one trigger model turns "*N" into "?N".
 			int trigger_for_cmodel(const clipMap_t* clipmap, const unsigned int cmodel)
 			{
 				if (!clipmap || cmodel >= clipmap->numSubModels)
@@ -217,9 +219,6 @@ namespace zonetool::iw5::converter::iw7
 				return classname.starts_with("mp_") && classname.find("_spawn") != std::string::npos;
 			}
 
-			// IW7 reads spawn points only from the spawn list (stock entity strings have none), so
-			// the mp_*_spawn* entities move out of the entity string into spawn records. A map
-			// without free-for-all spawns gets its team deathmatch ones under the dm names too.
 			std::string make_spawn_list(const std::string& source, zonetool::iw7::SpawnPointRecordList& list,
 				utils::memory::allocator& allocator)
 			{
@@ -262,18 +261,11 @@ namespace zonetool::iw5::converter::iw7
 						else if (key == "angles") std::sscanf(value.data(), "%f %f %f", &spawn.angles[0], &spawn.angles[1], &spawn.angles[2]);
 					}
 
-					result.append(source, cursor, open - cursor);
+					result.append(source, cursor, close + 1 - cursor);
 					cursor = close + 1;
-					if (!is_spawn_classname(spawn.classname))
+					if (is_spawn_classname(spawn.classname))
 					{
-						result.append(entity);
-						continue;
-					}
-
-					spawns.emplace_back(std::move(spawn));
-					if (cursor < source.size() && source[cursor] == '\n')
-					{
-						cursor++; // the removed entity's line break
+						spawns.emplace_back(std::move(spawn));
 					}
 				}
 
@@ -282,15 +274,55 @@ namespace zonetool::iw5::converter::iw7
 					return std::ranges::any_of(spawns, [&](const spawn_point& spawn) { return spawn.classname.starts_with(prefix); });
 				};
 
-				if (!has_class("mp_dm_spawn"))
+				struct mode_names
 				{
-					const auto count = spawns.size();
-					for (std::size_t i = 0; i < count; i++)
+					const char* prefix;
+					const char* spawn[2];
+					const char* allies_start;
+					const char* axis_start;
+				};
+				static const mode_names modes[] =
+				{
+					{"mp_dm_spawn", {"mp_dm_spawn", nullptr}, "mp_dm_spawn_start", "mp_dm_spawn_start"},
+					{"mp_dom_spawn", {"mp_dom_spawn", nullptr}, "mp_dom_spawn_allies_start", "mp_dom_spawn_axis_start"},
+					{"mp_koth_spawn", {"mp_koth_spawn", nullptr}, "mp_koth_spawn_allies_start", "mp_koth_spawn_axis_start"},
+					{"mp_ctf_spawn", {"mp_ctf_spawn", nullptr}, "mp_ctf_spawn_allies_start", "mp_ctf_spawn_axis_start"},
+					{"mp_arena_spawn", {"mp_arena_spawn", nullptr}, "mp_arena_spawn_allies_start", "mp_arena_spawn_axis_start"},
+					{"mp_sd_spawn", {nullptr, nullptr}, "mp_sd_spawn_attacker", "mp_sd_spawn_defender"},
+					{"mp_dd_spawn", {"mp_dd_spawn_attacker", "mp_dd_spawn_defender"}, "mp_dd_spawn_attacker_start", "mp_dd_spawn_defender_start"},
+				};
+
+				const auto tdm_count = spawns.size();
+				for (const auto& mode : modes)
+				{
+					if (has_class(mode.prefix))
 					{
-						if (spawns[i].classname == "mp_tdm_spawn" || (spawns[i].classname.starts_with("mp_tdm_spawn_") && spawns[i].classname.ends_with("_start")))
+						continue;
+					}
+
+					for (std::size_t i = 0; i < tdm_count; i++)
+					{
+						std::vector<const char*> names;
+						if (spawns[i].classname == "mp_tdm_spawn")
+						{
+							for (const auto* name : mode.spawn)
+							{
+								if (name) names.push_back(name);
+							}
+						}
+						else if (spawns[i].classname == "mp_tdm_spawn_allies_start")
+						{
+							names.push_back(mode.allies_start);
+						}
+						else if (spawns[i].classname == "mp_tdm_spawn_axis_start")
+						{
+							names.push_back(mode.axis_start);
+						}
+
+						for (const auto* name : names)
 						{
 							auto copy = spawns[i];
-							copy.classname = spawns[i].classname == "mp_tdm_spawn" ? "mp_dm_spawn" : "mp_dm_spawn_start";
+							copy.classname = name;
 							spawns.emplace_back(std::move(copy));
 						}
 					}
@@ -310,13 +342,198 @@ namespace zonetool::iw5::converter::iw7
 				}
 
 				const auto has_intermission = source.find("\"mp_global_intermission\"") != std::string::npos;
-				ZONETOOL_INFO("mapents: %zu spawn point(s) moved to the spawn list%s", spawns.size(),
+				ZONETOOL_INFO("mapents: %zu spawn point(s) copied to the spawn list%s", spawns.size(),
 					has_intermission ? "" : ", no mp_global_intermission entity");
 				if (!has_class("mp_tdm_spawn"))
 				{
 					ZONETOOL_WARNING("mapents: no mp_tdm_spawn entities, players cannot spawn in team modes");
 				}
 
+				return result;
+			}
+
+			std::string add_default_entities(const clipMap_t* clipmap, const std::string& source)
+			{
+				static const std::regex pair_expr(R"entity("([^"]*)"\s+"([^"]*)")entity");
+				using vector3 = std::array<float, 3>;
+
+				struct entity_info
+				{
+					std::string classname;
+					std::string targetname;
+					vector3 origin{};
+					vector3 angles{};
+					bool has_origin = false;
+				};
+
+				std::vector<entity_info> entities;
+				for (auto open = source.find('{'); open != std::string::npos; open = source.find('{', open + 1))
+				{
+					const auto close = source.find('}', open + 1);
+					if (close == std::string::npos)
+					{
+						break;
+					}
+
+					const auto entity = source.substr(open, close - open + 1);
+					entity_info info{};
+					for (auto it = std::sregex_iterator(entity.begin(), entity.end(), pair_expr); it != std::sregex_iterator(); ++it)
+					{
+						const auto key = (*it)[1].str();
+						const auto value = (*it)[2].str();
+						if (key == "classname") info.classname = value;
+						else if (key == "targetname") info.targetname = value;
+						else if (key == "origin") info.has_origin = std::sscanf(value.data(), "%f %f %f", &info.origin[0], &info.origin[1], &info.origin[2]) == 3;
+						else if (key == "angles") std::sscanf(value.data(), "%f %f %f", &info.angles[0], &info.angles[1], &info.angles[2]);
+					}
+
+					entities.emplace_back(std::move(info));
+					open = close;
+				}
+
+				const auto find_class = [&](const std::string_view name)
+				{
+					const auto found = std::ranges::find_if(entities, [&](const entity_info& entity) { return entity.classname == name; });
+					return found == entities.end() ? nullptr : &*found;
+				};
+				const auto count_targetname = [&](const std::string_view name)
+				{
+					return std::ranges::count_if(entities, [&](const entity_info& entity) { return entity.targetname == name; });
+				};
+
+				const Bounds* world = clipmap->numSubModels ? &clipmap->cmodels[0].bounds : nullptr;
+				const auto inside_world = [&](vector3 point)
+				{
+					for (auto i = 0; world && i < 3; i++)
+					{
+						const auto margin = std::min(32.0f, world->halfSize[i]);
+						point[i] = std::clamp(point[i], world->midPoint[i] - world->halfSize[i] + margin, world->midPoint[i] + world->halfSize[i] - margin);
+					}
+					return point;
+				};
+
+				vector3 mins{std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), 0.0f};
+				vector3 maxs{-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max(), 0.0f};
+				std::vector<float> heights;
+				const entity_info* first_spawn = nullptr;
+				for (const auto& entity : entities)
+				{
+					if (!entity.has_origin || !is_spawn_classname(entity.classname))
+					{
+						continue;
+					}
+
+					first_spawn = first_spawn ? first_spawn : &entity;
+					mins = {std::min(mins[0], entity.origin[0]), std::min(mins[1], entity.origin[1]), 0.0f};
+					maxs = {std::max(maxs[0], entity.origin[0]), std::max(maxs[1], entity.origin[1]), 0.0f};
+					heights.emplace_back(entity.origin[2]);
+				}
+
+				const auto* player_start = find_class("info_player_start");
+				const auto* anchor = first_spawn ? first_spawn : (player_start && player_start->has_origin ? player_start : nullptr);
+				if (heights.empty())
+				{
+					if (!anchor && !world)
+					{
+						ZONETOOL_WARNING("mapents: no spawns and no world bounds, default entities not added");
+						return source;
+					}
+
+					const vector3 point = anchor ? anchor->origin : vector3{world->midPoint[0], world->midPoint[1], world->midPoint[2] - world->halfSize[2] + 64.0f};
+					mins = maxs = {point[0], point[1], 0.0f};
+					heights.emplace_back(point[2]);
+				}
+
+				std::ranges::nth_element(heights, heights.begin() + heights.size() / 2);
+				const auto ground = heights[heights.size() / 2];
+				const vector3 center{(mins[0] + maxs[0]) * 0.5f, (mins[1] + maxs[1]) * 0.5f, ground};
+				const auto reach = std::max(384.0f, std::max(maxs[0] - mins[0], maxs[1] - mins[1]) * 0.5f + 512.0f);
+				const vector3 look_point{center[0], center[1], center[2] + 32.0f};
+
+				const auto look_at = [](const vector3& from, const vector3& to)
+				{
+					constexpr auto degrees = 57.2957795f;
+					const auto dx = to[0] - from[0];
+					const auto dy = to[1] - from[1];
+					const auto dz = to[2] - from[2];
+					return vector3{std::atan2(-dz, std::sqrt(dx * dx + dy * dy)) * degrees, std::atan2(dy, dx) * degrees, 0.0f};
+				};
+				const auto format_vector = [](const vector3& value)
+				{
+					return std::format("{} {} {}", std::round(value[0] * 100.0f) / 100.0f, std::round(value[1] * 100.0f) / 100.0f, std::round(value[2] * 100.0f) / 100.0f);
+				};
+
+				std::string added;
+				std::vector<std::string> names;
+				const auto add_entity = [&](const std::string& name, const std::vector<std::pair<std::string, std::string>>& pairs)
+				{
+					added += "{\n";
+					for (const auto& [key, value] : pairs)
+					{
+						added += std::format("\"{}\" \"{}\"\n", key, value);
+					}
+					added += "}\n";
+					names.emplace_back(name);
+				};
+
+				const auto camera_start = inside_world({center[0] - reach, center[1] - reach * 0.5f, center[2] + reach * 0.75f});
+				const auto camera_end = inside_world({center[0] - reach * 0.35f, center[1] - reach * 0.2f, center[2] + reach * 0.3f + 64.0f});
+				const auto camera_travel = std::hypot(camera_end[0] - camera_start[0], camera_end[1] - camera_start[1], camera_end[2] - camera_start[2]);
+
+				if (!find_class("info_player_start") && anchor)
+				{
+					add_entity("info_player_start", {{"origin", format_vector(anchor->origin)}, {"angles", format_vector(anchor->angles)}, {"classname", "info_player_start"}});
+				}
+
+				if (!find_class("mp_global_intermission"))
+				{
+					add_entity("mp_global_intermission", {{"origin", format_vector(camera_end)}, {"angles", format_vector(look_at(camera_end, look_point))},
+						{"classname", "mp_global_intermission"}});
+				}
+
+				if (!count_targetname("camera_intro") && camera_travel >= 16.0f)
+				{
+					add_entity("camera_intro", {{"origin", format_vector(camera_start)}, {"angles", format_vector(look_at(camera_start, look_point))},
+						{"target", "camera_intro_end"}, {"targetname", "camera_intro"}, {"classname", "script_struct"}});
+					add_entity("camera_intro_end", {{"origin", format_vector(camera_end)}, {"angles", format_vector(look_at(camera_end, look_point))},
+						{"targetname", "camera_intro_end"}, {"classname", "script_struct"}});
+				}
+
+				if (!count_targetname("minimap_corner"))
+				{
+					const auto low_x = world ? world->midPoint[0] - world->halfSize[0] : mins[0] - 1024.0f;
+					const auto low_y = world ? world->midPoint[1] - world->halfSize[1] : mins[1] - 1024.0f;
+					const auto high_x = world ? world->midPoint[0] + world->halfSize[0] : maxs[0] + 1024.0f;
+					const auto high_y = world ? world->midPoint[1] + world->halfSize[1] : maxs[1] + 1024.0f;
+					add_entity("minimap_corner", {{"origin", format_vector({high_x, low_y, ground})}, {"targetname", "minimap_corner"}, {"classname", "script_origin"}});
+					add_entity("minimap_corner", {{"origin", format_vector({low_x, high_y, ground})}, {"targetname", "minimap_corner"}, {"classname", "script_origin"}});
+				}
+
+				if (!count_targetname("airstrikeheight"))
+				{
+					const auto top = world ? world->midPoint[2] + world->halfSize[2] : ground;
+					add_entity("airstrikeheight", {{"origin", format_vector({center[0], center[1], std::max(top, ground + 1024.0f)})},
+						{"targetname", "airstrikeheight"}, {"classname", "script_origin"}});
+				}
+
+				if (added.empty())
+				{
+					return source;
+				}
+
+				std::string names_text;
+				for (const auto& name : names)
+				{
+					names_text += (names_text.empty() ? "" : ", ") + name;
+				}
+				ZONETOOL_INFO("mapents: added default entities: %s", names_text.data());
+
+				auto result = source;
+				while (!result.empty() && (result.back() == '\n' || result.back() == '\0' || result.back() == ' '))
+				{
+					result.pop_back();
+				}
+				result += "\n" + added;
 				return result;
 			}
 
@@ -496,7 +713,7 @@ namespace zonetool::iw5::converter::iw7
 				hide_event->type = zonetool::iw7::Scriptable_EventType_Model;
 				hide_event->data.model.base = &hide_event->base;
 				hide_event->data.model.model = nullptr;
-				hide_event->data.model.hudOutlineColor = 1; // byte pattern of the stock dead-state event
+				hide_event->data.model.hudOutlineColor = 1;
 				hide_event->data.model.hudOutlineActive = false;
 				hide_event->data.model.hudOutlineFill = false;
 				hide_event->data.model.neverMoves = false;
@@ -521,7 +738,55 @@ namespace zonetool::iw5::converter::iw7
 				return new_def;
 			}
 
-			// The world blob is built first because the ents shape list continues its shape tag table.
+			const xsk::gsc::iw7::context& iw7_tokens()
+			{
+				static const auto context = []
+				{
+					auto result = std::make_unique<xsk::gsc::iw7::context>(xsk::gsc::instance::server);
+					result->init(xsk::gsc::build::prod, {});
+					return result;
+				}();
+				return *context;
+			}
+
+			// Stock IW7 ents name keys by token id. Only the server's copy goes through iw7-mod's
+			// name-to-id pass, so the client would see quoted names it cannot resolve.
+			std::string convert_entity_keys(const std::string& source)
+			{
+				static const std::regex line_expr(R"entity(^\s*"([^"]+)"(\s+"[^"]*"\s*)$)entity");
+
+				std::string result;
+				result.reserve(source.size());
+				auto converted = 0;
+				for (const auto& line : utils::string::split(source, '\n'))
+				{
+					std::smatch match{};
+					if (std::regex_match(line, match, line_expr))
+					{
+						const auto key = utils::string::to_lower(match[1].str());
+						if (const auto id = iw7_tokens().token_id(key); id != 0)
+						{
+							result.append(std::to_string(id));
+							result.append(match[2].str());
+							result.push_back('\n');
+							converted++;
+							continue;
+						}
+					}
+
+					result.append(line);
+					result.push_back('\n');
+				}
+
+				while (result.ends_with("\n\n"))
+				{
+					result.pop_back();
+				}
+
+				ZONETOOL_INFO("mapents: %d key(s) written as IW7 token ids", converted);
+				return result;
+			}
+
 			zonetool::iw7::MapEnts* generate_mapents(clipMap_t* clipmap, utils::memory::allocator& allocator,
 				const std::vector<builder::shape_tag>& world_tags)
 			{
@@ -536,7 +801,9 @@ namespace zonetool::iw5::converter::iw7
 				new_asset->name = asset->name.get();
 
 				auto entity_string = fix_entity_model_references(clipmap, std::string{asset->entityString.get(), static_cast<std::size_t>(asset->numEntityChars)});
+				entity_string = add_default_entities(clipmap, entity_string);
 				entity_string = make_spawn_list(entity_string, new_asset->spawnList, allocator);
+				entity_string = convert_entity_keys(entity_string);
 				new_asset->entityString = allocator.duplicate_string(entity_string);
 				new_asset->numEntityChars = static_cast<int>(entity_string.size());
 
@@ -764,7 +1031,7 @@ namespace zonetool::iw5::converter::iw7
 							new_dynent_def->type = zonetool::iw7::DYNENT_TYPE_HINGE;
 							std::memcpy(&new_dynent_def->pose, &dynent_def->pose, sizeof(GfxPlacement));
 							new_dynent_def->linkTo = nullptr;
-							new_dynent_def->unk5 = 1; // ordinary static scriptable association
+							new_dynent_def->unk5 = 1;
 							new_dynent_def->unk6 = static_cast<short>(dynent_def->contents);
 							new_dynent_def->spawnEnabled = true;
 						}
@@ -775,6 +1042,12 @@ namespace zonetool::iw5::converter::iw7
 							case DYNENT_TYPE_CLUTTER:
 								new_dynent_def->type = zonetool::iw7::DYNENT_TYPE_CLUTTER;
 								std::memcpy(&new_dynent_def->initialPose, &dynent_def->pose, sizeof(GfxPlacement));
+
+								if (dynent_def->xModel && dynent_def->xModel->name)
+								{
+									const auto preset = dynent_def->physPreset.get();
+									xmodel::request_dynamic_box(dynent_def->xModel->name.get(), preset && preset->mass > 0.0f ? preset->mass : 0.0f);
+								}
 								break;
 							case DYNENT_TYPE_HINGE:
 								new_dynent_def->type = zonetool::iw7::DYNENT_TYPE_HINGE;
@@ -808,6 +1081,7 @@ namespace zonetool::iw5::converter::iw7
 				};
 				copy_dynents(0);
 				copy_dynents(1);
+				ZONETOOL_INFO("mapents: dynents %u + %u (%u reserved)", new_asset->dynEntCount[0], new_asset->dynEntCount[1], reserved_dynents);
 
 				const auto reserved_base = clipmap->dynEntCount[0];
 				for (unsigned short i = 0; i < reserved_dynents; i++)
@@ -876,7 +1150,7 @@ namespace zonetool::iw5::converter::iw7
 					const auto stream_size = static_cast<unsigned int>(definition->eventStreamSize);
 					for (auto j = 0; j < 3; j++)
 					{
-						const auto size = stream_size + (j == 0 ? 8u : 16u); // headers the runtime adds to the definition stream
+						const auto size = stream_size + (j == 0 ? 8u : 16u);
 						contexts[j]->def = definition;
 						write_placement(*contexts[j], scriptable_defs[i].pose);
 						contexts[j]->eventStreamBufferSize = size;
@@ -994,7 +1268,7 @@ namespace zonetool::iw5::converter::iw7
 				new_asset->stages[i].entityUID = 0x3A83126F;
 			}
 
-			if (new_asset->stageCount > 1) // stage triggers do not survive the dump, so stages past the first have nothing to index
+			if (new_asset->stageCount > 1)
 			{
 				ZONETOOL_WARNING("clipmap: %u stages but no stage triggers survive the dump, clamping stageCount to 1", new_asset->stageCount);
 				new_asset->stageCount = 1;

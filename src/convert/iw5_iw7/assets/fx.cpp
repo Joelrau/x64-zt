@@ -2,6 +2,7 @@
 
 #include "../include.hpp"
 #include "fx.hpp"
+#include "xmodel.hpp"
 
 #include <iw7/assets/fxeffectdef.hpp>
 
@@ -122,6 +123,12 @@ namespace zonetool::iw5::converter::iw7
 					if (const auto model = source.model.get())
 					{
 						destination.model = model_reference(model->name.get(), allocator);
+
+						if ((element->flags & zonetool::iw5::FX_ELEM_USE_MODEL_PHYSICS) != 0
+							&& !xmodel::wants_dynamic_box(model->name.get(), nullptr))
+						{
+							xmodel::request_dynamic_box(model->name.get(), 1.0f);
+						}
 					}
 					break;
 				case zonetool::iw5::FX_ELEM_TYPE_RUNNER:
@@ -143,7 +150,7 @@ namespace zonetool::iw5::converter::iw7
 
 			void convert_visual_state(const zonetool::iw5::FxElemVisualState& source, zonetool::iw7::FxElemVisualState& destination)
 			{
-				destination.color[0] = static_cast<float>(source.color[2]) / 255.0f; // BGRA bytes to RGBA floats
+				destination.color[0] = static_cast<float>(source.color[2]) / 255.0f;
 				destination.color[1] = static_cast<float>(source.color[1]) / 255.0f;
 				destination.color[2] = static_cast<float>(source.color[0]) / 255.0f;
 				destination.color[3] = static_cast<float>(source.color[3]) / 255.0f;
@@ -222,7 +229,7 @@ namespace zonetool::iw5::converter::iw7
 							if (second)
 							{
 								result->visuals.markArray[i].materials[1] = material_reference(second->name.get(), allocator);
-								result->visuals.markArray[i].materials[2] = material_reference(second->name.get(), allocator); // displacement decal reuses the second material
+								result->visuals.markArray[i].materials[2] = material_reference(second->name.get(), allocator);
 							}
 						}
 					}
@@ -273,7 +280,7 @@ namespace zonetool::iw5::converter::iw7
 							copy->verts[i].normal[0] = vertex->normal[0];
 							copy->verts[i].normal[1] = vertex->normal[1];
 							copy->verts[i].texCoord[0] = vertex->texCoord;
-							copy->verts[i].texCoord[1] = 0.0f; // IW5 stores a single texture coordinate
+							copy->verts[i].texCoord[1] = 0.0f;
 						}
 						copy->indCount = trail->indCount;
 						copy->inds = allocator.allocate_array<unsigned short>(trail->indCount);

@@ -21,14 +21,13 @@ namespace zonetool::iw5::converter::iw7
 					return;
 				}
 
-				const auto scale = intensity * 1000.0f * 1550.0f * 0.001f; // candelas -> intensity -> framebuffer units
+				const auto scale = intensity * 1000.0f * 1550.0f * 0.001f;
 				for (auto i = 0; i < 3; i++)
 				{
 					color[i] = color[i] / intensity * scale;
 				}
 			}
 
-			// Light type values are the IW3/IW4 order (dir, omni, spot); IW7 swaps omni and spot
 			target::GfxLightType convert_light_type(const unsigned char type)
 			{
 				switch (type)
@@ -85,6 +84,13 @@ namespace zonetool::iw5::converter::iw7
 
 				return new_lights;
 			}
+
+			std::vector<light_reach> primary_lights;
+		}
+
+		const std::vector<light_reach>& last_primary_lights()
+		{
+			return primary_lights;
 		}
 
 		target::ComWorld* convert(zonetool::iw5::ComWorld* asset, utils::memory::allocator& allocator)
@@ -123,7 +129,22 @@ namespace zonetool::iw5::converter::iw7
 		void dump(zonetool::iw5::ComWorld* asset)
 		{
 			utils::memory::allocator allocator;
-			target::com_world::dump(convert(asset, allocator));
+			const auto converted = convert(asset, allocator);
+
+			primary_lights.clear();
+			for (auto i = 0u; i < converted->primaryLightCount; i++)
+			{
+				const auto& light = converted->primaryLights[i];
+				light_reach reach{};
+				reach.type = static_cast<unsigned char>(light.type);
+				std::memcpy(reach.origin, light.origin, sizeof(reach.origin));
+				std::memcpy(reach.dir, light.dir, sizeof(reach.dir));
+				reach.radius = light.radius;
+				reach.cos_half_fov_outer = light.cosHalfFovOuter;
+				primary_lights.push_back(reach);
+			}
+
+			target::com_world::dump(converted);
 		}
 	}
 }

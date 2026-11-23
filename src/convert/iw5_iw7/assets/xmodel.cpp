@@ -53,7 +53,6 @@ namespace zonetool::iw5::converter::iw7
 				target::SURFACE_FLAG_SLUSH,
 			};
 
-			// The surface type is a 5 bit field at bit 20, every other flag is a single bit
 			int to_iw7_surface_flags(const int flags)
 			{
 				const auto type = (static_cast<unsigned int>(flags) >> 20) & 0x1Fu;
@@ -115,9 +114,6 @@ namespace zonetool::iw5::converter::iw7
 
 		namespace
 		{
-			// A collision triangle stores its corners as a face plane and two barycentric planes:
-			// s = dot(svec, p) - svec[3], t = dot(tvec, p) - tvec[3], inside where s, t >= 0 and
-			// s + t <= 1. The corners are where (s, t) is (0,0), (1,0) and (0,1) on the face plane.
 			bool collision_triangle_corners(const source::XModelCollTri_s& triangle, float (&corners)[3][3])
 			{
 				const auto cross = [](const float* a, const float* b, float (&out)[3])
@@ -158,23 +154,199 @@ namespace zonetool::iw5::converter::iw7
 				return true;
 			}
 
-			// Static collision only: a model collides as its collision triangles, built the way IW7
-			// models ship (one static body). Dynamic bodies and the physics LOD are not generated.
-			target::PhysicsAsset* generate_physics_asset(source::XModel* asset, utils::memory::allocator& allocator)
+			std::map<std::string, float> dynamic_box_requests;
+
+			zonetool::iw7::havok::builder::polytope box_polytope(const source::Bounds& bounds)
+			{
+				zonetool::iw7::havok::builder::polytope box{};
+				float mins[3], maxs[3];
+				for (auto axis = 0; axis < 3; axis++)
+				{
+					mins[axis] = bounds.midPoint[axis] - bounds.halfSize[axis];
+					maxs[axis] = bounds.midPoint[axis] + bounds.halfSize[axis];
+				}
+
+				for (auto i = 0; i < 8; i++)
+				{
+					box.verts.push_back({(i & 1) ? maxs[0] : mins[0], (i & 2) ? maxs[1] : mins[1], (i & 4) ? maxs[2] : mins[2]});
+				}
+
+				const struct { int axis; float sign; std::uint8_t corners[4]; } faces[6] =
+				{
+					{0, -1.0f, {0, 4, 6, 2}}, {0, 1.0f, {1, 3, 7, 5}},
+					{1, -1.0f, {0, 1, 5, 4}}, {1, 1.0f, {2, 6, 7, 3}},
+					{2, -1.0f, {0, 2, 3, 1}}, {2, 1.0f, {4, 5, 7, 6}},
+				};
+
+				for (const auto& face : faces)
+				{
+					zonetool::iw7::havok::builder::polytope_face new_face{};
+					new_face.plane[face.axis] = face.sign;
+					new_face.plane[3] = face.sign > 0.0f ? maxs[face.axis] : -mins[face.axis];
+					new_face.indices.assign(face.corners, face.corners + 4);
+					box.faces.emplace_back(std::move(new_face));
+				}
+
+				return box;
+			}
+
+			bool environment_off(const char* name)
+			{
+				const auto value = std::getenv(name);
+				return value && value[0] == '0';
+			}
+
+			target::PhysicsAsset* make_physics_asset(const char* name, const std::vector<std::uint8_t>& blob, utils::memory::allocator& allocator)
+			{
+				const auto physics_asset = allocator.allocate<target::PhysicsAsset>();
+				physics_asset->name = allocator.duplicate_string(name);
+				physics_asset->havokDataSize = static_cast<unsigned int>(blob.size());
+				physics_asset->havokData = allocator.allocate_array<char>(blob.size());
+				std::memcpy(physics_asset->havokData, blob.data(), blob.size());
+				physics_asset->numRigidBodies = 1;
+				physics_asset->numSFXEventAssets = 1;
+				physics_asset->sfxEventAssets = allocator.allocate_array<target::PhysicsSFXEventAsset*>(1);
+				physics_asset->numVFXEventAssets = 1;
+				physics_asset->vfxEventAssets = allocator.allocate_array<target::PhysicsVFXEventAsset*>(1);
+				return physics_asset;
+			}
+
+			target::PhysicsAsset* generate_dynamic_physics_asset(source::XModel* asset, utils::memory::allocator& allocator)
+			{
+				namespace builder = zonetool::iw7::havok::builder;
+
+				if (environment_off("ZT_MODEL_DYNAMIC"))
+				{
+					return nullptr;
+				}
+
+				const auto collmap = asset->physCollmap.get();
+				float box_mass = 0.0f;
+				const auto box_fallback = !collmap && wants_dynamic_box(asset->name.get(), &box_mass);
+				if (!collmap && !box_fallback)
+				{
+					return nullptr;
+				}
+
+				builder::dynamic_physics_asset_input dynamic{};
+				if (box_fallback)
+				{
+					dynamic.convexes.emplace_back(box_polytope(asset->bounds));
+				}
+
+				for (const auto& hull : collision::extract_phys_collmap(collmap))
+				{
+					builder::polytope convex{};
+					convex.verts = hull.verts;
+					for (const auto& face : hull.faces)
+					{
+						builder::polytope_face new_face{};
+						std::memcpy(new_face.plane, face.plane, sizeof(face.plane));
+						new_face.indices.assign(face.indices.begin(), face.indices.end());
+						convex.faces.emplace_back(std::move(new_face));
+					}
+					dynamic.convexes.emplace_back(std::move(convex));
+				}
+
+				if (dynamic.convexes.empty())
+				{
+					ZONETOOL_WARNING("XModel \"%s\": physCollmap produced no hulls, using the static collision", asset->name.get());
+					return nullptr;
+				}
+
+				auto mass_scale = 0.3f;
+				if (const auto scale_value = std::getenv("ZT_MODEL_MASS_SCALE"))
+				{
+					char* end = nullptr;
+					const auto value = std::strtof(scale_value, &end);
+					if (end != scale_value && value > 0.0f)
+					{
+						mass_scale = value;
+					}
+				}
+
+				const auto preset = asset->physPreset.get();
+				dynamic.mass = box_fallback && box_mass > 0.0f ? box_mass * mass_scale
+					: preset && preset->mass > 0.0f ? preset->mass * mass_scale : 5.0f;
+				dynamic.mass = std::max(dynamic.mass, 1.0f);
+
+				if (asset->collSurfs && asset->numCollSurfs > 0)
+				{
+					dynamic.material_crc = collision::iw7_material_crc(asset->collSurfs.get()[0].surfFlags);
+				}
+
+				const auto blob = builder::build_dynamic_physics_asset(dynamic);
+				if (blob.empty())
+				{
+					return nullptr;
+				}
+
+				ZONETOOL_INFO("XModel \"%s\": dynamic physics asset from %s (%zu hulls, mass %.2f)", asset->name.get(),
+					box_fallback ? "a bounds box" : "the physCollmap", dynamic.convexes.size(), dynamic.mass);
+				return make_physics_asset(asset->name.get(), blob, allocator);
+			}
+
+			zonetool::iw7::havok::builder::mesh_input collision_mesh(source::XModel* asset)
 			{
 				namespace builder = zonetool::iw7::havok::builder;
 
 				constexpr auto model_scale = 0.03125f;
+				constexpr auto contents_solid = 0x1;
 				constexpr auto contents_foliage = 0x2;
-				constexpr auto contents_static_prop = 0x3180u;
 
 				builder::mesh_input mesh{};
+
+				const auto add_triangle = [&mesh](const float (&corners)[3][3], const float* normal, const int contents,
+					const unsigned int material_crc, const unsigned short tag, const std::uint64_t user_data)
+				{
+					builder::triangle triangle{};
+					for (auto c = 0; c < 3; c++)
+					{
+						for (auto k = 0; k < 3; k++)
+						{
+							triangle.verts[c][k] = corners[c][k] * model_scale;
+						}
+					}
+
+					float edge_a[3], edge_b[3];
+					for (auto k = 0; k < 3; k++)
+					{
+						edge_a[k] = triangle.verts[1][k] - triangle.verts[0][k];
+						edge_b[k] = triangle.verts[2][k] - triangle.verts[0][k];
+					}
+
+					const float cross[3] = {
+						edge_a[1] * edge_b[2] - edge_a[2] * edge_b[1],
+						edge_a[2] * edge_b[0] - edge_a[0] * edge_b[2],
+						edge_a[0] * edge_b[1] - edge_a[1] * edge_b[0],
+					};
+
+					if (cross[0] * cross[0] + cross[1] * cross[1] + cross[2] * cross[2] == 0.0f)
+					{
+						return;
+					}
+
+					if (normal && cross[0] * normal[0] + cross[1] * normal[1] + cross[2] * normal[2] < 0.0f)
+					{
+						for (auto k = 0; k < 3; k++)
+						{
+							std::swap(triangle.verts[1][k], triangle.verts[2][k]);
+						}
+					}
+
+					triangle.contents = contents;
+					triangle.material_crc = material_crc;
+					triangle.surface_tag = tag;
+					triangle.user_data = user_data;
+					mesh.triangles.emplace_back(triangle);
+				};
+
 				for (auto i = 0; i < asset->numCollSurfs; i++)
 				{
 					const auto& surface = asset->collSurfs.get()[i];
 					if (!surface.collTris.value || surface.numCollTris <= 0 || (surface.contents & ~contents_foliage) == 0)
 					{
-						continue; // pure foliage is something to push through
+						continue;
 					}
 
 					const auto material_crc = collision::iw7_material_crc(surface.surfFlags);
@@ -184,55 +356,61 @@ namespace zonetool::iw5::converter::iw7
 					{
 						const auto& collision_triangle = surface.collTris.get()[j];
 						float corners[3][3];
-						if (!collision_triangle_corners(collision_triangle, corners))
+						if (collision_triangle_corners(collision_triangle, corners))
 						{
-							continue;
+							add_triangle(corners, collision_triangle.plane, surface.contents, material_crc, static_cast<unsigned short>(i), user_data);
 						}
-
-						builder::triangle triangle{};
-						for (auto c = 0; c < 3; c++)
-						{
-							for (auto k = 0; k < 3; k++)
-							{
-								triangle.verts[c][k] = corners[c][k] * model_scale;
-							}
-						}
-
-						float edge_a[3], edge_b[3];
-						for (auto k = 0; k < 3; k++)
-						{
-							edge_a[k] = triangle.verts[1][k] - triangle.verts[0][k];
-							edge_b[k] = triangle.verts[2][k] - triangle.verts[0][k];
-						}
-
-						const float normal[3] = {
-							edge_a[1] * edge_b[2] - edge_a[2] * edge_b[1],
-							edge_a[2] * edge_b[0] - edge_a[0] * edge_b[2],
-							edge_a[0] * edge_b[1] - edge_a[1] * edge_b[0],
-						};
-
-						const auto length_squared = normal[0] * normal[0] + normal[1] * normal[1] + normal[2] * normal[2];
-						if (length_squared == 0.0f)
-						{
-							continue; // sliver
-						}
-
-						const auto& plane = collision_triangle.plane;
-						if (normal[0] * plane[0] + normal[1] * plane[1] + normal[2] * plane[2] < 0.0f)
-						{
-							for (auto k = 0; k < 3; k++)
-							{
-								std::swap(triangle.verts[1][k], triangle.verts[2][k]);
-							}
-						}
-
-						triangle.contents = surface.contents;
-						triangle.material_crc = material_crc;
-						triangle.surface_tag = static_cast<unsigned short>(i);
-						triangle.user_data = user_data;
-						mesh.triangles.emplace_back(triangle);
 					}
 				}
+
+				const auto collmap = asset->physCollmap.get();
+				if (mesh.triangles.empty() && collmap)
+				{
+					const auto contents = asset->contents ? asset->contents : contents_solid;
+					const auto user_data = (asset->collSurfs && asset->numCollSurfs > 0)
+						? static_cast<std::uint64_t>(static_cast<std::uint32_t>(to_iw7_surface_flags(asset->collSurfs.get()[0].surfFlags)))
+						: 0ull;
+
+					for (const auto& hull : collision::extract_phys_collmap(collmap))
+					{
+						for (const auto& face : hull.faces)
+						{
+							for (std::size_t i = 2; i < face.indices.size(); i++)
+							{
+								const std::size_t corner_index[3] = {face.indices[0], face.indices[i - 1], face.indices[i]};
+								if (corner_index[0] >= hull.verts.size() || corner_index[1] >= hull.verts.size()
+									|| corner_index[2] >= hull.verts.size())
+								{
+									continue;
+								}
+
+								float corners[3][3];
+								for (auto c = 0; c < 3; c++)
+								{
+									for (auto k = 0; k < 3; k++)
+									{
+										corners[c][k] = hull.verts[corner_index[c]][k];
+									}
+								}
+								add_triangle(corners, nullptr, contents, 0x1AB7BC33u, 0, user_data);
+							}
+						}
+					}
+				}
+
+				return mesh;
+			}
+
+			unsigned int static_body_contents()
+			{
+				const auto value = std::getenv("ZT_MODELS_SOLID");
+				return value && value[0] == '1' ? 0x32180u : 0x3180u;
+			}
+
+			target::PhysicsAsset* generate_static_physics_asset(source::XModel* asset, const zonetool::iw7::havok::builder::mesh_input& mesh,
+				utils::memory::allocator& allocator)
+			{
+				namespace builder = zonetool::iw7::havok::builder;
 
 				if (mesh.triangles.empty())
 				{
@@ -241,28 +419,72 @@ namespace zonetool::iw5::converter::iw7
 
 				builder::physics_asset_input input{};
 				input.body_name = asset->name.get();
-				input.body_contents = contents_static_prop;
+				input.body_contents = static_body_contents();
 
 				const auto blob = builder::build_model_physics_asset(mesh, input);
-				if (blob.empty())
+				return blob.empty() ? nullptr : make_physics_asset(asset->name.get(), blob, allocator);
+			}
+
+			void generate_physics_lod(source::XModel* asset, const zonetool::iw7::havok::builder::mesh_input& mesh,
+				target::XModel* new_asset, utils::memory::allocator& allocator)
+			{
+				namespace builder = zonetool::iw7::havok::builder;
+
+				if (environment_off("ZT_MODEL_PHYSICS_LOD") || mesh.triangles.empty() || !new_asset->physicsAsset)
 				{
-					return nullptr;
+					return;
 				}
 
-				const auto physics_asset = allocator.allocate<target::PhysicsAsset>();
-				physics_asset->name = allocator.duplicate_string(asset->name.get());
-				physics_asset->havokDataSize = static_cast<unsigned int>(blob.size());
-				physics_asset->havokData = allocator.allocate_array<char>(blob.size());
-				std::memcpy(physics_asset->havokData, blob.data(), blob.size());
-				physics_asset->numRigidBodies = 1;
+				const auto bone = asset->numBones > 0 && asset->boneNames
+					? SL_ConvertToString(static_cast<std::uint32_t>(asset->boneNames.get()[0])) : nullptr;
+				if (!bone || !*bone)
+				{
+					return;
+				}
 
-				// the runtime indexes both event arrays without a null check on the array itself
-				physics_asset->numSFXEventAssets = 1;
-				physics_asset->sfxEventAssets = allocator.allocate_array<target::PhysicsSFXEventAsset*>(1);
-				physics_asset->numVFXEventAssets = 1;
-				physics_asset->vfxEventAssets = allocator.allocate_array<target::PhysicsVFXEventAsset*>(1);
-				return physics_asset;
+				std::string bone_name = bone;
+				std::transform(bone_name.begin(), bone_name.end(), bone_name.begin(),
+					[](const unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+				auto lod_mesh = mesh;
+				for (auto& triangle : lod_mesh.triangles)
+				{
+					triangle.contents |= static_cast<int>(static_body_contents());
+				}
+
+				const auto blob = builder::build_model_physics_lod(lod_mesh, bone_name);
+				if (blob.empty())
+				{
+					return;
+				}
+
+				new_asset->physicsLODDataSize = static_cast<unsigned int>(blob.size());
+				new_asset->physicsLODData = allocator.allocate_array<char>(blob.size());
+				std::memcpy(new_asset->physicsLODData, blob.data(), blob.size());
+				new_asset->physicsLODDataNameCount = 1;
+				new_asset->physicsLODDataNames = allocator.allocate_array<target::scr_string_t>(1);
+				new_asset->physicsLODDataNames[0] = static_cast<target::scr_string_t>(SL_GetString((std::string(asset->name.get()) + "_lod0").data()));
 			}
+		}
+
+		void request_dynamic_box(const std::string& model, const float mass)
+		{
+			dynamic_box_requests[model] = mass;
+		}
+
+		bool wants_dynamic_box(const std::string& model, float* mass)
+		{
+			const auto request = dynamic_box_requests.find(model);
+			if (request == dynamic_box_requests.end())
+			{
+				return false;
+			}
+
+			if (mass)
+			{
+				*mass = request->second;
+			}
+			return true;
 		}
 
 		target::XModel* convert(source::XModel* asset, utils::memory::allocator& allocator)
@@ -337,7 +559,13 @@ namespace zonetool::iw5::converter::iw7
 				new_asset->collSurfs[i].surfFlags = to_iw7_surface_flags(surface.surfFlags);
 			}
 
-			new_asset->physicsAsset = generate_physics_asset(asset, allocator);
+			const auto mesh = collision_mesh(asset);
+			new_asset->physicsAsset = generate_dynamic_physics_asset(asset, allocator);
+			if (!new_asset->physicsAsset)
+			{
+				new_asset->physicsAsset = generate_static_physics_asset(asset, mesh, allocator);
+			}
+			generate_physics_lod(asset, mesh, new_asset, allocator);
 
 			new_asset->contents = asset->contents;
 

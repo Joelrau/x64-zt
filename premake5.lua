@@ -291,11 +291,13 @@ end
 include "src/common.lua"
 include "src/core.lua"
 include "src/zonetool.lua"
+include "src/umbra_tomegen.lua"
 
 common:project()
 core:project()
 games.projects()
 zonetool:project()
+umbra_tomegen:project()
 
 group "Dependencies"
 dependencies.projects()

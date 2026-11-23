@@ -28,7 +28,7 @@ namespace zonetool::iw5::converter::iw7
 				format_d3d_argb = 200,
 			};
 
-			constexpr std::uint8_t default_gloss = 64; // DXT1 specular has no alpha and IW7 reads it as gloss
+			constexpr std::uint8_t default_gloss = 64;
 
 			unsigned int block_bytes(const std::uint8_t format)
 			{
@@ -95,7 +95,6 @@ namespace zonetool::iw5::converter::iw7
 				}
 			}
 
-			// Levels are stored smallest first and a picmip-truncated or mipless image holds only a suffix of the chain
 			bool split_levels(const std::vector<std::size_t>& sizes, const std::size_t available,
 				std::vector<std::size_t>& present, std::size_t& total)
 			{
@@ -211,7 +210,6 @@ namespace zonetool::iw5::converter::iw7
 				return (value << 1) | (value >> 6);
 			}
 
-			// The first index of a set is stored one bit short, so it must stay under 2; swapping endpoints mirrors the indices exactly
 			void bc7_fit(const std::uint8_t* values, int& low, int& high, int indices[16], const bool seven_bit)
 			{
 				const auto decode = [&](const int endpoint) { return seven_bit ? bc7_expand7(endpoint) : endpoint; };
@@ -258,7 +256,6 @@ namespace zonetool::iw5::converter::iw7
 				}
 			};
 
-			// BC7 mode 5 with constant R and B: green carries normal Y, alpha carries normal X
 			void bc7_encode_normal_block(const std::uint8_t green[16], const std::uint8_t alpha[16], std::uint8_t* out)
 			{
 				auto green_low = 255, green_high = 0, alpha_low = 255, alpha_high = 0;
@@ -329,7 +326,6 @@ namespace zonetool::iw5::converter::iw7
 				}
 			}
 
-			// BC3 is a BC4 block then a BC1 block, so the DXT1 colour half copies as is
 			void dxt1_to_bc3(const std::uint8_t* source, std::uint8_t* destination, const std::size_t blocks)
 			{
 				for (std::size_t i = 0; i < blocks; i++)
@@ -422,7 +418,7 @@ namespace zonetool::iw5::converter::iw7
 					for (std::size_t i = 0; i < present.size(); i++)
 					{
 						const auto length = present[i];
-						const auto* in = blob + source_offsets[i] * faces + face * length; // cube face layout inside a level is assumed, not measured
+						const auto* in = blob + source_offsets[i] * faces + face * length;
 
 						if (transcode_normal)
 						{
@@ -511,7 +507,6 @@ namespace zonetool::iw5::converter::iw7
 
 		namespace
 		{
-			// IW3 .iwi: "IWi", version 6, format, flags, 3 x u16 dimensions, 4 x u32 level offsets, data at 28
 			target::GfxImage* convert_file(zonetool::iw5::GfxImage* asset, utils::memory::allocator& allocator)
 			{
 				if (!read_file)

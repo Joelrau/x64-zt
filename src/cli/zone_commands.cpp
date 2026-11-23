@@ -286,6 +286,16 @@ namespace zonetool::cli
 		}
 	}
 
+	void list_zones(const settings&, const std::span<const std::string>)
+	{
+		auto names = game_files::get().list(".ff");
+		std::ranges::sort(names);
+		for (const auto& name : names)
+		{
+			std::cout << name << '\n';
+		}
+	}
+
 	void build_zone(const settings& settings, const std::span<const std::string> args)
 	{
 		if (!settings.game->build_zone)

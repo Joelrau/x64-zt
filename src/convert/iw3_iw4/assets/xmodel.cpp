@@ -39,6 +39,185 @@ namespace zonetool::iw3::converter::iw4
 					bounds.midPoint[i] = bounds.halfSize[i] + mins[i];
 				}
 			}
+
+			zonetool::iw4::cplane_s convert_plane(const zonetool::iw3::cplane_s& plane)
+			{
+				zonetool::iw4::cplane_s new_plane{};
+				std::memcpy(new_plane.normal, plane.normal, sizeof(plane.normal));
+				new_plane.dist = plane.dist;
+				new_plane.type = plane.type;
+				new_plane.signbits = 0;
+				return new_plane;
+			}
+
+			// IW3 phys geom types: none, box, brushmodel, brush, cylinder, capsule. IW4 inserts
+			// collmap at 4, which moves cylinder and capsule up by one.
+			int convert_geom_type(const int type)
+			{
+				switch (type)
+				{
+				case 4:
+					return zonetool::iw4::PHYS_GEOM_CYLINDER;
+				case 5:
+					return zonetool::iw4::PHYS_GEOM_CAPSULE;
+				default:
+					return type;
+				}
+			}
+
+			unsigned char clamp_byte(const int value)
+			{
+				return static_cast<unsigned char>(value < 0 || value > 255 ? 255 : value);
+			}
+
+			zonetool::iw4::BrushWrapper* convert_brush_wrapper(const zonetool::iw3::BrushWrapper* brush, x86::allocator& allocator)
+			{
+				const auto new_brush = allocator.allocate<zonetool::iw4::BrushWrapper>();
+				compute_bounds(new_brush->bounds, brush->mins, brush->maxs);
+
+				const auto side_count = std::min(brush->numsides, 0xFFFFu);
+				new_brush->brush.numsides = static_cast<unsigned short>(side_count);
+				new_brush->brush.glassPieceIndex = 0;
+
+				const auto source_planes = brush->planes.get();
+				zonetool::iw4::cplane_s* planes = nullptr;
+				if (side_count && source_planes)
+				{
+					planes = allocator.allocate<zonetool::iw4::cplane_s>(side_count);
+					for (auto i = 0u; i < side_count; i++)
+					{
+						planes[i] = convert_plane(source_planes[i]);
+					}
+				}
+				new_brush->planes = planes;
+
+				const auto source_sides = brush->sides.get();
+				if (side_count && source_sides)
+				{
+					const auto sides = allocator.allocate<zonetool::iw4::cbrushside_t>(side_count);
+					for (auto i = 0u; i < side_count; i++)
+					{
+						const auto& side = source_sides[i];
+						const auto source_plane = side.plane.get();
+						if (source_plane)
+						{
+							// a side points into the brush's own plane array; keep the same index
+							const auto index = source_planes ? source_plane - source_planes : -1;
+							if (planes && index >= 0 && index < static_cast<std::ptrdiff_t>(side_count))
+							{
+								sides[i].plane = &planes[index];
+							}
+							else
+							{
+								const auto plane = allocator.allocate<zonetool::iw4::cplane_s>();
+								*plane = convert_plane(*source_plane);
+								sides[i].plane = plane;
+							}
+						}
+
+						sides[i].materialNum = static_cast<unsigned short>(side.materialNum);
+						sides[i].firstAdjacentSideOffset = static_cast<char>(clamp_byte(side.firstAdjacentSideOffset));
+						sides[i].edgeCount = side.edgeCount;
+					}
+					new_brush->brush.sides = sides;
+				}
+
+				new_brush->totalEdgeCount = brush->totalEdgeCount;
+				if (brush->totalEdgeCount > 0 && brush->baseAdjacentSide)
+				{
+					const auto edges = allocator.allocate<unsigned char>(brush->totalEdgeCount);
+					std::memcpy(edges, brush->baseAdjacentSide.get(), brush->totalEdgeCount);
+					new_brush->brush.baseAdjacentSide = edges;
+				}
+
+				for (auto a = 0; a < 2; a++)
+				{
+					for (auto b = 0; b < 3; b++)
+					{
+						new_brush->brush.axialMaterialNum[a][b] = brush->axialMaterialNum[a][b];
+						new_brush->brush.firstAdjacentSideOffsets[a][b] = clamp_byte(brush->firstAdjacentSideOffsets[a][b]);
+						new_brush->brush.edgeCount[a][b] = static_cast<unsigned char>(brush->edgeCount[a][b]);
+					}
+				}
+
+				return new_brush;
+			}
+
+			// IW3 models carry their physics volumes as physGeoms; IW4 and later as a PhysCollmap.
+			// The IW7 conversion builds dynamic Havok bodies from the collmap, so without this
+			// CoD4 clutter (bikes, fruit, buckets) would get no dynamic body.
+			zonetool::iw4::PhysCollmap* convert_phys_geoms(const zonetool::iw3::XModel* asset, x86::allocator& allocator)
+			{
+				const auto geoms = asset->physGeoms.get();
+				if (!geoms || !geoms->count || !geoms->geoms)
+				{
+					return nullptr;
+				}
+
+				const auto collmap = allocator.allocate<zonetool::iw4::PhysCollmap>();
+				collmap->name = allocator.duplicate_string(asset->name.get());
+				collmap->count = geoms->count;
+				const auto new_geoms = allocator.allocate<zonetool::iw4::PhysGeomInfo>(geoms->count);
+				collmap->geoms = new_geoms;
+
+				static_assert(sizeof(zonetool::iw3::PhysMass) == sizeof(zonetool::iw4::PhysMass));
+				std::memcpy(&collmap->mass, &geoms->mass, sizeof(collmap->mass));
+
+				// IW3 authors inertia about the centre of mass, IW4 about the model origin:
+				// shift it by the parallel axis theorem (per unit mass).
+				{
+					const auto x = collmap->mass.centerOfMass[0];
+					const auto y = collmap->mass.centerOfMass[1];
+					const auto z = collmap->mass.centerOfMass[2];
+					collmap->mass.momentsOfInertia[0] += y * y + z * z;
+					collmap->mass.momentsOfInertia[1] += x * x + z * z;
+					collmap->mass.momentsOfInertia[2] += x * x + y * y;
+					collmap->mass.productsOfInertia[0] -= x * y;
+					collmap->mass.productsOfInertia[1] -= x * z;
+					collmap->mass.productsOfInertia[2] -= y * z;
+				}
+
+				float mins[3] = {FLT_MAX, FLT_MAX, FLT_MAX};
+				float maxs[3] = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
+
+				for (auto i = 0u; i < geoms->count; i++)
+				{
+					const auto& geom = geoms->geoms.get()[i];
+					auto& new_geom = new_geoms[i];
+
+					const auto brush = geom.brush.get();
+					new_geom.brush = brush ? convert_brush_wrapper(brush, allocator) : nullptr;
+					new_geom.type = convert_geom_type(geom.type);
+					std::memcpy(new_geom.orientation, geom.orientation, sizeof(geom.orientation));
+
+					for (auto axis = 0; axis < 3; axis++)
+					{
+						new_geom.bounds.midPoint[axis] = geom.offset[axis];
+						new_geom.bounds.halfSize[axis] = geom.halfLengths[axis];
+					}
+
+					// IW3 packs cylinders and capsules as (half height, radius, unused) with the
+					// symmetry axis on local X
+					if ((new_geom.type == zonetool::iw4::PHYS_GEOM_CYLINDER || new_geom.type == zonetool::iw4::PHYS_GEOM_CAPSULE)
+						&& geom.halfLengths[2] == 0.0f)
+					{
+						new_geom.bounds.halfSize[2] = geom.halfLengths[1];
+					}
+
+					for (auto axis = 0; axis < 3; axis++)
+					{
+						const auto extent =
+							std::fabs(new_geom.orientation[axis][0]) * new_geom.bounds.halfSize[0] +
+							std::fabs(new_geom.orientation[axis][1]) * new_geom.bounds.halfSize[1] +
+							std::fabs(new_geom.orientation[axis][2]) * new_geom.bounds.halfSize[2];
+						mins[axis] = std::min(mins[axis], new_geom.bounds.midPoint[axis] - extent);
+						maxs[axis] = std::max(maxs[axis], new_geom.bounds.midPoint[axis] + extent);
+					}
+				}
+
+				compute_bounds(collmap->bounds, mins, maxs);
+				return collmap;
+			}
 		}
 
 		zonetool::iw4::XModel* convert(zonetool::iw3::XModel* asset, x86::allocator& allocator)
@@ -133,6 +312,7 @@ namespace zonetool::iw3::converter::iw4
 			new_asset->memUsage = asset->memUsage;
 			new_asset->bad = asset->bad;
 			new_asset->physPreset.value = asset->physPreset.value;
+			new_asset->physCollmap = convert_phys_geoms(asset, allocator);
 			compute_bounds(new_asset->bounds, asset->mins, asset->maxs);
 
 			return new_asset;

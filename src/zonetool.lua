@@ -27,6 +27,7 @@ function zonetool:project()
 		resincludedirs {"$(ProjectDir)src"}
 
 		links {"core", "common"}
+		dependson {"umbra-tomegen"}
 
 		prebuildcommands {"pushd \"%{_MAIN_SCRIPT_DIR}\"", "tools\\premake5 --build-dir=" .. build_directory .. " generate-buildinfo", "popd"}
 

@@ -2,11 +2,17 @@
 
 #include "../include.hpp"
 #include "gfxworld.hpp"
+#include "comworld.hpp"
+#include "gfxworld_umbra.hpp"
 
 #include <DirectXTex.h>
 #include <iw7/assets/gfxworld.hpp>
 #include <iw7/assets/gfxlightmap.hpp>
 #include <iw7/assets/gfxworld_tr.hpp>
+
+#include "lightgrid/probes.hpp"
+#include "lightgrid/sh.hpp"
+#include "lightgrid/tree.hpp"
 
 namespace zonetool::iw5::converter::iw7
 {
@@ -55,7 +61,7 @@ namespace zonetool::iw5::converter::iw7
 			{
 				constexpr auto size = 128u;
 				constexpr auto levels = 8u;
-				constexpr unsigned short neutral_grey = 0x3400; // half float 0.25
+				constexpr unsigned short neutral_grey = 0x3400;
 
 				std::vector<std::vector<unsigned short>> storage;
 				std::vector<DirectX::Image> images;
@@ -68,7 +74,7 @@ namespace zonetool::iw5::converter::iw7
 						auto& pixels = storage.emplace_back(static_cast<std::size_t>(extent) * extent * 4, neutral_grey);
 						for (std::size_t i = 3; i < pixels.size(); i += 4)
 						{
-							pixels[i] = 0x3C00; // alpha 1.0
+							pixels[i] = 0x3C00;
 						}
 
 						DirectX::Image image{};
@@ -113,48 +119,6 @@ namespace zonetool::iw5::converter::iw7
 				return image_reference("*reflection_probe_array", allocator);
 			}
 
-			// A structurally empty Umbra tome whose view volume is a small cube at +200000 on every axis,
-			// outside the BSP range but inside Umbra's own +/-262144 tree range. Without a tome IW7 marks
-			// nothing visible and the map renders black; with this one every query reports the camera
-			// outside the view volume and the renderer falls back to drawing everything.
-			// Load_UmbraTome checks only the magic (0xD600 high word, 0x12 to 0x14 low word), 16 byte
-			// alignment (the zone writer aligns it) and umbraTomeSize >= m_size.
-			char* generate_draw_everything_umbra_tome(unsigned int& size, utils::memory::allocator& allocator)
-			{
-				static_assert(sizeof(target::Umbra::ImpTome) == 368);
-				constexpr auto origin = 200000.0f;
-				constexpr auto extent = 64.0f;
-
-				const auto tome = allocator.allocate<target::Umbra::ImpTome>();
-				tome->m_versionMagic = 0xD6000014;
-				tome->m_size = sizeof(target::Umbra::ImpTome);
-				tome->m_lodBaseDistance = 128.0f;
-				tome->m_flags = 0;
-				tome->m_treeMin = {origin, origin, origin};
-				tome->m_treeMax = {origin + extent, origin + extent, origin + extent};
-				tome->m_boundsMin = tome->m_treeMin;
-				tome->m_boundsMax = tome->m_treeMax;
-				tome->m_clusterCoordScale = 1.0f;
-
-				// CRC-32C over the bytes from m_size onwards, as the Umbra optimizer writes it.
-				// IW7 does not check it at load time.
-				const auto bytes = reinterpret_cast<const unsigned char*>(&tome->m_size);
-				const auto count = tome->m_size - offsetof(target::Umbra::ImpTome, m_size);
-				auto crc = 0xFFFFFFFFu;
-				for (std::size_t i = 0; i < count; i++)
-				{
-					crc ^= bytes[i];
-					for (auto bit = 0; bit < 8; bit++)
-					{
-						crc = (crc & 1u) ? ((crc >> 1) ^ 0x82F63B78u) : (crc >> 1);
-					}
-				}
-				tome->m_crc32 = ~crc;
-
-				size = tome->m_size;
-				return reinterpret_cast<char*>(tome);
-			}
-
 			target::GfxImage* generate_ies_lookup(utils::memory::allocator& allocator)
 			{
 				return image_reference("*ieslookup", allocator);
@@ -162,7 +126,7 @@ namespace zonetool::iw5::converter::iw7
 
 			unsigned int first_reflection_probe(const unsigned int reflection_probe_count)
 			{
-				return reflection_probe_count > 1 ? 1 : 0; // slot 0 is the invalid-probe sentinel
+				return reflection_probe_count > 1 ? 1 : 0;
 			}
 
 			template <typename Type>
@@ -209,8 +173,6 @@ namespace zonetool::iw5::converter::iw7
 
 				if (merge_cells)
 				{
-					// node value v: 0 solid, v <= cellCount leaf of cell v-1, else plane v-(cellCount+1);
-					// front child at node+2, back child at node+node[1]
 					auto* nodes = new_asset->dpvsPlanes.nodes;
 					std::vector<int> pending{0};
 					while (!pending.empty())
@@ -314,9 +276,6 @@ namespace zonetool::iw5::converter::iw7
 					return;
 				}
 
-				// A new root takes the old per-cell roots as consecutive children (slots 1..N), the
-				// other nodes follow in order. A node fully in view is marked from its own surface
-				// range and model list, so the root carries the union of everything below it.
 				std::vector<int> cell_roots;
 				auto node_count = 1;
 				for (auto i = 0; i < source_cell_count; i++)
@@ -400,7 +359,7 @@ namespace zonetool::iw5::converter::iw7
 
 				const auto first_probe = first_reflection_probe(asset->draw.reflectionProbeCount);
 				const auto probe_count = asset->draw.reflectionProbeCount - first_probe;
-				const auto instance_count = probe_count + 1; // the world fallback
+				const auto instance_count = probe_count + 1;
 
 				auto& data = new_asset->draw.reflectionProbeData;
 				data.reflectionProbeCount = probe_count;
@@ -409,8 +368,6 @@ namespace zonetool::iw5::converter::iw7
 				data.reflectionProbeArrayImage = generate_reflection_probe_array_image(probe_count, allocator);
 				data.reflectionProbeLightgridSampleData = allocator.allocate_array<target::GfxReflectionProbeSampleData>(probe_count);
 
-				// IW7 selects a probe at runtime from the instance volumes, so each volume is the union of
-				// the bounds of everything the source assigned to that probe
 				struct probe_region
 				{
 					unsigned int references = 0;
@@ -461,7 +418,6 @@ namespace zonetool::iw5::converter::iw7
 				const auto instances = allocator.allocate_array<target::GfxReflectionProbeInstance>(instance_count);
 				data.reflectionProbeInstances = instances;
 
-				// probe 0 owns two slots (itself and the fallback), so 2 + (count - 1) == instance_count
 				const auto instance_indices = allocator.allocate_array<unsigned int>(instance_count);
 
 				for (unsigned int i = 0; i < probe_count; i++)
@@ -521,7 +477,7 @@ namespace zonetool::iw5::converter::iw7
 					}
 
 					std::memcpy(instance.volumeObb.halfSize, half, sizeof(half));
-					instance.priority = -(half[0] + half[1] + half[2]); // the tighter volume wins
+					instance.priority = -(half[0] + half[1] + half[2]);
 					for (auto k = 0; k < 3; k++)
 					{
 						instance.feather[k] = std::min(volume_feather, half[k] * 0.25f);
@@ -593,7 +549,7 @@ namespace zonetool::iw5::converter::iw7
 					PackedVec::Vec3UnpackUnitVec_T6(vertex.tangent.array, tangent);
 					new_vertex.tangent.packed = PackedVec::Vec3PackUnitVec_H1(tangent);
 
-					new_vertex.color.array[0] = vertex.color.array[2]; // bgra to rgba
+					new_vertex.color.array[0] = vertex.color.array[2];
 					new_vertex.color.array[1] = vertex.color.array[1];
 					new_vertex.color.array[2] = vertex.color.array[0];
 					new_vertex.color.array[3] = vertex.color.array[3];
@@ -626,7 +582,6 @@ namespace zonetool::iw5::converter::iw7
 				grid.rangeExponent16BitsEncoding = 23;
 				grid.stageCount = 0;
 
-				// IW7 maps ship this 3-entry palette and 2-node tree as a stub next to the probe volume
 				static const int palette_addresses[3] = {0, 30, 86};
 				static const unsigned char palette_bitstream[116] = {
 					0xE7, 0x1C, 0x00, 0xF8, 0x08, 0x80, 0x80, 0x80, 0x80, 0x80, 0xF1, 0x00, 0x08, 0x80, 0xF8, 0x80,
@@ -646,7 +601,6 @@ namespace zonetool::iw5::converter::iw7
 				grid.paletteBitstream = allocator.allocate_array<unsigned char>(sizeof(palette_bitstream));
 				std::memcpy(grid.paletteBitstream, palette_bitstream, sizeof(palette_bitstream));
 
-				// engine constants in IW7, identical in every shipped map
 				for (auto i = 0; i < 56; i++)
 				{
 					grid.defaultLightGridColors.rgb[i][2] = 0.21875f;
@@ -676,7 +630,7 @@ namespace zonetool::iw5::converter::iw7
 				std::memcpy(grid.tree.p_leafTable, leaf_table, sizeof(leaf_table));
 
 				grid.probeData.zoneCount = 1;
-				grid.probeData.zones = allocator.allocate_array<target::GfxGpuLightGridZone>(1); // no probe volume is built
+				grid.probeData.zones = allocator.allocate_array<target::GfxGpuLightGridZone>(1);
 			}
 
 			void convert_voxel_trees(source::GfxWorld* asset, target::GfxWorld* new_asset, utils::memory::allocator& allocator)
@@ -688,7 +642,6 @@ namespace zonetool::iw5::converter::iw7
 				{
 					auto& tree = new_asset->voxelTree[i];
 
-					// union of the sky surface bounds
 					float lows[3]{FLT_MAX, FLT_MAX, FLT_MAX};
 					float highs[3]{-FLT_MAX, -FLT_MAX, -FLT_MAX};
 					auto seen = 0;
@@ -789,7 +742,7 @@ namespace zonetool::iw5::converter::iw7
 				new_dpvs.volumetricVisDataCount = (new_asset->draw.volumetrics.volumetricCount + 0x1F) >> 5;
 				new_dpvs.decalVisDataCount = (new_asset->draw.decalVolumeCollectionCount + 0x1F) >> 5;
 
-				new_dpvs.lodData = allocator.allocate_array<unsigned int>(new_dpvs.smodelCount + 1); // 1-based identity
+				new_dpvs.lodData = allocator.allocate_array<unsigned int>(new_dpvs.smodelCount + 1);
 				for (unsigned int i = 0; i < new_dpvs.smodelCount; i++)
 				{
 					new_dpvs.lodData[i + 1] = i;
@@ -805,7 +758,6 @@ namespace zonetool::iw5::converter::iw7
 				new_dpvs.smodelInsts = allocator.allocate_array<target::GfxStaticModelInst>(dpvs.smodelCount);
 				std::memcpy(new_dpvs.smodelInsts, dpvs.smodelInsts.get(), sizeof(target::GfxStaticModelInst) * dpvs.smodelCount);
 
-				// flags bits 3..7 are the sun lights a surface casts for; bit 0 means the same in both engines
 				const auto sun_light_count = std::min<unsigned int>(new_asset->lastSunPrimaryLightIndex, 5);
 				const auto sun_light_mask = static_cast<unsigned char>((1 << sun_light_count) - 1);
 
@@ -843,8 +795,8 @@ namespace zonetool::iw5::converter::iw7
 					new_instance.modelLightmapInfo.lightmapIndex = -1;
 					new_instance.lightingHandle = instance.lightingHandle;
 					new_instance.cullDist = instance.cullDist;
-					new_instance.primaryLightEnvIndex = 0; // stock maps never light static models through it
-					new_instance.reflectionProbeIndex = 0; // the probe is picked at runtime from the volumes
+					new_instance.primaryLightEnvIndex = 0;
+					new_instance.reflectionProbeIndex = 0;
 					new_instance.firstMtlSkinIndex = instance.firstMtlSkinIndex;
 					new_instance.sunShadowFlags = sun_light_mask;
 					new_instance.transientZone = 0;
@@ -864,9 +816,8 @@ namespace zonetool::iw5::converter::iw7
 					new_instance.flags |= static_model_flag_lightgrid_lighting;
 				}
 
-				new_dpvs.surfaceMaterials = allocator.allocate_array<target::GfxDrawSurf>(asset->surfaceCount); // runtime
+				new_dpvs.surfaceMaterials = allocator.allocate_array<target::GfxDrawSurf>(asset->surfaceCount);
 
-				// measured on the stock maps: min(lastSunPrimaryLightIndex, 5) and the visibility words rounded up to 32
 				new_dpvs.sunShadowOptCount = sun_light_count;
 				new_dpvs.sunSurfVisDataCount = (new_dpvs.surfaceVisDataCount + 31) & ~31u;
 
@@ -901,7 +852,7 @@ namespace zonetool::iw5::converter::iw7
 				new_asset->primaryLightMotionDetectBitsEntries = new_asset->staticSpotOmniPrimaryLightCountAligned >> 4;
 				new_asset->primaryLightMotionDetectBits = allocator.allocate_array<unsigned int>(new_asset->primaryLightMotionDetectBitsEntries);
 
-				new_asset->entityMotionBitsEntries = 134; // constant in shipped maps
+				new_asset->entityMotionBitsEntries = 134;
 				new_asset->entityMotionBits = allocator.allocate_array<unsigned int>(new_asset->entityMotionBitsEntries);
 
 				new_asset->numPrimaryLightEntityShadowVisEntries = new_asset->staticSpotOmniPrimaryLightCountAligned * 0x86;
@@ -916,6 +867,763 @@ namespace zonetool::iw5::converter::iw7
 						(new_asset->staticSpotOmniPrimaryLightCountAligned * new_asset->dpvsDyn.dynEntClientCount[i]) >> 4;
 					new_asset->primaryLightDynEntShadowVis[i] = allocator.allocate_array<unsigned int>(new_asset->numPrimaryLightDynEntShadowVisEntries[i]);
 				}
+			}
+
+			constexpr unsigned int smodel_probe_samples = 2;
+
+			bool is_sun_light(const unsigned int light, const unsigned int last_sun)
+			{
+				return (last_sun != 0 && light >= 1 && light <= last_sun) || light >= 256 - last_sun;
+			}
+
+			std::uint64_t grid_key(const int x, const int y, const int z)
+			{
+				return (static_cast<std::uint64_t>(x) << 32) | (static_cast<std::uint64_t>(y) << 16) | static_cast<std::uint64_t>(z);
+			}
+
+			struct reach_light
+			{
+				unsigned short index;
+				bool directional;
+				bool is_spot;
+				float origin[3];
+				float axis[3];
+				float radius;
+				float half_fov;
+			};
+
+			std::vector<reach_light> collect_lights(const unsigned int light_count, const bool directional, const bool spot_only, const unsigned int first)
+			{
+				const auto& lights = comworld::last_primary_lights();
+				const auto count = std::min<std::size_t>(light_count, lights.size());
+
+				std::vector<reach_light> result;
+				for (std::size_t i = first; i < count && i <= 0xFFFF; i++)
+				{
+					const auto& source_light = lights[i];
+					reach_light light{};
+					light.index = static_cast<unsigned short>(i);
+
+					if (source_light.type == target::GFX_LIGHT_TYPE_DIR)
+					{
+						if (directional)
+						{
+							light.directional = true;
+							result.push_back(light);
+						}
+						continue;
+					}
+
+					if (source_light.type != target::GFX_LIGHT_TYPE_SPOT && source_light.type != target::GFX_LIGHT_TYPE_OMNI)
+					{
+						continue;
+					}
+					if (spot_only && source_light.type != target::GFX_LIGHT_TYPE_SPOT)
+					{
+						continue;
+					}
+					if (!(source_light.radius > 0.0f))
+					{
+						continue;
+					}
+
+					light.is_spot = source_light.type == target::GFX_LIGHT_TYPE_SPOT;
+					std::memcpy(light.origin, source_light.origin, sizeof(light.origin));
+					light.radius = source_light.radius;
+
+					const float axis[3] = {-source_light.dir[0], -source_light.dir[1], -source_light.dir[2]};
+					const auto length = std::sqrt(axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]);
+					if (length > 0.0f)
+					{
+						for (auto k = 0; k < 3; k++)
+						{
+							light.axis[k] = axis[k] / length;
+						}
+					}
+					else
+					{
+						light.axis[2] = -1.0f;
+						light.is_spot = false;
+					}
+
+					light.half_fov = std::acos(std::max(-1.0f, std::min(1.0f, source_light.cos_half_fov_outer)));
+					result.push_back(light);
+				}
+
+				return result;
+			}
+
+			bool light_touches(const reach_light& light, const float* centre, const float extent, float* distance_out = nullptr)
+			{
+				if (light.directional)
+				{
+					return true;
+				}
+
+				const float delta[3] = {centre[0] - light.origin[0], centre[1] - light.origin[1], centre[2] - light.origin[2]};
+				const auto distance = std::sqrt(delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2]);
+				if (distance_out)
+				{
+					*distance_out = distance;
+				}
+
+				if (distance - extent > light.radius)
+				{
+					return false;
+				}
+
+				if (light.is_spot && distance > 0.001f)
+				{
+					const auto dot = (delta[0] * light.axis[0] + delta[1] * light.axis[1] + delta[2] * light.axis[2]) / distance;
+					const auto theta = std::acos(std::max(-1.0f, std::min(1.0f, dot)));
+					const auto slack = std::asin(std::min(1.0f, extent / distance));
+					if (theta > light.half_fov + slack)
+					{
+						return false;
+					}
+				}
+
+				return true;
+			}
+
+			float bounds_extent(const source::Bounds& bounds)
+			{
+				return std::sqrt(bounds.halfSize[0] * bounds.halfSize[0] + bounds.halfSize[1] * bounds.halfSize[1] + bounds.halfSize[2] * bounds.halfSize[2]);
+			}
+
+			struct grid_occupancy
+			{
+				std::unordered_set<std::uint64_t> open_cells;
+
+				bool open(const float* point) const
+				{
+					const auto x = static_cast<int>(std::floor(point[0] / 32.0f)) + 4096;
+					const auto y = static_cast<int>(std::floor(point[1] / 32.0f)) + 4096;
+					const auto z = static_cast<int>(std::floor(point[2] / 64.0f)) + 2048;
+					if (x < 0 || x > 0xFFFF || y < 0 || y > 0xFFFF || z < 0 || z > 0xFFFF)
+					{
+						return false;
+					}
+					return open_cells.contains((static_cast<std::uint64_t>(x) << 32) | (static_cast<std::uint64_t>(y) << 16) | static_cast<std::uint64_t>(z));
+				}
+
+				bool reaches(const float* from, const float* to) const
+				{
+					constexpr float step = 16.0f; 
+					constexpr float slack = 48.0f;
+
+					if (open_cells.empty())
+					{
+						return true;
+					}
+
+					float direction[3] = {to[0] - from[0], to[1] - from[1], to[2] - from[2]};
+					const auto distance = std::sqrt(direction[0] * direction[0] + direction[1] * direction[1] + direction[2] * direction[2]);
+					if (distance <= slack)
+					{
+						return true;
+					}
+					for (auto k = 0; k < 3; k++)
+					{
+						direction[k] /= distance;
+					}
+
+					const auto stop = distance - slack;
+					for (auto t = step; t < stop; t += step)
+					{
+						const float point[3] = {from[0] + direction[0] * t, from[1] + direction[1] * t, from[2] + direction[2] * t};
+						if (!open(point))
+						{
+							return false;
+						}
+					}
+					return true;
+				}
+			};
+
+			grid_occupancy collect_occupancy(source::GfxWorld* asset)
+			{
+				grid_occupancy occupancy;
+				const auto& grid = asset->lightGrid;
+				if (!grid.rowDataStart.value || !grid.rawRowData.value)
+				{
+					return occupancy;
+				}
+
+				const auto references = lightgrid_tree::enumerate_row_data(grid.mins, grid.maxs,
+					grid.rowAxis, grid.colAxis, grid.rowDataStart.get(), grid.rawRowData.get());
+				for (const auto& reference : references)
+				{
+					occupancy.open_cells.insert(grid_key(reference.pos[0], reference.pos[1], reference.pos[2]));
+				}
+				return occupancy;
+			}
+
+			void convert_light_lists(source::GfxWorld* asset, target::GfxWorld* new_asset, const grid_occupancy& occupancy, utils::memory::allocator& allocator)
+			{
+				constexpr std::size_t max_per_object = 24;
+
+				const auto receivers = collect_lights(new_asset->primaryLightCount, true, false, 0);
+				if (receivers.empty())
+				{
+					return;
+				}
+
+				std::vector<unsigned short> hits;
+				const auto list_for = [&](const source::Bounds& bounds)
+				{
+					hits.clear();
+					const auto extent = bounds_extent(bounds);
+					for (const auto& light : receivers)
+					{
+						if (!light_touches(light, bounds.midPoint, extent))
+						{
+							continue;
+						}
+						if (!light.directional && !occupancy.reaches(light.origin, bounds.midPoint))
+						{
+							continue;
+						}
+						hits.push_back(light.index);
+					}
+				};
+
+				std::vector<unsigned short> lists{0};
+				std::map<std::vector<unsigned short>, unsigned int> list_offset;
+				std::size_t clamped = 0;
+
+				const auto intern = [&]() -> unsigned int
+				{
+					if (hits.size() > max_per_object)
+					{
+						hits.resize(max_per_object);
+						clamped++;
+					}
+					if (hits.empty())
+					{
+						return 0;
+					}
+
+					const auto found = list_offset.find(hits);
+					if (found != list_offset.end())
+					{
+						return found->second;
+					}
+
+					const auto offset = static_cast<unsigned int>(lists.size());
+					lists.push_back(static_cast<unsigned short>(hits.size()));
+					lists.insert(lists.end(), hits.begin(), hits.end());
+					list_offset.emplace(hits, offset);
+					return offset;
+				};
+
+				const auto surface_count = std::min(asset->dpvs.staticSurfaceCount, asset->surfaceCount);
+				const auto smodel_count = asset->dpvs.smodelCount;
+
+				auto& light_lists = new_asset->lightLists;
+				light_lists.surfaceListOffsetCount = surface_count;
+				light_lists.smodelListOffsetCount = smodel_count;
+				light_lists.surfaceListOffsets = allocator.allocate_array<unsigned int>(std::max(surface_count, 1u));
+				light_lists.smodelListOffsets = allocator.allocate_array<unsigned int>(std::max(smodel_count, 1u));
+
+				std::size_t lit_surfaces = 0;
+				std::size_t lit_smodels = 0;
+				for (auto i = 0u; asset->dpvs.surfacesBounds && i < surface_count; i++)
+				{
+					list_for(asset->dpvs.surfacesBounds[i].bounds);
+					light_lists.surfaceListOffsets[i] = intern();
+					lit_surfaces += light_lists.surfaceListOffsets[i] != 0;
+				}
+				for (auto i = 0u; asset->dpvs.smodelInsts && i < smodel_count; i++)
+				{
+					list_for(asset->dpvs.smodelInsts[i].bounds);
+					light_lists.smodelListOffsets[i] = intern();
+					lit_smodels += light_lists.smodelListOffsets[i] != 0;
+				}
+
+				light_lists.listsSize = static_cast<unsigned int>(lists.size());
+				light_lists.lists = allocator.allocate_array<unsigned short>(lists.size());
+				std::memcpy(light_lists.lists, lists.data(), sizeof(unsigned short) * lists.size());
+
+				ZONETOOL_INFO("GfxWorld \"%s\": light lists for %zu/%u surfaces and %zu/%u static models, %zu distinct lists",
+					asset->name.get(), lit_surfaces, surface_count, lit_smodels, smodel_count, list_offset.size());
+				if (clamped)
+				{
+					ZONETOOL_WARNING("GfxWorld \"%s\": %zu light lists clamped to %zu lights", asset->name.get(), clamped, max_per_object);
+				}
+			}
+
+			void convert_shadow_casters(source::GfxWorld* asset, target::GfxWorld* new_asset, utils::memory::allocator& allocator)
+			{
+				new_asset->shadowGeomOptimized = allocator.allocate_array<target::GfxShadowGeometry>(std::max(new_asset->primaryLightCount, 1u));
+
+				const auto lights = collect_lights(new_asset->primaryLightCount, false, false, new_asset->lastSunPrimaryLightIndex + 1);
+				std::vector<unsigned int> surfaces;
+				std::vector<unsigned short> smodels;
+				for (const auto& light : lights)
+				{
+					surfaces.clear();
+					smodels.clear();
+
+					for (auto i = 0u; asset->dpvs.surfacesBounds && i < asset->surfaceCount && surfaces.size() < 0xFFFF; i++)
+					{
+						const auto& bounds = asset->dpvs.surfacesBounds[i].bounds;
+						if (light_touches(light, bounds.midPoint, bounds_extent(bounds)))
+						{
+							surfaces.push_back(i);
+						}
+					}
+					for (auto i = 0u; asset->dpvs.smodelInsts && i < asset->dpvs.smodelCount && i <= 0xFFFF && smodels.size() < 0xFFFF; i++)
+					{
+						const auto& bounds = asset->dpvs.smodelInsts[i].bounds;
+						if (light_touches(light, bounds.midPoint, bounds_extent(bounds)))
+						{
+							smodels.push_back(static_cast<unsigned short>(i));
+						}
+					}
+
+					auto& casters = new_asset->shadowGeomOptimized[light.index];
+					casters.surfaceCount = static_cast<unsigned short>(surfaces.size());
+					casters.smodelCount = static_cast<unsigned short>(smodels.size());
+					if (casters.surfaceCount)
+					{
+						casters.sortedSurfIndex = allocator.allocate_array<unsigned int>(casters.surfaceCount);
+						std::memcpy(casters.sortedSurfIndex, surfaces.data(), sizeof(unsigned int) * casters.surfaceCount);
+					}
+					if (casters.smodelCount)
+					{
+						casters.smodelIndex = allocator.allocate_array<unsigned short>(casters.smodelCount);
+						std::memcpy(casters.smodelIndex, smodels.data(), sizeof(unsigned short) * casters.smodelCount);
+					}
+				}
+
+				ZONETOOL_INFO("GfxWorld \"%s\": shadow casters listed for %zu local lights", asset->name.get(), lights.size());
+			}
+
+			void convert_voxel_light_lists(source::GfxWorld* asset, lightgrid_probes::probe_volume& volume, const grid_occupancy& occupancy)
+			{
+				constexpr unsigned short empty_address = 2;
+				constexpr std::size_t max_per_leaf = 16;
+
+				if (!volume.leaf_count || !(volume.leaf_size > 0.0f) || volume.leaf_bounds_min.size() < static_cast<std::size_t>(volume.leaf_count) * 3)
+				{
+					return;
+				}
+
+				const auto lights = collect_lights(static_cast<unsigned int>(comworld::last_primary_lights().size()), false, true, 0);
+
+				volume.leaf_nodes.assign(volume.leaf_count, empty_address);
+				volume.light_list = {16384, 1, 0};
+
+				std::map<std::vector<unsigned short>, unsigned short> list_address;
+				std::vector<std::pair<float, unsigned short>> ranked;
+				std::vector<unsigned short> hits;
+				unsigned int lit_leaves = 0;
+				unsigned int clamped_leaves = 0;
+
+				const auto half = volume.leaf_size * 0.5f;
+				const auto half_diagonal = half * 1.7320508f;
+				const auto inset = volume.leaf_size * 0.25f;
+
+				for (auto leaf = 0u; leaf < volume.leaf_count && !lights.empty(); leaf++)
+				{
+					const auto* low = &volume.leaf_bounds_min[static_cast<std::size_t>(leaf) * 3];
+					const float centre[3] = {low[0] + half, low[1] + half, low[2] + half};
+
+					ranked.clear();
+					for (const auto& light : lights)
+					{
+						auto distance = 0.0f;
+						if (!light_touches(light, centre, half_diagonal, &distance))
+						{
+							continue;
+						}
+
+						auto seen = false;
+						for (auto sample = 0; sample < 9 && !seen; sample++)
+						{
+							float point[3];
+							if (sample == 0)
+							{
+								std::memcpy(point, centre, sizeof(point));
+							}
+							else
+							{
+								const auto corner = sample - 1;
+								point[0] = low[0] + ((corner & 1) ? volume.leaf_size - inset : inset);
+								point[1] = low[1] + ((corner & 2) ? volume.leaf_size - inset : inset);
+								point[2] = low[2] + ((corner & 4) ? volume.leaf_size - inset : inset);
+								if (!occupancy.open_cells.empty() && !occupancy.open(point))
+								{
+									continue;
+								}
+							}
+							seen = occupancy.reaches(point, light.origin);
+						}
+						if (seen)
+						{
+							ranked.emplace_back(distance, light.index);
+						}
+					}
+
+					if (ranked.empty())
+					{
+						continue;
+					}
+
+					std::sort(ranked.begin(), ranked.end());
+					if (ranked.size() > max_per_leaf)
+					{
+						ranked.resize(max_per_leaf);
+						clamped_leaves++;
+					}
+
+					hits.clear();
+					for (const auto& entry : ranked)
+					{
+						hits.push_back(entry.second);
+					}
+					std::sort(hits.begin(), hits.end());
+
+					const auto found = list_address.find(hits);
+					if (found != list_address.end())
+					{
+						volume.leaf_nodes[leaf] = found->second;
+						lit_leaves++;
+						continue;
+					}
+
+					if (volume.light_list.size() + hits.size() + 1 > 0xFFFF)
+					{
+						continue;
+					}
+
+					const auto address = static_cast<unsigned short>(volume.light_list.size());
+					volume.light_list.push_back(static_cast<unsigned short>(hits.size() << 7));
+					volume.light_list.insert(volume.light_list.end(), hits.begin(), hits.end());
+					list_address.emplace(hits, address);
+					volume.leaf_nodes[leaf] = address;
+					lit_leaves++;
+				}
+
+				ZONETOOL_INFO("GfxWorld \"%s\": voxel light lists for %u/%u leaves from %zu spot lights, %zu distinct lists",
+					asset->name.get(), lit_leaves, volume.leaf_count, lights.size(), list_address.size());
+				if (clamped_leaves)
+				{
+					ZONETOOL_WARNING("GfxWorld \"%s\": %u leaves clamped to %zu lights", asset->name.get(), clamped_leaves, max_per_leaf);
+				}
+			}
+
+			void convert_probe_volume(source::GfxWorld* asset, target::GfxWorld* new_asset, utils::memory::allocator& allocator)
+			{
+				const auto& source_grid = asset->lightGrid;
+				const auto* entries = source_grid.entries.value ? source_grid.entries.get() : nullptr;
+				const auto* colors = source_grid.colors.value ? source_grid.colors.get() : nullptr;
+
+				constexpr float sh_scale = 1.0f;
+
+				float ambient[3] = {0.0f, 0.0f, 0.0f};
+				if (colors && source_grid.colorCount)
+				{
+					std::vector<double> usage(source_grid.colorCount, 0.0);
+					double total_usage = 0.0;
+					for (unsigned int i = 0; entries && i < source_grid.entryCount; i++)
+					{
+						if (entries[i].colorsIndex < source_grid.colorCount)
+						{
+							usage[entries[i].colorsIndex] += 1.0;
+							total_usage += 1.0;
+						}
+					}
+
+					if (total_usage == 0.0)
+					{
+						std::fill(usage.begin(), usage.end(), 1.0);
+						total_usage = static_cast<double>(source_grid.colorCount);
+					}
+
+					double accumulated[3] = {0.0, 0.0, 0.0};
+					float hdr_colors[56][3];
+					for (unsigned int i = 0; i < source_grid.colorCount; i++)
+					{
+						if (usage[i] == 0.0)
+						{
+							continue;
+						}
+
+						lightgrid_sh::ldr_colors_to_hdr(colors[i].rgb, hdr_colors);
+						for (auto c = 0; c < 3; c++)
+						{
+							double sum = 0.0;
+							for (auto j = 0; j < 56; j++)
+							{
+								sum += hdr_colors[j][c];
+							}
+							accumulated[c] += (sum / 56.0) * usage[i];
+						}
+					}
+
+					for (auto c = 0; c < 3; c++)
+					{
+						ambient[c] = static_cast<float>(accumulated[c] / total_usage);
+					}
+				}
+
+				lightgrid_probes::build_params params{};
+				for (auto i = 0; i < 3; i++)
+				{
+					params.bounds_min[i] = asset->bounds.midPoint[i] - asset->bounds.halfSize[i];
+					params.bounds_max[i] = asset->bounds.midPoint[i] + asset->bounds.halfSize[i];
+				}
+
+				using probe_sh = std::array<float, 28>;
+				std::unordered_map<std::uint64_t, probe_sh> grid_samples;
+				if (entries && colors && source_grid.rowDataStart.value && source_grid.rawRowData.value)
+				{
+					std::vector<probe_sh> colour_cache(source_grid.colorCount, probe_sh{});
+					std::vector<char> colour_cached(source_grid.colorCount, 0);
+
+					const auto references = lightgrid_tree::enumerate_row_data(source_grid.mins, source_grid.maxs,
+						source_grid.rowAxis, source_grid.colAxis, source_grid.rowDataStart.get(), source_grid.rawRowData.get());
+
+					float bins[56][3];
+					for (const auto& reference : references)
+					{
+						if (reference.entry_index >= source_grid.entryCount)
+						{
+							continue;
+						}
+
+						const auto& entry = entries[reference.entry_index];
+						if (entry.colorsIndex >= source_grid.colorCount)
+						{
+							continue;
+						}
+
+						if (!colour_cached[entry.colorsIndex])
+						{
+							lightgrid_sh::ldr_colors_to_hdr(colors[entry.colorsIndex].rgb, bins);
+							lightgrid_probes::project_sh(bins, lightgrid_sh::grid_basis_dirs, 56, sh_scale, colour_cache[entry.colorsIndex].data());
+							colour_cached[entry.colorsIndex] = 1;
+						}
+
+						auto cell = colour_cache[entry.colorsIndex];
+						cell[27] = is_sun_light(entry.primaryLightIndex, source_grid.lastSunPrimaryLightIndex) ? 1.0f : 0.0f;
+						grid_samples[grid_key(reference.pos[0], reference.pos[1], reference.pos[2])] = cell;
+					}
+				}
+
+				ZONETOOL_INFO("GfxWorld \"%s\": %zu light grid cells for probe sampling", asset->name.get(), grid_samples.size());
+
+				const auto sample = [&](const float* position, float* out_sh)
+				{
+					const auto x = static_cast<int>(std::floor(position[0] / 32.0f)) + 4096;
+					const auto y = static_cast<int>(std::floor(position[1] / 32.0f)) + 4096;
+					const auto z = static_cast<int>(std::floor(position[2] / 64.0f)) + 2048;
+
+					const float* best = nullptr;
+					auto best_distance = 0x7FFFFFFF;
+					for (auto dz = -1; dz <= 1; dz++)
+					{
+						for (auto dy = -1; dy <= 1; dy++)
+						{
+							for (auto dx = -1; dx <= 1; dx++)
+							{
+								if (x + dx < 0 || y + dy < 0 || z + dz < 0 || x + dx > 0xFFFF || y + dy > 0xFFFF || z + dz > 0xFFFF)
+								{
+									continue;
+								}
+
+								const auto found = grid_samples.find(grid_key(x + dx, y + dy, z + dz));
+								if (found == grid_samples.end())
+								{
+									continue;
+								}
+
+								const auto distance = dx * dx + dy * dy + 4 * dz * dz;
+								if (distance < best_distance)
+								{
+									best_distance = distance;
+									best = found->second.data();
+								}
+							}
+						}
+					}
+
+					if (best)
+					{
+						std::memcpy(out_sh, best, sizeof(float) * 28);
+						return;
+					}
+
+					lightgrid_probes::constant_sh(ambient, sh_scale, out_sh);
+					out_sh[27] = 1.0f;
+				};
+
+				if (!grid_samples.empty())
+				{
+					params.cell_occupied = [&grid_samples](const float* low, const float size)
+					{
+						const auto low_x = static_cast<int>(std::floor(low[0] / 32.0f)) + 4096 - 1;
+						const auto high_x = static_cast<int>(std::floor((low[0] + size) / 32.0f)) + 4096 + 1;
+						const auto low_y = static_cast<int>(std::floor(low[1] / 32.0f)) + 4096 - 1;
+						const auto high_y = static_cast<int>(std::floor((low[1] + size) / 32.0f)) + 4096 + 1;
+						const auto low_z = static_cast<int>(std::floor(low[2] / 64.0f)) + 2048 - 1;
+						const auto high_z = static_cast<int>(std::floor((low[2] + size) / 64.0f)) + 2048 + 1;
+
+						for (auto z = std::max(low_z, 0); z <= std::min(high_z, 0xFFFF); z++)
+						{
+							for (auto y = std::max(low_y, 0); y <= std::min(high_y, 0xFFFF); y++)
+							{
+								for (auto x = std::max(low_x, 0); x <= std::min(high_x, 0xFFFF); x++)
+								{
+									if (grid_samples.contains(grid_key(x, y, z)))
+									{
+										return true;
+									}
+								}
+							}
+						}
+						return false;
+					};
+				}
+
+				auto volume = lightgrid_probes::build(params, sample, sh_scale);
+
+				auto& probe_data = new_asset->lightGrid.probeData;
+				auto& zone = probe_data.zones[0];
+
+				if (!volume.valid)
+				{
+					ZONETOOL_WARNING("GfxWorld \"%s\": light grid probe volume could not be built, using a flat ambient probe", asset->name.get());
+
+					float fallback_sh[28]{};
+					lightgrid_probes::constant_sh(ambient, sh_scale, fallback_sh);
+					fallback_sh[27] = 1.0f;
+					unsigned short fallback[32];
+					lightgrid_probes::encode_probe_sh(fallback_sh, fallback);
+					std::memcpy(zone.fallbackProbeData.coeffs, fallback, sizeof(zone.fallbackProbeData.coeffs));
+					return;
+				}
+
+				ZONETOOL_INFO("GfxWorld \"%s\": probe volume of %u probes, %u tetrahedrons, %u leaves",
+					asset->name.get(), volume.probe_count, volume.tetrahedron_count, volume.leaf_count);
+
+				{
+					grid_occupancy occupancy;
+					for (const auto& cell : grid_samples)
+					{
+						occupancy.open_cells.insert(cell.first);
+					}
+					convert_voxel_light_lists(asset, volume, occupancy);
+				}
+
+				const auto smodel_count = asset->dpvs.smodelCount;
+				const auto sample_count = smodel_count * smodel_probe_samples;
+				probe_data.gpuVisibleProbesCount = sample_count;
+				probe_data.gpuVisibleProbePositions = allocator.allocate_array<target::GfxGpuLightGridProbePosition>(std::max(sample_count, 1u));
+				probe_data.gpuVisibleProbesData = allocator.allocate_array<target::GfxSHProbeData>(sample_count + 0x2000);
+
+				for (unsigned int i = 0; i < smodel_count; i++)
+				{
+					float position[3];
+					std::memcpy(position, asset->dpvs.smodelInsts[i].lightingOrigin, sizeof(position));
+
+					float sh[28]{};
+					sample(position, sh);
+					unsigned short coefficients[32];
+					lightgrid_probes::encode_probe_sh(sh, coefficients);
+
+					for (unsigned int k = 0; k < smodel_probe_samples; k++)
+					{
+						const auto slot = i * smodel_probe_samples + k;
+						std::memcpy(probe_data.gpuVisibleProbePositions[slot].origin, position, sizeof(position));
+						std::memcpy(&probe_data.gpuVisibleProbesData[slot], coefficients, sizeof(coefficients));
+					}
+
+					auto& instance = new_asset->dpvs.smodelDrawInsts[i];
+					instance.firstProbe = i * smodel_probe_samples;
+					instance.unk2 = 0;
+					instance.probeCount = static_cast<unsigned short>(smodel_probe_samples);
+				}
+
+				static_assert(sizeof(target::GfxSHProbeData) == sizeof(unsigned short) * 32);
+				probe_data.probeCount = volume.probe_count;
+				probe_data.probes = allocator.allocate_array<target::GfxSHProbeData>(volume.probe_count);
+				std::memcpy(probe_data.probes, volume.probes.data(), sizeof(unsigned short) * volume.probes.size());
+				probe_data.probePositions = allocator.allocate_array<target::GfxGpuLightGridProbePosition>(volume.probe_count);
+				std::memcpy(probe_data.probePositions, volume.probe_positions.data(), sizeof(float) * volume.probe_positions.size());
+
+				probe_data.tetrahedronCount = volume.tetrahedron_count;
+				probe_data.tetrahedrons = allocator.allocate_array<target::GfxGpuLightGridTetrahedron>(volume.tetrahedron_count);
+				std::memcpy(probe_data.tetrahedrons, volume.tetrahedrons.data(), sizeof(unsigned int) * volume.tetrahedrons.size());
+				probe_data.tetrahedronNeighbors = allocator.allocate_array<target::GfxGpuLightGridTetrahedronNeighbors>(volume.tetrahedron_count);
+				std::memcpy(probe_data.tetrahedronNeighbors, volume.tetrahedron_neighbors.data(), sizeof(unsigned int) * volume.tetrahedron_neighbors.size());
+
+				unsigned int visible_tetrahedrons = 0;
+				for (unsigned int t = 0; t < volume.tetrahedron_count; t++)
+				{
+					for (auto k = 0; k < 4; k++)
+					{
+						if (volume.tetrahedrons[t * 4 + k] & 0x80000000u)
+						{
+							visible_tetrahedrons++;
+							break;
+						}
+					}
+				}
+
+				probe_data.tetrahedronCountVisible = visible_tetrahedrons;
+				probe_data.tetrahedronVisibility = nullptr;
+				if (visible_tetrahedrons)
+				{
+					probe_data.tetrahedronVisibility = allocator.allocate_array<target::GfxGpuLightGridTetrahedronVisibility>(visible_tetrahedrons);
+					std::memset(probe_data.tetrahedronVisibility, 0xFF, sizeof(target::GfxGpuLightGridTetrahedronVisibility) * visible_tetrahedrons);
+				}
+
+				probe_data.voxelStartTetrahedronCount = static_cast<unsigned int>(volume.voxel_start_tetrahedron.size());
+				probe_data.voxelStartTetrahedron = allocator.allocate_array<target::GfxGpuLightGridVoxelStartTetrahedron>(probe_data.voxelStartTetrahedronCount);
+				std::memcpy(probe_data.voxelStartTetrahedron, volume.voxel_start_tetrahedron.data(), sizeof(unsigned int) * volume.voxel_start_tetrahedron.size());
+
+				zone.numProbes = volume.zone_num_probes;
+				zone.firstProbe = volume.zone_first_probe;
+				zone.numTetrahedrons = volume.zone_num_tetrahedrons;
+				zone.firstTetrahedron = volume.zone_first_tetrahedron;
+				zone.firstVoxelTetrahedronIndex = volume.zone_first_voxel_tetrahedron_index;
+				zone.numVoxelTetrahedronIndices = volume.zone_num_voxel_tetrahedron_indices;
+				std::memcpy(zone.fallbackProbeData.coeffs, volume.zone_fallback_coeffs, sizeof(zone.fallbackProbeData.coeffs));
+
+				new_asset->voxelTreeCount = 1;
+				new_asset->voxelTree = allocator.allocate_array<target::GfxVoxelTree>(1);
+				auto& tree = new_asset->voxelTree[0];
+				for (auto i = 0; i < 3; i++)
+				{
+					tree.zoneBound.midPoint[i] = (volume.bound_min[i] + volume.bound_max[i]) * 0.5f;
+					tree.zoneBound.halfSize[i] = (volume.bound_max[i] - volume.bound_min[i]) * 0.5f;
+				}
+
+				tree.voxelTopDownViewNodeCount = static_cast<int>(volume.top_down_view_nodes.size());
+				tree.voxelInternalNodeCount = static_cast<int>(volume.internal_nodes.size());
+				tree.voxelLeafNodeCount = static_cast<int>(volume.leaf_nodes.size());
+				tree.lightListArraySize = static_cast<int>(volume.light_list.size());
+
+				tree.voxelTreeHeader = allocator.allocate<target::GfxVoxelTreeHeader>();
+				std::memcpy(tree.voxelTreeHeader->rootNodeDimension, volume.root_node_dimension, sizeof(int[4]));
+				std::memcpy(tree.voxelTreeHeader->nodeCoordBitShift, volume.node_coord_bit_shift, sizeof(int[4]));
+				std::memcpy(&tree.voxelTreeHeader->boundMin, volume.bound_min, sizeof(float[4]));
+				std::memcpy(&tree.voxelTreeHeader->boundMax, volume.bound_max, sizeof(float[4]));
+
+				static_assert(sizeof(target::GfxVoxelTopDownViewNode) == sizeof(lightgrid_probes::top_down_view_node));
+				static_assert(sizeof(target::GfxVoxelInternalNode) == sizeof(lightgrid_probes::voxel_tree_node));
+				tree.voxelTopDownViewNodeArray = allocator.allocate_array<target::GfxVoxelTopDownViewNode>(tree.voxelTopDownViewNodeCount);
+				std::memcpy(tree.voxelTopDownViewNodeArray, volume.top_down_view_nodes.data(), sizeof(target::GfxVoxelTopDownViewNode) * tree.voxelTopDownViewNodeCount);
+				tree.voxelInternalNodeArray = allocator.allocate_array<target::GfxVoxelInternalNode>(tree.voxelInternalNodeCount);
+				std::memcpy(tree.voxelInternalNodeArray, volume.internal_nodes.data(), sizeof(target::GfxVoxelInternalNode) * tree.voxelInternalNodeCount);
+				tree.voxelLeafNodeArray = allocator.allocate_array<target::GfxVoxelLeafNode>(tree.voxelLeafNodeCount);
+				std::memcpy(tree.voxelLeafNodeArray, volume.leaf_nodes.data(), sizeof(unsigned short) * volume.leaf_nodes.size());
+				tree.lightListArray = allocator.allocate_array<unsigned short>(tree.lightListArraySize);
+				std::memcpy(tree.lightListArray, volume.light_list.data(), sizeof(unsigned short) * volume.light_list.size());
+				tree.voxelInternalNodeDynamicLightList = allocator.allocate_array<unsigned int>(2 * tree.voxelInternalNodeCount);
 			}
 		}
 
@@ -961,9 +1669,6 @@ namespace zonetool::iw5::converter::iw7
 			new_asset->sortKeyEmissiveBegin = 35;
 			new_asset->sortKeyEmissiveEnd = 40;
 
-			// Shipped IW7 maps have one cell and leave visibility to Umbra. With several, the sun shadow
-			// pass only draws casters of the visible cells plus the cellCasterBits the game rebuilds by
-			// a portal walk, so the sun leaks through walls from a sealed room.
 			const auto merge_cells = asset->dpvsPlanes.cellCount > 1;
 			convert_planes_and_cells(asset, new_asset, allocator, merge_cells);
 
@@ -1027,15 +1732,20 @@ namespace zonetool::iw5::converter::iw7
 			new_asset->outdoorImage = image_reference(asset->outdoorImage, allocator);
 			new_asset->materialLod0SizeThreshold = 0.5f;
 
-			new_asset->shadowGeomOptimized = allocator.allocate_array<target::GfxShadowGeometry>(new_asset->primaryLightCount); // no casters listed
+			convert_shadow_casters(asset, new_asset, allocator);
 
 			convert_light_regions(asset, new_asset, allocator);
 			convert_dpvs(asset, new_asset, allocator);
+			convert_probe_volume(asset, new_asset, allocator);
+			convert_light_lists(asset, new_asset, collect_occupancy(asset), allocator);
 
 			std::memcpy(new_asset->dpvsDyn.dynEntClientWordCount, asset->dpvsDyn.dynEntClientWordCount, sizeof(asset->dpvsDyn.dynEntClientWordCount));
 			std::memcpy(new_asset->dpvsDyn.dynEntClientCount, asset->dpvsDyn.dynEntClientCount, sizeof(asset->dpvsDyn.dynEntClientCount));
-			new_asset->dpvsDyn.dynEntClientCount[0] += 64; // reserved dynents
+			new_asset->dpvsDyn.dynEntClientCount[0] += 64;
 			new_asset->dpvsDyn.dynEntClientWordCount[0] += 2;
+			ZONETOOL_INFO("gfxworld: dynent clients %u + %u (words %u + %u)",
+				new_asset->dpvsDyn.dynEntClientCount[0], new_asset->dpvsDyn.dynEntClientCount[1],
+				new_asset->dpvsDyn.dynEntClientWordCount[0], new_asset->dpvsDyn.dynEntClientWordCount[1]);
 
 			for (auto list = 0; list < 2; list++)
 			{
@@ -1051,8 +1761,7 @@ namespace zonetool::iw5::converter::iw7
 			new_asset->mapVtxChecksum = asset->mapVtxChecksum;
 			new_asset->heroOnlyLightCount = 0;
 
-			new_asset->umbraTomeData = generate_draw_everything_umbra_tome(new_asset->umbraTomeSize, allocator);
-			new_asset->umbraTomePtr = nullptr;
+			generate_umbra_tome(asset, new_asset, allocator);
 
 			convert_runtime_arrays(new_asset, allocator);
 			return new_asset;
