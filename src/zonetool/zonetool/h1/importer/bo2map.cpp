@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <array>
 #include <cfloat>
+#include <cstdlib>
 #include <cmath>
 #include <unordered_map>
 #include <unordered_set>
@@ -575,7 +576,8 @@ namespace zonetool::h1::importer
 			// The clipmap vertex pool is limited to 256 segments of 1024 verts, so keep only
 			// the largest triangles (floors, walls, decks) when the map exceeds the budget.
 			{
-				constexpr size_t tri_budget = 170000;
+				size_t tri_budget = 170000;
+					if (const char* e = std::getenv("BO2_TRI_BUDGET")) tri_budget = static_cast<size_t>(std::strtoull(e, nullptr, 10));
 				if (b.tris.size() > tri_budget)
 				{
 					auto area2 = [](const tri_t& t)
