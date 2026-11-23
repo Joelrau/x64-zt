@@ -17,7 +17,7 @@ namespace zonetool::s2::converter::h1::comworld
 				return;
 			}
 
-			new_light.canUseShadowMap = 0;
+			new_light.canUseShadowMap = light.type == zonetool::h1::GFX_LIGHT_TYPE_SPOT ? light.canUseShadowMap : 0;
 			new_light.physicallyBased = light.type != zonetool::h1::GFX_LIGHT_TYPE_DIR;
 			new_light.exponent = light.exponent;
 			for (auto i = 0; i < 3; i++)
@@ -81,6 +81,16 @@ namespace zonetool::s2::converter::h1::comworld
 		{
 			env_lookup.try_emplace(get_env_lights(envs[i]), static_cast<std::uint16_t>(i));
 		}
+	}
+
+	const ComWorld* source_world()
+	{
+		return pending_world;
+	}
+
+	std::vector<std::uint16_t> get_light_env_lights(const std::uint16_t index)
+	{
+		return index < envs.size() ? get_env_lights(envs[index]) : std::vector<std::uint16_t>{};
 	}
 
 	std::uint16_t get_light_env(std::vector<std::uint16_t> lights)

@@ -5,6 +5,7 @@
 #include "comworld.hpp"
 #include "gfximage.hpp"
 #include "material.hpp"
+#include "xmodel.hpp"
 #include "gfxworld/light_grid.hpp"
 
 #include <h1/assets/gfxworld.hpp>
@@ -200,26 +201,106 @@ namespace zonetool::s2::converter::h1::gfxworld
 			return max_length;
 		}
 
-		std::uint16_t get_light_env(const GfxWorld* asset, const zonetool::h1::GfxWorld* world, const std::uint16_t list_offset)
+		struct light_env_stats
 		{
-			const auto& light_lists = asset->lightLists;
-			if (!light_lists.lists || list_offset >= light_lists.listsSize)
+			std::size_t added;
+			std::size_t listed_out_of_range;
+		};
+
+		light_env_stats env_stats{};
+
+		float distance_sq_to_bounds(const float* point, const Bounds& bounds)
+		{
+			auto result = 0.0f;
+			for (auto axis = 0; axis < 3; axis++)
 			{
-				return 0;
+				const auto outside = std::max(0.0f, std::abs(point[axis] - bounds.midPoint[axis]) - bounds.halfSize[axis]);
+				result += outside * outside;
 			}
 
-			std::vector<std::uint16_t> lights;
-			const auto count = std::min<std::uint32_t>(light_lists.lists[list_offset], light_lists.listsSize - list_offset - 1);
-			for (auto i = 0u; i < count; i++)
+			return result;
+		}
+
+		bool reaches_bounds(const ComPrimaryLight& light, const Bounds& bounds)
+		{
+			if (light.type != zonetool::h1::GFX_LIGHT_TYPE_SPOT && light.type != zonetool::h1::GFX_LIGHT_TYPE_OMNI)
 			{
-				const auto light = light_lists.lists[list_offset + 1 + i];
-				const auto is_extra_sun = light > 1 && light <= world->lastSunPrimaryLightIndex;
-				if (light >= world->primaryLightCount || is_extra_sun)
+				return false;
+			}
+
+			if (distance_sq_to_bounds(light.origin, bounds) > light.radius * light.radius)
+			{
+				return false;
+			}
+
+			if (light.type == zonetool::h1::GFX_LIGHT_TYPE_OMNI)
+			{
+				return true;
+			}
+
+			const float offset[3]{bounds.midPoint[0] - light.origin[0], bounds.midPoint[1] - light.origin[1], bounds.midPoint[2] - light.origin[2]};
+			const auto along = -(offset[0] * light.dir[0] + offset[1] * light.dir[1] + offset[2] * light.dir[2]);
+			const auto length_sq = offset[0] * offset[0] + offset[1] * offset[1] + offset[2] * offset[2];
+			const auto across = std::sqrt(std::max(0.0f, length_sq - along * along));
+			const auto radius = std::hypot(bounds.halfSize[0], bounds.halfSize[1], bounds.halfSize[2]);
+			const auto sin_outer = std::sqrt(std::max(0.0f, 1.0f - light.cosHalfFovOuter * light.cosHalfFovOuter));
+			return across * light.cosHalfFovOuter - along * sin_outer <= radius;
+		}
+
+		std::uint16_t get_light_env(const GfxWorld* asset, const zonetool::h1::GfxWorld* world, const std::uint16_t list_offset, const Bounds& bounds)
+		{
+			const auto* com_world = comworld::source_world();
+			const auto is_local_light = [&](const std::uint32_t light)
+			{
+				return light > world->lastSunPrimaryLightIndex && light < world->primaryLightCount;
+			};
+
+			std::vector<std::uint16_t> lights;
+			const auto& light_lists = asset->lightLists;
+			if (light_lists.lists && list_offset < light_lists.listsSize)
+			{
+				const auto count = std::min<std::uint32_t>(light_lists.lists[list_offset], light_lists.listsSize - list_offset - 1);
+				for (auto i = 0u; i < count; i++)
 				{
-					continue;
+					const auto light = light_lists.lists[list_offset + 1 + i];
+					const auto is_extra_sun = light > 1 && light <= world->lastSunPrimaryLightIndex;
+					if (light >= world->primaryLightCount || is_extra_sun)
+					{
+						continue;
+					}
+
+					if (com_world && is_local_light(light) && !reaches_bounds(com_world->primaryLights[light], bounds))
+					{
+						env_stats.listed_out_of_range++;
+					}
+
+					lights.push_back(light);
+				}
+			}
+
+			if (com_world)
+			{
+				std::vector<std::pair<float, std::uint16_t>> reached;
+				for (auto light = world->lastSunPrimaryLightIndex + 1u; light < world->primaryLightCount; light++)
+				{
+					const auto& source = com_world->primaryLights[light];
+					if (std::ranges::find(lights, light) == lights.end() && reaches_bounds(source, bounds))
+					{
+						reached.emplace_back(distance_sq_to_bounds(source.origin, bounds), static_cast<std::uint16_t>(light));
+					}
 				}
 
-				lights.push_back(light);
+				std::ranges::sort(reached);
+				for (const auto& [distance, light] : reached)
+				{
+					if (lights.size() >= 4)
+					{
+						break;
+					}
+
+					lights.push_back(light);
+					env_stats.added++;
+				}
 			}
 
 			std::sort(lights.begin(), lights.end());
@@ -241,7 +322,8 @@ namespace zonetool::s2::converter::h1::gfxworld
 			new_surface.laf.fields.lightmapIndex = surface.lightmapIndex;
 			new_surface.laf.fields.reflectionProbeIndex = surface.reflectionProbeIndex;
 			new_surface.laf.fields.primaryLightEnvIndex = light_env;
-			new_surface.laf.fields.flags = (surface.flags & GFX_SURFACE_FLAG_SUN_SHADOW_PARTITION_MASK) ? zonetool::h1::GFX_SURFACE_CASTS_SUN_SHADOW : 0;
+			const auto partitions = (surface.flags & GFX_SURFACE_FLAG_SUN_SHADOW_PARTITION_MASK) >> 4;
+			new_surface.laf.fields.flags = partitions ? static_cast<unsigned char>(zonetool::h1::GFX_SURFACE_CASTS_SUN_SHADOW | partitions * zonetool::h1::GFX_SURFACE_SUN_SHADOW_OPT_PARTITION_0) : 0;
 
 			return new_surface;
 		}
@@ -296,10 +378,10 @@ namespace zonetool::s2::converter::h1::gfxworld
 			for (auto i = 0u; i < world->surfaceCount; i++)
 			{
 				auto& new_bounds = dpvs.surfacesBounds[new_index[i]];
-				dpvs.surfaces[new_index[i]] = convert_surface(world, surfaces[i], get_light_env(asset, world, surfaces[i].lightListOffset), allocator);
+				const auto light_env = get_light_env(asset, world, surfaces[i].lightListOffset, bounds[i].bounds);
+				dpvs.surfaces[new_index[i]] = convert_surface(world, surfaces[i], light_env, allocator);
 				new_bounds.bounds = std::bit_cast<zonetool::h1::Bounds>(bounds[i].bounds);
 				new_bounds.mipRadius = bounds[i].mipRadius;
-				std::memset(new_bounds.invHighMipRadius, 0xFF, sizeof(new_bounds.invHighMipRadius));
 				std::memcpy(new_bounds.invHighMipRadius, bounds[i].invHighMipRadius, sizeof(bounds[i].invHighMipRadius));
 			}
 
@@ -344,6 +426,98 @@ namespace zonetool::s2::converter::h1::gfxworld
 		constexpr std::array<float, 16> lod_dist_index_to_scale{0.25f, 0.375f, 0.5f, 0.625f, 0.75f, 0.875f, 1.0f, 1.125f, 1.25f, 1.5f, 1.75f, 2.0f,
 			2.5f, 3.0f, 3.5f, 4.0f};
 
+		template <typename T>
+		std::vector<std::vector<T>> get_light_env_members(const zonetool::h1::GfxWorld* world, const unsigned int count, const auto& get_env)
+		{
+			std::vector<std::vector<T>> members(world->primaryLightCount);
+			for (auto i = 0u; i < count; i++)
+			{
+				for (const auto light : comworld::get_light_env_lights(get_env(i)))
+				{
+					if (light > world->lastSunPrimaryLightIndex && light < world->primaryLightCount)
+					{
+						members[light].push_back(static_cast<T>(i));
+					}
+				}
+			}
+
+			return members;
+		}
+
+		template <typename T>
+		unsigned short copy_light_list(const std::vector<T>& members, T*& list, utils::memory::allocator& allocator)
+		{
+			const auto count = std::min<std::size_t>(members.size(), std::numeric_limits<unsigned short>::max());
+			list = count ? allocator.allocate_array<T>(count) : nullptr;
+			std::copy_n(members.begin(), count, list);
+			return static_cast<unsigned short>(count);
+		}
+
+		void set_light_env_shadow_geometry(zonetool::h1::GfxShadowGeometry* geometry, const zonetool::h1::GfxWorld* world, utils::memory::allocator& allocator)
+		{
+			if (!geometry)
+			{
+				return;
+			}
+
+			const auto surfaces = get_light_env_members<unsigned int>(world, world->surfaceCount, [&](const unsigned int i)
+			{
+				return world->dpvs.surfaces[i].laf.fields.primaryLightEnvIndex;
+			});
+			const auto smodels = get_light_env_members<unsigned short>(world, world->dpvs.smodelCount, [&](const unsigned int i)
+			{
+				return world->dpvs.smodelDrawInsts[i].primaryLightEnvIndex;
+			});
+
+			for (auto light = world->lastSunPrimaryLightIndex + 1u; light < world->primaryLightCount; light++)
+			{
+				geometry[light].surfaceCount = copy_light_list(surfaces[light], geometry[light].sortedSurfIndex, allocator);
+				geometry[light].smodelCount = copy_light_list(smodels[light], geometry[light].smodelIndex, allocator);
+			}
+		}
+
+		bool has_shadow_lists(const zonetool::h1::GfxShadowGeometry* geometry, const unsigned int count)
+		{
+			for (auto i = 0u; geometry && i < count; i++)
+			{
+				if (geometry[i].surfaceCount || geometry[i].smodelCount)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		zonetool::h1::GfxShadowGeometry* make_shadow_geometry(const zonetool::h1::GfxWorld* world, utils::memory::allocator& allocator)
+		{
+			std::vector<unsigned short> sun_casters;
+			for (auto i = 0u; i < world->dpvs.smodelCount; i++)
+			{
+				if (world->dpvs.smodelDrawInsts[i].sunShadowFlags)
+				{
+					sun_casters.emplace_back(static_cast<unsigned short>(i));
+				}
+			}
+
+			const auto geometry = allocate_zeroed<zonetool::h1::GfxShadowGeometry>(allocator, world->primaryLightCount);
+			for (auto light = 0u; light < world->primaryLightCount; light++)
+			{
+				if (light && light <= world->lastSunPrimaryLightIndex)
+				{
+					geometry[light].smodelCount = static_cast<unsigned short>(sun_casters.size());
+					geometry[light].smodelIndex = allocate_zeroed<unsigned short>(allocator, sun_casters.size());
+					std::ranges::copy(sun_casters, geometry[light].smodelIndex);
+				}
+				else if (world->shadowGeomOptimized)
+				{
+					geometry[light] = world->shadowGeomOptimized[light];
+				}
+			}
+
+			return geometry;
+		}
+
 		std::uint16_t get_lod_scale_index(const float lod_scale)
 		{
 			const auto nearest = std::ranges::min_element(lod_dist_index_to_scale, {}, [&](const float scale)
@@ -354,16 +528,14 @@ namespace zonetool::s2::converter::h1::gfxworld
 			return static_cast<std::uint16_t>(nearest - lod_dist_index_to_scale.begin());
 		}
 
-		std::uint16_t get_smodel_cull_dist(const GfxStaticModelDrawInst& draw_inst, const GfxStaticModelInst& inst)
+		std::uint16_t to_h1_cull_dist(const float dist)
 		{
-			if (draw_inst.cullDist)
-			{
-				return static_cast<std::uint16_t>(std::min(std::round(draw_inst.cullDist * draw_inst.maxScale), 65535.0f));
-			}
+			return dist >= 65535.0f ? 0 : static_cast<std::uint16_t>(std::max(std::round(dist), 1.0f));
+		}
 
-			const auto& half_size = inst.bounds.halfSize;
-			const auto half_extent = std::hypot(half_size[0], half_size[1], half_size[2]);
-			return static_cast<std::uint16_t>(std::clamp(half_extent * 100.0f, 1500.0f, 30000.0f));
+		std::uint16_t get_smodel_cull_dist(const GfxStaticModelDrawInst& draw_inst)
+		{
+			return draw_inst.cullDist ? to_h1_cull_dist(draw_inst.cullDist * draw_inst.maxScale) : 0;
 		}
 
 		zonetool::h1::GfxPackedPlacement convert_placement(const GfxStaticModelDrawInst& inst)
@@ -377,44 +549,112 @@ namespace zonetool::s2::converter::h1::gfxworld
 				}
 			}
 
-			return placement;
-		}
-
-		void log_static_model_cull_load(const zonetool::h1::GfxWorld* world)
-		{
-			const auto& dpvs = world->dpvs;
-			if (!dpvs.smodelCount)
+			for (auto axis = 1; axis < 3 && placement.scale != 0.0f; axis++)
 			{
-				return;
-			}
-
-			constexpr auto grid_size = 24;
-			const auto& bounds = world->bounds;
-			auto worst = 0u;
-			auto worst_wide = 0u;
-			for (auto x = 0; x < grid_size; x++)
-			{
-				for (auto z = 0; z < grid_size; z++)
+				const auto ratio = inst.axisScale[axis - 1] / placement.scale;
+				for (auto& value : placement.axis[axis])
 				{
-					const auto position_x = bounds.midPoint[0] - bounds.halfSize[0] + 2.0f * bounds.halfSize[0] * (x + 0.5f) / grid_size;
-					const auto position_z = bounds.midPoint[2] - bounds.halfSize[2] + 2.0f * bounds.halfSize[2] * (z + 0.5f) / grid_size;
-					auto visible = 0u;
-					auto visible_wide = 0u;
-					for (auto i = 0u; i < dpvs.smodelCount; i++)
-					{
-						const auto& origin = dpvs.smodelDrawInsts[i].placement.origin;
-						const auto distance = std::hypot(origin[0] - position_x, origin[2] - position_z);
-						visible += distance < dpvs.smodelDrawInsts[i].cullDist ? 1u : 0u;
-						visible_wide += distance < 4.0f * dpvs.smodelDrawInsts[i].cullDist ? 1u : 0u;
-					}
-
-					worst = std::max(worst, visible);
-					worst_wide = std::max(worst_wide, visible_wide);
+					value *= ratio;
 				}
 			}
 
-			ZONETOOL_INFO("GfxWorld static models: %u, most models inside cullDist %u, inside 4x cullDist %u",
-				dpvs.smodelCount, worst, worst_wide);
+			return placement;
+		}
+
+		unsigned int get_worst_view_load(const zonetool::h1::GfxWorldDpvsStatic& dpvs, const std::vector<float>& cull_dists)
+		{
+			constexpr auto angle_bins = 64;
+			constexpr auto half_fov_bins = 9;
+			auto worst = 0u;
+			for (auto viewer = 0u; viewer < dpvs.smodelCount; viewer += 16)
+			{
+				const auto& view_origin = dpvs.smodelDrawInsts[viewer].placement.origin;
+				std::array<unsigned int, angle_bins> bins{};
+				for (auto i = 0u; i < dpvs.smodelCount; i++)
+				{
+					const auto& origin = dpvs.smodelDrawInsts[i].placement.origin;
+					const auto dx = origin[0] - view_origin[0];
+					const auto dy = origin[1] - view_origin[1];
+					if (dx * dx + dy * dy < cull_dists[i] * cull_dists[i])
+					{
+						const auto angle = std::atan2(dy, dx) / (2.0f * std::numbers::pi_v<float>) + 0.5f;
+						bins[static_cast<int>(angle * angle_bins) % angle_bins]++;
+					}
+				}
+
+				for (auto direction = 0; direction < angle_bins; direction++)
+				{
+					auto load = 0u;
+					for (auto offset = -half_fov_bins; offset <= half_fov_bins; offset++)
+					{
+						load += bins[(direction + offset + angle_bins) % angle_bins];
+					}
+
+					worst = std::max(worst, load);
+				}
+			}
+
+			return worst;
+		}
+
+		void fit_static_model_lighting_budget(zonetool::h1::GfxWorldDpvsStatic& dpvs)
+		{
+			const auto budget = 3600u; // 1.4 0x1405EEF40
+			std::vector<float> radii(dpvs.smodelCount), cull_dists(dpvs.smodelCount);
+			for (auto i = 0u; i < dpvs.smodelCount; i++)
+			{
+				const auto& half_size = dpvs.smodelInsts[i].bounds.halfSize;
+				radii[i] = std::hypot(half_size[0], half_size[1], half_size[2]);
+				const auto cull_dist = dpvs.smodelDrawInsts[i].cullDist;
+				cull_dists[i] = cull_dist ? cull_dist : std::numeric_limits<float>::infinity();
+			}
+
+			const auto initial_load = get_worst_view_load(dpvs, cull_dists);
+			if (initial_load <= budget)
+			{
+				ZONETOOL_INFO("GfxWorld static models: worst view lights %u of %u models", initial_load, budget);
+				return;
+			}
+
+			const auto capped_dists = [&](const float radius_scale)
+			{
+				std::vector<float> dists(dpvs.smodelCount);
+				for (auto i = 0u; i < dpvs.smodelCount; i++)
+				{
+					dists[i] = std::min(cull_dists[i], radii[i] * radius_scale);
+				}
+
+				return dists;
+			};
+
+			auto low = 1.0f, high = 1000.0f;
+			for (auto step = 0; step < 16; step++)
+			{
+				const auto middle = std::sqrt(low * high);
+				(get_worst_view_load(dpvs, capped_dists(middle)) <= budget ? low : high) = middle;
+			}
+
+			const auto dists = capped_dists(low);
+			auto capped = 0u;
+			for (auto i = 0u; i < dpvs.smodelCount; i++)
+			{
+				if (dists[i] >= cull_dists[i])
+				{
+					continue;
+				}
+
+				auto& inst = dpvs.smodelDrawInsts[i];
+				inst.cullDist = to_h1_cull_dist(dists[i]);
+				if (inst.reactiveMotionCullDist && inst.cullDist)
+				{
+					inst.reactiveMotionCullDist = std::min(inst.reactiveMotionCullDist, inst.cullDist);
+				}
+
+				capped += inst.cullDist ? 1u : 0u;
+			}
+
+			ZONETOOL_INFO("GfxWorld static models: worst view lights %u models, over the budget of %u, cull distance of %u small models capped at %.0f x radius",
+				initial_load, budget, capped, low);
 		}
 
 		void convert_static_models(GfxWorld* asset, zonetool::h1::GfxWorld* world, utils::memory::allocator& allocator)
@@ -422,6 +662,7 @@ namespace zonetool::s2::converter::h1::gfxworld
 			auto& dpvs = world->dpvs;
 			const auto draw_insts = asset->dpvs.smodelDrawInsts;
 			const auto insts = asset->dpvs.smodelInsts;
+			std::unordered_set<std::string> missing_models;
 
 			dpvs.smodelInsts = retype<zonetool::h1::GfxStaticModelInst>(insts);
 			dpvs.smodelDrawInsts = allocate_zeroed<zonetool::h1::GfxStaticModelDrawInst>(allocator, dpvs.smodelCount);
@@ -433,11 +674,26 @@ namespace zonetool::s2::converter::h1::gfxworld
 				auto& new_inst = dpvs.smodelDrawInsts[i];
 				new_inst.placement = convert_placement(inst);
 				new_inst.model = make_stub<zonetool::h1::XModel>(inst.model ? inst.model->name : "void", allocator);
-				new_inst.flags = zonetool::h1::STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING | (inst.flags & zonetool::h1::STATIC_MODEL_FLAG_NO_CAST_SHADOW) | get_lod_scale_index(inst.lodScale);
-				new_inst.cullDist = get_smodel_cull_dist(inst, insts[i]);
+				const auto placement_scale = std::abs(new_inst.placement.scale) > 0.0f ? std::abs(new_inst.placement.scale) : 1.0f; // 1.4 0x1405A64BC
+				new_inst.flags = zonetool::h1::STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING | (inst.flags & (zonetool::h1::STATIC_MODEL_FLAG_NO_CAST_SHADOW | zonetool::h1::STATIC_MODEL_FLAG_ALLOW_FXMARK))
+					| get_lod_scale_index(inst.lodScale / placement_scale);
+				new_inst.cullDist = get_smodel_cull_dist(inst);
+				const auto model_converted = inst.model && xmodel::is_dumped(inst.model->name);
+				if (!model_converted && missing_models.insert(new_inst.model->name).second)
+				{
+					ZONETOOL_WARNING("static model %u: xmodel \"%s\" is not converted, h1 draws its default model", i, new_inst.model->name);
+				}
+
+				if (model_converted && xmodel::is_wind_sway(inst.model))
+				{
+					new_inst.flags |= zonetool::h1::STATIC_MODEL_FLAG_REACTIVEMOTION | zonetool::h1::STATIC_MODEL_FLAG_ANIMATED_VERTS;
+					new_inst.reactiveMotionCullDist = new_inst.cullDist ? new_inst.cullDist : std::numeric_limits<std::uint16_t>::max();
+					new_inst.reactiveMotionLOD = 6;
+				}
+
 				new_inst.staticModelId = inst.staticModelId;
 				new_inst.reflectionProbeIndex = inst.reflectionProbeIndex;
-				new_inst.primaryLightEnvIndex = get_light_env(asset, world, inst.lightListOffset);
+				new_inst.primaryLightEnvIndex = get_light_env(asset, world, inst.lightListOffset, insts[i].bounds);
 				new_inst.sunShadowFlags = (new_inst.flags & zonetool::h1::STATIC_MODEL_FLAG_NO_CAST_SHADOW) ? 0 : inst.sunShadowFlags;
 			}
 
@@ -457,7 +713,16 @@ namespace zonetool::s2::converter::h1::gfxworld
 			for (auto& data : dpvs.smodelUmbraVisData) data = allocate_zeroed<unsigned int>(allocator, smodel_words + 1);
 			for (auto& data : dpvs.surfaceUmbraVisData) data = allocate_zeroed<unsigned int>(allocator, surface_words);
 
-			dpvs.unknownSModelVisData1 = allocate_zeroed<unsigned int>(allocator, smodel_words);
+			dpvs.unknownSModelVisData1 = allocate_zeroed<unsigned int>(allocator, smodel_words); // 1.4 0x1405AB020
+			for (auto i = 0u; i < dpvs.smodelCount; i++)
+			{
+				const auto& inst = dpvs.smodelDrawInsts[i];
+				if ((inst.flags & zonetool::h1::STATIC_MODEL_FLAG_REACTIVEMOTION) && inst.reactiveMotionLOD)
+				{
+					dpvs.unknownSModelVisData1[i >> 5] |= 0x80000000u >> (i & 31);
+				}
+			}
+
 			dpvs.unknownSModelVisData2 = allocate_zeroed<unsigned int>(allocator, 2 * smodel_words);
 			dpvs.tessellationCutoffVisData = allocate_zeroed<unsigned int>(allocator, surface_words);
 			dpvs.surfaceCastsSunShadow = allocate_zeroed<unsigned int>(allocator, surface_words);
@@ -489,6 +754,14 @@ namespace zonetool::s2::converter::h1::gfxworld
 			world->shadowGeomOptimized = convert_shadow_geometry(asset->shadowGeomOptimized, world->primaryLightCount, new_index, allocator);
 
 			convert_static_models(asset, world, allocator);
+			if (!has_shadow_lists(world->shadowGeom, world->primaryLightCount))
+			{
+				world->shadowGeom = make_shadow_geometry(world, allocator);
+			}
+
+			set_light_env_shadow_geometry(world->shadowGeom, world, allocator);
+			set_light_env_shadow_geometry(world->shadowGeomOptimized, world, allocator);
+
 			allocate_vis_data(dpvs, allocator);
 			dpvs.surfaceMaterials = allocate_zeroed<zonetool::h1::GfxDrawSurf>(allocator, world->surfaceCount);
 		}
@@ -710,7 +983,12 @@ namespace zonetool::s2::converter::h1::gfxworld
 			world->lightRegion = retype<zonetool::h1::GfxLightRegion>(asset->lightRegion);
 
 			world->dpvsDyn = {};
+			std::memcpy(world->dpvsDyn.dynEntClientWordCount, asset->dpvsDyn.dynEntClientWordCount, sizeof(world->dpvsDyn.dynEntClientWordCount));
+			std::memcpy(world->dpvsDyn.dynEntClientCount, asset->dpvsDyn.dynEntClientCount, sizeof(world->dpvsDyn.dynEntClientCount));
+			env_stats = {};
 			convert_dpvs(asset, world, allocator);
+			ZONETOOL_INFO("Light envs: %zu lights added by range, %zu listed lights out of range", env_stats.added, env_stats.listed_out_of_range);
+			fit_static_model_lighting_budget(world->dpvs);
 			convert_light_grid(asset, world, allocator);
 			disable_empty_light_grid_trees(world->lightGrid);
 			world->primaryLightEnvCount = comworld::get_light_env_count();
@@ -746,6 +1024,14 @@ namespace zonetool::s2::converter::h1::gfxworld
 		loaded_transient_zones[index] = zone;
 	}
 
+	void reference_models()
+	{
+		for (auto i = 0u; pending_world && i < pending_world->dpvs.smodelCount; i++)
+		{
+			xmodel::reference(pending_world->dpvs.smodelDrawInsts[i].model);
+		}
+	}
+
 	void finish()
 	{
 		if (!pending_world)
@@ -755,7 +1041,6 @@ namespace zonetool::s2::converter::h1::gfxworld
 
 		utils::memory::allocator allocator;
 		const auto world = convert(pending_world, allocator);
-		log_static_model_cull_load(world);
 		zonetool::h1::gfx_world::dump(world);
 		add_csv_row("gfx_map", world->name);
 		clear_stubs();

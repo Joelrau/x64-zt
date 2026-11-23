@@ -852,7 +852,7 @@ namespace zonetool::h1::converter::s2::gfxworld
 					: has_vertex_lighting(inst, source.smodelLightingInsts[i])
 					? zonetool::s2::STATIC_MODEL_FLAG_VERTEXLIT_LIGHTING
 					: zonetool::s2::STATIC_MODEL_FLAG_LIGHTGRID_LIGHTING;
-				new_inst.flags = 0x200 | lighting_flag | (inst.flags & STATIC_MODEL_FLAG_NO_CAST_SHADOW);
+				new_inst.flags = lighting_flag | (inst.flags & (STATIC_MODEL_FLAG_NO_CAST_SHADOW | STATIC_MODEL_FLAG_ALLOW_FXMARK));
 				new_inst.staticModelId = inst.staticModelId;
 				new_inst.lightListOffset = lists.offset(inst.primaryLightEnvIndex);
 				const auto& half_size = source.smodelInsts[i].bounds.halfSize;

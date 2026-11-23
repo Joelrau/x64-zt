@@ -1926,6 +1926,31 @@ namespace zonetool::h1
 		GFXS2_STENCIL_REF_BIT_7 = 0x800000,
 	};
 
+	enum GfxBlend : std::uint32_t
+	{
+		GFXS_BLEND_DISABLED = 0x0,
+		GFXS_BLEND_ZERO = 0x1,
+		GFXS_BLEND_ONE = 0x2,
+		GFXS_BLEND_SRCCOLOR = 0x3,
+		GFXS_BLEND_INVSRCCOLOR = 0x4,
+		GFXS_BLEND_SRCALPHA = 0x5,
+		GFXS_BLEND_INVSRCALPHA = 0x6,
+		GFXS_BLEND_DESTALPHA = 0x7,
+		GFXS_BLEND_INVDESTALPHA = 0x8,
+		GFXS_BLEND_DESTCOLOR = 0x9,
+		GFXS_BLEND_INVDESTCOLOR = 0xA,
+	};
+
+	enum GfxBlendOp : std::uint32_t
+	{
+		GFXS_BLENDOP_DISABLED = 0x0,
+		GFXS_BLENDOP_ADD = 0x1,
+		GFXS_BLENDOP_SUBTRACT = 0x2,
+		GFXS_BLENDOP_REVSUBTRACT = 0x3,
+		GFXS_BLENDOP_MIN = 0x4,
+		GFXS_BLENDOP_MAX = 0x5,
+	};
+
 	enum GfxStateBitRawBits3 : std::uint32_t
 	{
 		GFXS3_SRCBLEND_RGB_SHIFT = 0x0,
@@ -3448,6 +3473,7 @@ namespace zonetool::h1
 		FX_EFFECT_NEEDS_LIGHT_GRID_LIGHTING_PER_FRAME = 0x4,
 		FX_EFFECT_NEEDS_DYNAMIC_LIGHTING_PER_FRAME = 0x8,
 		FX_EFFECT_NEEDS_EMISSIVE_DRAW = 0x10,
+		FX_EFFECT_USE_VECTORFIELDS = 0x20,
 		FX_EFFECT_LINK_TO_SUN = 0x40,
 		FX_EFFECT_HAS_CAMERA_RELATIVE_ELEM = 0x80,
 	};
@@ -6973,7 +6999,8 @@ namespace zonetool::h1
 		DynEntityLinkToDef* linkTo;
 		PhysMass mass;
 		int contents;
-		float unk[2]; //char __pad0[8];
+		float impactDamageThreshold;
+		float impactDamageScale;
 	}; assert_sizeof(DynEntityDef, 136);
 
 	struct DynEntityPose
@@ -8140,6 +8167,7 @@ namespace zonetool::h1
 	enum GFX_SURFACE_FLAGS : std::int32_t
 	{
 		GFX_SURFACE_CASTS_SUN_SHADOW = 0x1,
+		GFX_SURFACE_SUN_SHADOW_OPT_PARTITION_0 = 0x8,
 	};
 
 	struct srfTriangles_t

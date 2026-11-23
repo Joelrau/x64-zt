@@ -95,6 +95,21 @@ namespace zonetool::s2::converter::h1
 		return (s2_flags & ~(0x3Fu << 20)) | (convert_surface_type(s2_flags >> 20) << 20);
 	}
 
+	std::uint64_t convert_surface_type_bits(const std::uint64_t s2_bits)
+	{
+		std::uint64_t result{};
+		for (auto i = 0u; i + 1 < s2_surface_types.size(); i++)
+		{
+			const auto type = convert_surface_type(i + 1);
+			if ((s2_bits & (1ull << i)) && type)
+			{
+				result |= 1ull << (type - 1);
+			}
+		}
+
+		return result;
+	}
+
 	void add_csv_row(const std::string_view type, const std::string_view name, const bool referenced)
 	{
 		if (csv_keys.insert(std::format("{},{}", type, name)).second)
@@ -124,6 +139,9 @@ namespace zonetool::convert::s2_h1
 			case source::ASSET_TYPE_COMWORLD:
 				target::comworld::dump(header_as<source::ComWorld>(header));
 				break;
+			case source::ASSET_TYPE_FX:
+				target::fxeffectdef::dump(header_as<source::FxEffectDef>(header));
+				break;
 			case source::ASSET_TYPE_FXWORLD:
 				target::fxworld::dump(header_as<source::FxWorld>(header));
 				break;
@@ -135,6 +153,7 @@ namespace zonetool::convert::s2_h1
 				break;
 			case source::ASSET_TYPE_STRINGTABLE:
 				target::lightsets::dump(header_as<source::StringTable>(header));
+				target::soundtables::dump(header_as<source::StringTable>(header));
 				break;
 			case source::ASSET_TYPE_MAP_ENTS:
 				target::mapents::dump(header_as<source::MapEnts>(header));
@@ -153,6 +172,9 @@ namespace zonetool::convert::s2_h1
 				break;
 			case source::ASSET_TYPE_XMODEL:
 				target::xmodel::dump(header_as<source::XModel>(header));
+				break;
+			case source::ASSET_TYPE_XANIM:
+				target::xanim::dump(header_as<source::XAnimParts>(header));
 				break;
 			case source::ASSET_TYPE_XMODEL_SURFS:
 				target::xsurface::dump(header_as<source::XModelSurfs>(header));
@@ -181,10 +203,11 @@ namespace zonetool::convert::s2_h1
 
 		void finish(const std::string& zone_name)
 		{
+			target::clipmap::finish();
+			target::gfxworld::reference_models();
 			target::material::finish();
 			target::gfxworld::finish();
 			target::comworld::finish();
-			target::clipmap::finish();
 			target::scriptfile::finish();
 			target::write_csv(zone_name);
 		}

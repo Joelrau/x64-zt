@@ -14,6 +14,8 @@ namespace zonetool::s2::converter::h1::techset
 		{
 			"code_post_gfx_mp",
 			"patch_code_post_gfx_mp",
+			"techsets_common_core_mp",
+			"techsets_common_mp",
 		};
 
 		const std::unordered_map<std::string_view, std::string_view> s2_prefixes
@@ -79,6 +81,7 @@ namespace zonetool::s2::converter::h1::techset
 			{"cltrans", 6.0f},
 			{"flag", 15.0f},
 			{"flagext", 15.0f},
+			{"reactivemotion", 30.0f},
 		};
 
 		std::vector<shader_key> missing_shaders;
@@ -164,7 +167,7 @@ namespace zonetool::s2::converter::h1::techset
 
 				if (!is_layer_token(token))
 				{
-					result.features.insert(token);
+					result.features.insert(is_s2 && token == "fwa" ? "reactivemotion" : token);
 					continue;
 				}
 
@@ -268,6 +271,12 @@ namespace zonetool::s2::converter::h1::techset
 			return best->name;
 		}
 
+		bool is_global_zone(const std::filesystem::path& zone)
+		{
+			const auto name = zone.stem().string();
+			return std::ranges::find(global_zones, name) != std::end(global_zones);
+		}
+
 		std::vector<std::filesystem::path> list_techset_zones()
 		{
 			std::vector<std::filesystem::path> zones;
@@ -280,7 +289,7 @@ namespace zonetool::s2::converter::h1::techset
 			for (const auto& entry : std::filesystem::directory_iterator(h1_folder / "zone"))
 			{
 				const auto filename = entry.path().filename().string();
-				if (entry.is_regular_file() && filename.starts_with("techsets_") && filename.ends_with(".ff"))
+				if (entry.is_regular_file() && filename.starts_with("techsets_") && filename.ends_with(".ff") && !is_global_zone(entry.path()))
 				{
 					techset_zones.emplace_back(entry.path());
 				}
@@ -289,12 +298,6 @@ namespace zonetool::s2::converter::h1::techset
 			std::ranges::sort(techset_zones);
 			zones.insert(zones.end(), techset_zones.begin(), techset_zones.end());
 			return zones;
-		}
-
-		bool is_global_zone(const std::filesystem::path& zone)
-		{
-			const auto name = zone.stem().string();
-			return std::ranges::find(global_zones, name) != std::end(global_zones);
 		}
 
 		bool is_shader_type(const zonetool::h1::XAssetType type)
@@ -315,6 +318,7 @@ namespace zonetool::s2::converter::h1::techset
 
 			const auto zone = zonetool::h1::load_zone(path);
 			const auto global = is_global_zone(path);
+			const auto any_material_techset = global && !path.stem().string().starts_with("techsets_");
 
 			std::unordered_set<std::string> zone_techsets;
 			for (const auto& asset : zone->assets)
@@ -353,7 +357,7 @@ namespace zonetool::s2::converter::h1::techset
 				}
 
 				const std::string techset = material->techniqueSet->name;
-				if (global || zone_techsets.contains(techset))
+				if (any_material_techset || zone_techsets.contains(techset))
 				{
 					result.sources.try_emplace(techset, h1_techset_source{.zone = path, .global = global});
 				}
@@ -570,32 +574,13 @@ namespace zonetool::s2::converter::h1::techset
 				const auto techset = static_cast<zonetool::h1::MaterialTechniqueSet*>(asset.header);
 				this->techsets_.try_emplace(techset->name, techset);
 			}
-			else if (asset.type == zonetool::h1::ASSET_TYPE_MATERIAL)
-			{
-				const auto material = static_cast<zonetool::h1::Material*>(asset.header);
-				if (material->techniqueSet && material->techniqueSet->name)
-				{
-					this->donors_.try_emplace(material->techniqueSet->name, material);
-				}
-			}
 		}
-	}
-
-	zonetool::h1::Material* h1_zone::find_donor(const std::string& techset) const
-	{
-		const auto donor = this->donors_.find(techset);
-		return donor != this->donors_.end() ? donor->second : nullptr;
 	}
 
 	zonetool::h1::MaterialTechniqueSet* h1_zone::find_techset(const std::string& techset) const
 	{
 		const auto entry = this->techsets_.find(techset);
 		return entry != this->techsets_.end() ? entry->second : nullptr;
-	}
-
-	database& h1_zone::db() const
-	{
-		return *this->database_;
 	}
 
 	void set_h1_folder(const std::filesystem::path& folder)
@@ -644,6 +629,51 @@ namespace zonetool::s2::converter::h1::techset
 	bool is_global_image(const std::string& name)
 	{
 		return get_catalog().global_images.contains(name);
+	}
+
+	std::string load_h1_program(const zonetool::h1::XAssetType type, const std::string& name)
+	{
+		const auto& sources = get_catalog().shader_sources;
+		const auto source = sources.find(get_shader_key(type, name));
+		if (source == sources.end())
+		{
+			return {};
+		}
+
+		const auto db = db_create();
+		db_scope _(*db);
+		const auto zone = zonetool::h1::load_zone(source->second);
+		for (const auto& asset : zone->assets)
+		{
+			if (asset.type != type || asset.referenced || zonetool::h1::get_asset_name(asset.type, asset.header) != name)
+			{
+				continue;
+			}
+
+			const auto& load_def = static_cast<zonetool::h1::MaterialPixelShader*>(asset.header)->prog.loadDef;
+			return load_def.program ? std::string(reinterpret_cast<const char*>(load_def.program), load_def.programSize) : std::string{};
+		}
+
+		return {};
+	}
+
+	bool is_global_shader(const zonetool::h1::XAssetType type, const std::string& name)
+	{
+		const auto& sources = get_catalog().shader_sources;
+		const auto source = sources.find(get_shader_key(type, name));
+		return source != sources.end() && is_global_zone(source->second);
+	}
+
+	std::string h1_style_name(const std::string& techset)
+	{
+		const auto underscore = techset.find('_');
+		const auto prefix = underscore != std::string::npos ? s2_prefixes.find(std::string_view(techset).substr(0, underscore)) : s2_prefixes.end();
+		if (prefix == s2_prefixes.end())
+		{
+			return techset;
+		}
+
+		return prefix->second.empty() ? techset.substr(underscore + 1) : std::string(prefix->second) + techset.substr(underscore);
 	}
 
 	void dump_missing_shaders()

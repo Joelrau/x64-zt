@@ -10,6 +10,7 @@ namespace zonetool::s2::converter::h1
 
 	std::uint32_t convert_surface_type(std::uint32_t s2_type);
 	std::uint32_t convert_surface_flags(std::uint32_t s2_flags);
+	std::uint64_t convert_surface_type_bits(std::uint64_t s2_bits);
 
 	inline void write_file(const std::string& name, const std::string_view data)
 	{

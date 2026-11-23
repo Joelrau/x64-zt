@@ -106,6 +106,97 @@ namespace zonetool::s2::converter::h1::xsurface
 			}
 		}
 
+		std::uint32_t find_root(std::vector<std::uint32_t>& parents, std::uint32_t index)
+		{
+			while (parents[index] != index)
+			{
+				parents[index] = parents[parents[index]];
+				index = parents[index];
+			}
+
+			return index;
+		}
+
+		std::vector<std::uint32_t> get_vertex_clusters(const zonetool::h1::XSurface* surface, const reactive_parts& parts)
+		{
+			std::vector<std::uint32_t> clusters(surface->vertCount, 0u);
+			if (parts.size() < 2)
+			{
+				return clusters;
+			}
+
+			std::vector<std::uint32_t> parents(surface->vertCount);
+			std::iota(parents.begin(), parents.end(), 0u);
+			for (auto i = 0; i < surface->triCount; i++)
+			{
+				const auto& face = surface->triIndices[i];
+				const std::uint32_t indices[3]{face.v1, face.v2, face.v3};
+				for (auto k = 1; k < 3; k++)
+				{
+					parents[find_root(parents, indices[k])] = find_root(parents, indices[0]);
+				}
+			}
+
+			std::unordered_map<std::uint32_t, std::array<float, 3>> sums;
+			for (auto i = 0u; i < surface->vertCount; i++)
+			{
+				auto& sum = sums[find_root(parents, i)];
+				sum[0] += surface->verts0.packedVerts0[i].xyz[0];
+				sum[1] += surface->verts0.packedVerts0[i].xyz[1];
+				sum[2] += 1.0f;
+			}
+
+			std::unordered_map<std::uint32_t, std::uint32_t> piece_clusters;
+			for (const auto& [root, sum] : sums)
+			{
+				const auto x = sum[0] / sum[2];
+				const auto y = sum[1] / sum[2];
+				auto best = 0u;
+				auto best_distance = std::numeric_limits<float>::max();
+				for (auto p = 0u; p < parts.size(); p++)
+				{
+					const auto distance = (parts[p][0] - x) * (parts[p][0] - x) + (parts[p][1] - y) * (parts[p][1] - y);
+					if (distance < best_distance)
+					{
+						best = p;
+						best_distance = distance;
+					}
+				}
+
+				piece_clusters[root] = best;
+			}
+
+			for (auto i = 0u; i < surface->vertCount; i++)
+			{
+				clusters[i] = piece_clusters[find_root(parents, i)];
+			}
+
+			return clusters;
+		}
+
+		void set_reactive_weights(zonetool::h1::XSurface* surface, const reactive_parts& parts)
+		{
+			const auto max_weight = 0.5f / std::sqrt(static_cast<float>(std::max<std::size_t>(parts.size(), 1)));
+			const auto clusters = get_vertex_clusters(surface, parts);
+
+			auto top = 0.0f;
+			for (auto i = 0; i < surface->vertCount; i++)
+			{
+				top = std::max(top, surface->verts0.packedVerts0[i].xyz[2]);
+			}
+
+			for (auto i = 0; i < surface->vertCount; i++)
+			{
+				auto& vertex = surface->verts0.packedVerts0[i];
+				const auto height = top > 0.0f ? std::clamp(vertex.xyz[2] / top, 0.0f, 1.0f) : 0.0f;
+				vertex.binormalSign = std::copysign(std::max(0.001f, max_weight * height * height), vertex.binormalSign);
+				vertex.color.packed = 0xFFFFF0FFu | (clusters[i] << 8); // stock green 0 draws magenta
+			}
+
+			surface->flags = static_cast<unsigned short>((surface->flags & ~zonetool::h1::SURF_FLAG_VERTCOL_GREY)
+				| zonetool::h1::SURF_FLAG_VERTCOL_NONE | zonetool::h1::SURF_FLAG_REACTIVE_MOTION);
+		}
+
 		void generate_blend_verts_table(zonetool::h1::XSurface* surface)
 		{
 			auto blend_index = 0u;
@@ -203,7 +294,7 @@ namespace zonetool::s2::converter::h1::xsurface
 		}
 
 		bool convert_surface(const char* name, const XSurface* surface, const bool keep_colors, const std::uint32_t forced_color_bits,
-			zonetool::h1::XSurface* new_surface, utils::memory::allocator& allocator)
+			const bool reactive, const reactive_parts& parts, zonetool::h1::XSurface* new_surface, utils::memory::allocator& allocator)
 		{
 			const auto data = read_vertex_data(surface->shared);
 			if (!data)
@@ -232,6 +323,11 @@ namespace zonetool::s2::converter::h1::xsurface
 			std::memcpy(new_surface->triIndices2, tri_indices, surface->triCount * sizeof(zonetool::h1::Face));
 
 			convert_vertices(surface, *streams, new_surface, keep_colors, forced_color_bits, allocator);
+			if (reactive && !streams->skin)
+			{
+				set_reactive_weights(new_surface, parts);
+			}
+
 			convert_rigid_vert_lists(surface, new_surface, allocator);
 
 			if (streams->skin)
@@ -253,7 +349,7 @@ namespace zonetool::s2::converter::h1::xsurface
 	}
 
 	zonetool::h1::XModelSurfs* convert(const XModelSurfs* asset, const std::unordered_map<int, std::uint32_t>& vertex_color_surfs,
-		unsigned int vertex_lighting_index, utils::memory::allocator& allocator)
+		const std::unordered_set<int>& reactive_surfs, const reactive_parts& parts, unsigned int vertex_lighting_index, utils::memory::allocator& allocator)
 	{
 		const auto new_asset = allocator.allocate<zonetool::h1::XModelSurfs>();
 		new_asset->name = asset->name;
@@ -263,7 +359,8 @@ namespace zonetool::s2::converter::h1::xsurface
 
 		for (auto i = 0; i < asset->numsurfs; i++)
 		{
-			if (!convert_surface(asset->name, &asset->surfs[i], vertex_color_surfs.contains(i), vertex_color_surfs.contains(i) ? vertex_color_surfs.at(i) : 0u, &new_asset->surfs[i], allocator))
+			if (!convert_surface(asset->name, &asset->surfs[i], vertex_color_surfs.contains(i), vertex_color_surfs.contains(i) ? vertex_color_surfs.at(i) : 0u,
+				reactive_surfs.contains(i), parts, &new_asset->surfs[i], allocator))
 			{
 				return nullptr;
 			}
@@ -275,10 +372,11 @@ namespace zonetool::s2::converter::h1::xsurface
 		return new_asset;
 	}
 
-	void dump(XModelSurfs* asset, const std::unordered_map<int, std::uint32_t>& vertex_color_surfs, const unsigned int vertex_lighting_index)
+	void dump(XModelSurfs* asset, const std::unordered_map<int, std::uint32_t>& vertex_color_surfs, const std::unordered_set<int>& reactive_surfs,
+		const reactive_parts& parts, const unsigned int vertex_lighting_index)
 	{
 		utils::memory::allocator allocator;
-		if (const auto converted = convert(asset, vertex_color_surfs, vertex_lighting_index, allocator))
+		if (const auto converted = convert(asset, vertex_color_surfs, reactive_surfs, parts, vertex_lighting_index, allocator))
 		{
 			zonetool::h1::xsurface::dump(converted);
 			dumped_surfs.insert(asset->name);

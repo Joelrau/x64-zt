@@ -1,9 +1,9 @@
 #include <std_include.hpp>
-
-#include "../../include.hpp"
 #include "dxbc.hpp"
 
-namespace zonetool::h1::converter::s2::shader
+#include "utils/string.hpp"
+
+namespace dxbc
 {
 	namespace
 	{

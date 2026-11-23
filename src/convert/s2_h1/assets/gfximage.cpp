@@ -11,6 +11,21 @@
 
 namespace zonetool::s2::converter::h1::gfximage
 {
+	zonetool::h1::IMG_TS convert_semantic(const std::uint8_t semantic)
+	{
+		if (semantic == TS_EMISSIVE_MAP)
+		{
+			return zonetool::h1::TS_COLOR_MAP;
+		}
+
+		if (semantic >= zonetool::h1::TS_COUNT || semantic == zonetool::h1::TS_WATER_MAP)
+		{
+			return zonetool::h1::TS_2D;
+		}
+
+		return static_cast<zonetool::h1::IMG_TS>(semantic);
+	}
+
 	namespace
 	{
 		constexpr DXGI_FORMAT image_formats[]
@@ -59,8 +74,7 @@ namespace zonetool::s2::converter::h1::gfximage
 			DXGI_FORMAT_R32G32B32A32_UINT,
 		};
 
-
-		std::unordered_set<std::string> dumped_images;
+std::unordered_set<std::string> dumped_images;
 
 		fingerprint get_image_fingerprint(const GfxImage* asset)
 		{
@@ -89,19 +103,19 @@ namespace zonetool::s2::converter::h1::gfximage
 			return index < std::size(image_formats) ? image_formats[index] : DXGI_FORMAT_UNKNOWN;
 		}
 
-		zonetool::h1::IMG_TS convert_semantic(const std::uint8_t semantic)
+		bool is_srgb_format(const DXGI_FORMAT format)
 		{
-			if (semantic == TS_EMISSIVE_MAP)
+			switch (static_cast<std::size_t>(format))
 			{
-				return zonetool::h1::TS_COLOR_MAP;
+			case 2:
+			case 8:
+			case 10:
+			case 12:
+			case 19:
+				return true;
+			default:
+				return false;
 			}
-
-			if (semantic >= zonetool::h1::TS_COUNT || semantic == zonetool::h1::TS_WATER_MAP)
-			{
-				return zonetool::h1::TS_2D;
-			}
-
-			return static_cast<zonetool::h1::IMG_TS>(semantic);
 		}
 
 		bool is_packed_specular(const GfxImage* asset)
@@ -446,7 +460,7 @@ namespace zonetool::s2::converter::h1::gfximage
 			image->dataLen2 = total;
 		}
 
-		void dump_streams(GfxImage* asset, zonetool::h1::GfxImage* image)
+		void dump_streams(GfxImage* asset, zonetool::h1::GfxImage* image, const std::string& name, const bool native)
 		{
 			const auto keys = get_image_stream_keys(asset);
 			std::array<std::optional<std::string>, std::extent_v<decltype(GfxImage::streams)>> streams;
@@ -464,12 +478,11 @@ namespace zonetool::s2::converter::h1::gfximage
 				}
 			}
 
-			if (is_packed_specular(asset))
+			if (!native && is_packed_specular(asset))
 			{
 				convert_specular_streams(asset, image, streams);
 			}
 
-			const auto name = clean_name(asset->name);
 			for (auto i = 0u; i < streams.size(); i++)
 			{
 				if (streams[i])
@@ -479,46 +492,52 @@ namespace zonetool::s2::converter::h1::gfximage
 				}
 			}
 		}
+
+		void dump_image(GfxImage* asset, const std::string& image_name, const bool native)
+		{
+			dumped_images.insert(image_name);
+			add_csv_row("image", image_name);
+
+			auto image = convert(asset);
+			image.name = image_name.data();
+
+			const auto name = clean_name(image_name);
+			if (image.streamed)
+			{
+				const auto path = "streamed_images\\" + name + ".h1Image";
+				const auto output = filesystem::get_dump_path() + path;
+				const auto fingerprint = get_image_fingerprint(asset).add_value(native).value();
+				if (is_dump_current(output, fingerprint))
+				{
+					return;
+				}
+
+				dump_streams(asset, &image, name, native);
+				dump_header(path, &image);
+				update_dump_cache(output, fingerprint);
+				return;
+			}
+
+			std::optional<std::string> pixels;
+			if (!native && is_packed_specular(asset) && image.pixelData)
+			{
+				pixels = convert_specular_levels({reinterpret_cast<const char*>(image.pixelData), image.dataLen1}, image.imageFormat, image.width, image.height);
+				if (pixels)
+				{
+					image.imageFormat = DXGI_FORMAT_BC3_UNORM;
+					image.pixelData = reinterpret_cast<unsigned char*>(pixels->data());
+					image.dataLen1 = static_cast<unsigned int>(pixels->size());
+					image.dataLen2 = image.dataLen1;
+				}
+			}
+
+			dump_header("images\\" + name + ".h1Image", &image);
+		}
 	}
 
 	void dump(GfxImage* asset)
 	{
-		dumped_images.insert(asset->name);
-		add_csv_row("image", asset->name);
-
-		auto image = convert(asset);
-		const auto name = clean_name(asset->name);
-
-		if (image.streamed)
-		{
-			const auto path = "streamed_images\\" + name + ".h1Image";
-			const auto output = filesystem::get_dump_path() + path;
-			const auto fingerprint = get_image_fingerprint(asset).value();
-			if (is_dump_current(output, fingerprint))
-			{
-				return;
-			}
-
-			dump_streams(asset, &image);
-			dump_header(path, &image);
-			update_dump_cache(output, fingerprint);
-			return;
-		}
-
-		std::optional<std::string> pixels;
-		if (is_packed_specular(asset) && image.pixelData)
-		{
-			pixels = convert_specular_levels({reinterpret_cast<const char*>(image.pixelData), image.dataLen1}, image.imageFormat, image.width, image.height);
-			if (pixels)
-			{
-				image.imageFormat = DXGI_FORMAT_BC3_UNORM;
-				image.pixelData = reinterpret_cast<unsigned char*>(pixels->data());
-				image.dataLen1 = static_cast<unsigned int>(pixels->size());
-				image.dataLen2 = image.dataLen1;
-			}
-		}
-
-		dump_header("images\\" + name + ".h1Image", &image);
+		dump_image(asset, asset->name, false);
 	}
 
 	std::string dump_sky_cube(GfxImage* asset, const float rotation_cos, const float rotation_sin, const int rotation_degrees)
@@ -592,5 +611,55 @@ namespace zonetool::s2::converter::h1::gfximage
 	bool is_dumped(const std::string& name)
 	{
 		return dumped_images.contains(name);
+	}
+
+	std::optional<std::string> dump_native_used(const std::string& name)
+	{
+		const auto asset = db_find_x_asset_header_safe(ASSET_TYPE_IMAGE, name).image;
+		if (!asset || (!asset->pixelData && !is_streamed(asset)))
+		{
+			return {};
+		}
+
+		if (!is_packed_specular(asset))
+		{
+			if (!is_dumped(name))
+			{
+				dump(asset);
+			}
+
+			return name;
+		}
+
+		auto native_name = name + "_s2n";
+		if (!is_dumped(native_name))
+		{
+			dump_image(asset, native_name, true);
+		}
+
+		return native_name;
+	}
+
+	bool is_srgb_image(const std::string& name)
+	{
+		const auto asset = db_find_x_asset_header_safe(ASSET_TYPE_IMAGE, name).image;
+		return asset && is_srgb_format(asset->imageFormat);
+	}
+
+	bool dump_used(const std::string& name)
+	{
+		if (is_dumped(name))
+		{
+			return true;
+		}
+
+		const auto asset = db_find_x_asset_header_safe(ASSET_TYPE_IMAGE, name).image;
+		if (!asset || (!asset->pixelData && !is_streamed(asset)))
+		{
+			return false;
+		}
+
+		dump(asset);
+		return true;
 	}
 }

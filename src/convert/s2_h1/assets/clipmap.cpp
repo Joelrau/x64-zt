@@ -2,6 +2,9 @@
 
 #include "../include.hpp"
 #include "clipmap.hpp"
+#include "fxeffectdef.hpp"
+#include "scriptable.hpp"
+#include "sound.hpp"
 #include "xmodel.hpp"
 
 #include <h1/assets/clipmap.hpp>
@@ -97,6 +100,7 @@ namespace zonetool::s2::converter::h1::clipmap
 				this->convert_partitions(new_info);
 				this->convert_leafs(new_asset);
 				this->convert_static_models(new_info);
+				this->convert_dyn_entities(new_asset);
 
 				new_info.pCollisionTree.aabbTreeCount = static_cast<int>(this->aabb_trees.size());
 				new_info.pCollisionTree.aabbTrees = to_array(this->aabb_trees, this->allocator);
@@ -108,6 +112,7 @@ namespace zonetool::s2::converter::h1::clipmap
 				{
 					new_asset->mapEnts = this->allocator.allocate<zonetool::h1::MapEnts>();
 					new_asset->mapEnts->name = this->asset->mapEnts->name;
+					new_asset->scriptableMapEnts = scriptable::convert_map_ents(this->asset->mapEnts->scriptableMapEnts, this->allocator);
 				}
 
 				new_asset->stageCount = this->asset->stageCount ? this->asset->stageCount : 1;
@@ -116,6 +121,79 @@ namespace zonetool::s2::converter::h1::clipmap
 			}
 
 		private:
+			template <typename T>
+			T* make_stub(const char* name)
+			{
+				const auto stub = this->allocator.allocate<T>();
+				stub->name = name;
+				return stub;
+			}
+
+			zonetool::h1::DynEntityDef convert_dyn_entity(const DynEntityDef& def)
+			{
+				zonetool::h1::DynEntityDef new_def{};
+				new_def.type = static_cast<zonetool::h1::DynEntityType>(def.type);
+				new_def.pose = std::bit_cast<zonetool::h1::GfxPlacement>(def.pose);
+				if (def.xModel)
+				{
+					xmodel::reference(def.xModel);
+					new_def.baseModel = make_stub<zonetool::h1::XModel>(def.xModel->name);
+				}
+
+				new_def.brushModel = def.brushModel;
+				new_def.physicsBrushModel = def.physicsBrushModel;
+				new_def.scriptableIndex = def.scriptableIndex;
+				new_def.health = def.health;
+				if (def.destroyFx)
+				{
+					fxeffectdef::dump(def.destroyFx);
+					new_def.destroyFx = make_stub<zonetool::h1::FxEffectDef>(def.destroyFx->name);
+				}
+
+				if (def.sound && def.sound->name && sound::dump_used(def.sound->name))
+				{
+					new_def.sound = make_stub<zonetool::h1::snd_alias_list_t>(def.sound->name);
+				}
+
+				if (const auto* preset = xmodel::reference_phys_preset(def.xModel, def.physPreset))
+				{
+					new_def.physPreset = make_stub<zonetool::h1::PhysPreset>(preset);
+				}
+
+				new_def.hinge = retype<zonetool::h1::DynEntityHingeDef>(def.hinge);
+				new_def.linkTo = retype<zonetool::h1::DynEntityLinkToDef>(def.linkTo);
+				new_def.contents = static_cast<int>(def.contents);
+				new_def.impactDamageThreshold = def.impactDamageThreshold;
+				new_def.impactDamageScale = def.impactDamageScale;
+				return new_def;
+			}
+
+			void convert_dyn_entities(zonetool::h1::clipMap_t* new_asset)
+			{
+				for (auto i = 0; i < 2; i++)
+				{
+					const auto count = this->asset->dynEntDefList[i] ? this->asset->dynEntCount[i] : static_cast<unsigned short>(0);
+					new_asset->dynEntCount[i] = count;
+					if (!count)
+					{
+						continue;
+					}
+
+					new_asset->dynEntDefList[i] = this->allocator.allocate_array<zonetool::h1::DynEntityDef>(count);
+					for (auto j = 0; j < count; j++)
+					{
+						new_asset->dynEntDefList[i][j] = this->convert_dyn_entity(this->asset->dynEntDefList[i][j]);
+					}
+
+					new_asset->dynEntPoseList[i] = this->allocator.allocate_array<zonetool::h1::DynEntityPose>(count);
+					new_asset->dynEntClientList[i] = this->allocator.allocate_array<zonetool::h1::DynEntityClient>(count);
+					new_asset->dynEntCollList[i] = this->allocator.allocate_array<zonetool::h1::DynEntityColl>(count);
+				}
+
+				new_asset->dynEntAnchorCount = this->asset->dynEntAnchorCount;
+				new_asset->dynEntAnchorNames = retype<zonetool::h1::scr_string_t>(this->asset->dynEntAnchorNames);
+			}
+
 			clipMap_t* asset;
 			ClipInfo& info;
 			utils::memory::allocator& allocator;
@@ -587,9 +665,10 @@ namespace zonetool::s2::converter::h1::clipmap
 		utils::memory::allocator allocator;
 		const auto new_asset = converter(pending_clip_map, allocator).convert();
 		const auto& info = new_asset->info;
-		ZONETOOL_INFO("clipMap: %u brushes, %u leafbrush nodes, %d partitions, %u verts, %d aabb trees, %u static models, %u smodel nodes",
+		ZONETOOL_INFO("clipMap: %u brushes, %u leafbrush nodes, %d partitions, %u verts, %d aabb trees, %u static models, %u smodel nodes, %u model dynents, %u brush dynents",
 			info.bCollisionData.numBrushes, info.bCollisionTree.leafbrushNodesCount, info.pCollisionData.partitionCount, info.pCollisionData.vertCount,
-			info.pCollisionTree.aabbTreeCount, info.sCollisionData.numStaticModels, info.sCollisionTree.smodelNodeCount);
+			info.pCollisionTree.aabbTreeCount, info.sCollisionData.numStaticModels, info.sCollisionTree.smodelNodeCount,
+			new_asset->dynEntCount[0], new_asset->dynEntCount[1]);
 		zonetool::h1::clip_map::dump(new_asset);
 		add_csv_row("col_map_mp", new_asset->name);
 		pending_clip_map = nullptr;
