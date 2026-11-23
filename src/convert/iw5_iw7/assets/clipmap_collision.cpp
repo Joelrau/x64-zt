@@ -1918,7 +1918,7 @@ namespace zonetool::iw5
 
 				const auto& trigger = triggers.models[model];
 
-				for (auto h = 0; h < trigger.hullCount; h++)
+				for (auto h = 0u; h < trigger.hullCount; h++)
 				{
 					const auto index = trigger.firstHull + h;
 					if (index >= triggers.hullCount)
@@ -1950,7 +1950,7 @@ namespace zonetool::iw5
 						}
 					}
 
-					for (auto sl = 0; sl < hull.slabCount; sl++)
+					for (auto sl = 0u; sl < hull.slabCount; sl++)
 					{
 						const auto slab_index = hull.firstSlab + sl;
 						if (slab_index >= triggers.slabCount || !triggers.slabs)

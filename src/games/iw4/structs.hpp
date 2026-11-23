@@ -1,4 +1,6 @@
 #pragma once
+#pragma warning(push)
+#pragma warning(disable: 4201)
 
 namespace zonetool::iw4
 {
@@ -3370,3 +3372,5 @@ namespace zonetool::iw4
 		CONST_SRC_NONE = 0x85,
 	};
 }
+
+#pragma warning(pop)

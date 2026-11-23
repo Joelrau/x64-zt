@@ -1,4 +1,6 @@
 #pragma once
+#pragma warning(push)
+#pragma warning(disable: 4201)
 
 namespace zonetool::iw5
 {
@@ -5119,3 +5121,5 @@ namespace zonetool::iw5
 		x86::pointer<XAnimDeltaPart> deltaPart;
 	};
 }
+
+#pragma warning(pop)

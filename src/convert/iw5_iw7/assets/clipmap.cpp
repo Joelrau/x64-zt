@@ -121,7 +121,7 @@ namespace zonetool::iw5::converter::iw7
 				for (unsigned int model = 0; model < triggers.count; model++)
 				{
 					const auto& trigger = triggers.models[model];
-					for (unsigned int hull = trigger.firstHull; hull < trigger.firstHull + trigger.hullCount; hull++)
+					for (unsigned int hull = trigger.firstHull; hull < static_cast<unsigned int>(trigger.firstHull) + trigger.hullCount; hull++)
 					{
 						if (hull >= triggers.hullCount || !same_bounds(bounds, triggers.hulls[hull].bounds))
 						{
