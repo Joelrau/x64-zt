@@ -7,6 +7,7 @@
 
 #include <iw7/assets/clipmap.hpp>
 #include <iw7/assets/mapents.hpp>
+#include <iw7/assets/scriptabledef.hpp>
 #include <iw7/common/havok_builder.hpp>
 
 #include <xsk/gsc/engine/iw7.hpp>
@@ -1139,6 +1140,7 @@ namespace zonetool::iw5::converter::iw7
 				{
 					auto& instance = scriptable.instances[500 + i];
 					const auto definition = scriptable_defs[i].def;
+					zonetool::iw7::scriptable_def::dump(definition);
 
 					zonetool::iw7::ScriptableInstanceContext* contexts[3] =
 					{

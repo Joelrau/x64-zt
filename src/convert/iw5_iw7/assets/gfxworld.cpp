@@ -63,28 +63,28 @@ namespace zonetool::iw5::converter::iw7
 				constexpr auto levels = 8u;
 				constexpr unsigned short neutral_grey = 0x3400;
 
-				std::vector<std::vector<unsigned short>> storage;
-				std::vector<DirectX::Image> images;
-				storage.reserve(static_cast<std::size_t>(probe_count) * 6 * levels);
-				for (unsigned int face = 0; face < probe_count * 6; face++)
+				// Every block of every face holds the same colour, so one block is compressed and repeated.
+				// Compressing the whole array on the processor takes minutes per probe.
+				unsigned short block_pixels[4 * 4 * 4];
+				for (std::size_t i = 0; i < std::size(block_pixels); i++)
 				{
-					for (unsigned int level = 0; level < levels; level++)
-					{
-						const auto extent = std::max(1u, size >> level);
-						auto& pixels = storage.emplace_back(static_cast<std::size_t>(extent) * extent * 4, neutral_grey);
-						for (std::size_t i = 3; i < pixels.size(); i += 4)
-						{
-							pixels[i] = 0x3C00;
-						}
+					block_pixels[i] = (i % 4 == 3) ? 0x3C00 : neutral_grey;
+				}
 
-						DirectX::Image image{};
-						image.width = extent;
-						image.height = extent;
-						image.format = DXGI_FORMAT_R16G16B16A16_FLOAT;
-						image.pixels = reinterpret_cast<std::uint8_t*>(pixels.data());
-						DirectX::ComputePitch(image.format, image.width, image.height, image.rowPitch, image.slicePitch);
-						images.push_back(image);
-					}
+				DirectX::Image block_image{};
+				block_image.width = 4;
+				block_image.height = 4;
+				block_image.format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+				block_image.pixels = reinterpret_cast<std::uint8_t*>(block_pixels);
+				DirectX::ComputePitch(block_image.format, block_image.width, block_image.height, block_image.rowPitch, block_image.slicePitch);
+
+				DirectX::ScratchImage block;
+				const auto compress_result = DirectX::Compress(block_image, DXGI_FORMAT_BC6H_UF16,
+					DirectX::TEX_COMPRESS_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, block);
+				if (FAILED(compress_result))
+				{
+					ZONETOOL_WARNING("Reflection probe array compression failed (0x%08X)", static_cast<unsigned int>(compress_result));
+					return image_reference("*reflection_probe_array", allocator);
 				}
 
 				DirectX::TexMetadata metadata{};
@@ -93,17 +93,22 @@ namespace zonetool::iw5::converter::iw7
 				metadata.depth = 1;
 				metadata.arraySize = static_cast<std::size_t>(probe_count) * 6;
 				metadata.mipLevels = levels;
-				metadata.format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+				metadata.format = DXGI_FORMAT_BC6H_UF16;
 				metadata.dimension = DirectX::TEX_DIMENSION_TEXTURE2D;
 				metadata.miscFlags |= DirectX::TEX_MISC_TEXTURECUBE;
 
+				constexpr std::size_t block_size = 16;
 				DirectX::ScratchImage compressed;
-				const auto compress_result = DirectX::Compress(images.data(), images.size(), metadata, DXGI_FORMAT_BC6H_UF16,
-					DirectX::TEX_COMPRESS_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, compressed);
-				if (FAILED(compress_result))
+				const auto initialize_result = compressed.Initialize(metadata);
+				if (FAILED(initialize_result) || block.GetPixelsSize() < block_size)
 				{
-					ZONETOOL_WARNING("Reflection probe array compression failed (0x%08X)", static_cast<unsigned int>(compress_result));
+					ZONETOOL_WARNING("Reflection probe array could not be allocated (0x%08X)", static_cast<unsigned int>(initialize_result));
 					return image_reference("*reflection_probe_array", allocator);
+				}
+
+				for (std::size_t offset = 0; offset + block_size <= compressed.GetPixelsSize(); offset += block_size)
+				{
+					std::memcpy(compressed.GetPixels() + offset, block.GetPixels(), block_size);
 				}
 
 				const auto directory = filesystem::get_dump_path() + "images\\";
@@ -1460,9 +1465,19 @@ namespace zonetool::iw5::converter::iw7
 					out_sh[27] = 1.0f;
 				};
 
+				// Occupied sample cells bucketed 8 to a side, so the probe builder can reject empty space
+				// without a lookup per sample cell.
+				std::unordered_set<std::uint64_t> coarse_samples;
+				for (const auto& cell : grid_samples)
+				{
+					const auto key = cell.first;
+					coarse_samples.insert(grid_key(static_cast<int>(key >> 32) >> 3,
+						static_cast<int>((key >> 16) & 0xFFFF) >> 3, static_cast<int>(key & 0xFFFF) >> 3));
+				}
+
 				if (!grid_samples.empty())
 				{
-					params.cell_occupied = [&grid_samples](const float* low, const float size)
+					params.cell_occupied = [&grid_samples, &coarse_samples](const float* low, const float size)
 					{
 						const auto low_x = static_cast<int>(std::floor(low[0] / 32.0f)) + 4096 - 1;
 						const auto high_x = static_cast<int>(std::floor((low[0] + size) / 32.0f)) + 4096 + 1;
@@ -1470,6 +1485,26 @@ namespace zonetool::iw5::converter::iw7
 						const auto high_y = static_cast<int>(std::floor((low[1] + size) / 32.0f)) + 4096 + 1;
 						const auto low_z = static_cast<int>(std::floor(low[2] / 64.0f)) + 2048 - 1;
 						const auto high_z = static_cast<int>(std::floor((low[2] + size) / 64.0f)) + 2048 + 1;
+
+						auto near_samples = false;
+						for (auto z = std::max(low_z, 0) >> 3; !near_samples && z <= std::min(high_z, 0xFFFF) >> 3; z++)
+						{
+							for (auto y = std::max(low_y, 0) >> 3; !near_samples && y <= std::min(high_y, 0xFFFF) >> 3; y++)
+							{
+								for (auto x = std::max(low_x, 0) >> 3; x <= std::min(high_x, 0xFFFF) >> 3; x++)
+								{
+									if (coarse_samples.contains(grid_key(x, y, z)))
+									{
+										near_samples = true;
+										break;
+									}
+								}
+							}
+						}
+						if (!near_samples)
+						{
+							return false;
+						}
 
 						for (auto z = std::max(low_z, 0); z <= std::min(high_z, 0xFFFF); z++)
 						{
@@ -1488,7 +1523,10 @@ namespace zonetool::iw5::converter::iw7
 					};
 				}
 
+				const auto build_start = std::chrono::steady_clock::now();
 				auto volume = lightgrid_probes::build(params, sample, sh_scale);
+				ZONETOOL_INFO("GfxWorld \"%s\": probe volume built in %.1fs", asset->name.get(),
+					std::chrono::duration<double>(std::chrono::steady_clock::now() - build_start).count());
 
 				auto& probe_data = new_asset->lightGrid.probeData;
 				auto& zone = probe_data.zones[0];

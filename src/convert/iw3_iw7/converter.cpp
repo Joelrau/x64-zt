@@ -90,6 +90,137 @@ namespace zonetool::convert::iw3_iw7
 			zonetool::iw7::fx_world::dump(&asset); // IW3 has no glass system, but the zone needs its fx_map
 		}
 
+		std::unordered_map<std::string, std::string> level_script_sources;
+		std::string level_script_world;
+
+		struct ported_script
+		{
+			std::string calls;
+			std::string functions;
+		};
+
+		std::string strip_script_comments(const std::string& text)
+		{
+			std::string result;
+			result.reserve(text.size());
+			for (std::size_t i = 0; i < text.size(); i++)
+			{
+				if (text[i] == '"')
+				{
+					const auto begin = i++;
+					while (i < text.size() && text[i] != '"')
+					{
+						i += text[i] == '\\' ? 2 : 1;
+					}
+					result.append(text, begin, i - begin + 1);
+				}
+				else if (text.compare(i, 2, "//") == 0)
+				{
+					i = std::min(text.find('\n', i), text.size()) - 1;
+				}
+				else if (text.compare(i, 2, "/*") == 0)
+				{
+					const auto end = text.find("*/", i + 2);
+					i = end == std::string::npos ? text.size() : end + 1;
+				}
+				else
+				{
+					result.push_back(text[i]);
+				}
+			}
+
+			return result;
+		}
+
+		ported_script port_level_threads(const std::string& raw)
+		{
+			struct function
+			{
+				std::string text;
+				std::string body;
+			};
+
+			const auto text = strip_script_comments(raw);
+			std::unordered_map<std::string, function> functions;
+			const std::regex header(R"(([A-Za-z_]\w*)\s*\([^(){};]*\)\s*\{)");
+			std::smatch match;
+			for (auto begin = text.cbegin(); std::regex_search(begin, text.cend(), match, header);)
+			{
+				auto end = match[0].second;
+				for (auto depth = 1; end != text.cend() && depth > 0; ++end)
+				{
+					if (*end == '"')
+					{
+						for (++end; end != text.cend() && *end != '"'; ++end)
+						{
+							if (*end == '\\' && end + 1 != text.cend())
+							{
+								++end;
+							}
+						}
+						if (end == text.cend())
+						{
+							break;
+						}
+					}
+					else if (*end == '{')
+					{
+						depth++;
+					}
+					else if (*end == '}')
+					{
+						depth--;
+					}
+				}
+
+				functions[utils::string::to_lower(match[1].str())] = {std::string(match[0].first, end), std::string(match[0].second, end)};
+				begin = end;
+			}
+
+			ported_script result;
+			const auto main = functions.find("main");
+			if (main == functions.end())
+			{
+				return result;
+			}
+
+			std::vector<std::string> pending;
+			std::unordered_set<std::string> reached;
+			const std::regex thread_call(R"((?:^|[;{}])\s*(?:level\s+)?thread\s+([A-Za-z_]\w*)\s*\(\s*\)\s*;)");
+			for (auto begin = main->second.body.cbegin(); std::regex_search(begin, main->second.body.cend(), match, thread_call);)
+			{
+				const auto name = utils::string::to_lower(match[1].str());
+				if (name != "main" && functions.contains(name) && reached.insert(name).second)
+				{
+					pending.push_back(name);
+					result.calls += std::format("\n    level thread {}();", name);
+				}
+
+				begin = match[1].second;
+			}
+
+			const std::regex call(R"(([A-Za-z_]\w*)\s*\()");
+			while (!pending.empty())
+			{
+				const auto current = std::move(pending.back());
+				pending.pop_back();
+				const auto& entry = functions.at(current);
+				result.functions += "\n" + entry.text + "\n";
+				for (auto begin = entry.body.cbegin(); std::regex_search(begin, entry.body.cend(), match, call);)
+				{
+					const auto name = utils::string::to_lower(match[1].str());
+					if (name != "main" && functions.contains(name) && reached.insert(name).second)
+					{
+						pending.push_back(name);
+					}
+
+					begin = match[0].second;
+				}
+			}
+
+			return result;
+		}
+
 		void dump_level_script(const char* world_name)
 		{
 			namespace target = zonetool::iw7;
@@ -105,22 +236,26 @@ namespace zonetool::convert::iw3_iw7
 			const auto name = std::format("scripts/mp/maps/{}/{}", map, map);
 			const auto* trace_env = std::getenv("ZT_TRACE_SPAWN");
 			const auto trace = trace_env != nullptr && trace_env[0] == '1';
-			auto source = std::format(R"(main()
+			level_script_world = world_name;
+
+			const auto build_source = [&](const ported_script& ported)
+			{
+				auto source = std::format(R"(main()
 {{
     scripts\mp\load::main();
     scripts\mp\compass::setupminimap( "compass_map_{}" );
     game["attackers"] = "allies";
     game["defenders"] = "axis";
     game["allies_outfit"] = "urban";
-    game["axis_outfit"] = "woodland";{}
+    game["axis_outfit"] = "woodland";{}{}
 }}
-)", map, trace ? "\n    level thread zt_trace_connect();" : "");
+)", map, trace ? "\n    level thread zt_trace_connect();" : "", ported.calls);
 
-			// ZT_TRACE_SPAWN=1 adds a trace of each player's connect, team, class and spawn steps to the
-			// game console, for maps where players stay spectators without any script error.
-			if (trace)
-			{
-				source += R"(
+				// ZT_TRACE_SPAWN=1 adds a trace of each player's connect, team, class and spawn steps to the
+				// game console, for maps where players stay spectators without any script error.
+				if (trace)
+				{
+					source += R"(
 zt_trace_text( value )
 {
     if ( !isdefined( value ) )
@@ -202,10 +337,41 @@ zt_trace_state()
     }
 }
 )";
-			}
-			std::vector<std::uint8_t> data(source.begin(), source.end());
+				}
 
-			const auto assembly = context->compiler().compile(name + ".gsc", data);
+				return source + ported.functions;
+			};
+
+			const auto compile = [&](const std::string& source)
+			{
+				std::vector<std::uint8_t> data(source.begin(), source.end());
+				return context->compiler().compile(name + ".gsc", data);
+			};
+
+			const auto assembly = [&]
+			{
+				const auto level_source = level_script_sources.find(std::format("maps/mp/{}.gsc", utils::string::to_lower(map)));
+				if (level_source != level_script_sources.end())
+				{
+					const auto ported = port_level_threads(level_source->second);
+					if (!ported.calls.empty())
+					{
+						try
+						{
+							auto result = compile(build_source(ported));
+							ZONETOOL_INFO("Level script \"%s\": carried over the threads of the IW3 script", name.data());
+							return result;
+						}
+						catch (const std::exception& error)
+						{
+							ZONETOOL_WARNING("Level script \"%s\": IW3 threads left out, they do not compile for IW7 (%s)",
+								name.data(), error.what());
+						}
+					}
+				}
+
+				return compile(build_source({}));
+			}();
 			const auto [bytecode, stack, devmap] = context->assembler().assemble(*assembly);
 			const auto buffer = utils::compression::zlib::compress(std::string(reinterpret_cast<const char*>(stack.data), stack.size));
 
@@ -623,8 +789,22 @@ zt_trace_state()
 				break;
 			}
 			case source::ASSET_TYPE_RAWFILE:
-				source::rawfile::dump(header_as<source::RawFile>(header));
+			{
+				const auto rawfile = header_as<source::RawFile>(header);
+				source::rawfile::dump(rawfile);
+
+				const auto name = utils::string::to_lower(rawfile->name.get());
+				if (name.ends_with(".gsc") && rawfile->buffer.value)
+				{
+					level_script_sources[name] = std::string(rawfile->buffer.get(), static_cast<std::size_t>(rawfile->len));
+					const auto world = utils::string::to_lower(std::filesystem::path(level_script_world).stem().string());
+					if (!level_script_world.empty() && name == std::format("maps/mp/{}.gsc", world))
+					{
+						dump_level_script(level_script_world.data());
+					}
+				}
 				break;
+			}
 			case source::ASSET_TYPE_STRINGTABLE:
 				source::string_table::dump(header_as<source::StringTable>(header));
 				break;

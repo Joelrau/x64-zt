@@ -13,20 +13,8 @@
 #include <map>
 #include <functional>
 
-// Writer for hknpCompressedMeshShape inside a hk_2014.2.5-r1 binary packfile.
-//
-// Layout sources, all recorded in docs/iw7-havok-collision.md:
-//   - container structs      : genuine Havok SDK headers (hkPackfileHeader /
-//                              hkPackfileSectionHeader), round-tripped byte-exact
-//                              against every shipped IW7 .hkx
-//   - class field offsets    : IW7's own runtime hkClass tables, dumped to
-//                              docs/iw7-havok-reflection.txt
-//   - encodings              : derived from the shipped stock world blobs and from
-//                              IW8's decoder/builder for the parts that are pure
-//                              algorithm (vertex codecs, BVH traversal)
-//
-// The BVH node quantisation nibbles are fully encoded; see the quantisation note
-// further down for the codec and how it was verified.
+// Writes hknpCompressedMeshShape and the other IW7 physics objects into hk_2014.2.5-r1 binary packfiles.
+// Layouts come from IW7's runtime hkClass tables and the shipped .hkx files.
 
 namespace zonetool::iw7
 {
@@ -36,8 +24,6 @@ namespace zonetool::iw7
 		{
 			namespace
 			{
-				// ---------------------------------------------------------- constants
-
 				constexpr auto HK_MAGIC0 = 0x57E0E057u;
 				constexpr auto HK_MAGIC1 = 0x10C0C010u;
 				constexpr auto HK_FILE_VERSION = 11;
@@ -46,22 +32,17 @@ namespace zonetool::iw7
 				constexpr auto HK_MAX_PREDICATE = 21;
 
 				// Both the shared-index and packed-vertex counters in a section are uint8.
-				// The shared default follows stock; ZT_HAVOK_VERTEX_STORAGE=packed is a
-				// controlled diagnostic path using the same limit and section topology.
 				constexpr auto MAX_SHARED_INDICES_PER_SECTION = 255;
 				// hkcdStaticMeshTreeBasePrimitive::m_indices is uint8[4].
 				constexpr auto MAX_VERTEX_INDEX = 255;
-				// A primitive key is (section << 8) | (localPrimitive << 1) | triangleInQuad,
-				// so a section can hold at most 127 primitives. Every shipped map uses this
-				// same 8-bit shift, so match it rather than widening the key.
+				// A primitive key is (section << 8) | (localPrimitive << 1) | triangleInQuad, so a section holds at most
+				// 127 primitives.
 				constexpr auto KEY_SECTION_SHIFT = 8;
 
-				// Contents mask for the generated world shape, taken from shipped IW7 world
-				// blobs (mp_breakneck / mp_afghan both use 0x28033ED1).
+				// From shipped IW7 world blobs.
 				constexpr auto WORLD_SHAPE_CONTENTS = 0x28033ED1u;
 
-				// The material CRC shipped world blobs use for their common surfaces
-				// (mp_frontend uses it for every tag; mp_afghan for its first entries).
+				// The material CRC shipped world blobs use for their common surfaces.
 				constexpr auto DEFAULT_MATERIAL_CRC = 0x1AB7BC33u;
 				constexpr auto MAX_PRIMITIVES_PER_SECTION = 127;
 
@@ -101,18 +82,13 @@ namespace zonetool::iw7
 				constexpr auto SIZEOF_SHAPE_INSTANCE = 128;
 				constexpr auto SIZEOF_DYNAMIC_TREE_NODE = 32;
 
-				// hknp stores small integers in the w lane of a vector as 0.5f with the value
-				// in the low 24 mantissa bits (hkVector4::setInt24W). This is the base, and
-				// the value every shipped hknpShapeInstance carries in its column-0 w lane.
+				// hknp stores small integers in the w lane as 0.5f with the value in the low 24 mantissa bits
+				// (hkVector4::setInt24W).
 				constexpr auto INT24_W_BASE = 0x3F000000u;
 				constexpr auto SHAPE_INSTANCE_FLAGS_W = INT24_W_BASE | 0x40u;
 
-				// hknpConvexShape::vertices is padded up to a multiple of four, repeating the
-				// last real vertex, and hknpConvexPolytopeShapeConnectivity::vertexEdges is
-				// padded the same way. True for 1,848 of 1,848 shipped convexes, with every
-				// pad entry a byte-copy of the last real one. Havok reads vertices four at a
-				// time, so an unpadded array is read past its end -- a six-vertex wedge would
-				// pull two vertices out of the planes array that follows it.
+				// Havok reads convex vertices four at a time: vertices and vertexEdges are padded to a multiple of four
+				// by repeating the last entry.
 				constexpr std::size_t padded_vertex_count(const std::size_t count)
 				{
 					return (count + 3) / 4 * 4;
@@ -123,8 +99,6 @@ namespace zonetool::iw7
 				constexpr auto CONVEX_DISPATCH_TYPE = 1;
 				constexpr auto COMPOUND_SHAPE_FLAGS = 0x0004u;
 				constexpr auto COMPOUND_DISPATCH_TYPE = 2;
-
-				// ------------------------------------------------------------- helpers
 
 				struct byte_buffer
 				{
@@ -170,9 +144,8 @@ namespace zonetool::iw7
 					}
 				};
 
-				// hkArray<T> is { T* m_data; int m_size; int m_capacityAndFlags; }. In a
-				// packfile m_data is zero and fixed up by a local fixup; the flags word
-				// always carries DONT_DEALLOCATE.
+				// hkArray<T> is { T* m_data; int m_size; int m_capacityAndFlags; }. m_data is patched by a local fixup
+				// and the flags word always carries DONT_DEALLOCATE.
 				constexpr auto HK_ARRAY_DONT_DEALLOCATE = 0x80000000u;
 
 				struct hk_array_ref
@@ -189,18 +162,11 @@ namespace zonetool::iw7
 					buf.write<std::uint32_t>(count | HK_ARRAY_DONT_DEALLOCATE);
 				}
 
-				// ------------------------------------------------------ vertex packing
-
 				// Packed vertices are 11/11/10 bits in the owning section's codec space:
 				//   pos[i] = codecParms[i] + raw[i] * codecParms[3 + i]
 				constexpr int PACKED_BITS[3] = {11, 11, 10};
 
-				// Shared vertices are quantised over the *tree* domain at 21/21/22 bits.
-				// Every shipped world blob stores its geometry this way -- mp_frontend has
-				// 0 packed / 307 shared, mp_afghan 16 / 176,653, mp_paris 63 / 316,789,
-				// mp_breakneck 185 / 306,394. The only packed-only blob in existence is the
-				// custom mp_shipment, whose collision is known to be broken, so the packed
-				// path is not what the runtime expects for world geometry.
+				// Shared vertices are quantised over the tree domain at 21/21/22 bits, the form stock world blobs use.
 				constexpr int SHARED_BITS[3] = {21, 21, 22};
 
 				std::uint64_t pack_shared_vertex(const float* pos, const float* mins,
@@ -232,9 +198,7 @@ namespace zonetool::iw7
 					return packed;
 				}
 
-				// What the runtime reads back for a shared vertex. Quantisation is what decides
-				// whether a quad counts as flat, so that call has to be made on these positions
-				// and not on the source ones.
+				// What the runtime reads back for a shared vertex. Flatness of a quad is judged on these positions.
 				void unpack_shared_vertex(const std::uint64_t packed, const float* mins,
 					const float* maxs, float(&out)[3])
 				{
@@ -311,11 +275,8 @@ namespace zonetool::iw7
 					return vertex_storage::shared;
 				}
 
-				// ------------------------------------------------------------ sections
-
-				// The low nibble of a custom primitive's descriptor word. Type 2 is the only
-				// one stock world blobs use: it is the convex form, whose vertex run follows in
-				// the next word. Bits 4-5 are the layer, 0 in every stock descriptor.
+				// Low nibble of a custom primitive's descriptor word. 2 is the convex form, whose vertex run follows in
+				// the next word.
 				constexpr auto CUSTOM_PRIMITIVE_CONVEX = 0x2u;
 				constexpr auto MAX_CONVEX_VERTICES = 255u; // numVertices is the descriptor's high byte
 				constexpr auto CONVEX_FLAT_TOLERANCE = 1e-4f; // Havok units
@@ -332,10 +293,8 @@ namespace zonetool::iw7
 
 				struct build_section
 				{
-					// One entry per local slot, record words included, so verts.size() IS the
-					// section's numSharedIndices. A record slot holds a copy of its convex's
-					// first vertex purely as a placeholder: it is never welded onto, never
-					// written to the vertex pool, and always lies inside the section domain.
+					// One entry per local slot, record words included. A record slot holds a placeholder position that is
+					// never welded onto or written to the pool.
 					std::vector<std::array<float, 3>> verts;
 					std::vector<slot_kind> slot_kinds;
 					std::vector<std::array<std::uint8_t, 4>> primitives;
@@ -359,9 +318,7 @@ namespace zonetool::iw7
 							slot_kinds.end(), slot_kind::vertex));
 					}
 
-					// What this section consumes from the shared vertex pool: its listed
-					// vertices plus every convex run. This, not verts.size(), is what has to
-					// fit inside one page.
+					// Listed vertices plus every convex run: this is what has to fit inside one page.
 					std::size_t pool_vertex_count() const
 					{
 						auto count = listed_vertex_count();
@@ -381,12 +338,8 @@ namespace zonetool::iw7
 						section.maxs[i] = -FLT_MAX;
 					}
 
-					// Written as explicit compares through one helper on purpose. The obvious
-					// form -- std::min/std::max inside a slot loop that `continue`s past record
-					// slots -- is miscompiled by MSVC 2022 at /O2 (x86): the stored domains came
-					// out covering only the first few slots and convexes, and inverted on some
-					// sections. /Od and #pragma optimize("", off) both produce correct domains,
-					// and so does this form at /O2.
+					// Explicit compares through one helper on purpose: std::min/std::max in a slot loop that skips record
+					// slots is miscompiled by MSVC 2022 at /O2 (x86).
 					const auto grow = [&section](const std::array<float, 3>& v)
 					{
 						for (auto i = 0; i < 3; i++)
@@ -410,8 +363,7 @@ namespace zonetool::iw7
 						}
 					}
 
-					// The section domain has to bound the convexes too -- their runs are
-					// quantised over the tree domain, which is built from these.
+					// Convex runs are quantised over the tree domain, which is built from the section domains.
 					for (const auto& run : section.convexes)
 					{
 						for (const auto& v : run)
@@ -430,10 +382,7 @@ namespace zonetool::iw7
 					}
 				}
 
-				// Split the triangle soup into sections. Every vertex goes in as a shared
-				// vertex and numPackedVertices stays 0, which is what stock does too -- 9,117
-				// of the 9,708 sections in the shipped world blobs use exactly that form, and
-				// packed vertices are the rare leftover (the widest stock section has 7).
+				// Every vertex goes in as a shared vertex with numPackedVertices 0, as most stock sections do.
 				std::vector<build_section> split_into_sections(const mesh_input& input)
 				{
 					std::vector<build_section> sections;
@@ -453,34 +402,16 @@ namespace zonetool::iw7
 
 					for (const auto& tri : input.triangles)
 					{
-						// Two independent uint8 limits: the shared-index count (which also
-						// bounds the vertex index in hkcdStaticMeshTreeBasePrimitive), and the
-						// primitive count packed into the low byte of the section's primitives
-						// field (which also bounds the section BVH right-child offset to 0xFE).
-						// The +4 is the worst case for one quad.
+						// Two uint8 limits: the shared-index count and the primitive count. The +4 is the worst case for one quad.
 						if (current.verts.size() + 4 > MAX_SHARED_INDICES_PER_SECTION ||
 							current.primitives.size() >= MAX_PRIMITIVES_PER_SECTION)
 						{
 							flush();
 						}
 
-						// A primitive whose indices[1..3] are all equal is not a triangle to
-						// Havok -- it is a *custom primitive*, and the runtime then reads
-						// sharedVerticesIndex[indices[0]] as a shape-type descriptor and
-						// indexes hknpCompressedMeshShapeInternals::s_customPrimitiveToShapeType
-						// with its low nibble. That table has three entries.
-						//
-						// Because a triangle is emitted as [a, b, c, c], any triangle whose
-						// second and third vertices weld to the same index produces exactly
-						// that pattern by accident. It happened for real: the shipped
-						// mp_test_h1 conversion contains four such primitives, and their
-						// descriptors decode to shape types 4, 10, 12 and 14 -- all out of
-						// bounds on a three-entry table.
-						//
-						// Degenerate triangles have zero area and contribute no collision, so
-						// drop them before they can be mistaken for custom primitives. The
-						// test is on positions rather than welded indices so that no orphan
-						// vertices are added for a triangle that is about to be discarded.
+						// A primitive whose indices[1..3] are all equal is a custom primitive to Havok, and a triangle is emitted
+						// as [a, b, c, c], so a degenerate triangle would be read as one. Tested on positions so no orphan vertex
+						// is added.
 						const auto same = [](const float* a, const float* b)
 						{
 							return a[0] == b[0] && a[1] == b[1] && a[2] == b[2];
@@ -492,9 +423,7 @@ namespace zonetool::iw7
 							continue;
 						}
 
-						// A quad's fourth corner must be distinct from the rest, or the primitive
-						// would weld back down to a triangle (or worse, to the [a,b,b,b] custom
-						// pattern). Fall back to the triangle it is built from.
+						// A quad's fourth corner must be distinct, or it would weld down to a triangle or the custom pattern.
 						auto quad = tri.is_quad;
 						if (quad && (same(tri.vert3, tri.verts[0]) || same(tri.vert3, tri.verts[1])
 							|| same(tri.vert3, tri.verts[2])))
@@ -551,12 +480,8 @@ namespace zonetool::iw7
 						current.user_data.emplace_back(tri.user_data);
 					}
 
-					// Convex custom primitives, appended after the triangles and sharing their
-					// sections -- stock mixes the two freely (1,409 of mp_fallen's 2,111
-					// sections do). A custom costs one primitive and TWO local shared-index
-					// slots (descriptor + start). Its vertex run costs pool vertices but no
-					// slots. Every section's pool consumption stays under one page by
-					// construction: at most 255 listed vertices plus 127 runs of at most 255.
+					// Convex custom primitives share sections with the triangles. Each costs one primitive and two local
+					// shared-index slots (descriptor and start); its vertex run costs pool vertices but no slots.
 					auto convexes_rejected = 0;
 					std::map<std::string, int> rejection_reasons;
 
@@ -579,8 +504,6 @@ namespace zonetool::iw7
 						const auto r = current.verts.size();
 						if (r > MAX_VERTEX_INDEX)
 						{
-							// Unreachable given the flush above; kept so a future limit change
-							// cannot silently truncate the record slot into a uint8.
 							ZONETOOL_ERROR("havok: convex record slot %zu does not fit a uint8", r);
 							continue;
 						}
@@ -626,96 +549,26 @@ namespace zonetool::iw7
 					return sections;
 				}
 
-				// ---------------------------------------------------------------- trees
+				// Both BVH levels are binary trees in preorder with numNodes == 2 * numLeaves - 1.
+				//   section (4 bytes): internal when (data & 1), rightChild = n + (data & 0xFE)
+				//   top (5 bytes): internal when (hiData & 0x80), rightChild = n + 2 * (((hiData & 0x7F) << 8) | loData);
+				//                  leaf: section index in (hiData << 8) | loData
 
-				// Both BVH levels are plain binary trees stored in preorder with
-				// numNodes == 2 * numLeaves - 1. Encoding, verified against all three
-				// stock maps:
-				//
-				//   per-section (4 bytes, hkcdStaticTreeCodec3Axis4)
-				//       internal : (data & 1) != 0, rightChild = n + (data & 0xFE)
-				//       leaf     : (data & 1) == 0
-				//
-				//   top level   (5 bytes, hkcdStaticTreeCodec3Axis5)
-				//       internal : (hiData & 0x80) != 0
-				//                  rightChild = n + 2 * (((hiData & 0x7F) << 8) | loData)
-				//       leaf     : sectionIndex = (hiData << 8) | loData
-				//
-				// The offset is stored halved at the top level because every internal node
-				// has two children, so subtree sizes are always odd and the right-child
-				// offset is always even.
-				//
-				// The three xyz bytes hold two 4-bit quantisation nibbles each; they are
-				// encoded properly below rather than left at zero.
+				// Each node's xyz bytes hold two 4-bit insets from the parent box, quadratic in the nibble:
+				//   childMin = parentMin + hi*hi * extent / 226, childMax = parentMax - lo*lo * extent / 226
+				// The divisor is 226, not 225. Each nibble is the largest value that keeps the decoded box around the child.
 
-				// ------------------------------------------------------- BVH quantisation
-				//
-				// Each node's three xyz bytes hold two 4-bit fields that shrink the child box
-				// in from the parent. IW8's decoder does this per axis, in SIMD:
-				//
-				//     scale    = (parentMax - parentMin) * K
-				//     childMin = parentMin + hi*hi * scale
-				//     childMax = parentMax - lo*lo * scale
-				//
-				// i.e. the inset is quadratic in the nibble, and K is exactly 1/226 -- NOT 1/225
-				// (== 15^2): nibble 15 insets by 225/226 of the extent, never the whole of it.
-				// Settled on stock mp_afghan by tightness, not just containment. With no
-				// tolerance, 1400/1400 top-level leaf boxes contain their section domain at
-				// 1/226 (median slack -0.002 of the extent), against 4/1400 at 1/225, where the
-				// error compounds down the tree until boxes sit off their sections entirely.
-				// Section trees agree: 99.3% of 25,822 leaves are within 0.1% at 1/226, against
-				// 36% at 1/225 -- an earlier 1%-tolerance test could not tell the two apart.
-				//
-				// Encoding with 1/225 while the game decodes with 1/226 left 406 of
-				// mp_test_h1's 732 world triangles outside their own leaf box. Rays go through
-				// the separately built simdTree and still hit them, but shape queries -- the
-				// player's movement sweep -- walk this tree, so the player passed through most
-				// walls while bullets and debug traces stopped on them.
-				//
-				// Emitting zero nibbles is legal -- shipped single-primitive sections do it --
-				// but it means every node box equals the whole tree domain, which is what made
-				// collision far larger than the visible surfaces. Here each nibble is chosen
-				// as the LARGEST value whose inset still stays outside the true child box, so
-				// the decoded box always contains the geometry and is as tight as 4 bits allow.
-
-				// --------------------------------------------- contents filter mask
-				//
-				// ShapeTagData::collisionFilterInfo is a CoD contents mask, but IW7 only ever
-				// stores a SUBSET of the bits a CoD compiler emits. Across every shipped IW7
-				// blob -- three world blobs plus four ents blobs, 31 distinct values -- the
-				// union of all collisionFilterInfo bits is exactly 0xC7FFBFFF, and that same
-				// value appears literally as the contents of stock trigger shapes. It is the
-				// engine's "all valid contents" mask.
-				//
-				// The bits it excludes are 0x38004000. The one that matters in practice is
-				// 0x08000000, CONTENTS_DETAIL, which every IW3/IW5 compiler sets on detail
-				// brushes -- i.e. most of a map. Passing it through made IW7's collision
-				// filter reject those surfaces and the player walked through the level.
-				//
-				// This applies to collisionFilterInfo, and to the ents list's shapeContents,
-				// which measures clean against the mask: the union of every shapeContents
-				// value in all six shipped ents blobs is exactly 0xC7FFBFFF, with no value
-				// carrying a bit outside it.
-				//
-				// The WORLD shape's contents is the exception and is NOT masked -- stock uses
-				// the full range there (0x28033ED1 and friends carry 0x08000000) -- but it is
-				// a fixed constant rather than anything derived from the map, so it never
-				// passes through here. See WORLD_SHAPE_CONTENTS.
+				// IW7 only stores contents bits inside 0xC7FFBFFF. CONTENTS_DETAIL (0x08000000), set on most IW3/IW5
+				// brushes, makes its collision filter reject the surface. The world shape's own contents is a fixed
+				// constant and is not masked.
 				constexpr auto CONTENTS_FILTER_MASK = 0xC7FFBFFFu;
 
-				// Always applied: no shipped tag carries a bit outside this mask, and the one
-				// that mattered -- 0x08000000, CONTENTS_DETAIL, set by the IW3/IW5 compiler on
-				// most of a map -- is rejected by IW7's collision filter.
 				inline std::uint32_t filter_contents(const std::uint32_t contents)
 				{
 					return contents & CONTENTS_FILTER_MASK;
 				}
 
-				// XModel LOD tag tables are the one place stock keeps 0x20000000: the union
-				// of every collisionFilterInfo over 864 shipped LOD blobs is 0x200336F3, with
-				// 0x20000001 on 74 records and 0x20000010 / 0x20000002 (glass, foliage) on
-				// most of the rest that are not plain 0x1. Nothing else outside
-				// CONTENTS_FILTER_MASK appears, so only that bit is let through.
+				// XModel LOD tag tables are the one place stock keeps 0x20000000.
 				inline std::uint32_t filter_lod_contents(const std::uint32_t contents)
 				{
 					return contents & (CONTENTS_FILTER_MASK | 0x20000000u);
@@ -724,11 +577,8 @@ namespace zonetool::iw7
 				constexpr auto NIBBLE_MAX = 15;
 				constexpr auto NIBBLE_SCALE = 226.0f; // Havok's divisor; see the note above
 
-				// Diagnostic only: zero-inset nodes are a valid stock encoding and decode to
-				// their complete parent AABB.  They disable tree culling without changing any
-				// primitive, tag, vertex, or collision-filter data.  This distinguishes a
-				// compressed-tree traversal error from a mesh/query error when a ray hits a
-				// face but a player convex cast does not.
+				// Diagnostic: zero-inset nodes decode to their parent box, which turns tree culling off without changing
+				// the mesh.
 				bool loose_bvh_enabled()
 				{
 					const auto* env = std::getenv("ZT_HAVOK_BVH_LOOSE");
@@ -809,10 +659,8 @@ namespace zonetool::iw7
 					return decoded;
 				}
 
-				// leaf_nodes[sectionIndex] receives the index of the node holding that
-				// section's leaf. Shipped files store exactly that in
-				// hkcdStaticMeshTreeBaseSection::leafIndex -- verified against all three
-				// stock maps -- so it is not the section index.
+				// leaf_nodes[sectionIndex] is the node holding that section's leaf, which is what the section's leafIndex
+				// stores.
 				void emit_preorder_tree_top(byte_buffer& buf, const int first_leaf,
 					const int leaf_count, std::vector<int>& leaf_nodes,
 					const std::vector<aabb>& leaf_boxes, const aabb& parent)
@@ -872,14 +720,7 @@ namespace zonetool::iw7
 
 					if (leaf_count <= 1)
 					{
-						// A section leaf's data byte is (primitiveIndex << 1) -- bit 0 clear
-						// marks the leaf, and the remaining 7 bits ARE the index of the
-						// primitive it bounds. Writing a bare 0 here pointed every leaf in
-						// the section at primitive 0, so the tree bounded the right boxes
-						// but named the wrong geometry. Verified against stock: in all 5,302
-						// multi-primitive sections of the three shipped world blobs the leaf
-						// indices are exactly a permutation of 0..primitiveCount-1, never
-						// duplicated.
+						// A section leaf's data byte is (primitiveIndex << 1): bit 0 clear marks the leaf.
 						if (first_leaf > 0x7F)
 						{
 							ZONETOOL_ERROR("havok: section BVH leaf primitive index %d does "
@@ -898,8 +739,7 @@ namespace zonetool::iw7
 
 					if (right_offset > 0xFE)
 					{
-						// Cannot be encoded in one byte. split_into_sections keeps sections
-						// small enough that this never happens; assert loudly if it does.
+						// split_into_sections keeps sections small enough for one byte.
 						ZONETOOL_ERROR("havok: section BVH right-child offset %d exceeds the "
 							"8-bit field", right_offset);
 					}
@@ -912,12 +752,8 @@ namespace zonetool::iw7
 						leaf_boxes, decoded);
 				}
 
-				// ------------------------------------------------------- data runs
-
-				// hknpCompressedMeshShapeTreeDataRun is
-				//   { uint16 value; uint8 index; uint8 count; }
-				// i.e. run-length encoded per-surface tags: `value` applies to `count`
-				// primitives starting at `index` within the section.
+				// hknpCompressedMeshShapeTreeDataRun is { uint16 value; uint8 index; uint8 count }: value applies to
+				// count primitives starting at index within the section.
 				void emit_data_runs(byte_buffer& buf, const std::vector<std::uint16_t>& tags,
 					int& runs_written)
 				{
@@ -941,11 +777,7 @@ namespace zonetool::iw7
 				}
 			}
 
-			// Shared by the world blob and per-model physics assets. The two differ only in
-			// what wraps the mesh: the world hangs it off a HavokPhysicsShapeList, a model
-			// hangs it off a HavokPhysicsAsset with a static body. The hknpCompressedMeshShape
-			// and its data are byte-for-byte the same either way, which is why this is one
-			// function rather than two.
+			// Shared by the world blob and per-model physics assets, which differ only in what wraps the mesh.
 			const char* convex_rejection(const std::vector<std::array<float, 3>>& verts)
 			{
 				if (verts.size() < 4)
@@ -968,12 +800,8 @@ namespace zonetool::iw7
 					}
 				}
 
-				// Flat: every vertex within CONVEX_FLAT_TOLERANCE of one plane. The planes tried
-				// are those through vertex triples -- every triple up to 32 vertices, which
-				// covers every face plane of the hull, and beyond that one well-spread triple
-				// (a vertex, the farthest vertex from it, and the farthest from that line).
-				// Each candidate gives an upper bound on the true minimum width, so anything
-				// reported flat really is flat.
+				// Flat: every vertex within CONVEX_FLAT_TOLERANCE of one plane through a vertex triple. Each candidate
+				// plane gives an upper bound on the true minimum width, so anything reported flat is flat.
 				const auto sub = [](const std::array<float, 3>& a, const std::array<float, 3>& b)
 				{
 					return std::array<double, 3>{
@@ -1105,9 +933,7 @@ namespace zonetool::iw7
 				auto vertex_format = selected_vertex_storage();
 				if (vertex_format == vertex_storage::packed && total_customs)
 				{
-					// A convex record lives in sharedVerticesIndex and its run in
-					// sharedVertices; neither exists on the packed path, and stock has no
-					// packed-vertex custom primitive to copy.
+					// Convex records and runs live in the shared vertex arrays, which the packed path does not have.
 					ZONETOOL_WARNING("havok: ZT_HAVOK_VERTEX_STORAGE=packed cannot carry %zu "
 						"convex custom primitive(s); using shared vertices for this blob",
 						total_customs);
@@ -1116,27 +942,8 @@ namespace zonetool::iw7
 				ZONETOOL_INFO("havok: vertex storage %s (ZT_HAVOK_VERTEX_STORAGE)",
 					vertex_format == vertex_storage::packed ? "packed" : "shared");
 
-				// ------------------------------------------------------- shape tags
-				// primitiveDataRuns.value indexes shapeTagData, so build the palette of
-				// distinct surface tags first and remap every primitive onto it.
-				//
-				// Slot 0 is not special to the runtime, despite shipped files making it look
-				// that way. Every stock world blob has shapeTagData[0] with
-				// collisionFilterInfo 0x800 where the rest use 0x1, but measuring the data
-				// runs shows value 0 *is* referenced -- by exactly 6 primitives in each of
-				// mp_afghan, mp_paris and mp_breakneck. Six primitives carrying the sky
-				// contents bit is the map's sky box, and it lands in slot 0 only because the
-				// compiler emits it first. There is no evidence the index itself is reserved,
-				// so the palette starts at 0 and correctness rests on each tag carrying the
-				// right contents, which it does.
-				//
-				// A tag is (contents, material): collisionFilterInfo in shapeTagData is the
-				// CoD contents mask, so two surfaces sharing a material but differing in
-				// contents -- solid vs sky vs clip -- must not share a tag. Getting this
-				// wrong hands real geometry somebody else's filter and it stops colliding.
-				// The key is (contents, materialCRC, userData): shapeTagData carries exactly
-				// those three things, so two surfaces differing in any must not share a tag, and
-				// two IW5 materials that map to the same triple may safely collapse into one.
+				// primitiveDataRuns.value indexes shapeTagData. A tag is (contents, materialCRC, userData): surfaces
+				// differing in any of the three must not share one.
 				std::vector<std::tuple<int, std::uint32_t, std::uint64_t>> palette;
 
 				for (auto& section : sections)
@@ -1157,11 +964,8 @@ namespace zonetool::iw7
 					}
 				}
 
-				// The palette as the 24-byte records it will become. The shapeTagData write
-				// loop below emits straight from this, and `out_tags` hands the same vector
-				// back, so a caller that chains this table into the ents list is holding
-				// exactly what the blob carries -- contents are masked here, once, rather
-				// than at two sites that could drift apart.
+				// The palette as the 24-byte records written below. out_tags hands back the same vector, so contents
+				// are masked once.
 				std::vector<shape_tag> tag_records;
 				tag_records.reserve(palette.size());
 				for (const auto& entry : palette)
@@ -1171,17 +975,11 @@ namespace zonetool::iw7
 						std::get<1>(entry), std::get<2>(entry)});
 				}
 
-				// -------------------------------------------------------- key space
-				// A primitive key packs (section, primitive, triangle-within-primitive).
-				// triangleIsInterior has one bit per key and quadIsFlat one per primitive
-				// slot, which is how the shipped bit counts line up.
+				// A primitive key packs (section, primitive, triangle within primitive). triangleIsInterior has one bit
+				// per key, quadIsFlat one per primitive slot.
 				const auto section_count = static_cast<int>(sections.size());
 
-				// The largest key any primitive in ANY section can produce. Taking the primitive
-				// count from sections.back() alone is only safe because the section shift
-				// dominates, and the last section is the short one -- so it under-reports the
-				// real maximum. bits_per_key, numPrimitiveKeys, maxKey and the two bitfield
-				// lengths are all derived from this, so derive it from the widest section.
+				// The largest key comes from the widest section, not the last one.
 				auto max_key = 0;
 				for (auto si = 0u; si < sections.size(); si++)
 				{
@@ -1206,10 +1004,8 @@ namespace zonetool::iw7
 					total_verts += section.pool_vertex_count();
 				}
 
-				// A triangle owns one key, a quad two -- its second triangle is key | 1 -- and a
-				// convex custom primitive exactly one. mesh_triangles is the triangle count
-				// alone (quads as two), which is what the shape list's triCounts carries:
-				// stock mp_afghan reports 188,886 there beside 7,790 customs.
+				// A triangle owns one key, a quad two, a convex custom one. mesh_triangles counts triangles only (quads
+				// as two).
 				auto num_primitive_keys = 0;
 				auto mesh_triangles = 0;
 				for (const auto& section : sections)
@@ -1238,7 +1034,6 @@ namespace zonetool::iw7
 					}
 				}
 
-				// ---------------------------------------------------------- payloads
 				aabb world_box{};
 				for (auto i = 0; i < 3; i++)
 				{
@@ -1333,10 +1128,7 @@ namespace zonetool::iw7
 
 					if (vertex_format == vertex_storage::packed)
 					{
-						// Packed vertices are addressed directly from the section's local indices.
-						// Its 11/11/10 codec is section-local, so no shared-index table or page
-						// is involved. This is supported by the runtime, although stock world
-						// meshes overwhelmingly prefer shared vertices.
+						// Packed vertices use the section-local 11/11/10 codec, with no shared-index table or page.
 						section_first_packed[i] =
 							static_cast<int>(packed_vertices.size() / sizeof(std::uint32_t));
 						for (const auto& vertex : section.verts)
@@ -1349,32 +1141,9 @@ namespace zonetool::iw7
 					}
 					else
 					{
-						// Shared vertices are laid out section by section.
-					//
-					// The runtime resolves one as
-					//     sharedVertices[0x10000 * section.page
-					//                    + sharedVerticesIndex[first + v - numPackedVertices]]
-					// so sharedVerticesIndex is a uint16 and can only reach 65,536 vertices on
-					// its own. Everything above that is addressed through the section's page.
-					// This used to write the identity mapping with page pinned at 0, which is
-					// correct only while the whole mesh fits in one page: past 65,536 vertices
-					// the index wrapped and the tail of the map's collision folded back onto
-					// the start of the vertex pool. Nothing threw, because a wrapped index is
-					// still in range. Stock pages every world blob it ships -- mp_afghan uses
-					// 3, cp_zmb and mp_paris 5 -- and keeps each section's index values
-					// page-relative.
-					//
-					// A section is never allowed to straddle a page boundary, which is what
-					// stock does too: every per-page index range in every shipped blob starts
-					// at 0. When the next section would cross one, the vertex pool is padded
-					// up to the boundary first. A section holds at most
-					// MAX_SHARED_INDICES_PER_SECTION vertices, so the padding is bounded by
-					// that and costs at most a couple of kilobytes across a whole map.
-					//
-					// A convex custom's vertex run has to sit inside the section's page as well
-					// (its start word is page-relative, and stock never crosses a page), so what
-					// is checked against the boundary is the section's whole pool consumption:
-					// listed vertices first, then each convex run, contiguously.
+						// The runtime resolves a shared vertex as sharedVertices[0x10000 * section.page + sharedVerticesIndex[..]],
+						// so a section's vertices and convex runs must sit inside one 65,536-vertex page. The pool is padded up
+						// to the next page when a section would cross one.
 						auto vert_base = shared_vertices.size() / 8;
 						const auto vert_needed = section.pool_vertex_count();
 
@@ -1498,14 +1267,8 @@ namespace zonetool::iw7
 					auto runs = 0;
 					if (physics_asset)
 					{
-						// A physics asset has no shapeTagData of its own, and IW7 decodes every
-						// composite's tags against ONE global table -- the map's (see
-						// build_ents_shape_list). A real index here therefore lands on whatever
-						// the map's tag N happens to be: our surface index 0 hit world tag 0, a
-						// clip brush, and bullets (which must not hit clip) sailed through
-						// every model. Stock writes 0xFFFF ("no tag": the body's own filter
-						// applies) on 75 of 75 physics-asset meshes; only XModel LOD meshes carry
-						// real ids, through their own per-model codec.
+						// A physics asset has no shapeTagData and IW7 decodes tags against the map's table, so the tag is 0xFFFF
+						// (none).
 						const std::vector<std::uint16_t> untagged(section.tags.size(), 0xFFFF);
 						emit_data_runs(data_runs, untagged, runs);
 					}
@@ -1523,23 +1286,9 @@ namespace zonetool::iw7
 						quantised_duplicate_runs);
 				}
 
-				// ------------------------------------------------------------ simd tree
-				//
-				// hknpCompressedMeshShapeData::simdTree is a second, mandatory acceleration
-				// structure: a 4-wide BVH over *primitives*. IW7's raycast path goes through
-				// it (IW8 names the query
-				// hkcdSimdTreeUtils::ProcessSimdTreeRayCastLeaves<...RayCastQuery...>), so a
-				// mesh with an empty simdTree loads fine and then collides with nothing.
-				// None of the 257 shipped compressed meshes has an empty one.
-				//
-				// hkcdSimdTreeNode is hkcdFourAabb (six hkVector4f in SoA order
-				// lx,hx,ly,hy,lz,hz -- four children per component) followed by uint32
-				// data[4]:
-				//     data & 1  -> leaf,     primitiveKey  = data >> 1
-				//     else      -> internal, childNodeIndex = data >> 1
-				// An unused slot has an inverted AABB (min = +FLT_MAX, max = -FLT_MAX) and
-				// data = 0. Node 0 is an all-inverted sentinel and node 1 is the real root,
-				// which is why shipped trees have exactly one unreferenced node.
+				// simdTree is a mandatory 4-wide BVH over primitives; IW7 raycasts go through it. A node is hkcdFourAabb
+				// (lx, hx, ly, hy, lz, hz) then uint32 data[4]: leaf when (data & 1), with the key or child index in
+				// data >> 1. Node 0 is an inverted sentinel and node 1 the root.
 
 				struct simd_node
 				{
@@ -1562,11 +1311,7 @@ namespace zonetool::iw7
 					const auto& section = sections[si];
 					for (auto pi = 0u; pi < section.primitives.size(); pi++)
 					{
-						// One leaf per PRIMITIVE, not per triangle: in all three stock world
-						// blobs the simdTree keys are a bijection onto (section, primitive)
-						// with the low bit clear, even though the blobs are mostly quads. The
-						// low bit selects the half of a quad only where a key names a triangle,
-						// which is what numPrimitiveKeys counts.
+						// One leaf per primitive, not per triangle, with the low key bit clear.
 						simd_item item{};
 						item.key = static_cast<std::uint32_t>(
 							(si << KEY_SECTION_SHIFT) | (pi << 1));
@@ -1716,7 +1461,6 @@ namespace zonetool::iw7
 
 				build_simd(items); // becomes node 1
 
-				// ------------------------------------------------------ __data__ pass
 				byte_buffer buf;
 
 				struct pending_fixup
@@ -1743,29 +1487,9 @@ namespace zonetool::iw7
 
 				// Reported at the end; only the shape-list container actually writes them.
 				const auto tag_count = static_cast<int>(palette.size());
-				// shapeContents[i] becomes the BODY's collisionFilterInfo (sub_140572EE0 reads
-				// it straight into hknpBodyCinfo+12), and the player's trace is a query, which
-				// filters on the body before it ever reaches a surface tag. A grenade -- a
-				// simulated body, filtered body-vs-body -- bounces off our walls while the
-				// player walks through them, so the body filter is the one field in this path
-				// that has never been varied. ZT_HAVOK_WORLD_CONTENTS=<hex> overrides it;
-				// 0xC7FFBFFF is the engine's "all valid contents" value.
-				//
-				// The stock constant alone is not enough for a converted map. It is copied from
-				// shipped blobs, and no stock IW7 map carries CONTENTS_MANTLE (0x1000000):
-				// IW7's mantle sweep only asks for that mask when the byte at 0x1414B8D36 is
-				// cleared, which stock never does, so the bit is simply absent from
-				// 0x28033ED1. An IW5/IW6 map converted here does emit mantle volumes, and they
-				// reach shapeTagData with collisionFilterInfo 0x1000000 intact -- but with bit
-				// 24 missing from the body filter the query is rejected body-first and those
-				// triangles are unreachable, so legacy mantling finds nothing anywhere on the
-				// map. The body filter has to be a superset of the surface tags inside it;
-				// union them in rather than growing the constant, which keeps this true for
-				// any contents bit a source map happens to use.
-				//
-				// Widening cannot create a hit the surface tags would not also allow: the
-				// per-primitive filter still runs after the body passes, so a mask matching no
-				// tag still returns nothing.
+				// shapeContents becomes the body's collisionFilterInfo, and a query filters on the body before any
+				// surface tag. It has to be a superset of the tags inside it, so their contents are OR-ed in
+				// (ZT_HAVOK_WORLD_CONTENTS overrides).
 				auto world_contents = WORLD_SHAPE_CONTENTS;
 				for (const auto& tag : tag_records)
 				{
@@ -1782,11 +1506,7 @@ namespace zonetool::iw7
 				if (!physics_asset && !xmodel_lod_bone)
 				{
 					// --- HavokPhysicsShapeList (152 bytes) ---
-					// Assigns the OUTER shape_list_offset -- the virtual fixup that registers this
-					// object as a HavokPhysicsShapeList is emitted after this block and reads it.
-					// A `const auto` here shadowed it and left the fixup pointing at offset 0,
-					// which happens to be where the list starts today and would stop being true
-					// the moment anything were written before it.
+					// Assigns the outer shape_list_offset, which the virtual fixup below reads.
 					shape_list_offset = buf.size();
 
 					const std::array<int, 10> member_counts = {
@@ -1799,9 +1519,7 @@ namespace zonetool::iw7
 						member_field[i] = buf.size();
 						write_hk_array_header(buf, member_counts[i]);
 					}
-					// numWorldGeoShapes is 0 in every shipped blob -- all three stock world
-					// blobs, the map-ents blob, and the custom mp_shipment -- even though those
-					// files are the world. Setting it to 1 is not what the runtime expects.
+					// numWorldGeoShapes is 0 in every shipped blob.
 					buf.write<std::int32_t>(0); // numWorldGeoShapes
 					buf.reserve(4); // pad to +104
 					for (auto i = 7; i < 10; i++)
@@ -1844,17 +1562,11 @@ namespace zonetool::iw7
 					local_fixups.push_back({name_ptr_slot, name_payload});
 
 					record_array(3, buf.size());
-					// UNRESOLVED: what vertCounts counts is not known. It equals the shared
-					// vertex pool size on mp_frontend (307) but not on mp_afghan (220,497 against
-					// a 176,653-entry pool). This keeps writing the vertices the mesh emits --
-					// listed vertices plus convex runs, page padding excluded -- until stock is
-					// understood.
+					// What vertCounts counts in stock is not known. This writes the vertices the mesh emits, page padding
+					// excluded.
 					buf.write<std::int32_t>(static_cast<std::int32_t>(total_verts));
 					align16();
-					// The TRIANGLE count, not the primitive count: stock mp_frontend reports 240
-					// here against 128 primitives, i.e. quads counted as two. Convex custom
-					// primitives are excluded -- stock mp_afghan reports 188,886 triangles here
-					// beside 7,790 customs -- and counted in convexCounts instead.
+					// Triangle count (quads as two), without convex customs, which convexCounts carries.
 					record_array(4, buf.size());
 					buf.write<std::int32_t>(static_cast<std::int32_t>(mesh_triangles));
 					align16();
@@ -1870,36 +1582,10 @@ namespace zonetool::iw7
 					record_array(7, buf.size());
 					for (auto i = 0u; i < palette.size(); i++)
 					{
-						// materialId is 0xFFFF in every entry of every shipped file -- stock and
-						// custom alike -- i.e. "no explicit material"; the material is identified
-						// by materialCRC instead. Writing a real index here points at
-						// HavokPhysicsMaterialList slots that may not exist, and an unresolved
-						// material is a plausible way for otherwise-valid geometry to end up
-						// non-collidable.
-						//
-						// collisionFilterInfo is the CoD contents mask, carried straight through
-						// from cbrush contents: 0x1 solid, 0x800 sky, 0x10000/0x20000 the clip
-						// bits. That matches the shipped spread (0x1, 0x2080, 0x30200, 0x30000,
-						// 0x400 ...), all of which are contents combinations.
-						//
-						// materialCRC comes from the source surface -- see the IW5 surface-type
-						// table in ClipMapCollision.cpp, which was derived empirically from the
-						// materials 2,224 shipped IW7 PhysicsAssets use.
-						//
-						// userData is IW7's own per-surface word. The low 32 bits are the surface
-						// flags a trace hit reports (stock: 0x280000 concrete, 0x680000 thick
-						// metal, ...), and bit 48 is the brush basis. The player's movement cast
-						// reads that bit on every mesh leaf it touches: the "Collision Dispatcher
-						// castShapeConvex" path (0x14058EB70 in the IW7 ship dump) swaps the
-						// player's cylinder for the query's separate non-brush shape whenever it
-						// is clear. Stock sets it on brush-derived surfaces -- 74 of mp_afghan's
-						// 132 world tags, covering 20,321 primitives -- and leaves it clear on
-						// terrain and props. Writing 0 everywhere put every converted wall on
-						// the non-brush path, and the player walked through them.
-						//
-						// Bits 32..39 are a third region: a 1-based per-glass-piece index, set
-						// on GLASS_PANE and GLASS_SOLID tags and nowhere else. It arrives
-						// already packed into the triangle's user_data.
+						// materialId is 0xFFFF in every shipped entry: materialCRC identifies the material. collisionFilterInfo
+						// is the CoD contents mask. userData holds the surface flags in the low 32 bits, a 1-based glass piece
+						// index in bits 32..39 and the brush basis in bit 48; without that bit the player's cast takes the
+						// non-brush path and passes through walls.
 						buf.write<std::uint32_t>(tag_records[i].collision_filter);
 						buf.write<std::uint32_t>(tag_records[i].material_crc);
 						buf.write<std::uint16_t>(0xFFFF); // materialId -- "none"
@@ -1908,26 +1594,14 @@ namespace zonetool::iw7
 					}
 					align16();
 
-					// The world shape's contents mask is a FIXED value, not a function of the
-					// map's geometry. All three shipped world blobs use essentially the same one
-					// -- 0x29033ED1 (afghan), 0x28033ED7 (paris), 0x28033ED1 (breakneck) --
-					// regardless of what the map actually contains.
-					//
-					// Deriving it by OR-ing the source triangles' contents looked reasonable and
-					// was wrong: on mp_test_h1 it produced 0x08031E41, missing 0x20002090
-					// relative to the shipped mask. The world body then failed to collide with
-					// the player while bullet traces still hit, because the dropped bits are part
-					// of what the player query filters on. An OR of IW3/IW5 brush contents can
-					// only ever be a subset of what IW7 expects here.
+					// The world shape's contents is a fixed value in stock, not the OR of the map's surfaces: an OR of
+					// IW3/IW5 contents lacks bits the player query filters on.
 
 					record_array(8, buf.size());
 					buf.write<std::uint32_t>(world_contents);
 					align16();
 					record_array(9, buf.size());
-					// This is not the compressed mesh's (ignored) numConvexShapes member. It is
-					// the number of convex custom primitives in the mesh: stock mp_afghan
-					// reports 7,790 and carries exactly 7,790 customs. Counted from what was
-					// actually emitted, so a convex the builder rejected is not claimed.
+					// Number of convex custom primitives emitted, not the mesh's numConvexShapes member.
 					buf.write<std::int32_t>(static_cast<std::int32_t>(total_customs));
 					align16();
 					shape_ptr_slots.push_back(shape_ptr_slot);
@@ -1935,23 +1609,9 @@ namespace zonetool::iw7
 				else if (xmodel_lod_bone)
 				{
 					// --- HavokPhysicsXModelLOD (48 bytes) ---
-					//   +0   shapes        hkArray<hknpShape*>        one per physics body
-					//   +16  bodyNames     hkArray<const char*>       the bone each hangs from
-					//   +32  shapeTagData  hkArray<XModelCollisionTagData>  8 bytes each
-					// Stock XModels hold one hknpCompressedMeshShape per authored physics
-					// body (829 of 864 shipped LODs have exactly one, on "tag_origin"). A
-					// converted IW5 model has one collision mesh, so emit one shape.
-					//
-					// The tag table is what makes the LOD worth shipping at all. IW7's loader
-					// (0x1405731A0) CRCs `8 * size` bytes of it, registers the table in
-					// g_havokPhysicsXModelLODShapeTagDatas, and stamps the resulting id into
-					// each composite shape's shapeTagCodecInfo (+88); the codec then decodes
-					// a primitive's tag as {collisionFilterInfo, userData = surfaceFlags}.
-					// This used to write one fixed 16-byte {METAL_THICK, solid, 0} record --
-					// copied from the first stock file looked at, and wrong in both element
-					// size and content -- which is part of why the LOD path stayed disabled.
-					// Now it is the mesh's own palette: same order the data runs index,
-					// surfaceFlags from the triangle's user_data low 32 bits.
+					// shapes at +0, bodyNames at +16, shapeTagData (8 bytes each) at +32. One shape on one bone. The tag
+					// table is the mesh's own palette in data run order; the loader registers it and the codec decodes
+					// tags against it.
 					virtual_fixups.emplace_back(static_cast<std::size_t>(0), 0);
 					const auto shapes_field = buf.size();
 					write_hk_array_header(buf, 1);
@@ -1989,10 +1649,7 @@ namespace zonetool::iw7
 				else
 				{
 					// --- HavokPhysicsAsset (144) ---
-					// Same wrapper build_physics_asset writes for the shipped dummies, which is
-					// byte-identical to stock; only the shape it ends in differs. Reference
-					// layout taken from cp_zmb's machinery_generator_portable_01.hkx, one of
-					// the 16 stock assets that use exactly this minimal object set.
+					// Same wrapper build_physics_asset writes; only the shape differs.
 					virtual_fixups.emplace_back(static_cast<std::size_t>(0), 0);
 					buf.reserve(8); // isRagdoll + pad
 					const auto system_data_slot = buf.reserve(8);
@@ -2159,16 +1816,8 @@ namespace zonetool::iw7
 				}
 				align16();
 
-				// quadIsFlat is indexed by primitive slot -- key >> 1 -- and means the fourth
-				// corner lies exactly on the plane of the first three. Measured on stock
-				// mp_afghan: all 1,698 quads with the bit set have a deviation of 0.0, while
-				// the 4,748 without it deviate by up to 10 units, so this is a statement about
-				// the geometry rather than a hint.
-				//
-				// It has to be judged on the DECODED positions. A face of a brush is planar by
-				// construction, but 21/21/22-bit quantisation bends it, and claiming a bent
-				// quad is flat hands the runtime a shape that does not match its own vertices --
-				// which is what made collision worse when quads were first tried.
+				// quadIsFlat (indexed by key >> 1) means the fourth corner lies on the plane of the first three. Judged
+				// on the decoded positions, because quantisation bends a planar face.
 				std::vector<std::uint32_t> quad_bitfield(quad_words, 0);
 				for (auto si = 0u; si < sections.size(); si++)
 				{
@@ -2421,7 +2070,6 @@ namespace zonetool::iw7
 
 				const auto data_size = buf.size();
 
-				// ------------------------------------------------------ class names
 				byte_buffer names;
 				const auto write_name = [&](const std::uint32_t sig, const char* name)
 				{
@@ -2466,20 +2114,14 @@ namespace zonetool::iw7
 				}
 				names.align(16, 0xFF);
 
-				// ------------------------------------------------------ fixup tables
-				// Local fixups are ordered by destination, not source: true in all nine
-				// shipped files checked (world, ents and per-model). Order does not change
-				// what the loader does, but matching stock keeps generated files comparable.
+				// Local fixups are ordered by destination, as in shipped files.
 				std::sort(local_fixups.begin(), local_fixups.end(),
 					[](const pending_fixup& a, const pending_fixup& b)
 					{
 						return a.dst < b.dst;
 					});
 
-				// Each fixup table is padded out to a 16-byte boundary with 0xFF, so every
-				// section offset in the header lands aligned. All nine shipped files checked
-				// -- world, ents and per-model -- do this, with 0..12 bytes of slack between
-				// tables. The padding counts towards the preceding table's size.
+				// Each fixup table is padded to 16 bytes with 0xFF; the padding counts towards the table's size.
 				byte_buffer fixups;
 				for (const auto& fixup : local_fixups)
 				{
@@ -2512,7 +2154,6 @@ namespace zonetool::iw7
 				fixups.align(16, 0xFF);
 				const auto virtual_size = fixups.size() - local_size - global_size;
 
-				// ------------------------------------------------------------ output
 				byte_buffer file;
 				file.write<std::uint32_t>(HK_MAGIC0);
 				file.write<std::uint32_t>(HK_MAGIC1);
@@ -2595,22 +2236,10 @@ namespace zonetool::iw7
 				return file.data;
 			}
 
-			// -------------------------------------------------- map-ents shape list
-			//
-			// The ents blob is the same container and the same root class as the world blob,
-			// but its shape list is per-entity rather than one big mesh: one
-			// hknpDynamicCompoundShape of hknpConvexPolytopeShapes per brush model, indexed
-			// by physicsShapeOverrideIdx. None of the world blob's hard parts appear here --
-			// no vertex quantisation, no static BVH codec -- so this is a direct write of the
-			// layouts decoded in docs/iw7-ents-shapes.md.
-			//
-			// Object order inside __data__ matches shipped blobs exactly, per shape:
-			//
-			//   compound (208) | instances (128*L) | for each convex { object (96) | verts |
-			//   planes | faces | indices | connectivity (48) | vertexEdges | faceLinks } |
-			//   compoundData (56) | tree nodes (32 * (2L+1))
-			//
-			// with every array payload 16-byte aligned.
+			// The ents blob holds one hknpDynamicCompoundShape of hknpConvexPolytopeShapes per brush model, indexed
+			// by physicsShapeOverrideIdx. Per shape: compound (208) | instances (128*L) | per convex { object (96) |
+			// verts | planes | faces | indices | connectivity (48) | vertexEdges | faceLinks } | compoundData (56) |
+			// tree nodes (32 * (2L+1)), every array payload 16-byte aligned.
 			std::vector<std::uint8_t> build_world_shape(const mesh_input& input,
 				std::vector<shape_tag>* out_tags)
 			{
@@ -2649,13 +2278,8 @@ namespace zonetool::iw7
 				};
 
 				byte_buffer buf;
-				// Havok splits pointer patches by what they point at, and shipped files are
-				// completely consistent about it: a pointer to a registered object (anything
-				// with a virtual fixup) is a GLOBAL fixup, and a pointer to raw payload --
-				// an array's elements, a string's bytes -- is a LOCAL one. Measured across
-				// the stock blobs: 532/532 global fixups land on an object, 0/1420 local
-				// ones do. Both resolve to the same address inside one section, but the
-				// loader uses the distinction to track objects, so match it.
+				// A pointer to a registered object is a global fixup, a pointer to raw payload a local one. The loader
+				// tracks objects through the distinction.
 				std::vector<std::pair<std::size_t, std::size_t>> local_fixups;
 				std::vector<std::pair<std::size_t, std::size_t>> global_fixups;
 				// (object offset, class-name index) -- the virtual fixup table is the only
@@ -2682,30 +2306,9 @@ namespace zonetool::iw7
 
 				const auto shape_count = static_cast<int>(shapes.size());
 
-				// One ShapeTagData per distinct (contents, materialCRC, userData). materialId
-				// stays 0xFFFF ("none") as in every shipped entry, with the material identified
-				// by materialCRC, which Physics_AddShapeList resolves against the game's CRC
-				// table at load.
-				//
-				// The CRC and userData used to be constants here -- DEFAULT_MATERIAL_CRC and
-				// the brush-basis bit on its own -- so every brush model and trigger came out
-				// as untyped concrete. Stock ents blobs look nothing like that: mp_afghan
-				// carries 12 distinct CRCs over 136 tags with surface flags set on 135 of
-				// them, cp_zmb 16 over 476 with 472 flagged. Losing the flags also loses the
-				// gameplay bits that ride in the low 32 -- LADDER, SLICK, NOPENETRATE, STAIRS,
-				// MANTLEON -- on exactly the geometry (doors, hatches, ladders, moving
-				// platforms) most likely to need them.
-				//
-				// The table STARTS as the world blob's, verbatim, whenever the caller has one
-				// (ents_input::world_tags). That is not tidiness: IW7 decodes every shape's
-				// raw tags against the single table registered by
-				// HavokPhysics_SetMainShapeList, so a world mesh whose tag 4 means "wall"
-				// resolves against whatever this list's entry 4 happens to be. Building the
-				// two tables independently is what made converted walls decode as garbage
-				// filters and stop stopping the player while still catching bullets. Shipped
-				// maps hold the invariant exactly -- mp_fallen's ents table is its 216 world
-				// records followed by 3 extras, mp_afghan's 132 followed by 4, mp_frontend's
-				// 7 with nothing appended.
+				// One ShapeTagData per distinct (contents, materialCRC, userData). The table starts as the world blob's,
+				// verbatim: IW7 decodes every shape's tags against the one table registered by
+				// HavokPhysics_SetMainShapeList, so world tag indices must mean the same thing here.
 				std::vector<shape_tag> palette = input.world_tags;
 				const auto prefix_size = palette.size();
 				// Which prefix records the shapes actually land on. A flag per record rather
@@ -2823,18 +2426,8 @@ namespace zonetool::iw7
 					const auto& name = shapes[i]->name;
 					buf.write(name.c_str(), name.size() + 1);
 
-					// hkStringPtr keeps its "I allocated this, free it" flag in bit 0 of the
-					// pointer itself -- hkStringPtr::operator= tests `ptr & 1` and calls
-					// hkMemoryRouter::easyFree(ptr - 1), and IW7 masks it off with `ptr & ~1`
-					// wherever it reads one. Section data starts 16-aligned, so a name written
-					// at an odd offset becomes a pointer with bit 0 set, and unloading the zone
-					// hands that address -- which is inside the fastfile, not the Havok heap --
-					// to hkLargeBlockAllocator::blockFree. It reads the neighbouring name bytes
-					// as a block header and dereferences a garbage free-tree node.
-					//
-					// Names are variable length, so writing them back to back puts every other
-					// one on an odd offset. Pad to even. No stock string sits at an odd offset:
-					// 992 of 992 in mp_paris's ents blob are even.
+					// hkStringPtr keeps an owned flag in bit 0 of the pointer, and a set bit makes zone unload free an
+					// address inside the fastfile. Names are padded so each starts on an even offset.
 					if (buf.size() & 1)
 					{
 						buf.write<std::uint8_t>(0);
@@ -2908,9 +2501,7 @@ namespace zonetool::iw7
 					// hknpShape header.
 					buf.reserve(16); // hkBaseObject vtable + hkReferencedObject
 					buf.write<std::uint16_t>(static_cast<std::uint16_t>(COMPOUND_SHAPE_FLAGS));
-					// numShapeKeyBits is the bit length of the instance count -- 1 for one
-					// instance, 2 for two or three, 3 for four to seven. Checked against all
-					// 644 compounds in the shipped ents blobs.
+					// numShapeKeyBits is the bit length of the instance count.
 					auto key_bits = 0;
 					for (auto n = instance_count; n > 0; n >>= 1)
 					{
@@ -2970,21 +2561,9 @@ namespace zonetool::iw7
 					{
 						const auto instance_offset = buf.size();
 						instance_offsets.emplace_back(instance_offset);
-						// hkTransform is three rotation columns then the translation. The
-						// convexes are already in the compound's space, so identity.
-						//
-						// The w lanes are NOT padding. hknp packs an int24 into the low
-						// mantissa bits of 0.5f, exactly like the vertex index on a polytope
-						// vertex: column 0 carries the instance flags and the translation
-						// carries the index of this instance's leaf node in the compound's
-						// dynamic tree. Every shipped instance (fallen 126 compounds, afghan
-						// 106) has column0.w == 0x3F000040 and translation.w ==
-						// 0x3F000000 | leafNode (1 for a lone instance; 2,3 for two; 2,4,5
-						// for three -- the leaf numbers the tree below produces). Writing 0
-						// here left every instance flagless, and the runtime's shape queries
-						// skipped them: brush models and trigger bodies existed but nothing
-						// ever overlapped them. The leaf index is patched in once the tree
-						// has been built.
+						// Identity transform: the convexes are already in the compound's space. The w lanes are int24 values:
+						// column 0 carries the instance flags and the translation the index of this instance's leaf in the
+						// dynamic tree, patched in once the tree is built. Shape queries skip an instance without them.
 						buf.write<float>(1.0f); buf.write<float>(0.0f);
 						buf.write<float>(0.0f); buf.write<std::uint32_t>(SHAPE_INSTANCE_FLAGS_W);
 						buf.write<float>(0.0f); buf.write<float>(1.0f);
@@ -3074,11 +2653,7 @@ namespace zonetool::iw7
 							return {};
 						}
 
-						// --- connectivity ---
-						// vertexEdges[v] is any half-edge starting at vertex v; faceLinks[g]
-						// is the twin of half-edge g, i.e. the (face, edge) running the same
-						// two vertices the other way. Both verified against a decoded stock
-						// box.
+						// vertexEdges[v] is any half-edge starting at vertex v; faceLinks[g] is the twin of half-edge g.
 						std::vector<half_edge> vertex_edges(vertex_count);
 						std::vector<bool> vertex_seen(vertex_count, false);
 						std::vector<half_edge> face_links(index_total);
@@ -3166,10 +2741,7 @@ namespace zonetool::iw7
 								mn[k] = std::min(mn[k], value);
 								mx[k] = std::max(mx[k], value);
 							}
-							// The w lane is not padding: it carries the vertex's own index in
-							// the low mantissa bits of 0.5f. 16,257 of 16,660 shipped vertices
-							// are exactly 0x3F000000 | index, and the 403 that are not are the
-							// padded copies, which repeat the last real vertex's w with it.
+							// The w lane carries the vertex's own index in the low mantissa bits of 0.5f.
 							buf.write<std::uint32_t>(
 								0x3F000000u | static_cast<std::uint32_t>(source));
 						}
@@ -3188,15 +2760,9 @@ namespace zonetool::iw7
 						}
 						align16();
 
-						// minHalfAngle is the smallest support half-angle to an adjacent face.
-						// The quantisation is IW8's encoder verbatim (its `findFaceSupportAngle`
-						// caller): with the support angle in radians,
-						//     v = (int)((angle*0.5 - 2^-23) * 41720.875 + 0.5)
-						//     minHalfAngle = clamp(v, 0, 65535) >> 8
-						// 41720.875 is ~131072/pi, so this is floor(halfAngle / pi * 512). A
-						// right angle gives pi/4 * 41720.875 + 0.5 = 32766.4 -> 127, which is
-						// what every axial brush produces. Faces with no paired neighbour keep
-						// the blunt end of the range.
+						// minHalfAngle is the smallest support half-angle to an adjacent face, quantised as
+						// floor(halfAngle / pi * 512) (a right angle gives 127). Faces with no paired neighbour keep the blunt
+						// end of the range.
 						write_rel_array(faces_field, convex.faces.size());
 						auto first_index = 0u;
 						for (auto f = 0u; f < convex.faces.size(); f++)
@@ -3337,10 +2903,8 @@ namespace zonetool::iw7
 
 					align16();
 
-					// Build the tree before writing it. Node 0 is an all-zero sentinel, node 1
-					// is the root and node 2L is a free slot, so the usable range is 1..2L-1.
-					// Split on the widest axis at the median, which reproduces the balanced
-					// shape of the shipped trees.
+					// Node 0 is an all-zero sentinel, node 1 the root and node 2L a free slot. Split on the widest axis at
+					// the median.
 					std::vector<tree_node> nodes(node_count);
 					auto next_node = 1;
 
@@ -3414,9 +2978,7 @@ namespace zonetool::iw7
 						build_tree(0, instance_count, 0);
 					}
 
-					// Each instance's translation.w carries the index of its leaf node (see
-					// the instance writer above). Leaves are the nodes whose data has a zero
-					// low half; the high half is the instance they bound.
+					// Leaves are the nodes whose data has a zero low half; the high half is the instance they bound.
 					for (auto n = 1; n < node_count - 1; n++)
 					{
 						const auto& node = nodes[n];
@@ -3456,7 +3018,6 @@ namespace zonetool::iw7
 
 				const auto data_size = buf.size();
 
-				// ------------------------------------------------------ class names
 				byte_buffer names;
 				const auto write_name = [&](const std::uint32_t sig, const char* name)
 				{
@@ -3487,8 +3048,7 @@ namespace zonetool::iw7
 				}
 				names.align(16, 0xFF);
 
-				// ------------------------------------------------------ fixup tables
-				// ordered by destination -- see the note in build_world_shape
+				// ordered by destination
 				std::sort(local_fixups.begin(), local_fixups.end(),
 					[](const std::pair<std::size_t, std::size_t>& a,
 						const std::pair<std::size_t, std::size_t>& b)
@@ -3502,7 +3062,7 @@ namespace zonetool::iw7
 					fixups.write<std::int32_t>(static_cast<std::int32_t>(fixup.first));
 					fixups.write<std::int32_t>(static_cast<std::int32_t>(fixup.second));
 				}
-				// see the note in build_world_shape: each table is padded to 16 with 0xFF
+				// each table is padded to 16 with 0xFF
 				fixups.align(16, 0xFF);
 				const auto local_size = fixups.size();
 
@@ -3527,7 +3087,6 @@ namespace zonetool::iw7
 				fixups.align(16, 0xFF);
 				const auto virtual_size = fixups.size() - local_size - global_size;
 
-				// ------------------------------------------------------------ output
 				byte_buffer file;
 				file.write<std::uint32_t>(HK_MAGIC0);
 				file.write<std::uint32_t>(HK_MAGIC1);
@@ -3611,24 +3170,12 @@ namespace zonetool::iw7
 				return file.data;
 			}
 
-			// ------------------------------------------------------- PhysicsAsset
-			//
-			// The blob beside a `physicsasset` dump. Only the dummy form is generated: a
-			// single static body wrapping a placeholder box. IW7 attaches one of these to
-			// every script brush model and trigger, and `physicsShapeOverrideIdx` then
-			// replaces the shape with one from MapEnts::havokEntsShapeData -- so the box is
-			// never actually collided against, but the asset has to exist or no body is
-			// built at all (see docs/iw7-ents-shapes.md section 3).
-			//
-			// Shipped dummies are byte-identical across every map, and the four variants
-			// (script brush model default/fixed, trigger model default/static) differ only in
-			// the body name string and the body-quality CRC. This reproduces
-			// `scriptbrushmodeldummydefault.hkx` exactly, which is how it is tested.
+			// The dummy physics asset: one static body around a placeholder box. IW7 attaches one to every script
+			// brush model and trigger and physicsShapeOverrideIdx swaps the shape, but without the asset no body is
+			// built.
 			std::vector<std::uint8_t> build_physics_asset(const physics_asset_input& input)
 			{
-				// The placeholder box's convex radius. Its size is irrelevant -- the shape is
-				// overridden -- but reproducing the shipped values keeps the output
-				// byte-comparable against scriptbrushmodeldummydefault.hkx.
+				// Stock value; the shape is overridden, so the size does not matter.
 				constexpr auto BOX_CONVEX_RADIUS = 0.01f;
 
 				// hknpShape::flags on this convex is 0x01C3, where the shipped ents convexes
@@ -3807,13 +3354,8 @@ namespace zonetool::iw7
 						static_cast<std::uint16_t>(buf.size() - field));
 				};
 
-				// Vertex order is Havok's own: bit 0 of the index selects -x, bit 1 -y and
-				// bit 2 -z, so vertex 0 is (+x, +y, +z), and the w lane carries the index.
-				// The values are bit patterns rather than decimal literals because they are
-				// copied from the shipped dummy and have to reproduce it exactly -- the box
-				// is 19.68 x 24.68 x 14.68 CoD units, i.e. half-extents 20/25/15 shrunk by
-				// the 0.01 (= 0.32 CoD) convex radius. Havok stores a convex polytope's
-				// vertices shrunk inward by convexRadius and adds it back when colliding.
+				// Bit 0 of the vertex index selects -x, bit 1 -y, bit 2 -z, and the w lane carries the index. Bit
+				// patterns copied from the shipped dummy: half-extents 20/25/15 shrunk by the convex radius.
 				static const std::uint32_t DUMMY_VERTS[32] = {
 					0x3F1D701E, 0x3F456FFC, 0x3EEAE07E, 0x3F000000,
 					0x3F1D701E, 0xBF456FFC, 0x3EEAE07E, 0x3F000001,
@@ -3831,9 +3373,7 @@ namespace zonetool::iw7
 				}
 				align16();
 
-				// Planes in the shipped order -- +z, -z, +x, -x, +y, -y -- again verbatim.
-				// Havok stores dot(n, p) + d = 0, so d is the negated half-extent; several
-				// normal lanes carry -0.0f, which only a bit-exact copy reproduces.
+				// Planes in shipped order (+z, -z, +x, -x, +y, -y), bit-exact because several normal lanes carry -0.0f.
 				static const std::uint32_t DUMMY_PLANES[24] = {
 					0x00000000, 0x00000000, 0x3F800000, 0xBEEAE07E,
 					0x80000000, 0x00000000, 0xBF800000, 0xBEEAE07E,
@@ -3890,10 +3430,7 @@ namespace zonetool::iw7
 				global_fixups.emplace_back(mass_slot, mass_offset);
 				virtual_fixups.emplace_back(mass_offset, 4);
 				buf.reserve(16); // hkReferencedObject
-				// hkCompressedMassProperties, copied verbatim: it is an opaque quantised
-				// inertia tensor for the placeholder box, and since the shape is overridden
-				// there is nothing to recompute it from. Reproducing it keeps the output
-				// byte-identical to the shipped dummy.
+				// hkCompressedMassProperties, copied from the shipped dummy.
 				static const std::uint8_t COMPRESSED_MASS[32] = {
 					0x36, 0x5D, 0x00, 0x00, 0x00, 0x00, 0x80, 0x22,
 					0x68, 0x42, 0xD4, 0x30, 0x14, 0x50, 0x00, 0x31,
@@ -3912,7 +3449,6 @@ namespace zonetool::iw7
 				align16();
 				const auto data_size = buf.size();
 
-				// ------------------------------------------------------ class names
 				byte_buffer names;
 				const auto write_name = [&](const std::uint32_t sig, const char* name)
 				{
@@ -3939,8 +3475,7 @@ namespace zonetool::iw7
 					"hknpShapeMassProperties");
 				names.align(16, 0xFF);
 
-				// ------------------------------------------------------ fixup tables
-				// ordered by destination -- see the note in build_world_shape
+				// ordered by destination
 				std::sort(local_fixups.begin(), local_fixups.end(),
 					[](const std::pair<std::size_t, std::size_t>& a,
 						const std::pair<std::size_t, std::size_t>& b)
@@ -3977,7 +3512,6 @@ namespace zonetool::iw7
 				fixups.align(16, 0xFF);
 				const auto virtual_size = fixups.size() - local_size - global_size;
 
-				// ------------------------------------------------------------ output
 				byte_buffer file;
 				file.write<std::uint32_t>(HK_MAGIC0);
 				file.write<std::uint32_t>(HK_MAGIC1);
@@ -4037,14 +3571,8 @@ namespace zonetool::iw7
 				return file.data;
 			}
 
-			// ================================================================== dynamic
-			//
-			// A model that moves: hknpPhysicsSystemData with a dynamic body (a motion cinfo,
-			// reservedMotionId 0) over a convex shape built from the model's PhysCollmap,
-			// with mass properties on every shape. Decoded from stock (mp_fallen
-			// com_junktire.hkx -- one polytope; tool_watercan_iw6.hkx -- a two-child
-			// compound; vfx_debris_foliage_flower_vase_a_01.hkx) and IW8's named
-			// hkCompressedMassProperties::pack / hkPackedVector3::pack / unpack.
+			// A model that moves: hknpPhysicsSystemData with a dynamic body over a convex shape built from the
+			// model's PhysCollmap, with mass properties on every shape.
 
 			namespace
 			{
@@ -4347,12 +3875,8 @@ namespace zonetool::iw7
 					}
 				}
 
-				// hkPackedVector3: three int16 lanes and a shared power-of-two scale stored
-				// as the top 16 bits of a float. IW8's unpack is
-				//     value = float(int16 << 16) * float_from_bits(exp16 << 16)
-				// so with scale 2^k the lane is round(v / 2^(16+k)); k is the smallest
-				// exponent that keeps the largest lane inside int16. Checked against the
-				// vase: inertia 2.62e-5 packs to 0x2880 (2^-46) with lane 28168.
+				// hkPackedVector3: three int16 lanes and a shared power-of-two scale kept as the top 16 bits of a float.
+				// The exponent is the smallest that keeps the largest lane inside int16.
 				void pack_vector3(const float* v, std::uint16_t (&out)[4])
 				{
 					auto largest = 0.0f;
@@ -4454,7 +3978,6 @@ namespace zonetool::iw7
 				const auto compound = input.convexes.size() > 1;
 				const auto instance_count = static_cast<int>(input.convexes.size());
 
-				// ---------------------------------------------------- mass properties
 				std::vector<mass_properties> child_mass;
 				for (const auto& convex : input.convexes)
 				{
@@ -4588,7 +4111,6 @@ namespace zonetool::iw7
 				buf.write(system_name, std::strlen(system_name) + 1);
 				align16();
 
-				// ----------------------------------------------------------- shapes
 				const auto write_rel_array = [&](const std::size_t field, const std::size_t count)
 				{
 					buf.patch<std::uint16_t>(field, static_cast<std::uint16_t>(count));
@@ -4897,10 +4419,7 @@ namespace zonetool::iw7
 							buf.write<float>(1.0f);
 						}
 						instance_shape_slots.emplace_back(buf.reserve(8));
-						// shapeTag: a physics asset has no tag table, and the runtime resolves a
-						// tag against the MAP's global table, so 0 would mean "world tag 0" (a
-						// clip brush on mp_test_h1, invisible to bullets). Stock uses 0xFFFF on
-						// every compound instance in every physics asset (232 of 232).
+						// 0xFFFF: a physics asset has no tag table, and a real tag would resolve against the map's.
 						buf.write<std::uint16_t>(0xFFFF);
 						buf.write<std::uint16_t>(0xFFFF); // destructionTag
 						buf.reserve(36);
@@ -5064,7 +4583,6 @@ namespace zonetool::iw7
 				global_fixups.emplace_back(referenced_slot, root_offset);
 				const auto data_size = buf.size();
 
-				// ------------------------------------------------------ class names
 				byte_buffer names;
 				const auto write_name = [&](const std::uint32_t sig, const char* name)
 				{
@@ -5095,7 +4613,6 @@ namespace zonetool::iw7
 				}
 				names.align(16, 0xFF);
 
-				// ------------------------------------------------------ fixup tables
 				std::sort(local_fixups.begin(), local_fixups.end(),
 					[](const std::pair<std::size_t, std::size_t>& a, const std::pair<std::size_t, std::size_t>& b)
 					{
@@ -5128,7 +4645,6 @@ namespace zonetool::iw7
 				fixups.align(16, 0xFF);
 				const auto virtual_size = fixups.size() - local_size - global_size;
 
-				// ------------------------------------------------------------ output
 				byte_buffer file;
 				file.write<std::uint32_t>(HK_MAGIC0);
 				file.write<std::uint32_t>(HK_MAGIC1);
