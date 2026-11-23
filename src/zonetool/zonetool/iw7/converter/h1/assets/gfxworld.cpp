@@ -822,13 +822,21 @@ namespace zonetool::iw7
 					//      lightmapped floor lies under the block's centre, its colour index a palette entry of that floor's baked light
 					//      (quantised), its light environment the sun's where IW7's primary says the floor is sunlit.
 					unsigned int v138_blocks = 0, v138_nodes = 0;
+					float v140_ext[3] = { 0.0f, 0.0f, 0.0f };
 					if (v138_tree && v135_palette && !v129_floors.empty())
 					{
 						unsigned int q_sun_env = 0, q_best_n = 0;
 						for (const auto& [q_env, q_n] : v138_env_hist) if (q_n > q_best_n && q_env != 0) { q_best_n = q_n; q_sun_env = q_env; }
-						constexpr int q_D = 6; // 2^(D+1) = 128 blocks a side: 16384 x 16384 x 8192 units
+						constexpr int q_D = 7; // v140: 2^(D+1) = 256 blocks a side: 32768 x 32768 x 16384 units (block keys stay 8 bits)
 						float q_mn[3] = { 1e30f, 1e30f, 1e30f }, q_mx[3] = { -1e30f, -1e30f, -1e30f };
-						for (const auto& q_f : v129_floors) for (int q_k = 0; q_k < 3; q_k++) for (int q_c = 0; q_c < 3; q_c++) { q_mn[q_c] = std::min(q_mn[q_c], q_f.p[q_k][q_c]); q_mx[q_c] = std::max(q_mx[q_c], q_f.p[q_k][q_c]); }
+						// v140: bounds from the playable floors only (the vista city below z -1000 spans far more than 128 blocks, and v138/v139
+						//       covered the vista instead of the map: 13 palette entries, props on the fallback colour)
+						for (const auto& q_f : v129_floors)
+						{
+							if (q_f.p[0][2] < -1000.0f || q_f.p[1][2] < -1000.0f || q_f.p[2][2] < -1000.0f) continue;
+							for (int q_k = 0; q_k < 3; q_k++) for (int q_c = 0; q_c < 3; q_c++) { q_mn[q_c] = std::min(q_mn[q_c], q_f.p[q_k][q_c]); q_mx[q_c] = std::max(q_mx[q_c], q_f.p[q_k][q_c]); }
+						}
+						v140_ext[0] = q_mx[0] - q_mn[0]; v140_ext[1] = q_mx[1] - q_mn[1]; v140_ext[2] = q_mx[2] - q_mn[2];
 						const int q_minX = (int(std::floor(q_mn[0])) + 131072) >> 5, q_minY = (int(std::floor(q_mn[1])) + 131072) >> 5, q_minZ = (int(std::floor(q_mn[2])) + 131072) >> 6;
 						const int q_nb = 1 << (q_D + 1);
 						const int q_nx = std::min(q_nb, (((int(std::floor(q_mx[0])) + 131072) >> 5) - q_minX) / 4 + 2);
@@ -995,7 +1003,7 @@ namespace zonetool::iw7
 						// v137: keep the one-entry colour table (v135 dropped it)
 					}
 					{
-						const std::string v131_msg = utils::string::va("primary %s, floors %zu, shaded %u, sunlit %u, no floor %u, secondary %s, ground lit %u, palette entries %zu, tree nodes %u blocks %u\n", v129_prim.empty() ? "MISSING" : "ok", v129_floors.size(), v129_shaded, v129_lit, v129_none, v133_sec.empty() ? "MISSING" : "ok", v133_grounded, v135_addr.size(), v138_nodes, v138_blocks);
+						const std::string v131_msg = utils::string::va("primary %s, floors %zu, shaded %u, sunlit %u, no floor %u, secondary %s, ground lit %u, palette entries %zu, tree nodes %u blocks %u, extent %.0f %.0f %.0f\n", v129_prim.empty() ? "MISSING" : "ok", v129_floors.size(), v129_shaded, v129_lit, v129_none, v133_sec.empty() ? "MISSING" : "ok", v133_grounded, v135_addr.size(), v138_nodes, v138_blocks, v140_ext[0], v140_ext[1], v140_ext[2]);
 						filesystem::file v131_f("v129_model_sun.txt");
 						v131_f.open("wb");
 						v131_f.write(v131_msg);
