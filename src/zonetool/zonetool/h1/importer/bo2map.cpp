@@ -227,9 +227,9 @@ namespace zonetool::h1::importer
 			{
 				if (!line.empty() && line.back() == '\r') line.pop_back();
 				std::vector<std::string> c;
-				std::stringstream ss(line);
+				std::stringstream lss(line);
 				std::string t;
-				while (std::getline(ss, t, '\t')) c.push_back(t);
+				while (std::getline(lss, t, '\t')) c.push_back(t);
 				if (c.size() < 5) continue;
 				auto fix = [](const std::string& v) { return v == "-" ? std::string() : v; };
 				by_name[c[0]] = {fix(c[2]), fix(c[3]), fix(c[4])};
