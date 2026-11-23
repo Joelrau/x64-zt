@@ -422,7 +422,7 @@ namespace zonetool::iw7
 				};
 				{
 					// entry 0: the fallback (models with no floor under them, and missingGridColorIndex)
-					const float q_d0[3] = { 0.45f, 0.45f, 0.45f }, q_d3[3] = { 0.12f, 0.12f, 0.12f };
+					const float q_d0[3] = { 0.55f, 0.45f, 0.32f }, q_d3[3] = { 0.18f, 0.15f, 0.10f }; // v143: warm like mp_flip's floor light (median 0.82 0.61 0.40), at the 0.45 level that read right in v138/v139
 					v135_add(q_d0, q_d3);
 				}
 				const auto v129_bc4 = [&](float q_u, float q_v) -> float
@@ -478,7 +478,7 @@ namespace zonetool::iw7
 				// v137: with v135's per-model entries every static model drew black (the gun, lit from the grid, did take entry 0), so
 				//       statics don't read colorIndex here; try a palette of one entry that every lookup resolves to
 				constexpr bool v137_per_model = false;
-				constexpr bool v138_tree = true;
+				constexpr bool v138_tree = false; // v143: v141/v142 (tree over the playable area) hung / crashed on load; H1's leaf format may differ from Ghosts'. Every lookup now misses the (empty) stub tree and takes missingGridColorIndex = entry 0
 				constexpr bool v134_one_handle = false; // tested in v134: no visible change
 				constexpr bool v133_ground_lighting = false; // v134: GROUND_LIGHTING (0x20) drew every static model black: our IW6 model techsets take MODEL_LIGHTING from the grid atlas, not the ground colour
 
