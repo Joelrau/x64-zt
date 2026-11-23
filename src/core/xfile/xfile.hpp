@@ -11,6 +11,7 @@ namespace zonetool::xfile
 		s2,
 		iw8,
 		iw3,
+		iw4,
 	};
 
 	struct format

@@ -134,11 +134,23 @@ namespace csv_generator
 				"anm", "fxt", "acl", "lui", "lsr"
 			};
 
+			const char* ncs_arr_iw7[] = {
+				"vsn", "tgt", "ges", "sut", "lui", "acl", "anm", "hnt", "wep", "mic", "nps", "sic",
+				"hic", "tag", "shk", "loc", "vfx", "efx", "veh", "rmg", "rmb", "mat", "mdl"
+			};
+
 			add_line("// netconststrings");
 
 			if (game == game::game_mode::h1)
 			{
 				for (const auto& str : ncs_arr_h1)
+				{
+					add_asset("netconststrings", utils::string::va("ncs_%s_level", str));
+				}
+			}
+			else if (game == game::game_mode::iw7)
+			{
+				for (const auto& str : ncs_arr_iw7)
 				{
 					add_asset("netconststrings", utils::string::va("ncs_%s_level", str));
 				}
@@ -344,6 +356,12 @@ namespace csv_generator
 		add_gsc(utils::string::va("maps/createart/%s_art.gsc", map.data()));
 		add_gsc(utils::string::va("maps/createart/%s_fog.gsc", map.data()));
 		add_gsc(utils::string::va("maps/createart/%s_fog_hdr.gsc", map.data()));
+
+		const std::string level_script = utils::string::va("scripts/mp/maps/%s/%s", map.data(), map.data());
+		if (game == game::game_mode::iw7 && file_exists(level_script + ".gscbin"))
+		{
+			add_asset("scriptfile", level_script);
+		}
 		add_line("");
 
 		ZONETOOL_INFO("Adding map assets...");
@@ -356,7 +374,7 @@ namespace csv_generator
 		add_map_asset("glass_map", ".glassmap");
 		add_map_asset("phys_worldmap", ".physmap");
 		add_map_asset("aipaths", ".aipaths");
-		add_map_asset(is_sp ? "col_map_sp" : "col_map_mp", ".colmap");
+		add_map_asset(game == game::game_mode::iw7 ? "col_map" : is_sp ? "col_map_sp" : "col_map_mp", ".colmap");
 		add_line("");
 
 		const auto csv_path = "zone_source/" + map + ".csv";

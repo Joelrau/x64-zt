@@ -2,6 +2,7 @@
 
 #include "../include.hpp"
 #include "gfxworld.hpp"
+#include "gfx_image.hpp"
 
 namespace zonetool::iw4::converter::iw5
 {
@@ -26,6 +27,11 @@ namespace zonetool::iw4::converter::iw5
 				const auto reference = allocator.allocate<zonetool::iw5::GfxImage>();
 				reference->name.value = image->name.value;
 				return reference;
+			}
+
+			zonetool::iw5::GfxImage* map_image(const x86::pointer<zonetool::iw4::GfxImage>& image)
+			{
+				return image.value ? gfx_image::convert(image.get()) : nullptr;
 			}
 
 			void convert_cells(zonetool::iw4::GfxWorld* asset, zonetool::iw5::GfxWorld* new_asset, x86::allocator& allocator)
@@ -111,7 +117,7 @@ namespace zonetool::iw4::converter::iw5
 				const auto images = allocator.allocate<x86::pointer<zonetool::iw5::GfxImage>>(source.reflectionProbeCount);
 				for (unsigned int i = 0; i < source.reflectionProbeCount; i++)
 				{
-					images[i] = image_reference(source.reflectionImages[i], allocator);
+					images[i] = map_image(source.reflectionImages[i]);
 				}
 				draw.reflectionProbes = images;
 
@@ -129,8 +135,8 @@ namespace zonetool::iw4::converter::iw5
 				const auto lightmaps = allocator.allocate<zonetool::iw5::GfxLightmapArray>(source.lightmapCount);
 				for (auto i = 0; i < source.lightmapCount; i++)
 				{
-					lightmaps[i].primary = image_reference(source.lightmaps[i].primary, allocator);
-					lightmaps[i].secondary = image_reference(source.lightmaps[i].secondary, allocator);
+					lightmaps[i].primary = map_image(source.lightmaps[i].primary);
+					lightmaps[i].secondary = map_image(source.lightmaps[i].secondary);
 				}
 				draw.lightmaps = lightmaps;
 				draw.lightmapPrimaryTextures.value = source.lightmapPrimaryTextures.value;

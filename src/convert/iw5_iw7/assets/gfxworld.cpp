@@ -4,8 +4,9 @@
 #include "gfxworld.hpp"
 #include "comworld.hpp"
 #include "gfxworld_umbra.hpp"
+#include "gfx_image.hpp"
 
-#include <DirectXTex.h>
+#include <iw7/assets/gfximage.hpp>
 #include <iw7/assets/gfxworld.hpp>
 #include <iw7/assets/gfxlightmap.hpp>
 #include <iw7/assets/gfxworld_tr.hpp>
@@ -55,78 +56,6 @@ namespace zonetool::iw5::converter::iw7
 				const auto reference = allocator.allocate<target::Material>();
 				reference->name = allocator.duplicate_string(material->info.name.get());
 				return reference;
-			}
-
-			target::GfxImage* generate_reflection_probe_array_image(const unsigned int probe_count, utils::memory::allocator& allocator)
-			{
-				constexpr auto size = 128u;
-				constexpr auto levels = 8u;
-				constexpr unsigned short neutral_grey = 0x3400;
-
-				// Every block of every face holds the same colour, so one block is compressed and repeated.
-				// Compressing the whole array on the processor takes minutes per probe.
-				unsigned short block_pixels[4 * 4 * 4];
-				for (std::size_t i = 0; i < std::size(block_pixels); i++)
-				{
-					block_pixels[i] = (i % 4 == 3) ? 0x3C00 : neutral_grey;
-				}
-
-				DirectX::Image block_image{};
-				block_image.width = 4;
-				block_image.height = 4;
-				block_image.format = DXGI_FORMAT_R16G16B16A16_FLOAT;
-				block_image.pixels = reinterpret_cast<std::uint8_t*>(block_pixels);
-				DirectX::ComputePitch(block_image.format, block_image.width, block_image.height, block_image.rowPitch, block_image.slicePitch);
-
-				DirectX::ScratchImage block;
-				const auto compress_result = DirectX::Compress(block_image, DXGI_FORMAT_BC6H_UF16,
-					DirectX::TEX_COMPRESS_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, block);
-				if (FAILED(compress_result))
-				{
-					ZONETOOL_WARNING("Reflection probe array compression failed (0x%08X)", static_cast<unsigned int>(compress_result));
-					return image_reference("*reflection_probe_array", allocator);
-				}
-
-				DirectX::TexMetadata metadata{};
-				metadata.width = size;
-				metadata.height = size;
-				metadata.depth = 1;
-				metadata.arraySize = static_cast<std::size_t>(probe_count) * 6;
-				metadata.mipLevels = levels;
-				metadata.format = DXGI_FORMAT_BC6H_UF16;
-				metadata.dimension = DirectX::TEX_DIMENSION_TEXTURE2D;
-				metadata.miscFlags |= DirectX::TEX_MISC_TEXTURECUBE;
-
-				constexpr std::size_t block_size = 16;
-				DirectX::ScratchImage compressed;
-				const auto initialize_result = compressed.Initialize(metadata);
-				if (FAILED(initialize_result) || block.GetPixelsSize() < block_size)
-				{
-					ZONETOOL_WARNING("Reflection probe array could not be allocated (0x%08X)", static_cast<unsigned int>(initialize_result));
-					return image_reference("*reflection_probe_array", allocator);
-				}
-
-				for (std::size_t offset = 0; offset + block_size <= compressed.GetPixelsSize(); offset += block_size)
-				{
-					std::memcpy(compressed.GetPixels() + offset, block.GetPixels(), block_size);
-				}
-
-				const auto directory = filesystem::get_dump_path() + "images\\";
-				std::filesystem::create_directories(directory);
-				const auto path = std::filesystem::path(directory) / "_reflection_probe_array.dds";
-				const auto save_result = DirectX::SaveToDDSFile(compressed.GetImages(), compressed.GetImageCount(), compressed.GetMetadata(),
-					DirectX::DDS_FLAGS_NONE, path.c_str());
-				if (FAILED(save_result))
-				{
-					ZONETOOL_WARNING("Reflection probe array could not be saved (0x%08X)", static_cast<unsigned int>(save_result));
-				}
-
-				return image_reference("*reflection_probe_array", allocator);
-			}
-
-			target::GfxImage* generate_ies_lookup(utils::memory::allocator& allocator)
-			{
-				return image_reference("*ieslookup", allocator);
 			}
 
 			unsigned int first_reflection_probe(const unsigned int reflection_probe_count)
@@ -370,7 +299,7 @@ namespace zonetool::iw5::converter::iw7
 				data.reflectionProbeCount = probe_count;
 				data.sharedReflectionProbeCount = 0;
 				data.reflectionProbes = allocator.allocate_array<target::GfxReflectionProbe>(probe_count);
-				data.reflectionProbeArrayImage = generate_reflection_probe_array_image(probe_count, allocator);
+				data.reflectionProbeArrayImage = image_reference("*reflection_probe_array", allocator);
 				data.reflectionProbeLightgridSampleData = allocator.allocate_array<target::GfxReflectionProbeSampleData>(probe_count);
 
 				struct probe_region
@@ -1064,6 +993,717 @@ namespace zonetool::iw5::converter::iw7
 				return occupancy;
 			}
 
+			using probe_sh = std::array<float, 28>;
+			using grid_cells = std::unordered_map<std::uint64_t, probe_sh>;
+
+			void grid_position(const std::uint64_t key, int* position)
+			{
+				position[0] = static_cast<int>((key >> 32) & 0xFFFF);
+				position[1] = static_cast<int>((key >> 16) & 0xFFFF);
+				position[2] = static_cast<int>(key & 0xFFFF);
+			}
+
+			float vector_length(const float* vector)
+			{
+				return std::sqrt(vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]);
+			}
+
+			void normalize_vector(float* vector)
+			{
+				const auto length = vector_length(vector);
+				if (length > 0.0f)
+				{
+					for (auto k = 0; k < 3; k++)
+					{
+						vector[k] /= length;
+					}
+				}
+			}
+
+			void cross_product(const float* a, const float* b, float* out)
+			{
+				out[0] = a[1] * b[2] - a[2] * b[1];
+				out[1] = a[2] * b[0] - a[0] * b[2];
+				out[2] = a[0] * b[1] - a[1] * b[0];
+			}
+
+			void perpendicular_basis(const float* axis, float* u, float* v)
+			{
+				const auto axial = std::fabs(axis[2]) > 0.9f;
+				const float helper[3] = {axial ? 1.0f : 0.0f, 0.0f, axial ? 0.0f : 1.0f};
+				cross_product(helper, axis, u);
+				normalize_vector(u);
+				cross_product(axis, u, v);
+				normalize_vector(v);
+			}
+
+			std::unordered_map<unsigned int, light_cell_box> collect_light_boxes(source::GfxWorld* asset)
+			{
+				std::unordered_map<unsigned int, light_cell_box> boxes;
+				const auto& grid = asset->lightGrid;
+				if (!grid.entries.value || !grid.rowDataStart.value || !grid.rawRowData.value)
+				{
+					return boxes;
+				}
+
+				const auto references = lightgrid_tree::enumerate_row_data(grid.mins, grid.maxs,
+					grid.rowAxis, grid.colAxis, grid.rowDataStart.get(), grid.rawRowData.get());
+				for (const auto& reference : references)
+				{
+					if (reference.entry_index >= grid.entryCount)
+					{
+						continue;
+					}
+
+					const float world[3] =
+					{
+						(static_cast<float>(reference.pos[0]) - 4096.0f) * 32.0f,
+						(static_cast<float>(reference.pos[1]) - 4096.0f) * 32.0f,
+						(static_cast<float>(reference.pos[2]) - 2048.0f) * 64.0f,
+					};
+
+					auto& box = boxes[grid.entries.get()[reference.entry_index].primaryLightIndex];
+					box.cells++;
+					for (auto k = 0; k < 3; k++)
+					{
+						box.lo[k] = std::min(box.lo[k], world[k]);
+						box.hi[k] = std::max(box.hi[k], world[k]);
+					}
+				}
+				return boxes;
+			}
+
+			bool find_sun_direction(float* direction)
+			{
+				for (const auto& light : comworld::last_primary_lights())
+				{
+					if (light.type != target::GFX_LIGHT_TYPE_DIR || !(vector_length(light.dir) > 0.0f))
+					{
+						continue;
+					}
+
+					std::memcpy(direction, light.dir, sizeof(float[3]));
+					normalize_vector(direction);
+					return true;
+				}
+				return false;
+			}
+
+			std::unordered_set<std::uint64_t> collect_static_model_cells(source::GfxWorld* asset)
+			{
+				std::unordered_set<std::uint64_t> cells;
+				for (unsigned int i = 0; i < asset->dpvs.smodelCount; i++)
+				{
+					if (!asset->dpvs.smodelDrawInsts[i].model.value)
+					{
+						continue;
+					}
+
+					const auto& bounds = asset->dpvs.smodelInsts[i].bounds;
+					int low[3], high[3];
+					for (auto k = 0; k < 3; k++)
+					{
+						const auto cell_size = k == 2 ? 64.0f : 32.0f;
+						const auto bias = k == 2 ? 2048 : 4096;
+						low[k] = static_cast<int>(std::floor((bounds.midPoint[k] - bounds.halfSize[k]) / cell_size)) + bias;
+						high[k] = static_cast<int>(std::floor((bounds.midPoint[k] + bounds.halfSize[k]) / cell_size)) + bias;
+					}
+
+					const auto span = static_cast<std::uint64_t>(high[0] - low[0] + 1) * static_cast<std::uint64_t>(high[1] - low[1] + 1)
+						* static_cast<std::uint64_t>(high[2] - low[2] + 1);
+					if (span > 200000)
+					{
+						continue;
+					}
+
+					for (auto z = std::max(low[2], 0); z <= std::min(high[2], 0xFFFF); z++)
+					{
+						for (auto y = std::max(low[1], 0); y <= std::min(high[1], 0xFFFF); y++)
+						{
+							for (auto x = std::max(low[0], 0); x <= std::min(high[0], 0xFFFF); x++)
+							{
+								cells.insert(grid_key(x, y, z));
+							}
+						}
+					}
+				}
+				return cells;
+			}
+
+			bool sun_ray_escapes(const float* start, const float* step, const int* low, const int* high,
+				const grid_cells& samples, const std::unordered_map<std::uint32_t, int>& column_top, const std::unordered_set<std::uint64_t>& blocked)
+			{
+				float position[3] = {start[0], start[1], start[2]};
+				for (auto walked = 0; walked < 384; walked++)
+				{
+					int cell[3];
+					for (auto k = 0; k < 3; k++)
+					{
+						position[k] += step[k];
+						cell[k] = static_cast<int>(std::lround(position[k]));
+					}
+
+					for (auto k = 0; k < 3; k++)
+					{
+						if (cell[k] < low[k] || cell[k] > high[k])
+						{
+							return true;
+						}
+					}
+
+					const auto key = grid_key(cell[0], cell[1], cell[2]);
+					if (!samples.contains(key))
+					{
+						const auto top = column_top.find((static_cast<std::uint32_t>(cell[0]) << 16) | static_cast<std::uint32_t>(cell[1]));
+						return top == column_top.end() || cell[2] > top->second; // deviation: the sparse IW3 grid has no cells above the ground layers
+					}
+
+					if (blocked.contains(key))
+					{
+						return false;
+					}
+				}
+				return false;
+			}
+
+			void trace_sun_visibility(source::GfxWorld* asset, grid_cells& samples)
+			{
+				constexpr unsigned int ray_count = 8;
+				constexpr float pi = 3.14159265358979f;
+
+				float sun[3];
+				if (samples.empty() || !find_sun_direction(sun))
+				{
+					return;
+				}
+
+				int low[3] = {INT_MAX, INT_MAX, INT_MAX};
+				int high[3] = {INT_MIN, INT_MIN, INT_MIN};
+				std::unordered_map<std::uint32_t, int> column_top;
+				for (const auto& cell : samples)
+				{
+					int position[3];
+					grid_position(cell.first, position);
+					for (auto k = 0; k < 3; k++)
+					{
+						low[k] = std::min(low[k], position[k]);
+						high[k] = std::max(high[k], position[k]);
+					}
+
+					auto& top = column_top.try_emplace((static_cast<std::uint32_t>(position[0]) << 16) | static_cast<std::uint32_t>(position[1]), position[2]).first->second;
+					top = std::max(top, position[2]);
+				}
+
+				float jitter_u[3], jitter_v[3];
+				perpendicular_basis(sun, jitter_u, jitter_v);
+				const auto blocked = collect_static_model_cells(asset);
+
+				unsigned int fully_lit = 0;
+				unsigned int fully_dark = 0;
+				unsigned int clamped_by_source = 0;
+				for (auto& cell : samples)
+				{
+					int position[3];
+					grid_position(cell.first, position);
+					const float start[3] = {static_cast<float>(position[0]), static_cast<float>(position[1]), static_cast<float>(position[2])};
+
+					unsigned int open_rays = 0;
+					for (unsigned int ray = 0; ray < ray_count; ray++)
+					{
+						const auto phi = (2.0f * pi * ray) / ray_count;
+						const auto spread = ray == 0 ? 0.0f : 0.09f;
+
+						float direction[3];
+						for (auto k = 0; k < 3; k++)
+						{
+							direction[k] = sun[k] + (jitter_u[k] * std::cos(phi) + jitter_v[k] * std::sin(phi)) * spread;
+						}
+						normalize_vector(direction);
+
+						float step[3] = {direction[0] / 32.0f, direction[1] / 32.0f, direction[2] / 64.0f};
+						const auto longest = std::max({std::fabs(step[0]), std::fabs(step[1]), std::fabs(step[2])});
+						if (longest <= 0.0f)
+						{
+							open_rays++;
+							continue;
+						}
+						for (auto k = 0; k < 3; k++)
+						{
+							step[k] /= longest * 2.0f;
+						}
+
+						if (sun_ray_escapes(start, step, low, high, samples, column_top, blocked))
+						{
+							open_rays++;
+						}
+					}
+
+					const auto traced = static_cast<float>(open_rays) / ray_count;
+					if (cell.second[27] * traced < traced)
+					{
+						clamped_by_source++;
+					}
+
+					cell.second[27] *= traced;
+					if (cell.second[27] >= 1.0f)
+					{
+						fully_lit++;
+					}
+					else if (cell.second[27] <= 0.0f)
+					{
+						fully_dark++;
+					}
+				}
+
+				ZONETOOL_INFO("GfxWorld \"%s\": sun visibility traced over %zu cells (%u fully lit, %u fully shadowed, %u clamped by the source bake, %zu static model cells), sun dir (%.2f, %.2f, %.2f)",
+					asset->name.get(), samples.size(), fully_lit, fully_dark, clamped_by_source, blocked.size(), sun[0], sun[1], sun[2]);
+			}
+
+			void smooth_sun_visibility(grid_cells& samples)
+			{
+				for (auto pass = 0; pass < 2; pass++)
+				{
+					std::unordered_map<std::uint64_t, float> smoothed;
+					smoothed.reserve(samples.size());
+
+					for (const auto& cell : samples)
+					{
+						int position[3];
+						grid_position(cell.first, position);
+
+						auto sum = 0.0f;
+						auto seen = 0;
+						for (auto dz = -1; dz <= 1; dz++)
+						{
+							for (auto dy = -1; dy <= 1; dy++)
+							{
+								for (auto dx = -1; dx <= 1; dx++)
+								{
+									const auto x = position[0] + dx;
+									const auto y = position[1] + dy;
+									const auto z = position[2] + dz;
+									if (x < 0 || y < 0 || z < 0 || x > 0xFFFF || y > 0xFFFF || z > 0xFFFF)
+									{
+										continue;
+									}
+
+									const auto found = samples.find(grid_key(x, y, z));
+									if (found != samples.end())
+									{
+										sum += found->second[27];
+										seen++;
+									}
+								}
+							}
+						}
+						smoothed[cell.first] = seen ? sum / static_cast<float>(seen) : cell.second[27];
+					}
+
+					for (auto& cell : samples)
+					{
+						cell.second[27] = smoothed[cell.first];
+					}
+				}
+			}
+
+			void convert_light_view_frustums(source::GfxWorld* asset, target::GfxWorld* new_asset, utils::memory::allocator& allocator)
+			{
+				static const unsigned short quads[6][4] = {{0, 1, 2, 3}, {4, 5, 6, 7}, {0, 1, 5, 4}, {1, 2, 6, 5}, {2, 3, 7, 6}, {3, 0, 4, 7}};
+
+				const auto& lights = comworld::last_primary_lights();
+				const auto count = std::min<std::size_t>(new_asset->primaryLightCount, lights.size());
+
+				unsigned int built = 0;
+				for (std::size_t i = 0; i < count; i++)
+				{
+					const auto& light = lights[i];
+					if (light.type != target::GFX_LIGHT_TYPE_SPOT || !light.can_use_shadow_map || !(light.radius > 0.0f)
+						|| !(light.cos_half_fov_outer > 0.0f && light.cos_half_fov_outer < 1.0f))
+					{
+						continue;
+					}
+
+					float axis[3] = {-light.dir[0], -light.dir[1], -light.dir[2]};
+					if (!(vector_length(axis) > 1e-4f))
+					{
+						continue;
+					}
+					normalize_vector(axis);
+
+					const auto axial = std::fabs(axis[2]) > 0.9f;
+					const float helper[3] = {axial ? 1.0f : 0.0f, 0.0f, axial ? 0.0f : 1.0f};
+					const auto helper_dot = helper[0] * axis[0] + helper[1] * axis[1] + helper[2] * axis[2];
+
+					float right[3];
+					for (auto k = 0; k < 3; k++)
+					{
+						right[k] = helper[k] - axis[k] * helper_dot;
+					}
+					if (!(vector_length(right) > 1e-4f))
+					{
+						continue;
+					}
+					normalize_vector(right);
+
+					float up[3];
+					cross_product(axis, right, up);
+
+					const auto cos_outer = std::max(0.017452f, light.cos_half_fov_outer);
+					const auto tan_half = std::sqrt(std::max(0.0f, 1.0f - cos_outer * cos_outer)) / cos_outer;
+					const auto near_distance = std::max(1.0f, light.radius * 0.01f);
+					const auto far_distance = std::max(near_distance + 1.0f, light.radius);
+
+					float vertices[8][3];
+					for (auto slice = 0; slice < 2; slice++)
+					{
+						const auto depth = slice ? far_distance : near_distance;
+						const auto extent = depth * tan_half;
+						for (auto corner = 0; corner < 4; corner++)
+						{
+							const auto side_x = (corner == 0 || corner == 3) ? -extent : extent;
+							const auto side_y = corner < 2 ? -extent : extent;
+							for (auto k = 0; k < 3; k++)
+							{
+								vertices[slice * 4 + corner][k] = light.origin[k] + axis[k] * depth + right[k] * side_x + up[k] * side_y;
+							}
+						}
+					}
+
+					std::vector<unsigned short> indices;
+					for (const auto& quad : quads)
+					{
+						indices.insert(indices.end(), {quad[0], quad[1], quad[2], quad[0], quad[2], quad[3]});
+					}
+
+					auto signed_volume = 0.0f;
+					for (std::size_t t = 0; t + 2 < indices.size(); t += 3)
+					{
+						const auto* a = vertices[indices[t]];
+						const auto* b = vertices[indices[t + 1]];
+						const auto* c = vertices[indices[t + 2]];
+						signed_volume += a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0]);
+					}
+					if (signed_volume < 0.0f)
+					{
+						for (std::size_t t = 0; t + 2 < indices.size(); t += 3)
+						{
+							std::swap(indices[t + 1], indices[t + 2]);
+						}
+					}
+
+					float centre[3] = {0.0f, 0.0f, 0.0f};
+					for (const auto& vertex : vertices)
+					{
+						for (auto k = 0; k < 3; k++)
+						{
+							centre[k] += vertex[k] * 0.125f;
+						}
+					}
+
+					auto& frustum = new_asset->lightViewFrustums[i];
+					frustum.vertexCount = 8;
+					frustum.vertices = allocator.allocate_array<target::vec3_t>(8);
+					std::memcpy(frustum.vertices, vertices, sizeof(vertices));
+
+					frustum.indexCount = static_cast<unsigned int>(indices.size());
+					frustum.indices = allocator.allocate_array<unsigned short>(indices.size());
+					std::memcpy(frustum.indices, indices.data(), sizeof(unsigned short) * indices.size());
+
+					frustum.planeCount = 6;
+					frustum.planes = allocator.allocate_array<target::vec4_t>(6);
+					for (auto face = 0; face < 6; face++)
+					{
+						const auto* a = vertices[quads[face][0]];
+						const auto* b = vertices[quads[face][1]];
+						const auto* c = vertices[quads[face][2]];
+
+						const float ab[3] = {b[0] - a[0], b[1] - a[1], b[2] - a[2]};
+						const float ac[3] = {c[0] - a[0], c[1] - a[1], c[2] - a[2]};
+						float normal[3];
+						cross_product(ab, ac, normal);
+						if (!(vector_length(normal) > 1e-8f))
+						{
+							continue;
+						}
+						normalize_vector(normal);
+
+						auto distance = -(normal[0] * a[0] + normal[1] * a[1] + normal[2] * a[2]);
+						if (normal[0] * centre[0] + normal[1] * centre[1] + normal[2] * centre[2] + distance < 0.0f)
+						{
+							for (auto& component : normal)
+							{
+								component = -component;
+							}
+							distance = -distance;
+						}
+
+						frustum.planes[face][0] = normal[0];
+						frustum.planes[face][1] = normal[1];
+						frustum.planes[face][2] = normal[2];
+						frustum.planes[face][3] = distance;
+					}
+
+					built++;
+				}
+
+				ZONETOOL_INFO("GfxWorld \"%s\": %u light view frustums over %u primary lights", asset->name.get(), built, new_asset->primaryLightCount);
+			}
+
+			constexpr float proxy_pi = 3.14159265358979f;
+			constexpr unsigned int proxy_segments = 8;
+
+			float proxy_circumscribe_scale(const float polar_gap)
+			{
+				return 1.0f / (std::cos(proxy_pi / proxy_segments) * std::cos(polar_gap * 0.5f));
+			}
+
+			std::vector<unsigned short> add_proxy_ring(proxy_mesh& mesh, const float* origin, const float* axis, const float* u, const float* v,
+				const float theta, const float distance)
+			{
+				std::vector<unsigned short> ring;
+				for (unsigned int segment = 0; segment < proxy_segments; segment++)
+				{
+					const auto phi = (2.0f * proxy_pi * segment) / proxy_segments;
+					float point[3];
+					for (auto k = 0; k < 3; k++)
+					{
+						point[k] = origin[k] + (axis[k] * std::cos(theta) + (u[k] * std::cos(phi) + v[k] * std::sin(phi)) * std::sin(theta)) * distance;
+					}
+					ring.push_back(mesh.add_vertex(point));
+				}
+				return ring;
+			}
+
+			void bridge_proxy_rings(proxy_mesh& mesh, const std::vector<unsigned short>& inner, const std::vector<unsigned short>& outer)
+			{
+				for (unsigned int segment = 0; segment < proxy_segments; segment++)
+				{
+					const auto next = (segment + 1) % proxy_segments;
+					mesh.add_triangle(inner[segment], outer[segment], outer[next]);
+					mesh.add_triangle(inner[segment], outer[next], inner[next]);
+				}
+			}
+
+			void cap_proxy_ring(proxy_mesh& mesh, const unsigned short pole, const std::vector<unsigned short>& ring, const bool flip)
+			{
+				for (unsigned int segment = 0; segment < proxy_segments; segment++)
+				{
+					const auto next = (segment + 1) % proxy_segments;
+					if (flip)
+					{
+						mesh.add_triangle(pole, ring[next], ring[segment]);
+					}
+					else
+					{
+						mesh.add_triangle(pole, ring[segment], ring[next]);
+					}
+				}
+			}
+
+			void build_proxy_rings(proxy_mesh& mesh, const unsigned short first_pole, const unsigned short last_pole, const float* origin,
+				const float* axis, const float ring_step, const unsigned int ring_count, const float distance)
+			{
+				float u[3], v[3];
+				perpendicular_basis(axis, u, v);
+
+				std::vector<std::vector<unsigned short>> rings;
+				for (unsigned int ring = 1; ring <= ring_count; ring++)
+				{
+					rings.push_back(add_proxy_ring(mesh, origin, axis, u, v, ring_step * ring, distance));
+				}
+
+				cap_proxy_ring(mesh, first_pole, rings.front(), false);
+				for (std::size_t ring = 0; ring + 1 < rings.size(); ring++)
+				{
+					bridge_proxy_rings(mesh, rings[ring], rings[ring + 1]);
+				}
+				cap_proxy_ring(mesh, last_pole, rings.back(), true);
+			}
+
+			void build_spot_proxy(proxy_mesh& mesh, const float* origin, const float* axis, const float half_angle, const float range)
+			{
+				const auto expanded_angle = std::atan(std::tan(half_angle) / std::cos(proxy_pi / proxy_segments));
+				const auto ring_step = expanded_angle / 3.0f;
+				const auto distance = range * proxy_circumscribe_scale(ring_step) * 1.2f;
+
+				float tip[3];
+				for (auto k = 0; k < 3; k++)
+				{
+					tip[k] = origin[k] + axis[k] * distance;
+				}
+
+				const auto apex = mesh.add_vertex(origin);
+				const auto axial = mesh.add_vertex(tip);
+				build_proxy_rings(mesh, axial, apex, origin, axis, ring_step, 3, distance);
+			}
+
+			void build_omni_proxy(proxy_mesh& mesh, const float* origin, const float range)
+			{
+				constexpr float axis[3] = {0.0f, 0.0f, 1.0f};
+				const auto ring_step = proxy_pi / 6.0f;
+				const auto distance = range * proxy_circumscribe_scale(ring_step) * 1.2f;
+
+				const float north_pole[3] = {origin[0], origin[1], origin[2] + distance};
+				const float south_pole[3] = {origin[0], origin[1], origin[2] - distance};
+				const auto north = mesh.add_vertex(north_pole);
+				const auto south = mesh.add_vertex(south_pole);
+				build_proxy_rings(mesh, north, south, origin, axis, ring_step, 5, distance);
+			}
+
+			std::vector<std::uint32_t> pack_proxy_normals(const proxy_mesh& mesh)
+			{
+				const auto vertex_count = mesh.vertices.size() / 3;
+				std::vector<double> sum(vertex_count * 3, 0.0);
+
+				for (std::size_t t = 0; t + 2 < mesh.indices.size(); t += 3)
+				{
+					const unsigned short triangle[3] = {mesh.indices[t], mesh.indices[t + 1], mesh.indices[t + 2]};
+
+					double points[3][3];
+					for (auto corner = 0; corner < 3; corner++)
+					{
+						for (auto k = 0; k < 3; k++)
+						{
+							points[corner][k] = mesh.vertices[3ull * triangle[corner] + k];
+						}
+					}
+
+					const double edge_a[3] = {points[1][0] - points[0][0], points[1][1] - points[0][1], points[1][2] - points[0][2]};
+					const double edge_b[3] = {points[2][0] - points[0][0], points[2][1] - points[0][1], points[2][2] - points[0][2]};
+					const double normal[3] =
+					{
+						edge_a[1] * edge_b[2] - edge_a[2] * edge_b[1],
+						edge_a[2] * edge_b[0] - edge_a[0] * edge_b[2],
+						edge_a[0] * edge_b[1] - edge_a[1] * edge_b[0],
+					};
+					const auto normal_length = std::sqrt(normal[0] * normal[0] + normal[1] * normal[1] + normal[2] * normal[2]);
+					if (!(normal_length > 1e-6))
+					{
+						continue;
+					}
+
+					for (auto corner = 0; corner < 3; corner++)
+					{
+						const auto* origin = points[corner];
+						const auto* a = points[(corner + 1) % 3];
+						const auto* b = points[(corner + 2) % 3];
+						const double to_a[3] = {a[0] - origin[0], a[1] - origin[1], a[2] - origin[2]};
+						const double to_b[3] = {b[0] - origin[0], b[1] - origin[1], b[2] - origin[2]};
+						const auto length_a = std::sqrt(to_a[0] * to_a[0] + to_a[1] * to_a[1] + to_a[2] * to_a[2]);
+						const auto length_b = std::sqrt(to_b[0] * to_b[0] + to_b[1] * to_b[1] + to_b[2] * to_b[2]);
+						if (!(length_a > 1e-9) || !(length_b > 1e-9))
+						{
+							continue;
+						}
+
+						const auto cos_angle = (to_a[0] * to_b[0] + to_a[1] * to_b[1] + to_a[2] * to_b[2]) / (length_a * length_b);
+						const auto angle = std::acos(std::max(-1.0, std::min(1.0, cos_angle)));
+						for (auto k = 0; k < 3; k++)
+						{
+							sum[3ull * triangle[corner] + k] += normal[k] / normal_length * angle;
+						}
+					}
+				}
+
+				std::vector<std::uint32_t> packed(vertex_count, 0);
+				for (std::size_t vertex = 0; vertex < vertex_count; vertex++)
+				{
+					double normal[3] = {sum[3 * vertex], sum[3 * vertex + 1], sum[3 * vertex + 2]};
+					const auto length = std::sqrt(normal[0] * normal[0] + normal[1] * normal[1] + normal[2] * normal[2]);
+					if (length > 1e-9)
+					{
+						for (auto& component : normal)
+						{
+							component /= length;
+						}
+					}
+					else
+					{
+						normal[0] = 0.0;
+						normal[1] = 0.0;
+						normal[2] = 1.0;
+					}
+
+					std::uint32_t word = 3u << 30;
+					for (auto k = 0; k < 3; k++)
+					{
+						const auto quantized = static_cast<int>(std::lround((normal[k] + 1.0) * 511.5));
+						word |= static_cast<std::uint32_t>(std::max(0, std::min(1023, quantized))) << (10 * k);
+					}
+					packed[vertex] = word;
+				}
+				return packed;
+			}
+
+			void convert_frustum_lights(source::GfxWorld* asset, target::GfxWorld* new_asset,
+				const std::unordered_map<unsigned int, light_cell_box>& light_boxes, utils::memory::allocator& allocator)
+			{
+				constexpr float cell_margin[3] = {32.0f, 32.0f, 64.0f};
+
+				const auto& lights = comworld::last_primary_lights();
+				const auto count = std::min<std::size_t>(new_asset->primaryLightCount, lights.size());
+
+				unsigned int proxy_count = 0;
+				unsigned int clipped_count = 0;
+				for (std::size_t i = 0; i < count; i++)
+				{
+					const auto& light = lights[i];
+					if (light.radius <= 0.0f || (light.type != target::GFX_LIGHT_TYPE_SPOT && light.type != target::GFX_LIGHT_TYPE_OMNI))
+					{
+						continue;
+					}
+
+					float axis[3] = {-light.dir[0], -light.dir[1], -light.dir[2]};
+					normalize_vector(axis);
+					const auto half_angle = std::acos(std::max(-1.0f, std::min(1.0f, light.cos_half_fov_outer)));
+
+					proxy_mesh mesh{};
+					if (light.type == target::GFX_LIGHT_TYPE_SPOT && half_angle < 1.3962634f) // 80 degrees
+					{
+						build_spot_proxy(mesh, light.origin, axis, half_angle, light.radius);
+					}
+					else
+					{
+						build_omni_proxy(mesh, light.origin, light.radius);
+					}
+
+					const auto box = light_boxes.find(static_cast<unsigned int>(i));
+					if (box != light_boxes.end() && box->second.cells)
+					{
+						for (std::size_t vertex = 0; vertex + 2 < mesh.vertices.size(); vertex += 3)
+						{
+							for (auto k = 0; k < 3; k++)
+							{
+								mesh.vertices[vertex + k] = std::max(box->second.lo[k] - cell_margin[k], std::min(box->second.hi[k] + cell_margin[k], mesh.vertices[vertex + k]));
+							}
+						}
+						clipped_count++;
+					}
+					else
+					{
+						ZONETOOL_WARNING("GfxWorld \"%s\": light %zu has no light grid cells, its proxy hull is unclipped", asset->name.get(), i);
+					}
+
+					auto& frustum = new_asset->frustumLights[i];
+					frustum.vertexCount = static_cast<unsigned int>(mesh.vertices.size() / 3);
+					frustum.vertices = allocator.allocate_array<char>(32ull * frustum.vertexCount);
+					const auto normals = pack_proxy_normals(mesh);
+					for (unsigned int vertex = 0; vertex < frustum.vertexCount; vertex++)
+					{
+						std::memcpy(&frustum.vertices[32 * vertex], &mesh.vertices[3ull * vertex], sizeof(float[3]));
+						std::memcpy(&frustum.vertices[32 * vertex + 28], &normals[vertex], sizeof(std::uint32_t));
+					}
+
+					frustum.indexCount = static_cast<unsigned int>(mesh.indices.size());
+					frustum.indices = allocator.allocate_array<unsigned short>(frustum.indexCount);
+					std::memcpy(frustum.indices, mesh.indices.data(), sizeof(unsigned short) * frustum.indexCount);
+					proxy_count++;
+				}
+
+				ZONETOOL_INFO("GfxWorld \"%s\": %u frustum light proxies over %u primary lights, %u clipped to their light grid cells",
+					asset->name.get(), proxy_count, new_asset->primaryLightCount, clipped_count);
+			}
+
 			void convert_light_lists(source::GfxWorld* asset, target::GfxWorld* new_asset, const grid_occupancy& occupancy, utils::memory::allocator& allocator)
 			{
 				constexpr std::size_t max_per_object = 24;
@@ -1258,10 +1898,10 @@ namespace zonetool::iw5::converter::iw7
 								point[0] = low[0] + ((corner & 1) ? volume.leaf_size - inset : inset);
 								point[1] = low[1] + ((corner & 2) ? volume.leaf_size - inset : inset);
 								point[2] = low[2] + ((corner & 4) ? volume.leaf_size - inset : inset);
-								if (!occupancy.open_cells.empty() && !occupancy.open(point))
-								{
-									continue;
-								}
+							}
+							if (!occupancy.open_cells.empty() && !occupancy.open(point))
+							{
+								continue;
 							}
 							seen = occupancy.reaches(point, light.origin);
 						}
@@ -1381,8 +2021,7 @@ namespace zonetool::iw5::converter::iw7
 					params.bounds_max[i] = asset->bounds.midPoint[i] + asset->bounds.halfSize[i];
 				}
 
-				using probe_sh = std::array<float, 28>;
-				std::unordered_map<std::uint64_t, probe_sh> grid_samples;
+				grid_cells grid_samples;
 				if (entries && colors && source_grid.rowDataStart.value && source_grid.rawRowData.value)
 				{
 					std::vector<probe_sh> colour_cache(source_grid.colorCount, probe_sh{});
@@ -1413,9 +2052,12 @@ namespace zonetool::iw5::converter::iw7
 						}
 
 						auto cell = colour_cache[entry.colorsIndex];
-						cell[27] = is_sun_light(entry.primaryLightIndex, source_grid.lastSunPrimaryLightIndex) ? 1.0f : 0.0f;
+						cell[27] = is_sun_light(entry.primaryLightIndex, asset->lastSunPrimaryLightIndex) ? 1.0f : 0.0f;
 						grid_samples[grid_key(reference.pos[0], reference.pos[1], reference.pos[2])] = cell;
 					}
+
+					trace_sun_visibility(asset, grid_samples);
+					smooth_sun_visibility(grid_samples);
 				}
 
 				ZONETOOL_INFO("GfxWorld \"%s\": %zu light grid cells for probe sampling", asset->name.get(), grid_samples.size());
@@ -1711,13 +2353,15 @@ namespace zonetool::iw5::converter::iw7
 			convert_planes_and_cells(asset, new_asset, allocator, merge_cells);
 
 			convert_reflection_probes(asset, new_asset, allocator);
-			new_asset->draw.iesLookupTexture = generate_ies_lookup(allocator);
+			new_asset->draw.iesLookupTexture = gfx_image::generate_ies_lookup(allocator);
 			convert_lightmaps(asset, new_asset, allocator);
 			convert_transient_zone(asset, new_asset, allocator, merge_cells);
 			convert_light_grid(new_asset, allocator);
 
 			new_asset->frustumLights = allocator.allocate_array<target::GfxFrustumLights>(new_asset->primaryLightCount);
 			new_asset->lightViewFrustums = allocator.allocate_array<target::GfxLightViewFrustum>(new_asset->primaryLightCount);
+			convert_light_view_frustums(asset, new_asset, allocator);
+			convert_frustum_lights(asset, new_asset, collect_light_boxes(asset), allocator);
 			convert_voxel_trees(asset, new_asset, allocator);
 
 			new_asset->modelCount = asset->modelCount;
@@ -1811,9 +2455,32 @@ namespace zonetool::iw5::converter::iw7
 			const auto converted = convert(asset, allocator);
 			zonetool::iw7::gfx_world::dump(converted);
 
+			std::vector<target::GfxImage*> probes;
+			for (auto i = first_reflection_probe(asset->draw.reflectionProbeCount); i < asset->draw.reflectionProbeCount; i++)
+			{
+				const auto probe = asset->draw.reflectionProbes[i].get();
+				probes.push_back(probe ? gfx_image::convert(probe, allocator) : nullptr);
+			}
+
+			const auto probe_array = gfx_image::generate_reflection_probe_array(probes, allocator);
+			if (probe_array)
+			{
+				zonetool::iw7::gfx_image::dump(probe_array);
+			}
+
+			zonetool::iw7::gfx_image::dump(converted->draw.iesLookupTexture);
+
 			for (unsigned int i = 0; i < converted->draw.lightMapCount; i++)
 			{
 				zonetool::iw7::gfx_light_map::dump(converted->draw.lightMaps[i]);
+
+				const auto& lightmap = asset->draw.lightmaps[i];
+				const auto size_source = lightmap.primary.value ? lightmap.primary.get() : lightmap.secondary.get();
+				if (size_source)
+				{
+					zonetool::iw7::gfx_image::dump(gfx_image::generate_lightmap_second_unorm(
+						utils::string::va("*lightmap%d_secondunorm", i), size_source->width, size_source->height, allocator));
+				}
 			}
 
 			zonetool::iw7::gfx_world_tr::dump(converted->draw.transientZones[0]);

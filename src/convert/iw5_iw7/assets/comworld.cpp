@@ -28,16 +28,6 @@ namespace zonetool::iw5::converter::iw7
 				}
 			}
 
-			target::GfxLightType convert_light_type(const unsigned char type)
-			{
-				switch (type)
-				{
-				case 2: return target::GFX_LIGHT_TYPE_OMNI;
-				case 3: return target::GFX_LIGHT_TYPE_SPOT;
-				default: return static_cast<target::GfxLightType>(type);
-				}
-			}
-
 			target::ComPrimaryLight* convert_primary_lights(zonetool::iw5::ComPrimaryLight* lights, const unsigned int count,
 				utils::memory::allocator& allocator)
 			{
@@ -48,7 +38,7 @@ namespace zonetool::iw5::converter::iw7
 					const auto& light = lights[i];
 					auto& new_light = new_lights[i];
 
-					new_light.type = convert_light_type(light.type);
+					new_light.type = static_cast<target::GfxLightType>(light.type);
 					new_light.canUseShadowMap = light.canUseShadowMap;
 					new_light.exponent = light.exponent;
 					std::memcpy(new_light.color, light.color, sizeof(light.color));
@@ -78,6 +68,13 @@ namespace zonetool::iw5::converter::iw7
 						if (!new_light.defName)
 						{
 							new_light.defName = allocator.duplicate_string("light_point_linear");
+						}
+					}
+					else if (new_light.type == target::GFX_LIGHT_TYPE_DIR)
+					{
+						for (auto& channel : new_light.color)
+						{
+							channel *= channel; // gamma to linear, same as the light grid
 						}
 					}
 				}
@@ -137,6 +134,7 @@ namespace zonetool::iw5::converter::iw7
 				const auto& light = converted->primaryLights[i];
 				light_reach reach{};
 				reach.type = static_cast<unsigned char>(light.type);
+				reach.can_use_shadow_map = light.canUseShadowMap != 0;
 				std::memcpy(reach.origin, light.origin, sizeof(reach.origin));
 				std::memcpy(reach.dir, light.dir, sizeof(reach.dir));
 				reach.radius = light.radius;

@@ -8,6 +8,7 @@ namespace zonetool::iw5::converter::iw7
 		struct light_reach
 		{
 			unsigned char type;
+			bool can_use_shadow_map;
 			float origin[3];
 			float dir[3];
 			float radius;

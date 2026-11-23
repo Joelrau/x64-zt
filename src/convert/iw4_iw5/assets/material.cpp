@@ -2,6 +2,7 @@
 
 #include "../include.hpp"
 #include "material.hpp"
+#include "gfx_image.hpp"
 
 namespace zonetool::iw4::converter::iw5
 {
@@ -65,7 +66,8 @@ namespace zonetool::iw4::converter::iw5
 					}
 					else
 					{
-						textures[i].u.image = image_reference(source[i].u.image.get(), allocator);
+						const auto image = source[i].u.image.get();
+						textures[i].u.image = image ? gfx_image::convert(image) : nullptr;
 					}
 				}
 				new_asset->textureTable = textures;

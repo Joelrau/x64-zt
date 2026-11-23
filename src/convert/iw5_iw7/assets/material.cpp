@@ -2,6 +2,9 @@
 
 #include "../include.hpp"
 #include "material.hpp"
+#include "gfx_image.hpp"
+
+#include <iw7/assets/gfximage.hpp>
 
 #include <unordered_set>
 
@@ -289,7 +292,7 @@ namespace zonetool::iw5::converter::iw7
 			{"mc_ambient_t0c0",             {"mo_l_sm_atest_i0c0"}},
 			{"wc_ambient_r0c0",             {"wc_l_sm_replace_i0c0"}},
 			{"wc_ambient_t0c0",             {"wc_l_sm_atest_i0c0"}},
-			{"mc_effect_falloff_add_nofog",				make_techset_map("eq_effect_falloff_add_lin_nofog_ndw_nocast")},
+			{"mc_effect_falloff_add_nofog",				make_techset_map("eq_effect_zfeather_falloff_add_lin_nofog_ndw_nocast")}, // iw7 has no non-zfeather falloff add
 			{"mc_effect_zfeather_falloff_add_nofog",	make_techset_map("eq_effect_zfeather_falloff_add_lin_nofog_ndw_nocast")},
 			{"mc_effect_zfeather_falloff_add_nofog_eyeoffset",	make_techset_map("eq_effect_zfeather_falloff_add_lin_nofog_eyeoffset_ndw_nocast")},
 			{"mc_effect_zfeather_falloff_add_lin_nofog_eyeoffset", make_techset_map("eq_effect_zfeather_falloff_add_lin_nofog_eyeoffset_ndw_nocast")},
@@ -310,7 +313,7 @@ namespace zonetool::iw5::converter::iw7
 			{"wc_unlit",							make_techset_map("wc_unlit_replace_lin", "wc_unlit_replace_lin_ct")},
 			{"wc_unlit_add",							make_techset_map("wc_unlit_add_lin_ndw", "wc_unlit_add_lin_ct_ndw")},
 			{"wc_unlit_multiply",						make_techset_map("wc_unlit_multiply_lin_ndw")},
-			{"wc_unlit_falloff_add",					make_techset_map("wc_unlit_falloff_add_lin_ndw", "wc_unlit_falloff_add_lin_ct_ndw")},
+			{"wc_unlit_falloff_add",					make_techset_map("wc_unlit_add_lin_ndw", "wc_unlit_add_lin_ct_ndw")}, // iw7 has no wc falloff add
 			{"wc_unlit_add_lin",                    make_techset_map("wc_unlit_add_lin_ndw")},
 			{"wc_unlit_add_lin_ua",                 make_techset_map("wc_unlit_add_lin_ndw_ua")},
 			{"wc_unlit_blend_lin_ua",               make_techset_map("wc_unlit_blend_lin_ndw_ua")},
@@ -910,6 +913,155 @@ namespace zonetool::iw5::converter::iw7
 				return false;
 			}
 
+			std::unordered_map<std::string, std::string> built_images;
+
+			std::string& built_image(const char* kind, const zonetool::iw5::GfxImage* primary, const zonetool::iw5::GfxImage* secondary, bool& is_new)
+			{
+				const auto key = zonetool::filesystem::get_fastfile() + "|" + kind + "|" + primary->name.get() + "|" + (secondary ? secondary->name.get() : "");
+				const auto [entry, inserted] = built_images.try_emplace(key);
+				is_new = inserted;
+				return entry->second;
+			}
+
+			void dump_referenced_image(zonetool::iw5::GfxImage* image)
+			{
+				auto is_new = false;
+				built_image("referenced", image, nullptr, is_new);
+				if (is_new)
+				{
+					gfx_image::dump(image);
+				}
+			}
+
+			std::string source_hash(const std::string& name)
+			{
+				std::uint32_t hash = 0;
+				for (const auto character : name)
+				{
+					hash = hash * 33 + static_cast<std::uint8_t>(character);
+				}
+
+				return utils::string::va("%08x", hash);
+			}
+
+			std::string dump_packed_cs(zonetool::iw5::GfxImage* colour, zonetool::iw5::GfxImage* spec)
+			{
+				if (!colour)
+				{
+					return {};
+				}
+
+				auto is_new = false;
+				auto& name = built_image("cs", colour, spec, is_new);
+
+				gfx_image::decoded_image colour_pixels, spec_pixels;
+				if (!is_new || !gfx_image::decode(colour, colour_pixels))
+				{
+					return name;
+				}
+
+				const auto has_spec = spec && gfx_image::decode(spec, spec_pixels);
+				name = utils::string::va("%s_%s_packed_cs", colour->name.get(), has_spec ? spec->name.get() : "00000000");
+
+				utils::memory::allocator allocator;
+				iw7_types::gfx_image::dump(gfx_image::build_packed_cs(name.data(), colour_pixels, allocator));
+				return name;
+			}
+
+			std::string dump_packed_ng(zonetool::iw5::GfxImage* normal, zonetool::iw5::GfxImage* spec)
+			{
+				if (!normal)
+				{
+					return {};
+				}
+
+				auto is_new = false;
+				auto& name = built_image("ng", normal, spec, is_new);
+
+				gfx_image::decoded_image normal_pixels, spec_pixels;
+				if (!is_new || !gfx_image::decode(normal, normal_pixels))
+				{
+					return name;
+				}
+
+				const auto has_spec = spec && gfx_image::decode(spec, spec_pixels);
+				name = utils::string::va("%s_%s_packed_ng", normal->name.get(), source_hash(has_spec ? spec->name.get() : "").data());
+
+				utils::memory::allocator allocator;
+				iw7_types::gfx_image::dump(gfx_image::build_packed_ng(name.data(), normal_pixels, has_spec ? &spec_pixels : nullptr, allocator));
+				return name;
+			}
+
+			std::string dump_packed_a(zonetool::iw5::GfxImage* colour)
+			{
+				if (!colour)
+				{
+					return {};
+				}
+
+				auto is_new = false;
+				auto& name = built_image("a", colour, nullptr, is_new);
+
+				gfx_image::decoded_image colour_pixels;
+				if (!is_new || !gfx_image::decode(colour, colour_pixels))
+				{
+					return name;
+				}
+
+				name = utils::string::va("%s_00000000_packed_a", colour->name.get());
+
+				utils::memory::allocator allocator;
+				iw7_types::gfx_image::dump(gfx_image::build_packed_a(name.data(), colour_pixels, allocator));
+				return name;
+			}
+
+			std::string specular_gloss_name(std::string name)
+			{
+				if (name.starts_with("~"))
+				{
+					name = name.substr(1, name.find_first_of("-&", 1) - 1);
+				}
+
+				for (const auto suffix : { "_spec"s, "_spc"s, "_sg"s, "_s"s })
+				{
+					if (name.size() > suffix.size() && name.ends_with(suffix))
+					{
+						name.resize(name.size() - suffix.size());
+						break;
+					}
+				}
+
+				return name + "_sg";
+			}
+
+			std::string dump_unpacked_sg(zonetool::iw5::GfxImage* spec)
+			{
+				if (!spec)
+				{
+					return {};
+				}
+
+				auto is_new = false;
+				auto& name = built_image("sg", spec, nullptr, is_new);
+				if (!is_new)
+				{
+					return name;
+				}
+
+				utils::memory::allocator allocator;
+				const auto converted = gfx_image::convert(spec, allocator);
+				if (!converted)
+				{
+					return name;
+				}
+
+				name = specular_gloss_name(spec->name.get());
+				converted->name = allocator.duplicate_string(name);
+				converted->semantic = iw7_types::TS_SPECULAR_MAP;
+				iw7_types::gfx_image::dump(converted);
+				return name;
+			}
+
 			struct required_slot
 			{
 				const char* image;
@@ -1031,6 +1183,58 @@ namespace zonetool::iw5::converter::iw7
 				bool result = false;
 				iw7_techset = get_IW7_techset(techset, name, &result, false, has_ct);
 				matdata["techniqueSet->original"] = techset;
+			}
+
+			zonetool::iw5::GfxImage* colour = nullptr;
+			zonetool::iw5::GfxImage* normal = nullptr;
+			zonetool::iw5::GfxImage* spec = nullptr;
+			zonetool::iw5::GfxImage* detail = nullptr;
+
+			const auto textures = asset->textureTable.get();
+			for (auto i = 0; i < asset->textureCount; i++)
+			{
+				const auto image = textures[i].semantic == 11 ? nullptr : textures[i].u.image.get();
+				if (!image || !image->name.get())
+				{
+					continue;
+				}
+
+				if (!image->texture.loadDef.get())
+				{
+					dump_referenced_image(image);
+				}
+
+				switch (textures[i].nameHash)
+				{
+				case slot_hash_colour: colour = image; break;
+				case slot_hash_normal: normal = image; break;
+				case slot_hash_spec: spec = image; break;
+				case slot_hash_detail: detail = image; break;
+				}
+			}
+
+			const auto packed_alpha_techset = get_packed_alpha_techset(techset, false);
+			const auto packed_techset = packed_alpha_techset.empty() ? get_packed_techset(techset, false) : packed_alpha_techset;
+			const auto wants_detail = packed_techset.find("d0") != std::string::npos;
+
+			std::string packed_cs, packed_ng, packed_a;
+			if (!packed_techset.empty() && (!wants_detail || detail)) // reference builds the pair for every material
+			{
+				packed_cs = dump_packed_cs(colour, spec);
+				packed_ng = dump_packed_ng(normal, spec);
+				packed_a = packed_alpha_techset.empty() ? ""s : dump_packed_a(colour);
+			}
+
+			const auto packed = !packed_cs.empty() && !packed_ng.empty() && (packed_alpha_techset.empty() || !packed_a.empty());
+			if (packed)
+			{
+				iw7_techset = packed_techset;
+			}
+
+			const auto unpacked_sg = packed ? ""s : dump_unpacked_sg(spec);
+
+			if (asset->techniqueSet.get())
+			{
 				matdata["techniqueSet->name"] = iw7_techset;
 			}
 
@@ -1100,10 +1304,13 @@ namespace zonetool::iw5::converter::iw7
 			matdata["constantTable"] = constant_table;
 
 			ordered_json images = ordered_json::array();
-			const auto textures = asset->textureTable.get();
 			for (auto i = 0; i < asset->textureCount; i++)
 			{
 				const auto& texture = textures[i];
+				if (packed && texture.nameHash == slot_hash_spec)
+				{
+					continue;
+				}
 
 				std::string image_name;
 				if (texture.semantic == 11)
@@ -1123,10 +1330,23 @@ namespace zonetool::iw5::converter::iw7
 				switch (texture.nameHash)
 				{
 				case slot_hash_detail: semantic = iw7_types::TS_DETAIL_MAP; break;
-				case slot_hash_colour: semantic = iw7_types::TS_COLOR_MAP; break;
-				case slot_hash_normal: semantic = iw7_types::TS_NORMAL_MAP; break;
+				case slot_hash_colour: semantic = packed ? iw7_types::TS_COLOR_SPECULAR_MAP : iw7_types::TS_COLOR_MAP; break;
+				case slot_hash_normal: semantic = packed ? iw7_types::TS_NORMAL_OCCLUSSION_GLOSS_MAP : iw7_types::TS_NORMAL_MAP; break;
 				case slot_hash_spec: semantic = iw7_types::TS_SPECULAR_MAP; break;
 				default: semantic = convert_semantic(texture.semantic); break;
+				}
+
+				if (packed && texture.nameHash == slot_hash_colour)
+				{
+					image_name = packed_cs;
+				}
+				else if (packed && texture.nameHash == slot_hash_normal)
+				{
+					image_name = packed_ng;
+				}
+				else if (texture.nameHash == slot_hash_spec && !unpacked_sg.empty())
+				{
+					image_name = unpacked_sg;
 				}
 
 				ordered_json image;
@@ -1150,6 +1370,11 @@ namespace zonetool::iw5::converter::iw7
 			else if (iw7_techset.find("n0") != std::string::npos)
 			{
 				add_image(images, slot_normal);
+			}
+
+			if (packed && !packed_a.empty())
+			{
+				add_image(images, { packed_a.data(), iw7_types::TS_ALPHA_REVEAL_THICKNESS_MAP, 19, 112, 115, 2771134132 });
 			}
 
 			matdata["textureTable"] = images;

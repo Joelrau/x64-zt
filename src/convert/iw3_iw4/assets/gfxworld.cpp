@@ -2,6 +2,7 @@
 
 #include "../include.hpp"
 #include "gfxworld.hpp"
+#include "gfx_image.hpp"
 
 namespace zonetool::iw3::converter::iw4
 {
@@ -28,6 +29,35 @@ namespace zonetool::iw3::converter::iw4
 				const auto reference = allocator.allocate<zonetool::iw4::GfxImage>();
 				reference->name.value = image->name.value;
 				return reference;
+			}
+
+			zonetool::iw4::GfxImage* map_image(const x86::pointer<zonetool::iw3::GfxImage>& image, x86::allocator& allocator)
+			{
+				return image.value ? gfx_image::convert(image.get(), allocator) : nullptr;
+			}
+
+			zonetool::iw4::GfxImage* probe_image(const x86::pointer<zonetool::iw3::GfxImage>& image, x86::allocator& allocator)
+			{
+				const auto probe = map_image(image, allocator);
+				const auto load_def = probe ? probe->texture.get() : nullptr;
+				if (!load_def || load_def->format != 21) // D3DFMT_A8R8G8B8
+				{
+					return probe;
+				}
+
+				const auto pixels = reinterpret_cast<std::uint8_t*>(load_def->data);
+				for (auto i = 0; i + 3 < load_def->resourceSize; i += 4)
+				{
+					const auto intensity = pixels[i + 3]; // iw3 probe alpha, 0 to 127
+					for (auto channel = 0; channel < 3; channel++)
+					{
+						pixels[i + channel] = static_cast<std::uint8_t>(std::min(pixels[i + channel] * intensity / 127, 255));
+					}
+
+					pixels[i + 3] = 255;
+				}
+
+				return probe;
 			}
 
 			template <typename Destination, typename Source>
@@ -125,8 +155,8 @@ namespace zonetool::iw3::converter::iw4
 				const auto lightmaps = allocator.allocate<zonetool::iw4::GfxLightmapArray>(asset->lightmapCount);
 				for (auto i = 0; i < asset->lightmapCount; i++)
 				{
-					lightmaps[i].primary = image_reference(asset->lightmaps[i].primary, allocator);
-					lightmaps[i].secondary = image_reference(asset->lightmaps[i].secondary, allocator);
+					lightmaps[i].primary = map_image(asset->lightmaps[i].primary, allocator);
+					lightmaps[i].secondary = map_image(asset->lightmaps[i].secondary, allocator);
 				}
 				draw.lightmaps = lightmaps;
 
@@ -146,7 +176,7 @@ namespace zonetool::iw3::converter::iw4
 				const auto probes = allocator.allocate<zonetool::iw4::GfxReflectionProbe>(asset->reflectionProbeCount);
 				for (unsigned int i = 0; i < asset->reflectionProbeCount; i++)
 				{
-					images[i] = image_reference(asset->reflectionProbes[i].reflectionImage, allocator);
+					images[i] = probe_image(asset->reflectionProbes[i].reflectionImage, allocator);
 					std::memcpy(probes[i].offset, asset->reflectionProbes[i].origin, sizeof(probes[i].offset));
 				}
 				draw.reflectionImages.value = x86::address_space::offset_of(images);
