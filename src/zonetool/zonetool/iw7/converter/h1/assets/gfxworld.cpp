@@ -831,7 +831,7 @@ namespace zonetool::iw7
 					{
 						unsigned int q_sun_env = 0, q_best_n = 0;
 						for (const auto& [q_env, q_n] : v138_env_hist) if (q_n > q_best_n && q_env != 0) { q_best_n = q_n; q_sun_env = q_env; }
-						constexpr int q_D = 7; // v140: 2^(D+1) = 256 blocks a side: 32768 x 32768 x 16384 units (block keys stay 8 bits)
+						constexpr int q_D = 6; // v142: back to 6 (v141 with D = 7 hung on the loading screen); 128 blocks a side covers the v141 bounds
 						float q_mn[3] = { 1e30f, 1e30f, 1e30f }, q_mx[3] = { -1e30f, -1e30f, -1e30f };
 						// v140: bounds from the playable floors only (the vista city below z -1000 spans far more than 128 blocks, and v138/v139
 						//       covered the vista instead of the map: 13 palette entries, props on the fallback colour)
