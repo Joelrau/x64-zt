@@ -1,0 +1,9 @@
+; input s2_mp64_ship.exe imagebase 140000000
+140001000 140b14000 .text type=2 perm=5
+140b14000 140b20000 .interpr type=2 perm=5
+140b20000 140b21978 .idata type=1 perm=4
+140b21978 140da6000 .rdata type=3 perm=4
+140da6000 152657000 .data type=3 perm=6
+152657000 1526ef000 .pdata type=3 perm=4
+1526ef000 1526f2000 _RDATA type=3 perm=4
+1526f2000 1526f3000 .xbld type=3 perm=6

@@ -1,0 +1,9 @@
+; input s1_mp64_ship_dump.exe imagebase 140000000
+140001000 1407ea000 .text type=2 perm=5
+1407ea000 1407f6000 .interpr type=2 perm=5
+1407f6000 1409aa000 .rdata type=3 perm=4
+1409aa000 15008b000 .data type=3 perm=6
+15008b000 150102000 .pdata type=3 perm=4
+150102000 150103000 .tls type=3 perm=6
+150103000 150107000 _RDATA type=3 perm=4
+150282000 1512a0000 .text type=2 perm=5

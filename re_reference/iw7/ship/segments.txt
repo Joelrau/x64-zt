@@ -1,0 +1,11 @@
+; input iw7_ship.exe imagebase 140000000
+140001000 141429000 .text type=2 perm=5
+141429000 141435000 .interpr type=2 perm=5
+141435000 141741000 .rdata type=3 perm=4
+141741000 14b094000 .data type=3 perm=6
+14b094000 14b160000 .pdata type=3 perm=4
+14b160000 14b161000 .tls type=3 perm=6
+14b161000 14b162000 .gfids type=3 perm=4
+14b162000 14b16d000 _RDATA type=3 perm=4
+14b2b0000 14b2b4000 .idata type=1 perm=6
+14b2b4000 14c302000 .arxan type=2 perm=5

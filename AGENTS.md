@@ -38,7 +38,7 @@ Code:
 
 Work:
 
-8. Never open a `ship_asm.txt` file with a file tool, `Get-Content` or `ReadAllLines`. Each file is more than 100 MB. Use `tools/asm_slice.py`.
+8. Never open a `ship_asm.txt` file with a file tool, `Get-Content` or `ReadAllLines`. The files are 85 MB to 330 MB. Use `tools/asm_slice.py`, or `rg` with a hit limit.
 9. h1-mod runs the H1 1.4 binary. For an address from an h1-mod crash, use the `h1_1.4` dump, not `h1` (1.15).
 10. Copy the new `zonetool.exe` to the game folder before each dump or build. For H1, this is the MWR 1.15 folder. A dump with an old exe wastes up to one hour.
 11. Keep the same `--games` set for `generate.bat`. A different set regenerates the projects and rebuilds everything, which takes more than 10 minutes.
@@ -142,7 +142,7 @@ src/games/<game>/      game.cpp, structs.hpp, <game>.hpp, assets/, zone/, dump.c
 src/convert/<a>_<b>/   converter from game <a> to game <b>
 src/cli/               main, commands, settings, game registry, crash handler
 deps/                  submodules; deps/premake/*.lua defines each dependency project
-tools/                 build.bat, premake5.exe, asm_slice.py, livemem.py, game_window.ps1, s2_hub_to_h1.ps1
+tools/                 build.bat, premake5.exe, asm_slice.py, asm_pack.py, livemem.py, game_window.ps1, s2_hub_to_h1.ps1
 re_reference/<game>/   IDA text dumps (local folder)
 docs/                  research notes and work logs (local folder)
 ```
@@ -270,7 +270,8 @@ void dump(zonetool::h1::XModel* asset)
 
 | File | Content |
 |---|---|
-| `ship_asm.txt` | The full disassembly with IDA names. Never open it with a file tool |
+| `ship_asm.txt.xz` | The packed disassembly that git holds. `asm_slice.py` unpacks it |
+| `ship_asm.txt` | The full disassembly with IDA names. Git ignores it. Never open it with a file tool |
 | `func_index.txt` | The line in `ship_asm.txt`, the start, the end and the name of each function |
 | `funcs.txt` | The start, end, size, xref count and name of each function |
 | `names.txt` | Each named address and its kind |
@@ -279,8 +280,9 @@ void dump(zonetool::h1::XModel* asset)
 | `imports.txt`, `segments.txt`, `ptr_tables.txt` | Imports, segments and pointer tables |
 
 - `asm_slice.py` needs `ship_asm.txt` and `func_index.txt`. Search the other files with `grep`.
+- On the first use of a dump, `asm_slice.py` unpacks `ship_asm.txt.xz` to `ship_asm.txt`. It unpacks again when the `.xz` file changes. Before you use `rg`, run `python tools/asm_pack.py unpack`.
 - Do not commit other export files, for example `func_index.pkl`. `asm_slice.py` does not read them.
-- To add a dump, put it in `re_reference/<game>/<build>/` and add its name to `DUMPS`. IW3, IW4 and IW5 have no dump yet.
+- To add a dump, put it in `re_reference/<game>/<build>/` and add its name to `DUMPS`. Then run `python tools/asm_pack.py pack <dump>` and commit `ship_asm.txt.xz`. The pack removes the IDA instruction descriptions and keeps the line count. IW3, IW4 and IW5 have no dump yet.
 
 Research steps:
 
@@ -293,6 +295,34 @@ Research steps:
 7. Trust the code, not the name. Many IDA names in the H1 1.15 dump are wrong, because the compiler folds identical functions into one.
 8. If a dump has few names, find the same function in a game of the same engine through a shared string or constant. Example: for S2, search S1 or H1 1.4.
 9. Write the proof in the doc of the game before you write the code: the function, its address, the condition and the fields.
+10. Keep a table of proven functions in the doc of the game: address, name and what it proves. Start the next session from that table.
+
+Read the asm:
+
+- A line starts with the address in lowercase hex without `0x`, for example `140dcdba0`. A function name has uppercase hex: `sub_140DCDBA0`.
+- IDA writes operand values in uppercase hex with an `h` suffix, and adds a `0` before a letter: `[rax+74h]`, `0B8h`, `[rdx+0A2h]`. Search `\+0A2h\]`, not `0xa2`.
+- A comment such as `; Logical Compare` or `; Load Effective Address` is the IDA description of the instruction. Ignore it. A comment such as `; flags` or `; value` names a call argument.
+- A string label starts with the first characters of the string, for example `aRSmodelinstanc`. Two strings with the same start get `_0`, `_1`. To get the label of a string, find its address in `strings.txt`, then find that address in `names.txt`.
+- A multiply by a constant before an array access shows the struct size. `imul rdx, rsi, 0B8h` indexes records of 0xB8 bytes. Search the stride to find code that walks an array of that struct.
+- The dvar register code stores the dvar pointer after the register call. Example: `call Dvar_RegisterBool`, then `mov cs:off_1483E9228, rax` for `r_smodelInstancedRenderer`. `-r off_1483E9228` lists every reader of that dvar.
+- In a live process, ASLR moves the exe. The live address is the module base plus (IDA address - 0x140000000). For an H1 1.15 RVA, add the RVA to the module base.
+
+Fast searches (times for the IW7 dump, 326 MB):
+
+| Job | Command | Time |
+|---|---|---|
+| Map addresses to functions | `asm_slice.py iw7 -l <address> <address> ...` | 0.2 s for all |
+| Print a function | `asm_slice.py iw7 sub_140DCDBA0` | 0.7 s at line 3.4M |
+| Search text, line numbers only | `rg -n "\+74h\]" re_reference/iw7/ship/ship_asm.txt` | 0.4 s |
+| Search text, with function names | `asm_slice.py iw7 -r "\+74h\]"` | 1.5 s |
+
+- Give `-l` all addresses in one call.
+- `-r` and `-c` read the whole file one time for each target. Join regexes with `|` in one target.
+- `-r` stops after `-m` hits (default 400) and prints `; more references`. Make the regex narrow with the mnemonic or the register, for example `"cmp .*\[r..\+74h\]"`.
+- `-c` finds only direct `call <name>` lines. It does not find a `jmp` tail call or a call through a table. For those, search the name with `-r` and the address in `ptr_tables.txt`.
+- A name target is a Python regex, and `asm_slice.py` prints the first 20 matches. Use `^` and `$` for one exact name.
+- For a large function, print only the lines around an address with `-a -m 80`.
+- `rg` with a hit limit does not load the file. Use it for a fast text search, then map the hit addresses with one `-l` call.
 
 ## Asset hunts
 

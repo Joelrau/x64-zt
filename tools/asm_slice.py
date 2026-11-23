@@ -1,7 +1,9 @@
 import argparse
 import bisect
+import lzma
 import pathlib
 import re
+import shutil
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent / "re_reference"
@@ -55,6 +57,24 @@ class function_index:
 	def next_line(self, entry):
 		index = self.entries.index(entry)
 		return self.entries[index + 1][2] if index + 1 < len(self.entries) else None
+
+
+def unpack_asm(folder):
+	asm_path = folder / "ship_asm.txt"
+	packed_path = folder / "ship_asm.txt.xz"
+	stamp_path = folder / "ship_asm.txt.stamp"
+	if not packed_path.exists():
+		return asm_path
+	stamp = str(packed_path.stat().st_size)
+	if asm_path.exists() and (not stamp_path.exists() or stamp_path.read_text() == stamp):
+		return asm_path
+	print(f"; unpacking {packed_path}", file=sys.stderr, flush=True)
+	temp_path = folder / "ship_asm.txt.tmp"
+	with lzma.open(packed_path) as source, open(temp_path, "wb") as target:
+		shutil.copyfileobj(source, target, 1 << 20)
+	temp_path.replace(asm_path)
+	stamp_path.write_text(stamp)
+	return asm_path
 
 
 def read_lines(asm_path, first, last):
@@ -131,7 +151,7 @@ def main():
 	args = parser.parse_args()
 
 	folder = ROOT / DUMPS[args.dump]
-	asm_path = folder / "ship_asm.txt"
+	asm_path = unpack_asm(folder)
 	index = function_index(folder)
 
 	for target in args.targets:

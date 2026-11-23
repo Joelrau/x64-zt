@@ -1,0 +1,11 @@
+; input iw6x.exe imagebase 140000000
+140001000 140817000 .text type=2 perm=5
+140817000 140823000 .interpr type=2 perm=5
+140823000 1409dd000 .rdata type=3 perm=4
+1409dd000 149867000 .data type=3 perm=6
+149867000 1498ce000 .pdata type=3 perm=4
+1498ce000 1498cf000 .tls type=3 perm=6
+1498cf000 1498d0000 _RDATA type=3 perm=4
+149a0a000 149a0c6d0 .arxan type=3 perm=6
+149a0c6d0 149a0d2b0 .idata type=1 perm=6
+149a0d2b0 14b45a000 .arxan type=2 perm=6

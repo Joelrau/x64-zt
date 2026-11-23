@@ -1,0 +1,10 @@
+; input game_dx12_ship_replay.exe imagebase 0
+0 1000 HEADER type=3 perm=0
+1000 2351000 .text type=2 perm=5
+2351000 2352470 .idata type=1 perm=4
+2352470 29b1000 .rdata type=3 perm=4
+29b1000 5a6b048 .data type=3 perm=6
+5a6b048 5a6b130 .idata type=1 perm=6
+5a6b130 12f35000 .data type=3 perm=6
+12f35000 13098000 .pdata type=3 perm=4
+13098000 130a4000 _RDATA type=3 perm=4
