@@ -192,7 +192,8 @@ namespace zonetool::iw5::converter::iw7
 			}
 		}
 
-		zonetool::iw7::XModelSurfs* convert(zonetool::iw5::XModelSurfs* asset, utils::memory::allocator& allocator)
+		zonetool::iw7::XModelSurfs* convert(zonetool::iw5::XModelSurfs* asset, unsigned int vertex_lighting_index,
+			utils::memory::allocator& allocator)
 		{
 			const auto new_asset = allocator.allocate<zonetool::iw7::XModelSurfs>();
 
@@ -204,15 +205,17 @@ namespace zonetool::iw5::converter::iw7
 			for (unsigned short i = 0; i < asset->numsurfs; i++)
 			{
 				convert_surface(&asset->surfs.get()[i], &new_asset->surfs[i], allocator);
+				new_asset->surfs[i].vertexLightingIndex = vertex_lighting_index;
+				vertex_lighting_index += new_asset->surfs[i].vertCount;
 			}
 
 			return new_asset;
 		}
 
-		void dump(zonetool::iw5::XModelSurfs* asset)
+		void dump(zonetool::iw5::XModelSurfs* asset, const unsigned int vertex_lighting_index)
 		{
 			utils::memory::allocator allocator;
-			zonetool::iw7::xsurface::dump(convert(asset, allocator));
+			zonetool::iw7::xsurface::dump(convert(asset, vertex_lighting_index, allocator));
 		}
 	}
 }

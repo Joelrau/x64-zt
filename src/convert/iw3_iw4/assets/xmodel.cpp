@@ -2,6 +2,7 @@
 
 #include "../include.hpp"
 #include "xmodel.hpp"
+#include "material.hpp"
 
 namespace zonetool::iw3::converter::iw4
 {
@@ -218,6 +219,36 @@ namespace zonetool::iw3::converter::iw4
 				compute_bounds(collmap->bounds, mins, maxs);
 				return collmap;
 			}
+
+			x86::pointer<zonetool::iw4::Material>* convert_materials(const zonetool::iw3::XModel* asset, x86::allocator& allocator)
+			{
+				const auto materials = asset->materialHandles.get();
+				if (!materials)
+				{
+					return nullptr;
+				}
+
+				std::unordered_map<zonetool::iw3::Material*, zonetool::iw4::Material*> converted;
+				const auto new_materials = allocator.allocate_array<x86::pointer<zonetool::iw4::Material>>(asset->numsurfs);
+				for (auto i = 0; i < asset->numsurfs; i++)
+				{
+					const auto material = materials[i].get();
+					if (!material)
+					{
+						continue;
+					}
+
+					auto& new_material = converted[material];
+					if (!new_material)
+					{
+						new_material = material::convert(material, allocator);
+					}
+
+					new_materials[i] = new_material;
+				}
+
+				return new_materials;
+			}
 		}
 
 		zonetool::iw4::XModel* convert(zonetool::iw3::XModel* asset, x86::allocator& allocator)
@@ -239,7 +270,7 @@ namespace zonetool::iw3::converter::iw4
 			new_asset->tagPositions.value = asset->trans.value;
 			static_assert(sizeof(zonetool::iw3::DObjAnimMat) == sizeof(zonetool::iw4::DObjAnimMat));
 			new_asset->animMatrix.value = asset->baseMat.value;
-			new_asset->materials.value = asset->materialHandles.value;
+			new_asset->materials = convert_materials(asset, allocator);
 
 			for (auto i = 0; i < asset->numLods && i < 4; i++)
 			{

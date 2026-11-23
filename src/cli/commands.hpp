@@ -6,14 +6,22 @@ namespace zonetool::cli
 {
 	using command_handler = void(*)(const settings& settings, std::span<const std::string> args);
 
+	struct option
+	{
+		std::string_view name;
+		std::string_view description;
+	};
+
 	struct command
 	{
 		std::string_view name;
 		std::string_view usage;
 		std::string_view description;
 		command_handler handler;
+		std::span<const option> options{};
 	};
 
+	std::span<const option> global_options();
 	std::span<const command> commands();
 	bool execute(const settings& settings, std::span<const std::string> args);
 

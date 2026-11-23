@@ -29,14 +29,17 @@ namespace csv_generator
 		std::unordered_set<std::string> parse_fx_gsc(const std::string& data)
 		{
 			std::unordered_set<std::string> effects;
-			std::regex pattern("loadfx\\s*\\(\\s*\"([^\"]+)\"\\s*\\);", std::regex_constants::icase);
+			std::regex pattern("^\\s*(?!//).*loadfx\\s*\\(\\s*\"([^\"]+)\"\\s*\\);", std::regex_constants::icase);
 			std::smatch matches;
 
-			auto search_start = data.cbegin();
-			while (std::regex_search(search_start, data.cend(), matches, pattern))
+			std::istringstream stream(data);
+			std::string line;
+			while (std::getline(stream, line))
 			{
-				effects.insert(matches[1].str());
-				search_start = matches.suffix().first;
+				if (std::regex_search(line, matches, pattern))
+				{
+					effects.insert(matches[1].str());
+				}
 			}
 
 			return effects;
@@ -235,7 +238,10 @@ namespace csv_generator
 			const auto effects = parse_fx_gsc(data);
 			for (const auto& effect : effects)
 			{
-				add_asset("fx", effect);
+				if (!file_exists("particlesystem/vfx/" + effect + ".iw7VFX"))
+				{
+					add_asset("fx", effect);
+				}
 			}
 
 			add_line("");
@@ -258,7 +264,7 @@ namespace csv_generator
 		};
 
 		const auto add_iterator = [&](const std::string& type, const std::string& folder,
-			const std::string& extension, const std::string& comment, bool path = true)
+			const std::string& extension, const std::string& comment, bool path = true, bool recursive = false)
 		{
 			auto added_comment = false;
 			std::unordered_set<std::string> added_names;
@@ -270,7 +276,7 @@ namespace csv_generator
 					continue;
 				}
 
-				const auto files = utils::io::list_files(folder_);
+				const auto files = utils::io::list_files(folder_, recursive);
 				for (const auto& file : files)
 				{
 					if (!file.ends_with(extension))
@@ -323,6 +329,7 @@ namespace csv_generator
 		add_iterator("clut", "clut/", ".clut", "// color lookup tables", false);
 		add_iterator("rawfile", "vision/", ".vision", "// visions");
 		add_iterator("rawfile", "sun/", ".sun", "// sun");
+		add_iterator("vfx", "particlesystem/", ".iw7VFX", "// particle systems", false, true);
 
 		const auto add_gsc = [&](const std::string& path)
 		{

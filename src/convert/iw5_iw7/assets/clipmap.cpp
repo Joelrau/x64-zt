@@ -3,6 +3,7 @@
 #include "../include.hpp"
 #include "clipmap.hpp"
 #include "clipmap_collision.hpp"
+#include "particle_system.hpp"
 #include "xmodel.hpp"
 
 #include <iw7/assets/clipmap.hpp>
@@ -729,10 +730,10 @@ namespace zonetool::iw5::converter::iw7
 					destroy_event->data.particleFX.base = &destroy_event->base;
 					destroy_event->data.particleFX.stateful = false;
 
-					const auto effect = allocator.manual_allocate<zonetool::iw7::FxEffectDef>(sizeof(const char*));
-					effect->name = allocator.duplicate_string(dynent->destroyFx->name.get());
-					destroy_event->data.particleFX.effectDef.u.fx = effect;
-					destroy_event->data.particleFX.effectDef.type = zonetool::iw7::FX_COMBINED_FX;
+					const auto effect = allocator.manual_allocate<zonetool::iw7::ParticleSystemDef>(sizeof(const char*));
+					effect->name = allocator.duplicate_string(particle_system::asset_name(dynent->destroyFx->name.get()));
+					destroy_event->data.particleFX.effectDef.u.vfx = effect;
+					destroy_event->data.particleFX.effectDef.type = zonetool::iw7::FX_COMBINED_VFX;
 					destroy_event->data.particleFX.eventStreamBufferOffsetClient = 0;
 				}
 

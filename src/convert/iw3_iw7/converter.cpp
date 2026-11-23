@@ -21,7 +21,7 @@
 #include <iw5_iw7/assets/mapents.hpp>
 #include <iw3_iw4/assets/fx.hpp>
 #include <iw4_iw5/assets/fx.hpp>
-#include <iw5_iw7/assets/fx.hpp>
+#include <iw5_iw7/assets/particle_system.hpp>
 #include <iw3_iw4/assets/material.hpp>
 #include <iw4_iw5/assets/material.hpp>
 #include <iw5_iw7/assets/material.hpp>
@@ -91,6 +91,7 @@ namespace zonetool::convert::iw3_iw7
 		}
 
 		std::unordered_map<std::string, std::string> level_script_sources;
+		std::unordered_map<std::string, std::string> zone_visions;
 		std::string level_script_world;
 
 		struct ported_script
@@ -221,6 +222,44 @@ namespace zonetool::convert::iw3_iw7
 			return result;
 		}
 
+		std::string port_level_fx(const std::string& map)
+		{
+			std::string body;
+			std::smatch match;
+
+			const auto fx_source = level_script_sources.find(std::format("maps/mp/{}_fx.gsc", map));
+			if (fx_source != level_script_sources.end())
+			{
+				const auto text = strip_script_comments(fx_source->second);
+				const std::regex load_fx(R"(level\._effect\s*\[\s*"([^"]+)\"\s*\]\s*=\s*loadfx\s*\(\s*"([^"]+)\"\s*\)\s*;)", std::regex_constants::icase);
+				for (auto begin = text.cbegin(); std::regex_search(begin, text.cend(), match, load_fx); begin = match[0].second)
+				{
+					const auto effect = zonetool::iw5::converter::iw7::particle_system::asset_name(match[2].str());
+					body += std::format("\n    level._effect[\"{}\"] = loadfx( \"{}\" );", match[1].str(), effect);
+				}
+			}
+
+			const auto createfx_source = level_script_sources.find(std::format("maps/createfx/{}_fx.gsc", map));
+			if (createfx_source != level_script_sources.end() && !body.empty())
+			{
+				const auto text = strip_script_comments(createfx_source->second);
+				const std::regex statement(R"(ent\s*=\s*maps\\mp\\_utility::create(oneshot|loop)effect\s*\(\s*("[^"]+\")\s*\)\s*;|ent\.v\s*\[\s*("[^"]+\")\s*\]\s*=\s*([^;]+);)", std::regex_constants::icase);
+				for (auto begin = text.cbegin(); std::regex_search(begin, text.cend(), match, statement); begin = match[0].second)
+				{
+					if (match[1].matched)
+					{
+						body += std::format("\n    ent = scripts\\engine\\utility::create{}effect( {} );", utils::string::to_lower(match[1].str()), match[2].str());
+					}
+					else
+					{
+						body += std::format("\n    ent.v[{}] = {};", match[3].str(), match[4].str());
+					}
+				}
+			}
+
+			return body;
+		}
+
 		void dump_level_script(const char* world_name)
 		{
 			namespace target = zonetool::iw7;
@@ -241,7 +280,7 @@ namespace zonetool::convert::iw3_iw7
 			const auto build_source = [&](const ported_script& ported)
 			{
 				auto source = std::format(R"(main()
-{{
+{{{}
     scripts\mp\load::main();
     scripts\mp\compass::setupminimap( "compass_map_{}" );
     game["attackers"] = "allies";
@@ -249,7 +288,7 @@ namespace zonetool::convert::iw3_iw7
     game["allies_outfit"] = "urban";
     game["axis_outfit"] = "woodland";{}{}
 }}
-)", map, trace ? "\n    level thread zt_trace_connect();" : "", ported.calls);
+)", port_level_fx(utils::string::to_lower(map)), map, trace ? "\n    level thread zt_trace_connect();" : "", ported.calls);
 
 				// ZT_TRACE_SPAWN=1 adds a trace of each player's connect, team, class and spawn steps to the
 				// game console, for maps where players stay spectators without any script error.
@@ -627,12 +666,9 @@ zt_trace_state()
 
 		// IW7 applies vision/<map>.vision as the level's naked vision. CoD4 keeps visions in the
 		// iwd files rather than the zone, so the map's own one is read from there when it exists.
-		void dump_level_vision(const char* world_name)
+		void dump_vision(const std::string& name, const std::string& iw3_text)
 		{
-			const auto map = std::filesystem::path(world_name).stem().string();
-			const auto name = std::format("vision/{}.vision", map);
-
-			auto source = parse_vision(zonetool::iw3::read_iwd_file(name));
+			auto source = parse_vision(iw3_text);
 
 			vision_values result;
 			for (const auto& entry : vision_schema)
@@ -659,6 +695,13 @@ zt_trace_state()
 			file.open("wb");
 			file.write(text);
 			file.close();
+		}
+
+		void dump_level_vision(const char* world_name)
+		{
+			const auto name = std::format("vision/{}.vision", utils::string::to_lower(std::filesystem::path(world_name).stem().string()));
+			const auto zone_vision = zone_visions.find(name);
+			dump_vision(name, zone_vision != zone_visions.end() ? zone_vision->second : zonetool::iw3::read_iwd_file(name));
 		}
 
 		void dump_asset(const std::int32_t type, void* header)
@@ -748,7 +791,7 @@ zt_trace_state()
 				const auto effect = header_as<source::FxEffectDef>(header);
 				const auto iw4_asset = source::converter::iw4::fx::convert(effect, allocator);
 				const auto iw5_asset = zonetool::iw4::converter::iw5::fx::convert(iw4_asset, allocator);
-				zonetool::iw5::converter::iw7::fx::dump(iw5_asset);
+				zonetool::iw5::converter::iw7::particle_system::dump(iw5_asset);
 
 				// The effect asked for dynamic bodies on its physics model elements. Those models
 				// may already be written with a static body, so write them again.
@@ -791,14 +834,22 @@ zt_trace_state()
 			case source::ASSET_TYPE_RAWFILE:
 			{
 				const auto rawfile = header_as<source::RawFile>(header);
-				source::rawfile::dump(rawfile);
-
 				const auto name = utils::string::to_lower(rawfile->name.get());
+				if (name.ends_with(".vision") && rawfile->buffer.value)
+				{
+					zone_visions[name] = std::string(rawfile->buffer.get(), static_cast<std::size_t>(rawfile->len));
+					dump_vision(name, zone_visions[name]);
+					break;
+				}
+
+				source::rawfile::dump(rawfile);
 				if (name.ends_with(".gsc") && rawfile->buffer.value)
 				{
 					level_script_sources[name] = std::string(rawfile->buffer.get(), static_cast<std::size_t>(rawfile->len));
 					const auto world = utils::string::to_lower(std::filesystem::path(level_script_world).stem().string());
-					if (!level_script_world.empty() && name == std::format("maps/mp/{}.gsc", world))
+					const auto is_level_script = name == std::format("maps/mp/{}.gsc", world) || name == std::format("maps/mp/{}_fx.gsc", world)
+						|| name == std::format("maps/createfx/{}_fx.gsc", world);
+					if (!level_script_world.empty() && is_level_script)
 					{
 						dump_level_script(level_script_world.data());
 					}

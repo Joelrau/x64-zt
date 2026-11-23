@@ -273,7 +273,7 @@ namespace utils::umbra
 	{
 		scene_params params{};
 		params.smallest_occluder = env_float("ZT_UMBRA_SMALLEST_OCCLUDER", 128.0f);
-		params.smallest_hole = env_float("ZT_UMBRA_SMALLEST_HOLE", 16.0f);
+		params.smallest_hole = env_float("ZT_UMBRA_SMALLEST_HOLE", 4.0f);
 		params.backface_limit = env_float("ZT_UMBRA_BACKFACE_LIMIT", 100.0f);
 		params.cluster_size = 0.0f;
 		params.object_group_cost = 0.0f;

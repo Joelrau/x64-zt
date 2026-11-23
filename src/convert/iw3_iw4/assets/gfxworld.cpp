@@ -3,6 +3,7 @@
 #include "../include.hpp"
 #include "gfxworld.hpp"
 #include "gfx_image.hpp"
+#include "xmodel.hpp"
 
 namespace zonetool::iw3::converter::iw4
 {
@@ -34,30 +35,6 @@ namespace zonetool::iw3::converter::iw4
 			zonetool::iw4::GfxImage* map_image(const x86::pointer<zonetool::iw3::GfxImage>& image, x86::allocator& allocator)
 			{
 				return image.value ? gfx_image::convert(image.get(), allocator) : nullptr;
-			}
-
-			zonetool::iw4::GfxImage* probe_image(const x86::pointer<zonetool::iw3::GfxImage>& image, x86::allocator& allocator)
-			{
-				const auto probe = map_image(image, allocator);
-				const auto load_def = probe ? probe->texture.get() : nullptr;
-				if (!load_def || load_def->format != 21) // D3DFMT_A8R8G8B8
-				{
-					return probe;
-				}
-
-				const auto pixels = reinterpret_cast<std::uint8_t*>(load_def->data);
-				for (auto i = 0; i + 3 < load_def->resourceSize; i += 4)
-				{
-					const auto intensity = pixels[i + 3]; // iw3 probe alpha, 0 to 127
-					for (auto channel = 0; channel < 3; channel++)
-					{
-						pixels[i + channel] = static_cast<std::uint8_t>(std::min(pixels[i + channel] * intensity / 127, 255));
-					}
-
-					pixels[i + 3] = 255;
-				}
-
-				return probe;
 			}
 
 			template <typename Destination, typename Source>
@@ -176,7 +153,7 @@ namespace zonetool::iw3::converter::iw4
 				const auto probes = allocator.allocate<zonetool::iw4::GfxReflectionProbe>(asset->reflectionProbeCount);
 				for (unsigned int i = 0; i < asset->reflectionProbeCount; i++)
 				{
-					images[i] = probe_image(asset->reflectionProbes[i].reflectionImage, allocator);
+					images[i] = map_image(asset->reflectionProbes[i].reflectionImage, allocator);
 					std::memcpy(probes[i].offset, asset->reflectionProbes[i].origin, sizeof(probes[i].offset));
 				}
 				draw.reflectionImages.value = x86::address_space::offset_of(images);
@@ -257,6 +234,7 @@ namespace zonetool::iw3::converter::iw4
 
 				const auto model_instances = allocator.allocate<zonetool::iw4::GfxStaticModelInst>(source.smodelCount);
 				const auto draw_instances = allocator.allocate<zonetool::iw4::GfxStaticModelDrawInst>(source.smodelCount);
+				std::unordered_map<zonetool::iw3::XModel*, zonetool::iw4::XModel*> models;
 				for (unsigned int i = 0; i < source.smodelCount; i++)
 				{
 					const auto& instance = source.smodelInsts[i];
@@ -269,7 +247,17 @@ namespace zonetool::iw3::converter::iw4
 					std::memcpy(draw_destination.placement.origin, draw.placement.origin, sizeof(draw.placement.origin));
 					std::memcpy(draw_destination.placement.axis, draw.placement.axis, sizeof(draw.placement.axis));
 					draw_destination.placement.scale = draw.placement.scale;
-					draw_destination.model.value = draw.model.value;
+					if (const auto model = draw.model.get())
+					{
+						auto& new_model = models[model];
+						if (!new_model)
+						{
+							new_model = xmodel::convert(model, allocator);
+						}
+
+						draw_destination.model = new_model;
+					}
+
 					std::memcpy(draw_destination.cacheId, draw.smodelCacheIndex, sizeof(draw_destination.cacheId));
 
 					draw_destination.cullDist = static_cast<unsigned short>(std::min(draw.cullDist, 65535.0f));

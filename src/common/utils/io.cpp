@@ -109,9 +109,22 @@ namespace utils::io
 		return std::filesystem::remove_all(directory);
 	}
 
-	std::vector<std::string> list_files(const std::string& directory)
+	std::vector<std::string> list_files(const std::string& directory, bool recursive)
 	{
 		std::vector<std::string> files;
+
+		if (recursive)
+		{
+			for (auto& file : std::filesystem::recursive_directory_iterator(directory))
+			{
+				if (file.is_regular_file())
+				{
+					files.push_back(file.path().generic_string());
+				}
+			}
+
+			return files;
+		}
 
 		for (auto& file : std::filesystem::directory_iterator(directory))
 		{

@@ -292,10 +292,10 @@ namespace zonetool::iw5::converter::iw7
 			{"mc_ambient_t0c0",             {"mo_l_sm_atest_i0c0"}},
 			{"wc_ambient_r0c0",             {"wc_l_sm_replace_i0c0"}},
 			{"wc_ambient_t0c0",             {"wc_l_sm_atest_i0c0"}},
-			{"mc_effect_falloff_add_nofog",				make_techset_map("eq_effect_zfeather_falloff_add_lin_nofog_ndw_nocast")}, // iw7 has no non-zfeather falloff add
-			{"mc_effect_zfeather_falloff_add_nofog",	make_techset_map("eq_effect_zfeather_falloff_add_lin_nofog_ndw_nocast")},
-			{"mc_effect_zfeather_falloff_add_nofog_eyeoffset",	make_techset_map("eq_effect_zfeather_falloff_add_lin_nofog_eyeoffset_ndw_nocast")},
-			{"mc_effect_zfeather_falloff_add_lin_nofog_eyeoffset", make_techset_map("eq_effect_zfeather_falloff_add_lin_nofog_eyeoffset_ndw_nocast")},
+			{"mc_effect_falloff_add_nofog",				make_techset_map("mcopw_effect_falloff_add_lin_nofog_ndw_nocast")},
+			{"mc_effect_zfeather_falloff_add_nofog",	make_techset_map("mcopw_effect_zfeather_falloff_add_lin_nofog_ndw_nocast")},
+			{"mc_effect_zfeather_falloff_add_nofog_eyeoffset",	make_techset_map("mcopw_effect_zfeather_falloff_add_lin_nofog_eyeoffset_ndw_nocast")},
+			{"mc_effect_zfeather_falloff_add_lin_nofog_eyeoffset", make_techset_map("mcopw_effect_zfeather_falloff_add_lin_nofog_eyeoffset_ndw_nocast")},
 			
 			{"mc_unlit",								make_techset_map("mo_unlit_replace_lin", "mo_unlit_replace_lin_ct")},
 			{"mc_unlit_replace",						make_techset_map("mo_unlit_replace_lin", "mo_unlit_replace_lin_ct")},
@@ -439,6 +439,7 @@ namespace zonetool::iw5::converter::iw7
 			"w",
 			"wc",
 			"mo",
+			"mcopw",
 			"ev",
 			"eq",
 			"particle",
@@ -449,6 +450,7 @@ namespace zonetool::iw5::converter::iw7
 			MTL_TYPE_WORLD,
 			MTL_TYPE_WORLD_VERTCOL,
 			MTL_TYPE_MODEL_SELFVIS,
+			MTL_TYPE_MODEL_UNK40,
 			MTL_TYPE_EFFECT_VERTLIT,
 			MTL_TYPE_EFFECT_QUAD,
 			MTL_TYPE_EFFECT_LMAP,
@@ -876,7 +878,8 @@ namespace zonetool::iw5::converter::iw7
 					flags |= mapped_render_flags_by_techset[IW7_techset];
 				}
 
-				if (IW7_techset.starts_with("el_") || IW7_techset.starts_with("eq_") || IW7_techset.starts_with("ev_"))
+				if (IW7_techset.starts_with("el_") || IW7_techset.starts_with("eq_") || IW7_techset.starts_with("ev_")
+				|| IW7_techset.find("_effect") != std::string::npos)
 				{
 					flags |= 0x1;
 				}

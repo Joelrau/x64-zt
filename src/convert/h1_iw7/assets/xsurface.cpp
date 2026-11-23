@@ -166,7 +166,7 @@ namespace zonetool::h1
 					REINTERPRET_CAST_SAFE(surfs[i].tensionData);
 					REINTERPRET_CAST_SAFE(surfs[i].tensionAccumTable);
 
-					new_surf->unk = surf->vertexLightingIndex; // vertexLightingIndex?
+					new_surf->vertexLightingIndex = surf->vertexLightingIndex;
 					new_surf->pad = 0;
 					std::memset(&new_surf->shProbeSimplexVertData, 0, sizeof(new_surf->shProbeSimplexVertData));
 

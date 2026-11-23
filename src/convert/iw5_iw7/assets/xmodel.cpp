@@ -603,11 +603,19 @@ namespace zonetool::iw5::converter::iw7
 				target::physics_asset::dump(converted->physicsAsset);
 			}
 
+			auto vertex_lighting_index = 0u;
 			for (auto i = 0; i < asset->numLods; i++)
 			{
-				if (asset->lodInfo[i].modelSurfs)
+				const auto surfaces = asset->lodInfo[i].modelSurfs.get();
+				if (!surfaces)
 				{
-					xsurface::dump(asset->lodInfo[i].modelSurfs.get());
+					continue;
+				}
+
+				xsurface::dump(surfaces, vertex_lighting_index);
+				for (auto j = 0; j < surfaces->numsurfs; j++)
+				{
+					vertex_lighting_index += surfaces->surfs.get()[j].vertCount;
 				}
 			}
 		}

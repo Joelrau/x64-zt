@@ -654,6 +654,45 @@ namespace zonetool::iw5::converter::iw7
 				}
 			}
 
+			bool has_emissive_material(const source::XModel* model)
+			{
+				if (!model->materialHandles)
+				{
+					return false;
+				}
+
+				for (auto i = 0; i < model->numsurfs; i++)
+				{
+					const auto material = model->materialHandles.get()[i].get();
+					if (material && material->cameraRegion == source::CAMERA_REGION_EMISSIVE)
+					{
+						return true;
+					}
+				}
+
+				return false;
+			}
+
+			unsigned int get_model_vertex_count(const source::XModel* model)
+			{
+				auto count = 0u;
+				for (auto i = 0; i < model->numLods; i++)
+				{
+					const auto surfaces = model->lodInfo[i].modelSurfs.get();
+					if (!surfaces)
+					{
+						continue;
+					}
+
+					for (auto j = 0; j < surfaces->numsurfs; j++)
+					{
+						count += surfaces->surfs.get()[j].vertCount;
+					}
+				}
+
+				return count;
+			}
+
 			void convert_dpvs(source::GfxWorld* asset, target::GfxWorld* new_asset, utils::memory::allocator& allocator)
 			{
 				const auto& dpvs = asset->dpvs;
@@ -748,6 +787,13 @@ namespace zonetool::iw5::converter::iw7
 					}
 
 					new_instance.flags |= static_model_flag_lightgrid_lighting;
+
+					if (has_emissive_material(instance.model.get()))
+					{
+						auto& lighting = new_instance.vertexLightingInfo;
+						lighting.numLightingValues = get_model_vertex_count(instance.model.get()); // forces rigid draw (sub_140DCDBA0)
+						lighting.lightingValues = allocator.allocate_array<target::GfxStaticModelVertexLighting>(lighting.numLightingValues);
+					}
 				}
 
 				new_dpvs.surfaceMaterials = allocator.allocate_array<target::GfxDrawSurf>(asset->surfaceCount);

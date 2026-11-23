@@ -3,6 +3,7 @@
 #include "../include.hpp"
 #include "gfxworld.hpp"
 #include "gfx_image.hpp"
+#include "xmodel.hpp"
 
 namespace zonetool::iw4::converter::iw5
 {
@@ -182,8 +183,23 @@ namespace zonetool::iw4::converter::iw5
 				static_assert(sizeof(zonetool::iw5::GfxStaticModelInst) == sizeof(zonetool::iw4::GfxStaticModelInst));
 				dpvs.smodelInsts.value = source.smodelInsts.value;
 
-				static_assert(sizeof(zonetool::iw5::GfxStaticModelDrawInst) == sizeof(zonetool::iw4::GfxStaticModelDrawInst));
-				dpvs.smodelDrawInsts.value = source.smodelDrawInsts.value;
+				const auto draw_instances = allocator.allocate<zonetool::iw5::GfxStaticModelDrawInst>(source.smodelCount);
+				std::unordered_map<zonetool::iw4::XModel*, zonetool::iw5::XModel*> models;
+				for (unsigned int i = 0; i < source.smodelCount; i++)
+				{
+					copy_layout(draw_instances[i], source.smodelDrawInsts[i]);
+					if (const auto model = source.smodelDrawInsts[i].model.get())
+					{
+						auto& new_model = models[model];
+						if (!new_model)
+						{
+							new_model = xmodel::convert(model, allocator);
+						}
+
+						draw_instances[i].model = new_model;
+					}
+				}
+				dpvs.smodelDrawInsts = draw_instances;
 
 				static_assert(sizeof(zonetool::iw5::GfxSurfaceBounds) == sizeof(zonetool::iw4::GfxSurfaceBounds));
 				dpvs.surfacesBounds.value = source.surfacesBounds.value;

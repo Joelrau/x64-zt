@@ -38,56 +38,94 @@ namespace zonetool::cli
 			return names;
 		}
 
-		void print_commands()
+		void print_options(const std::string_view title, const std::span<const option> options)
+		{
+			std::cout << std::format("\n{}:\n", title);
+			for (const auto& option : options)
+			{
+				std::cout << std::format("  {:<26}{}\n", option.name, option.description);
+			}
+		}
+
+		void print_overview()
 		{
 			std::cout << "commands:\n";
 			for (const auto& command : commands())
 			{
-				std::cout << std::format("  {}\n      {}\n", command.usage, command.description);
+				std::cout << std::format("  {:<13}{}\n", command.name, command.description);
+			}
+
+			std::cout << "\nhelp <command>   usage and options of one command\n"
+				"help options     options for every command\n"
+				"help start       quick start\n"
+				"quit             closes the console\n";
+		}
+
+		void print_command(const command& command)
+		{
+			std::cout << std::format("usage: {}\n  {}\n", command.usage, command.description);
+			if (!command.options.empty())
+			{
+				print_options("options", command.options);
 			}
 		}
 
-		void print_help()
+		void print_global_options()
 		{
 			std::cout << "usage: zonetool.exe [options] <command> [arguments]\n"
-				"       zonetool.exe [options]    opens the interactive console\n\n";
+				"       zonetool.exe [options]    opens the console\n";
+			print_options("options (command line only, not in the console)", global_options());
+			std::cout << std::format("\ngames: {}\n", game_names());
+		}
 
-			print_commands();
+		void print_quick_start()
+		{
+			std::cout << "1. Put zonetool.exe in the game folder, next to the game exe.\n"
+				"   From another folder, add -game <name> -path \"<game folder>\".\n"
+				"2. Dump a zone: dumpzone mp_shipment\n"
+				"   The assets go to dump/mp_shipment/.\n"
+				"3. Build a zone: put the assets in zonetool/<zone>/ and the asset list in zone_source/<zone>.csv.\n"
+				"   Then run buildzone <zone>. The zone goes to zone/<zone>.ff.\n"
+				"\nMore help: https://docs.auroramod.dev/zonetool-basics/\n";
+		}
 
-			std::cout << std::format(
-				"\noptions (put before \"zonetool.exe\" command line, not in the console):\n"
-				"  -game <name>              engine code like iw6, s1, s2, h1, etc. default will auto select if in game folder\n"
-				"  -path <folder>            game folder\n"
-				"  -target_path <folder>     game folder of the --target game for conversion \n"
-				"  -no_cache                 ignores the build cache and writes every file again\n"
-				"  -threads <n>              limits the worker threads to n (default: all cores)\n"
-				"  -no_gpu                   compresses converted iw7 -> iw8 images on the CPU only\n"
-				"\ndump options:\n"
-				"  -dds                      writes images as DDS too\n"
-				"  -dump_streamed_image      reads imagefile*.pak and writes streamed images\n"
-				"  -castdump                 writes a .cast file next to each xmodel and xanim\n"
-				"  -max_image_size <n>       limits converted iw7 -> iw8 images to n pixels on the longest side\n"
-				"\nbuild options:\n"
-				"  -more_memory              doubles the zone memory limit\n"
-				"  -keep_mp_traverse_nodes   keeps invalid mp traverse nodes in aipaths (h2)\n"
-				"  -uncompressed             writes the zone without compression (iw8)\n"
-				"  -copy_to <folder>         copies the built .ff and .pak to that folder\n"
-				"\nquick start:\n"
-				"  1. zonetool.exe goes in the game folder next to the game exe and fastfiles\n"
-				"     (externally, use `-game <s1/h1/s2/iw6>` and `-path \"C:/path/to/game/folder\"`)\n"
-				"  2. to dump, you can try `zonetool.exe dumpzone mp_shipment -game h1`\n"
-				"     output goes to `dump/` folder containing mp_shipment/\n"
-				"  3. to build, put assets in `zonetool/<mod>/` inside game folder (create if doesn't exist)\n"
-				"     your mod's asset list csv goes in `zone_source/<name>.csv`\n"
-				"     the built zone will be in game folder as `<name>.ff` OR inside `zone/<name>.ff`\n"
-				"\n[!] check https://docs.auroramod.dev/zonetool-basics/ to get additional help\n\n",
-				game_names(), game_names());
+		void print_help(const std::span<const std::string> topic)
+		{
+			if (topic.empty())
+			{
+				print_overview();
+				return;
+			}
+
+			const auto& name = topic.front();
+			if (name == "options")
+			{
+				print_global_options();
+				return;
+			}
+
+			if (name == "start")
+			{
+				print_quick_start();
+				return;
+			}
+
+			const auto list = commands();
+			const auto command = std::ranges::find(list, name, &command::name);
+			if (command == list.end())
+			{
+				std::cout << std::format("no help for \"{}\"\n", name);
+				print_overview();
+				return;
+			}
+
+			print_command(*command);
 		}
 
 		void run_console(const settings& settings)
 		{
 			std::cout << std::format("zonetool [{}] {}\n", settings.game->name, settings.game_path.string());
-			print_help();
+			std::cout << "Type \"help\" for the commands.\n\n";
 
 			std::string line;
 			while (std::cout << "> " && std::getline(std::cin, line))
@@ -108,11 +146,11 @@ namespace zonetool::cli
 				{
 					if (!args.empty() && is_help(args.front()))
 					{
-						print_help();
+						print_help(std::span(args).subspan(1));
 					}
 					else if (!execute(settings, args))
 					{
-						print_commands();
+						std::cout << "Type \"help\" for the commands.\n";
 					}
 				}
 				catch (const std::exception& e)
@@ -126,9 +164,15 @@ namespace zonetool::cli
 	int main(const int argc, char** argv)
 	{
 		std::vector<std::string> args(argv + 1, argv + argc);
+		if (!args.empty() && is_help(args.front()))
+		{
+			print_help(std::span(args).subspan(1));
+			return 0;
+		}
+
 		if (std::ranges::any_of(args, is_help))
 		{
-			print_help();
+			print_overview();
 			return 0;
 		}
 
@@ -145,7 +189,7 @@ namespace zonetool::cli
 
 			if (!execute(settings, args))
 			{
-				print_commands();
+				print_overview();
 				return 1;
 			}
 
@@ -155,7 +199,7 @@ namespace zonetool::cli
 		{
 			if (args.empty())
 			{
-				print_help();
+				print_quick_start();
 			}
 
 			std::cout << std::format("error: {}\n", e.what());

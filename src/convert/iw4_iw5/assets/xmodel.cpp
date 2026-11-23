@@ -2,6 +2,7 @@
 
 #include "../include.hpp"
 #include "xmodel.hpp"
+#include "material.hpp"
 
 namespace zonetool::iw4::converter::iw5
 {
@@ -50,6 +51,36 @@ namespace zonetool::iw4::converter::iw5
 
 				return new_asset;
 			}
+
+			x86::pointer<zonetool::iw5::Material>* convert_materials(const zonetool::iw4::XModel* asset, x86::allocator& allocator)
+			{
+				const auto materials = asset->materials.get();
+				if (!materials)
+				{
+					return nullptr;
+				}
+
+				std::unordered_map<zonetool::iw4::Material*, zonetool::iw5::Material*> converted;
+				const auto new_materials = allocator.allocate_array<x86::pointer<zonetool::iw5::Material>>(asset->numSurfaces);
+				for (auto i = 0; i < asset->numSurfaces; i++)
+				{
+					const auto material = materials[i].get();
+					if (!material)
+					{
+						continue;
+					}
+
+					auto& new_material = converted[material];
+					if (!new_material)
+					{
+						new_material = material::convert(material, allocator);
+					}
+
+					new_materials[i] = new_material;
+				}
+
+				return new_materials;
+			}
 		}
 
 		zonetool::iw5::XModel* convert(zonetool::iw4::XModel* asset, x86::allocator& allocator)
@@ -68,7 +99,7 @@ namespace zonetool::iw4::converter::iw5
 			new_asset->trans.value = asset->tagPositions.value;
 			new_asset->partClassification.value = asset->partClassification.value;
 			new_asset->baseMat.value = asset->animMatrix.value;
-			new_asset->materialHandles.value = asset->materials.value;
+			new_asset->materialHandles = convert_materials(asset, allocator);
 
 			for (auto i = 0; i < 4; i++)
 			{
