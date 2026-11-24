@@ -10,6 +10,8 @@
 #include <iw7/assets/mapents.hpp>
 #include <iw7/assets/scriptabledef.hpp>
 #include <iw7/common/havok_builder.hpp>
+#include <iw7/common/navpower_builder.hpp>
+#include <iw7/assets/navmesh.hpp>
 
 #include <xsk/gsc/engine/iw7.hpp>
 
@@ -1217,6 +1219,92 @@ namespace zonetool::iw5::converter::iw7
 				new_asset->havokWorldShapeData = memory;
 				new_asset->havokWorldShapeDataSize = static_cast<unsigned int>(blob.size());
 			}
+
+			std::vector<std::array<float, 3>> find_spawn_origins(clipMap_t* asset)
+			{
+				std::vector<std::array<float, 3>> origins;
+				if (!asset->mapEnts || !asset->mapEnts->entityString)
+				{
+					return origins;
+				}
+
+				static const std::regex pair_expr(R"entity("([^"]*)"\s+"([^"]*)")entity");
+				const std::string source{ asset->mapEnts->entityString.get(), static_cast<std::size_t>(asset->mapEnts->numEntityChars) };
+				std::size_t cursor = 0;
+				while (true)
+				{
+					const auto open = source.find('{', cursor);
+					const auto close = open == std::string::npos ? std::string::npos : source.find('}', open + 1);
+					if (close == std::string::npos)
+					{
+						break;
+					}
+
+					const auto entity = source.substr(open, close - open + 1);
+					cursor = close + 1;
+
+					std::string classname;
+					std::array<float, 3> origin{};
+					auto has_origin = false;
+					for (auto it = std::sregex_iterator(entity.begin(), entity.end(), pair_expr); it != std::sregex_iterator(); ++it)
+					{
+						const auto key = (*it)[1].str();
+						const auto value = (*it)[2].str();
+						if (key == "classname") classname = value;
+						else if (key == "origin") has_origin = std::sscanf(value.data(), "%f %f %f", &origin[0], &origin[1], &origin[2]) == 3;
+					}
+
+					if (has_origin && is_spawn_classname(classname))
+					{
+						origins.push_back(origin);
+					}
+				}
+				return origins;
+			}
+
+			void dump_navmesh(clipMap_t* asset)
+			{
+				std::vector<zonetool::iw7::navpower::builder::triangle> floors;
+				for (const auto& source : collision::extract(asset, 1.0f))
+				{
+					if ((source.contents & (zonetool::iw7::PHYSICS_CONTENTS_SOLID | zonetool::iw7::PHYSICS_CONTENTS_PLAYERCLIP)) == 0)
+					{
+						continue;
+					}
+
+					zonetool::iw7::navpower::builder::triangle tri{};
+					std::memcpy(tri.verts, source.verts, sizeof(tri.verts));
+					floors.push_back(tri);
+
+					if (source.is_quad)
+					{
+						std::memcpy(tri.verts[1], source.verts[2], sizeof(tri.verts[1]));
+						std::memcpy(tri.verts[2], source.vert3, sizeof(tri.verts[2]));
+						floors.push_back(tri);
+					}
+				}
+
+				auto graph = zonetool::iw7::navpower::builder::build_graph(floors, find_spawn_origins(asset));
+				if (graph.empty())
+				{
+					ZONETOOL_WARNING("clipmap: no navmesh generated for \"%s\"", asset->name.get());
+					return;
+				}
+
+				zonetool::iw7::nav_resource_s resource{};
+				resource.modelIdx = -1;
+				resource.graphSize = static_cast<int>(graph.size());
+				resource.pGraphBuffer = reinterpret_cast<char*>(graph.data());
+
+				zonetool::iw7::NavMeshData navmesh{};
+				navmesh.name = asset->name.get();
+				navmesh.version = 15;
+				navmesh.hasExposureData = 1;
+				navmesh.numNavResources = 1;
+				navmesh.navResources = &resource;
+
+				zonetool::iw7::nav_mesh::dump(&navmesh);
+			}
 		}
 
 		zonetool::iw7::clipMap_t* convert(clipMap_t* asset, utils::memory::allocator& allocator)
@@ -1299,6 +1387,7 @@ namespace zonetool::iw5::converter::iw7
 			}
 
 			zonetool::iw7::clip_map::dump(new_asset);
+			dump_navmesh(asset);
 		}
 	}
 }

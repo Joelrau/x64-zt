@@ -1080,6 +1080,211 @@ namespace zonetool::iw7::converter::iw8::havok
 
 			return points;
 		}
+
+		bool touches(const bounds& a, const bounds& b, const float gap)
+		{
+			return a.min[0] <= b.max[0] + gap && b.min[0] <= a.max[0] + gap && a.min[1] <= b.max[1] + gap && b.min[1] <= a.max[1] + gap;
+		}
+
+		std::vector<bounds> find_treads(const std::vector<convex_result>& hulls, const std::vector<std::uint16_t>& hull_tags,
+			const iw7::HavokPhysicsShapeList* list, std::vector<std::uint16_t>& tread_tags)
+		{
+			std::vector<bounds> pieces;
+			std::vector<std::uint16_t> piece_tags;
+			for (auto i = 0u; i < hulls.size(); i++)
+			{
+				if (hull_tags[i] >= static_cast<std::uint32_t>(list->shapeTagData.size)
+					|| !(list->shapeTagData.data[hull_tags[i]].collisionFilterInfo & iw7::PHYSICS_CONTENTS_SOLID))
+				{
+					continue;
+				}
+
+				auto local = empty_bounds();
+				for (const auto& vertex : hulls[i].vertices)
+				{
+					include(local, vertex);
+				}
+
+				const bounds box{{local.min[0] * 32.0f, local.min[1] * 32.0f, local.min[2] * 32.0f},
+					{local.max[0] * 32.0f, local.max[1] * 32.0f, local.max[2] * 32.0f}};
+				if (box.max[2] - box.min[2] <= 24.0f && is_box(hulls[i].vertices, local))
+				{
+					pieces.push_back(box);
+					piece_tags.push_back(hull_tags[i]);
+				}
+			}
+
+			std::vector<std::int32_t> owner(pieces.size(), -1);
+			std::vector<bounds> treads;
+			for (auto i = 0u; i < pieces.size(); i++)
+			{
+				if (owner[i] >= 0)
+				{
+					continue;
+				}
+
+				auto tread = pieces[i];
+				owner[i] = static_cast<std::int32_t>(treads.size());
+				for (auto grown = true; grown;)
+				{
+					grown = false;
+					for (auto j = 0u; j < pieces.size(); j++)
+					{
+						if (owner[j] < 0 && std::abs(pieces[j].max[2] - tread.max[2]) < 0.5f && touches(pieces[j], tread, 1.0f))
+						{
+							include(tread, {pieces[j].min[0], pieces[j].min[1], pieces[j].min[2]});
+							include(tread, {pieces[j].max[0], pieces[j].max[1], pieces[j].max[2]});
+							owner[j] = owner[i];
+							grown = true;
+						}
+					}
+				}
+
+				treads.push_back(tread);
+				tread_tags.push_back(piece_tags[i]);
+			}
+
+			return treads;
+		}
+
+		std::optional<std::int32_t> find_next_tread(const std::vector<bounds>& treads, const std::uint32_t current, const std::int32_t run_axis,
+			std::int32_t& direction)
+		{
+			const auto& a = treads[current];
+			std::optional<std::int32_t> best;
+			auto best_rise = 0.0f;
+			for (auto i = 0u; i < treads.size(); i++)
+			{
+				const auto& b = treads[i];
+				const auto rise = b.max[2] - a.max[2];
+				if (rise < 3.0f || rise > 18.0f || (best && rise >= best_rise))
+				{
+					continue;
+				}
+
+				for (auto axis = 0; axis < 2; axis++)
+				{
+					if (run_axis >= 0 && axis != run_axis)
+					{
+						continue;
+					}
+
+					const auto across = 1 - axis;
+					const auto run = (b.min[axis] + b.max[axis] - a.min[axis] - a.max[axis]) * 0.5f;
+					const auto offset = (b.min[across] + b.max[across] - a.min[across] - a.max[across]) * 0.5f;
+					const auto width = a.max[across] - a.min[across];
+					const auto step_direction = run > 0.0f ? 1 : -1;
+					if (std::abs(run) < 4.0f || std::abs(run) > 24.0f || std::abs(offset) > 4.0f || width < 16.0f
+						|| std::abs(b.max[across] - b.min[across] - width) > 4.0f || a.max[axis] - a.min[axis] > 24.0f
+						|| (run_axis >= 0 && step_direction != direction))
+					{
+						continue;
+					}
+
+					best = static_cast<std::int32_t>(i);
+					best_rise = rise;
+					direction = step_direction;
+				}
+			}
+
+			return best;
+		}
+
+		convex_result make_stair_ramp(const std::vector<bounds>& treads, const std::vector<std::uint32_t>& flight, const std::int32_t axis,
+			const std::int32_t direction)
+		{
+			const auto across = 1 - axis;
+			const auto front_of = [&](const bounds& tread) { return direction > 0 ? tread.min[axis] : tread.max[axis]; };
+			const auto& first = treads[flight.front()];
+			const auto& last = treads[flight.back()];
+			const auto steps = static_cast<float>(flight.size() - 1);
+			const auto rise = (last.max[2] - first.max[2]) / steps;
+			const auto run = (front_of(last) - front_of(first)) / steps;
+
+			auto low = first.min[across];
+			auto high = first.max[across];
+			for (const auto index : flight)
+			{
+				low = std::min(low, treads[index].min[across]);
+				high = std::max(high, treads[index].max[across]);
+			}
+
+			const auto foot = front_of(first) - run;
+			const auto foot_height = first.max[2] - rise;
+			const auto thickness = 2.0f * rise;
+			const std::array<std::array<float, 2>, 5> profile{{
+				{foot, foot_height},
+				{front_of(last), last.max[2]},
+				{direction > 0 ? last.max[axis] : last.min[axis], last.max[2]},
+				{direction > 0 ? last.max[axis] : last.min[axis], last.max[2] - thickness},
+				{foot + 2.0f * run, foot_height},
+			}};
+
+			std::vector<vec3> points;
+			for (const auto side : {low, high})
+			{
+				for (const auto& [along, height] : profile)
+				{
+					std::array<float, 3> point{};
+					point[axis] = along / 32.0f;
+					point[across] = side / 32.0f;
+					point[2] = height / 32.0f;
+					points.push_back({point[0], point[1], point[2]});
+				}
+			}
+
+			return make_convex_hull(points);
+		}
+
+		std::vector<std::pair<convex_result, std::uint16_t>> make_stair_ramps(const std::vector<convex_result>& hulls,
+			const std::vector<std::uint16_t>& hull_tags, const iw7::HavokPhysicsShapeList* list)
+		{
+			std::vector<std::uint16_t> tread_tags;
+			const auto treads = find_treads(hulls, hull_tags, list, tread_tags);
+
+			std::vector<bool> has_previous(treads.size(), false);
+			for (auto i = 0u; i < treads.size(); i++)
+			{
+				auto direction = 0;
+				if (const auto next = find_next_tread(treads, i, -1, direction))
+				{
+					has_previous[*next] = true;
+				}
+			}
+
+			std::vector<std::pair<convex_result, std::uint16_t>> ramps;
+			for (auto i = 0u; i < treads.size(); i++)
+			{
+				auto direction = 0;
+				const auto second = has_previous[i] ? std::nullopt : find_next_tread(treads, i, -1, direction);
+				if (!second)
+				{
+					continue;
+				}
+
+				const auto& a = treads[i];
+				const auto& b = treads[*second];
+				const auto axis = std::abs(b.min[0] + b.max[0] - a.min[0] - a.max[0]) > std::abs(b.min[1] + b.max[1] - a.min[1] - a.max[1]) ? 0 : 1;
+				std::vector<std::uint32_t> flight{i, static_cast<std::uint32_t>(*second)};
+				while (flight.size() < 128)
+				{
+					const auto next = find_next_tread(treads, flight.back(), axis, direction);
+					if (!next)
+					{
+						break;
+					}
+
+					flight.push_back(*next);
+				}
+
+				if (flight.size() >= 3)
+				{
+					ramps.emplace_back(make_stair_ramp(treads, flight, axis, direction), tread_tags[i]);
+				}
+			}
+
+			return ramps;
+		}
 	}
 
 	std::string convert_world_shape(const std::string_view packfile)
@@ -1174,6 +1379,23 @@ namespace zonetool::iw7::converter::iw8::havok
 				source.convex_slots[indices[0] - source.packed_count + 1] = true;
 			}
 		}
+
+		std::vector<std::uint16_t> ramp_source_tags;
+		std::vector<std::uint32_t> ramp_hulls;
+		for (auto& [ramp, source_tag] : make_stair_ramps(hulls, hull_tags, list))
+		{
+			auto slot = std::ranges::find(ramp_source_tags, source_tag);
+			if (slot == ramp_source_tags.end())
+			{
+				slot = ramp_source_tags.insert(slot, source_tag);
+			}
+
+			ramp_hulls.push_back(static_cast<std::uint32_t>(hulls.size()));
+			hulls.push_back(std::move(ramp));
+			hull_tags.push_back(static_cast<std::uint16_t>(list->shapeTagData.size + (slot - ramp_source_tags.begin())));
+		}
+
+		ZONETOOL_INFO("havok: %zu stair ramps", ramp_hulls.size());
 
 		const auto primitive_bounds = [&](const source_section& source, const std::uint32_t p) -> bounds
 		{
@@ -1379,6 +1601,42 @@ namespace zonetool::iw7::converter::iw8::havok
 			}
 		}
 
+		const auto& ramp_template = sources.front();
+		for (auto begin = 0u; begin < ramp_hulls.size(); begin += 64)
+		{
+			const auto end = std::min<std::size_t>(begin + 64, ramp_hulls.size());
+			output_section ramp_section{};
+			ramp_section.codec = ramp_template.codec;
+			ramp_section.page = ramp_template.page;
+			ramp_section.layer_data = ramp_template.layer_data;
+			ramp_section.flags = ramp_template.flags;
+
+			std::vector<bounds> ramp_bounds;
+			std::vector<std::uint16_t> ramp_tags;
+			for (auto k = begin; k < end; k++)
+			{
+				const auto hull = ramp_hulls[k];
+				const auto local = static_cast<std::uint8_t>((k - begin) * 4);
+				ramp_section.table.push_back(146);
+				ramp_section.table.push_back(0);
+				ramp_section.table.push_back(static_cast<std::uint16_t>(hull));
+				ramp_section.table.push_back(static_cast<std::uint16_t>(hull >> 16));
+				ramp_section.primitives.push_back({local, local, 4, local});
+
+				auto box = empty_bounds();
+				for (const auto& vertex : hulls[hull].vertices)
+				{
+					include(box, vertex);
+				}
+				ramp_bounds.push_back(box);
+				ramp_tags.push_back(hull_tags[hull]);
+			}
+
+			ramp_section.runs = make_runs(ramp_tags);
+			build_section_tree(ramp_section, ramp_bounds);
+			outputs.push_back(std::move(ramp_section));
+		}
+
 		{
 			std::size_t externs = 0;
 			std::size_t degenerate = 0;
@@ -1500,7 +1758,16 @@ namespace zonetool::iw7::converter::iw8::havok
 		auto list_bytes = std::vector<std::byte>(writer.type_size(t_list), std::byte{0});
 		const auto list_offset = writer.add_object(t_list, list_bytes.data());
 
-		const auto tags = convert_shape_tags(list);
+		auto tags = convert_shape_tags(list);
+		for (const auto source_tag : ramp_source_tags)
+		{
+			auto ramp_tag = tags[source_tag];
+			ramp_tag.collisionFilterInfo = zonetool::iw8::PHYSICS_CONTENTS_PLAYERCLIP | zonetool::iw8::PHYSICS_CONTENTS_AICLIP
+				| zonetool::iw8::PHYSICS_CONTENTS_VEHICLECLIP;
+			ramp_tag.userData = (ramp_tag.userData & (0x3Full << 19)) | zonetool::iw8::SURFACE_FLAG_STAIRS;
+			tags.push_back(ramp_tag);
+		}
+
 		std::uint32_t world_contents = 0;
 		for (const auto& tag : tags)
 		{

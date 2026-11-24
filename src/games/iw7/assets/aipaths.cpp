@@ -89,6 +89,11 @@ namespace zonetool::iw7
 		return std::sqrtf((a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]));
 	}
 
+	float distance_3d(float* a, float* b)
+	{
+		return std::sqrtf((a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]) + (a[2] - b[2]) * (a[2] - b[2]));
+	}
+
 	pathnode_tree_t* allocate_tree(PathData* asset)
 	{
 		return &asset->nodeTree[asset->nodeTreeCount++];
@@ -194,7 +199,144 @@ namespace zonetool::iw7
 	}
 
 
-	PathData* parse_from_botwarfare(const std::string& path, 
+	std::vector<std::uint8_t> group_nodes_into_zones(PathData* asset, int& zone_count)
+	{
+		const auto fixed_count = static_cast<unsigned int>(asset->fixedNodeCount);
+		std::vector<std::uint8_t> node_zones(fixed_count, 0xFF);
+		zone_count = 0;
+
+		for (auto seed = 0u; seed < fixed_count; seed++)
+		{
+			const auto seed_node = &asset->nodes[seed].constant;
+			if (node_zones[seed] != 0xFF || !seed_node->totalLinkCount)
+			{
+				continue;
+			}
+
+			if (zone_count == 0xFF)
+			{
+				ZONETOOL_WARNING("aipaths \"%s\" has more than 255 zones, nodes left without zone", asset->name);
+				break;
+			}
+
+			std::vector<unsigned int> queue{ seed };
+			node_zones[seed] = static_cast<std::uint8_t>(zone_count);
+
+			for (auto next = 0u; next < queue.size(); next++)
+			{
+				const auto node = &asset->nodes[queue[next]].constant;
+				for (auto o = 0; o < node->totalLinkCount; o++)
+				{
+					const auto linked_num = node->Links[o].nodeNum;
+					const auto linked = &asset->nodes[linked_num].constant;
+					if (node_zones[linked_num] != 0xFF || !linked->totalLinkCount ||
+						distance(seed_node->vLocalOrigin, linked->vLocalOrigin) > 384.f)
+					{
+						continue;
+					}
+
+					node_zones[linked_num] = static_cast<std::uint8_t>(zone_count);
+					queue.push_back(linked_num);
+				}
+			}
+
+			zone_count++;
+		}
+
+		return node_zones;
+	}
+
+	void build_zones(PathData* asset, zone_memory* mem)
+	{
+		int zone_count{};
+		const auto node_zones = group_nodes_into_zones(asset, zone_count);
+
+		const auto fixed_count = static_cast<unsigned int>(asset->fixedNodeCount);
+		const auto first_zone_node = fixed_count + asset->maxDynamicSpawnedNodeCount;
+		const auto node_count = first_zone_node + zone_count;
+
+		const auto nodes = mem->allocate<pathnode_t>(node_count);
+		std::memcpy(nodes, asset->nodes, sizeof(pathnode_t) * fixed_count);
+		asset->nodes = nodes;
+		asset->nodeCount = node_count;
+
+		std::vector<std::vector<unsigned int>> zone_members(zone_count);
+		std::vector<std::set<int>> zone_neighbors(zone_count);
+		for (auto i = 0u; i < fixed_count; i++)
+		{
+			if (node_zones[i] == 0xFF)
+			{
+				continue;
+			}
+
+			zone_members[node_zones[i]].push_back(i);
+
+			const auto node = &nodes[i].constant;
+			for (auto o = 0; o < node->totalLinkCount; o++)
+			{
+				const auto linked_zone = node_zones[node->Links[o].nodeNum];
+				if (linked_zone != 0xFF && linked_zone != node_zones[i])
+				{
+					zone_neighbors[node_zones[i]].insert(linked_zone);
+					zone_neighbors[linked_zone].insert(node_zones[i]);
+				}
+			}
+		}
+
+		for (auto zone = 0; zone < zone_count; zone++)
+		{
+			vec3_t center{};
+			for (const auto member : zone_members[zone])
+			{
+				for (auto axis = 0; axis < 3; axis++)
+				{
+					center[axis] += nodes[member].constant.vLocalOrigin[axis] / zone_members[zone].size();
+				}
+			}
+
+			const auto center_member = *std::min_element(zone_members[zone].begin(), zone_members[zone].end(),
+				[&](const unsigned int a, const unsigned int b)
+			{
+				return distance(nodes[a].constant.vLocalOrigin, center) < distance(nodes[b].constant.vLocalOrigin, center);
+			});
+
+			const auto zone_node = &nodes[first_zone_node + zone].constant;
+			zone_node->type = NODE_ERROR;
+			zone_node->wOverlapNode[0] = 0xFFFF;
+			zone_node->wOverlapNode[1] = 0xFFFF;
+			std::memcpy(zone_node->vLocalOrigin, nodes[center_member].constant.vLocalOrigin, sizeof(vec3_t));
+		}
+
+		for (auto zone = 0; zone < zone_count; zone++)
+		{
+			const auto zone_node = &nodes[first_zone_node + zone].constant;
+			zone_node->totalLinkCount = static_cast<unsigned short>(zone_neighbors[zone].size());
+			zone_node->Links = mem->allocate<pathlink_s>(zone_node->totalLinkCount);
+
+			auto link = zone_node->Links;
+			for (const auto neighbor : zone_neighbors[zone])
+			{
+				const auto neighbor_node = &nodes[first_zone_node + neighbor].constant;
+				link->nodeNum = static_cast<unsigned short>(first_zone_node + neighbor);
+				link->fDist = distance_3d(zone_node->vLocalOrigin, neighbor_node->vLocalOrigin);
+				link++;
+			}
+		}
+
+		asset->zoneCount = zone_count;
+		asset->zonesBytes = node_count;
+		asset->pathZones = mem->allocate<char>(node_count);
+		std::memset(asset->pathZones, 0xFF, node_count);
+		std::memcpy(asset->pathZones, node_zones.data(), fixed_count);
+		for (auto zone = 0; zone < zone_count; zone++)
+		{
+			asset->pathZones[first_zone_node + zone] = static_cast<char>(zone);
+		}
+
+		ZONETOOL_INFO("aipaths \"%s\": %d zones", asset->name, zone_count);
+	}
+
+	PathData* parse_from_botwarfare(const std::string& path,
 		const std::string& name, zone_memory* mem)
 	{
 		auto file = filesystem::file(path);
@@ -312,6 +454,8 @@ namespace zonetool::iw7
 
 		asset->nodeTree = mem->allocate<pathnode_tree_t>(2 * waypoint_count);
 		build_node_tree(asset, node_indexes, waypoint_count);
+
+		build_zones(asset, mem);
 
 		return asset;
 	}
