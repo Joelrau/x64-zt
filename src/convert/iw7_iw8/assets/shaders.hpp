@@ -537,7 +537,7 @@ sky_vertex world_sky_vs(uint vertex_id : SV_VertexID)
 	precise float4 clip = clip_position(position);
 
 	sky_vertex output;
-	output.position = clip;
+	output.position = float4(clip.xy, 0.0, clip.w);
 	output.direction = position;
 	return output;
 }

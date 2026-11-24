@@ -1295,6 +1295,591 @@ namespace zonetool::iw7::converter::iw8::havok
 
 			return ramps;
 		}
+
+		struct mesh_shape
+		{
+			iw7::hkAabb domain{};
+			std::vector<output_section> outputs;
+			std::vector<convex_result> hulls;
+			std::vector<std::uint16_t> hull_tags;
+			std::vector<std::uint32_t> packed_vertices;
+			std::vector<std::uint64_t> shared_vertices;
+			std::vector<std::byte> simd_nodes;
+			bool simd_compact{};
+			std::uint64_t user_data{};
+		};
+
+		struct mesh_keys
+		{
+			std::uint32_t bits_per_key;
+			std::uint32_t max_key;
+			std::uint32_t triangle_count;
+			std::uint32_t convex_count;
+		};
+
+		bounds to_bounds(const iw7::hkAabb& box)
+		{
+			return {{box.min.x, box.min.y, box.min.z}, {box.max.x, box.max.y, box.max.z}};
+		}
+
+		mesh_keys count_mesh_keys(const std::vector<output_section>& outputs)
+		{
+			const auto primitive_bits = 8u;
+			mesh_keys keys{};
+			keys.bits_per_key = static_cast<std::uint32_t>(std::bit_width(std::max<std::size_t>(outputs.size(), 1) - 1)) + primitive_bits;
+			for (auto s = 0u; s < outputs.size(); s++)
+			{
+				const auto& output = outputs[s];
+				for (auto p = 0u; p < output.primitives.size(); p++)
+				{
+					const auto key = (s << primitive_bits) | (p << 1);
+					keys.max_key = std::max(keys.max_key, key);
+					const auto& indices = output.primitives[p];
+					if (indices[1] == indices[3] && indices[2] == 4)
+					{
+						keys.convex_count++;
+					}
+					else if (indices[2] == indices[3])
+					{
+						keys.triangle_count++;
+					}
+					else
+					{
+						keys.triangle_count += 2;
+					}
+				}
+			}
+
+			return keys;
+		}
+
+		std::vector<std::byte> make_inactive_simd_nodes(const tag_writer& writer, const std::uint32_t count)
+		{
+			const auto node_size = writer.type_size(writer.type_id("hkcdSimdTree::Node"));
+			std::vector<std::byte> nodes(node_size * count, std::byte{0});
+			const auto max_float = std::numeric_limits<float>::max();
+			for (auto i = 0u; i < count; i++)
+			{
+				const auto base = i * node_size;
+				for (auto box = 0u; box < 3; box++)
+				{
+					for (auto f = 0u; f < 4; f++)
+					{
+						put(nodes, base + box * 32 + f * 4, max_float);
+						put(nodes, base + box * 32 + 16 + f * 4, -max_float);
+					}
+				}
+			}
+
+			return nodes;
+		}
+
+		tag_writer::reference write_mesh_shape(tag_writer& writer, mesh_shape& mesh, const mesh_keys& keys)
+		{
+			auto& outputs = mesh.outputs;
+			const auto& hulls = mesh.hulls;
+			const auto& hull_tags = mesh.hull_tags;
+			const auto [bits_per_key, max_key, triangle_count, convex_count] = keys;
+
+			std::vector<std::array<std::uint8_t, 4>> all_primitives;
+			std::vector<std::uint16_t> all_table;
+			std::vector<iw7::hknpCompressedMeshShapeTreeDataRun> all_runs;
+			for (auto& output : outputs)
+			{
+				output.first_shared = static_cast<std::uint32_t>(all_table.size());
+				output.first_primitive = static_cast<std::uint32_t>(all_primitives.size());
+				output.first_run = static_cast<std::uint32_t>(all_runs.size());
+				all_table.insert(all_table.end(), output.table.begin(), output.table.end());
+				all_primitives.insert(all_primitives.end(), output.primitives.begin(), output.primitives.end());
+				all_runs.insert(all_runs.end(), output.runs.begin(), output.runs.end());
+			}
+
+			std::vector<vec3> section_centres;
+			std::vector<bounds> section_bounds;
+			std::vector<std::uint32_t> order(outputs.size());
+			std::iota(order.begin(), order.end(), 0u);
+			for (const auto& output : outputs)
+			{
+				section_centres.push_back(center_of(output.domain));
+				section_bounds.push_back(output.domain);
+			}
+
+			std::vector<top_node> top_nodes;
+			if (!order.empty())
+			{
+				split_top(section_centres, order, top_nodes);
+			}
+
+			std::vector<std::array<std::uint8_t, 5>> top_bytes(top_nodes.size());
+			std::vector<std::uint32_t> top_leaves(outputs.size(), 0);
+			if (!top_nodes.empty())
+			{
+				encode_top(top_nodes, section_bounds, 0, to_bounds(mesh.domain), top_bytes, top_leaves);
+			}
+
+			for (auto s = 0u; s < outputs.size(); s++)
+			{
+				if (top_leaves[s] > 0xFFFF)
+				{
+					throw std::runtime_error("havok: the section tree is too large");
+				}
+
+				outputs[s].leaf_index = static_cast<std::uint16_t>(top_leaves[s]);
+			}
+
+			const auto t_shape = writer.type_id("hknpCompressedMeshShape");
+			const auto t_data = writer.type_id("hknpCompressedMeshShapeData");
+			const auto t_instance = writer.type_id("hknpShapeInstance");
+			const auto t_hull = writer.type_id("hknpConvexPolytopeShape");
+			const auto t_face = writer.type_id("hknpConvexPolytopeShape::Face");
+			const auto t_connectivity = writer.type_id("hknpConvexPolytopeShape::Connectivity");
+			const auto t_edge = writer.type_id("hknpConvexPolytopeShape::Connectivity::Edge");
+			const auto t_section = writer.type_id("hkcdStaticMeshTree::Section");
+			const auto t_primitive = writer.type_id("hkcdStaticMeshTree::Primitive");
+			const auto t_run = writer.type_id("hkcdDefaultStaticMeshTree::PrimitiveDataRun");
+			const auto t_top_node = writer.type_id("hkcdCompressedAabbCodecs::Aabb5BytesCodec");
+			const auto t_section_node = writer.type_id("hkcdCompressedAabbCodecs::Aabb4BytesCodec");
+			const auto t_simd_node = writer.type_id("hkcdSimdTree::Node");
+			const auto t_vector4f = writer.type_id("hkVector4f");
+			const auto t_vector4 = writer.type_id("hkVector4");
+			const auto t_uint8 = writer.type_id("hkUint8");
+			const auto t_uint16 = writer.type_id("hkUint16");
+			const auto t_uint32 = writer.type_id("unsigned int");
+			const auto t_uint64 = writer.type_id("unsigned long long");
+
+			std::vector<tag_writer::reference> hull_items;
+			hull_items.reserve(hulls.size());
+			for (auto i = 0u; i < hulls.size(); i++)
+			{
+				const auto& hull = hulls[i];
+
+				auto hull_bytes = std::vector<std::byte>(writer.type_size(t_hull), std::byte{0});
+				put_member(hull_bytes, t_hull, "flags", static_cast<std::uint16_t>(0x0943));
+				put_member(hull_bytes, t_hull, "type", static_cast<std::uint8_t>(1));
+				put_member(hull_bytes, t_hull, "numShapeKeyBits", static_cast<std::uint8_t>(0));
+				put_member(hull_bytes, t_hull, "dispatchType", static_cast<std::uint8_t>(2));
+				put_member(hull_bytes, t_hull, "convexRadius", 0.0f);
+				put_member(hull_bytes, t_hull, "userData", static_cast<std::uint64_t>(0));
+				put_member(hull_bytes, t_hull, "maxAllowedPenetration", static_cast<std::uint16_t>(0x3EC6));
+
+				const auto hull_offset = writer.add_object(t_hull, hull_bytes.data());
+
+				std::vector<std::array<float, 4>> vertices;
+				vertices.reserve(hull.vertices.size());
+				for (const auto& vertex : hull.vertices)
+				{
+					vertices.push_back({vertex.x, vertex.y, vertex.z, 0.5f});
+				}
+				const auto vertices_item = writer.add_array(t_vector4f, vertices.data(), vertices.size());
+
+				std::vector<std::array<float, 4>> planes;
+				planes.reserve(hull.faces.size());
+				std::vector<std::array<std::uint8_t, 4>> faces;
+				std::vector<std::uint8_t> indices;
+				std::uint16_t first_index = 0;
+				for (const auto& face : hull.faces)
+				{
+					planes.push_back({face.normal.x, face.normal.y, face.normal.z, face.distance});
+					faces.push_back({static_cast<std::uint8_t>(first_index), static_cast<std::uint8_t>(first_index >> 8),
+						static_cast<std::uint8_t>(face.vertices.size()), 127});
+					for (const auto vertex : face.vertices)
+					{
+						indices.push_back(static_cast<std::uint8_t>(vertex));
+					}
+					first_index = static_cast<std::uint16_t>(first_index + face.vertices.size());
+				}
+
+				const auto planes_item = writer.add_array(t_vector4, planes.data(), planes.size());
+				const auto faces_item = writer.add_array(t_face, faces.data(), faces.size());
+				const auto indices_item = writer.add_array(t_uint8, indices.data(), indices.size());
+
+				writer.set_pointer(hull_offset.offset + member(t_hull, "vertices").offset, member(t_hull, "vertices").type,
+					vertices_item.item);
+				writer.set_pointer(hull_offset.offset + member(t_hull, "planes").offset, member(t_hull, "planes").type,
+					planes_item.item);
+				writer.set_pointer(hull_offset.offset + member(t_hull, "faces").offset, member(t_hull, "faces").type,
+					faces_item.item);
+				writer.set_pointer(hull_offset.offset + member(t_hull, "indices").offset, member(t_hull, "indices").type,
+					indices_item.item);
+
+				std::vector<connectivity_edge> vertex_edges;
+				std::vector<connectivity_edge> face_links;
+				add_connectivity(hull, vertex_edges, face_links);
+				std::vector<std::array<std::uint8_t, 4>> vertex_edge_bytes;
+				std::vector<std::array<std::uint8_t, 4>> face_link_bytes;
+				for (const auto& edge : vertex_edges)
+				{
+					vertex_edge_bytes.push_back({static_cast<std::uint8_t>(edge.face), static_cast<std::uint8_t>(edge.face >> 8),
+						edge.index, 0});
+				}
+				for (const auto& edge : face_links)
+				{
+					face_link_bytes.push_back({static_cast<std::uint8_t>(edge.face), static_cast<std::uint8_t>(edge.face >> 8),
+						edge.index, 0});
+				}
+
+				const auto vertex_edges_item = writer.add_array(t_edge, vertex_edge_bytes.data(), vertex_edge_bytes.size());
+				const auto face_links_item = writer.add_array(t_edge, face_link_bytes.data(), face_link_bytes.size());
+
+				auto connectivity_bytes = std::vector<std::byte>(writer.type_size(t_connectivity), std::byte{0});
+				const auto connectivity_offset = writer.add_object(t_connectivity, connectivity_bytes.data());
+				const auto& connectivity_vertex_edges = member(t_connectivity, "vertexEdges");
+				const auto& connectivity_face_links = member(t_connectivity, "faceLinks");
+				writer.set_pointer(connectivity_offset.offset + connectivity_vertex_edges.offset,
+					connectivity_vertex_edges.type, vertex_edges_item.item);
+				writer.set_pointer(connectivity_offset.offset + connectivity_face_links.offset,
+					connectivity_face_links.type, face_links_item.item);
+
+				writer.set_pointer(hull_offset.offset + member(t_hull, "connectivity").offset,
+					member(t_hull, "connectivity").type, connectivity_offset.item);
+				hull_items.push_back(hull_offset);
+			}
+
+			std::vector<std::byte> instance_bytes(writer.type_size(t_instance) * hulls.size(), std::byte{0});
+			for (auto i = 0u; i < hulls.size(); i++)
+			{
+				const auto base = i * writer.type_size(t_instance);
+				const auto identity = 1.0f;
+				put(instance_bytes, base + 0, identity);
+				put(instance_bytes, base + 20, identity);
+				put(instance_bytes, base + 40, identity);
+				put(instance_bytes, base + 64, identity);
+				put(instance_bytes, base + 68, identity);
+				put(instance_bytes, base + 72, identity);
+				put(instance_bytes, base + 76, identity);
+				put(instance_bytes, base + member(t_instance, "shapeTag").offset, hull_tags[i]);
+				put(instance_bytes, base + member(t_instance, "destructionTag").offset, static_cast<std::uint16_t>(0xFFFF));
+				put(instance_bytes, base + member(t_instance, "isEmpty").offset, static_cast<std::uint8_t>(0));
+				put(instance_bytes, base + member(t_instance, "nextEmptyElement").offset, static_cast<std::uint32_t>(0));
+				put(instance_bytes, base + member(t_instance, "instanceId").offset, static_cast<std::uint16_t>(0));
+			}
+
+			const auto instances_item = writer.add_array(t_instance, instance_bytes.data(), hulls.size());
+			for (auto i = 0u; i < hulls.size(); i++)
+			{
+				const auto& shape_field = member(t_instance, "shape");
+				writer.set_pointer(instances_item.offset + i * writer.type_size(t_instance) + shape_field.offset,
+					shape_field.type, hull_items[i].item);
+			}
+
+			const auto mesh_nodes_item = writer.add_array(t_top_node, top_bytes.data(), top_bytes.size());
+			const auto mesh_primitives_item = writer.add_array(t_primitive, all_primitives.data(), all_primitives.size());
+			const auto mesh_table_item = writer.add_array(t_uint16, all_table.data(), all_table.size());
+			const auto mesh_runs_item = writer.add_array(t_run, all_runs.data(), all_runs.size());
+
+			const auto mesh_packed_item = writer.add_array(t_uint32, mesh.packed_vertices.data(), mesh.packed_vertices.size());
+			const auto mesh_shared_item = writer.add_array(t_uint64, mesh.shared_vertices.data(), mesh.shared_vertices.size());
+
+			std::vector<tag_writer::reference> section_nodes_items;
+			section_nodes_items.reserve(outputs.size());
+			for (const auto& output : outputs)
+			{
+				section_nodes_items.push_back(writer.add_array(t_section_node, output.nodes.data(), output.nodes.size()));
+			}
+
+			std::vector<std::byte> section_bytes(writer.type_size(t_section) * outputs.size(), std::byte{0});
+			for (auto s = 0u; s < outputs.size(); s++)
+			{
+				const auto& output = outputs[s];
+				const auto base = s * writer.type_size(t_section);
+				const auto& domain_field = member(t_section, "domain");
+				for (auto axis = 0; axis < 3; axis++)
+				{
+					put(section_bytes, base + domain_field.offset + axis * 4, output.domain.min[axis]);
+					put(section_bytes, base + domain_field.offset + 16 + axis * 4, output.domain.max[axis]);
+				}
+
+				const auto& codec_field = member(t_section, "codecParms");
+				for (auto i = 0; i < 6; i++)
+				{
+					put(section_bytes, base + codec_field.offset + i * 4, output.codec[i]);
+				}
+
+				put(section_bytes, base + member(t_section, "firstPackedVertexIndex").offset, output.first_packed);
+				put(section_bytes, base + member(t_section, "firstSharedVertexIndex").offset, output.first_shared);
+				put(section_bytes, base + member(t_section, "firstPrimitiveIndex").offset, output.first_primitive);
+				put(section_bytes, base + member(t_section, "firstDataRunIndex").offset, output.first_run);
+				put(section_bytes, base + member(t_section, "numPackedVertices").offset, output.packed_count);
+				put(section_bytes, base + member(t_section, "numPrimitives").offset,
+					static_cast<std::uint8_t>(output.primitives.size()));
+				put(section_bytes, base + member(t_section, "numDataRuns").offset,
+					static_cast<std::uint8_t>(output.runs.size()));
+				put(section_bytes, base + member(t_section, "page").offset, output.page);
+				put(section_bytes, base + member(t_section, "leafIndex").offset, output.leaf_index);
+				put(section_bytes, base + member(t_section, "layerData").offset, output.layer_data);
+				put(section_bytes, base + member(t_section, "flags").offset, output.flags);
+			}
+
+			const auto sections_item = writer.add_array(t_section, section_bytes.data(), outputs.size());
+			for (auto s = 0u; s < outputs.size(); s++)
+			{
+				const auto& nodes_field = member(t_section, "nodes");
+				writer.set_pointer(sections_item.offset + s * writer.type_size(t_section) + nodes_field.offset,
+					nodes_field.type, section_nodes_items[s].item);
+			}
+
+			auto data_bytes = std::vector<std::byte>(writer.type_size(t_data), std::byte{0});
+			const auto& mesh_tree_field = member(t_data, "meshTree");
+			const auto mesh_tree_offset = mesh_tree_field.offset;
+			const auto mesh_tree_type = mesh_tree_field.type;
+			std::memcpy(data_bytes.data() + mesh_tree_offset + member(mesh_tree_type, "domain").offset, &mesh.domain,
+				sizeof(mesh.domain));
+			put(data_bytes, mesh_tree_offset + member(mesh_tree_type, "numPrimitiveKeys").offset,
+				static_cast<std::int32_t>(triangle_count + convex_count));
+			put(data_bytes, mesh_tree_offset + member(mesh_tree_type, "bitsPerKey").offset,
+				static_cast<std::int32_t>(bits_per_key));
+			put(data_bytes, mesh_tree_offset + member(mesh_tree_type, "maxKeyValue").offset, max_key);
+			put(data_bytes, mesh_tree_offset + member(mesh_tree_type, "primitiveStoresIsFlatConvex").offset,
+				static_cast<std::uint8_t>(0xFF));
+			put(data_bytes, member(t_data, "hasSimdTree").offset, static_cast<std::uint8_t>(1));
+			const auto& simd_tree_field = member(t_data, "simdTree");
+			put(data_bytes, simd_tree_field.offset + member(simd_tree_field.type, "isCompact").offset, static_cast<std::uint8_t>(mesh.simd_compact));
+
+			const auto simd_nodes_item = writer.add_array(t_simd_node, mesh.simd_nodes.data(), mesh.simd_nodes.size() / writer.type_size(t_simd_node));
+
+			const auto data_offset = writer.add_object(t_data, data_bytes.data());
+			const auto set_tree_array = [&](const std::string_view name, const tag_writer::reference& reference)
+			{
+				const auto& field = member(mesh_tree_type, name);
+				writer.set_pointer(data_offset.offset + mesh_tree_offset + field.offset, field.type, reference.item);
+			};
+			set_tree_array("nodes", mesh_nodes_item);
+			set_tree_array("sections", sections_item);
+			set_tree_array("primitives", mesh_primitives_item);
+			set_tree_array("sharedVerticesIndex", mesh_table_item);
+			set_tree_array("packedVertices", mesh_packed_item);
+			set_tree_array("sharedVertices", mesh_shared_item);
+			set_tree_array("primitiveDataRuns", mesh_runs_item);
+			const auto& simd_nodes_field = member(simd_tree_field.type, "nodes");
+			writer.set_pointer(data_offset.offset + simd_tree_field.offset + simd_nodes_field.offset,
+				simd_nodes_field.type, simd_nodes_item.item);
+
+			const auto interior_bits = max_key + 1;
+			std::vector<std::uint32_t> interior_words((interior_bits + 31) / 32, 0);
+			const auto interior_words_item = writer.add_array(t_uint32, interior_words.data(), interior_words.size());
+
+			auto shape_bytes = std::vector<std::byte>(writer.type_size(t_shape), std::byte{0});
+			put_member(shape_bytes, t_shape, "flags", static_cast<std::uint16_t>(0x0004));
+			put_member(shape_bytes, t_shape, "type", static_cast<std::uint8_t>(9));
+			put_member(shape_bytes, t_shape, "numShapeKeyBits", static_cast<std::uint8_t>(bits_per_key));
+			put_member(shape_bytes, t_shape, "dispatchType", static_cast<std::uint8_t>(3));
+			put_member(shape_bytes, t_shape, "convexRadius", 0.0f);
+			put_member(shape_bytes, t_shape, "userData", mesh.user_data);
+			put_member(shape_bytes, t_shape, "shapeTagCodecInfo", static_cast<std::uint32_t>(0xFFFFFFFF));
+
+			const auto& interior_field = member(t_shape, "triangleIsInterior");
+			const auto interior_type = interior_field.type;
+			const auto& storage_field = member(interior_type, "storage");
+			const auto storage_type = storage_field.type;
+			put(shape_bytes, interior_field.offset + storage_field.offset + member(storage_type, "numBits").offset,
+				static_cast<std::int32_t>(interior_bits));
+
+			const auto shape_offset = writer.add_object(t_shape, shape_bytes.data());
+			writer.set_pointer(shape_offset.offset + member(t_shape, "data").offset, member(t_shape, "data").type,
+				data_offset.item);
+			writer.set_pointer(shape_offset.offset + member(t_shape, "externShapes").offset,
+				member(t_shape, "externShapes").type, instances_item.item);
+			const auto& interior_words_field = member(storage_type, "words");
+			writer.set_pointer(shape_offset.offset + interior_field.offset + storage_field.offset
+				+ interior_words_field.offset, interior_words_field.type, interior_words_item.item);
+
+			return shape_offset;
+		}
+		struct simd_item
+		{
+			bounds box;
+			std::uint32_t key;
+		};
+
+		void put_simd_child(std::vector<std::byte>& nodes, const std::size_t base, const std::uint32_t slot, const bounds& box,
+			const std::uint32_t data)
+		{
+			for (auto axis = 0u; axis < 3; axis++)
+			{
+				put(nodes, base + axis * 32 + slot * 4, box.min[axis]);
+				put(nodes, base + axis * 32 + 16 + slot * 4, box.max[axis]);
+			}
+
+			put(nodes, base + 96 + slot * 4, data);
+		}
+
+		std::uint32_t add_simd_node(std::vector<std::byte>& nodes, const std::span<simd_item> items, const bool leaf)
+		{
+			const auto node_size = 128u;
+			const auto index = static_cast<std::uint32_t>(nodes.size() / node_size);
+			const auto base = static_cast<std::size_t>(index) * node_size;
+			nodes.resize(nodes.size() + node_size, std::byte{0});
+			put(nodes, base + 112, static_cast<std::uint8_t>(leaf));
+
+			if (leaf)
+			{
+				for (auto slot = 0u; slot < 4; slot++)
+				{
+					if (slot < items.size())
+					{
+						put_simd_child(nodes, base, slot, items[slot].box, items[slot].key);
+					}
+					else
+					{
+						put_simd_child(nodes, base, slot, empty_bounds(), 0xFFFFFFFF);
+					}
+				}
+
+				return index;
+			}
+
+			auto spread = empty_bounds();
+			for (const auto& item : items)
+			{
+				include(spread, center_of(item.box));
+			}
+
+			auto axis = 0;
+			for (auto a = 1; a < 3; a++)
+			{
+				if (spread.max[a] - spread.min[a] > spread.max[axis] - spread.min[axis])
+				{
+					axis = a;
+				}
+			}
+
+			std::ranges::stable_sort(items, [&](const simd_item& a, const simd_item& b)
+			{
+				return a.box.min[axis] + a.box.max[axis] < b.box.min[axis] + b.box.max[axis];
+			});
+
+			std::size_t child_size = 4;
+			while (child_size * 4 < items.size())
+			{
+				child_size *= 4;
+			}
+
+			for (auto slot = 0u; slot < 4; slot++)
+			{
+				const auto first = slot * child_size;
+				if (first >= items.size())
+				{
+					put_simd_child(nodes, base, slot, empty_bounds(), 0);
+					continue;
+				}
+
+				const auto child_items = items.subspan(first, std::min(child_size, items.size() - first));
+				auto box = empty_bounds();
+				for (const auto& item : child_items)
+				{
+					include(box, {item.box.min[0], item.box.min[1], item.box.min[2]});
+					include(box, {item.box.max[0], item.box.max[1], item.box.max[2]});
+				}
+
+				const auto child = add_simd_node(nodes, child_items, child_items.size() <= 4);
+				put_simd_child(nodes, base, slot, box, child);
+			}
+
+			return index;
+		}
+
+		std::vector<std::byte> make_simd_tree(std::vector<simd_item> items)
+		{
+			std::vector<std::byte> nodes(128, std::byte{0});
+			for (auto slot = 0u; slot < 4; slot++)
+			{
+				put_simd_child(nodes, 0, slot, empty_bounds(), 0);
+			}
+
+			if (!items.empty())
+			{
+				add_simd_node(nodes, items, false);
+			}
+
+			return nodes;
+		}
+
+		std::vector<vec3> read_instance_points(const iw7::hknpShapeInstance& instance)
+		{
+			const auto* shape = static_cast<const iw7::hknpConvexPolytopeShape*>(instance.shape);
+			std::vector<vec3> points;
+			for (auto i = 0u; i < shape->vertices.size; i++)
+			{
+				const auto& vertex = shape->vertices.data()[i];
+				points.push_back(to_vec3(&instance.rotation[0].x) * (vertex.x * instance.scale.x)
+					+ to_vec3(&instance.rotation[1].x) * (vertex.y * instance.scale.y)
+					+ to_vec3(&instance.rotation[2].x) * (vertex.z * instance.scale.z) + to_vec3(&instance.translation.x));
+			}
+
+			return points;
+		}
+
+		mesh_shape convert_compound_shape(const iw7::havok::binary::packfile_reader& reader, const iw7::hknpDynamicCompoundShape* shape)
+		{
+			mesh_shape mesh{};
+			mesh.simd_compact = true;
+			mesh.user_data = shape->userData;
+
+			auto domain = empty_bounds();
+			std::vector<bounds> hull_bounds;
+			for (auto i = 0; i < shape->instances.size; i++)
+			{
+				const auto& instance = shape->instances.data[i];
+				if (!instance.shape || reader.class_name(instance.shape) != "hknpConvexPolytopeShape")
+				{
+					throw std::runtime_error("havok: a map_ents shape instance is not a convex polytope");
+				}
+
+				auto hull = make_convex_hull(read_instance_points(instance));
+				auto box = empty_bounds();
+				for (const auto& vertex : hull.vertices)
+				{
+					include(box, vertex);
+					include(domain, vertex);
+				}
+
+				hull_bounds.push_back(box);
+				mesh.hulls.push_back(std::move(hull));
+				mesh.hull_tags.push_back(instance.shapeTag);
+			}
+
+			if (mesh.hulls.empty())
+			{
+				throw std::runtime_error("havok: a map_ents shape has no convex piece");
+			}
+
+			mesh.domain.min = {domain.min[0], domain.min[1], domain.min[2], 0.0f};
+			mesh.domain.max = {domain.max[0], domain.max[1], domain.max[2], 0.0f};
+
+			std::vector<simd_item> simd_items;
+			const auto max_float = std::numeric_limits<float>::max();
+			const auto infinity = std::numeric_limits<float>::infinity();
+			for (auto begin = 0u; begin < mesh.hulls.size(); begin += 64)
+			{
+				const auto end = std::min<std::size_t>(begin + 64, mesh.hulls.size());
+				output_section section{};
+				section.codec = {max_float, max_float, max_float, -infinity, -infinity, -infinity};
+				section.flags = 1;
+
+				std::vector<bounds> section_bounds;
+				std::vector<std::uint16_t> section_tags;
+				for (auto hull = begin; hull < end; hull++)
+				{
+					const auto primitive = static_cast<std::uint32_t>(hull - begin);
+					const auto local = static_cast<std::uint8_t>(primitive * 4);
+					section.table.push_back(146);
+					section.table.push_back(0);
+					section.table.push_back(static_cast<std::uint16_t>(hull));
+					section.table.push_back(static_cast<std::uint16_t>(hull >> 16));
+					section.primitives.push_back({local, local, 4, local});
+					section_bounds.push_back(hull_bounds[hull]);
+					section_tags.push_back(mesh.hull_tags[hull]);
+					simd_items.push_back({hull_bounds[hull], static_cast<std::uint32_t>(mesh.outputs.size() << 8 | primitive << 1)});
+				}
+
+				section.runs = make_runs(section_tags);
+				build_section_tree(section, section_bounds);
+				mesh.outputs.push_back(std::move(section));
+			}
+
+			mesh.simd_nodes = make_simd_tree(std::move(simd_items));
+			return mesh;
+		}
 	}
 
 	std::string convert_world_shape(const std::string_view packfile)
@@ -1662,104 +2247,12 @@ namespace zonetool::iw7::converter::iw8::havok
 				convex_total, externs, degenerate);
 		}
 
-		std::vector<std::array<std::uint8_t, 4>> all_primitives;
-		std::vector<std::uint16_t> all_table;
-		std::vector<iw7::hknpCompressedMeshShapeTreeDataRun> all_runs;
-		for (auto& output : outputs)
-		{
-			output.first_shared = static_cast<std::uint32_t>(all_table.size());
-			output.first_primitive = static_cast<std::uint32_t>(all_primitives.size());
-			output.first_run = static_cast<std::uint32_t>(all_runs.size());
-			all_table.insert(all_table.end(), output.table.begin(), output.table.end());
-			all_primitives.insert(all_primitives.end(), output.primitives.begin(), output.primitives.end());
-			all_runs.insert(all_runs.end(), output.runs.begin(), output.runs.end());
-		}
-
-		const auto section_bits = static_cast<std::uint32_t>(std::bit_width(std::max<std::size_t>(outputs.size(), 1) - 1));
-		const auto primitive_bits = 8u;
-		const auto bits_per_key = section_bits + primitive_bits;
-
-		std::uint32_t max_key = 0;
-		std::uint32_t triangle_count = 0;
-		std::uint32_t convex_count = 0;
-		for (auto s = 0u; s < outputs.size(); s++)
-		{
-			const auto& output = outputs[s];
-			for (auto p = 0u; p < output.primitives.size(); p++)
-			{
-				const auto key = (s << primitive_bits) | (p << 1);
-				max_key = std::max(max_key, key);
-				const auto& indices = output.primitives[p];
-				if (indices[1] == indices[3] && indices[2] == 4)
-				{
-					convex_count++;
-				}
-				else if (indices[2] == indices[3])
-				{
-					triangle_count++;
-				}
-				else
-				{
-					triangle_count += 2;
-				}
-			}
-		}
-
-		std::vector<vec3> section_centres;
-		std::vector<bounds> section_bounds;
-		std::vector<std::uint32_t> order(outputs.size());
-		std::iota(order.begin(), order.end(), 0u);
-		for (const auto& output : outputs)
-		{
-			section_centres.push_back(center_of(output.domain));
-			section_bounds.push_back(output.domain);
-		}
-
-		std::vector<top_node> top_nodes;
-		if (!order.empty())
-		{
-			split_top(section_centres, order, top_nodes);
-		}
-
-		std::vector<std::array<std::uint8_t, 5>> top_bytes(top_nodes.size());
-		std::vector<std::uint32_t> top_leaves(outputs.size(), 0);
-		if (!top_nodes.empty())
-		{
-			encode_top(top_nodes, section_bounds, 0, domain, top_bytes, top_leaves);
-		}
-
-		for (auto s = 0u; s < outputs.size(); s++)
-		{
-			if (top_leaves[s] > 0xFFFF)
-			{
-				throw std::runtime_error("havok: the section tree is too large");
-			}
-
-			outputs[s].leaf_index = static_cast<std::uint16_t>(top_leaves[s]);
-		}
+		const auto keys = count_mesh_keys(outputs);
 
 		tag_writer writer(schema());
 		const auto t_list = writer.type_id("HavokPhysicsShapeList");
 		const auto t_tag = writer.type_id("HavokPhysicsShapeList::ShapeTagData");
-		const auto t_shape = writer.type_id("hknpCompressedMeshShape");
-		const auto t_data = writer.type_id("hknpCompressedMeshShapeData");
-		const auto t_instance = writer.type_id("hknpShapeInstance");
-		const auto t_hull = writer.type_id("hknpConvexPolytopeShape");
-		const auto t_face = writer.type_id("hknpConvexPolytopeShape::Face");
-		const auto t_connectivity = writer.type_id("hknpConvexPolytopeShape::Connectivity");
-		const auto t_edge = writer.type_id("hknpConvexPolytopeShape::Connectivity::Edge");
-		const auto t_section = writer.type_id("hkcdStaticMeshTree::Section");
-		const auto t_primitive = writer.type_id("hkcdStaticMeshTree::Primitive");
-		const auto t_run = writer.type_id("hkcdDefaultStaticMeshTree::PrimitiveDataRun");
-		const auto t_top_node = writer.type_id("hkcdCompressedAabbCodecs::Aabb5BytesCodec");
-		const auto t_section_node = writer.type_id("hkcdCompressedAabbCodecs::Aabb4BytesCodec");
-		const auto t_simd_node = writer.type_id("hkcdSimdTree::Node");
-		const auto t_vector4f = writer.type_id("hkVector4f");
 		const auto t_vector4 = writer.type_id("hkVector4");
-		const auto t_uint8 = writer.type_id("hkUint8");
-		const auto t_uint16 = writer.type_id("hkUint16");
-		const auto t_uint32 = writer.type_id("unsigned int");
-		const auto t_uint64 = writer.type_id("unsigned long long");
 		const auto t_int = writer.type_id("int");
 		const auto t_char = writer.type_id("char");
 		const auto t_pointer = writer.type_id("T*");
@@ -1809,9 +2302,9 @@ namespace zonetool::iw7::converter::iw8::havok
 			? list->vertCounts.data[0]
 			: static_cast<std::int32_t>(tree.sharedVertices.size + tree.packedVertices.size);
 		const auto vert_counts_item = writer.add_array(t_int, &vertex_count, 1);
-		const auto tri_counts_item = writer.add_array(t_int, &triangle_count, 1);
+		const auto tri_counts_item = writer.add_array(t_int, &keys.triangle_count, 1);
 		const auto contents_item = writer.add_array(t_int, &world_contents, 1);
-		const auto convex_counts_item = writer.add_array(t_int, &convex_count, 1);
+		const auto convex_counts_item = writer.add_array(t_int, &keys.convex_count, 1);
 
 		std::vector<std::array<float, 4>> min_maxes;
 		if (list->minMaxes.size == 2)
@@ -1830,268 +2323,16 @@ namespace zonetool::iw7::converter::iw8::havok
 		const auto min_maxes_item = writer.add_array(t_vector4, min_maxes.data(), min_maxes.size());
 		const auto tag_item = writer.add_array(t_tag, tags.data(), tags.size());
 
-		std::vector<tag_writer::reference> hull_items;
-		hull_items.reserve(hulls.size());
-		for (auto i = 0u; i < hulls.size(); i++)
-		{
-			const auto& hull = hulls[i];
-
-			auto hull_bytes = std::vector<std::byte>(writer.type_size(t_hull), std::byte{0});
-			put_member(hull_bytes, t_hull, "flags", static_cast<std::uint16_t>(0x0943));
-			put_member(hull_bytes, t_hull, "type", static_cast<std::uint8_t>(1));
-			put_member(hull_bytes, t_hull, "numShapeKeyBits", static_cast<std::uint8_t>(0));
-			put_member(hull_bytes, t_hull, "dispatchType", static_cast<std::uint8_t>(2));
-			put_member(hull_bytes, t_hull, "convexRadius", 0.0f);
-			put_member(hull_bytes, t_hull, "userData", static_cast<std::uint64_t>(0));
-			put_member(hull_bytes, t_hull, "maxAllowedPenetration", static_cast<std::uint16_t>(0x3EC6));
-
-			const auto hull_offset = writer.add_object(t_hull, hull_bytes.data());
-
-			std::vector<std::array<float, 4>> vertices;
-			vertices.reserve(hull.vertices.size());
-			for (const auto& vertex : hull.vertices)
-			{
-				vertices.push_back({vertex.x, vertex.y, vertex.z, 0.5f});
-			}
-			const auto vertices_item = writer.add_array(t_vector4f, vertices.data(), vertices.size());
-
-			std::vector<std::array<float, 4>> planes;
-			planes.reserve(hull.faces.size());
-			std::vector<std::array<std::uint8_t, 4>> faces;
-			std::vector<std::uint8_t> indices;
-			std::uint16_t first_index = 0;
-			for (const auto& face : hull.faces)
-			{
-				planes.push_back({face.normal.x, face.normal.y, face.normal.z, face.distance});
-				faces.push_back({static_cast<std::uint8_t>(first_index), static_cast<std::uint8_t>(first_index >> 8),
-					static_cast<std::uint8_t>(face.vertices.size()), 127});
-				for (const auto vertex : face.vertices)
-				{
-					indices.push_back(static_cast<std::uint8_t>(vertex));
-				}
-				first_index = static_cast<std::uint16_t>(first_index + face.vertices.size());
-			}
-
-			const auto planes_item = writer.add_array(t_vector4, planes.data(), planes.size());
-			const auto faces_item = writer.add_array(t_face, faces.data(), faces.size());
-			const auto indices_item = writer.add_array(t_uint8, indices.data(), indices.size());
-
-			writer.set_pointer(hull_offset.offset + member(t_hull, "vertices").offset, member(t_hull, "vertices").type,
-				vertices_item.item);
-			writer.set_pointer(hull_offset.offset + member(t_hull, "planes").offset, member(t_hull, "planes").type,
-				planes_item.item);
-			writer.set_pointer(hull_offset.offset + member(t_hull, "faces").offset, member(t_hull, "faces").type,
-				faces_item.item);
-			writer.set_pointer(hull_offset.offset + member(t_hull, "indices").offset, member(t_hull, "indices").type,
-				indices_item.item);
-
-			std::vector<connectivity_edge> vertex_edges;
-			std::vector<connectivity_edge> face_links;
-			add_connectivity(hull, vertex_edges, face_links);
-			std::vector<std::array<std::uint8_t, 4>> vertex_edge_bytes;
-			std::vector<std::array<std::uint8_t, 4>> face_link_bytes;
-			for (const auto& edge : vertex_edges)
-			{
-				vertex_edge_bytes.push_back({static_cast<std::uint8_t>(edge.face), static_cast<std::uint8_t>(edge.face >> 8),
-					edge.index, 0});
-			}
-			for (const auto& edge : face_links)
-			{
-				face_link_bytes.push_back({static_cast<std::uint8_t>(edge.face), static_cast<std::uint8_t>(edge.face >> 8),
-					edge.index, 0});
-			}
-
-			const auto vertex_edges_item = writer.add_array(t_edge, vertex_edge_bytes.data(), vertex_edge_bytes.size());
-			const auto face_links_item = writer.add_array(t_edge, face_link_bytes.data(), face_link_bytes.size());
-
-			auto connectivity_bytes = std::vector<std::byte>(writer.type_size(t_connectivity), std::byte{0});
-			const auto connectivity_offset = writer.add_object(t_connectivity, connectivity_bytes.data());
-			const auto& connectivity_vertex_edges = member(t_connectivity, "vertexEdges");
-			const auto& connectivity_face_links = member(t_connectivity, "faceLinks");
-			writer.set_pointer(connectivity_offset.offset + connectivity_vertex_edges.offset,
-				connectivity_vertex_edges.type, vertex_edges_item.item);
-			writer.set_pointer(connectivity_offset.offset + connectivity_face_links.offset,
-				connectivity_face_links.type, face_links_item.item);
-
-			writer.set_pointer(hull_offset.offset + member(t_hull, "connectivity").offset,
-				member(t_hull, "connectivity").type, connectivity_offset.item);
-			hull_items.push_back(hull_offset);
-		}
-
-		std::vector<std::byte> instance_bytes(writer.type_size(t_instance) * hulls.size(), std::byte{0});
-		for (auto i = 0u; i < hulls.size(); i++)
-		{
-			const auto base = i * writer.type_size(t_instance);
-			const auto identity = 1.0f;
-			put(instance_bytes, base + 0, identity);
-			put(instance_bytes, base + 20, identity);
-			put(instance_bytes, base + 40, identity);
-			put(instance_bytes, base + 64, identity);
-			put(instance_bytes, base + 68, identity);
-			put(instance_bytes, base + 72, identity);
-			put(instance_bytes, base + 76, identity);
-			put(instance_bytes, base + member(t_instance, "shapeTag").offset, hull_tags[i]);
-			put(instance_bytes, base + member(t_instance, "destructionTag").offset, static_cast<std::uint16_t>(0xFFFF));
-			put(instance_bytes, base + member(t_instance, "isEmpty").offset, static_cast<std::uint8_t>(0));
-			put(instance_bytes, base + member(t_instance, "nextEmptyElement").offset, static_cast<std::uint32_t>(0));
-			put(instance_bytes, base + member(t_instance, "instanceId").offset, static_cast<std::uint16_t>(0));
-		}
-
-		const auto instances_item = writer.add_array(t_instance, instance_bytes.data(), hulls.size());
-		for (auto i = 0u; i < hulls.size(); i++)
-		{
-			const auto& shape_field = member(t_instance, "shape");
-			writer.set_pointer(instances_item.offset + i * writer.type_size(t_instance) + shape_field.offset,
-				shape_field.type, hull_items[i].item);
-		}
-
-		const auto mesh_nodes_item = writer.add_array(t_top_node, top_bytes.data(), top_bytes.size());
-		const auto mesh_primitives_item = writer.add_array(t_primitive, all_primitives.data(), all_primitives.size());
-		const auto mesh_table_item = writer.add_array(t_uint16, all_table.data(), all_table.size());
-		const auto mesh_runs_item = writer.add_array(t_run, all_runs.data(), all_runs.size());
-
-		std::vector<std::uint32_t> packed(tree.packedVertices.size);
-		for (auto i = 0; i < tree.packedVertices.size; i++)
-		{
-			packed[i] = tree.packedVertices.data[i];
-		}
-		const auto mesh_packed_item = writer.add_array(t_uint32, packed.data(), packed.size());
-
-		std::vector<std::uint64_t> shared(tree.sharedVertices.size);
-		for (auto i = 0; i < tree.sharedVertices.size; i++)
-		{
-			shared[i] = tree.sharedVertices.data[i];
-		}
-		const auto mesh_shared_item = writer.add_array(t_uint64, shared.data(), shared.size());
-
-		std::vector<tag_writer::reference> section_nodes_items;
-		section_nodes_items.reserve(outputs.size());
-		for (const auto& output : outputs)
-		{
-			section_nodes_items.push_back(writer.add_array(t_section_node, output.nodes.data(), output.nodes.size()));
-		}
-
-		std::vector<std::byte> section_bytes(writer.type_size(t_section) * outputs.size(), std::byte{0});
-		for (auto s = 0u; s < outputs.size(); s++)
-		{
-			const auto& output = outputs[s];
-			const auto base = s * writer.type_size(t_section);
-			const auto& domain_field = member(t_section, "domain");
-			for (auto axis = 0; axis < 3; axis++)
-			{
-				put(section_bytes, base + domain_field.offset + axis * 4, output.domain.min[axis]);
-				put(section_bytes, base + domain_field.offset + 16 + axis * 4, output.domain.max[axis]);
-			}
-
-			const auto& codec_field = member(t_section, "codecParms");
-			for (auto i = 0; i < 6; i++)
-			{
-				put(section_bytes, base + codec_field.offset + i * 4, output.codec[i]);
-			}
-
-			put(section_bytes, base + member(t_section, "firstPackedVertexIndex").offset, output.first_packed);
-			put(section_bytes, base + member(t_section, "firstSharedVertexIndex").offset, output.first_shared);
-			put(section_bytes, base + member(t_section, "firstPrimitiveIndex").offset, output.first_primitive);
-			put(section_bytes, base + member(t_section, "firstDataRunIndex").offset, output.first_run);
-			put(section_bytes, base + member(t_section, "numPackedVertices").offset, output.packed_count);
-			put(section_bytes, base + member(t_section, "numPrimitives").offset,
-				static_cast<std::uint8_t>(output.primitives.size()));
-			put(section_bytes, base + member(t_section, "numDataRuns").offset,
-				static_cast<std::uint8_t>(output.runs.size()));
-			put(section_bytes, base + member(t_section, "page").offset, output.page);
-			put(section_bytes, base + member(t_section, "leafIndex").offset, output.leaf_index);
-			put(section_bytes, base + member(t_section, "layerData").offset, output.layer_data);
-			put(section_bytes, base + member(t_section, "flags").offset, output.flags);
-		}
-
-		const auto sections_item = writer.add_array(t_section, section_bytes.data(), outputs.size());
-		for (auto s = 0u; s < outputs.size(); s++)
-		{
-			const auto& nodes_field = member(t_section, "nodes");
-			writer.set_pointer(sections_item.offset + s * writer.type_size(t_section) + nodes_field.offset,
-				nodes_field.type, section_nodes_items[s].item);
-		}
-
-		auto data_bytes = std::vector<std::byte>(writer.type_size(t_data), std::byte{0});
-		const auto& mesh_tree_field = member(t_data, "meshTree");
-		const auto mesh_tree_offset = mesh_tree_field.offset;
-		const auto mesh_tree_type = mesh_tree_field.type;
-		std::memcpy(data_bytes.data() + mesh_tree_offset + member(mesh_tree_type, "domain").offset, &tree.domain,
-			sizeof(tree.domain));
-		put(data_bytes, mesh_tree_offset + member(mesh_tree_type, "numPrimitiveKeys").offset,
-			static_cast<std::int32_t>(triangle_count + convex_count));
-		put(data_bytes, mesh_tree_offset + member(mesh_tree_type, "bitsPerKey").offset,
-			static_cast<std::int32_t>(bits_per_key));
-		put(data_bytes, mesh_tree_offset + member(mesh_tree_type, "maxKeyValue").offset, max_key);
-		put(data_bytes, mesh_tree_offset + member(mesh_tree_type, "primitiveStoresIsFlatConvex").offset,
-			static_cast<std::uint8_t>(0xFF));
-		put(data_bytes, member(t_data, "hasSimdTree").offset, static_cast<std::uint8_t>(1));
-
-		const auto simd_node_count = 3238u;
-		const auto simd_node_size = writer.type_size(t_simd_node);
-		std::vector<std::byte> simd_bytes(simd_node_size * simd_node_count, std::byte{0});
-		const auto max_float = std::numeric_limits<float>::max();
-		for (auto i = 0u; i < simd_node_count; i++)
-		{
-			const auto base = i * simd_node_size;
-			for (auto box = 0u; box < 3; box++)
-			{
-				for (auto f = 0u; f < 4; f++)
-				{
-					put(simd_bytes, base + box * 32 + f * 4, max_float);
-					put(simd_bytes, base + box * 32 + 16 + f * 4, -max_float);
-				}
-			}
-		}
-		const auto simd_nodes_item = writer.add_array(t_simd_node, simd_bytes.data(), simd_node_count);
-
-		const auto data_offset = writer.add_object(t_data, data_bytes.data());
-		const auto set_tree_array = [&](const std::string_view name, const tag_writer::reference& reference)
-		{
-			const auto& field = member(mesh_tree_type, name);
-			writer.set_pointer(data_offset.offset + mesh_tree_offset + field.offset, field.type, reference.item);
-		};
-		set_tree_array("nodes", mesh_nodes_item);
-		set_tree_array("sections", sections_item);
-		set_tree_array("primitives", mesh_primitives_item);
-		set_tree_array("sharedVerticesIndex", mesh_table_item);
-		set_tree_array("packedVertices", mesh_packed_item);
-		set_tree_array("sharedVertices", mesh_shared_item);
-		set_tree_array("primitiveDataRuns", mesh_runs_item);
-		const auto& simd_tree_field = member(t_data, "simdTree");
-		const auto& simd_nodes_field = member(simd_tree_field.type, "nodes");
-		writer.set_pointer(data_offset.offset + simd_tree_field.offset + simd_nodes_field.offset,
-			simd_nodes_field.type, simd_nodes_item.item);
-
-		const auto interior_bits = max_key + 1;
-		std::vector<std::uint32_t> interior_words((interior_bits + 31) / 32, 0);
-		const auto interior_words_item = writer.add_array(t_uint32, interior_words.data(), interior_words.size());
-
-		auto shape_bytes = std::vector<std::byte>(writer.type_size(t_shape), std::byte{0});
-		put_member(shape_bytes, t_shape, "flags", static_cast<std::uint16_t>(0x0004));
-		put_member(shape_bytes, t_shape, "type", static_cast<std::uint8_t>(9));
-		put_member(shape_bytes, t_shape, "numShapeKeyBits", static_cast<std::uint8_t>(bits_per_key));
-		put_member(shape_bytes, t_shape, "dispatchType", static_cast<std::uint8_t>(3));
-		put_member(shape_bytes, t_shape, "convexRadius", 0.0f);
-		put_member(shape_bytes, t_shape, "userData", shape->userData);
-		put_member(shape_bytes, t_shape, "shapeTagCodecInfo", static_cast<std::uint32_t>(0xFFFFFFFF));
-
-		const auto& interior_field = member(t_shape, "triangleIsInterior");
-		const auto interior_type = interior_field.type;
-		const auto& storage_field = member(interior_type, "storage");
-		const auto storage_type = storage_field.type;
-		put(shape_bytes, interior_field.offset + storage_field.offset + member(storage_type, "numBits").offset,
-			static_cast<std::int32_t>(interior_bits));
-
-		const auto shape_offset = writer.add_object(t_shape, shape_bytes.data());
-		writer.set_pointer(shape_offset.offset + member(t_shape, "data").offset, member(t_shape, "data").type,
-			data_offset.item);
-		writer.set_pointer(shape_offset.offset + member(t_shape, "externShapes").offset,
-			member(t_shape, "externShapes").type, instances_item.item);
-		writer.set_pointer(shapes_item.offset, t_pointer, shape_offset.item);
-		const auto& interior_words_field = member(storage_type, "words");
-		writer.set_pointer(shape_offset.offset + interior_field.offset + storage_field.offset
-			+ interior_words_field.offset, interior_words_field.type, interior_words_item.item);
+		mesh_shape mesh{};
+		mesh.domain = tree.domain;
+		mesh.outputs = std::move(outputs);
+		mesh.hulls = std::move(hulls);
+		mesh.hull_tags = std::move(hull_tags);
+		mesh.packed_vertices.assign(tree.packedVertices.data, tree.packedVertices.data + tree.packedVertices.size);
+		mesh.shared_vertices.assign(tree.sharedVertices.data, tree.sharedVertices.data + tree.sharedVertices.size);
+		mesh.simd_nodes = make_inactive_simd_nodes(writer, 3238);
+		mesh.user_data = shape->userData;
+		writer.set_pointer(shapes_item.offset, t_pointer, write_mesh_shape(writer, mesh, keys).item);
 
 		const auto set_list_array = [&](const std::string_view name, const tag_writer::reference& reference)
 		{
@@ -2114,13 +2355,15 @@ namespace zonetool::iw7::converter::iw8::havok
 	std::string convert_ents_shape_list(const std::string_view packfile)
 	{
 		const iw7::havok::binary::packfile_reader reader(packfile);
-		const auto tags = convert_shape_tags(read_shape_list(reader));
+		const auto* list = read_shape_list(reader);
+		const auto tags = convert_shape_tags(list);
+		const auto shape_count = static_cast<std::size_t>(std::max(list->shapes.size, 0));
 
 		tag_writer writer(schema());
 		const auto t_list = writer.type_id("HavokPhysicsShapeList");
 		const auto t_tag = writer.type_id("HavokPhysicsShapeList::ShapeTagData");
 		const auto t_int = writer.type_id("int");
-		const auto t_uint32 = writer.type_id("unsigned int");
+		const auto t_char = writer.type_id("char");
 		const auto t_pointer = writer.type_id("T*");
 		const auto t_string = writer.type_id("hkStringPtr");
 		const auto t_vector4 = writer.type_id("hkVector4");
@@ -2128,20 +2371,66 @@ namespace zonetool::iw7::converter::iw8::havok
 		auto list_bytes = std::vector<std::byte>(writer.type_size(t_list), std::byte{0});
 		const auto list_offset = writer.add_object(t_list, list_bytes.data());
 
-		std::uint64_t dummy64 = 0;
-		std::int32_t dummy32 = 0;
-		std::uint32_t dummy_uint = 0;
-		std::array<float, 4> dummy_vec{};
+		std::vector<mesh_shape> meshes;
+		std::vector<mesh_keys> keys;
+		std::vector<std::int32_t> shape_indices;
+		std::vector<std::int32_t> vert_counts;
+		std::vector<std::int32_t> convex_counts;
+		std::vector<std::uint32_t> contents;
+		std::vector<std::array<float, 4>> min_maxes;
+		for (auto i = 0u; i < shape_count; i++)
+		{
+			const auto* shape = list->shapes.data[i];
+			if (!shape || reader.class_name(shape) != "hknpDynamicCompoundShape")
+			{
+				throw std::runtime_error(std::format("havok: map_ents shape {} is not a dynamic compound shape", i));
+			}
 
-		const auto shapes_item = writer.add_array(t_pointer, &dummy64, 0);
-		const auto indices_item = writer.add_array(t_int, &dummy32, 0);
-		const auto names_item = writer.add_array(t_string, &dummy64, 0);
-		const auto vert_counts_item = writer.add_array(t_int, &dummy32, 0);
-		const auto tri_counts_item = writer.add_array(t_int, &dummy32, 0);
-		const auto min_maxes_item = writer.add_array(t_vector4, &dummy_vec, 0);
+			auto& mesh = meshes.emplace_back(convert_compound_shape(reader, static_cast<const iw7::hknpDynamicCompoundShape*>(shape)));
+			auto& mesh_keys = keys.emplace_back(count_mesh_keys(mesh.outputs));
+			mesh_keys.bits_per_key = std::max(std::bit_width(mesh_keys.max_key), 1);
+			shape_indices.push_back(static_cast<std::int32_t>(i));
+			convex_counts.push_back(static_cast<std::int32_t>(mesh.hulls.size()));
+
+			auto& vert_count = vert_counts.emplace_back(0);
+			auto& shape_contents = contents.emplace_back(0u);
+			for (auto hull = 0u; hull < mesh.hulls.size(); hull++)
+			{
+				vert_count += static_cast<std::int32_t>(mesh.hulls[hull].vertices.size());
+				if (mesh.hull_tags[hull] < tags.size())
+				{
+					shape_contents |= tags[mesh.hull_tags[hull]].collisionFilterInfo;
+				}
+			}
+
+			min_maxes.push_back({mesh.domain.min.x, mesh.domain.min.y, mesh.domain.min.z, 0.0f});
+			min_maxes.push_back({mesh.domain.max.x, mesh.domain.max.y, mesh.domain.max.z, 0.0f});
+		}
+
+		const std::vector<std::uint64_t> null_pointers(shape_count, 0);
+		const std::vector<std::int32_t> tri_counts(shape_count, 0);
+		const auto names_item = writer.add_array(t_string, null_pointers.data(), shape_count);
+		for (auto i = 0u; i < shape_count; i++)
+		{
+			const std::string name = i < static_cast<std::uint32_t>(list->shapeNames.size) && list->shapeNames.data[i]
+				? list->shapeNames.data[i]
+				: std::format("entity {}", i);
+			writer.set_pointer(names_item.offset + i * 8, t_string, writer.add_array(t_char, name.data(), name.size() + 1).item);
+		}
+
+		const auto shapes_item = writer.add_array(t_pointer, null_pointers.data(), shape_count);
+		const auto indices_item = writer.add_array(t_int, shape_indices.data(), shape_count);
+		const auto vert_counts_item = writer.add_array(t_int, vert_counts.data(), shape_count);
+		const auto tri_counts_item = writer.add_array(t_int, tri_counts.data(), shape_count);
+		const auto contents_item = writer.add_array(t_int, contents.data(), shape_count);
+		const auto convex_counts_item = writer.add_array(t_int, convex_counts.data(), shape_count);
+		const auto min_maxes_item = writer.add_array(t_vector4, min_maxes.data(), min_maxes.size());
 		const auto tag_item = writer.add_array(t_tag, tags.data(), tags.size());
-		const auto contents_item = writer.add_array(t_uint32, &dummy_uint, 0);
-		const auto convex_counts_item = writer.add_array(t_int, &dummy32, 0);
+
+		for (auto i = 0u; i < shape_count; i++)
+		{
+			writer.set_pointer(shapes_item.offset + i * 8, t_pointer, write_mesh_shape(writer, meshes[i], keys[i]).item);
+		}
 
 		const auto set_list_array = [&](const std::string_view name, const tag_writer::reference& reference)
 		{
@@ -2338,11 +2627,20 @@ namespace zonetool::iw7::converter::iw8::havok
 
 	namespace
 	{
-		bool is_dynamic_polytope_body(const iw7::havok::binary::packfile_reader& reader, const iw7::hknpPhysicsSystemData* system,
-			const iw7::hknpBodyCinfo& body)
+		float get_body_mass(const iw7::hknpPhysicsSystemData* system, const iw7::hknpBodyCinfo& body)
 		{
-			return body.shape && body.reservedMotionId < static_cast<unsigned int>(system->motionCinfos.size)
-				&& reader.class_name(body.shape) == "hknpConvexPolytopeShape";
+			if (body.reservedMotionId >= static_cast<unsigned int>(system->motionCinfos.size))
+			{
+				return 0.0f;
+			}
+
+			const auto& motion = system->motionCinfos.data[body.reservedMotionId];
+			return motion.inverseMass > 0.0f ? 1.0f / motion.inverseMass : body.mass;
+		}
+
+		bool is_polytope_body(const iw7::havok::binary::packfile_reader& reader, const iw7::hknpBodyCinfo& body)
+		{
+			return body.shape && reader.class_name(body.shape) == "hknpConvexPolytopeShape";
 		}
 	}
 
@@ -2363,10 +2661,22 @@ namespace zonetool::iw7::converter::iw8::havok
 
 		const auto body_count = static_cast<std::size_t>(system->bodyCinfos.size);
 		const std::span bodies(system->bodyCinfos.data, body_count);
-		if (!std::ranges::all_of(bodies, [&](const iw7::hknpBodyCinfo& body) { return is_dynamic_polytope_body(reader, system, body); }))
+		if (!std::ranges::all_of(bodies, [&](const iw7::hknpBodyCinfo& body) { return is_polytope_body(reader, body); }))
 		{
 			return {};
 		}
+
+		const auto dynamic_count = static_cast<std::size_t>(std::ranges::count_if(bodies, [&](const iw7::hknpBodyCinfo& body)
+		{
+			return body.reservedMotionId < static_cast<unsigned int>(system->motionCinfos.size);
+		}));
+		if (dynamic_count && dynamic_count != body_count)
+		{
+			return {};
+		}
+
+		physics_asset result{};
+		result.dynamic = dynamic_count > 0;
 
 		if (system->constraintCinfos.size > 0)
 		{
@@ -2405,7 +2715,8 @@ namespace zonetool::iw7::converter::iw8::havok
 		const auto t_string = writer.type_id("hkStringPtr");
 
 		std::vector<std::byte> asset_bytes(writer.type_size(t_asset), std::byte{0});
-		put_field(asset_bytes, 0, t_asset, "useCategory", zonetool::iw8::PhysicsAssetUseCategory_Dynent);
+		put_field(asset_bytes, 0, t_asset, "useCategory",
+			result.dynamic ? zonetool::iw8::PhysicsAssetUseCategory_Dynent : zonetool::iw8::PhysicsAssetUseCategory_Custom);
 		const auto asset_offset = writer.add_object(t_asset, asset_bytes.data());
 
 		const auto set_field = [&](const tag_writer::reference& object, const std::size_t base, const std::uint32_t type,
@@ -2443,8 +2754,9 @@ namespace zonetool::iw7::converter::iw8::havok
 		set_field(asset_offset, 0, t_asset, "bodyVFXAssetNames", writer.add_array(t_string, null_names.data(), body_count).item);
 		set_int_array("bodyServerUsage", std::vector<std::int32_t>(body_count, 0));
 		set_int_array("bodyDrivers", std::vector<std::int32_t>(body_count, 0));
-		set_int_array("simulationCategories",
-			std::vector<std::int32_t>(body_count, zonetool::iw8::PhysicsAssetSimulationCategory_DynamicEntity));
+		set_int_array("simulationCategories", std::vector<std::int32_t>(body_count, result.dynamic
+			? zonetool::iw8::PhysicsAssetSimulationCategory_DynamicEntity
+			: zonetool::iw8::PhysicsAssetSimulationCategory_Custom));
 
 		std::vector<std::byte> system_bytes(writer.type_size(t_system), std::byte{0});
 		put_field(system_bytes, 0, t_system, "microStepMultiplier", static_cast<std::uint8_t>(1));
@@ -2452,15 +2764,18 @@ namespace zonetool::iw7::converter::iw8::havok
 		set_field(asset_offset, 0, t_asset, "physicsSystemData", system_offset.item);
 		set_field(system_offset, 0, t_system, "name", add_string(system->name ? system->name : "Default Physics System Data"));
 
-		physics_asset result{};
 		const auto body_size = writer.type_size(t_body);
 		std::vector<std::byte> body_bytes(body_size * body_count, std::byte{0});
 		for (auto i = 0u; i < body_count; i++)
 		{
 			const auto& body = bodies[i];
-			const auto& motion = system->motionCinfos.data[body.reservedMotionId];
 			const auto base = i * body_size;
-			const auto contents = convert_contents(body.collisionFilterInfo);
+			auto contents = convert_contents(body.collisionFilterInfo);
+			if (result.dynamic && contents & zonetool::iw8::PHYSICS_CONTENTS_AINOSIGHT)
+			{
+				contents |= zonetool::iw8::PHYSICS_CONTENTS_PLAYERNOSIGHT; // stock dynamic bodies have both
+			}
+
 			result.body_contents.push_back(contents);
 
 			put_field(body_bytes, base, t_body, "flags", static_cast<std::int32_t>(body.flags));
@@ -2468,12 +2783,12 @@ namespace zonetool::iw7::converter::iw8::havok
 			put_field(body_bytes, base, t_body, "materialId", body.materialId);
 			put_field(body_bytes, base, t_body, "qualityId", body.qualityId);
 			put_field(body_bytes, base, t_body, "userData", body.userData);
-			put_field(body_bytes, base, t_body, "motionType", static_cast<std::uint8_t>(2)); // dynamic
+			put_field(body_bytes, base, t_body, "motionType", static_cast<std::uint8_t>(result.dynamic ? 2 : 1));
 			put_field(body_bytes, base, t_body, "position", body.position);
 			put_field(body_bytes, base, t_body, "orientation", body.orientation);
 			put_field(body_bytes, base, t_body, "linearVelocity", body.linearVelocity);
 			put_field(body_bytes, base, t_body, "angularVelocity", body.angularVelocity);
-			put_field(body_bytes, base, t_body, "mass", motion.inverseMass > 0.0f ? 1.0f / motion.inverseMass : body.mass);
+			put_field(body_bytes, base, t_body, "mass", get_body_mass(system, body));
 			put_field(body_bytes, base, t_body, "motionPropertiesId", body.motionPropertiesId);
 			put_field(body_bytes, base, t_body, "desiredBodyId", static_cast<std::uint32_t>(0x00FFFFFF));
 			put_field(body_bytes, base, t_body, "motionId", static_cast<std::uint32_t>(0x7FFFFFFF));
@@ -2493,7 +2808,7 @@ namespace zonetool::iw7::converter::iw8::havok
 			set_field(bodies_offset, base, t_body, "name", add_string(body.name ? body.name : "tag_origin"));
 
 			std::vector<std::byte> hull_bytes(writer.type_size(t_hull), std::byte{0});
-			put_field(hull_bytes, 0, t_hull, "flags", static_cast<std::uint16_t>(0x0943));
+			put_field(hull_bytes, 0, t_hull, "flags", static_cast<std::uint16_t>(result.dynamic ? 0x0943 : 0x01C3));
 			put_field(hull_bytes, 0, t_hull, "type", static_cast<std::uint8_t>(1));
 			put_field(hull_bytes, 0, t_hull, "numShapeKeyBits", shape->numShapeKeyBits);
 			put_field(hull_bytes, 0, t_hull, "dispatchType", static_cast<std::uint8_t>(2));

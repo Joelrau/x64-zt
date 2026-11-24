@@ -14,6 +14,7 @@ namespace zonetool::iw7::converter::iw8::havok
 	{
 		std::string havok_data;
 		std::vector<std::uint32_t> body_contents;
+		bool dynamic;
 	};
 
 	std::string convert_world_shape(std::string_view packfile);

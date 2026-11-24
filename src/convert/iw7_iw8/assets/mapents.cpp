@@ -15,6 +15,7 @@
 #include <iw8/assets/edgelist.hpp>
 #include <iw8/assets/mapents.hpp>
 #include <iw8/assets/scriptfile.hpp>
+#include <iw7/common/havok_builder.hpp>
 
 #include <utils/compression.hpp>
 #include <utils/string.hpp>
@@ -776,8 +777,30 @@ namespace zonetool::iw7::converter::iw8::mapents
 			ZONETOOL_INFO("Converted %zu ladders of \"%s\" to edges", ladders.size(), asset->name);
 		}
 
+		const PhysicsAsset* make_brush_model_physics_asset(const char* name, utils::memory::allocator& allocator)
+		{
+			const auto data = zonetool::iw7::havok::builder::build_physics_asset({});
+			const auto physics = allocator.allocate<PhysicsAsset>();
+			physics->name = name;
+			physics->havokDataSize = static_cast<unsigned int>(data.size());
+			physics->havokData = allocator.allocate_array<char>(data.size());
+			std::memcpy(physics->havokData, data.data(), data.size());
+			return physics;
+		}
+
+		target::PhysicsAsset* convert_brush_model_physics_asset(const PhysicsAsset* physics, utils::memory::allocator& allocator)
+		{
+			if (physics && !physics->havokData)
+			{
+				physics = make_brush_model_physics_asset(physics->name, allocator); // asset is not in the loaded zones
+			}
+
+			return xmodel::dump_physics_asset(physics, allocator);
+		}
+
 		void convert_submodels(const MapEnts* asset, target::MapEnts* converted, utils::memory::allocator& allocator)
 		{
+			std::unordered_map<const PhysicsAsset*, target::PhysicsAsset*> physics_assets;
 			converted->numSubModels = asset->numSubModels;
 			converted->cmodels = allocator.allocate_array<target::cmodel_t>(asset->numSubModels);
 			for (auto i = 0u; i < asset->numSubModels; i++)
@@ -786,7 +809,13 @@ namespace zonetool::iw7::converter::iw8::mapents
 				auto& cmodel = converted->cmodels[i];
 				cmodel.bounds = std::bit_cast<target::Bounds>(model.bounds);
 				cmodel.radius = model.radius;
-				cmodel.physicsShapeOverrideIdx = 0xFFFF; // map_ents shapes are not converted
+				cmodel.physicsShapeOverrideIdx = model.physicsShapeOverrideIdx;
+				if (model.physicsAsset && !physics_assets.contains(model.physicsAsset))
+				{
+					physics_assets[model.physicsAsset] = convert_brush_model_physics_asset(model.physicsAsset, allocator);
+				}
+
+				cmodel.physicsAsset = model.physicsAsset ? physics_assets[model.physicsAsset] : nullptr;
 				cmodel.navObstacleIdx = model.navObstacleIdx;
 				cmodel.edgeFirstIndex = model.edgeFirstIndex;
 			}
@@ -812,7 +841,7 @@ namespace zonetool::iw7::converter::iw8::mapents
 			result.windingCount = model.windingCount;
 			result.firstWinding = model.firstWinding;
 			result.flags = model.flags;
-			result.physicsShapeOverrideIdx = 0xFFFF; // map_ents shapes are not converted
+			result.physicsShapeOverrideIdx = 0xFFFF; // TODO: trigger shapes are not referenced
 		}
 
 		converted.hullCount = source.hullCount;
@@ -901,7 +930,7 @@ namespace zonetool::iw7::converter::iw8::mapents
 			}
 		}
 
-		convert_submodels(asset, converted, allocator); // TODO: havok ents shapes are not converted
+		convert_submodels(asset, converted, allocator);
 		convert_ladders(asset, converted, allocator);
 
 		for (auto& population : converted->dynEntSpatialPopulation)

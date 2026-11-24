@@ -276,6 +276,15 @@ namespace zonetool::iw7::converter::iw8::techset
 					world ? 0x18100u : 0u, static_cast<unsigned char>(brush ? target::MTL_CONSTANT_LAYOUT_BMODEL_AUX_QUERY : world ? 34 : 1),
 					{(alpha_test ? 0x2000E00 : 0x0E00) | cull_back, 0xFFFFFF0F00000000}, alpha_test ? alpha_transform : transform, transform_decls,
 				});
+
+				if (brush)
+				{
+					auto moving = definitions.back(); // TODO: velocity output
+					moving.type = target::TECHNIQUE_DEPTH_PREPASS_VELRGD;
+					moving.name = "TECHNIQUE_DEPTH_PREPASS_VELRGD";
+					moving.precompiled_index = target::MTL_CONSTANT_LAYOUT_BMODEL_VEL;
+					definitions.push_back(std::move(moving));
+				}
 			}
 
 			if (variant.casts_shadow && variant.blend == GENERATED_BLEND_OPAQUE)
@@ -480,7 +489,15 @@ namespace zonetool::iw7::converter::iw8::techset
 
 	target::MaterialGeometryType get_material_type(const generated_techset techset)
 	{
-		return techset == GENERATED_TECHSET_STATIC_MODEL ? target::MTL_TYPE_STATIC_MODEL_SELFVIS : target::MTL_TYPE_WORLD;
+		switch (techset)
+		{
+		case GENERATED_TECHSET_STATIC_MODEL:
+			return target::MTL_TYPE_STATIC_MODEL_SELFVIS;
+		case GENERATED_TECHSET_BRUSH_MODEL:
+			return target::MTL_TYPE_BMODEL;
+		default:
+			return target::MTL_TYPE_WORLD;
+		}
 	}
 
 	void dump_techset(const generated_variant& variant)

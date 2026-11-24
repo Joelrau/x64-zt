@@ -4185,6 +4185,44 @@ namespace zonetool::iw7
 	assert_offsetof(hknpCompressedMeshShape, edgeWeldingMap, 48);
 	assert_offsetof(hknpCompressedMeshShape, data, 96);
 
+	struct hknpShapeInstance
+	{
+		hkVector4 rotation[3];
+		hkVector4 translation;
+		hkVector4 scale;
+		void* shape;
+		unsigned short shapeTag;
+		unsigned short destructionTag;
+		char padding[36];
+	}; assert_sizeof(hknpShapeInstance, 0x80);
+	assert_offsetof(hknpShapeInstance, shape, 0x50);
+
+	struct hknpDynamicCompoundShape
+	{
+		void* vtable;
+		unsigned int memSizeAndRefCount;
+		char __pad0[4];
+		hknpShapeFlags flags;
+		unsigned char numShapeKeyBits;
+		hknpShapeDispatchType dispatchType;
+		float convexRadius;
+		unsigned long long userData;
+		void* properties;
+		char __pad1[8];
+		hknpSparseCompactMap edgeWeldingMap;
+		unsigned int shapeTagCodecInfo;
+		hkArray<hknpShapeInstance> instances;
+		int firstFreeInstance;
+		char __pad2[12];
+		hkAabb aabb;
+		bool isMutable;
+		char __pad3[31];
+		void* boundingVolumeData;
+	}; assert_sizeof(hknpDynamicCompoundShape, 0xC8);
+	assert_offsetof(hknpDynamicCompoundShape, instances, 0x60);
+	assert_offsetof(hknpDynamicCompoundShape, aabb, 0x80);
+	assert_offsetof(hknpDynamicCompoundShape, boundingVolumeData, 0xC0);
+
 	struct HavokPhysicsShapeTagData
 	{
 		unsigned int collisionFilterInfo;

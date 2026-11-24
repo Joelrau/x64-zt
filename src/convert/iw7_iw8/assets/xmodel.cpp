@@ -138,14 +138,16 @@ namespace zonetool::iw7::converter::iw8::xmodel
 			result->havokDataSize = static_cast<unsigned int>(converted->havok_data.size());
 			result->havokData = allocator.allocate_array<char>(converted->havok_data.size());
 			std::memcpy(result->havokData, converted->havok_data.data(), converted->havok_data.size());
-			result->useCategory = target::PhysicsAssetUseCategory_Dynent;
+			result->useCategory = converted->dynamic ? target::PhysicsAssetUseCategory_Dynent : target::PhysicsAssetUseCategory_Custom;
 			result->numRigidBodies = static_cast<int>(body_count);
 			result->numConstraints = 0;
 			result->simulationCategories = allocator.allocate_array<target::PhysicsAssetSimulationCategory>(body_count);
 			result->bodyContents = allocator.allocate_array<unsigned int>(body_count);
 			for (auto i = 0u; i < body_count; i++)
 			{
-				result->simulationCategories[i] = target::PhysicsAssetSimulationCategory_DynamicEntity;
+				result->simulationCategories[i] = converted->dynamic
+					? target::PhysicsAssetSimulationCategory_DynamicEntity
+					: target::PhysicsAssetSimulationCategory_Custom;
 				result->bodyContents[i] = converted->body_contents[i];
 			}
 
@@ -154,7 +156,7 @@ namespace zonetool::iw7::converter::iw8::xmodel
 			result->sfxEventAssets = allocator.allocate_array<target::PhysicsSFXEventAsset*>(body_count);
 			result->vfxEventAssets = allocator.allocate_array<target::PhysicsVFXEventAsset*>(body_count);
 			std::memcpy(&result->usageCounter, &asset->physicsUsageCounter, sizeof(result->usageCounter));
-			result->containsDynamicBodies = true;
+			result->containsDynamicBodies = converted->dynamic;
 			return result;
 		}
 
@@ -214,7 +216,19 @@ namespace zonetool::iw7::converter::iw8::xmodel
 		}
 
 		const auto converted = havok::convert_physics_asset({physics->havokData, physics->havokDataSize}, physics->name);
-		return converted ? converted->body_contents.size() : 0;
+		return converted && converted->dynamic ? converted->body_contents.size() : 0;
+	}
+
+	target::PhysicsAsset* dump_physics_asset(const PhysicsAsset* asset, utils::memory::allocator& allocator)
+	{
+		const auto result = convert_physics_asset(asset, allocator);
+		if (result && mark_dumped(ASSET_TYPE_PHYSICSASSET, result->name))
+		{
+			zonetool::iw8::physics_asset::dump(result);
+			add_csv_row("physicsasset", result->name);
+		}
+
+		return result;
 	}
 
 	void dump(XModel* asset)
@@ -226,12 +240,7 @@ namespace zonetool::iw7::converter::iw8::xmodel
 
 		utils::memory::allocator allocator;
 		const auto result = convert(asset, allocator);
-		result->physicsAsset = convert_physics_asset(asset->physicsAsset, allocator);
-		if (result->physicsAsset && mark_dumped(ASSET_TYPE_PHYSICSASSET, result->physicsAsset->name))
-		{
-			zonetool::iw8::physics_asset::dump(result->physicsAsset);
-			add_csv_row("physicsasset", result->physicsAsset->name);
-		}
+		result->physicsAsset = dump_physics_asset(asset->physicsAsset, allocator);
 
 		zonetool::iw8::xmodel::dump(result);
 		add_csv_row("xmodel", asset->name);
