@@ -20,7 +20,7 @@ namespace zonetool::iw5::converter::iw7
 
 			constexpr target::SurfaceFlags surface_types[31] =
 			{
-				target::SURFACE_FLAG_NONE,
+				target::SURFACE_FLAG_DEFAULT, // 0x1406FA2F0
 				target::SURFACE_FLAG_BARK,
 				target::SURFACE_FLAG_BRICK,
 				target::SURFACE_FLAG_CARPET_SOLID,
