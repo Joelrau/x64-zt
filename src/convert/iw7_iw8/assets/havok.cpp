@@ -854,6 +854,69 @@ namespace zonetool::iw7::converter::iw8::havok
 			encode_top(nodes, section_bounds, node + 2 * nodes[node].value, decoded, out, leaves);
 		}
 
+		void encode_section(const std::vector<top_node>& nodes, const std::vector<bounds>& primitive_bounds,
+			const std::uint32_t node, const bounds& parent, std::vector<std::array<std::uint8_t, 4>>& out)
+		{
+			auto decoded = parent;
+			const auto xyz = encode_child(parent, subtree_bounds(nodes, primitive_bounds, node), decoded);
+			const auto data = nodes[node].leaf ? nodes[node].value << 1 : nodes[node].value << 1 | 1;
+			out[node] = {xyz[0], xyz[1], xyz[2], static_cast<std::uint8_t>(data)};
+			if (nodes[node].leaf)
+			{
+				return;
+			}
+
+			encode_section(nodes, primitive_bounds, node + 1, decoded, out);
+			encode_section(nodes, primitive_bounds, node + 2 * nodes[node].value, decoded, out);
+		}
+
+		void build_section_tree(output_section& output, const std::vector<bounds>& primitive_bounds)
+		{
+			if (primitive_bounds.empty() || primitive_bounds.size() > 128)
+			{
+				throw std::runtime_error("havok: a section tree needs 1 to 128 primitives");
+			}
+
+			output.domain = empty_bounds();
+			std::vector<vec3> centres;
+			for (const auto& box : primitive_bounds)
+			{
+				include(output.domain, {box.min[0], box.min[1], box.min[2]});
+				include(output.domain, {box.max[0], box.max[1], box.max[2]});
+				centres.push_back(center_of(box));
+			}
+
+			std::vector<std::uint32_t> items(primitive_bounds.size());
+			std::iota(items.begin(), items.end(), 0u);
+			std::vector<top_node> nodes;
+			split_top(centres, items, nodes);
+
+			output.nodes.resize(nodes.size());
+			encode_section(nodes, primitive_bounds, 0, output.domain, output.nodes);
+		}
+
+		std::vector<iw7::hknpCompressedMeshShapeTreeDataRun> make_runs(const std::vector<std::uint16_t>& tags)
+		{
+			std::vector<iw7::hknpCompressedMeshShapeTreeDataRun> runs;
+			for (auto p = 0u; p < tags.size(); p++)
+			{
+				if (tags[p] == 0xFFFF)
+				{
+					continue;
+				}
+
+				if (!runs.empty() && runs.back().value == tags[p] && runs.back().index + runs.back().count == static_cast<int>(p))
+				{
+					runs.back().count++;
+					continue;
+				}
+
+				runs.push_back({tags[p], static_cast<unsigned char>(p), 1});
+			}
+
+			return runs;
+		}
+
 		std::uint32_t convert_contents(const std::uint32_t contents)
 		{
 			static constexpr std::uint32_t bits[] =
@@ -1076,6 +1139,39 @@ namespace zonetool::iw7::converter::iw8::havok
 			}
 		}
 
+		const auto primitive_bounds = [&](const source_section& source, const std::uint32_t p) -> bounds
+		{
+			auto box = empty_bounds();
+			if (source.convex_of_primitive[p] >= 0)
+			{
+				for (const auto& vertex : hulls[source.convex_of_primitive[p]].vertices)
+				{
+					include(box, vertex);
+				}
+
+				return box;
+			}
+
+			for (const auto index : source.primitives[p])
+			{
+				if (index < source.packed_count)
+				{
+					const auto word = tree.packedVertices.data[source.first_packed + index];
+					include(box, {
+						source.codec[0] + static_cast<float>(word & 0x7FF) * source.codec[3],
+						source.codec[1] + static_cast<float>(word >> 11 & 0x7FF) * source.codec[4],
+						source.codec[2] + static_cast<float>(word >> 22) * source.codec[5],
+					});
+					continue;
+				}
+
+				const auto value = tree.sharedVerticesIndex.data[source.first_shared + index - source.packed_count];
+				include(box, shared_vertex(static_cast<std::uint32_t>(source.page) << 16 | value));
+			}
+
+			return box;
+		};
+
 		std::vector<output_section> outputs;
 		std::size_t convex_total = 0;
 		for (auto& source : sources)
@@ -1183,44 +1279,49 @@ namespace zonetool::iw7::converter::iw8::havok
 
 			output_section regular{};
 			regular.codec = source.codec;
-			regular.domain = source.domain;
 			regular.leaf_index = source.leaf_index;
 			regular.page = source.page;
 			regular.layer_data = source.layer_data;
 			regular.flags = source.flags;
 			regular.first_packed = source.first_packed;
 			regular.packed_count = source.packed_count;
-			regular.nodes = source.nodes;
-			regular.primitives = primitives;
-			regular.runs = source.runs;
 			regular.table = regular_values;
-			while (static_cast<std::size_t>(regular.packed_count) + regular.table.size() < 2)
+
+			std::vector<bounds> regular_bounds;
+			std::vector<std::uint16_t> regular_tags;
+			for (auto p = 0u; p < primitives.size(); p++)
 			{
-				regular.table.push_back(0);
+				if (source.convex_of_primitive[p] >= 0)
+				{
+					continue;
+				}
+
+				regular.primitives.push_back(primitives[p]);
+				regular_bounds.push_back(primitive_bounds(source, p));
+				regular_tags.push_back(source.tags[p]);
 			}
 
-			for (const auto p : convex_local)
+			if (!regular.primitives.empty())
 			{
-				regular.primitives[p] = {0, 0, 1, 1};
+				regular.runs = make_runs(regular_tags);
+				build_section_tree(regular, regular_bounds);
+				outputs.push_back(std::move(regular));
 			}
-			outputs.push_back(std::move(regular));
 
 			for (auto begin = 0u; begin < convex_local.size(); begin += 64)
 			{
 				const auto end = std::min<std::size_t>(begin + 64, convex_local.size());
 				output_section convex{};
 				convex.codec = source.codec;
-				convex.domain = source.domain;
 				convex.leaf_index = source.leaf_index;
 				convex.page = source.page;
 				convex.layer_data = source.layer_data;
 				convex.flags = source.flags;
 				convex.first_packed = 0;
 				convex.packed_count = 0;
-				convex.nodes = source.nodes;
-				convex.primitives.assign(source.primitives.size(), {0, 0, 1, 1});
-				convex.runs = source.runs;
 
+				std::vector<bounds> convex_bounds;
+				std::vector<std::uint16_t> convex_tags;
 				for (auto k = begin; k < end; k++)
 				{
 					const auto p = convex_local[k];
@@ -1230,10 +1331,14 @@ namespace zonetool::iw7::converter::iw8::havok
 					convex.table.push_back(0);
 					convex.table.push_back(static_cast<std::uint16_t>(hull));
 					convex.table.push_back(static_cast<std::uint16_t>(hull >> 16));
-					convex.primitives[p] = {static_cast<std::uint8_t>(local), static_cast<std::uint8_t>(local), 4,
-						static_cast<std::uint8_t>(local)};
+					convex.primitives.push_back({static_cast<std::uint8_t>(local), static_cast<std::uint8_t>(local), 4,
+						static_cast<std::uint8_t>(local)});
+					convex_bounds.push_back(primitive_bounds(source, p));
+					convex_tags.push_back(source.tags[p]);
 				}
 
+				convex.runs = make_runs(convex_tags);
+				build_section_tree(convex, convex_bounds);
 				outputs.push_back(std::move(convex));
 			}
 		}
