@@ -74,20 +74,66 @@ namespace zonetool::iw7::converter::iw8::mapents
 )", map);
 		}
 
-		std::string make_map_script(const std::string& map, const std::string& source) // TODO: convert the precache, art and fx scripts and the render dvars
+		const std::regex& load_fx_pattern()
 		{
-			const std::regex map_script_call(std::format(R"re(\s*scripts\\mp\\maps\\{}\\.*::main\(\s*\);\s*)re", map));
-			static const std::regex dvar_line(R"re(\s*setdvar\(.*\);\s*)re");
+			static const std::regex pattern(R"re(level\._effect\[\s*"([^"]+)"\s*\]\s*=\s*loadfx\s*\(\s*"([^"]+?)(?:\.vfx)?"\s*\))re", std::regex::icase);
+			return pattern;
+		}
 
-			std::string script;
-			for (auto line : utils::string::split(source, '\n'))
+		const std::regex& script_oneshot_pattern()
+		{
+			static const std::regex pattern(R"re(\s*(\w+)\s*=\s*scripts\\engine\\utility::createoneshoteffect\(\s*"([^"]+)"\s*\);\s*)re", std::regex::icase);
+			return pattern;
+		}
+
+		const std::regex& script_createfx_field_pattern()
+		{
+			static const std::regex pattern(R"re(\s*(\w+)\.v\[\s*"(\w+)"\s*\]\s*=\s*(.+);\s*)re");
+			return pattern;
+		}
+
+		std::vector<std::string> split_lines(const std::string& source)
+		{
+			auto lines = utils::string::split(source, '\n');
+			for (auto& line : lines)
 			{
 				if (line.ends_with('\r'))
 				{
 					line.pop_back();
 				}
+			}
 
-				if (!std::regex_match(line, map_script_call) && !std::regex_match(line, dvar_line))
+			return lines;
+		}
+
+		bool is_script_effect_line(const std::string& line, std::unordered_set<std::string>& createfx_variables)
+		{
+			std::smatch match;
+			if (std::regex_search(line, load_fx_pattern()))
+			{
+				return true;
+			}
+
+			if (std::regex_match(line, match, script_oneshot_pattern()))
+			{
+				createfx_variables.emplace(match[1].str());
+				return true;
+			}
+
+			return std::regex_match(line, match, script_createfx_field_pattern()) && createfx_variables.contains(match[1].str());
+		}
+
+		std::string make_map_script(const std::string& map, const std::string& source, const bool remove_effects) // TODO: convert the precache and art scripts and the render dvars
+		{
+			const std::regex map_script_call(std::format(R"re(\s*scripts\\mp\\maps\\{}\\.*::main\(\s*\);\s*)re", map));
+			static const std::regex dvar_line(R"re(\s*setdvar\(.*\);\s*)re");
+
+			std::string script;
+			std::unordered_set<std::string> createfx_variables;
+			for (const auto& line : split_lines(source))
+			{
+				if (!std::regex_match(line, map_script_call) && !std::regex_match(line, dvar_line)
+					&& !(remove_effects && is_script_effect_line(line, createfx_variables)))
 				{
 					script += line + "\n";
 				}
@@ -96,29 +142,29 @@ namespace zonetool::iw7::converter::iw8::mapents
 			return script;
 		}
 
-		std::string get_map_script(const std::string& map)
+		std::string decompile_map_script(const std::string& map)
 		{
 			const auto* asset = static_cast<const ScriptFile*>(db_find_asset(ASSET_TYPE_SCRIPTFILE, std::format("scripts/mp/maps/{}/{}", map, map).data()));
 			if (!asset || !asset->buffer || !asset->bytecode)
 			{
-				return make_default_map_script(map);
+				return {};
 			}
 
 			try
 			{
-				return make_map_script(map, decompile(asset));
+				return decompile(asset);
 			}
 			catch (const std::exception& e)
 			{
 				ZONETOOL_WARNING("scriptfile \"%s\" does not decompile: %s", asset->name, e.what());
-				return make_default_map_script(map);
+				return {};
 			}
 		}
 
-		void dump_map_script(const std::string& map)
+		void dump_map_script(const std::string& map, const std::string& map_script, const bool remove_effects)
 		{
 			const auto name = std::format("{}/{}.gsc", rawfile::get_map_script_folder(map), map);
-			const auto source = get_map_script(map);
+			const auto source = map_script.empty() ? make_default_map_script(map) : make_map_script(map, map_script, remove_effects);
 			std::vector<std::uint8_t> data(source.begin(), source.end());
 
 			auto& context = target_context();
@@ -150,13 +196,10 @@ namespace zonetool::iw7::converter::iw8::mapents
 			return asset && asset->len ? rawfile::read_text(asset) : std::string{};
 		}
 
-		std::unordered_map<std::string, std::string> read_effect_paths(const std::string& map)
+		std::unordered_map<std::string, std::string> read_effect_paths(const std::string& source)
 		{
-			static const std::regex load_fx(R"re(level\._effect\[\s*"([^"]+)"\s*\]\s*=\s*loadfx\s*\(\s*"([^"]+?)(?:\.vfx)?"\s*\))re", std::regex::icase);
-
 			std::unordered_map<std::string, std::string> paths;
-			const auto source = get_rawfile_text(std::format("{}/{}_fx.gsc", rawfile::get_map_script_folder(map), map));
-			for (auto it = std::sregex_iterator(source.begin(), source.end(), load_fx); it != std::sregex_iterator(); ++it)
+			for (auto it = std::sregex_iterator(source.begin(), source.end(), load_fx_pattern()); it != std::sregex_iterator(); ++it)
 			{
 				paths[(*it)[1].str()] = (*it)[2].str();
 			}
@@ -164,37 +207,97 @@ namespace zonetool::iw7::converter::iw8::mapents
 			return paths;
 		}
 
+		std::string get_stock_createfx_script(const std::string& map)
+		{
+			return get_rawfile_text(std::format("{}/gen/{}_fx.gsc", rawfile::get_map_script_folder(map), map));
+		}
+
+		std::vector<createfx_oneshot> read_stock_oneshots(const std::string& source)
+		{
+			static const std::regex oneshot(R"re(createOneshotEffect\(\s*"([^"]+)"\s*\);\s*ent set_origin_and_angles\(\s*\(([^)]*)\)\s*,\s*\(([^)]*)\)\s*\);(?:\s*ent\.v\[\s*"fxid"\s*\]\s*=\s*"[^"]*"\s*;)?(?:\s*ent\.v\[\s*"delay"\s*\]\s*=\s*([-\d.]+)\s*;)?)re");
+
+			std::vector<createfx_oneshot> oneshots;
+			for (auto it = std::sregex_iterator(source.begin(), source.end(), oneshot); it != std::sregex_iterator(); ++it)
+			{
+				const auto& match = *it;
+				oneshots.push_back({match[1].str(), match[2].str(), match[3].str(), match[4].matched ? match[4].str() : std::string{}});
+			}
+
+			return oneshots;
+		}
+
+		std::vector<createfx_oneshot> read_script_oneshots(const std::string& source)
+		{
+			static const std::regex vector_value(R"re(\(([^)]*)\))re");
+
+			std::vector<createfx_oneshot> oneshots;
+			std::string variable;
+			std::smatch match;
+			for (const auto& line : split_lines(source))
+			{
+				if (std::regex_match(line, match, script_oneshot_pattern()))
+				{
+					variable = match[1].str();
+					oneshots.push_back({match[2].str()});
+					continue;
+				}
+
+				if (oneshots.empty() || !std::regex_match(line, match, script_createfx_field_pattern()) || match[1].str() != variable)
+				{
+					continue;
+				}
+
+				const auto field = match[2].str();
+				const auto value = match[3].str();
+				std::smatch vector;
+				auto& oneshot = oneshots.back();
+				if (field == "origin" && std::regex_search(value, vector, vector_value))
+				{
+					oneshot.origin = vector[1].str();
+				}
+				else if (field == "angles" && std::regex_search(value, vector, vector_value))
+				{
+					oneshot.angles = vector[1].str();
+				}
+				else if (field == "delay")
+				{
+					oneshot.delay = value;
+				}
+			}
+
+			return oneshots;
+		}
+
 		void read_vector(const std::string& text, target::vec3_t& vector)
 		{
 			std::sscanf(text.data(), "%f , %f , %f", &vector[0], &vector[1], &vector[2]);
 		}
 
-		void convert_oneshot_effects(const std::string& map, target::ClientSideEffects& effects, utils::memory::allocator& allocator)
+		bool convert_oneshot_effects(const std::string& map, const std::string& map_script, target::ClientSideEffects& effects, utils::memory::allocator& allocator)
 		{
-			static const std::regex oneshot(R"re(createOneshotEffect\(\s*"([^"]+)"\s*\);\s*ent set_origin_and_angles\(\s*\(([^)]*)\)\s*,\s*\(([^)]*)\)\s*\);(?:\s*ent\.v\[\s*"fxid"\s*\]\s*=\s*"[^"]*"\s*;)?(?:\s*ent\.v\[\s*"delay"\s*\]\s*=\s*([-\d.]+)\s*;)?)re");
-
-			const auto paths = read_effect_paths(map);
-			const auto source = get_rawfile_text(std::format("{}/gen/{}_fx.gsc", rawfile::get_map_script_folder(map), map));
+			const auto stock_script = get_stock_createfx_script(map);
+			const auto paths = read_effect_paths(stock_script.empty() ? map_script
+				: get_rawfile_text(std::format("{}/{}_fx.gsc", rawfile::get_map_script_folder(map), map)));
+			const auto oneshots = stock_script.empty() ? read_script_oneshots(map_script) : read_stock_oneshots(stock_script);
 
 			std::vector<target::ClientOneshotEffectDef> converted;
-			for (auto it = std::sregex_iterator(source.begin(), source.end(), oneshot); it != std::sregex_iterator(); ++it)
+			for (const auto& oneshot : oneshots)
 			{
-				const auto& match = *it;
-				const auto path = paths.find(match[1].str());
+				const auto path = paths.find(oneshot.fx);
 				auto* vfx = path != paths.end() ? static_cast<ParticleSystemDef*>(db_find_asset(ASSET_TYPE_VFX, path->second.data())) : nullptr;
 				if (!vfx)
 				{
-					ZONETOOL_WARNING("createfx oneshot \"%s\" has no vfx", match[1].str().data());
+					ZONETOOL_WARNING("createfx oneshot \"%s\" has no vfx", oneshot.fx.data());
 					continue;
 				}
 
 				vfx::dump(vfx);
 
 				auto& effect = converted.emplace_back();
-				read_vector(match[2].str(), effect.origin);
-				read_vector(match[3].str(), effect.angles);
+				read_vector(oneshot.origin, effect.origin);
+				read_vector(oneshot.angles, effect.angles);
 				effect.radius = 0.0f; // 0 spawns at load, no spatial tree (sub_16896F0)
-				effect.delayMsec = match[4].matched ? static_cast<int>(std::stof(match[4].str()) * 1000.0f) : 0;
+				effect.delayMsec = oneshot.delay.empty() ? 0 : static_cast<int>(std::stof(oneshot.delay) * 1000.0f);
 				effect.effect.particleSystemDef = allocator.allocate<target::ParticleSystemDef>();
 				const_cast<target::ParticleSystemDef*>(effect.effect.particleSystemDef)->name = allocator.duplicate_string(vfx->name);
 			}
@@ -202,6 +305,7 @@ namespace zonetool::iw7::converter::iw8::mapents
 			effects.oneshotEffectCount = static_cast<unsigned int>(converted.size());
 			effects.oneshotEffects = allocator.allocate_array<target::ClientOneshotEffectDef>(converted.size());
 			std::copy(converted.begin(), converted.end(), effects.oneshotEffects);
+			return stock_script.empty() && !oneshots.empty();
 		}
 
 		std::string_view next_token(const std::string_view source, std::size_t& pos)
@@ -454,7 +558,7 @@ namespace zonetool::iw7::converter::iw8::mapents
 
 		void convert_submodels(const MapEnts* asset, target::MapEnts* converted, utils::memory::allocator& allocator)
 		{
-			converted->numSubModels = 0; // map_ents shapes are not converted
+			converted->numSubModels = asset->numSubModels;
 			converted->cmodels = allocator.allocate_array<target::cmodel_t>(asset->numSubModels);
 			for (auto i = 0u; i < asset->numSubModels; i++)
 			{
@@ -579,12 +683,14 @@ namespace zonetool::iw7::converter::iw8::mapents
 		convert_scriptables(asset->scriptableMapEnts, converted->scriptableMapEnts, allocator);
 		converted->scriptableMapEnts.spatialPopulationTree = make_leaf_tree(allocator); // TODO: scriptable spatial population
 
-		convert_oneshot_effects(filesystem::get_fastfile(), converted->clientSideEffects, allocator); // TODO: sounds and reactive ents are not baked
+		const auto map = filesystem::get_fastfile();
+		const auto map_script = decompile_map_script(map);
+		const auto script_effects = convert_oneshot_effects(map, map_script, converted->clientSideEffects, allocator); // TODO: sounds and reactive ents are not baked
 		converted->createFxEffectTotal = converted->clientSideEffects.oneshotEffectCount;
 
 		target::map_ents::dump(converted);
 		add_csv_row("map_ents", asset->name);
 
-		dump_map_script(filesystem::get_fastfile());
+		dump_map_script(map, map_script, script_effects);
 	}
 }

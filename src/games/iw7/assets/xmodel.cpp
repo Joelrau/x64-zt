@@ -127,6 +127,10 @@ namespace zonetool::iw7
 		if (!this->asset_)
 		{
 			this->asset_ = db_find_x_asset_header_copy<XModel>(XAssetType(this->type()), this->name_.data(), mem).model;
+			if (!this->asset_)
+			{
+				ZONETOOL_FATAL("xmodel \"%s\" not found.", name.data());
+			}
 
 			auto* asset = this->asset_;
 

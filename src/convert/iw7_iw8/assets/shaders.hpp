@@ -43,6 +43,11 @@ cbuffer material_constants : register(b3)
 	float4 uv_anim;
 	float4 ocean_scroll_normal0;
 	float4 ocean_scroll_normal1;
+	float4 falloff_parms;
+	float4 falloff_begin_color;
+	float4 falloff_end_color;
+	float4 feather_parms;
+	float4 eye_offset_parms;
 };
 
 cbuffer world_draw_constants : register(b9)
@@ -166,6 +171,13 @@ struct water_vertex
 	float3 normal : NORMAL;
 	float4 tangent : TANGENT;
 	float3 view : TEXCOORD2;
+	float4 color : COLOR;
+};
+
+struct effect_vertex
+{
+	float4 position : SV_POSITION;
+	float2 uv : TEXCOORD0;
 	float4 color : COLOR;
 };
 
@@ -860,6 +872,115 @@ float4 smodel_water_ps(water_vertex input, bool front : SV_IsFrontFace) : SV_TAR
 float4 sky_ps(sky_vertex input) : SV_TARGET0
 {
 	return float4(world_color_map.SampleLevel(material_sampler, octahedron_uv(input.direction), 0).rgb * exposure.x, 1.0);
+}
+)"
+	R"(
+effect_vertex make_effect_vertex(float3 position, float3 normal, float2 uv, float4 vertex_color, bool near_fade)
+{
+	position -= normalize(position) * eye_offset_parms.x;
+	precise float4 clip = clip_position(position);
+	const float n_dot_v = dot(normal, normalize(position));
+	const float falloff = saturate(n_dot_v * n_dot_v * falloff_parms.z + falloff_parms.w);
+
+	effect_vertex output;
+	output.position = clip;
+	output.uv = uv;
+	output.color.rgb = falloff * vertex_color.rgb * lerp(falloff_end_color.rgb, falloff_begin_color.rgb, falloff);
+	output.color.a = falloff * vertex_color.a * (near_fade ? saturate(clip.w * feather_parms.x) : 1.0);
+	return output;
+}
+
+effect_vertex world_effect(uint vertex_id, bool near_fade)
+{
+	const world_surface surface = world_surfaces[world_draw.x];
+	return make_effect_vertex(world_position(surface, vertex_id), world_normal(surface, vertex_id), world_uv(surface, vertex_id), world_color(surface, vertex_id), near_fade);
+}
+
+effect_vertex smodel_effect(uint vertex_id, bool near_fade)
+{
+	const smodel_vertex vertex = get_smodel_vertex(vertex_id);
+	return make_effect_vertex(smodel_world_position(vertex), smodel_normal(vertex), smodel_uv(vertex), 1.0, near_fade); // TODO: smodel vertex color
+}
+
+effect_vertex world_effect_vs(uint vertex_id : SV_VertexID)
+{
+	return world_effect(vertex_id, false);
+}
+
+effect_vertex world_effect_fade_vs(uint vertex_id : SV_VertexID)
+{
+	return world_effect(vertex_id, true);
+}
+
+effect_vertex smodel_effect_vs(uint vertex_id : SV_VertexID)
+{
+	return smodel_effect(vertex_id, false);
+}
+
+effect_vertex smodel_effect_fade_vs(uint vertex_id : SV_VertexID)
+{
+	return smodel_effect(vertex_id, true);
+}
+
+float4 effect_add(float3 albedo, effect_vertex input)
+{
+	const float3 color = albedo * input.color.rgb * input.color.rgb * color_tint.rgb * exposure.x;
+	const float alpha = material_alpha(input.uv) * input.color.a;
+	if (max_component(color) <= 0.000061)
+	{
+		discard;
+	}
+
+	return float4(color * alpha, 0.0);
+}
+
+float4 world_effect_add_ps(effect_vertex input) : SV_TARGET0
+{
+	return effect_add(world_color_map.Sample(material_sampler, input.uv).rgb, input);
+}
+
+float4 smodel_effect_add_ps(effect_vertex input) : SV_TARGET0
+{
+	return effect_add(model_color_map.Sample(material_sampler, input.uv).rgb, input);
+}
+
+effect_vertex world_unlit_color_vs(uint vertex_id : SV_VertexID)
+{
+	const world_surface surface = world_surfaces[world_draw.x];
+	precise float4 position = clip_position(world_position(surface, vertex_id));
+
+	effect_vertex output;
+	output.position = position;
+	output.uv = world_uv(surface, vertex_id);
+	output.color = world_color(surface, vertex_id);
+	return output;
+}
+
+effect_vertex world_unlit_color_uv_anim_vs(uint vertex_id : SV_VertexID)
+{
+	effect_vertex output = world_unlit_color_vs(vertex_id);
+	output.uv = animate_uv(output.uv);
+	return output;
+}
+
+float3 world_vertex_albedo(effect_vertex input)
+{
+	return world_color_map.Sample(material_sampler, input.uv).rgb * input.color.rgb * input.color.rgb;
+}
+
+float4 world_unlit_add_color_ps(effect_vertex input) : SV_TARGET0
+{
+	return float4(unlit_surface(world_vertex_albedo(input)) * material_alpha(input.uv) * input.color.a, 0.0);
+}
+
+float4 world_unlit_add_color_evc_ps(effect_vertex input) : SV_TARGET0
+{
+	return float4(unlit_evc_surface(world_vertex_albedo(input)) * material_alpha(input.uv) * input.color.a, 0.0);
+}
+
+float4 world_multiply_color_ps(effect_vertex input) : SV_TARGET0
+{
+	return float4(lerp(1.0, world_vertex_albedo(input), material_alpha(input.uv) * input.color.a), 1.0);
 }
 )";
 }

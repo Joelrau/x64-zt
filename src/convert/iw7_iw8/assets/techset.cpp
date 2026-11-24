@@ -101,11 +101,39 @@ namespace zonetool::iw7::converter::iw8::techset
 				add_arg(args, {target::MTL_ARG_MATERIAL_CONST, target::MTL_SHADER_STAGE_PS, 3, target::MATERIAL_CONSTANT_OCEAN_SCROLL_NORMAL_1});
 			}
 
+			if (variant.effect)
+			{
+				add_arg(args, {target::MTL_ARG_MATERIAL_CONST, target::MTL_SHADER_STAGE_VS, 4, target::MATERIAL_CONSTANT_FALLOFF_PARMS});
+				add_arg(args, {target::MTL_ARG_MATERIAL_CONST, target::MTL_SHADER_STAGE_VS, 5, target::MATERIAL_CONSTANT_FALLOFF_BEGIN_COLOR});
+				add_arg(args, {target::MTL_ARG_MATERIAL_CONST, target::MTL_SHADER_STAGE_VS, 6, target::MATERIAL_CONSTANT_FALLOFF_END_COLOR});
+				add_arg(args, {target::MTL_ARG_MATERIAL_CONST, target::MTL_SHADER_STAGE_VS, 8, target::MATERIAL_CONSTANT_EYE_OFFSET_PARMS});
+			}
+
+			if (variant.near_fade)
+			{
+				add_arg(args, {target::MTL_ARG_MATERIAL_CONST, target::MTL_SHADER_STAGE_VS, 7, target::MATERIAL_CONSTANT_FEATHER_PARMS});
+			}
+
 			return args;
 		}
 
 		const char* get_lit_vertex_entry(const generated_variant& variant)
 		{
+			if (variant.effect)
+			{
+				if (variant.techset == GENERATED_TECHSET_WORLD)
+				{
+					return variant.near_fade ? "world_effect_fade_vs" : "world_effect_vs";
+				}
+
+				return variant.near_fade ? "smodel_effect_fade_vs" : "smodel_effect_vs";
+			}
+
+			if (variant.vertex_color)
+			{
+				return variant.uv_anim ? "world_unlit_color_uv_anim_vs" : "world_unlit_color_vs";
+			}
+
 			if (variant.techset == GENERATED_TECHSET_WORLD)
 			{
 				return variant.water ? "world_water_vs" : variant.uv_anim ? "world_lit_uv_anim_vs" : "world_lit_vs";
@@ -155,6 +183,16 @@ namespace zonetool::iw7::converter::iw8::techset
 		{
 			const auto world = variant.techset == GENERATED_TECHSET_WORLD;
 			const auto evc = variant.exposure_compensated;
+			if (variant.effect)
+			{
+				return world ? "world_effect_add_ps" : "smodel_effect_add_ps";
+			}
+
+			if (variant.vertex_color)
+			{
+				return evc ? "world_unlit_add_color_evc_ps" : "world_unlit_add_color_ps";
+			}
+
 			switch (variant.blend)
 			{
 			case GENERATED_BLEND_ALPHA:
@@ -171,7 +209,7 @@ namespace zonetool::iw7::converter::iw8::techset
 			const auto world = variant.techset == GENERATED_TECHSET_WORLD;
 			if (variant.blend == GENERATED_BLEND_MULTIPLY)
 			{
-				return world ? "world_multiply_ps" : "smodel_multiply_ps";
+				return variant.vertex_color ? "world_multiply_color_ps" : world ? "world_multiply_ps" : "smodel_multiply_ps";
 			}
 
 			if (!variant.lit)
@@ -428,7 +466,9 @@ namespace zonetool::iw7::converter::iw8::techset
 		const auto uv_anim = variant.visible && variant.uv_anim ? "_ua" : "";
 		const auto evc = variant.visible && variant.exposure_compensated ? "_evc" : "";
 		const auto water = variant.visible && variant.water ? "_water" : "";
-		return std::format("{}/iw7_{}{}{}{}{}{}", prefix, get_techset_base_name(variant), water, evc, uv_anim, two_sided, no_cast);
+		const auto effect = variant.visible && variant.effect ? (variant.near_fade ? "_effect_fade" : "_effect") : "";
+		const auto vertex_color = variant.visible && variant.vertex_color ? "_vc" : "";
+		return std::format("{}/iw7_{}{}{}{}{}{}{}{}", prefix, get_techset_base_name(variant), water, effect, vertex_color, evc, uv_anim, two_sided, no_cast);
 	}
 
 	target::MaterialGeometryType get_material_type(const generated_techset techset)

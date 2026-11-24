@@ -426,10 +426,145 @@ namespace zonetool::iw7::converter::iw8::material
 			return result;
 		}
 
+		target::MaterialConstantDef convert_constant(const target::MaterialConstantIndex index, const MaterialConstantDef* source,
+			const std::array<float, 4>& fallback)
+		{
+			target::MaterialConstantDef result{};
+			result.index = index;
+			std::memcpy(result.literal, source ? source->literal : fallback.data(), sizeof(result.literal));
+			return result;
+		}
+
+		bool has_vertex_color(const Material* asset)
+		{
+			if (!asset->techniqueSet || !asset->techniqueSet->name)
+			{
+				return false;
+			}
+
+			const std::string_view name = asset->techniqueSet->name;
+			const auto prefix = name.substr(0, name.find('_'));
+			return prefix.size() >= 2 && prefix[1] == 'c';
+		}
+
+		std::array<float, 4> get_mean_vertex_color(const Material* asset)
+		{
+			std::array<double, 4> sum{};
+			std::array<float, 4> min{1.0f, 1.0f, 1.0f, 1.0f};
+			std::array<float, 4> max{};
+			std::size_t count = 0;
+			db_enum_assets(ASSET_TYPE_XMODEL, [&](void* header)
+			{
+				const auto* model = static_cast<const XModel*>(header);
+				for (auto lod = 0; model->materialHandles && lod < model->numLods; lod++)
+				{
+					const auto& info = model->lodInfo[lod];
+					auto* surfs = info.modelSurfs;
+					if (surfs && !surfs->surfs && surfs->name)
+					{
+						surfs = static_cast<XModelSurfs*>(db_find_asset(ASSET_TYPE_XMODEL_SURFS, surfs->name));
+					}
+
+					for (auto i = 0; surfs && surfs->surfs && i < surfs->numsurfs; i++)
+					{
+						const auto& surface = surfs->surfs[i];
+						const auto* material = model->materialHandles[info.surfIndex + i];
+						if (!material || !material->name || std::strcmp(material->name, asset->name) || !surface.verts0.packedVerts0
+							|| (surface.flags & SURF_FLAG_REACTIVE_MOTION))
+						{
+							continue;
+						}
+
+						for (auto vertex = 0; vertex < surface.vertCount; vertex++)
+						{
+							for (auto channel = 0u; channel < 4; channel++)
+							{
+								const auto value = surface.verts0.packedVerts0[vertex].color.array[channel] / 255.0f;
+								sum[channel] += value;
+								min[channel] = std::min(min[channel], value);
+								max[channel] = std::max(max[channel], value);
+							}
+						}
+
+						count += surface.vertCount;
+					}
+				}
+			});
+
+			if (!count)
+			{
+				return {1.0f, 1.0f, 1.0f, 1.0f};
+			}
+
+			std::array<float, 4> mean{};
+			for (auto channel = 0u; channel < 4; channel++)
+			{
+				mean[channel] = static_cast<float>(sum[channel] / count);
+				if (max[channel] - min[channel] > 0.1f)
+				{
+					ZONETOOL_WARNING("Material \"%s\" has a vertex color that is not uniform (channel %u: %.2f to %.2f)", asset->name, channel, min[channel], max[channel]);
+				}
+			}
+
+			return mean;
+		}
+
+		std::array<float, 4> get_effect_vertex_color(const Material* asset, const techset::generated_variant& variant)
+		{
+			if (variant.techset != techset::GENERATED_TECHSET_STATIC_MODEL)
+			{
+				return {1.0f, 1.0f, 1.0f, 1.0f};
+			}
+
+			const auto color = get_mean_vertex_color(asset);
+			ZONETOOL_WARNING("Material \"%s\" uses the mean vertex color (%.2f %.2f %.2f %.2f) on static models", asset->name, color[0], color[1], color[2], color[3]);
+			return color;
+		}
+
+		std::vector<target::MaterialConstantDef> convert_effect_constants(const Material* asset, const techset::generated_variant& variant,
+			const std::array<float, 4>& vertex_color)
+		{
+			const auto falloff = has_techset_token(asset, "falloff");
+			const auto find_falloff_constant = [&](const std::string_view name)
+			{
+				return falloff ? find_layer_constant(asset, name, 0) : nullptr;
+			};
+
+			if (has_techset_token(asset, "zfeather"))
+			{
+				ZONETOOL_WARNING("Material \"%s\" loses its depth feather", asset->name);
+			}
+
+			std::vector<target::MaterialConstantDef> constants =
+			{
+				convert_constant(target::MATERIAL_CONSTANT_FALLOFF_PARMS, find_falloff_constant("falloffParms"), {0.0f, 0.0f, 0.0f, 1.0f}),
+				convert_constant(target::MATERIAL_CONSTANT_FALLOFF_BEGIN_COLOR, find_falloff_constant("falloffBeginColor"), {1.0f, 1.0f, 1.0f, 1.0f}),
+				convert_constant(target::MATERIAL_CONSTANT_FALLOFF_END_COLOR, find_falloff_constant("falloffEndColor"), {1.0f, 1.0f, 1.0f, 1.0f}),
+				convert_constant(target::MATERIAL_CONSTANT_EYE_OFFSET_PARMS,
+					has_techset_token(asset, "eyeoffset") ? find_layer_constant(asset, "eyeOffsetParms", 0) : nullptr, {0.0f, 0.0f, 0.0f, 0.0f}),
+			};
+
+			for (auto& constant : std::span(constants).subspan(1, 2))
+			{
+				for (auto channel = 0u; channel < 3; channel++)
+				{
+					constant.literal[channel] *= vertex_color[channel];
+				}
+			}
+
+			if (variant.near_fade)
+			{
+				constants.push_back(convert_constant(target::MATERIAL_CONSTANT_FEATHER_PARMS, find_layer_constant(asset, "featherParms", 0)));
+			}
+
+			return constants;
+		}
+
 		target::CameraRegion get_blend_camera_region(const Material* asset)
 		{
 			switch (asset->cameraRegion)
 			{
+			case CAMERA_REGION_LIT_OPAQUE:
 			case CAMERA_REGION_LIT_DECAL:
 				return target::CAMERA_REGION_LIT_DECAL;
 			case CAMERA_REGION_EMISSIVE:
@@ -442,7 +577,8 @@ namespace zonetool::iw7::converter::iw8::material
 		techset::generated_variant get_variant(const Material* asset, const techset::generated_techset techset)
 		{
 			techset::generated_variant variant{.techset = techset};
-			variant.lit = !has_techset_token(asset, "unlit");
+			const auto effect = has_techset_token(asset, "effect") && !has_techset_token(asset, "lit");
+			variant.lit = !has_techset_token(asset, "unlit") && !effect;
 			variant.exposure_compensated = !variant.lit && !has_techset_token(asset, "multiply") && has_techset_token(asset, "evc");
 			variant.uv_anim = has_techset_token(asset, "ua") && find_constant(asset, "uvAnimParms");
 			variant.two_sided = (asset->stateFlags & STATE_FLAG_CULL_MASK) != STATE_FLAG_CULL_BACK;
@@ -456,7 +592,8 @@ namespace zonetool::iw7::converter::iw8::material
 				return variant;
 			}
 
-			if (asset->cameraRegion == CAMERA_REGION_LIT_DECAL || asset->cameraRegion == CAMERA_REGION_LIT_TRANS
+			const auto blend_techset = has_techset_token(asset, "blend") || has_techset_token(asset, "add") || has_techset_token(asset, "multiply");
+			if (blend_techset || asset->cameraRegion == CAMERA_REGION_LIT_DECAL || asset->cameraRegion == CAMERA_REGION_LIT_TRANS
 				|| asset->cameraRegion == CAMERA_REGION_EMISSIVE)
 			{
 				variant.blend = has_techset_token(asset, "add") ? techset::GENERATED_BLEND_ADD
@@ -465,6 +602,10 @@ namespace zonetool::iw7::converter::iw8::material
 				variant.casts_shadow = false;
 				variant.water = variant.lit && variant.uv_anim && variant.blend == techset::GENERATED_BLEND_ALPHA
 					&& find_layer_constant(asset, "oceanScrollNormal0", 0) && find_layer_constant(asset, "oceanScrollNormal1", 0);
+				variant.effect = effect && variant.blend == techset::GENERATED_BLEND_ADD && !variant.uv_anim && !variant.exposure_compensated;
+				variant.near_fade = variant.effect && has_techset_token(asset, "zfeather") && find_layer_constant(asset, "featherParms", 0);
+				variant.vertex_color = techset == techset::GENERATED_TECHSET_WORLD && !variant.effect && !variant.water && has_vertex_color(asset)
+					&& ((variant.blend == techset::GENERATED_BLEND_ADD && !variant.lit) || variant.blend == techset::GENERATED_BLEND_MULTIPLY);
 				return variant;
 			}
 
@@ -542,6 +683,20 @@ namespace zonetool::iw7::converter::iw8::material
 			{
 				constants.push_back(convert_constant(target::MATERIAL_CONSTANT_OCEAN_SCROLL_NORMAL_0, find_layer_constant(asset, "oceanScrollNormal0", 0)));
 				constants.push_back(convert_constant(target::MATERIAL_CONSTANT_OCEAN_SCROLL_NORMAL_1, find_layer_constant(asset, "oceanScrollNormal1", 0)));
+			}
+
+			if (variant.effect)
+			{
+				const auto vertex_color = get_effect_vertex_color(asset, variant);
+				for (auto& constant : constants)
+				{
+					if (constant.index == target::MATERIAL_CONSTANT_EFFECT_COLOR_TINT)
+					{
+						std::ranges::for_each(std::span(constant.literal).first(3), [&](float& value) { value *= vertex_color[3]; });
+					}
+				}
+
+				std::ranges::copy(convert_effect_constants(asset, variant, vertex_color), std::back_inserter(constants));
 			}
 
 			result->constantTable = allocate_constants(constants, result->constantCount, allocator);
@@ -1445,7 +1600,7 @@ namespace zonetool::iw7::converter::iw8::material
 
 	void dump(Material* asset)
 	{
-		if (!asset || asset->name[0] == '*' || !mark_dumped(ASSET_TYPE_MATERIAL, asset->name)) // dump_lit writes the generated variants
+		if (!asset || asset->name[0] == '*' || has_techset_token(asset, "sky") || !mark_dumped(ASSET_TYPE_MATERIAL, asset->name)) // dump_lit and dump_sky write the generated variants
 		{
 			return;
 		}

@@ -16,6 +16,14 @@ namespace zonetool::iw7::converter::iw8::mapents
 		}
 	};
 
+	struct createfx_oneshot
+	{
+		std::string fx;
+		std::string origin;
+		std::string angles;
+		std::string delay;
+	};
+
 	void convert_triggers(const MapTriggers& source, zonetool::iw8::MapTriggers& converted, utils::memory::allocator& allocator);
 
 	void dump(MapEnts* asset);

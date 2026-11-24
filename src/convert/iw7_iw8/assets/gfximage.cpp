@@ -155,6 +155,21 @@ namespace zonetool::iw7::converter::iw8::gfximage
 			return srgb <= 0.04045f ? srgb / 12.92f : std::pow((srgb + 0.055f) / 1.055f, 2.4f);
 		}
 
+		void decode_srgb_color(const DirectX::Image& image)
+		{
+			for (auto row = 0u; row < image.height; row++)
+			{
+				auto* texels = reinterpret_cast<float*>(image.pixels + row * image.rowPitch);
+				for (auto column = 0u; column < image.width; column++)
+				{
+					for (auto channel = 0u; channel < 3; channel++)
+					{
+						texels[column * 4 + channel] = srgb_to_linear(texels[column * 4 + channel]);
+					}
+				}
+			}
+		}
+
 		std::uint8_t from_squared_gamma(const int value)
 		{
 			return linear_to_srgb(value / 255.0f * value / 255.0f);
@@ -1324,11 +1339,16 @@ namespace zonetool::iw7::converter::iw8::gfximage
 		}
 
 		const auto shadow = read_pixels(lightmap->textures[0], DXGI_FORMAT_R8_UNORM);
-		const auto light = read_pixels(lightmap->textures[1], DXGI_FORMAT_R32G32B32A32_FLOAT);
+		auto light = read_pixels(lightmap->textures[1], DXGI_FORMAT_R32G32B32A32_FLOAT);
 		const auto direction = read_pixels(lightmap->textures[2], DXGI_FORMAT_R8G8_UNORM);
 		if (!shadow || !light || !direction)
 		{
 			return {};
+		}
+
+		if (DirectX::IsSRGB(static_cast<DXGI_FORMAT>(lightmap->textures[1]->imageFormat)))
+		{
+			decode_srgb_color(*light->GetImage(0, 0, 0));
 		}
 
 		const auto& shadow_image = *shadow->GetImage(0, 0, 0);
@@ -1336,10 +1356,17 @@ namespace zonetool::iw7::converter::iw8::gfximage
 		const auto& direction_image = *direction->GetImage(0, 0, 0);
 		const auto width = direction_image.width;
 		const auto height = direction_image.height;
-		if (shadow_image.width != width || shadow_image.height != height || light_image.width != width || light_image.height != height * 2)
+		const auto light_width = light_image.width;
+		const auto light_height = light_image.height / 2;
+		if (light_image.height % 2 != 0)
 		{
-			ZONETOOL_WARNING("Lightmap \"%s\" has images of different sizes", lightmap->name);
+			ZONETOOL_WARNING("Lightmap \"%s\" has an odd light image height", lightmap->name);
 			return {};
+		}
+
+		if (shadow_image.width != width || shadow_image.height != height || light_width != width || light_height != height)
+		{
+			ZONETOOL_WARNING("Lightmap \"%s\" has images of different sizes, resampling to %zux%zu", lightmap->name, width, height);
 		}
 
 		const auto scale = std::max<std::size_t>(1, std::max(width, height) / 1024);
@@ -1357,9 +1384,17 @@ namespace zonetool::iw7::converter::iw8::gfximage
 		const auto& ambient_image = *ambient.GetImage(0, 0, 0);
 		const auto& irradiance_image = *irradiance.GetImage(0, 0, 0);
 		const auto& direction_shadow_image = *direction_shadow.GetImage(0, 0, 0);
-		const auto light_texel = [&](const std::size_t column, const std::size_t row)
+		const auto light_texel = [&](const std::size_t column, const std::size_t row, const std::size_t half)
 		{
-			return reinterpret_cast<const float*>(light_image.pixels + row * light_image.rowPitch) + column * 4;
+			const auto light_column = column * light_width / width;
+			const auto light_row = row * light_height / height + half * light_height;
+			return reinterpret_cast<const float*>(light_image.pixels + light_row * light_image.rowPitch) + light_column * 4;
+		};
+		const auto shadow_texel = [&](const std::size_t column, const std::size_t row)
+		{
+			const auto shadow_column = column * shadow_image.width / width;
+			const auto shadow_row = row * shadow_image.height / height;
+			return shadow_image.pixels[shadow_row * shadow_image.rowPitch + shadow_column];
 		};
 
 		for (auto row = 0u; row < target_height; row++)
@@ -1373,8 +1408,8 @@ namespace zonetool::iw7::converter::iw8::gfximage
 				{
 					for (auto source_column = column * scale; source_column < (column + 1) * scale; source_column++)
 					{
-						const auto* top_texel = light_texel(source_column, source_row);
-						const auto* bottom_texel = light_texel(source_column, source_row + height);
+						const auto* top_texel = light_texel(source_column, source_row, 0);
+						const auto* bottom_texel = light_texel(source_column, source_row, 1);
 						if (top_texel[0] + top_texel[1] + top_texel[2] + bottom_texel[0] + bottom_texel[1] + bottom_texel[2] <= 0.0f)
 						{
 							continue;
@@ -1388,7 +1423,7 @@ namespace zonetool::iw7::converter::iw8::gfximage
 							average_direction[channel] += texel_direction[channel];
 						}
 
-						visibility += shadow_image.pixels[source_row * shadow_image.rowPitch + source_column] / 255.0f;
+						visibility += shadow_texel(source_column, source_row) / 255.0f;
 						weight += 1.0f;
 					}
 				}

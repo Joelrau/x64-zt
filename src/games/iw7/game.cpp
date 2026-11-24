@@ -2,6 +2,8 @@
 
 #include <game.hpp>
 
+#include <xsk/gsc/engine/iw7.hpp>
+
 namespace zonetool::iw7
 {
 	void dump_zone(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path, const converter* converter);
@@ -10,6 +12,12 @@ namespace zonetool::iw7
 	void verify_zone(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path);
 	std::string list_zone(const std::filesystem::path& zone_folder, const std::filesystem::path& zone_path);
 	void build_zone(const std::filesystem::path& zone_folder, const std::string& name);
+
+	std::string token_name(const std::uint32_t id)
+	{
+		static const xsk::gsc::iw7::context context{xsk::gsc::instance::server};
+		return context.token_name(id);
+	}
 
 	const game& definition()
 	{
@@ -33,6 +41,7 @@ namespace zonetool::iw7
 			.verify_zone = verify_zone,
 			.list_zone = list_zone,
 			.build_zone = build_zone,
+			.token_name = token_name,
 		};
 
 		return iw7;

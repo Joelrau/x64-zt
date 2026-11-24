@@ -26,6 +26,9 @@ namespace zonetool::iw7::converter::iw8::techset
 		bool exposure_compensated = false;
 		bool uv_anim = false;
 		bool water = false;
+		bool effect = false;
+		bool near_fade = false;
+		bool vertex_color = false;
 		bool alpha_test = false;
 		bool two_sided = false;
 		bool visible = true;

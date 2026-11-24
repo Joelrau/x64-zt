@@ -4,6 +4,7 @@
 #include "zone/loader.hpp"
 
 #include <game.hpp>
+#include <io/game_files.hpp>
 #include <io/output_cache.hpp>
 
 namespace zonetool::iw3
@@ -115,6 +116,101 @@ namespace zonetool::iw3
 			filesystem::set_language("english", "eng");
 		}
 
+		std::vector<std::unique_ptr<loaded_zone>> load_required_zones(const converter* converter, const std::filesystem::path& zone_path)
+		{
+			std::vector<std::unique_ptr<loaded_zone>> zones;
+			if (!converter || !converter->required_zones)
+			{
+				return zones;
+			}
+
+			const auto zone_name = zone_path.stem().string();
+			for (const auto& name : converter->required_zones(zone_name))
+			{
+				if (name == zone_name)
+				{
+					continue;
+				}
+
+				const auto path = game_files::find_zone(name);
+				if (!path)
+				{
+					ZONETOOL_WARNING("Required zone \"%s\" not found", name.data());
+					continue;
+				}
+
+				ZONETOOL_INFO("Loading required zone \"%s\"...", name.data());
+				zones.emplace_back(load_zone(*path));
+			}
+
+			return zones;
+		}
+
+		void dump_required_asset(const XAssetType type, void* header, const std::unordered_set<const void*>& required_headers,
+			std::unordered_set<const void*>& dumped, const converter* converter)
+		{
+			if (!header || !required_headers.contains(header) || !dumped.insert(header).second)
+			{
+				return;
+			}
+
+			try
+			{
+				converter->dump_asset(type, header);
+			}
+			catch (const std::exception& e)
+			{
+				ZONETOOL_ERROR("Failed to dump %s \"%s\": %s", type_to_string(type), get_asset_name(type, header), e.what());
+			}
+
+			if (type == ASSET_TYPE_MATERIAL)
+			{
+				const auto material = static_cast<Material*>(header);
+				const auto textures = material->textureTable.get();
+				for (auto i = 0; textures && i < material->textureCount; i++)
+				{
+					if (textures[i].semantic != TS_WATER_MAP)
+					{
+						dump_required_asset(ASSET_TYPE_IMAGE, textures[i].u.image.get(), required_headers, dumped, converter);
+					}
+				}
+			}
+			else if (type == ASSET_TYPE_XMODEL)
+			{
+				const auto model = static_cast<XModel*>(header);
+				const auto materials = model->materialHandles.get();
+				for (auto i = 0; materials && i < model->numsurfs; i++)
+				{
+					dump_required_asset(ASSET_TYPE_MATERIAL, materials[i].get(), required_headers, dumped, converter);
+				}
+			}
+		}
+
+		void dump_required_references(const loaded_zone& zone, const std::vector<std::unique_ptr<loaded_zone>>& required_zones,
+			const converter* converter)
+		{
+			std::unordered_set<const void*> required_headers;
+			for (const auto& required_zone : required_zones)
+			{
+				for (const auto& asset : required_zone->assets)
+				{
+					if (!asset.referenced)
+					{
+						required_headers.insert(asset.header);
+					}
+				}
+			}
+
+			std::unordered_set<const void*> dumped;
+			for (const auto& asset : zone.assets)
+			{
+				if (asset.referenced && (asset.type == ASSET_TYPE_MATERIAL || asset.type == ASSET_TYPE_XMODEL || asset.type == ASSET_TYPE_IMAGE))
+				{
+					dump_required_asset(asset.type, asset.header, required_headers, dumped, converter);
+				}
+			}
+		}
+
 		void clear_loaded_data()
 		{
 			db_clear();
@@ -146,6 +242,7 @@ namespace zonetool::iw3
 
 		prepare_paths(zone_folder, zone_path.stem().string());
 		const dump_cache_scope cache(filesystem::get_dump_path());
+		const auto required_zones = load_required_zones(converter, zone_path);
 		ZONETOOL_INFO("Loading zone \"%s\"...", zone_path.stem().string().data());
 		const auto zone = load_zone(zone_path);
 
@@ -168,6 +265,7 @@ namespace zonetool::iw3
 			}
 		}
 
+		dump_required_references(*zone, required_zones, converter);
 		write_asset_csv(*zone);
 		ZONETOOL_INFO("Zone \"%s\" dumped to %s", zone->name.data(), filesystem::get_dump_path().data());
 	}

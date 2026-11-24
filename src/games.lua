@@ -27,6 +27,7 @@ games = {
 		end,
 		iw7 = function()
 			dependencies.use(directxtex)
+			gsc_tool.import_engine("iw7")
 		end,
 		iw8 = function()
 			dependencies.use(directxtex)

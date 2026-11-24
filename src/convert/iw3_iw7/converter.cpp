@@ -866,6 +866,11 @@ zt_trace_state()
 				break;
 			}
 		}
+
+		std::vector<std::string> required_zones(const std::string&)
+		{
+			return {"common_mp"};
+		}
 	}
 
 	const converter& definition()
@@ -875,6 +880,7 @@ zt_trace_state()
 			.source = "iw3",
 			.target = "iw7",
 			.dump_asset = dump_asset,
+			.required_zones = required_zones,
 		};
 
 		return iw3_iw7;
