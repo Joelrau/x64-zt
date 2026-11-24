@@ -102,8 +102,8 @@ Without a command, `zonetool.exe` opens an interactive console that waits for in
 
 - `dump/`, `zonetool/`, `zonetool_paths/`, `zone_source/` and `asset_listing/` are relative to the working directory. The usual working directory is the game folder.
 - A `-` flag can go anywhere on the command line. Put a `--` option where the table shows it.
-- Game selection: `-game <name>`, then the game exe in the `-path` folder or the exe folder (`game::binaries`), then `zonetool.json` `game`.
-- Game folder: `-path <folder>`, then `zonetool.json` `paths.<game>`, then the exe folder if it has `zone/`, then the Steam default folder.
+- Game selection: `-game <name>`, then the game exe in the `-path` folder, else in the exe folder or the current folder (`game::binaries`), then `zonetool.json` `game`.
+- Game folder: `-path <folder>`, then `zonetool.json` `paths.<game>`, then the exe folder or the current folder if it has the game exe or `zone/`, then the Steam default folder if it exists.
 - `-target_path <folder>` sets the game folder of the `--target` game. Without it: `zonetool.json` `paths.<game>`, then the Steam default folder.
 - IW8 has no `zone/` folder. x64-zt reads its fastfiles from the CASC storage in `Data/`, applies the `.fp` patch of each zone, and loads `oo2core_*_win64.dll` from the game folder for Oodle. Streamed images come from the `pak_*.xpak` files in CASC. If the game folder has no `Data/` but has `zone/`, x64-zt reads the loose fastfiles in `zone/`, for example a 1.41 install.
 - `zonetool.json` is next to `zonetool.exe`. Example: `{"game": "h1", "paths": {"h1": "path/to/mwr"}}`.

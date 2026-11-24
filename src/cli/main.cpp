@@ -80,13 +80,37 @@ namespace zonetool::cli
 
 		void print_quick_start()
 		{
-			std::cout << "1. Put zonetool.exe in the game folder, next to the game exe.\n"
-				"   From another folder, add -game <name> -path \"<game folder>\".\n"
-				"2. Dump a zone: dumpzone mp_shipment\n"
+			std::cout << "1. Dump a zone: dumpzone mp_shipment\n"
 				"   The assets go to dump/mp_shipment/.\n"
-				"3. Build a zone: put the assets in zonetool/<zone>/ and the asset list in zone_source/<zone>.csv.\n"
+				"2. Build a zone: put the assets in zonetool/<zone>/ and the asset list in zone_source/<zone>.csv.\n"
 				"   Then run buildzone <zone>. The zone goes to zone/<zone>.ff.\n"
-				"\nMore help: https://docs.auroramod.dev/zonetool-basics/\n";
+				"\nGuide: https://docs.auroramod.dev/x64-zt\n";
+		}
+
+		void print_setup_guide()
+		{
+			std::cout << std::format("\nHow to set up x64-zt:\n"
+				"  1. Copy zonetool.exe into your game folder, next to the game exe.\n"
+				"  2. Open zonetool.exe again. It finds the game by itself.\n"
+				"\nOther ways:\n"
+				"  - From cmd: zonetool.exe -game h1 -path \"C:\\Games\\MWR\"\n"
+				"  - Or put zonetool.json next to zonetool.exe:\n"
+				"    {{\"game\": \"h1\", \"paths\": {{\"h1\": \"C:/Games/MWR\"}}}}\n"
+				"\nGames: {}\n"
+				"Guide: https://docs.auroramod.dev/x64-zt\n", game_names());
+		}
+
+		bool owns_console()
+		{
+			DWORD process_ids[2];
+			return GetConsoleProcessList(process_ids, 2) == 1;
+		}
+
+		void wait_for_enter()
+		{
+			std::cout << "\nPress Enter to close.";
+			std::string line;
+			std::getline(std::cin, line);
 		}
 
 		void print_help(const std::span<const std::string> topic)
@@ -176,18 +200,35 @@ namespace zonetool::cli
 			return 0;
 		}
 
+		std::optional<settings> settings;
 		try
 		{
-			const auto settings = load_settings(args);
-			filesystem::set_cache_game(std::string(settings.game->name));
+			settings = load_settings(args);
+		}
+		catch (const std::exception& e)
+		{
+			std::cout << std::format("error: {}\n", e.what());
+			print_setup_guide();
+
+			if (owns_console())
+			{
+				wait_for_enter();
+			}
+
+			return 1;
+		}
+
+		try
+		{
+			filesystem::set_cache_game(std::string(settings->game->name));
 
 			if (args.empty())
 			{
-				run_console(settings);
+				run_console(*settings);
 				return 0;
 			}
 
-			if (!execute(settings, args))
+			if (!execute(*settings, args))
 			{
 				print_overview();
 				return 1;
@@ -197,11 +238,6 @@ namespace zonetool::cli
 		}
 		catch (const std::exception& e)
 		{
-			if (args.empty())
-			{
-				print_quick_start();
-			}
-
 			std::cout << std::format("error: {}\n", e.what());
 			return 1;
 		}

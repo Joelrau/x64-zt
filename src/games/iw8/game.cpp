@@ -28,7 +28,7 @@ namespace zonetool::iw8
 
 	const game& definition()
 	{
-		static constexpr std::array<std::string_view, 1> binaries{"game_dx12_ship_replay.exe"};
+		static constexpr std::array<std::string_view, 2> binaries{"game_dx12_ship_replay.exe", "ModernWarfare.exe"};
 		static const game iw8
 		{
 			.name = "iw8",

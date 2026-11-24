@@ -62,16 +62,39 @@ namespace zonetool::cli
 			return game;
 		}
 
+		std::array<std::filesystem::path, 2> search_folders()
+		{
+			return {executable_folder(), std::filesystem::current_path()};
+		}
+
+		bool has_binary(const game& game, const std::filesystem::path& folder)
+		{
+			return std::ranges::any_of(game.binaries, [&](const std::string_view binary)
+			{
+				return std::filesystem::is_regular_file(folder / binary);
+			});
+		}
+
 		const game* detect_game(const std::filesystem::path& folder)
 		{
 			for (const auto* game : enabled_games())
 			{
-				for (const auto binary : game->binaries)
+				if (has_binary(*game, folder))
 				{
-					if (std::filesystem::is_regular_file(folder / binary))
-					{
-						return game;
-					}
+					return game;
+				}
+			}
+
+			return nullptr;
+		}
+
+		const game* detect_game()
+		{
+			for (const auto& folder : search_folders())
+			{
+				if (const auto* game = detect_game(folder))
+				{
+					return game;
 				}
 			}
 
@@ -85,17 +108,24 @@ namespace zonetool::cli
 				return *requested;
 			}
 
-			if (std::filesystem::is_directory(executable_folder() / "zone"))
+			for (const auto& folder : search_folders())
 			{
-				return executable_folder();
+				if (has_binary(game, folder) || std::filesystem::is_directory(folder / "zone"))
+				{
+					return folder;
+				}
 			}
 
-			if (game.steam_folder.empty())
+			if (!game.steam_folder.empty())
 			{
-				throw std::runtime_error(std::format("set the {} game folder with -path or zonetool.json", game.name));
+				const auto steam_path = std::filesystem::path(steam_common) / game.steam_folder;
+				if (std::filesystem::is_directory(steam_path))
+				{
+					return steam_path;
+				}
 			}
 
-			return std::filesystem::path(steam_common) / game.steam_folder;
+			throw std::runtime_error(std::format("x64-zt did not find the {} game folder", game.name));
 		}
 
 		std::optional<std::string> config_game(const json& config)
@@ -164,7 +194,7 @@ namespace zonetool::cli
 		}
 		else
 		{
-			result.game = detect_game(requested_path ? std::filesystem::path(*requested_path) : executable_folder());
+			result.game = requested_path ? detect_game(*requested_path) : detect_game();
 			if (!result.game)
 			{
 				result.game = select_game(config_game(config));
