@@ -519,6 +519,21 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 			return surfaces;
 		}
 
+		std::vector<bool> get_brush_model_surfaces(const GfxWorld* asset)
+		{
+			std::vector<bool> surfaces(asset->surfaceCount);
+			for (auto i = 1; asset->models && i < asset->modelCount; i++)
+			{
+				const auto& model = asset->models[i];
+				for (auto j = 0u; j < model.surfaceCount && model.startSurfIndex + j < surfaces.size(); j++)
+				{
+					surfaces[model.startSurfIndex + j] = true;
+				}
+			}
+
+			return surfaces;
+		}
+
 		std::array<float, 3> get_sky_rotation_angles(const GfxWorld* asset)
 		{
 			const auto* clip = static_cast<const clipMap_t*>(db_find_asset(ASSET_TYPE_CLIPMAP, asset->name));
@@ -540,12 +555,14 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 		}
 
 		target::Material* convert_surface_material(const Material* handle, const std::unordered_map<unsigned int, const GfxImage*>& sky_surfaces,
-			const std::array<float, 3>& sky_rotation_angles, const unsigned int index, utils::memory::allocator& allocator)
+			const std::array<float, 3>& sky_rotation_angles, const std::vector<bool>& brush_model_surfaces, const unsigned int index,
+			utils::memory::allocator& allocator)
 		{
 			const auto sky = sky_surfaces.find(index);
 			if (sky == sky_surfaces.end())
 			{
-				return convert_lit_material(handle, techset::GENERATED_TECHSET_WORLD, allocator);
+				const auto techset = brush_model_surfaces[index] ? techset::GENERATED_TECHSET_BRUSH_MODEL : techset::GENERATED_TECHSET_WORLD;
+				return convert_lit_material(handle, techset, allocator);
 			}
 
 			const auto name = material::dump_sky(const_cast<Material*>(handle), sky->second, sky_rotation_angles);
@@ -557,6 +574,7 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 		{
 			const auto sky_surfaces = get_sky_surfaces(asset);
 			const auto sky_rotation_angles = get_sky_rotation_angles(asset);
+			const auto brush_model_surfaces = get_brush_model_surfaces(asset);
 			const auto count = asset->surfaceCount;
 			auto& surfaces = world->surfaces;
 			surfaces.count = count;
@@ -580,7 +598,7 @@ namespace zonetool::iw7::converter::iw8::gfxworld
 			{
 				const auto& source = asset->dpvs.surfaces[i];
 				auto& converted = surfaces.surfaces[i];
-				converted.material = convert_surface_material(source.material, sky_surfaces, sky_rotation_angles, i, allocator);
+				converted.material = convert_surface_material(source.material, sky_surfaces, sky_rotation_angles, brush_model_surfaces, i, allocator);
 				if (geometry.valid[i] && converted.material)
 				{
 					converted.tris.posOffset = geometry.surf_data[i].xyzOffset;

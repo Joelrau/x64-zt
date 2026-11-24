@@ -671,13 +671,19 @@ namespace havok::tagfile
 		}
 	}
 
-	std::string writer::finish(const std::uint32_t root_item)
+	void writer::use_compendium(const std::uint64_t id, std::vector<std::uint32_t> type_map)
 	{
-		if (!root_item || root_item >= this->items_.size())
-		{
-			throw std::runtime_error("havok tagfile: bad root item");
-		}
+		this->compendium_id_ = id;
+		this->compendium_types_ = std::move(type_map);
+	}
 
+	std::uint32_t writer::output_type(const std::uint32_t type) const
+	{
+		return this->compendium_types_.empty() ? type : this->compendium_types_.at(type);
+	}
+
+	std::string writer::type_section() const
+	{
 		std::vector<std::string> type_names;
 		std::string type_names_chunk;
 		append_packed(type_names_chunk, this->types_.size());
@@ -780,10 +786,28 @@ namespace havok::tagfile
 			member_names_chunk.push_back('\0');
 		}
 
+		std::string type_chunk;
+		write_chunk(type_chunk, "TPTR", std::string(this->types_.size() * 8, '\0'), 1);
+		write_chunk(type_chunk, "TSTR", std::move(names), 1);
+		write_chunk(type_chunk, "TNA1", std::move(type_names_chunk), 1);
+		write_chunk(type_chunk, "FSTR", std::move(member_names_chunk), 1);
+		write_chunk(type_chunk, "TBDY", std::move(bodies), 1);
+		write_chunk(type_chunk, "THSH", std::move(hashes), 1);
+		write_chunk(type_chunk, "TPAD", {}, 1);
+		return type_chunk;
+	}
+
+	std::string writer::finish(const std::uint32_t root_item)
+	{
+		if (!root_item || root_item >= this->items_.size())
+		{
+			throw std::runtime_error("havok tagfile: bad root item");
+		}
+
 		std::string item_table;
 		for (const auto& entry : this->items_)
 		{
-			const auto type_and_flags = entry.type | (entry.flags << 24);
+			const auto type_and_flags = this->output_type(entry.type) | (entry.flags << 24);
 			append_number(item_table, type_and_flags);
 			append_number(item_table, entry.offset);
 			append_number(item_table, entry.count);
@@ -793,22 +817,13 @@ namespace havok::tagfile
 		for (auto& [type, offsets] : this->patches_)
 		{
 			std::ranges::sort(offsets);
-			append_number(patch_table, type);
+			append_number(patch_table, this->output_type(type));
 			append_number(patch_table, static_cast<std::uint32_t>(offsets.size()));
 			for (const auto offset : offsets)
 			{
 				append_number(patch_table, offset);
 			}
 		}
-
-		std::string type_chunk;
-		write_chunk(type_chunk, "TPTR", std::string(this->types_.size() * 8, '\0'), 1);
-		write_chunk(type_chunk, "TSTR", std::move(names), 1);
-		write_chunk(type_chunk, "TNA1", std::move(type_names_chunk), 1);
-		write_chunk(type_chunk, "FSTR", std::move(member_names_chunk), 1);
-		write_chunk(type_chunk, "TBDY", std::move(bodies), 1);
-		write_chunk(type_chunk, "THSH", std::move(hashes), 1);
-		write_chunk(type_chunk, "TPAD", {}, 1);
 
 		std::string index_chunk;
 		write_chunk(index_chunk, "ITEM", std::move(item_table), 1);
@@ -818,7 +833,17 @@ namespace havok::tagfile
 		std::string contents;
 		write_chunk(contents, "SDKV", "20180200", 1);
 		write_chunk(contents, "DATA", std::move(this->data_), 1);
-		write_chunk(contents, "TYPE", std::move(type_chunk), 0);
+		if (this->compendium_types_.empty())
+		{
+			write_chunk(contents, "TYPE", this->type_section(), 0);
+		}
+		else
+		{
+			std::string compendium_reference;
+			append_number(compendium_reference, this->compendium_id_);
+			compendium_reference.append(16, '\0');
+			write_chunk(contents, "TCRF", std::move(compendium_reference), 1);
+		}
 		write_chunk(contents, "INDX", std::move(index_chunk), 0);
 		write_chunk(result, "TAG0", std::move(contents), 0);
 		return result;

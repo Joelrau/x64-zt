@@ -20,6 +20,7 @@ namespace zonetool::iw7::converter::iw8::netconststrings
 		};
 
 		std::unordered_set<int> dumped_types;
+		std::vector<std::string> level_models;
 
 		std::optional<target::NetConstStringType> convert_type(const NetConstStringType type)
 		{
@@ -104,13 +105,39 @@ namespace zonetool::iw7::converter::iw8::netconststrings
 		if (*type == target::NETCONSTSTRINGTYPE_XMODEL)
 		{
 			dump_models(asset->entryCount, asset->stringList);
+			for (auto i = 0u; i < asset->entryCount; i++)
+			{
+				if (asset->stringList[i])
+				{
+					add_level_model(asset->stringList[i]);
+				}
+			}
+
+			return;
 		}
 
 		dump_table(*type, asset->entryCount, asset->stringList);
 	}
 
+	void add_level_model(const std::string& name)
+	{
+		if (std::ranges::find(level_models, name) == level_models.end())
+		{
+			level_models.emplace_back(name);
+		}
+	}
+
 	void dump_missing_level_strings()
 	{
+		std::vector<const char*> models;
+		for (const auto& name : level_models)
+		{
+			models.emplace_back(name.data());
+		}
+
+		dump_table(target::NETCONSTSTRINGTYPE_XMODEL, static_cast<unsigned int>(models.size()), models.empty() ? nullptr : models.data());
+		level_models.clear();
+
 		for (auto type = 0; type < target::NETCONSTSTRINGTYPE_COUNT; type++)
 		{
 			if (!dumped_types.contains(type))

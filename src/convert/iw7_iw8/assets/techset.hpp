@@ -7,6 +7,7 @@ namespace zonetool::iw7::converter::iw8::techset
 		GENERATED_TECHSET_WORLD,
 		GENERATED_TECHSET_STATIC_MODEL,
 		GENERATED_TECHSET_SKY,
+		GENERATED_TECHSET_BRUSH_MODEL,
 		GENERATED_TECHSET_COUNT,
 	};
 
@@ -50,6 +51,7 @@ namespace zonetool::iw7::converter::iw8::techset
 		std::vector<unsigned char> vertex_decls;
 	};
 
+	bool uses_world_vertices(generated_techset techset);
 	std::string get_techset_name(const generated_variant& variant);
 	zonetool::iw8::MaterialGeometryType get_material_type(generated_techset techset);
 	void dump_techset(const generated_variant& variant);

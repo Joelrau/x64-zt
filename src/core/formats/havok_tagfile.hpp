@@ -152,12 +152,18 @@ namespace havok::tagfile
 		reference add_object(std::uint32_t type, const void* data);
 		reference add_array(std::uint32_t element_type, const void* data, std::size_t count);
 		void set_pointer(std::size_t field_offset, std::uint32_t field_type, std::size_t item);
+		void use_compendium(std::uint64_t id, std::vector<std::uint32_t> type_map);
 		std::string finish(std::uint32_t root_item);
 
 	private:
+		std::uint32_t output_type(std::uint32_t type) const;
+		std::string type_section() const;
+
 		std::vector<type_info> types_;
 		std::vector<item> items_;
 		std::string data_;
 		std::unordered_map<std::uint32_t, std::vector<std::uint32_t>> patches_;
+		std::uint64_t compendium_id_{};
+		std::vector<std::uint32_t> compendium_types_;
 	};
 }

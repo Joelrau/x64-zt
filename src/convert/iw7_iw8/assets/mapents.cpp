@@ -5,10 +5,13 @@
 #include "gfximage.hpp"
 #include "havok.hpp"
 #include "material.hpp"
+#include "netconststrings.hpp"
 #include "rawfile.hpp"
 #include "scriptable.hpp"
 #include "vfx.hpp"
+#include "xmodel.hpp"
 
+#include <iw8/assets/dynentitylist.hpp>
 #include <iw8/assets/edgelist.hpp>
 #include <iw8/assets/mapents.hpp>
 #include <iw8/assets/scriptfile.hpp>
@@ -557,6 +560,96 @@ namespace zonetool::iw7::converter::iw8::mapents
 			return population;
 		}
 
+		target::SpatialPartition_TransientPopulation* make_transient_population(const std::vector<unsigned int>& nodes,
+			utils::memory::allocator& allocator)
+		{
+			auto* population = allocator.allocate<target::SpatialPartition_TransientPopulation>();
+			if (nodes.empty())
+			{
+				return population;
+			}
+
+			population->partitionCount = 1;
+			population->currentPopulation = static_cast<unsigned int>(nodes.size());
+			population->partitionIds = allocator.allocate<unsigned int>();
+			population->buckets = allocator.allocate<target::SpatialPartition_Population_Node>();
+			population->bucketTails = allocator.allocate<target::SpatialPartition_Population_Node>();
+			population->buckets->spatialNodeNext = nodes.back();
+			population->bucketTails->spatialNodeNext = nodes.front();
+			return population;
+		}
+
+		void convert_dyn_entities(const MapEnts* asset, target::MapEnts* converted, utils::memory::allocator& allocator)
+		{
+			std::vector<const DynEntityDef*> clutter;
+			for (auto i = 0u; i < asset->dynEntCount[0]; i++)
+			{
+				const auto& def = asset->dynEntDefList[0][i];
+				if (def.type == DYNENT_TYPE_CLUTTER && def.baseModel)
+				{
+					clutter.push_back(&def);
+				}
+			}
+
+			if (clutter.empty())
+			{
+				return;
+			}
+
+			const auto count = static_cast<unsigned int>(clutter.size());
+			auto* list = allocator.allocate<target::DynEntityList>();
+			list->name = "dynentitylist0";
+			list->dynEntCount[0] = count;
+			list->dynEntCountTotal = count;
+			list->dynEntDefList[0] = allocator.allocate_array<target::DynEntityDef>(count);
+			list->dynEntNoSpatialList.spatialNodeNext = 0xFFFFFFFF;
+			list->dynEntNoSpatialListTail.spatialNodeNext = 0xFFFFFFFF;
+
+			std::vector<unsigned int> spatial_nodes;
+			for (auto i = 0u; i < count; i++)
+			{
+				const auto& source = *clutter[i];
+				auto& def = list->dynEntDefList[0][i];
+				const auto body_count = xmodel::dynamic_body_count(source.baseModel);
+
+				auto* model = allocator.allocate<target::XModel>();
+				model->name = source.baseModel->name;
+				def.baseModel = model;
+				std::memcpy(&def.initialPose, &source.initialPose, sizeof(def.initialPose));
+				def.type = target::DYNENT_TYPE_CLUTTER;
+				def.spatialNode.spatialNodeNext = spatial_nodes.empty() ? 0xFFFFFFFF : spatial_nodes.back();
+				def.clientId[0] = 0xFFFF;
+				def.clientId[1] = 0xFFFF;
+				def.physicsAssetRigidBodiesCount = static_cast<char>(std::max<std::size_t>(body_count, 1));
+				def.spawnActive = source.spawnActive;
+				def.noPhysics = source.noPhysics || !body_count;
+				def.distantShadows = source.distantShadows;
+				def.noSpotShadows = source.noSpotShadows;
+				def.collisionFlags = 2;
+				spatial_nodes.push_back(i);
+
+				if (!body_count)
+				{
+					ZONETOOL_WARNING("dynent \"%s\": physics asset is not converted, the dynent is static", model->name);
+				}
+
+				converted->dynEntMaxPosePartCount = std::max(converted->dynEntMaxPosePartCount, def.physicsAssetRigidBodiesCount);
+				converted->dynEntsWithExtraPosePartsCount += def.physicsAssetRigidBodiesCount > 1;
+			}
+
+			list->dynEntSpatialPopulation[0] = make_transient_population(spatial_nodes, allocator);
+			list->dynEntSpatialPopulation[1] = make_transient_population({}, allocator);
+
+			converted->dynEntCount[0] = count;
+			converted->dynEntCountTotal = count;
+			converted->dynEntityListsCount = 1;
+			converted->dynEntListIds = allocator.allocate<target::DynEntityListId>();
+			converted->dynEntMaxClientHistoryCount = 10000;
+
+			target::dyn_entity_list::dump(list);
+			add_csv_row("dynentitylist", list->name);
+		}
+
 		void add_edge(target::MapEdgeList* list, const std::array<float, 3>& start, const std::array<float, 3>& end,
 			const float adjacent_normal, const std::uint16_t open_angle)
 		{
@@ -800,7 +893,15 @@ namespace zonetool::iw7::converter::iw8::mapents
 		}
 		convert_splines(asset->splineList, converted->splineList, allocator);
 
-		convert_submodels(asset, converted, allocator); // TODO: havok ents shapes and dynents are not converted
+		for (const auto& entity : read_entities(asset))
+		{
+			if (const auto model = entity.find("model"); model != entity.end() && !model->second.starts_with('*'))
+			{
+				netconststrings::add_level_model(model->second);
+			}
+		}
+
+		convert_submodels(asset, converted, allocator); // TODO: havok ents shapes are not converted
 		convert_ladders(asset, converted, allocator);
 
 		for (auto& population : converted->dynEntSpatialPopulation)
@@ -808,6 +909,7 @@ namespace zonetool::iw7::converter::iw8::mapents
 			population = make_empty_population(allocator);
 		}
 
+		convert_dyn_entities(asset, converted, allocator);
 		convert_scriptables(asset->scriptableMapEnts, converted->scriptableMapEnts, allocator);
 		converted->scriptableMapEnts.spatialPopulationTree = make_leaf_tree(allocator); // TODO: scriptable spatial population
 

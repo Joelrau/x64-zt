@@ -4207,6 +4207,166 @@ namespace zonetool::iw7
 		hkArray<int> convexCounts;
 	}; assert_sizeof(HavokPhysicsShapeList, 152);
 
+	template <typename T>
+	struct hkRelArray
+	{
+		unsigned short size;
+		unsigned short offset;
+
+		const T* data() const
+		{
+			return reinterpret_cast<const T*>(reinterpret_cast<const char*>(this) + this->offset);
+		}
+	}; assert_sizeof(hkRelArray<int>, 4);
+
+	struct hkCompressedMassProperties
+	{
+		short centerOfMass[4];
+		short inertia[4];
+		short majorAxisSpace[4];
+		float mass;
+		float volume;
+	}; assert_sizeof(hkCompressedMassProperties, 32);
+
+	struct hknpShapeMassProperties
+	{
+		void* vtable;
+		unsigned int memSizeAndRefCount;
+		char __pad0[4];
+		hkCompressedMassProperties compressedMassProperties;
+	}; assert_sizeof(hknpShapeMassProperties, 48);
+
+	struct hkRefCountedPropertiesEntry
+	{
+		void* object;
+		unsigned short key;
+		unsigned short flags;
+		char __pad0[4];
+	}; assert_sizeof(hkRefCountedPropertiesEntry, 16);
+
+	struct hkRefCountedProperties
+	{
+		hkArray<hkRefCountedPropertiesEntry> entries;
+	}; assert_sizeof(hkRefCountedProperties, 16);
+
+	struct hknpConvexPolytopeShapeFace
+	{
+		unsigned short firstIndex;
+		unsigned char numIndices;
+		unsigned char minHalfAngle;
+	}; assert_sizeof(hknpConvexPolytopeShapeFace, 4);
+
+	struct hknpConvexPolytopeShapeConnectivityEdge
+	{
+		unsigned short faceIndex;
+		unsigned char edgeIndex;
+		unsigned char padding;
+	}; assert_sizeof(hknpConvexPolytopeShapeConnectivityEdge, 4);
+
+	struct hknpConvexPolytopeShapeConnectivity
+	{
+		void* vtable;
+		unsigned int memSizeAndRefCount;
+		char __pad0[4];
+		hkArray<hknpConvexPolytopeShapeConnectivityEdge> vertexEdges;
+		hkArray<hknpConvexPolytopeShapeConnectivityEdge> faceLinks;
+	}; assert_sizeof(hknpConvexPolytopeShapeConnectivity, 48);
+
+	struct hknpConvexPolytopeShape
+	{
+		void* vtable;
+		unsigned int memSizeAndRefCount;
+		char __pad0[4];
+		hknpShapeFlags flags;
+		unsigned char numShapeKeyBits;
+		hknpShapeDispatchType dispatchType;
+		float convexRadius;
+		unsigned long long userData;
+		hkRefCountedProperties* properties;
+		char __pad1[8];
+		hkRelArray<hkVector4> vertices;
+		char __pad2[12];
+		hkRelArray<hkVector4> planes;
+		hkRelArray<hknpConvexPolytopeShapeFace> faces;
+		hkRelArray<unsigned char> indices;
+		char __pad3[4];
+		hknpConvexPolytopeShapeConnectivity* connectivity;
+	}; assert_sizeof(hknpConvexPolytopeShape, 0x58);
+	assert_offsetof(hknpConvexPolytopeShape, vertices, 0x30);
+	assert_offsetof(hknpConvexPolytopeShape, planes, 0x40);
+	assert_offsetof(hknpConvexPolytopeShape, connectivity, 0x50);
+
+	struct hknpMotionCinfo
+	{
+		unsigned short motionPropertiesId;
+		bool enableDeactivation;
+		float inverseMass;
+		float maxLinearAccelerationDistancePerStep;
+		float maxRotationPerStep;
+		hkVector4 inverseInertiaLocal;
+		hkVector4 centerOfMassWorld;
+		hkVector4 orientation;
+		hkVector4 linearVelocity;
+		hkVector4 angularVelocity;
+	}; assert_sizeof(hknpMotionCinfo, 0x60);
+	assert_offsetof(hknpMotionCinfo, inverseMass, 0x4);
+
+	struct hknpBodyCinfo
+	{
+		void* shape;
+		unsigned int flags;
+		unsigned int collisionFilterInfo;
+		unsigned short materialId;
+		unsigned char qualityId;
+		char __pad0[13];
+		const char* name;
+		unsigned long long userData;
+		hkVector4 position;
+		hkVector4 orientation;
+		hkVector4 linearVelocity;
+		hkVector4 angularVelocity;
+		float mass;
+		void* massDistribution;
+		unsigned short motionPropertiesId;
+		unsigned int reservedBodyId;
+		unsigned int reservedMotionId;
+		float collisionLookAheadDistance;
+		void* localFrame;
+		char __pad1[8];
+	}; assert_sizeof(hknpBodyCinfo, 0xA0);
+	assert_offsetof(hknpBodyCinfo, name, 0x20);
+	assert_offsetof(hknpBodyCinfo, mass, 0x70);
+	assert_offsetof(hknpBodyCinfo, reservedMotionId, 0x88);
+	assert_offsetof(hknpBodyCinfo, localFrame, 0x90);
+
+	struct hknpPhysicsSystemData
+	{
+		void* vtable;
+		unsigned int memSizeAndRefCount;
+		char __pad0[4];
+		hkArray<void> materials;
+		hkArray<void> motionProperties;
+		hkArray<hknpMotionCinfo> motionCinfos;
+		hkArray<hknpBodyCinfo> bodyCinfos;
+		hkArray<void> constraintCinfos;
+		hkArray<void*> referencedObjects;
+		const char* name;
+	}; assert_sizeof(hknpPhysicsSystemData, 0x78);
+
+	struct HavokPhysicsAsset
+	{
+		bool isRagdoll;
+		hknpPhysicsSystemData* physicsSystemData;
+		hkArray<int> bodyQualityNameCRCLookup;
+		hkArray<int> materialNameCRCLookup;
+		hkArray<int> motionPropertiesNameCRCLookup;
+		hkArray<const char*> bodySFXAssetNames;
+		hkArray<const char*> bodyVFXAssetNames;
+		hkArray<int> bodyServerUsage;
+		hkArray<int> constraintServerUsage;
+		hkArray<int> bodyDrivers;
+	}; assert_sizeof(HavokPhysicsAsset, 0x90);
+
 	struct clipMap_t // __declspec(align(128))
 	{
 		const char* name;

@@ -33,11 +33,11 @@ namespace zonetool::iw7::converter::iw8::havok
 			return schema().at(type);
 		}
 
-		const tag_member* find_member(std::uint32_t type, const std::string_view name)
+		const tag_member* find_member(const std::vector<tag_type>& types, std::uint32_t type, const std::string_view name)
 		{
 			while (type)
 			{
-				for (const auto& member : type_info(type).members)
+				for (const auto& member : types.at(type).members)
 				{
 					if (member.name == name)
 					{
@@ -45,21 +45,31 @@ namespace zonetool::iw7::converter::iw8::havok
 					}
 				}
 
-				type = type_info(type).parent;
+				type = types.at(type).parent;
 			}
 
 			return nullptr;
 		}
 
-		const tag_member& member(const std::uint32_t type, const std::string_view name)
+		const tag_member* find_member(const std::uint32_t type, const std::string_view name)
 		{
-			const auto* found = find_member(type, name);
+			return find_member(schema(), type, name);
+		}
+
+		const tag_member& member(const std::vector<tag_type>& types, const std::uint32_t type, const std::string_view name)
+		{
+			const auto* found = find_member(types, type, name);
 			if (!found)
 			{
 				throw std::runtime_error(std::format("havok schema: type {} has no member {}", type, name));
 			}
 
 			return *found;
+		}
+
+		const tag_member& member(const std::uint32_t type, const std::string_view name)
+		{
+			return member(schema(), type, name);
 		}
 
 		template <typename T>
@@ -2324,5 +2334,224 @@ namespace zonetool::iw7::converter::iw8::havok
 		}
 
 		return ladders;
+	}
+
+	namespace
+	{
+		bool is_dynamic_polytope_body(const iw7::havok::binary::packfile_reader& reader, const iw7::hknpPhysicsSystemData* system,
+			const iw7::hknpBodyCinfo& body)
+		{
+			return body.shape && body.reservedMotionId < static_cast<unsigned int>(system->motionCinfos.size)
+				&& reader.class_name(body.shape) == "hknpConvexPolytopeShape";
+		}
+	}
+
+	std::optional<physics_asset> convert_physics_asset(const std::string_view packfile, const std::string& name)
+	{
+		const iw7::havok::binary::packfile_reader reader(packfile);
+		if (reader.root_class_name() != "HavokPhysicsAsset")
+		{
+			return {};
+		}
+
+		const auto* source = reader.root<iw7::HavokPhysicsAsset>();
+		const auto* system = source->physicsSystemData;
+		if (!system || system->bodyCinfos.size < 1)
+		{
+			return {};
+		}
+
+		const auto body_count = static_cast<std::size_t>(system->bodyCinfos.size);
+		const std::span bodies(system->bodyCinfos.data, body_count);
+		if (!std::ranges::all_of(bodies, [&](const iw7::hknpBodyCinfo& body) { return is_dynamic_polytope_body(reader, system, body); }))
+		{
+			return {};
+		}
+
+		if (system->constraintCinfos.size > 0)
+		{
+			ZONETOOL_WARNING("physicsasset \"%s\": %d constraints are not converted", name.data(), system->constraintCinfos.size);
+			return {};
+		}
+
+		const auto& types = physics_asset_schema();
+		const auto field = [&](const std::uint32_t type, const std::string_view member_name) -> const tag_member&
+		{
+			return member(types, type, member_name);
+		};
+		const auto put_field = [&](std::vector<std::byte>& object, const std::size_t base, const std::uint32_t type,
+			const std::string_view member_name, const auto& value)
+		{
+			put(object, base + field(type, member_name).offset, value);
+		};
+
+		tag_writer writer(types);
+		writer.use_compendium(0xC16B2E49324C3540, physics_asset_compendium_types()); // physicsglobaltypecompendium
+		const auto t_asset = writer.type_id("HavokPhysicsAsset");
+		const auto t_system = writer.type_id("hknpPhysicsSystemData");
+		const auto t_body = writer.type_id("hknpPhysicsSystemData::bodyCinfoWithAttachment");
+		const auto t_hull = writer.type_id("hknpConvexPolytopeShape");
+		const auto t_face = writer.type_id("hknpConvexPolytopeShape::Face");
+		const auto t_connectivity = writer.type_id("hknpConvexPolytopeShape::Connectivity");
+		const auto t_edge = writer.type_id("hknpConvexPolytopeShape::Connectivity::Edge");
+		const auto t_properties = writer.type_id("hkRefCountedProperties");
+		const auto t_entry = writer.type_id("hkRefCountedProperties::Entry");
+		const auto t_mass = writer.type_id("hknpShapeMassProperties");
+		const auto t_vector4f = writer.type_id("hkVector4f");
+		const auto t_vector4 = writer.type_id("hkVector4");
+		const auto t_uint8 = writer.type_id("hkUint8");
+		const auto t_int = writer.type_id("int");
+		const auto t_char = writer.type_id("char");
+		const auto t_string = writer.type_id("hkStringPtr");
+
+		std::vector<std::byte> asset_bytes(writer.type_size(t_asset), std::byte{0});
+		put_field(asset_bytes, 0, t_asset, "useCategory", zonetool::iw8::PhysicsAssetUseCategory_Dynent);
+		const auto asset_offset = writer.add_object(t_asset, asset_bytes.data());
+
+		const auto set_field = [&](const tag_writer::reference& object, const std::size_t base, const std::uint32_t type,
+			const std::string_view member_name, const std::uint32_t item)
+		{
+			const auto& target_field = field(type, member_name);
+			writer.set_pointer(object.offset + base + target_field.offset, target_field.type, item);
+		};
+
+		const auto add_string = [&](const std::string_view text)
+		{
+			const std::string value(text);
+			return writer.add_array(t_char, value.data(), value.size() + 1).item;
+		};
+
+		const auto set_int_array = [&](const std::string_view member_name, const std::vector<std::int32_t>& values)
+		{
+			if (!values.empty())
+			{
+				set_field(asset_offset, 0, t_asset, member_name, writer.add_array(t_int, values.data(), values.size()).item);
+			}
+		};
+
+		const auto copy_int_array = [](const iw7::hkArray<int>& array)
+		{
+			return std::vector<std::int32_t>(array.data, array.data + std::max(array.size, 0));
+		};
+
+		set_int_array("bodyQualityNameCRCLookup", copy_int_array(source->bodyQualityNameCRCLookup));
+		set_int_array("materialNameCRCLookup", copy_int_array(source->materialNameCRCLookup));
+		set_int_array("motionPropertiesNameCRCLookup", copy_int_array(source->motionPropertiesNameCRCLookup));
+
+		const std::vector<std::uint64_t> null_names(body_count, 0);
+		set_field(asset_offset, 0, t_asset, "bodySFXAssetNames", writer.add_array(t_string, null_names.data(), body_count).item);
+		set_field(asset_offset, 0, t_asset, "bodyVFXAssetNames", writer.add_array(t_string, null_names.data(), body_count).item);
+		set_int_array("bodyServerUsage", std::vector<std::int32_t>(body_count, 0));
+		set_int_array("bodyDrivers", std::vector<std::int32_t>(body_count, 0));
+		set_int_array("simulationCategories",
+			std::vector<std::int32_t>(body_count, zonetool::iw8::PhysicsAssetSimulationCategory_DynamicEntity));
+
+		std::vector<std::byte> system_bytes(writer.type_size(t_system), std::byte{0});
+		put_field(system_bytes, 0, t_system, "microStepMultiplier", static_cast<std::uint8_t>(1));
+		const auto system_offset = writer.add_object(t_system, system_bytes.data());
+		set_field(asset_offset, 0, t_asset, "physicsSystemData", system_offset.item);
+		set_field(system_offset, 0, t_system, "name", add_string(system->name ? system->name : "Default Physics System Data"));
+
+		physics_asset result{};
+		const auto body_size = writer.type_size(t_body);
+		std::vector<std::byte> body_bytes(body_size * body_count, std::byte{0});
+		for (auto i = 0u; i < body_count; i++)
+		{
+			const auto& body = bodies[i];
+			const auto& motion = system->motionCinfos.data[body.reservedMotionId];
+			const auto base = i * body_size;
+			const auto contents = convert_contents(body.collisionFilterInfo);
+			result.body_contents.push_back(contents);
+
+			put_field(body_bytes, base, t_body, "flags", static_cast<std::int32_t>(body.flags));
+			put_field(body_bytes, base, t_body, "collisionFilterInfo", contents);
+			put_field(body_bytes, base, t_body, "materialId", body.materialId);
+			put_field(body_bytes, base, t_body, "qualityId", body.qualityId);
+			put_field(body_bytes, base, t_body, "userData", body.userData);
+			put_field(body_bytes, base, t_body, "motionType", static_cast<std::uint8_t>(2)); // dynamic
+			put_field(body_bytes, base, t_body, "position", body.position);
+			put_field(body_bytes, base, t_body, "orientation", body.orientation);
+			put_field(body_bytes, base, t_body, "linearVelocity", body.linearVelocity);
+			put_field(body_bytes, base, t_body, "angularVelocity", body.angularVelocity);
+			put_field(body_bytes, base, t_body, "mass", motion.inverseMass > 0.0f ? 1.0f / motion.inverseMass : body.mass);
+			put_field(body_bytes, base, t_body, "motionPropertiesId", body.motionPropertiesId);
+			put_field(body_bytes, base, t_body, "desiredBodyId", static_cast<std::uint32_t>(0x00FFFFFF));
+			put_field(body_bytes, base, t_body, "motionId", static_cast<std::uint32_t>(0x7FFFFFFF));
+			put_field(body_bytes, base, t_body, "collisionLookAheadDistance", body.collisionLookAheadDistance);
+			put_field(body_bytes, base, t_body, "activationPriority", static_cast<std::int8_t>(5));
+			put_field(body_bytes, base, t_body, "attachedBody", static_cast<std::int32_t>(-1));
+		}
+
+		const auto bodies_offset = writer.add_array(t_body, body_bytes.data(), body_count);
+		set_field(system_offset, 0, t_system, "bodyCinfos", bodies_offset.item);
+
+		for (auto i = 0u; i < body_count; i++)
+		{
+			const auto& body = bodies[i];
+			const auto* shape = static_cast<const iw7::hknpConvexPolytopeShape*>(body.shape);
+			const auto base = i * body_size;
+			set_field(bodies_offset, base, t_body, "name", add_string(body.name ? body.name : "tag_origin"));
+
+			std::vector<std::byte> hull_bytes(writer.type_size(t_hull), std::byte{0});
+			put_field(hull_bytes, 0, t_hull, "flags", static_cast<std::uint16_t>(0x0943));
+			put_field(hull_bytes, 0, t_hull, "type", static_cast<std::uint8_t>(1));
+			put_field(hull_bytes, 0, t_hull, "numShapeKeyBits", shape->numShapeKeyBits);
+			put_field(hull_bytes, 0, t_hull, "dispatchType", static_cast<std::uint8_t>(2));
+			put_field(hull_bytes, 0, t_hull, "convexRadius", shape->convexRadius);
+			put_field(hull_bytes, 0, t_hull, "userData", convert_user_data(shape->userData));
+			put_field(hull_bytes, 0, t_hull, "maxAllowedPenetration", static_cast<std::uint16_t>(0x3EC6));
+			const auto hull_offset = writer.add_object(t_hull, hull_bytes.data());
+			set_field(bodies_offset, base, t_body, "shape", hull_offset.item);
+
+			set_field(hull_offset, 0, t_hull, "vertices", writer.add_array(t_vector4f, shape->vertices.data(), shape->vertices.size).item);
+			set_field(hull_offset, 0, t_hull, "planes", writer.add_array(t_vector4, shape->planes.data(), shape->planes.size).item);
+			set_field(hull_offset, 0, t_hull, "faces", writer.add_array(t_face, shape->faces.data(), shape->faces.size).item);
+			set_field(hull_offset, 0, t_hull, "indices", writer.add_array(t_uint8, shape->indices.data(), shape->indices.size).item);
+
+			if (const auto* connectivity = shape->connectivity)
+			{
+				const auto vertex_edges_item = writer.add_array(t_edge, connectivity->vertexEdges.data, connectivity->vertexEdges.size).item;
+				const auto face_links_item = writer.add_array(t_edge, connectivity->faceLinks.data, connectivity->faceLinks.size).item;
+				std::vector<std::byte> connectivity_bytes(writer.type_size(t_connectivity), std::byte{0});
+				const auto connectivity_offset = writer.add_object(t_connectivity, connectivity_bytes.data());
+				set_field(connectivity_offset, 0, t_connectivity, "vertexEdges", vertex_edges_item);
+				set_field(connectivity_offset, 0, t_connectivity, "faceLinks", face_links_item);
+				set_field(hull_offset, 0, t_hull, "connectivity", connectivity_offset.item);
+			}
+
+			if (!shape->properties || shape->properties->entries.size < 1)
+			{
+				continue;
+			}
+
+			const std::span entries(shape->properties->entries.data, static_cast<std::size_t>(shape->properties->entries.size));
+			const auto mass_entry = std::ranges::find_if(entries, [](const iw7::hkRefCountedPropertiesEntry& entry)
+			{
+				return entry.object && entry.key == 0xF100;
+			});
+			if (mass_entry == entries.end())
+			{
+				continue;
+			}
+
+			const auto* mass = static_cast<const iw7::hknpShapeMassProperties*>(mass_entry->object);
+			std::vector<std::byte> mass_bytes(writer.type_size(t_mass), std::byte{0});
+			put_field(mass_bytes, 0, t_mass, "compressedMassProperties", mass->compressedMassProperties);
+			const auto mass_offset = writer.add_object(t_mass, mass_bytes.data());
+
+			std::vector<std::byte> entry_bytes(writer.type_size(t_entry), std::byte{0});
+			put_field(entry_bytes, 0, t_entry, "key", mass_entry->key);
+			put_field(entry_bytes, 0, t_entry, "flags", mass_entry->flags);
+			const auto entry_offset = writer.add_array(t_entry, entry_bytes.data(), 1);
+			set_field(entry_offset, 0, t_entry, "object", mass_offset.item);
+
+			std::vector<std::byte> properties_bytes(writer.type_size(t_properties), std::byte{0});
+			const auto properties_offset = writer.add_object(t_properties, properties_bytes.data());
+			set_field(properties_offset, 0, t_properties, "entries", entry_offset.item);
+			set_field(hull_offset, 0, t_hull, "properties", properties_offset.item);
+		}
+
+		result.havok_data = writer.finish(asset_offset.item);
+		return result;
 	}
 }

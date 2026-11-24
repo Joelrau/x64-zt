@@ -4,8 +4,10 @@
 #include "xmodel.hpp"
 #include "xsurface.hpp"
 #include "material.hpp"
+#include "havok.hpp"
 
 #include <iw8/assets/xmodel.hpp>
+#include <iw8/assets/physics.hpp>
 
 #include <shared.hpp>
 
@@ -117,6 +119,45 @@ namespace zonetool::iw7::converter::iw8::xmodel
 			return flags;
 		}
 
+		target::PhysicsAsset* convert_physics_asset(const PhysicsAsset* asset, utils::memory::allocator& allocator)
+		{
+			if (!asset || !asset->havokData || !asset->havokDataSize)
+			{
+				return nullptr;
+			}
+
+			const auto converted = havok::convert_physics_asset({asset->havokData, asset->havokDataSize}, asset->name);
+			if (!converted)
+			{
+				return nullptr;
+			}
+
+			const auto body_count = converted->body_contents.size();
+			const auto result = allocator.allocate<target::PhysicsAsset>();
+			result->name = asset->name;
+			result->havokDataSize = static_cast<unsigned int>(converted->havok_data.size());
+			result->havokData = allocator.allocate_array<char>(converted->havok_data.size());
+			std::memcpy(result->havokData, converted->havok_data.data(), converted->havok_data.size());
+			result->useCategory = target::PhysicsAssetUseCategory_Dynent;
+			result->numRigidBodies = static_cast<int>(body_count);
+			result->numConstraints = 0;
+			result->simulationCategories = allocator.allocate_array<target::PhysicsAssetSimulationCategory>(body_count);
+			result->bodyContents = allocator.allocate_array<unsigned int>(body_count);
+			for (auto i = 0u; i < body_count; i++)
+			{
+				result->simulationCategories[i] = target::PhysicsAssetSimulationCategory_DynamicEntity;
+				result->bodyContents[i] = converted->body_contents[i];
+			}
+
+			result->numSFXEventAssets = static_cast<int>(body_count);
+			result->numVFXEventAssets = static_cast<int>(body_count);
+			result->sfxEventAssets = allocator.allocate_array<target::PhysicsSFXEventAsset*>(body_count);
+			result->vfxEventAssets = allocator.allocate_array<target::PhysicsVFXEventAsset*>(body_count);
+			std::memcpy(&result->usageCounter, &asset->physicsUsageCounter, sizeof(result->usageCounter));
+			result->containsDynamicBodies = true;
+			return result;
+		}
+
 		target::XModel* convert(const XModel* asset, utils::memory::allocator& allocator)
 		{
 			const auto result = allocator.allocate<target::XModel>();
@@ -164,6 +205,18 @@ namespace zonetool::iw7::converter::iw8::xmodel
 		}
 	}
 
+	std::size_t dynamic_body_count(const XModel* asset)
+	{
+		const auto* physics = asset ? asset->physicsAsset : nullptr;
+		if (!physics || !physics->havokData || !physics->havokDataSize)
+		{
+			return 0;
+		}
+
+		const auto converted = havok::convert_physics_asset({physics->havokData, physics->havokDataSize}, physics->name);
+		return converted ? converted->body_contents.size() : 0;
+	}
+
 	void dump(XModel* asset)
 	{
 		if (!mark_dumped(ASSET_TYPE_XMODEL, asset->name))
@@ -172,7 +225,15 @@ namespace zonetool::iw7::converter::iw8::xmodel
 		}
 
 		utils::memory::allocator allocator;
-		zonetool::iw8::xmodel::dump(convert(asset, allocator));
+		const auto result = convert(asset, allocator);
+		result->physicsAsset = convert_physics_asset(asset->physicsAsset, allocator);
+		if (result->physicsAsset && mark_dumped(ASSET_TYPE_PHYSICSASSET, result->physicsAsset->name))
+		{
+			zonetool::iw8::physics_asset::dump(result->physicsAsset);
+			add_csv_row("physicsasset", result->physicsAsset->name);
+		}
+
+		zonetool::iw8::xmodel::dump(result);
 		add_csv_row("xmodel", asset->name);
 
 		for (auto i = 0; i < asset->numsurfs; i++)

@@ -50,6 +50,13 @@ cbuffer material_constants : register(b3)
 	float4 eye_offset_parms;
 };
 
+#ifdef BRUSH_MODEL
+cbuffer brush_placement_constants : register(b0)
+{
+	float4 brush_placement[3];
+};
+#endif
+
 cbuffer world_draw_constants : register(b9)
 {
 	uint4 world_draw;
@@ -236,14 +243,32 @@ float4 clip_position(float3 world)
 	return float4(dot(position, view_projection[0]), dot(position, view_projection[1]), dot(position, view_projection[2]), dot(position, view_projection[3]));
 }
 
+#ifdef BRUSH_MODEL
+float3 brush_rotate(float3 v)
+{
+	return float3(dot(brush_placement[0].xyz, v), dot(brush_placement[1].xyz, v), dot(brush_placement[2].xyz, v));
+}
+
+float3 world_position(world_surface surface, uint vertex_id)
+{
+	const int3 origin = int3(asint(brush_placement[0].w), asint(brush_placement[1].w), asint(brush_placement[2].w));
+	return brush_rotate(asfloat(world_positions.Load3(surface.xyz_offset + 12 * vertex_id))) + float3(origin - camera_offset.xyz) / 4096.0;
+}
+#else
 float3 world_position(world_surface surface, uint vertex_id)
 {
 	return asfloat(world_positions.Load3(surface.xyz_offset + 12 * vertex_id)) + float3(-camera_offset.xyz) / 4096.0;
 }
+#endif
 
 float3 world_normal(world_surface surface, uint vertex_id)
 {
-	return frame_normal(decode_tangent_frame(world_vertex_data.Load(surface.tangent_frame_offset + 4 * vertex_id)));
+	const float3 normal = frame_normal(decode_tangent_frame(world_vertex_data.Load(surface.tangent_frame_offset + 4 * vertex_id)));
+#ifdef BRUSH_MODEL
+	return brush_rotate(normal);
+#else
+	return normal;
+#endif
 }
 
 float2 world_uv(world_surface surface, uint vertex_id)

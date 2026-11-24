@@ -38,9 +38,12 @@ namespace zonetool::iw7
 					return this->root_class_name_;
 				}
 
+				std::string class_name(const void* object) const;
+
 			private:
 				std::string data_;
 				std::string root_class_name_;
+				std::unordered_map<std::size_t, std::string> class_names_;
 			};
 
 			class packfile_writer

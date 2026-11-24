@@ -616,7 +616,7 @@ namespace zonetool::iw7::converter::iw8::material
 					&& find_layer_constant(asset, "oceanScrollNormal0", 0) && find_layer_constant(asset, "oceanScrollNormal1", 0);
 				variant.effect = effect && variant.blend == techset::GENERATED_BLEND_ADD && !variant.uv_anim && !variant.exposure_compensated;
 				variant.near_fade = variant.effect && has_techset_token(asset, "zfeather") && find_layer_constant(asset, "featherParms", 0);
-				variant.vertex_color = techset == techset::GENERATED_TECHSET_WORLD && !variant.effect && !variant.water && has_vertex_color(asset)
+				variant.vertex_color = techset::uses_world_vertices(techset) && !variant.effect && !variant.water && has_vertex_color(asset)
 					&& ((variant.blend == techset::GENERATED_BLEND_ADD && !variant.lit) || variant.blend == techset::GENERATED_BLEND_MULTIPLY);
 				return variant;
 			}
@@ -627,7 +627,7 @@ namespace zonetool::iw7::converter::iw8::material
 
 		std::string get_lit_name(const char* name, const techset::generated_techset techset)
 		{
-			const auto prefix = techset == techset::GENERATED_TECHSET_STATIC_MODEL ? "tmo" : "tw";
+			const auto prefix = techset == techset::GENERATED_TECHSET_STATIC_MODEL ? "tmo" : techset == techset::GENERATED_TECHSET_BRUSH_MODEL ? "tb" : "tw";
 			if (name[0] == '*')
 			{
 				return std::format("{}/maps/mp/generated/{}", prefix, name + 1); // '*' is not a valid file name
@@ -789,6 +789,16 @@ namespace zonetool::iw7::converter::iw8::material
 			}
 
 			return "tmco/lit_3_lit_alt_ta1_808810_1002000000000010_0_1_1_0_0_13830015b_0_0_1_0_0";
+		}
+
+		const char* get_model_alpha_test_donor_techset(const techset::generated_variant& variant) // TODO: stock mp_aniyah_tac techset, convert natively
+		{
+			if (!variant.visible || !variant.lit || variant.uv_anim || variant.blend != techset::GENERATED_BLEND_OPAQUE || !variant.alpha_test)
+			{
+				return nullptr;
+			}
+
+			return "mo/lit_3_lit_alt_ta1_808800_1002000000000010_0_1_1_0_0_13830015b_0_0_1_0_0";
 		}
 
 		const char* get_distortion_donor_techset(const Material* asset, const techset::generated_variant& variant) // TODO: stock mp_rust techset, convert natively
@@ -1629,6 +1639,24 @@ namespace zonetool::iw7::converter::iw8::material
 			return;
 		}
 
+		const auto variant = get_variant(asset, techset::GENERATED_TECHSET_STATIC_MODEL);
+		if (const auto donor = get_model_alpha_test_donor_techset(variant))
+		{
+			donor_techsets.emplace(donor);
+			const auto converted = convert_donor(asset, asset->name, variant, donor, donor_kind::lit, allocator);
+			converted->materialType = target::MTL_TYPE_MODEL_SELFVIS;
+			zonetool::iw8::material::dump(converted);
+			for (auto i = 0; i < converted->textureCount; i++)
+			{
+				if (const auto image = converted->textureTable[i].image->name; image[0] == '$')
+				{
+					add_csv_row("image", ","s + image);
+				}
+			}
+			add_csv_row("material", asset->name);
+			return;
+		}
+
 		zonetool::iw8::material::dump(convert(asset, allocator));
 		add_csv_row("require", "techsets_global_stream_mp");
 		add_csv_row("techset", ","s + techset_name);
@@ -1733,7 +1761,12 @@ namespace zonetool::iw7::converter::iw8::material
 
 		utils::memory::allocator allocator;
 		target::Material* converted;
-		if (const auto distortion_donor = get_distortion_donor_techset(asset, variant))
+		if (techset == techset::GENERATED_TECHSET_BRUSH_MODEL) // stock has no BMODEL techset
+		{
+			techset::dump_techset(variant);
+			converted = convert_lit(asset, name, variant, allocator);
+		}
+		else if (const auto distortion_donor = get_distortion_donor_techset(asset, variant))
 		{
 			donor_techsets.emplace(distortion_donor);
 			converted = convert_distortion(asset, name, distortion_donor, allocator);

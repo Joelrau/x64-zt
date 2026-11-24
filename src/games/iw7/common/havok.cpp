@@ -267,7 +267,40 @@ namespace zonetool::iw7
 					{
 						this->root_class_name_ = std::string(bytes.data() + name_offset);
 					}
+
+					offset = contents_start + static_cast<std::size_t>(contents.virtualFixupsOffset);
+					const auto virtual_end = contents_start + static_cast<std::size_t>(contents.exportsOffset);
+					while (offset + 12 <= virtual_end)
+					{
+						std::uint32_t source{}, section{}, class_offset{};
+						std::memcpy(&source, bytes.data() + offset, sizeof(source));
+						std::memcpy(&section, bytes.data() + offset + 4, sizeof(section));
+						std::memcpy(&class_offset, bytes.data() + offset + 8, sizeof(class_offset));
+						offset += 12;
+						if (source == 0xFFFFFFFF)
+						{
+							break;
+						}
+
+						if (section >= static_cast<std::uint32_t>(header->numSections))
+						{
+							continue;
+						}
+
+						const auto class_name_offset = static_cast<std::size_t>(sections[section].absoluteDataStart) + class_offset;
+						if (class_name_offset < bytes.size())
+						{
+							this->class_names_[source] = std::string(bytes.data() + class_name_offset);
+						}
+					}
 				}
+			}
+
+			std::string packfile_reader::class_name(const void* object) const
+			{
+				const auto offset = static_cast<std::size_t>(static_cast<const char*>(object) - this->data_.data());
+				const auto found = this->class_names_.find(offset);
+				return found != this->class_names_.end() ? found->second : std::string{};
 			}
 
 			void packfile_writer::add_string(const std::size_t pointer_field, const std::string& text)
