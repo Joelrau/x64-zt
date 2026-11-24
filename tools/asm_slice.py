@@ -16,6 +16,7 @@ DUMPS = {
 	"iw8": "iw8/ship",
 	"s1": "s1/ship",
 	"s2": "s2/ship",
+	"s4": "s4/ship",
 }
 FUNC_LINE = re.compile(r"^(\d+):; FUNC ([0-9a-fA-F]+) ([0-9a-fA-F]+) (.*)$")
 IMAGE_BASE = 0x140000000

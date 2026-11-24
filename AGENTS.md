@@ -520,7 +520,7 @@ grep -n "struct GfxStateBits" -A12 src/games/h1/structs.hpp
 grep -n "r_smodelInstancedRenderer" re_reference/iw7/ship/strings.txt
 ```
 
-- Dump names: `h1` (1.15, RVAs), `h1_1.4` (full addresses), `h2`, `iw6`, `iw7`, `iw8`, `s1`, `s2`.
+- Dump names: `h1` (1.15, RVAs), `h1_1.4` (full addresses), `h2`, `iw6`, `iw7`, `iw8`, `s1`, `s2`, `s4`.
 - `-l` maps a call stack to function names. `-a` prints the lines around an address. `-c` lists every call site of a function.
 - `-r` searches the text of each line with a regex, not an address. Use it for a string label, a global or a field offset.
 - A dumped techset has a readable technique list in `dump/<zone>/techsets/<techset>.techset.txt`.

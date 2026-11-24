@@ -1,0 +1,8 @@
+; input Vanguard_dump.exe imagebase fffffffffffff000
+0 7ba5000 .text type=2 perm=5
+7ba5000 8100000 .rdata type=3 perm=4
+8100000 17145000 .data type=3 perm=6
+17145000 172d7000 .pdata type=3 perm=4
+172d7000 172ee000 _RDATA type=3 perm=4
+17568000 1756f000 .idata type=1 perm=6
+1756f000 1d335000 .text type=2 perm=5

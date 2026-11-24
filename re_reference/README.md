@@ -12,6 +12,7 @@ This folder holds IDA text exports of the game executables that x64-zt supports.
 | `iw8/ship/` | IW8 (MW 2019) ship |
 | `s1/ship/` | S1 (AW) ship |
 | `s2/ship/` | S2 (WWII) ship |
+| `s4/ship/` | S4 (Vanguard) ship |
 
 ## Rules for agents
 
