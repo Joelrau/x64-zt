@@ -71,6 +71,8 @@ namespace zonetool::convert::iw7_iw8
 {
 	namespace
 	{
+		std::vector<zonetool::iw7::Material*> zone_materials;
+
 		template <typename S>
 		S* header_as(void* header)
 		{
@@ -88,7 +90,7 @@ namespace zonetool::convert::iw7_iw8
 				target::xmodel::dump(header_as<source::XModel>(header));
 				break;
 			case source::ASSET_TYPE_MATERIAL:
-				target::material::dump(header_as<source::Material>(header));
+				zone_materials.push_back(header_as<source::Material>(header));
 				break;
 			case source::ASSET_TYPE_TRACER:
 				target::tracer::dump(header_as<source::TracerDef>(header));
@@ -138,6 +140,12 @@ namespace zonetool::convert::iw7_iw8
 			case source::ASSET_TYPE_RAWFILE:
 				target::rawfile::dump(header_as<source::RawFile>(header));
 				break;
+			case source::ASSET_TYPE_PATHDATA:
+				target::pathdata::dump(header_as<source::PathData>(header));
+				break;
+			case source::ASSET_TYPE_NAVMESH:
+				target::navmesh::dump(header_as<source::NavMeshData>(header));
+				break;
 			case source::ASSET_TYPE_NET_CONST_STRINGS:
 				target::netconststrings::dump(header_as<source::NetConstStrings>(header));
 				break;
@@ -153,6 +161,12 @@ namespace zonetool::convert::iw7_iw8
 
 		void finish(const std::string& zone_name)
 		{
+			for (const auto material : zone_materials)
+			{
+				zonetool::iw7::converter::iw8::material::dump(material);
+			}
+			zone_materials.clear();
+
 			zonetool::iw7::converter::iw8::netconststrings::dump_missing_level_strings();
 			zonetool::iw7::converter::iw8::material::dump_donor_techsets();
 			zonetool::iw7::converter::iw8::sound::dump_weapon_bank(zone_name);

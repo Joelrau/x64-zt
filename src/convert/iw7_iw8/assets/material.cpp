@@ -24,6 +24,7 @@ namespace zonetool::iw7::converter::iw8::material
 		const char* const sprite_techset_name = "elcq/unlit_6_effect_bad_ta0_802_4_0_1_0_0_0_100000023_0_0_2_0_0"; // TODO: stock vfx_ui_marker_1 techset, convert natively
 		const char* const atlas_sprite_techset_name = "elcq/unlit_6_effect_bad_ta0_802_1004_0_1_0_0_0_100000023_0_0_2_0_0"; // TODO: stock techsets_common atlas techset, convert natively
 		const char* const blend_sprite_techset_name = "elcq/unlit_6_effect_bad_ta0_802_4_0_1_0_0_0_10000020b_0_0_2_0_0"; // TODO: stock techsets_common_mp techset, convert natively
+		const char* const lit_blend_sprite_techset_name = "elcq/unlit_6_effect_bad_ta0_802_804_0_1_0_0_0_10004020b_0_0_2_0_0"; // TODO: stock vfx_vol_smoke_card techset, convert natively
 		const char* const blend_atlas_sprite_techset_name = "elcq/unlit_6_effect_bad_ta0_802_1004_0_1_0_0_0_10000020b_0_0_2_0_0"; // TODO: stock vfx_particulate_dust_sheet_1 techset, convert natively
 		const char* const hud_techset_name = "cust_2_2d_rpl_ta0_0_0_0_0_0"; // TODO: stock compass_map_mp_rust techset, convert natively
 
@@ -177,8 +178,18 @@ namespace zonetool::iw7::converter::iw8::material
 			return !has_techset_token(asset, "add");
 		}
 
-		const char* get_sprite_techset_name(const Material* asset)
+		bool is_lit_blend_sprite(const Material* asset, const bool lit)
 		{
+			return lit && is_blend_sprite(asset) && !is_atlas(asset); // TODO: lit atlas sprites
+		}
+
+		const char* get_sprite_techset_name(const Material* asset, const bool lit)
+		{
+			if (is_lit_blend_sprite(asset, lit))
+			{
+				return lit_blend_sprite_techset_name;
+			}
+
 			if (is_blend_sprite(asset))
 			{
 				return is_atlas(asset) ? blend_atlas_sprite_techset_name : blend_sprite_techset_name;
@@ -187,7 +198,7 @@ namespace zonetool::iw7::converter::iw8::material
 			return is_atlas(asset) ? atlas_sprite_techset_name : sprite_techset_name;
 		}
 
-		std::vector<target::MaterialConstantDef> convert_sprite_constants(const Material* asset)
+		std::vector<target::MaterialConstantDef> convert_sprite_constants(const Material* asset, const bool lit)
 		{
 			std::vector<target::MaterialConstantDef> constants;
 			if (is_blend_sprite(asset))
@@ -195,7 +206,8 @@ namespace zonetool::iw7::converter::iw8::material
 				auto& parms = constants.emplace_back();
 				parms.index = target::MATERIAL_CONSTANT_SPRITE_BLEND_PARMS;
 				const std::array<std::uint32_t, 4> stock_parms{0xFFFFFFFF, 0x00FF17E7, 0x0000BC00, 0}; // TODO: stock vfx_particulate_dust_sheet_1 value
-				std::memcpy(parms.literal, stock_parms.data(), sizeof(parms.literal));
+				const std::array<std::uint32_t, 4> stock_lit_parms{0xFFFFFFFF, 0x00FF17E7, 0x4C2B5CD7, 0}; // TODO: stock vfx_vol_smoke_card value
+				std::memcpy(parms.literal, (is_lit_blend_sprite(asset, lit) ? stock_lit_parms : stock_parms).data(), sizeof(parms.literal));
 
 				auto& tint = constants.emplace_back(convert_color_tint(asset));
 				tint.index = target::MATERIAL_CONSTANT_SPRITE_BLEND_TINT;
@@ -227,7 +239,7 @@ namespace zonetool::iw7::converter::iw8::material
 			return constants;
 		}
 
-		target::Material* convert_effect(const Material* asset, const bool sprite, utils::memory::allocator& allocator)
+		target::Material* convert_effect(const Material* asset, const bool sprite, const bool lit, utils::memory::allocator& allocator)
 		{
 			const auto result = allocator.allocate<target::Material>();
 			result->name = asset->name;
@@ -241,7 +253,7 @@ namespace zonetool::iw7::converter::iw8::material
 			result->textureAtlasColumnCount = asset->info.textureAtlasColumnCount;
 
 			result->techniqueSet = allocator.allocate<target::MaterialTechniqueSet>();
-			result->techniqueSet->name = sprite ? get_sprite_techset_name(asset) : effect_techset_name;
+			result->techniqueSet->name = sprite ? get_sprite_techset_name(asset, lit) : effect_techset_name;
 
 			if (const auto image = find_texture(asset, TS_COLOR_MAP, 'c'); image && sprite && is_blend_sprite(asset))
 			{
@@ -260,7 +272,7 @@ namespace zonetool::iw7::converter::iw8::material
 				result->textureTable->image = image ? image_or_reference(gfximage::dump_color(image), "$black", allocator) : make_image_reference("$white", allocator);
 			}
 
-			result->constantTable = allocate_constants(sprite ? convert_sprite_constants(asset) : std::vector{convert_color_tint(asset)}, result->constantCount, allocator);
+			result->constantTable = allocate_constants(sprite ? convert_sprite_constants(asset, lit) : std::vector{convert_color_tint(asset)}, result->constantCount, allocator);
 			return result;
 		}
 
@@ -282,7 +294,7 @@ namespace zonetool::iw7::converter::iw8::material
 
 		target::Material* convert_model_effect(const Material* asset, utils::memory::allocator& allocator)
 		{
-			const auto result = convert_effect(asset, false, allocator);
+			const auto result = convert_effect(asset, false, false, allocator);
 			result->materialType = target::MTL_TYPE_MODEL_SELFVIS;
 			result->techniqueSet->name = get_model_effect_techset_name(asset);
 
@@ -309,7 +321,7 @@ namespace zonetool::iw7::converter::iw8::material
 			result->techniqueSet = allocator.allocate<target::MaterialTechniqueSet>();
 			result->techniqueSet->name = hud_techset_name;
 
-			const auto source = find_texture(asset, TS_2D);
+			const auto source = find_texture(asset, TS_COLOR_MAP, 'c');
 			const auto image = source ? gfximage::dump_2d(source) : nullptr;
 			result->textureCount = 1;
 			result->textureTable = allocator.allocate<target::MaterialTextureDef>();
@@ -1634,13 +1646,13 @@ namespace zonetool::iw7::converter::iw8::material
 		asset = find_loaded(asset);
 
 		utils::memory::allocator allocator;
-		zonetool::iw8::material::dump(convert_effect(asset, false, allocator));
+		zonetool::iw8::material::dump(convert_effect(asset, false, false, allocator));
 		add_csv_row("require", "techsets_common_core_mp");
 		add_csv_row("techset", ","s + effect_techset_name);
 		add_csv_row("material", asset->name);
 	}
 
-	void dump_sprite(Material* asset)
+	void dump_sprite(Material* asset, const bool lit)
 	{
 		if (!asset || !mark_dumped(ASSET_TYPE_MATERIAL, asset->name))
 		{
@@ -1650,9 +1662,16 @@ namespace zonetool::iw7::converter::iw8::material
 		asset = find_loaded(asset);
 
 		utils::memory::allocator allocator;
-		zonetool::iw8::material::dump(convert_effect(asset, true, allocator));
-		add_csv_row("require", is_atlas(asset) ? "techsets_common" : "techsets_common_mp");
-		add_csv_row("techset", ","s + get_sprite_techset_name(asset));
+		zonetool::iw8::material::dump(convert_effect(asset, true, lit, allocator));
+		if (is_lit_blend_sprite(asset, lit))
+		{
+			donor_techsets.emplace(lit_blend_sprite_techset_name);
+		}
+		else
+		{
+			add_csv_row("require", is_atlas(asset) ? "techsets_common" : "techsets_common_mp");
+			add_csv_row("techset", ","s + get_sprite_techset_name(asset, lit));
+		}
 		add_csv_row("material", asset->name);
 	}
 

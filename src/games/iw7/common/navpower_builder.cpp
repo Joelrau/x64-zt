@@ -861,7 +861,7 @@ namespace zonetool::iw7
 						bfx_area_edge edge{};
 						edge.neighbor = source.neighbor >= 0 ? offsets[source.neighbor] : 0;
 						std::memcpy(edge.vertex, source.vertex, sizeof(edge.vertex));
-						edge.unknown_14 = 0xFFFF0000;
+						edge.flags = 0xFFFF0000;
 						edge.portal = source.portal;
 						append(out, edge);
 					}

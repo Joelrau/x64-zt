@@ -240,9 +240,7 @@ namespace zonetool::iw7
 	struct FxWorld;
 	struct GfxWorld;
 	struct GfxWorldTransientZone;
-	//ASSET_TYPE_IESPROFILE = 31, // unused
 	struct GfxLightDef;
-	//ASSET_TYPE_UI_MAP = 33, // unused
 	struct AnimationClass;
 	struct PlayerAnimScript;
 	struct Gesture;
@@ -253,10 +251,6 @@ namespace zonetool::iw7
 	struct FxEffectDef;
 	struct FxImpactTable;
 	struct SurfaceFxTable;
-	//ASSET_TYPE_AITYPE = 44, // unused
-	//ASSET_TYPE_MPTYPE = 45, // unused
-	//ASSET_TYPE_CHARACTER = 46, // unused
-	//ASSET_TYPE_XMODELALIAS = 47, // unused
 	struct RawFile;
 	struct ScriptFile;
 	struct StringTable;
@@ -4768,7 +4762,7 @@ namespace zonetool::iw7
 	{
 		std::uint64_t neighbor; // area offset from the layer start, 0 on a boundary
 		float vertex[3];
-		std::uint32_t unknown_14;
+		std::uint32_t flags; // bits 16-31 index (0xFFFF = none)
 		std::uint32_t portal;
 		std::uint32_t unknown_1c;
 	}; assert_sizeof(bfx_area_edge, 0x20);

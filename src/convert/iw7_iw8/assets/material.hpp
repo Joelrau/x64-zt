@@ -16,7 +16,7 @@ namespace zonetool::iw7::converter::iw8::material
 
 	void dump(Material* asset);
 	void dump_effect(Material* asset);
-	void dump_sprite(Material* asset);
+	void dump_sprite(Material* asset, bool lit);
 	std::string dump_decal(Material* asset);
 	void dump_2d(Material* asset);
 	std::string dump_lit(Material* asset, techset::generated_techset techset);

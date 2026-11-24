@@ -1649,6 +1649,100 @@ namespace zonetool::iw8
 		nav_misc_s miscData;
 	}; assert_sizeof(NavMeshData, 0xA8);
 
+	enum bfx_resource_section_type : std::uint32_t
+	{
+		BFX_SECTION_GRAPH_2D = 0x10000,
+		BFX_SECTION_GRAPH_VOLUME = 0x20000,
+	};
+
+	enum bfx_kd_tree_node_flag : std::uint32_t
+	{
+		BFX_KD_TREE_LEAF = 0x80000000,
+	};
+
+	struct bfx_resource_header
+	{
+		std::uint32_t endian;
+		std::uint32_t version;
+		std::uint32_t body_size;
+		std::uint32_t checksum;
+		std::uint32_t used;
+		std::uint32_t flags;
+	}; assert_sizeof(bfx_resource_header, 0x18);
+
+	struct bfx_section_header
+	{
+		std::uint32_t type;
+		std::uint32_t size;
+		std::uint32_t count;
+	}; assert_sizeof(bfx_section_header, 0xC);
+
+	struct bfx_graph_header
+	{
+		std::uint32_t endian;
+		std::uint32_t version;
+		std::uint32_t layer_count;
+	}; assert_sizeof(bfx_graph_header, 0xC);
+
+	struct bfx_box
+	{
+		float mins[3];
+		float maxs[3];
+	}; assert_sizeof(bfx_box, 0x18);
+
+	struct bfx_layer_header
+	{
+		std::uint32_t version;
+		std::uint32_t index;
+		std::uint32_t area_bytes;
+		std::uint32_t kd_tree_bytes;
+		std::uint32_t record_bytes;
+		std::uint32_t unknown_14;
+		std::uint32_t link_stride;
+		std::uint32_t link_count;
+		std::uint32_t layer_bytes;
+		std::uint32_t unknown_24;
+		float agent_params[5];
+		bfx_box bounds;
+		std::uint32_t unknown_54;
+		char unknown_58[0xFC];
+	}; assert_sizeof(bfx_layer_header, 0x154);
+
+	struct bfx_area
+	{
+		char runtime[0x20];
+		float center[3];
+		float radius;
+		std::uint32_t unknown_30;
+		std::uint32_t unknown_34;
+		std::uint32_t edge_info; // bits 0-6 edge count
+		std::uint32_t unknown_3c;
+		std::uint32_t unknown_40;
+		std::uint32_t unknown_44;
+	}; assert_sizeof(bfx_area, 0x48);
+
+	struct bfx_area_edge
+	{
+		std::uint64_t neighbor; // area offset (0 = none)
+		float vertex[3];
+		std::uint32_t flags; // bits 18-31 index (0x3FFF = none)
+		std::uint32_t portal;
+		std::uint32_t unknown_1c;
+	}; assert_sizeof(bfx_area_edge, 0x20);
+
+	struct bfx_kd_tree_header
+	{
+		bfx_box bounds;
+		std::uint32_t node_bytes;
+	}; assert_sizeof(bfx_kd_tree_header, 0x1C);
+
+	struct bfx_kd_tree_split
+	{
+		std::uint32_t info; // bits 28-29 axis, bits 0-27 right child offset
+		float left_max;
+		float right_min;
+	}; assert_sizeof(bfx_kd_tree_split, 0xC);
+
 	namespace bfx
 	{
 		struct AreaHandle
