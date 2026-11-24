@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - main
+      - develop
   pull_request:
     branches:
       - "*"
@@ -58,7 +59,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
 
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+
+    env:
+      RELEASE_TAG: ${{ github.ref == 'refs/heads/main' && 'latest' || 'develop-latest' }}
+      RELEASE_TITLE: ${{ github.ref == 'refs/heads/main' && 'Latest Build' || 'Develop Build' }}
+      RELEASE_FLAGS: ${{ github.ref == 'refs/heads/develop' && '--prerelease' || '' }}
 
     steps:
       - name: Check out files
@@ -88,15 +94,16 @@ jobs:
 
       - name: Delete old release/tag if exists
         run: |
-          gh release delete latest -y || true
-          git push origin :refs/tags/latest || true
+          gh release delete "$RELEASE_TAG" -y || true
+          git push origin ":refs/tags/$RELEASE_TAG" || true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create new release
         run: |
-          gh release create latest "Debug zonetool.zip" "Release zonetool.zip" \
-            --title "Latest Build" \
+          gh release create "$RELEASE_TAG" "Debug zonetool.zip" "Release zonetool.zip" $RELEASE_FLAGS \
+            --target ${{ github.sha }} \
+            --title "$RELEASE_TITLE" \
             --notes "This build was automated from ${{ github.sha }}. If you are unsure which zonetool to use, download **Release zonetool.zip**. If you are crashing and need to debug, use **Debug zonetool.zip**."
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
