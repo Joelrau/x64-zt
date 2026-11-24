@@ -947,12 +947,23 @@ namespace zonetool::iw7::converter::iw8::havok
 			return type;
 		}
 
+		std::uint32_t convert_surface_flags(const std::uint32_t flags)
+		{
+			std::uint32_t result = 0;
+			if (flags & iw7::SURFACE_FLAG_SKY) result |= zonetool::iw8::SURFACE_FLAG_SKY;
+			if (flags & iw7::SURFACE_FLAG_LADDER) result |= zonetool::iw8::SURFACE_FLAG_LADDER;
+			if (flags & iw7::SURFACE_FLAG_NOIMPACT) result |= zonetool::iw8::SURFACE_FLAG_NOIMPACT;
+			if (flags & iw7::SURFACE_FLAG_NOPENETRATE) result |= zonetool::iw8::SURFACE_FLAG_NOPENETRATE;
+			if (flags & iw7::SURFACE_FLAG_STAIRS) result |= zonetool::iw8::SURFACE_FLAG_STAIRS;
+			return result;
+		}
+
 		std::uint64_t convert_user_data(const std::uint64_t user_data)
 		{
-			auto low = static_cast<std::uint32_t>(user_data);
-			const auto type = (low >> 19) & 0x3F;
-			low = (low & ~(0x3Fu << 19)) | (convert_surface_type(type) << 19);
-			return (user_data & 0xFFFFFFFF00000000ull) | low;
+			const auto low = static_cast<std::uint32_t>(user_data);
+			const auto type = convert_surface_type((low >> 19) & 0x3F);
+			const auto glass_piece = user_data & 0x0000FFFF00000000ull;
+			return glass_piece | (static_cast<std::uint64_t>(type) << 19) | convert_surface_flags(low);
 		}
 
 		std::uint16_t get_glass_piece(const std::uint64_t user_data)
@@ -991,24 +1002,92 @@ namespace zonetool::iw7::converter::iw8::havok
 
 			return reader.root<iw7::HavokPhysicsShapeList>();
 		}
+
+		const iw7::hknpCompressedMeshShapeTree& read_world_mesh(const iw7::HavokPhysicsShapeList* list)
+		{
+			if (!list->shapes.data || list->shapes.size < 1)
+			{
+				throw std::runtime_error("havok: the world shape list has no shape");
+			}
+
+			const auto* shape = static_cast<const iw7::hknpCompressedMeshShape*>(list->shapes.data[0]);
+			if (!shape || !shape->data)
+			{
+				throw std::runtime_error("havok: the world shape has no mesh");
+			}
+
+			return shape->data->meshTree;
+		}
+
+		vec3 read_shared_vertex(const iw7::hknpCompressedMeshShapeTree& tree, const std::uint32_t index)
+		{
+			if (index >= static_cast<std::uint32_t>(tree.sharedVertices.size))
+			{
+				throw std::runtime_error("havok: a shape names a shared vertex that the mesh does not have");
+			}
+
+			const auto& min = tree.domain.min;
+			const auto& max = tree.domain.max;
+			const std::array<float, 3> scale{{
+				(max.x - min.x) / static_cast<float>((1u << 21) - 1),
+				(max.y - min.y) / static_cast<float>((1u << 21) - 1),
+				(max.z - min.z) / static_cast<float>((1u << 22) - 1),
+			}};
+
+			const auto word = tree.sharedVertices.data[index];
+			return {
+				min.x + static_cast<float>(word & 0x1FFFFF) * scale[0],
+				min.y + static_cast<float>(word >> 21 & 0x1FFFFF) * scale[1],
+				min.z + static_cast<float>(word >> 42) * scale[2],
+			};
+		}
+
+		bool is_convex_primitive(const std::array<std::uint8_t, 4>& indices)
+		{
+			return indices[1] == indices[2] && indices[2] == indices[3];
+		}
+
+		std::vector<vec3> read_convex_points(const iw7::hknpCompressedMeshShapeTree& tree, const std::uint32_t packed_count,
+			const std::uint32_t first_shared, const std::uint8_t page, const std::array<std::uint8_t, 4>& indices)
+		{
+			if (indices[0] < packed_count)
+			{
+				throw std::runtime_error("havok: a convex primitive names a packed vertex");
+			}
+
+			const auto slot = first_shared + indices[0] - packed_count;
+			if (slot + 1 >= static_cast<std::uint32_t>(tree.sharedVerticesIndex.size))
+			{
+				throw std::runtime_error("havok: a convex primitive names a table entry that the mesh does not have");
+			}
+
+			const auto header = tree.sharedVerticesIndex.data[slot];
+			const auto type = header & 0xFF;
+			const auto format = type & 0x30;
+			const auto count = static_cast<std::uint32_t>(header >> 8);
+			if ((type & 0xCF) != 2 || format != 0 || count < 4)
+			{
+				throw std::runtime_error(std::format("havok: unsupported convex primitive type {:#x}", header));
+			}
+
+			const auto first = static_cast<std::uint32_t>(page) << 16 | tree.sharedVerticesIndex.data[slot + 1];
+			std::vector<vec3> points;
+			points.reserve(count);
+			for (auto v = 0u; v < count; v++)
+			{
+				points.push_back(read_shared_vertex(tree, first + v));
+			}
+
+			return points;
+		}
 	}
 
 	std::string convert_world_shape(const std::string_view packfile)
 	{
 		const iw7::havok::binary::packfile_reader reader(packfile);
 		const auto* list = read_shape_list(reader);
-		if (!list->shapes.data || list->shapes.size < 1)
-		{
-			throw std::runtime_error("havok: the world shape list has no shape");
-		}
-
+		const auto& tree = read_world_mesh(list);
 		const auto* shape = static_cast<const iw7::hknpCompressedMeshShape*>(list->shapes.data[0]);
-		if (!shape || !shape->data)
-		{
-			throw std::runtime_error("havok: the world shape has no mesh");
-		}
-
-		const auto& tree = shape->data->meshTree;
 		bounds domain{};
 		for (auto axis = 0; axis < 3; axis++)
 		{
@@ -1016,25 +1095,9 @@ namespace zonetool::iw7::converter::iw8::havok
 			domain.max[axis] = (&tree.domain.max.x)[axis];
 		}
 
-		const std::array<float, 3> shared_scale{{
-			(domain.max[0] - domain.min[0]) / static_cast<float>((1u << 21) - 1),
-			(domain.max[1] - domain.min[1]) / static_cast<float>((1u << 21) - 1),
-			(domain.max[2] - domain.min[2]) / static_cast<float>((1u << 22) - 1),
-		}};
-
-		const auto shared_vertex = [&](const std::uint32_t index) -> vec3
+		const auto shared_vertex = [&](const std::uint32_t index)
 		{
-			if (index >= static_cast<std::uint32_t>(tree.sharedVertices.size))
-			{
-				throw std::runtime_error("havok: a shape names a shared vertex that the mesh does not have");
-			}
-
-			const auto word = tree.sharedVertices.data[index];
-			return {
-				domain.min[0] + static_cast<float>(word & 0x1FFFFF) * shared_scale[0],
-				domain.min[1] + static_cast<float>(word >> 21 & 0x1FFFFF) * shared_scale[1],
-				domain.min[2] + static_cast<float>(word >> 42) * shared_scale[2],
-			};
+			return read_shared_vertex(tree, index);
 		};
 
 		std::vector<source_section> sources(tree.sections.size);
@@ -1098,39 +1161,12 @@ namespace zonetool::iw7::converter::iw8::havok
 			for (auto p = 0u; p < source.primitives.size(); p++)
 			{
 				const auto& indices = source.primitives[p];
-				if (indices[1] != indices[2] || indices[2] != indices[3])
+				if (!is_convex_primitive(indices))
 				{
 					continue;
 				}
 
-				if (indices[0] < source.packed_count)
-				{
-					throw std::runtime_error("havok: a convex primitive names a packed vertex");
-				}
-
-				const auto slot = source.first_shared + indices[0] - source.packed_count;
-				if (slot + 1 >= static_cast<std::uint32_t>(tree.sharedVerticesIndex.size))
-				{
-					throw std::runtime_error("havok: a convex primitive names a table entry that the mesh does not have");
-				}
-
-				const auto header = tree.sharedVerticesIndex.data[slot];
-				const auto type = header & 0xFF;
-				const auto format = type & 0x30;
-				const auto count = static_cast<std::uint32_t>(header >> 8);
-				if ((type & 0xCF) != 2 || format != 0 || count < 4)
-				{
-					throw std::runtime_error(std::format("havok: unsupported convex primitive type {:#x}", header));
-				}
-
-				const auto first = static_cast<std::uint32_t>(source.page) << 16 | tree.sharedVerticesIndex.data[slot + 1];
-				std::vector<vec3> points;
-				points.reserve(count);
-				for (auto v = 0u; v < count; v++)
-				{
-					points.push_back(shared_vertex(first + v));
-				}
-
+				const auto points = read_convex_points(tree, source.packed_count, source.first_shared, source.page, indices);
 				hulls.push_back(make_convex_hull(points));
 				hull_tags.push_back(source.tags[p]);
 				source.convex_of_primitive[p] = static_cast<std::int32_t>(hulls.size() - 1);
@@ -1846,5 +1882,180 @@ namespace zonetool::iw7::converter::iw8::havok
 		set_list_array("convexCounts", convex_counts_item);
 
 		return writer.finish(list_offset.item);
+	}
+
+
+	namespace
+	{
+		bool is_inside(const convex_result& hull, const vec3& point)
+		{
+			return std::ranges::all_of(hull.faces, [&](const hull_face& face)
+			{
+				return dot(face.normal, point) + face.distance <= 0.0f;
+			});
+		}
+
+		float face_area(const convex_result& hull, const hull_face& face)
+		{
+			vec3 sum{};
+			for (auto i = 1u; i + 1 < face.vertices.size(); i++)
+			{
+				const auto& origin = hull.vertices[face.vertices[0]];
+				sum = sum + cross(hull.vertices[face.vertices[i]] - origin, hull.vertices[face.vertices[i + 1]] - origin);
+			}
+
+			return length(sum) * 0.5f;
+		}
+
+		vec3 face_center(const convex_result& hull, const hull_face& face)
+		{
+			vec3 sum{};
+			for (const auto vertex : face.vertices)
+			{
+				sum = sum + hull.vertices[vertex];
+			}
+
+			return sum * (1.0f / static_cast<float>(face.vertices.size()));
+		}
+
+		std::uint32_t count_blocked_probes(const std::vector<convex_result>& solids, const vec3& center, const vec3& normal,
+			const float bottom, const float top)
+		{
+			auto blocked = 0u;
+			for (const auto distance : {1.0f, 4.0f, 8.0f, 16.0f, 24.0f})
+			{
+				for (const auto height : {0.25f, 0.5f, 0.75f})
+				{
+					auto probe = center + normal * (distance / 32.0f);
+					probe.z = bottom + (top - bottom) * height;
+					blocked += static_cast<std::uint32_t>(std::ranges::count_if(solids, [&](const convex_result& solid)
+					{
+						return is_inside(solid, probe);
+					}));
+				}
+			}
+
+			return blocked;
+		}
+
+		std::optional<ladder> make_ladder(const convex_result& hull, const std::vector<convex_result>& solids)
+		{
+			auto box = empty_bounds();
+			for (const auto& vertex : hull.vertices)
+			{
+				include(box, vertex);
+			}
+
+			std::vector<const hull_face*> sides;
+			for (const auto& face : hull.faces)
+			{
+				if (std::abs(face.normal.z) < 0.1f)
+				{
+					sides.push_back(&face);
+				}
+			}
+
+			std::ranges::sort(sides, [&](const hull_face* a, const hull_face* b)
+			{
+				return face_area(hull, *a) > face_area(hull, *b);
+			});
+
+			if (sides.size() < 2)
+			{
+				return {};
+			}
+
+			const auto* front = sides[0];
+			const auto* back = sides[1];
+			const auto front_blocked = count_blocked_probes(solids, face_center(hull, *front), front->normal, box.min[2], box.max[2]);
+			const auto back_blocked = count_blocked_probes(solids, face_center(hull, *back), back->normal, box.min[2], box.max[2]);
+			if (back_blocked < front_blocked)
+			{
+				std::swap(front, back);
+			}
+			else if (back_blocked == front_blocked)
+			{
+				ZONETOOL_WARNING("havok: both sides of the ladder at (%g %g %g) are open", box.min[0] * 32.0f, box.min[1] * 32.0f, box.min[2] * 32.0f);
+			}
+
+			const auto facing = normalize({front->normal.x, front->normal.y, 0.0f});
+			const auto across = cross({0.0f, 0.0f, 1.0f}, facing);
+			auto min_across = std::numeric_limits<float>::max();
+			auto max_across = std::numeric_limits<float>::lowest();
+			for (const auto vertex : front->vertices)
+			{
+				const auto value = dot(hull.vertices[vertex], across);
+				min_across = std::min(min_across, value);
+				max_across = std::max(max_across, value);
+			}
+
+			const auto center = face_center(hull, *front);
+			ladder result{};
+			result.bottom = {center.x * 32.0f, center.y * 32.0f, box.min[2] * 32.0f};
+			result.height = (box.max[2] - box.min[2]) * 32.0f;
+			result.facing = {facing.x, facing.y, facing.z};
+			result.width = (max_across - min_across) * 32.0f;
+			return result;
+		}
+	}
+
+	std::vector<ladder> find_ladders(const std::string_view packfile)
+	{
+		const iw7::havok::binary::packfile_reader reader(packfile);
+		const auto* list = read_shape_list(reader);
+		const auto& tree = read_world_mesh(list);
+
+		std::vector<convex_result> ladder_hulls;
+		std::vector<convex_result> solids;
+		auto skipped = 0u;
+		for (auto s = 0; s < tree.sections.size; s++)
+		{
+			const auto& section = tree.sections.data[s];
+			const auto first_primitive = section.primitives >> 8;
+			const auto primitive_count = section.primitives & 0xFF;
+			std::vector<std::uint32_t> tags(primitive_count, 0xFFFF);
+			for (auto r = 0u; r < (section.dataRuns & 0xFF); r++)
+			{
+				const auto& run = tree.primitiveDataRuns.data[(section.dataRuns >> 8) + r];
+				const auto run_end = std::min(static_cast<std::uint32_t>(run.index + run.count), primitive_count);
+				for (auto p = static_cast<std::uint32_t>(run.index); p < run_end; p++)
+				{
+					tags[p] = run.value;
+				}
+			}
+
+			for (auto p = 0u; p < primitive_count; p++)
+			{
+				const auto is_ladder = tags[p] < static_cast<std::uint32_t>(list->shapeTagData.size)
+					&& list->shapeTagData.data[tags[p]].userData & iw7::SURFACE_FLAG_LADDER;
+
+				std::array<std::uint8_t, 4> indices{};
+				std::memcpy(indices.data(), &tree.primitives.data[first_primitive + p], 4);
+				if (!is_convex_primitive(indices))
+				{
+					skipped += is_ladder;
+					continue;
+				}
+
+				auto hull = make_convex_hull(read_convex_points(tree, section.numPackedVertices, section.sharedVertices >> 8, section.page, indices));
+				(is_ladder ? ladder_hulls : solids).push_back(std::move(hull));
+			}
+		}
+
+		if (skipped)
+		{
+			ZONETOOL_WARNING("havok: %u ladder triangles are not convex and have no ladder edges", skipped);
+		}
+
+		std::vector<ladder> ladders;
+		for (const auto& hull : ladder_hulls)
+		{
+			if (const auto result = make_ladder(hull, solids))
+			{
+				ladders.push_back(*result);
+			}
+		}
+
+		return ladders;
 	}
 }

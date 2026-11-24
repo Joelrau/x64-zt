@@ -140,18 +140,17 @@ namespace zonetool::h1
 		return std::sqrtf((a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]));
 	}
 
-	pathnode_tree_t* allocate_tree(PathData* asset, zone_memory* mem)
+	pathnode_tree_t* allocate_tree(PathData* asset)
 	{
-		++asset->nodeTreeCount;
-		return mem->allocate<pathnode_tree_t>();
+		return &asset->nodeTree[asset->nodeTreeCount++];
 	}
 
-	pathnode_tree_t* build_node_tree(PathData* asset, zone_memory* mem, 
+	pathnode_tree_t* build_node_tree(PathData* asset,
 		unsigned short* node_indexes, unsigned int num_nodes)
 	{
 		if (num_nodes < 4)
 		{
-			const auto result = allocate_tree(asset, mem);
+			const auto result = allocate_tree(asset);
 			result->axis = -1;
 			result->u.s.nodeCount = num_nodes;
 			result->u.s.nodes = node_indexes;
@@ -228,19 +227,16 @@ namespace zonetool::h1
 				--left;
 			}
 
-			pathnode_tree_t* child[2]{};
-			child[0] = build_node_tree(asset, mem, node_indexes, left);
-			child[1] = build_node_tree(asset, mem, &node_indexes[left], num_nodes - left);
-			const auto result = allocate_tree(asset, mem);
+			const auto result = allocate_tree(asset);
 			result->axis = axis;
 			result->dist = dist;
-			result->u.child[0] = child[0];
-			result->u.child[1] = child[1];
+			result->u.child[0] = build_node_tree(asset, node_indexes, left);
+			result->u.child[1] = build_node_tree(asset, &node_indexes[left], num_nodes - left);
 			return result;
 		}
 		else
 		{
-			const auto result = allocate_tree(asset, mem);
+			const auto result = allocate_tree(asset);
 			result->axis = -1;
 			result->u.s.nodeCount = num_nodes;
 			result->u.s.nodes = node_indexes;
@@ -360,7 +356,8 @@ namespace zonetool::h1
 			node_indexes[i] = static_cast<unsigned short>(i);
 		}
 
-		asset->nodeTree = build_node_tree(asset, mem, node_indexes, asset->nodeCount);
+		asset->nodeTree = mem->allocate<pathnode_tree_t>(2 * asset->nodeCount);
+		build_node_tree(asset, node_indexes, asset->nodeCount);
 
 		return asset;
 	}

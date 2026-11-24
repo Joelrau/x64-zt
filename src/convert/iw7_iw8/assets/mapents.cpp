@@ -9,6 +9,7 @@
 #include "scriptable.hpp"
 #include "vfx.hpp"
 
+#include <iw8/assets/edgelist.hpp>
 #include <iw8/assets/mapents.hpp>
 #include <iw8/assets/scriptfile.hpp>
 
@@ -556,6 +557,132 @@ namespace zonetool::iw7::converter::iw8::mapents
 			return population;
 		}
 
+		void add_edge(target::MapEdgeList* list, const std::array<float, 3>& start, const std::array<float, 3>& end,
+			const float adjacent_normal, const std::uint16_t open_angle)
+		{
+			auto& edge = list->edges[list->numEdges];
+			auto& metadata = list->edgeMetadata[list->numEdges];
+			for (auto axis = 0; axis < 3; axis++)
+			{
+				edge[0].v[axis] = start[axis];
+				edge[1].v[axis] = end[axis];
+				list->mins[axis] = std::min({list->mins[axis], start[axis] - 1.0f, end[axis] - 1.0f});
+				list->maxs[axis] = std::max({list->maxs[axis], start[axis] + 1.0f, end[axis] + 1.0f});
+			}
+
+			metadata.packedAdjacentNormal = adjacent_normal;
+			metadata.packedOpenAngle = open_angle;
+			metadata.flags = 1 << target::EDGE_QUERY_LADDER;
+			list->numEdges++;
+		}
+
+		target::PMROctreeMetadata* make_root_octree(const target::MapEdgeList* list, const unsigned char bucket, utils::memory::allocator& allocator)
+		{
+			auto* octree = allocator.allocate<target::PMROctreeMetadata>();
+			float center[3]{};
+			auto half_width = 0.0f;
+			for (auto axis = 0; axis < 3; axis++)
+			{
+				const auto min = list->mins[axis] + 1.0f;
+				const auto max = list->maxs[axis] - 1.0f;
+				center[axis] = (min + max) * 0.5f;
+				half_width = std::max(half_width, (max - min) * 0.5f);
+			}
+			half_width += 1.0f;
+
+			for (auto depth = 0; depth < 16; depth++)
+			{
+				const auto width = half_width / static_cast<float>(1 << depth);
+				octree->nodeHalfWidth[depth] = {{width, width, width, 0.0f}};
+				octree->nodeBoundingRadiusSq[depth] = 3.0f * width * width;
+			}
+
+			octree->minExtent = {{center[0] - half_width, center[1] - half_width, center[2] - half_width, -half_width}};
+			octree->rootNode.flags = 6; // leaf with an edge table
+			octree->rootNode.qEdgeTableIndex = 0;
+			octree->rootNode.qEdgeTableCount = list->numEdges;
+			octree->edgeBucket = bucket;
+			octree->flags = 3;
+			return octree;
+		}
+
+		target::MapEdgeList* make_ladder_edge_list(const char* name, const std::vector<havok::ladder>& ladders, utils::memory::allocator& allocator)
+		{
+			auto* list = allocator.allocate<target::MapEdgeList>();
+			list->name = allocator.duplicate_string(name);
+			for (auto axis = 0; axis < 3; axis++)
+			{
+				list->mins[axis] = std::numeric_limits<float>::max();
+				list->maxs[axis] = std::numeric_limits<float>::lowest();
+			}
+
+			const auto edge_count = static_cast<unsigned int>(ladders.size() * 2);
+			list->edges = allocator.allocate_array<target::float4[2]>(edge_count);
+			list->edgeMetadata = allocator.allocate_array<target::FlaggedEdgeMetadata>(edge_count);
+			const auto open_angle = half_float::half_to_float(14740);
+			for (const auto& ladder : ladders)
+			{
+				const auto& bottom = ladder.bottom;
+				const std::array<float, 3> top{bottom[0], bottom[1], bottom[2] + ladder.height};
+				const auto yaw = std::atan2(ladder.facing[1], ladder.facing[0]);
+				auto adjacent_normal = yaw - open_angle * 0.5f;
+				if (adjacent_normal <= -std::numbers::pi_v<float>)
+				{
+					adjacent_normal += 2.0f * std::numbers::pi_v<float>;
+				}
+				add_edge(list, bottom, top, adjacent_normal, 14740);
+
+				const auto half_width = ladder.width * 0.5f;
+				const std::array<float, 2> across{-ladder.facing[1] * half_width, ladder.facing[0] * half_width};
+				add_edge(list, {top[0] - across[0], top[1] - across[1], top[2]}, {top[0] + across[0], top[1] + across[1], top[2]}, 0.0f, 15944);
+			}
+
+			list->valid = true;
+			list->staticQueryTypes = 1 << target::EDGE_QUERY_LADDER;
+			list->numStaticEdges = list->numEdges;
+
+			list->numEdgeOctrees = 1;
+			list->edgeOctrees = make_root_octree(list, target::EDGE_QUERY_LADDER, allocator);
+			list->numEdgeIndices = list->numEdges;
+			list->edgeIndices = allocator.allocate_array<unsigned int>(list->numEdges);
+			for (auto i = 0u; i < list->numEdges; i++)
+			{
+				list->edgeIndices[i] = i;
+			}
+
+			list->numEdgeAdjacencyMetadata = list->numEdges;
+			list->edgeAdjacencyMetadata = allocator.allocate_array<target::EdgeAdjacencyMetadata>(list->numEdges);
+			return list;
+		}
+
+		void convert_ladders(const MapEnts* asset, target::MapEnts* converted, utils::memory::allocator& allocator)
+		{
+			const auto* clip = static_cast<const clipMap_t*>(db_find_asset(ASSET_TYPE_CLIPMAP, asset->name));
+			if (!clip)
+			{
+				return;
+			}
+
+			const auto ladders = havok::find_ladders(std::string_view(clip->havokWorldShapeData, clip->havokWorldShapeDataSize));
+			if (ladders.empty())
+			{
+				return;
+			}
+
+			auto* list = make_ladder_edge_list(std::format("{}_edgelist", filesystem::get_fastfile()).data(), ladders, allocator);
+			converted->edgeListUsedQueryTypes = list->staticQueryTypes;
+			converted->numEdgeLists = 1;
+			converted->edgeLists = allocator.allocate_array<target::MapEdgeList*>(1);
+			converted->edgeLists[0] = list;
+
+			converted->edgeListSpatialTree = allocator.allocate<target::SpatialPartition_Tree>();
+			converted->edgeListSpatialTree->alwaysListLength = 1;
+			converted->edgeListSpatialTree->alwaysList = allocator.allocate_array<unsigned int>(1);
+
+			target::map_edge_list::dump(list);
+			ZONETOOL_INFO("Converted %zu ladders of \"%s\" to edges", ladders.size(), asset->name);
+		}
+
 		void convert_submodels(const MapEnts* asset, target::MapEnts* converted, utils::memory::allocator& allocator)
 		{
 			converted->numSubModels = asset->numSubModels;
@@ -674,6 +801,7 @@ namespace zonetool::iw7::converter::iw8::mapents
 		convert_splines(asset->splineList, converted->splineList, allocator);
 
 		convert_submodels(asset, converted, allocator); // TODO: havok ents shapes and dynents are not converted
+		convert_ladders(asset, converted, allocator);
 
 		for (auto& population : converted->dynEntSpatialPopulation)
 		{

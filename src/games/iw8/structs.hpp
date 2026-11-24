@@ -4110,7 +4110,12 @@ namespace zonetool::iw8
 
 	enum SurfaceFlags : std::uint32_t
 	{
+		SURFACE_FLAG_SKY = 0x4,
+		SURFACE_FLAG_LADDER = 0x8,
+		SURFACE_FLAG_NOIMPACT = 0x10,
 		SURFACE_FLAG_NODRAW = 0x80,
+		SURFACE_FLAG_NOPENETRATE = 0x100,
+		SURFACE_FLAG_STAIRS = 0x200,
 	};
 
 	enum MaterialLayerFlags : std::uint32_t
@@ -10842,6 +10847,11 @@ namespace zonetool::iw8
 		unsigned short activeTransientZoneCount;
 	}; assert_sizeof(FxWorld, 0x3CD0);
 	assert_offsetof(FxWorld, transientZones, 0xC8);
+
+	enum EdgeQueryType : std::uint8_t
+	{
+		EDGE_QUERY_LADDER = 2,
+	};
 
 	struct FlaggedEdgeMetadata
 	{
