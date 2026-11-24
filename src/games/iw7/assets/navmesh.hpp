@@ -11,9 +11,9 @@ namespace zonetool::iw7
 
 		std::vector<std::pair<scr_string_t*, const char*>> script_strings;
 		void add_script_string(scr_string_t* ptr, const char* str);
-		const char* get_script_string(scr_string_t* ptr);
 
 	public:
+		const char* get_script_string(scr_string_t* ptr);
 		NavMeshData* parse(std::string name, zone_memory* mem);
 
 		void init(const std::string& name, zone_memory* mem) override;

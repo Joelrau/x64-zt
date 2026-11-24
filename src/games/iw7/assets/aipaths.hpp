@@ -3,6 +3,8 @@
 
 namespace zonetool::iw7
 {
+	class nav_mesh;
+
 	class path_data : public asset_interface
 	{
 	private:
@@ -12,6 +14,9 @@ namespace zonetool::iw7
 		std::vector<std::pair<scr_string_t*, const char*>> script_strings;
 		void add_script_string(scr_string_t* ptr, const char* str);
 		const char* get_script_string(scr_string_t* ptr);
+
+		PathData* parse_botwarfare(const std::string& path, zone_memory* mem);
+		void add_negotiation_nodes(PathData* asset, nav_mesh& navmesh, NavMeshData* navmesh_data, unsigned int first_node, zone_memory* mem);
 
 	public:
 		PathData* parse(const std::string& name, zone_memory* mem);

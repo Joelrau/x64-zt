@@ -3,6 +3,7 @@
 #include "../include.hpp"
 #include "clipmap.hpp"
 #include "mapents.hpp"
+#include "xmodel.hpp"
 
 namespace zonetool::iw4::converter::iw5
 {
@@ -56,8 +57,28 @@ namespace zonetool::iw4::converter::iw5
 			new_asset->pInfo = &new_asset->info;
 
 			COPY_VALUE(numStaticModels);
-			static_assert(sizeof(zonetool::iw5::cStaticModel_s) == sizeof(zonetool::iw4::cStaticModel_t));
-			COPY_POINTER_RAW(staticModelList);
+			const auto static_models = allocator.allocate<zonetool::iw5::cStaticModel_s>(asset->numStaticModels);
+			std::unordered_map<zonetool::iw4::XModel*, zonetool::iw5::XModel*> converted_models;
+			for (unsigned int i = 0; i < asset->numStaticModels; i++)
+			{
+				const auto& source = asset->staticModelList[i];
+				auto& model = static_models[i];
+
+				if (const auto source_model = source.xmodel.get())
+				{
+					auto& converted = converted_models[source_model];
+					if (!converted)
+					{
+						converted = xmodel::convert(source_model, allocator);
+					}
+					model.xmodel = converted;
+				}
+
+				std::memcpy(model.origin, source.origin, sizeof(model.origin));
+				std::memcpy(model.invScaledAxis, source.invScaledAxis, sizeof(model.invScaledAxis));
+				copy_layout(model.absBounds, source.absBounds);
+			}
+			new_asset->staticModelList = static_models;
 
 			COPY_VALUE(numNodes);
 			COPY_POINTER_RAW(nodes);

@@ -69,6 +69,18 @@ namespace zonetool::iw7
 			float maxs[3];
 		};
 
-		std::vector<std::uint8_t> build_graph(const std::vector<triangle>& solid_triangles, const std::vector<std::array<float, 3>>& seeds);
+		struct traversal
+		{
+			float start[3];
+			float end[3];
+		};
+
+		struct navmesh_result
+		{
+			std::vector<std::uint8_t> graph;
+			std::vector<traversal> traversals;
+		};
+
+		navmesh_result build_graph(const std::vector<triangle>& solid_triangles, const std::vector<std::array<float, 3>>& seeds);
 	}
 }

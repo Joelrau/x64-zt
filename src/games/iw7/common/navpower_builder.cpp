@@ -3,6 +3,7 @@
 #include "navpower_builder.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cfloat>
 #include <climits>
 #include <cmath>
@@ -162,7 +163,7 @@ namespace zonetool::iw7
 					{
 						return true;
 					}
-					if (hit.normal_z < 0.0f && std::abs(hit.z - z) <= 1.0f)
+					if (hit.normal_z < 0.0f && std::abs(hit.z - z) <= 0.1f)
 					{
 						return true;
 					}
@@ -321,37 +322,233 @@ namespace zonetool::iw7
 				}
 			}
 
-			void erode_spans(span_grid& grid, const int border_cells)
+			bool segment_blocked(const std::vector<triangle>& triangles, const triangle_buckets& buckets, const float* from, const float* to)
 			{
-				std::vector<int> distance(grid.spans.size(), INT_MAX);
-				std::queue<int> open;
+				const auto bx0 = std::max(static_cast<int>(std::floor((std::min(from[0], to[0]) - buckets.origin[0]) / buckets.bucket_size)), 0);
+				const auto bx1 = std::min(static_cast<int>(std::floor((std::max(from[0], to[0]) - buckets.origin[0]) / buckets.bucket_size)), buckets.width - 1);
+				const auto by0 = std::max(static_cast<int>(std::floor((std::min(from[1], to[1]) - buckets.origin[1]) / buckets.bucket_size)), 0);
+				const auto by1 = std::min(static_cast<int>(std::floor((std::max(from[1], to[1]) - buckets.origin[1]) / buckets.bucket_size)), buckets.height - 1);
+				for (auto by = by0; by <= by1; by++)
+				{
+					for (auto bx = bx0; bx <= bx1; bx++)
+					{
+						for (const auto index : buckets.triangles[static_cast<std::size_t>(by) * buckets.width + bx])
+						{
+							if (segment_hits(triangles[index], from, to))
+							{
+								return true;
+							}
+						}
+					}
+				}
+				return false;
+			}
+
+			std::vector<int> span_components(const span_grid& grid)
+			{
+				std::vector<int> component(grid.spans.size(), -1);
+				std::vector<int> open;
+				auto count = 0;
 				for (auto i = 0u; i < grid.spans.size(); i++)
 				{
-					const auto& links = grid.spans[i].links;
-					if (links[0] < 0 || links[1] < 0 || links[2] < 0 || links[3] < 0)
+					if (grid.spans[i].removed || component[i] >= 0)
 					{
-						distance[i] = 0;
-						open.push(i);
+						continue;
+					}
+
+					component[i] = count;
+					open.push_back(i);
+					while (!open.empty())
+					{
+						const auto index = open.back();
+						open.pop_back();
+						for (const auto link : grid.spans[index].links)
+						{
+							if (link >= 0 && component[link] < 0)
+							{
+								component[link] = count;
+								open.push_back(link);
+							}
+						}
+					}
+					count++;
+				}
+				return component;
+			}
+
+			struct traversal_landing
+			{
+				int span = -1;
+				int step = 0;
+			};
+
+			traversal_landing find_landing(const span_grid& grid, const std::vector<int>& component, const int start, const int cx, const int cy, const int dir)
+			{
+				const auto start_z = grid.spans[start].z;
+				for (auto step = 1; step <= 10; step++)
+				{
+					const auto x = cx + direction_x[dir] * step;
+					const auto y = cy + direction_y[dir] * step;
+					if (x < 0 || y < 0 || x >= grid.width || y >= grid.height)
+					{
+						return {};
+					}
+
+					for (const auto index : grid.cell_spans[static_cast<std::size_t>(y) * grid.width + x])
+					{
+						const auto& span = grid.spans[index];
+						if (!span.removed && std::abs(span.z - start_z) <= 18.0f) // agent step height
+						{
+							if (component[index] == component[start])
+							{
+								return {};
+							}
+
+							return { index, step };
+						}
+					}
+				}
+				return {};
+			}
+
+			std::vector<traversal> find_traversals(const span_grid& grid, const std::vector<triangle>& triangles, const triangle_buckets& buckets)
+			{
+				const auto component = span_components(grid);
+				std::vector<traversal> traversals;
+				std::vector<std::pair<int, int>> traversal_components;
+				for (auto cy = 0; cy < grid.height; cy++)
+				{
+					for (auto cx = 0; cx < grid.width; cx++)
+					{
+						for (const auto start : grid.cell_spans[static_cast<std::size_t>(cy) * grid.width + cx])
+						{
+							const auto& span = grid.spans[start];
+							for (auto dir = 0; dir < 4; dir++)
+							{
+								if (span.removed || span.links[dir] >= 0)
+								{
+									continue;
+								}
+
+								const auto landing = find_landing(grid, component, start, cx, cy, dir);
+								if (landing.span < 0)
+								{
+									continue;
+								}
+
+								traversal result{};
+								result.start[0] = grid.origin[0] + (cx + 0.5f) * grid.cell_size;
+								result.start[1] = grid.origin[1] + (cy + 0.5f) * grid.cell_size;
+								result.start[2] = span.z;
+								result.end[0] = result.start[0] + direction_x[dir] * landing.step * grid.cell_size;
+								result.end[1] = result.start[1] + direction_y[dir] * landing.step * grid.cell_size;
+								result.end[2] = grid.spans[landing.span].z;
+
+								const auto blocked_at = [&](const float height)
+								{
+									const float from[3] = { result.start[0], result.start[1], span.z + height };
+									const float to[3] = { result.end[0], result.end[1], span.z + height };
+									return segment_blocked(triangles, buckets, from, to);
+								};
+								if (!blocked_at(20.0f) || blocked_at(44.0f) || blocked_at(60.0f)) // jump_up_40 obstacle
+								{
+									continue;
+								}
+
+								const std::pair<int, int> components{ component[start], component[landing.span] };
+								auto near_existing = false;
+								for (auto i = 0u; i < traversals.size() && !near_existing; i++)
+								{
+									const auto dx = traversals[i].start[0] - result.start[0];
+									const auto dy = traversals[i].start[1] - result.start[1];
+									near_existing = traversal_components[i] == components && dx * dx + dy * dy < 128.0f * 128.0f;
+								}
+								if (!near_existing)
+								{
+									traversals.push_back(result);
+									traversal_components.push_back(components);
+								}
+							}
+						}
+					}
+				}
+				return traversals;
+			}
+
+			void erode_spans(span_grid& grid, const float clearance)
+			{
+				std::vector<std::array<int, 2>> cells(grid.spans.size());
+				for (auto cy = 0; cy < grid.height; cy++)
+				{
+					for (auto cx = 0; cx < grid.width; cx++)
+					{
+						for (const auto index : grid.cell_spans[static_cast<std::size_t>(cy) * grid.width + cx])
+						{
+							cells[index] = { cx, cy };
+						}
+					}
+				}
+
+				const auto center = [&](const int index, const int axis)
+				{
+					return grid.origin[axis] + (cells[index][axis] + 0.5f) * grid.cell_size;
+				};
+
+				using queue_entry = std::pair<float, int>;
+				std::priority_queue<queue_entry, std::vector<queue_entry>, std::greater<>> open;
+				std::vector<float> distance(grid.spans.size(), FLT_MAX);
+				std::vector<std::array<float, 2>> nearest_wall(grid.spans.size());
+				const auto offer = [&](const int index, const float x, const float y)
+				{
+					const auto d = std::hypot(center(index, 0) - x, center(index, 1) - y);
+					if (d < distance[index])
+					{
+						distance[index] = d;
+						nearest_wall[index] = { x, y };
+						open.push({ d, index });
+					}
+				};
+
+				const auto half = grid.cell_size * 0.5f;
+				for (auto i = 0; i < static_cast<int>(grid.spans.size()); i++)
+				{
+					for (auto dir = 0; dir < 4; dir++)
+					{
+						if (grid.spans[i].links[dir] >= 0)
+						{
+							continue;
+						}
+
+						const auto edge_x = center(i, 0) + direction_x[dir] * half;
+						const auto edge_y = center(i, 1) + direction_y[dir] * half;
+						for (const auto side : { -1.0f, 0.0f, 1.0f })
+						{
+							offer(i, edge_x + direction_y[dir] * half * side, edge_y + direction_x[dir] * half * side);
+						}
 					}
 				}
 
 				while (!open.empty())
 				{
-					const auto index = open.front();
+					const auto [d, index] = open.top();
 					open.pop();
+					if (d > distance[index])
+					{
+						continue;
+					}
+
 					for (const auto link : grid.spans[index].links)
 					{
-						if (link >= 0 && distance[link] > distance[index] + 1)
+						if (link >= 0)
 						{
-							distance[link] = distance[index] + 1;
-							open.push(link);
+							offer(link, nearest_wall[index][0], nearest_wall[index][1]);
 						}
 					}
 				}
 
 				for (auto i = 0u; i < grid.spans.size(); i++)
 				{
-					grid.spans[i].removed = distance[i] < border_cells;
+					grid.spans[i].removed = distance[i] < clearance;
 				}
 				unlink_removed(grid);
 			}
@@ -882,7 +1079,7 @@ namespace zonetool::iw7
 			}
 		}
 
-		std::vector<std::uint8_t> build_graph(const std::vector<triangle>& solid_triangles, const std::vector<std::array<float, 3>>& seeds)
+		navmesh_result build_graph(const std::vector<triangle>& solid_triangles, const std::vector<std::array<float, 3>>& seeds)
 		{
 			if (solid_triangles.empty())
 			{
@@ -892,7 +1089,7 @@ namespace zonetool::iw7
 			const auto buckets = make_buckets(solid_triangles, 64.0f);
 			auto grid = make_spans(solid_triangles, buckets, 8.0f);
 			link_spans(grid, solid_triangles, buckets);
-			erode_spans(grid, 2); // 2 cells clear the agent radius
+			erode_spans(grid, 19.0f); // agent radius + half cell
 			if (seeds.empty())
 			{
 				remove_small_islands(grid, 16);
@@ -917,8 +1114,11 @@ namespace zonetool::iw7
 			}
 			assign_portals(polygons);
 
-			ZONETOOL_INFO("navpower: %zu floor spans, %zu areas", grid.spans.size(), polygons.size());
-			return write_resource(polygons);
+			navmesh_result result{};
+			result.traversals = find_traversals(grid, solid_triangles, buckets);
+			result.graph = write_resource(polygons);
+			ZONETOOL_INFO("navpower: %zu floor spans, %zu areas, %zu traversals", grid.spans.size(), polygons.size(), result.traversals.size());
+			return result;
 		}
 	}
 }

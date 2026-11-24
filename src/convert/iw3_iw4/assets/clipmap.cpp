@@ -3,6 +3,7 @@
 #include "../include.hpp"
 #include "clipmap.hpp"
 #include "mapents.hpp"
+#include "xmodel.hpp"
 
 namespace zonetool::iw3::converter::iw4
 {
@@ -163,12 +164,21 @@ namespace zonetool::iw3::converter::iw4
 
 			new_asset->numStaticModels = asset->numStaticModels;
 			const auto static_models = allocator.allocate<zonetool::iw4::cStaticModel_t>(asset->numStaticModels);
+			std::unordered_map<zonetool::iw3::XModel*, zonetool::iw4::XModel*> converted_models;
 			for (unsigned int i = 0; i < asset->numStaticModels; i++)
 			{
 				const auto& source = asset->staticModelList[i];
 				auto& model = static_models[i];
 
-				model.xmodel.value = source.xmodel.value;
+				if (const auto source_model = source.xmodel.get())
+				{
+					auto& converted = converted_models[source_model];
+					if (!converted)
+					{
+						converted = xmodel::convert(source_model, allocator);
+					}
+					model.xmodel = converted;
+				}
 				std::memcpy(model.origin, source.origin, sizeof(model.origin));
 				std::memcpy(model.invScaledAxis, source.invScaledAxis, sizeof(model.invScaledAxis));
 				compute_bounds(model.absBounds, source.absmin, source.absmax);

@@ -515,8 +515,7 @@ namespace zonetool::iw5::converter::iw7
 
 				if (!count_targetname("airstrikeheight"))
 				{
-					const auto top = world ? world->midPoint[2] + world->halfSize[2] : ground;
-					add_entity("airstrikeheight", {{"origin", format_vector({center[0], center[1], std::max(top, ground + 1024.0f)})},
+					add_entity("airstrikeheight", {{"origin", format_vector({center[0], center[1], ground + 2500.0f})},
 						{"targetname", "airstrikeheight"}, {"classname", "script_origin"}});
 				}
 
@@ -1262,6 +1261,47 @@ namespace zonetool::iw5::converter::iw7
 				return origins;
 			}
 
+			void add_static_model_triangles(clipMap_t* asset, std::vector<zonetool::iw7::navpower::builder::triangle>& triangles)
+			{
+				for (auto i = 0u; asset->staticModelList && i < asset->numStaticModels; i++)
+				{
+					const auto& model = asset->staticModelList[i];
+					if (!model.xmodel)
+					{
+						continue;
+					}
+
+					for (const auto& source : xmodel::collision_triangles(model.xmodel.get()))
+					{
+						if ((source.contents & (zonetool::iw7::PHYSICS_CONTENTS_SOLID | zonetool::iw7::PHYSICS_CONTENTS_PLAYERCLIP)) == 0)
+						{
+							continue;
+						}
+
+						zonetool::iw7::navpower::builder::triangle tri{};
+						for (auto v = 0; v < 3; v++)
+						{
+							for (auto k = 0; k < 3; k++)
+							{
+								tri.verts[v][k] = model.origin[k];
+							}
+
+							for (auto axis = 0; axis < 3; axis++)
+							{
+								const auto& m = model.invScaledAxis;
+								const auto length_squared = m[0][axis] * m[0][axis] + m[1][axis] * m[1][axis] + m[2][axis] * m[2][axis];
+								for (auto k = 0; k < 3; k++)
+								{
+									tri.verts[v][k] += source.verts[v][axis] * m[k][axis] / length_squared;
+								}
+							}
+						}
+
+						triangles.push_back(tri);
+					}
+				}
+			}
+
 			void dump_navmesh(clipMap_t* asset)
 			{
 				std::vector<zonetool::iw7::navpower::builder::triangle> floors;
@@ -1284,8 +1324,10 @@ namespace zonetool::iw5::converter::iw7
 					}
 				}
 
-				auto graph = zonetool::iw7::navpower::builder::build_graph(floors, find_spawn_origins(asset));
-				if (graph.empty())
+				add_static_model_triangles(asset, floors);
+
+				auto result = zonetool::iw7::navpower::builder::build_graph(floors, find_spawn_origins(asset));
+				if (result.graph.empty())
 				{
 					ZONETOOL_WARNING("clipmap: no navmesh generated for \"%s\"", asset->name.get());
 					return;
@@ -1293,8 +1335,23 @@ namespace zonetool::iw5::converter::iw7
 
 				zonetool::iw7::nav_resource_s resource{};
 				resource.modelIdx = -1;
-				resource.graphSize = static_cast<int>(graph.size());
-				resource.pGraphBuffer = reinterpret_cast<char*>(graph.data());
+				resource.graphSize = static_cast<int>(result.graph.size());
+				resource.pGraphBuffer = reinterpret_cast<char*>(result.graph.data());
+
+				std::vector<zonetool::iw7::nav_link_creation_data_s> links(result.traversals.size());
+				for (auto i = 0u; i < links.size(); i++)
+				{
+					auto& link = links[i];
+					std::memcpy(link.m_Start.m_Pt1, result.traversals[i].start, sizeof(link.m_Start.m_Pt1));
+					std::memcpy(link.m_Start.m_Pt2, result.traversals[i].start, sizeof(link.m_Start.m_Pt2));
+					std::memcpy(link.m_End.m_Pt1, result.traversals[i].end, sizeof(link.m_End.m_Pt1));
+					std::memcpy(link.m_End.m_Pt2, result.traversals[i].end, sizeof(link.m_End.m_Pt2));
+					link.m_Animscript = static_cast<zonetool::iw7::scr_string_t>(SL_GetString("jump_up_40"));
+					link.m_Target = static_cast<zonetool::iw7::scr_string_t>(SL_GetString(utils::string::va("auto_traverse_%u", i)));
+					link.m_UsageFlags = 0xEF;
+					link.m_PenaltyMult = 1.0f;
+					link.m_bBidirectional = false;
+				}
 
 				zonetool::iw7::NavMeshData navmesh{};
 				navmesh.name = asset->name.get();
@@ -1302,6 +1359,8 @@ namespace zonetool::iw5::converter::iw7
 				navmesh.hasExposureData = 1;
 				navmesh.numNavResources = 1;
 				navmesh.navResources = &resource;
+				navmesh.numLinkCreationData = static_cast<int>(links.size());
+				navmesh.linkCreationData = links.empty() ? nullptr : links.data();
 
 				zonetool::iw7::nav_mesh::dump(&navmesh);
 			}

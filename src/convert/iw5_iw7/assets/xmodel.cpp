@@ -286,17 +286,16 @@ namespace zonetool::iw5::converter::iw7
 				return make_physics_asset(asset->name.get(), blob, allocator);
 			}
 
-			zonetool::iw7::havok::builder::mesh_input collision_mesh(source::XModel* asset)
+			zonetool::iw7::havok::builder::mesh_input collision_mesh(source::XModel* asset, const float model_scale)
 			{
 				namespace builder = zonetool::iw7::havok::builder;
 
-				constexpr auto model_scale = 0.03125f;
 				constexpr auto contents_solid = 0x1;
 				constexpr auto contents_foliage = 0x2;
 
 				builder::mesh_input mesh{};
 
-				const auto add_triangle = [&mesh](const float (&corners)[3][3], const float* normal, const int contents,
+				const auto add_triangle = [&mesh, model_scale](const float (&corners)[3][3], const float* normal, const int contents,
 					const unsigned int material_crc, const unsigned short tag, const std::uint64_t user_data)
 				{
 					builder::triangle triangle{};
@@ -559,7 +558,7 @@ namespace zonetool::iw5::converter::iw7
 				new_asset->collSurfs[i].surfFlags = to_iw7_surface_flags(surface.surfFlags);
 			}
 
-			const auto mesh = collision_mesh(asset);
+			const auto mesh = collision_mesh(asset, 0.03125f);
 			new_asset->physicsAsset = generate_dynamic_physics_asset(asset, allocator);
 			if (!new_asset->physicsAsset)
 			{
@@ -618,6 +617,11 @@ namespace zonetool::iw5::converter::iw7
 					vertex_lighting_index += surfaces->surfs.get()[j].vertCount;
 				}
 			}
+		}
+
+		std::vector<zonetool::iw7::havok::builder::triangle> collision_triangles(zonetool::iw5::XModel* asset)
+		{
+			return collision_mesh(asset, 1.0f).triangles;
 		}
 	}
 }
