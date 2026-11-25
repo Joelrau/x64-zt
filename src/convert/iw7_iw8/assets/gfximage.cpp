@@ -1126,39 +1126,6 @@ namespace zonetool::iw7::converter::iw8::gfximage
 		});
 	}
 
-	target::GfxImage* dump_scope_aperture()
-	{
-		const std::string name = "iw7_scope_aperture";
-		return dump_once(name, std::nullopt, {}, [&]() -> target::GfxImage*
-		{
-			const auto size = 256u;
-			DirectX::ScratchImage composed;
-			if (FAILED(composed.Initialize2D(DXGI_FORMAT_R8G8B8A8_UNORM, size, size, 1, 1)))
-			{
-				return nullptr;
-			}
-
-			const auto& image = *composed.GetImage(0, 0, 0);
-			for (auto row = 0u; row < size; row++)
-			{
-				for (auto column = 0u; column < size; column++)
-				{
-					const auto x = (column + 0.5f) / size * 2.0f - 1.0f;
-					const auto y = (row + 0.5f) / size * 2.0f - 1.0f;
-					const auto value = to_byte(std::clamp((0.6f - std::sqrt(x * x + y * y)) / 0.1f, 0.0f, 1.0f)); // TODO: stock ads_scope_lens_r shape
-
-					auto* texel = image.pixels + row * image.rowPitch + column * 4;
-					texel[0] = value;
-					texel[1] = value;
-					texel[2] = value;
-					texel[3] = 255;
-				}
-			}
-
-			return compress_composed(name, image, target::GFX_PF_BC7, 0, target::TS_2D);
-		});
-	}
-
 	target::GfxImage* dump_sky(const GfxImage* asset, const std::array<float, 3>& rotation_angles, const std::array<float, 3>& color_scale)
 	{
 		const auto name = get_output_name(asset);

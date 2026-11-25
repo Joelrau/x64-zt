@@ -620,6 +620,38 @@ namespace zonetool::iw7::converter::iw8::vfx
 			return (flags & 0x3FF) | ((flags & ~0xFFFull) >> 2);
 		}
 
+		void scale_light_intensity(target::ParticleStateDef& state, const float scale)
+		{
+			for (auto i = 0; i < 3; i++)
+			{
+				auto& group = state.moduleGroupDefs[i];
+				for (auto j = 0; j < group.numModules; j++)
+				{
+					auto& module = group.moduleDefs[j];
+					auto& data = module.moduleData;
+					switch (module.moduleType)
+					{
+					case target::PARTICLE_MODULE_INIT_ATTRIBUTES:
+						data.initAttributes.m_sizeMin.v[1] *= scale;
+						data.initAttributes.m_sizeMax.v[1] *= scale;
+						break;
+					case target::PARTICLE_MODULE_SIZE_GRAPH:
+						data.sizeGraph.m_curves[1].scale *= scale;
+						data.sizeGraph.m_curves[4].scale *= scale;
+						data.sizeGraph.m_sizeBegin.v[1] *= scale;
+						data.sizeGraph.m_sizeEnd.v[1] *= scale;
+						break;
+					case target::PARTICLE_MODULE_SIZE_LERP:
+						data.sizeLerp.m_sizeBegin.v[1] *= scale;
+						data.sizeLerp.m_sizeEnd.v[1] *= scale;
+						break;
+					default:
+						break;
+					}
+				}
+			}
+		}
+
 		void convert_state(const ParticleStateDef& state, target::ParticleStateDef& result, dropped_modules& dropped,
 			utils::memory::allocator& allocator)
 		{
@@ -630,6 +662,11 @@ namespace zonetool::iw7::converter::iw8::vfx
 			for (auto i = 0; state.moduleGroupDefs && i < 3; i++)
 			{
 				convert_group(state.moduleGroupDefs[i], state.flags & PARTICLE_STATE_DEF_FLAG_GPU_LIGHTING, result.moduleGroupDefs[i], dropped, allocator);
+			}
+
+			if (state.elementType == PARTICLE_ELEMENT_TYPE_LIGHT_OMNI)
+			{
+				scale_light_intensity(result, 1.0f / 56.0f); // stock iw7 / iw8 omni intensity
 			}
 
 			if (has_module(result, [](const auto type) { return type == target::PARTICLE_MODULE_SIZE_GRAPH; }))

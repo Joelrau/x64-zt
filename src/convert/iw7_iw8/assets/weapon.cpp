@@ -802,6 +802,8 @@ namespace zonetool::iw7::converter::iw8::weapon
 			COPY_VALUE(noFullViewmodelAnimations);
 			COPY_VALUE(killcamOffset);
 			COPY_VALUE(useDualFOV);
+			new_asset->showViewModelInDualFOV = asset->useDualFOV;
+			new_asset->syncedFOVInDualFOV = asset->useDualFOV;
 			COPY_VALUE(disableDrop);
 			COPY_VALUE(preferredDrop);
 			COPY_VALUE(gestureFireStateTime);
@@ -1017,6 +1019,311 @@ namespace zonetool::iw7::converter::iw8::weapon
 			}
 		}
 
+		const char* set_stock_widget(target::ReticleDef* reticle, const std::string_view widget)
+		{
+			if (widget.starts_with("ReticleSnpr"))
+			{
+				reticle->widgetName = "ReticleSniper01";
+				reticle->secondaryWidgetName = "ReticleOuterCircleSharp";
+				reticle->secondaryLockReticleToTag = reticle->lockReticleToTag;
+				reticle->offsetFromTag = 50.0f;
+				reticle->secondaryOffsetFromTag = 50.0f;
+				reticle->primaryDefaultScale = 1.5f;
+				reticle->secondaryDefaultScale = 3.1f;
+				reticle->naturalDistance = 50.0f;
+				reticle->naturalFOV = 15;
+				reticle->minReticleScale = 0.001f;
+				reticle->maxReticleScale = 99.0f;
+				return "reticle_snpr_alpha50";
+			}
+
+			const char* stock_name = nullptr;
+			if (widget == "ReticleGreenCrosshair")
+			{
+				reticle->widgetName = "greenDot";
+				stock_name = "greendot";
+			}
+			else if (widget == "Reticle48")
+			{
+				reticle->widgetName = "ReticleCODE";
+				stock_name = "reticle48";
+			}
+			else if (widget == "Reticle01")
+			{
+				reticle->widgetName = "Reticle01";
+				stock_name = "reticle01";
+			}
+			else
+			{
+				return nullptr;
+			}
+
+			reticle->offsetFromTag = 50.0f;
+			reticle->primaryDefaultScale = 6.0f;
+			reticle->secondaryDefaultScale = 1.0f;
+			reticle->naturalDistance = 10.0f;
+			reticle->naturalFOV = 65;
+			reticle->minReticleScale = 1.0f;
+			reticle->maxReticleScale = 2.0f;
+			return stock_name;
+		}
+
+		target::ReticleDef* convert_reticle(ReticleDef* asset, utils::memory::allocator& allocator)
+		{
+			asset = find_loaded(ASSET_TYPE_RETICLE, asset);
+			if (!asset)
+			{
+				return nullptr;
+			}
+
+			const auto new_asset = allocator.allocate<target::ReticleDef>();
+			COPY_VALUE(name);
+			COPY_VALUE(lockReticleToTag);
+			COPY_VALUE(primaryAffectedByEMP);
+			COPY_VALUE(secondaryAffectedByEMP);
+			COPY_VALUE(scaleWithFOV);
+
+			const auto stock_name = set_stock_widget(new_asset, asset->widgetName);
+			if (!stock_name)
+			{
+				ZONETOOL_WARNING("Reticle \"%s\": widget \"%s\" has no IW8 widget", asset->name, asset->widgetName);
+				return nullptr;
+			}
+
+			if (!mark_dumped(ASSET_TYPE_RETICLE, asset->name))
+			{
+				return new_asset;
+			}
+
+			if (std::string_view(asset->name) == stock_name)
+			{
+				add_csv_row("reticle", ","s + asset->name);
+				return new_asset;
+			}
+
+			target::reticle_def::dump(new_asset);
+			add_csv_row("reticle", asset->name);
+			return new_asset;
+		}
+
+		target::ReticleDef** convert_reticles(ReticleDef** reticles, const int count, unsigned int& new_count, utils::memory::allocator& allocator)
+		{
+			new_count = 0;
+			if (!reticles || count <= 0)
+			{
+				return nullptr;
+			}
+
+			const auto new_reticles = allocator.allocate_array<target::ReticleDef*>(count);
+			for (auto i = 0; i < count; i++)
+			{
+				if (const auto reticle = convert_reticle(reticles[i], allocator))
+				{
+					new_reticles[new_count++] = reticle;
+				}
+			}
+
+			return new_count ? new_reticles : nullptr;
+		}
+
+		void set_default_lens(target::AttSight* sight)
+		{
+			sight->adsSmoothFadeInBegin = 0.1f;
+			sight->adsSmoothFadeInEnd = 0.6f;
+			sight->adsSmoothFadeOutBegin = 0.1f;
+			sight->adsSmoothFadeOutEnd = 0.6f;
+			sight->scopeLensInnerDisk = 0.3f;
+			sight->scopeLensInnerDiskMag = 1.0f;
+			sight->scopeLensOuterRing = 0.5f;
+			sight->scopeLensOuterRingMag = 1.0f;
+			sight->scopeLensRadius = 1.64f;
+			sight->scopeLensColorRed = 1.0f;
+			sight->scopeLensColorGreen = 1.0f;
+			sight->scopeLensColorBlue = 1.0f;
+			sight->scopeLensBrightness = 1.0f;
+			sight->scopeLensFadeStart = 0.75f;
+			sight->scopeLensFadeEnd = 1.0f;
+			sight->scopeEyeRelief_focusDistance = 2.0f;
+			sight->scopeEyeRelief_focuseUVScale = 0.8f;
+			sight->scopeEyeRelief_outOfFocusDistance = 10.0f;
+			sight->scopeEyeRelief_outOfFocuseUVScale = 2.0f;
+			sight->scopeEyeRelief_idleMovementScale = 0.5f;
+			sight->scopeEyeRelief_fullSpeedMovementScale = 1.0f;
+			sight->scopeEyeRelief_maxMovement = 0.3f;
+			sight->scopeEyeRelief_hipMovementScale = 3.0f;
+			sight->scopeEyeRelief_hipMaxMovement = 1.0f;
+			sight->scopeEyeRelief_idleSway_freq = 0.5f;
+			sight->scopeEyeRelief_idleSway_movement = 0.01f;
+			sight->scopeEyeRelief_fullSpeedSway_freq = 3.0f;
+			sight->scopeEyeRelief_fullSpeedSway_movement = 0.02f;
+		}
+
+		target::AttSight* convert_sight(const AttSight* asset, const target::WeaponDef* def, const char* name, utils::memory::allocator& allocator)
+		{
+			const auto new_asset = allocator.allocate<target::AttSight>();
+			if (asset)
+			{
+				COPY_VALUE(blurSceneAdsInFraction);
+				COPY_VALUE(blurSceneAdsOutFraction);
+				COPY_VALUE(aimDownSight);
+				COPY_VALUE(adsFire);
+				COPY_VALUE(rechamberWhileAds);
+				COPY_VALUE(noAdsWhenMagEmpty);
+				COPY_VALUE(hideRailWithThisScope);
+				COPY_VALUE(forceIronSightDown);
+				COPY_VALUE(useScopeDrift);
+				COPY_VALUE(useDualFOV);
+				if (asset->canVariableZoom)
+				{
+					ZONETOOL_WARNING("Attachment \"%s\": IW8 has no variable zoom sight", name);
+				}
+			}
+			else
+			{
+				new_asset->blurSceneAdsInFraction = def->blurSceneAdsInFraction;
+				new_asset->blurSceneAdsOutFraction = def->blurSceneAdsOutFraction;
+				new_asset->aimDownSight = def->aimDownSight;
+				new_asset->rechamberWhileAds = def->bRechamberWhileAds;
+				new_asset->noAdsWhenMagEmpty = def->noAdsWhenMagEmpty;
+				new_asset->useScopeDrift = def->useScopeDrift;
+				new_asset->useDualFOV = def->useDualFOV;
+			}
+
+			new_asset->showViewModelInDualFOV = new_asset->useDualFOV;
+			new_asset->syncedFOVInDualFOV = new_asset->useDualFOV;
+			set_default_lens(new_asset);
+			return new_asset;
+		}
+
+		target::AttHoldBreath* convert_hold_breath(const AttHoldBreath* asset, utils::memory::allocator& allocator)
+		{
+			if (!asset)
+			{
+				return nullptr;
+			}
+
+			const auto new_asset = allocator.allocate<target::AttHoldBreath>();
+			COPY_VALUE(canHoldBreath);
+			return new_asset;
+		}
+
+		target::AttADSOverlay* convert_ads_overlay(const AttADSOverlay* asset, const char* name, utils::memory::allocator& allocator)
+		{
+			if (!asset)
+			{
+				return nullptr;
+			}
+
+			if (asset->overlay.shader || asset->overlay.shaderLowRes || asset->overlay.shaderEMP || asset->overlay.shaderEMPLowRes)
+			{
+				ZONETOOL_WARNING("Attachment \"%s\": ADS overlay materials are not converted", name);
+			}
+
+			if (asset->outlineEnemies)
+			{
+				ZONETOOL_WARNING("Attachment \"%s\": IW8 has no ADS overlay enemy outline", name);
+			}
+
+			const auto new_asset = allocator.allocate<target::AttADSOverlay>();
+			COPY_ENUM(overlay.reticle);
+			COPY_VALUE(overlay.width);
+			COPY_VALUE(overlay.height);
+			COPY_VALUE(overlay.widthSplitscreen);
+			COPY_VALUE(overlay.heightSplitscreen);
+			new_asset->overlay.visionSetADSFraction = 0.5f;
+			new_asset->overlay.visionSetBlendInTimeMs = 200;
+			new_asset->hybridScope1To2FovTransBegin = 0.2f;
+			new_asset->hybridScope1To2FovTransEnd = 0.6f;
+			new_asset->hybridScope2To1FovTransBegin = 0.2f;
+			new_asset->hybridScope2To1FovTransEnd = 0.6f;
+			new_asset->hybridScope1To2ScopeFadeTransEnd = 1.0f;
+			new_asset->hybridScope2To1ScopeFadeTransEnd = 1.0f;
+			new_asset->hybridScope1ShowHipGlassWhenInactive = true;
+			COPY_VALUE(hybridToggle);
+			COPY_VALUE(thermalScope);
+			COPY_VALUE(thermalToggle);
+			return new_asset;
+		}
+
+		void set_attachment_scales(const WeaponAttachment* asset, target::WeaponAttachment* new_asset)
+		{
+			COPY_VALUE(ammunitionScale);
+			COPY_VALUE(damageScale);
+			new_asset->standOfsRotPivot[0] = 8.0f;
+			new_asset->standOfsRotPivot[1] = -2.5f;
+			new_asset->standOfsRotPivot[2] = -2.5f;
+			new_asset->hipOffsetLerpType = target::ADS_OFFSET_INTERP_TYPE_EASEOUTQUARTIC;
+			COPY_VALUE(stateTimersScale);
+			COPY_VALUE(reloadTimersScale);
+			COPY_VALUE(fireTimeOverride);
+			COPY_VALUE(fireTimeAkimboOverride);
+			COPY_VALUE(fireTimersScale);
+			COPY_VALUE(burstFireCooldownScale);
+			COPY_VALUE(idleHipMotionScale);
+			COPY_VALUE(idleADSMotionScale);
+			COPY_VALUE(idleADSMotionTimeScale);
+			COPY_VALUE(adsSettingsScale);
+			COPY_VALUE(adsSettingsScaleMain);
+			COPY_VALUE(hipSpreadScale);
+			COPY_VALUE(slideSpreadScale);
+			new_asset->gunKickPitchScale = 1.0f;
+			new_asset->gunKickYawScale = 1.0f;
+			new_asset->viewKickPitchScale = 1.0f;
+			new_asset->viewKickYawScale = 1.0f;
+			COPY_VALUE(viewCenterScale);
+			new_asset->viewKickMaintainFractionScale = 1.0f;
+			new_asset->hipSwayScale = 1.0f;
+			COPY_VALUE(adsSwayScale);
+			COPY_VALUE(adsSwayScale2);
+			COPY_VALUE(adsSwayScale3);
+			new_asset->sprintOutTimerScale = 1.0f;
+		}
+
+		target::WeaponAttachment* convert_default_sight(const WeaponCompleteDef* weapon, const target::WeaponDef* def, utils::memory::allocator& allocator)
+		{
+			const auto asset = find_default_sight(weapon);
+			if (!asset)
+			{
+				return nullptr;
+			}
+
+			const auto new_asset = allocator.allocate<target::WeaponAttachment>();
+			COPY_VALUE(szInternalName);
+			COPY_VALUE(szDisplayName);
+			COPY_ENUM(internalName);
+			COPY_ENUM(type);
+			new_asset->weaponType = convert_weap_type(asset->weaponType);
+			COPY_ENUM(weapClass);
+			new_asset->reticles = convert_reticles(asset->reticles, asset->numReticles, new_asset->numReticles, allocator);
+			new_asset->altReticles = convert_reticles(asset->altReticles, asset->numAltReticles, new_asset->numAltReticles, allocator);
+			new_asset->dynamicAttachmentType = target::DYNAMIC_ATTACHMENT_TYPE_OTHER;
+			new_asset->dynamicAttachmentAnimateSeq = "DefaultSequence";
+			new_asset->sight = convert_sight(asset->sight, def, asset->szInternalName, allocator);
+			new_asset->holdBreath = convert_hold_breath(asset->holdBreath, allocator);
+			new_asset->adsOverlay = convert_ads_overlay(asset->adsOverlay, asset->szInternalName, allocator);
+			set_attachment_scales(asset, new_asset);
+			COPY_VALUE(useAlternateViewModelLaser);
+			COPY_VALUE(hideIronSightsWithThisAttachment);
+			COPY_VALUE(shareAmmoWithAlt);
+			COPY_VALUE(useLeftTriggerAltFire);
+			COPY_VALUE(containsIKTag);
+			COPY_VALUE(isAkimboAttachment);
+			COPY_VALUE(attachLeftWeaponAkimbo);
+			COPY_VALUE(attachRightWeaponAkimbo);
+			COPY_VALUE(luiWeaponInfoWidgetUsesScopeStencil);
+			COPY_VALUE(szAltModeName);
+			COPY_VALUE(szLUIWeaponInfoWidgetName);
+			COPY_VALUE(szLUIWeaponInfoWidgetTag);
+
+			if (mark_dumped(ASSET_TYPE_ATTACHMENT, asset->szInternalName))
+			{
+				target::weapon_attachment::dump(new_asset);
+				add_csv_row("attachment", asset->szInternalName);
+			}
+
+			return new_asset;
+		}
+
 		target::WeaponCompleteDef* convert(WeaponCompleteDef* asset, utils::memory::allocator& allocator)
 		{
 			const auto new_asset = allocator.allocate<target::WeaponCompleteDef>();
@@ -1054,6 +1361,13 @@ namespace zonetool::iw7::converter::iw8::weapon
 			convert_zoom(asset, new_asset);
 			convert_ads_dof(new_asset);
 			new_asset->szLUICrosshairWidget = get_crosshair_widget(new_asset->weapDef);
+			if (const auto sight = convert_default_sight(asset, new_asset->weapDef, allocator))
+			{
+				auto& optics = new_asset->attachments[9];
+				optics.attachmentCount = 1;
+				optics.attachments = allocator.allocate_array<target::WeaponAttachment*>(1);
+				optics.attachments[0] = sight;
+			}
 			return new_asset;
 		}
 	}

@@ -23,7 +23,6 @@ namespace zonetool::iw7::converter::iw8::material
 		const char* const effect_techset_name = "unlit_6_effect_bad_ta0_8a03_4_0_1_0_0_0_100000023_0_0_2_0_0"; // TODO: stock gfx_tracer_new_erad_blue techset, convert natively
 		const char* const blend_effect_techset_name = "unlit_6_effect_bad_ta0_8a03_4_0_1_0_0_0_10000020b_0_0_2_0_0"; // TODO: stock objpoint_default techset, convert natively
 		const char* const blend_model_effect_techset_name = "mo/unlit_6_effect_bad_ta0_8803_4_0_1_0_0_0_10000020b_0_0_2_0_0"; // TODO: stock vfx_debug_test01 techset, convert natively
-		const char* const scope_lens_techset_name = "mo/cust_8_scope_3d_rpl_ta0_0_0_0_0_0"; // TODO: stock ads_scope_lens_1 techset, convert natively
 		const char* const sprite_techset_name = "elcq/unlit_6_effect_bad_ta0_802_4_0_1_0_0_0_100000023_0_0_2_0_0"; // TODO: stock vfx_ui_marker_1 techset, convert natively
 		const char* const atlas_sprite_techset_name = "elcq/unlit_6_effect_bad_ta0_802_1004_0_1_0_0_0_100000023_0_0_2_0_0"; // TODO: stock techsets_common atlas techset, convert natively
 		const char* const evc_sprite_techset_name = "elcq/unlit_6_effect_bad_ta0_802_4_0_1_0_0_0_100020023_0_0_2_0_0"; // TODO: stock vfx_postfx_glow_round_1_ec techset, convert natively
@@ -34,6 +33,7 @@ namespace zonetool::iw7::converter::iw8::material
 		const char* const distortion_sprite_techset_name = "elcq/dist_10_distortion_rpl_ta0_0_2_0_0_0"; // TODO: stock vfx_dist_warp_1 techset, convert natively
 		const char* const distortion_atlas_sprite_techset_name = "elcq/dist_10_distortion_rpl_ta0_0_12_0_0_0"; // TODO: stock vfx_dist_blast_wave_loop_1 techset, convert natively
 		const char* const hud_techset_name = "cust_2_2d_rpl_ta0_0_0_0_0_0"; // TODO: stock compass_map_mp_rust techset, convert natively
+		const char* const scope_stencil_techset_name = "mo/cust_16_scope_ui_stencil_rpl_ta1_0_2000_0_0_0"; // TODO: stock reticle_ui_stencil techset, convert natively
 
 		GfxImage* find_texture(const Material* asset, const TextureSemantic semantic, const char name_start = 0)
 		{
@@ -1435,7 +1435,7 @@ namespace zonetool::iw7::converter::iw8::material
 
 		bool is_sight_glass(const Material* asset)
 		{
-			return asset->cameraRegion == CAMERA_REGION_LIT_TRANS && has_techset_token(asset, "svp") && has_techset_token(asset, "vm");
+			return asset->cameraRegion == CAMERA_REGION_LIT_TRANS && has_techset_token(asset, "blend") && has_techset_token(asset, "vm") && has_techset_token(asset, "ssvsc");
 		}
 
 		bool is_ads_sight_glass(const Material* asset)
@@ -1468,32 +1468,24 @@ namespace zonetool::iw7::converter::iw8::material
 			return result;
 		}
 
-		bool is_scope_lens(const Material* asset)
+		bool is_scope_stencil(const Material* asset)
 		{
-			return asset->cameraRegion == CAMERA_REGION_LIT_OPAQUE && has_techset_token(asset, "svp") && has_techset_token(asset, "vm");
+			return has_techset_token(asset, "scope") && has_techset_token(asset, "ui") && has_techset_token(asset, "stencil");
 		}
 
-		target::Material* convert_scope_lens(const Material* asset, utils::memory::allocator& allocator)
+		target::Material* convert_scope_stencil(const Material* asset, utils::memory::allocator& allocator)
 		{
 			const auto result = allocator.allocate<target::Material>();
-			result->name = asset->name;
+			result->name = allocator.duplicate_string(asset->name);
 			result->contents = 1;
+			result->surfaceFlags = 0x1380000;
 			result->materialType = target::MTL_TYPE_MODEL_SELFVIS;
-			result->cameraRegion = target::CAMERA_REGION_LIT_TRANS;
-			result->sortKey = 18;
-			result->flags = 0x10;
+			result->cameraRegion = static_cast<target::CameraRegion>(1); // TODO: CAMERA_REGION_LIT_OPAQUE_SSS in iw8 structs.hpp
+			result->sortKey = asset->info.sortKey;
 			result->textureAtlasRowCount = 1;
 			result->textureAtlasColumnCount = 1;
-
 			result->techniqueSet = allocator.allocate<target::MaterialTechniqueSet>();
-			result->techniqueSet->name = scope_lens_techset_name;
-
-			result->textureCount = 2;
-			result->textureTable = allocator.allocate_array<target::MaterialTextureDef>(2);
-			result->textureTable[0].index = 142;
-			result->textureTable[0].image = make_image_reference("$white", allocator);
-			result->textureTable[1].index = 143;
-			result->textureTable[1].image = image_or_reference(gfximage::dump_scope_aperture(), "$white", allocator);
+			result->techniqueSet->name = scope_stencil_techset_name;
 			return result;
 		}
 
@@ -1818,13 +1810,11 @@ namespace zonetool::iw7::converter::iw8::material
 			return;
 		}
 
-		if (is_scope_lens(asset))
+		if (is_scope_stencil(asset))
 		{
-			const auto converted = convert_scope_lens(asset, allocator);
-			zonetool::iw8::material::dump(converted);
+			zonetool::iw8::material::dump(convert_scope_stencil(asset, allocator));
 			add_csv_row("require", "techsets_global_stream_mp");
-			add_csv_row("techset", ","s + scope_lens_techset_name);
-			add_image_reference_rows(converted);
+			add_csv_row("techset", ","s + scope_stencil_techset_name);
 			add_csv_row("material", asset->name);
 			return;
 		}
@@ -2056,7 +2046,13 @@ namespace zonetool::iw7::converter::iw8::material
 
 	bool is_visible(Material* asset)
 	{
-		return asset && get_variant(find_loaded(asset), techset::GENERATED_TECHSET_STATIC_MODEL).visible;
+		if (!asset)
+		{
+			return false;
+		}
+
+		asset = find_loaded(asset);
+		return is_scope_stencil(asset) || get_variant(asset, techset::GENERATED_TECHSET_STATIC_MODEL).visible;
 	}
 
 	zonetool::iw8::GfxSModelSurfEmitType get_smodel_emit_type(Material* asset)
