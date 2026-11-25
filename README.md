@@ -26,21 +26,22 @@ Rows are the source game. Columns are the `--target` game.
 
 | From ↓ / To → | IW6 | S1 | H1 | H2 | S2 | IW7 | IW8 |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| **IW3** | 🚧 | 🚧 | 🚧 | 🚧 | 🚧 | ✅ | ❌ |
-| **IW4** | 🚧 | 🚧 | 🚧 | 🚧 | 🚧 | 🚧 | ❌ |
-| **IW5** | 🚧 | 🚧 | 🚧 | 🚧 | 🚧 | 🚧 | ❌ |
-| **IW6** | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **IW3** | 🚧 | 🚧 | 🚧 | 🚧 | 🚧 | ✅ | ❔ |
+| **IW4** | 🚧 | 🚧 | 🚧 | 🚧 | 🚧 | 🚧 | ❔ |
+| **IW5** | 🚧 | 🚧 | 🚧 | 🚧 | 🚧 | ⚠️ | ❔ |
+| **IW6** | ✅ | ❌ | ✅ | ❔ | ❔ | ❌ | ❌ |
 | **S1**  | ❌ | ✅ | ✅ | ✅ | ⚠️ | ❌ | ❌ |
 | **H1**  | ❌ | ❌ | ✅ | ✅ | ⚠️ | ⚠️ | ❌ |
-| **H2**  | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| **S2**  | ❌ | ❌ | ⚠️ | ❌ | ✅ | ❌ | ❌ |
+| **H2**  | ❌ | ❌ | ✅ | ✅ | ❔ | ❌ | ❌ |
+| **S2**  | ❌ | ❌ | ⚠️ | ❔ | ✅ | ❌ | ❌ |
 | **IW7** | ❌ | ❌ | ⚠️ | ❌ | ❌ | ✅ | ⚠️ |
 | **IW8** | ❌ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ✅ |
 
 | | Status | Meaning |
 |:-:|---|---|
 | ✅ | **Supported** | Works for the assets of this game pair |
-| ⚠️ | **Partial** | Experimental or unfinished (some assets work, weapons may work) |
+| ⚠️ | **Partial** | Experimental or unfinished (some assets may work like weapons) |
+| ❔ | **Possible** | Can be achieved via alternative conversions (like `IW5 -> IW7 -> IW8`) |
 | 🚧 | **Planned** | x86 games from Joelrau/zonetool for dumping only |
 | ❌ | **Not supported** | No conversion |
 
