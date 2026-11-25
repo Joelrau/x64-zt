@@ -13,6 +13,7 @@
 #include <iw7/common/navpower_builder.hpp>
 #include <iw7/assets/navmesh.hpp>
 
+#include <xsk/gsc/engine/iw5_pc.hpp>
 #include <xsk/gsc/engine/iw7.hpp>
 
 namespace zonetool::iw5::converter::iw7
@@ -741,6 +742,43 @@ namespace zonetool::iw5::converter::iw7
 				return new_def;
 			}
 
+			const xsk::gsc::iw5_pc::context& iw5_tokens()
+			{
+				static const auto context = []
+				{
+					auto result = std::make_unique<xsk::gsc::iw5_pc::context>(xsk::gsc::instance::server);
+					result->init(xsk::gsc::build::prod, {});
+					return result;
+				}();
+				return *context;
+			}
+
+			std::string decode_entity_keys(const std::string& source)
+			{
+				static const std::regex line_expr(R"entity(^\s*(\d+)(\s+"[^"]*"\s*)$)entity");
+
+				std::string result;
+				result.reserve(source.size());
+				for (const auto& line : utils::string::split(source, '\n'))
+				{
+					std::smatch match{};
+					if (std::regex_match(line, match, line_expr))
+					{
+						const auto name = iw5_tokens().token_name(static_cast<std::uint32_t>(std::stoul(match[1].str())));
+						if (!name.starts_with("_id_"))
+						{
+							result.append(std::format("\"{}\"{}\n", name, match[2].str()));
+							continue;
+						}
+					}
+
+					result.append(line);
+					result.push_back('\n');
+				}
+
+				return result;
+			}
+
 			const xsk::gsc::iw7::context& iw7_tokens()
 			{
 				static const auto context = []
@@ -803,7 +841,8 @@ namespace zonetool::iw5::converter::iw7
 				const auto new_asset = allocator.allocate<zonetool::iw7::MapEnts>();
 				new_asset->name = asset->name.get();
 
-				auto entity_string = fix_entity_model_references(clipmap, std::string{asset->entityString.get(), static_cast<std::size_t>(asset->numEntityChars)});
+				auto entity_string = decode_entity_keys(std::string{asset->entityString.get(), static_cast<std::size_t>(asset->numEntityChars)});
+				entity_string = fix_entity_model_references(clipmap, entity_string);
 				entity_string = add_default_entities(clipmap, entity_string);
 				entity_string = make_spawn_list(entity_string, new_asset->spawnList, allocator);
 				entity_string = convert_entity_keys(entity_string);

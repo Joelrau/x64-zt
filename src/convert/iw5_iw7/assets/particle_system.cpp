@@ -27,7 +27,6 @@ namespace zonetool::iw5::converter::iw7
 				case source::FX_ELEM_TYPE_MODEL: return target::PARTICLE_ELEMENT_TYPE_MODEL;
 				case source::FX_ELEM_TYPE_OMNI_LIGHT: return target::PARTICLE_ELEMENT_TYPE_LIGHT_OMNI;
 				case source::FX_ELEM_TYPE_SPOT_LIGHT: return target::PARTICLE_ELEMENT_TYPE_LIGHT_SPOT;
-				case source::FX_ELEM_TYPE_SOUND: return target::PARTICLE_ELEMENT_TYPE_RUNNER;
 				case source::FX_ELEM_TYPE_DECAL: return target::PARTICLE_ELEMENT_TYPE_DECAL;
 				case source::FX_ELEM_TYPE_RUNNER: return target::PARTICLE_ELEMENT_TYPE_RUNNER;
 				default: return target::PARTICLE_ELEMENT_TYPE_BILLBOARD_SPRITE;
@@ -64,6 +63,9 @@ namespace zonetool::iw5::converter::iw7
 				{
 				case source::FX_ELEM_TYPE_SPARKFOUNTAIN:
 					ZONETOOL_WARNING("Effect \"%s\": IW7 has no spark fountain element, skipping it", asset->name.get());
+					return false;
+				case source::FX_ELEM_TYPE_SOUND:
+					ZONETOOL_WARNING("Effect \"%s\": IW7 has no sound element, skipping it", asset->name.get());
 					return false;
 				case source::FX_ELEM_TYPE_OMNI_LIGHT:
 				case source::FX_ELEM_TYPE_SPOT_LIGHT:
@@ -353,16 +355,12 @@ namespace zonetool::iw5::converter::iw7
 			void add_init_runner_module(emitter_build& build)
 			{
 				const auto elem = build.elem;
-				if (elem->elemType != source::FX_ELEM_TYPE_RUNNER && elem->elemType != source::FX_ELEM_TYPE_SOUND)
+				if (elem->elemType != source::FX_ELEM_TYPE_RUNNER)
 				{
 					return;
 				}
 
 				auto& data = add_module(build, target::PARTICLE_MODULE_INIT_RUNNER, &target::ParticleModuleTypeDef::initRunner);
-				if (elem->elemType != source::FX_ELEM_TYPE_RUNNER)
-				{
-					return;
-				}
 
 				const auto assets = allocate_assets(data.m_linkedAssetList, elem->visualCount, *build.allocator);
 				for (auto i = 0; i < elem->visualCount; i++)
@@ -535,25 +533,6 @@ namespace zonetool::iw5::converter::iw7
 				}
 
 				build.state_flags |= target::PARTICLE_STATE_DEF_FLAG_HAS_ROTATION_3D_INIT;
-			}
-
-			void add_init_sound_module(emitter_build& build)
-			{
-				const auto elem = build.elem;
-				if (elem->elemType != source::FX_ELEM_TYPE_SOUND || !elem->visualCount)
-				{
-					return;
-				}
-
-				auto& data = add_module(build, target::PARTICLE_MODULE_INIT_SOUND, &target::ParticleModuleTypeDef::initSound);
-
-				const auto assets = allocate_assets(data.m_linkedAssetList, elem->visualCount, *build.allocator);
-				for (auto i = 0; i < elem->visualCount; i++)
-				{
-					assets[i].sound = build.allocator->duplicate_string(visual_at(elem, i).soundName.get());
-				}
-
-				build.state_flags |= target::PARTICLE_STATE_DEF_FLAG_PLAY_SOUNDS;
 			}
 
 			void add_init_spawn_shape_box_module(emitter_build& build)
@@ -1058,7 +1037,6 @@ namespace zonetool::iw5::converter::iw7
 				add_init_relative_velocity_module(build);
 				add_init_rotation_module(build);
 				add_init_rotation_3d_module(build);
-				add_init_sound_module(build);
 				add_init_spawn_shape_box_module(build);
 				add_init_spawn_shape_cylinder_module(build);
 				add_init_spawn_shape_sphere_module(build);

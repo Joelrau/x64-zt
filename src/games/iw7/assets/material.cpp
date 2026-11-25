@@ -65,7 +65,7 @@ namespace zonetool::iw7
 				for (auto o = 0u; o < mat->constantCount; o++)
 				{
 #define COPY_CONSTANT_TABLE_VALUES(__data__, __offset_data__) \
-					if (cbt->__offset_data__ && cbt->__offset_data__[o] != 0xFFFF) \
+					if (cbt->__offset_data__ && o < cbt->__offset_data__##Size && cbt->__offset_data__[o] != 0xFFFF) \
 					{ \
 						const auto constant = reinterpret_cast<float*>(&cbt->__data__[cbt->__offset_data__[o]]); \
 						for (auto j = 0; j < 4; j++) \

@@ -2,8 +2,6 @@
 
 #include <cstdint>
 
-// Scene file handed to umbra-tomegen: the header, then models, objects, view volumes and seed points.
-// Everything is world space and packed at natural 4 byte alignment.
 namespace utils::umbra
 {
 	constexpr char SCENE_MAGIC[8] = {'Z', 'T', 'U', 'M', 'B', 'R', 'A', '1'};

@@ -2,7 +2,7 @@
 #include "converter.hpp"
 
 #include <game.hpp>
-#include <iw3/iwd.hpp>
+#include <formats/iwd.hpp>
 
 #include <iw3_iw4/assets/xanim_parts.hpp>
 #include <iw4_iw5/assets/xanim_parts.hpp>
@@ -31,14 +31,7 @@
 #include <iw3_iw4/assets/gfxworld.hpp>
 #include <iw4_iw5/assets/gfxworld.hpp>
 #include <iw5_iw7/assets/gfxworld.hpp>
-#include <iw7/assets/netconststrings.hpp>
-#include <iw7/assets/fxworld.hpp>
-#include <iw7/assets/glassworld.hpp>
-#include <iw7/assets/scriptfile.hpp>
-
-#include <utils/compression.hpp>
-
-#include <xsk/gsc/engine/iw7.hpp>
+#include <iw5_iw7/assets/level.hpp>
 
 namespace zonetool::convert::iw3_iw7
 {
@@ -48,46 +41,6 @@ namespace zonetool::convert::iw3_iw7
 		S* header_as(void* header)
 		{
 			return static_cast<S*>(header);
-		}
-
-		void dump_level_net_const_strings()
-		{
-			namespace target = zonetool::iw7;
-
-			static const char* level_tags[]
-			{
-				"mdl", "mat", "rmb", "rmg", "veh", "efx", "vfx", "loc", "shk", "tag", "hic", "sic",
-				"nps", "mic", "wep", "hnt", "anm", "acl", "lui", "sut", "ges", "tgt", "vsn",
-			};
-
-			for (auto type = 0; type <= target::NETCONSTSTRINGTYPE_VISION; type++)
-			{
-				const auto name = std::format("ncs_{}_level", level_tags[type]);
-
-				target::NetConstStrings asset{};
-				asset.name = name.data();
-				asset.stringType = static_cast<target::NetConstStringType>(type);
-				asset.sourceType = target::NETCONSTSTRINGSOURCE_MAP;
-				target::net_const_strings::dump(&asset); // empty lists: IW3 has no net const strings
-			}
-		}
-
-		void dump_empty_glass_world(const char* name)
-		{
-			namespace target = zonetool::iw7;
-
-			target::G_GlassData data{};
-			target::GlassWorld asset{};
-			asset.name = name;
-			asset.g_glassData = &data;
-			target::glass_world::dump(&asset); // IW3 has no breakable glass, IW7 game init reads the glass data of the map
-		}
-
-		void dump_empty_fx_world(const char* name)
-		{
-			zonetool::iw7::FxWorld asset{};
-			asset.name = name;
-			zonetool::iw7::fx_world::dump(&asset); // IW3 has no glass system, but the zone needs its fx_map
 		}
 
 		std::unordered_map<std::string, std::string> level_script_sources;
@@ -262,15 +215,6 @@ namespace zonetool::convert::iw3_iw7
 
 		void dump_level_script(const char* world_name)
 		{
-			namespace target = zonetool::iw7;
-
-			static auto context = []
-			{
-				auto result = std::make_unique<xsk::gsc::iw7::context>(xsk::gsc::instance::server);
-				result->init(xsk::gsc::build::prod, {});
-				return result;
-			}();
-
 			const auto map = std::filesystem::path(world_name).stem().string();
 			const auto name = std::format("scripts/mp/maps/{}/{}", map, map);
 			const auto* trace_env = std::getenv("ZT_TRACE_SPAWN");
@@ -381,327 +325,34 @@ zt_trace_state()
 				return source + ported.functions;
 			};
 
-			const auto compile = [&](const std::string& source)
+			const auto level_source = level_script_sources.find(std::format("maps/mp/{}.gsc", utils::string::to_lower(map)));
+			if (level_source != level_script_sources.end())
 			{
-				std::vector<std::uint8_t> data(source.begin(), source.end());
-				return context->compiler().compile(name + ".gsc", data);
-			};
-
-			const auto assembly = [&]
-			{
-				const auto level_source = level_script_sources.find(std::format("maps/mp/{}.gsc", utils::string::to_lower(map)));
-				if (level_source != level_script_sources.end())
+				const auto ported = port_level_threads(level_source->second);
+				if (!ported.calls.empty())
 				{
-					const auto ported = port_level_threads(level_source->second);
-					if (!ported.calls.empty())
+					try
 					{
-						try
-						{
-							auto result = compile(build_source(ported));
-							ZONETOOL_INFO("Level script \"%s\": carried over the threads of the IW3 script", name.data());
-							return result;
-						}
-						catch (const std::exception& error)
-						{
-							ZONETOOL_WARNING("Level script \"%s\": IW3 threads left out, they do not compile for IW7 (%s)",
-								name.data(), error.what());
-						}
+						zonetool::iw5::converter::iw7::level::dump_script(name, build_source(ported));
+						ZONETOOL_INFO("Level script \"%s\": carried over the threads of the IW3 script", name.data());
+						return;
+					}
+					catch (const std::exception& error)
+					{
+						ZONETOOL_WARNING("Level script \"%s\": IW3 threads left out, they do not compile for IW7 (%s)",
+							name.data(), error.what());
 					}
 				}
-
-				return compile(build_source({}));
-			}();
-			const auto [bytecode, stack, devmap] = context->assembler().assemble(*assembly);
-			const auto buffer = utils::compression::zlib::compress(std::string(reinterpret_cast<const char*>(stack.data), stack.size));
-
-			target::ScriptFile script{};
-			script.name = name.data();
-			script.compressedLen = static_cast<int>(buffer.size());
-			script.len = static_cast<int>(stack.size);
-			script.bytecodeLen = static_cast<int>(bytecode.size);
-			script.buffer = buffer.data();
-			script.bytecode = reinterpret_cast<char*>(const_cast<std::uint8_t*>(bytecode.data));
-			target::scriptfile::dump(&script); // IW3 level scripts are source gsc, IW7 game init needs a compiled level script
-		}
-
-		// The whole IW7 vision schema is written: CoD4 visions share none of its keys, and some engine
-		// defaults are unsafe (sunshadowSampleSizeNear 0.25 drops distant shadows to the lightmap).
-		struct vision_key
-		{
-			const char* key;
-			const char* value;
-		};
-
-		const vision_key vision_schema[] =
-		{
-			{"colorizationSetCurveLowMin", "0"},
-			{"colorizationSetCurveLowMax", "1"},
-			{"colorizationSetCurveHighMin", "1"},
-			{"colorizationSetCurveHighMax", "0"},
-			{"colorizationSetCurveMidMidpoint", "0.5"},
-			{"colorizationSetCurveMidRange", "0"},
-			{"colorizationSetCurveMidFalloff", "0.5"},
-			{"lmhLowScale", "1 1 1"},
-			{"lmhLowBalance", "0 0 0"},
-			{"lmhLowSaturation", "0"},
-			{"lmhMidScale", "1 1 1"},
-			{"lmhMidBalance", "0 0 0"},
-			{"lmhMidSaturation", "0"},
-			{"lmhHighScale", "1 1 1"},
-			{"lmhHighBalance", "0 0 0"},
-			{"lmhHighSaturation", "0"},
-			{"lmhBalancePreserveLum", "1"},
-			{"levelsInMin", "0"},
-			{"levelsInGamma", "1"},
-			{"levelsInMax", "255"},
-			{"levelsOutMin", "0"},
-			{"levelsOutMax", "255"},
-			{"r_primaryLightTweakDiffuseStrength", "1"},
-			{"r_primaryLightTweakSpecularStrength", "1"},
-			{"r_charLightAmbient", "1 1 1"},
-			{"r_volumeLightScatter", "0"},
-			{"r_volumeLightScatterLinearAtten", "1"},
-			{"r_volumeLightScatterQuadraticAtten", "0"},
-			{"r_volumeLightScatterAngularAtten", "0.25"},
-			{"r_volumeLightScatterDepthAttenNear", "0"},
-			{"r_volumeLightScatterDepthAttenFar", "0"},
-			{"r_volumeLightScatterBackgroundDistance", "100000"},
-			{"r_volumeLightScatterColor", "0.2 0.2 0.2"},
-			{"r_ssaoStrength", "1"},
-			{"r_mdaoCullDistance", "1000"},
-			{"r_mdaoFadeoutDistance", "900"},
-			{"r_mdaoBoneSizeThreshold", "150"},
-			{"r_glare_normalStart", "0.125"},
-			{"r_glare_normalEnd", "0.75"},
-			{"r_glare_normalPower", "1"},
-			{"r_glare_normalAmount", "0"},
-			{"r_glare_mirrorStart", "0.125"},
-			{"r_glare_mirrorEnd", "0.75"},
-			{"r_glare_mirrorPower", "1"},
-			{"r_glare_mirrorAmount", "0"},
-			{"r_rimLightScale", "8"},
-			{"r_rimLightStartDistance", "100"},
-			{"r_rimLightDistance", "900"},
-			{"r_rimLightFill", "2"},
-			{"r_EVCompBounds", "0"},
-			{"r_EVCompGrayReference", "0.18"},
-			{"r_hdrSkyIntensity", "1"},
-			{"r_hdrSkyColorTint", "1 1 1"},
-			{"r_skyBlendAmount", "0"},
-			{"r_skyBlendFeather", "0.001"},
-			{"fogDensity", "50000"},
-			{"fogStartDist", "0"},
-			{"fogColorIntensity", "1"},
-			{"fogColor", "1 1 1"},
-			{"fogMaxOpacity", "0"},
-			{"fogSunDensity", "50000"},
-			{"fogSunColorIntensity", "0"},
-			{"fogSunColor", "1 1 1"},
-			{"fogSunBeginFadeAngle", "0"},
-			{"fogSunEndFadeAngle", "55"},
-			{"fogSunDir", "0 0 -1"},
-			{"fogSkyIntensity", "0"},
-			{"fogSkyMinAngle", "0"},
-			{"fogSkyMaxAngle", "90"},
-			{"tonemapMode", "2"},
-			{"tonemapAuto", "1"},
-			{"tonemapAutoExposureAdjustCurve", "0"},
-			{"tonemapExposure", "10"},
-			{"tonemapAutoExposureAdjust", "0"},
-			{"tonemapMaxExposure", "9.75"},
-			{"tonemapExposureAdjust", "-0.5"},
-			{"tonemapAdaptSpeed", "0.05"},
-			{"tonemapBlackPoint", "0"},
-			{"tonemapWhitePoint", "512.0"},
-			{"tonemapCrossover", "2"},
-			{"tonemapShoulder", "0.96"},
-			{"tonemapToe", "0"},
-			{"tonemapDarkEv", "2.84"},
-			{"tonemapMidEv", "7.823"},
-			{"tonemapLightEv", "12.81"},
-			{"tonemapDarkExposureAdjust", "-3.17"},
-			{"tonemapMidExposureAdjust", "-0.651"},
-			{"tonemapLightExposureAdjust", "1.47"},
-			{"tonemapMinExposureAdjust", "-3.17"},
-			{"tonemapMaxExposureAdjust", "2.3"},
-			{"tonemapGrainStrength", "0.07"},
-			{"chromaRadius", "0"},
-			{"chromaStrength", "0"},
-			{"chromaAberration", "0"},
-			{"r_dustHeading", "0"},
-			{"r_dustPitch", "-90"},
-			{"r_dustTiling", "0.1"},
-			{"r_dustIntensity", "0"},
-			{"r_dustPowerCurv", "1"},
-			{"r_dustSmoothMin", "0.5"},
-			{"r_dustSmoothMax", "1"},
-			{"analogRewindAmount", "0"},
-			{"analogInterferenceAmount", "0"},
-			{"analogCrtEffectAmount", "0"},
-			{"analogRollEffectAmount", "0"},
-			{"analogChromaSeparationEffectAmount", "0"},
-			{"toneWhitePoint", "1 1 1"},
-			{"veilStrength", "0.06"},
-			{"volumetricAirDensity", "0.02"},
-			{"volumetricAbsorption", "0"},
-			{"volumetricAlbedo", "1 1 1"},
-			{"volumetricSunBrightness", "0"},
-			{"volumetricSpotBrightness", "0"},
-			{"volumetricAmbientBrightness", "0"},
-			{"volumetricSunAnisotropy", "0.8"},
-			{"sunshadowTransmissiveTint", "0 0 0"},
-			{"sunshadowSoftness", "0"},
-			{"sunshadowSampleSizeNear", "0.99"},
-			{"cloudShadowScale", "1"},
-			{"cloudShadowScrollRate", "0"},
-			{"cloudShadowScrollHeading", "0"},
-			{"cloudShadowOpacity", "0"},
-			{"cloudShadowLowThreshold", "0"},
-			{"cloudShadowHighThreshold", "1"},
-		};
-
-		using vision_values = std::vector<std::pair<std::string, std::string>>;
-
-		// One "key value" or "key "value"" per line, comments and blank lines skipped.
-		vision_values parse_vision(const std::string& text)
-		{
-			vision_values result;
-			std::istringstream stream(text);
-			std::string line;
-			while (std::getline(stream, line))
-			{
-				if (!line.empty() && line.back() == '\r')
-				{
-					line.pop_back();
-				}
-
-				const auto key_start = line.find_first_not_of(" \t");
-				if (key_start == std::string::npos || line.compare(key_start, 2, "//") == 0)
-				{
-					continue;
-				}
-
-				const auto key_end = line.find_first_of(" \t", key_start);
-				if (key_end == std::string::npos)
-				{
-					continue;
-				}
-
-				const auto value_start = line.find_first_not_of(" \t", key_end);
-				if (value_start == std::string::npos)
-				{
-					continue;
-				}
-
-				std::string value;
-				if (line[value_start] == '"')
-				{
-					const auto close = line.find('"', value_start + 1);
-					value = line.substr(value_start + 1, close == std::string::npos ? std::string::npos : close - value_start - 1);
-				}
-				else
-				{
-					const auto value_end = line.find_first_of(" \t", value_start);
-					value = line.substr(value_start, value_end == std::string::npos ? std::string::npos : value_end - value_start);
-				}
-
-				result.emplace_back(line.substr(key_start, key_end - key_start), value);
-			}
-			return result;
-		}
-
-		std::string* find_vision_key(vision_values& values, const char* key)
-		{
-			for (auto& [name, value] : values)
-			{
-				if (_stricmp(name.data(), key) == 0)
-				{
-					return &value;
-				}
-			}
-			return nullptr;
-		}
-
-		float vision_float(const std::string& text, const float fallback)
-		{
-			char* end = nullptr;
-			const auto result = std::strtof(text.data(), &end);
-			return end == text.data() ? fallback : result;
-		}
-
-		// The CoD4 film pass is that game's whole grading. The per-range tints become the lmh
-		// scales and desaturation becomes lmh saturation (stock IW7 values read as percent).
-		// Film contrast and brightness are left out: IW7's tonemapper already sets both.
-		void map_film(vision_values& source, vision_values& result)
-		{
-			const auto* enable = find_vision_key(source, "r_filmEnable");
-			if (!enable || vision_float(*enable, 0.0f) == 0.0f)
-			{
-				return;
 			}
 
-			const std::pair<const char*, const char*> tints[] =
-			{
-				{"r_filmDarkTint", "lmhLowScale"},
-				{"r_filmMediumTint", "lmhMidScale"},
-				{"r_filmLightTint", "lmhHighScale"},
-			};
-
-			for (const auto& [from, to] : tints)
-			{
-				if (const auto* tint = find_vision_key(source, from))
-				{
-					*find_vision_key(result, to) = *tint;
-				}
-			}
-
-			if (const auto* desaturation = find_vision_key(source, "r_filmDesaturation"))
-			{
-				const auto saturation = std::format("{}", std::clamp(-100.0f * vision_float(*desaturation, 0.0f), -100.0f, 100.0f));
-				*find_vision_key(result, "lmhLowSaturation") = saturation;
-				*find_vision_key(result, "lmhMidSaturation") = saturation;
-				*find_vision_key(result, "lmhHighSaturation") = saturation;
-			}
-		}
-
-		// IW7 applies vision/<map>.vision as the level's naked vision. CoD4 keeps visions in the
-		// iwd files rather than the zone, so the map's own one is read from there when it exists.
-		void dump_vision(const std::string& name, const std::string& iw3_text)
-		{
-			auto source = parse_vision(iw3_text);
-
-			vision_values result;
-			for (const auto& entry : vision_schema)
-			{
-				result.emplace_back(entry.key, entry.value);
-			}
-
-			map_film(source, result);
-			for (const auto& [key, value] : source)
-			{
-				if (auto* target = find_vision_key(result, key.data()))
-				{
-					*target = value;
-				}
-			}
-
-			std::string text;
-			for (const auto& [key, value] : result)
-			{
-				text += key + " \"" + value + "\"\r\n";
-			}
-
-			filesystem::file file(name);
-			file.open("wb");
-			file.write(text);
-			file.close();
+			zonetool::iw5::converter::iw7::level::dump_script(name, build_source({}));
 		}
 
 		void dump_level_vision(const char* world_name)
 		{
 			const auto name = std::format("vision/{}.vision", utils::string::to_lower(std::filesystem::path(world_name).stem().string()));
 			const auto zone_vision = zone_visions.find(name);
-			dump_vision(name, zone_vision != zone_visions.end() ? zone_vision->second : zonetool::iw3::read_iwd_file(name));
+			zonetool::iw5::converter::iw7::level::dump_vision(name, zone_vision != zone_visions.end() ? zone_vision->second : iwd::read_file(name));
 		}
 
 		void dump_asset(const std::int32_t type, void* header)
@@ -709,7 +360,7 @@ zt_trace_state()
 			namespace source = zonetool::iw3;
 
 			x86::allocator allocator;
-			zonetool::iw5::converter::iw7::gfx_image::read_file = zonetool::iw3::read_iwd_file;
+			zonetool::iw5::converter::iw7::gfx_image::read_file = iwd::read_file;
 
 			switch (type)
 			{
@@ -777,9 +428,9 @@ zt_trace_state()
 				const auto iw4_asset = source::converter::iw4::gfxworld::convert(header_as<source::GfxWorld>(header), allocator);
 				const auto iw5_asset = zonetool::iw4::converter::iw5::gfxworld::convert(iw4_asset, allocator);
 				zonetool::iw5::converter::iw7::gfxworld::dump(iw5_asset);
-				dump_level_net_const_strings();
-				dump_empty_glass_world(iw5_asset->name);
-				dump_empty_fx_world(iw5_asset->name);
+				zonetool::iw5::converter::iw7::level::dump_net_const_strings();
+				zonetool::iw5::converter::iw7::level::dump_empty_glass_world(iw5_asset->name);
+				zonetool::iw5::converter::iw7::level::dump_empty_fx_world(iw5_asset->name);
 				dump_level_script(iw5_asset->name);
 				dump_level_vision(iw5_asset->name);
 				break;
@@ -838,7 +489,7 @@ zt_trace_state()
 				if (name.ends_with(".vision") && rawfile->buffer.value)
 				{
 					zone_visions[name] = std::string(rawfile->buffer.get(), static_cast<std::size_t>(rawfile->len));
-					dump_vision(name, zone_visions[name]);
+					zonetool::iw5::converter::iw7::level::dump_vision(name, zone_visions[name]);
 					break;
 				}
 

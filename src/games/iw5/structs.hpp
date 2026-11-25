@@ -12,63 +12,94 @@ namespace zonetool::iw5
 
 	typedef unsigned __int16 scr_string_t;
 
-	enum XAssetType_old : std::int32_t
+	enum XAssetType : std::int32_t
 	{
-		physpreset,
-		phys_collmap,
-		xanim,
-		xmodelsurfs,
-		xmodel,
-		material,
-		pixelshader,
-		vertexshader,
-		vertexdecl,
-		techset,
-		image,
-		sound,
-		sndcurve,
-		loaded_sound,
-		col_map_mp,
-		com_map,
-		glass_map,
-		ai_paths,
-		vehicle_tracks,
-		map_ents,
-		fx_map,
-		gfx_map,
-		lightdef,
-		ui_map,
-		// not used
-		font,
-		menufile,
-		menu,
-		localize,
-		attachment,
-		weapon,
-		snddriverglobals,
-		// not used
-		fx,
-		impactfx,
-		surfacefx,
-		aitype,
-		// not used
-		mptype,
-		// not used
-		character,
-		// not used
-		xmodelalias,
-		// not used
-		rawfile,
-		scriptfile,
-		stringtable,
-		leaderboarddef,
-		structureddatadef,
-		tracer,
-		vehicle,
-		addon_map_ents,
-		max,
+		ASSET_TYPE_PHYSPRESET = 0x0,
+		ASSET_TYPE_PHYSCOLLMAP = 0x1,
+		ASSET_TYPE_XANIMPARTS = 0x2,
+		ASSET_TYPE_XMODEL_SURFS = 0x3,
+		ASSET_TYPE_XMODEL = 0x4,
+		ASSET_TYPE_MATERIAL = 0x5,
+		ASSET_TYPE_PIXELSHADER = 0x6,
+		ASSET_TYPE_VERTEXSHADER = 0x7,
+		ASSET_TYPE_VERTEXDECL = 0x8,
+		ASSET_TYPE_TECHNIQUE_SET = 0x9,
+		ASSET_TYPE_IMAGE = 0xA,
+		ASSET_TYPE_SOUND = 0xB,
+		ASSET_TYPE_SOUND_CURVE = 0xC,
+		ASSET_TYPE_LOADED_SOUND = 0xD,
+		ASSET_TYPE_CLIPMAP = 0xE,
+		ASSET_TYPE_COMWORLD = 0xF,
+		ASSET_TYPE_GLASSWORLD = 0x10,
+		ASSET_TYPE_PATHDATA = 0x11,
+		ASSET_TYPE_VEHICLE_TRACK = 0x12,
+		ASSET_TYPE_MAP_ENTS = 0x13,
+		ASSET_TYPE_FXWORLD = 0x14,
+		ASSET_TYPE_GFXWORLD = 0x15,
+		ASSET_TYPE_LIGHT_DEF = 0x16,
+		ASSET_TYPE_UI_MAP = 0x17,
+		ASSET_TYPE_FONT = 0x18,
+		ASSET_TYPE_MENULIST = 0x19,
+		ASSET_TYPE_MENU = 0x1A,
+		ASSET_TYPE_LOCALIZE_ENTRY = 0x1B,
+		ASSET_TYPE_ATTACHMENT = 0x1C,
+		ASSET_TYPE_WEAPON = 0x1D,
+		ASSET_TYPE_SNDDRIVER_GLOBALS = 0x1E,
+		ASSET_TYPE_FX = 0x1F,
+		ASSET_TYPE_IMPACT_FX = 0x20,
+		ASSET_TYPE_SURFACE_FX = 0x21,
+		ASSET_TYPE_AITYPE = 0x22,
+		ASSET_TYPE_MPTYPE = 0x23,
+		ASSET_TYPE_CHARACTER = 0x24,
+		ASSET_TYPE_XMODELALIAS = 0x25,
+		ASSET_TYPE_RAWFILE = 0x26,
+		ASSET_TYPE_SCRIPTFILE = 0x27,
+		ASSET_TYPE_STRINGTABLE = 0x28,
+		ASSET_TYPE_LEADERBOARD = 0x29,
+		ASSET_TYPE_STRUCTURED_DATA_DEF = 0x2A,
+		ASSET_TYPE_TRACER = 0x2B,
+		ASSET_TYPE_VEHICLE = 0x2C,
+		ASSET_TYPE_ADDON_MAP_ENTS = 0x2D,
+		ASSET_TYPE_COUNT = 0x2E,
+	};
 
-		col_map_sp = col_map_mp,
+	enum XFileBlock
+	{
+		XFILE_BLOCK_TEMP,
+		XFILE_BLOCK_PHYSICAL,
+		XFILE_BLOCK_RUNTIME,
+		XFILE_BLOCK_VIRTUAL,
+		XFILE_BLOCK_LARGE,
+		XFILE_BLOCK_CALLBACK,
+		XFILE_BLOCK_VERTEX,
+		XFILE_BLOCK_INDEX,
+		XFILE_BLOCK_SCRIPT,
+
+		MAX_XFILE_COUNT
+	};
+
+	union XAssetHeader
+	{
+		x86::pointer<void> data;
+	};
+
+	struct XAsset
+	{
+		XAssetType type;
+		XAssetHeader header;
+	};
+
+	struct ScriptStringList
+	{
+		std::int32_t count;
+		x86::pointer<x86::pointer<const char>> strings;
+	};
+
+	struct XAssetList
+	{
+		ScriptStringList stringList;
+		std::int32_t assetCount;
+		x86::pointer<XAsset> assets;
 	};
 
 	struct ScriptFile
@@ -166,6 +197,12 @@ namespace zonetool::iw5
 	struct VehicleDef;
 
 	struct AddonMapEnts;
+
+	struct ClipInfo;
+
+	struct cmodel_t;
+
+	struct GfxBrushModel;
 
 	struct StringTableCell
 	{
@@ -621,6 +658,12 @@ namespace zonetool::iw5
 		Operand operand;
 	};
 
+	enum expressionEntryType
+	{
+		EET_OPERATOR = 0x0,
+		EET_OPERAND = 0x1,
+	};
+
 	struct expressionEntry
 	{
 		int type;
@@ -805,6 +848,34 @@ namespace zonetool::iw5
 	struct textScrollDef_s
 	{
 		int startTime;
+	};
+
+	enum ItemDefType
+	{
+		ITEM_TYPE_TEXT = 0x0,
+		ITEM_TYPE_BUTTON = 0x1,
+		ITEM_TYPE_RADIOBUTTON = 0x2,
+		ITEM_TYPE_CHECKBOX = 0x3,
+		ITEM_TYPE_EDITFIELD = 0x4,
+		ITEM_TYPE_COMBO = 0x5,
+		ITEM_TYPE_LISTBOX = 0x6,
+		ITEM_TYPE_MODEL = 0x7,
+		ITEM_TYPE_OWNERDRAW = 0x8,
+		ITEM_TYPE_NUMERICFIELD = 0x9,
+		ITEM_TYPE_SLIDER = 0xA,
+		ITEM_TYPE_YESNO = 0xB,
+		ITEM_TYPE_MULTI = 0xC,
+		ITEM_TYPE_DVARENUM = 0xD,
+		ITEM_TYPE_BIND = 0xE,
+		ITEM_TYPE_MENUMODEL = 0xF,
+		ITEM_TYPE_VALIDFILEFIELD = 0x10,
+		ITEM_TYPE_DECIMALFIELD = 0x11,
+		ITEM_TYPE_UPREDITFIELD = 0x12,
+		ITEM_TYPE_GAME_MESSAGE_WINDOW = 0x13,
+		ITEM_TYPE_NEWS_TICKER = 0x14,
+		ITEM_TYPE_TEXT_SCROLL = 0x15,
+		ITEM_TYPE_EMAILFIELD = 0x16,
+		ITEM_TYPE_PASSWORDFIELD = 0x17
 	};
 
 	union itemDefData_t
@@ -2178,6 +2249,281 @@ namespace zonetool::iw5
 		bool dpadIconShowsAmmo;
 	};
 
+	enum VehicleType
+	{
+		VEH_WHEELS_4 = 0x0,
+		VEH_TANK = 0x1,
+		VEH_PLANE = 0x2,
+		VEH_BOAT = 0x3,
+		VEH_ARTILLERY = 0x4,
+		VEH_HELICOPTER = 0x5,
+		VEH_SNOWMOBILE = 0x6,
+		VEH_SUBMARINE = 0x7,
+		VEH_UGV = 0x8,
+
+		VEH_TYPE_COUNT
+	};
+
+	enum VehicleAxleType
+	{
+		VEH_AXLE_FRONT = 0x0,
+		VEH_AXLE_REAR = 0x1,
+		VEH_AXLE_ALL = 0x2,
+
+		VEH_AXLE_COUNT
+	};
+
+	enum VehCamZOffsetMode
+	{
+		VEHCAM_ZMODE_WORLD = 0x0,
+		VEHCAM_ZMODE_VEHICLE = 0x1,
+		VEHCAM_ZMODE_VIEW = 0x2,
+
+		VEHCAM_ZMODE_COUNT
+	};
+
+	struct VehiclePhysDef
+	{
+		int physicsEnabled;
+		x86::pointer<const char> physPresetName;
+		x86::pointer<PhysPreset> physPreset;
+		x86::pointer<const char> accelGraphName;
+		VehicleAxleType steeringAxle;
+		VehicleAxleType powerAxle;
+		VehicleAxleType brakingAxle;
+		float topSpeed;
+		float reverseSpeed;
+		float maxVelocity;
+		float maxPitch;
+		float maxRoll;
+		float suspensionTravelFront;
+		float suspensionTravelRear;
+		float suspensionStrengthFront;
+		float suspensionDampingFront;
+		float suspensionStrengthRear;
+		float suspensionDampingRear;
+		float frictionBraking;
+		float frictionCoasting;
+		float frictionTopSpeed;
+		float frictionSide;
+		float frictionSideRear;
+		float velocityDependentSlip;
+		float rollStability;
+		float rollResistance;
+		float pitchResistance;
+		float yawResistance;
+		float uprightStrengthPitch;
+		float uprightStrengthRoll;
+		float targetAirPitch;
+		float airYawTorque;
+		float airPitchTorque;
+		float minimumMomentumForCollision;
+		float collisionLaunchForceScale;
+		float wreckedMassScale;
+		float wreckedBodyFriction;
+		float minimumJoltForNotify;
+		float slipThresholdFront;
+		float slipThresholdRear;
+		float slipFricScaleFront;
+		float slipFricScaleRear;
+		float slipFricRateFront;
+		float slipFricRateRear;
+		float slipYawTorque;
+	};
+
+	struct VehicleDef
+	{
+		x86::pointer<const char> name;
+		VehicleType type;
+		x86::pointer<const char> useHintString;
+		int health;
+		int quadBarrel;
+		float texScrollScale;
+		float topSpeed;
+		float accel;
+		float rotRate;
+		float rotAccel;
+		float maxBodyPitch;
+		float maxBodyRoll;
+		int fakeBodyStabilizer;
+		float fakeBodyAccelPitch;
+		float fakeBodyAccelRoll;
+		float fakeBodyVelPitch;
+		float fakeBodyVelRoll;
+		float fakeBodySideVelPitch;
+		float fakeBodyPitchStrength;
+		float fakeBodyRollStrength;
+		float fakeBodyPitchDampening;
+		float fakeBodyRollDampening;
+		float fakeBodyBoatRockingAmplitude;
+		float fakeBodyBoatRockingPeriod;
+		float fakeBodyBoatRockingRotationPeriod;
+		float fakeBodyBoatRockingFadeoutSpeed;
+		float boatBouncingMinForce;
+		float boatBouncingMaxForce;
+		float boatBouncingRate;
+		float boatBouncingFadeinSpeed;
+		float boatBouncingFadeoutSteeringAngle;
+		float collisionDamage;
+		float collisionSpeed;
+		float killcamOffset[3];
+		int playerProtected;
+		int bulletDamage;
+		int armorPiercingDamage;
+		int grenadeDamage;
+		int projectileDamage;
+		int projectileSplashDamage;
+		int heavyExplosiveDamage;
+		VehiclePhysDef vehPhysDef;
+		float boostDuration;
+		float boostRechargeTime;
+		float boostAcceleration;
+		float suspensionTravel;
+		float maxSteeringAngle;
+		float steeringLerp;
+		float minSteeringScale;
+		float minSteeringSpeed;
+		float vehHelicopterBoundsRadius;
+		float vehHelicopterMaxSpeed;
+		float vehHelicopterMaxSpeedVertical;
+		float vehHelicopterMaxAccel;
+		float vehHelicopterMaxAccelVertical;
+		float vehHelicopterDecelerationFwd;
+		float vehHelicopterDecelerationSide;
+		float vehHelicopterDecelerationUp;
+		float vehHelicopterMaxYawRate;
+		float vehHelicopterMaxYawAccel;
+		float vehHelicopterTiltFromVelocity;
+		float vehHelicopterTiltFromControllerAxes;
+		float vehHelicopterTiltFromAcceleration;
+		float vehHelicopterTiltFromDeceleration;
+		float vehHelicopterTiltFromFwdAndYaw_VelAtMaxTilt;
+		float vehHelicopterTiltFromFwdAndYaw;
+		float vehHelicopterTiltMomentum;
+		float vehHelicopterTiltSpeed;
+		float vehHelicopterMaxPitch;
+		float vehHelicopterMaxRoll;
+		float vehHelicopterHoverSpeedThreshold;
+		float vehHelicopterJitterJerkyness;
+		float vehHelicopterLookaheadTime;
+		int vehHelicopterSoftCollisions;
+		int camLookEnabled;
+		int camRelativeControl;
+		float camLerp;
+		float camHeight;
+		float camRadius;
+		float camPitchInfluence;
+		float camYawInfluence;
+		float camRollInfluence;
+		float camFovIncrease;
+		float camFovOffset;
+		float camFovSpeed;
+		float camReturnSpeed;
+		float camReturnLerp;
+		int vehCam_UseGDT;
+		float vehCam_anglesPitch;
+		float vehCam_anglesYaw;
+		float vehCam_anglesRoll;
+		float vehCam_offsetX;
+		float vehCam_offsetY;
+		float vehCam_offsetZ;
+		float vehCam_radius;
+		float vehCam_speedInfluence;
+		float vehCam_pitchTurnRate;
+		float vehCam_pitchClamp;
+		float vehCam_yawTurnRate;
+		float vehCam_yawClamp;
+		VehCamZOffsetMode vehCam_zOffsetMode;
+		float vehCam_anglesPitch3P;
+		float vehCam_anglesYaw3P;
+		float vehCam_anglesRoll3P;
+		float vehCam_offsetX3P;
+		float vehCam_offsetY3P;
+		float vehCam_offsetZ3P;
+		float vehCam_radius3P;
+		float vehCam_speedInfluence3P;
+		float vehCam_pitchTurnRate3P;
+		float vehCam_pitchClamp3P;
+		float vehCam_yawTurnRate3P;
+		float vehCam_yawClamp3P;
+		VehCamZOffsetMode vehCam_zOffsetMode3P;
+		x86::pointer<const char> turretWeaponName;
+		x86::pointer<WeaponCompleteDef> turretWeapon;
+		float turretHorizSpanLeft;
+		float turretHorizSpanRight;
+		float turretVertSpanUp;
+		float turretVertSpanDown;
+		float turretHorizResistLeft;
+		float turretHorizResistRight;
+		float turretVertResistUp;
+		float turretVertResistDown;
+		float turretRotRate;
+		SndAliasCustom turretSpinSnd;
+		SndAliasCustom turretStopSnd;
+		int trophyEnabled;
+		float trophyRadius;
+		float trophyInactiveRadius;
+		int trophyAmmoCount;
+		float trophyReloadTime;
+		scr_string_t trophyTags[4];
+		x86::pointer<FxEffectDef> trophyExplodeFx;
+		x86::pointer<FxEffectDef> trophyFlashFx;
+		x86::pointer<Material> compassFriendlyIcon;
+		x86::pointer<Material> compassEnemyIcon;
+		x86::pointer<Material> compassFriendlyAltIcon;
+		x86::pointer<Material> compassEnemyAltIcon;
+		int compassIconWidth;
+		int compassIconHeight;
+		SndAliasCustom idleLowSnd;
+		SndAliasCustom idleHighSnd;
+		SndAliasCustom engineLowSnd;
+		SndAliasCustom engineHighSnd;
+		float engineSndSpeed;
+		scr_string_t audioOriginTag;
+		SndAliasCustom idleLowSndAlt;
+		SndAliasCustom idleHighSndAlt;
+		SndAliasCustom engineLowSndAlt;
+		SndAliasCustom engineHighSndAlt;
+		float engineSndSpeedAlt;
+		scr_string_t audioOriginTagAlt;
+		SndAliasCustom turretSpinSndAlt;
+		SndAliasCustom turretStopSndAlt;
+		SndAliasCustom engineStartUpSnd;
+		int engineStartUpLength;
+		SndAliasCustom engineShutdownSnd;
+		SndAliasCustom engineIdleSnd;
+		SndAliasCustom engineSustainSnd;
+		SndAliasCustom engineRampUpSnd;
+		int engineRampUpLength;
+		SndAliasCustom engineRampDownSnd;
+		int engineRampDownLength;
+		SndAliasCustom suspensionSoftSnd;
+		float suspensionSoftCompression;
+		SndAliasCustom suspensionHardSnd;
+		float suspensionHardCompression;
+		SndAliasCustom collisionSnd;
+		float collisionBlendSpeed;
+		SndAliasCustom speedSnd;
+		float speedSndBlendSpeed;
+		x86::pointer<const char> surfaceSndPrefix;
+		SndAliasCustom surfaceSnds[SURF_TYPE_COUNT];
+		float surfaceSndBlendSpeed;
+		float slideVolume;
+		float slideBlendSpeed;
+		float inAirPitch;
+	};
+
+	struct SurfaceFxEntry
+	{
+		x86::pointer<FxEffectDef> surfaceEffect[SURF_TYPE_COUNT];
+	};
+
+	struct SurfaceFxTable
+	{
+		x86::pointer<const char> name;
+		x86::pointer<SurfaceFxEntry> table;
+	};
+
 	struct ComPrimaryLight
 	{
 		unsigned char type;
@@ -2709,10 +3055,10 @@ namespace zonetool::iw5
 		MaterialStreamRoutingDestination dest;
 	};
 
-	union MaterialVertexStreamRouting
+	struct MaterialVertexStreamRouting
 	{
 		MaterialStreamRouting data[13];
-		x86::pointer<void> decl[21];
+		x86::pointer<void> decl[16];
 	};
 
 	struct MaterialVertexDeclaration
@@ -2994,7 +3340,7 @@ namespace zonetool::iw5
 
 	struct LoadedSound
 	{
-		x86::pointer<char> name;
+		x86::pointer<const char> name;
 		MssSound sound;
 	};
 
@@ -3334,6 +3680,10 @@ namespace zonetool::iw5
 		x86::pointer<char> entityString;
 		int numEntityChars;
 		MapTriggers trigger;
+		x86::pointer<ClipInfo> info;
+		unsigned int numSubModels;
+		x86::pointer<cmodel_t> cmodels;
+		x86::pointer<GfxBrushModel> models;
 	};
 
 	struct GfxSky
@@ -4973,6 +5323,27 @@ namespace zonetool::iw5
 		int occlusionQueryFadeOut;
 		FxFloatRange occlusionQueryScaleRange;
 		x86::pointer<FxElemDef> elemDefs;
+	};
+
+	enum FxFleshType
+	{
+		FX_FLESHTYPE_BODY_NONFATAL = 0x0,
+		FX_FLESHTYPE_BODY_FATAL = 0x1,
+		FX_FLESHTYPE_HEAD_NONFATAL = 0x2,
+		FX_FLESHTYPE_HEAD_FATAL = 0x3,
+		FX_FLESHTYPE_COUNT,
+	};
+
+	struct FxImpactEntry
+	{
+		x86::pointer<FxEffectDef> nonflesh[SURF_TYPE_COUNT];
+		x86::pointer<FxEffectDef> flesh[FX_FLESHTYPE_COUNT];
+	};
+
+	struct FxImpactTable
+	{
+		x86::pointer<const char> name;
+		x86::pointer<FxImpactEntry> table;
 	};
 
 	enum XAnimPartType

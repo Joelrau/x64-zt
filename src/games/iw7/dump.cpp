@@ -326,7 +326,7 @@ namespace zonetool::iw7
 
 		if (converter && converter->finish)
 		{
-			converter->finish(zone->name);
+			converter->finish(name == "*" ? zone->name : name);
 		}
 
 		ZONETOOL_INFO("%s \"%s\" dumped to %s", type_name.data(), name.data(), filesystem::get_dump_path().data());

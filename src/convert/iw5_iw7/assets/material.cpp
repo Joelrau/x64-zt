@@ -305,10 +305,14 @@ namespace zonetool::iw5::converter::iw7
 			{"mc_unlit_alphatest",						make_techset_map("mo_unlit_atest_lin_ct", "mo_unlit_atest_lin_ct")},
 			{"mc_unlit_blend_lin",                   make_techset_map("mo_unlit_blend_lin_ndw")},
 			{"mc_unlit_screen_lin_ua",              make_techset_map("mo_unlit_blend_lin_ndw_ua")},
+			{"mc_unlit_blend_ua",                   make_techset_map("mo_unlit_blend_lin_ndw_ua")},
+			{"mc_unlit_multiply_lin",               make_techset_map("mopw_unlit_multiply_lin_ndw")},
+			{"mc_tools_r0c0_nocast",                make_techset_map("mo_tools_r0c0_nocast")},
 			{"mc_threed_cinematic",                 make_techset_map("mo_threed_cinematic|_evc")},
 			{"mc_ambient_t0c0_nocast",              make_techset_map("mo_l_sm_atest_i0c0s0n0_nocast")},
 			{"m_l_sm_b0c0s0_sat",                   make_techset_map("m_l_sm_ndw_blend_i0c0s0")},
 			{"m_l_sm_b0c0q0n0s0_sat",               make_techset_map("m_l_sm_ndw_blend_i0c0s0n0")},
+			{"m_l_sm_b0c0n0s0",                     make_techset_map("m_l_sm_ndw_blend_i0c0s0n0")},
 			
 			{"wc_unlit",							make_techset_map("wc_unlit_replace_lin", "wc_unlit_replace_lin_ct")},
 			{"wc_unlit_add",							make_techset_map("wc_unlit_add_lin_ndw", "wc_unlit_add_lin_ct_ndw")},
@@ -317,6 +321,9 @@ namespace zonetool::iw5::converter::iw7
 			{"wc_unlit_add_lin",                    make_techset_map("wc_unlit_add_lin_ndw")},
 			{"wc_unlit_add_lin_ua",                 make_techset_map("wc_unlit_add_lin_ndw_ua")},
 			{"wc_unlit_blend_lin_ua",               make_techset_map("wc_unlit_blend_lin_ndw_ua")},
+			{"wc_unlit_falloff_add_lin_ua",         make_techset_map("wc_unlit_add_lin_ndw_ua", "wc_unlit_falloff_add_lin_ct_ndw_ua")},
+			{"wc_unlit_falloff_blend_lin_ua",       make_techset_map("wc_unlit_blend_lin_ndw_ua", "wc_unlit_blend_lin_ct_ndw_ua")},
+			{"wc_unlit_screen_lin",                 make_techset_map("wc_unlit_blend_lin_ndw")},
 			{"wc_unlit_blend_lin_custom_objective", make_techset_map("wc_unlit_blend_lin_ndw_custom_objective")},
 			{"wc_unlit_distfalloff_replace",        make_techset_map("wc_unlit_blend_lin_ndw")},
 			{"wc_unlit_multiply_lin",               make_techset_map("wc_unlit_multiply_lin_ndw")},
@@ -329,6 +336,8 @@ namespace zonetool::iw5::converter::iw7
 			{"wc_distortion_scale_ua_zfeather",     make_techset_map("wc_distortion_scale_ua")},
 			{"wc_l_sm_t0c0_nocast",                 make_techset_map("wc_l_sm_atest_i0c0_nocast")},
 			{"wc_l_t0c0_nocast",                    make_techset_map("wc_l_sm_atest_i0c0_nocast")},
+			{"wc_l_sm_b0c0nf0s0",                   make_techset_map("wc_l_sm_ndw_blend_i0c0s0n0")},
+			{"wc_tools_r0c0",                       make_techset_map("wc_tools_r0c0")},
 			{"tools_b0c0",                          make_techset_map("tools_b0c0")},
 
 			{"mc_shadowcaster",							make_techset_map("m_shadowcaster")},
@@ -617,7 +626,7 @@ namespace zonetool::iw5::converter::iw7
 				return {};
 			}
 
-			const bool add = has("add");
+			const bool add = has("add") || has("screen"); // IW7 has no screen blend
 			const bool nofog = has("nofog");
 			const bool eyeoffset = has("eyeoffset");
 			const bool outdoor = has("outdoor");
@@ -916,6 +925,27 @@ namespace zonetool::iw5::converter::iw7
 				return false;
 			}
 
+			bool uses_alpha_test(const zonetool::iw5::Material* asset)
+			{
+				const auto state_bits = asset->stateBitsTable.get();
+				for (auto i = 0; state_bits && i < asset->stateBitsCount; i++)
+				{
+					const auto bits = state_bits[i].loadBits[0];
+					if (!(bits & zonetool::iw5::GFXS0_ATEST_DISABLE) && (bits & zonetool::iw5::GFXS0_ATEST_MASK))
+					{
+						return true;
+					}
+				}
+
+				return false;
+			}
+
+			const std::unordered_map<std::string, std::string> alpha_tested_unlit_techsets =
+			{
+				{"wc_unlit_replace_lin", "wc_unlit_atest_lin"},
+				{"mo_unlit_replace_lin_nocast", "mo_unlit_atest_lin_nocast"},
+			};
+
 			std::unordered_map<std::string, std::string> built_images;
 
 			std::string& built_image(const char* kind, const zonetool::iw5::GfxImage* primary, const zonetool::iw5::GfxImage* secondary, bool& is_new)
@@ -1185,6 +1215,12 @@ namespace zonetool::iw5::converter::iw7
 
 				bool result = false;
 				iw7_techset = get_IW7_techset(techset, name, &result, false, has_ct);
+
+				const auto alpha_tested = alpha_tested_unlit_techsets.find(iw7_techset);
+				if (alpha_tested != alpha_tested_unlit_techsets.end() && uses_alpha_test(asset))
+				{
+					iw7_techset = alpha_tested->second;
+				}
 				matdata["techniqueSet->original"] = techset;
 			}
 
@@ -1258,10 +1294,10 @@ namespace zonetool::iw5::converter::iw7
 			matdata["textureAtlasAsArray"] = 0;
 			matdata["surfaceTypeBits"] = asset->info.surfaceTypeBits;
 
-			auto state_flags = asset->stateFlags;
-			if (iw7_techset.compare(0, 2, "2d") != 0)
+			auto state_flags = asset->stateFlags & ~(zonetool::iw7::STATE_FLAG_CULL_FRONT | zonetool::iw7::STATE_FLAG_UNK_2D_ONLY);
+			if (iw7_techset == "2d")
 			{
-				state_flags = static_cast<decltype(state_flags)>(state_flags & ~0x40);
+				state_flags |= zonetool::iw7::STATE_FLAG_UNK_2D_ONLY;
 			}
 
 			matdata["stateFlags"] = state_flags;
@@ -1271,10 +1307,11 @@ namespace zonetool::iw5::converter::iw7
 
 			ordered_json constant_table = ordered_json::array();
 			const auto constants = asset->constantTable.get();
+			const auto is_lit_techset = iw7_techset.find("_l_sm_") != std::string::npos;
 			for (auto i = 0; i < asset->constantCount && techset != "2d"; i++)
 			{
 				std::string constant_name(constants[i].name, strnlen(constants[i].name, sizeof(constants[i].name)));
-				if (constants[i].nameHash == 1033475292)
+				if (constants[i].nameHash == 1033475292 || (is_lit_techset && constant_name != "colorTint"))
 				{
 					continue;
 				}

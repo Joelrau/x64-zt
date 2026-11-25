@@ -1,6 +1,6 @@
 #include <std_include.hpp>
 #include "iw3.hpp"
-#include "iwd.hpp"
+#include <formats/iwd.hpp>
 #include "zone/loader.hpp"
 
 #include <game.hpp>
@@ -111,7 +111,7 @@ namespace zonetool::iw3
 			{
 				game_root = game_root.parent_path();
 			}
-			set_iwd_root(game_root);
+			iwd::set_root(game_root);
 			filesystem::set_fastfile(fastfile);
 			filesystem::set_language("english", "eng");
 		}

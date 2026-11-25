@@ -26,7 +26,7 @@ namespace zonetool::cli
 				throw std::runtime_error("zone is smaller than its asset list");
 			}
 
-			if (summary.container == xfile::container::iw3)
+			if (summary.container == xfile::container::iw3 || summary.container == xfile::container::iw4)
 			{
 				struct x86_asset_list
 				{

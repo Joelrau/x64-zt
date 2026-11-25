@@ -14,6 +14,7 @@ The `v2` branch is a standalone rewrite of x64-zt with the assistance of AI to h
 |---|---|---|
 | `h1` | Modern Warfare Remastered 1.15 | `docs/h1-115-format.md` |
 | `h2` | Modern Warfare 2 Campaign Remastered | `docs/H2_sync.md` |
+| `iw5` | Modern Warfare 3 (read only, x86) | `docs/X86_GAMES_AS_X64_X64ZT_2.md` |
 | `iw6` | Ghosts | `docs/IW6_SUPPORT.md` |
 | `iw7` | Infinite Warfare | |
 | `iw8` | Modern Warfare 2019 1.20 | `docs/IW8_SUPPORT.md`, `docs/IW8_IN_IW7_FOCUS.md` |
@@ -389,6 +390,7 @@ Run these after a change to a reader, writer or the container code:
 |---|---|---|
 | H1 | 6991 of 6991 | `mp_shipment`, `mp_crash` |
 | H2 | No full count. `patch_gulag`, `code_post_gfx`, `common` and `gulag` pass | `patch_gulag` |
+| IW5 | 69 of 228 (read only, see `docs/X86_GAMES_AS_X64_X64ZT_2.md`) | none |
 | IW6 | 878 of 878 | `mp_battery3` |
 | IW7 | 696 of 697 (`mp_vlobby_room` on disk is a modified file) | `mp_frontend`, `mp_afghan` |
 | IW8 | 9471 of 9494 (`code_post_gfx` and old frontend zones fail, see `docs/IW8_SUPPORT.md`) | `mp_rust`, `srv_mp_rust`, `techsets_mp_rust` |

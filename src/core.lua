@@ -7,7 +7,7 @@ function core.includes()
 		"%{wks.location}/generated",
 	}
 
-	dependencies.use(gsl, json, glaze, zlib, lz4, zstd, libtomcrypt, libtommath, directxtex, casclib, shader_tool)
+	dependencies.use(gsl, json, glaze, zlib, minizip, lz4, zstd, libtomcrypt, libtommath, directxtex, casclib, shader_tool)
 end
 
 function core:project()

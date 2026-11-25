@@ -2114,6 +2114,51 @@ namespace zonetool::iw5::converter::iw7
 					const auto y = static_cast<int>(std::floor(position[1] / 32.0f)) + 4096;
 					const auto z = static_cast<int>(std::floor(position[2] / 64.0f)) + 2048;
 
+					const float fraction[3] =
+					{
+						position[0] / 32.0f - std::floor(position[0] / 32.0f),
+						position[1] / 32.0f - std::floor(position[1] / 32.0f),
+						position[2] / 64.0f - std::floor(position[2] / 64.0f),
+					};
+
+					float blended[28]{};
+					auto total_weight = 0.0f;
+					for (auto corner = 0; corner < 8; corner++)
+					{
+						const int offset[3] = {corner & 1, (corner >> 1) & 1, (corner >> 2) & 1};
+						if (x + offset[0] > 0xFFFF || y + offset[1] > 0xFFFF || z + offset[2] > 0xFFFF || x < 0 || y < 0 || z < 0)
+						{
+							continue;
+						}
+
+						const auto found = grid_samples.find(grid_key(x + offset[0], y + offset[1], z + offset[2]));
+						if (found == grid_samples.end())
+						{
+							continue;
+						}
+
+						auto weight = 1.0f;
+						for (auto axis = 0; axis < 3; axis++)
+						{
+							weight *= offset[axis] ? fraction[axis] : 1.0f - fraction[axis];
+						}
+
+						for (auto k = 0; k < 28; k++)
+						{
+							blended[k] += found->second[k] * weight;
+						}
+						total_weight += weight;
+					}
+
+					if (total_weight > 0.0f)
+					{
+						for (auto k = 0; k < 28; k++)
+						{
+							out_sh[k] = blended[k] / total_weight;
+						}
+						return;
+					}
+
 					const float* best = nullptr;
 					auto best_distance = 0x7FFFFFFF;
 					for (auto dz = -1; dz <= 1; dz++)

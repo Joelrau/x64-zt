@@ -164,6 +164,8 @@ namespace iwi
 		};
 	}
 
+	bool read_header(const std::string& name, std::span<const std::uint8_t> bytes, iwx::GfxImageFileHeader& header);
+
 	// converts a parsed DXT5 normal map (normal in g/a) to BC5_SNORM (normal in r/g) in place
 	bool fixup_normal_map(GfxImage* image);
 

@@ -106,7 +106,7 @@ namespace iwi
 				: CompressedBlockSizeDXT5(width, height); // dxt3 and dxt5 both use 16 bytes per 4x4 block
 		}
 
-		bool convert_header(const std::string& name, const std::vector<std::uint8_t>& bytes, iwx::GfxImageFileHeader& header)
+		bool convert_header(const std::string& name, const std::span<const std::uint8_t> bytes, iwx::GfxImageFileHeader& header)
 		{
 			if (bytes.size() < 4 || std::memcmp(bytes.data(), "IWi", 3) != 0)
 			{
@@ -397,6 +397,11 @@ namespace iwi
 
 			return image;
 		}
+	}
+
+	bool read_header(const std::string& name, const std::span<const std::uint8_t> bytes, iwx::GfxImageFileHeader& header)
+	{
+		return convert_header(name, bytes, header);
 	}
 
 	bool fixup_normal_map(GfxImage* image)

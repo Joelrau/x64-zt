@@ -4,6 +4,8 @@
 #include "gfx_image.hpp"
 
 #include <iw7/assets/gfximage.hpp>
+#include <formats/iwi/iwi.hpp>
+#include <formats/iwi/iwi_wavelet.hpp>
 
 namespace zonetool::iw5::converter::iw7
 {
@@ -93,6 +95,11 @@ namespace zonetool::iw5::converter::iw7
 				case 0x32: return format_luminance;
 				default: return format_none;
 				}
+			}
+
+			bool read_iwi_header(const std::string& name, const std::string& file, ::iwi::iwx::GfxImageFileHeader& header)
+			{
+				return !file.empty() && ::iwi::read_header(name, {reinterpret_cast<const std::uint8_t*>(file.data()), file.size()}, header);
 			}
 
 			bool split_levels(const std::vector<std::size_t>& sizes, const std::size_t available,
@@ -1017,35 +1024,6 @@ namespace zonetool::iw5::converter::iw7
 
 		namespace
 		{
-			target::GfxImage* convert_file(zonetool::iw5::GfxImage* asset, utils::memory::allocator& allocator)
-			{
-				if (!read_file)
-				{
-					return nullptr;
-				}
-
-				const std::string name = asset->name.get();
-				const auto file = read_file("images/" + name + ".iwi");
-				if (file.size() < 28 || std::memcmp(file.data(), "IWi", 3) != 0)
-				{
-					ZONETOOL_WARNING("Image \"%s\": no usable .iwi", name.data());
-					return nullptr;
-				}
-
-				const auto* bytes = reinterpret_cast<const std::uint8_t*>(file.data());
-				unsigned short width = 0;
-				unsigned short height = 0;
-				std::memcpy(&width, bytes + 6, 2);
-				std::memcpy(&height, bytes + 8, 2);
-
-				return build_image(name.data(), asset->semantic, bytes[4], width, height, bytes + 28, file.size() - 28, allocator);
-			}
-
-			bool is_map_image(const std::string& name)
-			{
-				return name.starts_with("*light") || name.starts_with("*refle") || name == "$outdoor";
-			}
-
 			unsigned char count_mipmaps(const unsigned int width, const unsigned int height, const unsigned int depth)
 			{
 				unsigned char count = 1;
@@ -1055,6 +1033,50 @@ namespace zonetool::iw5::converter::iw7
 				}
 
 				return count;
+			}
+
+			target::GfxImage* convert_file(zonetool::iw5::GfxImage* asset, utils::memory::allocator& allocator)
+			{
+				if (!read_file)
+				{
+					return nullptr;
+				}
+
+				const std::string name = asset->name.get();
+				const auto file = read_file("images/" + name + ".iwi");
+				::iwi::iwx::GfxImageFileHeader header{};
+				if (!read_iwi_header(name, file, header))
+				{
+					ZONETOOL_WARNING("Image \"%s\": no usable .iwi", name.data());
+					return nullptr;
+				}
+
+				const auto* bytes = reinterpret_cast<const std::uint8_t*>(file.data());
+				const auto width = static_cast<unsigned short>(header.dimensions[0]);
+				const auto height = static_cast<unsigned short>(header.dimensions[1]);
+				if (header.format == ::iwi::IMG_FORMAT_WAVELET_RGBA || header.format == ::iwi::IMG_FORMAT_WAVELET_RGB)
+				{
+					const auto bitmap_format = header.format == ::iwi::IMG_FORMAT_WAVELET_RGBA ? format_rgba : format_rgb;
+					const auto has_mipmaps = (header.flags & ::iwi::iwx::IMG_FLAG_NOMIPMAPS) == 0;
+					const auto pixels = ::iwi::wavelet::decode_image(bytes + header.size, file.size() - header.size, width, height,
+						pixel_bytes(bitmap_format), has_mipmaps ? count_mipmaps(width, height, 1) : 1);
+					if (pixels.empty())
+					{
+						ZONETOOL_WARNING("Image \"%s\": wavelet data does not decode", name.data());
+						return nullptr;
+					}
+
+					return build_image(name.data(), asset->semantic, bitmap_format, width, height, pixels.data(),
+						static_cast<std::size_t>(width) * height * pixel_bytes(bitmap_format), allocator);
+				}
+
+				return build_image(name.data(), asset->semantic, header.format, width, height,
+					bytes + header.size, file.size() - header.size, allocator);
+			}
+
+			bool is_map_image(const std::string& name)
+			{
+				return name.starts_with("*light") || name.starts_with("*refle") || name == "$outdoor";
 			}
 
 			target::GfxImage* convert_map_image(zonetool::iw5::GfxImage* asset, const std::uint8_t format, utils::memory::allocator& allocator)
@@ -1468,17 +1490,17 @@ namespace zonetool::iw5::converter::iw7
 			else if (read_file)
 			{
 				file = read_file("images/"s + asset->name.get() + ".iwi");
-				if (file.size() < 28 || std::memcmp(file.data(), "IWi", 3) != 0)
+				::iwi::iwx::GfxImageFileHeader header{};
+				if (!read_iwi_header(asset->name.get(), file, header))
 				{
 					return false;
 				}
 
-				const auto* bytes = reinterpret_cast<const std::uint8_t*>(file.data());
-				format = bytes[4];
-				std::memcpy(&out.width, bytes + 6, 2);
-				std::memcpy(&out.height, bytes + 8, 2);
-				data = bytes + 28;
-				available = file.size() - 28;
+				format = header.format;
+				out.width = header.dimensions[0];
+				out.height = header.dimensions[1];
+				data = reinterpret_cast<const std::uint8_t*>(file.data()) + header.size;
+				available = file.size() - header.size;
 			}
 
 			if (!format || !out.width || !out.height)
