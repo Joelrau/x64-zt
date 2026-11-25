@@ -1809,7 +1809,8 @@ namespace zonetool::iw7::converter::iw8::havok
 			return points;
 		}
 
-		mesh_shape convert_compound_shape(const iw7::havok::binary::packfile_reader& reader, const iw7::hknpDynamicCompoundShape* shape)
+		mesh_shape convert_compound_shape(const iw7::havok::binary::packfile_reader& reader, const iw7::hknpDynamicCompoundShape* shape,
+			const std::size_t world_tag_count, const std::size_t ramp_tag_count)
 		{
 			mesh_shape mesh{};
 			mesh.simd_compact = true;
@@ -1835,7 +1836,8 @@ namespace zonetool::iw7::converter::iw8::havok
 
 				hull_bounds.push_back(box);
 				mesh.hulls.push_back(std::move(hull));
-				mesh.hull_tags.push_back(instance.shapeTag);
+				const auto is_entity_tag = instance.shapeTag >= world_tag_count && instance.shapeTag != 0xFFFF;
+				mesh.hull_tags.push_back(static_cast<std::uint16_t>(instance.shapeTag + (is_entity_tag ? ramp_tag_count : 0)));
 			}
 
 			if (mesh.hulls.empty())
@@ -1880,6 +1882,129 @@ namespace zonetool::iw7::converter::iw8::havok
 			mesh.simd_nodes = make_simd_tree(std::move(simd_items));
 			return mesh;
 		}
+
+		std::vector<source_section> read_source_sections(const iw7::hknpCompressedMeshShapeTree& tree)
+		{
+			std::vector<source_section> sources(tree.sections.size);
+			for (auto s = 0u; s < sources.size(); s++)
+			{
+				const auto& section = tree.sections.data[s];
+				auto& source = sources[s];
+				for (auto i = 0; i < 6; i++)
+				{
+					source.codec[i] = section.codecParms[i];
+				}
+				for (auto axis = 0; axis < 3; axis++)
+				{
+					source.domain.min[axis] = (&section.domain.min.x)[axis];
+					source.domain.max[axis] = (&section.domain.max.x)[axis];
+				}
+				source.first_packed = section.firstPackedVertex;
+				source.packed_count = section.numPackedVertices;
+				source.first_shared = section.sharedVertices >> 8;
+				source.shared_count = section.numSharedIndices;
+				source.first_primitive = section.primitives >> 8;
+				source.primitive_count = static_cast<std::uint8_t>(section.primitives & 0xFF);
+				source.first_run = section.dataRuns >> 8;
+				source.run_count = static_cast<std::uint8_t>(section.dataRuns & 0xFF);
+				source.leaf_index = section.leafIndex;
+				source.page = section.page;
+				source.layer_data = section.layerData;
+				source.flags = section.flags;
+
+				source.nodes.resize(section.nodes.size);
+				for (auto n = 0; n < section.nodes.size; n++)
+				{
+					std::memcpy(source.nodes[n].data(), &section.nodes.data[n], 4);
+				}
+
+				source.primitives.resize(source.primitive_count);
+				for (auto p = 0; p < source.primitive_count; p++)
+				{
+					std::memcpy(source.primitives[p].data(), &tree.primitives.data[source.first_primitive + p], 4);
+				}
+
+				source.runs.assign(tree.primitiveDataRuns.data + source.first_run,
+					tree.primitiveDataRuns.data + source.first_run + source.run_count);
+				source.tags.assign(source.primitive_count, 0xFFFF);
+				for (const auto& run : source.runs)
+				{
+					for (auto k = run.index; k < run.index + run.count && k < source.primitive_count; k++)
+					{
+						source.tags[k] = run.value;
+					}
+				}
+
+				source.convex_of_primitive.assign(source.primitive_count, -1);
+			}
+
+			return sources;
+		}
+
+		std::vector<convex_result> read_convex_hulls(const iw7::hknpCompressedMeshShapeTree& tree, std::vector<source_section>& sources,
+			std::vector<std::uint16_t>& hull_tags)
+		{
+			std::vector<convex_result> hulls;
+			for (auto& source : sources)
+			{
+				source.convex_slots.assign(source.shared_count, false);
+				for (auto p = 0u; p < source.primitives.size(); p++)
+				{
+					const auto& indices = source.primitives[p];
+					if (!is_convex_primitive(indices))
+					{
+						continue;
+					}
+
+					const auto points = read_convex_points(tree, source.packed_count, source.first_shared, source.page, indices);
+					hulls.push_back(make_convex_hull(points));
+					hull_tags.push_back(source.tags[p]);
+					source.convex_of_primitive[p] = static_cast<std::int32_t>(hulls.size() - 1);
+					source.convex_slots[indices[0] - source.packed_count] = true;
+					source.convex_slots[indices[0] - source.packed_count + 1] = true;
+				}
+			}
+
+			return hulls;
+		}
+
+		std::vector<std::uint16_t> find_ramp_source_tags(const std::vector<std::pair<convex_result, std::uint16_t>>& ramps)
+		{
+			std::vector<std::uint16_t> source_tags;
+			for (const auto& [ramp, source_tag] : ramps)
+			{
+				if (std::ranges::find(source_tags, source_tag) == source_tags.end())
+				{
+					source_tags.push_back(source_tag);
+				}
+			}
+
+			return source_tags;
+		}
+
+		std::vector<std::uint16_t> find_world_ramp_source_tags(const iw7::HavokPhysicsShapeList* list)
+		{
+			const auto& tree = read_world_mesh(list);
+			auto sources = read_source_sections(tree);
+			std::vector<std::uint16_t> hull_tags;
+			const auto hulls = read_convex_hulls(tree, sources, hull_tags);
+			return find_ramp_source_tags(make_stair_ramps(hulls, hull_tags, list));
+		}
+
+		std::vector<iw7::HavokPhysicsShapeTagData> make_ramp_tags(const std::vector<iw7::HavokPhysicsShapeTagData>& tags,
+			const std::vector<std::uint16_t>& ramp_source_tags)
+		{
+			std::vector<iw7::HavokPhysicsShapeTagData> ramp_tags;
+			for (const auto source_tag : ramp_source_tags)
+			{
+				auto& ramp_tag = ramp_tags.emplace_back(tags[source_tag]);
+				ramp_tag.collisionFilterInfo = zonetool::iw8::PHYSICS_CONTENTS_PLAYERCLIP | zonetool::iw8::PHYSICS_CONTENTS_AICLIP
+					| zonetool::iw8::PHYSICS_CONTENTS_VEHICLECLIP;
+				ramp_tag.userData = (ramp_tag.userData & (0x3Full << 19)) | zonetool::iw8::SURFACE_FLAG_STAIRS;
+			}
+
+			return ramp_tags;
+		}
 	}
 
 	std::string convert_world_shape(const std::string_view packfile)
@@ -1900,94 +2025,19 @@ namespace zonetool::iw7::converter::iw8::havok
 			return read_shared_vertex(tree, index);
 		};
 
-		std::vector<source_section> sources(tree.sections.size);
-		for (auto s = 0u; s < sources.size(); s++)
-		{
-			const auto& section = tree.sections.data[s];
-			auto& source = sources[s];
-			for (auto i = 0; i < 6; i++)
-			{
-				source.codec[i] = section.codecParms[i];
-			}
-			for (auto axis = 0; axis < 3; axis++)
-			{
-				source.domain.min[axis] = (&section.domain.min.x)[axis];
-				source.domain.max[axis] = (&section.domain.max.x)[axis];
-			}
-			source.first_packed = section.firstPackedVertex;
-			source.packed_count = section.numPackedVertices;
-			source.first_shared = section.sharedVertices >> 8;
-			source.shared_count = section.numSharedIndices;
-			source.first_primitive = section.primitives >> 8;
-			source.primitive_count = static_cast<std::uint8_t>(section.primitives & 0xFF);
-			source.first_run = section.dataRuns >> 8;
-			source.run_count = static_cast<std::uint8_t>(section.dataRuns & 0xFF);
-			source.leaf_index = section.leafIndex;
-			source.page = section.page;
-			source.layer_data = section.layerData;
-			source.flags = section.flags;
-
-			source.nodes.resize(section.nodes.size);
-			for (auto n = 0; n < section.nodes.size; n++)
-			{
-				std::memcpy(source.nodes[n].data(), &section.nodes.data[n], 4);
-			}
-
-			source.primitives.resize(source.primitive_count);
-			for (auto p = 0; p < source.primitive_count; p++)
-			{
-				std::memcpy(source.primitives[p].data(), &tree.primitives.data[source.first_primitive + p], 4);
-			}
-
-			source.runs.assign(tree.primitiveDataRuns.data + source.first_run,
-				tree.primitiveDataRuns.data + source.first_run + source.run_count);
-			source.tags.assign(source.primitive_count, 0xFFFF);
-			for (const auto& run : source.runs)
-			{
-				for (auto k = run.index; k < run.index + run.count && k < source.primitive_count; k++)
-				{
-					source.tags[k] = run.value;
-				}
-			}
-
-			source.convex_of_primitive.assign(source.primitive_count, -1);
-		}
-
-		std::vector<convex_result> hulls;
+		auto sources = read_source_sections(tree);
 		std::vector<std::uint16_t> hull_tags;
-		for (auto& source : sources)
-		{
-			source.convex_slots.assign(source.shared_count, false);
-			for (auto p = 0u; p < source.primitives.size(); p++)
-			{
-				const auto& indices = source.primitives[p];
-				if (!is_convex_primitive(indices))
-				{
-					continue;
-				}
+		auto hulls = read_convex_hulls(tree, sources, hull_tags);
 
-				const auto points = read_convex_points(tree, source.packed_count, source.first_shared, source.page, indices);
-				hulls.push_back(make_convex_hull(points));
-				hull_tags.push_back(source.tags[p]);
-				source.convex_of_primitive[p] = static_cast<std::int32_t>(hulls.size() - 1);
-				source.convex_slots[indices[0] - source.packed_count] = true;
-				source.convex_slots[indices[0] - source.packed_count + 1] = true;
-			}
-		}
-
-		std::vector<std::uint16_t> ramp_source_tags;
+		auto ramps = make_stair_ramps(hulls, hull_tags, list);
+		const auto ramp_source_tags = find_ramp_source_tags(ramps);
 		std::vector<std::uint32_t> ramp_hulls;
-		for (auto& [ramp, source_tag] : make_stair_ramps(hulls, hull_tags, list))
+		for (auto& [ramp, source_tag] : ramps)
 		{
-			auto slot = std::ranges::find(ramp_source_tags, source_tag);
-			if (slot == ramp_source_tags.end())
-			{
-				slot = ramp_source_tags.insert(slot, source_tag);
-			}
-
+			const auto slot = std::ranges::find(ramp_source_tags, source_tag) - ramp_source_tags.begin();
 			ramp_hulls.push_back(static_cast<std::uint32_t>(hulls.size()));
 			hulls.push_back(std::move(ramp));
-			hull_tags.push_back(static_cast<std::uint16_t>(list->shapeTagData.size + (slot - ramp_source_tags.begin())));
+			hull_tags.push_back(static_cast<std::uint16_t>(list->shapeTagData.size + slot));
 		}
 
 		ZONETOOL_INFO("havok: %zu stair ramps", ramp_hulls.size());
@@ -2262,14 +2312,8 @@ namespace zonetool::iw7::converter::iw8::havok
 		const auto list_offset = writer.add_object(t_list, list_bytes.data());
 
 		auto tags = convert_shape_tags(list);
-		for (const auto source_tag : ramp_source_tags)
-		{
-			auto ramp_tag = tags[source_tag];
-			ramp_tag.collisionFilterInfo = zonetool::iw8::PHYSICS_CONTENTS_PLAYERCLIP | zonetool::iw8::PHYSICS_CONTENTS_AICLIP
-				| zonetool::iw8::PHYSICS_CONTENTS_VEHICLECLIP;
-			ramp_tag.userData = (ramp_tag.userData & (0x3Full << 19)) | zonetool::iw8::SURFACE_FLAG_STAIRS;
-			tags.push_back(ramp_tag);
-		}
+		const auto ramp_tags = make_ramp_tags(tags, ramp_source_tags);
+		tags.insert(tags.end(), ramp_tags.begin(), ramp_tags.end());
 
 		std::uint32_t world_contents = 0;
 		for (const auto& tag : tags)
@@ -2352,11 +2396,23 @@ namespace zonetool::iw7::converter::iw8::havok
 		return writer.finish(list_offset.item);
 	}
 
-	std::string convert_ents_shape_list(const std::string_view packfile)
+	std::string convert_ents_shape_list(const std::string_view packfile, const std::string_view world_packfile)
 	{
 		const iw7::havok::binary::packfile_reader reader(packfile);
 		const auto* list = read_shape_list(reader);
-		const auto tags = convert_shape_tags(list);
+		const iw7::havok::binary::packfile_reader world_reader(world_packfile);
+		const auto* world_list = read_shape_list(world_reader);
+
+		auto tags = convert_shape_tags(world_list);
+		const auto world_tag_count = tags.size();
+		const auto ramp_tags = make_ramp_tags(tags, find_world_ramp_source_tags(world_list));
+		tags.insert(tags.end(), ramp_tags.begin(), ramp_tags.end());
+		const auto entity_tags = convert_shape_tags(list);
+		if (entity_tags.size() > world_tag_count)
+		{
+			tags.insert(tags.end(), entity_tags.begin() + world_tag_count, entity_tags.end());
+		}
+
 		const auto shape_count = static_cast<std::size_t>(std::max(list->shapes.size, 0));
 
 		tag_writer writer(schema());
@@ -2386,7 +2442,8 @@ namespace zonetool::iw7::converter::iw8::havok
 				throw std::runtime_error(std::format("havok: map_ents shape {} is not a dynamic compound shape", i));
 			}
 
-			auto& mesh = meshes.emplace_back(convert_compound_shape(reader, static_cast<const iw7::hknpDynamicCompoundShape*>(shape)));
+			auto& mesh = meshes.emplace_back(convert_compound_shape(reader, static_cast<const iw7::hknpDynamicCompoundShape*>(shape),
+				world_tag_count, ramp_tags.size()));
 			auto& mesh_keys = keys.emplace_back(count_mesh_keys(mesh.outputs));
 			mesh_keys.bits_per_key = std::max(std::bit_width(mesh_keys.max_key), 1);
 			shape_indices.push_back(static_cast<std::int32_t>(i));

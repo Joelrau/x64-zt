@@ -181,6 +181,12 @@ namespace zonetool::convert::iw7_iw8
 				zones.emplace_back("techsets_" + zone_name);
 			}
 
+			const std::string view_prefix = "mp_weapon_view_";
+			if (zone_name.starts_with(view_prefix))
+			{
+				zones.emplace_back("mp_weapon_world_" + zone_name.substr(view_prefix.size()));
+			}
+
 			if (zone_name.starts_with("mp_") && !zone_name.ends_with("_load"))
 			{
 				zones.emplace_back(zone_name + "_load");

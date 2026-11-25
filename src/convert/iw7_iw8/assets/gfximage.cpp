@@ -170,6 +170,24 @@ namespace zonetool::iw7::converter::iw8::gfximage
 			}
 		}
 
+		bool is_srgb_sky_format(const DXGI_FORMAT format) // R_MakeSRGBFormat (0x140E2A410)
+		{
+			switch (format)
+			{
+			case DXGI_FORMAT_R8G8B8A8_UNORM:
+			case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+			case DXGI_FORMAT_BC1_UNORM:
+			case DXGI_FORMAT_BC1_UNORM_SRGB:
+			case DXGI_FORMAT_BC2_UNORM:
+			case DXGI_FORMAT_BC2_UNORM_SRGB:
+			case DXGI_FORMAT_BC3_UNORM:
+			case DXGI_FORMAT_BC3_UNORM_SRGB:
+				return true;
+			default:
+				return false;
+			}
+		}
+
 		std::uint8_t from_squared_gamma(const int value)
 		{
 			return linear_to_srgb(value / 255.0f * value / 255.0f);
@@ -1108,6 +1126,39 @@ namespace zonetool::iw7::converter::iw8::gfximage
 		});
 	}
 
+	target::GfxImage* dump_scope_aperture()
+	{
+		const std::string name = "iw7_scope_aperture";
+		return dump_once(name, std::nullopt, {}, [&]() -> target::GfxImage*
+		{
+			const auto size = 256u;
+			DirectX::ScratchImage composed;
+			if (FAILED(composed.Initialize2D(DXGI_FORMAT_R8G8B8A8_UNORM, size, size, 1, 1)))
+			{
+				return nullptr;
+			}
+
+			const auto& image = *composed.GetImage(0, 0, 0);
+			for (auto row = 0u; row < size; row++)
+			{
+				for (auto column = 0u; column < size; column++)
+				{
+					const auto x = (column + 0.5f) / size * 2.0f - 1.0f;
+					const auto y = (row + 0.5f) / size * 2.0f - 1.0f;
+					const auto value = to_byte(std::clamp((0.6f - std::sqrt(x * x + y * y)) / 0.1f, 0.0f, 1.0f)); // TODO: stock ads_scope_lens_r shape
+
+					auto* texel = image.pixels + row * image.rowPitch + column * 4;
+					texel[0] = value;
+					texel[1] = value;
+					texel[2] = value;
+					texel[3] = 255;
+				}
+			}
+
+			return compress_composed(name, image, target::GFX_PF_BC7, 0, target::TS_2D);
+		});
+	}
+
 	target::GfxImage* dump_sky(const GfxImage* asset, const std::array<float, 3>& rotation_angles, const std::array<float, 3>& color_scale)
 	{
 		const auto name = get_output_name(asset);
@@ -1123,6 +1174,14 @@ namespace zonetool::iw7::converter::iw8::gfximage
 			{
 				ZONETOOL_WARNING("Sky image \"%s\" is not a cube map", asset->name);
 				return nullptr;
+			}
+
+			if (is_srgb_sky_format(asset->imageFormat))
+			{
+				for (auto face = 0u; face < 6; face++)
+				{
+					decode_srgb_color(*cube->GetImage(0, face, 0));
+				}
 			}
 
 			const auto octahedron = make_octahedron(*cube, rotation_angles, color_scale);

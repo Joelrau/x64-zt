@@ -5,6 +5,7 @@
 #include "animpackage.hpp"
 #include "sound.hpp"
 #include "tracer.hpp"
+#include "vfx.hpp"
 #include "xmodel.hpp"
 
 #include <iw8/assets/weapon.hpp>
@@ -140,6 +141,116 @@ namespace zonetool::iw7::converter::iw8::weapon
 			const auto result = allocator.allocate<target::TracerDef>();
 			result->name = asset->name;
 			return result;
+		}
+
+		target::FxCombinedDef convert_effect(const FxCombinedDef& effect, const char* package, utils::memory::allocator& allocator)
+		{
+			target::FxCombinedDef result{};
+			if (!effect.u.data)
+			{
+				return result;
+			}
+
+			if (effect.type != FX_COMBINED_VFX)
+			{
+				ZONETOOL_WARNING("VFX package \"%s\" has a legacy effect, which IW8 does not have", package);
+				return result;
+			}
+
+			vfx::dump(effect.u.vfx);
+
+			const auto system = allocator.allocate<target::ParticleSystemDef>();
+			system->name = effect.u.vfx->name;
+			result.particleSystemDef = system;
+			return result;
+		}
+
+		target::WeaponVFXPackage* convert_vfx_package(WeaponVFXPackage* asset, utils::memory::allocator& allocator)
+		{
+			asset = find_loaded(ASSET_TYPE_VFX_PACKAGE, asset);
+			if (!asset || !asset->vfx)
+			{
+				return nullptr;
+			}
+
+			const auto result = allocator.allocate<target::WeaponVFXPackage>();
+			result->name = asset->name;
+			if (!mark_dumped(ASSET_TYPE_VFX_PACKAGE, asset->name))
+			{
+				return result;
+			}
+
+			result->vfx = allocator.allocate<target::WeaponVFXPackageDefs>();
+#define COPY_EFFECT(__name__) result->vfx->__name__ = convert_effect(asset->vfx->__name__, asset->name, allocator);
+			COPY_EFFECT(viewFlashEffect);
+			COPY_EFFECT(worldFlashEffect);
+			COPY_EFFECT(viewFlashADSEffect);
+			COPY_EFFECT(viewFlashOverchargeEffect);
+			COPY_EFFECT(viewFlashOverchargeADSEffect);
+			COPY_EFFECT(worldFlashOverchargeEffect);
+			COPY_EFFECT(viewShellEjectEffect);
+			COPY_EFFECT(worldShellEjectEffect);
+			COPY_EFFECT(viewLastShotEjectEffect);
+			COPY_EFFECT(worldLastShotEjectEffect);
+			COPY_EFFECT(viewMagEjectEffect);
+#undef COPY_EFFECT
+
+			target::vfx_package::dump(result);
+			add_csv_row("vfxpkg", asset->name);
+			return result;
+		}
+
+		WeaponAttachment* find_default_sight(const WeaponCompleteDef* asset)
+		{
+			const std::string_view weapon = asset->szInternalName;
+			for (auto i = 0u; i < asset->numAttachments2; i++)
+			{
+				const auto attachment = asset->attachments2[i];
+				if (!attachment)
+				{
+					continue;
+				}
+
+				std::string_view name = attachment->szInternalName;
+				if (name.ends_with("_camo"))
+				{
+					name.remove_suffix(5);
+				}
+
+				if (name.size() > 5 && name.ends_with("scope") && weapon.starts_with("iw7_"s.append(name.substr(0, name.size() - 5))))
+				{
+					return find_loaded(ASSET_TYPE_ATTACHMENT, attachment);
+				}
+			}
+
+			return nullptr;
+		}
+
+		void dump_model_with_sight(const WeaponCompleteDef* asset, XModel* model, XModel* sight)
+		{
+			model = find_loaded(ASSET_TYPE_XMODEL, model);
+			sight = find_loaded(ASSET_TYPE_XMODEL, sight);
+			if (!model || !sight || !sight->numsurfs)
+			{
+				return;
+			}
+
+			if (!model->numsurfs || !xmodel::dump_with_attachment(model, sight))
+			{
+				ZONETOOL_WARNING("Weapon \"%s\": sight model \"%s\" is not merged into \"%s\"", asset->szInternalName, sight->name, model->name);
+			}
+		}
+
+		void dump_models_with_default_sight(const WeaponCompleteDef* asset)
+		{
+			const auto sight = find_default_sight(asset);
+			if (!sight)
+			{
+				return;
+			}
+
+			dump_model_with_sight(asset, asset->weapDef->gunXModel, sight->viewModelCamo);
+			dump_model_with_sight(asset, asset->weapDef->worldModel, sight->worldModelCamo);
 		}
 
 		target::WeaponSFXPackage* convert_sfx_package(WeaponCompleteDef* asset, utils::memory::allocator& allocator)
@@ -816,6 +927,8 @@ namespace zonetool::iw7::converter::iw8::weapon
 			new_asset->stowOffsetModel = convert_model(asset->stowOffsetModel, allocator);
 
 			new_asset->tracerType = convert_tracer(asset->tracerType, allocator);
+			new_asset->overchargeTracerType = convert_tracer(asset->overchargeTracerType, allocator);
+			new_asset->vfxPackage = convert_vfx_package(asset->vfxPackage, allocator);
 
 			new_asset->szXAnims = convert_anim_package(asset->szXAnims, allocator);
 			new_asset->szXAnimsRightHanded = convert_anim_package(asset->szXAnimsRightHanded, allocator);
@@ -935,6 +1048,7 @@ namespace zonetool::iw7::converter::iw8::weapon
 			new_asset->notetrackSuitEntries = reinterpret_cast<target::NoteTrackToSuitSoundEntry*>(asset->notetrackSuitEntries);
 			new_asset->iAdsTransInToOutTime = asset->iAdsTransOutTime;
 			new_asset->iAdsTransOutToInTime = asset->iAdsTransInTime;
+			dump_models_with_default_sight(asset);
 			new_asset->weapDef = convert_def(asset->weapDef, allocator);
 			new_asset->weapDef->sfxPackage = convert_sfx_package(asset, allocator);
 			convert_zoom(asset, new_asset);

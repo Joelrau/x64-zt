@@ -820,7 +820,15 @@ namespace zonetool::iw7::converter::iw8::mapents
 				cmodel.edgeFirstIndex = model.edgeFirstIndex;
 			}
 
-			const auto shape_data = havok::convert_ents_shape_list(std::string_view(asset->havokEntsShapeData, asset->havokEntsShapeDataSize));
+			const auto* clip = static_cast<const clipMap_t*>(db_find_asset(ASSET_TYPE_CLIPMAP, asset->name));
+			if (!clip)
+			{
+				ZONETOOL_WARNING("mapents \"%s\": no clipmap, the map_ents shape list is not converted", asset->name);
+				return;
+			}
+
+			const auto shape_data = havok::convert_ents_shape_list(std::string_view(asset->havokEntsShapeData, asset->havokEntsShapeDataSize),
+				std::string_view(clip->havokWorldShapeData, clip->havokWorldShapeDataSize));
 			converted->havokEntsShapeDataSize = static_cast<unsigned int>(shape_data.size());
 			converted->havokEntsShapeData = allocator.allocate_array<char>(shape_data.size());
 			std::memcpy(converted->havokEntsShapeData, shape_data.data(), shape_data.size());

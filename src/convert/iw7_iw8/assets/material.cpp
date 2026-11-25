@@ -21,11 +21,18 @@ namespace zonetool::iw7::converter::iw8::material
 
 		const char* const techset_name = "mo/lit_3_lit_rpl_ta1_800800_184a000010001010_0_3_1_0_0_13810015b_0_0_1_0_0_0_0_7818015f_0_1_2_0_0_0_0_b818015f_0_1_2_0_0"; // TODO: stock akilo47_fore techset, convert natively
 		const char* const effect_techset_name = "unlit_6_effect_bad_ta0_8a03_4_0_1_0_0_0_100000023_0_0_2_0_0"; // TODO: stock gfx_tracer_new_erad_blue techset, convert natively
+		const char* const blend_effect_techset_name = "unlit_6_effect_bad_ta0_8a03_4_0_1_0_0_0_10000020b_0_0_2_0_0"; // TODO: stock objpoint_default techset, convert natively
+		const char* const blend_model_effect_techset_name = "mo/unlit_6_effect_bad_ta0_8803_4_0_1_0_0_0_10000020b_0_0_2_0_0"; // TODO: stock vfx_debug_test01 techset, convert natively
+		const char* const scope_lens_techset_name = "mo/cust_8_scope_3d_rpl_ta0_0_0_0_0_0"; // TODO: stock ads_scope_lens_1 techset, convert natively
 		const char* const sprite_techset_name = "elcq/unlit_6_effect_bad_ta0_802_4_0_1_0_0_0_100000023_0_0_2_0_0"; // TODO: stock vfx_ui_marker_1 techset, convert natively
 		const char* const atlas_sprite_techset_name = "elcq/unlit_6_effect_bad_ta0_802_1004_0_1_0_0_0_100000023_0_0_2_0_0"; // TODO: stock techsets_common atlas techset, convert natively
+		const char* const evc_sprite_techset_name = "elcq/unlit_6_effect_bad_ta0_802_4_0_1_0_0_0_100020023_0_0_2_0_0"; // TODO: stock vfx_postfx_glow_round_1_ec techset, convert natively
+		const char* const evc_atlas_sprite_techset_name = "elcq/unlit_6_effect_bad_ta0_8802_1004_0_1_0_0_0_100020023_0_0_2_0_0"; // TODO: stock vfx_energy_emp_bolt_01_sheet techset, convert natively
 		const char* const blend_sprite_techset_name = "elcq/unlit_6_effect_bad_ta0_802_4_0_1_0_0_0_10000020b_0_0_2_0_0"; // TODO: stock techsets_common_mp techset, convert natively
 		const char* const lit_blend_sprite_techset_name = "elcq/unlit_6_effect_bad_ta0_802_804_0_1_0_0_0_10004020b_0_0_2_0_0"; // TODO: stock vfx_vol_smoke_card techset, convert natively
 		const char* const blend_atlas_sprite_techset_name = "elcq/unlit_6_effect_bad_ta0_802_1004_0_1_0_0_0_10000020b_0_0_2_0_0"; // TODO: stock vfx_particulate_dust_sheet_1 techset, convert natively
+		const char* const distortion_sprite_techset_name = "elcq/dist_10_distortion_rpl_ta0_0_2_0_0_0"; // TODO: stock vfx_dist_warp_1 techset, convert natively
+		const char* const distortion_atlas_sprite_techset_name = "elcq/dist_10_distortion_rpl_ta0_0_12_0_0_0"; // TODO: stock vfx_dist_blast_wave_loop_1 techset, convert natively
 		const char* const hud_techset_name = "cust_2_2d_rpl_ta0_0_0_0_0_0"; // TODO: stock compass_map_mp_rust techset, convert natively
 
 		GfxImage* find_texture(const Material* asset, const TextureSemantic semantic, const char name_start = 0)
@@ -178,13 +185,28 @@ namespace zonetool::iw7::converter::iw8::material
 			return !has_techset_token(asset, "add");
 		}
 
+		bool is_distortion_sprite(const Material* asset)
+		{
+			return has_techset_token(asset, "distortion");
+		}
+
 		bool is_lit_blend_sprite(const Material* asset, const bool lit)
 		{
-			return lit && is_blend_sprite(asset) && !is_atlas(asset); // TODO: lit atlas sprites
+			return lit && is_blend_sprite(asset) && !is_distortion_sprite(asset) && !is_atlas(asset); // TODO: lit atlas sprites
+		}
+
+		const char* get_effect_techset_name(const Material* asset)
+		{
+			return is_blend_sprite(asset) ? blend_effect_techset_name : effect_techset_name;
 		}
 
 		const char* get_sprite_techset_name(const Material* asset, const bool lit)
 		{
+			if (is_distortion_sprite(asset))
+			{
+				return is_atlas(asset) ? distortion_atlas_sprite_techset_name : distortion_sprite_techset_name;
+			}
+
 			if (is_lit_blend_sprite(asset, lit))
 			{
 				return lit_blend_sprite_techset_name;
@@ -195,11 +217,69 @@ namespace zonetool::iw7::converter::iw8::material
 				return is_atlas(asset) ? blend_atlas_sprite_techset_name : blend_sprite_techset_name;
 			}
 
+			if (has_techset_token(asset, "evc"))
+			{
+				return is_atlas(asset) ? evc_atlas_sprite_techset_name : evc_sprite_techset_name;
+			}
+
 			return is_atlas(asset) ? atlas_sprite_techset_name : sprite_techset_name;
+		}
+
+		const char* get_sprite_techset_zone(const Material* asset)
+		{
+			if (!is_blend_sprite(asset) && !is_distortion_sprite(asset) && has_techset_token(asset, "evc"))
+			{
+				return is_atlas(asset) ? "techsets_common_base_mp" : "techsets_common";
+			}
+
+			return is_atlas(asset) ? "techsets_common" : "techsets_common_mp";
+		}
+
+		std::vector<target::MaterialConstantDef> convert_atlas_constants(const Material* asset)
+		{
+			if (!is_atlas(asset))
+			{
+				return {};
+			}
+
+			const auto rows = asset->info.textureAtlasRowCount;
+			const auto columns = asset->info.textureAtlasColumnCount;
+
+			std::vector<target::MaterialConstantDef> constants;
+			auto& size = constants.emplace_back();
+			size.index = target::MATERIAL_CONSTANT_ATLAS_SIZE;
+			size.literal[0] = static_cast<float>(columns);
+			size.literal[1] = static_cast<float>(rows);
+			size.literal[2] = 1.0f / columns;
+			size.literal[3] = 1.0f / rows;
+
+			const std::array<std::int32_t, 4> indexing{rows * columns, columns - 1, std::bit_width(columns) - 1, 0};
+			auto& indexing_constant = constants.emplace_back();
+			indexing_constant.index = target::MATERIAL_CONSTANT_ATLAS_INDEXING;
+			std::memcpy(indexing_constant.literal, indexing.data(), sizeof(indexing_constant.literal));
+			return constants;
+		}
+
+		std::vector<target::MaterialConstantDef> convert_distortion_sprite_constants(const Material* asset)
+		{
+			auto constants = convert_atlas_constants(asset);
+			auto& scale = constants.emplace_back();
+			scale.index = target::MATERIAL_CONSTANT_DISTORTION_SCALE;
+			if (const auto source = find_constant(asset, "distortionSc"))
+			{
+				std::memcpy(scale.literal, source->literal, sizeof(scale.literal));
+			}
+
+			return constants;
 		}
 
 		std::vector<target::MaterialConstantDef> convert_sprite_constants(const Material* asset, const bool lit)
 		{
+			if (is_distortion_sprite(asset))
+			{
+				return convert_distortion_sprite_constants(asset);
+			}
+
 			std::vector<target::MaterialConstantDef> constants;
 			if (is_blend_sprite(asset))
 			{
@@ -217,25 +297,8 @@ namespace zonetool::iw7::converter::iw8::material
 				constants.push_back(convert_color_tint(asset));
 			}
 
-			if (!is_atlas(asset))
-			{
-				return constants;
-			}
-
-			const auto rows = asset->info.textureAtlasRowCount;
-			const auto columns = asset->info.textureAtlasColumnCount;
-
-			auto& size = constants.emplace_back();
-			size.index = target::MATERIAL_CONSTANT_ATLAS_SIZE;
-			size.literal[0] = static_cast<float>(columns);
-			size.literal[1] = static_cast<float>(rows);
-			size.literal[2] = 1.0f / columns;
-			size.literal[3] = 1.0f / rows;
-
-			const std::array<std::int32_t, 4> indexing{rows * columns, columns - 1, std::bit_width(columns) - 1, 0};
-			auto& indexing_constant = constants.emplace_back();
-			indexing_constant.index = target::MATERIAL_CONSTANT_ATLAS_INDEXING;
-			std::memcpy(indexing_constant.literal, indexing.data(), sizeof(indexing_constant.literal));
+			const auto atlas = convert_atlas_constants(asset);
+			constants.insert(constants.end(), atlas.begin(), atlas.end());
 			return constants;
 		}
 
@@ -253,9 +316,17 @@ namespace zonetool::iw7::converter::iw8::material
 			result->textureAtlasColumnCount = asset->info.textureAtlasColumnCount;
 
 			result->techniqueSet = allocator.allocate<target::MaterialTechniqueSet>();
-			result->techniqueSet->name = sprite ? get_sprite_techset_name(asset, lit) : effect_techset_name;
+			result->techniqueSet->name = sprite ? get_sprite_techset_name(asset, lit) : get_effect_techset_name(asset);
 
-			if (const auto image = find_texture(asset, TS_COLOR_MAP, 'c'); image && sprite && is_blend_sprite(asset))
+			const auto blend = is_blend_sprite(asset);
+			if (const auto image = find_texture(asset, TS_COLOR_MAP, 'c'); sprite && is_distortion_sprite(asset))
+			{
+				result->textureCount = 1;
+				result->textureTable = allocator.allocate<target::MaterialTextureDef>();
+				result->textureTable->index = 157;
+				result->textureTable->image = image_or_reference(gfximage::dump_color(image), "$black", allocator);
+			}
+			else if (image && blend)
 			{
 				result->textureCount = 2;
 				result->textureTable = allocator.allocate_array<target::MaterialTextureDef>(2);
@@ -272,7 +343,7 @@ namespace zonetool::iw7::converter::iw8::material
 				result->textureTable->image = image ? image_or_reference(gfximage::dump_color(image), "$black", allocator) : make_image_reference("$white", allocator);
 			}
 
-			result->constantTable = allocate_constants(sprite ? convert_sprite_constants(asset, lit) : std::vector{convert_color_tint(asset)}, result->constantCount, allocator);
+			result->constantTable = allocate_constants(sprite || blend ? convert_sprite_constants(asset, lit) : std::vector{convert_color_tint(asset)}, result->constantCount, allocator);
 			return result;
 		}
 
@@ -303,6 +374,19 @@ namespace zonetool::iw7::converter::iw8::material
 			const auto stock_parms = is_two_sided(asset) ? std::array{0.1f, 10.0f, 10.0f, 0.025f} : std::array{2.0f, 0.5f, 0.5f, 0.3333f}; // TODO: stock vfx_drone_blast_radius_mat and vfx_test_burning_plate_1 values
 			std::memcpy(parms.literal, stock_parms.data(), sizeof(parms.literal));
 			result->constantTable = allocate_constants({convert_color_tint(asset), parms}, result->constantCount, allocator);
+			return result;
+		}
+
+		bool is_view_model_blend(const Material* asset)
+		{
+			return asset->cameraRegion == CAMERA_REGION_LIT_TRANS && has_techset_token(asset, "vm") && has_techset_token(asset, "blendadd");
+		}
+
+		target::Material* convert_view_model_blend(const Material* asset, utils::memory::allocator& allocator)
+		{
+			const auto result = convert_effect(asset, false, false, allocator);
+			result->materialType = target::MTL_TYPE_MODEL_SELFVIS;
+			result->techniqueSet->name = blend_model_effect_techset_name;
 			return result;
 		}
 
@@ -1338,6 +1422,81 @@ namespace zonetool::iw7::converter::iw8::material
 			return result;
 		}
 
+		void add_image_reference_rows(const target::Material* material)
+		{
+			for (auto i = 0; i < material->textureCount; i++)
+			{
+				if (const auto image = material->textureTable[i].image->name; image[0] == '$')
+				{
+					add_csv_row("image", ","s + image);
+				}
+			}
+		}
+
+		bool is_sight_glass(const Material* asset)
+		{
+			return asset->cameraRegion == CAMERA_REGION_LIT_TRANS && has_techset_token(asset, "svp") && has_techset_token(asset, "vm");
+		}
+
+		bool is_ads_sight_glass(const Material* asset)
+		{
+			return has_techset_token(asset, "trans");
+		}
+
+		const char* get_sight_glass_techset_name(const Material* asset) // TODO: stock attachment_vm_holo_west_lens techsets, convert natively
+		{
+			return is_ads_sight_glass(asset) ? "mo/lit_3_lit_bar_ta1_842_1042000010080030_2_1_1_0_0_13814475b_0_0_1_0_0"
+				: "mo/lit_3_lit_bar_ta1_842_1042000010080030_1_1_1_0_0_13814475b_0_0_1_0_0";
+		}
+
+		target::Material* convert_sight_glass(const Material* asset, utils::memory::allocator& allocator)
+		{
+			const auto variant = get_variant(asset, techset::GENERATED_TECHSET_STATIC_MODEL);
+			const auto result = convert_donor(asset, asset->name, variant, get_sight_glass_techset_name(asset), donor_kind::glass, allocator);
+			result->surfaceFlags = 0x1380000;
+			result->materialType = target::MTL_TYPE_MODEL_SELFVIS;
+			result->sortKey = is_ads_sight_glass(asset) ? 34 : 30;
+			result->flags = 0;
+
+			std::vector<target::MaterialTextureDef> textures(result->textureTable, result->textureTable + result->textureCount);
+			const auto after_thermal = std::ranges::find_if(textures, [](const target::MaterialTextureDef& texture) { return texture.index > 45; });
+			textures.insert(after_thermal, {45, make_image_reference("$black", allocator)});
+
+			result->textureCount = static_cast<unsigned char>(textures.size());
+			result->textureTable = allocator.allocate_array<target::MaterialTextureDef>(textures.size());
+			std::ranges::copy(textures, result->textureTable);
+			return result;
+		}
+
+		bool is_scope_lens(const Material* asset)
+		{
+			return asset->cameraRegion == CAMERA_REGION_LIT_OPAQUE && has_techset_token(asset, "svp") && has_techset_token(asset, "vm");
+		}
+
+		target::Material* convert_scope_lens(const Material* asset, utils::memory::allocator& allocator)
+		{
+			const auto result = allocator.allocate<target::Material>();
+			result->name = asset->name;
+			result->contents = 1;
+			result->materialType = target::MTL_TYPE_MODEL_SELFVIS;
+			result->cameraRegion = target::CAMERA_REGION_LIT_TRANS;
+			result->sortKey = 18;
+			result->flags = 0x10;
+			result->textureAtlasRowCount = 1;
+			result->textureAtlasColumnCount = 1;
+
+			result->techniqueSet = allocator.allocate<target::MaterialTechniqueSet>();
+			result->techniqueSet->name = scope_lens_techset_name;
+
+			result->textureCount = 2;
+			result->textureTable = allocator.allocate_array<target::MaterialTextureDef>(2);
+			result->textureTable[0].index = 142;
+			result->textureTable[0].image = make_image_reference("$white", allocator);
+			result->textureTable[1].index = 143;
+			result->textureTable[1].image = image_or_reference(gfximage::dump_scope_aperture(), "$white", allocator);
+			return result;
+		}
+
 		target::Material* convert_layered(const Material* asset, const std::string& name, const char* donor, utils::memory::allocator& allocator)
 		{
 			const auto layer_count = get_layer_count(asset);
@@ -1639,6 +1798,37 @@ namespace zonetool::iw7::converter::iw8::material
 			return;
 		}
 
+		if (is_view_model_blend(asset))
+		{
+			zonetool::iw8::material::dump(convert_view_model_blend(asset, allocator));
+			add_csv_row("require", "techsets_common_core_mp");
+			add_csv_row("techset", ","s + blend_model_effect_techset_name);
+			add_csv_row("material", asset->name);
+			return;
+		}
+
+		if (is_sight_glass(asset))
+		{
+			const auto converted = convert_sight_glass(asset, allocator);
+			zonetool::iw8::material::dump(converted);
+			add_csv_row("require", "techsets_global_stream_mp");
+			add_csv_row("techset", ","s + get_sight_glass_techset_name(asset));
+			add_image_reference_rows(converted);
+			add_csv_row("material", asset->name);
+			return;
+		}
+
+		if (is_scope_lens(asset))
+		{
+			const auto converted = convert_scope_lens(asset, allocator);
+			zonetool::iw8::material::dump(converted);
+			add_csv_row("require", "techsets_global_stream_mp");
+			add_csv_row("techset", ","s + scope_lens_techset_name);
+			add_image_reference_rows(converted);
+			add_csv_row("material", asset->name);
+			return;
+		}
+
 		const auto variant = get_variant(asset, techset::GENERATED_TECHSET_STATIC_MODEL);
 		if (const auto donor = get_model_alpha_test_donor_techset(variant))
 		{
@@ -1646,13 +1836,7 @@ namespace zonetool::iw7::converter::iw8::material
 			const auto converted = convert_donor(asset, asset->name, variant, donor, donor_kind::lit, allocator);
 			converted->materialType = target::MTL_TYPE_MODEL_SELFVIS;
 			zonetool::iw8::material::dump(converted);
-			for (auto i = 0; i < converted->textureCount; i++)
-			{
-				if (const auto image = converted->textureTable[i].image->name; image[0] == '$')
-				{
-					add_csv_row("image", ","s + image);
-				}
-			}
+			add_image_reference_rows(converted);
 			add_csv_row("material", asset->name);
 			return;
 		}
@@ -1675,8 +1859,8 @@ namespace zonetool::iw7::converter::iw8::material
 
 		utils::memory::allocator allocator;
 		zonetool::iw8::material::dump(convert_effect(asset, false, false, allocator));
-		add_csv_row("require", "techsets_common_core_mp");
-		add_csv_row("techset", ","s + effect_techset_name);
+		add_csv_row("require", is_blend_sprite(asset) ? "techsets_common_base_mp" : "techsets_common_core_mp");
+		add_csv_row("techset", ","s + get_effect_techset_name(asset));
 		add_csv_row("material", asset->name);
 	}
 
@@ -1697,7 +1881,7 @@ namespace zonetool::iw7::converter::iw8::material
 		}
 		else
 		{
-			add_csv_row("require", is_atlas(asset) ? "techsets_common" : "techsets_common_mp");
+			add_csv_row("require", get_sprite_techset_zone(asset));
 			add_csv_row("techset", ","s + get_sprite_techset_name(asset, lit));
 		}
 		add_csv_row("material", asset->name);
@@ -1868,6 +2052,11 @@ namespace zonetool::iw7::converter::iw8::material
 		}
 
 		return cull_type;
+	}
+
+	bool is_visible(Material* asset)
+	{
+		return asset && get_variant(find_loaded(asset), techset::GENERATED_TECHSET_STATIC_MODEL).visible;
 	}
 
 	zonetool::iw8::GfxSModelSurfEmitType get_smodel_emit_type(Material* asset)

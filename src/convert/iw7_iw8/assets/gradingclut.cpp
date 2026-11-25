@@ -469,6 +469,7 @@ namespace zonetool::iw7::converter::iw8::gradingclut
 		{
 			std::vector<std::uint16_t> converted(size * size * size * 4);
 			std::vector<color> solved(size * size * size);
+			const auto iw7_scale = std::exp2(-1.25); // r_tonemapUniversalBaseExposureAdjust is 1.5 but 1.25 feels more correct to me tbh..
 			for (auto b = 0u; b < size; b++)
 			{
 				for (auto g = 0u; g < size; g++)
@@ -477,7 +478,8 @@ namespace zonetool::iw7::converter::iw8::gradingclut
 					{
 						const color encoded{static_cast<double>(r) / (size - 1), static_cast<double>(g) / (size - 1), static_cast<double>(b) / (size - 1)};
 						const color linear{pq_decode(encoded[0]) * 1024.0, pq_decode(encoded[1]) * 1024.0, pq_decode(encoded[2]) * 1024.0};
-						const auto graded = lookup_iw7_clut(texels, source_size, apply_iw7_tonemap(curve, linear));
+						const color iw7_linear{linear[0] * iw7_scale, linear[1] * iw7_scale, linear[2] * iw7_scale};
+						const auto graded = lookup_iw7_clut(texels, source_size, apply_iw7_tonemap(curve, iw7_linear));
 						const auto index = (b * size + g) * size + r;
 
 						color start_log{};

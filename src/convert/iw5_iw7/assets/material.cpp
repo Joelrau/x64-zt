@@ -1308,10 +1308,11 @@ namespace zonetool::iw5::converter::iw7
 			ordered_json constant_table = ordered_json::array();
 			const auto constants = asset->constantTable.get();
 			const auto is_lit_techset = iw7_techset.find("_l_sm_") != std::string::npos;
+			const auto has_detail_map = iw7_techset.find("d0") != std::string::npos;
 			for (auto i = 0; i < asset->constantCount && techset != "2d"; i++)
 			{
 				std::string constant_name(constants[i].name, strnlen(constants[i].name, sizeof(constants[i].name)));
-				if (constants[i].nameHash == 1033475292 || (is_lit_techset && constant_name != "colorTint"))
+				if (constants[i].nameHash == 1033475292 || (is_lit_techset && constant_name != "colorTint" && !(has_detail_map && constant_name == "detailScale")))
 				{
 					continue;
 				}

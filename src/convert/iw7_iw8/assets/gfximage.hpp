@@ -8,6 +8,7 @@ namespace zonetool::iw7::converter::iw8::gfximage
 	zonetool::iw8::GfxImage* dump_alpha(const GfxImage* asset);
 	zonetool::iw8::GfxImage* dump_opacity(const GfxImage* asset);
 	zonetool::iw8::GfxImage* dump_transmission(const GfxImage* coverage, bool coverage_in_alpha);
+	zonetool::iw8::GfxImage* dump_scope_aperture();
 	zonetool::iw8::GfxImage* dump_layer_mask(const GfxImage* asset);
 	zonetool::iw8::GfxImage* dump_layer_mask(const GfxImage* coverage, const GfxImage* reveal);
 	zonetool::iw8::GfxImage* dump_2d(const GfxImage* asset);
