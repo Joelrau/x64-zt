@@ -1025,7 +1025,8 @@ namespace zonetool::iw7::converter::iw8::weapon
 			{
 				reticle->widgetName = "ReticleSniper01";
 				reticle->secondaryWidgetName = "ReticleOuterCircleSharp";
-				reticle->secondaryLockReticleToTag = reticle->lockReticleToTag;
+				reticle->lockReticleToTag = true;
+				reticle->secondaryLockReticleToTag = true;
 				reticle->offsetFromTag = 50.0f;
 				reticle->secondaryOffsetFromTag = 50.0f;
 				reticle->primaryDefaultScale = 1.5f;
@@ -1058,6 +1059,7 @@ namespace zonetool::iw7::converter::iw8::weapon
 				return nullptr;
 			}
 
+			reticle->lockReticleToTag = true;
 			reticle->offsetFromTag = 50.0f;
 			reticle->primaryDefaultScale = 6.0f;
 			reticle->secondaryDefaultScale = 1.0f;
@@ -1078,7 +1080,6 @@ namespace zonetool::iw7::converter::iw8::weapon
 
 			const auto new_asset = allocator.allocate<target::ReticleDef>();
 			COPY_VALUE(name);
-			COPY_VALUE(lockReticleToTag);
 			COPY_VALUE(primaryAffectedByEMP);
 			COPY_VALUE(secondaryAffectedByEMP);
 			COPY_VALUE(scaleWithFOV);

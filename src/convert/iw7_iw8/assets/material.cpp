@@ -1480,7 +1480,7 @@ namespace zonetool::iw7::converter::iw8::material
 			result->contents = 1;
 			result->surfaceFlags = 0x1380000;
 			result->materialType = target::MTL_TYPE_MODEL_SELFVIS;
-			result->cameraRegion = static_cast<target::CameraRegion>(1); // TODO: CAMERA_REGION_LIT_OPAQUE_SSS in iw8 structs.hpp
+			result->cameraRegion = target::CAMERA_REGION_LIT_OPAQUE_SSS;
 			result->sortKey = asset->info.sortKey;
 			result->textureAtlasRowCount = 1;
 			result->textureAtlasColumnCount = 1;
