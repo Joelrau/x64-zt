@@ -11,6 +11,7 @@ local engine_sources = {
 	iw8 = "iw8",
 	s1 = "s1_pc",
 	s2 = "s2",
+	s4 = "s4",
 }
 
 function gsc_tool.import()

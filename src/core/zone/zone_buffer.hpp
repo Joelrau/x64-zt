@@ -48,7 +48,7 @@ namespace zonetool
 		template <typename T>
 		T* get_zone_pointer(const std::uint8_t stream, const std::size_t ptr)
 		{
-			if (this->mode == game::iw7 || this->mode == game::s2 || this->mode == game::iw8)
+			if (this->mode == game::iw7 || this->mode == game::s2 || this->mode == game::iw8 || this->mode == game::s4)
 			{
 				return reinterpret_cast<T*>(create_data_ptr(0x0, stream, 0x0) | ((ptr + 1) & 0x0FFFFFFFFFFFFFF));
 			}

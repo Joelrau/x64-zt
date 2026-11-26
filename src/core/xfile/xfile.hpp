@@ -10,6 +10,7 @@ namespace zonetool::xfile
 		iw7,
 		s2,
 		iw8,
+		s4,
 		iw3,
 		iw4,
 	};
@@ -38,6 +39,7 @@ namespace zonetool::xfile
 		std::vector<XStreamFileKey> shared_stream_keys;
 		std::string payload;
 		iw8_file_header iw8_header;
+		s4_file_header s4_header;
 		bool is_compressed = true;
 	};
 

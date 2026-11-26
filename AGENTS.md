@@ -19,6 +19,7 @@ The `v2` branch is a standalone rewrite of x64-zt with the assistance of AI to h
 | `iw8` | Modern Warfare 2019 1.20 | `docs/IW8_SUPPORT.md`, `docs/IW8_IN_IW7_FOCUS.md` |
 | `s1` | Advanced Warfare | `docs/S1_SUPPORT.md` |
 | `s2` | WWII | `docs/S2_SUPPORT.md`, `docs/IMPROVE_H1_S2.md` |
+| `s4` | Vanguard 1.14 | `docs/S4_SUPPORT.md` |
 
 Other games are not supported yet. They need to be re-added.
 
@@ -208,6 +209,7 @@ Stream facts:
 - H1 blocks: TEMP 0, PHYSICAL 1, RUNTIME 2, VIRTUAL 3, LARGE 4, CALLBACK 5, SCRIPT 6.
 - IW7 blocks: TEMP 0, TEMP_PRELOAD 1 (aligns to 16 on pop), RUNTIME 6, VIRTUAL 8. IW7 has 10 blocks.
 - IW8 blocks: TEMP 1, TEMP_PRELOAD 2 (aligns to 32 on pop), RUNTIME 4, VIRTUAL 5, SCRIPT 6, PHYSICAL 7. IW8 has 11 blocks.
+- S4 blocks: TEMP 1, TEMP_PRELOAD 2, RUNTIME 6, VIRTUAL 7, SCRIPT 8, PHYSICAL 9. S4 has 10 blocks. In the S4 asm, `Load_Stream` with `ecx` 1 reads nothing, and `ecx` 0 reads the data.
 - RUNTIME data holds no file bytes. The game zero-fills it.
 - Data read in TEMP is lost after `pop_stream`. Copy it with `duplicate` if you keep it.
 - H1 pointers: `0xFDFDFDFFFFFFFFFF` is inline, `...FE` is inline with an insert slot. Other values are offsets: block `(v >> 32) & 0xF`, offset `(u32)v - 1`.
@@ -394,6 +396,7 @@ Run these after a change to a reader, writer or the container code:
 | IW8 | 9471 of 9494 (`code_post_gfx` and old frontend zones fail, see `docs/IW8_SUPPORT.md`) | `mp_rust`, `srv_mp_rust`, `techsets_mp_rust` |
 | S1 | 3058 of 3058 | `mp_prison` |
 | S2 | 268 of 268 | `common`, `mp_aachen_v2` |
+| S4 | 3746 of 3746 | `code_pre_gfx`, `mp_radar` |
 
 The total changes when the zone folder changes. A zone that passed before and fails now is a regression.
 

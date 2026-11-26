@@ -7,12 +7,6 @@ namespace havok::tagfile
 {
 	namespace
 	{
-		struct chunk
-		{
-			std::size_t begin;
-			std::size_t end;
-		};
-
 		std::uint32_t read_big_endian(std::string_view data, const std::size_t offset)
 		{
 			const auto* bytes = reinterpret_cast<const std::uint8_t*>(data.data() + offset);
@@ -293,11 +287,11 @@ namespace havok::tagfile
 		return {target.type, target.offset, target.count};
 	}
 
-	file::file(std::string_view data)
+	file::file(std::string_view data, const file* compendium)
 	{
 		std::unordered_map<std::string, chunk> chunks;
 		read_chunks(data, 0, data.size(), chunks);
-		for (const auto* name : {"DATA", "TSTR", "TNA1", "FSTR", "TBDY", "ITEM"})
+		for (const auto* name : {"DATA", "ITEM"})
 		{
 			if (!chunks.contains(name))
 			{
@@ -308,8 +302,41 @@ namespace havok::tagfile
 		const auto& data_chunk = chunks["DATA"];
 		this->data_ = data.substr(data_chunk.begin, data_chunk.end - data_chunk.begin);
 
-		const auto type_strings = read_strings(data, chunks["TSTR"]);
-		const auto member_strings = read_strings(data, chunks["FSTR"]);
+		if (chunks.contains("TNA1"))
+		{
+			this->read_types(data, chunks);
+		}
+		else if (compendium && chunks.contains("TCRF"))
+		{
+			this->types_ = compendium->types_;
+		}
+		else
+		{
+			throw std::runtime_error("havok tagfile: no types");
+		}
+
+		const auto& items = chunks["ITEM"];
+		for (auto offset = items.begin; offset + 12 <= items.end; offset += 12)
+		{
+			const auto type_and_flags = read_value<std::uint32_t>(data, offset);
+			this->items_.push_back({type_and_flags & 0xFFFFFF, type_and_flags >> 24,
+				read_value<std::uint32_t>(data, offset + 4), read_value<std::uint32_t>(data, offset + 8)});
+		}
+	}
+
+	void file::read_types(std::string_view data, std::unordered_map<std::string, chunk>& chunks)
+	{
+		const auto sdk_2020 = chunks.contains("TST1");
+		for (const auto* name : {sdk_2020 ? "TST1" : "TSTR", sdk_2020 ? "FST1" : "FSTR", "TBDY"})
+		{
+			if (!chunks.contains(name))
+			{
+				throw std::runtime_error(std::format("havok tagfile: missing {} chunk", name));
+			}
+		}
+
+		const auto type_strings = read_strings(data, chunks[sdk_2020 ? "TST1" : "TSTR"]);
+		const auto member_strings = read_strings(data, chunks[sdk_2020 ? "FST1" : "FSTR"]);
 
 		packed_reader names(data, chunks["TNA1"]);
 		this->types_.resize(names.read());
@@ -368,6 +395,10 @@ namespace havok::tagfile
 					type_member member{};
 					member.name = member_strings.at(bodies.read());
 					member.flags = static_cast<std::uint32_t>(bodies.read());
+					if (member.flags & member_has_attribute)
+					{
+						bodies.read();
+					}
 					member.offset = static_cast<std::uint32_t>(bodies.read());
 					member.type = static_cast<std::uint32_t>(bodies.read());
 					info.members.emplace_back(std::move(member));
@@ -398,14 +429,6 @@ namespace havok::tagfile
 				info.hash = hashes.read_u32();
 				info.has_hash = true;
 			}
-		}
-
-		const auto& items = chunks["ITEM"];
-		for (auto offset = items.begin; offset + 12 <= items.end; offset += 12)
-		{
-			const auto type_and_flags = read_value<std::uint32_t>(data, offset);
-			this->items_.push_back({type_and_flags & 0xFFFFFF, type_and_flags >> 24,
-				read_value<std::uint32_t>(data, offset + 4), read_value<std::uint32_t>(data, offset + 8)});
 		}
 	}
 
@@ -479,6 +502,29 @@ namespace havok::tagfile
 	const item& file::get_item(const std::uint64_t index) const
 	{
 		return this->items_.at(index);
+	}
+
+	const item* file::find_item(const std::size_t offset) const
+	{
+		for (auto i = 1u; i < this->items_.size(); i++)
+		{
+			if (this->items_[i].offset == offset)
+			{
+				return &this->items_[i];
+			}
+		}
+
+		return nullptr;
+	}
+
+	const std::vector<item>& file::items() const
+	{
+		return this->items_;
+	}
+
+	const std::vector<type_info>& file::types() const
+	{
+		return this->types_;
 	}
 
 	std::string_view file::data() const

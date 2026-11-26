@@ -142,7 +142,7 @@ namespace zonetool
 
 	char* zone_buffer::write_str(const char* str)
 	{
-		if (this->mode == game::iw8)
+		if (this->mode == game::iw8 || this->mode == game::s4)
 		{
 			return this->write_shared_str(str);
 		}
@@ -155,7 +155,7 @@ namespace zonetool
 
 	char* zone_buffer::write_str(const std::string& str)
 	{
-		if (this->mode == game::iw8)
+		if (this->mode == game::iw8 || this->mode == game::s4)
 		{
 			return this->write_shared_str(str);
 		}
@@ -294,7 +294,7 @@ namespace zonetool
 
 	std::uint32_t zone_buffer::write_scriptstring(const char* str)
 	{
-		if (this->mode == game::iw8 && this->script_strings_.empty())
+		if ((this->mode == game::iw8 || this->mode == game::s4) && this->script_strings_.empty())
 		{
 			this->script_strings_.push_back(nullptr);
 		}

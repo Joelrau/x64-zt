@@ -38,6 +38,11 @@ namespace havok::tagfile
 		body_attribute = 0x80,
 	};
 
+	enum type_member_flags : std::uint32_t
+	{
+		member_has_attribute = 0x80,
+	};
+
 	enum item_flags : std::uint32_t
 	{
 		item_object = 0x10,
@@ -68,6 +73,12 @@ namespace havok::tagfile
 		std::uint32_t hash;
 		bool has_hash;
 		std::vector<type_member> members;
+	};
+
+	struct chunk
+	{
+		std::size_t begin;
+		std::size_t end;
 	};
 
 	struct item
@@ -117,7 +128,7 @@ namespace havok::tagfile
 	class file
 	{
 	public:
-		explicit file(std::string_view data);
+		explicit file(std::string_view data, const file* compendium = nullptr);
 
 		value root() const;
 
@@ -127,9 +138,14 @@ namespace havok::tagfile
 		const type_member* find_member(std::uint32_t type, std::string_view name) const;
 		std::optional<std::uint32_t> find_template(std::uint32_t type, std::string_view name) const;
 		const item& get_item(std::uint64_t index) const;
+		const item* find_item(std::size_t offset) const;
+		const std::vector<item>& items() const;
+		const std::vector<type_info>& types() const;
 		std::string_view data() const;
 
 	private:
+		void read_types(std::string_view data, std::unordered_map<std::string, chunk>& chunks);
+
 		std::vector<type_info> types_;
 		std::vector<item> items_;
 		std::string_view data_;

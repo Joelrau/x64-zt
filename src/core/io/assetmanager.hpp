@@ -269,7 +269,7 @@ namespace zonetool
 			}
 
 			template <typename T>
-			void dump_array(T* data, std::uint32_t array_size)
+			bool dump_array(T* data, std::uint32_t array_size)
 			{
 				if (data && array_size)
 				{
@@ -282,7 +282,7 @@ namespace zonetool
 						write_type(DUMP_TYPE_OFFSET);
 						write_internal(&info.index);
 						write_internal(&info.array_index);
-						return;
+						return false;
 					}
 
 					add_entry_dumped(entry);
@@ -292,18 +292,18 @@ namespace zonetool
 
 					write_internal(&array_size);
 					write_array_internal(data, array_size);
+					return true;
 				}
-				else
-				{
-					write_type(DUMP_TYPE_ARRAY);
-					write_existing(DUMP_NONEXISTING);
-				}
+
+				write_type(DUMP_TYPE_ARRAY);
+				write_existing(DUMP_NONEXISTING);
+				return false;
 			}
 
 			template <typename T>
-			void dump_array(const T* data, std::uint32_t array_size)
+			bool dump_array(const T* data, std::uint32_t array_size)
 			{
-				dump_array<std::remove_const_t<T>>(const_cast<std::remove_const_t<T>*>(data), array_size);
+				return dump_array<std::remove_const_t<T>>(const_cast<std::remove_const_t<T>*>(data), array_size);
 			}
 
 			template <typename T>
@@ -667,11 +667,16 @@ namespace zonetool
 			}
 
 			template <typename T>
-			T* read_array(std::uint32_t* count = nullptr)
+			T* read_array(std::uint32_t* count = nullptr, bool* shared = nullptr)
 			{
 				if (count)
 				{
 					*count = 0;
+				}
+
+				if (shared)
+				{
+					*shared = false;
 				}
 
 				dump_type type;
@@ -714,6 +719,11 @@ namespace zonetool
 					dump_info info{ 0 };
 					read_internal(&info.index);
 					read_internal(&info.array_index);
+
+					if (shared)
+					{
+						*shared = true;
+					}
 
 					std::uintptr_t ptr = get_entry_read<T>(info);
 					return reinterpret_cast<T*>(ptr);
