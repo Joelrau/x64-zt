@@ -1302,6 +1302,14 @@ namespace zonetool::iw8
 		PRIMARY_LIGHT_SPAWN_STATIC_SHADOW = 0x20,
 	};
 
+	enum GfxLightType : unsigned char
+	{
+		GFX_LIGHT_TYPE_NONE = 0x0,
+		GFX_LIGHT_TYPE_DIR = 0x1,
+		GFX_LIGHT_TYPE_SPOT = 0x2,
+		GFX_LIGHT_TYPE_OMNI = 0x3,
+	};
+
 	struct ComPrimaryLight
 	{
 		unsigned char spawnFlags;
@@ -4249,6 +4257,7 @@ namespace zonetool::iw8
 	enum CameraRegion : std::uint8_t
 	{
 		CAMERA_REGION_LIT_OPAQUE = 0,
+		CAMERA_REGION_LIT_OPAQUE_SSS = 1, // TODO: name not proven
 		CAMERA_REGION_LIT_DECAL = 2,
 		CAMERA_REGION_LIT_TRANS = 3,
 		CAMERA_REGION_EMISSIVE = 4,
@@ -11843,6 +11852,21 @@ namespace zonetool::iw8
 
 		SURFACE_TYPE_COUNT = 64
 	};
+
+	struct HavokPhysicsShapeTagData
+	{
+		unsigned int collisionFilterInfo;
+		int materialCRC;
+		unsigned short materialId;
+		unsigned long long userData;
+	}; assert_sizeof(HavokPhysicsShapeTagData, 24);
+
+	struct hkcdPrimitiveDataRun
+	{
+		unsigned short value;
+		unsigned char index;
+		unsigned char count;
+	}; assert_sizeof(hkcdPrimitiveDataRun, 4);
 
 	struct clipMap_t
 	{

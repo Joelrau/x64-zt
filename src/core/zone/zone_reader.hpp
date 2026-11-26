@@ -5,6 +5,12 @@
 
 namespace zonetool
 {
+	enum class zone_offset_format
+	{
+		infinity_ward,
+		treyarch,
+	};
+
 	struct zone_layout
 	{
 		std::uint64_t offset_tag;
@@ -15,11 +21,14 @@ namespace zonetool
 		std::optional<std::uint8_t> pop_aligned_block;
 		std::optional<std::uint8_t> end_anchored_block;
 		std::uint8_t temp_block{};
-		std::optional<std::uint8_t> unread_block;
+		std::vector<std::uint8_t> unread_blocks;
+		std::vector<std::uint8_t> reserved_blocks;
+		std::vector<std::uint8_t> inherited_blocks; // push keeps the current block
 		std::size_t asset_alignment = 3;
 		bool untagged_offsets = true;
 		std::size_t pop_alignment = 15;
 		std::optional<std::uint64_t> asset_relative_tag;
+		zone_offset_format offset_format = zone_offset_format::infinity_ward;
 	};
 
 	struct zone_offset
@@ -76,6 +85,9 @@ namespace zonetool
 		bool is_insert(const void* pointer) const;
 		bool is_offset(const void* pointer) const;
 		bool contains(const void* pointer) const;
+		bool is_inserted(const void* data) const;
+		std::optional<zone_offset> find_offset(const void* pointer) const;
+		std::uint8_t* block_address(std::uint8_t block_index, std::size_t offset) const;
 		template <typename T>
 		void resolve_pointer(T*& field)
 		{
@@ -114,9 +126,10 @@ namespace zonetool
 			if (slot)
 			{
 				*slot = const_cast<std::remove_const_t<T>*>(field);
+				this->inserted_.insert(field);
 			}
 
-			return field;
+			return this->is_reserved_block() ? nullptr : field;
 		}
 
 		template <typename T>
@@ -166,6 +179,7 @@ namespace zonetool
 			if (slot)
 			{
 				*slot = const_cast<std::remove_const_t<T>*>(field);
+				this->inserted_.insert(field);
 			}
 		}
 
@@ -321,6 +335,7 @@ namespace zonetool
 		std::map<std::pair<std::type_index, std::string_view>, void*> reference_stubs_;
 		std::vector<deferred_offset> deferred_offsets_;
 		std::vector<std::size_t> string_positions_;
+		std::unordered_set<const void*> inserted_;
 
 		template <typename T>
 		static void** field_address(T*& field)
@@ -329,6 +344,8 @@ namespace zonetool
 		}
 
 		block& current_block();
+		bool is_unread_block() const;
+		bool is_reserved_block() const;
 		zone_offset split_offset(const void* pointer) const;
 		std::uint8_t* offset_address(std::uint8_t block_index, std::size_t offset) const;
 		void resolve_offset(void** field, offset_target target);

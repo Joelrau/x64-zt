@@ -1,0 +1,11 @@
+; input BlackOpsColdWar_dump.exe imagebase 7ff6d7c90000
+7ff6d7c90000 7ff6d7c91000 HEADER type=3 perm=0
+7ff6d7c91000 7ff6e53ed000 .text type=2 perm=5
+7ff6e53ed000 7ff6e5984000 .rdata type=3 perm=4
+7ff6e5984000 7ff6e6099880 .data type=3 perm=6
+7ff6e6099880 7ff6e60998f0 .idata type=1 perm=6
+7ff6e60998f0 7ff6f2737000 .data type=3 perm=6
+7ff6f2737000 7ff6f289e000 .pdata type=3 perm=4
+7ff6f289e000 7ff6f289f000 _RDATA type=3 perm=4
+7ff6f2bbe000 7ff6f2bc4000 .idata type=1 perm=6
+7ff6f2bc4000 7ff6f6d39000 .text type=2 perm=5

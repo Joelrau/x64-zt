@@ -13,6 +13,7 @@ This folder holds IDA text exports of the game executables that x64-zt supports.
 | `s1/ship/` | S1 (AW) ship |
 | `s2/ship/` | S2 (WWII) ship |
 | `s4/ship/` | S4 (Vanguard) ship |
+| `t9/ship/` | T9 (Black Ops Cold War) ship |
 
 ## Rules for agents
 

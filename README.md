@@ -19,28 +19,31 @@ x64-zt is a standalone fastfile unlinker and linker for x64 Call of Duty titles.
 | **S2** | WWII |
 | **IW7** | Infinite Warfare |
 | **IW8** | Modern Warfare (2019) |
+| **T9** | Black Ops Cold War *(experimental)* |
 
 ## Asset conversion
 
 Rows are the source game. Columns are the `--target` game.
 
-| From ↓ / To → | IW6 | S1 | H1 | H2 | S2 | IW7 | IW8 |
-|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| **IW3** | 🚧 | 🚧 | 🚧 | 🚧 | 🚧 | ✅ | ❔ |
-| **IW4** | 🚧 | 🚧 | 🚧 | 🚧 | 🚧 | 🚧 | ❔ |
-| **IW5** | 🚧 | 🚧 | 🚧 | 🚧 | 🚧 | ⚠️ | ❔ |
-| **IW6** | ✅ | ❌ | ✅ | ❔ | ❔ | ❌ | ❌ |
-| **S1**  | ❌ | ✅ | ✅ | ✅ | ⚠️ | ❌ | ❌ |
-| **H1**  | ❌ | ❌ | ✅ | ✅ | ⚠️ | ⚠️ | ❌ |
-| **H2**  | ❌ | ❌ | ✅ | ✅ | ❔ | ❌ | ❌ |
-| **S2**  | ❌ | ❌ | ⚠️ | ❔ | ✅ | ❌ | ❌ |
-| **IW7** | ❌ | ❌ | ⚠️ | ❌ | ❌ | ✅ | ⚠️ |
-| **IW8** | ❌ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ✅ |
+| From ↓ / To → | IW6 | S1 | H1 | H2 | S2 | IW7 | IW8 | T9 |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| **IW3** | 🚧 | 🚧 | 🚧 | 🚧 | 🚧 | ✅ | ❔ | ❌ |
+| **IW4** | 🚧 | 🚧 | 🚧 | 🚧 | 🚧 | 🚧 | ❔ | ❌ |
+| **IW5** | 🚧 | 🚧 | 🚧 | 🚧 | 🚧 | ⚠️ | ❔ | ❌ |
+| **IW6** | ✅ | ❌ | ✅ | ❔ | ❔ | ❌ | ❌ | ❌ |
+| **S1**  | ❌ | ✅ | ✅ | ✅ | ⚠️ | ❌ | ❌ | ❌ |
+| **H1**  | ❌ | ❌ | ✅ | ✅ | ⚠️ | ⚠️ | ❌ | ❌ |
+| **H2**  | ❌ | ❌ | ✅ | ✅ | ❔ | ❌ | ❌ | ❌ |
+| **S2**  | ❌ | ❌ | ⚠️ | ❔ | ✅ | ❌ | ❌ | ❌ |
+| **IW7** | ❌ | ❌ | ⚠️ | ❌ | ❌ | ✅ | ⚠️ | ❌ |
+| **IW8** | ❌ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ✅ | ❌ |
+| **T9**  | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | 🧪 | 🧪 |
 
 | | Status | Meaning |
 |:-:|---|---|
 | ✅ | **Supported** | Works for the assets of this game pair |
-| ⚠️ | **Partial** | Experimental or unfinished (some assets may work like weapons) |
+| ⚠️ | **Partial** | Unfinished (some assets may work like weapons) |
+| 🧪 | **Experimental** | Broken or incorrect outputs |
 | ❔ | **Possible** | Can be achieved via alternative conversions (like `IW5 -> IW7 -> IW8`) |
 | 🚧 | **Planned** | x86 games from Joelrau/zonetool for dumping only |
 | ❌ | **Not supported** | No conversion |

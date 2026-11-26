@@ -13,6 +13,7 @@ namespace game
 		s2,
 		iw8,
 		iw3,
+		t9,
 		count,
 	};
 

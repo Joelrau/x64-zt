@@ -7,14 +7,16 @@ namespace zonetool
 {
 	namespace
 	{
-		std::uint8_t* allocate_block(const std::size_t size)
+		std::uint8_t* allocate_block(const std::size_t size, const bool reserve_only)
 		{
 			if (!size)
 			{
 				return nullptr;
 			}
 
-			const auto memory = VirtualAlloc(nullptr, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+			const auto memory = reserve_only
+				? VirtualAlloc(nullptr, size, MEM_RESERVE, PAGE_NOACCESS)
+				: VirtualAlloc(nullptr, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 			if (!memory)
 			{
 				throw std::runtime_error(std::format("cannot allocate 0x{:X} bytes of block memory", size));
@@ -32,6 +34,11 @@ namespace zonetool
 	zone_offset zone_reader::split_offset(const void* pointer) const
 	{
 		const auto value = pointer_value(pointer);
+		if (this->layout_.offset_format == zone_offset_format::treyarch)
+		{
+			return {(value - 1) >> 60, (value - 1) & 0x0FFFFFFFFFFFFFFF};
+		}
+
 		zone_offset result{(value >> 32) & 0xF, static_cast<std::uint32_t>(value) - 1ull};
 
 		if (this->layout_.asset_relative_tag && value >> 36 == *this->layout_.asset_relative_tag
@@ -49,9 +56,10 @@ namespace zonetool
 		, layout_(layout)
 	{
 		this->blocks_.reserve(block_sizes.size());
-		for (const auto size : block_sizes)
+		for (std::size_t i = 0; i < block_sizes.size(); i++)
 		{
-			this->blocks_.emplace_back(allocate_block(size), size, 0, 0, 0);
+			const auto reserve_only = std::ranges::contains(layout.reserved_blocks, i);
+			this->blocks_.emplace_back(allocate_block(block_sizes[i], reserve_only), block_sizes[i], 0, 0, 0);
 		}
 	}
 
@@ -114,8 +122,9 @@ namespace zonetool
 			throw std::runtime_error(std::format("block {} does not exist", block));
 		}
 
-		this->stream_stack_.emplace_back(this->current_block_, this->blocks_[block].position);
-		this->current_block_ = block;
+		const auto target = std::ranges::contains(this->layout_.inherited_blocks, block) ? this->current_block_ : block;
+		this->stream_stack_.emplace_back(this->current_block_, this->blocks_[target].position);
+		this->current_block_ = target;
 	}
 
 	void zone_reader::pop_stream()
@@ -220,7 +229,7 @@ namespace zonetool
 	void* zone_reader::read_bytes(const std::size_t size)
 	{
 		auto& block = this->current_block();
-		const auto is_runtime = this->current_block_ == this->layout_.runtime_block || this->current_block_ == this->layout_.unread_block;
+		const auto is_runtime = this->current_block_ == this->layout_.runtime_block || this->is_unread_block();
 		if (block.position + size > block.size)
 		{
 			if (is_runtime)
@@ -237,7 +246,7 @@ namespace zonetool
 		{
 			std::memset(destination, 0, size);
 		}
-		else
+		else if (!this->is_reserved_block())
 		{
 			this->read_raw(destination, size);
 		}
@@ -265,7 +274,8 @@ namespace zonetool
 		}
 
 		const auto tag = pointer_value(pointer) >> 36;
-		if (tag != this->layout_.offset_tag && (tag != 0 || !this->layout_.untagged_offsets) && tag != this->layout_.asset_relative_tag)
+		if (this->layout_.offset_format == zone_offset_format::infinity_ward && tag != this->layout_.offset_tag
+			&& (tag != 0 || !this->layout_.untagged_offsets) && tag != this->layout_.asset_relative_tag)
 		{
 			return false;
 		}
@@ -348,9 +358,44 @@ namespace zonetool
 		return slot;
 	}
 
+	bool zone_reader::is_inserted(const void* data) const
+	{
+		return this->inserted_.contains(data);
+	}
+
+	std::optional<zone_offset> zone_reader::find_offset(const void* pointer) const
+	{
+		const auto address = static_cast<const std::uint8_t*>(pointer);
+		for (std::size_t i = 0; i < this->blocks_.size(); i++)
+		{
+			const auto& block = this->blocks_[i];
+			if (block.memory && address >= block.memory && address < block.memory + block.size)
+			{
+				return zone_offset{i, static_cast<std::uint64_t>(address - block.memory)};
+			}
+		}
+
+		return {};
+	}
+
+	std::uint8_t* zone_reader::block_address(const std::uint8_t block_index, const std::size_t offset) const
+	{
+		return this->offset_address(block_index, offset);
+	}
+
 	zone_reader::block& zone_reader::current_block()
 	{
 		return this->blocks_[this->current_block_];
+	}
+
+	bool zone_reader::is_unread_block() const
+	{
+		return std::ranges::contains(this->layout_.unread_blocks, this->current_block_);
+	}
+
+	bool zone_reader::is_reserved_block() const
+	{
+		return std::ranges::contains(this->layout_.reserved_blocks, this->current_block_);
 	}
 
 	std::uint8_t* zone_reader::offset_address(const std::uint8_t block_index, const std::size_t offset) const
@@ -415,6 +460,10 @@ namespace zonetool
 				this->align(this->layout_.asset_alignment);
 				const auto slot = this->is_insert(*field) ? this->insert_pointer() : nullptr;
 				this->inline_asset_loader_(type, field, slot);
+				if (slot)
+				{
+					this->inserted_.insert(*field);
+				}
 			}
 			else
 			{

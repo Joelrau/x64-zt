@@ -10,6 +10,7 @@ namespace zonetool
 		constexpr std::uint32_t s2_h1_image = 1;
 		constexpr std::uint32_t s2_h1_techset = 1;
 		constexpr std::uint32_t s2_h1_techset_catalog = 4;
+		constexpr std::uint32_t t9_iw8_image = 1;
 	}
 
 	class fingerprint

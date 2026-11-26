@@ -1,5 +1,5 @@
 games = {
-	known = {"h1", "h2", "iw3", "iw5", "iw6", "iw7", "iw8", "s1", "s2"},
+	known = {"h1", "h2", "iw3", "iw5", "iw6", "iw7", "iw8", "s1", "s2", "t9"},
 	enabled = {},
 	dependencies = {
 		h1 = function()
@@ -33,6 +33,9 @@ games = {
 			gsc_tool.import_engine("iw7")
 		end,
 		iw8 = function()
+			dependencies.use(directxtex)
+		end,
+		t9 = function()
 			dependencies.use(directxtex)
 		end,
 	},
@@ -71,6 +74,9 @@ games = {
 		iw5_iw7 = function()
 			gsc_tool.import_engine("iw5")
 			gsc_tool.import_engine("iw7")
+		end,
+		t9_iw8 = function()
+			gsc_tool.import_engine("iw8")
 		end,
 	},
 }

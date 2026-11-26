@@ -18,7 +18,7 @@ namespace zonetool::s2
 			.runtime_block = XFILE_BLOCK_RUNTIME,
 			.virtual_block = XFILE_BLOCK_VIRTUAL,
 			.temp_block = XFILE_BLOCK_TEMP,
-			.unread_block = XFILE_BLOCK_RUNTIME_UNREAD,
+			.unread_blocks = {XFILE_BLOCK_RUNTIME_UNREAD},
 			.asset_alignment = 7,
 		};
 

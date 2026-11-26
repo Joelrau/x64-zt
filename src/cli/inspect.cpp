@@ -1,6 +1,7 @@
 #include <std_include.hpp>
 #include "commands.hpp"
 
+#include <utils/cryptography.hpp>
 #include <utils/flags.hpp>
 
 namespace zonetool::cli
@@ -24,6 +25,11 @@ namespace zonetool::cli
 			if (payload.size() < sizeof(XAssetList))
 			{
 				throw std::runtime_error("zone is smaller than its asset list");
+			}
+
+			if (game.inspect_zone)
+			{
+				return summary;
 			}
 
 			if (summary.container == xfile::container::iw3 || summary.container == xfile::container::iw4)
@@ -63,6 +69,12 @@ namespace zonetool::cli
 				std::cout << std::format("block {}:        0x{:X}\n", block, file.block_sizes[block]);
 			}
 
+			if (summary.container == xfile::container::t9)
+			{
+				std::cout << std::format("data sha1:      {}\n", utils::cryptography::sha1::compute(file.payload, true));
+				return;
+			}
+
 			std::cout << std::format("script strings: {}\n", summary.asset_list.stringCount);
 			std::cout << std::format("assets:         {}\n", summary.asset_list.assetCount);
 			std::cout << std::format("globals:        {}\n", summary.asset_list.globals != 0);
@@ -92,7 +104,14 @@ namespace zonetool::cli
 				{
 					try
 					{
-						summarize(*settings.game, zones[index]);
+						if (settings.game->inspect_zone)
+						{
+							settings.game->inspect_zone(settings.zone_folder(), zones[index]);
+						}
+						else
+						{
+							summarize(*settings.game, zones[index]);
+						}
 					}
 					catch (const std::exception& e)
 					{
@@ -137,5 +156,9 @@ namespace zonetool::cli
 
 		std::cout << std::format("{}\n", path->string());
 		print_summary(summarize(*settings.game, *path));
+		if (settings.game->inspect_zone)
+		{
+			std::cout << settings.game->inspect_zone(settings.zone_folder(), *path);
+		}
 	}
 }

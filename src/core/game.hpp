@@ -36,6 +36,7 @@ namespace zonetool
 		listing_command list_zone;
 		build_command build_zone;
 		token_name_resolver token_name;
+		listing_command inspect_zone;
 	};
 
 	struct converter
