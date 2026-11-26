@@ -466,6 +466,30 @@ namespace zonetool::xfile
 			return versions[transient_file_type];
 		}
 
+		std::uint32_t s4_expected_xfile_version(const std::uint8_t transient_file_type)
+		{
+			constexpr std::uint32_t versions[] = {0x13FE, 0x13FE, 0x13E7, 0x13E7, 0x13E7, 0x13E7, 0x13E7, 0x13FE, 0x13E7, 0x13E7, 0x13E7, 0x13E7, 0x13E7, 0x13E7, 0x13E7}; // 0x147BC9278
+			if (transient_file_type >= std::size(versions))
+			{
+				throw std::runtime_error(std::format("unknown transient file type {}", transient_file_type));
+			}
+
+			return versions[transient_file_type];
+		}
+
+		template <typename Header>
+		std::uint32_t expected_xfile_version(const std::uint8_t transient_file_type)
+		{
+			if constexpr (std::is_same_v<Header, s4_file_header>)
+			{
+				return s4_expected_xfile_version(transient_file_type);
+			}
+			else
+			{
+				return iw8_expected_xfile_version(transient_file_type);
+			}
+		}
+
 		std::uint8_t iw8_block_codec(const std::uint8_t type)
 		{
 			switch (type)
@@ -551,19 +575,20 @@ namespace zonetool::xfile
 			return decompress_iw8_iwc(read_signed_data(reader, format, is_signed));
 		}
 
-		std::optional<iw8_patch_header> read_iw8_patch(const std::filesystem::path& path, const format& format,
-			const iw8_file_header& header, std::string& zone)
+		template <typename Header>
+		std::optional<patch_header<Header>> read_iw8_patch(const std::filesystem::path& path, const format& format,
+			const Header& header, std::string& zone)
 		{
 			const auto patch_path = std::filesystem::path(path).replace_extension(".fp");
 
 			std::string data;
-			if (!game_files::read(patch_path, data) || data.size() < sizeof(iw8_patch_header))
+			if (!game_files::read(patch_path, data) || data.size() < sizeof(patch_header<Header>))
 			{
 				return {};
 			}
 
 			byte_reader reader(data);
-			const auto patch = reader.read<iw8_patch_header>();
+			const auto patch = reader.read<patch_header<Header>>();
 			if (std::string_view(patch.magic, sizeof(patch.magic)) != "IWffd100")
 			{
 				throw std::runtime_error("patch file has no IWffd100 magic");
@@ -590,21 +615,22 @@ namespace zonetool::xfile
 			return patch;
 		}
 
-		void read_iw8(const std::filesystem::path& path, byte_reader& reader, const format& format, fastfile& file)
+		template <typename Header>
+		Header read_iw8(const std::filesystem::path& path, byte_reader& reader, const format& format, fastfile& file)
 		{
-			if (format.block_count != iw8_block_count)
+			if (format.block_count != std::size(Header{}.block_sizes))
 			{
-				throw std::runtime_error(std::format("IW8 zones have {} blocks", iw8_block_count));
+				throw std::runtime_error(std::format("{} zones have {} blocks", format.unsigned_magic, std::size(Header{}.block_sizes)));
 			}
 
-			auto header = reader.read<iw8_file_header>();
+			auto header = reader.read<Header>();
 			auto zone = read_iw8_resident_data(reader.rest(), format, file.is_signed);
 			if (const auto patch = read_iw8_patch(path, format, header, zone))
 			{
 				header = patch->target;
 			}
 
-			const auto expected_version = iw8_expected_xfile_version(header.transient_file_type);
+			const auto expected_version = expected_xfile_version<Header>(header.transient_file_type);
 			if (header.xfile_version != expected_version)
 			{
 				throw std::runtime_error(std::format("xfile version 0x{:X} is not 0x{:X}", header.xfile_version, expected_version));
@@ -617,7 +643,7 @@ namespace zonetool::xfile
 
 			file.block_sizes.assign(std::begin(header.block_sizes), std::end(header.block_sizes));
 			file.payload = std::move(zone);
-			file.iw8_header = header;
+			return header;
 		}
 
 		template <typename T>
@@ -904,7 +930,10 @@ namespace zonetool::xfile
 			read_s2(reader, format, file);
 			break;
 		case container::iw8:
-			read_iw8(path, reader, format, file);
+			file.iw8_header = read_iw8<iw8_file_header>(path, reader, format, file);
+			break;
+		case container::s4:
+			file.s4_header = read_iw8<s4_file_header>(path, reader, format, file);
 			break;
 		case container::iw3:
 			read_iw3(reader, format, file);
@@ -1153,37 +1182,51 @@ namespace zonetool::xfile
 		}
 	}
 
+	namespace
+	{
+		template <typename Header>
+		void write_iw8_header(const std::filesystem::path& path, const format& format, const fastfile& file, Header header,
+			const std::string_view payload)
+		{
+			const auto resident = file.is_compressed ? compress_iw8_iwc(payload) : store_iw8_iwc(payload);
+
+			std::memcpy(header.magic, format.unsigned_magic.data(), sizeof(header.magic));
+			header.header_version = format.version;
+			header.xfile_version = expected_xfile_version<Header>(header.transient_file_type);
+			header.dash_compress_build = 0;
+			header.dash_encrypt_build = 0;
+			header.resident_part_size = static_cast<std::uint32_t>(resident.size());
+			header.resident_hash = 0;
+			header.size = payload.size();
+			for (std::size_t i = 0; i < std::size(header.block_sizes); i++)
+			{
+				header.block_sizes[i] = i < file.block_sizes.size() ? file.block_sizes[i] : 0;
+			}
+
+			std::string output;
+			append(output, header);
+			output.append(resident);
+
+			std::filesystem::create_directories(path.parent_path());
+			if (!utils::io::write_file(path.string(), output))
+			{
+				throw std::runtime_error(std::format("cannot write \"{}\"", path.string()));
+			}
+		}
+	}
+
 	void write_iw8(const std::filesystem::path& path, const format& format, const fastfile& file, const std::string_view payload)
 	{
-		if (format.container != container::iw8)
+		switch (format.container)
 		{
-			throw std::runtime_error("write_iw8 needs the iw8 container");
-		}
-
-		const auto resident = file.is_compressed ? compress_iw8_iwc(payload) : store_iw8_iwc(payload);
-
-		auto header = file.iw8_header;
-		std::memcpy(header.magic, format.unsigned_magic.data(), sizeof(header.magic));
-		header.header_version = format.version;
-		header.xfile_version = iw8_expected_xfile_version(header.transient_file_type);
-		header.dash_compress_build = 0;
-		header.dash_encrypt_build = 0;
-		header.resident_part_size = static_cast<std::uint32_t>(resident.size());
-		header.resident_hash = 0;
-		header.size = payload.size();
-		for (std::size_t i = 0; i < iw8_block_count; i++)
-		{
-			header.block_sizes[i] = i < file.block_sizes.size() ? file.block_sizes[i] : 0;
-		}
-
-		std::string output;
-		append(output, header);
-		output.append(resident);
-
-		std::filesystem::create_directories(path.parent_path());
-		if (!utils::io::write_file(path.string(), output))
-		{
-			throw std::runtime_error(std::format("cannot write \"{}\"", path.string()));
+		case container::iw8:
+			write_iw8_header(path, format, file, file.iw8_header, payload);
+			break;
+		case container::s4:
+			write_iw8_header(path, format, file, file.s4_header, payload);
+			break;
+		default:
+			throw std::runtime_error("write_iw8 needs the iw8 or s4 container");
 		}
 	}
 

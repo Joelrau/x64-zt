@@ -20,6 +20,7 @@ namespace game
 				{s2, "s2"},
 				{iw8, "iw8"},
 				{iw3, "iw3"},
+				{s4, "s4"},
 				{t9, "t9"},
 			};
 

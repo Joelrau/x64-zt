@@ -15,6 +15,16 @@ namespace zonetool::cli
 			xfile::container container;
 		};
 
+		template <typename Header>
+		void print_iw8_header(const Header& header)
+		{
+			std::cout << std::format("transient type: {}\n", header.transient_file_type);
+			std::cout << std::format("resident size:  0x{:X}\n", header.resident_part_size);
+			std::cout << std::format("resident hash:  0x{:X}\n", header.resident_hash);
+			std::cout << std::format("always loaded:  0x{:X}\n", header.always_loaded_part_size);
+			std::cout << std::format("preload walk:   0x{:X}\n", header.preload_walk_size);
+		}
+
 		zone_summary summarize(const game& game, const std::filesystem::path& path)
 		{
 			zone_summary summary{};
@@ -81,12 +91,11 @@ namespace zonetool::cli
 
 			if (summary.container == xfile::container::iw8)
 			{
-				const auto& header = file.iw8_header;
-				std::cout << std::format("transient type: {}\n", header.transient_file_type);
-				std::cout << std::format("resident size:  0x{:X}\n", header.resident_part_size);
-				std::cout << std::format("resident hash:  0x{:X}\n", header.resident_hash);
-				std::cout << std::format("always loaded:  0x{:X}\n", header.always_loaded_part_size);
-				std::cout << std::format("preload walk:   0x{:X}\n", header.preload_walk_size);
+				print_iw8_header(file.iw8_header);
+			}
+			else if (summary.container == xfile::container::s4)
+			{
+				print_iw8_header(file.s4_header);
 			}
 		}
 

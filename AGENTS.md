@@ -33,9 +33,10 @@ The `v2` branch is a standalone rewrite of x64-zt with the assistance of AI to h
 | `iw8` | Modern Warfare 2019 1.20 | `docs/IW8_SUPPORT.md`, `docs/IW8_IN_IW7_FOCUS.md` |
 | `s1` | Advanced Warfare | `docs/S1_SUPPORT.md` |
 | `s2` | WWII | `docs/S2_SUPPORT.md`, `docs/IMPROVE_H1_S2.md` |
+| `s4` | Vanguard 1.14 | `docs/S4_SUPPORT.md`, `docs/S4_TO_IW8_LOCKIN.md` |
 | `t9` | Black Ops Cold War | `docs/T9_SUPPORT_AND_T9_IN_IW8.md` |
 
-IW4 exists only as a stage of the x86 converter chain (`iw3_iw4`, `iw4_iw5`). S4 (Vanguard) work is on its own branch and is not on `develop` yet. Other games are not supported yet. They need to be added or re-added. "Add a new game" tells how.
+IW4 exists only as a stage of the x86 converter chain (`iw3_iw4`, `iw4_iw5`). Other games are not supported yet. They need to be added or re-added. "Add a new game" tells how.
 
 ## Ground rules
 
@@ -182,6 +183,7 @@ Without a command, `zonetool.exe` opens an interactive console that waits for in
 - Game folder: `-path <folder>`, then `zonetool.json` `paths.<game>`, then the exe folder or the current folder if it has the game exe or `zone/`, then the Steam default folder if it exists.
 - `-target_path <folder>` sets the game folder of the `--target` game. Without it: `zonetool.json` `paths.<game>`, then the Steam default folder.
 - IW8 has no `zone/` folder. x64-zt reads its fastfiles from the CASC storage in `Data/`, applies the `.fp` patch of each zone, and loads `oo2core_*_win64.dll` from the game folder for Oodle. Streamed images come from the `pak_*.xpak` files in CASC. If the game folder has no `Data/` but has `zone/`, x64-zt reads the loose fastfiles in `zone/`, for example a 1.41 install.
+- S4 also reads its fastfiles and `pak_*.xpak` files from the CASC storage in `Data/`, and loads Oodle from the game folder. The supported build is the Battle.net 1.14 install.
 - IW8 `verifyzone` of a zone that does not exist prints `not found in CASC storage` and returns exit code 0. Read the log line, not the exit code.
 - `zonetool.json` is next to `zonetool.exe`. Example: `{"game": "h1", "paths": {"h1": "path/to/mwr"}}`.
 - `dumpasset` finds only assets that the zone holds, not referenced ones (`type,,name` rows in the CSV). Type names are the CSV type names. IW7 also searches the converter required zones, so `dumpasset weapon <name> <view zone> --target iw8` converts the weapon with its view model loaded.
@@ -287,6 +289,7 @@ Stream facts:
 - H1 blocks: TEMP 0, PHYSICAL 1, RUNTIME 2, VIRTUAL 3, LARGE 4, CALLBACK 5, SCRIPT 6.
 - IW7 blocks: TEMP 0, TEMP_PRELOAD 1 (aligns to 16 on pop), RUNTIME 6, VIRTUAL 8. IW7 has 10 blocks.
 - IW8 blocks: TEMP 1, TEMP_PRELOAD 2 (aligns to 32 on pop), RUNTIME 4, VIRTUAL 5, SCRIPT 6, PHYSICAL 7. IW8 has 11 blocks.
+- S4 blocks: TEMP 1, TEMP_PRELOAD 2, RUNTIME 6, VIRTUAL 7, SCRIPT 8, PHYSICAL 9. S4 has 10 blocks. In the S4 asm, `Load_Stream` with `ecx` 1 reads nothing, and `ecx` 0 reads the data.
 - RUNTIME data holds no file bytes. The game zero-fills it.
 - Data read in TEMP is lost after `pop_stream`. Copy it with `duplicate` if you keep it.
 - H1 pointers: `0xFDFDFDFFFFFFFFFF` is inline, `...FE` is inline with an insert slot. Other values are offsets: block `(v >> 32) & 0xF`, offset `(u32)v - 1`.
@@ -840,6 +843,7 @@ Run these after a change to a reader, writer or the container code:
 | IW8 | 9471 of 9494 (`code_post_gfx` and old frontend zones fail, see `docs/IW8_SUPPORT.md`) | `mp_rust`, `srv_mp_rust`, `techsets_mp_rust` |
 | S1 | 3058 of 3058 | `mp_prison` |
 | S2 | 268 of 268 | `common`, `mp_aachen_v2` |
+| S4 | 3746 of 3746 | `code_pre_gfx`, `mp_radar` |
 | T9 | No full count yet | none |
 
 The total changes when the zone folder changes. A zone that passed before and fails now is a regression.

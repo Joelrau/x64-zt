@@ -1236,7 +1236,7 @@ namespace zonetool::iw7::converter::iw8::gfximage
 			result->semantic = target::TS_FUNCTION;
 			result->category = target::IMG_CATEGORY_AUTO_GENERATED;
 			result->levelCount = 1;
-			result->streamedPartCount = 8; // TODO: stock gradingclutmp_rust_clut only
+			result->unknown = 8; // TODO: stock gradingclutmp_rust_clut only
 			result->pixels.residentData = allocator.allocate_array<char>(result->totalSize);
 			std::memcpy(result->pixels.residentData, converted.data(), result->totalSize);
 			return result;

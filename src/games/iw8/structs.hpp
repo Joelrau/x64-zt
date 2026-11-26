@@ -1269,6 +1269,14 @@ namespace zonetool::iw8
 		char* residentData;
 	};
 
+	enum GfxDecalAtlasIndex : std::uint8_t
+	{
+		DECAL_ATLAS_NONE = 0,
+		DECAL_ATLAS_BC7_SRGB = 1,
+		DECAL_ATLAS_BC7 = 2,
+		DECAL_ATLAS_BC4 = 3,
+	};
+
 	struct GfxImage
 	{
 		const char* name;
@@ -1286,14 +1294,15 @@ namespace zonetool::iw8
 		TextureSemantic semantic;
 		GfxImageCategory category;
 		unsigned char levelCount;
+		unsigned char unknown;
 		unsigned char streamedPartCount;
-		unsigned char decalAtlasIndex;
-		char freqDomainMetricBias;
+		GfxDecalAtlasIndex decalAtlasIndex;
 		GfxImageStreamData streams[4];
 		GfxImageFallback* fallback;
 		GfxImagePixels pixels;
 	}; assert_sizeof(GfxImage, 0xE8);
 	assert_offsetof(GfxImage, atlasInfo, 0x2C);
+	assert_offsetof(GfxImage, decalAtlasIndex, 0x33);
 	assert_offsetof(GfxImage, fallback, 0xD8);
 
 	enum ComPrimaryLightSpawnFlags : unsigned char
@@ -1379,6 +1388,13 @@ namespace zonetool::iw8
 		unsigned int treeSize;
 		unsigned int alwaysListLength;
 	}; assert_sizeof(SpatialPartition_Tree, 0x18);
+
+	struct SpatialPartition_TreeNodeHeader
+	{
+		unsigned int isLeaf : 1;
+		unsigned int count : 7;
+		unsigned int unused : 24;
+	}; assert_sizeof(SpatialPartition_TreeNodeHeader, 0x4);
 
 	struct G_GlassPiece
 	{
@@ -4230,6 +4246,8 @@ namespace zonetool::iw8
 
 	enum MaterialConstantIndex : std::uint8_t
 	{
+		MATERIAL_CONSTANT_LAYER_FLAGS = 0x0,
+		MATERIAL_CONSTANT_LAYER_TINT = 0x9,
 		MATERIAL_CONSTANT_SPRITE_BLEND_PARMS = 0x9,
 		MATERIAL_CONSTANT_TRANSMISSION_TINT = 18,
 		MATERIAL_CONSTANT_SPRITE_BLEND_TINT = 0x12,
@@ -4252,6 +4270,11 @@ namespace zonetool::iw8
 		MATERIAL_CONSTANT_FALLOFF_END_COLOR = 0xE4, // TODO: id not proven
 		MATERIAL_CONSTANT_FEATHER_PARMS = 0xE5, // TODO: id not proven
 		MATERIAL_CONSTANT_EYE_OFFSET_PARMS = 0xE6, // TODO: id not proven
+	};
+
+	enum MaterialTechniqueSetFeature : std::uint64_t // first hex token after the alpha token of the name
+	{
+		TECHSET_FEATURE_WIND = 0x10,
 	};
 
 	enum CameraRegion : std::uint8_t
@@ -6921,6 +6944,14 @@ namespace zonetool::iw8
 		scr_string_t scrScript_id;
 	}; assert_sizeof(ScriptableStateScriptedDef, 0x18);
 
+	enum ScriptableHintHoldDuration : std::uint32_t
+	{
+		SCRIPTABLE_HINT_HOLD_SHORT = 0x0,
+		SCRIPTABLE_HINT_HOLD_MEDIUM = 0x1,
+		SCRIPTABLE_HINT_HOLD_LONG = 0x2,
+		SCRIPTABLE_HINT_HOLD_NONE = 0x3,
+	};
+
 	struct ScriptableStateUsableDef
 	{
 		ScriptableStateBaseDef* base;
@@ -6996,6 +7027,11 @@ namespace zonetool::iw8
 	assert_offsetof(ScriptablePartDef, states, 0x30);
 
 	struct XAnim_s;
+
+	enum ScriptableDefFlags : std::int32_t
+	{
+		SCRIPTABLE_DEF_FLAG_NO_ENTITY = 0x2000,
+	};
 
 	struct ScriptableDef
 	{
@@ -10584,6 +10620,19 @@ namespace zonetool::iw8
 		float closeDistance;
 	}; assert_sizeof(UmbraGate, 0x20);
 
+	enum UmbraUserIdType : unsigned int
+	{
+		UMBRA_USER_ID_SURFACE = 0x0,
+		UMBRA_USER_ID_SMODEL_COLLECTION = 0x10000000,
+		UMBRA_USER_ID_UNUSED = 0x20000000,
+		UMBRA_USER_ID_VOLUMETRIC = 0x30000000,
+		UMBRA_USER_ID_PRIMARY_LIGHT = 0x40000000,
+		UMBRA_USER_ID_REFLECTION_PROBE = 0x50000000,
+		UMBRA_USER_ID_DECAL_VOLUME = 0x60000000,
+		UMBRA_USER_ID_TYPE_MASK = 0x70000000,
+		UMBRA_USER_ID_INDEX_MASK = 0xFFFFFF,
+	};
+
 	enum StaticModelFlags : std::uint8_t
 	{
 		STATIC_MODEL_FLAG_LIGHTPROBE_LIGHTING = 0x1,
@@ -11978,6 +12027,35 @@ namespace zonetool::iw8
 		float minReticleScale;
 		float maxReticleScale;
 	}; assert_sizeof(ReticleDef, 0x48);
+
+	struct hkcdSimdTreeNode
+	{
+		vec4_t lx;
+		vec4_t hx;
+		vec4_t ly;
+		vec4_t hy;
+		vec4_t lz;
+		vec4_t hz;
+		unsigned int data[4];
+		bool isLeaf;
+		bool isActive;
+		char pad[14];
+	}; assert_sizeof(hkcdSimdTreeNode, 0x80);
+
+	struct hknpShapeInstance
+	{
+		vec4_t transform[4];
+		vec4_t scale;
+		std::uint64_t shape;
+		unsigned short shapeTag;
+		unsigned short destructionTag;
+		unsigned char isEmpty;
+		unsigned int nextEmptyElement;
+		unsigned int instanceId;
+		std::uint64_t parentShape;
+	}; assert_sizeof(hknpShapeInstance, 0x70);
+	assert_offsetof(hknpShapeInstance, shape, 0x50);
+	assert_offsetof(hknpShapeInstance, nextEmptyElement, 0x60);
 
 	struct PhysicsLibrary
 	{

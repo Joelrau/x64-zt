@@ -18,7 +18,7 @@ namespace umbra_tome
 		unsigned int objectCount;
 		unsigned int objectBounds;
 		unsigned int objectDistances;
-		unsigned int unk0x4C;
+		unsigned int userIDStarts;
 		unsigned int userIDs;
 		unsigned int indexWidth;
 		unsigned int objectLists;

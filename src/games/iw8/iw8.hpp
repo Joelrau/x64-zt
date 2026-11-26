@@ -76,6 +76,7 @@
 	x(ASSET_TYPE_NAVMESH, nav_mesh, NavMeshData) \
 	x(ASSET_TYPE_MAP_ENTS, map_ents, MapEnts) \
 	x(ASSET_TYPE_CLIPMAP, clip_map, clipMap_t) \
+	x(ASSET_TYPE_COLLISION_TILE, collision_tile, CollisionTile) \
 	x(ASSET_TYPE_ST_TERRAIN, st_terrain, StTerrain) \
 	x(ASSET_TYPE_STREAMING_INFO, streaming_info, StreamingInfo) \
 	x(ASSET_TYPE_VEHICLE, vehicle, VehicleDef) \
@@ -108,7 +109,6 @@
 	x(ASSET_TYPE_AI_ANIM_SET, animset, Animset) \
 	x(ASSET_TYPE_AI_ASM, ai_asm, ASM) \
 	x(ASSET_TYPE_STREAM_TREE_OVERRIDE, stream_tree_override, StreamTreeOverride) \
-	x(ASSET_TYPE_COLLISION_TILE, collision_tile, CollisionTile) \
 	x(ASSET_TYPE_EQUIPMENT_SND_TABLE, equipment_sound_table, EquipmentSoundTable) \
 	x(ASSET_TYPE_TTF, ttf_def, TTFDef)
 
